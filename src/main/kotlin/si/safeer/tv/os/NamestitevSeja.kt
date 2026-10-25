@@ -50,8 +50,13 @@ object NamestitevSeja {
         val paket: String,
         val ime: String,
         val izvor: Izvor,
+        /** Preverjena vsota: tudi stara pot (sistemski namestitelj) dobi samo datoteko s to vsoto (Grok 8, S5). */
+        val vsota: String,
         val rezerva: (Activity) -> Unit
-    )
+    ) {
+        /** Android je za to sejo pokazal okno za potrditev (Grok 8, S1: ABORTED brez njega ni uporabnikov preklic). */
+        @Volatile var potrditev = false
+    }
 
     private val cakajo = ConcurrentHashMap<Int, Zahteva>()
 
@@ -87,7 +92,7 @@ object NamestitevSeja {
         p.setSize(velikost)
         p.setInstallReason(PackageManager.INSTALL_REASON_USER)
         if (Build.VERSION.SDK_INT >= 31) p.setRequireUserAction(
-            if (NamestitevPravila.zahtevaUporabnika(izvor, podpis) == NamestitevPravila.UPORABNIK_NI_POTREBEN)
+            if (NamestitevPravila.zahtevaUporabnika(izvor, podpis, paket) == NamestitevPravila.UPORABNIK_NI_POTREBEN)
                 PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED else PackageInstaller.SessionParams.USER_ACTION_UNSPECIFIED)
         if (Build.VERSION.SDK_INT >= 33) p.setPackageSource(when (vir) {
             NamestitevPravila.VIR_DRUGO -> PackageInstaller.PACKAGE_SOURCE_OTHER
@@ -105,14 +110,14 @@ object NamestitevSeja {
     fun namesti(a: Activity, f: File, vsota: String, paket: String, ime: String, izvor: Izvor, rezerva: (Activity) -> Unit) {
         val app = a.applicationContext
         val glavna = Handler(Looper.getMainLooper())
-        val zahteva = Zahteva(WeakReference(a), f, paket, ime, izvor, rezerva)
+        val zahteva = Zahteva(WeakReference(a), f, paket, ime, izvor, vsota, rezerva)
         Thread({
             var id = -1
             var oddano = false
             val pi = app.packageManager.packageInstaller
             // Branje podpisa razcleni APK (desetine MB): v tej niti, ne na glavni.
             val podpis = podpis(app, f)
-            val vir = NamestitevPravila.virPaketa(izvor, podpis)
+            val vir = NamestitevPravila.virPaketa(izvor, podpis, paket)
             if (vir == null) {
                 log("$paket: podpis APK ni Safeerjev - posodobitve ne namestimo")
                 f.delete()
@@ -155,10 +160,39 @@ object NamestitevSeja {
                 log("$paket: seje ni bilo mogoce uporabiti ($t) - sistemski namestitelj")
                 cakajo.remove(id)
                 if (id >= 0) try { pi.abandonSession(id) } catch (_: Throwable) { }
-                glavna.post { zahteva.dejavnost.get()?.takeIf { !it.isFinishing }?.let { rezerva(it) } }
+                rezervaPoPreverbi(app, zahteva)
             }
         }, "safeer-namestitev-seja").start()
     }
+
+    /**
+     * Grok 8, S5/S2: stara pot (sistemski namestitelj) samo z datoteko, ki ima se vedno preverjeno vsoto; ce dejavnosti
+     * ni vec (proces se je medtem koncal), uporabnik dobi sporocilo namesto tisine.
+     */
+    private fun rezervaPoPreverbi(app: Context, z: Zahteva) {
+        val glavna = Handler(Looper.getMainLooper())
+        Thread({
+            val ok = try {
+                z.datoteka.inputStream().use { v ->
+                    NamestitevPravila.enakaVsota(NamestitevPravila.prepisi(v, object : java.io.OutputStream() {
+                        override fun write(b: Int) {}
+                        override fun write(b: ByteArray, off: Int, len: Int) {}
+                    }), z.vsota)
+                }
+            } catch (_: Throwable) { false }
+            glavna.post {
+                val a = z.dejavnost.get()?.takeIf { !it.isFinishing }
+                when {
+                    !ok -> { log("${z.paket}: vsota datoteke ni vec preverjena - stare poti ne uporabimo"); z.datoteka.delete(); sporociNapako(app, z.izvor, z.ime) }
+                    a != null -> z.rezerva(a)
+                    else -> sporociNapako(app, z.izvor, z.ime)
+                }
+            }
+        }, "safeer-namestitev-preverba").start()
+    }
+
+    /** Izvor za sporocilo, kadar zapisa o seji ni vec (proces se je koncal med namestitvijo). */
+    private fun izvorZa(ctx: Context, paket: String) = if (paket == ctx.packageName) Izvor.POSODOBITEV else Izvor.SPLET
 
     /** Stara pot (rezerva): APK predamo sistemskemu namestitelju prek FileProvider (cache_files/[mapa]/ime). */
     fun sistemskiNamestitelj(a: Activity, mapa: String, f: File): Boolean {
@@ -206,11 +240,12 @@ object NamestitevSeja {
             val z = cakajo[id]
             val paket = z?.paket ?: intent.getStringExtra(PackageInstaller.EXTRA_PACKAGE_NAME) ?: "?"
             log("$paket: seja $id stanje $status $sporocilo")
-            val odziv = NamestitevPravila.odziv(status)
+            val odziv = NamestitevPravila.odziv(status, z?.potrditev == true)
             // Posodobitev sebe ni uspela (ali gre na staro pot z oknom »Odpri«): Safeerja po njej ne odpiramo sami.
             if (paket == context.packageName && odziv != Odziv.POTRDITEV && odziv != Odziv.USPEH) prefs(context).edit().remove(SAMOPOSODOBITEV).apply()
             when (odziv) {
                 Odziv.POTRDITEV -> {
+                    z?.potrditev = true
                     val p = potrditev(intent)
                     // Okno Androida odpremo iz nase dejavnosti, ce je se odprta (zagon iz ozadja Android lahko zavrne).
                     val od: Context = z?.dejavnost?.get()?.takeIf { !it.isFinishing && !it.isDestroyed } ?: context
@@ -220,7 +255,8 @@ object NamestitevSeja {
                     // Okna potrditve ni bilo mogoce odpreti: opusti sejo in pojdi na staro pot.
                     try { context.packageManager.packageInstaller.abandonSession(id) } catch (_: Throwable) { }
                     cakajo.remove(id)
-                    z?.dejavnost?.get()?.takeIf { !it.isFinishing }?.let { z.rezerva(it) }
+                    // Grok 8, S2: brez zapisa (proces koncan) ali brez dejavnosti - sporocilo, ne tisina.
+                    if (z != null) rezervaPoPreverbi(context, z) else sporociNapako(context, izvorZa(context, paket), paket)
                 }
                 Odziv.USPEH -> {
                     cakajo.remove(id); z?.datoteka?.delete()
@@ -229,12 +265,11 @@ object NamestitevSeja {
                 Odziv.PREKLIC -> { cakajo.remove(id); z?.datoteka?.delete() }
                 Odziv.STARA_POT -> {
                     cakajo.remove(id)
-                    val a = z?.dejavnost?.get()?.takeIf { !it.isFinishing }
-                    if (z != null && a != null) z.rezerva(a) else z?.let { sporociNapako(context, it.izvor, it.ime) }
+                    if (z != null) rezervaPoPreverbi(context, z) else sporociNapako(context, izvorZa(context, paket), paket)
                 }
                 Odziv.NAPAKA -> {
                     cakajo.remove(id); z?.datoteka?.delete()
-                    if (z != null) sporociNapako(context, z.izvor, z.ime)
+                    sporociNapako(context, z?.izvor ?: izvorZa(context, paket), z?.ime ?: paket)
                 }
             }
         }

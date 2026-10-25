@@ -42,6 +42,13 @@ object DebridPravila {
         else -> MAGNET_OPOZORI
     }
 
+    /**
+     * Grok 9, Z1: pomoc drugi napravi v Linku (`magnet.stream`) poveze TO napravo z rojem. Nov torrent samo, ce je
+     * uporabnik na napravi, ki prosi, potrdil opozorilo o vidnem naslovu IP ([p2pPotrjen], parameter `p2p`); torrent, ki ga
+     * naprava ze hrani ([zeHrani], polica kroga), je v roju ze bil.
+     */
+    fun pomocVRoju(zeHrani: Boolean, p2pPotrjen: Boolean): Boolean = zeHrani || p2pPotrjen
+
     /** Ime torrenta iz povezave (dn=), brez omrezja in roja; prazno, ce ga povezava nima. */
     fun imeMagneta(magnet: String): String = magnet.substringAfter('?', "").split('&')
         .firstOrNull { it.startsWith("dn=", ignoreCase = true) }

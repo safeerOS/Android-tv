@@ -183,6 +183,16 @@ private fun namizje() {
 fun main() {
     println("Zaganjalnik Safeer OS: pravila")
     postavitve(); padci(); znacke(); vsebina(); varnostnaVrata(); namizje()
+    // Grok 8, Z5: ura naprave, prestavljena nazaj ali naprej, vrat ne izklopi.
+    run {
+        val zdaj = 10_000_000_000L
+        val ura = 3_600_000L
+        preveri("Z5: padec iz prihodnosti je svez", ZaganjalnikPravila.svezi(listOf(zdaj + ura), zdaj, 60_000L).size == 1)
+        preveri("Z5: vklop iz prihodnosti ne izloci novih padcev", ZaganjalnikPravila.padciPo(listOf(zdaj - 1000, zdaj - 500), zdaj + ura, zdaj).size == 2)
+        preveri("Z5: pravi vklop izloci starejse", ZaganjalnikPravila.padciPo(listOf(zdaj - 1000, zdaj - 500), zdaj - 700, zdaj).size == 1)
+        preveri("Z5: trije padci po popravku ure vrnejo", ZaganjalnikPravila.vrniPrejsnjemu(
+            ZaganjalnikPravila.padciPo(listOf(zdaj - 3000, zdaj - 2000, zdaj - 1000), zdaj + ura, zdaj), zdaj, 1))
+    }
     println(if (napak == 0) "\nVSE OK" else "\nNAPAK: $napak")
     if (napak > 0) kotlin.system.exitProcess(1)
 }

@@ -96,10 +96,14 @@ class VarnostnaVrataPloscica : TileService() {
         super.onClick()
         val dejanje = if (Zaganjalnik.jeIzbran(this)) VarnostnaVrata.DEJANJE_VRNI else VarnostnaVrata.DEJANJE_SAFEER
         val namera = Intent(this, VarnostnaVrataActivity::class.java).setAction(dejanje).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        try {
-            if (Build.VERSION.SDK_INT >= 34) {
-                startActivityAndCollapse(PendingIntent.getActivity(this, 7412, namera, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
-            } else @Suppress("DEPRECATION") startActivityAndCollapse(namera)
-        } catch (e: Throwable) { Log.w("SafeerVarnostnaVrata", "Ploscica: ${e.message}") }
+        val zazeni = {
+            try {
+                if (Build.VERSION.SDK_INT >= 34) {
+                    startActivityAndCollapse(PendingIntent.getActivity(this, 7412, namera, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
+                } else @Suppress("DEPRECATION") startActivityAndCollapse(namera)
+            } catch (e: Throwable) { Log.w("SafeerVarnostnaVrata", "Ploscica: ${e.message}") }
+        }
+        // Grok 8, Z4: na zaklenjeni napravi sele po odklepu - izbire domacega zaslona ne spremeni nekdo brez kode.
+        if (isLocked) unlockAndRun { zazeni() } else zazeni()
     }
 }

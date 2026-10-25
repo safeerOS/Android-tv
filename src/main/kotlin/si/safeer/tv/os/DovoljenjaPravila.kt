@@ -138,9 +138,11 @@ object DovoljenjaPravila {
      * 25. 10. 2026), en »Display over other apps«. Drugih proizvajalcev (npr. Xiaomi) nismo preverili - zanje splosno
      * ime; nov proizvajalec se doda v [IMENA_PRIKAZA] (in nizi v values*).
      */
-    enum class ImePrikaza { SPLOSNO, SAMSUNG }
+    // Grok 9, K1 - izmerjeno 25. 10. 2026 (stran ACTION_MANAGE_OVERLAY_PERMISSION, naslov seznama): OnePlus 9, OxygenOS 14
+    // (LE2113_14.0.0.1902) sl »Prikaži nad drugimi aplikacijami«; WP28 S (Android 14) sl »Prekrivanje drugih aplikacij«.
+    enum class ImePrikaza { SPLOSNO, SAMSUNG, ONEPLUS }
 
-    private val IMENA_PRIKAZA = mapOf("samsung" to ImePrikaza.SAMSUNG)
+    private val IMENA_PRIKAZA = mapOf("samsung" to ImePrikaza.SAMSUNG, "oneplus" to ImePrikaza.ONEPLUS)
 
     fun imePrikaza(proizvajalec: String?): ImePrikaza = IMENA_PRIKAZA[proizvajalec.orEmpty().trim().lowercase()] ?: ImePrikaza.SPLOSNO
 

@@ -3,7 +3,7 @@
 <resources>
     <string name="dov_naslov">Autorisations</string>
     <string name="dov_opis_vrstice">Ce dont Safeer a besoin et pourquoi – activez-le d\'un geste</string>
-    <string name="dov_uvod">Safeer ne demande que ce qu\'il utilise vraiment. Le bouton ouvre exactement la bonne page : activez Safeer puis revenez. Vous pouvez tout révoquer à tout moment.</string>
+    <string name="dov_uvod">Safeer ne demande que ce qu\'il utilise vraiment. Le bouton ouvre la bonne page de réglages : activez Safeer puis revenez. Pour l\'affichage par-dessus les autres applis, Android affiche une liste d\'applis : cherchez-y Safeer. Vous pouvez tout révoquer à tout moment.</string>
     <string name="dov_ob_zagonu">Il manque encore quelque chose d\'important : Safeer Link ne peut pas tout faire sur cet appareil. Touchez « Autoriser » sur les lignes marquées.</string>
     <!-- Ime posebnega dostopa v cistem Androidu (OnePlus, WP28 S in vecina drugih; sl preverjeno na napravah lastnika 25. 10. 2026). -->
     <string name="dov_prikaz">Afficher par-dessus les autres applis</string>
@@ -25,7 +25,7 @@
     <string name="dov_ne">✗ Non autorisé</string>
     <string name="dov_delno">◐ Sélection seulement</string>
     <string name="dov_gumb_dovoli">Autoriser</string>
-    <string name="dov_gumb_nastavitev">Réglage</string>
+    <string name="dov_gumb_nastavitev">Ouvrir les réglages</string>
     <string name="dov_namig_naslov">L\'interrupteur est grisé ou ne bouge pas ?</string>
     <string name="dov_namig_1">1. Sur la page système, touchez une fois l\'interrupteur grisé de Safeer : Android indique que le paramètre est restreint. Fermez ce message.</string>
     <string name="dov_namig_2">2. Touchez le bouton ci-dessous, puis ⋮ en haut à droite et choisissez « Autoriser les paramètres restreints » (sur Samsung, l\'option peut être directement sur la page). Revenez ici et touchez à nouveau « Autoriser ».</string>
@@ -34,6 +34,8 @@
     <string name="dov_stanje_vse">Tout autorisé</string>
     <string name="dov_stanje_manjka">Manquant : %1$d</string>
     <string name="dov_obvestilo_naslov">Safeer Link : autoriser l\'ouverture d\'applis</string>
-    <string name="dov_obvestilo_besedilo">Un appareil associé voulait ouvrir %1$s. Touchez « Autoriser », activez « %2$s » pour Safeer sur la page qui s\'ouvre, puis renvoyez la commande. Une fois suffit.</string>
+    <string name="dov_obvestilo_besedilo">Un appareil associé voulait ouvrir %1$s. Touchez « Autoriser », puis « Autoriser » à côté de « %2$s ». Android affiche une liste d\'applis : trouvez « %3$s » et activez-le. Renvoyez ensuite la commande. Une fois suffit.</string>
     <string name="dov_izid_brez">Sur cet appareil, autorisez une fois « %1$s » pour Safeer (la notification est déjà affichée, ou Safeer › Paramètres › Autorisations), puis relancez %2$s.</string>
+    <string name="dov_obvestilo_besedilo_sistem">Un appareil associé voulait ouvrir %1$s. Touchez « Autoriser » : Android ouvre « %2$s » avec une liste d\'applis ; trouvez « %3$s », activez-le et renvoyez la commande. Une fois suffit.</string>
+    <string name="dov_prikaz_oneplus">Afficher par-dessus les autres applis</string>
 </resources>

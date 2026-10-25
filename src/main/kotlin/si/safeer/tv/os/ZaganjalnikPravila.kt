@@ -80,7 +80,8 @@ object ZaganjalnikPravila {
 
     /** Casi padcev, ki se stejejo (zadnji v oknu); starejse pozabimo. Hrani se daljse okno. */
     fun svezi(casi: List<Long>, zdaj: Long, okno: Long = OKNO_PADCEV_DOLGO_MS): List<Long> =
-        casi.filter { it in (zdaj - okno)..zdaj }.takeLast(10)
+        // Grok 8, Z5: padec z uro »iz prihodnosti« (ura naprave je bila naprej) je svez - ne izpade iz okna.
+        casi.map { minOf(it, zdaj) }.filter { it in (zdaj - okno)..zdaj }.takeLast(10)
 
     /**
      * Padci iz dveh virov - lasten zapis ob padcu (lovilec v procesu) in sistemski zapis izhodov procesa (Android 11+,
@@ -107,7 +108,10 @@ object ZaganjalnikPravila {
      * Stejejo samo padci po [od] - po zadnjem vklopu Safeerja kot domacega zaslona ali po zadnji vrnitvi. Sicer bi stari
      * padci (se v sistemskem zapisu) uporabnika, ki Safeer znova izbere, takoj spet vrgli ven.
      */
-    fun padciPo(casi: List<Long>, od: Long): List<Long> = casi.filter { it > od }
+    fun padciPo(casi: List<Long>, od: Long, zdaj: Long = Long.MAX_VALUE): List<Long> =
+        // Grok 8, Z5: vklop »iz prihodnosti« (ura je bila naprej, nato popravljena) ne sme izlociti vseh novih padcev -
+        // takrat velja samo okno svezih padcev ([svezi]).
+        if (od > zdaj) casi else casi.filter { it > od }
 
     /** Ali je zaganjalnik pravi (ne sistemski FallbackHome z negativno prednostjo). */
     fun jePraviZaganjalnik(paket: String, razred: String, prednost: Int, nas: String): Boolean =

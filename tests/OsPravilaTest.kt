@@ -1069,9 +1069,20 @@ private fun preizkusSlikSpletnihZadetkov() {
     preveriEnako("lazen youtube.com.evil ne dobi slicice", "", OsPravila.slikaSpletnegaZadetka("", "https://youtube.com.evil.test/watch?v=fyLcthMA-JI"))
     preveriEnako("YouTube brez id posnetka (kanal) ostane brez", "", OsPravila.slikaSpletnegaZadetka("", "https://m.youtube.com/@kanal"))
     preveriEnako("id daljsi od 11 znakov ni posnetek", "", OsPravila.slikaSpletnegaZadetka("", "https://m.youtube.com/watch?v=fyLcthMA-JIx"))
+    // Grok 10, M6: slika s tuje strani samo https na javno ime gostitelja.
+    for (slaba in listOf("http://primer.test/p.jpg", "file:///sdcard/a.jpg", "content://x/y", "javascript:alert(1)", "data:image/gif;base64,R0lG",
+            "https://172.16.5.4/cgi-bin/x", "https://10.0.0.1/p.jpg", "https://localhost/p.jpg", "https://tv.local/p.jpg", "https://[::1]/p.jpg",
+            "https://uporabnik@172.16.5.4/p.jpg", "https://0x7f.1/p.jpg", "https://router/p.jpg", "https://nas.lan:8080/p.jpg"))
+        preveriEnako("M6: zavrnjena slika $slaba", "", OsPravila.slikaSpletnegaZadetka(slaba, "https://primer.test/film/1"))
+    preveriEnako("M6: YouTube z zavrnjeno sliko dobi slicico", "https://i.ytimg.com/vi/C6Ogww8CtfM/hqdefault.jpg",
+        OsPravila.slikaSpletnegaZadetka("http://172.16.5.4/x.jpg", "https://youtu.be/C6Ogww8CtfM"))
+    preveriEnako("M6: javna slika z vrati ostane", "https://cdn.primer.test:8443/p.jpg", OsPravila.slikaSpletnegaZadetka("https://cdn.primer.test:8443/p.jpg", "https://primer.test/film/1"))
+    preveriEnako("M16: povezava zadetka ni slika", "", OsPravila.slikaSpletnegaZadetka("https://primer.test/film/1", "https://primer.test/film/1"))
+    preveriEnako("M6: omejeno branje v meji", 3, OsPravila.beriOmejeno(java.io.ByteArrayInputStream(ByteArray(3)), 3)?.size)
+    preveriEnako("M6: omejeno branje cez mejo", null, OsPravila.beriOmejeno(java.io.ByteArrayInputStream(ByteArray(4)), 3))
 }
 
-private data class Zd(val naslov: String, val delo: Boolean = false, val lastna: Boolean = false, val oznaka: String = naslov)
+private data class Zd(val naslov: String, val delo: Boolean = false, val lastna: Boolean = false, val oznaka: String = naslov, val zvok: Boolean = false)
 
 /** Lastnik 25. 10. 2026: film s (skoraj) tocnim naslovom je prvi med »Najboljsimi zadetki«, posnetki YouTuba za njim. */
 private fun preizkusNajprejDela() {
@@ -1089,6 +1100,21 @@ private fun preizkusNajprejDela() {
     preveriEnako("delo brez tocnega naslova ne gre naprej", "yt1,film2019", red(listOf(Zd("Murderball", oznaka = "yt1"), Zd("Murderballs", delo = true, oznaka = "film2019")), "Murderball"))
     preveriEnako("prazno iskanje: nic", "yt1,film", red(listOf(Zd("Murderball", oznaka = "yt1"), Zd("Murderball", delo = true, oznaka = "film")), " "))
     preveriEnako("kljuc naslova", "murderball", OsPravila.kljucNaslova("Murderball (2005) "))
+    // Grok 10, M5: skladba z istim naslovom, ocenjena vise, ostane pred filmom; posnetek z istim imenom gre za film.
+    fun redZ(l: List<Zd>, q: String) = OsPravila.najprejDela(l, q, { it.naslov }, { it.delo }, { it.lastna }, ostane = { it.zvok }).joinToString(",") { it.oznaka }
+    preveriEnako("M5: skladba ostane pred filmom", "pesem,film,yt1",
+        redZ(listOf(Zd("Thriller", zvok = true, oznaka = "pesem"), Zd("Thriller", oznaka = "yt1"), Zd("Thriller", delo = true, oznaka = "film")), "Thriller"))
+    preveriEnako("M5: Murderball se vedno film prvi", "film,yt1,yt2,yt3,film2019,trailer", redZ(murderball, "Murderball"))
+    // Grok 10, M7: uporabnikova datoteka z imenom izdaje (drug kljuc), ocenjena vise, ostane pred filmom.
+    preveriEnako("M7: lastna datoteka z imenom izdaje ostane", "moja,film,yt1",
+        red(listOf(Zd("Murderball.2005.1080p.BluRay.x264.mkv", lastna = true, oznaka = "moja"), Zd("Murderball", oznaka = "yt1"), Zd("Murderball", delo = true, oznaka = "film")), "Murderball"))
+    // Grok 10, M11: naslov, ki je samo letnica.
+    preveriEnako("M11: kljuc letnice", "1917", OsPravila.kljucNaslova("1917"))
+    preveriEnako("M11: 1917 - film prvi", "film,yt1", red(listOf(Zd("1917", oznaka = "yt1"), Zd("1917 (2019)", delo = true, oznaka = "film")), "1917"))
+    // Grok 10, M12: crke brez razcepa NFD in oklepaj na zacetku naslova.
+    preveriEnako("M12: đ", OsPravila.kljucNaslova("davolji"), OsPravila.kljucNaslova("Đavolji"))
+    preveriEnako("M12: ß", "strasse", OsPravila.kljucNaslova("Straße"))
+    preveriEnako("M12: oklepaj na zacetku", OsPravila.kljucNaslova("500 Days of Summer"), OsPravila.kljucNaslova("(500) Days of Summer"))
 }
 
 /** Lastnik 25. 10. 2026: tri enake kartice »Murderball« - razlicni posnetki morajo biti razlocljivi, ime vira pa ne vidno. */

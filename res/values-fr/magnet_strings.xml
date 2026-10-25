@@ -51,4 +51,5 @@
     <string name="magnet_debrid_opis">%1$s télécharge ce torrent pour vous : votre adresse IP n’est pas visible des autres pairs.</string>
     <string name="magnet_debrid_predvajaj">Lire via %1$s</string>
     <string name="magnet_neposredno">Ouvrir directement (P2P)</string>
+    <string name="magnet_p2p_preklicano">Non ouvert : votre adresse IP n\'a été montrée à personne.</string>
 </resources>

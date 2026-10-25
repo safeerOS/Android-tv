@@ -38,8 +38,11 @@ class MagnetActivity : OsActivity() {
         const val EXTRA_SAMODEJNO = "magnet_samodejno"
         val ZETON: String = java.util.UUID.randomUUID().toString()
         private const val IZBERI_DATOTEKO = 7401
+        /** Kljuc potrditve opozorila za »Deli datoteko« (torrent iz datoteke se ne ve vnaprej). */
+        private const val DELI_DATOTEKO = "deli-datoteko"
         /** Torrenti (hash), za katere je uporabnik v tem zagonu potrdil opozorilo, da bo njegov IP viden v roju. */
-        private val potrjenP2p: MutableSet<String> = java.util.Collections.synchronizedSet(HashSet())
+        // Tudi Medijski center (GlasbaActivity.opozoriPredRojem): ena potrditev na torrent za vse poti v roj.
+        internal val potrjenP2p: MutableSet<String> = java.util.Collections.synchronizedSet(HashSet())
     }
 
     private lateinit var polje: EditText
@@ -73,7 +76,17 @@ class MagnetActivity : OsActivity() {
         obdelajNamero(intent)
     }
 
-    override fun onResume() { super.onResume(); glavna.post(osvezi) }
+    override fun onResume() {
+        super.onResume()
+        glavna.post(osvezi)
+        // Grok 9, Z7: vrnitev iz »Dodaj TorBox« - s storitvijo gre magnet zdaj prek nje, brez nje ostane sporocilo.
+        cakaDebrid?.let { u ->
+            cakaDebrid = null
+            if (Debrid.aktivna(this) != null) preberi(u, false) else pokazi(getString(R.string.magnet_p2p_preklicano))
+        }
+    }
+    /** Magnet, ki caka na vrnitev iz okna »Debrid storitve« (Grok 9, Z7). */
+    private var cakaDebrid: String? = null
     override fun onPause() { super.onPause(); glavna.removeCallbacks(osvezi) }
     override fun onDestroy() { super.onDestroy(); ozadje.shutdown(); debridDelavec.shutdownNow() }
 
@@ -115,9 +128,17 @@ class MagnetActivity : OsActivity() {
     private fun preberi(uri: String, samodejno: Boolean, neposredno: Boolean = false) {
         val hash = MagnetMotor.hash(uri)
         if (hash == null) { pokazi(napaka("ni_magnet")); return }
+        // Grok 9, Z5: »Odpri neposredno« takoj prekine cakanje na debrid - ta ne sme cez opozorilo zagnati predvajanja.
+        if (neposredno) debridDelo?.cancel(true)
         when (DebridPravila.potMagneta(Debrid.aktivna(this), neposredno, hash in potrjenP2p)) {
             DebridPravila.MAGNET_DEBRID -> { narisiDebrid(uri, samodejno); return }
-            DebridPravila.MAGNET_OPOZORI -> { opozoriP2p(hash) { preberi(uri, samodejno, neposredno = true) }; return }
+            DebridPravila.MAGNET_OPOZORI -> {
+                opozoriP2p(hash, { preberi(uri, samodejno, neposredno = true) }, dodaj = { cakaDebrid = uri }) {
+                    // Grok 9, Z7: po »Preklici« zaslon ni prazen - s storitvijo nazaj na debrid, sicer kratko sporocilo.
+                    if (Debrid.aktivna(this) != null) narisiDebrid(uri, false) else pokazi(getString(R.string.magnet_p2p_preklicano))
+                }
+                return
+            }
         }
         debridDelo?.cancel(true)
         pokazi(getString(R.string.magnet_berem))
@@ -231,7 +252,8 @@ class MagnetActivity : OsActivity() {
         seznam.addView(besedilo(getString(R.string.magnet_prenosi), 16f).apply { setPadding(0, (18 * resources.displayMetrics.density).toInt(), 0, 0) })
         prenosi = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         seznam.addView(prenosi)
-        seznam.addView(dejanja().apply { addView(gumb(getString(R.string.magnet_deli_datoteko)) { izberiDatoteko() }) })
+        // Grok 9, Z4: deljenje datoteke kot torrent je oddajanje v roj - najprej isto opozorilo o vidnem naslovu IP.
+        seznam.addView(dejanja().apply { addView(gumb(getString(R.string.magnet_deli_datoteko)) { opozoriP2p(DELI_DATOTEKO, { izberiDatoteko() }) }) })
         osveziPrenose()
     }
 
@@ -259,15 +281,19 @@ class MagnetActivity : OsActivity() {
         if (samodejno) predvajajDebrid(uri, ime, null)
     }
 
-    /** Pred vsako neposredno povezavo z rojem: IP bo viden. Privzeto Preklici; »Dodaj TorBox« odpre Debrid storitve. */
-    private fun opozoriP2p(hash: String, naprej: () -> Unit) {
+    /**
+     * Pred vsako neposredno povezavo z rojem: IP bo viden. Privzeto Preklici; »Dodaj TorBox« samo brez storitve (Grok 9,
+     * Z7 - z njo je uporabnik »neposredno« izbral sam) odpre Debrid storitve. [preklic] = kaj pokazati po »Preklici«.
+     */
+    private fun opozoriP2p(hash: String, naprej: () -> Unit, dodaj: () -> Unit = {}, preklic: () -> Unit = {}) {
         pokazi("")
-        val okno = AlertDialog.Builder(this).setTitle(R.string.magnet_p2p_naslov)
+        val b = AlertDialog.Builder(this).setTitle(R.string.magnet_p2p_naslov)
             .setMessage(R.string.magnet_p2p_opis)
             .setPositiveButton(R.string.magnet_p2p_vseeno) { _, _ -> potrjenP2p.add(hash); naprej() }
-            .setNeutralButton(R.string.magnet_p2p_dodaj) { _, _ -> odpriNastavitveDebrida() }
-            .setNegativeButton(android.R.string.cancel, null)
-            .create()
+            .setNegativeButton(android.R.string.cancel) { _, _ -> preklic() }
+            .setOnCancelListener { preklic() }
+        if (Debrid.aktivna(this) == null) b.setNeutralButton(R.string.magnet_p2p_dodaj) { _, _ -> dodaj(); odpriNastavitveDebrida() }
+        val okno = b.create()
         // Zadrzan OK na daljincu ne sme sam odpreti roja.
         okno.setOnShowListener { okno.getButton(AlertDialog.BUTTON_NEGATIVE)?.requestFocus() }
         okno.show()

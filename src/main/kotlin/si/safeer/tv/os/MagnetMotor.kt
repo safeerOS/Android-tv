@@ -505,6 +505,12 @@ object MagnetMotor {
 
     fun deliNaprej(c: Context, hash: String): Boolean = prefs(c).getStringSet("deli_naprej", emptySet())!!.contains(hash)
 
+    /** Ali naprava ta torrent ze hrani (med zacasnimi ali v tekoci seji) - Grok 9, Z1. */
+    fun imaTorrent(c: Context, hash: String): Boolean = try {
+        val h = hash.lowercase()
+        zacasni(c).has(h) || (seja != null && rocaj(c, h) != null)
+    } catch (_: Throwable) { false }
+
     fun nastaviDeliNaprej(c: Context, hash: String, vklop: Boolean) {
         val m = prefs(c).getStringSet("deli_naprej", emptySet())!!.toMutableSet()
         if (vklop) m.add(hash) else m.remove(hash)
@@ -765,7 +771,8 @@ object MagnetMotor {
 
     /** Datoteke zacasnega torrenta in njegova datoteka delnih kosov (.<hash>.parts) - tudi kadar seja ne tece. */
     private fun izbrisiDatoteke(c: Context, hash: String, ime: String) {
-        potZacasnega(c, ime)?.let { try { it.deleteRecursively() } catch (_: Throwable) { } }
+        // Grok 9, Z9: brez sledenja simbolnim povezavam (torrent jih lahko vsebuje) - brise samo znotraj mape torrenta.
+        potZacasnega(c, ime)?.let { try { ZacasniPravila.izbrisiBrezPovezav(it) } catch (_: Throwable) { } }
         if (Regex("^[0-9a-f]{40}$").matches(hash)) try { File(mapa(c), ".$hash.parts").delete() } catch (_: Throwable) { }
     }
 
@@ -808,8 +815,12 @@ object MagnetMotor {
         val vTeku = rok("debug.safeer.torrent_tece_ms", ZacasniPravila.V_TEKU_MS)
         val vsi = ZacasniPravila.poVrsti(z.keys().asSequence().toList().mapNotNull { h -> z.optJSONObject(h)?.let { it.optLong("cas") to (h to it.optString("ime")) } })
         var odstranjenih = 0
-        for ((cas, vnos) in vsi) {
+        var popravljenih = 0
+        for ((casZapisa, vnos) in vsi) {
             val (h, ime) = vnos
+            // Grok 9, Z12: zapis »iz prihodnosti« (ura naprave je bila ob zagonu naprej) velja od zdaj - sicer ne bi potekel nikoli.
+            val cas = ZacasniPravila.popraviCas(casZapisa, zdaj)
+            if (cas != casZapisa) { z.optJSONObject(h)?.put("cas", cas); popravljenih++ }
             if (h == obdrzi.lowercase()) continue
             // »Obdrži«: kar je uporabnik oznacil, ne potece in ne gre niti ob pomanjkanju prostora.
             val drzimo = z.optJSONObject(h)?.optBoolean("obdrzi") == true
@@ -826,7 +837,7 @@ object MagnetMotor {
             odstranjenih++
             Log.i(TAG, "Zacasni torrent $h odstranjen (${if (pretekel) "${velja / 3_600_000} h brez predvajanja" else "prostor za nov film"})")
         }
-        if (odstranjenih > 0) { prefs(c).edit().putString("zacasni", z.toString()).apply(); prostorOb = 0L }
+        if (odstranjenih > 0 || popravljenih > 0) { prefs(c).edit().putString("zacasni", z.toString()).apply(); prostorOb = 0L }
         return odstranjenih
     }
 

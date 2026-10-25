@@ -244,5 +244,10 @@ fun main() {
     preveriEnako("brez dn: prazno", "", DebridPravila.imeMagneta("magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c"))
     preveriEnako("pokvarjen dn: prazno", "", DebridPravila.imeMagneta("magnet:?xt=urn:btih:dd82&dn=%E0%A4%A"))
 
+    // Grok 9, Z1: pomoc drugi napravi v roju samo s potrditvijo ali za torrent, ki ga naprava ze hrani.
+    preveriEnako("Z1: nov torrent brez potrditve: ne", false, DebridPravila.pomocVRoju(zeHrani = false, p2pPotrjen = false))
+    preveriEnako("Z1: nov torrent s potrditvijo: da", true, DebridPravila.pomocVRoju(zeHrani = false, p2pPotrjen = true))
+    preveriEnako("Z1: torrent, ki ga naprava ze hrani: da", true, DebridPravila.pomocVRoju(zeHrani = true, p2pPotrjen = false))
+
     if (napak == 0) println("DebridPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

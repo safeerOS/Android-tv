@@ -507,10 +507,38 @@ object OsPravila {
      * drugi viri ostanejo s sliko, kot jo je dala stran.
      */
     fun slikaSpletnegaZadetka(slika: String, povezava: String): String {
-        val s = slika.trim()
+        // Grok 10, M6/M16: sliko da tuja stran (njen JS lahko vrne karkoli) - samo https na javno ime gostitelja, ne naslov
+        // IP, localhost ali .local (zahteva v domace omrezje), ne http/file/content/data in ne povezava zadetka sama.
+        val s = slika.trim().takeIf { varnaSlikaVira(it) && it != povezava.trim() }.orEmpty()
         val id = if (jeYoutubePovezava(povezava)) RX_ID_YOUTUBE.find(povezava)?.groupValues?.get(1) else null
         if (id == null || (s.isNotEmpty() && !jeYoutubePovezava(s))) return s
         return "https://i.ytimg.com/vi/$id/hqdefault.jpg"
+    }
+
+    private val RX_SLIKA_GOSTITELJ = Regex("^https://([^/?#@:\\[\\]]+)(?::\\d{1,5})?(?:[/?#]|$)", RegexOption.IGNORE_CASE)
+    // Zadnja oznaka imena je vrhnja domena: crke (ali xn--), nikoli stevilke - tako ne gre skozi noben zapis naslova IPv4.
+    private val RX_VRHNJA_DOMENA = Regex("^(?:[a-z][a-z0-9-]*|xn--[a-z0-9-]+)$")
+    private val ZASEBNE_KONCNICE = listOf(".local", ".lan", ".home", ".internal", ".localhost", ".localdomain", ".arpa")
+
+    /** Slika iz uporabnikovega spletnega vira sme le na javno ime gostitelja po https (Grok 10, M6). */
+    fun varnaSlikaVira(url: String): Boolean {
+        val g = RX_SLIKA_GOSTITELJ.find(url.trim())?.groupValues?.get(1)?.lowercase(java.util.Locale.ROOT)?.trimEnd('.') ?: return false
+        if (g == "localhost" || '.' !in g || ZASEBNE_KONCNICE.any { g.endsWith(it) }) return false
+        return RX_VRHNJA_DOMENA.matches(g.substringAfterLast('.'))
+    }
+
+    /** Prebere tok do [meja] bajtov; vec = null (slika s tuje strani ne sme napolniti pomnilnika - Grok 10, M6). */
+    fun beriOmejeno(vhod: java.io.InputStream, meja: Long): ByteArray? {
+        val izhod = java.io.ByteArrayOutputStream()
+        val b = ByteArray(16 * 1024)
+        var skupaj = 0L
+        while (true) {
+            val n = vhod.read(b)
+            if (n < 0) return izhod.toByteArray()
+            skupaj += n
+            if (skupaj > meja) return null
+            izhod.write(b, 0, n)
+        }
     }
 
     /** Ime gostitelja iz sporocila sistema »Unable to resolve host "ime": ...« ali "". */
@@ -877,14 +905,20 @@ object OsPravila {
         return listOfNotNull(leto.takeIf { it > 0 }?.toString(), avtor).joinToString(" · ")
     }
 
-    private val RX_OKLEPAJI_NASLOVA = Regex("\\(.*?\\)|\\[.*?\\]")
+    // Grok 10, M12: oklepaj na zacetku naslova je del naslova (»(500) Days of Summer«), ne oznaka izdaje.
+    private val RX_OKLEPAJI_NASLOVA = Regex("(?<=\\S)\\s*(?:\\(.*?\\)|\\[.*?\\])")
     private val RX_LETNICA_NASLOVA = Regex("\\b(19|20)\\d{2}\\b")
     private val RX_NEALFA_NASLOVA = Regex("[^\\p{L}\\p{N}]+")
+    // Grok 10, M12: crke brez razcepa NFD (kot ICU Latin-ASCII): »Đavolji« = »davolji«.
+    private val CRKE_BREZ_RAZCEPA = mapOf('đ' to "d", 'ð' to "d", 'ł' to "l", 'ø' to "o", 'ß' to "ss", 'æ' to "ae", 'œ' to "oe", 'þ' to "th", 'ı' to "i")
 
     /** Naslov za primerjavo z iskanim (»Murderball (2005)« = »murderball«): male crke brez naglasov, oklepajev, letnic in locil. */
-    fun kljucNaslova(t: String): String =
-        java.text.Normalizer.normalize(t.lowercase(java.util.Locale.ROOT), java.text.Normalizer.Form.NFD).replace(RX_NAGLASI, "")
-            .replace(RX_OKLEPAJI_NASLOVA, " ").replace(RX_LETNICA_NASLOVA, " ").replace(RX_NEALFA_NASLOVA, "")
+    fun kljucNaslova(t: String): String {
+        val male = t.lowercase(java.util.Locale.ROOT).let { s -> if (s.none { it in CRKE_BREZ_RAZCEPA }) s else s.map { CRKE_BREZ_RAZCEPA[it] ?: it.toString() }.joinToString("") }
+        val brez = java.text.Normalizer.normalize(male, java.text.Normalizer.Form.NFD).replace(RX_NAGLASI, "").replace(RX_OKLEPAJI_NASLOVA, " ")
+        // Grok 10, M11: naslov, ki je samo letnica (»1917«, »2012«), letnico obdrzi - sicer je kljuc prazen in film ni prvi.
+        return brez.replace(RX_LETNICA_NASLOVA, " ").replace(RX_NEALFA_NASLOVA, "").ifEmpty { brez.replace(RX_NEALFA_NASLOVA, "") }
+    }
 
     /**
      * »Najboljsi zadetki« (lastnik 25. 10. 2026): film ali serija iz kataloga ([jeDelo]) s (skoraj) tocnim ujemanjem naslova
@@ -892,11 +926,17 @@ object OsPravila {
      * prej dodani) pred filmom 2005 s plakatom, ta pa sele spodaj v polici Filmi. Uporabnikove datoteke ([lastna]: ta naprava,
      * naprave v Linku) z enakim naslovom ostanejo spredaj. Brez takega dela vrstni red ostane, kot ga da ocena.
      */
-    fun <T> najprejDela(zadetki: List<T>, beseda: String, naslov: (T) -> String, jeDelo: (T) -> Boolean, lastna: (T) -> Boolean): List<T> {
+    fun <T> najprejDela(zadetki: List<T>, beseda: String, naslov: (T) -> String, jeDelo: (T) -> Boolean, lastna: (T) -> Boolean,
+                        /** Kar ostane pred delom, ce je ocenjeno vise: skladba, postaja - ne posnetek z istim imenom (Grok 10, M5). */
+                        ostane: (T) -> Boolean = { false }): List<T> {
         val q = kljucNaslova(beseda)
         if (q.isEmpty()) return zadetki
-        val spredaj = zadetki.indices.filter { i -> (jeDelo(zadetki[i]) || lastna(zadetki[i])) && kljucNaslova(naslov(zadetki[i])) == q }
-        if (spredaj.none { jeDelo(zadetki[it]) }) return zadetki
+        val enak = zadetki.indices.filter { i -> (jeDelo(zadetki[i]) || lastna(zadetki[i])) && kljucNaslova(naslov(zadetki[i])) == q }
+        val prviDel = enak.firstOrNull { jeDelo(zadetki[it]) } ?: return zadetki
+        // Grok 10, M5/M7: zadetki pred prvim delom, ki niso posnetki (skladba »Thriller« pred filmom »Thriller«) ali so
+        // uporabnikovi (tudi z imenom izdaje, npr. »Murderball.2005.1080p.mkv«), ostanejo pred njim.
+        val ostanejo = (0 until prviDel).filter { ostane(zadetki[it]) || lastna(zadetki[it]) }
+        val spredaj = ostanejo + enak.filterNot { it in ostanejo }
         val prvi = spredaj.toHashSet()
         return (spredaj + zadetki.indices.filterNot { it in prvi }).map { zadetki[it] }
     }

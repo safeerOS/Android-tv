@@ -71,12 +71,17 @@ object NamestitevPravila {
      * bi jo prav tako, a uporabnik naj izve zakaj); neznan podpis pri posodobitvi gre naprej - pristnost dokazuje vsota
      * SHA-256, isti podpis pa Android pri posodobitvi istega paketa preveri sam.
      */
-    fun virPaketa(izvor: Izvor, podpis: Podpis): Int? = when {
+    fun virPaketa(izvor: Izvor, podpis: Podpis, paket: String): Int? = when {
         izvor == Izvor.POSODOBITEV -> if (podpis == Podpis.TUJ) null else VIR_DRUGO
-        podpis == Podpis.NAS -> VIR_DRUGO
+        // Grok 8, S8: nas podpis velja samo za Safeerjeve pakete - stara ali tuja gradnja z nasim kljucem pod drugim
+        // imenom paketa ostane pod zascito Androida (omejene nastavitve).
+        podpis == Podpis.NAS && paket in SAFEER_PAKETI -> VIR_DRUGO
         izvor == Izvor.DATOTEKA -> VIR_DATOTEKA
         else -> VIR_PRENOS
     }
+
+    /** Safeerjeve aplikacije (applicationId okusov v build.gradle in Safeer Browser za telefon) - Grok 8, S8. */
+    val SAFEER_PAKETI = setOf("si.safeer.tv", "si.safeer.os", "si.safeer.tablet", "si.safeer.phone", "si.safeer.player", "com.safeer.mobile.browser")
 
     /**
      * SessionParams.setRequireUserAction: Safeerjeve aplikacije (posodobitev iz safeer.si ali nas podpis) brez
@@ -84,8 +89,8 @@ object NamestitevPravila {
      * izpolnjeni (prva namestitev, Safeer ni namestitelj te aplikacije, targetSdk) - takrat pride STATUS_PENDING_USER_ACTION.
      * Tuj APK: vedno potrditev Androida (okno sistema, zasciteno pred prekrivanjem).
      */
-    fun zahtevaUporabnika(izvor: Izvor, podpis: Podpis): Int =
-        if (izvor == Izvor.POSODOBITEV || podpis == Podpis.NAS) UPORABNIK_NI_POTREBEN else UPORABNIK_NEDOLOCENO
+    fun zahtevaUporabnika(izvor: Izvor, podpis: Podpis, paket: String): Int =
+        if (izvor == Izvor.POSODOBITEV || (podpis == Podpis.NAS && paket in SAFEER_PAKETI)) UPORABNIK_NI_POTREBEN else UPORABNIK_NEDOLOCENO
 
     /** Kaj storiti ob stanju seje (PackageInstaller.EXTRA_STATUS). */
     enum class Odziv {
@@ -103,10 +108,12 @@ object NamestitevPravila {
         NAPAKA
     }
 
-    fun odziv(status: Int): Odziv = when (status) {
+    fun odziv(status: Int, potrditevPrikazana: Boolean): Odziv = when (status) {
         STATUS_POTRDITEV -> Odziv.POTRDITEV
         STATUS_USPEH -> Odziv.USPEH
-        STATUS_PREKINJENO -> Odziv.PREKLIC
+        // Grok 8, S1: ABORTED brez okna Androida (posodobitev brez potrditve, zavrnitev preverjevalnika ali pravilnika,
+        // proces medtem koncan) ni uporabnikov »Preklici« - uporabnik mora izvedeti, da namestitve ni bilo.
+        STATUS_PREKINJENO -> if (potrditevPrikazana) Odziv.PREKLIC else Odziv.NAPAKA
         STATUS_NAPAKA -> Odziv.STARA_POT
         // BLOCKED: namestitev je zavrnil pravilnik naprave - druga pot bi ga obsla, zato samo sporocilo. Zavrnitev
         // preverjevalnika (Google Play Protect, okno se ob seji pokaze - OnePlus 9, 25. 10. 2026) pride kot ABORTED
@@ -119,7 +126,9 @@ object NamestitevPravila {
      * Prepise [vhod] v [izhod] in vrne SHA-256 PREPISANIH bajtov - vsoto preverimo na istih bajtih, ki gredo v sejo,
      * ne na datoteki, prebrani prej (TOCTOU). [prekinjeno] ustavi prepis (InterruptedException).
      */
-    fun prepisi(vhod: InputStream, izhod: OutputStream, prekinjeno: () -> Boolean = { false }, napredek: (Long) -> Unit = {}): String {
+    fun prepisi(vhod: InputStream, izhod: OutputStream, prekinjeno: () -> Boolean = { false },
+                /** Grok 8, S3: najvec toliko bajtov (neskoncen tok ne napolni pomnilnika naprave); vec = IOException. */
+                najvec: Long = Long.MAX_VALUE, napredek: (Long) -> Unit = {}): String {
         val h = MessageDigest.getInstance("SHA-256")
         val b = ByteArray(1 shl 16)
         var skupaj = 0L
@@ -128,6 +137,7 @@ object NamestitevPravila {
             if (n < 0) break
             if (prekinjeno()) throw InterruptedException("prekinjeno")
             if (n == 0) continue
+            if (skupaj + n > najvec) throw java.io.IOException("prevelik: vec kot $najvec bajtov")
             izhod.write(b, 0, n); h.update(b, 0, n); skupaj += n
             napredek(skupaj)
         }
@@ -135,6 +145,34 @@ object NamestitevPravila {
     }
 
     fun hex(b: ByteArray): String = b.joinToString("") { "%02x".format(it) }
+
+    /** Najvecji APK, ki ga prenesemo ali kopiramo (Grok 8, S3): Safeerjevi so pod 150 MB, vec kot 1 GiB ni obicajen APK. */
+    const val NAJVEC_APK = 1L shl 30
+    /** Prostor, ki mora ostati na disku poleg APK. */
+    const val REZERVA_PROSTORA = 64L shl 20
+
+    /** Prenos je celoten: napovedana dolzina (Content-Length), ce je znana, se ujema s prebranim (Grok 8, S4). */
+    fun popolnPrenos(prebrano: Long, napovedano: Long): Boolean = napovedano <= 0 || prebrano == napovedano
+
+    /**
+     * Naslov za prenos APK (Grok 8, S4): https ostane, http poskusimo kot https (APK prek http bi lahko kdo med potjo
+     * zamenjal - kot Safeer brskalnik, ki gre na https, ce ga stran ponuja), vse drugo null.
+     */
+    fun httpsNaslov(url: String): String? {
+        val u = url.trim()
+        return when {
+            u.startsWith("https://", ignoreCase = true) -> u
+            u.startsWith("http://", ignoreCase = true) -> "https://" + u.substring(7)
+            else -> null
+        }
+    }
+
+    /**
+     * Grok 8, S6: posodobitev iz os/razlicice.json je res ta paket, novejsa od namescene in (ce jo seznam pove) natanko
+     * napovedana razlicica - ne starejsa gradnja pod novo oznako.
+     */
+    fun pravaPosodobitev(paketApk: String?, kodaApk: Long, nasPaket: String, namescena: Long, napovedana: Long): Boolean =
+        paketApk == nasPaket && kodaApk > namescena && (napovedana <= 0 || kodaApk == napovedana)
 
     /** Primerjava vsot v stalnem casu (64 znakov hex, velike/male crke enako). Prazna ali napacne dolzine ni enaka. */
     fun enakaVsota(a: String?, b: String?): Boolean {

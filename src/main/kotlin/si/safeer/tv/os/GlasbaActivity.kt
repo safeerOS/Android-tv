@@ -1122,12 +1122,13 @@ class GlasbaActivity : OsActivity() {
         kljucVRisanju = kljuc
         // Izbira iz vsebine, ki jo bomo zamenjali, pocaka na nevidnem sidru v vsebini. Prej je sla v meni: stranska vrstica
         // se je za hip razsirila in zaslon je utripnil, ceprav uporabnik ni naredil nicesar (lastnikov posnetek, 5. 10. 2026).
-        if (vsebina.hasFocus()) zasidrajIzbiro()
         // Ista stran z dopolnjeno vsebino ostane, kjer jo ima uporabnik (lastnik 25. 10. 2026, posnetek telefona: med drsenjem
         // po zadetkih iskanja je stran ob vsaki dopolnitvi skocila na vrh). Izmerjeno na WP28 S: drsnik 145 -> 0 ob polnem
         // risanju - vsebina se izprazni in ScrollView polozaj obreze, izbira pa se vrne na iskalno polje na vrhu. Zato vsebina
         // do konca risanja obdrzi visino, polozaj ostane brez scrollTo, izbira se na dotik ne vrne ([OsPravila.vrniIzbiroPoRisanju]).
+        // Grok 10, M1: polozaj preberemo PRED sidrom izbire, da nanj premik izbire ne more vplivati.
         val ostaneY = if (naMestu && !odVrha) drsnik.scrollY else 0
+        if (vsebina.hasFocus()) zasidrajIzbiro()
         vsebina.minimumHeight = OsPravila.visinaMedRisanjem(vsebina.height, ostaneY)
         vsebina.removeAllViews()
         stanje.text = if (glava.isEmpty() && vrste.all { it.kartice.isEmpty() && it.pogled == null }) prazno else opis
@@ -6528,7 +6529,9 @@ class GlasbaActivity : OsActivity() {
                 // Naloga 121: tudi nedelujoc kanal ne.
                 .filterNot { (it.first.stvar as? Jamendo.Skladba)?.let { s -> neodklenjena(s) || MrtviKanali.skrij(this, s) } == true }
                 // Film ali serija iz kataloga s tocnim naslovom je prvi, pred posnetki z istim imenom (lastnik 25. 10. 2026).
-                .let { l -> OsPravila.najprejDela(l, beseda, { it.first.naslov }, { jeDeloKataloga(it.first) }, { it.first.prednost <= 1 }) }.filter { z ->
+                // Grok 10, M5: skladba, postaja ali izvajalec z enakim naslovom, ocenjeni vise, ostanejo pred filmom.
+                .let { l -> OsPravila.najprejDela(l, beseda, { it.first.naslov }, { jeDeloKataloga(it.first) }, { it.first.prednost <= 1 },
+                    ostane = { (it.first.stvar as? Jamendo.Skladba)?.video != true }) }.filter { z ->
                 val s = z.first.stvar as? Jamendo.Skladba
                 if (s != null) {
                     val k = SpletniVir.cistNaslov(s.izvajalec + " " + s.naslov)
@@ -8823,8 +8826,10 @@ class GlasbaActivity : OsActivity() {
                     if (r.video) { nadaljujKoPripravljen(r); startActivity(Intent(this, PredvajanjeActivity::class.java)) }
                 }
                 "torrent" -> {
-                    val brez = { torrentPrekRacunalnika(sk, naslov, t.url, t.datoteka,
-                        velikost = (TokIzbira.opisi(t.ime + " " + t.opis).gb * 1024.0 * 1024.0 * 1024.0).toLong()) }
+                    // Grok 9, Z2 (lastnik 23. 10.: brez debrida opozorilo, PREDEN se naprava poveze z rojem): tudi torrent iz
+                    // kataloga in povratek po napaki debrida gresta v roj sele po opozorilu ([opozoriPredRojem]).
+                    val brez = { opozoriPredRojem(t.url) { torrentPrekRacunalnika(sk, naslov, t.url, t.datoteka,
+                        velikost = (TokIzbira.opisi(t.ime + " " + t.opis).gb * 1024.0 * 1024.0 * 1024.0).toLong()) } }
                     fun prekTorrenta() {
                         // Naloga 119: s kljucem TorBox gre torrent prek TorBoxa (zasebnost, hitrejsi tok); brez kljuca obstojeca pot.
                         if (Debrid.aktivna(this) != null) prekDebrida(t.url, t.datoteka, { cdn -> odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap())) }, brez)
@@ -9566,7 +9571,8 @@ class GlasbaActivity : OsActivity() {
             val r = racunalniki[k]
             val ime = DatotekeActivity.lepoIme(r.ime).ifBlank { r.id }
             Toast.makeText(this, getString(R.string.os_stremio_racunalnik_pripravlja, ime), Toast.LENGTH_LONG).show()
-            link.ukaz(r.id, "magnet.stream", org.json.JSONObject().put("uri", magnet).apply { if (datoteka >= 0) put("file", datoteka); opisVZahtevo(this, opisZa(sk, naslov)) }, 150_000, LinkOdjemalec.Odgovor { izid, napaka ->
+            // »p2p«: uporabnik je opozorilo o roju na tej napravi potrdil ([opozoriPredRojem]) ali film naprava ze hrani.
+            link.ukaz(r.id, "magnet.stream", org.json.JSONObject().put("uri", magnet).put("p2p", true).apply { if (datoteka >= 0) put("file", datoteka); opisVZahtevo(this, opisZa(sk, naslov)) }, 150_000, LinkOdjemalec.Odgovor { izid, napaka ->
                 if (isFinishing) return@Odgovor
                 val podatki = izid?.takeIf { it.optBoolean("ok") }?.optJSONObject("data")
                 val srv = podatki?.optJSONObject("server")
@@ -9609,6 +9615,24 @@ class GlasbaActivity : OsActivity() {
     }
 
     /**
+     * Grok 9, Z1/Z2: pred vsako potjo, ki to napravo (ali drugo napravo v istem domu - isti naslov IP) poveze z rojem brez
+     * debrida, opozorilo kot pri magnet povezavi ([MagnetActivity]): privzeto Preklici, »Dodaj TorBox« samo brez storitve.
+     * Potrditev velja za ta torrent do konca procesa (isti seznam kot MagnetActivity).
+     */
+    private fun opozoriPredRojem(magnet: String, naprej: () -> Unit) {
+        val hash = MagnetMotor.hash(magnet) ?: btih(magnet)
+        if (hash != null && hash in MagnetActivity.potrjenP2p) { naprej(); return }
+        val b = AlertDialog.Builder(this).setTitle(R.string.magnet_p2p_naslov).setMessage(R.string.magnet_p2p_opis)
+            .setPositiveButton(R.string.magnet_p2p_vseeno) { _, _ -> hash?.let { MagnetActivity.potrjenP2p.add(it) }; naprej() }
+            .setNegativeButton(android.R.string.cancel, null)
+        if (Debrid.aktivna(this) == null) b.setNeutralButton(R.string.magnet_p2p_dodaj) { _, _ -> nastavitveDebrida() }
+        val okno = b.create()
+        // Zadrzan OK na daljincu ne sme sam odpreti roja.
+        okno.setOnShowListener { okno.getButton(AlertDialog.BUTTON_NEGATIVE)?.requestFocus() }
+        okno.show()
+    }
+
+    /**
      * Torrent brez racunalnika v Linku (lastnik, 3. 10. 2026): naprava ga predvaja SAMA, ce datoteka gre na njen prosti
      * prostor (zacasno - po 12 urah brez predvajanja izgine sama); sicer prosi drugo napravo s Safeer OS v krogu
      * (telefon, tablico, televizor), da ga prenasa in ji ga pretaka. Brez okna in brez izbire: film se zacne ali pa
@@ -9633,7 +9657,7 @@ class GlasbaActivity : OsActivity() {
             val r = drugi[k]
             val prvic = android.os.SystemClock.uptimeMillis() - od < 500
             if (prvic) Toast.makeText(this, getString(R.string.os_stremio_naprava_pripravlja, DatotekeActivity.lepoIme(r.ime).ifBlank { r.id }), Toast.LENGTH_LONG).show()
-            link.ukaz(r.id, "magnet.stream", org.json.JSONObject().put("uri", magnet).apply { if (datoteka >= 0) put("file", datoteka); opisVZahtevo(this, opisZa(sk, naslov)) }, 20_000, LinkOdjemalec.Odgovor { izid, napaka ->
+            link.ukaz(r.id, "magnet.stream", org.json.JSONObject().put("uri", magnet).put("p2p", true).apply { if (datoteka >= 0) put("file", datoteka); opisVZahtevo(this, opisZa(sk, naslov)) }, 20_000, LinkOdjemalec.Odgovor { izid, napaka ->
                 if (isFinishing) return@Odgovor
                 val podatki = izid?.takeIf { it.optBoolean("ok") }?.optJSONObject("data")
                 val srv = podatki?.optJSONObject("server")

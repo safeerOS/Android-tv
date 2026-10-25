@@ -21,6 +21,26 @@ object ZacasniPravila {
                  obdrzan: Boolean = false): Boolean =
         !obdrzan && (zdaj - cas > velja || (primanjkuje && zdaj - cas > vTeku))
 
+    /** Grok 9, Z12: cas zadnje rabe v prihodnosti (napacna ura ob zagonu) se steje od zdaj, da zapis vseeno potece. */
+    fun popraviCas(cas: Long, zdaj: Long): Long = if (cas > zdaj) zdaj else cas
+
+    /**
+     * Grok 9, Z9: izbrise datoteko ali mapo zacasnega torrenta BREZ sledenja simbolnim povezavam. File.deleteRecursively jim
+     * sledi: povezava v torrentu na drugo mapo bi izbrisala tudi njeno vsebino. Povezava se izbrise kot povezava.
+     */
+    fun izbrisiBrezPovezav(f: java.io.File): Boolean {
+        val p = f.toPath()
+        val brez = java.nio.file.LinkOption.NOFOLLOW_LINKS
+        if (!java.nio.file.Files.exists(p, brez)) return true
+        var ok = true
+        if (java.nio.file.Files.isDirectory(p, brez)) {
+            try {
+                java.nio.file.Files.newDirectoryStream(p).use { s -> for (o in s) ok = izbrisiBrezPovezav(o.toFile()) && ok }
+            } catch (_: Exception) { ok = false }
+        }
+        return try { java.nio.file.Files.deleteIfExists(p); ok } catch (_: Exception) { false }
+    }
+
     /** Vrstni red odstranjevanja: najdlje neuporabljeni prvi. Vnos = (cas zadnje rabe, kljuc). */
     fun <T> poVrsti(vnosi: List<Pair<Long, T>>): List<Pair<Long, T>> = vnosi.sortedBy { it.first }
 

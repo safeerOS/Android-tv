@@ -495,8 +495,9 @@ object Daljinec {
         val projekcijaDovoljena = ZaupanjeZaslona.projekcijaDovoljena(context)
         if (!DeljenjePravila.smeZacetiBrezOkna(projekcijaDovoljena, obvestilaVklopljena(context), prekrivanje(context))) {
             Log.w(TAG, "Odpri tukaj zavrnjen: trajno dovoljenje brez vidnega znaka deljenja (obvestila in prikaz izklopljena)")
-            return Izid(false, "Zaslona ne delim: naprava ne bi pokazala, da se zaslon deli (obvestila za Safeer in prikaz čez " +
-                "druge aplikacije sta izklopljena). Na napravi odpri ${stranDovoljenj(context)} in vklopi obvestila.", koda = KODA_NI_ZNAKA)
+            // Grok 9, K8: ime dovoljenja, kot ga kaze ta naprava (ne tretje ime).
+            return Izid(false, "Zaslona ne delim: naprava ne bi pokazala, da se zaslon deli (obvestila za Safeer in »" +
+                "${si.safeer.tv.os.DovoljenjaActivity.imePrikaza(context)}« sta izklopljena). Na napravi odpri ${stranDovoljenj(context)} in vklopi obvestila.", koda = KODA_NI_ZNAKA)
         }
         if (!zahtevajDeljenje(context, cilj, paket, ime, odprtoTukaj = true, samodejno = true, besedilo = si.safeer.tv.R.string.ui_link_zagon_pretok))
             return izidBrezPoti(context, ime)
@@ -664,7 +665,11 @@ object Daljinec {
             val cakajoca = PendingIntent.getActivity(context, OBVESTILO_DOVOLJENJE, nastavitev,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
             // Ime dovoljenja, kot ga ta naprava pokaze (Samsung: »Pojavitev na vrhu«), in celotno besedilo s koraki.
-            val besedilo = context.getString(si.safeer.tv.R.string.dov_obvestilo_besedilo, ime, si.safeer.tv.os.DovoljenjaActivity.imePrikaza(context))
+            // Grok 9, K2/K3 (izmerjeno 25. 10. 2026, OnePlus 9 in WP28 S, Android 14): stran za prikaz cez druge aplikacije
+            // je seznam aplikacij, ne stikalo za Safeer - besedilo pove pot, ki se res odpre, in ime aplikacije na seznamu.
+            val oznaka = try { context.applicationInfo.loadLabel(context.packageManager).toString() } catch (_: Throwable) { "Safeer" }
+            val besedilo = context.getString(if (si.safeer.tv.os.DovoljenjaActivity.naVoljo(context)) si.safeer.tv.R.string.dov_obvestilo_besedilo
+                else si.safeer.tv.R.string.dov_obvestilo_besedilo_sistem, ime, si.safeer.tv.os.DovoljenjaActivity.imePrikaza(context), oznaka)
             val obvestilo = android.app.Notification.Builder(context, KANAL_DOVOLJENJE)
                 .setContentTitle(context.getString(si.safeer.tv.R.string.dov_obvestilo_naslov))
                 .setContentText(besedilo)

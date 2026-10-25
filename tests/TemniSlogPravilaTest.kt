@@ -205,5 +205,14 @@ fun main() {
         "JS mora oznaciti prekrivke z vec kot 80 % pokritostjo videa"
     }
 
+    // Grok 9, Z15: stari zapis z enim dvopicjem - filter pred psevdoelementom (sicer neveljaven selektor in izgubljeno pravilo).
+    val stari = TemniSlogPravila.pretvoriEnSelektor("a:before")
+    check(stari.startsWith("a") && stari.endsWith(":before") && stari != "a:before" && !stari.startsWith("a:before")) { "Z15: a:before -> $stari" }
+    val stariVelike = TemniSlogPravila.pretvoriEnSelektor(".x:AFTER")
+    check(stariVelike.endsWith(":AFTER") && !stariVelike.startsWith(".x:AFTER")) { "Z15: .x:AFTER -> $stariVelike" }
+    check(TemniSlogPravila.najdiPsevdoelement("a:hover") == -1) { "Z15: :hover ni psevdoelement" }
+    check(TemniSlogPravila.najdiPsevdoelement("a:before-x") == -1) { "Z15: :before-x ni psevdoelement" }
+    check(TemniSlogPravila.najdiPsevdoelement("a::after") == 1) { "Z15: :: ostane" }
+
     println("TemniSlogPravilaTest: VSI PREIZKUSI USPELI (OK)!")
 }

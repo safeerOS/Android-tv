@@ -3,7 +3,7 @@
 <resources>
     <string name="dov_naslov">Permissions</string>
     <string name="dov_opis_vrstice">What Safeer needs and why – switch on with one tap</string>
-    <string name="dov_uvod">Safeer only asks for what it really uses. The button opens exactly the right page – switch Safeer on there and come back. You can revoke anything at any time.</string>
+    <string name="dov_uvod">Safeer only asks for what it really uses. The button opens the right settings page – switch Safeer on there and come back. For “display over other apps” Android shows a list of apps: find Safeer in it. You can revoke anything at any time.</string>
     <string name="dov_ob_zagonu">Something important is still missing, so Safeer Link can\'t do everything on this device. Tap “Allow” on the marked rows.</string>
     <!-- Ime posebnega dostopa v cistem Androidu (OnePlus, WP28 S in vecina drugih; sl preverjeno na napravah lastnika 25. 10. 2026). -->
     <string name="dov_prikaz">Display over other apps</string>
@@ -25,7 +25,7 @@
     <string name="dov_ne">✗ Not allowed</string>
     <string name="dov_delno">◐ Selected only</string>
     <string name="dov_gumb_dovoli">Allow</string>
-    <string name="dov_gumb_nastavitev">Settings</string>
+    <string name="dov_gumb_nastavitev">Open settings</string>
     <string name="dov_namig_naslov">Is the switch grey or won\'t it move?</string>
     <string name="dov_namig_1">1. On the system page, tap Safeer\'s grey switch once – Android says the setting is restricted. Close that message.</string>
     <string name="dov_namig_2">2. Tap the button below, then ⋮ at the top right and choose “Allow restricted settings” (on Samsung it may be right on the page). Come back here and tap “Allow” again.</string>
@@ -34,6 +34,8 @@
     <string name="dov_stanje_vse">All allowed</string>
     <string name="dov_stanje_manjka">Missing: %1$d</string>
     <string name="dov_obvestilo_naslov">Safeer Link: allow opening apps</string>
-    <string name="dov_obvestilo_besedilo">A paired device wanted to open %1$s. Tap “Allow”, switch on “%2$s” for Safeer on the page that opens, then send the command again. Once is enough.</string>
+    <string name="dov_obvestilo_besedilo">A paired device wanted to open %1$s. Tap “Allow”, then “Allow” next to “%2$s”. Android shows a list of apps: find “%3$s” and switch it on. Then send the command again. Once is enough.</string>
     <string name="dov_izid_brez">On this device, allow “%1$s” for Safeer once (the notification is already on screen, or Safeer › Settings › Permissions), then start %2$s again.</string>
+    <string name="dov_obvestilo_besedilo_sistem">A paired device wanted to open %1$s. Tap “Allow”: Android opens “%2$s” with a list of apps – find “%3$s”, switch it on and send the command again. Once is enough.</string>
+    <string name="dov_prikaz_oneplus">Display over other apps</string>
 </resources>

@@ -210,6 +210,13 @@ object TemniSlogPravila {
      * Poisce zacetek prvega psevdoelementa (::...) v selektorju zunaj oklepajev, oglatih oklepajev in narekovajev.
      * Vraca indeks prvega dvopicja ali -1, ce psevdoelementa ni.
      */
+    private val STARI_PSEVDOELEMENTI = listOf(":before", ":after", ":first-line", ":first-letter")
+
+    private fun stariPsevdoelement(s: String, i: Int): Boolean = STARI_PSEVDOELEMENTI.any { p ->
+        s.regionMatches(i, p, 0, p.length, ignoreCase = true) &&
+            (i + p.length == s.length || !(s[i + p.length].isLetterOrDigit() || s[i + p.length] == '-' || s[i + p.length] == '_'))
+    }
+
     fun najdiPsevdoelement(selektor: String): Int {
         var oklepaj = 0
         var oglati = 0
@@ -238,6 +245,11 @@ object TemniSlogPravila {
                 ']' -> if (oglati > 0) oglati--
                 ':' -> {
                     if (oklepaj == 0 && oglati == 0 && selektor[i + 1] == ':') {
+                        return i
+                    }
+                    // Grok 9, Z15: stari zapis psevdoelementa z enim dvopicjem (a:before) - filter mora pred njega, sicer je
+                    // selektor neveljaven in brskalnik zavrze celo pravilo.
+                    if (oklepaj == 0 && oglati == 0 && (i == 0 || selektor[i - 1] != ':') && stariPsevdoelement(selektor, i)) {
                         return i
                     }
                 }

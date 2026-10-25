@@ -1254,6 +1254,8 @@ object UserScriptManager {
                 if (finished) webView.evaluateJavascript(SAM_TEMEN_JS, null)
             } else if (finished) {
                 removeCss(webView, "safeer-dark-mode-style")
+                // Grok 9, Z20: brez temnega sloga opazovalec korena predvajalnika ni vec potreben (poraba procesorja).
+                webView.evaluateJavascript("try{if(window.__safeerMedijObserver){window.__safeerMedijObserver.disconnect();window.__safeerMedijObserver=null;}}catch(e){}", null)
             }
         }
         webView.evaluateJavascript(GPC_AND_DNT_JS, null)

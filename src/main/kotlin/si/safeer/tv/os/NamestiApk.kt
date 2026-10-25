@@ -54,11 +54,15 @@ object NamestiApk {
     /** Prenos iz brskalnika: APK prenesemo sami (z napredkom), nato ga ponudimo v namestitev. */
     fun izSpleta(a: Activity, url: String, userAgent: String?, ime: String) =
         pripravi(a, ime, 0L, try { Uri.parse(url).host ?: url } catch (_: Throwable) { url }, Izvor.SPLET) {
-            val c = URL(url).openConnection() as HttpURLConnection
+            // Grok 8, S4: APK samo prek https (http poskusimo kot https); preusmeritvi na http HttpURLConnection ne sledi,
+            // koncni naslov preverimo vseeno.
+            val varen = NamestitevPravila.httpsNaslov(url) ?: throw IllegalStateException("ni_https")
+            val c = URL(varen).openConnection() as HttpURLConnection
             c.connectTimeout = 15000; c.readTimeout = 30000; c.instanceFollowRedirects = true
             if (!userAgent.isNullOrBlank()) c.setRequestProperty("User-Agent", userAgent)
-            try { android.webkit.CookieManager.getInstance().getCookie(url)?.let { c.setRequestProperty("Cookie", it) } } catch (_: Throwable) { }
+            try { android.webkit.CookieManager.getInstance().getCookie(varen)?.let { c.setRequestProperty("Cookie", it) } } catch (_: Throwable) { }
             if (c.responseCode !in 200..299) throw IllegalStateException("HTTP ${c.responseCode}")
+            if (!c.url.protocol.equals("https", ignoreCase = true)) throw IllegalStateException("ni_https")
             velikostZadnjega = c.contentLengthLong
             c.inputStream
         }
@@ -86,13 +90,21 @@ object NamestiApk {
                 // Vsota SHA-256 na istih bajtih, ki gredo v datoteko: v sejo gre kasneje samo, ce se ujema (TOCTOU).
                 val vsota = odpri().use { v ->
                     val skupaj = velikostZadnjega
+                    // Grok 8, S3: meja velikosti in prostor na disku, preden pisemo (neskoncen tok ne napolni naprave).
+                    if (skupaj > NamestitevPravila.NAJVEC_APK || (skupaj > 0 && mapa.usableSpace < skupaj + NamestitevPravila.REZERVA_PROSTORA))
+                        throw IllegalStateException("prevelik")
                     if (skupaj > 0) glavna.post { napredek.isIndeterminate = false }
                     var zadnji = 0L
-                    cilj.outputStream().use { o ->
-                        NamestitevPravila.prepisi(v, o, { prekinjeno }) { prebrano ->
+                    var vse = 0L
+                    val h = cilj.outputStream().use { o ->
+                        NamestitevPravila.prepisi(v, o, { prekinjeno }, NamestitevPravila.NAJVEC_APK) { prebrano ->
+                            vse = prebrano
                             if (skupaj > 0 && prebrano - zadnji > skupaj / 100) { zadnji = prebrano; val d = (prebrano * 1000 / skupaj).toInt(); glavna.post { napredek.progress = d } }
                         }
                     }
+                    // Grok 8, S4: prekinjen prenos (manj bajtov od napovedanih) ni APK za namestitev.
+                    if (!NamestitevPravila.popolnPrenos(vse, skupaj)) throw IllegalStateException("nepopoln")
+                    h
                 }
                 glavna.post {
                     try { okno.dismiss() } catch (_: Throwable) { }

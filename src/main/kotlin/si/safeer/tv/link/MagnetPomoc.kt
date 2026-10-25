@@ -3,6 +3,7 @@ package si.safeer.tv.link
 import android.content.Context
 import android.util.Log
 import org.json.JSONObject
+import si.safeer.tv.os.DebridPravila
 import si.safeer.tv.os.KnjiznicaKroga
 import si.safeer.tv.os.MagnetMotor
 import java.util.concurrent.ConcurrentHashMap
@@ -50,6 +51,10 @@ object MagnetPomoc {
             }
             return Daljinec.Izid(true, "Pripravljam tok", JSONObject().put("pending", true))
         }
+        // Grok 9, Z1 (lastnik 23. 10.: opozorilo, PREDEN se naprava poveze z rojem): nov torrent ta naprava odpre samo s
+        // potrditvijo na napravi, ki prosi (`p2p`); film, ki ga naprava ze hrani (polica kroga, Linux), gre brez tega.
+        if (!DebridPravila.pomocVRoju(MagnetMotor.imaTorrent(context, hash), p.optBoolean("p2p", false)))
+            return Daljinec.Izid(false, "Naprava se brez tvoje potrditve ne poveze z rojem", koda = "potrebna_potrditev")
         // Naprava pomaga, kolikor zmore: prazna baterija, varcevanje, pregrevanje ali film, ki ga sama predvaja, so razlog za "ne".
         val pomoc = Zmogljivost.porocilo(context).optJSONObject("pomoc")
         if (pomoc?.optBoolean("lahko", true) == false)

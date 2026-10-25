@@ -3,7 +3,7 @@
 <resources>
     <string name="dov_naslov">Dovoljenja</string>
     <string name="dov_opis_vrstice">Kaj Safeer potrebuje in zakaj – vklop z enim dotikom</string>
-    <string name="dov_uvod">Safeer zahteva samo, kar res uporablja. Gumb odpre točno pravo stran – tam vklopi stikalo za Safeer in se vrni. Vse lahko kadarkoli prekličeš.</string>
+    <string name="dov_uvod">Safeer zahteva samo, kar res uporablja. Gumb odpre pravo stran nastavitev – tam vklopi stikalo za Safeer in se vrni. Pri prikazu čez druge aplikacije Android pokaže seznam aplikacij: na njem poišči Safeer. Vse lahko kadarkoli prekličeš.</string>
     <string name="dov_ob_zagonu">Nekaj pomembnega še manjka, zato Safeer Link na tej napravi ne more vsega. Tapni »Dovoli« pri označenih vrsticah.</string>
     <!-- Ime posebnega dostopa v cistem Androidu (OnePlus, WP28 S in vecina drugih; sl preverjeno na napravah lastnika 25. 10. 2026). -->
     <string name="dov_prikaz">Prekrivanje drugih aplikacij</string>
@@ -25,7 +25,7 @@
     <string name="dov_ne">✗ Ni dovoljeno</string>
     <string name="dov_delno">◐ Le izbrane</string>
     <string name="dov_gumb_dovoli">Dovoli</string>
-    <string name="dov_gumb_nastavitev">Nastavitev</string>
+    <string name="dov_gumb_nastavitev">Odpri nastavitve</string>
     <string name="dov_namig_naslov">Je stikalo sivo ali se ne premakne?</string>
     <string name="dov_namig_1">1. Na sistemski strani enkrat tapni sivo stikalo za Safeer – Android pokaže, da je nastavitev omejena. Sporočilo zapri.</string>
     <string name="dov_namig_2">2. Tapni spodnji gumb, nato zgoraj desno ⋮ in izberi »Dovoli omejene nastavitve« (na Samsungu je lahko kar na strani). Vrni se sem in znova tapni »Dovoli«.</string>
@@ -34,6 +34,8 @@
     <string name="dov_stanje_vse">Vse dovoljeno</string>
     <string name="dov_stanje_manjka">Manjka: %1$d</string>
     <string name="dov_obvestilo_naslov">Safeer Link: dovoli odpiranje programov</string>
-    <string name="dov_obvestilo_besedilo">Seznanjena naprava je želela odpreti %1$s. Tapni »Dovoli«, na odprti strani vklopi »%2$s« za Safeer in ukaz pošlji znova. Enkrat je dovolj.</string>
+    <string name="dov_obvestilo_besedilo">Seznanjena naprava je želela odpreti %1$s. Tapni »Dovoli« in nato »Dovoli« pri »%2$s«. Android pokaže seznam aplikacij: poišči »%3$s« in ga vklopi. Nato ukaz pošlji znova. Enkrat je dovolj.</string>
     <string name="dov_izid_brez">Na tej napravi enkrat dovoli »%1$s« za Safeer (obvestilo je že na zaslonu ali Safeer › Nastavitve › Dovoljenja), nato znova zaženi %2$s.</string>
+    <string name="dov_obvestilo_besedilo_sistem">Seznanjena naprava je želela odpreti %1$s. Tapni »Dovoli«: Android odpre »%2$s« s seznamom aplikacij – poišči »%3$s«, ga vklopi in ukaz pošlji znova. Enkrat je dovolj.</string>
+    <string name="dov_prikaz_oneplus">Prikaži nad drugimi aplikacijami</string>
 </resources>

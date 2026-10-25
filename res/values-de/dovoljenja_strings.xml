@@ -3,7 +3,7 @@
 <resources>
     <string name="dov_naslov">Berechtigungen</string>
     <string name="dov_opis_vrstice">Was Safeer braucht und warum – mit einem Tipp einschalten</string>
-    <string name="dov_uvod">Safeer fragt nur, was es wirklich nutzt. Die Schaltfläche öffnet genau die richtige Seite – dort Safeer einschalten und zurückkehren. Du kannst alles jederzeit widerrufen.</string>
+    <string name="dov_uvod">Safeer fragt nur, was es wirklich nutzt. Die Schaltfläche öffnet die richtige Einstellungsseite – dort Safeer einschalten und zurückkehren. Beim Einblenden über anderen Apps zeigt Android eine App-Liste: Suche dort Safeer. Du kannst alles jederzeit widerrufen.</string>
     <string name="dov_ob_zagonu">Etwas Wichtiges fehlt noch, deshalb kann Safeer Link auf diesem Gerät nicht alles. Tippe bei den markierten Zeilen auf „Erlauben“.</string>
     <!-- Ime posebnega dostopa v cistem Androidu (OnePlus, WP28 S in vecina drugih; sl preverjeno na napravah lastnika 25. 10. 2026). -->
     <string name="dov_prikaz">Über anderen Apps einblenden</string>
@@ -25,7 +25,7 @@
     <string name="dov_ne">✗ Nicht erlaubt</string>
     <string name="dov_delno">◐ Nur ausgewählte</string>
     <string name="dov_gumb_dovoli">Erlauben</string>
-    <string name="dov_gumb_nastavitev">Einstellung</string>
+    <string name="dov_gumb_nastavitev">Einstellungen öffnen</string>
     <string name="dov_namig_naslov">Ist der Schalter grau oder lässt er sich nicht bewegen?</string>
     <string name="dov_namig_1">1. Auf der Systemseite einmal auf den grauen Schalter von Safeer tippen – Android meldet, dass die Einstellung eingeschränkt ist. Meldung schließen.</string>
     <string name="dov_namig_2">2. Unten auf die Schaltfläche tippen, dann oben rechts auf ⋮ und „Eingeschränkte Einstellungen zulassen“ wählen (bei Samsung evtl. direkt auf der Seite). Hierher zurückkehren und erneut auf „Erlauben“ tippen.</string>
@@ -34,6 +34,8 @@
     <string name="dov_stanje_vse">Alles erlaubt</string>
     <string name="dov_stanje_manjka">Fehlt: %1$d</string>
     <string name="dov_obvestilo_naslov">Safeer Link: Öffnen von Apps erlauben</string>
-    <string name="dov_obvestilo_besedilo">Ein gekoppeltes Gerät wollte %1$s öffnen. Tippe auf „Erlauben“, schalte auf der geöffneten Seite „%2$s“ für Safeer ein und sende den Befehl erneut. Einmal genügt.</string>
+    <string name="dov_obvestilo_besedilo">Ein gekoppeltes Gerät wollte %1$s öffnen. Tippe auf „Erlauben“ und dann bei „%2$s“ auf „Erlauben“. Android zeigt eine App-Liste: Suche „%3$s“ und schalte es ein. Sende den Befehl dann erneut. Einmal genügt.</string>
     <string name="dov_izid_brez">Erlaube auf diesem Gerät einmal „%1$s“ für Safeer (die Benachrichtigung ist schon da, oder Safeer › Einstellungen › Berechtigungen) und starte %2$s erneut.</string>
+    <string name="dov_obvestilo_besedilo_sistem">Ein gekoppeltes Gerät wollte %1$s öffnen. Tippe auf „Erlauben“: Android öffnet „%2$s“ mit einer App-Liste – suche „%3$s“, schalte es ein und sende den Befehl erneut. Einmal genügt.</string>
+    <string name="dov_prikaz_oneplus">Über anderen Apps einblenden</string>
 </resources>

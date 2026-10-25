@@ -304,11 +304,23 @@ object Zaganjalnik {
      * sistemski zapis izhodov), domaci zaslon vrnemo prejsnjemu zaganjalniku in ga takoj odpremo. Vrne true, ce je bil
      * vrnjen - klicatelj naj se konca.
      */
-    fun preveriObZagonu(context: Context): Boolean {
+    fun preveriObZagonu(context: Context): Boolean = try {
+        preveri(context)
+    } catch (t: Throwable) {
+        // Grok 8, Z2: izjema v samih vratih bi sesula vsak zagon domacega zaslona (zanka) - takrat so vrata sama znak okvare:
+        // domaci zaslon gre prejsnjemu zaganjalniku, ce obstaja, sicer ostanemo (brez njega bi ostal crn FallbackHome).
+        Log.w(TAG, "Varnostna vrata: izjema ${t.javaClass.simpleName} - vracam domaci zaslon")
+        try {
+            if (drugiZaganjalniki(context).isNotEmpty()) { vrniPoPadcih(context.applicationContext); odpriTovarniskega(context); true } else false
+        } catch (_: Throwable) { false }
+    }
+
+    private fun preveri(context: Context): Boolean {
         if (!jePonujen(context)) return false
         val zdaj = System.currentTimeMillis()
+        val od = try { vrata(context).getLong(KLJUC_OD, 0L) } catch (_: ClassCastException) { 0L }
         val vsi = ZaganjalnikPravila.padciPo(
-            ZaganjalnikPravila.zdruziPadce(lastniPadci(context), sistemskiPadci(context)), vrata(context).getLong(KLJUC_OD, 0L))
+            ZaganjalnikPravila.zdruziPadce(lastniPadci(context), sistemskiPadci(context)), od, zdaj)
         if (!ZaganjalnikPravila.vrniPrejsnjemu(vsi, zdaj, drugiZaganjalniki(context).size)) return false
         Log.w(TAG, "Varnostna vrata: ${vsi.size} padcev od vklopa - domaci zaslon gre nazaj prejsnjemu zaganjalniku")
         vrniPoPadcih(context.applicationContext)

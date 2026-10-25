@@ -3,7 +3,7 @@
 <resources>
     <string name="dov_naslov">Permisos</string>
     <string name="dov_opis_vrstice">Qué necesita Safeer y por qué: actívalo con un toque</string>
-    <string name="dov_uvod">Safeer solo pide lo que realmente usa. El botón abre exactamente la página correcta: activa Safeer allí y vuelve. Puedes revocarlo todo en cualquier momento.</string>
+    <string name="dov_uvod">Safeer solo pide lo que realmente usa. El botón abre la página de ajustes correcta: activa Safeer allí y vuelve. Para mostrar sobre otras aplicaciones, Android muestra una lista de aplicaciones: busca Safeer en ella. Puedes revocarlo todo en cualquier momento.</string>
     <string name="dov_ob_zagonu">Aún falta algo importante, por eso Safeer Link no puede hacerlo todo en este dispositivo. Toca «Permitir» en las filas marcadas.</string>
     <!-- Ime posebnega dostopa v cistem Androidu (OnePlus, WP28 S in vecina drugih; sl preverjeno na napravah lastnika 25. 10. 2026). -->
     <string name="dov_prikaz">Mostrar sobre otras aplicaciones</string>
@@ -25,7 +25,7 @@
     <string name="dov_ne">✗ No permitido</string>
     <string name="dov_delno">◐ Solo seleccionadas</string>
     <string name="dov_gumb_dovoli">Permitir</string>
-    <string name="dov_gumb_nastavitev">Ajuste</string>
+    <string name="dov_gumb_nastavitev">Abrir ajustes</string>
     <string name="dov_namig_naslov">¿El interruptor está gris o no se mueve?</string>
     <string name="dov_namig_1">1. En la página del sistema, toca una vez el interruptor gris de Safeer: Android avisa de que el ajuste está restringido. Cierra el aviso.</string>
     <string name="dov_namig_2">2. Toca el botón de abajo, luego ⋮ arriba a la derecha y elige «Permitir ajustes restringidos» (en Samsung puede estar en la misma página). Vuelve aquí y toca «Permitir» otra vez.</string>
@@ -34,6 +34,8 @@
     <string name="dov_stanje_vse">Todo permitido</string>
     <string name="dov_stanje_manjka">Faltan: %1$d</string>
     <string name="dov_obvestilo_naslov">Safeer Link: permitir abrir apps</string>
-    <string name="dov_obvestilo_besedilo">Un dispositivo vinculado quería abrir %1$s. Toca «Permitir», activa «%2$s» para Safeer en la página que se abre y vuelve a enviar la orden. Basta una vez.</string>
+    <string name="dov_obvestilo_besedilo">Un dispositivo vinculado quería abrir %1$s. Toca «Permitir» y luego «Permitir» junto a «%2$s». Android muestra una lista de aplicaciones: busca «%3$s» y actívalo. Después vuelve a enviar la orden. Basta una vez.</string>
     <string name="dov_izid_brez">En este dispositivo, permite una vez «%1$s» para Safeer (la notificación ya está en pantalla, o Safeer › Ajustes › Permisos) y vuelve a abrir %2$s.</string>
+    <string name="dov_obvestilo_besedilo_sistem">Un dispositivo vinculado quería abrir %1$s. Toca «Permitir»: Android abre «%2$s» con una lista de aplicaciones; busca «%3$s», actívalo y vuelve a enviar la orden. Basta una vez.</string>
+    <string name="dov_prikaz_oneplus">Mostrar sobre otras aplicaciones</string>
 </resources>

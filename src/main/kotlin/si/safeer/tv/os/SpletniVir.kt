@@ -796,6 +796,8 @@ object SpletniVir {
     }
 
     /** Slika spletnega vira z enakim kontekstom kot stran (Referer, piskotki, brskalniski UA). */
+    private const val NAJVEC_SLIKA = 16L * 1024 * 1024
+
     fun bajtiSlike(c: Context, naslov: String): ByteArray? = try {
         val p = URL(naslov).openConnection() as HttpURLConnection
         p.connectTimeout = 8_000; p.readTimeout = 10_000
@@ -803,7 +805,8 @@ object SpletniVir {
         p.setRequestProperty("User-Agent", ua)
         straniSlik[naslov]?.let { p.setRequestProperty("Referer", it) }
         try { CookieManager.getInstance().getCookie(naslov) } catch (_: Exception) { null }?.let { p.setRequestProperty("Cookie", it) }
-        try { if (p.responseCode in 200..299) p.inputStream.use { it.readBytes() } else null } finally { p.disconnect() }
+        // Grok 10, M6: najvec NAJVEC_SLIKA bajtov - slika s tuje strani ne sme napolniti pomnilnika.
+        try { if (p.responseCode in 200..299) p.inputStream.use { OsPravila.beriOmejeno(it, NAJVEC_SLIKA) } else null } finally { p.disconnect() }
     } catch (_: Exception) { null }
 
     // ------------------------------------------------------------------ nevidni WebView
@@ -905,9 +908,12 @@ object SpletniVir {
           if(img){var r=img.getBoundingClientRect(),set=img.getAttribute('srcset')||img.getAttribute('data-srcset')||'',
             ss=img.getAttribute('data-src')||img.getAttribute('data-lazy-src')||img.getAttribute('data-original')||img.getAttribute('data-poster')||img.getAttribute('data-image')||'';
             if(!ss&&set)ss=set.split(',').pop().trim().split(/\s+/)[0];if(!ss){var bg=getComputedStyle(img).backgroundImage.match(/url\(["']?([^"')]+)/);ss=(bg&&bg[1])||img.currentSrc||img.getAttribute('src')||'';}ss=ss?abs(ss):'';if(ss===location.href.split('#')[0])ss='';
+            /* Grok 10, M9: nadomestek data:/blob: (lena slika) ni slika - posnetek YouTuba dobi slicico v Kotlinu. */
+            if(ss&&!/^https?:/.test(ss))ss='';
             /* Lena slika (YouTube jo nalozi sele na zaslonu, src prazen) ni slika: abs('') je naslov strani - kartica brez slike (k). */
             if(r.width>=48&&r.height>=32&&(!ss||/^https?:/.test(ss))){
-              if(ss)z.i=ss;else z.k=1;
+              /* Grok 10, M8: kartica brez slike samo za YouTube (slicico sestavi Kotlin); drugje kot doslej brez slike ni zadetka. */
+              if(ss)z.i=ss;else if(/(^|\.)(youtube\.com|youtu\.be)$/.test(uh))z.k=1;
               z.v=z.v||(r.width/r.height>1.2)||(card.matches&&card.matches('[class*=movie],[class*=film],[class*=series],[class*=poster],[class*=show],[class*=video],[class*=card],[class*=item]'))||/(movie|film|series|watch|show|tv|episode)/i.test(u);
               if(!z.t&&smiselno(img.alt||''))z.t=img.alt;}}}
       }

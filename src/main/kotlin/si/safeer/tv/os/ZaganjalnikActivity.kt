@@ -111,7 +111,9 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         zacetek = SystemClock.uptimeMillis()
         // Varnostna vrata kot PRVO dejanje (pred vsem, kar bi lahko padlo): po prevec padcih od vklopa (tudi ANR in padci
         // v kodi C, ki jih vidi le sistemski zapis) gre domaci zaslon nazaj prejsnjemu zaganjalniku, ta se takoj odpre.
-        val vrnjen = intent?.hasCategory(Intent.CATEGORY_HOME) == true && Zaganjalnik.preveriObZagonu(this)
+        // Grok 8, Z1: tudi namizje na zunanjem zaslonu (SECONDARY_HOME, DeX) gre skozi vrata.
+        val domov = intent?.let { it.hasCategory(Intent.CATEGORY_HOME) || it.hasCategory(Intent.CATEGORY_SECONDARY_HOME) } == true
+        val vrnjen = domov && Zaganjalnik.preveriObZagonu(this)
         Zaganjalnik.namestiZascito(this)
         if (intent?.hasCategory(Intent.CATEGORY_HOME) == true && !vrnjen) Zaganjalnik.zabeleziZagonDomov(this)
         if (!vrnjen) Predgretje.zazeni(this)

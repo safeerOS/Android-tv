@@ -276,8 +276,11 @@ class DovoljenjaActivity : OsActivity() {
         }
 
         /** »Prikaz čez druge aplikacije« z imenom, ki ga uporablja ta naprava (Samsung: »Pojavitev na vrhu«). */
-        fun imePrikaza(c: Context): String = c.getString(
-            if (DovoljenjaPravila.imePrikaza(Build.MANUFACTURER) == DovoljenjaPravila.ImePrikaza.SAMSUNG) R.string.dov_prikaz_samsung else R.string.dov_prikaz)
+        fun imePrikaza(c: Context): String = c.getString(when (DovoljenjaPravila.imePrikaza(Build.MANUFACTURER)) {
+            DovoljenjaPravila.ImePrikaza.SAMSUNG -> R.string.dov_prikaz_samsung
+            DovoljenjaPravila.ImePrikaza.ONEPLUS -> R.string.dov_prikaz_oneplus
+            DovoljenjaPravila.ImePrikaza.SPLOSNO -> R.string.dov_prikaz
+        })
 
         private fun komponentaVnosa(c: Context) = ComponentName(c.packageName, "si.safeer.tv.link.VnosStoritev")
 
