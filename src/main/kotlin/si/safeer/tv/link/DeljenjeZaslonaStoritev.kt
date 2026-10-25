@@ -129,6 +129,21 @@ class DeljenjeZaslonaStoritev : Service() {
             }
         }
 
+        /**
+         * Pravilo lastnika 25. 10. 2026 (kot core/link_dostop na racunalniku): umik iz ozjega kroga ali odvzem zaslona takoj
+         * konca deljenje zaslona tej napravi (tudi med cakanjem na odklep). Klice se ob spremembi dostopa in kroga.
+         */
+        fun ustaviBrezDostopa(context: Context) {
+            val c = cilj
+            val sme = try {
+                si.safeer.tv.cast.DostopPravila.Zmoznost.ZASLON in si.safeer.tv.cast.Dostop.zmoznosti(context, c)
+            } catch (_: Throwable) { false }
+            if (DeljenjePravila.ustaviZaradiDostopa(tece, cakaNaOdklep, c, sme)) {
+                Log.i(TAG, "Deljenje zaslona ustavljeno: naprava nima vec dostopa do zaslona (umik iz ozjega kroga).")
+                ustavi(context)
+            }
+        }
+
         private fun javi() {
             try { naSpremembo?.invoke() } catch (_: Exception) { }
         }

@@ -154,6 +154,11 @@ fun main() {
     check(!DeljenjePravila.zaupajIzObvestila(true, true, "n-a", "n-a", false, false))    // ni vec v krogu
     check(!DeljenjePravila.zaupajIzObvestila(true, false, "n-a", "n-a", false, true))    // deljenje ne tece
     check(DeljenjePravila.zaupajIzObvestila(false, true, "n-a", "n-a", true, false))     // preklic vedno
+    // Pravilo lastnika 25. 10. (kot Linux): umik iz ozjega kroga takoj konca deljenje zaslona tej napravi.
+    check(DeljenjePravila.ustaviZaradiDostopa(tece = true, cakaNaOdklep = false, cilj = "n-a", smeZaslon = false))
+    check(DeljenjePravila.ustaviZaradiDostopa(tece = false, cakaNaOdklep = true, cilj = "n-a", smeZaslon = false))
+    check(!DeljenjePravila.ustaviZaradiDostopa(tece = true, cakaNaOdklep = false, cilj = "n-a", smeZaslon = true))
+    check(!DeljenjePravila.ustaviZaradiDostopa(tece = false, cakaNaOdklep = false, cilj = "n-a", smeZaslon = false))
     // U7: umik iz ozjega kroga izbrise zaupanje.
     check(DeljenjePravila.zaupanjaVKrogu(setOf("n-a", "n-b")) { it == "n-a" } == setOf("n-a"))
     check(DeljenjePravila.zaupanjaVKrogu(setOf("n-a")) { throw IllegalStateException() }.isEmpty())

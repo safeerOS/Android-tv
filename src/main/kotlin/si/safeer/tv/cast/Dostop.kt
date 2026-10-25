@@ -222,7 +222,11 @@ object Dostop {
         }
         Log.i(TAG, "Dostop naprave $j: ${DostopPravila.vNiz(novo).ifEmpty { "brez" }}")
         // Pregled dex-a U7: brez zaslona (umik iz ozjega kroga) zaupanje za deljenje zaslona ne ostane.
-        if (Zmoznost.ZASLON !in novo) try { si.safeer.tv.link.ZaupanjeZaslona.pocisti(ctx) } catch (_: Throwable) { }
+        if (Zmoznost.ZASLON !in novo) {
+            try { si.safeer.tv.link.ZaupanjeZaslona.pocisti(ctx) } catch (_: Throwable) { }
+            // Kot na racunalniku: umik iz ozjega kroga takoj konca deljenje zaslona tej napravi.
+            try { si.safeer.tv.link.DeljenjeZaslonaStoritev.ustaviBrezDostopa(ctx) } catch (_: Throwable) { }
+        }
         try { naSpremembo?.invoke() } catch (_: Throwable) { }
     }
 

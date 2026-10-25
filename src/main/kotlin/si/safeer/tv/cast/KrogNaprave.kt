@@ -36,6 +36,8 @@ object KrogNaprave {
                 si.safeer.tv.link.VnosVklop.uskladi(app, "krog")
                 // Pregled dex-a U7: umik iz kroga izbrise »Vedno dovoli« za deljenje zaslona.
                 try { si.safeer.tv.link.ZaupanjeZaslona.pocisti(app) } catch (_: Throwable) { }
+                // Umik iz kroga takoj konca deljenje zaslona umaknjeni napravi (kot na racunalniku).
+                try { si.safeer.tv.link.DeljenjeZaslonaStoritev.ustaviBrezDostopa(app) } catch (_: Throwable) { }
             }
             krog = k
         }

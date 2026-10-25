@@ -175,6 +175,10 @@ object DeljenjePravila {
      * deljenje caka na odklep in dokler je naprava zaklenjena (po stanju zaklepa, ne po ustavitvi projekcije - pred Androidom
      * 15 QPR1 projekcija ob zaklepu tece naprej).
      */
+    /** Tece (ali caka na odklep) deljenje napravi [cilj], ki ji zaslon ni vec odprt - konec takoj (pravilo 25. 10. 2026). */
+    fun ustaviZaradiDostopa(tece: Boolean, cakaNaOdklep: Boolean, cilj: String, smeZaslon: Boolean): Boolean =
+        (tece || cakaNaOdklep) && cilj.isNotBlank() && !smeZaslon
+
     fun zavrnitevVnosa(cakaNaOdklep: Boolean, zaklenjeno: Boolean, vprasanjeOdprto: Boolean): ZavrnitevVnosa = when {
         vprasanjeOdprto -> ZavrnitevVnosa.VPRASANJE
         cakaNaOdklep -> ZavrnitevVnosa.CAKA_NA_ODKLEP
