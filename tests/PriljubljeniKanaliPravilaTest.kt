@@ -45,6 +45,14 @@ fun main() {
     preveriEnako("prazni priljubljeni", listOf("iptv:n"), P.dodaj(emptyList(), jeK, "iptv:n"))
     preveriEnako("ze priljubljen", prilj, P.dodaj(prilj, jeK, "tv:c"))
 
+    // N9: meja priljubljenih odreze najprej stare skladbe, ne kanalov.
+    preveriEnako("omeji: brez presezka", prilj, P.omeji(prilj, jeK, 5))
+    preveriEnako("omeji: odpade zadnja skladba", listOf("tv:a", "jamendo:1", "iptv:b", "tv:c"), P.omeji(prilj, jeK, 4))
+    preveriEnako("omeji: odpadejo obe skladbi, kanali ostanejo", listOf("tv:a", "iptv:b", "tv:c"), P.omeji(prilj, jeK, 3))
+    preveriEnako("omeji: sami kanali - zadnji odpade", listOf("tv:a", "iptv:b"), P.omeji(listOf("tv:a", "iptv:b", "tv:c"), jeK, 2))
+    val nov = P.dodaj(prilj, jeK, "iptv:n")
+    preveriEnako("omeji: nov kanal ostane, ko je seznam poln", true, "iptv:n" in P.omeji(nov, jeK, prilj.size))
+
     // Meni ponudi samo mogoce premike.
     preveriEnako("en kanal: nic", Triple(false, false, false), P.moznostiPremika(0, 1))
     preveriEnako("prvi: desno", Triple(false, true, false), P.moznostiPremika(0, 3))

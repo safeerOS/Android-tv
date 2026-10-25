@@ -55,6 +55,19 @@ object PriljubljeniKanaliPravila {
         return ids.toMutableList().apply { add(zadnji + 1, nov) }
     }
 
+    /**
+     * Pregled 25. 10. (N9): najvec [najvec] priljubljenih - najprej odpadejo ne-kanali s konca (najstarejse skladbe), sele
+     * nato kanali s konca. Nov kanal tako ne izgine zaradi starih skladb.
+     */
+    fun omeji(ids: List<String>, jeKanal: (String) -> Boolean, najvec: Int): List<String> {
+        if (ids.size <= najvec) return ids
+        var odvec = ids.size - najvec
+        val odstrani = HashSet<Int>()
+        for (i in ids.indices.reversed()) { if (odvec == 0) break; if (!jeKanal(ids[i])) { odstrani += i; odvec-- } }
+        for (i in ids.indices.reversed()) { if (odvec == 0) break; if (i !in odstrani) { odstrani += i; odvec-- } }
+        return ids.filterIndexed { i, _ -> i !in odstrani }
+    }
+
     /** Katera premika ponudi meni kartice: (levo, desno, na zacetek). */
     fun moznostiPremika(mesto: Int, kanalov: Int): Triple<Boolean, Boolean, Boolean> =
         if (mesto < 0 || kanalov < 2) Triple(false, false, false) else Triple(mesto > 0, mesto < kanalov - 1, mesto > 1)

@@ -3889,6 +3889,10 @@ class GlasbaActivity : OsActivity() {
     private fun priljubljeniKanali(): List<Jamendo.Skladba> =
         MedijskiViri.priljubljene(this).filter { PriljubljeniKanaliPravila.jeKanal(it.id, Stremio.jeVZivo(it)) }
 
+    /** Priljubljeni kanali, ki jih mreza pokaze - isti filter kot [narisiKanale] (oznaceni kot nedelujoci izpadejo). */
+    private fun vidniPriljubljeni(): List<Jamendo.Skladba> =
+        priljubljeniKanali().filter { !znanNedelujocKanal(it) && !MrtviKanali.jeMrtev(this, it.id) }
+
     /** Naloga 90d: kanal seznama IPTV, katerega tok je znano samo obvestilo ([KanaliPravila.znanNedelujocTok]). */
     private fun znanNedelujocKanal(sk: Jamendo.Skladba) = IptvSeznami.jeKanal(sk) && KanaliPravila.znanNedelujocTok(sk.zvok)
 
@@ -4094,7 +4098,9 @@ class GlasbaActivity : OsActivity() {
         val izSeznamov = seznamiTv().flatMap { IptvSeznami.podatkiIzPomnilnika(it)?.jeziki.orEmpty() }
         val jeziki = jezikiIzbire(KanaliPravila.jezikiKanalov(f?.jeziki?.map { it.kljuc }, shranjeni, izSeznamov + vgrajeni.map { it.jezik }))
         val nacini = listOf(RAZVRSTI_PRIPOROCENO to R.string.os_media_razvrsti_priporoceno, RAZVRSTI_IME_AZ to R.string.os_media_razvrsti_ime)
-        return listOf(
+        // Pregled 25. 10. (N8): v nacinu »Priljubljeni« zvrst in jezik ne veljata (pokazejo se vsi priljubljeni kanali) -
+        // njunih izbir zato ne kazemo; ob »Vsi kanali« sta spet tu, z izbiro, ki je bila.
+        return (if (tvSamoPriljubljeni) emptyList() else listOf(
             PoljeIzbire("izb:zvrst", listOf(getString(R.string.os_zvrst_vse)) + zvrsti.map { it.second }, zvrsti.indexOfFirst { it.first == m.zvrst } + 1, null) { i ->
                 odpriKanale(if (i == 0) "" else zvrsti[i - 1].first, m.jezik)
             },
@@ -4102,6 +4108,7 @@ class GlasbaActivity : OsActivity() {
                 getString(R.string.os_jezik_vsebine)) { i ->
                 odpriKanale(m.zvrst, if (i == 0) "" else jeziki[i - 1].first)
             },
+        )) + listOf(
             PoljeIzbire("izb:razvrsti", nacini.map { getString(it.second) }, nacini.indexOfFirst { it.first == razvrstitev(TV_V_ZIVO) }.coerceAtLeast(0),
                 getString(R.string.os_media_razvrsti)) { i ->
                 razvrstitve[TV_V_ZIVO] = nacini[i].first
@@ -4111,7 +4118,8 @@ class GlasbaActivity : OsActivity() {
             },
         ) + run {
             // 25. 10. 2026 (lastnik): izbira »Priljubljeni (N)« - samo priljubljeni kanali; ko jih ni, izbire ni.
-            val priljubljenih = priljubljeniKanali().size
+            // Pregled N7: N = kartice, ki jih mreza res pokaze (brez kanalov, oznacenih kot nedelujoci).
+            val priljubljenih = vidniPriljubljeni().size
             if (priljubljenih == 0 && !tvSamoPriljubljeni) emptyList() else listOf(PoljeIzbire("izb:prilj",
                 listOf(getString(R.string.os_tv_vsi_kanali), getString(R.string.os_tv_priljubljeni_n, priljubljenih)), if (tvSamoPriljubljeni) 1 else 0, null) { i ->
                 if (tvSamoPriljubljeni != (i == 1)) {
@@ -5842,7 +5850,11 @@ class GlasbaActivity : OsActivity() {
      */
     private fun moznostiPremikaKanala(sk: Jamendo.Skladba): List<Pair<String, () -> Unit>> {
         val vse = MedijskiViri.priljubljene(this)
-        val kanali = vse.filter { PriljubljeniKanaliPravila.jeKanal(it.id, Stremio.jeVZivo(it)) }.map { it.id }.toHashSet()
+        // Pregled N6: premikamo med priljubljenimi kanali, ki so v mrezi na zaslonu - nevidni (nedelujoci, izven mreze)
+        // ostanejo na svojih mestih, »Levo« pri prvem vidnem pa ni ponujen.
+        val vMrezi = if (razdelek == TV_V_ZIVO) mrezaKanalov?.narisani?.toHashSet() else null
+        val kanali = vse.filter { PriljubljeniKanaliPravila.jeKanal(it.id, Stremio.jeVZivo(it)) && (vMrezi == null || it.id in vMrezi) }
+            .map { it.id }.toHashSet()
         val jeK: (String) -> Boolean = { it in kanali }
         val ids = vse.map { it.id }
         val (mesto, stevilo) = PriljubljeniKanaliPravila.mesto(ids, jeK, sk.id)
@@ -5854,8 +5866,7 @@ class GlasbaActivity : OsActivity() {
                 // Izbira gre s premaknjenim kanalom (izmerjeno na TV: brez tega je ostala na starem mestu, na sosedu). Priljubljeni
                 // so v mrezi spredaj po svojem redu: novo mesto je mesto med priljubljenimi kanali, ki so v mrezi. Risanje vrne
                 // izbiro na kartico vrnitve ([mestoVrnitve]), tudi ce se mreza rise po korakih.
-                val vMrezi = mrezaKanalov?.narisani?.toHashSet()
-                val novoMesto = nov.filter { jeK(it) && (vMrezi == null || it in vMrezi) }.indexOf(sk.id)
+                val novoMesto = nov.filter(jeK).indexOf(sk.id)
                 if (novoMesto >= 0) mestoVrnitve(drsnik.scrollY, "k:#$novoMesto", OsPravila.Podstrani.NI_ODMIKA)
                 osveziPriljubljene()
             }
@@ -5881,7 +5892,9 @@ class GlasbaActivity : OsActivity() {
             val je = MedijskiViri.jePriljubljena(this, sk)
             dejanja += getString(if (je) R.string.os_mediji_odstrani_prilj else R.string.os_mediji_dodaj_prilj) to {
                 val zdaj = MedijskiViri.preklopiPriljubljeno(this, sk)
-                Toast.makeText(this, if (zdaj) R.string.os_mediji_dodano_prilj else R.string.os_mediji_odstranjeno_prilj, Toast.LENGTH_SHORT).show()
+                // Pregled N9: »Dodano« samo, ce je res shranjeno (meja priljubljenih).
+                Toast.makeText(this, when { zdaj -> R.string.os_mediji_dodano_prilj; je -> R.string.os_mediji_odstranjeno_prilj; else -> R.string.prilj_polno },
+                    Toast.LENGTH_SHORT).show()
                 // Zadnji priljubljeni kanal odstranjen: izbira »Priljubljeni« nima vec cesa pokazati.
                 if (!zdaj && tvSamoPriljubljeni && priljubljeniKanali().isEmpty()) tvSamoPriljubljeni = false
                 osveziPriljubljene()
