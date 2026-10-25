@@ -148,40 +148,236 @@ object WebtorPravila {
         return kljuc(h, i ?: -1)
     }
 
+    // ------------------------------------------------------------------ datoteka toka (izmerjeno 25. 10. 2026 popoldne)
+
+    /**
+     * Datoteka toka Webtor je samo `idx` v JWT - to je tisto, kar `/resolve` predvaja. Izvorna koda webtor-io/web-ui
+     * (832df83, services/stremio/types.go): `FileIdx int` z `omitempty` - tok dodatka BREZ `fileIdx` (Stremio: najvecja
+     * datoteka) postane indeks 0, JWT dobi `idx: 0` in `/resolve` vrne PRVO datoteko torrenta (OnePlus 9, 25. 10.:
+     * Kolesarski tatovi -> image/jpeg); hkrati odgovor Webtorja polje `fileIdx` 0 izpusti, zato se prej nasa izdaja z
+     * `fileIdx` 0 ni ujela s tokom Webtor, izdaja BREZ `fileIdx` pa se je (napacno). JWT brez `idx` = Webtor ob kliku izbere
+     * najvecji video (PickPrimaryFileIdx).
+     */
+    const val IDX_NEZNAN = -2
+
+    /** Izdaja toka Webtor: hash in datoteka iz JWT (pravilo zgoraj); brez JWT [IDX_NEZNAN] - nikoli enaka nasi izdaji. */
+    fun kljucWebtor(hashToka: String?, url: String): Kljuc? {
+        val j = izJwt(url)
+        if (j != null) return j
+        val h = hashToka?.trim()?.lowercase() ?: return null
+        return if (RX_HASH.matches(h)) Kljuc(h, IDX_NEZNAN) else null
+    }
+
+    /** Kljuc iz shranjenega toka ([kljucWebtor] -> Tok.hash, Tok.datoteka) brez izgube [IDX_NEZNAN]. */
+    fun kljucToka(hash: String?, idx: Int): Kljuc? {
+        val h = hash?.trim()?.lowercase() ?: return null
+        if (!RX_HASH.matches(h)) return null
+        return Kljuc(h, if (idx == IDX_NEZNAN) IDX_NEZNAN else if (idx < 0) -1 else idx)
+    }
+
+    enum class Datoteka {
+        /** Ime datoteke (tok Webtor ali nas dodatek za isti hash in indeks) je glavni video. */
+        VIDEO,
+        /** JWT brez `idx`: Webtor izbere najvecji video sam. */
+        NAJVECJI,
+        /** Indeks brez imena in brez nasega toka z istim indeksom (npr. 0 iz izpuscenega `fileIdx`): lahko naslovnica. */
+        NEGOTOVA,
+        /** Ime pove, da ni glavni video (slika, glasba, podnapisi, vzorec, vsebnik, ki ga predvajalnik ne zna). */
+        NI_VIDEO
+    }
+
+    /** Koncnice, ki jih Media3 1.11 razcleni kot video (ASF/WMV, VOB, ISO, RMVB ne). */
+    private val VIDEO_KONCNICE = setOf("mkv", "webm", "mp4", "m4v", "mov", "avi", "divx", "ts", "m2ts", "mts", "mpg", "mpeg",
+        "flv", "3gp")
+    private val RX_VZOREC = Regex("(^|[^a-z])sample([^a-z]|$)")
+
+    /** true = ime glavnega videa, false = ni (druga koncnica ali vzorec), null = ime tega ne pove (prazno, brez koncnice). */
+    fun jeVideoIme(ime: String): Boolean? {
+        val n = ime.trim().lowercase().substringAfterLast('/').substringAfterLast('\\')
+        if (n.isEmpty()) return null
+        if (RX_VZOREC.containsMatchIn(n)) return false
+        val k = n.substringAfterLast('.', "")
+        if (k.isEmpty() || k.length > 5 || k.any { !it.isLetterOrDigit() }) return null
+        return k in VIDEO_KONCNICE
+    }
+
+    /**
+     * Kaj bo `/resolve` predvajal: [idx] iz JWT ([IDX_NEZNAN], -1 = brez idx), [imeToka] = `behaviorHints.filename` toka
+     * Webtor (dodatek, ki je dal ime, je dal tudi indeks), [nasIdx]/[nasIme] = nas tok za isti hash (null = ga nimamo).
+     */
+    fun datoteka(idx: Int, imeToka: String, nasIdx: Int?, nasIme: String): Datoteka {
+        if (idx == IDX_NEZNAN) return Datoteka.NEGOTOVA
+        jeVideoIme(imeToka)?.let { return if (it) Datoteka.VIDEO else Datoteka.NI_VIDEO }
+        if (idx < 0) return Datoteka.NAJVECJI
+        if (nasIdx != null && nasIdx == idx) return if (jeVideoIme(nasIme) == false) Datoteka.NI_VIDEO else Datoteka.VIDEO
+        return Datoteka.NEGOTOVA
+    }
+
     /**
      * Vrstni red tokov Webtor (indeksi v [webtor]): najprej tisti, ki se ujemajo z NASIMI torrenti, v vrstnem redu nasih
      * torrentov (ista izdaja, kot bi jo izbrali sami - kakovost, jezik, ⚡); nato ostali, `[⚡WT]` pred `[WT]` (hitrejsi
      * zacetek), sicer v danem redu (kakovost). Skriti ([skrij]) izpadejo. Ujemanje: isti hash IN ista datoteka (paket z vec
      * filmi ali epizodami - napacna datoteka bi bila napacen film). [samoTakoj]: samo `[⚡WT]`/`[⚡TB]` (korak »takoj«).
+     * [datoteke] ([datoteka], null = vse VIDEO): NI_VIDEO izpade, NEGOTOVA ni »takoj« in je na koncu (le s sondo vsebine).
      */
-    fun vrstniRed(nasi: List<Kljuc?>, webtor: List<Pair<Kljuc?, Vrsta>>, imamoTorBox: Boolean, samoTakoj: Boolean = false): List<Int> {
-        val vidni = webtor.indices.filter { !skrij(webtor[it].second, imamoTorBox) && (!samoTakoj || takoj(webtor[it].second)) }
+    fun vrstniRed(nasi: List<Kljuc?>, webtor: List<Pair<Kljuc?, Vrsta>>, imamoTorBox: Boolean, samoTakoj: Boolean = false,
+                  datoteke: List<Datoteka>? = null): List<Int> {
+        fun d(i: Int) = datoteke?.getOrNull(i) ?: Datoteka.VIDEO
+        val vidni = webtor.indices.filter { !skrij(webtor[it].second, imamoTorBox) && d(it) != Datoteka.NI_VIDEO &&
+            (!samoTakoj || (takoj(webtor[it].second) && d(it) != Datoteka.NEGOTOVA)) }
         val izbrani = LinkedHashSet<Int>()
         for (k in nasi) {
             if (k == null) continue
-            vidni.firstOrNull { it !in izbrani && webtor[it].first == k }?.let { izbrani += it }
+            vidni.firstOrNull { it !in izbrani && webtor[it].first == k && d(it) != Datoteka.NEGOTOVA }?.let { izbrani += it }
         }
         val ostali = vidni.filter { it !in izbrani }
-        return izbrani.toList() + ostali.filter { takoj(webtor[it].second) } + ostali.filter { !takoj(webtor[it].second) }
+        val gotovi = ostali.filter { d(it) != Datoteka.NEGOTOVA }
+        return izbrani.toList() + gotovi.filter { takoj(webtor[it].second) } + gotovi.filter { !takoj(webtor[it].second) } +
+            ostali.filter { d(it) == Datoteka.NEGOTOVA }
     }
 
-    /** Tok Webtor za izdajo [nas] (torrent, ki ga je uporabnik izbral): indeks v [webtor] ali -1. */
-    fun zaIzdajo(nas: Kljuc?, webtor: List<Pair<Kljuc?, Vrsta>>, imamoTorBox: Boolean): Int =
-        if (nas == null) -1 else webtor.indices.firstOrNull { webtor[it].first == nas && !skrij(webtor[it].second, imamoTorBox) } ?: -1
+    /** Tok Webtor za izdajo [nas] (torrent, ki ga je uporabnik izbral): indeks v [webtor] ali -1 (NEGOTOVA in NI_VIDEO ne). */
+    fun zaIzdajo(nas: Kljuc?, webtor: List<Pair<Kljuc?, Vrsta>>, imamoTorBox: Boolean, datoteke: List<Datoteka>? = null): Int =
+        if (nas == null) -1 else webtor.indices.firstOrNull {
+            val d = datoteke?.getOrNull(it) ?: Datoteka.VIDEO
+            webtor[it].first == nas && !skrij(webtor[it].second, imamoTorBox) && d != Datoteka.NEGOTOVA && d != Datoteka.NI_VIDEO
+        } ?: -1
 
-    enum class Izid { PREDVAJAJ, NI_PAKETA, NI_TOKA, OMEJITEV, PREPOCASI, NAPAKA }
+    // ------------------------------------------------------------------ vsebina toka (sonda prvih bajtov)
+
+    /** Prvih toliko bajtov prebere sonda (Range 0-4095): dovolj za posodo in glavo AVI (hdrl). */
+    const val GLAVA_BAJTOV = 4096
+
+    enum class Posoda { MKV, MP4, TS, PS, AVI, FLV, ASF, HEIF, M4A, JPEG, PNG, GIF, WEBP, ZVOK, FLAC, OGG, WAV, PDF, ZIP, RAR,
+        SEDEMZ, BESEDILO, NEZNANO }
+
+    /** Posoda po prvih bajtih (magicna stevila). */
+    fun posoda(g: ByteArray): Posoda {
+        fun u(i: Int) = if (i < g.size) g[i].toInt() and 0xFF else -1
+        fun ascii(o: Int, s: String) = s.indices.all { u(o + it) == s[it].code }
+        fun brand() = (8..11).joinToString("") { if (u(it) in 32..126) u(it).toChar().toString() else "?" }
+        return when {
+            u(0) == 0x1A && u(1) == 0x45 && u(2) == 0xDF && u(3) == 0xA3 -> Posoda.MKV
+            ascii(4, "ftyp") -> when (brand()) {
+                "heic", "heix", "heim", "heis", "mif1", "msf1", "avif", "avis" -> Posoda.HEIF
+                "M4A ", "M4B ", "M4P " -> Posoda.M4A
+                else -> Posoda.MP4
+            }
+            ascii(4, "moov") || ascii(4, "mdat") || ascii(4, "free") || ascii(4, "wide") || ascii(4, "skip") -> Posoda.MP4
+            ascii(0, "RIFF") && ascii(8, "AVI ") -> Posoda.AVI
+            ascii(0, "RIFF") && ascii(8, "WAVE") -> Posoda.WAV
+            ascii(0, "RIFF") && ascii(8, "WEBP") -> Posoda.WEBP
+            u(0) == 0x47 && u(188) == 0x47 -> Posoda.TS
+            u(4) == 0x47 && u(196) == 0x47 -> Posoda.TS          // M2TS (4 bajti casa pred vsakim paketom)
+            u(0) == 0 && u(1) == 0 && u(2) == 1 && u(3) == 0xBA -> Posoda.PS
+            ascii(0, "FLV") -> Posoda.FLV
+            u(0) == 0x30 && u(1) == 0x26 && u(2) == 0xB2 && u(3) == 0x75 -> Posoda.ASF
+            u(0) == 0xFF && u(1) == 0xD8 && u(2) == 0xFF -> Posoda.JPEG
+            u(0) == 0x89 && ascii(1, "PNG") -> Posoda.PNG
+            ascii(0, "GIF8") -> Posoda.GIF
+            ascii(0, "ID3") || (u(0) == 0xFF && u(1) >= 0 && (u(1) and 0xE0) == 0xE0) -> Posoda.ZVOK   // MP3, AAC ADTS
+            ascii(0, "fLaC") -> Posoda.FLAC
+            ascii(0, "OggS") -> Posoda.OGG
+            ascii(0, "%PDF") -> Posoda.PDF
+            ascii(0, "PK") && u(2) == 3 && u(3) == 4 -> Posoda.ZIP
+            ascii(0, "Rar!") -> Posoda.RAR
+            u(0) == 0x37 && u(1) == 0x7A && u(2) == 0xBC && u(3) == 0xAF -> Posoda.SEDEMZ
+            g.isNotEmpty() && (0 until minOf(g.size, 64)).all { u(it) in 32..126 || u(it) in setOf(9, 10, 13) || u(it) >= 0x80 } -> Posoda.BESEDILO
+            else -> Posoda.NEZNANO
+        }
+    }
+
+    private val VIDEO_POSODE = setOf(Posoda.MKV, Posoda.MP4, Posoda.TS, Posoda.PS, Posoda.AVI, Posoda.FLV)
 
     /**
-     * Sonda toka (zahteva za prvi bajt): [koda] HTTP (0 = ni odgovora), [prviBajtMs] cas do prvega bajta (null = ga ni
-     * bilo), [potekel] = rok je potekel. 402 = ni paketa, 404/410 = Webtor toka nima, 429 = omejitev ali drug naslov IP;
-     * vse razen [Izid.PREDVAJAJ] pomeni: naslednji vir.
+     * Kodek videa v glavi AVI (strf -> BITMAPINFOHEADER.biCompression za tok `vids`, FourCC kot v datoteki); "" = ga v
+     * prvih bajtih ni. Media3 AviExtractor sled s kodekom, ki ga ne pozna, IZPUSTI - ostane samo zvok (Grob krejsnic).
      */
-    fun odlocitev(koda: Int, prviBajtMs: Long?, potekel: Boolean): Izid = when {
+    fun aviKodek(g: ByteArray): String {
+        fun ascii(o: Int, s: String) = o >= 0 && o + s.length <= g.size && s.indices.all { (g[o + it].toInt() and 0xFF) == s[it].code }
+        var i = 12
+        while (i + 64 <= g.size) {
+            if (ascii(i, "strh") && ascii(i + 8, "vids")) {
+                val dolzina = (g[i + 4].toInt() and 0xFF) or ((g[i + 5].toInt() and 0xFF) shl 8) or
+                    ((g[i + 6].toInt() and 0xFF) shl 16) or ((g[i + 7].toInt() and 0xFF) shl 24)
+                val f = i + 8 + dolzina + (dolzina and 1)
+                if (dolzina < 0 || f + 8 + 20 > g.size || !ascii(f, "strf")) return ""
+                val o = f + 8 + 16
+                return (0..3).map { (g[o + it].toInt() and 0xFF) }.joinToString("") { if (it in 32..126) it.toChar().toString() else "?" }
+            }
+            i++
+        }
+        return ""
+    }
+
+    /** MIME kodeka AVI, kot ga poimenuje Media3 1.11.1 (StreamFormatChunk.getMimeTypeFromCompression); null = sled izpusti. */
+    fun aviMime(fourcc: String): String? = when (fourcc) {
+        "MP42" -> "video/mp42"
+        "MP43" -> "video/mp43"
+        "H264", "avc1", "AVC1" -> "video/avc"
+        "3VID", "divx", "DIVX", "DX50", "FMP4", "xvid", "XVID" -> "video/mp4v-es"
+        "MJPG", "mjpg" -> "video/mjpeg"
+        else -> null
+    }
+
+    enum class Vsebina { VIDEO, NI_VIDEO, NEPODPRTA, PREMAJHNA }
+
+    data class Pregled(val vsebina: Vsebina, val posoda: Posoda, val kodek: String = "")
+
+    /**
+     * Ali je odgovor sonde glavni video, ki ga ta naprava predvaja: [vrsta] = Content-Type, [glava] = prvi bajti, [skupaj] =
+     * velikost datoteke (Content-Range, -1 = neznana), [pricakovanoGb] = velikost iz opisa toka (0 = ni), [kodekPodprt] =
+     * ima naprava dekoder za MIME (MediaCodecList). Vsebnik po bajtih je odlocilen; Content-Type audio/image/text zavrne.
+     */
+    fun pregled(vrsta: String?, glava: ByteArray, skupaj: Long, pricakovanoGb: Double, kodekPodprt: (String) -> Boolean): Pregled {
+        val p = posoda(glava)
+        val ct = vrsta.orEmpty().substringBefore(';').trim().lowercase()
+        if (p == Posoda.ASF) return Pregled(Vsebina.NEPODPRTA, p)
+        if (p !in VIDEO_POSODE) {
+            // Neznan vsebnik z video/* pustimo predvajalniku; vse drugo (slika, glasba, besedilo, arhiv) ni film.
+            return if (p == Posoda.NEZNANO && ct.startsWith("video/")) Pregled(Vsebina.VIDEO, p) else Pregled(Vsebina.NI_VIDEO, p)
+        }
+        if (ct.startsWith("audio/") || ct.startsWith("image/") || ct.startsWith("text/")) return Pregled(Vsebina.NI_VIDEO, p)
+        var kodek = ""
+        if (p == Posoda.AVI) {
+            kodek = aviKodek(glava)
+            if (kodek.isNotEmpty()) {
+                val mime = aviMime(kodek)
+                if (mime == null || !kodekPodprt(mime)) return Pregled(Vsebina.NEPODPRTA, p, kodek)
+            }
+        }
+        val mib = 1024L * 1024L
+        if (skupaj in 0 until 10 * mib) return Pregled(Vsebina.PREMAJHNA, p, kodek)
+        // Vzorec: opis toka pove velikost filma (ne paketa nad 100 GB), datoteka je pod 10 % in pod 200 MiB.
+        if (skupaj > 0 && pricakovanoGb > 0.0 && pricakovanoGb <= 100.0 && skupaj < 200 * mib &&
+            skupaj < pricakovanoGb * 1024.0 * mib * 0.1) return Pregled(Vsebina.PREMAJHNA, p, kodek)
+        return Pregled(Vsebina.VIDEO, p, kodek)
+    }
+
+    /** Velikost datoteke iz glav odgovora: `Content-Range: bytes 0-4095/123` (206) ali Content-Length (200); -1 = neznano. */
+    fun skupnaVelikost(koda: Int, contentRange: String?, contentLength: Long): Long {
+        if (koda == 206) return contentRange?.substringAfterLast('/', "")?.trim()?.toLongOrNull() ?: -1L
+        return if (koda in 200..299 && contentLength >= 0) contentLength else -1L
+    }
+
+    enum class Izid { PREDVAJAJ, NI_PAKETA, NI_TOKA, OMEJITEV, PREPOCASI, NAPAKA, NAPACNA_VSEBINA }
+
+    /**
+     * Sonda toka (zahteva za prve bajte): [koda] HTTP (0 = ni odgovora), [prviBajtMs] cas do prvega bajta (null = ga ni
+     * bilo), [potekel] = rok je potekel, [vsebina] = [pregled] prvih bajtov (null = ni pregledana - samo stari skupni
+     * primeri). 402 = ni paketa, 404/410 = Webtor toka nima, 429 = omejitev ali drug naslov IP; 206 s sliko, glasbo,
+     * vzorcem ali kodekom, ki ga naprava ne zna, je [Izid.NAPACNA_VSEBINA]. Vse razen [Izid.PREDVAJAJ]: naslednji vir.
+     */
+    fun odlocitev(koda: Int, prviBajtMs: Long?, potekel: Boolean, vsebina: Vsebina? = null): Izid = when {
         koda == 402 -> Izid.NI_PAKETA
         koda == 404 || koda == 410 -> Izid.NI_TOKA
         koda == 429 -> Izid.OMEJITEV
         potekel -> Izid.PREPOCASI
-        koda in 200..299 && prviBajtMs != null -> if (prviBajtMs <= PRVI_BAJT_MS) Izid.PREDVAJAJ else Izid.PREPOCASI
+        koda in 200..299 && prviBajtMs != null -> when {
+            prviBajtMs > PRVI_BAJT_MS -> Izid.PREPOCASI
+            vsebina != null && vsebina != Vsebina.VIDEO -> Izid.NAPACNA_VSEBINA
+            else -> Izid.PREDVAJAJ
+        }
         else -> Izid.NAPAKA
     }
 

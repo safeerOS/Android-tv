@@ -71,6 +71,8 @@ private fun Map<String, Any?>.niz(k: String) = this[k] as String?
 private fun Map<String, Any?>.cel(k: String) = (this[k] as Long?)?.toInt()
 @Suppress("UNCHECKED_CAST")
 private fun Map<String, Any?>.nizi(k: String) = this[k] as List<String?>
+/** Bajti iz zapisa hex (prvi bajti toka v skupnih primerih). */
+private fun hex(h: String) = ByteArray(h.length / 2) { h.substring(it * 2, it * 2 + 2).toInt(16).toByte() }
 
 private fun meritev(m: Map<String, Any?>) =
     DebridPravila.Meritev(m.niz("ponudnik")!!, m["ping_ms"] as Long, m["bajtov"] as Long, m["cas_ms"] as Long)
@@ -105,11 +107,22 @@ private fun izracunaj(f: String, v: Map<String, Any?>): Any? = when (f) {
     "webtor_oznaka" -> WebtorPravila.razcleni(v.niz("ime")!!).let { listOf(it.vrsta.name, it.ime) }
     "je_webtor_dodatek" -> WebtorPravila.jeWebtorDodatek(v.niz("id"), v.niz("osnova")!!)
     "webtor_nauceni_gostitelj" -> WebtorPravila.naucenGostitelj(v.niz("zacetni")!!, v.niz("koncni")!!, v.cel("koda")!!)
-    "webtor_odlocitev" -> WebtorPravila.odlocitev(v.cel("koda")!!, v["prvi_bajt_ms"] as Long?, v["potekel"] as Boolean).name
+    "webtor_odlocitev" -> WebtorPravila.odlocitev(v.cel("koda")!!, v["prvi_bajt_ms"] as Long?, v["potekel"] as Boolean,
+        v.niz("vsebina")?.let { WebtorPravila.Vsebina.valueOf(it) }).name
     "webtor_vrstni_red" -> WebtorPravila.vrstniRed(
         (v["nasi"] as List<List<Any?>?>).map { k -> k?.let { WebtorPravila.kljuc(it[0] as String?, (it[1] as Long).toInt()) } },
         (v["webtor"] as List<List<Any?>>).map { WebtorPravila.kljuc(it[0] as String?, (it[1] as Long).toInt()) to WebtorPravila.vrstaIz(it[2] as String) },
-        v["imamo_torbox"] as Boolean, v["samo_takoj"] as Boolean? ?: false).map { it.toLong() }
+        v["imamo_torbox"] as Boolean, v["samo_takoj"] as Boolean? ?: false,
+        (v["datoteke"] as List<String>?)?.map { WebtorPravila.Datoteka.valueOf(it) }).map { it.toLong() }
+    // Verzija 3 (25. 10. 2026 popoldne): datoteka toka Webtor iz JWT, pregled vsebine sonde.
+    "webtor_kljuc_toka" -> WebtorPravila.kljucWebtor(v.niz("hash"), v.niz("url")!!)?.let { listOf(it.hash, it.idx.toLong()) }
+    "webtor_je_video_ime" -> WebtorPravila.jeVideoIme(v.niz("ime")!!)
+    "webtor_datoteka" -> WebtorPravila.datoteka(v.cel("idx")!!, v.niz("ime_toka")!!, v.cel("nas_idx"), v.niz("nas_ime")!!).name
+    "webtor_posoda" -> WebtorPravila.posoda(hex(v.niz("glava_hex")!!)).name
+    "webtor_avi_kodek" -> WebtorPravila.aviKodek(hex(v.niz("glava_hex")!!))
+    "webtor_pregled" -> WebtorPravila.pregled(v.niz("vrsta"), hex(v.niz("glava_hex")!!), v["skupaj"] as Long,
+        (v["pricakovano_gb"] as Number).toDouble(), { it in v.nizi("podprti") }).let { listOf(it.vsebina.name, it.posoda.name, it.kodek) }
+    "webtor_skupna_velikost" -> WebtorPravila.skupnaVelikost(v.cel("koda")!!, v.niz("content_range"), v["content_length"] as Long)
     "webtor_rok_sonde" -> WebtorPravila.rokSonde(v["zacetek_prve"] as Long?, v["zdaj"] as Long, v.cel("poskusov")!!)
     "vrstni_red_korakov" -> WebtorPravila.koraki(v["ima_usenet"] as Boolean).map { it.name }
     "izberi_usenet" -> WebtorPravila.izberiUsenet(v["izidi"] as List<Boolean?>, v["rok_potekel"] as Boolean).toLong()

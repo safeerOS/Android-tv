@@ -77,7 +77,9 @@ object Stremio {
                    /** Webtor rezerva: [WebtorPravila.Vrsta.name] iz predpone imena toka. */
                    val oznakaVira: String = "",
                    /** Webtor rezerva: sledilniki toka (`sources` »tracker:...«) za magnet, ce torrent dodamo TorBoxu v ozadju. */
-                   val sledilniki: List<String> = emptyList())
+                   val sledilniki: List<String> = emptyList(),
+                   /** `behaviorHints.filename` (torrent in Webtor): ali je datoteka [datoteka] video ([WebtorPravila.datoteka]). */
+                   val imeDatoteke: String = "")
 
     private val manifesti = ConcurrentHashMap<String, Manifest>()
 
@@ -1248,7 +1250,7 @@ object Stremio {
                     .filter { it.startsWith("tracker:") }.joinToString("") { "&tr=" + enc(it.removePrefix("tracker:")) }
                 val ime2 = s.optJSONObject("behaviorHints")?.optString("filename").orEmpty()
                 Tok("torrent", "magnet:?xt=urn:btih:" + s.optString("infoHash") + (if (ime2.isNotBlank()) "&dn=" + enc(ime2) else "") + tr,
-                    ime, opis, imeDodatka, s.optInt("fileIdx", -1))
+                    ime, opis, imeDodatka, s.optInt("fileIdx", -1), imeDatoteke = SerijePravila.niz(ime2))
             }
             else -> null
         }
@@ -1270,13 +1272,14 @@ object Stremio {
         if (x.vrsta == "url" && WebtorPravila.jeWebtorDodatek(idManifesta, osnova)) {
             val oznaka = WebtorPravila.razcleni(x.ime)
             val hashToka = SerijePravila.niz(o.optString("infoHash"))
-            // Izdaja kot pri nasih dodatkih: infoHash in fileIdx toka (Webtor posreduje tok istega dodatka; brez fileIdx = -1,
-            // tako kot pri nas). Samo tok brez infoHash dobi izdajo iz JWT.
-            val k = WebtorPravila.kljuc(hashToka, if (o.has("fileIdx")) o.optInt("fileIdx", -1) else -1) ?: WebtorPravila.izJwt(x.url)
+            // Izmerjeno 25. 10. 2026 (OnePlus 9): datoteka je SAMO `idx` v JWT - to predvaja /resolve. Polje fileIdx odgovora
+            // Webtorja indeks 0 izpusti (omitempty), tok dodatka brez fileIdx pa pri Webtorju postane datoteka 0 (naslovnica).
+            val k = WebtorPravila.kljucWebtor(hashToka, x.url)
             val viri = o.optJSONArray("sources")
             val sledilniki = (0 until minOf(viri?.length() ?: 0, 30)).mapNotNull { viri?.optString(it) }.filter { it.startsWith("tracker:") }
             x = x.copy(ime = oznaka.ime.ifBlank { WebtorPravila.IME }, vir = WebtorPravila.VIR, oznakaVira = oznaka.vrsta.name,
-                hash = k?.hash.orEmpty(), datoteka = k?.idx ?: -1, sledilniki = sledilniki)
+                hash = k?.hash.orEmpty(), datoteka = k?.idx ?: WebtorPravila.IDX_NEZNAN, sledilniki = sledilniki,
+                imeDatoteke = SerijePravila.niz(o.optJSONObject("behaviorHints")?.optString("filename").orEmpty()))
         }
         return x
     }

@@ -749,6 +749,11 @@ object SpletniVir {
         val http = DataSource.Factory { PoProtokolu(varno.createDataSource(), odprto.createDataSource()) }
         val app = c.applicationContext
         return ResolvingDataSource.Factory(DefaultDataSource.Factory(c, http)) { izvirna ->
+            // Webtor (izmerjeno 25. 10. 2026, pregled U4): predvajalnik odpre KONCNI naslov, ki ga je sonda preverila (glavni
+            // video, https, ne v domace omrezje) - ne nove verige preusmeritev od /resolve (lahko bi vodila drugam).
+            Webtor.zaPredvajalnik(app, izvirna.uri.toString())?.let { koncni ->
+                return@Factory izvirna.withUri(android.net.Uri.parse(koncni)).withAdditionalHeaders(glaveZa(koncni, glaveVsem, piskotki = false))
+            }
             // Webtor rezerva: tok dodatka s poverilnico ima v aplikaciji nadomestek brez zetona - pravi naslov samo za zahtevo.
             val pravi = SkrivniDodatki.dejanski(app, izvirna.uri.toString())
             val spec = if (pravi == izvirna.uri.toString()) izvirna else izvirna.withUri(android.net.Uri.parse(pravi))
