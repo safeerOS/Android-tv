@@ -1,3 +1,6 @@
+// Media3: Format.bitrate (kakovost sledi, naloga 104) je oznacen kot @UnstableApi.
+@file:androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+
 package si.safeer.tv.os
 
 import android.app.Activity
