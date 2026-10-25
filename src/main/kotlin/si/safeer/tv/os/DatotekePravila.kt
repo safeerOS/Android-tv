@@ -29,12 +29,30 @@ object DatotekePravila {
         return if (ime.contains('.') && vpisana in ZNANE_KONCNICE) ime else ime + koncnica
     }
 
-    /** Pregled 7: znane koncnice predstavnostnih datotek in podnapisov (brez pike, male crke). */
+    /**
+     * Pregled 7: znane koncnice (brez pike, male crke). Pregled Grok 5: vse vrste datotek, ki jih uporabnik vidi (prenosi,
+     * dokumenti, arhivi, paketi, seznami predvajanja) - ne samo predstavnost; sicer je »racun.pdf« za datoteko .txt postal
+     * »racun.pdf.txt«. Brez stevilk in kratkih splosnih besed, ki so pogosto del imena (»dopust 2026.10«).
+     */
     val ZNANE_KONCNICE = setOf(
+        // video
         "mp4", "mkv", "avi", "mov", "webm", "m4v", "ts", "m2ts", "mts", "mpg", "mpeg", "wmv", "flv", "3gp", "ogv",
-        "mp3", "flac", "wav", "ogg", "oga", "opus", "m4a", "aac", "wma", "alac", "aiff",
-        "jpg", "jpeg", "png", "gif", "webp", "heic", "heif", "bmp", "tif", "tiff", "avif",
-        "srt", "ass", "ssa", "vtt", "sub")
+        "vob", "rmvb", "divx",
+        // zvok
+        "mp3", "flac", "wav", "ogg", "oga", "opus", "m4a", "aac", "wma", "alac", "aiff", "mka", "ac3", "dts", "mid", "midi",
+        // slike
+        "jpg", "jpeg", "png", "gif", "webp", "heic", "heif", "bmp", "tif", "tiff", "avif", "svg", "dng", "ico",
+        // podnapisi in besedila pesmi
+        "srt", "ass", "ssa", "vtt", "sub", "idx", "sup", "smi", "lrc",
+        // dokumenti in besedilo
+        "pdf", "txt", "doc", "docx", "odt", "rtf", "md", "csv", "xls", "xlsx", "ods", "ppt", "pptx", "odp", "epub",
+        "html", "htm", "xml", "json", "log", "ics", "vcf",
+        // arhivi in slike diskov
+        "zip", "rar", "7z", "tar", "gz", "tgz", "bz2", "xz", "zst", "iso",
+        // paketi aplikacij
+        "apk", "apks", "xapk",
+        // seznami predvajanja, opisi izdaj, torrent in NZB
+        "m3u", "m3u8", "pls", "xspf", "cue", "nfo", "torrent", "nzb")
 
     /**
      * Ali je [ime] (z koncnico) veljavno ime datoteke na Androidu (FAT/exFAT na USB in ext4/f2fs): null = veljavno, sicer

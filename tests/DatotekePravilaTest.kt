@@ -51,6 +51,14 @@ fun main() {
     preveriEnako("pregled 7: znana koncnica z velikimi crkami ostane", "Film.MP4", P.zdruziIme("Film.MP4", ".mkv"))
     preveriEnako("pregled 7: neznana koncnica - stara se doda", "film.v2.mkv", P.zdruziIme("film.v2", ".mkv"))
     preveriEnako("pregled 7: brez koncnice - stara se doda", "film.mkv", P.zdruziIme("film", ".mkv"))
+    // Pregled Grok 5: vse vrste datotek, ki jih uporabnik vidi - ne samo predstavnost.
+    preveriEnako("Grok 5: pdf za txt ostane", "racun.pdf", P.zdruziIme("racun.pdf", ".txt"))
+    preveriEnako("Grok 5: zip ostane", "arhiv.zip", P.zdruziIme("arhiv.zip", ".rar"))
+    preveriEnako("Grok 5: apk ostane", "safeer.apk", P.zdruziIme("safeer.apk", ".zip"))
+    preveriEnako("Grok 5: m3u ostane", "kanali.m3u", P.zdruziIme("kanali.m3u", ".txt"))
+    preveriEnako("Grok 5: nfo ostane", "film.nfo", P.zdruziIme("film.nfo", ".txt"))
+    preveriEnako("Grok 5: velike crke DOCX", "Porocilo.DOCX", P.zdruziIme("Porocilo.DOCX", ".pdf"))
+    preveriEnako("Grok 5: stevilka ni koncnica", "verzija 1.2.txt", P.zdruziIme("verzija 1.2", ".txt"))
 
     if (napak == 0) println("DatotekePravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }
