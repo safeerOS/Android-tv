@@ -254,8 +254,11 @@ object Zvocniki {
     private interface Prenos {
         val z: DlnaPravila.Zvocnik
         val cast: Boolean
-        /** Naslov na zvocnik; [sprejeto] takoj, ko ga je zvocnik sprejel (Play/autoplay je lahko se na poti). */
-        fun nalozi(url: String, mime: String, sk: Jamendo.Skladba, igraj: Boolean, sprejeto: () -> Unit)
+        /**
+         * Naslov na zvocnik; [sprejeto] takoj, ko ga je zvocnik sprejel (Play/autoplay je lahko se na poti) - z true, ce
+         * zvocnik zacne ze na mestu [odMs] (Cast: LOAD s currentTime), sicer false (DLNA: preskok pride za Play).
+         */
+        fun nalozi(url: String, mime: String, sk: Jamendo.Skladba, igraj: Boolean, odMs: Long, sprejeto: (Boolean) -> Unit)
         fun ukaz(dejanje: String)                       // "Play" ali "Pause"
         fun preskoci(ciljMs: Long)
         fun ustavi(rokMs: Int)
@@ -269,10 +272,10 @@ object Zvocniki {
 
     private class DlnaPrenos(override val z: DlnaPravila.Zvocnik) : Prenos {
         override val cast = false
-        override fun nalozi(url: String, mime: String, sk: Jamendo.Skladba, igraj: Boolean, sprejeto: () -> Unit) {
+        override fun nalozi(url: String, mime: String, sk: Jamendo.Skladba, igraj: Boolean, odMs: Long, sprejeto: (Boolean) -> Unit) {
             val meta = DlnaPravila.didl(url, sk.naslov, sk.izvajalec, mime)
             Zvocniki.soap(z.avUrl, DlnaPravila.AV, "SetAVTransportURI", listOf("CurrentURI" to url, "CurrentURIMetaData" to meta))
-            sprejeto()
+            sprejeto(false)
             if (igraj) Zvocniki.soap(z.avUrl, DlnaPravila.AV, "Play", listOf("Speed" to "1"))
         }
         override fun ukaz(dejanje: String) {
@@ -306,9 +309,13 @@ object Zvocniki {
      */
     private class CastPrenos(override val z: DlnaPravila.Zvocnik, val seja: CastSeja) : Prenos {
         override val cast = true
-        override fun nalozi(url: String, mime: String, sk: Jamendo.Skladba, igraj: Boolean, sprejeto: () -> Unit) {
-            seja.nalozi(url, mime, sk.naslov, sk.izvajalec, sk.slika, igraj)
-            sprejeto()
+        /**
+         * LOAD zacne ze na mestu [odMs] (prej od zacetka in preskok po PLAYING - izmerjeno na JBL 25. 10. 2026: zvocnik je
+         * 0,6-2 s igral zacetek skladbe, nato je skocil na pravo mesto in znova polnil medpomnilnik).
+         */
+        override fun nalozi(url: String, mime: String, sk: Jamendo.Skladba, igraj: Boolean, odMs: Long, sprejeto: (Boolean) -> Unit) {
+            seja.nalozi(url, mime, sk.naslov, sk.izvajalec, sk.slika, igraj, odMs.coerceAtLeast(0L) / 1000.0)
+            sprejeto(odMs > 0L)
         }
         override fun ukaz(dejanje: String) = seja.ukaz(if (dejanje == "Play") "PLAY" else "PAUSE")
         override fun preskoci(ciljMs: Long) = seja.preskoci(ciljMs)
@@ -391,8 +398,8 @@ object Zvocniki {
      * YouTube: Cast neposredno -> Cast prek posrednika -> DLNA (lastnik, 25. 10. 2026). Ostalo: DLNA kot doslej.
      * Samo delavec. [poslan] tik pred posiljanjem naslova (zanj velja [poslanUrl]); [sprejeto], ko ga je zvocnik sprejel.
      */
-    private fun zacniNaPrenosu(app: Context, z: DlnaPravila.Zvocnik, sk: Jamendo.Skladba, igraj: Boolean,
-                               poslan: (Prenos, String) -> Unit, sprejeto: () -> Unit): Triple<Prenos, String, Long> {
+    private fun zacniNaPrenosu(app: Context, z: DlnaPravila.Zvocnik, sk: Jamendo.Skladba, igraj: Boolean, odMs: Long,
+                               poslan: (Prenos, String) -> Unit, sprejeto: (Boolean) -> Unit): Triple<Prenos, String, Long> {
         val prejsnji = prenosSeje?.takeIf { it.z.udn == z.udn }
         prekoStreznika = false
         if (YoutubeZvok.jeYoutube(sk)) {
@@ -405,13 +412,13 @@ object Zvocniki {
                     if (!tok.ipV6) {
                         try {
                             streznik?.pozabi()
-                            poslan(p, tok.url); p.nalozi(tok.url, tok.mime, sk, igraj, sprejeto)
+                            poslan(p, tok.url); p.nalozi(tok.url, tok.mime, sk, igraj, odMs, sprejeto)
                             return Triple(p, tok.url, tok.trajanjeMs)
                         } catch (e: CastSeja.NalaganjeNiUspelo) { Log.i(TAG, "Cast: neposredno ni slo (${e.tip}), posrednik na LAN") }
                         catch (e: SocketTimeoutException) { Log.i(TAG, "Cast: neposredno brez odgovora, posrednik na LAN") }
                     }
                     val url = posrednik(app, tok, z)
-                    poslan(p, url); p.nalozi(url, tok.mime, sk, igraj, sprejeto)
+                    poslan(p, url); p.nalozi(url, tok.mime, sk, igraj, odMs, sprejeto)
                     return Triple(p, url, tok.trajanjeMs)
                 } catch (e: Exception) {
                     // Nic se ni nalozilo: zvocnik ne ostane na praznem sprejemniku, ki smo ga morda zagnali mi (Grok 25, Z5).
@@ -424,7 +431,7 @@ object Zvocniki {
             val p = DlnaPrenos(z)
             if (prejsnji != null && prejsnji.cast) try { prejsnji.ustavi(2_000) } catch (_: Exception) {}
             val url = if (tok.ipV6) posrednik(app, tok, z) else { streznik?.pozabi(); tok.url }
-            poslan(p, url); p.nalozi(url, tok.mime, sk, igraj, sprejeto)
+            poslan(p, url); p.nalozi(url, tok.mime, sk, igraj, odMs, sprejeto)
             return Triple(p, url, tok.trajanjeMs)
         }
         val p = DlnaPrenos(z)
@@ -437,7 +444,7 @@ object Zvocniki {
             url = s.ponudi(sk.zvok, sk.mime, z.naslov)
             mime = s.mime()
         } else streznik?.pozabi()          // ta skladba ni datoteka te naprave: prejsnje datoteke streznik ne ponuja vec
-        poslan(p, url); p.nalozi(url, mime, sk, igraj, sprejeto)
+        poslan(p, url); p.nalozi(url, mime, sk, igraj, odMs, sprejeto)
         return Triple(p, url, 0L)
     }
 
@@ -479,8 +486,8 @@ object Zvocniki {
     }
 
     /**
-     * Skladbo poslje zvocniku. [odMs] > 0: nadaljuje na tem mestu (prenos s te naprave) - zvocnik preskok dobi, ko
-     * predvajanje stece. [igraj] = false: skladbo samo nalozi (naprej/nazaj med premorom); Play dobi ob [nadaljuj].
+     * Skladbo poslje zvocniku. [odMs] > 0: nadaljuje na tem mestu (prenos s te naprave) - Cast zacne ze na njem (LOAD),
+     * DLNA dobi preskok, ko predvajanje stece. [igraj] = false: skladbo samo nalozi (naprej/nazaj med premorom); Play dobi ob [nadaljuj].
      * Med sejo (isti zvocnik) je to menjava skladbe: zasloni jo pokazejo takoj.
      */
     fun predvajaj(ctx: Context, z: DlnaPravila.Zvocnik, sk: Jamendo.Skladba, odMs: Long = 0L, trajanjeMs: Long = 0L, igraj: Boolean = true,
@@ -512,6 +519,7 @@ object Zvocniki {
         var najvec: Int? = null
         var uporabljen: Prenos? = null
         var znanoTrajanje = 0L
+        var naMestu = false                  // zvocnik je zacel ze na mestu odMs (Cast LOAD): preskok ni potreben
         this.app = app
         naDelavcu({ e ->
             // Medtem je bila izbrana ze druga skladba ali je seje konec: to ni ne uspeh ne napaka zvocnika.
@@ -534,6 +542,7 @@ object Zvocniki {
             // Menjava skladbe med sejo: kar je uporabnik izbral, medtem ko je ukaz potoval (premor, novo mesto), ostane.
             stanje = if (istaSeja && aktivni?.udn == z.udn) stanje.copy(veljaOd = zdaj, mirDoMs = zdaj + ZvocnikPravila.MIR_PO_UKAZU_MS, zacetekMs = zdaj,
                     slisanMs = zdaj, playOdMs = if (igraj) zdaj else stanje.playOdMs)
+                else if (naMestu) ZvocnikPravila.zacetek(zdaj, 0L, trajanje, igraj).copy(polozajMs = odMs)
                 else ZvocnikPravila.zacetek(zdaj, odMs, trajanje, igraj)
             if (trajanje > 0L && !sk.radio) stanje = ZvocnikPravila.sTrajanjem(stanje, trajanje, false)
             aktivni = z; aktivnaSkladba = sk; aktivniUrl = url; potrjenUrl = ""
@@ -549,9 +558,9 @@ object Zvocniki {
             konec(null)
         }) {
             if (moj != zagon) return@naDelavcu
-            val (p, poslano, traj) = zacniNaPrenosu(app, z, sk, igraj,
+            val (p, poslano, traj) = zacniNaPrenosu(app, z, sk, igraj, if (istaSeja) 0L else odMs,
                 poslan = { pot, naslov -> url = naslov; poslanUrl = naslov; poslanZa = z.udn; uporabljen = pot; if (!istaSeja) cakaPrenos = pot },
-                sprejeto = { nalozeno = true })
+                sprejeto = { zeNaMestu -> nalozeno = true; naMestu = zeNaMestu })
             url = poslano; uporabljen = p; znanoTrajanje = traj
             if (igraj) preskokNePred = ura() + ZvocnikPravila.PREMOR_PRED_PRESKOKOM_MS
             // Glasnost in njena lestvica (za tipke glasnosti in drsnik sistema). Napaka tu predvajanja ne ustavi.

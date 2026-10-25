@@ -275,10 +275,10 @@ class CastSeja(val naslov: String) {
     }
 
     /** Naslov na zvocnik (LOAD). Vrne stanje seje medija; [NalaganjeNiUspelo], ce ga sprejemnik zavrne. */
-    fun nalozi(url: String, mime: String, naslov: String, izvajalec: String, slika: String, igraj: Boolean): CastPravila.StanjeMedija? {
+    fun nalozi(url: String, mime: String, naslov: String, izvajalec: String, slika: String, igraj: Boolean, odS: Double = 0.0): CastPravila.StanjeMedija? {
         zagotoviDmr(true)
         val r = ++rid
-        poslji(prenos, CastPravila.NS_MEDIJ, CastPravila.nalozi(r, url, mime, naslov, izvajalec, slika, igraj))
+        poslji(prenos, CastPravila.NS_MEDIJ, CastPravila.nalozi(r, url, mime, naslov, izvajalec, slika, igraj, odS))
         val m = beriDo(15_000L) { s ->
             val j = s.json()
             j?.optInt("requestId", -1) == r && (j.optString("type") == "MEDIA_STATUS" || CastPravila.zavrnitev(j))

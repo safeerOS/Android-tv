@@ -161,6 +161,9 @@ fun main() {
     val m = l.getJSONObject("media")
     preveri(l.getString("type") == "LOAD" && l.getInt("requestId") == 9 && l.getBoolean("autoplay") && m.getString("contentType") == "audio/mp4" &&
         m.getString("streamType") == "BUFFERED" && !m.getJSONObject("metadata").has("images"), "LOAD")
+    // Prenos s te naprave sredi skladbe: LOAD ze na tem mestu (prej od zacetka in preskok - na JBL se je slisal zacetek).
+    preveri(JSONObject(CastPravila.nalozi(2, "u", "audio/mp4", "a", "b", "", true, 109.5)).getDouble("currentTime") == 109.5 &&
+        l.getDouble("currentTime") == 0.0, "LOAD na mestu")
     preveri(JSONObject(CastPravila.nalozi(1, "u", "audio/mp4", "a", "b", "https://i/x.jpg", false)).getJSONObject("media")
         .getJSONObject("metadata").getJSONArray("images").length() == 1, "naslovnica https")
     preveri(CastPravila.zavrnitev(JSONObject("""{"type":"LOAD_FAILED"}""")) && !CastPravila.zavrnitev(ms) && !CastPravila.zavrnitev(null), "zavrnitev")
