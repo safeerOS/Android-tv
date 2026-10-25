@@ -106,5 +106,28 @@ fun main() {
     check(!DeljenjePravila.nadaljujVIstemToku(false, "A", "A"))
     check(!DeljenjePravila.nadaljujVIstemToku(true, "", ""))
 
+    // ---- Meritev M1: viden znak, odgovor po dejanskem zacetku, besedilo brez obvestil
+    // Brez okna za soglasje (trajno dovoljenje) samo z obvestilom ali nasim gumbom na zaslonu; OnePlus 9 brez obeh: ne.
+    check(!DeljenjePravila.smeZacetiBrezOkna(projekcijaDovoljena = true, obvestila = false, prekrivanje = false))
+    check(DeljenjePravila.smeZacetiBrezOkna(projekcijaDovoljena = true, obvestila = true, prekrivanje = false))
+    check(DeljenjePravila.smeZacetiBrezOkna(projekcijaDovoljena = true, obvestila = false, prekrivanje = true))
+    // Z oknom za soglasje je zacetek viden (uporabnik ga potrdi).
+    check(DeljenjePravila.smeZacetiBrezOkna(projekcijaDovoljena = false, obvestila = false, prekrivanje = false))
+    // Odgovor pocaka na zacetek samo brez vprasanja in z zagonom iz ozadja.
+    check(DeljenjePravila.pocakajZacetek(Potrditev.BREZ, izOzadja = true))
+    check(!DeljenjePravila.pocakajZacetek(Potrditev.BREZ, izOzadja = false))
+    check(!DeljenjePravila.pocakajZacetek(Potrditev.NASA, izOzadja = true))
+    check(!DeljenjePravila.pocakajZacetek(Potrditev.SISTEMSKA, izOzadja = true))
+    check(DeljenjePravila.CAKA_ZACETEK_MS < 8_000L)
+    // Zacetek je potrjen, ko deljenje tece prav tej napravi in ga je Hub sprejel.
+    check(DeljenjePravila.zacetekPotrjen(true, "A", "A", "znak"))
+    check(!DeljenjePravila.zacetekPotrjen(true, "A", "A", ""))
+    check(!DeljenjePravila.zacetekPotrjen(true, "B", "A", "znak"))
+    check(!DeljenjePravila.zacetekPotrjen(false, "A", "A", "znak"))
+    check(!DeljenjePravila.zacetekPotrjen(true, "", "", "znak"))
+    // »Obvestilo je ze na zaslonu« samo, ce so obvestila vklopljena.
+    check(DeljenjePravila.brezZagona(obvestila = true) == DeljenjePravila.BrezZagona.OBVESTILO)
+    check(DeljenjePravila.brezZagona(obvestila = false) == DeljenjePravila.BrezZagona.NASTAVITVE)
+
     println("DeljenjePravilaTest: OK")
 }

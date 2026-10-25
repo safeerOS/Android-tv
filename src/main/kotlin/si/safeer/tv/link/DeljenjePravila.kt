@@ -148,4 +148,38 @@ object DeljenjePravila {
      */
     fun nadaljujVIstemToku(cakaNaOdklep: Boolean, ciljCakanja: String, novCilj: String): Boolean =
         cakaNaOdklep && ciljCakanja.isNotBlank() && ciljCakanja == novCilj
+
+    // ------------------------------------------------------------------ meritev M1 (25. 10. 2026)
+
+    /**
+     * Viden znak deljenja. Meritev M1: OnePlus 9 (Android 14) med deljenjem s trajnim dovoljenjem ni pokazal nicesar, obvestilo
+     * Safeerja z »Ustavi« pa je bilo skrito, ker obvestila za Safeer niso dovoljena. Deljenje BREZ okna za soglasje se zato
+     * sme zaceti samo, ce ga Safeer na napravi lahko pokaze: z obvestilom ([obvestila]) ali s svojim gumbom na zaslonu
+     * ([prekrivanje] - prikaz cez druge aplikacije). Z oknom za soglasje uporabnik ob zacetku ve, kaj je dovolil.
+     */
+    fun smeZacetiBrezOkna(projekcijaDovoljena: Boolean, obvestila: Boolean, prekrivanje: Boolean): Boolean =
+        !projekcijaDovoljena || obvestila || prekrivanje
+
+    /** Odgovor na »Odpri tukaj« brez vprasanja pocaka, da deljenje res stece - najvec toliko (racunalnik caka 8 s). */
+    const val CAKA_ZACETEK_MS = 4_000L
+
+    /**
+     * Ali odgovor racunalniku pocaka na dejanski zacetek deljenja: samo, ce vprasanja ne bo ([Potrditev.BREZ]) in se okno
+     * odpre samo ([izOzadja]) - takrat deljenje stece v delcu sekunde (M1: 0,10-0,16 s). Z vprasanjem odgovorimo takoj.
+     */
+    fun pocakajZacetek(potrditev: Potrditev, izOzadja: Boolean): Boolean = potrditev == Potrditev.BREZ && izOzadja
+
+    /** Deljenje napravi [posiljatelj] tece in Hub ga je sprejel (znak gledalca je znan). */
+    fun zacetekPotrjen(tece: Boolean, ciljDeljenja: String, posiljatelj: String, znakGledalca: String): Boolean =
+        tece && posiljatelj.isNotBlank() && ciljDeljenja == posiljatelj && znakGledalca.isNotEmpty()
+
+    enum class BrezZagona {
+        /** Obvestilo »tapni za nadaljevanje« je res na zaslonu. */
+        OBVESTILO,
+        /** Obvestila so izklopljena: na napravi ni nicesar - racunalnik pove, kje na napravi kaj vklopiti. */
+        NASTAVITVE
+    }
+
+    /** Safeer okna iz ozadja ne sme odpreti: kaj uporabnik na napravi sploh vidi ([obvestila] vklopljena ali ne). */
+    fun brezZagona(obvestila: Boolean): BrezZagona = if (obvestila) BrezZagona.OBVESTILO else BrezZagona.NASTAVITVE
 }

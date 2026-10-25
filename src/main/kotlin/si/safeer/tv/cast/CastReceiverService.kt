@@ -828,6 +828,21 @@ class CastReceiverService : Service() {
         }
     }
 
+    /**
+     * Odgovor na »Odpri tukaj«, ki se zacne brez vprasanja: pocakamo, da deljenje te naprave [posiljatelj] res tece in ga je Hub
+     * sprejel - najvec DeljenjePravila.CAKA_ZACETEK_MS (racunalnik caka 8 s). Brez blokiranja glavne niti: preverba vsakih 100 ms.
+     */
+    private fun pocakajZacetekDeljenja(posiljatelj: String, refId: String, dejanje: String, izid: si.safeer.tv.link.Daljinec.Izid, od: Long) {
+        val steklo = si.safeer.tv.link.DeljenjePravila.zacetekPotrjen(si.safeer.tv.link.DeljenjeZaslonaStoritev.tece,
+            si.safeer.tv.link.DeljenjeZaslonaStoritev.cilj, posiljatelj, si.safeer.tv.link.DeljenjeZaslonaStoritev.znakGledalca)
+        if (steklo || android.os.SystemClock.elapsedRealtime() - od >= si.safeer.tv.link.DeljenjePravila.CAKA_ZACETEK_MS) {
+            Log.i(TAG, "Odpri tukaj: deljenje ${if (steklo) "tece" else "se ni steklo v roku"} (${android.os.SystemClock.elapsedRealtime() - od} ms)")
+            posljiIzid(posiljatelj, refId, dejanje, izid.zZacetkom(steklo))
+            return
+        }
+        mainHandler.postDelayed({ pocakajZacetekDeljenja(posiljatelj, refId, dejanje, izid, od) }, 100)
+    }
+
     /** Odgovor na ukaz: napravi, ki zascito zna, samo po preverjeni seji (ZascitaLinka); starejsi kot prej. */
     private fun posljiIzid(posiljatelj: String, refId: String, dejanje: String, izid: si.safeer.tv.link.Daljinec.Izid) {
         if (posiljatelj.isBlank()) return
@@ -1031,7 +1046,10 @@ class CastReceiverService : Service() {
                             if (krmilnik != null && krmilnikVOspredju) krmilnik.onCastUrlReceived(url, naslov, 0.0)
                             else odpriVBrskalniku(url, naslov, 0.0)
                         }
-                        if (!gledalec) posljiIzid(posiljatelj, msgId, dejanje, izid)
+                        if (gledalec) return@post
+                        // »Odpri tukaj« brez vprasanja (trajno dovoljenje): odgovor pove, ali je deljenje res steklo (meritev M1).
+                        if (izid.pocakajZacetek) pocakajZacetekDeljenja(posiljatelj, msgId, dejanje, izid, android.os.SystemClock.elapsedRealtime())
+                        else posljiIzid(posiljatelj, msgId, dejanje, izid)
                     }
                 }
 

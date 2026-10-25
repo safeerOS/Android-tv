@@ -85,12 +85,20 @@ object Daljinec {
     const val ZMOZNOST_ZVOK = "audio"
 
     /** Izid ukaza: `ok`, kratko sporocilo za uporabnika in neobvezni podatki. */
-    class Izid(val ok: Boolean, val sporocilo: String, val podatki: JSONObject? = null, val koda: String = "") {
+    class Izid(val ok: Boolean, val sporocilo: String, val podatki: JSONObject? = null, val koda: String = "",
+               /** »Odpri tukaj« brez vprasanja: sprejemnik odgovori, ko deljenje res stece (CastReceiverService, meritev M1). */
+               val pocakajZacetek: Boolean = false) {
         fun json(): JSONObject = JSONObject().apply {
             put("ok", ok)
             put("message", sporocilo)
             if (koda.isNotBlank()) put("code", koda)
             if (podatki != null) put("data", podatki)
+        }
+
+        /** Isti odgovor z izidom cakanja: [steklo] = deljenje tece (`started`); sicer ostane »pending«. */
+        fun zZacetkom(steklo: Boolean): Izid {
+            val p = JSONObject((podatki ?: JSONObject()).toString()).put("started", steklo)
+            return Izid(ok, if (steklo) "Deljenje zaslona teče" else sporocilo, p, koda)
         }
     }
 
@@ -325,7 +333,7 @@ object Daljinec {
         if (!smeZagnatiIzOzadja(context)) {
             // Android bi zagon tiho zavrnil; povej po resnici, zakaj, in ponudi resitev na napravi.
             prebudiZNamero(context, namera, ime)
-            return izidBrezDovoljenja(context, ime)
+            return izidBrezPoti(context, ime)
         }
         val neposredno = zazeniDejavnost(context, namera)
         // S Safeer Vnosom vidimo, ali je aplikacija na zaslonu: obvestilo samo, ce se ni odprla (prej vedno).
@@ -369,7 +377,7 @@ object Daljinec {
         val ime = "Safeer OS"
         if (!smeZagnatiIzOzadja(context)) {
             prebudiZNamero(context, namera, ime)
-            return izidBrezDovoljenja(context, ime)
+            return izidBrezPoti(context, ime)
         }
         try { context.startActivity(namera) } catch (e: Throwable) { Log.w(TAG, "Magnet ni odprt: ${e.message}") }
         prebudiZNamero(context, namera, ime)
@@ -388,7 +396,7 @@ object Daljinec {
         val ime = "Safeer Media"
         if (!smeZagnatiIzOzadja(context)) {
             prebudiZNamero(context, namera, ime)
-            return izidBrezDovoljenja(context, ime)
+            return izidBrezPoti(context, ime)
         }
         try { context.startActivity(namera) } catch (e: Throwable) { Log.w(TAG, "Safeer Media ni odprta: ${e.message}") }
         prebudiZNamero(context, namera, ime)
@@ -464,18 +472,58 @@ object Daljinec {
             }
             DeljenjePravila.Pot.NOVA_SEJA -> { }
         }
+        val projekcijaDovoljena = ZaupanjeZaslona.projekcijaDovoljena(context)
         if (!zahtevajDeljenje(context, cilj, paket, ime, odprtoTukaj = true, samodejno = true, besedilo = si.safeer.tv.R.string.ui_link_zagon_pretok))
-            return izidBrezDovoljenja(context, ime)
-        // A3: s trajnim dovoljenjem Androida in zaupano napravo okna za soglasje ni - ne prosimo za potrditev, ki je ne bo.
-        val brezVprasanja = DeljenjePravila.potrditev(ZaupanjeZaslona.projekcijaDovoljena(context),
-            ZaupanjeZaslona.zaupano(context, cilj)) == DeljenjePravila.Potrditev.BREZ
-        val sporocilo = when {
-            brezVprasanja && celZaslon -> "Deljenje zaslona se začenja"
-            brezVprasanja -> "Deljenje zaslona se začenja, nato se odpre $ime"
-            celZaslon -> "Na napravi potrdi deljenje zaslona"
-            else -> "Na napravi potrdi deljenje zaslona, nato se odpre $ime"
+            return izidBrezPoti(context, ime)
+        // A3: s trajnim dovoljenjem Androida okna za soglasje ni - ne prosimo za potrditev, ki je ne bo (meritev M1).
+        val potrditev = DeljenjePravila.potrditev(projekcijaDovoljena, ZaupanjeZaslona.zaupano(context, cilj))
+        val inOdpre = if (celZaslon) "" else ", nato se odpre $ime"
+        val sporocilo = when (potrditev) {
+            DeljenjePravila.Potrditev.BREZ -> "Deljenje zaslona se začne samodejno$inOdpre"
+            DeljenjePravila.Potrditev.NASA -> "Safeer na napravi vpraša, ali sme ta naprava videti zaslon$inOdpre"
+            DeljenjePravila.Potrditev.SISTEMSKA -> "Na napravi potrdi deljenje zaslona$inOdpre"
         }
-        return Izid(true, sporocilo, JSONObject().put("package", paket).put("label", ime).put("stream", "pending"))
+        // Zahteva je sla v okno takoj (zahtevajDeljenje = true): brez vprasanja pocakamo na dejanski zacetek.
+        return Izid(true, sporocilo, JSONObject().put("package", paket).put("label", ime).put("stream", "pending"),
+            pocakajZacetek = DeljenjePravila.pocakajZacetek(potrditev, true))
+    }
+
+    const val KODA_DOVOLJENJE_OBVESTILA = "potrebno_dovoljenje_obvestila"
+
+    /** Ali so obvestila za Safeer vklopljena (in, ce je [kanal] dan, ta kanal ni utisan). */
+    fun obvestilaVklopljena(context: Context, kanal: String? = null): Boolean = try {
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+        nm.areNotificationsEnabled() &&
+            (kanal == null || nm.getNotificationChannel(kanal)?.importance != android.app.NotificationManager.IMPORTANCE_NONE)
+    } catch (_: Throwable) { false }
+
+    /** Safeer sme risati cez druge aplikacije (prikaz cez druge aplikacije). */
+    fun prekrivanje(context: Context): Boolean =
+        try { android.provider.Settings.canDrawOverlays(context) } catch (_: Throwable) { false }
+
+    /** Stran Dovoljenja v Safeer OS (ce jo ta razlicica ima) ali podatki o aplikaciji v sistemskih nastavitvah. */
+    private fun nameraDovoljenj(context: Context): Intent {
+        val stran = Intent().setClassName(context, "si.safeer.tv.os.DovoljenjaActivity")
+        val ima = try { context.packageManager.resolveActivity(stran, 0) != null } catch (_: Throwable) { false }
+        return (if (ima) stran else Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            android.net.Uri.parse("package:" + context.packageName))).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+
+    private fun stranDovoljenj(context: Context): String =
+        if (nameraDovoljenj(context).component != null) "Safeer › Nastavitve › Dovoljenja" else "sistemske nastavitve › Aplikacije › Safeer"
+
+    /**
+     * Android zagon iz ozadja zavrne. Obvestilo za tap (in prosnja za »Prikaz cez druge aplikacije«) je na zaslonu samo, ce
+     * so obvestila vklopljena (meritev M1: na obeh testnih telefonih niso bila) - sicer racunalniku povemo, kje na napravi kaj
+     * vklopiti, in stran z dovoljenji poskusimo odpreti (Android jo iz ozadja obicajno zavrne).
+     */
+    private fun izidBrezPoti(context: Context, ime: String): Izid {
+        if (DeljenjePravila.brezZagona(obvestilaVklopljena(context)) == DeljenjePravila.BrezZagona.OBVESTILO)
+            return izidBrezDovoljenja(context, ime)
+        zazeniDejavnost(context, nameraDovoljenj(context))
+        return Izid(false, "Na napravi se ne more pokazati nič: obvestila za Safeer so izklopljena in Safeer ne sme odpirati " +
+            "oken v ozadju. Na napravi odpri ${stranDovoljenj(context)}, vklopi obvestila ali prikaz čez druge aplikacije, " +
+            "nato ponovi $ime.", koda = KODA_DOVOLJENJE_OBVESTILA)
     }
 
     /**
