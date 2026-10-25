@@ -111,6 +111,14 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/DebridPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/UsenetPravila.kt" \
     "$TEST_DIR/UsenetPravilaTest.kt" \
+    "$TEST_DIR/stubs/Looper.kt" \
+    "$SRC/si/safeer/tv/os/UsenetYenc.kt" \
+    "$SRC/si/safeer/tv/os/UsenetNzb.kt" \
+    "$SRC/si/safeer/tv/os/UsenetNntp.kt" \
+    "$TEST_DIR/UsenetTestnaPomoc.kt" \
+    "$TEST_DIR/UsenetYencTest.kt" \
+    "$TEST_DIR/UsenetNzbTest.kt" \
+    "$TEST_DIR/UsenetNntpTest.kt" \
     "$SRC/si/safeer/tv/os/SerijePravila.kt" \
     "$TEST_DIR/SerijePravilaTest.kt" \
     "$SRC/si/safeer/tv/os/NapredekKljuc.kt" \
@@ -199,6 +207,10 @@ java -cp "$OUT/os.jar" si.safeer.tv.os.MiniPredvajalnikPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.TorBoxPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.DebridPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.UsenetPravilaTestKt
+# Lasten pogon Usenet, korak 1 (25. 10. 2026): yEnc, NZB, NNTP prek TLS (lazni streznik na 127.0.0.1, potrdilo iz keytool).
+java -cp "$OUT/os.jar" si.safeer.tv.os.UsenetYencTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.UsenetNzbTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.UsenetNntpTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.SerijePravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.NapredekKljucTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.KakovostPravilaTestKt
