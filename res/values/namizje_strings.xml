@@ -28,4 +28,5 @@
     <string name="nz_odpri_razvijalske">Developer options</string>
     <string name="nz_ni_sistemske">This device doesn’t offer this system setting.</string>
     <string name="nz_padec_opis">Safeer stopped several times in a row as the home screen, so the Home button opens your previous launcher again. You can set it up again whenever you like.</string>
+    <string name="nz_zacetek">Start</string>
 </resources>

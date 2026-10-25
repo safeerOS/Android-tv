@@ -28,4 +28,5 @@
     <string name="nz_odpri_razvijalske">Options pour les développeurs</string>
     <string name="nz_ni_sistemske">Cet appareil ne propose pas ce paramètre système.</string>
     <string name="nz_padec_opis">Safeer s’est arrêté plusieurs fois de suite en tant qu’écran d’accueil ; le bouton Accueil ouvre donc à nouveau votre lanceur précédent. Vous pouvez le reconfigurer quand vous le souhaitez.</string>
+    <string name="nz_zacetek">Démarrer</string>
 </resources>

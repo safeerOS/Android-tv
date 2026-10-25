@@ -28,4 +28,5 @@
     <string name="nz_odpri_razvijalske">Opzioni sviluppatore</string>
     <string name="nz_ni_sistemske">Questo dispositivo non offre questa impostazione di sistema.</string>
     <string name="nz_padec_opis">Safeer si è arrestato più volte di seguito come schermata Home, quindi il tasto Home riapre il launcher precedente. Puoi configurarlo di nuovo quando vuoi.</string>
+    <string name="nz_zacetek">Start</string>
 </resources>

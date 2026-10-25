@@ -82,6 +82,8 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private val ikoneVse = HashMap<String, Drawable>()
     private var iskanje = ""
     private var uraBesedilo: TextView? = null
+    /** Opravilna vrstica namizja (spodaj): Zacetek + pripete aplikacije - kot plosca namizja Safeer OS / Windows. */
+    private var opravilnaPripete: LinearLayout? = null
     private var datumBesedilo: TextView? = null
 
     /** Priljubljene aplikacije te naprave, nalozene v ozadju (ime, ikona, zagon). */
@@ -319,8 +321,14 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             id = R.id.koren
             addView(drsnik, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         }
-        setContentView(StranskaVrstica.ovij(this, okvir, StranskaVrstica.Razdelek.DOMOV))
-        Ozadje.uporabi(this, okvir)
+        // Namizje: opravilna vrstica spodaj, POD vsebino (mini predvajalnik ob spodnjem robu je nad njo, ne cez njo).
+        val vsebina: ViewGroup = if (namizje) LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(okvir, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+            addView(opravilnaVrstica(), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        } else okvir.also { opravilnaPripete = null }
+        setContentView(StranskaVrstica.ovij(this, vsebina, StranskaVrstica.Razdelek.DOMOV))
+        Ozadje.uporabi(this, vsebina)
         // Naloga 118: mini predvajalnik kot dock ob robu (nad seznamom odsekov).
         dock?.ustavi()
         dock = MiniPredvajalnik(this, okvir, prefs(), vnos == Vnos.DALJINEC, { osBarva(it) },
@@ -447,7 +455,69 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         return vrsta
     }
 
-    // ------------------------------------------------------------------ namizje: ura, pozdrav, vse aplikacije
+    // ------------------------------------------------------------------ namizje: opravilna vrstica, ura, pozdrav, vse aplikacije
+
+    /**
+     * Opravilna vrstica (lastnik, 25. 10. 2026; zamisel po Taskbar/Smart Dock/HyperDroid, koda nasa): gumb Zacetek (znak
+     * Safeer - lupa in mreza vseh aplikacij) in pripete aplikacije; klik odpre (v oknu, kjer jih naprava zmore), desni
+     * klik ali dolg pritisk odpre meni. Pripenjanje: desni klik na aplikaciji v mrezi.
+     */
+    private fun opravilnaVrstica(): View {
+        val vrsta = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(10), dp(4), dp(10), dp(4))
+            setBackgroundColor(osBarva(R.color.os_meni_ozadje))
+        }
+        vrsta.addView(gumbOpravilne(getDrawable(R.drawable.os_znak), getString(R.string.nz_zacetek), ob = { zacetek() }, meni = null))
+        vrsta.addView(View(this).apply { setBackgroundColor(osBarva(R.color.os_crta)) },
+            LinearLayout.LayoutParams(dp(1), dp(28)).apply { marginStart = dp(6); marginEnd = dp(6) })
+        val pripete = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        vrsta.addView(HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            addView(pripete)
+        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        opravilnaPripete = pripete
+        return vrsta
+    }
+
+    private fun gumbOpravilne(ikona: Drawable?, ime: String, ob: (View) -> Unit, meni: (() -> Unit)?): View =
+        FrameLayout(this).apply {
+            isFocusable = true; isClickable = true
+            setBackgroundResource(R.drawable.os_meni_postavka)
+            contentDescription = ime
+            tooltipText = ime
+            setPadding(dp(8), dp(6), dp(8), dp(6))
+            addView(ImageView(this@ZaganjalnikActivity).apply {
+                setImageDrawable(ikona ?: getDrawable(R.drawable.os_ikona_aplikacije)); scaleType = ImageView.ScaleType.FIT_CENTER
+            }, FrameLayout.LayoutParams(dp(32), dp(32)))
+            setOnClickListener { ob(it) }
+            if (meni != null) { setOnLongClickListener { meni(); true }; setOnContextClickListener { meni(); true } }
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(4) }
+        }
+
+    private fun narisiOpravilno() {
+        val cilj = opravilnaPripete ?: return
+        cilj.removeAllViews()
+        for (a in priljubljene) cilj.addView(gumbOpravilne(Aplikacije.ikona(this, a), a.ime,
+            ob = { v -> odpri(a.namera, a.ime, v, okno = true) }, meni = { moznostiPriljubljene(a) }))
+        for (sa in SpletneAplikacije.seznam(this)) {
+            val ime = sa.ime.ifBlank { SpletneAplikacije.gostitelj(sa.url) }
+            cilj.addView(gumbOpravilne(SpletneAplikacije.ikona(this, sa), ime, ob = { v ->
+                Nadaljuj.zapisi(this, Nadaljuj.Vnos(vrsta = Nadaljuj.SPLETNA, ime = ime, url = sa.url))
+                odpri(Brskalnik.spletnaAplikacija(this, sa.url, ime), ime, v)
+            }, meni = { moznostiSpletne(sa) }))
+        }
+    }
+
+    /**
+     * Zacetek: mreza vseh aplikacij in lupa. S fizicno tipkovnico gre fokus v lupo (takoj tipkas); na dotik ne, da
+     * zaslonska tipkovnica ne prekrije polovice namizja.
+     */
+    private fun zacetek() {
+        polje?.setText("")
+        odsekVse?.let { o -> drsnik?.smoothScrollTo(0, (o.top - dp(8)).coerceAtLeast(0)) }
+        if (resources.configuration.keyboard == Configuration.KEYBOARD_QWERTY) polje?.requestFocus()
+    }
 
     /** Ura in datum desno zgoraj, kot na namizju Safeer OS (24-urni ali 12-urni zapis po nastavitvi naprave). */
     private fun ura(): View = LinearLayout(this).apply {
@@ -738,6 +808,8 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     private fun narisiPriljubljene() {
         val o = odsekPriljubljene ?: return
+        // Namizje: pripete so v opravilni vrstici (ena vsebina - en vnos), odsek na namizju se umakne.
+        if (namizje) { o.visibility = View.GONE; narisiOpravilno(); return }
         val cilj = vsebinaOdseka(o) ?: return
         val ploscice = ArrayList<View>()
         for (a in priljubljene) {
