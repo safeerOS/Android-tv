@@ -50,6 +50,8 @@ class ScitStoritev : VpnService() {
     private var nitOdgovorov: Thread? = null
     @Volatile private var tece = false
     @Volatile private var nabor: DomenskiNabor.Poizvedba? = null
+    /** Webtor rezerva: dodatne izjeme iz scit/izjeme.txt ([ScitIzjeme]); stalne so v kodi. */
+    @Volatile private var izjeme: Set<String> = emptySet()
     @Volatile private var upstream: List<InetAddress> = emptyList()
     private var vticnica4: DatagramSocket? = null
     private var vticnica6: DatagramSocket? = null
@@ -177,7 +179,7 @@ class ScitStoritev : VpnService() {
             if (q == null) { tcp.naPaket(buf, n); continue }   // ni UDP: morda DNS prek TCP
             poizvedb.incrementAndGet()
             val nab = nabor
-            if (q.ime.isNotEmpty() && nab != null && nab.jeBlokirana(q.ime)) {
+            if (q.ime.isNotEmpty() && nab != null && nab.jeBlokirana(q.ime) && !ScitIzjeme.dovoljena(q.ime, izjeme)) {
                 blokiranih.incrementAndGet()
                 zapisi(DnsPaket.zavijOdgovor(q, DnsPaket.odgovorBlokirano(q)))
                 continue
@@ -206,7 +208,7 @@ class ScitStoritev : VpnService() {
         val ime = DnsPaket.vprasanje(vprasanje)?.ime.orEmpty()
         Log.i(TAG, "DNS po TCP: $ime")   // redko; v dnevniku je dokaz, da ta pot res tece
         val nab = nabor
-        if (ime.isNotEmpty() && nab != null && nab.jeBlokirana(ime)) {
+        if (ime.isNotEmpty() && nab != null && nab.jeBlokirana(ime) && !ScitIzjeme.dovoljena(ime, izjeme)) {
             blokiranih.incrementAndGet()
             odgovor(DnsPaket.odgovorBlokiranoZa(vprasanje))
             return
@@ -367,6 +369,9 @@ class ScitStoritev : VpnService() {
     private fun naloziNabor() {
         val nov = try { DomenskiNabor.Poizvedba.odpri(Scit.naborDatoteka(this)) } catch (e: Throwable) { Log.w(TAG, "Nabor: ${e.message}"); null }
         if (nov != null) { nabor = nov; Log.i(TAG, "Nabor domen nalozen: ${nov.stevilo}") }
+        izjeme = try {
+            Scit.izjemeDatoteka(this).takeIf { it.isFile }?.readText()?.let { ScitIzjeme.preberi(it, System.currentTimeMillis()).keys } ?: emptySet()
+        } catch (_: Throwable) { emptySet() }
     }
 
     /** Pravi strezniki DNS omrezja (ne nasi): iz vseh omrezij, ki niso VPN in imajo internet. */

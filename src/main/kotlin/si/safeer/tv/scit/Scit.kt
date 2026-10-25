@@ -21,6 +21,7 @@ import java.util.Properties
  *  - vklopljen        obstaja, kadar je uporabnik Scit vklopil (po vklopu televizorja se zazene sam)
  *  - domene.bin       nabor blokiranih domen (DomenskiNabor), zgrajen iz seznamov brskalnika
  *  - statistika.properties  blokiranih/poizvedb danes, dan, stanje storitve
+ *  - izjeme.txt       Webtor rezerva: gostitelji tokov, ki jih Scit ne blokira ([ScitIzjeme]; stalne izjeme so v kodi)
  */
 object Scit {
     private const val TAG = "SafeerScit"
@@ -33,6 +34,28 @@ object Scit {
     fun statistikaDatoteka(context: Context): File = File(mapa(context), "statistika.properties")
 
     fun jeVklopljen(context: Context): Boolean = zastavica(context).exists()
+
+    fun izjemeDatoteka(context: Context): File = File(mapa(context), "izjeme.txt")
+
+    /**
+     * Webtor rezerva: gostitelj, na katerega je preusmeril tok Webtor (`/resolve/` -> 302), gre med izjeme Scita
+     * ([ScitIzjeme.dodaj], najvec 20, 30 dni) - gostitelj toka se lahko spremeni, seznami pa pogosto blokirajo cele vrhnje
+     * domene. Vrne true, ce je bil dodan na novo (proces Scita izjeme prebere znova). Z delovne niti.
+     */
+    @Synchronized fun dovoliGostitelja(context: Context, gostitelj: String): Boolean {
+        val f = izjemeDatoteka(context)
+        val zdaj = System.currentTimeMillis()
+        val prej = ScitIzjeme.preberi(try { if (f.isFile) f.readText() else null } catch (_: Throwable) { null }, zdaj)
+        val novo = ScitIzjeme.dodaj(prej, gostitelj, zdaj) ?: return false
+        try {
+            val zacasna = File(f.parentFile, f.name + ".tmp")
+            zacasna.writeText(ScitIzjeme.zapis(novo))
+            if (!zacasna.renameTo(f)) { f.delete(); if (!zacasna.renameTo(f)) return false }
+        } catch (e: Throwable) { Log.w(TAG, "izjeme: ${e.javaClass.simpleName}"); return false }
+        Log.i(TAG, "izjema Scita za gostitelja toka Webtor ($gostitelj), izjem ${novo.size}")
+        if (jeVklopljen(context) && jePripravljen(context)) ScitStoritev.osvezi(context)
+        return true
+    }
 
     /** VPN dovoljenje je dano (sistemsko okno je bilo potrjeno) - prepare vrne null. */
     fun jePripravljen(context: Context): Boolean = try { VpnService.prepare(context.applicationContext) == null } catch (_: Throwable) { false }
