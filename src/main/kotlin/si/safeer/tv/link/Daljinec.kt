@@ -585,9 +585,15 @@ object Daljinec {
                 najdene[paket] = ime
             }
         }
+        // Zaganjalnik (lastnik, 25. 10. 2026): druga naprava (Prostori, »Odpri tukaj«) najprej vidi aplikacije, pripete na
+        // domacem zaslonu te naprave - isti izbor kot zaganjalnik -, nato druge po abecedi. Pripete se tudi ob meji ohranijo.
+        val pripete = try { si.safeer.tv.os.Priljubljene.seznam(context) } catch (_: Throwable) { emptyList() }
+        val red = si.safeer.tv.os.ZaganjalnikPravila.zaLink(najdene.entries.sortedBy { it.value.lowercase() }.map { it.key }, pripete)
+        val pripeteMnozica = pripete.toSet()
         val polje = JSONArray()
-        for ((paket, ime) in najdene.entries.sortedBy { it.value.lowercase() }.take(najvec)) {
-            val zapis = JSONObject().put("package", paket).put("label", ime)
+        for (paket in red.take(najvec)) {
+            val zapis = JSONObject().put("package", paket).put("label", najdene[paket].orEmpty())
+            if (paket in pripeteMnozica) zapis.put("pinned", true)
             if (zIkonami) ikonaAplikacije(pm, paket)?.let { zapis.put("icon", it) }
             polje.put(zapis)
         }
@@ -679,6 +685,7 @@ object Daljinec {
             val z = polje.optJSONObject(i) ?: continue
             if (meja > 0 && elementi.length() >= meja) break
             val e = JSONObject().put("id", z.optString("package")).put("name", z.optString("label"))
+            if (z.optBoolean("pinned", false)) e.put("pinned", true)
             val ikona = if (zIkonami) ikonaAplikacije(pm, z.optString("package")) else null
             if (ikona != null) e.put("icon", ikona)
             val teza = (ikona?.length ?: 0) + z.optString("label").length * 2 + 120
