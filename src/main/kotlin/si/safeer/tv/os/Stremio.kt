@@ -69,7 +69,13 @@ object Stremio {
                    /** Torrent: katera datoteka (fileIdx), -1 = najvecji video. */
                    val datoteka: Int = -1,
                    /** `behaviorHints.proxyHeaders.request`: glave, ki jih tok zahteva (User-Agent, Referer, Origin, Cookie ...). */
-                   val glave: Map<String, String> = emptyMap())
+                   val glave: Map<String, String> = emptyMap(),
+                   /** Webtor rezerva: infoHash izdaje pri toku »url« (Webtor; ujemanje z nasim torrentom), sicer prazno. */
+                   val hash: String = "",
+                   /** Webtor rezerva: [WebtorPravila.VIR] za tokove dodatka Webtor, sicer prazno. */
+                   val vir: String = "",
+                   /** Webtor rezerva: [WebtorPravila.Vrsta.name] iz predpone imena toka. */
+                   val oznakaVira: String = "")
 
     private val manifesti = ConcurrentHashMap<String, Manifest>()
 
@@ -390,7 +396,8 @@ object Stremio {
         if ("/subtitles/" in url) stej(url.substringBefore("/subtitles/"))
         val zacetek = android.os.SystemClock.elapsedRealtime()
         return try {
-            val c = URL(url).openConnection() as HttpURLConnection
+            // Webtor rezerva: nadomestek dodatka s poverilnico -> pravi naslov samo za ta klic (nikoli v dnevnik).
+            val c = URL(SkrivniDodatki.dejanski(aplikacija, url)).openConnection() as HttpURLConnection
             c.connectTimeout = cas; c.readTimeout = cas
             c.setRequestProperty("User-Agent", "Safeer-Predvajalnik/1.0 (+https://safeer.si)")
             c.setRequestProperty("Accept", "application/json")
@@ -554,6 +561,8 @@ object Stremio {
             try { DodatkiRazvoj.nalozi(a) } catch (_: Exception) { }
             if (mapaPredpomnilnika == null) mapaPredpomnilnika = java.io.File(a.cacheDir, "stremio")
             aplikacija = a
+            // Webtor rezerva: skrivni deli naslovov dodatkov (nadomestek -> pravi naslov tik pred klicem).
+            try { SkrivniDodatki.nalozi(a) } catch (_: Throwable) { }
             // Kaj vemo o lastnih knjiznicah dodatkov (katere dokazano dajo tokove) - pred prvim risanjem.
             ZaupanjeKnjiznic.pripravi(a)
             try {
@@ -770,7 +779,8 @@ object Stremio {
         // Naloga 66: drzave izvora iz odgovora kataloga (Cinemeta jih da pri vsakem vnosu) - za filter jezika, brez poizvedbe.
         (m.optString("imdb_id").takeIf { it.startsWith("tt") } ?: id.takeIf { it.startsWith("tt") })?.let { VrsteNaslovov.zapomniDrzave(it, drzaveIz(m)) }
         return Jamendo.Skladba(PREDPONA + tip + "|" + id + "|" + osnova, m.optString("name").ifBlank { id }, podnaslov,
-            slikaVnosa(m), "", "$osnova/meta/${enc(tip)}/${enc(id)}.json",
+            // Webtor rezerva: slika s poverilnico dodatka v naslovu ne gre v zgodovino in sezname.
+            slikaVnosa(m).let { if (SkrivniDodatki.vsebujeSkrivnost(it)) "" else it }, "", "$osnova/meta/${enc(tip)}/${enc(id)}.json",
             // Glasba in radio sta zvok (kartica in predvajalnik za zvok), vse ostalo video. Naloga 77: glasba z id-jem IMDb
             // (koncert iz Music Concerts) je posnetek - video.
             radio = r == RADIO, video = (r != GLASBA && r != RADIO) || OsPravila.glasbaJeVideo(r == GLASBA, id),
@@ -942,7 +952,8 @@ object Stremio {
         val politika = OsPravila.politikaZahteve(url, true)
         val cas = politika.rokMs
         return sPrednostjo(politika.prednost) { try {
-            val c = URL(url).openConnection() as HttpURLConnection
+            // Webtor rezerva: nadomestek dodatka s poverilnico -> pravi naslov samo za ta klic (nikoli v dnevnik).
+            val c = URL(SkrivniDodatki.dejanski(aplikacija, url)).openConnection() as HttpURLConnection
             c.connectTimeout = cas; c.readTimeout = cas
             c.setRequestProperty("User-Agent", "Safeer-Predvajalnik/1.0 (+https://safeer.si)")
             c.setRequestProperty("Accept", "application/json")
@@ -1162,7 +1173,8 @@ object Stremio {
         val vsi = if (v == null) emptyList() else (0 until v.length()).mapNotNull { i ->
             val x = v.optJSONObject(i) ?: return@mapNotNull null
             val vid = x.optString("id").ifBlank { return@mapNotNull null }
-            val tokovi = x.optJSONArray("streams")?.let { a -> (0 until a.length()).mapNotNull { j -> a.optJSONObject(j)?.let { tok(it, imeDodatka) } } }.orEmpty()
+            val tokovi = x.optJSONArray("streams")?.let { a -> (0 until a.length()).mapNotNull { j -> a.optJSONObject(j)?.let { o ->
+                tok(o, imeDodatka)?.let { prilagodi(it, o, osnova, manifesti[osnova]?.id.orEmpty()) } } } }.orEmpty()
             Epizoda(vid, x.optString("title").ifBlank { x.optString("name") }, x.optInt("season"), x.optInt("episode"), tokovi)
         }
         val ostevilcene = vsi.filter { it.sezona > 0 || it.epizoda > 0 }
@@ -1231,6 +1243,29 @@ object Stremio {
             }
             else -> null
         }
+    }
+
+    /**
+     * Webtor rezerva (25. 10. 2026): tok dodatka s poverilnico v naslovu (osebni zeton Webtorja) dobi nadomestek brez
+     * skrivnosti - tak gre v predvajalnik, zgodovino, Link; pravi naslov vstavi sele [SkrivniDodatki.dejanski]. Tok dodatka
+     * Webtor ([WebtorPravila.jeWebtor]): ime brez predpone `[⚡WT]`/`[WT]`/`[⚡TB]`, vrsta predpone, izdaja (infoHash in
+     * fileIdx, sicer iz JWT) za ujemanje z nasimi torrenti.
+     */
+    private fun prilagodi(t: Tok, o: JSONObject, osnova: String, idManifesta: String): Tok {
+        var x = t
+        val app = aplikacija
+        if (x.vrsta == "url" && app != null && (SkrivnostiPravila.jeNadomestek(osnova) || SkrivnostiPravila.jeSkrivenNaslov(osnova)) &&
+            SkrivnostiPravila.jeSkrivenNaslov(x.url)) SkrivniDodatki.zavaruj(app, x.url)?.let { x = x.copy(url = it) }
+        if (x.vrsta == "url" && WebtorPravila.jeWebtor(idManifesta)) {
+            val oznaka = WebtorPravila.razcleni(x.ime)
+            val hashToka = SerijePravila.niz(o.optString("infoHash"))
+            // Izdaja kot pri nasih dodatkih: infoHash in fileIdx toka (Webtor posreduje tok istega dodatka; brez fileIdx = -1,
+            // tako kot pri nas). Samo tok brez infoHash dobi izdajo iz JWT.
+            val k = WebtorPravila.kljuc(hashToka, if (o.has("fileIdx")) o.optInt("fileIdx", -1) else -1) ?: WebtorPravila.izJwt(x.url)
+            x = x.copy(ime = oznaka.ime.ifBlank { WebtorPravila.IME }, vir = WebtorPravila.VIR, oznakaVira = oznaka.vrsta.name,
+                hash = k?.hash.orEmpty(), datoteka = k?.idx ?: -1)
+        }
+        return x
     }
 
     /** Vnos med tokovi, ki je obvestilo (prosnja za donacijo, vabilo v Discord, "No streams found"): glej [ObvestilaTokov]. */
@@ -1710,7 +1745,7 @@ object Stremio {
             if (tip != "movie" && tip != "series" && a.length() > 0 && zapisaneOblike.add(m.osnova + "|" + tip)) try {
                 android.util.Log.i("SafeerStremio", "dodatek ${gostitelj(m.osnova)} tok $tip: stevilo=${a.length()}, prvi: ${a.optJSONObject(0)?.let { oblikaToka(it) } ?: "-"}")
             } catch (_: Throwable) { }
-            (0 until a.length()).mapNotNull { i -> a.optJSONObject(i)?.let { tok(it, m.ime) } }
+            (0 until a.length()).mapNotNull { i -> a.optJSONObject(i)?.let { o -> tok(o, m.ime)?.let { prilagodi(it, o, m.osnova, m.id) } } }
                 .also { t -> if (d != null && razred(tip) == TV) zabeleziTokove(m.osnova, a, t.count { jePredvajljiv(it) }) }
         }
 

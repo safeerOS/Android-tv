@@ -393,7 +393,9 @@ class ChromiumEngineView @JvmOverloads constructor(
         if (!zakleniDodatek(naslov)) return
         dodatekDejavnost = java.lang.ref.WeakReference(ctx)
         fun ze(n: String) = si.safeer.tv.os.MedijskiViri.vsi(ctx).any {
-            it.tip == si.safeer.tv.os.MedijskiViri.STREMIO && si.safeer.tv.os.Stremio.osnova(it.naslov) == si.safeer.tv.os.Stremio.osnova(n) }
+            // Webtor rezerva: dodatek s poverilnico je shranjen kot nadomestek - primerjamo nadomestka.
+            it.tip == si.safeer.tv.os.MedijskiViri.STREMIO &&
+                si.safeer.tv.os.Stremio.osnova(it.naslov) == si.safeer.tv.os.Stremio.osnova(si.safeer.tv.os.SkrivnostiPravila.vNadomestek(n)) }
         if (ze(naslov)) {
             sprostiDodatek()
             android.util.Log.i("SafeerOsMedia", "Splet: dodatek ze med viri")
@@ -427,7 +429,12 @@ class ChromiumEngineView @JvmOverloads constructor(
                         android.widget.Toast.makeText(ctx, R.string.os_mediji_dodatek_ze, android.widget.Toast.LENGTH_SHORT).show()
                         return
                     }
+                    // Webtor rezerva: dodatek s poverilnico se shrani samo sifriran (null = sifriranje ni uspelo).
                     val v = si.safeer.tv.os.MedijskiViri.dodajDodatek(ctx, si.safeer.tv.os.MedijskiViri.STREMIO, naslov, "")
+                    if (v == null) {
+                        android.widget.Toast.makeText(ctx, R.string.os_mediji_dodatek_ni_shranjen, android.widget.Toast.LENGTH_LONG).show()
+                        return
+                    }
                     // Kot v Mojih virih (GlasbaActivity.shraniDodatek): kanale novega dodatka preverimo v ozadju.
                     si.safeer.tv.os.PregledKanalov.zacni(ctx.applicationContext, v.naslov, rocno = false)
                     android.widget.Toast.makeText(ctx, R.string.os_mediji_dodatek_dodano, android.widget.Toast.LENGTH_SHORT).show()
@@ -435,7 +442,8 @@ class ChromiumEngineView @JvmOverloads constructor(
                 try {
                     android.app.AlertDialog.Builder(ctx)
                         .setTitle(ctx.getString(R.string.os_mediji_dodatek_vprasanje, ime?.takeIf { it.isNotBlank() } ?: android.net.Uri.parse(naslov).host.orEmpty()))
-                        .setMessage(naslov)
+                        // Webtor rezerva: naslov z zetonom ali kljucem ne na zaslon (»https://webtor.io/…/stremio/manifest.json«).
+                        .setMessage(si.safeer.tv.os.SkrivnostiPravila.zaPrikaz(naslov))
                         .setPositiveButton(R.string.os_mediji_dodatek_ujet_dodaj) { _, _ -> dodaj() }
                         .setNegativeButton(android.R.string.cancel, null)
                         .create().apply {

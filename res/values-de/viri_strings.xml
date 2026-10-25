@@ -121,5 +121,10 @@
     <string name="os_usenet_neveljavno">Prüfe die Adresse (https://…) und den API-Schlüssel.</string>
     <string name="os_usenet_ime_kratko">Usenet-Indexer %1$s</string>
     <string name="os_usenet_rezerva">Usenet hat nicht geklappt – spiele eine andere Quelle</string>
+    <!-- Webtor rezerva (25. 10. 2026): lastnikov dodatek Webtor kot rezerva za torrente, ki jih TorBox nima. -->
+    <string name="os_webtor_rezerva">Webtor hat nicht funktioniert – andere Quelle wird abgespielt</string>
+    <string name="os_webtor_pripravljam">Wird über Webtor vorbereitet …</string>
+    <string name="os_skrivni_dodatek_ime">Add-on %1$s</string>
+    <string name="os_mediji_dodatek_ni_shranjen">Das Add-on konnte nicht sicher gespeichert werden (Verschlüsselung fehlgeschlagen). Bitte erneut versuchen.</string>
     <string name="os_usenet_napaka_indeksator">Der Usenet-Indexer hat keine NZB-Datei geliefert. Prüfe seinen API-Schlüssel und das Tageslimit.</string>
 </resources>

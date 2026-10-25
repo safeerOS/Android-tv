@@ -303,7 +303,9 @@ object Debrid {
     /** Kljuci, ki jih je poslala druga naprava in cakajo na potrditev na tej (samo v pomnilniku, [DebridPravila.PREJETO_VELJA_MS]). */
     class Prejeti(val od: String, val kljuci: Map<String, String>, val prejetoMs: Long,
                   /** Naloga 141: indeksator Usenet (naslov, kljuc), ce ga je druga naprava poslala. */
-                  val indeksator: Pair<String, String>? = null)
+                  val indeksator: Pair<String, String>? = null,
+                  /** Webtor rezerva: pravi naslovi dodatkov s poverilnico (osebni zeton Webtorja ...) - kot kljuci. */
+                  val dodatki: List<String> = emptyList())
     @Volatile private var cakajoci: Prejeti? = null
     /** Zaslon, ki zna vprasati za potrditev (GlasbaActivity), se prijavi; poklice se na glavni niti. */
     val poslusalciPrejetih = java.util.concurrent.CopyOnWriteArraySet<() -> Unit>()
@@ -318,9 +320,12 @@ object Debrid {
         val veljavni = DebridPravila.prejetiKljuci(vnos)
         val u = parametri.optJSONObject("usenet")
         val indeksator = UsenetPravila.prejetIndeksator(u?.optString("url"), u?.optString("key"))
-        if (veljavni.isEmpty() && indeksator == null) return JSONObject().put("accepted", false).put("reason", "neveljavno")
-        cakajoci = Prejeti(od, veljavni, System.currentTimeMillis(), indeksator)
-        Log.i(TAG, "prejeti kljuci: ${veljavni.keys.joinToString(",")}${if (indeksator != null) " + indeksator Usenet" else ""} (cakajo na potrditev)")
+        val d = parametri.optJSONArray("addons")
+        val dodatki = SkrivnostiPravila.prejetiDodatki((0 until minOf(d?.length() ?: 0, 2 * SkrivnostiPravila.NAJVEC_PREJETIH)).map { d?.optString(it) })
+        if (veljavni.isEmpty() && indeksator == null && dodatki.isEmpty()) return JSONObject().put("accepted", false).put("reason", "neveljavno")
+        cakajoci = Prejeti(od, veljavni, System.currentTimeMillis(), indeksator, dodatki)
+        Log.i(TAG, "prejeti kljuci: ${veljavni.keys.joinToString(",")}${if (indeksator != null) " + indeksator Usenet" else ""}" +
+            "${if (dodatki.isNotEmpty()) " + dodatkov s poverilnico ${dodatki.size}" else ""} (cakajo na potrditev)")
         android.os.Handler(android.os.Looper.getMainLooper()).post {
             if (poslusalciPrejetih.isEmpty()) try {
                 android.widget.Toast.makeText(c.applicationContext, c.getString(si.safeer.tv.R.string.os_debrid_prejeto_odpri), android.widget.Toast.LENGTH_LONG).show()
@@ -337,10 +342,15 @@ object Debrid {
         return p.takeIf { DebridPravila.prejetoVelja(it.prejetoMs, System.currentTimeMillis()) }
     }
 
+    /** Webtor rezerva: v seznamu shranjenih [shraniPrejete] je dodatek s poverilnico »dodatek|<gostitelj>«. */
+    const val PREDPONA_DODATKA = "dodatek|"
+
     /** Potrjeni prejeti kljuci: shranijo se kot vpisani tu. Vrne storitve, ki so bile shranjene. */
     fun shraniPrejete(c: Context, p: Prejeti): List<String> =
         p.kljuci.filter { (ponudnik, k) -> nastaviKljuc(c, ponudnik, k) }.keys.toList() +
-            listOfNotNull(p.indeksator?.takeIf { (n, k) -> Usenet.nastavi(c, n, k) }?.let { UsenetPravila.VRSTA })
+            listOfNotNull(p.indeksator?.takeIf { (n, k) -> Usenet.nastavi(c, n, k) }?.let { UsenetPravila.VRSTA }) +
+            // Webtor rezerva: dodatki s poverilnico - sifrirano kot nadomestek ([MedijskiViri.dodajDodatek]).
+            p.dodatki.mapNotNull { n -> MedijskiViri.dodajDodatek(c, MedijskiViri.STREMIO, n, "")?.let { PREDPONA_DODATKA + Zasebno.gostitelj(n) } }
 
     /**
      * Poslje vse vpisane kljuce napravi [n] - samo po sifrirani poti od naprave do naprave ([DebridPravila.smePoslatiKljuc]).
@@ -364,6 +374,8 @@ object Debrid {
         val parametri = JSONObject().put("keys", k)
         // Naloga 141: tudi indeksator Usenet (isto sifrirano pot; tam se shrani sele po potrditvi).
         Usenet.indeksator(c)?.let { parametri.put("usenet", JSONObject().put("url", it.osnova).put("key", it.kljuc)) }
+        // Webtor rezerva: dodatki s poverilnico (osebni zeton Webtorja ...) gredo samo tu - ozji krog, sifrirano, potrditev.
+        MedijskiViri.skrivniDodatki(c).takeIf { it.isNotEmpty() }?.let { parametri.put("addons", JSONArray(it.take(SkrivnostiPravila.NAJVEC_PREJETIH))) }
         link.ukaz(n.id, DebridPravila.DEJANJE_KLJUCI, parametri, 8_000, LinkOdjemalec.Odgovor { izid, napaka ->
             val koda = when {
                 izid?.optBoolean("ok") == true && izid.optJSONObject("data")?.optBoolean("accepted") == true -> "ok"

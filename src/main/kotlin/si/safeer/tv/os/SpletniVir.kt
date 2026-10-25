@@ -742,7 +742,11 @@ object SpletniVir {
         val http = DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(true)
         // Kanal ali postaja v zivo: krajsi rok povezave ([OsPravila.ROK_POVEZAVE_V_ZIVO_MS]); 0 = privzeti rok predvajalnika.
         if (rokPovezaveMs > 0) http.setConnectTimeoutMs(rokPovezaveMs)
-        return ResolvingDataSource.Factory(DefaultDataSource.Factory(c, http)) { spec ->
+        val app = c.applicationContext
+        return ResolvingDataSource.Factory(DefaultDataSource.Factory(c, http)) { izvirna ->
+            // Webtor rezerva: tok dodatka s poverilnico ima v aplikaciji nadomestek brez zetona - pravi naslov samo za zahtevo.
+            val pravi = SkrivniDodatki.dejanski(app, izvirna.uri.toString())
+            val spec = if (pravi == izvirna.uri.toString()) izvirna else izvirna.withUri(android.net.Uri.parse(pravi))
             val url = spec.uri.toString()
             if (!url.startsWith("http://") && !url.startsWith("https://")) return@Factory spec
             val glave = HashMap<String, String>()

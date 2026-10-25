@@ -121,5 +121,10 @@
     <string name="os_usenet_neveljavno">Controlla l’indirizzo (https://…) e la chiave API.</string>
     <string name="os_usenet_ime_kratko">indicizzatore Usenet %1$s</string>
     <string name="os_usenet_rezerva">Usenet non ha funzionato: riproduco un’altra fonte</string>
+    <!-- Webtor rezerva (25. 10. 2026): lastnikov dodatek Webtor kot rezerva za torrente, ki jih TorBox nima. -->
+    <string name="os_webtor_rezerva">Webtor non ha funzionato – riproduco un’altra fonte</string>
+    <string name="os_webtor_pripravljam">Preparazione tramite Webtor…</string>
+    <string name="os_skrivni_dodatek_ime">componente aggiuntivo %1$s</string>
+    <string name="os_mediji_dodatek_ni_shranjen">Impossibile salvare il componente aggiuntivo in modo sicuro (crittografia non riuscita). Riprova.</string>
     <string name="os_usenet_napaka_indeksator">L’indicizzatore Usenet non ha restituito il file NZB. Controlla la sua chiave API e il limite giornaliero.</string>
 </resources>

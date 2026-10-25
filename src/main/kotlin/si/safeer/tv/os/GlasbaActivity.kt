@@ -7028,7 +7028,9 @@ class GlasbaActivity : OsActivity() {
 
     /** Preverjen dodatek shrani in zapre okno (naloga 57d: samo po uspesni preverbi [Stremio.preveriObVnosu]). */
     private fun shraniDodatek(okno: AlertDialog, naslov: String) {
+        // Webtor rezerva: dodatek s poverilnico se shrani samo sifriran - ce to ne uspe, ga ne shranimo (okno ostane odprto).
         val v = MedijskiViri.dodajDodatek(this, MedijskiViri.STREMIO, naslov, "")
+            ?: run { Toast.makeText(this, R.string.os_mediji_dodatek_ni_shranjen, Toast.LENGTH_LONG).show(); return }
         Toast.makeText(this, getString(R.string.os_mediji_dodatki_shranjen, v.ime), Toast.LENGTH_SHORT).show()
         okno.dismiss()
         poSpremembiVirov(); izberi(VIRI)
@@ -8981,7 +8983,8 @@ class GlasbaActivity : OsActivity() {
             Debrid.nastaviSamoTakoj(this, !takoj); osveziNaMestu(); nastavitveDebrida()
         }
         // Naloga 129: kljuce, vpisane tu (npr. na telefonu), poslji na TV - tam jih ni treba tipkati z daljincem.
-        if ((Debrid.imaKateriKljuc(this) || Usenet.imaIndeksator(this)) && Predaja.cilji(this).isNotEmpty()) vrstice += getString(R.string.os_debrid_poslji) to { posljiKljuceDebrida() }
+        if ((Debrid.imaKateriKljuc(this) || Usenet.imaIndeksator(this) || MedijskiViri.skrivniDodatki(this).isNotEmpty()) && Predaja.cilji(this).isNotEmpty())
+            vrstice += getString(R.string.os_debrid_poslji) to { posljiKljuceDebrida() }
         val red = Debrid.vrstniRed(this)
         if (red.size >= 2) vrstice += getString(R.string.os_debrid_prednostna, DebridPravila.ime(red.first())) to {
             val imena = red.map { DebridPravila.ime(it) }.toTypedArray()
@@ -9025,7 +9028,9 @@ class GlasbaActivity : OsActivity() {
             .setItems(imena.toTypedArray()) { _, i ->
                 val n = cilji[i]; val ime = imena[i]
                 val katere = (Debrid.vrstniRed(this).map { DebridPravila.ime(it) } +
-                    listOfNotNull(Usenet.gostitelj(this)?.let { getString(R.string.os_usenet_ime_kratko, it) })).joinToString(", ")
+                    listOfNotNull(Usenet.gostitelj(this)?.let { getString(R.string.os_usenet_ime_kratko, it) }) +
+                    // Webtor rezerva: dodatki s poverilnico (samo gostitelj, nikoli naslov).
+                    MedijskiViri.skrivniDodatki(this).map { getString(R.string.os_skrivni_dodatek_ime, Zasebno.gostitelj(it)) }.distinct()).joinToString(", ")
                 pokaziBrisanje(AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                     .setTitle(R.string.os_debrid_poslji)
                     .setMessage(getString(R.string.os_debrid_poslji_vprasanje, katere, ime))
@@ -9052,9 +9057,15 @@ class GlasbaActivity : OsActivity() {
     private fun pokaziPrejeteKljuce() {
         val p = Debrid.vzemiPrejete() ?: return
         // Naloga 141: tudi indeksator Usenet (ime gostitelja, kljuc se ne pokaze).
-        fun ime(x: String) = if (x == UsenetPravila.VRSTA) getString(R.string.os_usenet_ime_kratko,
-            p.indeksator?.first?.let { try { java.net.URL(it).host } catch (_: Exception) { it } }.orEmpty()) else DebridPravila.ime(x)
-        val katere = (p.kljuci.keys + listOfNotNull(p.indeksator?.let { UsenetPravila.VRSTA })).joinToString(", ") { ime(it) }
+        fun ime(x: String) = when {
+            x == UsenetPravila.VRSTA -> getString(R.string.os_usenet_ime_kratko,
+                p.indeksator?.first?.let { try { java.net.URL(it).host } catch (_: Exception) { it } }.orEmpty())
+            // Webtor rezerva: dodatek s poverilnico - samo gostitelj.
+            x.startsWith(Debrid.PREDPONA_DODATKA) -> getString(R.string.os_skrivni_dodatek_ime, x.removePrefix(Debrid.PREDPONA_DODATKA))
+            else -> DebridPravila.ime(x)
+        }
+        val katere = (p.kljuci.keys + listOfNotNull(p.indeksator?.let { UsenetPravila.VRSTA }) +
+            p.dodatki.map { Debrid.PREDPONA_DODATKA + Zasebno.gostitelj(it) }.distinct()).joinToString(", ") { ime(it) }
         val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(R.string.os_debrid)
             .setMessage(getString(R.string.os_debrid_prejeto_vprasanje, DatotekeActivity.lepoIme(p.od), katere))
