@@ -31,11 +31,16 @@ object SondaToka {
     fun preveriZRazlogom(naslov: String, glave: Map<String, String>, agent: String): Pair<OsPravila.IzidSonde, String> =
         // Pregled 25. 10. 2026: veriga z trdim rokom, surovi tokovi, Range, razlicice od prve - [SondaVeriga] (preizkus s
         // krajevnim streznikom HTTP). Tu ostane, kar je Androidovo: imenik ob napaki povezave in glave zahteve.
-        SondaVeriga.preveri(naslov, { glaveZahteve(glave, agent) }, ::izIzjeme)
+        SondaVeriga.preveri(naslov, { url -> glaveZahteve(url, glave, agent) }, ::izIzjeme)
 
-    /** Glave vsake zahteve sonde: UA predvajalnika in glave toka (proxyHeaders). */
-    private fun glaveZahteve(glave: Map<String, String>, agent: String): Map<String, String> =
-        (if (agent.isNotBlank()) mapOf("User-Agent" to agent) else emptyMap()) + glave
+    /**
+     * Glave vsake zahteve sonde (pregled N4): enake kot pri predvajanju za ta naslov ([SpletniVir.glaveZa] - UA, Referer
+     * domene, piskotki, glave gostitelja in toka); UA klicatelja, ce ga predvajalnik se ne pozna.
+     */
+    private fun glaveZahteve(url: String, glave: Map<String, String>, agent: String): Map<String, String> {
+        val g = SpletniVir.glaveZa(url, glave)
+        return if (agent.isNotBlank() && g.keys.none { it.equals("User-Agent", ignoreCase = true) }) g + ("User-Agent" to agent) else g
+    }
 
     /** Izid ob napaki povezave: neznan gostitelj in zavrnjena povezava ob delujocem omrezju sta dokaz, rok je negotov. */
     private fun izIzjeme(e: java.io.IOException, url: String): Pair<OsPravila.IzidSonde, String> {

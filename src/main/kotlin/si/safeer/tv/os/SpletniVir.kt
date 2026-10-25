@@ -745,16 +745,25 @@ object SpletniVir {
         return ResolvingDataSource.Factory(DefaultDataSource.Factory(c, http)) { spec ->
             val url = spec.uri.toString()
             if (!url.startsWith("http://") && !url.startsWith("https://")) return@Factory spec
-            val glave = HashMap<String, String>()
-            if (ua.isNotBlank()) glave["User-Agent"] = ua
-            glaveDomene[domena(url)]?.let { glave.putAll(it) }
-            try { CookieManager.getInstance().getCookie(url) } catch (_: Exception) { null }?.let { glave["Cookie"] = it }
-            // Glave toka (proxyHeaders) imajo zadnjo besedo - tudi nad UA brskalnika in piskotki.
-            glaveGostitelja[gostitelj(url)]?.let { glave.putAll(it) }
-            // Glave, ki spremljajo ta tok, gredo na vsak njegov del - tudi na segmente HLS/DASH na drugem gostitelju.
-            if (glaveVsem.isNotEmpty()) glave.putAll(glaveVsem)
-            spec.withAdditionalHeaders(glave)
+            spec.withAdditionalHeaders(glaveZa(url, glaveVsem))
         }
+    }
+
+    /**
+     * Glave zahteve za [url], kot jih poslje nas predvajalnik: UA brskalnika, Referer domene, piskotki WebView, glave
+     * gostitelja (proxyHeaders) in glave toka [glaveVsem] (zadnja beseda). Pregled 25. 10. (N4): enake uporablja sonda
+     * toka za vsako zahtevo verige (seznam, razlicica, kljuc, kos), da ne dobi 403, ki ga predvajalnik ne bi.
+     */
+    fun glaveZa(url: String, glaveVsem: Map<String, String> = emptyMap()): Map<String, String> {
+        val glave = HashMap<String, String>()
+        if (ua.isNotBlank()) glave["User-Agent"] = ua
+        glaveDomene[domena(url)]?.let { glave.putAll(it) }
+        try { CookieManager.getInstance().getCookie(url) } catch (_: Throwable) { null }?.let { glave["Cookie"] = it }
+        // Glave toka (proxyHeaders) imajo zadnjo besedo - tudi nad UA brskalnika in piskotki.
+        glaveGostitelja[gostitelj(url)]?.let { glave.putAll(it) }
+        // Glave, ki spremljajo ta tok, gredo na vsak njegov del - tudi na segmente HLS/DASH na drugem gostitelju.
+        if (glaveVsem.isNotEmpty()) glave.putAll(glaveVsem)
+        return glave
     }
 
     /** Slika spletnega vira z enakim kontekstom kot stran (Referer, piskotki, brskalniski UA). */
