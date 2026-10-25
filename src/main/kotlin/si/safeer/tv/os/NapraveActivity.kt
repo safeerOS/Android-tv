@@ -315,9 +315,19 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         graditelj
             // »Zaslon in upravljanje« vkljuci Safeer Vnos (misko in tipkovnico) - privolitev to pove (link/VnosVklop).
             .setCustomTitle(si.safeer.tv.link.VnosVklop.naslovPrivolitve(graditelj.context, getString(R.string.os_dostop_naslov, ime)))
-            .setMultiChoiceItems(imena, izbrano) { _, i, da -> izbrano[i] = da }
+            .setMultiChoiceItems(imena, izbrano) { okno, i, da ->
+                // Ozji krog (lastnik 25. 10. 2026 10:49): katerakoli zmoznost vkljucuje datoteke in zaslon z upravljanjem
+                // (DostopPravila.ozjiKrog) - okno to pokaze takoj, kot bo shranjeno.
+                izbrano[i] = da
+                val krog = si.safeer.tv.cast.DostopPravila.ozjiKrog(vse.filterIndexed { j, _ -> izbrano[j] }.toSet())
+                val seznam = (okno as? android.app.AlertDialog)?.listView
+                for ((j, z) in vse.withIndex()) {
+                    val mora = z in krog
+                    if (izbrano[j] != mora) { izbrano[j] = mora; seznam?.setItemChecked(j, mora) }
+                }
+            }
             .setPositiveButton(getString(R.string.os_naprave_shrani)) { _, _ ->
-                val novo = vse.filterIndexed { i, _ -> izbrano[i] }.toSet()
+                val novo = si.safeer.tv.cast.DostopPravila.ozjiKrog(vse.filterIndexed { i, _ -> izbrano[i] }.toSet())
                 si.safeer.tv.cast.Dostop.nastavi(this, n.id, novo)
                 Toast.makeText(this, getString(if (izbrano.any { it }) R.string.os_dostop_shranjeno else R.string.os_dostop_brez_shranjeno, ime),
                     Toast.LENGTH_LONG).show()

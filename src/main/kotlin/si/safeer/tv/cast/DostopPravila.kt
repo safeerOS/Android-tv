@@ -93,6 +93,46 @@ object DostopPravila {
      */
     fun veljavne(dano: Set<Zmoznost>, umaknjena: Boolean): Set<Zmoznost> = if (umaknjena) emptySet() else dano
 
+    /**
+     * Pregled veje tv-vnos (25. 10. 2026, tocka 1): vnos z miske in tipkovnice (input.*, gamepad.*) - tudi vklop Safeer
+     * Vnosa (input.enable) - sme samo naprava, ki je CLAN kroga zaupanja te naprave (ne umaknjena) in ji je odprt zaslon.
+     * Zapis dovoljenj sam ni dovolj: naprava, ki je krog ne pozna, ni umaknjena, a tudi ni clan.
+     */
+    fun zahtevaClanstvo(dejanje: String): Boolean {
+        val d = dejanje.trim().lowercase()
+        return d.startsWith("input.") || d.startsWith("gamepad.")
+    }
+
+    /** [jedro] posiljatelja (iz preverjenega kljuca ali oznake) je ta naprava ali clan kroga, ki ni umaknjen. Napaka = ne. */
+    fun clanKroga(jedro: String, taNaprava: (String) -> Boolean, clan: (String) -> Boolean, umaknjen: (String) -> Boolean): Boolean =
+        jedro.isNotBlank() && try { taNaprava(jedro) || (clan(jedro) && !umaknjen(jedro)) } catch (_: Throwable) { false }
+
+    /** Ukaz [dejanje]: dostop po zmoznostih ([smeZmoznosti], [smePosiljatelj]), za vnos se clanstvo v krogu ([clanKroga]). */
+    fun smeUkaz(dejanje: String, smeZmoznosti: Boolean, clanKroga: () -> Boolean): Boolean =
+        smeZmoznosti && (!zahtevaClanstvo(dejanje) || clanKroga())
+
+    /**
+     * Pravilo lastnika (25. 10. 2026 10:49, velja povsod; isto kot core/link_dostop.ozji_krog na racunalniku): naprava, ki
+     * jo uporabnik da v ozji krog (katerakoli zmoznost), dobi z ISTO privolitvijo tudi upravljanje in Safeer Vnos (ZASLON)
+     * ter datoteke (DATOTEKE) - brez locenih stikal. Prazen nabor ostane prazen (naprava samo pomaga pri povezavi).
+     * Velja ob privolitvi uporabnika; zapisov od prej ne siri samo od sebe.
+     */
+    val OZJI_KROG: Set<Zmoznost> = setOf(Zmoznost.DATOTEKE, Zmoznost.ZASLON)
+
+    fun ozjiKrog(dano: Set<Zmoznost>): Set<Zmoznost> = if (dano.isEmpty()) emptySet() else dano + OZJI_KROG
+
+    /**
+     * Pregled veje tv-vnos (tocka 5): Safeer Vnos se sam vklopi samo za zaslon, ki ga je uporabnik odprl s privolitvijo po
+     * uvedbi te funkcije ([privolitve] - jedra, ki jim je bil zaslon shranjen v Nastavitvah ali Linku). Podedovane
+     * naprave ([podedovani]: ob uvedbi dovoljenj so dobile vse) zaslon obdrzijo, Vnosa pa brez nove privolitve ne vklopijo.
+     */
+    fun zaslonSPrivolitvijo(zapis: Map<String, Set<Zmoznost>>, privolitve: Set<String>): Set<String> =
+        zapis.filter { (j, z) -> Zmoznost.ZASLON in z && j in privolitve }.keys
+
+    /** Privolitve po shranjenem dostopu naprave [jedro]: z zaslonom je privolitev zabelezena, brez njega umaknjena. */
+    fun privolitvePo(privolitve: Set<String>, jedro: String, dano: Set<Zmoznost>): Set<String> =
+        if (Zmoznost.ZASLON in dano) privolitve + jedro else privolitve - jedro
+
     /** Clan kroga, kolikor ga pravila potrebujejo. */
     class Clan(val id: String, val kljuc: String, val dodano: Double)
 

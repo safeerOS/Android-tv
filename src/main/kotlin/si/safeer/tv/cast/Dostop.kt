@@ -25,6 +25,8 @@ object Dostop {
     private const val KLJUC_NAPRAVE = "naprave"
     private const val KLJUC_PODEDOVANO = "podedovano_ob"
     private const val KLJUC_ZASCITA = "zascita"
+    /** Jedra naprav, ki jim je uporabnik zaslon odprl s privolitvijo (DostopPravila.zaslonSPrivolitvijo). */
+    private const val KLJUC_PRIVOLITEV_ZASLONA = "privolitev_zaslona"
 
     private var zapis: HashMap<String, Set<Zmoznost>>? = null
     private var zascita: HashSet<String> = HashSet()
@@ -145,9 +147,30 @@ object Dostop {
      */
     fun smeDejanje(ctx: Context, posiljatelj: String, dejanje: String, zascita: String = ""): Boolean {
         val zahteva = DostopPravila.zahtevaDejanja(dejanje)
-        val sme = smePosiljatelj(ctx, posiljatelj, zahteva, zascita, true)
+        // Vnos (input.*, tudi input.enable) samo clan kroga zaupanja (pregled tv-vnos, tocka 1): odloca jedro iz
+        // preverjenega kljuca, ce je ukaz prisel zasciten, sicer jedro oznake.
+        val sme = DostopPravila.smeUkaz(dejanje, smePosiljatelj(ctx, posiljatelj, zahteva, zascita, true)) {
+            clanKroga(ctx, if (zascita.isNotEmpty()) zascita else jedro(ctx, posiljatelj))
+        }
         if (!sme) Log.i(TAG, "Zavrnjeno: ${posiljatelj.ifBlank { "(neznan posiljatelj)" }} nima dostopa za $dejanje ($zahteva)")
         return sme
+    }
+
+    /** Jedra clanov kroga zaupanja (id in jedro iz kljuca) - vkljucno z umaknjenimi; umik preveri [clanKroga]. */
+    fun jedraKroga(ctx: Context): Set<String> {
+        val izid = HashSet<String>()
+        for (cl in KrogNaprave.krog(ctx).clani()) {
+            izid.add(cl.id)
+            try { izid.add(KrogZaupanja.idIzKljuca(cl.kljuc)) } catch (_: Throwable) { }
+        }
+        return izid
+    }
+
+    /** Ali je naprava z jedrom [jedro] ta naprava ali clan kroga zaupanja, ki ni umaknjen. Napaka = ne. */
+    fun clanKroga(ctx: Context, jedro: String): Boolean {
+        val krog = try { KrogNaprave.krog(ctx) } catch (_: Throwable) { return false }
+        val jedra = try { jedraKroga(ctx) } catch (_: Throwable) { return false }
+        return DostopPravila.clanKroga(jedro, { it == lastnoJedro(ctx) }, { it in jedra }, { krog.jeUmaknjen(it) })
     }
 
     /**
@@ -174,19 +197,42 @@ object Dostop {
         return sme
     }
 
-    /** Uporabnik je napravi [id] dolocil dostop; prazen nabor = brez dostopa (naprava samo pomaga pri povezavi). */
+    /**
+     * Uporabnik je napravi [id] dolocil dostop (privolitev v Nastavitvah ali Linku); prazen nabor = brez dostopa (naprava
+     * samo pomaga pri povezavi). Ozji krog ([DostopPravila.ozjiKrog], lastnik 25. 10. 2026 10:49): vsak neprazen nabor
+     * vkljucuje datoteke in zaslon z upravljanjem; zaslon, shranjen tu, je privolitev za Safeer Vnos.
+     */
     fun nastavi(ctx: Context, id: String, dano: Set<Zmoznost>) {
         if (id.isBlank() || jeTaNaprava(ctx, id)) return
         val j = jedro(ctx, id)
         // Oznaka, pod katero je v krogu drug kljuc, kot ga izkazuje: ni naprava, ki ji je mogoce kaj odpreti.
         if (j.isBlank()) return
+        val novo = DostopPravila.ozjiKrog(dano)
         synchronized(this) {
             val m = nalozen(ctx)
-            m[j] = dano.toSet()
-            ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KLJUC_NAPRAVE, vJson(m)).apply()
+            m[j] = novo
+            val prefs = ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val zabelezene = DostopPravila.privolitvePo(privolitve(prefs), j, novo)
+            prefs.edit().putString(KLJUC_NAPRAVE, vJson(m))
+                .putString(KLJUC_PRIVOLITEV_ZASLONA, JSONArray(zabelezene.sorted()).toString()).apply()
         }
-        Log.i(TAG, "Dostop naprave $j: ${DostopPravila.vNiz(dano).ifEmpty { "brez" }}")
+        Log.i(TAG, "Dostop naprave $j: ${DostopPravila.vNiz(novo).ifEmpty { "brez" }}")
         try { naSpremembo?.invoke() } catch (_: Throwable) { }
+    }
+
+    private fun privolitve(prefs: android.content.SharedPreferences): Set<String> = try {
+        val a = JSONArray(prefs.getString(KLJUC_PRIVOLITEV_ZASLONA, "[]") ?: "[]")
+        (0 until a.length()).mapNotNull { (a.opt(it) as? String)?.takeIf { s -> DostopPravila.jeJedro(s) } }.toSet()
+    } catch (_: Throwable) { emptySet() }
+
+    /**
+     * Jedra naprav, ki jim je zaslon odprt s privolitvijo uporabnika in niso umaknjene - samo te sprozijo samodejni vklop
+     * Safeer Vnosa (pregled tv-vnos, tocka 5; podedovane naprave ne).
+     */
+    fun napraveSPrivolitvijoZaslona(ctx: Context): Set<String> {
+        val prefs = ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        return synchronized(this) { DostopPravila.zaslonSPrivolitvijo(nalozen(ctx), privolitve(prefs)) }
+            .filterNot { umaknjena(ctx, it) }.toSet()
     }
 
     /**

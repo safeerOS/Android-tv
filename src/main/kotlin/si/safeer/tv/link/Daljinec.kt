@@ -821,8 +821,9 @@ object Daljinec {
                 VnosVklopPravila.Pot.NI_STORITVE -> Izid(false,
                     if (sl) "Ta aplikacija nima Safeer Vnosa." else "This app has no Safeer Vnos.", koda = KODA_NI_NA_VOLJO)
                 VnosVklopPravila.Pot.ZE_VKLOPLJENO -> Izid(true, "Safeer Vnos je že vklopljen.")
-                // input.enable sme poslati samo naprava z odprtim zaslonom (DostopPravila: input.* = ZASLON): privolitev v
-                // ozjem krogu je dana. Z WRITE_SECURE_SETTINGS Vnos vklopimo brez Nastavitev (link/VnosVklop).
+                // input.enable sme poslati samo clan kroga z odprtim zaslonom (Dostop.smeDejanje: input.* = ZASLON in
+                // clanstvo). Z WRITE_SECURE_SETTINGS ga aplikacija vpise sama samo, ce ozji krog to zahteva
+                // (VnosVklopPravila.smeVpisati v VnosVklop.vklopi); sicer voden korak na tej napravi.
                 VnosVklopPravila.Pot.SAMODEJNO -> {
                     VnosVklop.vklopi(context) { izid -> if (!izid.aktivna) vodeniVklop(context, sl) }
                     Izid(true, if (sl) "Safeer Vnos se vklaplja – vnos pošlji znova čez nekaj sekund."

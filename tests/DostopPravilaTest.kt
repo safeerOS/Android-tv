@@ -236,6 +236,37 @@ fun main() {
             !p.sme(p.veljavne(p.VSE_ZMOZNOSTI, true), p.zahtevaDejanja("input.tap")) &&
             p.veljavne(setOf(Zmoznost.ZASLON), umaknjena = false) == setOf(Zmoznost.ZASLON))
 
+    // Pregled tv-vnos 1 (25. 10. 2026): vnos in vklop Safeer Vnosa samo clan kroga - zapis zaslona ni dovolj.
+    preveri("input.enable od naprave z zaslonom, ki ni clan kroga, je zavrnjen",
+        !p.smeUkaz("input.enable", smeZmoznosti = true) { false } && !p.smeUkaz("input.tap", true) { false } &&
+            !p.smeUkaz("gamepad.button", true) { false })
+    // Tocka F: Control po privolitvi poslje input.enable - clan kroga z zaslonom ga sme.
+    preveri("input.enable od clana kroga z zaslonom je dovoljen (Control po privolitvi)",
+        p.smeUkaz("input.enable", true) { true } && p.smeUkaz("input.text", true) { true })
+    preveri("brez zmoznosti ne pomaga niti clanstvo", !p.smeUkaz("input.enable", false) { true })
+    preveri("drugi ukazi clanstva ne zahtevajo", p.smeUkaz("files.list", true) { false } && !p.zahtevaClanstvo("play.state"))
+    val clani = setOf("n-aaaaaaaaaaaaaaaa")
+    preveri("clan kroga: clan da, ne-clan ne, umaknjen ne, ta naprava da, prazno in napaka ne",
+        p.clanKroga("n-aaaaaaaaaaaaaaaa", { false }, { it in clani }, { false }) &&
+            !p.clanKroga("n-bbbbbbbbbbbbbbbb", { false }, { it in clani }, { false }) &&
+            !p.clanKroga("n-aaaaaaaaaaaaaaaa", { false }, { it in clani }, { true }) &&
+            p.clanKroga("n-cccccccccccccccc", { it == "n-cccccccccccccccc" }, { false }, { false }) &&
+            !p.clanKroga("", { true }, { true }, { false }) &&
+            !p.clanKroga("n-aaaaaaaaaaaaaaaa", { false }, { throw IllegalStateException() }, { false }))
+    // Pravilo lastnika 25. 10. 10:49 (isto kot core/link_dostop.ozji_krog): ena privolitev = datoteke + zaslon in upravljanje.
+    preveri("ozji krog: katerakoli zmoznost vkljuci datoteke in zaslon, prazno ostane prazno",
+        p.ozjiKrog(setOf(Zmoznost.PREDVAJALNIK)) == setOf(Zmoznost.PREDVAJALNIK, Zmoznost.DATOTEKE, Zmoznost.ZASLON) &&
+            p.ozjiKrog(emptySet()).isEmpty() && p.ozjiKrog(p.VSE_ZMOZNOSTI) == p.VSE_ZMOZNOSTI)
+    // Pregled tv-vnos 5: podedovane naprave (vse ob uvedbi dovoljenj) Vnosa brez nove privolitve ne vklopijo.
+    val zapisDostopa = mapOf("n-aaaaaaaaaaaaaaaa" to p.VSE_ZMOZNOSTI, "n-bbbbbbbbbbbbbbbb" to p.VSE_ZMOZNOSTI,
+        "n-cccccccccccccccc" to setOf(Zmoznost.DATOTEKE))
+    preveri("samodejni Vnos samo za zaslon s privolitvijo (podedovani ne)",
+        p.zaslonSPrivolitvijo(zapisDostopa, setOf("n-bbbbbbbbbbbbbbbb", "n-cccccccccccccccc")) == setOf("n-bbbbbbbbbbbbbbbb") &&
+            p.zaslonSPrivolitvijo(zapisDostopa, emptySet()).isEmpty())
+    preveri("privolitev: shranjen zaslon jo zabelezi, odvzem jo umakne",
+        p.privolitvePo(emptySet(), "n-aaaaaaaaaaaaaaaa", setOf(Zmoznost.ZASLON)) == setOf("n-aaaaaaaaaaaaaaaa") &&
+            p.privolitvePo(setOf("n-aaaaaaaaaaaaaaaa"), "n-aaaaaaaaaaaaaaaa", emptySet()).isEmpty())
+
     if (napak > 0) { println("\nNAPAK: $napak"); kotlin.system.exitProcess(1) }
     println("DostopPravilaTest: OK")
 }
