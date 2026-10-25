@@ -1265,6 +1265,9 @@ object Stremio {
      * brez predpone `[⚡WT]`/`[WT]`/`[⚡TB]`, vrsta predpone, izdaja (infoHash in fileIdx, sicer iz JWT) za ujemanje z nasimi
      * torrenti in sledilniki za magnet.
      */
+    /** Oblika naslova toka Webtor brez JWT se zapise enkrat (brez vrednosti - [WebtorPravila.oblikaJwt]). */
+    @Volatile private var oblikaJwtZapisana = false
+
     private fun prilagodi(t: Tok, o: JSONObject, osnova: String, idManifesta: String): Tok {
         var x = t
         if (x.vrsta == "url" && (SkrivnostiPravila.jeNadomestek(osnova) || SkrivnostiPravila.skrivnaPredponaDodatka(osnova) != null))
@@ -1274,7 +1277,12 @@ object Stremio {
             val hashToka = SerijePravila.niz(o.optString("infoHash"))
             // Izmerjeno 25. 10. 2026 (OnePlus 9): datoteka je SAMO `idx` v JWT - to predvaja /resolve. Polje fileIdx odgovora
             // Webtorja indeks 0 izpusti (omitempty), tok dodatka brez fileIdx pa pri Webtorju postane datoteka 0 (naslovnica).
-            val k = WebtorPravila.kljucWebtor(hashToka, x.url)
+            // JWT beremo iz PRAVEGA naslova [t] - nadomestek ga lahko skrije (gradnja dcc8dce: vseh 48 tokov brez JWT).
+            val k = WebtorPravila.kljucWebtor(hashToka, t.url)
+            if ((k == null || k.idx == WebtorPravila.IDX_NEZNAN) && !oblikaJwtZapisana) {
+                oblikaJwtZapisana = true
+                android.util.Log.w("SafeerWebtor", "tok brez JWT: ${WebtorPravila.oblikaJwt(t.url)}")
+            }
             val viri = o.optJSONArray("sources")
             val sledilniki = (0 until minOf(viri?.length() ?: 0, 30)).mapNotNull { viri?.optString(it) }.filter { it.startsWith("tracker:") }
             x = x.copy(ime = oznaka.ime.ifBlank { WebtorPravila.IME }, vir = WebtorPravila.VIR, oznakaVira = oznaka.vrsta.name,

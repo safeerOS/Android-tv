@@ -8806,13 +8806,16 @@ class GlasbaActivity : OsActivity() {
         var webtorZacetek: Long? = null
         var webtorPoskusov = 0
         fun webtorRok() = WebtorPravila.rokSonde(webtorZacetek, android.os.SystemClock.elapsedRealtime(), webtorPoskusov)
-        // Sonda enega toka Webtor v skupnem roku; false = ne poskusimo (rok porabljen ali tok ze poskusen).
-        fun sondaWebtor(w: Stremio.Tok, predvajaj: () -> Unit, naprej: () -> Unit): Boolean {
+        // Krog sond Webtor (do [WebtorPravila.VZPOREDNO] kandidatov hkrati) v skupnem roku; false = ne poskusimo (rok porabljen
+        // ali so vsi ze poskuseni). [predvajaj] dobi izbranega kandidata.
+        fun sondaWebtor(kandidati: List<Stremio.Tok>, predvajaj: (Stremio.Tok) -> Unit, naprej: () -> Unit): Boolean {
             val rok = webtorRok()
-            if (rok <= 0L || !poskuseniWebtor.add(w.url)) return false
+            val novi = kandidati.filter { it.url !in poskuseniWebtor }.distinctBy { it.url }
+            if (rok <= 0L || novi.isEmpty()) return false
+            novi.forEach { poskuseniWebtor.add(it.url) }
             if (webtorZacetek == null) webtorZacetek = android.os.SystemClock.elapsedRealtime()
             webtorPoskusov++
-            predvajajWebtor(w, rok, TokIzbira.opisi(w.ime + " " + w.opis).gb, "datoteka=${datotekaWebtorZa(w)} idx=${w.datoteka}", predvajaj, naprej)
+            predvajajWebtor(novi, rok, novi.map { "datoteka=${datotekaWebtorZa(it)} h=${it.hash.take(10)} idx=${it.datoteka}" }, predvajaj, naprej)
             return true
         }
         fun odpri(t: Stremio.Tok, rezerve: List<Stremio.Tok> = emptyList()) {
@@ -8840,7 +8843,7 @@ class GlasbaActivity : OsActivity() {
                     // infoHash + fileIdx) - brez cakanja na prenos; ce Webtor ne da toka (402/404/429, prvi bajt po 15 s), kot
                     // doslej (TorBox s cakanjem). Ob zacetku toka Webtor gre torrent v ozadju v TorBox (naslednjic ⚡).
                     val w = if (TorBoxPravila.hashIzMagneta(t.url)?.lowercase() in predpomnjeni) null else webtorZa(t)
-                    val zacel = w != null && sondaWebtor(w, { odpri(w); webtorVTorBox(t.url, false) }, {
+                    val zacel = w != null && sondaWebtor(listOf(w), { x -> odpri(x); webtorVTorBox(t.url, false) }, {
                         Toast.makeText(this, R.string.os_webtor_rezerva, Toast.LENGTH_SHORT).show(); prekTorrenta()
                     })
                     if (!zacel) prekTorrenta()
@@ -8910,14 +8913,14 @@ class GlasbaActivity : OsActivity() {
             val kandidati = (webtor + webtorPoKakovosti.filter { it !in webtor }).take(8)
             Webtor.meri(this, kandidati.map { w ->
                 val k = kljucWebtor(w)
-                Triple("${w.oznakaVira} ${datotekaOd(w)} idx=${k?.idx} ${TokIzbira.opisi(opis(w)).let { "${it.visina}p ${"%.2f".format(java.util.Locale.ROOT, it.gb)} GB" }} " +
+                Triple("${w.oznakaVira} ${datotekaOd(w)} h=${k?.hash?.take(10)} idx=${k?.idx} ${TokIzbira.opisi(opis(w)).let { "${it.visina}p ${"%.2f".format(java.util.Locale.ROOT, it.gb)} GB" }} " +
                     "sejalcev=${TokIzbira.sejalci(opis(w))} ime=${w.imeDatoteke.substringAfterLast('.', "-").take(5)}", w.url, TokIzbira.opisi(opis(w)).gb)
             })
         }
-        fun odpriWebtor(w: Stremio.Tok, naprej: () -> Unit) {
-            val k = kljucWebtor(w)
-            val nas = if (k == null) null else torrentiPoKakovosti.firstOrNull { kljucTorrenta(it) == k }
-            val zacel = sondaWebtor(w, {
+        fun odpriWebtor(kandidati: List<Stremio.Tok>, naprej: () -> Unit) {
+            val zacel = sondaWebtor(kandidati, { w ->
+                val k = kljucWebtor(w)
+                val nas = if (k == null) null else torrentiPoKakovosti.firstOrNull { kljucTorrenta(it) == k }
                 odpri(w)
                 if (k != null) webtorVTorBox(nas?.url ?: WebtorPravila.magnet(k.hash, w.sledilniki), k.hash in predpomnjeni)
             }, naprej)
@@ -8974,13 +8977,15 @@ class GlasbaActivity : OsActivity() {
                 return false
             }
             fun naKonec() { if (!samodejnoBrezUseneta()) Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslov), Toast.LENGTH_SHORT).show() }
-            // Webtor: [samoTakoj] = korak 2 ([⚡WT]), sicer korak 4 ([WT]); skupaj najvec 2 sondi in 15 s ([webtorRok]).
+            // Webtor: [samoTakoj] = korak 2 ([⚡WT]), sicer korak 4 ([WT]); skupaj najvec 2 kroga sond in 15 s ([webtorRok]).
             fun poskusiWebtor(samoTakoj: Boolean, potem: () -> Unit) {
-                val w = (if (samoTakoj) webtorTakoj else webtor).firstOrNull { it.url !in poskuseniWebtor }
-                if (w == null || webtorRok() <= 0L) { potem(); return }
-                android.util.Log.i("SafeerOsMedia", "tokovi: Webtor${if (samoTakoj) " takoj" else ""}; izbran=${TokIzbira.opisi(opis(w))}, vrsta=${w.oznakaVira}, " +
-                    "datoteka=${datotekaOd(w)}, idx=${w.datoteka}, sejalcev=${TokIzbira.sejalci(opis(w))}")
-                odpriWebtor(w) {
+                // Izmerjeno 25. 10. 2026: vsak cetrti kandidat je vrnil napacno datoteko - krog preveri VZPOREDNO hkrati.
+                val kandidati = (if (samoTakoj) webtorTakoj else webtor).filter { it.url !in poskuseniWebtor }.take(WebtorPravila.VZPOREDNO)
+                if (kandidati.isEmpty() || webtorRok() <= 0L) { potem(); return }
+                for ((i, w) in kandidati.withIndex())
+                    android.util.Log.i("SafeerOsMedia", "tokovi: Webtor${if (samoTakoj) " takoj" else ""} ${i + 1}/${kandidati.size}; izbran=${TokIzbira.opisi(opis(w))}, " +
+                        "vrsta=${w.oznakaVira}, datoteka=${datotekaOd(w)}, h=${w.hash.take(10)}, idx=${w.datoteka}, sejalcev=${TokIzbira.sejalci(opis(w))}")
+                odpriWebtor(kandidati) {
                     Toast.makeText(this, R.string.os_webtor_rezerva, Toast.LENGTH_SHORT).show()
                     poskusiWebtor(samoTakoj, potem)
                 }
@@ -9024,7 +9029,7 @@ class GlasbaActivity : OsActivity() {
             // Webtor rezerva: rocno izbran tok Webtor - sonda in TorBox v ozadju; ce ne stece, ista izdaja kot torrent.
             if (t.vir == WebtorPravila.VIR) {
                 val nas = kljucWebtor(t)?.let { kw -> torrentiPoKakovosti.firstOrNull { kljucTorrenta(it) == kw } }
-                odpriWebtor(t) {
+                odpriWebtor(listOf(t)) {
                     Toast.makeText(this, R.string.os_webtor_rezerva, Toast.LENGTH_SHORT).show()
                     if (nas != null) odpri(nas)
                 }
@@ -9036,34 +9041,38 @@ class GlasbaActivity : OsActivity() {
     }
 
     /**
-     * Webtor rezerva (25. 10. 2026, [WebtorPravila]): pred predvajanjem toka Webtor sonda ([Webtor.sonda], z delovne niti):
-     * 402/404/429, prvi bajt po vec kot 15 s ali vsebina, ki ni glavni video ([WebtorPravila.pregled]: naslovnica, glasba,
-     * vzorec, kodek brez dekoderja) -> [naprej] (naslednji vir), sicer [predvajaj] (predvajalnik dobi nadomestek `/resolve/`,
-     * vir podatkov pa koncni naslov, ki ga je sonda preverila - [Webtor.zaPredvajalnik]). Preklic kot pri debridu ([rodDebrida]).
+     * Webtor rezerva (25. 10. 2026, [WebtorPravila]): pred predvajanjem krog sond ([Webtor.krog], do
+     * [WebtorPravila.VZPOREDNO] kandidatov hkrati, z delovne niti): 402/404/429, prvi bajt po vec kot 15 s ali vsebina, ki ni
+     * glavni video ([WebtorPravila.pregled]: naslovnica, BMP, besedilo, vzorec, kodek brez dekoderja) -> naslednji kandidat;
+     * noben -> [naprej] (naslednji vir), sicer [predvajaj] z izbranim (predvajalnik dobi nadomestek `/resolve/`, vir podatkov
+     * pa koncni naslov, ki ga je sonda preverila - [Webtor.zaPredvajalnik]). Preklic kot pri debridu ([rodDebrida]).
      */
-    private fun predvajajWebtor(w: Stremio.Tok, rokMs: Long, pricakovanoGb: Double, opisToka: String, predvajaj: () -> Unit, naprej: () -> Unit) {
+    private fun predvajajWebtor(kandidati: List<Stremio.Tok>, rokMs: Long, opisi: List<String>, predvajaj: (Stremio.Tok) -> Unit, naprej: () -> Unit) {
         if (isFinishing || isDestroyed || debridDelavec.isShutdown) return
         prekiniDebrid()
         val rod = rodDebrida.get()
         fun velja() = rodDebrida.get() == rod && !isFinishing && !isDestroyed
         if (vOspredju) Toast.makeText(this, R.string.os_webtor_pripravljam, Toast.LENGTH_SHORT).show()
         val delo = try { debridDelavec.submit(Runnable {
-            val s = try { Webtor.sonda(applicationContext, w.url, rokMs) } catch (e: Exception) { Webtor.Sonda(0, null, false, "") }
+            // Izmerjeno 25. 10. 2026: 206 ni dovolj (naslovnica, BMP, besedilo, vzorec, AVI brez podprtega videa) - krog sond
+            // pregleda prve bajte vseh kandidatov hkrati ([Webtor.krog]).
+            val krog = try { Webtor.krog(applicationContext, kandidati.map { it.url to TokIzbira.opisi(it.ime + " " + it.opis).gb }, rokMs) }
+                catch (e: Exception) { Webtor.Krog(-1, kandidati.map { null }, kandidati.map { null }, kandidati.map { null }) }
+            for (i in kandidati.indices) android.util.Log.i("SafeerOsMedia", "tokovi: Webtor sonda ${i + 1}/${kandidati.size} " +
+                (krog.sonde[i]?.let { Webtor.opis(it, krog.pregledi[i]) } ?: "brez odgovora") + ", ${opisi.getOrElse(i) { "" }} -> ${krog.izidi[i] ?: "-"}")
             if (Thread.currentThread().isInterrupted || rodDebrida.get() != rod) return@Runnable
-            // Izmerjeno 25. 10. 2026: 206 ni dovolj (naslovnica .jpg, AVI brez podprtega videa) - pregled prvih bajtov.
-            val pregled = if (s.koda in 200..299 && s.prviBajtMs != null) Webtor.pregled(s, pricakovanoGb) else null
-            val izid = WebtorPravila.odlocitev(s.koda, s.prviBajtMs, s.potekel, pregled?.vsebina)
-            android.util.Log.i("SafeerOsMedia", "tokovi: Webtor sonda ${Webtor.opis(s, pregled)}, $opisToka -> $izid")
+            val w = kandidati.getOrNull(krog.izbran)
+            android.util.Log.i("SafeerOsMedia", "tokovi: Webtor krog -> ${if (w != null) "PREDVAJAJ ${krog.izbran + 1}" else "naslednji vir"}")
             // Predvajalnik dobi koncni naslov, ki ga je ta sonda preverila ([Webtor.zaPredvajalnik], pregled U4).
-            if (izid == WebtorPravila.Izid.PREDVAJAJ) Webtor.zapomni(w.url, s)
+            if (w != null) krog.sonde[krog.izbran]?.let { Webtor.zapomni(w.url, it) }
             runOnUiThread {
                 if (!velja()) return@runOnUiThread
                 debridDelo = null
                 zasloniOstane(false)
                 izvediIzidDebrida(rod) {
-                    if (izid == WebtorPravila.Izid.PREDVAJAJ) {
+                    if (w != null) {
                         Toast.makeText(this, getString(R.string.os_debrid_predvaja_prek, WebtorPravila.IME), Toast.LENGTH_SHORT).show()
-                        predvajaj()
+                        predvajaj(w)
                     } else naprej()
                 }
             }

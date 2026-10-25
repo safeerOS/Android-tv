@@ -33,6 +33,70 @@ object Webtor {
                 val vrstaVsebine: String = "", val skupaj: Long = -1L, val glava: ByteArray = ByteArray(0),
                 val preusmeritev: Int = 0, internal val koncni: String = "")
 
+    /** Preklic sonde od zunaj: zapre trenutno povezavo (branja HttpURLConnection prekinitev niti ne ustavi). */
+    class Preklic {
+        @Volatile var preklican = false
+            private set
+        @Volatile internal var povezava: HttpURLConnection? = null
+        fun preklici() { preklican = true; try { povezava?.disconnect() } catch (_: Throwable) { } }
+    }
+
+    /** Izid kroga sond: [izbran] kandidat (-1 = noben), po kandidatih sonda, pregled vsebine in izid (null = brez odgovora). */
+    class Krog(val izbran: Int, val sonde: List<Sonda?>, val pregledi: List<WebtorPravila.Pregled?>, val izidi: List<WebtorPravila.Izid?>)
+
+    /**
+     * Krog sond (izmerjeno 25. 10. 2026: 4 od 16 kandidatov napacna datoteka, prenos do 14 s): [kandidati] (naslov toka,
+     * pricakovana velikost v GB) hkrati, vsak z rokom [rokMs]; izbira [WebtorPravila.izberiSondo] - najboljsi pripravljen
+     * glavni video. Ostale sonde se zaprejo. Klic iz delovne niti; prekinitev niti konca krog brez izbire.
+     */
+    fun krog(c: Context, kandidati: List<Pair<String, Double>>, rokMs: Long): Krog {
+        val n = kandidati.size
+        val sonde = arrayOfNulls<Sonda>(n)
+        val pregledi = arrayOfNulls<WebtorPravila.Pregled>(n)
+        val izidi = arrayOfNulls<WebtorPravila.Izid>(n)
+        val preklici = List(n) { Preklic() }
+        // Vsaka sonda po koncu sporoci svoj indeks; vrsta da tudi vidnost zapisov v tabelah (happens-before).
+        val koncane = java.util.concurrent.LinkedBlockingQueue<Int>()
+        val zacetek = SystemClock.elapsedRealtime()
+        kandidati.forEachIndexed { i, (url, gb) ->
+            Thread(Runnable {
+                try {
+                    val s = try { sonda(c, url, rokMs, preklic = preklici[i]) } catch (_: Exception) { Sonda(0, null, false, "") }
+                    val p = if (s.koda in 200..299 && s.prviBajtMs != null) pregled(s, gb) else null
+                    sonde[i] = s; pregledi[i] = p
+                    izidi[i] = WebtorPravila.odlocitev(s.koda, s.prviBajtMs, s.potekel, p?.vsebina)
+                } finally { koncane.add(i) }
+            }, "safeer-webtor-sonda").apply { isDaemon = true }.start()
+        }
+        val pripravljen = arrayOfNulls<Boolean>(n)
+        var prviPripravljen: Long? = null
+        var izbran = -1
+        try {
+            while (true) {
+                val zdaj = SystemClock.elapsedRealtime()
+                val r = WebtorPravila.izberiSondo(pripravljen.toList(), prviPripravljen?.let { zdaj - it }, zdaj - zacetek >= rokMs)
+                if (r >= 0) { izbran = r; break }
+                if (r == WebtorPravila.NOBENA) break
+                val doRoka = rokMs - (zdaj - zacetek)
+                val doBoljsega = prviPripravljen?.let { WebtorPravila.POCAKAJ_BOLJSEGA_MS - (zdaj - it) } ?: Long.MAX_VALUE
+                val i = koncane.poll(minOf(doRoka, doBoljsega).coerceIn(1L, 1_000L), TimeUnit.MILLISECONDS) ?: continue
+                pripravljen[i] = izidi[i] == WebtorPravila.Izid.PREDVAJAJ
+                if (pripravljen[i] == true && prviPripravljen == null) prviPripravljen = SystemClock.elapsedRealtime()
+            }
+        } catch (_: InterruptedException) {
+            Thread.currentThread().interrupt()
+        } finally {
+            // Preostale sonde zapremo - sicer bi do roka drzale sejo pri Webtorju (omejitev socasnih zahtev na sejo).
+            for ((i, p) in preklici.withIndex()) if (i != izbran) p.preklici()
+        }
+        // Izid samo za sonde, ki so ze sporocile konec (ostale so se v teku ali preklicane).
+        val znani = HashSet<Int>()
+        while (true) { znani += koncane.poll() ?: break }
+        for (i in 0 until n) if (pripravljen[i] != null) znani += i
+        return Krog(izbran, (0 until n).map { if (it in znani) sonde[it] else null },
+            (0 until n).map { if (it in znani) pregledi[it] else null }, (0 until n).map { if (it in znani) izidi[it] else null })
+    }
+
     /** Ima naprava dekoder za [mime] (MediaCodecList, enkrat na MIME). */
     private val dekoderji = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
     fun kodekPodprt(mime: String): Boolean = dekoderji.getOrPut(mime) {
@@ -77,8 +141,11 @@ object Webtor {
      */
     fun zaPredvajalnik(c: Context, naslov: String): String? {
         val k = naslov.trim()
-        if (!WebtorPravila.jeResolveNaslov(k)) return null
+        // Naslov toka je nadomestek (skrivni dodatek) - pravi pove, ali je to Webtor /resolve/ (nadomestek lahko skrije pot).
+        if (!k.startsWith("https://")) return null
         preverjeni[k]?.let { if (SystemClock.elapsedRealtime() - it.cas < VELJA_PREVERJEN_MS) return it.koncni }
+        if (!WebtorPravila.jeResolveNaslov(k) && !(SkrivnostiPravila.jeNadomestek(k) && WebtorPravila.jeResolveNaslov(SkrivniDodatki.dejanski(c, k))))
+            return null
         val s = sonda(c, k, ROK_PREDVAJALNIKA_MS)
         val p = pregled(s, 0.0)
         Log.i(TAG, "predvajalnik: ${opis(s, p)}")
@@ -116,7 +183,7 @@ object Webtor {
      * ([WebtorPravila.naucenGostitelj], [si.safeer.tv.scit.Scit.dovoliGostitelja]). Blokira - z delovne niti; preklic
      * (prekinitev niti) jo konca.
      */
-    fun sonda(c: Context, url: String, rokMs: Long = WebtorPravila.PRVI_BAJT_MS, uciScit: Boolean = true): Sonda {
+    fun sonda(c: Context, url: String, rokMs: Long = WebtorPravila.PRVI_BAJT_MS, uciScit: Boolean = true, preklic: Preklic? = null): Sonda {
         val zacetek = SystemClock.elapsedRealtime()
         fun ostane() = rokMs - (SystemClock.elapsedRealtime() - zacetek)
         val zacetni = SkrivniDodatki.dejanski(c, url)
@@ -124,7 +191,7 @@ object Webtor {
         var gostitelj = Zasebno.gostitelj(naslov)
         var preusmeritev = 0
         while (true) {
-            if (Thread.currentThread().isInterrupted) return Sonda(0, null, false, gostitelj)
+            if (Thread.currentThread().isInterrupted || preklic?.preklican == true) return Sonda(0, null, false, gostitelj)
             val rok = ostane()
             if (rok <= 0) return Sonda(0, null, true, gostitelj)
             if (!naslov.startsWith("https://")) return Sonda(0, null, false, gostitelj)
@@ -135,6 +202,8 @@ object Webtor {
                 return Sonda(0, null, false, gostitelj)
             }
             val p = try { URL(naslov).openConnection() as HttpURLConnection } catch (_: Exception) { return Sonda(0, null, false, gostitelj) }
+            preklic?.povezava = p
+            if (preklic?.preklican == true) { p.disconnect(); return Sonda(0, null, false, gostitelj) }
             val prekini = try { straza.schedule({ try { p.disconnect() } catch (_: Throwable) { } }, rok, TimeUnit.MILLISECONDS) } catch (_: Exception) { null }
             try {
                 p.instanceFollowRedirects = false
@@ -178,7 +247,8 @@ object Webtor {
             } catch (_: java.net.SocketTimeoutException) {
                 return Sonda(0, null, true, gostitelj)
             } catch (e: Exception) {
-                // Straza je prekinila zahtevo (iztek skupnega roka) ali napaka omrezja.
+                // Straza je prekinila zahtevo (iztek skupnega roka), krog jo je preklical ali napaka omrezja.
+                if (preklic?.preklican == true) return Sonda(0, null, false, gostitelj, preusmeritev = preusmeritev)
                 if (ostane() <= 0) return Sonda(0, null, true, gostitelj)
                 Log.w(TAG, "sonda: ${e.javaClass.simpleName}")
                 return Sonda(0, null, false, gostitelj)

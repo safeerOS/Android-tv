@@ -42,9 +42,12 @@ object WebtorPravila {
     const val VIR = "webtor"
     /** Oznaka v vmesniku (ime storitve, ne prevajamo). */
     const val IME = "Webtor"
-    /** Prvi bajt toka pozneje od tega: naslednji vir. Hkrati skupni rok vseh sond Webtor ene izbire. */
+    /**
+     * Prvi bajt toka pozneje od tega: naslednji vir. Hkrati skupni rok vseh sond Webtor ene izbire. Izmerjeno 25. 10. 2026
+     * (OnePlus 9, 16 sond): najpocasnejsi uspesen prvi bajt 14,0 s (prenos pri Webtorju, 6 sejalcev), TorBox CDN do 6,2 s.
+     */
     const val PRVI_BAJT_MS = 15_000L
-    /** Ena izbira toka poskusi najvec toliko tokov Webtor (pregled N3: tudi prek rocno izbranega torrenta). */
+    /** Ena izbira toka naredi najvec toliko krogov sond Webtor (krog = do [VZPOREDNO] kandidatov hkrati; pregled N3). */
     const val NAJVEC_POSKUSOV = 2
 
     /** Gostitelj naslova (male crke, brez vrat in uporabnika); "" = ni naslov http(s). */
@@ -166,6 +169,22 @@ object WebtorPravila {
         if (j != null) return j
         val h = hashToka?.trim()?.lowercase() ?: return null
         return if (RX_HASH.matches(h)) Kljuc(h, IDX_NEZNAN) else null
+    }
+
+    /**
+     * Oblika naslova toka za dnevnik, kadar JWT ni berljiv - BREZ vrednosti (zeton, JWT, hash): ali ima `/resolve/`,
+     * koliko delov ima zadnji del poti, ali se telo razbere in katera polja ima. Npr. »resolve=da delov=3 telo=da polja=exp,hash,idx«.
+     */
+    fun oblikaJwt(url: String): String {
+        val pot = url.substringBefore('?').substringBefore('#')
+        val resolve = "/resolve/" in pot
+        val del = if (resolve) pot.substringAfter("/resolve/").substringBefore('/') else pot.trimEnd('/').substringAfterLast('/')
+        val deli = del.split('.')
+        val telo = if (deli.size == 3) try { String(java.util.Base64.getUrlDecoder().decode(deli[1].trimEnd('=')), Charsets.UTF_8) }
+            catch (_: Exception) { null } else null
+        val polja = telo?.let { Regex("\"([A-Za-z_]{1,20})\"\\s*:").findAll(it).map { m -> m.groupValues[1] }.distinct().sorted().joinToString(",") }
+        return "resolve=${if (resolve) "da" else "ne"} delov=${deli.size} dolzina=${del.length} telo=${if (telo != null) "da" else "ne"}" +
+            (polja?.let { " polja=$it" } ?: "") + " poizvedba=${if ('?' in url) "da" else "ne"}"
     }
 
     /** Kljuc iz shranjenega toka ([kljucWebtor] -> Tok.hash, Tok.datoteka) brez izgube [IDX_NEZNAN]. */
@@ -389,6 +408,31 @@ object WebtorPravila {
         if (poskusov >= NAJVEC_POSKUSOV) return 0L
         if (zacetekPrve == null) return PRVI_BAJT_MS
         return (PRVI_BAJT_MS - (zdaj - zacetekPrve)).coerceAtLeast(0L)
+    }
+
+    /**
+     * Izmerjeno 25. 10. 2026 (OnePlus 9, 3 filmi, 16 sond kandidatov): prvi bajt prek TorBox CDN 2,9-6,2 s, prek
+     * Webtorjevih streznikov (prenos) 5,8-14,0 s; 4 od 16 kandidatov so vrnili napacno datoteko (slika BMP, besedilo,
+     * vzorec 17 MB, neznana datoteka pod 1 MB). Zato ena sonda hkrati preveri [VZPOREDNO] kandidatov: uporabnik caka na
+     * prvega pravega, ne na vsoto napacnih.
+     */
+    const val VZPOREDNO = 2
+    /** Ko je pripravljen slabsi kandidat, na boljsega (visje v vrstnem redu) pocakamo se najvec toliko. */
+    const val POCAKAJ_BOLJSEGA_MS = 3_000L
+
+    /**
+     * Izbira med vzporednimi sondami: [izidi] v vrstnem redu kandidatov (true = glavni video pripravljen, false = ne,
+     * null = se ni odgovora), [msOdPrvega] = koliko ms je minilo, odkar je prvi kandidat pripravljen (null = noben),
+     * [rokPotekel]. Izbran je najboljsi pripravljen, pred katerim so vsi ze odgovorili »ne«; sicer na boljse cakamo najvec
+     * [POCAKAJ_BOLJSEGA_MS]. [CAKAJ] = cakaj, [NOBENA] = noben ni pripravljen.
+     */
+    fun izberiSondo(izidi: List<Boolean?>, msOdPrvega: Long?, rokPotekel: Boolean): Int {
+        val i = izidi.indexOfFirst { it == true }
+        if (i >= 0) {
+            if ((0 until i).all { izidi[it] == false }) return i
+            return if (rokPotekel || (msOdPrvega != null && msOdPrvega >= POCAKAJ_BOLJSEGA_MS)) i else CAKAJ
+        }
+        return if (rokPotekel || izidi.none { it == null }) NOBENA else CAKAJ
     }
 
     /**

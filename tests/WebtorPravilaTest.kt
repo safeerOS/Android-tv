@@ -100,6 +100,17 @@ fun main() {
     preveriEnako("rok druge sonde: ostanek skupnega", 5_000L, W.rokSonde(100, 10_100, 1))
     preveriEnako("rok porabljen", 0L, W.rokSonde(100, 20_000, 1))
     preveriEnako("najvec 2 sondi", 0L, W.rokSonde(100, 200, 2))
+    // Vzporedne sonde (izmerjeno 25. 10.: 4 od 16 kandidatov napacna datoteka, prenos do 14 s).
+    preveriEnako("vzporedno: prvi pripravljen", 0, W.izberiSondo(listOf(true, null), 0, false))
+    preveriEnako("vzporedno: prvi napacen, drugi pripravljen", 1, W.izberiSondo(listOf(false, true), 0, false))
+    preveriEnako("vzporedno: drugi pripravljen, prvi se caka", W.CAKAJ, W.izberiSondo(listOf(null, true), 1_000, false))
+    preveriEnako("vzporedno: drugi pripravljen, boljsi po 3 s ne", 1, W.izberiSondo(listOf(null, true), 3_000, false))
+    preveriEnako("vzporedno: rok potekel - pripravljeni", 1, W.izberiSondo(listOf(null, true), 0, true))
+    preveriEnako("vzporedno: noben ne", W.NOBENA, W.izberiSondo(listOf(false, false), null, false))
+    preveriEnako("vzporedno: se cakamo", W.CAKAJ, W.izberiSondo(listOf(false, null), null, false))
+    preveriEnako("vzporedno: rok potekel, nic", W.NOBENA, W.izberiSondo(listOf(null, null), null, true))
+    preveriEnako("vzporedno: en kandidat", 0, W.izberiSondo(listOf(true), 0, false))
+    preveriEnako("vzporedno: prazno", W.NOBENA, W.izberiSondo(emptyList(), null, false))
 
     // --- TorBox v ozadju in magnet
     preveriEnako("TorBox v ozadju: da", true, W.dodajVTorBox(true, true, false, a))
@@ -135,6 +146,14 @@ fun main() {
         W.kljucWebtor(kt, "https://webtor.io/x/resolve/" + jwt("{\"hash\":\"$kt\",\"exp\":1}")))
     preveriEnako("Webtor: brez JWT datoteka neznana", Kljuc(kt, W.IDX_NEZNAN), W.kljucWebtor(kt, "https://webtor.io/x/resolve/abc"))
     preveriEnako("Webtor: brez JWT in brez hasha", null, W.kljucWebtor("", "https://webtor.io/x/resolve/abc"))
+    // Gradnja dcc8dce na OnePlus 9: vseh 48 tokov brez JWT - nadomestek skrivnega toka skrije pot /resolve/<JWT>; JWT se bere
+    // iz pravega naslova (Stremio.prilagodi), oblika naslova brez JWT gre v dnevnik brez vrednosti.
+    preveriEnako("nadomestek brez poti JWT ne da", Kljuc(kt, W.IDX_NEZNAN), W.kljucWebtor(kt, "https://webtor.io/safeer-skrito-0123456789abcdef"))
+    preveriEnako("pravi naslov z zetonom da JWT", Kljuc(kt, 0), W.kljucWebtor(kt, "https://webtor.io/token/Ab12Cd34/stremio/resolve/" + jwt("{\"hash\":\"$kt\",\"idx\":0,\"exp\":1}")))
+    preveriEnako("oblika JWT", "resolve=da delov=3 dolzina=${tokKt.substringAfter("/resolve/").length} telo=da polja=exp,hash,idx poizvedba=ne", W.oblikaJwt(tokKt))
+    preveriEnako("oblika: nadomestek brez poti", "resolve=ne delov=1 dolzina=30 telo=ne poizvedba=ne", W.oblikaJwt("https://webtor.io/safeer-skrito-0123456789abcdef"))
+    preveriEnako("oblika: ni JWT", "resolve=da delov=1 dolzina=6 telo=ne poizvedba=da", W.oblikaJwt("https://webtor.io/x/resolve/abcdef?x=1"))
+    preveriEnako("oblika ne izda vrednosti", false, W.oblikaJwt(tokKt).contains(kt))
     preveriEnako("kljuc toka ohrani neznano datoteko", Kljuc(kt, W.IDX_NEZNAN), W.kljucToka(kt, W.IDX_NEZNAN))
     preveriEnako("kljuc toka: -1", Kljuc(kt, -1), W.kljucToka(kt.uppercase(), -1))
     preveriEnako("nas tok brez fileIdx (-1) NI ista izdaja kot Webtor idx 0", false, W.kljuc(kt, -1) == W.kljucWebtor(kt, tokKt))
