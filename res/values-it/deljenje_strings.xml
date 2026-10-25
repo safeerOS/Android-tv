@@ -16,4 +16,5 @@
     <string name="deljenje_zavrni">Rifiuta</string>
     <string name="deljenje_preklici_zaupanje">Condivisione schermo: annulla «Consenti sempre»</string>
     <string name="deljenje_zaupanje_preklicano">La condivisione dello schermo con %1$s dovrà essere confermata di nuovo.</string>
+    <string name="deljenje_znak">Condivisione schermo · Interrompi</string>
 </resources>

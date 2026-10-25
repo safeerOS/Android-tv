@@ -16,4 +16,5 @@
     <string name="deljenje_zavrni">Rechazar</string>
     <string name="deljenje_preklici_zaupanje">Compartir pantalla: anular «Permitir siempre»</string>
     <string name="deljenje_zaupanje_preklicano">Habrá que volver a confirmar compartir la pantalla con %1$s.</string>
+    <string name="deljenje_znak">Compartiendo pantalla · Detener</string>
 </resources>

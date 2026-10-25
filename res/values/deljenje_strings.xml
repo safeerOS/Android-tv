@@ -16,4 +16,5 @@
     <string name="deljenje_zavrni">Deny</string>
     <string name="deljenje_preklici_zaupanje">Screen sharing: cancel “Always allow”</string>
     <string name="deljenje_zaupanje_preklicano">Screen sharing with %1$s will need to be confirmed again.</string>
+    <string name="deljenje_znak">Screen sharing · Stop</string>
 </resources>

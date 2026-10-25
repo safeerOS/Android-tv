@@ -472,7 +472,14 @@ object Daljinec {
             }
             DeljenjePravila.Pot.NOVA_SEJA -> { }
         }
+        // Meritev M1: brez okna za soglasje (trajno dovoljenje) mora biti deljenje na napravi vidno - z obvestilom »Ustavi«
+        // ali z nasim gumbom na zaslonu. Ce ne gre nobeno, zaslona ne delimo in racunalniku povemo, zakaj.
         val projekcijaDovoljena = ZaupanjeZaslona.projekcijaDovoljena(context)
+        if (!DeljenjePravila.smeZacetiBrezOkna(projekcijaDovoljena, obvestilaVklopljena(context), prekrivanje(context))) {
+            Log.w(TAG, "Odpri tukaj zavrnjen: trajno dovoljenje brez vidnega znaka deljenja (obvestila in prikaz izklopljena)")
+            return Izid(false, "Zaslona ne delim: naprava ne bi pokazala, da se zaslon deli (obvestila za Safeer in prikaz čez " +
+                "druge aplikacije sta izklopljena). Na napravi odpri ${stranDovoljenj(context)} in vklopi obvestila.", koda = KODA_NI_ZNAKA)
+        }
         if (!zahtevajDeljenje(context, cilj, paket, ime, odprtoTukaj = true, samodejno = true, besedilo = si.safeer.tv.R.string.ui_link_zagon_pretok))
             return izidBrezPoti(context, ime)
         // A3: s trajnim dovoljenjem Androida okna za soglasje ni - ne prosimo za potrditev, ki je ne bo (meritev M1).
@@ -488,6 +495,7 @@ object Daljinec {
             pocakajZacetek = DeljenjePravila.pocakajZacetek(potrditev, true))
     }
 
+    const val KODA_NI_ZNAKA = "ni_vidnega_znaka"
     const val KODA_DOVOLJENJE_OBVESTILA = "potrebno_dovoljenje_obvestila"
 
     /** Ali so obvestila za Safeer vklopljena (in, ce je [kanal] dan, ta kanal ni utisan). */

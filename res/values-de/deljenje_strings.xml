@@ -16,4 +16,5 @@
     <string name="deljenje_zavrni">Ablehnen</string>
     <string name="deljenje_preklici_zaupanje">Bildschirmfreigabe: „Immer erlauben“ aufheben</string>
     <string name="deljenje_zaupanje_preklicano">Die Bildschirmfreigabe für %1$s muss wieder bestätigt werden.</string>
+    <string name="deljenje_znak">Bildschirmfreigabe · Beenden</string>
 </resources>

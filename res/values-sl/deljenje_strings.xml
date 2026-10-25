@@ -16,4 +16,5 @@
     <string name="deljenje_zavrni">Zavrni</string>
     <string name="deljenje_preklici_zaupanje">Deljenje zaslona: prekliči »Vedno dovoli«</string>
     <string name="deljenje_zaupanje_preklicano">Deljenje zaslona z napravo %1$s bo treba spet potrditi.</string>
+    <string name="deljenje_znak">Deljenje zaslona · Ustavi</string>
 </resources>

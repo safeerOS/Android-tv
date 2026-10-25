@@ -16,4 +16,5 @@
     <string name="deljenje_zavrni">Refuser</string>
     <string name="deljenje_preklici_zaupanje">Partage d’écran : annuler « Toujours autoriser »</string>
     <string name="deljenje_zaupanje_preklicano">Le partage d’écran avec %1$s devra de nouveau être confirmé.</string>
+    <string name="deljenje_znak">Partage d’écran · Arrêter</string>
 </resources>

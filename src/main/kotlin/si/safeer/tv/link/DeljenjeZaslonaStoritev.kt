@@ -184,8 +184,13 @@ class DeljenjeZaslonaStoritev : Service() {
         val resultCode = intent.getIntExtra(EXTRA_RESULT_CODE, 0)
         @Suppress("DEPRECATION")
         val data = intent.getParcelableExtra<Intent>(EXTRA_DATA)
+        // Meritev M1: brez okna za soglasje (trajno dovoljenje) mora biti deljenje na napravi vidno - obvestilo »Ustavi« ali
+        // nas gumb na zaslonu. Ce ne gre nobeno (OnePlus 9: obvestila zavrnjena, prikaza ni), deljenja ne zacnemo (spodaj,
+        // po startForeground - storitev, zagnana s startForegroundService, se pred njim ne sme ustaviti).
+        val vidno = DeljenjePravila.smeZacetiBrezOkna(ZaupanjeZaslona.projekcijaDovoljena(this),
+            Daljinec.obvestilaVklopljena(this, KANAL), Daljinec.prekrivanje(this))
         // A4: novo soglasje po odklepu za isti racunalnik - ista seja na Hubu, isto okno na racunalniku.
-        if (tece && data != null && DeljenjePravila.nadaljujVIstemToku(cakaNaOdklep, cilj, intent.getStringExtra(EXTRA_CILJ) ?: "")) {
+        if (vidno && tece && data != null && DeljenjePravila.nadaljujVIstemToku(cakaNaOdklep, cilj, intent.getStringExtra(EXTRA_CILJ) ?: "")) {
             if (nadaljuj(resultCode, data)) return START_NOT_STICKY
         }
         if (tece) koncaj("")
@@ -211,6 +216,11 @@ class DeljenjeZaslonaStoritev : Service() {
             koncaj("Storitve v ospredju ni bilo mogoce zagnati: ${e.message}")
             return START_NOT_STICKY
         }
+        if (!vidno) {
+            Log.w(TAG, "Deljenje brez okna za soglasje zavrnjeno: ni obvestil ne prikaza cez druge aplikacije")
+            koncaj("Deljenja ne začnem: naprava ne bi pokazala, da se zaslon deli. Vklopi obvestila za Safeer.")
+            return START_NOT_STICKY
+        }
 
         try {
             val upravitelj = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
@@ -227,6 +237,7 @@ class DeljenjeZaslonaStoritev : Service() {
         tece = true
         // Deljenje tece: odslej ga ukaz za konec najde po cilju, oznaka zagona ni vec potrebna.
         PretokKonec.zahteve.zagonKoncan()
+        pokaziZnak()
         zadnjaNapaka = ""
         zadnjaKoda = ""
         zadnjaZasedenaOd = ""
@@ -267,6 +278,7 @@ class DeljenjeZaslonaStoritev : Service() {
         bralec = null
         projekcija = null
         ohraniZaslon(false)
+        skrijZnak()
         prijaviOdklep()
         glavna.removeCallbacks(rokCakanja)
         glavna.postDelayed(rokCakanja, DeljenjePravila.CAKA_ODKLEP_MS)
@@ -350,6 +362,7 @@ class DeljenjeZaslonaStoritev : Service() {
         koncajCakanje()
         PretokKonec.zahteve.zagonKoncan()
         ohraniZaslon(true)
+        pokaziZnak()
         posodobiObvestilo()
         javi()
         Log.i(TAG, "Deljenje zaslona se po odklepu nadaljuje v istem toku")
@@ -421,6 +434,50 @@ class DeljenjeZaslonaStoritev : Service() {
         "telefon" -> si.safeer.tv.R.string.deljenje_zaklenjen_telefon
         "tablica" -> si.safeer.tv.R.string.deljenje_zaklenjen_tablica
         else -> si.safeer.tv.R.string.deljenje_zaklenjen_naprava
+    }
+
+    /** Nas znak deljenja na zaslonu (»Deljenje zaslona · Ustavi«), kadar Safeer sme risati cez druge aplikacije. */
+    private var znak: android.view.View? = null
+
+    /**
+     * Viden znak deljenja, ki ni odvisen od obvestil (meritev M1: obvestilo »Ustavi« je skrito, ce obvestila niso dovoljena;
+     * OnePlus 9 z Androidom 14 sam ne pokaze nicesar). Tap ustavi deljenje. Brez prikaza cez druge aplikacije ga ni - takrat
+     * je znak obvestilo; ce ni ne enega ne drugega, se deljenje brez okna za soglasje sploh ne zacne.
+     */
+    private fun pokaziZnak() {
+        if (znak != null || !Daljinec.prekrivanje(this)) return
+        try {
+            val gostota = resources.displayMetrics.density
+            fun dp(v: Int) = Math.round(v * gostota)
+            val gumb = android.widget.TextView(this).apply {
+                text = getString(si.safeer.tv.R.string.deljenje_znak)
+                setTextColor(0xFFFFFFFF.toInt())
+                textSize = 13f
+                setPadding(dp(14), dp(6), dp(14), dp(6))
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    cornerRadius = dp(18).toFloat()
+                    setColor(0xE6B91C1C.toInt())
+                }
+                contentDescription = text
+                setOnClickListener { ustavi(this@DeljenjeZaslonaStoritev) }
+            }
+            val mesto = WindowManager.LayoutParams(WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                PixelFormat.TRANSLUCENT).apply {
+                gravity = android.view.Gravity.TOP or android.view.Gravity.CENTER_HORIZONTAL
+                y = dp(40)
+            }
+            (getSystemService(Context.WINDOW_SERVICE) as WindowManager).addView(gumb, mesto)
+            znak = gumb
+        } catch (e: Throwable) {
+            Log.w(TAG, "Znaka deljenja ni bilo mogoce pokazati: ${e.message}")
+        }
+    }
+
+    private fun skrijZnak() {
+        val v = znak ?: return
+        znak = null
+        try { (getSystemService(Context.WINDOW_SERVICE) as WindowManager).removeView(v) } catch (_: Throwable) { }
     }
 
     private var budnost: android.os.PowerManager.WakeLock? = null
@@ -659,6 +716,7 @@ class DeljenjeZaslonaStoritev : Service() {
         // medtem ko staro tece) se novo zacne v istem klicu na glavni niti - ukaz za konec vmes ne more priti.
         PretokKonec.zahteve.zagonKoncan()
         koncajCakanje()
+        skrijZnak()
         val jeTeklo = tece
         ustavljam = true
         tece = false
