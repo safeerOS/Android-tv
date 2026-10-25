@@ -1,6 +1,7 @@
 package si.safeer.tv.sdk
 
 import si.safeer.tv.os.DodatkiProtokol
+import si.safeer.tv.os.OsPravila
 
 private var napak = 0
 
@@ -51,9 +52,20 @@ fun main() {
         preveriEnako("brez protocol: napaka", 1, pokvarjen.preveri("https://ex.test/manifest.json"))
         val ni = PreveriDodatek { null }
         preveriEnako("dodatek ne odgovori: napaka", 1, ni.preveri("https://ex.test/manifest.json"))
-        val velik = PreveriDodatek { PreveriDodatek.Odziv(200, "{\"x\":\"" + "a".repeat(DodatkiProtokol.NAJVEC_ODGOVOR_B) + "\"}", 30_000) }
+        val velik = PreveriDodatek { PreveriDodatek.Odziv(200, "{\"x\":\"" + "a".repeat(OsPravila.NAJVEC_ODGOVORA_DODATKA) + "\"}", 30_000) }
         velik.preveri("https://ex.test/manifest.json")
-        preveriEnako("prevelik in prepocasen odgovor", true, velik.vrstice.any { it.contains("1 MiB") } && velik.vrstice.any { it.contains("20 s") })
+        preveriEnako("prevelik in prepocasen odgovor", true, velik.vrstice.any { it.contains("8 MiB") } && velik.vrstice.any { it.contains("20 s") })
+
+        // Meja po vrsti zahteve kot v aplikaciji: manifest (vir Stremio) 2 MiB je v redu, mapa (razsiritev) 2 MiB ne.
+        val dva = "a".repeat(2 * 1024 * 1024)
+        val srednji = PreveriDodatek { u ->
+            if (u.endsWith("/manifest.json")) PreveriDodatek.Odziv(200, """{"id":"x","name":"X","version":"1.0.0","resources":["stream"],"types":["movie"],
+                "safeer":{"protocol":1,"folders":[{"id":"f","name":"F"}]},"pad":"$dva"}""", 10)
+            else PreveriDodatek.Odziv(200, """{"items":[],"pad":"$dva"}""", 10)
+        }
+        preveriEnako("manifest 2 MiB sprejet, mapa 2 MiB zavrnjena", 1, srednji.preveri("https://ex.test/manifest.json"))
+        preveriEnako("mapa: meja 1 MiB", true, srednji.vrstice.any { it.contains("mapa f: odgovor vecji od 1 MiB") })
+        preveriEnako("manifest: brez napake meje", false, srednji.vrstice.any { it.contains("manifest: odgovor vecji") })
     } finally { d.ustavi() }
     if (napak == 0) println("DodatkiSdkTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

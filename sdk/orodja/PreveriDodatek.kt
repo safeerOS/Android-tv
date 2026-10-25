@@ -27,13 +27,19 @@ class PreveriDodatek(private val prenos: (String) -> Odziv?) {
     private fun opozorilo(s: String) { vrstice += "OPOZORILO  $s" }
     private fun napaka(s: String) { napak++; vrstice += "NAPAKA     $s" }
 
-    /** Prenos z meritvijo: velikost in cas po mejah protokola (5). */
-    private fun prenesi(url: String, kaj: String): String? {
+    /**
+     * Prenos z meritvijo: velikost in cas po mejah protokola (5). Meja kot v aplikaciji: viri Stremio (manifest, katalog,
+     * meta, tok) [OsPravila.NAJVEC_ODGOVORA_DODATKA], razsiritve Safeer ([razsiritev]) [DodatkiProtokol.NAJVEC_ODGOVOR_B].
+     * Prej 1 MiB za vse - orodje je zavrnilo katalog, ki ga naprava sprejme.
+     */
+    private fun prenesi(url: String, kaj: String, razsiritev: Boolean = false): String? {
         val o = prenos(url) ?: run { napaka("$kaj: dodatek ni odgovoril"); return null }
         if (o.koda !in 200..299) { napaka("$kaj: HTTP ${o.koda}"); return null }
-        if (o.telo.length > DodatkiProtokol.NAJVEC_ODGOVOR_B) napaka("$kaj: odgovor vecji od 1 MiB - Safeer ga zavrze")
+        val meja = if (razsiritev) DodatkiProtokol.NAJVEC_ODGOVOR_B else OsPravila.NAJVEC_ODGOVORA_DODATKA
         if (o.ms > 20_000) napaka("$kaj: odgovor po ${o.ms} ms - Safeer caka najvec 20 s")
         else if (o.ms > 5_000) opozorilo("$kaj: pocasen odgovor (${o.ms} ms)")
+        // Prevelik odgovor Safeer zavrze - orodje ga tudi ne bere naprej (prej je sledila se napaka »ni mapa«).
+        if (o.telo.length > meja) { napaka("$kaj: odgovor vecji od ${meja / (1024 * 1024)} MiB - Safeer ga zavrze"); return null }
         if (!JsonLahki.strogObjekt(o.telo)) { napaka("$kaj: odgovor ni veljaven JSON objekt"); return null }
         return o.telo
     }
@@ -59,7 +65,7 @@ class PreveriDodatek(private val prenos: (String) -> Odziv?) {
             for (o in r.opozorila) opozorilo("safeer: $o")
             if (r.imaSkrivnosti && !manifestUrl.trim().startsWith("https://")) opozorilo("nastavitve s skrivnostjo: Safeer jih po http ne poslje")
             for (mapa in r.mape) {
-                val t = prenesi(DodatkiProtokol.naslovMape(osnova, mapa.id), "mapa ${mapa.id}") ?: continue
+                val t = prenesi(DodatkiProtokol.naslovMape(osnova, mapa.id), "mapa ${mapa.id}", razsiritev = true) ?: continue
                 val v = DodatkiProtokol.preberiMapo(t)
                 if (v == null) napaka("mapa ${mapa.id}: odgovor ni mapa") else ok("mapa ${mapa.id}: elementov ${v.elementi.size}" + if (v.naprej.isNotBlank()) ", ima naslednjo stran" else "")
             }
@@ -69,11 +75,11 @@ class PreveriDodatek(private val prenos: (String) -> Odziv?) {
             val (tip, id) = vsebina
             preveriTokove(osnova, tip, id)
             if (r != null && tip in r.dopolni) {
-                val t = prenesi(DodatkiProtokol.naslovDopolni(osnova, tip, id), "enrich $tip/$id")
+                val t = prenesi(DodatkiProtokol.naslovDopolni(osnova, tip, id), "enrich $tip/$id", razsiritev = true)
                 if (t != null) { if (JsonLahki.objekt(t)?.objekt("meta") == null) napaka("enrich: manjka meta") else ok("enrich $tip/$id") }
             }
             if (r != null && dejanja) for (d in DodatkiProtokol.dejanjaZa(r, tip)) {
-                val t = prenesi(DodatkiProtokol.naslovDejanja(osnova, d.id, tip, id), "dejanje ${d.id}") ?: continue
+                val t = prenesi(DodatkiProtokol.naslovDejanja(osnova, d.id, tip, id), "dejanje ${d.id}", razsiritev = true) ?: continue
                 val o = DodatkiProtokol.preberiDejanje(t)
                 if (o == null) napaka("dejanje ${d.id}: neveljaven odgovor") else ok("dejanje ${d.id}: ok=${o.ok}, sporocilo=${o.sporocilo?.za("en").orEmpty().take(60)}")
             } else if (r != null && r.dejanja.isNotEmpty()) ok("dejanja: niso poklicana (dodaj --dejanja)")
@@ -112,7 +118,9 @@ class PreveriDodatek(private val prenos: (String) -> Odziv?) {
             c.connectTimeout = 10_000; c.readTimeout = 20_000
             c.setRequestProperty("Accept", "application/json")
             val koda = c.responseCode
-            val telo = (if (koda in 200..299) c.inputStream else c.errorStream)?.use { String(it.readBytes(), Charsets.UTF_8) }.orEmpty()
+            // Najvec meja + 1 bajt: prevelik odgovor orodje prepozna, ne da bi ga celega bralo v pomnilnik.
+            val telo = (if (koda in 200..299) c.inputStream else c.errorStream)
+                ?.use { String(it.readNBytes(OsPravila.NAJVEC_ODGOVORA_DODATKA + 1), Charsets.UTF_8) }.orEmpty()
             c.disconnect()
             Odziv(koda, telo, System.currentTimeMillis() - zac)
         } catch (_: Exception) { null }
