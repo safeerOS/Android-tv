@@ -58,11 +58,110 @@ object Debrid {
         return DebridPravila.vrstniRed(neberljive, prednostna(c)).firstOrNull()
     }
 
-    /** Shrani ocisceni kljuc; false, ce vnos ni kljuc ali sifriranje ni uspelo. Sprememba gre sama v ozji krog (UskladitevKljucev). */
-    fun nastaviKljuc(c: Context, p: String, vnos: String): Boolean = when (p) {
-        DebridPravila.TORBOX -> TorBox.nastaviKljuc(c, vnos)
-        else -> DebridPravila.ocistiKljuc(vnos)?.let { SporocilaSkrivnosti.shrani(c, imeSkrivnosti(p), it) } ?: false
-    }.also { if (it) UskladitevKljucev.sprozi(c) }
+    /** Shrani ze ocisceni in preverjeni kljuc (sifrirano); brez usklajevanja - odloca [vpisiKljuc] oz. [sprejmiKljuc]. */
+    private fun shraniKljuc(c: Context, p: String, k: String): Boolean = when (p) {
+        DebridPravila.TORBOX -> TorBox.nastaviKljuc(c, k)
+        else -> SporocilaSkrivnosti.shrani(c, imeSkrivnosti(p), k)
+    }
+
+    // ------------------------------------------------------------------ preverba kljuca (lastnik 25. 10. 2026)
+
+    private const val KLJUC_STANJE = "stanje_"
+    /** Zadnja preverba nepreverjenega kljuca po storitvi (samo v pomnilniku - po zagonu se preveri znova). */
+    private val zadnjaPreverba = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    /** (stanje, paket) shranjenega kljuca storitve [p]; null = ni kljuca ali ga se nihce ni preveril (stanje drugega kljuca ne velja). */
+    fun stanjeKljuca(c: Context, p: String): Pair<DebridPravila.StanjeKljuca, Int?>? {
+        val k = kljuc(c, p) ?: return null
+        return DebridPravila.stanjeIzZapisa(prefs(c).getString(KLJUC_STANJE + p, null), DebridPravila.odtisStanja(k))?.let { it.first to it.second }
+    }
+
+    /** Kljuc, ki ga je storitev potrdila - samo tak gre med naprave v ozjem krogu ([DebridPravila.zaUskladitev]). */
+    fun kljucVelja(c: Context, p: String): Boolean = DebridPravila.zaUskladitev(stanjeKljuca(c, p)?.first)
+
+    private fun zapisiStanje(c: Context, p: String, kljuc: String, s: DebridPravila.StanjeKljuca, paket: Int?) {
+        prefs(c).edit().putString(KLJUC_STANJE + p, DebridPravila.zapisStanja(s, DebridPravila.odtisStanja(kljuc), paket, System.currentTimeMillis())).apply()
+    }
+
+    /**
+     * Preverba kljuca pri storitvi (TorBox user/me, Real-Debrid /user, AllDebrid /user - nic ne doda v racun). Samo z delovne
+     * niti. Odgovora ne zapisemo nikamor (nosi tudi e-naslov racuna) - samo izid in paket.
+     */
+    fun preveriKljuc(p: String, kljuc: String): Pair<DebridPravila.Preverba, Int?> = when (p) {
+        DebridPravila.TORBOX -> TorBox.preveri(kljuc)
+        DebridPravila.REAL_DEBRID -> try {
+            val o = klic(DebridPravila.RD_UPORABNIK, kljuc, povezavaMs = 8_000, branjeMs = 8_000)
+            DebridPravila.preverbaRd(o.koda, o.json?.optInt("error_code", -999)?.takeIf { it != -999 }) to null
+        } catch (e: Exception) { Log.i(TAG, "preverba RD: ${e.javaClass.simpleName}"); DebridPravila.Preverba.NI_ODGOVORA to null }
+        else -> try {
+            val o = klic(DebridPravila.AD_UPORABNIK, kljuc, povezavaMs = 8_000, branjeMs = 8_000)
+            val j = o.json
+            DebridPravila.preverbaAd(o.koda, j?.optString("status"), j?.optJSONObject("error")?.optString("code")) to null
+        } catch (e: Exception) { Log.i(TAG, "preverba AD: ${e.javaClass.simpleName}"); DebridPravila.Preverba.NI_ODGOVORA to null }
+    }.also { Log.i(TAG, "preverba ${DebridPravila.ime(p)}: ${it.first}") }
+
+    /**
+     * Vpis kljuca v oknu »Debrid storitve« (delovna nit). Vzorec ali ne-kljuc: [DebridPravila.Preverba.OBLIKA] brez klica;
+     * zavrnjen kljuc se NE shrani; brez povezave se shrani kot nepreverjen in ne gre na druge naprave, dokler ga storitev ne
+     * potrdi ([preveriNepreverjene]). Veljaven gre sam v ozji krog.
+     */
+    fun vpisiKljuc(c: Context, p: String, vnos: String): Pair<DebridPravila.Preverba, Int?> {
+        val k = DebridPravila.kljucIzVnosa(vnos, p) ?: return DebridPravila.Preverba.OBLIKA to null
+        val izid = preveriKljuc(p, k)
+        val s = DebridPravila.stanjePoPreverbi(izid.first) ?: return izid
+        if (!shraniKljuc(c, p, k)) return DebridPravila.Preverba.OBLIKA to null
+        zapisiStanje(c, p, k, s, izid.second)
+        zadnjaPreverba[p] = System.currentTimeMillis()
+        if (DebridPravila.zaUskladitev(s)) UskladitevKljucev.sprozi(c)
+        return izid
+    }
+
+    /**
+     * Kljuc z druge naprave (usklajevanje, »Poslji kljuce«) - delovna nit. Uporabi se samo, ce ga storitev potrdi tudi s te
+     * naprave ([DebridPravila.sprejmiPrejetega]): zavrnjen nikoli ne prepise veljavnega, brez povezave pocaka na naslednjo
+     * uskladitev. false = ni uporabljen.
+     */
+    fun sprejmiKljuc(c: Context, p: String, vnos: String): Boolean {
+        val k = DebridPravila.kljucIzVnosa(vnos, p) ?: return false
+        if (kljuc(c, p) == k && kljucVelja(c, p)) return true
+        val (izid, paket) = preveriKljuc(p, k)
+        if (!DebridPravila.sprejmiPrejetega(izid)) { Log.i(TAG, "prejeti kljuc ${DebridPravila.ime(p)}: $izid - ni uporabljen"); return false }
+        if (!shraniKljuc(c, p, k)) return false
+        zapisiStanje(c, p, k, DebridPravila.StanjeKljuca.VELJA, paket)
+        return true
+    }
+
+    /**
+     * Shranjeni kljuci brez stanja (pred posodobitvijo, prejeti v starejsi razlicici) ali nepreverjeni: preverba pri storitvi
+     * (najvec na [DebridPravila.PREVERI_ZNOVA_MS]). Zavrnjen ostane shranjen z oznako »ne velja« (vrstica pove, da ga je treba
+     * vpisati znova) in ne gre na druge naprave. Delovna nit. true = stanje katerega se je spremenilo.
+     */
+    fun preveriNepreverjene(c: Context): Boolean {
+        var spremenjeno = false
+        for (p in DebridPravila.VSI) {
+            val k = kljuc(c, p) ?: continue
+            val prej = stanjeKljuca(c, p)
+            if (!DebridPravila.preveriZdaj(prej?.first, zadnjaPreverba[p] ?: 0L, System.currentTimeMillis())) continue
+            zadnjaPreverba[p] = System.currentTimeMillis()
+            val (izid, paket) = preveriKljuc(p, k)
+            val s = DebridPravila.stanjePoPreverbi(izid) ?: DebridPravila.StanjeKljuca.NE_VELJA
+            if (s != prej?.first || paket != prej.second) { zapisiStanje(c, p, k, s, paket ?: prej?.second); spremenjeno = true }
+        }
+        return spremenjeno
+    }
+
+    /** Med uporabo: zavrnjen kljuc (401) -> »ne velja«; povezava od storitve -> kljuc velja (stanje se osvezi samo). */
+    fun obIzidu(c: Context, p: String, napaka: String, uspeh: Boolean) {
+        val k = kljuc(c, p) ?: return
+        val prej = stanjeKljuca(c, p)
+        if (napaka == TorBoxPravila.NAPAKA_KLJUC && prej?.first != DebridPravila.StanjeKljuca.NE_VELJA) {
+            zapisiStanje(c, p, k, DebridPravila.StanjeKljuca.NE_VELJA, null)
+            Log.i(TAG, "${DebridPravila.ime(p)}: kljuc zavrnjen med uporabo - stanje »ne velja«")
+        } else if (uspeh && prej?.first != DebridPravila.StanjeKljuca.VELJA) {
+            zapisiStanje(c, p, k, DebridPravila.StanjeKljuca.VELJA, prej?.second)
+            UskladitevKljucev.sprozi(c)
+        }
+    }
 
     fun pozabiKljuc(c: Context, p: String) {
         if (p == DebridPravila.TORBOX) TorBox.pozabiKljuc(c) else SporocilaSkrivnosti.pozabi(c, imeSkrivnosti(p))
@@ -295,6 +394,8 @@ object Debrid {
         }
         // Naloga 136: oznaka ⚡ za Real-Debrid in AllDebrid iz tega, kar je storitev pravkar odgovorila.
         try { zapomniIzid(c, p, magnet, iz) } catch (e: Exception) { Log.w(TAG, "zapomni: ${e.javaClass.simpleName}") }
+        // Lastnik 25. 10. 2026: stanje kljuca sledi uporabi (401 -> »ne velja«, povezava -> velja).
+        try { obIzidu(c, p, iz.napaka, iz.url != null) } catch (e: Exception) { Log.w(TAG, "stanje kljuca: ${e.javaClass.simpleName}") }
         // Pregled A4: TorBox.tok storitve ne vpise - izid vedno nosi storitev, ki je odgovorila.
         return if (iz.ponudnik.isNotEmpty()) iz else TorBox.Izid(iz.url, iz.napaka, iz.opis, iz.cakajMs, p)
     }
@@ -348,7 +449,8 @@ object Debrid {
 
     /** Potrjeni prejeti kljuci: shranijo se kot vpisani tu. Vrne storitve, ki so bile shranjene. */
     fun shraniPrejete(c: Context, p: Prejeti): List<String> =
-        p.kljuci.filter { (ponudnik, k) -> nastaviKljuc(c, ponudnik, k) }.keys.toList() +
+        // Lastnik 25. 10. 2026: prejeti kljuc se pred shranjevanjem preveri pri storitvi ([sprejmiKljuc]) - delovna nit.
+        p.kljuci.filter { (ponudnik, k) -> sprejmiKljuc(c, ponudnik, k) }.keys.toList() +
             listOfNotNull(p.indeksator?.takeIf { (n, k) -> Usenet.nastavi(c, n, k) }?.let { UsenetPravila.VRSTA }) +
             // Webtor rezerva: dodatki s poverilnico - sifrirano kot nadomestek ([MedijskiViri.dodajDodatek]).
             p.dodatki.mapNotNull { n -> MedijskiViri.dodajDodatek(c, MedijskiViri.STREMIO, n, "")?.let { PREDPONA_DODATKA + Zasebno.gostitelj(n) } }

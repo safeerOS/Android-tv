@@ -77,6 +77,13 @@
     <string name="os_debrid_pojasnilo">A debrid service downloads the torrent for you: your device is not in the swarm, so your IP stays hidden, and the stream is faster. Add the key of at least one service. If several have the film, Safeer measures their speed to this device and plays from the fastest. ⚡ marks sources that are ready to play.</string>
     <string name="os_debrid_vrstica_vpisan">%1$s – key added ✓</string>
     <string name="os_debrid_vrstica_brez">%1$s – add key</string>
+    <string name="os_debrid_vrstica_velja">%1$s – key valid ✓%2$s</string>
+    <string name="os_debrid_vrstica_ne_velja">%1$s – key not valid – enter it again</string>
+    <string name="os_debrid_vrstica_nepreverjen">%1$s – key not verified yet</string>
+    <string name="os_debrid_preverjam">Checking the key with %1$s …</string>
+    <string name="os_debrid_kljuc_velja">%1$s: key valid ✓%2$s</string>
+    <string name="os_debrid_kljuc_zavrnjen">%1$s rejected the key – it was not saved. Check it and enter it again.</string>
+    <string name="os_debrid_kljuc_nepreverjen">No connection to %1$s – the key is saved as unverified and is not sent to your other devices until the service confirms it.</string>
     <string name="os_debrid_samo_takoj_vkl">Instant only (cached): on</string>
     <string name="os_debrid_samo_takoj_izk">Instant only (cached): off</string>
     <string name="os_debrid_prednostna">Preferred service: %1$s</string>

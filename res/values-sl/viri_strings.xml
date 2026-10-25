@@ -77,6 +77,13 @@
     <string name="os_debrid_pojasnilo">Debrid storitev torrent prenese namesto tebe: tvoja naprava ni v roju, zato tvoj IP ostane skrit, tok pa je hitrejši. Vpiši ključ vsaj ene storitve. Če ima film več storitev, Safeer izmeri njihovo hitrost do te naprave in predvaja z najhitrejše. ⚡ označuje vire, ki so takoj predvajljivi.</string>
     <string name="os_debrid_vrstica_vpisan">%1$s – ključ vpisan ✓</string>
     <string name="os_debrid_vrstica_brez">%1$s – vpiši ključ</string>
+    <string name="os_debrid_vrstica_velja">%1$s – ključ velja ✓%2$s</string>
+    <string name="os_debrid_vrstica_ne_velja">%1$s – ključ ne velja – vpiši znova</string>
+    <string name="os_debrid_vrstica_nepreverjen">%1$s – ključ še ni preverjen</string>
+    <string name="os_debrid_preverjam">Preverjam ključ pri %1$s …</string>
+    <string name="os_debrid_kljuc_velja">%1$s: ključ velja ✓%2$s</string>
+    <string name="os_debrid_kljuc_zavrnjen">%1$s je ključ zavrnil – ni shranjen. Preveri ga in vpiši znova.</string>
+    <string name="os_debrid_kljuc_nepreverjen">Ni povezave s storitvijo %1$s – ključ je shranjen kot nepreverjen in ne gre na druge naprave, dokler ga storitev ne potrdi.</string>
     <string name="os_debrid_samo_takoj_vkl">Samo takoj predvajljivo (predpomnjeno): vklopljeno</string>
     <string name="os_debrid_samo_takoj_izk">Samo takoj predvajljivo (predpomnjeno): izklopljeno</string>
     <string name="os_debrid_prednostna">Prednostna storitev: %1$s</string>

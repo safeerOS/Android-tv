@@ -77,6 +77,13 @@
     <string name="os_debrid_pojasnilo">Un servicio debrid descarga el torrent por ti: tu dispositivo no está en el enjambre, tu IP queda oculta y la transmisión es más rápida. Añade la clave de al menos un servicio. Si varios tienen la película, Safeer mide su velocidad hasta este dispositivo y reproduce desde el más rápido. ⚡ marca las fuentes listas para reproducir.</string>
     <string name="os_debrid_vrstica_vpisan">%1$s – clave añadida ✓</string>
     <string name="os_debrid_vrstica_brez">%1$s – añadir clave</string>
+    <string name="os_debrid_vrstica_velja">%1$s – clave válida ✓%2$s</string>
+    <string name="os_debrid_vrstica_ne_velja">%1$s – clave no válida – vuelve a introducirla</string>
+    <string name="os_debrid_vrstica_nepreverjen">%1$s – clave aún sin verificar</string>
+    <string name="os_debrid_preverjam">Comprobando la clave con %1$s…</string>
+    <string name="os_debrid_kljuc_velja">%1$s: clave válida ✓%2$s</string>
+    <string name="os_debrid_kljuc_zavrnjen">%1$s rechazó la clave: no se ha guardado. Revísala y vuelve a introducirla.</string>
+    <string name="os_debrid_kljuc_nepreverjen">Sin conexión con %1$s: la clave se guardó como no verificada y no se enviará a tus otros dispositivos hasta que el servicio la confirme.</string>
     <string name="os_debrid_samo_takoj_vkl">Solo reproducible al instante (en caché): activado</string>
     <string name="os_debrid_samo_takoj_izk">Solo reproducible al instante (en caché): desactivado</string>
     <string name="os_debrid_prednostna">Servicio preferido: %1$s</string>

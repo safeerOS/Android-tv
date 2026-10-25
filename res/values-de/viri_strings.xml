@@ -77,6 +77,13 @@
     <string name="os_debrid_pojasnilo">Ein Debrid-Dienst lädt den Torrent für dich: Dein Gerät ist nicht im Schwarm, deine IP bleibt verborgen und der Stream ist schneller. Gib den Schlüssel mindestens eines Dienstes ein. Haben mehrere den Film, misst Safeer ihre Geschwindigkeit zu diesem Gerät und spielt vom schnellsten ab. ⚡ markiert sofort abspielbare Quellen.</string>
     <string name="os_debrid_vrstica_vpisan">%1$s – Schlüssel eingetragen ✓</string>
     <string name="os_debrid_vrstica_brez">%1$s – Schlüssel eingeben</string>
+    <string name="os_debrid_vrstica_velja">%1$s – Schlüssel gültig ✓%2$s</string>
+    <string name="os_debrid_vrstica_ne_velja">%1$s – Schlüssel ungültig – erneut eingeben</string>
+    <string name="os_debrid_vrstica_nepreverjen">%1$s – Schlüssel noch nicht geprüft</string>
+    <string name="os_debrid_preverjam">Schlüssel wird bei %1$s geprüft …</string>
+    <string name="os_debrid_kljuc_velja">%1$s: Schlüssel gültig ✓%2$s</string>
+    <string name="os_debrid_kljuc_zavrnjen">%1$s hat den Schlüssel abgelehnt – er wurde nicht gespeichert. Prüfe ihn und gib ihn erneut ein.</string>
+    <string name="os_debrid_kljuc_nepreverjen">Keine Verbindung zu %1$s – der Schlüssel ist als ungeprüft gespeichert und wird erst an deine anderen Geräte gesendet, wenn der Dienst ihn bestätigt.</string>
     <string name="os_debrid_samo_takoj_vkl">Nur sofort abspielbar (zwischengespeichert): an</string>
     <string name="os_debrid_samo_takoj_izk">Nur sofort abspielbar (zwischengespeichert): aus</string>
     <string name="os_debrid_prednostna">Bevorzugter Dienst: %1$s</string>

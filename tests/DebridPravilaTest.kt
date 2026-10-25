@@ -244,5 +244,54 @@ fun main() {
     preveriEnako("brez dn: prazno", "", DebridPravila.imeMagneta("magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c"))
     preveriEnako("pokvarjen dn: prazno", "", DebridPravila.imeMagneta("magnet:?xt=urn:btih:dd82&dn=%E0%A4%A"))
 
+    // Lastnik 25. 10. 2026: vzorec kljuca iz navodil (»XXXXXXXX-XXXX-…«) se je shranil kot »kljuc vpisan ✓« in usklajevanje ga je
+    // razneslo po ozjem krogu. Vzorec ni kljuc; prejeti vzorec ne gre naprej; stanje odloca o shranjevanju in usklajevanju.
+    val vzorec = "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+    val tbk = "3f1c9a2e-7b4d-4e8a-9c21-5d6f0b8e1a47"
+    preveriEnako("vzorec X ni kljuc", true, DebridPravila.jeVzorecKljuca(vzorec))
+    preveriEnako("vzorec x z 4 in y ni kljuc", true, DebridPravila.jeVzorecKljuca("xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"))
+    preveriEnako("ista crka ni kljuc", true, DebridPravila.jeVzorecKljuca("AAAAAAAAAAAAAAAAAAAAAAAA"))
+    preveriEnako("your_api_key ni kljuc", true, DebridPravila.jeVzorecKljuca("YOUR_API_KEY_HERE_1234567"))
+    preveriEnako("pravi UUID TorBox je kljuc", false, DebridPravila.jeVzorecKljuca(tbk))
+    preveriEnako("RD zeton je kljuc", false, DebridPravila.jeVzorecKljuca("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ABCDEFGHIJKLMNOP"))
+    preveriEnako("AD kljuc je kljuc", false, DebridPravila.jeVzorecKljuca("aBcD1234eFgH5678iJkL"))
+    preveriEnako("vnos: vzorec TorBox zavrnjen", null, DebridPravila.kljucIzVnosa(" $vzorec ", tb))
+    preveriEnako("vnos: pravi TorBox", tbk, DebridPravila.kljucIzVnosa(" $tbk\n", tb))
+    preveriEnako("prejeti vzorec ne gre v shrambo (usklajevanje, Poslji kljuce)", emptyMap<String, String>(),
+        DebridPravila.prejetiKljuci(mapOf(tb to vzorec, rd to "RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR")))
+    preveriEnako("prejeti pravi ostane", mapOf(tb to tbk), DebridPravila.prejetiKljuci(mapOf(tb to tbk)))
+    // Izid preverbe pri storitvi
+    preveriEnako("TorBox 200 success: velja", DebridPravila.Preverba.VELJA, DebridPravila.preverbaTorBox(200, true, null))
+    preveriEnako("TorBox 401 BAD_TOKEN: ne velja", DebridPravila.Preverba.NE_VELJA, DebridPravila.preverbaTorBox(401, false, "BAD_TOKEN"))
+    preveriEnako("TorBox 403 AUTH_ERROR: ne velja", DebridPravila.Preverba.NE_VELJA, DebridPravila.preverbaTorBox(403, false, "AUTH_ERROR"))
+    preveriEnako("TorBox 429: meja (kljuc verjetno dober)", DebridPravila.Preverba.MEJA, DebridPravila.preverbaTorBox(429, false, null))
+    preveriEnako("TorBox 502: ni odgovora", DebridPravila.Preverba.NI_ODGOVORA, DebridPravila.preverbaTorBox(502, false, null))
+    preveriEnako("brez povezave: ni odgovora", DebridPravila.Preverba.NI_ODGOVORA, DebridPravila.preverbaTorBox(0, false, null))
+    preveriEnako("RD 200: velja", DebridPravila.Preverba.VELJA, DebridPravila.preverbaRd(200, null))
+    preveriEnako("RD bad_token (8): ne velja", DebridPravila.Preverba.NE_VELJA, DebridPravila.preverbaRd(401, 8))
+    preveriEnako("RD account locked (14): kljuc velja, paket ne", DebridPravila.Preverba.VELJA, DebridPravila.preverbaRd(403, 14))
+    preveriEnako("AD success: velja", DebridPravila.Preverba.VELJA, DebridPravila.preverbaAd(200, "success", null))
+    preveriEnako("AD AUTH_BAD_APIKEY s HTTP 200: ne velja", DebridPravila.Preverba.NE_VELJA, DebridPravila.preverbaAd(200, "error", "AUTH_BAD_APIKEY"))
+    // Shranjevanje, usklajevanje, prejem
+    preveriEnako("zavrnjen se ne shrani", null, DebridPravila.stanjePoPreverbi(DebridPravila.Preverba.NE_VELJA))
+    preveriEnako("vzorec se ne shrani", null, DebridPravila.stanjePoPreverbi(DebridPravila.Preverba.OBLIKA))
+    preveriEnako("brez povezave: nepreverjen", DebridPravila.StanjeKljuca.NEPREVERJEN, DebridPravila.stanjePoPreverbi(DebridPravila.Preverba.NI_ODGOVORA))
+    preveriEnako("veljaven: velja", DebridPravila.StanjeKljuca.VELJA, DebridPravila.stanjePoPreverbi(DebridPravila.Preverba.VELJA))
+    preveriEnako("usklajevanje: samo veljaven", listOf(true, false, false, false),
+        listOf(DebridPravila.StanjeKljuca.VELJA, DebridPravila.StanjeKljuca.NEPREVERJEN, DebridPravila.StanjeKljuca.NE_VELJA, null).map { DebridPravila.zaUskladitev(it) })
+    preveriEnako("prejeti: samo, ce ga storitev potrdi tudi tu", listOf(true, false, false, false),
+        listOf(DebridPravila.Preverba.VELJA, DebridPravila.Preverba.NE_VELJA, DebridPravila.Preverba.NI_ODGOVORA, DebridPravila.Preverba.MEJA).map { DebridPravila.sprejmiPrejetega(it) })
+    // Stanje je vezano na kljuc
+    val o1 = DebridPravila.odtisStanja(tbk)
+    preveriEnako("odtis ne razkrije kljuca", false, o1.contains(tbk.take(8)))
+    val zapis = DebridPravila.zapisStanja(DebridPravila.StanjeKljuca.VELJA, o1, 2, 1000L)
+    preveriEnako("stanje istega kljuca", Triple(DebridPravila.StanjeKljuca.VELJA, 2, 1000L), DebridPravila.stanjeIzZapisa(zapis, o1))
+    preveriEnako("stanje drugega kljuca ne velja", null, DebridPravila.stanjeIzZapisa(zapis, DebridPravila.odtisStanja(vzorec)))
+    preveriEnako("ime paketa Pro", "Pro", DebridPravila.imePaketa(2))
+    preveriEnako("preveri: brez stanja da", true, DebridPravila.preveriZdaj(null, 0L, 5_000L))
+    preveriEnako("preveri: nepreverjen po 10 min da", true, DebridPravila.preveriZdaj(DebridPravila.StanjeKljuca.NEPREVERJEN, 0L, DebridPravila.PREVERI_ZNOVA_MS))
+    preveriEnako("preveri: nepreverjen pred 10 min ne", false, DebridPravila.preveriZdaj(DebridPravila.StanjeKljuca.NEPREVERJEN, 0L, DebridPravila.PREVERI_ZNOVA_MS - 1))
+    preveriEnako("preveri: veljaven ne (do napake 401)", false, DebridPravila.preveriZdaj(DebridPravila.StanjeKljuca.VELJA, 0L, 10 * DebridPravila.PREVERI_ZNOVA_MS))
+
     if (napak == 0) println("DebridPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

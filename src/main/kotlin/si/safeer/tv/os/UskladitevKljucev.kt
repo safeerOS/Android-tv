@@ -160,7 +160,9 @@ object UskladitevKljucev {
         for (p in DebridPravila.VSI) {
             val k = P.kljucDebrid(p)
             val kljuc = Debrid.kljuc(c, p)
-            if (kljuc != null) v[k] = kljuc else if (Debrid.kljucShranjen(c, p)) neznani += k
+            // Lastnik 25. 10. 2026: med naprave gre samo kljuc, ki ga je storitev potrdila; nepreverjen ali zavrnjen ni ne
+            // vrednost ne izbris (neznan) - drugim napravam ne povozi in ne izbrise veljavnega.
+            if (kljuc != null && Debrid.kljucVelja(c, p)) v[k] = kljuc else if (Debrid.kljucShranjen(c, p)) neznani += k
         }
         val u = Usenet.indeksator(c)
         if (u != null) v[P.KLJUC_USENET] = JSONObject().put("url", u.osnova).put("key", u.kljuc).toString()
@@ -211,7 +213,8 @@ object UskladitevKljucev {
         when {
             z.kljuc.startsWith(P.PREDPONA_DEBRID) -> {
                 val p = z.kljuc.removePrefix(P.PREDPONA_DEBRID)
-                if (z.izbrisan) { Debrid.pozabiKljuc(c, p); true } else Debrid.nastaviKljuc(c, p, z.vrednost)
+                // Lastnik 25. 10. 2026: prejeti kljuc se pred uporabo preveri pri storitvi (zavrnjen ne prepise veljavnega).
+                if (z.izbrisan) { Debrid.pozabiKljuc(c, p); true } else Debrid.sprejmiKljuc(c, p, z.vrednost)
             }
             z.kljuc == P.KLJUC_USENET ->
                 if (z.izbrisan) { Usenet.pozabi(c); true }
@@ -316,6 +319,8 @@ object UskladitevKljucev {
         val link = try { LinkUpravitelj.pridobi(c) } catch (_: Throwable) { return }
         if (link.jeKrajevni() || !link.povezan) return
         pocistiZunajKroga(c)
+        // Kljuci brez stanja ali nepreverjeni se najprej preverijo - poslje se samo potrjen.
+        try { Debrid.preveriNepreverjene(c) } catch (e: Exception) { Log.w(TAG, "preverba kljucev: ${e.javaClass.simpleName}") }
         val (meta, vr) = posodobi(c)
         // Samo lastni zapisi (U2); nepotrjena naprava dobi povabilo brez vrednosti (U3).
         val lastni = zGostitelji(P.zaPoslati(meta, vr, jaz(c)))

@@ -35,6 +35,19 @@ object TorBox {
 
     fun pozabiKljuc(c: Context) { SporocilaSkrivnosti.pozabi(c, SKRIVNOST) }
 
+    /**
+     * Lastnik 25. 10. 2026: preverba kljuca z »user/me« (nic ne doda v racun). Odgovor nosi tudi e-naslov racuna - vzamemo
+     * SAMO paket (polje »plan«), nic ne gre v dnevnik. (izid, paket); brez povezave NI_ODGOVORA.
+     */
+    fun preveri(kljuc: String): Pair<DebridPravila.Preverba, Int?> = try {
+        val o = klic(DebridPravila.TORBOX_UPORABNIK, kljuc, rokMs = 8_000)
+        val data = o.json?.optJSONObject("data")
+        val izid = DebridPravila.preverbaTorBox(o.koda, uspeh(o) && data != null, o.json?.optString("error")?.takeIf { it.isNotBlank() && it != "null" })
+        izid to (if (izid == DebridPravila.Preverba.VELJA && data?.has("plan") == true) data.optInt("plan", -1).takeIf { it >= 0 } else null)
+    } catch (e: Exception) {
+        Log.i(TAG, "preverba: ${e.javaClass.simpleName}"); DebridPravila.Preverba.NI_ODGOVORA to null
+    }
+
     /** Izid: [url] povezava CDN za predvajanje ali [napaka] (TorBoxPravila.NAPAKA_*) z [opis] TorBoxa za uporabnika. */
     class Izid(val url: String? = null, val napaka: String = "", val opis: String = "", val cakajMs: Long = 0L,
                /** Naloga 128: storitev, ki je dala povezavo ali napako (DebridPravila.TORBOX ...). */
@@ -107,7 +120,11 @@ object TorBox {
         if (h.isEmpty()) return emptySet()
         return try {
             val o = klic(TorBoxPravila.naslovPredpomnjenihVec(h), kljuc, rokMs = rokMs)
-            if (!uspeh(o)) return emptySet()
+            if (!uspeh(o)) {
+                // Lastnik 25. 10. 2026: zavrnjen kljuc ze ob preverbi ⚡ - vrstica v »Debrid storitve« pove »ne velja«.
+                Debrid.obIzidu(c, DebridPravila.TORBOX, napaka(o).napaka, false)
+                return emptySet()
+            }
             val data = o.json?.optJSONObject("data") ?: return emptySet()
             DebridPravila.predpomnjeni(data.keys().asSequence().toList(), h).also { Log.i(TAG, "checkcached: ${it.size} od ${h.size} pripravljenih") }
         } catch (e: Exception) {

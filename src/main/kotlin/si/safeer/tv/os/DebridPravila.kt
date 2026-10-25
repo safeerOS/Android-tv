@@ -190,7 +190,7 @@ object DebridPravila {
 
     /** Iz prejetega zemljevida (storitev -> kljuc) ostanejo samo znane storitve z veljavnim kljucem. */
     fun prejetiKljuci(vnos: Map<String, String>): Map<String, String> =
-        VSI.mapNotNull { p -> vnos[p]?.let { ocistiKljuc(it) }?.let { p to it } }.toMap()
+        VSI.mapNotNull { p -> vnos[p]?.let { kljucIzVnosa(it, p) }?.let { p to it } }.toMap()
 
     fun prejetoVelja(prejetoMs: Long, zdajMs: Long): Boolean = zdajMs - prejetoMs in 0 until PREJETO_VELJA_MS
 
@@ -452,4 +452,108 @@ object DebridPravila {
         }
         return dodaj(seznam, novi, zdajMs)
     }
+
+    // ------------------------------------------------------------------ preverba kljuca (lastnik 25. 10. 2026)
+    // Na eni napravi je bil v polje TorBox vpisan vzorec »XXXXXXXX-XXXX-…«: Safeer ga je shranil kot »kljuc vpisan ✓«, samodejno
+    // usklajevanje pa ga je raznesel po ozjem krogu (tudi na telefon, kjer je bil veljaven). Zdaj: vzorec se zavrne takoj,
+    // vsak kljuc preveri storitev (TorBox user/me, Real-Debrid user, AllDebrid user - nic ne doda v racun), zavrnjen se ne
+    // shrani, med naprave gre samo preverjen veljaven, prejeti pa se pred uporabo preveri tudi na prejemni napravi.
+
+    /** Izid preverbe kljuca pri storitvi. */
+    enum class Preverba { VELJA, NE_VELJA, NI_ODGOVORA, MEJA, OBLIKA }
+
+    /** Stanje shranjenega kljuca (vezano na kljuc - [odtisStanja]). */
+    enum class StanjeKljuca { VELJA, NE_VELJA, NEPREVERJEN }
+
+    const val TORBOX_UPORABNIK = "https://api.torbox.app/v1/api/user/me"
+    const val RD_UPORABNIK = "$RD_OSNOVA/user"
+    const val AD_UPORABNIK = "$AD_OSNOVA/user"
+    /** Polje »plan« TorBoxa: 0 Free, 1 Essential, 2 Pro, 3 Standard (Usenet samo Pro). */
+    val TORBOX_PAKETI = mapOf(0 to "Free", 1 to "Essential", 2 to "Pro", 3 to "Standard")
+    /** Nepreverjen kljuc (brez povezave ob vpisu) preverimo znova najvec tako pogosto. */
+    const val PREVERI_ZNOVA_MS = 10 * 60_000L
+
+    private val BESEDE_VZORCA = listOf("xxxxxx", "your_", "your-", "yourapi", "yourkey", "apikey", "api_key", "api-key", "kljuc", "example", "placeholder")
+
+    /**
+     * Vzorec iz navodil ali prazen nadomestek, ne pravi kljuc: same iste crke (»XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX«),
+     * najvec 3 razlicni znaki, en znak v vsaj polovici ali besede vzorca (»your_api_key«). Nakljucni kljuci storitev (UUID,
+     * 20-52 znakov) imajo 10+ razlicnih znakov.
+     */
+    fun jeVzorecKljuca(kljuc: String): Boolean {
+        val z = kljuc.filter { it.isLetterOrDigit() }.lowercase()
+        if (z.isEmpty()) return true
+        val pogostost = z.groupingBy { it }.eachCount()
+        return pogostost.size <= 3 || (pogostost.values.maxOrNull() ?: 0) * 2 >= z.length ||
+            BESEDE_VZORCA.any { kljuc.lowercase().contains(it) }
+    }
+
+    /** Vnos uporabnika ali prejet kljuc: oblika kljuca in ne vzorec; null = to ni kljuc ([Preverba.OBLIKA]). */
+    fun kljucIzVnosa(vnos: String, ponudnik: String): String? =
+        (if (ponudnik == TORBOX) TorBoxPravila.ocistiKljuc(vnos) else ocistiKljuc(vnos))?.takeUnless { jeVzorecKljuca(it) }
+
+    /** Napaka storitve (TorBoxPravila.NAPAKA_*) -> izid preverbe: zavrnjen kljuc ne velja, meja in paket kljuca ne zavrneta. */
+    fun preverbaIzNapake(vrsta: String): Preverba = when (vrsta) {
+        TorBoxPravila.NAPAKA_KLJUC -> Preverba.NE_VELJA
+        TorBoxPravila.NAPAKA_MEJA -> Preverba.MEJA
+        TorBoxPravila.NAPAKA_PAKET -> Preverba.VELJA
+        else -> Preverba.NI_ODGOVORA
+    }
+
+    /** TorBox user/me: [http] 0 = brez povezave; [uspeh] = `success: true` z `data`; [napaka] = polje `error`. */
+    fun preverbaTorBox(http: Int, uspeh: Boolean, napaka: String?): Preverba = when {
+        http in 200..299 && uspeh -> Preverba.VELJA
+        http == 0 -> Preverba.NI_ODGOVORA
+        else -> preverbaIzNapake(TorBoxPravila.vrstaNapake(http, napaka))
+    }
+
+    /** Real-Debrid /user: 200 brez `error_code` = velja; 401 ali koda 8 = ne velja. */
+    fun preverbaRd(http: Int, koda: Int?): Preverba = when {
+        http in 200..299 && koda == null -> Preverba.VELJA
+        http == 0 -> Preverba.NI_ODGOVORA
+        else -> preverbaIzNapake(rdVrstaNapake(http, koda))
+    }
+
+    /** AllDebrid /user: `status: success` = velja; `AUTH_*` ali 401 = ne velja (AllDebrid napako vrne tudi s HTTP 200). */
+    fun preverbaAd(http: Int, status: String?, koda: String?): Preverba = when {
+        http in 200..299 && status == "success" -> Preverba.VELJA
+        http == 0 -> Preverba.NI_ODGOVORA
+        else -> preverbaIzNapake(adVrstaNapake(http, koda))
+    }
+
+    /** Ali kljuc shranimo in s katerim stanjem: zavrnjen ali vzorec ne (null); izpad storitve kljuca ne zavrne (nepreverjen). */
+    fun stanjePoPreverbi(p: Preverba): StanjeKljuca? = when (p) {
+        Preverba.VELJA -> StanjeKljuca.VELJA
+        Preverba.MEJA, Preverba.NI_ODGOVORA -> StanjeKljuca.NEPREVERJEN
+        Preverba.NE_VELJA, Preverba.OBLIKA -> null
+    }
+
+    /** Med naprave v ozjem krogu gre samo kljuc, ki ga je storitev potrdila. */
+    fun zaUskladitev(s: StanjeKljuca?): Boolean = s == StanjeKljuca.VELJA
+
+    /**
+     * Prejet kljuc (usklajevanje ali »Poslji kljuce«) se tu uporabi samo, ce ga storitev potrdi tudi s te naprave. Zavrnjen
+     * nikoli ne prepise veljavnega; brez povezave pocaka (posiljatelj ga poslje znova).
+     */
+    fun sprejmiPrejetega(p: Preverba): Boolean = p == Preverba.VELJA
+
+    fun imePaketa(paket: Int?): String = paket?.let { TORBOX_PAKETI[it] ?: "plan $it" }.orEmpty()
+
+    /** Stanje velja za natanko ta kljuc (zamenjan kljuc nima stanja prejsnjega). Kljuc ostane skrit (SHA-256, 16 znakov). */
+    fun odtisStanja(kljuc: String): String = java.security.MessageDigest.getInstance("SHA-256")
+        .digest("safeer-debrid-stanje|$kljuc".toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }.take(16)
+
+    fun zapisStanja(s: StanjeKljuca, odtis: String, paket: Int?, ob: Long): String = listOf(s.name, odtis, paket?.toString().orEmpty(), ob.toString()).joinToString("|")
+
+    /** (stanje, paket, cas) iz [zapis] za kljuc z [odtis]; null = ni zapisa ali je za drug kljuc. */
+    fun stanjeIzZapisa(zapis: String?, odtis: String): Triple<StanjeKljuca, Int?, Long>? {
+        val d = zapis?.split('|') ?: return null
+        if (d.size < 4 || d[1] != odtis) return null
+        val s = StanjeKljuca.values().firstOrNull { it.name == d[0] } ?: return null
+        return Triple(s, d[2].toIntOrNull(), d[3].toLongOrNull() ?: 0L)
+    }
+
+    /** Ali kljuc (brez stanja ali nepreverjen, zadnja preverba [zadnjic]) preverimo zdaj. */
+    fun preveriZdaj(s: StanjeKljuca?, zadnjic: Long, zdaj: Long): Boolean =
+        s == null || (s == StanjeKljuca.NEPREVERJEN && zdaj - zadnjic !in 0 until PREVERI_ZNOVA_MS)
 }

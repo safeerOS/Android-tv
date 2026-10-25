@@ -77,6 +77,13 @@
     <string name="os_debrid_pojasnilo">Un servizio debrid scarica il torrent al posto tuo: il tuo dispositivo non è nello sciame, il tuo IP resta nascosto e lo stream è più veloce. Aggiungi la chiave di almeno un servizio. Se più servizi hanno il film, Safeer ne misura la velocità verso questo dispositivo e riproduce dal più veloce. ⚡ indica le fonti pronte da riprodurre.</string>
     <string name="os_debrid_vrstica_vpisan">%1$s – chiave inserita ✓</string>
     <string name="os_debrid_vrstica_brez">%1$s – aggiungi chiave</string>
+    <string name="os_debrid_vrstica_velja">%1$s – chiave valida ✓%2$s</string>
+    <string name="os_debrid_vrstica_ne_velja">%1$s – chiave non valida – inseriscila di nuovo</string>
+    <string name="os_debrid_vrstica_nepreverjen">%1$s – chiave non ancora verificata</string>
+    <string name="os_debrid_preverjam">Verifica della chiave con %1$s…</string>
+    <string name="os_debrid_kljuc_velja">%1$s: chiave valida ✓%2$s</string>
+    <string name="os_debrid_kljuc_zavrnjen">%1$s ha rifiutato la chiave: non è stata salvata. Controllala e inseriscila di nuovo.</string>
+    <string name="os_debrid_kljuc_nepreverjen">Nessuna connessione con %1$s: la chiave è salvata come non verificata e non viene inviata agli altri dispositivi finché il servizio non la conferma.</string>
     <string name="os_debrid_samo_takoj_vkl">Solo riproducibile subito (in cache): attivo</string>
     <string name="os_debrid_samo_takoj_izk">Solo riproducibile subito (in cache): disattivo</string>
     <string name="os_debrid_prednostna">Servizio preferito: %1$s</string>
