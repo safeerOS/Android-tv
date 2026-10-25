@@ -404,7 +404,8 @@ object Debrid {
     fun oznaciCakan(p: String, id: String) { if (cakani.size < 500) cakani += "$p:$id" }
     fun cakan(p: String, id: String): Boolean = "$p:$id" in cakani
 
-    class Odgovor(val koda: Int, val telo: String) {
+    /** [datum] = glava `Date` odgovora (ura streznika, ms; 0 = je ni) - drugi pregled N3. */
+    class Odgovor(val koda: Int, val telo: String, val datum: Long = 0L) {
         val json: JSONObject? get() = try { JSONObject(telo) } catch (_: Exception) { null }
         val seznam: JSONArray? get() = try { JSONArray(telo) } catch (_: Exception) { null }
         val uspeh: Boolean get() = koda in 200..299
@@ -431,7 +432,7 @@ object Debrid {
             val telo = (if (koda in 200..299) p.inputStream else p.errorStream)?.use {
                 (DebridPravila.beriOmejeno(it) ?: throw java.io.IOException("odgovor prevelik")).toString(Charsets.UTF_8)
             }.orEmpty()
-            return Odgovor(koda, telo)
+            return Odgovor(koda, telo, p.date)
         } finally { p.disconnect() }
     }
 }

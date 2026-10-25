@@ -217,10 +217,20 @@ fun main() {
     preveriEnako("RD added neberljiv", null, DebridPravila.rdDodanoMs("vceraj"))
     preveriEnako("AD uploadDate", 5_000L, DebridPravila.adDodanoMs(5L))
     preveriEnako("AD uploadDate 0", null, DebridPravila.adDodanoMs(0L))
-    preveriEnako("nas: dodan po zacetku", true, DebridPravila.dodalSmoMi(t0 + 3_000, t0))
-    preveriEnako("nas: ura streznika malo zadaj", true, DebridPravila.dodalSmoMi(t0 - 60_000, t0))
+    // Drugi pregled N3: primerjamo uri streznika (added/uploadDate proti glavi Date odgovora na dodajanje) - ura naprave ne
+    // vstopa, zato naprava, ki prehiteva ali zaostaja (tudi za ure), odloci enako.
+    val dateStreznika = t0
+    for ((opisUre, uraNaprave) in listOf("ura naprave prehiteva 1 h" to t0 + 3_600_000, "ura naprave zaostaja 1 h" to t0 - 3_600_000, "ura naprave tocna" to t0)) {
+        check(uraNaprave != 0L)
+        preveriEnako("N3 $opisUre: nas (dodan ob odgovoru)", true, DebridPravila.dodalSmoMi(t0 - 400, dateStreznika))
+        preveriEnako("N3 $opisUre: tuj (dodan minuto prej, druga naprava)", false, DebridPravila.dodalSmoMi(t0 - 60_000, dateStreznika))
+    }
+    preveriEnako("nas: dodan v rezervi 10 s", true, DebridPravila.dodalSmoMi(t0 - 9_000, t0))
+    preveriEnako("ni nas: dodan 11 s prej", false, DebridPravila.dodalSmoMi(t0 - 11_000, t0))
     preveriEnako("ni nas: dodan uro prej", false, DebridPravila.dodalSmoMi(t0 - 3_600_000, t0))
     preveriEnako("neznano: ne brisi", false, DebridPravila.dodalSmoMi(null, t0))
+    preveriEnako("brez glave Date: ne brisi", false, DebridPravila.dodalSmoMi(t0, null))
+    preveriEnako("glava Date 0: ne brisi", false, DebridPravila.dodalSmoMi(t0, 0L))
 
     if (napak == 0) println("DebridPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

@@ -20,19 +20,19 @@ object AllDebrid {
     private fun uspeh(o: Debrid.Odgovor) = o.uspeh && o.json?.optString("status") == "success"
 
     /**
-     * Pospravi magnet [id], ki ga je dodal ta poskus (zacet ob [zacetekMs]) - kot RealDebrid.izbrisi: tudi po preklicu, s
+     * Pospravi magnet [id], ki ga je dodal ta poskus ([dodanoOb] = glava `Date` odgovora magnet/upload) - kot RealDebrid.izbrisi: tudi po preklicu, s
      * kratkimi roki (neodvisni pregled 4). Neodvisni pregled 5: AllDebrid za isti magnet morda vrne obstojeci id (od tod ni
-     * preverjeno) - izbrisemo samo, ce je »uploadDate« (magnet/status) po zacetku poskusa in pri »samo takoj« magneta ne caka
+     * preverjeno) - izbrisemo samo, ce »uploadDate« (magnet/status) ni starejsi od [dodanoOb] in pri »samo takoj« magneta ne caka
      * drug poskus na tej napravi. Neznano = ne izbrisemo.
      */
-    private fun izbrisi(kljuc: String, id: Long, zacetekMs: Long, samoPredpomnjeno: Boolean) {
+    private fun izbrisi(kljuc: String, id: Long, dodanoOb: Long?, samoPredpomnjeno: Boolean) {
         if (samoPredpomnjeno && Debrid.cakan(DebridPravila.ALLDEBRID, id.toString())) { Log.i(TAG, "magnet ni izbrisan: nanj caka drug poskus"); return }
         Debrid.brezPrekinitve {
             val st = Debrid.klic("https://api.alldebrid.com/v4.1/magnet/status", kljuc, "POST", listOf("id" to id.toString()),
                 povezavaMs = Debrid.POSPRAVI_POVEZAVA_MS, branjeMs = Debrid.POSPRAVI_BRANJE_MS)
             val mm = st.json?.optJSONObject("data")?.let { it.optJSONObject("magnets") ?: it.optJSONArray("magnets")?.optJSONObject(0) }
             val dodano = DebridPravila.adDodanoMs(mm?.optLong("uploadDate", 0L))
-            if (!DebridPravila.dodalSmoMi(dodano, zacetekMs)) Log.i(TAG, "magnet ni izbrisan: ni dokaza, da ga je dodal ta poskus")
+            if (!DebridPravila.dodalSmoMi(dodano, dodanoOb)) Log.i(TAG, "magnet ni izbrisan: ni dokaza, da ga je dodal ta poskus")
             else Debrid.klic("$O/magnet/delete", kljuc, "POST", listOf("id" to id.toString()),
                 povezavaMs = Debrid.POSPRAVI_POVEZAVA_MS, branjeMs = Debrid.POSPRAVI_BRANJE_MS)
         }
@@ -52,7 +52,6 @@ object AllDebrid {
 
     fun tok(kljuc: String, magnet: String, indeks: Int, samoPredpomnjeno: Boolean, napredek: (Int) -> Unit): TorBox.Izid {
         var id = -1L
-        val zacetekMs = System.currentTimeMillis()
         return try {
             // Pregled Grok 2: preklican poskus ne doda nicesar vec (klic HTTP prekinitve ne vidi).
             Debrid.preveriPreklic()
@@ -62,10 +61,12 @@ object AllDebrid {
             m.optJSONObject("error")?.let { return napaka(nalozi, it) }
             id = m.optLong("id", -1L)
             if (id < 0) return napaka(nalozi)
+            // Drugi pregled N3: ura streznika (glava Date odgovora magnet/upload), ne ura naprave.
+            val dodanoOb = nalozi.datum.takeIf { it > 0 }
             // Neodvisni pregled 5: na ta magnet uporabnik caka - poskus »samo takoj« ga ne izbrise.
             if (!samoPredpomnjeno) Debrid.oznaciCakan(DebridPravila.ALLDEBRID, id.toString())
             var pripravljen = m.optBoolean("ready")
-            if (!pripravljen && samoPredpomnjeno) { izbrisi(kljuc, id, zacetekMs, true); return TorBox.Izid(napaka = DebridPravila.NAPAKA_NI_PREDPOMNJENO, ponudnik = DebridPravila.ALLDEBRID) }
+            if (!pripravljen && samoPredpomnjeno) { izbrisi(kljuc, id, dodanoOb, true); return TorBox.Izid(napaka = DebridPravila.NAPAKA_NI_PREDPOMNJENO, ponudnik = DebridPravila.ALLDEBRID) }
             // Ni predpomnjen in uporabnik caka: stanje do »ready« (koda 4), koncne napake (>= 5) brez cakanja.
             var cakano = 0L
             while (!pripravljen && cakano <= TorBoxPravila.CAKAJ_NOVEGA_MS) {
@@ -76,7 +77,7 @@ object AllDebrid {
                 if (!uspeh(st)) return napaka(st)
                 val mm = st.json?.optJSONObject("data")?.let { it.optJSONObject("magnets") ?: it.optJSONArray("magnets")?.optJSONObject(0) }
                 val koda = mm?.optInt("statusCode", 0) ?: 0
-                if (koda >= 5) { izbrisi(kljuc, id, zacetekMs, false); return TorBox.Izid(napaka = TorBoxPravila.NAPAKA_NI_DATOTEKE, ponudnik = DebridPravila.ALLDEBRID) }
+                if (koda >= 5) { izbrisi(kljuc, id, dodanoOb, false); return TorBox.Izid(napaka = TorBoxPravila.NAPAKA_NI_DATOTEKE, ponudnik = DebridPravila.ALLDEBRID) }
                 pripravljen = koda == 4
                 val vel = mm?.optLong("size", 0L) ?: 0L
                 if (!pripravljen && vel > 0) napredek(((mm?.optLong("downloaded", 0L) ?: 0L) * 100 / vel).toInt().coerceIn(0, 100))

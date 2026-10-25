@@ -227,8 +227,11 @@ object DebridPravila {
 
     // ------------------------------------------------------------------ neodvisni pregled 5: brisemo samo svoje
 
-    /** Rezerva za razliko ure naprave in streznika: torrent, dodan najvec toliko pred zacetkom poskusa, se steje za nasega. */
-    const val DODANO_REZERVA_MS = 120_000L
+    /**
+     * Drugi pregled N3: rezerva za locljivost ur streznika (glava `Date` je na sekundo): torrent, dodan najvec toliko pred
+     * odgovorom na nase dodajanje, se steje za nasega. Primerjamo samo ure streznika - ura naprave ne odloca.
+     */
+    const val DODANO_REZERVA_MS = 10_000L
 
     private val ISO_CAS = Regex("^(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})(?:\\.\\d+)?(Z|[+-]\\d{2}:?\\d{2})?$")
 
@@ -249,10 +252,13 @@ object DebridPravila {
     fun adDodanoMs(uploadDate: Long?): Long? = uploadDate?.takeIf { it > 0 }?.times(1000)
 
     /**
-     * Ali je torrent dodal poskus, zacet ob [zacetekMs] (smemo ga izbrisati): cas dodajanja je znan in ni starejsi od zacetka
-     * (z rezervo [DODANO_REZERVA_MS]). Neznan cas = ne - torrenta, ki je bil v racunu ze prej, ne izbrisemo.
+     * Ali je torrent dodal ta poskus (smemo ga izbrisati): cas dodajanja po uri streznika ([dodanoMs]: RD »added«, AD
+     * »uploadDate«) ni starejsi od glave `Date` odgovora na nase dodajanje ([odgovorDodajanjaMs], ura istega streznika) z
+     * rezervo [DODANO_REZERVA_MS]. Torrent, ki ga je minuto prej dodala druga naprava, ni nas. Neznan cas ali brez glave
+     * `Date` = ne - torrenta, ki je bil v racunu ze prej, ne izbrisemo.
      */
-    fun dodalSmoMi(dodanoMs: Long?, zacetekMs: Long): Boolean = dodanoMs != null && dodanoMs >= zacetekMs - DODANO_REZERVA_MS
+    fun dodalSmoMi(dodanoMs: Long?, odgovorDodajanjaMs: Long?): Boolean =
+        dodanoMs != null && odgovorDodajanjaMs != null && odgovorDodajanjaMs > 0 && dodanoMs >= odgovorDodajanjaMs - DODANO_REZERVA_MS
 
     // ------------------------------------------------------------------ pregled Grok 8: meja odgovora API
 
