@@ -100,11 +100,32 @@ lazni_adb() {
     esac
     return 0
 }
+# Odtis podpisa paketa: nadomestek (LAZNI_ODTIS), privzeto Safeerjev.
+LAZNI_ODTIS="$SAFEER_ODTIS"
+odtis_paketa() { printf '%s' "$LAZNI_ODTIS"; }
 ( LAZNI_SDK=34; LAZNI_VNOS=1; adb() { lazni_adb "$@"; }; : > "$D/klici"; omogoci_upravljanje 10.0.0.2:5555 si.safeer.os ) > "$D/izpis" 2>&1
 preveri "upravljanje Android 14 -> 0" 0 $?
 grep -q "shell pm grant si.safeer.os android.permission.WRITE_SECURE_SETTINGS" "$D/klici"; preveri "Android 14: pm grant" 0 $?
 grep -q "shell appops set si.safeer.os ACCESS_RESTRICTED_SETTINGS allow" "$D/klici"; preveri "Android 14: odklep omejenih" 0 $?
 ! grep -q "enabled_accessibility_services" "$D/klici"; preveri "skripta storitve ne vklopi sama" 0 $?
+grep -q "appops set si.safeer.os ACCESS_RESTRICTED_SETTINGS default" "$D/izpis"; preveri "Android 14: preklic pove tudi appops" 0 $?
+# Pregled tv-vnos 6: ukazna injekcija prek adb shell, regex v grep, paket s tujim podpisom.
+( LAZNI_SDK=34; LAZNI_VNOS=1; adb() { lazni_adb "$@"; }; : > "$D/klici"; omogoci_upravljanje 10.0.0.2:5555 'si.safeer.os;settings put global adb_enabled 1' ) > "$D/izpis" 2>&1
+preveri "paket z ukazom -> 1" 1 $?
+[ ! -s "$D/klici" ]; preveri "paket z ukazom: adb se ne poklice" 0 $?
+( LAZNI_SDK=34; LAZNI_VNOS=1; adb() { lazni_adb "$@"; }; : > "$D/klici"; omogoci_upravljanje '10.0.0.2:5555 shell reboot' si.safeer.os ) > "$D/izpis" 2>&1
+preveri "naprava s presledkom -> 1" 1 $?
+[ ! -s "$D/klici" ]; preveri "naprava s presledkom: adb se ne poklice" 0 $?
+( LAZNI_SDK=34; adb() { echo "adb $*" >> "$D/klici"; case "$*" in *dumpsys*) echo "siXsafeerXos/siXsafeerXtvXlinkXVnosStoritev" ;; esac; return 0; }
+  : > "$D/klici"; omogoci_upravljanje 10.0.0.2:5555 si.safeer.os ) > "$D/izpis" 2>&1
+! grep -q "pm grant" "$D/klici"; preveri "ime storitve dobesedno (pika ni poljuben znak)" 0 $?
+( LAZNI_SDK=34; LAZNI_VNOS=1; LAZNI_ODTIS="0000000000000000000000000000000000000000000000000000000000000000"
+  adb() { lazni_adb "$@"; }; : > "$D/klici"; omogoci_upravljanje 10.0.0.2:5555 si.safeer.os ) > "$D/izpis" 2>&1
+preveri "tuj podpis -> 1" 1 $?
+! grep -q "pm grant\|appops" "$D/klici"; preveri "tuj podpis: nic se ne podeli" 0 $?
+( LAZNI_SDK=34; LAZNI_VNOS=1; LAZNI_ODTIS=""; adb() { lazni_adb "$@"; }; : > "$D/klici"; omogoci_upravljanje 10.0.0.2:5555 si.safeer.os ) > "$D/izpis" 2>&1
+preveri "podpisa ni mogoce prebrati -> 1" 1 $?
+! grep -q "pm grant" "$D/klici"; preveri "podpis neznan: nic se ne podeli" 0 $?
 ( LAZNI_SDK=30; LAZNI_VNOS=1; adb() { lazni_adb "$@"; }; : > "$D/klici"; omogoci_upravljanje 10.0.0.2:5555 si.safeer.os ) > "$D/izpis" 2>&1
 preveri "upravljanje Android TV 11 -> 0" 0 $?
 grep -q "pm grant si.safeer.os" "$D/klici"; preveri "Android TV 11: pm grant" 0 $?

@@ -53,11 +53,42 @@ preveri_sha256() {
 # disallowed by device admin policy«). Paket brez Safeer Vnosa (npr. brskalnik) ne dobi nicesar.
 # Samo ta korak za ze namesceno aplikacijo:  install_safeer.sh --upravljanje <naprava> <paket>
 VNOS_RAZRED="si.safeer.tv.link.VnosStoritev"
+# Pregled tv-vnos (25. 10. 2026, tocka 6): adb shell argumente zlepi v en niz za sh na napravi - zato ime paketa in
+# oznako naprave preverimo z vzorcem (brez ; | $ presledkov ...), ime storitve iscemo dobesedno (grep -F), pravice pa
+# dobi samo paket, podpisan s kljucem Safeer (javni odtis SHA-256 potrdila, keystore/safeer-tv-release.jks).
+SAFEER_ODTIS="E7808780C6F492ADC60036BE680667CF74BDE44164B5C63179E1D0F7BDFD7E16"
+VZOREC_PAKETA='^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z0-9_]+)+$'
+VZOREC_NAPRAVE='^[A-Za-z0-9.:_-]+$'
+
+# Odtis SHA-256 podpisnika namescenega paketa (velike crke brez dvopicij); prazno, ce ga ni mogoce prebrati.
+odtis_paketa() {
+    local naprava="$1" paket="$2" d pot
+    d="$(mktemp -d)" || return 0
+    pot="$(adb -s "$naprava" shell pm path "$paket" 2>/dev/null | tr -d '\r' | grep -m1 -E '^package:/.*/base\.apk$' | cut -d: -f2-)"
+    if [ -n "$pot" ] && adb -s "$naprava" pull "$pot" "$d/base.apk" >/dev/null 2>&1; then
+        keytool -printcert -jarfile "$d/base.apk" 2>/dev/null | awk '/SHA256:/ { gsub(":", "", $2); print toupper($2); exit }'
+    fi
+    rm -rf "$d"
+}
+
 omogoci_upravljanje() {
-    local naprava="$1" paket="$2" sdk
-    if ! adb -s "$naprava" shell dumpsys package "$paket" 2>/dev/null | grep -q "$paket/$VNOS_RAZRED"; then
+    local naprava="$1" paket="$2" sdk odtis
+    if ! [[ "$paket" =~ $VZOREC_PAKETA ]]; then
+        echo "❌ Neveljavno ime paketa: ${paket:0:80}"
+        return 1
+    fi
+    if ! [[ "$naprava" =~ $VZOREC_NAPRAVE ]]; then
+        echo "❌ Neveljavna oznaka naprave (npr. 192.168.0.10:5555 ali serijska številka)."
+        return 1
+    fi
+    if ! adb -s "$naprava" shell dumpsys package "$paket" 2>/dev/null | grep -qF "$paket/$VNOS_RAZRED"; then
         echo "ℹ️ $paket nima Safeer Vnosa – upravljanja ni treba omogočiti."
         return 0
+    fi
+    odtis="$(odtis_paketa "$naprava" "$paket")"
+    if [ "$odtis" != "$SAFEER_ODTIS" ]; then
+        echo "❌ $paket ni podpisan s ključem Safeer (odtis: ${odtis:-ni ga bilo mogoče prebrati}) – pravic ne podelim."
+        return 1
     fi
     if ! adb -s "$naprava" shell pm grant "$paket" android.permission.WRITE_SECURE_SETTINGS; then
         echo "❌ Pravice za Safeer Vnos ni bilo mogoče podeliti ($paket)."
@@ -73,6 +104,9 @@ omogoci_upravljanje() {
     fi
     echo "✅ Safeer Vnos se vklopi ob privolitvi v Safeer Linku (ožji krog → »Zaslon in upravljanje«)."
     echo "   Preklic: adb -s $naprava shell pm revoke $paket android.permission.WRITE_SECURE_SETTINGS"
+    if [ "$sdk" -ge 33 ]; then
+        echo "            adb -s $naprava shell appops set $paket ACCESS_RESTRICTED_SETTINGS default"
+    fi
 }
 
 glavno() {
