@@ -121,9 +121,13 @@ class DeljenjeZaslonaStoritev : Service() {
             else context.startService(namera)
         }
 
-        fun ustavi(context: Context) {
+        /** [pricakovaniCilj] (Grok 23, R2): konec velja samo, ce se deljenje se vedno deli tej napravi; null = brez pogoja. */
+        fun ustavi(context: Context, pricakovaniCilj: String? = null) {
             try {
-                context.startService(Intent(context, DeljenjeZaslonaStoritev::class.java).apply { action = ACTION_STOP })
+                context.startService(Intent(context, DeljenjeZaslonaStoritev::class.java).apply {
+                    action = ACTION_STOP
+                    if (pricakovaniCilj != null) putExtra(EXTRA_CILJ, pricakovaniCilj)
+                })
             } catch (e: Exception) {
                 Log.w(TAG, "Ustavitve ni bilo mogoce zahtevati: ${e.message}")
             }
@@ -139,10 +143,13 @@ class DeljenjeZaslonaStoritev : Service() {
             val zmoznosti = try { si.safeer.tv.cast.Dostop.zmoznosti(context, c) } catch (_: Throwable) { emptySet() }
             val sme = si.safeer.tv.cast.DostopPravila.Zmoznost.ZASLON in zmoznosti
             // Grok 15, N1: sprememba kroga (null) ali dostopa DRUGE naprave seje ne konca, razen ce cilj ni vec v ozjem krogu.
+            // [spremenjenoJedro] je jedro (Dostop.nastavi: jedro(ctx, id)), zato primerjamo jedro z jedrom.
             val jeCilj = spremenjenoJedro != null && try { si.safeer.tv.cast.Dostop.jedro(context, c) == spremenjenoJedro } catch (_: Throwable) { true }
-            if (DeljenjePravila.ustaviZaradiDostopa(tece, cakaNaOdklep, c, sme, zmoznosti.isNotEmpty(), jeCilj)) {
+            // Grok 23, R2: ozji krog po istem pravilu kot povsod (OzjiKrog.vKrogu; napaka = ni v krogu).
+            val vKrogu = si.safeer.tv.os.OzjiKrog.vKrogu(context, c)
+            if (DeljenjePravila.ustaviZaradiDostopa(tece, cakaNaOdklep, c, sme, vKrogu, jeCilj)) {
                 Log.i(TAG, "Deljenje zaslona ustavljeno: naprava nima vec dostopa do zaslona (umik iz ozjega kroga).")
-                ustavi(context)
+                ustavi(context, pricakovaniCilj = c)
             }
             // Grok 15, N17: odprto vprasanje za napravo, ki ni vec v ozjem krogu, se zapre - zahteva je umaknjena.
             val vprasanZa = PretociActivity.odprtCilj
@@ -196,7 +203,10 @@ class DeljenjeZaslonaStoritev : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent == null || intent.action == ACTION_STOP) {
-            koncaj("")
+            // Grok 23, R2: konec zaradi dostopa naprave A ne ustavi deljenja, ki se je vmes zacelo napravi B.
+            val pricakovan = if (intent?.action == ACTION_STOP) intent?.getStringExtra(EXTRA_CILJ) else null
+            if (DeljenjePravila.ustaviZaCilj(pricakovan, cilj, tece, cakaNaOdklep)) koncaj("")
+            else Log.i(TAG, "Konec zaradi dostopa ne velja: deljenje zdaj tece drugi napravi.")
             return START_NOT_STICKY
         }
         if (intent.action == ACTION_ZAUPAJ || intent.action == ACTION_NE_ZAUPAJ) {

@@ -780,10 +780,10 @@ object SpletniVir {
         return glave
     }
 
-    /** Vir HTTP po protokolu naslova ob odprtju: https brez menjave protokola ([varno]), http z dovoljeno preusmeritvijo na https. */
     /** Oznaka v DataSpec.customData: naslov je razresen iz dodatka s poverilnico (zeton v poti). */
     private val TOK_S_POVERILNICO = Any()
 
+    /** Vir HTTP po protokolu naslova ob odprtju: https brez menjave protokola ([varno]), http z dovoljeno preusmeritvijo na https. */
     private class PoProtokolu(private val varno: DataSource, private val odprto: DataSource, private val vZivo: Boolean = false) : DataSource {
         private var zdaj: DataSource? = null
         override fun addTransferListener(poslusalec: androidx.media3.datasource.TransferListener) {
@@ -791,8 +791,10 @@ object SpletniVir {
         }
         override fun open(dataSpec: androidx.media3.datasource.DataSpec): Long {
             // Grok 15, N6: postaja ali kanal v zivo brez poverilnice sme https -> http; posnetek in tok s poverilnico nikoli.
+            // Grok 23, R1: odloca tudi vsaka zahteva sama (glave, naslov) - piskotki in zeton segmenta HLS ne gredo po http.
             val d = if (dataSpec.uri.scheme.equals("https", ignoreCase = true) &&
-                !OsPravila.dovoliHttpPreusmeritev(vZivo, dataSpec.customData === TOK_S_POVERILNICO)) varno else odprto
+                !OsPravila.dovoliHttpPreusmeritev(vZivo, dataSpec.customData === TOK_S_POVERILNICO, dataSpec.uri.toString(),
+                    dataSpec.httpRequestHeaders.keys)) varno else odprto
             zdaj = d
             return d.open(dataSpec)
         }

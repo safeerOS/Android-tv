@@ -1081,9 +1081,24 @@ private fun preizkusSlikSpletnihZadetkov() {
     preveriEnako("M6: omejeno branje v meji", 3, OsPravila.beriOmejeno(java.io.ByteArrayInputStream(ByteArray(3)), 3)?.size)
     preveriEnako("M6: omejeno branje cez mejo", null, OsPravila.beriOmejeno(java.io.ByteArrayInputStream(ByteArray(4)), 3))
     // Grok 15, N6: https -> http samo v zivo in brez poverilnice.
-    preveriEnako("N6: postaja v zivo sme na http", true, OsPravila.dovoliHttpPreusmeritev(vZivo = true, sPoverilnico = false))
-    preveriEnako("N6: posnetek ne", false, OsPravila.dovoliHttpPreusmeritev(vZivo = false, sPoverilnico = false))
-    preveriEnako("N6: tok s poverilnico ne, tudi v zivo", false, OsPravila.dovoliHttpPreusmeritev(vZivo = true, sPoverilnico = true))
+    val postaja = "https://radio.primer.test/stream"
+    val ua = listOf("User-Agent")
+    preveriEnako("N6: postaja v zivo sme na http", true, OsPravila.dovoliHttpPreusmeritev(vZivo = true, sPoverilnico = false, naslov = postaja, glave = ua))
+    preveriEnako("N6: brez glav", true, OsPravila.dovoliHttpPreusmeritev(true, false, postaja, emptyList()))
+    preveriEnako("N6: Icy-MetaData (Media3 za postaje)", true, OsPravila.dovoliHttpPreusmeritev(true, false, postaja, listOf("user-agent", "Icy-MetaData")))
+    preveriEnako("N6: posnetek ne", false, OsPravila.dovoliHttpPreusmeritev(vZivo = false, sPoverilnico = false, naslov = postaja, glave = ua))
+    preveriEnako("N6: tok s poverilnico ne, tudi v zivo", false, OsPravila.dovoliHttpPreusmeritev(vZivo = true, sPoverilnico = true, naslov = postaja, glave = ua))
+    // Grok 23, R1: poverilnica, ki ni nadomestek - glave in naslov zahteve.
+    preveriEnako("R1: piskotek seje ne gre po http", false, OsPravila.dovoliHttpPreusmeritev(true, false, postaja, listOf("User-Agent", "Cookie")))
+    preveriEnako("R1: Authorization", false, OsPravila.dovoliHttpPreusmeritev(true, false, postaja, listOf("authorization")))
+    preveriEnako("R1: Referer strani", false, OsPravila.dovoliHttpPreusmeritev(true, false, postaja, listOf("Referer")))
+    preveriEnako("R1: glava toka (proxyHeaders)", false, OsPravila.dovoliHttpPreusmeritev(true, false, postaja, listOf("X-Kanal-Kljuc")))
+    preveriEnako("R1: uporabnik in geslo v naslovu", false, OsPravila.dovoliHttpPreusmeritev(true, false, "https://ime:geslo@iptv.primer.test/kanal.m3u8", ua))
+    preveriEnako("R1: zeton v poizvedbi", false, OsPravila.dovoliHttpPreusmeritev(true, false, "https://cdn.primer.test/live.m3u8?token=abc123", ua))
+    preveriEnako("R1: segment HLS z zetonom v poti", false, OsPravila.dovoliHttpPreusmeritev(true, false,
+        "https://cdn.primer.test/token/Zx9Qe4Lm2Rt7Yu1Io3Pa5Sd8Fg/seg-17.ts", ua))
+    preveriEnako("R1: Xtream /live/<ime>/<geslo>/", false, OsPravila.dovoliHttpPreusmeritev(true, false, "https://iptv.primer.test/live/ana/geslo1/1234.ts", ua))
+    preveriEnako("R1: navaden kanal brez skrivnosti sme", true, OsPravila.dovoliHttpPreusmeritev(true, false, "https://tv.primer.test/hls/kanal1/index.m3u8", ua))
 }
 
 private data class Zd(val naslov: String, val delo: Boolean = false, val lastna: Boolean = false, val oznaka: String = naslov, val zvok: Boolean = false)
