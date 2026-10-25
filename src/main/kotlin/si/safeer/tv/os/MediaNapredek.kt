@@ -14,8 +14,15 @@ object MediaNapredek {
     /** [naprava] = id naprave v Linku, s katere je datoteka (streznik datotek); prazno za splet in to napravo. */
     data class Vnos(val skladba: Jamendo.Skladba, val polozaj: Long, val trajanje: Long, val cas: Long, val naprava: String = "")
 
-    private fun kljuc(s: Jamendo.Skladba) = s.naslov.lowercase().replace(Regex("\\b(19|20)\\d{2}\\b"), "")
-        .replace(Regex("[^\\p{L}\\p{N}]"), "")
+    /** Pregled Grok 4: kljuc je vsebina + sezona + epizoda ([NapredekKljuc]), ne samo naslov brez letnice. */
+    private fun opis(s: Jamendo.Skladba) = NapredekKljuc.Opis(s.id, s.naslov, s.season, s.episode)
+    private fun kljuc(s: Jamendo.Skladba) = NapredekKljuc.kljuc(opis(s))
+
+    /** Ali shranjeni zapis [o] velja za [s] (tudi star zapis brez sezone in epizode - [NapredekKljuc.ujema]). */
+    private fun ujema(o: JSONObject, s: Jamendo.Skladba): Boolean = try {
+        val z = o.getJSONObject("s")
+        NapredekKljuc.ujema(NapredekKljuc.Opis(z.optString("id"), z.optString("n"), z.optInt("season"), z.optInt("episode")), opis(s))
+    } catch (_: Exception) { false }
 
     /** Videi s te naprave (kot VLC): zapomnimo si mesto ze od 1 min dolzine naprej. */
     private fun najkrajse(s: Jamendo.Skladba) = if (s.id.startsWith("krajevno:")) 60_000L else 600_000L
@@ -31,11 +38,10 @@ object MediaNapredek {
         // Kratkih glasbenih videospotov, pesmi in vsebin pod 10 min ne vnasamo med filme in serije za nadaljevanje ogleda
         if (!s.video || s.radio || Stremio.jeVZivo(s) || s.id.startsWith("tv:") || vrsta == SpletniVir.VIDEOSPOT || s.mediaType.equals("MusicVideo", ignoreCase = true) ||
             (!jeSerijaAliFilm && trajanje < najkrajse(s)) || polozaj < 15_000 || trajanje <= 0) return
-        val k = kljuc(s)
         // Pregled B-S1: izrecna oznaka »odgledano« (>= 95 %); ogled znova od zacetka jo pobrise. Samo po njej »Nadaljuj«
         // odpre naslednjo epizodo - manjkajoc zapis mesta (pod 15 s, zasebni dodatek, brez trajanja) ne pomeni »odgledano«.
-        oznaciOdgledano(c, k, OsPravila.odgledano(polozaj, trajanje))
-        val vsi = preberiJson(c).filter { it.optString("k") != k }.toMutableList()
+        oznaciOdgledano(c, s, OsPravila.odgledano(polozaj, trajanje))
+        val vsi = preberiJson(c).filter { !ujema(it, s) }.toMutableList()
         // Zadnjih ~95 % ne ponujamo kot "Nadaljuj"; ogled je prakticno koncan.
         if (!OsPravila.odgledano(polozaj, trajanje)) vsi.add(0, json(s, polozaj, trajanje, naprava))
         shrani(c, vsi.take(30))
@@ -55,26 +61,27 @@ object MediaNapredek {
         } catch (_: Exception) { null }
     }.sortedByDescending { it.cas }
 
-    fun polozaj(c: Context, s: Jamendo.Skladba): Long = seznam(c).firstOrNull { kljuc(it.skladba) == kljuc(s) }?.polozaj ?: 0L
+    fun polozaj(c: Context, s: Jamendo.Skladba): Long = seznam(c).firstOrNull {
+        NapredekKljuc.ujema(opis(it.skladba), opis(s))
+    }?.polozaj ?: 0L
 
+    /**
+     * Pregled Grok 4: odstrani samo zapis te vsebine (kljuc, ista povezava ali isti id) - prej tudi vsak zapis, katerega naslov
+     * je vseboval naslov [s] ali obratno (»It« je pobrisal druge vnose v Nadaljuj).
+     */
     fun odstrani(c: Context, s: Jamendo.Skladba) {
-        val k = kljuc(s)
         val p = s.povezava
         val id = s.id
-        val naslovCist = s.naslov.trim().lowercase()
         shrani(c, preberiJson(c).filterNot { o ->
-            if (o.optString("k") == k) return@filterNot true
-            try {
+            ujema(o, s) || try {
                 val sObj = o.getJSONObject("s")
-                val n = sObj.optString("n").trim().lowercase()
-                sObj.optString("u") == p || sObj.optString("id") == id ||
-                    (n.isNotBlank() && (n == naslovCist || n.contains(naslovCist) || naslovCist.contains(n)))
+                (p.isNotBlank() && sObj.optString("u") == p) || (id.isNotBlank() && sObj.optString("id") == id)
             } catch (_: Exception) { false }
         })
     }
 
     /** Pregled B-S1: ali je bila vsebina [s] nazadnje odgledana do konca (>= 95 %). */
-    fun odgledano(c: Context, s: Jamendo.Skladba): Boolean = kljuc(s) in odgledani(c)
+    fun odgledano(c: Context, s: Jamendo.Skladba): Boolean = NapredekKljuc.odgledano(odgledani(c), opis(s))
 
     private val zaklepOdgledanih = Any()
 
@@ -83,20 +90,23 @@ object MediaNapredek {
         (0 until a.length()).map { a.optString(it) }.filter { it.isNotEmpty() }
     } catch (_: Exception) { emptyList() }
 
-    private fun oznaciOdgledano(c: Context, k: String, da: Boolean) = synchronized(zaklepOdgledanih) {
+    private fun oznaciOdgledano(c: Context, s: Jamendo.Skladba, da: Boolean) = synchronized(zaklepOdgledanih) {
         val prej = odgledani(c)
-        val potem = if (da) (listOf(k) + prej.filter { it != k }).take(NAJVEC_ODGLEDANIH) else prej.filter { it != k }
+        val potem = NapredekKljuc.oznaci(prej, opis(s), da, NAJVEC_ODGLEDANIH)
         if (potem != prej) c.getSharedPreferences(PREF, 0).edit().putString(KEY_ODGLEDANO, JSONArray(potem).toString()).apply()
     }
 
+    /** Pregled Grok 4: »Pocisti« pobrise tudi oznake »odgledano« (prej so ostale). */
     fun pocisti(c: Context) {
-        c.getSharedPreferences(PREF, 0).edit().remove(KEY).apply()
+        synchronized(zaklepOdgledanih) { c.getSharedPreferences(PREF, 0).edit().remove(KEY).remove(KEY_ODGLEDANO).apply() }
     }
 
     private fun json(s: Jamendo.Skladba, p: Long, d: Long, naprava: String) = JSONObject().put("k", kljuc(s)).put("p", p).put("d", d)
         .put("t", System.currentTimeMillis()).put("np", naprava).put("s", JSONObject().put("id",s.id).put("n",s.naslov).put("a",s.izvajalec)
-            .put("i",s.slika).put("z",s.zvok).put("u",s.povezava).put("r",s.radio).put("v",s.video).put("m",s.mime).put("st",s.streznik).put("ka",s.kanal).put("mt",s.mediaType).put("je",s.language))
-    private fun skladba(o: JSONObject) = Jamendo.Skladba(o.optString("id"),o.optString("n"),o.optString("a"),o.optString("i"),o.optString("z"),o.optString("u"),o.optBoolean("r"),o.optBoolean("v"),o.optString("m"),o.optString("st"),o.optString("ka"),mediaType=o.optString("mt"),language=o.optString("je"))
+            .put("i",s.slika).put("z",s.zvok).put("u",s.povezava).put("r",s.radio).put("v",s.video).put("m",s.mime).put("st",s.streznik).put("ka",s.kanal).put("mt",s.mediaType).put("je",s.language)
+            // Pregled Grok 4: sezona in epizoda - kljuc in »Nadaljuj« naslednje epizode ne slonita na naslovu (SxEy).
+            .put("season", s.season).put("episode", s.episode))
+    private fun skladba(o: JSONObject) = Jamendo.Skladba(o.optString("id"),o.optString("n"),o.optString("a"),o.optString("i"),o.optString("z"),o.optString("u"),o.optBoolean("r"),o.optBoolean("v"),o.optString("m"),o.optString("st"),o.optString("ka"),mediaType=o.optString("mt"),language=o.optString("je"),season=o.optInt("season"),episode=o.optInt("episode"))
     private fun preberiJson(c: Context): List<JSONObject> = try { val a=JSONArray(c.getSharedPreferences(PREF,0).getString(KEY,"[]")); (0 until a.length()).mapNotNull{a.optJSONObject(it)} } catch (_:Exception){ emptyList() }
     private fun shrani(c: Context, l: List<JSONObject>) { val a=JSONArray(); l.forEach{a.put(it)}; c.getSharedPreferences(PREF,0).edit().putString(KEY,a.toString()).apply() }
 }

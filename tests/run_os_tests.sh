@@ -107,6 +107,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/UsenetPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/SerijePravila.kt" \
     "$TEST_DIR/SerijePravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/NapredekKljuc.kt" \
+    "$TEST_DIR/NapredekKljucTest.kt" \
     "$SRC/si/safeer/tv/os/KakovostPravila.kt" \
     "$TEST_DIR/KakovostPravilaTest.kt" \
     "$TEST_DIR/SkupniPrimeriTest.kt" \
@@ -169,6 +171,7 @@ java -cp "$OUT/os.jar" si.safeer.tv.os.TorBoxPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.DebridPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.UsenetPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.SerijePravilaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.NapredekKljucTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.KakovostPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.PreizkusPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/debrid-serije.json"
