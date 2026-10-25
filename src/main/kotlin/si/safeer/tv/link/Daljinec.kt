@@ -485,9 +485,13 @@ object Daljinec {
                 android.net.Uri.parse("package:" + context.packageName)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             val cakajoca = PendingIntent.getActivity(context, OBVESTILO_DOVOLJENJE, nastavitev,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            // 25. 10. 2026: celotno besedilo s koraki (prej ena vrstica, na telefonu odrezana): kaj tapniti in kje.
+            val besedilo = "Seznanjena naprava je želela odpreti $ime. 1) Tapni to obvestilo - odpre se nastavitev za Safeer. " +
+                "2) Vklopi stikalo »Prikaz čez druge aplikacije« (Dovoli). 3) Vrni se in ukaz pošlji znova. Enkrat je dovolj."
             val obvestilo = android.app.Notification.Builder(context, KANAL_DOVOLJENJE)
                 .setContentTitle("Safeer Link: dovoli odpiranje programov")
-                .setContentText("Seznanjena naprava je zelela odpreti $ime. Dotakni se in vklopi »Prikaz čez druge aplikacije« za Safeer.")
+                .setContentText(besedilo)
+                .setStyle(android.app.Notification.BigTextStyle().bigText(besedilo))
                 .setSmallIcon(android.R.drawable.ic_menu_send)
                 .setContentIntent(cakajoca)
                 .setAutoCancel(true)
