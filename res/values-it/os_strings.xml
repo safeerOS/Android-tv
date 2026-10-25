@@ -112,6 +112,8 @@
     <string name="os_posodobitev_dovoli">Consenti</string>
     <string name="os_posodobitev_prenasam">Scarico %1$s…</string>
     <string name="os_posodobitev_napaka">L\'aggiornamento non è riuscito: riprova più tardi o scaricalo da safeer.si.</string>
+    <string name="os_posodobitev_namescam">Installazione di Safeer OS %1$s… L’app si chiuderà per un momento; poi riaprila.</string>
+    <string name="os_posodobitev_namescam_odpre">Installazione di Safeer OS %1$s… L’app si chiuderà per un momento e si riaprirà da sola.</string>
     <string name="os_posodobitev_preverjam">Controllo safeer.si…</string>
     <string name="os_vklopljeno">Attivo</string>
     <string name="os_izklopljeno">Disattivo</string>
@@ -684,6 +686,8 @@
     <string name="apk_vir_naprava">questo dispositivo</string>
     <string name="apk_podrobno">Pacchetto: %1$s · origine: %2$s · %3$s MB</string>
     <string name="apk_posodobitve">Safeer non aggiorna questa app da solo.</string>
+    <string name="apk_namescena">«%1$s» è installata.</string>
+    <string name="apk_ni_namescena">«%1$s» non è stata installata.</string>
     <string name="os_zasloni_potrdi_na">Conferma la condivisione dello schermo su %1$s.</string>
     <string name="os_zasloni_ni_uspelo">Impossibile chiedere lo schermo a %1$s.</string>
     <string name="os_zasloni_naslov">Schermi collegati</string>

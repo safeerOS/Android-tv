@@ -112,6 +112,8 @@
     <string name="os_posodobitev_dovoli">Dovoli</string>
     <string name="os_posodobitev_prenasam">Prenašam %1$s …</string>
     <string name="os_posodobitev_napaka">Posodobitev ni uspela – poskusi pozneje ali jo prenesi s safeer.si.</string>
+    <string name="os_posodobitev_namescam">Nameščam Safeer OS %1$s … Aplikacija se bo za trenutek zaprla; nato jo znova odpri.</string>
+    <string name="os_posodobitev_namescam_odpre">Nameščam Safeer OS %1$s … Aplikacija se bo za trenutek zaprla in sama znova odprla.</string>
     <string name="os_posodobitev_preverjam">Preverjam safeer.si …</string>
     <string name="os_vklopljeno">Vklopljeno</string>
     <string name="os_izklopljeno">Izklopljeno</string>
@@ -687,6 +689,8 @@
     <string name="apk_vir_naprava">ta naprava</string>
     <string name="apk_podrobno">Paket: %1$s · vir: %2$s · %3$s MB</string>
     <string name="apk_posodobitve">Safeer te aplikacije ne posodablja sam.</string>
+    <string name="apk_namescena">»%1$s« je nameščena.</string>
+    <string name="apk_ni_namescena">»%1$s« ni bila nameščena.</string>
     <string name="os_zasloni_potrdi_na">Na napravi %1$s potrdi deljenje zaslona.</string>
     <string name="os_zasloni_ni_uspelo">Naprave %1$s ni bilo mogoče prositi za zaslon.</string>
     <string name="os_zasloni_naslov">Povezani zasloni</string>
