@@ -1,0 +1,399 @@
+{
+ "opis": "Webtor rezerva (25. 10. 2026): skupni primeri za Safeer OS Android (tests/SkupniPrimeriTest.kt) in namizje Linux/Windows (se ni: tests/test_skupni_primeri.py mora dobiti iste funkcije). Skrivni naslovi dodatkov in nadomestek (odtis = prvih 16 hex SHA-256 skrivne predpone), predpone Webtor, odlocitev sonde, vrstni red tokov Webtor, izjeme Scita. Ista datoteka v vseh repozitorijih - spremeni jo povsod hkrati. null = ni vrednosti.",
+ "verzija": 1,
+ "primeri": [
+  {
+   "f": "skrivna_predpona",
+   "vhod": {
+    "naslov": "https://webtor.io/token/Ab12Cd34Ef56Gh78Ij90Kl/stremio/manifest.json"
+   },
+   "izhod": "https://webtor.io/token/Ab12Cd34Ef56Gh78Ij90Kl"
+  },
+  {
+   "f": "skrivna_predpona",
+   "vhod": {
+    "naslov": "https://webtor.io/s/AbC12/manifest.json"
+   },
+   "izhod": "https://webtor.io/s/AbC12"
+  },
+  {
+   "f": "skrivna_predpona",
+   "vhod": {
+    "naslov": "https://example.org/s/abc/manifest.json"
+   },
+   "izhod": null
+  },
+  {
+   "f": "skrivna_predpona",
+   "vhod": {
+    "naslov": "https://torrentio.strem.fun/sort=qualitysize|realdebrid=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ABCDEFGHIJKLMNOP/manifest.json"
+   },
+   "izhod": "https://torrentio.strem.fun/sort=qualitysize|realdebrid=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ABCDEFGHIJKLMNOP"
+  },
+  {
+   "f": "skrivna_predpona",
+   "vhod": {
+    "naslov": "https://torrentio.strem.fun/providers=yts,eztv|qualityfilter=480p/manifest.json"
+   },
+   "izhod": null
+  },
+  {
+   "f": "skrivna_predpona",
+   "vhod": {
+    "naslov": "https://torrentio.strem.fun/providers%3Dyts%7Crealdebrid%3DK1/manifest.json"
+   },
+   "izhod": "https://torrentio.strem.fun/providers%3Dyts%7Crealdebrid%3DK1"
+  },
+  {
+   "f": "skrivna_predpona",
+   "vhod": {
+    "naslov": "https://v3-cinemeta.strem.io/manifest.json"
+   },
+   "izhod": null
+  },
+  {
+   "f": "skrivna_predpona",
+   "vhod": {
+    "naslov": "https://u:g@addon.example.org/manifest.json"
+   },
+   "izhod": "https://u:g@addon.example.org"
+  },
+  {
+   "f": "skrivna_predpona",
+   "vhod": {
+    "naslov": "https://addon.example.org/v2/catalog/tt1234567/manifest.json"
+   },
+   "izhod": null
+  },
+  {
+   "f": "skrivna_predpona",
+   "vhod": {
+    "naslov": "https://webtor.io/safeer-skrito-fa6214fd9b2cf27e/stremio/manifest.json"
+   },
+   "izhod": null
+  },
+  {
+   "f": "v_nadomestek",
+   "vhod": {
+    "naslov": "https://webtor.io/token/Ab12Cd34Ef56Gh78Ij90Kl/stremio/manifest.json"
+   },
+   "izhod": "https://webtor.io/safeer-skrito-fa6214fd9b2cf27e/stremio/manifest.json"
+  },
+  {
+   "f": "v_nadomestek",
+   "vhod": {
+    "naslov": "https://webtor.io/token/Ab12Cd34Ef56Gh78Ij90Kl/stremio/resolve/aaa.bbb.ccc"
+   },
+   "izhod": "https://webtor.io/safeer-skrito-fa6214fd9b2cf27e/stremio/resolve/aaa.bbb.ccc"
+  },
+  {
+   "f": "v_nadomestek",
+   "vhod": {
+    "naslov": "https://v3-cinemeta.strem.io/manifest.json"
+   },
+   "izhod": "https://v3-cinemeta.strem.io/manifest.json"
+  },
+  {
+   "f": "za_prikaz",
+   "vhod": {
+    "naslov": "https://webtor.io/token/Ab12Cd34Ef56Gh78Ij90Kl/stremio/manifest.json"
+   },
+   "izhod": "https://webtor.io/…/stremio/manifest.json"
+  },
+  {
+   "f": "za_prikaz",
+   "vhod": {
+    "naslov": "https://webtor.io/safeer-skrito-fa6214fd9b2cf27e/stremio/manifest.json"
+   },
+   "izhod": "https://webtor.io/…/stremio/manifest.json"
+  },
+  {
+   "f": "webtor_oznaka",
+   "vhod": {
+    "ime": "[⚡TB] Torrentio\n4k"
+   },
+   "izhod": [
+    "TORBOX",
+    "Torrentio\n4k"
+   ]
+  },
+  {
+   "f": "webtor_oznaka",
+   "vhod": {
+    "ime": "[⚡WT] Torrentio 1080p"
+   },
+   "izhod": [
+    "PREDPOMNJEN",
+    "Torrentio 1080p"
+   ]
+  },
+  {
+   "f": "webtor_oznaka",
+   "vhod": {
+    "ime": "[WT] Torrentio"
+   },
+   "izhod": [
+    "PRENOS",
+    "Torrentio"
+   ]
+  },
+  {
+   "f": "webtor_oznaka",
+   "vhod": {
+    "ime": "[P2P] Torrentio"
+   },
+   "izhod": [
+    "P2P",
+    "Torrentio"
+   ]
+  },
+  {
+   "f": "webtor_oznaka",
+   "vhod": {
+    "ime": "Torrentio"
+   },
+   "izhod": [
+    "PRENOS",
+    "Torrentio"
+   ]
+  },
+  {
+   "f": "webtor_odlocitev",
+   "vhod": {
+    "koda": 206,
+    "prvi_bajt_ms": 300,
+    "potekel": false
+   },
+   "izhod": "PREDVAJAJ"
+  },
+  {
+   "f": "webtor_odlocitev",
+   "vhod": {
+    "koda": 206,
+    "prvi_bajt_ms": 15001,
+    "potekel": false
+   },
+   "izhod": "PREPOCASI"
+  },
+  {
+   "f": "webtor_odlocitev",
+   "vhod": {
+    "koda": 0,
+    "prvi_bajt_ms": null,
+    "potekel": true
+   },
+   "izhod": "PREPOCASI"
+  },
+  {
+   "f": "webtor_odlocitev",
+   "vhod": {
+    "koda": 402,
+    "prvi_bajt_ms": null,
+    "potekel": false
+   },
+   "izhod": "NI_PAKETA"
+  },
+  {
+   "f": "webtor_odlocitev",
+   "vhod": {
+    "koda": 404,
+    "prvi_bajt_ms": null,
+    "potekel": false
+   },
+   "izhod": "NI_TOKA"
+  },
+  {
+   "f": "webtor_odlocitev",
+   "vhod": {
+    "koda": 429,
+    "prvi_bajt_ms": null,
+    "potekel": true
+   },
+   "izhod": "OMEJITEV"
+  },
+  {
+   "f": "webtor_odlocitev",
+   "vhod": {
+    "koda": 500,
+    "prvi_bajt_ms": null,
+    "potekel": false
+   },
+   "izhod": "NAPAKA"
+  },
+  {
+   "f": "webtor_vrstni_red",
+   "vhod": {
+    "nasi": [
+     [
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      0
+     ],
+     [
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      0
+     ],
+     null,
+     [
+      "cccccccccccccccccccccccccccccccccccccccc",
+      1
+     ]
+    ],
+    "webtor": [
+     [
+      "cccccccccccccccccccccccccccccccccccccccc",
+      1,
+      "PRENOS"
+     ],
+     [
+      "dddddddddddddddddddddddddddddddddddddddd",
+      0,
+      "PREDPOMNJEN"
+     ],
+     [
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      0,
+      "TORBOX"
+     ],
+     [
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      0,
+      "PRENOS"
+     ],
+     [
+      null,
+      -1,
+      "PREDPOMNJEN"
+     ],
+     [
+      "dddddddddddddddddddddddddddddddddddddddd",
+      1,
+      "P2P"
+     ]
+    ],
+    "imamo_torbox": true
+   },
+   "izhod": [
+    3,
+    0,
+    1,
+    4
+   ]
+  },
+  {
+   "f": "webtor_vrstni_red",
+   "vhod": {
+    "nasi": [
+     [
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      0
+     ],
+     [
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      0
+     ],
+     null,
+     [
+      "cccccccccccccccccccccccccccccccccccccccc",
+      1
+     ]
+    ],
+    "webtor": [
+     [
+      "cccccccccccccccccccccccccccccccccccccccc",
+      1,
+      "PRENOS"
+     ],
+     [
+      "dddddddddddddddddddddddddddddddddddddddd",
+      0,
+      "PREDPOMNJEN"
+     ],
+     [
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      0,
+      "TORBOX"
+     ],
+     [
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      0,
+      "PRENOS"
+     ],
+     [
+      null,
+      -1,
+      "PREDPOMNJEN"
+     ],
+     [
+      "dddddddddddddddddddddddddddddddddddddddd",
+      1,
+      "P2P"
+     ]
+    ],
+    "imamo_torbox": false
+   },
+   "izhod": [
+    2,
+    3,
+    0,
+    1,
+    4
+   ]
+  },
+  {
+   "f": "webtor_vrstni_red",
+   "vhod": {
+    "nasi": [
+     [
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      1
+     ]
+    ],
+    "webtor": [
+     [
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      2,
+      "PRENOS"
+     ]
+    ],
+    "imamo_torbox": true
+   },
+   "izhod": [
+    0
+   ]
+  },
+  {
+   "f": "scit_dovoljena",
+   "vhod": {
+    "ime": "abra--x1.api.cosmic-crab.buzz",
+    "dodatne": []
+   },
+   "izhod": true
+  },
+  {
+   "f": "scit_dovoljena",
+   "vhod": {
+    "ime": "api.webtor.io",
+    "dodatne": []
+   },
+   "izhod": true
+  },
+  {
+   "f": "scit_dovoljena",
+   "vhod": {
+    "ime": "evilwebtor.io",
+    "dodatne": []
+   },
+   "izhod": false
+  },
+  {
+   "f": "scit_dovoljena",
+   "vhod": {
+    "ime": "x.tok.example.net",
+    "dodatne": [
+     "tok.example.net"
+    ]
+   },
+   "izhod": true
+  }
+ ]
+}

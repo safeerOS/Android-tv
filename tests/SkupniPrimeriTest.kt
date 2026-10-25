@@ -96,6 +96,17 @@ private fun izracunaj(f: String, v: Map<String, Any?>): Any? = when (f) {
     "je_epizoda" -> SerijePravila.jeEpizoda(v.niz("id")!!)
     "id_epizode_imdb" -> SerijePravila.idEpizodePoImdb(v.niz("imdb"), v.niz("id_epizode")!!, v.cel("sezona")!!, v.cel("epizoda")!!)
     "imdb_iz_meta" -> SerijePravila.imdbIzMeta(v.niz("imdb_polje"), v.niz("id")!!)
+    // Webtor rezerva (tests/skupni-primeri/webtor-rezerva.json).
+    "skrivna_predpona" -> SkrivnostiPravila.skrivnaPredpona(v.niz("naslov")!!)
+    "v_nadomestek" -> SkrivnostiPravila.vNadomestek(v.niz("naslov")!!)
+    "za_prikaz" -> SkrivnostiPravila.zaPrikaz(v.niz("naslov")!!)
+    "webtor_oznaka" -> WebtorPravila.razcleni(v.niz("ime")!!).let { listOf(it.vrsta.name, it.ime) }
+    "webtor_odlocitev" -> WebtorPravila.odlocitev(v.cel("koda")!!, v["prvi_bajt_ms"] as Long?, v["potekel"] as Boolean).name
+    "webtor_vrstni_red" -> WebtorPravila.vrstniRed(
+        (v["nasi"] as List<List<Any?>?>).map { k -> k?.let { WebtorPravila.kljuc(it[0] as String?, (it[1] as Long).toInt()) } },
+        (v["webtor"] as List<List<Any?>>).map { WebtorPravila.kljuc(it[0] as String?, (it[1] as Long).toInt()) to WebtorPravila.vrstaIz(it[2] as String) },
+        v["imamo_torbox"] as Boolean).map { it.toLong() }
+    "scit_dovoljena" -> si.safeer.tv.scit.ScitIzjeme.dovoljena(v.niz("ime")!!, v.nizi("dodatne").filterNotNull())
     else -> error("neznano pravilo: $f")
 }
 

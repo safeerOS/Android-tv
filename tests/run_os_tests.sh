@@ -123,6 +123,12 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/NedelujocePravilaTest.kt" \
     "$SRC/si/safeer/tv/os/Zasebno.kt" \
     "$TEST_DIR/ZasebnoTest.kt" \
+    "$SRC/si/safeer/tv/os/SkrivnostiPravila.kt" \
+    "$TEST_DIR/SkrivnostiPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/WebtorPravila.kt" \
+    "$TEST_DIR/WebtorPravilaTest.kt" \
+    "$SRC/si/safeer/tv/scit/ScitIzjeme.kt" \
+    "$TEST_DIR/ScitIzjemeTest.kt" \
     -include-runtime -d "$OUT/os.jar"
 
 java -cp "$OUT/os.jar" si.safeer.tv.os.OsPravilaTestKt
@@ -175,10 +181,15 @@ java -cp "$OUT/os.jar" si.safeer.tv.os.NapredekKljucTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.KakovostPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.PreizkusPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/debrid-serije.json"
+java -cp "$OUT/os.jar" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/webtor-rezerva.json"
 java -cp "$OUT/os.jar" si.safeer.tv.os.DodatkiProtokolTestKt "$PROJECT_DIR/docs/DODATKI-PROTOKOL.md"
 java -cp "$OUT/os.jar" si.safeer.tv.os.DatotekePravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.NedelujocePravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.ZasebnoTestKt
+# Webtor rezerva (25. 10. 2026): skrivni naslovi dodatkov, pravila Webtor, izjeme Scita.
+java -cp "$OUT/os.jar" si.safeer.tv.os.SkrivnostiPravilaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.WebtorPravilaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.scit.ScitIzjemeTestKt
 
 # Neposredna povezava TLS s pripetim potrdilom do naprave z vec naslovi (docs/LINK-MESH.md, pravilo 8):
 # prave vticnice na naslovih zanke, potrdila naredi keytool iz JDK.
