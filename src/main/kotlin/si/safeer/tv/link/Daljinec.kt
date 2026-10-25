@@ -789,18 +789,21 @@ object Daljinec {
         return try {
             when (OmejenoNastavitvePravila.korak(false, zaklenjeno, poskusil)) {
                 OmejenoNastavitvePravila.Korak.ODKLENI_OMEJENE -> {
-                    // Tap na stikalo je »Prepovedana nastavitev« zavrnila: odpri podatke o aplikaciji, kjer je ⋮.
+                    // Tap na stikalo je »Prepovedana nastavitev« zavrnila. Odklep je odvisen od proizvajalca: AOSP/WP28 ima
+                    // na strani aplikacije meni »⋮ → Dovoli omejene nastavitve«, OnePlus (izmerjeno 25. 10. 2026) ga NIMA -
+                    // zato ne obljubimo poti, ki je naprava morda nima; odpremo podatke aplikacije (veljavno povsod) in
+                    // povemo oba primera.
                     context.startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                         android.net.Uri.parse("package:" + context.packageName)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                    val pot = if (sl) "Android je vklop zavrnil (omejena nastavitev). Tapni »⋮« (zgoraj desno) → »Dovoli omejene nastavitve« → potrdi s PIN-om, nato znova vklopi Safeer Vnos."
-                        else "Android blocked it (restricted setting). Tap “⋮” (top right) → “Allow restricted settings” → confirm with your PIN, then enable Safeer Vnos again."
+                    val pot = if (sl) "Android je vklop zavrnil (omejena nastavitev). Če je zgoraj desno meni »⋮«, tapni »⋮« → »Dovoli omejene nastavitve« → potrdi s PIN-om, nato znova vklopi Safeer Vnos. Če menija ni, te omejitve na tej napravi ni mogoče odkleniti brez računalnika – javi Safeer."
+                        else "Android blocked it (restricted setting). If there is a “⋮” menu top right, tap “⋮” → “Allow restricted settings” → confirm with your PIN, then enable Safeer Vnos again. If there is no such menu, this restriction can’t be lifted on this device without a computer – tell Safeer."
                     toast(context, pot)
                     Izid(true, pot, koda = KODA_OMEJENE_NASTAVITVE)
                 }
                 else -> {
                     odpriPodrobnostiVnosa(context)
-                    val pot = if (sl) "Vklopi stikalo »Safeer Vnos«. (Če Android pokaže »Prepovedana nastavitev«, najprej odkleni omejene nastavitve v ⋮.)"
-                        else "Turn on the “Safeer Vnos” switch. (If Android shows “Restricted setting”, first allow restricted settings from the ⋮ menu.)"
+                    val pot = if (sl) "Vklopi stikalo prav pri »Safeer Vnos« (ne pri sistemskem »Meniju za dostopnost«). Če Android pokaže »Prepovedana nastavitev«, najprej odkleni omejene nastavitve."
+                        else "Turn on the switch for “Safeer Vnos” (not the system “Accessibility Menu”). If Android shows “Restricted setting”, allow restricted settings first."
                     toast(context, pot)
                     Izid(true, if (sl) "Na napravi se odpira Safeer Vnos: $pot" else "Opening Safeer Vnos on the device: $pot")
                 }
