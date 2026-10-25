@@ -87,5 +87,33 @@ preveri "pravilna izdaja -> 0" 0 $?
 grep -q "celovitost potrjena" "$D/izpis"; preveri "pravilna izdaja: vsota preverjena" 0 $?
 grep -q "am start -n com.safeer.mobile.browser/.MainActivity" "$D/izpis"; preveri "zagon com.safeer.mobile.browser/.MainActivity" 0 $?
 ! grep -q "si.safeer.tv/.MainActivity" "$D/izpis"; preveri "ne zazene TV brskalnika si.safeer.tv" 0 $?
+! grep -q "pm grant" "$D/izpis"; preveri "paket brez Safeer Vnosa ne dobi WRITE_SECURE_SETTINGS" 0 $?
+
+# Safeer Vnos z eno privolitvijo (25. 10. 2026): --upravljanje podeli WRITE_SECURE_SETTINGS, na Androidu 13+ odklene
+# omejene nastavitve, storitve pa NE vklopi (to stori aplikacija ob privolitvi). adb je nadomestek, ki belezi klice;
+# LAZNI_SDK je razlicica Androida, LAZNI_VNOS=1 pomeni, da paket ima storitev Safeer Vnos.
+lazni_adb() {
+    echo "adb $*" >> "$D/klici"
+    case "$*" in
+        *dumpsys*) if [ "$LAZNI_VNOS" = 1 ]; then echo "        si.safeer.os/si.safeer.tv.link.VnosStoritev filter 1a2b"; fi ;;
+        *getprop*) printf '%s\r\n' "$LAZNI_SDK" ;;
+    esac
+    return 0
+}
+( LAZNI_SDK=34; LAZNI_VNOS=1; adb() { lazni_adb "$@"; }; : > "$D/klici"; omogoci_upravljanje 10.0.0.2:5555 si.safeer.os ) > "$D/izpis" 2>&1
+preveri "upravljanje Android 14 -> 0" 0 $?
+grep -q "shell pm grant si.safeer.os android.permission.WRITE_SECURE_SETTINGS" "$D/klici"; preveri "Android 14: pm grant" 0 $?
+grep -q "shell appops set si.safeer.os ACCESS_RESTRICTED_SETTINGS allow" "$D/klici"; preveri "Android 14: odklep omejenih" 0 $?
+! grep -q "enabled_accessibility_services" "$D/klici"; preveri "skripta storitve ne vklopi sama" 0 $?
+( LAZNI_SDK=30; LAZNI_VNOS=1; adb() { lazni_adb "$@"; }; : > "$D/klici"; omogoci_upravljanje 10.0.0.2:5555 si.safeer.os ) > "$D/izpis" 2>&1
+preveri "upravljanje Android TV 11 -> 0" 0 $?
+grep -q "pm grant si.safeer.os" "$D/klici"; preveri "Android TV 11: pm grant" 0 $?
+! grep -q "appops" "$D/klici"; preveri "Android TV 11: brez appops (omejitve ni)" 0 $?
+( LAZNI_SDK=34; LAZNI_VNOS=0; adb() { lazni_adb "$@"; }; : > "$D/klici"; omogoci_upravljanje 10.0.0.2:5555 si.safeer.tv ) > "$D/izpis" 2>&1
+preveri "paket brez Safeer Vnosa -> 0" 0 $?
+! grep -q "pm grant\|appops" "$D/klici"; preveri "paket brez Safeer Vnosa: nic se ne podeli" 0 $?
+( adb() { case "$*" in *dumpsys*) echo "si.safeer.os/si.safeer.tv.link.VnosStoritev" ;; *"pm grant"*) return 1 ;; esac; }
+  omogoci_upravljanje 10.0.0.2:5555 si.safeer.os ) > "$D/izpis" 2>&1
+preveri "neuspel pm grant -> 1" 1 $?
 
 if [ "$napak" -eq 0 ]; then echo "INSTALL TESTI: OK"; else echo "INSTALL TESTI: $napak napak"; exit 1; fi

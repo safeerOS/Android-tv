@@ -66,8 +66,10 @@ object OzjiKrog {
         }
         val prej = seznam.associate { (_, id) -> id to (try { Dostop.zmoznosti(a, id) } catch (_: Throwable) { emptySet() }) }
         val izbrano = BooleanArray(seznam.size) { vKrogu(a, seznam[it].second) }
-        val okno = AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setTitle(a.getString(R.string.os_ozji_krog))
+        val graditelj = AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = graditelj
+            // Privolitev pove, kaj krog pomeni: tudi upravljanje z misko in tipkovnico (Safeer Vnos, link/VnosVklop).
+            .setCustomTitle(si.safeer.tv.link.VnosVklop.naslovPrivolitve(graditelj.context, a.getString(R.string.os_ozji_krog)))
             .setMultiChoiceItems(seznam.map { it.first }.toTypedArray(), izbrano) { _, i, da -> izbrano[i] = da }
             .setPositiveButton(a.getString(R.string.os_naprave_shrani)) { _, _ ->
                 val izbrane = seznam.filterIndexed { i, _ -> izbrano[i] }.map { it.second }.toSet()
@@ -75,6 +77,8 @@ object OzjiKrog {
                 for ((id, dano) in spremembe) Dostop.nastavi(a, id, dano)
                 Toast.makeText(a, a.getString(R.string.os_ozji_krog_shranjeno, izbrane.size), Toast.LENGTH_LONG).show()
                 potem()
+                // Ena privolitev: z dovoljenjem Vnos vklopi sam, sicer en korak v istem toku (link/VnosVklop).
+                si.safeer.tv.link.VnosVklop.poPrivolitvi(a)
             }
             .setNeutralButton(a.getString(R.string.os_ozji_krog_podrobno)) { _, _ ->
                 try { a.startActivity(Intent(a, NapraveActivity::class.java)) } catch (_: Throwable) { }

@@ -46,6 +46,35 @@ preveri_sha256() {
     echo "🔒 SHA-256 celovitost potrjena ($dejansko)"
 }
 
+# Safeer Vnos z ENO privolitvijo (lastnik 25. 10. 2026): namestitev prek adb aplikaciji podeli pravico, da ob privolitvi
+# v Safeer Linku (ozji krog, »Zaslon in upravljanje«) SAMA vklopi svojo storitev dostopnosti (link/VnosVklop). Skripta
+# storitve NE vklopi - to stori aplikacija sele ob uporabnikovi privolitvi. Android 13+ (API 33): brez odklepa omejenih
+# nastavitev sistem vpis zavrne tudi prek adb (izmerjeno WP28 S, 25. 10. 2026 10:48: »Skipping enabling service
+# disallowed by device admin policy«). Paket brez Safeer Vnosa (npr. brskalnik) ne dobi nicesar.
+# Samo ta korak za ze namesceno aplikacijo:  install_safeer.sh --upravljanje <naprava> <paket>
+VNOS_RAZRED="si.safeer.tv.link.VnosStoritev"
+omogoci_upravljanje() {
+    local naprava="$1" paket="$2" sdk
+    if ! adb -s "$naprava" shell dumpsys package "$paket" 2>/dev/null | grep -q "$paket/$VNOS_RAZRED"; then
+        echo "ℹ️ $paket nima Safeer Vnosa – upravljanja ni treba omogočiti."
+        return 0
+    fi
+    if ! adb -s "$naprava" shell pm grant "$paket" android.permission.WRITE_SECURE_SETTINGS; then
+        echo "❌ Pravice za Safeer Vnos ni bilo mogoče podeliti ($paket)."
+        return 1
+    fi
+    sdk="$(adb -s "$naprava" shell getprop ro.build.version.sdk | tr -d '\r')"
+    case "$sdk" in ''|*[!0-9]*) sdk=0 ;; esac
+    if [ "$sdk" -ge 33 ]; then
+        if ! adb -s "$naprava" shell appops set "$paket" ACCESS_RESTRICTED_SETTINGS allow; then
+            echo "❌ Omejenih nastavitev ni bilo mogoče odkleniti ($paket)."
+            return 1
+        fi
+    fi
+    echo "✅ Safeer Vnos se vklopi ob privolitvi v Safeer Linku (ožji krog → »Zaslon in upravljanje«)."
+    echo "   Preklic: adb -s $naprava shell pm revoke $paket android.permission.WRITE_SECURE_SETTINGS"
+}
+
 glavno() {
     # Zacasne datoteke v svoji mapi (mktemp -d), ne na predvidljivi poti v /tmp: drug uporabnik bi jo lahko vnaprej
     # pripravil ali zamenjal med prenosom in namestitvijo. Mapa izgine ob izhodu. (Preizkus poda svoje poti.)
@@ -100,6 +129,7 @@ glavno() {
             echo "📱 Zaznana ADB naprava: $DEVICE"
             echo "📲 Nameščam Safeer Browser..."
             adb -s "$DEVICE" install -r "$TEMP_APK"
+            omogoci_upravljanje "$DEVICE" "$PAKET" || echo "⚠️ Safeer Vnos bo treba vklopiti v aplikaciji (en korak)."
             echo "🚀 Zaganjam Safeer Browser..."
             adb -s "$DEVICE" shell am start -n "$PAKET/.MainActivity"
             echo "=========================================================="
@@ -116,4 +146,10 @@ glavno() {
 }
 
 # Ob »source« (preizkus tests/preveri_install.sh) se namestitev ne zazene - samo funkcije.
-if [ "${BASH_SOURCE[0]}" = "$0" ]; then glavno "$@"; fi
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+    if [ "${1:-}" = "--upravljanje" ]; then
+        omogoci_upravljanje "${2:?naprava, npr. 192.168.0.10:5555}" "${3:?paket, npr. si.safeer.os}"
+        exit $?
+    fi
+    glavno "$@"
+fi

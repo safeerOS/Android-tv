@@ -230,6 +230,12 @@ fun main() {
             p.predolgaOznaka(Double.POSITIVE_INFINITY) && p.predolgaOznaka(Double.NaN) && p.predolgaOznaka(1e30) &&
             p.NAJVEC_OZNAKE_SPOROCILA == 128 && p.NAJVEC_PONOVLJENEGA_DEJANJA == 64)
 
+    // Umik iz kroga takoj preklice dostop (25. 10. 2026): zapisano ne velja, zaslon (in z njim Safeer Vnos) tudi ne.
+    preveri("umaknjena naprava nima nicesar, tudi ce je zapis dovoljenj se tu",
+        p.veljavne(p.VSE_ZMOZNOSTI, umaknjena = true).isEmpty() &&
+            !p.sme(p.veljavne(p.VSE_ZMOZNOSTI, true), p.zahtevaDejanja("input.tap")) &&
+            p.veljavne(setOf(Zmoznost.ZASLON), umaknjena = false) == setOf(Zmoznost.ZASLON))
+
     if (napak > 0) { println("\nNAPAK: $napak"); kotlin.system.exitProcess(1) }
     println("DostopPravilaTest: OK")
 }

@@ -296,8 +296,14 @@ enkrat na deljenje. Preverjeno v živo: tablica deli zaslon na TV (TV kaže »Za
 
 ### Safeer Vnos: miška in tipkovnica z računalnika na tablico
 
-`si.safeer.tv.link.VnosStoritev` (storitev dostopnosti, samo okus tablica): uporabnik jo enkrat vklopi v
-Nastavitve → Dostopnost → Safeer Vnos. Vsebine zaslona ne bere; izvede samo ukaze seznanjene naprave:
+`si.safeer.tv.link.VnosStoritev` (storitev dostopnosti; okusi telefon, tablica in od 25. 10. 2026 tudi os - televizor).
+Ena privolitev (lastnik 25. 10. 2026, `link/VnosVklop`): ko uporabnik napravi v ožjem krogu odpre »Zaslon in
+upravljanje« (Nastavitve → Ožji krog zaupanja ali dostop naprave), aplikacija z dovoljenjem `WRITE_SECURE_SETTINGS`
+(podeli ga samo namestitev prek adb: `install_safeer.sh --upravljanje <naprava> <paket>`; Android 13+ še
+`appops set <paket> ACCESS_RESTRICTED_SETTINGS allow`) sama vpiše svojo storitev (druge ostanejo) in preveri, da se je
+vezala; ko v krogu ni več naprave z upravljanjem (umik, odvzem), jo odstrani. Brez dovoljenja je v istem toku en korak:
+gumb odpre točno stran Safeer Vnosa (na TV »izberi z daljincem«). Vsebine zaslona nikamor ne pošilja; izvede samo ukaze
+naprave z odprtim zaslonom (`input.*` = ZASLON, `cast/Dostop`), umaknjena naprava nima ničesar:
 
 | ukaz | parametri | kaj naredi |
 |---|---|---|
@@ -305,7 +311,7 @@ Nastavitve → Dostopnost → Safeer Vnos. Vsebine zaslona ne bere; izvede samo 
 | `input.swipe` | `x1`, `y1`, `x2`, `y2`, `ms` | poteg |
 | `input.key` | `key` = back / home / recents / notifications | sistemska tipka |
 | `input.text` | `text` (≤ 2000) | doda besedilo v polje s fokusom |
-| `input.enable` | - | na tablici odpre nastavitve dostopnosti |
+| `input.enable` | - | z dovoljenjem vklopi Vnos (`vnos_vklaplja`), sicer odpre stran Safeer Vnosa; brez storitve `vnos_ni_na_voljo` |
 
 Ko storitev ni vklopljena, odgovor `ok: false`, `code: "vnos_ni_vklopljen"`.
 Računalnik: okno gledalca v Safeer Control (`_odpri_gledalca`) preslika klik na sliko (`object-fit: contain`)

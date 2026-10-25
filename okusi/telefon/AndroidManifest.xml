@@ -19,6 +19,11 @@
          ni v ospredju (Android 10+); uporabnik ga vklopi sam, prek obvestila. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <!-- Safeer Vnos z ENO privolitvijo (lastnik 25. 10. 2026): ko uporabnik napravi v ozjem krogu odpre »Zaslon in
+         upravljanje«, aplikacija sama vpise SVOJO storitev dostopnosti (link/VnosVklop). Dovoljenja uporabnik ne vidi in
+         ga aplikacija ne more dobiti sama: podeli ga samo namestitev prek adb (install_safeer.sh, korak »upravljanje«). Brez
+         njega ostane voden korak na stran Safeer Vnosa. -->
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" tools:ignore="ProtectedPermissions" />
 
     <queries>
         <package android:name="si.safeer.tv" />

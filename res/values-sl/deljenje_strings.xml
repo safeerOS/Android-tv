@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Deljenje zaslona po vzoru DeX (link/DeljenjePravila: A1-A4): zaklep, »Vedno dovoli«, vprasanje Safeerja. -->
+<resources>
+    <string name="deljenje_zaklenjen_telefon">Telefon je zaklenjen – odkleni ga za nadaljevanje</string>
+    <string name="deljenje_zaklenjen_tablica">Tablica je zaklenjena – odkleni jo za nadaljevanje</string>
+    <string name="deljenje_zaklenjen_naprava">Naprava je zaklenjena – odkleni jo za nadaljevanje</string>
+    <string name="deljenje_zaklep_potrdi">Po odklepu na napravi potrdi nadaljevanje deljenja zaslona.</string>
+    <string name="deljenje_caka_obvestilo">Zaslon se ne deli, dokler je naprava zaklenjena.</string>
+    <string name="deljenje_nadaljuj">Nadaljuj deljenje zaslona: %1$s</string>
+    <string name="deljenje_vedno_racunalnik">Vedno dovoli temu računalniku</string>
+    <string name="deljenje_vedno_napravi">Vedno dovoli tej napravi</string>
+    <string name="deljenje_ne_vec">Ne dovoli več samodejno</string>
+    <string name="deljenje_potrditev_naslov">Deljenje zaslona</string>
+    <string name="deljenje_potrditev_besedilo">%1$s želi videti zaslon te naprave in jo upravljati. Android tega ne bo vprašal, ker ima Safeer trajno dovoljenje za prikaz zaslona.</string>
+    <string name="deljenje_dovoli">Dovoli</string>
+    <string name="deljenje_zavrni">Zavrni</string>
+    <string name="deljenje_preklici_zaupanje">Deljenje zaslona: prekliči »Vedno dovoli«</string>
+    <string name="deljenje_zaupanje_preklicano">Deljenje zaslona z napravo %1$s bo treba spet potrditi.</string>
+    <string name="deljenje_znak">Deljenje zaslona · Ustavi</string>
+</resources>

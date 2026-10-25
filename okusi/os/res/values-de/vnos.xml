@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safeer Vnos na televizorju (okus os): ime in opis storitve dostopnosti. -->
+<resources>
+    <string name="vnos_ime">Safeer Eingabe</string>
+    <string name="vnos_opis">Ein Computer aus deinem engeren Kreis in Safeer Link (Safeer Control) darf auf diesem Fernseher die Auswahl bewegen, bestätigen und Zurück oder Home drücken – wie mit der Fernbedienung. Safeer Eingabe sendet nichts von deinem Bildschirm irgendwohin; es führt nur aus, was ein Gerät verlangt, dem dieser Fernseher »Bildschirm und Steuerung« erlaubt hat.</string>
+</resources>

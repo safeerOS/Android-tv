@@ -36,11 +36,33 @@ class VnosStoritev : AccessibilityService() {
         /** Kolikšen del visine zaslona premakne en korak kolesca na zaslonu na dotik. */
         private const val KORAK_KOLESCA = 0.09
         private const val NAJVEC_KORAKOV = 8
+        /** Meji iskanja fokusabilnih elementov pod Androidom 13 (globina drevesa, stevilo kandidatov). */
+        private const val NAJVEC_GLOBINE = 40
+        private const val NAJVEC_KANDIDATOV = 400
 
         @Volatile private var instanca: VnosStoritev? = null
 
         /** Ali je uporabnik Safeer Vnos vklopil (in ga sistem tece). */
         fun aktivna(): Boolean = instanca != null
+
+        /**
+         * Odpre dejavnost iz konteksta Safeer Vnosa (nacrt »dex-upravljanje« A2). Sistem storitev dostopnosti veze z
+         * BIND_ALLOW_BACKGROUND_ACTIVITY_STARTS (AOSP AccessibilityServiceConnection), zato Android zagona iz ozadja ne
+         * zavrne - okno za soglasje se odpre takoj, brez tapa na obvestilo. False: Vnos ni vklopljen ali zagon ni uspel.
+         */
+        fun zazeni(namera: android.content.Intent): Boolean {
+            val s = instanca ?: return false
+            return try { s.startActivity(namera); true } catch (e: Throwable) {
+                Log.w(TAG, "Zagona iz Safeer Vnosa ni bilo mogoce izvesti: ${e.message}"); false
+            }
+        }
+
+        /**
+         * Paket aktivnega okna - samo za preverbo, ali se je aplikacija po zagonu res odprla (nic ne gre z naprave).
+         * Null: Vnos ni vklopljen ali okna ni mogoce prebrati.
+         */
+        fun paketNaVrhu(): String? =
+            try { instanca?.rootInActiveWindow?.packageName?.toString() } catch (_: Throwable) { null }
 
         /** Dotik na delezu zaslona (0..1). */
         fun dotik(x: Double, y: Double, trajanjeMs: Long = 60): Boolean =
@@ -230,11 +252,55 @@ class VnosStoritev : AccessibilityService() {
                 "left" -> GLOBAL_ACTION_DPAD_LEFT; else -> GLOBAL_ACTION_DPAD_RIGHT
             })
         }
-        val od = polje ?: return false
-        val cilj = od.focusSearch(when (k) {
-            "up" -> View.FOCUS_UP; "down" -> View.FOCUS_DOWN; "left" -> View.FOCUS_LEFT; else -> View.FOCUS_RIGHT
-        }) ?: return false
-        return cilj.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+        return premakniFokus(k, polje)
+    }
+
+    /**
+     * Krizec pod Androidom 13 (lastnikov televizor: Android TV 11; GLOBAL_ACTION_DPAD_* je sele od API 33): fokus
+     * premaknemo sami. Najprej focusSearch od elementa s fokusom (isto pravilo kot daljinec v aplikaciji), sicer najblizji
+     * fokusabilni element v smeri (VnosVklopPravila.najblizji, po vzoru FocusFinder); brez fokusa prvi zgoraj levo.
+     * Nazaj in Domov gresta prek performGlobalAction (vse razlicice). V tujih aplikacijah (Compose, WebView, igre)
+     * NEPREVERJENO.
+     */
+    private fun premakniFokus(k: String, polje: AccessibilityNodeInfo?): Boolean {
+        val smer = VnosVklopPravila.smer(k) ?: return false
+        val koren = try { rootInActiveWindow } catch (_: Throwable) { null } ?: return false
+        val od = polje ?: fokusirano(koren)
+        if (od != null) {
+            val cilj = try {
+                od.focusSearch(when (smer) {
+                    VnosVklopPravila.Smer.GOR -> View.FOCUS_UP; VnosVklopPravila.Smer.DOL -> View.FOCUS_DOWN
+                    VnosVklopPravila.Smer.LEVO -> View.FOCUS_LEFT; VnosVklopPravila.Smer.DESNO -> View.FOCUS_RIGHT
+                })
+            } catch (_: Throwable) { null }
+            if (cilj != null && cilj != od && cilj.isVisibleToUser && cilj.performAction(AccessibilityNodeInfo.ACTION_FOCUS)) return true
+        }
+        val kandidati = ArrayList<AccessibilityNodeInfo>()
+        zberiFokusabilne(koren, kandidati, 0)
+        val okvirji = kandidati.map { okvir(it) }
+        val i = if (od != null) VnosVklopPravila.najblizji(okvir(od), okvirji, smer) else VnosVklopPravila.prvi(okvirji)
+        return i >= 0 && kandidati[i].performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+    }
+
+    /** Element s fokusom: vnosni fokus (daljinec), sicer fokus dostopnosti. */
+    private fun fokusirano(koren: AccessibilityNodeInfo?): AccessibilityNodeInfo? = try {
+        koren?.findFocus(AccessibilityNodeInfo.FOCUS_INPUT) ?: koren?.findFocus(AccessibilityNodeInfo.FOCUS_ACCESSIBILITY)
+    } catch (_: Throwable) { null }
+
+    private fun okvir(n: AccessibilityNodeInfo): VnosVklopPravila.Okvir {
+        val r = Rect()
+        n.getBoundsInScreen(r)
+        return VnosVklopPravila.Okvir(r.left, r.top, r.right, r.bottom)
+    }
+
+    /** Vidni, omogoceni fokusabilni elementi aktivnega okna (meja globine in stevila: veliki seznami ne zavrejo vnosa). */
+    private fun zberiFokusabilne(n: AccessibilityNodeInfo, izid: MutableList<AccessibilityNodeInfo>, globina: Int) {
+        if (globina > NAJVEC_GLOBINE || izid.size >= NAJVEC_KANDIDATOV) return
+        if (n.isFocusable && n.isVisibleToUser && n.isEnabled) izid.add(n)
+        for (i in 0 until n.childCount) {
+            val otrok = try { n.getChild(i) } catch (_: Throwable) { null } ?: continue
+            zberiFokusabilne(otrok, izid, globina + 1)
+        }
     }
 
     /** Enter: v besedilnem polju potrdi vnos (iskanje, poslji); drugje klikne, kar ima fokus. */
@@ -243,7 +309,8 @@ class VnosStoritev : AccessibilityService() {
         if (polje != null && polje.isEditable && Build.VERSION.SDK_INT >= 30 &&
             polje.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_IME_ENTER.id)) return true
         if (Build.VERSION.SDK_INT >= 33) return performGlobalAction(GLOBAL_ACTION_DPAD_CENTER)
-        var n = polje
+        // Pod Androidom 13 klikne element s fokusom (tudi, ce ni vnosno polje - kartica, gumb na televizorju).
+        var n = polje ?: fokusirano(try { rootInActiveWindow } catch (_: Throwable) { null })
         while (n != null && !n.isClickable) n = n.parent
         return n?.performAction(AccessibilityNodeInfo.ACTION_CLICK) ?: false
     }

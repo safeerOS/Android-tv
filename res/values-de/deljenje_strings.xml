@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Deljenje zaslona po vzoru DeX (link/DeljenjePravila: A1-A4): zaklep, »Vedno dovoli«, vprasanje Safeerja. -->
+<resources>
+    <string name="deljenje_zaklenjen_telefon">Das Telefon ist gesperrt – entsperre es, um fortzufahren</string>
+    <string name="deljenje_zaklenjen_tablica">Das Tablet ist gesperrt – entsperre es, um fortzufahren</string>
+    <string name="deljenje_zaklenjen_naprava">Das Gerät ist gesperrt – entsperre es, um fortzufahren</string>
+    <string name="deljenje_zaklep_potrdi">Bestätige nach dem Entsperren auf dem Gerät, dass die Bildschirmfreigabe weitergeht.</string>
+    <string name="deljenje_caka_obvestilo">Der Bildschirm wird nicht geteilt, solange das Gerät gesperrt ist.</string>
+    <string name="deljenje_nadaljuj">Bildschirmfreigabe fortsetzen: %1$s</string>
+    <string name="deljenje_vedno_racunalnik">Diesem Computer immer erlauben</string>
+    <string name="deljenje_vedno_napravi">Diesem Gerät immer erlauben</string>
+    <string name="deljenje_ne_vec">Nicht mehr automatisch erlauben</string>
+    <string name="deljenje_potrditev_naslov">Bildschirmfreigabe</string>
+    <string name="deljenje_potrditev_besedilo">%1$s möchte den Bildschirm dieses Geräts sehen und es steuern. Android fragt nicht nach, weil Safeer eine dauerhafte Berechtigung zur Bildschirmfreigabe hat.</string>
+    <string name="deljenje_dovoli">Erlauben</string>
+    <string name="deljenje_zavrni">Ablehnen</string>
+    <string name="deljenje_preklici_zaupanje">Bildschirmfreigabe: „Immer erlauben“ aufheben</string>
+    <string name="deljenje_zaupanje_preklicano">Die Bildschirmfreigabe für %1$s muss wieder bestätigt werden.</string>
+    <string name="deljenje_znak">Bildschirmfreigabe · Beenden</string>
+</resources>

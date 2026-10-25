@@ -93,7 +93,8 @@ object Dostop {
     fun zmoznostiJedra(ctx: Context, jedro: String): Set<Zmoznost> {
         if (jedro.isBlank()) return emptySet()
         if (jedro == lastnoJedro(ctx)) return DostopPravila.VSE_ZMOZNOSTI
-        return synchronized(this) { nalozen(ctx)[jedro] } ?: emptySet()
+        val dano = synchronized(this) { nalozen(ctx)[jedro] } ?: emptySet()
+        return DostopPravila.veljavne(dano, umaknjena(ctx, jedro))
     }
 
     /**
@@ -188,11 +189,21 @@ object Dostop {
         try { naSpremembo?.invoke() } catch (_: Throwable) { }
     }
 
+    /**
+     * Umik iz kroga takoj preklice dostop (lastnik 25. 10. 2026; pravilo AGENTS.md »umik naprave iz kroga takoj
+     * preklice njene zetone in seje«): zapis dovoljenj ostane (ponovno dodana naprava ga dobi nazaj), a ne velja.
+     * Napaka pri branju kroga = umaknjena (»ne vem« ni »da«).
+     */
+    private fun umaknjena(ctx: Context, jedro: String): Boolean =
+        try { KrogNaprave.krog(ctx).jeUmaknjen(jedro) } catch (_: Throwable) { true }
+
     /** Jedra naprav, ki na tej napravi izpolnjujejo [zahteva] (VSE = ozji krog: komu sme iti usklajevanje). */
     fun napraveZ(ctx: Context, zahteva: Zahteva): Set<String> =
         synchronized(this) { nalozen(ctx).filterValues { DostopPravila.sme(it, zahteva) }.keys.toSet() }
+            .filterNot { umaknjena(ctx, it) }.toSet()
 
     /** Jedra naprav, ki jim je na tej napravi odprta [zmoznost] (npr. komu sme iti stanje predvajanja). */
     fun napraveZ(ctx: Context, zmoznost: Zmoznost): Set<String> =
         synchronized(this) { nalozen(ctx).filterValues { zmoznost in it }.keys.toSet() }
+            .filterNot { umaknjena(ctx, it) }.toSet()
 }

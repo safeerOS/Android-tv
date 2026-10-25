@@ -5,8 +5,10 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.graphics.PixelFormat
@@ -42,6 +44,11 @@ import java.net.URL
  * pomanjsa in stisne v JPEG ter poslje Hubu po eni sami odprti zahtevi HTTPS; Hub ga prikaze
  * ciljni napravi (npr. Safeer Control na racunalniku). Vse gre po hisnem omrezju, nic v oblak.
  * Storitev tece v ospredju (obvestilo z gumbom za prekinitev), dokler je uporabnik ne ustavi.
+ *
+ * Zaklep (nacrt »dex-upravljanje« A4): Android 15 QPR1+ ob zaklepu projekcijo ustavi. Tok do Huba takrat ostane odprt:
+ * racunalnik namesto zaslona vidi sliko »odkleni za nadaljevanje« (ista pot kot okvirji - starejsi racunalnik in Hub ne
+ * potrebujeta nicesar novega), po odklepu pa se z novim soglasjem slika vrne v isto okno. Med cakanjem z naprave ne
+ * odide nic drugega kot ta slika, vnos z racunalnika je zavrnjen (Daljinec).
  */
 class DeljenjeZaslonaStoritev : Service() {
 
@@ -52,6 +59,9 @@ class DeljenjeZaslonaStoritev : Service() {
 
         const val ACTION_START = "si.safeer.tv.link.ZASLON_START"
         const val ACTION_STOP = "si.safeer.tv.link.ZASLON_STOP"
+        /** A3: »Vedno dovoli temu racunalniku« / preklic iz obvestila deljenja (velja za napravo, ki zdaj gleda). */
+        const val ACTION_ZAUPAJ = "si.safeer.tv.link.ZASLON_ZAUPAJ"
+        const val ACTION_NE_ZAUPAJ = "si.safeer.tv.link.ZASLON_NE_ZAUPAJ"
         const val EXTRA_RESULT_CODE = "result_code"
         const val EXTRA_DATA = "data"
         const val EXTRA_CILJ = "cilj"
@@ -82,6 +92,9 @@ class DeljenjeZaslonaStoritev : Service() {
         @Volatile var zadnjaKoda: String = ""
             private set
         @Volatile var zadnjaZasedenaOd: String = ""
+            private set
+        /** A4: projekcijo je ustavil zaklep; tok do Huba je odprt in caka na odklep (racunalnik vidi sporocilo). */
+        @Volatile var cakaNaOdklep: Boolean = false
             private set
 
         /** Stran Safeer Linka se pripne sem, da izve za zacetek, konec in napako. */
@@ -134,12 +147,22 @@ class DeljenjeZaslonaStoritev : Service() {
     }
 
     private val glavna = Handler(Looper.getMainLooper())
-    private var projekcija: MediaProjection? = null
-    private var navidezniZaslon: VirtualDisplay? = null
-    private var bralec: ImageReader? = null
+    // Glavna nit jih zamenja (zaklep, nadaljevanje), nit toka jih bere.
+    @Volatile private var projekcija: MediaProjection? = null
+    @Volatile private var navidezniZaslon: VirtualDisplay? = null
+    @Volatile private var bralec: ImageReader? = null
     private var nit: Thread? = null
     @Volatile private var ustavljam = false
-    private var idDeljenja = ""
+    @Volatile private var idDeljenja = ""
+    /** A4: slika za racunalnik med cakanjem na odklep (JPEG); null = brez nje (racunalnik vidi zadnji okvir). */
+    @Volatile private var okvirStanja: ByteArray? = null
+    private var cakaOd = 0L
+    /** Deljenje, ki caka na odklep, je zacel »Odpri tukaj« naprave [cilj] (nadaljevanje to ohrani). */
+    private var odprtoTukajCakanja = false
+    private var odklepSprejemnik: BroadcastReceiver? = null
+    private val rokCakanja = Runnable {
+        if (cakaNaOdklep) { Log.i(TAG, "Naprava ni bila odklenjena v roku: deljenje zaslona koncano"); koncaj("") }
+    }
     private var hubHttp = ""
     private var zeton = ""
     private var idNaprave = ""
@@ -151,10 +174,26 @@ class DeljenjeZaslonaStoritev : Service() {
             koncaj("")
             return START_NOT_STICKY
         }
-        if (tece) koncaj("")
+        if (intent.action == ACTION_ZAUPAJ || intent.action == ACTION_NE_ZAUPAJ) {
+            if (tece && cilj.isNotBlank()) {
+                ZaupanjeZaslona.nastavi(this, cilj, intent.action == ACTION_ZAUPAJ)
+                posodobiObvestilo()
+            } else stopSelf(startId)   // staro obvestilo, deljenja ni vec: storitev ne ostane prizgana
+            return START_NOT_STICKY
+        }
         val resultCode = intent.getIntExtra(EXTRA_RESULT_CODE, 0)
         @Suppress("DEPRECATION")
         val data = intent.getParcelableExtra<Intent>(EXTRA_DATA)
+        // Meritev M1: brez okna za soglasje (trajno dovoljenje) mora biti deljenje na napravi vidno - obvestilo »Ustavi« ali
+        // nas gumb na zaslonu. Ce ne gre nobeno (OnePlus 9: obvestila zavrnjena, prikaza ni), deljenja ne zacnemo (spodaj,
+        // po startForeground - storitev, zagnana s startForegroundService, se pred njim ne sme ustaviti).
+        val vidno = DeljenjePravila.smeZacetiBrezOkna(ZaupanjeZaslona.projekcijaDovoljena(this),
+            Daljinec.obvestilaVklopljena(this, KANAL), Daljinec.prekrivanje(this))
+        // A4: novo soglasje po odklepu za isti racunalnik - ista seja na Hubu, isto okno na racunalniku.
+        if (vidno && tece && data != null && DeljenjePravila.nadaljujVIstemToku(cakaNaOdklep, cilj, intent.getStringExtra(EXTRA_CILJ) ?: "")) {
+            if (nadaljuj(resultCode, data)) return START_NOT_STICKY
+        }
+        if (tece) koncaj("")
         cilj = intent.getStringExtra(EXTRA_CILJ) ?: ""
         imeCilja = intent.getStringExtra(EXTRA_IME_CILJA) ?: cilj
         hubHttp = intent.getStringExtra(EXTRA_HUB_HTTP) ?: ""
@@ -177,15 +216,18 @@ class DeljenjeZaslonaStoritev : Service() {
             koncaj("Storitve v ospredju ni bilo mogoce zagnati: ${e.message}")
             return START_NOT_STICKY
         }
+        if (!vidno) {
+            Log.w(TAG, "Deljenje brez okna za soglasje zavrnjeno: ni obvestil ne prikaza cez druge aplikacije")
+            koncaj("Deljenja ne začnem: naprava ne bi pokazala, da se zaslon deli. Vklopi obvestila za Safeer.")
+            return START_NOT_STICKY
+        }
 
         try {
             val upravitelj = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
             val p = upravitelj.getMediaProjection(resultCode, data)
                 ?: throw IllegalStateException("dovoljenje za zajem zaslona ni bilo dano")
             // Od Androida 14 mora biti povratni klic registriran pred navideznim zaslonom.
-            p.registerCallback(object : MediaProjection.Callback() {
-                override fun onStop() { koncaj("") }
-            }, glavna)
+            p.registerCallback(povratniKlic(p), glavna)
             projekcija = p
         } catch (e: Exception) {
             koncaj("Zajema zaslona ni bilo mogoce zaceti: ${e.message}")
@@ -195,6 +237,7 @@ class DeljenjeZaslonaStoritev : Service() {
         tece = true
         // Deljenje tece: odslej ga ukaz za konec najde po cilju, oznaka zagona ni vec potrebna.
         PretokKonec.zahteve.zagonKoncan()
+        pokaziZnak()
         zadnjaNapaka = ""
         zadnjaKoda = ""
         zadnjaZasedenaOd = ""
@@ -203,6 +246,238 @@ class DeljenjeZaslonaStoritev : Service() {
         javi()
         nit = Thread({ tokZaslona() }, "safeer-zaslon").also { it.start() }
         return START_NOT_STICKY
+    }
+
+    /** Konec projekcije [p]: klic stare (zamenjane ali ze pospravljene) projekcije ne velja vec. */
+    private fun povratniKlic(p: MediaProjection) = object : MediaProjection.Callback() {
+        override fun onStop() { if (p === projekcija) naKonecProjekcije() }
+    }
+
+    /** Android je projekcijo ustavil: ob zaklepu pocakamo na odklep (A4), sicer je deljenja konec. */
+    private fun naKonecProjekcije() {
+        val zaklenjeno = try { (getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager).isKeyguardLocked } catch (_: Throwable) { false }
+        val prizgan = try { (getSystemService(Context.POWER_SERVICE) as android.os.PowerManager).isInteractive } catch (_: Throwable) { true }
+        val konec = DeljenjePravila.konecProjekcije(zaklenjeno, prizgan, ustavljam, tece && idDeljenja.isNotBlank())
+        Log.i(TAG, "Projekcija je ustavljena: zaklenjeno=$zaklenjeno zaslon=$prizgan -> $konec")
+        if (konec == DeljenjePravila.Konec.ZAKLEP) zacniCakanje() else koncaj("")
+    }
+
+    /** A4: projekcije ni vec, tok do Huba ostane; racunalnik vidi »odkleni za nadaljevanje«. */
+    private fun zacniCakanje() {
+        val zaupano = ZaupanjeZaslona.zaupano(this, cilj)
+        val potrdi = DeljenjePravila.poOdklepuPotrdi(zaupano, ZaupanjeZaslona.projekcijaDovoljena(this),
+            Daljinec.smeZagnatiIzOzadja(this))
+        okvirStanja = try { okvirZaklepa(potrdi) } catch (e: Throwable) { Log.w(TAG, "Slike zaklepa ni bilo mogoce narisati: ${e.message}"); null }
+        cakaOd = System.currentTimeMillis()
+        odprtoTukajCakanja = PretokKonec.zahteve.odprtoTukajZa() == cilj
+        // Najprej oznaka (nit toka ne bere vec bralnika), potem pospravljanje.
+        cakaNaOdklep = true
+        try { navidezniZaslon?.release() } catch (_: Exception) { }
+        navidezniZaslon = null
+        try { bralec?.close() } catch (_: Exception) { }
+        bralec = null
+        projekcija = null
+        ohraniZaslon(false)
+        skrijZnak()
+        prijaviOdklep()
+        glavna.removeCallbacks(rokCakanja)
+        glavna.postDelayed(rokCakanja, DeljenjePravila.CAKA_ODKLEP_MS)
+        posodobiObvestilo()
+        javi()
+        Log.i(TAG, "Naprava je zaklenjena: deljenje caka na odklep (zaupano=$zaupano)")
+    }
+
+    private fun prijaviOdklep() {
+        if (odklepSprejemnik != null) return
+        val s = object : BroadcastReceiver() {
+            override fun onReceive(c: Context?, i: Intent?) { if (i?.action == Intent.ACTION_USER_PRESENT) poOdklepu() }
+        }
+        try {
+            val filter = IntentFilter(Intent.ACTION_USER_PRESENT)
+            if (Build.VERSION.SDK_INT >= 33) registerReceiver(s, filter, Context.RECEIVER_NOT_EXPORTED)
+            else @Suppress("UnspecifiedRegisterReceiverFlag") registerReceiver(s, filter)
+            odklepSprejemnik = s
+        } catch (e: Exception) {
+            Log.w(TAG, "Odklepa ni mogoce spremljati: ${e.message}")
+        }
+    }
+
+    private fun odjaviOdklep() {
+        val s = odklepSprejemnik ?: return
+        odklepSprejemnik = null
+        try { unregisterReceiver(s) } catch (_: Exception) { }
+    }
+
+    /** Uporabnik je napravo odklenil: zaupana naprava dobi okno za soglasje takoj, druga obvestilo (A4). */
+    private fun poOdklepu() {
+        if (!cakaNaOdklep) return
+        val zaupano = ZaupanjeZaslona.zaupano(this, cilj)
+        val kaj = DeljenjePravila.poOdklepu(zaupano, cakaOd, System.currentTimeMillis())
+        Log.i(TAG, "Naprava je odklenjena: $kaj")
+        when (kaj) {
+            DeljenjePravila.Nadaljevanje.KONEC -> koncaj("")
+            DeljenjePravila.Nadaljevanje.SAMODEJNO -> Daljinec.nadaljujDeljenje(this, cilj, odprtoTukajCakanja, samodejno = true)
+            DeljenjePravila.Nadaljevanje.OBVESTILO -> Daljinec.nadaljujDeljenje(this, cilj, odprtoTukajCakanja, samodejno = false)
+        }
+    }
+
+    /** Cakanja je konec (nadaljevanje ali konec deljenja). */
+    private fun koncajCakanje() {
+        glavna.removeCallbacks(rokCakanja)
+        odjaviOdklep()
+        okvirStanja = null
+        cakaNaOdklep = false
+    }
+
+    /**
+     * A4: novo soglasje po odklepu - nova projekcija v istem toku (ista seja na Hubu, isto okno na racunalniku). False, ce
+     * ne gre; takrat se zacne novo deljenje (racunalnik dobi novo okno).
+     */
+    private fun nadaljuj(resultCode: Int, data: Intent): Boolean {
+        var p: MediaProjection? = null
+        try {
+            // Projekcija je dovoljena samo v storitvi v ospredju vrste mediaProjection: po novem soglasju jo potrdimo znova.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(ID_OBVESTILA, obvestilo(), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
+            } else {
+                startForeground(ID_OBVESTILA, obvestilo())
+            }
+            val upravitelj = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+            val nova = upravitelj.getMediaProjection(resultCode, data)
+                ?: throw IllegalStateException("dovoljenje za zajem zaslona ni bilo dano")
+            p = nova
+            nova.registerCallback(povratniKlic(nova), glavna)
+            projekcija = nova
+            postaviZajem(meritveZaslona())
+        } catch (e: Exception) {
+            Log.w(TAG, "Deljenja po odklepu ni bilo mogoce nadaljevati v istem toku: ${e.message}")
+            projekcija = null
+            try { navidezniZaslon?.release() } catch (_: Exception) { }
+            navidezniZaslon = null
+            try { bralec?.close() } catch (_: Exception) { }
+            bralec = null
+            try { p?.stop() } catch (_: Exception) { }
+            return false
+        }
+        koncajCakanje()
+        PretokKonec.zahteve.zagonKoncan()
+        ohraniZaslon(true)
+        pokaziZnak()
+        posodobiObvestilo()
+        javi()
+        Log.i(TAG, "Deljenje zaslona se po odklepu nadaljuje v istem toku")
+        return true
+    }
+
+    /**
+     * Slika za racunalnik med cakanjem na odklep: kljucavnica, »… je zaklenjen(a) – odkleni za nadaljevanje« in, kadar bo
+     * na napravi treba se kaj potrditi ([potrdi]), druga vrstica. Velikost kot okvirji (ista najvecja stranica).
+     */
+    private fun okvirZaklepa(potrdi: Boolean): ByteArray {
+        val z = meritveZaslona()
+        val merilo = minOf(1f, NAJVECJA_STRANICA.toFloat() / maxOf(z.sirina, z.visina))
+        val s = maxOf(320, Math.round(z.sirina * merilo))
+        val v = maxOf(320, Math.round(z.visina * merilo))
+        val slika = Bitmap.createBitmap(s, v, Bitmap.Config.ARGB_8888)
+        try {
+            val platno = android.graphics.Canvas(slika)
+            platno.drawColor(0xFF0B1220.toInt())
+            val krajsa = minOf(s, v).toFloat()
+            // Kljucavnica: lok in telo.
+            val cx = s / 2f
+            val vrh = v * 0.30f
+            val sirinaTela = krajsa * 0.20f
+            val crta = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                color = 0xFF94A3B8.toInt(); style = android.graphics.Paint.Style.STROKE; strokeWidth = krajsa * 0.025f
+            }
+            platno.drawArc(cx - sirinaTela * 0.32f, vrh, cx + sirinaTela * 0.32f, vrh + sirinaTela * 0.64f, 180f, 180f, false, crta)
+            platno.drawLine(cx - sirinaTela * 0.32f, vrh + sirinaTela * 0.32f, cx - sirinaTela * 0.32f, vrh + sirinaTela * 0.55f, crta)
+            platno.drawLine(cx + sirinaTela * 0.32f, vrh + sirinaTela * 0.32f, cx + sirinaTela * 0.32f, vrh + sirinaTela * 0.55f, crta)
+            val telo = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF94A3B8.toInt() }
+            val zgorajTela = vrh + sirinaTela * 0.52f
+            platno.drawRoundRect(cx - sirinaTela / 2, zgorajTela, cx + sirinaTela / 2, zgorajTela + sirinaTela * 0.72f,
+                krajsa * 0.02f, krajsa * 0.02f, telo)
+            val sirinaBesedila = (s * 0.84f).toInt()
+            var y = zgorajTela + sirinaTela * 0.72f + krajsa * 0.08f
+            val naslov = android.text.TextPaint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                color = 0xFFE2E8F0.toInt(); textSize = krajsa * 0.06f; isFakeBoldText = true
+            }
+            y += narisiBesedilo(platno, getString(besediloZaklepa()), naslov, sirinaBesedila, (s - sirinaBesedila) / 2f, y) + krajsa * 0.04f
+            if (potrdi) {
+                val drugo = android.text.TextPaint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                    color = 0xFF94A3B8.toInt(); textSize = krajsa * 0.042f
+                }
+                narisiBesedilo(platno, getString(si.safeer.tv.R.string.deljenje_zaklep_potrdi), drugo, sirinaBesedila, (s - sirinaBesedila) / 2f, y)
+            }
+            val izhod = ByteArrayOutputStream(64 * 1024)
+            slika.compress(Bitmap.CompressFormat.JPEG, 80, izhod)
+            return izhod.toByteArray()
+        } finally {
+            slika.recycle()
+        }
+    }
+
+    /** Narise besedilo na sredini (s prelomi); vrne visino. */
+    private fun narisiBesedilo(platno: android.graphics.Canvas, besedilo: String, barva: android.text.TextPaint,
+                               sirina: Int, x: Float, y: Float): Float {
+        val postavitev = android.text.StaticLayout.Builder.obtain(besedilo, 0, besedilo.length, barva, sirina)
+            .setAlignment(android.text.Layout.Alignment.ALIGN_CENTER).build()
+        platno.save()
+        platno.translate(x, y)
+        postavitev.draw(platno)
+        platno.restore()
+        return postavitev.height.toFloat()
+    }
+
+    /** Telefon, tablica ali (televizor, drugo) naprava - kot jo uporabnik pozna. */
+    private fun besediloZaklepa(): Int = when (si.safeer.tv.BuildConfig.FLAVOR) {
+        "telefon" -> si.safeer.tv.R.string.deljenje_zaklenjen_telefon
+        "tablica" -> si.safeer.tv.R.string.deljenje_zaklenjen_tablica
+        else -> si.safeer.tv.R.string.deljenje_zaklenjen_naprava
+    }
+
+    /** Nas znak deljenja na zaslonu (»Deljenje zaslona · Ustavi«), kadar Safeer sme risati cez druge aplikacije. */
+    private var znak: android.view.View? = null
+
+    /**
+     * Viden znak deljenja, ki ni odvisen od obvestil (meritev M1: obvestilo »Ustavi« je skrito, ce obvestila niso dovoljena;
+     * OnePlus 9 z Androidom 14 sam ne pokaze nicesar). Tap ustavi deljenje. Brez prikaza cez druge aplikacije ga ni - takrat
+     * je znak obvestilo; ce ni ne enega ne drugega, se deljenje brez okna za soglasje sploh ne zacne.
+     */
+    private fun pokaziZnak() {
+        if (znak != null || !Daljinec.prekrivanje(this)) return
+        try {
+            val gostota = resources.displayMetrics.density
+            fun dp(v: Int) = Math.round(v * gostota)
+            val gumb = android.widget.TextView(this).apply {
+                text = getString(si.safeer.tv.R.string.deljenje_znak)
+                setTextColor(0xFFFFFFFF.toInt())
+                textSize = 13f
+                setPadding(dp(14), dp(6), dp(14), dp(6))
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    cornerRadius = dp(18).toFloat()
+                    setColor(0xE6B91C1C.toInt())
+                }
+                contentDescription = text
+                setOnClickListener { ustavi(this@DeljenjeZaslonaStoritev) }
+            }
+            val mesto = WindowManager.LayoutParams(WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                PixelFormat.TRANSLUCENT).apply {
+                gravity = android.view.Gravity.TOP or android.view.Gravity.CENTER_HORIZONTAL
+                y = dp(40)
+            }
+            (getSystemService(Context.WINDOW_SERVICE) as WindowManager).addView(gumb, mesto)
+            znak = gumb
+        } catch (e: Throwable) {
+            Log.w(TAG, "Znaka deljenja ni bilo mogoce pokazati: ${e.message}")
+        }
+    }
+
+    private fun skrijZnak() {
+        val v = znak ?: return
+        znak = null
+        try { (getSystemService(Context.WINDOW_SERVICE) as WindowManager).removeView(v) } catch (_: Throwable) { }
     }
 
     private var budnost: android.os.PowerManager.WakeLock? = null
@@ -352,14 +627,34 @@ class DeljenjeZaslonaStoritev : Service() {
         var pomanjsano: Bitmap? = null
         var preverjanje = 0L
 
+        var poslanoStanje: ByteArray? = null
         while (!ustavljam && tece) {
             val zdaj = System.currentTimeMillis()
+            if (cakaNaOdklep) {
+                // A4: projekcije ni (zaklep) - racunalnik vidi sliko »odkleni za nadaljevanje«, nic drugega.
+                val stanje = okvirStanja
+                if (stanje != null && (stanje !== poslanoStanje || zdaj - zadnjiPoslan > UTRIP_MS)) {
+                    posljiOkvir(izhod, stanje)
+                    poslanoStanje = stanje
+                    zadnjiPoslan = zdaj
+                }
+                // Po nadaljevanju ne posljemo vec okvirja izpred zaklepa.
+                zadnjiOkvir = null
+                Thread.sleep(100)
+                continue
+            }
+            poslanoStanje = null
             if (zdaj - preverjanje > 700) {
                 preverjanje = zdaj
                 val nova = meritveZaslona()
                 if (nova.sirina != trenutna.sirina || nova.visina != trenutna.visina) {
                     trenutna = nova
-                    postaviZajem(nova)
+                    try {
+                        postaviZajem(nova)
+                    } catch (e: IllegalStateException) {
+                        // Med obratom se je naprava zaklenila (projekcije ni vec): nic hudega, caka na odklep.
+                        if (!cakaNaOdklep) throw e
+                    }
                     platno = null
                     pomanjsano = null
                 }
@@ -420,6 +715,8 @@ class DeljenjeZaslonaStoritev : Service() {
         // Deljenje je koncano (ali se ni moglo zaceti): oznaka »zaganja se« ne velja vec. Pri zamenjavi deljenja (nov zagon,
         // medtem ko staro tece) se novo zacne v istem klicu na glavni niti - ukaz za konec vmes ne more priti.
         PretokKonec.zahteve.zagonKoncan()
+        koncajCakanje()
+        skrijZnak()
         val jeTeklo = tece
         ustavljam = true
         tece = false
@@ -473,12 +770,34 @@ class DeljenjeZaslonaStoritev : Service() {
         val gradnik = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notification.Builder(this, KANAL)
         else @Suppress("DEPRECATION") Notification.Builder(this)
         val ikona = android.graphics.drawable.Icon.createWithResource(this, android.R.drawable.ic_menu_close_clear_cancel)
-        return gradnik
+        gradnik
             .setContentTitle(besedilo(this, "naslov"))
-            .setContentText(besedilo(this, "besedilo").replace("{ime}", imeCilja))
+            .setContentText(if (cakaNaOdklep) getString(si.safeer.tv.R.string.deljenje_caka_obvestilo)
+                else besedilo(this, "besedilo").replace("{ime}", imeCilja))
             .setSmallIcon(android.R.drawable.stat_sys_upload)
             .setOngoing(true)
             .addAction(Notification.Action.Builder(ikona, besedilo(this, "ustavi"), ustavi).build())
-            .build()
+        // A3: »Vedno dovoli temu racunalniku« za napravo iz ozjega kroga (ali preklic) - en tap, brez dodatnega okna.
+        try {
+            val vedno = cilj.isNotBlank() && ZaupanjeZaslona.vedno(this, cilj) && ZaupanjeZaslona.vKrogu(this, cilj)
+            val ponudi = cilj.isNotBlank() && !vedno && ZaupanjeZaslona.ponudi(this, cilj)
+            if (vedno || ponudi) {
+                val dejanje = if (vedno) ACTION_NE_ZAUPAJ else ACTION_ZAUPAJ
+                val cakajoca = PendingIntent.getService(this, if (vedno) 3 else 2,
+                    Intent(this, DeljenjeZaslonaStoritev::class.java).apply { action = dejanje }, zastavice)
+                val oznaka = if (vedno) getString(si.safeer.tv.R.string.deljenje_ne_vec) else Daljinec.oznakaVednoDovoli(this, cilj)
+                val kljucavnica = android.graphics.drawable.Icon.createWithResource(this, android.R.drawable.ic_lock_idle_lock)
+                gradnik.addAction(Notification.Action.Builder(kljucavnica, oznaka, cakajoca).build())
+            }
+        } catch (e: Throwable) {
+            Log.w(TAG, "Gumba »Vedno dovoli« ni bilo mogoce dodati: ${e.message}")
+        }
+        return gradnik.build()
+    }
+
+    private fun posodobiObvestilo() {
+        if (!tece) return
+        try { (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).notify(ID_OBVESTILA, obvestilo()) }
+        catch (e: Exception) { Log.w(TAG, "Obvestila ni bilo mogoce posodobiti: ${e.message}") }
     }
 }

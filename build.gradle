@@ -86,6 +86,8 @@ android {
         }
         os {
             manifest.srcFile 'okusi/os/AndroidManifest.xml'
+            // Safeer Vnos na televizorju (ime, opis, xml storitve; 25. 10. 2026 ga TV ni imel).
+            res.srcDirs = ['okusi/os/res']
         }
         predvajalnik {
             manifest.srcFile 'okusi/predvajalnik/AndroidManifest.xml'

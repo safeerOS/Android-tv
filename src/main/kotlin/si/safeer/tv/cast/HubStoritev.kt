@@ -200,6 +200,8 @@ class HubStoritev : Service() {
             return koncajTakoj()
         }
         if (odjemalecIzvoljenega) HubKrmilnik.poveziNaIzvoljeni(applicationContext)
+        // Safeer Link tece: Safeer Vnos sledi ozjemu krogu (ena privolitev, link/VnosVklop; brez dovoljenja nic).
+        si.safeer.tv.link.VnosVklop.uskladi(applicationContext, "link")
         // START_STICKY: ce Android storitev ubije zaradi pomnilnika, naj jo po sprostitvi
         // zazene znova - uporabnik je povedal, da naj bo televizor dosegljiv.
         return START_STICKY

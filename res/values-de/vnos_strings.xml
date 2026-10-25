@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safeer Vnos z eno privolitvijo (link/VnosVklop, lastnik 25. 10. 2026): okno ozjega kroga in voden korak. -->
+<resources>
+    <string name="vnos_privolitev">Computer aus deinem engeren Vertrauenskreis können dieses Gerät mit Maus und Tastatur steuern (Safeer Eingabe). Entfernst du ein Gerät aus dem Kreis, endet das sofort.</string>
+    <string name="vnos_vklopljen">Safeer Eingabe ist an: Computer aus deinem engeren Kreis können dieses Gerät mit Maus und Tastatur steuern.</string>
+    <string name="vnos_korak_naslov">Noch ein Schritt: Safeer Eingabe</string>
+    <string name="vnos_korak_tv">Android lässt nur dich Safeer Eingabe einschalten. Die Seite Safeer Eingabe öffnet sich: Wähle mit der Fernbedienung den Schalter und drücke OK.</string>
+    <string name="vnos_korak_dotik">Android lässt nur dich Safeer Eingabe einschalten. Die Seite Safeer Eingabe öffnet sich: Tippe auf den Schalter und bestätige.</string>
+    <string name="vnos_korak_odklep">Android hat Safeer Eingabe eingeschränkt (eingeschränkte Einstellungen). Öffne auf der App-Seite das Menü »⋮« → »Eingeschränkte Einstellungen zulassen« und schalte dann Safeer Eingabe ein. Gibt es dieses Menü nicht, hebt eine Installation vom Computer (adb) die Einschränkung auf.</string>
+    <string name="vnos_odpri">Einstellungen öffnen</string>
+</resources>

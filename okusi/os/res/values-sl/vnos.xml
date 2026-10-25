@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safeer Vnos na televizorju (okus os): ime in opis storitve dostopnosti. -->
+<resources>
+    <string name="vnos_ime">Safeer Vnos</string>
+    <string name="vnos_opis">Računalnik iz tvojega ožjega kroga v Safeer Linku (Safeer Control) sme na tem televizorju premikati izbiro, potrditi ter pritisniti Nazaj ali Domov – kot z daljincem. Safeer Vnos zaslona nikamor ne pošilja; izvede samo, kar zahteva naprava, ki ji je ta televizor odprl »Zaslon in upravljanje«.</string>
+</resources>

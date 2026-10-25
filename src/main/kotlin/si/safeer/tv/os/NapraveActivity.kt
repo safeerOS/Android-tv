@@ -285,6 +285,12 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (n.zmoznosti.contains("files")) moznosti.add(getString(R.string.os_naprave_odpri_datoteke) to {
             startActivity(Intent(this, DatotekeActivity::class.java).putExtra(DatotekeActivity.EXTRA_RACUNALNIK, n.id)) })
         moznosti.add(getString(R.string.os_dostop_moznost) to { dostopNaprave(n) })
+        // »Vedno dovoli« za deljenje zaslona (link/ZaupanjeZaslona, nacrt »dex-upravljanje« A3): preklic tudi brez deljenja.
+        if (si.safeer.tv.link.ZaupanjeZaslona.vedno(this, n.id)) moznosti.add(getString(R.string.deljenje_preklici_zaupanje) to {
+            si.safeer.tv.link.ZaupanjeZaslona.nastavi(this, n.id, false)
+            Toast.makeText(this, getString(R.string.deljenje_zaupanje_preklicano, DatotekeActivity.lepoIme(n.ime).ifBlank { n.id }),
+                Toast.LENGTH_LONG).show()
+        })
         moznosti.add(getString(R.string.os_naprave_preimenuj) to { preimenuj(n.id, n.ime) })
         android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(DatotekeActivity.lepoIme(n.ime).ifBlank { n.id })
@@ -305,14 +311,17 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val dano = si.safeer.tv.cast.Dostop.zmoznosti(this, n.id)
         val izbrano = BooleanArray(vse.size) { vse[it] in dano }
         val ime = DatotekeActivity.lepoIme(n.ime).ifBlank { n.id }
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setTitle(getString(R.string.os_dostop_naslov, ime))
+        val graditelj = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        graditelj
+            // »Zaslon in upravljanje« vkljuci Safeer Vnos (misko in tipkovnico) - privolitev to pove (link/VnosVklop).
+            .setCustomTitle(si.safeer.tv.link.VnosVklop.naslovPrivolitve(graditelj.context, getString(R.string.os_dostop_naslov, ime)))
             .setMultiChoiceItems(imena, izbrano) { _, i, da -> izbrano[i] = da }
             .setPositiveButton(getString(R.string.os_naprave_shrani)) { _, _ ->
                 si.safeer.tv.cast.Dostop.nastavi(this, n.id, vse.filterIndexed { i, _ -> izbrano[i] }.toSet())
                 Toast.makeText(this, getString(if (izbrano.any { it }) R.string.os_dostop_shranjeno else R.string.os_dostop_brez_shranjeno, ime),
                     Toast.LENGTH_LONG).show()
                 narisi(link.naprave)
+                si.safeer.tv.link.VnosVklop.poPrivolitvi(this)
             }
             .setNegativeButton(getString(R.string.os_preklici), null)
             .let { Kontroler.pokazi(it.show()) }

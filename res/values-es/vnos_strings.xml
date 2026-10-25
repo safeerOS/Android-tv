@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Safeer Vnos z eno privolitvijo (link/VnosVklop, lastnik 25. 10. 2026): okno ozjega kroga in voden korak. -->
+<resources>
+    <string name="vnos_privolitev">Los ordenadores de tu círculo de confianza cercano podrán controlar este dispositivo con ratón y teclado (Safeer Entrada). Si quitas un dispositivo del círculo, se detiene al instante.</string>
+    <string name="vnos_vklopljen">Safeer Entrada está activado: los ordenadores de tu círculo cercano pueden controlar este dispositivo con ratón y teclado.</string>
+    <string name="vnos_korak_naslov">Un paso más: Safeer Entrada</string>
+    <string name="vnos_korak_tv">Android solo te permite a ti activar Safeer Entrada. Se abrirá la página de Safeer Entrada: elige el interruptor con el mando y pulsa OK.</string>
+    <string name="vnos_korak_dotik">Android solo te permite a ti activar Safeer Entrada. Se abrirá la página de Safeer Entrada: toca el interruptor y confirma.</string>
+    <string name="vnos_korak_odklep">Android ha restringido Safeer Entrada (ajustes restringidos). En la página de la app abre el menú «⋮» → «Permitir ajustes restringidos» y luego activa Safeer Entrada. Si no existe ese menú, la instalación desde un ordenador (adb) quita la restricción.</string>
+    <string name="vnos_odpri">Abrir ajustes</string>
+</resources>
