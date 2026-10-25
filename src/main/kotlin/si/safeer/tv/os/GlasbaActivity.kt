@@ -8905,9 +8905,19 @@ class GlasbaActivity : OsActivity() {
             }
             fun takojBrezWebtorja(): Boolean {
                 val k = DebridPravila.samodejniTorrent(Debrid.aktivna(this), hashiTorrentov, predpomnjeni)
-                if (k >= 0) { odpri(torrentiPoKakovosti[k]); return true }
+                // Meritev 25. 10. 2026 (Webtor rezerva): v dnevniku mora biti, po kateri poti je slo takoj predvajanje.
+                if (k >= 0) {
+                    android.util.Log.i("SafeerOsMedia", "tokovi: takoj pripravljen pri debridu ${predpomnjeni.size} od ${torrentiPoKakovosti.size}; " +
+                        "izbran=${TokIzbira.opisi(opis(torrentiPoKakovosti[k]))}")
+                    odpri(torrentiPoKakovosti[k]); return true
+                }
                 val zivi = neposredni.filter { !TokIzbira.potekla(it.url, zdajS) }
-                if (zivi.isNotEmpty()) { odpri(zivi.first(), zivi.drop(1).take(REZERVNIH_TOKOV)); return true }
+                if (zivi.isNotEmpty()) {
+                    android.util.Log.i("SafeerOsMedia", "tokovi: takoj neposredni ${zivi.size}, pripravljenih pri debridu 0 od ${torrentiPoKakovosti.size}; " +
+                        "izbran=${TokIzbira.opisi(opis(zivi.first()))}")
+                    odpri(zivi.first(), zivi.drop(1).take(REZERVNIH_TOKOV)); return true
+                }
+                android.util.Log.i("SafeerOsMedia", "tokovi: takoj nic (pripravljenih pri debridu 0 od ${torrentiPoKakovosti.size}, neposrednih 0)")
                 return false
             }
             fun naKonec() { if (!samodejnoBrezUseneta()) Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslov), Toast.LENGTH_SHORT).show() }
