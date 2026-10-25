@@ -129,6 +129,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/WebtorPravilaTest.kt" \
     "$SRC/si/safeer/tv/scit/ScitIzjeme.kt" \
     "$TEST_DIR/ScitIzjemeTest.kt" \
+    "$SRC/si/safeer/tv/os/UskladitevKljucevPravila.kt" \
+    "$TEST_DIR/UskladitevKljucevPravilaTest.kt" \
     -include-runtime -d "$OUT/os.jar"
 
 java -cp "$OUT/os.jar" si.safeer.tv.os.OsPravilaTestKt
@@ -190,6 +192,7 @@ java -cp "$OUT/os.jar" si.safeer.tv.os.ZasebnoTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.SkrivnostiPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.WebtorPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.scit.ScitIzjemeTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.UskladitevKljucevPravilaTestKt
 
 # Neposredna povezava TLS s pripetim potrdilom do naprave z vec naslovi (docs/LINK-MESH.md, pravilo 8):
 # prave vticnice na naslovih zanke, potrdila naredi keytool iz JDK.

@@ -58,14 +58,15 @@ object Debrid {
         return DebridPravila.vrstniRed(neberljive, prednostna(c)).firstOrNull()
     }
 
-    /** Shrani ocisceni kljuc; false, ce vnos ni kljuc ali sifriranje ni uspelo. */
+    /** Shrani ocisceni kljuc; false, ce vnos ni kljuc ali sifriranje ni uspelo. Sprememba gre sama v ozji krog (UskladitevKljucev). */
     fun nastaviKljuc(c: Context, p: String, vnos: String): Boolean = when (p) {
         DebridPravila.TORBOX -> TorBox.nastaviKljuc(c, vnos)
         else -> DebridPravila.ocistiKljuc(vnos)?.let { SporocilaSkrivnosti.shrani(c, imeSkrivnosti(p), it) } ?: false
-    }
+    }.also { if (it) UskladitevKljucev.sprozi(c) }
 
     fun pozabiKljuc(c: Context, p: String) {
         if (p == DebridPravila.TORBOX) TorBox.pozabiKljuc(c) else SporocilaSkrivnosti.pozabi(c, imeSkrivnosti(p))
+        UskladitevKljucev.sprozi(c)
     }
 
     private fun prefs(c: Context) = c.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -354,7 +355,8 @@ object Debrid {
 
     /**
      * Poslje vse vpisane kljuce napravi [n] - samo po sifrirani poti od naprave do naprave ([DebridPravila.smePoslatiKljuc]).
-     * [nato] dobi na glavni niti: "ok" (caka na potrditev tam), "ni_krog" (ni v ozjem krogu), "ni_zascite", "ni_dovoljeno",
+     * [nato] dobi na glavni niti: "ok" (caka na potrditev tam), "stara_dodatki" (kljuci da, dodatkov s poverilnico starejsa
+     * razlicica ne zna), "ni_krog" (ni v ozjem krogu), "ni_zascite", "ni_dovoljeno",
      * "stara", "ni_povezave", "napaka".
      */
     fun posljiKljuce(c: Context, n: LinkOdjemalec.Naprava, nato: (String) -> Unit) {
@@ -375,10 +377,14 @@ object Debrid {
         // Naloga 141: tudi indeksator Usenet (isto sifrirano pot; tam se shrani sele po potrditvi).
         Usenet.indeksator(c)?.let { parametri.put("usenet", JSONObject().put("url", it.osnova).put("key", it.kljuc)) }
         // Webtor rezerva: dodatki s poverilnico (osebni zeton Webtorja ...) gredo samo tu - ozji krog, sifrirano, potrditev.
-        MedijskiViri.skrivniDodatki(c).takeIf { it.isNotEmpty() }?.let { parametri.put("addons", JSONArray(it.take(SkrivnostiPravila.NAJVEC_PREJETIH))) }
+        val dodatki = MedijskiViri.skrivniDodatki(c)
+        if (dodatki.isNotEmpty()) parametri.put("addons", JSONArray(dodatki.take(SkrivnostiPravila.NAJVEC_PREJETIH)))
+        // Pregled N6: starejsa razlicica polje »addons« prezre in vseeno odgovori »sprejeto« - povemo, da dodatkov ni dobila.
+        val staraZaDodatke = dodatki.isNotEmpty() && UskladitevKljucevPravila.ZMOZNOST !in n.zmoznosti
         link.ukaz(n.id, DebridPravila.DEJANJE_KLJUCI, parametri, 8_000, LinkOdjemalec.Odgovor { izid, napaka ->
             val koda = when {
-                izid?.optBoolean("ok") == true && izid.optJSONObject("data")?.optBoolean("accepted") == true -> "ok"
+                izid?.optBoolean("ok") == true && izid.optJSONObject("data")?.optBoolean("accepted") == true ->
+                    if (staraZaDodatke) "stara_dodatki" else "ok"
                 izid?.optString("code") == si.safeer.tv.link.Daljinec.KODA_NI_DOVOLJENO -> "ni_dovoljeno"
                 izid?.optString("code") == "neznano_dejanje" -> "stara"
                 napaka == "ni_povezave" || napaka == "potek" -> "ni_povezave"
