@@ -313,6 +313,10 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             // dovoljenje, ki ga je uporabnik enkrat zavrnil, sistem ne ponudi vec - zato pot do nastavitev aplikacije tu.
             safeer(R.drawable.os_ikona_zvonec, R.string.os_obvestila, R.string.os_obvestila_opis,
                 vklop(si.safeer.tv.link.Obvestila.dovoljena(this))) { odpriObvestila() },
+            // Dovoljenja (lastnik, 25. 10. 2026): vse, kar Safeer potrebuje, z razlogom in gumbom na tocno pravo stran.
+            if (!DovoljenjaActivity.naVoljo(this)) null
+            else safeer(R.drawable.os_ikona_scit, R.string.dov_naslov, R.string.dov_opis_vrstice, DovoljenjaActivity.povzetek(this)) {
+                startActivity(DovoljenjaActivity.namera(this)) },
             safeer(R.drawable.os_ikona_posodobi, R.string.os_posodobitve, R.string.os_posodobitve_opis, Posodobitve.stanje(this),
                 Posodobitve.besedilo(this, R.string.os_posodobitve_opis)) { posodobi() },
             safeer(R.drawable.os_ikona_link, R.string.os_gl_ime, R.string.os_gl_opis,

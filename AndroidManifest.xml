@@ -277,6 +277,11 @@
             android:screenOrientation="landscape" tools:ignore="DiscouragedApi"
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
 
+        <!-- Dovoljenja (Nastavitve › Dovoljenja, obvestilo Safeer Linka »Dovoli«): brez taskAffinity in usmerjenosti, da se
+             na telefonu in tablici odpre v istem opravilu kot klicatelj, na televizorju pa je zaslon tako ali tako lezec. -->
+        <activity android:name="si.safeer.tv.os.DovoljenjaActivity" android:exported="false" android:theme="@style/Theme.SafeerOs"
+            android:label="@string/dov_naslov"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
         <activity android:name="si.safeer.tv.os.BesediloActivity" android:exported="false" android:theme="@style/Theme.SafeerOs"
             android:taskAffinity="${applicationId}.os" android:screenOrientation="landscape" tools:ignore="DiscouragedApi"
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />

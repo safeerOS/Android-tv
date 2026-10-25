@@ -407,10 +407,14 @@
     <string name="os_besedila_napaka">Lyrics can’t be loaded right now.</string>
     <string name="os_besedila_instrumentalno">Instrumental – no lyrics.</string>
     <string name="os_tv_vrni_skrite">Show hidden channels (%1$d)</string>
+    <string name="os_tv_vsi_kanali">All channels</string>
+    <string name="os_tv_priljubljeni_n">Favourites (%1$d)</string>
+    <string name="os_premakni_na_zacetek">Move to start</string>
     <!-- Naloga 108: kanali, ki ne delujejo - razlog in »Preveri znova«. -->
     <string name="os_nedel_ni_toka">no stream from the source</string>
     <string name="os_nedel_streznik">server not found</string>
     <string name="os_nedel_neodziven">server not responding</string>
+    <string name="os_nedel_drm">protected stream (DRM)</string>
     <string name="os_nedel_http">server error %1$d</string>
     <string name="os_nedel_ni_znano">reason unknown</string>
     <!-- Naloga 109: glasba z YouTuba, ki ne deluje. -->

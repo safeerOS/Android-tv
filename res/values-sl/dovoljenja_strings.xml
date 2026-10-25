@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stran Dovoljenja (DovoljenjaActivity, DovoljenjaPravila) in obvestilo Safeer Linka za prikaz cez druge aplikacije. -->
+<resources>
+    <string name="dov_naslov">Dovoljenja</string>
+    <string name="dov_opis_vrstice">Kaj Safeer potrebuje in zakaj – vklop z enim dotikom</string>
+    <string name="dov_uvod">Safeer zahteva samo, kar res uporablja. Gumb odpre točno pravo stran – tam vklopi stikalo za Safeer in se vrni. Vse lahko kadarkoli prekličeš.</string>
+    <string name="dov_ob_zagonu">Nekaj pomembnega še manjka, zato Safeer Link na tej napravi ne more vsega. Tapni »Dovoli« pri označenih vrsticah.</string>
+    <!-- Ime posebnega dostopa v cistem Androidu (OnePlus, WP28 S in vecina drugih; sl preverjeno na napravah lastnika 25. 10. 2026). -->
+    <string name="dov_prikaz">Prekrivanje drugih aplikacij</string>
+    <!-- Ime na Samsungu (One UI): sl in en preverjeno; v ostalih jezikih Samsungovo ime ni preverjeno - zato splosno. -->
+    <string name="dov_prikaz_samsung">Pojavitev na vrhu</string>
+    <string name="dov_prikaz_opis">Da Safeer Link na tej napravi sam odpre program ali stran, ki jo pošlješ z računalnika ali telefona.</string>
+    <string name="dov_obvestila">Obvestila</string>
+    <string name="dov_obvestila_opis">Prošnje in sporočila drugih naprav v Linku (npr. »Dovoli tej napravi internet?«) in potrditve.</string>
+    <string name="dov_celozaslonska">Celozaslonska obvestila</string>
+    <string name="dov_celozaslonska_opis">Da se prošnja za potrditev (nova naprava, brisanje fotografije) pokaže čez zaslon, tudi ko je naprava zaklenjena.</string>
+    <string name="dov_slike">Fotografije in videi</string>
+    <string name="dov_slike_opis">Da jih vidiš v Datotekah in Medijskem centru in jih deliš z drugimi napravami v Linku.</string>
+    <string name="dov_glasba">Glasba in zvočni posnetki</string>
+    <string name="dov_glasba_opis">Da Medijski center predvaja glasbo s te naprave in jo deli z drugimi napravami.</string>
+    <string name="dov_vnos_opis">Da miška in tipkovnica računalnika upravljata to napravo prek Safeer Linka (dostopnost).</string>
+    <string name="dov_namescanje">Nameščanje posodobitev</string>
+    <string name="dov_namescanje_opis">Da Safeer namesti svoje nove različice (Android te pred vsako namestitvijo še vpraša).</string>
+    <string name="dov_da">✓ Dovoljeno</string>
+    <string name="dov_ne">✗ Ni dovoljeno</string>
+    <string name="dov_delno">◐ Le izbrane</string>
+    <string name="dov_gumb_dovoli">Dovoli</string>
+    <string name="dov_gumb_nastavitev">Nastavitev</string>
+    <string name="dov_namig_naslov">Je stikalo sivo ali se ne premakne?</string>
+    <string name="dov_namig_1">1. Na sistemski strani enkrat tapni sivo stikalo za Safeer – Android pokaže, da je nastavitev omejena. Sporočilo zapri.</string>
+    <string name="dov_namig_2">2. Tapni spodnji gumb, nato zgoraj desno ⋮ in izberi »Dovoli omejene nastavitve« (na Samsungu je lahko kar na strani). Vrni se sem in znova tapni »Dovoli«.</string>
+    <string name="dov_namig_zakaj">Android to zahteva za aplikacije, nameščene mimo trgovine. Safeer stikala ne more vklopiti sam.</string>
+    <string name="dov_namig_gumb">Odpri »Podatki o aplikaciji«</string>
+    <string name="dov_stanje_vse">Vse dovoljeno</string>
+    <string name="dov_stanje_manjka">Manjka: %1$d</string>
+    <string name="dov_obvestilo_naslov">Safeer Link: dovoli odpiranje programov</string>
+    <string name="dov_obvestilo_besedilo">Seznanjena naprava je želela odpreti %1$s. Tapni »Dovoli«, na odprti strani vklopi »%2$s« za Safeer in ukaz pošlji znova. Enkrat je dovolj.</string>
+    <string name="dov_izid_brez">Na tej napravi enkrat dovoli »%1$s« za Safeer (obvestilo je že na zaslonu ali Safeer › Nastavitve › Dovoljenja), nato znova zaženi %2$s.</string>
+</resources>

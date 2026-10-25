@@ -481,15 +481,23 @@ object Daljinec {
                 kanal.description = "Enkratna prosnja za dovoljenje, da Safeer Link odpira programe na tej napravi."
                 upravitelj.createNotificationChannel(kanal)
             }
-            val nastavitev = Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                android.net.Uri.parse("package:" + context.packageName)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            // Safeer OS (telefon, tablica, TV): stran Dovoljenja s poudarjeno vrstico - razlog, stanje in gumb na tocno pravo
+            // stikalo, ob sivem stikalu (omejene nastavitve) tudi namig. Brskalnik strani nima: neposredno sistemska stran.
+            val nastavitev = (if (si.safeer.tv.os.DovoljenjaActivity.naVoljo(context))
+                si.safeer.tv.os.DovoljenjaActivity.namera(context, si.safeer.tv.os.DovoljenjaPravila.Vrsta.PRIKAZ)
+            else Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:" + context.packageName)))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             val cakajoca = PendingIntent.getActivity(context, OBVESTILO_DOVOLJENJE, nastavitev,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            // Ime dovoljenja, kot ga ta naprava pokaze (Samsung: »Pojavitev na vrhu«), in celotno besedilo s koraki.
+            val besedilo = context.getString(si.safeer.tv.R.string.dov_obvestilo_besedilo, ime, si.safeer.tv.os.DovoljenjaActivity.imePrikaza(context))
             val obvestilo = android.app.Notification.Builder(context, KANAL_DOVOLJENJE)
-                .setContentTitle("Safeer Link: dovoli odpiranje programov")
-                .setContentText("Seznanjena naprava je zelela odpreti $ime. Dotakni se in vklopi »Prikaz čez druge aplikacije« za Safeer.")
+                .setContentTitle(context.getString(si.safeer.tv.R.string.dov_obvestilo_naslov))
+                .setContentText(besedilo)
+                .setStyle(android.app.Notification.BigTextStyle().bigText(besedilo))
                 .setSmallIcon(android.R.drawable.ic_menu_send)
                 .setContentIntent(cakajoca)
+                .addAction(android.app.Notification.Action.Builder(null, context.getString(si.safeer.tv.R.string.dov_gumb_dovoli), cakajoca).build())
                 .setAutoCancel(true)
                 .build()
             upravitelj.notify(OBVESTILO_DOVOLJENJE, obvestilo)
@@ -500,7 +508,7 @@ object Daljinec {
 
     private fun izidBrezDovoljenja(context: Context, ime: String): Izid {
         obvestiZaDovoljenje(context, ime)
-        return Izid(false, "Na tej napravi enkrat dovoli »Prikaz čez druge aplikacije« za Safeer (obvestilo je že na zaslonu), nato ponovi zagon $ime.",
+        return Izid(false, context.getString(si.safeer.tv.R.string.dov_izid_brez, si.safeer.tv.os.DovoljenjaActivity.imePrikaza(context), ime),
             koda = KODA_DOVOLJENJE_PRIKAZ)
     }
 

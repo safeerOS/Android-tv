@@ -46,6 +46,7 @@ object NedelujoceSkladbe {
             razlog == NedelujocePravila.NI_TOKA -> c.getString(si.safeer.tv.R.string.os_nedel_ni_toka)
             razlog == NedelujocePravila.STREZNIK -> c.getString(si.safeer.tv.R.string.os_nedel_streznik)
             razlog == NedelujocePravila.NEODZIVEN -> c.getString(si.safeer.tv.R.string.os_nedel_neodziven)
+            razlog == NedelujocePravila.DRM -> c.getString(si.safeer.tv.R.string.os_nedel_drm)
             razlog == NedelujocePravila.NI_NA_VOLJO -> c.getString(si.safeer.tv.R.string.os_nedel_ni_na_voljo)
             razlog == NedelujocePravila.ZASEBEN -> c.getString(si.safeer.tv.R.string.os_nedel_zaseben)
             razlog == NedelujocePravila.DRZAVA -> c.getString(si.safeer.tv.R.string.os_nedel_drzava)

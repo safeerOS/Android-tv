@@ -121,6 +121,14 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/DatotekePravilaTest.kt" \
     "$SRC/si/safeer/tv/os/NedelujocePravila.kt" \
     "$TEST_DIR/NedelujocePravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/SondaHlsPravila.kt" \
+    "$TEST_DIR/SondaHlsPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/SondaVeriga.kt" \
+    "$TEST_DIR/SondaVerigaTest.kt" \
+    "$SRC/si/safeer/tv/os/PriljubljeniKanaliPravila.kt" \
+    "$TEST_DIR/PriljubljeniKanaliPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/DovoljenjaPravila.kt" \
+    "$TEST_DIR/DovoljenjaPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/Zasebno.kt" \
     "$TEST_DIR/ZasebnoTest.kt" \
     -include-runtime -d "$OUT/os.jar"
@@ -178,6 +186,10 @@ java -cp "$OUT/os.jar" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-pri
 java -cp "$OUT/os.jar" si.safeer.tv.os.DodatkiProtokolTestKt "$PROJECT_DIR/docs/DODATKI-PROTOKOL.md"
 java -cp "$OUT/os.jar" si.safeer.tv.os.DatotekePravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.NedelujocePravilaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.SondaHlsPravilaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.SondaVerigaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.PriljubljeniKanaliPravilaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.DovoljenjaPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.ZasebnoTestKt
 
 # Neposredna povezava TLS s pripetim potrdilom do naprave z vec naslovi (docs/LINK-MESH.md, pravilo 8):

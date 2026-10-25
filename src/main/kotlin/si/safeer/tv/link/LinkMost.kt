@@ -538,7 +538,10 @@ class LinkMost(
     fun dovoliOspredje() {
         dejavnost.runOnUiThread {
             try {
-                val namera = android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                // Safeer OS: stran Dovoljenja s poudarjenim prikazom (razlog, gumb na tocno stikalo, namig za omejene nastavitve).
+                val namera = if (si.safeer.tv.os.DovoljenjaActivity.naVoljo(dejavnost))
+                    si.safeer.tv.os.DovoljenjaActivity.namera(dejavnost, si.safeer.tv.os.DovoljenjaPravila.Vrsta.PRIKAZ)
+                else android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                     android.net.Uri.parse("package:" + dejavnost.packageName))
                 dejavnost.startActivity(namera)
             } catch (e: Throwable) {

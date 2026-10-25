@@ -14,6 +14,8 @@ object NedelujocePravila {
     const val STREZNIK = "streznik"
     /** Streznik ne odgovarja (zavrnjena povezava ali rok ob delujocem omrezju). */
     const val NEODZIVEN = "neodziven"
+    /** Tok zahteva DRM (Widevine, PlayReady, FairPlay), nas predvajalnik kanala v zivo ga ne predvaja ([SondaHlsPravila.drm]). */
+    const val DRM = "drm"
     /** Odgovor HTTP: »http:<koda>«. */
     const val HTTP = "http:"
     /** YouTube (naloga 109): odstranjen ali sicer nedosegljiv, zaseben, ni v tej drzavi, potrebna prijava ali starost, samo za clane. */
@@ -29,11 +31,15 @@ object NedelujocePravila {
     fun kodaHttp(razlog: String): Int = if (razlog.startsWith(HTTP)) razlog.removePrefix(HTTP).toIntOrNull() ?: 0 else 0
 
     private val RX_HTTP = Regex("HTTP (\\d{3})")
+    private val KORAKI_SONDE = listOf("razlicica: ", "kljuc: ", "kos: ")
 
     /** Razlog iz opisa sonde ([SondaToka.preveriZRazlogom]): koda HTTP, imenik, zavrnjena povezava ali rok; sicer ne vemo. */
-    fun izSonde(opis: String): String {
-        RX_HTTP.find(opis)?.let { return http(it.groupValues[1].toInt()) }
+    fun izSonde(opisSonde: String): String {
+        RX_HTTP.find(opisSonde)?.let { return http(it.groupValues[1].toInt()) }
+        // 25. 10. 2026: sonda HLS pove korak verige (»kos: rok povezave ...«) - razlog je za njim.
+        val opis = KORAKI_SONDE.firstOrNull { opisSonde.startsWith(it) }?.let { opisSonde.removePrefix(it) } ?: opisSonde
         return when {
+            opis == "DRM" -> DRM
             opis.startsWith("imenik ne pozna") -> STREZNIK
             opis.startsWith("ConnectException") || opis.startsWith("NoRouteToHostException") || opis.startsWith("rok povezave") -> NEODZIVEN
             else -> NI_ZNANO
@@ -45,7 +51,14 @@ object NedelujocePravila {
      * odstranjen, zaseben, ni v tej drzavi, potrebna prijava, samo za clane, HTTP 401/403/404/410. Zacasni (omrezje,
      * streznik, 5xx, ni toka - dodatek ima lahko izpad) se preverijo znova po obstojecih pravilih.
      */
-    fun trajen(razlog: String): Boolean = razlog in setOf(NI_NA_VOLJO, ZASEBEN, DRZAVA, PRIJAVA, CLANI) || kodaHttp(razlog) in setOf(401, 403, 404, 410)
+    fun trajen(razlog: String): Boolean = razlog in setOf(NI_NA_VOLJO, ZASEBEN, DRZAVA, PRIJAVA, CLANI, DRM) || kodaHttp(razlog) in setOf(401, 403, 404, 410)
+
+    /**
+     * 25. 10. 2026: oznaka mrtvega kanala z razlogom HTTP 4xx izpred popravka (predvajalnik je relativne poti HLS razresil
+     * pri prvotnem strezniku, sonda je preverila samo glavni seznam) ni zanesljiva - kanal preverimo znova. Ostali razlogi
+     * (imenik, neodziven, ni toka, uporabnikova oznaka) ostanejo.
+     */
+    fun preveriZnovaPoPopravkuSonde(razlog: String): Boolean = kodaHttp(razlog) in 400..499
 
     /** Zapis razloga in imena (hramba v nastavitvah): »razlog\tIme«; ime brez tabulatorjev in novih vrstic. */
     fun vZapis(razlog: String, ime: String): String = razlog + "\t" + ime.replace('\t', ' ').replace('\n', ' ').trim()

@@ -501,6 +501,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         narisiNadaljuj()
         narisiAplikacije()
         Posodobitve.ponudiCeJeCas(this)   // nova razlicica s safeer.si: tiha pasica, najvec enkrat na dan
+        DovoljenjaActivity.ponudiObZagonu(this)   // enkrat, ce manjka pomembno dovoljenje (prikaz cez druge aplikacije)
         narisiSpletne()
         prevzemiSpletne()
         // Ikone, shranjene s prejsnjo razlicico, so bile premajhne in zato zamegljene; enkrat jih

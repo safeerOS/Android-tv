@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dovoljenja Safeer OS (DovoljenjaActivity): glava kot pri Nastavitvah, kratek uvod, nato vrstice - vsaka je en velik
+     gumb (kartica, ki jo izbere daljinec ali dotik) z razlogom, stanjem in dejanjem. Na ozkem zaslonu ikono glave
+     nadomesti gumb menija (k:meni_sidro, StranskaVrstica). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/koren"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:paddingStart="@dimen/os_rob"
+    android:paddingEnd="@dimen/os_rob"
+    android:paddingTop="28dp"
+    android:paddingBottom="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+        <ImageView
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:src="@drawable/os_ikona_scit"
+            android:tag="k:meni_sidro"
+            android:contentDescription="@null"/>
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="14dp"
+            android:orientation="vertical">
+            <TextView
+                style="@style/Os.Nadnaslov"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/os_nastavitve"/>
+            <TextView
+                android:id="@+id/naslov"
+                style="@style/Os.Naslov"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/dov_naslov"/>
+        </LinearLayout>
+    </LinearLayout>
+
+    <ScrollView
+        android:id="@+id/drsnik"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="12dp"
+        android:fillViewport="true"
+        android:clipToPadding="false"
+        android:paddingBottom="8dp">
+        <LinearLayout
+            android:id="@+id/seznam"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+            <TextView
+                android:id="@+id/opozorilo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:textColor="?attr/osOpozorilo"
+                android:textSize="15sp"
+                android:visibility="gone"/>
+            <TextView
+                android:id="@+id/uvod"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                android:textColor="?attr/osUmirjeno"
+                android:textSize="14sp"
+                android:text="@string/dov_uvod"/>
+            <LinearLayout
+                android:id="@+id/vrstice"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"/>
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

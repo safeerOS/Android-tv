@@ -14,7 +14,12 @@ import java.util.concurrent.CopyOnWriteArraySet
 object MrtviKanali {
     private const val PREFS = "safeer_mrtvi_kanali"
     // »2«: odgovor »ziv« od 0.5.53 pomeni, da je odgovoril streznik toka ([SondaToka]), ne samo dodatek - stari ne veljajo.
-    private const val PREFS_ZIVI = "safeer_zivi_kanali_2"
+    // »3« (25. 10. 2026): »ziv« pomeni, da odgovorijo seznam HLS, razlicica, kljuc in kos ([SondaHlsPravila]) - prej je bil
+    // ziv ze kanal, katerega glavni seznam je odgovoril (ABC News Live: vse razlicice 404); stari odgovori ne veljajo.
+    private const val PREFS_ZIVI = "safeer_zivi_kanali_3"
+    /** Enkratne selitve oznak (kljuc = selitev, ki je ze opravljena). */
+    private const val PREFS_SELITEV = "safeer_mrtvi_kanali_selitev"
+    private const val SELITEV_SONDA_HLS = "sonda-hls-1"
     /** Naloga 75: zaporedni negotovi izidi sonde ([OsPravila.IzidSonde.NEGOTOVO]), zapis »stevilo;cas zadnjega«. */
     private const val PREFS_NEGOTOVI = "safeer_negotovi_kanali"
     /** Naloga 90d: kanali, ki jih je uporabnik sam oznacil kot nedelujoce - trajno, brez poteka (kljuc kartice). */
@@ -60,8 +65,27 @@ object MrtviKanali {
             val brezOznake = ArrayList<String>()
             for ((k, v) in po.all) if (doKdaj.containsKey(k)) (v as? String)?.let { opisi[k] = it } else brezOznake += k
             if (brezOznake.isNotEmpty()) po.edit().apply { brezOznake.forEach { remove(it) } }.apply()
+            preseli(c.applicationContext)
             nalozeno = true
         }
+    }
+
+    /**
+     * 25. 10. 2026, enkrat: oznake z razlogom HTTP 4xx izpred popravka predvajalnika in sonde HLS se pozabijo
+     * ([NedelujocePravila.preveriZnovaPoPopravkuSonde]) - kanal s preusmeritvijo je predvajalnik prej iskal pri napacnem
+     * strezniku (HTTP 414/404, kanal pa dela). Nova sonda jih preveri znova (vidne takoj, ostale pregled v ozadju).
+     */
+    private fun preseli(app: Context) {
+        val ps = app.getSharedPreferences(PREFS_SELITEV, Context.MODE_PRIVATE)
+        if (ps.getBoolean(SELITEV_SONDA_HLS, false)) return
+        val pozabi = doKdaj.keys.filter { NedelujocePravila.preveriZnovaPoPopravkuSonde(NedelujocePravila.izZapisa(opisi[it]).first) }
+        if (pozabi.isNotEmpty()) {
+            pozabi.forEach { doKdaj.remove(it); opisi.remove(it) }
+            app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().apply { pozabi.forEach { remove(it) } }.apply()
+            app.getSharedPreferences(PREFS_OPIS, Context.MODE_PRIVATE).edit().apply { pozabi.forEach { remove(it) } }.apply()
+        }
+        android.util.Log.i("SafeerOsMedia", "mrtvi kanali: selitev sonde HLS, znova preverim ${pozabi.size} oznak HTTP 4xx")
+        ps.edit().putBoolean(SELITEV_SONDA_HLS, true).apply()
     }
 
     /**

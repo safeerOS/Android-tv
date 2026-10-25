@@ -292,12 +292,44 @@ object MedijskiViri {
 
     fun jePriljubljena(ctx: Context, s: Jamendo.Skladba) = priljubljene(ctx).any { it.id == s.id }
 
-    /** Doda ali odstrani; vrne, ali je skladba zdaj med priljubljenimi. */
+    /**
+     * Doda ali odstrani; vrne, ali je skladba zdaj (shranjena) med priljubljenimi. Pregled 25. 10. (N9, N10): meja
+     * [NAJVEC_PRILJUBLJENIH] odreze najprej najstarejse skladbe, ne kanalov ([PriljubljeniKanaliPravila.omeji]); vrnjeno
+     * stanje je po shranjenem seznamu; hkrati z [zamenjaj] in [urediPriljubljene] ne tece (isti zaklep).
+     */
+    @Synchronized
     fun preklopiPriljubljeno(ctx: Context, s: Jamendo.Skladba): Boolean {
         val zdaj = priljubljene(ctx)
-        val nova = if (zdaj.any { it.id == s.id }) zdaj.filterNot { it.id == s.id } else listOf(zaShranjevanje(s)) + zdaj
-        pisi(ctx, PRILJUBLJENE, pisiSkladbe(nova.take(300)))
-        return nova.any { it.id == s.id }
+        val nova = when {
+            zdaj.any { it.id == s.id } -> zdaj.filterNot { it.id == s.id }
+            // 25. 10. 2026: kanal v zivo gre za zadnji priljubljeni kanal - red, ki ga je uporabnik uredil, ostane.
+            PriljubljeniKanaliPravila.jeKanal(s.id, Stremio.jeVZivo(s)) -> {
+                val kanali = zdaj.filter { PriljubljeniKanaliPravila.jeKanal(it.id, Stremio.jeVZivo(it)) }.map { it.id }.toHashSet()
+                val poId = (zdaj + zaShranjevanje(s)).associateBy { it.id }
+                PriljubljeniKanaliPravila.dodaj(zdaj.map { it.id }, { it in kanali }, s.id).mapNotNull { poId[it] }
+            }
+            else -> listOf(zaShranjevanje(s)) + zdaj
+        }
+        val kanaliNovi = nova.filter { PriljubljeniKanaliPravila.jeKanal(it.id, Stremio.jeVZivo(it)) }.map { it.id }.toHashSet()
+        val poIdNovi = nova.associateBy { it.id }
+        val shrani = PriljubljeniKanaliPravila.omeji(nova.map { it.id }, { it in kanaliNovi }, NAJVEC_PRILJUBLJENIH).mapNotNull { poIdNovi[it] }
+        pisi(ctx, PRILJUBLJENE, pisiSkladbe(shrani))
+        return shrani.any { it.id == s.id }
+    }
+
+    private const val NAJVEC_PRILJUBLJENIH = 300
+
+    /**
+     * Priljubljene v novem vrstnem redu [red] (isti id-ji, drugacen red - premik kanala, [PriljubljeniKanaliPravila.premakni]).
+     * Vrne false, ce se je seznam medtem spremenil (drugi id-ji) - nic ne zapise.
+     */
+    @Synchronized
+    fun urediPriljubljene(ctx: Context, red: List<String>): Boolean {
+        val zdaj = beriSkladbe(beri(ctx, PRILJUBLJENE))
+        val poId = zdaj.associateBy { it.id }
+        if (red.toSet() != poId.keys) return false
+        pisi(ctx, PRILJUBLJENE, pisiSkladbe(red.distinct().mapNotNull { poId[it] }))
+        return true
     }
 
     fun seznami(ctx: Context): List<Seznam> {
