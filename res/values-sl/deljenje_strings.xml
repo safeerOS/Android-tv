@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Deljenje zaslona po vzoru DeX (link/DeljenjePravila): »Vedno dovoli«, vprasanje Safeerja. -->
+<resources>
+    <string name="deljenje_vedno_racunalnik">Vedno dovoli temu računalniku</string>
+    <string name="deljenje_vedno_napravi">Vedno dovoli tej napravi</string>
+    <string name="deljenje_ne_vec">Ne dovoli več samodejno</string>
+    <string name="deljenje_potrditev_naslov">Deljenje zaslona</string>
+    <string name="deljenje_potrditev_besedilo">%1$s želi videti zaslon te naprave in jo upravljati. Android tega ne bo vprašal, ker ima Safeer trajno dovoljenje za prikaz zaslona.</string>
+    <string name="deljenje_dovoli">Dovoli</string>
+    <string name="deljenje_zavrni">Zavrni</string>
+    <string name="deljenje_preklici_zaupanje">Deljenje zaslona: prekliči »Vedno dovoli«</string>
+    <string name="deljenje_zaupanje_preklicano">Deljenje zaslona z napravo %1$s bo treba spet potrditi.</string>
+</resources>

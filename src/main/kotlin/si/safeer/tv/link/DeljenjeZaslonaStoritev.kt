@@ -52,6 +52,9 @@ class DeljenjeZaslonaStoritev : Service() {
 
         const val ACTION_START = "si.safeer.tv.link.ZASLON_START"
         const val ACTION_STOP = "si.safeer.tv.link.ZASLON_STOP"
+        /** A3: »Vedno dovoli temu racunalniku« / preklic iz obvestila deljenja (velja za napravo, ki zdaj gleda). */
+        const val ACTION_ZAUPAJ = "si.safeer.tv.link.ZASLON_ZAUPAJ"
+        const val ACTION_NE_ZAUPAJ = "si.safeer.tv.link.ZASLON_NE_ZAUPAJ"
         const val EXTRA_RESULT_CODE = "result_code"
         const val EXTRA_DATA = "data"
         const val EXTRA_CILJ = "cilj"
@@ -149,6 +152,13 @@ class DeljenjeZaslonaStoritev : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent == null || intent.action == ACTION_STOP) {
             koncaj("")
+            return START_NOT_STICKY
+        }
+        if (intent.action == ACTION_ZAUPAJ || intent.action == ACTION_NE_ZAUPAJ) {
+            if (tece && cilj.isNotBlank()) {
+                ZaupanjeZaslona.nastavi(this, cilj, intent.action == ACTION_ZAUPAJ)
+                posodobiObvestilo()
+            } else stopSelf(startId)   // staro obvestilo, deljenja ni vec: storitev ne ostane prizgana
             return START_NOT_STICKY
         }
         if (tece) koncaj("")
@@ -473,12 +483,33 @@ class DeljenjeZaslonaStoritev : Service() {
         val gradnik = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notification.Builder(this, KANAL)
         else @Suppress("DEPRECATION") Notification.Builder(this)
         val ikona = android.graphics.drawable.Icon.createWithResource(this, android.R.drawable.ic_menu_close_clear_cancel)
-        return gradnik
+        gradnik
             .setContentTitle(besedilo(this, "naslov"))
             .setContentText(besedilo(this, "besedilo").replace("{ime}", imeCilja))
             .setSmallIcon(android.R.drawable.stat_sys_upload)
             .setOngoing(true)
             .addAction(Notification.Action.Builder(ikona, besedilo(this, "ustavi"), ustavi).build())
-            .build()
+        // A3: »Vedno dovoli temu racunalniku« za napravo iz ozjega kroga (ali preklic) - en tap, brez dodatnega okna.
+        try {
+            val vedno = cilj.isNotBlank() && ZaupanjeZaslona.vedno(this, cilj) && ZaupanjeZaslona.vKrogu(this, cilj)
+            val ponudi = cilj.isNotBlank() && !vedno && ZaupanjeZaslona.ponudi(this, cilj)
+            if (vedno || ponudi) {
+                val dejanje = if (vedno) ACTION_NE_ZAUPAJ else ACTION_ZAUPAJ
+                val cakajoca = PendingIntent.getService(this, if (vedno) 3 else 2,
+                    Intent(this, DeljenjeZaslonaStoritev::class.java).apply { action = dejanje }, zastavice)
+                val oznaka = if (vedno) getString(si.safeer.tv.R.string.deljenje_ne_vec) else Daljinec.oznakaVednoDovoli(this, cilj)
+                val kljucavnica = android.graphics.drawable.Icon.createWithResource(this, android.R.drawable.ic_lock_idle_lock)
+                gradnik.addAction(Notification.Action.Builder(kljucavnica, oznaka, cakajoca).build())
+            }
+        } catch (e: Throwable) {
+            Log.w(TAG, "Gumba »Vedno dovoli« ni bilo mogoce dodati: ${e.message}")
+        }
+        return gradnik.build()
+    }
+
+    private fun posodobiObvestilo() {
+        if (!tece) return
+        try { (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).notify(ID_OBVESTILA, obvestilo()) }
+        catch (e: Exception) { Log.w(TAG, "Obvestila ni bilo mogoce posodobiti: ${e.message}") }
     }
 }

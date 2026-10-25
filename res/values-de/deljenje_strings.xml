@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Deljenje zaslona po vzoru DeX (link/DeljenjePravila): »Vedno dovoli«, vprasanje Safeerja. -->
+<resources>
+    <string name="deljenje_vedno_racunalnik">Diesem Computer immer erlauben</string>
+    <string name="deljenje_vedno_napravi">Diesem Gerät immer erlauben</string>
+    <string name="deljenje_ne_vec">Nicht mehr automatisch erlauben</string>
+    <string name="deljenje_potrditev_naslov">Bildschirmfreigabe</string>
+    <string name="deljenje_potrditev_besedilo">%1$s möchte den Bildschirm dieses Geräts sehen und es steuern. Android fragt nicht nach, weil Safeer eine dauerhafte Berechtigung zur Bildschirmfreigabe hat.</string>
+    <string name="deljenje_dovoli">Erlauben</string>
+    <string name="deljenje_zavrni">Ablehnen</string>
+    <string name="deljenje_preklici_zaupanje">Bildschirmfreigabe: „Immer erlauben“ aufheben</string>
+    <string name="deljenje_zaupanje_preklicano">Die Bildschirmfreigabe für %1$s muss wieder bestätigt werden.</string>
+</resources>

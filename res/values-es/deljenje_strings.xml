@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Deljenje zaslona po vzoru DeX (link/DeljenjePravila): »Vedno dovoli«, vprasanje Safeerja. -->
+<resources>
+    <string name="deljenje_vedno_racunalnik">Permitir siempre a este ordenador</string>
+    <string name="deljenje_vedno_napravi">Permitir siempre a este dispositivo</string>
+    <string name="deljenje_ne_vec">Dejar de permitir automáticamente</string>
+    <string name="deljenje_potrditev_naslov">Compartir pantalla</string>
+    <string name="deljenje_potrditev_besedilo">%1$s quiere ver la pantalla de este dispositivo y controlarlo. Android no lo preguntará, porque Safeer tiene permiso permanente para compartir la pantalla.</string>
+    <string name="deljenje_dovoli">Permitir</string>
+    <string name="deljenje_zavrni">Rechazar</string>
+    <string name="deljenje_preklici_zaupanje">Compartir pantalla: anular «Permitir siempre»</string>
+    <string name="deljenje_zaupanje_preklicano">Habrá que volver a confirmar compartir la pantalla con %1$s.</string>
+</resources>

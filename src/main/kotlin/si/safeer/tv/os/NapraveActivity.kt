@@ -285,6 +285,12 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (n.zmoznosti.contains("files")) moznosti.add(getString(R.string.os_naprave_odpri_datoteke) to {
             startActivity(Intent(this, DatotekeActivity::class.java).putExtra(DatotekeActivity.EXTRA_RACUNALNIK, n.id)) })
         moznosti.add(getString(R.string.os_dostop_moznost) to { dostopNaprave(n) })
+        // »Vedno dovoli« za deljenje zaslona (link/ZaupanjeZaslona, nacrt »dex-upravljanje« A3): preklic tudi brez deljenja.
+        if (si.safeer.tv.link.ZaupanjeZaslona.vedno(this, n.id)) moznosti.add(getString(R.string.deljenje_preklici_zaupanje) to {
+            si.safeer.tv.link.ZaupanjeZaslona.nastavi(this, n.id, false)
+            Toast.makeText(this, getString(R.string.deljenje_zaupanje_preklicano, DatotekeActivity.lepoIme(n.ime).ifBlank { n.id }),
+                Toast.LENGTH_LONG).show()
+        })
         moznosti.add(getString(R.string.os_naprave_preimenuj) to { preimenuj(n.id, n.ime) })
         android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(DatotekeActivity.lepoIme(n.ime).ifBlank { n.id })

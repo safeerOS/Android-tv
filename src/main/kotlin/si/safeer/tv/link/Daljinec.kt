@@ -466,10 +466,16 @@ object Daljinec {
         }
         if (!zahtevajDeljenje(context, cilj, paket, ime, odprtoTukaj = true, samodejno = true, besedilo = si.safeer.tv.R.string.ui_link_zagon_pretok))
             return izidBrezDovoljenja(context, ime)
-        if (celZaslon) return Izid(true, "Na napravi potrdi deljenje zaslona",
-            JSONObject().put("package", paket).put("label", ime).put("stream", "pending"))
-        return Izid(true, "Na napravi potrdi deljenje zaslona, nato se odpre $ime",
-            JSONObject().put("package", paket).put("label", ime).put("stream", "pending"))
+        // A3: s trajnim dovoljenjem Androida in zaupano napravo okna za soglasje ni - ne prosimo za potrditev, ki je ne bo.
+        val brezVprasanja = DeljenjePravila.potrditev(ZaupanjeZaslona.projekcijaDovoljena(context),
+            ZaupanjeZaslona.zaupano(context, cilj)) == DeljenjePravila.Potrditev.BREZ
+        val sporocilo = when {
+            brezVprasanja && celZaslon -> "Deljenje zaslona se začenja"
+            brezVprasanja -> "Deljenje zaslona se začenja, nato se odpre $ime"
+            celZaslon -> "Na napravi potrdi deljenje zaslona"
+            else -> "Na napravi potrdi deljenje zaslona, nato se odpre $ime"
+        }
+        return Izid(true, sporocilo, JSONObject().put("package", paket).put("label", ime).put("stream", "pending"))
     }
 
     /**
@@ -496,6 +502,32 @@ object Daljinec {
         namigPoZagonu(context, neposredno, true, { PretociActivity.odprtaZahteva == zeton || !PretokKonec.zahteve.caka(zeton) },
             namera, ime, besedilo, PretokKonec.CAKA_MS)
         return true
+    }
+
+    /** Ime naprave v Linku (krajevni vzdevek ali ime s Huba) in njena platforma; brez seznama id. */
+    private fun napravaLinka(context: Context, id: String): Pair<String, String> {
+        var ime = ""
+        var platforma = ""
+        try {
+            val polje = JSONArray(si.safeer.tv.cast.CastReceiverService.zadnjeNaprave)
+            for (i in 0 until polje.length()) {
+                val n = polje.optJSONObject(i) ?: continue
+                if (n.optString("id", "") != id) continue
+                ime = n.optString("name", "")
+                platforma = n.optString("platform", "")
+                break
+            }
+        } catch (_: Throwable) { }
+        return LinkVzdevki.ime(context, id, ime.ifBlank { id }) to platforma
+    }
+
+    /** Ime naprave za besedila na tej napravi (obvestilo deljenja, vprasanje). */
+    fun imeNaprave(context: Context, id: String): String = napravaLinka(context, id).first
+
+    /** »Vedno dovoli temu racunalniku« ali »… tej napravi« - kot se naprava predstavi Hubu. */
+    fun oznakaVednoDovoli(context: Context, id: String): String {
+        val racunalnik = napravaLinka(context, id).second.lowercase() in setOf("linux", "windows", "macos", "mac", "pc")
+        return context.getString(if (racunalnik) si.safeer.tv.R.string.deljenje_vedno_racunalnik else si.safeer.tv.R.string.deljenje_vedno_napravi)
     }
 
     private const val KANAL_ZAGON = "safeer_link_zagon"
@@ -833,6 +865,8 @@ object Daljinec {
             .put("android", Build.VERSION.RELEASE)
             .put("foreground", dodatno != null)
             .put("can_wake", lahkoVOspredje(context))
+            // A3: Android za deljenje zaslona ne vprasa (AppOps PROJECT_MEDIA = allow).
+            .put("screen_permanent", ZaupanjeZaslona.projekcijaDovoljena(context))
             .put("actions", JSONArray(DEJANJA))
             .put("keys", JSONArray(TIPKE.keys.toList()))
         try {
