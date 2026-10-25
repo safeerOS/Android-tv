@@ -22,6 +22,32 @@ object DebridPravila {
     /** Privzeti vrstni red (ce uporabnik ne izbere prednostne storitve). */
     val VSI = listOf(TORBOX, REAL_DEBRID, ALLDEBRID)
 
+    // Magnet povezave (MagnetActivity). Lastnik 23. 10. 2026: magnet prek TorBoxa (IP uporabnika ni v roju); brez
+    // storitve opozorilo, da bo IP viden, PREDEN se naprava poveze z rojem (tudi branje podatkov torrenta je ze roj).
+    /** Torrent prenese debrid storitev, naprava dobi samo tok - IP uporabnika ni v roju. */
+    const val MAGNET_DEBRID = "debrid"
+    /** Neposredno v roj, uporabnik ni potrdil opozorila: najprej opozorilo. */
+    const val MAGNET_OPOZORI = "opozori"
+    /** Neposredno v roj: uporabnik je opozorilo za ta torrent potrdil. */
+    const val MAGNET_P2P = "p2p"
+
+    /**
+     * Kako odpreti magnet: [aktivna] = storitev, ki bi predvajala ([Debrid.aktivna]; null = ni kljuca ali je izklopljena),
+     * [neposredno] = uporabnik je izrecno izbral »Odpri neposredno (P2P)«, [potrjeno] = opozorilo o vidnem IP je za ta
+     * torrent ze potrdil. Neposredne povezave brez potrjenega opozorila ni - tudi ce jo zahteva druga naprava v Linku.
+     */
+    fun potMagneta(aktivna: String?, neposredno: Boolean, potrjeno: Boolean): String = when {
+        aktivna != null && !neposredno -> MAGNET_DEBRID
+        potrjeno -> MAGNET_P2P
+        else -> MAGNET_OPOZORI
+    }
+
+    /** Ime torrenta iz povezave (dn=), brez omrezja in roja; prazno, ce ga povezava nima. */
+    fun imeMagneta(magnet: String): String = magnet.substringAfter('?', "").split('&')
+        .firstOrNull { it.startsWith("dn=", ignoreCase = true) }
+        ?.let { runCatching { java.net.URLDecoder.decode(it.substring(3), "UTF-8") }.getOrNull() }
+        ?.trim().orEmpty().take(200)
+
     fun ime(ponudnik: String): String = when (ponudnik) {
         TORBOX -> "TorBox"
         REAL_DEBRID -> "Real-Debrid"

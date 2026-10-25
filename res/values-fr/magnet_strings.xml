@@ -3,7 +3,7 @@
 <resources>
     <string name="magnet_naslov">Liens magnet</string>
     <string name="magnet_odpri">Ouvrir</string>
-    <string name="magnet_opomba">Seuls la vidéo et la musique sont lues. Les fichiers qui ressemblent à des programmes ne sont téléchargés qu’après votre confirmation. Ne téléchargez et ne partagez que du contenu dont vous avez les droits ; les autres pairs voient votre adresse IP.</string>
+    <string name="magnet_opomba">Seuls la vidéo et la musique sont lues. Les fichiers qui ressemblent à des programmes ne sont téléchargés qu’après votre confirmation. Ne téléchargez et ne partagez que du contenu dont vous avez les droits ; sans service debrid (p. ex. TorBox), les autres pairs voient votre adresse IP.</string>
     <string name="magnet_napaka_ni_magnet">Ce n’est pas un lien magnet valide.</string>
     <string name="magnet_napaka_ni_izbranih">Sélectionnez au moins un fichier.</string>
     <string name="magnet_napaka_ni_metapodatkov">Impossible de lire les détails du torrent. Réessayez plus tard.</string>
@@ -44,4 +44,11 @@
     <string name="magnet_nevarno_opis">La vérification automatique indique que « %s » est peut-être un programme. Elle peut se tromper. Ne le téléchargez que si vous faites confiance à la source ; Safeer ne l’exécute ni ne le lit jamais.</string>
     <string name="magnet_vseeno">Continuer quand même</string>
     <string name="magnet_pritisni_odpri">Vérifie le lien et appuie sur Ouvrir.</string>
+    <string name="magnet_p2p_naslov">Votre adresse IP sera visible</string>
+    <string name="magnet_p2p_opis">Sans service debrid, Safeer se connecte directement aux autres pairs de ce torrent et tout l’essaim voit votre adresse IP. Avec TorBox (ou Real-Debrid, AllDebrid), le service télécharge le torrent et vous ne recevez que le flux : votre adresse IP reste cachée.</string>
+    <string name="magnet_p2p_vseeno">Se connecter directement quand même</string>
+    <string name="magnet_p2p_dodaj">Ajouter TorBox</string>
+    <string name="magnet_debrid_opis">%1$s télécharge ce torrent pour vous : votre adresse IP n’est pas visible des autres pairs.</string>
+    <string name="magnet_debrid_predvajaj">Lire via %1$s</string>
+    <string name="magnet_neposredno">Ouvrir directement (P2P)</string>
 </resources>

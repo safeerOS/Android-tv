@@ -232,5 +232,17 @@ fun main() {
     preveriEnako("brez glave Date: ne brisi", false, DebridPravila.dodalSmoMi(t0, null))
     preveriEnako("glava Date 0: ne brisi", false, DebridPravila.dodalSmoMi(t0, 0L))
 
+    // Magnet povezave (lastnik 23. 10. 2026): s storitvijo prek nje, brez nje opozorilo pred rojem.
+    preveriEnako("magnet s TorBoxom: prek storitve", DebridPravila.MAGNET_DEBRID, DebridPravila.potMagneta(DebridPravila.TORBOX, false, false))
+    preveriEnako("magnet s storitvijo, potrjeno prej: se vedno prek storitve", DebridPravila.MAGNET_DEBRID, DebridPravila.potMagneta(DebridPravila.REAL_DEBRID, false, true))
+    preveriEnako("magnet brez storitve: opozorilo", DebridPravila.MAGNET_OPOZORI, DebridPravila.potMagneta(null, false, false))
+    preveriEnako("magnet brez storitve, zahteva z druge naprave: opozorilo", DebridPravila.MAGNET_OPOZORI, DebridPravila.potMagneta(null, true, false))
+    preveriEnako("magnet brez storitve, potrjeno: neposredno", DebridPravila.MAGNET_P2P, DebridPravila.potMagneta(null, false, true))
+    preveriEnako("s storitvijo izbrano neposredno: opozorilo", DebridPravila.MAGNET_OPOZORI, DebridPravila.potMagneta(DebridPravila.TORBOX, true, false))
+    preveriEnako("s storitvijo izbrano neposredno, potrjeno: neposredno", DebridPravila.MAGNET_P2P, DebridPravila.potMagneta(DebridPravila.TORBOX, true, true))
+    preveriEnako("ime iz dn", "Big Buck Bunny", DebridPravila.imeMagneta("magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c&dn=Big+Buck+Bunny&tr=udp%3A%2F%2Ftracker"))
+    preveriEnako("brez dn: prazno", "", DebridPravila.imeMagneta("magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c"))
+    preveriEnako("pokvarjen dn: prazno", "", DebridPravila.imeMagneta("magnet:?xt=urn:btih:dd82&dn=%E0%A4%A"))
+
     if (napak == 0) println("DebridPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

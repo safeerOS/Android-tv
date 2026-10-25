@@ -3,7 +3,7 @@
 <resources>
     <string name="magnet_naslov">Magnet links</string>
     <string name="magnet_odpri">Open</string>
-    <string name="magnet_opomba">Only video and music are played. Files that look like programs are not downloaded unless you confirm them. Download and share only content you have the rights to; other peers can see your IP address.</string>
+    <string name="magnet_opomba">Only video and music are played. Files that look like programs are not downloaded unless you confirm them. Download and share only content you have the rights to; without a debrid service (e.g. TorBox) other peers can see your IP address.</string>
     <string name="magnet_napaka_ni_magnet">This is not a valid magnet link.</string>
     <string name="magnet_napaka_ni_izbranih">Select at least one file.</string>
     <string name="magnet_napaka_ni_metapodatkov">Could not read the torrent details. Try again later.</string>
@@ -44,4 +44,11 @@
     <string name="magnet_nevarno_opis">The automatic check says “%s” may be a program. The check can be wrong. Download it only if you trust the source; Safeer never runs or plays it.</string>
     <string name="magnet_vseeno">Continue anyway</string>
     <string name="magnet_pritisni_odpri">Check the link and press Open.</string>
+    <string name="magnet_p2p_naslov">Your IP address will be visible</string>
+    <string name="magnet_p2p_opis">Without a debrid service, Safeer connects directly to the other peers of this torrent, and everyone in the swarm can see your IP address. With TorBox (or Real-Debrid, AllDebrid) the service downloads the torrent and you only receive the stream, so your IP address stays hidden.</string>
+    <string name="magnet_p2p_vseeno">Connect directly anyway</string>
+    <string name="magnet_p2p_dodaj">Add TorBox</string>
+    <string name="magnet_debrid_opis">%1$s downloads this torrent for you, so your IP address is not visible to other peers.</string>
+    <string name="magnet_debrid_predvajaj">Play via %1$s</string>
+    <string name="magnet_neposredno">Open directly (P2P)</string>
 </resources>
