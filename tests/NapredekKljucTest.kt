@@ -20,6 +20,9 @@ fun main() {
     preveriEnako("id pomocnika #t", "stremio|movie|tt1", K.vsebine("stremio|movie|tt1|$dodatek#t998"))
     preveriEnako("id pomocnika #tn", "stremio|movie|tt1", K.vsebine("stremio|movie|tt1|$dodatek#tn-5"))
     preveriEnako("krajevna pot z # ostane", "krajevno:/Movies/a#b.mkv", K.vsebine("krajevno:/Movies/a#b.mkv"))
+    // Pregled 8: oznake toka samo pri Stremiu in prenosih racunalnika
+    preveriEnako("krajevna pot s #2 na koncu ostane", "krajevno:/Movies/posnetek#2", K.vsebine("krajevno:/Movies/posnetek#2"))
+    preveriEnako("prenos racunalnika brez toka", "pcprenos|pc|7|0", K.vsebine("pcprenos|pc|7|0#t123"))
     preveriEnako("prazen id", "", K.vsebine(""))
 
     // Dune (2021) in Dune (2024): razlicna vsebina, enak naslov
@@ -58,6 +61,32 @@ fun main() {
     preveriEnako("ogled znova: oznaki pobrisani, druge ostanejo", listOf("drugo"), brez)
     preveriEnako("odgledano: najnovejsi prvi, brez podvojenih", listOf(K.kljuc(dune24), K.kljuc(dune21)), K.oznaci(K.oznaci(o1, dune24, true, 300), dune24, true, 300))
     preveriEnako("odgledano: najvec", 2, K.oznaci(listOf("a", "b", "c"), dune21, true, 2).size)
+
+    // Pregled 1: videi kanala (ali epizode brez stevilk) - isti id kanala, locita jih naslov
+    val kanal1 = NapredekKljuc.Opis("stremio|channel|yt:UC1|$dodatek#5", "Kanal · 1. Uvod")
+    val kanal2 = NapredekKljuc.Opis("stremio|channel|yt:UC1|$dodatek#9", "Kanal · 2. Nadaljevanje")
+    preveriEnako("kanal: dva videa - razlicna kljuca", false, K.kljuc(kanal1) == K.kljuc(kanal2))
+    preveriEnako("kanal: dva videa se ne ujemata", false, K.ujema(kanal1, kanal2))
+    preveriEnako("kanal: isti video, drug tok", true, K.ujema(kanal1, kanal1.copy(id = "stremio|channel|yt:UC1|$dodatek#77")))
+    val oKanal = K.oznaci(emptyList(), kanal1, true, 300)
+    preveriEnako("kanal: odgledan samo prvi", listOf(true, false), listOf(K.odgledano(oKanal, kanal1), K.odgledano(oKanal, kanal2)))
+    preveriEnako("serija brez stevilk: dva videa razlicna", false,
+        K.ujema(NapredekKljuc.Opis("stremio|series|tt9|$dodatek", "Oddaja · 1. A"), NapredekKljuc.Opis("stremio|series|tt9|$dodatek", "Oddaja · 2. B")))
+    preveriEnako("film brez naslova v kljucu", "v|stremio|movie|tt1160419", K.kljuc(dune21))
+
+    // Pregled 6: isti film iz dveh katalogov (IMDb)
+    val izTmdb = NapredekKljuc.Opis("stremio|movie|tmdb:438631|https://drug.test/manifest.json#1", "Dune", imdb = "tt1160419")
+    preveriEnako("isti film, dva kataloga (IMDb)", true, K.ujema(izTmdb, dune21.copy(imdb = "tt1160419")))
+    preveriEnako("IMDb: Dune 2024 ostane drug", false, K.ujema(izTmdb, dune24.copy(imdb = "tt15239678")))
+    preveriEnako("IMDb: star zapis brez IMDb s katalogom tt velja", true, K.ujema(dune21, izTmdb.copy(id = "stremio|movie|tt1160419|x", imdb = "tt1160419")))
+    preveriEnako("IMDb: star zapis epizode (SxEy v naslovu, brez IMDb) velja", true,
+        K.ujema(NapredekKljuc.Opis(ep(1, 2).id, "Prijatelji · S1E2"), ep(1, 2).copy(imdb = "tt0108778")))
+    preveriEnako("IMDb: druga epizoda ne", false,
+        K.ujema(NapredekKljuc.Opis(ep(1, 2).id, "Prijatelji · S1E2"), ep(1, 3).copy(imdb = "tt0108778")))
+    preveriEnako("neveljaven IMDb se ne uporabi", "v|stremio|movie|tt1160419", K.kljuc(dune21.copy(imdb = "nekaj")))
+
+    // Pregled 7: nova oznaka odstrani staro oznako naslova te vsebine
+    preveriEnako("odgledano: stara oznaka naslova se preseli", listOf(K.kljuc(dune21), "drugo"), K.oznaci(listOf("dune", "drugo"), dune21, true, 300))
 
     if (napak == 0) println("NapredekKljucTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

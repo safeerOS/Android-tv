@@ -15,13 +15,13 @@ object MediaNapredek {
     data class Vnos(val skladba: Jamendo.Skladba, val polozaj: Long, val trajanje: Long, val cas: Long, val naprava: String = "")
 
     /** Pregled Grok 4: kljuc je vsebina + sezona + epizoda ([NapredekKljuc]), ne samo naslov brez letnice. */
-    private fun opis(s: Jamendo.Skladba) = NapredekKljuc.Opis(s.id, s.naslov, s.season, s.episode)
+    private fun opis(s: Jamendo.Skladba) = NapredekKljuc.Opis(s.id, s.naslov, s.season, s.episode, s.imdbId)
     private fun kljuc(s: Jamendo.Skladba) = NapredekKljuc.kljuc(opis(s))
 
     /** Ali shranjeni zapis [o] velja za [s] (tudi star zapis brez sezone in epizode - [NapredekKljuc.ujema]). */
     private fun ujema(o: JSONObject, s: Jamendo.Skladba): Boolean = try {
         val z = o.getJSONObject("s")
-        NapredekKljuc.ujema(NapredekKljuc.Opis(z.optString("id"), z.optString("n"), z.optInt("season"), z.optInt("episode")), opis(s))
+        NapredekKljuc.ujema(NapredekKljuc.Opis(z.optString("id"), z.optString("n"), z.optInt("season"), z.optInt("episode"), z.optString("imdbId")), opis(s))
     } catch (_: Exception) { false }
 
     /** Videi s te naprave (kot VLC): zapomnimo si mesto ze od 1 min dolzine naprej. */
@@ -105,8 +105,8 @@ object MediaNapredek {
         .put("t", System.currentTimeMillis()).put("np", naprava).put("s", JSONObject().put("id",s.id).put("n",s.naslov).put("a",s.izvajalec)
             .put("i",s.slika).put("z",s.zvok).put("u",s.povezava).put("r",s.radio).put("v",s.video).put("m",s.mime).put("st",s.streznik).put("ka",s.kanal).put("mt",s.mediaType).put("je",s.language)
             // Pregled Grok 4: sezona in epizoda - kljuc in »Nadaljuj« naslednje epizode ne slonita na naslovu (SxEy).
-            .put("season", s.season).put("episode", s.episode))
-    private fun skladba(o: JSONObject) = Jamendo.Skladba(o.optString("id"),o.optString("n"),o.optString("a"),o.optString("i"),o.optString("z"),o.optString("u"),o.optBoolean("r"),o.optBoolean("v"),o.optString("m"),o.optString("st"),o.optString("ka"),mediaType=o.optString("mt"),language=o.optString("je"),season=o.optInt("season"),episode=o.optInt("episode"))
+            .put("season", s.season).put("episode", s.episode).put("imdbId", s.imdbId))
+    private fun skladba(o: JSONObject) = Jamendo.Skladba(o.optString("id"),o.optString("n"),o.optString("a"),o.optString("i"),o.optString("z"),o.optString("u"),o.optBoolean("r"),o.optBoolean("v"),o.optString("m"),o.optString("st"),o.optString("ka"),mediaType=o.optString("mt"),language=o.optString("je"),season=o.optInt("season"),episode=o.optInt("episode"),imdbId=o.optString("imdbId"))
     private fun preberiJson(c: Context): List<JSONObject> = try { val a=JSONArray(c.getSharedPreferences(PREF,0).getString(KEY,"[]")); (0 until a.length()).mapNotNull{a.optJSONObject(it)} } catch (_:Exception){ emptyList() }
     private fun shrani(c: Context, l: List<JSONObject>) { val a=JSONArray(); l.forEach{a.put(it)}; c.getSharedPreferences(PREF,0).edit().putString(KEY,a.toString()).apply() }
 }
