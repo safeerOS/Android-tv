@@ -11,6 +11,16 @@ IZDAJA_API="https://api.github.com/repos/safeerOS/Mobile-android/releases/latest
 CURL_VARNO=(--proto '=https' --proto-redir '=https')
 # Ime paketa aplikacije iz izdaje Mobile-android (ne TV brskalnika si.safeer.tv iz tega repozitorija).
 PAKET="com.safeer.mobile.browser"
+# Pregled Grok 7: datoteke izdaje vzamemo samo z GitHuba (prenosi izdaj Mobile-android) in APK po imenu paketa
+# (safeer-browser-android-<verzija>.apk) - ne prvi .apk v izdaji, ce jih je vec (npr. razlicica za preizkus).
+PRENOSI_IZDAJE='https://github\.com/safeerOS/Mobile-android/releases/download/[^"/]+'
+VZOREC_APK="$PRENOSI_IZDAJE/safeer-browser-android-[0-9]+(\.[0-9]+)*\.apk"
+VZOREC_SHA="$PRENOSI_IZDAJE/SHA256SUMS"
+
+# Naslov datoteke izdaje iz JSON odgovora GitHub API ($1) po vzorcu ($2); prazno, ce je ni.
+naslov_iz_izdaje() {
+    printf '%s' "$1" | grep -oE "\"browser_download_url\": *\"$2\"" | head -n 1 | cut -d'"' -f4
+}
 
 # Celovitost: SHA256SUMS izdaje navaja vsoto pod imenom datoteke v izdaji (npr. safeer-browser-android-1.0.37.apk),
 # v obliki »<vsota>  ime« ali »<vsota> *ime«. Vrne 0 samo, ce se vsota ujema; sicer izpise razlog in vrne 1.
@@ -47,8 +57,8 @@ glavno() {
     fi
 
     IZDAJA_JSON="$(curl "${CURL_VARNO[@]}" -fsL "$IZDAJA_API" || true)"
-    APK_URL="$(printf '%s' "$IZDAJA_JSON" | grep -o '"browser_download_url": *"[^"]*\.apk"' | head -n 1 | cut -d'"' -f4)"
-    SHA_URL="$(printf '%s' "$IZDAJA_JSON" | grep -o '"browser_download_url": *"[^"]*SHA256SUMS"' | head -n 1 | cut -d'"' -f4)"
+    APK_URL="$(naslov_iz_izdaje "$IZDAJA_JSON" "$VZOREC_APK")"
+    SHA_URL="$(naslov_iz_izdaje "$IZDAJA_JSON" "$VZOREC_SHA")"
     if [ -z "$APK_URL" ]; then
         echo "❌ Ne najdem zadnje izdaje. Prenesi APK s https://safeer.si/browser/android/"
         exit 1
