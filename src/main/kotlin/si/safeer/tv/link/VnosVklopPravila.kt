@@ -98,15 +98,57 @@ object VnosVklopPravila {
     enum class Dejanje { NIC, VKLOPI, IZKLOPI }
 
     /**
-     * Uskladitev ob spremembi kroga ali zagonu. Brez pisanja ne spreminjamo nicesar (uporabnikovo rocno izbiro v
-     * Nastavitvah pustimo); [zeleno] null = stanja kroga ni bilo mogoce prebrati - nic.
+     * Kar si aplikacija zapomni o vpisu Safeer Vnosa: [vpisaliMi] - vpis je naredila aplikacija sama (ob privolitvi), ne
+     * uporabnik v Nastavitvah; [zadnjicVpisano] - ali je bil vpisan ob zadnji preverbi; [izklopilUporabnik] - vpis je
+     * izginil brez nas (uporabnik ga je izklopil v Nastavitvah naprave).
      */
-    fun dejanje(zeleno: Boolean?, vpisano: Boolean, pisanje: Boolean): Dejanje = when {
-        !pisanje || zeleno == null -> Dejanje.NIC
-        zeleno && !vpisano -> Dejanje.VKLOPI
-        !zeleno && vpisano -> Dejanje.IZKLOPI
+    data class Spomin(val vpisaliMi: Boolean = false, val zadnjicVpisano: Boolean = false, val izklopilUporabnik: Boolean = false)
+
+    /** Aplikacija je Vnos vpisala sama. */
+    val PO_VPISU = Spomin(vpisaliMi = true, zadnjicVpisano = true, izklopilUporabnik = false)
+
+    /**
+     * Pregled veje tv-vnos (25. 10. 2026, tocka 4): rocni izklop uporabnika velja do nove privolitve. Ce je bil Vnos ob
+     * zadnji preverbi vpisan, zdaj pa ga ni (mi ga nismo umaknili - [poIzpisu]), ga je izklopil uporabnik; ce se je
+     * pojavil brez nas, ga je vklopil uporabnik.
+     */
+    fun opazi(s: Spomin, vpisano: Boolean): Spomin = when {
+        s.zadnjicVpisano && !vpisano -> Spomin(vpisaliMi = false, zadnjicVpisano = false, izklopilUporabnik = true)
+        vpisano && !s.zadnjicVpisano -> s.copy(zadnjicVpisano = true, izklopilUporabnik = false)
+        else -> s
+    }
+
+    /** Aplikacija je svoj vpis umaknila (izklop ali storitev se ni vezala): to ni izklop uporabnika. */
+    fun poIzpisu(s: Spomin): Spomin = Spomin(vpisaliMi = false, zadnjicVpisano = false, izklopilUporabnik = s.izklopilUporabnik)
+
+    /** Nova privolitev uporabnika (ozji krog, dostop naprave): prejsnji rocni izklop ne velja vec. */
+    fun poPrivolitvi(s: Spomin): Spomin = s.copy(izklopilUporabnik = false)
+
+    /**
+     * Uskladitev ob spremembi kroga ali zagonu. Brez pisanja ne spreminjamo nicesar. Vklop samo, ce ozji krog to zahteva
+     * in ga uporabnik ni rocno izklopil (pregled tv-vnos, tocka 4). Izklop samo vpisa, ki ga je naredila aplikacija
+     * ([Spomin.vpisaliMi]; rocni vklop uporabnika ostane) - tudi, ko stanja kroga ni bilo mogoce prebrati ([zeleno] null:
+     * »ne vem« ni »da«, tocka 3).
+     */
+    fun dejanje(zeleno: Boolean?, vpisano: Boolean, pisanje: Boolean, spomin: Spomin): Dejanje = when {
+        !pisanje -> Dejanje.NIC
+        vpisano -> if (spomin.vpisaliMi && zeleno != true) Dejanje.IZKLOPI else Dejanje.NIC
+        smeVpisati(zeleno, spomin) -> Dejanje.VKLOPI
         else -> Dejanje.NIC
     }
+
+    /**
+     * Ali sme aplikacija Vnos vpisati sama (VnosVklop.vklopi - edina pot pisanja, tudi za input.enable z druge naprave):
+     * samo, ce ozji krog to zahteva ([zeleno] = true; pregled tv-vnos, tocka 1) in ga uporabnik ni rocno izklopil.
+     */
+    fun smeVpisati(zeleno: Boolean?, spomin: Spomin): Boolean = zeleno == true && !spomin.izklopilUporabnik
+
+    /**
+     * Ob katerih oddajah se Vnos uskladi z ozjim krogom: samo zasciteni sistemski BOOT_COMPLETED in MY_PACKAGE_REPLACED.
+     * QUICKBOOT_POWERON lahko poslje katerakoli aplikacija (pregled tv-vnos, tocka 4).
+     */
+    fun uskladiObOddaji(akcija: String): Boolean =
+        akcija == "android.intent.action.BOOT_COMPLETED" || akcija == "android.intent.action.MY_PACKAGE_REPLACED"
 
     // ------------------------------------------------------------------ krizec (D-pad) pod Androidom 13
 
@@ -177,6 +219,20 @@ object VnosVklopPravila {
             if (boljsi) { najboljsi = i; najZarek = zarek; najRazdalja = razdalja }
         }
         return najboljsi
+    }
+
+    /**
+     * Enter pod Androidom 13 (pregled tv-vnos, tocka 7): klikne element s fokusom, ce je klikljiv; prednika samo, ce
+     * zaseda isti okvir (isti vidni element, npr. kartica okoli besedila) - nikoli vecjega vsebnika. [veriga]: element s
+     * fokusom, nato starsi (okvir, klikljiv). Vrne indeks ali -1.
+     */
+    fun ciljEnter(veriga: List<Pair<Okvir, Boolean>>): Int {
+        val prvi = veriga.firstOrNull()?.first ?: return -1
+        for ((i, e) in veriga.withIndex()) {
+            if (i > 0 && !e.first.enak(prvi)) return -1
+            if (e.second) return i
+        }
+        return -1
     }
 
     /** Brez fokusa: prvi element zgoraj levo (vrstica, nato stolpec), ali -1. */

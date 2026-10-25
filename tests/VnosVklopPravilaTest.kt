@@ -4,6 +4,7 @@ import si.safeer.tv.link.VnosVklopPravila.Dejanje
 import si.safeer.tv.link.VnosVklopPravila.Okvir
 import si.safeer.tv.link.VnosVklopPravila.Pot
 import si.safeer.tv.link.VnosVklopPravila.Smer
+import si.safeer.tv.link.VnosVklopPravila.Spomin
 
 /**
  * Ena privolitev za Safeer Vnos (link/VnosVklopPravila): niz storitev dostopnosti, izbira poti, ali naj Vnos tece, in
@@ -76,13 +77,35 @@ fun main() {
     check(p.zeleno(listOf("n-cccccccccccccccc", "n-aaaaaaaaaaaaaaaa"), { it in krog }, { it == ta }))
 
     // --- uskladitev: brez pisanja nic; vklop in izklop samo ob razliki
-    check(p.dejanje(zeleno = true, vpisano = false, pisanje = true) == Dejanje.VKLOPI)
-    check(p.dejanje(zeleno = false, vpisano = true, pisanje = true) == Dejanje.IZKLOPI)
-    check(p.dejanje(zeleno = true, vpisano = true, pisanje = true) == Dejanje.NIC)
-    check(p.dejanje(zeleno = false, vpisano = false, pisanje = true) == Dejanje.NIC)
-    check(p.dejanje(zeleno = true, vpisano = false, pisanje = false) == Dejanje.NIC)
-    check(p.dejanje(zeleno = false, vpisano = true, pisanje = false) == Dejanje.NIC)      // rocna izbira ostane
-    check(p.dejanje(zeleno = null, vpisano = true, pisanje = true) == Dejanje.NIC)        // krog ni prebran
+    val nas = p.PO_VPISU                     // vpis je naredila aplikacija
+    val nic = Spomin()                       // brez spomina (prva namestitev)
+    check(p.dejanje(zeleno = true, vpisano = false, pisanje = true, spomin = nic) == Dejanje.VKLOPI)
+    check(p.dejanje(zeleno = false, vpisano = true, pisanje = true, spomin = nas) == Dejanje.IZKLOPI)
+    check(p.dejanje(zeleno = true, vpisano = true, pisanje = true, spomin = nas) == Dejanje.NIC)
+    check(p.dejanje(zeleno = false, vpisano = false, pisanje = true, spomin = nas) == Dejanje.NIC)
+    check(p.dejanje(zeleno = true, vpisano = false, pisanje = false, spomin = nic) == Dejanje.NIC)
+    check(p.dejanje(zeleno = false, vpisano = true, pisanje = false, spomin = nas) == Dejanje.NIC)      // brez pisanja nic
+    // Pregled tv-vnos 3: krog ni prebran (null) - nas vpis se izklopi (»ne vem« ni »da«), nov vklop ne.
+    check(p.dejanje(zeleno = null, vpisano = true, pisanje = true, spomin = nas) == Dejanje.IZKLOPI)
+    check(p.dejanje(zeleno = null, vpisano = false, pisanje = true, spomin = nic) == Dejanje.NIC)
+    // Rocni vklop uporabnika (vpisal ga ni Safeer) izklop kroga ne umakne.
+    check(p.dejanje(zeleno = false, vpisano = true, pisanje = true, spomin = Spomin(false, true, false)) == Dejanje.NIC)
+
+    // --- pregled tv-vnos 4: rocni izklop uporabnika velja do nove privolitve
+    val izklopil = p.opazi(nas, vpisano = false)
+    check(izklopil.izklopilUporabnik && !izklopil.vpisaliMi && !izklopil.zadnjicVpisano)
+    check(p.dejanje(zeleno = true, vpisano = false, pisanje = true, spomin = izklopil) == Dejanje.NIC)
+    check(!p.smeVpisati(true, izklopil))                                  // tudi input.enable ga ne vpise sam
+    check(p.smeVpisati(true, p.poPrivolitvi(izklopil)))                   // nova privolitev
+    check(!p.opazi(p.poIzpisu(nas), vpisano = false).izklopilUporabnik)   // nas umik ni izklop uporabnika
+    check(p.opazi(izklopil, vpisano = true).let { !it.izklopilUporabnik && it.zadnjicVpisano && !it.vpisaliMi })
+    check(p.opazi(nic, vpisano = false) == nic)
+    // --- pregled tv-vnos 1: aplikacija vpise samo, ce ozji krog to zahteva
+    check(p.smeVpisati(true, nic) && !p.smeVpisati(false, nic) && !p.smeVpisati(null, nic))
+    // --- pregled tv-vnos 4: QUICKBOOT_POWERON lahko poslje katerakoli aplikacija - Vnosa ne uskladi
+    check(p.uskladiObOddaji("android.intent.action.BOOT_COMPLETED") && p.uskladiObOddaji("android.intent.action.MY_PACKAGE_REPLACED"))
+    check(!p.uskladiObOddaji("android.intent.action.QUICKBOOT_POWERON") && !p.uskladiObOddaji("com.htc.intent.action.QUICKBOOT_POWERON"))
+    check(!p.uskladiObOddaji(""))
 
     // --- krizec: smer
     check(p.smer("up") == Smer.GOR && p.smer("DOWN") == Smer.DOL && p.smer(" left ") == Smer.LEVO && p.smer("desno") == Smer.DESNO)
@@ -109,6 +132,13 @@ fun main() {
     // Prazni okvirji, izhodisce samo in elementi za hrbtom odpadejo.
     check(p.najblizji(od, listOf(Okvir(200, 0, 200, 100), Okvir(0, 0, 100, 100), Okvir(-200, 0, -100, 100)), Smer.DESNO) == -1)
     check(p.najblizji(od, emptyList(), Smer.DOL) == -1)
+    // Pregled tv-vnos 7: Enter klikne element s fokusom ali prednika z istim okvirjem, ne vecjega vsebnika.
+    val gumb = Okvir(100, 100, 300, 160)
+    check(p.ciljEnter(listOf(gumb to true, Okvir(0, 0, 1000, 800) to true)) == 0)
+    check(p.ciljEnter(listOf(gumb to false, Okvir(0, 0, 1000, 800) to true)) == -1)      // prej: klik na vsebnik
+    check(p.ciljEnter(listOf(gumb to false, Okvir(100, 100, 300, 160) to true)) == 1)     // kartica okoli besedila
+    check(p.ciljEnter(listOf(gumb to false, Okvir(100, 100, 300, 160) to false, Okvir(0, 0, 9, 9) to true)) == -1)
+    check(p.ciljEnter(emptyList()) == -1)
     // Brez fokusa: prvi zgoraj levo.
     check(p.prvi(listOf(pl(1, 1), pl(2, 0), pl(1, 0), Okvir(0, 0, 0, 0))) == 2)
     check(p.prvi(emptyList()) == -1)

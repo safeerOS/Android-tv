@@ -19,8 +19,9 @@ class ZagonPrejemnikOs : BroadcastReceiver() {
             akcija != Intent.ACTION_MY_PACKAGE_REPLACED
         ) return
         val app = context?.applicationContext ?: return
-        // Po posodobitvi in vklopu: Safeer Vnos sledi ozjemu krogu (link/VnosVklop), tudi ce se Safeer OS ne odpre.
-        si.safeer.tv.link.VnosVklop.uskladi(app, akcija)
+        // Po posodobitvi in vklopu: Safeer Vnos sledi ozjemu krogu (link/VnosVklop), tudi ce se Safeer OS ne odpre. Samo
+        // ob zascitenih sistemskih oddajah - QUICKBOOT_POWERON lahko poslje katerakoli aplikacija (pregled tv-vnos, 4).
+        if (si.safeer.tv.link.VnosVklopPravila.uskladiObOddaji(akcija)) si.safeer.tv.link.VnosVklop.uskladi(app, akcija)
         if (!ZagonOb.jeVklopljen(app)) return
         Log.i("SafeerOsZagon", "Televizor se je prizgal ($akcija): odpiram Safeer OS.")
         try { ZagonOb.pokaziDomov(app) } catch (e: Throwable) {

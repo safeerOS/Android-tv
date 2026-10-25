@@ -309,10 +309,13 @@ class VnosStoritev : AccessibilityService() {
         if (polje != null && polje.isEditable && Build.VERSION.SDK_INT >= 30 &&
             polje.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_IME_ENTER.id)) return true
         if (Build.VERSION.SDK_INT >= 33) return performGlobalAction(GLOBAL_ACTION_DPAD_CENTER)
-        // Pod Androidom 13 klikne element s fokusom (tudi, ce ni vnosno polje - kartica, gumb na televizorju).
+        // Pod Androidom 13 klikne element s fokusom (tudi, ce ni vnosno polje - kartica, gumb na televizorju); prednika
+        // samo z istim okvirjem (VnosVklopPravila.ciljEnter) - ne vecjega vsebnika, ki ga uporabnik ni izbral.
+        val veriga = ArrayList<AccessibilityNodeInfo>()
         var n = polje ?: fokusirano(try { rootInActiveWindow } catch (_: Throwable) { null })
-        while (n != null && !n.isClickable) n = n.parent
-        return n?.performAction(AccessibilityNodeInfo.ACTION_CLICK) ?: false
+        while (n != null && veriga.size < NAJVEC_GLOBINE) { veriga.add(n); n = try { n.parent } catch (_: Throwable) { null } }
+        val i = VnosVklopPravila.ciljEnter(veriga.map { okvir(it) to it.isClickable })
+        return i >= 0 && veriga[i].performAction(AccessibilityNodeInfo.ACTION_CLICK)
     }
 
     // ------------------------------------------------------------------ kolesce
