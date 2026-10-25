@@ -14,14 +14,17 @@ import android.widget.TextView
 import org.json.JSONObject
 import si.safeer.tv.BuildConfig
 import si.safeer.tv.R
+import si.safeer.tv.os.NamestitevPravila.Izvor
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
-import java.security.MessageDigest
 
 /**
  * Posodobitve iz safeer.si (os/razlicice.json): aplikacija sama pove, da je na voljo nova razlicica, in jo z enim
- * dotikom prenese ter preda sistemskemu namescanju (APK s preverjeno vsoto SHA-256). Nic se ne namesti brez uporabnika.
+ * dotikom prenese ter namesti prek seje PackageInstaller (APK s preverjeno vsoto SHA-256, os/NamestitevSeja). Nic se ne
+ * namesti brez uporabnika: »Namesti« potrdi on; dodatnega okna Androida ob posodobitvi ni (USER_ACTION_NOT_REQUIRED),
+ * dovoljenja in odklenjene »omejene nastavitve« pa ostanejo (prej jih je vsaka posodobitev prek ACTION_VIEW znova
+ * zaklenila - os/NamestitevPravila). Ce seja ne dela, ostane stara pot (sistemski namestitelj).
  *
  * Preverba: ob odprtju domacega zaslona najvec vsakih 6 ur (tiho, v niti); nova razlicica se pokaze kot pasica na dnu
  * (enaka kot pri »Poslji na napravo«) najvec enkrat na dan za isto razlicico, v Nastavitvah pa vedno (vrstica Posodobitve).
@@ -160,7 +163,7 @@ object Posodobitve {
         b.show()
     }
 
-    /** Prenos APK v predpomnilnik (z napredkom), preverba SHA-256, nato sistemsko namescanje. */
+    /** Prenos APK v predpomnilnik (z napredkom), preverba SHA-256, nato namestitev prek seje (rezerva: sistemski namestitelj). */
     fun prenesiInNamesti(a: Activity, nova: Nova) {
         if (Build.VERSION.SDK_INT >= 26 && !a.packageManager.canRequestPackageInstalls()) {
             // Android najprej vprasa, ali sme Safeer OS namescati aplikacije; uporabnik se vrne in pritisne Namesti znova.
@@ -191,32 +194,28 @@ object Posodobitve {
                 val c = URL(nova.url).openConnection() as HttpURLConnection
                 c.connectTimeout = 15000; c.readTimeout = 30000; c.instanceFollowRedirects = true
                 val skupaj = if (nova.velikost > 0) nova.velikost else c.contentLengthLong
-                val h = MessageDigest.getInstance("SHA-256")
-                c.inputStream.use { v ->
+                var zadnji = 0L
+                val vsota = c.inputStream.use { v ->
                     cilj.outputStream().use { o ->
-                        val b = ByteArray(1 shl 16); var n: Int; var prebrano = 0L; var zadnji = 0L
-                        while (v.read(b).also { n = it } > 0) {
-                            if (prekinjeno) throw InterruptedException("prekinjeno")
-                            o.write(b, 0, n); h.update(b, 0, n); prebrano += n
+                        NamestitevPravila.prepisi(v, o, { prekinjeno }) { prebrano ->
                             if (skupaj > 0 && prebrano - zadnji > skupaj / 100) { zadnji = prebrano; val d = (prebrano * 1000 / skupaj).toInt(); glavna.post { napredek.progress = d } }
                         }
                     }
                 }
-                val vsota = h.digest().joinToString("") { "%02x".format(it) }
-                if (vsota != nova.sha256) { cilj.delete(); throw IllegalStateException("SHA-256 se ne ujema") }
+                if (!NamestitevPravila.enakaVsota(vsota, nova.sha256)) { cilj.delete(); throw IllegalStateException("SHA-256 se ne ujema") }
                 glavna.post {
                     okno.dismiss()
-                    if (prekinjeno) return@post
-                    val uri = Uri.parse("content://" + a.packageName + ".fileprovider/cache_files/posodobitve/" + cilj.name)
-                    val i = Intent(Intent.ACTION_VIEW).setDataAndType(uri, "application/vnd.android.package-archive")
-                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-                    // Brez izbirnika "Odpiranje z aplikacijo" (npr. Termux se prijavi za APK): naravnost v sistemski namestitelj.
-                    try {
-                        a.packageManager.queryIntentActivities(i, android.content.pm.PackageManager.MATCH_SYSTEM_ONLY)
-                            .firstOrNull()?.activityInfo?.let { i.setClassName(it.packageName, it.name) }
-                    } catch (_: Throwable) { }
-                    try { a.startActivity(i) } catch (t: Throwable) {
-                        log("namescanje: $t"); android.widget.Toast.makeText(a, R.string.os_posodobitev_napaka, android.widget.Toast.LENGTH_LONG).show()
+                    if (prekinjeno || a.isFinishing) return@post
+                    // Brez okna Androida se Safeer med namestitvijo zapre (proces konca Android): uporabnik naj ve, da ni sesutje.
+                    // Z dovoljenjem »Prikaz cez druge aplikacije« se odpre sam (NamestitevSeja.PoPosodobitvi), sicer ga odpre uporabnik.
+                    val odpreSam = try { android.provider.Settings.canDrawOverlays(a) } catch (_: Throwable) { false }
+                    android.widget.Toast.makeText(a, besedilo(a, if (odpreSam) R.string.os_posodobitev_namescam_odpre else R.string.os_posodobitev_namescam,
+                        nova.razlicica), android.widget.Toast.LENGTH_LONG).show()
+                    // Vsota iz os/razlicice.json: seja jo preveri se enkrat na bajtih, ki jih zapise (TOCTOU).
+                    val ime = try { a.applicationInfo.loadLabel(a.packageManager).toString() } catch (_: Throwable) { a.packageName }
+                    NamestitevSeja.namesti(a, cilj, nova.sha256, a.packageName, ime, Izvor.POSODOBITEV) { d ->
+                        if (!NamestitevSeja.sistemskiNamestitelj(d, "posodobitve", cilj))
+                            android.widget.Toast.makeText(d, R.string.os_posodobitev_napaka, android.widget.Toast.LENGTH_LONG).show()
                     }
                 }
             } catch (t: Throwable) {

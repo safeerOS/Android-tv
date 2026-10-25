@@ -41,8 +41,11 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- Posodobitve: prenesen APK preda sistemskemu namescanju (uporabnik potrdi). -->
+    <!-- Posodobitve in NamestiApk: APK namesti prek seje PackageInstaller ali sistemskega namestitelja (uporabnik potrdi). -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Posodobitev Safeerja prek seje PackageInstaller brez dodatnega okna Androida (uporabnik potrdi »Namesti« v Safeerju);
+         Android jo dovoli samo za posodobitev same sebe ali aplikacije, ki jo je namestil Safeer (os/NamestitevSeja). -->
+    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
@@ -410,6 +413,14 @@
 
         <!-- "Poslji na napravo": Zavrni iz tihega obvestila (brez odpiranja aplikacije). -->
         <receiver android:name="si.safeer.tv.os.PredajaObvestilo$Prejemnik" android:exported="false" />
+        <!-- Stanje namestitve prek seje PackageInstaller (os/NamestitevSeja): dobi ga samo prek nasega PendingIntent. -->
+        <receiver android:name="si.safeer.tv.os.NamestitevSeja$Prejemnik" android:exported="false" />
+        <!-- Po posodobitvi sebe prek seje Safeer odpre znova (os/NamestitevSeja.PoPosodobitvi); sistemsko obvestilo, ni izvozen. -->
+        <receiver android:name="si.safeer.tv.os.NamestitevSeja$PoPosodobitvi" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
 
         <receiver
             android:name="si.safeer.tv.cast.ZagonPrejemnik"

@@ -113,6 +113,8 @@
     <string name="os_posodobitev_dovoli">Allow</string>
     <string name="os_posodobitev_prenasam">Downloading %1$s…</string>
     <string name="os_posodobitev_napaka">The update did not go through – try again later or download it from safeer.si.</string>
+    <string name="os_posodobitev_namescam">Installing Safeer OS %1$s… The app will close for a moment; then open it again.</string>
+    <string name="os_posodobitev_namescam_odpre">Installing Safeer OS %1$s… The app will close for a moment and reopen by itself.</string>
     <string name="os_posodobitev_preverjam">Checking safeer.si…</string>
     <string name="os_vklopljeno">On</string>
     <string name="os_izklopljeno">Off</string>
@@ -688,6 +690,8 @@
     <string name="apk_vir_naprava">this device</string>
     <string name="apk_podrobno">Package: %1$s · source: %2$s · %3$s MB</string>
     <string name="apk_posodobitve">Safeer does not update this app by itself.</string>
+    <string name="apk_namescena">“%1$s” is installed.</string>
+    <string name="apk_ni_namescena">“%1$s” was not installed.</string>
     <string name="os_zasloni_potrdi_na">Ask %1$s to share its screen: confirm on that device.</string>
     <string name="os_zasloni_ni_uspelo">Could not ask %1$s to share its screen.</string>
     <string name="os_zasloni_naslov">Connected screens</string>

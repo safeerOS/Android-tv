@@ -13,6 +13,7 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import si.safeer.tv.R
+import si.safeer.tv.os.NamestitevPravila.Izvor
 import java.io.File
 import java.io.InputStream
 import java.net.HttpURLConnection
@@ -23,9 +24,11 @@ import java.net.URL
  *
  * Vir je datoteka na napravi (Datoteke, content://) ali prenos iz brskalnika (http/https). APK najprej
  * prekopiramo v predpomnilnik (cache/namestitve), preverimo, da je res aplikacija (ime, paket, razlicica),
- * uporabnika vprasamo z imenom aplikacije in opozorilom, da ni iz trgovine, nato jo preda sistemskemu
- * namestitelju (enako kot posodobitve Safeer OS). Dovoljenje »namescanje neznanih aplikacij« da uporabnik
- * v sistemskih nastavitvah; ko se vrne, se namestitev nadaljuje sama (nadaljujCeCaka v onResume).
+ * uporabnika vprasamo z imenom aplikacije in opozorilom, da ni iz trgovine, nato jo namestimo prek seje
+ * PackageInstaller (os/NamestitevSeja, enako kot posodobitve Safeer OS; rezerva je sistemski namestitelj). Safeerjeve
+ * aplikacije (isti podpis) Android tako ne omeji z »omejenimi nastavitvami«; tuj APK ostane oznacen kot datoteka ali
+ * prenos (os/NamestitevPravila). Dovoljenje »namescanje neznanih aplikacij« da uporabnik v sistemskih nastavitvah; ko
+ * se vrne, se namestitev nadaljuje sama (nadaljujCeCaka v onResume).
  */
 object NamestiApk {
     private const val MIME = "application/vnd.android.package-archive"
@@ -46,11 +49,11 @@ object NamestiApk {
 
     /** Datoteka na napravi (content:// ali file://). */
     fun izDatoteke(a: Activity, uri: Uri, ime: String) =
-        pripravi(a, ime, -1L, a.getString(R.string.apk_vir_naprava)) { a.contentResolver.openInputStream(uri) ?: throw IllegalStateException("ni datoteke") }
+        pripravi(a, ime, -1L, a.getString(R.string.apk_vir_naprava), Izvor.DATOTEKA) { a.contentResolver.openInputStream(uri) ?: throw IllegalStateException("ni datoteke") }
 
     /** Prenos iz brskalnika: APK prenesemo sami (z napredkom), nato ga ponudimo v namestitev. */
     fun izSpleta(a: Activity, url: String, userAgent: String?, ime: String) =
-        pripravi(a, ime, 0L, try { Uri.parse(url).host ?: url } catch (_: Throwable) { url }) {
+        pripravi(a, ime, 0L, try { Uri.parse(url).host ?: url } catch (_: Throwable) { url }, Izvor.SPLET) {
             val c = URL(url).openConnection() as HttpURLConnection
             c.connectTimeout = 15000; c.readTimeout = 30000; c.instanceFollowRedirects = true
             if (!userAgent.isNullOrBlank()) c.setRequestProperty("User-Agent", userAgent)
@@ -62,7 +65,7 @@ object NamestiApk {
 
     @Volatile private var velikostZadnjega = -1L
 
-    private fun pripravi(a: Activity, ime: String, znanaVelikost: Long, vir: String, odpri: () -> InputStream) {
+    private fun pripravi(a: Activity, ime: String, znanaVelikost: Long, vir: String, izvor: Izvor, odpri: () -> InputStream) {
         val dp = { v: Int -> (v * a.resources.displayMetrics.density).toInt() }
         val napredek = ProgressBar(a, null, android.R.attr.progressBarStyleHorizontal).apply { max = 1000; isIndeterminate = true }
         val opis = TextView(a).apply { text = a.getString(R.string.apk_pripravljam, ime) }
@@ -80,21 +83,20 @@ object NamestiApk {
             mapa.listFiles()?.forEach { it.delete() }
             val cilj = File(mapa, varnoIme(ime))
             try {
-                odpri().use { v ->
+                // Vsota SHA-256 na istih bajtih, ki gredo v datoteko: v sejo gre kasneje samo, ce se ujema (TOCTOU).
+                val vsota = odpri().use { v ->
                     val skupaj = velikostZadnjega
                     if (skupaj > 0) glavna.post { napredek.isIndeterminate = false }
+                    var zadnji = 0L
                     cilj.outputStream().use { o ->
-                        val b = ByteArray(1 shl 16); var n: Int; var prebrano = 0L; var zadnji = 0L
-                        while (v.read(b).also { n = it } > 0) {
-                            if (prekinjeno) throw InterruptedException("prekinjeno")
-                            o.write(b, 0, n); prebrano += n
+                        NamestitevPravila.prepisi(v, o, { prekinjeno }) { prebrano ->
                             if (skupaj > 0 && prebrano - zadnji > skupaj / 100) { zadnji = prebrano; val d = (prebrano * 1000 / skupaj).toInt(); glavna.post { napredek.progress = d } }
                         }
                     }
                 }
                 glavna.post {
                     try { okno.dismiss() } catch (_: Throwable) { }
-                    if (!prekinjeno && !a.isFinishing) vprasaj(a, cilj, vir)
+                    if (!prekinjeno && !a.isFinishing) vprasaj(a, cilj, vir, vsota, izvor)
                 }
             } catch (t: Throwable) {
                 cilj.delete()
@@ -116,7 +118,7 @@ object NamestiApk {
         }
     } catch (_: Throwable) { null }
 
-    private fun vprasaj(a: Activity, f: File, vir: String) {
+    private fun vprasaj(a: Activity, f: File, vir: String, vsota: String, izvor: Izvor) {
         val p = podatki(a, f)
         if (p == null) {
             f.delete()
@@ -132,30 +134,26 @@ object NamestiApk {
         val podrobno = a.getString(R.string.apk_podrobno, paket, vir, mb)
         AlertDialog.Builder(a).setTitle(R.string.apk_naslov)
             .setMessage(sporocilo + "\n\n" + podrobno + "\n\n" + a.getString(R.string.apk_opozorilo) + " " + a.getString(R.string.apk_posodobitve))
-            .setPositiveButton(R.string.apk_namesti) { _, _ -> namesti(a, f) }
+            .setPositiveButton(R.string.apk_namesti) { _, _ -> namesti(a, f, vsota, paket, ime, izvor) }
             .setNegativeButton(android.R.string.cancel) { _, _ -> f.delete() }.show()
     }
 
-    private fun namesti(a: Activity, f: File) {
+    private fun namesti(a: Activity, f: File, vsota: String, paket: String, ime: String, izvor: Izvor) {
         if (Build.VERSION.SDK_INT >= 26 && !a.packageManager.canRequestPackageInstalls()) {
             AlertDialog.Builder(a).setTitle(R.string.apk_naslov).setMessage(R.string.apk_dovoljenje)
                 .setPositiveButton(R.string.os_posodobitev_dovoli) { _, _ ->
-                    prefs(a).edit().putString("caka", f.absolutePath).putLong("caka_cas", System.currentTimeMillis()).apply()
+                    // Vsota, paket in ime, ki ju je uporabnik potrdil: po vrnitvi namestimo prav to (ne znova prebrane datoteke).
+                    prefs(a).edit().putString("caka", f.absolutePath).putLong("caka_cas", System.currentTimeMillis())
+                        .putString("caka_vsota", vsota).putString("caka_paket", paket).putString("caka_ime", ime)
+                        .putString("caka_izvor", izvor.name).apply()
                     try { a.startActivity(Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + a.packageName))) }
                     catch (_: Throwable) { try { a.startActivity(Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)) } catch (_: Throwable) { } }
                 }.setNegativeButton(android.R.string.cancel, null).show()
             return
         }
-        val uri = Uri.parse("content://" + a.packageName + ".fileprovider/cache_files/" + MAPA + "/" + Uri.encode(f.name))
-        val i = Intent(Intent.ACTION_VIEW).setDataAndType(uri, MIME)
-            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-        // Naravnost v sistemski namestitelj (brez izbirnika, ce se za APK prijavi se kaksna aplikacija).
-        try {
-            a.packageManager.queryIntentActivities(i, android.content.pm.PackageManager.MATCH_SYSTEM_ONLY)
-                .firstOrNull()?.activityInfo?.let { i.setClassName(it.packageName, it.name) }
-        } catch (_: Throwable) { }
-        try { a.startActivity(i) } catch (_: Throwable) {
-            Toast.makeText(a, a.getString(R.string.apk_napaka), Toast.LENGTH_LONG).show()
+        NamestitevSeja.namesti(a, f, vsota, paket, ime, izvor) { d ->
+            // Rezerva: seja na tej napravi ne dela - sistemski namestitelj (vir datoteka, kot pred 25. 10. 2026).
+            if (!NamestitevSeja.sistemskiNamestitelj(d, MAPA, f)) Toast.makeText(d, d.getString(R.string.apk_napaka), Toast.LENGTH_LONG).show()
         }
     }
 
@@ -165,12 +163,16 @@ object NamestiApk {
         val pot = p.getString("caka", "") ?: ""
         if (pot.isEmpty()) return false
         val cas = p.getLong("caka_cas", 0L)
-        p.edit().remove("caka").remove("caka_cas").apply()
+        val vsota = p.getString("caka_vsota", "") ?: ""
+        val paket = p.getString("caka_paket", "") ?: ""
+        val ime = p.getString("caka_ime", "") ?: ""
+        val izvor = Izvor.values().firstOrNull { it.name == p.getString("caka_izvor", "") } ?: Izvor.DATOTEKA
+        p.edit().remove("caka").remove("caka_cas").remove("caka_vsota").remove("caka_paket").remove("caka_ime").remove("caka_izvor").apply()
         if (System.currentTimeMillis() - cas > CAKA_MS) return false
         val f = File(pot)
-        if (!f.isFile) return false
+        if (!f.isFile || vsota.length != 64 || paket.isBlank()) return false
         if (Build.VERSION.SDK_INT >= 26 && !a.packageManager.canRequestPackageInstalls()) return false
-        namesti(a, f)
+        namesti(a, f, vsota, paket, ime.ifBlank { paket }, izvor)
         return true
     }
 
