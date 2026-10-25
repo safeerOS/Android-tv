@@ -208,6 +208,25 @@ fun main() {
     val GiB = 1024L * 1024L * 1024L
     val vse: (String) -> Boolean = { true }
     val brezMp4v: (String) -> Boolean = { it != "video/mp4v-es" }
+    // MKV s stisnjeno sledjo (izmerjeno 25. 10.: Mezda strahu 28,7 GB, »ContentCompAlgo 0 not supported« v Media3).
+    fun el(id: Int, vararg vsebina: ByteArray): ByteArray {
+        val v = vsebina.fold(ByteArray(0)) { a, b -> a + b }
+        val idB = when { id > 0xFFFFFF -> bajti(id ushr 24, (id ushr 16) and 0xFF, (id ushr 8) and 0xFF, id and 0xFF)
+            id > 0xFFFF -> bajti(id ushr 16, (id ushr 8) and 0xFF, id and 0xFF); id > 0xFF -> bajti(id ushr 8, id and 0xFF); else -> bajti(id) }
+        return idB + bajti(0x40 or (v.size ushr 8), v.size and 0xFF) + v              // 2-bajtna velikost
+    }
+    fun mkvS(algo: Int, scope: Int = 1) = el(0x1A45DFA3, el(0x4282, z("matroska"))) + bajti(0x18, 0x53, 0x80, 0x67, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF) +
+        el(0x114D9B74, ByteArray(40)) + el(0xEC, ByteArray(4000)) + el(0x1549A966, el(0x2AD7B1, bajti(0x0F, 0x42, 0x40))) +
+        el(0x1654AE6B, el(0xAE, el(0xD7, bajti(1)), el(0x86, z("V_MPEG4/ISO/AVC"))), el(0xAE, el(0xD7, bajti(2)), el(0x86, z("S_VOBSUB")),
+            el(0x6D80, el(0x6240, el(0x5031, bajti(0)), el(0x5032, bajti(scope)), el(0x5034, el(0x4254, bajti(algo))))))) +
+        el(0x1F43B675, ByteArray(100))
+    preveriEnako("MKV: zlib na sledi (Media3 ne zna)", "ContentCompAlgo=0", W.mkvNepodprto(mkvS(0)))
+    preveriEnako("MKV: odstranjena glava (Media3 zna)", "", W.mkvNepodprto(mkvS(3)))
+    preveriEnako("MKV: obseg kodiranja 2", "ContentEncodingScope=2", W.mkvNepodprto(mkvS(3, scope = 2)))
+    preveriEnako("MKV: brez kodiranja", "", W.mkvNepodprto(mkvS(3).copyOfRange(0, 60)))
+    preveriEnako("MKV: Tracks za 4096 bajti (Void 4 KB)", true, mkvS(0).size > 4096 && W.mkvNepodprto(mkvS(0).copyOfRange(0, 4096)) == "")
+    preveriEnako("pregled: MKV z zlib = nepodprt", Pregled(Vsebina.NEPODPRTA, Posoda.MKV, "ContentCompAlgo=0"), W.pregled("application/octet-stream", mkvS(0), 30 * GiB, 28.74, vse))
+    preveriEnako("pregled: MKV z odstranjeno glavo = video", Vsebina.VIDEO, W.pregled("application/octet-stream", mkvS(3), 30 * GiB, 28.74, vse).vsebina)
     preveriEnako("posoda MKV", Posoda.MKV, W.posoda(mkv))
     preveriEnako("posoda MP4", Posoda.MP4, W.posoda(mp4))
     preveriEnako("posoda HEIF ni video", Posoda.HEIF, W.posoda(bajti(0, 0, 0, 0x18) + z("ftypheic") + ByteArray(20)))

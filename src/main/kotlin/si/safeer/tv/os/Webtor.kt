@@ -177,7 +177,7 @@ object Webtor {
     private val straza = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "safeer-webtor-straza").apply { isDaemon = true } }
 
     /**
-     * Prvi bajti toka [url] (Range 0-4095, [WebtorPravila.GLAVA_BAJTOV]) v najvec [rokMs] skupaj. Preusmeritvam sledimo
+     * Prvi bajti toka [url] (Range 0-65535, [WebtorPravila.GLAVA_BAJTOV]) v najvec [rokMs] skupaj. Preusmeritvam sledimo
      * sami (najvec 5), samo po https in ne v domace omrezje. Pregled V1: gostitelja toka Scit dobi med izjeme samo, ce se je
      * zahteva zacela na `https://webtor.io/.../resolve/`, in samo KONCNEGA gostitelja po odgovoru 2xx
      * ([WebtorPravila.naucenGostitelj], [si.safeer.tv.scit.Scit.dovoliGostitelja]). Blokira - z delovne niti; preklic
@@ -223,7 +223,7 @@ object Webtor {
                 if (koda !in 200..299) return Sonda(koda, null, false, gostitelj, preusmeritev = preusmeritev)
                 val vrsta = p.contentType.orEmpty()
                 val skupaj = WebtorPravila.skupnaVelikost(koda, p.getHeaderField("Content-Range"), p.contentLengthLong)
-                // Prvi bajti (do GLAVA_BAJTOV): cas do PRVEGA bajta, nato preostanek glave (posoda, glava AVI).
+                // Prvi bajti (do GLAVA_BAJTOV): cas do PRVEGA bajta, nato preostanek glave (posoda, glava AVI, sledi MKV).
                 val glava = java.io.ByteArrayOutputStream(WebtorPravila.GLAVA_BAJTOV)
                 var ms: Long? = null
                 try {

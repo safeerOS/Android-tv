@@ -8910,7 +8910,7 @@ class GlasbaActivity : OsActivity() {
         // Diagnostika na zahtevo razvijalca (`setprop log.tag.SafeerWebtorMeri DEBUG`): meritev prvih kandidatov vzporedno, brez
         // predvajanja - cas do prvega bajta pri prenosu in vsebina, ki jo /resolve res vrne (tudi za NEGOTOVA, ki jih ne izberemo).
         if (Webtor.meritev() && webtorPoKakovosti.isNotEmpty()) {
-            val kandidati = (webtor + webtorPoKakovosti.filter { it !in webtor }).take(8)
+            val kandidati = (webtor + webtorPoKakovosti.filter { it !in webtor }).take(16)
             Webtor.meri(this, kandidati.map { w ->
                 val k = kljucWebtor(w)
                 Triple("${w.oznakaVira} ${datotekaOd(w)} h=${k?.hash?.take(10)} idx=${k?.idx} ${TokIzbira.opisi(opis(w)).let { "${it.visina}p ${"%.2f".format(java.util.Locale.ROOT, it.gb)} GB" }} " +

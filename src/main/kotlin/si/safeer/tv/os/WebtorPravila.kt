@@ -264,8 +264,11 @@ object WebtorPravila {
 
     // ------------------------------------------------------------------ vsebina toka (sonda prvih bajtov)
 
-    /** Prvih toliko bajtov prebere sonda (Range 0-4095): dovolj za posodo in glavo AVI (hdrl). */
-    const val GLAVA_BAJTOV = 4096
+    /**
+     * Prvih toliko bajtov prebere sonda: posoda, glava AVI (hdrl) in sledi MKV (Tracks). Izmerjeno 25. 10. 2026: mkvmerge
+     * pusti za SeekHead ~4 KB praznine (Void), zato so Tracks za 4096 bajti - 64 KiB jih zajame.
+     */
+    const val GLAVA_BAJTOV = 65_536
 
     enum class Posoda { MKV, MP4, TS, PS, AVI, FLV, ASF, HEIF, M4A, JPEG, PNG, GIF, WEBP, ZVOK, FLAC, OGG, WAV, PDF, ZIP, RAR,
         SEDEMZ, BESEDILO, NEZNANO }
@@ -329,6 +332,62 @@ object WebtorPravila {
         return ""
     }
 
+    /**
+     * Kodiranje sledi MKV, ki ga Media3 1.11.1 (MatroskaExtractor.integerElement) ne zna - tak tok se sploh ne zacne
+     * (izmerjeno 25. 10. 2026, Mezda strahu 28,7 GB: »ContentCompAlgo 0 not supported«, zlib na sledi). Pregleda Tracks v
+     * prvih bajtih: ContentEncodingOrder != 0, ContentEncodingScope != 1, ContentCompAlgo != 3 (samo odstranjena glava),
+     * ContentEncAlgo != 5. Vrne npr. »ContentCompAlgo=0«; "" = ni tega ali Tracks ni v prvih bajtih.
+     */
+    fun mkvNepodprto(g: ByteArray): String {
+        fun u(i: Int) = g[i].toInt() and 0xFF
+        // ID: 1-4 bajti, dolzina iz vodilnih nicel prvega bajta (oznaka ostane v ID-ju, kot v specifikaciji).
+        fun id(i: Int): Pair<Int, Int>? {
+            if (i >= g.size) return null
+            val b = u(i)
+            val n = when { b and 0x80 != 0 -> 1; b and 0x40 != 0 -> 2; b and 0x20 != 0 -> 3; b and 0x10 != 0 -> 4; else -> return null }
+            if (i + n > g.size) return null
+            var v = 0
+            for (k in 0 until n) v = (v shl 8) or u(i + k)
+            return v to n
+        }
+        // Velikost: 1-8 bajtov brez oznake dolzine; same enice = neznana (-1).
+        fun vel(i: Int): Pair<Long, Int>? {
+            if (i >= g.size) return null
+            val b = u(i)
+            var n = 1
+            while (n <= 8 && (b and (0x80 shr (n - 1))) == 0) n++
+            if (n > 8 || i + n > g.size) return null
+            var v = (b and (0xFF shr n)).toLong()
+            var enice = v == (0xFF shr n).toLong()
+            for (k in 1 until n) { v = (v shl 8) or u(i + k).toLong(); if (u(i + k) != 0xFF) enice = false }
+            return (if (enice) -1L else v) to n
+        }
+        val VSEBNIKI = setOf(0x18538067, 0x1654AE6B, 0xAE, 0x6D80, 0x6240, 0x5034, 0x5035)   // Segment, Tracks, TrackEntry, ...
+        var i = 0
+        while (i < g.size) {
+            val (eid, ni) = id(i) ?: return ""
+            val (dolzina, nv) = vel(i + ni) ?: return ""
+            val zacetek = i + ni + nv
+            when {
+                eid == 0x1F43B675 -> return ""                                   // Cluster: sledi so ze mimo
+                eid in VSEBNIKI -> { i = zacetek; continue }                      // vstopi v vsebnik
+                eid == 0x5031 || eid == 0x5032 || eid == 0x4254 || eid == 0x47E1 -> {
+                    if (dolzina !in 1..8 || zacetek + dolzina > g.size) return ""
+                    var v = 0L
+                    for (k in 0 until dolzina.toInt()) v = (v shl 8) or u(zacetek + k).toLong()
+                    val ime = when (eid) { 0x5031 -> "ContentEncodingOrder"; 0x5032 -> "ContentEncodingScope"; 0x4254 -> "ContentCompAlgo"; else -> "ContentEncAlgo" }
+                    val dovoljeno = when (eid) { 0x5031 -> 0L; 0x5032 -> 1L; 0x4254 -> 3L; else -> 5L }
+                    if (v != dovoljeno) return "$ime=$v"
+                }
+            }
+            if (dolzina < 0) return ""                                            // neznana velikost izven vsebnika
+            val naprej = zacetek.toLong() + dolzina
+            if (naprej >= g.size) return ""                                       // naslednji element ni vec v prvih bajtih
+            i = naprej.toInt()
+        }
+        return ""
+    }
+
     /** MIME kodeka AVI, kot ga poimenuje Media3 1.11.1 (StreamFormatChunk.getMimeTypeFromCompression); null = sled izpusti. */
     fun aviMime(fourcc: String): String? = when (fourcc) {
         "MP42" -> "video/mp42"
@@ -358,6 +417,10 @@ object WebtorPravila {
         }
         if (ct.startsWith("audio/") || ct.startsWith("image/") || ct.startsWith("text/")) return Pregled(Vsebina.NI_VIDEO, p)
         var kodek = ""
+        if (p == Posoda.MKV) {
+            val nepodprto = mkvNepodprto(glava)
+            if (nepodprto.isNotEmpty()) return Pregled(Vsebina.NEPODPRTA, p, nepodprto)
+        }
         if (p == Posoda.AVI) {
             kodek = aviKodek(glava)
             if (kodek.isNotEmpty()) {
