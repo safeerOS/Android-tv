@@ -27,11 +27,12 @@ object Webtor {
     /**
      * Izid sonde: [koda] HTTP (0 = ni odgovora), [prviBajtMs] (null = ga ni bilo), [potekel] rok, [gostitelj] toka,
      * [vrstaVsebine] (Content-Type), [skupaj] velikost datoteke (-1 = neznana), [glava] prvi bajti, [preusmeritev] stevilo
-     * preusmeritev; [koncni] = naslov po preusmeritvah (vsebuje zeton ponudnika - nikoli v dnevnik ali na drugo napravo).
+     * preusmeritev; [koncni] = naslov po preusmeritvah (vsebuje zeton ponudnika - nikoli v dnevnik ali na drugo napravo);
+     * [preusmeritevMs] = cas do prve preusmeritve (302 od /resolve; null = je ni bilo) - loci pocasen Webtor od pocasnega roja.
      */
     class Sonda(val koda: Int, val prviBajtMs: Long?, val potekel: Boolean, val gostitelj: String,
                 val vrstaVsebine: String = "", val skupaj: Long = -1L, val glava: ByteArray = ByteArray(0),
-                val preusmeritev: Int = 0, internal val koncni: String = "")
+                val preusmeritev: Int = 0, internal val koncni: String = "", val preusmeritevMs: Long? = null)
 
     /** Preklic sonde od zunaj: zapre trenutno povezavo (branja HttpURLConnection prekinitev niti ne ustavi). */
     class Preklic {
@@ -112,8 +113,8 @@ object Webtor {
 
     /** Opis sonde za dnevnik - brez naslova (samo gostitelj). */
     fun opis(s: Sonda, p: WebtorPravila.Pregled?): String =
-        "koda=${s.koda}, prvi bajt=${s.prviBajtMs ?: "-"} ms, rok=${s.potekel}, gostitelj=${s.gostitelj.ifBlank { "-" }}, " +
-            "preusmeritev=${s.preusmeritev}, vrsta=${s.vrstaVsebine.substringBefore(';').ifBlank { "-" }}, " +
+        "koda=${s.koda}, 302=${s.preusmeritevMs ?: "-"} ms, prvi bajt=${s.prviBajtMs ?: "-"} ms, rok=${s.potekel}, " +
+            "gostitelj=${s.gostitelj.ifBlank { "-" }}, preusmeritev=${s.preusmeritev}, vrsta=${s.vrstaVsebine.substringBefore(';').ifBlank { "-" }}, " +
             "MB=${if (s.skupaj >= 0) s.skupaj / 1_000_000 else "-"}" + (p?.let { ", posoda=${it.posoda}" +
             (if (it.kodek.isNotEmpty()) ", kodek=${it.kodek}" else "") + ", vsebina=${it.vsebina}" } ?: "")
 
@@ -194,10 +195,11 @@ object Webtor {
         var naslov = zacetni
         var gostitelj = Zasebno.gostitelj(naslov)
         var preusmeritev = 0
+        var preusmeritevMs: Long? = null
         while (true) {
             if (Thread.currentThread().isInterrupted || preklic?.preklican == true) return Sonda(0, null, false, gostitelj)
             val rok = ostane()
-            if (rok <= 0) return Sonda(0, null, true, gostitelj)
+            if (rok <= 0) return Sonda(0, null, true, gostitelj, preusmeritev = preusmeritev, preusmeritevMs = preusmeritevMs)
             if (!naslov.startsWith("https://")) return Sonda(0, null, false, gostitelj)
             // Pregled U4: cilj (tudi po preusmeritvi) ne sme biti v domacem omrezju ali na tej napravi - po razresitvi DNS.
             val naslovi = try { java.net.InetAddress.getAllByName(URL(naslov).host) } catch (_: Exception) { return Sonda(0, null, false, gostitelj) }
@@ -218,13 +220,14 @@ object Webtor {
                 SpletniVir.agent(c).takeIf { it.isNotBlank() }?.let { p.setRequestProperty("User-Agent", it) }
                 val koda = p.responseCode
                 if (koda in 300..399) {
+                    if (preusmeritevMs == null) preusmeritevMs = SystemClock.elapsedRealtime() - zacetek
                     val kam = p.getHeaderField("Location") ?: return Sonda(koda, null, false, gostitelj, preusmeritev = preusmeritev)
                     if (++preusmeritev > 5) return Sonda(koda, null, false, gostitelj, preusmeritev = preusmeritev)
                     naslov = URL(URL(naslov), kam).toString()
                     gostitelj = Zasebno.gostitelj(naslov)
                     continue
                 }
-                if (koda !in 200..299) return Sonda(koda, null, false, gostitelj, preusmeritev = preusmeritev)
+                if (koda !in 200..299) return Sonda(koda, null, false, gostitelj, preusmeritev = preusmeritev, preusmeritevMs = preusmeritevMs)
                 val vrsta = p.contentType.orEmpty()
                 val skupaj = WebtorPravila.skupnaVelikost(koda, p.getHeaderField("Content-Range"), p.contentLengthLong)
                 // Prvi bajti (do GLAVA_BAJTOV): cas do PRVEGA bajta, nato preostanek glave (posoda, glava AVI, sledi MKV).
@@ -247,13 +250,13 @@ object Webtor {
                 if (ms != null && uciScit) WebtorPravila.naucenGostitelj(zacetni, naslov, koda)?.let { g ->
                     try { si.safeer.tv.scit.Scit.dovoliGostitelja(c, g) } catch (_: Throwable) { }
                 }
-                return Sonda(koda, ms, false, gostitelj, vrsta, skupaj, glava.toByteArray(), preusmeritev, naslov)
+                return Sonda(koda, ms, false, gostitelj, vrsta, skupaj, glava.toByteArray(), preusmeritev, naslov, preusmeritevMs)
             } catch (_: java.net.SocketTimeoutException) {
-                return Sonda(0, null, true, gostitelj)
+                return Sonda(0, null, true, gostitelj, preusmeritev = preusmeritev, preusmeritevMs = preusmeritevMs)
             } catch (e: Exception) {
                 // Straza je prekinila zahtevo (iztek skupnega roka), krog jo je preklical ali napaka omrezja.
-                if (preklic?.preklican == true) return Sonda(0, null, false, gostitelj, preusmeritev = preusmeritev)
-                if (ostane() <= 0) return Sonda(0, null, true, gostitelj)
+                if (preklic?.preklican == true) return Sonda(0, null, false, gostitelj, preusmeritev = preusmeritev, preusmeritevMs = preusmeritevMs)
+                if (ostane() <= 0) return Sonda(0, null, true, gostitelj, preusmeritev = preusmeritev, preusmeritevMs = preusmeritevMs)
                 Log.w(TAG, "sonda: ${e.javaClass.simpleName}")
                 return Sonda(0, null, false, gostitelj)
             } finally {
