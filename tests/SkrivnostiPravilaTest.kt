@@ -133,5 +133,22 @@ fun main() {
     // Pregled U12: zapisejo se samo spremenjeni vnosi.
     preveriEnako("spremenjeni vnosi", mapOf("b" to "2x", "c" to 3), S.spremenjeniVnosi(mapOf("a" to "1", "b" to "2"), mapOf("a" to "1", "b" to "2x", "c" to 3)))
 
+    // Pomocnik Windows, naloga 21 A1 (25. 10. 2026): lastnikov Webtor je kratka povezava /s/<koda>, tokovi pa
+    // »/token/<t>/stremio/resolve/<JWT>« - ne zacnejo se z osnovo dodatka. JWT (exp, hash, idx) ni zeton: skrivnost je pred
+    // /resolve/, nadomestek ohrani /resolve/<JWT> (kot SkrivniDodatki.zakrijTok: nadomestek predpone + preostanek).
+    val hashA1 = "a".repeat(40)
+    val jwtA1 = b64url("{\"alg\":\"HS256\"}") + "." + b64url("{\"exp\":1793000000,\"hash\":\"$hashA1\",\"idx\":0}") + ".podpis"
+    val uuidA1 = "0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0"
+    val tokA1 = "https://webtor.io/token/$uuidA1/stremio/resolve/$jwtA1"
+    val predponaA1 = S.skrivnaPredponaToka(tokA1)
+    preveriEnako("Webtor tok kratke povezave: skrivnost je pred /resolve/", "https://webtor.io/token/$uuidA1", predponaA1)
+    val zakritA1 = (predponaA1?.let { p -> S.nadomestek(p)?.let { it + tokA1.substring(p.length) } }).orEmpty()
+    preveriEnako("Webtor tok kratke povezave: nadomestek brez zetona", false, uuidA1 in zakritA1 || zakritA1.isEmpty())
+    preveriEnako("Webtor tok kratke povezave: nadomestek je /resolve/", true, WebtorPravila.jeResolveNaslov(zakritA1))
+    preveriEnako("Webtor tok kratke povezave: JWT iz nadomestka", WebtorPravila.Kljuc(hashA1, 0), WebtorPravila.izJwt(zakritA1))
+    preveriEnako("JWT za /resolve/ drugje ostane skrivnost", "https://cdn.example/x/resolve/$jwtA1",
+        S.skrivnaPredponaToka("https://cdn.example/x/resolve/$jwtA1"))
+    preveriEnako("Webtor: odsek za /resolve/ ni skrivnost", null, S.skrivnaPredponaToka("https://webtor.io/x/resolve/$jwtA1"))
+
     if (napak == 0) println("SkrivnostiPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

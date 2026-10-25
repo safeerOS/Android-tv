@@ -15,8 +15,8 @@ import java.security.MessageDigest
  * Odlocitev je po zgradbi in znanih imenih (pregled 25. 10. 2026, S2/S3): ime polja s kljucno besedo (key, token,
  * secret, password, auth ... - tudi kot del imena: »tmdbApiKey«) ali debrid storitve; odsek za »/token/«, »/realdebrid/«
  * ...; dolg nerazberljiv zeton. NI skrivnost: UUID, hash (32/40/64 hex), nastavitve base64/JSON brez kljucnega polja.
- * Pri dodatku je skrita CELA osnova (vse pred »/manifest.json«), pri toku del do ZADNJEGA skrivnega odseka, pri zetonu v
- * poizvedbi cel naslov.
+ * Pri dodatku je skrita CELA osnova (vse pred »/manifest.json«), pri toku del do ZADNJEGA skrivnega odseka (na webtor.io
+ * samo pred »/resolve/«: JWT ni zeton), pri zetonu v poizvedbi cel naslov.
  * Ciste funkcije (tests/SkrivnostiPravilaTest.kt, skupni primeri tests/skupni-primeri/webtor-rezerva.json).
  */
 object SkrivnostiPravila {
@@ -138,6 +138,10 @@ object SkrivnostiPravila {
         var konec = d.zacetekPoti
         for ((k, o) in d.pot.split('/').withIndex()) {
             if (k == 0) continue
+            // Webtor: »/resolve/<JWT>« ni zeton (JWT nosi samo exp, hash, idx - izmerjeno 25. 10. 2026); skrivnost je pred
+            // njim. Sicer tok kratke povezave »/s/<koda>« (tokovi »/token/<t>/stremio/resolve/<JWT>«) skrije cel naslov,
+            // nadomestek izgubi /resolve/ in vsak tok dobi svojo skrivnost v pomnilniku (pomocnik Windows A1, namizje 9e8b990).
+            if (webtor && o == "resolve") break
             konec += 1 + o.length
             if (jeSkrivenOdsek(o, prejsnji, webtor)) izid += konec
             if (o.isNotEmpty()) prejsnji = o
