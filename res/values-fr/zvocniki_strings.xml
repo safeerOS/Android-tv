@@ -31,7 +31,8 @@
     <string name="naprava_prekini">Arrêter le contrôle</string>
     <string name="naprava_konec">%1$s ne répond pas – contrôle terminé</string>
     <string name="naprava_upravljaj">Contrôler %1$s</string>
-    <!-- 25. 10. 2026: YouTube na zvocnik (zvocni tok) in Google Cast s preverjeno pristnostjo naprave. -->
+    <!-- 25. 10. 2026: YouTube na zvocnik (zvocni tok) in Google Cast s preverjeno pristnostjo naprave (nepristna naprava ne dobi nicesar). -->
     <string name="zvocnik_yt_ni">Cette vidéo ne peut pas être lue sur l’enceinte.</string>
-    <string name="zvocnik_cast_preverba">%1$s n’a pas réussi la vérification d’authenticité Google Cast – lecture via DLNA.</string>
+    <string name="zvocnik_cast_preverba">%1$s n’a pas réussi la vérification d’authenticité Google Cast : rien n’y est lu.</string>
+    <string name="zvocnik_cast_ni">Google Cast sur %1$s ne répond pas. Réessaie dans un instant.</string>
 </resources>

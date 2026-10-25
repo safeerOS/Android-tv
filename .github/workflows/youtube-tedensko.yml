@@ -6,7 +6,7 @@ name: YouTube na zvocnik (tedenska sonda)
 
 on:
   schedule:
-    - cron: '17 2 * * 3'   # sreda 03:17 po srednjeevropskem casu (tedenski pregled ob 3:00)
+    - cron: '17 2 * * 3'   # sreda 02:17 UTC = 03:17 pozimi, 04:17 poleti (tedenski pregled ob 3:00)
   workflow_dispatch:
 
 permissions:
@@ -17,7 +17,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
+      # Pripeto na commit (pregled Grok 25, Z8); zeton po checkoutu ni vec v .git/config (koraki prevedejo kodo repozitorija).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Kotlin 1.9.24 in org.json (pripeti kontrolni vsoti, enako kot v Preverbah)
         run: |

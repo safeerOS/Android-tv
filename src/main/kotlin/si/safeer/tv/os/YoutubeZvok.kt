@@ -21,7 +21,8 @@ import java.util.concurrent.Executors
  */
 object YoutubeZvok {
     private const val TAG = "SafeerYoutubeZvok"
-    private const val NASTAVITVE = "safeer_youtube_zvok"
+    /** Ena zahteva na YouTube skupaj (povezava, poslano, prebrano) - delavec zvocnikov ne sme obviseti (Grok 25, Z5). */
+    private const val ROK_ZAHTEVE_MS = 12_000L
     /** Znan »ne« (DRM, ni toka, posnetek ni na voljo) velja toliko; potem poskusimo znova. */
     private const val NE_VELJA_MS = 30 * 60_000L
     private const val NAJVEC_ZAPISOV = 300
@@ -64,6 +65,7 @@ object YoutubeZvok {
     }
 
     /** Razresi v ozadju (meni, naslednja v vrsti); [koncano] na glavni niti, ko je izid znan. */
+    @Suppress("UNUSED_PARAMETER")       // ctx: klicatelji so zasloni in storitev; visitorData je samo v pomnilniku
     fun pripravi(ctx: Context, sk: Jamendo.Skladba, koncano: () -> Unit) {
         val id = videoId(sk) ?: return
         if (znanTok(sk) != null || znanoNe(sk)) return
@@ -71,27 +73,27 @@ object YoutubeZvok {
         if (zdaj - (poskusi[id] ?: 0L) < 60_000L || !vTeku.add(id)) return
         if (poskusi.size > NAJVEC_ZAPISOV) poskusi.clear()
         poskusi[id] = zdaj
-        val app = ctx.applicationContext
         delavec.execute {
-            try { razresiId(app, id) } catch (e: Exception) { Log.i(TAG, "priprava: ${e.javaClass.simpleName}") }
+            try { razresiId(id) } catch (e: Exception) { Log.i(TAG, "priprava: ${e.javaClass.simpleName}") }
             finally { vTeku.remove(id); glavna.post { try { koncano() } catch (_: Exception) {} } }
         }
     }
 
     /** Tok za zvocnik; klic z delavca (omrezje, do ~1 s). [NiToka], ce ga ni. */
+    @Suppress("UNUSED_PARAMETER")
     fun razresi(ctx: Context, sk: Jamendo.Skladba): YoutubeZvokPravila.Tok {
         val id = videoId(sk) ?: throw NiToka(YoutubeZvokPravila.Razlog.NAPAKA)
-        return razresiId(ctx.applicationContext, id)
+        return razresiId(id)
     }
 
-    private fun razresiId(app: Context, id: String): YoutubeZvokPravila.Tok {
+    private fun razresiId(id: String): YoutubeZvokPravila.Tok {
         zapisi[id]?.izid?.tok?.takeIf { YoutubeZvokPravila.velja(it, zdajS()) }?.let { return it }
-        var izid = try { poizvedi(id, obiskovalec(app, false)) } catch (e: IOException) {
-            Log.w(TAG, "player: ${e.message}")
+        var izid = try { poizvedi(id, obiskovalec(false)) } catch (e: IOException) {
+            Log.w(TAG, "player: ${e.javaClass.simpleName}")
             throw NiToka(YoutubeZvokPravila.Razlog.NAPAKA)
         }
         // Preverba »not a bot«: visitorData je potekel ali ga YouTube ne sprejme vec - nov in se en poskus.
-        if (izid.razlog == YoutubeZvokPravila.Razlog.BOT) izid = try { poizvedi(id, obiskovalec(app, true)) } catch (e: IOException) {
+        if (izid.razlog == YoutubeZvokPravila.Razlog.BOT) izid = try { poizvedi(id, obiskovalec(true)) } catch (e: IOException) {
             throw NiToka(YoutubeZvokPravila.Razlog.NAPAKA)
         }
         if (zapisi.size > NAJVEC_ZAPISOV) zapisi.clear()
@@ -105,29 +107,29 @@ object YoutubeZvok {
         YoutubeZvokPravila.izberi(post(YoutubeZvokPravila.PLAYER, YoutubeZvokPravila.telesoPlayer(id, visitorData),
             YoutubeZvokPravila.glavePlayer(visitorData)), zdajS())
 
-    /** visitorData (12 h, v zasebnih nastavitvah aplikacije); [nov] = obvezno nov (po preverbi »not a bot«). */
-    private fun obiskovalec(app: Context, nov: Boolean): String = synchronized(zaklepObiska) {
+    /**
+     * visitorData: samo v pomnilniku, najvec 12 h (pregled Grok 25, Z6: na disku bi bil trajen psevdonim, ki poveze vse
+     * posnetke; po ponovnem zagonu aplikacije nov stane eno zahtevo visitor_id, ~180 ms). [nov] = obvezno nov (po preverbi
+     * »not a bot«).
+     */
+    private fun obiskovalec(nov: Boolean): String = synchronized(zaklepObiska) {
         val zdaj = System.currentTimeMillis()
-        if (!nov) {
-            if (obisk.isNotEmpty() && zdaj - obiskOd < YoutubeZvokPravila.OBISK_VELJA_MS) return obisk
-            val p = app.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)
-            val v = p.getString("visitor", "").orEmpty()
-            val od = p.getLong("visitor_od", 0L)
-            if (v.isNotEmpty() && zdaj - od in 0 until YoutubeZvokPravila.OBISK_VELJA_MS) { obisk = v; obiskOd = od; return v }
-        }
+        if (!nov && obisk.isNotEmpty() && zdaj - obiskOd < YoutubeZvokPravila.OBISK_VELJA_MS) return obisk
         val v = try {
             YoutubeZvokPravila.visitorIzOdgovora(post(YoutubeZvokPravila.VISITOR_ID, YoutubeZvokPravila.telesoVisitorId(),
                 YoutubeZvokPravila.glaveVisitorId())).orEmpty()
-        } catch (e: IOException) { Log.w(TAG, "visitor_id: ${e.message}"); "" }
-        if (v.isNotEmpty()) {
-            obisk = v; obiskOd = zdaj
-            app.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().putString("visitor", v).putLong("visitor_od", zdaj).apply()
-        }
+        } catch (e: IOException) { Log.w(TAG, "visitor_id: ${e.javaClass.simpleName}"); "" }
+        if (v.isNotEmpty()) { obisk = v; obiskOd = zdaj }
         v
     }
 
-    /** POST na youtube.com: samo https, brez preusmeritev, omejen odgovor. */
+    /**
+     * POST na youtube.com: samo https, brez preusmeritev, omejen odgovor in skupni rok [ROK_ZAHTEVE_MS] (preverjen med
+     * branjem; posamezno branje caka najvec readTimeout). Piskotkov ne posljemo: aplikacija ne nastavi CookieHandler.setDefault
+     * (preverjeno 25. 10. 2026), HttpURLConnection jih brez njega ne shranjuje in ne posilja.
+     */
     private fun post(url: String, telo: String, glave: Map<String, String>): String {
+        val konec = System.currentTimeMillis() + ROK_ZAHTEVE_MS
         val c = URL(url).openConnection() as HttpURLConnection
         c.instanceFollowRedirects = false
         c.connectTimeout = 6_000; c.readTimeout = 8_000
@@ -143,6 +145,7 @@ object YoutubeZvok {
                     val n = vhod.read(kos); if (n < 0) break
                     out.write(kos, 0, n)
                     if (out.size() > YoutubeZvokPravila.NAJVEC_ODGOVORA) throw IOException("odgovor je prevelik")
+                    if (System.currentTimeMillis() > konec) throw IOException("odgovor ni prisel v roku")
                 }
             }
             return out.toString("UTF-8")

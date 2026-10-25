@@ -75,8 +75,11 @@ object Zvocniki {
     @Volatile private var cakaPrenos: Prenos? = null
     /** Zvocnik aktivne seje bere tok prek nasega streznika: naprava mora ostati budna (posrednik tece na njej). */
     @Volatile private var prekoStreznika = false
-    private val castSeje = HashMap<String, CastSeja>()      // samo delavec: naslov zvocnika -> povezava Cast
-    private val castNe = HashMap<String, Long>()            // samo delavec: naslov -> do kdaj Casta ne poskusamo
+    private val castSeje = HashMap<String, CastSeja>()      // samo delavec: udn@naslov zvocnika -> povezava Cast
+    private val castNe = HashMap<String, Long>()            // samo delavec: udn@naslov -> do kdaj Casta ne poskusamo
+    /** Zvocniki (udn), ki so ze dokazali pristnost Google Cast - pri njih tok YouTube nikoli ne gre tiho na DLNA. Samo delavec. */
+    private var pristni: MutableSet<String>? = null
+    private const val NASTAVITVE_CAST = "safeer_zvocniki_cast"
 
     /** Stanje predvajanja na zvocniku, kot ga vidi uporabnik. Spreminja ga samo glavna nit. */
     @Volatile var stanje = ZvocnikPravila.Stanje(zeliIgrati = false)
@@ -113,6 +116,18 @@ object Zvocniki {
     @Volatile private var cakaZagon: DlnaPravila.Zvocnik? = null
     /** Zagon skladbe je prehitel novejsi ukaz (druga skladba, konec seje): ne uspeh ne napaka zvocnika. */
     class Prehiteno : Exception("prehiteno")
+    /** Zvocnik ni dokazal pristnosti Google Cast: ne dobi nicesar, ne po DLNA ne prek posrednika (pregled Grok 25, Z1). */
+    class CastNiPristen : Exception("Cast: naprava ni pristna")
+    /** Zvocnik, ki je ze dokazal pristnost Cast, ta hip ni dosegljiv prek Casta: tok YouTube ne gre tiho na DLNA. */
+    class CastNedosegljiv : Exception("Cast: ni dosegljiv")
+
+    /** Besedilo napake zvocnika za uporabnika (sl, en, de, es, fr, it). */
+    fun besediloNapake(ctx: Context, napaka: Exception, ime: String): String = when (napaka) {
+        is YoutubeZvok.NiToka -> ctx.getString(si.safeer.tv.R.string.zvocnik_yt_ni)
+        is CastNiPristen -> ctx.getString(si.safeer.tv.R.string.zvocnik_cast_preverba, ime)
+        is CastNedosegljiv -> ctx.getString(si.safeer.tv.R.string.zvocnik_cast_ni, ime)
+        else -> ctx.getString(si.safeer.tv.R.string.zvocnik_napaka, ime)
+    }
     private val najGlasnosti = HashMap<String, Int>()      // samo delavec
     private var neodzivnih = 0
     private var neodzivenOd = 0L
@@ -319,32 +334,48 @@ object Zvocniki {
         override fun lestvica(): Int = 100
     }
 
+    private fun pristniZvocniki(ctx: Context): MutableSet<String> = pristni ?: HashSet(
+        ctx.getSharedPreferences(NASTAVITVE_CAST, Context.MODE_PRIVATE).getStringSet("pristni", null).orEmpty()).also { pristni = it }
+
+    private fun zapomniPristnega(ctx: Context, udn: String) {
+        val s = pristniZvocniki(ctx)
+        if (s.add(udn)) ctx.getSharedPreferences(NASTAVITVE_CAST, Context.MODE_PRIVATE).edit().putStringSet("pristni", HashSet(s)).apply()
+    }
+
     /**
-     * Povezava Cast na zvocnik [z], ce ga ima in je dokazal pristnost (sicer null - DLNA). Samo delavec. Neuspeh si
-     * zapomnimo za [CAST_NE_MS]; o neuspeli preverbi pristnosti uporabnik izve (pot ostane DLNA).
+     * Povezava Cast na zvocnik [z] z dokazano pristnostjo ali null (DLNA) - po [CastPravila.pot] (lastnik, 25. 10. 2026):
+     * naprava, ki preverbo pade, ne dobi nicesar ([CastNiPristen]); naprava, ki je pristnost ze kdaj dokazala, ob izgubi
+     * Casta ne gre na DLNA ([CastNedosegljiv]); samo naprava, ki Casta ni nikoli ponudila, gre na DLNA. Samo delavec.
+     * »Ni Casta« si pri napravi brez dokazane pristnosti zapomnimo za [CAST_NE_MS] (ne cakamo vsakic na zaprta vrata).
      */
-    private fun castZa(z: DlnaPravila.Zvocnik): CastSeja? {
+    private fun castZa(app: Context, z: DlnaPravila.Zvocnik): CastSeja? {
         val zdaj = SystemClock.elapsedRealtime()
-        if ((castNe[z.naslov] ?: 0L) > zdaj) return null
-        val seja = castSeje.getOrPut(z.naslov) { CastSeja(z.naslov) }
-        return try {
-            if (seja.zagotoviDmr(true)) seja else { castNe[z.naslov] = zdaj + CAST_NE_MS; null }
-        } catch (e: CastSeja.Preverba) {
-            Log.w(TAG, "Cast: ${z.ime} ni opravil preverbe pristnosti (${e.razlog}) - DLNA")
-            castNe[z.naslov] = zdaj + CAST_NE_MS
-            seja.zapri()
-            val ctx = app
-            if (ctx != null) glavna.post {
-                try { android.widget.Toast.makeText(ctx, ctx.getString(si.safeer.tv.R.string.zvocnik_cast_preverba, z.ime), android.widget.Toast.LENGTH_LONG).show() }
-                catch (x: Exception) { Log.w(TAG, "Obvestilo: ${x.message}") }
+        val kljuc = z.udn + "@" + z.naslov
+        var bila = z.udn.isNotBlank() && z.udn in pristniZvocniki(app)
+        var seja: CastSeja? = null
+        val poskus = if (!bila && (castNe[kljuc] ?: 0L) > zdaj) CastPravila.Poskus.NI_CASTA else {
+            val s = castSeje.getOrPut(kljuc) { CastSeja(z.naslov) }
+            seja = s
+            val izid = try {
+                if (s.zagotoviDmr(true)) CastPravila.Poskus.OK else CastPravila.Poskus.NI_CASTA
+            } catch (e: CastSeja.Preverba) {
+                Log.w(TAG, "Cast: ${z.ime} ni opravil preverbe pristnosti (${e.razlog})")
+                CastPravila.Poskus.PREVERBA
+            } catch (e: Exception) {
+                Log.i(TAG, "Cast: ${z.ime} - ${e.javaClass.simpleName}")
+                CastPravila.Poskus.NI_CASTA
             }
-            null
-        } catch (e: Exception) {
-            // Ni Casta (vrata 8009 zaprta), ni Default Media Receiver ali se ne odziva: DLNA.
-            Log.i(TAG, "Cast: ${z.ime} - ${e.javaClass.simpleName}, DLNA")
-            castNe[z.naslov] = zdaj + CAST_NE_MS
-            seja.zapri()
-            null
+            // Pristnost je bila dokazana na tej povezavi (tudi ce se sprejemnik potem ni zagnal).
+            if (s.pristna && z.udn.isNotBlank()) { zapomniPristnega(app, z.udn); bila = true }
+            if (izid != CastPravila.Poskus.OK) { s.zapri(); castSeje.remove(kljuc) }
+            if (izid == CastPravila.Poskus.NI_CASTA && !bila) castNe[kljuc] = zdaj + CAST_NE_MS
+            izid
+        }
+        return when (CastPravila.pot(poskus, bila)) {
+            CastPravila.Pot.CAST -> seja
+            CastPravila.Pot.DLNA -> null
+            CastPravila.Pot.NI_PRISTNA -> throw CastNiPristen()
+            CastPravila.Pot.CAST_NEDOSEGLJIV -> throw CastNedosegljiv()
         }
     }
 
@@ -366,22 +397,30 @@ object Zvocniki {
         prekoStreznika = false
         if (YoutubeZvok.jeYoutube(sk)) {
             val tok = YoutubeZvok.razresi(app, sk)                // NiToka: DRM, brez naslova, YouTube ga ne da
-            val cast = castZa(z)
+            val cast = castZa(app, z)                              // CastNiPristen, CastNedosegljiv: nic na zvocnik
             if (cast != null) {
                 val p = CastPrenos(z, cast)
                 if (prejsnji != null && !prejsnji.cast) try { prejsnji.ustavi(2_000) } catch (_: Exception) {}
-                if (!tok.ipV6) {
-                    try {
-                        streznik?.pozabi()
-                        poslan(p, tok.url); p.nalozi(tok.url, tok.mime, sk, igraj, sprejeto)
-                        return Triple(p, tok.url, tok.trajanjeMs)
-                    } catch (e: CastSeja.NalaganjeNiUspelo) { Log.i(TAG, "Cast: neposredno ni slo (${e.tip}), posrednik na LAN") }
+                try {
+                    if (!tok.ipV6) {
+                        try {
+                            streznik?.pozabi()
+                            poslan(p, tok.url); p.nalozi(tok.url, tok.mime, sk, igraj, sprejeto)
+                            return Triple(p, tok.url, tok.trajanjeMs)
+                        } catch (e: CastSeja.NalaganjeNiUspelo) { Log.i(TAG, "Cast: neposredno ni slo (${e.tip}), posrednik na LAN") }
+                        catch (e: SocketTimeoutException) { Log.i(TAG, "Cast: neposredno brez odgovora, posrednik na LAN") }
+                    }
+                    val url = posrednik(app, tok, z)
+                    poslan(p, url); p.nalozi(url, tok.mime, sk, igraj, sprejeto)
+                    return Triple(p, url, tok.trajanjeMs)
+                } catch (e: Exception) {
+                    // Nic se ni nalozilo: zvocnik ne ostane na praznem sprejemniku, ki smo ga morda zagnali mi (Grok 25, Z5).
+                    try { cast.ustaviAplikacijo() } catch (_: Exception) {}
+                    cast.zapri()
+                    throw e
                 }
-                val url = posrednik(app, tok, z)
-                poslan(p, url); p.nalozi(url, tok.mime, sk, igraj, sprejeto)
-                return Triple(p, url, tok.trajanjeMs)
             }
-            // Brez Casta: DLNA - JBL BAR 300 tok googlevideo prebere sam (izmerjeno 25. 10. 2026, zvok po 3,1 s).
+            // Zvocnik, ki Casta nima (cisti DLNA): JBL BAR 300 tok googlevideo prebere sam (izmerjeno 25. 10. 2026, 3,1 s).
             val p = DlnaPrenos(z)
             if (prejsnji != null && prejsnji.cast) try { prejsnji.ustavi(2_000) } catch (_: Exception) {}
             val url = if (tok.ipV6) posrednik(app, tok, z) else { streznik?.pozabi(); tok.url }
@@ -810,8 +849,14 @@ object Zvocniki {
         if (s != null) delavec.execute { s.zapri() }
     }
 
-    /** Konec seje brez ukaza zvocniku (vrsta je odigrana; zvocnik ze stoji). */
-    fun koncajSejo() { if (aktivni != null) pocisti() }
+    /** Konec seje: vrsta je odigrana, zvocnik DLNA ze stoji (brez ukaza); nas sprejemnik Cast ustavimo (Grok 25, Z5). */
+    fun koncajSejo() {
+        if (aktivni == null) return
+        val p = prenosSeje
+        pocisti()
+        // Google Cast: nas sprejemnik ustavimo in povezavo zapremo (zvocnik je spet prost); zvocnik DLNA ze stoji.
+        if (p is CastPrenos) delavec.execute { try { p.ustavi(2_000) } catch (e: Exception) { Log.i(TAG, "Konec seje Cast: ${e.javaClass.simpleName}") } }
+    }
 
     private fun pocisti() {
         aktivni = null; aktivnaSkladba = null; aktivniUrl = ""; potrjenUrl = ""; cakaZagon = null; cakaPrenos = null

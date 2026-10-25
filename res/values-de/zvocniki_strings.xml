@@ -31,7 +31,8 @@
     <string name="naprava_prekini">Steuerung beenden</string>
     <string name="naprava_konec">%1$s antwortet nicht – Steuerung beendet</string>
     <string name="naprava_upravljaj">%1$s steuern</string>
-    <!-- 25. 10. 2026: YouTube na zvocnik (zvocni tok) in Google Cast s preverjeno pristnostjo naprave. -->
+    <!-- 25. 10. 2026: YouTube na zvocnik (zvocni tok) in Google Cast s preverjeno pristnostjo naprave (nepristna naprava ne dobi nicesar). -->
     <string name="zvocnik_yt_ni">Dieses Video kann nicht auf dem Lautsprecher wiedergegeben werden.</string>
-    <string name="zvocnik_cast_preverba">%1$s hat die Echtheitsprüfung von Google Cast nicht bestanden – Wiedergabe über DLNA.</string>
+    <string name="zvocnik_cast_preverba">%1$s hat die Echtheitsprüfung von Google Cast nicht bestanden – darauf wird nichts wiedergegeben.</string>
+    <string name="zvocnik_cast_ni">Google Cast auf %1$s antwortet nicht. Versuche es gleich noch einmal.</string>
 </resources>

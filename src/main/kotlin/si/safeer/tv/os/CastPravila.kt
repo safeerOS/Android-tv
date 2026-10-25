@@ -23,8 +23,8 @@ import java.util.Date
  * 25. 10. 2026: notBefore 24. 10. 04:49, notAfter 26. 10. 04:49 GMT), zato bi se pripet odtis pokvaril vsak dan ali dva.
  * Kot Chromium (cast_auth_util): posljemo izziv z nakljucnim nonce, naprava podpise (nonce || potrdilo TLS) s potrdilom
  * naprave, ki ga preverimo do Googlovega korena Cast. Izmerjeno na JBL: RSASSA-PKCS1-v1_5 s SHA-256 nad nonce || TLS
- * (brez nonce ali s SHA-1 podpis NE drzi), veriga naprava -> »HARMAN ... JBL_BAR_300_PRO« -> »MediaTek.Inc Cast Audio«
- * -> Cast Root CA. Pred preverbo gre ven SAMO izziv; nobeno sporocilo naprave ne podeli dostopa.
+ * (izracun brez nonce ali s SHA-1 se s podpisom ne ujema), veriga naprava -> »HARMAN ... JBL_BAR_300_PRO« -> »MediaTek.Inc
+ * Cast Audio« -> Cast Root CA. Pred preverbo gre ven SAMO izziv; sporocil naprave pred preverbo ne obdelamo ([CastSeja]).
  */
 object CastPravila {
     const val VRATA = 8009
@@ -163,29 +163,35 @@ object CastPravila {
 
     enum class Pristnost { OK, ODGOVOR, TLS, VERIGA, NONCE, PODPIS }
 
+    /** Potrdilo TLS sprejemnika sme veljati najvec toliko casa naprej (openscreen cast_auth_util: kMaxSelfSignedCertLifetimeInDays = 4). */
+    const val NAJVEC_TLS_MS = 4 * 24 * 3600_000L
+
     /**
      * Ali je odgovor [o] na nas izziv [nonce] podpisala prava naprava Cast nad potrdilom TLS [tls], ki ga je ta povezava
      * res dobila. [zdajMs]: ura za veljavnost potrdil.
+     *
+     * Strozje od openscreen (pregled Grok 25, Z3): zahtevamo nas nonce v odgovoru in SHA-256 - JBL BAR 300 oboje poslje
+     * (izmerjeno 25. 10. 2026: sender_nonce enak, hash_algorithm 1). Odgovor brez nonce bi bil vezan samo na potrdilo TLS,
+     * SHA-1 pa ni vec varen. Seznama preklicev (polje 7, JBL ga poslje) ne preverjamo - openscreen ga ob privzeti politiki
+     * (kCrlOptional) prav tako prezre.
      */
     fun preveri(o: OdgovorPristnosti, nonce: ByteArray, tls: ByteArray, zdajMs: Long,
                 korenine: List<X509Certificate> = korenine()): Pristnost {
         val zdaj = Date(zdajMs)
         val t = potrdilo(tls) ?: return Pristnost.TLS
         try { t.checkValidity(zdaj) } catch (_: Exception) { return Pristnost.TLS }
+        if (t.notAfter.time - zdajMs > NAJVEC_TLS_MS) return Pristnost.TLS
         if (o.vmesna.size > 4) return Pristnost.VERIGA
         val naprava = potrdilo(o.naprava) ?: return Pristnost.VERIGA
         val vmesna = o.vmesna.map { potrdilo(it) ?: return Pristnost.VERIGA }
         if (!veriga(naprava, vmesna, korenine, zdaj)) return Pristnost.VERIGA
-        // Odgovor brez nonce (starejse naprave) podpise samo potrdilo TLS; nas nonce ga potem ne veze, potrdilo TLS pa ga.
-        val vhod = if (o.nonce != null) {
-            if (!MessageDigest.isEqual(o.nonce, nonce)) return Pristnost.NONCE
-            nonce + tls
-        } else tls
-        if (o.algoritem != 1) return Pristnost.PODPIS                          // zahtevamo in sprejmemo samo PKCS#1 v1.5
+        val n = o.nonce ?: return Pristnost.NONCE
+        if (!MessageDigest.isEqual(n, nonce)) return Pristnost.NONCE
+        if (o.algoritem != 1 || o.zgoscevanje != 1) return Pristnost.PODPIS    // samo PKCS#1 v1.5 s SHA-256 (kot izziv)
         return try {
-            val s = Signature.getInstance(if (o.zgoscevanje == 1) "SHA256withRSA" else "SHA1withRSA")
+            val s = Signature.getInstance("SHA256withRSA")
             s.initVerify(naprava.publicKey)
-            s.update(vhod)
+            s.update(nonce + tls)
             if (s.verify(o.podpis)) Pristnost.OK else Pristnost.PODPIS
         } catch (_: Exception) { Pristnost.PODPIS }
     }
@@ -200,19 +206,23 @@ object CastPravila {
             try { potrdilo.verify(izdajatelj.publicKey); true } catch (_: Exception) { false }
 
     /**
-     * Veriga od potrdila naprave do enega od [korenine]: potrdilo naprave ni CA in sme podpisovati, vsako vmesno je CA in sme
-     * podpisovati potrdila, vsa veljajo [zdaj]. Najvec stiri vmesna.
+     * Veriga od potrdila naprave do enega od [korenine]: potrdilo naprave ni CA in ima keyUsage digitalSignature, vsako
+     * vmesno je CA, sme podpisovati potrdila in njegov pathLen dovoli CA pod njim (tudi koren), vsa veljajo [zdaj], nobeno
+     * nima kriticne razsiritve, ki je ne poznamo, in nobeno ni podpisano z MD2/MD5. Najvec stiri vmesna. Prava veriga JBL
+     * (izmerjeno 25. 10. 2026): naprava (digitalSignature) -> HARMAN (pathlen 0) -> MediaTek (pathlen 1) -> Cast Root CA
+     * (pathlen 2), brez kriticnih razsiritev, vse sha256WithRSA.
      */
     fun veriga(naprava: X509Certificate, vmesna: List<X509Certificate>, korenine: List<X509Certificate>, zdaj: Date): Boolean {
-        if (!velja(naprava, zdaj) || naprava.basicConstraints >= 0) return false
-        naprava.keyUsage?.let { if (it.isEmpty() || !it[0]) return false }      // digitalSignature
+        if (!uporabno(naprava, zdaj) || naprava.basicConstraints >= 0) return false
+        if (naprava.keyUsage?.getOrNull(0) != true) return false                // digitalSignature (obvezen)
         var tren = naprava
         val porabljena = HashSet<Int>()
         repeat(5) {
-            if (korenine.any { velja(it, zdaj) && izdal(it, tren) }) return true
+            // CA nad [porabljena.size] vmesnimi CA: njegov pathLen jih mora dovoliti (RFC 5280; basicConstraints = pathLen).
+            if (korenine.any { velja(it, zdaj) && izdal(it, tren) && it.basicConstraints >= porabljena.size }) return true
             val i = vmesna.indices.firstOrNull { it !in porabljena && izdal(vmesna[it], tren) } ?: return false
             val izd = vmesna[i]
-            if (!velja(izd, zdaj) || izd.basicConstraints < 0) return false
+            if (!uporabno(izd, zdaj) || izd.basicConstraints < porabljena.size) return false
             izd.keyUsage?.let { if (it.size < 6 || !it[5]) return false }      // keyCertSign
             porabljena += i
             tren = izd
@@ -221,6 +231,27 @@ object CastPravila {
     }
 
     private fun velja(c: X509Certificate, zdaj: Date): Boolean = try { c.checkValidity(zdaj); true } catch (_: Exception) { false }
+
+    /** Velja, nima neznane kriticne razsiritve in ni podpisano z MD2/MD5. */
+    private fun uporabno(c: X509Certificate, zdaj: Date): Boolean = velja(c, zdaj) && !c.hasUnsupportedCriticalExtension() &&
+        !c.sigAlgName.uppercase().let { it.contains("MD5") || it.contains("MD2") }
+
+    /** Kaj je pokazal poskus povezave Cast na zvocnik. */
+    enum class Poskus { OK, PREVERBA, NI_CASTA }
+    /** Kam gre tok YouTube: Cast, DLNA, nikamor (naprava ni pristna) ali nikamor (pristna naprava Cast ta hip ni dosegljiva). */
+    enum class Pot { CAST, DLNA, NI_PRISTNA, CAST_NEDOSEGLJIV }
+
+    /**
+     * Pot po poskusu Cast (lastnik 25. 10. 2026, pregled Grok 25 Z1): naprava, ki preverbo pristnosti AKTIVNO pade (podpis,
+     * nonce, veriga, TLS), ne dobi nicesar - ne po DLNA ne prek posrednika. Naprava, ki se je ze kdaj izkazala kot pristna
+     * naprava Cast ([bilaPristna], po udn), ob izgubi Casta ne gre tiho na DLNA. Na DLNA gre samo naprava, ki Casta ni
+     * nikoli ponudila (cisti DLNA, kot doslej).
+     */
+    fun pot(poskus: Poskus, bilaPristna: Boolean): Pot = when (poskus) {
+        Poskus.OK -> Pot.CAST
+        Poskus.PREVERBA -> Pot.NI_PRISTNA
+        Poskus.NI_CASTA -> if (bilaPristna) Pot.CAST_NEDOSEGLJIV else Pot.DLNA
+    }
 
     /**
      * Googlova korena Cast. Vir: openscreen (chromium.googlesource.com/openscreen), cast/common/certificate/

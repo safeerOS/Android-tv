@@ -519,7 +519,7 @@ class GlasbaStoritev : Service() {
             zagonSamodejen = samodejno
             Zvocniki.predvajaj(this, z, cilj, 0L, 0L, igraj) { napaka ->
                 if (napaka == null || napaka is Zvocniki.Prehiteno || primerek !== this || moj != zetonVrste) return@predvajaj
-                obvesti(if (napaka is YoutubeZvok.NiToka) getString(R.string.zvocnik_yt_ni) else getString(R.string.zvocnik_napaka, z.ime))
+                obvesti(Zvocniki.besediloNapake(this, napaka, z.ime))
                 Zvocniki.ustavi {
                     if (primerek !== this || moj != zetonVrste || izbrano != izbir) return@ustavi
                     if (samodejno || !igraj) osvezi() else zacniSplet(cilj.copy(zvok = "", mime = ""), true)
@@ -719,7 +719,7 @@ class GlasbaStoritev : Service() {
         Zvocniki.predvajaj(this, z, sk, ZvocnikPravila.odPolozaja(odMs, 0L, sk.radio), 0L, igraj) { napaka ->
             // Zagon, ki ga je prehitela novejsa izbira, ni napaka zvocnika (novejsa izbira ze tece).
             if (napaka != null && napaka !is Zvocniki.Prehiteno && primerek === this) {
-                obvesti(if (napaka is YoutubeZvok.NiToka) getString(R.string.zvocnik_yt_ni) else getString(R.string.zvocnik_napaka, z.ime))
+                obvesti(Zvocniki.besediloNapake(this, napaka, z.ime))
                 // Ta naprava zacne sele, ko zvocnik potrdi Stop (ali po kratkem roku), in samo, ce je to se vedno izbrana skladba.
                 Zvocniki.ustavi {
                     if (primerek === this && trenutna()?.id == sk.id) { if (samodejno || !igraj) osvezi() else naTejNapravi(odMs) }

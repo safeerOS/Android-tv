@@ -31,7 +31,8 @@
     <string name="naprava_prekini">Stop controlling</string>
     <string name="naprava_konec">%1$s is not responding – control ended</string>
     <string name="naprava_upravljaj">Control %1$s</string>
-    <!-- 25. 10. 2026: YouTube na zvocnik (zvocni tok) in Google Cast s preverjeno pristnostjo naprave. -->
+    <!-- 25. 10. 2026: YouTube na zvocnik (zvocni tok) in Google Cast s preverjeno pristnostjo naprave (nepristna naprava ne dobi nicesar). -->
     <string name="zvocnik_yt_ni">This video can’t be played on the speaker.</string>
-    <string name="zvocnik_cast_preverba">%1$s failed the Google Cast authenticity check – playing via DLNA.</string>
+    <string name="zvocnik_cast_preverba">%1$s failed the Google Cast authenticity check, so nothing is played on it.</string>
+    <string name="zvocnik_cast_ni">Google Cast on %1$s isn’t responding. Try again in a moment.</string>
 </resources>

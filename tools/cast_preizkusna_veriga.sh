@@ -21,6 +21,16 @@ extendedKeyUsage = clientAuth
 [ v3_ca_podpis ]
 basicConstraints = critical, CA:TRUE, pathlen:0
 keyUsage = critical, digitalSignature, keyCertSign
+[ v3_ica_pod ]
+basicConstraints = critical, CA:TRUE
+keyUsage = critical, keyCertSign, cRLSign
+[ v3_dev_brez_ku ]
+basicConstraints = critical, CA:FALSE
+extendedKeyUsage = clientAuth
+[ v3_dev_kriticna ]
+basicConstraints = critical, CA:FALSE
+keyUsage = critical, digitalSignature
+1.3.6.1.4.1.99999.1 = critical, ASN1:UTF8String:safeer-preizkus
 EOF
 openssl req -x509 -newkey rsa:2048 -nodes -keyout root.key -out root.pem -days 7300 -subj "/O=Safeer preizkus/CN=Preizkusni koren Cast" \
   -extensions v3_ca -config ca.cnf -set_serial 1 2>/dev/null
@@ -31,12 +41,26 @@ openssl x509 -req -in dev.csr -CA ica.pem -CAkey ica.key -set_serial 3 -days 690
 openssl req -newkey rsa:2048 -nodes -keyout ca2.key -out ca2.csr -subj "/O=Safeer preizkus/CN=Preizkusni CA, ki podpisuje" 2>/dev/null
 openssl x509 -req -in ca2.csr -CA root.pem -CAkey root.key -set_serial 4 -days 6900 -extfile ca.cnf -extensions v3_ca_podpis -out ca2.pem 2>/dev/null
 openssl req -x509 -newkey rsa:2048 -nodes -keyout tls.key -out tls.pem -days 2 -subj "/CN=preizkusni-tls" 2>/dev/null
-for c in root ica dev tls ca2; do openssl x509 -in $c.pem -outform der -out $c.der; done
+# Pregled Grok 25: CA pod vmesnim s pathlen 0 (in naprava pod njim), naprava brez keyUsage, naprava s kriticno razsiritvijo.
+openssl req -newkey rsa:2048 -nodes -keyout ica3.key -out ica3.csr -subj "/O=Safeer preizkus/CN=Preizkusno vmesno pod pathlen 0" 2>/dev/null
+openssl x509 -req -in ica3.csr -CA ica.pem -CAkey ica.key -set_serial 5 -days 6800 -extfile ca.cnf -extensions v3_ica_pod -out ica3.pem 2>/dev/null
+openssl req -newkey rsa:2048 -nodes -keyout dev3.key -out dev3.csr -subj "/CN=Preizkusna naprava pregloboko" 2>/dev/null
+openssl x509 -req -in dev3.csr -CA ica3.pem -CAkey ica3.key -set_serial 6 -days 6700 -extfile ca.cnf -extensions v3_dev -out dev3.pem 2>/dev/null
+openssl req -newkey rsa:2048 -nodes -keyout dev4.key -out dev4.csr -subj "/CN=Preizkusna naprava brez keyUsage" 2>/dev/null
+openssl x509 -req -in dev4.csr -CA ica.pem -CAkey ica.key -set_serial 7 -days 6700 -extfile ca.cnf -extensions v3_dev_brez_ku -out dev4.pem 2>/dev/null
+openssl req -newkey rsa:2048 -nodes -keyout dev5.key -out dev5.csr -subj "/CN=Preizkusna naprava s kriticno razsiritvijo" 2>/dev/null
+openssl x509 -req -in dev5.csr -CA ica.pem -CAkey ica.key -set_serial 8 -days 6700 -extfile ca.cnf -extensions v3_dev_kriticna -out dev5.pem 2>/dev/null
+openssl req -x509 -newkey rsa:2048 -nodes -keyout tls2.key -out tls2.pem -days 2 -subj "/CN=preizkusni-tls-drugi" 2>/dev/null
+for c in root ica dev tls ca2 ica3 dev3 dev4 dev5 tls2; do openssl x509 -in $c.pem -outform der -out $c.der; done
 printf '0123456789abcdef' > nonce.bin
 cat nonce.bin tls.der > vhod.bin
 openssl dgst -sha256 -sign dev.key -out podpis.bin vhod.bin
 openssl dgst -sha256 -sign dev.key -out podpis_brez_nonce.bin tls.der
 openssl dgst -sha256 -sign ca2.key -out podpis_ca2.bin vhod.bin
+openssl dgst -sha1 -sign dev.key -out podpis_sha1.bin vhod.bin
+openssl dgst -sha256 -sign dev3.key -out podpis_dev3.bin vhod.bin
+openssl dgst -sha256 -sign dev4.key -out podpis_dev4.bin vhod.bin
+openssl dgst -sha256 -sign dev5.key -out podpis_dev5.bin vhod.bin
 b() { printf 'private const val %s = "%s"\n' "$1" "$(base64 -w0 "$2")"; }
 b PREIZKUS_KOREN root.der
 b PREIZKUS_VMESNO ica.der
@@ -47,3 +71,12 @@ b PREIZKUS_PODPIS podpis.bin
 b PREIZKUS_PODPIS_BREZ_NONCE podpis_brez_nonce.bin
 b PREIZKUS_CA_PODPISNIK ca2.der
 b PREIZKUS_PODPIS_CA podpis_ca2.bin
+b PREIZKUS_TLS_DRUGO tls2.der
+b PREIZKUS_PODPIS_SHA1 podpis_sha1.bin
+b PREIZKUS_VMESNO_POD ica3.der
+b PREIZKUS_NAPRAVA_POD dev3.der
+b PREIZKUS_PODPIS_POD podpis_dev3.bin
+b PREIZKUS_NAPRAVA_BREZ_KU dev4.der
+b PREIZKUS_PODPIS_BREZ_KU podpis_dev4.bin
+b PREIZKUS_NAPRAVA_KRITICNA dev5.der
+b PREIZKUS_PODPIS_KRITICNA podpis_dev5.bin

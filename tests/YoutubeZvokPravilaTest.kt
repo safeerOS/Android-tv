@@ -83,6 +83,11 @@ fun main() {
     tk = izberi(odgovor(oblike = listOf(oblika(140, naslov(140, "&lang=de"), "audio/mp4", privzeta = false),
         oblika(140, naslov(140, "&lang=en"), "audio/mp4", privzeta = true)))).tok
     preveri(tk != null && tk.url.contains("lang=en"), "izvirna sled")
+    // Vrsta zvoka gre v glavo Content-Type posrednika: brez koncev vrstic (Grok 25, Z7).
+    tk = izberi(odgovor(oblike = listOf(oblika(140, naslov(140), "audio/mp4\r\nX-Vrinjena: 1")))).tok
+    preveri(tk != null && tk.mime == "audio/mp4", "mime brez vrinjene glave")
+    preveri(YoutubeZvokPravila.mimeZvoka("AUDIO/WEBM; codecs=\"opus\"", 251) == "audio/webm" &&
+        YoutubeZvokPravila.mimeZvoka("video/mp4", 251) == "audio/webm" && YoutubeZvokPravila.mimeZvoka("", 140) == "audio/mp4", "mimeZvoka")
     // Naslov za IPv6 te naprave: zvocnik ga sam ne prebere (rezerva je posrednik).
     tk = izberi(odgovor(oblike = listOf(oblika(140, naslov(140, ip = "2001%3Adb8%3A%3A1"), "audio/mp4")))).tok
     preveri(tk != null && tk.ipV6, "IPv6")

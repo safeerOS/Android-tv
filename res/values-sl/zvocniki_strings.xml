@@ -31,7 +31,8 @@
     <string name="naprava_prekini">Prekini upravljanje</string>
     <string name="naprava_konec">%1$s se ne odziva – upravljanje je končano</string>
     <string name="naprava_upravljaj">Upravljaj: %1$s</string>
-    <!-- 25. 10. 2026: YouTube na zvocnik (zvocni tok) in Google Cast s preverjeno pristnostjo naprave. -->
+    <!-- 25. 10. 2026: YouTube na zvocnik (zvocni tok) in Google Cast s preverjeno pristnostjo naprave (nepristna naprava ne dobi nicesar). -->
     <string name="zvocnik_yt_ni">Tega posnetka ni mogoče predvajati na zvočniku.</string>
-    <string name="zvocnik_cast_preverba">%1$s ni opravil preverbe pristnosti Google Cast – predvajam prek DLNA.</string>
+    <string name="zvocnik_cast_preverba">%1$s ni opravil preverbe pristnosti Google Cast, zato nanj ne predvajam.</string>
+    <string name="zvocnik_cast_ni">Google Cast na %1$s se ne odziva. Poskusi znova čez nekaj trenutkov.</string>
 </resources>

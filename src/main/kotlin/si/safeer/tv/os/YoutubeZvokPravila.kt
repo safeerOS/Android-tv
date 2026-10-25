@@ -147,7 +147,7 @@ object YoutubeZvokPravila {
                 if ("n" in q) continue
                 val poteka = q["expire"]?.toLongOrNull() ?: continue
                 if (poteka - zdajS < REZERVA_IZTEKA_S) continue
-                return Izid(Razlog.OK, Tok(url, f.optString("mimeType").substringBefore(';').trim().ifEmpty { if (itag == 140) "audio/mp4" else "audio/webm" },
+                return Izid(Razlog.OK, Tok(url, mimeZvoka(f.optString("mimeType"), itag),
                     itag, f.optString("contentLength").toLongOrNull() ?: -1L, poteka, q["ip"].orEmpty().contains(':'),
                     f.optString("approxDurationMs").toLongOrNull() ?: 0L))
             }
@@ -155,6 +155,15 @@ object YoutubeZvokPravila {
         // Samo signatureCipher (zahteva JavaScript strani) ali SABR brez naslovov.
         return Izid(Razlog.BREZ_TOKA, opis = if (oblike.any { it.has("signatureCipher") }) "signatureCipher" else "brez naslova")
     }
+
+    private val MIME = Regex("^audio/[a-z0-9.+-]{1,40}$")
+
+    /**
+     * Vrsta zvoka iz odgovora (gre v glavo Content-Type posrednika in v LOAD): samo »audio/...« brez presledkov in koncev
+     * vrstic (pregled Grok 25, Z7), sicer privzeta za itag.
+     */
+    fun mimeZvoka(mimeType: String, itag: Int): String =
+        mimeType.substringBefore(';').trim().lowercase().takeIf { MIME.matches(it) } ?: if (itag == 140) "audio/mp4" else "audio/webm"
 
     private fun jeDrc(f: JSONObject): Boolean = f.optBoolean("isDrc", false) || f.optString("url").contains("xtags=drc", true)
 

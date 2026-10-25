@@ -10,6 +10,8 @@ import java.net.SocketTimeoutException
 import java.security.SecureRandom
 import java.security.cert.CertificateException
 import java.security.cert.X509Certificate
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLSocket
 import javax.net.ssl.X509TrustManager
@@ -37,6 +39,8 @@ class CastSeja(val naslov: String) {
     private val izvor = "sender-safeer-" + ByteArray(4).also { SecureRandom().nextBytes(it) }.joinToString("") { "%02x".format(it) }
     private var rid = 1
     private var zadnjiUtrip = 0L
+    /** Kdaj je prislo zadnje sporocilo sprejemnika: povezava brez prometa dlje od [TIHA_MS] je mrtva ali zaprta. */
+    private var zadnjiPrejem = 0L
     /** Pristnost je preverjena: sele zdaj smemo posiljati kaj drugega kot izziv (tudi utrip). */
     private var preverjena = false
 
@@ -56,6 +60,18 @@ class CastSeja(val naslov: String) {
 
     private val odprta: Boolean get() = vticnica?.isClosed == false
 
+    companion object {
+        /** Ves okvir (glava in telo) mora priti v tem casu - pocasna naprava ne sme zadrzati delavca zvocnikov (Grok 25, Z5). */
+        const val ROK_OKVIRJA_MS = 5_000L
+        /**
+         * Sprejemnik brez nasega utripa povezavo zapre (vticnica pa je pri nas videti odprta); straza Zvocnikov med sejo
+         * sprasuje vsakih 0,5-5 s, zato povezavo, ki je bila tiho dlje od tega, pred uporabo odpremo znova (s preverbo).
+         */
+        const val TIHA_MS = 8_000L
+        /** Straza, ki zapre vticnico, ce povezava, TLS in preverba pristnosti skupaj ne koncajo v roku. */
+        private val straza = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "safeer-cast-straza").apply { isDaemon = true } }
+    }
+
     /**
      * Zaupanje TLS je tu samo prehod: potrdilo TLS sprejemnika je samopodpisano (velja 48 h), pristnost pa takoj nato
      * preveri [odpri] z izzivom deviceauth do Googlovega korena Cast - PRED vsakim drugim sporocilom.
@@ -71,14 +87,22 @@ class CastSeja(val naslov: String) {
         override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
     }
 
-    /** TLS, izziv deviceauth in preverba; sele po njej CONNECT. Ob neuspehu [Preverba] in povezava je zaprta. */
+    /**
+     * TLS, izziv deviceauth in preverba; sele po njej CONNECT. Ob neuspehu [Preverba] in povezava je zaprta. Vse skupaj
+     * najvec 2 x [rokMs] + 4 s (straza vticnico zapre - pocasno rokovanje TLS ne zadrzi delavca; obicajno ~0,2 s).
+     */
     fun odpri(rokMs: Int = 4_000) {
-        if (odprta) return
+        if (odprta && System.currentTimeMillis() - zadnjiPrejem < TIHA_MS) return
         zapri()
         val ctx = SSLContext.getInstance("TLS")
         ctx.init(null, arrayOf(PrehodTls), SecureRandom())
         val s = ctx.socketFactory.createSocket() as SSLSocket
+        val rok = straza.schedule({ try { s.close() } catch (_: Exception) {} }, rokMs * 2 + 4_000L, TimeUnit.MILLISECONDS)
         try {
+            // Samo TLS 1.2 in 1.3 (Grok 25, Z2); JBL BAR 300 govori TLS 1.2+.
+            val protokoli = s.supportedProtocols.filter { it == "TLSv1.2" || it == "TLSv1.3" }
+            if (protokoli.isEmpty()) throw IOException("Cast: ni TLS 1.2")
+            s.enabledProtocols = protokoli.toTypedArray()
             s.connect(InetSocketAddress(naslov, CastPravila.VRATA), rokMs)
             s.soTimeout = rokMs
             s.startHandshake()
@@ -88,24 +112,33 @@ class CastSeja(val naslov: String) {
             izhod = s.outputStream
             val nonce = ByteArray(16).also { SecureRandom().nextBytes(it) }
             posljiOkvir(CastPravila.okvir("sender-0", CastPravila.SPREJEMNIK, CastPravila.NS_PRISTNOST, binarno = CastPravila.izziv(nonce)))
+            // Naprava je TLS na vratih Cast sprejela, pristnosti pa ne dokaze: to je neuspela preverba, ne »ni Casta«.
             val m = beriDo(rokMs + 2_000L) { it.ns == CastPravila.NS_PRISTNOST } ?: throw Preverba(CastPravila.Pristnost.ODGOVOR)
             val o = m.binarno?.let { CastPravila.odgovorPristnosti(it) }
             val izid = if (o == null) CastPravila.Pristnost.ODGOVOR else CastPravila.preveri(o, nonce, tls, System.currentTimeMillis())
             if (izid != CastPravila.Pristnost.OK) throw Preverba(izid)
             preverjena = true
+            pristna = true
             poslji(CastPravila.SPREJEMNIK, CastPravila.NS_POVEZAVA, CastPravila.povezi())
         } catch (e: Exception) {
             zapri()
+            // Neuspela preverba: o seji te naprave ne vemo nic zanesljivega.
+            if (e is Preverba) sejaAplikacije = ""
             try { s.close() } catch (_: Exception) {}
             throw if (e is IOException) e else IOException("Cast: ${e.message}", e)
-        }
+        } finally { rok.cancel(false) }
     }
+
+    /** Naprava je na tej seji ze dokazala pristnost (ostane tudi po zaprtju povezave - Zvocniki si jo zapomnijo po udn). */
+    var pristna = false
+        private set
 
     fun zapri() {
         try { if (odprta && preverjena) poslji(CastPravila.SPREJEMNIK, CastPravila.NS_POVEZAVA, CastPravila.zapri()) } catch (_: Exception) {}
         try { vticnica?.close() } catch (_: Exception) {}
         vticnica = null; vhod = null; izhod = null
         prenos = ""; preverjena = false
+        sejaMedija = 0; glasnost = -1.0; tujaAplikacija = false
     }
 
     private fun posljiOkvir(b: ByteArray) {
@@ -123,16 +156,37 @@ class CastSeja(val naslov: String) {
             s.soTimeout = rokMs.coerceIn(50L, 10_000L).toInt()
             val prvi = try { v.read() } catch (_: SocketTimeoutException) { return null }
             if (prvi < 0) throw IOException("Cast: sprejemnik je zaprl povezavo")
-            s.soTimeout = 5_000
+            // Ostanek okvirja v skupnem roku (prej 5 s na vsako branje - naprava, ki kaplja po bajtih, je drzala delavca).
+            val konec = System.currentTimeMillis() + ROK_OKVIRJA_MS
             val g = ByteArray(4)
             g[0] = prvi.toByte()
-            v.readFully(g, 1, 3)
+            beriTocno(s, v, g, 1, konec)
             val n = CastPravila.dolzina(g)
             if (n < 0) throw IOException("Cast: pokvarjen okvir")
             val telo = ByteArray(n)
-            v.readFully(telo)
+            beriTocno(s, v, telo, 0, konec)
+            zadnjiPrejem = System.currentTimeMillis()
             return CastPravila.razcleni(telo) ?: throw IOException("Cast: pokvarjeno sporocilo")
         } catch (e: IOException) { zapri(); throw e }
+    }
+
+    /** Napolni [b] od [od] naprej; vsako branje caka najvec do [konec] (SocketTimeoutException, ce okvir ne pride ves). */
+    private fun beriTocno(s: SSLSocket, v: DataInputStream, b: ByteArray, od: Int, konec: Long) {
+        var i = od
+        while (i < b.size) {
+            val ostane = konec - System.currentTimeMillis()
+            if (ostane <= 0L) throw SocketTimeoutException("Cast: okvir ni prisel v roku")
+            s.soTimeout = ostane.coerceIn(1L, ROK_OKVIRJA_MS).toInt()
+            val r = v.read(b, i, b.size - i)
+            if (r < 0) throw IOException("Cast: sprejemnik je zaprl povezavo")
+            i += r
+        }
+    }
+
+    /** Odgovora ni bilo v roku: povezavo zapremo (naslednji klic odpre novo s preverbo) - prej je mrtva povezava ostala. */
+    private fun brezOdgovora(opis: String): Nothing {
+        zapri()
+        throw SocketTimeoutException(opis)
     }
 
     /** Utrip: sprejemnik zapre povezavo brez njega; posljemo ga, ce ga ni bilo 5 s. */
@@ -151,6 +205,8 @@ class CastSeja(val naslov: String) {
             if (ostane <= 0L) return null
             if (preverjena) utrip()
             val m = beriEno(minOf(ostane, 1_000L)) ?: continue
+            // Pred preverbo pristnosti sporocil naprave ne obdelamo (Grok 25, Z4): sprejmemo samo odgovor na izziv.
+            if (!preverjena) { if (m.ns == CastPravila.NS_PRISTNOST && pogoj(m)) return m else continue }
             val j = m.json()
             if (m.ns == CastPravila.NS_UTRIP) {
                 if (preverjena && j?.optString("type") == "PING") poslji(m.izvor.ifEmpty { CastPravila.SPREJEMNIK }, CastPravila.NS_UTRIP, CastPravila.pong())
@@ -167,7 +223,8 @@ class CastSeja(val naslov: String) {
                     prenos = ""; sejaMedija = 0; tujaAplikacija = true
                 }
             }
-            CastPravila.zadnje(j)?.let { if (it.seja > 0) sejaMedija = maxOf(sejaMedija, it.seja) }
+            // Seja medija samo iz nasega sprejemnika (transportId), ne iz tujega sporocila.
+            if (prenos.isNotEmpty() && m.izvor == prenos) CastPravila.zadnje(j)?.let { if (it.seja > 0) sejaMedija = maxOf(sejaMedija, it.seja) }
             if (pogoj(m)) return m
         }
     }
@@ -176,7 +233,7 @@ class CastSeja(val naslov: String) {
     private fun zahteva(cilj: String, ns: String, tip: String, rokMs: Long = 6_000L, vec: JSONObject.() -> Unit = {}): JSONObject {
         val r = ++rid
         poslji(cilj, ns, JSONObject().put("type", tip).put("requestId", r).apply(vec).toString())
-        val m = beriDo(rokMs) { it.json()?.optInt("requestId", -1) == r } ?: throw SocketTimeoutException("Cast: ni odgovora na $tip")
+        val m = beriDo(rokMs) { it.json()?.optInt("requestId", -1) == r } ?: brezOdgovora("Cast: ni odgovora na $tip")
         return m.json() ?: throw IOException("Cast: odgovor ni JSON")
     }
 
@@ -204,7 +261,7 @@ class CastSeja(val naslov: String) {
                 val j = s.json()
                 (j?.optInt("requestId", -1) == r && CastPravila.zavrnitev(j)) ||
                     CastPravila.stanjeSprejemnika(j)?.aplikacije?.any { it.appId == CastPravila.DMR && it.prenos.isNotEmpty() } == true
-            } ?: throw SocketTimeoutException("Cast: sprejemnik se ni zagnal")
+            } ?: brezOdgovora("Cast: sprejemnik se ni zagnal")
             val j = m.json()
             if (CastPravila.zavrnitev(j)) throw Zavrnjeno(j?.optString("type").orEmpty())
             app = CastPravila.stanjeSprejemnika(j)?.aplikacije?.first { it.appId == CastPravila.DMR && it.prenos.isNotEmpty() }
@@ -225,7 +282,7 @@ class CastSeja(val naslov: String) {
         val m = beriDo(15_000L) { s ->
             val j = s.json()
             j?.optInt("requestId", -1) == r && (j.optString("type") == "MEDIA_STATUS" || CastPravila.zavrnitev(j))
-        } ?: throw SocketTimeoutException("Cast: LOAD brez odgovora")
+        } ?: brezOdgovora("Cast: LOAD brez odgovora")
         val j = m.json()
         if (CastPravila.zavrnitev(j)) throw NalaganjeNiUspelo(j?.optString("type").orEmpty())
         val st = CastPravila.zadnje(j)
