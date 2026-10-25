@@ -29,4 +29,5 @@
     <string name="nz_ni_sistemske">Este dispositivo no ofrece este ajuste del sistema.</string>
     <string name="nz_padec_opis">Safeer se detuvo varias veces seguidas como pantalla de inicio, así que el botón Inicio vuelve a abrir tu launcher anterior. Puedes configurarlo de nuevo cuando quieras.</string>
     <string name="nz_zacetek">Inicio</string>
+    <string name="nz_vodic_aosp"></string>
 </resources>

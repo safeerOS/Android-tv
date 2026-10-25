@@ -29,4 +29,5 @@
     <string name="nz_ni_sistemske">Naprava te sistemske nastavitve ne ponuja.</string>
     <string name="nz_padec_opis">Safeer se je kot domači zaslon večkrat zapored ustavil, zato tipka Domov spet odpre prejšnji zaganjalnik. Ko želiš, ga nastaviš znova.</string>
     <string name="nz_zacetek">Začetek</string>
+    <string name="nz_vodic_aosp">Na čistem Androidu (preverjeno na Androidu 14) se imenujeta »Omogoči okna svobodne oblike« in »Vsili namizni način«.</string>
 </resources>

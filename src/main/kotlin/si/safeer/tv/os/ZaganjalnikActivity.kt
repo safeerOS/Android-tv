@@ -310,7 +310,9 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         razporediOdseke()
         // Namizje: mreza vseh aplikacij te naprave (kot Programi na namizju Safeer OS), iskanje jo filtrira.
         odsekVse = if (namizje) odsek(getString(R.string.nz_vse_aplikacije)).also { seznam.addView(it) } else null
-        if (!namizje) { iskanje = ""; ikoneVse.clear() }
+        // Iskanje se ob prerisu (zasuk, nov zaslon) nastavi znova iz besedila polja (onConfigurationChanged).
+        iskanje = ""
+        if (!namizje) ikoneVse.clear()
 
         drsnik = ScrollView(this).apply {
             isFillViewport = true

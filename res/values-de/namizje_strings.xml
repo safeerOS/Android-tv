@@ -29,4 +29,5 @@
     <string name="nz_ni_sistemske">Dieses Gerät bietet diese Systemeinstellung nicht an.</string>
     <string name="nz_padec_opis">Safeer wurde als Startbildschirm mehrmals hintereinander beendet, daher öffnet die Home-Taste wieder deinen vorherigen Launcher. Du kannst es jederzeit wieder einrichten.</string>
     <string name="nz_zacetek">Start</string>
+    <string name="nz_vodic_aosp"></string>
 </resources>

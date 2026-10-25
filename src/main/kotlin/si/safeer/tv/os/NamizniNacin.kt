@@ -111,6 +111,8 @@ object NamizniNacin {
         besedilo.append("\n").append(a.getString(if (s.zunanjiNamizni) R.string.nz_zunanji_da else R.string.nz_zunanji_ne))
         if (!s.okna || !s.zunanjiNamizni) {
             besedilo.append("\n\n").append(a.getString(R.string.nz_vodic))
+            // Imena na cistem Androidu (slovenska preverjena na Androidu 14, testni telefon 25. 10. 2026); drugje prazno.
+            a.getString(R.string.nz_vodic_aosp).takeIf { it.isNotBlank() }?.let { besedilo.append("\n").append(it) }
             if (!s.razvijalske) besedilo.append("\n\n").append(a.getString(R.string.nz_vodic_razvijalske))
         }
         val g = AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
