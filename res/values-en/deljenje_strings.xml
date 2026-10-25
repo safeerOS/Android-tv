@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Deljenje zaslona po vzoru DeX (link/DeljenjePravila): »Vedno dovoli«, vprasanje Safeerja. -->
+<!-- Deljenje zaslona po vzoru DeX (link/DeljenjePravila: A1-A4): zaklep, »Vedno dovoli«, vprasanje Safeerja. -->
 <resources>
+    <string name="deljenje_zaklenjen_telefon">The phone is locked – unlock it to continue</string>
+    <string name="deljenje_zaklenjen_tablica">The tablet is locked – unlock it to continue</string>
+    <string name="deljenje_zaklenjen_naprava">The device is locked – unlock it to continue</string>
+    <string name="deljenje_zaklep_potrdi">After unlocking, confirm on the device to continue sharing the screen.</string>
+    <string name="deljenje_caka_obvestilo">The screen is not shared while the device is locked.</string>
+    <string name="deljenje_nadaljuj">Continue sharing the screen: %1$s</string>
     <string name="deljenje_vedno_racunalnik">Always allow this computer</string>
     <string name="deljenje_vedno_napravi">Always allow this device</string>
     <string name="deljenje_ne_vec">Stop allowing automatically</string>

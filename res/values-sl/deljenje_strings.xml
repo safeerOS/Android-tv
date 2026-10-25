@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Deljenje zaslona po vzoru DeX (link/DeljenjePravila): »Vedno dovoli«, vprasanje Safeerja. -->
+<!-- Deljenje zaslona po vzoru DeX (link/DeljenjePravila: A1-A4): zaklep, »Vedno dovoli«, vprasanje Safeerja. -->
 <resources>
+    <string name="deljenje_zaklenjen_telefon">Telefon je zaklenjen – odkleni ga za nadaljevanje</string>
+    <string name="deljenje_zaklenjen_tablica">Tablica je zaklenjena – odkleni jo za nadaljevanje</string>
+    <string name="deljenje_zaklenjen_naprava">Naprava je zaklenjena – odkleni jo za nadaljevanje</string>
+    <string name="deljenje_zaklep_potrdi">Po odklepu na napravi potrdi nadaljevanje deljenja zaslona.</string>
+    <string name="deljenje_caka_obvestilo">Zaslon se ne deli, dokler je naprava zaklenjena.</string>
+    <string name="deljenje_nadaljuj">Nadaljuj deljenje zaslona: %1$s</string>
     <string name="deljenje_vedno_racunalnik">Vedno dovoli temu računalniku</string>
     <string name="deljenje_vedno_napravi">Vedno dovoli tej napravi</string>
     <string name="deljenje_ne_vec">Ne dovoli več samodejno</string>

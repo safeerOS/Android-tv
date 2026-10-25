@@ -37,7 +37,7 @@ class PretociActivity : Activity() {
         /**
          * [zahteva]: zeton zahteve ([PretokKonec.Zahteve.nova]) - umaknjena ali pretecena zahteva ne zacne deljenja.
          * [odprtoTukaj]: deljenje zacenja »Odpri tukaj« naprave [cilj] (njen `apps.close` sme aplikacijo umakniti z
-         * zaslona); false, ce deljenja ni zacel »Odpri tukaj«.
+         * zaslona); false pri nadaljevanju deljenja, ki ga je uporabnik zacel sam (A4).
          */
         fun namera(context: Context, cilj: String, paket: String, zahteva: Int, odprtoTukaj: Boolean = true): Intent =
             Intent(context, PretociActivity::class.java)
@@ -132,9 +132,10 @@ class PretociActivity : Activity() {
         }
     }
 
-    /** Uporabnik deljenja ni dovolil: zahteva je umaknjena. */
+    /** Uporabnik deljenja ni dovolil: zahteva je umaknjena; deljenje, ki caka na odklep tej napravi, se konca (A4). */
     private fun zavrnjeno() {
         if (PretokKonec.zahteve.caka(zahteva)) PretokKonec.zahteve.umakni()
+        if (DeljenjeZaslonaStoritev.cakaNaOdklep && DeljenjeZaslonaStoritev.cilj == cilj) DeljenjeZaslonaStoritev.ustavi(this)
         Log.i(TAG, "Uporabnik ni dovolil zajema zaslona; aplikacije ne odpremo.")
         finish()
         @Suppress("DEPRECATION") overridePendingTransition(0, 0)

@@ -452,7 +452,7 @@ object Daljinec {
         // samo odpremo - slika gre v okno, ki je na racunalniku ze odprto. »stream: pending« ostane zaradi starejsega
         // racunalnika (brez njega pove »posodobi Safeer«); »session: running« pove, da novega okna ne bo.
         when (DeljenjePravila.pot(cilj, celZaslon, DeljenjeZaslonaStoritev.tece, DeljenjeZaslonaStoritev.cilj,
-                PretokKonec.zahteve.zacenjaZa(), false)) {
+                PretokKonec.zahteve.zacenjaZa(), DeljenjeZaslonaStoritev.cakaNaOdklep)) {
             DeljenjePravila.Pot.ZE_DELIM -> return Izid(true, "Zaslon se tej napravi že deli",
                 JSONObject().put("package", paket).put("label", ime).put("stream", "pending").put("session", "running"))
             DeljenjePravila.Pot.ODPRI_V_SEJI -> {
@@ -502,6 +502,17 @@ object Daljinec {
         namigPoZagonu(context, neposredno, true, { PretociActivity.odprtaZahteva == zeton || !PretokKonec.zahteve.caka(zeton) },
             namera, ime, besedilo, PretokKonec.CAKA_MS)
         return true
+    }
+
+    /**
+     * A4: naprava je odklenjena, deljenje napravi [cilj] caka na odklep (Android 15 QPR1+ ga je ob zaklepu ustavil).
+     * Potrebno je novo soglasje: zaupani napravi ([samodejno]) okno odpremo takoj - s trajnim dovoljenjem Androida ga
+     * sploh ni -, drugi samo obvestilo »Nadaljuj deljenje zaslona«. Slika gre v isti tok, v okno, ki je na racunalniku
+     * ostalo odprto (DeljenjeZaslonaStoritev).
+     */
+    fun nadaljujDeljenje(context: Context, cilj: String, odprtoTukaj: Boolean, samodejno: Boolean) {
+        zahtevajDeljenje(context, cilj, CEL_ZASLON, imeNaprave(context, cilj), odprtoTukaj, samodejno,
+            si.safeer.tv.R.string.deljenje_nadaljuj)
     }
 
     /** Ime naprave v Linku (krajevni vzdevek ali ime s Huba) in njena platforma; brez seznama id. */
@@ -713,6 +724,8 @@ object Daljinec {
                 Izid(false, "Nastavitev ni bilo mogoce odpreti: ${e.message}")
             }
         }
+        // A4: deljenje caka na odklep - dotik ali tipka z racunalnika bi sla na zaklepni zaslon.
+        if (!DeljenjePravila.vnosDovoljen(DeljenjeZaslonaStoritev.cakaNaOdklep)) return izidZaklenjeno()
         if (!VnosStoritev.aktivna()) {
             return Izid(false, "Na tej napravi vklopi Safeer Vnos (Nastavitve → Dostopnost).", koda = "vnos_ni_vklopljen")
         }
@@ -729,6 +742,12 @@ object Daljinec {
     }
 
 
+    /** Odgovor racunalniku na vnos, medtem ko deljenje caka na odklep (A4). */
+    private fun izidZaklenjeno(): Izid =
+        Izid(false, "Naprava je zaklenjena – odkleni jo za nadaljevanje.", koda = KODA_ZAKLENJENO)
+
+    const val KODA_ZAKLENJENO = "zaklenjeno"
+
     /**
      * Telefonski igralni plosek -> dotiki na Android gostitelju. To ni sistemski gamepad in ne
      * zahteva roota: Safeer Vnos (AccessibilityService), ki ga uporabnik sam vklopi, pretvori
@@ -736,6 +755,7 @@ object Daljinec {
      * naprava ne sme poslati poljubnih koordinat. Tako telefon ne dobi splosnega dostopa do zaslona.
      */
     private fun igralniPloskek(context: Context, d: String, p: JSONObject): Izid {
+        if (!DeljenjePravila.vnosDovoljen(DeljenjeZaslonaStoritev.cakaNaOdklep)) return izidZaklenjeno()
         if (!VnosStoritev.aktivna()) return Izid(false,
             "Na napravi z igro vklopi Safeer Vnos (Nastavitve → Dostopnost).", koda = "vnos_ni_vklopljen")
         val ok = when (d) {
@@ -865,8 +885,9 @@ object Daljinec {
             .put("android", Build.VERSION.RELEASE)
             .put("foreground", dodatno != null)
             .put("can_wake", lahkoVOspredje(context))
-            // A3: Android za deljenje zaslona ne vprasa (AppOps PROJECT_MEDIA = allow).
+            // A3: Android za deljenje zaslona ne vprasa (AppOps PROJECT_MEDIA = allow); »screen_waiting«: caka na odklep (A4).
             .put("screen_permanent", ZaupanjeZaslona.projekcijaDovoljena(context))
+            .put("screen_waiting", DeljenjeZaslonaStoritev.cakaNaOdklep)
             .put("actions", JSONArray(DEJANJA))
             .put("keys", JSONArray(TIPKE.keys.toList()))
         try {

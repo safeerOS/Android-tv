@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Deljenje zaslona po vzoru DeX (link/DeljenjePravila): »Vedno dovoli«, vprasanje Safeerja. -->
+<!-- Deljenje zaslona po vzoru DeX (link/DeljenjePravila: A1-A4): zaklep, »Vedno dovoli«, vprasanje Safeerja. -->
 <resources>
+    <string name="deljenje_zaklenjen_telefon">Le téléphone est verrouillé – déverrouillez-le pour continuer</string>
+    <string name="deljenje_zaklenjen_tablica">La tablette est verrouillée – déverrouillez-la pour continuer</string>
+    <string name="deljenje_zaklenjen_naprava">L’appareil est verrouillé – déverrouillez-le pour continuer</string>
+    <string name="deljenje_zaklep_potrdi">Après le déverrouillage, confirmez sur l’appareil pour continuer le partage d’écran.</string>
+    <string name="deljenje_caka_obvestilo">L’écran n’est pas partagé tant que l’appareil est verrouillé.</string>
+    <string name="deljenje_nadaljuj">Continuer le partage d’écran : %1$s</string>
     <string name="deljenje_vedno_racunalnik">Toujours autoriser cet ordinateur</string>
     <string name="deljenje_vedno_napravi">Toujours autoriser cet appareil</string>
     <string name="deljenje_ne_vec">Ne plus autoriser automatiquement</string>

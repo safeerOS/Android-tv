@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Deljenje zaslona po vzoru DeX (link/DeljenjePravila): »Vedno dovoli«, vprasanje Safeerja. -->
+<!-- Deljenje zaslona po vzoru DeX (link/DeljenjePravila: A1-A4): zaklep, »Vedno dovoli«, vprasanje Safeerja. -->
 <resources>
+    <string name="deljenje_zaklenjen_telefon">El teléfono está bloqueado: desbloquéalo para continuar</string>
+    <string name="deljenje_zaklenjen_tablica">La tableta está bloqueada: desbloquéala para continuar</string>
+    <string name="deljenje_zaklenjen_naprava">El dispositivo está bloqueado: desbloquéalo para continuar</string>
+    <string name="deljenje_zaklep_potrdi">Tras desbloquear, confirma en el dispositivo para seguir compartiendo la pantalla.</string>
+    <string name="deljenje_caka_obvestilo">La pantalla no se comparte mientras el dispositivo está bloqueado.</string>
+    <string name="deljenje_nadaljuj">Seguir compartiendo la pantalla: %1$s</string>
     <string name="deljenje_vedno_racunalnik">Permitir siempre a este ordenador</string>
     <string name="deljenje_vedno_napravi">Permitir siempre a este dispositivo</string>
     <string name="deljenje_ne_vec">Dejar de permitir automáticamente</string>
