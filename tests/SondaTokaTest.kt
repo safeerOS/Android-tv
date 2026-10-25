@@ -41,8 +41,9 @@ fun main() {
         preveriEnako("404: razlog http:404", "http:404", NedelujocePravila.izSonde(sonda("/404").second))
         preveriEnako("401 (prijava): ne vemo", OsPravila.IzidSonde.NEZNANO, sonda("/401").first)
         preveriEnako("503: negotovo", OsPravila.IzidSonde.NEGOTOVO, sonda("/503").first)
-        preveriEnako("zanka preusmeritev: ne vemo", OsPravila.IzidSonde.NEZNANO to "prevec preusmeritev", sonda("/zanka"))
-        preveriEnako("302 brez cilja: ne vemo", OsPravila.IzidSonde.NEZNANO to "preusmeritev brez cilja", sonda("/brez-cilja"))
+        // Razlog s stevilom preusmeritev (SondaVeriga, pregled 25. 10. 2026).
+        preveriEnako("zanka preusmeritev: ne vemo", OsPravila.IzidSonde.NEZNANO to "prevec preusmeritev po 5 preusmeritvah", sonda("/zanka"))
+        preveriEnako("302 brez cilja: ne vemo", OsPravila.IzidSonde.NEZNANO to "preusmeritev brez cilja po 0 preusmeritvah", sonda("/brez-cilja"))
 
         // Zaprta vrata: zavrnjena povezava je dokaz samo, ce imenik isti hip odgovori za kontrolno ime (omrezje dela).
         val zaprta = ServerSocket(0).use { it.localPort }

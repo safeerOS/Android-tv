@@ -12,6 +12,9 @@ OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 "$KOTLINC" -J-Xmx1g \
     "$SRC/si/safeer/tv/os/SondaToka.kt" \
+    "$SRC/si/safeer/tv/os/SondaVeriga.kt" \
+    "$SRC/si/safeer/tv/os/SondaHlsPravila.kt" \
+    "$TEST_DIR/stubs/SpletniVir.kt" \
     "$SRC/si/safeer/tv/os/OsPravila.kt" \
     "$SRC/si/safeer/tv/os/NedelujocePravila.kt" \
     "$SRC/si/safeer/tv/os/JezikiVsebine.kt" \
