@@ -5,6 +5,8 @@ import android.os.SystemClock
 import android.util.Log
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 /**
  * Webtor rezerva (pot A, 25. 10. 2026; pravila: [WebtorPravila]): sonda toka pred predvajanjem in torrent v TorBox v
@@ -18,28 +20,32 @@ object Webtor {
     /** Izid sonde: [koda] HTTP (0 = ni odgovora), [prviBajtMs] (null = ga ni bilo), [potekel] rok, [gostitelj] toka. */
     class Sonda(val koda: Int, val prviBajtMs: Long?, val potekel: Boolean, val gostitelj: String)
 
+    /** Pregled N3: straza prekine zahtevo ob izteku skupnega roka (connect + read sta sicer vsak svoj rok). */
+    private val straza = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "safeer-webtor-straza").apply { isDaemon = true } }
+
     /**
-     * Prvi bajt toka [url] (Range 0-0) v najvec [WebtorPravila.PRVI_BAJT_MS]. Preusmeritvam sledimo sami (najvec 5), da
-     * gostitelja toka dodamo med izjeme Scita ([si.safeer.tv.scit.Scit.dovoliGostitelja]); ce je bil dodan na novo in
-     * ime se ne razresi, poskusimo enkrat znova. Blokira - z delovne niti; preklic (prekinitev niti) jo konca.
+     * Prvi bajt toka [url] (Range 0-0) v najvec [rokMs] skupaj. Preusmeritvam sledimo sami (najvec 5), samo po https.
+     * Pregled V1: gostitelja toka Scit dobi med izjeme samo, ce se je zahteva zacela na `https://webtor.io/.../resolve/`, in
+     * samo KONCNEGA gostitelja po odgovoru 2xx ([WebtorPravila.naucenGostitelj], [si.safeer.tv.scit.Scit.dovoliGostitelja]).
+     * Blokira - z delovne niti; preklic (prekinitev niti) jo konca.
      */
-    fun sonda(c: Context, url: String): Sonda {
+    fun sonda(c: Context, url: String, rokMs: Long = WebtorPravila.PRVI_BAJT_MS): Sonda {
         val zacetek = SystemClock.elapsedRealtime()
-        fun ostane() = (WebtorPravila.PRVI_BAJT_MS - (SystemClock.elapsedRealtime() - zacetek)).toInt()
-        var naslov = SkrivniDodatki.dejanski(c, url)
+        fun ostane() = rokMs - (SystemClock.elapsedRealtime() - zacetek)
+        val zacetni = SkrivniDodatki.dejanski(c, url)
+        var naslov = zacetni
         var gostitelj = Zasebno.gostitelj(naslov)
         var preusmeritev = 0
-        var ponovljeno = false
-        var novaIzjema = false
         while (true) {
             if (Thread.currentThread().isInterrupted) return Sonda(0, null, false, gostitelj)
             val rok = ostane()
             if (rok <= 0) return Sonda(0, null, true, gostitelj)
             if (!naslov.startsWith("https://")) return Sonda(0, null, false, gostitelj)
             val p = try { URL(naslov).openConnection() as HttpURLConnection } catch (_: Exception) { return Sonda(0, null, false, gostitelj) }
+            val prekini = try { straza.schedule({ try { p.disconnect() } catch (_: Throwable) { } }, rok, TimeUnit.MILLISECONDS) } catch (_: Exception) { null }
             try {
                 p.instanceFollowRedirects = false
-                p.connectTimeout = rok; p.readTimeout = rok
+                p.connectTimeout = rok.toInt().coerceAtLeast(1); p.readTimeout = rok.toInt().coerceAtLeast(1)
                 p.setRequestProperty("Range", "bytes=0-0")
                 p.setRequestProperty("Accept-Encoding", "identity")
                 val koda = p.responseCode
@@ -48,28 +54,31 @@ object Webtor {
                     if (++preusmeritev > 5) return Sonda(koda, null, false, gostitelj)
                     naslov = URL(URL(naslov), kam).toString()
                     gostitelj = Zasebno.gostitelj(naslov)
-                    novaIzjema = try { si.safeer.tv.scit.Scit.dovoliGostitelja(c, gostitelj) } catch (_: Throwable) { false }
                     continue
                 }
                 if (koda !in 200..299) return Sonda(koda, null, false, gostitelj)
                 val b = p.inputStream.use { it.read() }
                 val ms = SystemClock.elapsedRealtime() - zacetek
+                if (b >= 0) WebtorPravila.naucenGostitelj(zacetni, naslov, koda)?.let { g ->
+                    try { si.safeer.tv.scit.Scit.dovoliGostitelja(c, g) } catch (_: Throwable) { }
+                }
                 return Sonda(koda, if (b >= 0) ms else null, false, gostitelj)
             } catch (_: java.net.SocketTimeoutException) {
                 return Sonda(0, null, true, gostitelj)
-            } catch (_: java.net.UnknownHostException) {
-                // Nova izjema Scita: proces Scita jo prebere v trenutku - en ponoven poskus.
-                if (novaIzjema && !ponovljeno && ostane() > 1_000) { ponovljeno = true; try { Thread.sleep(700) } catch (_: InterruptedException) { Thread.currentThread().interrupt() }; continue }
-                return Sonda(0, null, false, gostitelj)
             } catch (e: Exception) {
+                // Straza je prekinila zahtevo (iztek skupnega roka) ali napaka omrezja.
+                if (ostane() <= 0) return Sonda(0, null, true, gostitelj)
                 Log.w(TAG, "sonda: ${e.javaClass.simpleName}")
                 return Sonda(0, null, false, gostitelj)
-            } finally { p.disconnect() }
+            } finally {
+                prekini?.cancel(false)
+                p.disconnect()
+            }
         }
     }
 
-    /** Niti za TorBox v ozadju: ne prekine jih nova izbira toka (namerno predpomnjenje za naslednjic). */
-    private val ozadje = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "safeer-webtor-torbox").apply { isDaemon = true } }
+    /** Nit za TorBox v ozadju: ne prekine je nova izbira toka (namerno predpomnjenje za naslednjic). */
+    private val ozadje = Executors.newSingleThreadExecutor { r -> Thread(r, "safeer-webtor-torbox").apply { isDaemon = true } }
 
     /** Torrent [magnet] v TorBox (createtorrent, brez cakanja) - po [WebtorPravila.dodajVTorBox]. */
     fun vTorBoxVOzadju(c: Context, magnet: String) {
