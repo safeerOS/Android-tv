@@ -74,6 +74,10 @@ object OzjiKrog {
                 val spremembe = OzjiKrogPravila.spremembe(prej, izbrane, DostopPravila.VSE_ZMOZNOSTI)
                 for ((id, dano) in spremembe) Dostop.nastavi(a, id, dano)
                 Toast.makeText(a, a.getString(R.string.os_ozji_krog_shranjeno, izbrane.size), Toast.LENGTH_LONG).show()
+                // Ena privolitev (lastnik 25. 10. 2026 10:49): naprava, ki je na novo v krogu, dobi tudi datoteke te naprave -
+                // Android za to takoj vprasa za svoje dovoljenje (vse datoteke, sicer mediji), brez locenega stikala.
+                if (OzjiKrogPravila.novaZmoznost(prej, spremembe, DostopPravila.Zmoznost.DATOTEKE))
+                    si.safeer.tv.link.DatotekeStreznik.poPrivolitvi(a)
                 potem()
             }
             .setNeutralButton(a.getString(R.string.os_ozji_krog_podrobno)) { _, _ ->

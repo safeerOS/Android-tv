@@ -309,9 +309,13 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             .setTitle(getString(R.string.os_dostop_naslov, ime))
             .setMultiChoiceItems(imena, izbrano) { _, i, da -> izbrano[i] = da }
             .setPositiveButton(getString(R.string.os_naprave_shrani)) { _, _ ->
-                si.safeer.tv.cast.Dostop.nastavi(this, n.id, vse.filterIndexed { i, _ -> izbrano[i] }.toSet())
+                val novo = vse.filterIndexed { i, _ -> izbrano[i] }.toSet()
+                si.safeer.tv.cast.Dostop.nastavi(this, n.id, novo)
                 Toast.makeText(this, getString(if (izbrano.any { it }) R.string.os_dostop_shranjeno else R.string.os_dostop_brez_shranjeno, ime),
                     Toast.LENGTH_LONG).show()
+                // Ena privolitev (lastnik 25. 10. 2026 10:49): na novo odprte datoteke takoj vprasajo za dovoljenje Androida.
+                if (si.safeer.tv.link.OzjiKrogPravila.novaZmoznost(mapOf(n.id to dano), mapOf(n.id to novo),
+                        si.safeer.tv.cast.DostopPravila.Zmoznost.DATOTEKE)) DatotekeStreznik.poPrivolitvi(this)
                 narisi(link.naprave)
             }
             .setNegativeButton(getString(R.string.os_preklici), null)

@@ -26,5 +26,12 @@ fun main() {
     check(p.spremembe(prej, setOf("n-delno", "n-polno", "n-odstrani"), vse).isEmpty()) { "brez sprememb ni zapisa" }
     check(p.spremembe(prej, emptySet(), vse).values.all { it.isEmpty() }) { "prazen krog: nihce nima nicesar" }
 
+    // Ena privolitev v Linku (lastnik 25. 10. 2026): nova naprava v krogu ali na novo odprte datoteke -> vprasaj za dovoljenja.
+    check(p.novaZmoznost(prej, sp, "d")) { "nova v krogu dobi datoteke" }
+    check(!p.novaZmoznost(prej, mapOf("n-odstrani" to emptySet<String>()), "d")) { "odstranitev ne vprasa" }
+    check(!p.novaZmoznost(prej, mapOf("n-delno" to setOf("d", "p")), "d")) { "datoteke ze prej: brez vprasanja" }
+    check(p.novaZmoznost(prej, mapOf("n-odstrani" to setOf("p", "z", "d")), "d")) { "na novo odprte datoteke" }
+    check(!p.novaZmoznost(prej, mapOf("n-zunaj" to setOf("p")), "d")) { "druga zmoznost ne vprasa za datoteke" }
+
     println("OzjiKrogPravilaTest: OK")
 }
