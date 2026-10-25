@@ -1,0 +1,1832 @@
+{
+ "opis": "Lasten pogon Usenet (lastnik 25. 10. 2026 22:10, korak 1): skupni primeri za Safeer-linux (tests/test_skupni_primeri.py; core/usenet_yenc.py, usenet_nzb.py, usenet_nntp.py) in Android-tv (Kotlin). Lastnik datoteke je Safeer-linux; spremeni jo povsod hkrati. Bajti so base64 (standardni, s polnilom); null = ni vrednosti. Message-id so izmisljeni (.invalid). Pricakovani izidi niso iz nase kode: podatki so izvorni bajti, CRC32 iz zlib (outputs/skupni-primeri-osnutek/ustvari-usenet-pogon.py). PRAVILA - yenc_dekodiraj(telo po NNTP brez podvojenih pik): prva vrstica, ki se ZACNE z '=ybegin ' (prej prazne vrstice in besedilo dovoljeni; sicer ni_yenc); vrednosti kljuc=vrednost, name= je zadnji in sega do konca vrstice (ime gre skozi varno_ime, UTF-8, sicer latin-1); size obvezen (sicer napaka_oblike); ce je part, mora naslednja vrstica biti '=ypart ' z begin in end, 1<=begin<=end<=size (sicer napaka_oblike); del (end-begin+1 ali size) > 16 MiB = prevelik PRED dekodiranjem; podatki do prve vrstice '=yend ' (ni je = prirezano). Dekodiranje: CR in LF se izpustita POVSOD (tudi med ubeznikom '=' in ubeznim znakom - ubeznik na koncu vrstice velja za prvi znak naslednje), ubezni znak c -> (c-106)&255 (tudi '==' -> 211), drugi c -> (c-42)&255; osamljen '=' na koncu podatkov se izpusti; ubezni znak zato nikoli ni CR/LF. Pred dekodiranjem: =yend brez size ali s part, razlicnim od =ybegin part (ce sta oba), = napaka_oblike. Nato: dolzina razlicna od =yend size ali od pricakovane (end-begin+1 oz. size) = napaka_velikosti; pcrc32 (ce je), sicer pri enodelnem crc32 (ce je), sestnajstisko 1-8 znakov, velike ali male crke (neveljaven zapis = napaka_oblike), razlicen od CRC32 podatkov = napaka_crc; crc32 cele datoteke pri vecdelnem se ne preverja (crc_preverjen false, ce ni pcrc32). Izhod: zacetek 1-based (enodelni 1), konec = zacetek+dolzina-1, crc32 = 8 malih sestnajstiskih CRC32 podatkov. nntp_telo(bajti po statusni vrstici): konec je vrstica '.' (CRLF strogo); do nje: vrstica, ki se zacne z '..', izgubi eno piko, druge ostanejo; null, ce konca ni; ostanek = bajti po koncu. yenc_iz_nntp = nntp_telo + yenc_dekodiraj (null -> prirezano). nntp_izid(ukaz, vrstica): koda = prvi trije znaki, ce so stevke s prvo 1-5 in jim sledi presledek ali konec (sicer napaka_protokola). Pricakovano ok: POZDRAV 200/201, AUTHINFO USER 281 (381 = geslo), AUTHINFO PASS 281, ARTICLE 220, HEAD 221, BODY 222, STAT 223, QUIT 205. Sicer: 400/481/482/502 z besedilom, ki vsebuje 'connection' (male/velike) = zaseden; 423/430 pri ARTICLE/HEAD/BODY/STAT = ni_clanka; 480/481/482 = prijava; 502 pri AUTHINFO = prijava; 400 in 502 = zaseden; 403 = napaka_streznika; 205 = zaprto; vse drugo = napaka_protokola. nntp_id: obrezi presledke, odstrani EN par '<' '>' na robu; veljaven, ce 1-248 znakov ASCII 0x21-0x7E brez '<' in '>' (sicer null) - nikoli ukaz s CR/LF. varno_ime: '\\\\' -> '/', del za zadnjo '/'; po KODNIH TOCKAH: crka (kategorija L*), stevka Nd ali eden od \" ._-()[]+,!&'#@~\" ostane, vse drugo '_'; nad 200 kodnih tock: ce je zadnja pika v zadnjih 10 znakih (koncnica do 9 znakov), obdrzi koncnico in skrajsaj osnovo na 200, sicer prvih 200; nato obrezi presledke in pike na koncu ter presledke na zacetku; prazno = null; osnova pred prvo piko (male/velike) CON PRN AUX NUL COM1-9 LPT1-9 dobi '_' spredaj. nzb_ime(subject): prvi neprazen niz v dvojnih narekovajih, sicer zadnja beseda s piko po odstranitvi '(a/b)' in besede yEnc; nato varno_ime. nzb_razcleni(bajti): > 20 MiB = prevelik; bajt NUL = napaka_xml; BOM UTF-8 se odstrani; encoding iz XML deklaracije (utf-8, utf8, us-ascii, ascii = UTF-8; iso-8859-1, iso_8859-1, latin1, latin-1 = ISO-8859-1; brez = UTF-8; drugo = napaka_xml), napacen UTF-8 se zamenja z U+FFFD; '<!' + ENTITY/ELEMENT/ATTLIST/NOTATION kjerkoli (tudi v komentarju) = zavrnjeno_dtd; dovoljen je najvec en '<!DOCTYPE nzb' (velike crke) brez notranjega dela: brez identifikatorja, PUBLIC \"..\" \"..\" ali SYSTEM \"..\" (narekovaji ' ali \", brez [ ] < > v nizu) - se ne nalaga, odstrani se pred razclenitvijo; vsak drug DOCTYPE = zavrnjeno_dtd; napaka XML ali nedefinirana entiteta = napaka_xml; koren (brez imenskega prostora) ni nzb = ni_nzb. head/meta: title (presledki strnjeni, najvec 200) = naslov, neprazen password = ima_geslo (geslo se ne izpise). Samo neposredni otroci korena <file>: subject -> ime (nzb_ime), skupine = neprazne obrezane <group> do 200 znakov, najvec 50; segment: number 1-6 stevk 0-9 z vrednostjo 1-200000 (sicer izpuscen), bytes 1-9 stevk 0-9 (sicer 0), id = nntp_id (null = izpuscen), dvojnik stevilke med veljavnimi: prvi ostane; segmenti po stevilki; manjka = max(b iz zadnjega '(a/b)' v subject, ce 1<=b<=200000, najvecja stevilka) - stevilo segmentov; datoteka brez segmentov se izpusti; vec kot 5000 <file>, 500000 <segment> ali 1000000 elementov skupaj = prevelik (sproti, pred koncem dokumenta); brez datotek = prazen. bajtov_nzb je vsota bytes (velikost clankov, NE dekodiranih podatkov - odmike da glava yEnc). Verzija 2 (25. 10. 2026 22:55, po preizkusih na namizju): samostojen CR sredi vrstice yEnc se izpusti (nov primer), meja nzb_elementov, pojasnjeno: us-ascii = UTF-8, =yend part se primerja samo, ce ga ima tudi =ybegin, dvojnik segmenta samo med veljavnimi. Pricakovani izidi v1 so nespremenjeni.",
+ "verzija": 2,
+ "primeri": [
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "enodelni, vse vrednosti bajtov",
+    "telo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPTUxMiBuYW1lPXZzZS12cmVkbm9zdGkuYmluDQoqKywtLi8wMTIzNDU2Nzg5Ojs8PX0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqA0KqaqrrK2ur7CxsrO0tba3uLm6u7y9vr/AwcLDxMXGx8jJysvMzc7P0NHS09TV1tfY2drb3N3e3+Dh4uPk5ebn6Onq6+zt7u/w8fLz9PX29/j5+vv8/f7/PUABAgMEBQYHCAk9SgsMPU0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUNCiYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PX0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkDQqlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr/AwcLDxMXGx8jJysvMzc7P0NHS09TV1tfY2drb3N3e3+Dh4uPk5ebn6Onq6+zt7u/w8fLz9PX29/j5+vv8/f7/PUABAgMEBQYHCAk9SgsMPU0ODxAREhMUFRYXGBkaGxwdHh8gIQ0KIiMkJSYnKCkNCj15ZW5kIHNpemU9NTEyIGNyYzMyPTFjNjEzNTc2DQo="
+   },
+   "izhod": {
+    "izid": "ok",
+    "ime": "vse-vrednosti.bin",
+    "del": null,
+    "skupaj": null,
+    "velikost": 512,
+    "zacetek": 1,
+    "konec": 512,
+    "crc32": "1c613576",
+    "crc_preverjen": true,
+    "podatki_b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq+wsbKztLW2t7i5uru8vb6/wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t/g4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+/wABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4fICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj9AQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVpbXF1eX2BhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ent8fX5/gIGCg4SFhoeIiYqLjI2Oj5CRkpOUlZaXmJmam5ydnp+goaKjpKWmp6ipqqusra6vsLGys7S1tre4ubq7vL2+v8DBwsPExcbHyMnKy8zNzs/Q0dLT1NXW19jZ2tvc3d7f4OHi4+Tl5ufo6err7O3u7/Dx8vP09fb3+Pn6+/z9/v8="
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "vecdelni, del 2 od 3, pcrc32 in crc32 cele datoteke",
+    "telo_b64": "PXliZWdpbiBwYXJ0PTIgdG90YWw9MyBsaW5lPTEyOCBzaXplPTMwMDAgbmFtZT1GaWxtLjIwMTAuMTA4MHAubWt2DQo9eXBhcnQgYmVnaW49MTAwMSBlbmQ9MjAwMA0Kk1jIz6WE34jcki8awLuemr+kNuTuwPsmccl3oxszXfF/E01TYNovudredWN4/37TaUKcgj19/IxiQB8yBDG40cPwk35HVYWVeGBog5uq4F42T0Q09Cfl3Z85jTokK2A14+aDJshopKcFZ2kSXDCDf5y3oXbOhVP2X/C8XcAudikNClnY1D/9Ubm7nvSQKrfOZ2itCTNxhYNc+YGRFeAdYt9838UZg4u1/HOv/449SrHYT4DLR9FXBxkqs5FQ8CoPET1A1GQgAfUIkRm5K4Sfnxyb8jY203mi1qwygVVGikhwVY+6pr1AylljMhafDLvgy8ss2W6ZrY3Eu4SrJm16NahbDQqfpv0XlG+HqFNfRToTN/EbTuB2sPYSNSm9tdVuYY+OIPlNo5MGMVTksCHz6bGUpROH87n8BTfgSZXOpkBfBrZ7sUi71OKTyUKhWVHHCwz2L8SW2gTuV8BsKOM9QEF5PUA8G4kwK9k2dPstpAPuRiKz5m9F8X/kEMLMZgQd1eRffA0KkNp+CP75pCWgtnpiMShL+HvThenpB2aoOkvpBZKXPE2rUK+IU3mXfdMDT3Z1YnH9I3GSLcWOAfbNyEfKc3qGUWD6NvLyFAxGozvwSIdYsE0e5tB/J+/nNNXRBLh79yQzQQQ1NTtWcDdMtVl7hHEjvt79bc9mt67Yuc5KyxDgsisNCvC3za32Y6IXqKtYLXyrRThF+guwZlqgS7/Q3q+qDm34O0AtNEt+KQtNwowGW2LnEcxm9R8qNjUDlsWZU44hmRhUrWoxkptRZng+HBJkmjIiB2rEL7RfoJ6KUO9rVM5+PU1u9ZakMpLshvA7DM5CrFE8Qg+uHaaQz6A8v0fk+livDQqI0Qz8pY34Ox6E9rc7jgeLXkJ8gzVi5qoYxdUBuE1mZIg8PUBT77ZFoykYy4f6VovpEI/r1M6WKK8sDhgZmKxplsuE3cL7QxChiTJqcjNMnd3kh6xtGZ0FHlaoousHZyW3efWf5Ez8TuosV/Szx1AdUav93Rh7DH7qZ4+5RvWabw0KR2Rv7lH854MjU+2mErfTjYqUpp4xP181d7ZtthhmxS2JvTZIabAaWbRKa9bt+drHWfDgjJNPmH95oV5CLItdVXVSKqfoYgty/pA4PCXbRm20uZHla5s9fVIPGHXpzo+UcRDrZAgSPLCwi5+hz17b78SkWKzYUZGmuemH8T1N5rsNCg9MM0HlQl5evwa22ES+p82LxYLuhQiV64ix6dMajKnkp38JaOZoPKcIomZRVYqK48iffvOobC0UVxb881P/Nea1Z62sNcX2izDtTUsCZGwpnWs3/VRDLxq2nyLybLeaUnOR3jiMtn4pDBrpKBheXRSFDQo9eWVuZCBzaXplPTEwMDAgcGFydD0yIHBjcmMzMj1iNWUyYThjZCBjcmMzMj02ZGYwYzM2ZA0K"
+   },
+   "izhod": {
+    "izid": "ok",
+    "ime": "Film.2010.1080p.mkv",
+    "del": 2,
+    "skupaj": 3,
+    "velikost": 3000,
+    "zacetek": 1001,
+    "konec": 2000,
+    "crc32": "b5e2a8cd",
+    "crc_preverjen": true,
+    "podatki_b64": "aS6epXtatV6yaAXwlpF0cJV6DLrEltH8R59NefEJM8dV6SMpNrAFj7C0SzlO1VSpPxhyWBPSYjgW9QjaB46nmcZpVB0rW2tONj5ZcYC2NAwlGgrK/buzdQ9jEPoBNgu5vFn8nj56fds9P+gyBllVco13TKRbKcw1xpIzlgRM/y+uqhXTJ4+RdMpmAI2kPT6D3wlHW1kyz1dn67bzOLVStZvvWWGL0kmF1WTgh64lVqEdpy3d7wCJZybGAOXn1qo69tfL3mfvjwFadXXyccgMDKlPeKyCCFcrHGAeRitlkHyTFqAvOQjsdeKRtqGhAq9Eb4NjmpFagfxDUAt+MXV80+1qRV1+KTUbEOkNx/EktkyGzOgL/5OLq0Q3ZWT2zyN5adwHKrqG98m/h2p76V3Jj9LbDbYfa6R8FjXcjFGHHpGquGmfGHcvJ53h4swFmmyw2sQtlkL+udYXT9YS8V8GAa8MStEDetnEHPiJvEUbx1W65piiPNrzq7o1UmawVN7Uz3r7doxQOAf+Ic5RqVu/v908fhAhv9tobRIjgSaFXilPbVOp2SVMSzhH0/lHaAObZNfMo54doElQXCc20AzIyOriHHkRxh5dLoYj9LymVf3FvQqrp9qOUc36CRfaCwsRLEYNIosvUVpH+ZS000OlPI2Ero+kIKHmtogBxo2jg8w5eO1+gS4DUoEbDhvQ4YY8MHYhlaa0hYDkQ84RFgMKIVT/4SOYYtwxOL3nojzL9QAMC9lsm28pZPdv7iqDQAdocSc8ThTy6DpwCPjdQJoFijV2dGAmxUEqpFTjRMtseghowlzGEeKkGIInEhjlhPN8ZqV2EpUdutAuhV6n4tJ7Y84R9FrMjRFk3WE0GFJZCzi8gO6bq9eOIzw6XhLWKcWMG3n/7qFd0Cxhv+ZlwaqkbP6FAuTu726CP2yhWrOY0Rnmd18IQEgJInOzul2CQ+9z2/QsfnjB3T37jU/Ldboi0iTAAi3KiZ0m8yeB07PuUeJUwD1ljxzLcEUdOkXEJ9K9Wfkpw3zojaljYGp8dAcVNQtNjEOM7jybA1+TDB4/hvAviiBBrMPPsJ0vxrZiaSVuVU93NBgCYTMrSygAfb444UjUZg4S+7EcQ4qPZ7tBcRMo5e5Lv6RlakfmwTre6BKGhmF1d6U0scWaei6CridnfI+/XcfjvJHlIgkXuxg0NJXcjK4alH2jYZtYxFvea8Feh7+p8GJ/un1V3z68PhJ93ng8JytgYLmedVTJfkID6i3s0skp1Qu8iz2DggubzGEGwyMh2DpC/3NBDdMqGQXwjHX4yEKNcChJZ7QOYoxU/+Lwv/7uNDPqWw=="
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "vecdelni brez total (yEnc 1.1), crc velike crke",
+    "telo_b64": "PXliZWdpbiBwYXJ0PTEgbGluZT0xMjggc2l6ZT0zMDAwIG5hbWU9RmlsbS4yMDEwLjEwODBwLm1rdg0KPXlwYXJ0IGJlZ2luPTEgZW5kPTEwMDANCscIlZ5Ul/XFpgmo767rHFK9VbVeycD6463vtpRTaNvXJ60mFdsZk80n/ewlTG57FAFX52IwdZoW0/p3hE1b+cnSps2dcL68ka9C8gkec6U/gNT1LtUjSOV/6zg4as1pOi6kF5xkHcnJqUuXWyFQFFYdhjcstjBgsz1KNxPoD+jUDQrs/523Udb6L0AvhVbFiPM5KRdF7BWLdZVuwiDjYiZK4zo4lB/gEel1HieGvJl4JYYa7PbPFvqZeOG1nTHKspAfnXLSJksFIB2fPHB5afS5W4oaQhIVdhtKQ7DaMGaRzf6qsv6hjJbVCLOKzAQxwEY/qS2VU+85f0O6Nhb1xJgHJQ0KtVwJaGe2rXQXVcfDiAXvIQQUVCyUiwSZiZK3zYvtG3RSN29s9MjKMsdh+Gvm88zhu00fHQxaaG0lXbXHTojij2MD8lNZqcTFF0nw4bRxq2/f8e49fTtssX/CJdBE6mvTdD19QTaQvola0OFvG7uUujOPvn1LoEXeq9dV8oyCoJkNCqbuCZE/aDMb3xa5L672WfsJrWC2tUTwnB7PzeoJ3tjZ+sVgZ5ZbdW5mw4nYf9d+Jo6ou7n4fzMet9ObI3nccoDPxlfxREPWVMciUzxiQqtSSKkLiI/hNCIcYSIPusFYwnkoQZkWGYyadcC0mIHuwqibwurwW2mKPF63W8Uo5vueDQpZptzxz8jEauRthOXfycDiGWx2P/Imvt1A8M2krd0u3LmffqpEWd+bMR8zm+MUgJEb2xk8f4JL5TRSFUhSlaKWLNATkdKeonYINfWaeO5HpTZpjfaGrvmmUoE9QCA2PU2uNz1AF6gsFJgBIFEU693RL1HW3rL88oozmzp0VpPnyg0KKoaO+bbKUbs9TS5vgLxqdTqgsvIaC09vK+p5yZAX1OGTFxQ/WHZLCcUS4SND5VzOCCsbOp0LnNkvqnjV8hzF1l3F87DAt95oW92GT3yi1HIhg3LchQ5FboMqijeLgzu/E6GZ1BrpSVzcPPh8GZRujVwBjEen644JBNqGGUr8OJkNCur2r8AzeamDju8vWJ6ucH5fEb5uMbQ+byxZQ+BWesPVj//OP5Vtn2d23S81bGmP484y1gnhWK8qIygYT4c9fcvt066J6u8UGCCSqoc9TVz94XcISOWSgM/6B/hcvgNg0927gxA9Sli1iD1ADD19E2141ZNxX4uK9d439pPiKtBiDQpx/YOok9TqnszPD3d/PU2dSxNISS2oYLvJ//jR2D1AjKngn8+47AWWmiJZoELWaYSj76qCfT6o0FhWRC7Sw7zDBkP2Wrx/Bz1NrXhOH763EQhJuJ24OetVDx4CID1KN1/H0lBVpMNv8k6+yHPZidy+8D19dNUe8pzGDQo9eWVuZCBzaXplPTEwMDAgcGFydD0xIHBjcmMzMj01MDJFMzVCNQ0K"
+   },
+   "izhod": {
+    "izid": "ok",
+    "ime": "Film.2010.1080p.mkv",
+    "del": 1,
+    "skupaj": null,
+    "velikost": 3000,
+    "zacetek": 1,
+    "konec": 1000,
+    "crc32": "502e35b5",
+    "crc_preverjen": true,
+    "podatki_b64": "nd5rdCpty5t8337FhMHyKJMrizSfltC5g8WMaik+sa39g/zrse9po/3TwvsiRFHq1y29OAZLcOyp0E1aIzHPn6h8o3NGlJJnhRjI3/RJexVWqssEq/keu1XBDg5Aoz8QBHrtcjrzn59/IW0x9ybqLPNcDQKMBjaJ4A3pvuW+qsLVc40nrNAFFgVbLJteyQ//7RvC62FLa0SY9rk4/CC5EA5q9bbnv0v0/VySb077XPDCzKXs0G9Ot4tzB6CIZvVzSKj8Idv283USRk8/yo8xYPAY6OtM8SAZhrAGPGej1ICI1HdibKveiWCi2geWHBV/A2spxQ9VGZAM7Muabt37izLfPj2Mg0rtK52ZXtvF99rqKgJqYdpvX2iNo2HD8UooDUVCyp6gCJ03zkG8yaK3kSP18+IwPkP7M4udJF64ZTnZyCkvf5qb7R/Gt4pHgUW1x8QTEUKHVZj7phrAQalKExcMZpRfMKa3RfGRapAJZZRTIXYbtIGtK8hiWHZvfMTfZxU+CfG17I8FhMwv0d+DNoyLGsZy9KWjwN+0rq/QmzY9bDFLRDyZX65VrVT8ZH6Rj85VCfSNqXH5T7JIVqWcLccaGawqnfgpEjgYgSgef+FeZbcK+PI3+OWQly6YT/4Xb+zvYnBLlopuV8SYfnGYwMYxP2ASNI0xm/680XQvfLLHpZ6aQLpDWru1n5a470JMFcj8lLMWxqN6g7MEso91VIAaL7VxB/UJcbnqVmfxse8SVVghuwoo6x4oa3hsAqbpZ6h0eEzeC8twTsQdeww/Y8xchM98KFfW9gzjhA3W7X4C6m7X9ifqwbOnBSestIjSyGAJcRBKLGm9oABcZM+MoCeR4wRFVpJASxB2iMjw4SVFAcBPn2btqrdp7eoVLkwh35vot/kZuzKk3gHxEHPhcq8FgE6ryPKbrDObyYaWjbQ+MbNcJVJ4qkj3WUiyW+QbRFkAYA1hWRGV6XdvqvC/HzKyEs5S72pEYzLXYh19wWTf2rBc7yDSDm/AzIWWCU9/WWTFBS50hEZUNeeURAeKFEUCLxm2LFCZq2XVpBVrQ3U9TLMFC0I/ZbmkCKzfty6FAPn+7iVdE6HDqYRfwMXq7vZogF3jMtO3Td4eu2hWpdDdzjKU2Taps5FZ5uAui17W4hPpQ06raUc1YWDLtA3MabgApjhH01l+aarAdKKl5U1V43Mh6R4fA342kZ/Vzqeu1mJ/tnWljsLbbHD4L3YYrD9aecWAWFMUfqYuLBoEqJmSmdwZzDCSVd3jg04k9ZSN594fjnOOD8Er5fTY9uANNZ2oJit6mUXIJJSeSa9fspTGE0qr9MhynA=="
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "crc32 brez vodilnih nicel",
+    "telo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPTY0IG5hbWU9a3JhdGVrLmJpbg0K1i9RuEFx2Ccxnj8+h5odxMShVnEGmRKsvhup0etbarxmsqD8FirtsIAk/RfJVqWCtdedO7P7KcwTs4vmer0Wcw0KPXllbmQgc2l6ZT02NCBjcmMzMj00ZTg2MmMNCg=="
+   },
+   "izhod": {
+    "izid": "ok",
+    "ime": "kratek.bin",
+    "del": null,
+    "skupaj": null,
+    "velikost": 64,
+    "zacetek": 1,
+    "konec": 64,
+    "crc32": "004e862c",
+    "crc_preverjen": true,
+    "podatki_b64": "rAUnjhdHrv0HdBUUXXDzmpp3LEfcb+iClPF/p8ExQJI8iHbS7ADDhlb60+2fLHtYi61zEYnR/6LpiWG8UJPsSQ=="
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "ubezni par na koncu vrstice (vrstica 129 znakov)",
+    "telo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPTEzOCBuYW1lPW1lamEuYmluDQorKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrPX0NCiwsLCwsLCwsLCwNCj15ZW5kIHNpemU9MTM4IGNyYzMyPTFjY2M2NTJkDQo="
+   },
+   "izhod": {
+    "izid": "ok",
+    "ime": "meja.bin",
+    "del": null,
+    "skupaj": null,
+    "velikost": 138,
+    "zacetek": 1,
+    "konec": 138,
+    "crc32": "1ccc652d",
+    "crc_preverjen": true,
+    "podatki_b64": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBARMCAgICAgICAgIC"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "ubezna pika na zacetku, presledek in TAB na koncu vrstice",
+    "telo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPTEyOCBuYW1lPXJvYi5iaW4NCj1uKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKys9YA0KPUkNCj15ZW5kIHNpemU9MTI4IGNyYzMyPWYzOTg1ZDZkDQo="
+   },
+   "izhod": {
+    "izid": "ok",
+    "ime": "rob.bin",
+    "del": null,
+    "skupaj": null,
+    "velikost": 128,
+    "zacetek": 1,
+    "konec": 128,
+    "crc32": "f3985d6d",
+    "crc_preverjen": true,
+    "podatki_b64": "BAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEB9t8="
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "neubezna pika na zacetku vrstice",
+    "telo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPTEzMCBuYW1lPXBpa2EuYmluDQouLzArKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKw0KLjENCj15ZW5kIHNpemU9MTMwIGNyYzMyPWViMWMwNTkxDQo="
+   },
+   "izhod": {
+    "izid": "ok",
+    "ime": "pika.bin",
+    "del": null,
+    "skupaj": null,
+    "velikost": 130,
+    "zacetek": 1,
+    "konec": 130,
+    "crc32": "eb1c0591",
+    "crc_preverjen": true,
+    "podatki_b64": "BAUGAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEEBw=="
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "ubeznik na koncu vrstice velja za prvi znak naslednje",
+    "telo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPTQgbmFtZT1yYXpkZWxqZW4uYmluDQorLD0NCn0tDQo9eWVuZCBzaXplPTQgY3JjMzI9NjI5YTdjM2YNCg=="
+   },
+   "izhod": {
+    "izid": "ok",
+    "ime": "razdeljen.bin",
+    "del": null,
+    "skupaj": null,
+    "velikost": 4,
+    "zacetek": 1,
+    "konec": 4,
+    "crc32": "629a7c3f",
+    "crc_preverjen": true,
+    "podatki_b64": "AQITAw=="
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "samostojen CR sredi vrstice se izpusti",
+    "telo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPTMgbmFtZT1jci5iaW4NCissDS0NCj15ZW5kIHNpemU9MyBjcmMzMj01NWJjODAxZA0K"
+   },
+   "izhod": {
+    "izid": "ok",
+    "ime": "cr.bin",
+    "del": null,
+    "skupaj": null,
+    "velikost": 3,
+    "zacetek": 1,
+    "konec": 3,
+    "crc32": "55bc801d",
+    "crc_preverjen": true,
+    "podatki_b64": "AQID"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "== (ubezen znak =) da bajt 211",
+    "telo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPTMgbmFtZT1kdm9qbmkuYmluDQorPT0sDQo9eWVuZCBzaXplPTMgY3JjMzI9YmE5ODQ0ZDUNCg=="
+   },
+   "izhod": {
+    "izid": "ok",
+    "ime": "dvojni.bin",
+    "del": null,
+    "skupaj": null,
+    "velikost": 3,
+    "zacetek": 1,
+    "konec": 3,
+    "crc32": "ba9844d5",
+    "crc_preverjen": true,
+    "podatki_b64": "AdMC"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "brez crc32 v =yend",
+    "telo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPTEwMCBuYW1lPWJyZXouYmluDQqq36wxQlFbz+T3w6eiHBoohT192GBOAlgVyEf/fU+SZM9pGKXqYhkC+dAZNuy04MFBxLc0MtOUajlQY3VV1h4iNO4SmCw6R8zczxqXGZxcdpvx8u3ZDAYDc02OmlT6zuJTdQXciA0KPXllbmQgc2l6ZT0xMDANCg=="
+   },
+   "izhod": {
+    "izid": "ok",
+    "ime": "brez.bin",
+    "del": null,
+    "skupaj": null,
+    "velikost": 100,
+    "zacetek": 1,
+    "konec": 100,
+    "crc32": "23a8223b",
+    "crc_preverjen": false,
+    "podatki_b64": "gLWCBxgnMaW6zZl9ePLw/lsTrjYk2C7rnh3VUyVoOqU/7nvAOO/Yz6bvDMKKtpcXmo0KCKlqQA8mOUsrrPT4CsTobgIQHaKypfBt73IyTHHHyMOv4tzZSSNkcCrQpLgpS9uyXg=="
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "vecdelni brez pcrc32 (crc32 cele datoteke se ne preveri)",
+    "telo_b64": "PXliZWdpbiBwYXJ0PTIgdG90YWw9MyBsaW5lPTEyOCBzaXplPTMwMDAgbmFtZT1GaWxtLjIwMTAuMTA4MHAubWt2DQo9eXBhcnQgYmVnaW49MTAwMSBlbmQ9MjAwMA0Kk1jIz6WE34jcki8awLuemr+kNuTuwPsmccl3oxszXfF/E01TYNovudredWN4/37TaUKcgj19/IxiQB8yBDG40cPwk35HVYWVeGBog5uq4F42T0Q09Cfl3Z85jTokK2A14+aDJshopKcFZ2kSXDCDf5y3oXbOhVP2X/C8XcAudikNClnY1D/9Ubm7nvSQKrfOZ2itCTNxhYNc+YGRFeAdYt9838UZg4u1/HOv/449SrHYT4DLR9FXBxkqs5FQ8CoPET1A1GQgAfUIkRm5K4Sfnxyb8jY203mi1qwygVVGikhwVY+6pr1AylljMhafDLvgy8ss2W6ZrY3Eu4SrJm16NahbDQqfpv0XlG+HqFNfRToTN/EbTuB2sPYSNSm9tdVuYY+OIPlNo5MGMVTksCHz6bGUpROH87n8BTfgSZXOpkBfBrZ7sUi71OKTyUKhWVHHCwz2L8SW2gTuV8BsKOM9QEF5PUA8G4kwK9k2dPstpAPuRiKz5m9F8X/kEMLMZgQd1eRffA0KkNp+CP75pCWgtnpiMShL+HvThenpB2aoOkvpBZKXPE2rUK+IU3mXfdMDT3Z1YnH9I3GSLcWOAfbNyEfKc3qGUWD6NvLyFAxGozvwSIdYsE0e5tB/J+/nNNXRBLh79yQzQQQ1NTtWcDdMtVl7hHEjvt79bc9mt67Yuc5KyxDgsisNCvC3za32Y6IXqKtYLXyrRThF+guwZlqgS7/Q3q+qDm34O0AtNEt+KQtNwowGW2LnEcxm9R8qNjUDlsWZU44hmRhUrWoxkptRZng+HBJkmjIiB2rEL7RfoJ6KUO9rVM5+PU1u9ZakMpLshvA7DM5CrFE8Qg+uHaaQz6A8v0fk+livDQqI0Qz8pY34Ox6E9rc7jgeLXkJ8gzVi5qoYxdUBuE1mZIg8PUBT77ZFoykYy4f6VovpEI/r1M6WKK8sDhgZmKxplsuE3cL7QxChiTJqcjNMnd3kh6xtGZ0FHlaoousHZyW3efWf5Ez8TuosV/Szx1AdUav93Rh7DH7qZ4+5RvWabw0KR2Rv7lH854MjU+2mErfTjYqUpp4xP181d7ZtthhmxS2JvTZIabAaWbRKa9bt+drHWfDgjJNPmH95oV5CLItdVXVSKqfoYgty/pA4PCXbRm20uZHla5s9fVIPGHXpzo+UcRDrZAgSPLCwi5+hz17b78SkWKzYUZGmuemH8T1N5rsNCg9MM0HlQl5evwa22ES+p82LxYLuhQiV64ix6dMajKnkp38JaOZoPKcIomZRVYqK48iffvOobC0UVxb881P/Nea1Z62sNcX2izDtTUsCZGwpnWs3/VRDLxq2nyLybLeaUnOR3jiMtn4pDBrpKBheXRSFDQo9eWVuZCBzaXplPTEwMDAgcGFydD0yIGNyYzMyPTZkZjBjMzZkDQo="
+   },
+   "izhod": {
+    "izid": "ok",
+    "ime": "Film.2010.1080p.mkv",
+    "del": 2,
+    "skupaj": 3,
+    "velikost": 3000,
+    "zacetek": 1001,
+    "konec": 2000,
+    "crc32": "b5e2a8cd",
+    "crc_preverjen": false,
+    "podatki_b64": "aS6epXtatV6yaAXwlpF0cJV6DLrEltH8R59NefEJM8dV6SMpNrAFj7C0SzlO1VSpPxhyWBPSYjgW9QjaB46nmcZpVB0rW2tONj5ZcYC2NAwlGgrK/buzdQ9jEPoBNgu5vFn8nj56fds9P+gyBllVco13TKRbKcw1xpIzlgRM/y+uqhXTJ4+RdMpmAI2kPT6D3wlHW1kyz1dn67bzOLVStZvvWWGL0kmF1WTgh64lVqEdpy3d7wCJZybGAOXn1qo69tfL3mfvjwFadXXyccgMDKlPeKyCCFcrHGAeRitlkHyTFqAvOQjsdeKRtqGhAq9Eb4NjmpFagfxDUAt+MXV80+1qRV1+KTUbEOkNx/EktkyGzOgL/5OLq0Q3ZWT2zyN5adwHKrqG98m/h2p76V3Jj9LbDbYfa6R8FjXcjFGHHpGquGmfGHcvJ53h4swFmmyw2sQtlkL+udYXT9YS8V8GAa8MStEDetnEHPiJvEUbx1W65piiPNrzq7o1UmawVN7Uz3r7doxQOAf+Ic5RqVu/v908fhAhv9tobRIjgSaFXilPbVOp2SVMSzhH0/lHaAObZNfMo54doElQXCc20AzIyOriHHkRxh5dLoYj9LymVf3FvQqrp9qOUc36CRfaCwsRLEYNIosvUVpH+ZS000OlPI2Ero+kIKHmtogBxo2jg8w5eO1+gS4DUoEbDhvQ4YY8MHYhlaa0hYDkQ84RFgMKIVT/4SOYYtwxOL3nojzL9QAMC9lsm28pZPdv7iqDQAdocSc8ThTy6DpwCPjdQJoFijV2dGAmxUEqpFTjRMtseghowlzGEeKkGIInEhjlhPN8ZqV2EpUdutAuhV6n4tJ7Y84R9FrMjRFk3WE0GFJZCzi8gO6bq9eOIzw6XhLWKcWMG3n/7qFd0Cxhv+ZlwaqkbP6FAuTu726CP2yhWrOY0Rnmd18IQEgJInOzul2CQ+9z2/QsfnjB3T37jU/Ldboi0iTAAi3KiZ0m8yeB07PuUeJUwD1ljxzLcEUdOkXEJ9K9Wfkpw3zojaljYGp8dAcVNQtNjEOM7jybA1+TDB4/hvAviiBBrMPPsJ0vxrZiaSVuVU93NBgCYTMrSygAfb444UjUZg4S+7EcQ4qPZ7tBcRMo5e5Lv6RlakfmwTre6BKGhmF1d6U0scWaei6CridnfI+/XcfjvJHlIgkXuxg0NJXcjK4alH2jYZtYxFvea8Feh7+p8GJ/un1V3z68PhJ93ng8JytgYLmedVTJfkID6i3s0skp1Qu8iz2DggubzGEGwyMh2DpC/3NBDdMqGQXwjHX4yEKNcChJZ7QOYoxU/+Lwv/7uNDPqWw=="
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "prazne vrstice pred =ybegin",
+    "telo_b64": "DQoNCj15YmVnaW4gbGluZT0xMjggc2l6ZT0xMDAgbmFtZT1icmV6LmJpbg0Kqt+sMUJRW8/k98OnohwaKIU9fdhgTgJYFchH/31PkmTPaRil6mIZAvnQGTbstODBQcS3NDLTlGo5UGN1VdYeIjTuEpgsOkfM3M8alxmcXHab8fLt2QwGA3NNjppU+s7iU3UF3IgNCj15ZW5kIHNpemU9MTAwIGNyYzMyPTIzYTgyMjNiDQo="
+   },
+   "izhod": {
+    "izid": "ok",
+    "ime": "brez.bin",
+    "del": null,
+    "skupaj": null,
+    "velikost": 100,
+    "zacetek": 1,
+    "konec": 100,
+    "crc32": "23a8223b",
+    "crc_preverjen": true,
+    "podatki_b64": "gLWCBxgnMaW6zZl9ePLw/lsTrjYk2C7rnh3VUyVoOqU/7nvAOO/Yz6bvDMKKtpcXmo0KCKlqQA8mOUsrrPT4CsTobgIQHaKypfBt73IyTHHHyMOv4tzZSSNkcCrQpLgpS9uyXg=="
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "vrstice samo z LF",
+    "telo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPTEwMCBuYW1lPWJyZXouYmluCqrfrDFCUVvP5PfDp6IcGiiFPX3YYE4CWBXIR/99T5Jkz2kYpepiGQL50Bk27LTgwUHEtzQy05RqOVBjdVXWHiI07hKYLDpHzNzPGpcZnFx2m/Hy7dkMBgNzTY6aVPrO4lN1BdyICj15ZW5kIHNpemU9MTAwIGNyYzMyPTIzYTgyMjNiCg=="
+   },
+   "izhod": {
+    "izid": "ok",
+    "ime": "brez.bin",
+    "del": null,
+    "skupaj": null,
+    "velikost": 100,
+    "zacetek": 1,
+    "konec": 100,
+    "crc32": "23a8223b",
+    "crc_preverjen": true,
+    "podatki_b64": "gLWCBxgnMaW6zZl9ePLw/lsTrjYk2C7rnh3VUyVoOqU/7nvAOO/Yz6bvDMKKtpcXmo0KCKlqQA8mOUsrrPT4CsTobgIQHaKypfBt73IyTHHHyMOv4tzZSSNkcCrQpLgpS9uyXg=="
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "ime s presledki",
+    "telo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPTEwMCBuYW1lPU1vaiBmaWxtIDIwMTAubWt2DQqq36wxQlFbz+T3w6eiHBoohT192GBOAlgVyEf/fU+SZM9pGKXqYhkC+dAZNuy04MFBxLc0MtOUajlQY3VV1h4iNO4SmCw6R8zczxqXGZxcdpvx8u3ZDAYDc02OmlT6zuJTdQXciA0KPXllbmQgc2l6ZT0xMDAgY3JjMzI9MjNhODIyM2INCg=="
+   },
+   "izhod": {
+    "izid": "ok",
+    "ime": "Moj film 2010.mkv",
+    "del": null,
+    "skupaj": null,
+    "velikost": 100,
+    "zacetek": 1,
+    "konec": 100,
+    "crc32": "23a8223b",
+    "crc_preverjen": true,
+    "podatki_b64": "gLWCBxgnMaW6zZl9ePLw/lsTrjYk2C7rnh3VUyVoOqU/7nvAOO/Yz6bvDMKKtpcXmo0KCKlqQA8mOUsrrPT4CsTobgIQHaKypfBt73IyTHHHyMOv4tzZSSNkcCrQpLgpS9uyXg=="
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "ime s potjo je samo ime",
+    "telo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPTEwMCBuYW1lPS4uLy4uL2V0Yy9wYXNzd2QNCqrfrDFCUVvP5PfDp6IcGiiFPX3YYE4CWBXIR/99T5Jkz2kYpepiGQL50Bk27LTgwUHEtzQy05RqOVBjdVXWHiI07hKYLDpHzNzPGpcZnFx2m/Hy7dkMBgNzTY6aVPrO4lN1BdyIDQo9eWVuZCBzaXplPTEwMCBjcmMzMj0yM2E4MjIzYg0K"
+   },
+   "izhod": {
+    "izid": "ok",
+    "ime": "passwd",
+    "del": null,
+    "skupaj": null,
+    "velikost": 100,
+    "zacetek": 1,
+    "konec": 100,
+    "crc32": "23a8223b",
+    "crc_preverjen": true,
+    "podatki_b64": "gLWCBxgnMaW6zZl9ePLw/lsTrjYk2C7rnh3VUyVoOqU/7nvAOO/Yz6bvDMKKtpcXmo0KCKlqQA8mOUsrrPT4CsTobgIQHaKypfBt73IyTHHHyMOv4tzZSSNkcCrQpLgpS9uyXg=="
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "ime samo .. -> null",
+    "telo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPTEwMCBuYW1lPS4uDQqq36wxQlFbz+T3w6eiHBoohT192GBOAlgVyEf/fU+SZM9pGKXqYhkC+dAZNuy04MFBxLc0MtOUajlQY3VV1h4iNO4SmCw6R8zczxqXGZxcdpvx8u3ZDAYDc02OmlT6zuJTdQXciA0KPXllbmQgc2l6ZT0xMDAgY3JjMzI9MjNhODIyM2INCg=="
+   },
+   "izhod": {
+    "izid": "ok",
+    "ime": null,
+    "del": null,
+    "skupaj": null,
+    "velikost": 100,
+    "zacetek": 1,
+    "konec": 100,
+    "crc32": "23a8223b",
+    "crc_preverjen": true,
+    "podatki_b64": "gLWCBxgnMaW6zZl9ePLw/lsTrjYk2C7rnh3VUyVoOqU/7nvAOO/Yz6bvDMKKtpcXmo0KCKlqQA8mOUsrrPT4CsTobgIQHaKypfBt73IyTHHHyMOv4tzZSSNkcCrQpLgpS9uyXg=="
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "prazna datoteka",
+    "telo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPTAgbmFtZT1wcmF6bmEudHh0DQo9eWVuZCBzaXplPTAgY3JjMzI9MDAwMDAwMDANCg=="
+   },
+   "izhod": {
+    "izid": "ok",
+    "ime": "prazna.txt",
+    "del": null,
+    "skupaj": null,
+    "velikost": 0,
+    "zacetek": 1,
+    "konec": 0,
+    "crc32": "00000000",
+    "crc_preverjen": true,
+    "podatki_b64": ""
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "napacen crc32",
+    "telo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPTEwMCBuYW1lPWJyZXouYmluDQor36wxQlFbz+T3w6eiHBoohT192GBOAlgVyEf/fU+SZM9pGKXqYhkC+dAZNuy04MFBxLc0MtOUajlQY3VV1h4iNO4SmCw6R8zczxqXGZxcdpvx8u3ZDAYDc02OmlT6zuJTdQXciA0KPXllbmQgc2l6ZT0xMDAgY3JjMzI9MjNhODIyM2INCg=="
+   },
+   "izhod": {
+    "izid": "napaka_crc"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "napacen pcrc32 vecdelnega",
+    "telo_b64": "PXliZWdpbiBwYXJ0PTIgdG90YWw9MyBsaW5lPTEyOCBzaXplPTMwMDAgbmFtZT1mLm1rdg0KPXlwYXJ0IGJlZ2luPTEwMDEgZW5kPTIwMDANCpNYyM+lhN+I3JIvGsC7npq/pDbk7sD7JnHJd6MbM13xfxNNU2DaL7na3nVjeP9+02lCnII9ffyMYkAfMgQxuNHD8JN+R1WFlXhgaIObquBeNk9ENPQn5d2fOY06JCtgNePmgybIaKSnBWdpElwwg3+ct6F2zoVT9l/wvF3ALnYpDQpZ2NQ//VG5u570kCq3zmdorQkzcYWDXPmBkRXgHWLffN/FGYOLtfxzr/+OPUqx2E+Ay0fRVwcZKrORUPAqDxE9QNRkIAH1CJEZuSuEn58cm/I2NtN5otasMoFVRopIcFWPuqa9QMpZYzIWnwy74MvLLNluma2NxLuEqyZtejWoWw0Kn6b9F5Rvh6hTX0U6EzfxG07gdrD2EjUpvbXVbmGPjiD5TaOTBjFU5LAh8+mxlKUTh/O5/AU34EmVzqZAXwa2e7FIu9Tik8lCoVlRxwsM9i/EltoE7lfAbCjjPUBBeT1APBuJMCvZNnT7LaQD7kYis+ZvRfF/5BDCzGYEHdXkX3wNCpDafgj++aQloLZ6YjEoS/h704Xp6QdmqDpL6QWSlzxNq1CviFN5l33TA092dWJx/SNxki3FjgH2zchHynN6hlFg+jby8hQMRqM78EiHWLBNHubQfyfv5zTV0QS4e/ckM0EENTU7VnA3TLVZe4RxI77e/W3PZreu2LnOSssQ4LIrDQrwt82t9mOiF6irWC18q0U4RfoLsGZaoEu/0N6vqg5t+DtALTRLfikLTcKMBlti5xHMZvUfKjY1A5bFmVOOIZkYVK1qMZKbUWZ4PhwSZJoyIgdqxC+0X6CeilDva1TOfj1NbvWWpDKS7IbwOwzOQqxRPEIPrh2mkM+gPL9H5PpYrw0KiNEM/KWN+DsehPa3O44Hi15CfIM1YuaqGMXVAbhNZmSIPD1AU++2RaMpGMuH+laL6RCP69TOliivLA4YGZisaZbLhN3C+0MQoYkyanIzTJ3d5IesbRmdBR5WqKLrB2clt3n1n+RM/E7qLFf0s8dQHVGr/d0Yewx+6mePuUb1mm8NCkdkb+5R/OeDI1PtphK3042KlKaeMT9fNXe2bbYYZsUtib02SGmwGlm0SmvW7fnax1nw4IyTT5h/eaFeQiyLXVV1Uiqn6GILcv6QODwl20ZttLmR5WubPX1SDxh16c6PlHEQ62QIEjywsIufoc9e2+/EpFis2FGRprnph/E9Tea7DQoPTDNB5UJeXr8GtthEvqfNi8WC7oUIleuIsenTGoyp5Kd/CWjmaDynCKJmUVWKiuPIn37zqGwtFFcW/PNT/zXmtWetrDXF9osw7U1LAmRsKZ1rN/1UQy8atp8i8my3mlJzkd44jLZ+KQwa6SgYXl0UhQ0KPXllbmQgc2l6ZT0xMDAwIHBhcnQ9MiBwY3JjMzI9YjVlMmE4Y2MNCg=="
+   },
+   "izhod": {
+    "izid": "napaka_crc"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "=yend size drugacen od dekodiranega",
+    "telo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPTEwMCBuYW1lPWJyZXouYmluDQqq36wxQlFbz+T3w6eiHBoohT192GBOAlgVyEf/fU+SZM9pGKXqYhkC+dAZNuy04MFBxLc0MtOUajlQY3VV1h4iNO4SmCw6R8zczxqXGZxcdpvx8u3ZDAYDc02OmlT6zuJTdQXciA0KPXllbmQgc2l6ZT05OSBjcmMzMj0yM2E4MjIzYg0K"
+   },
+   "izhod": {
+    "izid": "napaka_velikosti"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "=ybegin size drugacen od dekodiranega (enodelni)",
+    "telo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPTEwMSBuYW1lPWJyZXouYmluDQqq36wxQlFbz+T3w6eiHBoohT192GBOAlgVyEf/fU+SZM9pGKXqYhkC+dAZNuy04MFBxLc0MtOUajlQY3VV1h4iNO4SmCw6R8zczxqXGZxcdpvx8u3ZDAYDc02OmlT6zuJTdQXciA0KPXllbmQgc2l6ZT0xMDAgY3JjMzI9MjNhODIyM2INCg=="
+   },
+   "izhod": {
+    "izid": "napaka_velikosti"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "=ypart begin/end drugacen od dekodiranega",
+    "telo_b64": "PXliZWdpbiBwYXJ0PTIgbGluZT0xMjggc2l6ZT0zMDAwIG5hbWU9Zi5ta3YNCj15cGFydCBiZWdpbj0xMDAxIGVuZD0yMDAxDQqTWMjPpYTfiNySLxrAu56av6Q25O7A+yZxyXejGzNd8X8TTVNg2i+52t51Y3j/ftNpQpyCPX38jGJAHzIEMbjRw/CTfkdVhZV4YGiDm6rgXjZPRDT0J+XdnzmNOiQrYDXj5oMmyGikpwVnaRJcMIN/nLehds6FU/Zf8LxdwC52KQ0KWdjUP/1Rubue9JAqt85naK0JM3GFg1z5gZEV4B1i33zfxRmDi7X8c6//jj1KsdhPgMtH0VcHGSqzkVDwKg8RPUDUZCAB9QiRGbkrhJ+fHJvyNjbTeaLWrDKBVUaKSHBVj7qmvUDKWWMyFp8Mu+DLyyzZbpmtjcS7hKsmbXo1qFsNCp+m/ReUb4eoU19FOhM38RtO4Haw9hI1Kb211W5hj44g+U2jkwYxVOSwIfPpsZSlE4fzufwFN+BJlc6mQF8GtnuxSLvU4pPJQqFZUccLDPYvxJbaBO5XwGwo4z1AQXk9QDwbiTAr2TZ0+y2kA+5GIrPmb0Xxf+QQwsxmBB3V5F98DQqQ2n4I/vmkJaC2emIxKEv4e9OF6ekHZqg6S+kFkpc8TatQr4hTeZd90wNPdnVicf0jcZItxY4B9s3IR8pzeoZRYPo28vIUDEajO/BIh1iwTR7m0H8n7+c01dEEuHv3JDNBBDU1O1ZwN0y1WXuEcSO+3v1tz2a3rti5zkrLEOCyKw0K8LfNrfZjoheoq1gtfKtFOEX6C7BmWqBLv9Der6oObfg7QC00S34pC03CjAZbYucRzGb1Hyo2NQOWxZlTjiGZGFStajGSm1FmeD4cEmSaMiIHasQvtF+gnopQ72tUzn49TW71lqQykuyG8DsMzkKsUTxCD64dppDPoDy/R+T6WK8NCojRDPyljfg7HoT2tzuOB4teQnyDNWLmqhjF1QG4TWZkiDw9QFPvtkWjKRjLh/pWi+kQj+vUzpYorywOGBmYrGmWy4TdwvtDEKGJMmpyM0yd3eSHrG0ZnQUeVqii6wdnJbd59Z/kTPxO6ixX9LPHUB1Rq/3dGHsMfupnj7lG9ZpvDQpHZG/uUfzngyNT7aYSt9ONipSmnjE/XzV3tm22GGbFLYm9NkhpsBpZtEpr1u352sdZ8OCMk0+Yf3mhXkIsi11VdVIqp+hiC3L+kDg8JdtGbbS5keVrmz19Ug8YdenOj5RxEOtkCBI8sLCLn6HPXtvvxKRYrNhRkaa56YfxPU3muw0KD0wzQeVCXl6/BrbYRL6nzYvFgu6FCJXriLHp0xqMqeSnfwlo5mg8pwiiZlFViorjyJ9+86hsLRRXFvzzU/815rVnraw1xfaLMO1NSwJkbCmdazf9VEMvGrafIvJst5pSc5HeOIy2fikMGukoGF5dFIUNCj15ZW5kIHNpemU9MTAwMCBwYXJ0PTIgcGNyYzMyPWI1ZTJhOGNkDQo="
+   },
+   "izhod": {
+    "izid": "napaka_velikosti"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "prirezana vrstica: ubezni znak odrezan, osamljen ubeznik pred =yend",
+    "telo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPTEwMCBuYW1lPXRydW5jLmJpbg0KxbiOdHuyPp2tZMC42H2nyvGsMQNdywPd3VhaFwfsvtGCKJRtVavK/VFQnox9EOtkHpd3zHgexaDU1821OF6SD6SeSj1N23/992X2MiCyxYS129cDPGsraBng28qytsRP4KUnLz0NCj15ZW5kIHNpemU9MTAwIGNyYzMyPWUzOTc0ZjU4DQo="
+   },
+   "izhod": {
+    "izid": "napaka_velikosti"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "osamljen ubeznik za celimi podatki se izpusti",
+    "telo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPTEwMCBuYW1lPXRydW5jLmJpbg0KxbiOdHuyPp2tZMC42H2nyvGsMQNdywPd3VhaFwfsvtGCKJRtVavK/VFQnox9EOtkHpd3zHgexaDU1821OF6SD6SeSj1N23/992X2MiCyxYS129cDPGsraBng28qytsRP4KUnLz19PQ0KPXllbmQgc2l6ZT0xMDAgY3JjMzI9ZTM5NzRmNTgNCg=="
+   },
+   "izhod": {
+    "izid": "ok",
+    "ime": "trunc.bin",
+    "del": null,
+    "skupaj": null,
+    "velikost": 100,
+    "zacetek": 1,
+    "konec": 100,
+    "crc32": "e3974f58",
+    "crc_preverjen": true,
+    "podatki_b64": "m45kSlGIFHODOpaOrlN9oMeCB9kzodmzsy4w7d3ClKdY/mpDK4Gg0ycmdGJT5sE69G1Nok70m3aqraOLDjRo5Xp0IOOxVdPNO8wI9oibWouxrdkSQQE+77axoIiMmiW2e/0FEw=="
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "prirezano sredi vrstice, brez =yend",
+    "telo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPTEwMCBuYW1lPWJyZXouYmluDQqq36wxQlFbz+T3w6eiHBoohT192GBOAlgVyEf/fU+SZM9pGKXqYg=="
+   },
+   "izhod": {
+    "izid": "prirezano"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "brez =yend",
+    "telo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPTEwMCBuYW1lPWJyZXouYmluDQqq36wxQlFbz+T3w6eiHBoohT192GBOAlgVyEf/fU+SZM9pGKXqYhkC+dAZNuy04MFBxLc0MtOUajlQY3VV1h4iNO4SmCw6R8zczxqXGZxcdpvx8u3ZDAYDc02OmlT6zuJTdQXciA0K"
+   },
+   "izhod": {
+    "izid": "prirezano"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "ni yEnc",
+    "telo_b64": "VG8gbmkgeUVuYy4NClNhbW8gYmVzZWRpbG8uDQo="
+   },
+   "izhod": {
+    "izid": "ni_yenc"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "=ybegin ni na zacetku vrstice",
+    "telo_b64": "eD15YmVnaW4gbGluZT0xMjggc2l6ZT0xIG5hbWU9YQ0KKw0KPXllbmQgc2l6ZT0xDQo="
+   },
+   "izhod": {
+    "izid": "ni_yenc"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "vecdelni brez =ypart",
+    "telo_b64": "PXliZWdpbiBwYXJ0PTEgbGluZT0xMjggc2l6ZT0xMCBuYW1lPWENClpbXF1eX2BhYmMNCj15ZW5kIHNpemU9MTAgcGFydD0xDQo="
+   },
+   "izhod": {
+    "izid": "napaka_oblike"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "=ypart end < begin",
+    "telo_b64": "PXliZWdpbiBwYXJ0PTIgbGluZT0xMjggc2l6ZT0zMDAwIG5hbWU9YQ0KPXlwYXJ0IGJlZ2luPTEwMDEgZW5kPTEwMDANCj15ZW5kIHNpemU9MCBwYXJ0PTIgcGNyYzMyPTAwMDAwMDAwDQo="
+   },
+   "izhod": {
+    "izid": "napaka_oblike"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "=ypart end > size",
+    "telo_b64": "PXliZWdpbiBwYXJ0PTIgbGluZT0xMjggc2l6ZT0xNTAwIG5hbWU9YQ0KPXlwYXJ0IGJlZ2luPTEwMDEgZW5kPTIwMDANCpNYyM+lhN+I3JIvGsC7npq/pDbk7sD7JnHJd6MbM13xfxNNU2DaL7na3nVjeP9+02lCnII9ffyMYkAfMgQxuNHD8JN+R1WFlXhgaIObquBeNk9ENPQn5d2fOY06JCtgNePmgybIaKSnBWdpElwwg3+ct6F2zoVT9l/wvF3ALnYpDQpZ2NQ//VG5u570kCq3zmdorQkzcYWDXPmBkRXgHWLffN/FGYOLtfxzr/+OPUqx2E+Ay0fRVwcZKrORUPAqDxE9QNRkIAH1CJEZuSuEn58cm/I2NtN5otasMoFVRopIcFWPuqa9QMpZYzIWnwy74MvLLNluma2NxLuEqyZtejWoWw0Kn6b9F5Rvh6hTX0U6EzfxG07gdrD2EjUpvbXVbmGPjiD5TaOTBjFU5LAh8+mxlKUTh/O5/AU34EmVzqZAXwa2e7FIu9Tik8lCoVlRxwsM9i/EltoE7lfAbCjjPUBBeT1APBuJMCvZNnT7LaQD7kYis+ZvRfF/5BDCzGYEHdXkX3wNCpDafgj++aQloLZ6YjEoS/h704Xp6QdmqDpL6QWSlzxNq1CviFN5l33TA092dWJx/SNxki3FjgH2zchHynN6hlFg+jby8hQMRqM78EiHWLBNHubQfyfv5zTV0QS4e/ckM0EENTU7VnA3TLVZe4RxI77e/W3PZreu2LnOSssQ4LIrDQrwt82t9mOiF6irWC18q0U4RfoLsGZaoEu/0N6vqg5t+DtALTRLfikLTcKMBlti5xHMZvUfKjY1A5bFmVOOIZkYVK1qMZKbUWZ4PhwSZJoyIgdqxC+0X6CeilDva1TOfj1NbvWWpDKS7IbwOwzOQqxRPEIPrh2mkM+gPL9H5PpYrw0KiNEM/KWN+DsehPa3O44Hi15CfIM1YuaqGMXVAbhNZmSIPD1AU++2RaMpGMuH+laL6RCP69TOliivLA4YGZisaZbLhN3C+0MQoYkyanIzTJ3d5IesbRmdBR5WqKLrB2clt3n1n+RM/E7qLFf0s8dQHVGr/d0Yewx+6mePuUb1mm8NCkdkb+5R/OeDI1PtphK3042KlKaeMT9fNXe2bbYYZsUtib02SGmwGlm0SmvW7fnax1nw4IyTT5h/eaFeQiyLXVV1Uiqn6GILcv6QODwl20ZttLmR5WubPX1SDxh16c6PlHEQ62QIEjywsIufoc9e2+/EpFis2FGRprnph/E9Tea7DQoPTDNB5UJeXr8GtthEvqfNi8WC7oUIleuIsenTGoyp5Kd/CWjmaDynCKJmUVWKiuPIn37zqGwtFFcW/PNT/zXmtWetrDXF9osw7U1LAmRsKZ1rN/1UQy8atp8i8my3mlJzkd44jLZ+KQwa6SgYXl0UhQ0KPXllbmQgc2l6ZT0xMDAwIHBhcnQ9MiBwY3JjMzI9YjVlMmE4Y2QNCg=="
+   },
+   "izhod": {
+    "izid": "napaka_oblike"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "=ypart begin 0",
+    "telo_b64": "PXliZWdpbiBwYXJ0PTEgbGluZT0xMjggc2l6ZT0zMDAwIG5hbWU9YQ0KPXlwYXJ0IGJlZ2luPTAgZW5kPTk5OQ0KxwiVnlSX9cWmCajvruscUr1VtV7JwPrjre+2lFNo29cnrSYV2xmTzSf97CVMbnsUAVfnYjB1mhbT+neETVv5ydKmzZ1wvryRr0LyCR5zpT+A1PUu1SNI5X/rODhqzWk6LqQXnGQdycmpS5dbIVAUVh2GNyy2MGCzPUo3E+gP6NQNCuz/nbdR1vovQC+FVsWI8zkpF0XsFYt1lW7CIONiJkrjOjiUH+AR6XUeJ4a8mXglhhrs9s8W+pl44bWdMcqykB+dctImSwUgHZ88cHlp9LlbihpCEhV2G0pDsNowZpHN/qqy/qGMltUIs4rMBDHARj+pLZVT7zl/Q7o2FvXEmAclDQq1XAloZ7atdBdVx8OIBe8hBBRULJSLBJmJkrfNi+0bdFI3b2z0yMoyx2H4a+bzzOG7TR8dDFpobSVdtcdOiOKPYwPyU1mpxMUXSfDhtHGrb9/x7j19O2yxf8Il0ETqa9N0PX1BNpC+iVrQ4W8bu5S6M4++fUugRd6r11XyjIKgmQ0Kpu4JkT9oMxvfFrkvrvZZ+wmtYLa1RPCcHs/N6gne2Nn6xWBnllt1bmbDidh/134mjqi7ufh/Mx6305sjedxygM/GV/FEQ9ZUxyJTPGJCq1JIqQuIj+E0IhxhIg+6wVjCeShBmRYZjJp1wLSYge7CqJvC6vBbaYo8XrdbxSjm+54NClmm3PHPyMRq5G2E5d/JwOIZbHY/8ia+3UDwzaSt3S7cuZ9+qkRZ35sxHzOb4xSAkRvbGTx/gkvlNFIVSFKVopYs0BOR0p6idgg19Zp47kelNmmN9oau+aZSgT1AIDY9Ta43PUAXqCwUmAEgURTr3dEvUdbesvzyijObOnRWk+fKDQoqho75tspRuz1NLm+AvGp1OqCy8hoLT28r6nnJkBfU4ZMXFD9YdksJxRLhI0PlXM4IKxs6nQuc2S+qeNXyHMXWXcXzsMC33mhb3YZPfKLUciGDctyFDkVugyqKN4uDO78ToZnUGulJXNw8+HwZlG6NXAGMR6frjgkE2oYZSvw4mQ0K6vavwDN5qYOO7y9Ynq5wfl8Rvm4xtD5vLFlD4FZ6w9WP/84/lW2fZ3bdLzVsaY/jzjLWCeFYryojKBhPhz19y+3Tronq7xQYIJKqhz1NXP3hdwhI5ZKAz/oH+Fy+A2DT3buDED1KWLWIPUAMPX0TbXjVk3Ffi4r13jf2k+Iq0GINCnH9g6iT1OqezM8Pd389TZ1LE0hJLahgu8n/+NHYPUCMqeCfz7jsBZaaIlmgQtZphKPvqoJ9PqjQWFZELtLDvMMGQ/ZavH8HPU2teE4fvrcRCEm4nbg561UPHgIgPUo3X8fSUFWkw2/yTr7Ic9mJ3L7wPX101R7ynMYNCj15ZW5kIHNpemU9MTAwMCBwYXJ0PTEgcGNyYzMyPTUwMmUzNWI1DQo="
+   },
+   "izhod": {
+    "izid": "napaka_oblike"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "=yend part drugacen od =ybegin part",
+    "telo_b64": "PXliZWdpbiBwYXJ0PTIgbGluZT0xMjggc2l6ZT0zMDAwIG5hbWU9YQ0KPXlwYXJ0IGJlZ2luPTEwMDEgZW5kPTIwMDANCpNYyM+lhN+I3JIvGsC7npq/pDbk7sD7JnHJd6MbM13xfxNNU2DaL7na3nVjeP9+02lCnII9ffyMYkAfMgQxuNHD8JN+R1WFlXhgaIObquBeNk9ENPQn5d2fOY06JCtgNePmgybIaKSnBWdpElwwg3+ct6F2zoVT9l/wvF3ALnYpDQpZ2NQ//VG5u570kCq3zmdorQkzcYWDXPmBkRXgHWLffN/FGYOLtfxzr/+OPUqx2E+Ay0fRVwcZKrORUPAqDxE9QNRkIAH1CJEZuSuEn58cm/I2NtN5otasMoFVRopIcFWPuqa9QMpZYzIWnwy74MvLLNluma2NxLuEqyZtejWoWw0Kn6b9F5Rvh6hTX0U6EzfxG07gdrD2EjUpvbXVbmGPjiD5TaOTBjFU5LAh8+mxlKUTh/O5/AU34EmVzqZAXwa2e7FIu9Tik8lCoVlRxwsM9i/EltoE7lfAbCjjPUBBeT1APBuJMCvZNnT7LaQD7kYis+ZvRfF/5BDCzGYEHdXkX3wNCpDafgj++aQloLZ6YjEoS/h704Xp6QdmqDpL6QWSlzxNq1CviFN5l33TA092dWJx/SNxki3FjgH2zchHynN6hlFg+jby8hQMRqM78EiHWLBNHubQfyfv5zTV0QS4e/ckM0EENTU7VnA3TLVZe4RxI77e/W3PZreu2LnOSssQ4LIrDQrwt82t9mOiF6irWC18q0U4RfoLsGZaoEu/0N6vqg5t+DtALTRLfikLTcKMBlti5xHMZvUfKjY1A5bFmVOOIZkYVK1qMZKbUWZ4PhwSZJoyIgdqxC+0X6CeilDva1TOfj1NbvWWpDKS7IbwOwzOQqxRPEIPrh2mkM+gPL9H5PpYrw0KiNEM/KWN+DsehPa3O44Hi15CfIM1YuaqGMXVAbhNZmSIPD1AU++2RaMpGMuH+laL6RCP69TOliivLA4YGZisaZbLhN3C+0MQoYkyanIzTJ3d5IesbRmdBR5WqKLrB2clt3n1n+RM/E7qLFf0s8dQHVGr/d0Yewx+6mePuUb1mm8NCkdkb+5R/OeDI1PtphK3042KlKaeMT9fNXe2bbYYZsUtib02SGmwGlm0SmvW7fnax1nw4IyTT5h/eaFeQiyLXVV1Uiqn6GILcv6QODwl20ZttLmR5WubPX1SDxh16c6PlHEQ62QIEjywsIufoc9e2+/EpFis2FGRprnph/E9Tea7DQoPTDNB5UJeXr8GtthEvqfNi8WC7oUIleuIsenTGoyp5Kd/CWjmaDynCKJmUVWKiuPIn37zqGwtFFcW/PNT/zXmtWetrDXF9osw7U1LAmRsKZ1rN/1UQy8atp8i8my3mlJzkd44jLZ+KQwa6SgYXl0UhQ0KPXllbmQgc2l6ZT0xMDAwIHBhcnQ9MyBwY3JjMzI9YjVlMmE4Y2QNCg=="
+   },
+   "izhod": {
+    "izid": "napaka_oblike"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "size ni stevilo",
+    "telo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPWFiYyBuYW1lPWENCisNCj15ZW5kIHNpemU9MQ0K"
+   },
+   "izhod": {
+    "izid": "napaka_oblike"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "brez size",
+    "telo_b64": "PXliZWdpbiBsaW5lPTEyOCBuYW1lPWENCisNCj15ZW5kIHNpemU9MQ0K"
+   },
+   "izhod": {
+    "izid": "napaka_oblike"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "crc ni sestnajstisko",
+    "telo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPTEwMCBuYW1lPWENCqrfrDFCUVvP5PfDp6IcGiiFPX3YYE4CWBXIR/99T5Jkz2kYpepiGQL50Bk27LTgwUHEtzQy05RqOVBjdVXWHiI07hKYLDpHzNzPGpcZnFx2m/Hy7dkMBgNzTY6aVPrO4lN1BdyIDQo9eWVuZCBzaXplPTEwMCBjcmMzMj14eXoNCg=="
+   },
+   "izhod": {
+    "izid": "napaka_oblike"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "del vecji od meje (16 MiB) - zavrnjen pred dekodiranjem",
+    "telo_b64": "PXliZWdpbiBwYXJ0PTEgbGluZT0xMjggc2l6ZT0yMDAwMDAwMCBuYW1lPWENCj15cGFydCBiZWdpbj0xIGVuZD0yMDAwMDAwMA0KKw0KPXllbmQgc2l6ZT0xIHBhcnQ9MQ0K"
+   },
+   "izhod": {
+    "izid": "prevelik"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "enodelni vecji od meje",
+    "telo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPTE2Nzc3MjE3IG5hbWU9YQ0KKw0KPXllbmQgc2l6ZT0xDQo="
+   },
+   "izhod": {
+    "izid": "prevelik"
+   }
+  },
+  {
+   "f": "nntp_telo",
+   "vhod": {
+    "opis": "podvojena pika na zacetku vrstice",
+    "surovo_b64": "Li5hYmMNCm5hdmFkbm8NCi4uLg0KLi4NCi4NCg=="
+   },
+   "izhod": {
+    "telo_b64": "LmFiYw0KbmF2YWRubw0KLi4NCi4NCg==",
+    "ostanek_b64": ""
+   }
+  },
+  {
+   "f": "nntp_telo",
+   "vhod": {
+    "opis": "prazno telo",
+    "surovo_b64": "Lg0K"
+   },
+   "izhod": {
+    "telo_b64": "",
+    "ostanek_b64": ""
+   }
+  },
+  {
+   "f": "nntp_telo",
+   "vhod": {
+    "opis": "brez konca -> null",
+    "surovo_b64": "YWJjDQpkZWYNCg=="
+   },
+   "izhod": null
+  },
+  {
+   "f": "nntp_telo",
+   "vhod": {
+    "opis": "konec brez CRLF -> null",
+    "surovo_b64": "YWJjDQou"
+   },
+   "izhod": null
+  },
+  {
+   "f": "nntp_telo",
+   "vhod": {
+    "opis": "ostanek po koncu (naslednji odgovor)",
+    "surovo_b64": "eA0KLg0KMjIzIDAgPGFAcHJpbWVyLmludmFsaWQ+DQo="
+   },
+   "izhod": {
+    "telo_b64": "eA0K",
+    "ostanek_b64": "MjIzIDAgPGFAcHJpbWVyLmludmFsaWQ+DQo="
+   }
+  },
+  {
+   "f": "nntp_telo",
+   "vhod": {
+    "opis": "pika brez podvojitve ostane",
+    "surovo_b64": "LngNCi4NCg=="
+   },
+   "izhod": {
+    "telo_b64": "LngNCg==",
+    "ostanek_b64": ""
+   }
+  },
+  {
+   "f": "nntp_telo",
+   "vhod": {
+    "opis": "vrstica s piko sredi ni konec",
+    "surovo_b64": "YS4NCi5iDQogLg0KLg0K"
+   },
+   "izhod": {
+    "telo_b64": "YS4NCi5iDQogLg0K",
+    "ostanek_b64": ""
+   }
+  },
+  {
+   "f": "yenc_iz_nntp",
+   "vhod": {
+    "opis": "vrstici s piko na zacetku (NNTP ..)",
+    "surovo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPTEzMCBuYW1lPXBpa2EuYmluDQouLi8wKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysNCi4uMQ0KPXllbmQgc2l6ZT0xMzAgY3JjMzI9ZWIxYzA1OTENCi4NCg=="
+   },
+   "izhod": {
+    "izid": "ok",
+    "ime": "pika.bin",
+    "del": null,
+    "skupaj": null,
+    "velikost": 130,
+    "zacetek": 1,
+    "konec": 130,
+    "crc32": "eb1c0591",
+    "crc_preverjen": true,
+    "podatki_b64": "BAUGAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEEBw=="
+   }
+  },
+  {
+   "f": "yenc_iz_nntp",
+   "vhod": {
+    "opis": "vecdelni prek NNTP",
+    "surovo_b64": "PXliZWdpbiBwYXJ0PTIgdG90YWw9MyBsaW5lPTEyOCBzaXplPTMwMDAgbmFtZT1GaWxtLjIwMTAuMTA4MHAubWt2DQo9eXBhcnQgYmVnaW49MTAwMSBlbmQ9MjAwMA0Kk1jIz6WE34jcki8awLuemr+kNuTuwPsmccl3oxszXfF/E01TYNovudredWN4/37TaUKcgj19/IxiQB8yBDG40cPwk35HVYWVeGBog5uq4F42T0Q09Cfl3Z85jTokK2A14+aDJshopKcFZ2kSXDCDf5y3oXbOhVP2X/C8XcAudikNClnY1D/9Ubm7nvSQKrfOZ2itCTNxhYNc+YGRFeAdYt9838UZg4u1/HOv/449SrHYT4DLR9FXBxkqs5FQ8CoPET1A1GQgAfUIkRm5K4Sfnxyb8jY203mi1qwygVVGikhwVY+6pr1AylljMhafDLvgy8ss2W6ZrY3Eu4SrJm16NahbDQqfpv0XlG+HqFNfRToTN/EbTuB2sPYSNSm9tdVuYY+OIPlNo5MGMVTksCHz6bGUpROH87n8BTfgSZXOpkBfBrZ7sUi71OKTyUKhWVHHCwz2L8SW2gTuV8BsKOM9QEF5PUA8G4kwK9k2dPstpAPuRiKz5m9F8X/kEMLMZgQd1eRffA0KkNp+CP75pCWgtnpiMShL+HvThenpB2aoOkvpBZKXPE2rUK+IU3mXfdMDT3Z1YnH9I3GSLcWOAfbNyEfKc3qGUWD6NvLyFAxGozvwSIdYsE0e5tB/J+/nNNXRBLh79yQzQQQ1NTtWcDdMtVl7hHEjvt79bc9mt67Yuc5KyxDgsisNCvC3za32Y6IXqKtYLXyrRThF+guwZlqgS7/Q3q+qDm34O0AtNEt+KQtNwowGW2LnEcxm9R8qNjUDlsWZU44hmRhUrWoxkptRZng+HBJkmjIiB2rEL7RfoJ6KUO9rVM5+PU1u9ZakMpLshvA7DM5CrFE8Qg+uHaaQz6A8v0fk+livDQqI0Qz8pY34Ox6E9rc7jgeLXkJ8gzVi5qoYxdUBuE1mZIg8PUBT77ZFoykYy4f6VovpEI/r1M6WKK8sDhgZmKxplsuE3cL7QxChiTJqcjNMnd3kh6xtGZ0FHlaoousHZyW3efWf5Ez8TuosV/Szx1AdUav93Rh7DH7qZ4+5RvWabw0KR2Rv7lH854MjU+2mErfTjYqUpp4xP181d7ZtthhmxS2JvTZIabAaWbRKa9bt+drHWfDgjJNPmH95oV5CLItdVXVSKqfoYgty/pA4PCXbRm20uZHla5s9fVIPGHXpzo+UcRDrZAgSPLCwi5+hz17b78SkWKzYUZGmuemH8T1N5rsNCg9MM0HlQl5evwa22ES+p82LxYLuhQiV64ix6dMajKnkp38JaOZoPKcIomZRVYqK48iffvOobC0UVxb881P/Nea1Z62sNcX2izDtTUsCZGwpnWs3/VRDLxq2nyLybLeaUnOR3jiMtn4pDBrpKBheXRSFDQo9eWVuZCBzaXplPTEwMDAgcGFydD0yIHBjcmMzMj1iNWUyYThjZA0KLg0K"
+   },
+   "izhod": {
+    "izid": "ok",
+    "ime": "Film.2010.1080p.mkv",
+    "del": 2,
+    "skupaj": 3,
+    "velikost": 3000,
+    "zacetek": 1001,
+    "konec": 2000,
+    "crc32": "b5e2a8cd",
+    "crc_preverjen": true,
+    "podatki_b64": "aS6epXtatV6yaAXwlpF0cJV6DLrEltH8R59NefEJM8dV6SMpNrAFj7C0SzlO1VSpPxhyWBPSYjgW9QjaB46nmcZpVB0rW2tONj5ZcYC2NAwlGgrK/buzdQ9jEPoBNgu5vFn8nj56fds9P+gyBllVco13TKRbKcw1xpIzlgRM/y+uqhXTJ4+RdMpmAI2kPT6D3wlHW1kyz1dn67bzOLVStZvvWWGL0kmF1WTgh64lVqEdpy3d7wCJZybGAOXn1qo69tfL3mfvjwFadXXyccgMDKlPeKyCCFcrHGAeRitlkHyTFqAvOQjsdeKRtqGhAq9Eb4NjmpFagfxDUAt+MXV80+1qRV1+KTUbEOkNx/EktkyGzOgL/5OLq0Q3ZWT2zyN5adwHKrqG98m/h2p76V3Jj9LbDbYfa6R8FjXcjFGHHpGquGmfGHcvJ53h4swFmmyw2sQtlkL+udYXT9YS8V8GAa8MStEDetnEHPiJvEUbx1W65piiPNrzq7o1UmawVN7Uz3r7doxQOAf+Ic5RqVu/v908fhAhv9tobRIjgSaFXilPbVOp2SVMSzhH0/lHaAObZNfMo54doElQXCc20AzIyOriHHkRxh5dLoYj9LymVf3FvQqrp9qOUc36CRfaCwsRLEYNIosvUVpH+ZS000OlPI2Ero+kIKHmtogBxo2jg8w5eO1+gS4DUoEbDhvQ4YY8MHYhlaa0hYDkQ84RFgMKIVT/4SOYYtwxOL3nojzL9QAMC9lsm28pZPdv7iqDQAdocSc8ThTy6DpwCPjdQJoFijV2dGAmxUEqpFTjRMtseghowlzGEeKkGIInEhjlhPN8ZqV2EpUdutAuhV6n4tJ7Y84R9FrMjRFk3WE0GFJZCzi8gO6bq9eOIzw6XhLWKcWMG3n/7qFd0Cxhv+ZlwaqkbP6FAuTu726CP2yhWrOY0Rnmd18IQEgJInOzul2CQ+9z2/QsfnjB3T37jU/Ldboi0iTAAi3KiZ0m8yeB07PuUeJUwD1ljxzLcEUdOkXEJ9K9Wfkpw3zojaljYGp8dAcVNQtNjEOM7jybA1+TDB4/hvAviiBBrMPPsJ0vxrZiaSVuVU93NBgCYTMrSygAfb444UjUZg4S+7EcQ4qPZ7tBcRMo5e5Lv6RlakfmwTre6BKGhmF1d6U0scWaei6CridnfI+/XcfjvJHlIgkXuxg0NJXcjK4alH2jYZtYxFvea8Feh7+p8GJ/un1V3z68PhJ93ng8JytgYLmedVTJfkID6i3s0skp1Qu8iz2DggubzGEGwyMh2DpC/3NBDdMqGQXwjHX4yEKNcChJZ7QOYoxU/+Lwv/7uNDPqWw=="
+   }
+  },
+  {
+   "f": "yenc_iz_nntp",
+   "vhod": {
+    "opis": "povezava prekinjena sredi telesa",
+    "surovo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPTEwMCBuYW1lPWJyZXouYmluDQqq36wxQlFbz+T3w6eiHBoohT192GBOAlgVyEf/fU+SZM9pGKXqYhkC+dAZNuy04MFBxLc0MtOUajlQY3VV1h4iNO4SmCw6R8zczxqXGZxc"
+   },
+   "izhod": {
+    "izid": "prirezano"
+   }
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "POZDRAV",
+    "vrstica": "200 news.primer.invalid ready"
+   },
+   "izhod": "ok"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "POZDRAV",
+    "vrstica": "201 posting prohibited"
+   },
+   "izhod": "ok"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "POZDRAV",
+    "vrstica": "400 Service temporarily unavailable"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "POZDRAV",
+    "vrstica": "502 Access denied"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "POZDRAV",
+    "vrstica": "205 Bye"
+   },
+   "izhod": "zaprto"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO USER",
+    "vrstica": "381 PASS required"
+   },
+   "izhod": "geslo"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO USER",
+    "vrstica": "281 Ok"
+   },
+   "izhod": "ok"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO USER",
+    "vrstica": "481 Authentication failed"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "281 Authentication accepted"
+   },
+   "izhod": "ok"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "381 PASS required"
+   },
+   "izhod": "napaka_protokola"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 Authentication rejected"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "482 Authentication commands issued out of sequence"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "502 Authentication failed"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "502 Too many connections"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 Max Connections reached"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "430 No such article"
+   },
+   "izhod": "napaka_protokola"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "ARTICLE",
+    "vrstica": "220 0 <a@primer.invalid> article"
+   },
+   "izhod": "ok"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "HEAD",
+    "vrstica": "221 0 <a@primer.invalid> head"
+   },
+   "izhod": "ok"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "222 0 <a@primer.invalid> body"
+   },
+   "izhod": "ok"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "222"
+   },
+   "izhod": "ok"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "STAT",
+    "vrstica": "223 0 <a@primer.invalid>"
+   },
+   "izhod": "ok"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "QUIT",
+    "vrstica": "205 closing connection"
+   },
+   "izhod": "ok"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "220 0 <a@primer.invalid>"
+   },
+   "izhod": "napaka_protokola"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "STAT",
+    "vrstica": "222 0 <a@primer.invalid>"
+   },
+   "izhod": "napaka_protokola"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "430 No such article"
+   },
+   "izhod": "ni_clanka"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "STAT",
+    "vrstica": "430 no such article"
+   },
+   "izhod": "ni_clanka"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "ARTICLE",
+    "vrstica": "423 No article with that number"
+   },
+   "izhod": "ni_clanka"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "480 Authentication required"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "481 Authentication failed"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "400 Idle timeout, closing connection"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "502 Service permanently unavailable"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "403 Archive server error"
+   },
+   "izhod": "napaka_streznika"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "500 What?"
+   },
+   "izhod": "napaka_protokola"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "501 Syntax error"
+   },
+   "izhod": "napaka_protokola"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "411 No such group"
+   },
+   "izhod": "napaka_protokola"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "205 Bye"
+   },
+   "izhod": "zaprto"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "abc"
+   },
+   "izhod": "napaka_protokola"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": ""
+   },
+   "izhod": "napaka_protokola"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "2220 x"
+   },
+   "izhod": "napaka_protokola"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "22 x"
+   },
+   "izhod": "napaka_protokola"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "222x"
+   },
+   "izhod": "napaka_protokola"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "699 x"
+   },
+   "izhod": "napaka_protokola"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "099 x"
+   },
+   "izhod": "napaka_protokola"
+  },
+  {
+   "f": "nntp_id",
+   "vhod": {
+    "id": "part1of3.AbCdEf@primer.invalid"
+   },
+   "izhod": "part1of3.AbCdEf@primer.invalid"
+  },
+  {
+   "f": "nntp_id",
+   "vhod": {
+    "id": "<part1of3.AbCdEf@primer.invalid>"
+   },
+   "izhod": "part1of3.AbCdEf@primer.invalid"
+  },
+  {
+   "f": "nntp_id",
+   "vhod": {
+    "id": "  <x@primer.invalid>\n"
+   },
+   "izhod": "x@primer.invalid"
+  },
+  {
+   "f": "nntp_id",
+   "vhod": {
+    "id": "brez-afne"
+   },
+   "izhod": "brez-afne"
+  },
+  {
+   "f": "nntp_id",
+   "vhod": {
+    "id": "ima presledek@primer.invalid"
+   },
+   "izhod": null
+  },
+  {
+   "f": "nntp_id",
+   "vhod": {
+    "id": "a@primer.invalid>\r\nQUIT"
+   },
+   "izhod": null
+  },
+  {
+   "f": "nntp_id",
+   "vhod": {
+    "id": "a@primer.invalid\r\nQUIT"
+   },
+   "izhod": null
+  },
+  {
+   "f": "nntp_id",
+   "vhod": {
+    "id": "<<a@primer.invalid>>"
+   },
+   "izhod": null
+  },
+  {
+   "f": "nntp_id",
+   "vhod": {
+    "id": "a>b@primer.invalid"
+   },
+   "izhod": null
+  },
+  {
+   "f": "nntp_id",
+   "vhod": {
+    "id": "a<b@primer.invalid"
+   },
+   "izhod": null
+  },
+  {
+   "f": "nntp_id",
+   "vhod": {
+    "id": ""
+   },
+   "izhod": null
+  },
+  {
+   "f": "nntp_id",
+   "vhod": {
+    "id": "<>"
+   },
+   "izhod": null
+  },
+  {
+   "f": "nntp_id",
+   "vhod": {
+    "id": "čšž@primer.invalid"
+   },
+   "izhod": null
+  },
+  {
+   "f": "nntp_id",
+   "vhod": {
+    "id": "a\tb@primer.invalid"
+   },
+   "izhod": null
+  },
+  {
+   "f": "nntp_id",
+   "vhod": {
+    "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   },
+   "izhod": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  {
+   "f": "nntp_id",
+   "vhod": {
+    "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   },
+   "izhod": null
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": "Film.2010.1080p.mkv"
+   },
+   "izhod": "Film.2010.1080p.mkv"
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": "../../etc/passwd"
+   },
+   "izhod": "passwd"
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": "C:\\Users\\x\\film.mkv"
+   },
+   "izhod": "film.mkv"
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": "mapa/"
+   },
+   "izhod": null
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": ".."
+   },
+   "izhod": null
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": "."
+   },
+   "izhod": null
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": ""
+   },
+   "izhod": null
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": "   "
+   },
+   "izhod": null
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": "film.mkv."
+   },
+   "izhod": "film.mkv"
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": "film.mkv. . "
+   },
+   "izhod": "film.mkv"
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": "  film .mkv  "
+   },
+   "izhod": "film .mkv"
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": "a<b>c:d|e?f*g\"h"
+   },
+   "izhod": "a_b_c_d_e_f_g_h"
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": "čšž ČŠŽ Film.mkv"
+   },
+   "izhod": "čšž ČŠŽ Film.mkv"
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": "Amélie (2001) [1080p] {x} +1, a&b !'#@~.mkv"
+   },
+   "izhod": "Amélie (2001) [1080p] _x_ +1, a&b !'#@~.mkv"
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": "CON.mkv"
+   },
+   "izhod": "_CON.mkv"
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": "nul"
+   },
+   "izhod": "_nul"
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": "com1.txt"
+   },
+   "izhod": "_com1.txt"
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": "console.mkv"
+   },
+   "izhod": "console.mkv"
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": "a\tb\u0000cd.mkv"
+   },
+   "izhod": "a_b_c_d.mkv"
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": "🎬 film.mkv"
+   },
+   "izhod": "_ film.mkv"
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": "50%_off;rm -rf.mkv"
+   },
+   "izhod": "50__off_rm -rf.mkv"
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": "²½.mkv"
+   },
+   "izhod": "__.mkv"
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.mkv"
+   },
+   "izhod": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.mkv"
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+   },
+   "izhod": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz.kkkkkkkkkkkkkkkkkkkk"
+   },
+   "izhod": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz.kkkkkkkkk"
+  },
+  {
+   "f": "nzb_ime",
+   "vhod": {
+    "subject": "[1/2] - \"Sintel.2010.1080p.mkv\" yEnc (1/907)"
+   },
+   "izhod": "Sintel.2010.1080p.mkv"
+  },
+  {
+   "f": "nzb_ime",
+   "vhod": {
+    "subject": "Here's your file!  abc-mr2a.r01 (1/2)"
+   },
+   "izhod": "abc-mr2a.r01"
+  },
+  {
+   "f": "nzb_ime",
+   "vhod": {
+    "subject": "[01/50] - Sintel.2010.1080p.part01.rar yEnc (1/100)"
+   },
+   "izhod": "Sintel.2010.1080p.part01.rar"
+  },
+  {
+   "f": "nzb_ime",
+   "vhod": {
+    "subject": "\"../../.ssh/authorized_keys\" yEnc (1/1)"
+   },
+   "izhod": "authorized_keys"
+  },
+  {
+   "f": "nzb_ime",
+   "vhod": {
+    "subject": "\"..\" yEnc (1/1)"
+   },
+   "izhod": null
+  },
+  {
+   "f": "nzb_ime",
+   "vhod": {
+    "subject": "brez imena yEnc (1/1)"
+   },
+   "izhod": null
+  },
+  {
+   "f": "nzb_ime",
+   "vhod": {
+    "subject": "\"\" film.mkv (1/1)"
+   },
+   "izhod": "film.mkv"
+  },
+  {
+   "f": "nzb_ime",
+   "vhod": {
+    "subject": ""
+   },
+   "izhod": null
+  },
+  {
+   "f": "nzb_ime",
+   "vhod": {
+    "subject": "\"Prvi.mkv\" \"Drugi.mkv\""
+   },
+   "izhod": "Prvi.mkv"
+  },
+  {
+   "f": "nzb_ime",
+   "vhod": {
+    "subject": "a1b2c3d4e5f6 yEnc (1/50)"
+   },
+   "izhod": null
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "obicajen NZB z DOCTYPE, imenskim prostorom, naslovom in geslom",
+    "xml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE nzb PUBLIC \"-//newzBin//DTD NZB 1.1//EN\" \"http://www.newzbin.com/DTD/nzb/nzb-1.1.dtd\">\n<nzb xmlns=\"http://www.newzbin.com/DTD/2003/nzb\">\n <head>\n  <meta type=\"title\">Sintel   (2010)</meta>\n  <meta type=\"password\">skrito</meta>\n </head>\n <file poster=\"poster &lt;poster@primer.invalid&gt;\" date=\"1729900000\" subject=\"[1/2] - &quot;Sintel.2010.1080p.mkv&quot; yEnc (1/3)\">\n  <groups><group>alt.binaries.example</group><group> alt.binaries.test </group><group></group></groups>\n  <segments>\n   <segment bytes=\"739000\" number=\"2\">part2of3.AbCdEf@primer.invalid</segment>\n   <segment bytes=\"739100\" number=\"1\">&lt;part1of3.AbCdEf@primer.invalid&gt;</segment>\n   <segment bytes=\"12345\" number=\"3\">\n     part3of3.AbCdEf@primer.invalid\n   </segment>\n  </segments>\n </file>\n <file poster=\"p\" date=\"1\" subject=\"[2/2] - &quot;Sintel.2010.1080p.par2&quot; yEnc (1/1)\">\n  <groups><group>alt.binaries.example</group></groups>\n  <segments><segment bytes=\"5000\" number=\"1\">par2.XyZ@primer.invalid</segment></segments>\n </file>\n</nzb>\n"
+   },
+   "izhod": {
+    "izid": "ok",
+    "naslov": "Sintel (2010)",
+    "ima_geslo": true,
+    "datoteke": [
+     {
+      "ime": "Sintel.2010.1080p.mkv",
+      "skupine": [
+       "alt.binaries.example",
+       "alt.binaries.test"
+      ],
+      "bajtov_nzb": 1490445,
+      "manjka": 0,
+      "segmenti": [
+       [
+        1,
+        739100,
+        "part1of3.AbCdEf@primer.invalid"
+       ],
+       [
+        2,
+        739000,
+        "part2of3.AbCdEf@primer.invalid"
+       ],
+       [
+        3,
+        12345,
+        "part3of3.AbCdEf@primer.invalid"
+       ]
+      ]
+     },
+     {
+      "ime": "Sintel.2010.1080p.par2",
+      "skupine": [
+       "alt.binaries.example"
+      ],
+      "bajtov_nzb": 5000,
+      "manjka": 0,
+      "segmenti": [
+       [
+        1,
+        5000,
+        "par2.XyZ@primer.invalid"
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "neveljavni segmenti izpusceni, dvojnik prvi, manjka iz (1/5) in najvecje stevilke",
+    "xml": "<nzb><file subject=\"Here's your file!  abc-mr2a.r01 (1/5)\"><groups><group>a.b.c</group></groups><segments><segment bytes=\"10\" number=\"1\">s1@primer.invalid</segment><segment bytes=\"11\" number=\"2\">s2@primer.invalid</segment><segment bytes=\"99\" number=\"2\">s2-dvojnik@primer.invalid</segment><segment bytes=\"abc\" number=\"4\">s4@primer.invalid</segment><segment bytes=\"1\" number=\"0\">s0@primer.invalid</segment><segment bytes=\"1\" number=\"x\">sx@primer.invalid</segment><segment bytes=\"1\" number=\"-1\">sm@primer.invalid</segment><segment bytes=\"1\" number=\"200001\">sv@primer.invalid</segment><segment bytes=\"1\" number=\"5\">ima presledek@primer.invalid</segment><segment bytes=\"1\" number=\"5\">s5@primer.invalid&gt;&#13;&#10;QUIT</segment><segment bytes=\"1\" number=\"3\"></segment><segment bytes=\"-5\" number=\"6\">s6@primer.invalid</segment></segments></file></nzb>"
+   },
+   "izhod": {
+    "izid": "ok",
+    "naslov": null,
+    "ima_geslo": false,
+    "datoteke": [
+     {
+      "ime": "abc-mr2a.r01",
+      "skupine": [
+       "a.b.c"
+      ],
+      "bajtov_nzb": 21,
+      "manjka": 2,
+      "segmenti": [
+       [
+        1,
+        10,
+        "s1@primer.invalid"
+       ],
+       [
+        2,
+        11,
+        "s2@primer.invalid"
+       ],
+       [
+        4,
+        0,
+        "s4@primer.invalid"
+       ],
+       [
+        6,
+        0,
+        "s6@primer.invalid"
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "ISO-8859-1, prazno geslo, datoteka brez segmentov izpuscena, brez skupin",
+    "xml_b64": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iaXNvLTg4NTktMSI/Pgo8bnpiPjxoZWFkPjxtZXRhIHR5cGU9InBhc3N3b3JkIj48L21ldGE+PC9oZWFkPjxmaWxlIHN1YmplY3Q9IiZxdW90O0Ft6WxpZS4yMDAxLm1rdiZxdW90OyB5RW5jICgxLzEpIj48c2VnbWVudHM+PHNlZ21lbnQgYnl0ZXM9IjEwIiBudW1iZXI9IjEiPmExQHByaW1lci5pbnZhbGlkPC9zZWdtZW50Pjwvc2VnbWVudHM+PC9maWxlPjxmaWxlIHN1YmplY3Q9InByYXpuYSI+PHNlZ21lbnRzPjwvc2VnbWVudHM+PC9maWxlPjwvbnpiPg=="
+   },
+   "izhod": {
+    "izid": "ok",
+    "naslov": null,
+    "ima_geslo": false,
+    "datoteke": [
+     {
+      "ime": "Amélie.2001.mkv",
+      "skupine": [],
+      "bajtov_nzb": 10,
+      "manjka": 0,
+      "segmenti": [
+       [
+        1,
+        10,
+        "a1@primer.invalid"
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "UTF-8 z BOM",
+    "xml_b64": "77u/PG56Yj48ZmlsZSBzdWJqZWN0PSJ4Lm1rdiI+PHNlZ21lbnRzPjxzZWdtZW50IGJ5dGVzPSIxIiBudW1iZXI9IjEiPm1AcHJpbWVyLmludmFsaWQ8L3NlZ21lbnQ+PC9zZWdtZW50cz48L2ZpbGU+PC9uemI+"
+   },
+   "izhod": {
+    "izid": "ok",
+    "naslov": null,
+    "ima_geslo": false,
+    "datoteke": [
+     {
+      "ime": "x.mkv",
+      "skupine": [],
+      "bajtov_nzb": 1,
+      "manjka": 0,
+      "segmenti": [
+       [
+        1,
+        1,
+        "m@primer.invalid"
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "DOCTYPE SYSTEM",
+    "xml": "<!DOCTYPE nzb SYSTEM \"nzb.dtd\"><nzb><file subject=\"x.mkv\"><segments><segment bytes=\"1\" number=\"1\">m@primer.invalid</segment></segments></file></nzb>"
+   },
+   "izhod": {
+    "izid": "ok",
+    "naslov": null,
+    "ima_geslo": false,
+    "datoteke": [
+     {
+      "ime": "x.mkv",
+      "skupine": [],
+      "bajtov_nzb": 1,
+      "manjka": 0,
+      "segmenti": [
+       [
+        1,
+        1,
+        "m@primer.invalid"
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "DOCTYPE brez identifikatorja",
+    "xml": "<!DOCTYPE nzb><nzb><file subject=\"x.mkv\"><segments><segment bytes=\"1\" number=\"1\">m@primer.invalid</segment></segments></file></nzb>"
+   },
+   "izhod": {
+    "izid": "ok",
+    "naslov": null,
+    "ima_geslo": false,
+    "datoteke": [
+     {
+      "ime": "x.mkv",
+      "skupine": [],
+      "bajtov_nzb": 1,
+      "manjka": 0,
+      "segmenti": [
+       [
+        1,
+        1,
+        "m@primer.invalid"
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "komentar in CDATA",
+    "xml": "<!-- iz indeksatorja --><nzb><file subject=\"x.mkv\"><!-- k --><![CDATA[ ]]><segments><segment bytes=\"1\" number=\"1\">m@primer.invalid</segment></segments></file></nzb>"
+   },
+   "izhod": {
+    "izid": "ok",
+    "naslov": null,
+    "ima_geslo": false,
+    "datoteke": [
+     {
+      "ime": "x.mkv",
+      "skupine": [],
+      "bajtov_nzb": 1,
+      "manjka": 0,
+      "segmenti": [
+       [
+        1,
+        1,
+        "m@primer.invalid"
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "XXE: notranji del DTD z zunanjo entiteto",
+    "xml": "<?xml version=\"1.0\"?><!DOCTYPE nzb [<!ENTITY x SYSTEM \"file:///etc/passwd\">]><nzb><file subject=\"&x;\"/></nzb>"
+   },
+   "izhod": {
+    "izid": "zavrnjeno_dtd"
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "eksplozija entitet",
+    "xml": "<?xml version=\"1.0\"?><!DOCTYPE nzb [<!ENTITY a \"aaaaaaaaaa\"><!ENTITY b \"&a;&a;&a;&a;&a;&a;&a;&a;&a;&a;\">]><nzb><file subject=\"&b;\"/></nzb>"
+   },
+   "izhod": {
+    "izid": "zavrnjeno_dtd"
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "standardni DOCTYPE z notranjim delom",
+    "xml": "<!DOCTYPE nzb PUBLIC \"-//newzBin//DTD NZB 1.1//EN\" \"http://www.newzbin.com/DTD/nzb/nzb-1.1.dtd\" [ ]><nzb><file subject=\"x.mkv\"><segments><segment bytes=\"1\" number=\"1\">m@primer.invalid</segment></segments></file></nzb>"
+   },
+   "izhod": {
+    "izid": "zavrnjeno_dtd"
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "ENTITY brez DOCTYPE",
+    "xml": "<!ENTITY x \"y\"><nzb><file subject=\"x.mkv\"><segments><segment bytes=\"1\" number=\"1\">m@primer.invalid</segment></segments></file></nzb>"
+   },
+   "izhod": {
+    "izid": "zavrnjeno_dtd"
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "ENTITY v komentarju (varno zavrnjeno)",
+    "xml": "<!-- <!ENTITY x 'y'> --><nzb><file subject=\"x.mkv\"><segments><segment bytes=\"1\" number=\"1\">m@primer.invalid</segment></segments></file></nzb>"
+   },
+   "izhod": {
+    "izid": "zavrnjeno_dtd"
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "ATTLIST",
+    "xml": "<!ATTLIST nzb a CDATA 'b'><nzb><file subject=\"x.mkv\"><segments><segment bytes=\"1\" number=\"1\">m@primer.invalid</segment></segments></file></nzb>"
+   },
+   "izhod": {
+    "izid": "zavrnjeno_dtd"
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "DOCTYPE drugega korena",
+    "xml": "<!DOCTYPE html><nzb><file subject=\"x.mkv\"><segments><segment bytes=\"1\" number=\"1\">m@primer.invalid</segment></segments></file></nzb>"
+   },
+   "izhod": {
+    "izid": "zavrnjeno_dtd"
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "dva DOCTYPE",
+    "xml": "<!DOCTYPE nzb><!DOCTYPE nzb><nzb><file subject=\"x.mkv\"><segments><segment bytes=\"1\" number=\"1\">m@primer.invalid</segment></segments></file></nzb>"
+   },
+   "izhod": {
+    "izid": "zavrnjeno_dtd"
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "doctype z malimi crkami",
+    "xml": "<!doctype nzb><nzb><file subject=\"x.mkv\"><segments><segment bytes=\"1\" number=\"1\">m@primer.invalid</segment></segments></file></nzb>"
+   },
+   "izhod": {
+    "izid": "zavrnjeno_dtd"
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "nedefinirana entiteta",
+    "xml": "<nzb><file subject=\"&foo;x.mkv\"><segments><segment bytes=\"1\" number=\"1\">m@primer.invalid</segment></segments></file></nzb>"
+   },
+   "izhod": {
+    "izid": "napaka_xml"
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "ni dobro oblikovan",
+    "xml": "<nzb><file>"
+   },
+   "izhod": {
+    "izid": "napaka_xml"
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "kodiranje UTF-16 ni podprto",
+    "xml_b64": "//48AD8AeABtAGwAIAB2AGUAcgBzAGkAbwBuAD0AIgAxAC4AMAAiACAAZQBuAGMAbwBkAGkAbgBnAD0AIgBVAFQARgAtADEANgAiAD8APgA8AG4AegBiAD4APABmAGkAbABlACAAcwB1AGIAagBlAGMAdAA9ACIAeAAuAG0AawB2ACIAPgA8AHMAZQBnAG0AZQBuAHQAcwA+ADwAcwBlAGcAbQBlAG4AdAAgAGIAeQB0AGUAcwA9ACIAMQAiACAAbgB1AG0AYgBlAHIAPQAiADEAIgA+AG0AQABwAHIAaQBtAGUAcgAuAGkAbgB2AGEAbABpAGQAPAAvAHMAZQBnAG0AZQBuAHQAPgA8AC8AcwBlAGcAbQBlAG4AdABzAD4APAAvAGYAaQBsAGUAPgA8AC8AbgB6AGIAPgA="
+   },
+   "izhod": {
+    "izid": "napaka_xml"
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "oznaceno UTF-16, bajti ASCII",
+    "xml": "<?xml version=\"1.0\" encoding=\"UTF-16\"?><nzb><file subject=\"x.mkv\"><segments><segment bytes=\"1\" number=\"1\">m@primer.invalid</segment></segments></file></nzb>"
+   },
+   "izhod": {
+    "izid": "napaka_xml"
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "neznano kodiranje",
+    "xml": "<?xml version=\"1.0\" encoding=\"windows-1250\"?><nzb><file subject=\"x.mkv\"><segments><segment bytes=\"1\" number=\"1\">m@primer.invalid</segment></segments></file></nzb>"
+   },
+   "izhod": {
+    "izid": "napaka_xml"
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "bajt NUL",
+    "xml_b64": "PG56Yj48ZmlsZSBzdWJqZWN0PSJ4AC5ta3YiPjxzZWdtZW50cz48c2VnbWVudCBieXRlcz0iMSIgbnVtYmVyPSIxIj5tQHByaW1lci5pbnZhbGlkPC9zZWdtZW50Pjwvc2VnbWVudHM+PC9maWxlPjwvbnpiPg=="
+   },
+   "izhod": {
+    "izid": "napaka_xml"
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "koren ni nzb",
+    "xml": "<rss><channel/></rss>"
+   },
+   "izhod": {
+    "izid": "ni_nzb"
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "brez datotek",
+    "xml": "<nzb><head/></nzb>"
+   },
+   "izhod": {
+    "izid": "prazen"
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "vse datoteke brez veljavnih segmentov",
+    "xml": "<nzb><file subject=\"a.mkv\"><segments><segment number=\"0\">a@primer.invalid</segment></segments></file></nzb>"
+   },
+   "izhod": {
+    "izid": "prazen"
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "file globlje od korena se ne steje",
+    "xml": "<nzb><x><file subject=\"a.mkv\"><segments><segment number=\"1\">a@primer.invalid</segment></segments></file></x></nzb>"
+   },
+   "izhod": {
+    "izid": "prazen"
+   }
+  },
+  {
+   "f": "usenet_meje",
+   "vhod": {},
+   "izhod": {
+    "nzb_bajtov": 20971520,
+    "nzb_datotek": 5000,
+    "nzb_segmentov": 500000,
+    "nzb_elementov": 1000000,
+    "segmentov_datoteke": 200000,
+    "telo_bajtov": 16777216,
+    "del_bajtov": 16777216,
+    "ime_znakov": 200,
+    "naslov_znakov": 200,
+    "skupin": 50,
+    "vrstica_bajtov": 4096,
+    "id_znakov": 248,
+    "povezav_privzeto": 8,
+    "povezav_najvec": 50,
+    "vrata": 563
+   }
+  }
+ ]
+}

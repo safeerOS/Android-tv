@@ -3,9 +3,10 @@ package si.safeer.tv.os
 import java.io.File
 
 /**
- * Naloga 134: skupni preizkusni primeri za Android in namizje (tests/skupni-primeri/debrid-serije.json). Ista datoteka je
- * v repozitorijih Safeer-linux in Safeer-windows (tests/test_skupni_primeri.py) - pravilo, spremenjeno samo na eni
- * strani, tu ali tam pade. Testi s kotlinc nimajo knjiznice JSON, zato je tu majhen bralnik.
+ * Naloga 134: skupni preizkusni primeri za Android in namizje (tests/skupni-primeri: debrid-serije.json,
+ * webtor-rezerva.json, usenet-pogon.json). Ista datoteka je v repozitorijih Safeer-linux in Safeer-windows
+ * (tests/test_skupni_primeri.py) - pravilo, spremenjeno samo na eni strani, tu ali tam pade. Testi s kotlinc nimajo
+ * knjiznice JSON, zato je tu majhen bralnik.
  */
 private var napak = 0
 private var primerov = 0
@@ -77,6 +78,39 @@ private fun hex(h: String) = ByteArray(h.length / 2) { h.substring(it * 2, it * 
 private fun meritev(m: Map<String, Any?>) =
     DebridPravila.Meritev(m.niz("ponudnik")!!, m["ping_ms"] as Long, m["bajtov"] as Long, m["cas_ms"] as Long)
 
+private val B64D = java.util.Base64.getDecoder()
+private fun b64(b: ByteArray) = java.util.Base64.getEncoder().encodeToString(b)
+
+/** Ukaz NNTP iz skupnih primerov (»AUTHINFO USER« ...) v fazo odjemalca. */
+private fun fazaNntp(ukaz: String) = when (ukaz) {
+    "AUTHINFO USER" -> UsenetNntp.Faza.UPORABNIK
+    "AUTHINFO PASS" -> UsenetNntp.Faza.GESLO
+    else -> UsenetNntp.Faza.valueOf(ukaz)
+}
+
+/** Izid yEnc v obliki skupnih primerov: zacetek od 1, konec vkljucno; telo null = prirezano (NNTP brez konca). */
+private fun usenetYenc(telo: ByteArray?): Map<String, Any?> {
+    if (telo == null) return mapOf("izid" to "prirezano")
+    return try {
+        val d = UsenetYenc.dekodiraj(telo)
+        mapOf("izid" to "ok", "ime" to d.ime, "del" to d.del?.toLong(), "skupaj" to d.delov?.toLong(), "velikost" to d.velikostDatoteke,
+            "zacetek" to d.zacetek + 1, "konec" to d.konec, "crc32" to String.format("%08x", d.crc32),
+            "crc_preverjen" to d.crcPreverjen, "podatki_b64" to b64(d.podatki))
+    } catch (e: UsenetYenc.NapakaYenc) {
+        mapOf("izid" to e.vrsta.name.lowercase())
+    }
+}
+
+private fun usenetNzb(bajti: ByteArray): Map<String, Any?> = try {
+    val n = UsenetNzb.razcleni(bajti)
+    mapOf("izid" to "ok", "naslov" to n.naslov, "ima_geslo" to n.imaGeslo, "datoteke" to n.datoteke.map { d ->
+        mapOf("ime" to d.ime, "skupine" to d.skupine, "bajtov_nzb" to d.bajtov, "manjka" to d.manjka.toLong(),
+            "segmenti" to d.segmenti.map { listOf(it.stevilka.toLong(), it.bajtov, it.id) })
+    })
+} catch (e: UsenetNzb.NapakaNzb) {
+    mapOf("izid" to e.vrsta.name.lowercase())
+}
+
 /** Izracun pravila za primer - imena funkcij so skupna (Python), tu preslikana v Kotlin. */
 @Suppress("UNCHECKED_CAST")
 private fun izracunaj(f: String, v: Map<String, Any?>): Any? = when (f) {
@@ -129,6 +163,25 @@ private fun izracunaj(f: String, v: Map<String, Any?>): Any? = when (f) {
     "izberi_usenet" -> WebtorPravila.izberiUsenet(v["izidi"] as List<Boolean?>, v["rok_potekel"] as Boolean).toLong()
     "scit_dovoljena" -> si.safeer.tv.scit.ScitIzjeme.dovoljena(v.niz("ime")!!, (v["naucene"] as Map<String, Any?>).mapValues { it.value as Long }, v["zdaj"] as Long)
     "scit_primeren_za_ucenje" -> si.safeer.tv.scit.ScitIzjeme.primerenZaUcenje(v.niz("gostitelj")!!)
+    // Pogon Usenet, korak 1 (tests/skupni-primeri/usenet-pogon.json, lastnik datoteke je Safeer-linux).
+    "yenc_dekodiraj" -> usenetYenc(B64D.decode(v.niz("telo_b64")!!))
+    "nntp_telo" -> UsenetNntp.telo(B64D.decode(v.niz("surovo_b64")!!))?.let { mapOf("telo_b64" to b64(it.telo), "ostanek_b64" to b64(it.ostanek)) }
+    "yenc_iz_nntp" -> usenetYenc(UsenetNntp.telo(B64D.decode(v.niz("surovo_b64")!!))?.telo)
+    "nntp_izid" -> UsenetNntp.izid(fazaNntp(v.niz("ukaz")!!), v.niz("vrstica")!!).name.lowercase()
+    "nntp_id" -> UsenetNzb.cistId(v.niz("id")!!)
+    "varno_ime" -> UsenetNzb.varnoIme(v.niz("ime")!!)
+    "nzb_ime" -> UsenetNzb.imeIzZadeve(v.niz("subject")!!)
+    "nzb_razcleni" -> usenetNzb(v.niz("xml")?.toByteArray(Charsets.UTF_8) ?: B64D.decode(v.niz("xml_b64")!!))
+    "usenet_meje" -> UsenetNzb.Meje().let { m ->
+        mapOf("nzb_bajtov" to UsenetPravila.NAJVEC_NZB_BAJTOV.toLong(), "nzb_datotek" to m.datotek.toLong(),
+            "nzb_segmentov" to m.segmentov.toLong(), "nzb_elementov" to m.elementov.toLong(),
+            "segmentov_datoteke" to m.segmentovDatoteke.toLong(),
+            "telo_bajtov" to UsenetNntp.NAJVEC_TELESA.toLong(), "del_bajtov" to UsenetYenc.NAJVEC_DELA.toLong(),
+            "ime_znakov" to UsenetNzb.NAJVEC_IMENA.toLong(), "naslov_znakov" to UsenetNzb.NAJVEC_NASLOVA.toLong(),
+            "skupin" to m.skupin.toLong(), "vrstica_bajtov" to UsenetNntp.NAJVEC_VRSTICE.toLong(), "id_znakov" to UsenetNzb.NAJVEC_ID.toLong(),
+            "povezav_privzeto" to UsenetNntp.PRIVZETO_POVEZAV.toLong(), "povezav_najvec" to UsenetNntp.NAJVEC_POVEZAV.toLong(),
+            "vrata" to UsenetNntp.VRATA.toLong())
+    }
     "uskladitev_novejsi" -> UskladitevKljucevPravila.novejsi(v["cas"] as Long, v.niz("izvor")!!, v["izbrisan"] as Boolean,
         (v["star"] as List<Any?>?)?.let { UskladitevKljucevPravila.Meta(it[0] as Long, it[1] as String, it[2] as Boolean, "") })
     else -> error("neznano pravilo: $f")
