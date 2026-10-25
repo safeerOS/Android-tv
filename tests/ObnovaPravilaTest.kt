@@ -39,6 +39,11 @@ fun main() {
     check(!p.tecePoPreverjanju(koncan = true, deliNaprej = false))
     check(p.tecePoPreverjanju(koncan = true, deliNaprej = true))
     check(p.tecePoPreverjanju(koncan = false, deliNaprej = false))
+    // Grok 9, Z3: zacasen nedokoncan torrent, ki ga nihce ne gleda, po preverjanju ostane ustavljen (ob zagonu ne gre v roj).
+    check(!p.tecePoPreverjanju(koncan = false, deliNaprej = false, zacasen = true, vRabi = false)) { "Z3: zacasen brez rabe" }
+    check(p.tecePoPreverjanju(koncan = false, deliNaprej = false, zacasen = true, vRabi = true)) { "Z3: zacasen v rabi" }
+    check(p.tecePoPreverjanju(koncan = false, deliNaprej = true, zacasen = true, vRabi = false)) { "Z3: Deli naprej" }
+    check(!p.tecePoPreverjanju(koncan = true, deliNaprej = false, zacasen = true, vRabi = true)) { "Z3: cel zacasen ne oddaja" }
 
     // Imena datotek stanja nastanejo samo iz veljavnega hasha.
     val a = "0123456789abcdef0123456789abcdef01234567"

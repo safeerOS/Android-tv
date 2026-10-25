@@ -168,6 +168,16 @@ object MagnetMotor {
     private val kljuci = ConcurrentHashMap<String, String>()
     /** Kdaj je kdo nazadnje bral tok torrenta (čas od zagona naprave). */
     private val zadnjiTok = ConcurrentHashMap<String, Long>()
+    /** Grok 9, Z3: odprte povezave toka po torrentu (predvajalnik te naprave ali naprava v Linku) - dokler je katera odprta, film tece. */
+    private val odprtiTokovi = ConcurrentHashMap<String, java.util.concurrent.atomic.AtomicInteger>()
+    /** Zacasni torrenti, ki jih je ustavilo pravilo »po ogledu« ali obnova ob zagonu: nova povezava toka jih spet zazene. */
+    private val ustavljeniPoOgledu: MutableSet<String> = ConcurrentHashMap.newKeySet()
+    /** Iskanja metapodatkov v teku (fetchMagnet): med njimi DHT tece ([dhtPoPotrebi]). */
+    private val iskanja = java.util.concurrent.atomic.AtomicInteger()
+    /** Preverba [ZacasniPravila.PO_OGLEDU_MS] po zaprtju zadnje povezave toka. */
+    private val poOgledu = java.util.concurrent.Executors.newSingleThreadScheduledExecutor { r ->
+        Thread(r, "safeer-magnet-po-ogledu").apply { isDaemon = true }
+    }
 
     fun mapa(c: Context): File = File(c.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS) ?: c.filesDir, "Safeer").apply { mkdirs() }
 
@@ -178,7 +188,9 @@ object MagnetMotor {
         val nastavitve = SettingsPack()
             .connectionsLimit(POVEZAV).activeDownloads(3).activeSeeds(2)
             .uploadRateLimit(ODDAJA_BPS)
-        nastavitve.setEnableDht(true)
+        // Grok 9, Z3: DHT tece samo, ko ga kdo rabi ([dhtPoPotrebi]: torrent tece ali iscemo metapodatke) - zagon seje
+        // (seznam prenosov, obnova ustavljenih zacasnih) naprave ne objavi v omrezju BitTorrent.
+        nastavitve.setEnableDht(false)
         nastavitve.setMaxMetadataSize(16 * 1024 * 1024)
         // Brez odpiranja vrat na usmerjevalniku.
         nastavitve.setBoolean(settings_pack.bool_types.enable_upnp.swigValue(), false)
@@ -324,7 +336,9 @@ object MagnetMotor {
      * preveri [preverjaj]. Brez [nezno] (uporabnik ga hoče zdaj) se preveri takoj. [kljuc] = hash, pod katerim je shranjen.
      */
     private fun vSejo(c: Context, ti: TorrentInfo, kam: File, prednosti: Array<Priority>?, zastavice: torrent_flags_t,
-                      kljuc: String, nezno: Boolean) {
+                      kljuc: String, nezno: Boolean,
+                      /** Grok 9, Z3: zacasen torrent ob obnovi - dodan ustavljen (ne gre v roj), zazene ga sele predvajanje. */
+                      ustavljen: Boolean = false) {
         val s = seja(c)
         val hashRocaja = ti.infoHash().toHex()
         kljuci[hashRocaja] = kljuc
@@ -355,7 +369,10 @@ object MagnetMotor {
         // obnovo ne smejo prenesti v nov zagon: torrent v njih ne bi več prenašal.
         var z = p.getFlags().or_(zastavice).and_(TorrentFlags.UPLOAD_MODE.inv()).and_(TorrentFlags.STOP_WHEN_READY.inv())
             .and_(TorrentFlags.SHARE_MODE.inv())
-        if (preverba) z = z.and_(TorrentFlags.AUTO_MANAGED.inv()).or_(TorrentFlags.PAUSED)
+        if (preverba || ustavljen) z = z.and_(TorrentFlags.AUTO_MANAGED.inv()).or_(TorrentFlags.PAUSED)
+        if (ustavljen) ustavljeniPoOgledu += kljuc.lowercase()
+        // Torrent, ki tece takoj (ne preverja datotek in ni ustavljen), rabi DHT (Grok 9, Z3).
+        if (!preverba && !ustavljen) vklopiDht(s)
         p.setFlags(z)
         s.swig().async_add_torrent(p)
         Log.i(TAG, "V sejo ${kljuc.take(8)}: " + when {
@@ -363,7 +380,7 @@ object MagnetMotor {
             shranjeni != null -> "s podatki za nadaljevanje"
             preverba -> "postopno preverjanje"
             else -> "brez podatkov za nadaljevanje"
-        })
+        } + (if (ustavljen) ", ustavljen (zacasen, nihce ga ne gleda)" else ""))
         if (preverba) vPreverjanje(hashRocaja)
     }
 
@@ -445,11 +462,16 @@ object MagnetMotor {
         val vRabi = ura() - (zadnjiTok[h] ?: -ObnovaPravila.V_RABI_MS) <= ObnovaPravila.V_RABI_MS
         val konec = th.status()
         val koncan = konec.isFinished
+        val zacasen = zacasenZaUstavitev(app, h)
         when {
-            // Končan torrent brez »Deli naprej« ostane ustavljen; nedokončan prenos gre naprej kot pred zagonom.
-            !ObnovaPravila.tecePoPreverjanju(koncan, deliNaprej(app, h)) -> th.pause()
-            vRabi -> th.resume()
-            else -> { th.setFlags(TorrentFlags.AUTO_MANAGED); th.resume() }
+            // Končan torrent brez »Deli naprej« ostane ustavljen; nedokončan prenos gre naprej kot pred zagonom, začasnega
+            // (film iz kataloga), ki ga nihče ne gleda, pa zažene šele predvajanje (Grok 9, Z3).
+            !ObnovaPravila.tecePoPreverjanju(koncan, deliNaprej(app, h), zacasen, vRabi) -> {
+                th.pause()
+                if (zacasen) ustavljeniPoOgledu += h.lowercase()
+            }
+            vRabi -> { vklopiDht(s); th.resume() }
+            else -> { vklopiDht(s); th.setFlags(TorrentFlags.AUTO_MANAGED); th.resume() }
         }
         th.saveResumeData()
         Log.i(TAG, "Preverjeno ${h.take(8)}: ${(ura() - zacetek) / 1000} s" + (if (bral) "" else ", brez branja") +
@@ -516,7 +538,7 @@ object MagnetMotor {
         if (vklop) m.add(hash) else m.remove(hash)
         prefs(c).edit().putStringSet("deli_naprej", m).apply()
         // Oddajanje vodi vrsta libtorrenta (hkrati le nekaj torrentov), zato mu vrnemo samodejno vodenje.
-        if (vklop) rocaj(c, hash)?.let { it.setFlags(TorrentFlags.AUTO_MANAGED); it.resume() }
+        if (vklop) rocaj(c, hash)?.let { ustavljeniPoOgledu.remove(hash.lowercase()); vklopiDht(seja(c)); it.setFlags(TorrentFlags.AUTO_MANAGED); it.resume() }
     }
 
     /**
@@ -525,7 +547,9 @@ object MagnetMotor {
      */
     fun nastaviPremor(c: Context, hash: String, premor: Boolean) {
         val th = rocaj(c, hash) ?: return
-        if (premor) { th.unsetFlags(TorrentFlags.AUTO_MANAGED); th.pause() } else th.resume()
+        // Uporabnikov premor ali nadaljevanje velja pred pravilom »po ogledu« (Grok 9, Z3).
+        ustavljeniPoOgledu.remove(hash.lowercase())
+        if (premor) { th.unsetFlags(TorrentFlags.AUTO_MANAGED); th.pause() } else { vklopiDht(seja(c)); th.resume() }
         th.saveResumeData()
     }
 
@@ -551,7 +575,11 @@ object MagnetMotor {
     fun preberi(c: Context, uri: String): Opis {
         val h = hash(uri) ?: throw IllegalArgumentException("ni_magnet")
         val ti = opisi[h] ?: (shranjenOpis(c, h) ?: run {
-            val bajti = seja(c).fetchMagnet(zSledilniki(uri.trim()), 60, mapaIskanja(c)) ?: throw IllegalStateException("ni_metapodatkov")
+            val s = seja(c)
+            // Iskanje metapodatkov rabi DHT (Grok 9, Z3: sicer je ustavljen, ko noben torrent ne tece).
+            iskanja.incrementAndGet()
+            val bajti = (try { vklopiDht(s); s.fetchMagnet(zSledilniki(uri.trim()), 60, mapaIskanja(c)) } finally { iskanja.decrementAndGet() })
+                ?: throw IllegalStateException("ni_metapodatkov")
             TorrentInfo.bdecode(bajti).also { shraniOpis(c, h, bajti) }
         }).also { opisi[h] = it }
         val fs = ti.files()
@@ -581,11 +609,15 @@ object MagnetMotor {
         if (koncne.isEmpty()) throw IllegalArgumentException("ni_izbranih")
         val ti = opisi[opis.hash]!!
         val prednosti = Array(ti.numFiles()) { if (it in koncne) Priority.DEFAULT else Priority.IGNORE }
+        // Grok 9, Z3: ob obnovi zacasen torrent (ne »Obdrži«, ne »Deli naprej«) ostane ustavljen, dokler ga kdo ne predvaja.
+        val ustavljen = nezno && obstojeci == null && zacasenZaUstavitev(c, opis.hash)
         if (obstojeci != null) {
             obstojeci.prioritizeFiles(prednosti)
+            ustavljeniPoOgledu.remove(opis.hash.lowercase())
+            vklopiDht(seja(c))
             obstojeci.resume()
         } else {
-            vSejo(c, ti, mapa(c), prednosti, TorrentFlags.SEQUENTIAL_DOWNLOAD, opis.hash, nezno)
+            vSejo(c, ti, mapa(c), prednosti, TorrentFlags.SEQUENTIAL_DOWNLOAD, opis.hash, nezno, ustavljen)
         }
         // Izrecen prenos velja naprej: torrent, ki ga je uporabnik prenesel sam, s predvajanjem ne postane zacasen.
         val shranjen = try { JSONObject(prefs(c).getString("prenosi", "{}") ?: "{}").has(opis.hash) } catch (_: Throwable) { false }
@@ -634,6 +666,7 @@ object MagnetMotor {
         val lastna = JSONObject(prefs(c).getString("prenosi", "{}") ?: "{}").optJSONObject(hash)?.optString("lastna").orEmpty()
         // Uporabnikovih izvirnikov, ki jih deli, nikoli ne brišemo (samo kopijo v naši mapi).
         seja(c).remove(th, if (zDatotekami && lastna.isBlank()) session_handle.delete_files else remove_flags_t())
+        odprtiTokovi.remove(hash.lowercase()); ustavljeniPoOgledu.remove(hash.lowercase())
         if (lastna.isNotBlank()) File(lastna).delete()
         pozabi(c, hash)
         nastaviDeliNaprej(c, hash, false)
@@ -663,11 +696,15 @@ object MagnetMotor {
             if (++krog % 360 == 0) try { pocistiZacasne(app) } catch (e: Throwable) { Log.i(TAG, "Ciscenje: ${e.message}") }
             try {
                 val s = seja ?: continue
+                val zacasniZdaj = zacasni(app)
                 for (th in rocaji(s)) {
                     if (!th.isValid) continue
                     val st = th.status()
                     // Torrent, ki datoteke še preverja, vodi [preverjaj].
                     if (st.state() == TorrentStatus.State.CHECKING_FILES || st.state() == TorrentStatus.State.CHECKING_RESUME_DATA) continue
+                    // Grok 9, Z3: začasen torrent, ki ga nihče ne bere (predvajalnik se ni povezal, ostanek pred posodobitvijo).
+                    val hz = th.infoHash().toHex()
+                    if (zacasniZdaj.has(hz)) preveriPoOgledu(hz, ZacasniPravila.ZACETEK_MS, zacasniZdaj)
                     val zastavice = th.getFlags()
                     val ustavljen = zastavice.and_(TorrentFlags.PAUSED).non_zero() && !zastavice.and_(TorrentFlags.AUTO_MANAGED).non_zero()
                     // Po koncu prenosa ne oddajamo drugim, razen če uporabnik to izrecno izbere. Samodejno vodenje vrste
@@ -676,6 +713,7 @@ object MagnetMotor {
                         th.unsetFlags(TorrentFlags.AUTO_MANAGED); th.pause(); th.saveResumeData()
                     } else if (krog % 3 == 0 && th.needSaveResumeData()) th.saveResumeData()
                 }
+                dhtPoPotrebi(s)
             } catch (e: Throwable) { Log.i(TAG, "Nadzor: ${e.message}") }
         }
     }
@@ -975,7 +1013,9 @@ object MagnetMotor {
         if (th.filePriority(i) == Priority.IGNORE) th.filePriority(i, Priority.DEFAULT)
         // Predvajanje mora teči ne glede na vrsto prenosov: libtorrent hkrati pusti le nekaj prenosov, ostale ustavi.
         th.unsetFlags(TorrentFlags.AUTO_MANAGED)
-        th.resume()
+        ustavljeniPoOgledu.remove(hash.lowercase())
+        // Grok 9, Z3: datoteka, ki je ze cela na disku, omrezja ne rabi - torrent ostane ustavljen (ne oddaja).
+        if (!celaDatoteka(th, i)) { vklopiDht(seja(c)); th.resume() }
         zadnjiTok[th.infoHash().toHex()] = ura()
         val s = zazeniStreznik()
         val b = ByteArray(16).also { nakljucje.nextBytes(it) }
@@ -1024,9 +1064,17 @@ object MagnetMotor {
 
     /** Odgovor s tokom datoteke torrenta (z `Range`): isti za predvajalnik te naprave in za drugo napravo v Linku. */
     private fun postreziCilj(cilj: Pair<String, Int>, metoda: String, obseg: String, izhod: OutputStream) {
+        val h = cilj.first.lowercase()
+        odprtiTokovi.getOrPut(h) { java.util.concurrent.atomic.AtomicInteger() }.incrementAndGet()
         try {
             rabaTece(app, cilj.first)
             val th = rocaj(app, cilj.first) ?: run { prazen(izhod, 404); return }
+            // Grok 9, Z3: zacasen torrent, ustavljen po ogledu ali ob obnovi, spet zazene povezava toka (predvajanje).
+            if (ustavljeniPoOgledu.remove(h) && !celaDatoteka(th, cilj.second)) {
+                vklopiDht(seja(app))
+                th.resume()
+                Log.i(TAG, "Zacasni torrent ${h.take(8)}: spet tece (tok)")
+            }
             val ti = th.torrentFile() ?: run { prazen(izhod, 404); return }
             val fs = ti.files()
             val velikost = fs.fileSize(cilj.second)
@@ -1057,7 +1105,72 @@ object MagnetMotor {
             posljiObseg(th, ti, cilj.second, zacetek, dolzina, izhod)
         } catch (e: Throwable) {
             Log.i(TAG, "Tok: ${e.javaClass.simpleName} ${e.message.orEmpty()}")
+        } finally {
+            koncajTok(h)
         }
+    }
+
+    /** Grok 9, Z3: povezava toka je zaprta; ko ni nobene vec, [ZacasniPravila.PO_OGLEDU_MS] pozneje preveri, ali film se kdo gleda. */
+    private fun koncajTok(h: String) {
+        val n = odprtiTokovi[h]?.decrementAndGet() ?: 0
+        if (n > 0) return
+        try {
+            poOgledu.schedule({ preveriPoOgledu(h, ZacasniPravila.PO_OGLEDU_MS) }, ZacasniPravila.PO_OGLEDU_MS, java.util.concurrent.TimeUnit.MILLISECONDS)
+        } catch (_: Throwable) { }
+    }
+
+    /** Datoteka [i] torrenta je cela na disku (predvajanje je ne potrebuje iz roja). */
+    private fun celaDatoteka(th: TorrentHandle, i: Int): Boolean = try {
+        val ti = th.torrentFile()
+        ti != null && i in 0 until ti.numFiles() && (th.fileProgress()?.getOrNull(i) ?: 0L) >= ti.files().fileSize(i)
+    } catch (_: Throwable) { false }
+
+    /** Grok 9, Z3: zacasen torrent, ki ga sme ustaviti pravilo »po ogledu« (ne »Obdrži«, ne »Deli naprej«). */
+    private fun zacasenZaUstavitev(c: Context, hash: String, z: JSONObject = zacasni(c)): Boolean {
+        val h = hash.lowercase()
+        val zapis = z.optJSONObject(h) ?: z.optJSONObject((kljuci[h] ?: h).lowercase()) ?: return false
+        return !zapis.optBoolean("obdrzi") && !deliNaprej(c, h)
+    }
+
+    /**
+     * Grok 9, Z3: zacasen torrent brez odprte povezave toka, ki ga nihce ne bere vsaj [prag] ms, se ustavi (brez prometa in
+     * povezav v roj); datoteke ostanejo za Nadaljuj ([ZacasniPravila.VELJA_MS]). Ko ne tece noben torrent, se ustavi se DHT.
+     */
+    private fun preveriPoOgledu(hash: String, prag: Long, z: JSONObject? = null) {
+        try {
+            val s = seja ?: return
+            val h = hash.lowercase()
+            val zapisi = z ?: zacasni(app)
+            if (!zacasenZaUstavitev(app, h, zapisi)) return
+            val th = s.find(Sha1Hash.parseHex(h))?.takeIf { it.isValid } ?: return
+            val st = th.status()
+            // Torrent, ki datoteke se preverja, vodi [preverjaj].
+            if (st.state() == TorrentStatus.State.CHECKING_FILES || st.state() == TorrentStatus.State.CHECKING_RESUME_DATA) return
+            val zastavice = th.getFlags()
+            val ustavljen = zastavice.and_(TorrentFlags.PAUSED).non_zero() && !zastavice.and_(TorrentFlags.AUTO_MANAGED).non_zero()
+            val msOdBranja = zadnjiTok[h]?.let { ura() - it } ?: Long.MAX_VALUE
+            if (!ustavljen && ZacasniPravila.ustaviPoOgledu(false, false, odprtiTokovi[h]?.get() ?: 0, msOdBranja, prag)) {
+                th.unsetFlags(TorrentFlags.AUTO_MANAGED); th.pause(); th.saveResumeData()
+                ustavljeniPoOgledu += h
+                Log.i(TAG, "Zacasni torrent ${h.take(8)} ustavljen: nihce ga ne gleda (${if (st.isFinished) "cel" else "delen"}, " +
+                    "povezav v roj bilo ${st.numPeers()})")
+            }
+            if (z == null) dhtPoPotrebi(s)
+        } catch (e: Throwable) { Log.i(TAG, "Po ogledu: ${e.message}") }
+    }
+
+    /** DHT samo, ko ga kdo rabi (Grok 9, Z3): vklop pred iskanjem metapodatkov in pred zagonom torrenta. */
+    private fun vklopiDht(s: SessionManager) {
+        try { if (!s.isDhtRunning) { s.startDht(); Log.i(TAG, "DHT vklopljen") } } catch (e: Throwable) { Log.i(TAG, "DHT: ${e.message}") }
+    }
+
+    /** Ko ne tece noben torrent in ne iscemo metapodatkov, se DHT ustavi: naprava v omrezju BitTorrent molci. */
+    private fun dhtPoPotrebi(s: SessionManager) {
+        try {
+            val rabi = iskanja.get() > 0 || rocaji(s).any { it.isValid && !it.getFlags().and_(TorrentFlags.PAUSED).non_zero() }
+            if (rabi) vklopiDht(s)
+            else if (s.isDhtRunning) { s.stopDht(); Log.i(TAG, "DHT ustavljen: noben torrent ne tece") }
+        } catch (e: Throwable) { Log.i(TAG, "DHT: ${e.message}") }
     }
 
     /** Pošilja bajte datoteke; pred vsakim kosom počaka, da libtorrent prenese potrebne dele (roki kosom). */

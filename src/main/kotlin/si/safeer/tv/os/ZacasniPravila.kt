@@ -21,6 +21,23 @@ object ZacasniPravila {
                  obdrzan: Boolean = false): Boolean =
         !obdrzan && (zdaj - cas > velja || (primanjkuje && zdaj - cas > vTeku))
 
+    /**
+     * Grok 9, Z3 (lastnik 25. 10. 2026 dovolil zivi preizkus P2P z odprtimi filmi CC): zacasen torrent je po ogledu prenasal
+     * naprej (IP v roju, dokler ni bil cel) in ob vsakem zagonu aplikacije spet sel v roj. Zdaj tece samo, dokler je odprta
+     * kaka povezava toka (predvajalnik te naprave ali naprava v Linku); [PO_OGLEDU_MS] po zaprtju zadnje se ustavi. Nadzor
+     * ([MagnetMotor]) ustavi tudi torrent, ki ga po [ZACETEK_MS] od zadnjega branja ni odprl nihce (predvajalnik se ni povezal,
+     * obnova ob zagonu). Datoteke ostanejo do [VELJA_MS] (Nadaljuj), nova povezava toka ga spet zazene.
+     */
+    const val PO_OGLEDU_MS = 5_000L
+    const val ZACETEK_MS = 30_000L
+
+    /**
+     * Ali naj se zacasen torrent ustavi: [obdrzan] (»Obdrži« - uporabnik hoce film, kot pri Prenesi) in [deliNaprej] tečeta
+     * naprej; sicer ustavi, ko ni odprte povezave toka ([odprtihTokov]) in od zadnjega branja mine [prag] ms ([msOdBranja]).
+     */
+    fun ustaviPoOgledu(obdrzan: Boolean, deliNaprej: Boolean, odprtihTokov: Int, msOdBranja: Long, prag: Long = PO_OGLEDU_MS): Boolean =
+        !obdrzan && !deliNaprej && odprtihTokov <= 0 && msOdBranja >= prag
+
     /** Grok 9, Z12: cas zadnje rabe v prihodnosti (napacna ura ob zagonu) se steje od zdaj, da zapis vseeno potece. */
     fun popraviCas(cas: Long, zdaj: Long): Long = if (cas > zdaj) zdaj else cas
 

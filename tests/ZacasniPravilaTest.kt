@@ -51,5 +51,14 @@ fun main() {
         // Pospravi samo prave datoteke (morebitne povezave brez sledenja).
         ZacasniPravila.izbrisiBrezPovezav(koren)
     }
+    // Grok 9, Z3: po ogledu zacasen torrent ne ostane v roju; tece samo, dokler je odprta povezava toka.
+    check(ZacasniPravila.ustaviPoOgledu(obdrzan = false, deliNaprej = false, odprtihTokov = 0, msOdBranja = ZacasniPravila.PO_OGLEDU_MS)) { "Z3: po ogledu ustavi" }
+    check(!ZacasniPravila.ustaviPoOgledu(false, false, 1, 10 * ura)) { "Z3: odprt tok (poln medpomnilnik, premor predvajanja) tece" }
+    check(!ZacasniPravila.ustaviPoOgledu(false, false, 0, ZacasniPravila.PO_OGLEDU_MS - 1)) { "Z3: previjanje - nova povezava pride v hipu" }
+    check(!ZacasniPravila.ustaviPoOgledu(true, false, 0, 10 * ura)) { "Z3: Obdrži tece do konca kot Prenesi" }
+    check(!ZacasniPravila.ustaviPoOgledu(false, true, 0, 10 * ura)) { "Z3: Deli naprej" }
+    check(ZacasniPravila.ustaviPoOgledu(false, false, 0, Long.MAX_VALUE, ZacasniPravila.ZACETEK_MS)) { "Z3: nihce ga ni odprl (obnova ob zagonu)" }
+    check(!ZacasniPravila.ustaviPoOgledu(false, false, 0, ZacasniPravila.ZACETEK_MS - 1, ZacasniPravila.ZACETEK_MS)) { "Z3: predvajalnik se se povezuje" }
+    check(ZacasniPravila.PO_OGLEDU_MS <= 10_000L && ZacasniPravila.ZACETEK_MS > ZacasniPravila.PO_OGLEDU_MS) { "Z3: roka" }
     println("ZacasniPravilaTest: OK")
 }
