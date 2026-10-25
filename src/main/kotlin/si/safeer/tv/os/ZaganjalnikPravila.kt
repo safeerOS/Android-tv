@@ -71,9 +71,27 @@ object ZaganjalnikPravila {
     const val MEJA_PADCEV = 2
     const val OKNO_PADCEV_MS = 60_000L
 
-    /** Casi padcev, ki se stejejo (zadnji v oknu); starejse pozabimo. */
-    fun svezi(casi: List<Long>, zdaj: Long, okno: Long = OKNO_PADCEV_MS): List<Long> =
+    /**
+     * Varnostna vrata (lastnik, 25. 10. 2026): tudi padci, razprseni cez nekaj minut (npr. 3 v 5 min), pomenijo, da
+     * domaci zaslon ni zanesljiv - uporabnik ne sme ostati pri zaganjalniku, ki vsake toliko pade.
+     */
+    const val MEJA_PADCEV_DOLGO = 3
+    const val OKNO_PADCEV_DOLGO_MS = 5 * 60_000L
+
+    /** Casi padcev, ki se stejejo (zadnji v oknu); starejse pozabimo. Hrani se daljse okno. */
+    fun svezi(casi: List<Long>, zdaj: Long, okno: Long = OKNO_PADCEV_DOLGO_MS): List<Long> =
         casi.filter { it in (zdaj - okno)..zdaj }.takeLast(10)
+
+    /**
+     * Padci iz dveh virov - lasten zapis ob padcu (lovilec v procesu) in sistemski zapis izhodov procesa (Android 11+,
+     * zunaj nasega procesa: vidi tudi padec v kodi C/C++, ANR in padec pred zagonom zaganjalnika). Isti padec je lahko
+     * zapisan v obeh (razlika do [razlikaMs]): steje enkrat. Vrne urejeno narascajoce.
+     */
+    fun zdruziPadce(lastni: List<Long>, sistemski: List<Long>, razlikaMs: Long = 3_500L): List<Long> {
+        val izid = ArrayList<Long>()
+        for (t in (lastni + sistemski).sorted()) if (izid.isEmpty() || t - izid.last() > razlikaMs) izid.add(t)
+        return izid
+    }
 
     /**
      * Ali naj zaganjalnik po padcu vrne domaci zaslon prejsnjemu zaganjalniku: samo, ce je padcev v kratkem
@@ -82,7 +100,14 @@ object ZaganjalnikPravila {
      * zato tam ostanemo in nas sistem zazene znova.
      */
     fun vrniPrejsnjemu(casi: List<Long>, zdaj: Long, drugiZaganjalniki: Int): Boolean =
-        drugiZaganjalniki > 0 && svezi(casi, zdaj).size >= MEJA_PADCEV
+        drugiZaganjalniki > 0 && (svezi(casi, zdaj, OKNO_PADCEV_MS).size >= MEJA_PADCEV ||
+            svezi(casi, zdaj, OKNO_PADCEV_DOLGO_MS).size >= MEJA_PADCEV_DOLGO)
+
+    /**
+     * Stejejo samo padci po [od] - po zadnjem vklopu Safeerja kot domacega zaslona ali po zadnji vrnitvi. Sicer bi stari
+     * padci (se v sistemskem zapisu) uporabnika, ki Safeer znova izbere, takoj spet vrgli ven.
+     */
+    fun padciPo(casi: List<Long>, od: Long): List<Long> = casi.filter { it > od }
 
     /** Ali je zaganjalnik pravi (ne sistemski FallbackHome z negativno prednostjo). */
     fun jePraviZaganjalnik(paket: String, razred: String, prednost: Int, nas: String): Boolean =
@@ -143,4 +168,86 @@ object ZaganjalnikPravila {
 
     /** Vrste datotek, ki sodijo v "Nedavne datoteke" (spletne aplikacije, zaslon in programi so drugje). */
     val VRSTE_DATOTEK = setOf("video", "glasba", "slika", "besedilo")
+
+    // ------------------------------------------------------------------ namizje (tablica lezece, zunanji zaslon, DeX)
+
+    /**
+     * Nacin upravljanja. Televizor je vedno daljinec. Zunanji zaslon in Samsung DeX nimata dotika, a imata misko in
+     * tipkovnico - kazalec dela kot prst, zato razporeditev na dotik (ne vrste kartic za daljinec). Drugje zaslon brez
+     * dotika pomeni daljinec.
+     */
+    fun vnos(televizor: Boolean, brezDotika: Boolean, namizniZaslon: Boolean): Vnos = when {
+        televizor -> Vnos.DALJINEC
+        namizniZaslon -> Vnos.DOTIK
+        brezDotika -> Vnos.DALJINEC
+        else -> Vnos.DOTIK
+    }
+
+    /** Najnizje okno (dp) za namizno razporeditev: telefon lezece (~ 393 dp) ostane razporeditev za dotik. */
+    const val NAMIZJE_NAJNIZJE_DP = 480
+
+    /**
+     * Namizna razporeditev - kot namizje Safeer OS na racunalniku (lupa, stranska vrstica z imeni, pozdrav, ura, mreza
+     * vseh aplikacij): zunanji zaslon ali DeX vedno, sicer siroko in dovolj visoko okno na dotik (tablica lezece).
+     * Majhen zaslon telefona ostane razporeditev za dotik; televizor nikoli - njegova tema je narejena za daljinec
+     * (lastnik, 25. 10. 2026).
+     */
+    fun namizje(sirinaDp: Int, visinaDp: Int, vnos: Vnos, namizniZaslon: Boolean): Boolean = when {
+        vnos == Vnos.DALJINEC -> false
+        namizniZaslon -> true
+        else -> sirina(sirinaDp) == Sirina.SIROKA && visinaDp >= NAMIZJE_NAJNIZJE_DP
+    }
+
+    /** Besedilo za iskanje: male crke brez naglasov (c, s, z najdejo tudi c, s, z s stresico). */
+    fun normaliziraj(s: String): String =
+        java.text.Normalizer.normalize(s.lowercase(java.util.Locale.ROOT), java.text.Normalizer.Form.NFD)
+            .replace(NAGLASI, "").trim()
+
+    private val NAGLASI = Regex("\\p{Mn}+")
+    private val LOCILA_BESED = Regex("[\\s._\\-:]+")
+
+    /**
+     * Aplikacije za poizvedbo [q] v lupi namizja: najprej ime, ki se z njo zacne, nato ime z besedo, ki se z njo zacne,
+     * nato ime ali paket, ki jo vsebuje. Znotraj skupine ostane vrstni red seznama (abeceda). Prazna poizvedba vrne vse.
+     */
+    fun <T> poisci(seznam: List<T>, q: String, ime: (T) -> String, paket: (T) -> String): List<T> {
+        val n = normaliziraj(q)
+        if (n.isEmpty()) return seznam
+        fun razred(t: T): Int {
+            val i = normaliziraj(ime(t))
+            return when {
+                i.startsWith(n) -> 0
+                i.split(LOCILA_BESED).any { it.startsWith(n) } -> 1
+                i.contains(n) || paket(t).lowercase(java.util.Locale.ROOT).contains(n) -> 2
+                else -> 3
+            }
+        }
+        return seznam.map { it to razred(it) }.filter { it.second < 3 }.sortedBy { it.second }.map { it.first }
+    }
+
+    /**
+     * Vrstni red aplikacij, ki jih naprava ponudi drugim napravam v Safeer Linku (apps.list - Prostori, »Odpri tukaj«):
+     * najprej pripete na domacem zaslonu (v uporabnikovem vrstnem redu), nato druge v danem redu. Druga naprava tako
+     * najprej vidi, kar uporabnik na tej napravi res uporablja - isti izbor kot zaganjalnik. Pripeta, ki je ni vec, izpade.
+     */
+    /**
+     * Okno nove aplikacije na namizju (px, glede na delovno povrsino [sirinaPx] x [visinaPx]): 62 % sirine in 72 % visine,
+     * vsako naslednje zamaknjeno za [zamikPx] (kaskada kot na racunalniku, prejsnje okno ostane vidno), po sestih spet od
+     * zacetka; vedno v celoti na zaslonu. Vrne [levo, zgoraj, desno, spodaj].
+     */
+    fun oknoAplikacije(sirinaPx: Int, visinaPx: Int, zaporedje: Int, zamikPx: Int = 48): IntArray {
+        val s = (sirinaPx * 0.62f).toInt().coerceAtLeast(1)
+        val v = (visinaPx * 0.72f).toInt().coerceAtLeast(1)
+        val k = Math.floorMod(zaporedje, 6)
+        val levo = ((sirinaPx - s) / 2 - 2 * zamikPx + k * zamikPx).coerceIn(0, (sirinaPx - s).coerceAtLeast(0))
+        val zgoraj = ((visinaPx - v) / 2 - 2 * zamikPx + k * zamikPx).coerceIn(0, (visinaPx - v).coerceAtLeast(0))
+        return intArrayOf(levo, zgoraj, levo + s, zgoraj + v)
+    }
+
+    fun zaLink(paketi: List<String>, pripeti: List<String>): List<String> {
+        val vsi = paketi.toSet()
+        val prvi = pripeti.distinct().filter { it in vsi }
+        val p = prvi.toSet()
+        return prvi + paketi.filter { it !in p }
+    }
 }

@@ -106,9 +106,83 @@ private fun vsebina() {
     preveri("program ni datoteka", "program" !in ZaganjalnikPravila.VRSTE_DATOTEK)
 }
 
+private fun varnostnaVrata() {
+    println("\n== varnostna vrata: vrnitev tovarniskega zaganjalnika ==")
+    val zdaj = 10_000_000L
+    val min = 60_000L
+    preveri("3 padci v 5 min vrnejo domaci zaslon",
+        ZaganjalnikPravila.vrniPrejsnjemu(listOf(zdaj - 4 * min, zdaj - 2 * min, zdaj - 10_000), zdaj, 1))
+    preveri("2 padca v 5 min (razmik vec kot minuta) se ne",
+        !ZaganjalnikPravila.vrniPrejsnjemu(listOf(zdaj - 4 * min, zdaj - 10_000), zdaj, 1))
+    preveri("3 padci v 6 min (prvi zunaj okna) se ne",
+        !ZaganjalnikPravila.vrniPrejsnjemu(listOf(zdaj - 6 * min, zdaj - 2 * min, zdaj - 10_000), zdaj, 1))
+    preveri("3 padci v 5 min brez drugega zaganjalnika: ostanemo",
+        !ZaganjalnikPravila.vrniPrejsnjemu(listOf(zdaj - 4 * min, zdaj - 2 * min, zdaj - 10_000), zdaj, 0))
+    enako("svezi hrani 5 minut", listOf(zdaj - 4 * min), ZaganjalnikPravila.svezi(listOf(zdaj - 6 * min, zdaj - 4 * min), zdaj))
+    enako("isti padec v obeh zapisih steje enkrat", listOf(1000L, 20_000L),
+        ZaganjalnikPravila.zdruziPadce(listOf(1000L, 20_000L), listOf(2500L, 21_000L)))
+    enako("razlicna padca ostaneta dva", listOf(1000L, 9000L), ZaganjalnikPravila.zdruziPadce(listOf(9000L), listOf(1000L)))
+    enako("samo padci po vklopu", listOf(5000L), ZaganjalnikPravila.padciPo(listOf(1000L, 5000L), 2000L))
+    // Celota: sistemski zapis (ANR, padec v C) + lasten zapis, star padec pred ponovnim vklopom ne steje.
+    val sistem = listOf(zdaj - 3 * min, zdaj - 90_000)
+    val lastni = listOf(zdaj - 90_000 + 800, zdaj - 5_000)
+    val vsi = ZaganjalnikPravila.padciPo(ZaganjalnikPravila.zdruziPadce(lastni, sistem), zdaj - 4 * min)
+    enako("zdruzeni padci", 3, vsi.size)
+    preveri("trije zdruzeni padci vrnejo", ZaganjalnikPravila.vrniPrejsnjemu(vsi, zdaj, 2))
+    preveri("po ponovnem vklopu stari padci ne vrnejo",
+        !ZaganjalnikPravila.vrniPrejsnjemu(ZaganjalnikPravila.padciPo(vsi, zdaj - 60_000), zdaj, 2))
+}
+
+private fun namizje() {
+    println("\n== namizna razporeditev (tablica lezece, zunanji zaslon, DeX) ==")
+    enako("televizor je daljinec, tudi z zunanjim zaslonom", Vnos.DALJINEC, ZaganjalnikPravila.vnos(true, true, true))
+    enako("zunanji zaslon brez dotika: kazalec kot dotik", Vnos.DOTIK, ZaganjalnikPravila.vnos(false, true, true))
+    enako("zaslon brez dotika drugje: daljinec", Vnos.DALJINEC, ZaganjalnikPravila.vnos(false, true, false))
+    enako("telefon: dotik", Vnos.DOTIK, ZaganjalnikPravila.vnos(false, false, false))
+    preveri("tablica lezece (1280 x 752) je namizje", ZaganjalnikPravila.namizje(1280, 752, Vnos.DOTIK, false))
+    preveri("tablica pokonci (800 x 1232) ni namizje", !ZaganjalnikPravila.namizje(800, 1232, Vnos.DOTIK, false))
+    preveri("telefon pokonci ni namizje", !ZaganjalnikPravila.namizje(393, 851, Vnos.DOTIK, false))
+    preveri("telefon lezece (851 x 393) ni namizje - majhen zaslon", !ZaganjalnikPravila.namizje(851, 393, Vnos.DOTIK, false))
+    preveri("zunanji zaslon je vedno namizje", ZaganjalnikPravila.namizje(640, 360, Vnos.DOTIK, true))
+    preveri("televizor nikoli namizje", !ZaganjalnikPravila.namizje(1920, 1080, Vnos.DALJINEC, true))
+
+    println("\n== iskanje aplikacij v lupi namizja ==")
+    val apps = listOf("Brskalnik" to "com.a", "Kamera" to "com.b", "Koledar" to "com.google.calendar",
+        "Google Zemljevidi" to "com.c", "Čebelica" to "si.cebelica", "YouTube" to "com.google.youtube")
+    fun q(niz: String) = ZaganjalnikPravila.poisci(apps, niz, { it.first }, { it.second }).map { it.first }
+    enako("prazna poizvedba: vse", apps.map { it.first }, q("  "))
+    enako("zacetek imena, nato vsebovano", listOf("Kamera", "Koledar", "Brskalnik"), q("k"))
+    enako("ime z zacetkom pred besedo v imenu", listOf("Google Zemljevidi"), q("zem"))
+    enako("brez stresice najde stresico", listOf("Čebelica"), q("ceb"))
+    enako("tudi z veliko zacetnico", listOf("YouTube"), q("YOU"))
+    enako("paket kot zadnja moznost", listOf("Koledar"), q("calendar"))
+    enako("zacetek imena pred vsebovanim (brsKAlnik)", listOf("Kamera", "Brskalnik"), q("ka"))
+    enako("nic ne ustreza", emptyList<String>(), q("xyz"))
+    enako("ime pred paketom, znotraj skupine abeceda", listOf("Google Zemljevidi", "Koledar", "YouTube"), q("goo"))
+
+    println("\n== okna aplikacij na namizju ==")
+    val o0 = ZaganjalnikPravila.oknoAplikacije(1920, 1200, 0)
+    val o1 = ZaganjalnikPravila.oknoAplikacije(1920, 1200, 1)
+    preveri("okno je v celoti na zaslonu", o0[0] >= 0 && o0[1] >= 0 && o0[2] <= 1920 && o0[3] <= 1200)
+    enako("sirina okna 62 %", (1920 * 0.62f).toInt(), o0[2] - o0[0])
+    enako("naslednje okno zamaknjeno (kaskada)", 48, o1[0] - o0[0])
+    enako("po sestih spet od zacetka", o0.toList(), ZaganjalnikPravila.oknoAplikacije(1920, 1200, 6).toList())
+    val majhen = ZaganjalnikPravila.oknoAplikacije(300, 200, 5)
+    preveri("tudi na majhnem zaslonu ostane na zaslonu", majhen[0] >= 0 && majhen[2] <= 300 && majhen[3] <= 200)
+    preveri("negativno zaporedje ne pade", ZaganjalnikPravila.oknoAplikacije(1000, 800, -1)[0] >= 0)
+
+    println("\n== aplikacije za Safeer Link: najprej pripete ==")
+    val vse = listOf("a.brskalnik", "b.kamera", "c.koledar", "d.youtube")
+    enako("pripete najprej, v uporabnikovem redu", listOf("d.youtube", "b.kamera", "a.brskalnik", "c.koledar"),
+        ZaganjalnikPravila.zaLink(vse, listOf("d.youtube", "b.kamera")))
+    enako("odstranjena pripeta izpade, dvojnik tudi", listOf("b.kamera", "a.brskalnik", "c.koledar", "d.youtube"),
+        ZaganjalnikPravila.zaLink(vse, listOf("x.ni", "b.kamera", "b.kamera")))
+    enako("brez pripetih ostane red", vse, ZaganjalnikPravila.zaLink(vse, emptyList()))
+}
+
 fun main() {
     println("Zaganjalnik Safeer OS: pravila")
-    postavitve(); padci(); znacke(); vsebina()
+    postavitve(); padci(); znacke(); vsebina(); varnostnaVrata(); namizje()
     println(if (napak == 0) "\nVSE OK" else "\nNAPAK: $napak")
     if (napak > 0) kotlin.system.exitProcess(1)
 }
