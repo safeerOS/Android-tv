@@ -41,6 +41,12 @@ object Webtor {
             val rok = ostane()
             if (rok <= 0) return Sonda(0, null, true, gostitelj)
             if (!naslov.startsWith("https://")) return Sonda(0, null, false, gostitelj)
+            // Pregled U4: cilj (tudi po preusmeritvi) ne sme biti v domacem omrezju ali na tej napravi - po razresitvi DNS.
+            val naslovi = try { java.net.InetAddress.getAllByName(URL(naslov).host) } catch (_: Exception) { return Sonda(0, null, false, gostitelj) }
+            if (naslovi.isEmpty() || naslovi.any { WebtorPravila.zasebenNaslov(it.address) }) {
+                Log.w(TAG, "sonda: cilj v zasebnem omrezju zavrnjen ($gostitelj)")
+                return Sonda(0, null, false, gostitelj)
+            }
             val p = try { URL(naslov).openConnection() as HttpURLConnection } catch (_: Exception) { return Sonda(0, null, false, gostitelj) }
             val prekini = try { straza.schedule({ try { p.disconnect() } catch (_: Throwable) { } }, rok, TimeUnit.MILLISECONDS) } catch (_: Exception) { null }
             try {

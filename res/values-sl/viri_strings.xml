@@ -141,6 +141,9 @@
     <string name="os_sinh_vprasanje">%1$s (ožji krog zaupanja) želi s to napravo usklajevati ključe in dodatke: %2$s. Sprejmi enkrat – poznejše spremembe in izbrisi na kateri koli napravi veljajo samodejno.</string>
     <string name="os_sinh_sprejmi">Sprejmi</string>
     <string name="os_sinh_zavrni">Zavrni</string>
+    <string name="os_sinh_tudi_nasi">Ključi in dodatki te naprave gredo tudi na %1$s.</string>
+    <string name="os_sinh_spremenjeno">%1$s je na tej napravi spremenil ključe: %2$s.</string>
+    <string name="os_sinh_razveljavi">Razveljavi</string>
     <string name="os_sinh_prejeto_odpri">%1$s želi usklajevati ključe in dodatke – za potrditev odpri Medijski center</string>
     <string name="os_sinh_ponovno">%1$s: ob naslednji uskladitvi se potrditev pokaže znova</string>
     <string name="os_usenet_napaka_indeksator">Usenet indeksator ni vrnil datoteke NZB. Preveri njegov ključ API in dnevno omejitev.</string>

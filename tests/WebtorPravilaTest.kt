@@ -122,5 +122,22 @@ fun main() {
     preveriEnako("Usenet: rok potekel, nic", W.NOBENA, W.izberiUsenet(listOf(null, false, null), true))
     preveriEnako("Usenet: prazno", W.NOBENA, W.izberiUsenet(emptyList(), false))
 
+    // Pregled U4: sonda ne sme v domace omrezje ali na to napravo (po razresitvi DNS).
+    fun ip(vararg b: Int) = ByteArray(b.size) { b[it].toByte() }
+    preveriEnako("192.168.1.1 zaseben", true, W.zasebenNaslov(ip(192, 168, 1, 1)))
+    preveriEnako("10.0.0.1 zaseben", true, W.zasebenNaslov(ip(10, 0, 0, 1)))
+    preveriEnako("172.16.5.4 zaseben", true, W.zasebenNaslov(ip(172, 16, 5, 4)))
+    preveriEnako("172.32.0.1 javen", false, W.zasebenNaslov(ip(172, 32, 0, 1)))
+    preveriEnako("127.0.0.1 zanka", true, W.zasebenNaslov(ip(127, 0, 0, 1)))
+    preveriEnako("169.254.1.1 link-local", true, W.zasebenNaslov(ip(169, 254, 1, 1)))
+    preveriEnako("100.64.0.1 CGNAT", true, W.zasebenNaslov(ip(100, 64, 0, 1)))
+    preveriEnako("0.0.0.0 nedolocen", true, W.zasebenNaslov(ip(0, 0, 0, 0)))
+    preveriEnako("1.1.1.1 javen", false, W.zasebenNaslov(ip(1, 1, 1, 1)))
+    preveriEnako("::1 zanka", true, W.zasebenNaslov(ip(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1)))
+    preveriEnako("fd00::1 ULA", true, W.zasebenNaslov(ip(0xfd, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1)))
+    preveriEnako("fe80::1 link-local", true, W.zasebenNaslov(ip(0xfe, 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1)))
+    preveriEnako("::ffff:192.168.0.1 zaseben", true, W.zasebenNaslov(ip(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 192, 168, 0, 1)))
+    preveriEnako("2606:4700::1111 javen", false, W.zasebenNaslov(ip(0x26, 0x06, 0x47, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x11, 0x11)))
+
     if (napak == 0) println("WebtorPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

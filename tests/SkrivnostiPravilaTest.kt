@@ -119,5 +119,19 @@ fun main() {
     preveriEnako("odkodiraj UTF-8", "š", S.odkodiraj("%C5%A1"))
     preveriEnako("odkodiraj: neveljavno ostane", "100%%zz%+1", S.odkodiraj("100%%zz%+1"))
 
+    // Pregled U5: dodatek s poverilnico samo po https (vnos, prejem, usklajevanje).
+    preveriEnako("skrivni dodatek po http ni veljaven", false, S.veljavenSkrivniDodatek("http://webtor.io/token/zeton12345/stremio/manifest.json"))
+    preveriEnako("skrivni dodatek po https je veljaven", true, S.veljavenSkrivniDodatek("https://webtor.io/token/zeton12345/stremio/manifest.json"))
+    preveriEnako("prejeti: http izpade", emptyList<String>(), S.prejetiDodatki(listOf("http://webtor.io/token/zeton12345/stremio/manifest.json")))
+    // Pregled U8: lokalni odtis s kljucem naprave - drug kljuc da drug odtis, isti kljuc isti; brez kljuca ga ni mogoce ponoviti.
+    val k1 = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
+    val k2 = "ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100"
+    preveriEnako("odtis s kljucem: ponovljiv", S.odtisSKljucem(k1, "x"), S.odtisSKljucem(k1, "x"))
+    preveriEnako("odtis s kljucem: drug kljuc, drug odtis", false, S.odtisSKljucem(k1, "x") == S.odtisSKljucem(k2, "x"))
+    preveriEnako("odtis s kljucem ni neslan odtis", false, S.odtisSKljucem(k1, "x") == S.odtis("x"))
+    preveriEnako("odtis s kljucem: 16 znakov hex", true, S.odtisSKljucem(k1, "x").matches(Regex("^[0-9a-f]{16}$")))
+    // Pregled U12: zapisejo se samo spremenjeni vnosi.
+    preveriEnako("spremenjeni vnosi", mapOf("b" to "2x", "c" to 3), S.spremenjeniVnosi(mapOf("a" to "1", "b" to "2"), mapOf("a" to "1", "b" to "2x", "c" to 3)))
+
     if (napak == 0) println("SkrivnostiPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

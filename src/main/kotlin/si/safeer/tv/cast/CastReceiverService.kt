@@ -1021,6 +1021,12 @@ class CastReceiverService : Service() {
                         if (!gledalec) posljiIzid(posiljatelj, msgId, dejanje, si.safeer.tv.link.Daljinec.zavrnitevDostopa(dejanje))
                         return
                     }
+                    // Usklajevanje kljucev samo po preverjeni seji (pregled V1/U1): na nezasciteni poti posiljatelja vpise sredisce.
+                    if (!gledalec && DostopPravila.samoZasciteno(dejanje) && zascitaJedro.isEmpty()) {
+                        posljiIzid(posiljatelj, msgId, dejanje, si.safeer.tv.link.Daljinec.Izid(false,
+                            "Uskladitev ključev samo po zaščiteni poti. Posodobi Safeer na napravi, ki jo pošilja.", koda = "zascita"))
+                        return
+                    }
                     if (dejanje == si.safeer.tv.os.DomPreverjanjePravila.DEJANJE && BuildConfig.FLAVOR in setOf("os", "tablica", "telefon")) {
                         // Preverjevalec doma: odgovor pocaka na dodatke (dolgo povprasevanje, do 4 s) - ne na glavni niti,
                         // in brez vrstice v dnevniku za vsako vprasanje (odjemalec sprasuje, dokler mreza caka).

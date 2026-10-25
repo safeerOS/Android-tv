@@ -19,6 +19,23 @@ package si.safeer.tv.os
  * Ciste funkcije - preizkus tests/WebtorPravilaTest.kt in skupni primeri tests/skupni-primeri/webtor-rezerva.json.
  */
 object WebtorPravila {
+    /**
+     * Pregled U4: naslov IP, kamor sonda toka ne sme (preusmeritev iz interneta v domace omrezje - CSRF ali slepi SSRF proti
+     * usmerjevalniku): loopback, zasebni (RFC 1918, 100.64/10), link-local, nedoloceni, ULA fc00::/7 in IPv4 v IPv6.
+     */
+    fun zasebenNaslov(b: ByteArray): Boolean {
+        fun u(i: Int) = b[i].toInt() and 0xFF
+        if (b.size == 4) return u(0) == 0 || u(0) == 10 || u(0) == 127 || (u(0) == 169 && u(1) == 254) ||
+            (u(0) == 172 && u(1) in 16..31) || (u(0) == 192 && u(1) == 168) || (u(0) == 100 && u(1) in 64..127) || u(0) >= 224
+        if (b.size != 16) return true
+        if (b.all { it.toInt() == 0 } || (b.take(15).all { it.toInt() == 0 } && u(15) == 1)) return true      // :: in ::1
+        if ((u(0) and 0xFE) == 0xFC) return true                                                         // ULA fc00::/7
+        if (u(0) == 0xFE && (u(1) and 0xC0) == 0x80) return true                                         // fe80::/10
+        if (u(0) == 0xFF) return true                                                                    // vecvrstno
+        if (b.take(10).all { it.toInt() == 0 } && u(10) == 0xFF && u(11) == 0xFF) return zasebenNaslov(b.copyOfRange(12, 16))
+        return false
+    }
+
     const val ID_MANIFESTA = "org.stremio.webtor.io"
     const val GOSTITELJ = "webtor.io"
     /** [Stremio.Tok.vir] za tokove dodatka Webtor. */

@@ -1568,9 +1568,12 @@ private fun preizkusDnevnika() {
     SafeerLog.napaka("Preizkus", "zeton saf_seja_abcdef123456 in {\"token\":\"skrivno123\",\"ticket\":\"t-9\"}",
         IllegalStateException("http://192.168.0.5:8080/#j=q1&s=zelo-skrivno&f=AB"))
     SafeerLog.napaka("Preizkus", "podpis MEUCIQDk3x9yZb0Qf1a2b3c4d5e6f7g8h9i0jKLMNOPQRSTUVWXYZ==")
+    // Pregled U7: zeton v poti naslova dodatka (krajsi od 32 znakov) iz sporocila izjeme ne gre v dnevnik.
+    SafeerLog.napaka("Preizkus", "dodatek", java.io.FileNotFoundException("https://webtor.io/token/kratek123/stremio/stream/movie/x.json"))
     SafeerLog.izhod = prej
     val vse = zapisano.joinToString("\n")
-    preveriEnako("zapisa sta dva", 2, zapisano.size)
+    preveriEnako("zapisi so trije", 3, zapisano.size)
+    preveri("zeton v poti naslova dodatka ni v dnevniku", !vse.contains("kratek123") && vse.contains("/token/***"))
     preveri("sejni zeton ni v dnevniku", !vse.contains("abcdef123456"))
     preveri("token in ticket nista v dnevniku", !vse.contains("skrivno123") && !vse.contains("t-9"))
     preveri("skrivnost iz QR ni v dnevniku", !vse.contains("zelo-skrivno"))

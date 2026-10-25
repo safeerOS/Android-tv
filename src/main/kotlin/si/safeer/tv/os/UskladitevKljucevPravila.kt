@@ -14,9 +14,12 @@ package si.safeer.tv.os
  * preglasi. Vrednosti so v sporocilu samo pri zapisih, ki niso izbrisani; v nastavitvah je le odtis vrednosti (iz njega se
  * kljuca ne da izracunati) - z njim naprava opazi lastno spremembo.
  *
- * Potrditev: enkrat na NOVO napravo - kadar prvic pride zapis z naprave, s katero se ta se ni uskladila, ga ta naprava
- * vprasa (Sprejmi / Zavrni); naprava, ki je prva poslala, drugo sprejme sama (sama jo je izbrala v ozji krog). Naprava, ki
- * ni (vec) v ozjem krogu, nicesar ne dobi in nicesar ne sprejme - preveri se ob vsakem posiljanju in prejemu. Brisanja na
+ * Potrditev: enkrat na NOVO napravo na OBEH straneh (neodvisni pregled Webtor rezerve 25. 10. 2026, U1): pobudnik poslje
+ * povabilo samo z imeni kljucev ([zaPovabilo], U3), vrednosti gredo sele napravi, ki jo je uporabnik na tej napravi
+ * potrdil ([vrednostiZa]); prejeto od nepotrjene naprave caka na potrditev tu ([sprejem]) najvec [CAKA_VELJA_MS]. Zapis
+ * sprejmemo samo, ce je njegov izvor posiljatelj sam ([izvorPosiljatelja]) - in posljemo samo lastne zapise ([zaPoslati],
+ * U2): vsak krog je svoj svet, vsaka naprava odloca o svojem. Cas iz prihodnosti najvec [NAJVEC_NAPREJ_MS]. Naprava, ki ni
+ * (vec) v ozjem krogu, nicesar ne dobi in nicesar ne sprejme - preveri se ob vsakem posiljanju in prejemu. Brisanja na
  * daljavo ni (lastnik: kljuce izgubljene naprave zamenja uporabnik sam). Ciste funkcije - tests/UskladitevKljucevPravilaTest.kt.
  */
 object UskladitevKljucevPravila {
@@ -26,8 +29,13 @@ object UskladitevKljucevPravila {
     const val NAJVEC_ZAPISOV = 64
     /** Cas zapisa za vrednost, ki je obstajala pred tem usklajevanjem (»uvoz«): vsaka kasnejsa sprememba jo preglasi. */
     const val CAS_UVOZA = 1L
-    /** Cas iz prihodnosti (napacna ura druge naprave) sprejmemo najvec toliko naprej. */
-    const val NAJVEC_NAPREJ_MS = 366L * 24 * 3600 * 1000
+    /**
+     * Cas iz prihodnosti (napacna ura druge naprave) sprejmemo najvec toliko naprej. Pregled U1: prej 366 dni - naprava si
+     * je s casom v prihodnosti zagotovila zmago v zadnjem zapisu za leto dni.
+     */
+    const val NAJVEC_NAPREJ_MS = 10L * 60 * 1000
+    /** Prejeto od nepotrjene naprave caka na potrditev najvec toliko (kot DebridPravila.PREJETO_VELJA_MS; pregled U3, U11). */
+    const val CAKA_VELJA_MS = 10L * 60 * 1000
 
     const val PREDPONA_DEBRID = "debrid:"
     const val KLJUC_USENET = "usenet"
@@ -48,8 +56,12 @@ object UskladitevKljucevPravila {
     /** Stanje kljuca na tej napravi (brez vrednosti). [odtis] = odtis vrednosti, "" pri grobu. */
     data class Meta(val cas: Long, val izvor: String, val izbrisan: Boolean, val odtis: String)
 
-    /** Zapis v sporocilu; [vrednost] samo, ce ni izbrisan. */
-    data class Zapis(val kljuc: String, val cas: Long, val izvor: String, val izbrisan: Boolean, val vrednost: String)
+    /**
+     * Zapis v sporocilu; [vrednost] samo, ce ni izbrisan in je prejemnik potrjen ([vrednostiZa]). [gostitelj]: pri dodatku
+     * gostitelj (za okno potrditve), tudi v povabilu brez vrednosti.
+     */
+    data class Zapis(val kljuc: String, val cas: Long, val izvor: String, val izbrisan: Boolean, val vrednost: String,
+                     val gostitelj: String = "")
 
     /** Zapis (cas, izvor, izbrisan) je novejsi od [star] (null = kljuca tu se ni). */
     fun novejsi(cas: Long, izvor: String, izbrisan: Boolean, star: Meta?): Boolean {
@@ -90,10 +102,12 @@ object UskladitevKljucevPravila {
      * ([veljavnaVrednost]). Najvec [NAJVEC_ZAPISOV]; za isti kljuc velja najnovejsi; cas iz dalnje prihodnosti zavrnemo.
      */
     fun zaUporabo(meta: Map<String, Meta>, prejeti: List<Zapis>, ura: Long, ponudniki: Set<String>,
-                  veljavnaVrednost: (String, String) -> Boolean): List<Zapis> {
+                  veljavnaVrednost: (String, String) -> Boolean, izvorDovoljen: (String) -> Boolean): List<Zapis> {
         val najnovejsi = LinkedHashMap<String, Zapis>()
         for (z in prejeti.take(NAJVEC_ZAPISOV)) {
             if (!veljavenZapis(z, ura, ponudniki, veljavnaVrednost)) continue
+            // Pregled U1: izvor zapisa je posiljatelj sam - naprava se ne more predstaviti kot druga.
+            if (!try { izvorDovoljen(z.izvor) } catch (_: Exception) { false }) continue
             val prej = najnovejsi[z.kljuc]
             if (prej == null || novejsi(z.cas, z.izvor, z.izbrisan, Meta(prej.cas, prej.izvor, prej.izbrisan, ""))) najnovejsi[z.kljuc] = z
         }
@@ -109,11 +123,34 @@ object UskladitevKljucevPravila {
         return try { veljavnaVrednost(z.kljuc, z.vrednost) } catch (_: Exception) { false }
     }
 
-    /** Stanje te naprave za posiljanje: zapisi iz [meta] z vrednostmi iz [vrednosti]; brez vrednosti (neberljiva) izpadejo. */
-    fun zaPoslati(meta: Map<String, Meta>, vrednosti: Map<String, String>): List<Zapis> = meta.mapNotNull { (k, m) ->
-        if (m.izbrisan) Zapis(k, m.cas, m.izvor, true, "")
+    /**
+     * Stanje te naprave za posiljanje: samo LASTNI zapisi (izvor [jaz]; pregled U2 - prejetih tujih ne posiljamo naprej, sicer
+     * bi prisli do naprav, ki jih izvorna naprava nima v krogu) z vrednostmi iz [vrednosti]; brez vrednosti izpadejo.
+     */
+    fun zaPoslati(meta: Map<String, Meta>, vrednosti: Map<String, String>, jaz: String): List<Zapis> = meta.mapNotNull { (k, m) ->
+        if (m.izvor != jaz || jaz.isBlank()) null
+        else if (m.izbrisan) Zapis(k, m.cas, m.izvor, true, "")
         else vrednosti[k]?.let { Zapis(k, m.cas, m.izvor, false, it) }
     }.take(NAJVEC_ZAPISOV)
+
+    /** Povabilo (pregled U3): imena kljucev brez vrednosti - vrednosti sele po potrditvi na drugi napravi. */
+    fun zaPovabilo(zapisi: List<Zapis>): List<Zapis> = zapisi.map { it.copy(vrednost = "") }
+
+    /** Vrednosti gredo samo napravi, ki jo je uporabnik na tej napravi potrdil (pregled U3). */
+    fun vrednostiZa(stanje: Stanje?): Boolean = stanje == Stanje.POTRJENA
+
+    /** Pregled U1: izvor zapisa (fizicna naprava) je posiljatelj sam; prazno ni nikoli. */
+    fun izvorPosiljatelja(izvorNaprava: String, odNaprava: String): Boolean = izvorNaprava.isNotBlank() && izvorNaprava == odNaprava
+
+    /** Cakajoce s prejetimi zapisi velja [CAKA_VELJA_MS] (pregled U3, U11). */
+    fun cakaVelja(prejeto: Long, zdaj: Long): Boolean = zdaj - prejeto in 0 until CAKA_VELJA_MS
+
+    /**
+     * Pregled U1: kateri uporabljeni zapisi so ZAMENJALI ali IZBRISALI kljuc, ki je tu ze obstajal - te uporabniku pokazemo z
+     * moznostjo razveljavitve. Nov kljuc (ga tu ni bilo) ali grob na grob nista zamenjava.
+     */
+    fun zamenjave(meta: Map<String, Meta>, uporabljeni: List<Zapis>): List<Zapis> =
+        uporabljeni.filter { z -> meta[z.kljuc]?.let { !it.izbrisan } == true }
 
     // ------------------------------------------------------------------ naprave
 
@@ -132,10 +169,13 @@ object UskladitevKljucevPravila {
 
     enum class Odziv { SPREJMI, VPRASAJ, ZAVRNI }
 
-    /** Kaj ta naprava stori s prejetimi zapisi z naprave v stanju [stanje] (null = se nikoli). */
+    /**
+     * Kaj ta naprava stori s prejetimi zapisi z naprave v stanju [stanje] (null = se nikoli). Pregled U1: tudi naprava, ki jo
+     * je ta povabila (POVABLJENA), mora biti tu enkrat potrjena - prej je pobudnik njene zapise uporabil tiho.
+     */
     fun sprejem(vklopljeno: Boolean, vKrogu: Boolean, stanje: Stanje?): Odziv = when {
         !vklopljeno || !vKrogu -> Odziv.ZAVRNI
-        stanje == Stanje.POTRJENA || stanje == Stanje.POVABLJENA -> Odziv.SPREJMI
+        stanje == Stanje.POTRJENA -> Odziv.SPREJMI
         stanje == Stanje.ZAVRNJENA -> Odziv.ZAVRNI
         else -> Odziv.VPRASAJ
     }

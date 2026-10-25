@@ -13,6 +13,12 @@ object SafeerLog {
         RegexOption.IGNORE_CASE)
     private val FRAGMENT = Regex("([#&?](?:s|j|t|i)=)[^&\\s\"]+")
     private val DOLGO = Regex("[A-Za-z0-9+/_\\-]{32,}={0,2}")
+    /** Pregled U7: zeton v poti naslova dodatka (`/token/<t>/`, `/apikey/<k>/` ...), tudi krajsi od 32 znakov. */
+    private val POT = Regex("(/(?:token|tokens|apikey|api_key|key|torbox|realdebrid|alldebrid|premiumize|debridlink)/)[^/\\s\"?#]+",
+        RegexOption.IGNORE_CASE)
+    /** Kljuc debrid v nastavitvah dodatka v poti (`.../torbox=<k>|.../manifest.json`). */
+    private val KONFIG = Regex("((?:torbox|realdebrid|alldebrid|premiumize|debridlink|offcloud|putio|easydebrid)=)[^|/&?#\\s\"]+",
+        RegexOption.IGNORE_CASE)
 
     /** Kam gre zapis; privzeto System.err (na Androidu logcat). Preizkusi ga lahko prestrezejo. */
     @Volatile
@@ -22,6 +28,8 @@ object SafeerLog {
         .replace(SAF, "saf_***")
         .replace(POLJE) { it.groupValues[1] + "***" }
         .replace(FRAGMENT) { it.groupValues[1] + "***" }
+        .replace(POT) { it.groupValues[1] + "***" }
+        .replace(KONFIG) { it.groupValues[1] + "***" }
         .replace(DOLGO, "***")
 
     /** Napaka pri [kaj]; [e] je lahko null. Zapis nikoli ne vrze. */

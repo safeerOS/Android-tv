@@ -14,7 +14,21 @@ package si.safeer.tv.scit
  * tests/ScitIzjemeTest.kt.
  */
 object ScitIzjeme {
-    val STALNE = listOf("webtor.io", "cosmic-crab.buzz")
+    /**
+     * Stalne izjeme (pregled U10): natanko webtor.io in api.webtor.io ter gostitelji tokov `abra--<id>.api.cosmic-crab.buzz`
+     * - ne vse poddomene (prej: *.webtor.io in *.cosmic-crab.buzz, tudi ce domena zamenja lastnika).
+     */
+    val STALNE = listOf("webtor.io", "api.webtor.io")
+    private val STALNI_VZOREC = Regex("^abra--[a-z0-9-]{1,63}\\.api\\.cosmic-crab\\.buzz$")
+
+    fun jeStalna(ime: String): Boolean { val d = normaliziraj(ime); return d in STALNE || STALNI_VZOREC.matches(d) }
+
+    /**
+     * Ali Scit domeno blokira (pregled U10): na seznamu in ni izjema; na seznamu grozenj vedno; dokler nabor grozenj ni
+     * nalozen (pred prvo osvezitvijo seznamov po nadgradnji), izjeme ne veljajo - »ne vem« ni »da« (prej: stalne so).
+     */
+    fun blokirana(naSeznamu: Boolean, grozneNalozene: Boolean, naGroznih: Boolean, izjema: Boolean): Boolean =
+        naSeznamu && (!grozneNalozene || naGroznih || !izjema)
     const val NAJVEC = 20
     const val VELJA_MS = 30L * 24 * 3600 * 1000
 
@@ -60,7 +74,7 @@ object ScitIzjeme {
     fun dovoljena(ime: String, naucene: Map<String, Long>, zdaj: Long): Boolean {
         val d = normaliziraj(ime)
         if (d.isEmpty()) return false
-        if (STALNE.any { d == it || d.endsWith(".$it") }) return true
+        if (jeStalna(d)) return true
         return (naucene[d] ?: 0L) > zdaj
     }
 
@@ -82,7 +96,7 @@ object ScitIzjeme {
      */
     fun dodaj(zdaj: Map<String, Long>, gostitelj: String, ura: Long, naSeznamu: (String) -> Boolean): Map<String, Long>? {
         val g = normaliziraj(gostitelj)
-        if (!primerenZaUcenje(g) || STALNE.any { g == it || g.endsWith(".$it") }) return null
+        if (!primerenZaUcenje(g) || jeStalna(g)) return null
         if (try { naSeznamu(g) } catch (_: Exception) { true }) return null
         val nov = LinkedHashMap(zdaj.filterValues { it > ura })
         val prej = nov[g]

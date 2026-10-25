@@ -739,9 +739,13 @@ object SpletniVir {
 
     fun virPodatkov(c: Context, glaveVsem: Map<String, String> = emptyMap(), rokPovezaveMs: Int = 0): DataSource.Factory {
         if (ua.isBlank()) ua = try { WebSettings.getDefaultUserAgent(c) } catch (_: Exception) { "" }
-        val http = DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(true)
+        val odprto = DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(true)
+        // Pregled U4: tok po https ne sme preusmeritve na http (zeton ali vsebina bi sla necifrirano, cilj tudi v domace
+        // omrezje); http sme na https. Media3 izbere tovarno ob odprtju po protokolu naslova.
+        val varno = DefaultHttpDataSource.Factory().setAllowCrossProtocolRedirects(false)
         // Kanal ali postaja v zivo: krajsi rok povezave ([OsPravila.ROK_POVEZAVE_V_ZIVO_MS]); 0 = privzeti rok predvajalnika.
-        if (rokPovezaveMs > 0) http.setConnectTimeoutMs(rokPovezaveMs)
+        if (rokPovezaveMs > 0) { odprto.setConnectTimeoutMs(rokPovezaveMs); varno.setConnectTimeoutMs(rokPovezaveMs) }
+        val http = DataSource.Factory { PoProtokolu(varno.createDataSource(), odprto.createDataSource()) }
         val app = c.applicationContext
         return ResolvingDataSource.Factory(DefaultDataSource.Factory(c, http)) { izvirna ->
             // Webtor rezerva: tok dodatka s poverilnico ima v aplikaciji nadomestek brez zetona - pravi naslov samo za zahtevo.
@@ -770,6 +774,24 @@ object SpletniVir {
         // Glave, ki spremljajo ta tok, gredo na vsak njegov del - tudi na segmente HLS/DASH na drugem gostitelju.
         if (glaveVsem.isNotEmpty()) glave.putAll(glaveVsem)
         return glave
+    }
+
+    /** Vir HTTP po protokolu naslova ob odprtju: https brez menjave protokola ([varno]), http z dovoljeno preusmeritvijo na https. */
+    private class PoProtokolu(private val varno: DataSource, private val odprto: DataSource) : DataSource {
+        private var zdaj: DataSource? = null
+        override fun addTransferListener(poslusalec: androidx.media3.datasource.TransferListener) {
+            varno.addTransferListener(poslusalec); odprto.addTransferListener(poslusalec)
+        }
+        override fun open(dataSpec: androidx.media3.datasource.DataSpec): Long {
+            val d = if (dataSpec.uri.scheme.equals("https", ignoreCase = true)) varno else odprto
+            zdaj = d
+            return d.open(dataSpec)
+        }
+        override fun read(buffer: ByteArray, offset: Int, length: Int): Int =
+            (zdaj ?: throw java.io.IOException("vir ni odprt")).read(buffer, offset, length)
+        override fun getUri(): android.net.Uri? = zdaj?.uri
+        override fun getResponseHeaders(): Map<String, List<String>> = zdaj?.responseHeaders ?: emptyMap()
+        override fun close() { try { zdaj?.close() } finally { zdaj = null } }
     }
 
     /** Slika spletnega vira z enakim kontekstom kot stran (Referer, piskotki, brskalniski UA). */

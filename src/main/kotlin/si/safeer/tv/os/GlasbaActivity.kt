@@ -541,6 +541,7 @@ class GlasbaActivity : OsActivity() {
         // Samodejno usklajevanje kljucev in dodatkov v ozjem krogu: potrditev nove naprave (enkrat) in uskladitev ob odprtju.
         UskladitevKljucev.poslusalci.add(obUskladitvi)
         pokaziCakajoceUskladitve()
+        pokaziSpremembeUskladitve()
         UskladitevKljucev.sprozi(this, 1_500)
         // Kanal, ki je odpovedal, medtem ko je bil na zaslonu predvajalnik, in postaja, ki odpove tukaj.
         MrtviKanali.poslusalci.add(obMrtvemKanalu)
@@ -9310,7 +9311,28 @@ class GlasbaActivity : OsActivity() {
     // ------------------------------------------------------------------ samodejno usklajevanje kljucev (ozji krog)
 
     private var uskladitevOkno: AlertDialog? = null
-    private val obUskladitvi: () -> Unit = { if (!isFinishing && !isDestroyed) pokaziCakajoceUskladitve() }
+    private val obUskladitvi: () -> Unit = { if (!isFinishing && !isDestroyed) { pokaziCakajoceUskladitve(); pokaziSpremembeUskladitve() } }
+
+    /**
+     * Pregled U1: druga naprava je na tej zamenjala ali izbrisala kljuc - uporabnik to vidi in lahko razveljavi (prejsnje
+     * vrednosti se vrnejo in gredo nazaj tudi na tisto napravo).
+     */
+    private fun pokaziSpremembeUskladitve() {
+        if (uskladitevOkno?.isShowing == true || isFinishing) return
+        val s = UskladitevKljucev.sprememba() ?: return
+        fun ime(x: String) = if (x.startsWith(Debrid.PREDPONA_DODATKA)) getString(R.string.os_skrivni_dodatek_ime, x.removePrefix(Debrid.PREDPONA_DODATKA)) else x
+        val katere = UskladitevKljucev.opisSpremembe(s).joinToString(", ") { ime(it) }.ifBlank { "–" }
+        val naprava = DatotekeActivity.lepoIme(s.ime).ifBlank { s.ime.ifBlank { s.id } }
+        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(R.string.os_sinh_naprave_naslov)
+            .setMessage(getString(R.string.os_sinh_spremenjeno, naprava, katere))
+            .setPositiveButton(android.R.string.ok) { _, _ -> UskladitevKljucev.potrdiSpremembo(this, s, false) }
+            .setNegativeButton(R.string.os_sinh_razveljavi) { _, _ -> UskladitevKljucev.potrdiSpremembo(this, s, true) }
+            .create()
+        okno.setOnDismissListener { if (uskladitevOkno === okno) uskladitevOkno = null }
+        uskladitevOkno = okno
+        Kontroler.pokazi(okno); okno.show()
+    }
 
     /**
      * Nova naprava v ozjem krogu zeli usklajevati kljuce in dodatke ([UskladitevKljucev]): enkratna potrditev - velja tudi za
@@ -9324,7 +9346,8 @@ class GlasbaActivity : OsActivity() {
         val naprava = DatotekeActivity.lepoIme(z.ime).ifBlank { z.ime.ifBlank { z.id } }
         val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(R.string.os_sinh_naprave_naslov)
-            .setMessage(getString(R.string.os_sinh_vprasanje, naprava, katere))
+            // Pregled U3: okno pove tudi, da gredo kljuci te naprave na drugo napravo.
+            .setMessage(getString(R.string.os_sinh_vprasanje, naprava, katere) + "\n\n" + getString(R.string.os_sinh_tudi_nasi, naprava))
             .setPositiveButton(R.string.os_sinh_sprejmi) { _, _ -> UskladitevKljucev.potrdi(this, z.kljuc, true) }
             .setNegativeButton(R.string.os_sinh_zavrni) { _, _ -> UskladitevKljucev.potrdi(this, z.kljuc, false) }
             .create()

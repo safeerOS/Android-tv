@@ -141,6 +141,9 @@
     <string name="os_sinh_vprasanje">%1$s (cerchia di fiducia ristretta) vuole sincronizzare chiavi e componenti aggiuntivi con questo dispositivo: %2$s. Accetta una volta – le modifiche e le eliminazioni successive su uno qualsiasi dei dispositivi si applicano automaticamente.</string>
     <string name="os_sinh_sprejmi">Accetta</string>
     <string name="os_sinh_zavrni">Rifiuta</string>
+    <string name="os_sinh_tudi_nasi">Anche le chiavi e i componenti aggiuntivi di questo dispositivo andranno a %1$s.</string>
+    <string name="os_sinh_spremenjeno">%1$s ha modificato chiavi su questo dispositivo: %2$s.</string>
+    <string name="os_sinh_razveljavi">Annulla</string>
     <string name="os_sinh_prejeto_odpri">%1$s vuole sincronizzare chiavi e componenti aggiuntivi – apri il Centro multimediale per confermare</string>
     <string name="os_sinh_ponovno">%1$s: la conferma verrà mostrata di nuovo alla prossima sincronizzazione</string>
     <string name="os_usenet_napaka_indeksator">L’indicizzatore Usenet non ha restituito il file NZB. Controlla la sua chiave API e il limite giornaliero.</string>

@@ -51,5 +51,18 @@ fun main() {
     preveriEnako("preberi: preteceno, neveljavno in javna pripona izpadejo", mapOf("a.tok.example.net" to ura + 10), I.preberi(besedilo, ura))
     preveriEnako("preberi prazno", emptyMap<String, Long>(), I.preberi(null, ura))
 
+    // Pregled U10: stalne izjeme samo natancni gostitelji Webtorja in vzorec gostiteljev toka - ne vse poddomene.
+    preveriEnako("x.webtor.io ni vec stalna izjema", false, I.dovoljena("x.webtor.io", emptyMap(), ura))
+    preveriEnako("poljubna poddomena cosmic-crab.buzz ni izjema", false, I.dovoljena("zlo.cosmic-crab.buzz", emptyMap(), ura))
+    preveriEnako("cosmic-crab.buzz sama ni izjema", false, I.dovoljena("cosmic-crab.buzz", emptyMap(), ura))
+    preveriEnako("gostitelj toka po vzorcu", true, I.dovoljena("abra--1.api.cosmic-crab.buzz", emptyMap(), ura))
+    preveriEnako("vzorec ne sprejme dodatne oznake", false, I.dovoljena("a.abra--1.api.cosmic-crab.buzz", emptyMap(), ura))
+    // Brez nabora grozenj izjeme ne veljajo (fail-closed).
+    preveriEnako("brez grozenj: na seznamu, izjema -> blokirano", true, I.blokirana(true, false, false, true))
+    preveriEnako("z grozenji: izjema -> ni blokirano", false, I.blokirana(true, true, false, true))
+    preveriEnako("na seznamu grozenj -> blokirano tudi z izjemo", true, I.blokirana(true, true, true, true))
+    preveriEnako("ni na seznamu -> ni blokirano", false, I.blokirana(false, false, false, false))
+    preveriEnako("na seznamu, ni izjema -> blokirano", true, I.blokirana(true, true, false, false))
+
     if (napak == 0) println("ScitIzjemeTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

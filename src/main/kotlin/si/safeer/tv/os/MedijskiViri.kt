@@ -68,6 +68,8 @@ object MedijskiViri {
      * ([SkrivniDodatki]); null = sifriranje ni uspelo - pravega naslova ne shranimo.
      */
     fun dodajDodatek(ctx: Context, tip: String, naslovVnosa: String, ime: String): Vir? {
+        // Pregled U5: dodatek s poverilnico samo po https (zeton v naslovu po http potuje necifriran).
+        if (tip == STREMIO && SkrivnostiPravila.skrivnaPredponaDodatka(naslovVnosa) != null && !naslovVnosa.trim().startsWith("https://")) return null
         val naslov = if (tip == STREMIO && SkrivnostiPravila.skrivnaPredponaDodatka(naslovVnosa) != null)
             SkrivniDodatki.zavaruj(ctx, naslovVnosa) ?: return null else naslovVnosa
         val obstojeci = vsi(ctx).firstOrNull { it.tip == tip && it.naslov == naslov }
@@ -610,9 +612,12 @@ object MedijskiViri {
         for (ime in imena) {
             if (ime in IZVZETE_NASTAVITVE) continue
             val sp = a.getSharedPreferences(ime, Context.MODE_PRIVATE)
-            val novo = SkrivnostiPravila.preseliVnose(sp.all, zamenjave) ?: continue
-            val e = sp.edit().clear()
-            for ((k, v) in novo) when (v) {
+            val staro = sp.all
+            val novo = SkrivnostiPravila.preseliVnose(staro, zamenjave) ?: continue
+            // Pregled U12: brez clear() - zapisemo samo spremenjene kljuce (zapis druge niti med branjem ostane).
+            val e = sp.edit()
+            for (k in staro.keys) if (k !in novo) e.remove(k)
+            for ((k, v) in SkrivnostiPravila.spremenjeniVnosi(staro, novo)) when (v) {
                 is String -> e.putString(k, v)
                 is Long -> e.putLong(k, v)
                 is Int -> e.putInt(k, v)
@@ -864,8 +869,15 @@ object MedijskiViri {
      */
     @Synchronized private fun shrani(ctx: Context, viriVnosa: List<Vir>, cas: Long = 0L, brezSledi: Boolean = false) {
         // Webtor rezerva: dodatek s poverilnico nikoli kot pravi naslov v nastavitvah (varovalka za vse poti dodajanja).
-        val viri = viriVnosa.map { v ->
-            if (v.jeStremio && SkrivnostiPravila.skrivnaPredponaDodatka(v.naslov) != null) SkrivniDodatki.zavaruj(ctx, v.naslov)?.let { v.copy(naslov = it) } ?: v else v
+        // Pregled U6: ce sifriranje ne uspe, novega pravega naslova ne zapisemo (prej je slo v nastavitve necifrirano);
+        // ze shranjen (iz casa pred prehodom) ostane, kot je - ne izgubi se. U5: novega po http ne sprejmemo.
+        val prejsnji = rocni(ctx).map { it.naslov }.toSet()
+        val viri = viriVnosa.mapNotNull { v ->
+            if (!(v.jeStremio && SkrivnostiPravila.skrivnaPredponaDodatka(v.naslov) != null)) v
+            else if (v.naslov in prejsnji) SkrivniDodatki.zavaruj(ctx, v.naslov)?.let { v.copy(naslov = it) } ?: v
+            else if (!v.naslov.trim().startsWith("https://")) null.also { android.util.Log.w("SafeerOsMedia", "dodatek s poverilnico po http ni shranjen") }
+            else SkrivniDodatki.zavaruj(ctx, v.naslov)?.let { v.copy(naslov = it) }
+                .also { if (it == null) android.util.Log.w("SafeerOsMedia", "dodatka s poverilnico ni bilo mogoce zavarovati - ni shranjen") }
         }
         val prej = rocni(ctx).map { kljucUskladitve(it) }.toSet()
         val zdaj = viri.map { kljucUskladitve(it) }.toSet()

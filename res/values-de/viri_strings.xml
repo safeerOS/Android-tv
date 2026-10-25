@@ -141,6 +141,9 @@
     <string name="os_sinh_vprasanje">%1$s (engerer Vertrauenskreis) möchte Schlüssel und Add-ons mit diesem Gerät abgleichen: %2$s. Einmal annehmen – spätere Änderungen und Löschungen auf einem der Geräte gelten automatisch.</string>
     <string name="os_sinh_sprejmi">Annehmen</string>
     <string name="os_sinh_zavrni">Ablehnen</string>
+    <string name="os_sinh_tudi_nasi">Die Schlüssel und Add-ons dieses Geräts gehen auch an %1$s.</string>
+    <string name="os_sinh_spremenjeno">%1$s hat auf diesem Gerät Schlüssel geändert: %2$s.</string>
+    <string name="os_sinh_razveljavi">Rückgängig</string>
     <string name="os_sinh_prejeto_odpri">%1$s möchte Schlüssel und Add-ons abgleichen – zum Bestätigen das Mediencenter öffnen</string>
     <string name="os_sinh_ponovno">%1$s: Die Bestätigung erscheint beim nächsten Abgleich erneut</string>
     <string name="os_usenet_napaka_indeksator">Der Usenet-Indexer hat keine NZB-Datei geliefert. Prüfe seinen API-Schlüssel und das Tageslimit.</string>

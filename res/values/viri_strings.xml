@@ -141,6 +141,9 @@
     <string name="os_sinh_vprasanje">%1$s (inner circle of trust) wants to sync keys and add-ons with this device: %2$s. Accept once – later changes and deletions on either device apply automatically.</string>
     <string name="os_sinh_sprejmi">Accept</string>
     <string name="os_sinh_zavrni">Decline</string>
+    <string name="os_sinh_tudi_nasi">This device\'s keys and add-ons will also go to %1$s.</string>
+    <string name="os_sinh_spremenjeno">%1$s changed keys on this device: %2$s.</string>
+    <string name="os_sinh_razveljavi">Undo</string>
     <string name="os_sinh_prejeto_odpri">%1$s wants to sync keys and add-ons – open Media Center to confirm</string>
     <string name="os_sinh_ponovno">%1$s: confirmation will be shown again at the next sync</string>
     <string name="os_usenet_napaka_indeksator">The Usenet indexer did not return the NZB file. Check its API key and daily limit.</string>

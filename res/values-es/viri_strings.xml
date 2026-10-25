@@ -141,6 +141,9 @@
     <string name="os_sinh_vprasanje">%1$s (círculo de confianza cercano) quiere sincronizar claves y complementos con este dispositivo: %2$s. Acepta una vez: los cambios y eliminaciones posteriores en cualquiera de los dispositivos se aplican automáticamente.</string>
     <string name="os_sinh_sprejmi">Aceptar</string>
     <string name="os_sinh_zavrni">Rechazar</string>
+    <string name="os_sinh_tudi_nasi">Las claves y complementos de este dispositivo también irán a %1$s.</string>
+    <string name="os_sinh_spremenjeno">%1$s cambió claves en este dispositivo: %2$s.</string>
+    <string name="os_sinh_razveljavi">Deshacer</string>
     <string name="os_sinh_prejeto_odpri">%1$s quiere sincronizar claves y complementos: abre el Centro multimedia para confirmar</string>
     <string name="os_sinh_ponovno">%1$s: la confirmación se mostrará de nuevo en la próxima sincronización</string>
     <string name="os_usenet_napaka_indeksator">El indexador Usenet no devolvió el archivo NZB. Comprueba su clave API y su límite diario.</string>

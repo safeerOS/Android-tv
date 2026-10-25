@@ -386,10 +386,9 @@ class ScitStoritev : VpnService() {
      */
     private fun blokirana(nab: DomenskiNabor.Poizvedba, ime: String): Boolean {
         if (!nab.jeBlokirana(ime)) return false
-        val zdaj = System.currentTimeMillis()
-        val g = grozne ?: return !ScitIzjeme.dovoljena(ime, emptyMap(), zdaj)
-        if (g.jeBlokirana(ime)) return true
-        return !ScitIzjeme.dovoljena(ime, izjeme, zdaj)
+        val g = grozne
+        return ScitIzjeme.blokirana(true, g != null, g?.jeBlokirana(ime) == true,
+            g != null && ScitIzjeme.dovoljena(ime, izjeme, System.currentTimeMillis()))
     }
 
     /** Pravi strezniki DNS omrezja (ne nasi): iz vseh omrezij, ki niso VPN in imajo internet. */

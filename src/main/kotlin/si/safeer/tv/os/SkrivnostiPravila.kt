@@ -195,6 +195,17 @@ object SkrivnostiPravila {
         .joinToString("") { b -> HEX[(b.toInt() shr 4) and 0xf].toString() + HEX[b.toInt() and 0xf] }.take(16)
     private const val HEX = "0123456789abcdef"
 
+    /**
+     * Pregled U8: odtis s skrivnim kljucem naprave [kljucHex] (HMAC-SHA256, prvih 16 znakov hex) - za lokalne odtise
+     * vrednosti, ki ne gredo med naprave; iz odtisa se kratke skrivnosti ne da preveriti brez kljuca.
+     */
+    fun odtisSKljucem(kljucHex: String, s: String): String {
+        val k = kljucHex.chunked(2).mapNotNull { it.toIntOrNull(16)?.toByte() }.toByteArray()
+        val mac = javax.crypto.Mac.getInstance("HmacSHA256")
+        mac.init(javax.crypto.spec.SecretKeySpec(if (k.isEmpty()) byteArrayOf(0) else k, "HmacSHA256"))
+        return mac.doFinal(s.toByteArray(Charsets.UTF_8)).joinToString("") { b -> HEX[(b.toInt() shr 4) and 0xf].toString() + HEX[b.toInt() and 0xf] }.take(16)
+    }
+
     /** Nadomestna osnova za skrivno predpono: »https://webtor.io/safeer-skrito-<odtis>« (brez uporabnika, gesla, zetona). */
     fun nadomestek(predpona: String): String? {
         val d = razcleni(predpona) ?: return null
@@ -239,10 +250,15 @@ object SkrivnostiPravila {
     fun prejetiDodatki(seznam: List<String?>): List<String> = seznam.asSequence().filterNotNull().map { it.trim() }
         .filter { veljavenSkrivniDodatek(it) }.distinct().take(NAJVEC_PREJETIH).toList()
 
-    fun veljavenSkrivniDodatek(n: String): Boolean = n.length in 12..2048 && (n.startsWith("https://") || n.startsWith("http://")) &&
+    /** Pregled U5: dodatek s poverilnico samo po https - zeton v naslovu po http bi potoval necifriran. */
+    fun veljavenSkrivniDodatek(n: String): Boolean = n.length in 12..2048 && n.startsWith("https://") &&
         n.none { c -> c < ' ' } && skrivnaPredponaDodatka(n) != null
 
     // ------------------------------------------------------------------ prehod (pregled S1)
+
+    /** Pregled U12: vnosi iz [novo], ki se razlikujejo od [staro] (nespremenjenih ne zapisemo znova). */
+    fun spremenjeniVnosi(staro: Map<String, *>, novo: Map<String, *>): Map<String, Any?> =
+        novo.filter { (k, v) -> !staro.containsKey(k) || staro[k] != v }
 
     /** Zamenja prave skrivne predpone z nadomestki (daljse najprej; org.json pise »/« tudi kot »\/«). */
     fun zamenjaj(besedilo: String, zamenjave: Map<String, String>): String {

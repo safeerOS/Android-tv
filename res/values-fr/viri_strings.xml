@@ -141,6 +141,9 @@
     <string name="os_sinh_vprasanje">%1$s (cercle de confiance proche) souhaite synchroniser les clés et extensions avec cet appareil : %2$s. Acceptez une fois – les modifications et suppressions ultérieures sur l’un ou l’autre appareil s’appliquent automatiquement.</string>
     <string name="os_sinh_sprejmi">Accepter</string>
     <string name="os_sinh_zavrni">Refuser</string>
+    <string name="os_sinh_tudi_nasi">Les clés et modules de cet appareil iront aussi vers %1$s.</string>
+    <string name="os_sinh_spremenjeno">%1$s a modifié des clés sur cet appareil : %2$s.</string>
+    <string name="os_sinh_razveljavi">Annuler</string>
     <string name="os_sinh_prejeto_odpri">%1$s souhaite synchroniser les clés et extensions – ouvrez le Centre multimédia pour confirmer</string>
     <string name="os_sinh_ponovno">%1$s : la confirmation s’affichera de nouveau à la prochaine synchronisation</string>
     <string name="os_usenet_napaka_indeksator">L’indexeur Usenet n’a pas renvoyé le fichier NZB. Vérifie sa clé API et sa limite quotidienne.</string>
