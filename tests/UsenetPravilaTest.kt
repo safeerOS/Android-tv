@@ -141,5 +141,19 @@ fun main() {
     preveriEnako("A8: cakanje na Usenet pokrije povezavo in branje", true,
         UsenetPravila.ISKANJE_CAKAJ_MS >= UsenetPravila.ISKANJE_POVEZAVA_MS + UsenetPravila.ISKANJE_ROK_MS)
 
+    // Pregled Grok 3: vrsta napake NZB gre v izid - kljuc, meja in druga napaka indeksatorja se razlikujejo.
+    preveriEnako("Grok 3: HTTP 401 = kljuc", TorBoxPravila.NAPAKA_KLJUC, UsenetPravila.napakaNzb(401, ""))
+    preveriEnako("Grok 3: HTTP 403 = kljuc", TorBoxPravila.NAPAKA_KLJUC, UsenetPravila.napakaNzb(403, "<html>Forbidden</html>"))
+    preveriEnako("Grok 3: HTTP 429 = meja", TorBoxPravila.NAPAKA_MEJA, UsenetPravila.napakaNzb(429, ""))
+    preveriEnako("Grok 3: Newznab 100 v 200 = kljuc", TorBoxPravila.NAPAKA_KLJUC,
+        UsenetPravila.napakaNzb(200, """<error code="100" description="Incorrect user credentials"/>"""))
+    preveriEnako("Grok 3: Newznab 500 = meja", TorBoxPravila.NAPAKA_MEJA,
+        UsenetPravila.napakaNzb(200, """<error code="500" description="Request limit reached"/>"""))
+    preveriEnako("Grok 3: Newznab pred kodo HTTP", TorBoxPravila.NAPAKA_MEJA,
+        UsenetPravila.napakaNzb(403, """<error code="501" description="Download limit reached"/>"""))
+    preveriEnako("Grok 3: HTTP 500 = indeksator", UsenetPravila.NAPAKA_INDEKSATOR, UsenetPravila.napakaNzb(500, ""))
+    preveriEnako("Grok 3: 200 brez NZB = indeksator", UsenetPravila.NAPAKA_INDEKSATOR, UsenetPravila.napakaNzb(200, "<html></html>"))
+    preveriEnako("Grok 3: ponudnik izida = Usenet", UsenetPravila.VRSTA, UsenetPravila.PONUDNIK)
+
     if (napak == 0) println("UsenetPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

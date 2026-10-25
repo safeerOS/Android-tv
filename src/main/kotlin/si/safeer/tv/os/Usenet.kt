@@ -97,8 +97,7 @@ object Usenet {
                 when {
                     koda in 200..299 && UsenetPravila.jeNzb(zacetek) -> telo to ""
                     else -> {
-                        val n = UsenetPravila.napaka(zacetek) ?: if (koda == 401 || koda == 403) TorBoxPravila.NAPAKA_KLJUC
-                            else if (koda == 429) TorBoxPravila.NAPAKA_MEJA else UsenetPravila.NAPAKA_INDEKSATOR
+                        val n = UsenetPravila.napakaNzb(koda, zacetek)
                         Log.i(TAG, "nzb: HTTP $koda, napaka $n")
                         null to n
                     }
@@ -110,12 +109,13 @@ object Usenet {
     }
 
     /**
-     * Celotna pot predvajanja: NZB od indeksatorja (naprava), nato TorBox. Vsaka napaka indeksatorja (kljuc, meja, ni
-     * datoteke) je [UsenetPravila.NAPAKA_INDEKSATOR] - okno pove, da gre za indeksator, ne za kljuc TorBox; vrsta je v dnevniku.
+     * Celotna pot predvajanja: NZB od indeksatorja (naprava), nato TorBox. Pregled Grok 3: vrsta napake indeksatorja (kljuc,
+     * meja, druga napaka) gre v izid s ponudnikom [UsenetPravila.PONUDNIK] - okno imenuje indeksator (ne TorBoxa), »Popravi«
+     * ponudi samo pri zavrnjenem kljucu (prej je bila vsaka napaka [UsenetPravila.NAPAKA_INDEKSATOR] z gumbom »Popravi«).
      */
     fun tok(c: Context, idToka: String, ime: String, indeks: Int, samoTakoj: Boolean, napredek: (Int) -> Unit): TorBox.Izid {
-        val nzb = nzb(idToka).first
-            ?: return TorBox.Izid(napaka = UsenetPravila.NAPAKA_INDEKSATOR, ponudnik = DebridPravila.TORBOX)
+        val (nzb, napaka) = nzb(idToka)
+        if (nzb == null) return TorBox.Izid(napaka = napaka.ifBlank { UsenetPravila.NAPAKA_INDEKSATOR }, ponudnik = UsenetPravila.PONUDNIK)
         return TorBox.usenet(c, nzb, ime, indeks, samoTakoj, napredek)
     }
 

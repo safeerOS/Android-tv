@@ -123,6 +123,19 @@ object UsenetPravila {
 
     data class Zadetek(val naslov: String, val povezava: String, val velikost: Long)
 
+    /**
+     * Pregled Grok 3: vrsta napake, ko indeksator ni vrnil NZB - iz napake Newznab v odgovoru, sicer iz kode HTTP (401/403
+     * kljuc, 429 meja). Gre v izid predvajanja ([PONUDNIK]): zavrnjen kljuc ponudi »Popravi«, meja ne.
+     */
+    fun napakaNzb(koda: Int, zacetek: String): String = napaka(zacetek) ?: when (koda) {
+        401, 403 -> TorBoxPravila.NAPAKA_KLJUC
+        429 -> TorBoxPravila.NAPAKA_MEJA
+        else -> NAPAKA_INDEKSATOR
+    }
+
+    /** Pregled Grok 3: ponudnik v izidu, ko je napaka pri indeksatorju (kljuc, meja) - okno imenuje indeksator, ne TorBoxa. */
+    const val PONUDNIK = VRSTA
+
     /** Napaka Newznab (`<error code=…>`) v nase vrste napak; null = ni napake. */
     fun napaka(xml: String): String? {
         val m = Regex("<error\\s+code=\"(\\d+)\"").find(xml) ?: return null

@@ -8924,7 +8924,8 @@ class GlasbaActivity : OsActivity() {
 
     /** Pregled A4: ime storitve za sporocilo napake. */
     private fun imeStoritveNapake(izid: TorBox.Izid): String = when {
-        izid.napaka == UsenetPravila.NAPAKA_INDEKSATOR -> Usenet.gostitelj(this)?.let { getString(R.string.os_usenet_ime_kratko, it) } ?: "Usenet"
+        // Pregled Grok 3: tudi zavrnjen kljuc in meja indeksatorja (ponudnik Usenet) imenujeta indeksator, ne TorBoxa.
+        izid.napaka == UsenetPravila.NAPAKA_INDEKSATOR || izid.ponudnik == UsenetPravila.PONUDNIK -> Usenet.gostitelj(this)?.let { getString(R.string.os_usenet_ime_kratko, it) } ?: "Usenet"
         izid.ponudnik.isNotEmpty() -> DebridPravila.ime(izid.ponudnik)
         else -> getString(R.string.os_debrid)
     }
