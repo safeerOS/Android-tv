@@ -161,4 +161,8 @@
     <string name="os_usenet_naslov_napacen">Die Indexer-Adresse ist ungültig – gib einen Namen mit Domain (z. B. nzbfinder.ws) oder eine vollständige https://…-Adresse ein.</string>
     <!-- Pregled Grok 33, F1: Odstrani kljuca, ki tu ni veljal, samo na tej napravi -->
     <string name="os_debrid_odstranjeno_lokalno">Der %1$s-Schlüssel wurde nur auf diesem Gerät entfernt – er war hier nicht gültig, deine anderen Geräte im engeren Kreis behalten ihren.</string>
+    <!-- Pregled Grok 33, F3: nov kljuc brez povezave caka ob strani -->
+    <string name="os_debrid_kljuc_caka">%1$s konnte den Schlüssel gerade nicht prüfen – dein bisheriger gültiger Schlüssel bleibt in Verwendung. Safeer prüft den neuen erneut und verwendet ihn erst, wenn der Dienst ihn bestätigt.</string>
+    <string name="os_debrid_vrstica_caka">neuer Schlüssel wartet auf Prüfung</string>
+    <string name="os_debrid_vrstica_caka_zavrnjen">der Dienst hat den neuen Schlüssel abgelehnt – der bisherige ist in Verwendung</string>
 </resources>

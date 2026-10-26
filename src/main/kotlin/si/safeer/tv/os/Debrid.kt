@@ -106,15 +106,80 @@ object Debrid {
      * zavrnjen kljuc se NE shrani; brez povezave se shrani kot nepreverjen in ne gre na druge naprave, dokler ga storitev ne
      * potrdi ([preveriNepreverjene]). Veljaven gre sam v ozji krog.
      */
-    fun vpisiKljuc(c: Context, p: String, vnos: String): Pair<DebridPravila.Preverba, Int?> {
-        val k = DebridPravila.kljucIzVnosa(vnos, p) ?: return DebridPravila.Preverba.OBLIKA to null
+    /** Izid vpisa: preverba, paket in [caka] = novi kljuc caka ob strani, dosedanji veljaven ostane (pregled Grok 33, F3). */
+    class IzidVpisa(val preverba: DebridPravila.Preverba, val paket: Int?, val caka: Boolean = false)
+
+    fun vpisiKljuc(c: Context, p: String, vnos: String): IzidVpisa {
+        val k = DebridPravila.kljucIzVnosa(vnos, p) ?: return IzidVpisa(DebridPravila.Preverba.OBLIKA, null)
         val izid = preveriKljuc(p, k)
-        val s = DebridPravila.stanjePoPreverbi(izid.first) ?: return izid
-        if (!shraniKljuc(c, p, k)) return DebridPravila.Preverba.OBLIKA to null
+        val s = DebridPravila.stanjePoPreverbi(izid.first) ?: return IzidVpisa(izid.first, izid.second)
+        when (DebridPravila.obVpisu(s, kljucVelja(c, p), kljuc(c, p) == k)) {
+            // Pregled Grok 33, F3: storitve ni bilo mogoce doseci - veljaven kljuc ostane, novi caka ob strani.
+            DebridPravila.Vpis.OB_STRANI -> {
+                if (!SporocilaSkrivnosti.shrani(c, imeCakajocega(p), k)) return IzidVpisa(DebridPravila.Preverba.OBLIKA, null)
+                prefs(c).edit().remove(KLJUC_CAKA_ZAVRNJEN + p).apply()
+                zadnjaPreverba[CAKA + p] = System.currentTimeMillis()
+                Log.i(TAG, "${DebridPravila.ime(p)}: nov kljuc caka na preverbo, veljaven ostane")
+                return IzidVpisa(izid.first, null, caka = true)
+            }
+            DebridPravila.Vpis.OHRANI -> { pozabiCakajocega(c, p); return IzidVpisa(izid.first, null, caka = true) }
+            DebridPravila.Vpis.ZAMENJAJ -> Unit
+        }
+        if (!shraniKljuc(c, p, k)) return IzidVpisa(DebridPravila.Preverba.OBLIKA, null)
+        pozabiCakajocega(c, p)
         zapisiStanje(c, p, k, s, izid.second)
         zadnjaPreverba[p] = System.currentTimeMillis()
         if (DebridPravila.zaUskladitev(s)) UskladitevKljucev.sprozi(c)
-        return izid
+        return IzidVpisa(izid.first, izid.second)
+    }
+
+    // ------------------------------------------------------------------ cakajoci kljuc (pregled Grok 33, F3)
+
+    private const val CAKA = "caka_"
+    private const val KLJUC_CAKA_ZAVRNJEN = "caka_zavrnjen_"
+    private fun imeCakajocega(p: String) = "debrid_caka_$p"
+
+    /** Na tej napravi caka nov, se nepreverjen kljuc (sifriran; ne gre na druge naprave) - dosedanji veljaven je v uporabi. */
+    fun cakajoc(c: Context, p: String): Boolean = SporocilaSkrivnosti.ima(c, imeCakajocega(p))
+
+    /** Zadnji cakajoci kljuc je storitev zavrnila (vrstica v oknu - do naslednjega vpisa ali odstranitve). */
+    fun cakajocZavrnjen(c: Context, p: String): Boolean = prefs(c).getBoolean(KLJUC_CAKA_ZAVRNJEN + p, false)
+
+    private fun pozabiCakajocega(c: Context, p: String) {
+        if (SporocilaSkrivnosti.ima(c, imeCakajocega(p))) SporocilaSkrivnosti.pozabi(c, imeCakajocega(p))
+        prefs(c).edit().remove(KLJUC_CAKA_ZAVRNJEN + p).apply()
+    }
+
+    /** Cakajoci kljuci: preverba (najvec na [DebridPravila.PREVERI_ZNOVA_MS]); potrjen zamenja veljavnega. true = sprememba. */
+    private fun preveriCakajoce(c: Context): Boolean {
+        var spremenjeno = false
+        for (p in DebridPravila.VSI) {
+            val zapis = SporocilaSkrivnosti.preberi(c, imeCakajocega(p)) ?: continue
+            val k = DebridPravila.kljucIzVnosa(zapis, p)
+            val zdaj = System.currentTimeMillis()
+            if (k != null && !DebridPravila.preveriZdaj(DebridPravila.StanjeKljuca.NEPREVERJEN, zadnjaPreverba[CAKA + p] ?: 0L, zdaj)) continue
+            zadnjaPreverba[CAKA + p] = zdaj
+            val (izid, paket) = if (k == null) DebridPravila.Preverba.OBLIKA to null else preveriKljuc(p, k)
+            when (DebridPravila.poPreverbiCakajocega(izid)) {
+                DebridPravila.Cakajoc.ZAMENJAJ -> {
+                    if (k == null || !shraniKljuc(c, p, k)) continue
+                    zapisiStanje(c, p, k, DebridPravila.StanjeKljuca.VELJA, paket)
+                    zadnjaPreverba[p] = zdaj
+                    pozabiCakajocega(c, p)
+                    Log.i(TAG, "${DebridPravila.ime(p)}: cakajoci kljuc potrjen - zamenjal je prejsnjega")
+                    UskladitevKljucev.sprozi(c)
+                    spremenjeno = true
+                }
+                DebridPravila.Cakajoc.ZAVRZI -> {
+                    SporocilaSkrivnosti.pozabi(c, imeCakajocega(p))
+                    prefs(c).edit().putBoolean(KLJUC_CAKA_ZAVRNJEN + p, true).apply()
+                    Log.i(TAG, "${DebridPravila.ime(p)}: cakajoci kljuc zavrnjen - ostane prejsnji")
+                    spremenjeno = true
+                }
+                DebridPravila.Cakajoc.CAKA -> Unit
+            }
+        }
+        return spremenjeno
     }
 
     /**
@@ -188,6 +253,8 @@ object Debrid {
             val s = DebridPravila.stanjePoPreverbi(izid) ?: DebridPravila.StanjeKljuca.NE_VELJA
             if (s != prej?.first || paket != prej.second) { zapisiStanje(c, p, k, s, paket ?: prej?.second); spremenjeno = true }
         }
+        // Pregled Grok 33, F3: kljuci, ki cakajo ob strani (vpisani brez povezave cez veljavnega).
+        if (try { preveriCakajoce(c) } catch (e: Exception) { Log.w(TAG, "cakajoci: ${e.javaClass.simpleName}"); false }) spremenjeno = true
         // Indeksator Usenet enako (kljuc indeksatorja gre z istimi kljuci v ozji krog).
         if (try { Usenet.preveriNepreverjenega(c) } catch (_: Exception) { false }) spremenjeno = true
         return spremenjeno
@@ -223,7 +290,8 @@ object Debrid {
      */
     fun odstraniKljuc(c: Context, p: String): Boolean {
         val vKrog = UskladitevKljucevPravila.izbrisVKrog(kljucVelja(c, p))
-        UskladitevKljucev.odstrani(c, UskladitevKljucevPravila.kljucDebrid(p), vKrog) { brisiKljuc(c, p) }
+        // Pregled Grok 33, F3: »Odstrani« pozabi tudi kljuc, ki caka ob strani.
+        UskladitevKljucev.odstrani(c, UskladitevKljucevPravila.kljucDebrid(p), vKrog) { brisiKljuc(c, p); pozabiCakajocega(c, p) }
         return vKrog
     }
 

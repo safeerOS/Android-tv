@@ -282,6 +282,16 @@ fun main() {
     preveriEnako("E3: RD 502 brez telesa: ni odgovora", DebridPravila.Preverba.NI_ODGOVORA, DebridPravila.preverbaRdOdgovor(502, null, null, null))
     preveriEnako("AD success: velja", DebridPravila.Preverba.VELJA, DebridPravila.preverbaAd(200, "success", null))
     preveriEnako("AD AUTH_BAD_APIKEY s HTTP 200: ne velja", DebridPravila.Preverba.NE_VELJA, DebridPravila.preverbaAd(200, "error", "AUTH_BAD_APIKEY"))
+    // Pregled Grok 33, F3: vpis brez povezave (429, 5xx) ne prepise veljavnega - caka ob strani.
+    preveriEnako("F3: veljaven + nepreverjen nov -> ob strani", DebridPravila.Vpis.OB_STRANI, DebridPravila.obVpisu(DebridPravila.StanjeKljuca.NEPREVERJEN, shranjenVelja = true, enak = false))
+    preveriEnako("F3: veljaven + isti nepreverjen -> ohrani", DebridPravila.Vpis.OHRANI, DebridPravila.obVpisu(DebridPravila.StanjeKljuca.NEPREVERJEN, shranjenVelja = true, enak = true))
+    preveriEnako("F3: potrjen nov zamenja", DebridPravila.Vpis.ZAMENJAJ, DebridPravila.obVpisu(DebridPravila.StanjeKljuca.VELJA, shranjenVelja = true, enak = false))
+    preveriEnako("F3: brez veljavnega nepreverjen zamenja", DebridPravila.Vpis.ZAMENJAJ, DebridPravila.obVpisu(DebridPravila.StanjeKljuca.NEPREVERJEN, shranjenVelja = false, enak = false))
+    preveriEnako("F3: cakajoci potrjen zamenja", DebridPravila.Cakajoc.ZAMENJAJ, DebridPravila.poPreverbiCakajocega(DebridPravila.Preverba.VELJA))
+    preveriEnako("F3: cakajoci zavrnjen se zavrze", DebridPravila.Cakajoc.ZAVRZI, DebridPravila.poPreverbiCakajocega(DebridPravila.Preverba.NE_VELJA))
+    preveriEnako("F3: cakajoci vzorec se zavrze", DebridPravila.Cakajoc.ZAVRZI, DebridPravila.poPreverbiCakajocega(DebridPravila.Preverba.OBLIKA))
+    preveriEnako("F3: cakajoci brez povezave caka", DebridPravila.Cakajoc.CAKA, DebridPravila.poPreverbiCakajocega(DebridPravila.Preverba.NI_ODGOVORA))
+    preveriEnako("F3: cakajoci meja caka", DebridPravila.Cakajoc.CAKA, DebridPravila.poPreverbiCakajocega(DebridPravila.Preverba.MEJA))
     // Shranjevanje, usklajevanje, prejem
     preveriEnako("zavrnjen se ne shrani", null, DebridPravila.stanjePoPreverbi(DebridPravila.Preverba.NE_VELJA))
     preveriEnako("vzorec se ne shrani", null, DebridPravila.stanjePoPreverbi(DebridPravila.Preverba.OBLIKA))

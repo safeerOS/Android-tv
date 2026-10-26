@@ -161,4 +161,8 @@
     <string name="os_usenet_naslov_napacen">The indexer address is not valid – enter a name with a domain (e.g. nzbfinder.ws) or a full https://… address.</string>
     <!-- Pregled Grok 33, F1: Odstrani kljuca, ki tu ni veljal, samo na tej napravi -->
     <string name="os_debrid_odstranjeno_lokalno">The %1$s key was removed on this device only – it was not valid here, so your other devices in the inner circle keep theirs.</string>
+    <!-- Pregled Grok 33, F3: nov kljuc brez povezave caka ob strani -->
+    <string name="os_debrid_kljuc_caka">%1$s could not check the key right now – your current valid key stays in use. Safeer checks the new one again and uses it only once the service confirms it.</string>
+    <string name="os_debrid_vrstica_caka">new key waiting to be checked</string>
+    <string name="os_debrid_vrstica_caka_zavrnjen">the service rejected the new key – the previous one is in use</string>
 </resources>

@@ -9351,7 +9351,13 @@ class GlasbaActivity : OsActivity() {
                 stanje?.first == DebridPravila.StanjeKljuca.NE_VELJA -> getString(R.string.os_debrid_vrstica_ne_velja, ime)
                 else -> getString(R.string.os_debrid_vrstica_nepreverjen, ime)
             }
-            vrstice += vrstica + meritev to { kljucDebrida(p) }
+            // Pregled Grok 33, F3: nov kljuc, vpisan brez povezave, caka ob strani (ali ga je storitev zavrnila).
+            val caka = when {
+                Debrid.cakajoc(this, p) -> " · " + getString(R.string.os_debrid_vrstica_caka)
+                Debrid.cakajocZavrnjen(this, p) -> " · " + getString(R.string.os_debrid_vrstica_caka_zavrnjen)
+                else -> ""
+            }
+            vrstice += vrstica + caka + meritev to { kljucDebrida(p) }
         }
         // Naloga 141: Usenet indeksator (Newznab) - NZB najde indeksator, prenese in pretaka TorBox (Pro).
         // Lastnik 25. 10. 2026: kot pri kljucih debrid vrstica pove, ali je kljuc indeksatorja potrjen.
@@ -9403,7 +9409,7 @@ class GlasbaActivity : OsActivity() {
         Kontroler.pokazi(okno); okno.show()
         // Lastnik 25. 10. 2026: kljuci brez stanja (pred posodobitvijo) ali nepreverjeni se preverijo v ozadju; ce se stanje
         // spremeni in je okno se odprto, se pokaze znova z novim stanjem.
-        if (DebridPravila.VSI.any { Debrid.imaKljuc(this, it) && Debrid.stanjeKljuca(this, it)?.first != DebridPravila.StanjeKljuca.VELJA } ||
+        if (DebridPravila.VSI.any { (Debrid.imaKljuc(this, it) && Debrid.stanjeKljuca(this, it)?.first != DebridPravila.StanjeKljuca.VELJA) || Debrid.cakajoc(this, it) } ||
             (gostIx != null && stanjeIx != DebridPravila.StanjeKljuca.VELJA)) {
             val app = applicationContext
             Thread({
@@ -9653,10 +9659,13 @@ class GlasbaActivity : OsActivity() {
                 Toast.makeText(this, getString(R.string.os_debrid_preverjam, ime), Toast.LENGTH_SHORT).show()
                 val app = applicationContext
                 Thread({
-                    val (izid, paket) = Debrid.vpisiKljuc(app, p, vnos)
+                    val iv = Debrid.vpisiKljuc(app, p, vnos)
+                    val izid = iv.preverba
+                    val paket = iv.paket
                     glavna.post {
                         if (isFinishing || isDestroyed) return@post
-                        val sporocilo = when (izid) {
+                        // Pregled Grok 33, F3: brez povezave novi kljuc caka ob strani, veljaven ostane v uporabi.
+                        val sporocilo = if (iv.caka) getString(R.string.os_debrid_kljuc_caka, ime) else when (izid) {
                             DebridPravila.Preverba.VELJA ->
                                 getString(R.string.os_debrid_kljuc_velja, ime, paket?.let { " (" + DebridPravila.imePaketa(it) + ")" }.orEmpty())
                             DebridPravila.Preverba.NE_VELJA -> getString(R.string.os_debrid_kljuc_zavrnjen, ime)

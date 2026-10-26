@@ -558,6 +558,31 @@ object DebridPravila {
         Preverba.NE_VELJA, Preverba.OBLIKA -> null
     }
 
+    /** Kam gre vpisan kljuc po preverbi (pregled Grok 33, F3). */
+    enum class Vpis { ZAMENJAJ, OB_STRANI, OHRANI }
+
+    /**
+     * Pregled Grok 33, F3: vpisan kljuc s stanjem [novo] (po preverbi; zavrnjen se sploh ne shrani). Potrjen zamenja
+     * shranjenega. Nepreverjen (brez povezave, 429, 5xx) NE prepise veljavnega - caka ob strani, dokler ga storitev ne potrdi
+     * (prej je veljaven kljuc ob izpadu izginil; ce se je novi izkazal za napacnega, debrid na tej napravi ni delal); enak
+     * veljavnemu ostane, kot je. Brez veljavnega shranjenega nepreverjen zamenja (nic veljavnega se ne izgubi).
+     */
+    fun obVpisu(novo: StanjeKljuca, shranjenVelja: Boolean, enak: Boolean): Vpis = when {
+        novo == StanjeKljuca.VELJA -> Vpis.ZAMENJAJ
+        shranjenVelja && enak -> Vpis.OHRANI
+        shranjenVelja -> Vpis.OB_STRANI
+        else -> Vpis.ZAMENJAJ
+    }
+
+    /** Cakajoci kljuc po ponovni preverbi: potrjen zamenja veljavnega, zavrnjen ali vzorec se zavrze, sicer caka naprej. */
+    enum class Cakajoc { ZAMENJAJ, ZAVRZI, CAKA }
+
+    fun poPreverbiCakajocega(p: Preverba): Cakajoc = when (p) {
+        Preverba.VELJA -> Cakajoc.ZAMENJAJ
+        Preverba.NE_VELJA, Preverba.OBLIKA -> Cakajoc.ZAVRZI
+        Preverba.NI_ODGOVORA, Preverba.MEJA -> Cakajoc.CAKA
+    }
+
     /** Med naprave v ozjem krogu gre samo kljuc, ki ga je storitev potrdila. */
     fun zaUskladitev(s: StanjeKljuca?): Boolean = s == StanjeKljuca.VELJA
 

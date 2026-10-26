@@ -161,4 +161,8 @@
     <string name="os_usenet_naslov_napacen">La dirección del indexador no es válida: escribe un nombre con dominio (p. ej., nzbfinder.ws) o una dirección https://… completa.</string>
     <!-- Pregled Grok 33, F1: Odstrani kljuca, ki tu ni veljal, samo na tej napravi -->
     <string name="os_debrid_odstranjeno_lokalno">La clave de %1$s se eliminó solo en este dispositivo: aquí no era válida, así que tus otros dispositivos del círculo cercano conservan la suya.</string>
+    <!-- Pregled Grok 33, F3: nov kljuc brez povezave caka ob strani -->
+    <string name="os_debrid_kljuc_caka">%1$s no pudo comprobar la clave ahora: tu clave válida actual sigue en uso. Safeer volverá a comprobar la nueva y solo la usará cuando el servicio la confirme.</string>
+    <string name="os_debrid_vrstica_caka">la clave nueva espera comprobación</string>
+    <string name="os_debrid_vrstica_caka_zavrnjen">el servicio rechazó la clave nueva: se usa la anterior</string>
 </resources>
