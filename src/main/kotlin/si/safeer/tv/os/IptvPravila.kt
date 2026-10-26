@@ -185,6 +185,28 @@ object IptvPravila {
         if (sb.isNotEmpty() || predolga) { if (!predolga) obVrstici(sb.toString()); sb.setLength(0) }
     }
 
+    /** Grok 60, Ů4: seznam v pogledu seznama ([MedijskiViri.osveziSeznam]) preberemo najvec toliko znakov in toliko ms. */
+    const val NAJVEC_ZNAKOV_SEZNAMA = 2_000_000
+    const val NAJVEC_BRANJE_MS = 30_000L
+
+    /**
+     * Grok 60, Ů4: besedilo iz [r] z mejo velikosti ([najvecZnakov]) in skupnim rokom ([rokMs], po [ura] v ms). Prej je
+     * readText() prebral VSE, preden je take() odrezal: naslov, ki ni seznam (zivi tok MPEG-TS z zetonom v poti, podkast), je
+     * drzal povezavo na racunu odprto, dokler ni zmanjkalo pomnilnika. Tu se branje ustavi na meji ali roku; klicatelj
+     * zapre bralnik (use) in povezavo (disconnect).
+     */
+    fun omejenoBesedilo(r: java.io.Reader, najvecZnakov: Int, rokMs: Long, ura: () -> Long = { System.nanoTime() / 1_000_000L }): String {
+        val sb = StringBuilder()
+        val buf = CharArray(8192)
+        val konec = ura() + rokMs
+        while (sb.length < najvecZnakov && ura() < konec) {
+            val n = r.read(buf, 0, minOf(buf.size, najvecZnakov - sb.length))
+            if (n < 0) break
+            sb.append(buf, 0, n)
+        }
+        return sb.toString()
+    }
+
     /** Zapis vnosa v eno vrstico datoteke na disku (polja loci tabulator; tabulatorji in prelomi iz vsebine izginejo). */
     fun vVrstico(v: Vnos): String = listOf(v.ime, v.url, v.logo, v.zvrst, v.jezik, v.drzava, v.tvgId)
         .joinToString("\t") { it.replace('\t', ' ').replace('\n', ' ').replace('\r', ' ') }

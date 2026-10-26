@@ -864,7 +864,10 @@ object MedijskiViri {
         var koda = 0
         val nove = try {
             koda = p.responseCode
-            if (koda in 200..299) beriSeznam(p.inputStream.bufferedReader().use { it.readText().take(2_000_000) }, pravi, naslov) else emptyList()
+            // Grok 60, Ů4: z mejo velikosti in roka (prej readText() brez meje: zivi tok je drzal povezavo na racunu odprto do OOM);
+            // bralnik zapre use, povezavo disconnect spodaj.
+            if (koda in 200..299) beriSeznam(p.inputStream.bufferedReader().use {
+                IptvPravila.omejenoBesedilo(it, IptvPravila.NAJVEC_ZNAKOV_SEZNAMA, IptvPravila.NAJVEC_BRANJE_MS) }, pravi, naslov) else emptyList()
         } catch (_: Exception) { emptyList() } finally { p.disconnect() }
         if (racun) IptvSeznami.poIzidu(ctx, naslov, koda, nove.size)
         if (nove.isNotEmpty()) pisi(ctx, kljucSeznama(naslov), pisiSkladbe(nove.take(1000)))

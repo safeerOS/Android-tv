@@ -192,6 +192,31 @@ fun main() {
     // Stara meja (smePrenesti z rocno) je veljala samo po napaki: po uspehu (napaka = null) je izrecna osvezitev smela vsakic.
     preveriEnako("nadzor: stara meja po uspehu ni omejevala", true, IptvPravila.smePrenesti(null, t0, rocno = true))
 
+    // ------------------------------------------------------------------ Grok 60, Ů4
+    println("== Grok 60, Ů4: pogled seznama bere z mejo velikosti in roka ==")
+    // Zivi tok (MPEG-TS z zetonom v poti) ne konca: bralnik, ki za vsak klic dobi se 8 KiB, steje, koliko je bilo prebranega.
+    var u4Prebrano = 0L
+    val u4Neskoncni = object : java.io.Reader() {
+        override fun read(cbuf: CharArray, off: Int, len: Int): Int { java.util.Arrays.fill(cbuf, off, off + len, 'G'); u4Prebrano += len; return len }
+        override fun close() {}
+    }
+    val u4IzToka = IptvPravila.omejenoBesedilo(u4Neskoncni, 100_000, 30_000L)
+    preveriEnako("neskoncen tok: prebrano natanko do meje", 100_000, u4IzToka.length)
+    preveriEnako("neskoncen tok: iz povezave ni prebranega vec kot meja", 100_000L, u4Prebrano)
+    preveriEnako("meja seznama je 2 milijona znakov", 2_000_000, IptvPravila.NAJVEC_ZNAKOV_SEZNAMA)
+    preveriEnako("navaden seznam se prebere cel", "#EXTM3U\n#EXTINF:-1,A\nhttp://a/1\n",
+        IptvPravila.omejenoBesedilo(java.io.StringReader("#EXTM3U\n#EXTINF:-1,A\nhttp://a/1\n"), IptvPravila.NAJVEC_ZNAKOV_SEZNAMA, IptvPravila.NAJVEC_BRANJE_MS))
+    // Pocasen tok (kapljica): po roku se ustavi, ne caka na mejo. Ura je lazna in napreduje 1 s na branje.
+    var u4Ura = 0L
+    var u4Branj = 0
+    val u4Kapljica = object : java.io.Reader() {
+        override fun read(cbuf: CharArray, off: Int, len: Int): Int { u4Branj++; u4Ura += 1_000L; cbuf[off] = 'x'; return 1 }
+        override fun close() {}
+    }
+    val u4IzKapljice = IptvPravila.omejenoBesedilo(u4Kapljica, 2_000_000, 30_000L) { u4Ura }
+    preveriEnako("pocasen tok: ustavi se po roku 30 s", 30, u4Branj)
+    preveriEnako("pocasen tok: prebrano samo do roka", 30, u4IzKapljice.length)
+
     // ------------------------------------------------------------------ konec
     streznik.stop(0)
     if (napak == 0) println("IptvVarovaloTest: OK") else { println("Napak: $napak"); System.exit(1) }

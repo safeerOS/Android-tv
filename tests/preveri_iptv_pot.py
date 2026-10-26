@@ -78,5 +78,11 @@ for f in sorted(OS.glob("*.kt")):
 preveri("IptvSeznami.pripravi z rocno = true: natanko en klic", len(klici) == 1)
 preveri("... in to je izrecen klik »Poskusi znova« (GlasbaActivity)", len(klici) == 1 and klici[0][0] == "GlasbaActivity.kt" and "os_iptv_poskusi_znova" in klici[0][1])
 
+print("Grok 60, Ů4: pogled seznama bere z mejo velikosti in roka")
+os_ = telo(viri, "fun osveziSeznam(")
+preveri("osveziSeznam bere prek IptvPravila.omejenoBesedilo", "IptvPravila.omejenoBesedilo(" in os_)
+preveri("osveziSeznam: brez readText() (branje brez meje)", "readText(" not in os_ and "readLines(" not in os_)
+preveri("osveziSeznam zapre bralnik (use) in povezavo (disconnect)", ".use {" in os_ and "p.disconnect()" in os_)
+
 print("VSE OK" if not napak else f"NAPAK: {napak}")
 sys.exit(1 if napak else 0)
