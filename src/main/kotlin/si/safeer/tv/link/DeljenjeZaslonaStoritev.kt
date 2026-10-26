@@ -214,11 +214,16 @@ class DeljenjeZaslonaStoritev : Service() {
             // Pregled dex-a U5: velja samo za napravo iz obvestila, ne med cakanjem na odklep, ponudba se preveri znova.
             // Grok 15, N11: na Androidu 10-11 dejanje v obvestilu ne zahteva odklepa - preverimo zaklep sami (napaka = zaklenjeno).
             val zaklenjeno = try { (getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager).isDeviceLocked } catch (_: Throwable) { true }
-            if (DeljenjePravila.zaupajIzObvestila(zaupaj, tece, cilj, intent.getStringExtra(EXTRA_CILJ).orEmpty(), cakaNaOdklep,
-                    ZaupanjeZaslona.ponudi(this, cilj), zaklenjeno)) {
+            // Pregled 100, N1 (26. 10. 2026): gledalec obvestilo vidi in ga s Safeer Vnosom tapne - »Vedno dovoli« tik po
+            // vnosu z druge naprave ne velja (preklic vedno). Ura je ista kot pri zapisu (Daljinec.zabeleziVnosNaDaljavo).
+            if (DeljenjePravila.zaupajIzObvestilaBrezVnosa(zaupaj, tece, cilj, intent.getStringExtra(EXTRA_CILJ).orEmpty(), cakaNaOdklep,
+                    ZaupanjeZaslona.ponudi(this, cilj), zaklenjeno, Daljinec.zadnjiVnosNaDaljavoMs, android.os.SystemClock.elapsedRealtime())) {
                 ZaupanjeZaslona.nastavi(this, cilj, zaupaj)
                 posodobiObvestilo()
-            } else if (!tece) stopSelf(startId)   // staro obvestilo, deljenja ni vec: storitev ne ostane prizgana
+            } else {
+                if (zaupaj && tece) Log.w(TAG, "»Vedno dovoli« iz obvestila zavrnjen (vnos z druge naprave, zaklep ali staro obvestilo)")
+                if (!tece) stopSelf(startId)   // staro obvestilo, deljenja ni vec: storitev ne ostane prizgana
+            }
             return START_NOT_STICKY
         }
         val resultCode = intent.getIntExtra(EXTRA_RESULT_CODE, 0)
@@ -405,10 +410,18 @@ class DeljenjeZaslonaStoritev : Service() {
             try { p?.stop() } catch (_: Exception) { }
             return false
         }
+        // Pregled 100, N2 (26. 10. 2026): isto kot ob prvem zagonu (U3) - brez okna za soglasje mora biti znak res viden, preden
+        // je cakanja konec: nit toka poslje prave okvirje, brz ko cakaNaOdklep ni vec true. Zato znak in preverba pred koncajCakanje.
+        pokaziZnak()
+        if (!DeljenjePravila.znakZagotovljen(ZaupanjeZaslona.projekcijaDovoljena(this), Daljinec.obvestilaVklopljena(this, KANAL), znak != null)) {
+            Log.w(TAG, "Deljenje po odklepu ustavljeno: znak deljenja se ni pokazal in obvestil ni")
+            // True: deljenje je koncano tu; klicatelj ne sme z istim soglasjem zaceti novega.
+            koncaj("Deljenja ne nadaljujem: naprava ne kaže, da se zaslon deli. Vklopi obvestila za Safeer.")
+            return true
+        }
         koncajCakanje()
         PretokKonec.zahteve.zagonKoncan()
         ohraniZaslon(true)
-        pokaziZnak()
         posodobiObvestilo()
         javi()
         Log.i(TAG, "Deljenje zaslona se po odklepu nadaljuje v istem toku")

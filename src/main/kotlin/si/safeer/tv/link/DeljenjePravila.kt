@@ -108,6 +108,34 @@ object DeljenjePravila {
                           zaklenjeno: Boolean = false): Boolean =
         tece && cilj.isNotBlank() && ciljNamere == cilj && (!zaupaj || (!cakaNaOdklep && ponudi && !zaklenjeno))
 
+    /**
+     * Pregled 100, N1 (26. 10. 2026): toliko casa po koncu zadnjega vnosa z druge naprave (Safeer Vnos) »Vedno dovoli« iz
+     * obvestila ne velja. Tap gledalca pride v storitev v nekaj ms; 5 s je rezerva za pocasno napravo.
+     */
+    const val OKNO_VNOSA_MS = 5_000L
+
+    /** Najdaljsa gesta, ki jo Android izvede (GestureDescription.getMaxGestureDuration): daljse trajanje z omrezja odrezemo. */
+    const val NAJDALJSA_GESTA_MS = 60_000L
+
+    /**
+     * Pregled 100, N1: kdaj se vnos z druge naprave konca - dotik ali poteg z [trajanjeMs] (stevilo z omrezja, omejeno na
+     * [NAJDALJSA_GESTA_MS]) tapne sele ob koncu geste, zato okno steje od konca, ne od zacetka.
+     */
+    fun konecVnosa(zdajMs: Long, trajanjeMs: Long): Long = zdajMs + trajanjeMs.coerceIn(0L, NAJDALJSA_GESTA_MS)
+
+    /**
+     * Pregled 100, N1 (26. 10. 2026): kot [zaupajIzObvestila], le da »Vedno dovoli« ne velja, ce je bil v zadnjih
+     * [OKNO_VNOSA_MS] vnos z druge naprave - obvestilo je na zaslonu, ki ga gledalec vidi in s Safeer Vnosom tapne, in
+     * setAuthenticationRequired zahteva samo odklenjeno napravo. Tap na lastnem zaslonu bi gledalcu sicer dal zaslon brez
+     * vprasanja (Potrditev.BREZ). Preklic ostane vedno dovoljen, ker zaupanje samo odvzame. [zadnjiVnosMs] je konec
+     * zadnjega vnosa ([konecVnosa]), [zdajMs] ista monotona ura (elapsedRealtime); 0 = vnosa se ni bilo. Brez privzetih
+     * vrednosti: klicatelj, ki casa vnosa ne poda, se ne prevede.
+     */
+    fun zaupajIzObvestilaBrezVnosa(zaupaj: Boolean, tece: Boolean, cilj: String, ciljNamere: String, cakaNaOdklep: Boolean,
+                                   ponudi: Boolean, zaklenjeno: Boolean, zadnjiVnosMs: Long, zdajMs: Long): Boolean =
+        zaupajIzObvestila(zaupaj, tece, cilj, ciljNamere, cakaNaOdklep, ponudi, zaklenjeno) &&
+            (!zaupaj || zadnjiVnosMs <= 0L || zdajMs - zadnjiVnosMs > OKNO_VNOSA_MS)
+
     /** Pregled dex-a U7: zaupanje ostane samo napravam, ki so se v ozjem krogu (umik ga izbrise; ponovna vkljucitev ga ne obudi). */
     fun zaupanjaVKrogu(zapis: Set<String>, vKrogu: (String) -> Boolean): Set<String> =
         zapis.filter { j -> try { vKrogu(j) } catch (_: Throwable) { false } }.toSet()

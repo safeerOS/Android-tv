@@ -792,6 +792,8 @@ object Daljinec {
      * ni vklopljena, uporabnik dobi jasno sporocilo; `input.enable` odpre nastavitve, kjer jo vklopi.
      */
     private fun vnos(context: Context, d: String, p: JSONObject): Izid {
+        // Pregled 100, N1: zapis pred vsem, tudi pred zavrnitvijo - storitev deljenja po njem loci tap gledalca od tapa uporabnika.
+        zabeleziVnosNaDaljavo(when (d) { "input.tap" -> p.optLong("ms", 60); "input.swipe" -> p.optLong("ms", 300); else -> 0L })
         if (d == "input.enable") return vklopiVnos(context)
         // A4: deljenje caka na odklep - dotik ali tipka z racunalnika bi sla na zaklepni zaslon; pregled dex-a U2/U6.
         // Grok 15, N2: »Nazaj« med vprasanjem za deljenje zaslona sme (vprasanje samo zavrne).
@@ -937,6 +939,22 @@ object Daljinec {
         }
     }
 
+    /**
+     * Pregled 100, N1 (26. 10. 2026): konec zadnjega vnosa z druge naprave (elapsedRealtime, ms; 0 = ga se ni bilo).
+     * DeljenjeZaslonaStoritev po njem zavrne »Vedno dovoli«, ki ga je tapnil gledalec ([DeljenjePravila.zaupajIzObvestilaBrezVnosa]).
+     */
+    @Volatile var zadnjiVnosNaDaljavoMs: Long = 0L
+        private set
+
+    /**
+     * Pregled 100, N1: zapise vnos z druge naprave, ki traja [trajanjeMs]. Javna, ker jo mora klicati vsaka pot, ki z omrezja
+     * vozi Safeer Vnos; casa ne premaknemo nazaj, da kratek dotik ne skrajsa okna se trajajoce dolge geste.
+     */
+    fun zabeleziVnosNaDaljavo(trajanjeMs: Long = 0L) {
+        val konec = DeljenjePravila.konecVnosa(android.os.SystemClock.elapsedRealtime(), trajanjeMs)
+        synchronized(this) { if (konec > zadnjiVnosNaDaljavoMs) zadnjiVnosNaDaljavoMs = konec }
+    }
+
     const val KODA_CAKA_POTRDITEV = "caka_potrditev"
 
     const val KODA_ZAKLENJENO = "zaklenjeno"
@@ -948,6 +966,8 @@ object Daljinec {
      * naprava ne sme poslati poljubnih koordinat. Tako telefon ne dobi splosnega dostopa do zaslona.
      */
     private fun igralniPloskek(context: Context, d: String, p: JSONObject): Izid {
+        // Pregled 100, N1: igralni plosek tapne prek Safeer Vnosa kot input.tap.
+        zabeleziVnosNaDaljavo()
         izidBrezVnosa(context)?.let { return it }
         if (!VnosStoritev.aktivna()) return Izid(false,
             "Na napravi z igro vklopi Safeer Vnos (Nastavitve → Dostopnost).", koda = "vnos_ni_vklopljen")

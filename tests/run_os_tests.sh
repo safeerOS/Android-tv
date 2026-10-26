@@ -83,6 +83,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/PoDeljenjuTest.kt" \
     "$TEST_DIR/PretokKonecTest.kt" \
     "$TEST_DIR/DeljenjePravilaTest.kt" \
+    "$TEST_DIR/DeljenjeVnosNaDaljavoTest.kt" \
+    "$TEST_DIR/DeljenjeZaslonaPotTest.kt" \
     "$TEST_DIR/OmejenoNastavitvePravilaTest.kt" \
     "$TEST_DIR/VnosVklopPravilaTest.kt" \
     "$TEST_DIR/HlsPopravekTest.kt" \
@@ -181,6 +183,9 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.cast.ObvestiloZaslonaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.cast.PoDeljenjuTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.PretokKonecTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.DeljenjePravilaTestKt
+# Pregled 100, N1 in N2 (26. 10. 2026): »Vedno dovoli« ne po vnosu z daljave; znak pred koncem cakanja na odklep.
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.DeljenjeVnosNaDaljavoTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.DeljenjeZaslonaPotTestKt "$SRC/si/safeer/tv/link/DeljenjeZaslonaStoritev.kt" "$SRC/si/safeer/tv/link/Daljinec.kt"
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.OmejenoNastavitvePravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.VnosVklopPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.HlsPopravekTestKt
