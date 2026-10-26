@@ -800,7 +800,8 @@ object MedijskiViri {
             var extinf = ""
             telo.lines().map { it.trim() }.forEach { l ->
                 when {
-                    l.startsWith("#EXTINF", ignoreCase = true) -> { ime = l.substringAfter(',', "").trim(); extinf = l }
+                    // Ime za vejico ZUNAJ narekovajev (group-title="News,Sport", http-user-agent z vejico) - kot seznami IPTV.
+                    l.startsWith("#EXTINF", ignoreCase = true) -> { ime = IptvPravila.imeIzExtinf(l); extinf = l }
                     l.isEmpty() || l.startsWith("#") -> {}
                     else -> { pari += Triple(ime, polni(l), extinf); ime = ""; extinf = "" }
                 }

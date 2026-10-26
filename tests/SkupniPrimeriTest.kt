@@ -160,11 +160,42 @@ private fun izracunaj(f: String, v: Map<String, Any?>): Any? = when (f) {
     else -> error("neznano pravilo: $f")
 }
 
+/**
+ * Skupni primeri razclenitve seznamov M3U (tests/skupni-primeri/iptv-m3u.json, lastnik Safeer-linux): Android preveri, kar
+ * pozna njegov bralnik seznamov IPTV - ime (brez tehnicnih pripon), drzavo, jezik, logotip in izlocitev [Not 24/7]. Filmov,
+ * serij in radia Android iz seznama IPTV ne loci: ti primeri so preskoceni in nasteti (razlika do Linuxa).
+ */
+@Suppress("UNCHECKED_CAST")
+private fun iptvPrimeri(koren: Map<String, Any?>) {
+    for (p in koren["primeri"] as List<Map<String, Any?>>) {
+        val pr = p["pricakovano"] as Map<String, Any?>
+        val opis = p.niz("opis")!!
+        val vrsta = pr.niz("vrsta")
+        if (pr["izlocen"] != true && vrsta != "tv-v-zivo") { println("  preskoceno (Android, vrsta $vrsta): $opis"); continue }
+        val seznam = p.niz("seznam")!!
+        val (d, j) = IptvPravila.izNaslovaSeznama(seznam)
+        val b = IptvPravila.Bralnik(seznam, d, j)
+        val vnosi = (p["vrstice"] as List<String>).mapNotNull { b.vrstica(it) }
+        if (pr["izlocen"] == true) { preveriEnako("$opis: izlocen", 0, vnosi.size); continue }
+        preveriEnako("$opis: en kanal", 1, vnosi.size)
+        val v = vnosi.singleOrNull() ?: continue
+        preveriEnako("$opis: ime", pr["ime"], KanaliPravila.imeKanala(v.ime))
+        for ((k, dobljeno) in listOf("drzava" to v.drzava, "jezik" to v.jezik, "logo" to v.logo))
+            if (pr.containsKey(k)) preveriEnako("$opis: $k", pr[k], dobljeno)
+    }
+}
+
 @Suppress("UNCHECKED_CAST")
 fun main(args: Array<String>) {
     println("Preizkus skupnih primerov (Android in namizje)")
     val pot = args.firstOrNull() ?: "tests/skupni-primeri/debrid-serije.json"
     val koren = Bralnik(File(pot).readText(Charsets.UTF_8)).beri() as Map<String, Any?>
+    if ((koren["primeri"] as List<Map<String, Any?>>).firstOrNull()?.containsKey("vrstice") == true) {
+        iptvPrimeri(koren)
+        println("  primerov: $primerov")
+        if (napak == 0) println("SkupniPrimeriTest: OK") else { println("Napak: $napak"); System.exit(1) }
+        return
+    }
     for (p in koren["primeri"] as List<Map<String, Any?>>) {
         val f = p.niz("f")!!
         val vhod = p["vhod"] as Map<String, Any?>

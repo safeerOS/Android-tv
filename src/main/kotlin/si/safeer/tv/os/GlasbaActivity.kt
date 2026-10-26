@@ -3381,8 +3381,9 @@ class GlasbaActivity : OsActivity() {
         val stran = odgovor.orEmpty()
         v.dal += stran.size
         if (odgovor == null || !OsPravila.katalogImaVec(stran.size, v.katalog.strani, STRAN_KATALOGA_MIN)) v.konec = true
-        // Ime brez tehnicnih pripon seznama (»(720p)«): isti kanal v dveh locljivostih je ena kartica.
-        return stran.map { it.copy(naslov = KanaliPravila.imeKanala(it.naslov)) }
+        // Ime brez tehnicnih pripon seznama (»(720p)«): isti kanal v dveh locljivostih je ena kartica. Lastnik, 25. 10.:
+        // kanalov [Not 24/7] ne rabimo - tudi iz dodatkov ne.
+        return stran.filterNot { KanaliPravila.jeNe247(it.naslov) }.map { it.copy(naslov = KanaliPravila.imeKanala(it.naslov)) }
     }
 
     /**

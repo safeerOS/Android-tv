@@ -108,6 +108,20 @@ fun main() {
     preveriEnako("86 vrstice: 50 M znakov brez preloma - nobene vrstice, brez OOM", 0, n)
 
     println()
+    println("== Not 24/7, .uk = GB (lastnik 25. 10. 2026; kot Linux) ==")
+    preveriEnako("Not 24/7: kanal izlocen", null, IptvPravila.vnos("#EXTINF:-1 tvg-id=\"U.si@SD\" group-title=\"General\",Televizija U (1080p) [Not 24/7]", "https://t.primer.test/u.m3u8", "SI", ""))
+    preveriEnako("Not 24/7: male crke in presledki", null, IptvPravila.vnos("#EXTINF:-1 tvg-id=\"U.si\",Kanal [ not 24 / 7 ]", "https://t.primer.test/u.m3u8", "SI", ""))
+    preveriEnako("Not 24/7: samo v tvg-name", null, IptvPravila.vnos("#EXTINF:-1 tvg-name=\"K [Not 24/7]\" tvg-id=\"K.si\",K", "https://t.primer.test/k.m3u8", "SI", ""))
+    preveriEnako("Not 24/7: Geo-blocked ostane", "K [Geo-blocked]", IptvPravila.vnos("#EXTINF:-1 tvg-id=\"K.si\",K [Geo-blocked]", "https://t.primer.test/k.m3u8", "SI", "")?.ime)
+    preveriEnako("Not 24/7: dodatek", true, KanaliPravila.jeNe247("Kanal X [Not 24/7]"))
+    preveriEnako("Not 24/7: ime brez oznake", false, KanaliPravila.jeNe247("24/7 Movies"))
+    preveriEnako(".uk -> GB (tvg-id)", "GB", IptvPravila.vnos("#EXTINF:-1 tvg-id=\"BBCNews.uk@SD\" group-title=\"News\",BBC News", "https://t.primer.test/bbc.m3u8", "", "en")?.drzava)
+    preveriEnako(".uk -> GB (tvg-country)", "GB", IptvPravila.vnos("#EXTINF:-1 tvg-country=\"UK\",Kanal", "https://t.primer.test/k.m3u8", "", "")?.drzava)
+    preveriEnako(".uk -> GB (countries/uk.m3u)", "GB" to "", IptvPravila.izNaslovaSeznama("https://iptv-org.github.io/iptv/countries/uk.m3u"))
+    preveriEnako("vejica v http-user-agent: ime za vejico zunaj narekovajev", "H2 HD",
+        IptvPravila.imeIzExtinf("#EXTINF:-1 http-user-agent=\"Mozilla/5.0 (KHTML, like Gecko) Chrome/124\" group-title=\"Documentary\",H2 HD"))
+
+    println()
     println("== zascita racuna (lastnik, 26. 10. 2026: nevarnost zaklepa racuna je prioriteta) ==")
     val xtream = "http://ponudnik.primer.test:8080/get.php?username=uporabnik&password=geslo&type=m3u_plus"
     val s = IptvPravila::jeVirSPoverilnico

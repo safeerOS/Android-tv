@@ -93,9 +93,13 @@ object IptvPravila {
     private val RX_JEZIK_SEZNAMA = Regex("/languages/([a-z]{2,3})(?:\\.m3u8?)?(?:[?#]|$)", RegexOption.IGNORE_CASE)
     private val RX_DRZAVA_ID = Regex("\\.([a-z]{2})(?:@|$)", RegexOption.IGNORE_CASE)
 
+    /** iptv-org pise Zdruzeno kraljestvo kot ».uk« (tvg-id, countries/uk.m3u); ISO 3166-1 je GB (kot Linux _DRZAVA_POPRAVKI). */
+    private val DRZAVA_POPRAVKI = mapOf("UK" to "GB")
+    private fun popraviDrzavo(d: String) = DRZAVA_POPRAVKI[d] ?: d
+
     /** Drzava in jezik iz naslova seznama: ».../countries/si.m3u« -> (SI, ""), ».../languages/eng.m3u« -> ("", en). */
     fun izNaslovaSeznama(url: String): Pair<String, String> {
-        val drzava = RX_DRZAVA_SEZNAMA.find(url)?.groupValues?.get(1)?.uppercase(java.util.Locale.ROOT).orEmpty()
+        val drzava = popraviDrzavo(RX_DRZAVA_SEZNAMA.find(url)?.groupValues?.get(1)?.uppercase(java.util.Locale.ROOT).orEmpty())
         val jezik = RX_JEZIK_SEZNAMA.find(url)?.groupValues?.get(1)?.let { jezik(it) }.orEmpty()
         return drzava to jezik
     }
@@ -113,9 +117,11 @@ object IptvPravila {
         val a = atributi(extinf)
         if (!jeKanal(a, url)) return null
         val ime = imeIzExtinf(extinf).ifBlank { a["tvg-name"].orEmpty() }.ifBlank { return null }
+        // Lastnik, 25. 10. 2026: kanalov [Not 24/7] ne rabimo - izlocijo se ze pri branju (ne prikaz, ne preverba).
+        if (KanaliPravila.jeNe247(ime) || KanaliPravila.jeNe247(a["tvg-name"].orEmpty())) return null
         val tvgId = a["tvg-id"].orEmpty()
-        val drzava = a["tvg-country"]?.split(';', ',')?.firstOrNull()?.trim()?.takeIf { it.length == 2 }?.uppercase(java.util.Locale.ROOT)
-            ?: RX_DRZAVA_ID.find(tvgId)?.groupValues?.get(1)?.uppercase(java.util.Locale.ROOT) ?: drzavaSeznama
+        val drzava = popraviDrzavo(a["tvg-country"]?.split(';', ',')?.firstOrNull()?.trim()?.takeIf { it.length == 2 }?.uppercase(java.util.Locale.ROOT)
+            ?: RX_DRZAVA_ID.find(tvgId)?.groupValues?.get(1)?.uppercase(java.util.Locale.ROOT) ?: drzavaSeznama)
         // Seznami drzav iptv-org (countries/si.m3u) nimajo tvg-language: brez jezika kanal ni ustrezal nobenemu filtru jezika
         // (izmerjeno 23. 10. 2026: filter Slovenian ni pokazal TV SLO 1/2). Jezik tedaj vzamemo iz drzave kanala.
         val jezik = a["tvg-language"]?.split(';', ',')?.firstNotNullOfOrNull { jezik(it) } ?: jezikSeznama.ifEmpty { jezikDrzave(drzava) }

@@ -29,8 +29,8 @@ object IptvSeznami {
     private val prenasam: MutableSet<String> = java.util.Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
 
     // Pripona -j2: od 23. 10. 2026 ima kanal brez tvg-language jezik drzave - stare razclenitve (brez jezika) se ne berejo vec,
-    // seznam se prenese znova, [obdrzi] stare datoteke pospravi.
-    private fun ime(naslov: String) = KanaliPravila.odtisDodatka(naslov) + "-j2"
+    // seznam se prenese znova, [obdrzi] stare datoteke pospravi. -j3 (26. 10. 2026): brez kanalov [Not 24/7], ».uk« = GB.
+    private fun ime(naslov: String) = KanaliPravila.odtisDodatka(naslov) + "-j3"
     private fun mapa(c: Context) = File(c.applicationContext.filesDir, MAPA)
     /** Naloga 87: mapa seznamov na USB, ce je predpomnilnik na USB v uporabi (iz ozadja; z glavne niti null). */
     private fun mapaUsb(c: Context): File? = UsbPredpomnilnik.mapa(c, PredpomnilnikPravila.IPTV)
