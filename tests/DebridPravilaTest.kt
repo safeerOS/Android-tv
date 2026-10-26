@@ -453,5 +453,25 @@ fun main() {
     preveriEnako("Z9: prezgodaj - pocakaj", DebridPravila.PoPreveri.POCAKAJ, DebridPravila.poPreveri(null))
     preveriEnako("Z9: vzorec - ne velja", DebridPravila.PoPreveri.NE_VELJA, DebridPravila.poPreveri(DebridPravila.Preverba.OBLIKA))
 
+    // Pregled Grok 48, A3: zapora kljuca o1 je samo na mestu (zapisana pred a15fb57), seznam zapor je prazen. Vpis K2 mesto
+    // prepise - zapora o1 mora ostati (prej je izginila in »Razveljavi« je vrnil K1 kot nepreverjenega).
+    run {
+        val zk = DebridPravila.StanjeKljuca.ZAKLENJEN
+        val o1 = DebridPravila.odtisStanja("K1-izmisljen-kljuc-0001"); val o2 = DebridPravila.odtisStanja("K2-izmisljen-kljuc-0002")
+        val mesto = DebridPravila.zapisStanja(zk, o1, null, 1000L)
+        val zapore = DebridPravila.zZaporo(DebridPravila.zaporePredPrepisom(mesto, null, o2), o2, DebridPravila.StanjeKljuca.NEPREVERJEN)
+        val novoMesto = DebridPravila.zapisStanja(DebridPravila.StanjeKljuca.NEPREVERJEN, o2, null, 2000L)
+        preveriEnako("A3: zapora o1 v seznamu po vpisu K2", zk, DebridPravila.zaporeIzZapisa(zapore)[o1])
+        preveriEnako("A3: stanje o1 po vpisu K2 ostane zaklenjen", zk, DebridPravila.stanjeZZaporo(null,
+            DebridPravila.stanjeIzZapisa(novoMesto, o1)?.first, DebridPravila.zaporeIzZapisa(zapore)[o1]))
+        preveriEnako("A3: Razveljavi vrne K1 z zaporo", zk, DebridPravila.stanjeObObnovi(DebridPravila.zaporeIzZapisa(zapore)[o1]))
+        val nv = DebridPravila.zapisStanja(DebridPravila.StanjeKljuca.NE_VELJA, o1, null, 1000L)
+        preveriEnako("A3: tudi »ne velja« se prenese", DebridPravila.StanjeKljuca.NE_VELJA,
+            DebridPravila.zaporeIzZapisa(DebridPravila.zaporePredPrepisom(nv, null, o2))[o1])
+        preveriEnako("A3: velja na mestu ni zapora", null,
+            DebridPravila.zaporeIzZapisa(DebridPravila.zaporePredPrepisom(DebridPravila.zapisStanja(DebridPravila.StanjeKljuca.VELJA, o1, null, 1L), null, o2))[o1])
+        preveriEnako("A3: isti kljuc - seznam nespremenjen", null, DebridPravila.zaporePredPrepisom(mesto, null, o1))
+    }
+
     if (napak == 0) println("DebridPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

@@ -800,6 +800,20 @@ object DebridPravila {
      * Zapis zapor po novem stanju [s] kljuca [odtis]: »ne velja« in »zaklenjen« se zapomnita po kljucu (najnovejsa zadnja,
      * najvec [NAJVEC_ZAPOR]); samo »velja« (»Preveri« ali vpis, ki ga storitev potrdi) zaporo odpravi; »nepreverjen« je ne spremeni.
      */
+    /**
+     * Pregled Grok 48, A3: zapore pred prepisom mesta storitve z zapisom kljuca [odtis]. Ce je na mestu zapora DRUGEGA kljuca
+     * (zapisana pred a15fb57, ko je bilo stanje samo na mestu, ali kakorkoli manjka med zaporami), gre najprej v seznam - prej
+     * se je ob prvi zamenjavi kljuca izgubila in »Razveljavi« ali prejem je vrnil zaklenjen kljuc kot nepreverjenega.
+     */
+    fun zaporePredPrepisom(zapisMesta: String?, zapore: String?, odtis: String): String? {
+        val d = zapisMesta?.split('|') ?: return zapore
+        val o = d.getOrNull(1).orEmpty()
+        if (o.isEmpty() || o == odtis) return zapore
+        val s = StanjeKljuca.values().firstOrNull { it.name == d[0] }
+        if (!jeZapora(s) || zaporeIzZapisa(zapore).containsKey(o)) return zapore
+        return zZaporo(zapore, o, s!!)
+    }
+
     fun zZaporo(zapis: String?, odtis: String, s: StanjeKljuca): String {
         val m = LinkedHashMap(zaporeIzZapisa(zapis))
         if (jeZapora(s)) { m.remove(odtis); m[odtis] = s } else if (s == StanjeKljuca.VELJA) m.remove(odtis)

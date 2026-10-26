@@ -92,6 +92,10 @@ object Debrid {
     private val zadnjaPreverba = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
     /** (stanje, paket) shranjenega kljuca storitve [p]; null = ni kljuca ali ga se nihce ni preveril (stanje drugega kljuca ne velja). */
+    /** Stanje za natanko [kljuc] (ne za trenutno shranjenega) - pregled Grok 48, A2: kljuc, ki gre res storitvi. */
+    fun stanjeZaKljuc(c: Context, p: String, kljuc: String): DebridPravila.StanjeKljuca? =
+        stanjeZa(c, p, DebridPravila.odtisStanja(kljuc))?.first
+
     fun stanjeKljuca(c: Context, p: String): Pair<DebridPravila.StanjeKljuca, Int?>? {
         val k = kljuc(c, p) ?: return null
         return stanjeZa(c, p, DebridPravila.odtisStanja(k))?.let { it.first to it.second }
@@ -125,8 +129,10 @@ object Debrid {
             val k = "$p|$odtis"
             if (s == DebridPravila.StanjeKljuca.NE_VELJA || s == DebridPravila.StanjeKljuca.ZAKLENJEN) zaprti[k] = s
             val pr = prefs(c)
+            // A3: zapora drugega kljuca, ki je samo na mestu, gre pred prepisom v seznam zapor
+            val zapore = DebridPravila.zaporePredPrepisom(pr.getString(KLJUC_STANJE + p, null), pr.getString(KLJUC_ZAPORE + p, null), odtis)
             pr.edit().putString(KLJUC_STANJE + p, DebridPravila.zapisStanja(s, odtis, paket, ob, rocno))
-                .putString(KLJUC_ZAPORE + p, DebridPravila.zZaporo(pr.getString(KLJUC_ZAPORE + p, null), odtis, s)).apply()
+                .putString(KLJUC_ZAPORE + p, DebridPravila.zZaporo(zapore, odtis, s)).apply()
             if (s == DebridPravila.StanjeKljuca.VELJA) zaprti.remove(k)
         }
     }

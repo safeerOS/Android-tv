@@ -425,6 +425,17 @@ object UsenetPravila {
         else -> null
     }
 
+    /**
+     * Pregled Grok 48, A2 (namizje S6): tik pred klicem TorBoxa, PO prenosu NZB (sekunde do minute), znova za kljuc
+     * [kljuc], ki gre res TorBoxu - med prenosom ga je lahko druga nit zaklenila, prisla je zapora z druge naprave ali ga je
+     * »Razveljavi« zamenjal z zaklenjenim. null = klic sme.
+     */
+    fun oviraTorBoxa(kljuc: String?, stanje: DebridPravila.StanjeKljuca?): Pair<String, String>? = when {
+        kljuc == null -> TorBoxPravila.NAPAKA_KLJUC to DebridPravila.TORBOX
+        !DebridPravila.smeKlicati(stanje) -> napakaStanja(stanje) to DebridPravila.TORBOX
+        else -> null
+    }
+
     /** Id toka za zadetek: »usenet:« + prvih 16 heks SHA-1 povezave - povezava (s kljucem) ostane samo v pomnilniku. */
     fun idToka(povezava: String): String {
         val d = java.security.MessageDigest.getInstance("SHA-1").digest(povezava.toByteArray(Charsets.UTF_8))

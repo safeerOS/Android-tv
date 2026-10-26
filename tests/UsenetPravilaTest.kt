@@ -6,7 +6,7 @@ private fun preveriEnako(opis: String, pricakovano: Any?, dobljeno: Any?) =
     if (pricakovano == dobljeno) println("  ok  $opis") else { napak++; println("  NAPAKA  $opis: pricakovano $pricakovano, dobljeno $dobljeno") }
 
 /** Naloga 141: Usenet prek TorBoxa - indeksator Newznab ([UsenetPravila]). */
-fun main() {
+fun main(args: Array<String>) {
     println("Preizkus pravil Usenet")
 
     // Naslov indeksatorja
@@ -302,6 +302,28 @@ fun main() {
     preveriEnako("Z1: oba smeta (velja, nepreverjen, brez stanja)", listOf(null, null, null), listOf(
         UsenetPravila.oviraPrenosa(true, v, true, v), UsenetPravila.oviraPrenosa(true, DebridPravila.StanjeKljuca.NEPREVERJEN, true, null),
         UsenetPravila.oviraPrenosa(true, null, true, DebridPravila.StanjeKljuca.NEPREVERJEN)))
+
+    // Pregled Grok 48, A2: po prenosu NZB se TorBox preveri znova za kljuc, ki gre res TorBoxu.
+    val zkA2 = DebridPravila.StanjeKljuca.ZAKLENJEN
+    preveriEnako("A2: zaklenjen med prenosom NZB - brez klica", UsenetPravila.napakaStanja(zkA2) to DebridPravila.TORBOX,
+        UsenetPravila.oviraTorBoxa("tb-izmisljen", zkA2))
+    preveriEnako("A2: ne velja - brez klica", DebridPravila.TORBOX,
+        UsenetPravila.oviraTorBoxa("tb-izmisljen", DebridPravila.StanjeKljuca.NE_VELJA)?.second)
+    preveriEnako("A2: kljuc odstranjen med prenosom", TorBoxPravila.NAPAKA_KLJUC to DebridPravila.TORBOX, UsenetPravila.oviraTorBoxa(null, null))
+    preveriEnako("A2: nepreverjen in velja smeta", listOf(null, null, null), listOf(UsenetPravila.oviraTorBoxa("k", null),
+        UsenetPravila.oviraTorBoxa("k", DebridPravila.StanjeKljuca.NEPREVERJEN), UsenetPravila.oviraTorBoxa("k", DebridPravila.StanjeKljuca.VELJA)))
+    // Usenet.tok (Android, brez JVM preizkusa): preverba je PO prenosu NZB in TorBox dobi natanko preverjen kljuc;
+    // oba zapisa stanja preneseta zaporo drugega kljuca z mesta (A3).
+    if (args.size >= 2) {
+        val usenet = java.io.File(args[0]).readText()
+        val debrid = java.io.File(args[1]).readText()
+        val prenos = usenet.indexOf("val (nzb, napaka) = nzb(povezava)")
+        val ovira = usenet.indexOf("UsenetPravila.oviraTorBoxa(kljucZahteve")
+        val klic = usenet.indexOf("TorBox.usenet(c, nzb, ime, indeks, samoTakoj, napredek, kljucZahteve)")
+        preveriEnako("A2: Usenet.tok preveri TorBox po prenosu NZB in poslje preverjen kljuc", true, prenos in 0 until ovira && ovira < klic)
+        preveriEnako("A3: zapisi (indeksator in debrid) preneseta zaporo z mesta", true,
+            "DebridPravila.zaporePredPrepisom(" in usenet && "DebridPravila.zaporePredPrepisom(" in debrid)
+    } else { napak++; println("  NAPAKA  A2/A3: brez poti do Usenet.kt in Debrid.kt") }
 
     if (napak == 0) println("UsenetPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

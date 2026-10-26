@@ -89,8 +89,10 @@ object Usenet {
         synchronized(zaklep) {
             if (s == DebridPravila.StanjeKljuca.NE_VELJA || s == DebridPravila.StanjeKljuca.ZAKLENJEN) zaprti[o] = s
             val pr = prefs(c)
+            // A3: zapora drugega kljuca indeksatorja, ki je samo na mestu, gre pred prepisom v seznam zapor
+            val zapore = DebridPravila.zaporePredPrepisom(pr.getString(KLJUC_STANJE, null), pr.getString(KLJUC_ZAPORE, null), o)
             pr.edit().putString(KLJUC_STANJE, DebridPravila.zapisStanja(s, o, null, ob, rocno))
-                .putString(KLJUC_ZAPORE, DebridPravila.zZaporo(pr.getString(KLJUC_ZAPORE, null), o, s)).apply()
+                .putString(KLJUC_ZAPORE, DebridPravila.zZaporo(zapore, o, s)).apply()
             if (s == DebridPravila.StanjeKljuca.VELJA) zaprti.remove(o)
         }
     }
@@ -445,8 +447,13 @@ object Usenet {
         if (izidNzb != null) try { obOdgovoru(c, ix, izidNzb) } catch (_: Exception) { }
         if (nzb == null) return TorBox.Izid(napaka = napaka.ifBlank { UsenetPravila.NAPAKA_INDEKSATOR }, ponudnik = UsenetPravila.PONUDNIK)
         // Pregled Grok 33, F5: izid velja za kljuc TorBox, s katerim je sla zahteva (ne za kljuc, vpisan med prenosom).
+        // Pregled Grok 48, A2: prenos NZB traja; stanje se preveri znova za ta kljuc in TorBox dobi natanko njega.
         val kljucZahteve = TorBox.kljuc(c)
-        return TorBox.usenet(c, nzb, ime, indeks, samoTakoj, napredek).also {
+        UsenetPravila.oviraTorBoxa(kljucZahteve, kljucZahteve?.let { Debrid.stanjeZaKljuc(c, DebridPravila.TORBOX, it) })?.let { (n, p) ->
+            Log.i(TAG, "po prenosu NZB: TorBox brez klica ($n)")
+            return TorBox.Izid(napaka = n, ponudnik = p)
+        }
+        return TorBox.usenet(c, nzb, ime, indeks, samoTakoj, napredek, kljucZahteve).also {
             // Lastnik 25. 10. 2026: stanje kljuca TorBox sledi uporabi (401 -> »ne velja«).
             if (kljucZahteve != null) try { Debrid.obIzidu(c, DebridPravila.TORBOX, kljucZahteve, DebridPravila.TORBOX, it.napaka, it.url != null) } catch (_: Exception) { }
         }

@@ -240,8 +240,10 @@ object TorBox {
      * (napaka »ni predpomnjeno«, uporabnik lahko izbere »Pocakaj na prenos«). Sicer cakamo do
      * [UsenetPravila.CAKAJ_PRENOSA_MS] z napredkom. Izid nosi ponudnika TorBox. Z delovne niti.
      */
-    fun usenet(c: Context, nzb: ByteArray, ime: String, indeks: Int, samoTakoj: Boolean, napredek: (Int) -> Unit = {}): Izid {
-        val kljuc = kljuc(c) ?: return Izid(napaka = TorBoxPravila.NAPAKA_KLJUC, ponudnik = DebridPravila.TORBOX)
+    fun usenet(c: Context, nzb: ByteArray, ime: String, indeks: Int, samoTakoj: Boolean, napredek: (Int) -> Unit = {},
+               kljucZahteve: String? = null): Izid {
+        // [kljucZahteve]: kljuc, za katerega je klicatelj tik pred tem preveril smeKlicati (pregled Grok 48, A2)
+        val kljuc = kljucZahteve ?: kljuc(c) ?: return Izid(napaka = TorBoxPravila.NAPAKA_KLJUC, ponudnik = DebridPravila.TORBOX)
         fun z(iz: Izid) = Izid(iz.url, iz.napaka, iz.opis, iz.cakajMs, DebridPravila.TORBOX)
         return try {
             Debrid.preveriPreklic()

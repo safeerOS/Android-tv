@@ -198,7 +198,7 @@ java -cp "$OUT/os.jar" si.safeer.tv.os.OddaljenoPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.MiniPredvajalnikPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.TorBoxPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.DebridPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.UsenetPravilaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.UsenetPravilaTestKt "$SRC/si/safeer/tv/os/Usenet.kt" "$SRC/si/safeer/tv/os/Debrid.kt"
 java -cp "$OUT/os.jar" si.safeer.tv.os.SerijePravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.NapredekKljucTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.KakovostPravilaTestKt
