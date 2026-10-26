@@ -478,6 +478,24 @@ object DebridPravila {
      */
     fun smeKlicati(s: StanjeKljuca?): Boolean = s != StanjeKljuca.NE_VELJA && s != StanjeKljuca.ZAKLENJEN
 
+    /**
+     * Varovalo racunov (lastnik 26. 10. 2026: »ob ne velja in zaklenjen Safeer storitve ne uporablja vec na NOBENI napravi«):
+     * dokoncno stanje racuna gre napravam ozjega kroga (polje `racuni` v secrets.sync - brez kljuca, samo odtis kljuca).
+     * Nepreverjen ne gre (prejemniki bi ga sli preverjat - vec klicev z vec naslovov IP).
+     */
+    fun stanjeVKrog(s: StanjeKljuca?): Boolean = s == StanjeKljuca.VELJA || s == StanjeKljuca.NE_VELJA || s == StanjeKljuca.ZAKLENJEN
+
+    /**
+     * Prejeto stanje racuna z druge naprave ([prejetoOb] = cas, ko ga je tam dolocila storitev): uporabi se samo dokoncno
+     * stanje, novejse od tukajsnjega ([tukajOb], null = tu se ni stanja) in najvec 10 min iz prihodnosti (napacna ura).
+     * Isti kljuc (odtis) preveri klicatelj. Prejeto stanje obdrzi svoj cas - zato se ne vraca (brez ping-ponga).
+     */
+    fun sprejmiStanje(tukajOb: Long?, prejeto: StanjeKljuca, prejetoOb: Long, zdaj: Long): Boolean =
+        stanjeVKrog(prejeto) && prejetoOb > 0 && prejetoOb <= zdaj + 10 * 60_000L && (tukajOb == null || prejetoOb > tukajOb)
+
+    /** Ime stanja v sporocilu (kot skupni primeri): »velja«, »ne_velja«, »zaklenjen«; null = neznano. */
+    fun stanjeIzImena(ime: String): StanjeKljuca? = StanjeKljuca.values().firstOrNull { it.name.equals(ime, ignoreCase = true) }
+
     /** »Preveri« uporabnika najvec enkrat na minuto (vsaka zavrnjena zahteva steje v mejo storitve). */
     const val ROCNA_PREVERBA_MS = 60_000L
 

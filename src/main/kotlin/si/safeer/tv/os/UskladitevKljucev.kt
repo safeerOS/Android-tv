@@ -406,14 +406,17 @@ object UskladitevKljucev {
             if (!zmoznost) { if (stanja[k] == null || stanja[k]?.stanje == UskladitevKljucevPravila.Stanje.STARA) zapomni(c, n.id, n.ime, UskladitevKljucevPravila.Stanje.STARA, false); continue }
             if (!P.smePoslati(true, true, link.odjemalec.znaZascito(n.id), link.povezan, true, prej)) continue
             if (prej == null) zapomni(c, n.id, n.ime, UskladitevKljucevPravila.Stanje.POVABLJENA, false)
-            posljiNapravi(c, link, n, if (P.vrednostiZa(prej)) lastni else povabilo)
+            posljiNapravi(c, link, n, if (P.vrednostiZa(prej)) lastni else povabilo, racuni = P.vrednostiZa(prej))
             poslanih++
         }
         if (poslanih > 0) Log.i(TAG, "uskladitev: zapisov ${lastni.size}, naprav $poslanih")
     }
 
-    private fun posljiNapravi(c: Context, link: LinkUpravitelj, n: LinkOdjemalec.Naprava, zapisi: List<UskladitevKljucevPravila.Zapis>) {
+    private fun posljiNapravi(c: Context, link: LinkUpravitelj, n: LinkOdjemalec.Naprava, zapisi: List<UskladitevKljucevPravila.Zapis>,
+                              racuni: Boolean) {
         val par = JSONObject().put("v", P.VERZIJA).put("items", vJson(zapisi))
+        // Varovalo racunov: stanja racunov (brez kljucev) samo potrjeni napravi; starejsa razlicica polje prezre.
+        if (racuni) try { par.put("racuni", Debrid.stanjaZaKrog(c)) } catch (e: Exception) { Log.w(TAG, "racuni: ${e.javaClass.simpleName}") }
         link.ukaz(n.id, P.DEJANJE, par, 12_000, LinkOdjemalec.Odgovor { izid, _ ->
             try { delavec.execute {
                 val data = izid?.optJSONObject("data")
@@ -426,6 +429,7 @@ object UskladitevKljucev {
                         // U1: odgovor uporabimo sami samo od naprave, ki jo je uporabnik TU potrdil; sicer caka na potrditev.
                         if (beriNaprave(c)[kljucNaprave(c, n.id)]?.stanje == UskladitevKljucevPravila.Stanje.POTRJENA) {
                             zapomni(c, n.id, n.ime, UskladitevKljucevPravila.Stanje.POTRJENA, true)
+                            if (Debrid.prejmiStanja(c, data.optJSONArray("racuni")) > 0) obvestiZaslone()
                             prejmiZapise(c, n.id, n.ime, prejeti)
                         } else vprasaj(c.applicationContext, n.id, n.ime, prejeti)
                     }
@@ -477,12 +481,19 @@ object UskladitevKljucev {
                 zapomni(a, od, ime, UskladitevKljucevPravila.Stanje.POTRJENA, true)
                 // Pregled Grok 33, F2: Daljinec to klice na glavni niti - prejeti kljuci se preverijo pri storitvi (omrezje) na
                 // delovni niti. Odgovor nosi lastne zapise te naprave; prejeti tega ne spremenijo (tujih ne posiljamo, U2).
+                val racuni = parametri.optJSONArray("racuni")
                 try { delavec.execute {
-                    try { if (vklopljeno(a) && OzjiKrog.vKrogu(a, od)) prejmiZapise(a, od, ime, zapisi) }
-                    catch (e: Exception) { Log.w(TAG, "prejem: ${e.javaClass.simpleName}") }
+                    try {
+                        if (vklopljeno(a) && OzjiKrog.vKrogu(a, od)) {
+                            // Varovalo racunov: stanje racuna (ne velja, zaklenjen) najprej - nato kljuci.
+                            if (Debrid.prejmiStanja(a, racuni) > 0) obvestiZaslone()
+                            prejmiZapise(a, od, ime, zapisi)
+                        }
+                    } catch (e: Exception) { Log.w(TAG, "prejem: ${e.javaClass.simpleName}") }
                 } } catch (_: java.util.concurrent.RejectedExecutionException) { }
                 val (meta, vr) = posodobi(a)
                 JSONObject().put("accepted", true).put("items", vJson(zGostitelji(P.zaPoslati(meta, vr, jaz(a)))))
+                    .apply { try { put("racuni", Debrid.stanjaZaKrog(a)) } catch (_: Exception) { } }
             }
         }
     }

@@ -296,10 +296,13 @@ object Debrid {
         if (napaka == TorBoxPravila.NAPAKA_KLJUC && prej?.first != DebridPravila.StanjeKljuca.NE_VELJA) {
             zapisiStanje(c, p, k, DebridPravila.StanjeKljuca.NE_VELJA, null)
             Log.i(TAG, "${DebridPravila.ime(p)}: kljuc zavrnjen med uporabo - stanje »ne velja«, storitve ne klicemo vec")
+            // Varovalo racunov: stanje takoj v ozji krog - druge naprave s tem kljucem storitve ne klicejo vec.
+            UskladitevKljucev.sprozi(c)
         } else if (napaka == TorBoxPravila.NAPAKA_ZAKLENJEN && prej?.first != DebridPravila.StanjeKljuca.ZAKLENJEN) {
             // Varovalo racunov: zaklenjen racun ali nova lokacija - od zdaj brez klicev, dokler uporabnik ne tapne »Preveri«.
             zapisiStanje(c, p, k, DebridPravila.StanjeKljuca.ZAKLENJEN, prej?.second)
             Log.i(TAG, "${DebridPravila.ime(p)}: racun zaklenjen - storitve ne klicemo vec")
+            UskladitevKljucev.sprozi(c)
         } else if (uspeh && prej?.first != DebridPravila.StanjeKljuca.VELJA) {
             zapisiStanje(c, p, k, DebridPravila.StanjeKljuca.VELJA, prej?.second)
             UskladitevKljucev.sprozi(c)
@@ -330,6 +333,49 @@ object Debrid {
 
     private fun prefs(c: Context) = c.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
+    // ------------------------------------------------------------------ stanje racunov v ozjem krogu (varovalo racunov)
+
+    /** Dokoncna stanja racunov te naprave za ozji krog: storitev, odtis kljuca, stanje, cas - nikoli kljuc. */
+    fun stanjaZaKrog(c: Context): JSONArray {
+        val a = JSONArray()
+        for (p in DebridPravila.VSI) {
+            val k = kljuc(c, p) ?: continue
+            val odtis = DebridPravila.odtisStanja(k)
+            val z = DebridPravila.stanjeIzZapisa(prefs(c).getString(KLJUC_STANJE + p, null), odtis) ?: continue
+            if (DebridPravila.stanjeVKrog(z.first))
+                a.put(JSONObject().put("p", p).put("o", odtis).put("s", z.first.name.lowercase(java.util.Locale.ROOT)).put("c", z.third))
+        }
+        try { Usenet.stanjeZaKrog(c)?.let { a.put(it) } } catch (_: Exception) { }
+        return a
+    }
+
+    /**
+     * Stanja racunov z naprave v ozjem krogu (brez omrezja): »ne velja« ali »zaklenjen« istega kljuca ustavi uporabo tudi tu,
+     * »velja« (uporabnik je tam tapnil »Preveri«) jo spet dovoli. Vrne stevilo sprememb.
+     */
+    fun prejmiStanja(c: Context, a: JSONArray?): Int {
+        if (a == null) return 0
+        var n = 0
+        val zdaj = System.currentTimeMillis()
+        for (i in 0 until minOf(a.length(), 8)) {
+            val o = a.optJSONObject(i) ?: continue
+            val p = o.optString("p")
+            val odtis = o.optString("o")
+            val ob = o.optLong("c", 0L)
+            val s = DebridPravila.stanjeIzImena(o.optString("s")) ?: continue
+            if (p == UsenetPravila.VRSTA) { if (try { Usenet.prejmiStanje(c, odtis, s, ob, zdaj) } catch (_: Exception) { false }) n++; continue }
+            if (p !in DebridPravila.VSI) continue
+            val k = kljuc(c, p) ?: continue
+            if (DebridPravila.odtisStanja(k) != odtis) continue
+            val tu = DebridPravila.stanjeIzZapisa(prefs(c).getString(KLJUC_STANJE + p, null), odtis)
+            if (!DebridPravila.sprejmiStanje(tu?.third, s, ob, zdaj)) continue
+            prefs(c).edit().putString(KLJUC_STANJE + p, DebridPravila.zapisStanja(s, odtis, tu?.second, ob)).apply()
+            Log.i(TAG, "${DebridPravila.ime(p)}: stanje racuna z druge naprave v ozjem krogu - ${s.name.lowercase(java.util.Locale.ROOT)}")
+            n++
+        }
+        return n
+    }
+
     /** Zadnji »Preveri« po storitvi (samo v pomnilniku). */
     private val zadnjaRocna = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
@@ -349,7 +395,8 @@ object Debrid {
         zapisiStanje(c, p, k, s, paket ?: prej?.second)
         zadnjaPreverba[p] = zdaj
         Log.i(TAG, "${DebridPravila.ime(p)}: rocna preverba - $izid")
-        if (DebridPravila.zaUskladitev(s)) UskladitevKljucev.sprozi(c)
+        // Varovalo racunov: tudi »ne velja« in »zaklenjen« gresta v ozji krog (stanje, ne kljuc).
+        UskladitevKljucev.sprozi(c)
         return izid
     }
 

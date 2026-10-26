@@ -69,6 +69,26 @@ object Usenet {
         return DebridPravila.stanjeIzZapisa(prefs(c).getString(KLJUC_STANJE, null), odtis(ix.osnova, ix.kljuc))?.first
     }
 
+    /** Varovalo racunov: dokoncno stanje indeksatorja za ozji krog (odtis naslova in kljuca, brez kljuca); null = ga ni. */
+    fun stanjeZaKrog(c: Context): JSONObject? {
+        val ix = indeksator(c) ?: return null
+        val o = odtis(ix.osnova, ix.kljuc)
+        val z = DebridPravila.stanjeIzZapisa(prefs(c).getString(KLJUC_STANJE, null), o) ?: return null
+        if (!DebridPravila.stanjeVKrog(z.first)) return null
+        return JSONObject().put("p", UsenetPravila.VRSTA).put("o", o).put("s", z.first.name.lowercase(java.util.Locale.ROOT)).put("c", z.third)
+    }
+
+    /** Prejeto stanje istega indeksatorja z naprave v ozjem krogu (brez omrezja); true = spremenjeno. */
+    fun prejmiStanje(c: Context, odtis: String, s: DebridPravila.StanjeKljuca, ob: Long, zdaj: Long): Boolean {
+        val ix = indeksator(c) ?: return false
+        if (odtis(ix.osnova, ix.kljuc) != odtis) return false
+        val tu = DebridPravila.stanjeIzZapisa(prefs(c).getString(KLJUC_STANJE, null), odtis)
+        if (!DebridPravila.sprejmiStanje(tu?.third, s, ob, zdaj)) return false
+        prefs(c).edit().putString(KLJUC_STANJE, DebridPravila.zapisStanja(s, odtis, null, ob)).apply()
+        Log.i(TAG, "indeksator: stanje z druge naprave v ozjem krogu - ${s.name.lowercase(java.util.Locale.ROOT)}")
+        return true
+    }
+
     /** Indeksator, ki ga je indeksator potrdil - samo tak gre med naprave v ozjem krogu (UskladitevKljucevPravila.oddaja). */
     fun velja(c: Context): Boolean = DebridPravila.zaUskladitev(stanje(c))
 
@@ -189,7 +209,8 @@ object Usenet {
         if (s == prej) return
         zapisiStanje(c, ix.osnova, ix.kljuc, s)
         Log.i(TAG, "indeksator: stanje ${s.name.lowercase(java.util.Locale.ROOT)} po iskanju")
-        if (s == DebridPravila.StanjeKljuca.VELJA) UskladitevKljucev.sprozi(c)
+        // Varovalo racunov: tudi »ne velja« gre v ozji krog (druge naprave z istim indeksatorjem ga ne klicejo vec).
+        UskladitevKljucev.sprozi(c)
     }
 
     /** Indeksator je shranjen (tudi ce ga Keystore ta trenutek ne zna prebrati) - usklajevanje ga takrat ne izbrise. */

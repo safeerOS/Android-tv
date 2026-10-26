@@ -308,6 +308,18 @@ fun main() {
     preveriEnako("E3: RD 502 brez telesa: ni odgovora", DebridPravila.Preverba.NI_ODGOVORA, DebridPravila.preverbaRdOdgovor(502, null, null, null))
     preveriEnako("AD success: velja", DebridPravila.Preverba.VELJA, DebridPravila.preverbaAd(200, "success", null))
     preveriEnako("AD AUTH_BAD_APIKEY s HTTP 200: ne velja", DebridPravila.Preverba.NE_VELJA, DebridPravila.preverbaAd(200, "error", "AUTH_BAD_APIKEY"))
+    // Varovalo racunov: stanje racuna (brez kljuca) v ozji krog - ne velja / zaklenjen ustavi vse naprave, Preveri jih spusti.
+    val SK2 = DebridPravila.StanjeKljuca.values().toList()
+    preveriEnako("krog: dokoncna stanja", listOf(true, true, false, true), SK2.map { DebridPravila.stanjeVKrog(it) })
+    preveriEnako("krog: zaklenjen z druge naprave ustavi tukajsnji veljaven", true, DebridPravila.sprejmiStanje(1_000L, DebridPravila.StanjeKljuca.ZAKLENJEN, 2_000L, 3_000L))
+    preveriEnako("krog: ne velja brez tukajsnjega stanja", true, DebridPravila.sprejmiStanje(null, DebridPravila.StanjeKljuca.NE_VELJA, 2_000L, 3_000L))
+    preveriEnako("krog: starejse ne", false, DebridPravila.sprejmiStanje(2_000L, DebridPravila.StanjeKljuca.VELJA, 1_000L, 3_000L))
+    preveriEnako("krog: enak cas ne (brez ping-ponga)", false, DebridPravila.sprejmiStanje(2_000L, DebridPravila.StanjeKljuca.ZAKLENJEN, 2_000L, 3_000L))
+    preveriEnako("krog: nepreverjen ne gre", false, DebridPravila.sprejmiStanje(null, DebridPravila.StanjeKljuca.NEPREVERJEN, 2_000L, 3_000L))
+    preveriEnako("krog: iz dalnje prihodnosti ne", false, DebridPravila.sprejmiStanje(null, DebridPravila.StanjeKljuca.ZAKLENJEN, 3_000L + 11 * 60_000L, 3_000L))
+    preveriEnako("krog: brez casa ne", false, DebridPravila.sprejmiStanje(null, DebridPravila.StanjeKljuca.ZAKLENJEN, 0L, 3_000L))
+    preveriEnako("krog: ime stanja", DebridPravila.StanjeKljuca.ZAKLENJEN, DebridPravila.stanjeIzImena("zaklenjen"))
+    preveriEnako("krog: neznano ime", null, DebridPravila.stanjeIzImena("odklenjen"))
     // Pregled Grok 33, F3: vpis brez povezave (429, 5xx) ne prepise veljavnega - caka ob strani.
     preveriEnako("F3: veljaven + nepreverjen nov -> ob strani", DebridPravila.Vpis.OB_STRANI, DebridPravila.obVpisu(DebridPravila.StanjeKljuca.NEPREVERJEN, shranjenVelja = true, enak = false))
     preveriEnako("F3: veljaven + isti nepreverjen -> ohrani", DebridPravila.Vpis.OHRANI, DebridPravila.obVpisu(DebridPravila.StanjeKljuca.NEPREVERJEN, shranjenVelja = true, enak = true))
