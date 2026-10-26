@@ -646,6 +646,14 @@ object IptvPravila {
         return ZapisVira(vrstaPrejetegaRacuna(n), gostitelj(n).ifEmpty { "IPTV" }, n)
     }
 
+    /**
+     * Skupni primeri verzija 4 (pregled 57, »vdelava«): stran HTML brez predvajljive vsebine postane vnos »Vdelana vsebina« samo,
+     * ce jo uporabnik SAM doda na tej napravi ([prejet] = false) in naslov (tudi po preusmeritvi) nima znakov poverilnice
+     * ([jeVirSPoverilnico]: user:pass@, username=, token=, /live/<u>/<g>/ ...). Stran z znaki poverilnice je lahko vhod v
+     * racun pri ponudniku (prijava ob odprtju), zato se zavrne, prejeta stran pa je vir, ki caka uporabnika.
+     */
+    fun smeVdelatiStran(naslov: String, prejet: Boolean): Boolean = !prejet && !jeVirSPoverilnico(naslov.trim(), seznam = true)
+
     /** Prejet vir seznama se takoj prebere (SeznamiSink) samo, ce ni vir z racunom - ta se prebere ob klicu uporabnika. */
     fun osveziPoPrejemu(tip: String, naslov: String): Boolean = !virZRacunom(if (tip == "url") "seznam" else tip, naslov.trim())
 

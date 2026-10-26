@@ -222,7 +222,8 @@ private fun iptvRacunPrimeri(koren: Map<String, Any?>) {
     }
     println("  oznaka »javen« (Android je ni): $oznakaPreskocena primer strozje")
     // Verzija 3 (Linux, pregled 51 Ê3): prevzem z lists.get. ozji true - vsak vir; false ali BREZ kljuca (null, starejsa razlicica) -
-    // samo pozitivno znan javen. Android ozji ne bere iz odgovora: odloci po lastnem ozjem krogu ([prevzemZNavadnoUskladitvijo]).
+    // samo pozitivno znan javen. Android kljuc »ozji« bere iz odgovora (SeznamiSink) in ga zdruzi z lastnim ozjim krogom
+    // ([odOzjegaKroga]: oboje mora drzati), nato odloci z [prevzemZNavadnoUskladitvijo].
     for (v in (koren["prevzem"] as? List<Map<String, Any?>>).orEmpty())
         preveriEnako("prevzem ${v.niz("opis") ?: v.niz("naslov")} (ozji=${v["ozji"]})", v["prevzem"],
             IptvPravila.prevzemZNavadnoUskladitvijo("seznam", v.niz("naslov")!!, IptvPravila.odOzjegaKroga(true, v["ozji"] as? Boolean)))
@@ -230,6 +231,42 @@ private fun iptvRacunPrimeri(koren: Map<String, Any?>) {
     preveriEnako("odgovor ozji=false: samo javno", false, IptvPravila.odOzjegaKroga(true, false))
     preveriEnako("odgovor brez kljuca (starejsa razlicica): samo javno", false, IptvPravila.odOzjegaKroga(true, null))
     preveriEnako("odgovor ozji=true, a naprava ni v nasem krogu: samo javno (krog je na napravo)", false, IptvPravila.odOzjegaKroga(false, true))
+    // Verzija 4 (Linux, pregled 57; Grok 60): »caka« = vir, prejet z druge naprave, ob prejemu NE naredi nobene povezave. Povezavo
+    // naredita samo dve poti prejema: vrsta »url« (prejetNaslov bere naslov prek [razvrsti], ce ni vir z racunom) in vrsta seznam
+    // (SeznamiSink: osveziPoPrejemu); podkast, tok in drugo se ob prejemu ne berejo. Pravi poti, ne kopija odlocitve.
+    var caka = 0
+    for (c in (koren["caka"] as? List<Map<String, Any?>>).orEmpty()) {
+        val tip = c.niz("tip")!!; val n = c.niz("naslov")!!
+        var povezava = false
+        when (tip) {
+            "url" -> IptvPravila.prejetNaslov(n) { povezava = true; null }
+            "seznam" -> povezava = IptvPravila.osveziPoPrejemu(tip, n)
+            else -> povezava = false
+        }
+        preveriEnako("caka ($tip) ${c.niz("opis") ?: n}", c["caka"], !povezava)
+        caka++
+    }
+    println("  caka: $caka primerov")
+    // »racun_vira«: vir, ki ni pozitivno znan javen, je vir z racunom (premor in ena zahteva tudi pred prvim branjem).
+    // Android nima oznake »javen« (lastnikov zaslon ni narejen): oznacen javen naslov je tu racun (strozje), oznacen z racunom ostane racun.
+    // »vdelava« = [smeVdelatiStran]: stran HTML, ki jo uporabnik SAM doda in nima znakov poverilnice; prejeta nikoli.
+    var racunov = 0; var vdelav = 0; var strozje = 0
+    for (v in (koren["racun_vira"] as? List<Map<String, Any?>>).orEmpty()) {
+        val n = v.niz("naslov")!!
+        val opis = "racun_vira ${v.niz("opis") ?: n}"
+        val racun = IptvPravila.virZRacunom("seznam", n)
+        if (v["oznacen"] == true && v["racun"] == false) {
+            strozje++
+            preveriEnako("$opis: Android brez oznake javnega - racun", true, racun)
+        } else {
+            preveriEnako("$opis: racun", v["racun"], racun)
+            racunov++
+        }
+        val vdelava = v["vdelava"] as? Boolean ?: continue
+        preveriEnako("$opis: vdelava", vdelava, IptvPravila.smeVdelatiStran(n, v["prejet"] == true))
+        vdelav++
+    }
+    println("  racun_vira: $racunov primerov, vdelava: $vdelav, strozje brez oznake javnega: $strozje")
 }
 
 @Suppress("UNCHECKED_CAST")

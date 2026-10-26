@@ -84,5 +84,11 @@ preveri("osveziSeznam bere prek IptvPravila.omejenoBesedilo", "IptvPravila.omeje
 preveri("osveziSeznam: brez readText() (branje brez meje)", "readText(" not in os_ and "readLines(" not in os_)
 preveri("osveziSeznam zapre bralnik (use) in povezavo (disconnect)", ".use {" in os_ and "p.disconnect()" in os_)
 
+print("Skupni primeri v4: vdelava strani samo brez znakov poverilnice")
+dod = telo(viri, "fun dodaj(")
+razv = telo(viri, "private fun razvrsti(")
+preveri("dodaj: stran HTML z znaki poverilnice se zavrne (smeVdelatiStran, prejet = false)", "smeVdelatiStran(cisto, prejet = false)" in dod)
+preveri("razvrsti: stran HTML po preusmeritvi preverjena (p.url)", "smeVdelatiStran(p.url.toString()" in razv)
+
 print("VSE OK" if not napak else f"NAPAK: {napak}")
 sys.exit(1 if napak else 0)

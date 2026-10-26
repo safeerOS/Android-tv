@@ -787,7 +787,8 @@ object MedijskiViri {
         val jePot = try { URL(cisto).path.trim('/').isNotEmpty() } catch (_: Exception) { false }
         val vir = PeerTube.imeStreznika(gostitelj)?.takeIf { !jePot || cisto.contains("/videos") || cisto.contains("/c/") || cisto.contains("/a/") }
             ?.let { Vir(PEERTUBE, it, gostitelj) }
-            ?: razvrsti(ctx, cisto, gostitelj)?.let { v -> if (ime.isNullOrBlank()) v else v.copy(ime = ime) }?.let { zavarujNov(ctx, it) ?: return null }
+            ?: razvrsti(ctx, cisto, gostitelj)?.also { if (it.jeSplet && !IptvPravila.smeVdelatiStran(cisto, prejet = false)) return null }
+                ?.let { v -> if (ime.isNullOrBlank()) v else v.copy(ime = ime) }?.let { zavarujNov(ctx, it) ?: return null }
             ?: return null
         val obstojeci = vsi(ctx).firstOrNull { v ->
             (v.jeSplet && vir.jeSplet && istaSpletnaStran(v.naslov, vir.naslov)) ||
@@ -961,7 +962,8 @@ object MedijskiViri {
                 vrsta.startsWith("audio/") || vrsta == "application/ogg" -> Vir(TOK, gostitelj, naslov)
                 vrsta.startsWith("video/") -> Vir("$TOK-video", gostitelj, naslov)
                 vrsta.contains("xml") || vrsta.contains("rss") -> Podkasti.imeOddaje(naslov)?.let { Vir(PODKAST, it, naslov) }
-                vrsta.contains("text/html") -> Vir(SPLET, gostitelj.removePrefix("www."), naslov)
+                // Pregled 57 (skupni primeri v4): stran, ki jo je uporabnik dodal, brez znakov poverilnice tudi po preusmeritvi.
+                vrsta.contains("text/html") -> if (IptvPravila.smeVdelatiStran(p.url.toString(), prejet = false)) Vir(SPLET, gostitelj.removePrefix("www."), naslov) else null
                 else -> null
             }
         } catch (_: Exception) { null } finally { p.disconnect() }
