@@ -75,6 +75,20 @@ private fun Map<String, Any?>.nizi(k: String) = this[k] as List<String?>
 /** Bajti iz zapisa hex (prvi bajti toka v skupnih primerih). */
 private fun hex(h: String) = ByteArray(h.length / 2) { h.substring(it * 2, it * 2 + 2).toInt(16).toByte() }
 
+@Suppress("UNCHECKED_CAST")
+private fun znani(v: Map<String, Any?>): Map<Int, Pair<Long, Long>> =
+    (v["znani"] as List<List<Long>>).associate { it[0].toInt() to (it[1] to it[2]) }
+
+private fun rarIzhod(b: ByteArray, velikost: Long): Map<String, Any?> {
+    val izid = UsenetRar.preveri(b, velikost).name.lowercase()
+    val z = try { UsenetRar.razcleniZvezek(b, velikost) } catch (_: UsenetRar.NapakaRar) { return mapOf("izid" to izid) }
+    return mapOf("izid" to izid, "rar" to z.razlicica.toLong(), "zvezek" to z.stevilka?.toLong(), "vec_zvezkov" to z.vecZvezkov,
+        "datoteke" to z.vnosi.map {
+            mapOf("ime" to it.ime, "odmik" to it.odmik, "dolzina" to it.dolzina, "velikost" to it.velikost, "pred" to it.pred,
+                "po" to it.po, "store" to it.store, "sifriran" to it.sifriran, "mapa" to it.mapa)
+        })
+}
+
 private fun meritev(m: Map<String, Any?>) =
     DebridPravila.Meritev(m.niz("ponudnik")!!, m["ping_ms"] as Long, m["bajtov"] as Long, m["cas_ms"] as Long)
 
@@ -201,7 +215,24 @@ private fun izracunaj(f: String, v: Map<String, Any?>): Any? = when (f) {
             "ziva_prijava_s" to UsenetNntp.ZIVA_PRIJAVA_S, "zapah_ponovitev" to UsenetNntp.ZAPAH_PONOVITEV.toLong(),
             "zapahov_najvec" to UsenetNntp.NAJVEC_ZAPAHOV.toLong(), "napak_ukaza_zapored" to UsenetNntp.NAPAK_UKAZA_ZAPORED.toLong())
     }
-    "uskladitev_novejsi" -> UskladitevKljucevPravila.novejsi(v["cas"] as Long, v.niz("izvor")!!, v["izbrisan"] as Boolean,
+    // Pogon Usenet, korak 2 (usenet-pogon.json v5): preslikava odmikov, RAR store, okno vnaprej.
+    "tok_odmik" -> try {
+        val u = UsenetTok.poisci(v["velikost"] as Long, v.cel("celota")!!, v["del_bajtov"] as Long?, znani(v), v["odmik"] as Long)
+        mapOf("izid" to "ok", "segment" to u.stevilka.toLong(), "odmik" to u.odmik, "natancno" to u.natancno)
+    } catch (e: UsenetTok.NapakaToka) { mapOf("izid" to e.izid.name.lowercase()) }
+    "tok_segmenti" -> UsenetTok.segmentiOkna(v["velikost"] as Long, v.cel("celota")!!, v["del_bajtov"] as Long?, znani(v),
+        v["odmik"] as Long, v["dolzina"] as Long).map { it.toLong() }
+    "tok_okno" -> UsenetBralnik.oknoVnaprej(v["zaporedno_prebrano"] as Long, v["zacetno"] as Long, v["najvec"] as Long)
+    "tok_profili" -> UsenetBralnik.PROFILI.mapValues { (_, p) -> listOf(p.okno, p.zacetno, p.lru, p.vzporedno.toLong()) }
+    "rar_glava" -> rarIzhod(B64D.decode(v.niz("glava_b64")!!), v["velikost"] as Long)
+    "rar_zvezki" -> UsenetRar.vrstniRedZvezkov(v.nizi("imena"))?.map { it.toLong() }
+    "rar_sestavi" -> try {
+        val b = (v["zvezki_b64"] as List<String>).map { B64D.decode(it) }
+        val vel = v["velikosti"] as List<Long>
+        val (ime, velikost, kosi) = UsenetRar.sestavi(b.indices.map { UsenetRar.razcleniZvezek(b[it], vel[it]) })
+        mapOf("izid" to "ok", "ime" to ime, "velikost" to velikost, "kosi" to kosi.map { listOf(it.zvezek.toLong(), it.odmik, it.dolzina) })
+    } catch (e: UsenetRar.NapakaRar) { mapOf("izid" to e.izid.name.lowercase()) }
+    "uskladitev_novejsi" ->UskladitevKljucevPravila.novejsi(v["cas"] as Long, v.niz("izvor")!!, v["izbrisan"] as Boolean,
         (v["star"] as List<Any?>?)?.let { UskladitevKljucevPravila.Meta(it[0] as Long, it[1] as String, it[2] as Boolean, "") })
     else -> error("neznano pravilo: $f")
 }

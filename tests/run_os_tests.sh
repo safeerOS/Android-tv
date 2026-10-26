@@ -115,10 +115,15 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/os/UsenetYenc.kt" \
     "$SRC/si/safeer/tv/os/UsenetNzb.kt" \
     "$SRC/si/safeer/tv/os/UsenetNntp.kt" \
+    "$SRC/si/safeer/tv/os/UsenetTok.kt" \
+    "$SRC/si/safeer/tv/os/UsenetRar.kt" \
+    "$SRC/si/safeer/tv/os/UsenetBralnik.kt" \
+    "$SRC/si/safeer/tv/os/UsenetStreznik.kt" \
     "$TEST_DIR/UsenetTestnaPomoc.kt" \
     "$TEST_DIR/UsenetYencTest.kt" \
     "$TEST_DIR/UsenetNzbTest.kt" \
     "$TEST_DIR/UsenetNntpTest.kt" \
+    "$TEST_DIR/UsenetTokTest.kt" \
     "$SRC/si/safeer/tv/os/SerijePravila.kt" \
     "$TEST_DIR/SerijePravilaTest.kt" \
     "$SRC/si/safeer/tv/os/NapredekKljuc.kt" \
@@ -211,6 +216,8 @@ java -cp "$OUT/os.jar" si.safeer.tv.os.UsenetPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.UsenetYencTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.UsenetNzbTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.UsenetNntpTestKt
+# Korak 2 (26. 10. 2026): preslikava odmikov, RAR store, bralnik z oknom vnaprej, streznik Range, konec do konca prek TLS.
+java -cp "$OUT/os.jar" si.safeer.tv.os.UsenetTokTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.SerijePravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.NapredekKljucTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.KakovostPravilaTestKt

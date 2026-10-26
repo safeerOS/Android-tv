@@ -1,6 +1,6 @@
 {
- "opis": "Lasten pogon Usenet (lastnik 25. 10. 2026 22:10, korak 1): skupni primeri za Safeer-linux (tests/test_skupni_primeri.py; core/usenet_yenc.py, usenet_nzb.py, usenet_nntp.py) in Android-tv (Kotlin). Lastnik datoteke je Safeer-linux; spremeni jo povsod hkrati. Bajti so base64 (standardni, s polnilom); null = ni vrednosti. Message-id so izmisljeni (.invalid). Pricakovani izidi niso iz nase kode: podatki so izvorni bajti, CRC32 iz zlib (outputs/skupni-primeri-osnutek/ustvari-usenet-pogon.py). PRAVILA - yenc_dekodiraj(telo po NNTP brez podvojenih pik): prva vrstica, ki se ZACNE z '=ybegin ' (prej prazne vrstice in besedilo dovoljeni; sicer ni_yenc); vrednosti kljuc=vrednost, name= je zadnji in sega do konca vrstice (ime gre skozi varno_ime, UTF-8, sicer latin-1); size obvezen (sicer napaka_oblike); ce je part, mora naslednja vrstica biti '=ypart ' z begin in end, 1<=begin<=end<=size (sicer napaka_oblike); del (end-begin+1 ali size) > meja del_bajtov = prevelik PRED dekodiranjem; podatki do prve vrstice '=yend ' (ni je = prirezano). Dekodiranje: CR in LF se izpustita POVSOD (tudi med ubeznikom '=' in ubeznim znakom - ubeznik na koncu vrstice velja za prvi znak naslednje), ubezni znak c -> (c-106)&255 (tudi '==' -> 211), drugi c -> (c-42)&255; osamljen '=' na koncu podatkov se izpusti; ubezni znak zato nikoli ni CR/LF. Pred dekodiranjem: =yend brez size ali s part, razlicnim od =ybegin part (ce sta oba), = napaka_oblike. Nato: dolzina razlicna od =yend size ali od pricakovane (end-begin+1 oz. size) = napaka_velikosti; pcrc32 (ce je), sicer pri enodelnem crc32 (ce je), sestnajstisko 1-8 znakov, velike ali male crke (neveljaven zapis = napaka_oblike), razlicen od CRC32 podatkov = napaka_crc; crc32 cele datoteke pri vecdelnem se ne preverja (crc_preverjen false, ce ni pcrc32). Izhod: zacetek 1-based (enodelni 1), konec = zacetek+dolzina-1, crc32 = 8 malih sestnajstiskih CRC32 podatkov. nntp_telo(bajti po statusni vrstici): konec je vrstica '.' (CRLF strogo); do nje: vrstica, ki se zacne z '..', izgubi eno piko, druge ostanejo; null, ce konca ni; ostanek = bajti po koncu. yenc_iz_nntp = nntp_telo + yenc_dekodiraj (null -> prirezano). nntp_izid(ukaz, vrstica): koda = prvi trije znaki, ce so stevke s prvo 1-5 in jim sledi presledek ali konec (sicer napaka_protokola). Pricakovano ok: POZDRAV 200/201, AUTHINFO USER 281 (381 = geslo), AUTHINFO PASS 281, ARTICLE 220, HEAD 221, BODY 222, STAT 223, QUIT 205 (v3 spodaj nadomesti ostala pravila nntp_izid). nntp_id: obrezi presledke, odstrani EN par '<' '>' na robu; veljaven, ce 1-248 znakov ASCII 0x21-0x7E brez '<' in '>' (sicer null) - nikoli ukaz s CR/LF. varno_ime: '\\\\' -> '/', del za zadnjo '/'; po KODNIH TOCKAH: crka (kategorija L*), stevka Nd ali eden od \" ._-()[]+,!&'#@~\" ostane, vse drugo '_'; nad 200 kodnih tock: ce je zadnja pika v zadnjih 10 znakih (koncnica do 9 znakov), obdrzi koncnico in skrajsaj osnovo na 200, sicer prvih 200; nato obrezi presledke in pike na koncu ter presledke na zacetku; prazno = null; osnova pred prvo piko (male/velike) CON PRN AUX NUL COM1-9 LPT1-9 dobi '_' spredaj. nzb_ime(subject): prvi neprazen niz v dvojnih narekovajih, sicer zadnja beseda s piko po odstranitvi '(a/b)' in besede yEnc; nato varno_ime. nzb_razcleni(bajti): > 20 MiB = prevelik; bajt NUL = napaka_xml; BOM UTF-8 se odstrani; encoding iz XML deklaracije (utf-8, utf8, us-ascii, ascii = UTF-8; iso-8859-1, iso_8859-1, latin1, latin-1 = ISO-8859-1; brez = UTF-8; drugo = napaka_xml), napacen UTF-8 se zamenja z U+FFFD; '<!' + ENTITY/ELEMENT/ATTLIST/NOTATION kjerkoli (tudi v komentarju) = zavrnjeno_dtd; dovoljen je najvec en '<!DOCTYPE nzb' (velike crke) brez notranjega dela: brez identifikatorja, PUBLIC \"..\" \"..\" ali SYSTEM \"..\" (narekovaji ' ali \", brez [ ] < > v nizu) - se ne nalaga, odstrani se pred razclenitvijo; vsak drug DOCTYPE = zavrnjeno_dtd; napaka XML ali nedefinirana entiteta = napaka_xml; koren (brez imenskega prostora) ni nzb = ni_nzb. head/meta: title (presledki strnjeni, najvec 200) = naslov, neprazen password = ima_geslo (geslo se ne izpise). Samo neposredni otroci korena <file>: subject -> ime (nzb_ime), skupine = neprazne obrezane <group> do 200 znakov, najvec 50; segment: number 1-6 stevk 0-9 z vrednostjo 1-200000 (sicer izpuscen), bytes 1-9 stevk 0-9 (sicer 0), id = nntp_id (null = izpuscen), dvojnik stevilke med veljavnimi: prvi ostane; segmenti po stevilki; manjka = max(b iz zadnjega '(a/b)' v subject, ce 1<=b<=200000, najvecja stevilka) - stevilo segmentov; datoteka brez segmentov se izpusti; vec kot 5000 <file>, 500000 <segment> ali 1000000 elementov skupaj = prevelik (sproti, pred koncem dokumenta); brez datotek = prazen. bajtov_nzb je vsota bytes (velikost clankov, NE dekodiranih podatkov - odmike da glava yEnc). Verzija 2 (25. 10. 2026 22:55, po preizkusih na namizju): samostojen CR sredi vrstice yEnc se izpusti (nov primer), meja nzb_elementov, pojasnjeno: us-ascii = UTF-8, =yend part se primerja samo, ce ga ima tudi =ybegin, dvojnik segmenta samo med veljavnimi. Pricakovani izidi v1 so nespremenjeni. Verzija 3 (26. 10. 2026, pregleda Grok 35 in 37; lastnik 03:05 »Nevarnost zaklepa racuna je prioriteta«). nntp_izid(ukaz, vrstica): koda ni veljavna = napaka_protokola, pri AUTHINFO USER/PASS pa prijava. zaklep(besedilo po kodi, male crke) = vsebuje enega od 'lock', 'ban', 'block', 'attempt', 'suspend', 'expire', 'disable'. meja_povezav(besedilo) = ne zaklep IN ne vsebuje 'fail', 'pass', 'invalid', 'incorrect', 'wrong', 'auth', 'login', 'log in', 'logon', 'sign in', 'credential' (zadnjih sest v4) IN (vsebuje 'connection limit' ali ('connections' in enega od 'too many', 'limit', 'max', 'exceed', 'no more')) - dvom = zavrnjena prijava, nikoli ponovitev. Vrstni red: pricakovano = ok; AUTHINFO USER 381 = geslo; koda 400/480/481/482/502 in meja_povezav = zaseden; AUTHINFO USER/PASS: vse drugo = prijava, tudi po uspeli prijavi istega racuna (v4; RFC 4643: 481 zavrnjeno, 482 vrstni red, 502 ni dovoljeno); 423/430 pri ARTICLE/HEAD/BODY/STAT = ni_clanka; 480/481/482 = prijava; POZDRAV 400 = napaka_streznika (zacasno); 400 = zaprto (streznik zapira povezavo); 502 = dostop (RFC 3977: trajno ali brez pravic; ukrep v nntp_ukrep); 403 = napaka_streznika; 205 = zaprto; drugo = napaka_protokola. nntp_ukrep(izid, faza, stara, poskus) - faza: povezava (TCP, TLS, pozdrav; nic AUTHINFO), prijava (od poslanega AUTHINFO USER do 281), ukaz (BODY/STAT na prijavljeni povezavi); stara = povezava iz bazena; poskus 0 ali 1. Ukrepi: vrni (povezava nazaj v bazen), znova (drugi poskus VEDNO z novo povezavo), napaka, zmanjsaj_pocakaj (bazen in premor po nntp_premor; zahteva caka prosto obstojeco povezavo ali konec premora), pocakaj (premor brez zmanjsanja), neznana_prijava (prijava brez odgovora: premor; druga zapored = ustavi_racun), ustavi_racun (zavrnjena prijava: vse povezave zaprte, nobenega AUTHINFO vec za te poverilnice, dokler jih uporabnik ne vpise znova), ustavi_bazen (dostop ali potrdilo). Pravilo je v primerih (cela tabela). Bazen odpira nove povezave eno za drugo (sonda), dokler ena prijava ne uspe in je kaksna prijavljena povezava odprta - zato zavrnjeno geslo pride do streznika najvec enkrat tudi pri 8 hkratnih zahtevah (nntp_sme_odpreti). nntp_premor(najvec, odprtih = DRUGE prijavljene odprte povezave, premor_s = prejsnji premor ali 0, tece = premor se ni potekel, zmanjsaj): najvec' = max(1, min(najvec, odprtih)), ce zmanjsaj; premor' = premor_s, ce tece; sicer min(300, 2*premor_s), ce premor_s > 0, sicer 10 (so druge odprte) ali 60 (ni nobene); uspesno odprta povezava premor ponastavi in najvec = max(najvec, prijavljenih) do zgornje meje (te je streznik sprejel - hkratna zavrnitev, ko ta se ni bila prijavljena, bazena ne skrci pod njih). Prosta povezava ostane v bazenu samo, ce je prijavljenih manj kot najvec (povezave v odpiranju se ne stejejo). Zmanjsan bazen po rast_bazena_s brez nove meje dobi eno mesto nazaj (do meje, ki jo nastavi klicatelj - proracun povezav med napravami kroga je korak 3). Prosta povezava, nedejavna vec kot prosta_najdlje_s, se zapre. nntp_poverilnica: 1-400 bajtov UTF-8 (brez osamljenih nadomestnih znakov), noben znak pod 0x20 in 0x7F. nntp_id_odgovora(vrstica, id): prvi '<' in za njim prvi '>' - vsebina vmes mora biti enaka id (velike/male crke locene); brez para = true. Neujemanje = napaka_protokola, povezava se zapre. Bajti za koncem bloka (ostanek) = povezava se zapre (ne v bazen). yenc_dekodiraj: size, begin, end samo 1-12 stevk 0-9; part, total samo 1-9 stevk 0-9 in >= 1; part <= total, ce sta oba; =yend size obvezen in stevilo; =yend part, ce je, stevilo (in enak =ybegin part, ce sta oba); vsako navedeno polje pcrc32/crc32 mora biti veljavno sestnajstisko (tudi, ce se ne preverja); del > 4 MiB = prevelik. varno_ime: najprej NFC; po meji 200 kodnih tock se ime skrajsa se na najvec 240 bajtov UTF-8 (koncnica do 9 znakov ostane, osnova se krajsa po kodnih tockah); po obrezovanju vodilna pika postane '_' (skrita datoteka). nzb_razcleni: dovoljeni DOCTYPE se NADOMESTI s presledki enake dolzine (ne odstrani); ce nato kjerkoli ostane '<!' in crka A-Z/a-z = zavrnjeno_dtd (lepljenje ne more sestaviti novega DOCTYPE). Steje vsak <file> pod korenom in vsak <segment> kjerkoli (tudi neveljaven). Skupina velja, ce ima po obrezovanju 1-200 znakov, vsi iz %x22-29, %x2B, %x2D-3E, %x40-5A, %x5E-7E (RFC 3977 wildmat-exact, samo ASCII); druge se izpustijo. Naslov: vsak od ' ', TAB, LF, CR, FF, VT je presledek, znaki kategorij Cc in Cf se odstranijo, zaporedni presledki strnjeni, obrezano, najvec 200 kodnih tock. Napacen UTF-8 da U+FFFD, stevilo pa ni enako (izmerjeno 26. 10.: Python 3.12 za E2 82 / C0 AF / ED A0 80 da 1+2+3, Java 17 skupaj 3 - vpliva samo na stevilo '_' v imenu iz pokvarjenega NZB, ni primera). Koren s predpono velja le z navedenim imenskim prostorom (brez njega ni enako na obeh straneh - ni primera). Verzija 4 (26. 10. 2026, pregleda Grok 43 in 44; lastnik: »Nevarnost zaklepa racuna je prioriteta«). nntp_izid nima vec vhoda prijava_uspela: »481 Authentication failed« in vsak drug odgovor na AUTHINFO brez jasne meje povezav je prijava (zapah), tudi po uspeli prijavi - geslo se je med sejo morda spremenilo. Bazen: AUTHINFO za racun (ponudnik, uporabnik) gre v procesu vedno ena prijava naenkrat (tudi po uspeli prijavi in med bazeni); izid prijave (zapah, stevec prijav brez odgovora) se zapise, preden naslednja povezava poslje geslo - zavrnjeno geslo pride do streznika enkrat. nntp_sme_odpreti: uspela = vsaj ena prijavljena povezava je v zadnjih ziva_prijava_s sekundah uspesno koncala prijavo ali ukaz (odprta vticnica ni dokaz). nntp_zapah_odtis(sol_hex, ponudnik, uporabnik, geslo): trajni zapah racuna (prezivi ponovni zagon, sesutje in posodobitev; nikoli geslo) - polja(...) = za vsako polje 4 bajti dolzine (big-endian) in UTF-8; racun = SHA-256(sol + polja(ponudnik, uporabnik)), geslo = PBKDF2-HMAC-SHA256(polja(ponudnik, uporabnik, geslo), sol, zapah_ponovitev, 32 B), oba sestnajstisko z malimi crkami. Vsak zapis ima svojo nakljucno sol (16 B, zato je prenosljiv med napravami); hrani se najvec zapahov_najvec najnovejsih. Zapah odklene samo nov vpis poverilnic ali uporabnikov »Preveri«; uspela prijava racuna pobrise njegove stare zapise. nntp_ponudnik(gostitelj): obrezi presledke, male crke, brez pik na koncu; naslov IP (vsebuje ':' ali samo stevke in pike) ostane cel; sicer zadnji dve oznaki, ce pa je zadnja oznaka dolga 2 znaka in predzadnja ena od co, com, net, org, ac, or, ne, gov, edu, zadnje tri. Odtis zapaha (v procesu in trajni) in vrata prijave uporabljajo ponudnika (news.x.com in eu.news.x.com sta isti racun); zapah ustavi vse zive bazene istega racuna. nntp_ukrep v4: ustavi_racun (zapah) samo po odgovoru na AUTHINFO; prijava v fazi povezave (48x v pozdravu, geslo ni bilo poslano) = ustavi_bazen; v fazi ukaza dostop (502 pri enem clanku) = vrni (povezava ostane), prijava (480/481 pri BODY/STAT - streznik je sejo pozabil) = znova, ce stara in poskus 0, sicer napaka (nova povezava gre skozi vrata prijave). Bazen: napak_ukaza_zapored zaporednih ukazov z dostop ali (na sveze prijavljeni povezavi) prijava - brez uspesnega odgovora vmes, ni_clanka steje kot uspeh = ustavi_bazen - racun brez pravic ne odpira novih prijav v zanki.",
- "verzija": 4,
+ "opis": "Lasten pogon Usenet (lastnik 25. 10. 2026 22:10, korak 1): skupni primeri za Safeer-linux (tests/test_skupni_primeri.py; core/usenet_yenc.py, usenet_nzb.py, usenet_nntp.py) in Android-tv (Kotlin). Lastnik datoteke je Safeer-linux; spremeni jo povsod hkrati. Bajti so base64 (standardni, s polnilom); null = ni vrednosti. Message-id so izmisljeni (.invalid). Pricakovani izidi niso iz nase kode: podatki so izvorni bajti, CRC32 iz zlib (outputs/skupni-primeri-osnutek/ustvari-usenet-pogon.py). PRAVILA - yenc_dekodiraj(telo po NNTP brez podvojenih pik): prva vrstica, ki se ZACNE z '=ybegin ' (prej prazne vrstice in besedilo dovoljeni; sicer ni_yenc); vrednosti kljuc=vrednost, name= je zadnji in sega do konca vrstice (ime gre skozi varno_ime, UTF-8, sicer latin-1); size obvezen (sicer napaka_oblike); ce je part, mora naslednja vrstica biti '=ypart ' z begin in end, 1<=begin<=end<=size (sicer napaka_oblike); del (end-begin+1 ali size) > meja del_bajtov = prevelik PRED dekodiranjem; podatki do prve vrstice '=yend ' (ni je = prirezano). Dekodiranje: CR in LF se izpustita POVSOD (tudi med ubeznikom '=' in ubeznim znakom - ubeznik na koncu vrstice velja za prvi znak naslednje), ubezni znak c -> (c-106)&255 (tudi '==' -> 211), drugi c -> (c-42)&255; osamljen '=' na koncu podatkov se izpusti; ubezni znak zato nikoli ni CR/LF. Pred dekodiranjem: =yend brez size ali s part, razlicnim od =ybegin part (ce sta oba), = napaka_oblike. Nato: dolzina razlicna od =yend size ali od pricakovane (end-begin+1 oz. size) = napaka_velikosti; pcrc32 (ce je), sicer pri enodelnem crc32 (ce je), sestnajstisko 1-8 znakov, velike ali male crke (neveljaven zapis = napaka_oblike), razlicen od CRC32 podatkov = napaka_crc; crc32 cele datoteke pri vecdelnem se ne preverja (crc_preverjen false, ce ni pcrc32). Izhod: zacetek 1-based (enodelni 1), konec = zacetek+dolzina-1, crc32 = 8 malih sestnajstiskih CRC32 podatkov. nntp_telo(bajti po statusni vrstici): konec je vrstica '.' (CRLF strogo); do nje: vrstica, ki se zacne z '..', izgubi eno piko, druge ostanejo; null, ce konca ni; ostanek = bajti po koncu. yenc_iz_nntp = nntp_telo + yenc_dekodiraj (null -> prirezano). nntp_izid(ukaz, vrstica): koda = prvi trije znaki, ce so stevke s prvo 1-5 in jim sledi presledek ali konec (sicer napaka_protokola). Pricakovano ok: POZDRAV 200/201, AUTHINFO USER 281 (381 = geslo), AUTHINFO PASS 281, ARTICLE 220, HEAD 221, BODY 222, STAT 223, QUIT 205 (v3 spodaj nadomesti ostala pravila nntp_izid). nntp_id: obrezi presledke, odstrani EN par '<' '>' na robu; veljaven, ce 1-248 znakov ASCII 0x21-0x7E brez '<' in '>' (sicer null) - nikoli ukaz s CR/LF. varno_ime: '\\\\' -> '/', del za zadnjo '/'; po KODNIH TOCKAH: crka (kategorija L*), stevka Nd ali eden od \" ._-()[]+,!&'#@~\" ostane, vse drugo '_'; nad 200 kodnih tock: ce je zadnja pika v zadnjih 10 znakih (koncnica do 9 znakov), obdrzi koncnico in skrajsaj osnovo na 200, sicer prvih 200; nato obrezi presledke in pike na koncu ter presledke na zacetku; prazno = null; osnova pred prvo piko (male/velike) CON PRN AUX NUL COM1-9 LPT1-9 dobi '_' spredaj. nzb_ime(subject): prvi neprazen niz v dvojnih narekovajih, sicer zadnja beseda s piko po odstranitvi '(a/b)' in besede yEnc; nato varno_ime. nzb_razcleni(bajti): > 20 MiB = prevelik; bajt NUL = napaka_xml; BOM UTF-8 se odstrani; encoding iz XML deklaracije (utf-8, utf8, us-ascii, ascii = UTF-8; iso-8859-1, iso_8859-1, latin1, latin-1 = ISO-8859-1; brez = UTF-8; drugo = napaka_xml), napacen UTF-8 se zamenja z U+FFFD; '<!' + ENTITY/ELEMENT/ATTLIST/NOTATION kjerkoli (tudi v komentarju) = zavrnjeno_dtd; dovoljen je najvec en '<!DOCTYPE nzb' (velike crke) brez notranjega dela: brez identifikatorja, PUBLIC \"..\" \"..\" ali SYSTEM \"..\" (narekovaji ' ali \", brez [ ] < > v nizu) - se ne nalaga, odstrani se pred razclenitvijo; vsak drug DOCTYPE = zavrnjeno_dtd; napaka XML ali nedefinirana entiteta = napaka_xml; koren (brez imenskega prostora) ni nzb = ni_nzb. head/meta: title (presledki strnjeni, najvec 200) = naslov, neprazen password = ima_geslo (geslo se ne izpise). Samo neposredni otroci korena <file>: subject -> ime (nzb_ime), skupine = neprazne obrezane <group> do 200 znakov, najvec 50; segment: number 1-6 stevk 0-9 z vrednostjo 1-200000 (sicer izpuscen), bytes 1-9 stevk 0-9 (sicer 0), id = nntp_id (null = izpuscen), dvojnik stevilke med veljavnimi: prvi ostane; segmenti po stevilki; manjka = max(b iz zadnjega '(a/b)' v subject, ce 1<=b<=200000, najvecja stevilka) - stevilo segmentov; datoteka brez segmentov se izpusti; vec kot 5000 <file>, 500000 <segment> ali 1000000 elementov skupaj = prevelik (sproti, pred koncem dokumenta); brez datotek = prazen. bajtov_nzb je vsota bytes (velikost clankov, NE dekodiranih podatkov - odmike da glava yEnc). Verzija 2 (25. 10. 2026 22:55, po preizkusih na namizju): samostojen CR sredi vrstice yEnc se izpusti (nov primer), meja nzb_elementov, pojasnjeno: us-ascii = UTF-8, =yend part se primerja samo, ce ga ima tudi =ybegin, dvojnik segmenta samo med veljavnimi. Pricakovani izidi v1 so nespremenjeni. Verzija 3 (26. 10. 2026, pregleda Grok 35 in 37; lastnik 03:05 »Nevarnost zaklepa racuna je prioriteta«). nntp_izid(ukaz, vrstica): koda ni veljavna = napaka_protokola, pri AUTHINFO USER/PASS pa prijava. zaklep(besedilo po kodi, male crke) = vsebuje enega od 'lock', 'ban', 'block', 'attempt', 'suspend', 'expire', 'disable'. meja_povezav(besedilo) = ne zaklep IN ne vsebuje 'fail', 'pass', 'invalid', 'incorrect', 'wrong', 'auth', 'login', 'log in', 'logon', 'sign in', 'credential' (zadnjih sest v4) IN (vsebuje 'connection limit' ali ('connections' in enega od 'too many', 'limit', 'max', 'exceed', 'no more')) - dvom = zavrnjena prijava, nikoli ponovitev. Vrstni red: pricakovano = ok; AUTHINFO USER 381 = geslo; koda 400/480/481/482/502 in meja_povezav = zaseden; AUTHINFO USER/PASS: vse drugo = prijava, tudi po uspeli prijavi istega racuna (v4; RFC 4643: 481 zavrnjeno, 482 vrstni red, 502 ni dovoljeno); 423/430 pri ARTICLE/HEAD/BODY/STAT = ni_clanka; 480/481/482 = prijava; POZDRAV 400 = napaka_streznika (zacasno); 400 = zaprto (streznik zapira povezavo); 502 = dostop (RFC 3977: trajno ali brez pravic; ukrep v nntp_ukrep); 403 = napaka_streznika; 205 = zaprto; drugo = napaka_protokola. nntp_ukrep(izid, faza, stara, poskus) - faza: povezava (TCP, TLS, pozdrav; nic AUTHINFO), prijava (od poslanega AUTHINFO USER do 281), ukaz (BODY/STAT na prijavljeni povezavi); stara = povezava iz bazena; poskus 0 ali 1. Ukrepi: vrni (povezava nazaj v bazen), znova (drugi poskus VEDNO z novo povezavo), napaka, zmanjsaj_pocakaj (bazen in premor po nntp_premor; zahteva caka prosto obstojeco povezavo ali konec premora), pocakaj (premor brez zmanjsanja), neznana_prijava (prijava brez odgovora: premor; druga zapored = ustavi_racun), ustavi_racun (zavrnjena prijava: vse povezave zaprte, nobenega AUTHINFO vec za te poverilnice, dokler jih uporabnik ne vpise znova), ustavi_bazen (dostop ali potrdilo). Pravilo je v primerih (cela tabela). Bazen odpira nove povezave eno za drugo (sonda), dokler ena prijava ne uspe in je kaksna prijavljena povezava odprta - zato zavrnjeno geslo pride do streznika najvec enkrat tudi pri 8 hkratnih zahtevah (nntp_sme_odpreti). nntp_premor(najvec, odprtih = DRUGE prijavljene odprte povezave, premor_s = prejsnji premor ali 0, tece = premor se ni potekel, zmanjsaj): najvec' = max(1, min(najvec, odprtih)), ce zmanjsaj; premor' = premor_s, ce tece; sicer min(300, 2*premor_s), ce premor_s > 0, sicer 10 (so druge odprte) ali 60 (ni nobene); uspesno odprta povezava premor ponastavi in najvec = max(najvec, prijavljenih) do zgornje meje (te je streznik sprejel - hkratna zavrnitev, ko ta se ni bila prijavljena, bazena ne skrci pod njih). Prosta povezava ostane v bazenu samo, ce je prijavljenih manj kot najvec (povezave v odpiranju se ne stejejo). Zmanjsan bazen po rast_bazena_s brez nove meje dobi eno mesto nazaj (do meje, ki jo nastavi klicatelj - proracun povezav med napravami kroga je korak 3). Prosta povezava, nedejavna vec kot prosta_najdlje_s, se zapre. nntp_poverilnica: 1-400 bajtov UTF-8 (brez osamljenih nadomestnih znakov), noben znak pod 0x20 in 0x7F. nntp_id_odgovora(vrstica, id): prvi '<' in za njim prvi '>' - vsebina vmes mora biti enaka id (velike/male crke locene); brez para = true. Neujemanje = napaka_protokola, povezava se zapre. Bajti za koncem bloka (ostanek) = povezava se zapre (ne v bazen). yenc_dekodiraj: size, begin, end samo 1-12 stevk 0-9; part, total samo 1-9 stevk 0-9 in >= 1; part <= total, ce sta oba; =yend size obvezen in stevilo; =yend part, ce je, stevilo (in enak =ybegin part, ce sta oba); vsako navedeno polje pcrc32/crc32 mora biti veljavno sestnajstisko (tudi, ce se ne preverja); del > 4 MiB = prevelik. varno_ime: najprej NFC; po meji 200 kodnih tock se ime skrajsa se na najvec 240 bajtov UTF-8 (koncnica do 9 znakov ostane, osnova se krajsa po kodnih tockah); po obrezovanju vodilna pika postane '_' (skrita datoteka). nzb_razcleni: dovoljeni DOCTYPE se NADOMESTI s presledki enake dolzine (ne odstrani); ce nato kjerkoli ostane '<!' in crka A-Z/a-z = zavrnjeno_dtd (lepljenje ne more sestaviti novega DOCTYPE). Steje vsak <file> pod korenom in vsak <segment> kjerkoli (tudi neveljaven). Skupina velja, ce ima po obrezovanju 1-200 znakov, vsi iz %x22-29, %x2B, %x2D-3E, %x40-5A, %x5E-7E (RFC 3977 wildmat-exact, samo ASCII); druge se izpustijo. Naslov: vsak od ' ', TAB, LF, CR, FF, VT je presledek, znaki kategorij Cc in Cf se odstranijo, zaporedni presledki strnjeni, obrezano, najvec 200 kodnih tock. Napacen UTF-8 da U+FFFD, stevilo pa ni enako (izmerjeno 26. 10.: Python 3.12 za E2 82 / C0 AF / ED A0 80 da 1+2+3, Java 17 skupaj 3 - vpliva samo na stevilo '_' v imenu iz pokvarjenega NZB, ni primera). Koren s predpono velja le z navedenim imenskim prostorom (brez njega ni enako na obeh straneh - ni primera). Verzija 4 (26. 10. 2026, pregleda Grok 43 in 44; lastnik: »Nevarnost zaklepa racuna je prioriteta«). nntp_izid nima vec vhoda prijava_uspela: »481 Authentication failed« in vsak drug odgovor na AUTHINFO brez jasne meje povezav je prijava (zapah), tudi po uspeli prijavi - geslo se je med sejo morda spremenilo. Bazen: AUTHINFO za racun (ponudnik, uporabnik) gre v procesu vedno ena prijava naenkrat (tudi po uspeli prijavi in med bazeni); izid prijave (zapah, stevec prijav brez odgovora) se zapise, preden naslednja povezava poslje geslo - zavrnjeno geslo pride do streznika enkrat. nntp_sme_odpreti: uspela = vsaj ena prijavljena povezava je v zadnjih ziva_prijava_s sekundah uspesno koncala prijavo ali ukaz (odprta vticnica ni dokaz). nntp_zapah_odtis(sol_hex, ponudnik, uporabnik, geslo): trajni zapah racuna (prezivi ponovni zagon, sesutje in posodobitev; nikoli geslo) - polja(...) = za vsako polje 4 bajti dolzine (big-endian) in UTF-8; racun = SHA-256(sol + polja(ponudnik, uporabnik)), geslo = PBKDF2-HMAC-SHA256(polja(ponudnik, uporabnik, geslo), sol, zapah_ponovitev, 32 B), oba sestnajstisko z malimi crkami. Vsak zapis ima svojo nakljucno sol (16 B, zato je prenosljiv med napravami); hrani se najvec zapahov_najvec najnovejsih. Zapah odklene samo nov vpis poverilnic ali uporabnikov »Preveri«; uspela prijava racuna pobrise njegove stare zapise. nntp_ponudnik(gostitelj): obrezi presledke, male crke, brez pik na koncu; naslov IP (vsebuje ':' ali samo stevke in pike) ostane cel; sicer zadnji dve oznaki, ce pa je zadnja oznaka dolga 2 znaka in predzadnja ena od co, com, net, org, ac, or, ne, gov, edu, zadnje tri. Odtis zapaha (v procesu in trajni) in vrata prijave uporabljajo ponudnika (news.x.com in eu.news.x.com sta isti racun); zapah ustavi vse zive bazene istega racuna. nntp_ukrep v4: ustavi_racun (zapah) samo po odgovoru na AUTHINFO; prijava v fazi povezave (48x v pozdravu, geslo ni bilo poslano) = ustavi_bazen; v fazi ukaza dostop (502 pri enem clanku) = vrni (povezava ostane), prijava (480/481 pri BODY/STAT - streznik je sejo pozabil) = znova, ce stara in poskus 0, sicer napaka (nova povezava gre skozi vrata prijave). Bazen: napak_ukaza_zapored zaporednih ukazov z dostop ali (na sveze prijavljeni povezavi) prijava - brez uspesnega odgovora vmes, ni_clanka steje kot uspeh = ustavi_bazen - racun brez pravic ne odpira novih prijav v zanki. Verzija 5 (26. 10. 2026, korak 2: preslikava odmikov, RAR store, okno vnaprej; NOVA pravila, izidi v1-v4 nespremenjeni). tok_odmik(velikost, celota, del_bajtov ali null, znani = [[stevilka, odmik, dolzina]] prebranih segmentov (odmik od 0), odmik): odmik zunaj [0, velikost) = izven; celota < 1 ali velikost < celota = neskladno; znani urejeni po stevilki morajo biti 1 <= stevilka <= celota, dolzina >= 1, odmik + dolzina <= velikost, med zaporednima znanima je za vsak vmesni segment vsaj en bajt, sosednji stevilki se stikata, prvi pred znanim ima prostor (stevilka 1 zacne na 0), za zadnjim znanim je prostor za ostale in znan zadnji segment konca na velikosti - sicer neskladno. Ce odmik lezi v znanem: segment, odmik v njem, natancno=true. Sicer sidri: levo = zadnji znani, ki konca <= odmik (navidezni 0 s koncem 0), desno = prvi znani, ki zacne > odmik (navidezni celota+1 z zacetkom velikost). Enakomerno, ce del_bajtov in levi konec = levo_st * del_bajtov in (desno je navidezni in (celota-1)*del < velikost <= celota*del ali desni zacetek = (desno_st-1)*del): segment = odmik div del + 1, odmik - (segment-1)*del. Sicer na = (desni_zacetek - levi_konec) / (desno_st - levo_st - 1) (deljenje v plavajoci vejici), segment = levo_st + 1 + floor((odmik - levi_konec) / na), omejen na [levo_st+1, desno_st-1], odmik v njem = odmik - (levi_konec + floor((segment - levo_st - 1) * na)); natancno=false - bralnik segment prebere, ga doda med znane in isce znova (najvec 24 krat). tok_segmenti(... odmik, dolzina): stevilke od segmenta za odmik dalje, dokler ocenjeni zacetek (znan, enakomeren kot zgoraj ali levi_konec + floor((st - levo_st - 1) * na)) < min(velikost, odmik+dolzina); dolzina <= 0 ali odmik zunaj = []. tok_okno(zaporedno_prebrano, zacetno, najvec) = max(zacetno, min(najvec, 2*max(0, zaporedno_prebrano))) - bajti, prebrani zaporedno od zadnjega skoka (branje, ki se zacne vec kot zacetno okno od konca prejsnjega, je skok in stevec postavi na 0); okno se bere od konca zadnjega branja, cakajoca branja vnaprej zunaj novega okna se ob skoku zavrzejo. tok_profili: [okno, zacetno okno, LRU, vzporednih branj] po napravi; LRU je najmanj 2*okno + 8 MiB. rar_glava(glava_b64 = zacetek prvega zvezka, npr. prvi segment, velikost = velikost zvezka): RAR4 podpis 52 61 72 21 1A 07 00, RAR5 52 61 72 21 1A 07 01 00, drugo = ni_rar. RAR4 blok: HEAD_CRC u16 = nizjih 16 bitov CRC32 glave od HEAD_TYPE do konca, HEAD_TYPE u8, HEAD_FLAGS u16, HEAD_SIZE u16 (>= 7), pri zastavici 0x8000 ali vrsti 0x74 ADD_SIZE u32 (podatki za glavo); prvi blok mora biti glavna glava 0x73 (zastavica 0x0080 = sifrirane_glave, 0x0001 = vec_zvezkov; zvezek = null); glava datoteke 0x74: PACK_SIZE u32, UNP_SIZE u32, HOST_OS u8, FILE_CRC u32, FTIME u32, UNP_VER u8, METHOD u8 (0x30 = store), NAME_SIZE u16 (<= 4096), ATTR u32, pri 0x0100 HIGH_PACK u32 in HIGH_UNP u32 (zgornjih 32 bitov), ime; zastavice 0x01 pred, 0x02 po, 0x04 sifriran, 0x0200 ime Unicode (vzame se ASCII del pred NUL), 0xE0 vse = mapa; podatki zacnejo za glavo (odmik) in so dolgi PACK_SIZE; 0x7B konec. RAR5 blok: CRC32 u32 (od velikosti glave do konca), velikost glave vint (najvec 3 bajti, <= 2 MiB, sicer poskodovan), vrsta vint, zastavice vint (0x1 dodatni del, 0x2 podatki, 0x8 pred, 0x10 po), [velikost dodatnega dela], [velikost podatkov]; prvi blok mora biti glavni 1 (zastavice arhiva 0x1 vec_zvezkov, 0x2 stevilka zvezka sledi; vec zvezkov brez stevilke = zvezek 0, en zvezek = null); vrsta 4 = sifrirane_glave; datoteka 2: zastavice datoteke vint (0x1 mapa, 0x2 cas u32, 0x4 CRC u32, 0x8 neznana velikost -> velikost -1), velikost vint, atributi vint, [cas], [CRC], stiskanje vint (metoda = bita 7-9, 0 = store), OS vint, dolzina imena vint (<= 4096), ime UTF-8; dodatni del: zapisi (velikost vint, vrsta vint, ...), vrsta 0x01 = sifriran; 5 konec. Vint najvec 10 bajtov. Vsak naslednji blok mora biti za prejsnjim, najvec 10000 blokov. Ime gre skozi varno_ime. Glava, ki sega cez prebrane bajte, ustavi razclenitev (datoteke do tam ostanejo). Izhod: izid (iz najvecje datoteke, ki ni mapa: sifriran pred stisnjen, sicer ok; brez datotek nepopolno, ce je glava presegla bajte, sicer ni_datoteke; napaka = samo izid), rar, zvezek, vec_zvezkov, datoteke [ime, odmik, dolzina, velikost, pred, po, store, sifriran, mapa]. rar_zvezki(imena): vsa .partN.rar (N od 1 brez lukenj) ali .rar + .r00 ... .r99 + .s00 ... (vrstni red .rar, .r00 ...; crka r..z, 2 stevki), ista osnova (velike/male crke enake), ena shema; izhod indeksi v pravem redu, sicer null. rar_sestavi(zvezki_b64 v vrstnem redu): datoteka = najvecja v prvem zvezku; sifriran/stisnjen/prva pred = napaka; vsak naslednji zvezek, dokler ima prejsnji kos zastavico po, mora imeti kos z zastavico pred, istim imenom, isto velikostjo (in RAR5 zaporedno stevilko zvezka); na koncu brez po in vsota dolzin = velikost - sicer neskladno; izhod ime, velikost, kosi [[zvezek, odmik, dolzina]]. Prave glave WinRAR 7.x (rar_glava »pravi«) so prvih bajti arhivov z nakljucnimi podatki (ni zasebnih podatkov).",
+ "verzija": 5,
  "primeri": [
   {
    "f": "yenc_dekodiraj",
@@ -4537,6 +4537,2130 @@
     "zapah_ponovitev": 100000,
     "zapahov_najvec": 32,
     "napak_ukaza_zapored": 3
+   }
+  },
+  {
+   "f": "tok_odmik",
+   "vhod": {
+    "opis": "enakomerni deli po 100, zadnji 50; znan prvi",
+    "velikost": 950,
+    "celota": 10,
+    "del_bajtov": 100,
+    "znani": [
+     [
+      1,
+      0,
+      100
+     ]
+    ],
+    "odmik": 0
+   },
+   "izhod": {
+    "izid": "ok",
+    "segment": 1,
+    "odmik": 0,
+    "natancno": true
+   }
+  },
+  {
+   "f": "tok_odmik",
+   "vhod": {
+    "opis": "enakomerni deli po 100, zadnji 50; znan prvi",
+    "velikost": 950,
+    "celota": 10,
+    "del_bajtov": 100,
+    "znani": [
+     [
+      1,
+      0,
+      100
+     ]
+    ],
+    "odmik": 99
+   },
+   "izhod": {
+    "izid": "ok",
+    "segment": 1,
+    "odmik": 99,
+    "natancno": true
+   }
+  },
+  {
+   "f": "tok_odmik",
+   "vhod": {
+    "opis": "enakomerni deli po 100, zadnji 50; znan prvi",
+    "velikost": 950,
+    "celota": 10,
+    "del_bajtov": 100,
+    "znani": [
+     [
+      1,
+      0,
+      100
+     ]
+    ],
+    "odmik": 100
+   },
+   "izhod": {
+    "izid": "ok",
+    "segment": 2,
+    "odmik": 0,
+    "natancno": false
+   }
+  },
+  {
+   "f": "tok_odmik",
+   "vhod": {
+    "opis": "enakomerni deli po 100, zadnji 50; znan prvi",
+    "velikost": 950,
+    "celota": 10,
+    "del_bajtov": 100,
+    "znani": [
+     [
+      1,
+      0,
+      100
+     ]
+    ],
+    "odmik": 512
+   },
+   "izhod": {
+    "izid": "ok",
+    "segment": 6,
+    "odmik": 12,
+    "natancno": false
+   }
+  },
+  {
+   "f": "tok_odmik",
+   "vhod": {
+    "opis": "enakomerni deli po 100, zadnji 50; znan prvi",
+    "velikost": 950,
+    "celota": 10,
+    "del_bajtov": 100,
+    "znani": [
+     [
+      1,
+      0,
+      100
+     ]
+    ],
+    "odmik": 899
+   },
+   "izhod": {
+    "izid": "ok",
+    "segment": 9,
+    "odmik": 99,
+    "natancno": false
+   }
+  },
+  {
+   "f": "tok_odmik",
+   "vhod": {
+    "opis": "enakomerni deli po 100, zadnji 50; znan prvi",
+    "velikost": 950,
+    "celota": 10,
+    "del_bajtov": 100,
+    "znani": [
+     [
+      1,
+      0,
+      100
+     ]
+    ],
+    "odmik": 900
+   },
+   "izhod": {
+    "izid": "ok",
+    "segment": 10,
+    "odmik": 0,
+    "natancno": false
+   }
+  },
+  {
+   "f": "tok_odmik",
+   "vhod": {
+    "opis": "enakomerni deli po 100, zadnji 50; znan prvi",
+    "velikost": 950,
+    "celota": 10,
+    "del_bajtov": 100,
+    "znani": [
+     [
+      1,
+      0,
+      100
+     ]
+    ],
+    "odmik": 949
+   },
+   "izhod": {
+    "izid": "ok",
+    "segment": 10,
+    "odmik": 49,
+    "natancno": false
+   }
+  },
+  {
+   "f": "tok_odmik",
+   "vhod": {
+    "opis": "enodelna datoteka",
+    "velikost": 777,
+    "celota": 1,
+    "del_bajtov": 777,
+    "znani": [
+     [
+      1,
+      0,
+      777
+     ]
+    ],
+    "odmik": 776
+   },
+   "izhod": {
+    "izid": "ok",
+    "segment": 1,
+    "odmik": 776,
+    "natancno": true
+   }
+  },
+  {
+   "f": "tok_odmik",
+   "vhod": {
+    "opis": "dve zdruzeni objavi, znana prvi in cetrti",
+    "velikost": 1320,
+    "celota": 5,
+    "del_bajtov": 300,
+    "znani": [
+     [
+      1,
+      0,
+      300
+     ],
+     [
+      4,
+      720,
+      300
+     ]
+    ],
+    "odmik": 650
+   },
+   "izhod": {
+    "izid": "ok",
+    "segment": 3,
+    "odmik": 140,
+    "natancno": false
+   }
+  },
+  {
+   "f": "tok_odmik",
+   "vhod": {
+    "opis": "dve zdruzeni objavi, ugib po enakomerni razdelitvi vrzeli",
+    "velikost": 1320,
+    "celota": 5,
+    "del_bajtov": 300,
+    "znani": [
+     [
+      1,
+      0,
+      300
+     ],
+     [
+      4,
+      720,
+      300
+     ]
+    ],
+    "odmik": 610
+   },
+   "izhod": {
+    "izid": "ok",
+    "segment": 3,
+    "odmik": 100,
+    "natancno": false
+   }
+  },
+  {
+   "f": "tok_odmik",
+   "vhod": {
+    "opis": "dve zdruzeni objavi, vse znano okoli",
+    "velikost": 1320,
+    "celota": 5,
+    "del_bajtov": 300,
+    "znani": [
+     [
+      1,
+      0,
+      300
+     ],
+     [
+      2,
+      300,
+      300
+     ],
+     [
+      3,
+      600,
+      120
+     ],
+     [
+      4,
+      720,
+      300
+     ]
+    ],
+    "odmik": 700
+   },
+   "izhod": {
+    "izid": "ok",
+    "segment": 3,
+    "odmik": 100,
+    "natancno": true
+   }
+  },
+  {
+   "f": "tok_odmik",
+   "vhod": {
+    "opis": "brez del_bajtov (prvi segment je zadnji)",
+    "velikost": 850,
+    "celota": 4,
+    "del_bajtov": null,
+    "znani": [
+     [
+      4,
+      750,
+      100
+     ]
+    ],
+    "odmik": 10
+   },
+   "izhod": {
+    "izid": "ok",
+    "segment": 1,
+    "odmik": 10,
+    "natancno": false
+   }
+  },
+  {
+   "f": "tok_odmik",
+   "vhod": {
+    "opis": "sidri 1 in 4, vrzel 400 B na 2 segmenta",
+    "velikost": 1000,
+    "celota": 6,
+    "del_bajtov": 100,
+    "znani": [
+     [
+      1,
+      0,
+      100
+     ],
+     [
+      4,
+      500,
+      100
+     ]
+    ],
+    "odmik": 320
+   },
+   "izhod": {
+    "izid": "ok",
+    "segment": 3,
+    "odmik": 20,
+    "natancno": false
+   }
+  },
+  {
+   "f": "tok_odmik",
+   "vhod": {
+    "opis": "nakljucne velikosti, znani vsi do iskanega",
+    "velikost": 2462,
+    "celota": 12,
+    "del_bajtov": 243,
+    "znani": [
+     [
+      1,
+      0,
+      243
+     ],
+     [
+      2,
+      243,
+      57
+     ],
+     [
+      3,
+      300,
+      159
+     ]
+    ],
+    "odmik": 393
+   },
+   "izhod": {
+    "izid": "ok",
+    "segment": 3,
+    "odmik": 93,
+    "natancno": true
+   }
+  },
+  {
+   "f": "tok_odmik",
+   "vhod": {
+    "opis": "nakljucne velikosti, znani vsi do iskanega",
+    "velikost": 2462,
+    "celota": 12,
+    "del_bajtov": 243,
+    "znani": [
+     [
+      1,
+      0,
+      243
+     ],
+     [
+      2,
+      243,
+      57
+     ],
+     [
+      3,
+      300,
+      159
+     ],
+     [
+      4,
+      459,
+      206
+     ],
+     [
+      5,
+      665,
+      375
+     ],
+     [
+      6,
+      1040,
+      292
+     ],
+     [
+      7,
+      1332,
+      71
+     ],
+     [
+      8,
+      1403,
+      180
+     ],
+     [
+      9,
+      1583,
+      67
+     ],
+     [
+      10,
+      1650,
+      206
+     ],
+     [
+      11,
+      1856,
+      339
+     ],
+     [
+      12,
+      2195,
+      267
+     ]
+    ],
+    "odmik": 2410
+   },
+   "izhod": {
+    "izid": "ok",
+    "segment": 12,
+    "odmik": 215,
+    "natancno": true
+   }
+  },
+  {
+   "f": "tok_odmik",
+   "vhod": {
+    "opis": "nakljucne velikosti, znani vsi do iskanega",
+    "velikost": 2462,
+    "celota": 12,
+    "del_bajtov": 243,
+    "znani": [
+     [
+      1,
+      0,
+      243
+     ],
+     [
+      2,
+      243,
+      57
+     ],
+     [
+      3,
+      300,
+      159
+     ],
+     [
+      4,
+      459,
+      206
+     ]
+    ],
+    "odmik": 509
+   },
+   "izhod": {
+    "izid": "ok",
+    "segment": 4,
+    "odmik": 50,
+    "natancno": true
+   }
+  },
+  {
+   "f": "tok_odmik",
+   "vhod": {
+    "opis": "nakljucne velikosti, znani vsi do iskanega",
+    "velikost": 2462,
+    "celota": 12,
+    "del_bajtov": 243,
+    "znani": [
+     [
+      1,
+      0,
+      243
+     ],
+     [
+      2,
+      243,
+      57
+     ],
+     [
+      3,
+      300,
+      159
+     ],
+     [
+      4,
+      459,
+      206
+     ],
+     [
+      5,
+      665,
+      375
+     ],
+     [
+      6,
+      1040,
+      292
+     ],
+     [
+      7,
+      1332,
+      71
+     ],
+     [
+      8,
+      1403,
+      180
+     ],
+     [
+      9,
+      1583,
+      67
+     ],
+     [
+      10,
+      1650,
+      206
+     ],
+     [
+      11,
+      1856,
+      339
+     ],
+     [
+      12,
+      2195,
+      267
+     ]
+    ],
+    "odmik": 2358
+   },
+   "izhod": {
+    "izid": "ok",
+    "segment": 12,
+    "odmik": 163,
+    "natancno": true
+   }
+  },
+  {
+   "f": "tok_odmik",
+   "vhod": {
+    "opis": "nakljucne velikosti, znani vsi do iskanega",
+    "velikost": 2462,
+    "celota": 12,
+    "del_bajtov": 243,
+    "znani": [
+     [
+      1,
+      0,
+      243
+     ],
+     [
+      2,
+      243,
+      57
+     ],
+     [
+      3,
+      300,
+      159
+     ],
+     [
+      4,
+      459,
+      206
+     ],
+     [
+      5,
+      665,
+      375
+     ]
+    ],
+    "odmik": 807
+   },
+   "izhod": {
+    "izid": "ok",
+    "segment": 5,
+    "odmik": 142,
+    "natancno": true
+   }
+  },
+  {
+   "f": "tok_odmik",
+   "vhod": {
+    "opis": "nakljucne velikosti, znani vsi do iskanega",
+    "velikost": 2462,
+    "celota": 12,
+    "del_bajtov": 243,
+    "znani": [
+     [
+      1,
+      0,
+      243
+     ],
+     [
+      2,
+      243,
+      57
+     ],
+     [
+      3,
+      300,
+      159
+     ],
+     [
+      4,
+      459,
+      206
+     ],
+     [
+      5,
+      665,
+      375
+     ],
+     [
+      6,
+      1040,
+      292
+     ],
+     [
+      7,
+      1332,
+      71
+     ],
+     [
+      8,
+      1403,
+      180
+     ],
+     [
+      9,
+      1583,
+      67
+     ],
+     [
+      10,
+      1650,
+      206
+     ],
+     [
+      11,
+      1856,
+      339
+     ]
+    ],
+    "odmik": 2098
+   },
+   "izhod": {
+    "izid": "ok",
+    "segment": 11,
+    "odmik": 242,
+    "natancno": true
+   }
+  },
+  {
+   "f": "tok_odmik",
+   "vhod": {
+    "velikost": 950,
+    "celota": 10,
+    "del_bajtov": 100,
+    "znani": [],
+    "odmik": 950,
+    "opis": "odmik na koncu datoteke"
+   },
+   "izhod": {
+    "izid": "izven"
+   }
+  },
+  {
+   "f": "tok_odmik",
+   "vhod": {
+    "velikost": 950,
+    "celota": 10,
+    "del_bajtov": 100,
+    "znani": [],
+    "odmik": -1,
+    "opis": "negativen odmik"
+   },
+   "izhod": {
+    "izid": "izven"
+   }
+  },
+  {
+   "f": "tok_odmik",
+   "vhod": {
+    "velikost": 5,
+    "celota": 6,
+    "del_bajtov": 1,
+    "znani": [],
+    "odmik": 0,
+    "opis": "vec segmentov kot bajtov"
+   },
+   "izhod": {
+    "izid": "neskladno"
+   }
+  },
+  {
+   "f": "tok_odmik",
+   "vhod": {
+    "velikost": 950,
+    "celota": 10,
+    "del_bajtov": 100,
+    "znani": [
+     [
+      1,
+      0,
+      100
+     ],
+     [
+      2,
+      150,
+      100
+     ]
+    ],
+    "odmik": 500,
+    "opis": "sosednja segmenta se ne stikata"
+   },
+   "izhod": {
+    "izid": "neskladno"
+   }
+  },
+  {
+   "f": "tok_odmik",
+   "vhod": {
+    "velikost": 950,
+    "celota": 10,
+    "del_bajtov": 100,
+    "znani": [
+     [
+      10,
+      900,
+      40
+     ]
+    ],
+    "odmik": 5,
+    "opis": "znan zadnji ne konca na velikosti"
+   },
+   "izhod": {
+    "izid": "neskladno"
+   }
+  },
+  {
+   "f": "tok_odmik",
+   "vhod": {
+    "velikost": 950,
+    "celota": 10,
+    "del_bajtov": 100,
+    "znani": [
+     [
+      1,
+      5,
+      100
+     ]
+    ],
+    "odmik": 500,
+    "opis": "prvi segment ne zacne na 0"
+   },
+   "izhod": {
+    "izid": "neskladno"
+   }
+  },
+  {
+   "f": "tok_odmik",
+   "vhod": {
+    "velikost": 950,
+    "celota": 10,
+    "del_bajtov": 100,
+    "znani": [
+     [
+      1,
+      0,
+      100
+     ],
+     [
+      9,
+      102,
+      100
+     ]
+    ],
+    "odmik": 500,
+    "opis": "premalo prostora za vmesne"
+   },
+   "izhod": {
+    "izid": "neskladno"
+   }
+  },
+  {
+   "f": "tok_segmenti",
+   "vhod": {
+    "opis": "okno sredi enakomerne datoteke",
+    "velikost": 950,
+    "celota": 10,
+    "del_bajtov": 100,
+    "znani": [
+     [
+      1,
+      0,
+      100
+     ]
+    ],
+    "odmik": 150,
+    "dolzina": 300
+   },
+   "izhod": [
+    2,
+    3,
+    4,
+    5
+   ]
+  },
+  {
+   "f": "tok_segmenti",
+   "vhod": {
+    "opis": "okno do konca datoteke",
+    "velikost": 950,
+    "celota": 10,
+    "del_bajtov": 100,
+    "znani": [
+     [
+      1,
+      0,
+      100
+     ]
+    ],
+    "odmik": 900,
+    "dolzina": 1000000000
+   },
+   "izhod": [
+    10
+   ]
+  },
+  {
+   "f": "tok_segmenti",
+   "vhod": {
+    "opis": "okno cez mejo segmenta po 1 bajt",
+    "velikost": 950,
+    "celota": 10,
+    "del_bajtov": 100,
+    "znani": [
+     [
+      1,
+      0,
+      100
+     ]
+    ],
+    "odmik": 199,
+    "dolzina": 2
+   },
+   "izhod": [
+    2,
+    3
+   ]
+  },
+  {
+   "f": "tok_segmenti",
+   "vhod": {
+    "opis": "prazno okno",
+    "velikost": 950,
+    "celota": 10,
+    "del_bajtov": 100,
+    "znani": [
+     [
+      1,
+      0,
+      100
+     ]
+    ],
+    "odmik": 100,
+    "dolzina": 0
+   },
+   "izhod": []
+  },
+  {
+   "f": "tok_segmenti",
+   "vhod": {
+    "opis": "okno na koncu",
+    "velikost": 950,
+    "celota": 10,
+    "del_bajtov": 100,
+    "znani": [
+     [
+      1,
+      0,
+      100
+     ]
+    ],
+    "odmik": 950,
+    "dolzina": 100
+   },
+   "izhod": []
+  },
+  {
+   "f": "tok_okno",
+   "vhod": {
+    "zaporedno_prebrano": 0,
+    "zacetno": 1048576,
+    "najvec": 16777216
+   },
+   "izhod": 1048576
+  },
+  {
+   "f": "tok_okno",
+   "vhod": {
+    "zaporedno_prebrano": 300000,
+    "zacetno": 1048576,
+    "najvec": 16777216
+   },
+   "izhod": 1048576
+  },
+  {
+   "f": "tok_okno",
+   "vhod": {
+    "zaporedno_prebrano": 3145728,
+    "zacetno": 1048576,
+    "najvec": 16777216
+   },
+   "izhod": 6291456
+  },
+  {
+   "f": "tok_okno",
+   "vhod": {
+    "zaporedno_prebrano": 104857600,
+    "zacetno": 1048576,
+    "najvec": 16777216
+   },
+   "izhod": 16777216
+  },
+  {
+   "f": "tok_okno",
+   "vhod": {
+    "zaporedno_prebrano": 104857600,
+    "zacetno": 1048576,
+    "najvec": 8388608
+   },
+   "izhod": 8388608
+  },
+  {
+   "f": "tok_okno",
+   "vhod": {
+    "zaporedno_prebrano": -5,
+    "zacetno": 1048576,
+    "najvec": 8388608
+   },
+   "izhod": 1048576
+  },
+  {
+   "f": "tok_profili",
+   "vhod": {},
+   "izhod": {
+    "tv": [
+     8388608,
+     1048576,
+     33554432,
+     4
+    ],
+    "telefon": [
+     8388608,
+     1048576,
+     50331648,
+     6
+    ],
+    "namizje": [
+     16777216,
+     1048576,
+     100663296,
+     8
+    ]
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "pravi WinRAR 7: store_zvezek1",
+    "glava_b64": "UmFyIRoHAQBfm3uJCwEFBwEGAQGgn4EAfqyCPSYCEwvlngEE0IYDIGRqpe6AAAAIZmlsbS5ta3YKAwIUdhG1D2XdAYK3Du5/GlA5vvB+wjR/Bm7Qj13HUSRH40BDAAJrblRVlKBlaF1kxJgLuNRUSochqZoBrSGe",
+    "velikost": 20480
+   },
+   "izhod": {
+    "izid": "ok",
+    "rar": 5,
+    "zvezek": 0,
+    "vec_zvezkov": true,
+    "datoteke": [
+     {
+      "ime": "film.mkv",
+      "odmik": 67,
+      "dolzina": 20325,
+      "velikost": 50000,
+      "pred": false,
+      "po": true,
+      "store": true,
+      "sifriran": false,
+      "mapa": false
+     }
+    ]
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "pravi WinRAR 7: stisnjen_m3",
+    "glava_b64": "UmFyIRoHAQDz4YLrCwEFBwAGAQGAgIAAoqK1lycCAwu8gAAEoJYDICtSKpWAAwAJdGVrc3QubWt2CgMC91Dvug9l3QHHpDk0BCL6M8VMncCKBkEkYwFpd78yP+t7O+xXr8LlmlOSz/j1JXXqF3pUP+kC6w/6QLxj/pAvGP+kC8Ydd1ZRAwUEAA==",
+    "velikost": 136
+   },
+   "izhod": {
+    "izid": "stisnjen",
+    "rar": 5,
+    "zvezek": null,
+    "vec_zvezkov": false,
+    "datoteke": [
+     {
+      "ime": "tekst.mkv",
+      "odmik": 68,
+      "dolzina": 60,
+      "velikost": 52000,
+      "pred": false,
+      "po": false,
+      "store": false,
+      "sifriran": false,
+      "mapa": false
+     }
+    ]
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "pravi WinRAR 7: sifriran_p",
+    "glava_b64": "UmFyIRoHAQCs4x1/CwEFBwAGAQG8h4MATjBLTFcCAzzQhgME0IYDIMzvRqaAAAAIZmlsbS5ta3YwAQADDyz25tiTzBncBFxKIAgXSmJjKvdldNI1fmTXYpFSaO6LQoWEIokXcUi7XBvzCgMCFHYRtQ9l3QF04F/qH8Rx10hkEiOBjsy9fsSpmZpl1TBH7BSacURc/297pQp5oorlmAET8bmRC6etbVKhOY8=",
+    "velikost": 50245
+   },
+   "izhod": {
+    "izid": "sifriran",
+    "rar": 5,
+    "zvezek": null,
+    "vec_zvezkov": false,
+    "datoteke": [
+     {
+      "ime": "film.mkv",
+      "odmik": 116,
+      "dolzina": 50000,
+      "velikost": 50000,
+      "pred": false,
+      "po": false,
+      "store": true,
+      "sifriran": true,
+      "mapa": false
+     }
+    ]
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "pravi WinRAR 7: sifrirane_glave_hp",
+    "glava_b64": "UmFyIRoHAQBAFMhcIQQAAAEP7nAS1Pw0JBdpj3VRZojD+cSXgtRY8fqFwgAq9KxhqoDJVRhCF3dEoWFBxN6Zjg==",
+    "velikost": 50446
+   },
+   "izhod": {
+    "izid": "sifrirane_glave"
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "RAR4 store, ena datoteka",
+    "glava_b64": "UmFyIRoHAM+QcwAADQAAAAAAAADmjHQAgC0AAAMAAAADAAACKt/AsAAAAAAdMA0AIAAAAEZpbG0uMjAyNi5ta3YAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7fH1+f4CBgoOEhYaHiImKi4yNjo+QkZKTlJWWl5iZmpucnZ6foKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr/AwcLDxMXGx8jJysvMzc7P0NHS09TV1tfY2drb3N3e3+Dh4uPk5ebn6Onq6+zt7u/w8fLz9PX29/j5+vv8/f7/AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq+wsbKztLW2t7i5uru8vb6/wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t/g4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+/wABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4fICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj9AQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVpbXF1eX2BhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ent8fX5/gIGCg4SFhoeIiYqLjI2Oj5CRkpOUlZaXmJmam5ydnp+goaKjpKWmp6ipqqusra6vsLGys7S1tre4ubq7vL2+v8DBwsPExcbHyMnKy8zNzs/Q0dLT1NXW19jZ2tvc3d7f4OHi4+Tl5ufo6err7O3u7/Dx8vP09fb3+Pn6+/z9/v/EPXsAQAcA",
+    "velikost": 840
+   },
+   "izhod": {
+    "izid": "ok",
+    "rar": 4,
+    "zvezek": null,
+    "vec_zvezkov": false,
+    "datoteke": [
+     {
+      "ime": "Film.2026.mkv",
+      "odmik": 65,
+      "dolzina": 768,
+      "velikost": 768,
+      "pred": false,
+      "po": false,
+      "store": true,
+      "sifriran": false,
+      "mapa": false
+     }
+    ]
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "RAR4 stisnjen (m3)",
+    "glava_b64": "UmFyIRoHAM+QcwAADQAAAAAAAAC2N3QAgCgAAAMAAEBCDwACKt/AsAAAAAAdMwgAIAAAAEZpbG0ubWt2AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq+wsbKztLW2t7i5uru8vb6/wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t/g4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+/wABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4fICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj9AQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVpbXF1eX2BhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ent8fX5/gIGCg4SFhoeIiYqLjI2Oj5CRkpOUlZaXmJmam5ydnp+goaKjpKWmp6ipqqusra6vsLGys7S1tre4ubq7vL2+v8DBwsPExcbHyMnKy8zNzs/Q0dLT1NXW19jZ2tvc3d7f4OHi4+Tl5ufo6err7O3u7/Dx8vP09fb3+Pn6+/z9/v8AAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7fH1+f4CBgoOEhYaHiImKi4yNjo+QkZKTlJWWl5iZmpucnZ6foKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr/AwcLDxMXGx8jJysvMzc7P0NHS09TV1tfY2drb3N3e3+Dh4uPk5ebn6Onq6+zt7u/w8fLz9PX29/j5+vv8/f7/xD17AEAHAA==",
+    "velikost": 835
+   },
+   "izhod": {
+    "izid": "stisnjen",
+    "rar": 4,
+    "zvezek": null,
+    "vec_zvezkov": false,
+    "datoteke": [
+     {
+      "ime": "Film.mkv",
+      "odmik": 60,
+      "dolzina": 768,
+      "velikost": 1000000,
+      "pred": false,
+      "po": false,
+      "store": false,
+      "sifriran": false,
+      "mapa": false
+     }
+    ]
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "RAR4 sifrirani podatki",
+    "glava_b64": "UmFyIRoHAM+QcwAADQAAAAAAAAD2H3QEgCgAAAMAAAADAAACKt/AsAAAAAAdMAgAIAAAAEZpbG0ubWt2AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq+wsbKztLW2t7i5uru8vb6/wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t/g4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+/wABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4fICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj9AQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVpbXF1eX2BhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ent8fX5/gIGCg4SFhoeIiYqLjI2Oj5CRkpOUlZaXmJmam5ydnp+goaKjpKWmp6ipqqusra6vsLGys7S1tre4ubq7vL2+v8DBwsPExcbHyMnKy8zNzs/Q0dLT1NXW19jZ2tvc3d7f4OHi4+Tl5ufo6err7O3u7/Dx8vP09fb3+Pn6+/z9/v8AAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7fH1+f4CBgoOEhYaHiImKi4yNjo+QkZKTlJWWl5iZmpucnZ6foKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr/AwcLDxMXGx8jJysvMzc7P0NHS09TV1tfY2drb3N3e3+Dh4uPk5ebn6Onq6+zt7u/w8fLz9PX29/j5+vv8/f7/xD17AEAHAA==",
+    "velikost": 835
+   },
+   "izhod": {
+    "izid": "sifriran",
+    "rar": 4,
+    "zvezek": null,
+    "vec_zvezkov": false,
+    "datoteke": [
+     {
+      "ime": "Film.mkv",
+      "odmik": 60,
+      "dolzina": 768,
+      "velikost": 768,
+      "pred": false,
+      "po": false,
+      "store": true,
+      "sifriran": true,
+      "mapa": false
+     }
+    ]
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "RAR4 sifrirane glave",
+    "glava_b64": "UmFyIRoHAM6Zc4AADQAAAAAAAADEPXsAQAcA",
+    "velikost": 27
+   },
+   "izhod": {
+    "izid": "sifrirane_glave"
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "RAR4 pokvarjen CRC glave datoteke",
+    "glava_b64": "UmFyIRoHAM+QcwAADQAAAAAAAABJSXQAgCgAAAMBAAADAAACKt/AsAAAAAAdMAgAIAAAAEZpbG0ubWt2AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq+wsbKztLW2t7i5uru8vb6/wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t/g4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+/wABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4fICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj9AQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVpbXF1eX2BhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ent8fX5/gIGCg4SFhoeIiYqLjI2Oj5CRkpOUlZaXmJmam5ydnp+goaKjpKWmp6ipqqusra6vsLGys7S1tre4ubq7vL2+v8DBwsPExcbHyMnKy8zNzs/Q0dLT1NXW19jZ2tvc3d7f4OHi4+Tl5ufo6err7O3u7/Dx8vP09fb3+Pn6+/z9/v8AAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7fH1+f4CBgoOEhYaHiImKi4yNjo+QkZKTlJWWl5iZmpucnZ6foKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr/AwcLDxMXGx8jJysvMzc7P0NHS09TV1tfY2drb3N3e3+Dh4uPk5ebn6Onq6+zt7u/w8fLz9PX29/j5+vv8/f7/xD17AEAHAA==",
+    "velikost": 835
+   },
+   "izhod": {
+    "izid": "poskodovan"
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "RAR4 prvi segment konca sredi glave datoteke",
+    "glava_b64": "UmFyIRoHAM+QcwAADQAAAAAAAABJSXQAgCg=",
+    "velikost": 1000000
+   },
+   "izhod": {
+    "izid": "nepopolno",
+    "rar": 4,
+    "zvezek": null,
+    "vec_zvezkov": false,
+    "datoteke": []
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "RAR4 brez glavne glave",
+    "glava_b64": "UmFyIRoHAI6tdACAKAADAAAAAwAAAALCQSQ1AAAAAB0wCAAgAAAARmlsbS5ta3Y=",
+    "velikost": 47
+   },
+   "izhod": {
+    "izid": "poskodovan"
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "RAR4 vzorec pred filmom: odloci najvecja datoteka",
+    "glava_b64": "UmFyIRoHAM+QcwAADQAAAAAAAACC4XQAgCoAZAAAAGQAAAAC9TLJWAAAAAAdMAoAIAAAAFNhbXBsZS5ta3YAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjSUl0AIAoAAADAAAAAwAAAirfwLAAAAAAHTAIACAAAABGaWxtLm1rdgABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4fICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj9AQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVpbXF1eX2BhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ent8fX5/gIGCg4SFhoeIiYqLjI2Oj5CRkpOUlZaXmJmam5ydnp+goaKjpKWmp6ipqqusra6vsLGys7S1tre4ubq7vL2+v8DBwsPExcbHyMnKy8zNzs/Q0dLT1NXW19jZ2tvc3d7f4OHi4+Tl5ufo6err7O3u7/Dx8vP09fb3+Pn6+/z9/v8AAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7fH1+f4CBgoOEhYaHiImKi4yNjo+QkZKTlJWWl5iZmpucnZ6foKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr/AwcLDxMXGx8jJysvMzc7P0NHS09TV1tfY2drb3N3e3+Dh4uPk5ebn6Onq6+zt7u/w8fLz9PX29/j5+vv8/f7/AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq+wsbKztLW2t7i5uru8vb6/wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t/g4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+/8Q9ewBABwA=",
+    "velikost": 977
+   },
+   "izhod": {
+    "izid": "ok",
+    "rar": 4,
+    "zvezek": null,
+    "vec_zvezkov": false,
+    "datoteke": [
+     {
+      "ime": "Sample.mkv",
+      "odmik": 62,
+      "dolzina": 100,
+      "velikost": 100,
+      "pred": false,
+      "po": false,
+      "store": true,
+      "sifriran": false,
+      "mapa": false
+     },
+     {
+      "ime": "Film.mkv",
+      "odmik": 202,
+      "dolzina": 768,
+      "velikost": 768,
+      "pred": false,
+      "po": false,
+      "store": true,
+      "sifriran": false,
+      "mapa": false
+     }
+    ]
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "RAR4 ime s potjo -> varno_ime",
+    "glava_b64": "UmFyIRoHAM+QcwAADQAAAAAAAADs0XQAgC4AAwAAAAMAAAACwkEkNQAAAAAdMA4AIAAAAC4uXC4uXGE8Yj4ubWt2YWJjxD17AEAHAA==",
+    "velikost": 76
+   },
+   "izhod": {
+    "izid": "ok",
+    "rar": 4,
+    "zvezek": null,
+    "vec_zvezkov": false,
+    "datoteke": [
+     {
+      "ime": "a_b_.mkv",
+      "odmik": 66,
+      "dolzina": 3,
+      "velikost": 3,
+      "pred": false,
+      "po": false,
+      "store": true,
+      "sifriran": false,
+      "mapa": false
+     }
+    ]
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "RAR5 store, ena datoteka",
+    "glava_b64": "UmFyIRoHAQDFGjMyAwEAAFqNBVUcAgKABgSABiAq38CwAAANRmlsbS4yMDI2Lm1rdgABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4fICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj9AQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVpbXF1eX2BhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ent8fX5/gIGCg4SFhoeIiYqLjI2Oj5CRkpOUlZaXmJmam5ydnp+goaKjpKWmp6ipqqusra6vsLGys7S1tre4ubq7vL2+v8DBwsPExcbHyMnKy8zNzs/Q0dLT1NXW19jZ2tvc3d7f4OHi4+Tl5ufo6err7O3u7/Dx8vP09fb3+Pn6+/z9/v8AAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7fH1+f4CBgoOEhYaHiImKi4yNjo+QkZKTlJWWl5iZmpucnZ6foKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr/AwcLDxMXGx8jJysvMzc7P0NHS09TV1tfY2drb3N3e3+Dh4uPk5ebn6Onq6+zt7u/w8fLz9PX29/j5+vv8/f7/AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq+wsbKztLW2t7i5uru8vb6/wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t/g4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+/xmyOjUDBQAA",
+    "velikost": 825
+   },
+   "izhod": {
+    "izid": "ok",
+    "rar": 5,
+    "zvezek": null,
+    "vec_zvezkov": false,
+    "datoteke": [
+     {
+      "ime": "Film.2026.mkv",
+      "odmik": 49,
+      "dolzina": 768,
+      "velikost": 768,
+      "pred": false,
+      "po": false,
+      "store": true,
+      "sifriran": false,
+      "mapa": false
+     }
+    ]
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "RAR5 stisnjen (m3)",
+    "glava_b64": "UmFyIRoHAQDFGjMyAwEAANTxLZYZAgKABgTAhD0gKt/AsIADAAhGaWxtLm1rdgABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4fICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj9AQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVpbXF1eX2BhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ent8fX5/gIGCg4SFhoeIiYqLjI2Oj5CRkpOUlZaXmJmam5ydnp+goaKjpKWmp6ipqqusra6vsLGys7S1tre4ubq7vL2+v8DBwsPExcbHyMnKy8zNzs/Q0dLT1NXW19jZ2tvc3d7f4OHi4+Tl5ufo6err7O3u7/Dx8vP09fb3+Pn6+/z9/v8AAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7fH1+f4CBgoOEhYaHiImKi4yNjo+QkZKTlJWWl5iZmpucnZ6foKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr/AwcLDxMXGx8jJysvMzc7P0NHS09TV1tfY2drb3N3e3+Dh4uPk5ebn6Onq6+zt7u/w8fLz9PX29/j5+vv8/f7/AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq+wsbKztLW2t7i5uru8vb6/wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t/g4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+/xmyOjUDBQAA",
+    "velikost": 822
+   },
+   "izhod": {
+    "izid": "stisnjen",
+    "rar": 5,
+    "zvezek": null,
+    "vec_zvezkov": false,
+    "datoteke": [
+     {
+      "ime": "Film.mkv",
+      "odmik": 46,
+      "dolzina": 768,
+      "velikost": 1000000,
+      "pred": false,
+      "po": false,
+      "store": false,
+      "sifriran": false,
+      "mapa": false
+     }
+    ]
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "RAR5 sifrirani podatki",
+    "glava_b64": "UmFyIRoHAQDFGjMyAwEAAC/+2Ek8AgMkgAYEgAYgKt/AsAAACEZpbG0ubWt2IwEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq+wsbKztLW2t7i5uru8vb6/wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t/g4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+/wABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4fICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj9AQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVpbXF1eX2BhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ent8fX5/gIGCg4SFhoeIiYqLjI2Oj5CRkpOUlZaXmJmam5ydnp+goaKjpKWmp6ipqqusra6vsLGys7S1tre4ubq7vL2+v8DBwsPExcbHyMnKy8zNzs/Q0dLT1NXW19jZ2tvc3d7f4OHi4+Tl5ufo6err7O3u7/Dx8vP09fb3+Pn6+/z9/v8AAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7fH1+f4CBgoOEhYaHiImKi4yNjo+QkZKTlJWWl5iZmpucnZ6foKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr/AwcLDxMXGx8jJysvMzc7P0NHS09TV1tfY2drb3N3e3+Dh4uPk5ebn6Onq6+zt7u/w8fLz9PX29/j5+vv8/f7/GbI6NQMFAAA=",
+    "velikost": 857
+   },
+   "izhod": {
+    "izid": "sifriran",
+    "rar": 5,
+    "zvezek": null,
+    "vec_zvezkov": false,
+    "datoteke": [
+     {
+      "ime": "Film.mkv",
+      "odmik": 81,
+      "dolzina": 768,
+      "velikost": 768,
+      "pred": false,
+      "po": false,
+      "store": true,
+      "sifriran": true,
+      "mapa": false
+     }
+    ]
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "RAR5 sifrirane glave",
+    "glava_b64": "UmFyIRoHAQCBYo+VIQQAAAEPAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+    "velikost": 46
+   },
+   "izhod": {
+    "izid": "sifrirane_glave"
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "RAR5 pokvarjen CRC glave datoteke",
+    "glava_b64": "UmFyIRoHAQDFGjMyAwEAALh73nAXAgKABgWABiAq38CwAAAIRmlsbS5ta3YAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7fH1+f4CBgoOEhYaHiImKi4yNjo+QkZKTlJWWl5iZmpucnZ6foKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr/AwcLDxMXGx8jJysvMzc7P0NHS09TV1tfY2drb3N3e3+Dh4uPk5ebn6Onq6+zt7u/w8fLz9PX29/j5+vv8/f7/AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq+wsbKztLW2t7i5uru8vb6/wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t/g4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+/wABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4fICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj9AQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVpbXF1eX2BhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ent8fX5/gIGCg4SFhoeIiYqLjI2Oj5CRkpOUlZaXmJmam5ydnp+goaKjpKWmp6ipqqusra6vsLGys7S1tre4ubq7vL2+v8DBwsPExcbHyMnKy8zNzs/Q0dLT1NXW19jZ2tvc3d7f4OHi4+Tl5ufo6err7O3u7/Dx8vP09fb3+Pn6+/z9/v8Zsjo1AwUAAA==",
+    "velikost": 820
+   },
+   "izhod": {
+    "izid": "poskodovan"
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "RAR5 prvi segment konca sredi glave datoteke",
+    "glava_b64": "UmFyIRoHAQDFGjMyAwEAALh73nAXAg==",
+    "velikost": 1000000
+   },
+   "izhod": {
+    "izid": "nepopolno",
+    "rar": 5,
+    "zvezek": null,
+    "vec_zvezkov": false,
+    "datoteke": []
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "RAR5 brez glavne glave",
+    "glava_b64": "UmFyIRoHAQDjvBrsFQICAwQDIMJBJDUAAAhGaWxtLm1rdg==",
+    "velikost": 34
+   },
+   "izhod": {
+    "izid": "poskodovan"
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "RAR5 vzorec pred filmom: odloci najvecja datoteka",
+    "glava_b64": "UmFyIRoHAQDFGjMyAwEAAN204jkXAgJkBGQg9TLJWAAAClNhbXBsZS5ta3YAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjuHvecBcCAoAGBIAGICrfwLAAAAhGaWxtLm1rdgABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4fICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj9AQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVpbXF1eX2BhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ent8fX5/gIGCg4SFhoeIiYqLjI2Oj5CRkpOUlZaXmJmam5ydnp+goaKjpKWmp6ipqqusra6vsLGys7S1tre4ubq7vL2+v8DBwsPExcbHyMnKy8zNzs/Q0dLT1NXW19jZ2tvc3d7f4OHi4+Tl5ufo6err7O3u7/Dx8vP09fb3+Pn6+/z9/v8AAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7fH1+f4CBgoOEhYaHiImKi4yNjo+QkZKTlJWWl5iZmpucnZ6foKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr/AwcLDxMXGx8jJysvMzc7P0NHS09TV1tfY2drb3N3e3+Dh4uPk5ebn6Onq6+zt7u/w8fLz9PX29/j5+vv8/f7/AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq+wsbKztLW2t7i5uru8vb6/wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t/g4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+/xmyOjUDBQAA",
+    "velikost": 948
+   },
+   "izhod": {
+    "izid": "ok",
+    "rar": 5,
+    "zvezek": null,
+    "vec_zvezkov": false,
+    "datoteke": [
+     {
+      "ime": "Sample.mkv",
+      "odmik": 44,
+      "dolzina": 100,
+      "velikost": 100,
+      "pred": false,
+      "po": false,
+      "store": true,
+      "sifriran": false,
+      "mapa": false
+     },
+     {
+      "ime": "Film.mkv",
+      "odmik": 172,
+      "dolzina": 768,
+      "velikost": 768,
+      "pred": false,
+      "po": false,
+      "store": true,
+      "sifriran": false,
+      "mapa": false
+     }
+    ]
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "RAR5 ime s potjo -> varno_ime",
+    "glava_b64": "UmFyIRoHAQDFGjMyAwEAADRiOEkbAgIDBAMgwkEkNQAADi4uXC4uXGE8Yj4ubWt2YWJjGbI6NQMFAAA=",
+    "velikost": 59
+   },
+   "izhod": {
+    "izid": "ok",
+    "rar": 5,
+    "zvezek": null,
+    "vec_zvezkov": false,
+    "datoteke": [
+     {
+      "ime": "a_b_.mkv",
+      "odmik": 48,
+      "dolzina": 3,
+      "velikost": 3,
+      "pred": false,
+      "po": false,
+      "store": true,
+      "sifriran": false,
+      "mapa": false
+     }
+    ]
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "RAR4 velika datoteka (HIGH_PACK/UNP) in ime Unicode (ASCII del pred NUL)",
+    "glava_b64": "UmFyIRoHAM+QcwAADQAAAAAAAAD6H3QAgzMAAwAAAAcAAAACwkEkNQAAAAAdMAsAIAAAAAAAAAAFAAAAZmlsbS5ta3YAAQJhYmPEPXsAQAcA",
+    "velikost": 81
+   },
+   "izhod": {
+    "izid": "ok",
+    "rar": 4,
+    "zvezek": null,
+    "vec_zvezkov": false,
+    "datoteke": [
+     {
+      "ime": "film.mkv",
+      "odmik": 71,
+      "dolzina": 3,
+      "velikost": 21474836487,
+      "pred": false,
+      "po": false,
+      "store": true,
+      "sifriran": false,
+      "mapa": false
+     }
+    ]
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "mkv ni RAR",
+    "glava_b64": "GkXfowAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+    "velikost": 64
+   },
+   "izhod": {
+    "izid": "ni_rar"
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "RAR5 velikost glave v 4 bajtih vint (> 2 MiB)",
+    "glava_b64": "UmFyIRoHAQAAAAAAgYCAAQAAAAAAAAAAAAA=",
+    "velikost": 1000000
+   },
+   "izhod": {
+    "izid": "poskodovan"
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "RAR5 samo mapa",
+    "glava_b64": "UmFyIRoHAQDFGjMyAwEAALQltwkRAgIABQAgAAAAAAAABG1hcGEZsjo1AwUAAA==",
+    "velikost": 200
+   },
+   "izhod": {
+    "izid": "ni_datoteke",
+    "rar": 5,
+    "zvezek": null,
+    "vec_zvezkov": false,
+    "datoteke": [
+     {
+      "ime": "mapa",
+      "odmik": 38,
+      "dolzina": 0,
+      "velikost": 0,
+      "pred": false,
+      "po": false,
+      "store": true,
+      "sifriran": false,
+      "mapa": true
+     }
+    ]
+   }
+  },
+  {
+   "f": "rar_zvezki",
+   "vhod": {
+    "imena": [
+     "a.part03.rar",
+     "a.part01.rar",
+     "a.part02.rar"
+    ]
+   },
+   "izhod": [
+    1,
+    2,
+    0
+   ]
+  },
+  {
+   "f": "rar_zvezki",
+   "vhod": {
+    "imena": [
+     "A.r01",
+     "a.rar",
+     "a.r00"
+    ]
+   },
+   "izhod": [
+    1,
+    2,
+    0
+   ]
+  },
+  {
+   "f": "rar_zvezki",
+   "vhod": {
+    "imena": [
+     "x.part001.rar",
+     "x.part002.rar"
+    ]
+   },
+   "izhod": [
+    0,
+    1
+   ]
+  },
+  {
+   "f": "rar_zvezki",
+   "vhod": {
+    "imena": [
+     "x.rar"
+    ]
+   },
+   "izhod": [
+    0
+   ]
+  },
+  {
+   "f": "rar_zvezki",
+   "vhod": {
+    "imena": [
+     "x.r99",
+     "x.s00",
+     "x.rar",
+     "x.r00",
+     "x.r01",
+     "x.r02",
+     "x.r03",
+     "x.r04",
+     "x.r05",
+     "x.r06",
+     "x.r07",
+     "x.r08",
+     "x.r09",
+     "x.r10",
+     "x.r11",
+     "x.r12",
+     "x.r13",
+     "x.r14",
+     "x.r15",
+     "x.r16",
+     "x.r17",
+     "x.r18",
+     "x.r19",
+     "x.r20",
+     "x.r21",
+     "x.r22",
+     "x.r23",
+     "x.r24",
+     "x.r25",
+     "x.r26",
+     "x.r27",
+     "x.r28",
+     "x.r29",
+     "x.r30",
+     "x.r31",
+     "x.r32",
+     "x.r33",
+     "x.r34",
+     "x.r35",
+     "x.r36",
+     "x.r37",
+     "x.r38",
+     "x.r39",
+     "x.r40",
+     "x.r41",
+     "x.r42",
+     "x.r43",
+     "x.r44",
+     "x.r45",
+     "x.r46",
+     "x.r47",
+     "x.r48",
+     "x.r49",
+     "x.r50",
+     "x.r51",
+     "x.r52",
+     "x.r53",
+     "x.r54",
+     "x.r55",
+     "x.r56",
+     "x.r57",
+     "x.r58",
+     "x.r59",
+     "x.r60",
+     "x.r61",
+     "x.r62",
+     "x.r63",
+     "x.r64",
+     "x.r65",
+     "x.r66",
+     "x.r67",
+     "x.r68",
+     "x.r69",
+     "x.r70",
+     "x.r71",
+     "x.r72",
+     "x.r73",
+     "x.r74",
+     "x.r75",
+     "x.r76",
+     "x.r77",
+     "x.r78",
+     "x.r79",
+     "x.r80",
+     "x.r81",
+     "x.r82",
+     "x.r83",
+     "x.r84",
+     "x.r85",
+     "x.r86",
+     "x.r87",
+     "x.r88",
+     "x.r89",
+     "x.r90",
+     "x.r91",
+     "x.r92",
+     "x.r93",
+     "x.r94",
+     "x.r95",
+     "x.r96",
+     "x.r97",
+     "x.r98"
+    ]
+   },
+   "izhod": [
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53,
+    54,
+    55,
+    56,
+    57,
+    58,
+    59,
+    60,
+    61,
+    62,
+    63,
+    64,
+    65,
+    66,
+    67,
+    68,
+    69,
+    70,
+    71,
+    72,
+    73,
+    74,
+    75,
+    76,
+    77,
+    78,
+    79,
+    80,
+    81,
+    82,
+    83,
+    84,
+    85,
+    86,
+    87,
+    88,
+    89,
+    90,
+    91,
+    92,
+    93,
+    94,
+    95,
+    96,
+    97,
+    98,
+    99,
+    100,
+    101,
+    0,
+    1
+   ]
+  },
+  {
+   "f": "rar_zvezki",
+   "vhod": {
+    "imena": [
+     "a.part1.rar",
+     "a.part3.rar"
+    ]
+   },
+   "izhod": null
+  },
+  {
+   "f": "rar_zvezki",
+   "vhod": {
+    "imena": [
+     "a.part0.rar"
+    ]
+   },
+   "izhod": null
+  },
+  {
+   "f": "rar_zvezki",
+   "vhod": {
+    "imena": [
+     "a.rar",
+     "b.r00"
+    ]
+   },
+   "izhod": null
+  },
+  {
+   "f": "rar_zvezki",
+   "vhod": {
+    "imena": [
+     "a.rar",
+     "a.part2.rar"
+    ]
+   },
+   "izhod": null
+  },
+  {
+   "f": "rar_zvezki",
+   "vhod": {
+    "imena": [
+     "a.r00"
+    ]
+   },
+   "izhod": null
+  },
+  {
+   "f": "rar_zvezki",
+   "vhod": {
+    "imena": [
+     "a.mkv"
+    ]
+   },
+   "izhod": null
+  },
+  {
+   "f": "rar_zvezki",
+   "vhod": {
+    "imena": []
+   },
+   "izhod": null
+  },
+  {
+   "f": "rar_sestavi",
+   "vhod": {
+    "opis": "RAR4 store v treh zvezkih",
+    "zvezki_b64": [
+     "UmFyIRoHAFpucxEBDQAAAAAAAACgs3QCgCgAkAEAAOgDAAACwUYKhQAAAAAdMAgAIAAAAEZpbG0ubWt2AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7MQ9ewBABwA=",
+     "UmFyIRoHABl6cxEADQAAAAAAAADda3QDgCgAkAEAAOgDAAACeL9t6QAAAAAdMAgAIAAAAEZpbG0ubWt28/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3MQ9ewBABwA=",
+     "UmFyIRoHABl6cxEADQAAAAAAAAAcEnQBgCgAyAAAAOgDAAACpZjAlgAAAAAdMAgAIAAAAEZpbG0ubWt24+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVTEPXsAQAcA"
+    ],
+    "velikosti": [
+     467,
+     467,
+     267
+    ]
+   },
+   "izhod": {
+    "izid": "ok",
+    "ime": "Film.mkv",
+    "velikost": 1000,
+    "kosi": [
+     [
+      0,
+      60,
+      400
+     ],
+     [
+      1,
+      60,
+      400
+     ],
+     [
+      2,
+      60,
+      200
+     ]
+    ]
+   }
+  },
+  {
+   "f": "rar_sestavi",
+   "vhod": {
+    "opis": "RAR4 manjka srednji zvezek",
+    "zvezki_b64": [
+     "UmFyIRoHAFpucxEBDQAAAAAAAACgs3QCgCgAkAEAAOgDAAACwUYKhQAAAAAdMAgAIAAAAEZpbG0ubWt2AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7MQ9ewBABwA=",
+     "UmFyIRoHABl6cxEADQAAAAAAAAAcEnQBgCgAyAAAAOgDAAACpZjAlgAAAAAdMAgAIAAAAEZpbG0ubWt24+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVTEPXsAQAcA"
+    ],
+    "velikosti": [
+     467,
+     267
+    ]
+   },
+   "izhod": {
+    "izid": "neskladno"
+   }
+  },
+  {
+   "f": "rar_sestavi",
+   "vhod": {
+    "opis": "RAR4 manjka zadnji zvezek",
+    "zvezki_b64": [
+     "UmFyIRoHAFpucxEBDQAAAAAAAACgs3QCgCgAkAEAAOgDAAACwUYKhQAAAAAdMAgAIAAAAEZpbG0ubWt2AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7MQ9ewBABwA=",
+     "UmFyIRoHABl6cxEADQAAAAAAAADda3QDgCgAkAEAAOgDAAACeL9t6QAAAAAdMAgAIAAAAEZpbG0ubWt28/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3MQ9ewBABwA="
+    ],
+    "velikosti": [
+     467,
+     467
+    ]
+   },
+   "izhod": {
+    "izid": "neskladno"
+   }
+  },
+  {
+   "f": "rar_sestavi",
+   "vhod": {
+    "opis": "RAR4 napacen vrstni red",
+    "zvezki_b64": [
+     "UmFyIRoHABl6cxEADQAAAAAAAADda3QDgCgAkAEAAOgDAAACeL9t6QAAAAAdMAgAIAAAAEZpbG0ubWt28/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3MQ9ewBABwA=",
+     "UmFyIRoHAFpucxEBDQAAAAAAAACgs3QCgCgAkAEAAOgDAAACwUYKhQAAAAAdMAgAIAAAAEZpbG0ubWt2AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7MQ9ewBABwA=",
+     "UmFyIRoHABl6cxEADQAAAAAAAAAcEnQBgCgAyAAAAOgDAAACpZjAlgAAAAAdMAgAIAAAAEZpbG0ubWt24+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVTEPXsAQAcA"
+    ],
+    "velikosti": [
+     467,
+     467,
+     267
+    ]
+   },
+   "izhod": {
+    "izid": "neskladno"
+   }
+  },
+  {
+   "f": "rar_sestavi",
+   "vhod": {
+    "opis": "RAR4 zvezek druge izdaje",
+    "zvezki_b64": [
+     "UmFyIRoHAFpucxEBDQAAAAAAAACgs3QCgCgAkAEAAOgDAAACwUYKhQAAAAAdMAgAIAAAAEZpbG0ubWt2AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7MQ9ewBABwA=",
+     "UmFyIRoHABl6cxEADQAAAAAAAABm73QDgCgAkAEAAOgDAAACeL9t6QAAAAAdMAgAIAAAAERydWcubWt28/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3MQ9ewBABwA=",
+     "UmFyIRoHABl6cxEADQAAAAAAAAAcEnQBgCgAyAAAAOgDAAACpZjAlgAAAAAdMAgAIAAAAEZpbG0ubWt24+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVTEPXsAQAcA"
+    ],
+    "velikosti": [
+     467,
+     467,
+     267
+    ]
+   },
+   "izhod": {
+    "izid": "neskladno"
+   }
+  },
+  {
+   "f": "rar_sestavi",
+   "vhod": {
+    "opis": "RAR4 stisnjen",
+    "zvezki_b64": [
+     "UmFyIRoHAM+QcwAADQAAAAAAAAAE9nQAgCgA6AMAAIgTAAACRiq8FwAAAAAdMwgAIAAAAEZpbG0ubWt2AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZCXnqWss7rByM/W3eTr8vkABw4VHCMqMTg/Rk1UW2JpcHd+hYyTmqGor7a9xMvS2eDn7vX8AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVMQ9ewBABwA="
+    ],
+    "velikosti": [
+     1067
+    ]
+   },
+   "izhod": {
+    "izid": "stisnjen"
+   }
+  },
+  {
+   "f": "rar_sestavi",
+   "vhod": {
+    "opis": "RAR5 store v treh zvezkih",
+    "zvezki_b64": [
+     "UmFyIRoHAQBTKjRFAwEAAfPyk/wXAhKQAwToByDBRgqFAAAIRmlsbS5ta3YDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZCXnqWss7rByM/W3eTr8vkABw4VHCMqMTg/Rk1UW2JpcHd+hYyTmqGor7a9xMvS2eDn7vX8AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXsj4I9QgMFAAE=",
+     "UmFyIRoHAQDtVTTXBAEAAwGezBAoFwIakAME6AcgeL9t6QAACEZpbG0ubWt28/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3I+CPUIDBQAB",
+     "UmFyIRoHAQBXBD1OBAEAAwK8AoFHFwIKyAEE6AcgpZjAlgAACEZpbG0ubWt24+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVQZsjo1AwUAAA=="
+    ],
+    "velikosti": [
+     452,
+     453,
+     253
+    ]
+   },
+   "izhod": {
+    "izid": "ok",
+    "ime": "Film.mkv",
+    "velikost": 1000,
+    "kosi": [
+     [
+      0,
+      44,
+      400
+     ],
+     [
+      1,
+      45,
+      400
+     ],
+     [
+      2,
+      45,
+      200
+     ]
+    ]
+   }
+  },
+  {
+   "f": "rar_sestavi",
+   "vhod": {
+    "opis": "RAR5 manjka srednji zvezek",
+    "zvezki_b64": [
+     "UmFyIRoHAQBTKjRFAwEAAfPyk/wXAhKQAwToByDBRgqFAAAIRmlsbS5ta3YDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZCXnqWss7rByM/W3eTr8vkABw4VHCMqMTg/Rk1UW2JpcHd+hYyTmqGor7a9xMvS2eDn7vX8AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXsj4I9QgMFAAE=",
+     "UmFyIRoHAQBXBD1OBAEAAwK8AoFHFwIKyAEE6AcgpZjAlgAACEZpbG0ubWt24+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVQZsjo1AwUAAA=="
+    ],
+    "velikosti": [
+     452,
+     253
+    ]
+   },
+   "izhod": {
+    "izid": "neskladno"
+   }
+  },
+  {
+   "f": "rar_sestavi",
+   "vhod": {
+    "opis": "RAR5 manjka zadnji zvezek",
+    "zvezki_b64": [
+     "UmFyIRoHAQBTKjRFAwEAAfPyk/wXAhKQAwToByDBRgqFAAAIRmlsbS5ta3YDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZCXnqWss7rByM/W3eTr8vkABw4VHCMqMTg/Rk1UW2JpcHd+hYyTmqGor7a9xMvS2eDn7vX8AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXsj4I9QgMFAAE=",
+     "UmFyIRoHAQDtVTTXBAEAAwGezBAoFwIakAME6AcgeL9t6QAACEZpbG0ubWt28/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3I+CPUIDBQAB"
+    ],
+    "velikosti": [
+     452,
+     453
+    ]
+   },
+   "izhod": {
+    "izid": "neskladno"
+   }
+  },
+  {
+   "f": "rar_sestavi",
+   "vhod": {
+    "opis": "RAR5 napacen vrstni red",
+    "zvezki_b64": [
+     "UmFyIRoHAQDtVTTXBAEAAwGezBAoFwIakAME6AcgeL9t6QAACEZpbG0ubWt28/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3I+CPUIDBQAB",
+     "UmFyIRoHAQBTKjRFAwEAAfPyk/wXAhKQAwToByDBRgqFAAAIRmlsbS5ta3YDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZCXnqWss7rByM/W3eTr8vkABw4VHCMqMTg/Rk1UW2JpcHd+hYyTmqGor7a9xMvS2eDn7vX8AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXsj4I9QgMFAAE=",
+     "UmFyIRoHAQBXBD1OBAEAAwK8AoFHFwIKyAEE6AcgpZjAlgAACEZpbG0ubWt24+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVQZsjo1AwUAAA=="
+    ],
+    "velikosti": [
+     453,
+     452,
+     253
+    ]
+   },
+   "izhod": {
+    "izid": "neskladno"
+   }
+  },
+  {
+   "f": "rar_sestavi",
+   "vhod": {
+    "opis": "RAR5 zvezek druge izdaje",
+    "zvezki_b64": [
+     "UmFyIRoHAQBTKjRFAwEAAfPyk/wXAhKQAwToByDBRgqFAAAIRmlsbS5ta3YDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZCXnqWss7rByM/W3eTr8vkABw4VHCMqMTg/Rk1UW2JpcHd+hYyTmqGor7a9xMvS2eDn7vX8AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXsj4I9QgMFAAE=",
+     "UmFyIRoHAQDtVTTXBAEAAwElSIVhFwIakAME6AcgeL9t6QAACERydWcubWt28/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3I+CPUIDBQAB",
+     "UmFyIRoHAQBXBD1OBAEAAwK8AoFHFwIKyAEE6AcgpZjAlgAACEZpbG0ubWt24+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVQZsjo1AwUAAA=="
+    ],
+    "velikosti": [
+     452,
+     453,
+     253
+    ]
+   },
+   "izhod": {
+    "izid": "neskladno"
+   }
+  },
+  {
+   "f": "rar_sestavi",
+   "vhod": {
+    "opis": "RAR5 stisnjen",
+    "zvezki_b64": [
+     "UmFyIRoHAQDFGjMyAwEAAA3uSfAYAgLoBwSIJyBGKrwXgAMACEZpbG0ubWt2AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK+2vcTL0tng5+71/AMKERgfJi00O0JJUFdeZWxzeoGIj5adpKuyucDHztXc4+rx+P8GDRQbIikwNz5FTFNaYWhvdn2Ei5KZoKeutbzDytHY3+bt9PsCCRAXHiUsMzpBSE9WXWRrcnmAh46VnKOqsbi/xs3U2+Lp8Pf+BQwTGiEoLzY9REtSWWBnbnV8g4qRmJ+mrbS7wsnQ197l7PP6AQgPFh0kKzI5QEdOVVxjanF4f4aNlJuiqbC3vsXM09rh6O/2/QQLEhkgJy41PENKUVhfZm10e4KJkJeepayzusHIz9bd5Ovy+QAHDhUcIyoxOD9GTVRbYmlwd36FjJOaoaivtr3Ey9LZ4Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmaCnrrW8w8rR2N/m7fT7AgkQFx4lLDM6QUhPVl1ka3J5gIeOlZyjqrG4v8bN1Nvi6fD3/gUMExohKC82PURLUllgZ251fIOKkZifpq20u8LJ0Nfe5ezz+gEIDxYdJCsyOUBHTlVcY2pxeH+GjZSboqmwt77FzNPa4ejv9v0ECxIZICcuNTxDSlFYX2ZtdHuCiZCXnqWss7rByM/W3eTr8vkABw4VHCMqMTg/Rk1UW2JpcHd+hYyTmqGor7a9xMvS2eDn7vX8AwoRGB8mLTQ7QklQV15lbHN6gYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjlAR05VXGNqcXh/ho2Um6KpsLe+xczT2uHo7/b9BAsSGSAnLjU8Q0pRWF9mbXR7gomQl56lrLO6wcjP1t3k6/L5AAcOFRwjKjE4P0ZNVBmyOjUDBQAA"
+    ],
+    "velikosti": [
+     1053
+    ]
+   },
+   "izhod": {
+    "izid": "stisnjen"
    }
   }
  ]
