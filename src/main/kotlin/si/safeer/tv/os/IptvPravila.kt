@@ -207,15 +207,18 @@ object IptvPravila {
      * Lastnik, 26. 10. 2026: »Nevarnost zaklepa racuna je prioriteta.« Preverba kanala odpre tok pri ponudniku. Placljivi
      * racuni IPTV (Xtream get.php?username=&password=, .../live/<uporabnik>/<geslo>/..., uporabnik:geslo@) imajo pogosto
      * najvec 1-2 hkratni povezavi: pregled 300 kanalov na krog na vsaki napravi kroga je zaklep. Takih virov v ozadju NIKOLI
-     * ne preverjamo - kanal je viden, o delovanju odloci samo pravo predvajanje. V ozadju preverjamo samo javne brezplacne
-     * sezname ([javniBrezplacni]). Ista pravila kot Linux (core/kanali_iptv.s_poverilnicami, javni_brezplacni,
-     * preverba_dovoljena; pregled 30, J3).
+     * ne preverjamo - kanal je viden, o delovanju odloci samo pravo predvajanje. V ozadju preverjamo samo sezname, ki so
+     * POZITIVNO znani kot javni brezplacni ([JAVNI_SEZNAMI]); vse drugo velja kot racun (fail-closed, pregled Grok 39, I1:
+     * prepoznava racuna je hevristika - kratka oblika Xtream /<u>/<g>/<id>, Stalker mac=, zaseben seznam na gist ali
+     * github.io brez zetona v naslovu - in ob neznani obliki ne sme odpreti). Ista pravila kot Linux (core/kanali_iptv).
      */
-    val PROSTI_GOSTITELJI = setOf("raw.githubusercontent.com", "gist.githubusercontent.com", "gitlab.com", "codeberg.org")
+    /** Znani javni brezplacni seznami: (gostitelj, zacetek poti z malimi crkami). Samo ti se preverjajo v ozadju. */
+    val JAVNI_SEZNAMI = listOf("iptv-org.github.io" to "/", "raw.githubusercontent.com" to "/iptv-org/",
+        "raw.githubusercontent.com" to "/free-tv/iptv/")
     private val RX_XTREAM_POT = Regex("/(?:live|movie|movies|series|timeshift)/[^/]+/[^/]+/", RegexOption.IGNORE_CASE)
     private val XTREAM_DATOTEKE = listOf("/get.php", "/player_api.php", "/xmltv.php", "/panel_api.php")
     /** Parametri, ki nosijo racun. Zetoni samo v naslovu seznama (zaseben seznam): javni CDN tok pogosto podpise z zetonom. */
-    private val RACUN_PARAMETRI = setOf("username", "password", "user", "pass", "passwd", "pwd", "login")
+    private val RACUN_PARAMETRI = setOf("username", "password", "user", "pass", "passwd", "pwd", "login", "mac")
     private val ZETON_PARAMETRI = setOf("token", "access_token", "private_token", "auth", "key", "apikey", "api_key")
 
     private class Deli(val gostitelj: String, val https: Boolean, val uporabnik: Boolean, val pot: String, val kljuci: Set<String>)
@@ -261,15 +264,15 @@ object IptvPravila {
     }
 
     /**
-     * Seznam, ki ga smemo preverjati v ozadju: brez poverilnice IN javni (iptv-org) ali po https na javnem gostitelju kode
-     * ([PROSTI_GOSTITELJI], *.github.io). Vse drugo (ponudnik, domaci streznik, neznan gostitelj) ne - kot Linux.
+     * Seznam, ki ga smemo preverjati v ozadju: brez poverilnice IN na seznamu znanih javnih ([JAVNI_SEZNAMI]). Vse drugo
+     * (ponudnik, domaci streznik, gist, github.io, GitLab, neznan gostitelj) velja kot racun - kot Linux.
      */
     fun javniBrezplacni(naslovSeznama: String): Boolean {
         if (jeVirSPoverilnico(naslovSeznama, seznam = true)) return false
         val d = deli(naslovSeznama) ?: return false
-        if (d.gostitelj == "iptv-org.github.io") return true
-        if (d.gostitelj == "raw.githubusercontent.com" && d.pot.lowercase(java.util.Locale.ROOT).startsWith("/iptv-org/")) return true
-        return d.https && (d.gostitelj in PROSTI_GOSTITELJI || d.gostitelj.endsWith(".github.io"))
+        val pot = (odkodiraj(d.pot, plus = false) ?: return false).lowercase(java.util.Locale.ROOT)
+        if (".." in pot || "//" in pot) return false
+        return JAVNI_SEZNAMI.any { (g, p) -> d.gostitelj == g && pot.startsWith(p) }
     }
 
     /** Kanal seznama sme v preverbo v ozadju: javni brezplacni seznam in naslov toka brez racuna. */

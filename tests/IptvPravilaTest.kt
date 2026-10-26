@@ -132,15 +132,22 @@ fun main() {
     preveriEnako("prazen naslov steje kot poverilnica", true, s("", true))
     val j = IptvPravila::javniBrezplacni
     preveriEnako("javni: iptv-org.github.io", true, j("https://iptv-org.github.io/iptv/countries/si.m3u"))
-    preveriEnako("javni: raw.githubusercontent.com", true, j("https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8"))
-    preveriEnako("javni: *.github.io", true, j("https://kdo.github.io/seznam.m3u"))
+    preveriEnako("javni: raw.githubusercontent.com/iptv-org", true, j("https://raw.githubusercontent.com/iptv-org/iptv/master/streams/si.m3u"))
+    preveriEnako("javni: Free-TV/IPTV", true, j("https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8"))
+    // Grok 39, I1 (fail-closed): seznam z racunom je lahko kjerkoli - samo pozitivno znani javni seznami se preverjajo.
+    preveriEnako("ni javni: *.github.io", false, j("https://kdo.github.io/seznam.m3u"))
+    preveriEnako("ni javni: gist", false, j("https://gist.githubusercontent.com/kdo/abc/raw/seznam.m3u"))
+    preveriEnako("ni javni: drug uporabnik na raw", false, j("https://raw.githubusercontent.com/kdo/zasebno/main/s.m3u"))
+    preveriEnako("ni javni: raw z ../ mimo iptv-org", false, j("https://raw.githubusercontent.com/iptv-org/../kdo/s.m3u"))
+    preveriEnako("ni javni: raw s %2e%2e mimo iptv-org", false, j("https://raw.githubusercontent.com/iptv-org/%2e%2e/kdo/s.m3u"))
+    preveriEnako("ni javni: codeberg", false, j("https://codeberg.org/kdo/s/raw/branch/main/s.m3u"))
+    preveriEnako("ni javni: iptv-org z zetonom", false, j("https://iptv-org.github.io/iptv/index.m3u?token=abc"))
+    preveriEnako("poverilnica: Stalker mac=", true, s("http://portal.primer.test/c/?mac=00:1A:79:00:00:01", false))
     preveriEnako("ni javni: Xtream", false, j(xtream))
     preveriEnako("ni javni: domaci streznik", false, j("http://tvh.primer.test:9981/playlist"))
     preveriEnako("ni javni: neznan gostitelj", false, j("https://ponudnik.primer.test/moj-seznam.m3u"))
-    preveriEnako("ni javni: github.io po http", false, j("http://kdo.github.io/seznam.m3u"))
-    preveriEnako("ni javni: gitlab z zetonom", false, j("https://gitlab.com/x/seznam.m3u?private_token=abc"))
-    preveriEnako("ni javni: github.io z uporabnikom", false, j("https://u:g@kdo.github.io/seznam.m3u"))
-    preveriEnako("ni javni: lazni gostitelj github.io.primer.test", false, j("https://github.io.primer.test/s.m3u"))
+    preveriEnako("ni javni: iptv-org z uporabnikom", false, j("https://u:g@iptv-org.github.io/iptv/countries/si.m3u"))
+    preveriEnako("ni javni: lazni gostitelj iptv-org.github.io.primer.test", false, j("https://iptv-org.github.io.primer.test/s.m3u"))
     preveriEnako("dovoljena: javni seznam, javni tok", true,
         IptvPravila.preverbaDovoljena("https://iptv-org.github.io/iptv/countries/si.m3u", "https://cdn.primer.test/k/index.m3u8?token=x"))
     preveriEnako("ni dovoljena: javni seznam, tok Xtream", false,
