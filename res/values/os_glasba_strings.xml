@@ -274,7 +274,6 @@
     <string name="os_zvrst_druzinski">Family</string>
     <string name="os_zvrst_romantika">Romance</string>
     <string name="os_zvrst_dokumentarci">Documentary</string>
-    <string name="os_media_izberi_tok">Choose source</string>
     <string name="os_media_drug_vir">This source doesn\'t play – trying the next one …</string>
     <string name="os_uvoz_naslov">Import a playlist</string>
     <string name="os_uvoz_opis">From YouTube or Spotify</string>

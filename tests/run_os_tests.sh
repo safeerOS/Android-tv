@@ -113,6 +113,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/DebridPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/UsenetPravila.kt" \
     "$TEST_DIR/UsenetPravilaTest.kt" \
+    "$TEST_DIR/BrezRocneIzbireTest.kt" \
     "$SRC/si/safeer/tv/os/SerijePravila.kt" \
     "$TEST_DIR/SerijePravilaTest.kt" \
     "$SRC/si/safeer/tv/os/NapredekKljuc.kt" \
@@ -203,6 +204,8 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.MiniPredvajalnikPravilaTestK
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.TorBoxPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.DebridPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.UsenetPravilaTestKt
+# NALOGA 33 (lastnik 26. 10. 2026): uporabnik toka nikoli ne izbira - izvorna koda GlasbaActivity in nizi.
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.BrezRocneIzbireTestKt "$SRC/si/safeer/tv/os/GlasbaActivity.kt" "$PROJECT_DIR/res"
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SerijePravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.NapredekKljucTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.KakovostPravilaTestKt

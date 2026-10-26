@@ -457,9 +457,9 @@ class GlasbaActivity : OsActivity() {
             .firstOrNull() ?: return
         // Naloga 112: id kanala ali dodatka vsebuje naslov (lahko z zetonom) - v dnevnik samo ime.
         android.util.Log.i("SafeerOsMedia", "prikazi na TV: odpiram ${sk.naslov.take(60)}")
-        // Film iz dodatkov: pokazemo izbiro tokov (naslov na vrhu), ne predvajamo prvega sami - prvi tok dodatka je bil
-        // pri preizkusu 11. 10. 2026 kopija z vgrajenim oglasom za stave. Uporabnik izbere z daljincem.
-        if (Stremio.jeEnota(sk)) { glavna.postDelayed({ if (!isFinishing && !isDestroyed) razresiStremio(sk, rocno = true) }, 400); return }
+        // Film iz dodatkov: najboljsi tok izbere Safeer sam (TokIzbira, ne prvi tok dodatka - ta je bil 11. 10. 2026 kopija z
+        // vgrajenim oglasom); uporabnik toka nikoli ne izbira (lastnik 26. 10. 2026, NALOGA 33).
+        if (Stremio.jeEnota(sk)) { glavna.postDelayed({ if (!isFinishing && !isDestroyed) razresiStremio(sk) }, 400); return }
         val kartica = videi(listOf(sk), beseda).firstOrNull() ?: return
         glavna.postDelayed({ if (!isFinishing) kartica.klik(iskalnik ?: window.decorView) }, 400)
     }
@@ -6008,8 +6008,8 @@ class GlasbaActivity : OsActivity() {
             zadnjiIzbran = sk.id
             MrtviKanali.skrij(this, KanaliPravila.kljuciKartice(sk.id, razlicice))
         }
-        // Film ali serija iz dodatkov: predvajanje samo izbere najboljsi tok; tu ga uporabnik lahko izbere sam.
-        if (Stremio.jeEnota(sk)) dejanja += getString(R.string.os_media_izberi_tok) to { razresiStremio(sk, rocno = true) }
+        // Film ali serija iz dodatkov: predvajanje samo izbere najboljsi tok, nedosegljivega zamenja naslednji - menija
+        // »Izberi vir« ni (lastnik 26. 10. 2026, NALOGA 33: »shrani in pozabi«).
         // Naloga 124: dejanja dodatka (protokol v1) in »O vsebini« (dopolnitev v ozadju).
         for (d in Stremio.dejanjaZa(sk)) dejanja += d.naslov.za(jezikUporabnika()) to { izvediDejanjeDodatka(sk, d) }
         if (Stremio.ponujaDopolnitev(sk)) dejanja += getString(R.string.os_dodatek_o_vsebini) to { pokaziDopolnitev(sk) }
@@ -7640,7 +7640,7 @@ class GlasbaActivity : OsActivity() {
      * [razlicice]: ista vsebina iz drugih dodatkov (drug id). Tokove vprasamo za vse hkrati in izberemo najboljsega
      * izmed vseh - uporabnik vidi eno kartico in dobi najboljsi tok, ne glede na to, kateri dodatek ga ima (lastnik, 2. 10. 2026).
      */
-    private fun razresiStremio(sk: Jamendo.Skladba, rocno: Boolean = false, razlicice: List<Jamendo.Skladba> = emptyList(),
+    private fun razresiStremio(sk: Jamendo.Skladba, razlicice: List<Jamendo.Skladba> = emptyList(),
                                /** Naloga 91a: razlicica seznama IPTV, ki igra, ce dodatki kanala v zivo ne dajo predvajljivega toka. */
                                rezerva: Jamendo.Skladba? = null) {
         val (_, tip, id) = Stremio.razstavi(sk) ?: return
@@ -7664,7 +7664,7 @@ class GlasbaActivity : OsActivity() {
                 glavna.post {
                     koncajPripravo(priprava)
                     if (isFinishing || isDestroyed) return@post
-                    izberiSezono(serija, ep, rocno)
+                    izberiSezono(serija, ep)
                     if (odprtKatalog != null) narociUmiri()      // mreza Filmi: kartica tiho izpade (drugaVrsta)
                 }
                 return true
@@ -7683,13 +7683,13 @@ class GlasbaActivity : OsActivity() {
                     koncajPripravo(priprava)
                     if (isFinishing || isDestroyed) return@post
                     if (posnetki.isEmpty()) { Toast.makeText(this, R.string.os_stremio_ni_epizod, Toast.LENGTH_LONG).show(); return@post }
-                    izberiSezono(sk, posnetki, rocno)
+                    izberiSezono(sk, posnetki)
                 }
             } else if (posnetki.size == 1) {
                 val e = posnetki.first()
                 val t = e.tokovi.ifEmpty { try { tokoviVzporedno(tip, e.id) } catch (_: Exception) { emptyList() } }
-                val pp = predpomnjeniZa(t, sk, rocno)
-                glavna.post { koncajPripravo(priprava); if (!isFinishing && !isDestroyed) izberiTok(sk, sk.naslov, t, rocno, pp) }
+                val pp = predpomnjeniZa(t, sk)
+                glavna.post { koncajPripravo(priprava); if (!isFinishing && !isDestroyed) izberiTok(sk, sk.naslov, t, pp) }
             } else {
                 val enote = (listOf(tip to id) + razlicice.filter { Stremio.jeEnota(it) }.mapNotNull { r -> Stremio.razstavi(r)?.let { it.second to it.third } }).distinct().take(5)
                 // Naloga 88: kanal v zivo - najvec [OsPravila.rokTokovMs] (7 s) za vse dodatke, da je odgovor uporabniku v 8 s.
@@ -7702,14 +7702,14 @@ class GlasbaActivity : OsActivity() {
                 // Metapodatki so medtem navadno ze prisli: serija z epizodami se odpre kot serija (ne kot film).
                 if (!vZivo && odpriKotSerijo(if (t.isEmpty()) 5 else 2)) return@execute
                 if (vZivo) android.util.Log.i("SafeerOsMedia", "kanal dodatka: enot=${enote.size}, tokov=${t.size}, predvajljivih=${t.count { Stremio.jePredvajljiv(it) }}, " +
-                    "vrste=${t.map { it.vrsta }.distinct()}, dodatek ni odgovoril=${Stremio.dodatekNiOdgovoril()}, rezerva=${rezerva != null}, rocno=$rocno")
-                if (vZivo && !rocno && rezerva != null && t.none { Stremio.jePredvajljiv(it) }) {
+                    "vrste=${t.map { it.vrsta }.distinct()}, dodatek ni odgovoril=${Stremio.dodatekNiOdgovoril()}, rezerva=${rezerva != null}")
+                if (vZivo && rezerva != null && t.none { Stremio.jePredvajljiv(it) }) {
                     android.util.Log.i("SafeerOsMedia", "kanal dodatka: ni toka - predvajam rezervo iz seznama IPTV")
                     glavna.post { koncajPripravo(priprava); if (!isFinishing && !isDestroyed) predvajaj(listOf(rezerva), 0) }
                     return@execute
                 }
-                val pp = if (vZivo) Pripravljeno() else predpomnjeniZa(t, sk, rocno)
-                glavna.post { koncajPripravo(priprava); if (!isFinishing && !isDestroyed) izberiTok(sk, sk.naslov, t, rocno, pp) }
+                val pp = if (vZivo) Pripravljeno() else predpomnjeniZa(t, sk)
+                glavna.post { koncajPripravo(priprava); if (!isFinishing && !isDestroyed) izberiTok(sk, sk.naslov, t, pp) }
             }
         }
     }
@@ -7718,10 +7718,10 @@ class GlasbaActivity : OsActivity() {
      * Naloga 130/136: kateri torrenti so pri debrid storitvi ze pripravljeni (oznaka ⚡, samodejna izbira). Z delovne niti;
      * TorBox en klic do 4 s, Real-Debrid in AllDebrid iz zapomnjenih (brez klica); brez aktivne storitve prazno.
      */
-    private fun predpomnjeniZa(tokovi: List<Stremio.Tok>, sk: Jamendo.Skladba? = null, rocno: Boolean = true): Pripravljeno {
+    private fun predpomnjeniZa(tokovi: List<Stremio.Tok>, sk: Jamendo.Skladba? = null): Pripravljeno {
         // Lastnik 25. 10. 2026 07:25: Usenet, ki ga ima TorBox ze pripravljenega, je prvi - preverimo ga HKRATI s ⚡ (samo pri
-        // samodejni izbiri; prve izdaje vzporedno, najvec 6 s), da se zacetek ne podaljsa.
-        val usenet = if (!rocno && sk != null && tokovi.any { it.vrsta == UsenetPravila.VRSTA } && Usenet.jeNaVoljo(applicationContext))
+        // prve izdaje vzporedno, najvec 6 s), da se zacetek ne podaljsa.
+        val usenet = if (sk != null && tokovi.any { it.vrsta == UsenetPravila.VRSTA } && Usenet.jeNaVoljo(applicationContext))
             zacniUsenetPripravljen(usenetKandidati(sk, tokovi)) else null
         val hashi = tokovi.filter { it.vrsta == "torrent" }.mapNotNull { TorBoxPravila.hashIzMagneta(it.url) }
         val pp = if (hashi.isEmpty()) emptySet() else Debrid.predpomnjeni(applicationContext, hashi)
@@ -7806,26 +7806,26 @@ class GlasbaActivity : OsActivity() {
             if (odgledana) android.util.Log.i("SafeerOsMedia", "nadaljuj: S${sezona}E$epizoda odgledana - naslednja S${e.sezona}E${e.epizoda}")
             val dodatni = SerijePravila.idEpizodePoImdb(Stremio.imdbZa(serija), e.id, e.sezona, e.epizoda)
             val t = e.tokovi.ifEmpty { try { tokoviVzporedno(tip, e.id, dodatniId = dodatni) } catch (_: Exception) { emptyList() } }
-            val pp = predpomnjeniZa(t, serija.copy(season = e.sezona, episode = e.epizoda), false)
+            val pp = predpomnjeniZa(t, serija.copy(season = e.sezona, episode = e.epizoda))
             glavna.post {
                 koncajPripravo(priprava)
                 // Brez toka: samo obvestilo - kartica serije zaradi ene epizode ne izgine.
-                if (!isFinishing && !isDestroyed) izberiTok(serija.copy(season = e.sezona, episode = e.epizoda), naslovEp, t, false, pp) {
+                if (!isFinishing && !isDestroyed) izberiTok(serija.copy(season = e.sezona, episode = e.epizoda), naslovEp, t, pp) {
                     Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslovEp), Toast.LENGTH_SHORT).show()
                 }
             }
         }
     }
 
-    private fun izberiSezono(sk: Jamendo.Skladba, ep: List<Stremio.Epizoda>, rocno: Boolean = false) {
+    private fun izberiSezono(sk: Jamendo.Skladba, ep: List<Stremio.Epizoda>) {
         val sezone = ep.map { it.sezona }.distinct()
-        if (sezone.size == 1) { izberiEpizodo(sk, ep, rocno); return }
+        if (sezone.size == 1) { izberiEpizodo(sk, ep); return }
         val imena = sezone.map { z -> val n = ep.count { it.sezona == z }
             getString(R.string.os_stremio_sezona, z) + " · " + resources.getQuantityString(R.plurals.os_stremio_epizod, n, n) }
-        AlertDialog.Builder(this).setTitle(sk.naslov).setItems(imena.toTypedArray()) { _, k -> izberiEpizodo(sk, ep.filter { it.sezona == sezone[k] }, rocno, edinaSezona = false) }.show()
+        AlertDialog.Builder(this).setTitle(sk.naslov).setItems(imena.toTypedArray()) { _, k -> izberiEpizodo(sk, ep.filter { it.sezona == sezone[k] }, edinaSezona = false) }.show()
     }
 
-    private fun izberiEpizodo(sk: Jamendo.Skladba, vseEpizode: List<Stremio.Epizoda>, rocno: Boolean = false,
+    private fun izberiEpizodo(sk: Jamendo.Skladba, vseEpizode: List<Stremio.Epizoda>,
                               /** Serija ima samo to sezono: ce ni nobene epizode, ni serije. */
                               edinaSezona: Boolean = true) {
         val tip = Stremio.razstavi(sk)?.second ?: "series"
@@ -7861,7 +7861,7 @@ class GlasbaActivity : OsActivity() {
                 fun tokoviZa(x: Stremio.Epizoda) = x.tokovi.ifEmpty {
                     try { tokoviVzporedno(tip, x.id, dodatniId = SerijePravila.idEpizodePoImdb(imdb, x.id, x.sezona, x.epizoda)) } catch (_: Exception) { emptyList() }
                 }
-                if (!sk.video && !rocno) {
+                if (!sk.video) {
                     // Zvok: tokove izbrane in naslednjih skladb vprasamo hkrati; izbrana se zacne, cim je znana,
                     // naslednjim damo se najvec 1,2 s (kar do takrat pride, gre v vrsto - album igra naprej sam).
                     val naprej = seznam.drop(k).take(40)
@@ -7883,13 +7883,13 @@ class GlasbaActivity : OsActivity() {
                         glavna.post { if (!isFinishing && !isDestroyed) GlasbaStoritev.predvajaj(this, vrsta, 0) }
                         return@execute
                     }
-                    glavna.post { if (!isFinishing && !isDestroyed) izberiTok(sk, "${sk.naslov} · ${ime(e)}", prvi, rocno) { epizodeNi(sk, tip, e, vseEpizode, rocno, edinaSezona) } }
+                    glavna.post { if (!isFinishing && !isDestroyed) izberiTok(sk, "${sk.naslov} · ${ime(e)}", prvi) { epizodeNi(sk, tip, e, vseEpizode, edinaSezona) } }
                     return@execute
                 }
                 val t = tokoviZa(e)
-                val pp = predpomnjeniZa(t, sk.copy(season = e.sezona, episode = e.epizoda), rocno)
+                val pp = predpomnjeniZa(t, sk.copy(season = e.sezona, episode = e.epizoda))
                 glavna.post {
-                    if (!isFinishing && !isDestroyed) izberiTok(sk.copy(season = e.sezona, episode = e.epizoda), "${sk.naslov} · ${ime(e)}", t, rocno, pp) { epizodeNi(sk, tip, e, vseEpizode, rocno, edinaSezona) }
+                    if (!isFinishing && !isDestroyed) izberiTok(sk.copy(season = e.sezona, episode = e.epizoda), "${sk.naslov} · ${ime(e)}", t, pp) { epizodeNi(sk, tip, e, vseEpizode, edinaSezona) }
                 }
             }
         }.show()
@@ -7906,9 +7906,9 @@ class GlasbaActivity : OsActivity() {
     }
 
     /** Epizode ni v nobenem dodatku: zapomnimo si in pokazemo seznam brez nje (ostale so morda na voljo). */
-    private fun epizodeNi(sk: Jamendo.Skladba, tip: String, e: Stremio.Epizoda, vse: List<Stremio.Epizoda>, rocno: Boolean, edinaSezona: Boolean) {
+    private fun epizodeNi(sk: Jamendo.Skladba, tip: String, e: Stremio.Epizoda, vse: List<Stremio.Epizoda>, edinaSezona: Boolean) {
         skrijInPotrdi(Razpolozljivost.kljuc(tip, e.id)) { naslovi, torrent -> Stremio.razpolozljivo(naslovi, tip, e.id, torrent) }
-        izberiEpizodo(sk, vse, rocno, edinaSezona)
+        izberiEpizodo(sk, vse, edinaSezona)
     }
 
     // ------------------------------------------------------------------ razpolozljivost: prikazemo samo, kar se da predvajati
@@ -8789,10 +8789,10 @@ class GlasbaActivity : OsActivity() {
     /**
      * Film ali epizoda se zacne TAKOJ z najboljsim tokom za to napravo (TokIzbira: zaslon, dekodirniki slike in zvoka,
      * hiter zacetek) - brez seznama in brez cakanja na izbiro (lastnik, 2. 10. 2026). Ce tok ne stece, storitev sama
-     * poskusi naslednje. Seznam virov ostane rocna moznost (dolg pritisk na kartico > Izberi vir) in izhod v sili,
-     * kadar dodatki ponudijo le zunanje povezave (napovednik ipd.).
+     * poskusi naslednje. Rocne izbire toka ni nikjer (lastnik 26. 10. 2026, NALOGA 33: »shrani in pozabi«): ce nic ne
+     * gre, uporabnik izve, da vsebina ni na voljo.
      */
-    private fun izberiTok(sk: Jamendo.Skladba, naslov: String, vsiTokovi: List<Stremio.Tok>, rocno: Boolean = false,
+    private fun izberiTok(sk: Jamendo.Skladba, naslov: String, vsiTokovi: List<Stremio.Tok>,
                           /** Naloga 130 + lastnik 25. 10.: kaj je takoj predvajljivo ([predpomnjeniZa]): ⚡ torrenti, pripravljen Usenet. */
                           pripravljeno: Pripravljeno = Pripravljeno(),
                           /** Kaj storiti, ce se vsebine ne da predvajati (epizoda: nazaj na seznam epizod); privzeto: kartica izgine. */
@@ -8811,7 +8811,7 @@ class GlasbaActivity : OsActivity() {
         // Diagnostika razvijalca ([Usenet.samoUsenet], samo prek adb, z rokom; lastnik 25. 10. 2026: meritev Useneta samo po
         // samodejni poti): samodejna izbira vzame samo Usenet - brez ⚡ torrentov, neposrednih povezav in Webtorja; ce Usenet
         // ne predvaja, se izbira konca (brez poti mimo). Viden znak kot pri Webtorju.
-        val samoUsenet = !samoWebtor && !rocno && Usenet.samoUsenet()
+        val samoUsenet = !samoWebtor && Usenet.samoUsenet()
         if (samoUsenet) {
             android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Usenet")
             Toast.makeText(this, R.string.os_usenet_diagnostika, Toast.LENGTH_LONG).show()
@@ -9027,104 +9027,75 @@ class GlasbaActivity : OsActivity() {
             if (posnetek != null) { odpri(posnetek); return true }
             return false
         }
-        if (!rocno) {
-            // Naloga 141 + lastnik 24.-25. 10. 2026 (07:25): Usenet je prvi, ce ga uporabnik ima (najboljsa kakovost in hitrost,
-            // placa ga), a uporabnik ne caka na prenos, ce je kaj takoj predvajljivo. Koraki ([WebtorPravila.koraki]):
-            // (1) Usenet, ki ga ima TorBox ze pripravljenega - prve izdaje preverjene HKRATI s preverbo ⚡ ([predpomnjeniZa],
-            // najvec 6 s); (2) takoj: ⚡ torrent, ziva neposredna povezava, [⚡WT]; (3) Usenet s cakanjem na prenos;
-            // (4) Webtor [WT]; (5) TorBox s cakanjem in ostalo ([samodejnoBrezUseneta]). Nikoli okno »izberi vir«.
-            val poskusi = UsenetPravila.zaSamodejno(usenet.map { TokIzbira.opisi(opis(it)).gb }).map { usenet[it] }
-            pripravljeno.usenet?.takeIf { !samoWebtor }?.let { (t, cdn) ->
-                android.util.Log.i("SafeerOsMedia", "tokovi: Usenet pripravljen pri TorBoxu; izbran=${TokIzbira.opisi(opis(t))}")
-                Toast.makeText(this, getString(R.string.os_debrid_predvaja_prek, DebridPravila.ime(DebridPravila.TORBOX)), Toast.LENGTH_SHORT).show()
-                odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap()))
+        // Naloga 141 + lastnik 24.-25. 10. 2026 (07:25): Usenet je prvi, ce ga uporabnik ima (najboljsa kakovost in hitrost,
+        // placa ga), a uporabnik ne caka na prenos, ce je kaj takoj predvajljivo. Koraki ([WebtorPravila.koraki]):
+        // (1) Usenet, ki ga ima TorBox ze pripravljenega - prve izdaje preverjene HKRATI s preverbo ⚡ ([predpomnjeniZa],
+        // najvec 6 s); (2) takoj: ⚡ torrent, ziva neposredna povezava, [⚡WT]; (3) Usenet s cakanjem na prenos;
+        // (4) Webtor [WT]; (5) TorBox s cakanjem in ostalo ([samodejnoBrezUseneta]). Nikoli okno »izberi vir«.
+        val poskusi = UsenetPravila.zaSamodejno(usenet.map { TokIzbira.opisi(opis(it)).gb }).map { usenet[it] }
+        pripravljeno.usenet?.takeIf { !samoWebtor }?.let { (t, cdn) ->
+            android.util.Log.i("SafeerOsMedia", "tokovi: Usenet pripravljen pri TorBoxu; izbran=${TokIzbira.opisi(opis(t))}")
+            Toast.makeText(this, getString(R.string.os_debrid_predvaja_prek, DebridPravila.ime(DebridPravila.TORBOX)), Toast.LENGTH_SHORT).show()
+            odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap()))
+            return
+        }
+        fun takojBrezWebtorja(): Boolean {
+            val k = DebridPravila.samodejniTorrent(Debrid.aktivna(this), hashiTorrentov, predpomnjeni)
+            // Meritev 25. 10. 2026 (Webtor rezerva): v dnevniku mora biti, po kateri poti je slo takoj predvajanje.
+            if (k >= 0) {
+                android.util.Log.i("SafeerOsMedia", "tokovi: takoj pripravljen pri debridu ${predpomnjeni.size} od ${torrentiPoKakovosti.size}; " +
+                    "izbran=${TokIzbira.opisi(opis(torrentiPoKakovosti[k]))}")
+                odpri(torrentiPoKakovosti[k]); return true
+            }
+            val zivi = neposredni.filter { !TokIzbira.potekla(it.url, zdajS) }
+            if (zivi.isNotEmpty()) {
+                android.util.Log.i("SafeerOsMedia", "tokovi: takoj neposredni ${zivi.size}, pripravljenih pri debridu 0 od ${torrentiPoKakovosti.size}; " +
+                    "izbran=${TokIzbira.opisi(opis(zivi.first()))}")
+                odpri(zivi.first(), zivi.drop(1).take(REZERVNIH_TOKOV)); return true
+            }
+            android.util.Log.i("SafeerOsMedia", "tokovi: takoj nic (pripravljenih pri debridu 0 od ${torrentiPoKakovosti.size}, neposrednih 0)")
+            return false
+        }
+        fun naKonec() {
+            // Diagnostika samo Webtor (pregled 26, T3): brez TorBoxa s cakanjem in brez torrenta na napravi.
+            if (samoWebtor) { android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Webtor - Webtor ni predvajal"); return }
+            if (samoUsenet) { android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Usenet - Usenet ni predvajal"); return }
+            if (!samodejnoBrezUseneta()) Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslov), Toast.LENGTH_SHORT).show()
+        }
+        // Webtor: [samoTakoj] = korak 2 ([⚡WT]), sicer korak 4 ([WT]); skupaj najvec 2 kroga sond in 15 s ([webtorRok]).
+        fun poskusiWebtor(samoTakoj: Boolean, potem: () -> Unit) {
+            // Izmerjeno 25. 10. 2026: vsak cetrti kandidat je vrnil napacno datoteko - krog preveri VZPOREDNO hkrati.
+            val kandidati = (if (samoTakoj) webtorTakoj else webtor).filter { it.url !in poskuseniWebtor }.take(WebtorPravila.VZPOREDNO)
+            if (kandidati.isEmpty() || webtorRok() <= 0L) { potem(); return }
+            for ((i, w) in kandidati.withIndex())
+                android.util.Log.i("SafeerOsMedia", "tokovi: Webtor${if (samoTakoj) " takoj" else ""} ${i + 1}/${kandidati.size}; izbran=${TokIzbira.opisi(opis(w))}, " +
+                    "vrsta=${w.oznakaVira}, datoteka=${datotekaOd(w)}, h=${w.hash.take(10)}, idx=${w.datoteka}, sejalcev=${TokIzbira.sejalci(opis(w))}")
+            odpriWebtor(kandidati) {
+                Toast.makeText(this, R.string.os_webtor_rezerva, Toast.LENGTH_SHORT).show()
+                poskusiWebtor(samoTakoj, potem)
+            }
+        }
+        fun poskusiUsenetSCakanjem(i: Int) {
+            if (i >= poskusi.size) {
+                if (i > 0) Toast.makeText(this, R.string.os_usenet_rezerva, Toast.LENGTH_SHORT).show()
+                poskusiWebtor(false) { naKonec() }
                 return
             }
-            fun takojBrezWebtorja(): Boolean {
-                val k = DebridPravila.samodejniTorrent(Debrid.aktivna(this), hashiTorrentov, predpomnjeni)
-                // Meritev 25. 10. 2026 (Webtor rezerva): v dnevniku mora biti, po kateri poti je slo takoj predvajanje.
-                if (k >= 0) {
-                    android.util.Log.i("SafeerOsMedia", "tokovi: takoj pripravljen pri debridu ${predpomnjeni.size} od ${torrentiPoKakovosti.size}; " +
-                        "izbran=${TokIzbira.opisi(opis(torrentiPoKakovosti[k]))}")
-                    odpri(torrentiPoKakovosti[k]); return true
-                }
-                val zivi = neposredni.filter { !TokIzbira.potekla(it.url, zdajS) }
-                if (zivi.isNotEmpty()) {
-                    android.util.Log.i("SafeerOsMedia", "tokovi: takoj neposredni ${zivi.size}, pripravljenih pri debridu 0 od ${torrentiPoKakovosti.size}; " +
-                        "izbran=${TokIzbira.opisi(opis(zivi.first()))}")
-                    odpri(zivi.first(), zivi.drop(1).take(REZERVNIH_TOKOV)); return true
-                }
-                android.util.Log.i("SafeerOsMedia", "tokovi: takoj nic (pripravljenih pri debridu 0 od ${torrentiPoKakovosti.size}, neposrednih 0)")
-                return false
-            }
-            fun naKonec() {
-                // Diagnostika samo Webtor (pregled 26, T3): brez TorBoxa s cakanjem in brez torrenta na napravi.
-                if (samoWebtor) { android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Webtor - Webtor ni predvajal"); return }
-                if (samoUsenet) { android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Usenet - Usenet ni predvajal"); return }
-                if (!samodejnoBrezUseneta()) Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslov), Toast.LENGTH_SHORT).show()
-            }
-            // Webtor: [samoTakoj] = korak 2 ([⚡WT]), sicer korak 4 ([WT]); skupaj najvec 2 kroga sond in 15 s ([webtorRok]).
-            fun poskusiWebtor(samoTakoj: Boolean, potem: () -> Unit) {
-                // Izmerjeno 25. 10. 2026: vsak cetrti kandidat je vrnil napacno datoteko - krog preveri VZPOREDNO hkrati.
-                val kandidati = (if (samoTakoj) webtorTakoj else webtor).filter { it.url !in poskuseniWebtor }.take(WebtorPravila.VZPOREDNO)
-                if (kandidati.isEmpty() || webtorRok() <= 0L) { potem(); return }
-                for ((i, w) in kandidati.withIndex())
-                    android.util.Log.i("SafeerOsMedia", "tokovi: Webtor${if (samoTakoj) " takoj" else ""} ${i + 1}/${kandidati.size}; izbran=${TokIzbira.opisi(opis(w))}, " +
-                        "vrsta=${w.oznakaVira}, datoteka=${datotekaOd(w)}, h=${w.hash.take(10)}, idx=${w.datoteka}, sejalcev=${TokIzbira.sejalci(opis(w))}")
-                odpriWebtor(kandidati) {
-                    Toast.makeText(this, R.string.os_webtor_rezerva, Toast.LENGTH_SHORT).show()
-                    poskusiWebtor(samoTakoj, potem)
-                }
-            }
-            fun poskusiUsenetSCakanjem(i: Int) {
-                if (i >= poskusi.size) {
-                    if (i > 0) Toast.makeText(this, R.string.os_usenet_rezerva, Toast.LENGTH_SHORT).show()
-                    poskusiWebtor(false) { naKonec() }
-                    return
-                }
-                val t = poskusi[i]
-                android.util.Log.i("SafeerOsMedia", "tokovi: Usenet s prenosom ${i + 1}/${poskusi.size} od ${usenet.size}; izbran=${TokIzbira.opisi(opis(t))}")
-                prekDebrida(t.url, t.datoteka, { cdn -> odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap())) }, null,
-                    samoTakoj = false, usenetIme = t.opis.substringBefore('\n'), obNeuspehu = { poskusiUsenetSCakanjem(i + 1) })
-            }
-            if (takojBrezWebtorja()) return
-            if (poskusi.isNotEmpty() || webtor.isNotEmpty()) {
-                poskusiWebtor(true) { if (poskusi.isNotEmpty()) poskusiUsenetSCakanjem(0) else poskusiWebtor(false) { naKonec() } }
-                return
-            }
-            if (samoWebtor || samoUsenet) { naKonec(); return }
-            if (samodejnoBrezUseneta()) return
+            val t = poskusi[i]
+            android.util.Log.i("SafeerOsMedia", "tokovi: Usenet s prenosom ${i + 1}/${poskusi.size} od ${usenet.size}; izbran=${TokIzbira.opisi(opis(t))}")
+            prekDebrida(t.url, t.datoteka, { cdn -> odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap())) }, null,
+                samoTakoj = false, usenetIme = t.opis.substringBefore('\n'), obNeuspehu = { poskusiUsenetSCakanjem(i + 1) })
         }
-        // Rocna izbira: najboljsi na vrhu, napovednik na koncu.
-        // Naloga 130: pripravljeni torrenti (⚡) so na vrhu seznama, pred povezavami.
-        // Takoj predvajljivo na vrhu (⚡ torrenti, povezave, [⚡WT]), nato Usenet (najboljsa kakovost), Webtor [WT] in
-        // nepripravljeni torrenti - kot pri samodejni izbiri.
-        val urejeni = torrenti.filter { pripravljen(it) } + neposredni + webtorTakoj + usenet + webtor.filter { it !in webtorTakoj } +
-            torrenti.filter { !pripravljen(it) } +
-            tokovi.filter { it.vrsta != "url" && it.vrsta != "torrent" && it.vrsta != UsenetPravila.VRSTA }
-        if (urejeni.size == 1 && !rocno) { odpri(urejeni.first()); return }
-        val imena = urejeni.map { t ->
-            val vrsta = if (t.vir == WebtorPravila.VIR) " · " + WebtorPravila.IME
-                else when (t.vrsta) { "torrent" -> " · " + getString(R.string.os_stremio_torrent); UsenetPravila.VRSTA -> " · Usenet"; "napovednik" -> " · " + getString(R.string.os_stremio_zunanji); else -> "" }
-            // Webtor rezerva: ⚡ tudi za tok, ki ga ima Webtor pripravljenega ([⚡WT]) ali TorBox v Webtor profilu ([⚡TB]).
-            val takoj = pripravljen(t) || (t.vir == WebtorPravila.VIR && WebtorPravila.vrstaIz(t.oznakaVira) != WebtorPravila.Vrsta.PRENOS)
-            (if (takoj) DebridPravila.OZNAKA_PREDPOMNJEN + " " else "") +
-                listOf(t.ime, t.opis.replace('\n', ' ')).filter { it.isNotBlank() }.joinToString(" · ") + vrsta
+        if (takojBrezWebtorja()) return
+        if (poskusi.isNotEmpty() || webtor.isNotEmpty()) {
+            poskusiWebtor(true) { if (poskusi.isNotEmpty()) poskusiUsenetSCakanjem(0) else poskusiWebtor(false) { naKonec() } }
+            return
         }
-        AlertDialog.Builder(this).setTitle(naslov).setItems(imena.toTypedArray()) { _, k ->
-            val t = urejeni[k]
-            // Webtor rezerva: rocno izbran tok Webtor - sonda in TorBox v ozadju; ce ne stece, ista izdaja kot torrent.
-            if (t.vir == WebtorPravila.VIR) {
-                val nas = kljucWebtor(t)?.let { kw -> torrentiPoKakovosti.firstOrNull { kljucTorrenta(it) == kw } }
-                odpriWebtor(listOf(t)) {
-                    Toast.makeText(this, R.string.os_webtor_rezerva, Toast.LENGTH_SHORT).show()
-                    if (nas != null) odpri(nas)
-                }
-                return@setItems
-            }
-            // Tudi po rocni izbiri: ce izbrani tok ne stece, gredo za njim ostali neposredni (od najboljsega).
-            odpri(t, if (t.vrsta == "url") neposredni.filter { it !== t }.take(REZERVNIH_TOKOV) else emptyList())
-        }.show()
+        if (samoWebtor || samoUsenet) { naKonec(); return }
+        if (samodejnoBrezUseneta()) return
+        // Nic, kar bi slo samodejno (tudi ne prek Useneta ali Webtorja): uporabnik toka ne izbira - povemo, da ni na voljo.
+        android.util.Log.i("SafeerOsMedia", "tokovi: samodejna izbira brez predvajljivega toka")
+        Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslov), Toast.LENGTH_SHORT).show()
     }
 
     /**
