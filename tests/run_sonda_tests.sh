@@ -10,9 +10,11 @@ KOTLINC="${KOTLINC:-$TOOLS_DIR/kotlinc/bin/kotlinc}"
 command -v "$KOTLINC" >/dev/null 2>&1 || KOTLINC="kotlinc"
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
-"$KOTLINC" -J-Xmx1g \
+OKHTTP_LIBS="$PROJECT_DIR/libs/okhttp-4.12.0.jar:$PROJECT_DIR/libs/okio-jvm-3.6.0.jar"   # SondaVeriga gre prek OkHttp (J2)
+"$KOTLINC" -J-Xmx1g -cp "$OKHTTP_LIBS" \
     "$SRC/si/safeer/tv/os/SondaToka.kt" \
     "$SRC/si/safeer/tv/os/SondaVeriga.kt" \
+    "$SRC/si/safeer/tv/os/WebtorPravila.kt" \
     "$SRC/si/safeer/tv/os/SondaHlsPravila.kt" \
     "$TEST_DIR/stubs/SpletniVir.kt" \
     "$SRC/si/safeer/tv/os/OsPravila.kt" \
@@ -22,4 +24,4 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/stubs/Imenik.kt" \
     "$TEST_DIR/SondaTokaTest.kt" \
     -include-runtime -d "$OUT/sonda.jar"
-java -cp "$OUT/sonda.jar" si.safeer.tv.os.SondaTokaTestKt
+java -cp "$OUT/sonda.jar:$OKHTTP_LIBS" si.safeer.tv.os.SondaTokaTestKt

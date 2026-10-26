@@ -94,6 +94,13 @@ object SondaVeriga {
         }
     }
 
+    /**
+     * SAMO za preizkus (tests/SondaTokaTest.kt): preverba zasebnega cilja za sonde, ki gredo prek [SondaToka] in svojih
+     * [Nastavitve] ne morejo podati - isti mehanizem kot [Nastavitve.zaseben] v tests/SondaVerigaTest.kt. Privzeto null:
+     * velja [Nastavitve.zaseben] (J2, zaseben naslov nikoli). Produkcijska koda ga ne nastavi; preizkus ga po koncu vrne na null.
+     */
+    @Volatile internal var zasebenZaPreizkus: ((ByteArray) -> Boolean)? = null
+
     /** Straza roka: ob izteku prekine klic, da blokirano branje ali povezovanje takoj neha. */
     private val straza = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "safeer-sonda-straza").apply { isDaemon = true } }
     /** J1: razresevanje imen v svoji niti (getAllByName se ne da prekiniti); nit, ki obvisi, ne zadrzi sonde. */
@@ -143,7 +150,8 @@ object SondaVeriga {
                 izIzjeme: (IOException, String) -> Pair<OsPravila.IzidSonde, String>,
                 n: Nastavitve = Nastavitve()): Pair<OsPravila.IzidSonde, String> {
         if (!naslov.startsWith("http://") && !naslov.startsWith("https://")) return OsPravila.IzidSonde.NEZNANO to "ni http"
-        val s = Sonda(n, glaveZa)
+        val z = zasebenZaPreizkus
+        val s = Sonda(if (z == null) n else Nastavitve(n.rokMs, n.rokZahtevkaMs, n.ura, z, n.razresi), glaveZa)
         s.zadnji = naslov
         try {
             val prvi = zahteva(s, naslov, Nacin.PRVI)

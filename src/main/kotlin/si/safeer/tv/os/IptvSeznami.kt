@@ -127,7 +127,7 @@ object IptvSeznami {
         if (!IptvPravila.napakaPrenosa(koda, kanalov, naslov)) return
         val n = IptvPravila.poNapaki(napaka(c, naslov), System.currentTimeMillis(), IptvPravila.zavrnjen(koda, kanalov, naslov))
         zapisiNapako(c, naslov, n)
-        android.util.Log.i("SafeerOsMedia", "seznam IPTV: prenos ni uspel (${if (koda > 0) "HTTP $koda" else "povezava"}, kanalov=$kanalov, " +
+        android.util.Log.i("SafeerOsMedia", "seznam IPTV: prenos ni uspel (${if (koda > 0) "HTTP $koda" else "povezava"}, kanalov=$kanalov, " +  // dnevnik-ok: samo koda HTTP ali beseda, nikoli naslov
             "zavrnjen=${n.zavrnjen}), ${n.zaporednih}. zapored, naslednji poskus cez ${(n.naslednjiOb - n.zadnjiOb) / 60_000} min")
     }
 
