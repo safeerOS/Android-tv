@@ -58,6 +58,25 @@ fun main() {
     preveriEnako("H1: napaka vnosa - nic", null, UsenetPravila.napakaVnosa("nzbfinder.ws", heks32))
     preveriEnako("H1: prejeti indeksator s kljucem kot gostiteljem ne", null, UsenetPravila.prejetIndeksator("https://$heks32", heks32))
 
+    // Pregled Grok 36, D5 (namizje ca50504 - isti primeri): NZB z interneta ne preusmeri v domace omrezje; http samo ista vrata.
+    val ixNzb = "https://nzbfinder.ws/getnzb?id=1&apikey=0123456789abcdef0123456789abcdef"
+    for (cilj in listOf("https://192.168.1.1/nzb", "https://127.0.0.1:8080/nzb", "https://localhost/nzb", "https://[::1]/nzb",
+            "https://169.254.169.254/latest", "https://10.0.0.5./nzb", "https://nas.local/nzb", "https://100.64.0.1/x", "https://[fd00::1]/x", "http://nzbfinder.ws/x"))
+        preveriEnako("D5: z interneta ne na $cilj", false, UsenetPravila.dovoljenSkok(ixNzb, cilj))
+    preveriEnako("D5: na CDN da", true, UsenetPravila.dovoljenSkok(ixNzb, "https://cdn.primer.test/nzb/1"))
+    preveriEnako("D5: na javni IP da", true, UsenetPravila.dovoljenSkok(ixNzb, "https://8.8.8.8/nzb/1"))
+    val lokNzb = "http://192.168.1.20:5076/getnzb/api/1?apikey=0123456789abcdef0123456789abcdef"
+    preveriEnako("D5: lokalni http na druga vrata ne", false, UsenetPravila.dovoljenSkok(lokNzb, "http://192.168.1.20:8080/nzb/1"))
+    preveriEnako("D5: lokalni indeksator sme na https v domacem omrezju", true, UsenetPravila.dovoljenSkok(lokNzb, "https://192.168.1.30/nzb/1"))
+    preveriEnako("D5: http ista vrata (privzeta 80)", true, UsenetPravila.dovoljenSkok("http://192.168.1.20/a", "http://192.168.1.20:80/b"))
+    preveriEnako("D5: uporabnik v cilju ne", false, UsenetPravila.dovoljenSkok(ixNzb, "https://jaz:geslo@cdn.primer.test/x"))
+    val rssD5 = "<rss><channel><item><title>A</title><enclosure url=\"https://192.168.1.1/a.nzb\"/></item>" +
+        "<item><title>B</title><enclosure url=\"https://cdn.primer.test/b.nzb\"/></item></channel></rss>"
+    preveriEnako("D5: zadetki indeksatorja z interneta brez domacega omrezja", listOf("B"), UsenetPravila.zadetki(rssD5, "https://nzbfinder.ws").map { it.naslov })
+    preveriEnako("D5: zadetki lokalnega indeksatorja", listOf("A", "B"), UsenetPravila.zadetki(rssD5, "http://192.168.1.20:5076").map { it.naslov })
+    preveriEnako("D2: 401 drugega gostitelja po preusmeritvi ni kljuc", UsenetPravila.NAPAKA_INDEKSATOR, UsenetPravila.napakaNzb(401, "", istiGostitelj = false))
+    preveriEnako("D2: 401 indeksatorja je kljuc", TorBoxPravila.NAPAKA_KLJUC, UsenetPravila.napakaNzb(401, ""))
+
     // Kljuc
     preveriEnako("141: kljuc 32 heks", "0123456789abcdef0123456789abcdef", UsenetPravila.ocistiKljuc(" 0123456789abcdef0123456789abcdef\n"))
     preveriEnako("141: prekratek kljuc", null, UsenetPravila.ocistiKljuc("abc"))

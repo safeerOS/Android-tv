@@ -241,8 +241,10 @@ object UsenetPravila {
      * Pregled Grok 3: vrsta napake, ko indeksator ni vrnil NZB - iz napake Newznab v odgovoru, sicer iz kode HTTP (401/403
      * kljuc, 429 meja). Gre v izid predvajanja ([PONUDNIK]): zavrnjen kljuc ponudi »Popravi«, meja ne.
      */
-    fun napakaNzb(koda: Int, zacetek: String): String = napaka(zacetek) ?: when (koda) {
-        401, 403 -> TorBoxPravila.NAPAKA_KLJUC
+    fun napakaNzb(koda: Int, zacetek: String, istiGostitelj: Boolean = true): String = napaka(zacetek) ?: when (koda) {
+        // Pregled Grok 36, D2 (namizje 54ec334): 401/403 DRUGEGA gostitelja po preusmeritvi (CDN, potekel podpisan naslov) ni
+        // zavrnjen kljuc indeksatorja - sicer bi indeksator dobil »ne velja« in ga Safeer ne bi vec klical.
+        401, 403 -> if (istiGostitelj) TorBoxPravila.NAPAKA_KLJUC else NAPAKA_INDEKSATOR
         429 -> TorBoxPravila.NAPAKA_MEJA
         else -> NAPAKA_INDEKSATOR
     }
@@ -301,15 +303,67 @@ object UsenetPravila {
         return izid
     }
 
+    /**
+     * Povezava NZB (zadetek ali skok preusmeritve): https; http samo do istega gostitelja v domacem omrezju. Pregled Grok 36,
+     * D5 (namizje ca50504 - isto vedenje): indeksator z interneta ne sme dati povezave v domace omrezje ali na to napravo
+     * (https://192.168.…, https://127.0.0.1:…) - naprava bi poslala slepo zahtevo GET v domace omrezje. Lokalni indeksator sme.
+     */
     private fun dovoljenaPovezava(p: String, gostIndeksatorja: String?): Boolean {
         val u = try { URI(p) } catch (_: Exception) { return false }
-        val gost = u.host?.lowercase() ?: return false
+        val gost = u.host?.lowercase()?.trimEnd('.') ?: return false
+        if (u.rawUserInfo != null) return false
+        val ix = gostIndeksatorja?.lowercase()?.trimEnd('.').orEmpty()
         return when (u.scheme?.lowercase()) {
-            "https" -> true
-            "http" -> gost == gostIndeksatorja && jeLokalniGostitelj(gost)
+            "https" -> !niJavni(gost) || niJavni(ix)
+            "http" -> gost == ix && jeLokalniGostitelj(gost)
             else -> false
         }
     }
+
+    /**
+     * Ime ali naslov IP, ki ni na internetu (kot namizje _ni_javni): ta naprava, domace omrezje, povezava (169.254 - tudi
+     * metapodatki oblaka), CGNAT 100.64/10, rezervirano, dokumentacija, skupinsko. Ime, ki se v DNS razresi v tak naslov, tu
+     * ni zaznano (DNS se ne sprasuje).
+     */
+    fun niJavni(gost: String): Boolean {
+        val g = gost.lowercase().trimEnd('.').removePrefix("[").removeSuffix("]")
+        if (g == "localhost" || g.endsWith(".local") || g.endsWith(".localhost")) return true
+        if (':' in g) return try {
+            // Naslov IPv6 (ime ne more vsebovati dvopicja - brez DNS).
+            when (val a = java.net.InetAddress.getByName(g)) {
+                is java.net.Inet4Address -> niJavni(a.hostAddress ?: return true)
+                else -> a.isLoopbackAddress || a.isAnyLocalAddress || a.isLinkLocalAddress || a.isSiteLocalAddress ||
+                    a.isMulticastAddress || (a.address[0].toInt() and 0xfe) == 0xfc ||
+                    (a.address[0].toInt() == 0x20 && a.address[1].toInt() == 0x01 && a.address[2].toInt() == 0x0d && (a.address[3].toInt() and 0xff) == 0xb8)
+            }
+        } catch (_: Exception) { true }
+        val d = g.split('.')
+        if (d.size != 4 || d.any { it.isEmpty() || it.length > 3 || !it.all { c -> c in '0'..'9' } }) return false
+        val b = d.map { it.toInt() }
+        if (b.any { it > 255 }) return false
+        val (a, x, y) = Triple(b[0], b[1], b[2])
+        return a == 0 || a == 10 || a == 127 || (a == 100 && x in 64..127) || (a == 169 && x == 254) || (a == 172 && x in 16..31) ||
+            (a == 192 && x == 168) || (a == 192 && x == 0 && (y == 0 || y == 2)) || (a == 198 && x in 18..19) ||
+            (a == 198 && x == 51 && y == 100) || (a == 203 && x == 0 && y == 113) || a >= 224
+    }
+
+    private fun vrata(u: URI): Int? = if (u.port >= 0) u.port else when (u.scheme?.lowercase()) { "http" -> 80; "https" -> 443; else -> null }
+
+    /**
+     * Preusmeritev prenosa NZB (naslov nosi kljuc indeksatorja; AGENTS.md: prenosi preverijo VSAK skok; namizje ca50504):
+     * cilj mora biti dovoljena povezava NZB glede na gostitelja prejsnjega skoka, nikoli s https na http (Location lahko nosi
+     * kljuc), http samo na ista vrata istega lokalnega gostitelja.
+     */
+    fun dovoljenSkok(od: String, na: String): Boolean {
+        val a = try { URI(od) } catch (_: Exception) { return false }
+        val b = try { URI(na) } catch (_: Exception) { return false }
+        if (a.scheme?.lowercase() == "https" && b.scheme?.lowercase() != "https") return false
+        if (b.scheme?.lowercase() == "http" && (vrata(a) == null || vrata(a) != vrata(b))) return false
+        return dovoljenaPovezava(na, a.host)
+    }
+
+    /** Najvec skokov preusmeritve pri prenosu NZB. */
+    const val NAJVEC_SKOKOV = 5
 
     /** Id toka za zadetek: »usenet:« + prvih 16 heks SHA-1 povezave - povezava (s kljucem) ostane samo v pomnilniku. */
     fun idToka(povezava: String): String {

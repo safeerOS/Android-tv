@@ -276,32 +276,52 @@ object Usenet {
     /** NZB za tok [idToka]: vsebina ali napaka (UsenetPravila.NAPAKA_INDEKSATOR, kljuc, meja). Z delovne niti. */
     fun nzb(idToka: String): Pair<ByteArray?, String> {
         val povezava = synchronized(povezave) { povezave[idToka] } ?: return null to UsenetPravila.NAPAKA_INDEKSATOR
+        // Pregled Grok 36, D5 (namizje ca50504 - isto vedenje): preusmeritvam ne sledi HttpURLConnection sam - vsak skok
+        // preveri UsenetPravila.dovoljenSkok (z interneta nikoli v domace omrezje, s https nikoli na http).
+        var naslov = povezava
+        repeat(UsenetPravila.NAJVEC_SKOKOV + 1) {
+            val (izid, naprej) = nzbSkok(povezava, naslov)
+            if (naprej == null) return izid
+            naslov = naprej
+        }
+        Log.i(TAG, "nzb: prevec preusmeritev"); return null to UsenetPravila.NAPAKA_INDEKSATOR
+    }
+
+    /** En skok prenosa NZB: (izid, null) ali (_, naslov naslednjega dovoljenega skoka). Naslov ne gre v dnevnik. */
+    private fun nzbSkok(povezava: String, naslov: String): Pair<Pair<ByteArray?, String>, String?> {
+        val zavrni = (null as ByteArray?) to UsenetPravila.NAPAKA_INDEKSATOR
         return try {
-            val p = URL(povezava).openConnection() as HttpURLConnection
+            val p = URL(naslov).openConnection() as HttpURLConnection
             try {
                 p.connectTimeout = 10_000; p.readTimeout = 30_000
-                p.instanceFollowRedirects = true
+                p.instanceFollowRedirects = false
                 val koda = p.responseCode
+                if (koda in 300..399) {
+                    val kam = p.getHeaderField("Location")?.let { try { URL(URL(naslov), it).toString() } catch (_: Exception) { null } }
+                    if (kam == null || !UsenetPravila.dovoljenSkok(naslov, kam)) { Log.i(TAG, "nzb: preusmeritev zavrnjena"); return zavrni to null }
+                    return zavrni to kam
+                }
+                val istiGostitelj = try { URL(naslov).host.equals(URL(povezava).host, ignoreCase = true) } catch (_: Exception) { false }
                 // Pregled A11: NZB nad mejo je napaka (prej tiho odrezan - TorBox bi dobil pokvarjeno datoteko).
                 if (koda in 200..299 && UsenetPravila.nzbPrevelik(p.contentLengthLong)) {
-                    Log.i(TAG, "nzb: prevelik (${p.contentLengthLong} B)"); return null to UsenetPravila.NAPAKA_INDEKSATOR
+                    Log.i(TAG, "nzb: prevelik (${p.contentLengthLong} B)"); return zavrni to null
                 }
                 val vhod = if (koda in 200..299) p.inputStream else p.errorStream
                 val prebrano = if (vhod == null) ByteArray(0) else vhod.use { beriDo(it, UsenetPravila.NAJVEC_NZB_BAJTOV) }
-                if (prebrano == null) { Log.i(TAG, "nzb: prevelik"); return null to UsenetPravila.NAPAKA_INDEKSATOR }
+                if (prebrano == null) { Log.i(TAG, "nzb: prevelik"); return zavrni to null }
                 val telo: ByteArray = prebrano
                 val zacetek = String(telo, 0, minOf(telo.size, 4_096), Charsets.UTF_8)
                 when {
-                    koda in 200..299 && UsenetPravila.jeNzb(zacetek) -> telo to ""
+                    koda in 200..299 && UsenetPravila.jeNzb(zacetek) -> (telo to "") to null
                     else -> {
-                        val n = UsenetPravila.napakaNzb(koda, zacetek)
+                        val n = UsenetPravila.napakaNzb(koda, zacetek, istiGostitelj)
                         Log.i(TAG, "nzb: HTTP $koda, napaka $n")
-                        null to n
+                        ((null as ByteArray?) to n) to null
                     }
                 }
             } finally { p.disconnect() }
         } catch (e: Exception) {
-            Log.w(TAG, "nzb: ${e.javaClass.simpleName}"); null to UsenetPravila.NAPAKA_INDEKSATOR
+            Log.w(TAG, "nzb: ${e.javaClass.simpleName}"); zavrni to null
         }
     }
 
@@ -326,6 +346,8 @@ object Usenet {
         val p = URL(naslov).openConnection() as HttpURLConnection
         try {
             p.connectTimeout = minOf(UsenetPravila.ISKANJE_POVEZAVA_MS, rokMs); p.readTimeout = rokMs
+            // AGENTS.md (zahteve s kljucem ne sledijo preusmeritvam) in namizje: iskanje nosi kljuc v naslovu - 3xx ni zadetkov.
+            p.instanceFollowRedirects = false
             p.setRequestProperty("Accept", "application/rss+xml, application/xml, text/xml")
             val koda = p.responseCode
             if (p.contentLengthLong > najvec) return null
