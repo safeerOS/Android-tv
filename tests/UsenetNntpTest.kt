@@ -322,7 +322,7 @@ fun main() {
                 preveriEnako("po napakah spet dela", "OK", izid { k.body(ID) })
                 val pred = k.odprtoSkupaj
                 s.napakaBody = "400 Idle timeout, closing connection"
-                preveriEnako("400 na prosti povezavi: nov poskus, nato ZASEDEN", "ZASEDEN", izid { k.body(ID) })
+                preveriEnako("400 na prosti povezavi (zapira): nov poskus, nato OMREZJE", "OMREZJE", izid { k.body(ID) })
                 preveriEnako("400: ena nova povezava", pred + 1, k.odprtoSkupaj)
                 s.napakaBody = null
             }
@@ -343,7 +343,7 @@ fun main() {
             println("prevelik clanek")
             s.clanki["velik@lazni.invalid"] = ByteArray(UsenetNntp.NAJVEC_TELESA + 10) { 'k'.code.toByte() }
             UsenetNntp(nastavitve(s.vrata), prava.zaupaj).use { k ->
-                preveriEnako("vec kot 16 MiB -> NAPAKA_PROTOKOLA", "NAPAKA_PROTOKOLA", izid { k.body("velik@lazni.invalid") })
+                preveriEnako("vec kot NAJVEC_TELESA -> NAPAKA_PROTOKOLA", "NAPAKA_PROTOKOLA", izid { k.body("velik@lazni.invalid") })
             }
             s.clanki.remove("velik@lazni.invalid")
 
@@ -392,7 +392,7 @@ fun main() {
             s.pozdrav = "502 Too many connections"
             UsenetNntp(nastavitve(s.vrata), prava.zaupaj).use { k -> preveriEnako("pozdrav 502 -> ZASEDEN", "ZASEDEN", izid { k.body(ID) }) }
             s.pozdrav = "400 Service temporarily unavailable"
-            UsenetNntp(nastavitve(s.vrata), prava.zaupaj).use { k -> preveriEnako("pozdrav 400 -> ZASEDEN", "ZASEDEN", izid { k.body(ID) }) }
+            UsenetNntp(nastavitve(s.vrata), prava.zaupaj).use { k -> preveriEnako("pozdrav 400 (zacasno) -> NAPAKA_STREZNIKA", "NAPAKA_STREZNIKA", izid { k.body(ID) }) }
         }
         UsenetNntp(nastavitve(1), prava.zaupaj).use { k ->
             preveriEnako("ni streznika -> OMREZJE", "OMREZJE", izid { k.body(ID) })

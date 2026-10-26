@@ -1,6 +1,6 @@
 {
- "opis": "Lasten pogon Usenet (lastnik 25. 10. 2026 22:10, korak 1): skupni primeri za Safeer-linux (tests/test_skupni_primeri.py; core/usenet_yenc.py, usenet_nzb.py, usenet_nntp.py) in Android-tv (Kotlin). Lastnik datoteke je Safeer-linux; spremeni jo povsod hkrati. Bajti so base64 (standardni, s polnilom); null = ni vrednosti. Message-id so izmisljeni (.invalid). Pricakovani izidi niso iz nase kode: podatki so izvorni bajti, CRC32 iz zlib (outputs/skupni-primeri-osnutek/ustvari-usenet-pogon.py). PRAVILA - yenc_dekodiraj(telo po NNTP brez podvojenih pik): prva vrstica, ki se ZACNE z '=ybegin ' (prej prazne vrstice in besedilo dovoljeni; sicer ni_yenc); vrednosti kljuc=vrednost, name= je zadnji in sega do konca vrstice (ime gre skozi varno_ime, UTF-8, sicer latin-1); size obvezen (sicer napaka_oblike); ce je part, mora naslednja vrstica biti '=ypart ' z begin in end, 1<=begin<=end<=size (sicer napaka_oblike); del (end-begin+1 ali size) > 16 MiB = prevelik PRED dekodiranjem; podatki do prve vrstice '=yend ' (ni je = prirezano). Dekodiranje: CR in LF se izpustita POVSOD (tudi med ubeznikom '=' in ubeznim znakom - ubeznik na koncu vrstice velja za prvi znak naslednje), ubezni znak c -> (c-106)&255 (tudi '==' -> 211), drugi c -> (c-42)&255; osamljen '=' na koncu podatkov se izpusti; ubezni znak zato nikoli ni CR/LF. Pred dekodiranjem: =yend brez size ali s part, razlicnim od =ybegin part (ce sta oba), = napaka_oblike. Nato: dolzina razlicna od =yend size ali od pricakovane (end-begin+1 oz. size) = napaka_velikosti; pcrc32 (ce je), sicer pri enodelnem crc32 (ce je), sestnajstisko 1-8 znakov, velike ali male crke (neveljaven zapis = napaka_oblike), razlicen od CRC32 podatkov = napaka_crc; crc32 cele datoteke pri vecdelnem se ne preverja (crc_preverjen false, ce ni pcrc32). Izhod: zacetek 1-based (enodelni 1), konec = zacetek+dolzina-1, crc32 = 8 malih sestnajstiskih CRC32 podatkov. nntp_telo(bajti po statusni vrstici): konec je vrstica '.' (CRLF strogo); do nje: vrstica, ki se zacne z '..', izgubi eno piko, druge ostanejo; null, ce konca ni; ostanek = bajti po koncu. yenc_iz_nntp = nntp_telo + yenc_dekodiraj (null -> prirezano). nntp_izid(ukaz, vrstica): koda = prvi trije znaki, ce so stevke s prvo 1-5 in jim sledi presledek ali konec (sicer napaka_protokola). Pricakovano ok: POZDRAV 200/201, AUTHINFO USER 281 (381 = geslo), AUTHINFO PASS 281, ARTICLE 220, HEAD 221, BODY 222, STAT 223, QUIT 205. Sicer: 400/481/482/502 z besedilom, ki vsebuje 'connection' (male/velike) = zaseden; 423/430 pri ARTICLE/HEAD/BODY/STAT = ni_clanka; 480/481/482 = prijava; 502 pri AUTHINFO = prijava; 400 in 502 = zaseden; 403 = napaka_streznika; 205 = zaprto; vse drugo = napaka_protokola. nntp_id: obrezi presledke, odstrani EN par '<' '>' na robu; veljaven, ce 1-248 znakov ASCII 0x21-0x7E brez '<' in '>' (sicer null) - nikoli ukaz s CR/LF. varno_ime: '\\\\' -> '/', del za zadnjo '/'; po KODNIH TOCKAH: crka (kategorija L*), stevka Nd ali eden od \" ._-()[]+,!&'#@~\" ostane, vse drugo '_'; nad 200 kodnih tock: ce je zadnja pika v zadnjih 10 znakih (koncnica do 9 znakov), obdrzi koncnico in skrajsaj osnovo na 200, sicer prvih 200; nato obrezi presledke in pike na koncu ter presledke na zacetku; prazno = null; osnova pred prvo piko (male/velike) CON PRN AUX NUL COM1-9 LPT1-9 dobi '_' spredaj. nzb_ime(subject): prvi neprazen niz v dvojnih narekovajih, sicer zadnja beseda s piko po odstranitvi '(a/b)' in besede yEnc; nato varno_ime. nzb_razcleni(bajti): > 20 MiB = prevelik; bajt NUL = napaka_xml; BOM UTF-8 se odstrani; encoding iz XML deklaracije (utf-8, utf8, us-ascii, ascii = UTF-8; iso-8859-1, iso_8859-1, latin1, latin-1 = ISO-8859-1; brez = UTF-8; drugo = napaka_xml), napacen UTF-8 se zamenja z U+FFFD; '<!' + ENTITY/ELEMENT/ATTLIST/NOTATION kjerkoli (tudi v komentarju) = zavrnjeno_dtd; dovoljen je najvec en '<!DOCTYPE nzb' (velike crke) brez notranjega dela: brez identifikatorja, PUBLIC \"..\" \"..\" ali SYSTEM \"..\" (narekovaji ' ali \", brez [ ] < > v nizu) - se ne nalaga, odstrani se pred razclenitvijo; vsak drug DOCTYPE = zavrnjeno_dtd; napaka XML ali nedefinirana entiteta = napaka_xml; koren (brez imenskega prostora) ni nzb = ni_nzb. head/meta: title (presledki strnjeni, najvec 200) = naslov, neprazen password = ima_geslo (geslo se ne izpise). Samo neposredni otroci korena <file>: subject -> ime (nzb_ime), skupine = neprazne obrezane <group> do 200 znakov, najvec 50; segment: number 1-6 stevk 0-9 z vrednostjo 1-200000 (sicer izpuscen), bytes 1-9 stevk 0-9 (sicer 0), id = nntp_id (null = izpuscen), dvojnik stevilke med veljavnimi: prvi ostane; segmenti po stevilki; manjka = max(b iz zadnjega '(a/b)' v subject, ce 1<=b<=200000, najvecja stevilka) - stevilo segmentov; datoteka brez segmentov se izpusti; vec kot 5000 <file>, 500000 <segment> ali 1000000 elementov skupaj = prevelik (sproti, pred koncem dokumenta); brez datotek = prazen. bajtov_nzb je vsota bytes (velikost clankov, NE dekodiranih podatkov - odmike da glava yEnc). Verzija 2 (25. 10. 2026 22:55, po preizkusih na namizju): samostojen CR sredi vrstice yEnc se izpusti (nov primer), meja nzb_elementov, pojasnjeno: us-ascii = UTF-8, =yend part se primerja samo, ce ga ima tudi =ybegin, dvojnik segmenta samo med veljavnimi. Pricakovani izidi v1 so nespremenjeni.",
- "verzija": 2,
+ "opis": "Lasten pogon Usenet (lastnik 25. 10. 2026 22:10, korak 1): skupni primeri za Safeer-linux (tests/test_skupni_primeri.py; core/usenet_yenc.py, usenet_nzb.py, usenet_nntp.py) in Android-tv (Kotlin). Lastnik datoteke je Safeer-linux; spremeni jo povsod hkrati. Bajti so base64 (standardni, s polnilom); null = ni vrednosti. Message-id so izmisljeni (.invalid). Pricakovani izidi niso iz nase kode: podatki so izvorni bajti, CRC32 iz zlib (outputs/skupni-primeri-osnutek/ustvari-usenet-pogon.py). PRAVILA - yenc_dekodiraj(telo po NNTP brez podvojenih pik): prva vrstica, ki se ZACNE z '=ybegin ' (prej prazne vrstice in besedilo dovoljeni; sicer ni_yenc); vrednosti kljuc=vrednost, name= je zadnji in sega do konca vrstice (ime gre skozi varno_ime, UTF-8, sicer latin-1); size obvezen (sicer napaka_oblike); ce je part, mora naslednja vrstica biti '=ypart ' z begin in end, 1<=begin<=end<=size (sicer napaka_oblike); del (end-begin+1 ali size) > meja del_bajtov = prevelik PRED dekodiranjem; podatki do prve vrstice '=yend ' (ni je = prirezano). Dekodiranje: CR in LF se izpustita POVSOD (tudi med ubeznikom '=' in ubeznim znakom - ubeznik na koncu vrstice velja za prvi znak naslednje), ubezni znak c -> (c-106)&255 (tudi '==' -> 211), drugi c -> (c-42)&255; osamljen '=' na koncu podatkov se izpusti; ubezni znak zato nikoli ni CR/LF. Pred dekodiranjem: =yend brez size ali s part, razlicnim od =ybegin part (ce sta oba), = napaka_oblike. Nato: dolzina razlicna od =yend size ali od pricakovane (end-begin+1 oz. size) = napaka_velikosti; pcrc32 (ce je), sicer pri enodelnem crc32 (ce je), sestnajstisko 1-8 znakov, velike ali male crke (neveljaven zapis = napaka_oblike), razlicen od CRC32 podatkov = napaka_crc; crc32 cele datoteke pri vecdelnem se ne preverja (crc_preverjen false, ce ni pcrc32). Izhod: zacetek 1-based (enodelni 1), konec = zacetek+dolzina-1, crc32 = 8 malih sestnajstiskih CRC32 podatkov. nntp_telo(bajti po statusni vrstici): konec je vrstica '.' (CRLF strogo); do nje: vrstica, ki se zacne z '..', izgubi eno piko, druge ostanejo; null, ce konca ni; ostanek = bajti po koncu. yenc_iz_nntp = nntp_telo + yenc_dekodiraj (null -> prirezano). nntp_izid(ukaz, vrstica): koda = prvi trije znaki, ce so stevke s prvo 1-5 in jim sledi presledek ali konec (sicer napaka_protokola). Pricakovano ok: POZDRAV 200/201, AUTHINFO USER 281 (381 = geslo), AUTHINFO PASS 281, ARTICLE 220, HEAD 221, BODY 222, STAT 223, QUIT 205 (v3 spodaj nadomesti ostala pravila nntp_izid). nntp_id: obrezi presledke, odstrani EN par '<' '>' na robu; veljaven, ce 1-248 znakov ASCII 0x21-0x7E brez '<' in '>' (sicer null) - nikoli ukaz s CR/LF. varno_ime: '\\\\' -> '/', del za zadnjo '/'; po KODNIH TOCKAH: crka (kategorija L*), stevka Nd ali eden od \" ._-()[]+,!&'#@~\" ostane, vse drugo '_'; nad 200 kodnih tock: ce je zadnja pika v zadnjih 10 znakih (koncnica do 9 znakov), obdrzi koncnico in skrajsaj osnovo na 200, sicer prvih 200; nato obrezi presledke in pike na koncu ter presledke na zacetku; prazno = null; osnova pred prvo piko (male/velike) CON PRN AUX NUL COM1-9 LPT1-9 dobi '_' spredaj. nzb_ime(subject): prvi neprazen niz v dvojnih narekovajih, sicer zadnja beseda s piko po odstranitvi '(a/b)' in besede yEnc; nato varno_ime. nzb_razcleni(bajti): > 20 MiB = prevelik; bajt NUL = napaka_xml; BOM UTF-8 se odstrani; encoding iz XML deklaracije (utf-8, utf8, us-ascii, ascii = UTF-8; iso-8859-1, iso_8859-1, latin1, latin-1 = ISO-8859-1; brez = UTF-8; drugo = napaka_xml), napacen UTF-8 se zamenja z U+FFFD; '<!' + ENTITY/ELEMENT/ATTLIST/NOTATION kjerkoli (tudi v komentarju) = zavrnjeno_dtd; dovoljen je najvec en '<!DOCTYPE nzb' (velike crke) brez notranjega dela: brez identifikatorja, PUBLIC \"..\" \"..\" ali SYSTEM \"..\" (narekovaji ' ali \", brez [ ] < > v nizu) - se ne nalaga, odstrani se pred razclenitvijo; vsak drug DOCTYPE = zavrnjeno_dtd; napaka XML ali nedefinirana entiteta = napaka_xml; koren (brez imenskega prostora) ni nzb = ni_nzb. head/meta: title (presledki strnjeni, najvec 200) = naslov, neprazen password = ima_geslo (geslo se ne izpise). Samo neposredni otroci korena <file>: subject -> ime (nzb_ime), skupine = neprazne obrezane <group> do 200 znakov, najvec 50; segment: number 1-6 stevk 0-9 z vrednostjo 1-200000 (sicer izpuscen), bytes 1-9 stevk 0-9 (sicer 0), id = nntp_id (null = izpuscen), dvojnik stevilke med veljavnimi: prvi ostane; segmenti po stevilki; manjka = max(b iz zadnjega '(a/b)' v subject, ce 1<=b<=200000, najvecja stevilka) - stevilo segmentov; datoteka brez segmentov se izpusti; vec kot 5000 <file>, 500000 <segment> ali 1000000 elementov skupaj = prevelik (sproti, pred koncem dokumenta); brez datotek = prazen. bajtov_nzb je vsota bytes (velikost clankov, NE dekodiranih podatkov - odmike da glava yEnc). Verzija 2 (25. 10. 2026 22:55, po preizkusih na namizju): samostojen CR sredi vrstice yEnc se izpusti (nov primer), meja nzb_elementov, pojasnjeno: us-ascii = UTF-8, =yend part se primerja samo, ce ga ima tudi =ybegin, dvojnik segmenta samo med veljavnimi. Pricakovani izidi v1 so nespremenjeni. Verzija 3 (26. 10. 2026, pregleda Grok 35 in 37; lastnik 03:05 »Nevarnost zaklepa racuna je prioriteta«). nntp_izid(ukaz, vrstica, prijava_uspela=false): koda ni veljavna = napaka_protokola, pri AUTHINFO USER/PASS pa prijava. zaklep(besedilo po kodi, male crke) = vsebuje enega od 'lock', 'ban', 'block', 'attempt', 'suspend', 'expire', 'disable'. meja_povezav(besedilo) = ne zaklep IN ne vsebuje 'fail', 'pass', 'invalid', 'incorrect', 'wrong' IN (vsebuje 'connection limit' ali ('connections' in enega od 'too many', 'limit', 'max', 'exceed', 'no more')) - dvom = zavrnjena prijava, nikoli ponovitev. Vrstni red: pricakovano = ok; AUTHINFO USER 381 = geslo; koda 400/480/481/482/502 in meja_povezav = zaseden; AUTHINFO USER/PASS: ce prijava_uspela (prijava z istimi poverilnicami je v bazenu ze uspela in prijavljena povezava je odprta) in koda 480/481/502 in ne zaklep = zaseden (ponudnik: prevec povezav = napaka prijave 480); vse drugo = prijava (RFC 4643: 481 zavrnjeno, 482 vrstni red, 502 ni dovoljeno); prijava_uspela velja samo za AUTHINFO; 423/430 pri ARTICLE/HEAD/BODY/STAT = ni_clanka; 480/481/482 = prijava; POZDRAV 400 = napaka_streznika (zacasno); 400 = zaprto (streznik zapira povezavo); 502 = dostop (RFC 3977: trajno ali brez pravic - bazen se ustavi); 403 = napaka_streznika; 205 = zaprto; drugo = napaka_protokola. nntp_ukrep(izid, faza, stara, poskus) - faza: povezava (TCP, TLS, pozdrav; nic AUTHINFO), prijava (od poslanega AUTHINFO USER do 281), ukaz (BODY/STAT na prijavljeni povezavi); stara = povezava iz bazena; poskus 0 ali 1. Ukrepi: vrni (povezava nazaj v bazen), znova (drugi poskus VEDNO z novo povezavo), napaka, zmanjsaj_pocakaj (bazen in premor po nntp_premor; zahteva caka prosto obstojeco povezavo ali konec premora), pocakaj (premor brez zmanjsanja), neznana_prijava (prijava brez odgovora: premor; druga zapored = ustavi_racun), ustavi_racun (zavrnjena prijava: vse povezave zaprte, nobenega AUTHINFO vec za te poverilnice, dokler jih uporabnik ne vpise znova), ustavi_bazen (dostop ali potrdilo). Pravilo je v primerih (cela tabela). Bazen odpira nove povezave eno za drugo (sonda), dokler ena prijava ne uspe in je kaksna prijavljena povezava odprta - zato zavrnjeno geslo pride do streznika najvec enkrat tudi pri 8 hkratnih zahtevah (nntp_sme_odpreti). nntp_premor(najvec, odprtih = DRUGE prijavljene odprte povezave, premor_s = prejsnji premor ali 0, tece = premor se ni potekel, zmanjsaj): najvec' = max(1, min(najvec, odprtih)), ce zmanjsaj; premor' = premor_s, ce tece; sicer min(300, 2*premor_s), ce premor_s > 0, sicer 10 (so druge odprte) ali 60 (ni nobene); uspesno odprta povezava premor ponastavi in najvec = max(najvec, prijavljenih) do zgornje meje (te je streznik sprejel - hkratna zavrnitev, ko ta se ni bila prijavljena, bazena ne skrci pod njih). Prosta povezava ostane v bazenu samo, ce je prijavljenih manj kot najvec (povezave v odpiranju se ne stejejo). Zmanjsan bazen po rast_bazena_s brez nove meje dobi eno mesto nazaj (do meje, ki jo nastavi klicatelj - proracun povezav med napravami kroga je korak 3). Prosta povezava, nedejavna vec kot prosta_najdlje_s, se zapre. nntp_poverilnica: 1-400 bajtov UTF-8 (brez osamljenih nadomestnih znakov), noben znak pod 0x20 in 0x7F. nntp_id_odgovora(vrstica, id): prvi '<' in za njim prvi '>' - vsebina vmes mora biti enaka id (velike/male crke locene); brez para = true. Neujemanje = napaka_protokola, povezava se zapre. Bajti za koncem bloka (ostanek) = povezava se zapre (ne v bazen). yenc_dekodiraj: size, begin, end samo 1-12 stevk 0-9; part, total samo 1-9 stevk 0-9 in >= 1; part <= total, ce sta oba; =yend size obvezen in stevilo; =yend part, ce je, stevilo (in enak =ybegin part, ce sta oba); vsako navedeno polje pcrc32/crc32 mora biti veljavno sestnajstisko (tudi, ce se ne preverja); del > 4 MiB = prevelik. varno_ime: najprej NFC; po meji 200 kodnih tock se ime skrajsa se na najvec 240 bajtov UTF-8 (koncnica do 9 znakov ostane, osnova se krajsa po kodnih tockah); po obrezovanju vodilna pika postane '_' (skrita datoteka). nzb_razcleni: dovoljeni DOCTYPE se NADOMESTI s presledki enake dolzine (ne odstrani); ce nato kjerkoli ostane '<!' in crka A-Z/a-z = zavrnjeno_dtd (lepljenje ne more sestaviti novega DOCTYPE). Steje vsak <file> pod korenom in vsak <segment> kjerkoli (tudi neveljaven). Skupina velja, ce ima po obrezovanju 1-200 znakov, vsi iz %x22-29, %x2B, %x2D-3E, %x40-5A, %x5E-7E (RFC 3977 wildmat-exact, samo ASCII); druge se izpustijo. Naslov: vsak od ' ', TAB, LF, CR, FF, VT je presledek, znaki kategorij Cc in Cf se odstranijo, zaporedni presledki strnjeni, obrezano, najvec 200 kodnih tock. Napacen UTF-8 da U+FFFD, stevilo pa ni enako (izmerjeno 26. 10.: Python 3.12 za E2 82 / C0 AF / ED A0 80 da 1+2+3, Java 17 skupaj 3 - vpliva samo na stevilo '_' v imenu iz pokvarjenega NZB, ni primera). Koren s predpono velja le z navedenim imenskim prostorom (brez njega ni enako na obeh straneh - ni primera).",
+ "verzija": 3,
  "primeri": [
   {
    "f": "yenc_dekodiraj",
@@ -546,7 +546,7 @@
   {
    "f": "yenc_dekodiraj",
    "vhod": {
-    "opis": "del vecji od meje (16 MiB) - zavrnjen pred dekodiranjem",
+    "opis": "del vecji od meje - zavrnjen pred dekodiranjem",
     "telo_b64": "PXliZWdpbiBwYXJ0PTEgbGluZT0xMjggc2l6ZT0yMDAwMDAwMCBuYW1lPWENCj15cGFydCBiZWdpbj0xIGVuZD0yMDAwMDAwMA0KKw0KPXllbmQgc2l6ZT0xIHBhcnQ9MQ0K"
    },
    "izhod": {
@@ -561,6 +561,116 @@
    },
    "izhod": {
     "izid": "prevelik"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "enodelni za en bajt vecji od meje 4 MiB",
+    "telo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPTQxOTQzMDUgbmFtZT1hDQorDQo9eWVuZCBzaXplPTENCg=="
+   },
+   "izhod": {
+    "izid": "prevelik"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "size s predznakom +",
+    "telo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPSsxIG5hbWU9YQ0KKw0KPXllbmQgc2l6ZT0xDQo="
+   },
+   "izhod": {
+    "izid": "napaka_oblike"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "size s 13 stevkami",
+    "telo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPTAwMDAwMDAwMDAwMDEgbmFtZT1hDQorDQo9eWVuZCBzaXplPTENCg=="
+   },
+   "izhod": {
+    "izid": "napaka_oblike"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "part=0",
+    "telo_b64": "PXliZWdpbiBwYXJ0PTAgdG90YWw9MyBsaW5lPTEyOCBzaXplPTEwIG5hbWU9YQ0KPXlwYXJ0IGJlZ2luPTEgZW5kPTEwDQpaW1xdXl9gYWJjDQo9eWVuZCBzaXplPTEwIHBhcnQ9MCBwY3JjMzI9YTY4NGM3YzYNCg=="
+   },
+   "izhod": {
+    "izid": "napaka_oblike"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "total=0",
+    "telo_b64": "PXliZWdpbiBwYXJ0PTEgdG90YWw9MCBsaW5lPTEyOCBzaXplPTEwIG5hbWU9YQ0KPXlwYXJ0IGJlZ2luPTEgZW5kPTEwDQpaW1xdXl9gYWJjDQo9eWVuZCBzaXplPTEwIHBhcnQ9MSBwY3JjMzI9YTY4NGM3YzYNCg=="
+   },
+   "izhod": {
+    "izid": "napaka_oblike"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "part vecji od total",
+    "telo_b64": "PXliZWdpbiBwYXJ0PTQgdG90YWw9MyBsaW5lPTEyOCBzaXplPTMwMDAgbmFtZT1hDQo9eXBhcnQgYmVnaW49MTAwMSBlbmQ9MjAwMA0Kk1jIz6WE34jcki8awLuemr+kNuTuwPsmccl3oxszXfF/E01TYNovudredWN4/37TaUKcgj19/IxiQB8yBDG40cPwk35HVYWVeGBog5uq4F42T0Q09Cfl3Z85jTokK2A14+aDJshopKcFZ2kSXDCDf5y3oXbOhVP2X/C8XcAudikNClnY1D/9Ubm7nvSQKrfOZ2itCTNxhYNc+YGRFeAdYt9838UZg4u1/HOv/449SrHYT4DLR9FXBxkqs5FQ8CoPET1A1GQgAfUIkRm5K4Sfnxyb8jY203mi1qwygVVGikhwVY+6pr1AylljMhafDLvgy8ss2W6ZrY3Eu4SrJm16NahbDQqfpv0XlG+HqFNfRToTN/EbTuB2sPYSNSm9tdVuYY+OIPlNo5MGMVTksCHz6bGUpROH87n8BTfgSZXOpkBfBrZ7sUi71OKTyUKhWVHHCwz2L8SW2gTuV8BsKOM9QEF5PUA8G4kwK9k2dPstpAPuRiKz5m9F8X/kEMLMZgQd1eRffA0KkNp+CP75pCWgtnpiMShL+HvThenpB2aoOkvpBZKXPE2rUK+IU3mXfdMDT3Z1YnH9I3GSLcWOAfbNyEfKc3qGUWD6NvLyFAxGozvwSIdYsE0e5tB/J+/nNNXRBLh79yQzQQQ1NTtWcDdMtVl7hHEjvt79bc9mt67Yuc5KyxDgsisNCvC3za32Y6IXqKtYLXyrRThF+guwZlqgS7/Q3q+qDm34O0AtNEt+KQtNwowGW2LnEcxm9R8qNjUDlsWZU44hmRhUrWoxkptRZng+HBJkmjIiB2rEL7RfoJ6KUO9rVM5+PU1u9ZakMpLshvA7DM5CrFE8Qg+uHaaQz6A8v0fk+livDQqI0Qz8pY34Ox6E9rc7jgeLXkJ8gzVi5qoYxdUBuE1mZIg8PUBT77ZFoykYy4f6VovpEI/r1M6WKK8sDhgZmKxplsuE3cL7QxChiTJqcjNMnd3kh6xtGZ0FHlaoousHZyW3efWf5Ez8TuosV/Szx1AdUav93Rh7DH7qZ4+5RvWabw0KR2Rv7lH854MjU+2mErfTjYqUpp4xP181d7ZtthhmxS2JvTZIabAaWbRKa9bt+drHWfDgjJNPmH95oV5CLItdVXVSKqfoYgty/pA4PCXbRm20uZHla5s9fVIPGHXpzo+UcRDrZAgSPLCwi5+hz17b78SkWKzYUZGmuemH8T1N5rsNCg9MM0HlQl5evwa22ES+p82LxYLuhQiV64ix6dMajKnkp38JaOZoPKcIomZRVYqK48iffvOobC0UVxb881P/Nea1Z62sNcX2izDtTUsCZGwpnWs3/VRDLxq2nyLybLeaUnOR3jiMtn4pDBrpKBheXRSFDQo9eWVuZCBzaXplPTEwMDAgcGFydD00IHBjcmMzMj1iNWUyYThjZA0K"
+   },
+   "izhod": {
+    "izid": "napaka_oblike"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "part z 10 stevkami",
+    "telo_b64": "PXliZWdpbiBwYXJ0PTEwMDAwMDAwMDAgbGluZT0xMjggc2l6ZT0xMCBuYW1lPWENCj15cGFydCBiZWdpbj0xIGVuZD0xMA0KWltcXV5fYGFiYw0KPXllbmQgc2l6ZT0xMCBwYXJ0PTEwMDAwMDAwMDAgcGNyYzMyPWE2ODRjN2M2DQo="
+   },
+   "izhod": {
+    "izid": "napaka_oblike"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "=ypart begin s predznakom +",
+    "telo_b64": "PXliZWdpbiBwYXJ0PTEgbGluZT0xMjggc2l6ZT0zMDAwIG5hbWU9YQ0KPXlwYXJ0IGJlZ2luPSsxIGVuZD0xMDAwDQrHCJWeVJf1xaYJqO+u6xxSvVW1XsnA+uOt77aUU2jb1yetJhXbGZPNJ/3sJUxuexQBV+diMHWaFtP6d4RNW/nJ0qbNnXC+vJGvQvIJHnOlP4DU9S7VI0jlf+s4OGrNaToupBecZB3JyalLl1shUBRWHYY3LLYwYLM9SjcT6A/o1A0K7P+dt1HW+i9AL4VWxYjzOSkXRewVi3WVbsIg42ImSuM6OJQf4BHpdR4nhryZeCWGGuz2zxb6mXjhtZ0xyrKQH51y0iZLBSAdnzxweWn0uVuKGkISFXYbSkOw2jBmkc3+qrL+oYyW1QiziswEMcBGP6ktlVPvOX9DujYW9cSYByUNCrVcCWhntq10F1XHw4gF7yEEFFQslIsEmYmSt82L7Rt0UjdvbPTIyjLHYfhr5vPM4btNHx0MWmhtJV21x06I4o9jA/JTWanExRdJ8OG0catv3/HuPX07bLF/wiXQROpr03Q9fUE2kL6JWtDhbxu7lLozj759S6BF3qvXVfKMgqCZDQqm7gmRP2gzG98WuS+u9ln7Ca1gtrVE8Jwez83qCd7Y2frFYGeWW3VuZsOJ2H/XfiaOqLu5+H8zHrfTmyN53HKAz8ZX8URD1lTHIlM8YkKrUkipC4iP4TQiHGEiD7rBWMJ5KEGZFhmMmnXAtJiB7sKom8Lq8Ftpijxet1vFKOb7ng0KWabc8c/IxGrkbYTl38nA4hlsdj/yJr7dQPDNpK3dLty5n36qRFnfmzEfM5vjFICRG9sZPH+CS+U0UhVIUpWilizQE5HSnqJ2CDX1mnjuR6U2aY32hq75plKBPUAgNj1Nrjc9QBeoLBSYASBRFOvd0S9R1t6y/PKKM5s6dFaT58oNCiqGjvm2ylG7PU0ub4C8anU6oLLyGgtPbyvqecmQF9ThkxcUP1h2SwnFEuEjQ+VczggrGzqdC5zZL6p41fIcxdZdxfOwwLfeaFvdhk98otRyIYNy3IUORW6DKoo3i4M7vxOhmdQa6Ulc3Dz4fBmUbo1cAYxHp+uOCQTahhlK/DiZDQrq9q/AM3mpg47vL1iernB+XxG+bjG0Pm8sWUPgVnrD1Y//zj+VbZ9ndt0vNWxpj+POMtYJ4VivKiMoGE+HPX3L7dOuiervFBggkqqHPU1c/eF3CEjlkoDP+gf4XL4DYNPdu4MQPUpYtYg9QAw9fRNteNWTcV+LivXeN/aT4irQYg0Kcf2DqJPU6p7Mzw93fz1NnUsTSEktqGC7yf/40dg9QIyp4J/PuOwFlpoiWaBC1mmEo++qgn0+qNBYVkQu0sO8wwZD9lq8fwc9Ta14Th++txEISbiduDnrVQ8eAiA9Sjdfx9JQVaTDb/JOvshz2YncvvA9fXTVHvKcxg0KPXllbmQgc2l6ZT0xMDAwIHBhcnQ9MSBwY3JjMzI9NTAyZTM1YjUNCg=="
+   },
+   "izhod": {
+    "izid": "napaka_oblike"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "=yend brez size",
+    "telo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPTEgbmFtZT1hDQorDQo9eWVuZCBjcmMzMj1hNTA1ZGYxYg0K"
+   },
+   "izhod": {
+    "izid": "napaka_oblike"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "=yend part ni stevilo (enodelni)",
+    "telo_b64": "PXliZWdpbiBsaW5lPTEyOCBzaXplPTEgbmFtZT1hDQorDQo9eWVuZCBzaXplPTEgcGFydD14DQo="
+   },
+   "izhod": {
+    "izid": "napaka_oblike"
+   }
+  },
+  {
+   "f": "yenc_dekodiraj",
+   "vhod": {
+    "opis": "vecdelni: pcrc32 velja, crc32 cele datoteke ni sestnajstisko",
+    "telo_b64": "PXliZWdpbiBwYXJ0PTIgdG90YWw9MyBsaW5lPTEyOCBzaXplPTMwMDAgbmFtZT1mLm1rdg0KPXlwYXJ0IGJlZ2luPTEwMDEgZW5kPTIwMDANCpNYyM+lhN+I3JIvGsC7npq/pDbk7sD7JnHJd6MbM13xfxNNU2DaL7na3nVjeP9+02lCnII9ffyMYkAfMgQxuNHD8JN+R1WFlXhgaIObquBeNk9ENPQn5d2fOY06JCtgNePmgybIaKSnBWdpElwwg3+ct6F2zoVT9l/wvF3ALnYpDQpZ2NQ//VG5u570kCq3zmdorQkzcYWDXPmBkRXgHWLffN/FGYOLtfxzr/+OPUqx2E+Ay0fRVwcZKrORUPAqDxE9QNRkIAH1CJEZuSuEn58cm/I2NtN5otasMoFVRopIcFWPuqa9QMpZYzIWnwy74MvLLNluma2NxLuEqyZtejWoWw0Kn6b9F5Rvh6hTX0U6EzfxG07gdrD2EjUpvbXVbmGPjiD5TaOTBjFU5LAh8+mxlKUTh/O5/AU34EmVzqZAXwa2e7FIu9Tik8lCoVlRxwsM9i/EltoE7lfAbCjjPUBBeT1APBuJMCvZNnT7LaQD7kYis+ZvRfF/5BDCzGYEHdXkX3wNCpDafgj++aQloLZ6YjEoS/h704Xp6QdmqDpL6QWSlzxNq1CviFN5l33TA092dWJx/SNxki3FjgH2zchHynN6hlFg+jby8hQMRqM78EiHWLBNHubQfyfv5zTV0QS4e/ckM0EENTU7VnA3TLVZe4RxI77e/W3PZreu2LnOSssQ4LIrDQrwt82t9mOiF6irWC18q0U4RfoLsGZaoEu/0N6vqg5t+DtALTRLfikLTcKMBlti5xHMZvUfKjY1A5bFmVOOIZkYVK1qMZKbUWZ4PhwSZJoyIgdqxC+0X6CeilDva1TOfj1NbvWWpDKS7IbwOwzOQqxRPEIPrh2mkM+gPL9H5PpYrw0KiNEM/KWN+DsehPa3O44Hi15CfIM1YuaqGMXVAbhNZmSIPD1AU++2RaMpGMuH+laL6RCP69TOliivLA4YGZisaZbLhN3C+0MQoYkyanIzTJ3d5IesbRmdBR5WqKLrB2clt3n1n+RM/E7qLFf0s8dQHVGr/d0Yewx+6mePuUb1mm8NCkdkb+5R/OeDI1PtphK3042KlKaeMT9fNXe2bbYYZsUtib02SGmwGlm0SmvW7fnax1nw4IyTT5h/eaFeQiyLXVV1Uiqn6GILcv6QODwl20ZttLmR5WubPX1SDxh16c6PlHEQ62QIEjywsIufoc9e2+/EpFis2FGRprnph/E9Tea7DQoPTDNB5UJeXr8GtthEvqfNi8WC7oUIleuIsenTGoyp5Kd/CWjmaDynCKJmUVWKiuPIn37zqGwtFFcW/PNT/zXmtWetrDXF9osw7U1LAmRsKZ1rN/1UQy8atp8i8my3mlJzkd44jLZ+KQwa6SgYXl0UhQ0KPXllbmQgc2l6ZT0xMDAwIHBhcnQ9MiBwY3JjMzI9YjVlMmE4Y2QgY3JjMzI9eHl6DQo="
+   },
+   "izhod": {
+    "izid": "napaka_oblike"
    }
   },
   {
@@ -704,7 +814,7 @@
     "ukaz": "POZDRAV",
     "vrstica": "400 Service temporarily unavailable"
    },
-   "izhod": "zaseden"
+   "izhod": "napaka_streznika"
   },
   {
    "f": "nntp_izid",
@@ -712,7 +822,7 @@
     "ukaz": "POZDRAV",
     "vrstica": "502 Access denied"
    },
-   "izhod": "zaseden"
+   "izhod": "dostop"
   },
   {
    "f": "nntp_izid",
@@ -760,7 +870,7 @@
     "ukaz": "AUTHINFO PASS",
     "vrstica": "381 PASS required"
    },
-   "izhod": "napaka_protokola"
+   "izhod": "prijava"
   },
   {
    "f": "nntp_izid",
@@ -808,7 +918,7 @@
     "ukaz": "AUTHINFO PASS",
     "vrstica": "430 No such article"
    },
-   "izhod": "napaka_protokola"
+   "izhod": "prijava"
   },
   {
    "f": "nntp_izid",
@@ -920,7 +1030,7 @@
     "ukaz": "BODY",
     "vrstica": "400 Idle timeout, closing connection"
    },
-   "izhod": "zaseden"
+   "izhod": "zaprto"
   },
   {
    "f": "nntp_izid",
@@ -928,7 +1038,7 @@
     "ukaz": "BODY",
     "vrstica": "502 Service permanently unavailable"
    },
-   "izhod": "zaseden"
+   "izhod": "dostop"
   },
   {
    "f": "nntp_izid",
@@ -1025,6 +1135,2143 @@
     "vrstica": "099 x"
    },
    "izhod": "napaka_protokola"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 Authentication failed for this connection"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 Authentication failed: too many connections"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 Too many failed login attempts"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 Connection limit reached, account blocked"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 Invalid password, too many connections"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "482 Too many connections for this account"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "502 Connection limit exceeded"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "502 Maximum number of connections reached"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 No more connections allowed"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 Connections exceeded"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "400 Service temporarily unavailable"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "400 Too many connections"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "500 What?"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "205 Bye"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "abc"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": ""
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO USER",
+    "vrstica": "502 Command unavailable"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO USER",
+    "vrstica": "480 Authentication required"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO USER",
+    "vrstica": "482 Too many connections"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO USER",
+    "vrstica": "481 connection refused"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "POZDRAV",
+    "vrstica": "400 Too many connections, try again later"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "POZDRAV",
+    "vrstica": "502 Too many connections"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "POZDRAV",
+    "vrstica": "502 Too many failed connections from your IP, blocked"
+   },
+   "izhod": "dostop"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "POZDRAV",
+    "vrstica": "481 Authentication required"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "400 Too many connections"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "502 Too many connections"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "400 connection closed"
+   },
+   "izhod": "zaprto"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "STAT",
+    "vrstica": "502 Access restricted"
+   },
+   "izhod": "dostop"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "STAT",
+    "vrstica": "482 Authentication commands out of sequence"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "480 Too many connections"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "480 Authentication required"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "480 Authentication error",
+    "prijava_uspela": true
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 Authentication failed",
+    "prijava_uspela": true
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "502 Authentication failed",
+    "prijava_uspela": true
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO USER",
+    "vrstica": "481 Authentication failed",
+    "prijava_uspela": true
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 Invalid username or password",
+    "prijava_uspela": true
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "482 Authentication commands issued out of sequence",
+    "prijava_uspela": true
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 Account locked",
+    "prijava_uspela": true
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 Too many failed login attempts",
+    "prijava_uspela": true
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "502 Account suspended",
+    "prijava_uspela": true
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 Subscription expired",
+    "prijava_uspela": true
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 IP banned",
+    "prijava_uspela": true
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "500 What?",
+    "prijava_uspela": true
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "400 Service temporarily unavailable",
+    "prijava_uspela": true
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "abc",
+    "prijava_uspela": true
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "281 Ok",
+    "prijava_uspela": true
+   },
+   "izhod": "ok"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "481 Authentication failed",
+    "prijava_uspela": true
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "480 Authentication required",
+    "prijava_uspela": true
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "POZDRAV",
+    "vrstica": "502 Access denied",
+    "prijava_uspela": true
+   },
+   "izhod": "dostop"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "ni_clanka",
+    "faza": "povezava",
+    "stara": false,
+    "poskus": 0
+   },
+   "izhod": "napaka"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "ni_clanka",
+    "faza": "povezava",
+    "stara": false,
+    "poskus": 1
+   },
+   "izhod": "napaka"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "prijava",
+    "faza": "povezava",
+    "stara": false,
+    "poskus": 0
+   },
+   "izhod": "ustavi_racun"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "prijava",
+    "faza": "povezava",
+    "stara": false,
+    "poskus": 1
+   },
+   "izhod": "ustavi_racun"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "zaseden",
+    "faza": "povezava",
+    "stara": false,
+    "poskus": 0
+   },
+   "izhod": "zmanjsaj_pocakaj"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "zaseden",
+    "faza": "povezava",
+    "stara": false,
+    "poskus": 1
+   },
+   "izhod": "zmanjsaj_pocakaj"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "dostop",
+    "faza": "povezava",
+    "stara": false,
+    "poskus": 0
+   },
+   "izhod": "ustavi_bazen"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "dostop",
+    "faza": "povezava",
+    "stara": false,
+    "poskus": 1
+   },
+   "izhod": "ustavi_bazen"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "napaka_streznika",
+    "faza": "povezava",
+    "stara": false,
+    "poskus": 0
+   },
+   "izhod": "pocakaj"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "napaka_streznika",
+    "faza": "povezava",
+    "stara": false,
+    "poskus": 1
+   },
+   "izhod": "pocakaj"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "zaprto",
+    "faza": "povezava",
+    "stara": false,
+    "poskus": 0
+   },
+   "izhod": "napaka"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "zaprto",
+    "faza": "povezava",
+    "stara": false,
+    "poskus": 1
+   },
+   "izhod": "napaka"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "napaka_protokola",
+    "faza": "povezava",
+    "stara": false,
+    "poskus": 0
+   },
+   "izhod": "napaka"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "napaka_protokola",
+    "faza": "povezava",
+    "stara": false,
+    "poskus": 1
+   },
+   "izhod": "napaka"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "omrezje",
+    "faza": "povezava",
+    "stara": false,
+    "poskus": 0
+   },
+   "izhod": "znova"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "omrezje",
+    "faza": "povezava",
+    "stara": false,
+    "poskus": 1
+   },
+   "izhod": "napaka"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "rok",
+    "faza": "povezava",
+    "stara": false,
+    "poskus": 0
+   },
+   "izhod": "napaka"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "rok",
+    "faza": "povezava",
+    "stara": false,
+    "poskus": 1
+   },
+   "izhod": "napaka"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "potrdilo",
+    "faza": "povezava",
+    "stara": false,
+    "poskus": 0
+   },
+   "izhod": "ustavi_bazen"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "potrdilo",
+    "faza": "povezava",
+    "stara": false,
+    "poskus": 1
+   },
+   "izhod": "ustavi_bazen"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "ni_clanka",
+    "faza": "prijava",
+    "stara": false,
+    "poskus": 0
+   },
+   "izhod": "ustavi_racun"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "ni_clanka",
+    "faza": "prijava",
+    "stara": false,
+    "poskus": 1
+   },
+   "izhod": "ustavi_racun"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "prijava",
+    "faza": "prijava",
+    "stara": false,
+    "poskus": 0
+   },
+   "izhod": "ustavi_racun"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "prijava",
+    "faza": "prijava",
+    "stara": false,
+    "poskus": 1
+   },
+   "izhod": "ustavi_racun"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "zaseden",
+    "faza": "prijava",
+    "stara": false,
+    "poskus": 0
+   },
+   "izhod": "zmanjsaj_pocakaj"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "zaseden",
+    "faza": "prijava",
+    "stara": false,
+    "poskus": 1
+   },
+   "izhod": "zmanjsaj_pocakaj"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "dostop",
+    "faza": "prijava",
+    "stara": false,
+    "poskus": 0
+   },
+   "izhod": "ustavi_racun"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "dostop",
+    "faza": "prijava",
+    "stara": false,
+    "poskus": 1
+   },
+   "izhod": "ustavi_racun"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "napaka_streznika",
+    "faza": "prijava",
+    "stara": false,
+    "poskus": 0
+   },
+   "izhod": "ustavi_racun"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "napaka_streznika",
+    "faza": "prijava",
+    "stara": false,
+    "poskus": 1
+   },
+   "izhod": "ustavi_racun"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "zaprto",
+    "faza": "prijava",
+    "stara": false,
+    "poskus": 0
+   },
+   "izhod": "neznana_prijava"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "zaprto",
+    "faza": "prijava",
+    "stara": false,
+    "poskus": 1
+   },
+   "izhod": "neznana_prijava"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "napaka_protokola",
+    "faza": "prijava",
+    "stara": false,
+    "poskus": 0
+   },
+   "izhod": "neznana_prijava"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "napaka_protokola",
+    "faza": "prijava",
+    "stara": false,
+    "poskus": 1
+   },
+   "izhod": "neznana_prijava"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "omrezje",
+    "faza": "prijava",
+    "stara": false,
+    "poskus": 0
+   },
+   "izhod": "neznana_prijava"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "omrezje",
+    "faza": "prijava",
+    "stara": false,
+    "poskus": 1
+   },
+   "izhod": "neznana_prijava"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "rok",
+    "faza": "prijava",
+    "stara": false,
+    "poskus": 0
+   },
+   "izhod": "neznana_prijava"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "rok",
+    "faza": "prijava",
+    "stara": false,
+    "poskus": 1
+   },
+   "izhod": "neznana_prijava"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "potrdilo",
+    "faza": "prijava",
+    "stara": false,
+    "poskus": 0
+   },
+   "izhod": "ustavi_racun"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "potrdilo",
+    "faza": "prijava",
+    "stara": false,
+    "poskus": 1
+   },
+   "izhod": "ustavi_racun"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "ni_clanka",
+    "faza": "ukaz",
+    "stara": false,
+    "poskus": 0
+   },
+   "izhod": "vrni"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "ni_clanka",
+    "faza": "ukaz",
+    "stara": false,
+    "poskus": 1
+   },
+   "izhod": "vrni"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "ni_clanka",
+    "faza": "ukaz",
+    "stara": true,
+    "poskus": 0
+   },
+   "izhod": "vrni"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "ni_clanka",
+    "faza": "ukaz",
+    "stara": true,
+    "poskus": 1
+   },
+   "izhod": "vrni"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "prijava",
+    "faza": "ukaz",
+    "stara": false,
+    "poskus": 0
+   },
+   "izhod": "ustavi_racun"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "prijava",
+    "faza": "ukaz",
+    "stara": false,
+    "poskus": 1
+   },
+   "izhod": "ustavi_racun"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "prijava",
+    "faza": "ukaz",
+    "stara": true,
+    "poskus": 0
+   },
+   "izhod": "ustavi_racun"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "prijava",
+    "faza": "ukaz",
+    "stara": true,
+    "poskus": 1
+   },
+   "izhod": "ustavi_racun"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "zaseden",
+    "faza": "ukaz",
+    "stara": false,
+    "poskus": 0
+   },
+   "izhod": "zmanjsaj_pocakaj"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "zaseden",
+    "faza": "ukaz",
+    "stara": false,
+    "poskus": 1
+   },
+   "izhod": "zmanjsaj_pocakaj"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "zaseden",
+    "faza": "ukaz",
+    "stara": true,
+    "poskus": 0
+   },
+   "izhod": "znova"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "zaseden",
+    "faza": "ukaz",
+    "stara": true,
+    "poskus": 1
+   },
+   "izhod": "zmanjsaj_pocakaj"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "dostop",
+    "faza": "ukaz",
+    "stara": false,
+    "poskus": 0
+   },
+   "izhod": "ustavi_bazen"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "dostop",
+    "faza": "ukaz",
+    "stara": false,
+    "poskus": 1
+   },
+   "izhod": "ustavi_bazen"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "dostop",
+    "faza": "ukaz",
+    "stara": true,
+    "poskus": 0
+   },
+   "izhod": "ustavi_bazen"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "dostop",
+    "faza": "ukaz",
+    "stara": true,
+    "poskus": 1
+   },
+   "izhod": "ustavi_bazen"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "napaka_streznika",
+    "faza": "ukaz",
+    "stara": false,
+    "poskus": 0
+   },
+   "izhod": "znova"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "napaka_streznika",
+    "faza": "ukaz",
+    "stara": false,
+    "poskus": 1
+   },
+   "izhod": "napaka"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "napaka_streznika",
+    "faza": "ukaz",
+    "stara": true,
+    "poskus": 0
+   },
+   "izhod": "znova"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "napaka_streznika",
+    "faza": "ukaz",
+    "stara": true,
+    "poskus": 1
+   },
+   "izhod": "napaka"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "zaprto",
+    "faza": "ukaz",
+    "stara": false,
+    "poskus": 0
+   },
+   "izhod": "napaka"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "zaprto",
+    "faza": "ukaz",
+    "stara": false,
+    "poskus": 1
+   },
+   "izhod": "napaka"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "zaprto",
+    "faza": "ukaz",
+    "stara": true,
+    "poskus": 0
+   },
+   "izhod": "znova"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "zaprto",
+    "faza": "ukaz",
+    "stara": true,
+    "poskus": 1
+   },
+   "izhod": "napaka"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "napaka_protokola",
+    "faza": "ukaz",
+    "stara": false,
+    "poskus": 0
+   },
+   "izhod": "napaka"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "napaka_protokola",
+    "faza": "ukaz",
+    "stara": false,
+    "poskus": 1
+   },
+   "izhod": "napaka"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "napaka_protokola",
+    "faza": "ukaz",
+    "stara": true,
+    "poskus": 0
+   },
+   "izhod": "znova"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "napaka_protokola",
+    "faza": "ukaz",
+    "stara": true,
+    "poskus": 1
+   },
+   "izhod": "napaka"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "omrezje",
+    "faza": "ukaz",
+    "stara": false,
+    "poskus": 0
+   },
+   "izhod": "znova"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "omrezje",
+    "faza": "ukaz",
+    "stara": false,
+    "poskus": 1
+   },
+   "izhod": "napaka"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "omrezje",
+    "faza": "ukaz",
+    "stara": true,
+    "poskus": 0
+   },
+   "izhod": "znova"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "omrezje",
+    "faza": "ukaz",
+    "stara": true,
+    "poskus": 1
+   },
+   "izhod": "napaka"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "rok",
+    "faza": "ukaz",
+    "stara": false,
+    "poskus": 0
+   },
+   "izhod": "napaka"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "rok",
+    "faza": "ukaz",
+    "stara": false,
+    "poskus": 1
+   },
+   "izhod": "napaka"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "rok",
+    "faza": "ukaz",
+    "stara": true,
+    "poskus": 0
+   },
+   "izhod": "znova"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "rok",
+    "faza": "ukaz",
+    "stara": true,
+    "poskus": 1
+   },
+   "izhod": "napaka"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "potrdilo",
+    "faza": "ukaz",
+    "stara": false,
+    "poskus": 0
+   },
+   "izhod": "ustavi_bazen"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "potrdilo",
+    "faza": "ukaz",
+    "stara": false,
+    "poskus": 1
+   },
+   "izhod": "ustavi_bazen"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "potrdilo",
+    "faza": "ukaz",
+    "stara": true,
+    "poskus": 0
+   },
+   "izhod": "ustavi_bazen"
+  },
+  {
+   "f": "nntp_ukrep",
+   "vhod": {
+    "izid": "potrdilo",
+    "faza": "ukaz",
+    "stara": true,
+    "poskus": 1
+   },
+   "izhod": "ustavi_bazen"
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": false,
+    "premor": false,
+    "odprtih": 0,
+    "najvec": 8,
+    "uspela": false,
+    "sonda": false
+   },
+   "izhod": true
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": false,
+    "premor": false,
+    "odprtih": 7,
+    "najvec": 8,
+    "uspela": false,
+    "sonda": false
+   },
+   "izhod": true
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": false,
+    "premor": false,
+    "odprtih": 8,
+    "najvec": 8,
+    "uspela": false,
+    "sonda": false
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": false,
+    "premor": false,
+    "odprtih": 0,
+    "najvec": 8,
+    "uspela": false,
+    "sonda": true
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": false,
+    "premor": false,
+    "odprtih": 7,
+    "najvec": 8,
+    "uspela": false,
+    "sonda": true
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": false,
+    "premor": false,
+    "odprtih": 8,
+    "najvec": 8,
+    "uspela": false,
+    "sonda": true
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": false,
+    "premor": false,
+    "odprtih": 0,
+    "najvec": 8,
+    "uspela": true,
+    "sonda": false
+   },
+   "izhod": true
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": false,
+    "premor": false,
+    "odprtih": 7,
+    "najvec": 8,
+    "uspela": true,
+    "sonda": false
+   },
+   "izhod": true
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": false,
+    "premor": false,
+    "odprtih": 8,
+    "najvec": 8,
+    "uspela": true,
+    "sonda": false
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": false,
+    "premor": false,
+    "odprtih": 0,
+    "najvec": 8,
+    "uspela": true,
+    "sonda": true
+   },
+   "izhod": true
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": false,
+    "premor": false,
+    "odprtih": 7,
+    "najvec": 8,
+    "uspela": true,
+    "sonda": true
+   },
+   "izhod": true
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": false,
+    "premor": false,
+    "odprtih": 8,
+    "najvec": 8,
+    "uspela": true,
+    "sonda": true
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": false,
+    "premor": true,
+    "odprtih": 0,
+    "najvec": 8,
+    "uspela": false,
+    "sonda": false
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": false,
+    "premor": true,
+    "odprtih": 7,
+    "najvec": 8,
+    "uspela": false,
+    "sonda": false
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": false,
+    "premor": true,
+    "odprtih": 8,
+    "najvec": 8,
+    "uspela": false,
+    "sonda": false
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": false,
+    "premor": true,
+    "odprtih": 0,
+    "najvec": 8,
+    "uspela": false,
+    "sonda": true
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": false,
+    "premor": true,
+    "odprtih": 7,
+    "najvec": 8,
+    "uspela": false,
+    "sonda": true
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": false,
+    "premor": true,
+    "odprtih": 8,
+    "najvec": 8,
+    "uspela": false,
+    "sonda": true
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": false,
+    "premor": true,
+    "odprtih": 0,
+    "najvec": 8,
+    "uspela": true,
+    "sonda": false
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": false,
+    "premor": true,
+    "odprtih": 7,
+    "najvec": 8,
+    "uspela": true,
+    "sonda": false
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": false,
+    "premor": true,
+    "odprtih": 8,
+    "najvec": 8,
+    "uspela": true,
+    "sonda": false
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": false,
+    "premor": true,
+    "odprtih": 0,
+    "najvec": 8,
+    "uspela": true,
+    "sonda": true
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": false,
+    "premor": true,
+    "odprtih": 7,
+    "najvec": 8,
+    "uspela": true,
+    "sonda": true
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": false,
+    "premor": true,
+    "odprtih": 8,
+    "najvec": 8,
+    "uspela": true,
+    "sonda": true
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": true,
+    "premor": false,
+    "odprtih": 0,
+    "najvec": 8,
+    "uspela": false,
+    "sonda": false
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": true,
+    "premor": false,
+    "odprtih": 7,
+    "najvec": 8,
+    "uspela": false,
+    "sonda": false
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": true,
+    "premor": false,
+    "odprtih": 8,
+    "najvec": 8,
+    "uspela": false,
+    "sonda": false
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": true,
+    "premor": false,
+    "odprtih": 0,
+    "najvec": 8,
+    "uspela": false,
+    "sonda": true
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": true,
+    "premor": false,
+    "odprtih": 7,
+    "najvec": 8,
+    "uspela": false,
+    "sonda": true
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": true,
+    "premor": false,
+    "odprtih": 8,
+    "najvec": 8,
+    "uspela": false,
+    "sonda": true
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": true,
+    "premor": false,
+    "odprtih": 0,
+    "najvec": 8,
+    "uspela": true,
+    "sonda": false
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": true,
+    "premor": false,
+    "odprtih": 7,
+    "najvec": 8,
+    "uspela": true,
+    "sonda": false
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": true,
+    "premor": false,
+    "odprtih": 8,
+    "najvec": 8,
+    "uspela": true,
+    "sonda": false
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": true,
+    "premor": false,
+    "odprtih": 0,
+    "najvec": 8,
+    "uspela": true,
+    "sonda": true
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": true,
+    "premor": false,
+    "odprtih": 7,
+    "najvec": 8,
+    "uspela": true,
+    "sonda": true
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": true,
+    "premor": false,
+    "odprtih": 8,
+    "najvec": 8,
+    "uspela": true,
+    "sonda": true
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": true,
+    "premor": true,
+    "odprtih": 0,
+    "najvec": 8,
+    "uspela": false,
+    "sonda": false
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": true,
+    "premor": true,
+    "odprtih": 7,
+    "najvec": 8,
+    "uspela": false,
+    "sonda": false
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": true,
+    "premor": true,
+    "odprtih": 8,
+    "najvec": 8,
+    "uspela": false,
+    "sonda": false
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": true,
+    "premor": true,
+    "odprtih": 0,
+    "najvec": 8,
+    "uspela": false,
+    "sonda": true
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": true,
+    "premor": true,
+    "odprtih": 7,
+    "najvec": 8,
+    "uspela": false,
+    "sonda": true
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": true,
+    "premor": true,
+    "odprtih": 8,
+    "najvec": 8,
+    "uspela": false,
+    "sonda": true
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": true,
+    "premor": true,
+    "odprtih": 0,
+    "najvec": 8,
+    "uspela": true,
+    "sonda": false
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": true,
+    "premor": true,
+    "odprtih": 7,
+    "najvec": 8,
+    "uspela": true,
+    "sonda": false
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": true,
+    "premor": true,
+    "odprtih": 8,
+    "najvec": 8,
+    "uspela": true,
+    "sonda": false
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": true,
+    "premor": true,
+    "odprtih": 0,
+    "najvec": 8,
+    "uspela": true,
+    "sonda": true
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": true,
+    "premor": true,
+    "odprtih": 7,
+    "najvec": 8,
+    "uspela": true,
+    "sonda": true
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_sme_odpreti",
+   "vhod": {
+    "ustavljen": true,
+    "premor": true,
+    "odprtih": 8,
+    "najvec": 8,
+    "uspela": true,
+    "sonda": true
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_premor",
+   "vhod": {
+    "najvec": 8,
+    "odprtih": 7,
+    "premor_s": 0,
+    "tece": false,
+    "zmanjsaj": true
+   },
+   "izhod": {
+    "najvec": 7,
+    "premor_s": 10
+   }
+  },
+  {
+   "f": "nntp_premor",
+   "vhod": {
+    "najvec": 8,
+    "odprtih": 3,
+    "premor_s": 0,
+    "tece": false,
+    "zmanjsaj": true
+   },
+   "izhod": {
+    "najvec": 3,
+    "premor_s": 10
+   }
+  },
+  {
+   "f": "nntp_premor",
+   "vhod": {
+    "najvec": 8,
+    "odprtih": 0,
+    "premor_s": 0,
+    "tece": false,
+    "zmanjsaj": true
+   },
+   "izhod": {
+    "najvec": 1,
+    "premor_s": 60
+   }
+  },
+  {
+   "f": "nntp_premor",
+   "vhod": {
+    "najvec": 1,
+    "odprtih": 0,
+    "premor_s": 60,
+    "tece": false,
+    "zmanjsaj": true
+   },
+   "izhod": {
+    "najvec": 1,
+    "premor_s": 120
+   }
+  },
+  {
+   "f": "nntp_premor",
+   "vhod": {
+    "najvec": 5,
+    "odprtih": 4,
+    "premor_s": 160,
+    "tece": false,
+    "zmanjsaj": true
+   },
+   "izhod": {
+    "najvec": 4,
+    "premor_s": 300
+   }
+  },
+  {
+   "f": "nntp_premor",
+   "vhod": {
+    "najvec": 5,
+    "odprtih": 4,
+    "premor_s": 300,
+    "tece": false,
+    "zmanjsaj": true
+   },
+   "izhod": {
+    "najvec": 4,
+    "premor_s": 300
+   }
+  },
+  {
+   "f": "nntp_premor",
+   "vhod": {
+    "najvec": 8,
+    "odprtih": 9,
+    "premor_s": 0,
+    "tece": false,
+    "zmanjsaj": true
+   },
+   "izhod": {
+    "najvec": 8,
+    "premor_s": 10
+   }
+  },
+  {
+   "f": "nntp_premor",
+   "vhod": {
+    "najvec": 2,
+    "odprtih": 2,
+    "premor_s": 10,
+    "tece": true,
+    "zmanjsaj": true
+   },
+   "izhod": {
+    "najvec": 2,
+    "premor_s": 10
+   }
+  },
+  {
+   "f": "nntp_premor",
+   "vhod": {
+    "najvec": 6,
+    "odprtih": 2,
+    "premor_s": 10,
+    "tece": true,
+    "zmanjsaj": true
+   },
+   "izhod": {
+    "najvec": 2,
+    "premor_s": 10
+   }
+  },
+  {
+   "f": "nntp_premor",
+   "vhod": {
+    "najvec": 8,
+    "odprtih": 7,
+    "premor_s": 0,
+    "tece": false,
+    "zmanjsaj": false
+   },
+   "izhod": {
+    "najvec": 8,
+    "premor_s": 10
+   }
+  },
+  {
+   "f": "nntp_premor",
+   "vhod": {
+    "najvec": 8,
+    "odprtih": 0,
+    "premor_s": 0,
+    "tece": false,
+    "zmanjsaj": false
+   },
+   "izhod": {
+    "najvec": 8,
+    "premor_s": 60
+   }
+  },
+  {
+   "f": "nntp_premor",
+   "vhod": {
+    "najvec": 8,
+    "odprtih": 0,
+    "premor_s": 20,
+    "tece": false,
+    "zmanjsaj": false
+   },
+   "izhod": {
+    "najvec": 8,
+    "premor_s": 40
+   }
+  },
+  {
+   "f": "nntp_premor",
+   "vhod": {
+    "najvec": 8,
+    "odprtih": 0,
+    "premor_s": 20,
+    "tece": true,
+    "zmanjsaj": false
+   },
+   "izhod": {
+    "najvec": 8,
+    "premor_s": 20
+   }
+  },
+  {
+   "f": "nntp_premor",
+   "vhod": {
+    "najvec": 50,
+    "odprtih": 49,
+    "premor_s": 0,
+    "tece": false,
+    "zmanjsaj": true
+   },
+   "izhod": {
+    "najvec": 49,
+    "premor_s": 10
+   }
+  },
+  {
+   "f": "nntp_poverilnica",
+   "vhod": {
+    "vrednost": "uporabnik"
+   },
+   "izhod": true
+  },
+  {
+   "f": "nntp_poverilnica",
+   "vhod": {
+    "vrednost": "geslo s presledkom!"
+   },
+   "izhod": true
+  },
+  {
+   "f": "nntp_poverilnica",
+   "vhod": {
+    "vrednost": ""
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_poverilnica",
+   "vhod": {
+    "vrednost": "a\r\nQUIT"
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_poverilnica",
+   "vhod": {
+    "vrednost": "a\tb"
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_poverilnica",
+   "vhod": {
+    "vrednost": "a"
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_poverilnica",
+   "vhod": {
+    "vrednost": "a\u0000b"
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_poverilnica",
+   "vhod": {
+    "vrednost": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   },
+   "izhod": true
+  },
+  {
+   "f": "nntp_poverilnica",
+   "vhod": {
+    "vrednost": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_poverilnica",
+   "vhod": {
+    "vrednost": "čččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččč"
+   },
+   "izhod": true
+  },
+  {
+   "f": "nntp_poverilnica",
+   "vhod": {
+    "vrednost": "čččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččččča"
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_poverilnica",
+   "vhod": {
+    "vrednost": "🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬"
+   },
+   "izhod": true
+  },
+  {
+   "f": "nntp_poverilnica",
+   "vhod": {
+    "vrednost": "🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬🎬a"
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_id_odgovora",
+   "vhod": {
+    "vrstica": "222 0 <a@primer.invalid> body",
+    "id": "a@primer.invalid"
+   },
+   "izhod": true
+  },
+  {
+   "f": "nntp_id_odgovora",
+   "vhod": {
+    "vrstica": "222 0 <b@primer.invalid>",
+    "id": "a@primer.invalid"
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_id_odgovora",
+   "vhod": {
+    "vrstica": "222",
+    "id": "a@primer.invalid"
+   },
+   "izhod": true
+  },
+  {
+   "f": "nntp_id_odgovora",
+   "vhod": {
+    "vrstica": "222 0 a@primer.invalid",
+    "id": "a@primer.invalid"
+   },
+   "izhod": true
+  },
+  {
+   "f": "nntp_id_odgovora",
+   "vhod": {
+    "vrstica": "223 0 <A@primer.invalid>",
+    "id": "a@primer.invalid"
+   },
+   "izhod": false
+  },
+  {
+   "f": "nntp_id_odgovora",
+   "vhod": {
+    "vrstica": "222 0 <a@primer.invalid",
+    "id": "a@primer.invalid"
+   },
+   "izhod": true
+  },
+  {
+   "f": "nntp_id_odgovora",
+   "vhod": {
+    "vrstica": "222 0 <> x",
+    "id": "a@primer.invalid"
+   },
+   "izhod": false
   },
   {
    "f": "nntp_id",
@@ -1312,6 +3559,62 @@
     "ime": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz.kkkkkkkkkkkkkkkkkkkk"
    },
    "izhod": "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz.kkkkkkkkk"
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": ".skrito"
+   },
+   "izhod": "_skrito"
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": "..x.mkv"
+   },
+   "izhod": "_.x.mkv"
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": " .bashrc"
+   },
+   "izhod": "_bashrc"
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": "čas.mkv"
+   },
+   "izhod": "čas.mkv"
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": "q̇.mkv"
+   },
+   "izhod": "q_.mkv"
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": "漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢.mkv"
+   },
+   "izhod": "漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢.mkv"
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": "漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢"
+   },
+   "izhod": "漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢漢"
+  },
+  {
+   "f": "varno_ime",
+   "vhod": {
+    "ime": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé.mkv"
+   },
+   "izhod": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé.mkv"
   },
   {
    "f": "nzb_ime",
@@ -1808,6 +4111,201 @@
    }
   },
   {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "lepljenje: odstranitev DOCTYPE bi sestavila novega z zunanjim DTD",
+    "xml": "<!DOC<!DOCTYPE nzb>TYPE nzb SYSTEM \"http://x.invalid/a.dtd\"><nzb><file subject=\"x.mkv\"><segments><segment bytes=\"1\" number=\"1\">m@primer.invalid</segment></segments></file></nzb>"
+   },
+   "izhod": {
+    "izid": "zavrnjeno_dtd"
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "DOCTYPE z [ v nizu SYSTEM",
+    "xml": "<!DOCTYPE nzb SYSTEM \"a[b.dtd\"><nzb><file subject=\"x.mkv\"><segments><segment bytes=\"1\" number=\"1\">m@primer.invalid</segment></segments></file></nzb>"
+   },
+   "izhod": {
+    "izid": "zavrnjeno_dtd"
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "komentar za DOCTYPE",
+    "xml": "<!DOCTYPE nzb PUBLIC \"-//newzBin//DTD NZB 1.1//EN\" \"http://www.newzbin.com/DTD/nzb/nzb-1.1.dtd\"><!-- k --><nzb><file subject=\"x.mkv\"><segments><segment bytes=\"1\" number=\"1\">m@primer.invalid</segment></segments></file></nzb>"
+   },
+   "izhod": {
+    "izid": "ok",
+    "naslov": null,
+    "ima_geslo": false,
+    "datoteke": [
+     {
+      "ime": "x.mkv",
+      "skupine": [],
+      "bajtov_nzb": 1,
+      "manjka": 0,
+      "segmenti": [
+       [
+        1,
+        1,
+        "m@primer.invalid"
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "koren s predpono (imenski prostor je naveden)",
+    "xml": "<n:nzb xmlns:n=\"http://www.newzbin.com/DTD/2003/nzb\"><n:file subject=\"x.mkv\"><n:segments><n:segment bytes=\"1\" number=\"1\">m@primer.invalid</n:segment></n:segments></n:file></n:nzb>"
+   },
+   "izhod": {
+    "izid": "ok",
+    "naslov": null,
+    "ima_geslo": false,
+    "datoteke": [
+     {
+      "ime": "x.mkv",
+      "skupine": [],
+      "bajtov_nzb": 1,
+      "manjka": 0,
+      "segmenti": [
+       [
+        1,
+        1,
+        "m@primer.invalid"
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "us-ascii z bajti nad 127 se bere kot UTF-8",
+    "xml_b64": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXMtYXNjaWkiPz48bnpiPjxmaWxlIHN1YmplY3Q9IkFtw6lsaWUubWt2Ij48c2VnbWVudHM+PHNlZ21lbnQgYnl0ZXM9IjEiIG51bWJlcj0iMSI+bUBwcmltZXIuaW52YWxpZDwvc2VnbWVudD48L3NlZ21lbnRzPjwvZmlsZT48L256Yj4="
+   },
+   "izhod": {
+    "izid": "ok",
+    "naslov": null,
+    "ima_geslo": false,
+    "datoteke": [
+     {
+      "ime": "Amélie.mkv",
+      "skupine": [],
+      "bajtov_nzb": 1,
+      "manjka": 0,
+      "segmenti": [
+       [
+        1,
+        1,
+        "m@primer.invalid"
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "number in bytes s presledkom nista stevili",
+    "xml": "<nzb><file subject=\"x.mkv\"><segments><segment bytes=\" 5\" number=\"2\">a@primer.invalid</segment><segment bytes=\"5\" number=\" 1\">b@primer.invalid</segment></segments></file></nzb>"
+   },
+   "izhod": {
+    "izid": "ok",
+    "naslov": null,
+    "ima_geslo": false,
+    "datoteke": [
+     {
+      "ime": "x.mkv",
+      "skupine": [],
+      "bajtov_nzb": 0,
+      "manjka": 1,
+      "segmenti": [
+       [
+        2,
+        0,
+        "a@primer.invalid"
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "5001 praznih <file> - steje vsak <file> pod korenom",
+    "xml": "<nzb><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/><file/></nzb>"
+   },
+   "izhod": {
+    "izid": "prevelik"
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "skupine: samo imena po RFC 3977 (ASCII brez presledkov in znakov wildmat), do 200 znakov",
+    "xml": "<nzb><file subject=\"x.mkv\"><groups><group>alt.binaries.ok</group><group>a.b&#13;&#10;QUIT</group><group>a b</group><group>alt.*</group><group>aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</group><group>č.x</group><group>a,b</group><group> a.b.c+d_e-f </group></groups><segments><segment bytes=\"1\" number=\"1\">m@primer.invalid</segment></segments></file></nzb>"
+   },
+   "izhod": {
+    "izid": "ok",
+    "naslov": null,
+    "ima_geslo": false,
+    "datoteke": [
+     {
+      "ime": "x.mkv",
+      "skupine": [
+       "alt.binaries.ok",
+       "a.b.c+d_e-f"
+      ],
+      "bajtov_nzb": 1,
+      "manjka": 0,
+      "segmenti": [
+       [
+        1,
+        1,
+        "m@primer.invalid"
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "f": "nzb_razcleni",
+   "vhod": {
+    "opis": "naslov: ASCII presledki strnjeni, Cc in Cf odstranjeni, NBSP ostane",
+    "xml": "<nzb><head><meta type=\"title\"> A‮B​ C\tD EF </meta></head><file subject=\"x.mkv\"><segments><segment bytes=\"1\" number=\"1\">m@primer.invalid</segment></segments></file></nzb>"
+   },
+   "izhod": {
+    "izid": "ok",
+    "naslov": "AB C D EF",
+    "ima_geslo": false,
+    "datoteke": [
+     {
+      "ime": "x.mkv",
+      "skupine": [],
+      "bajtov_nzb": 1,
+      "manjka": 0,
+      "segmenti": [
+       [
+        1,
+        1,
+        "m@primer.invalid"
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  {
    "f": "usenet_meje",
    "vhod": {},
    "izhod": {
@@ -1816,16 +4314,23 @@
     "nzb_segmentov": 500000,
     "nzb_elementov": 1000000,
     "segmentov_datoteke": 200000,
-    "telo_bajtov": 16777216,
-    "del_bajtov": 16777216,
+    "telo_bajtov": 4194304,
+    "del_bajtov": 4194304,
     "ime_znakov": 200,
+    "ime_bajtov": 240,
     "naslov_znakov": 200,
     "skupin": 50,
     "vrstica_bajtov": 4096,
     "id_znakov": 248,
+    "poverilnica_bajtov": 400,
     "povezav_privzeto": 8,
     "povezav_najvec": 50,
-    "vrata": 563
+    "vrata": 563,
+    "prosta_najdlje_s": 60,
+    "premor_od_s": 10,
+    "premor_brez_odprtih_s": 60,
+    "premor_do_s": 300,
+    "rast_bazena_s": 600
    }
   }
  ]

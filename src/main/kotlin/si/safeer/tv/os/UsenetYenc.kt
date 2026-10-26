@@ -22,8 +22,16 @@ import java.util.zip.CRC32
  * java.util.zip (strojno pospesen); hitrost: tests/UsenetYencTest.kt meritev (porocilo koraka 1).
  */
 object UsenetYenc {
-    /** Del (en clanek) nad 16 MiB je pokvarjen ali zlonameren vhod (skupni primeri: del_bajtov). */
-    const val NAJVEC_DELA = 16 * 1024 * 1024
+    /** Del (en clanek) nad 4 MiB je pokvarjen ali zlonameren vhod (skupni primeri: del_bajtov; = UsenetNntp.NAJVEC_TELESA). */
+    const val NAJVEC_DELA = 4 * 1024 * 1024
+
+    /** size, begin, end: samo 1-12 stevk 0-9 (toLongOrNull bi sprejel »+5«); null = neveljavno. */
+    private fun celo(s: String?): Long? =
+        if (s != null && s.length in 1..12 && s.all { it in '0'..'9' }) s.toLong() else null
+
+    /** part, total: samo 1-9 stevk 0-9 in >= 1 (skupni primeri v3); null = neveljavno. */
+    private fun stevilkaDela(s: String): Int? =
+        if (s.length in 1..9 && s.all { it in '0'..'9' }) s.toInt().takeIf { it >= 1 } else null
 
     /** Imena so ista kot v skupnih primerih (izid v malih crkah). */
     enum class Napaka {
@@ -73,9 +81,10 @@ object UsenetYenc {
         val zacetekGlave = najdiVrstico(b, od, doo, "=ybegin ") ?: throw NapakaYenc(Napaka.NI_YENC)
         val konecGlave = konecVrstice(b, zacetekGlave, doo) ?: throw NapakaYenc(Napaka.PRIREZANO)
         val glava = polja(besedilo(b, zacetekGlave + 8, konecGlave))
-        val velikost = glava["size"]?.toLongOrNull()?.takeIf { it >= 0 } ?: throw NapakaYenc(Napaka.NAPAKA_OBLIKE)
-        val del = glava["part"]?.let { it.toIntOrNull()?.takeIf { d -> d >= 1 } ?: throw NapakaYenc(Napaka.NAPAKA_OBLIKE) }
-        val delov = glava["total"]?.let { it.toIntOrNull()?.takeIf { d -> d >= 1 } ?: throw NapakaYenc(Napaka.NAPAKA_OBLIKE) }
+        val velikost = celo(glava["size"]) ?: throw NapakaYenc(Napaka.NAPAKA_OBLIKE)
+        val del = glava["part"]?.let { stevilkaDela(it) ?: throw NapakaYenc(Napaka.NAPAKA_OBLIKE) }
+        val delov = glava["total"]?.let { stevilkaDela(it) ?: throw NapakaYenc(Napaka.NAPAKA_OBLIKE) }
+        if (del != null && delov != null && del > delov) throw NapakaYenc(Napaka.NAPAKA_OBLIKE)
         val ime = glava["name"]?.let { UsenetNzb.varnoIme(ime(it)) }
 
         var zacetek = 0L
@@ -87,8 +96,8 @@ object UsenetYenc {
             if (!jePredpona(b, zp, doo, "=ypart ")) throw NapakaYenc(Napaka.NAPAKA_OBLIKE)
             val kp = konecVrstice(b, zp, doo) ?: throw NapakaYenc(Napaka.PRIREZANO)
             val p = polja(besedilo(b, zp + 7, kp))
-            val zac = p["begin"]?.toLongOrNull() ?: throw NapakaYenc(Napaka.NAPAKA_OBLIKE)
-            val kon = p["end"]?.toLongOrNull() ?: throw NapakaYenc(Napaka.NAPAKA_OBLIKE)
+            val zac = celo(p["begin"]) ?: throw NapakaYenc(Napaka.NAPAKA_OBLIKE)
+            val kon = celo(p["end"]) ?: throw NapakaYenc(Napaka.NAPAKA_OBLIKE)
             if (zac < 1 || kon < zac || kon > velikost) throw NapakaYenc(Napaka.NAPAKA_OBLIKE)
             zacetek = zac - 1
             konec = kon
@@ -130,20 +139,20 @@ object UsenetYenc {
         if (konecGlavePodatkov < 0) throw NapakaYenc(Napaka.PRIREZANO)
         val ke = konecVrstice(b, konecGlavePodatkov, doo) ?: doo
         val k = polja(besedilo(b, konecGlavePodatkov + 6, ke))
-        // =yend part se primerja samo, ce ga ima tudi =ybegin (skupni primeri v2).
-        if (del != null) k["part"]?.let { if (it.toIntOrNull() != del) throw NapakaYenc(Napaka.NAPAKA_OBLIKE) }
-        if (prevec || o.toLong() != pricakovano) throw NapakaYenc(Napaka.NAPAKA_VELIKOSTI)
-        k["size"]?.let {
-            val s = it.toLongOrNull() ?: throw NapakaYenc(Napaka.NAPAKA_OBLIKE)
-            if (s != pricakovano) throw NapakaYenc(Napaka.NAPAKA_VELIKOSTI)
-        }
+        // Najprej oblika vseh polj =yend (kot namizje), nato dolzine: size obvezen; part, ce je, stevilo in enak =ybegin
+        // part (ce ga ima); vsako navedeno polje CRC veljavno, tudi ce se ne preverja (skupni primeri v3).
+        val ysize = celo(k["size"]) ?: throw NapakaYenc(Napaka.NAPAKA_OBLIKE)
+        val ydel = k["part"]?.let { stevilkaDela(it) ?: throw NapakaYenc(Napaka.NAPAKA_OBLIKE) }
+        val pcrc = k["pcrc32"]?.let { crcIz(it) ?: throw NapakaYenc(Napaka.NAPAKA_OBLIKE) }
+        val ccrc = k["crc32"]?.let { crcIz(it) ?: throw NapakaYenc(Napaka.NAPAKA_OBLIKE) }
+        if (del != null && ydel != null && ydel != del) throw NapakaYenc(Napaka.NAPAKA_OBLIKE)
+        if (prevec || o.toLong() != pricakovano || ysize != pricakovano) throw NapakaYenc(Napaka.NAPAKA_VELIKOSTI)
         val crc = CRC32().apply { update(izhod, 0, o) }.value
         // pcrc32 je CRC tega dela; crc32 je pri vecdelnem CRC cele datoteke (tu se ne preveri), pri enodelnem tega dela.
-        val zapisan = k["pcrc32"] ?: if (del == null) k["crc32"] else null
+        val zapisan = pcrc ?: if (del == null) ccrc else null
         var preverjen = false
         if (zapisan != null) {
-            val z = crcIz(zapisan) ?: throw NapakaYenc(Napaka.NAPAKA_OBLIKE)
-            if (z != crc) throw NapakaYenc(Napaka.NAPAKA_CRC)
+            if (zapisan != crc) throw NapakaYenc(Napaka.NAPAKA_CRC)
             preverjen = true
         }
         return Del(ime, del, delov, velikost, zacetek, konec, izhod, crc, preverjen)

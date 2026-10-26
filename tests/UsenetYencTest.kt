@@ -142,8 +142,8 @@ fun main(args: Array<String>) {
     preveriEnako("=ybegin ni na zacetku vrstice", "NI_YENC", napaka(b("x=ybegin line=1 size=1 name=a\r\nK\r\n=yend size=1\r\n")))
     preveriEnako("brez size", "NAPAKA_OBLIKE", napaka(b(ena.replace("size=3 name", "name"))))
     preveriEnako("negativen size", "NAPAKA_OBLIKE", napaka(b(ena.replace("line=128 size=3", "line=128 size=-3"))))
-    preveriEnako("enodelni nad 16 MiB", "PREVELIK", napaka(b(ena.replace("line=128 size=3", "line=128 size=16777217"))))
-    preveriEnako("del nad 16 MiB", "PREVELIK", napaka(b(sDel.replace("size=30", "size=90000000").replace("end=20", "end=80000000"))))
+    preveriEnako("enodelni nad mejo dela", "PREVELIK", napaka(b(ena.replace("line=128 size=3", "line=128 size=16777217"))))
+    preveriEnako("del nad mejo dela", "PREVELIK", napaka(b(sDel.replace("size=30", "size=90000000").replace("end=20", "end=80000000"))))
     preveriEnako("prazna datoteka", 0, UsenetYenc.dekodiraj(YencKodirnik.kodiraj(ByteArray(0), "prazna.txt")).podatki.size)
 
     // Odrezan clanek, velikost, konec
@@ -161,7 +161,7 @@ fun main(args: Array<String>) {
     preveriEnako("= pred =yend", "abc", String(UsenetYenc.dekodiraj(b(ena.replace("\r\n=yend", "=\r\n=yend"))).podatki, Charsets.ISO_8859_1))
     // Velika napovedana velikost brez podatkov ne sme zahtevati velikega pomnilnika (dodeli najvec toliko kot vhod).
     val t0 = System.nanoTime()
-    preveriEnako("size 15 MiB, malo podatkov", "NAPAKA_VELIKOSTI", napaka(b("=ybegin line=128 size=15728640 name=a\r\nkkk\r\n=yend size=15728640\r\n")))
+    preveriEnako("size 3 MiB, malo podatkov", "NAPAKA_VELIKOSTI", napaka(b("=ybegin line=128 size=3145728 name=a\r\nkkk\r\n=yend size=3145728\r\n")))
     preveriEnako("brez velike dodelitve (< 50 ms)", true, (System.nanoTime() - t0) < 50_000_000L)
     preveriEnako("od in do vhoda", "abc", String(UsenetYenc.dekodiraj(b("XXXX$ena"), 4).podatki, Charsets.ISO_8859_1))
 

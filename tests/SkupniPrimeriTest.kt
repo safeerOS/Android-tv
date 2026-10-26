@@ -167,7 +167,16 @@ private fun izracunaj(f: String, v: Map<String, Any?>): Any? = when (f) {
     "yenc_dekodiraj" -> usenetYenc(B64D.decode(v.niz("telo_b64")!!))
     "nntp_telo" -> UsenetNntp.telo(B64D.decode(v.niz("surovo_b64")!!))?.let { mapOf("telo_b64" to b64(it.telo), "ostanek_b64" to b64(it.ostanek)) }
     "yenc_iz_nntp" -> usenetYenc(UsenetNntp.telo(B64D.decode(v.niz("surovo_b64")!!))?.telo)
-    "nntp_izid" -> UsenetNntp.izid(fazaNntp(v.niz("ukaz")!!), v.niz("vrstica")!!).name.lowercase()
+    "nntp_izid" -> UsenetNntp.izid(fazaNntp(v.niz("ukaz")!!), v.niz("vrstica")!!, v["prijava_uspela"] as Boolean? ?: false).name.lowercase()
+    // v3 (26. 10. 2026, zaklep racuna): ukrep bazena, odpiranje povezav, premor, poverilnica, odgovor za clanek.
+    "nntp_ukrep" -> UsenetNntp.ukrep(UsenetNntp.Vrsta.valueOf(v.niz("izid")!!.uppercase()),
+        UsenetNntp.FazaPovezave.valueOf(v.niz("faza")!!.uppercase()), v["stara"] as Boolean, v.cel("poskus")!!).name.lowercase()
+    "nntp_sme_odpreti" -> UsenetNntp.smeOdpreti(v["ustavljen"] as Boolean, v["premor"] as Boolean, v.cel("odprtih")!!,
+        v.cel("najvec")!!, v["uspela"] as Boolean, v["sonda"] as Boolean)
+    "nntp_premor" -> UsenetNntp.novPremor(v.cel("najvec")!!, v.cel("odprtih")!!, v["premor_s"] as Long, v["tece"] as Boolean, v["zmanjsaj"] as Boolean)
+        .let { mapOf("najvec" to it.first.toLong(), "premor_s" to it.second) }
+    "nntp_poverilnica" -> UsenetNntp.varenArgument(v.niz("vrednost")!!)
+    "nntp_id_odgovora" -> UsenetNntp.idOdgovoraUstreza(v.niz("vrstica")!!, v.niz("id")!!)
     "nntp_id" -> UsenetNzb.cistId(v.niz("id")!!)
     "varno_ime" -> UsenetNzb.varnoIme(v.niz("ime")!!)
     "nzb_ime" -> UsenetNzb.imeIzZadeve(v.niz("subject")!!)
@@ -177,10 +186,14 @@ private fun izracunaj(f: String, v: Map<String, Any?>): Any? = when (f) {
             "nzb_segmentov" to m.segmentov.toLong(), "nzb_elementov" to m.elementov.toLong(),
             "segmentov_datoteke" to m.segmentovDatoteke.toLong(),
             "telo_bajtov" to UsenetNntp.NAJVEC_TELESA.toLong(), "del_bajtov" to UsenetYenc.NAJVEC_DELA.toLong(),
-            "ime_znakov" to UsenetNzb.NAJVEC_IMENA.toLong(), "naslov_znakov" to UsenetNzb.NAJVEC_NASLOVA.toLong(),
+            "ime_znakov" to UsenetNzb.NAJVEC_IMENA.toLong(), "ime_bajtov" to UsenetNzb.NAJVEC_IMENA_BAJTOV.toLong(),
+            "naslov_znakov" to UsenetNzb.NAJVEC_NASLOVA.toLong(),
             "skupin" to m.skupin.toLong(), "vrstica_bajtov" to UsenetNntp.NAJVEC_VRSTICE.toLong(), "id_znakov" to UsenetNzb.NAJVEC_ID.toLong(),
+            "poverilnica_bajtov" to UsenetNntp.NAJVEC_POVERILNICE.toLong(),
             "povezav_privzeto" to UsenetNntp.PRIVZETO_POVEZAV.toLong(), "povezav_najvec" to UsenetNntp.NAJVEC_POVEZAV.toLong(),
-            "vrata" to UsenetNntp.VRATA.toLong())
+            "vrata" to UsenetNntp.VRATA.toLong(), "prosta_najdlje_s" to UsenetNntp.PROSTA_NAJDLJE_S,
+            "premor_od_s" to UsenetNntp.PREMOR_OD_S, "premor_brez_odprtih_s" to UsenetNntp.PREMOR_BREZ_ODPRTIH_S,
+            "premor_do_s" to UsenetNntp.PREMOR_DO_S, "rast_bazena_s" to UsenetNntp.RAST_BAZENA_S)
     }
     "uskladitev_novejsi" -> UskladitevKljucevPravila.novejsi(v["cas"] as Long, v.niz("izvor")!!, v["izbrisan"] as Boolean,
         (v["star"] as List<Any?>?)?.let { UskladitevKljucevPravila.Meta(it[0] as Long, it[1] as String, it[2] as Boolean, "") })

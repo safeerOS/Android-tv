@@ -2,6 +2,7 @@ package si.safeer.tv.os
 
 import java.io.StringReader
 import java.nio.charset.Charset
+import java.text.Normalizer
 import javax.xml.XMLConstants
 import javax.xml.parsers.SAXParserFactory
 import org.xml.sax.Attributes
@@ -33,6 +34,9 @@ object UsenetNzb {
 
     /** Ime datoteke in naslov NZB v kodnih tockah (ime_znakov, naslov_znakov). */
     const val NAJVEC_IMENA = 200
+
+    /** Ime datoteke v bajtih UTF-8 (ext4/f2fs: 255; 200 kodnih tock CJK bi bilo 600 B - ime_bajtov). */
+    const val NAJVEC_IMENA_BAJTOV = 240
     const val NAJVEC_NASLOVA = 200
     const val NAJVEC_SKUPINE = 200
 
@@ -93,6 +97,9 @@ object UsenetNzb {
     private const val NIZ = "(\"[^\"\\[\\]<>]*\"|'[^'\\[\\]<>]*')"
     private val PREPROST_DOCTYPE = Regex("<!DOCTYPE\\s+nzb(\\s+PUBLIC\\s+$NIZ\\s+$NIZ|\\s+SYSTEM\\s+$NIZ)?\\s*>")
     private val DOCTYPE = Regex("<!DOCTYPE", RegexOption.IGNORE_CASE)
+    private val ODPRTJE = Regex("<![A-Za-z]")
+    /** Ime skupine po RFC 3977 (wildmat-exact, samo ASCII): brez presledkov, CR/LF in znakov wildmat. */
+    private val SKUPINA = Regex("[\\x22-\\x29\\x2b\\x2d-\\x3e\\x40-\\x5a\\x5e-\\x7e]{1,200}")
 
     /** Razclenitev NZB; ob napaki [NapakaNzb]. */
     fun razcleni(bajti: ByteArray, meje: Meje = Meje()): Nzb {
@@ -121,14 +128,21 @@ object UsenetNzb {
         return Nzb(bralec.datoteke, bralec.naslov, bralec.imaGeslo)
     }
 
-    /** Besedilo brez preprostega DOCTYPE; null = DOCTYPE ni dovoljen (notranji del, male crke, drug koren, vec njih). */
+    /**
+     * Besedilo s preprostim DOCTYPE, nadomescenim s presledki enake dolzine; null = DOCTYPE ni dovoljen (notranji del,
+     * male crke, drug koren, vec njih) ali za njim ostane »<!« s crko. Odstranitev bi z lepljenjem
+     * (»<!DOC<!DOCTYPE nzb>TYPE nzb SYSTEM ...«) sestavila nov DOCTYPE z zunanjim DTD (pregled Grok 35 Y5).
+     */
     private fun brezDoctype(besedilo: String): String? {
         val vsi = DOCTYPE.findAll(besedilo).take(2).toList()
         if (vsi.isEmpty()) return besedilo
         if (vsi.size > 1) return null
         val i = vsi[0].range.first
         val m = PREPROST_DOCTYPE.find(besedilo, i)?.takeIf { it.range.first == i } ?: return null
-        return besedilo.removeRange(m.range)
+        val sb = StringBuilder(besedilo)
+        for (k in m.range) sb.setCharAt(k, ' ')
+        val cisto = sb.toString()
+        return if (ODPRTJE.containsMatchIn(cisto)) null else cisto
     }
 
     private fun tovarna(): SAXParserFactory {
@@ -170,7 +184,7 @@ object UsenetNzb {
      * rezervirana imena Windows (CON, NUL, COM1 ...) dobijo »_« spredaj. null = ne ostane nic.
      */
     fun varnoIme(ime: String): String? {
-        val golo = ime.replace('\\', '/').substringAfterLast('/')
+        val golo = Normalizer.normalize(ime.replace('\\', '/').substringAfterLast('/'), Normalizer.Form.NFC)
         val tocke = ArrayList<Int>(golo.length)
         var i = 0
         while (i < golo.length) {
@@ -187,11 +201,48 @@ object UsenetNzb {
             izbrane = if (pika >= 0 && koncnica <= 10) tocke.subList(0, NAJVEC_IMENA - koncnica) + tocke.subList(pika, tocke.size)
             else tocke.subList(0, NAJVEC_IMENA)
         }
+        if (izbrane.sumOf { bajtovUtf8(it) } > NAJVEC_IMENA_BAJTOV) {
+            // Se najvec 240 bajtov UTF-8: koncnica do 9 znakov ostane, osnova se krajsa po kodnih tockah (skupni primeri v3).
+            val pika = izbrane.lastIndexOf('.'.code)
+            val od = if (pika >= 0 && izbrane.size - pika <= 10) pika else izbrane.size
+            val koncnica = izbrane.subList(od, izbrane.size)
+            var osnova = izbrane.subList(0, od)
+            var bajtov = izbrane.sumOf { bajtovUtf8(it) }
+            while (osnova.isNotEmpty() && bajtov > NAJVEC_IMENA_BAJTOV) {
+                bajtov -= bajtovUtf8(osnova.last())
+                osnova = osnova.subList(0, osnova.size - 1)
+            }
+            izbrane = osnova + koncnica
+        }
         val sb = StringBuilder()
         for (cp in izbrane) sb.appendCodePoint(cp)
-        val t = sb.toString().trimEnd(' ', '.').trimStart(' ')
+        var t = sb.toString().trimEnd(' ', '.').trimStart(' ')
         if (t.isEmpty()) return null
+        if (t.startsWith('.')) t = "_" + t.substring(1)   // skrita datoteka (pregled Grok 35 Y6)
         return if (REZERVIRANA.matches(t.substringBefore('.'))) "_$t" else t
+    }
+
+    private fun bajtovUtf8(cp: Int): Int = if (cp < 0x80) 1 else if (cp < 0x800) 2 else if (cp < 0x10000) 3 else 4
+
+    /**
+     * Naslov NZB (skupni primeri v3): ' ', TAB, LF, CR, FF, VT so presledek, znaki Cc in Cf (npr. U+202E obrne smer
+     * besedila) se odstranijo, zaporedni presledki strnjeni, obrezano, najvec [NAJVEC_NASLOVA] kodnih tock.
+     */
+    fun naslov(besedilo: String): String {
+        val sb = StringBuilder()
+        var i = 0
+        while (i < besedilo.length) {
+            val cp = besedilo.codePointAt(i)
+            i += Character.charCount(cp)
+            val tip = Character.getType(cp)
+            when {
+                cp == 0x20 || cp == 0x09 || cp == 0x0A || cp == 0x0D || cp == 0x0C || cp == 0x0B -> sb.append(' ')
+                tip == Character.CONTROL.toInt() || tip == Character.FORMAT.toInt() -> { }
+                else -> sb.appendCodePoint(cp)
+            }
+        }
+        val s = sb.split(' ').filter { it.isNotEmpty() }.joinToString(" ")
+        return if (s.codePointCount(0, s.length) <= NAJVEC_NASLOVA) s else s.substring(0, s.offsetByCodePoints(0, NAJVEC_NASLOVA))
     }
 
     private val V_NAREKOVAJIH = Regex("\"([^\"]*)\"")
@@ -269,6 +320,8 @@ object UsenetNzb {
                 if (ime != "nzb") ustavi(Napaka.NI_NZB)
                 return
             }
+            // Steje vsak <segment> kjerkoli, tudi neveljaven (skupni primeri v3, enako namizje).
+            if (ime == "segment" && ++segmentov > meje.segmentov) ustavi(Napaka.PREVELIK)
             if (globina == 2 && ime == "head") vGlavi = true
             if (globina == 2 && ime == "file") {
                 if (++datotek > meje.datotek) ustavi(Napaka.PREVELIK)
@@ -279,14 +332,13 @@ object UsenetNzb {
                 segmenti = ArrayList()
                 videne = HashSet()
             } else if (vDatoteki && ime == "segment") {
-                if (++segmentov > meje.segmentov) ustavi(Napaka.PREVELIK)
                 stevilka = atr.getValue("number")?.takeIf { samoStevke(it, 6) }?.toInt() ?: 0
                 bajtov = atr.getValue("bytes")?.takeIf { samoStevke(it, 9) }?.toLong() ?: 0L
                 zacni()
             } else if (vDatoteki && ime == "group") {
                 zacni()
             } else if (vGlavi && globina == 3 && ime == "meta") {
-                meta = atr.getValue("type")
+                meta = atr.getValue("type")?.lowercase()
                 zacni()
             }
         }
@@ -305,12 +357,11 @@ object UsenetNzb {
                 }
             } else if (vDatoteki && ime == "group" && zbiram) {
                 val g = besedilo()?.trim()
-                if (g != null && g.length in 1..NAJVEC_SKUPINE && skupine.size < meje.skupin) skupine += g
+                if (g != null && g.length <= NAJVEC_SKUPINE && SKUPINA.matches(g) && skupine.size < meje.skupin) skupine += g
             } else if (vGlavi && globina == 3 && ime == "meta" && zbiram) {
                 val v = besedilo()
                 if (v != null && meta == "title" && naslov == null) {
-                    naslov = v.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }.joinToString(" ")
-                        .let { varnoDolzino(it) }.takeIf { it.isNotEmpty() }
+                    naslov = naslov(v).takeIf { it.isNotEmpty() }
                 }
                 if (v != null && meta == "password" && v.trim().isNotEmpty()) imaGeslo = true
             } else if (globina == 2 && ime == "file" && vDatoteki) {
@@ -326,8 +377,5 @@ object UsenetNzb {
             globina--
         }
 
-        /** Najvec [NAJVEC_NASLOVA] kodnih tock. */
-        private fun varnoDolzino(s: String): String =
-            if (s.codePointCount(0, s.length) <= NAJVEC_NASLOVA) s else s.substring(0, s.offsetByCodePoints(0, NAJVEC_NASLOVA))
     }
 }

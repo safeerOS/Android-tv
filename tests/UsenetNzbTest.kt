@@ -114,7 +114,7 @@ fun main() {
     // Imena (dodatno k skupnim primerom)
     preveriEnako("varno ime: lpt9", "_lpt9.txt", UsenetNzb.varnoIme("lpt9.txt"))
     preveriEnako("varno ime: com0 ni rezervirano", "com0.txt", UsenetNzb.varnoIme("com0.txt"))
-    preveriEnako("varno ime: skrito ostane", ".skrito", UsenetNzb.varnoIme(".skrito"))
+    preveriEnako("varno ime: vodilna pika (skrita datoteka) -> _", "_skrito", UsenetNzb.varnoIme(".skrito"))
     preveriEnako("varno ime: nadomestni par (emoji) je en znak", "a_b", UsenetNzb.varnoIme("a\uD83C\uDFACb"))
     preveriEnako("ime iz zadeve: (a/b) prilepljeno", "abc.r01", UsenetNzb.imeIzZadeve("abc.r01(1/2)"))
 

@@ -66,8 +66,14 @@ class UsenetNntp(
     enum class Vrsta {
         /** Clanka ni (430, 423; odstranjen ali potekel) - poskusi drugo izdajo ali rezervnega ponudnika. */
         NI_CLANKA,
-        /** Napacno ime ali geslo, racun potekel ali brez pravic. */
+        /** Napacno ime ali geslo, racun potekel ali brez pravic - bazen ne poskusa vec (zapah na racun). */
         PRIJAVA,
+        /** Ponudnik ne dovoli (502: trajno ali brez pravic) - bazen se ustavi, ponovitev ne pomaga. */
+        DOSTOP,
+        /** Rok (branje, clanek, povezava). */
+        ROK,
+        /** Streznik ali bazen je zaprl povezavo (205, 400 pri ukazu, close()). */
+        ZAPRTO,
         /** Streznik ne sprejme vec povezav (meja racuna) ali vse povezave bazena so zasedene. */
         ZASEDEN,
         /** Povezava, rok, prekinitev ali streznik zapira povezavo (205). */
@@ -84,7 +90,13 @@ class UsenetNntp(
     enum class Faza { POZDRAV, UPORABNIK, GESLO, ARTICLE, HEAD, BODY, STAT, QUIT }
 
     /** Izid vrstice odgovora; imena so ista kot v skupnih primerih (nntp_izid, male crke). */
-    enum class Izid { OK, GESLO, ZASEDEN, PRIJAVA, NI_CLANKA, NAPAKA_STREZNIKA, ZAPRTO, NAPAKA_PROTOKOLA }
+    enum class Izid { OK, GESLO, ZASEDEN, PRIJAVA, DOSTOP, NI_CLANKA, NAPAKA_STREZNIKA, ZAPRTO, NAPAKA_PROTOKOLA }
+
+    /** Faza povezave ob napaki (skupni primeri nntp_ukrep): POVEZAVA = TCP, TLS, pozdrav (nic AUTHINFO). */
+    enum class FazaPovezave { POVEZAVA, PRIJAVA, UKAZ }
+
+    /** Kaj bazen naredi po napaki (skupni primeri nntp_ukrep; namizje isto v core/usenet_nntp.ukrep_bazena). */
+    enum class Ukrep { VRNI, ZNOVA, NAPAKA, ZMANJSAJ_POCAKAJ, POCAKAJ, NEZNANA_PRIJAVA, USTAVI_RACUN, USTAVI_BAZEN }
 
     /** Telo odgovora brez koncne vrstice in podvojenih pik ter bajti za njo (naslednji odgovor). */
     class Telo(val telo: ByteArray, val ostanek: ByteArray)
@@ -98,8 +110,25 @@ class UsenetNntp(
         const val PRIVZETO_POVEZAV = 8
         const val NAJVEC_POVEZAV = 50
 
-        /** Telo clanka (surovo) vecje od tega je napaka - obicajno je ~750 kB (skupni primeri: telo_bajtov). */
-        const val NAJVEC_TELESA = 16 * 1024 * 1024
+        /**
+         * Telo clanka (surovo) vecje od tega je napaka (skupni primeri: telo_bajtov). Izmerjeno 25. 10. 2026 na 5 pravih
+         * NZB (prototip): clanek povprecno 384-719 KiB; 4 MiB je vec kot 5x toliko.
+         */
+        const val NAJVEC_TELESA = 4 * 1024 * 1024
+
+        /** Argument AUTHINFO najvec v bajtih UTF-8 (RFC 3977: ukaz najvec 512 oktetov; poverilnica_bajtov). */
+        const val NAJVEC_POVERILNICE = 400
+
+        /** Prosta povezava, nedejavna dlje, se zapre; premor po meji povezav; rast bazena (skupni primeri usenet_meje). */
+        const val PROSTA_NAJDLJE_S = 60L
+        const val PREMOR_OD_S = 10L
+        const val PREMOR_BREZ_ODPRTIH_S = 60L
+        const val PREMOR_DO_S = 300L
+        const val RAST_BAZENA_S = 600L
+
+        private val MEJA = listOf("too many", "limit", "max", "exceed", "no more")
+        private val ZAKLEP = listOf("lock", "ban", "block", "attempt", "suspend", "expire", "disable")
+        private val NI_MEJA = listOf("fail", "pass", "invalid", "incorrect", "wrong") + ZAKLEP
 
         /** RFC 3977: vrstica odgovora najvec 512 bajtov; dovolimo vec, a ne neomejeno (vrstica_bajtov). */
         const val NAJVEC_VRSTICE = 4096
@@ -116,13 +145,26 @@ class UsenetNntp(
         private const val PIKA: Byte = 46
 
         /**
-         * Izid vrstice odgovora [vrstica] na ukaz [faza] (skupni primeri nntp_izid). Koda so prve tri stevke (prva 1-5),
-         * za njimi presledek ali konec. Besedilo (lahko ponovi id ali ime) se uporabi samo za »connection« (meja
-         * povezav) in se nikoli ne shrani.
+         * Ali besedilo odgovora jasno pove mejo povezav. Ce omenja tudi napacno prijavo ali zaklep, NI meja: dvom je
+         * zavrnjena prijava, ki se ne ponovi (lastnik 26. 10. 2026: nevarnost zaklepa racuna je prioriteta).
          */
-        fun izid(faza: Faza, vrstica: String): Izid {
+        fun mejaPovezav(besedilo: String): Boolean {
+            val t = besedilo.lowercase()
+            if (NI_MEJA.any { it in t }) return false
+            return "connection limit" in t || ("connections" in t && MEJA.any { it in t })
+        }
+
+        /**
+         * Izid vrstice odgovora [vrstica] na ukaz [faza] (skupni primeri nntp_izid). Koda so prve tri stevke (prva 1-5),
+         * za njimi presledek ali konec. Besedilo (lahko ponovi id ali ime) se uporabi samo za razvrstitev in se nikoli ne
+         * shrani. Pri AUTHINFO je vse razen 281/381 in meje povezav PRIJAVA (RFC 4643 2.3.2); [prijavaUspela] = ista
+         * prijava je v bazenu ze uspela in prijavljena povezava je odprta - takrat je 480/481/502 meja povezav (ponudnik:
+         * prevec povezav = napaka prijave 480), razen ce besedilo omenja zaklep ali poskuse.
+         */
+        fun izid(faza: Faza, vrstica: String, prijavaUspela: Boolean = false): Izid {
+            val avtor = faza == Faza.UPORABNIK || faza == Faza.GESLO
             if (vrstica.length < 3 || vrstica[0] !in '1'..'5' || vrstica[1] !in '0'..'9' || vrstica[2] !in '0'..'9' ||
-                (vrstica.length > 3 && vrstica[3] != ' ')) return Izid.NAPAKA_PROTOKOLA
+                (vrstica.length > 3 && vrstica[3] != ' ')) return if (avtor) Izid.PRIJAVA else Izid.NAPAKA_PROTOKOLA
             val koda = vrstica.substring(0, 3).toInt()
             val pricakovana = when (faza) {
                 Faza.POZDRAV -> koda == 200 || koda == 201
@@ -135,18 +177,79 @@ class UsenetNntp(
             }
             if (pricakovana) return Izid.OK
             if (faza == Faza.UPORABNIK && koda == 381) return Izid.GESLO
-            val avtor = faza == Faza.UPORABNIK || faza == Faza.GESLO
+            val besedilo = if (vrstica.length > 4) vrstica.substring(4) else ""
+            if (koda in setOf(400, 480, 481, 482, 502) && mejaPovezav(besedilo)) return Izid.ZASEDEN
+            if (avtor) {
+                val zaklep = besedilo.lowercase().let { t -> ZAKLEP.any { it in t } }
+                return if (prijavaUspela && koda in setOf(480, 481, 502) && !zaklep) Izid.ZASEDEN else Izid.PRIJAVA
+            }
             val clanek = faza == Faza.ARTICLE || faza == Faza.HEAD || faza == Faza.BODY || faza == Faza.STAT
             return when {
-                koda in setOf(400, 481, 482, 502) && vrstica.contains("connection", ignoreCase = true) -> Izid.ZASEDEN
                 (koda == 423 || koda == 430) && clanek -> Izid.NI_CLANKA
                 koda == 480 || koda == 481 || koda == 482 -> Izid.PRIJAVA
-                koda == 502 && avtor -> Izid.PRIJAVA
-                koda == 400 || koda == 502 -> Izid.ZASEDEN
+                koda == 400 -> if (faza == Faza.POZDRAV) Izid.NAPAKA_STREZNIKA else Izid.ZAPRTO
+                koda == 502 -> Izid.DOSTOP
                 koda == 403 -> Izid.NAPAKA_STREZNIKA
                 koda == 205 -> Izid.ZAPRTO
                 else -> Izid.NAPAKA_PROTOKOLA
             }
+        }
+
+        /**
+         * Ukrep bazena po napaki [vrsta] v [faza] (skupni primeri nntp_ukrep): [stara] = povezava iz bazena, [poskus] 0
+         * ali 1. ZNOVA je vedno z novo povezavo; po AUTHINFO nikoli ponovitev v zanki.
+         */
+        fun ukrep(vrsta: Vrsta, faza: FazaPovezave, stara: Boolean, poskus: Int): Ukrep = when (faza) {
+            FazaPovezave.POVEZAVA -> when (vrsta) {
+                Vrsta.OMREZJE -> if (poskus == 0) Ukrep.ZNOVA else Ukrep.NAPAKA
+                Vrsta.ZASEDEN -> Ukrep.ZMANJSAJ_POCAKAJ
+                Vrsta.NAPAKA_STREZNIKA -> Ukrep.POCAKAJ
+                Vrsta.DOSTOP, Vrsta.POTRDILO -> Ukrep.USTAVI_BAZEN
+                Vrsta.PRIJAVA -> Ukrep.USTAVI_RACUN
+                else -> Ukrep.NAPAKA
+            }
+            FazaPovezave.PRIJAVA -> when (vrsta) {
+                Vrsta.ZASEDEN -> Ukrep.ZMANJSAJ_POCAKAJ
+                // Geslo je morda prislo do streznika, odgovora pa ni.
+                Vrsta.OMREZJE, Vrsta.ROK, Vrsta.ZAPRTO, Vrsta.NAPAKA_PROTOKOLA -> Ukrep.NEZNANA_PRIJAVA
+                else -> Ukrep.USTAVI_RACUN
+            }
+            FazaPovezave.UKAZ -> when (vrsta) {
+                Vrsta.NI_CLANKA -> Ukrep.VRNI
+                Vrsta.PRIJAVA -> Ukrep.USTAVI_RACUN
+                Vrsta.DOSTOP, Vrsta.POTRDILO -> Ukrep.USTAVI_BAZEN
+                Vrsta.ZASEDEN -> if (stara && poskus == 0) Ukrep.ZNOVA else Ukrep.ZMANJSAJ_POCAKAJ
+                Vrsta.OMREZJE, Vrsta.NAPAKA_STREZNIKA -> if (poskus == 0) Ukrep.ZNOVA else Ukrep.NAPAKA
+                else -> if (stara && poskus == 0) Ukrep.ZNOVA else Ukrep.NAPAKA
+            }
+        }
+
+        /**
+         * Ali bazen sme odpreti novo povezavo (skupni primeri nntp_sme_odpreti): dokler prijava ni uspela (ali ni nobena
+         * prijavljena povezava odprta), se odpira ena sama naenkrat (sonda) - napacno geslo gre k strezniku enkrat.
+         */
+        fun smeOdpreti(ustavljen: Boolean, premor: Boolean, odprtih: Int, najvec: Int, uspela: Boolean, sonda: Boolean): Boolean {
+            if (ustavljen || premor || odprtih >= najvec) return false
+            return uspela || !sonda
+        }
+
+        /**
+         * (najvec, premor v s) po meji povezav ali zacasni napaki (skupni primeri nntp_premor). [odprtih] = DRUGE
+         * prijavljene odprte povezave (te je streznik sprejel): bazen pade nanje, najmanj 1 - hkratne zavrnitve ga ne
+         * skrcijo pod to. Premor 10 s ali 60 s (ni nobene druge), nato dvakrat daljsi do 300 s; [tece] ga ne podaljsa.
+         */
+        fun novPremor(najvec: Int, odprtih: Int, premorS: Long, tece: Boolean, zmanjsaj: Boolean): Pair<Int, Long> {
+            val n = if (zmanjsaj) maxOf(1, minOf(najvec, odprtih)) else najvec
+            val p = if (tece) premorS else if (premorS > 0) minOf(PREMOR_DO_S, 2 * premorS)
+                else if (odprtih > 0) PREMOR_OD_S else PREMOR_BREZ_ODPRTIH_S
+            return n to p
+        }
+
+        /** Ali odgovor 222/223 velja za zahtevani clanek (skupni primeri nntp_id_odgovora): prvi <...> mora biti [id]. */
+        fun idOdgovoraUstreza(vrstica: String, id: String): Boolean {
+            val i = vrstica.indexOf('<')
+            val j = if (i >= 0) vrstica.indexOf('>', i + 1) else -1
+            return i < 0 || j < 0 || vrstica.substring(i + 1, j) == id
         }
 
         /** Napaka odjemalca za izid odgovora; null = uspeh (ali pri prijavi: posli geslo). */
@@ -154,14 +257,34 @@ class UsenetNntp(
             Izid.OK, Izid.GESLO -> null
             Izid.ZASEDEN -> Vrsta.ZASEDEN
             Izid.PRIJAVA -> Vrsta.PRIJAVA
+            Izid.DOSTOP -> Vrsta.DOSTOP
             Izid.NI_CLANKA -> Vrsta.NI_CLANKA
             Izid.NAPAKA_STREZNIKA -> Vrsta.NAPAKA_STREZNIKA
             Izid.ZAPRTO -> Vrsta.OMREZJE
             Izid.NAPAKA_PROTOKOLA -> Vrsta.NAPAKA_PROTOKOLA
         }
 
-        /** Argument AUTHINFO: 1-400 znakov, brez kontrolnih znakov (CR/LF bi zacel nov ukaz). */
-        fun varenArgument(s: String): Boolean = s.length in 1..400 && s.all { it.code >= 0x20 && it.code != 0x7F }
+        /**
+         * Argument AUTHINFO (skupni primeri nntp_poverilnica): 1-[NAJVEC_POVERILNICE] bajtov UTF-8, brez znakov pod 0x20
+         * in 0x7F (CR/LF bi zacel nov ukaz) in brez osamljenih nadomestnih znakov (toByteArray bi jih tiho zamenjal z »?«).
+         */
+        fun varenArgument(s: String): Boolean {
+            if (s.isEmpty() || s.any { it.code < 0x20 || it.code == 0x7F }) return false
+            var bajtov = 0
+            var i = 0
+            while (i < s.length) {
+                val c = s[i]
+                if (Character.isHighSurrogate(c) && i + 1 < s.length && Character.isLowSurrogate(s[i + 1])) {
+                    bajtov += 4
+                    i += 2
+                    continue
+                }
+                if (Character.isSurrogate(c)) return false
+                bajtov += if (c.code < 0x80) 1 else if (c.code < 0x800) 2 else 3
+                i++
+            }
+            return bajtov <= NAJVEC_POVERILNICE
+        }
 
         /**
          * Telo odgovora v [b] med [od] in [doo] (skupni primeri nntp_telo): do vrstice ».« s CRLF, vrstica z »..« na
