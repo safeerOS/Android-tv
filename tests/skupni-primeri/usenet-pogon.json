@@ -1,6 +1,6 @@
 {
- "opis": "Lasten pogon Usenet (lastnik 25. 10. 2026 22:10, korak 1): skupni primeri za Safeer-linux (tests/test_skupni_primeri.py; core/usenet_yenc.py, usenet_nzb.py, usenet_nntp.py) in Android-tv (Kotlin). Lastnik datoteke je Safeer-linux; spremeni jo povsod hkrati. Bajti so base64 (standardni, s polnilom); null = ni vrednosti. Message-id so izmisljeni (.invalid). Pricakovani izidi niso iz nase kode: podatki so izvorni bajti, CRC32 iz zlib (outputs/skupni-primeri-osnutek/ustvari-usenet-pogon.py). PRAVILA - yenc_dekodiraj(telo po NNTP brez podvojenih pik): prva vrstica, ki se ZACNE z '=ybegin ' (prej prazne vrstice in besedilo dovoljeni; sicer ni_yenc); vrednosti kljuc=vrednost, name= je zadnji in sega do konca vrstice (ime gre skozi varno_ime, UTF-8, sicer latin-1); size obvezen (sicer napaka_oblike); ce je part, mora naslednja vrstica biti '=ypart ' z begin in end, 1<=begin<=end<=size (sicer napaka_oblike); del (end-begin+1 ali size) > meja del_bajtov = prevelik PRED dekodiranjem; podatki do prve vrstice '=yend ' (ni je = prirezano). Dekodiranje: CR in LF se izpustita POVSOD (tudi med ubeznikom '=' in ubeznim znakom - ubeznik na koncu vrstice velja za prvi znak naslednje), ubezni znak c -> (c-106)&255 (tudi '==' -> 211), drugi c -> (c-42)&255; osamljen '=' na koncu podatkov se izpusti; ubezni znak zato nikoli ni CR/LF. Pred dekodiranjem: =yend brez size ali s part, razlicnim od =ybegin part (ce sta oba), = napaka_oblike. Nato: dolzina razlicna od =yend size ali od pricakovane (end-begin+1 oz. size) = napaka_velikosti; pcrc32 (ce je), sicer pri enodelnem crc32 (ce je), sestnajstisko 1-8 znakov, velike ali male crke (neveljaven zapis = napaka_oblike), razlicen od CRC32 podatkov = napaka_crc; crc32 cele datoteke pri vecdelnem se ne preverja (crc_preverjen false, ce ni pcrc32). Izhod: zacetek 1-based (enodelni 1), konec = zacetek+dolzina-1, crc32 = 8 malih sestnajstiskih CRC32 podatkov. nntp_telo(bajti po statusni vrstici): konec je vrstica '.' (CRLF strogo); do nje: vrstica, ki se zacne z '..', izgubi eno piko, druge ostanejo; null, ce konca ni; ostanek = bajti po koncu. yenc_iz_nntp = nntp_telo + yenc_dekodiraj (null -> prirezano). nntp_izid(ukaz, vrstica): koda = prvi trije znaki, ce so stevke s prvo 1-5 in jim sledi presledek ali konec (sicer napaka_protokola). Pricakovano ok: POZDRAV 200/201, AUTHINFO USER 281 (381 = geslo), AUTHINFO PASS 281, ARTICLE 220, HEAD 221, BODY 222, STAT 223, QUIT 205 (v3 spodaj nadomesti ostala pravila nntp_izid). nntp_id: obrezi presledke, odstrani EN par '<' '>' na robu; veljaven, ce 1-248 znakov ASCII 0x21-0x7E brez '<' in '>' (sicer null) - nikoli ukaz s CR/LF. varno_ime: '\\\\' -> '/', del za zadnjo '/'; po KODNIH TOCKAH: crka (kategorija L*), stevka Nd ali eden od \" ._-()[]+,!&'#@~\" ostane, vse drugo '_'; nad 200 kodnih tock: ce je zadnja pika v zadnjih 10 znakih (koncnica do 9 znakov), obdrzi koncnico in skrajsaj osnovo na 200, sicer prvih 200; nato obrezi presledke in pike na koncu ter presledke na zacetku; prazno = null; osnova pred prvo piko (male/velike) CON PRN AUX NUL COM1-9 LPT1-9 dobi '_' spredaj. nzb_ime(subject): prvi neprazen niz v dvojnih narekovajih, sicer zadnja beseda s piko po odstranitvi '(a/b)' in besede yEnc; nato varno_ime. nzb_razcleni(bajti): > 20 MiB = prevelik; bajt NUL = napaka_xml; BOM UTF-8 se odstrani; encoding iz XML deklaracije (utf-8, utf8, us-ascii, ascii = UTF-8; iso-8859-1, iso_8859-1, latin1, latin-1 = ISO-8859-1; brez = UTF-8; drugo = napaka_xml), napacen UTF-8 se zamenja z U+FFFD; '<!' + ENTITY/ELEMENT/ATTLIST/NOTATION kjerkoli (tudi v komentarju) = zavrnjeno_dtd; dovoljen je najvec en '<!DOCTYPE nzb' (velike crke) brez notranjega dela: brez identifikatorja, PUBLIC \"..\" \"..\" ali SYSTEM \"..\" (narekovaji ' ali \", brez [ ] < > v nizu) - se ne nalaga, odstrani se pred razclenitvijo; vsak drug DOCTYPE = zavrnjeno_dtd; napaka XML ali nedefinirana entiteta = napaka_xml; koren (brez imenskega prostora) ni nzb = ni_nzb. head/meta: title (presledki strnjeni, najvec 200) = naslov, neprazen password = ima_geslo (geslo se ne izpise). Samo neposredni otroci korena <file>: subject -> ime (nzb_ime), skupine = neprazne obrezane <group> do 200 znakov, najvec 50; segment: number 1-6 stevk 0-9 z vrednostjo 1-200000 (sicer izpuscen), bytes 1-9 stevk 0-9 (sicer 0), id = nntp_id (null = izpuscen), dvojnik stevilke med veljavnimi: prvi ostane; segmenti po stevilki; manjka = max(b iz zadnjega '(a/b)' v subject, ce 1<=b<=200000, najvecja stevilka) - stevilo segmentov; datoteka brez segmentov se izpusti; vec kot 5000 <file>, 500000 <segment> ali 1000000 elementov skupaj = prevelik (sproti, pred koncem dokumenta); brez datotek = prazen. bajtov_nzb je vsota bytes (velikost clankov, NE dekodiranih podatkov - odmike da glava yEnc). Verzija 2 (25. 10. 2026 22:55, po preizkusih na namizju): samostojen CR sredi vrstice yEnc se izpusti (nov primer), meja nzb_elementov, pojasnjeno: us-ascii = UTF-8, =yend part se primerja samo, ce ga ima tudi =ybegin, dvojnik segmenta samo med veljavnimi. Pricakovani izidi v1 so nespremenjeni. Verzija 3 (26. 10. 2026, pregleda Grok 35 in 37; lastnik 03:05 »Nevarnost zaklepa racuna je prioriteta«). nntp_izid(ukaz, vrstica): koda ni veljavna = napaka_protokola, pri AUTHINFO USER/PASS pa prijava. zaklep(besedilo po kodi, male crke) = vsebuje enega od 'lock', 'ban', 'block', 'attempt', 'suspend', 'expire', 'disable'. meja_povezav(besedilo) = ne zaklep IN ne vsebuje 'fail', 'pass', 'invalid', 'incorrect', 'wrong', 'auth', 'login', 'log in', 'logon', 'sign in', 'credential' (zadnjih sest v4) IN (vsebuje 'connection limit' ali ('connections' in enega od 'too many', 'limit', 'max', 'exceed', 'no more')) - dvom = zavrnjena prijava, nikoli ponovitev. Vrstni red: pricakovano = ok; AUTHINFO USER 381 = geslo; koda 400/480/481/482/502 in meja_povezav = zaseden; AUTHINFO USER/PASS: vse drugo = prijava, tudi po uspeli prijavi istega racuna (v4; RFC 4643: 481 zavrnjeno, 482 vrstni red, 502 ni dovoljeno); 423/430 pri ARTICLE/HEAD/BODY/STAT = ni_clanka; 480/481/482 = prijava; POZDRAV 400 = napaka_streznika (zacasno); 400 = zaprto (streznik zapira povezavo); 502 = dostop (RFC 3977: trajno ali brez pravic; ukrep v nntp_ukrep); 403 = napaka_streznika; 205 = zaprto; drugo = napaka_protokola. nntp_ukrep(izid, faza, stara, poskus) - faza: povezava (TCP, TLS, pozdrav; nic AUTHINFO), prijava (od poslanega AUTHINFO USER do 281), ukaz (BODY/STAT na prijavljeni povezavi); stara = povezava iz bazena; poskus 0 ali 1. Ukrepi: vrni (povezava nazaj v bazen), znova (drugi poskus VEDNO z novo povezavo), napaka, zmanjsaj_pocakaj (bazen in premor po nntp_premor; zahteva caka prosto obstojeco povezavo ali konec premora), pocakaj (premor brez zmanjsanja), neznana_prijava (prijava brez odgovora: premor; druga zapored = ustavi_racun), ustavi_racun (zavrnjena prijava: vse povezave zaprte, nobenega AUTHINFO vec za te poverilnice, dokler jih uporabnik ne vpise znova), ustavi_bazen (dostop ali potrdilo). Pravilo je v primerih (cela tabela). Bazen odpira nove povezave eno za drugo (sonda), dokler ena prijava ne uspe in je kaksna prijavljena povezava odprta - zato zavrnjeno geslo pride do streznika najvec enkrat tudi pri 8 hkratnih zahtevah (nntp_sme_odpreti). nntp_premor(najvec, odprtih = DRUGE prijavljene odprte povezave, premor_s = prejsnji premor ali 0, tece = premor se ni potekel, zmanjsaj): najvec' = max(1, min(najvec, odprtih)), ce zmanjsaj; premor' = premor_s, ce tece; sicer min(300, 2*premor_s), ce premor_s > 0, sicer 10 (so druge odprte) ali 60 (ni nobene); uspesno odprta povezava premor ponastavi in najvec = max(najvec, prijavljenih) do zgornje meje (te je streznik sprejel - hkratna zavrnitev, ko ta se ni bila prijavljena, bazena ne skrci pod njih). Prosta povezava ostane v bazenu samo, ce je prijavljenih manj kot najvec (povezave v odpiranju se ne stejejo). Zmanjsan bazen po rast_bazena_s brez nove meje dobi eno mesto nazaj (do meje, ki jo nastavi klicatelj - proracun povezav med napravami kroga je korak 3). Prosta povezava, nedejavna vec kot prosta_najdlje_s, se zapre. nntp_poverilnica: 1-400 bajtov UTF-8 (brez osamljenih nadomestnih znakov), noben znak pod 0x20 in 0x7F. nntp_id_odgovora(vrstica, id): prvi '<' in za njim prvi '>' - vsebina vmes mora biti enaka id (velike/male crke locene); brez para = true. Neujemanje = napaka_protokola, povezava se zapre. Bajti za koncem bloka (ostanek) = povezava se zapre (ne v bazen). yenc_dekodiraj: size, begin, end samo 1-12 stevk 0-9; part, total samo 1-9 stevk 0-9 in >= 1; part <= total, ce sta oba; =yend size obvezen in stevilo; =yend part, ce je, stevilo (in enak =ybegin part, ce sta oba); vsako navedeno polje pcrc32/crc32 mora biti veljavno sestnajstisko (tudi, ce se ne preverja); del > 4 MiB = prevelik. varno_ime: najprej NFC; po meji 200 kodnih tock se ime skrajsa se na najvec 240 bajtov UTF-8 (koncnica do 9 znakov ostane, osnova se krajsa po kodnih tockah); po obrezovanju vodilna pika postane '_' (skrita datoteka). nzb_razcleni: dovoljeni DOCTYPE se NADOMESTI s presledki enake dolzine (ne odstrani); ce nato kjerkoli ostane '<!' in crka A-Z/a-z = zavrnjeno_dtd (lepljenje ne more sestaviti novega DOCTYPE). Steje vsak <file> pod korenom in vsak <segment> kjerkoli (tudi neveljaven). Skupina velja, ce ima po obrezovanju 1-200 znakov, vsi iz %x22-29, %x2B, %x2D-3E, %x40-5A, %x5E-7E (RFC 3977 wildmat-exact, samo ASCII); druge se izpustijo. Naslov: vsak od ' ', TAB, LF, CR, FF, VT je presledek, znaki kategorij Cc in Cf se odstranijo, zaporedni presledki strnjeni, obrezano, najvec 200 kodnih tock. Napacen UTF-8 da U+FFFD, stevilo pa ni enako (izmerjeno 26. 10.: Python 3.12 za E2 82 / C0 AF / ED A0 80 da 1+2+3, Java 17 skupaj 3 - vpliva samo na stevilo '_' v imenu iz pokvarjenega NZB, ni primera). Koren s predpono velja le z navedenim imenskim prostorom (brez njega ni enako na obeh straneh - ni primera). Verzija 4 (26. 10. 2026, pregleda Grok 43 in 44; lastnik: »Nevarnost zaklepa racuna je prioriteta«). nntp_izid nima vec vhoda prijava_uspela: »481 Authentication failed« in vsak drug odgovor na AUTHINFO brez jasne meje povezav je prijava (zapah), tudi po uspeli prijavi - geslo se je med sejo morda spremenilo. Bazen: AUTHINFO za racun (ponudnik, uporabnik) gre v procesu vedno ena prijava naenkrat (tudi po uspeli prijavi in med bazeni); izid prijave (zapah, stevec prijav brez odgovora) se zapise, preden naslednja povezava poslje geslo - zavrnjeno geslo pride do streznika enkrat. nntp_sme_odpreti: uspela = vsaj ena prijavljena povezava je v zadnjih ziva_prijava_s sekundah uspesno koncala prijavo ali ukaz (odprta vticnica ni dokaz). nntp_zapah_odtis(sol_hex, ponudnik, uporabnik, geslo): trajni zapah racuna (prezivi ponovni zagon, sesutje in posodobitev; nikoli geslo) - polja(...) = za vsako polje 4 bajti dolzine (big-endian) in UTF-8; racun = SHA-256(sol + polja(ponudnik, uporabnik)), geslo = PBKDF2-HMAC-SHA256(polja(ponudnik, uporabnik, geslo), sol, zapah_ponovitev, 32 B), oba sestnajstisko z malimi crkami. Vsak zapis ima svojo nakljucno sol (16 B, zato je prenosljiv med napravami); hrani se najvec zapahov_najvec najnovejsih. Zapah odklene samo nov vpis poverilnic ali uporabnikov »Preveri«; uspela prijava racuna pobrise njegove stare zapise. nntp_ponudnik(gostitelj): obrezi presledke, male crke, brez pik na koncu; naslov IP (vsebuje ':' ali samo stevke in pike) ostane cel; sicer zadnji dve oznaki, ce pa je zadnja oznaka dolga 2 znaka in predzadnja ena od co, com, net, org, ac, or, ne, gov, edu, zadnje tri. Odtis zapaha (v procesu in trajni) in vrata prijave uporabljajo ponudnika (news.x.com in eu.news.x.com sta isti racun); zapah ustavi vse zive bazene istega racuna. nntp_ukrep v4: ustavi_racun (zapah) samo po odgovoru na AUTHINFO; prijava v fazi povezave (48x v pozdravu, geslo ni bilo poslano) = ustavi_bazen; v fazi ukaza dostop (502 pri enem clanku) = vrni (povezava ostane), prijava (480/481 pri BODY/STAT - streznik je sejo pozabil) = znova, ce stara in poskus 0, sicer napaka (nova povezava gre skozi vrata prijave). Bazen: napak_ukaza_zapored zaporednih ukazov z dostop ali (na sveze prijavljeni povezavi) prijava - brez uspesnega odgovora vmes, ni_clanka steje kot uspeh = ustavi_bazen - racun brez pravic ne odpira novih prijav v zanki. Verzija 5 (26. 10. 2026, korak 2: preslikava odmikov, RAR store, okno vnaprej; NOVA pravila, izidi v1-v4 nespremenjeni). tok_odmik(velikost, celota, del_bajtov ali null, znani = [[stevilka, odmik, dolzina]] prebranih segmentov (odmik od 0), odmik): odmik zunaj [0, velikost) = izven; celota < 1 ali velikost < celota = neskladno; znani urejeni po stevilki morajo biti 1 <= stevilka <= celota, dolzina >= 1, odmik + dolzina <= velikost, med zaporednima znanima je za vsak vmesni segment vsaj en bajt, sosednji stevilki se stikata, prvi pred znanim ima prostor (stevilka 1 zacne na 0), za zadnjim znanim je prostor za ostale in znan zadnji segment konca na velikosti - sicer neskladno. Ce odmik lezi v znanem: segment, odmik v njem, natancno=true. Sicer sidri: levo = zadnji znani, ki konca <= odmik (navidezni 0 s koncem 0), desno = prvi znani, ki zacne > odmik (navidezni celota+1 z zacetkom velikost). Enakomerno, ce del_bajtov in levi konec = levo_st * del_bajtov in (desno je navidezni in (celota-1)*del < velikost <= celota*del ali desni zacetek = (desno_st-1)*del): segment = odmik div del + 1, odmik - (segment-1)*del. Sicer na = (desni_zacetek - levi_konec) / (desno_st - levo_st - 1) (deljenje v plavajoci vejici), segment = levo_st + 1 + floor((odmik - levi_konec) / na), omejen na [levo_st+1, desno_st-1], odmik v njem = odmik - (levi_konec + floor((segment - levo_st - 1) * na)); natancno=false - bralnik segment prebere, ga doda med znane in isce znova (najvec 24 krat). tok_segmenti(... odmik, dolzina): stevilke od segmenta za odmik dalje, dokler ocenjeni zacetek (znan, enakomeren kot zgoraj ali levi_konec + floor((st - levo_st - 1) * na)) < min(velikost, odmik+dolzina); dolzina <= 0 ali odmik zunaj = []. tok_okno(zaporedno_prebrano, zacetno, najvec) = max(zacetno, min(najvec, 2*max(0, zaporedno_prebrano))) - bajti, prebrani zaporedno od zadnjega skoka (branje, ki se zacne vec kot zacetno okno od konca prejsnjega, je skok in stevec postavi na 0); okno se bere od konca zadnjega branja, cakajoca branja vnaprej zunaj novega okna se ob skoku zavrzejo. tok_profili: [okno, zacetno okno, LRU, vzporednih branj] po napravi; LRU je najmanj 2*okno + 8 MiB. rar_glava(glava_b64 = zacetek prvega zvezka, npr. prvi segment, velikost = velikost zvezka): RAR4 podpis 52 61 72 21 1A 07 00, RAR5 52 61 72 21 1A 07 01 00, drugo = ni_rar. RAR4 blok: HEAD_CRC u16 = nizjih 16 bitov CRC32 glave od HEAD_TYPE do konca, HEAD_TYPE u8, HEAD_FLAGS u16, HEAD_SIZE u16 (>= 7), pri zastavici 0x8000 ali vrsti 0x74 ADD_SIZE u32 (podatki za glavo); prvi blok mora biti glavna glava 0x73 (zastavica 0x0080 = sifrirane_glave, 0x0001 = vec_zvezkov; zvezek = null); glava datoteke 0x74: PACK_SIZE u32, UNP_SIZE u32, HOST_OS u8, FILE_CRC u32, FTIME u32, UNP_VER u8, METHOD u8 (0x30 = store), NAME_SIZE u16 (<= 4096), ATTR u32, pri 0x0100 HIGH_PACK u32 in HIGH_UNP u32 (zgornjih 32 bitov), ime; zastavice 0x01 pred, 0x02 po, 0x04 sifriran, 0x0200 ime Unicode (vzame se ASCII del pred NUL), 0xE0 vse = mapa; podatki zacnejo za glavo (odmik) in so dolgi PACK_SIZE; 0x7B konec. RAR5 blok: CRC32 u32 (od velikosti glave do konca), velikost glave vint (najvec 3 bajti, <= 2 MiB, sicer poskodovan), vrsta vint, zastavice vint (0x1 dodatni del, 0x2 podatki, 0x8 pred, 0x10 po), [velikost dodatnega dela], [velikost podatkov]; prvi blok mora biti glavni 1 (zastavice arhiva 0x1 vec_zvezkov, 0x2 stevilka zvezka sledi; vec zvezkov brez stevilke = zvezek 0, en zvezek = null); vrsta 4 = sifrirane_glave; datoteka 2: zastavice datoteke vint (0x1 mapa, 0x2 cas u32, 0x4 CRC u32, 0x8 neznana velikost -> velikost -1), velikost vint, atributi vint, [cas], [CRC], stiskanje vint (metoda = bita 7-9, 0 = store), OS vint, dolzina imena vint (<= 4096), ime UTF-8; dodatni del: zapisi (velikost vint, vrsta vint, ...), vrsta 0x01 = sifriran; 5 konec. Vint najvec 10 bajtov. Vsak naslednji blok mora biti za prejsnjim, najvec 10000 blokov. Ime gre skozi varno_ime. Glava, ki sega cez prebrane bajte, ustavi razclenitev (datoteke do tam ostanejo). Izhod: izid (iz najvecje datoteke, ki ni mapa: sifriran pred stisnjen, sicer ok; brez datotek nepopolno, ce je glava presegla bajte, sicer ni_datoteke; napaka = samo izid), rar, zvezek, vec_zvezkov, datoteke [ime, odmik, dolzina, velikost, pred, po, store, sifriran, mapa]. rar_zvezki(imena): vsa .partN.rar (N od 1 brez lukenj) ali .rar + .r00 ... .r99 + .s00 ... (vrstni red .rar, .r00 ...; crka r..z, 2 stevki), ista osnova (velike/male crke enake), ena shema; izhod indeksi v pravem redu, sicer null. rar_sestavi(zvezki_b64 v vrstnem redu): datoteka = najvecja v prvem zvezku; sifriran/stisnjen/prva pred = napaka; vsak naslednji zvezek, dokler ima prejsnji kos zastavico po, mora imeti kos z zastavico pred, istim imenom, isto velikostjo (in RAR5 zaporedno stevilko zvezka); na koncu brez po in vsota dolzin = velikost - sicer neskladno; izhod ime, velikost, kosi [[zvezek, odmik, dolzina]]. Prave glave WinRAR 7.x (rar_glava »pravi«) so prvih bajti arhivov z nakljucnimi podatki (ni zasebnih podatkov).",
- "verzija": 5,
+ "opis": "Lasten pogon Usenet (lastnik 25. 10. 2026 22:10, korak 1): skupni primeri za Safeer-linux (tests/test_skupni_primeri.py; core/usenet_yenc.py, usenet_nzb.py, usenet_nntp.py) in Android-tv (Kotlin). Lastnik datoteke je Safeer-linux; spremeni jo povsod hkrati. Bajti so base64 (standardni, s polnilom); null = ni vrednosti. Message-id so izmisljeni (.invalid). Pricakovani izidi niso iz nase kode: podatki so izvorni bajti, CRC32 iz zlib (outputs/skupni-primeri-osnutek/ustvari-usenet-pogon.py). PRAVILA - yenc_dekodiraj(telo po NNTP brez podvojenih pik): prva vrstica, ki se ZACNE z '=ybegin ' (prej prazne vrstice in besedilo dovoljeni; sicer ni_yenc); vrednosti kljuc=vrednost, name= je zadnji in sega do konca vrstice (ime gre skozi varno_ime, UTF-8, sicer latin-1); size obvezen (sicer napaka_oblike); ce je part, mora naslednja vrstica biti '=ypart ' z begin in end, 1<=begin<=end<=size (sicer napaka_oblike); del (end-begin+1 ali size) > meja del_bajtov = prevelik PRED dekodiranjem; podatki do prve vrstice '=yend ' (ni je = prirezano). Dekodiranje: CR in LF se izpustita POVSOD (tudi med ubeznikom '=' in ubeznim znakom - ubeznik na koncu vrstice velja za prvi znak naslednje), ubezni znak c -> (c-106)&255 (tudi '==' -> 211), drugi c -> (c-42)&255; osamljen '=' na koncu podatkov se izpusti; ubezni znak zato nikoli ni CR/LF. Pred dekodiranjem: =yend brez size ali s part, razlicnim od =ybegin part (ce sta oba), = napaka_oblike. Nato: dolzina razlicna od =yend size ali od pricakovane (end-begin+1 oz. size) = napaka_velikosti; pcrc32 (ce je), sicer pri enodelnem crc32 (ce je), sestnajstisko 1-8 znakov, velike ali male crke (neveljaven zapis = napaka_oblike), razlicen od CRC32 podatkov = napaka_crc; crc32 cele datoteke pri vecdelnem se ne preverja (crc_preverjen false, ce ni pcrc32). Izhod: zacetek 1-based (enodelni 1), konec = zacetek+dolzina-1, crc32 = 8 malih sestnajstiskih CRC32 podatkov. nntp_telo(bajti po statusni vrstici): konec je vrstica '.' (CRLF strogo); do nje: vrstica, ki se zacne z '..', izgubi eno piko, druge ostanejo; null, ce konca ni; ostanek = bajti po koncu. yenc_iz_nntp = nntp_telo + yenc_dekodiraj (null -> prirezano). nntp_izid(ukaz, vrstica): koda = prvi trije znaki, ce so stevke s prvo 1-5 in jim sledi presledek ali konec (sicer napaka_protokola). Pricakovano ok: POZDRAV 200/201, AUTHINFO USER 281 (381 = geslo), AUTHINFO PASS 281, ARTICLE 220, HEAD 221, BODY 222, STAT 223, QUIT 205 (v3 spodaj nadomesti ostala pravila nntp_izid). nntp_id: obrezi presledke, odstrani EN par '<' '>' na robu; veljaven, ce 1-248 znakov ASCII 0x21-0x7E brez '<' in '>' (sicer null) - nikoli ukaz s CR/LF. varno_ime: '\\\\' -> '/', del za zadnjo '/'; po KODNIH TOCKAH: crka (kategorija L*), stevka Nd ali eden od \" ._-()[]+,!&'#@~\" ostane, vse drugo '_'; nad 200 kodnih tock: ce je zadnja pika v zadnjih 10 znakih (koncnica do 9 znakov), obdrzi koncnico in skrajsaj osnovo na 200, sicer prvih 200; nato obrezi presledke in pike na koncu ter presledke na zacetku; prazno = null; osnova pred prvo piko (male/velike) CON PRN AUX NUL COM1-9 LPT1-9 dobi '_' spredaj. nzb_ime(subject): prvi neprazen niz v dvojnih narekovajih, sicer zadnja beseda s piko po odstranitvi '(a/b)' in besede yEnc; nato varno_ime. nzb_razcleni(bajti): > 20 MiB = prevelik; bajt NUL = napaka_xml; BOM UTF-8 se odstrani; encoding iz XML deklaracije (utf-8, utf8, us-ascii, ascii = UTF-8; iso-8859-1, iso_8859-1, latin1, latin-1 = ISO-8859-1; brez = UTF-8; drugo = napaka_xml), napacen UTF-8 se zamenja z U+FFFD; '<!' + ENTITY/ELEMENT/ATTLIST/NOTATION kjerkoli (tudi v komentarju) = zavrnjeno_dtd; dovoljen je najvec en '<!DOCTYPE nzb' (velike crke) brez notranjega dela: brez identifikatorja, PUBLIC \"..\" \"..\" ali SYSTEM \"..\" (narekovaji ' ali \", brez [ ] < > v nizu) - se ne nalaga, odstrani se pred razclenitvijo; vsak drug DOCTYPE = zavrnjeno_dtd; napaka XML ali nedefinirana entiteta = napaka_xml; koren (brez imenskega prostora) ni nzb = ni_nzb. head/meta: title (presledki strnjeni, najvec 200) = naslov, neprazen password = ima_geslo (geslo se ne izpise). Samo neposredni otroci korena <file>: subject -> ime (nzb_ime), skupine = neprazne obrezane <group> do 200 znakov, najvec 50; segment: number 1-6 stevk 0-9 z vrednostjo 1-200000 (sicer izpuscen), bytes 1-9 stevk 0-9 (sicer 0), id = nntp_id (null = izpuscen), dvojnik stevilke med veljavnimi: prvi ostane; segmenti po stevilki; manjka = max(b iz zadnjega '(a/b)' v subject, ce 1<=b<=200000, najvecja stevilka) - stevilo segmentov; datoteka brez segmentov se izpusti; vec kot 5000 <file>, 500000 <segment> ali 1000000 elementov skupaj = prevelik (sproti, pred koncem dokumenta); brez datotek = prazen. bajtov_nzb je vsota bytes (velikost clankov, NE dekodiranih podatkov - odmike da glava yEnc). Verzija 2 (25. 10. 2026 22:55, po preizkusih na namizju): samostojen CR sredi vrstice yEnc se izpusti (nov primer), meja nzb_elementov, pojasnjeno: us-ascii = UTF-8, =yend part se primerja samo, ce ga ima tudi =ybegin, dvojnik segmenta samo med veljavnimi. Pricakovani izidi v1 so nespremenjeni. Verzija 3 (26. 10. 2026, pregleda Grok 35 in 37; lastnik 03:05 »Nevarnost zaklepa racuna je prioriteta«). nntp_izid(ukaz, vrstica): koda ni veljavna = napaka_protokola, pri AUTHINFO USER/PASS pa prijava. zaklep(besedilo po kodi, male crke) = vsebuje enega od 'lock', 'ban', 'block', 'attempt', 'suspend', 'expire', 'disable'. meja_povezav(besedilo) = ne zaklep IN ne vsebuje 'fail', 'pass', 'invalid', 'incorrect', 'wrong', 'auth', 'login', 'log in', 'logon', 'sign in', 'credential' (zadnjih sest v4) IN (vsebuje 'connection limit' ali ('connections' in enega od 'too many', 'limit', 'max', 'exceed', 'no more')) - dvom = zavrnjena prijava, nikoli ponovitev. Vrstni red: pricakovano = ok; AUTHINFO USER 381 = geslo; koda 400/480/481/482/502 in meja_povezav = zaseden; AUTHINFO USER/PASS: vse drugo = prijava, tudi po uspeli prijavi istega racuna (v4; RFC 4643: 481 zavrnjeno, 482 vrstni red, 502 ni dovoljeno); 423/430 pri ARTICLE/HEAD/BODY/STAT = ni_clanka; 480/481/482 = prijava; POZDRAV 400 = napaka_streznika (zacasno); 400 = zaprto (streznik zapira povezavo); 502 = dostop (RFC 3977: trajno ali brez pravic; ukrep v nntp_ukrep); 403 = napaka_streznika; 205 = zaprto; drugo = napaka_protokola. nntp_ukrep(izid, faza, stara, poskus) - faza: povezava (TCP, TLS, pozdrav; nic AUTHINFO), prijava (od poslanega AUTHINFO USER do 281), ukaz (BODY/STAT na prijavljeni povezavi); stara = povezava iz bazena; poskus 0 ali 1. Ukrepi: vrni (povezava nazaj v bazen), znova (drugi poskus VEDNO z novo povezavo), napaka, zmanjsaj_pocakaj (bazen in premor po nntp_premor; zahteva caka prosto obstojeco povezavo ali konec premora), pocakaj (premor brez zmanjsanja), neznana_prijava (prijava brez odgovora: premor; druga zapored = ustavi_racun), ustavi_racun (zavrnjena prijava: vse povezave zaprte, nobenega AUTHINFO vec za te poverilnice, dokler jih uporabnik ne vpise znova), ustavi_bazen (dostop ali potrdilo). Pravilo je v primerih (cela tabela). Bazen odpira nove povezave eno za drugo (sonda), dokler ena prijava ne uspe in je kaksna prijavljena povezava odprta - zato zavrnjeno geslo pride do streznika najvec enkrat tudi pri 8 hkratnih zahtevah (nntp_sme_odpreti). nntp_premor(najvec, odprtih = DRUGE prijavljene odprte povezave, premor_s = prejsnji premor ali 0, tece = premor se ni potekel, zmanjsaj): najvec' = max(1, min(najvec, odprtih)), ce zmanjsaj; premor' = premor_s, ce tece; sicer min(300, 2*premor_s), ce premor_s > 0, sicer 10 (so druge odprte) ali 60 (ni nobene); uspesno odprta povezava premor ponastavi in najvec = max(najvec, prijavljenih) do zgornje meje (te je streznik sprejel - hkratna zavrnitev, ko ta se ni bila prijavljena, bazena ne skrci pod njih). Prosta povezava ostane v bazenu samo, ce je prijavljenih manj kot najvec (povezave v odpiranju se ne stejejo). Zmanjsan bazen po rast_bazena_s brez nove meje dobi eno mesto nazaj (do meje, ki jo nastavi klicatelj - proracun povezav med napravami kroga je korak 3). Prosta povezava, nedejavna vec kot prosta_najdlje_s, se zapre. nntp_poverilnica: 1-400 bajtov UTF-8 (brez osamljenih nadomestnih znakov), noben znak pod 0x20 in 0x7F. nntp_id_odgovora(vrstica, id): prvi '<' in za njim prvi '>' - vsebina vmes mora biti enaka id (velike/male crke locene); brez para = true. Neujemanje = napaka_protokola, povezava se zapre. Bajti za koncem bloka (ostanek) = povezava se zapre (ne v bazen). yenc_dekodiraj: size, begin, end samo 1-12 stevk 0-9; part, total samo 1-9 stevk 0-9 in >= 1; part <= total, ce sta oba; =yend size obvezen in stevilo; =yend part, ce je, stevilo (in enak =ybegin part, ce sta oba); vsako navedeno polje pcrc32/crc32 mora biti veljavno sestnajstisko (tudi, ce se ne preverja); del > 4 MiB = prevelik. varno_ime: najprej NFC; po meji 200 kodnih tock se ime skrajsa se na najvec 240 bajtov UTF-8 (koncnica do 9 znakov ostane, osnova se krajsa po kodnih tockah); po obrezovanju vodilna pika postane '_' (skrita datoteka). nzb_razcleni: dovoljeni DOCTYPE se NADOMESTI s presledki enake dolzine (ne odstrani); ce nato kjerkoli ostane '<!' in crka A-Z/a-z = zavrnjeno_dtd (lepljenje ne more sestaviti novega DOCTYPE). Steje vsak <file> pod korenom in vsak <segment> kjerkoli (tudi neveljaven). Skupina velja, ce ima po obrezovanju 1-200 znakov, vsi iz %x22-29, %x2B, %x2D-3E, %x40-5A, %x5E-7E (RFC 3977 wildmat-exact, samo ASCII); druge se izpustijo. Naslov: vsak od ' ', TAB, LF, CR, FF, VT je presledek, znaki kategorij Cc in Cf se odstranijo, zaporedni presledki strnjeni, obrezano, najvec 200 kodnih tock. Napacen UTF-8 da U+FFFD, stevilo pa ni enako (izmerjeno 26. 10.: Python 3.12 za E2 82 / C0 AF / ED A0 80 da 1+2+3, Java 17 skupaj 3 - vpliva samo na stevilo '_' v imenu iz pokvarjenega NZB, ni primera). Koren s predpono velja le z navedenim imenskim prostorom (brez njega ni enako na obeh straneh - ni primera). Verzija 4 (26. 10. 2026, pregleda Grok 43 in 44; lastnik: »Nevarnost zaklepa racuna je prioriteta«). nntp_izid nima vec vhoda prijava_uspela: »481 Authentication failed« in vsak drug odgovor na AUTHINFO brez jasne meje povezav je prijava (zapah), tudi po uspeli prijavi - geslo se je med sejo morda spremenilo. Bazen: AUTHINFO za racun (ponudnik, uporabnik) gre v procesu vedno ena prijava naenkrat (tudi po uspeli prijavi in med bazeni); izid prijave (zapah, stevec prijav brez odgovora) se zapise, preden naslednja povezava poslje geslo - zavrnjeno geslo pride do streznika enkrat. nntp_sme_odpreti: uspela = vsaj ena prijavljena povezava je v zadnjih ziva_prijava_s sekundah uspesno koncala prijavo ali ukaz (odprta vticnica ni dokaz). nntp_zapah_odtis(sol_hex, ponudnik, uporabnik, geslo): trajni zapah racuna (prezivi ponovni zagon, sesutje in posodobitev; nikoli geslo) - polja(...) = za vsako polje 4 bajti dolzine (big-endian) in UTF-8; racun = SHA-256(sol + polja(ponudnik, uporabnik)), geslo = PBKDF2-HMAC-SHA256(polja(ponudnik, uporabnik, geslo), sol, zapah_ponovitev, 32 B), oba sestnajstisko z malimi crkami. Vsak zapis ima svojo nakljucno sol (16 B, zato je prenosljiv med napravami); hrani se najvec zapahov_najvec najnovejsih. Zapah odklene samo nov vpis poverilnic ali uporabnikov »Preveri«; uspela prijava racuna pobrise njegove stare zapise. nntp_ponudnik(gostitelj): obrezi presledke, male crke, brez pik na koncu; naslov IP (vsebuje ':' ali samo stevke in pike) ostane cel; sicer zadnji dve oznaki, ce pa je zadnja oznaka dolga 2 znaka in predzadnja ena od co, com, net, org, ac, or, ne, gov, edu, zadnje tri. Odtis zapaha (v procesu in trajni) in vrata prijave uporabljajo ponudnika (news.x.com in eu.news.x.com sta isti racun); zapah ustavi vse zive bazene istega racuna. nntp_ukrep v4: ustavi_racun (zapah) samo po odgovoru na AUTHINFO; prijava v fazi povezave (48x v pozdravu, geslo ni bilo poslano) = ustavi_bazen; v fazi ukaza dostop (502 pri enem clanku) = vrni (povezava ostane), prijava (480/481 pri BODY/STAT - streznik je sejo pozabil) = znova, ce stara in poskus 0, sicer napaka (nova povezava gre skozi vrata prijave). Bazen: napak_ukaza_zapored zaporednih ukazov z dostop ali (na sveze prijavljeni povezavi) prijava - brez uspesnega odgovora vmes, ni_clanka steje kot uspeh = ustavi_bazen - racun brez pravic ne odpira novih prijav v zanki. Verzija 5 (26. 10. 2026, korak 2: preslikava odmikov, RAR store, okno vnaprej; NOVA pravila, izidi v1-v4 nespremenjeni). tok_odmik(velikost, celota, del_bajtov ali null, znani = [[stevilka, odmik, dolzina]] prebranih segmentov (odmik od 0), odmik): odmik zunaj [0, velikost) = izven; celota < 1 ali velikost < celota = neskladno; znani urejeni po stevilki morajo biti 1 <= stevilka <= celota, dolzina >= 1, odmik + dolzina <= velikost, med zaporednima znanima je za vsak vmesni segment vsaj en bajt, sosednji stevilki se stikata, prvi pred znanim ima prostor (stevilka 1 zacne na 0), za zadnjim znanim je prostor za ostale in znan zadnji segment konca na velikosti - sicer neskladno. Ce odmik lezi v znanem: segment, odmik v njem, natancno=true. Sicer sidri: levo = zadnji znani, ki konca <= odmik (navidezni 0 s koncem 0), desno = prvi znani, ki zacne > odmik (navidezni celota+1 z zacetkom velikost). Enakomerno, ce del_bajtov in levi konec = levo_st * del_bajtov in (desno je navidezni in (celota-1)*del < velikost <= celota*del ali desni zacetek = (desno_st-1)*del): segment = odmik div del + 1, odmik - (segment-1)*del. Sicer na = (desni_zacetek - levi_konec) / (desno_st - levo_st - 1) (deljenje v plavajoci vejici), segment = levo_st + 1 + floor((odmik - levi_konec) / na), omejen na [levo_st+1, desno_st-1], odmik v njem = odmik - (levi_konec + floor((segment - levo_st - 1) * na)); natancno=false - bralnik segment prebere, ga doda med znane in isce znova (najvec 24 krat). tok_segmenti(... odmik, dolzina): stevilke od segmenta za odmik dalje, dokler ocenjeni zacetek (znan, enakomeren kot zgoraj ali levi_konec + floor((st - levo_st - 1) * na)) < min(velikost, odmik+dolzina); dolzina <= 0 ali odmik zunaj = []. tok_okno(zaporedno_prebrano, zacetno, najvec) = max(zacetno, min(najvec, 2*max(0, zaporedno_prebrano))) - bajti, prebrani zaporedno od zadnjega skoka (branje, ki se zacne vec kot zacetno okno od konca prejsnjega, je skok in stevec postavi na 0); okno se bere od konca zadnjega branja, cakajoca branja vnaprej zunaj novega okna se ob skoku zavrzejo. tok_profili: [okno, zacetno okno, LRU, vzporednih branj] po napravi; LRU je najmanj 2*okno + 8 MiB. rar_glava(glava_b64 = zacetek prvega zvezka, npr. prvi segment, velikost = velikost zvezka): RAR4 podpis 52 61 72 21 1A 07 00, RAR5 52 61 72 21 1A 07 01 00, drugo = ni_rar. RAR4 blok: HEAD_CRC u16 = nizjih 16 bitov CRC32 glave od HEAD_TYPE do konca, HEAD_TYPE u8, HEAD_FLAGS u16, HEAD_SIZE u16 (>= 7), pri zastavici 0x8000 ali vrsti 0x74 ADD_SIZE u32 (podatki za glavo); prvi blok mora biti glavna glava 0x73 (zastavica 0x0080 = sifrirane_glave, 0x0001 = vec_zvezkov; zvezek = null); glava datoteke 0x74: PACK_SIZE u32, UNP_SIZE u32, HOST_OS u8, FILE_CRC u32, FTIME u32, UNP_VER u8, METHOD u8 (0x30 = store), NAME_SIZE u16 (<= 4096), ATTR u32, pri 0x0100 HIGH_PACK u32 in HIGH_UNP u32 (zgornjih 32 bitov), ime; zastavice 0x01 pred, 0x02 po, 0x04 sifriran, 0x0200 ime Unicode (vzame se ASCII del pred NUL), 0xE0 vse = mapa; podatki zacnejo za glavo (odmik) in so dolgi PACK_SIZE; 0x7B konec. RAR5 blok: CRC32 u32 (od velikosti glave do konca), velikost glave vint (najvec 3 bajti, <= 2 MiB, sicer poskodovan), vrsta vint, zastavice vint (0x1 dodatni del, 0x2 podatki, 0x8 pred, 0x10 po), [velikost dodatnega dela], [velikost podatkov]; prvi blok mora biti glavni 1 (zastavice arhiva 0x1 vec_zvezkov, 0x2 stevilka zvezka sledi; vec zvezkov brez stevilke = zvezek 0, en zvezek = null); vrsta 4 = sifrirane_glave; datoteka 2: zastavice datoteke vint (0x1 mapa, 0x2 cas u32, 0x4 CRC u32, 0x8 neznana velikost -> velikost -1), velikost vint, atributi vint, [cas], [CRC], stiskanje vint (metoda = bita 7-9, 0 = store), OS vint, dolzina imena vint (<= 4096), ime UTF-8; dodatni del: zapisi (velikost vint, vrsta vint, ...), vrsta 0x01 = sifriran; 5 konec. Vint najvec 10 bajtov. Vsak naslednji blok mora biti za prejsnjim, najvec 10000 blokov. Ime gre skozi varno_ime. Glava, ki sega cez prebrane bajte, ustavi razclenitev (datoteke do tam ostanejo). Izhod: izid (iz najvecje datoteke, ki ni mapa: sifriran pred stisnjen, sicer ok; brez datotek nepopolno, ce je glava presegla bajte, sicer ni_datoteke; napaka = samo izid), rar, zvezek, vec_zvezkov, datoteke [ime, odmik, dolzina, velikost, pred, po, store, sifriran, mapa]. rar_zvezki(imena): vsa .partN.rar (N od 1 brez lukenj) ali .rar + .r00 ... .r99 + .s00 ... (vrstni red .rar, .r00 ...; crka r..z, 2 stevki), ista osnova (velike/male crke enake), ena shema; izhod indeksi v pravem redu, sicer null. rar_sestavi(zvezki_b64 v vrstnem redu): datoteka = najvecja v prvem zvezku; sifriran/stisnjen/prva pred = napaka; vsak naslednji zvezek, dokler ima prejsnji kos zastavico po, mora imeti kos z zastavico pred, istim imenom, isto velikostjo (in RAR5 zaporedno stevilko zvezka); na koncu brez po in vsota dolzin = velikost - sicer neskladno; izhod ime, velikost, kosi [[zvezek, odmik, dolzina]]. Prave glave WinRAR 7.x (rar_glava »pravi«) so prvih bajti arhivov z nakljucnimi podatki (ni zasebnih podatkov). Verzija 6 (26. 10. 2026, pregleda Grok 58 in 61; NOVA pravila in primeri, izidi v1-v5 nespremenjeni). tok_preslikava(stevil_v_nzb, manjka_v_nzb, velikost, skupaj = yEnc total prvega clanka ali null): celota = stevil + manjka; ce je skupaj: skupaj > segmentov_datoteke (200 000) = neskladno, sicer celota = max(celota, skupaj); velikost < celota ali > celota * del_bajtov (4 MiB) = neskladno; izhod celota. Manjkajoci se hranijo samo kot stevilo (nikoli seznam - en clanek s total 999 999 999 je prej izcrpal RAM). rar_glava v6: ce glave segajo cez prebrane bajte, odloci samo najvecja datoteka, ki je razdeljena cez zvezke (po) ali vsaj pol zvezka (velikost * 2 >= velikost zvezka); sicer nepopolno - bralnik nato prebere glave naprej (najvec glav_segmentov segmentov in glav_bajtov bajtov na zvezek, sicer prevec) in odloci na celem seznamu. Meje (oboje, Kotlin brez prelivanja): vint > vint_najvec = poskodovan; RAR5 dodatni del > ostanek glave ali podatki bloka > velikost zvezka - (zacetek + glava) = poskodovan; stevilka zvezka > zvezkov_najvec = poskodovan; RAR4 HIGH_PACK ali HIGH_UNP z zgornjim bitom = poskodovan, PACK > velikost zvezka - (zacetek + glava) = poskodovan; v Kotlinu vsaka druga napaka razclenjevanja = poskodovan. tok_vzorec(ime): vzorec je beseda sample ali vzorec (velike/male crke), ki jo z obeh strani loci zacetek/konec ali eden od . _ - presledek [ ] ( ). tok_izbira(datoteke = [[ime, bajtov]]): zvezki RAR (.partN.rar, .rar, .rNN) brez vzorcev v vrstnem redu rar_zvezki (ne gre = ni_podprto) -> rar; sicer video (.mkv .mp4 .m4v .avi .ts .m2ts .webm .mov .wmv .mpg .mpeg) brez vzorcev, najvecji po bajtih (pri enaki prvi) -> video; sicer .7z/.zip/.001 = ni_podprto; sicer najvecja datoteka, ki ni .par2 .nfo .sfv .nzb .jpg .jpeg .png .txt .srr .url .md5 (zakrito ime) -> video, brez takih = ni_filma. Zakrito ime s podpisom RAR je en zvezek RAR (vec zvezkov = ni_podprto); preveri izdajo in priprava odlocita z isto funkcijo. Pred ponudbo: izdaja brez segmenta 1 ali z luknjami = luknja. tok_meje: bralnik si zapomni segment, ki je padel (luknja, pokvarjen, neskladen; napaka omrezja po poskusov), in ga ne prenasa znova; zahtevano branje, ki ga preklice okno drugega bralca, se ponovi najvec preklicev krat; priprava bere najvec priprava_hkrati zvezkov hkrati, sprosti zacetke takoj, promet najvec priprave_bajtov (prevec); streznik HTTP najvec streznik_povezav hkratnih povezav, rok streznik_rok_s, zeton pred vsem, nedejavnost samo ob veljavni zahtevi.",
+ "verzija": 6,
  "primeri": [
   {
    "f": "yenc_dekodiraj",
@@ -6661,6 +6661,553 @@
    },
    "izhod": {
     "izid": "stisnjen"
+   }
+  },
+  {
+   "f": "tok_preslikava",
+   "vhod": {
+    "opis": "NZB brez total",
+    "stevil_v_nzb": 10,
+    "manjka_v_nzb": 0,
+    "velikost": 7000000,
+    "skupaj": null
+   },
+   "izhod": {
+    "izid": "ok",
+    "celota": 10
+   }
+  },
+  {
+   "f": "tok_preslikava",
+   "vhod": {
+    "opis": "total vecji od NZB (konec manjka)",
+    "stevil_v_nzb": 10,
+    "manjka_v_nzb": 0,
+    "velikost": 7000000,
+    "skupaj": 12
+   },
+   "izhod": {
+    "izid": "ok",
+    "celota": 12
+   }
+  },
+  {
+   "f": "tok_preslikava",
+   "vhod": {
+    "opis": "total 999 999 999 iz clanka",
+    "stevil_v_nzb": 1,
+    "manjka_v_nzb": 0,
+    "velikost": 100000000000,
+    "skupaj": 999999999
+   },
+   "izhod": {
+    "izid": "neskladno"
+   }
+  },
+  {
+   "f": "tok_preslikava",
+   "vhod": {
+    "opis": "total ravno na meji",
+    "stevil_v_nzb": 1,
+    "manjka_v_nzb": 0,
+    "velikost": 200000000,
+    "skupaj": 200000
+   },
+   "izhod": {
+    "izid": "ok",
+    "celota": 200000
+   }
+  },
+  {
+   "f": "tok_preslikava",
+   "vhod": {
+    "opis": "total cez mejo",
+    "stevil_v_nzb": 1,
+    "manjka_v_nzb": 0,
+    "velikost": 1000000000000,
+    "skupaj": 200001
+   },
+   "izhod": {
+    "izid": "neskladno"
+   }
+  },
+  {
+   "f": "tok_preslikava",
+   "vhod": {
+    "opis": "manjka iz zadeve",
+    "stevil_v_nzb": 8,
+    "manjka_v_nzb": 2,
+    "velikost": 7000000,
+    "skupaj": null
+   },
+   "izhod": {
+    "izid": "ok",
+    "celota": 10
+   }
+  },
+  {
+   "f": "tok_preslikava",
+   "vhod": {
+    "opis": "velikost manjsa od celote",
+    "stevil_v_nzb": 10,
+    "manjka_v_nzb": 0,
+    "velikost": 9,
+    "skupaj": null
+   },
+   "izhod": {
+    "izid": "neskladno"
+   }
+  },
+  {
+   "f": "tok_preslikava",
+   "vhod": {
+    "opis": "velikost cez celota x 4 MiB",
+    "stevil_v_nzb": 3,
+    "manjka_v_nzb": 0,
+    "velikost": 12582913,
+    "skupaj": 3
+   },
+   "izhod": {
+    "izid": "neskladno"
+   }
+  },
+  {
+   "f": "tok_preslikava",
+   "vhod": {
+    "opis": "velikost ravno celota x 4 MiB",
+    "stevil_v_nzb": 3,
+    "manjka_v_nzb": 0,
+    "velikost": 12582912,
+    "skupaj": 3
+   },
+   "izhod": {
+    "izid": "ok",
+    "celota": 3
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "T2: store vzorec, glava stisnjenega filma za prebranimi bajti",
+    "glava_b64": "UmFyIRoHAQDFGjMyAwEAAKGuVJseAgKACASACCAmTAu3AAAPRmlsbS5zYW1wbGUubWt2AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq+wsbKztLW2t7i5uru8vb6/wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t/g4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+/wABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4fICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj9AQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVpbXF1eX2BhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ent8fX5/gIGCg4SFhoeIiYqLjI2Oj5CRkpOUlZaXmJmam5ydnp+goaKjpKWmp6ipqqusra6vsLGys7S1tre4ubq7vL2+v8DBwsPExcbHyMnKy8zNzs/Q0dLT1NXW19jZ2tvc3d7f4OHi4+Tl5ufo6err7O3u7/Dx8vP09fb3+Pn6+/z9/v8AAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMk",
+    "velikost": 11113
+   },
+   "izhod": {
+    "izid": "nepopolno",
+    "rar": 5,
+    "zvezek": null,
+    "vec_zvezkov": false,
+    "datoteke": [
+     {
+      "ime": "Film.sample.mkv",
+      "odmik": 51,
+      "dolzina": 1024,
+      "velikost": 1024,
+      "pred": false,
+      "po": false,
+      "store": true,
+      "sifriran": false,
+      "mapa": false
+     }
+    ]
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "T2: isti arhiv cel - odloci film (stisnjen)",
+    "glava_b64": "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",
+    "velikost": 11113
+   },
+   "izhod": {
+    "izid": "stisnjen",
+    "rar": 5,
+    "zvezek": null,
+    "vec_zvezkov": false,
+    "datoteke": [
+     {
+      "ime": "Film.sample.mkv",
+      "odmik": 51,
+      "dolzina": 1024,
+      "velikost": 1024,
+      "pred": false,
+      "po": false,
+      "store": true,
+      "sifriran": false,
+      "mapa": false
+     },
+     {
+      "ime": "Film.mkv",
+      "odmik": 1105,
+      "dolzina": 10000,
+      "velikost": 1000000,
+      "pred": false,
+      "po": false,
+      "store": false,
+      "sifriran": false,
+      "mapa": false
+     }
+    ]
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "T2: en film, ki je vec kot pol zvezka - odloci ze iz prvih bajtov",
+    "glava_b64": "UmFyIRoHAQDFGjMyAwEAANduHAkXAgKQTgSQTiC54VecAAAIRmlsbS5ta3YAAwYJDA8SFRgbHiEkJyotMDM2OTw/QkVIS05RVFdaXWBjZmlsb3J1eHt+gYSHio2Qk5aZnJ+ipairrrG0t7q9wMPGyczP0tXY297h5Ofq7fDz9vn8/wIFCAsOERQXGh0gIyYpLC8yNTg7PkFER0pNUFNWWVxfYmVoa25xdHd6fYCDhomMj5KVmJueoaSnqq2ws7a5vL/CxcjLztHU19rd4OPm6ezv8vX4+/4BBAcKDRATFhkcHyIlKCsuMTQ3Oj1AQ0ZJTE9SVVhbXmFkZ2ptcHN2eXx/goWIi46RlJeanaCjpqmsr7K1uLu+wcTHys3Q09bZ3N/i5ejr7vH09/r9AAMGCQwPEhUYGx4hJCcqLTAzNjk8P0JFSEtOUVRXWl1gY2ZpbG9ydXh7foGEh4qNkJOWmZyfoqWoq66xtLe6vcDDxsnMz9LV2Nve4eTn6u3w8/b5/P8CBQgLDhEUFxodICMmKSwvMjU4Oz5BREdKTVBTVllcX2JlaGtucXR3en2Ag4aJjI+SlZibnqGkp6qtsLO2uby/wsXIy87R1Nfa3eDj5uns7/L1+Pv+AQQHCg0QExYZHB8iJSgrLjE0Nzo9QENGSUxPUlVYW15hZGdqbXBzdnl8f4KFiIuOkZSXmp2go6aprK+ytbi7vsHEx8rN0NPW2dzf4uXo6+7x9Pf6/QADBgkMDxIVGBseISQnKi0wMzY5PD9CRUhLTlFUV1pdYGNmaWxvcnV4e36B",
+    "velikost": 10052
+   },
+   "izhod": {
+    "izid": "ok",
+    "rar": 5,
+    "zvezek": null,
+    "vec_zvezkov": false,
+    "datoteke": [
+     {
+      "ime": "Film.mkv",
+      "odmik": 44,
+      "dolzina": 10000,
+      "velikost": 10000,
+      "pred": false,
+      "po": false,
+      "store": true,
+      "sifriran": false,
+      "mapa": false
+     }
+    ]
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "T2: isti prvi bajti brez velikosti zvezka ni dokaz",
+    "glava_b64": "UmFyIRoHAQDFGjMyAwEAANduHAkXAgKQTgSQTiC54VecAAAIRmlsbS5ta3YAAwYJDA8SFRgbHiEkJyotMDM2OTw/QkVIS05RVFdaXWBjZmlsb3J1eHt+gYSHio2Qk5aZnJ+ipairrrG0t7q9wMPGyczP0tXY297h5Ofq7fDz9vn8/wIFCAsOERQXGh0gIyYpLC8yNTg7PkFER0pNUFNWWVxfYmVoa25xdHd6fYCDhomMj5KVmJueoaSnqq2ws7a5vL/CxcjLztHU19rd4OPm6ezv8vX4+/4BBAcKDRATFhkcHyIlKCsuMTQ3Oj1AQ0ZJTE9SVVhbXmFkZ2ptcHN2eXx/goWIi46RlJeanaCjpqmsr7K1uLu+wcTHys3Q09bZ3N/i5ejr7vH09/r9AAMGCQwPEhUYGx4hJCcqLTAzNjk8P0JFSEtOUVRXWl1gY2ZpbG9ydXh7foGEh4qNkJOWmZyfoqWoq66xtLe6vcDDxsnMz9LV2Nve4eTn6u3w8/b5/P8CBQgLDhEUFxodICMmKSwvMjU4Oz5BREdKTVBTVllcX2JlaGtucXR3en2Ag4aJjI+SlZibnqGkp6qtsLO2uby/wsXIy87R1Nfa3eDj5uns7/L1+Pv+AQQHCg0QExYZHB8iJSgrLjE0Nzo9QENGSUxPUlVYW15hZGdqbXBzdnl8f4KFiIuOkZSXmp2go6aprK+ytbi7vsHEx8rN0NPW2dzf4uXo6+7x9Pf6/QADBgkMDxIVGBseISQnKi0wMzY5PD9CRUhLTlFUV1pdYGNmaWxvcnV4e36B",
+    "velikost": 1000000000
+   },
+   "izhod": {
+    "izid": "nepopolno",
+    "rar": 5,
+    "zvezek": null,
+    "vec_zvezkov": false,
+    "datoteke": [
+     {
+      "ime": "Film.mkv",
+      "odmik": 44,
+      "dolzina": 10000,
+      "velikost": 10000,
+      "pred": false,
+      "po": false,
+      "store": true,
+      "sifriran": false,
+      "mapa": false
+     }
+    ]
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "W1: dolzina imena kot vint 10 B (2^64 - 1)",
+    "glava_b64": "UmFyIRoHAQDFGjMyAwEAAFPqVc0TAgIBAAEgAAD///////////8BeHg=",
+    "velikost": 41
+   },
+   "izhod": {
+    "izid": "poskodovan"
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "W1: podatki datoteke segajo cez zvezek",
+    "glava_b64": "UmFyIRoHAQDFGjMyAwEAALp+2fcSAgIKBAogxseEpgAABWEubWt2MDEyMw==",
+    "velikost": 43
+   },
+   "izhod": {
+    "izid": "poskodovan"
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "W1: stevilka zvezka nad 1 000 000",
+    "glava_b64": "UmFyIRoHAQAme7+wBgEAA8GEPRmyOjUDBQAA",
+    "velikost": 27
+   },
+   "izhod": {
+    "izid": "poskodovan"
+   }
+  },
+  {
+   "f": "rar_glava",
+   "vhod": {
+    "opis": "W1: RAR4 HIGH_PACK z zgornjim bitom",
+    "glava_b64": "UmFyIRoHAM+QcwAADQAAAAAAAAAfFnQAgTAAAwAAAAUAAAACwkEkNQAAAAAdMAgAIAAAAP////8AAAAAZmlsbS5ta3ZhYmPEPXsAQAcA",
+    "velikost": 78
+   },
+   "izhod": {
+    "izid": "poskodovan"
+   }
+  },
+  {
+   "f": "tok_vzorec",
+   "vhod": {
+    "ime": "Film.Sample.mkv"
+   },
+   "izhod": true
+  },
+  {
+   "f": "tok_vzorec",
+   "vhod": {
+    "ime": "sample-film.mkv"
+   },
+   "izhod": true
+  },
+  {
+   "f": "tok_vzorec",
+   "vhod": {
+    "ime": "Film.2026.vzorec.mkv"
+   },
+   "izhod": true
+  },
+  {
+   "f": "tok_vzorec",
+   "vhod": {
+    "ime": "[sample].mkv"
+   },
+   "izhod": true
+  },
+  {
+   "f": "tok_vzorec",
+   "vhod": {
+    "ime": "SAMPLE.mkv"
+   },
+   "izhod": true
+  },
+  {
+   "f": "tok_vzorec",
+   "vhod": {
+    "ime": "Samplers.2026.mkv"
+   },
+   "izhod": false
+  },
+  {
+   "f": "tok_vzorec",
+   "vhod": {
+    "ime": "The.Sampler.mkv"
+   },
+   "izhod": false
+  },
+  {
+   "f": "tok_vzorec",
+   "vhod": {
+    "ime": "Film.mkv"
+   },
+   "izhod": false
+  },
+  {
+   "f": "tok_vzorec",
+   "vhod": {
+    "ime": "filmsample.mkv"
+   },
+   "izhod": false
+  },
+  {
+   "f": "tok_izbira",
+   "vhod": {
+    "opis": "zvezki in vzorec",
+    "datoteke": [
+     [
+      "Film.part2.rar",
+      9
+     ],
+     [
+      "Film.part1.rar",
+      9
+     ],
+     [
+      "Film.sample.part1.rar",
+      1
+     ],
+     [
+      "Film.nfo",
+      1
+     ]
+    ]
+   },
+   "izhod": {
+    "izid": "ok",
+    "vrsta": "rar",
+    "indeksi": [
+     1,
+     0
+    ]
+   }
+  },
+  {
+   "f": "tok_izbira",
+   "vhod": {
+    "opis": "film in vzorec",
+    "datoteke": [
+     [
+      "Film.Sample.mkv",
+      50
+     ],
+     [
+      "Film.mkv",
+      900
+     ],
+     [
+      "Film.nfo",
+      1
+     ]
+    ]
+   },
+   "izhod": {
+    "izid": "ok",
+    "vrsta": "video",
+    "indeksi": [
+     1
+    ]
+   }
+  },
+  {
+   "f": "tok_izbira",
+   "vhod": {
+    "opis": "zakrita imena: najvecja",
+    "datoteke": [
+     [
+      "a8f3",
+      5
+     ],
+     [
+      "b9e1",
+      900
+     ],
+     [
+      "c0d2.par2",
+      999
+     ]
+    ]
+   },
+   "izhod": {
+    "izid": "ok",
+    "vrsta": "video",
+    "indeksi": [
+     1
+    ]
+   }
+  },
+  {
+   "f": "tok_izbira",
+   "vhod": {
+    "opis": "film z 'sample' v besedi",
+    "datoteke": [
+     [
+      "Samplers.2026.mkv",
+      900
+     ]
+    ]
+   },
+   "izhod": {
+    "izid": "ok",
+    "vrsta": "video",
+    "indeksi": [
+     0
+    ]
+   }
+  },
+  {
+   "f": "tok_izbira",
+   "vhod": {
+    "opis": "dva arhiva",
+    "datoteke": [
+     [
+      "A.part1.rar",
+      9
+     ],
+     [
+      "B.part1.rar",
+      9
+     ]
+    ]
+   },
+   "izhod": {
+    "izid": "ni_podprto"
+   }
+  },
+  {
+   "f": "tok_izbira",
+   "vhod": {
+    "opis": "7z",
+    "datoteke": [
+     [
+      "Film.7z",
+      9
+     ]
+    ]
+   },
+   "izhod": {
+    "izid": "ni_podprto"
+   }
+  },
+  {
+   "f": "tok_izbira",
+   "vhod": {
+    "opis": "samo par2 in nfo",
+    "datoteke": [
+     [
+      "a.par2",
+      9
+     ],
+     [
+      "a.nfo",
+      1
+     ]
+    ]
+   },
+   "izhod": {
+    "izid": "ni_filma"
+   }
+  },
+  {
+   "f": "tok_izbira",
+   "vhod": {
+    "opis": "enaka velikost: prva",
+    "datoteke": [
+     [
+      "a1",
+      5
+     ],
+     [
+      "a2",
+      5
+     ]
+    ]
+   },
+   "izhod": {
+    "izid": "ok",
+    "vrsta": "video",
+    "indeksi": [
+     0
+    ]
+   }
+  },
+  {
+   "f": "tok_meje",
+   "vhod": {},
+   "izhod": {
+    "segmentov_datoteke": 200000,
+    "del_bajtov": 4194304,
+    "priprava_hkrati": 4,
+    "priprave_bajtov": 536870912,
+    "glav_segmentov": 8,
+    "glav_bajtov": 16777216,
+    "poskusov": 2,
+    "preklicev": 3,
+    "streznik_povezav": 16,
+    "streznik_rok_s": 60,
+    "vint_najvec": 9223372036854775807,
+    "zvezkov_najvec": 1000000
    }
   }
  ]
