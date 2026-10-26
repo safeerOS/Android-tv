@@ -8753,7 +8753,9 @@ class GlasbaActivity : OsActivity() {
         val samoP2p = !rocno && Diagnostika.samoP2p(this)
         if (samoP2p) {
             android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo P2P")
-            Toast.makeText(this, R.string.os_p2p_diagnostika, Toast.LENGTH_LONG).show()
+            // Pregled Grok 32, G5: Toast samo na glavni niti. izberiTok se klice prek glavna.post (preverjeno: vsi klicatelji),
+            // runOnUiThread to zagotovi tudi za morebitnega klicatelja z delovne niti (Toast tam vrze izjemo).
+            runOnUiThread { Toast.makeText(this, R.string.os_p2p_diagnostika, Toast.LENGTH_LONG).show() }
         }
         val predpomnjeni = pripravljeno.predpomnjeni
         // Webtor rezerva (25. 10. 2026): tokovi Webtor [⚡TB] (podvajajo nas TorBox) in [P2P] (posnetek z oglasom za paket)
