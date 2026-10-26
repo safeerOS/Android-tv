@@ -355,7 +355,7 @@
     <!-- Grok 60, Ů2: vir z racunom, ki ga ta naprava ni dodala sama, se ne prenasa samodejno, dokler uporabnik tega ne dovoli. -->
     <string name="os_iptv_potrdi_tu">Consenti il download automatico su questo dispositivo</string>
     <string name="os_iptv_ni_dodan_tu">nessun download automatico – tieni premuto OK e consentilo</string>
-    <string name="os_iptv_potrjen_tu">La lista verrà aggiornata automaticamente su questo dispositivo. Viene condivisa solo con i dispositivi della cerchia ristretta di questo dispositivo.</string>
+    <string name="os_iptv_potrjen_tu">La lista verrà aggiornata all’apertura su questo dispositivo. Non viene inviata ad altri dispositivi: per condividerla, inserisci tu stesso la fonte su questo dispositivo.</string>
     <!-- Grok 46, Ö3: geslo seznama IPTV je starejsa razlicica dala napravam zunaj ozjega kroga (lastnik: %1$s = gostitelji). -->
     <string name="os_iptv_deljeno_naslov">La password della lista IPTV è stata condivisa</string>
     <string name="os_iptv_deljeno_sporocilo">Una versione precedente di Safeer ha inviato la lista con account (%1$s) anche a dispositivi fuori dalla cerchia di fiducia ristretta. Ti consigliamo di cambiare la password presso il fornitore e di aggiungere di nuovo la lista con la nuova password.</string>

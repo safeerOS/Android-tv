@@ -73,7 +73,7 @@ object IptvSeznami {
         // kjer je dodan z dokazom (odprtje TV v zivo, 24-urna osvezitev, predpomnilnik 24 ur); drugje samo na izrecen klik [rocno]
         // (»Poskusi znova«), najvec 1-krat na minuto na racun. Grok 39, I5: po zavrnjenem ali neuspelem prenosu premor (10 min, 1 h,
         // 6 h, 24 h) - vsak poskus je prijava v racun ponudnika.
-        return when (IptvPravila.odlociPripravo(naslov, MedijskiViri.dodanTuZDokazom(c, naslov), rocno, p?.prenesenOb, napaka(c, naslov),
+        return when (IptvPravila.odlociPripravo(naslov, MedijskiViri.uporabaDovoljena(c, naslov), rocno, p?.prenesenOb, napaka(c, naslov),
             zadnjiPoskus(c, naslov), System.currentTimeMillis())) {
             IptvPravila.Priprava.BREZ -> p
             IptvPravila.Priprava.V_OZADJU -> { Thread({ prenesi(c, naslov) }, "safeer-iptv").apply { isDaemon = true; priority = Thread.MIN_PRIORITY }.start(); p }

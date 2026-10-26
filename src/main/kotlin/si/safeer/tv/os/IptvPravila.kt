@@ -550,6 +550,27 @@ object IptvPravila {
     fun potrditevDodanTu(dokaz: Set<String>?, zdaj: Set<String>, naslov: String): Set<String> =
         ((dokaz ?: emptySet()) + (if (naslov in zdaj) setOf(naslov) else emptySet())) intersect zdaj
 
+    /**
+     * Lastnik, 26. 10. 2026 12:10 (»vse naprave pripadajo uporabniku«; Grok 64 Ź1): vir z racunom, prejet od naprave IZ ozjega kroga
+     * te naprave (lists.get z odgovorom »ozji«, secrets.sync), se prikaze takoj in se sme na tej napravi uporabiti: prva povezava
+     * je ob prvi uporabi (odprtje, predvajanje), nato 24-urni predpomnilnik in najvec 1/min ([odlociPripravo]). To NI »dodan tu«:
+     * v ozadju se ne pregleduje in ne gre naprej po secrets.sync ([dokazDodanTu]). Podedovana kopija in vir neznanega izvora
+     * (zunaj kroga) ostaneta fail-closed, dokler uporabnik uporabe ne dovoli ([potrditevUporabe]) - a tudi to ne postane dokaz
+     * »dodan tu« (Ź1: prej je en klik na tuji napravi vrnil samodejni prenos in deljenje gesla).
+     *
+     * [uporaba] = dosedanji zapis (null = ga ni), [novi] = viri, ki jih shranjevanje doda zdaj, [zdaj] = viri po shranjevanju,
+     * [odKroga] = sprememba je prevzem od naprave v ozjem krogu. Odstranjeni izpadejo.
+     */
+    fun uporabaPoPrejemu(uporaba: Set<String>?, novi: Set<String>, zdaj: Set<String>, odKroga: Boolean): Set<String> =
+        ((uporaba ?: emptySet()) + (if (odKroga) novi else emptySet())) intersect zdaj
+
+    /** Uporabnik je na tej napravi izrecno dovolil uporabo vira [naslov] (podedovan, neznan izvor); vira, ki ga ni, ne dovoli. */
+    fun potrditevUporabe(uporaba: Set<String>?, zdaj: Set<String>, naslov: String): Set<String> =
+        ((uporaba ?: emptySet()) + (if (naslov in zdaj) setOf(naslov) else emptySet())) intersect zdaj
+
+    /** Vir z racunom se na tej napravi sme uporabiti (prenos ob odprtju): dodan tu z dokazom ALI iz ozjega kroga ALI dovoljen. */
+    fun smeUporabiti(dodanTuZDokazom: Boolean, uporabaDovoljena: Boolean): Boolean = dodanTuZDokazom || uporabaDovoljena
+
     // ------------------------------------------------------------------ viri z racunom - sifrirano
 
     /**
@@ -658,8 +679,9 @@ object IptvPravila {
     fun osveziPoPrejemu(tip: String, naslov: String): Boolean = !virZRacunom(if (tip == "url") "seznam" else tip, naslov.trim())
 
     /**
-     * Ali se seznam sme prenesti SAMODEJNO (odprtje TV v zivo, 24-urna osvezitev): vir z racunom samo na napravi, kjer je bil
-     * dodan Z DOKAZOM ([dodanTu] = [dokazDodanTu]; Grok 60, Ů2: tudi TV vire izpred pravila sele po potrditvi uporabnika); na
+     * Ali se seznam sme prenesti ob uporabi (odprtje TV v zivo, 24-urna osvezitev): vir z racunom samo, ce je [dodanTu] =
+     * [smeUporabiti] (dodan tu Z DOKAZOM [dokazDodanTu], ali prejet iz ozjega kroga, ali dovoljen: [uporabaPoPrejemu],
+     * [potrditevUporabe]; Grok 60, Ů2, odlocitev lastnika 26. 10. 12:10: tudi TV vire izpred pravila sele po potrditvi); na
      * drugih napravah v krogu samo na izrecen uporabnikov klik ([izrecno]: »Poskusi znova«; odprtje seznama je klic brez
      * [izrecno], glej [smeNaOmrezjeSeznam]), vedno ob premoru I5 ([smePrenesti]). Javni seznam kot doslej.
      */

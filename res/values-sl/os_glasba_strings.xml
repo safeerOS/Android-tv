@@ -354,7 +354,7 @@
     <!-- Grok 60, Ů2: vir z racunom, ki ga ta naprava ni dodala sama, se ne prenasa samodejno, dokler uporabnik tega ne dovoli. -->
     <string name="os_iptv_potrdi_tu">Dovoli samodejni prenos na tej napravi</string>
     <string name="os_iptv_ni_dodan_tu">brez samodejnega prenosa – zadrži OK in dovoli</string>
-    <string name="os_iptv_potrjen_tu">Seznam se bo na tej napravi samodejno osvežil. Deli se samo z napravami v ožjem krogu te naprave.</string>
+    <string name="os_iptv_potrjen_tu">Seznam se bo na tej napravi osvežil ob odprtju. Na druge naprave se ne pošilja – za to vir vpiši sam na tej napravi.</string>
     <!-- Grok 46, Ö3: geslo seznama IPTV je starejsa razlicica dala napravam zunaj ozjega kroga (lastnik: %1$s = gostitelji). -->
     <string name="os_iptv_deljeno_naslov">Geslo seznama IPTV je bilo deljeno</string>
     <string name="os_iptv_deljeno_sporocilo">Starejša različica Safeer je seznam z računom (%1$s) poslala tudi napravam zunaj ožjega kroga zaupanja. Priporočamo, da geslo zamenjaš pri ponudniku in seznam z novim geslom dodaš znova.</string>

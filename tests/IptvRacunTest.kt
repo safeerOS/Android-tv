@@ -331,6 +331,50 @@ fun main() {
     preveriEnako("izrecen klik na vir brez dokaza: da", true, IptvPravila.smeSamodejnoPrenesti(b, dodanTu = false, izrecno = true))
 
     println()
+    println("== Odlocitev lastnika 26. 10. 12:10, Grok 64 Ź1: vir iz ozjega kroga je takoj uporaben, zunaj kroga ostane fail-closed ==")
+    // Isti klici kot MedijskiViri.shrani ([uporabaPoPrejemu] poleg [dokazDodanTu]), MedijskiViri.uporabaDovoljena ([smeUporabiti]),
+    // MedijskiViri.dovoliUporabo ([potrditevUporabe]), IptvSeznami.pripravi ([smeSamodejnoPrenesti]) in UskladitevKljucev ([oddajaIptv]).
+    val e = nadomestek(5); val f = nadomestek(6); val g = nadomestek(7); val h = nadomestek(8)
+    var dokazK: Set<String>? = null
+    var uporabaK: Set<String>? = null
+    // Prejem iz ozjega kroga (lists.get z »ozji«, secrets.sync): shrani() zapise uporabo, dokaza »dodan tu« ne.
+    fun prejem(novi: Set<String>, zdaj: Set<String>, odKroga: Boolean) {
+        dokazK = IptvPravila.dokazDodanTu(dokazK, novi, zdaj, prejeto = true)
+        uporabaK = IptvPravila.uporabaPoPrejemu(uporabaK, novi, zdaj, odKroga)
+    }
+    fun uporabno(n: String) = IptvPravila.smeUporabiti(dokazK?.contains(n) == true, uporabaK?.contains(n) == true)
+    fun samodejnoK(n: String) = IptvPravila.smeSamodejnoPrenesti(n, uporabno(n), izrecno = false)
+    fun oddajaK(n: String) = UskladitevKljucevPravila.oddajaIptv(true, dokazK?.contains(n) == true)
+    prejem(setOf(e), setOf(a, b, e), odKroga = true)
+    preveriEnako("prejet iz ozjega kroga: uporaben takoj", true, uporabno(e))
+    preveriEnako("prejet iz ozjega kroga: prva povezava ob uporabi (samodejni prenos dovoljen)", true, samodejnoK(e))
+    preveriEnako("prejet iz ozjega kroga: ni »dodan tu« (brez dokaza)", false, dokazK?.contains(e) == true)
+    preveriEnako("prejet iz ozjega kroga: ne gre naprej po secrets.sync", UskladitevKljucevPravila.Oddaja.NEZNAN, oddajaK(e))
+    // Kopija zunaj kroga ali neznanega izvora: fail-closed.
+    prejem(setOf(f), setOf(a, b, e, f), odKroga = false)
+    preveriEnako("prejet zunaj kroga: ni uporaben (potrditev)", false, uporabno(f))
+    preveriEnako("prejet zunaj kroga: ni samodejnega prenosa", false, samodejnoK(f))
+    preveriEnako("podedovan vir (zapisa ni): ni uporaben", false, uporabno(a))
+    preveriEnako("podedovan vir: ni samodejnega prenosa", false, samodejnoK(a))
+    // Grok 64 Ź1: gumb »Dovoli samodejni prenos« na tuji kopiji dovoli uporabo, a ne naredi »dodanega tu«.
+    uporabaK = IptvPravila.potrditevUporabe(uporabaK, setOf(a, b, e, f), f)
+    preveriEnako("Ź1: dovoljena tuja kopija je uporabna (samodejni prenos ob uporabi)", true, samodejnoK(f))
+    preveriEnako("Ź1: dovoljena tuja kopija NI dodana tu (brez dokaza)", false, dokazK?.contains(f) == true)
+    preveriEnako("Ź1: dovoljena tuja kopija ne gre z geslom v ozji krog (secrets.sync)", UskladitevKljucevPravila.Oddaja.NEZNAN, oddajaK(f))
+    preveriEnako("dovoljenje za neobstojec vir ne naredi nic", uporabaK, IptvPravila.potrditevUporabe(uporabaK, setOf(a, b, e, f), nadomestek(9)))
+    // Vir, ki ga uporabnik vpise sam, ima dokaz (gre naprej) in je uporaben.
+    dokazK = IptvPravila.dokazDodanTu(dokazK, setOf(g), setOf(a, b, e, f, g), prejeto = false)
+    preveriEnako("vpisan tu: uporaben", true, uporabno(g))
+    preveriEnako("vpisan tu: gre z vrednostjo v ozji krog te naprave", UskladitevKljucevPravila.Oddaja.VREDNOST, oddajaK(g))
+    // Odstranjen vir izgubi uporabo; ista kopija znova od zunaj kroga je spet fail-closed.
+    uporabaK = IptvPravila.uporabaPoPrejemu(uporabaK, emptySet(), setOf(a, b, f, g), odKroga = false)
+    preveriEnako("odstranjen vir iz ozjega kroga izgubi uporabo", false, uporabno(e))
+    uporabaK = IptvPravila.uporabaPoPrejemu(uporabaK, setOf(e), setOf(a, b, e, f, g), odKroga = false)
+    preveriEnako("ista kopija znova prejeta zunaj kroga: ni uporabna", false, uporabno(e))
+    // Podedovan vir pred popravkom se ne spremeni: TV ga ne vzame za svojega.
+    preveriEnako("brez zapisa uporabe: nobena kopija ni uporabna", false, IptvPravila.smeUporabiti(false, IptvPravila.uporabaPoPrejemu(null, emptySet(), setOf(h), odKroga = true).contains(h)))
+
+    println()
     println("== Grok 60, Ů3: opozorilo za menjavo gesla zajame tudi ze izbrisane, a prej deljene vire ==")
     // Grobovi (tip|naslov -> cas) iz casa pred prehodom: izbrisani viri z geslom v kljucu so sli z usklajevanjem vsem napravam.
     val grobovPred = mapOf("seznam|$XTREAM" to 1000L, "url|$TVH" to 1100L, "tok|$TOK" to 1200L,

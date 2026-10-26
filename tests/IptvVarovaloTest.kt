@@ -181,6 +181,11 @@ fun main() {
     preveriEnako("TV v zivo odprta vsako minuto 24 ur, racun deluje: prva prijava in ena osvezitev po 24 urah", 2, tvVZivo(true, dan, 200))
     preveriEnako("TV v zivo odprta vsako minuto 24 ur, ponudnik zavrne: samo premor I5 (10 min, 1 h, 6 h)", 4, tvVZivo(true, dan, 403))
     preveriEnako("TV v zivo na napravi brez dokaza (prejeta kopija): nobene prijave", 0, tvVZivo(false, dan, 200))
+    // Odlocitev lastnika 26. 10. 12:10: prejet iz ozjega kroga = uporaben takoj (prva povezava ob uporabi), a isti predpomnilnik 24 h in premor I5.
+    preveriEnako("TV v zivo, vir iz ozjega kroga, 24 ur: prva prijava ob uporabi in ena osvezitev po 24 urah", 2, tvVZivo(IptvPravila.smeUporabiti(false, true), dan, 200))
+    preveriEnako("TV v zivo, vir iz ozjega kroga, ponudnik zavrne: samo premor I5 (nikoli zaklep)", 4, tvVZivo(IptvPravila.smeUporabiti(false, true), dan, 403))
+    preveriEnako("TV v zivo, tuja kopija brez dovoljenja: nobene prijave", 0, tvVZivo(IptvPravila.smeUporabiti(false, false), dan, 200))
+    preveriEnako("izrecni kliki na vir iz ozjega kroga: najvec 1 na minuto", 10, kliki(IptvPravila.smeUporabiti(false, true), 60, 10, 200))
     preveriEnako("odprtje seznama vsako minuto 24 ur, racun deluje: prva prijava in ena osvezitev po 24 urah", 2, odprtjeSeznama(dan, 200))
     preveriEnako("odprtje seznama vsako minuto 24 ur, ponudnik zavrne: samo premor I5", 4, odprtjeSeznama(dan, 403))
     preveriEnako("izrecni kliki vsakih 10 s (10 min): najvec 1 prijava na minuto", 10, kliki(false, 60, 10, 200))

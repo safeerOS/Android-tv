@@ -5372,9 +5372,9 @@ class GlasbaActivity : OsActivity() {
                     IptvPravila.virZRacunom(v.tip, v.naslov) -> IptvPravila.zaPrikaz(v.naslov)
                     else -> v.naslov.removePrefix("https://").removePrefix("http://")
                 }) +
-                    // Grok 60, Ů2: vir z racunom, ki ga ta naprava ni dodala sama (podedovan ali prejet), se ne prenasa samodejno in ne gre
-                    // v ozji krog te naprave - uporabnik izve, kaj storiti (zadrzan OK -> Dovoli samodejni prenos).
-                    (if (IptvPravila.virZRacunom(v.tip, v.naslov) && !MedijskiViri.dodanTuZDokazom(this, v.naslov))
+                    // Grok 60, Ů2: podedovan vir z racunom ali vir neznanega izvora se ne prenasa samodejno - uporabnik izve, kaj storiti
+                    // (zadrzan OK -> Dovoli samodejni prenos). Vir iz ozjega kroga (26. 10. 2026 12:10) je takoj uporaben, brez pripisa.
+                    (if (IptvPravila.virZRacunom(v.tip, v.naslov) && !MedijskiViri.uporabaDovoljena(this, v.naslov))
                         " · " + getString(R.string.os_iptv_ni_dodan_tu) else ""), {
                     when {
                         v.jePeerTube -> { fokusVVsebino = true; izberi(VIDEO) }
@@ -5612,12 +5612,12 @@ class GlasbaActivity : OsActivity() {
                 val zacet = PregledKanalov.zacni(applicationContext, dodan.naslov, rocno = true, jeSeznam = dodan.jeSeznam)
                 Toast.makeText(this, if (zacet) R.string.os_pregled_kanalov_zacet else R.string.os_pregled_kanalov_po_predvajanju, Toast.LENGTH_SHORT).show()
             }) else emptyList()) +
-            // Grok 60, Ů2: vir z racunom, ki ga ta naprava ni dodala sama (podedovan, prejet od druge naprave): samodejni prenos in
-            // deljenje v ozji krog te naprave sele po izrecnem dovoljenju uporabnika.
-            (if (IptvPravila.virZRacunom(dodan.tip, dodan.naslov) && !MedijskiViri.dodanTuZDokazom(this, dodan.naslov))
+            // Grok 60, Ů2 in Grok 64 Ź1: podedovan vir z racunom ali vir neznanega izvora: samodejni prenos ob uporabi sele po izrecnem
+            // dovoljenju uporabnika. Dovoljenje NE naredi vira za »dodanega tu« (deljenja v ozji krog ni) - za to ga uporabnik vpise sam.
+            (if (IptvPravila.virZRacunom(dodan.tip, dodan.naslov) && !MedijskiViri.uporabaDovoljena(this, dodan.naslov))
                 listOf(getString(R.string.os_iptv_potrdi_tu) to {
                     val app = applicationContext
-                    try { delavec.execute { MedijskiViri.potrdiDodanTu(app, dodan.naslov); glavna.post {
+                    try { delavec.execute { MedijskiViri.dovoliUporabo(app, dodan.naslov); glavna.post {
                         Toast.makeText(this, R.string.os_iptv_potrjen_tu, Toast.LENGTH_LONG).show()
                         if (!isFinishing && razdelek == VIRI) izberiNaMestu(VIRI) } } }
                     catch (_: java.util.concurrent.RejectedExecutionException) { }
@@ -5625,7 +5625,7 @@ class GlasbaActivity : OsActivity() {
             // Grok 39, I5: po zavrnjenem prenosu (uporabnik je uredil racun pri ponudniku) en poskus takoj, ne sele po premoru.
             // Grok 60, Ů2: tudi seznam z racunom, ki ni dodan tu in se ne prenasa sam - izrecen klik je dovoljen (najvec 1-krat na minuto).
             (if (dodan.jeSeznam && (IptvSeznami.napaka(this, dodan.naslov) != null ||
-                    (IptvPravila.virZRacunom(dodan.tip, dodan.naslov) && !MedijskiViri.dodanTuZDokazom(this, dodan.naslov))))
+                    (IptvPravila.virZRacunom(dodan.tip, dodan.naslov) && !MedijskiViri.uporabaDovoljena(this, dodan.naslov))))
                 listOf(getString(R.string.os_iptv_poskusi_znova) to {
                 val app = applicationContext
                 try { delavec.execute { IptvSeznami.pripravi(app, dodan.naslov, rocno = true); glavna.post { if (!isFinishing && razdelek == VIRI) izberiNaMestu(VIRI) } } }

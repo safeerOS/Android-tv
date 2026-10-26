@@ -974,7 +974,7 @@ object MedijskiViri {
      * vir dodan in kdaj izbrisan: [cas] != 0 je cas z druge naprave (prevzem), sicer ura te naprave - a nikoli starejsa
      * od znanega izbrisa oziroma dodajanja (ure naprav niso enake).
      */
-    @Synchronized private fun shrani(ctx: Context, viriVnosa: List<Vir>, cas: Long = 0L, brezSledi: Boolean = false, prejeto: Boolean = false) {
+    @Synchronized private fun shrani(ctx: Context, viriVnosa: List<Vir>, cas: Long = 0L, brezSledi: Boolean = false, prejeto: Boolean = false, odKroga: Boolean = false) {
         // Webtor rezerva: dodatek s poverilnico nikoli kot pravi naslov v nastavitvah (varovalka za vse poti dodajanja).
         // Pregled U6: ce sifriranje ne uspe, novega pravega naslova ne zapisemo (prej je slo v nastavitve necifrirano);
         // ze shranjen (iz casa pred prehodom) ostane, kot je - ne izgubi se. U5: novega po http ne sprejmemo.
@@ -1016,9 +1016,13 @@ object MedijskiViri {
         // vir, ki ga je prejela druga naprava, ga nimajo, dokler uporabnik vira ne potrdi ([potrdiDodanTu]).
         val dokaz = IptvPravila.dokazDodanTu(ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getStringSet(VIRI_DOKAZ, null)?.toSet(),
             noviTu, viri.map { it.naslov }.toSet(), prejeto = prejeto || cas != 0L)
+        // Lastnik, 26. 10. 2026 12:10: vir z racunom, prejet od naprave IZ ozjega kroga ([odKroga]), se sme na tej napravi uporabiti
+        // (prva povezava ob prvi uporabi), a ni »dodan tu«: v ozadju se ne pregleduje in ne gre naprej ([dokaz] ga nima).
+        val uporaba = IptvPravila.uporabaPoPrejemu(ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getStringSet(VIRI_UPORABA, null)?.toSet(),
+            noviTu, viri.map { it.naslov }.toSet(), odKroga = odKroga)
         val urejanje = ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().putString(KLJUC, a.toString())
             .putString(VIRI_CASI, JSONObject(casi as Map<*, *>).toString()).putString(VIRI_IZBRISANI, JSONObject(izbrisani as Map<*, *>).toString())
-            .putStringSet(VIRI_TUKAJ, HashSet(tukaj)).putStringSet(VIRI_DOKAZ, HashSet(dokaz))
+            .putStringSet(VIRI_TUKAJ, HashSet(tukaj)).putStringSet(VIRI_DOKAZ, HashSet(dokaz)).putStringSet(VIRI_UPORABA, HashSet(uporaba))
         // Naloga 62: vir dodan ali odstranjen - police in mreze z diska iz casa pred tem ne veljajo vec.
         if (prej != zdaj) urejanje.putLong(VIRI_SPREMENJENI, maxOf(ura, spremenjeni(ctx) + 1))
         urejanje.apply()
@@ -1044,6 +1048,29 @@ object MedijskiViri {
      */
     fun dodanTuZDokazom(ctx: Context, naslov: String): Boolean =
         ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getStringSet(VIRI_DOKAZ, null)?.contains(naslov) == true
+
+    /** Lastnik, 26. 10. 2026 12:10: viri z racunom, prejeti od naprave iz ozjega kroga ali dovoljeni na tej napravi (ne »dodan tu«). */
+    private const val VIRI_UPORABA = "viri_uporaba_dovoljena"
+
+    /**
+     * Ali sme ta naprava vir z racunom [naslov] uporabiti (prenos ob odprtju in predvajanju, [IptvSeznami.pripravi]): dodan tu z
+     * dokazom, prejet iz ozjega kroga ali dovoljen z izrecnim klikom. Podedovan vir in vir neznanega izvora ne ([IptvPravila.smeUporabiti]).
+     * Brez @Synchronized (bere ga tudi zaslon).
+     */
+    fun uporabaDovoljena(ctx: Context, naslov: String): Boolean = IptvPravila.smeUporabiti(dodanTuZDokazom(ctx, naslov),
+        ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getStringSet(VIRI_UPORABA, null)?.contains(naslov) == true)
+
+    /**
+     * Grok 64 Ź1: uporabnik na tej napravi dovoli uporabo vira ([IptvPravila.potrditevUporabe]) - NE postane »dodan tu«: po secrets.sync
+     * v ozji krog te naprave ne gre (kdor koli pred napravo bi sicer z enim klikom razposlal geslo); za to vir vpise sam ([potrdiDodanTu]).
+     */
+    @Synchronized fun dovoliUporabo(ctx: Context, naslov: String): Boolean {
+        val p = ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)
+        val prej = p.getStringSet(VIRI_UPORABA, null)?.toSet()
+        val novo = IptvPravila.potrditevUporabe(prej, rocni(ctx).map { it.naslov }.toSet(), naslov)
+        if (novo != (prej ?: emptySet<String>())) p.edit().putStringSet(VIRI_UPORABA, HashSet(novo)).apply()
+        return naslov in novo
+    }
 
     /**
      * Grok 60, Ů2: uporabnik je na tej napravi izrecno potrdil (meni vira) ali sam znova vpisal vir z racunom, ki ga ta naprava ze
@@ -1165,9 +1192,10 @@ object MedijskiViri {
     fun dodajRacun(ctx: Context, tip: String, naslov: String, ime: String, prejeto: Boolean): Vir? {
         val s = IptvPravila.skrivnostVira(tip, naslov) ?: return null
         val n = SkrivniDodatki.zavarujCel(ctx, s) ?: return null
-        rocni(ctx).firstOrNull { it.tip == tip && it.naslov == n }?.let { return it }
+        // Prejeto prek secrets.sync = od naprave v ozjem krogu (UskladitevKljucev preveri OzjiKrog pred uporabo zapisa).
+        rocni(ctx).firstOrNull { it.tip == tip && it.naslov == n }?.let { if (prejeto) dovoliUporabo(ctx, it.naslov); return it }
         val v = Vir(tip, IptvPravila.varnoIme(ime, s), n)
-        shrani(ctx, rocni(ctx) + v, prejeto = prejeto)
+        shrani(ctx, rocni(ctx) + v, prejeto = prejeto, odKroga = prejeto)
         return v
     }
 
@@ -1298,12 +1326,17 @@ object MedijskiViri {
         if (!uskladljiv(v, odOzjegaKroga)) return false
         val k = kljucUskladitve(v)
         val moji = rocni(ctx)
-        if (moji.any { kljucUskladitve(it) == k } || moji.size >= 400) return false
+        if (moji.any { kljucUskladitve(it) == k }) {
+            // Ze imamo vir, naprava iz ozjega kroga pa ga ima tudi: pozitiven dokaz izvora (podedovana kopija postane uporabna).
+            if (odOzjegaKroga && IptvPravila.virZRacunom(v.tip, v.naslov)) dovoliUporabo(ctx, v.naslov)
+            return false
+        }
+        if (moji.size >= 400) return false
         // Ista spletna stran pod drugim naslovom je isti vir.
         if (v.jeSplet && moji.any { it.jeSplet && istaSpletnaStran(it.naslov, v.naslov) }) return false
         if (!SeznamiPravila.virPrevzamemo(false, beriCase(ctx, VIRI_IZBRISANI)[k], cas)) return false
         prekliciOdstranjen(ctx, v.naslov)
-        shrani(ctx, moji + v, if (cas > 0L) cas else 1L)
+        shrani(ctx, moji + v, if (cas > 0L) cas else 1L, odKroga = odOzjegaKroga)
         return true
     }
 
