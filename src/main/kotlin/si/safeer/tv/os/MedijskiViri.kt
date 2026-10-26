@@ -835,12 +835,19 @@ object MedijskiViri {
         // Vir z racunom: v aplikaciji nadomestek, pravi naslov samo za zahtevo; neznana skrivnost (Keystore) = nobene zahteve.
         val pravi = SkrivniDodatki.dejanski(ctx, naslov)
         if (SkrivnostiPravila.jeNadomestek(pravi)) return skladbeSeznama(ctx, naslov)
+        // Grok 52, Ñ2: seznam z racunom samo ob premoru I5 (zavrnjen racun: 10 min, 1 h, 6 h, 24 h) - klic je vedno uporabnikov klik
+        // (prevzem z druge naprave seznama ne prebere vec); izid gre v isto shrambo napak kot prenos za mrezo TV v zivo.
+        val racun = IptvPravila.virZRacunom(SEZNAM, naslov)
+        if (racun && !IptvSeznami.smePrenesti(ctx, naslov)) return skladbeSeznama(ctx, naslov)
         val p = try { URL(pravi).openConnection() as HttpURLConnection } catch (_: Exception) { return skladbeSeznama(ctx, naslov) }
         p.connectTimeout = 8_000; p.readTimeout = 10_000
         p.setRequestProperty("User-Agent", "SafeerOS")
+        var koda = 0
         val nove = try {
-            if (p.responseCode in 200..299) beriSeznam(p.inputStream.bufferedReader().use { it.readText().take(2_000_000) }, pravi, naslov) else emptyList()
+            koda = p.responseCode
+            if (koda in 200..299) beriSeznam(p.inputStream.bufferedReader().use { it.readText().take(2_000_000) }, pravi, naslov) else emptyList()
         } catch (_: Exception) { emptyList() } finally { p.disconnect() }
+        if (racun) IptvSeznami.poIzidu(ctx, naslov, koda, nove.size)
         if (nove.isNotEmpty()) pisi(ctx, kljucSeznama(naslov), pisiSkladbe(nove.take(1000)))
         return nove.ifEmpty { skladbeSeznama(ctx, naslov) }
     }
@@ -1244,7 +1251,9 @@ object MedijskiViri {
         }
         if (PeerTube.jeBlokiran(naslov) || !jePredvajljiv(naslov)) return false
         val gostitelj = try { URL(naslov).host } catch (_: Exception) { return false }
-        val v = razvrsti(ctx, naslov, gostitelj) ?: return false
+        // Grok 52, Ñ2: vir z racunom se ne bere (razvrstitev = prijava v racun na vsaki napravi kroga hkrati): vrsta po obliki naslova.
+        val v = IptvPravila.prejetNaslov(naslov) { razvrsti(ctx, naslov, gostitelj)?.let { IptvPravila.ZapisVira(it.tip, it.ime, it.naslov) } }
+            ?.let { Vir(it.tip, it.ime, it.naslov) } ?: return false
         return prevzemiVir(ctx, if (ime.isBlank() || ime.length > 200 || ime.any { it < ' ' }) v else v.copy(ime = ime), cas, odOzjegaKroga)
     }
 

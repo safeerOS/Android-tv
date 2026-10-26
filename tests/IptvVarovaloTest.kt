@@ -96,6 +96,38 @@ fun main() {
     preveriEnako("dodatek neznane oblike: zahtev na strezniku", 0, zahtev.get())
     preveriEnako("nadzor: znan javni dodatek, javni tok: sond", 1, sondaDodatka("https://v3-cinemeta.strem.io", "$tok/stream/1.m3u8"))
     preveriEnako("nadzor: zahtev na strezniku", 1, zahtev.get())
+    // 6) Grok 52, Ñ2: vir z racunom, prejet z druge naprave (lists.get, vrsta »url«), se ne bere: 0 povezav; javni vir se bere kot doslej.
+    // [razvrsti] je tu pravo branje naslova (kot MedijskiViri.razvrsti: eno GET), ki ga streznik steje.
+    fun branje(naslov: String): IptvPravila.ZapisVira? {
+        val p = java.net.URL(naslov).openConnection() as java.net.HttpURLConnection
+        try { p.responseCode } finally { p.disconnect() }
+        return IptvPravila.ZapisVira("seznam", "prebran", naslov)
+    }
+    val prejeti = listOf("$tok/get.php?username=uporabnik&password=geslo&type=m3u_plus", "$tok/playlist/uporabnik/geslo/m3u_plus",
+        "$tok/live/uporabnik/geslo/101.m3u8", "$tok/uporabnik/geslo/101.ts", "$tok/moj-seznam.m3u?token=Zx81kqP0aa", "$tok/neznana-oblika/seznam.m3u")
+    zahtev.set(0)
+    val vrste = prejeti.map { IptvPravila.prejetNaslov(it) { branje(it) }?.tip }
+    preveriEnako("prejem 6 virov z racunom (url) z druge naprave: zahtev na strezniku", 0, zahtev.get())
+    preveriEnako("prejem: vrste po obliki naslova", listOf("seznam", "seznam", "tok", "tok", "seznam", "seznam"), vrste)
+    preveriEnako("prejem: ime = gostitelj, naslov nespremenjen", IptvPravila.ZapisVira("seznam", "127.0.0.1", prejeti[0]), IptvPravila.prejetNaslov(prejeti[0]) { branje(prejeti[0]) })
+    var branj = 0
+    val izJavnega = IptvPravila.prejetNaslov(javni) { branj++; IptvPravila.ZapisVira("seznam", "si", javni) }
+    preveriEnako("nadzor: javni seznam se bere (vrsto doloci branje)", 1, branj)
+    preveriEnako("nadzor: javni seznam ohrani vrsto iz branja", "si", izJavnega?.ime)
+    preveriEnako("prejem: osvezitev seznama po prejemu samo za javni", listOf(false, false, false, true),
+        listOf(IptvPravila.osveziPoPrejemu("seznam", prejeti[0]), IptvPravila.osveziPoPrejemu("url", prejeti[1]),
+            IptvPravila.osveziPoPrejemu("seznam", "http://tvh.primer.test:9981/playlist"), IptvPravila.osveziPoPrejemu("seznam", javni)))
+    // Odprtje TV v zivo / 24-urna osvezitev: seznam z racunom samo na napravi, kjer je bil dodan; drugje ob klicu uporabnika.
+    preveriEnako("samodejni prenos: racun, ni dodan tu, brez klika - ne", false, IptvPravila.smeSamodejnoPrenesti(prejeti[0], dodanTu = false, izrecno = false))
+    preveriEnako("samodejni prenos: racun, dodan tu - da", true, IptvPravila.smeSamodejnoPrenesti(prejeti[0], dodanTu = true, izrecno = false))
+    preveriEnako("samodejni prenos: racun, uporabnikov klik - da (po premoru I5)", true, IptvPravila.smeSamodejnoPrenesti(prejeti[0], dodanTu = false, izrecno = true))
+    preveriEnako("samodejni prenos: javni seznam z druge naprave - da", true, IptvPravila.smeSamodejnoPrenesti(javni, dodanTu = false, izrecno = false))
+    preveriEnako("samodejni prenos: nadomestek (sifriran vir), ni dodan tu - ne", false,
+        IptvPravila.smeSamodejnoPrenesti("http://ponudnik.primer.test:8080/" + SkrivnostiPravila.OZNAKA + "0123456789abcdef", dodanTu = false, izrecno = false))
+    // Premor I5 velja za uporabnikov klik: po zavrnitvi 10 min ni novega prenosa.
+    val poZavrnitvi = IptvPravila.poNapaki(null, 1_000_000L, zavrnjen = true)
+    preveriEnako("uporabnikov klik po zavrnitvi racuna: 10 min premora", false, IptvPravila.smePrenesti(poZavrnitvi, 1_000_000L + 5 * 60_000L))
+    preveriEnako("uporabnikov klik po izteku premora: sme", true, IptvPravila.smePrenesti(poZavrnitvi, 1_000_000L + 11 * 60_000L))
     streznik.stop(0)
     if (napak == 0) println("IptvVarovaloTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

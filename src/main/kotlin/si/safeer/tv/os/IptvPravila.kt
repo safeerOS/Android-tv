@@ -534,6 +534,42 @@ object IptvPravila {
     fun prevzemZNavadnoUskladitvijo(tip: String, naslov: String, odOzjegaKroga: Boolean): Boolean =
         smeZNavadnoUskladitvijo(tip, naslov) || (odOzjegaKroga && tip != "stremio" && !SkrivnostiPravila.jeNadomestek(naslov))
 
+    // ------------------------------------------------------------------ Grok 52, Ñ2: prejet vir z racunom se ne prenese
+
+    /**
+     * Vrsta naslova z racunom, ki ga je z racunalnika (vrsta »url«, racunalnik vrste ne pozna) poslala naprava v ozjem krogu,
+     * BREZ branja naslova: kanal Xtream (/live|movie|series|timeshift/<u>/<g>/..., kratka /<u>/<g>/<id>) je tok, vse drugo
+     * seznam (get.php, .m3u, playlist, neznana oblika). Branje naslova ([MedijskiViri.razvrsti]) je prijava v racun.
+     */
+    fun vrstaPrejetegaRacuna(naslov: String): String {
+        val d = deli(naslov)
+        val poti = if (d == null) emptyList() else listOfNotNull(d.pot, odkodiraj(d.pot, plus = false)).map { it.lowercase(java.util.Locale.ROOT) }
+        return if (poti.any { RX_XTREAM_POT.containsMatchIn(it) || RX_XTREAM_KRATKA.matches(it) }) "tok" else "seznam"
+    }
+
+    /**
+     * Grok 52, Ñ2 (lastnik: »zaklep racuna«): naslov vrste »url« z naprave v ozjem krogu. Vir z racunom ([virZRacunom]) se
+     * shrani brez branja - vsaka naprava v krogu bi se ob prejemu hkrati prijavila v isti racun, mimo premora I5; ime je
+     * gostitelj, vrsto da [vrstaPrejetegaRacuna]. Drugo (podkast, stran, javni seznam) vrsto doloci branje ([razvrsti], null = ni
+     * predvajljivo).
+     */
+    fun prejetNaslov(naslov: String, razvrsti: () -> ZapisVira?): ZapisVira? {
+        val n = naslov.trim()
+        if (!virZRacunom("seznam", n)) return razvrsti()
+        return ZapisVira(vrstaPrejetegaRacuna(n), gostitelj(n).ifEmpty { "IPTV" }, n)
+    }
+
+    /** Prejet vir seznama se takoj prebere (SeznamiSink) samo, ce ni vir z racunom - ta se prebere ob klicu uporabnika. */
+    fun osveziPoPrejemu(tip: String, naslov: String): Boolean = !virZRacunom(if (tip == "url") "seznam" else tip, naslov.trim())
+
+    /**
+     * Ali se seznam sme prenesti SAMODEJNO (odprtje TV v zivo, 24-urna osvezitev): vir z racunom samo na napravi, kjer je bil
+     * dodan ([dodanTu]; TV, ce je vir tam od prej - [viriTukaj]); na drugih napravah v krogu samo na uporabnikov klik
+     * ([izrecno]: odprtje seznama, »Poskusi znova«), vedno ob premoru I5 ([smePrenesti]). Javni seznam kot doslej.
+     */
+    fun smeSamodejnoPrenesti(naslov: String, dodanTu: Boolean, izrecno: Boolean): Boolean =
+        !virZRacunom("seznam", naslov.trim()) || dodanTu || izrecno
+
     /** Odseki pravega naslova, ki so lahko del racuna: uporabnik, geslo, odseki poti (tudi brez koncnice), vrednosti poizvedbe. */
     private fun deliRacuna(naslov: String): Set<String> {
         val n = naslov.trim().substringBefore('#')

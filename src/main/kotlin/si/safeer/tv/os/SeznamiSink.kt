@@ -245,8 +245,9 @@ object SeznamiSink {
                     if (!MedijskiViri.prevzemiVir(app, v, o.optLong("cas"), ozji)) continue
                     viri = true
                     Log.i(TAG, "vir ${v.tip} »${v.ime}« od $naprava")
-                    // Seznam .m3u se prebere ob dodajanju: tu ga preberemo zdaj (smo v ozadju).
-                    if (v.jeSeznam) try { MedijskiViri.osveziSeznam(app, v.naslov) } catch (_: Exception) { }
+                    // Seznam .m3u se prebere ob dodajanju: tu ga preberemo zdaj (smo v ozadju). Grok 52, Ñ2: vir z racunom ne -
+                    // prebere se, ko ga uporabnik na tej napravi odpre (po premoru I5); sicer bi se vsaka naprava kroga hkrati prijavila.
+                    if (v.jeSeznam && IptvPravila.osveziPoPrejemu(v.tip, v.naslov)) try { MedijskiViri.osveziSeznam(app, v.naslov) } catch (_: Exception) { }
                 }
                 if (zRacunom > 0) Log.i(TAG, "virov, ki niso znani javni, z navadnim usklajevanjem zavrnjenih: $zRacunom (od $naprava zunaj ozjega kroga)")
             }
