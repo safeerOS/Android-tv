@@ -158,12 +158,15 @@ object Usenet {
     fun preveri(osnova: String, kljuc: String): DebridPravila.Preverba = if (!Debrid.smeOmrezje(TAG)) DebridPravila.Preverba.NI_ODGOVORA else try {
         val p = URL(UsenetPravila.naslovPreverbe(osnova, kljuc)).openConnection() as HttpURLConnection
         try {
+            // Pregled Grok 34, E5: skupni rok branja (prej 8 s na vsako branje - streznik, ki kaplja bajte, je preverbo zadrzal
+            // skoraj brez meje) in najvec 8 KiB: za odlocitev zadosca zacetek (<rss, <channel ali <error). DNS rok ostane sistemski.
+            val doMs = android.os.SystemClock.elapsedRealtime() + PREVERBA_ROK_MS
             p.connectTimeout = 8_000; p.readTimeout = 8_000
             p.instanceFollowRedirects = false
             p.setRequestProperty("Accept", "application/rss+xml, application/xml, text/xml")
             val koda = p.responseCode
             val vhod = if (koda in 200..299) p.inputStream else p.errorStream
-            val telo = if (vhod == null) ByteArray(0) else vhod.use { beriZacetek(it, 64 * 1024) }
+            val telo = if (vhod == null) ByteArray(0) else vhod.use { beriZacetek(it, 8 * 1024, doMs) }
             UsenetPravila.preverbaIndeksatorja(koda, String(telo, Charsets.UTF_8))
         } finally { p.disconnect() }
     } catch (e: Exception) {
@@ -332,11 +335,14 @@ object Usenet {
         } finally { p.disconnect() }
     }
 
-    /** Prvih najvec [najvec] bajtov (ostanek se ne bere) - za preverbo zadostuje zacetek odgovora. */
-    private fun beriZacetek(vhod: java.io.InputStream, najvec: Int): ByteArray {
+    /** Skupni rok preverbe indeksatorja (povezava in branje; pregled Grok 34, E5). */
+    private const val PREVERBA_ROK_MS = 10_000L
+
+    /** Prvih najvec [najvec] bajtov do [doMs] (elapsedRealtime; ostanek se ne bere) - za preverbo zadostuje zacetek odgovora. */
+    private fun beriZacetek(vhod: java.io.InputStream, najvec: Int, doMs: Long = Long.MAX_VALUE): ByteArray {
         val izhod = java.io.ByteArrayOutputStream()
         val buf = ByteArray(16 * 1024)
-        while (izhod.size() < najvec) {
+        while (izhod.size() < najvec && android.os.SystemClock.elapsedRealtime() < doMs) {
             val n = vhod.read(buf, 0, minOf(buf.size, najvec - izhod.size()))
             if (n < 0) break
             izhod.write(buf, 0, n)
