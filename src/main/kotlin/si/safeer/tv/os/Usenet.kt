@@ -39,7 +39,10 @@ object Usenet {
         brisi(c); UskladitevKljucev.sprozi(c)
     }
 
-    private fun brisi(c: Context) { SporocilaSkrivnosti.pozabi(c, SKRIVNOST); prefs(c).edit().remove(KLJUC_STANJE).apply() }
+    /** Pregled Grok 41, Z1: z indeksatorjem gredo tudi povezave NZB (nosijo njegov kljuc) iz pomnilnika. */
+    private fun brisi(c: Context) {
+        SporocilaSkrivnosti.pozabi(c, SKRIVNOST); prefs(c).edit().remove(KLJUC_STANJE).apply(); povezave.obdrzi(null)
+    }
 
     /**
      * Gumb »Odstrani« (pregled Grok 33, F1, kot [Debrid.odstraniKljuc]): potrjen indeksator se odstrani na vseh napravah
@@ -148,8 +151,10 @@ object Usenet {
         prefs(c).edit().putString(KLJUC_STANJE, DebridPravila.zapisStanja(s, odtis(osnova, kljuc), null, System.currentTimeMillis())).apply()
     }
 
+    /** Pregled Grok 41, Z1: ob zamenjavi indeksatorja ostanejo samo povezave NZB novega kljuca (stari je v njihovem naslovu). */
     private fun shrani(c: Context, osnova: String, kljuc: String): Boolean =
         SporocilaSkrivnosti.shrani(c, SKRIVNOST, JSONObject().put("url", osnova).put("key", kljuc).toString())
+            .also { if (it) povezave.obdrzi(odtis(osnova, kljuc)) }
 
     /**
      * Preverba pri indeksatorju: eno iskanje ([UsenetPravila.naslovPreverbe]), brez sledenja preusmeritvi (kljuc je v naslovu),
@@ -205,7 +210,7 @@ object Usenet {
         return true
     }
 
-    /** Med iskanjem: zavrnjen kljuc (401, Newznab 100-102) -> »ne velja«; odgovor RSS -> velja. Zapis samo ob spremembi. */
+    /** Med iskanjem in prenosom NZB: zavrnjen kljuc (401, Newznab 100-102) -> »ne velja«; odgovor -> velja. Zapis samo ob spremembi. */
     private fun obOdgovoru(c: Context, ix: Indeksator, izid: DebridPravila.Preverba) {
         val s = when (izid) {
             DebridPravila.Preverba.NE_VELJA -> DebridPravila.StanjeKljuca.NE_VELJA
@@ -214,10 +219,12 @@ object Usenet {
             DebridPravila.Preverba.ZAKLENJEN -> DebridPravila.StanjeKljuca.ZAKLENJEN
             else -> return
         }
+        // Pregled Grok 41, Z1: povezave NZB zavrnjenega ali zaklenjenega kljuca ne ostanejo v pomnilniku.
+        if (!DebridPravila.smeKlicati(s)) povezave.pozabi(odtis(ix.osnova, ix.kljuc))
         val prej = stanje(c)
         if (s == prej) return
         zapisiStanje(c, ix.osnova, ix.kljuc, s)
-        Log.i(TAG, "indeksator: stanje ${s.name.lowercase(java.util.Locale.ROOT)} po iskanju")
+        Log.i(TAG, "indeksator: stanje ${s.name.lowercase(java.util.Locale.ROOT)} po uporabi")
         // Varovalo racunov: tudi »ne velja« gre v ozji krog (druge naprave z istim indeksatorjem ga ne klicejo vec).
         UskladitevKljucev.sprozi(c)
     }
@@ -241,11 +248,9 @@ object Usenet {
      */
     fun samoUsenet(c: Context): Boolean = Webtor.diagnostika(c, "debug.safeer.usenet_samo")
 
-    /** Povezave NZB po id-ju toka (najvec [NAJVEC_POVEZAV], najstarejse odpadejo). */
+    /** Povezave NZB po id-ju toka, vezane na odtis kljuca iskanja (najvec [NAJVEC_POVEZAV], najstarejse odpadejo). */
     private const val NAJVEC_POVEZAV = 500
-    private val povezave = object : LinkedHashMap<String, String>(64, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?) = size > NAJVEC_POVEZAV
-    }
+    private val povezave = UsenetPravila.Povezave(NAJVEC_POVEZAV)
 
     /**
      * Tokovi Usenet za id Stremio (film `tt…` ali epizoda `tt…:S:E`); brez indeksatorja, za drug id ali ob napaki prazno.
@@ -253,6 +258,7 @@ object Usenet {
      */
     fun isci(c: Context, id: String, rokMs: Int = UsenetPravila.ISKANJE_ROK_MS): List<Stremio.Tok> {
         val ix = zaUporabo(c) ?: return emptyList()
+        val odtisIskanja = odtis(ix.osnova, ix.kljuc)
         val naslov = UsenetPravila.naslovIskanja(ix.osnova, ix.kljuc, id) ?: return emptyList()
         return try {
             val (koda, telo) = beri(naslov, rokMs, 4 * 1024 * 1024)
@@ -265,7 +271,7 @@ object Usenet {
             Log.i(TAG, "iskanje: ${zadetki.size} zadetkov")
             zadetki.map { z ->
                 val idToka = UsenetPravila.idToka(z.povezava)
-                synchronized(povezave) { povezave[idToka] = z.povezava }
+                povezave.dodaj(idToka, z.povezava, odtisIskanja)
                 Stremio.Tok(UsenetPravila.VRSTA, idToka, "", UsenetPravila.opis(z), UsenetPravila.VRSTA)
             }
         } catch (e: Exception) {
@@ -273,9 +279,8 @@ object Usenet {
         }
     }
 
-    /** NZB za tok [idToka]: vsebina ali napaka (UsenetPravila.NAPAKA_INDEKSATOR, kljuc, meja). Z delovne niti. */
-    fun nzb(idToka: String): Pair<ByteArray?, String> {
-        val povezava = synchronized(povezave) { povezave[idToka] } ?: return null to UsenetPravila.NAPAKA_INDEKSATOR
+    /** NZB s [povezava] (iz [UsenetPravila.Povezave.zaPrenos]): vsebina ali napaka (NAPAKA_INDEKSATOR, kljuc, meja). Delovna nit. */
+    private fun nzb(povezava: String): Pair<ByteArray?, String> {
         // Pregled Grok 36, D5 (namizje ca50504 - isto vedenje): preusmeritvam ne sledi HttpURLConnection sam - vsak skok
         // preveri UsenetPravila.dovoljenSkok (z interneta nikoli v domace omrezje, s https nikoli na http).
         var naslov = povezava
@@ -331,7 +336,28 @@ object Usenet {
      * ponudi samo pri zavrnjenem kljucu (prej je bila vsaka napaka [UsenetPravila.NAPAKA_INDEKSATOR] z gumbom »Popravi«).
      */
     fun tok(c: Context, idToka: String, ime: String, indeks: Int, samoTakoj: Boolean, napredek: (Int) -> Unit): TorBox.Izid {
-        val (nzb, napaka) = nzb(idToka)
+        // Pregled Grok 41, Z1: pred vsakim prenosom stanje indeksatorja in TorBoxa ter kljuc, s katerim je bila povezava
+        // najdena - prej je klik na vir v odprtem seznamu poslal zaklenjen ali zamenjan kljuc indeksatorju, nato TorBoxu.
+        val ix = indeksator(c)
+        UsenetPravila.oviraPrenosa(TorBox.kljuc(c) != null, Debrid.stanjeKljuca(c, DebridPravila.TORBOX)?.first, ix != null, stanje(c))?.let { (n, p) ->
+            Log.i(TAG, "prenos NZB: brez klica (${if (p == DebridPravila.TORBOX) "TorBox" else "indeksator"}: $n)")
+            return TorBox.Izid(napaka = n, ponudnik = p)
+        }
+        val o = odtis(ix!!.osnova, ix.kljuc)
+        val povezava = povezave.zaPrenos(idToka, o) ?: run {
+            Log.i(TAG, "prenos NZB: povezava ni iz iskanja s shranjenim kljucem indeksatorja - brez klica")
+            return TorBox.Izid(napaka = UsenetPravila.NAPAKA_INDEKSATOR, ponudnik = UsenetPravila.PONUDNIK)
+        }
+        val (nzb, napaka) = nzb(povezava)
+        // Stanje kljuca indeksatorja sledi tudi prenosu NZB (kot namizje: Newznab 100-102 ali 401 istega gostitelja ->
+        // »ne velja«, 101 -> »zaklenjen«; prej je slo samo v izid in naslednji klik je poslal isti kljuc znova).
+        val izidNzb = when {
+            nzb != null -> DebridPravila.Preverba.VELJA
+            napaka == TorBoxPravila.NAPAKA_KLJUC -> DebridPravila.Preverba.NE_VELJA
+            napaka == TorBoxPravila.NAPAKA_ZAKLENJEN -> DebridPravila.Preverba.ZAKLENJEN
+            else -> null
+        }
+        if (izidNzb != null) try { obOdgovoru(c, ix, izidNzb) } catch (_: Exception) { }
         if (nzb == null) return TorBox.Izid(napaka = napaka.ifBlank { UsenetPravila.NAPAKA_INDEKSATOR }, ponudnik = UsenetPravila.PONUDNIK)
         // Pregled Grok 33, F5: izid velja za kljuc TorBox, s katerim je sla zahteva (ne za kljuc, vpisan med prenosom).
         val kljucZahteve = TorBox.kljuc(c)

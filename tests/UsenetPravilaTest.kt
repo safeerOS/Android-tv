@@ -261,5 +261,39 @@ fun main() {
     preveriEnako("prejem: enak, a tu nepreverjen -> preveri", listOf(UsenetPravila.Sprejem.SHRANI, 1),
         listOf(UsenetPravila.sprejem(nas, nas, false, preverba(DebridPravila.Preverba.VELJA)), klicev))
 
+    // Pregled Grok 41, Z1: povezava NZB iz pomnilnika gre ven samo s kljucem, s katerim je bila najdena, in samo, ce
+    // indeksator in TorBox smeta klicati (prej: klik na vir v odprtem seznamu je poslal zaklenjen ali zamenjan kljuc).
+    val k1 = DebridPravila.odtisStanja("https://nzbfinder.ws|$ix")
+    val k2 = DebridPravila.odtisStanja("https://nzbfinder.ws|0a1b2c3d4e5f60718293a4b5c6d7e8f9")
+    val nzbUrl = "https://nzbfinder.ws/getnzb/abc.nzb?r=$ix"
+    val pov = UsenetPravila.Povezave()
+    pov.dodaj("usenet:1", nzbUrl, k1)
+    preveriEnako("Z1: isti kljuc - povezava gre", nzbUrl, pov.zaPrenos("usenet:1", k1))
+    preveriEnako("Z1: zamenjan kljuc - brez povezave (stari kljuc ne gre ven)", null, pov.zaPrenos("usenet:1", k2))
+    preveriEnako("Z1: ... in povezave starega kljuca ni vec", 0, pov.velikost())
+    pov.dodaj("usenet:1", nzbUrl, k1)
+    preveriEnako("Z1: odstranjen indeksator - brez povezave", null, pov.zaPrenos("usenet:1", null))
+    pov.dodaj("usenet:1", nzbUrl, k1); pov.dodaj("usenet:2", nzbUrl + "2", k2)
+    pov.obdrzi(k2)
+    preveriEnako("Z1: vpis novega kljuca - ostanejo samo njegove povezave", listOf(null, nzbUrl + "2"),
+        listOf(pov.zaPrenos("usenet:1", k1), pov.zaPrenos("usenet:2", k2)))
+    pov.pozabi(k2)
+    preveriEnako("Z1: zavrnjen ali zaklenjen kljuc - njegove povezave gredo", 0, pov.velikost())
+    pov.dodaj("usenet:3", nzbUrl, k1); pov.obdrzi(null)
+    preveriEnako("Z1: »Odstrani« - nobene povezave", 0, pov.velikost())
+    val zk = DebridPravila.StanjeKljuca.ZAKLENJEN; val nv = DebridPravila.StanjeKljuca.NE_VELJA; val v = DebridPravila.StanjeKljuca.VELJA
+    preveriEnako("Z1: zaklenjen indeksator - brez klica", TorBoxPravila.NAPAKA_ZAKLENJEN to UsenetPravila.PONUDNIK,
+        UsenetPravila.oviraPrenosa(true, v, true, zk))
+    preveriEnako("Z1: indeksator ne velja - brez klica", TorBoxPravila.NAPAKA_KLJUC to UsenetPravila.PONUDNIK,
+        UsenetPravila.oviraPrenosa(true, null, true, nv))
+    preveriEnako("Z1: TorBox zaklenjen - indeksator tudi ne dobi zahteve", TorBoxPravila.NAPAKA_ZAKLENJEN to DebridPravila.TORBOX,
+        UsenetPravila.oviraPrenosa(true, zk, true, v))
+    preveriEnako("Z1: TorBox ne velja", TorBoxPravila.NAPAKA_KLJUC to DebridPravila.TORBOX, UsenetPravila.oviraPrenosa(true, nv, true, null))
+    preveriEnako("Z1: brez kljuca TorBox", TorBoxPravila.NAPAKA_KLJUC to DebridPravila.TORBOX, UsenetPravila.oviraPrenosa(false, null, true, v))
+    preveriEnako("Z1: brez indeksatorja", UsenetPravila.NAPAKA_INDEKSATOR to UsenetPravila.PONUDNIK, UsenetPravila.oviraPrenosa(true, v, false, null))
+    preveriEnako("Z1: oba smeta (velja, nepreverjen, brez stanja)", listOf(null, null, null), listOf(
+        UsenetPravila.oviraPrenosa(true, v, true, v), UsenetPravila.oviraPrenosa(true, DebridPravila.StanjeKljuca.NEPREVERJEN, true, null),
+        UsenetPravila.oviraPrenosa(true, null, true, DebridPravila.StanjeKljuca.NEPREVERJEN)))
+
     if (napak == 0) println("UsenetPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

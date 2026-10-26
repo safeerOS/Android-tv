@@ -365,6 +365,62 @@ object UsenetPravila {
     /** Najvec skokov preusmeritve pri prenosu NZB. */
     const val NAJVEC_SKOKOV = 5
 
+    // ------------------------------------------------------------------ povezave NZB v pomnilniku (pregled Grok 41, Z1)
+
+    /**
+     * Pregled Grok 41, Z1 (kot namizje 37509ce, Grokov pregled 40, S1): povezava NZB nosi kljuc indeksatorja v naslovu
+     * (apikey) iz casa iskanja. Prej jo je prenos vzel iz pomnilnika brez preverbe: po zaklepu racuna (Newznab 101),
+     * zamenjavi ali odstranitvi kljuca je klik na vir v ze odprtem seznamu poslal stari ali zaklenjen kljuc indeksatorju.
+     * Zato je vsaka povezava vezana na odtis kljuca, s katerim je bila najdena ([DebridPravila.odtisStanja] naslova in
+     * kljuca), in gre ven samo s tem kljucem, dokler je shranjen. Najvec [najvec] povezav, najstarejse odpadejo.
+     */
+    class Povezave(private val najvec: Int = 500) {
+        private val m = object : LinkedHashMap<String, Pair<String, String>>(64, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Pair<String, String>>?) = size > najvec
+        }
+
+        /** Povezava [povezava] zadetka [idToka], najdena s kljucem z odtisom [odtis]. */
+        @Synchronized fun dodaj(idToka: String, povezava: String, odtis: String) { m[idToka] = povezava to odtis }
+
+        /**
+         * Povezava za prenos samo, ce je bila najdena s kljucem [odtisZdaj] (shranjen indeksator; null = ga ni). Sicer
+         * null - in povezav drugih kljucev ni vec (klic z zamenjanim ali odstranjenim kljucem ne gre ven; vir je treba poiskati znova).
+         */
+        @Synchronized fun zaPrenos(idToka: String, odtisZdaj: String?): String? {
+            val (povezava, odtis) = m[idToka] ?: return null
+            if (odtisZdaj != null && odtis == odtisZdaj) return povezava
+            obdrzi(odtisZdaj)
+            return null
+        }
+
+        /** Ostanejo samo povezave kljuca [odtis] (null = nobena): zamenjava ali »Odstrani« indeksatorja. */
+        @Synchronized fun obdrzi(odtis: String?) { m.values.removeAll { it.second != odtis } }
+
+        /** Povezave kljuca [odtis], ki ga je indeksator zavrnil ali zaklenil, gredo iz pomnilnika. */
+        @Synchronized fun pozabi(odtis: String) { m.values.removeAll { it.second == odtis } }
+
+        @Synchronized fun velikost(): Int = m.size
+    }
+
+    /** Napaka za kljuc, ki ga ne klicemo: zaklenjen racun ali kljuc, ki ne velja. */
+    fun napakaStanja(s: DebridPravila.StanjeKljuca?): String =
+        if (s == DebridPravila.StanjeKljuca.ZAKLENJEN) TorBoxPravila.NAPAKA_ZAKLENJEN else TorBoxPravila.NAPAKA_KLJUC
+
+    /**
+     * Pregled Grok 41, Z1: ali prenos NZB in TorBox Usenet smeta klicati storitev - preveri se pred VSAKIM prenosom (tudi
+     * klik na vir v ze odprtem seznamu), ne samo pred iskanjem. Lastnik 26. 10. 2026: s kljucem »ne velja« ali »zaklenjen«
+     * Safeer storitve ne klice - zato tudi indeksator ne dobi zahteve, ce TorBoxa ne smemo klicati (NZB ne bi imel kam).
+     * (napaka, ponudnik) za izid brez klica ali null = sme.
+     */
+    fun oviraPrenosa(imaTorBox: Boolean, stanjeTorBox: DebridPravila.StanjeKljuca?, imaIndeksator: Boolean,
+                     stanjeIndeksatorja: DebridPravila.StanjeKljuca?): Pair<String, String>? = when {
+        !imaTorBox -> TorBoxPravila.NAPAKA_KLJUC to DebridPravila.TORBOX
+        !DebridPravila.smeKlicati(stanjeTorBox) -> napakaStanja(stanjeTorBox) to DebridPravila.TORBOX
+        !imaIndeksator -> NAPAKA_INDEKSATOR to PONUDNIK
+        !DebridPravila.smeKlicati(stanjeIndeksatorja) -> napakaStanja(stanjeIndeksatorja) to PONUDNIK
+        else -> null
+    }
+
     /** Id toka za zadetek: »usenet:« + prvih 16 heks SHA-1 povezave - povezava (s kljucem) ostane samo v pomnilniku. */
     fun idToka(povezava: String): String {
         val d = java.security.MessageDigest.getInstance("SHA-1").digest(povezava.toByteArray(Charsets.UTF_8))
