@@ -128,6 +128,71 @@ fun main() {
     val poZavrnitvi = IptvPravila.poNapaki(null, 1_000_000L, zavrnjen = true)
     preveriEnako("uporabnikov klik po zavrnitvi racuna: 10 min premora", false, IptvPravila.smePrenesti(poZavrnitvi, 1_000_000L + 5 * 60_000L))
     preveriEnako("uporabnikov klik po izteku premora: sme", true, IptvPravila.smePrenesti(poZavrnitvi, 1_000_000L + 11 * 60_000L))
+
+    // ------------------------------------------------------------------ Grok 60, Ů1
+    println("== Grok 60, Ů1: odprtje seznama in TV v zivo ne smeta biti nova prijava v racun ob vsakem odprtju ==")
+    // V aplikaciji je vir z racunom nadomestek; prijava = zahteva s pravim naslovom. Odlocitev je ista cista funkcija, ki jo klicejo
+    // IptvSeznami.pripravi (odlociPripravo) in MedijskiViri.osveziSeznam (smeNaOmrezjeSeznam); stanje (zadnji prenos, napaka, zadnji
+    // poskus) se zapise kot v IptvSeznami.prenesi/poIzidu/zapisiPoskus.
+    val racunAp = "http://ponudnik.primer.test:8080/" + SkrivnostiPravila.OZNAKA + "0123456789abcdef"
+    val t0 = 1_800_000_000_000L
+    val minuta = 60_000L
+    class Seznam(var prenesenOb: Long?, var napaka: IptvPravila.NapakaPrenosa?, var zadnjiPoskus: Long)
+    fun prenos(s: Seznam, zdaj: Long, koda: Int) {
+        s.zadnjiPoskus = zdaj
+        if (koda in 200..299) { s.prenesenOb = zdaj; s.napaka = null }
+        else s.napaka = IptvPravila.poNapaki(s.napaka, zdaj, IptvPravila.zavrnjen(koda, 0, racunAp))
+    }
+    /** Mreza TV v zivo odprta vsako minuto (IptvSeznami.pripravi); vrne stevilo prijav v racun. */
+    fun tvVZivo(dodanTu: Boolean, minut: Int, koda: Int): Int {
+        val s = Seznam(null, null, 0L)
+        var prijav = 0
+        for (m in 0..minut) {
+            val zdaj = t0 + m * minuta
+            if (IptvPravila.odlociPripravo(racunAp, dodanTu, false, s.prenesenOb, s.napaka, s.zadnjiPoskus, zdaj) != IptvPravila.Priprava.BREZ) { prenos(s, zdaj, koda); prijav++ }
+        }
+        return prijav
+    }
+    /** Seznam odprt vsako minuto (MedijskiViri.osveziSeznam); prvo uspesno branje shrani skladbe. */
+    fun odprtjeSeznama(minut: Int, koda: Int): Int {
+        val s = Seznam(null, null, 0L)
+        var shranjeno = false
+        var prijav = 0
+        for (m in 0..minut) {
+            val zdaj = t0 + m * minuta
+            if (IptvPravila.smeNaOmrezjeSeznam(if (shranjeno) s.prenesenOb else null, s.napaka, s.zadnjiPoskus, zdaj, izrecno = false)) {
+                prenos(s, zdaj, koda); prijav++
+                if (koda in 200..299) shranjeno = true
+            }
+        }
+        return prijav
+    }
+    /** Uporabnik klika »Poskusi znova« na vsakih [razmakS] sekund (izrecna osvezitev). */
+    fun kliki(dodanTu: Boolean, stevilo: Int, razmakS: Long, koda: Int): Int {
+        val s = Seznam(null, null, 0L)
+        var prijav = 0
+        for (i in 0 until stevilo) {
+            val zdaj = t0 + i * razmakS * 1000L
+            if (IptvPravila.odlociPripravo(racunAp, dodanTu, true, s.prenesenOb, s.napaka, s.zadnjiPoskus, zdaj) != IptvPravila.Priprava.BREZ) { prenos(s, zdaj, koda); prijav++ }
+        }
+        return prijav
+    }
+    val dan = 24 * 60
+    preveriEnako("TV v zivo odprta vsako minuto 24 ur, racun deluje: prva prijava in ena osvezitev po 24 urah", 2, tvVZivo(true, dan, 200))
+    preveriEnako("TV v zivo odprta vsako minuto 24 ur, ponudnik zavrne: samo premor I5 (10 min, 1 h, 6 h)", 4, tvVZivo(true, dan, 403))
+    preveriEnako("TV v zivo na napravi brez dokaza (prejeta kopija): nobene prijave", 0, tvVZivo(false, dan, 200))
+    preveriEnako("odprtje seznama vsako minuto 24 ur, racun deluje: prva prijava in ena osvezitev po 24 urah", 2, odprtjeSeznama(dan, 200))
+    preveriEnako("odprtje seznama vsako minuto 24 ur, ponudnik zavrne: samo premor I5", 4, odprtjeSeznama(dan, 403))
+    preveriEnako("izrecni kliki vsakih 10 s (10 min): najvec 1 prijava na minuto", 10, kliki(false, 60, 10, 200))
+    preveriEnako("izrecni kliki vsakih 10 s po zavrnitvi: najvec 1 prijava na minuto", 10, kliki(false, 60, 10, 403))
+    preveriEnako("izrecni kliki na vir z dokazom: enako, najvec 1 na minuto", 10, kliki(true, 60, 10, 200))
+    preveriEnako("meja 1 na minuto: 59,9 s je prezgodaj", false, IptvPravila.smeRocnoOsveziti(t0, t0 + 59_999L))
+    preveriEnako("meja 1 na minuto: po 60 s sme", true, IptvPravila.smeRocnoOsveziti(t0, t0 + 60_000L))
+    preveriEnako("meja 1 na minuto: ura, prestavljena nazaj, ne zaklene", true, IptvPravila.smeRocnoOsveziti(t0, t0 - 5 * minuta))
+    // Stara meja (smePrenesti z rocno) je veljala samo po napaki: po uspehu (napaka = null) je izrecna osvezitev smela vsakic.
+    preveriEnako("nadzor: stara meja po uspehu ni omejevala", true, IptvPravila.smePrenesti(null, t0, rocno = true))
+
+    // ------------------------------------------------------------------ konec
     streznik.stop(0)
     if (napak == 0) println("IptvVarovaloTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

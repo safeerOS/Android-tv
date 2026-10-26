@@ -847,10 +847,17 @@ object MedijskiViri {
         // Vir z racunom: v aplikaciji nadomestek, pravi naslov samo za zahtevo; neznana skrivnost (Keystore) = nobene zahteve.
         val pravi = SkrivniDodatki.dejanski(ctx, naslov)
         if (SkrivnostiPravila.jeNadomestek(pravi)) return skladbeSeznama(ctx, naslov)
-        // Grok 52, Ñ2: seznam z racunom samo ob premoru I5 (zavrnjen racun: 10 min, 1 h, 6 h, 24 h) - klic je vedno uporabnikov klik
-        // (prevzem z druge naprave seznama ne prebere vec); izid gre v isto shrambo napak kot prenos za mrezo TV v zivo.
+        // Grok 52, Ñ2 + Grok 60, Ů1: odprtje seznama z racunom NI nova prijava ob vsakem odprtju: 24-urni predpomnilnik zadnjega branja in
+        // premor I5 po napaki (zavrnjen racun: 10 min, 1 h, 6 h, 24 h) - ista odlocitev kot za mrezo TV v zivo
+        // ([IptvPravila.smeNaOmrezjeSeznam]); klic je vedno uporabnikovo odprtje (prevzem z druge naprave seznama ne prebere vec).
+        // Izid gre v isto shrambo napak kot prenos za mrezo TV v zivo.
         val racun = IptvPravila.virZRacunom(SEZNAM, naslov)
-        if (racun && !IptvSeznami.smePrenesti(ctx, naslov)) return skladbeSeznama(ctx, naslov)
+        if (racun) {
+            val shranjene = skladbeSeznama(ctx, naslov)
+            if (!IptvPravila.smeNaOmrezjeSeznam(if (shranjene.isEmpty()) null else IptvSeznami.osvezenOb(ctx, naslov), IptvSeznami.napaka(ctx, naslov),
+                    IptvSeznami.zadnjiPoskus(ctx, naslov), System.currentTimeMillis(), izrecno = false)) return shranjene
+            IptvSeznami.zapisiPoskus(ctx, naslov)
+        }
         val p = try { URL(pravi).openConnection() as HttpURLConnection } catch (_: Exception) { return skladbeSeznama(ctx, naslov) }
         p.connectTimeout = 8_000; p.readTimeout = 10_000
         p.setRequestProperty("User-Agent", "SafeerOS")

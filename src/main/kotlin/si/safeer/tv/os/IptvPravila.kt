@@ -393,6 +393,43 @@ object IptvPravila {
         else -> zdaj >= napaka.naslednjiOb || napaka.naslednjiOb - zdaj > PREMORI_PRENOSA_MS.last()
     }
 
+    /** Grok 60, Ů1: najmanj toliko med dvema izrecnima osvezitvama istega racuna (uspelima ali ne). */
+    const val NAJ_ROCNO_MS = 60_000L
+
+    /**
+     * Grok 60, Ů1: izrecna osvezitev (uporabnikov klik) sme na omrezje najvec 1-krat na minuto na racun - tudi po uspehu (prej je
+     * meja [smePrenesti] veljala samo po napaki). [zadnjiPoskusOb] = zadnja prijava v racun (0 = je ni); ura, prestavljena nazaj,
+     * ne zaklene.
+     */
+    fun smeRocnoOsveziti(zadnjiPoskusOb: Long, zdaj: Long): Boolean = zdaj - zadnjiPoskusOb !in 0 until NAJ_ROCNO_MS
+
+    /**
+     * Grok 60, Ů1 (lastnik: nikoli zaklep racuna - ponudniki ga zaklenejo ob poplavi prijav): ali sme seznam ta hip na omrezje.
+     * [prenesenOb] = kdaj je bil nazadnje uspesno prebran (null = ga ni). ODPRTJE seznama in odprtje TV v zivo ([izrecno] = false)
+     * uporabljata 24-urni predpomnilnik ([zastarel]) in premor I5 po napaki ([smePrenesti]); samo izrecna osvezitev ([izrecno]:
+     * uporabnik klikne »Poskusi znova«) obide predpomnilnik in premor, a najvec 1-krat na minuto na racun ([smeRocnoOsveziti]).
+     * Isto odlocitev uporabljata [IptvSeznami.pripravi] (mreza TV v zivo) in [MedijskiViri.osveziSeznam] (odprtje seznama).
+     */
+    fun smeNaOmrezjeSeznam(prenesenOb: Long?, napaka: NapakaPrenosa?, zadnjiPoskusOb: Long, zdaj: Long, izrecno: Boolean): Boolean {
+        if (!izrecno && prenesenOb != null && !zastarel(prenesenOb, zdaj)) return false
+        if (!smePrenesti(napaka, zdaj, izrecno)) return false
+        return !izrecno || smeRocnoOsveziti(zadnjiPoskusOb, zdaj)
+    }
+
+    /** Kaj naj [IptvSeznami.pripravi] naredi s seznamom: nic (stari velja), osvezitev v ozadju (stari velja do konca) ali prenos zdaj. */
+    enum class Priprava { BREZ, V_OZADJU, ZDAJ }
+
+    /**
+     * Grok 60, Ů1: odlocitev [IptvSeznami.pripravi] - samodejni prenos samo za vir z dokazom ([smeSamodejnoPrenesti]), potem
+     * [smeNaOmrezjeSeznam]; seznam, ki je ze na disku ([prenesenOb] != null), se osvezi v ozadju, sicer takoj.
+     */
+    fun odlociPripravo(naslov: String, dodanTu: Boolean, izrecno: Boolean, prenesenOb: Long?, napaka: NapakaPrenosa?,
+                       zadnjiPoskusOb: Long, zdaj: Long): Priprava {
+        if (!smeSamodejnoPrenesti(naslov, dodanTu, izrecno)) return Priprava.BREZ
+        if (!smeNaOmrezjeSeznam(prenesenOb, napaka, zadnjiPoskusOb, zdaj, izrecno)) return Priprava.BREZ
+        return if (prenesenOb != null && !izrecno) Priprava.V_OZADJU else Priprava.ZDAJ
+    }
+
     /** Gostitelj naslova http(s) z malimi crkami ("" = ni naslov http(s)) - kljuc vrat preverb ([VrataGostiteljev]). */
     fun gostitelj(naslov: String): String = deli(naslov)?.gostitelj.orEmpty()
 

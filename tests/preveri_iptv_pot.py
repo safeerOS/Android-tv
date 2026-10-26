@@ -58,5 +58,25 @@ preveri("prehod: zapis izbrisanih je trajen (commit) pred brisanjem grobov", 0 <
 preveri("opozoriloDeljenja zajame izbrisane vire", "opozoriloIzbrisanih(" in telo(viri, "fun opozoriloDeljenja("))
 preveri("opozoriloVideno oznaci tudi izbrisane vire", "odtisiIzbrisanih(" in telo(viri, "fun opozoriloVideno("))
 
+print("Grok 60, Ů1: odprtje seznama in TV v zivo ne kliceta nove prijave ob vsakem odprtju")
+pr = telo(iptv, "fun pripravi(")
+preveri("IptvSeznami.pripravi: ena odlocitev po IptvPravila.odlociPripravo", "IptvPravila.odlociPripravo(" in pr)
+preveri("IptvSeznami.pripravi: brez lastnega predpomnilnika in premora mimo odlocitve", "zastarel(" not in pr and "smePrenesti(" not in pr)
+pr = telo(iptv, "fun prenesi(")
+preveri("IptvSeznami.prenesi zapise poskus prijave (od tu steje meja 1 na minuto)", "zapisiPoskus(" in pr)
+os_ = telo(viri, "fun osveziSeznam(")
+preveri("osveziSeznam (odprtje seznama): za racun ista odlocitev (24-urni predpomnilnik, premor I5), brez izrecne osvezitve",
+        "IptvPravila.smeNaOmrezjeSeznam(" in os_ and "izrecno = false" in os_)
+preveri("osveziSeznam: zapise poskus prijave in izid (premor I5, cas branja)", "IptvSeznami.zapisiPoskus(" in os_ and "IptvSeznami.poIzidu(" in os_)
+# rocno = true samo pri izrecnem kliku »Poskusi znova«: nobeno odprtje (seznama, TV v zivo, pregled) ne sme klicati pripravi z rocno.
+klici = []
+for f in sorted(OS.glob("*.kt")):
+    t = koda(f.name)
+    for m in re.finditer(r"IptvSeznami\.pripravi\(([^)]*)\)", t):
+        if re.search(r"rocno\s*=\s*true|,\s*true\s*$", m.group(1)):
+            klici.append((f.name, t[max(0, m.start() - 900): m.start()]))
+preveri("IptvSeznami.pripravi z rocno = true: natanko en klic", len(klici) == 1)
+preveri("... in to je izrecen klik »Poskusi znova« (GlasbaActivity)", len(klici) == 1 and klici[0][0] == "GlasbaActivity.kt" and "os_iptv_poskusi_znova" in klici[0][1])
+
 print("VSE OK" if not napak else f"NAPAK: {napak}")
 sys.exit(1 if napak else 0)
