@@ -120,6 +120,14 @@ object UskladitevKljucevPravila {
     }
 
     /**
+     * Grok 52, Ñ4 (ustreza Linuxovemu Ê4): vir z racunom IPTV gre z vrednostjo v ozji krog te naprave samo, ce je bil dodan na TEJ
+     * napravi ([dodanTu], MedijskiViri.dodanTu: TV vzame za svoje vire izpred pravila). Prejet (lists.get od naprave v krogu ali
+     * secrets.sync) in podedovan od starejse razlicice je tuj: neznan - ne gre naprej in ne ustvari groba. Ozji krog je na napravo
+     * (uporabnik ga ureja na vsaki posebej): brez tega bi geslo preslo A -> B -> C, ki ni v krogu A.
+     */
+    fun oddajaIptv(berljiv: Boolean, dodanTu: Boolean): Oddaja = if (berljiv && dodanTu) Oddaja.VREDNOST else Oddaja.NEZNAN
+
+    /**
      * Prejeti zapisi -> tisti, ki jih je treba uporabiti tu (novejsi od lokalnih), z veljavnim kljucem in vrednostjo
      * ([veljavnaVrednost]). Najvec [NAJVEC_ZAPISOV]; za isti kljuc velja najnovejsi; cas iz dalnje prihodnosti zavrnemo.
      */

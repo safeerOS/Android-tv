@@ -263,5 +263,27 @@ fun main() {
     preveri("ftp z uporabnikom je racun", IptvPravila.skladbaZRacunom(listOf("ftp://$UPORABNIK@datoteke.primer.test/glasba.mp3")))
     preveri("rtsp brez uporabnika ni racun", !IptvPravila.skladbaZRacunom(listOf("rtsp://kamera.primer.test/live", "magnet:?xt=urn:btih:abc", "content://media/external/audio/1")))
 
+    println()
+    println("== Grok 52, Ñ4: vir z racunom gre naprej samo z naprave, kjer je bil dodan ==")
+    // Kot UskladitevKljucev.trenutne in posodobi: dodan tu -> vrednost; prejet/podedovan -> neznan; potem lokalneSpremembe in zaPoslati.
+    val kTu = UskladitevKljucevPravila.kljucIptv(IptvPravila.odtisRacuna(XTREAM))
+    val kTuj = UskladitevKljucevPravila.kljucIptv(IptvPravila.odtisRacuna(TOK))
+    val kSync = UskladitevKljucevPravila.kljucIptv(IptvPravila.odtisRacuna(TVH))
+    fun oddaj(meta: Map<String, UskladitevKljucevPravila.Meta>, dodanTu: Set<String>): Pair<Map<String, UskladitevKljucevPravila.Meta>, List<String>> {
+        val v = LinkedHashMap<String, String>(); val neznani = HashSet<String>()
+        for (k in listOf(kTu, kTuj, kSync)) when (UskladitevKljucevPravila.oddajaIptv(true, k in dodanTu)) { UskladitevKljucevPravila.Oddaja.VREDNOST -> v[k] = "odtis-$k"; else -> neznani += k }
+        val spr = UskladitevKljucevPravila.lokalneSpremembe(meta, v, neznani, "jaz", 5000L, uvoz = false)
+        val vse = meta + spr
+        return vse to UskladitevKljucevPravila.zaPoslati(vse, v.mapValues { "vrednost-$it" }, "jaz").map { it.kljuc }
+    }
+    // kSync je bil prejet po secrets.sync od naprave B: zapis ima izvor B (ne jaz), vrednost se ne spreminja.
+    val prejetoSync = mapOf(kSync to UskladitevKljucevPravila.Meta(3000L, "naprava-B", false, "odtis-$kSync"))
+    val (metaPo, poslano) = oddaj(prejetoSync, setOf(kTu))
+    preveriEnako("poslano: samo vir, dodan tu", listOf(kTu), poslano)
+    preveri("prejet po lists.get (brez zapisa) ne dobi zapisa kot lasten", kTuj !in metaPo)
+    preveriEnako("prejet po secrets.sync: zapis ostane od naprave B, brez groba", prejetoSync[kSync], metaPo[kSync])
+    preveriEnako("prejet po secrets.sync ni poslan naprej (izvor ni ta naprava)", false, kSync in poslano)
+    preveriEnako("neberljiva skrivnost (Keystore) ne gre, tudi ce je dodana tu", UskladitevKljucevPravila.Oddaja.NEZNAN, UskladitevKljucevPravila.oddajaIptv(false, true))
+
     if (napak == 0) println("IptvRacunTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

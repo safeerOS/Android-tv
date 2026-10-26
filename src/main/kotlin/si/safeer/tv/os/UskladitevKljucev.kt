@@ -190,9 +190,12 @@ object UskladitevKljucev {
             val z = SkrivnostiPravila.nadomestnaOsnova(vir.naslov) ?: continue
             val k = P.kljucIptv(z.substringAfterLast(SkrivnostiPravila.OZNAKA))
             val pravi = SkrivniDodatki.dejanski(vir.naslov)
-            if (pravi != vir.naslov && IptvPravila.skrivnostVira(vir.tip, pravi) == pravi)
-                v[k] = JSONObject().put("url", pravi).put("tip", vir.tip).put("ime", vir.ime).toString()
-            else neznani += k
+            val berljiv = pravi != vir.naslov && IptvPravila.skrivnostVira(vir.tip, pravi) == pravi
+            // Grok 52, Ñ4: z vrednostjo samo vir, dodan na tej napravi - prejet ali podedovan je tuj (neznan: ne gre naprej, brez groba).
+            when (P.oddajaIptv(berljiv, MedijskiViri.dodanTu(c, vir.naslov))) {
+                UskladitevKljucevPravila.Oddaja.VREDNOST -> v[k] = JSONObject().put("url", pravi).put("tip", vir.tip).put("ime", vir.ime).toString()
+                else -> neznani += k
+            }
         }
         return v to neznani
     }
