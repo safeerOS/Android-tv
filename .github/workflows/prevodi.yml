@@ -103,6 +103,14 @@ jobs:
           KOTLINC: /tmp/kotlinc/bin/kotlinc
         run: bash tests/run_splet_tests.sh
 
+      # YouTube na zvocnik (zvocni tok iz InnerTube, odjemalec VISIONOS: DRM, preverba »not a bot«, naslov samo googlevideo)
+      # in Google Cast (okvirji, pristnost naprave do Googlovega korena Cast, stanja, tok z glavami ne gre na zvocnik).
+      - name: Zvocnik - YouTube in Google Cast
+        env:
+          KOTLINC: /tmp/kotlinc/bin/kotlinc
+          JSON_JAR: /tmp/json.jar
+        run: bash tests/run_zvocnik_cast_tests.sh
+
       # Skripta, ki jo vgrajeni brskalnik na YouTubu zazene pred skriptami strani (posnetek brez cakanja na oglas).
       # Tece v Node (na tem poganjalcu je ze namescen) z nadomestki za okno, dokument in zgodovino.
       - name: YouTube v vgrajenem brskalniku (zacetek brez cakanja)

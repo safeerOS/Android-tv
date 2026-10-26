@@ -317,8 +317,9 @@ object ZvocnikPravila {
      * Kaj sme na zvocnik: zvok, ki ga zvocnik lahko potegne sam ali mu ga ponudi ta naprava. Slika ne. Seznam kosov (HLS,
      * DASH) tudi ne: zvocnik naslov sprejme, predvajati ga ne zna - nova izbira bi bila tiho, dokler ne obupamo.
      */
-    fun primerna(zvok: String, video: Boolean, mime: String = ""): Boolean {
-        if (video || !DlnaPravila.zaZvocnik(zvok)) return false
+    fun primerna(zvok: String, video: Boolean, mime: String = "", imaGlave: Boolean = false): Boolean {
+        // Glave zahteve (Referer, kljuc vira API, glave dodatka) pozna samo nas predvajalnik - zvocnik bi jih ne poslal (25. 10. 2026).
+        if (video || imaGlave || !DlnaPravila.zaZvocnik(zvok)) return false
         val pot = zvok.substringBefore('?').substringBefore('#').lowercase()
         val vrsta = mime.lowercase()
         return !(pot.endsWith(".m3u8") || pot.endsWith(".mpd") || vrsta.contains("mpegurl") || vrsta.contains("dash+xml"))

@@ -729,6 +729,14 @@ object SpletniVir {
     fun glaveToka(tok: String): Map<String, String> = glaveToka[tok] ?: emptyMap()
 
     /**
+     * Tok potrebuje glave zahteve, ki jih zvocnik v omrezju ne poslje: glave tega toka ali gostitelja (dodatek Stremio) ali
+     * domene (Referer strani, kljuc uporabnikovega vira API). Takega toka zvocniku ne ponudimo (25. 10. 2026; prej se je
+     * preverjal samo [glaveToka] - tok vira API s kljucem je dobil gumb, zvocnik pa ga brez kljuca ni mogel prebrati).
+     */
+    fun imaGlave(tok: String): Boolean = tok.isNotBlank() && (glaveToka[tok]?.isNotEmpty() == true ||
+        glaveGostitelja[gostitelj(tok)]?.isNotEmpty() == true || glaveDomene[domena(tok)]?.isNotEmpty() == true)
+
+    /**
      * Vir podatkov za nas predvajalnik: tokovom iz spletnih aplikacij doda Referer, piskotke in UA brskalnika.
      * UA gre v glave zahteve (ne v tovarno): DefaultHttpDataSource bi s svojim UA prepisal tistega iz proxyHeaders.
      */

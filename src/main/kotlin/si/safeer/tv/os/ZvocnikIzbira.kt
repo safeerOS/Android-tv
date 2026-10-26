@@ -51,7 +51,7 @@ object ZvocnikIzbira {
         GlasbaStoritev.naZvocnik(a, z, sk) { napaka ->
             // Zagon, ki ga je prehitela novejsa izbira (ali konec seje), ni ne napaka zvocnika ne »zdaj igra«.
             if (napaka is Zvocniki.Prehiteno) { }
-            else if (napaka != null) Toast.makeText(a, a.getString(R.string.zvocnik_napaka, z.ime), Toast.LENGTH_LONG).show()
+            else if (napaka != null) Toast.makeText(a, Zvocniki.besediloNapake(a, napaka, z.ime), Toast.LENGTH_LONG).show()
             else Toast.makeText(a, a.getString(R.string.zvocnik_igra, z.ime), Toast.LENGTH_SHORT).show()
             spremenjeno()
         }
