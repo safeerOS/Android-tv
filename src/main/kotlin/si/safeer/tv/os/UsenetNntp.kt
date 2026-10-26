@@ -15,6 +15,7 @@ import java.security.SecureRandom
 import java.security.cert.CertificateParsingException
 import java.security.cert.X509Certificate
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 import javax.net.ssl.HostnameVerifier
@@ -34,11 +35,14 @@ import javax.net.ssl.SSLSocketFactory
  * - Bazen: privzeto [PRIVZETO_POVEZAV], najvec [NAJVEC_POVEZAV] (ponudnik ima mejo povezav na racun, npr. 50 - vec naprav
  *   v krogu si jih deli; [nastaviNajvec] za proracun povezav med napravami, korak 3). Povezava, ki je bila predolgo
  *   prosta, gre stran; kaj naredi bazen po napaki, pove [ukrep] (skupni primeri nntp_ukrep, enako namizje).
- * - Zaklep racuna (lastnik 26. 10. 2026 03:05: »Nevarnost zaklepa racuna je prioriteta«): dokler prijava ne uspe (in ni
- *   nobene prijavljene povezave), se odpira ena sama povezava naenkrat ([smeOdpreti]) - napacno geslo pride do streznika
- *   enkrat, tudi pri 8 hkratnih zahtevah. Zavrnjena prijava ustavi bazen, zapre vse povezave in zapre racun za ves
- *   proces, dokler uporabnik poverilnic ne vpise znova ([dovoliPrijavoZnova]). »Prevec povezav« bazen skrci na sprejete
- *   povezave in zacne premor novih ([novPremor]) - nikoli nov poskus prijave v zanki.
+ * - Zaklep racuna (lastnik 26. 10. 2026 03:05: »Nevarnost zaklepa racuna je prioriteta«): AUTHINFO za isti racun gre v
+ *   procesu vedno ena naenkrat (vrata prijave), tudi po uspeli prijavi; izid se zapise, preden naslednja povezava poslje
+ *   geslo. Dokler ni zive prijave, se odpira ena sama povezava naenkrat ([smeOdpreti]). Pri AUTHINFO je vsak odgovor
+ *   razen 281/381 in jasne meje povezav zavrnjena prijava - tudi »481 Authentication failed« po uspeli prijavi (geslo se
+ *   je med sejo morda spremenilo; pregled Grok 44 D1). Zavrnjena prijava ustavi bazen, zapre vse povezave in zapre
+ *   racun, dokler uporabnik poverilnic ne vpise znova ([dovoliPrijavoZnova]) - napacno geslo pride do streznika enkrat.
+ *   »Prevec povezav« bazen skrci na sprejete povezave in zacne premor novih ([novPremor]) - nikoli nov poskus prijave v
+ *   zanki.
  * - Odgovori streznika ([izid], skupni primeri nntp_izid) in napake odjemalca ([Vrsta]): ni clanka, prijava, zaseden,
  *   omrezje, potrdilo, napaka streznika, napaka protokola. Ob prijavi in potrdilu ni ponovitve (ponavljanje napacnega
  *   gesla lahko zaklene racun).
@@ -135,18 +139,33 @@ class UsenetNntp(
         /** Racuni, ki jim je ponudnik zavrnil prijavo: odtis s sljo procesa (nikoli geslo), samo v pomnilniku (U-4). */
         private val ZAVRNJENI: MutableSet<String> = ConcurrentHashMap.newKeySet()
         private val SOL = ByteArray(16).also { SecureRandom().nextBytes(it) }
+        /**
+         * Vrata prijave (pregled Grok 44 D1): kljuc racuna (ponudnik, uporabnik) -> zaklep. AUTHINFO gre za racun v procesu
+         * vedno ena naenkrat, tudi po uspeli prijavi - zavrnitev postavi zapah, preden naslednja povezava poslje geslo.
+         */
+        private val PRIJAVE = ConcurrentHashMap<String, ReentrantLock>()
+        /** Prijave brez odgovora po odtisu racuna (geslo je morda prislo do streznika): prvic premor, drugic zapored zapah. */
+        private val NEZNANE = ConcurrentHashMap<String, Int>()
 
-        private fun odtisRacuna(gostitelj: String, uporabnik: String?, geslo: String?): String? {
-            if (uporabnik == null) return null
+        internal fun ponudnik(gostitelj: String): String = gostitelj.trim().lowercase().trimEnd('.')
+
+        private fun zgosti(vararg polja: String): String {
             val md = MessageDigest.getInstance("SHA-256")
             md.update(SOL)
-            for (x in listOf(gostitelj.trim().lowercase(), uporabnik, geslo.orEmpty())) {
+            for (x in polja) {
                 val b = x.toByteArray(Charsets.UTF_8)
                 md.update(byteArrayOf((b.size ushr 24).toByte(), (b.size ushr 16).toByte(), (b.size ushr 8).toByte(), b.size.toByte()))
                 md.update(b)
             }
             return md.digest().joinToString("") { "%02x".format(it) }
         }
+
+        private fun odtisRacuna(gostitelj: String, uporabnik: String?, geslo: String?): String? =
+            if (uporabnik == null) null else zgosti(ponudnik(gostitelj), uporabnik, geslo.orEmpty())
+
+        /** Zaklep prijave racuna (ponudnik, uporabnik) - en za vse bazene in gesla tega racuna v procesu. */
+        private fun vrataPrijave(gostitelj: String, uporabnik: String): ReentrantLock =
+            PRIJAVE.computeIfAbsent(zgosti("prijava", ponudnik(gostitelj), uporabnik)) { ReentrantLock() }
 
         /** Ali je ponudnik te poverilnice ze zavrnil (do ponovnega vpisa jih ne posiljamo). */
         fun prijavaZavrnjena(gostitelj: String, uporabnik: String?, geslo: String?): Boolean =
@@ -157,7 +176,10 @@ class UsenetNntp(
          * dovoljen. Klice ga samo izrecno dejanje uporabnika, nikoli samodejno.
          */
         fun dovoliPrijavoZnova(gostitelj: String, uporabnik: String?, geslo: String?) {
-            odtisRacuna(gostitelj, uporabnik, geslo)?.let { ZAVRNJENI.remove(it) }
+            odtisRacuna(gostitelj, uporabnik, geslo)?.let {
+                ZAVRNJENI.remove(it)
+                NEZNANE.remove(it)
+            }
         }
 
         const val VRATA = 563
@@ -179,10 +201,17 @@ class UsenetNntp(
         const val PREMOR_BREZ_ODPRTIH_S = 60L
         const val PREMOR_DO_S = 300L
         const val RAST_BAZENA_S = 600L
+        /**
+         * Prijava je ziva samo, ce je povezava v zadnjih 30 s uspesno koncala prijavo ali ukaz (pregled Grok 44 D1: odprta
+         * vticnica ni dokaz - ponudnik je sejo ob menjavi gesla morda ze zaprl). Samo ziva prijava dovoli vzporedno odpiranje.
+         */
+        const val ZIVA_PRIJAVA_S = 30L
 
         private val MEJA = listOf("too many", "limit", "max", "exceed", "no more")
         private val ZAKLEP = listOf("lock", "ban", "block", "attempt", "suspend", "expire", "disable")
-        private val NI_MEJA = listOf("fail", "pass", "invalid", "incorrect", "wrong") + ZAKLEP
+        /** Besedilo o prijavi, geslu ali avtentikaciji ni nikoli meja povezav (lastnik 26. 10. 2026, pregled Grok 44 D1). */
+        private val NI_MEJA = listOf("fail", "pass", "invalid", "incorrect", "wrong", "auth", "login", "log in", "logon",
+            "sign in", "credential") + ZAKLEP
 
         /** RFC 3977: vrstica odgovora najvec 512 bajtov; dovolimo vec, a ne neomejeno (vrstica_bajtov). */
         const val NAJVEC_VRSTICE = 4096
@@ -204,8 +233,9 @@ class UsenetNntp(
         private const val PIKA: Byte = 46
 
         /**
-         * Ali besedilo odgovora jasno pove mejo povezav. Ce omenja tudi napacno prijavo ali zaklep, NI meja: dvom je
-         * zavrnjena prijava, ki se ne ponovi (lastnik 26. 10. 2026: nevarnost zaklepa racuna je prioriteta).
+         * Ali besedilo odgovora jasno pove mejo povezav (»too many connections«, »connection limit«). Ce omenja tudi
+         * prijavo, geslo, avtentikacijo ali zaklep, NI meja: dvom je zavrnjena prijava, ki se ne ponovi (lastnik 26. 10.
+         * 2026: nevarnost zaklepa racuna je prioriteta).
          */
         fun mejaPovezav(besedilo: String): Boolean {
             val t = besedilo.lowercase()
@@ -216,11 +246,11 @@ class UsenetNntp(
         /**
          * Izid vrstice odgovora [vrstica] na ukaz [faza] (skupni primeri nntp_izid). Koda so prve tri stevke (prva 1-5),
          * za njimi presledek ali konec. Besedilo (lahko ponovi id ali ime) se uporabi samo za razvrstitev in se nikoli ne
-         * shrani. Pri AUTHINFO je vse razen 281/381 in meje povezav PRIJAVA (RFC 4643 2.3.2); [prijavaUspela] = ista
-         * prijava je v bazenu ze uspela in prijavljena povezava je odprta - takrat je 480/481/502 meja povezav (ponudnik:
-         * prevec povezav = napaka prijave 480), razen ce besedilo omenja zaklep ali poskuse.
+         * shrani. Pri AUTHINFO je vse razen 281/381 in jasne meje povezav ([mejaPovezav]) PRIJAVA (RFC 4643 2.3.2) - tudi
+         * po uspeli prijavi istega racuna. Pregled Grok 44 D1: prej je bil »481 Authentication failed« po uspeli prijavi
+         * meja povezav, zato je po menjavi gesla med sejo staro geslo slo k strezniku z vsako novo povezavo.
          */
-        fun izid(faza: Faza, vrstica: String, prijavaUspela: Boolean = false): Izid {
+        fun izid(faza: Faza, vrstica: String): Izid {
             val avtor = faza == Faza.UPORABNIK || faza == Faza.GESLO
             if (vrstica.length < 3 || vrstica[0] !in '1'..'5' || vrstica[1] !in '0'..'9' || vrstica[2] !in '0'..'9' ||
                 (vrstica.length > 3 && vrstica[3] != ' ')) return if (avtor) Izid.PRIJAVA else Izid.NAPAKA_PROTOKOLA
@@ -238,10 +268,7 @@ class UsenetNntp(
             if (faza == Faza.UPORABNIK && koda == 381) return Izid.GESLO
             val besedilo = if (vrstica.length > 4) vrstica.substring(4) else ""
             if (koda in setOf(400, 480, 481, 482, 502) && mejaPovezav(besedilo)) return Izid.ZASEDEN
-            if (avtor) {
-                val zaklep = besedilo.lowercase().let { t -> ZAKLEP.any { it in t } }
-                return if (prijavaUspela && koda in setOf(480, 481, 502) && !zaklep) Izid.ZASEDEN else Izid.PRIJAVA
-            }
+            if (avtor) return Izid.PRIJAVA
             val clanek = faza == Faza.ARTICLE || faza == Faza.HEAD || faza == Faza.BODY || faza == Faza.STAT
             return when {
                 (koda == 423 || koda == 430) && clanek -> Izid.NI_CLANKA
@@ -284,8 +311,9 @@ class UsenetNntp(
         }
 
         /**
-         * Ali bazen sme odpreti novo povezavo (skupni primeri nntp_sme_odpreti): dokler prijava ni uspela (ali ni nobena
-         * prijavljena povezava odprta), se odpira ena sama naenkrat (sonda) - napacno geslo gre k strezniku enkrat.
+         * Ali bazen sme odpreti novo povezavo (skupni primeri nntp_sme_odpreti): dokler ni zive prijave ([uspela]:
+         * prijavljena povezava je v zadnjih [ZIVA_PRIJAVA_S] s uspesno koncala prijavo ali ukaz), se odpira ena sama
+         * naenkrat (sonda). Geslo gre ne glede na to vedno ena prijava naenkrat (vrata prijave).
          */
         fun smeOdpreti(ustavljen: Boolean, premor: Boolean, odprtih: Int, najvec: Int, uspela: Boolean, sonda: Boolean): Boolean {
             if (ustavljen || premor || odprtih >= najvec) return false
@@ -455,6 +483,8 @@ class UsenetNntp(
         var sonda = false
         /** Kje je nastala zadnja napaka ([ukrep]). */
         @Volatile var faza = FazaPovezave.POVEZAVA
+        /** Zadnja uspela prijava ali odgovor na ukaz (System.nanoTime) - ziva prijava ([ZIVA_PRIJAVA_S]). */
+        @Volatile var zadnjiUspeh = 0L
 
         fun ukaz(v: String) {
             try {
@@ -500,9 +530,9 @@ class UsenetNntp(
         }
 
         /** Izid odgovora na [faza]; napaka kot [NapakaNntp] s kodo (brez besedila). */
-        private fun preveri(faza: Faza, prijavaUspela: Boolean = false): Izid {
+        private fun preveri(faza: Faza): Izid {
             val v = odgovor()
-            val i = izid(faza, v, prijavaUspela)
+            val i = izid(faza, v)
             vrsta(i)?.let { throw NapakaNntp(it, v.take(3).toIntOrNull() ?: 0) }
             return i
         }
@@ -553,22 +583,35 @@ class UsenetNntp(
         }
 
         private fun prijava(uporabnik: String, geslo: String?) {
-            // Tik pred AUTHINFO: zavrnjen racun ali zaprt bazen - geslo ne gre k strezniku niti iz vzporedne povezave.
-            val (ovira, uspela) = predPrijavo()
-            if (ovira != null) throw NapakaNntp(ovira)
             if (!varenArgument(uporabnik) || (geslo != null && !varenArgument(geslo))) throw NapakaNntp(Vrsta.PRIJAVA)
-            faza = FazaPovezave.PRIJAVA
-            ukaz("AUTHINFO USER $uporabnik")
-            if (preveri(Faza.UPORABNIK, uspela) == Izid.OK) return
-            if (geslo == null) throw NapakaNntp(Vrsta.PRIJAVA, 381)
-            ukaz("AUTHINFO PASS $geslo")
-            preveri(Faza.GESLO, uspela)
+            // Vrata prijave racuna (Grok 44 D1): ta prijava racuna je edina v procesu; zavrnjen racun ali zaprt bazen -
+            // geslo ne gre k strezniku niti iz vzporedne povezave.
+            predPrijavo()?.let { throw NapakaNntp(it) }
+            var izidPrijave: Vrsta? = Vrsta.NAPAKA_PROTOKOLA   // nepricakovana napaka sredi prijave: odgovor ni znan
+            try {
+                faza = FazaPovezave.PRIJAVA
+                ukaz("AUTHINFO USER $uporabnik")
+                if (preveri(Faza.UPORABNIK) != Izid.OK) {
+                    if (geslo == null) throw NapakaNntp(Vrsta.PRIJAVA, 381)
+                    ukaz("AUTHINFO PASS $geslo")
+                    preveri(Faza.GESLO)
+                }
+                zadnjiUspeh = System.nanoTime()
+                izidPrijave = null
+            } catch (e: NapakaNntp) {
+                izidPrijave = e.vrsta
+                throw e
+            } finally {
+                poPrijavi(izidPrijave)   // zapah ali stevec PRED sprostitvijo vrat prijave
+            }
         }
 
         fun body(id: String, rokDo: Long): ByteArray {
             ukaz("BODY <$id>")
             val v = odgovor()
-            vrsta(izid(Faza.BODY, v))?.let { throw NapakaNntp(it, v.take(3).toIntOrNull() ?: 0) }
+            val i = izid(Faza.BODY, v)
+            if (i == Izid.OK || i == Izid.NI_CLANKA) zadnjiUspeh = System.nanoTime()   // streznik je odgovoril: seja ziva
+            vrsta(i)?.let { throw NapakaNntp(it, v.take(3).toIntOrNull() ?: 0) }
             // Odgovor za drug clanek (Grok 35 Y7): povezava ni usklajena - napaka protokola, povezava gre stran.
             if (!idOdgovoraUstreza(v, id)) throw NapakaNntp(Vrsta.NAPAKA_PROTOKOLA, 222)
             return blok(rokDo)
@@ -578,6 +621,7 @@ class UsenetNntp(
             ukaz("STAT <$id>")
             val v = odgovor()
             val i = izid(Faza.STAT, v)
+            if (i == Izid.OK || i == Izid.NI_CLANKA) zadnjiUspeh = System.nanoTime()
             if (i == Izid.NI_CLANKA) return false
             vrsta(i)?.let { throw NapakaNntp(it, v.take(3).toIntOrNull() ?: 0) }
             if (!idOdgovoraUstreza(v, id)) throw NapakaNntp(Vrsta.NAPAKA_PROTOKOLA, 223)
@@ -720,6 +764,7 @@ class UsenetNntp(
     @Volatile private var ustavljen: Vrsta? =
         if (prijavaZavrnjena(n.gostitelj, n.uporabnik, n.geslo)) Vrsta.PRIJAVA else null
     private val odtis = odtisRacuna(n.gostitelj, n.uporabnik, n.geslo)
+    private val vrata: ReentrantLock? = n.uporabnik?.let { vrataPrijave(n.gostitelj, it) }
     private var zgornja = n.povezav
     private var najvec = n.povezav
     private var sondaTece = false
@@ -727,7 +772,6 @@ class UsenetNntp(
     private var premorDo = 0L
     private var premorVrsta = Vrsta.ZASEDEN
     private var zadnjaMeja = 0L
-    private var neznanihPrijav = 0
 
     /** Trenutno odprte povezave (proste in v rabi). */
     val odprtih: Int get() = zaklep.zZaklepom { prosti.count { it.pripravljena } + vRabi.count { it.pripravljena } }
@@ -745,11 +789,68 @@ class UsenetNntp(
 
     private fun prijavljenih(): Int = prosti.count { it.pripravljena } + vRabi.count { it.pripravljena }
 
-    private fun predPrijavo(): Pair<Vrsta?, Boolean> = zaklep.zZaklepom {
-        when {
-            zaprto -> Vrsta.ZAPRTO to false
-            ustavljen != null -> ustavljen to false
-            else -> null to (prijavljenih() > 0)
+    /** Prijavljene povezave, ki so v zadnjih [ZIVA_PRIJAVA_S] s uspesno koncale prijavo ali ukaz (Grok 44 D1). */
+    private fun zivihPrijav(zdaj: Long): Int {
+        val meja = ZIVA_PRIJAVA_S * 1_000_000_000L
+        return prosti.count { it.pripravljena && zdaj - it.zadnjiUspeh <= meja } +
+            vRabi.count { it.pripravljena && zdaj - it.zadnjiUspeh <= meja }
+    }
+
+    /**
+     * Tik pred AUTHINFO (pregled Grok 44 D1): pocaka na vrata prijave racuna - prijava racuna je v procesu vedno ena
+     * naenkrat, tudi po uspeli prijavi - in vrne oviro (zaprt bazen, zapah, rok) ali null. Pri null so vrata zaprta za
+     * druge, dokler [poPrijavi] ne zapise izida. Cakanje konca [close] bazena ali rok povezave.
+     */
+    private fun predPrijavo(): Vrsta? {
+        val v = vrata ?: return null
+        val rokDo = System.nanoTime() + n.rokPovezaveMs * 1_000_000L
+        while (true) {
+            if (zaprto) return Vrsta.ZAPRTO
+            val ns = maxOf(0L, minOf(rokDo - System.nanoTime(), 50_000_000L))
+            try {
+                if (v.tryLock(ns, TimeUnit.NANOSECONDS)) break
+            } catch (e: InterruptedException) {
+                Thread.currentThread().interrupt()
+                return Vrsta.ZAPRTO
+            }
+            if (System.nanoTime() - rokDo >= 0) return Vrsta.ROK   // faza je se povezava: geslo ni bilo poslano
+        }
+        val ovira = zaklep.zZaklepom { if (zaprto) Vrsta.ZAPRTO else ustavljen }
+        if (ovira != null) v.unlock()
+        return ovira
+    }
+
+    /**
+     * Izid prijave ([vrsta] null = uspela), zapisan PRED sprostitvijo vrat prijave: naslednja povezava ze vidi zapah
+     * (zavrnjeno geslo gre k strezniku enkrat) ali drugo prijavo brez odgovora (prvic premor, drugic zapah).
+     */
+    private fun poPrijavi(vrsta: Vrsta?) {
+        val v = vrata ?: return
+        try {
+            val k = odtis ?: return
+            if (vrsta == null) {
+                NEZNANE.remove(k)
+                return
+            }
+            when (ukrep(vrsta, FazaPovezave.PRIJAVA, false, 0)) {
+                Ukrep.NEZNANA_PRIJAVA -> if ((NEZNANE.merge(k, 1) { a, b -> a + b } ?: 1) >= 2) zapahni()
+                Ukrep.USTAVI_RACUN -> zapahni()
+                else -> { }
+            }
+        } finally {
+            v.unlock()
+        }
+    }
+
+    /** Zapah racuna (zavrnjena prijava ali druga zapored brez odgovora): nobenega AUTHINFO vec, bazen ustavljen. */
+    private fun zapahni() {
+        odtis?.let {
+            ZAVRNJENI += it
+            NEZNANE.remove(it)
+        }
+        zaklep.zZaklepom {
+            if (ustavljen == null) ustavljen = Vrsta.PRIJAVA
+            pogoj.signalAll()
         }
     }
 
@@ -825,7 +926,7 @@ class UsenetNntp(
                         zavrzi += prosti.removeFirst()   // prostor za svezo povezavo: najstarejsa prosta gre
                         continue
                     }
-                    val uspela = prijavljenih() > 0
+                    val uspela = zivihPrijav(zdaj) > 0
                     val premor = zdaj - premorDo < 0
                     if (smeOdpreti(false, premor, prosti.size + vRabi.size, najvec, uspela, sondaTece)) {
                         val p = Povezava()
@@ -876,16 +977,15 @@ class UsenetNntp(
     /** Povezava je odprta in prijavljena: premor nazaj na nic; bazen ni manjsi od prijavljenih (te je streznik sprejel). */
     private fun odprta() = zaklep.zZaklepom {
         premorS = 0
-        neznanihPrijav = 0
         najvec = maxOf(najvec, minOf(zgornja, prijavljenih()))
         pogoj.signalAll()
     }
 
     /** Ustavi bazen (zavrnjena prijava, dostop, potrdilo): vse povezave zaprte, zahteve v teku prekinjene. */
     private fun ustavi(vrsta: Vrsta, racun: Boolean) {
+        if (racun) zapahni()
         val vse = zaklep.zZaklepom {
             if (ustavljen == null) ustavljen = vrsta
-            if (racun && odtis != null) ZAVRNJENI += odtis
             val v = prosti.toList() + vRabi.toList()
             prosti.clear()
             pogoj.signalAll()
@@ -908,12 +1008,6 @@ class UsenetNntp(
             odvec()
         }
         for (p in odvec) p.zapriVljudno()
-    }
-
-    /** Prijava brez odgovora (geslo je morda prislo do streznika): prvic premor, drugic zapored zapah na racun. */
-    private fun neznanaPrijava() {
-        val drugic = zaklep.zZaklepom { ++neznanihPrijav >= 2 }
-        if (drugic) ustavi(Vrsta.PRIJAVA, true) else premor(false, Vrsta.OMREZJE)
     }
 
     /** Stara povezava je bila mrtva: proste, nedejavne vsaj tako dolgo, so verjetno tudi. */
@@ -949,7 +1043,8 @@ class UsenetNntp(
                 when (u) {
                     Ukrep.USTAVI_RACUN -> ustavi(Vrsta.PRIJAVA, true)
                     Ukrep.USTAVI_BAZEN -> ustavi(napaka.vrsta, false)
-                    Ukrep.NEZNANA_PRIJAVA -> neznanaPrijava()
+                    // Stevec je ze zapisal poPrijavi (pod vrati prijave): drugic zapored je racun ze zapahnjen.
+                    Ukrep.NEZNANA_PRIJAVA -> ustavljen.let { if (it != null) ustavi(it, false) else premor(false, Vrsta.OMREZJE) }
                     Ukrep.ZMANJSAJ_POCAKAJ, Ukrep.POCAKAJ -> premor(u == Ukrep.ZMANJSAJ_POCAKAJ, napaka.vrsta)
                     Ukrep.ZNOVA -> if (stara) zavrziStarejse(p.prosta)
                     else -> { }

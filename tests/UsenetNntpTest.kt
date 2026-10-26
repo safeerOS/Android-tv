@@ -95,6 +95,8 @@ private class LazniStreznik(ctx: SSLContext) : Closeable {
     @Volatile var meja = Int.MAX_VALUE
     @Volatile var odgovorMeja = "502 Too many connections"
     @Volatile var geslaNeOdgovori = false
+    /** Geslo racuna pri ponudniku ([zamenjajGeslo]: lastnik ga zamenja med sejo). */
+    @Volatile var geslo = GESLO
     /** 222 z message-id drugega clanka; bajti za koncem bloka. */
     @Volatile var drugId = false
     @Volatile var ostanek = ""
@@ -144,7 +146,7 @@ private class LazniStreznik(ctx: SSLContext) : Closeable {
                 } else if (v.startsWith("AUTHINFO PASS ")) {
                     if (zamudaGeslaMs > 0) Thread.sleep(zamudaGeslaMs)
                     if (geslaNeOdgovori) return
-                    prijavljen = ime == UPORABNIK && v.removePrefix("AUTHINFO PASS ") == GESLO
+                    prijavljen = ime == UPORABNIK && v.removePrefix("AUTHINFO PASS ") == geslo
                     if (prijavljen) {
                         if (prijavljenih.incrementAndGet() > meja) {
                             prijavljenih.decrementAndGet()
@@ -202,6 +204,12 @@ private class LazniStreznik(ctx: SSLContext) : Closeable {
             hkrati.decrementAndGet()
             try { s.close() } catch (_: IOException) { }
         }
+    }
+
+    /** Geslo zamenjano pri ponudniku: nove prijave s starim so zavrnjene; seje ostanejo zive ali jih ponudnik zapre. */
+    fun zamenjajGeslo(novo: String, zapriSeje: Boolean) {
+        geslo = novo
+        if (zapriSeje) synchronized(vticnice) { for (s in vticnice) try { s.close() } catch (_: IOException) { } }
     }
 
     override fun close() {
@@ -543,9 +551,9 @@ fun main() {
             s.napacno = null
             UsenetNntp.dovoliPrijavoZnova("localhost", UPORABNIK, "napacno-481")
 
-            // Ponudnik: prevec povezav javi kot napako prijave - po uspeli prijavi ZASEDEN in krcenje, ne zapah.
+            // Ponudnik javi mejo povezav pri AUTHINFO z jasnim besedilom (481 + »too many connections«): ZASEDEN, ne zapah.
             s.meja = 2
-            s.odgovorMeja = "481 Authentication failed"
+            s.odgovorMeja = "481 Too many connections"
             s.zamudaGeslaMs = 50
             s.zamudaMs = 30
             val predMeja = gesel()
@@ -577,6 +585,39 @@ fun main() {
                 preveriEnako("nastaviNajvec(2): najvec 2 hkrati", true, s.najvecHkrati.get() <= 2)
             }
             s.zamudaMs = 0
+        }
+        // Menjava gesla med sejo (pregled Grok 44 D1): prej je bil »481 Authentication failed« po uspeli prijavi meja
+        // povezav - vsaka nova povezava je poslala staro geslo (vec hkrati, nato ena na 10 min).
+        LazniStreznik(prava.streznik).use { s ->
+            println("menjava gesla med sejo")
+            s.clanki[ID] = clanek(20_000, 12).poslano
+            fun gesel() = s.ukazi.count { it == "AUTHINFO PASS" }
+            s.napacno = "481 Authentication failed"
+            s.zamudaMs = 300
+            s.zamudaGeslaMs = 50
+            UsenetNntp(nastavitve(s.vrata, povezav = 6, msPremora = 5), prava.zaupaj).use { k ->
+                preveriEnako("menjava gesla: dve seji", List(2) { "OK" }, hkrati(k, 2, 1))
+                val pred = gesel()
+                s.zamenjajGeslo("geslo-zamenjano-pri-ponudniku", zapriSeje = false)
+                val izidi = hkrati(k, 6, 3)
+                preveriEnako("menjava gesla, seje zive: staro geslo do streznika enkrat", 1, gesel() - pred)
+                preveriEnako("menjava gesla, seje zive: zahteve dobijo PRIJAVA", true, "PRIJAVA" in izidi)
+                preveriEnako("menjava gesla: racun zapahnjen", true, UsenetNntp.prijavaZavrnjena("localhost", UPORABNIK, GESLO))
+                preveriEnako("menjava gesla: nato nic", "PRIJAVA" to 1, izid { k.body(ID) } to gesel() - pred)
+            }
+            UsenetNntp.dovoliPrijavoZnova("localhost", UPORABNIK, GESLO)
+            s.zamudaMs = 0
+            s.geslo = GESLO
+            UsenetNntp(nastavitve(s.vrata, povezav = 8), prava.zaupaj).use { k ->
+                preveriEnako("ponudnik zapre seje: 8 zahtev", List(8) { "OK" }, hkrati(k, 8, 1))
+                val pred = gesel()
+                s.zamenjajGeslo("geslo-zamenjano-pri-ponudniku", zapriSeje = true)
+                Thread.sleep(100)
+                val izidi = hkrati(k, 8, 3)
+                preveriEnako("ponudnik zapre seje: staro geslo do streznika enkrat", 1, gesel() - pred)
+                preveriEnako("ponudnik zapre seje: PRIJAVA, nobena OK", true, "PRIJAVA" in izidi && "OK" !in izidi)
+            }
+            UsenetNntp.dovoliPrijavoZnova("localhost", UPORABNIK, GESLO)
         }
         LazniStreznik(prava.streznik).use { s ->
             s.pozdrav = "502 Too many connections"
