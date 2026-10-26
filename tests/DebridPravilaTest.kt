@@ -436,5 +436,16 @@ fun main() {
     preveriEnako("Z5: oznaka samo pri »velja«", false,
         DebridPravila.rocnoIzZapisa(DebridPravila.zapisStanja(DebridPravila.StanjeKljuca.ZAKLENJEN, o1, null, 5L, rocno = true)))
 
+    // Pregled Grok 41, Z8 (namizje S4): RD 9 med uporabo ne zapre veljavnega kljuca; ob vpisu ostane »ne velja za to rabo«.
+    val rd9 = DebridPravila.rdVrstaNapakeUporabe(403, 9)
+    preveriEnako("Z8: RD 9 med uporabo ni napacen kljuc", DebridPravila.NAPAKA_DOVOLJENJE, rd9)
+    preveriEnako("Z8: RD 9 ne zapre veljavnega kljuca", null, DebridPravila.stanjePoUporabi(velja, rd9, false))
+    preveriEnako("Z8: RD 9 ne spremeni zapore", null, DebridPravila.stanjePoUporabi(sk["ZAKLENJEN"], rd9, false))
+    preveriEnako("Z8: RD 9 pri nepreverjenem - ne velja za to rabo", sk["NE_VELJA"], DebridPravila.stanjePoUporabi(sk["NEPREVERJEN"], rd9, false))
+    preveriEnako("Z8: sporocilo pri veljavnem - paket", TorBoxPravila.NAPAKA_PAKET, DebridPravila.napakaDovoljenja(velja))
+    preveriEnako("Z8: sporocilo pri nepotrjenem - kljuc", TorBoxPravila.NAPAKA_KLJUC, DebridPravila.napakaDovoljenja(sk["NE_VELJA"]))
+    preveriEnako("Z8: ob vpisu (/user) RD 9 ostane »ne velja« (skupni primeri v2)", DebridPravila.Preverba.NE_VELJA, DebridPravila.preverbaRd(403, 9, false))
+    preveriEnako("Z8: RD 8 med uporabo ostane kljuc", TorBoxPravila.NAPAKA_KLJUC, DebridPravila.rdVrstaNapakeUporabe(401, 8))
+
     if (napak == 0) println("DebridPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

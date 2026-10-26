@@ -164,6 +164,24 @@ object DebridPravila {
         else -> TorBoxPravila.NAPAKA_STREZNIK
     }
 
+    /**
+     * Real-Debrid 9 »permission denied« MED UPORABO (pregled Grok 41, Z8; namizje 26535a0, Grokov pregled 40, S4): storitev
+     * kljuc pozna, tega dejanja pa ne dovoli (brezplacen racun, koncna tocka). Samo v jedru - [Debrid] ga za uporabnika
+     * preslika v paket ali kljuc ([napakaDovoljenja]).
+     */
+    const val NAPAKA_DOVOLJENJE = "dovoljenje"
+
+    /**
+     * Napaka Real-Debrid MED UPORABO (RealDebrid.tok). Pregled Grok 41, Z8: 9 je »ni dovoljenja za to dejanje«, ne napacen
+     * kljuc - prej je zaprl veljaven kljuc (»ne velja, vpisi novega«), »Preveri« ga je potrdil in naslednje predvajanje ga
+     * je spet zaprlo. Ob vpisu (/user) ostane »ne velja za to rabo« ([rdVrstaNapake], skupni primeri v2).
+     */
+    fun rdVrstaNapakeUporabe(http: Int, koda: Int?): String = if (koda == 9) NAPAKA_DOVOLJENJE else rdVrstaNapake(http, koda)
+
+    /** Sporocilo za [NAPAKA_DOVOLJENJE]: potrjen kljuc ostane - paket; kljuc, ki ga storitev se ni potrdila, ne velja za to rabo. */
+    fun napakaDovoljenja(stanje: StanjeKljuca?): String =
+        if (stanje == StanjeKljuca.VELJA) TorBoxPravila.NAPAKA_PAKET else TorBoxPravila.NAPAKA_KLJUC
+
     // ------------------------------------------------------------------ AllDebrid
 
     const val AD_OSNOVA = "https://api.alldebrid.com/v4"
@@ -506,6 +524,9 @@ object DebridPravila {
      * zaporo odpravi samo »Preveri« ali vpis, ki ga storitev potrdi.
      */
     fun stanjePoUporabi(prej: StanjeKljuca?, napaka: String, uspeh: Boolean): StanjeKljuca? {
+        // Pregled Grok 41, Z8 (namizje S4): RD 9 ne zapre kljuca, ki ga je storitev ze potrdila; nepreverjen ali brez stanja
+        // pa ne velja za to rabo (kot ob vpisu).
+        if (napaka == NAPAKA_DOVOLJENJE) return if (prej == null || prej == StanjeKljuca.NEPREVERJEN) StanjeKljuca.NE_VELJA else null
         val novo = when (napaka) {
             TorBoxPravila.NAPAKA_KLJUC -> StanjeKljuca.NE_VELJA
             TorBoxPravila.NAPAKA_ZAKLENJEN -> StanjeKljuca.ZAKLENJEN

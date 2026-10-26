@@ -746,8 +746,12 @@ object Debrid {
         try { zapomniIzid(c, p, magnet, iz) } catch (e: Exception) { Log.w(TAG, "zapomni: ${e.javaClass.simpleName}") }
         // Lastnik 25. 10. 2026: stanje kljuca sledi uporabi (401 -> »ne velja«, povezava -> velja).
         try { obIzidu(c, p, k, iz.ponudnik, iz.napaka, iz.url != null) } catch (e: Exception) { Log.w(TAG, "stanje kljuca: ${e.javaClass.simpleName}") }
+        // Pregled Grok 41, Z8 (namizje S4): RD 9 - potrjen kljuc ostane, uporabnik izve, da racun tega ne omogoca (paket);
+        // kljuc, ki ga storitev se ni potrdila, ne velja za to rabo.
+        val izid = if (iz.napaka != DebridPravila.NAPAKA_DOVOLJENJE) iz
+            else TorBox.Izid(iz.url, DebridPravila.napakaDovoljenja(stanjeKljuca(c, p)?.first), iz.opis, iz.cakajMs, iz.ponudnik)
         // Pregled A4: TorBox.tok storitve ne vpise - izid vedno nosi storitev, ki je odgovorila.
-        return if (iz.ponudnik.isNotEmpty()) iz else TorBox.Izid(iz.url, iz.napaka, iz.opis, iz.cakajMs, p)
+        return if (izid.ponudnik.isNotEmpty()) izid else TorBox.Izid(izid.url, izid.napaka, izid.opis, izid.cakajMs, p)
     }
 
     // ------------------------------------------------------------------ naloga 129: kljuci s telefona na TV (Link)
