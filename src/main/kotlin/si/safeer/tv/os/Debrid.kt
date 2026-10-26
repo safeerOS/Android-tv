@@ -49,7 +49,7 @@ object Debrid {
     /** Kljuc je vpisan in ga smemo uporabiti (en klic Keystore). */
     private fun uporaben(c: Context, p: String): Boolean {
         val k = kljuc(c, p) ?: return false
-        return DebridPravila.smeKlicati(DebridPravila.stanjeIzZapisa(prefs(c).getString(KLJUC_STANJE + p, null), DebridPravila.odtisStanja(k))?.first)
+        return DebridPravila.smeKlicati(stanjeZa(c, p, DebridPravila.odtisStanja(k))?.first)
     }
 
     /**
@@ -94,14 +94,40 @@ object Debrid {
     /** (stanje, paket) shranjenega kljuca storitve [p]; null = ni kljuca ali ga se nihce ni preveril (stanje drugega kljuca ne velja). */
     fun stanjeKljuca(c: Context, p: String): Pair<DebridPravila.StanjeKljuca, Int?>? {
         val k = kljuc(c, p) ?: return null
-        return DebridPravila.stanjeIzZapisa(prefs(c).getString(KLJUC_STANJE + p, null), DebridPravila.odtisStanja(k))?.let { it.first to it.second }
+        return stanjeZa(c, p, DebridPravila.odtisStanja(k))?.let { it.first to it.second }
+    }
+
+    private const val KLJUC_ZAPORE = "zapore_"
+    /** Pregled Grok 41, Z3 (namizje S3): zapore »storitev|odtis« v pomnilniku - postavljene PRED zapisom v nastavitve. */
+    private val zaprti = java.util.concurrent.ConcurrentHashMap<String, DebridPravila.StanjeKljuca>()
+
+    /**
+     * Pregled Grok 41, Z3: (stanje, paket, cas) kljuca z [odtis] storitve [p] - tudi kljuca, ki trenutno ni shranjen (zapora
+     * po kljucu, ne po storitvi: [DebridPravila.stanjeZZaporo]). null = ni stanja.
+     */
+    private fun stanjeZa(c: Context, p: String, odtis: String): Triple<DebridPravila.StanjeKljuca, Int?, Long>? {
+        val pr = prefs(c)
+        val naMestu = DebridPravila.stanjeIzZapisa(pr.getString(KLJUC_STANJE + p, null), odtis)
+        val s = DebridPravila.stanjeZZaporo(zaprti["$p|$odtis"], naMestu?.first,
+            DebridPravila.zaporeIzZapisa(pr.getString(KLJUC_ZAPORE + p, null))[odtis]) ?: return null
+        return Triple(s, naMestu?.second, naMestu?.third ?: 0L)
+    }
+
+    /** Zapis stanja kljuca z [odtis]: zapora najprej v pomnilnik, nato na mesto storitve in med zapore po kljucu (Z3). */
+    private fun zapisi(c: Context, p: String, odtis: String, s: DebridPravila.StanjeKljuca, paket: Int?, ob: Long) {
+        val k = "$p|$odtis"
+        if (s == DebridPravila.StanjeKljuca.NE_VELJA || s == DebridPravila.StanjeKljuca.ZAKLENJEN) zaprti[k] = s
+        val pr = prefs(c)
+        pr.edit().putString(KLJUC_STANJE + p, DebridPravila.zapisStanja(s, odtis, paket, ob))
+            .putString(KLJUC_ZAPORE + p, DebridPravila.zZaporo(pr.getString(KLJUC_ZAPORE + p, null), odtis, s)).apply()
+        if (s == DebridPravila.StanjeKljuca.VELJA) zaprti.remove(k)
     }
 
     /** Kljuc, ki ga je storitev potrdila - samo tak gre med naprave v ozjem krogu ([DebridPravila.zaUskladitev]). */
     fun kljucVelja(c: Context, p: String): Boolean = DebridPravila.zaUskladitev(stanjeKljuca(c, p)?.first)
 
     private fun zapisiStanje(c: Context, p: String, kljuc: String, s: DebridPravila.StanjeKljuca, paket: Int?) {
-        prefs(c).edit().putString(KLJUC_STANJE + p, DebridPravila.zapisStanja(s, DebridPravila.odtisStanja(kljuc), paket, System.currentTimeMillis())).apply()
+        zapisi(c, p, DebridPravila.odtisStanja(kljuc), s, paket, System.currentTimeMillis())
     }
 
     /**
@@ -150,7 +176,8 @@ object Debrid {
         // Pregled Grok 41, Z2: isti kljuc najvec enkrat na minuto, skupaj s »Preveri« (vsak zavrnjen klic je poskus prijave).
         if (rocne.cez(p, DebridPravila.odtisStanja(k), System.currentTimeMillis()) > 0)
             return IzidVpisa(DebridPravila.Preverba.NI_ODGOVORA, null, pocakaj = true)
-        val prej = if (kljuc(c, p) == k) stanjeKljuca(c, p)?.first else null
+        // Pregled Grok 41, Z3: zapora po kljucu - tudi kljuc, ki ga je ta naprava medtem zamenjala z drugim.
+        val prej = stanjeZa(c, p, DebridPravila.odtisStanja(k))?.first
         val st = stevecVpisov.merge(p, 1) { a, b -> a + b } ?: 1
         val izid = preveriKljuc(p, k)
         if (stevecVpisov[p] != st) { Log.i(TAG, "${DebridPravila.ime(p)}: medtem vpisan drug kljuc - ta izid se zavrze"); return IzidVpisa(izid.first, null, zastarel = true) }
@@ -209,7 +236,14 @@ object Debrid {
             val zdaj = System.currentTimeMillis()
             if (k != null && !DebridPravila.preveriZdaj(DebridPravila.StanjeKljuca.NEPREVERJEN, zadnjaPreverba[CAKA + p] ?: 0L, zdaj)) continue
             zadnjaPreverba[CAKA + p] = zdaj
-            val (izid, paket) = if (k == null) DebridPravila.Preverba.OBLIKA to null else preveriKljuc(p, k)
+            // Pregled Grok 41, Z3: cakajoci kljuc z zaporo (ne velja, zaklenjen) se zavrze brez klica storitve.
+            val zapora = k?.let { stanjeZa(c, p, DebridPravila.odtisStanja(it))?.first }?.takeIf { !DebridPravila.smeKlicati(it) }
+            val (izid, paket) = when {
+                k == null -> DebridPravila.Preverba.OBLIKA to null
+                zapora == DebridPravila.StanjeKljuca.ZAKLENJEN -> DebridPravila.Preverba.ZAKLENJEN to null
+                zapora != null -> DebridPravila.Preverba.NE_VELJA to null
+                else -> preveriKljuc(p, k)
+            }
             when (DebridPravila.poPreverbiCakajocega(izid)) {
                 DebridPravila.Cakajoc.ZAMENJAJ -> {
                     if (k == null || !shraniKljuc(c, p, k)) continue
@@ -256,13 +290,12 @@ object Debrid {
      */
     fun preveriPrejetega(c: Context, p: String, vnos: String): Pair<DebridPravila.Preverba, Potrjen?> {
         val k = DebridPravila.kljucIzVnosa(vnos, p) ?: return DebridPravila.Preverba.OBLIKA to null
-        if (kljuc(c, p) == k) {
-            val s = stanjeKljuca(c, p)?.first
-            if (s == DebridPravila.StanjeKljuca.VELJA) return DebridPravila.Preverba.VELJA to Potrjen(p, k, null, true)
-            // Varovalo racunov K1: isti kljuc, ki tu ne velja ali je racun zaklenjen - brez klica storitve.
-            if (s == DebridPravila.StanjeKljuca.NE_VELJA) return DebridPravila.Preverba.NE_VELJA to null
-            if (s == DebridPravila.StanjeKljuca.ZAKLENJEN) return DebridPravila.Preverba.ZAKLENJEN to null
-        }
+        // Pregled Grok 41, Z3: zapora po kljucu - tudi kljuc, ki ga ta naprava ne uporablja vec (prej samo shranjeni).
+        val s = stanjeZa(c, p, DebridPravila.odtisStanja(k))?.first
+        if (kljuc(c, p) == k && s == DebridPravila.StanjeKljuca.VELJA) return DebridPravila.Preverba.VELJA to Potrjen(p, k, null, true)
+        // Varovalo racunov K1: kljuc, ki tu ne velja ali je racun zaklenjen - brez klica storitve.
+        if (s == DebridPravila.StanjeKljuca.NE_VELJA) return DebridPravila.Preverba.NE_VELJA to null
+        if (s == DebridPravila.StanjeKljuca.ZAKLENJEN) return DebridPravila.Preverba.ZAKLENJEN to null
         val (izid, paket) = preveriKljuc(p, k)
         if (!DebridPravila.sprejmiPrejetega(izid)) { Log.i(TAG, "prejeti kljuc ${DebridPravila.ime(p)}: $izid - ni uporabljen"); return izid to null }
         return izid to Potrjen(p, k, paket, false)
@@ -293,9 +326,12 @@ object Debrid {
      */
     fun obnoviKljuc(c: Context, p: String, vnos: String): Boolean {
         val k = DebridPravila.kljucIzVnosa(vnos, p) ?: return false
+        val odtis = DebridPravila.odtisStanja(k)
+        // Pregled Grok 41, Z3: kljuc z zaporo se vrne z njo - prej kot nepreverjen in uskladitev ga je takoj poklicala.
+        val s = DebridPravila.stanjeObObnovi(stanjeZa(c, p, odtis)?.first)
         if (!shraniKljuc(c, p, k)) return false
-        zapisiStanje(c, p, k, DebridPravila.StanjeKljuca.NEPREVERJEN, null)
-        zadnjaPreverba.remove(DebridPravila.odtisStanja(k))
+        zapisiStanje(c, p, k, s, null)
+        if (s == DebridPravila.StanjeKljuca.NEPREVERJEN) zadnjaPreverba.remove(odtis)
         return true
     }
 
@@ -412,7 +448,7 @@ object Debrid {
             if (DebridPravila.odtisStanja(k) != odtis) continue
             val tu = DebridPravila.stanjeIzZapisa(prefs(c).getString(KLJUC_STANJE + p, null), odtis)
             if (!DebridPravila.sprejmiStanje(tu?.third, s, ob, zdaj)) continue
-            prefs(c).edit().putString(KLJUC_STANJE + p, DebridPravila.zapisStanja(s, odtis, tu?.second, ob)).apply()
+            zapisi(c, p, odtis, s, tu?.second, ob)
             Log.i(TAG, "${DebridPravila.ime(p)}: stanje racuna z druge naprave v ozjem krogu - ${s.name.lowercase(java.util.Locale.ROOT)}")
             n++
         }

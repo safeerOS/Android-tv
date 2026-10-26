@@ -703,13 +703,65 @@ object DebridPravila {
 
     fun zapisStanja(s: StanjeKljuca, odtis: String, paket: Int?, ob: Long): String = listOf(s.name, odtis, paket?.toString().orEmpty(), ob.toString()).joinToString("|")
 
-    /** (stanje, paket, cas) iz [zapis] za kljuc z [odtis]; null = ni zapisa ali je za drug kljuc. */
+    /**
+     * (stanje, paket, cas) iz [zapis] za kljuc z [odtis]; null = ni zapisa ali je zapis DRUGEGA kljuca. Pregled Grok 41, Z3 (kot
+     * namizje 3c5d43b, S3): zapis, ki ga ni mogoce prebrati (brez odtisa, premalo polj, neznano stanje - pokvarjene nastavitve
+     * ali novejsa razlicica), odpove ZAPRTO: »ne velja« (cas 0 - ne gre v ozji krog), nazaj ga vrne samo »Preveri«. Prej je
+     * pomenil »ni stanja« in [smeKlicati] je klic dovolil.
+     */
     fun stanjeIzZapisa(zapis: String?, odtis: String): Triple<StanjeKljuca, Int?, Long>? {
         val d = zapis?.split('|') ?: return null
-        if (d.size < 4 || d[1] != odtis) return null
-        val s = StanjeKljuca.values().firstOrNull { it.name == d[0] } ?: return null
+        val o = d.getOrNull(1).orEmpty()
+        if (o.isNotEmpty() && o != odtis) return null
+        val s = StanjeKljuca.values().firstOrNull { it.name == d[0] }
+        if (o.isEmpty() || d.size < 4 || s == null) return Triple(StanjeKljuca.NE_VELJA, null, 0L)
         return Triple(s, d[2].toIntOrNull(), d[3].toLongOrNull() ?: 0L)
     }
+
+    // ------------------------------------------------------------------ zapora po kljucu (pregled Grok 41, Z3)
+
+    /** Najvec toliko zadnjih zapor po kljucu na storitev (vrstica: odtis 16 znakov in stanje). */
+    const val NAJVEC_ZAPOR = 8
+
+    private fun jeZapora(s: StanjeKljuca?) = s == StanjeKljuca.NE_VELJA || s == StanjeKljuca.ZAKLENJEN
+
+    /** Zapore iz zapisa (vrstice »odtis|STANJE«, najstarejsa prva); pokvarjena vrstica se preskoci. */
+    fun zaporeIzZapisa(zapis: String?): Map<String, StanjeKljuca> {
+        val m = LinkedHashMap<String, StanjeKljuca>()
+        for (v in zapis.orEmpty().split('\n')) {
+            val d = v.split('|')
+            val s = StanjeKljuca.values().firstOrNull { it.name == d.getOrNull(1) }
+            if (d.size == 2 && d[0].isNotEmpty() && s != null && jeZapora(s)) m[d[0]] = s
+        }
+        return m
+    }
+
+    /**
+     * Zapis zapor po novem stanju [s] kljuca [odtis]: »ne velja« in »zaklenjen« se zapomnita po kljucu (najnovejsa zadnja,
+     * najvec [NAJVEC_ZAPOR]); samo »velja« (»Preveri« ali vpis, ki ga storitev potrdi) zaporo odpravi; »nepreverjen« je ne spremeni.
+     */
+    fun zZaporo(zapis: String?, odtis: String, s: StanjeKljuca): String {
+        val m = LinkedHashMap(zaporeIzZapisa(zapis))
+        if (jeZapora(s)) { m.remove(odtis); m[odtis] = s } else if (s == StanjeKljuca.VELJA) m.remove(odtis)
+        while (m.size > NAJVEC_ZAPOR) m.remove(m.keys.first())
+        return m.entries.joinToString("") { "${it.key}|${it.value.name}\n" }
+    }
+
+    /**
+     * Pregled Grok 41, Z3: stanje kljuca iz zapore v pomnilniku ([vPomnilniku] - postavljena PRED zapisom v nastavitve, kot
+     * namizje S3), zapisa na mestu storitve ([naMestu], [stanjeIzZapisa]) in zapore po kljucu ([zapora], [zZaporo]). Prej je
+     * bilo stanje samo na enem mestu na storitev: zamenjava kljuca je zaporo prejsnjega pozabila, zato ga je »Razveljavi«,
+     * prejem z druge naprave ali cakajoci kljuc vrnil kot nepreverjenega in ga takoj poklical. Dokoncno stanje na mestu velja
+     * (»velja« po »Preveri« zaporo odpravi), »nepreverjen« ali brez zapisa je ne odpravi.
+     */
+    fun stanjeZZaporo(vPomnilniku: StanjeKljuca?, naMestu: StanjeKljuca?, zapora: StanjeKljuca?): StanjeKljuca? = when {
+        jeZapora(vPomnilniku) -> vPomnilniku
+        naMestu == StanjeKljuca.VELJA || jeZapora(naMestu) -> naMestu
+        else -> zapora ?: naMestu
+    }
+
+    /** Pregled Grok 41, Z3: »Razveljavi« vrne prejsnji kljuc z njegovo zaporo ([zapora]); brez nje kot nepreverjen (ena preverba). */
+    fun stanjeObObnovi(zapora: StanjeKljuca?): StanjeKljuca = zapora?.takeIf { jeZapora(it) } ?: StanjeKljuca.NEPREVERJEN
 
     /**
      * Ali kljuc (brez stanja ali nepreverjen) preverimo zdaj: najvec enkrat na [PREVERI_ZNOVA_MS] ZA TA KLJUC ([zadnjic] =

@@ -385,5 +385,34 @@ fun main() {
     preveriEnako("Z2: isti kljuc po minuti spet gre", 0L, rocne.cez(rd, "o1", tr0 + 60_000))
     preveriEnako("Z2: ura nazaj ne zaklene za vedno", 0L, rocne.cez(rd, "o1", tr0 - 1))
 
+    // Pregled Grok 41, Z3 (in namizje S3): zapora po kljucu, ne po storitvi; »Razveljavi« ne vrne zaklenjenega kljuca kot
+    // nepreverjenega; zapora v pomnilniku velja pred zapisom; neberljiv zapis istega kljuca odpove zaprto.
+    val zo1 = "aaaaaaaaaaaaaaaa"; val zo2 = "bbbbbbbbbbbbbbbb"
+    var zap = DebridPravila.zZaporo(null, zo1, DebridPravila.StanjeKljuca.ZAKLENJEN)
+    zap = DebridPravila.zZaporo(zap, zo2, DebridPravila.StanjeKljuca.VELJA)
+    preveriEnako("Z3: zapora K1 ostane, ko je shranjen veljaven K2", sk["ZAKLENJEN"], DebridPravila.zaporeIzZapisa(zap)[zo1])
+    preveriEnako("Z3: K1 (na mestu je K2) je zaklenjen, ne »brez stanja«", sk["ZAKLENJEN"],
+        DebridPravila.stanjeZZaporo(null, null, DebridPravila.zaporeIzZapisa(zap)[zo1]))
+    preveriEnako("Z3: »Razveljavi« vrne zaklenjen K1 zaklenjen", sk["ZAKLENJEN"], DebridPravila.stanjeObObnovi(sk["ZAKLENJEN"]))
+    preveriEnako("Z3: »Razveljavi« kljuca, ki ne velja - ne velja", sk["NE_VELJA"], DebridPravila.stanjeObObnovi(sk["NE_VELJA"]))
+    preveriEnako("Z3: »Razveljavi« brez zapore - nepreverjen (ena preverba)", sk["NEPREVERJEN"], DebridPravila.stanjeObObnovi(null))
+    preveriEnako("Z3: nepreverjen na mestu zapore ne odpravi", sk["NE_VELJA"], DebridPravila.stanjeZZaporo(null, sk["NEPREVERJEN"], sk["NE_VELJA"]))
+    preveriEnako("Z3: »velja« na mestu (Preveri) zaporo odpravi", sk["VELJA"], DebridPravila.stanjeZZaporo(null, sk["VELJA"], sk["NE_VELJA"]))
+    preveriEnako("Z3: »velja« pobrise zapis zapore", null,
+        DebridPravila.zaporeIzZapisa(DebridPravila.zZaporo(zap, zo1, DebridPravila.StanjeKljuca.VELJA))[zo1])
+    preveriEnako("Z3: »nepreverjen« zapore ne pobrise", sk["ZAKLENJEN"],
+        DebridPravila.zaporeIzZapisa(DebridPravila.zZaporo(zap, zo1, DebridPravila.StanjeKljuca.NEPREVERJEN))[zo1])
+    preveriEnako("S3: zapora v pomnilniku velja, tudi ce zapisa ni", sk["ZAKLENJEN"], DebridPravila.stanjeZZaporo(sk["ZAKLENJEN"], null, null))
+    preveriEnako("S3: zapora v pomnilniku pred starim »velja« na mestu", sk["NE_VELJA"], DebridPravila.stanjeZZaporo(sk["NE_VELJA"], sk["VELJA"], null))
+    var mnogo: String? = null
+    for (i in 0 until 12) mnogo = DebridPravila.zZaporo(mnogo, "odtis$i", DebridPravila.StanjeKljuca.NE_VELJA)
+    val mz = DebridPravila.zaporeIzZapisa(mnogo)
+    preveriEnako("Z3: najvec 8 zapor, najstarejse odpadejo", listOf(8, null, sk["NE_VELJA"]), listOf(mz.size, mz["odtis0"], mz["odtis11"]))
+    preveriEnako("S3: neberljiv zapis je »ne velja«", sk["NE_VELJA"], DebridPravila.stanjeIzZapisa("pokvarjeno", o1)?.first)
+    preveriEnako("S3: neznano stanje istega kljuca je »ne velja«", sk["NE_VELJA"], DebridPravila.stanjeIzZapisa("NOVO|$o1||5", o1)?.first)
+    preveriEnako("S3: zapis istega kljuca brez casa je »ne velja«", sk["NE_VELJA"], DebridPravila.stanjeIzZapisa("VELJA|$o1", o1)?.first)
+    preveriEnako("S3: zapis drugega kljuca ostane »brez stanja«", null,
+        DebridPravila.stanjeIzZapisa("VELJA|${DebridPravila.odtisStanja(vzorec)}||5", o1))
+
     if (napak == 0) println("DebridPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

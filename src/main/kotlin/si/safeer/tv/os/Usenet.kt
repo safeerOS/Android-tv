@@ -69,7 +69,25 @@ object Usenet {
     /** Stanje shranjenega indeksatorja; null = ga ni ali se ni bil preverjen (stanje drugega naslova ali kljuca ne velja). */
     fun stanje(c: Context): DebridPravila.StanjeKljuca? {
         val ix = indeksator(c) ?: return null
-        return DebridPravila.stanjeIzZapisa(prefs(c).getString(KLJUC_STANJE, null), odtis(ix.osnova, ix.kljuc))?.first
+        return stanjeZa(c, odtis(ix.osnova, ix.kljuc))
+    }
+
+    private const val KLJUC_ZAPORE = "zapore"
+    /** Pregled Grok 41, Z3 (namizje S3): zapore po odtisu v pomnilniku - postavljene PRED zapisom v nastavitve. */
+    private val zaprti = java.util.concurrent.ConcurrentHashMap<String, DebridPravila.StanjeKljuca>()
+
+    /** Pregled Grok 41, Z3: stanje indeksatorja z odtisom [o] - tudi tistega, ki ni vec shranjen (zapora po kljucu). */
+    private fun stanjeZa(c: Context, o: String): DebridPravila.StanjeKljuca? = DebridPravila.stanjeZZaporo(zaprti[o],
+        DebridPravila.stanjeIzZapisa(prefs(c).getString(KLJUC_STANJE, null), o)?.first,
+        DebridPravila.zaporeIzZapisa(prefs(c).getString(KLJUC_ZAPORE, null))[o])
+
+    /** Zapis stanja indeksatorja z odtisom [o]: zapora najprej v pomnilnik, nato na mesto in med zapore po kljucu (Z3). */
+    private fun zapisi(c: Context, o: String, s: DebridPravila.StanjeKljuca, ob: Long) {
+        if (s == DebridPravila.StanjeKljuca.NE_VELJA || s == DebridPravila.StanjeKljuca.ZAKLENJEN) zaprti[o] = s
+        val pr = prefs(c)
+        pr.edit().putString(KLJUC_STANJE, DebridPravila.zapisStanja(s, o, null, ob))
+            .putString(KLJUC_ZAPORE, DebridPravila.zZaporo(pr.getString(KLJUC_ZAPORE, null), o, s)).apply()
+        if (s == DebridPravila.StanjeKljuca.VELJA) zaprti.remove(o)
     }
 
     /** Varovalo racunov: dokoncno stanje indeksatorja za ozji krog (odtis naslova in kljuca, brez kljuca); null = ga ni. */
@@ -87,7 +105,7 @@ object Usenet {
         if (odtis(ix.osnova, ix.kljuc) != odtis) return false
         val tu = DebridPravila.stanjeIzZapisa(prefs(c).getString(KLJUC_STANJE, null), odtis)
         if (!DebridPravila.sprejmiStanje(tu?.third, s, ob, zdaj)) return false
-        prefs(c).edit().putString(KLJUC_STANJE, DebridPravila.zapisStanja(s, odtis, null, ob)).apply()
+        zapisi(c, odtis, s, ob)
         Log.i(TAG, "indeksator: stanje z druge naprave v ozjem krogu - ${s.name.lowercase(java.util.Locale.ROOT)}")
         return true
     }
@@ -117,8 +135,9 @@ object Usenet {
     fun preveriPrejetega(c: Context, naslov: String, kljuc: String): Pair<DebridPravila.Preverba, Potrjen?> {
         val prejet = UsenetPravila.prejetIndeksator(naslov, kljuc)
         val shranjen = indeksator(c)?.let { it.osnova to it.kljuc }
-        // Varovalo racunov K1: isti indeksator, ki ga je indeksator tu zavrnil - brez klica.
-        if (prejet != null && prejet == shranjen && !DebridPravila.smeKlicati(stanje(c))) return DebridPravila.Preverba.NE_VELJA to null
+        // Varovalo racunov K1 in pregled Grok 41, Z3: indeksator z zaporo (tudi ze zamenjan) - brez klica.
+        val zapora = prejet?.let { stanjeZa(c, odtis(it.first, it.second)) }?.takeIf { !DebridPravila.smeKlicati(it) }
+        if (zapora != null) return (if (zapora == DebridPravila.StanjeKljuca.ZAKLENJEN) DebridPravila.Preverba.ZAKLENJEN else DebridPravila.Preverba.NE_VELJA) to null
         var izid = DebridPravila.Preverba.OBLIKA
         val odlocitev = UsenetPravila.sprejem(prejet, shranjen, velja(c)) { o, k -> preveri(o, k).also { izid = it } }
         val ix = prejet ?: return izid to null
@@ -141,14 +160,16 @@ object Usenet {
     /** Razveljavitev spremembe z druge naprave (pregled Grok 33, F2): prejsnji indeksator nazaj brez omrezja, kot nepreverjen. */
     fun obnovi(c: Context, naslov: String, kljuc: String): Boolean {
         val ix = UsenetPravila.izVnosa(naslov, kljuc) ?: return false
+        // Pregled Grok 41, Z3: indeksator z zaporo se vrne z njo (prej kot nepreverjen - takoj poklican).
+        val s = DebridPravila.stanjeObObnovi(stanjeZa(c, odtis(ix.first, ix.second)))
         if (!shrani(c, ix.first, ix.second)) return false
-        zapisiStanje(c, ix.first, ix.second, DebridPravila.StanjeKljuca.NEPREVERJEN)
-        zadnjaPreverba = 0L
+        zapisiStanje(c, ix.first, ix.second, s)
+        if (s == DebridPravila.StanjeKljuca.NEPREVERJEN) zadnjaPreverba = 0L
         return true
     }
 
     private fun zapisiStanje(c: Context, osnova: String, kljuc: String, s: DebridPravila.StanjeKljuca) {
-        prefs(c).edit().putString(KLJUC_STANJE, DebridPravila.zapisStanja(s, odtis(osnova, kljuc), null, System.currentTimeMillis())).apply()
+        zapisi(c, odtis(osnova, kljuc), s, System.currentTimeMillis())
     }
 
     /** Pregled Grok 41, Z1: ob zamenjavi indeksatorja ostanejo samo povezave NZB novega kljuca (stari je v njihovem naslovu). */
@@ -189,7 +210,8 @@ object Usenet {
         // Pregled Grok 41, Z2: isti naslov in kljuc najvec enkrat na minuto, skupaj s »Preveri« (kot kljuci debrid).
         if (Debrid.rocne.cez(UsenetPravila.VRSTA, o, System.currentTimeMillis()) > 0)
             return Debrid.IzidVpisa(DebridPravila.Preverba.NI_ODGOVORA, null, pocakaj = true)
-        val prej = indeksator(c)?.takeIf { odtis(it.osnova, it.kljuc) == o }?.let { stanje(c) }
+        // Pregled Grok 41, Z3: zapora po kljucu - tudi indeksator, ki ni vec shranjen.
+        val prej = stanjeZa(c, o)
         val v = UsenetPravila.vpis(naslov, kljuc, prej) { a, b -> preveri(a, b) }
         val ix = v.shrani ?: return Debrid.IzidVpisa(v.izid, null)
         val s = v.stanje ?: return Debrid.IzidVpisa(v.izid, null)
