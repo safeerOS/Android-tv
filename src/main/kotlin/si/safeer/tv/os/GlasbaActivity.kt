@@ -8750,7 +8750,7 @@ class GlasbaActivity : OsActivity() {
         // Diagnostika razvijalca ([Diagnostika.samoP2p], samo prek adb, z rokom; lastnik 25. 10. 2026: Z3 v zivo samo po
         // samodejni poti in samo z odprtimi filmi CC): samodejna izbira vzame najboljsi torrent na TEJ napravi - brez
         // neposrednih povezav, debrida, Useneta, Webtorja in pomocnikov v Linku. Opozorilo pred rojem ostane.
-        val samoP2p = !rocno && Diagnostika.samoP2p()
+        val samoP2p = !rocno && Diagnostika.samoP2p(this)
         if (samoP2p) {
             android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo P2P")
             Toast.makeText(this, R.string.os_p2p_diagnostika, Toast.LENGTH_LONG).show()

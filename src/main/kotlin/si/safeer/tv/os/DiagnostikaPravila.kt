@@ -19,4 +19,12 @@ object DiagnostikaPravila {
 
     /** Ime lastnosti diagnostike: samo `debug.safeer.*` (lastnosti drugih aplikacij ne beremo). */
     fun dovoljenaLastnost(ime: String): Boolean = Regex("^debug\\.safeer\\.[a-z0-9_]{1,40}$").matches(ime)
+
+    /**
+     * Pregled Grok 32, G4/G6: diagnostika je vklopljena samo za dovoljeno ime, pri vklopljenem razvijalskem adb
+     * ([adbVklopljen]) in z veljavnim rokom. [beri] (getprop - nov proces) se klice SAMO, ce prvi dve veljata: brez adb
+     * takoj false (navaden uporabnik ne placa procesa ob vsaki izbiri toka; lastnosti brez adb ne nastavi nihce).
+     */
+    fun vklopljena(lastnost: String, zdajS: Long, adbVklopljen: () -> Boolean, beri: (String) -> String?): Boolean =
+        dovoljenaLastnost(lastnost) && adbVklopljen() && velja(beri(lastnost), zdajS)
 }
