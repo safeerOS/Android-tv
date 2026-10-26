@@ -156,4 +156,7 @@
     <string name="os_sinh_prejeto_odpri">%1$s möchte Schlüssel und Add-ons abgleichen – zum Bestätigen das Mediencenter öffnen</string>
     <string name="os_sinh_ponovno">%1$s: Die Bestätigung erscheint beim nächsten Abgleich erneut</string>
     <string name="os_usenet_napaka_indeksator">Der Usenet-Indexer hat keine NZB-Datei geliefert. Prüfe seinen API-Schlüssel und das Tageslimit.</string>
+    <!-- Pregled Grok 31, H1: kljuc v polju za naslov indeksatorja -->
+    <string name="os_usenet_naslov_je_kljuc">Im Adressfeld steht ein API-Schlüssel, keine Adresse – er wurde weder gespeichert noch gesendet. Füge den Schlüssel in das Feld für den API-Schlüssel ein und gib als Adresse den Namen des Indexers ein (z. B. nzbfinder.ws).</string>
+    <string name="os_usenet_naslov_napacen">Die Indexer-Adresse ist ungültig – gib einen Namen mit Domain (z. B. nzbfinder.ws) oder eine vollständige https://…-Adresse ein.</string>
 </resources>

@@ -156,4 +156,7 @@
     <string name="os_sinh_prejeto_odpri">%1$s želi usklajevati ključe in dodatke – za potrditev odpri Medijski center</string>
     <string name="os_sinh_ponovno">%1$s: ob naslednji uskladitvi se potrditev pokaže znova</string>
     <string name="os_usenet_napaka_indeksator">Usenet indeksator ni vrnil datoteke NZB. Preveri njegov ključ API in dnevno omejitev.</string>
+    <!-- Pregled Grok 31, H1: kljuc v polju za naslov indeksatorja -->
+    <string name="os_usenet_naslov_je_kljuc">V polju za naslov je ključ API, ne naslov – ni shranjen in ni poslan nikamor. Ključ prilepi v polje za ključ API, za naslov pa vpiši ime indeksatorja (npr. nzbfinder.ws).</string>
+    <string name="os_usenet_naslov_napacen">Naslov indeksatorja ni veljaven – vpiši ime z domeno (npr. nzbfinder.ws) ali celoten naslov https://…</string>
 </resources>

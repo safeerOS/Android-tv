@@ -156,4 +156,7 @@
     <string name="os_sinh_prejeto_odpri">%1$s quiere sincronizar claves y complementos: abre el Centro multimedia para confirmar</string>
     <string name="os_sinh_ponovno">%1$s: la confirmación se mostrará de nuevo en la próxima sincronización</string>
     <string name="os_usenet_napaka_indeksator">El indexador Usenet no devolvió el archivo NZB. Comprueba su clave API y su límite diario.</string>
+    <!-- Pregled Grok 31, H1: kljuc v polju za naslov indeksatorja -->
+    <string name="os_usenet_naslov_je_kljuc">En el campo de dirección hay una clave API, no una dirección: no se ha guardado ni enviado. Pega la clave en el campo de la clave API y escribe como dirección el nombre del indexador (p. ej., nzbfinder.ws).</string>
+    <string name="os_usenet_naslov_napacen">La dirección del indexador no es válida: escribe un nombre con dominio (p. ej., nzbfinder.ws) o una dirección https://… completa.</string>
 </resources>

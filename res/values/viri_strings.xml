@@ -156,4 +156,7 @@
     <string name="os_sinh_prejeto_odpri">%1$s wants to sync keys and add-ons – open Media Center to confirm</string>
     <string name="os_sinh_ponovno">%1$s: confirmation will be shown again at the next sync</string>
     <string name="os_usenet_napaka_indeksator">The Usenet indexer did not return the NZB file. Check its API key and daily limit.</string>
+    <!-- Pregled Grok 31, H1: kljuc v polju za naslov indeksatorja -->
+    <string name="os_usenet_naslov_je_kljuc">The address field contains an API key, not an address – it was not saved or sent anywhere. Paste the key into the API key field and enter the indexer name as the address (e.g. nzbfinder.ws).</string>
+    <string name="os_usenet_naslov_napacen">The indexer address is not valid – enter a name with a domain (e.g. nzbfinder.ws) or a full https://… address.</string>
 </resources>

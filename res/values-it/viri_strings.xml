@@ -156,4 +156,7 @@
     <string name="os_sinh_prejeto_odpri">%1$s vuole sincronizzare chiavi e componenti aggiuntivi – apri il Centro multimediale per confermare</string>
     <string name="os_sinh_ponovno">%1$s: la conferma verrà mostrata di nuovo alla prossima sincronizzazione</string>
     <string name="os_usenet_napaka_indeksator">L’indicizzatore Usenet non ha restituito il file NZB. Controlla la sua chiave API e il limite giornaliero.</string>
+    <!-- Pregled Grok 31, H1: kljuc v polju za naslov indeksatorja -->
+    <string name="os_usenet_naslov_je_kljuc">Nel campo dell’indirizzo c’è una chiave API, non un indirizzo: non è stata salvata né inviata. Incolla la chiave nel campo della chiave API e inserisci come indirizzo il nome dell’indicizzatore (ad es. nzbfinder.ws).</string>
+    <string name="os_usenet_naslov_napacen">L’indirizzo dell’indicizzatore non è valido: inserisci un nome con dominio (ad es. nzbfinder.ws) o un indirizzo https://… completo.</string>
 </resources>

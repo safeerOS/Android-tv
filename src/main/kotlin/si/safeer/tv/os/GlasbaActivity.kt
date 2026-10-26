@@ -9611,7 +9611,12 @@ class GlasbaActivity : OsActivity() {
                         val sporocilo = when (izid) {
                             DebridPravila.Preverba.VELJA -> getString(R.string.os_debrid_kljuc_velja, ime, "")
                             DebridPravila.Preverba.NE_VELJA -> getString(R.string.os_debrid_kljuc_zavrnjen, ime)
-                            DebridPravila.Preverba.OBLIKA -> getString(R.string.os_usenet_neveljavno)
+                            // Pregled Grok 31, H1: kljuc v polju za naslov ali naslov brez imena - jasno, kaj popraviti (nic ni shranjeno).
+                            DebridPravila.Preverba.OBLIKA -> getString(when (UsenetPravila.napakaVnosa(n, k)) {
+                                UsenetPravila.NapakaVnosa.NASLOV_JE_KLJUC -> R.string.os_usenet_naslov_je_kljuc
+                                UsenetPravila.NapakaVnosa.NASLOV -> R.string.os_usenet_naslov_napacen
+                                else -> R.string.os_usenet_neveljavno
+                            })
                             else -> getString(R.string.os_debrid_kljuc_nepreverjen, ime)
                         }
                         Toast.makeText(this, sporocilo, Toast.LENGTH_LONG).show()

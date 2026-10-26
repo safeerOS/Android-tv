@@ -60,12 +60,56 @@ object UsenetPravila {
         return b[0] == 127 || b[0] == 10 || (b[0] == 192 && b[1] == 168) || (b[0] == 172 && b[1] in 16..31)
     }
 
+    // Pregled Grok 31, H1 (26. 10. 2026): kljuc, prilepljen v polje za naslov, ne sme postati gostitelj https://<kljuc> - ime
+    // gostitelja gre pred povezavo necifrirano v DNS (tudi s pripono omrezja, npr. <kljuc>.home). Kljuci: Newznab 32 heks,
+    // TorBox UUID, Real-Debrid 52 znakov, AllDebrid ~20 znakov - nobeden nima pike.
+    private val RX_UUID = Regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+    private val RX_HEKS_DOLG = Regex("^[0-9a-f]{24,}$")
+
+    /** Del imena, ki je kljuc in ne ime (v imenu s piko): UUID ali vsaj 24 heks znakov. */
+    private fun oznakaJeKljuc(oznaka: String): Boolean = oznaka.lowercase().let { RX_UUID.matches(it) || RX_HEKS_DOLG.matches(it) }
+
+    /**
+     * Gostitelj indeksatorja je ime: s piko (javni CA ne izda potrdila za ime brez pike, zato tako ime tudi s https ne bi
+     * delalo) in brez oznake, ki je kljuc - ali localhost oziroma naslov IPv6 v oklepajih (IPv4 ima piko).
+     */
+    private fun jeImeGostitelja(gost: String): Boolean {
+        val g = gost.lowercase().trimEnd('.')
+        if (g == "localhost" || (g.startsWith("[") && g.endsWith("]"))) return true
+        return '.' in g && g.split('.').none { it.isEmpty() || oznakaJeKljuc(it) }
+    }
+
+    /**
+     * Ali je v polju za naslov videti kljuc (za sporocilo »prilepi ga v polje Kljuc«): gostitelj brez pike, dolg vsaj 16
+     * znakov s stevko (32 heks, UUID, zeton), ali oznaka imena, ki je kljuc ([oznakaJeKljuc]).
+     */
+    fun naslovJeKljuc(vnos: String): Boolean {
+        val v0 = vnos.trim().substringBefore('?').substringBefore('#').trimEnd('/')
+        val gost = v0.substringAfter("://").substringBefore('/').substringAfterLast('@').substringBefore(':').lowercase()
+        if ('.' in gost) return gost.split('.').any { oznakaJeKljuc(it) }
+        return RX_UUID.matches(gost) || (gost.length >= 16 && gost.any { it.isDigit() } &&
+            gost.all { it in 'a'..'z' || it in '0'..'9' || it == '-' || it == '_' })
+    }
+
+    /** Kaj je narobe z vnosom indeksatorja - za sporocilo uporabniku (pregled Grok 31, H1). */
+    enum class NapakaVnosa { NASLOV_JE_KLJUC, NASLOV, KLJUC }
+
+    /** null = vnos je veljaven ([izVnosa] ga sprejme). */
+    fun napakaVnosa(naslov: String, kljuc: String): NapakaVnosa? = when {
+        naslovJeKljuc(naslov) -> NapakaVnosa.NASLOV_JE_KLJUC
+        osnova(naslov) == null -> NapakaVnosa.NASLOV
+        kljucIzVnosa(kljuc) == null -> NapakaVnosa.KLJUC
+        else -> null
+    }
+
     /**
      * Naslov indeksatorja, kot ga uporabnik vpise (»https://api.indeksator.example/api?«): osnova brez `/api`, poizvedbe in
      * koncne posevnice. Samo https - kljuc gre v naslovu; http samo do naprave v domacem omrezju (NZBHydra, Prowlarr).
      * Brez uporabniskega imena v naslovu. null = ni veljaven.
      * Lastnik, 25. 10. 2026: uporabnik vpise kar ime (»nzbfinder.ws«) - gola domena brez sheme dobi https:// sama
      * (http:// za internet ostane zavrnjen, ker gre kljuc API v naslovu).
+     * Pregled Grok 31, H1/H4: gostitelj mora biti ime s piko brez oznake, ki je kljuc ([jeImeGostitelja]) - kljuc v polju
+     * za naslov in tipkarske napake (»http//x«, »https:/x«, »nzbfinder«) so zavrnjeni, preden gre karkoli v DNS.
      */
     fun osnova(vnos: String): String? {
         val v0 = vnos.trim().substringBefore('?').substringBefore('#').trimEnd('/')
@@ -73,6 +117,7 @@ object UsenetPravila {
         val u = try { URI(v) } catch (_: Exception) { return null }
         val gost = u.host ?: return null
         if (u.rawUserInfo != null) return null
+        if (!jeImeGostitelja(gost)) return null
         val shema = u.scheme?.lowercase() ?: return null
         if (shema != "https" && !(shema == "http" && jeLokalniGostitelj(gost))) return null
         return shema + v.substring(u.scheme.length).removeSuffix("/api").trimEnd('/')

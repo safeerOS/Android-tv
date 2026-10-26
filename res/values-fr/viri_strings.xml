@@ -156,4 +156,7 @@
     <string name="os_sinh_prejeto_odpri">%1$s souhaite synchroniser les clés et extensions – ouvrez le Centre multimédia pour confirmer</string>
     <string name="os_sinh_ponovno">%1$s : la confirmation s’affichera de nouveau à la prochaine synchronisation</string>
     <string name="os_usenet_napaka_indeksator">L’indexeur Usenet n’a pas renvoyé le fichier NZB. Vérifie sa clé API et sa limite quotidienne.</string>
+    <!-- Pregled Grok 31, H1: kljuc v polju za naslov indeksatorja -->
+    <string name="os_usenet_naslov_je_kljuc">Le champ d’adresse contient une clé API, pas une adresse : elle n’a été ni enregistrée ni envoyée. Colle la clé dans le champ de la clé API et saisis comme adresse le nom de l’indexeur (p. ex. nzbfinder.ws).</string>
+    <string name="os_usenet_naslov_napacen">L’adresse de l’indexeur n’est pas valide : saisis un nom avec domaine (p. ex. nzbfinder.ws) ou une adresse https://… complète.</string>
 </resources>
