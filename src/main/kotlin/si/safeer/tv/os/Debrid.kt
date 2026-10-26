@@ -88,7 +88,7 @@ object Debrid {
     // ------------------------------------------------------------------ preverba kljuca (lastnik 25. 10. 2026)
 
     private const val KLJUC_STANJE = "stanje_"
-    /** Zadnja preverba nepreverjenega kljuca po storitvi (samo v pomnilniku - po zagonu se preveri znova). */
+    /** Zadnja preverba kljuca po odtisu (cakajoci: »caka_« + storitev; samo v pomnilniku - po zagonu se preveri znova). */
     private val zadnjaPreverba = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
     /** (stanje, paket) shranjenega kljuca storitve [p]; null = ni kljuca ali ga se nihce ni preveril (stanje drugega kljuca ne velja). */
@@ -151,7 +151,7 @@ object Debrid {
         if (!shraniKljuc(c, p, k)) return IzidVpisa(DebridPravila.Preverba.OBLIKA, null)
         pozabiCakajocega(c, p)
         zapisiStanje(c, p, k, s, izid.second)
-        zadnjaPreverba[p] = System.currentTimeMillis()
+        zadnjaPreverba[DebridPravila.odtisStanja(k)] = System.currentTimeMillis()
         if (DebridPravila.zaUskladitev(s)) UskladitevKljucev.sprozi(c)
         return IzidVpisa(izid.first, izid.second)
     }
@@ -187,7 +187,7 @@ object Debrid {
                 DebridPravila.Cakajoc.ZAMENJAJ -> {
                     if (k == null || !shraniKljuc(c, p, k)) continue
                     zapisiStanje(c, p, k, DebridPravila.StanjeKljuca.VELJA, paket)
-                    zadnjaPreverba[p] = zdaj
+                    zadnjaPreverba[DebridPravila.odtisStanja(k)] = zdaj
                     pozabiCakajocega(c, p)
                     Log.i(TAG, "${DebridPravila.ime(p)}: cakajoci kljuc potrjen - zamenjal je prejsnjega")
                     UskladitevKljucev.sprozi(c)
@@ -262,7 +262,7 @@ object Debrid {
         val k = DebridPravila.kljucIzVnosa(vnos, p) ?: return false
         if (!shraniKljuc(c, p, k)) return false
         zapisiStanje(c, p, k, DebridPravila.StanjeKljuca.NEPREVERJEN, null)
-        zadnjaPreverba.remove(p)
+        zadnjaPreverba.remove(DebridPravila.odtisStanja(k))
         return true
     }
 
@@ -276,8 +276,10 @@ object Debrid {
         for (p in DebridPravila.VSI) {
             val k = kljuc(c, p) ?: continue
             val prej = stanjeKljuca(c, p)
-            if (!DebridPravila.preveriZdaj(prej?.first, zadnjaPreverba[p] ?: 0L, System.currentTimeMillis())) continue
-            zadnjaPreverba[p] = System.currentTimeMillis()
+            // Skupni primeri v2: najvec enkrat na 10 min ZA TA KLJUC (po odtisu), tudi kljuc brez stanja.
+            val odtis = DebridPravila.odtisStanja(k)
+            if (!DebridPravila.preveriZdaj(prej?.first, zadnjaPreverba[odtis] ?: 0L, System.currentTimeMillis())) continue
+            zadnjaPreverba[odtis] = System.currentTimeMillis()
             val (izid, paket) = preveriKljuc(p, k)
             val s = DebridPravila.stanjePoPreverbi(izid) ?: DebridPravila.StanjeKljuca.NE_VELJA
             if (s != prej?.first || paket != prej.second) { zapisiStanje(c, p, k, s, paket ?: prej?.second); spremenjeno = true }
@@ -401,7 +403,7 @@ object Debrid {
         val (izid, paket) = preveriKljuc(p, k)
         val s = DebridPravila.stanjePoRocniPreverbi(izid) ?: return izid
         zapisiStanje(c, p, k, s, paket ?: prej?.second)
-        zadnjaPreverba[p] = zdaj
+        zadnjaPreverba[DebridPravila.odtisStanja(k)] = zdaj
         Log.i(TAG, "${DebridPravila.ime(p)}: rocna preverba - $izid")
         // Varovalo racunov: tudi »ne velja« in »zaklenjen« gresta v ozji krog (stanje, ne kljuc).
         UskladitevKljucev.sprozi(c)

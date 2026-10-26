@@ -160,6 +160,8 @@ object UsenetPravila {
     fun preverbaIndeksatorja(http: Int, zacetek: String): DebridPravila.Preverba {
         val n = napaka(zacetek)
         return when {
+            // Varovalo racunov (skupni primeri v2): Newznab 101 »account suspended« = racun zaklenjen (brez ponovitev).
+            n == TorBoxPravila.NAPAKA_ZAKLENJEN -> DebridPravila.Preverba.ZAKLENJEN
             n == TorBoxPravila.NAPAKA_KLJUC || http == 401 -> DebridPravila.Preverba.NE_VELJA
             n == TorBoxPravila.NAPAKA_MEJA || http == 429 -> DebridPravila.Preverba.MEJA
             http in 200..299 && n == null && RX_RSS.containsMatchIn(zacetek) -> DebridPravila.Preverba.VELJA
@@ -252,7 +254,8 @@ object UsenetPravila {
     fun napaka(xml: String): String? {
         val m = Regex("<error\\s+code=\"(\\d+)\"").find(xml) ?: return null
         return when (m.groupValues[1].toIntOrNull()) {
-            100, 101, 102 -> TorBoxPravila.NAPAKA_KLJUC
+            100, 102 -> TorBoxPravila.NAPAKA_KLJUC
+            101 -> TorBoxPravila.NAPAKA_ZAKLENJEN
             500, 501 -> TorBoxPravila.NAPAKA_MEJA
             else -> NAPAKA_INDEKSATOR
         }

@@ -150,10 +150,10 @@ object DebridPravila {
      */
     fun rdVrstaNapake(http: Int, koda: Int?): String = when {
         // Koda Real-Debrid ima prednost pred HTTP (37 »disabled endpoint« pride tudi s 403, a ni stvar paketa).
-        // Varovalo racunov (lastnik 26. 10. 2026): 9 permission denied, 14 account locked, 22 IP not allowed = racun zaklenjen
-        // (prej 9 in 14 »paket« = kljuc velja, 22 streznik - zaklenjen racun smo klicali naprej).
-        koda in setOf(9, 14, 22) -> TorBoxPravila.NAPAKA_ZAKLENJEN
-        koda == 8 -> TorBoxPravila.NAPAKA_KLJUC
+        // Varovalo racunov (lastnik 26. 10. 2026; skupni primeri kljuci-preverba.json v2): 14 account locked, 22 IP not allowed =
+        // racun zaklenjen, 9 permission denied = kljuc ne velja (nikoli »velja«). Prej 9 in 14 »paket« = kljuc velja, 22 streznik.
+        koda in setOf(14, 22) -> TorBoxPravila.NAPAKA_ZAKLENJEN
+        koda == 8 || koda == 9 -> TorBoxPravila.NAPAKA_KLJUC
         koda in setOf(20, 29) -> TorBoxPravila.NAPAKA_PAKET
         koda in setOf(5, 21, 23, 34, 36) -> TorBoxPravila.NAPAKA_MEJA
         koda in setOf(24, 28, 30, 35) -> TorBoxPravila.NAPAKA_NI_DATOTEKE
@@ -554,7 +554,7 @@ object DebridPravila {
 
     /**
      * Real-Debrid /user: velja samo s pozitivnim dokazom - 2xx z objektom uporabnika ([dokaz] = `id` ali `username`) ali
-     * koda paketa (20, 29); 401 ali koda 8 = ne velja; 9, 14, 22 = racun zaklenjen (varovalo racunov). Pregled Grok 34, E3 (in
+     * koda paketa (20, 29); 401 ali koda 8, 9 = ne velja; 14, 22 = racun zaklenjen (varovalo racunov). Pregled Grok 34, E3 (in
      * 33, F7): 403 ali 2xx BREZ kode RD (stran CDN, blokada IP podatkovnega centra ali VPN) o kljucu ne pove nicesar - ni
      * odgovora (prej velja: napacen kljuc bi sel v krog, naprave za istim IP pa bi ga »potrdile«). Kot indeksator (403 brez
      * napake Newznab = ni odgovora).
@@ -665,7 +665,11 @@ object DebridPravila {
         return Triple(s, d[2].toIntOrNull(), d[3].toLongOrNull() ?: 0L)
     }
 
-    /** Ali kljuc (brez stanja ali nepreverjen, zadnja preverba [zadnjic]) preverimo zdaj. */
+    /**
+     * Ali kljuc (brez stanja ali nepreverjen) preverimo zdaj: najvec enkrat na [PREVERI_ZNOVA_MS] ZA TA KLJUC ([zadnjic] =
+     * zadnja preverba tega kljuca po odtisu, 0 = se ni bil preverjen; ura nazaj = preveri). Skupni primeri v2: prej je bil
+     * kljuc brez stanja preverjen ob vsakem odprtju okna. Velja, ne velja in zaklenjen nikoli samodejno (varovalo racunov).
+     */
     fun preveriZdaj(s: StanjeKljuca?, zadnjic: Long, zdaj: Long): Boolean =
-        s == null || (s == StanjeKljuca.NEPREVERJEN && zdaj - zadnjic !in 0 until PREVERI_ZNOVA_MS)
+        (s == null || s == StanjeKljuca.NEPREVERJEN) && zdaj - zadnjic !in 0 until PREVERI_ZNOVA_MS
 }

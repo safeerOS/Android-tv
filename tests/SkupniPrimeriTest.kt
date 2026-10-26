@@ -158,6 +158,11 @@ private fun izracunaj(f: String, v: Map<String, Any?>): Any? = when (f) {
     "stanje_po_preverbi" -> DebridPravila.stanjePoPreverbi(preverbaIz(v.niz("preverba")!!))?.let { imeIzida(it) }
     "za_uskladitev" -> DebridPravila.zaUskladitev(v.niz("stanje")?.let { stanjeIz(it) })
     "sprejmi_prejetega" -> DebridPravila.sprejmiPrejetega(preverbaIz(v.niz("preverba")!!))
+    // Skupni primeri v2 (26. 10. 2026): naslov indeksatorja (pregled Grok 31, H1), odtis stanja, varovalo racunov K1.
+    "osnova_indeksatorja" -> UsenetPravila.osnova(v.niz("vnos")!!)
+    "naslov_je_kljuc" -> UsenetPravila.naslovJeKljuc(v.niz("vnos")!!)
+    "odtis_stanja" -> DebridPravila.odtisStanja(v.niz("kljuc")!!)
+    "sme_klicati" -> DebridPravila.smeKlicati(v.niz("stanje")?.let { stanjeIz(it) })
     "preveri_zdaj" -> DebridPravila.preveriZdaj(v.niz("stanje")?.let { stanjeIz(it) }, v["zadnjic_ms"] as Long, v["zdaj_ms"] as Long)
     else -> error("neznano pravilo: $f")
 }

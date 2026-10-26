@@ -203,6 +203,8 @@ object Usenet {
         val s = when (izid) {
             DebridPravila.Preverba.NE_VELJA -> DebridPravila.StanjeKljuca.NE_VELJA
             DebridPravila.Preverba.VELJA -> DebridPravila.StanjeKljuca.VELJA
+            // Varovalo racunov: Newznab 101 (racun suspendiran) - indeksatorja ne klicemo vec.
+            DebridPravila.Preverba.ZAKLENJEN -> DebridPravila.StanjeKljuca.ZAKLENJEN
             else -> return
         }
         val prej = stanje(c)

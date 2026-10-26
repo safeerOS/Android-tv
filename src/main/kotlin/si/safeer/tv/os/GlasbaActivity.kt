@@ -9378,6 +9378,7 @@ class GlasbaActivity : OsActivity() {
             gostIx == null -> getString(R.string.os_usenet_vrstica_brez)
             stanjeIx == DebridPravila.StanjeKljuca.VELJA -> getString(R.string.os_usenet_vrstica_vpisan, gostIx)
             stanjeIx == DebridPravila.StanjeKljuca.NE_VELJA -> getString(R.string.os_debrid_vrstica_ne_velja, getString(R.string.os_usenet_ime_kratko, gostIx))
+            stanjeIx == DebridPravila.StanjeKljuca.ZAKLENJEN -> getString(R.string.os_debrid_vrstica_zaklenjen, getString(R.string.os_usenet_ime_kratko, gostIx))
             else -> getString(R.string.os_debrid_vrstica_nepreverjen, getString(R.string.os_usenet_ime_kratko, gostIx))
         }
         vrstice += vrsticaIx to { usenetIndeksator() }
@@ -9628,6 +9629,8 @@ class GlasbaActivity : OsActivity() {
                         val sporocilo = when (izid) {
                             DebridPravila.Preverba.VELJA -> getString(R.string.os_debrid_kljuc_velja, ime, "")
                             DebridPravila.Preverba.NE_VELJA -> getString(R.string.os_debrid_kljuc_zavrnjen, ime)
+                            // Varovalo racunov: Newznab 101 - racun suspendiran, indeksatorja ne klicemo.
+                            DebridPravila.Preverba.ZAKLENJEN -> getString(R.string.os_debrid_zaklenjen, ime)
                             // Pregled Grok 31, H1: kljuc v polju za naslov ali naslov brez imena - jasno, kaj popraviti (nic ni shranjeno).
                             DebridPravila.Preverba.OBLIKA -> getString(when (UsenetPravila.napakaVnosa(n, k)) {
                                 UsenetPravila.NapakaVnosa.NASLOV_JE_KLJUC -> R.string.os_usenet_naslov_je_kljuc

@@ -45,8 +45,8 @@ fun main() {
     preveriEnako("RD dead je koncna", true, DebridPravila.rdKoncnaNapaka("dead"))
     preveriEnako("RD queued ni koncna", false, DebridPravila.rdKoncnaNapaka("queued"))
     preveriEnako("RD 8 bad token", TorBoxPravila.NAPAKA_KLJUC, DebridPravila.rdVrstaNapake(401, 8))
-    // Varovalo racunov (lastnik 26. 10. 2026): 9, 14, 22 = racun zaklenjen (prej 9 paket = kljuc velja).
-    preveriEnako("RD 9 permission denied: zaklenjen", TorBoxPravila.NAPAKA_ZAKLENJEN, DebridPravila.rdVrstaNapake(403, 9))
+    // Varovalo racunov (lastnik 26. 10. 2026, skupni primeri v2): 14, 22 = racun zaklenjen, 9 = ne velja (prej 9 paket = velja).
+    preveriEnako("RD 9 permission denied: kljuc (nikoli velja)", TorBoxPravila.NAPAKA_KLJUC, DebridPravila.rdVrstaNapake(403, 9))
     preveriEnako("RD 14 account locked: zaklenjen", TorBoxPravila.NAPAKA_ZAKLENJEN, DebridPravila.rdVrstaNapake(403, 14))
     preveriEnako("RD 22 IP not allowed: zaklenjen", TorBoxPravila.NAPAKA_ZAKLENJEN, DebridPravila.rdVrstaNapake(403, 22))
     preveriEnako("RD 20 ne za brezplacne: paket", TorBoxPravila.NAPAKA_PAKET, DebridPravila.rdVrstaNapake(403, 20))
@@ -275,7 +275,7 @@ fun main() {
     preveriEnako("RD 200 z uporabnikom: velja", DebridPravila.Preverba.VELJA, DebridPravila.preverbaRd(200, null, true))
     preveriEnako("RD bad_token (8): ne velja", DebridPravila.Preverba.NE_VELJA, DebridPravila.preverbaRd(401, 8, false))
     preveriEnako("RD account locked (14): zaklenjen, ne velja", DebridPravila.Preverba.ZAKLENJEN, DebridPravila.preverbaRd(403, 14, false))
-    preveriEnako("RD 9 nikoli velja", DebridPravila.Preverba.ZAKLENJEN, DebridPravila.preverbaRdOdgovor(403, 9L, null, null))
+    preveriEnako("RD 9 nikoli velja", DebridPravila.Preverba.NE_VELJA, DebridPravila.preverbaRdOdgovor(403, 9L, null, null))
     preveriEnako("RD 22 IP not allowed: zaklenjen (prej ni odgovora - preverba na 10 min)", DebridPravila.Preverba.ZAKLENJEN, DebridPravila.preverbaRdOdgovor(403, 22L, null, null))
     preveriEnako("AD AUTH_BLOCKED: zaklenjen", DebridPravila.Preverba.ZAKLENJEN, DebridPravila.preverbaAd(200, "error", "AUTH_BLOCKED"))
     // Varovalo racunov K1: ne velja in zaklenjen se ne klice (tudi ne samodejna preverba); rocno najvec 1 na minuto.
@@ -298,7 +298,7 @@ fun main() {
     preveriEnako("K1: zaklenjen je najpomembnejsi razlog", TorBoxPravila.NAPAKA_ZAKLENJEN, DebridPravila.razlogZaUporabnika(listOf(TorBoxPravila.NAPAKA_KLJUC, TorBoxPravila.NAPAKA_ZAKLENJEN)))
     // Pregled Grok 34, E3 / 33, F7: brez pozitivnega dokaza ni »velja«.
     preveriEnako("E3: RD 403 brez telesa (CDN, blokada IP): ni odgovora", DebridPravila.Preverba.NI_ODGOVORA, DebridPravila.preverbaRdOdgovor(403, null, null, null))
-    preveriEnako("E3: RD 403 permission_denied (9) s kodo RD: zaklenjen (varovalo racunov - nikoli velja)", DebridPravila.Preverba.ZAKLENJEN, DebridPravila.preverbaRdOdgovor(403, 9, null, null))
+    preveriEnako("E3: RD 403 permission_denied (9) s kodo RD: ne velja (varovalo racunov - nikoli velja)", DebridPravila.Preverba.NE_VELJA, DebridPravila.preverbaRdOdgovor(403, 9, null, null))
     preveriEnako("F7: RD 200 brez telesa: ni odgovora", DebridPravila.Preverba.NI_ODGOVORA, DebridPravila.preverbaRdOdgovor(200, null, null, null))
     preveriEnako("F7: RD 200 z id: velja", DebridPravila.Preverba.VELJA, DebridPravila.preverbaRdOdgovor(200, null, 123L, null))
     preveriEnako("F7: RD 200 z username: velja", DebridPravila.Preverba.VELJA, DebridPravila.preverbaRdOdgovor(200, null, null, "uporabnik"))
@@ -352,7 +352,8 @@ fun main() {
     preveriEnako("stanje istega kljuca", Triple(DebridPravila.StanjeKljuca.VELJA, 2, 1000L), DebridPravila.stanjeIzZapisa(zapis, o1))
     preveriEnako("stanje drugega kljuca ne velja", null, DebridPravila.stanjeIzZapisa(zapis, DebridPravila.odtisStanja(vzorec)))
     preveriEnako("ime paketa Pro", "Pro", DebridPravila.imePaketa(2))
-    preveriEnako("preveri: brez stanja da", true, DebridPravila.preveriZdaj(null, 0L, 5_000L))
+    preveriEnako("preveri: brez stanja da (se ni bil preverjen)", true, DebridPravila.preveriZdaj(null, 0L, 1_800_000_000_000L))
+    preveriEnako("v2: brez stanja najvec enkrat na 10 min za ta kljuc", false, DebridPravila.preveriZdaj(null, 1_000_000L, 1_001_000L))
     preveriEnako("preveri: nepreverjen po 10 min da", true, DebridPravila.preveriZdaj(DebridPravila.StanjeKljuca.NEPREVERJEN, 0L, DebridPravila.PREVERI_ZNOVA_MS))
     preveriEnako("preveri: nepreverjen pred 10 min ne", false, DebridPravila.preveriZdaj(DebridPravila.StanjeKljuca.NEPREVERJEN, 0L, DebridPravila.PREVERI_ZNOVA_MS - 1))
     preveriEnako("preveri: veljaven ne (do napake 401)", false, DebridPravila.preveriZdaj(DebridPravila.StanjeKljuca.VELJA, 0L, 10 * DebridPravila.PREVERI_ZNOVA_MS))

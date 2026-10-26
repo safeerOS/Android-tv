@@ -46,7 +46,7 @@ fun main() {
 
     // Napake
     preveriEnako("BAD_TOKEN", TorBoxPravila.NAPAKA_KLJUC, TorBoxPravila.vrstaNapake(403, "BAD_TOKEN"))
-    preveriEnako("403 brez kode", TorBoxPravila.NAPAKA_KLJUC, TorBoxPravila.vrstaNapake(403, null))
+    preveriEnako("E3: 403 brez kode (CDN, blokada IP) ni kljuc", TorBoxPravila.NAPAKA_STREZNIK, TorBoxPravila.vrstaNapake(403, null))
     preveriEnako("429", TorBoxPravila.NAPAKA_MEJA, TorBoxPravila.vrstaNapake(429, null))
     preveriEnako("ACTIVE_LIMIT", TorBoxPravila.NAPAKA_MEJA, TorBoxPravila.vrstaNapake(400, "ACTIVE_LIMIT"))
     preveriEnako("DOWNLOAD_TOO_LARGE", TorBoxPravila.NAPAKA_PAKET, TorBoxPravila.vrstaNapake(400, "DOWNLOAD_TOO_LARGE"))
