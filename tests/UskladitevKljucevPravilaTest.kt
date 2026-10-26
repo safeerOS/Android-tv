@@ -22,6 +22,12 @@ private class Naprava(val id: String) {
         if (v == null) vrednosti.remove(k) else vrednosti[k] = v
         meta.putAll(UskladitevKljucevPravila.lokalneSpremembe(meta, vrednosti.mapValues { odtis(it.value) }, emptySet(), id, ura, false))
     }
+    /** »Odstrani« na tej napravi (pregled Grok 33, F1): [vKrog] = kljuc je tu veljal. */
+    fun odstrani(k: String, vKrog: Boolean, ura: Long) {
+        val m = HashMap(UskladitevKljucevPravila.poOdstranitvi(meta, k, vKrog))
+        meta.clear(); meta.putAll(m)
+        spremeni(k, null, ura)
+    }
     /** Samo lastni zapisi (pregled U2). */
     fun stanje() = UskladitevKljucevPravila.zaPoslati(meta, vrednosti, id)
     /** Prejem od naprave [od]: samo zapisi z izvorom posiljatelja (pregled U1). */
@@ -171,6 +177,26 @@ fun main() {
     // Nepreverjen indeksator (neznan) na drugih napravah ne povozi in ne izbrise ze poslanega veljavnega.
     preveriEnako("oddaja: neznan indeksator ne izbrise poslanega", emptyMap<String, Meta>(),
         P.lokalneSpremembe(mapOf("usenet" to Meta(5, "a", false, "h")), emptyMap(), setOf("usenet"), "a", 10, false))
+
+    // Pregled Grok 33, F1: »Odstrani« kljuca, ki tu ni veljal, ne izbrise veljavnega na drugih napravah.
+    run {
+        val telF = Naprava("telefon"); val tvF = Naprava("tv")
+        telF.spremeni(tb, "K1", 100)
+        preveriEnako("F1: TV prejme veljaven kljuc s telefona", 1, tvF.prejmi(telF.stanje(), 200, "telefon"))
+        // Na TV kljuc ne velja (npr. 401 med uporabo) - uporabnik pritisne »Odstrani«.
+        tvF.odstrani(tb, vKrog = false, ura = 300)
+        preveriEnako("F1: neveljaven odstranjen - TV nima groba za poslati", emptyList<Zapis>(), tvF.stanje())
+        preveriEnako("F1: telefon nic ne prejme", 0, telF.prejmi(tvF.stanje(), 400, "tv"))
+        preveriEnako("F1: telefon obdrzi veljaven kljuc", "K1", telF.vrednosti[tb])
+        preveriEnako("F1: TV spet sprejme veljaven kljuc s telefona", 1, tvF.prejmi(telF.stanje(), 500, "telefon"))
+        preveriEnako("F1: TV ima spet K1", "K1", tvF.vrednosti[tb])
+        // Veljaven kljuc odstranjen: izbris gre v krog (kot doslej).
+        tvF.odstrani(tb, vKrog = true, ura = 600)
+        preveriEnako("F1: veljaven odstranjen - grob gre v krog", 1, telF.prejmi(tvF.stanje(), 700, "tv"))
+        preveriEnako("F1: telefon izbrise kljuc", null, telF.vrednosti[tb])
+    }
+    preveriEnako("F1: izbris v krog samo za veljaven", listOf(true, false), listOf(true, false).map { P.izbrisVKrog(it) })
+    preveriEnako("F1: grob ostane grob", mapOf(tb to Meta(3, "a", true, "")), P.poOdstranitvi(mapOf(tb to Meta(3, "a", true, "")), tb, false))
 
     if (napak == 0) println("UskladitevKljucevPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

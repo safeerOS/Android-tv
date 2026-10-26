@@ -28,8 +28,21 @@ object Usenet {
 
     fun imaIndeksator(c: Context): Boolean = indeksator(c) != null
 
+    /** Izbris z druge naprave (grob usklajevanja) ali razveljavitev - izbris tu in uskladitev. */
     fun pozabi(c: Context) {
-        SporocilaSkrivnosti.pozabi(c, SKRIVNOST); prefs(c).edit().remove(KLJUC_STANJE).apply(); UskladitevKljucev.sprozi(c)
+        brisi(c); UskladitevKljucev.sprozi(c)
+    }
+
+    private fun brisi(c: Context) { SporocilaSkrivnosti.pozabi(c, SKRIVNOST); prefs(c).edit().remove(KLJUC_STANJE).apply() }
+
+    /**
+     * Gumb »Odstrani« (pregled Grok 33, F1, kot [Debrid.odstraniKljuc]): potrjen indeksator se odstrani na vseh napravah
+     * ozjega kroga, nepreverjen ali zavrnjen samo tu. true = izbris gre tudi drugim napravam.
+     */
+    fun odstrani(c: Context): Boolean {
+        val vKrog = UskladitevKljucevPravila.izbrisVKrog(velja(c))
+        UskladitevKljucev.odstrani(c, UskladitevKljucevPravila.KLJUC_USENET, vKrog) { brisi(c) }
+        return vKrog
     }
 
     // ------------------------------------------------------------------ preverba kljuca (lastnik 25. 10. 2026)

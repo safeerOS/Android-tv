@@ -165,9 +165,25 @@ object Debrid {
         }
     }
 
+    /** Izbris kljuca z druge naprave (grob usklajevanja) ali razveljavitev - izbris tu in uskladitev. */
     fun pozabiKljuc(c: Context, p: String) {
-        if (p == DebridPravila.TORBOX) TorBox.pozabiKljuc(c) else SporocilaSkrivnosti.pozabi(c, imeSkrivnosti(p))
+        brisiKljuc(c, p)
         UskladitevKljucev.sprozi(c)
+    }
+
+    private fun brisiKljuc(c: Context, p: String) {
+        if (p == DebridPravila.TORBOX) TorBox.pozabiKljuc(c) else SporocilaSkrivnosti.pozabi(c, imeSkrivnosti(p))
+    }
+
+    /**
+     * Gumb »Odstrani« (pregled Grok 33, F1): kljuc, ki ga je storitev TU potrdila, se odstrani na vseh napravah ozjega
+     * kroga; nepreverjen, zavrnjen ali neberljiv samo na tej napravi (druge obdrzijo svoj veljaven kljuc). true = izbris
+     * gre tudi drugim napravam.
+     */
+    fun odstraniKljuc(c: Context, p: String): Boolean {
+        val vKrog = UskladitevKljucevPravila.izbrisVKrog(kljucVelja(c, p))
+        UskladitevKljucev.odstrani(c, UskladitevKljucevPravila.kljucDebrid(p), vKrog) { brisiKljuc(c, p) }
+        return vKrog
     }
 
     private fun prefs(c: Context) = c.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

@@ -159,4 +159,6 @@
     <!-- Pregled Grok 31, H1: kljuc v polju za naslov indeksatorja -->
     <string name="os_usenet_naslov_je_kljuc">En el campo de dirección hay una clave API, no una dirección: no se ha guardado ni enviado. Pega la clave en el campo de la clave API y escribe como dirección el nombre del indexador (p. ej., nzbfinder.ws).</string>
     <string name="os_usenet_naslov_napacen">La dirección del indexador no es válida: escribe un nombre con dominio (p. ej., nzbfinder.ws) o una dirección https://… completa.</string>
+    <!-- Pregled Grok 33, F1: Odstrani kljuca, ki tu ni veljal, samo na tej napravi -->
+    <string name="os_debrid_odstranjeno_lokalno">La clave de %1$s se eliminó solo en este dispositivo: aquí no era válida, así que tus otros dispositivos del círculo cercano conservan la suya.</string>
 </resources>

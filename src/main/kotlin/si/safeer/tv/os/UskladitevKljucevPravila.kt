@@ -112,6 +112,21 @@ object UskladitevKljucevPravila {
     }
 
     /**
+     * Pregled Grok 33, F1 (26. 10. 2026): izbris (»Odstrani«) gre drugim napravam samo, ce je kljuc TU veljal (storitev ali
+     * indeksator ga je potrdil). Nepreverjen, zavrnjen ali neberljiv kljuc je samo lokalen - prej je grob takega kljuca na
+     * vseh napravah ozjega kroga izbrisal veljavnega.
+     */
+    fun izbrisVKrog(velja: Boolean): Boolean = velja
+
+    /**
+     * Zapisi po »Odstrani« kljuca [kljuc]: ce izbris ne gre v krog ([vKrog] false), se zapis kljuca pozabi (brez groba) -
+     * [lokalneSpremembe] zato izbrisa ne naredi, lastni zapis druge naprave (npr. veljaven kljuc s telefona) pa se tu
+     * spet sprejme (in pred uporabo preveri). Grob ostane grob.
+     */
+    fun poOdstranitvi(meta: Map<String, Meta>, kljuc: String, vKrog: Boolean): Map<String, Meta> =
+        if (vKrog || meta[kljuc]?.izbrisan != false) meta else meta - kljuc
+
+    /**
      * Prejeti zapisi -> tisti, ki jih je treba uporabiti tu (novejsi od lokalnih), z veljavnim kljucem in vrednostjo
      * ([veljavnaVrednost]). Najvec [NAJVEC_ZAPISOV]; za isti kljuc velja najnovejsi; cas iz dalnje prihodnosti zavrnemo.
      */

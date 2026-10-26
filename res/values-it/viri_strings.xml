@@ -159,4 +159,6 @@
     <!-- Pregled Grok 31, H1: kljuc v polju za naslov indeksatorja -->
     <string name="os_usenet_naslov_je_kljuc">Nel campo dell’indirizzo c’è una chiave API, non un indirizzo: non è stata salvata né inviata. Incolla la chiave nel campo della chiave API e inserisci come indirizzo il nome dell’indicizzatore (ad es. nzbfinder.ws).</string>
     <string name="os_usenet_naslov_napacen">L’indirizzo dell’indicizzatore non è valido: inserisci un nome con dominio (ad es. nzbfinder.ws) o un indirizzo https://… completo.</string>
+    <!-- Pregled Grok 33, F1: Odstrani kljuca, ki tu ni veljal, samo na tej napravi -->
+    <string name="os_debrid_odstranjeno_lokalno">La chiave %1$s è stata rimossa solo su questo dispositivo: qui non era valida, quindi gli altri dispositivi della cerchia ristretta mantengono la loro.</string>
 </resources>

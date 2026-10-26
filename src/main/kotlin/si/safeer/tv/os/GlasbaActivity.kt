@@ -9314,8 +9314,8 @@ class GlasbaActivity : OsActivity() {
             .setMessage(getString(R.string.os_debrid_kljuc_neberljiv, ime))
             .setNegativeButton(R.string.os_torbox_popravi) { _, _ -> kljucDebrida(p) }
             .setNeutralButton(R.string.os_torbox_odstrani) { _, _ ->
-                Debrid.pozabiKljuc(this, p)
-                Toast.makeText(this, getString(R.string.os_debrid_odstranjeno, ime), Toast.LENGTH_SHORT).show()
+                // Pregled Grok 33, F1: neberljiv kljuc se odstrani samo tu (druge naprave obdrzijo svoj veljaven).
+                odstranjenoSporocilo(ime, Debrid.odstraniKljuc(this, p))
                 osveziNaMestu()
             }
             .setPositiveButton(R.string.os_debrid_brez) { _, _ -> brez() }
@@ -9626,8 +9626,10 @@ class GlasbaActivity : OsActivity() {
             }
             .setNegativeButton(R.string.os_preklici) { _, _ -> nastavitveDebrida() }
         if (Usenet.imaIndeksator(this)) g.setNeutralButton(R.string.os_torbox_odstrani) { _, _ ->
-            Usenet.pozabi(this)
-            Toast.makeText(this, R.string.os_usenet_odstranjeno, Toast.LENGTH_SHORT).show(); osveziNaMestu(); nastavitveDebrida()
+            // Pregled Grok 33, F1: nepreverjen ali zavrnjen indeksator se odstrani samo tu.
+            if (Usenet.odstrani(this)) Toast.makeText(this, R.string.os_usenet_odstranjeno, Toast.LENGTH_SHORT).show()
+            else odstranjenoSporocilo("Usenet", false)
+            osveziNaMestu(); nastavitveDebrida()
         }
         val okno = g.create()
         Kontroler.pokazi(okno); okno.show()
@@ -9668,11 +9670,18 @@ class GlasbaActivity : OsActivity() {
             }
             .setNegativeButton(R.string.os_preklici) { _, _ -> nastavitveDebrida() }
         if (Debrid.kljucShranjen(this, p)) g.setNeutralButton(R.string.os_torbox_odstrani) { _, _ ->
-            Debrid.pozabiKljuc(this, p)
-            Toast.makeText(this, getString(R.string.os_debrid_odstranjeno, ime), Toast.LENGTH_SHORT).show(); osveziNaMestu(); nastavitveDebrida()
+            // Pregled Grok 33, F1: izbris gre v ozji krog samo, ce je kljuc tu veljal.
+            odstranjenoSporocilo(ime, Debrid.odstraniKljuc(this, p))
+            osveziNaMestu(); nastavitveDebrida()
         }
         val okno = g.create()
         Kontroler.pokazi(okno); okno.show()
+    }
+
+    /** Pregled Grok 33, F1: po »Odstrani« uporabnik izve, ali je kljuc odstranjen tudi na drugih napravah ozjega kroga. */
+    private fun odstranjenoSporocilo(ime: String, vKrog: Boolean) {
+        Toast.makeText(this, getString(if (vKrog) R.string.os_debrid_odstranjeno else R.string.os_debrid_odstranjeno_lokalno, ime),
+            if (vKrog) Toast.LENGTH_SHORT else Toast.LENGTH_LONG).show()
     }
 
     /**

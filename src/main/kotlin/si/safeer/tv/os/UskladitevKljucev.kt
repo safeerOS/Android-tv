@@ -216,6 +216,24 @@ object UskladitevKljucev {
         else -> false
     }
 
+    /**
+     * Gumb »Odstrani« (pregled Grok 33, F1): [brisi] izbrise kljuc [kljuc] na tej napravi. Ce izbris ne gre v krog ([vKrog]
+     * false - kljuc tu ni veljal), se pod istim zaklepom pozabi tudi njegov zapis ([UskladitevKljucevPravila.poOdstranitvi]):
+     * drugim napravam ne gre grob, ki bi izbrisal njihov veljaven kljuc. Brez omrezja.
+     */
+    fun odstrani(c: Context, kljuc: String, vKrog: Boolean, brisi: () -> Unit) {
+        synchronized(zaklep) {
+            if (!vKrog) {
+                val meta = beriMeta(c)
+                val potem = P.poOdstranitvi(meta, kljuc, false)
+                if (potem.size != meta.size) pisiMeta(c, potem)
+            }
+            brisi()
+        }
+        Log.i(TAG, "kljuc odstranjen ${if (vKrog) "na vseh napravah ozjega kroga" else "samo na tej napravi (tu ni veljal)"}")
+        sprozi(c)
+    }
+
     /** Uporabi prejet zapis (shrani sifrirano ali izbrise). false = ni uspelo (zapis se ne steje - poskusi se znova). */
     private fun uporabi(c: Context, z: UskladitevKljucevPravila.Zapis): Boolean = try {
         when {

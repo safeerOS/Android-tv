@@ -159,4 +159,6 @@
     <!-- Pregled Grok 31, H1: kljuc v polju za naslov indeksatorja -->
     <string name="os_usenet_naslov_je_kljuc">The address field contains an API key, not an address – it was not saved or sent anywhere. Paste the key into the API key field and enter the indexer name as the address (e.g. nzbfinder.ws).</string>
     <string name="os_usenet_naslov_napacen">The indexer address is not valid – enter a name with a domain (e.g. nzbfinder.ws) or a full https://… address.</string>
+    <!-- Pregled Grok 33, F1: Odstrani kljuca, ki tu ni veljal, samo na tej napravi -->
+    <string name="os_debrid_odstranjeno_lokalno">The %1$s key was removed on this device only – it was not valid here, so your other devices in the inner circle keep theirs.</string>
 </resources>

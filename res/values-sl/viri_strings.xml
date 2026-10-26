@@ -159,4 +159,6 @@
     <!-- Pregled Grok 31, H1: kljuc v polju za naslov indeksatorja -->
     <string name="os_usenet_naslov_je_kljuc">V polju za naslov je ključ API, ne naslov – ni shranjen in ni poslan nikamor. Ključ prilepi v polje za ključ API, za naslov pa vpiši ime indeksatorja (npr. nzbfinder.ws).</string>
     <string name="os_usenet_naslov_napacen">Naslov indeksatorja ni veljaven – vpiši ime z domeno (npr. nzbfinder.ws) ali celoten naslov https://…</string>
+    <!-- Pregled Grok 33, F1: Odstrani kljuca, ki tu ni veljal, samo na tej napravi -->
+    <string name="os_debrid_odstranjeno_lokalno">Ključ %1$s je odstranjen samo na tej napravi – tu ni veljal, zato ga druge naprave v ožjem krogu obdržijo.</string>
 </resources>
