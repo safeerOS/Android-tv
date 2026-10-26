@@ -146,7 +146,9 @@ private fun izracunaj(f: String, v: Map<String, Any?>): Any? = when (f) {
         DebridPravila.preverbaTorBoxOdgovor(v.cel("http")!!, t?.get("success"), t?.get("error"), d != null, d?.get("plan"))
             .let { listOf(imeIzida(it.first), it.second?.toLong()) }
     }
-    "preverba_rd" -> imeIzida(DebridPravila.preverbaRdOdgovor(v.cel("http")!!, (v["telo"] as Map<String, Any?>?)?.get("error_code")))
+    "preverba_rd" -> (v["telo"] as Map<String, Any?>?).let { t ->
+        imeIzida(DebridPravila.preverbaRdOdgovor(v.cel("http")!!, t?.get("error_code"), t?.get("id"), t?.get("username")))
+    }
     "preverba_ad" -> (v["telo"] as Map<String, Any?>?).let { t ->
         imeIzida(DebridPravila.preverbaAdOdgovor(v.cel("http")!!, t?.get("status"), (t?.get("error") as? Map<String, Any?>)?.get("code")))
     }

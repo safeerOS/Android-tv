@@ -507,10 +507,17 @@ object DebridPravila {
         else -> preverbaIzNapake(TorBoxPravila.vrstaNapake(http, napaka))
     }
 
-    /** Real-Debrid /user: 200 brez `error_code` = velja; 401 ali koda 8 = ne velja. */
-    fun preverbaRd(http: Int, koda: Int?): Preverba = when {
-        http in 200..299 && koda == null -> Preverba.VELJA
+    /**
+     * Real-Debrid /user: velja samo s pozitivnim dokazom - 2xx z objektom uporabnika ([dokaz] = `id` ali `username`) ali
+     * koda napake racuna (9 permission denied = znan, a omejen racun); 401 ali koda 8 = ne velja. Pregled Grok 34, E3 (in
+     * 33, F7): 403 ali 2xx BREZ kode RD (stran CDN, blokada IP podatkovnega centra ali VPN) o kljucu ne pove nicesar - ni
+     * odgovora (prej velja: napacen kljuc bi sel v krog, naprave za istim IP pa bi ga »potrdile«). Kot indeksator (403 brez
+     * napake Newznab = ni odgovora).
+     */
+    fun preverbaRd(http: Int, koda: Int?, dokaz: Boolean): Preverba = when {
         http == 0 -> Preverba.NI_ODGOVORA
+        http in 200..299 && koda == null -> if (dokaz) Preverba.VELJA else Preverba.NI_ODGOVORA
+        koda == null && http != 401 && http != 429 -> Preverba.NI_ODGOVORA
         else -> preverbaIzNapake(rdVrstaNapake(http, koda))
     }
 
@@ -537,8 +544,9 @@ object DebridPravila {
         return izid to (if (izid == Preverba.VELJA) celo(plan)?.takeIf { it >= 0 } else null)
     }
 
-    /** Real-Debrid /user: [errorCode] = polje `error_code`. */
-    fun preverbaRdOdgovor(http: Int, errorCode: Any?): Preverba = preverbaRd(http, celo(errorCode))
+    /** Real-Debrid /user: [errorCode] = polje `error_code`, [id] in [username] = polji uporabnika (pozitiven dokaz, E3). */
+    fun preverbaRdOdgovor(http: Int, errorCode: Any?, id: Any?, username: Any?): Preverba =
+        preverbaRd(http, celo(errorCode), celo(id) != null || (username as? String)?.isNotBlank() == true)
 
     /** AllDebrid /user: [status] = polje `status`, [koda] = `error.code`. */
     fun preverbaAdOdgovor(http: Int, status: Any?, koda: Any?): Preverba = preverbaAd(http, status as? String, koda as? String)

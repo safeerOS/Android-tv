@@ -91,7 +91,8 @@ object Debrid {
         DebridPravila.TORBOX -> TorBox.preveri(kljuc)
         DebridPravila.REAL_DEBRID -> try {
             val o = klic(DebridPravila.RD_UPORABNIK, kljuc, povezavaMs = 8_000, branjeMs = 8_000)
-            DebridPravila.preverbaRdOdgovor(o.koda, o.json?.opt("error_code")) to null
+            val j = o.json
+            DebridPravila.preverbaRdOdgovor(o.koda, j?.opt("error_code"), j?.opt("id"), j?.opt("username")) to null
         } catch (e: Exception) { Log.i(TAG, "preverba RD: ${e.javaClass.simpleName}"); DebridPravila.Preverba.NI_ODGOVORA to null }
         else -> try {
             val o = klic(DebridPravila.AD_UPORABNIK, kljuc, povezavaMs = 8_000, branjeMs = 8_000)
