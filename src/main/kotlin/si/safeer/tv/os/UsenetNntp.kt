@@ -121,9 +121,15 @@ class UsenetNntp(
     /** Telo odgovora brez koncne vrstice in podvojenih pik ter bajti za njo (naslednji odgovor). */
     class Telo(val telo: ByteArray, val ostanek: ByteArray)
 
-    /** Napaka NNTP: samo vrsta in koda odgovora (brez besedila streznika, id-ja, imena ali gesla). */
+    /**
+     * Napaka NNTP: samo vrsta in koda odgovora (brez besedila streznika, id-ja, imena ali gesla). Izvirne izjeme NI kot
+     * vzroka (Grok 35 Y9: UnknownHostException, ConnectException in SSLHandshakeException nosijo gostitelja, IP in ime
+     * iz potrdila) - ostane samo ime njenega razreda v [vzrokVrsta].
+     */
     class NapakaNntp(val vrsta: Vrsta, val koda: Int = 0, vzrok: Throwable? = null) :
-        IOException("NNTP " + vrsta.name + (if (koda > 0) " $koda" else ""), vzrok)
+        IOException("NNTP " + vrsta.name + (if (koda > 0) " $koda" else "")) {
+        val vzrokVrsta: String? = vzrok?.javaClass?.simpleName
+    }
 
     companion object {
         /** Racuni, ki jim je ponudnik zavrnil prijavo: odtis s sljo procesa (nikoli geslo), samo v pomnilniku (U-4). */
@@ -476,6 +482,8 @@ class UsenetNntp(
                 var k = poz + pregledano
                 while (k < dolz && buf[k] != LF) k++
                 if (k < dolz) {
+                    // Tudi, ce je LF prisel v istem branju (Grok 37 C7 velja tudi tu).
+                    if (k - poz > NAJVEC_VRSTICE) throw NapakaNntp(Vrsta.NAPAKA_PROTOKOLA)
                     val v = String(buf, poz, k - poz, Charsets.ISO_8859_1).trimEnd('\r')
                     poz = k + 1
                     return v
@@ -559,7 +567,10 @@ class UsenetNntp(
 
         fun body(id: String, rokDo: Long): ByteArray {
             ukaz("BODY <$id>")
-            preveri(Faza.BODY)
+            val v = odgovor()
+            vrsta(izid(Faza.BODY, v))?.let { throw NapakaNntp(it, v.take(3).toIntOrNull() ?: 0) }
+            // Odgovor za drug clanek (Grok 35 Y7): povezava ni usklajena - napaka protokola, povezava gre stran.
+            if (!idOdgovoraUstreza(v, id)) throw NapakaNntp(Vrsta.NAPAKA_PROTOKOLA, 222)
             return blok(rokDo)
         }
 
@@ -569,6 +580,8 @@ class UsenetNntp(
             val i = izid(Faza.STAT, v)
             if (i == Izid.NI_CLANKA) return false
             vrsta(i)?.let { throw NapakaNntp(it, v.take(3).toIntOrNull() ?: 0) }
+            if (!idOdgovoraUstreza(v, id)) throw NapakaNntp(Vrsta.NAPAKA_PROTOKOLA, 223)
+            if (dolz > poz) pripravljena = false   // bajti za odgovorom: povezava ne gre v bazen
             return true
         }
 
@@ -589,11 +602,9 @@ class UsenetNntp(
                 while (true) {
                     val k = najdiKonec(izid, 0, od, n)
                     if (k >= 0) {
-                        // Brez cevovoda streznik za koncem ne poslje nicesar; ce pa, ostane za naslednji odgovor.
-                        val ostanek = n - (k + 3)
-                        if (ostanek > buf.size) throw NapakaNntp(Vrsta.NAPAKA_PROTOKOLA)
-                        System.arraycopy(izid, k + 3, buf, 0, ostanek)
-                        dolz = ostanek
+                        // Brez cevovoda streznik za koncem ne poslje nicesar. Ce pa (Grok 35 Y7), bi se ostanek prebral kot
+                        // odgovor na naslednji ukaz - povezava zato ne gre v bazen (telo je celo in velja).
+                        if (n > k + 3) pripravljena = false
                         return odstraniPike(izid, 0, k)
                     }
                     od = maxOf(0, n - 2)   // konec je lahko razdeljen med dve branji

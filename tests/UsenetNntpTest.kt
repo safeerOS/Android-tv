@@ -95,6 +95,9 @@ private class LazniStreznik(ctx: SSLContext) : Closeable {
     @Volatile var meja = Int.MAX_VALUE
     @Volatile var odgovorMeja = "502 Too many connections"
     @Volatile var geslaNeOdgovori = false
+    /** 222 z message-id drugega clanka; bajti za koncem bloka. */
+    @Volatile var drugId = false
+    @Volatile var ostanek = ""
     val prijavljenih = AtomicInteger()
     val povezav = AtomicInteger()
     val hkrati = AtomicInteger()
@@ -167,7 +170,7 @@ private class LazniStreznik(ctx: SSLContext) : Closeable {
                     } else if (blok == null) {
                         posli("430 No article with that message-id <$id>")
                     } else {
-                        posli("222 0 <$id>")
+                        posli(if (drugId) "222 0 <drug@lazni.invalid>" else "222 0 <$id>")
                         if (zamudaMs > 0) Thread.sleep(zamudaMs)
                         if (prekini.get() > 0 && prekini.decrementAndGet() >= 0) {
                             izhod.write(blok, 0, blok.size / 2)
@@ -175,7 +178,7 @@ private class LazniStreznik(ctx: SSLContext) : Closeable {
                             s.close()
                             return
                         }
-                        val vse = blok + ".\r\n".toByteArray()
+                        val vse = blok + ".\r\n".toByteArray() + ostanek.toByteArray()
                         if (poKoscih) {
                             var i = 0
                             while (i < vse.size) {
@@ -392,6 +395,24 @@ fun main() {
             pr.sprosti(true)
             preveriEnako("proracun: sproscen", 0L, pr.zasedeno)
 
+            println("odgovor za drug clanek, ostanek (Grok 35 Y7)")
+            s.drugId = true
+            UsenetNntp(nastavitve(s.vrata), prava.zaupaj).use { k ->
+                preveriEnako("222 za drug clanek -> NAPAKA_PROTOKOLA", "NAPAKA_PROTOKOLA", izid { k.body(ID) })
+                preveriEnako("drug clanek: povezava ne ostane", 0, k.odprtih)
+            }
+            s.drugId = false
+            s.ostanek = "223 0 <x@lazni.invalid>\r\n"
+            UsenetNntp(nastavitve(s.vrata), prava.zaupaj).use { k ->
+                var t = ByteArray(0)
+                preveriEnako("ostanek: telo velja", "OK", izid { t = k.body(ID) })
+                preveriEnako("ostanek: telo celo", true, t.contentEquals(blok))
+                preveriEnako("ostanek: povezava ne gre v bazen", 0, k.odprtih)
+                preveriEnako("ostanek: naslednja zahteva po novi povezavi", "OK", izid { k.body(ID) })
+                preveriEnako("ostanek: dve povezavi", 2, k.odprtoSkupaj)
+            }
+            s.ostanek = ""
+
             println("prevelik clanek")
             s.clanki["velik@lazni.invalid"] = ByteArray(UsenetNntp.NAJVEC_TELESA + 10) { 'k'.code.toByte() }
             UsenetNntp(nastavitve(s.vrata), prava.zaupaj).use { k ->
@@ -474,6 +495,16 @@ fun main() {
         }
         UsenetNntp(nastavitve(1), prava.zaupaj).use { k ->
             preveriEnako("ni streznika -> OMREZJE", "OMREZJE", izid { k.body(ID) })
+        }
+        UsenetNntp(nastavitve(563, gostitelj = "nima-gostitelja.invalid"), prava.zaupaj).use { k ->
+            // UnknownHostException nosi ime gostitelja - kot vzrok ne sme v sporocilo (Grok 35 Y9).
+            preveriEnako("neznan gostitelj -> OMREZJE", "OMREZJE", izid { k.body(ID) })
+        }
+        LazniStreznik(prava.streznik).use { s ->
+            s.pozdrav = "200 " + "x".repeat(9000)
+            UsenetNntp(nastavitve(s.vrata), prava.zaupaj).use { k ->
+                preveriEnako("vrstica nad 4096 B v enem branju -> NAPAKA_PROTOKOLA", "NAPAKA_PROTOKOLA", izid { k.body(ID) })
+            }
         }
 
         // Zaklep racuna (pregled Grok 35 Y2; lastnik 26. 10. 2026 03:05: »Nevarnost zaklepa racuna je prioriteta«).
@@ -560,7 +591,8 @@ fun main() {
         }
 
         // Zasebnost: sporocila izjem in vzrokov brez gesla, imena in message-id.
-        val pusca = sporocila.filter { it.contains(GESLO) || it.contains(UPORABNIK) || it.contains("skrivni-clanek") || it.contains("lazni.invalid") }
+        val pusca = sporocila.filter { it.contains(GESLO) || it.contains(UPORABNIK) || it.contains("skrivni-clanek") || it.contains("lazni.invalid") ||
+            it.contains("localhost") || it.contains("127.0.0.1") || it.contains("nima-gostitelja") }   // Grok 35 Y9: ne gostitelja ne IP (tudi v vzrokih)
         preveriEnako("izjem zbranih", true, sporocila.size > 10)
         preveriEnako("sporocila izjem brez gesla, imena in id", listOf<String>(), pusca)
     } finally {
