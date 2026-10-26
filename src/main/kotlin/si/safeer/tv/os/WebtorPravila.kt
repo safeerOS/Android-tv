@@ -22,6 +22,9 @@ object WebtorPravila {
     /**
      * Pregled U4: naslov IP, kamor sonda toka ne sme (preusmeritev iz interneta v domace omrezje - CSRF ali slepi SSRF proti
      * usmerjevalniku): loopback, zasebni (RFC 1918, 100.64/10), link-local, nedoloceni, ULA fc00::/7 in IPv4 v IPv6.
+     * 26. 10. 2026 (kot SondaVeriga.zasebenCilj, b65fb95): NAT64 (64:ff9b::/96, 64:ff9b:1::/48) in 6to4 (2002::/16) po
+     * vgrajenem IPv4 - v omrezju NAT64 64:ff9b::c0a8:101 vodi na 192.168.1.1; sicer IPv6 samo globalni unicast 2000::/3
+     * brez dokumentacije (2001:db8::/32) in Teredo (2001::/32, skrit IPv4).
      */
     fun zasebenNaslov(b: ByteArray): Boolean {
         fun u(i: Int) = b[i].toInt() and 0xFF
@@ -33,7 +36,11 @@ object WebtorPravila {
         if (u(0) == 0xFE && (u(1) and 0xC0) == 0x80) return true                                         // fe80::/10
         if (u(0) == 0xFF) return true                                                                    // vecvrstno
         if (b.take(10).all { it.toInt() == 0 } && u(10) == 0xFF && u(11) == 0xFF) return zasebenNaslov(b.copyOfRange(12, 16))
-        return false
+        if (u(0) == 0 && u(1) == 0x64 && u(2) == 0xFF && u(3) == 0x9B && ((4..11).all { u(it) == 0 } || (u(4) == 0 && u(5) == 1)))
+            return zasebenNaslov(b.copyOfRange(12, 16))                                                  // NAT64
+        if (u(0) == 0x20 && u(1) == 0x02) return zasebenNaslov(b.copyOfRange(2, 6))                      // 6to4
+        if ((u(0) and 0xE0) != 0x20) return true                                                         // ni 2000::/3
+        return u(0) == 0x20 && u(1) == 0x01 && ((u(2) == 0x0D && u(3) == 0xB8) || (u(2) == 0 && u(3) == 0))
     }
 
     const val ID_MANIFESTA = "org.stremio.webtor.io"
