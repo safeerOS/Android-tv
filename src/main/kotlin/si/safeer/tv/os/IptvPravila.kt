@@ -261,9 +261,11 @@ object IptvPravila {
     /**
      * Ali naslov nosi racun pri ponudniku: uporabnik:geslo@, pot Xtream (/live|movie|series|timeshift/<u>/<g>/,
      * get.php, player_api.php ...), parameter racuna (username, password ...); pri naslovu [seznam] tudi zeton (token=,
-     * key= ...). Naslova, ki ga ne razumemo (ali ni http(s)), ne preverjamo: true.
+     * key= ...). Naslova, ki ga ne razumemo (ali ni http(s)), ne preverjamo: true. Nadomestek vira z racunom
+     * (»https://<gostitelj>/safeer-skrito-<odtis>«, [skrivnostVira]) je racun: true.
      */
     fun jeVirSPoverilnico(naslov: String, seznam: Boolean = true): Boolean {
+        if (SkrivnostiPravila.jeNadomestek(naslov)) return true
         val d = deli(naslov) ?: return true
         if (d.uporabnik) return true
         val poti = listOfNotNull(d.pot, odkodiraj(d.pot, plus = false) ?: return true).map { it.lowercase(java.util.Locale.ROOT) }
@@ -444,5 +446,134 @@ object IptvPravila {
         val osnova = tukaj ?: if (jeTv) prej else emptySet()
         val novi = if (prejeto) emptySet() else zdaj - prej
         return (osnova + novi) intersect zdaj
+    }
+
+    // ------------------------------------------------------------------ viri z racunom - sifrirano
+
+    /**
+     * Lastnik, 26. 10. 2026 (varovalo racunov): vir z racunom (Xtream get.php?username=&password=, /live/<u>/<g>/, u:g@,
+     * token=, key=, mac= - [jeVirSPoverilnico]) je geslo uporabnikovega placljivega racuna. Do zdaj je sel z navadnim
+     * usklajevanjem virov (lists.get) VSEM napravam v Linku in bil v nastavitvah nesifriran. Zdaj enako kot dodatki z
+     * zetonom ([SkrivnostiPravila], SkrivniDodatki):
+     *  - pravi naslov je shranjen sifriran (Android Keystore, SporocilaSkrivnosti); v nastavitvah virov je samo NADOMESTEK
+     *    »<shema>://<gostitelj>/safeer-skrito-<odtis>« - gostitelj in oznaka racuna, brez uporabnika, gesla, poti in poizvedbe;
+     *    pravi naslov se vstavi sele tik pred omreznim klicem (prenos seznama, predvajalnik);
+     *  - drugim napravam gre samo v ozji krog (secrets.sync, kljuc »iptv:<odtis>«, [prejetRacun]); navadno usklajevanje ga
+     *    ne poslje in ga ne sprejme ([smeZNavadnoUskladitvijo]);
+     *  - na zaslonu in v dnevniku je samo gostitelj ([zaPrikaz], [varnoIme]).
+     */
+    private val VRSTE_RACUNA = Regex("^(seznam|tok(-hls)?(-video)?)$")
+
+    /** Vrsta vira, ki lahko nosi racun IPTV: seznam (.m3u, Xtream) ali tok (kanal, dodan po naslovu). */
+    fun jeVrstaRacuna(tip: String): Boolean = VRSTE_RACUNA.matches(tip)
+
+    /**
+     * Pravi naslov vira z racunom - to je skrivnost (http(s), brez fragmenta); null = vrsta brez racuna, naslov brez
+     * poverilnice ali ze nadomestek. Nerazumljiv naslov http(s) velja kot racun (fail-closed, [jeVirSPoverilnico]).
+     */
+    fun skrivnostVira(tip: String, naslov: String): String? {
+        if (!jeVrstaRacuna(tip)) return null
+        val n = naslov.trim().substringBefore('#')
+        if (!n.startsWith("http://") && !n.startsWith("https://")) return null
+        if (SkrivnostiPravila.jeNadomestek(n) || !jeVirSPoverilnico(n, seznam = true)) return null
+        return n
+    }
+
+    /** Vir z racunom v kateri koli obliki (pravi naslov ali nadomestek). */
+    fun virZRacunom(tip: String, naslov: String): Boolean =
+        jeVrstaRacuna(tip) && (SkrivnostiPravila.jeNadomestek(naslov) || skrivnostVira(tip, naslov) != null)
+
+    /**
+     * Vir ali grob vira (vrsta, naslov) sme z navadnim usklajevanjem virov (lists.get: »sources«, »sources_deleted«) - v obe
+     * smeri, z vsako napravo v Linku. Ne smeta: vir z racunom IPTV ([virZRacunom]) in dodatek s poverilnico ali njegov
+     * nadomestek (gresta samo v ozji krog). Vrsta »url« (naslov z racunalnika, ki vrste ne pozna) velja kot seznam.
+     */
+    fun smeZNavadnoUskladitvijo(tip: String, naslov: String): Boolean {
+        if (tip == "stremio") return SkrivnostiPravila.smeMedVseNaprave(naslov)
+        return !virZRacunom(if (tip == "url") "seznam" else tip, naslov)
+    }
+
+    /** Odseki pravega naslova, ki so lahko del racuna: uporabnik, geslo, odseki poti (tudi brez koncnice), vrednosti poizvedbe. */
+    private fun deliRacuna(naslov: String): Set<String> {
+        val n = naslov.trim().substringBefore('#')
+        val i = n.indexOf("://")
+        if (i <= 0) return emptySet()
+        val ostalo = n.substring(i + 3)
+        val konec = ostalo.indexOfFirst { it == '/' || it == '?' }.let { if (it < 0) ostalo.length else it }
+        val oblast = ostalo.substring(0, konec)
+        val izid = HashSet<String>()
+        if ('@' in oblast) oblast.substringBeforeLast('@').split(':').forEach { izid += it }
+        val pot = ostalo.substring(konec).substringBefore('?')
+        for (o in pot.split('/')) { val d = odkodiraj(o, plus = false) ?: o; izid += d; izid += d.substringBeforeLast('.') }
+        for (par in ostalo.substring(konec).substringAfter('?', "").split('&', ';'))
+            par.substringAfter('=', "").let { izid += odkodiraj(it, plus = true) ?: it }
+        return izid.map { it.trim().lowercase(java.util.Locale.ROOT) }.filter { it.length >= 3 }.toSet()
+    }
+
+    /**
+     * Ime vira z racunom za nastavitve, zaslon in Link: samodejno ime (zadnji odsek poti, npr. pri ».../<uporabnik>/<geslo>«)
+     * je lahko geslo. Ce ime vsebuje kateri del racuna iz [skrivnost] ([deliRacuna]) ali je prazno, je ime gostitelj
+     * (stevilo kanalov » (N)« ostane); sicer ostane, najvec 200 znakov, brez kontrolnih znakov.
+     */
+    fun varnoIme(ime: String, skrivnost: String): String {
+        val cisto = ime.filter { it >= ' ' }.trim().take(200)
+        val m = cisto.lowercase(java.util.Locale.ROOT)
+        if (cisto.isNotEmpty() && deliRacuna(skrivnost).none { m.contains(it) }) return cisto
+        val stevilo = Regex(" \\(\\d{1,6}\\)$").find(cisto)?.value.orEmpty()
+        return gostitelj(skrivnost).ifEmpty { "IPTV" } + stevilo
+    }
+
+    /** Vir v navadnih nastavitvah (Moji viri): vrsta, ime, naslov. */
+    data class ZapisVira(val tip: String, val ime: String, val naslov: String)
+
+    /**
+     * Zapis vira za navadne nastavitve. Vir z racunom: [zavaruj] skrivnost (pravi naslov) shrani sifrirano in vrne nadomestek;
+     * zapis dobi nadomestek in [varnoIme]. Ce sifriranje ne uspe (null): ze shranjen vir ([zeShranjen], iz casa pred prehodom)
+     * ostane, kot je - ne izgubi se, a ne gre nikamor ([smeZNavadnoUskladitvijo]); nov se ne shrani (null).
+     */
+    fun zaShrambo(z: ZapisVira, zeShranjen: Boolean, zavaruj: (String) -> String?): ZapisVira? {
+        val s = skrivnostVira(z.tip, z.naslov) ?: return z
+        val n = zavaruj(s) ?: return if (zeShranjen) z else null
+        return ZapisVira(z.tip, varnoIme(z.ime, s), n)
+    }
+
+    /**
+     * Prehod iz razlicice pred 26. 10. 2026: viri z racunom v nastavitvah s pravim naslovom. Vrne zamenjave pravi naslov ->
+     * nadomestek (iz [zavaruj], ki skrivnost shrani sifrirano) - te veljajo za VSE nastavitve aplikacije
+     * ([SkrivnostiPravila.preseliVnose]: Moji viri, casi, »dodani tu«, pripeti, seznam kanalov, nedavno ...). Vir, ki ga ni
+     * bilo mogoce zavarovati, ni v zamenjavah (ostane).
+     */
+    fun zamenjaveRacunov(viri: List<ZapisVira>, zavaruj: (String) -> String?): Map<String, String> {
+        val izid = LinkedHashMap<String, String>()
+        for (v in viri) {
+            val s = skrivnostVira(v.tip, v.naslov) ?: continue
+            if (s in izid) continue
+            zavaruj(s)?.let { izid[s] = it }
+        }
+        return izid
+    }
+
+    /**
+     * Prehod: grobovi virov (kljuc »vrsta|naslov« -> cas) brez tistih s PRAVIM naslovom z racunom - izbrisan vir je imel
+     * geslo v kljucu, grob pa je sel z navadnim usklajevanjem vsem napravam. Grob z nadomestkom ostane (samo krajevno).
+     */
+    fun brezGrobovZRacunom(izbrisani: Map<String, Long>): Map<String, Long> = izbrisani.filterKeys { k ->
+        val tip = k.substringBefore('|').let { if (it == "url") "seznam" else it }
+        skrivnostVira(tip, k.substringAfter('|', "")) == null
+    }
+
+    /** Odtis vira z racunom (kljuc »iptv:<odtis>« v ozjem krogu) = odtis nadomestka ([SkrivnostiPravila.nadomestek]). */
+    fun odtisRacuna(skrivnost: String): String = SkrivnostiPravila.odtis(skrivnost.trim())
+
+    /**
+     * Vir z racunom z naprave v OZJEM KROGU (secrets.sync, kljuc »iptv:<odtis>«): veljaven samo, ce je vrsta racuna, naslov
+     * http(s) 12-2048 znakov brez presledkov in kontrolnih znakov, res nosi racun (ni nadomestek, brez fragmenta) in se
+     * njegov odtis ujema s kljucem. Ime dobi [varnoIme]. null = zavrni.
+     */
+    fun prejetRacun(odtis: String, tip: String, naslov: String, ime: String): ZapisVira? {
+        if (!jeVrstaRacuna(tip) || naslov.length !in 12..2048 || naslov.any { it <= ' ' }) return null
+        if (skrivnostVira(tip, naslov) != naslov || SkrivnostiPravila.nadomestek(naslov) == null) return null
+        if (odtisRacuna(naslov) != odtis) return null
+        return ZapisVira(tip, varnoIme(ime, naslov), naslov)
     }
 }

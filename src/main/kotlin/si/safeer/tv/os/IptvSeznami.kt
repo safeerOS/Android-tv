@@ -102,20 +102,25 @@ object IptvSeznami {
 
     /** Prenese in razcleni seznam tokovno v zacasno datoteko, nato jo zamenja (atomarno). Klic iz ozadja. */
     private fun prenesi(c: Context, naslov: String): Podatki? {
+        // Lastnik, 26. 10. 2026: seznam z racunom je v aplikaciji nadomestek - pravi naslov samo za zahtevo in relativne naslove.
+        // Skrivnosti ta naprava ne zna prebrati (Keystore): nobene zahteve (na nadomestek ali s starim geslom).
+        val pravi = SkrivniDodatki.dejanski(c, naslov)
+        if (SkrivnostiPravila.jeNadomestek(pravi)) return podatki(c, naslov)
         if (!prenasam.add(naslov)) return podatki(c, naslov)
         val od = android.os.SystemClock.uptimeMillis()
         try {
-            val (drzava, jezik) = IptvPravila.izNaslovaSeznama(naslov)
-            val p = (URL(naslov).openConnection() as HttpURLConnection).apply {
+            val (drzava, jezik) = IptvPravila.izNaslovaSeznama(pravi)
+            val p = (URL(pravi).openConnection() as HttpURLConnection).apply {
                 connectTimeout = 8_000; readTimeout = 15_000; setRequestProperty("User-Agent", "SafeerOS")
             }
             try {
                 val koda = p.responseCode
                 if (koda !in 200..299) { poNeuspehu(c, naslov, koda, 0); return podatki(c, naslov) }
-                // Naloga 87: z USB v uporabi gre seznam (do 20 MB) na USB - notranji pomnilnik TV ostane prost.
-                val m = (mapaUsb(c) ?: mapa(c)).apply { mkdirs() }
+                // Naloga 87: z USB v uporabi gre seznam (do 20 MB) na USB - notranji pomnilnik TV ostane prost. Seznam z racunom
+                // (tokovi nosijo uporabnika in geslo) nikoli na USB - ta je berljiv vsakomur, ki ga vtakne drugam (26. 10. 2026).
+                val m = ((if (IptvPravila.virZRacunom(MedijskiViri.SEZNAM, naslov)) null else mapaUsb(c)) ?: mapa(c)).apply { mkdirs() }
                 val zacasna = File(m, ime(naslov) + ".tmp")
-                val bralnik = IptvPravila.Bralnik(naslov, drzava, jezik)
+                val bralnik = IptvPravila.Bralnik(pravi, drzava, jezik)
                 val zvrsti = HashSet<String>(); val jeziki = HashSet<String>()
                 zacasna.bufferedWriter().use { w ->
                     p.inputStream.bufferedReader().use { r ->
@@ -199,6 +204,22 @@ object IptvSeznami {
     fun skladba(v: IptvPravila.Vnos, seznam: String) = Jamendo.Skladba(PREDPONA + v.url, KanaliPravila.imeKanala(v.ime), "", v.logo, v.url, v.url,
         video = true, mime = if (v.url.substringBefore('?').lowercase().endsWith(".m3u8")) MedijskiViri.MIME_HLS else "",
         streznik = seznam, genres = listOfNotNull(v.zvrst.takeIf { it.isNotEmpty() }), language = v.jezik)
+
+    /**
+     * Prehod vira z racunom na nadomestek (lastnik, 26. 10. 2026): datoteki kanalov in napaka prenosa iz imena po pravem
+     * naslovu [staro] v ime po nadomestku [novo] - brez novega prenosa (vsak je prijava v racun). Samo notranji pomnilnik;
+     * kopijo na USB (iz glavne niti je ne vidimo) pospravi [obdrzi], seznam se takrat prenese na notranji.
+     */
+    fun preseli(c: Context, staro: String, novo: String) {
+        val m = mapa(c)
+        for (pr in listOf(".tsv", ".info")) {
+            val f = File(m, ime(staro) + pr)
+            if (f.exists() && !f.renameTo(File(m, ime(novo) + pr))) f.delete()
+        }
+        podatki.remove(staro)?.let { podatki[novo] = it }
+        napaka(c, staro)?.let { zapisiNapako(c, novo, it) }
+        zapisiNapako(c, staro, null)
+    }
 
     /** Seznam je odstranjen: datoteki izgineta. */
     fun pozabi(c: Context, naslov: String) {
