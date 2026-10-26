@@ -9,11 +9,13 @@ SRC="$PROJECT_DIR/src/main/kotlin"
 TOOLS_DIR="${SAFEER_TOOLS_DIR:-$PROJECT_DIR/.tools}"   # orodja: SAFEER_TOOLS_DIR ali .tools (lahko povezava) v projektu
 KOTLINC="${KOTLINC:-$TOOLS_DIR/kotlinc/bin/kotlinc}"
 command -v "$KOTLINC" >/dev/null 2>&1 || KOTLINC="kotlinc"
+# Sonda toka (SondaVeriga) gre prek OkHttp: preverjeni naslovi IP brez DNS rebindinga (26. 10. 2026, J2).
+OKHTTP_LIBS="$PROJECT_DIR/libs/okhttp-4.12.0.jar:$PROJECT_DIR/libs/okio-jvm-3.6.0.jar"
 
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 
-"$KOTLINC" -J-Xmx1g \
+"$KOTLINC" -J-Xmx1g -cp "$OKHTTP_LIBS" \
     "$TEST_DIR/stubs/BitmapFactory.kt" \
     "$SRC/si/safeer/tv/os/OsPravila.kt" \
     "$SRC/si/safeer/tv/os/GalerijaPravila.kt" \
@@ -133,6 +135,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/SondaHlsPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/SondaVeriga.kt" \
     "$TEST_DIR/SondaVerigaTest.kt" \
+    "$TEST_DIR/IptvVarovaloTest.kt" \
+    "$TEST_DIR/IptvRacunTest.kt" \
     "$SRC/si/safeer/tv/os/PriljubljeniKanaliPravila.kt" \
     "$TEST_DIR/PriljubljeniKanaliPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/DovoljenjaPravila.kt" \
@@ -153,77 +157,83 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/SafeerLogTest.kt" \
     -include-runtime -d "$OUT/os.jar"
 
-java -cp "$OUT/os.jar" si.safeer.tv.os.OsPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.GalerijaPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.VarnaSlikaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.PredajaStraniTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.JezikiVsebineTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.ZapiskiShrambaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.SpletMostPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.TokIzbiraTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.ObvestilaTokovTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.SeznamiPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.ZacasniPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.DiagnostikaPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.ZasebniDodatkiTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.KnjiznicaKrogaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.RazpolozljivostPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.DomPreverjanjePravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.TempoDodatkaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.ObnovaPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.IzvirniJezikTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.JavnaLastPoizvedbaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.cast.ObvestiloZaslonaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.cast.PoDeljenjuTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.link.PretokKonecTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.link.DeljenjePravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.link.OmejenoNastavitvePravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.link.VnosVklopPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.HlsPopravekTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.KanaliPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.IptvPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.PredpomnilnikPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.BesedilaPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.ZaslonPovecavaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.ZaslonPogledTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.ZaslonKodekTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.OmrezjePravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.PotDoNapraveTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.ZvokPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.ProsnjaDostopaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.ZaganjalnikPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.VrsticaPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.SeznamZaslonovTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.link.OzjiKrogPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.AplikacijePredpomnilnikTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.SporocilaPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.OddaljenoPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.MiniPredvajalnikPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.TorBoxPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.DebridPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.UsenetPravilaTestKt "$SRC/si/safeer/tv/os/Usenet.kt" "$SRC/si/safeer/tv/os/Debrid.kt"
-java -cp "$OUT/os.jar" si.safeer.tv.os.SerijePravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.NapredekKljucTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.KakovostPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.PreizkusPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/debrid-serije.json"
-java -cp "$OUT/os.jar" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/webtor-rezerva.json"
-java -cp "$OUT/os.jar" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/kljuci-preverba.json"
-java -cp "$OUT/os.jar" si.safeer.tv.os.DodatkiProtokolTestKt "$PROJECT_DIR/docs/DODATKI-PROTOKOL.md"
-java -cp "$OUT/os.jar" si.safeer.tv.os.DatotekePravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.NedelujocePravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.SondaHlsPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.SondaVerigaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.PriljubljeniKanaliPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.DovoljenjaPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.ZasebnoTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.OsPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.GalerijaPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.VarnaSlikaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.PredajaStraniTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.JezikiVsebineTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZapiskiShrambaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.SpletMostPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.TokIzbiraTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ObvestilaTokovTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SeznamiPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZacasniPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.DiagnostikaPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZasebniDodatkiTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.KnjiznicaKrogaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.RazpolozljivostPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.DomPreverjanjePravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.TempoDodatkaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ObnovaPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.IzvirniJezikTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.JavnaLastPoizvedbaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.cast.ObvestiloZaslonaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.cast.PoDeljenjuTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.PretokKonecTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.DeljenjePravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.OmejenoNastavitvePravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.VnosVklopPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.HlsPopravekTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.KanaliPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.IptvPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PredpomnilnikPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.BesedilaPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZaslonPovecavaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZaslonPogledTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZaslonKodekTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.OmrezjePravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PotDoNapraveTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZvokPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ProsnjaDostopaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZaganjalnikPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.VrsticaPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SeznamZaslonovTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.OzjiKrogPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.AplikacijePredpomnilnikTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SporocilaPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.OddaljenoPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.MiniPredvajalnikPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.TorBoxPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.DebridPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.UsenetPravilaTestKt "$SRC/si/safeer/tv/os/Usenet.kt" "$SRC/si/safeer/tv/os/Debrid.kt"
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SerijePravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.NapredekKljucTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.KakovostPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PreizkusPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/debrid-serije.json"
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/webtor-rezerva.json"
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/kljuci-preverba.json"
+# Razclenitev seznamov M3U (iptv-m3u.json, lastnik Safeer-linux): [Not 24/7], .uk = GB, vejica v atributih.
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/iptv-m3u.json"
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/iptv-racun.json"
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.DodatkiProtokolTestKt "$PROJECT_DIR/docs/DODATKI-PROTOKOL.md"
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.DatotekePravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.NedelujocePravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SondaHlsPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SondaVerigaTestKt
+# Lastnik, 26. 10. 2026 (nevarnost zaklepa racuna): seznam Xtream s 5000 kanali in seznam z druge naprave - nobene povezave.
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.IptvVarovaloTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.IptvRacunTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PriljubljeniKanaliPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.DovoljenjaPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZasebnoTestKt
 # Webtor rezerva (25. 10. 2026): skrivni naslovi dodatkov, pravila Webtor, izjeme Scita.
-java -cp "$OUT/os.jar" si.safeer.tv.os.SkrivnostiPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.WebtorPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.scit.ScitIzjemeTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.UskladitevKljucevPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.NamestitevPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.cast.SafeerLogTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SkrivnostiPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.WebtorPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.scit.ScitIzjemeTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.UskladitevKljucevPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.NamestitevPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.cast.SafeerLogTestKt
 
 # Neposredna povezava TLS s pripetim potrdilom do naprave z vec naslovi (docs/LINK-MESH.md, pravilo 8):
 # prave vticnice na naslovih zanke, potrdila naredi keytool iz JDK.
@@ -265,3 +275,5 @@ python3 "$TEST_DIR/preveri_tv_ikone.py"
 python3 "$TEST_DIR/preveri_naslovno_vrstico.py"
 python3 "$TEST_DIR/preveri_dostop_v_ozadju.py"
 python3 "$TEST_DIR/preveri_preizkus_po_gradnji.py"
+# Grok 60: pot vira z racunom IPTV - pravi razredi aplikacije klicejo odlocitve, ki jih dokazujejo preizkusi pravil.
+python3 "$TEST_DIR/preveri_iptv_pot.py"

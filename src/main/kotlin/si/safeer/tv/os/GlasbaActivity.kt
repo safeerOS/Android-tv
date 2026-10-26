@@ -217,7 +217,7 @@ class GlasbaActivity : OsActivity() {
         setIntent(intent)
         intent.getStringExtra(ZAVIHEK)?.let { z ->
             intent.removeExtra(ZAVIHEK)
-            runCatching { StranskaVrstica.Zavihek.valueOf(z) }.getOrNull()?.let { izberi(razdelekZavihka(it)) }
+            runCatching { StranskaVrstica.Zavihek.valueOf(z) }.getOrNull()?.let { izberi(razdelekZavihka(it), izrecno = true) }
         }
         iskanjeIzNamena()
         predvajajIzNamena()
@@ -542,6 +542,9 @@ class GlasbaActivity : OsActivity() {
         UskladitevKljucev.poslusalci.add(obUskladitvi)
         pokaziCakajoceUskladitve()
         pokaziSpremembeUskladitve()
+        // Grok 46, Ö3: geslo seznama je bilo deljeno (lastnik) ali seznam z racunom z druge naprave (prejemnik) - enkrat.
+        MedijskiViri.poslusalciRacunov.add(obRacunih)
+        pokaziRacune()
         UskladitevKljucev.sprozi(this, 1_500)
         // Kanal, ki je odpovedal, medtem ko je bil na zaslonu predvajalnik, in postaja, ki odpove tukaj.
         MrtviKanali.poslusalci.add(obMrtvemKanalu)
@@ -591,6 +594,7 @@ class GlasbaActivity : OsActivity() {
     override fun onStop() {
         Debrid.poslusalciPrejetih.remove(obPrejetihKljucih)
         UskladitevKljucev.poslusalci.remove(obUskladitvi)
+        MedijskiViri.poslusalciRacunov.remove(obRacunih)
         // Pregled 2: cakanja na debrid/Usenet onStop ne prekine (ugasnjen zaslon, ohranjevalnik TV) - prekine ga odhod
         // uporabnika (onUserLeaveHint), nova izbira, Preklici ali onDestroy; izid med ustavitvijo pocaka na onStart.
         // Mesto dotika velja za vrnitev samo, ce je ta dotik zaslon zapustil (predvajalnik se odpre v nekaj sekundah);
@@ -603,7 +607,7 @@ class GlasbaActivity : OsActivity() {
         if (PregledKanalov.obSpremembi === obPregleduKanalov) PregledKanalov.obSpremembi = null
         if (UsbPredpomnilnik.obSpremembi === obPregleduKanalov) UsbPredpomnilnik.obSpremembi = null
         // Naloga 75: Safeer gre v ozadje - pregled kanalov dodatkov, ki je na vrsti (najvec enkrat na dan, ne med predvajanjem).
-        if (!isFinishing) PregledKanalov.obcasno(applicationContext, stremioNaslovi() + seznamiTv())
+        if (!isFinishing) PregledKanalov.obcasno(applicationContext, stremioNaslovi(), seznamiTv())
         vOspredju = false
         glavna.removeCallbacks(tik)
         super.onStop()
@@ -858,7 +862,7 @@ class GlasbaActivity : OsActivity() {
         if (Naprava.jeTelevizor(this@GlasbaActivity))
             desno.addView(pomoc(), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
         stranskaVrstica = StranskaVrstica.ovij(this, desno, StranskaVrstica.Razdelek.MEDIJI)
-        stranskaVrstica.naZavihek = { z -> izberi(razdelekZavihka(z)); true }
+        stranskaVrstica.naZavihek = { z -> izberi(razdelekZavihka(z), izrecno = true); true }
         imeloDovoljenje = stanjeDovoljenj()
         meniMediji = stranskaVrstica.aktivnaPostavka
         koren = stranskaVrstica
@@ -1919,7 +1923,7 @@ class GlasbaActivity : OsActivity() {
         izberi(i)
     }
 
-    private fun izberi(i: Int) {
+    private fun izberi(i: Int, izrecno: Boolean = false) {
         // Iskanje v zasebnem dodatku velja, dokler je odprto iskanje; iskane besede si ne zapomnimo.
         if (i != ISKANJE && zasebnoIskanje != null) { zasebnoIskanje = null; zadnjaBeseda = "" }
         if (i != izBlokaDomov?.first) izBlokaDomov = null
@@ -1947,7 +1951,7 @@ class GlasbaActivity : OsActivity() {
         // Video se odpre naravnost v mrezo plakatov (Filmi ali Serije, zadnja izbira) - brez polic vmes (lastnik, 2. 10. 2026).
         if (i == VIDEO && i !in samoTaNaprava) videoNacin().takeIf { it.isNotEmpty() }?.let { ++nalaganje; odpriBrskanje(it, videoZvrst, videoJezik); return }
         // TV v zivo se odpre naravnost v mrezo kanalov z izbiro zvrsti in jezika (lastnik, 5. 10. 2026).
-        if (i == TV_V_ZIVO) { ++nalaganje; odpriKanale(); return }
+        if (i == TV_V_ZIVO) { ++nalaganje; odpriKanale(izrecno = izrecno); return }
         // Radio in Glasba enako: izbire na vrhu, mreza pod njimi - brez polic, po katerih je treba z daljincem dolgo v
         // desno (lastnik, 5. 10. 2026). Enako v samostojnem Predvajalniku (lastnik, 7. 10. 2026: »to velja za vse predvajalnike
         // in vse media centre«); glasba iz shrambe naprave je tam izbira »Na tej napravi« v isti mrezi.
@@ -3160,6 +3164,8 @@ class GlasbaActivity : OsActivity() {
      * je tudi med [dovoljeni] (katalogi zvrsti istega dodatka, [KanaliPravila.izbrani]).
      */
     private class MrezaKanalov(val zvrst: String, val jezik: String) {
+        /** Grok 68, Ą2: mrezo je odprl uporabnik z izrecno izbiro zavihka TV v zivo (dotik, daljinec) - samo ta sme narediti prvo povezavo racuna. */
+        var uporabnik = false
         val glavni = ArrayList<VirKanalov>()
         var presek = false
         val dovoljeni = HashSet<String>()
@@ -3234,10 +3240,12 @@ class GlasbaActivity : OsActivity() {
      * in polica na drzavo: do novic, sporta ali kanalov v svojem jeziku uporabnik ni mogel. Vgrajeni uradni kanali
      * so na zaslonu takoj (brez omrezja), kanali iz dodatkov pridejo za njimi.
      */
-    private fun odpriKanale(zvrst: String = tvZvrst, jezik: String = tvJezik) {
+    private fun odpriKanale(zvrst: String = tvZvrst, jezik: String = tvJezik, izrecno: Boolean = false) {
         tvZvrst = zvrst; tvJezik = jezik
         mrezaKanalov?.preklici()
         val m = MrezaKanalov(zvrst, jezik)
+        // Grok 68, Ą2: obnova zaslona, samodejni ponovni poskusi in osvezitev po spremembi virov so [izrecno] = false.
+        m.uporabnik = izrecno
         mrezaKanalov = m
         // Nic cakanja: zadnja znana mreza te izbire je na zaslonu takoj; sveza jo zamenja le, ce je drugacna.
         KANALI_MREZE[m.kljuc]?.let { (d, k) -> m.domaci += d; m.kanali += k; m.videni += (d + k).map { it.id }; m.izvor = "pomnilnik" }
@@ -3382,8 +3390,9 @@ class GlasbaActivity : OsActivity() {
         val stran = odgovor.orEmpty()
         v.dal += stran.size
         if (odgovor == null || !OsPravila.katalogImaVec(stran.size, v.katalog.strani, STRAN_KATALOGA_MIN)) v.konec = true
-        // Ime brez tehnicnih pripon seznama (»(720p)«): isti kanal v dveh locljivostih je ena kartica.
-        return stran.map { it.copy(naslov = KanaliPravila.imeKanala(it.naslov)) }
+        // Ime brez tehnicnih pripon seznama (»(720p)«): isti kanal v dveh locljivostih je ena kartica. Lastnik, 25. 10.:
+        // kanalov [Not 24/7] ne rabimo - tudi iz dodatkov ne.
+        return stran.filterNot { KanaliPravila.jeNe247(it.naslov) }.map { it.copy(naslov = KanaliPravila.imeKanala(it.naslov)) }
     }
 
     /**
@@ -3557,7 +3566,7 @@ class GlasbaActivity : OsActivity() {
         val iptvPrva = if (seznamiTv.isEmpty()) null else kanaliDelavec.submit<Triple<List<IptvSeznami.Vir>, List<Jamendo.Skladba>, List<Jamendo.Skladba>>?> {
             val viri = seznamiTv.flatMap { n ->
                 if (m.preklicana) return@flatMap emptyList<IptvSeznami.Vir>()
-                IptvSeznami.pripravi(app, n)
+                IptvSeznami.pripravi(app, n, uporabnik = m.uporabnik)
                 listOf(IptvSeznami.Vir(n, true, m.zvrst, m.jezik), IptvSeznami.Vir(n, false, m.zvrst, m.jezik))
             }
             Triple(viri, viri.filter { it.domaci }.flatMap { IptvSeznami.naslednja(app, it, drzavaVmesnika, jezikVmesnika, OKNO_KANALOV) },
@@ -3896,8 +3905,9 @@ class GlasbaActivity : OsActivity() {
             // Kartica je ziva, ce deluje katera koli razlicica: preverimo prvo se neznano ([razlicicaZaPreverjanje]).
             val sk = razlicicaZaPreverjanje(m, id)
             val kk = sk?.let { OsPravila.kljucKanala(it.id) }
+            // Lastnik, 26. 10. 2026: kanal vira z racunom (Xtream, dodatek z zetonom) se ne preverja - viden je, odloci predvajanje.
             sk != null && id !in m.vedno && ((Stremio.jeEnota(sk) && Stremio.dajeLastneTokove(sk)) || IptvSeznami.jeKanal(sk)) && kk !in m.neznani &&
-                kk !in kanaliVPreverjanju
+                kk !in kanaliVPreverjanju && PregledKanalov.smeSonda(this, sk)
         }
         if (izbrani.isNotEmpty()) dnevnikMreze { "kanali: preverjam vidne ${izbrani.size} (vrste ${vrste.first}..${vrste.last}, v teku ${kanaliVPreverjanju.size}, proracun ${m.proracun})" }
         izbrani.forEach { id -> razlicicaZaPreverjanje(m, id).let { sk -> if (sk != null) preveriKanal(m, sk) } }
@@ -4076,7 +4086,7 @@ class GlasbaActivity : OsActivity() {
             // Naloga 78: izbrana zvrst ali jezik je izpraznila mrezo - kartica, ki filter odstrani (pred Dodaj vir).
             // Naloga 82: tudi med nalaganjem, ko je cas za nadomestek ([KanaliPravila.praznaMreza]).
             (if (prikaz.isEmpty() && (prazna != KanaliPravila.PraznaMreza.CAKAJ || !cakamDodatke && !m.nalagam) && (m.zvrst.isNotEmpty() || m.jezik.isNotEmpty())) listOf(Kartica(getString(R.string.os_media_pokazi_vse),
-                getString(R.string.os_media_pokazi_vse_opis), "", { odpriKanale("", "") }, ikona = R.drawable.os_ikona_mreza)) else emptyList()) +
+                getString(R.string.os_media_pokazi_vse_opis), "", { odpriKanale("", "", m.uporabnik) }, ikona = R.drawable.os_ikona_mreza)) else emptyList()) +
             // Naloga 82: nadomestek - kanali brez izbire (zadnja znana mreza »vse«), za kartico »Pokazi vse«.
             (if (kazemNadomestek) videi(nadomestni, razlicice = m.razlicice) else emptyList()) +
             (if (prikaz.isEmpty() && (prazna == KanaliPravila.PraznaMreza.PRAZNO || !cakamDodatke && !m.nalagam)) listOf(karticaDodajVir()) else emptyList())
@@ -4120,11 +4130,11 @@ class GlasbaActivity : OsActivity() {
         // njunih izbir zato ne kazemo; ob »Vsi kanali« sta spet tu, z izbiro, ki je bila.
         return (if (tvSamoPriljubljeni) emptyList() else listOf(
             PoljeIzbire("izb:zvrst", listOf(getString(R.string.os_zvrst_vse)) + zvrsti.map { it.second }, zvrsti.indexOfFirst { it.first == m.zvrst } + 1, null) { i ->
-                odpriKanale(if (i == 0) "" else zvrsti[i - 1].first, m.jezik)
+                odpriKanale(if (i == 0) "" else zvrsti[i - 1].first, m.jezik, m.uporabnik)
             },
             PoljeIzbire("izb:jezik", listOf(getString(R.string.os_jezik_vsi)) + jeziki.map { it.second }, jeziki.indexOfFirst { it.first == m.jezik } + 1,
                 getString(R.string.os_jezik_vsebine)) { i ->
-                odpriKanale(m.zvrst, if (i == 0) "" else jeziki[i - 1].first)
+                odpriKanale(m.zvrst, if (i == 0) "" else jeziki[i - 1].first, m.uporabnik)
             },
         )) + listOf(
             PoljeIzbire("izb:razvrsti", nacini.map { getString(it.second) }, nacini.indexOfFirst { it.first == razvrstitev(TV_V_ZIVO) }.coerceAtLeast(0),
@@ -4155,9 +4165,9 @@ class GlasbaActivity : OsActivity() {
             val zaklenjeni = tvZaklenjeni || stremioNaslovi().any { Stremio.zaklenjenZaMrezo(it) }
             if (!zaklenjeni && skritih == 0) emptyList() else {
                 val moznosti = ArrayList<Pair<String, () -> Unit>>()
-                moznosti += getString(R.string.os_tv_brez_zaklenjenih) to { tvZaklenjeni = false; odpriKanale(m.zvrst, m.jezik) }
-                moznosti += getString(R.string.os_tv_pokazi_zaklenjene) to { tvZaklenjeni = true; odpriKanale(m.zvrst, m.jezik) }
-                if (skritih > 0) moznosti += getString(R.string.os_tv_vrni_skrite, skritih) to { MrtviKanali.vrniSkrite(this); odpriKanale(m.zvrst, m.jezik) }
+                moznosti += getString(R.string.os_tv_brez_zaklenjenih) to { tvZaklenjeni = false; odpriKanale(m.zvrst, m.jezik, m.uporabnik) }
+                moznosti += getString(R.string.os_tv_pokazi_zaklenjene) to { tvZaklenjeni = true; odpriKanale(m.zvrst, m.jezik, m.uporabnik) }
+                if (skritih > 0) moznosti += getString(R.string.os_tv_vrni_skrite, skritih) to { MrtviKanali.vrniSkrite(this); odpriKanale(m.zvrst, m.jezik, m.uporabnik) }
                 listOf(PoljeIzbire("izb:zaklenjeni", moznosti.map { it.first }, if (tvZaklenjeni) 1 else 0, null) { i -> moznosti.getOrNull(i)?.second?.invoke() })
             }
         }
@@ -5333,7 +5343,7 @@ class GlasbaActivity : OsActivity() {
             Vir(MedijskiViri.kljucPripetega(v), when { v.jePeerTube -> R.drawable.os_ikona_video; v.jeSplet || v.jeDodatek -> R.drawable.os_ikona_splet
                     v.jeImenik -> R.drawable.os_ikona_radio; v.jeBesedila -> R.drawable.os_ikona_podnapisi; else -> R.drawable.os_ikona_glasba },
                 // Dodatek: ime iz manifesta (Cinemeta, Torrentio ...) in samo streznik - naslov ima lahko kljuc storitve.
-                0xFF7FB2FF.toInt(), if (v.jeStremio) Stremio.imeIzPredpomnilnika(v.naslov) ?: v.ime else v.ime, when {
+                0xFF7FB2FF.toInt(), if (v.jeStremio) Stremio.imeIzPredpomnilnika(v.naslov) ?: v.ime else v.ime, (when {
                     v.jePeerTube -> "PeerTube · ${v.naslov}"
                     // Naloga 57d: dodatek, ki zaporedoma ne odgovarja, ima oznako (izgine sama, ko spet odgovori).
                     v.jeStremio -> getString(R.string.os_mediji_dodatek_stremio) + " · " + (android.net.Uri.parse(Stremio.osnova(v.naslov)).host ?: "") +
@@ -5353,13 +5363,24 @@ class GlasbaActivity : OsActivity() {
                         (PregledKanalov.opis(this, v.naslov)?.let { " · $it" } ?: "")
                     v.tip == MedijskiViri.API -> "API · " + (try { java.net.URL(v.naslov.substringBefore('|').trim()).host } catch (_: Exception) { "" })
                     // Naloga 80: seznam IPTV pove, koliko kanalov ima, in napredek pregleda mrtvih.
-                    v.jeSeznam && (IptvSeznami.podatki(this, v.naslov)?.kanalov ?: 0) > 0 -> v.naslov.removePrefix("https://").removePrefix("http://") +
+                    // Grok 39, I5: ponudnik je seznam zavrnil ali prenos ni uspel - kaj je in kdaj poskusimo znova (brez gesla na zaslonu).
+                    v.jeSeznam && IptvSeznami.napaka(this, v.naslov) != null -> IptvPravila.zaPrikaz(v.naslov) + " · " +
+                        opisNapakeSeznama(IptvSeznami.napaka(this, v.naslov)!!)
+                    v.jeSeznam && (IptvSeznami.podatki(this, v.naslov)?.kanalov ?: 0) > 0 -> IptvPravila.zaPrikaz(v.naslov) +
                         " · " + resources.getQuantityString(R.plurals.os_iptv_kanalov, IptvSeznami.podatki(this, v.naslov)!!.kanalov, IptvSeznami.podatki(this, v.naslov)!!.kanalov) +
                         (PregledKanalov.opis(this, v.naslov)?.let { " · $it" } ?: "")
                     // Naloga 89: kje uporabnik besedila najde (predvajalnik), brez naslova streznika.
                     v.jeBesedila -> getString(R.string.os_besedila_vir_opis)
+                    // Seznam s poverilnico (Xtream): na zaslonu samo gostitelj - geslo ne.
+                    v.jeSeznam -> IptvPravila.zaPrikaz(v.naslov)
+                    // Tok z racunom (nadomestek ali pravi naslov, ki ga ni bilo mogoce sifrirati): samo gostitelj (26. 10. 2026).
+                    IptvPravila.virZRacunom(v.tip, v.naslov) -> IptvPravila.zaPrikaz(v.naslov)
                     else -> v.naslov.removePrefix("https://").removePrefix("http://")
-                }, {
+                }) +
+                    // Grok 60, Ů2: podedovan vir z racunom ali vir neznanega izvora se ne prenasa samodejno - uporabnik izve, kaj storiti
+                    // (zadrzan OK -> Dovoli samodejni prenos). Vir iz ozjega kroga (26. 10. 2026 12:10) je takoj uporaben, brez pripisa.
+                    (if (IptvPravila.virZRacunom(v.tip, v.naslov) && !MedijskiViri.uporabaDovoljena(this, v.naslov))
+                        " · " + getString(R.string.os_iptv_ni_dodan_tu) else ""), {
                     when {
                         v.jePeerTube -> { fokusVVsebino = true; izberi(VIDEO) }
                         // Naloga 69: imenik postaj odpre Radio (domace postaje, zvrsti, iskanje).
@@ -5590,9 +5611,35 @@ class GlasbaActivity : OsActivity() {
                 listOf(getString(R.string.os_dodatek_nastavitve) to { nastavitveDodatka(dodan.naslov) }) else emptyList()) +
             // Naloga 113: dodatek preverimo takoj (manifest, kot pri vnosu) - oznaka »ne odgovarja« izgine ali dobi svezo kodo.
             (if (dodan.jeStremio) listOf(getString(R.string.os_mediji_preveri_dodatek) to { preveriDodatekZdaj(dodan.naslov) }) else emptyList()) +
-            (if (dodan.jeStremio || (dodan.jeSeznam && (IptvSeznami.podatki(this, dodan.naslov)?.kanalov ?: 0) > 0)) listOf(getString(R.string.os_pregled_kanalov_zdaj) to {
-                val zacet = PregledKanalov.zacni(applicationContext, dodan.naslov, rocno = true)
+            // Lastnik, 26. 10. 2026: vira s poverilnico (Xtream, dodatek z zetonom) ne pregledamo nikoli - izbire ni.
+            (if ((dodan.jeStremio || (dodan.jeSeznam && (IptvSeznami.podatki(this, dodan.naslov)?.kanalov ?: 0) > 0)) &&
+                PregledKanalov.smeVir(this, dodan.naslov, dodan.jeSeznam)) listOf(getString(R.string.os_pregled_kanalov_zdaj) to {
+                val zacet = PregledKanalov.zacni(applicationContext, dodan.naslov, rocno = true, jeSeznam = dodan.jeSeznam)
                 Toast.makeText(this, if (zacet) R.string.os_pregled_kanalov_zacet else R.string.os_pregled_kanalov_po_predvajanju, Toast.LENGTH_SHORT).show()
+            }) else emptyList()) +
+            // Grok 60, Ů2 in Grok 64 Ź1: podedovan vir z racunom ali vir neznanega izvora: samodejni prenos ob uporabi sele po izrecnem
+            // dovoljenju uporabnika. Dovoljenje NE naredi vira za »dodanega tu« (deljenja v ozji krog ni) - za to ga uporabnik vpise sam.
+            (if (IptvPravila.virZRacunom(dodan.tip, dodan.naslov) && !MedijskiViri.uporabaDovoljena(this, dodan.naslov))
+                listOf(getString(R.string.os_iptv_potrdi_tu) to {
+                    val app = applicationContext
+                    try { delavec.execute { MedijskiViri.dovoliUporabo(app, dodan.naslov); glavna.post {
+                        Toast.makeText(this, R.string.os_iptv_potrjen_tu, Toast.LENGTH_LONG).show()
+                        if (!isFinishing && razdelek == VIRI) izberiNaMestu(VIRI) } } }
+                    catch (_: java.util.concurrent.RejectedExecutionException) { }
+                }) else emptyList()) +
+            // Grok 39, I5: po zavrnjenem prenosu (uporabnik je uredil racun pri ponudniku) en poskus takoj, ne sele po premoru.
+            // Grok 68, Ą2: seznam z racunom, ki ga na tej napravi se nihce ni uporabil (mreza TV v zivo ga brez uporabnika ne prenese), ima izrecen klik.
+            // Grok 60, Ů2: tudi seznam z racunom, ki ni dodan tu in se ne prenasa sam - izrecen klik je dovoljen (najvec 1-krat na minuto).
+            // Grok 68, Ą5 (Grok Ź4): premor I5 po napaki velja tudi za ta klik, zato med premorom vira z racunom gumba ni (vrstica vira
+            // pove, cez koliko casa je nov poskus mogoc).
+            (if (dodan.jeSeznam && IptvPravila.smeZnovaPoskusiti(dodan.naslov, IptvSeznami.napaka(this, dodan.naslov), System.currentTimeMillis()) &&
+                    (IptvSeznami.napaka(this, dodan.naslov) != null ||
+                    (IptvPravila.virZRacunom(dodan.tip, dodan.naslov) && (!MedijskiViri.uporabaDovoljena(this, dodan.naslov) ||
+                        IptvSeznami.podatki(this, dodan.naslov) == null))))
+                listOf(getString(R.string.os_iptv_poskusi_znova) to {
+                val app = applicationContext
+                try { delavec.execute { IptvSeznami.pripravi(app, dodan.naslov, rocno = true); glavna.post { if (!isFinishing && razdelek == VIRI) izberiNaMestu(VIRI) } } }
+                catch (_: java.util.concurrent.RejectedExecutionException) { }
             }) else emptyList()) +
             listOf(getString(R.string.os_media_izbrisi_vir) to { odstraniVir(dodan, v.ime) })
         pokaziBrisanje(AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
@@ -5600,6 +5647,14 @@ class GlasbaActivity : OsActivity() {
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
             .setNegativeButton(getString(R.string.os_preklici), null)
         )
+    }
+
+    /** Grok 39, I5: »Ponudnik je seznam zavrnil … Znova poskusim cez 1 uro.« (cas v jeziku naprave). */
+    private fun opisNapakeSeznama(n: IptvPravila.NapakaPrenosa): String {
+        val zdaj = System.currentTimeMillis()
+        val kdaj = android.text.format.DateUtils.getRelativeTimeSpanString(maxOf(n.naslednjiOb, zdaj + 60_000L), zdaj,
+            android.text.format.DateUtils.MINUTE_IN_MILLIS).toString()
+        return getString(if (n.zavrnjen) R.string.os_iptv_seznam_zavrnjen else R.string.os_iptv_seznam_ni_prenesen, kdaj)
     }
 
     private fun izmenicno(seznami: List<List<Jamendo.Skladba>>) =
@@ -7151,7 +7206,7 @@ class GlasbaActivity : OsActivity() {
         okno.dismiss()
         poSpremembiVirov(); izberi(VIRI)
         // Naloga 75: kanale novega dodatka preverimo v ozadju (dodatek brez kanalov TV pregled konca takoj).
-        PregledKanalov.zacni(applicationContext, v.naslov, rocno = false)
+        PregledKanalov.zacni(applicationContext, v.naslov, rocno = false, jeSeznam = false)
         // Naloga 79b: isti dodatek z novim naslovom (po narocnini) - stari naslov ponudimo v odstranitev.
         preveriDvojnikDodatka(v.naslov)
         poskusiOdkleniDodatke(null)
@@ -9570,6 +9625,39 @@ class GlasbaActivity : OsActivity() {
         // Privzeto Sprejmi: uporabnik je napravo sam dodal v ozji krog.
         okno.setOnShowListener { okno.getButton(AlertDialog.BUTTON_POSITIVE)?.requestFocus() }
         uskladitevOkno = okno
+        Kontroler.pokazi(okno); okno.show()
+    }
+
+    // ------------------------------------------------------------------ Grok 46, Ö3: ze razposlane kopije gesla IPTV
+
+    private var racunOkno: AlertDialog? = null
+    private val obRacunih: () -> Unit = { if (!isFinishing && !isDestroyed) pokaziRacune() }
+
+    /**
+     * Lastnik: starejsa razlicica je vir z racunom dala napravam zunaj ozjega kroga - enkrat priporocilo, naj geslo zamenja
+     * (edini zanesljiv popravek ze razposlanih kopij). Prejemnik: lastnik vira ga s to napravo ne deli vec - odstrani ali obdrzi
+     * (samodejno ne: ta naprava je lahko tudi izvor zapisa).
+     */
+    private fun pokaziRacune() {
+        if (racunOkno?.isShowing == true || uskladitevOkno?.isShowing == true || isFinishing) return
+        val gostitelji = MedijskiViri.opozoriloDeljenja(this)
+        val okno = if (gostitelji.isNotEmpty()) AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(R.string.os_iptv_deljeno_naslov)
+            .setMessage(getString(R.string.os_iptv_deljeno_sporocilo, gostitelji.joinToString(", ")))
+            .setPositiveButton(android.R.string.ok) { _, _ -> MedijskiViri.opozoriloVideno(this) }
+            .create()
+        else {
+            val p = MedijskiViri.preklic() ?: return
+            val naprava = DatotekeActivity.lepoIme(p.ime).ifBlank { p.ime.ifBlank { p.naprava } }
+            AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.os_iptv_preklic_naslov)
+                .setMessage(getString(R.string.os_iptv_preklic_sporocilo, MedijskiViri.opisPreklica(p), naprava))
+                .setPositiveButton(R.string.os_mediji_odstrani) { _, _ -> MedijskiViri.odlociPreklic(this, p, true); poSpremembiVirov(); izberiNaMestu(razdelek) }
+                .setNegativeButton(R.string.os_iptv_preklic_obdrzi) { _, _ -> MedijskiViri.odlociPreklic(this, p, false) }
+                .create()
+        }
+        okno.setOnDismissListener { if (racunOkno === okno) racunOkno = null }
+        racunOkno = okno
         Kontroler.pokazi(okno); okno.show()
     }
 

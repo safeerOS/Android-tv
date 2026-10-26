@@ -35,6 +35,13 @@ object PregledKanalov {
     }
 
     private const val PREFS = "safeer_pregled_kanalov"
+    /** Lastnik, 26. 10. 2026: odtisi dodatkov, ki so dali tok z racunom (Xtream ...) - njihovih kanalov v ozadju ne odpremo. */
+    private const val PREFS_VAROVALO = "safeer_pregled_kanalov_varovalo"
+    private const val K_DODATKI_S_POVERILNICO = "dodatki_s_poverilnico"
+    /** Stevci vrat preverb po gostitelju ([IptvPravila.VrataGostiteljev]) - dnevna meja velja tudi po ponovnem zagonu. */
+    private const val K_VRATA = "odprtja_gostiteljev"
+    /** Najdlje toliko preverba caka na prost gostitelj (druga preverba, premor); nato kanal ostane neznan. Krajse od 30 s. */
+    private const val CAKAJ_GOSTITELJA_MS = 10_000L
     private const val HKRATI = 2
     private const val NAJVEC_KANALOV = 3000
     private const val NAJVEC_STRANI = 40
@@ -68,14 +75,63 @@ object PregledKanalov {
     @Volatile private var obvescenOb = 0L
     /** Zaslon Mojih virov (kartica dodatka kaze napredek) - klic iz niti v ozadju. */
     @Volatile var obSpremembi: (() -> Unit)? = null
+    /** Odtisi dodatkov s tokovi z racunom ([PREFS_VAROVALO]); null = se ni prebrano. */
+    @Volatile private var sPoverilnico: Set<String>? = null
+
+    /**
+     * Lastnik, 26. 10. 2026 (»Nevarnost zaklepa racuna je prioriteta«): ali se kanali vira smejo pregledati - seznam samo
+     * javni brezplacni, dodatek samo brez poverilnice ([IptvPravila.zakajNePregleda]) in brez tokov z racunom.
+     */
+    fun smeVir(c: Context, naslov: String, jeSeznam: Boolean): Boolean = zakajNe(c, naslov, jeSeznam, rocno = true).isEmpty()
+
+    /**
+     * [IptvPravila.zakajNeVOzadju] (poverilnica, znani javni seznam, vir z druge naprave) in dodatek, ki je dal tok z racunom.
+     * V krogu naprav v ozadju preverja samo naprava, na kateri je bil vir dodan ([MedijskiViri.dodanTu]).
+     */
+    private fun zakajNe(c: Context, naslov: String, jeSeznam: Boolean, rocno: Boolean): String =
+        IptvPravila.zakajNeVOzadju(jeSeznam, naslov, rocno || MedijskiViri.dodanTu(c, naslov), rocno)
+            .ifEmpty { if (!jeSeznam && jeDodatekSPoverilnico(c, naslov)) "dodatek s tokovi z racunom" else "" }
+
+    /**
+     * Ali sme preverba odpreti tok kanala [sk] (pregled in mreza TV v zivo): kanal seznama samo iz javnega brezplacnega
+     * seznama in brez racuna v naslovu toka ([IptvPravila.preverbaDovoljena]); kanal dodatka samo iz pozitivno znanega javnega
+     * dodatka ([IptvPravila.javniDodatek], Grok 52 Ñ1 - prej je veljalo »ni prepoznan racun«, kar ob neznani obliki odpre).
+     * Ostali ostanejo vidni - o njih odloci pravo predvajanje.
+     */
+    fun smeSonda(c: Context, sk: Jamendo.Skladba): Boolean {
+        if (IptvSeznami.jeKanal(sk)) return IptvPravila.preverbaDovoljena(sk.streznik, sk.zvok)
+        val dodatek = Stremio.razstavi(sk)?.first ?: return false
+        return IptvPravila.javniDodatek(dodatek) && !jeDodatekSPoverilnico(c, dodatek)
+    }
+
+    private fun dodatkiSPoverilnico(c: Context): Set<String> = sPoverilnico ?: try {
+        c.applicationContext.getSharedPreferences(PREFS_VAROVALO, Context.MODE_PRIVATE).getStringSet(K_DODATKI_S_POVERILNICO, null).orEmpty().toSet()
+    } catch (_: Exception) { emptySet() }.also { sPoverilnico = it }
+
+    /** Odtis dodatka po osnovi ([Stremio.osnova]): id kanala nosi osnovo, vir v Mojih virih naslov manifesta. */
+    private fun odtisDodatka(dodatek: String) = SkrivnostiPravila.odtis(Stremio.osnova(dodatek))
+
+    private fun jeDodatekSPoverilnico(c: Context, dodatek: String) = odtisDodatka(dodatek) in dodatkiSPoverilnico(c)
+
+    /** Dodatek je dal tok z racunom: odslej njegovih kanalov v ozadju ne odpremo (zapis preklice samo odstranitev dodatka). */
+    @Synchronized private fun zapomniDodatekSPoverilnico(c: Context, dodatek: String) {
+        val novo = dodatkiSPoverilnico(c) + odtisDodatka(dodatek)
+        sPoverilnico = novo
+        try { c.applicationContext.getSharedPreferences(PREFS_VAROVALO, Context.MODE_PRIVATE).edit().putStringSet(K_DODATKI_S_POVERILNICO, novo).apply() } catch (_: Exception) { }
+        android.util.Log.i("SafeerOsMedia", "pregled kanalov: dodatek je dal tok z racunom - njegovih kanalov v ozadju ne odpiramo vec")
+    }
 
     /**
      * Pregled dodatka [naslov]. [rocno] (meni dodatka »Preveri kanale zdaj«): takoj in tudi kanale z znanim izidom; sicer
      * samo, ce je na vrsti ([OsPravila.pregledJeNaVrsti]). Vrne false, ce zdaj ne gre (predvajanje, pomnilnik).
      */
-    fun zacni(c: Context, naslov: String, rocno: Boolean): Boolean {
+    fun zacni(c: Context, naslov: String, rocno: Boolean, jeSeznam: Boolean): Boolean {
         val app = c.applicationContext
         nalozi(app); prijavi(app)
+        // Lastnik, 26. 10. 2026: vir s poverilnico (Xtream, uporabnik:geslo@, dodatek z zetonom) nikoli - tudi rocno ne.
+        // V krogu naprav v ozadju preverja samo naprava, na kateri je bil vir dodan: odhod v ozadje ali prejem vira z druge
+        // naprave na ostalih napravah ne odpre nobenega toka. Rocno »Preveri kanale zdaj« sme (vir brez poverilnice).
+        zakajNe(app, naslov, jeSeznam, rocno).let { if (it.isNotEmpty()) { android.util.Log.i("SafeerOsMedia", "pregled kanalov: preskocen ($it)"); return false } }
         if (GlasbaStoritev.igra()) return false
         val zdaj = System.currentTimeMillis()
         if (!rocno) {
@@ -95,8 +151,11 @@ object PregledKanalov {
         return true
     }
 
-    /** Safeer gre v ozadje: dodatki, katerih pregled je na vrsti, pridejo na vrsto (zacne cez [ZAMIK_OBCASNEGA_MS]). */
-    fun obcasno(c: Context, naslovi: List<String>) { for (n in naslovi) zacni(c, n, rocno = false) }
+    /** Safeer gre v ozadje: dodatki in seznami, katerih pregled je na vrsti, pridejo na vrsto (zacne cez [ZAMIK_OBCASNEGA_MS]). */
+    fun obcasno(c: Context, dodatki: List<String>, seznami: List<String>) {
+        for (n in dodatki) zacni(c, n, rocno = false, jeSeznam = false)
+        for (n in seznami) zacni(c, n, rocno = false, jeSeznam = true)
+    }
 
     /** Ustavi pregled (zacetek predvajanja, pomnilnik); cakajoci dodatki pridejo na vrsto ob naslednjem [obcasno]. */
     fun ustavi(zakaj: String) {
@@ -118,9 +177,14 @@ object PregledKanalov {
      */
     fun preveri(c: Context, sk: Jamendo.Skladba): Pair<Boolean?, Boolean> {
         val app = c.applicationContext
-        // Naloga 80: kanal seznama IPTV nima dodatka - vprasamo samo streznik toka.
+        // Lastnik, 26. 10. 2026: tok vira z racunom se v ozadju ne odpre nikoli ([smeSonda]); kanal ostane viden.
+        if (!smeSonda(app, sk)) return null to true
+        // Lastnik, 26. 10. 2026: med predvajanjem preverba stoji (racun z 1-2 povezavama, omrezje je za predvajanje).
+        if (GlasbaStoritev.igra()) return null to true
+        // Naloga 80: kanal seznama IPTV nima dodatka - vprasamo samo streznik toka (skozi vrata gostitelja).
         if (IptvSeznami.jeKanal(sk)) {
-            val (izidS, razlog) = SondaToka.preveriZRazlogom(sk.zvok, emptyMap(), SpletniVir.agent(app))
+            val (izidS, razlog) = skoziVrata(app, sk.zvok) { SondaToka.preveriZRazlogom(sk.zvok, emptyMap(), SpletniVir.agent(app)) }
+                ?: return null to true
             // Naloga 93 + 96: kanal seznama, ki ga sonda skrije, v dnevnik z razlogom (ime, shema; brez naslova - ima lahko geslo).
             fun mrtev(zakaj: String) = android.util.Log.i("SafeerOsMedia",
                 "sonda IPTV: mrtev \"${sk.naslov.take(40)}\", shema=${sk.zvok.substringBefore(':')}, razlog: $zakaj")
@@ -137,10 +201,14 @@ object PregledKanalov {
         var dodatekOdgovoril = false
         var negotovo = false
         var razlogSonde = ""
+        var tokZRacunom = false
         val izid = try {
             Stremio.imaLastenTok(sk) { t ->
                 dodatekOdgovoril = true
-                val (izidToka, opisSonde) = SondaToka.preveriZRazlogom(t.url, t.glave, agent)
+                // Lastnik, 26. 10. 2026: dodatek brez vidne poverilnice da tok z racunom (Xtream /live/<u>/<g>/ ...) - toka ne
+                // odpremo, dodatka v ozadju ne sprasujemo vec.
+                if (tokZRacunom || IptvPravila.jeVirSPoverilnico(t.url, seznam = false)) { tokZRacunom = true; return@imaLastenTok null }
+                val (izidToka, opisSonde) = skoziVrata(app, t.url) { SondaToka.preveriZRazlogom(t.url, t.glave, agent) } ?: return@imaLastenTok null
                 razlogSonde = opisSonde
                 when (izidToka) {
                     OsPravila.IzidSonde.ZIV -> true
@@ -150,6 +218,7 @@ object PregledKanalov {
                 }
             }
         } catch (_: Exception) { null }
+        if (tokZRacunom) { Stremio.razstavi(sk)?.first?.let { zapomniDodatekSPoverilnico(app, it) }; return null to true }
         if (izid != null) dodatekOdgovoril = true
         val koncni = when {
             izid == true -> { MrtviKanali.zapomniZivega(app, sk.id); true }
@@ -162,6 +231,45 @@ object PregledKanalov {
     }
 
     private const val ZAKAJ_POMNILNIK = "pomnilnik"
+
+    /** Lastnik, 26. 10. 2026: vrata preverb vseh poti te naprave (pregled v ozadju in mreza TV v zivo) - kot Linux J3. */
+    private val vrata = IptvPravila.VrataGostiteljev()
+    @Volatile private var vrataNalozena = false
+
+    /**
+     * Sonda toka [naslov] skozi vrata gostitelja ([IptvPravila.VrataGostiteljev]): ena hkrati, [IptvPravila.PREMOR_GOSTITELJA_MS]
+     * premora, [IptvPravila.NAJVEC_NA_GOSTITELJA_DAN] odprtij na dan; med predvajanjem nic. null = ta hip ne (predvajanje,
+     * dnevna meja, gostitelj dlje od [CAKAJ_GOSTITELJA_MS] zaseden, prekinjena nit) - kanal ostane neznan in viden.
+     */
+    private fun skoziVrata(app: Context, naslov: String, sonda: () -> Pair<OsPravila.IzidSonde, String>): Pair<OsPravila.IzidSonde, String>? {
+        naloziVrata(app)
+        val g = IptvPravila.gostitelj(naslov).ifEmpty { return null }
+        val odtis = SkrivnostiPravila.odtis(g).take(16)
+        val doKdaj = android.os.SystemClock.uptimeMillis() + CAKAJ_GOSTITELJA_MS
+        while (true) {
+            if (GlasbaStoritev.igra()) return null
+            val zdaj = android.os.SystemClock.uptimeMillis()
+            when (vrata.zasedi(odtis, System.currentTimeMillis(), zdaj)) {
+                IptvPravila.VrataGostiteljev.Izid.DA -> break
+                IptvPravila.VrataGostiteljev.Izid.MEJA -> return null
+                IptvPravila.VrataGostiteljev.Izid.CAKAJ -> {
+                    if (zdaj >= doKdaj) return null
+                    try { Thread.sleep(200) } catch (_: InterruptedException) { Thread.currentThread().interrupt(); return null }
+                }
+            }
+        }
+        try { app.getSharedPreferences(PREFS_VAROVALO, Context.MODE_PRIVATE).edit().putString(K_VRATA, vrata.vNiz()).apply() } catch (_: Exception) { }
+        try { return sonda() } finally { vrata.sprosti(odtis, android.os.SystemClock.uptimeMillis()) }
+    }
+
+    private fun naloziVrata(app: Context) {
+        if (vrataNalozena) return
+        synchronized(vrata) {
+            if (vrataNalozena) return
+            try { vrata.izNiza(app.getSharedPreferences(PREFS_VAROVALO, Context.MODE_PRIVATE).getString(K_VRATA, null), System.currentTimeMillis()) } catch (_: Exception) { }
+            vrataNalozena = true
+        }
+    }
 
     private fun voziVrsto(app: Context, zamik: Boolean) {
         try {
@@ -190,6 +298,8 @@ object PregledKanalov {
         if (ustavi.isNotEmpty()) return ustavi
         if (GlasbaStoritev.igra()) return "predvajanje"
         val vir = MedijskiViri.vsi(app).firstOrNull { (it.jeStremio || it.jeSeznam) && it.naslov == naslov } ?: return "dodatek odstranjen"
+        // Lastnik, 26. 10. 2026: varovalka tudi tu (vrsta vira iz shrambe, ne od klicatelja) - vir s poverilnico se ne pregleda.
+        zakajNe(app, naslov, vir.jeSeznam, rocno = true).let { if (it.isNotEmpty()) return it }
         val omrezje = app.getSystemService(android.net.ConnectivityManager::class.java)
         if (omrezje == null || omrezje.activeNetwork == null || omrezje.isActiveNetworkMetered) return "omrezje"
         // Naloga 80: seznam IPTV - brez dodatka; proracun je lasten ([SEZNAM_NA_POGLED] preverb na pregled).
@@ -203,6 +313,9 @@ object PregledKanalov {
     }
 
     private fun preglej(app: Context, naslov: String, rocno: Boolean) {
+        // Lastnik, 26. 10. 2026: vir s poverilnico - brez napredka, brez prenosa in brez enega samega odprtja toka.
+        val vir = MedijskiViri.vsi(app).firstOrNull { (it.jeStremio || it.jeSeznam) && it.naslov == naslov } ?: return
+        zakajNe(app, naslov, vir.jeSeznam, rocno).let { if (it.isNotEmpty()) { android.util.Log.i("SafeerOsMedia", "pregled kanalov: preskocen ($it)"); return } }
         val zdaj = System.currentTimeMillis()
         val prej = napredek[naslov]
         var n = Napredek(tece = true, poln = prej?.poln ?: 0L, poskus = zdaj)
@@ -298,6 +411,13 @@ object PregledKanalov {
     /** Naloga 86 (M5): odstranjen vir - napredek pregleda (pomnilnik in shramba) gre z njim. */
     fun pozabi(c: Context, naslov: String) {
         napredek.remove(naslov)
+        // Odstranjen dodatek s tokovi z racunom: ce ga uporabnik doda znova, se odloci na novo.
+        val odtis = odtisDodatka(naslov)
+        if (odtis in dodatkiSPoverilnico(c)) synchronized(this) {
+            val novo = dodatkiSPoverilnico(c) - odtis
+            sPoverilnico = novo
+            try { c.applicationContext.getSharedPreferences(PREFS_VAROVALO, Context.MODE_PRIVATE).edit().putStringSet(K_DODATKI_S_POVERILNICO, novo).apply() } catch (_: Exception) { }
+        }
         try { c.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(naslov).apply() } catch (_: Exception) { }
     }
 

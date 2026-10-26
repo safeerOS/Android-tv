@@ -348,6 +348,21 @@
     <string name="os_pregled_kanalov_zdaj">Comprobar canales ahora</string>
     <string name="os_pregled_kanalov_zacet">Comprobando los canales de este complemento en segundo plano.</string>
     <string name="os_pregled_kanalov_po_predvajanju">Los canales se comprobarán cuando termine la reproducción.</string>
+    <!-- Grok 39, I5: ponudnik je seznam IPTV zavrnil; %1$s = kdaj znova (npr. »cez 1 uro«). -->
+    <string name="os_iptv_seznam_zavrnjen">El proveedor rechazó la lista: revisa tu cuenta con el proveedor. Nuevo intento posible %1$s.</string>
+    <string name="os_iptv_seznam_ni_prenesen">No se pudo descargar la lista. Nuevo intento posible %1$s.</string>
+    <string name="os_iptv_poskusi_znova">Volver a descargar la lista</string>
+    <!-- Grok 60, Ů2: vir z racunom, ki ga ta naprava ni dodala sama, se ne prenasa samodejno, dokler uporabnik tega ne dovoli. -->
+    <string name="os_iptv_potrdi_tu">Permitir la descarga automática en este dispositivo</string>
+    <string name="os_iptv_ni_dodan_tu">sin descarga automática – mantén OK y permítela</string>
+    <string name="os_iptv_potrjen_tu">La lista se actualizará al abrirla en este dispositivo. No se envía a otros dispositivos: para compartirla, introduce tú mismo la fuente en este dispositivo.</string>
+    <!-- Grok 46, Ö3: geslo seznama IPTV je starejsa razlicica dala napravam zunaj ozjega kroga (lastnik: %1$s = gostitelji). -->
+    <string name="os_iptv_deljeno_naslov">La contraseña de la lista IPTV se ha compartido</string>
+    <string name="os_iptv_deljeno_sporocilo">Una versión anterior de Safeer también envió la lista con cuenta (%1$s) a dispositivos fuera del círculo de confianza cercano. Te recomendamos cambiar la contraseña con el proveedor y volver a añadir la lista con la nueva contraseña.</string>
+    <!-- Prejemnik: %1$s = gostitelji seznamov, %2$s = ime naprave. -->
+    <string name="os_iptv_preklic_naslov">Lista con cuenta de otro dispositivo</string>
+    <string name="os_iptv_preklic_sporocilo">%2$s ya no comparte la lista %1$s con dispositivos fuera de su círculo de confianza cercano; puede que llegara aquí mediante una versión anterior de Safeer. ¿Quitarla de este dispositivo? Si la añadiste tú en este dispositivo, elige Conservar.</string>
+    <string name="os_iptv_preklic_obdrzi">Conservar</string>
     <!-- Naloga 76: mreza TV v zivo caka na zasebne kategorije dodatkov. -->
     <string name="os_tv_preverjam_kategorije">Comprobando las categorías de los complementos…</string>
     <!-- Naloga 77: dodatek ima samo kataloge za iskanje (YouTubio). -->

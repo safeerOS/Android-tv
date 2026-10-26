@@ -14,8 +14,8 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Samodejno usklajevanje kljucev in dodatkov v ozjem krogu (lastnik, 25. 10. 2026; pravila: [UskladitevKljucevPravila],
- * protokol za namizje: outputs/nacrti/uskladitev-kljucev.md). Debrid kljuci, indeksator Usenet in dodatki s poverilnico,
- * vpisani enkrat, gredo sami na vse naprave v ozjem krogu (tudi spremembe in izbrisi) - po sifrirani poti od naprave do
+ * protokol za namizje: outputs/nacrti/uskladitev-kljucev.md). Debrid kljuci, indeksator Usenet, dodatki s poverilnico in
+ * (od 26. 10. 2026) viri z racunom IPTV, vpisani enkrat, gredo sami na vse naprave v ozjem krogu (tudi spremembe in izbrisi) - po sifrirani poti od naprave do
  * naprave (Link), na prejemni napravi sifrirani (Keystore). Naprava zunaj ozjega kroga nicesar ne dobi (preveri se ob
  * vsakem posiljanju in prejemu; odstranitev iz kroga v Nastavitvah takoj ustavi usklajevanje in pozabi potrditev).
  * Brisanja na daljavo ni. Vrednosti nikoli v dnevnik.
@@ -186,6 +186,21 @@ object UskladitevKljucev {
             val pravi = SkrivniDodatki.dejanski(vir.naslov)
             if (pravi != vir.naslov && SkrivnostiPravila.veljavenSkrivniDodatek(pravi)) v[k] = pravi else neznani += k
         }
+        // Lastnik, 26. 10. 2026: viri z racunom IPTV (seznam Xtream, tok z geslom) - v nastavitvah nadomestek, pravi naslov
+        // sifriran. Prej so sli z navadnim usklajevanjem virov vsem napravam v Linku. Neberljiva skrivnost = neznan (brez groba).
+        for (vir in MedijskiViri.vsi(c)) {
+            if (!IptvPravila.jeVrstaRacuna(vir.tip)) continue
+            val z = SkrivnostiPravila.nadomestnaOsnova(vir.naslov) ?: continue
+            val k = P.kljucIptv(z.substringAfterLast(SkrivnostiPravila.OZNAKA))
+            val pravi = SkrivniDodatki.dejanski(vir.naslov)
+            val berljiv = pravi != vir.naslov && IptvPravila.skrivnostVira(vir.tip, pravi) == pravi
+            // Grok 52, Ñ4: z vrednostjo samo vir, dodan na tej napravi - prejet ali podedovan je tuj (neznan: ne gre naprej, brez groba).
+            // Grok 60, Ů2: »dodan tu« samo z dokazom (tudi TV podedovanih virov izpred pravila ne vzame za svoje, dokler jih uporabnik ne potrdi).
+            when (P.oddajaIptv(berljiv, MedijskiViri.dodanTuZDokazom(c, vir.naslov))) {
+                UskladitevKljucevPravila.Oddaja.VREDNOST -> v[k] = JSONObject().put("url", pravi).put("tip", vir.tip).put("ime", vir.ime).toString()
+                else -> neznani += k
+            }
+        }
         return v to neznani
     }
 
@@ -218,6 +233,7 @@ object UskladitevKljucev {
         k == P.KLJUC_USENET -> try { JSONObject(v).let { UsenetPravila.prejetIndeksator(it.optString("url"), it.optString("key")) != null } } catch (_: Exception) { false }
         k.startsWith(P.PREDPONA_DODATKA) -> SkrivnostiPravila.veljavenSkrivniDodatek(v) &&
             SkrivnostiPravila.skrivnaPredponaDodatka(v)?.let { SkrivnostiPravila.odtis(it) } == k.removePrefix(P.PREDPONA_DODATKA)
+        k.startsWith(P.PREDPONA_IPTV) -> prejetRacun(k, v) != null
         else -> false
     }
 
@@ -239,6 +255,14 @@ object UskladitevKljucev {
         sprozi(c)
     }
 
+    /** Vir z racunom iz zapisa »iptv:<odtis>« (JSON url, tip, ime), preverjen z [IptvPravila.prejetRacun]; null = neveljaven. */
+    private fun prejetRacun(k: String, v: String): IptvPravila.ZapisVira? = try {
+        JSONObject(v).let { IptvPravila.prejetRacun(k.removePrefix(P.PREDPONA_IPTV), it.optString("tip"), it.optString("url"), it.optString("ime")) }
+    } catch (_: Exception) { null }
+
+    /** Gostitelj vira z racunom iz vrednosti zapisa (za okno potrditve in obvestilo - brez uporabnika in gesla). */
+    private fun gostiteljRacuna(v: String): String = try { IptvPravila.gostitelj(JSONObject(v).optString("url")) } catch (_: Exception) { "" }
+
     /** Prejet zapis, pripravljen za uporabo ([pripravi]): [shrani] ga shrani sifrirano ali izbrise - brez omrezja. */
     private class Pripravljen(val z: UskladitevKljucevPravila.Zapis, val shrani: () -> Boolean)
 
@@ -246,6 +270,7 @@ object UskladitevKljucev {
      * Pregled Grok 33, F2: prejeti kljuc debrid in indeksator se tu preverita pri storitvi s te naprave (lastnik 25. 10.
      * 2026: zavrnjen ne prepise veljavnega) - omrezje, do ~16 s na kljuc. Zato samo z delovne niti [delavec] in BREZ [zaklep]
      * (ta ga drzi tudi glavna nit). null = zapis se ne uporabi (zavrnjen ali ni odgovora - poskusi se ob naslednji uskladitvi).
+     * Vir z racunom IPTV in dodatek se tu ne preverjata pri storitvi (vsak klic je prijava v racun) - samo shranita.
      */
     private fun pripravi(c: Context, z: UskladitevKljucevPravila.Zapis): Pripravljen? = try {
         when {
@@ -255,26 +280,38 @@ object UskladitevKljucev {
                 else Debrid.preveriPrejetega(c, p, z.vrednost).second?.let { pr -> Pripravljen(z) { Debrid.shraniPrejetega(c, pr) } }
             }
             z.kljuc == P.KLJUC_USENET ->
+                // Lastnik 25. 10. 2026: prejeti indeksator se pred uporabo preveri s te naprave (zavrnjen ne prepise veljavnega).
                 if (z.izbrisan) Pripravljen(z) { Usenet.pozabi(c); true }
                 else JSONObject(z.vrednost).let { Usenet.preveriPrejetega(c, it.optString("url"), it.optString("key")) }.second
                     ?.let { pr -> Pripravljen(z) { Usenet.shraniPrejetega(c, pr) } }
-            z.kljuc.startsWith(P.PREDPONA_DODATKA) -> Pripravljen(z) { uporabiDodatek(c, z) }
+            // Lastnik, 26. 10. 2026: prejeti dodatek (s poverilnico) ne sprozi pregleda kanalov - prej ga je zacela vsaka
+            // naprava kroga hkrati z istim racunom.
+            z.kljuc.startsWith(P.PREDPONA_DODATKA) -> Pripravljen(z) { uporabiDodatek(c, z, prejeto = true) }
+            z.kljuc.startsWith(P.PREDPONA_IPTV) ->
+                if (z.izbrisan) Pripravljen(z) { MedijskiViri.odstraniRacun(c, z.kljuc.removePrefix(P.PREDPONA_IPTV)); true }
+                // Lastnik, 26. 10. 2026: prejet vir z racunom se samo shrani (sifrirano) - ne prenese in ne preverja (vsak prenos
+                // je prijava v racun); seznam se prenese, ko ga uporabnik na tej napravi odpre.
+                else prejetRacun(z.kljuc, z.vrednost)?.let { r -> Pripravljen(z) { MedijskiViri.dodajRacun(c, r.tip, r.naslov, r.ime, prejeto = true) != null } }
             else -> null
         }
     } catch (e: Exception) { Log.w(TAG, "pripravi: ${e.javaClass.simpleName}"); null }
 
-    /** Dodatek s poverilnico: shrani sifrirano ali izbrise (brez omrezja). */
-    private fun uporabiDodatek(c: Context, z: UskladitevKljucevPravila.Zapis): Boolean {
+    /**
+     * Dodatek s poverilnico: shrani sifrirano ali izbrise (brez omrezja). [prejeto]: z druge naprave v ozjem krogu - ni dodan
+     * tu in ne sprozi pregleda kanalov (sicer bi ga zacela vsaka naprava kroga hkrati z istim racunom).
+     */
+    private fun uporabiDodatek(c: Context, z: UskladitevKljucevPravila.Zapis, prejeto: Boolean = false): Boolean {
         val odtis = z.kljuc.removePrefix(P.PREDPONA_DODATKA)
         if (z.izbrisan) { MedijskiViri.odstraniSkrivniDodatek(c, odtis); return true }
-        return MedijskiViri.dodajDodatek(c, MedijskiViri.STREMIO, z.vrednost, "")?.also {
-            try { PregledKanalov.zacni(c.applicationContext, it.naslov, rocno = false) } catch (_: Throwable) { }
+        return MedijskiViri.dodajDodatek(c, MedijskiViri.STREMIO, z.vrednost, "", prejeto = prejeto)?.also {
+            if (!prejeto) try { PregledKanalov.zacni(c.applicationContext, it.naslov, rocno = false) } catch (_: Throwable) { }
         } != null
     }
 
     /**
      * Razveljavitev (pregled Grok 33, F2): prejsnja vrednost te naprave nazaj BREZ omrezja - kljuc in indeksator kot
      * nepreverjena (uskladitev ju takoj preveri in sele potrjena gresta spet drugim napravam); null = kljuca prej ni bilo.
+     * Vir z racunom IPTV se vrne brez dokaza »dodan tu« (prejeto) in brez prenosa seznama - geslo ne gre naprej.
      */
     private fun obnovi(c: Context, k: String, v: String?): Boolean = try {
         when {
@@ -286,13 +323,21 @@ object UskladitevKljucev {
                 if (v == null) { Usenet.pozabi(c); true }
                 else JSONObject(v).let { Usenet.obnovi(c, it.optString("url"), it.optString("key")) }
             k.startsWith(P.PREDPONA_DODATKA) -> uporabiDodatek(c, UskladitevKljucevPravila.Zapis(k, 0L, "", v == null, v.orEmpty()))
+            k.startsWith(P.PREDPONA_IPTV) ->
+                if (v == null) { MedijskiViri.odstraniRacun(c, k.removePrefix(P.PREDPONA_IPTV)); true }
+                else prejetRacun(k, v)?.let { r -> MedijskiViri.dodajRacun(c, r.tip, r.naslov, r.ime, prejeto = true) } != null
             else -> false
         }
     } catch (e: Exception) { Log.w(TAG, "obnovi: ${e.javaClass.simpleName}"); false }
 
     /** Za sporocilo: pri dodatkih tudi gostitelj (okno potrditve na drugi napravi ga pokaze tudi v povabilu brez vrednosti). */
     private fun zGostitelji(zapisi: List<UskladitevKljucevPravila.Zapis>): List<UskladitevKljucevPravila.Zapis> = zapisi.map {
-        if (it.kljuc.startsWith(P.PREDPONA_DODATKA) && !it.izbrisan) it.copy(gostitelj = Zasebno.gostitelj(it.vrednost)) else it
+        when {
+            it.izbrisan -> it
+            it.kljuc.startsWith(P.PREDPONA_DODATKA) -> it.copy(gostitelj = Zasebno.gostitelj(it.vrednost))
+            it.kljuc.startsWith(P.PREDPONA_IPTV) -> it.copy(gostitelj = gostiteljRacuna(it.vrednost))
+            else -> it
+        }
     }
 
     private fun vJson(zapisi: List<UskladitevKljucevPravila.Zapis>): JSONArray {
@@ -523,6 +568,7 @@ object UskladitevKljucev {
         kljuc.startsWith(P.PREDPONA_DEBRID) -> DebridPravila.ime(kljuc.removePrefix(P.PREDPONA_DEBRID))
         kljuc == P.KLJUC_USENET -> "Usenet"
         // Grok 15, N10: z vrednostjo velja gostitelj iz nje; trditev posiljatelja (g) samo brez vrednosti in samo kot ime.
+        kljuc.startsWith(P.PREDPONA_IPTV) -> "IPTV · " + P.prikazGostitelja(vrednost.orEmpty(), gostitelj, gostiteljRacuna(vrednost.orEmpty()))
         else -> Debrid.PREDPONA_DODATKA + P.prikazGostitelja(vrednost.orEmpty(), gostitelj, Zasebno.gostitelj(vrednost.orEmpty()))
     }
 

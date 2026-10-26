@@ -2,8 +2,8 @@ package si.safeer.tv.os
 
 /**
  * Samodejno usklajevanje kljucev in dodatkov v ozjem krogu (lastnik, 25. 10. 2026: »vneses enkrat, npr. na telefonu«):
- * debrid kljuci (TorBox, Real-Debrid, AllDebrid), indeksator Usenet (naslov + kljuc) in dodatki s poverilnico (pravi
- * naslov, ki je v aplikaciji nadomestek) gredo sami na vsako napravo v OZJEM KROGU te naprave, ki zna dejanje [DEJANJE]
+ * debrid kljuci (TorBox, Real-Debrid, AllDebrid), indeksator Usenet (naslov + kljuc), dodatki s poverilnico (pravi
+ * naslov, ki je v aplikaciji nadomestek) in od 26. 10. 2026 viri z racunom IPTV ([PREDPONA_IPTV]) gredo sami na vsako napravo v OZJEM KROGU te naprave, ki zna dejanje [DEJANJE]
  * (zmoznost [ZMOZNOST]) - po sifrirani poti od naprave do naprave (Link, isto kot »Poslji kljuce«). Na prejemni napravi se
  * shranijo sifrirani (Android Keystore; namizje: sistemska zbirka skrivnosti). Protokol za namizje:
  * outputs/nacrti/uskladitev-kljucev.md.
@@ -40,9 +40,16 @@ object UskladitevKljucevPravila {
     const val PREDPONA_DEBRID = "debrid:"
     const val KLJUC_USENET = "usenet"
     const val PREDPONA_DODATKA = "dodatek:"
+    /**
+     * Lastnik, 26. 10. 2026: vir z racunom IPTV (seznam Xtream, tok z geslom - [IptvPravila.skrivnostVira]); vrednost je JSON
+     * `{"url": pravi naslov, "tip": vrsta vira, "ime": ime}`, odtis = [IptvPravila.odtisRacuna] (enak odtisu nadomestka).
+     * Naprava, ki kljuca ne pozna (starejsa razlicica, namizje), ga prezre ([veljavenKljuc]).
+     */
+    const val PREDPONA_IPTV = "iptv:"
 
     fun kljucDebrid(ponudnik: String) = PREDPONA_DEBRID + ponudnik
     fun kljucDodatka(odtis: String) = PREDPONA_DODATKA + odtis
+    fun kljucIptv(odtis: String) = PREDPONA_IPTV + odtis
 
     private val RX_ODTIS = Regex("^[0-9a-f]{16}$")
 
@@ -50,6 +57,7 @@ object UskladitevKljucevPravila {
         k.startsWith(PREDPONA_DEBRID) -> k.removePrefix(PREDPONA_DEBRID) in ponudniki
         k == KLJUC_USENET -> true
         k.startsWith(PREDPONA_DODATKA) -> RX_ODTIS.matches(k.removePrefix(PREDPONA_DODATKA))
+        k.startsWith(PREDPONA_IPTV) -> RX_ODTIS.matches(k.removePrefix(PREDPONA_IPTV))
         else -> false
     }
 
@@ -125,6 +133,15 @@ object UskladitevKljucevPravila {
      */
     fun poOdstranitvi(meta: Map<String, Meta>, kljuc: String, vKrog: Boolean): Map<String, Meta> =
         if (vKrog || meta[kljuc]?.izbrisan != false) meta else meta - kljuc
+
+    /**
+     * Grok 52, Ñ4 (ustreza Linuxovemu Ê4): vir z racunom IPTV gre z vrednostjo v ozji krog te naprave samo, ce je bil dodan na TEJ
+     * napravi ([dodanTu] = MedijskiViri.dodanTuZDokazom: zapis ob dodajanju tu ali potrditev uporabnika). Prejet (lists.get od
+     * naprave v krogu ali secrets.sync) in podedovan od starejse razlicice je tuj, tudi na TV (Grok 60, Ů2: izjeme za vire izpred
+     * pravila ni): neznan - ne gre naprej in ne ustvari groba. Ozji krog je na napravo (uporabnik ga ureja na vsaki posebej):
+     * brez tega bi geslo preslo A -> B -> C, ki ni v krogu A.
+     */
+    fun oddajaIptv(berljiv: Boolean, dodanTu: Boolean): Oddaja = if (berljiv && dodanTu) Oddaja.VREDNOST else Oddaja.NEZNAN
 
     /**
      * Prejeti zapisi -> tisti, ki jih je treba uporabiti tu (novejsi od lokalnih), z veljavnim kljucem in vrednostjo

@@ -294,6 +294,18 @@ fun main() {
     preveriEnako("fe80::1 link-local", true, W.zasebenNaslov(ip(0xfe, 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1)))
     preveriEnako("::ffff:192.168.0.1 zaseben", true, W.zasebenNaslov(ip(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 192, 168, 0, 1)))
     preveriEnako("2606:4700::1111 javen", false, W.zasebenNaslov(ip(0x26, 0x06, 0x47, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x11, 0x11)))
+    // 26. 10. 2026 (kot SondaVeriga b65fb95): NAT64 in 6to4 po vgrajenem IPv4, samo globalni unicast.
+    preveriEnako("NAT64 64:ff9b::c0a8:101 (192.168.1.1) zaseben", true, W.zasebenNaslov(ip(0, 0x64, 0xff, 0x9b, 0, 0, 0, 0, 0, 0, 0, 0, 192, 168, 1, 1)))
+    preveriEnako("NAT64 64:ff9b::7f00:1 (127.0.0.1) zaseben", true, W.zasebenNaslov(ip(0, 0x64, 0xff, 0x9b, 0, 0, 0, 0, 0, 0, 0, 0, 127, 0, 0, 1)))
+    preveriEnako("NAT64 64:ff9b::101:101 (1.1.1.1) javen", false, W.zasebenNaslov(ip(0, 0x64, 0xff, 0x9b, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1)))
+    preveriEnako("NAT64 64:ff9b:1::a00:1 (10.0.0.1) zaseben", true, W.zasebenNaslov(ip(0, 0x64, 0xff, 0x9b, 0, 1, 0, 0, 0, 0, 0, 0, 10, 0, 0, 1)))
+    preveriEnako("6to4 2002:c0a8:101:: (192.168.1.1) zaseben", true, W.zasebenNaslov(ip(0x20, 0x02, 192, 168, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1)))
+    preveriEnako("6to4 2002:101:101:: (1.1.1.1) javen", false, W.zasebenNaslov(ip(0x20, 0x02, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1)))
+    preveriEnako("Teredo 2001::/32 zaseben", true, W.zasebenNaslov(ip(0x20, 0x01, 0, 0, 0x41, 0x37, 0x9e, 0x50, 0, 0, 0xf2, 0x27, 0x3f, 0x57, 0xfe, 0xfe)))
+    preveriEnako("dokumentacija 2001:db8::1 zaseben", true, W.zasebenNaslov(ip(0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1)))
+    preveriEnako("::a00:1 (IPv4 v IPv6, star zapis) zaseben", true, W.zasebenNaslov(ip(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 1)))
+    preveriEnako("fec0::1 (site-local) zaseben", true, W.zasebenNaslov(ip(0xfe, 0xc0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1)))
+    preveriEnako("2a00:1450::1 javen", false, W.zasebenNaslov(ip(0x2a, 0x00, 0x14, 0x50, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1)))
 
     // Pregled 26, T1: pot predvajalnika - tok na webtor.io gre samo prek sonde (WEBTOR) ali se ne odpre (ZAVRNI), nikoli po
     // stari poti, kjer bi predvajalnik sledil preusmeritvam sam.

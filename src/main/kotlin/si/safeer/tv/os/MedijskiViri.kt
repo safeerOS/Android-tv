@@ -67,7 +67,7 @@ object MedijskiViri {
      * zeton Webtorja, debrid kljuc v nastavitvah) se shrani kot nadomestek brez skrivnosti, skrivnost sifrirana
      * ([SkrivniDodatki]); null = sifriranje ni uspelo - pravega naslova ne shranimo.
      */
-    fun dodajDodatek(ctx: Context, tip: String, naslovVnosa: String, ime: String): Vir? {
+    fun dodajDodatek(ctx: Context, tip: String, naslovVnosa: String, ime: String, prejeto: Boolean = false): Vir? {
         // Pregled U5 + Grok 15, N18: dodatek s poverilnico samo po https - vpisan http naslov poskusimo kot https (zeton ne
         // potuje necifriran); null pomeni samo, da sifriranje ni uspelo.
         val skrivni = tip == STREMIO && SkrivnostiPravila.skrivnaPredponaDodatka(naslovVnosa) != null
@@ -76,7 +76,8 @@ object MedijskiViri {
         if (obstojeci != null) return obstojeci
         val v = Vir(tip, ime.ifBlank { android.net.Uri.parse(naslov).host ?: naslov }, naslov)
         // Samo rocno dodani: viri iz spletnih aplikacij te naprave nastanejo sproti (vsi) in se ne shranjujejo.
-        shrani(ctx, rocni(ctx) + v)
+        // [prejeto]: dodatek z druge naprave v ozjem krogu (UskladitevKljucev) - ni dodan tu ([dodanTu]).
+        shrani(ctx, rocni(ctx) + v, prejeto = prejeto)
         // Dodatek s poverilnico gre sam na naprave v ozjem krogu (UskladitevKljucev).
         if (SkrivnostiPravila.jeNadomestek(naslov)) UskladitevKljucev.sprozi(ctx)
         return v
@@ -207,6 +208,10 @@ object MedijskiViri {
     fun obstojeciVir(ctx: Context, naslov: String): Vir? {
         val cisto = naslov.trim().substringBefore('|').trim().let {
             if (it.startsWith("http://") || it.startsWith("https://")) it else "https://$it"
+        }
+        // Lastnik, 26. 10. 2026: vir z racunom je v nastavitvah nadomestek - isti racun prepoznamo brez prenosa (prijave).
+        IptvPravila.skrivnostVira(SEZNAM, cisto)?.let { SkrivnostiPravila.nadomestek(it) }?.let { n ->
+            vsi(ctx).firstOrNull { IptvPravila.jeVrstaRacuna(it.tip) && it.naslov == n }?.let { return it }
         }
         return vsi(ctx).firstOrNull { v ->
             if (v.jeSplet) istaSpletnaStran(v.naslov, cisto)
@@ -566,6 +571,8 @@ object MedijskiViri {
     private val IZVZETE_NASTAVITVE = setOf("safeer_sporocila_skrivnosti", "safeer_skrivni_dodatki")
 
     /**
+     * Od 26. 10. 2026 enako za vire z racunom IPTV ([IptvPravila.zamenjaveRacunov]; datoteke kanalov [IptvSeznami.preseli]).
+     *
      * Webtor rezerva - prehod z razlicice pred 25. 10. 2026 (pregled S1/N2): dodatki s poverilnico so bili shranjeni s pravim
      * naslovom (in usklajeni kot navaden vir). Skrivnost gre v sifrirano shrambo, pravi del naslova se v VSEH datotekah
      * nastavitev aplikacije (kljuci in vrednosti: Moji viri, zgodovina, priljubljene, seznami, napredek, zasebni dodatki,
@@ -591,17 +598,68 @@ object MedijskiViri {
         val p = a.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)
         val viri = try { JSONArray(p.getString(KLJUC, "[]")) } catch (_: Exception) { return }
         val zamenjave = LinkedHashMap<String, String>()
+        val drugi = ArrayList<IptvPravila.ZapisVira>()
         for (i in 0 until viri.length()) {
             val o = viri.optJSONObject(i) ?: continue
-            if (o.optString("tip") != STREMIO) continue
+            if (o.optString("tip") != STREMIO) { drugi += IptvPravila.ZapisVira(o.optString("tip"), o.optString("ime"), o.optString("naslov")); continue }
             val n = o.optString("naslov")
             val predpona = SkrivnostiPravila.skrivnaPredponaDodatka(n) ?: continue
             if (SkrivniDodatki.zavaruj(a, n) == null) continue
             zamenjave[predpona] = SkrivnostiPravila.nadomestek(predpona) ?: continue
         }
-        if (zamenjave.isEmpty()) return
+        // Lastnik, 26. 10. 2026: viri z racunom IPTV so bili v nastavitvah s pravim naslovom (in z usklajevanjem virov pri vseh
+        // napravah v Linku). Skrivnost gre v sifrirano shrambo, pravi naslov se v vseh nastavitvah zamenja z nadomestkom.
+        val racuni = IptvPravila.zamenjaveRacunov(drugi) { SkrivniDodatki.zavarujCel(a, it) }
+        // Grok 46, Ö3 + Grok 52, Ñ3: kaj je bilo tu ze pred prehodom (starejsa razlicica je to dala vsem napravam v Linku) - za
+        // preklic na napravah zunaj ozjega kroga in za enkratno opozorilo lastniku. VSI viri z racunom, tudi nesifrirani (sifriranje
+        // ni uspelo) in neznane oblike (brez hevristike jeVirSPoverilnico). Samo odtisi.
+        val predOdtisi = IptvPravila.racuniPredPrehodom(drugi)
+        if (predOdtisi.isNotEmpty()) {
+            val pred = (p.getStringSet(VIRI_PRED_PREHODOM, null) ?: emptySet()) + predOdtisi
+            p.edit().putStringSet(VIRI_PRED_PREHODOM, HashSet(pred)).commit()
+            obvestiRacune()
+        }
+        // Grobovi izbrisanih virov z geslom v kljucu (sli so z usklajevanjem virov vsem napravam) izginejo.
+        val izbrisani = beriCase(a, VIRI_IZBRISANI)
+        // Grok 60, Ů3: pred brisanjem groba (v kljucu je geslo) si zapomnimo samo odtis in gostitelja izbrisanega vira - kopije so pri
+        // drugih napravah se vedno, zato lastnik opozorilo za menjavo gesla dobi tudi zanje. Zapis je trajen, preden grob izgine.
+        val izbrisaniRacuni = IptvPravila.izbrisaniRacuniPredPrehodom(izbrisani)
+        if (izbrisaniRacuni.isNotEmpty()) {
+            val pred = (p.getStringSet(VIRI_IZBRISANI_PRED, null) ?: emptySet()) + izbrisaniRacuni
+            p.edit().putStringSet(VIRI_IZBRISANI_PRED, HashSet(pred)).commit()
+            obvestiRacune()
+        }
+        val brez = IptvPravila.brezGrobovZRacunom(izbrisani)
+        if (brez.size != izbrisani.size) {
+            p.edit().putString(VIRI_IZBRISANI, JSONObject(brez as Map<*, *>).toString()).commit()
+            android.util.Log.i("SafeerOsMedia", "viri z racunom: grobov s pravim naslovom odstranjenih ${izbrisani.size - brez.size}")
+        }
+        if (zamenjave.isEmpty() && racuni.isEmpty()) return
+        // Datoteke kanalov in premor prenosa gredo pod nadomestek - brez novega prenosa (vsak prenos je prijava v racun).
+        for ((s, n) in racuni) try { IptvSeznami.preseli(a, s, n) } catch (e: Exception) { android.util.Log.w("SafeerOsMedia", "viri z racunom, datoteke: ${e.javaClass.simpleName}") }
+        // Moji viri: vir z racunom dobi nadomestek in varno ime (IptvPravila.preseliZapise); ostale nastavitve spodaj.
+        if (racuni.isNotEmpty()) preseliMojeVire(a, viri, racuni)
+        zamenjave.putAll(racuni)
         val n = zamenjajVNastavitvah(a, zamenjave)
-        android.util.Log.i("SafeerOsMedia", "skrivni dodatki: ${zamenjave.size} preseljenih na nadomestek (datotek nastavitev $n)")
+        android.util.Log.i("SafeerOsMedia", "skrivni dodatki in viri z racunom: ${zamenjave.size} preseljenih na nadomestek " +
+            "(viri z racunom ${racuni.size}, datotek nastavitev $n)")
+    }
+
+    /**
+     * Prehod: Moji viri ([viri] = prebran zapis) - vir z racunom dobi nadomestek in varno ime ([IptvPravila.preseliZapise];
+     * samodejno ime je bil lahko zadnji odsek poti = geslo). Dodatki ostanejo za [zamenjajVNastavitvah].
+     */
+    private fun preseliMojeVire(a: Context, viri: JSONArray, racuni: Map<String, String>) {
+        var spremenjeno = false
+        for (i in 0 until viri.length()) {
+            val o = viri.optJSONObject(i) ?: continue
+            val z = IptvPravila.ZapisVira(o.optString("tip"), o.optString("ime"), o.optString("naslov"))
+            val nov = IptvPravila.preseliZapise(listOf(z), racuni).first()
+            if (nov == z) continue
+            o.put("ime", nov.ime).put("naslov", nov.naslov)
+            spremenjeno = true
+        }
+        if (spremenjeno) a.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().putString(KLJUC, viri.toString()).commit()
     }
 
     /** Vse datoteke nastavitev (razen [IZVZETE_NASTAVITVE]) in predpomnilnik dodatkov: pravi del -> nadomestek. */
@@ -712,7 +770,11 @@ object MedijskiViri {
         }
         val cisto = vnos.trim().let { if (it.startsWith("http://") || it.startsWith("https://")) it else "https://$it" }
         if (PeerTube.jeBlokiran(cisto.substringBefore('|').trim())) return null
-        obstojeciVir(ctx, vnos)?.let { return it }
+        obstojeciVir(ctx, vnos)?.let { obstojeci ->
+            // Grok 60, Ů2: uporabnik je na TEJ napravi sam vpisal vir z racunom, ki ga naprava ze ima (podedovan ali prejet) - to je dokaz.
+            if (IptvPravila.virZRacunom(obstojeci.tip, obstojeci.naslov)) potrdiDodanTu(ctx, obstojeci.naslov)
+            return obstojeci
+        }
         prekliciOdstranjen(ctx, cisto)
         if (vnos.contains("{q}") || vnos.contains("{searchTerms}")) {
             val g = try { URL(vnos.substringBefore('|').trim()).host } catch (_: Exception) { return null }
@@ -725,7 +787,8 @@ object MedijskiViri {
         val jePot = try { URL(cisto).path.trim('/').isNotEmpty() } catch (_: Exception) { false }
         val vir = PeerTube.imeStreznika(gostitelj)?.takeIf { !jePot || cisto.contains("/videos") || cisto.contains("/c/") || cisto.contains("/a/") }
             ?.let { Vir(PEERTUBE, it, gostitelj) }
-            ?: razvrsti(ctx, cisto, gostitelj)?.let { v -> if (ime.isNullOrBlank()) v else v.copy(ime = ime) }
+            ?: razvrsti(ctx, cisto, gostitelj)?.also { if (it.jeSplet && !IptvPravila.smeVdelatiStran(cisto, prejet = false)) return null }
+                ?.let { v -> if (ime.isNullOrBlank()) v else v.copy(ime = ime) }?.let { zavarujNov(ctx, it) ?: return null }
             ?: return null
         val obstojeci = vsi(ctx).firstOrNull { v ->
             (v.jeSplet && vir.jeSplet && istaSpletnaStran(v.naslov, vir.naslov)) ||
@@ -733,14 +796,35 @@ object MedijskiViri {
         }
         if (obstojeci != null) return obstojeci
         shrani(ctx, rocni(ctx) + vir)
+        // Vir z racunom gre sam na naprave v ozjem krogu (UskladitevKljucev) - nikoli z navadnim usklajevanjem virov.
+        if (IptvPravila.virZRacunom(vir.tip, vir.naslov)) UskladitevKljucev.sprozi(ctx)
         return vir
+    }
+
+    /**
+     * Lastnik, 26. 10. 2026: vir z racunom IPTV (Xtream, tok z geslom - [IptvPravila.skrivnostVira]) dobi nadomestek in varno
+     * ime ze pred shranjevanjem: klicatelj (zaslon, pripenjanje, pregled) pravega naslova sploh ne dobi. Seznam, ki ga je
+     * [razvrsti] prebral pod pravim naslovom, gre pod nadomestek. null = sifriranje ni uspelo (vira ne dodamo).
+     */
+    private fun zavarujNov(ctx: Context, v: Vir): Vir? {
+        val s = IptvPravila.skrivnostVira(v.tip, v.naslov) ?: return v
+        val z = IptvPravila.zaShrambo(IptvPravila.ZapisVira(v.tip, v.ime, v.naslov), false) { SkrivniDodatki.zavarujCel(ctx, it) }
+            ?: return null.also { android.util.Log.w("SafeerOsMedia", "vira z racunom ni bilo mogoce zavarovati - ni dodan") }
+        val p = ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)
+        p.getString(kljucSeznama(v.naslov), null)?.let { json ->
+            p.edit().remove(kljucSeznama(v.naslov))
+                .putString(kljucSeznama(z.naslov), SkrivnostiPravila.zamenjaj(json, mapOf(v.naslov to z.naslov, s to z.naslov))).apply()
+        }
+        return Vir(z.tip, z.ime, z.naslov)
     }
 
     /** Enota za vir: seznam in podkast se odpreta kot seznam (klik), ostalo predvaja predvajalnik ali brskalnik. */
     fun kotSkladba(v: Vir): Jamendo.Skladba = when {
         v.jePodkast -> Podkasti.oddaja(v.naslov, v.ime, v.naslov.removePrefix("https://").substringBefore('/'), "")
+        // Vir z racunom: na kartici samo gostitelj (26. 10. 2026; prej cel naslov z geslom Xtream).
         else -> Jamendo.Skladba((if (v.jeSeznam) PREDPONA_SEZNAMA else "vir:") + v.naslov, v.ime,
-            v.naslov.removePrefix("https://").removePrefix("http://"), "", v.naslov, v.naslov,
+            if (IptvPravila.virZRacunom(v.tip, v.naslov)) IptvPravila.zaPrikaz(v.naslov) else v.naslov.removePrefix("https://").removePrefix("http://"),
+            "", v.naslov, v.naslov,
             radio = !v.tip.endsWith("video") && !v.jeSeznam, video = v.tip.endsWith("video"),
             mime = when { v.jeSplet -> STRAN; v.tip.contains("hls") -> MIME_HLS; else -> "" })
     }
@@ -761,14 +845,40 @@ object MedijskiViri {
 
     /** Seznam prebere znova (ob odprtju); ce naslov ne odgovori, ostane zadnji znani. */
     fun osveziSeznam(ctx: Context, naslov: String): List<Jamendo.Skladba> {
-        val p = try { URL(naslov).openConnection() as HttpURLConnection } catch (_: Exception) { return skladbeSeznama(ctx, naslov) }
+        // Vir z racunom: v aplikaciji nadomestek, pravi naslov samo za zahtevo; neznana skrivnost (Keystore) = nobene zahteve.
+        val pravi = SkrivniDodatki.dejanski(ctx, naslov)
+        if (SkrivnostiPravila.jeNadomestek(pravi)) return skladbeSeznama(ctx, naslov)
+        // Grok 52, Ñ2 + Grok 60, Ů1 + Grok 68: odprtje seznama z racunom je uporabnikova namera, a NI nova prijava ob vsakem odprtju in ne
+        // druga prijava ob mrezi TV v zivo: ena odlocitev ([IptvSeznami.pripravi] z [uporabnik]), skupen predpomnilnik 24 h, premor I5 in
+        // meja 1-krat na minuto na vir. Isti prenos napolni datoteko mreze TV v zivo in skladbe tega pogleda ([shraniSkladbeSeznama]).
+        if (IptvPravila.virZRacunom(SEZNAM, naslov)) {
+            IptvSeznami.pripravi(ctx, naslov, uporabnik = true)
+            val shranjene = skladbeSeznama(ctx, naslov)
+            if (shranjene.isNotEmpty()) return shranjene
+            // Seznam je ze na disku (prenos iz casa pred tem pravilom), pogled pa se ni shranjen: prvih 1000 kanalov iz datoteke.
+            val izDatoteke = ArrayList<Jamendo.Skladba>()
+            IptvSeznami.zaVsakega(ctx, naslov) { izDatoteke += it; izDatoteke.size < 1000 }
+            return izDatoteke
+        }
+        val p = try { URL(pravi).openConnection() as HttpURLConnection } catch (_: Exception) { return skladbeSeznama(ctx, naslov) }
         p.connectTimeout = 8_000; p.readTimeout = 10_000
         p.setRequestProperty("User-Agent", "SafeerOS")
+        var koda = 0
         val nove = try {
-            if (p.responseCode in 200..299) beriSeznam(p.inputStream.bufferedReader().use { it.readText().take(2_000_000) }, naslov) else emptyList()
+            koda = p.responseCode
+            // Grok 60, Ů4: z mejo velikosti in roka (prej readText() brez meje: zivi tok je drzal povezavo na racunu odprto do OOM);
+            // bralnik zapre use, povezavo disconnect spodaj.
+            if (koda in 200..299) beriSeznam(p.inputStream.bufferedReader().use {
+                IptvPravila.omejenoBesedilo(it, IptvPravila.NAJVEC_ZNAKOV_SEZNAMA, IptvPravila.NAJVEC_BRANJE_MS) }, pravi, naslov) else emptyList()
         } catch (_: Exception) { emptyList() } finally { p.disconnect() }
         if (nove.isNotEmpty()) pisi(ctx, kljucSeznama(naslov), pisiSkladbe(nove.take(1000)))
         return nove.ifEmpty { skladbeSeznama(ctx, naslov) }
+    }
+
+    /** Grok 68: pogled seznama z racunom dobi skladbe iz prenosa mreze TV v zivo ([IptvSeznami.prenesi]); [telo] je prvih 2 mio znakov seznama. */
+    fun shraniSkladbeSeznama(ctx: Context, naslov: String, pravi: String, telo: String) {
+        val nove = beriSeznam(telo, pravi, naslov)
+        if (nove.isNotEmpty()) pisi(ctx, kljucSeznama(naslov), pisiSkladbe(nove.take(1000)))
     }
 
     /** Skladbe iz dodanih seznamov, ki ustrezajo iskanju (z virom, ki pove izvor). */
@@ -778,13 +888,14 @@ object MedijskiViri {
         }
 
     /** Vnosi .m3u (#EXTINF: ime, nato naslov) ali .pls (FileN / TitleN); relativni naslovi glede na seznam. */
-    fun beriSeznam(telo: String, osnova: String): List<Jamendo.Skladba> = vnosiSeznama(telo, osnova).map { it.second }
+    fun beriSeznam(telo: String, osnova: String, seznam: String = osnova): List<Jamendo.Skladba> = vnosiSeznama(telo, osnova, seznam).map { it.second }
 
     /**
      * Naloga 68: kot [beriSeznam], z imenom vnosa, kot ga da seznam (#EXTINF / TitleN; "" = brez imena - naslov kartice
      * je takrat del naslova toka). Vnos brez koncnice in brez oznak IPTV je radijski tok ([OsPravila.jeRadijskiVnos]).
+     * Relativni naslovi glede na [osnova] (pravi naslov); kartica dobi [seznam] (pri viru z racunom nadomestek).
      */
-    private fun vnosiSeznama(telo: String, osnova: String): List<Pair<String, Jamendo.Skladba>> {
+    private fun vnosiSeznama(telo: String, osnova: String, seznam: String = osnova): List<Pair<String, Jamendo.Skladba>> {
         fun polni(n: String) = try { URL(URL(osnova), n.trim()).toString() } catch (_: Exception) { "" }
         val pari = ArrayList<Triple<String, String, String>>()      // ime, naslov, vrstica #EXTINF
         if (telo.trimStart().startsWith("[playlist]", ignoreCase = true)) {
@@ -799,7 +910,8 @@ object MedijskiViri {
             var extinf = ""
             telo.lines().map { it.trim() }.forEach { l ->
                 when {
-                    l.startsWith("#EXTINF", ignoreCase = true) -> { ime = l.substringAfter(',', "").trim(); extinf = l }
+                    // Ime za vejico ZUNAJ narekovajev (group-title="News,Sport", http-user-agent z vejico) - kot seznami IPTV.
+                    l.startsWith("#EXTINF", ignoreCase = true) -> { ime = IptvPravila.imeIzExtinf(l); extinf = l }
                     l.isEmpty() || l.startsWith("#") -> {}
                     else -> { pari += Triple(ime, polni(l), extinf); ime = ""; extinf = "" }
                 }
@@ -807,7 +919,7 @@ object MedijskiViri {
         }
         return pari.filter { (it.second.startsWith("http://") || it.second.startsWith("https://")) && jePredvajljiv(it.second) }.map { (ime, url, extinf) ->
             val (naslov, izvajalec) = Relevantnost.razdeli(ime.ifBlank { url.substringAfterLast('/').substringBefore('?') }, "")
-            ime to Jamendo.Skladba("seznam:$url", naslov, izvajalec, "", url, osnova,
+            ime to Jamendo.Skladba("seznam:$url", naslov, izvajalec, "", url, seznam,
                 radio = OsPravila.jeRadijskiVnos(jeDatoteka(url), extinf),
                 mime = if (url.substringBefore('?').lowercase().endsWith(".m3u8")) MIME_HLS else "")
         }.distinctBy { it.second.zvok }
@@ -856,7 +968,8 @@ object MedijskiViri {
                 vrsta.startsWith("audio/") || vrsta == "application/ogg" -> Vir(TOK, gostitelj, naslov)
                 vrsta.startsWith("video/") -> Vir("$TOK-video", gostitelj, naslov)
                 vrsta.contains("xml") || vrsta.contains("rss") -> Podkasti.imeOddaje(naslov)?.let { Vir(PODKAST, it, naslov) }
-                vrsta.contains("text/html") -> Vir(SPLET, gostitelj.removePrefix("www."), naslov)
+                // Pregled 57 (skupni primeri v4): stran, ki jo je uporabnik dodal, brez znakov poverilnice tudi po preusmeritvi.
+                vrsta.contains("text/html") -> if (IptvPravila.smeVdelatiStran(p.url.toString(), prejet = false)) Vir(SPLET, gostitelj.removePrefix("www."), naslov) else null
                 else -> null
             }
         } catch (_: Exception) { null } finally { p.disconnect() }
@@ -867,19 +980,29 @@ object MedijskiViri {
      * vir dodan in kdaj izbrisan: [cas] != 0 je cas z druge naprave (prevzem), sicer ura te naprave - a nikoli starejsa
      * od znanega izbrisa oziroma dodajanja (ure naprav niso enake).
      */
-    @Synchronized private fun shrani(ctx: Context, viriVnosa: List<Vir>, cas: Long = 0L, brezSledi: Boolean = false) {
+    @Synchronized private fun shrani(ctx: Context, viriVnosa: List<Vir>, cas: Long = 0L, brezSledi: Boolean = false, prejeto: Boolean = false, odKroga: Boolean = false) {
         // Webtor rezerva: dodatek s poverilnico nikoli kot pravi naslov v nastavitvah (varovalka za vse poti dodajanja).
         // Pregled U6: ce sifriranje ne uspe, novega pravega naslova ne zapisemo (prej je slo v nastavitve necifrirano);
         // ze shranjen (iz casa pred prehodom) ostane, kot je - ne izgubi se. U5: novega po http ne sprejmemo.
         val prejsnji = rocni(ctx).map { it.naslov }.toSet()
+        // Grok 60, Ů2: naslovi (po zavarovanju) virov, ki jih uporabnik dodaja zdaj - po VHODNEM naslovu (zavarovanje ze shranjenega
+        // vira pravega naslova ne naredi novega vira: prehod ne sme podedovanemu viru dati dokaza).
+        val noviTu = HashSet<String>()
         val viri = viriVnosa.mapNotNull { v ->
-            if (!(v.jeStremio && SkrivnostiPravila.skrivnaPredponaDodatka(v.naslov) != null)) v
+            // Lastnik, 26. 10. 2026: vir z racunom IPTV nikoli s pravim naslovom v nastavitvah (varovalka za vse poti dodajanja,
+            // tudi prevzem); ce sifriranje ne uspe, ze shranjen ostane (ne izgubi se), nov se ne shrani.
+            val r: Vir? = if (IptvPravila.virZRacunom(v.tip, v.naslov) && !SkrivnostiPravila.jeNadomestek(v.naslov))
+                IptvPravila.zaShrambo(IptvPravila.ZapisVira(v.tip, v.ime, v.naslov), v.naslov in prejsnji) { SkrivniDodatki.zavarujCel(ctx, it) }
+                    ?.let { Vir(it.tip, it.ime, it.naslov) }
+                    .also { if (it == null) android.util.Log.w("SafeerOsMedia", "vira z racunom ni bilo mogoce zavarovati - ni shranjen") }
+            else if (!(v.jeStremio && SkrivnostiPravila.skrivnaPredponaDodatka(v.naslov) != null)) v
             // Grok 15, N18: ze shranjen po http gre odslej po https.
             else if (v.naslov in prejsnji) SkrivniDodatki.zavaruj(ctx, SkrivnostiPravila.nadgradiNaHttps(v.naslov))?.let { v.copy(naslov = it) }
                 ?: v.copy(naslov = SkrivnostiPravila.nadgradiNaHttps(v.naslov))
             else if (!v.naslov.trim().startsWith("https://")) null.also { android.util.Log.w("SafeerOsMedia", "dodatek s poverilnico po http ni shranjen") }
             else SkrivniDodatki.zavaruj(ctx, v.naslov)?.let { v.copy(naslov = it) }
                 .also { if (it == null) android.util.Log.w("SafeerOsMedia", "dodatka s poverilnico ni bilo mogoce zavarovati - ni shranjen") }
+            r?.also { if (v.naslov !in prejsnji) noviTu += it.naslov }
         }
         val prej = rocni(ctx).map { kljucUskladitve(it) }.toSet()
         val zdaj = viri.map { kljucUskladitve(it) }.toSet()
@@ -892,8 +1015,22 @@ object MedijskiViri {
         for (k in prej - zdaj) { if (!brezSledi) izbrisani[k] = if (cas != 0L) cas else SeznamiPravila.novCas(ura, casi[k] ?: 0L, 0L); casi.remove(k) }
         casi.keys.retainAll(zdaj)
         while (izbrisani.size > 300) izbrisani.remove(izbrisani.minByOrNull { it.value }!!.key)
+        // Lastnik, 26. 10. 2026: kateri viri so dodani na tej napravi - samo ta jih v ozadju preverja ([dodanTu]); prevzem z druge
+        // naprave ([cas] != 0) ali [prejeto] ni dodajanje tu.
+        val tukaj = IptvPravila.viriTukaj(prejsnji, viri.map { it.naslov }.toSet(),
+            ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getStringSet(VIRI_TUKAJ, null)?.toSet(),
+            prejeto = prejeto || cas != 0L, jeTv = Sosed.jeTelevizor(ctx))
+        // Grok 60, Ů2: dokaz, da je vir dodan na tej napravi - samo uporabnikovo dodajanje tu; prevzem, podedovan vir (zapisa ni) in
+        // vir, ki ga je prejela druga naprava, ga nimajo, dokler uporabnik vira ne potrdi ([potrdiDodanTu]).
+        val dokaz = IptvPravila.dokazDodanTu(ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getStringSet(VIRI_DOKAZ, null)?.toSet(),
+            noviTu, viri.map { it.naslov }.toSet(), prejeto = prejeto || cas != 0L)
+        // Lastnik, 26. 10. 2026 12:10: vir z racunom, prejet od naprave IZ ozjega kroga ([odKroga]), se sme na tej napravi uporabiti
+        // (prva povezava ob prvi uporabi), a ni »dodan tu«: v ozadju se ne pregleduje in ne gre naprej ([dokaz] ga nima).
+        val uporaba = IptvPravila.uporabaPoPrejemu(ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getStringSet(VIRI_UPORABA, null)?.toSet(),
+            noviTu, viri.map { it.naslov }.toSet(), odKroga = odKroga)
         val urejanje = ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().putString(KLJUC, a.toString())
             .putString(VIRI_CASI, JSONObject(casi as Map<*, *>).toString()).putString(VIRI_IZBRISANI, JSONObject(izbrisani as Map<*, *>).toString())
+            .putStringSet(VIRI_TUKAJ, HashSet(tukaj)).putStringSet(VIRI_DOKAZ, HashSet(dokaz)).putStringSet(VIRI_UPORABA, HashSet(uporaba))
         // Naloga 62: vir dodan ali odstranjen - police in mreze z diska iz casa pred tem ne veljajo vec.
         if (prej != zdaj) urejanje.putLong(VIRI_SPREMENJENI, maxOf(ura, spremenjeni(ctx) + 1))
         urejanje.apply()
@@ -905,6 +1042,75 @@ object MedijskiViri {
      * virov: Medijski center jih ne pokaze in ne dopolnjuje z njimi; nalaganje, ki se je zacelo prej, jih ne zapise.
      */
     fun spremenjeni(ctx: Context): Long = ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getLong(VIRI_SPREMENJENI, 0L)
+
+    private const val VIRI_TUKAJ = "viri_dodani_tu"
+
+    /** Grok 60, Ů2: dokaz »dodan tu« (nov kljuc: zapis iz casa pred popravkom, kjer je TV vzela vire izpred pravila za svoje, ne velja). */
+    private const val VIRI_DOKAZ = "viri_dodani_tu_dokaz"
+
+    /**
+     * Grok 60, Ů2 (fail-closed): ali je vir z racunom [naslov] dodan na tej napravi Z DOKAZOM (zapis ob dodajanju tu ali potrditev
+     * uporabnika, [IptvPravila.dokazDodanTu]). Samo tak vir se na tej napravi samodejno prenasa ([IptvSeznami.pripravi]) in gre po
+     * secrets.sync z vrednostjo v ozji krog te naprave ([UskladitevKljucev]); podedovan (zapisa ni, tudi na TV) ali prejet vir
+     * ne. Brez @Synchronized: bere ga tudi zaslon (kartica vira); zapis je atomaren.
+     */
+    fun dodanTuZDokazom(ctx: Context, naslov: String): Boolean =
+        ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getStringSet(VIRI_DOKAZ, null)?.contains(naslov) == true
+
+    /** Lastnik, 26. 10. 2026 12:10: viri z racunom, prejeti od naprave iz ozjega kroga ali dovoljeni na tej napravi (ne »dodan tu«). */
+    private const val VIRI_UPORABA = "viri_uporaba_dovoljena"
+
+    /**
+     * Ali sme ta naprava vir z racunom [naslov] uporabiti (prenos ob odprtju in predvajanju, [IptvSeznami.pripravi]): dodan tu z
+     * dokazom, prejet iz ozjega kroga ali dovoljen z izrecnim klikom. Podedovan vir in vir neznanega izvora ne ([IptvPravila.smeUporabiti]).
+     * Brez @Synchronized (bere ga tudi zaslon).
+     */
+    fun uporabaDovoljena(ctx: Context, naslov: String): Boolean = IptvPravila.smeUporabiti(dodanTuZDokazom(ctx, naslov),
+        ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getStringSet(VIRI_UPORABA, null)?.contains(naslov) == true)
+
+    /**
+     * Grok 64 Ź1: uporabnik na tej napravi dovoli uporabo vira ([IptvPravila.potrditevUporabe]) - NE postane »dodan tu«: po secrets.sync
+     * v ozji krog te naprave ne gre (kdor koli pred napravo bi sicer z enim klikom razposlal geslo); za to vir vpise sam ([potrdiDodanTu]).
+     */
+    @Synchronized fun dovoliUporabo(ctx: Context, naslov: String): Boolean {
+        val p = ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)
+        val prej = p.getStringSet(VIRI_UPORABA, null)?.toSet()
+        val novo = IptvPravila.potrditevUporabe(prej, rocni(ctx).map { it.naslov }.toSet(), naslov)
+        if (novo != (prej ?: emptySet<String>())) p.edit().putStringSet(VIRI_UPORABA, HashSet(novo)).apply()
+        return naslov in novo
+    }
+
+    /**
+     * Grok 60, Ů2: uporabnik je na tej napravi izrecno potrdil (meni vira) ali sam znova vpisal vir z racunom, ki ga ta naprava ze
+     * ima: od zdaj velja za dodanega tu. Pot za podedovane vire in vire, prejete od druge naprave. Vrne true, ce vir ima dokaz.
+     */
+    @Synchronized fun potrdiDodanTu(ctx: Context, naslov: String): Boolean {
+        val p = ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)
+        val prej = p.getStringSet(VIRI_DOKAZ, null)?.toSet()
+        val novo = IptvPravila.potrditevDodanTu(prej, rocni(ctx).map { it.naslov }.toSet(), naslov)
+        if (novo != (prej ?: emptySet<String>())) {
+            p.edit().putStringSet(VIRI_DOKAZ, HashSet(novo)).apply()
+            // Vir z racunom gre odslej v ozji krog te naprave (kot ob dodajanju).
+            if (naslov in novo) UskladitevKljucev.sprozi(ctx)
+        }
+        return naslov in novo
+    }
+
+    /**
+     * Lastnik, 26. 10. 2026: ali je bil vir [naslov] dodan na tej napravi ([IptvPravila.viriTukaj]) - v krogu naprav ga v
+     * ozadju preverja samo ta naprava; prejet z druge naprave se tu v ozadju ne preverja. SAMO za delitev dela pri pregledu
+     * javnih seznamov in dodatkov brez poverilnic (TV vzame vire izpred pravila za svoje, ker tam ni racuna za zaklep); vir z
+     * racunom odloca [dodanTuZDokazom] (Grok 60, Ů2).
+     */
+    @Synchronized fun dodanTu(ctx: Context, naslov: String): Boolean {
+        val p = ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)
+        p.getStringSet(VIRI_TUKAJ, null)?.let { return naslov in it }
+        // Prehod (zapisa se ni): viri iz casa pred pravilom - TV jih vzame za svoje, telefon in tablica ne.
+        val zdaj = rocni(ctx).map { it.naslov }.toSet()
+        val t = IptvPravila.viriTukaj(zdaj, zdaj, null, prejeto = false, jeTv = Sosed.jeTelevizor(ctx))
+        p.edit().putStringSet(VIRI_TUKAJ, HashSet(t)).apply()
+        return naslov in t
+    }
 
     // ------------------------------------------------------------------ viri so enaki na vseh napravah v Linku
 
@@ -920,15 +1126,22 @@ object MedijskiViri {
         o.keys().asSequence().associateWith { o.optLong(it) }.toMutableMap()
     } catch (_: Exception) { mutableMapOf() }
 
-    /** Vir, ki ga smemo poslati drugi napravi ali prevzeti z nje: znana vrsta, javen naslov, ni blokiran. */
-    private fun uskladljiv(v: Vir): Boolean =
+    /**
+     * Vir, ki ga smemo poslati drugi napravi ali prevzeti z nje: znana vrsta, javen naslov, ni blokiran. [odOzjegaKroga]: prevzem
+     * od naprave v ozjem krogu te naprave - sme tudi vir, ki ni pozitivno znan javen ([IptvPravila.prevzemZNavadnoUskladitvijo]).
+     */
+    private fun uskladljiv(v: Vir, odOzjegaKroga: Boolean = false): Boolean =
         VRSTE_ZA_USKLADITEV.matches(v.tip) && v.naslov.length in 4..2048 && v.ime.length <= 200 &&
             v.naslov.none { it < ' ' } && v.ime.none { it < ' ' } && !PeerTube.jeBlokiran(v.naslov) &&
             (v.jePeerTube || v.naslov.startsWith("http://") || v.naslov.startsWith("https://")) &&
             !(v.jeSplet && jeImenikVirov(v.naslov)) &&
             // Webtor rezerva: dodatek s poverilnico (ali njen nadomestek) gre samo v ozji krog - z debrid kljuci
             // (Debrid.posljiKljuce, potrditev na prejemni napravi), nikoli z navadnim usklajevanjem virov.
-            !(v.jeStremio && !SkrivnostiPravila.smeMedVseNaprave(v.naslov))
+            !(v.jeStremio && !SkrivnostiPravila.smeMedVseNaprave(v.naslov)) &&
+            // Lastnik, 26. 10. 2026: vir z racunom IPTV (pravi naslov ali nadomestek) enako - samo ozji krog (UskladitevKljucev,
+            // kljuc »iptv:<odtis>«); prej je sel vsem napravam v Linku. Grok 46, Ö1: fail-closed - z navadnim usklajevanjem samo
+            // pozitivno znan javni seznam; prevzem drugega samo od naprave v ozjem krogu.
+            IptvPravila.prevzemZNavadnoUskladitvijo(v.tip, v.naslov, odOzjegaKroga)
 
     /** Ali ta vir potuje med napravami v Linku (za besedilo ob brisanju): zaseben ali se neznan dodatek ne. */
     fun greMedNaprave(v: Vir): Boolean =
@@ -971,17 +1184,167 @@ object MedijskiViri {
     /** Viri, izbrisani na tej napravi (kljuc -> cas izbrisa): druge naprave jih izbrisejo tudi pri sebi. */
     fun izbrisaniViri(ctx: Context): Map<String, Long> = beriCase(ctx, VIRI_IZBRISANI)
 
+    /**
+     * Grobovi za navadno usklajevanje (lists.get »sources_deleted«): brez virov z racunom in dodatkov s poverilnico - njihov
+     * izbris gre samo v ozji krog (UskladitevKljucev), kljuc z nadomestkom pa ne vsem napravam v Linku (26. 10. 2026).
+     */
+    fun izbrisaniViriZaUskladitev(ctx: Context): Map<String, Long> =
+        izbrisaniViri(ctx).filterKeys { IptvPravila.smeZNavadnoUskladitvijo(it.substringBefore('|'), it.substringAfter('|', "")) }
+
+    /**
+     * Vir z racunom z naprave v ozjem krogu (UskladitevKljucev, kljuc »iptv:<odtis>«, preverjen z [IptvPravila.prejetRacun]):
+     * shrani se kot nadomestek s sifrirano skrivnostjo, BREZ prenosa seznama (prenese se, ko ga uporabnik odpre - vsak prenos
+     * je prijava v racun). [prejeto]: ni dodan tu - ta naprava ga v ozadju nikoli ne preverja. Obstojeci vir: skrivnost se
+     * obnovi (pregled S5: neberljiva v Keystore). null = ni uspelo.
+     */
+    fun dodajRacun(ctx: Context, tip: String, naslov: String, ime: String, prejeto: Boolean): Vir? {
+        val s = IptvPravila.skrivnostVira(tip, naslov) ?: return null
+        val n = SkrivniDodatki.zavarujCel(ctx, s) ?: return null
+        // Prejeto prek secrets.sync = od naprave v ozjem krogu (UskladitevKljucev preveri OzjiKrog pred uporabo zapisa).
+        rocni(ctx).firstOrNull { it.tip == tip && it.naslov == n }?.let { if (prejeto) dovoliUporabo(ctx, it.naslov); return it }
+        val v = Vir(tip, IptvPravila.varnoIme(ime, s), n)
+        shrani(ctx, rocni(ctx) + v, prejeto = prejeto, odKroga = prejeto)
+        return v
+    }
+
+    // ------------------------------------------------------------------ Grok 46, Ö3: ze razposlane kopije
+
+    private const val VIRI_PRED_PREHODOM = "viri_racun_pred_prehodom"
+    /** Grok 60, Ů3: »odtis|gostitelj« izbrisanih virov z racunom iz groba pred prehodom ([IptvPravila.izbrisaniRacuniPredPrehodom]). */
+    private const val VIRI_IZBRISANI_PRED = "viri_racun_izbrisani_pred_prehodom"
+    private const val RACUNI_OPOZORJENI = "racuni_geslo_opozorjeni"
+    private const val PREKLIC_OBDRZANI = "racuni_preklic_obdrzani"
+
+    /** Zaslon, ki pokaze opozorilo o deljenem geslu ali vprasanje o preklicanem viru (GlasbaActivity); klic na glavni niti. */
+    val poslusalciRacunov = java.util.concurrent.CopyOnWriteArraySet<() -> Unit>()
+    private fun obvestiRacune() = android.os.Handler(android.os.Looper.getMainLooper()).post {
+        for (p in poslusalciRacunov) try { p() } catch (_: Throwable) { }
+    }
+
+    private fun nastavitve(ctx: Context) = ctx.applicationContext.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)
+    private fun mnozica(ctx: Context, k: String): Set<String> = nastavitve(ctx).getStringSet(k, null)?.toSet() ?: emptySet()
+
+    /** Viri z racunom te naprave: odtis nadomestka, pravi naslov (ce je skrivnost znana), cas dodajanja, naslov v aplikaciji. */
+    private class Racun(val odtis: String, val pravi: String, val cas: Long, val naslov: String)
+    private fun racuni(ctx: Context): List<Racun> {
+        SkrivniDodatki.nalozi(ctx)
+        val casi = beriCase(ctx, VIRI_CASI)
+        return rocni(ctx).filter { IptvPravila.jeVrstaRacuna(it.tip) }.mapNotNull { v ->
+            val pravi = SkrivniDodatki.dejanski(v.naslov)
+            if (SkrivnostiPravila.jeNadomestek(pravi)) return@mapNotNull null
+            val odtis = SkrivnostiPravila.nadomestnaOsnova(v.naslov)?.substringAfterLast(SkrivnostiPravila.OZNAKA) ?: IptvPravila.odtisRacuna(pravi)
+            Racun(odtis, pravi, casi[kljucUskladitve(v)] ?: 0L, v.naslov)
+        }
+    }
+
+    /**
+     * Grok 46, Ö3 - lastnik: za vire je vprasala naprava ZUNAJ ozjega kroga (SeznamiSink). Vrne preklic za tiste vire z racunom,
+     * ki jih je starejsa razlicica dala vsem napravam (null = ni kaj preklicati), tudi za nesifrirane ob prehodu (Ñ3). Opozorilo
+     * lastniku ne caka na to vprasanje ([opozoriloDeljenja]).
+     */
+    fun preklicZunajKroga(ctx: Context): JSONObject? {
+        val pred = mnozica(ctx, VIRI_PRED_PREHODOM)
+        if (pred.isEmpty()) return null
+        val r = racuni(ctx)
+        val b = ByteArray(16).also { java.security.SecureRandom().nextBytes(it) }
+        val sol = b.joinToString("") { "%02x".format(it) }
+        val vnosi = IptvPravila.preklicZa(r.map { Triple(it.odtis, it.pravi, it.cas) }, pred, sol)
+        if (vnosi.isEmpty()) return null
+        val a = JSONArray()
+        vnosi.forEach { (h, c) -> a.put(JSONObject().put("h", h).put("c", c)) }
+        return JSONObject().put("s", sol).put("o", a)
+    }
+
+    /** Odtis vira z racunom v Mojih virih: nadomestek (sifriran) ali pravi naslov (sifriranje ob prehodu ni uspelo); brez Keystore. */
+    private fun odtisVira(v: Vir): String? = SkrivnostiPravila.nadomestnaOsnova(v.naslov)?.substringAfterLast(SkrivnostiPravila.OZNAKA)
+        ?: IptvPravila.skrivnostVira(v.tip, v.naslov)?.let { IptvPravila.odtisRacuna(it) }
+
+    private fun zaOpozorilo(ctx: Context): Pair<Set<String>, List<Vir>> {
+        val pred = mnozica(ctx, VIRI_PRED_PREHODOM)
+        if (pred.isEmpty()) return emptySet<String>() to emptyList()
+        val viri = rocni(ctx).filter { IptvPravila.jeVrstaRacuna(it.tip) }
+        return IptvPravila.zaOpozorilo(pred, viri.mapNotNull { odtisVira(it) }.toSet(), mnozica(ctx, RACUNI_OPOZORJENI)) to viri
+    }
+
+    /**
+     * Gostitelji virov, za katere lastnik se ni videl opozorila »geslo je bilo deljeno« (prazno = ni opozorila). Grok 52, Ñ3: vsak
+     * vir z racunom izpred prehoda, enkrat po posodobitvi (prej samo za vire hevristicne oblike in sele po vprasanju naprave
+     * zunaj kroga).
+     */
+    fun opozoriloDeljenja(ctx: Context): List<String> {
+        val (za, viri) = zaOpozorilo(ctx)
+        val obstojeci = viri.filter { odtisVira(it) in za }.map { IptvPravila.zaPrikaz(it.naslov) }
+        // Grok 60, Ů3: tudi vir, ki ga je lastnik ze izbrisal, a je bil prej deljen (kopije pri drugih napravah, ki jih izbris ni dosegel).
+        val izbrisani = IptvPravila.opozoriloIzbrisanih(mnozica(ctx, VIRI_IZBRISANI_PRED), za, mnozica(ctx, RACUNI_OPOZORJENI))
+        return (obstojeci + izbrisani).distinct()
+    }
+
+    /** Lastnik je opozorilo videl: ne pokaze se vec (za vir, ki je nastal po prehodu, se ne pokaze nikoli). */
+    fun opozoriloVideno(ctx: Context) {
+        val (za, _) = zaOpozorilo(ctx)
+        val videno = za + IptvPravila.odtisiIzbrisanih(mnozica(ctx, VIRI_IZBRISANI_PRED))
+        if (videno.isNotEmpty()) nastavitve(ctx).edit().putStringSet(RACUNI_OPOZORJENI, HashSet(mnozica(ctx, RACUNI_OPOZORJENI) + videno)).apply()
+    }
+
+    /** Preklic z naprave [naprava] (ime [ime]): viri te naprave (naslovi v aplikaciji), o katerih odloci uporabnik. */
+    class Preklic(val naprava: String, val ime: String, val naslovi: List<String>)
+    private val preklici = java.util.concurrent.ConcurrentHashMap<String, Preklic>()
+
+    /** Grok 46, Ö3 - prejemna naprava: preklic iz kazala druge naprave (SeznamiSink). Klic iz ozadja. */
+    fun preklicPrejet(ctx: Context, naprava: String, ime: String, o: JSONObject) {
+        val a = o.optJSONArray("o") ?: return
+        val prejeti = (0 until minOf(a.length(), IptvPravila.NAJVEC_PREKLICA)).mapNotNull { a.optJSONObject(it) }
+            .map { it.optString("h") to it.optLong("c") }
+        val zaVprasati = IptvPravila.preklicani(racuni(ctx).map { Triple(it.naslov, it.pravi, it.cas) }, o.optString("s"), prejeti,
+            mnozica(ctx, PREKLIC_OBDRZANI))
+        if (zaVprasati.isEmpty() || preklici[naprava]?.naslovi == zaVprasati) return
+        preklici[naprava] = Preklic(naprava, ime, zaVprasati)
+        android.util.Log.i("SafeerOsMedia", "viri z racunom: preklic z druge naprave za ${zaVprasati.size} virov - odloci uporabnik")
+        obvestiRacune()
+    }
+
+    /** Najstarejsi preklic, o katerem uporabnik se ni odlocil, ali null. */
+    fun preklic(): Preklic? = preklici.values.firstOrNull()
+
+    /** Gostitelji virov preklica (za vprasanje - brez uporabnika in gesla). */
+    fun opisPreklica(p: Preklic): String = p.naslovi.map { IptvPravila.zaPrikaz(it) }.distinct().joinToString(", ")
+
+    /** Uporabnik je odlocil: [odstrani] = viri izginejo s te naprave; sicer ostanejo in vprasanja zanje ni vec. */
+    fun odlociPreklic(ctx: Context, p: Preklic, odstrani: Boolean) {
+        preklici.remove(p.naprava)
+        if (!odstrani) { nastavitve(ctx).edit().putStringSet(PREKLIC_OBDRZANI, HashSet(mnozica(ctx, PREKLIC_OBDRZANI) + p.naslovi)).apply(); return }
+        val a = ctx.applicationContext
+        for (n in p.naslovi) {
+            val v = rocni(a).firstOrNull { it.naslov == n } ?: continue
+            odstrani(a, v)
+            if (v.jeSeznam) Thread({ try { IptvSeznami.pozabi(a, n) } catch (_: Exception) { } }, "safeer-iptv-preklic").apply { isDaemon = true }.start()
+        }
+    }
+
+    /** Usklajevanje: vir z racunom z odtisom [odtis] je bil izbrisan na drugi napravi v ozjem krogu. Klic iz ozadja. */
+    fun odstraniRacun(ctx: Context, odtis: String) {
+        val v = rocni(ctx).firstOrNull { IptvPravila.jeVrstaRacuna(it.tip) &&
+            SkrivnostiPravila.nadomestnaOsnova(it.naslov)?.endsWith(SkrivnostiPravila.OZNAKA + odtis) == true } ?: return
+        odstrani(ctx, v)
+        if (v.jeSeznam) try { IptvSeznami.pozabi(ctx, v.naslov) } catch (_: Exception) { }
+    }
+
     /** Vir z druge naprave: dodamo ga, ce ga tu se ni in ga tu nismo izbrisali pozneje, kot je bil tam dodan. */
-    @Synchronized fun prevzemiVir(ctx: Context, v: Vir, cas: Long): Boolean {
-        if (!uskladljiv(v)) return false
+    @Synchronized fun prevzemiVir(ctx: Context, v: Vir, cas: Long, odOzjegaKroga: Boolean = false): Boolean {
+        if (!uskladljiv(v, odOzjegaKroga)) return false
         val k = kljucUskladitve(v)
         val moji = rocni(ctx)
-        if (moji.any { kljucUskladitve(it) == k } || moji.size >= 400) return false
+        if (moji.any { kljucUskladitve(it) == k }) {
+            // Ze imamo vir, naprava iz ozjega kroga pa ga ima tudi: pozitiven dokaz izvora (podedovana kopija postane uporabna).
+            if (odOzjegaKroga && IptvPravila.virZRacunom(v.tip, v.naslov)) dovoliUporabo(ctx, v.naslov)
+            return false
+        }
+        if (moji.size >= 400) return false
         // Ista spletna stran pod drugim naslovom je isti vir.
         if (v.jeSplet && moji.any { it.jeSplet && istaSpletnaStran(it.naslov, v.naslov) }) return false
         if (!SeznamiPravila.virPrevzamemo(false, beriCase(ctx, VIRI_IZBRISANI)[k], cas)) return false
         prekliciOdstranjen(ctx, v.naslov)
-        shrani(ctx, moji + v, if (cas > 0L) cas else 1L)
+        shrani(ctx, moji + v, if (cas > 0L) cas else 1L, odKroga = odOzjegaKroga)
         return true
     }
 
@@ -989,8 +1352,11 @@ object MedijskiViri {
      * Naslov, ki ga je uporabnik dodal na racunalniku (vrsta [VRSTA_URL]): racunalnik vrste ne pozna, doloci jo ta
      * naprava sama (prebere naslov - klic iz ozadja). Vrne true, ce je vir dodan.
      */
-    fun prevzemiNaslov(ctx: Context, naslov: String, ime: String, cas: Long): Boolean {
+    fun prevzemiNaslov(ctx: Context, naslov: String, ime: String, cas: Long, odOzjegaKroga: Boolean = false): Boolean {
         if (naslov.length !in 4..2048 || naslov.any { it < ' ' } || !(naslov.startsWith("http://") || naslov.startsWith("https://"))) return false
+        // Lastnik, 26. 10. 2026: naslov, ki ni znan javni seznam, samo od naprave v ozjem krogu - drugace ga niti ne razvrscamo
+        // (zahteva = prijava v racun, Grok 46 Ö1).
+        if (!IptvPravila.prevzemZNavadnoUskladitvijo(VRSTA_URL, naslov, odOzjegaKroga)) return false
         synchronized(this) {
             val moji = rocni(ctx)
             if (moji.size >= 400 || moji.any { it.naslov == naslov || (!it.jePeerTube && kanonicniNaslov(it.naslov) == kanonicniNaslov(naslov)) }) return false
@@ -1000,16 +1366,25 @@ object MedijskiViri {
         }
         if (PeerTube.jeBlokiran(naslov) || !jePredvajljiv(naslov)) return false
         val gostitelj = try { URL(naslov).host } catch (_: Exception) { return false }
-        val v = razvrsti(ctx, naslov, gostitelj) ?: return false
-        return prevzemiVir(ctx, if (ime.isBlank() || ime.length > 200 || ime.any { it < ' ' }) v else v.copy(ime = ime), cas)
+        // Grok 52, Ñ2: vir z racunom se ne bere (razvrstitev = prijava v racun na vsaki napravi kroga hkrati): vrsta po obliki naslova.
+        val v = IptvPravila.prejetNaslov(naslov) { razvrsti(ctx, naslov, gostitelj)?.let { IptvPravila.ZapisVira(it.tip, it.ime, it.naslov) } }
+            ?.let { Vir(it.tip, it.ime, it.naslov) } ?: return false
+        return prevzemiVir(ctx, if (ime.isBlank() || ime.length > 200 || ime.any { it < ' ' }) v else v.copy(ime = ime), cas, odOzjegaKroga)
     }
 
     /** Vrsta vira v usklajevanju, ki jo poslje racunalnik za naslov, dodan tam (core/viri_sink.py). */
     const val VRSTA_URL = "url"
 
     /** Vir je bil izbrisan na drugi napravi ob [cas]: izgine tudi tu, ce ga tu nismo dodali pozneje. Vrne true ob izbrisu. */
-    @Synchronized fun prevzemiIzbrisVira(ctx: Context, kljuc: String, cas: Long): Boolean {
-        if (cas <= 0L || kljuc.length > 2100) return false
+    @Synchronized fun prevzemiIzbrisVira(ctx: Context, kljucPrejet: String, cas: Long, odOzjegaKroga: Boolean = false): Boolean {
+        if (cas <= 0L || kljucPrejet.length > 2100) return false
+        // Lastnik, 26. 10. 2026: izbris vira z racunom (ali dodatka s poverilnico) pride samo iz ozjega kroga (UskladitevKljucev ali
+        // lists.get naprave v ozjem krogu - Linux); vir z racunom je tu nadomestek, zato izbris s pravim naslovom velja zanj.
+        val tipK = kljucPrejet.substringBefore('|')
+        val naslovK = kljucPrejet.substringAfter('|', "")
+        if (!IptvPravila.prevzemZNavadnoUskladitvijo(tipK, naslovK, odOzjegaKroga)) return false
+        val kljuc = IptvPravila.skrivnostVira(if (tipK == VRSTA_URL) SEZNAM else tipK, naslovK)
+            ?.let { SkrivnostiPravila.nadomestek(it) }?.let { "$tipK|$it" } ?: kljucPrejet
         val odRacunalnika = kljuc.startsWith("$VRSTA_URL|")
         // Racunalnik ne pozna vrste, ki jo je naslovu dala ta naprava: izbris "url|<naslov>" velja za vir s tem naslovom.
         val moj = rocni(ctx).firstOrNull { kljucUskladitve(it) == kljuc }

@@ -17,6 +17,7 @@ import java.util.concurrent.ConcurrentHashMap
  * skrivnosti ni. Odstranjen dodatek pozabi svojo osnovo in skrivnosti svojih tokov; dodajanja dodatka shramba ne zavrne.
  * Pregled S5: neberljiva skrivnost (Keystore) - branje se ponovi; ce ostane neberljiva, [pozna] vrne false: na nadomestek ne
  * gre nobena zahteva, Moji viri povedo, naj uporabnik dodatek doda znova (ali ga dobi z naprave v ozjem krogu).
+ * Od 26. 10. 2026 tu tudi viri z racunom IPTV ([zavarujCel]): skrivnost je cel naslov seznama ali toka.
  */
 object SkrivniDodatki {
     private const val TAG = "SafeerSkrivni"
@@ -85,12 +86,31 @@ object SkrivniDodatki {
     fun zavaruj(c: Context, naslov: String): String? {
         val p = SkrivnostiPravila.skrivnaPredponaDodatka(naslov) ?: return null
         val n = SkrivnostiPravila.nadomestek(p) ?: return null
+        if (!shraniSkrivnost(c, p, n)) return null
+        return SkrivnostiPravila.vNadomestek(naslov)
+    }
+
+    /**
+     * Vir z racunom IPTV (lastnik, 26. 10. 2026; [IptvPravila.skrivnostVira]): skrivnost je CEL naslov (seznam Xtream
+     * get.php?username=&password=, tok /live/<u>/<g>/ ...). Shrani se sifriran, vrne nadomestek »<shema>://<gostitelj>/
+     * safeer-skrito-<odtis>« brez poti in poizvedbe; [dejanski] vrne cel pravi naslov. null = sifriranje ni uspelo.
+     */
+    fun zavarujCel(c: Context, naslov: String): String? {
+        val p = naslov.trim()
+        val m = p.lowercase(java.util.Locale.ROOT)
+        if ((!m.startsWith("http://") && !m.startsWith("https://")) || '#' in p || SkrivnostiPravila.jeNadomestek(p)) return null
+        val n = SkrivnostiPravila.nadomestek(p) ?: return null
+        return if (shraniSkrivnost(c, p, n)) n else null
+    }
+
+    /** Skrivnost [p] z nadomestkom [n] v sifrirano shrambo (ce je se ni); false = sifriranje ni uspelo. */
+    private fun shraniSkrivnost(c: Context, p: String, n: String): Boolean {
         nalozi(c)
         if (predpone[n] != p) synchronized(this) {
             val a = c.applicationContext
             val o = SkrivnostiPravila.odtis(p)
             if (!SporocilaSkrivnosti.shrani(a, ime(o), p) && !SporocilaSkrivnosti.shrani(a, ime(o), p)) {
-                Log.w(TAG, "sifriranje ni uspelo"); return null
+                Log.w(TAG, "sifriranje ni uspelo"); return false
             }
             val zdaj = odtisi(a)
             if (o !in zdaj) {
@@ -100,7 +120,7 @@ object SkrivniDodatki {
             predpone[n] = p
         }
         dodanoOb[n] = System.currentTimeMillis()
-        return SkrivnostiPravila.vNadomestek(naslov)
+        return true
     }
 
     /**

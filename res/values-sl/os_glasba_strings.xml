@@ -347,6 +347,21 @@
     <string name="os_pregled_kanalov_zdaj">Preveri kanale zdaj</string>
     <string name="os_pregled_kanalov_zacet">Kanale tega dodatka preverjam v ozadju.</string>
     <string name="os_pregled_kanalov_po_predvajanju">Kanale preverim, ko se predvajanje ustavi.</string>
+    <!-- Grok 39, I5: ponudnik je seznam IPTV zavrnil; %1$s = kdaj znova (npr. »cez 1 uro«). -->
+    <string name="os_iptv_seznam_zavrnjen">Ponudnik je seznam zavrnil – preveri račun pri ponudniku. Nov poskus je mogoč %1$s.</string>
+    <string name="os_iptv_seznam_ni_prenesen">Seznama ni bilo mogoče prenesti. Nov poskus je mogoč %1$s.</string>
+    <string name="os_iptv_poskusi_znova">Poskusi znova prenesti seznam</string>
+    <!-- Grok 60, Ů2: vir z racunom, ki ga ta naprava ni dodala sama, se ne prenasa samodejno, dokler uporabnik tega ne dovoli. -->
+    <string name="os_iptv_potrdi_tu">Dovoli samodejni prenos na tej napravi</string>
+    <string name="os_iptv_ni_dodan_tu">brez samodejnega prenosa – zadrži OK in dovoli</string>
+    <string name="os_iptv_potrjen_tu">Seznam se bo na tej napravi osvežil ob odprtju. Na druge naprave se ne pošilja – za to vir vpiši sam na tej napravi.</string>
+    <!-- Grok 46, Ö3: geslo seznama IPTV je starejsa razlicica dala napravam zunaj ozjega kroga (lastnik: %1$s = gostitelji). -->
+    <string name="os_iptv_deljeno_naslov">Geslo seznama IPTV je bilo deljeno</string>
+    <string name="os_iptv_deljeno_sporocilo">Starejša različica Safeer je seznam z računom (%1$s) poslala tudi napravam zunaj ožjega kroga zaupanja. Priporočamo, da geslo zamenjaš pri ponudniku in seznam z novim geslom dodaš znova.</string>
+    <!-- Prejemnik: %1$s = gostitelji seznamov, %2$s = ime naprave. -->
+    <string name="os_iptv_preklic_naslov">Seznam z računom z druge naprave</string>
+    <string name="os_iptv_preklic_sporocilo">Naprava %2$s seznama %1$s ne deli več z napravami zunaj svojega ožjega kroga zaupanja – sem je lahko prišel s starejšo različico Safeer. Ga odstranim s te naprave? Če si ga na tej napravi dodal sam, izberi Obdrži.</string>
+    <string name="os_iptv_preklic_obdrzi">Obdrži</string>
     <!-- Naloga 76: mreza TV v zivo caka na zasebne kategorije dodatkov. -->
     <string name="os_tv_preverjam_kategorije">Preverjam kategorije dodatkov …</string>
     <!-- Naloga 77: dodatek ima samo kataloge za iskanje (YouTubio). -->

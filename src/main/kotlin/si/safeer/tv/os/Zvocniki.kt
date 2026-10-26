@@ -558,7 +558,10 @@ object Zvocniki {
             konec(null)
         }) {
             if (moj != zagon) return@naDelavcu
-            val (p, poslano, traj) = zacniNaPrenosu(app, z, sk, igraj, if (istaSeja) 0L else odMs,
+            // Vir z racunom (in tok dodatka s poverilnico) je v aplikaciji nadomestek: zvocnik v domacem omrezju dobi pravi
+            // naslov (sam bere tok), drugam ne gre (26. 10. 2026).
+            val zaZvocnik = sk.copy(zvok = SkrivniDodatki.dejanski(app, sk.zvok))
+            val (p, poslano, traj) = zacniNaPrenosu(app, z, zaZvocnik, igraj, if (istaSeja) 0L else odMs,
                 poslan = { pot, naslov -> url = naslov; poslanUrl = naslov; poslanZa = z.udn; uporabljen = pot; if (!istaSeja) cakaPrenos = pot },
                 sprejeto = { zeNaMestu -> nalozeno = true; naMestu = zeNaMestu })
             url = poslano; uporabljen = p; znanoTrajanje = traj
@@ -581,7 +584,7 @@ object Zvocniki {
             val ms = try {
                 val b = android.media.MediaMetadataRetriever()       // v try: napaka sistemske knjiznice ne sme podreti aplikacije
                 bralnik = b
-                val vir = sk.zvok
+                val vir = SkrivniDodatki.dejanski(ctx, sk.zvok)
                 when {
                     vir.startsWith("content://", true) || vir.startsWith("file://", true) -> b.setDataSource(ctx, android.net.Uri.parse(vir))
                     vir.startsWith("/") -> b.setDataSource(vir)

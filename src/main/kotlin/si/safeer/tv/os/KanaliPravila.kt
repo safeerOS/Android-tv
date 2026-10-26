@@ -116,8 +116,18 @@ object KanaliPravila {
     /** Kljuc znane kategorije (»novice«, »sport« ...), ce oznaka katero pomeni; sicer null. */
     fun kategorija(oznaka: String): String? = cista(oznaka).let { c -> KATEGORIJE.firstOrNull { it.second.containsMatchIn(c) }?.first }
 
-    private val RX_LOCLJIVOST = Regex("\\s*\\((?:\\d{3,4}[pi]|sd|hd|fhd|uhd|4k)\\)", RegexOption.IGNORE_CASE)
-    private val RX_OPOMBA = Regex("\\s*\\[(?:geo-?blocked|not 24/7|offline)\\]", RegexOption.IGNORE_CASE)
+    // J4 (pregled 30, 26. 10. 2026): presledki pred oklepajem samo od zacetka niza presledkov (lookbehind) - sicer kvadratno
+    // v dolzini imena (dolg niz presledkov brez oklepaja).
+    private val RX_LOCLJIVOST = Regex("(?<!\\s)\\s*\\((?:\\d{3,4}[pi]|sd|hd|fhd|uhd|4k)\\)", RegexOption.IGNORE_CASE)
+    private val RX_OPOMBA = Regex("(?<!\\s)\\s*\\[\\s*(?:geo-?blocked|offline|not\\s*24\\s*/\\s*7)\\s*\\]", RegexOption.IGNORE_CASE)
+
+    private val RX_NE_24_7 = Regex("\\[\\s*not\\s*24\\s*/\\s*7\\s*\\]", RegexOption.IGNORE_CASE)
+
+    /**
+     * Lastnik, 25. 10. 2026: »Vse tv ki imajo oznako not 24/7 ne rabimo.« Kanal z oznako [Not 24/7] (iptv-org: oddaja samo
+     * obcasno) se ne pokaze in ne preverja - v seznamih IPTV in v dodatkih (kot Linux kanali_iptv, skupni primeri iptv-m3u).
+     */
+    fun jeNe247(ime: String): Boolean = RX_NE_24_7.containsMatchIn(ime)
 
     /** Ime kanala brez tehnicnih pripon seznamov IPTV (»(720p)«, »[Not 24/7]«): tako se isti kanal v dveh locljivostih zdruzi v eno kartico. */
     fun imeKanala(ime: String): String = ime.replace(RX_LOCLJIVOST, "").replace(RX_OPOMBA, "").trim().ifBlank { ime.trim() }

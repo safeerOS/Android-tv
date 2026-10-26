@@ -24,11 +24,14 @@ object IptvSeznami {
     class Podatki(val prenesenOb: Long, val kanalov: Int, val zvrsti: Set<String>, val jeziki: Set<String>)
 
     private val podatki = ConcurrentHashMap<String, Podatki>()
-    private val prenasam: MutableSet<String> = java.util.Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
+    /** Pregled Grok 39, I5: napaka zadnjega prenosa po seznamu (odtis naslova -> [IptvPravila.NapakaPrenosa]). */
+    private const val PREFS_NAPAKE = "safeer_iptv_seznami_napake"
+    /** Grok 68, Ą5: ena prijava na vir naenkrat (odlocitev in rezervacija atomarno, [IptvPravila.EnaPrijava]). */
+    private val prijave = IptvPravila.EnaPrijava()
 
     // Pripona -j2: od 23. 10. 2026 ima kanal brez tvg-language jezik drzave - stare razclenitve (brez jezika) se ne berejo vec,
-    // seznam se prenese znova, [obdrzi] stare datoteke pospravi.
-    private fun ime(naslov: String) = KanaliPravila.odtisDodatka(naslov) + "-j2"
+    // seznam se prenese znova, [obdrzi] stare datoteke pospravi. -j3 (26. 10. 2026): brez kanalov [Not 24/7], ».uk« = GB.
+    private fun ime(naslov: String) = KanaliPravila.odtisDodatka(naslov) + "-j3"
     private fun mapa(c: Context) = File(c.applicationContext.filesDir, MAPA)
     /** Naloga 87: mapa seznamov na USB, ce je predpomnilnik na USB v uporabi (iz ozadja; z glavne niti null). */
     private fun mapaUsb(c: Context): File? = UsbPredpomnilnik.mapa(c, PredpomnilnikPravila.IPTV)
@@ -65,34 +68,101 @@ object IptvSeznami {
      * Seznam je na disku in ni zastarel: nic. Zastarel: prenese ga v ozadju (stari velja do konca). Ga ni: prenese ga zdaj
      * (klic iz ozadja). Vrne podatke, ki zdaj veljajo.
      */
-    fun pripravi(c: Context, naslov: String): Podatki? {
+    fun pripravi(c: Context, naslov: String, rocno: Boolean = false, uporabnik: Boolean = false): Podatki? {
+        // Grok 52, Ñ2 + Grok 60, Ů1/Ů2: ENA odlocitev ([IptvPravila.odlociPripravo]). Seznam z racunom se samodejno prenasa samo na napravi,
+        // kjer je dodan z dokazom (odprtje TV v zivo, 24-urna osvezitev, predpomnilnik 24 ur); drugje samo na izrecen klik [rocno]
+        // (»Poskusi znova«), najvec 1-krat na minuto na racun. Grok 39, I5: po zavrnjenem ali neuspelem prenosu premor (10 min, 1 h,
+        // 6 h, 24 h) - vsak poskus je prijava v racun ponudnika. Grok 68, Ą2: vir iz ozjega kroga (brez dokaza »dodan tu«) dobi povezavo
+        // samo, ce jo sprozi uporabnik ([uporabnik]: odprtje seznama, izrecna izbira zavihka TV v zivo) ali [rocno]; odprtje seznama in
+        // mreza TV v zivo si delita ta predpomnilnik, premor I5 in mejo 1-krat na minuto (en vir, ena prijava).
+        // Grok 68, Ą5: odlocitev in rezervacija sta ena atomarna poteza - socasen »Poskusi znova«, prva uporaba in osvezitev v ozadju
+        // naredijo najvec eno prijavo; kdor pride med prenosom, dobi, kar je na disku (brez zahteve).
+        val odlocitev = prijave.rezerviraj(naslov) {
+            IptvPravila.odlociPripravo(naslov, MedijskiViri.uporabaDovoljena(c, naslov), rocno, podatki(c, naslov)?.prenesenOb, napaka(c, naslov),
+                zadnjiPoskus(c, naslov), System.currentTimeMillis(), dodanTuDokaz = MedijskiViri.dodanTuZDokazom(c, naslov),
+                uporabnik = uporabnik)
+        }
         val p = podatki(c, naslov)
-        if (p != null && !IptvPravila.zastarel(p.prenesenOb, System.currentTimeMillis())) return p
-        if (p != null) { Thread({ prenesi(c, naslov) }, "safeer-iptv").apply { isDaemon = true; priority = Thread.MIN_PRIORITY }.start(); return p }
-        return prenesi(c, naslov)
+        return when (odlocitev) {
+            null, IptvPravila.Priprava.BREZ -> p
+            IptvPravila.Priprava.V_OZADJU -> {
+                try { Thread({ prenesi(c, naslov) }, "safeer-iptv").apply { isDaemon = true; priority = Thread.MIN_PRIORITY }.start() }
+                catch (e: Throwable) { prijave.sprosti(naslov); throw e }
+                p
+            }
+            IptvPravila.Priprava.ZDAJ -> prenesi(c, naslov)
+        }
+    }
+
+    /** Grok 60, Ů1: zadnja prijava v racun seznama (ms, uspela ali ne). */
+    private const val PREFS_POSKUSI = "safeer_iptv_seznami_poskusi"
+    private fun poskusi(c: Context) = c.applicationContext.getSharedPreferences(PREFS_POSKUSI, Context.MODE_PRIVATE)
+    private fun kljucPoskusa(naslov: String) = "p:" + KanaliPravila.odtisDodatka(naslov)
+
+    /** Grok 60, Ů1: kdaj smo se nazadnje poskusili prijaviti v racun seznama (0 = nikoli; javni seznami se ne zapisujejo). */
+    fun zadnjiPoskus(c: Context, naslov: String): Long = try { poskusi(c).getLong(kljucPoskusa(naslov), 0L) } catch (_: Exception) { 0L }
+
+    /** Grok 60, Ů1: tik pred zahtevo, ki se prijavi v racun [naslov] (samo vir z racunom): od tu steje meja 1-krat na minuto. */
+    fun zapisiPoskus(c: Context, naslov: String) {
+        if (!IptvPravila.virZRacunom(MedijskiViri.SEZNAM, naslov)) return
+        try { poskusi(c).edit().putLong(kljucPoskusa(naslov), System.currentTimeMillis()).apply() } catch (_: Exception) { }
+    }
+
+    /** Grok 39, I5: napaka zadnjega prenosa seznama (za kartico vira in premor); null = je ni. */
+    fun napaka(c: Context, naslov: String): IptvPravila.NapakaPrenosa? = try {
+        IptvPravila.NapakaPrenosa.izNiza(c.applicationContext.getSharedPreferences(PREFS_NAPAKE, Context.MODE_PRIVATE)
+            .getString(KanaliPravila.odtisDodatka(naslov), null))
+    } catch (_: Exception) { null }
+
+    private fun zapisiNapako(c: Context, naslov: String, n: IptvPravila.NapakaPrenosa?) {
+        try {
+            val e = c.applicationContext.getSharedPreferences(PREFS_NAPAKE, Context.MODE_PRIVATE).edit()
+            if (n == null) e.remove(KanaliPravila.odtisDodatka(naslov)) else e.putString(KanaliPravila.odtisDodatka(naslov), n.vNiz())
+            e.apply()
+        } catch (_: Exception) { }
+    }
+
+    /** Neuspel prenos ([koda] 0 = napaka povezave): premor po [IptvPravila.poNapaki], ce je to napaka s premorom. */
+    private fun poNeuspehu(c: Context, naslov: String, koda: Int, kanalov: Int) {
+        if (!IptvPravila.napakaPrenosa(koda, kanalov, naslov)) return
+        val n = IptvPravila.poNapaki(napaka(c, naslov), System.currentTimeMillis(), IptvPravila.zavrnjen(koda, kanalov, naslov))
+        zapisiNapako(c, naslov, n)
+        android.util.Log.i("SafeerOsMedia", "seznam IPTV: prenos ni uspel (${if (koda > 0) "HTTP $koda" else "povezava"}, kanalov=$kanalov, " +
+            "zavrnjen=${n.zavrnjen}), ${n.zaporednih}. zapored, naslednji poskus cez ${(n.naslednjiOb - n.zadnjiOb) / 60_000} min")
     }
 
     /** Prenese in razcleni seznam tokovno v zacasno datoteko, nato jo zamenja (atomarno). Klic iz ozadja. */
     private fun prenesi(c: Context, naslov: String): Podatki? {
-        if (!prenasam.add(naslov)) return podatki(c, naslov)
+        // Lastnik, 26. 10. 2026: seznam z racunom je v aplikaciji nadomestek - pravi naslov samo za zahtevo in relativne naslove.
+        // Skrivnosti ta naprava ne zna prebrati (Keystore): nobene zahteve (na nadomestek ali s starim geslom).
+        // Rezervacijo je naredil [pripravi] ([prijave]); vsak izhod jo sprosti.
+        val pravi = try { SkrivniDodatki.dejanski(c, naslov) } catch (e: Throwable) { prijave.sprosti(naslov); throw e }
+        if (SkrivnostiPravila.jeNadomestek(pravi)) { prijave.sprosti(naslov); return podatki(c, naslov) }
+        zapisiPoskus(c, naslov)
         val od = android.os.SystemClock.uptimeMillis()
         try {
-            val (drzava, jezik) = IptvPravila.izNaslovaSeznama(naslov)
-            val p = (URL(naslov).openConnection() as HttpURLConnection).apply {
+            val (drzava, jezik) = IptvPravila.izNaslovaSeznama(pravi)
+            val p = (URL(pravi).openConnection() as HttpURLConnection).apply {
                 connectTimeout = 8_000; readTimeout = 15_000; setRequestProperty("User-Agent", "SafeerOS")
             }
             try {
-                if (p.responseCode !in 200..299) return podatki(c, naslov)
-                // Naloga 87: z USB v uporabi gre seznam (do 20 MB) na USB - notranji pomnilnik TV ostane prost.
-                val m = (mapaUsb(c) ?: mapa(c)).apply { mkdirs() }
+                val koda = p.responseCode
+                if (koda !in 200..299) { poNeuspehu(c, naslov, koda, 0); return podatki(c, naslov) }
+                // Naloga 87: z USB v uporabi gre seznam (do 20 MB) na USB - notranji pomnilnik TV ostane prost. Seznam z racunom
+                // (tokovi nosijo uporabnika in geslo) nikoli na USB - ta je berljiv vsakomur, ki ga vtakne drugam (26. 10. 2026).
+                val m = ((if (IptvPravila.virZRacunom(MedijskiViri.SEZNAM, naslov)) null else mapaUsb(c)) ?: mapa(c)).apply { mkdirs() }
                 val zacasna = File(m, ime(naslov) + ".tmp")
-                val bralnik = IptvPravila.Bralnik(naslov, drzava, jezik)
+                val bralnik = IptvPravila.Bralnik(pravi, drzava, jezik)
+                // Grok 68: pogled seznama z racunom dobi skladbe iz ISTEGA prenosa (ena prijava): prvih 2 mio znakov besedila.
+                val zaPogled = IptvPravila.virZRacunom(MedijskiViri.SEZNAM, naslov)
+                val besedilo = StringBuilder()
                 val zvrsti = HashSet<String>(); val jeziki = HashSet<String>()
                 zacasna.bufferedWriter().use { w ->
                     p.inputStream.bufferedReader().use { r ->
                         // Naloga 86 (M7): vrstica najvec [IptvPravila.NAJVEC_VRSTICA] znakov (daljsa se preskoci, ne bere v pomnilnik),
                         // skupaj najvec [NAJVEC_BAJTOV] - prej je readLine() prebral celo vrstico brez preloma (OOM).
                         IptvPravila.vrstice(r, IptvPravila.NAJVEC_VRSTICA, NAJVEC_BAJTOV) { l ->
+                            if (zaPogled && besedilo.length < IptvPravila.NAJVEC_ZNAKOV_SEZNAMA) besedilo.append(l).append('\n')
                             val v = bralnik.vrstica(l) ?: return@vrstice
                             if (v.zvrst.isNotEmpty()) zvrsti += v.zvrst
                             if (v.jezik.isNotEmpty()) jeziki += v.jezik
@@ -100,6 +170,9 @@ object IptvSeznami {
                         }
                     }
                 }
+                // Grok 39, I5: seznam z racunom brez kanalov (potekel racun) ni nov seznam - zadnji znani ostane, premor tece.
+                if (IptvPravila.napakaPrenosa(koda, bralnik.kanalov, naslov)) { zacasna.delete(); poNeuspehu(c, naslov, koda, bralnik.kanalov); return podatki(c, naslov) }
+                zapisiNapako(c, naslov, null)
                 val podatkiNovi = Podatki(System.currentTimeMillis(), bralnik.kanalov, zvrsti, jeziki)
                 val cilj = File(m, ime(naslov) + ".tsv")
                 if (!zacasna.renameTo(cilj)) { cilj.delete(); if (!zacasna.renameTo(cilj)) { zacasna.delete(); return podatki(c, naslov) } }
@@ -108,11 +181,13 @@ object IptvSeznami {
                 for (drug in listOfNotNull(mapa(c), mapaUsb(c)).filter { it.path != m.path })
                     for (pr in listOf(".tsv", ".info")) try { File(drug, ime(naslov) + pr).delete() } catch (_: Throwable) { }
                 podatki[naslov] = podatkiNovi
+                if (zaPogled) MedijskiViri.shraniSkladbeSeznama(c, naslov, pravi, besedilo.toString())
                 android.util.Log.i("SafeerOsMedia", "seznam IPTV: kanalov=${bralnik.kanalov}, zvrsti=${zvrsti.size}, jeziki=${jeziki.size}, " +
                     "drzava seznama=${drzava.ifEmpty { "-" }}, jezik seznama=${jezik.ifEmpty { "-" }}, po ${android.os.SystemClock.uptimeMillis() - od} ms")
                 return podatkiNovi
             } finally { try { p.disconnect() } catch (_: Throwable) { } }
         } catch (_: Exception) {
+            poNeuspehu(c, naslov, 0, 0)
             // Naloga 87: napaka pisanja na USB (odklop, poln) - do naslednje preverbe notranji.
             if (mapaUsb(c) != null) UsbPredpomnilnik.napaka()
             for (m in listOfNotNull(mapa(c), mapaUsb(c))) try { File(m, ime(naslov) + ".tmp").delete() } catch (_: Throwable) { }
@@ -121,7 +196,7 @@ object IptvSeznami {
             // Naloga 86 (M7): pomnilnika je zmanjkalo (sibak TV) - seznam ostane, kot je bil; proces ne pade.
             for (m in listOfNotNull(mapa(c), mapaUsb(c))) try { File(m, ime(naslov) + ".tmp").delete() } catch (_: Throwable) { }
             return podatki(c, naslov)
-        } finally { prenasam.remove(naslov) }
+        } finally { prijave.sprosti(naslov) }
     }
 
     /**
@@ -167,9 +242,27 @@ object IptvSeznami {
         video = true, mime = if (v.url.substringBefore('?').lowercase().endsWith(".m3u8")) MedijskiViri.MIME_HLS else "",
         streznik = seznam, genres = listOfNotNull(v.zvrst.takeIf { it.isNotEmpty() }), language = v.jezik)
 
+    /**
+     * Prehod vira z racunom na nadomestek (lastnik, 26. 10. 2026): datoteki kanalov in napaka prenosa iz imena po pravem
+     * naslovu [staro] v ime po nadomestku [novo] - brez novega prenosa (vsak je prijava v racun). Samo notranji pomnilnik;
+     * kopijo na USB (iz glavne niti je ne vidimo) pospravi [obdrzi], seznam se takrat prenese na notranji.
+     */
+    fun preseli(c: Context, staro: String, novo: String) {
+        val m = mapa(c)
+        for (pr in listOf(".tsv", ".info")) {
+            val f = File(m, ime(staro) + pr)
+            if (f.exists() && !f.renameTo(File(m, ime(novo) + pr))) f.delete()
+        }
+        podatki.remove(staro)?.let { podatki[novo] = it }
+        napaka(c, staro)?.let { zapisiNapako(c, novo, it) }
+        zapisiNapako(c, staro, null)
+    }
+
     /** Seznam je odstranjen: datoteki izgineta. */
     fun pozabi(c: Context, naslov: String) {
         podatki.remove(naslov)
+        zapisiNapako(c, naslov, null)
+        try { poskusi(c).edit().remove(kljucPoskusa(naslov)).apply() } catch (_: Exception) { }
         for (m in listOfNotNull(mapa(c), mapaUsb(c))) for (pr in listOf(".tsv", ".info")) try { File(m, ime(naslov) + pr).delete() } catch (_: Exception) { }
     }
 
@@ -181,7 +274,7 @@ object IptvSeznami {
      * Seznam, ki se prenasa, ostane. Klic iz ozadja.
      */
     fun obdrzi(c: Context, naslovi: Collection<String>) {
-        val imena = (naslovi + prenasam).map { ime(it) }.toSet()
+        val imena = (naslovi + prijave.vsi()).map { ime(it) }.toSet()
         for (f in listOfNotNull(mapa(c), mapaUsb(c)).flatMap { it.listFiles().orEmpty().toList() }) {
             if (f.name.substringBefore('.') in imena) continue
             podatki.keys.filter { ime(it) == f.name.substringBefore('.') }.forEach { podatki.remove(it) }

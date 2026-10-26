@@ -167,11 +167,161 @@ private fun izracunaj(f: String, v: Map<String, Any?>): Any? = when (f) {
     else -> error("neznano pravilo: $f")
 }
 
+/**
+ * Skupni primeri razclenitve seznamov M3U (tests/skupni-primeri/iptv-m3u.json, lastnik Safeer-linux): Android preveri, kar
+ * pozna njegov bralnik seznamov IPTV - ime (brez tehnicnih pripon), drzavo, jezik, logotip in izlocitev [Not 24/7]. Filmov,
+ * serij in radia Android iz seznama IPTV ne loci: ti primeri so preskoceni in nasteti (razlika do Linuxa).
+ */
+@Suppress("UNCHECKED_CAST")
+private fun iptvPrimeri(koren: Map<String, Any?>) {
+    for (p in koren["primeri"] as List<Map<String, Any?>>) {
+        val pr = p["pricakovano"] as Map<String, Any?>
+        val opis = p.niz("opis")!!
+        val vrsta = pr.niz("vrsta")
+        if (pr["izlocen"] != true && vrsta != "tv-v-zivo") { println("  preskoceno (Android, vrsta $vrsta): $opis"); continue }
+        val seznam = p.niz("seznam")!!
+        val (d, j) = IptvPravila.izNaslovaSeznama(seznam)
+        val b = IptvPravila.Bralnik(seznam, d, j)
+        val vnosi = (p["vrstice"] as List<String>).mapNotNull { b.vrstica(it) }
+        if (pr["izlocen"] == true) { preveriEnako("$opis: izlocen", 0, vnosi.size); continue }
+        preveriEnako("$opis: en kanal", 1, vnosi.size)
+        val v = vnosi.singleOrNull() ?: continue
+        preveriEnako("$opis: ime", pr["ime"], KanaliPravila.imeKanala(v.ime))
+        for ((k, dobljeno) in listOf("drzava" to v.drzava, "jezik" to v.jezik, "logo" to v.logo))
+            if (pr.containsKey(k)) preveriEnako("$opis: $k", pr[k], dobljeno)
+    }
+}
+
+/**
+ * Skupni primeri zascite racuna IPTV (tests/skupni-primeri/iptv-racun.json, lastnik Safeer-linux; pregled 39, I1):
+ * seznami.javni = [IptvPravila.javniBrezplacni] (sme v preverbo v ozadju), kanali.racun = [IptvPravila.jeVirSPoverilnico]
+ * za naslov toka (nikoli v preverbo v ozadju, s tokom samo v ozji krog).
+ */
+@Suppress("UNCHECKED_CAST")
+private fun iptvRacunPrimeri(koren: Map<String, Any?>) {
+    for (s in koren["seznami"] as List<Map<String, Any?>>)
+        preveriEnako("seznam ${s.niz("opis") ?: s.niz("url")}: javni", s["javni"], IptvPravila.javniBrezplacni(s.niz("url")!!))
+    for (k in koren["kanali"] as List<Map<String, Any?>>)
+        preveriEnako("kanal ${k.niz("opis") ?: k.niz("url")}: racun", k["racun"], IptvPravila.jeVirSPoverilnico(k.niz("url")!!, seznam = false))
+    // Verzija 2 (Linux, pregled 46 Ö1): viri.ozji = vir gre samo v ozji krog ([smeZNavadnoUskladitvijo] false), viri.prikaz = zaslon.
+    // Naslov se primerja SUROV (presledek ali nevidni znak okoli naslova ni pozitivno znan javen). Android nima oznake »javen«
+    // (lastnikov zaslon ni narejen): primer z oznacen=true in ozji=false je tu strozji (ozji=true, samo gostitelj) - preveri se to.
+    var oznakaPreskocena = 0
+    for (v in (koren["viri"] as? List<Map<String, Any?>>).orEmpty()) {
+        val n = v.niz("naslov")!!
+        val opis = "vir ${v.niz("opis") ?: n.trim()}"
+        if (v["oznacen"] == true && v["ozji"] == false) {
+            oznakaPreskocena++
+            preveriEnako("$opis: Android brez oznake javnega - ozji", true, !IptvPravila.smeZNavadnoUskladitvijo("seznam", n))
+            continue
+        }
+        preveriEnako("$opis: ozji", v["ozji"], !IptvPravila.smeZNavadnoUskladitvijo("seznam", n))
+        // Zaslon: Android ima svojo obliko (javni seznam brez sheme, drugo samo gostitelj brez vrat, naslov, ki ni http(s), »…«);
+        // enako kot Linux pa nikoli skrivnosti. Naslov s presledkom okoli Android pred prikazom obreze (preverjeno zgoraj).
+        val prikaz = IptvPravila.zaPrikaz(n)
+        preveriEnako("$opis: na zaslonu brez gesla", true, listOf("skrito-geslo", "uporabnik", "00:1A:79").none { it in prikaz })
+        val pricakovan = v.niz("prikaz")
+        if (pricakovan != null && n == n.trim()) {
+            val android = if (v["ozji"] == false) pricakovan.removePrefix("https://").removePrefix("http://")
+                else if (n.lowercase().startsWith("http://") || n.lowercase().startsWith("https://")) pricakovan.substringBefore(':') else "…"
+            preveriEnako("$opis: prikaz", android, prikaz)
+        }
+    }
+    println("  oznaka »javen« (Android je ni): $oznakaPreskocena primer strozje")
+    // Verzija 3 (Linux, pregled 51 Ê3): prevzem z lists.get. ozji true - vsak vir; false ali BREZ kljuca (null, starejsa razlicica) -
+    // samo pozitivno znan javen. Android kljuc »ozji« bere iz odgovora (SeznamiSink) in ga zdruzi z lastnim ozjim krogom
+    // ([odOzjegaKroga]: oboje mora drzati), nato odloci z [prevzemZNavadnoUskladitvijo].
+    for (v in (koren["prevzem"] as? List<Map<String, Any?>>).orEmpty())
+        preveriEnako("prevzem ${v.niz("opis") ?: v.niz("naslov")} (ozji=${v["ozji"]})", v["prevzem"],
+            IptvPravila.prevzemZNavadnoUskladitvijo("seznam", v.niz("naslov")!!, IptvPravila.odOzjegaKroga(true, v["ozji"] as? Boolean)))
+    preveriEnako("odgovor ozji=true, naprava v nasem krogu: vzemi vse", true, IptvPravila.odOzjegaKroga(true, true))
+    preveriEnako("odgovor ozji=false: samo javno", false, IptvPravila.odOzjegaKroga(true, false))
+    preveriEnako("odgovor brez kljuca (starejsa razlicica): samo javno", false, IptvPravila.odOzjegaKroga(true, null))
+    preveriEnako("odgovor ozji=true, a naprava ni v nasem krogu: samo javno (krog je na napravo)", false, IptvPravila.odOzjegaKroga(false, true))
+    // Verzija 4 (Linux, pregled 57; Grok 60): »caka« = vir, prejet z druge naprave, ob prejemu NE naredi nobene povezave. Povezavo
+    // naredita samo dve poti prejema: vrsta »url« (prejetNaslov bere naslov prek [razvrsti], ce ni vir z racunom) in vrsta seznam
+    // (SeznamiSink: osveziPoPrejemu); podkast, tok in drugo se ob prejemu ne berejo. Pravi poti, ne kopija odlocitve.
+    var caka = 0
+    for (c in (koren["caka"] as? List<Map<String, Any?>>).orEmpty()) {
+        val tip = c.niz("tip")!!; val n = c.niz("naslov")!!
+        var povezava = false
+        when (tip) {
+            "url" -> IptvPravila.prejetNaslov(n) { povezava = true; null }
+            "seznam" -> povezava = IptvPravila.osveziPoPrejemu(tip, n)
+            else -> povezava = false
+        }
+        preveriEnako("caka ($tip) ${c.niz("opis") ?: n}", c["caka"], !povezava)
+        caka++
+    }
+    println("  caka: $caka primerov")
+    // »racun_vira«: vir, ki ni pozitivno znan javen, je vir z racunom (premor in ena zahteva tudi pred prvim branjem).
+    // Android nima oznake »javen« (lastnikov zaslon ni narejen): oznacen javen naslov je tu racun (strozje), oznacen z racunom ostane racun.
+    // »vdelava« = [smeVdelatiStran]: stran HTML, ki jo uporabnik SAM doda in nima znakov poverilnice; prejeta nikoli.
+    var racunov = 0; var vdelav = 0; var strozje = 0
+    for (v in (koren["racun_vira"] as? List<Map<String, Any?>>).orEmpty()) {
+        val n = v.niz("naslov")!!
+        val opis = "racun_vira ${v.niz("opis") ?: n}"
+        val racun = IptvPravila.virZRacunom("seznam", n)
+        if (v["oznacen"] == true && v["racun"] == false) {
+            strozje++
+            preveriEnako("$opis: Android brez oznake javnega - racun", true, racun)
+        } else {
+            preveriEnako("$opis: racun", v["racun"], racun)
+            racunov++
+        }
+        val vdelava = v["vdelava"] as? Boolean ?: continue
+        preveriEnako("$opis: vdelava", vdelava, IptvPravila.smeVdelatiStran(n, v["prejet"] == true))
+        vdelav++
+    }
+    println("  racun_vira: $racunov primerov, vdelava: $vdelav, strozje brez oznake javnega: $strozje")
+    // Verzija 5 (Linux viri_sink.stanje_prejetega; lastnik 26. 10. 2026: vse naprave pripadajo uporabniku): stanje vira z druge naprave glede
+    // na odgovor »ozji« (naprava je v ozjem krogu te naprave). javen = prenos takoj; prvo_uporaba = viden takoj, brez povezave ob prejemu
+    // in v ozadju, uporaben ob prvi uporabi (Android: [uporabaPoPrejemu] + [smeSamodejnoPrenesti]); ni_prevzet = fail-closed.
+    var ozjih = 0
+    for (v in (koren["ozji_krog"] as? List<Map<String, Any?>>).orEmpty()) {
+        val n = v.niz("naslov")!!
+        // Verzija 6 (Grok 68, Ą3): v_krogu = posiljatelj je v ozjem krogu TE naprave (brez polja: true); samo odgovor »ozji« ne zadostuje.
+        val vKrogu = v["v_krogu"] as? Boolean ?: true
+        val odKroga = IptvPravila.odOzjegaKroga(vKrogu, v["ozji"] as? Boolean)
+        val stanje = when {
+            !IptvPravila.prevzemZNavadnoUskladitvijo("url", n, odKroga) -> "ni_prevzet"
+            !IptvPravila.virZRacunom("seznam", n) -> if (IptvPravila.osveziPoPrejemu("seznam", n)) "javen" else "javen_brez_prenosa"
+            else -> {
+                val uporaba = IptvPravila.uporabaPoPrejemu(null, setOf(n), setOf(n), odKroga)
+                val dokaz = IptvPravila.dokazDodanTu(null, setOf(n), setOf(n), prejeto = true)
+                val uporabno = IptvPravila.smeUporabiti(n in dokaz, n in uporaba)
+                val brezPovezave = IptvPravila.prejetNaslov(n) { null } != null && !IptvPravila.osveziPoPrejemu("seznam", n)
+                if (uporabno && IptvPravila.smeSamodejnoPrenesti(n, uporabno, izrecno = false) && brezPovezave && n !in dokaz) "prvo_uporaba" else "caka"
+            }
+        }
+        preveriEnako("ozji_krog ${v.niz("opis") ?: n} (ozji=${v["ozji"]})", v["stanje"], stanje)
+        // Grok 68, Ą3: dokaz ozjega kroga = posiljatelj je v ozjem krogu TE naprave IN odgovor to potrjuje; polje v odgovoru samo ne zadostuje
+        // (naprava zunaj kroga lahko poslje ozji = true): prvo_uporaba je nemogoc, vir z racunom se ne prevzame.
+        val tuj = IptvPravila.odOzjegaKroga(false, v["ozji"] as? Boolean)
+        val stanjeTuj = if (!IptvPravila.prevzemZNavadnoUskladitvijo("url", n, tuj)) "ni_prevzet" else if (!IptvPravila.virZRacunom("seznam", n)) "javen" else "prvo_uporaba"
+        preveriEnako("ozji_krog, posiljatelj NI v nasem krogu: ${v.niz("opis") ?: n}", if (v["stanje"] == "javen") "javen" else "ni_prevzet", stanjeTuj)
+        ozjih++
+    }
+    println("  ozji_krog: $ozjih primerov")
+}
+
 @Suppress("UNCHECKED_CAST")
 fun main(args: Array<String>) {
     println("Preizkus skupnih primerov (Android in namizje)")
     val pot = args.firstOrNull() ?: "tests/skupni-primeri/debrid-serije.json"
     val koren = Bralnik(File(pot).readText(Charsets.UTF_8)).beri() as Map<String, Any?>
+    if (koren.containsKey("seznami") && koren.containsKey("kanali")) {
+        iptvRacunPrimeri(koren)
+        println("  primerov: $primerov")
+        if (napak == 0) println("SkupniPrimeriTest: OK") else { println("Napak: $napak"); System.exit(1) }
+        return
+    }
+    if ((koren["primeri"] as List<Map<String, Any?>>).firstOrNull()?.containsKey("vrstice") == true) {
+        iptvPrimeri(koren)
+        println("  primerov: $primerov")
+        if (napak == 0) println("SkupniPrimeriTest: OK") else { println("Napak: $napak"); System.exit(1) }
+        return
+    }
     for (p in koren["primeri"] as List<Map<String, Any?>>) {
         val f = p.niz("f")!!
         val vhod = p["vhod"] as Map<String, Any?>

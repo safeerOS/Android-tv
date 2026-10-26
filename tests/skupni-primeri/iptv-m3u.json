@@ -1,0 +1,147 @@
+{
+  "opis": "Skupni primeri razclenitve seznamov M3U (IPTV) za vse platforme Safeer (Linux, Windows, Android). Lastnik, 25. 10. 2026: kanal iz seznama IPTV je samo TV v zivo; serija samo s sezono in epizodo; film samo datoteka (VOD); ime je za vejico ZUNAJ narekovajev (http-user-agent vsebuje vejico), sicer tvg-name; kanali [Not 24/7] se izlocijo povsod; drzava iz tvg-country, pripone tvg-id (.uk = GB) ali seznama; jezik iz tvg-language, seznama (languages/eng = en) ali glavnega jezika drzave. Primeri so iz pravih seznamov iptv-org (25. 10. 2026), naslovi tokov so izmisljeni. Privzeto vidni (privzeto_viden) so kanali javnih seznamov iz drzave uporabnika in drzav z anglescino (privzete_drzave); ostale drzave, tudi tiste z angleskimi kanali, in kanali brez znane drzave se vklopijo v Virih (Drzave in jeziki). Rocno dodani seznami se ne filtrirajo po drzavi.",
+  "drzava_uporabnika": "SI",
+  "privzete_drzave": ["SI", "US", "GB", "CA", "AU", "IE", "NZ"],
+  "primeri": [
+    {
+      "opis": "vejica v http-user-agent (lastnikov posnetek: H2 HD v Serijah z naslovom »like Gecko) Chrome/...«)",
+      "seznam": "https://iptv-org.github.io/iptv/countries/si.m3u",
+      "vrstice": [
+        "#EXTINF:-1 tvg-id=\"H2HD.si@SD\" tvg-logo=\"https://primer.test/h2.png\" http-user-agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36\" group-title=\"Documentary\",H2 HD",
+        "#EXTVLCOPT:http-user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "http://tok.primer.test/h2/index.m3u8"
+      ],
+      "pricakovano": {"ime": "H2 HD", "vrsta": "tv-v-zivo", "drzava": "SI", "jezik": "sl", "logo": "https://primer.test/h2.png",
+                      "kategorija": "Documentary", "privzeto_viden": true, "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"}
+    },
+    {
+      "opis": "group-title=\"Series\" je zvrst KANALA, ne serija (Star Crime)",
+      "seznam": "https://iptv-org.github.io/iptv/countries/si.m3u",
+      "vrstice": [
+        "#EXTINF:-1 tvg-id=\"StarCrime.si@SD\" tvg-logo=\"https://primer.test/sc.png\" http-user-agent=\"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.3\" group-title=\"Series\",Star Crime (Slovenia)",
+        "http://tok.primer.test/play/sc"
+      ],
+      "pricakovano": {"ime": "Star Crime (Slovenia)", "vrsta": "tv-v-zivo", "drzava": "SI", "jezik": "sl", "kategorija": "Series", "privzeto_viden": true}
+    },
+    {
+      "opis": "ime kanala s »TV« in tok brez koncnice (Exodus TV) je TV v zivo; locljivost ni del imena",
+      "seznam": "https://iptv-org.github.io/iptv/countries/si.m3u",
+      "vrstice": [
+        "#EXTINF:-1 tvg-id=\"ExodusTV.si@SD\" tvg-logo=\"https://primer.test/ex.png\" group-title=\"Religious\",Exodus TV (720p)",
+        "https://tok.primer.test/exodus/playlist.m3u8"
+      ],
+      "pricakovano": {"ime": "Exodus TV", "vrsta": "tv-v-zivo", "drzava": "SI", "jezik": "sl", "privzeto_viden": true}
+    },
+    {
+      "opis": "[Not 24/7] se izloci (ne prikaz, ne preverba)",
+      "seznam": "https://iptv-org.github.io/iptv/countries/si.m3u",
+      "vrstice": [
+        "#EXTINF:-1 tvg-id=\"TelevizijaUrslja.si@SD\" tvg-logo=\"https://primer.test/u.png\" group-title=\"General\",Televizija Urslja (1080p) [Not 24/7]",
+        "https://tok.primer.test/urslja/index.m3u8"
+      ],
+      "pricakovano": {"izlocen": true}
+    },
+    {
+      "opis": "kanal iz seznama drzave z drugo pripono tvg-id ohrani svojo drzavo (sosednja drzava ni privzeto vklopljena)",
+      "seznam": "https://iptv-org.github.io/iptv/countries/si.m3u",
+      "vrstice": [
+        "#EXTINF:-1 tvg-id=\"AXNSpin.hu@SD\" tvg-logo=\"https://primer.test/axn.png\" http-referrer=\"https://primer.test/\" group-title=\"Entertainment\",AXN Spin (Hungary)",
+        "#EXTVLCOPT:http-referrer=https://primer.test/",
+        "https://tok.primer.test/spy"
+      ],
+      "pricakovano": {"ime": "AXN Spin (Hungary)", "vrsta": "tv-v-zivo", "drzava": "HU", "jezik": "hu", "referer": "https://primer.test/",
+                      "privzeto_viden": false}
+    },
+    {
+      "opis": "seznam po jeziku: jezik iz naslova seznama, drzava iz tvg-id; kanal v anglescini iz drzave brez anglescine ni privzeto viden (lastnik: »TV Uganda niti ne rabimo«)",
+      "seznam": "https://iptv-org.github.io/iptv/languages/eng.m3u",
+      "vrstice": [
+        "#EXTINF:-1 tvg-id=\"3ABNTVUganda.ug@SD\" tvg-logo=\"https://primer.test/3abn.png\" group-title=\"Religious\",3ABN TV Uganda (720p)",
+        "https://tok.primer.test/3abn/ug.m3u8"
+      ],
+      "pricakovano": {"ime": "3ABN TV Uganda", "vrsta": "tv-v-zivo", "drzava": "UG", "jezik": "en", "privzeto_viden": false}
+    },
+    {
+      "opis": "iptv-org pise Zdruzeno kraljestvo kot .uk; ISO 3166 je GB (drzava z anglescino, privzeto viden)",
+      "seznam": "https://iptv-org.github.io/iptv/languages/eng.m3u",
+      "vrstice": [
+        "#EXTINF:-1 tvg-id=\"BBCNews.uk@SD\" group-title=\"News\",BBC News",
+        "https://tok.primer.test/bbc.m3u8"
+      ],
+      "pricakovano": {"ime": "BBC News", "vrsta": "tv-v-zivo", "drzava": "GB", "jezik": "en", "privzeto_viden": true}
+    },
+    {
+      "opis": "Irska je drzava z anglescino: kanal iz seznama languages/eng.m3u s pripono .ie je privzeto viden",
+      "seznam": "https://iptv-org.github.io/iptv/languages/eng.m3u",
+      "vrstice": [
+        "#EXTINF:-1 tvg-id=\"RTENews.ie@SD\" group-title=\"News\",RTÉ News (1080p)",
+        "https://tok.primer.test/rte.m3u8"
+      ],
+      "pricakovano": {"ime": "RTÉ News", "vrsta": "tv-v-zivo", "drzava": "IE", "jezik": "en", "privzeto_viden": true}
+    },
+    {
+      "opis": "kanal v anglescini brez znane drzave (tvg-id brez pripone) ni privzeto viden; vklopi se z jezikom v Virih",
+      "seznam": "https://iptv-org.github.io/iptv/languages/eng.m3u",
+      "vrstice": [
+        "#EXTINF:-1 tvg-id=\"\" group-title=\"Music\",Primer Music TV",
+        "https://tok.primer.test/music.m3u8"
+      ],
+      "pricakovano": {"ime": "Primer Music TV", "vrsta": "tv-v-zivo", "drzava": "", "jezik": "en", "privzeto_viden": false}
+    },
+    {
+      "opis": "vejica v group-title v narekovajih; brez imena za vejico je ime tvg-name; tvg-language ima prednost",
+      "seznam": "https://primer.test/moj-seznam.m3u",
+      "vrstice": [
+        "#EXTINF:-1 tvg-name=\"Kanal Ena\" tvg-country=\"AT\" tvg-language=\"German\" group-title=\"News,Sport\",",
+        "http://tok.primer.test/ena.ts"
+      ],
+      "pricakovano": {"ime": "Kanal Ena", "vrsta": "tv-v-zivo", "drzava": "AT", "jezik": "de", "kategorija": "News,Sport",
+                      "privzeto_viden": true}
+    },
+    {
+      "opis": "datoteka v seznamu (VOD) je film, tudi z group-title",
+      "seznam": "https://primer.test/vod.m3u",
+      "vrstice": [
+        "#EXTINF:5400 tvg-id=\"\" group-title=\"VOD | Akcija\",Film Primer (2020)",
+        "https://primer.test/movie/uporabnik/geslo/123.mkv"
+      ],
+      "pricakovano": {"ime": "Film Primer (2020)", "vrsta": "film"}
+    },
+    {
+      "opis": "epizoda s sezono in epizodo je serija",
+      "seznam": "https://primer.test/vod.m3u",
+      "vrstice": [
+        "#EXTINF:-1 tvg-name=\"Serija Primer S01 E02\" group-title=\"Serije\",Serija Primer S01 E02",
+        "https://primer.test/series/uporabnik/geslo/456.mp4"
+      ],
+      "pricakovano": {"ime": "Serija Primer S01 E02", "vrsta": "serija", "sezona": 1, "epizoda": 2}
+    },
+    {
+      "opis": "ime kanala »4x4« ni sezona in epizoda",
+      "seznam": "https://primer.test/moj-seznam.m3u",
+      "vrstice": [
+        "#EXTINF:-1 tvg-id=\"4x4TV.us@SD\" group-title=\"Auto\",4x4 TV",
+        "https://tok.primer.test/4x4.m3u8"
+      ],
+      "pricakovano": {"ime": "4x4 TV", "vrsta": "tv-v-zivo", "drzava": "US", "jezik": "en", "privzeto_viden": true}
+    },
+    {
+      "opis": "radio=\"true\" je radio",
+      "seznam": "https://primer.test/moj-seznam.m3u",
+      "vrstice": [
+        "#EXTINF:-1 tvg-id=\"ValPrimer.si\" radio=\"true\" group-title=\"Glasba\",Radio Primer",
+        "https://tok.primer.test/radio.aac"
+      ],
+      "pricakovano": {"ime": "Radio Primer", "vrsta": "radio"}
+    },
+    {
+      "opis": "vnos brez oznak IPTV in brez koncnice je radijski tok (kot Android OsPravila.jeRadijskiVnos)",
+      "seznam": "https://primer.test/postaje.m3u",
+      "vrstice": [
+        "#EXTINF:-1,Val Primer",
+        "http://tok.primer.test/valprimer"
+      ],
+      "pricakovano": {"ime": "Val Primer", "vrsta": "radio"}
+    }
+  ]
+}

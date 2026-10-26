@@ -82,27 +82,44 @@ object SeznamiSink {
         if (p.has("razpolozljivost")) return JSONObject().put("razpolozljivost", Razpolozljivost.izvoz(ctx, p.optString("razpolozljivost"), p.optInt("od")))
         val seznami = MedijskiViri.seznami(ctx)
         val ime = p.optString("ime")
+        // Lastnik, 26. 10. 2026: naslov z racunom (kanal, vir seznama) gre samo napravi v ozjem krogu te naprave; druga dobi
+        // skladbo brez toka in seznam brez naslova vira (kot Linux 0f3f368, Grok 46 Ö2). Posiljatelja vpise sprejemnik.
+        val ozji = try {
+            p.optString(si.safeer.tv.link.Daljinec.PARAM_POSILJATELJ).let { it.isNotBlank() && OzjiKrog.vKrogu(ctx, it) }
+        } catch (_: Throwable) { false }
+        fun vir(sz: MedijskiViri.Seznam) = if (ozji) sz.vir else IptvPravila.virSeznamaZaNavadniKrog(sz.vir)
         if (ime.isBlank()) {
             val a = JSONArray()
-            seznami.forEach { a.put(JSONObject().put("ime", it.ime).put("vir", it.vir).put("cas", it.cas).put("stevilo", it.skladbe.size)) }
+            seznami.forEach { a.put(JSONObject().put("ime", it.ime).put("vir", vir(it)).put("cas", it.cas).put("stevilo", it.skladbe.size)) }
             val izbrisani = JSONObject()
             MedijskiViri.izbrisaniSeznami(ctx).forEach { (k, v) -> izbrisani.put(k, v) }
             val viri = JSONArray()
             MedijskiViri.zaUskladitev(ctx).forEach { (v, cas) -> viri.put(JSONObject().put("tip", v.tip).put("ime", v.ime).put("naslov", v.naslov).put("cas", cas)) }
             val izbrisaniViri = JSONObject()
-            MedijskiViri.izbrisaniViri(ctx).forEach { (k, v) -> izbrisaniViri.put(k, v) }
+            // Lastnik, 26. 10. 2026: brez grobov virov z racunom in dodatkov s poverilnico (njihov izbris gre samo v ozji krog).
+            MedijskiViri.izbrisaniViriZaUskladitev(ctx).forEach { (k, v) -> izbrisaniViri.put(k, v) }
             // Premori dodatkov (odtis naslova -> koliko ms se): dodatek omejuje po domacem naslovu, zato pocakajo vse naprave.
             val premori = JSONObject()
             try { Stremio.pripravi(ctx) } catch (_: Throwable) { }       // shranjeni premori iz prejsnjega zagona
             try { Stremio.premori().forEach { (osnova, se) -> premori.put(RazpolozljivostPravila.odtisNaslova(osnova), se) } } catch (_: Throwable) { }
+            // »ozji«: ali je vprasujoca naprava v ozjem krogu TE naprave (kot Linux; prejemnik brez kljuca vzame samo javno).
             return JSONObject().put("lists", a).put("deleted", izbrisani).put("sources", viri).put("sources_deleted", izbrisaniViri)
-                .put("razpolozljivost", Razpolozljivost.povzetek(ctx)).put("premori", premori)
+                .put("ozji", ozji).put("razpolozljivost", Razpolozljivost.povzetek(ctx)).put("premori", premori).apply {
+                    // Grok 46, Ö3: napravi zunaj ozjega kroga preklic virov z racunom, ki jih je starejsa razlicica dala vsem.
+                    if (!ozji) try { MedijskiViri.preklicZunajKroga(ctx)?.let { put("sources_revoked", it) } } catch (e: Exception) {
+                        Log.w(TAG, "preklic: ${e.javaClass.simpleName}") }
+                }
         }
         val sz = seznami.firstOrNull { it.ime == ime } ?: return JSONObject().put("ime", ime).put("stevilo", 0).put("skladbe", JSONArray())
         val od = p.optInt("od").coerceAtLeast(0)
         val skladbe = JSONArray()
-        sz.skladbe.drop(od).take(STRAN).forEach { skladbe.put(json(vZapis(it))) }
-        return JSONObject().put("ime", sz.ime).put("vir", sz.vir).put("cas", sz.cas).put("stevilo", sz.skladbe.size).put("od", od).put("skladbe", skladbe)
+        sz.skladbe.drop(od).take(STRAN).forEach { s ->
+            val z = vZapis(s)
+            skladbe.put(json(if (ozji) z else IptvPravila.zapisZaNavadniKrog(z, listOf(s.zvok, s.povezava, s.streznik),
+                IptvPravila.izViraSeznamaAliToka(s.id, s.mime == MedijskiViri.STRAN),
+                if (Stremio.jeEnota(s)) Stremio.razstavi(s)?.first.orEmpty() else null)))
+        }
+        return JSONObject().put("ime", sz.ime).put("vir", vir(sz)).put("cas", sz.cas).put("stevilo", sz.skladbe.size).put("od", od).put("skladbe", skladbe)
     }
 
     // ------------------------------------------------------------------ ta naprava prevzema
@@ -133,7 +150,7 @@ object SeznamiSink {
                 // Zasebni dodatki, prevzeti pred pravilom ZasebniDodatki, tu izginejo (na izvorni napravi ostanejo).
                 try { if (MedijskiViri.odstraniPrevzeteZasebne(app)) { viriSpremenjeni = android.os.SystemClock.elapsedRealtime(); spremenjeno = true; Log.i(TAG, "prevzet zaseben dodatek odstranjen") } } catch (_: Exception) { }
                 for (n in naprave) {
-                    try { if (prevzemiOd(app, link, n.id)) spremenjeno = true } catch (e: Exception) { Log.w(TAG, "naprava ${n.id}: ${e.message}") }
+                    try { if (prevzemiOd(app, link, n.id)) spremenjeno = true } catch (e: Exception) { Log.w(TAG, "naprava ${n.id}: ${e.javaClass.simpleName}") }
                 }
             } finally { tece = false }
             if (spremenjeno) Handler(Looper.getMainLooper()).post { nato(true) }
@@ -181,6 +198,10 @@ object SeznamiSink {
     private fun prevzemiOd(app: Context, link: LinkUpravitelj, naprava: String): Boolean {
         val kazalo = vprasaj(link, naprava, JSONObject()) ?: return false
         var spremenjeno = false
+        // Grok 46, Ö1: vir, ki ni pozitivno znan javen, samo od naprave v ozjem krogu te naprave (preveri se ob vsakem prevzemu).
+        // Linux Ê3 (skupni primeri verzija 3): odgovor brez kljuca »ozji« velja kot false - samo pozitivno znan javen vir.
+        val ozji = IptvPravila.odOzjegaKroga(try { OzjiKrog.vKrogu(app, naprava) } catch (_: Throwable) { false },
+            if (kazalo.has("ozji")) kazalo.optBoolean("ozji", false) else null)
         try { prevzemiRazpolozljivost(app, link, naprava, kazalo) } catch (e: Exception) { Log.w(TAG, "razpolozljivost od $naprava: ${e.message}") }
         // Dodatek je omejil drugo napravo v istem domu: pocakamo tudi mi (nase poizvedbe bi omejitev samo podaljsale).
         try {
@@ -195,17 +216,22 @@ object SeznamiSink {
         try {
             var viri = false
             kazalo.optJSONObject("sources_deleted")?.let { d ->
-                for (k in d.keys()) if (MedijskiViri.prevzemiIzbrisVira(app, k, d.optLong(k))) { viri = true; Log.i(TAG, "vir izbrisan (od $naprava)") }
+                for (k in d.keys()) if (MedijskiViri.prevzemiIzbrisVira(app, k, d.optLong(k), ozji)) { viri = true; Log.i(TAG, "vir izbrisan (od $naprava)") }
             }
             kazalo.optJSONArray("sources")?.let { a ->
+                var zRacunom = 0
                 for (i in 0 until minOf(a.length(), 200)) {
                     val o = a.optJSONObject(i) ?: continue
+                    // Lastnik, 26. 10. 2026: vir z racunom IPTV (in dodatek s poverilnico) gre samo v ozji krog (secrets.sync) - z
+                    // navadnim usklajevanjem ga ne sprejmemo od nobene naprave (starejsa razlicica ga se poslje) in ga ne beremo
+                    // (razvrscanje ali manifest = zahteva z uporabnikovim racunom).
+                    if (!IptvPravila.prevzemZNavadnoUskladitvijo(o.optString("tip"), o.optString("naslov"), ozji)) { zRacunom++; continue }
                     // Naslov, dodan na racunalniku: vrsto (podkast, seznam, tok, stran) doloci ta naprava sama; naslov,
                     // ki ga ta trenutek ni mogoce prebrati, poskusimo spet cez 10 minut.
                     if (o.optString("tip") == MedijskiViri.VRSTA_URL) {
                         val n = o.optString("naslov")
                         if ((nedosegljivi[n] ?: 0L) > android.os.SystemClock.elapsedRealtime() - 600_000L) continue
-                        if (MedijskiViri.prevzemiNaslov(app, n, o.optString("ime"), o.optLong("cas"))) { viri = true; Log.i(TAG, "vir z racunalnika od $naprava") }
+                        if (MedijskiViri.prevzemiNaslov(app, n, o.optString("ime"), o.optLong("cas"), ozji)) { viri = true; Log.i(TAG, "vir z racunalnika od $naprava") }
                         else if (n.isNotBlank() && !MedijskiViri.imamNaslov(app, n)) nedosegljivi[n] = android.os.SystemClock.elapsedRealtime()
                         continue
                     }
@@ -219,15 +245,24 @@ object SeznamiSink {
                         if (zaseben == null) nedosegljivi[k] = android.os.SystemClock.elapsedRealtime()
                         if (!ZasebniDodatki.smeMedNaprave(true, zaseben)) continue
                     }
-                    if (!MedijskiViri.prevzemiVir(app, v, o.optLong("cas"))) continue
+                    if (!MedijskiViri.prevzemiVir(app, v, o.optLong("cas"), ozji)) continue
                     viri = true
                     Log.i(TAG, "vir ${v.tip} »${v.ime}« od $naprava")
-                    // Seznam .m3u se prebere ob dodajanju: tu ga preberemo zdaj (smo v ozadju).
-                    if (v.jeSeznam) try { MedijskiViri.osveziSeznam(app, v.naslov) } catch (_: Exception) { }
+                    // Seznam .m3u se prebere ob dodajanju: tu ga preberemo zdaj (smo v ozadju). Grok 52, Ñ2: vir z racunom ne -
+                    // prebere se, ko ga uporabnik na tej napravi odpre (po premoru I5); sicer bi se vsaka naprava kroga hkrati prijavila.
+                    if (v.jeSeznam && IptvPravila.osveziPoPrejemu(v.tip, v.naslov)) try { MedijskiViri.osveziSeznam(app, v.naslov) } catch (_: Exception) { }
                 }
+                if (zRacunom > 0) Log.i(TAG, "virov, ki niso znani javni, z navadnim usklajevanjem zavrnjenih: $zRacunom (od $naprava zunaj ozjega kroga)")
             }
             if (viri) { viriSpremenjeni = android.os.SystemClock.elapsedRealtime(); spremenjeno = true }
-        } catch (e: Exception) { Log.w(TAG, "viri od $naprava: ${e.message}") }
+        } catch (e: Exception) { Log.w(TAG, "viri od $naprava: ${e.javaClass.simpleName}") }
+        // Grok 46, Ö3: lastnik vira z racunom ga s to napravo ne deli vec (prisel je s starejso razlicico) - odloci uporabnik.
+        try {
+            kazalo.optJSONObject("sources_revoked")?.let { r ->
+                val ime = try { link.naprave.firstOrNull { it.id == naprava }?.ime } catch (_: Throwable) { null }
+                MedijskiViri.preklicPrejet(app, naprava, ime?.takeIf { it.isNotBlank() } ?: naprava, r)
+            }
+        } catch (e: Exception) { Log.w(TAG, "preklic od $naprava: ${e.javaClass.simpleName}") }
         // 1) Izbrisi: seznam, ki je bil drugje izbrisan in ga tu od takrat nismo spremenili, izgine tudi tukaj.
         kazalo.optJSONObject("deleted")?.let { izbrisani ->
             val moji = MedijskiViri.seznami(app).associateBy { it.ime }
