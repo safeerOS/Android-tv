@@ -304,7 +304,7 @@ object UskladitevKljucev {
         val odtis = z.kljuc.removePrefix(P.PREDPONA_DODATKA)
         if (z.izbrisan) { MedijskiViri.odstraniSkrivniDodatek(c, odtis); return true }
         return MedijskiViri.dodajDodatek(c, MedijskiViri.STREMIO, z.vrednost, "", prejeto = prejeto)?.also {
-            if (!prejeto) try { PregledKanalov.zacni(c.applicationContext, it.naslov, rocno = false) } catch (_: Throwable) { }
+            if (!prejeto) try { PregledKanalov.zacni(c.applicationContext, it.naslov, rocno = false, jeSeznam = false) } catch (_: Throwable) { }
         } != null
     }
 
