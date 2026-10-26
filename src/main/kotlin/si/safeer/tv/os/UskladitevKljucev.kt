@@ -322,7 +322,8 @@ object UskladitevKljucev {
             k == P.KLJUC_USENET ->
                 if (v == null) { Usenet.pozabi(c); true }
                 else JSONObject(v).let { Usenet.obnovi(c, it.optString("url"), it.optString("key")) }
-            k.startsWith(P.PREDPONA_DODATKA) -> uporabiDodatek(c, UskladitevKljucevPravila.Zapis(k, 0L, "", v == null, v.orEmpty()))
+            // Razveljavitev ne sme dati dokaza »dodan tu« (sicer samodejni pregled kanalov = prijava brez uporabnika; Nov bot 84, P1)
+            k.startsWith(P.PREDPONA_DODATKA) -> uporabiDodatek(c, UskladitevKljucevPravila.Zapis(k, 0L, "", v == null, v.orEmpty()), prejeto = true)
             k.startsWith(P.PREDPONA_IPTV) ->
                 if (v == null) { MedijskiViri.odstraniRacun(c, k.removePrefix(P.PREDPONA_IPTV)); true }
                 else prejetRacun(k, v)?.let { r -> MedijskiViri.dodajRacun(c, r.tip, r.naslov, r.ime, prejeto = true) } != null
