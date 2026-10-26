@@ -351,11 +351,18 @@ object LinkDatotekePravila {
         "GPSDestDistance", "GPSProcessingMethod", "GPSAreaInformation", "GPSDateStamp", "GPSDifferential",
         "GPSHPositioningError", "Xmp")
 
-    /** Vrste slik, ki lahko nosijo lokacijo (EXIF, XMP); GIF, BMP in podobne je nimajo. Vsi videi jo lahko. */
-    private val SLIKE_Z_LOKACIJO = setOf("image/jpeg", "image/png", "image/webp", "image/heic", "image/heif", "image/avif",
-        "image/tiff", "image/x-adobe-dng", "image/dng")
+    /**
+     * Slike brez EXIF in XMP (lokacije ne morejo nositi). Pregled 99, V2 (26. 10. 2026): prej je bil tu seznam slik Z
+     * lokacijo in vse ostalo (RAW cr2/nef/arw ...) je slo ven surovo z GPS; zdaj velja obratno - neznana slika nosi lokacijo.
+     */
+    private val SLIKE_BREZ_LOKACIJE = setOf("image/gif", "image/bmp", "image/x-ms-bmp", "image/x-icon",
+        "image/vnd.microsoft.icon", "image/vnd.wap.wbmp", "image/svg+xml")
 
-    fun nosiLokacijo(mime: String): Boolean { val m = mime.lowercase(); return m.startsWith("video/") || m in SLIKE_Z_LOKACIJO }
+    /** Vsi videi in vse slike razen [SLIKE_BREZ_LOKACIJE] lahko nosijo lokacijo (fail-closed, Pregled 99, V2). */
+    fun nosiLokacijo(mime: String): Boolean {
+        val m = mime.lowercase()
+        return m.startsWith("video/") || (m.startsWith("image/") && m !in SLIKE_BREZ_LOKACIJE)
+    }
 
     /** Vrsta po prvih bajtih - ime lahko lazje (IMG.jpg.bak je se vedno JPEG z GPS): MIME ali null. */
     fun vrstaPoGlavi(g: ByteArray): String? {
@@ -365,14 +372,24 @@ object LinkDatotekePravila {
             b(0) == 0xFF && b(1) == 0xD8 && b(2) == 0xFF -> "image/jpeg"
             b(0) == 0x89 && niz(1, 3) == "PNG" -> "image/png"
             niz(0, 4) == "RIFF" && niz(8, 4) == "WEBP" -> "image/webp"
+            // Pregled 99, V2: AVI, TIFF (DNG, CR2, NEF, ARW, ORF, RW2), RAF, Matroska in QuickTime brez ftyp so prej
+            // ostali neprepoznani in pod laznim imenom sli ven surovo (z EXIF GPS).
+            niz(0, 4) == "RIFF" && niz(8, 4) == "AVI " -> "video/x-msvideo"
+            niz(0, 4) == "II*\u0000" || niz(0, 4) == "MM\u0000*" || niz(0, 4) == "IIRO" || niz(0, 4) == "IIU\u0000" -> "image/tiff"
+            niz(0, 8) == "FUJIFILM" -> "image/x-fuji-raf"
+            b(0) == 0x1A && b(1) == 0x45 && b(2) == 0xDF && b(3) == 0xA3 -> "video/x-matroska"
             niz(4, 4) == "ftyp" -> when (niz(8, 4)) {
                 "heic", "heix", "hevc", "heim", "heis", "mif1", "msf1" -> "image/heic"
                 "avif", "avis" -> "image/avif"
                 else -> "video/mp4"
             }
+            niz(4, 4) in ATOMI_QUICKTIME -> "video/quicktime"
             else -> null
         }
     }
+
+    /** Prvi atom starejsih .mov brez ftyp. */
+    private val ATOMI_QUICKTIME = setOf("moov", "mdat", "wide", "free", "skip", "pnot")
 
     /** Ali zna android.media.ExifInterface to vrsto zapisati: JPEG povsod, PNG in WebP od API 30. */
     fun kopijaMogoca(mime: String, sdk: Int): Boolean {
@@ -404,6 +421,174 @@ object LinkDatotekePravila {
 
     /** Najvecja datoteka, ki jo za kopijo brez lokacije prekopiramo (vecja = ne posljemo). */
     const val NAJVEC_KOPIJE = 64L * 1024 * 1024
+
+    // ------------------------------------------------------------------ kopija brez XMP (Pregled 99, F1 in V1)
+
+    private val XMP_JPEG = listOf("http://ns.adobe.com/xap/1.0/\u0000", "http://ns.adobe.com/xmp/extension/\u0000")
+        .map { it.toByteArray(Charsets.ISO_8859_1) }
+    private const val XMP_PNG = "XML:com.adobe.xmp"
+    private val ZNAKI_XMP = listOf("adobe:ns:meta", "ns.adobe.com/xap/1.0", XMP_PNG).map { it.toByteArray(Charsets.ISO_8859_1) }
+
+    /**
+     * Kopija [vir] v mapi [mapa] brez paketov XMP, najvec [NAJVEC_KOPIJE] bajtov; null, ce je prevelika, oblika ni znana
+     * ali kar koli ne uspe. EXIF GPS nato odstrani klicatelj (android.media.ExifInterface) in preveri se [vsebujeXmp].
+     * Pregled 99, F1: predpona zacasne datoteke mora imeti vsaj 3 znake - s "k" je createTempFile vedno vrgel
+     * IllegalArgumentException in kopija ni nastala nikoli (Android 9: vsak JPEG iz galerije 403).
+     */
+    fun pripraviKopijo(mapa: java.io.File, vir: () -> java.io.InputStream?, mime: String): java.io.File? {
+        val surova = try { java.io.File.createTempFile("link-vir", ".tmp", mapa) } catch (_: Throwable) { return null }
+        val t = try { java.io.File.createTempFile("link-kopija", ".tmp", mapa) } catch (_: Throwable) { surova.delete(); return null }
+        try {
+            val vhod = vir() ?: run { t.delete(); return null }
+            if (!kopirajOmejeno(vhod, surova)) { t.delete(); return null }
+            if (!odstraniXmp(surova, t, mime)) { t.delete(); return null }
+            return t
+        } catch (_: Throwable) { t.delete(); return null } finally { surova.delete() }
+    }
+
+    /** [vhod] v [cilj], najvec [NAJVEC_KOPIJE] bajtov (false, ce je vec); vhod se zapre. */
+    private fun kopirajOmejeno(vhod: java.io.InputStream, cilj: java.io.File): Boolean {
+        val o = cilj.outputStream()
+        try {
+            val b = ByteArray(64 * 1024)
+            var skupaj = 0L
+            var n = vhod.read(b)
+            while (n >= 0) {
+                skupaj += n
+                if (skupaj > NAJVEC_KOPIJE) return false
+                o.write(b, 0, n)
+                n = vhod.read(b)
+            }
+            return true
+        } finally { o.close(); vhod.close() }
+    }
+
+    /**
+     * Pregled 99, V1: [vir] v [cilj] brez XMP, ki ga android.media.ExifInterface ne odstrani (Android 9 XMP ne pozna,
+     * locen JPEG APP1 XMP prepise nespremenjen, PNG iTXt in WebP "XMP " ne bere) - XMP lahko nosi exif:GPSLatitude.
+     * JPEG: APP1 XMP in razsirjeni XMP; PNG: iTXt/tEXt/zTXt "XML:com.adobe.xmp"; WebP: "XMP " in zastavica v VP8X.
+     * false za neznano ali pokvarjeno obliko - klicatelj ne poslje nicesar (403).
+     */
+    fun odstraniXmp(vir: java.io.File, cilj: java.io.File, mime: String): Boolean = try {
+        when (mime.lowercase()) {
+            "image/jpeg" -> prepisi(vir, cilj) { i, o -> jpegBrezXmp(i, o) }
+            "image/png" -> prepisi(vir, cilj) { i, o -> pngBrezXmp(i, o) }
+            "image/webp" -> webpBrezXmp(vir, cilj)
+            else -> false
+        }
+    } catch (_: Throwable) { false }
+
+    private fun prepisi(vir: java.io.File, cilj: java.io.File, f: (java.io.InputStream, java.io.OutputStream) -> Boolean): Boolean {
+        val i = vir.inputStream().buffered()
+        try {
+            val o = cilj.outputStream().buffered()
+            try { return f(i, o) } finally { o.close() }
+        } finally { i.close() }
+    }
+
+    private fun beri(i: java.io.InputStream, n: Int): ByteArray {
+        val b = ByteArray(n)
+        var r = 0
+        while (r < n) {
+            val k = i.read(b, r, n - r)
+            if (k < 0) throw java.io.EOFException()
+            r += k
+        }
+        return b
+    }
+
+    private fun zacne(a: ByteArray, p: ByteArray): Boolean = a.size >= p.size && p.indices.all { a[it] == p[it] }
+
+    private fun jpegBrezXmp(i: java.io.InputStream, o: java.io.OutputStream): Boolean {
+        if (i.read() != 0xFF || i.read() != 0xD8) return false
+        o.write(0xFF); o.write(0xD8)
+        while (true) {
+            var c = i.read()
+            if (c != 0xFF) return false
+            while (c == 0xFF) c = i.read()          // polnilni bajti
+            if (c < 0) return false
+            if (c == 0xDA || c == 0xD9) {           // SOS ali EOI: ostalo nespremenjeno
+                o.write(0xFF); o.write(c); i.copyTo(o); o.flush()
+                return true
+            }
+            if (c == 0x01 || c in 0xD0..0xD7) { o.write(0xFF); o.write(c) } else {
+                val d = beri(i, 2)
+                val dolzina = ((d[0].toInt() and 0xFF) shl 8) or (d[1].toInt() and 0xFF)
+                if (dolzina < 2) return false
+                val telo = beri(i, dolzina - 2)
+                val xmp = c == 0xE1 && XMP_JPEG.any { zacne(telo, it) }
+                if (!xmp) { o.write(0xFF); o.write(c); o.write(d); o.write(telo) }
+            }
+        }
+    }
+
+    private val PNG_PODPIS = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)
+
+    private fun pngBrezXmp(i: java.io.InputStream, o: java.io.OutputStream): Boolean {
+        if (!beri(i, 8).contentEquals(PNG_PODPIS)) return false
+        o.write(PNG_PODPIS)
+        while (true) {
+            val glava = beri(i, 8)
+            val n = java.nio.ByteBuffer.wrap(glava, 0, 4).int
+            if (n < 0 || n > NAJVEC_KOPIJE) return false
+            val vrsta = String(glava, 4, 4, Charsets.ISO_8859_1)
+            val podatki = beri(i, n)
+            val crc = beri(i, 4)
+            val besedilo = vrsta == "iTXt" || vrsta == "tEXt" || vrsta == "zTXt"
+            val konecKljuca = podatki.indexOf(0.toByte()).let { if (it < 0) podatki.size else it }
+            val xmp = besedilo && String(podatki, 0, konecKljuca, Charsets.ISO_8859_1) == XMP_PNG
+            if (!xmp) { o.write(glava); o.write(podatki); o.write(crc) }
+            if (vrsta == "IEND") { o.flush(); return true }
+        }
+    }
+
+    private fun webpBrezXmp(vir: java.io.File, cilj: java.io.File): Boolean {
+        val b = vir.readBytes()   // najvec NAJVEC_KOPIJE (pripraviKopijo)
+        if (b.size < 12 || String(b, 0, 4, Charsets.ISO_8859_1) != "RIFF" || String(b, 8, 4, Charsets.ISO_8859_1) != "WEBP") return false
+        val izhod = java.io.ByteArrayOutputStream(b.size)
+        var p = 12
+        while (p < b.size) {
+            if (p + 8 > b.size) return false
+            val vrsta = String(b, p, 4, Charsets.ISO_8859_1)
+            val n = java.nio.ByteBuffer.wrap(b, p + 4, 4).order(java.nio.ByteOrder.LITTLE_ENDIAN).int
+            if (n < 0 || p + 8 + n > b.size) return false
+            val konec = minOf(p + 8 + n + (n and 1), b.size)
+            if (vrsta != "XMP ") {
+                val kos = b.copyOfRange(p, konec)
+                if (vrsta == "VP8X" && n >= 1) kos[8] = (kos[8].toInt() and 0x04.inv()).toByte()  // zastavica XMP
+                izhod.write(kos)
+            }
+            p = konec
+        }
+        val telo = izhod.toByteArray()
+        val riff = java.nio.ByteBuffer.allocate(8).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+        riff.put("RIFF".toByteArray(Charsets.ISO_8859_1)).putInt(4 + telo.size)
+        val o = cilj.outputStream()
+        try { o.write(riff.array()); o.write("WEBP".toByteArray(Charsets.ISO_8859_1)); o.write(telo) } finally { o.close() }
+        return true
+    }
+
+    /** Zadnja preverba kopije (Pregled 99, V1): ali je v datoteki se kak paket XMP - neodvisno od ExifInterface. */
+    fun vsebujeXmp(f: java.io.File): Boolean {
+        val najdaljsi = ZNAKI_XMP.maxOf { it.size }
+        val i = f.inputStream()
+        try {
+            val okno = ByteArray(64 * 1024 + najdaljsi)
+            var ostanek = 0
+            var n = i.read(okno, 0, 64 * 1024)
+            while (n >= 0) {
+                val vse = ostanek + n
+                if (ZNAKI_XMP.any { z -> najdi(okno, vse, z) }) return true
+                ostanek = minOf(najdaljsi - 1, vse)
+                System.arraycopy(okno, vse - ostanek, okno, 0, ostanek)
+                n = i.read(okno, ostanek, 64 * 1024)
+            }
+            return false
+        } finally { i.close() }
+    }
+
+    private fun najdi(b: ByteArray, dolzina: Int, z: ByteArray): Boolean =
+        (0..dolzina - z.size).any { s -> z.indices.all { k -> b[s + k] == z[k] } }
 
     /** Rob slicice iz `?s=`: 128..512, privzeto 256 (kot prej, ko parametra ni bilo). */
     fun rob(s: String?): Int = s?.trim()?.toIntOrNull()?.coerceIn(ROB_NAJMANJ, ROB_NAJVEC) ?: ROB_PRIVZETO

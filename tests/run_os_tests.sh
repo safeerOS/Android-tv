@@ -261,6 +261,14 @@ java -cp "$OUT/neposredna.jar" si.safeer.tv.link.NeposrednaPotTestKt
     -include-runtime -d "$OUT/linkdatoteke.jar"
 java -cp "$OUT/linkdatoteke.jar" si.safeer.tv.link.LinkDatotekePravilaTestKt
 
+# Pregled 99, F1, V1, V2: kopija brez lokacije (predpona zacasne datoteke, XMP v JPEG/PNG/WebP), vrste z lokacijo po glavi
+# (TIFF/RAW, Matroska, AVI, QuickTime) in neznane slike niso NEPOSREDNO.
+"$KOTLINC" -J-Xmx1g \
+    "$SRC/si/safeer/tv/link/LinkDatotekePravila.kt" \
+    "$TEST_DIR/LinkDatotekeLokacijaTest.kt" \
+    -include-runtime -d "$OUT/linklokacija.jar"
+java -cp "$OUT/linklokacija.jar" si.safeer.tv.link.LinkDatotekeLokacijaTestKt
+
 # Pregled 26 (T1): zahteve toka Webtor prek OkHttp - brez preusmeritev, samo preverjeni javni naslovi IP (brez DNS
 # rebindinga), pripet DNS za predvajalnik; lokalni streznik HTTP iz JDK.
 WEBTOR_LIBS="$PROJECT_DIR/libs/okhttp-4.12.0.jar:$PROJECT_DIR/libs/okio-jvm-3.6.0.jar"

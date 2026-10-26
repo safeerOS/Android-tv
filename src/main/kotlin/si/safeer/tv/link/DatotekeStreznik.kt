@@ -978,7 +978,7 @@ object DatotekeStreznik {
     /** Poslje kopijo vsebine brez lokacije ([kopijaBrezLokacije]); ce je ni mogoce narediti, 403. Kopija se izbrise. */
     private fun posljiKopijo(ctx: Context, vir: () -> InputStream?, mime: String, metoda: String, glave: Map<String, String>,
                              izhod: OutputStream) {
-        val kopija = kopijaBrezLokacije(ctx, vir) ?: run { napaka(izhod, 403, "lokacije posnetka ni mogoce odstraniti"); return }
+        val kopija = kopijaBrezLokacije(ctx, vir, mime) ?: run { napaka(izhod, 403, "lokacije posnetka ni mogoce odstraniti"); return }
         try {
             val opis = try { AssetFileDescriptor(ParcelFileDescriptor.open(kopija, ParcelFileDescriptor.MODE_READ_ONLY), 0, kopija.length()) }
                 catch (_: Throwable) { null } ?: run { napaka(izhod, 404, "datoteke ni"); return }
@@ -987,32 +987,22 @@ object DatotekeStreznik {
     }
 
     /**
-     * Kopija slike v predpomnilniku aplikacije brez EXIF GPS in XMP (android.media.ExifInterface); null, ce je prevelika
-     * ([P.NAJVEC_KOPIJE]), ce zapis ne uspe ali ce ima kopija po zapisu se vedno lokacijo (preverba na novo prebrane kopije).
+     * Kopija slike v predpomnilniku aplikacije brez EXIF GPS in XMP; null, ce je prevelika ([P.NAJVEC_KOPIJE]), ce zapis
+     * ne uspe ali ce ima kopija po zapisu se vedno lokacijo (preverba na novo prebrane kopije).
+     * Pregled 99, F1 in V1 (26. 10. 2026): kopijo in odstranitev XMP naredi [P.pripraviKopijo] (prej predpona "k" -
+     * createTempFile je vedno vrgel izjemo), ExifInterface nato odstrani EXIF GPS, na koncu se preveri se XMP.
      */
-    private fun kopijaBrezLokacije(ctx: Context, vir: () -> InputStream?): File? {
+    private fun kopijaBrezLokacije(ctx: Context, vir: () -> InputStream?, mime: String): File? {
         val mapa = File(ctx.cacheDir, "link-brez-lokacije").apply { mkdirs() }
-        val t = try { File.createTempFile("k", ".tmp", mapa) } catch (_: Throwable) { return null }
+        val t = P.pripraviKopijo(mapa, vir, mime) ?: return null
         try {
-            var skupaj = 0L
-            val vhod = vir() ?: run { t.delete(); return null }
-            vhod.use { i ->
-                t.outputStream().use { o ->
-                    val b = ByteArray(64 * 1024)
-                    while (true) {
-                        val n = i.read(b)
-                        if (n < 0) break
-                        skupaj += n
-                        if (skupaj > P.NAJVEC_KOPIJE) throw IllegalStateException("prevelika")
-                        o.write(b, 0, n)
-                    }
-                }
-            }
             val e = android.media.ExifInterface(t.path)
             for (z in P.ZNACKE_LOKACIJE) e.setAttribute(z, null)
             e.saveAttributes()
             val p = android.media.ExifInterface(t.path)
-            if (p.getLatLong(FloatArray(2)) || P.ZNACKE_LOKACIJE.any { p.getAttribute(it) != null }) { t.delete(); return null }
+            if (p.getLatLong(FloatArray(2)) || P.ZNACKE_LOKACIJE.any { p.getAttribute(it) != null } || P.vsebujeXmp(t)) {
+                t.delete(); return null
+            }
             return t
         } catch (_: Throwable) { t.delete(); return null }
     }
