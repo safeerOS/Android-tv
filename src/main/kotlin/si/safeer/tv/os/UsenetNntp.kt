@@ -7,11 +7,12 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.net.InetSocketAddress
 import java.net.Socket
+import java.net.SocketTimeoutException
+import java.security.MessageDigest
+import java.security.SecureRandom
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.LinkedBlockingDeque
-import java.util.concurrent.Semaphore
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.locks.ReentrantLock
 import javax.net.ssl.HostnameVerifier
 import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLHandshakeException
@@ -26,8 +27,13 @@ import javax.net.ssl.SSLSocketFactory
  *   endpointIdentificationAlgorithm = "HTTPS": SSLSocket imena sam NE preveri (veljavno potrdilo za drugo ime bi
  *   sicer obveljalo). [imePotrdila] je dodatna preverba po rokovanju (Android: HttpsURLConnection.getDefaultHostnameVerifier()).
  * - Bazen: privzeto [PRIVZETO_POVEZAV], najvec [NAJVEC_POVEZAV] (ponudnik ima mejo povezav na racun, npr. 50 - vec naprav
- *   v krogu si jih deli). Povezava, ki je bila predolgo prosta, gre stran; ob napaki omrezja, napaki streznika (403) ali
- *   »400« na prosti povezavi en nov poskus z novo povezavo.
+ *   v krogu si jih deli; [nastaviNajvec] za proracun povezav med napravami, korak 3). Povezava, ki je bila predolgo
+ *   prosta, gre stran; kaj naredi bazen po napaki, pove [ukrep] (skupni primeri nntp_ukrep, enako namizje).
+ * - Zaklep racuna (lastnik 26. 10. 2026 03:05: »Nevarnost zaklepa racuna je prioriteta«): dokler prijava ne uspe (in ni
+ *   nobene prijavljene povezave), se odpira ena sama povezava naenkrat ([smeOdpreti]) - napacno geslo pride do streznika
+ *   enkrat, tudi pri 8 hkratnih zahtevah. Zavrnjena prijava ustavi bazen, zapre vse povezave in zapre racun za ves
+ *   proces, dokler uporabnik poverilnic ne vpise znova ([dovoliPrijavoZnova]). »Prevec povezav« bazen skrci na sprejete
+ *   povezave in zacne premor novih ([novPremor]) - nikoli nov poskus prijave v zanki.
  * - Odgovori streznika ([izid], skupni primeri nntp_izid) in napake odjemalca ([Vrsta]): ni clanka, prijava, zaseden,
  *   omrezje, potrdilo, napaka streznika, napaka protokola. Ob prijavi in potrdilu ni ponovitve (ponavljanje napacnega
  *   gesla lahko zaklene racun).
@@ -57,6 +63,8 @@ class UsenetNntp(
         val rokClankaMs: Long = 60_000,
         val rokCakanjaMs: Long = 30_000,
         val poskusov: Int = 2,
+        /** Milisekund na sekundo premora (preizkusi skrajsajo premor; v aplikaciji vedno 1000). */
+        internal val msNaSekundoPremora: Long = 1000,
     ) {
         internal val geslo: String? = geslo
         val povezav: Int = povezav.coerceIn(1, NAJVEC_POVEZAV)
@@ -106,6 +114,34 @@ class UsenetNntp(
         IOException("NNTP " + vrsta.name + (if (koda > 0) " $koda" else ""), vzrok)
 
     companion object {
+        /** Racuni, ki jim je ponudnik zavrnil prijavo: odtis s sljo procesa (nikoli geslo), samo v pomnilniku (U-4). */
+        private val ZAVRNJENI: MutableSet<String> = ConcurrentHashMap.newKeySet()
+        private val SOL = ByteArray(16).also { SecureRandom().nextBytes(it) }
+
+        private fun odtisRacuna(gostitelj: String, uporabnik: String?, geslo: String?): String? {
+            if (uporabnik == null) return null
+            val md = MessageDigest.getInstance("SHA-256")
+            md.update(SOL)
+            for (x in listOf(gostitelj.trim().lowercase(), uporabnik, geslo.orEmpty())) {
+                val b = x.toByteArray(Charsets.UTF_8)
+                md.update(byteArrayOf((b.size ushr 24).toByte(), (b.size ushr 16).toByte(), (b.size ushr 8).toByte(), b.size.toByte()))
+                md.update(b)
+            }
+            return md.digest().joinToString("") { "%02x".format(it) }
+        }
+
+        /** Ali je ponudnik te poverilnice ze zavrnil (do ponovnega vpisa jih ne posiljamo). */
+        fun prijavaZavrnjena(gostitelj: String, uporabnik: String?, geslo: String?): Boolean =
+            odtisRacuna(gostitelj, uporabnik, geslo)?.let { it in ZAVRNJENI } ?: false
+
+        /**
+         * Uporabnik je poverilnice vpisal znova (tudi enake - npr. po podaljsanju narocnine): en nov poskus prijave je spet
+         * dovoljen. Klice ga samo izrecno dejanje uporabnika, nikoli samodejno.
+         */
+        fun dovoliPrijavoZnova(gostitelj: String, uporabnik: String?, geslo: String?) {
+            odtisRacuna(gostitelj, uporabnik, geslo)?.let { ZAVRNJENI.remove(it) }
+        }
+
         const val VRATA = 563
         const val PRIVZETO_POVEZAV = 8
         const val NAJVEC_POVEZAV = 50
@@ -260,7 +296,7 @@ class UsenetNntp(
             Izid.DOSTOP -> Vrsta.DOSTOP
             Izid.NI_CLANKA -> Vrsta.NI_CLANKA
             Izid.NAPAKA_STREZNIKA -> Vrsta.NAPAKA_STREZNIKA
-            Izid.ZAPRTO -> Vrsta.OMREZJE
+            Izid.ZAPRTO -> Vrsta.ZAPRTO
             Izid.NAPAKA_PROTOKOLA -> Vrsta.NAPAKA_PROTOKOLA
         }
 
@@ -338,27 +374,44 @@ class UsenetNntp(
         }
     }
 
-    /** Ena povezava TLS; uporablja jo ena nit naenkrat. */
-    private inner class Povezava(private val surova: Socket, private val tls: SSLSocket) {
-        private val vhod: InputStream = tls.inputStream
-        private val izhod: OutputStream = tls.outputStream
+    /**
+     * Ena povezava TLS; uporablja jo ena nit naenkrat. Nastane prazna (bazen jo steje, preden se odpre), [odpri] jo
+     * poveze: vticnica je v [surova] PRED connect, zato jo [close] bazena zapre tudi med vzpostavljanjem.
+     */
+    private inner class Povezava {
+        @Volatile private var surova: Socket? = null
+        @Volatile private var tls: SSLSocket? = null
+        private var vhod: InputStream? = null
+        private var izhod: OutputStream? = null
         private val buf = ByteArray(MEDPOMNILNIK)
         private var poz = 0
         private var dolz = 0
+        /** Zadnja raba (System.nanoTime) - prosta povezava, nedejavna dlje od [PROSTA_NAJDLJE_S], gre stran. */
         @Volatile var prosta = System.nanoTime()
+        /** Pozdrav in prijava sta uspela. */
+        @Volatile var pripravljena = false
+        /** Bazen: ta povezava je edina, ki se odpira, dokler prijava ne uspe. */
+        var sonda = false
+        /** Kje je nastala zadnja napaka ([ukrep]). */
+        @Volatile var faza = FazaPovezave.POVEZAVA
 
         fun ukaz(v: String) {
             try {
-                izhod.write((v + "\r\n").toByteArray(Charsets.UTF_8))
-                izhod.flush()
+                val o = izhod ?: throw NapakaNntp(Vrsta.ZAPRTO)
+                o.write((v + "\r\n").toByteArray(Charsets.UTF_8))
+                o.flush()
             } catch (e: IOException) {
-                throw NapakaNntp(Vrsta.OMREZJE, vzrok = e)
+                throw napakaVticnice(e)
             }
         }
 
         private fun beri(b: ByteArray, od: Int, koliko: Int): Int {
-            val r = try { vhod.read(b, od, koliko) } catch (e: IOException) { throw NapakaNntp(Vrsta.OMREZJE, vzrok = e) }
-            if (r < 0) throw NapakaNntp(Vrsta.OMREZJE)
+            val r = try {
+                (vhod ?: throw NapakaNntp(Vrsta.ZAPRTO)).read(b, od, koliko)
+            } catch (e: IOException) {
+                throw napakaVticnice(e)
+            }
+            if (r < 0) throw NapakaNntp(if (zaprto) Vrsta.ZAPRTO else Vrsta.OMREZJE)
             return r
         }
 
@@ -384,23 +437,66 @@ class UsenetNntp(
         }
 
         /** Izid odgovora na [faza]; napaka kot [NapakaNntp] s kodo (brez besedila). */
-        private fun preveri(faza: Faza): Izid {
+        private fun preveri(faza: Faza, prijavaUspela: Boolean = false): Izid {
             val v = odgovor()
-            val i = izid(faza, v)
+            val i = izid(faza, v, prijavaUspela)
             vrsta(i)?.let { throw NapakaNntp(it, v.take(3).toIntOrNull() ?: 0) }
             return i
         }
 
-        fun pozdrav() { preveri(Faza.POZDRAV) }
+        /** TCP, TLS (potrdilo in ime), pozdrav in prijava. */
+        fun odpri() {
+            faza = FazaPovezave.POVEZAVA
+            val s = Socket()
+            surova = s
+            val t: SSLSocket
+            try {
+                if (zaprto) throw NapakaNntp(Vrsta.ZAPRTO)
+                s.connect(InetSocketAddress(n.gostitelj, n.vrata), n.rokPovezaveMs)
+                s.soTimeout = n.rokBranjaMs
+                s.tcpNoDelay = true
+                t = tovarna.createSocket(s, n.gostitelj, n.vrata, true) as SSLSocket
+                tls = t
+                if (zaprto) throw NapakaNntp(Vrsta.ZAPRTO)
+                val protokoli = t.supportedProtocols.filter { it in PROTOKOLI }
+                if (protokoli.isEmpty()) throw NapakaNntp(Vrsta.POTRDILO)
+                val p = t.sslParameters
+                p.endpointIdentificationAlgorithm = "HTTPS"
+                p.protocols = protokoli.toTypedArray()
+                t.sslParameters = p
+                t.soTimeout = n.rokBranjaMs
+                try {
+                    t.startHandshake()
+                } catch (e: SSLHandshakeException) {
+                    throw NapakaNntp(Vrsta.POTRDILO, vzrok = e)
+                }
+                val seja = t.session
+                if (seja.protocol !in PROTOKOLI) throw NapakaNntp(Vrsta.POTRDILO)
+                if (imePotrdila != null && !imePotrdila.verify(n.gostitelj, seja)) throw NapakaNntp(Vrsta.POTRDILO)
+                vhod = t.inputStream
+                izhod = t.outputStream
+            } catch (e: IOException) {
+                zapri()
+                throw e as? NapakaNntp ?: napakaVticnice(e)
+            }
+            odprto.incrementAndGet()
+            preveri(Faza.POZDRAV)
+            if (n.uporabnik != null) prijava(n.uporabnik, n.geslo)
+            faza = FazaPovezave.UKAZ
+            pripravljena = true
+        }
 
-        fun prijava(uporabnik: String?, geslo: String?) {
-            if (uporabnik == null) return
+        private fun prijava(uporabnik: String, geslo: String?) {
+            // Tik pred AUTHINFO: zavrnjen racun ali zaprt bazen - geslo ne gre k strezniku niti iz vzporedne povezave.
+            val (ovira, uspela) = predPrijavo()
+            if (ovira != null) throw NapakaNntp(ovira)
             if (!varenArgument(uporabnik) || (geslo != null && !varenArgument(geslo))) throw NapakaNntp(Vrsta.PRIJAVA)
+            faza = FazaPovezave.PRIJAVA
             ukaz("AUTHINFO USER $uporabnik")
-            if (preveri(Faza.UPORABNIK) == Izid.OK) return
+            if (preveri(Faza.UPORABNIK, uspela) == Izid.OK) return
             if (geslo == null) throw NapakaNntp(Vrsta.PRIJAVA, 381)
             ukaz("AUTHINFO PASS $geslo")
-            preveri(Faza.GESLO)
+            preveri(Faza.GESLO, uspela)
         }
 
         fun body(id: String, rokDo: Long): ByteArray {
@@ -437,7 +533,7 @@ class UsenetNntp(
                     return odstraniPike(izid, 0, k)
                 }
                 od = maxOf(0, n - 2)   // konec je lahko razdeljen med dve branji
-                if (System.nanoTime() - rokDo > 0) throw NapakaNntp(Vrsta.OMREZJE)
+                if (System.nanoTime() - rokDo > 0) throw NapakaNntp(Vrsta.ROK)
                 if (n == izid.size) {
                     if (izid.size >= NAJVEC_TELESA) throw NapakaNntp(Vrsta.NAPAKA_PROTOKOLA)
                     izid = izid.copyOf(minOf(izid.size * 2, NAJVEC_TELESA))
@@ -448,22 +544,72 @@ class UsenetNntp(
 
         /** Zapre brez pisanja (tudi z glavne niti in med branjem druge niti): najprej vticnica pod TLS. */
         fun zapri() {
-            try { surova.close() } catch (_: IOException) { }
-            try { tls.close() } catch (_: IOException) { }
+            pripravljena = false
+            try { surova?.close() } catch (_: IOException) { }
+            try { tls?.close() } catch (_: IOException) { }
+        }
+
+        /** Vljudno (QUIT) - ponudnik takoj sprosti mesto; samo za prosto povezavo, ki ni v rabi. */
+        fun zapriVljudno() {
+            try {
+                tls?.soTimeout = 1000
+                izhod?.let { it.write("QUIT\r\n".toByteArray(Charsets.US_ASCII)); it.flush() }
+            } catch (_: IOException) { }
+            zapri()
         }
     }
 
-    private val prosti = LinkedBlockingDeque<Povezava>()
-    private val vse: MutableSet<Povezava> = ConcurrentHashMap.newKeySet()
-    private val mesta = Semaphore(n.povezav, true)
+    /** IOException vticnice -> vrsta: rok, zaprto (bazen zaprt) ali omrezje. */
+    private fun napakaVticnice(e: IOException): NapakaNntp = when {
+        e is NapakaNntp -> e
+        zaprto -> NapakaNntp(Vrsta.ZAPRTO, vzrok = e)
+        e is SocketTimeoutException -> NapakaNntp(Vrsta.ROK, vzrok = e)
+        else -> NapakaNntp(Vrsta.OMREZJE, vzrok = e)
+    }
+
+    // ---------------------------------------------------------------- bazen (vse spodaj pod [zaklep])
+
+    private val zaklep = ReentrantLock()
+    private val pogoj = zaklep.newCondition()
+    private val prosti = ArrayDeque<Povezava>()
+    private val vRabi = HashSet<Povezava>()
     private val odprto = AtomicInteger()
     @Volatile private var zaprto = false
+    @Volatile private var ustavljen: Vrsta? =
+        if (prijavaZavrnjena(n.gostitelj, n.uporabnik, n.geslo)) Vrsta.PRIJAVA else null
+    private val odtis = odtisRacuna(n.gostitelj, n.uporabnik, n.geslo)
+    private var zgornja = n.povezav
+    private var najvec = n.povezav
+    private var sondaTece = false
+    private var premorS = 0L
+    private var premorDo = 0L
+    private var premorVrsta = Vrsta.ZASEDEN
+    private var zadnjaMeja = 0L
+    private var neznanihPrijav = 0
 
     /** Trenutno odprte povezave (proste in v rabi). */
-    val odprtih: Int get() = vse.size
+    val odprtih: Int get() = zaklep.zZaklepom { prosti.count { it.pripravljena } + vRabi.count { it.pripravljena } }
 
     /** Vse povezave, odprte od zacetka (za meritev in preizkus ponovne rabe). */
     val odprtoSkupaj: Int get() = odprto.get()
+
+    /** Trenutna meja povezav bazena (zmanjsa jo ponudnik z mejo povezav, [nastaviNajvec] klicatelj). */
+    val najvecPovezav: Int get() = zaklep.zZaklepom { najvec }
+
+    private inline fun <T> ReentrantLock.zZaklepom(f: () -> T): T {
+        lock()
+        try { return f() } finally { unlock() }
+    }
+
+    private fun prijavljenih(): Int = prosti.count { it.pripravljena } + vRabi.count { it.pripravljena }
+
+    private fun predPrijavo(): Pair<Vrsta?, Boolean> = zaklep.zZaklepom {
+        when {
+            zaprto -> Vrsta.ZAPRTO to false
+            ustavljen != null -> ustavljen to false
+            else -> null to (prijavljenih() > 0)
+        }
+    }
 
     /** Telo clanka [id] (message-id z < > ali brez) za [UsenetYenc.dekodiraj]. Napaka: [NapakaNntp]; neveljaven id: IllegalArgumentException. */
     fun body(id: String): ByteArray {
@@ -477,118 +623,207 @@ class UsenetNntp(
         return zDelom { it.stat(c) }
     }
 
-    /** Zapre vse povezave (tudi tiste v rabi - njihovo branje se konca z OMREZJE). Brez pisanja, varno z vsake niti. */
-    override fun close() {
-        zaprto = true
-        for (p in vse) p.zapri()
-        vse.clear()
-        prosti.clear()
+    /**
+     * Zgornja meja povezav od zunaj (korak 3: proracun povezav med napravami kroga, U-1). Zmanjsanje zapre odvecne proste
+     * povezave; povecanje velja takoj, razen ce je bazen zmanjsal ponudnik (rast po [RAST_BAZENA_S]).
+     */
+    fun nastaviNajvec(povezav: Int) {
+        val odvec = zaklep.zZaklepom {
+            zgornja = povezav.coerceIn(1, NAJVEC_POVEZAV)
+            if (najvec > zgornja || zadnjaMeja == 0L) najvec = zgornja
+            pogoj.signalAll()
+            odvec()
+        }
+        for (p in odvec) p.zapriVljudno()
     }
 
-    private fun <T> zDelom(delo: (Povezava) -> T): T {
-        check(Looper.myLooper() != Looper.getMainLooper()) { "NNTP ne sme teci na glavni niti" }
-        if (zaprto) throw NapakaNntp(Vrsta.OMREZJE)
-        val dobil = try {
-            mesta.tryAcquire(n.rokCakanjaMs, TimeUnit.MILLISECONDS)
-        } catch (e: InterruptedException) {
-            Thread.currentThread().interrupt()
-            throw NapakaNntp(Vrsta.OMREZJE, vzrok = e)
+    /** Zapre vse povezave (tudi tiste v rabi in v vzpostavljanju - te koncajo z ZAPRTO). Brez pisanja, z vsake niti. */
+    override fun close() {
+        val vse = zaklep.zZaklepom {
+            zaprto = true
+            val v = prosti.toList() + vRabi.toList()
+            prosti.clear()
+            pogoj.signalAll()
+            v
         }
-        if (!dobil) throw NapakaNntp(Vrsta.ZASEDEN)
+        for (p in vse) p.zapri()
+    }
+
+    private fun odvec(): List<Povezava> {
+        val odvec = ArrayList<Povezava>()
+        while (prosti.isNotEmpty() && prijavljenih() > najvec) odvec += prosti.removeFirst()
+        return odvec
+    }
+
+    private fun msDo(ns: Long): Long = (ns - System.nanoTime()) / 1_000_000L
+
+    /** (povezava, stara): prosta ali nova, ce jo vrata dovolijo ([smeOdpreti]); sicer caka do [rokDo] (nanoTime). */
+    private fun vzemi(rokDo: Long, sveza: Boolean): Pair<Povezava, Boolean> {
+        val zavrzi = ArrayList<Povezava>()
         try {
-            var poskus = 1
-            while (true) {
-                if (zaprto) throw NapakaNntp(Vrsta.OMREZJE)
-                // Ponovni poskus vedno z novo povezavo (prosta je lahko ze zaprta pri strezniku).
-                val prosta = if (poskus == 1) vzemi() else null
-                val izBazena = prosta != null
-                val p = prosta ?: odpri()
-                try {
-                    val r = delo(p)
-                    vrni(p)
-                    return r
-                } catch (e: IOException) {
-                    val napaka = e as? NapakaNntp ?: NapakaNntp(Vrsta.OMREZJE, vzrok = e)
-                    if (napaka.vrsta == Vrsta.NI_CLANKA) vrni(p) else zavrzi(p)
-                    // Nov poskus z novo povezavo: omrezje, napaka streznika, in »400 Idle timeout« na dolgo prosti povezavi.
-                    val ponovi = napaka.vrsta == Vrsta.OMREZJE || napaka.vrsta == Vrsta.NAPAKA_STREZNIKA ||
-                        (napaka.vrsta == Vrsta.ZASEDEN && izBazena)
-                    if (!ponovi || poskus >= n.poskusov || zaprto) throw napaka
-                    poskus++
-                } catch (e: RuntimeException) {
-                    zavrzi(p)
-                    throw e
+            zaklep.lock()
+            try {
+                while (true) {
+                    if (zaprto) throw NapakaNntp(Vrsta.ZAPRTO)
+                    ustavljen?.let { throw NapakaNntp(it) }
+                    val zdaj = System.nanoTime()
+                    if (najvec < zgornja && zadnjaMeja != 0L && zdaj - zadnjaMeja >= RAST_BAZENA_S * n.msNaSekundoPremora * 1_000_000L) {
+                        najvec++   // druga naprava je morda koncala: eno mesto nazaj na 10 min
+                        zadnjaMeja = zdaj
+                    }
+                    while (prosti.isNotEmpty() && zdaj - prosti.first().prosta > PROSTA_NAJDLJE_S * 1_000_000_000L) {
+                        zavrzi += prosti.removeFirst()   // ponudnik ali NAT jo je verjetno ze zaprl
+                    }
+                    if (prosti.isNotEmpty() && !sveza) {
+                        val p = prosti.removeLast()
+                        vRabi += p
+                        return p to true
+                    }
+                    if (sveza && prosti.isNotEmpty() && prosti.size + vRabi.size >= najvec) {
+                        zavrzi += prosti.removeFirst()   // prostor za svezo povezavo: najstarejsa prosta gre
+                        continue
+                    }
+                    val uspela = prijavljenih() > 0
+                    val premor = zdaj - premorDo < 0
+                    if (smeOdpreti(false, premor, prosti.size + vRabi.size, najvec, uspela, sondaTece)) {
+                        val p = Povezava()
+                        p.sonda = !uspela
+                        if (p.sonda) sondaTece = true
+                        vRabi += p
+                        return p to false
+                    }
+                    if (zdaj - rokDo >= 0) throw NapakaNntp(if (premor) premorVrsta else Vrsta.ZASEDEN)
+                    // Nobena povezava se ne bo sprostila pred rokom: takoj (brez cakanja na rok in brez zanke).
+                    if (vRabi.isEmpty() && premor && premorDo - rokDo >= 0) throw NapakaNntp(premorVrsta)
+                    var cakaj = rokDo - zdaj
+                    if (premor) cakaj = minOf(cakaj, premorDo - zdaj)
+                    try {
+                        pogoj.awaitNanos(cakaj)
+                    } catch (e: InterruptedException) {
+                        Thread.currentThread().interrupt()
+                        throw NapakaNntp(Vrsta.ZAPRTO, vzrok = e)
+                    }
                 }
+            } finally {
+                zaklep.unlock()
             }
         } finally {
-            mesta.release()
-        }
-    }
-
-    private fun vzemi(): Povezava? {
-        while (true) {
-            val p = prosti.pollFirst() ?: return null
-            if (System.nanoTime() - p.prosta < NAJDLJE_PROSTA_NS) return p
-            zavrzi(p)
+            for (p in zavrzi) p.zapriVljudno()
         }
     }
 
     private fun vrni(p: Povezava) {
-        p.prosta = System.nanoTime()
-        prosti.offerFirst(p)
-        if (zaprto) {
-            prosti.remove(p)
-            zavrzi(p)
-        }
-    }
-
-    private fun zavrzi(p: Povezava) {
-        vse.remove(p)
-        p.zapri()
-    }
-
-    private fun odpri(): Povezava {
-        val surova = Socket()
-        val tls: SSLSocket
-        try {
-            surova.connect(InetSocketAddress(n.gostitelj, n.vrata), n.rokPovezaveMs)
-            surova.soTimeout = n.rokBranjaMs
-            surova.tcpNoDelay = true
-            val t = tovarna.createSocket(surova, n.gostitelj, n.vrata, true) as SSLSocket
-            val protokoli = t.supportedProtocols.filter { it in PROTOKOLI }
-            if (protokoli.isEmpty()) throw NapakaNntp(Vrsta.POTRDILO)
-            val p = t.sslParameters
-            p.endpointIdentificationAlgorithm = "HTTPS"
-            p.protocols = protokoli.toTypedArray()
-            t.sslParameters = p
-            t.soTimeout = n.rokBranjaMs
-            try {
-                t.startHandshake()
-            } catch (e: SSLHandshakeException) {
-                throw NapakaNntp(Vrsta.POTRDILO, vzrok = e)
+        val obdrzi = zaklep.zZaklepom {
+            vRabi.remove(p)
+            if (p.sonda) {
+                p.sonda = false
+                sondaTece = false
             }
-            val seja = t.session
-            if (seja.protocol !in PROTOKOLI) throw NapakaNntp(Vrsta.POTRDILO)
-            if (imePotrdila != null && !imePotrdila.verify(n.gostitelj, seja)) throw NapakaNntp(Vrsta.POTRDILO)
-            tls = t
-        } catch (e: IOException) {
-            try { surova.close() } catch (_: IOException) { }
-            throw e as? NapakaNntp ?: NapakaNntp(Vrsta.OMREZJE, vzrok = e)
+            // Steje samo prijavljene: povezava v odpiranju (morda dobi »prevec povezav«) ne izrine delujoce.
+            val da = !zaprto && ustavljen == null && p.pripravljena && prijavljenih() < najvec
+            if (da) {
+                p.prosta = System.nanoTime()
+                prosti.addLast(p)
+            }
+            pogoj.signalAll()
+            da
         }
-        val pov = Povezava(surova, tls)
-        vse.add(pov)
-        odprto.incrementAndGet()
-        if (zaprto) {
-            zavrzi(pov)
-            throw NapakaNntp(Vrsta.OMREZJE)
+        if (!obdrzi) p.zapri()
+    }
+
+    /** Povezava je odprta in prijavljena: premor nazaj na nic; bazen ni manjsi od prijavljenih (te je streznik sprejel). */
+    private fun odprta() = zaklep.zZaklepom {
+        premorS = 0
+        neznanihPrijav = 0
+        najvec = maxOf(najvec, minOf(zgornja, prijavljenih()))
+        pogoj.signalAll()
+    }
+
+    /** Ustavi bazen (zavrnjena prijava, dostop, potrdilo): vse povezave zaprte, zahteve v teku prekinjene. */
+    private fun ustavi(vrsta: Vrsta, racun: Boolean) {
+        val vse = zaklep.zZaklepom {
+            if (ustavljen == null) ustavljen = vrsta
+            if (racun && odtis != null) ZAVRNJENI += odtis
+            val v = prosti.toList() + vRabi.toList()
+            prosti.clear()
+            pogoj.signalAll()
+            v
         }
-        try {
-            pov.pozdrav()
-            pov.prijava(n.uporabnik, n.geslo)
-        } catch (e: IOException) {
-            zavrzi(pov)
-            throw e as? NapakaNntp ?: NapakaNntp(Vrsta.OMREZJE, vzrok = e)
+        for (p in vse) p.zapri()
+    }
+
+    private fun premor(zmanjsaj: Boolean, vrsta: Vrsta) {
+        val odvec = zaklep.zZaklepom {
+            val zdaj = System.nanoTime()
+            val tece = zdaj - premorDo < 0
+            val (nn, ps) = novPremor(najvec, prijavljenih(), premorS, tece, zmanjsaj)
+            najvec = nn
+            premorS = ps
+            if (!tece) premorDo = zdaj + ps * n.msNaSekundoPremora * 1_000_000L
+            premorVrsta = vrsta
+            if (zmanjsaj) zadnjaMeja = zdaj
+            pogoj.signalAll()
+            odvec()
         }
-        return pov
+        for (p in odvec) p.zapriVljudno()
+    }
+
+    /** Prijava brez odgovora (geslo je morda prislo do streznika): prvic premor, drugic zapored zapah na racun. */
+    private fun neznanaPrijava() {
+        val drugic = zaklep.zZaklepom { ++neznanihPrijav >= 2 }
+        if (drugic) ustavi(Vrsta.PRIJAVA, true) else premor(false, Vrsta.OMREZJE)
+    }
+
+    /** Stara povezava je bila mrtva: proste, nedejavne vsaj tako dolgo, so verjetno tudi. */
+    private fun zavrziStarejse(prosta: Long) {
+        val stare = zaklep.zZaklepom {
+            val s = prosti.filter { it.prosta - prosta <= 0 }
+            prosti.removeAll(s.toSet())
+            s
+        }
+        for (p in stare) p.zapri()
+    }
+
+    private fun <T> zDelom(delo: (Povezava) -> T): T {
+        check(Looper.myLooper() != Looper.getMainLooper()) { "NNTP ne sme teci na glavni niti" }
+        val rokDo = System.nanoTime() + n.rokCakanjaMs * 1_000_000L
+        var sveza = false
+        var poskus = 0
+        while (true) {
+            val (p, stara) = vzemi(rokDo, sveza)
+            try {
+                if (!stara) {
+                    p.odpri()
+                    odprta()
+                }
+                val r = delo(p)
+                vrni(p)
+                return r
+            } catch (e: IOException) {
+                val napaka = e as? NapakaNntp ?: napakaVticnice(e)
+                val u = ukrep(napaka.vrsta, p.faza, stara, minOf(poskus, 1))
+                if (u != Ukrep.VRNI) p.zapri()
+                // Stanje bazena PRED sprostitvijo sonde: cakajoca nit ne sme poslati gesla, preden je zapah postavljen.
+                when (u) {
+                    Ukrep.USTAVI_RACUN -> ustavi(Vrsta.PRIJAVA, true)
+                    Ukrep.USTAVI_BAZEN -> ustavi(napaka.vrsta, false)
+                    Ukrep.NEZNANA_PRIJAVA -> neznanaPrijava()
+                    Ukrep.ZMANJSAJ_POCAKAJ, Ukrep.POCAKAJ -> premor(u == Ukrep.ZMANJSAJ_POCAKAJ, napaka.vrsta)
+                    Ukrep.ZNOVA -> if (stara) zavrziStarejse(p.prosta)
+                    else -> { }
+                }
+                vrni(p)
+                if (zaprto) throw NapakaNntp(Vrsta.ZAPRTO)
+                ustavljen?.let { throw NapakaNntp(it, napaka.koda) }
+                if (u == Ukrep.VRNI || u == Ukrep.NAPAKA || poskus + 1 >= n.poskusov) throw napaka
+                sveza = u == Ukrep.ZNOVA   // ZNOVA vedno z novo povezavo; pri premoru caka obstojeco
+                poskus++
+            } catch (e: Throwable) {
+                // RuntimeException, OutOfMemoryError ...: v medpomnilniku je lahko pol odgovora - povezava ne v bazen.
+                p.zapri()
+                vrni(p)
+                throw e
+            }
+        }
     }
 }

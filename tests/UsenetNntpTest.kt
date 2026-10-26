@@ -87,6 +87,14 @@ private class LazniStreznik(ctx: SSLContext) : Closeable {
     /** Ce ni null, BODY odgovori s tem (npr. »403 Archive server error«). */
     @Volatile var napakaBody: String? = null
     @Volatile var poKoscih = false
+    /** Zaklep racuna: zamuda odgovora na PASS (brez vrat bazena bi vse niti hkrati poslale geslo), besedilo zavrnitve. */
+    @Volatile var zamudaGeslaMs = 0L
+    @Volatile var napacno: String? = null
+    /** Najvec hkrati prijavljenih sej (meja povezav racuna) in odgovor ob preseganju. */
+    @Volatile var meja = Int.MAX_VALUE
+    @Volatile var odgovorMeja = "502 Too many connections"
+    @Volatile var geslaNeOdgovori = false
+    val prijavljenih = AtomicInteger()
     val povezav = AtomicInteger()
     val hkrati = AtomicInteger()
     val najvecHkrati = AtomicInteger()
@@ -108,6 +116,7 @@ private class LazniStreznik(ctx: SSLContext) : Closeable {
     }
 
     private fun strezi(s: Socket) {
+        var seja = false
         povezav.incrementAndGet()
         val h = hkrati.incrementAndGet()
         najvecHkrati.accumulateAndGet(h) { a, b -> maxOf(a, b) }
@@ -129,8 +138,18 @@ private class LazniStreznik(ctx: SSLContext) : Closeable {
                     ime = v.removePrefix("AUTHINFO USER ")
                     posli(odgovorUporabnik)
                 } else if (v.startsWith("AUTHINFO PASS ")) {
+                    if (zamudaGeslaMs > 0) Thread.sleep(zamudaGeslaMs)
+                    if (geslaNeOdgovori) return
                     prijavljen = ime == UPORABNIK && v.removePrefix("AUTHINFO PASS ") == GESLO
-                    posli(if (prijavljen) "281 Prijava uspela" else "481 Authentication failed for $ime")
+                    if (prijavljen) {
+                        if (prijavljenih.incrementAndGet() > meja) {
+                            prijavljenih.decrementAndGet()
+                            posli(odgovorMeja)
+                            return
+                        }
+                        seja = true
+                    }
+                    posli(if (prijavljen) "281 Prijava uspela" else napacno ?: "481 Authentication failed for $ime")
                 } else if (ukaz == "QUIT") {
                     posli("205 Adijo")
                     return
@@ -175,6 +194,7 @@ private class LazniStreznik(ctx: SSLContext) : Closeable {
             }
         } catch (_: Exception) {
         } finally {
+            if (seja) prijavljenih.decrementAndGet()
             hkrati.decrementAndGet()
             try { s.close() } catch (_: IOException) { }
         }
@@ -188,9 +208,19 @@ private class LazniStreznik(ctx: SSLContext) : Closeable {
 }
 
 private fun nastavitve(vrata: Int, uporabnik: String? = UPORABNIK, geslo: String? = GESLO, povezav: Int = 8,
-                       rokBranjaMs: Int = 5_000, poskusov: Int = 2, gostitelj: String = "localhost") =
+                       rokBranjaMs: Int = 5_000, poskusov: Int = 2, gostitelj: String = "localhost", msPremora: Long = 1000) =
     UsenetNntp.Nastavitve(gostitelj, uporabnik, geslo, vrata = vrata, povezav = povezav, rokPovezaveMs = 3_000,
-        rokBranjaMs = rokBranjaMs, rokCakanjaMs = 10_000, poskusov = poskusov)
+        rokBranjaMs = rokBranjaMs, rokCakanjaMs = 10_000, poskusov = poskusov, msNaSekundoPremora = msPremora)
+
+/** [niti] niti hkrati (po [zahtev] zahtev): izidi v vrstnem redu konca. */
+private fun hkrati(k: UsenetNntp, niti: Int, zahtev: Int, id: String = ID): List<String> {
+    val izidi: MutableList<String> = Collections.synchronizedList(ArrayList<String>())
+    val start = java.util.concurrent.CountDownLatch(1)
+    val t = (1..niti).map { Thread { start.await(); repeat(zahtev) { izidi += izid { k.body(id) } } }.apply { start() } }
+    start.countDown()
+    for (x in t) x.join(30_000)
+    return izidi.toList()
+}
 
 /** Clanek yEnc (en del velikega filma) z nakljucnimi bajti: izvorni bajti, telo in telo, kot ga poslje streznik. */
 private class Clanek(val podatki: ByteArray, val telo: ByteArray, val poslano: ByteArray)
@@ -290,9 +320,9 @@ fun main() {
             s.zamudaMs = 3_000
             UsenetNntp(nastavitve(s.vrata, rokBranjaMs = 400), prava.zaupaj).use { k ->
                 val t0 = System.nanoTime()
-                preveriEnako("rok branja -> OMREZJE", "OMREZJE", izid { k.body(ID) })
+                preveriEnako("rok branja -> ROK (sveza povezava: brez ponovitve)", "ROK", izid { k.body(ID) })
                 val ms = (System.nanoTime() - t0) / 1_000_000
-                preveriEnako("rok: dva poskusa v < 2,5 s (bilo $ms ms)", true, ms < 2_500)
+                preveriEnako("rok: en poskus v < 2,5 s (bilo $ms ms)", true, ms < 2_500)
             }
             s.zamudaMs = 5_000
             UsenetNntp(nastavitve(s.vrata, rokBranjaMs = 10_000), prava.zaupaj).use { k ->
@@ -303,10 +333,10 @@ fun main() {
                 k.close()
                 nit.join(3_000)
                 val ms = (System.nanoTime() - t0) / 1_000_000
-                preveriEnako("zapiranje med branjem -> OMREZJE", "OMREZJE", rez)
+                preveriEnako("zapiranje med branjem -> ZAPRTO", "ZAPRTO", rez)
                 preveriEnako("zapiranje prekine branje v < 1,5 s (bilo $ms ms)", true, ms < 1_500)
                 preveriEnako("po zapiranju ni povezav", 0, k.odprtih)
-                preveriEnako("po zapiranju ni novih klicev", "OMREZJE", izid { k.body(ID) })
+                preveriEnako("po zapiranju ni novih klicev", "ZAPRTO", izid { k.body(ID) })
             }
             s.zamudaMs = 0
 
@@ -317,12 +347,12 @@ fun main() {
                 preveriEnako("403 -> NAPAKA_STREZNIKA", "NAPAKA_STREZNIKA", izid { k.body(ID) })
                 preveriEnako("403: nov poskus z novo povezavo", 2, k.odprtoSkupaj)
                 s.napakaBody = "205 Bye"
-                preveriEnako("205 med BODY -> OMREZJE", "OMREZJE", izid { k.body(ID) })
+                preveriEnako("205 med BODY -> ZAPRTO", "ZAPRTO", izid { k.body(ID) })
                 s.napakaBody = null
                 preveriEnako("po napakah spet dela", "OK", izid { k.body(ID) })
                 val pred = k.odprtoSkupaj
                 s.napakaBody = "400 Idle timeout, closing connection"
-                preveriEnako("400 na prosti povezavi (zapira): nov poskus, nato OMREZJE", "OMREZJE", izid { k.body(ID) })
+                preveriEnako("400 na prosti povezavi (zapira): nov poskus, nato ZAPRTO", "ZAPRTO", izid { k.body(ID) })
                 preveriEnako("400: ena nova povezava", pred + 1, k.odprtoSkupaj)
                 s.napakaBody = null
             }
@@ -396,6 +426,89 @@ fun main() {
         }
         UsenetNntp(nastavitve(1), prava.zaupaj).use { k ->
             preveriEnako("ni streznika -> OMREZJE", "OMREZJE", izid { k.body(ID) })
+        }
+
+        // Zaklep racuna (pregled Grok 35 Y2; lastnik 26. 10. 2026 03:05: »Nevarnost zaklepa racuna je prioriteta«).
+        LazniStreznik(prava.streznik).use { s ->
+            println("zaklep racuna")
+            s.clanki[ID] = clanek(20_000, 11).poslano
+            fun gesel() = s.ukazi.count { it == "AUTHINFO PASS" }
+            s.zamudaGeslaMs = 300
+            val napacno = nastavitve(s.vrata, geslo = "napacno-geslo-8")
+            UsenetNntp(napacno, prava.zaupaj).use { k ->
+                preveriEnako("8 niti x 3, napacno geslo: vse PRIJAVA", List(24) { "PRIJAVA" }, hkrati(k, 8, 3))
+                preveriEnako("8 niti: napacno geslo do streznika enkrat", 1, gesel())
+                preveriEnako("8 niti: ena povezava", 1, s.povezav.get())
+            }
+            s.zamudaGeslaMs = 0
+            UsenetNntp(napacno, prava.zaupaj).use { k ->
+                preveriEnako("zapah velja za racun (nov bazen) -> PRIJAVA", "PRIJAVA", izid { k.body(ID) })
+                preveriEnako("zapah: brez nove povezave in gesla", 1 to 1, s.povezav.get() to gesel())
+            }
+            preveriEnako("prijavaZavrnjena", true, UsenetNntp.prijavaZavrnjena("localhost", UPORABNIK, "napacno-geslo-8"))
+            UsenetNntp(nastavitve(s.vrata), prava.zaupaj).use { k -> preveriEnako("drugo geslo gre", "OK", izid { k.body(ID) }) }
+            UsenetNntp.dovoliPrijavoZnova("localhost", UPORABNIK, "napacno-geslo-8")
+            UsenetNntp(napacno, prava.zaupaj).use { k ->
+                preveriEnako("po ponovnem vpisu en poskus", "PRIJAVA", izid { k.body(ID) })
+            }
+            preveriEnako("gesel skupaj (1 + 1 pravo + 1 po vpisu)", 3, gesel())
+            UsenetNntp.dovoliPrijavoZnova("localhost", UPORABNIK, "napacno-geslo-8")
+
+            s.napacno = "481 Authentication failed for this connection"
+            val pred481 = gesel()
+            UsenetNntp(nastavitve(s.vrata, geslo = "napacno-481", povezav = 3), prava.zaupaj).use { k ->
+                preveriEnako("481 ... connection = PRIJAVA, 3x", List(3) { "PRIJAVA" }, List(3) { izid { k.body(ID) } })
+                preveriEnako("481 ... connection: en poskus", pred481 + 1, gesel())
+                preveriEnako("481: bazen ni skrcen", 3, k.najvecPovezav)
+            }
+            s.napacno = null
+            UsenetNntp.dovoliPrijavoZnova("localhost", UPORABNIK, "napacno-481")
+
+            // Ponudnik: prevec povezav javi kot napako prijave - po uspeli prijavi ZASEDEN in krcenje, ne zapah.
+            s.meja = 2
+            s.odgovorMeja = "481 Authentication failed"
+            s.zamudaGeslaMs = 50
+            s.zamudaMs = 30
+            val predMeja = gesel()
+            UsenetNntp(nastavitve(s.vrata, povezav = 6), prava.zaupaj).use { k ->
+                preveriEnako("meja 2 po uspeli prijavi: 18 zahtev uspe", List(18) { "OK" }, hkrati(k, 6, 3))
+                preveriEnako("meja 2: bazen na sprejete povezave", 2, k.najvecPovezav)
+                preveriEnako("meja 2: najvec 6 prijav (brez zanke)", true, gesel() - predMeja <= 6)
+            }
+            s.meja = Int.MAX_VALUE
+            s.zamudaGeslaMs = 0
+            s.zamudaMs = 0
+
+            s.geslaNeOdgovori = true
+            val predNeznano = gesel()
+            UsenetNntp(nastavitve(s.vrata, geslo = "ne-odgovori", msPremora = 5), prava.zaupaj).use { k ->
+                preveriEnako("prijava brez odgovora: prvic premor, drugic zapah -> PRIJAVA", "PRIJAVA", izid { k.body(ID) })
+                preveriEnako("prijava brez odgovora: 2 poskusa", predNeznano + 2, gesel())
+                preveriEnako("prijava brez odgovora: nato nic", "PRIJAVA", izid { k.body(ID) })
+                preveriEnako("prijava brez odgovora: se vedno 2", predNeznano + 2, gesel())
+            }
+            s.geslaNeOdgovori = false
+            UsenetNntp.dovoliPrijavoZnova("localhost", UPORABNIK, "ne-odgovori")
+
+            s.zamudaMs = 30
+            UsenetNntp(nastavitve(s.vrata, povezav = 8), prava.zaupaj).use { k ->
+                k.nastaviNajvec(2)
+                s.najvecHkrati.set(0)
+                preveriEnako("nastaviNajvec(2): 12 zahtev", List(12) { "OK" }, hkrati(k, 6, 2))
+                preveriEnako("nastaviNajvec(2): najvec 2 hkrati", true, s.najvecHkrati.get() <= 2)
+            }
+            s.zamudaMs = 0
+        }
+        LazniStreznik(prava.streznik).use { s ->
+            s.pozdrav = "502 Too many connections"
+            UsenetNntp(nastavitve(s.vrata, povezav = 3), prava.zaupaj).use { k ->
+                val t0 = System.nanoTime()
+                preveriEnako("pozdrav prevec povezav -> ZASEDEN", "ZASEDEN", izid { k.body(ID) })
+                preveriEnako("brez drugih povezav: bazen 1", 1, k.najvecPovezav)
+                preveriEnako("med premorom brez nove povezave", "ZASEDEN", izid { k.body(ID) })
+                preveriEnako("ena povezava skupaj (brez zanke)", 1, s.povezav.get())
+                preveriEnako("brez cakanja na rok (premor 60 s > rok)", true, (System.nanoTime() - t0) / 1_000_000 < 2_000)
+            }
         }
 
         // Zasebnost: sporocila izjem in vzrokov brez gesla, imena in message-id.
