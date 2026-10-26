@@ -224,6 +224,8 @@ object IptvPravila {
     val JAVNI_SEZNAMI = listOf("iptv-org.github.io" to "/", "raw.githubusercontent.com" to "/iptv-org/",
         "raw.githubusercontent.com" to "/free-tv/iptv/")
     private val RX_XTREAM_POT = Regex("/(?:live|movie|movies|series|timeshift)/[^/]+/[^/]+/", RegexOption.IGNORE_CASE)
+    /** Kratka oblika Xtream (get.php ... output=ts): /<uporabnik>/<geslo>/<id>[.ts] - kot Linux _XTREAM_KRATKA (pregled 39, I1). */
+    private val RX_XTREAM_KRATKA = Regex("^/[^/]+/[^/]+/\\d+(?:\\.[a-z0-9]{1,5})?$", RegexOption.IGNORE_CASE)
     private val XTREAM_DATOTEKE = listOf("/get.php", "/player_api.php", "/xmltv.php", "/panel_api.php")
     /** Parametri, ki nosijo racun. Zetoni samo v naslovu seznama (zaseben seznam): javni CDN tok pogosto podpise z zetonom. */
     private val RACUN_PARAMETRI = setOf("username", "password", "user", "pass", "passwd", "pwd", "login", "mac")
@@ -259,8 +261,8 @@ object IptvPravila {
     }
 
     /**
-     * Ali naslov nosi racun pri ponudniku: uporabnik:geslo@, pot Xtream (/live|movie|series|timeshift/<u>/<g>/,
-     * get.php, player_api.php ...), parameter racuna (username, password ...); pri naslovu [seznam] tudi zeton (token=,
+     * Ali naslov nosi racun pri ponudniku: uporabnik:geslo@, pot Xtream (/live|movie|series|timeshift/<u>/<g>/, kratka
+     * /<u>/<g>/<id>[.ts], get.php, player_api.php ...), parameter racuna (username, password ...); pri naslovu [seznam] tudi zeton (token=,
      * key= ...). Naslova, ki ga ne razumemo (ali ni http(s)), ne preverjamo: true. Nadomestek vira z racunom
      * (»https://<gostitelj>/safeer-skrito-<odtis>«, [skrivnostVira]) je racun: true.
      */
@@ -269,7 +271,7 @@ object IptvPravila {
         val d = deli(naslov) ?: return true
         if (d.uporabnik) return true
         val poti = listOfNotNull(d.pot, odkodiraj(d.pot, plus = false) ?: return true).map { it.lowercase(java.util.Locale.ROOT) }
-        if (poti.any { p -> RX_XTREAM_POT.containsMatchIn(p) || XTREAM_DATOTEKE.any { p.endsWith(it) } }) return true
+        if (poti.any { p -> RX_XTREAM_POT.containsMatchIn(p) || RX_XTREAM_KRATKA.matches(p) || XTREAM_DATOTEKE.any { p.endsWith(it) } }) return true
         return d.kljuci.any { it in RACUN_PARAMETRI || (seznam && it in ZETON_PARAMETRI) }
     }
 

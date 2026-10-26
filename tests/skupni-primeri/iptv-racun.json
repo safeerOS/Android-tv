@@ -1,0 +1,118 @@
+{
+ "opis": "Skupni primeri zascite racuna IPTV za vse platforme Safeer (Linux core/kanali_iptv, Android IptvPravila). Lastnik, 26. 10. 2026: »Nevarnost zaklepa racuna je prioriteta.« Pregled 39, I1 (ob dvomu ne): v ozadju se preverja SAMO seznam, ki je pozitivno znan javni brezplacni vir (iptv-org.github.io, raw.githubusercontent.com/iptv-org/, raw.githubusercontent.com/Free-TV/IPTV/; odkodirana pot brez ../ in //) in v naslovu nima racuna - ali ga je uporabnik izrecno oznacil kot javnega (tu ne). seznami.javni: sme v preverbo v ozadju. kanali.racun: naslov toka nosi racun pri ponudniku (nikoli v preverbo v ozadju).",
+ "seznami": [
+  {
+   "url": "https://iptv-org.github.io/iptv/countries/si.m3u",
+   "javni": true
+  },
+  {
+   "url": "https://raw.githubusercontent.com/iptv-org/iptv/master/streams/si.m3u",
+   "javni": true
+  },
+  {
+   "url": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8",
+   "javni": true
+  },
+  {
+   "url": "https://gist.githubusercontent.com/uporabnik/0123abcd/raw/seznam.m3u",
+   "javni": false,
+   "opis": "skrivni gist"
+  },
+  {
+   "url": "https://uporabnik.github.io/tv/seznam.m3u",
+   "javni": false,
+   "opis": "zasebna stran github.io"
+  },
+  {
+   "url": "https://gitlab.com/u/tv/-/raw/main/seznam.m3u",
+   "javni": false
+  },
+  {
+   "url": "https://codeberg.org/u/tv/raw/branch/main/seznam.m3u",
+   "javni": false
+  },
+  {
+   "url": "https://raw.githubusercontent.com/uporabnik/tv/main/ponudnik.m3u",
+   "javni": false,
+   "opis": "kopija v repozitoriju"
+  },
+  {
+   "url": "https://raw.githubusercontent.com/iptv-org/../uporabnik/tv/main/x.m3u",
+   "javni": false,
+   "opis": "../ v poti"
+  },
+  {
+   "url": "https://raw.githubusercontent.com/iptv-org/%2e%2e/uporabnik/x.m3u",
+   "javni": false,
+   "opis": "kodiran ../"
+  },
+  {
+   "url": "https://iptv-org.github.io//uporabnik/x.m3u",
+   "javni": false,
+   "opis": "// v poti"
+  },
+  {
+   "url": "https://iptv-org.github.io/iptv/index.m3u?token=abc",
+   "javni": false,
+   "opis": "zeton v naslovu seznama"
+  },
+  {
+   "url": "http://u:g@iptv-org.github.io/iptv/index.m3u",
+   "javni": false,
+   "opis": "uporabnik:geslo@"
+  },
+  {
+   "url": "http://ponudnik.test:8080/get.php?username=u&password=g&type=m3u_plus",
+   "javni": false,
+   "opis": "Xtream"
+  },
+  {
+   "url": "http://tvh.lan:9981/playlist",
+   "javni": false,
+   "opis": "domaci streznik"
+  }
+ ],
+ "kanali": [
+  {
+   "url": "http://p.test:8080/live/u/g/123.ts",
+   "racun": true,
+   "opis": "Xtream /live/"
+  },
+  {
+   "url": "http://p.test/movie/u/g/5.mkv",
+   "racun": true
+  },
+  {
+   "url": "http://u:g@tvh.lan:9981/stream/channel/1",
+   "racun": true
+  },
+  {
+   "url": "http://p.test/play/live.php?mac=00:1A:79:00:00:01&stream=5",
+   "racun": true,
+   "opis": "Stalker mac="
+  },
+  {
+   "url": "http://p.test/kanal.ts?username=u&password=g",
+   "racun": true
+  },
+  {
+   "url": "http://p.test:8080/u/g/123",
+   "racun": true,
+   "opis": "kratka oblika Xtream (get.php output=ts)"
+  },
+  {
+   "url": "http://p.test:8080/u/g/123.ts",
+   "racun": true,
+   "opis": "kratka oblika Xtream s koncnico"
+  },
+  {
+   "url": "https://cdn.test/live/kanal/index.m3u8?token=abc",
+   "racun": false,
+   "opis": "podpis CDN ni racun"
+  },
+  {
+   "url": "https://cdn.test/hls/kanal/index.m3u8",
+   "racun": false
+  }
+ ]
+}

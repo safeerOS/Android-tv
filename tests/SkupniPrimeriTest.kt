@@ -185,11 +185,30 @@ private fun iptvPrimeri(koren: Map<String, Any?>) {
     }
 }
 
+/**
+ * Skupni primeri zascite racuna IPTV (tests/skupni-primeri/iptv-racun.json, lastnik Safeer-linux; pregled 39, I1):
+ * seznami.javni = [IptvPravila.javniBrezplacni] (sme v preverbo v ozadju), kanali.racun = [IptvPravila.jeVirSPoverilnico]
+ * za naslov toka (nikoli v preverbo v ozadju, s tokom samo v ozji krog).
+ */
+@Suppress("UNCHECKED_CAST")
+private fun iptvRacunPrimeri(koren: Map<String, Any?>) {
+    for (s in koren["seznami"] as List<Map<String, Any?>>)
+        preveriEnako("seznam ${s.niz("opis") ?: s.niz("url")}: javni", s["javni"], IptvPravila.javniBrezplacni(s.niz("url")!!))
+    for (k in koren["kanali"] as List<Map<String, Any?>>)
+        preveriEnako("kanal ${k.niz("opis") ?: k.niz("url")}: racun", k["racun"], IptvPravila.jeVirSPoverilnico(k.niz("url")!!, seznam = false))
+}
+
 @Suppress("UNCHECKED_CAST")
 fun main(args: Array<String>) {
     println("Preizkus skupnih primerov (Android in namizje)")
     val pot = args.firstOrNull() ?: "tests/skupni-primeri/debrid-serije.json"
     val koren = Bralnik(File(pot).readText(Charsets.UTF_8)).beri() as Map<String, Any?>
+    if (koren.containsKey("seznami") && koren.containsKey("kanali")) {
+        iptvRacunPrimeri(koren)
+        println("  primerov: $primerov")
+        if (napak == 0) println("SkupniPrimeriTest: OK") else { println("Napak: $napak"); System.exit(1) }
+        return
+    }
     if ((koren["primeri"] as List<Map<String, Any?>>).firstOrNull()?.containsKey("vrstice") == true) {
         iptvPrimeri(koren)
         println("  primerov: $primerov")
