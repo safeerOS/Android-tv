@@ -414,5 +414,27 @@ fun main() {
     preveriEnako("S3: zapis drugega kljuca ostane »brez stanja«", null,
         DebridPravila.stanjeIzZapisa("VELJA|${DebridPravila.odtisStanja(vzorec)}||5", o1))
 
+    // Pregled Grok 41, Z5 (namizje S6): zaporo odklene samo »Preveri« ali vpis - ne pozen uspeh in ne »velja« z druge
+    // naprave, ki ni iz »Preveri«.
+    val nk = TorBoxPravila.NAPAKA_KLJUC; val nz = TorBoxPravila.NAPAKA_ZAKLENJEN; val velja = DebridPravila.StanjeKljuca.VELJA
+    preveriEnako("Z5: pozen uspeh ne odpravi »zaklenjen«", null, DebridPravila.stanjePoUporabi(sk["ZAKLENJEN"], "", true))
+    preveriEnako("Z5: pozen uspeh ne odpravi »ne velja«", null, DebridPravila.stanjePoUporabi(sk["NE_VELJA"], "", true))
+    preveriEnako("Z5: uspeh potrdi nepreverjen", velja, DebridPravila.stanjePoUporabi(sk["NEPREVERJEN"], "", true))
+    preveriEnako("Z5: uspeh potrdi kljuc brez stanja", velja, DebridPravila.stanjePoUporabi(null, "", true))
+    preveriEnako("Z5: veljaven ostane brez zapisa", null, DebridPravila.stanjePoUporabi(velja, "", true))
+    preveriEnako("Z5: zavrnitev med uporabo zapre veljavnega", sk["NE_VELJA"], DebridPravila.stanjePoUporabi(velja, nk, false))
+    preveriEnako("Z5: zaklep med uporabo", sk["ZAKLENJEN"], DebridPravila.stanjePoUporabi(sk["NE_VELJA"], nz, false))
+    preveriEnako("Z5: isti zaklep znova - brez zapisa", null, DebridPravila.stanjePoUporabi(sk["ZAKLENJEN"], nz, false))
+    preveriEnako("Z5: krog - »velja« brez »Preveri« ne odpravi tukajsnje zapore", false,
+        DebridPravila.sprejmiStanje(1_000L, velja, 2_000L, 3_000L, sk["ZAKLENJEN"], rocno = false))
+    preveriEnako("Z5: krog - »velja« iz »Preveri« jo odpravi", true, DebridPravila.sprejmiStanje(1_000L, velja, 2_000L, 3_000L, sk["ZAKLENJEN"], rocno = true))
+    preveriEnako("Z5: krog - »velja« za nepreverjen gre", true, DebridPravila.sprejmiStanje(1_000L, velja, 2_000L, 3_000L, sk["NEPREVERJEN"]))
+    val zr = DebridPravila.zapisStanja(velja, o1, 2, 5L, rocno = true)
+    preveriEnako("Z5: »velja« iz »Preveri« nosi oznako in se prebere", listOf(true, Triple(velja, 2, 5L)),
+        listOf(DebridPravila.rocnoIzZapisa(zr), DebridPravila.stanjeIzZapisa(zr, o1)))
+    preveriEnako("Z5: brez oznake", false, DebridPravila.rocnoIzZapisa(DebridPravila.zapisStanja(velja, o1, 2, 5L)))
+    preveriEnako("Z5: oznaka samo pri »velja«", false,
+        DebridPravila.rocnoIzZapisa(DebridPravila.zapisStanja(DebridPravila.StanjeKljuca.ZAKLENJEN, o1, null, 5L, rocno = true)))
+
     if (napak == 0) println("DebridPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

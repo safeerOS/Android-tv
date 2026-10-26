@@ -490,8 +490,30 @@ object DebridPravila {
      * stanje, novejse od tukajsnjega ([tukajOb], null = tu se ni stanja) in najvec 10 min iz prihodnosti (napacna ura).
      * Isti kljuc (odtis) preveri klicatelj. Prejeto stanje obdrzi svoj cas - zato se ne vraca (brez ping-ponga).
      */
-    fun sprejmiStanje(tukajOb: Long?, prejeto: StanjeKljuca, prejetoOb: Long, zdaj: Long): Boolean =
-        stanjeVKrog(prejeto) && prejetoOb > 0 && prejetoOb <= zdaj + 10 * 60_000L && (tukajOb == null || prejetoOb > tukajOb)
+    fun sprejmiStanje(tukajOb: Long?, prejeto: StanjeKljuca, prejetoOb: Long, zdaj: Long,
+                      /** Pregled Grok 41, Z5: tukajsnje stanje istega kljuca in ali je prejeti »velja« iz »Preveri« ali vpisa. */
+                      tukaj: StanjeKljuca? = null, rocno: Boolean = false): Boolean =
+        stanjeVKrog(prejeto) && prejetoOb > 0 && prejetoOb <= zdaj + 10 * 60_000L && (tukajOb == null || prejetoOb > tukajOb) &&
+            // Zaporo (»ne velja«, »zaklenjen«) odpravi samo uporabnikov »Preveri« ali vpis, ki ga storitev potrdi - tudi z druge
+            // naprave; prej jo je odpravil vsak novejsi »velja« (pozen uspeh, iskanje) in jo razsiril po vsem ozjem krogu.
+            (prejeto != StanjeKljuca.VELJA || smeKlicati(tukaj) || rocno)
+
+    /**
+     * Pregled Grok 41, Z5 (kot namizje ef9c499 stanje_po_uporabi, Grokov pregled 40, S6): novo stanje kljuca po izidu MED
+     * UPORABO (null = brez spremembe): zavrnjen kljuc -> »ne velja«, zaklenjen racun -> »zaklenjen«, odgovor s povezavo ali
+     * zadetki -> »velja«, a samo iz »nepreverjen« ali brez stanja. Prej je pozen uspeh zahteve, ki je stekla pred zaporo,
+     * prepisal novejsi »zaklenjen« ali »ne velja« v »velja« in ga prek polja racuni poslal vsem napravam ozjega kroga -
+     * zaporo odpravi samo »Preveri« ali vpis, ki ga storitev potrdi.
+     */
+    fun stanjePoUporabi(prej: StanjeKljuca?, napaka: String, uspeh: Boolean): StanjeKljuca? {
+        val novo = when (napaka) {
+            TorBoxPravila.NAPAKA_KLJUC -> StanjeKljuca.NE_VELJA
+            TorBoxPravila.NAPAKA_ZAKLENJEN -> StanjeKljuca.ZAKLENJEN
+            else -> null
+        }
+        if (novo != null) return novo.takeIf { it != prej }
+        return if (uspeh && (prej == null || prej == StanjeKljuca.NEPREVERJEN)) StanjeKljuca.VELJA else null
+    }
 
     /** Ime stanja v sporocilu (kot skupni primeri): »velja«, »ne_velja«, »zaklenjen«; null = neznano. */
     fun stanjeIzImena(ime: String): StanjeKljuca? = StanjeKljuca.values().firstOrNull { it.name.equals(ime, ignoreCase = true) }
@@ -701,7 +723,12 @@ object DebridPravila {
     fun odtisStanja(kljuc: String): String = java.security.MessageDigest.getInstance("SHA-256")
         .digest("safeer-debrid-stanje|$kljuc".toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }.take(16)
 
-    fun zapisStanja(s: StanjeKljuca, odtis: String, paket: Int?, ob: Long): String = listOf(s.name, odtis, paket?.toString().orEmpty(), ob.toString()).joinToString("|")
+    /** Pregled Grok 41, Z5: [rocno] = »velja« iz uporabnikovega »Preveri« ali vpisa (5. polje »r«) - samo tak odpravi zaporo drugih naprav. */
+    fun zapisStanja(s: StanjeKljuca, odtis: String, paket: Int?, ob: Long, rocno: Boolean = false): String =
+        (listOf(s.name, odtis, paket?.toString().orEmpty(), ob.toString()) + listOfNotNull("r".takeIf { rocno && s == StanjeKljuca.VELJA })).joinToString("|")
+
+    /** Ali je zapis »velja« iz »Preveri« ali vpisa ([zapisStanja] z rocno). */
+    fun rocnoIzZapisa(zapis: String?): Boolean = zapis?.split('|')?.getOrNull(4) == "r"
 
     /**
      * (stanje, paket, cas) iz [zapis] za kljuc z [odtis]; null = ni zapisa ali je zapis DRUGEGA kljuca. Pregled Grok 41, Z3 (kot

@@ -81,31 +81,49 @@ object Usenet {
         DebridPravila.stanjeIzZapisa(prefs(c).getString(KLJUC_STANJE, null), o)?.first,
         DebridPravila.zaporeIzZapisa(prefs(c).getString(KLJUC_ZAPORE, null))[o])
 
+    /** Pregled Grok 41, Z5 (namizje S6): zapisi stanja in odlocitev po uporabi ([obOdgovoru]) pod istim zaklepom. */
+    private val zaklep = Any()
+
     /** Zapis stanja indeksatorja z odtisom [o]: zapora najprej v pomnilnik, nato na mesto in med zapore po kljucu (Z3). */
-    private fun zapisi(c: Context, o: String, s: DebridPravila.StanjeKljuca, ob: Long) {
-        if (s == DebridPravila.StanjeKljuca.NE_VELJA || s == DebridPravila.StanjeKljuca.ZAKLENJEN) zaprti[o] = s
-        val pr = prefs(c)
-        pr.edit().putString(KLJUC_STANJE, DebridPravila.zapisStanja(s, o, null, ob))
-            .putString(KLJUC_ZAPORE, DebridPravila.zZaporo(pr.getString(KLJUC_ZAPORE, null), o, s)).apply()
-        if (s == DebridPravila.StanjeKljuca.VELJA) zaprti.remove(o)
+    private fun zapisi(c: Context, o: String, s: DebridPravila.StanjeKljuca, ob: Long, rocno: Boolean = false) {
+        synchronized(zaklep) {
+            if (s == DebridPravila.StanjeKljuca.NE_VELJA || s == DebridPravila.StanjeKljuca.ZAKLENJEN) zaprti[o] = s
+            val pr = prefs(c)
+            pr.edit().putString(KLJUC_STANJE, DebridPravila.zapisStanja(s, o, null, ob, rocno))
+                .putString(KLJUC_ZAPORE, DebridPravila.zZaporo(pr.getString(KLJUC_ZAPORE, null), o, s)).apply()
+            if (s == DebridPravila.StanjeKljuca.VELJA) zaprti.remove(o)
+        }
+    }
+
+    /** Pregled Grok 41, Z3/Z5: zapora indeksatorja, ki ni vec shranjen (izid zahteve s prejsnjim kljucem) - mesto ostane. */
+    private fun zapisiZaporo(c: Context, o: String, s: DebridPravila.StanjeKljuca) {
+        if (DebridPravila.smeKlicati(s)) return
+        synchronized(zaklep) {
+            zaprti[o] = s
+            val pr = prefs(c)
+            pr.edit().putString(KLJUC_ZAPORE, DebridPravila.zZaporo(pr.getString(KLJUC_ZAPORE, null), o, s)).apply()
+        }
     }
 
     /** Varovalo racunov: dokoncno stanje indeksatorja za ozji krog (odtis naslova in kljuca, brez kljuca); null = ga ni. */
     fun stanjeZaKrog(c: Context): JSONObject? {
         val ix = indeksator(c) ?: return null
         val o = odtis(ix.osnova, ix.kljuc)
-        val z = DebridPravila.stanjeIzZapisa(prefs(c).getString(KLJUC_STANJE, null), o) ?: return null
+        val zapis = prefs(c).getString(KLJUC_STANJE, null)
+        val z = DebridPravila.stanjeIzZapisa(zapis, o) ?: return null
         if (!DebridPravila.stanjeVKrog(z.first)) return null
         return JSONObject().put("p", UsenetPravila.VRSTA).put("o", o).put("s", z.first.name.lowercase(java.util.Locale.ROOT)).put("c", z.third)
+            .apply { if (z.first == DebridPravila.StanjeKljuca.VELJA && DebridPravila.rocnoIzZapisa(zapis)) put("r", true) }
     }
 
     /** Prejeto stanje istega indeksatorja z naprave v ozjem krogu (brez omrezja); true = spremenjeno. */
-    fun prejmiStanje(c: Context, odtis: String, s: DebridPravila.StanjeKljuca, ob: Long, zdaj: Long): Boolean {
+    fun prejmiStanje(c: Context, odtis: String, s: DebridPravila.StanjeKljuca, ob: Long, zdaj: Long, rocno: Boolean = false): Boolean {
         val ix = indeksator(c) ?: return false
         if (odtis(ix.osnova, ix.kljuc) != odtis) return false
         val tu = DebridPravila.stanjeIzZapisa(prefs(c).getString(KLJUC_STANJE, null), odtis)
-        if (!DebridPravila.sprejmiStanje(tu?.third, s, ob, zdaj)) return false
-        zapisi(c, odtis, s, ob)
+        // Pregled Grok 41, Z5: »velja« z druge naprave odpravi tukajsnjo zaporo samo, ce je iz »Preveri« ali vpisa.
+        if (!DebridPravila.sprejmiStanje(tu?.third, s, ob, zdaj, stanjeZa(c, odtis), rocno)) return false
+        zapisi(c, odtis, s, ob, rocno)
         Log.i(TAG, "indeksator: stanje z druge naprave v ozjem krogu - ${s.name.lowercase(java.util.Locale.ROOT)}")
         return true
     }
@@ -168,8 +186,8 @@ object Usenet {
         return true
     }
 
-    private fun zapisiStanje(c: Context, osnova: String, kljuc: String, s: DebridPravila.StanjeKljuca) {
-        zapisi(c, odtis(osnova, kljuc), s, System.currentTimeMillis())
+    private fun zapisiStanje(c: Context, osnova: String, kljuc: String, s: DebridPravila.StanjeKljuca, rocno: Boolean = false) {
+        zapisi(c, odtis(osnova, kljuc), s, System.currentTimeMillis(), rocno)
     }
 
     /** Pregled Grok 41, Z1: ob zamenjavi indeksatorja ostanejo samo povezave NZB novega kljuca (stari je v njihovem naslovu). */
@@ -221,7 +239,8 @@ object Usenet {
             return Debrid.IzidVpisa(v.izid, null, ostalo = true)
         }
         if (!shrani(c, ix.first, ix.second)) return Debrid.IzidVpisa(DebridPravila.Preverba.OBLIKA, null)
-        zapisiStanje(c, ix.first, ix.second, s)
+        // Pregled Grok 41, Z5: »velja« iz vpisa odpravi zaporo tudi na drugih napravah ozjega kroga.
+        zapisiStanje(c, ix.first, ix.second, s, rocno = true)
         zadnjaPreverba = System.currentTimeMillis()
         if (DebridPravila.zaUskladitev(s)) UskladitevKljucev.sprozi(c)
         return Debrid.IzidVpisa(v.izid, null)
@@ -240,7 +259,7 @@ object Usenet {
         val s = DebridPravila.stanjePoRocniPreverbi(izid) ?: return izid
         // Indeksator, zamenjan med preverbo, dobi svojo preverbo - ta izid velja samo za kljuc zahteve.
         if (indeksator(c)?.let { odtis(it.osnova, it.kljuc) } != o) return izid
-        zapisiStanje(c, ix.osnova, ix.kljuc, s)
+        zapisiStanje(c, ix.osnova, ix.kljuc, s, rocno = true)
         zadnjaPreverba = System.currentTimeMillis()
         if (!DebridPravila.smeKlicati(s)) povezave.pozabi(o)
         Log.i(TAG, "indeksator: rocna preverba - $izid")
@@ -260,25 +279,35 @@ object Usenet {
         if (!DebridPravila.preveriZdaj(prej, zadnjaPreverba, zdaj)) return false
         zadnjaPreverba = zdaj
         val s = DebridPravila.stanjePoPreverbi(preveri(ix.osnova, ix.kljuc)) ?: DebridPravila.StanjeKljuca.NE_VELJA
-        if (s == prej) return false
-        zapisiStanje(c, ix.osnova, ix.kljuc, s)
-        return true
+        // Pregled Grok 41, Z5: zapis samo za isti indeksator in ce se stanje med preverbo ni spremenilo (zapora ostane).
+        val o = odtis(ix.osnova, ix.kljuc)
+        return synchronized(zaklep) {
+            if (s == prej || indeksator(c)?.let { odtis(it.osnova, it.kljuc) } != o || stanjeZa(c, o) != prej) false
+            else { zapisiStanje(c, ix.osnova, ix.kljuc, s); true }
+        }
     }
 
     /** Med iskanjem in prenosom NZB: zavrnjen kljuc (401, Newznab 100-102) -> »ne velja«; odgovor -> velja. Zapis samo ob spremembi. */
     private fun obOdgovoru(c: Context, ix: Indeksator, izid: DebridPravila.Preverba) {
-        val s = when (izid) {
-            DebridPravila.Preverba.NE_VELJA -> DebridPravila.StanjeKljuca.NE_VELJA
-            DebridPravila.Preverba.VELJA -> DebridPravila.StanjeKljuca.VELJA
+        val napaka = when (izid) {
+            DebridPravila.Preverba.NE_VELJA -> TorBoxPravila.NAPAKA_KLJUC
+            DebridPravila.Preverba.VELJA -> ""
             // Varovalo racunov: Newznab 101 (racun suspendiran) - indeksatorja ne klicemo vec.
-            DebridPravila.Preverba.ZAKLENJEN -> DebridPravila.StanjeKljuca.ZAKLENJEN
+            DebridPravila.Preverba.ZAKLENJEN -> TorBoxPravila.NAPAKA_ZAKLENJEN
             else -> return
         }
+        val o = odtis(ix.osnova, ix.kljuc)
         // Pregled Grok 41, Z1: povezave NZB zavrnjenega ali zaklenjenega kljuca ne ostanejo v pomnilniku.
-        if (!DebridPravila.smeKlicati(s)) povezave.pozabi(odtis(ix.osnova, ix.kljuc))
-        val prej = stanje(c)
-        if (s == prej) return
-        zapisiStanje(c, ix.osnova, ix.kljuc, s)
+        if (napaka.isNotEmpty()) povezave.pozabi(o)
+        // Pregled Grok 41, Z5 (namizje S6): izid velja za kljuc zahteve - zamenjan indeksator dobi samo zaporo po kljucu
+        // (prej je pisal na mesto novega); »velja« samo iz »nepreverjen« ali brez stanja, pod zaklepom (pozen uspeh ne odpravi zapore).
+        val trenutni = indeksator(c)?.let { odtis(it.osnova, it.kljuc) } == o
+        val s = synchronized(zaklep) {
+            DebridPravila.stanjePoUporabi(stanjeZa(c, o), napaka, napaka.isEmpty())?.also {
+                if (trenutni) zapisi(c, o, it, System.currentTimeMillis()) else zapisiZaporo(c, o, it)
+            }
+        } ?: return
+        if (!trenutni) return
         Log.i(TAG, "indeksator: stanje ${s.name.lowercase(java.util.Locale.ROOT)} po uporabi")
         // Varovalo racunov: tudi »ne velja« gre v ozji krog (druge naprave z istim indeksatorjem ga ne klicejo vec).
         UskladitevKljucev.sprozi(c)
