@@ -603,7 +603,7 @@ class GlasbaActivity : OsActivity() {
         if (PregledKanalov.obSpremembi === obPregleduKanalov) PregledKanalov.obSpremembi = null
         if (UsbPredpomnilnik.obSpremembi === obPregleduKanalov) UsbPredpomnilnik.obSpremembi = null
         // Naloga 75: Safeer gre v ozadje - pregled kanalov dodatkov, ki je na vrsti (najvec enkrat na dan, ne med predvajanjem).
-        if (!isFinishing) PregledKanalov.obcasno(applicationContext, stremioNaslovi() + seznamiTv())
+        if (!isFinishing) PregledKanalov.obcasno(applicationContext, stremioNaslovi(), seznamiTv())
         vOspredju = false
         glavna.removeCallbacks(tik)
         super.onStop()
@@ -3895,8 +3895,9 @@ class GlasbaActivity : OsActivity() {
             // Kartica je ziva, ce deluje katera koli razlicica: preverimo prvo se neznano ([razlicicaZaPreverjanje]).
             val sk = razlicicaZaPreverjanje(m, id)
             val kk = sk?.let { OsPravila.kljucKanala(it.id) }
+            // Lastnik, 26. 10. 2026: kanal vira z racunom (Xtream, dodatek z zetonom) se ne preverja - viden je, odloci predvajanje.
             sk != null && id !in m.vedno && ((Stremio.jeEnota(sk) && Stremio.dajeLastneTokove(sk)) || IptvSeznami.jeKanal(sk)) && kk !in m.neznani &&
-                kk !in kanaliVPreverjanju
+                kk !in kanaliVPreverjanju && PregledKanalov.smeSonda(this, sk)
         }
         if (izbrani.isNotEmpty()) dnevnikMreze { "kanali: preverjam vidne ${izbrani.size} (vrste ${vrste.first}..${vrste.last}, v teku ${kanaliVPreverjanju.size}, proracun ${m.proracun})" }
         izbrani.forEach { id -> razlicicaZaPreverjanje(m, id).let { sk -> if (sk != null) preveriKanal(m, sk) } }
@@ -5589,8 +5590,10 @@ class GlasbaActivity : OsActivity() {
                 listOf(getString(R.string.os_dodatek_nastavitve) to { nastavitveDodatka(dodan.naslov) }) else emptyList()) +
             // Naloga 113: dodatek preverimo takoj (manifest, kot pri vnosu) - oznaka »ne odgovarja« izgine ali dobi svezo kodo.
             (if (dodan.jeStremio) listOf(getString(R.string.os_mediji_preveri_dodatek) to { preveriDodatekZdaj(dodan.naslov) }) else emptyList()) +
-            (if (dodan.jeStremio || (dodan.jeSeznam && (IptvSeznami.podatki(this, dodan.naslov)?.kanalov ?: 0) > 0)) listOf(getString(R.string.os_pregled_kanalov_zdaj) to {
-                val zacet = PregledKanalov.zacni(applicationContext, dodan.naslov, rocno = true)
+            // Lastnik, 26. 10. 2026: vira s poverilnico (Xtream, dodatek z zetonom) ne pregledamo nikoli - izbire ni.
+            (if ((dodan.jeStremio || (dodan.jeSeznam && (IptvSeznami.podatki(this, dodan.naslov)?.kanalov ?: 0) > 0)) &&
+                PregledKanalov.smeVir(this, dodan.naslov, dodan.jeSeznam)) listOf(getString(R.string.os_pregled_kanalov_zdaj) to {
+                val zacet = PregledKanalov.zacni(applicationContext, dodan.naslov, rocno = true, jeSeznam = dodan.jeSeznam)
                 Toast.makeText(this, if (zacet) R.string.os_pregled_kanalov_zacet else R.string.os_pregled_kanalov_po_predvajanju, Toast.LENGTH_SHORT).show()
             }) else emptyList()) +
             listOf(getString(R.string.os_media_izbrisi_vir) to { odstraniVir(dodan, v.ime) })
@@ -7148,7 +7151,7 @@ class GlasbaActivity : OsActivity() {
         okno.dismiss()
         poSpremembiVirov(); izberi(VIRI)
         // Naloga 75: kanale novega dodatka preverimo v ozadju (dodatek brez kanalov TV pregled konca takoj).
-        PregledKanalov.zacni(applicationContext, v.naslov, rocno = false)
+        PregledKanalov.zacni(applicationContext, v.naslov, rocno = false, jeSeznam = false)
         // Naloga 79b: isti dodatek z novim naslovom (po narocnini) - stari naslov ponudimo v odstranitev.
         preveriDvojnikDodatka(v.naslov)
         poskusiOdkleniDodatke(null)

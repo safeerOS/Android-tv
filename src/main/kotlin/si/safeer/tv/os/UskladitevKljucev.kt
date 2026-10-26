@@ -231,9 +231,9 @@ object UskladitevKljucev {
             z.kljuc.startsWith(P.PREDPONA_DODATKA) -> {
                 val odtis = z.kljuc.removePrefix(P.PREDPONA_DODATKA)
                 if (z.izbrisan) { MedijskiViri.odstraniSkrivniDodatek(c, odtis); true }
-                else MedijskiViri.dodajDodatek(c, MedijskiViri.STREMIO, z.vrednost, "")?.also {
-                    try { PregledKanalov.zacni(c.applicationContext, it.naslov, rocno = false) } catch (_: Throwable) { }
-                } != null
+                // Lastnik, 26. 10. 2026: prejeti dodatek (s poverilnico) ne sprozi pregleda kanalov - prej ga je zacela vsaka
+                // naprava kroga hkrati z istim racunom.
+                else MedijskiViri.dodajDodatek(c, MedijskiViri.STREMIO, z.vrednost, "") != null
             }
             else -> false
         }

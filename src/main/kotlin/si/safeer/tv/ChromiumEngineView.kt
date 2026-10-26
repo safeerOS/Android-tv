@@ -440,7 +440,7 @@ class ChromiumEngineView @JvmOverloads constructor(
                         return
                     }
                     // Kot v Mojih virih (GlasbaActivity.shraniDodatek): kanale novega dodatka preverimo v ozadju.
-                    si.safeer.tv.os.PregledKanalov.zacni(ctx.applicationContext, v.naslov, rocno = false)
+                    si.safeer.tv.os.PregledKanalov.zacni(ctx.applicationContext, v.naslov, rocno = false, jeSeznam = false)
                     android.widget.Toast.makeText(ctx, R.string.os_mediji_dodatek_dodano, android.widget.Toast.LENGTH_SHORT).show()
                 }
                 try {
