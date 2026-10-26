@@ -107,5 +107,67 @@ fun main() {
     }, IptvPravila.NAJVEC_VRSTICA, 100_000_000L) { n++ }
     preveriEnako("86 vrstice: 50 M znakov brez preloma - nobene vrstice, brez OOM", 0, n)
 
+    println()
+    println("== zascita racuna (lastnik, 26. 10. 2026: nevarnost zaklepa racuna je prioriteta) ==")
+    val xtream = "http://ponudnik.primer.test:8080/get.php?username=uporabnik&password=geslo&type=m3u_plus"
+    val s = IptvPravila::jeVirSPoverilnico
+    // Isti primeri kot Linux (tests/test_kanali_iptv.py, ZascitaRacuna) in osnutek varovalo-racunov.json (iptv_ima_poverilnico).
+    preveriEnako("poverilnica: Xtream get.php", true, s(xtream, true))
+    preveriEnako("poverilnica: player_api.php", true, s("http://p.primer.test/player_api.php?a=1", true))
+    preveriEnako("poverilnica: /live/<u>/<g>/", true, s("http://p.primer.test:8080/live/uporabnik/geslo/123.ts", false))
+    preveriEnako("poverilnica: /movie/<u>/<g>/", true, s("http://p.primer.test/movie/u/p/5.mkv", false))
+    preveriEnako("poverilnica: /series/<u>/<g>/", true, s("http://p.primer.test/series/u/p/7.mp4", false))
+    preveriEnako("poverilnica: /timeshift/ z velikimi crkami", true, s("http://p.primer.test/TimeShift/u/p/60/2026/1.ts", false))
+    preveriEnako("poverilnica: kodirana pot %2F", true, s("http://p.primer.test/live%2Fu%2Fp%2F1.ts", false))
+    preveriEnako("poverilnica: uporabnik:geslo@", true, s("http://uporabnik:geslo@tvh.primer.test:9981/stream/channel/1", false))
+    preveriEnako("poverilnica: samo uporabnik@", true, s("https://uporabnik@p.primer.test/seznam.m3u", true))
+    preveriEnako("poverilnica: token= v seznamu", true, s("https://p.primer.test/seznam.m3u?token=abc", true))
+    preveriEnako("poverilnica: key= v seznamu", true, s("https://p.primer.test/seznam.m3u?a=1&KEY=abc", true))
+    preveriEnako("poverilnica: kodiran parameter us%65rname", true, s("http://p.primer.test/s.m3u?us%65rname=u", true))
+    preveriEnako("poverilnica: password= v kanalu", true, s("https://p.primer.test/k.m3u8?password=x", false))
+    preveriEnako("ni poverilnice: podpis CDN (token) v kanalu", false, s("https://cdn.primer.test/live/kanal/index.m3u8?token=abc", false))
+    preveriEnako("ni poverilnice: iptv-org", false, s("https://iptv-org.github.io/iptv/countries/si.m3u", true))
+    preveriEnako("ni poverilnice: /live/ z eno ravnjo", false, s("https://cdn.primer.test/live/kanal.m3u8", false))
+    preveriEnako("nerazumljiv naslov steje kot poverilnica", true, s("rtmp://p.primer.test/live", false))
+    preveriEnako("prazen naslov steje kot poverilnica", true, s("", true))
+    val j = IptvPravila::javniBrezplacni
+    preveriEnako("javni: iptv-org.github.io", true, j("https://iptv-org.github.io/iptv/countries/si.m3u"))
+    preveriEnako("javni: raw.githubusercontent.com", true, j("https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8"))
+    preveriEnako("javni: *.github.io", true, j("https://kdo.github.io/seznam.m3u"))
+    preveriEnako("ni javni: Xtream", false, j(xtream))
+    preveriEnako("ni javni: domaci streznik", false, j("http://tvh.primer.test:9981/playlist"))
+    preveriEnako("ni javni: neznan gostitelj", false, j("https://ponudnik.primer.test/moj-seznam.m3u"))
+    preveriEnako("ni javni: github.io po http", false, j("http://kdo.github.io/seznam.m3u"))
+    preveriEnako("ni javni: gitlab z zetonom", false, j("https://gitlab.com/x/seznam.m3u?private_token=abc"))
+    preveriEnako("ni javni: github.io z uporabnikom", false, j("https://u:g@kdo.github.io/seznam.m3u"))
+    preveriEnako("ni javni: lazni gostitelj github.io.primer.test", false, j("https://github.io.primer.test/s.m3u"))
+    preveriEnako("dovoljena: javni seznam, javni tok", true,
+        IptvPravila.preverbaDovoljena("https://iptv-org.github.io/iptv/countries/si.m3u", "https://cdn.primer.test/k/index.m3u8?token=x"))
+    preveriEnako("ni dovoljena: javni seznam, tok Xtream", false,
+        IptvPravila.preverbaDovoljena("https://iptv-org.github.io/iptv/countries/si.m3u", "http://p.primer.test/live/u/g/1.ts"))
+    preveriEnako("ni dovoljena: seznam Xtream", false, IptvPravila.preverbaDovoljena(xtream, "https://cdn.primer.test/k.m3u8"))
+    preveriEnako("dodatek z zetonom v poti", true,
+        IptvPravila.dodatekSPoverilnico("https://dodatek.primer.test/realdebrid=ABCDEFGHIJKLMNOPQRSTUVWXYZ123456/manifest.json"))
+    preveriEnako("dodatek: nadomestek skrivnega", true,
+        IptvPravila.dodatekSPoverilnico("https://dodatek.primer.test/" + SkrivnostiPravila.OZNAKA + "0123456789abcdef/manifest.json"))
+    preveriEnako("dodatek: javni brez poverilnice", false, IptvPravila.dodatekSPoverilnico("https://iptv.primer.test/manifest.json"))
+    // Seznam Xtream s 5000 kanali (prava oblika get.php m3u_plus): noben kanal ne sme v preverbo.
+    val bx = IptvPravila.Bralnik(xtream, "", "")
+    var vXtream = 0
+    var zaPreverbo = 0
+    for (i in 0 until 5000) {
+        bx.vrstica("#EXTINF:-1 tvg-id=\"K$i.si\" tvg-name=\"Kanal $i\" group-title=\"SI\",Kanal $i")
+        bx.vrstica("http://ponudnik.primer.test:8080/live/uporabnik/geslo/$i.ts")?.let { vXtream++; if (IptvPravila.preverbaDovoljena(xtream, it.url)) zaPreverbo++ }
+    }
+    preveriEnako("Xtream 5000 kanalov: vsi razclenjeni (vidni)", 5000, vXtream)
+    preveriEnako("Xtream 5000 kanalov: nobeden v preverbo", 0, zaPreverbo)
+    preveriEnako("pregled: seznam Xtream ne (tudi rocno)", "seznam s poverilnico", IptvPravila.zakajNePregleda(true, xtream))
+    preveriEnako("pregled: seznam ponudnika brez poverilnice v naslovu ne", "ni javni brezplacni seznam",
+        IptvPravila.zakajNePregleda(true, "https://ponudnik.primer.test/seznam.m3u"))
+    preveriEnako("pregled: javni seznam da", "", IptvPravila.zakajNePregleda(true, "https://iptv-org.github.io/iptv/countries/si.m3u"))
+    preveriEnako("pregled: dodatek z zetonom ne", "dodatek s poverilnico",
+        IptvPravila.zakajNePregleda(false, "https://torrentio.strem.fun/realdebrid=ABCDEFGHIJKLMNOPQRSTUVWXYZ123456/manifest.json"))
+    preveriEnako("pregled: javni dodatek da", "", IptvPravila.zakajNePregleda(false, "https://iptv.primer.test/manifest.json"))
+
     if (napak == 0) println("IptvPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

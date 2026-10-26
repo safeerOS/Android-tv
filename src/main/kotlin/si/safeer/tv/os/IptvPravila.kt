@@ -200,4 +200,98 @@ object IptvPravila {
     /** Seznam je zastarel (prenesemo ga znova v ozadju): starejsi od [OSVEZI_MS] ali ura nazaj. */
     const val OSVEZI_MS = 24 * 3_600_000L
     fun zastarel(prenesenOb: Long, zdaj: Long): Boolean = prenesenOb <= 0L || zdaj - prenesenOb !in 0 until OSVEZI_MS
+
+    // ------------------------------------------------------------------ zascita racuna
+
+    /**
+     * Lastnik, 26. 10. 2026: »Nevarnost zaklepa racuna je prioriteta.« Preverba kanala odpre tok pri ponudniku. Placljivi
+     * racuni IPTV (Xtream get.php?username=&password=, .../live/<uporabnik>/<geslo>/..., uporabnik:geslo@) imajo pogosto
+     * najvec 1-2 hkratni povezavi: pregled 300 kanalov na krog na vsaki napravi kroga je zaklep. Takih virov v ozadju NIKOLI
+     * ne preverjamo - kanal je viden, o delovanju odloci samo pravo predvajanje. V ozadju preverjamo samo javne brezplacne
+     * sezname ([javniBrezplacni]). Ista pravila kot Linux (core/kanali_iptv.s_poverilnicami, javni_brezplacni,
+     * preverba_dovoljena; pregled 30, J3).
+     */
+    val PROSTI_GOSTITELJI = setOf("raw.githubusercontent.com", "gist.githubusercontent.com", "gitlab.com", "codeberg.org")
+    private val RX_XTREAM_POT = Regex("/(?:live|movie|movies|series|timeshift)/[^/]+/[^/]+/", RegexOption.IGNORE_CASE)
+    private val XTREAM_DATOTEKE = listOf("/get.php", "/player_api.php", "/xmltv.php", "/panel_api.php")
+    /** Parametri, ki nosijo racun. Zetoni samo v naslovu seznama (zaseben seznam): javni CDN tok pogosto podpise z zetonom. */
+    private val RACUN_PARAMETRI = setOf("username", "password", "user", "pass", "passwd", "pwd", "login")
+    private val ZETON_PARAMETRI = setOf("token", "access_token", "private_token", "auth", "key", "apikey", "api_key")
+
+    private class Deli(val gostitelj: String, val https: Boolean, val uporabnik: Boolean, val pot: String, val kljuci: Set<String>)
+
+    /** Odkodiran %XX (in + pri poizvedbi); null = pokvarjeno kodiranje. */
+    private fun odkodiraj(s: String, plus: Boolean): String? = try {
+        java.net.URLDecoder.decode(if (plus) s else s.replace("+", "%2B"), "UTF-8")
+    } catch (_: Exception) { null }
+
+    /** Naslov http(s) po delih brez Androida; null = ni http(s) ali ga ne razumemo. */
+    private fun deli(naslov: String): Deli? {
+        val n = naslov.trim()
+        val i = n.indexOf("://")
+        if (i <= 0) return null
+        val shema = n.substring(0, i).lowercase(java.util.Locale.ROOT)
+        if (shema != "http" && shema != "https") return null
+        val ostalo = n.substring(i + 3).substringBefore('#')
+        val konec = ostalo.indexOfFirst { it == '/' || it == '?' }.let { if (it < 0) ostalo.length else it }
+        val oblast = ostalo.substring(0, konec)
+        // »uporabnik:geslo@« steje tudi za posevnico nazaj (brskalnik jo bere kot /).
+        val uporabnik = '@' in oblast
+        val gostitelj = oblast.substringAfterLast('@').let { g ->
+            if (g.startsWith("[")) g.substringBefore(']') + "]" else g.substringBefore(':').substringBefore('\\')
+        }.lowercase(java.util.Locale.ROOT).trimEnd('.')
+        if (gostitelj.isEmpty() || gostitelj.any { it <= ' ' }) return null
+        val pot = ostalo.substring(konec).substringBefore('?')
+        val kljuci = ostalo.substring(konec).substringAfter('?', "").split('&', ';').filter { it.isNotEmpty() }
+            .map { odkodiraj(it.substringBefore('='), plus = true)?.trim()?.lowercase(java.util.Locale.ROOT) ?: return null }.toSet()
+        return Deli(gostitelj, shema == "https", uporabnik, pot, kljuci)
+    }
+
+    /**
+     * Ali naslov nosi racun pri ponudniku: uporabnik:geslo@, pot Xtream (/live|movie|series|timeshift/<u>/<g>/,
+     * get.php, player_api.php ...), parameter racuna (username, password ...); pri naslovu [seznam] tudi zeton (token=,
+     * key= ...). Naslova, ki ga ne razumemo (ali ni http(s)), ne preverjamo: true.
+     */
+    fun jeVirSPoverilnico(naslov: String, seznam: Boolean = true): Boolean {
+        val d = deli(naslov) ?: return true
+        if (d.uporabnik) return true
+        val poti = listOfNotNull(d.pot, odkodiraj(d.pot, plus = false) ?: return true).map { it.lowercase(java.util.Locale.ROOT) }
+        if (poti.any { p -> RX_XTREAM_POT.containsMatchIn(p) || XTREAM_DATOTEKE.any { p.endsWith(it) } }) return true
+        return d.kljuci.any { it in RACUN_PARAMETRI || (seznam && it in ZETON_PARAMETRI) }
+    }
+
+    /**
+     * Seznam, ki ga smemo preverjati v ozadju: brez poverilnice IN javni (iptv-org) ali po https na javnem gostitelju kode
+     * ([PROSTI_GOSTITELJI], *.github.io). Vse drugo (ponudnik, domaci streznik, neznan gostitelj) ne - kot Linux.
+     */
+    fun javniBrezplacni(naslovSeznama: String): Boolean {
+        if (jeVirSPoverilnico(naslovSeznama, seznam = true)) return false
+        val d = deli(naslovSeznama) ?: return false
+        if (d.gostitelj == "iptv-org.github.io") return true
+        if (d.gostitelj == "raw.githubusercontent.com" && d.pot.lowercase(java.util.Locale.ROOT).startsWith("/iptv-org/")) return true
+        return d.https && (d.gostitelj in PROSTI_GOSTITELJI || d.gostitelj.endsWith(".github.io"))
+    }
+
+    /** Kanal seznama sme v preverbo v ozadju: javni brezplacni seznam in naslov toka brez racuna. */
+    fun preverbaDovoljena(naslovSeznama: String, naslovKanala: String): Boolean =
+        javniBrezplacni(naslovSeznama) && !jeVirSPoverilnico(naslovKanala, seznam = false)
+
+    /**
+     * Dodatek s poverilnico (osebni zeton, kljuc debrida, racun Xtream v nastavitvah - [SkrivnostiPravila]) ali njegov
+     * nadomestek: njegovih kanalov v ozadju ne sprasujemo (vsak klic gre na uporabnikov racun).
+     */
+    fun dodatekSPoverilnico(naslovDodatka: String): Boolean =
+        SkrivnostiPravila.jeNadomestek(naslovDodatka) || SkrivnostiPravila.skrivnaPredponaDodatka(naslovDodatka) != null ||
+            jeVirSPoverilnico(naslovDodatka, seznam = true)
+
+    /**
+     * Zakaj se kanali vira [naslov] ne pregledajo ("" = smejo): seznam, ki ni javni brezplacni, in dodatek s poverilnico
+     * nikoli - tudi z rocnim »Preveri kanale zdaj« ne (seznam Xtream s 5000 kanali je 5000 odprtij racuna).
+     */
+    fun zakajNePregleda(jeSeznam: Boolean, naslov: String): String = when {
+        jeSeznam && jeVirSPoverilnico(naslov, seznam = true) -> "seznam s poverilnico"
+        jeSeznam && !javniBrezplacni(naslov) -> "ni javni brezplacni seznam"
+        !jeSeznam && dodatekSPoverilnico(naslov) -> "dodatek s poverilnico"
+        else -> ""
+    }
 }
