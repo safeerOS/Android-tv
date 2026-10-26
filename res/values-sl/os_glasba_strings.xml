@@ -348,8 +348,8 @@
     <string name="os_pregled_kanalov_zacet">Kanale tega dodatka preverjam v ozadju.</string>
     <string name="os_pregled_kanalov_po_predvajanju">Kanale preverim, ko se predvajanje ustavi.</string>
     <!-- Grok 39, I5: ponudnik je seznam IPTV zavrnil; %1$s = kdaj znova (npr. »cez 1 uro«). -->
-    <string name="os_iptv_seznam_zavrnjen">Ponudnik je seznam zavrnil – preveri račun pri ponudniku. Znova poskusim %1$s.</string>
-    <string name="os_iptv_seznam_ni_prenesen">Seznama ni bilo mogoče prenesti. Znova poskusim %1$s.</string>
+    <string name="os_iptv_seznam_zavrnjen">Ponudnik je seznam zavrnil – preveri račun pri ponudniku. Nov poskus je mogoč %1$s.</string>
+    <string name="os_iptv_seznam_ni_prenesen">Seznama ni bilo mogoče prenesti. Nov poskus je mogoč %1$s.</string>
     <string name="os_iptv_poskusi_znova">Poskusi znova prenesti seznam</string>
     <!-- Grok 60, Ů2: vir z racunom, ki ga ta naprava ni dodala sama, se ne prenasa samodejno, dokler uporabnik tega ne dovoli. -->
     <string name="os_iptv_potrdi_tu">Dovoli samodejni prenos na tej napravi</string>

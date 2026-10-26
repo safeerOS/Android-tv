@@ -221,7 +221,46 @@ fun main() {
     preveriEnako("odprtje seznama vsako minuto 24 ur, racun deluje: prva prijava in ena osvezitev po 24 urah", 2, odprtjeSeznama(dan, 200))
     preveriEnako("odprtje seznama vsako minuto 24 ur, ponudnik zavrne: samo premor I5", 4, odprtjeSeznama(dan, 403))
     preveriEnako("izrecni kliki vsakih 10 s (10 min): najvec 1 prijava na minuto", 10, kliki(false, 60, 10, 200))
-    preveriEnako("izrecni kliki vsakih 10 s po zavrnitvi: najvec 1 prijava na minuto", 10, kliki(false, 60, 10, 403))
+    // Grok 68, Ą5 (Grok Ź4; lastnik: nikoli zaklep racuna): uporabnikov klik na vir z racunom spostuje premor I5 po napaki. Prej ga je obsel
+    // (10 klikov = 10 prijav v racun, ki ga je ponudnik ze zavrnil); zdaj med premorom ni nobene prijave, nato najvec ena na premor.
+    preveriEnako("Ą5: izrecni kliki vsakih 10 s po zavrnitvi: ena prijava, premor 10 min jih ustavi", 1, kliki(false, 60, 10, 403))
+    preveriEnako("Ą5: izrecni kliki vsakih 30 s 24 ur po zavrnitvi: samo premor I5 (10 min, 1 h, 6 h)", 4, kliki(false, 2880, 30, 403))
+    val poZavrnitviA5 = IptvPravila.poNapaki(null, t0, zavrnjen = true)
+    preveriEnako("Ą5: klik 5 min po zavrnitvi racuna: BREZ prijave", IptvPravila.Priprava.BREZ,
+        IptvPravila.odlociPripravo(racunAp, true, true, null, poZavrnitviA5, t0, t0 + 5 * minuta))
+    preveriEnako("Ą5: klik 11 min po zavrnitvi racuna: nova prijava", IptvPravila.Priprava.ZDAJ,
+        IptvPravila.odlociPripravo(racunAp, true, true, null, poZavrnitviA5, t0, t0 + 11 * minuta))
+    val javniSeznam = "https://iptv-org.github.io/iptv/countries/si.m3u"
+    preveriEnako("Ą5: javni seznam brez racuna: klik obide premor (ni racuna, ki bi se zaklenil)", IptvPravila.Priprava.ZDAJ,
+        IptvPravila.odlociPripravo(javniSeznam, false, true, null, poZavrnitviA5, 0L, t0 + 5 * minuta))
+    preveriEnako("Ą5: gumb »Poskusi znova« za racun med premorom ga ni", false, IptvPravila.smeZnovaPoskusiti(racunAp, poZavrnitviA5, t0 + 5 * minuta))
+    preveriEnako("Ą5: gumb »Poskusi znova« za racun po premoru je", true, IptvPravila.smeZnovaPoskusiti(racunAp, poZavrnitviA5, t0 + 11 * minuta))
+    preveriEnako("Ą5: gumb »Poskusi znova« za racun brez napake je", true, IptvPravila.smeZnovaPoskusiti(racunAp, null, t0))
+    preveriEnako("Ą5: gumb »Poskusi znova« za javni seznam je tudi med premorom", true, IptvPravila.smeZnovaPoskusiti(javniSeznam, poZavrnitviA5, t0 + 5 * minuta))
+    // Ena prijava na vir naenkrat: 8 niti hkrati (»Poskusi znova«, prva uporaba, ozadje); prvi prijavo drzi, dokler ostali ne odlocijo.
+    val ena = IptvPravila.EnaPrijava()
+    val sSocasno = Seznam(null, null, 0L)
+    val prijavVsega = AtomicInteger(0)
+    val odlocili = java.util.concurrent.CountDownLatch(8)
+    val niti = Executors.newFixedThreadPool(8)
+    try {
+        val izidi = (1..8).map { niti.submit<Unit> {
+            val o = ena.rezerviraj(racunAp) { IptvPravila.odlociPripravo(racunAp, true, true, sSocasno.prenesenOb, sSocasno.napaka, sSocasno.zadnjiPoskus, t0) }
+            odlocili.countDown()
+            if (o == IptvPravila.Priprava.ZDAJ) {
+                prijavVsega.incrementAndGet()
+                odlocili.await(10, java.util.concurrent.TimeUnit.SECONDS)
+                prenos(sSocasno, t0, 403)
+                ena.sprosti(racunAp)
+            }
+        } }
+        izidi.forEach { it.get(20, java.util.concurrent.TimeUnit.SECONDS) }
+    } finally { niti.shutdownNow() }
+    preveriEnako("Ą5: 8 socasnih klicev na isti vir: natanko ena prijava", 1, prijavVsega.get())
+    preveriEnako("Ą5: po koncu prenosa je vir prost (rezervacija sprosti)", emptySet<String>(), ena.vsi())
+    preveriEnako("Ą5: nov klic med premorom po zavrnitvi: odlocitev BREZ (premor I5 drzi tudi po socasnem prenosu)", IptvPravila.Priprava.BREZ,
+        ena.rezerviraj(racunAp) { IptvPravila.odlociPripravo(racunAp, true, true, sSocasno.prenesenOb, sSocasno.napaka, sSocasno.zadnjiPoskus, t0 + 2 * minuta) })
+    preveriEnako("Ą5: BREZ ne rezervira vira", emptySet<String>(), ena.vsi())
     preveriEnako("izrecni kliki na vir z dokazom: enako, najvec 1 na minuto", 10, kliki(true, 60, 10, 200))
     preveriEnako("meja 1 na minuto: 59,9 s je prezgodaj", false, IptvPravila.smeRocnoOsveziti(t0, t0 + 59_999L))
     preveriEnako("meja 1 na minuto: po 60 s sme", true, IptvPravila.smeRocnoOsveziti(t0, t0 + 60_000L))

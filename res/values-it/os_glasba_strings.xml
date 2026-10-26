@@ -349,8 +349,8 @@
     <string name="os_pregled_kanalov_zacet">Controllo dei canali di questo componente in background.</string>
     <string name="os_pregled_kanalov_po_predvajanju">I canali verranno controllati al termine della riproduzione.</string>
     <!-- Grok 39, I5: ponudnik je seznam IPTV zavrnil; %1$s = kdaj znova (npr. »cez 1 uro«). -->
-    <string name="os_iptv_seznam_zavrnjen">Il provider ha rifiutato la lista: controlla il tuo account presso il provider. Nuovo tentativo %1$s.</string>
-    <string name="os_iptv_seznam_ni_prenesen">Non è stato possibile scaricare la lista. Nuovo tentativo %1$s.</string>
+    <string name="os_iptv_seznam_zavrnjen">Il provider ha rifiutato la lista: controlla il tuo account presso il provider. Nuovo tentativo possibile %1$s.</string>
+    <string name="os_iptv_seznam_ni_prenesen">Non è stato possibile scaricare la lista. Nuovo tentativo possibile %1$s.</string>
     <string name="os_iptv_poskusi_znova">Scarica di nuovo la lista</string>
     <!-- Grok 60, Ů2: vir z racunom, ki ga ta naprava ni dodala sama, se ne prenasa samodejno, dokler uporabnik tega ne dovoli. -->
     <string name="os_iptv_potrdi_tu">Consenti il download automatico su questo dispositivo</string>

@@ -349,8 +349,8 @@
     <string name="os_pregled_kanalov_zacet">Vérification des chaînes de cette extension en arrière-plan.</string>
     <string name="os_pregled_kanalov_po_predvajanju">Les chaînes seront vérifiées à la fin de la lecture.</string>
     <!-- Grok 39, I5: ponudnik je seznam IPTV zavrnil; %1$s = kdaj znova (npr. »cez 1 uro«). -->
-    <string name="os_iptv_seznam_zavrnjen">Le fournisseur a refusé la liste – vérifie ton compte chez le fournisseur. Nouvel essai %1$s.</string>
-    <string name="os_iptv_seznam_ni_prenesen">La liste n’a pas pu être téléchargée. Nouvel essai %1$s.</string>
+    <string name="os_iptv_seznam_zavrnjen">Le fournisseur a refusé la liste – vérifie ton compte chez le fournisseur. Nouvel essai possible %1$s.</string>
+    <string name="os_iptv_seznam_ni_prenesen">La liste n’a pas pu être téléchargée. Nouvel essai possible %1$s.</string>
     <string name="os_iptv_poskusi_znova">Retélécharger la liste</string>
     <!-- Grok 60, Ů2: vir z racunom, ki ga ta naprava ni dodala sama, se ne prenasa samodejno, dokler uporabnik tega ne dovoli. -->
     <string name="os_iptv_potrdi_tu">Autoriser le téléchargement automatique sur cet appareil</string>

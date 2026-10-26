@@ -273,7 +273,9 @@ private fun iptvRacunPrimeri(koren: Map<String, Any?>) {
     var ozjih = 0
     for (v in (koren["ozji_krog"] as? List<Map<String, Any?>>).orEmpty()) {
         val n = v.niz("naslov")!!
-        val odKroga = IptvPravila.odOzjegaKroga(true, v["ozji"] as? Boolean)
+        // Verzija 6 (Grok 68, Ą3): v_krogu = posiljatelj je v ozjem krogu TE naprave (brez polja: true); samo odgovor »ozji« ne zadostuje.
+        val vKrogu = v["v_krogu"] as? Boolean ?: true
+        val odKroga = IptvPravila.odOzjegaKroga(vKrogu, v["ozji"] as? Boolean)
         val stanje = when {
             !IptvPravila.prevzemZNavadnoUskladitvijo("url", n, odKroga) -> "ni_prevzet"
             !IptvPravila.virZRacunom("seznam", n) -> if (IptvPravila.osveziPoPrejemu("seznam", n)) "javen" else "javen_brez_prenosa"

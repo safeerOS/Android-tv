@@ -429,13 +429,40 @@ object IptvPravila {
      * Grok 60, Ů1 (lastnik: nikoli zaklep racuna - ponudniki ga zaklenejo ob poplavi prijav): ali sme seznam ta hip na omrezje.
      * [prenesenOb] = kdaj je bil nazadnje uspesno prebran (null = ga ni). ODPRTJE seznama in odprtje TV v zivo ([izrecno] = false)
      * uporabljata 24-urni predpomnilnik ([zastarel]) in premor I5 po napaki ([smePrenesti]); samo izrecna osvezitev ([izrecno]:
-     * uporabnik klikne »Poskusi znova«) obide predpomnilnik in premor, a najvec 1-krat na minuto na racun ([smeRocnoOsveziti]).
+     * uporabnik klikne »Poskusi znova«) obide predpomnilnik, premora I5 pa ne (Ą5; obide ga samo javni seznam brez racuna), in je najvec 1-krat na minuto na racun ([smeRocnoOsveziti]).
      * Isto odlocitev uporabljata [IptvSeznami.pripravi] (mreza TV v zivo) in [MedijskiViri.osveziSeznam] (odprtje seznama).
      */
-    fun smeNaOmrezjeSeznam(prenesenOb: Long?, napaka: NapakaPrenosa?, zadnjiPoskusOb: Long, zdaj: Long, izrecno: Boolean): Boolean {
+    fun smeNaOmrezjeSeznam(prenesenOb: Long?, napaka: NapakaPrenosa?, zadnjiPoskusOb: Long, zdaj: Long, izrecno: Boolean,
+                           zRacunom: Boolean = true): Boolean {
         if (!izrecno && prenesenOb != null && !zastarel(prenesenOb, zdaj)) return false
-        if (!smePrenesti(napaka, zdaj, izrecno)) return false
+        // Grok 68, Ą5 (Grok Ź4; lastnik: nikoli zaklep racuna): premor I5 po napaki velja tudi za uporabnikov klik na vir z racunom.
+        // Prej je klik premor obsel (10 klikov = 10 prijav v racun, ki ga je ponudnik ze zavrnil); obide ga samo javni seznam brez racuna.
+        if (!smePrenesti(napaka, zdaj, izrecno && !zRacunom)) return false
         return !izrecno || smeRocnoOsveziti(zadnjiPoskusOb, zdaj)
+    }
+
+    /**
+     * Grok 68, Ą5: ali ima »Poskusi znova« za [naslov] smisel ta hip. Vir z racunom med premorom I5 ne dobi nove povezave, zato gumba ni
+     * (vrstica vira ze pove, cez koliko casa je nov poskus mogoc); javni seznam sme takoj.
+     */
+    fun smeZnovaPoskusiti(naslov: String, napaka: NapakaPrenosa?, zdaj: Long): Boolean =
+        smePrenesti(napaka, zdaj, rocno = !virZRacunom("seznam", naslov.trim()))
+
+    /**
+     * Grok 68, Ą5: ena prijava na vir naenkrat. Odlocitev in rezervacija sta ENA atomarna poteza: dva socasna klica (»Poskusi znova«,
+     * prva uporaba, osvezitev v ozadju) bi sicer oba odlocila »prenesi«, preden prvi zapise poskus, in ponudniku poslala dve prijavi.
+     * [rezerviraj] vrne null, ce za [kljuc] ze tece prenos (nobene druge zahteve); sicer odlocitev, in ce ni BREZ, je vir rezerviran do [sprosti].
+     */
+    class EnaPrijava {
+        private val tece = HashSet<String>()
+        @Synchronized fun rezerviraj(kljuc: String, odlocitev: () -> Priprava): Priprava? {
+            if (kljuc in tece) return null
+            val o = odlocitev()
+            if (o != Priprava.BREZ) tece.add(kljuc)
+            return o
+        }
+        @Synchronized fun sprosti(kljuc: String) { tece.remove(kljuc) }
+        @Synchronized fun vsi(): Set<String> = tece.toSet()
     }
 
     /**
@@ -462,7 +489,7 @@ object IptvPravila {
         if (!uporabnikSprozilPovezavo(naslov, dodanTuDokaz, izrecno, uporabnik)) return Priprava.BREZ
         // Odprtje seznama in izbira zavihka si delita isti predpomnilnik, premor I5 in mejo 1-krat na minuto (en vir, ena prijava).
         if (uporabnik && !izrecno && virZRacunom("seznam", naslov.trim()) && !smeRocnoOsveziti(zadnjiPoskusOb, zdaj)) return Priprava.BREZ
-        if (!smeNaOmrezjeSeznam(prenesenOb, napaka, zadnjiPoskusOb, zdaj, izrecno)) return Priprava.BREZ
+        if (!smeNaOmrezjeSeznam(prenesenOb, napaka, zadnjiPoskusOb, zdaj, izrecno, zRacunom = virZRacunom("seznam", naslov.trim()))) return Priprava.BREZ
         return if (prenesenOb != null && !izrecno) Priprava.V_OZADJU else Priprava.ZDAJ
     }
 

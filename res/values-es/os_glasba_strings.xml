@@ -349,8 +349,8 @@
     <string name="os_pregled_kanalov_zacet">Comprobando los canales de este complemento en segundo plano.</string>
     <string name="os_pregled_kanalov_po_predvajanju">Los canales se comprobarán cuando termine la reproducción.</string>
     <!-- Grok 39, I5: ponudnik je seznam IPTV zavrnil; %1$s = kdaj znova (npr. »cez 1 uro«). -->
-    <string name="os_iptv_seznam_zavrnjen">El proveedor rechazó la lista: revisa tu cuenta con el proveedor. Nuevo intento %1$s.</string>
-    <string name="os_iptv_seznam_ni_prenesen">No se pudo descargar la lista. Nuevo intento %1$s.</string>
+    <string name="os_iptv_seznam_zavrnjen">El proveedor rechazó la lista: revisa tu cuenta con el proveedor. Nuevo intento posible %1$s.</string>
+    <string name="os_iptv_seznam_ni_prenesen">No se pudo descargar la lista. Nuevo intento posible %1$s.</string>
     <string name="os_iptv_poskusi_znova">Volver a descargar la lista</string>
     <!-- Grok 60, Ů2: vir z racunom, ki ga ta naprava ni dodala sama, se ne prenasa samodejno, dokler uporabnik tega ne dovoli. -->
     <string name="os_iptv_potrdi_tu">Permitir la descarga automática en este dispositivo</string>

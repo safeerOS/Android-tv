@@ -349,8 +349,8 @@
     <string name="os_pregled_kanalov_zacet">Die Sender dieses Add-ons werden im Hintergrund geprüft.</string>
     <string name="os_pregled_kanalov_po_predvajanju">Die Sender werden geprüft, wenn die Wiedergabe endet.</string>
     <!-- Grok 39, I5: ponudnik je seznam IPTV zavrnil; %1$s = kdaj znova (npr. »cez 1 uro«). -->
-    <string name="os_iptv_seznam_zavrnjen">Der Anbieter hat die Liste abgelehnt – prüfe dein Konto beim Anbieter. Neuer Versuch %1$s.</string>
-    <string name="os_iptv_seznam_ni_prenesen">Die Liste konnte nicht geladen werden. Neuer Versuch %1$s.</string>
+    <string name="os_iptv_seznam_zavrnjen">Der Anbieter hat die Liste abgelehnt – prüfe dein Konto beim Anbieter. Nächster Versuch möglich %1$s.</string>
+    <string name="os_iptv_seznam_ni_prenesen">Die Liste konnte nicht geladen werden. Nächster Versuch möglich %1$s.</string>
     <string name="os_iptv_poskusi_znova">Liste erneut laden</string>
     <!-- Grok 60, Ů2: vir z racunom, ki ga ta naprava ni dodala sama, se ne prenasa samodejno, dokler uporabnik tega ne dovoli. -->
     <string name="os_iptv_potrdi_tu">Automatisches Laden auf diesem Gerät erlauben</string>

@@ -348,8 +348,8 @@
     <string name="os_pregled_kanalov_zacet">Checking this add-on’s channels in the background.</string>
     <string name="os_pregled_kanalov_po_predvajanju">Channels will be checked when playback stops.</string>
     <!-- Grok 39, I5: ponudnik je seznam IPTV zavrnil; %1$s = kdaj znova (npr. »cez 1 uro«). -->
-    <string name="os_iptv_seznam_zavrnjen">The provider rejected the playlist – check your account with the provider. Retrying %1$s.</string>
-    <string name="os_iptv_seznam_ni_prenesen">The playlist could not be downloaded. Retrying %1$s.</string>
+    <string name="os_iptv_seznam_zavrnjen">The provider rejected the playlist – check your account with the provider. Next attempt possible %1$s.</string>
+    <string name="os_iptv_seznam_ni_prenesen">The playlist could not be downloaded. Next attempt possible %1$s.</string>
     <string name="os_iptv_poskusi_znova">Try downloading the playlist again</string>
     <!-- Grok 60, Ů2: vir z racunom, ki ga ta naprava ni dodala sama, se ne prenasa samodejno, dokler uporabnik tega ne dovoli. -->
     <string name="os_iptv_potrdi_tu">Allow automatic download on this device</string>

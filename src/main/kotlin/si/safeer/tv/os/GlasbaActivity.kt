@@ -5629,7 +5629,10 @@ class GlasbaActivity : OsActivity() {
             // Grok 39, I5: po zavrnjenem prenosu (uporabnik je uredil racun pri ponudniku) en poskus takoj, ne sele po premoru.
             // Grok 68, Ą2: seznam z racunom, ki ga na tej napravi se nihce ni uporabil (mreza TV v zivo ga brez uporabnika ne prenese), ima izrecen klik.
             // Grok 60, Ů2: tudi seznam z racunom, ki ni dodan tu in se ne prenasa sam - izrecen klik je dovoljen (najvec 1-krat na minuto).
-            (if (dodan.jeSeznam && (IptvSeznami.napaka(this, dodan.naslov) != null ||
+            // Grok 68, Ą5 (Grok Ź4): premor I5 po napaki velja tudi za ta klik, zato med premorom vira z racunom gumba ni (vrstica vira
+            // pove, cez koliko casa je nov poskus mogoc).
+            (if (dodan.jeSeznam && IptvPravila.smeZnovaPoskusiti(dodan.naslov, IptvSeznami.napaka(this, dodan.naslov), System.currentTimeMillis()) &&
+                    (IptvSeznami.napaka(this, dodan.naslov) != null ||
                     (IptvPravila.virZRacunom(dodan.tip, dodan.naslov) && (!MedijskiViri.uporabaDovoljena(this, dodan.naslov) ||
                         IptvSeznami.podatki(this, dodan.naslov) == null))))
                 listOf(getString(R.string.os_iptv_poskusi_znova) to {
