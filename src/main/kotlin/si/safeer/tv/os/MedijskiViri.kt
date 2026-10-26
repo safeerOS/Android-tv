@@ -67,7 +67,7 @@ object MedijskiViri {
      * zeton Webtorja, debrid kljuc v nastavitvah) se shrani kot nadomestek brez skrivnosti, skrivnost sifrirana
      * ([SkrivniDodatki]); null = sifriranje ni uspelo - pravega naslova ne shranimo.
      */
-    fun dodajDodatek(ctx: Context, tip: String, naslovVnosa: String, ime: String): Vir? {
+    fun dodajDodatek(ctx: Context, tip: String, naslovVnosa: String, ime: String, prejeto: Boolean = false): Vir? {
         // Pregled U5: dodatek s poverilnico samo po https (zeton v naslovu po http potuje necifriran).
         if (tip == STREMIO && SkrivnostiPravila.skrivnaPredponaDodatka(naslovVnosa) != null && !naslovVnosa.trim().startsWith("https://")) return null
         val naslov = if (tip == STREMIO && SkrivnostiPravila.skrivnaPredponaDodatka(naslovVnosa) != null)
@@ -76,7 +76,8 @@ object MedijskiViri {
         if (obstojeci != null) return obstojeci
         val v = Vir(tip, ime.ifBlank { android.net.Uri.parse(naslov).host ?: naslov }, naslov)
         // Samo rocno dodani: viri iz spletnih aplikacij te naprave nastanejo sproti (vsi) in se ne shranjujejo.
-        shrani(ctx, rocni(ctx) + v)
+        // [prejeto]: dodatek z druge naprave v ozjem krogu (UskladitevKljucev) - ni dodan tu ([dodanTu]).
+        shrani(ctx, rocni(ctx) + v, prejeto = prejeto)
         // Dodatek s poverilnico gre sam na naprave v ozjem krogu (UskladitevKljucev).
         if (SkrivnostiPravila.jeNadomestek(naslov)) UskladitevKljucev.sprozi(ctx)
         return v
@@ -867,7 +868,7 @@ object MedijskiViri {
      * vir dodan in kdaj izbrisan: [cas] != 0 je cas z druge naprave (prevzem), sicer ura te naprave - a nikoli starejsa
      * od znanega izbrisa oziroma dodajanja (ure naprav niso enake).
      */
-    @Synchronized private fun shrani(ctx: Context, viriVnosa: List<Vir>, cas: Long = 0L, brezSledi: Boolean = false) {
+    @Synchronized private fun shrani(ctx: Context, viriVnosa: List<Vir>, cas: Long = 0L, brezSledi: Boolean = false, prejeto: Boolean = false) {
         // Webtor rezerva: dodatek s poverilnico nikoli kot pravi naslov v nastavitvah (varovalka za vse poti dodajanja).
         // Pregled U6: ce sifriranje ne uspe, novega pravega naslova ne zapisemo (prej je slo v nastavitve necifrirano);
         // ze shranjen (iz casa pred prehodom) ostane, kot je - ne izgubi se. U5: novega po http ne sprejmemo.
@@ -890,8 +891,14 @@ object MedijskiViri {
         for (k in prej - zdaj) { if (!brezSledi) izbrisani[k] = if (cas != 0L) cas else SeznamiPravila.novCas(ura, casi[k] ?: 0L, 0L); casi.remove(k) }
         casi.keys.retainAll(zdaj)
         while (izbrisani.size > 300) izbrisani.remove(izbrisani.minByOrNull { it.value }!!.key)
+        // Lastnik, 26. 10. 2026: kateri viri so dodani na tej napravi - samo ta jih v ozadju preverja ([dodanTu]); prevzem z druge
+        // naprave ([cas] != 0) ali [prejeto] ni dodajanje tu.
+        val tukaj = IptvPravila.viriTukaj(prejsnji, viri.map { it.naslov }.toSet(),
+            ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getStringSet(VIRI_TUKAJ, null)?.toSet(),
+            prejeto = prejeto || cas != 0L, jeTv = Sosed.jeTelevizor(ctx))
         val urejanje = ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().putString(KLJUC, a.toString())
             .putString(VIRI_CASI, JSONObject(casi as Map<*, *>).toString()).putString(VIRI_IZBRISANI, JSONObject(izbrisani as Map<*, *>).toString())
+            .putStringSet(VIRI_TUKAJ, HashSet(tukaj))
         // Naloga 62: vir dodan ali odstranjen - police in mreze z diska iz casa pred tem ne veljajo vec.
         if (prej != zdaj) urejanje.putLong(VIRI_SPREMENJENI, maxOf(ura, spremenjeni(ctx) + 1))
         urejanje.apply()
@@ -903,6 +910,22 @@ object MedijskiViri {
      * virov: Medijski center jih ne pokaze in ne dopolnjuje z njimi; nalaganje, ki se je zacelo prej, jih ne zapise.
      */
     fun spremenjeni(ctx: Context): Long = ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getLong(VIRI_SPREMENJENI, 0L)
+
+    private const val VIRI_TUKAJ = "viri_dodani_tu"
+
+    /**
+     * Lastnik, 26. 10. 2026: ali je bil vir [naslov] dodan na tej napravi ([IptvPravila.viriTukaj]) - v krogu naprav ga v
+     * ozadju preverja samo ta naprava; prejet z druge naprave se tu v ozadju ne preverja.
+     */
+    @Synchronized fun dodanTu(ctx: Context, naslov: String): Boolean {
+        val p = ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)
+        p.getStringSet(VIRI_TUKAJ, null)?.let { return naslov in it }
+        // Prehod (zapisa se ni): viri iz casa pred pravilom - TV jih vzame za svoje, telefon in tablica ne.
+        val zdaj = rocni(ctx).map { it.naslov }.toSet()
+        val t = IptvPravila.viriTukaj(zdaj, zdaj, null, prejeto = false, jeTv = Sosed.jeTelevizor(ctx))
+        p.edit().putStringSet(VIRI_TUKAJ, HashSet(t)).apply()
+        return naslov in t
+    }
 
     // ------------------------------------------------------------------ viri so enaki na vseh napravah v Linku
 

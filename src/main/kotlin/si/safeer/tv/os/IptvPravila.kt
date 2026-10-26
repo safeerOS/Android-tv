@@ -297,4 +297,91 @@ object IptvPravila {
         !jeSeznam && dodatekSPoverilnico(naslov) -> "dodatek s poverilnico"
         else -> ""
     }
+
+    /**
+     * Zakaj pregled kanalov vira zdaj ne tece ("" = tece): vir s poverilnico ali ni znani javni ([zakajNePregleda]) nikoli;
+     * vir, ki ni bil dodan na tej napravi ([viriTukaj] - prejet z druge naprave), samo na izrecno zahtevo ([rocno]).
+     */
+    fun zakajNeVOzadju(jeSeznam: Boolean, naslov: String, dodanTu: Boolean, rocno: Boolean): String =
+        zakajNePregleda(jeSeznam, naslov).ifEmpty { if (!rocno && !dodanTu) "vir z druge naprave" else "" }
+
+    /** Gostitelj naslova http(s) z malimi crkami ("" = ni naslov http(s)) - kljuc vrat preverb ([VrataGostiteljev]). */
+    fun gostitelj(naslov: String): String = deli(naslov)?.gostitelj.orEmpty()
+
+    /** Med dvema preverbama istega gostitelja (lastnik, 26. 10. 2026; Linux PREMOR_GOSTITELJA_S). */
+    const val PREMOR_GOSTITELJA_MS = 3_000L
+    /** Na dan (UTC) najvec toliko odprtij toka na gostitelja (Linux NAJVEC_NA_GOSTITELJA_DAN); kar ostane, je neznano in vidno. */
+    const val NAJVEC_NA_GOSTITELJA_DAN = 200
+
+    /**
+     * Vrata preverb javnih seznamov po gostitelju (lastnik, 26. 10. 2026, kot Linux J3): hkrati najvec ena preverba, med
+     * dvema [premorMs], na dan (UTC, po stenski uri) najvec [najvecNaDan] odprtij. Kljuc je odtis gostitelja (ime ne gre
+     * na disk), premor tece po monotoni uri. Velja za vse preverbe naprave (pregled v ozadju in mreza TV v zivo). Niti varno.
+     */
+    class VrataGostiteljev(private val premorMs: Long = PREMOR_GOSTITELJA_MS, private val najvecNaDan: Int = NAJVEC_NA_GOSTITELJA_DAN) {
+        enum class Izid { DA, CAKAJ, MEJA }
+
+        private var dan = Long.MIN_VALUE
+        private val odprtij = HashMap<String, Int>()
+        private val zasedeni = HashSet<String>()
+        private val prostOd = HashMap<String, Long>()
+
+        /** DA = preverba sme (po njej [sprosti]); CAKAJ = gostitelja preverja drug ali tece premor; MEJA = danes ne vec. */
+        @Synchronized fun zasedi(odtis: String, zdajMs: Long, monotonoMs: Long): Izid {
+            novDan(zdajMs)
+            if ((odprtij[odtis] ?: 0) >= najvecNaDan) return Izid.MEJA
+            if (odtis in zasedeni || (prostOd[odtis] ?: Long.MIN_VALUE) > monotonoMs) return Izid.CAKAJ
+            zasedeni += odtis
+            odprtij[odtis] = (odprtij[odtis] ?: 0) + 1
+            return Izid.DA
+        }
+
+        /** Preverba je koncana: premor do naslednje na tem gostitelju zacne teci zdaj. */
+        @Synchronized fun sprosti(odtis: String, monotonoMs: Long) {
+            zasedeni -= odtis
+            prostOd[odtis] = monotonoMs + premorMs
+            if (prostOd.size > 2_000) prostOd.entries.removeAll { it.value <= monotonoMs }
+        }
+
+        /** Odprtja danes na gostitelja (za dnevnik in preizkus). */
+        @Synchronized fun odprtij(odtis: String, zdajMs: Long): Int { novDan(zdajMs); return odprtij[odtis] ?: 0 }
+
+        /** Stevci za shrambo (»dan;odtis=n,...«) - meja velja tudi po ponovnem zagonu aplikacije. */
+        @Synchronized fun vNiz(): String = "$dan;" + odprtij.entries.joinToString(",") { "${it.key}=${it.value}" }
+
+        /** Stevci iz shrambe; drug dan ali pokvarjen zapis se ne uporabi. */
+        @Synchronized fun izNiza(s: String?, zdajMs: Long) {
+            val d = s?.substringBefore(';')?.toLongOrNull() ?: return
+            if (d != Math.floorDiv(zdajMs, DAN_MS)) return
+            novDan(zdajMs)
+            for (par in s.substringAfter(';', "").split(',')) {
+                val n = par.substringAfter('=', "").toIntOrNull() ?: continue
+                val k = par.substringBefore('=')
+                if (k.isNotEmpty() && n > 0) odprtij[k] = maxOf(odprtij[k] ?: 0, n)
+            }
+        }
+
+        private fun novDan(zdajMs: Long) {
+            val d = Math.floorDiv(zdajMs, DAN_MS)
+            if (d != dan) { dan = d; odprtij.clear() }
+        }
+    }
+
+    private const val DAN_MS = 86_400_000L
+
+    /**
+     * Lastnik, 26. 10. 2026: v krogu naprav kanale vira v ozadju preverja samo ena naprava - tista, na kateri je bil vir
+     * dodan. Prej je vsaka naprava kroga ob odhodu v ozadje (in ob prejemu dodatka) preverjala iste kanale hkrati, z istim
+     * racunom in z istega javnega IP. Odlocitev je krajevna (brez Linka, brez dogovora): prejet vir preverba ne zajame
+     * nikoli, tudi ce Link ali druga naprava ne odgovarja - varno ob vsakem izpadu.
+     *
+     * Viri po shranjevanju, dodani na tej napravi: [prej]/[zdaj] = naslovi pred in po, [tukaj] = dosedanji zapis (null =
+     * zapisa se ni: viri iz casa pred tem pravilom - TV, kjer je IPTV doma, jih vzame za svoje, telefon in tablica ne),
+     * [prejeto] = sprememba je prevzem z druge naprave. Odstranjeni izpadejo.
+     */
+    fun viriTukaj(prej: Set<String>, zdaj: Set<String>, tukaj: Set<String>?, prejeto: Boolean, jeTv: Boolean): Set<String> {
+        val osnova = tukaj ?: if (jeTv) prej else emptySet()
+        val novi = if (prejeto) emptySet() else zdaj - prej
+        return (osnova + novi) intersect zdaj
+    }
 }

@@ -233,7 +233,7 @@ object UskladitevKljucev {
                 if (z.izbrisan) { MedijskiViri.odstraniSkrivniDodatek(c, odtis); true }
                 // Lastnik, 26. 10. 2026: prejeti dodatek (s poverilnico) ne sprozi pregleda kanalov - prej ga je zacela vsaka
                 // naprava kroga hkrati z istim racunom.
-                else MedijskiViri.dodajDodatek(c, MedijskiViri.STREMIO, z.vrednost, "") != null
+                else MedijskiViri.dodajDodatek(c, MedijskiViri.STREMIO, z.vrednost, "", prejeto = true) != null
             }
             else -> false
         }

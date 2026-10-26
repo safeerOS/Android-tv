@@ -176,5 +176,53 @@ fun main() {
         IptvPravila.zakajNePregleda(false, "https://torrentio.strem.fun/realdebrid=ABCDEFGHIJKLMNOPQRSTUVWXYZ123456/manifest.json"))
     preveriEnako("pregled: javni dodatek da", "", IptvPravila.zakajNePregleda(false, "https://iptv.primer.test/manifest.json"))
 
+    println()
+    println("== vrata preverb po gostitelju (1 hkrati, premor, dnevna meja) ==")
+    val D = IptvPravila.VrataGostiteljev.Izid.DA
+    val C = IptvPravila.VrataGostiteljev.Izid.CAKAJ
+    val M = IptvPravila.VrataGostiteljev.Izid.MEJA
+    val dan0 = 20_000L * 86_400_000L
+    val vr = IptvPravila.VrataGostiteljev(premorMs = 3_000L, najvecNaDan = 3)
+    preveriEnako("vrata: prva preverba gostitelja sme", D, vr.zasedi("a", dan0, 0))
+    preveriEnako("vrata: druga hkrati na istem gostitelju caka", C, vr.zasedi("a", dan0, 10))
+    preveriEnako("vrata: drug gostitelj hkrati sme", D, vr.zasedi("b", dan0, 10))
+    vr.sprosti("a", 1_000)
+    preveriEnako("vrata: med premorom caka", C, vr.zasedi("a", dan0, 3_999))
+    preveriEnako("vrata: po premoru sme", D, vr.zasedi("a", dan0, 4_000))
+    vr.sprosti("a", 4_100)
+    preveriEnako("vrata: tretja danes sme", D, vr.zasedi("a", dan0, 7_100))
+    vr.sprosti("a", 7_200)
+    preveriEnako("vrata: cetrta danes - meja", M, vr.zasedi("a", dan0, 99_000))
+    preveriEnako("vrata: stevec odprtij", 3, vr.odprtij("a", dan0))
+    val shranjeno = vr.vNiz()
+    val vr2 = IptvPravila.VrataGostiteljev(premorMs = 3_000L, najvecNaDan = 3)
+    vr2.izNiza(shranjeno, dan0 + 1_000)
+    preveriEnako("vrata: meja velja po ponovnem zagonu (iz shrambe)", M, vr2.zasedi("a", dan0 + 1_000, 0))
+    preveriEnako("vrata: nov dan (UTC) - meja znova", D, vr2.zasedi("a", dan0 + 86_400_000L, 0))
+    val vr3 = IptvPravila.VrataGostiteljev(premorMs = 3_000L, najvecNaDan = 3)
+    vr3.izNiza(shranjeno, dan0 + 86_400_000L)
+    preveriEnako("vrata: shramba prejsnjega dne se ne uporabi", 0, vr3.odprtij("a", dan0 + 86_400_000L))
+    vr3.izNiza("pokvarjeno", dan0)
+    preveriEnako("vrata: pokvarjena shramba", D, vr3.zasedi("a", dan0, 0))
+    preveriEnako("vrata: privzeta meja kot Linux", 200, IptvPravila.NAJVEC_NA_GOSTITELJA_DAN)
+    preveriEnako("vrata: privzeti premor kot Linux", 3_000L, IptvPravila.PREMOR_GOSTITELJA_MS)
+    preveriEnako("gostitelj: male crke, brez vrat in uporabnika", "cdn.primer.test", IptvPravila.gostitelj("https://u:g@CDN.Primer.test:8443/a.m3u8"))
+    preveriEnako("gostitelj: ni http", "", IptvPravila.gostitelj("rtmp://cdn.primer.test/a"))
+
+    println()
+    println("== v krogu preverja samo naprava, kjer je bil vir dodan ==")
+    val virA = "https://iptv-org.github.io/iptv/countries/si.m3u"
+    val virB = "https://iptv-org.github.io/iptv/languages/eng.m3u"
+    preveriEnako("tu dodan vir je nas", setOf(virA), IptvPravila.viriTukaj(emptySet(), setOf(virA), emptySet(), prejeto = false, jeTv = false))
+    preveriEnako("prejet vir z druge naprave ni nas", emptySet<String>(), IptvPravila.viriTukaj(emptySet(), setOf(virA), emptySet(), prejeto = true, jeTv = true))
+    preveriEnako("odstranjen vir izpade", setOf(virB), IptvPravila.viriTukaj(setOf(virA, virB), setOf(virB), setOf(virA, virB), prejeto = false, jeTv = false))
+    preveriEnako("prehod: TV vzame obstojece vire", setOf(virA, virB), IptvPravila.viriTukaj(setOf(virA), setOf(virA, virB), null, prejeto = false, jeTv = true))
+    preveriEnako("prehod: telefon obstojecih ne vzame, novega da", setOf(virB), IptvPravila.viriTukaj(setOf(virA), setOf(virA, virB), null, prejeto = false, jeTv = false))
+    preveriEnako("prehod: prejet ob prehodu ni nas niti na TV", setOf(virA), IptvPravila.viriTukaj(setOf(virA), setOf(virA, virB), null, prejeto = true, jeTv = true))
+    preveriEnako("v ozadju: javni seznam, dodan tu", "", IptvPravila.zakajNeVOzadju(true, virA, dodanTu = true, rocno = false))
+    preveriEnako("v ozadju: javni seznam z druge naprave ne", "vir z druge naprave", IptvPravila.zakajNeVOzadju(true, virA, dodanTu = false, rocno = false))
+    preveriEnako("rocno: javni seznam z druge naprave sme", "", IptvPravila.zakajNeVOzadju(true, virA, dodanTu = false, rocno = true))
+    preveriEnako("rocno: Xtream, dodan tu, nikoli", "seznam s poverilnico", IptvPravila.zakajNeVOzadju(true, xtream, dodanTu = true, rocno = true))
+
     if (napak == 0) println("IptvPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }
