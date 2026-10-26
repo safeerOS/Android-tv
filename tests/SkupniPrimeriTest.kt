@@ -199,7 +199,7 @@ private fun izracunaj(f: String, v: Map<String, Any?>): Any? = when (f) {
             "premor_od_s" to UsenetNntp.PREMOR_OD_S, "premor_brez_odprtih_s" to UsenetNntp.PREMOR_BREZ_ODPRTIH_S,
             "premor_do_s" to UsenetNntp.PREMOR_DO_S, "rast_bazena_s" to UsenetNntp.RAST_BAZENA_S,
             "ziva_prijava_s" to UsenetNntp.ZIVA_PRIJAVA_S, "zapah_ponovitev" to UsenetNntp.ZAPAH_PONOVITEV.toLong(),
-            "zapahov_najvec" to UsenetNntp.NAJVEC_ZAPAHOV.toLong())
+            "zapahov_najvec" to UsenetNntp.NAJVEC_ZAPAHOV.toLong(), "napak_ukaza_zapored" to UsenetNntp.NAPAK_UKAZA_ZAPORED.toLong())
     }
     "uskladitev_novejsi" -> UskladitevKljucevPravila.novejsi(v["cas"] as Long, v.niz("izvor")!!, v["izbrisan"] as Boolean,
         (v["star"] as List<Any?>?)?.let { UskladitevKljucevPravila.Meta(it[0] as Long, it[1] as String, it[2] as Boolean, "") })

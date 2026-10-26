@@ -354,6 +354,11 @@ class UsenetNntp(
         const val PREMOR_DO_S = 300L
         const val RAST_BAZENA_S = 600L
         /**
+         * Zaporedni ukazi, zavrnjeni z 502 ali (na sveze prijavljeni povezavi) 480/481, brez uspeha vmes, ustavijo bazen:
+         * posamezen clanek (omejena skupina) ga ne ustavi, racun brez pravic pa ne odpira novih prijav v zanki (Grok 44 D4).
+         */
+        const val NAPAK_UKAZA_ZAPORED = 3
+        /**
          * Prijava je ziva samo, ce je povezava v zadnjih 30 s uspesno koncala prijavo ali ukaz (pregled Grok 44 D1: odprta
          * vticnica ni dokaz - ponudnik je sejo ob menjavi gesla morda ze zaprl). Samo ziva prijava dovoli vzporedno odpiranje.
          */
@@ -435,7 +440,8 @@ class UsenetNntp(
 
         /**
          * Ukrep bazena po napaki [vrsta] v [faza] (skupni primeri nntp_ukrep): [stara] = povezava iz bazena, [poskus] 0
-         * ali 1. ZNOVA je vedno z novo povezavo; po AUTHINFO nikoli ponovitev v zanki.
+         * ali 1. ZNOVA je vedno z novo povezavo; po AUTHINFO nikoli ponovitev v zanki. Zapah racuna (USTAVI_RACUN) samo po
+         * odgovoru na AUTHINFO (pregled Grok 44 D4: 480 pri BODY ali v pozdravu je prej zaklenil pravilno geslo).
          */
         fun ukrep(vrsta: Vrsta, faza: FazaPovezave, stara: Boolean, poskus: Int): Ukrep = when (faza) {
             FazaPovezave.POVEZAVA -> when (vrsta) {
@@ -443,7 +449,8 @@ class UsenetNntp(
                 Vrsta.ZASEDEN -> Ukrep.ZMANJSAJ_POCAKAJ
                 Vrsta.NAPAKA_STREZNIKA -> Ukrep.POCAKAJ
                 Vrsta.DOSTOP, Vrsta.POTRDILO -> Ukrep.USTAVI_BAZEN
-                Vrsta.PRIJAVA -> Ukrep.USTAVI_RACUN
+                // 48x v pozdravu (ali zapah drugega bazena): geslo ni bilo poslano - bazen se ustavi, novega zapaha ni.
+                Vrsta.PRIJAVA -> Ukrep.USTAVI_BAZEN
                 else -> Ukrep.NAPAKA
             }
             FazaPovezave.PRIJAVA -> when (vrsta) {
@@ -453,9 +460,11 @@ class UsenetNntp(
                 else -> Ukrep.USTAVI_RACUN
             }
             FazaPovezave.UKAZ -> when (vrsta) {
-                Vrsta.NI_CLANKA -> Ukrep.VRNI
-                Vrsta.PRIJAVA -> Ukrep.USTAVI_RACUN
-                Vrsta.DOSTOP, Vrsta.POTRDILO -> Ukrep.USTAVI_BAZEN
+                // 502 pri enem clanku (omejena skupina) ne ustavi bazena; NAPAK_UKAZA_ZAPORED zapored ga ustavi.
+                Vrsta.NI_CLANKA, Vrsta.DOSTOP -> Ukrep.VRNI
+                // 480/481 pri ukazu: streznik je sejo pozabil - enkrat nova povezava z novo prijavo (vrata prijave).
+                Vrsta.PRIJAVA -> if (stara && poskus == 0) Ukrep.ZNOVA else Ukrep.NAPAKA
+                Vrsta.POTRDILO -> Ukrep.USTAVI_BAZEN
                 Vrsta.ZASEDEN -> if (stara && poskus == 0) Ukrep.ZNOVA else Ukrep.ZMANJSAJ_POCAKAJ
                 Vrsta.OMREZJE, Vrsta.NAPAKA_STREZNIKA -> if (poskus == 0) Ukrep.ZNOVA else Ukrep.NAPAKA
                 else -> if (stara && poskus == 0) Ukrep.ZNOVA else Ukrep.NAPAKA
@@ -929,6 +938,8 @@ class UsenetNntp(
     private var premorDo = 0L
     private var premorVrsta = Vrsta.ZASEDEN
     private var zadnjaMeja = 0L
+    /** Zaporedni ukazi, zavrnjeni z 502 ali 480/481 ([NAPAK_UKAZA_ZAPORED]). */
+    private var napakUkaza = 0
 
     /** Trenutno odprte povezave (proste in v rabi). */
     val odprtih: Int get() = zaklep.zZaklepom { prosti.count { it.pripravljena } + vRabi.count { it.pripravljena } }
@@ -1230,11 +1241,18 @@ class UsenetNntp(
                     odprta()
                 }
                 val r = delo(p)
+                zaklep.zZaklepom { napakUkaza = 0 }
                 vrni(p)
                 return r
             } catch (e: IOException) {
                 val napaka = e as? NapakaNntp ?: napakaVticnice(e)
-                val u = ukrep(napaka.vrsta, p.faza, stara, minOf(poskus, 1))
+                var u = ukrep(napaka.vrsta, p.faza, stara, minOf(poskus, 1))
+                // 480 na stari seji je pozabljena seja (ZNOVA), ne racun brez pravic: steje samo na sveze prijavljeni.
+                if (p.faza == FazaPovezave.UKAZ && (napaka.vrsta == Vrsta.DOSTOP || (napaka.vrsta == Vrsta.PRIJAVA && !stara))) {
+                    if (zaklep.zZaklepom { ++napakUkaza } >= NAPAK_UKAZA_ZAPORED) u = Ukrep.USTAVI_BAZEN   // racun brez pravic
+                } else if (napaka.vrsta == Vrsta.NI_CLANKA) {
+                    zaklep.zZaklepom { napakUkaza = 0 }
+                }
                 if (u != Ukrep.VRNI) p.zapri()
                 // Stanje bazena PRED sprostitvijo sonde: cakajoca nit ne sme poslati gesla, preden je zapah postavljen.
                 when (u) {

@@ -138,6 +138,10 @@ private class LazniStreznik(ctx: SSLContext) : Closeable {
     @Volatile var geslaNeOdgovori = false
     /** Geslo racuna pri ponudniku ([zamenjajGeslo]: lastnik ga zamenja med sejo). */
     @Volatile var geslo = GESLO
+    /** Seje, prijavljene pred povecanjem rodu, dobijo pri BODY/STAT 480 (ponudnik je seje pozabil - preklop zaledja). */
+    @Volatile var rod = 0
+    /** message-id, za katerega BODY/STAT vrne 502 (omejena skupina). */
+    @Volatile var omejen: String? = null
     /** 222 z message-id drugega clanka; bajti za koncem bloka. */
     @Volatile var drugId = false
     @Volatile var ostanek = ""
@@ -176,6 +180,7 @@ private class LazniStreznik(ctx: SSLContext) : Closeable {
             if (!pozdrav.startsWith("20")) return
             var ime: String? = null
             var prijavljen = false
+            var rodSeje = rod
             while (true) {
                 val v = vhod.readLine() ?: return
                 val ukaz = v.substringBefore(' ').uppercase()
@@ -195,13 +200,16 @@ private class LazniStreznik(ctx: SSLContext) : Closeable {
                             return
                         }
                         seja = true
+                        rodSeje = rod
                     }
                     posli(if (prijavljen) "281 Prijava uspela" else napacno ?: "481 Authentication failed for $ime")
                 } else if (ukaz == "QUIT") {
                     posli("205 Adijo")
                     return
-                } else if (!prijavljen) {
+                } else if (!prijavljen || rodSeje != rod) {
                     posli("480 Authentication required")
+                } else if (id == omejen) {
+                    posli("502 Access restricted")
                 } else if (ukaz == "STAT") {
                     posli(if (clanki.containsKey(id)) "223 0 <$id>" else "430 No article with that message-id <$id>")
                 } else if (ukaz == "BODY") {
@@ -678,6 +686,37 @@ fun main() {
             }
             UsenetNntp.dovoliPrijavoZnova("localhost", UPORABNIK, GESLO)
             preveriEnako("ponudnik: eu.news.x. = news.x", UsenetNntp.ponudnik("news.primer.invalid"), UsenetNntp.ponudnik("EU.News.Primer.Invalid."))
+        }
+        // Lazen zapah pri pravilnem geslu (pregled Grok 44 D4): 480 pri BODY (ponudnik je seje pozabil) je zaklenil racun,
+        // 502 pri enem clanku je ustavil ves bazen, 48x v pozdravu je zaklenil racun brez poslanega gesla.
+        LazniStreznik(prava.streznik).use { s ->
+            println("lazen zapah")
+            s.clanki[ID] = clanek(20_000, 15).poslano
+            fun gesel() = s.ukazi.count { it == "AUTHINFO PASS" }
+            s.zamudaMs = 100
+            UsenetNntp(nastavitve(s.vrata, povezav = 4), prava.zaupaj).use { k ->
+                preveriEnako("seje", List(4) { "OK" }, hkrati(k, 4, 1))
+                s.rod++   // vse seje hkrati (vec kot NAPAK_UKAZA_ZAPORED): bazen se ne sme ustaviti
+                preveriEnako("480 pri BODY: nova prijava, pravo geslo dela", List(8) { "OK" }, hkrati(k, 4, 2))
+                preveriEnako("480 pri BODY: brez zapaha", false, UsenetNntp.prijavaZavrnjena("localhost", UPORABNIK, GESLO))
+            }
+            s.zamudaMs = 0
+            val omejen = "omejen@lazni.invalid"
+            s.omejen = omejen
+            UsenetNntp(nastavitve(s.vrata), prava.zaupaj).use { k ->
+                val pred = s.povezav.get()
+                preveriEnako("502 pri enem clanku -> DOSTOP", "DOSTOP", izid { k.body(omejen) })
+                preveriEnako("502: bazen dela naprej po isti povezavi", "OK" to 1, izid { k.body(ID) } to s.povezav.get() - pred)
+                preveriEnako("502 zapored", List(UsenetNntp.NAPAK_UKAZA_ZAPORED) { "DOSTOP" },
+                    List(UsenetNntp.NAPAK_UKAZA_ZAPORED) { izid { k.body(omejen) } })
+                preveriEnako("502 zapored: bazen ustavljen brez novih povezav", "DOSTOP" to 1, izid { k.body(ID) } to s.povezav.get() - pred)
+            }
+            s.omejen = null
+            s.pozdrav = "481 Authentication required"
+            val predGesel = gesel()
+            UsenetNntp(nastavitve(s.vrata), prava.zaupaj).use { k -> preveriEnako("pozdrav 481 -> PRIJAVA", "PRIJAVA", izid { k.body(ID) }) }
+            preveriEnako("pozdrav 481: brez gesla in brez zapaha", predGesel to false,
+                gesel() to UsenetNntp.prijavaZavrnjena("localhost", UPORABNIK, GESLO))
         }
         // Trajni zapah (pregled Grok 44 D2): prej samo v pomnilniku procesa - po ponovnem zagonu aplikacije (TV jo pogosto
         // ustavi), sesutju ali posodobitvi je nov proces znova poslal napacno geslo. Zdaj nov proces ne poslje AUTHINFO.
