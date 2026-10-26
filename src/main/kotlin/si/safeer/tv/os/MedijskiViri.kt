@@ -620,27 +620,29 @@ object MedijskiViri {
         if (zamenjave.isEmpty() && racuni.isEmpty()) return
         // Datoteke kanalov in premor prenosa gredo pod nadomestek - brez novega prenosa (vsak prenos je prijava v racun).
         for ((s, n) in racuni) try { IptvSeznami.preseli(a, s, n) } catch (e: Exception) { android.util.Log.w("SafeerOsMedia", "viri z racunom, datoteke: ${e.javaClass.simpleName}") }
+        // Moji viri: vir z racunom dobi nadomestek in varno ime (IptvPravila.preseliZapise); ostale nastavitve spodaj.
+        if (racuni.isNotEmpty()) preseliMojeVire(a, viri, racuni)
         zamenjave.putAll(racuni)
         val n = zamenjajVNastavitvah(a, zamenjave)
-        if (racuni.isNotEmpty()) popraviImena(a, racuni)
         android.util.Log.i("SafeerOsMedia", "skrivni dodatki in viri z racunom: ${zamenjave.size} preseljenih na nadomestek " +
             "(viri z racunom ${racuni.size}, datotek nastavitev $n)")
     }
 
-    /** Prehod: ime vira z racunom brez dela racuna (samodejno ime je bil lahko zadnji odsek poti = geslo; [IptvPravila.varnoIme]). */
-    private fun popraviImena(a: Context, racuni: Map<String, String>) {
-        val p = a.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)
-        val viri = try { JSONArray(p.getString(KLJUC, "[]")) } catch (_: Exception) { return }
-        val pravi = racuni.entries.associate { it.value to it.key }
+    /**
+     * Prehod: Moji viri ([viri] = prebran zapis) - vir z racunom dobi nadomestek in varno ime ([IptvPravila.preseliZapise];
+     * samodejno ime je bil lahko zadnji odsek poti = geslo). Dodatki ostanejo za [zamenjajVNastavitvah].
+     */
+    private fun preseliMojeVire(a: Context, viri: JSONArray, racuni: Map<String, String>) {
         var spremenjeno = false
         for (i in 0 until viri.length()) {
             val o = viri.optJSONObject(i) ?: continue
-            if (!IptvPravila.jeVrstaRacuna(o.optString("tip"))) continue
-            val s = SkrivnostiPravila.nadomestnaOsnova(o.optString("naslov"))?.let { pravi[it] } ?: continue
-            val ime = IptvPravila.varnoIme(o.optString("ime"), s)
-            if (ime != o.optString("ime")) { o.put("ime", ime); spremenjeno = true }
+            val z = IptvPravila.ZapisVira(o.optString("tip"), o.optString("ime"), o.optString("naslov"))
+            val nov = IptvPravila.preseliZapise(listOf(z), racuni).first()
+            if (nov == z) continue
+            o.put("ime", nov.ime).put("naslov", nov.naslov)
+            spremenjeno = true
         }
-        if (spremenjeno) p.edit().putString(KLJUC, viri.toString()).commit()
+        if (spremenjeno) a.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().putString(KLJUC, viri.toString()).commit()
     }
 
     /** Vse datoteke nastavitev (razen [IZVZETE_NASTAVITVE]) in predpomnilnik dodatkov: pravi del -> nadomestek. */
@@ -797,8 +799,10 @@ object MedijskiViri {
     /** Enota za vir: seznam in podkast se odpreta kot seznam (klik), ostalo predvaja predvajalnik ali brskalnik. */
     fun kotSkladba(v: Vir): Jamendo.Skladba = when {
         v.jePodkast -> Podkasti.oddaja(v.naslov, v.ime, v.naslov.removePrefix("https://").substringBefore('/'), "")
+        // Vir z racunom: na kartici samo gostitelj (26. 10. 2026; prej cel naslov z geslom Xtream).
         else -> Jamendo.Skladba((if (v.jeSeznam) PREDPONA_SEZNAMA else "vir:") + v.naslov, v.ime,
-            v.naslov.removePrefix("https://").removePrefix("http://"), "", v.naslov, v.naslov,
+            if (IptvPravila.virZRacunom(v.tip, v.naslov)) IptvPravila.zaPrikaz(v.naslov) else v.naslov.removePrefix("https://").removePrefix("http://"),
+            "", v.naslov, v.naslov,
             radio = !v.tip.endsWith("video") && !v.jeSeznam, video = v.tip.endsWith("video"),
             mime = when { v.jeSplet -> STRAN; v.tip.contains("hls") -> MIME_HLS; else -> "" })
     }

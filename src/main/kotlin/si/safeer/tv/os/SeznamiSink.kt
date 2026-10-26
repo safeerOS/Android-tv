@@ -142,7 +142,7 @@ object SeznamiSink {
                 // Zasebni dodatki, prevzeti pred pravilom ZasebniDodatki, tu izginejo (na izvorni napravi ostanejo).
                 try { if (MedijskiViri.odstraniPrevzeteZasebne(app)) { viriSpremenjeni = android.os.SystemClock.elapsedRealtime(); spremenjeno = true; Log.i(TAG, "prevzet zaseben dodatek odstranjen") } } catch (_: Exception) { }
                 for (n in naprave) {
-                    try { if (prevzemiOd(app, link, n.id)) spremenjeno = true } catch (e: Exception) { Log.w(TAG, "naprava ${n.id}: ${e.message}") }
+                    try { if (prevzemiOd(app, link, n.id)) spremenjeno = true } catch (e: Exception) { Log.w(TAG, "naprava ${n.id}: ${e.javaClass.simpleName}") }
                 }
             } finally { tece = false }
             if (spremenjeno) Handler(Looper.getMainLooper()).post { nato(true) }
@@ -242,7 +242,7 @@ object SeznamiSink {
                 if (zRacunom > 0) Log.i(TAG, "virov z racunom ali poverilnico z navadnim usklajevanjem zavrnjenih: $zRacunom (od $naprava)")
             }
             if (viri) { viriSpremenjeni = android.os.SystemClock.elapsedRealtime(); spremenjeno = true }
-        } catch (e: Exception) { Log.w(TAG, "viri od $naprava: ${e.message}") }
+        } catch (e: Exception) { Log.w(TAG, "viri od $naprava: ${e.javaClass.simpleName}") }
         // 1) Izbrisi: seznam, ki je bil drugje izbrisan in ga tu od takrat nismo spremenili, izgine tudi tukaj.
         kazalo.optJSONObject("deleted")?.let { izbrisani ->
             val moji = MedijskiViri.seznami(app).associateBy { it.ime }

@@ -554,6 +554,16 @@ object IptvPravila {
     }
 
     /**
+     * Prehod: zapisi Mojih virov po [zamenjaveRacunov] - vir z racunom dobi nadomestek in [varnoIme] (samodejno ime je bil
+     * lahko zadnji odsek poti = geslo; samo zamenjava naslova ga ne bi odstranila). Ostali ostanejo, kot so.
+     */
+    fun preseliZapise(viri: List<ZapisVira>, zamenjave: Map<String, String>): List<ZapisVira> = viri.map { z ->
+        val s = skrivnostVira(z.tip, z.naslov)
+        val n = s?.let { zamenjave[it] }
+        if (s == null || n == null) z else ZapisVira(z.tip, varnoIme(z.ime, s), n)
+    }
+
+    /**
      * Prehod: grobovi virov (kljuc »vrsta|naslov« -> cas) brez tistih s PRAVIM naslovom z racunom - izbrisan vir je imel
      * geslo v kljucu, grob pa je sel z navadnim usklajevanjem vsem napravam. Grob z nadomestkom ostane (samo krajevno).
      */

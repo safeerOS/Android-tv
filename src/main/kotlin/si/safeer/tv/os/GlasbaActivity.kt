@@ -5364,6 +5364,8 @@ class GlasbaActivity : OsActivity() {
                     v.jeBesedila -> getString(R.string.os_besedila_vir_opis)
                     // Seznam s poverilnico (Xtream): na zaslonu samo gostitelj - geslo ne.
                     v.jeSeznam -> IptvPravila.zaPrikaz(v.naslov)
+                    // Tok z racunom (nadomestek ali pravi naslov, ki ga ni bilo mogoce sifrirati): samo gostitelj (26. 10. 2026).
+                    IptvPravila.virZRacunom(v.tip, v.naslov) -> IptvPravila.zaPrikaz(v.naslov)
                     else -> v.naslov.removePrefix("https://").removePrefix("http://")
                 }, {
                     when {

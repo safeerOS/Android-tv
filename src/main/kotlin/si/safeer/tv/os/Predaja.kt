@@ -96,6 +96,10 @@ object Predaja {
             // Datoteka druge naprave (racunalnik, telefon): cilj dobi svoj zeton pri tisti napravi (files.list).
             return Vnos(vJson(sk.copy(podnapisi = emptyList())), null, streznik.naprava)
         }
+        // Lastnik, 26. 10. 2026: kanal z racunom (Xtream /live/<u>/<g>/, tok s poverilnico ali nadomestek) gre z naslovom samo
+        // napravi v ozjem krogu te naprave - druga bi dobila uporabnika in geslo (play.state, »Poslji na napravo«).
+        if (IptvPravila.skladbaZRacunom(listOf(sk.zvok, sk.povezava, sk.streznik)) &&
+            !(posiljatelj.isNotBlank() && try { OzjiKrog.vKrogu(ctx, posiljatelj) } catch (_: Throwable) { false })) return null
         if (sk.zvok.startsWith("content://") || sk.zvok.startsWith("file:") || sk.zvok.startsWith("/")) return null
         // Datoteka naprave brez znanega streznika (stara zgodovina): naslov z zetonom te naprave drugje ne velja.
         if (sk.id.startsWith("share:") || sk.id.startsWith("disk:") || sk.id.startsWith("media:")) return null
