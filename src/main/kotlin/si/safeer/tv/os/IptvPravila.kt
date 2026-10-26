@@ -13,7 +13,9 @@ object IptvPravila {
     data class Vnos(val ime: String, val url: String, val logo: String = "", val zvrst: String = "", val jezik: String = "",
                     val drzava: String = "", val tvgId: String = "")
 
-    private val RX_ATRIBUT = Regex("""([A-Za-z0-9_-]+)="([^"]*)"""")
+    // J4 (pregled 30, 26. 10. 2026): ime atributa zacne samo na zacetku niza znakov imena (lookbehind) - brez tega je bil cas
+    // kvadraten v dolzini vrstice (Linux: 20 KB crk 5,7 s, 1 MB ni koncal; Android bere vrstice do 64 KB).
+    private val RX_ATRIBUT = Regex("""(?<![A-Za-z0-9_-])([A-Za-z0-9_-]+)="([^"]*)"""")
 
     /** Mesto vejice, ki loci atribute od imena: prva zunaj narekovajev (vejica v group-title="News,Sport" ne steje); -1 = je ni. */
     private fun vejicaImena(extinf: String): Int {

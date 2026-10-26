@@ -177,6 +177,29 @@ fun main() {
     preveriEnako("pregled: javni dodatek da", "", IptvPravila.zakajNePregleda(false, "https://iptv.primer.test/manifest.json"))
 
     println()
+    println("== J4: regularni izrazi #EXTINF in imena v linearnem casu ==")
+    // Linux pred 84f82f5 (izmerjeno 26. 10. 2026): vrstica 20 KB crk 5,7 s, 1 MB ni koncal. Nit z rokom: kvadraten izraz
+    // preizkusa ne ustavi za ure, ampak pade.
+    val casiJ4 = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    val nitJ4 = Thread {
+        for ((ime, znak) in listOf("crke" to "a", "presledki" to " ", "narekovaji" to "a=\"")) for (velikost in listOf(20_000, 1_000_000)) {
+            val telo = znak.repeat(velikost / znak.length)
+            val e = "#EXTINF:-1 tvg-id=\"x.si\" $telo,Kanal $telo (720p)"
+            val z = System.nanoTime()
+            IptvPravila.atributi(e)
+            val v = IptvPravila.vnos(e, "http://p.primer.test/k.m3u8", "", "")
+            KanaliPravila.imeKanala(v?.ime ?: "")
+            KanaliPravila.kljucImena("Kanal $telo [Geo-blocked]")
+            casiJ4["$ime ${velikost / 1000} KB"] = (System.nanoTime() - z) / 1_000_000
+        }
+    }.apply { isDaemon = true; start() }
+    nitJ4.join(90_000)
+    preveriEnako("J4: vseh 6 vrstic (20 KB in 1 MB) v roku 90 s", 6, casiJ4.size)
+    for ((ime, ms) in casiJ4.toSortedMap()) preveri("J4: $ime v $ms ms (< 3000)", ms < 3_000)
+    preveriEnako("J4: atributi po popravku", mapOf("tvg-id" to "a", "group-title" to "B"), IptvPravila.atributi("#EXTINF:-1 tvg-id=\"a\" group-title=\"B\",Ime"))
+    preveriEnako("J4: locljivost in opomba po popravku", "Kanal", KanaliPravila.imeKanala("Kanal  (720p) [ Not 24 / 7 ]"))
+
+    println()
     println("== vrata preverb po gostitelju (1 hkrati, premor, dnevna meja) ==")
     val D = IptvPravila.VrataGostiteljev.Izid.DA
     val C = IptvPravila.VrataGostiteljev.Izid.CAKAJ
