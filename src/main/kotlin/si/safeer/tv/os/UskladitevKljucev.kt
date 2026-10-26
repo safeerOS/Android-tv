@@ -34,6 +34,8 @@ object UskladitevKljucev {
     private val P = UskladitevKljucevPravila
 
     private val zaklep = Any()
+    /** Pregled Grok 33, F2: pod tem zaklepom ni omrezja ([Debrid.smeOmrezje]) - drzi ga lahko tudi glavna nit (okno). */
+    internal fun drziZaklep(): Boolean = Thread.holdsLock(zaklep)
     private val delavec = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "safeer-kljuci-sinh").apply { isDaemon = true } }
     @Volatile private var nacrtovano: ScheduledFuture<*>? = null
 
@@ -161,11 +163,21 @@ object UskladitevKljucev {
         for (p in DebridPravila.VSI) {
             val k = P.kljucDebrid(p)
             val kljuc = Debrid.kljuc(c, p)
-            if (kljuc != null) v[k] = kljuc else if (Debrid.kljucShranjen(c, p)) neznani += k
+            // Lastnik 25. 10. 2026: med naprave gre samo kljuc, ki ga je storitev potrdila; nepreverjen ali zavrnjen ni ne
+            // vrednost ne izbris (neznan) - drugim napravam ne povozi in ne izbrise veljavnega.
+            when (P.oddaja(kljuc != null, Debrid.kljucShranjen(c, p), Debrid.kljucVelja(c, p))) {
+                UskladitevKljucevPravila.Oddaja.VREDNOST -> if (kljuc != null) v[k] = kljuc
+                UskladitevKljucevPravila.Oddaja.NEZNAN -> neznani += k
+                UskladitevKljucevPravila.Oddaja.BREZ -> Unit
+            }
         }
+        // Enako indeksator Usenet: samo potrjen (Usenet.vpisi / preveriNepreverjenega) gre z vrednostjo.
         val u = Usenet.indeksator(c)
-        if (u != null) v[P.KLJUC_USENET] = JSONObject().put("url", u.osnova).put("key", u.kljuc).toString()
-        else if (Usenet.shranjen(c)) neznani += P.KLJUC_USENET
+        when (P.oddaja(u != null, Usenet.shranjen(c), Usenet.velja(c))) {
+            UskladitevKljucevPravila.Oddaja.VREDNOST -> if (u != null) v[P.KLJUC_USENET] = JSONObject().put("url", u.osnova).put("key", u.kljuc).toString()
+            UskladitevKljucevPravila.Oddaja.NEZNAN -> neznani += P.KLJUC_USENET
+            UskladitevKljucevPravila.Oddaja.BREZ -> Unit
+        }
         SkrivniDodatki.nalozi(c)
         for (vir in MedijskiViri.vsi(c)) {
             if (!vir.jeStremio) continue
@@ -209,26 +221,74 @@ object UskladitevKljucev {
         else -> false
     }
 
-    /** Uporabi prejet zapis (shrani sifrirano ali izbrise). false = ni uspelo (zapis se ne steje - poskusi se znova). */
-    private fun uporabi(c: Context, z: UskladitevKljucevPravila.Zapis): Boolean = try {
+    /**
+     * Gumb »Odstrani« (pregled Grok 33, F1): [brisi] izbrise kljuc [kljuc] na tej napravi. Ce izbris ne gre v krog ([vKrog]
+     * false - kljuc tu ni veljal), se pod istim zaklepom pozabi tudi njegov zapis ([UskladitevKljucevPravila.poOdstranitvi]):
+     * drugim napravam ne gre grob, ki bi izbrisal njihov veljaven kljuc. Brez omrezja.
+     */
+    fun odstrani(c: Context, kljuc: String, vKrog: Boolean, brisi: () -> Unit) {
+        synchronized(zaklep) {
+            if (!vKrog) {
+                val meta = beriMeta(c)
+                val potem = P.poOdstranitvi(meta, kljuc, false)
+                if (potem.size != meta.size) pisiMeta(c, potem)
+            }
+            brisi()
+        }
+        Log.i(TAG, "kljuc odstranjen ${if (vKrog) "na vseh napravah ozjega kroga" else "samo na tej napravi (tu ni veljal)"}")
+        sprozi(c)
+    }
+
+    /** Prejet zapis, pripravljen za uporabo ([pripravi]): [shrani] ga shrani sifrirano ali izbrise - brez omrezja. */
+    private class Pripravljen(val z: UskladitevKljucevPravila.Zapis, val shrani: () -> Boolean)
+
+    /**
+     * Pregled Grok 33, F2: prejeti kljuc debrid in indeksator se tu preverita pri storitvi s te naprave (lastnik 25. 10.
+     * 2026: zavrnjen ne prepise veljavnega) - omrezje, do ~16 s na kljuc. Zato samo z delovne niti [delavec] in BREZ [zaklep]
+     * (ta ga drzi tudi glavna nit). null = zapis se ne uporabi (zavrnjen ali ni odgovora - poskusi se ob naslednji uskladitvi).
+     */
+    private fun pripravi(c: Context, z: UskladitevKljucevPravila.Zapis): Pripravljen? = try {
         when {
             z.kljuc.startsWith(P.PREDPONA_DEBRID) -> {
                 val p = z.kljuc.removePrefix(P.PREDPONA_DEBRID)
-                if (z.izbrisan) { Debrid.pozabiKljuc(c, p); true } else Debrid.nastaviKljuc(c, p, z.vrednost)
+                if (z.izbrisan) Pripravljen(z) { Debrid.pozabiKljuc(c, p); true }
+                else Debrid.preveriPrejetega(c, p, z.vrednost).second?.let { pr -> Pripravljen(z) { Debrid.shraniPrejetega(c, pr) } }
             }
             z.kljuc == P.KLJUC_USENET ->
-                if (z.izbrisan) { Usenet.pozabi(c); true }
-                else JSONObject(z.vrednost).let { Usenet.nastavi(c, it.optString("url"), it.optString("key")) }
-            z.kljuc.startsWith(P.PREDPONA_DODATKA) -> {
-                val odtis = z.kljuc.removePrefix(P.PREDPONA_DODATKA)
-                if (z.izbrisan) { MedijskiViri.odstraniSkrivniDodatek(c, odtis); true }
-                else MedijskiViri.dodajDodatek(c, MedijskiViri.STREMIO, z.vrednost, "")?.also {
-                    try { PregledKanalov.zacni(c.applicationContext, it.naslov, rocno = false) } catch (_: Throwable) { }
-                } != null
+                if (z.izbrisan) Pripravljen(z) { Usenet.pozabi(c); true }
+                else JSONObject(z.vrednost).let { Usenet.preveriPrejetega(c, it.optString("url"), it.optString("key")) }.second
+                    ?.let { pr -> Pripravljen(z) { Usenet.shraniPrejetega(c, pr) } }
+            z.kljuc.startsWith(P.PREDPONA_DODATKA) -> Pripravljen(z) { uporabiDodatek(c, z) }
+            else -> null
+        }
+    } catch (e: Exception) { Log.w(TAG, "pripravi: ${e.javaClass.simpleName}"); null }
+
+    /** Dodatek s poverilnico: shrani sifrirano ali izbrise (brez omrezja). */
+    private fun uporabiDodatek(c: Context, z: UskladitevKljucevPravila.Zapis): Boolean {
+        val odtis = z.kljuc.removePrefix(P.PREDPONA_DODATKA)
+        if (z.izbrisan) { MedijskiViri.odstraniSkrivniDodatek(c, odtis); return true }
+        return MedijskiViri.dodajDodatek(c, MedijskiViri.STREMIO, z.vrednost, "")?.also {
+            try { PregledKanalov.zacni(c.applicationContext, it.naslov, rocno = false) } catch (_: Throwable) { }
+        } != null
+    }
+
+    /**
+     * Razveljavitev (pregled Grok 33, F2): prejsnja vrednost te naprave nazaj BREZ omrezja - kljuc in indeksator kot
+     * nepreverjena (uskladitev ju takoj preveri in sele potrjena gresta spet drugim napravam); null = kljuca prej ni bilo.
+     */
+    private fun obnovi(c: Context, k: String, v: String?): Boolean = try {
+        when {
+            k.startsWith(P.PREDPONA_DEBRID) -> {
+                val p = k.removePrefix(P.PREDPONA_DEBRID)
+                if (v == null) { Debrid.pozabiKljuc(c, p); true } else Debrid.obnoviKljuc(c, p, v)
             }
+            k == P.KLJUC_USENET ->
+                if (v == null) { Usenet.pozabi(c); true }
+                else JSONObject(v).let { Usenet.obnovi(c, it.optString("url"), it.optString("key")) }
+            k.startsWith(P.PREDPONA_DODATKA) -> uporabiDodatek(c, UskladitevKljucevPravila.Zapis(k, 0L, "", v == null, v.orEmpty()))
             else -> false
         }
-    } catch (e: Exception) { Log.w(TAG, "uporabi: ${e.javaClass.simpleName}"); false }
+    } catch (e: Exception) { Log.w(TAG, "obnovi: ${e.javaClass.simpleName}"); false }
 
     /** Za sporocilo: pri dodatkih tudi gostitelj (okno potrditve na drugi napravi ga pokaze tudi v povabilu brez vrednosti). */
     private fun zGostitelji(zapisi: List<UskladitevKljucevPravila.Zapis>): List<UskladitevKljucevPravila.Zapis> = zapisi.map {
@@ -260,13 +320,22 @@ object UskladitevKljucev {
         val jaz = jaz(c)
         var zamenjani: List<String> = emptyList()
         var prejsnje: Map<String, String?> = emptyMap()
-        val uporabljenih = synchronized(zaklep) {
-            // Najprej lastne neusklajene spremembe dobijo cas - sicer bi jih starejsi zapis z druge naprave povozil.
+        // Pregled Grok 33, F2 - trije koraki: (1) pod zaklepom, brez omrezja: lastne neusklajene spremembe dobijo cas (sicer
+        // bi jih starejsi zapis z druge naprave povozil), nato kaj je novejse; (2) BREZ zaklepa: preverba prejetih kljucev
+        // pri storitvi (omrezje); (3) pod zaklepom, brez omrezja: shrani se samo, kar je se vedno novejse.
+        val kandidati = synchronized(zaklep) {
             posodobi(c)
-            val meta = beriMeta(c)
-            val vsiZaUporabo = P.zaUporabo(meta, zapisi, System.currentTimeMillis(), DebridPravila.VSI.toSet(), ::veljavnaVrednost) { izvor ->
+            P.zaUporabo(beriMeta(c), zapisi, System.currentTimeMillis(), DebridPravila.VSI.toSet(), ::veljavnaVrednost) { izvor ->
                 izvor != jaz && P.izvorPosiljatelja(kljucNaprave(c, izvor), odNaprava)
             }
+        }
+        if (kandidati.isEmpty()) return 0
+        val pripravljeni = kandidati.mapNotNull { pripravi(c, it) }.associateBy { it.z }
+        if (pripravljeni.isEmpty()) return 0
+        val uporabljenih = synchronized(zaklep) {
+            posodobi(c)
+            val meta = beriMeta(c)
+            val vsiZaUporabo = P.seVednoNovejsi(meta, pripravljeni.keys.toList())
             // Grok 15, N3: kljuca, ki ga ta hip ni mogoce prebrati (Keystore), ne zamenjamo - razveljavitev ga ne bi mogla
             // vrniti. Zapis pride znova ob naslednji uskladitvi.
             val (vr, neberljivi) = if (vsiZaUporabo.isEmpty()) emptyMap<String, String>() to emptySet<String>() else trenutne(c)
@@ -276,7 +345,7 @@ object UskladitevKljucev {
             var n = 0
             val uspeli = ArrayList<String>()
             for (z in zaUporabo) {
-                if (!uporabi(c, z)) continue
+                if (!(try { pripravljeni.getValue(z).shrani() } catch (e: Exception) { Log.w(TAG, "shrani: ${e.javaClass.simpleName}"); false })) continue
                 meta[z.kljuc] = UskladitevKljucevPravila.Meta(z.cas, z.izvor, z.izbrisan, if (z.izbrisan) "" else odtisVrednosti(c, z.vrednost))
                 uspeli += z.kljuc
                 n++
@@ -330,6 +399,8 @@ object UskladitevKljucev {
         val link = try { LinkUpravitelj.pridobi(c) } catch (_: Throwable) { return }
         if (link.jeKrajevni() || !link.povezan) return
         pocistiZunajKroga(c)
+        // Kljuci brez stanja ali nepreverjeni se najprej preverijo - poslje se samo potrjen.
+        try { Debrid.preveriNepreverjene(c) } catch (e: Exception) { Log.w(TAG, "preverba kljucev: ${e.javaClass.simpleName}") }
         val (meta, vr) = posodobi(c)
         // Samo lastni zapisi (U2); nepotrjena naprava dobi povabilo brez vrednosti (U3).
         val lastni = zGostitelji(P.zaPoslati(meta, vr, jaz(c)))
@@ -349,14 +420,17 @@ object UskladitevKljucev {
             if (!zmoznost) { if (stanja[k] == null || stanja[k]?.stanje == UskladitevKljucevPravila.Stanje.STARA) zapomni(c, n.id, n.ime, UskladitevKljucevPravila.Stanje.STARA, false); continue }
             if (!P.smePoslati(true, true, link.odjemalec.znaZascito(n.id), link.povezan, true, prej)) continue
             if (prej == null) zapomni(c, n.id, n.ime, UskladitevKljucevPravila.Stanje.POVABLJENA, false)
-            posljiNapravi(c, link, n, if (P.vrednostiZa(prej)) lastni else povabilo)
+            posljiNapravi(c, link, n, if (P.vrednostiZa(prej)) lastni else povabilo, racuni = P.vrednostiZa(prej))
             poslanih++
         }
         if (poslanih > 0) Log.i(TAG, "uskladitev: zapisov ${lastni.size}, naprav $poslanih")
     }
 
-    private fun posljiNapravi(c: Context, link: LinkUpravitelj, n: LinkOdjemalec.Naprava, zapisi: List<UskladitevKljucevPravila.Zapis>) {
+    private fun posljiNapravi(c: Context, link: LinkUpravitelj, n: LinkOdjemalec.Naprava, zapisi: List<UskladitevKljucevPravila.Zapis>,
+                              racuni: Boolean) {
         val par = JSONObject().put("v", P.VERZIJA).put("items", vJson(zapisi))
+        // Varovalo racunov: stanja racunov (brez kljucev) samo potrjeni napravi; starejsa razlicica polje prezre.
+        if (racuni) try { par.put("racuni", Debrid.stanjaZaKrog(c)) } catch (e: Exception) { Log.w(TAG, "racuni: ${e.javaClass.simpleName}") }
         link.ukaz(n.id, P.DEJANJE, par, 12_000, LinkOdjemalec.Odgovor { izid, _ ->
             try { delavec.execute {
                 val data = izid?.optJSONObject("data")
@@ -369,6 +443,7 @@ object UskladitevKljucev {
                         // U1: odgovor uporabimo sami samo od naprave, ki jo je uporabnik TU potrdil; sicer caka na potrditev.
                         if (beriNaprave(c)[kljucNaprave(c, n.id)]?.stanje == UskladitevKljucevPravila.Stanje.POTRJENA) {
                             zapomni(c, n.id, n.ime, UskladitevKljucevPravila.Stanje.POTRJENA, true)
+                            if (Debrid.prejmiStanja(c, data.optJSONArray("racuni")) > 0) obvestiZaslone()
                             prejmiZapise(c, n.id, n.ime, prejeti)
                         } else vprasaj(c.applicationContext, n.id, n.ime, prejeti)
                     }
@@ -418,9 +493,21 @@ object UskladitevKljucev {
             }
             UskladitevKljucevPravila.Odziv.SPREJMI -> {
                 zapomni(a, od, ime, UskladitevKljucevPravila.Stanje.POTRJENA, true)
-                prejmiZapise(a, od, ime, zapisi)
+                // Pregled Grok 33, F2: Daljinec to klice na glavni niti - prejeti kljuci se preverijo pri storitvi (omrezje) na
+                // delovni niti. Odgovor nosi lastne zapise te naprave; prejeti tega ne spremenijo (tujih ne posiljamo, U2).
+                val racuni = parametri.optJSONArray("racuni")
+                try { delavec.execute {
+                    try {
+                        if (vklopljeno(a) && OzjiKrog.vKrogu(a, od)) {
+                            // Varovalo racunov: stanje racuna (ne velja, zaklenjen) najprej - nato kljuci.
+                            if (Debrid.prejmiStanja(a, racuni) > 0) obvestiZaslone()
+                            prejmiZapise(a, od, ime, zapisi)
+                        }
+                    } catch (e: Exception) { Log.w(TAG, "prejem: ${e.javaClass.simpleName}") }
+                } } catch (_: java.util.concurrent.RejectedExecutionException) { }
                 val (meta, vr) = posodobi(a)
                 JSONObject().put("accepted", true).put("items", vJson(zGostitelji(P.zaPoslati(meta, vr, jaz(a)))))
+                    .apply { try { put("racuni", Debrid.stanjaZaKrog(a)) } catch (_: Exception) { } }
             }
         }
     }
@@ -479,11 +566,9 @@ object UskladitevKljucev {
         if (!razveljavi) return
         val a = c.applicationContext
         try { delavec.execute {
+            // Pregled Grok 33, F2: brez omrezja pod zaklepom - prejsnje vrednosti nazaj kot nepreverjene ([obnovi]).
             synchronized(zaklep) {
-                for (k in s.kljuci) {
-                    val v = s.prejsnje[k]
-                    uporabi(a, UskladitevKljucevPravila.Zapis(k, 0L, jaz(a), v == null, v.orEmpty()))
-                }
+                for (k in s.kljuci) obnovi(a, k, s.prejsnje[k])
             }
             Log.i(TAG, "razveljavljenih sprememb z druge naprave: ${s.kljuci.size}")
             sprozi(a, 200)

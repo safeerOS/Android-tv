@@ -98,7 +98,7 @@ object DebridPravila {
      * najbolj pomenljiva napaka: zavrnjen kljuc > meja > paket > ni datoteke > ni predpomnjeno > streznik.
      */
     fun razlogZaUporabnika(napake: List<String>): String {
-        val red = listOf(TorBoxPravila.NAPAKA_KLJUC, TorBoxPravila.NAPAKA_MEJA, TorBoxPravila.NAPAKA_PAKET,
+        val red = listOf(TorBoxPravila.NAPAKA_ZAKLENJEN, TorBoxPravila.NAPAKA_KLJUC, TorBoxPravila.NAPAKA_MEJA, TorBoxPravila.NAPAKA_PAKET,
             TorBoxPravila.NAPAKA_NI_DATOTEKE, NAPAKA_NI_PREDPOMNJENO, TorBoxPravila.NAPAKA_PRENASA, TorBoxPravila.NAPAKA_STREZNIK)
         return red.firstOrNull { it in napake } ?: TorBoxPravila.NAPAKA_STREZNIK
     }
@@ -157,8 +157,11 @@ object DebridPravila {
      */
     fun rdVrstaNapake(http: Int, koda: Int?): String = when {
         // Koda Real-Debrid ima prednost pred HTTP (37 »disabled endpoint« pride tudi s 403, a ni stvar paketa).
-        koda == 8 -> TorBoxPravila.NAPAKA_KLJUC
-        koda in setOf(9, 14, 20, 29) -> TorBoxPravila.NAPAKA_PAKET
+        // Varovalo racunov (lastnik 26. 10. 2026; skupni primeri kljuci-preverba.json v2): 14 account locked, 22 IP not allowed =
+        // racun zaklenjen, 9 permission denied = kljuc ne velja (nikoli »velja«). Prej 9 in 14 »paket« = kljuc velja, 22 streznik.
+        koda in setOf(14, 22) -> TorBoxPravila.NAPAKA_ZAKLENJEN
+        koda == 8 || koda == 9 -> TorBoxPravila.NAPAKA_KLJUC
+        koda in setOf(20, 29) -> TorBoxPravila.NAPAKA_PAKET
         koda in setOf(5, 21, 23, 34, 36) -> TorBoxPravila.NAPAKA_MEJA
         koda in setOf(24, 28, 30, 35) -> TorBoxPravila.NAPAKA_NI_DATOTEKE
         koda != null -> TorBoxPravila.NAPAKA_STREZNIK
@@ -168,6 +171,24 @@ object DebridPravila {
         else -> TorBoxPravila.NAPAKA_STREZNIK
     }
 
+    /**
+     * Real-Debrid 9 »permission denied« MED UPORABO (pregled Grok 41, Z8; namizje 26535a0, Grokov pregled 40, S4): storitev
+     * kljuc pozna, tega dejanja pa ne dovoli (brezplacen racun, koncna tocka). Samo v jedru - [Debrid] ga za uporabnika
+     * preslika v paket ali kljuc ([napakaDovoljenja]).
+     */
+    const val NAPAKA_DOVOLJENJE = "dovoljenje"
+
+    /**
+     * Napaka Real-Debrid MED UPORABO (RealDebrid.tok). Pregled Grok 41, Z8: 9 je »ni dovoljenja za to dejanje«, ne napacen
+     * kljuc - prej je zaprl veljaven kljuc (»ne velja, vpisi novega«), »Preveri« ga je potrdil in naslednje predvajanje ga
+     * je spet zaprlo. Ob vpisu (/user) ostane »ne velja za to rabo« ([rdVrstaNapake], skupni primeri v2).
+     */
+    fun rdVrstaNapakeUporabe(http: Int, koda: Int?): String = if (koda == 9) NAPAKA_DOVOLJENJE else rdVrstaNapake(http, koda)
+
+    /** Sporocilo za [NAPAKA_DOVOLJENJE]: potrjen kljuc ostane - paket; kljuc, ki ga storitev se ni potrdila, ne velja za to rabo. */
+    fun napakaDovoljenja(stanje: StanjeKljuca?): String =
+        if (stanje == StanjeKljuca.VELJA) TorBoxPravila.NAPAKA_PAKET else TorBoxPravila.NAPAKA_KLJUC
+
     // ------------------------------------------------------------------ AllDebrid
 
     const val AD_OSNOVA = "https://api.alldebrid.com/v4"
@@ -176,6 +197,9 @@ object DebridPravila {
     fun adVrstaNapake(http: Int, koda: String?): String {
         val k = koda.orEmpty()
         return when {
+            // Varovalo racunov: nova lokacija ali naprava (potrditev po e-posti) in prepoved racuna - vsak nov klic bi poslal novo
+            // e-posto oziroma ponavljal prijavo (prej »kljuc ne velja«).
+            k == "AUTH_BLOCKED" || k == "AUTH_USER_BANNED" -> TorBoxPravila.NAPAKA_ZAKLENJEN
             k.startsWith("AUTH_") || http == 401 -> TorBoxPravila.NAPAKA_KLJUC
             k == "MUST_BE_PREMIUM" || k == "MAGNET_MUST_BE_PREMIUM" || k == "FREE_TRIAL_LIMIT_REACHED" -> TorBoxPravila.NAPAKA_PAKET
             k == "MAGNET_TOO_MANY_ACTIVE" || k == "MAGNET_TOO_MANY" || http == 429 || http == 503 -> TorBoxPravila.NAPAKA_MEJA
@@ -197,7 +221,7 @@ object DebridPravila {
 
     /** Iz prejetega zemljevida (storitev -> kljuc) ostanejo samo znane storitve z veljavnim kljucem. */
     fun prejetiKljuci(vnos: Map<String, String>): Map<String, String> =
-        VSI.mapNotNull { p -> vnos[p]?.let { ocistiKljuc(it) }?.let { p to it } }.toMap()
+        VSI.mapNotNull { p -> vnos[p]?.let { kljucIzVnosa(it, p) }?.let { p to it } }.toMap()
 
     fun prejetoVelja(prejetoMs: Long, zdajMs: Long): Boolean = zdajMs - prejetoMs in 0 until PREJETO_VELJA_MS
 
@@ -459,4 +483,372 @@ object DebridPravila {
         }
         return dodaj(seznam, novi, zdajMs)
     }
+
+    // ------------------------------------------------------------------ preverba kljuca (lastnik 25. 10. 2026)
+    // Na eni napravi je bil v polje TorBox vpisan vzorec »XXXXXXXX-XXXX-…«: Safeer ga je shranil kot »kljuc vpisan ✓«, samodejno
+    // usklajevanje pa ga je raznesel po ozjem krogu (tudi na telefon, kjer je bil veljaven). Zdaj: vzorec se zavrne takoj,
+    // vsak kljuc preveri storitev (TorBox user/me, Real-Debrid user, AllDebrid user - nic ne doda v racun), zavrnjen se ne
+    // shrani, med naprave gre samo preverjen veljaven, prejeti pa se pred uporabo preveri tudi na prejemni napravi.
+
+    /** Izid preverbe kljuca pri storitvi. */
+    enum class Preverba { VELJA, NE_VELJA, NI_ODGOVORA, MEJA, OBLIKA, ZAKLENJEN }
+
+    /** Stanje shranjenega kljuca (vezano na kljuc - [odtisStanja]). */
+    enum class StanjeKljuca { VELJA, NE_VELJA, NEPREVERJEN, ZAKLENJEN }
+
+    /**
+     * Varovalo racunov K1 (lastnik 26. 10. 2026): s kljucem, ki ne velja, ali z zaklenjenim racunom Safeer storitve NE klice
+     * (ne ⚡, ne predvajanje, ne ozadje, ne samodejna preverba) - prej je bilo stanje samo za prikaz in vsako odprtje vsebine
+     * je klicalo storitev z zavrnjenim kljucem (RD: »bruteforcing will leave you blocked«). Nova preverba samo ob »Preveri«.
+     */
+    fun smeKlicati(s: StanjeKljuca?): Boolean = s != StanjeKljuca.NE_VELJA && s != StanjeKljuca.ZAKLENJEN
+
+    /**
+     * Varovalo racunov (lastnik 26. 10. 2026: »ob ne velja in zaklenjen Safeer storitve ne uporablja vec na NOBENI napravi«):
+     * dokoncno stanje racuna gre napravam ozjega kroga (polje `racuni` v secrets.sync - brez kljuca, samo odtis kljuca).
+     * Nepreverjen ne gre (prejemniki bi ga sli preverjat - vec klicev z vec naslovov IP).
+     */
+    fun stanjeVKrog(s: StanjeKljuca?): Boolean = s == StanjeKljuca.VELJA || s == StanjeKljuca.NE_VELJA || s == StanjeKljuca.ZAKLENJEN
+
+    /**
+     * Prejeto stanje racuna z druge naprave ([prejetoOb] = cas, ko ga je tam dolocila storitev): uporabi se samo dokoncno
+     * stanje, novejse od tukajsnjega ([tukajOb], null = tu se ni stanja) in najvec 10 min iz prihodnosti (napacna ura).
+     * Isti kljuc (odtis) preveri klicatelj. Prejeto stanje obdrzi svoj cas - zato se ne vraca (brez ping-ponga).
+     */
+    fun sprejmiStanje(tukajOb: Long?, prejeto: StanjeKljuca, prejetoOb: Long, zdaj: Long,
+                      /** Pregled Grok 41, Z5: tukajsnje stanje istega kljuca in ali je prejeti »velja« iz »Preveri« ali vpisa. */
+                      tukaj: StanjeKljuca? = null, rocno: Boolean = false): Boolean =
+        stanjeVKrog(prejeto) && prejetoOb > 0 && prejetoOb <= zdaj + 10 * 60_000L && (tukajOb == null || prejetoOb > tukajOb) &&
+            // Zaporo (»ne velja«, »zaklenjen«) odpravi samo uporabnikov »Preveri« ali vpis, ki ga storitev potrdi - tudi z druge
+            // naprave; prej jo je odpravil vsak novejsi »velja« (pozen uspeh, iskanje) in jo razsiril po vsem ozjem krogu.
+            (prejeto != StanjeKljuca.VELJA || smeKlicati(tukaj) || rocno)
+
+    /**
+     * Pregled Grok 41, Z5 (kot namizje ef9c499 stanje_po_uporabi, Grokov pregled 40, S6): novo stanje kljuca po izidu MED
+     * UPORABO (null = brez spremembe): zavrnjen kljuc -> »ne velja«, zaklenjen racun -> »zaklenjen«, odgovor s povezavo ali
+     * zadetki -> »velja«, a samo iz »nepreverjen« ali brez stanja. Prej je pozen uspeh zahteve, ki je stekla pred zaporo,
+     * prepisal novejsi »zaklenjen« ali »ne velja« v »velja« in ga prek polja racuni poslal vsem napravam ozjega kroga -
+     * zaporo odpravi samo »Preveri« ali vpis, ki ga storitev potrdi.
+     */
+    fun stanjePoUporabi(prej: StanjeKljuca?, napaka: String, uspeh: Boolean): StanjeKljuca? {
+        // Pregled Grok 41, Z8 (namizje S4): RD 9 ne zapre kljuca, ki ga je storitev ze potrdila; nepreverjen ali brez stanja
+        // pa ne velja za to rabo (kot ob vpisu).
+        if (napaka == NAPAKA_DOVOLJENJE) return if (prej == null || prej == StanjeKljuca.NEPREVERJEN) StanjeKljuca.NE_VELJA else null
+        val novo = when (napaka) {
+            TorBoxPravila.NAPAKA_KLJUC -> StanjeKljuca.NE_VELJA
+            TorBoxPravila.NAPAKA_ZAKLENJEN -> StanjeKljuca.ZAKLENJEN
+            else -> null
+        }
+        if (novo != null) return novo.takeIf { it != prej }
+        return if (uspeh && (prej == null || prej == StanjeKljuca.NEPREVERJEN)) StanjeKljuca.VELJA else null
+    }
+
+    /** Ime stanja v sporocilu (kot skupni primeri): »velja«, »ne_velja«, »zaklenjen«; null = neznano. */
+    fun stanjeIzImena(ime: String): StanjeKljuca? = StanjeKljuca.values().firstOrNull { it.name.equals(ime, ignoreCase = true) }
+
+    /** »Preveri« uporabnika najvec enkrat na minuto (vsaka zavrnjena zahteva steje v mejo storitve). */
+    const val ROCNA_PREVERBA_MS = 60_000L
+
+    fun rocnaPreverbaDovoljena(zadnjic: Long, zdaj: Long): Boolean = zdaj - zadnjic !in 0 until ROCNA_PREVERBA_MS
+
+    /**
+     * Pregled Grok 41, Z2 (kot namizje a2e58cd, Grokov pregled 40, S8): »Preveri« in vpis ISTEGA kljuca skupaj najvec enkrat
+     * na minuto ([ROCNA_PREVERBA_MS]) - po kljucu (odtis), ne po storitvi. Prej je bila meja samo pri »Preveri« in po
+     * storitvi; vpis istega kljuca je ni imel (vsak »Shrani« je bil pri storitvi nov poskus prijave). Samo v pomnilniku,
+     * najvec [najvec] kljucev.
+     */
+    class RocnePreverbe(private val najvec: Int = 64) {
+        private val zadnja = LinkedHashMap<String, Long>()
+
+        /** 0 = klic sme k storitvi [storitev] s kljucem [odtis] (cas se zabelezi), sicer ms do naslednjega. */
+        @Synchronized fun cez(storitev: String, odtis: String, zdaj: Long): Long {
+            val k = "$storitev|$odtis"
+            val zadnjic = zadnja[k]
+            if (zadnjic != null && !rocnaPreverbaDovoljena(zadnjic, zdaj)) return ROCNA_PREVERBA_MS - (zdaj - zadnjic)
+            zadnja.remove(k)
+            zadnja[k] = zdaj
+            while (zadnja.size > najvec) zadnja.remove(zadnja.keys.first())
+            return 0L
+        }
+    }
+
+    /**
+     * Pregled Grok 41, Z2 (kot namizje dd60d3a, stanje_po_vpisu): stanje ob vpisu kljuca. [prej] je stanje ISTEGA kljuca, ce
+     * je ze shranjen (nov kljuc: null). Ponoven vpis kljuca »ne velja« ali »zaklenjen« brez odgovora storitve (izpad, 429,
+     * 5xx, 3xx, 403 brez kode) ga ne odklene - prej je postal »nepreverjen«, ki ga [smeKlicati] dovoli: ⚡, predvajanje in
+     * preverba na 10 min so spet klicali zaklenjen racun brez dokaza, da velja. Sicer [stanjePoPreverbi].
+     */
+    fun stanjePoVpisu(prej: StanjeKljuca?, p: Preverba): StanjeKljuca? {
+        val s = stanjePoPreverbi(p)
+        return if (s == StanjeKljuca.NEPREVERJEN && (prej == StanjeKljuca.NE_VELJA || prej == StanjeKljuca.ZAKLENJEN)) prej else s
+    }
+
+    /** Pregled Grok 41, Z9: kaj okno pove po »Preveri« ([izid] null = prezgodaj). Prej je bila meja (429) »ni povezave«. */
+    enum class PoPreveri { POCAKAJ, VELJA, ZAKLENJEN, NE_VELJA, MEJA, NI_ODGOVORA }
+
+    fun poPreveri(izid: Preverba?): PoPreveri = when (izid) {
+        null -> PoPreveri.POCAKAJ
+        Preverba.VELJA -> PoPreveri.VELJA
+        Preverba.ZAKLENJEN -> PoPreveri.ZAKLENJEN
+        Preverba.NE_VELJA, Preverba.OBLIKA -> PoPreveri.NE_VELJA
+        Preverba.MEJA -> PoPreveri.MEJA
+        Preverba.NI_ODGOVORA -> PoPreveri.NI_ODGOVORA
+    }
+
+    /** Stanje po »Preveri«: brez odgovora ali meja stanja ne spremeni (null - ostane ustavljen, brez samodejnih ponovitev). */
+    fun stanjePoRocniPreverbi(p: Preverba): StanjeKljuca? = when (p) {
+        Preverba.VELJA -> StanjeKljuca.VELJA
+        Preverba.ZAKLENJEN -> StanjeKljuca.ZAKLENJEN
+        Preverba.NE_VELJA, Preverba.OBLIKA -> StanjeKljuca.NE_VELJA
+        Preverba.NI_ODGOVORA, Preverba.MEJA -> null
+    }
+
+    const val TORBOX_UPORABNIK = "https://api.torbox.app/v1/api/user/me"
+    const val RD_UPORABNIK = "$RD_OSNOVA/user"
+    const val AD_UPORABNIK = "$AD_OSNOVA/user"
+    /** Polje »plan« TorBoxa: 0 Free, 1 Essential, 2 Pro, 3 Standard (Usenet samo Pro). */
+    val TORBOX_PAKETI = mapOf(0 to "Free", 1 to "Essential", 2 to "Pro", 3 to "Standard")
+    /** Nepreverjen kljuc (brez povezave ob vpisu) preverimo znova najvec tako pogosto. */
+    const val PREVERI_ZNOVA_MS = 10 * 60_000L
+
+    private val BESEDE_VZORCA = listOf("xxxxxx", "your_", "your-", "yourapi", "yourkey", "apikey", "api_key", "api-key", "kljuc", "example", "placeholder")
+
+    /**
+     * Vzorec iz navodil ali prazen nadomestek, ne pravi kljuc: same iste crke (»XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX«),
+     * najvec 3 razlicni znaki, en znak v vsaj polovici ali besede vzorca (»your_api_key«). Nakljucni kljuci storitev (UUID,
+     * 20-52 znakov) imajo 10+ razlicnih znakov.
+     */
+    fun jeVzorecKljuca(kljuc: String): Boolean {
+        val z = kljuc.filter { it.isLetterOrDigit() }.lowercase()
+        if (z.isEmpty()) return true
+        val pogostost = z.groupingBy { it }.eachCount()
+        return pogostost.size <= 3 || (pogostost.values.maxOrNull() ?: 0) * 2 >= z.length ||
+            BESEDE_VZORCA.any { kljuc.lowercase().contains(it) }
+    }
+
+    /** Vnos uporabnika ali prejet kljuc: oblika kljuca in ne vzorec; null = to ni kljuc ([Preverba.OBLIKA]). */
+    fun kljucIzVnosa(vnos: String, ponudnik: String): String? =
+        (if (ponudnik == TORBOX) TorBoxPravila.ocistiKljuc(vnos) else ocistiKljuc(vnos))?.takeUnless { jeVzorecKljuca(it) }
+
+    /** Napaka storitve (TorBoxPravila.NAPAKA_*) -> izid preverbe: zavrnjen kljuc ne velja, meja in paket kljuca ne zavrneta. */
+    fun preverbaIzNapake(vrsta: String): Preverba = when (vrsta) {
+        TorBoxPravila.NAPAKA_KLJUC -> Preverba.NE_VELJA
+        TorBoxPravila.NAPAKA_ZAKLENJEN -> Preverba.ZAKLENJEN
+        TorBoxPravila.NAPAKA_MEJA -> Preverba.MEJA
+        TorBoxPravila.NAPAKA_PAKET -> Preverba.VELJA
+        else -> Preverba.NI_ODGOVORA
+    }
+
+    /** TorBox user/me: [http] 0 = brez povezave; [uspeh] = `success: true` z `data`; [napaka] = polje `error`. */
+    fun preverbaTorBox(http: Int, uspeh: Boolean, napaka: String?): Preverba = when {
+        http in 200..299 && uspeh -> Preverba.VELJA
+        http == 0 -> Preverba.NI_ODGOVORA
+        else -> preverbaIzNapake(TorBoxPravila.vrstaNapake(http, napaka))
+    }
+
+    /**
+     * Real-Debrid /user: velja samo s pozitivnim dokazom - 2xx z objektom uporabnika ([dokaz] = `id` ali `username`) ali
+     * koda paketa (20, 29); 401 ali koda 8, 9 = ne velja; 14, 22 = racun zaklenjen (varovalo racunov). Pregled Grok 34, E3 (in
+     * 33, F7): 403 ali 2xx BREZ kode RD (stran CDN, blokada IP podatkovnega centra ali VPN) o kljucu ne pove nicesar - ni
+     * odgovora (prej velja: napacen kljuc bi sel v krog, naprave za istim IP pa bi ga »potrdile«). Kot indeksator (403 brez
+     * napake Newznab = ni odgovora).
+     */
+    fun preverbaRd(http: Int, koda: Int?, dokaz: Boolean): Preverba = when {
+        http == 0 -> Preverba.NI_ODGOVORA
+        http in 200..299 && koda == null -> if (dokaz) Preverba.VELJA else Preverba.NI_ODGOVORA
+        koda == null && http != 401 && http != 429 -> Preverba.NI_ODGOVORA
+        else -> preverbaIzNapake(rdVrstaNapake(http, koda))
+    }
+
+    /** AllDebrid /user: `status: success` = velja; `AUTH_*` ali 401 = ne velja (AllDebrid napako vrne tudi s HTTP 200). */
+    fun preverbaAd(http: Int, status: String?, koda: String?): Preverba = when {
+        http in 200..299 && status == "success" -> Preverba.VELJA
+        http == 0 -> Preverba.NI_ODGOVORA
+        else -> preverbaIzNapake(adVrstaNapake(http, koda))
+    }
+
+    // Polja odgovora, kot jih da bralnik JSON (org.json v aplikaciji, bralnik v skupnih primerih - isti primeri kot namizje,
+    // tests/skupni-primeri/kljuci-preverba.json). Strogo kot namizje: `success` mora biti true (ne niz »true«), paket in
+    // koda Real-Debrid samo celo stevilo, status in koda AllDebrid samo niz; JSON null ni vrednost.
+
+    private fun celo(x: Any?): Int? = when (x) {
+        is Int -> x
+        is Long -> x.takeIf { it in Int.MIN_VALUE..Int.MAX_VALUE }?.toInt()
+        else -> null
+    }
+
+    /** TorBox user/me: (izid, paket). [imaData] = polje `data` je objekt; paket je `plan` (celo stevilo >= 0) samo pri veljavnem. */
+    fun preverbaTorBoxOdgovor(http: Int, success: Any?, error: Any?, imaData: Boolean, plan: Any?): Pair<Preverba, Int?> {
+        val izid = preverbaTorBox(http, success == true && imaData, error?.toString()?.takeIf { it.isNotBlank() && it != "null" })
+        return izid to (if (izid == Preverba.VELJA) celo(plan)?.takeIf { it >= 0 } else null)
+    }
+
+    /** Real-Debrid /user: [errorCode] = polje `error_code`, [id] in [username] = polji uporabnika (pozitiven dokaz, E3). */
+    fun preverbaRdOdgovor(http: Int, errorCode: Any?, id: Any?, username: Any?): Preverba =
+        preverbaRd(http, celo(errorCode), celo(id) != null || (username as? String)?.isNotBlank() == true)
+
+    /** AllDebrid /user: [status] = polje `status`, [koda] = `error.code`. */
+    fun preverbaAdOdgovor(http: Int, status: Any?, koda: Any?): Preverba = preverbaAd(http, status as? String, koda as? String)
+
+    /** Ali kljuc shranimo in s katerim stanjem: zavrnjen ali vzorec ne (null); izpad storitve kljuca ne zavrne (nepreverjen). */
+    fun stanjePoPreverbi(p: Preverba): StanjeKljuca? = when (p) {
+        Preverba.VELJA -> StanjeKljuca.VELJA
+        Preverba.MEJA, Preverba.NI_ODGOVORA -> StanjeKljuca.NEPREVERJEN
+        Preverba.NE_VELJA, Preverba.OBLIKA -> null
+        // Varovalo racunov: kljuc je pravi, racun pa zaklenjen - shrani se (vrstica pove, kaj narediti), a se ne klice.
+        Preverba.ZAKLENJEN -> StanjeKljuca.ZAKLENJEN
+    }
+
+    /**
+     * Pregled Grok 33, F5: izid zahteve (401 ali povezava) velja za shranjen kljuc samo, ce je to kljuc, s katerim je sla
+     * zahteva ([kljucZahteve]), in ce je odgovorila ta storitev ([ponudnikIzida] prazno = [ponudnik]).
+     */
+    fun izidZaKljuc(kljucZdaj: String?, kljucZahteve: String, ponudnik: String, ponudnikIzida: String): Boolean =
+        kljucZdaj != null && kljucZdaj == kljucZahteve && (ponudnikIzida.isEmpty() || ponudnikIzida == ponudnik)
+
+    /** Izid prejetega kljuca za okno (pregled Grok 33, F9). */
+    enum class Prejem { SHRANJEN, ZAVRNJEN, NI_PREVERJEN }
+
+    /**
+     * Pregled Grok 33, F9: prej je okno vsak neshranjen prejeti kljuc pokazalo kot »storitev ga je zavrnila« - tudi, ko je
+     * ni bilo mogoce doseci (ni povezave, meja). Rocna pot (»Poslji kljuce«) kljuca ne poslje znova, zato mora uporabnik vedeti,
+     * da naj ga poslje znova.
+     */
+    fun prejem(p: Preverba): Prejem = when (p) {
+        Preverba.VELJA -> Prejem.SHRANJEN
+        Preverba.NE_VELJA, Preverba.OBLIKA, Preverba.ZAKLENJEN -> Prejem.ZAVRNJEN
+        Preverba.NI_ODGOVORA, Preverba.MEJA -> Prejem.NI_PREVERJEN
+    }
+
+    /** Kam gre vpisan kljuc po preverbi (pregled Grok 33, F3). */
+    enum class Vpis { ZAMENJAJ, OB_STRANI, OHRANI, ZAVRNI }
+
+    /**
+     * Pregled Grok 33, F3: vpisan kljuc s stanjem [novo] (po preverbi; zavrnjen se sploh ne shrani). Potrjen zamenja
+     * shranjenega. Nepreverjen (brez povezave, 429, 5xx) NE prepise veljavnega - caka ob strani, dokler ga storitev ne potrdi
+     * (prej je veljaven kljuc ob izpadu izginil; ce se je novi izkazal za napacnega, debrid na tej napravi ni delal); enak
+     * veljavnemu ostane, kot je. Brez veljavnega shranjenega nepreverjen zamenja (nic veljavnega se ne izgubi).
+     */
+    fun obVpisu(novo: StanjeKljuca, shranjenVelja: Boolean, enak: Boolean): Vpis = when {
+        novo == StanjeKljuca.VELJA -> Vpis.ZAMENJAJ
+        // Varovalo racunov: nov kljuc zaklenjenega racuna ne zamenja veljavnega (enak kljuc dobi stanje »zaklenjen«).
+        novo == StanjeKljuca.ZAKLENJEN -> if (shranjenVelja && !enak) Vpis.ZAVRNI else Vpis.ZAMENJAJ
+        shranjenVelja && enak -> Vpis.OHRANI
+        shranjenVelja -> Vpis.OB_STRANI
+        else -> Vpis.ZAMENJAJ
+    }
+
+    /** Cakajoci kljuc po ponovni preverbi: potrjen zamenja veljavnega, zavrnjen ali vzorec se zavrze, sicer caka naprej. */
+    enum class Cakajoc { ZAMENJAJ, ZAVRZI, CAKA }
+
+    fun poPreverbiCakajocega(p: Preverba): Cakajoc = when (p) {
+        Preverba.VELJA -> Cakajoc.ZAMENJAJ
+        // Zaklenjen racun: brez samodejnih ponovitev (varovalo racunov) - zavrze se.
+        Preverba.NE_VELJA, Preverba.OBLIKA, Preverba.ZAKLENJEN -> Cakajoc.ZAVRZI
+        Preverba.NI_ODGOVORA, Preverba.MEJA -> Cakajoc.CAKA
+    }
+
+    /** Med naprave v ozjem krogu gre samo kljuc, ki ga je storitev potrdila. */
+    fun zaUskladitev(s: StanjeKljuca?): Boolean = s == StanjeKljuca.VELJA
+
+    /**
+     * Prejet kljuc (usklajevanje ali »Poslji kljuce«) se tu uporabi samo, ce ga storitev potrdi tudi s te naprave. Zavrnjen
+     * nikoli ne prepise veljavnega; brez povezave pocaka (posiljatelj ga poslje znova).
+     */
+    fun sprejmiPrejetega(p: Preverba): Boolean = p == Preverba.VELJA
+
+    fun imePaketa(paket: Int?): String = paket?.let { TORBOX_PAKETI[it] ?: "plan $it" }.orEmpty()
+
+    /** Stanje velja za natanko ta kljuc (zamenjan kljuc nima stanja prejsnjega). Kljuc ostane skrit (SHA-256, 16 znakov). */
+    fun odtisStanja(kljuc: String): String = java.security.MessageDigest.getInstance("SHA-256")
+        .digest("safeer-debrid-stanje|$kljuc".toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }.take(16)
+
+    /** Pregled Grok 41, Z5: [rocno] = »velja« iz uporabnikovega »Preveri« ali vpisa (5. polje »r«) - samo tak odpravi zaporo drugih naprav. */
+    fun zapisStanja(s: StanjeKljuca, odtis: String, paket: Int?, ob: Long, rocno: Boolean = false): String =
+        (listOf(s.name, odtis, paket?.toString().orEmpty(), ob.toString()) + listOfNotNull("r".takeIf { rocno && s == StanjeKljuca.VELJA })).joinToString("|")
+
+    /** Ali je zapis »velja« iz »Preveri« ali vpisa ([zapisStanja] z rocno). */
+    fun rocnoIzZapisa(zapis: String?): Boolean = zapis?.split('|')?.getOrNull(4) == "r"
+
+    /**
+     * (stanje, paket, cas) iz [zapis] za kljuc z [odtis]; null = ni zapisa ali je zapis DRUGEGA kljuca. Pregled Grok 41, Z3 (kot
+     * namizje 3c5d43b, S3): zapis, ki ga ni mogoce prebrati (brez odtisa, premalo polj, neznano stanje - pokvarjene nastavitve
+     * ali novejsa razlicica), odpove ZAPRTO: »ne velja« (cas 0 - ne gre v ozji krog), nazaj ga vrne samo »Preveri«. Prej je
+     * pomenil »ni stanja« in [smeKlicati] je klic dovolil.
+     */
+    fun stanjeIzZapisa(zapis: String?, odtis: String): Triple<StanjeKljuca, Int?, Long>? {
+        val d = zapis?.split('|') ?: return null
+        val o = d.getOrNull(1).orEmpty()
+        if (o.isNotEmpty() && o != odtis) return null
+        val s = StanjeKljuca.values().firstOrNull { it.name == d[0] }
+        if (o.isEmpty() || d.size < 4 || s == null) return Triple(StanjeKljuca.NE_VELJA, null, 0L)
+        return Triple(s, d[2].toIntOrNull(), d[3].toLongOrNull() ?: 0L)
+    }
+
+    // ------------------------------------------------------------------ zapora po kljucu (pregled Grok 41, Z3)
+
+    /** Najvec toliko zadnjih zapor po kljucu na storitev (vrstica: odtis 16 znakov in stanje). */
+    const val NAJVEC_ZAPOR = 8
+
+    private fun jeZapora(s: StanjeKljuca?) = s == StanjeKljuca.NE_VELJA || s == StanjeKljuca.ZAKLENJEN
+
+    /** Zapore iz zapisa (vrstice »odtis|STANJE«, najstarejsa prva); pokvarjena vrstica se preskoci. */
+    fun zaporeIzZapisa(zapis: String?): Map<String, StanjeKljuca> {
+        val m = LinkedHashMap<String, StanjeKljuca>()
+        for (v in zapis.orEmpty().split('\n')) {
+            val d = v.split('|')
+            val s = StanjeKljuca.values().firstOrNull { it.name == d.getOrNull(1) }
+            if (d.size == 2 && d[0].isNotEmpty() && s != null && jeZapora(s)) m[d[0]] = s
+        }
+        return m
+    }
+
+    /**
+     * Zapis zapor po novem stanju [s] kljuca [odtis]: »ne velja« in »zaklenjen« se zapomnita po kljucu (najnovejsa zadnja,
+     * najvec [NAJVEC_ZAPOR]); samo »velja« (»Preveri« ali vpis, ki ga storitev potrdi) zaporo odpravi; »nepreverjen« je ne spremeni.
+     */
+    /**
+     * Pregled Grok 48, A3: zapore pred prepisom mesta storitve z zapisom kljuca [odtis]. Ce je na mestu zapora DRUGEGA kljuca
+     * (zapisana pred a15fb57, ko je bilo stanje samo na mestu, ali kakorkoli manjka med zaporami), gre najprej v seznam - prej
+     * se je ob prvi zamenjavi kljuca izgubila in »Razveljavi« ali prejem je vrnil zaklenjen kljuc kot nepreverjenega.
+     */
+    fun zaporePredPrepisom(zapisMesta: String?, zapore: String?, odtis: String): String? {
+        val d = zapisMesta?.split('|') ?: return zapore
+        val o = d.getOrNull(1).orEmpty()
+        if (o.isEmpty() || o == odtis) return zapore
+        val s = StanjeKljuca.values().firstOrNull { it.name == d[0] }
+        if (!jeZapora(s) || zaporeIzZapisa(zapore).containsKey(o)) return zapore
+        return zZaporo(zapore, o, s!!)
+    }
+
+    fun zZaporo(zapis: String?, odtis: String, s: StanjeKljuca): String {
+        val m = LinkedHashMap(zaporeIzZapisa(zapis))
+        if (jeZapora(s)) { m.remove(odtis); m[odtis] = s } else if (s == StanjeKljuca.VELJA) m.remove(odtis)
+        while (m.size > NAJVEC_ZAPOR) m.remove(m.keys.first())
+        return m.entries.joinToString("") { "${it.key}|${it.value.name}\n" }
+    }
+
+    /**
+     * Pregled Grok 41, Z3: stanje kljuca iz zapore v pomnilniku ([vPomnilniku] - postavljena PRED zapisom v nastavitve, kot
+     * namizje S3), zapisa na mestu storitve ([naMestu], [stanjeIzZapisa]) in zapore po kljucu ([zapora], [zZaporo]). Prej je
+     * bilo stanje samo na enem mestu na storitev: zamenjava kljuca je zaporo prejsnjega pozabila, zato ga je »Razveljavi«,
+     * prejem z druge naprave ali cakajoci kljuc vrnil kot nepreverjenega in ga takoj poklical. Dokoncno stanje na mestu velja
+     * (»velja« po »Preveri« zaporo odpravi), »nepreverjen« ali brez zapisa je ne odpravi.
+     */
+    fun stanjeZZaporo(vPomnilniku: StanjeKljuca?, naMestu: StanjeKljuca?, zapora: StanjeKljuca?): StanjeKljuca? = when {
+        jeZapora(vPomnilniku) -> vPomnilniku
+        naMestu == StanjeKljuca.VELJA || jeZapora(naMestu) -> naMestu
+        else -> zapora ?: naMestu
+    }
+
+    /** Pregled Grok 41, Z3: »Razveljavi« vrne prejsnji kljuc z njegovo zaporo ([zapora]); brez nje kot nepreverjen (ena preverba). */
+    fun stanjeObObnovi(zapora: StanjeKljuca?): StanjeKljuca = zapora?.takeIf { jeZapora(it) } ?: StanjeKljuca.NEPREVERJEN
+
+    /**
+     * Ali kljuc (brez stanja ali nepreverjen) preverimo zdaj: najvec enkrat na [PREVERI_ZNOVA_MS] ZA TA KLJUC ([zadnjic] =
+     * zadnja preverba tega kljuca po odtisu, 0 = se ni bil preverjen; ura nazaj = preveri). Skupni primeri v2: prej je bil
+     * kljuc brez stanja preverjen ob vsakem odprtju okna. Velja, ne velja in zaklenjen nikoli samodejno (varovalo racunov).
+     */
+    fun preveriZdaj(s: StanjeKljuca?, zadnjic: Long, zdaj: Long): Boolean =
+        (s == null || s == StanjeKljuca.NEPREVERJEN) && zdaj - zadnjic !in 0 until PREVERI_ZNOVA_MS
 }

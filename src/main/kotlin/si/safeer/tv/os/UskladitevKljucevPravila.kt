@@ -97,6 +97,35 @@ object UskladitevKljucevPravila {
         return izid
     }
 
+    /** Kaj gre za en kljuc (debrid ali indeksator) v [lokalneSpremembe]: vrednost, neznan ali nic (izbris). */
+    enum class Oddaja { VREDNOST, NEZNAN, BREZ }
+
+    /**
+     * Lastnik 25. 10. 2026 (v polje TorBox vpisan vzorec se je raznesel po ozjem krogu): z vrednostjo gre samo kljuc, ki ga je
+     * storitev ali indeksator potrdil ([velja]). Shranjen, a nepreverjen, zavrnjen ali ta hip neberljiv ([prebran] false)
+     * kljuc je neznan - drugim napravam ne povozi in ne izbrise veljavnega. Kljuca, ki ga ni, ni (izbris).
+     */
+    fun oddaja(prebran: Boolean, shranjen: Boolean, velja: Boolean): Oddaja = when {
+        prebran && velja -> Oddaja.VREDNOST
+        prebran || shranjen -> Oddaja.NEZNAN
+        else -> Oddaja.BREZ
+    }
+
+    /**
+     * Pregled Grok 33, F1 (26. 10. 2026): izbris (»Odstrani«) gre drugim napravam samo, ce je kljuc TU veljal (storitev ali
+     * indeksator ga je potrdil). Nepreverjen, zavrnjen ali neberljiv kljuc je samo lokalen - prej je grob takega kljuca na
+     * vseh napravah ozjega kroga izbrisal veljavnega.
+     */
+    fun izbrisVKrog(velja: Boolean): Boolean = velja
+
+    /**
+     * Zapisi po »Odstrani« kljuca [kljuc]: ce izbris ne gre v krog ([vKrog] false), se zapis kljuca pozabi (brez groba) -
+     * [lokalneSpremembe] zato izbrisa ne naredi, lastni zapis druge naprave (npr. veljaven kljuc s telefona) pa se tu
+     * spet sprejme (in pred uporabo preveri). Grob ostane grob.
+     */
+    fun poOdstranitvi(meta: Map<String, Meta>, kljuc: String, vKrog: Boolean): Map<String, Meta> =
+        if (vKrog || meta[kljuc]?.izbrisan != false) meta else meta - kljuc
+
     /**
      * Prejeti zapisi -> tisti, ki jih je treba uporabiti tu (novejsi od lokalnih), z veljavnim kljucem in vrednostjo
      * ([veljavnaVrednost]). Najvec [NAJVEC_ZAPISOV]; za isti kljuc velja najnovejsi; cas iz dalnje prihodnosti zavrnemo.
@@ -113,6 +142,13 @@ object UskladitevKljucevPravila {
         }
         return najnovejsi.values.filter { novejsi(it.cas, it.izvor, it.izbrisan, meta[it.kljuc]) }
     }
+
+    /**
+     * Pregled Grok 33, F2: prejeti zapisi so se preverjali brez zaklepa (omrezje) - shrani se samo, kar je se vedno novejse
+     * od zapisov tu (vmes je lahko uporabnik tu kljuc spremenil ali je prisel novejsi zapis).
+     */
+    fun seVednoNovejsi(meta: Map<String, Meta>, zapisi: List<Zapis>): List<Zapis> =
+        zapisi.filter { novejsi(it.cas, it.izvor, it.izbrisan, meta[it.kljuc]) }
 
     fun veljavenZapis(z: Zapis, ura: Long, ponudniki: Set<String>, veljavnaVrednost: (String, String) -> Boolean): Boolean {
         if (!veljavenKljuc(z.kljuc, ponudniki)) return false

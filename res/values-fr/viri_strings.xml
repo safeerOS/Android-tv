@@ -77,6 +77,13 @@
     <string name="os_debrid_pojasnilo">Un service debrid télécharge le torrent à votre place : votre appareil n’est pas dans l’essaim, votre IP reste masquée et le flux est plus rapide. Ajoutez la clé d’au moins un service. Si plusieurs ont le film, Safeer mesure leur vitesse jusqu’à cet appareil et lit depuis le plus rapide. ⚡ signale les sources prêtes à lire.</string>
     <string name="os_debrid_vrstica_vpisan">%1$s – clé ajoutée ✓</string>
     <string name="os_debrid_vrstica_brez">%1$s – ajouter une clé</string>
+    <string name="os_debrid_vrstica_velja">%1$s – clé valide ✓%2$s</string>
+    <string name="os_debrid_vrstica_ne_velja">%1$s – clé non valide – saisissez-la à nouveau</string>
+    <string name="os_debrid_vrstica_nepreverjen">%1$s – clé pas encore vérifiée</string>
+    <string name="os_debrid_preverjam">Vérification de la clé auprès de %1$s…</string>
+    <string name="os_debrid_kljuc_velja">%1$s : clé valide ✓%2$s</string>
+    <string name="os_debrid_kljuc_zavrnjen">%1$s a refusé la clé – elle n’a pas été enregistrée. Vérifiez-la et saisissez-la à nouveau.</string>
+    <string name="os_debrid_kljuc_nepreverjen">Pas de connexion à %1$s – la clé est enregistrée comme non vérifiée et n’est pas envoyée à vos autres appareils tant que le service ne l’a pas confirmée.</string>
     <string name="os_debrid_samo_takoj_vkl">Instantané seulement (en cache) : activé</string>
     <string name="os_debrid_samo_takoj_izk">Instantané seulement (en cache) : désactivé</string>
     <string name="os_debrid_prednostna">Service préféré : %1$s</string>
@@ -124,6 +131,8 @@
     <!-- Webtor rezerva (25. 10. 2026): lastnikov dodatek Webtor kot rezerva za torrente, ki jih TorBox nima. -->
     <string name="os_webtor_rezerva">Webtor n’a pas fonctionné – lecture d’une autre source</string>
     <string name="os_webtor_pripravljam">Préparation via Webtor…</string>
+    <string name="os_webtor_diagnostika">Diagnostic : Webtor uniquement (test développeur)</string>
+    <string name="os_usenet_diagnostika">Diagnostic : Usenet uniquement (test développeur)</string>
     <string name="os_skrivni_dodatek_ime">extension %1$s</string>
     <string name="os_mediji_dodatek_ni_shranjen">L’extension n’a pas pu être enregistrée de façon sécurisée (échec du chiffrement). Réessayez.</string>
     <string name="os_mediji_dodatek_dodaj_znova">impossible à déverrouiller sur cet appareil – l’extension doit être ajoutée à nouveau (%1$s)</string>
@@ -147,4 +156,36 @@
     <string name="os_sinh_prejeto_odpri">%1$s souhaite synchroniser les clés et extensions – ouvrez le Centre multimédia pour confirmer</string>
     <string name="os_sinh_ponovno">%1$s : la confirmation s’affichera de nouveau à la prochaine synchronisation</string>
     <string name="os_usenet_napaka_indeksator">L’indexeur Usenet n’a pas renvoyé le fichier NZB. Vérifie sa clé API et sa limite quotidienne.</string>
+    <!-- Pregled Grok 31, H1: kljuc v polju za naslov indeksatorja -->
+    <string name="os_usenet_naslov_je_kljuc">Le champ d’adresse contient une clé API, pas une adresse : elle n’a été ni enregistrée ni envoyée. Colle la clé dans le champ de la clé API et saisis comme adresse le nom de l’indexeur (p. ex. nzbfinder.ws).</string>
+    <string name="os_usenet_naslov_napacen">L’adresse de l’indexeur n’est pas valide : saisis un nom avec domaine (p. ex. nzbfinder.ws) ou une adresse https://… complète.</string>
+    <!-- Pregled Grok 33, F1: Odstrani kljuca, ki tu ni veljal, samo na tej napravi -->
+    <string name="os_debrid_odstranjeno_lokalno">La clé %1$s a été supprimée sur cet appareil uniquement : elle n’était pas valide ici, tes autres appareils du cercle proche gardent la leur.</string>
+    <!-- Pregled Grok 33, F3: nov kljuc brez povezave caka ob strani -->
+    <string name="os_debrid_kljuc_caka">%1$s n’a pas pu vérifier la clé pour l’instant – ta clé valide actuelle reste utilisée. Safeer revérifie la nouvelle et ne l’utilise qu’une fois confirmée par le service.</string>
+    <string name="os_debrid_vrstica_caka">nouvelle clé en attente de vérification</string>
+    <string name="os_debrid_vrstica_caka_zavrnjen">le service a refusé la nouvelle clé – l’ancienne est utilisée</string>
+    <!-- Varovalo racunov (lastnik 26. 10. 2026): kljuc ne velja ali racun zaklenjen - Safeer storitve ne klice do Preveri -->
+    <string name="os_debrid_zaklenjen_rd">Real-Debrid a verrouillé le compte ou n’autorise pas cette adresse IP. Pour éviter une suspension, Safeer ne l’utilise plus sur aucun appareil. Déverrouille-le sur real-debrid.com (ou écris à leur support), puis touche « Vérifier ».</string>
+    <string name="os_debrid_zaklenjen_ad">AllDebrid demande de confirmer un nouvel emplacement ou appareil et t’a envoyé un e-mail. Confirme-le, puis touche « Vérifier ». D’ici là, Safeer ne contacte AllDebrid depuis aucun appareil – chaque requête enverrait un nouvel e-mail.</string>
+    <string name="os_debrid_zaklenjen">%1$s a verrouillé le compte. Safeer ne l’utilise plus sur aucun appareil. Vérifie ton compte sur le site du service, puis touche « Vérifier ».</string>
+    <string name="os_debrid_ne_velja_navodilo">%1$s a refusé la clé. Safeer ne l’utilise plus sur aucun appareil (des tentatives répétées pourraient verrouiller le compte). Saisis une nouvelle clé ou touche « Vérifier » si tu l’as corrigée auprès du service.</string>
+    <string name="os_debrid_vrstica_zaklenjen_rd">Real-Debrid – compte verrouillé : déverrouille-le sur real-debrid.com, puis « Vérifier »</string>
+    <string name="os_debrid_vrstica_zaklenjen_ad">AllDebrid – confirme le nouvel emplacement dans l’e-mail d’AllDebrid, puis « Vérifier »</string>
+    <string name="os_debrid_vrstica_zaklenjen">%1$s – compte verrouillé : vérifie-le auprès du service, puis « Vérifier »</string>
+    <string name="os_debrid_preveri">Vérifier</string>
+    <string name="os_debrid_vpisi_nov">Saisir une nouvelle clé</string>
+    <string name="os_debrid_preveri_pocakaj">Tu pourras vérifier de nouveau dans une minute (chaque requête refusée compte auprès du service).</string>
+    <string name="os_debrid_preveri_ni_povezave">%1$s est injoignable pour l’instant – l’état reste et Safeer ne l’utilise toujours pas. Réessaie plus tard.</string>
+    <!-- Pregled Grok 41, Z2/Z9: meja (429) pri »Preveri« ali ponovnem vpisu istega kljuca - stanje ostane -->
+    <string name="os_debrid_preveri_meja">%1$s limite les requêtes pour l’instant – l’état reste et Safeer ne l’utilise toujours pas. Réessaie dans quelques minutes.</string>
+    <!-- Pregled Grok 33, F9: sporocila ob meji, nepreverjenem prejemu in napaki shrambe -->
+    <string name="os_debrid_kljuc_meja">%1$s limite les requêtes pour l’instant – la clé est enregistrée comme non vérifiée. Safeer la revérifie dans quelques minutes et ne l’envoie pas à tes autres appareils d’ici là.</string>
+    <string name="os_debrid_prejeto_ni_preverjeno">%1$s : la clé n’a pas pu être vérifiée pour l’instant (pas de connexion ou trop de requêtes) – elle n’a pas été enregistrée. Renvoie-la quand tu seras en ligne.</string>
+    <string name="os_debrid_napaka_shranjevanja">La clé n’a pas pu être enregistrée de façon sécurisée sur cet appareil. Réessaie.</string>
+    <!-- Pregled Grok 41, Z9: programska napaka pri vpisu ali »Preveri« ni »napaka shranjevanja« ali »ni povezave« -->
+    <string name="os_debrid_napaka_notranja">Une erreur interne s’est produite dans Safeer avec %1$s. Vérifie l’état dans cette fenêtre et réessaie.</string>
+    <!-- Pregled Grok 31, H2: viden konec diagnostike samo Usenet -->
+    <string name="os_usenet_diagnostika_konec">Diagnostic Usenet uniquement : Usenet n’a pas pu lire – la raison est dans le journal (SafeerOsMedia).</string>
+    <string name="os_usenet_diagnostika_ni_izdaj">Diagnostic Usenet uniquement : l’indexeur n’a renvoyé aucune version pour ce contenu.</string>
 </resources>

@@ -8747,21 +8747,51 @@ class GlasbaActivity : OsActivity() {
                           obNeuspehu: (() -> Unit)? = null) {
         // Pregled A1: nova izbira toka - prejsnje cakanje na debrid/Usenet ne odpre nicesar vec.
         prekiniDebrid()
+        // Diagnostika razvijalca ([Webtor.samoWebtor], samo prek adb, z rokom): pot, kjer debrid toka nima - brez ⚡ pri
+        // debridu, neposrednih povezav in Useneta; torrenti ostanejo za ujemanje izdaje Webtor. Izmerjeno 25. 10. 2026: Sintel in
+        // Tears of Steel imata neposredno povezavo, zato rezerve Webtor brez tega ni mogoce izmeriti. Pregled 26, T3: viden znak,
+        // brez TorBoxa v ozadju in brez poti mimo Webtorja (ce Webtor ne predvaja, se izbira konca).
+        val samoWebtor = Webtor.samoWebtor(this)
+        if (samoWebtor) {
+            android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Webtor")
+            // Pregled Grok 32, G5 velja tudi za diagnostiki Webtor in Usenet: Toast samo na glavni niti.
+            runOnUiThread { Toast.makeText(this, R.string.os_webtor_diagnostika, Toast.LENGTH_LONG).show() }
+        }
+        // Diagnostika razvijalca ([Usenet.samoUsenet], samo prek adb, z rokom; lastnik 25. 10. 2026: meritev Useneta samo po
+        // samodejni poti): samodejna izbira vzame samo Usenet - brez ⚡ torrentov, neposrednih povezav in Webtorja; ce Usenet
+        // ne predvaja, se izbira konca (brez poti mimo). Viden znak kot pri Webtorju.
+        val samoUsenet = !samoWebtor && !rocno && Usenet.samoUsenet(this)
+        if (samoUsenet) {
+            android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Usenet")
+            runOnUiThread { Toast.makeText(this, R.string.os_usenet_diagnostika, Toast.LENGTH_LONG).show() }
+        }
         // Diagnostika razvijalca ([Diagnostika.samoP2p], samo prek adb, z rokom; lastnik 25. 10. 2026: Z3 v zivo samo po
         // samodejni poti in samo z odprtimi filmi CC): samodejna izbira vzame najboljsi torrent na TEJ napravi - brez
         // neposrednih povezav, debrida, Useneta, Webtorja in pomocnikov v Linku. Opozorilo pred rojem ostane.
-        val samoP2p = !rocno && Diagnostika.samoP2p(this)
+        // Zdruzitev z vejo webtor-popravek: diagnostike se izkljucujejo - samo P2P velja le, ce nista vklopljeni samo Webtor
+        // ali samo Usenet (sicer bi se filtri izkljucili ali pa bi se pot tiho prevesila v roj); getprop se tedaj ne klice.
+        val samoP2p = !samoWebtor && !samoUsenet && !rocno && Diagnostika.samoP2p(this)
         if (samoP2p) {
             android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo P2P")
             // Pregled Grok 32, G5: Toast samo na glavni niti. izberiTok se klice prek glavna.post (preverjeno: vsi klicatelji),
             // runOnUiThread to zagotovi tudi za morebitnega klicatelja z delovne niti (Toast tam vrze izjemo).
             runOnUiThread { Toast.makeText(this, R.string.os_p2p_diagnostika, Toast.LENGTH_LONG).show() }
         }
-        val predpomnjeni = pripravljeno.predpomnjeni
+        val predpomnjeni = if (samoWebtor || samoUsenet) emptySet<String>() else pripravljeno.predpomnjeni
         // Webtor rezerva (25. 10. 2026): tokovi Webtor [⚡TB] (podvajajo nas TorBox) in [P2P] (posnetek z oglasom za paket)
         // izpadejo takoj ([WebtorPravila.skrij]).
         val imamoTorBox = Debrid.aktivna(this) != null && DebridPravila.TORBOX in Debrid.zKljucem(this)
         val tokovi = vsiTokovi.filterNot { it.vir == WebtorPravila.VIR && WebtorPravila.skrij(WebtorPravila.vrstaIz(it.oznakaVira), imamoTorBox) }
+            .filter { !samoWebtor || it.vir == WebtorPravila.VIR || it.vrsta == "torrent" }
+            .filter { !samoUsenet || it.vrsta == UsenetPravila.VRSTA }
+        if (samoUsenet && tokovi.isEmpty()) {
+            // Brez izdaj Usenet (indeksator jih nima) se diagnostika konca tu - vsebina ne izgine s seznama.
+            android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Usenet - indeksator ni dal izdaj")
+            // Pregled Grok 31, H2: viden konec diagnostike (prej samo dnevnik); klicatelj izve za neuspeh.
+            Toast.makeText(this, R.string.os_usenet_diagnostika_ni_izdaj, Toast.LENGTH_LONG).show()
+            obNeuspehu?.invoke()
+            return
+        }
         // Brez predvajljivega toka ni okna in ni seznama povezav (prosnje za donacijo, Discord, "No streams found" so ze
         // izlocene v Stremio.tok): kratko obvestilo, vsebina pa izgine s seznama (lastnik, 2. 10. 2026).
         // Torrent steje le, ce ga ta naprava zmore: prek pomocnika v Linku ali sama, ce datoteka gre na njen prostor.
@@ -8812,18 +8842,25 @@ class GlasbaActivity : OsActivity() {
         fun skladbaToka(t: Stremio.Tok) = sk.copy(id = sk.id + "#" + t.url.hashCode(), naslov = naslov, zvok = t.url, povezava = t.url, video = sk.video)
         // Webtor rezerva: tok Webtor za isto izdajo kot torrent (dolocen spodaj, ko so tokovi urejeni) in ze poskuseni.
         var webtorZa: (Stremio.Tok) -> Stremio.Tok? = { null }
+        // Datoteka toka Webtor (dolocena spodaj, z nasimi torrenti) - za dnevnik sonde.
+        var datotekaWebtorZa: (Stremio.Tok) -> WebtorPravila.Datoteka? = { null }
         val poskuseniWebtor = HashSet<String>()
         // Pregled N3: vse sonde Webtor te izbire skupaj najvec 15 s in najvec 2 ([WebtorPravila.rokSonde]).
         var webtorZacetek: Long? = null
         var webtorPoskusov = 0
         fun webtorRok() = WebtorPravila.rokSonde(webtorZacetek, android.os.SystemClock.elapsedRealtime(), webtorPoskusov)
-        // Sonda enega toka Webtor v skupnem roku; false = ne poskusimo (rok porabljen ali tok ze poskusen).
-        fun sondaWebtor(w: Stremio.Tok, predvajaj: () -> Unit, naprej: () -> Unit): Boolean {
+        // Krog sond Webtor (do [WebtorPravila.VZPOREDNO] kandidatov hkrati) v skupnem roku; false = ne poskusimo (rok porabljen
+        // ali so vsi ze poskuseni). [predvajaj] dobi izbranega kandidata.
+        fun sondaWebtor(kandidati: List<Stremio.Tok>, predvajaj: (Stremio.Tok) -> Unit, naprej: () -> Unit): Boolean {
             val rok = webtorRok()
-            if (rok <= 0L || !poskuseniWebtor.add(w.url)) return false
+            val novi = kandidati.filter { it.url !in poskuseniWebtor }.distinctBy { it.url }
+            if (rok <= 0L || novi.isEmpty()) return false
+            novi.forEach { poskuseniWebtor.add(it.url) }
             if (webtorZacetek == null) webtorZacetek = android.os.SystemClock.elapsedRealtime()
             webtorPoskusov++
-            predvajajWebtor(w, rok, predvajaj, naprej)
+            predvajajWebtor(novi, rok, novi.map { "datoteka=${datotekaWebtorZa(it)} h=${it.hash.take(10)} idx=${it.datoteka}" }, predvajaj, naprej,
+                // Skupno pravilo v4 (naloga 21 B1): krog, ki je vsebino le hitro zavrnil (.srt pri YTS), ni poskus.
+                neStejeKotPoskus = { webtorPoskusov-- })
             return true
         }
         fun odpri(t: Stremio.Tok, rezerve: List<Stremio.Tok> = emptyList()) {
@@ -8845,7 +8882,8 @@ class GlasbaActivity : OsActivity() {
                         if (Debrid.aktivna(this) != null) prekDebrida(t.url, t.datoteka, { cdn -> odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap())) }, brez)
                         else {
                             // Pregled A5: kljuc je vpisan, a neberljiv (Keystore) - ne tiho na neposredni torrent (naslov IP).
-                            val neberljiva = Debrid.neberljiva(this)
+                            // Varovalo racunov: enako, ce kljuc ne velja ali je racun zaklenjen (Safeer ga ne klice).
+                            val neberljiva = Debrid.neberljiva(this) ?: Debrid.ustavljena(this)
                             if (neberljiva != null) kljucNeberljiv(neberljiva, brez) else brez()
                         }
                     }
@@ -8853,7 +8891,7 @@ class GlasbaActivity : OsActivity() {
                     // infoHash + fileIdx) - brez cakanja na prenos; ce Webtor ne da toka (402/404/429, prvi bajt po 15 s), kot
                     // doslej (TorBox s cakanjem). Ob zacetku toka Webtor gre torrent v ozadju v TorBox (naslednjic ⚡).
                     val w = if (TorBoxPravila.hashIzMagneta(t.url)?.lowercase() in predpomnjeni) null else webtorZa(t)
-                    val zacel = w != null && sondaWebtor(w, { odpri(w); webtorVTorBox(t.url, false) }, {
+                    val zacel = w != null && sondaWebtor(listOf(w), { x -> odpri(x); webtorVTorBox(t.url, false) }, {
                         Toast.makeText(this, R.string.os_webtor_rezerva, Toast.LENGTH_SHORT).show(); prekTorrenta()
                     })
                     if (!zacel) prekTorrenta()
@@ -8893,21 +8931,46 @@ class GlasbaActivity : OsActivity() {
         val webtorPoKakovosti = zaHitrost(TokIzbira.uredi(tokovi.filter { it.vir == WebtorPravila.VIR }, opis, zmoznostiNaprave,
             zelenJezik = zelen, izvirni = sk.language))
         fun kljucTorrenta(t: Stremio.Tok) = WebtorPravila.kljuc(TorBoxPravila.hashIzMagneta(t.url), t.datoteka)
-        fun kljucWebtor(t: Stremio.Tok) = WebtorPravila.kljuc(t.hash, t.datoteka)
+        // Izmerjeno 25. 10. 2026: datoteka toka Webtor je `idx` v JWT ([Stremio] -> Tok.datoteka; -2 = neznana).
+        fun kljucWebtor(t: Stremio.Tok) = WebtorPravila.kljucToka(t.hash, t.datoteka)
+        // Kaj bo /resolve predvajal (video, najvecji video, negotovo - npr. naslovnica, ni video): ime toka ali nas tok
+        // za isti hash in indeks ([WebtorPravila.datoteka]).
+        val nasiTorrenti = tokovi.filter { it.vrsta == "torrent" }
+        fun datotekaWebtor(w: Stremio.Tok): WebtorPravila.Datoteka {
+            val k = kljucWebtor(w) ?: return WebtorPravila.Datoteka.NEGOTOVA
+            val istiHash = nasiTorrenti.filter { TorBoxPravila.hashIzMagneta(it.url)?.lowercase() == k.hash }
+            val nas = istiHash.firstOrNull { it.datoteka == k.idx } ?: istiHash.firstOrNull()
+            return WebtorPravila.datoteka(k.idx, w.imeDatoteke, nas?.datoteka, nas?.imeDatoteke.orEmpty())
+        }
         val parWebtor = webtorPoKakovosti.map { kljucWebtor(it) to WebtorPravila.vrstaIz(it.oznakaVira) }
-        val webtor = WebtorPravila.vrstniRed(torrentiPoKakovosti.map { kljucTorrenta(it) }, parWebtor, imamoTorBox).map { webtorPoKakovosti[it] }
-        webtorZa = { t -> WebtorPravila.zaIzdajo(kljucTorrenta(t), parWebtor, imamoTorBox).takeIf { it >= 0 }?.let { webtorPoKakovosti[it] } }
-        if (webtor.isNotEmpty()) android.util.Log.i("SafeerOsMedia", "tokovi: Webtor ${webtor.size}, ista izdaja kot nas torrent: " +
-            "${webtor.count { w -> kljucWebtor(w) != null && torrentiPoKakovosti.any { kljucTorrenta(it) == kljucWebtor(w) } }}")
-        // [⚡WT] (Webtor ga ima pripravljenega) sodi med »takoj predvajljivo« (lastnik: najhitrejsi zacetek najprej).
-        val webtorTakoj = WebtorPravila.vrstniRed(torrentiPoKakovosti.map { kljucTorrenta(it) }, parWebtor, imamoTorBox, samoTakoj = true)
+        val datotekeWebtor = webtorPoKakovosti.map { datotekaWebtor(it) }
+        fun datotekaOd(w: Stremio.Tok) = datotekeWebtor.getOrNull(webtorPoKakovosti.indexOf(w)) ?: datotekaWebtor(w)
+        datotekaWebtorZa = { w -> datotekaOd(w) }
+        val webtor = WebtorPravila.vrstniRed(torrentiPoKakovosti.map { kljucTorrenta(it) }, parWebtor, imamoTorBox, datoteke = datotekeWebtor)
             .map { webtorPoKakovosti[it] }
-        fun odpriWebtor(w: Stremio.Tok, naprej: () -> Unit) {
-            val k = kljucWebtor(w)
-            val nas = if (k == null) null else torrentiPoKakovosti.firstOrNull { kljucTorrenta(it) == k }
-            val zacel = sondaWebtor(w, {
+        webtorZa = { t -> WebtorPravila.zaIzdajo(kljucTorrenta(t), parWebtor, imamoTorBox, datotekeWebtor).takeIf { it >= 0 }?.let { webtorPoKakovosti[it] } }
+        if (webtorPoKakovosti.isNotEmpty()) android.util.Log.i("SafeerOsMedia", "tokovi: Webtor ${webtor.size} od ${webtorPoKakovosti.size}, ista izdaja kot nas torrent: " +
+            "${webtor.count { w -> kljucWebtor(w) != null && torrentiPoKakovosti.any { kljucTorrenta(it) == kljucWebtor(w) } }}, datoteke: " +
+            WebtorPravila.Datoteka.values().joinToString(" ") { d -> "$d=${datotekeWebtor.count { it == d }}" })
+        // [⚡WT] (Webtor ga ima pripravljenega) sodi med »takoj predvajljivo« (lastnik: najhitrejsi zacetek najprej).
+        val webtorTakoj = WebtorPravila.vrstniRed(torrentiPoKakovosti.map { kljucTorrenta(it) }, parWebtor, imamoTorBox, samoTakoj = true,
+            datoteke = datotekeWebtor).map { webtorPoKakovosti[it] }
+        // Diagnostika na zahtevo razvijalca (`setprop log.tag.SafeerWebtorMeri DEBUG`): meritev prvih kandidatov vzporedno, brez
+        // predvajanja - cas do prvega bajta pri prenosu in vsebina, ki jo /resolve res vrne (tudi za NEGOTOVA, ki jih ne izberemo).
+        if (Webtor.meritev(this) && webtorPoKakovosti.isNotEmpty()) {
+            val kandidati = (webtor + webtorPoKakovosti.filter { it !in webtor }).take(16)
+            Webtor.meri(this, kandidati.map { w ->
+                val k = kljucWebtor(w)
+                Triple("${w.oznakaVira} ${datotekaOd(w)} h=${k?.hash?.take(10)} idx=${k?.idx} ${TokIzbira.opisi(opis(w)).let { "${it.visina}p ${"%.2f".format(java.util.Locale.ROOT, it.gb)} GB" }} " +
+                    "sejalcev=${TokIzbira.sejalci(opis(w))} ime=${w.imeDatoteke.substringAfterLast('.', "-").take(5)}", w.url, TokIzbira.opisi(opis(w)).gb)
+            })
+        }
+        fun odpriWebtor(kandidati: List<Stremio.Tok>, naprej: () -> Unit) {
+            val zacel = sondaWebtor(kandidati, { w ->
+                val k = kljucWebtor(w)
+                val nas = if (k == null) null else torrentiPoKakovosti.firstOrNull { kljucTorrenta(it) == k }
                 odpri(w)
-                if (k != null) webtorVTorBox(nas?.url ?: WebtorPravila.magnet(k.hash, w.sledilniki), k.hash in predpomnjeni)
+                if (k != null && !samoWebtor) webtorVTorBox(nas?.url ?: WebtorPravila.magnet(k.hash, w.sledilniki), k.hash in predpomnjeni)
             }, naprej)
             if (!zacel) naprej()
         }
@@ -8953,7 +9016,7 @@ class GlasbaActivity : OsActivity() {
             // najvec 6 s); (2) takoj: ⚡ torrent, ziva neposredna povezava, [⚡WT]; (3) Usenet s cakanjem na prenos;
             // (4) Webtor [WT]; (5) TorBox s cakanjem in ostalo ([samodejnoBrezUseneta]). Nikoli okno »izberi vir«.
             val poskusi = UsenetPravila.zaSamodejno(usenet.map { TokIzbira.opisi(opis(it)).gb }).map { usenet[it] }
-            pripravljeno.usenet?.let { (t, cdn) ->
+            pripravljeno.usenet?.takeIf { !samoWebtor }?.let { (t, cdn) ->
                 android.util.Log.i("SafeerOsMedia", "tokovi: Usenet pripravljen pri TorBoxu; izbran=${TokIzbira.opisi(opis(t))}")
                 Toast.makeText(this, getString(R.string.os_debrid_predvaja_prek, DebridPravila.ime(DebridPravila.TORBOX)), Toast.LENGTH_SHORT).show()
                 odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap()))
@@ -8976,13 +9039,30 @@ class GlasbaActivity : OsActivity() {
                 android.util.Log.i("SafeerOsMedia", "tokovi: takoj nic (pripravljenih pri debridu 0 od ${torrentiPoKakovosti.size}, neposrednih 0)")
                 return false
             }
-            fun naKonec() { if (!samodejnoBrezUseneta()) Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslov), Toast.LENGTH_SHORT).show() }
-            // Webtor: [samoTakoj] = korak 2 ([⚡WT]), sicer korak 4 ([WT]); skupaj najvec 2 sondi in 15 s ([webtorRok]).
+            fun naKonec() {
+                // Diagnostika samo Webtor (pregled 26, T3): brez TorBoxa s cakanjem in brez torrenta na napravi.
+                if (samoWebtor) { android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Webtor - Webtor ni predvajal"); return }
+                if (samoUsenet) {
+                    // Pregled Grok 31, H2: viden konec (prej samo dnevnik) in v dnevniku, koliko izdaj je bilo poskusenih - meritev
+                    // ne sme pokazati »Usenet ne dela«, ce izdaje do meje samodejne izbire sploh ni bilo.
+                    android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Usenet - Usenet ni predvajal (pripravljen pri TorBoxu: ne, " +
+                        "s cakanjem poskusenih ${poskusi.size} od ${usenet.size}" +
+                        (if (poskusi.isEmpty()) " - nobena izdaja do ${UsenetPravila.NAJVEC_GB_SAMODEJNO.toInt()} GB" else "") + ")")
+                    Toast.makeText(this, R.string.os_usenet_diagnostika_konec, Toast.LENGTH_LONG).show()
+                    obNeuspehu?.invoke()
+                    return
+                }
+                if (!samodejnoBrezUseneta()) Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslov), Toast.LENGTH_SHORT).show()
+            }
+            // Webtor: [samoTakoj] = korak 2 ([⚡WT]), sicer korak 4 ([WT]); skupaj najvec 2 kroga sond in 15 s ([webtorRok]).
             fun poskusiWebtor(samoTakoj: Boolean, potem: () -> Unit) {
-                val w = (if (samoTakoj) webtorTakoj else webtor).firstOrNull { it.url !in poskuseniWebtor }
-                if (w == null || webtorRok() <= 0L) { potem(); return }
-                android.util.Log.i("SafeerOsMedia", "tokovi: Webtor${if (samoTakoj) " takoj" else ""}; izbran=${TokIzbira.opisi(opis(w))}, vrsta=${w.oznakaVira}")
-                odpriWebtor(w) {
+                // Izmerjeno 25. 10. 2026: vsak cetrti kandidat je vrnil napacno datoteko - krog preveri VZPOREDNO hkrati.
+                val kandidati = (if (samoTakoj) webtorTakoj else webtor).filter { it.url !in poskuseniWebtor }.take(WebtorPravila.VZPOREDNO)
+                if (kandidati.isEmpty() || webtorRok() <= 0L) { potem(); return }
+                for ((i, w) in kandidati.withIndex())
+                    android.util.Log.i("SafeerOsMedia", "tokovi: Webtor${if (samoTakoj) " takoj" else ""} ${i + 1}/${kandidati.size}; izbran=${TokIzbira.opisi(opis(w))}, " +
+                        "vrsta=${w.oznakaVira}, datoteka=${datotekaOd(w)}, h=${w.hash.take(10)}, idx=${w.datoteka}, sejalcev=${TokIzbira.sejalci(opis(w))}")
+                odpriWebtor(kandidati) {
                     Toast.makeText(this, R.string.os_webtor_rezerva, Toast.LENGTH_SHORT).show()
                     poskusiWebtor(samoTakoj, potem)
                 }
@@ -9003,6 +9083,7 @@ class GlasbaActivity : OsActivity() {
                 poskusiWebtor(true) { if (poskusi.isNotEmpty()) poskusiUsenetSCakanjem(0) else poskusiWebtor(false) { naKonec() } }
                 return
             }
+            if (samoWebtor || samoUsenet) { naKonec(); return }
             if (samodejnoBrezUseneta()) return
         }
         // Rocna izbira: najboljsi na vrhu, napovednik na koncu.
@@ -9026,7 +9107,7 @@ class GlasbaActivity : OsActivity() {
             // Webtor rezerva: rocno izbran tok Webtor - sonda in TorBox v ozadju; ce ne stece, ista izdaja kot torrent.
             if (t.vir == WebtorPravila.VIR) {
                 val nas = kljucWebtor(t)?.let { kw -> torrentiPoKakovosti.firstOrNull { kljucTorrenta(it) == kw } }
-                odpriWebtor(t) {
+                odpriWebtor(listOf(t)) {
                     Toast.makeText(this, R.string.os_webtor_rezerva, Toast.LENGTH_SHORT).show()
                     if (nas != null) odpri(nas)
                 }
@@ -9038,31 +9119,50 @@ class GlasbaActivity : OsActivity() {
     }
 
     /**
-     * Webtor rezerva (25. 10. 2026, [WebtorPravila]): pred predvajanjem toka Webtor sonda ([Webtor.sonda], z delovne niti):
-     * 402/404/429 ali prvi bajt po vec kot 15 s -> [naprej] (naslednji vir), sicer [predvajaj] (nas predvajalnik dobi naslov
-     * `/resolve/` - nadomestek brez zetona - in preusmeritvi sledi sam). Preklic kot pri debridu ([rodDebrida]).
+     * Webtor rezerva (25. 10. 2026, [WebtorPravila]): pred predvajanjem krog sond ([Webtor.krog], do
+     * [WebtorPravila.VZPOREDNO] kandidatov hkrati, z delovne niti): 402/404/429, prvi bajt po vec kot 15 s ali vsebina, ki ni
+     * glavni video ([WebtorPravila.pregled]: naslovnica, BMP, besedilo, vzorec, kodek brez dekoderja) -> naslednji kandidat;
+     * noben -> [naprej] (naslednji vir), sicer [predvajaj] z izbranim (predvajalnik dobi nadomestek `/resolve/`, vir podatkov
+     * pa koncni naslov, ki ga je sonda preverila - [Webtor.zaPredvajalnik]). Preklic kot pri debridu ([rodDebrida]).
      */
-    private fun predvajajWebtor(w: Stremio.Tok, rokMs: Long, predvajaj: () -> Unit, naprej: () -> Unit) {
+    private fun predvajajWebtor(kandidati: List<Stremio.Tok>, rokMs: Long, opisi: List<String>, predvajaj: (Stremio.Tok) -> Unit, naprej: () -> Unit,
+                                /** Krog ni stel kot poskus ([WebtorPravila.stejeKotPoskus]: vse sonde hitro zavrnjene po vsebini). */
+                                neStejeKotPoskus: () -> Unit = {}) {
         if (isFinishing || isDestroyed || debridDelavec.isShutdown) return
         prekiniDebrid()
         val rod = rodDebrida.get()
         fun velja() = rodDebrida.get() == rod && !isFinishing && !isDestroyed
         if (vOspredju) Toast.makeText(this, R.string.os_webtor_pripravljam, Toast.LENGTH_SHORT).show()
         val delo = try { debridDelavec.submit(Runnable {
-            val s = try { Webtor.sonda(applicationContext, w.url, rokMs) } catch (e: Exception) { Webtor.Sonda(0, null, false, "") }
+            // Izmerjeno 25. 10. 2026: 206 ni dovolj (naslovnica, BMP, besedilo, vzorec, AVI brez podprtega videa) - krog sond
+            // pregleda prve bajte vseh kandidatov hkrati ([Webtor.krog]).
+            val zacetekKroga = android.os.SystemClock.elapsedRealtime()
+            val krog = try { Webtor.krog(applicationContext, kandidati.map { it.url to TokIzbira.opisi(it.ime + " " + it.opis).gb }, rokMs) }
+                catch (e: Exception) { Webtor.Krog(-1, kandidati.map { null }, kandidati.map { null }, kandidati.map { null }) }
+            val trajanjeKroga = android.os.SystemClock.elapsedRealtime() - zacetekKroga
+            val steje = krog.izidi.any { it == null || WebtorPravila.stejeKotPoskus(it, trajanjeKroga) }
+            for (i in kandidati.indices) android.util.Log.i("SafeerOsMedia", "tokovi: Webtor sonda ${i + 1}/${kandidati.size} " +
+                (krog.sonde[i]?.let { Webtor.opis(it, krog.pregledi[i]) } ?: "brez odgovora") + ", ${opisi.getOrElse(i) { "" }} -> ${krog.izidi[i] ?: "-"}")
             if (Thread.currentThread().isInterrupted || rodDebrida.get() != rod) return@Runnable
-            val izid = WebtorPravila.odlocitev(s.koda, s.prviBajtMs, s.potekel)
-            android.util.Log.i("SafeerOsMedia", "tokovi: Webtor sonda koda=${s.koda}, prvi bajt=${s.prviBajtMs ?: "-"} ms, " +
-                "rok=${s.potekel}, gostitelj=${s.gostitelj.ifBlank { "-" }} -> $izid")
+            val w = kandidati.getOrNull(krog.izbran)
+            android.util.Log.i("SafeerOsMedia", "tokovi: Webtor krog -> ${if (w != null) "PREDVAJAJ ${krog.izbran + 1}" else "naslednji vir"}")
+            // Predvajalnik dobi koncni naslov, ki ga je ta sonda preverila ([Webtor.zaPredvajalnik], pregled U4).
+            if (w != null) krog.sonde[krog.izbran]?.let { Webtor.zapomni(w.url, it) }
             runOnUiThread {
                 if (!velja()) return@runOnUiThread
                 debridDelo = null
                 zasloniOstane(false)
                 izvediIzidDebrida(rod) {
-                    if (izid == WebtorPravila.Izid.PREDVAJAJ) {
+                    if (w != null) {
                         Toast.makeText(this, getString(R.string.os_debrid_predvaja_prek, WebtorPravila.IME), Toast.LENGTH_SHORT).show()
-                        predvajaj()
-                    } else naprej()
+                        predvajaj(w)
+                    } else {
+                        if (!steje) {
+                            android.util.Log.i("SafeerOsMedia", "tokovi: Webtor krog hitro zavrnjen po vsebini ($trajanjeKroga ms) - ni poskus")
+                            neStejeKotPoskus()
+                        }
+                        naprej()
+                    }
                 }
             }
         }) } catch (_: java.util.concurrent.RejectedExecutionException) { return }
@@ -9153,7 +9253,7 @@ class GlasbaActivity : OsActivity() {
                     .setNegativeButton(R.string.os_preklici, null)
                 if (brez != null) g.setPositiveButton(R.string.os_debrid_brez) { _, _ -> brez() }
                 when (izid.napaka) {
-                    TorBoxPravila.NAPAKA_KLJUC, UsenetPravila.NAPAKA_INDEKSATOR -> g.setNeutralButton(R.string.os_torbox_popravi) { _, _ -> nastavitveDebrida() }
+                    TorBoxPravila.NAPAKA_KLJUC, TorBoxPravila.NAPAKA_ZAKLENJEN, UsenetPravila.NAPAKA_INDEKSATOR -> g.setNeutralButton(R.string.os_torbox_popravi) { _, _ -> nastavitveDebrida() }
                     DebridPravila.NAPAKA_NI_PREDPOMNJENO -> g.setNeutralButton(R.string.os_debrid_pocakaj) { _, _ ->
                         prekDebrida(magnet, datoteka, naprej, brez, samoTakoj = false, usenetIme = usenetIme) }
                 }
@@ -9253,15 +9353,17 @@ class GlasbaActivity : OsActivity() {
      */
     private fun kljucNeberljiv(p: String, brez: () -> Unit) {
         val ime = DebridPravila.ime(p)
+        // Varovalo racunov: berljiv kljuc, ki ne velja ali je racun zaklenjen - okno pove, kaj narediti, »Popravi« odpre »Preveri«.
+        val ustavljen = Debrid.imaKljuc(this, p)
         // Pregled 10: tudi »Odstrani kljuc« - sicer bi se okno pokazalo ob vsakem torrentu. Preklic je tipka Nazaj; privzet
         // (fokus) je varen gumb »Popravi kljuc«, ne »brez zasebnosti«.
         val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(getString(R.string.os_torbox_napaka_naslov, ime))
-            .setMessage(getString(R.string.os_debrid_kljuc_neberljiv, ime))
-            .setNegativeButton(R.string.os_torbox_popravi) { _, _ -> kljucDebrida(p) }
+            .setMessage(if (ustavljen) navodiloRacuna(p, Debrid.stanjeKljuca(this, p)?.first) else getString(R.string.os_debrid_kljuc_neberljiv, ime))
+            .setNegativeButton(R.string.os_torbox_popravi) { _, _ -> if (ustavljen) stanjeKljucaOkno(p) else kljucDebrida(p) }
             .setNeutralButton(R.string.os_torbox_odstrani) { _, _ ->
-                Debrid.pozabiKljuc(this, p)
-                Toast.makeText(this, getString(R.string.os_debrid_odstranjeno, ime), Toast.LENGTH_SHORT).show()
+                // Pregled Grok 33, F1: neberljiv kljuc se odstrani samo tu (druge naprave obdrzijo svoj veljaven).
+                odstranjenoSporocilo(ime, Debrid.odstraniKljuc(this, p))
                 osveziNaMestu()
             }
             .setPositiveButton(R.string.os_debrid_brez) { _, _ -> brez() }
@@ -9288,10 +9390,45 @@ class GlasbaActivity : OsActivity() {
             val ime = DebridPravila.ime(p)
             // Naloga 130: zadnja meritev hitrosti do te naprave (ko jih je vec, predvaja najhitrejsa).
             val meritev = Debrid.zadnjaMeritev(this, p)?.let { " · " + DebridPravila.opisMeritve(it) }.orEmpty()
-            vrstice += getString(if (Debrid.imaKljuc(this, p)) R.string.os_debrid_vrstica_vpisan else R.string.os_debrid_vrstica_brez, ime) + meritev to { kljucDebrida(p) }
+            // Lastnik 25. 10. 2026: vrstica pove, ali kljuc VELJA (storitev ga je potrdila), ne samo, da je vpisan.
+            val stanje = Debrid.stanjeKljuca(this, p)
+            val vrstica = when {
+                !Debrid.imaKljuc(this, p) -> getString(R.string.os_debrid_vrstica_brez, ime)
+                stanje?.first == DebridPravila.StanjeKljuca.VELJA ->
+                    getString(R.string.os_debrid_vrstica_velja, ime, stanje.second?.let { " (" + DebridPravila.imePaketa(it) + ")" }.orEmpty())
+                stanje?.first == DebridPravila.StanjeKljuca.NE_VELJA -> getString(R.string.os_debrid_vrstica_ne_velja, ime)
+                // Varovalo racunov (lastnik 26. 10. 2026): vrstica pove, kaj narediti.
+                stanje?.first == DebridPravila.StanjeKljuca.ZAKLENJEN -> when (p) {
+                    DebridPravila.REAL_DEBRID -> getString(R.string.os_debrid_vrstica_zaklenjen_rd)
+                    DebridPravila.ALLDEBRID -> getString(R.string.os_debrid_vrstica_zaklenjen_ad)
+                    else -> getString(R.string.os_debrid_vrstica_zaklenjen, ime)
+                }
+                else -> getString(R.string.os_debrid_vrstica_nepreverjen, ime)
+            }
+            // Pregled Grok 33, F3: nov kljuc, vpisan brez povezave, caka ob strani (ali ga je storitev zavrnila).
+            val caka = when {
+                Debrid.cakajoc(this, p) -> " · " + getString(R.string.os_debrid_vrstica_caka)
+                Debrid.cakajocZavrnjen(this, p) -> " · " + getString(R.string.os_debrid_vrstica_caka_zavrnjen)
+                else -> ""
+            }
+            // Varovalo racunov: kljuc, ki ne velja, ali zaklenjen racun - okno z navodilom in »Preveri« (edina nova preverba).
+            val ustavljen = Debrid.imaKljuc(this, p) && !DebridPravila.smeKlicati(stanje?.first)
+            vrstice += vrstica + caka + meritev to { if (ustavljen) stanjeKljucaOkno(p) else kljucDebrida(p) }
         }
         // Naloga 141: Usenet indeksator (Newznab) - NZB najde indeksator, prenese in pretaka TorBox (Pro).
-        vrstice += (Usenet.gostitelj(this)?.let { getString(R.string.os_usenet_vrstica_vpisan, it) } ?: getString(R.string.os_usenet_vrstica_brez)) to { usenetIndeksator() }
+        // Lastnik 25. 10. 2026: kot pri kljucih debrid vrstica pove, ali je kljuc indeksatorja potrjen.
+        val gostIx = Usenet.gostitelj(this)
+        val stanjeIx = if (gostIx != null) Usenet.stanje(this) else null
+        val vrsticaIx = when {
+            gostIx == null -> getString(R.string.os_usenet_vrstica_brez)
+            stanjeIx == DebridPravila.StanjeKljuca.VELJA -> getString(R.string.os_usenet_vrstica_vpisan, gostIx)
+            stanjeIx == DebridPravila.StanjeKljuca.NE_VELJA -> getString(R.string.os_debrid_vrstica_ne_velja, getString(R.string.os_usenet_ime_kratko, gostIx))
+            stanjeIx == DebridPravila.StanjeKljuca.ZAKLENJEN -> getString(R.string.os_debrid_vrstica_zaklenjen, getString(R.string.os_usenet_ime_kratko, gostIx))
+            else -> getString(R.string.os_debrid_vrstica_nepreverjen, getString(R.string.os_usenet_ime_kratko, gostIx))
+        }
+        // Pregled Grok 41, Z2: indeksator »ne velja« ali »zaklenjen« - okno z navodilom in »Preveri« (kot kljuc debrid).
+        val ustavljenIx = gostIx != null && !DebridPravila.smeKlicati(stanjeIx)
+        vrstice += vrsticaIx to { if (ustavljenIx && gostIx != null) stanjeIndeksatorjaOkno(gostIx) else usenetIndeksator() }
         val takoj = Debrid.samoTakoj(this)
         vrstice += getString(if (takoj) R.string.os_debrid_samo_takoj_vkl else R.string.os_debrid_samo_takoj_izk) to {
             Debrid.nastaviSamoTakoj(this, !takoj); osveziNaMestu(); nastavitveDebrida()
@@ -9329,6 +9466,18 @@ class GlasbaActivity : OsActivity() {
             .setItems(vrstice.map { it.first }.toTypedArray()) { _, i -> vrstice[i].second() }
             .setNegativeButton(R.string.os_preklici, null).create()
         Kontroler.pokazi(okno); okno.show()
+        // Lastnik 25. 10. 2026: kljuci brez stanja (pred posodobitvijo) ali nepreverjeni se preverijo v ozadju; ce se stanje
+        // spremeni in je okno se odprto, se pokaze znova z novim stanjem.
+        if (DebridPravila.VSI.any { (Debrid.imaKljuc(this, it) && Debrid.stanjeKljuca(this, it)?.first != DebridPravila.StanjeKljuca.VELJA) || Debrid.cakajoc(this, it) } ||
+            (gostIx != null && stanjeIx != DebridPravila.StanjeKljuca.VELJA)) {
+            val app = applicationContext
+            Thread({
+                val spremenjeno = try { Debrid.preveriNepreverjene(app) } catch (_: Exception) { false }
+                if (spremenjeno) glavna.post {
+                    if (!isFinishing && !isDestroyed && okno.isShowing) { okno.dismiss(); nastavitveDebrida() }
+                }
+            }, "safeer-debrid-stanje").start()
+        }
     }
 
     /**
@@ -9473,9 +9622,25 @@ class GlasbaActivity : OsActivity() {
             .setTitle(R.string.os_debrid)
             .setMessage(getString(R.string.os_debrid_prejeto_vprasanje, DatotekeActivity.lepoIme(p.od), katere))
             .setPositiveButton(R.string.os_torbox_shrani) { _, _ ->
-                val shranjeni = Debrid.shraniPrejete(this, p)
-                Toast.makeText(this, getString(R.string.os_debrid_prejeto_shranjeno, shranjeni.joinToString(", ") { ime(it) }), Toast.LENGTH_LONG).show()
-                osveziNaMestu()
+                // Lastnik 25. 10. 2026: prejeti kljuci se preverijo pri storitvi (omrezje - delovna nit); zavrnjen se ne shrani.
+                val app = applicationContext
+                Thread({
+                    // Pregled Grok 33, F9: telo niti v try (izjema bi sesula aplikacijo); okno loci zavrnjen od nepreverjenega.
+                    val izid = try { Debrid.shraniPrejete(app, p) } catch (e: Exception) {
+                        android.util.Log.w("SafeerDebrid", "prejeti kljuci: ${e.javaClass.simpleName}"); null
+                    }
+                    glavna.post {
+                        if (isFinishing || isDestroyed) return@post
+                        if (izid == null) { Toast.makeText(this, R.string.os_debrid_napaka_shranjevanja, Toast.LENGTH_LONG).show(); return@post }
+                        if (izid.shranjeni.isNotEmpty())
+                            Toast.makeText(this, getString(R.string.os_debrid_prejeto_shranjeno, izid.shranjeni.joinToString(", ") { ime(it) }), Toast.LENGTH_LONG).show()
+                        if (izid.zavrnjeni.isNotEmpty())
+                            Toast.makeText(this, getString(R.string.os_debrid_kljuc_zavrnjen, izid.zavrnjeni.joinToString(", ") { ime(it) }), Toast.LENGTH_LONG).show()
+                        if (izid.nepreverjeni.isNotEmpty())
+                            Toast.makeText(this, getString(R.string.os_debrid_prejeto_ni_preverjeno, izid.nepreverjeni.joinToString(", ") { ime(it) }), Toast.LENGTH_LONG).show()
+                        osveziNaMestu()
+                    }
+                }, "safeer-debrid-prejeti").start()
             }
             .setNegativeButton(R.string.os_debrid_zavrni, null).create()
         // Privzeto Shrani: uporabnik je kljuce ravnokar poslal sam s svojega telefona.
@@ -9504,15 +9669,48 @@ class GlasbaActivity : OsActivity() {
             .setTitle(R.string.os_usenet_naslov)
             .setMessage(R.string.os_usenet_pojasnilo).setView(okvir)
             .setPositiveButton(R.string.os_torbox_shrani) { _, _ ->
-                if (Usenet.nastavi(this, naslov.text.toString(), kljuc.text.toString())) {
-                    Toast.makeText(this, R.string.os_usenet_shranjeno, Toast.LENGTH_SHORT).show(); osveziNaMestu()
-                } else Toast.makeText(this, R.string.os_usenet_neveljavno, Toast.LENGTH_LONG).show()
-                nastavitveDebrida()
+                // Lastnik 25. 10. 2026 (kot kljuci debrid): kljuc preveri indeksator, preden se shrani - zavrnjen se ne shrani.
+                val n = naslov.text.toString()
+                val k = kljuc.text.toString()
+                val ime = UsenetPravila.osnova(n)?.let { o -> try { java.net.URI(o).host } catch (_: Exception) { null } } ?: "Usenet"
+                Toast.makeText(this, getString(R.string.os_debrid_preverjam, ime), Toast.LENGTH_SHORT).show()
+                val app = applicationContext
+                Thread({
+                    // Pregled Grok 33, F9 / 34, E8: telo niti v try (izjema bi sesula aplikacijo).
+                    val iv = try { Usenet.vpisi(app, n, k) } catch (e: Exception) {
+                        android.util.Log.w("SafeerUsenet", "vpis: ${e.javaClass.simpleName}"); null
+                    }
+                    glavna.post {
+                        if (isFinishing || isDestroyed) return@post
+                        // Pregled Grok 41, Z9: izjema ni »napaka shranjevanja«; neuspela shramba ni »neveljaven vnos«.
+                        if (iv == null) { Toast.makeText(this, getString(R.string.os_debrid_napaka_notranja, ime), Toast.LENGTH_LONG).show(); osveziNaMestu(); nastavitveDebrida(); return@post }
+                        val izid = iv.preverba
+                        val sporocilo = if (iv.napakaShrambe) getString(R.string.os_debrid_napaka_shranjevanja)
+                            else if (iv.pocakaj) getString(R.string.os_debrid_preveri_pocakaj)
+                            else if (iv.ostalo) brezOdgovora(izid, ime) else when (izid) {
+                            DebridPravila.Preverba.VELJA -> getString(R.string.os_debrid_kljuc_velja, ime, "")
+                            DebridPravila.Preverba.NE_VELJA -> getString(R.string.os_debrid_kljuc_zavrnjen, ime)
+                            // Varovalo racunov: Newznab 101 - racun suspendiran, indeksatorja ne klicemo.
+                            DebridPravila.Preverba.ZAKLENJEN -> getString(R.string.os_debrid_zaklenjen, ime)
+                            // Pregled Grok 31, H1: kljuc v polju za naslov ali naslov brez imena - jasno, kaj popraviti (nic ni shranjeno).
+                            DebridPravila.Preverba.OBLIKA -> getString(when (UsenetPravila.napakaVnosa(n, k)) {
+                                UsenetPravila.NapakaVnosa.NASLOV_JE_KLJUC -> R.string.os_usenet_naslov_je_kljuc
+                                UsenetPravila.NapakaVnosa.NASLOV -> R.string.os_usenet_naslov_napacen
+                                else -> R.string.os_usenet_neveljavno
+                            })
+                            else -> getString(R.string.os_debrid_kljuc_nepreverjen, ime)
+                        }
+                        Toast.makeText(this, sporocilo, Toast.LENGTH_LONG).show()
+                        osveziNaMestu(); nastavitveDebrida()
+                    }
+                }, "safeer-usenet-preverba").start()
             }
             .setNegativeButton(R.string.os_preklici) { _, _ -> nastavitveDebrida() }
         if (Usenet.imaIndeksator(this)) g.setNeutralButton(R.string.os_torbox_odstrani) { _, _ ->
-            Usenet.pozabi(this)
-            Toast.makeText(this, R.string.os_usenet_odstranjeno, Toast.LENGTH_SHORT).show(); osveziNaMestu(); nastavitveDebrida()
+            // Pregled Grok 33, F1: nepreverjen ali zavrnjen indeksator se odstrani samo tu.
+            if (Usenet.odstrani(this)) Toast.makeText(this, R.string.os_usenet_odstranjeno, Toast.LENGTH_SHORT).show()
+            else odstranjenoSporocilo("Usenet", false)
+            osveziNaMestu(); nastavitveDebrida()
         }
         val okno = g.create()
         Kontroler.pokazi(okno); okno.show()
@@ -9531,18 +9729,152 @@ class GlasbaActivity : OsActivity() {
             .setTitle(getString(R.string.os_debrid_kljuc_naslov, ime))
             .setMessage(getString(R.string.os_debrid_kljuc_pojasnilo, DebridPravila.kjeKljuc(p))).setView(okvir)
             .setPositiveButton(R.string.os_torbox_shrani) { _, _ ->
-                if (Debrid.nastaviKljuc(this, p, polje.text.toString())) {
-                    Toast.makeText(this, getString(R.string.os_debrid_shranjeno, ime), Toast.LENGTH_SHORT).show(); osveziNaMestu()
-                } else Toast.makeText(this, R.string.os_torbox_neveljaven, Toast.LENGTH_LONG).show()
-                nastavitveDebrida()
+                // Lastnik 25. 10. 2026: kljuc preveri storitev, preden se shrani - zavrnjen se ne shrani in ne gre na druge naprave.
+                val vnos = polje.text.toString()
+                Toast.makeText(this, getString(R.string.os_debrid_preverjam, ime), Toast.LENGTH_SHORT).show()
+                val app = applicationContext
+                Thread({
+                    // Pregled Grok 33, F9: telo niti v try (izjema bi sesula aplikacijo).
+                    val iv = try { Debrid.vpisiKljuc(app, p, vnos) } catch (e: Exception) {
+                        android.util.Log.w("SafeerDebrid", "vpis: ${e.javaClass.simpleName}"); Debrid.IzidVpisa(DebridPravila.Preverba.NI_ODGOVORA, null, notranja = true)
+                    }
+                    val izid = iv.preverba
+                    val paket = iv.paket
+                    glavna.post {
+                        if (isFinishing || isDestroyed) return@post
+                        // Pregled Grok 33, F9: medtem vpisan drug kljuc te storitve - njegov izid pove okno sam.
+                        if (iv.zastarel) return@post
+                        // Pregled Grok 33, F3: brez povezave novi kljuc caka ob strani, veljaven ostane v uporabi.
+                        // Pregled Grok 41, Z9: izjema pri vpisu ni »napaka shranjevanja«.
+                        val sporocilo = if (iv.notranja) getString(R.string.os_debrid_napaka_notranja, ime)
+                            else if (iv.napakaShrambe) getString(R.string.os_debrid_napaka_shranjevanja)
+                            else if (iv.pocakaj) getString(R.string.os_debrid_preveri_pocakaj)
+                            else if (iv.ostalo) brezOdgovora(izid, ime)
+                            else if (iv.caka) getString(R.string.os_debrid_kljuc_caka, ime) else when (izid) {
+                            DebridPravila.Preverba.VELJA ->
+                                getString(R.string.os_debrid_kljuc_velja, ime, paket?.let { " (" + DebridPravila.imePaketa(it) + ")" }.orEmpty())
+                            DebridPravila.Preverba.NE_VELJA -> getString(R.string.os_debrid_kljuc_zavrnjen, ime)
+                            DebridPravila.Preverba.ZAKLENJEN -> navodiloRacuna(p, DebridPravila.StanjeKljuca.ZAKLENJEN)
+                            DebridPravila.Preverba.OBLIKA -> getString(R.string.os_torbox_neveljaven)
+                            // Pregled Grok 33, F9: 429 ni »ni povezave«.
+                            DebridPravila.Preverba.MEJA -> getString(R.string.os_debrid_kljuc_meja, ime)
+                            else -> getString(R.string.os_debrid_kljuc_nepreverjen, ime)
+                        }
+                        Toast.makeText(this, sporocilo, Toast.LENGTH_LONG).show()
+                        osveziNaMestu(); nastavitveDebrida()
+                    }
+                }, "safeer-debrid-preverba").start()
             }
             .setNegativeButton(R.string.os_preklici) { _, _ -> nastavitveDebrida() }
         if (Debrid.kljucShranjen(this, p)) g.setNeutralButton(R.string.os_torbox_odstrani) { _, _ ->
-            Debrid.pozabiKljuc(this, p)
-            Toast.makeText(this, getString(R.string.os_debrid_odstranjeno, ime), Toast.LENGTH_SHORT).show(); osveziNaMestu(); nastavitveDebrida()
+            // Pregled Grok 33, F1: izbris gre v ozji krog samo, ce je kljuc tu veljal.
+            odstranjenoSporocilo(ime, Debrid.odstraniKljuc(this, p))
+            osveziNaMestu(); nastavitveDebrida()
         }
         val okno = g.create()
         Kontroler.pokazi(okno); okno.show()
+    }
+
+    /**
+     * Pregled Grok 41, Z2: storitev ni odgovorila (izpad ali meja) na »Preveri« ali ponoven vpis istega kljuca - stanje
+     * »ne velja« ali »zaklenjen« ostane in okno to pove (prej »kljuc shranjen kot nepreverjen«).
+     */
+    private fun brezOdgovora(izid: DebridPravila.Preverba, ime: String): String =
+        if (izid == DebridPravila.Preverba.MEJA) getString(R.string.os_debrid_preveri_meja, ime)
+        else getString(R.string.os_debrid_preveri_ni_povezave, ime)
+
+    /**
+     * Pregled Grok 41, Z2: indeksator »ne velja« ali »zaklenjen« - Safeer ga ne klice. Kot [stanjeKljucaOkno]: navodilo,
+     * »Preveri« (edina nova preverba, najvec enkrat na minuto) in »Vpisi nov kljuc« (okno z naslovom, kljucem in »Odstrani«).
+     */
+    private fun stanjeIndeksatorjaOkno(gost: String) {
+        val ime = getString(R.string.os_usenet_ime_kratko, gost)
+        val zaklenjen = Usenet.stanje(this) == DebridPravila.StanjeKljuca.ZAKLENJEN
+        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(R.string.os_usenet_naslov)
+            .setMessage(getString(if (zaklenjen) R.string.os_debrid_zaklenjen else R.string.os_debrid_ne_velja_navodilo, ime))
+            .setPositiveButton(R.string.os_debrid_preveri) { _, _ -> preveriIndeksatorRocno(ime) }
+            .setNeutralButton(R.string.os_debrid_vpisi_nov) { _, _ -> usenetIndeksator() }
+            .setNegativeButton(R.string.os_preklici) { _, _ -> nastavitveDebrida() }
+            .create()
+        Kontroler.pokazi(okno); okno.show()
+    }
+
+    private fun preveriIndeksatorRocno(ime: String) {
+        Toast.makeText(this, getString(R.string.os_debrid_preverjam, ime), Toast.LENGTH_SHORT).show()
+        val app = applicationContext
+        Thread({
+            var notranja = false
+            val izid = try { Usenet.preveriRocno(app) } catch (e: Exception) {
+                android.util.Log.w("SafeerUsenet", "rocna preverba: ${e.javaClass.simpleName}"); notranja = true; DebridPravila.Preverba.NI_ODGOVORA
+            }
+            glavna.post {
+                if (isFinishing || isDestroyed) return@post
+                val sporocilo = if (notranja) getString(R.string.os_debrid_napaka_notranja, ime) else when (DebridPravila.poPreveri(izid)) {
+                    DebridPravila.PoPreveri.POCAKAJ -> getString(R.string.os_debrid_preveri_pocakaj)
+                    DebridPravila.PoPreveri.VELJA -> getString(R.string.os_debrid_kljuc_velja, ime, "")
+                    DebridPravila.PoPreveri.ZAKLENJEN -> getString(R.string.os_debrid_zaklenjen, ime)
+                    DebridPravila.PoPreveri.NE_VELJA -> getString(R.string.os_debrid_ne_velja_navodilo, ime)
+                    DebridPravila.PoPreveri.MEJA -> getString(R.string.os_debrid_preveri_meja, ime)
+                    DebridPravila.PoPreveri.NI_ODGOVORA -> getString(R.string.os_debrid_preveri_ni_povezave, ime)
+                }
+                Toast.makeText(this, sporocilo, Toast.LENGTH_LONG).show()
+                osveziNaMestu(); nastavitveDebrida()
+            }
+        }, "safeer-usenet-rocno").start()
+    }
+
+    /** Varovalo racunov: kaj narediti, ko kljuc ne velja ali je racun zaklenjen (Safeer storitve do »Preveri« ne klice). */
+    private fun navodiloRacuna(p: String, s: DebridPravila.StanjeKljuca?): String =
+        if (s == DebridPravila.StanjeKljuca.ZAKLENJEN) DebridBesedila.zaklenjen(this, p, DebridPravila.ime(p))
+        else getString(R.string.os_debrid_ne_velja_navodilo, DebridPravila.ime(p))
+
+    /**
+     * Varovalo racunov K1 (lastnik 26. 10. 2026): kljuc ne velja ali je racun zaklenjen - Safeer storitve ne klice na nobeni
+     * napravi. Okno pove, kaj narediti; »Preveri« je edina nova preverba (najvec enkrat na minuto), »Vpisi nov kljuc« odpre vpis.
+     */
+    private fun stanjeKljucaOkno(p: String) {
+        val ime = DebridPravila.ime(p)
+        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_debrid_kljuc_naslov, ime))
+            .setMessage(navodiloRacuna(p, Debrid.stanjeKljuca(this, p)?.first))
+            .setPositiveButton(R.string.os_debrid_preveri) { _, _ -> preveriKljucRocno(p) }
+            .setNeutralButton(R.string.os_debrid_vpisi_nov) { _, _ -> kljucDebrida(p) }
+            .setNegativeButton(R.string.os_preklici) { _, _ -> nastavitveDebrida() }
+            .create()
+        Kontroler.pokazi(okno); okno.show()
+    }
+
+    private fun preveriKljucRocno(p: String) {
+        val ime = DebridPravila.ime(p)
+        Toast.makeText(this, getString(R.string.os_debrid_preverjam, ime), Toast.LENGTH_SHORT).show()
+        val app = applicationContext
+        Thread({
+            var notranja = false
+            val izid = try { Debrid.preveriRocno(app, p) } catch (e: Exception) {
+                android.util.Log.w("SafeerDebrid", "rocna preverba: ${e.javaClass.simpleName}"); notranja = true; DebridPravila.Preverba.NI_ODGOVORA
+            }
+            glavna.post {
+                if (isFinishing || isDestroyed) return@post
+                // Pregled Grok 41, Z9: 429 ni »ni povezave« (stanje ostane, poskusi cez nekaj minut); izjema ni »ni povezave«.
+                val sporocilo = if (notranja) getString(R.string.os_debrid_napaka_notranja, ime) else when (DebridPravila.poPreveri(izid)) {
+                    DebridPravila.PoPreveri.POCAKAJ -> getString(R.string.os_debrid_preveri_pocakaj)
+                    DebridPravila.PoPreveri.VELJA -> getString(R.string.os_debrid_kljuc_velja, ime, "")
+                    DebridPravila.PoPreveri.ZAKLENJEN -> navodiloRacuna(p, DebridPravila.StanjeKljuca.ZAKLENJEN)
+                    DebridPravila.PoPreveri.NE_VELJA -> navodiloRacuna(p, DebridPravila.StanjeKljuca.NE_VELJA)
+                    DebridPravila.PoPreveri.MEJA -> getString(R.string.os_debrid_preveri_meja, ime)
+                    DebridPravila.PoPreveri.NI_ODGOVORA -> getString(R.string.os_debrid_preveri_ni_povezave, ime)
+                }
+                Toast.makeText(this, sporocilo, Toast.LENGTH_LONG).show()
+                osveziNaMestu(); nastavitveDebrida()
+            }
+        }, "safeer-debrid-rocno").start()
+    }
+
+    /** Pregled Grok 33, F1: po »Odstrani« uporabnik izve, ali je kljuc odstranjen tudi na drugih napravah ozjega kroga. */
+    private fun odstranjenoSporocilo(ime: String, vKrog: Boolean) {
+        Toast.makeText(this, getString(if (vKrog) R.string.os_debrid_odstranjeno else R.string.os_debrid_odstranjeno_lokalno, ime),
+            if (vKrog) Toast.LENGTH_SHORT else Toast.LENGTH_LONG).show()
     }
 
     /**

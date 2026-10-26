@@ -136,6 +136,30 @@ fun main() {
     // Grok 15, N18: poverilnica nikoli po http.
     preveriEnako("N18: http -> https", "https://dodatek.test/zeton/manifest.json", S.nadgradiNaHttps(" http://dodatek.test/zeton/manifest.json"))
     preveriEnako("N18: https ostane", "https://dodatek.test/z/manifest.json", S.nadgradiNaHttps("https://dodatek.test/z/manifest.json"))
+    // Pomocnik Windows, naloga 21 A1 (25. 10. 2026): lastnikov Webtor je kratka povezava /s/<koda>, tokovi pa
+    // »/token/<t>/stremio/resolve/<JWT>« - ne zacnejo se z osnovo dodatka. JWT (exp, hash, idx) ni zeton: skrivnost je pred
+    // /resolve/, nadomestek ohrani /resolve/<JWT> (kot SkrivniDodatki.zakrijTok: nadomestek predpone + preostanek).
+    val hashA1 = "a".repeat(40)
+    val jwtA1 = b64url("{\"alg\":\"HS256\"}") + "." + b64url("{\"exp\":1793000000,\"hash\":\"$hashA1\",\"idx\":0}") + ".podpis"
+    val uuidA1 = "0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0"
+    val tokA1 = "https://webtor.io/token/$uuidA1/stremio/resolve/$jwtA1"
+    val predponaA1 = S.skrivnaPredponaToka(tokA1)
+    preveriEnako("Webtor tok kratke povezave: skrivnost je pred /resolve/", "https://webtor.io/token/$uuidA1", predponaA1)
+    val zakritA1 = (predponaA1?.let { p -> S.nadomestek(p)?.let { it + tokA1.substring(p.length) } }).orEmpty()
+    preveriEnako("Webtor tok kratke povezave: nadomestek brez zetona", false, uuidA1 in zakritA1 || zakritA1.isEmpty())
+    preveriEnako("Webtor tok kratke povezave: nadomestek je /resolve/", true, WebtorPravila.jeResolveNaslov(zakritA1))
+    preveriEnako("Webtor tok kratke povezave: JWT iz nadomestka", WebtorPravila.Kljuc(hashA1, 0), WebtorPravila.izJwt(zakritA1))
+    preveriEnako("JWT za /resolve/ drugje ostane skrivnost", "https://cdn.example/x/resolve/$jwtA1",
+        S.skrivnaPredponaToka("https://cdn.example/x/resolve/$jwtA1"))
+    // Pregled 26, T6: izjema samo za JWT natanko za /stremio/resolve/; drugje na webtor.io in za JWT ostane splosno pravilo.
+    preveriEnako("Webtor: JWT brez /stremio/ pred resolve ostane skrivnost", "https://webtor.io/x/resolve/$jwtA1",
+        S.skrivnaPredponaToka("https://webtor.io/x/resolve/$jwtA1"))
+    val zaJwt = "Q8zR2LmX0pVt7WbN4kHs1Dxx"
+    preveriEnako("Webtor: zeton ZA JWT ostane skrivnost", "https://webtor.io/token/$uuidA1/stremio/resolve/$jwtA1/$zaJwt",
+        S.skrivnaPredponaToka("https://webtor.io/token/$uuidA1/stremio/resolve/$jwtA1/$zaJwt"))
+    preveriEnako("Webtor: velike crke RESOLVE", "https://webtor.io/token/$uuidA1", S.skrivnaPredponaToka("https://webtor.io/token/$uuidA1/Stremio/RESOLVE/$jwtA1"))
+    preveriEnako("Webtor: zeton namesto JWT za resolve ostane skrivnost", "https://webtor.io/token/$uuidA1/stremio/resolve/$zaJwt",
+        S.skrivnaPredponaToka("https://webtor.io/token/$uuidA1/stremio/resolve/$zaJwt"))
 
     if (napak == 0) println("SkrivnostiPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

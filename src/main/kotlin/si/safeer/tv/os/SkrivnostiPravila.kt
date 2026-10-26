@@ -15,8 +15,8 @@ import java.security.MessageDigest
  * Odlocitev je po zgradbi in znanih imenih (pregled 25. 10. 2026, S2/S3): ime polja s kljucno besedo (key, token,
  * secret, password, auth ... - tudi kot del imena: »tmdbApiKey«) ali debrid storitve; odsek za »/token/«, »/realdebrid/«
  * ...; dolg nerazberljiv zeton. NI skrivnost: UUID, hash (32/40/64 hex), nastavitve base64/JSON brez kljucnega polja.
- * Pri dodatku je skrita CELA osnova (vse pred »/manifest.json«), pri toku del do ZADNJEGA skrivnega odseka, pri zetonu v
- * poizvedbi cel naslov.
+ * Pri dodatku je skrita CELA osnova (vse pred »/manifest.json«), pri toku del do ZADNJEGA skrivnega odseka (na webtor.io
+ * samo pred »/resolve/«: JWT ni zeton), pri zetonu v poizvedbi cel naslov.
  * Ciste funkcije (tests/SkrivnostiPravilaTest.kt, skupni primeri tests/skupni-primeri/webtor-rezerva.json).
  */
 object SkrivnostiPravila {
@@ -39,6 +39,8 @@ object SkrivnostiPravila {
     private val RX_UUID = Regex("^[0-9a-fA-F]{8}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{4}-?[0-9a-fA-F]{12}$")
     private val RX_HEX = Regex("^[0-9a-fA-F]+$")
     private val RX_ZETON = Regex("^[A-Za-z0-9_\\-+/=.~]+$")
+    /** JWT: trije deli base64url, locena s piko (podpis je lahko prazen). */
+    private val RX_JWT = Regex("^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]*$")
 
     /** Deli imena polja: »tmdbApiKey« -> tmdb, api, key; »rpdb_key« -> rpdb, key. */
     private fun deliImena(ime: String): List<String> =
@@ -135,12 +137,19 @@ object SkrivnostiPravila {
         val webtor = jeWebtorGostitelj(d.gostitelj)
         val izid = ArrayList<Int>()
         var prejsnji = ""
+        var predprejsnji = ""
         var konec = d.zacetekPoti
         for ((k, o) in d.pot.split('/').withIndex()) {
             if (k == 0) continue
             konec += 1 + o.length
-            if (jeSkrivenOdsek(o, prejsnji, webtor)) izid += konec
-            if (o.isNotEmpty()) prejsnji = o
+            // Webtor: JWT v »/stremio/resolve/<JWT>« ni zeton (nosi samo exp, hash, idx - izmerjeno 25. 10. 2026); skrivnost je
+            // pred njim. Sicer tok kratke povezave »/s/<koda>« (tokovi »/token/<t>/stremio/resolve/<JWT>«) skrije cel naslov,
+            // nadomestek izgubi /resolve/ in vsak tok dobi svojo skrivnost v pomnilniku (pomocnik Windows A1, namizje 9e8b990).
+            // Pregled 26, T6: izjema velja samo za odsek oblike JWT natanko za /stremio/resolve/; odseki za njim po splosnem pravilu.
+            val jwtWebtor = webtor && prejsnji.equals("resolve", ignoreCase = true) &&
+                predprejsnji.equals("stremio", ignoreCase = true) && RX_JWT.matches(o)
+            if (!jwtWebtor && jeSkrivenOdsek(o, prejsnji, webtor)) izid += konec
+            if (o.isNotEmpty()) { predprejsnji = prejsnji; prejsnji = o }
         }
         return izid
     }

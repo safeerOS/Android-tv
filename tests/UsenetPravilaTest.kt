@@ -6,7 +6,7 @@ private fun preveriEnako(opis: String, pricakovano: Any?, dobljeno: Any?) =
     if (pricakovano == dobljeno) println("  ok  $opis") else { napak++; println("  NAPAKA  $opis: pricakovano $pricakovano, dobljeno $dobljeno") }
 
 /** Naloga 141: Usenet prek TorBoxa - indeksator Newznab ([UsenetPravila]). */
-fun main() {
+fun main(args: Array<String>) {
     println("Preizkus pravil Usenet")
 
     // Naslov indeksatorja
@@ -20,6 +20,62 @@ fun main() {
     preveriEnako("141: uporabnik v naslovu ne", null, UsenetPravila.osnova("https://jaz:geslo@x.example"))
     preveriEnako("141: ni naslov", null, UsenetPravila.osnova("api kljuc 123"))
     preveriEnako("141: ftp ne", null, UsenetPravila.osnova("ftp://x.example"))
+    // Lastnik 25. 10. 2026: gola domena (kot jo uporabnik vpise) dobi https:// sama.
+    preveriEnako("gola domena -> https", "https://nzbfinder.ws", UsenetPravila.osnova("nzbfinder.ws"))
+    preveriEnako("gola domena z /api/ -> https", "https://nzbfinder.ws", UsenetPravila.osnova(" nzbfinder.ws/api/ "))
+    preveriEnako("gola domena s potjo", "https://x.example/newznab", UsenetPravila.osnova("x.example/newznab/api"))
+    preveriEnako("gola domena z uporabnikom ne", null, UsenetPravila.osnova("jaz:geslo@x.example"))
+    preveriEnako("prazno ne", null, UsenetPravila.osnova("   "))
+    preveriEnako("http na internet se vedno ne", null, UsenetPravila.osnova("http://nzbfinder.ws"))
+    // Pregled Grok 31, H1: kljuc v polju za naslov ni gostitelj (sicer gre v DNS necifriran); H4: tipkarske napake.
+    val heks32 = "0123456789abcdef0123456789abcdef"
+    val uuid = "abcdef01-2345-6789-abcd-ef0123456789"
+    preveriEnako("H1: kljuc 32 heks kot naslov ne", null, UsenetPravila.osnova(heks32))
+    preveriEnako("H1: UUID (TorBox) kot naslov ne", null, UsenetPravila.osnova(uuid))
+    preveriEnako("H1: kljuc z https:// ne", null, UsenetPravila.osnova("https://$heks32"))
+    preveriEnako("H1: zeton RD (52) kot naslov ne", null, UsenetPravila.osnova("ABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHIJKLMNOPQRST"))
+    preveriEnako("H1: kljuc z vrati ne", null, UsenetPravila.osnova("$heks32:443"))
+    preveriEnako("H1: kljuc kot oznaka imena ne", null, UsenetPravila.osnova("$heks32.ws"))
+    preveriEnako("H1: UUID kot oznaka imena ne", null, UsenetPravila.osnova("https://$uuid.example"))
+    preveriEnako("H4: ime brez pike ne", null, UsenetPravila.osnova("nzbfinder"))
+    preveriEnako("H4: http//x ne", null, UsenetPravila.osnova("http//nzbfinder.ws"))
+    preveriEnako("H4: https:/x ne", null, UsenetPravila.osnova("https:/nzbfinder.ws"))
+    preveriEnako("H4: https://ime brez pike ne", null, UsenetPravila.osnova("https://nas:5076"))
+    preveriEnako("gola domena z vrati", "https://nzbfinder.ws:8443", UsenetPravila.osnova("nzbfinder.ws:8443"))
+    preveriEnako("localhost z vrati", "https://localhost:5076", UsenetPravila.osnova("localhost:5076"))
+    preveriEnako("http localhost", "http://localhost:5076", UsenetPravila.osnova("http://localhost:5076"))
+    preveriEnako("gol IPv4 v domacem omrezju", "https://192.168.1.10:5076", UsenetPravila.osnova("192.168.1.10:5076"))
+    preveriEnako("IPv6 v oklepajih", "https://[::1]:5076", UsenetPravila.osnova("[::1]:5076"))
+    preveriEnako("kratko heks ime s piko ostane", "https://abc123.example", UsenetPravila.osnova("abc123.example"))
+    preveriEnako("H1: naslovJeKljuc 32 heks", true, UsenetPravila.naslovJeKljuc(" $heks32 "))
+    preveriEnako("H1: naslovJeKljuc UUID", true, UsenetPravila.naslovJeKljuc(uuid))
+    preveriEnako("H1: naslovJeKljuc https + kljuc", true, UsenetPravila.naslovJeKljuc("https://$heks32/api"))
+    preveriEnako("H1: naslovJeKljuc ime ne", false, UsenetPravila.naslovJeKljuc("nzbfinder.ws"))
+    preveriEnako("H1: naslovJeKljuc ime brez pike ne", false, UsenetPravila.naslovJeKljuc("nzbfinder"))
+    preveriEnako("H1: napaka vnosa - kljuc v naslovu", UsenetPravila.NapakaVnosa.NASLOV_JE_KLJUC, UsenetPravila.napakaVnosa(heks32, heks32))
+    preveriEnako("H1: napaka vnosa - naslov", UsenetPravila.NapakaVnosa.NASLOV, UsenetPravila.napakaVnosa("nzbfinder", heks32))
+    preveriEnako("H1: napaka vnosa - kljuc", UsenetPravila.NapakaVnosa.KLJUC, UsenetPravila.napakaVnosa("nzbfinder.ws", "your_api_key"))
+    preveriEnako("H1: napaka vnosa - nic", null, UsenetPravila.napakaVnosa("nzbfinder.ws", heks32))
+    preveriEnako("H1: prejeti indeksator s kljucem kot gostiteljem ne", null, UsenetPravila.prejetIndeksator("https://$heks32", heks32))
+
+    // Pregled Grok 36, D5 (namizje ca50504 - isti primeri): NZB z interneta ne preusmeri v domace omrezje; http samo ista vrata.
+    val ixNzb = "https://nzbfinder.ws/getnzb?id=1&apikey=0123456789abcdef0123456789abcdef"
+    for (cilj in listOf("https://192.168.1.1/nzb", "https://127.0.0.1:8080/nzb", "https://localhost/nzb", "https://[::1]/nzb",
+            "https://169.254.169.254/latest", "https://10.0.0.5./nzb", "https://nas.local/nzb", "https://100.64.0.1/x", "https://[fd00::1]/x", "http://nzbfinder.ws/x"))
+        preveriEnako("D5: z interneta ne na $cilj", false, UsenetPravila.dovoljenSkok(ixNzb, cilj))
+    preveriEnako("D5: na CDN da", true, UsenetPravila.dovoljenSkok(ixNzb, "https://cdn.primer.test/nzb/1"))
+    preveriEnako("D5: na javni IP da", true, UsenetPravila.dovoljenSkok(ixNzb, "https://8.8.8.8/nzb/1"))
+    val lokNzb = "http://192.168.1.20:5076/getnzb/api/1?apikey=0123456789abcdef0123456789abcdef"
+    preveriEnako("D5: lokalni http na druga vrata ne", false, UsenetPravila.dovoljenSkok(lokNzb, "http://192.168.1.20:8080/nzb/1"))
+    preveriEnako("D5: lokalni indeksator sme na https v domacem omrezju", true, UsenetPravila.dovoljenSkok(lokNzb, "https://192.168.1.30/nzb/1"))
+    preveriEnako("D5: http ista vrata (privzeta 80)", true, UsenetPravila.dovoljenSkok("http://192.168.1.20/a", "http://192.168.1.20:80/b"))
+    preveriEnako("D5: uporabnik v cilju ne", false, UsenetPravila.dovoljenSkok(ixNzb, "https://jaz:geslo@cdn.primer.test/x"))
+    val rssD5 = "<rss><channel><item><title>A</title><enclosure url=\"https://192.168.1.1/a.nzb\"/></item>" +
+        "<item><title>B</title><enclosure url=\"https://cdn.primer.test/b.nzb\"/></item></channel></rss>"
+    preveriEnako("D5: zadetki indeksatorja z interneta brez domacega omrezja", listOf("B"), UsenetPravila.zadetki(rssD5, "https://nzbfinder.ws").map { it.naslov })
+    preveriEnako("D5: zadetki lokalnega indeksatorja", listOf("A", "B"), UsenetPravila.zadetki(rssD5, "http://192.168.1.20:5076").map { it.naslov })
+    preveriEnako("D2: 401 drugega gostitelja po preusmeritvi ni kljuc", UsenetPravila.NAPAKA_INDEKSATOR, UsenetPravila.napakaNzb(401, "", istiGostitelj = false))
+    preveriEnako("D2: 401 indeksatorja je kljuc", TorBoxPravila.NAPAKA_KLJUC, UsenetPravila.napakaNzb(401, ""))
 
     // Kljuc
     preveriEnako("141: kljuc 32 heks", "0123456789abcdef0123456789abcdef", UsenetPravila.ocistiKljuc(" 0123456789abcdef0123456789abcdef\n"))
@@ -154,6 +210,120 @@ fun main() {
     preveriEnako("Grok 3: HTTP 500 = indeksator", UsenetPravila.NAPAKA_INDEKSATOR, UsenetPravila.napakaNzb(500, ""))
     preveriEnako("Grok 3: 200 brez NZB = indeksator", UsenetPravila.NAPAKA_INDEKSATOR, UsenetPravila.napakaNzb(200, "<html></html>"))
     preveriEnako("Grok 3: ponudnik izida = Usenet", UsenetPravila.VRSTA, UsenetPravila.PONUDNIK)
+
+    // Lastnik 25. 10. 2026: kljuc indeksatorja se ob vpisu preveri (kot kljuci debrid in namizje) - zavrnjen se ne shrani.
+    val ix = "9b1f4c7e2a8d6053f1e9c4b7a2d8e6f0"
+    var klicev = 0
+    fun preverba(izid: DebridPravila.Preverba): (String, String) -> DebridPravila.Preverba = { _, _ -> klicev++; izid }
+    val vzorec = UsenetPravila.vpis("nzbfinder.ws", "your-indexer-api-key", preverba(DebridPravila.Preverba.VELJA))
+    preveriEnako("vpis: vzorec kljuca brez klica indeksatorja", listOf(DebridPravila.Preverba.OBLIKA, null, 0),
+        listOf(vzorec.izid, vzorec.shrani, klicev))
+    val http = UsenetPravila.vpis("http://nzbfinder.ws", ix, preverba(DebridPravila.Preverba.VELJA))
+    preveriEnako("vpis: http na internet brez klica", listOf(DebridPravila.Preverba.OBLIKA, null, 0), listOf(http.izid, http.shrani, klicev))
+    val zavrnjen = UsenetPravila.vpis("nzbfinder.ws", ix, preverba(DebridPravila.Preverba.NE_VELJA))
+    preveriEnako("vpis: zavrnjen kljuc se ne shrani", listOf(DebridPravila.Preverba.NE_VELJA, null, null, 1),
+        listOf(zavrnjen.izid, zavrnjen.shrani, zavrnjen.stanje, klicev))
+    val izpad = UsenetPravila.vpis(" nzbfinder.ws/api ", " $ix ", preverba(DebridPravila.Preverba.NI_ODGOVORA))
+    preveriEnako("vpis: brez odgovora shrani kot nepreverjen", listOf("https://nzbfinder.ws" to ix, DebridPravila.StanjeKljuca.NEPREVERJEN),
+        listOf(izpad.shrani, izpad.stanje))
+    val meja = UsenetPravila.vpis("nzbfinder.ws", ix, preverba(DebridPravila.Preverba.MEJA))
+    preveriEnako("vpis: meja shrani kot nepreverjen", DebridPravila.StanjeKljuca.NEPREVERJEN, meja.stanje)
+    val velja = UsenetPravila.vpis("nzbfinder.ws", ix, preverba(DebridPravila.Preverba.VELJA))
+    preveriEnako("vpis: potrjen se shrani kot veljaven", listOf("https://nzbfinder.ws" to ix, DebridPravila.StanjeKljuca.VELJA),
+        listOf(velja.shrani, velja.stanje))
+    var naslovPreverbe = ""
+    UsenetPravila.vpis("nzbfinder.ws", ix) { o, k -> naslovPreverbe = UsenetPravila.naslovPreverbe(o, k); DebridPravila.Preverba.VELJA }
+    preveriEnako("vpis: preverba z enim iskanjem na https", "https://nzbfinder.ws/api?t=search&q=safeer&limit=1&apikey=$ix", naslovPreverbe)
+    preveriEnako("preverba: 401 = zavrnjen", DebridPravila.Preverba.NE_VELJA, UsenetPravila.preverbaIndeksatorja(401, ""))
+    preveriEnako("preverba: Cloudflare 403 ne zavrne kljuca", DebridPravila.Preverba.NI_ODGOVORA,
+        UsenetPravila.preverbaIndeksatorja(403, "<!DOCTYPE html><title>Just a moment...</title>"))
+    preveriEnako("preverba: preusmeritev ni potrditev", DebridPravila.Preverba.NI_ODGOVORA, UsenetPravila.preverbaIndeksatorja(302, ""))
+
+    // Lastnik 25. 10. 2026: prejeti indeksator (usklajevanje, »Poslji kljuce«) se pred uporabo preveri na tej napravi.
+    preveriEnako("prejem: vzorec kljuca ni indeksator", null, UsenetPravila.prejetIndeksator("https://nzbfinder.ws", "your-indexer-api-key"))
+    preveriEnako("prejem: veljaven zapis", "https://nzbfinder.ws" to ix, UsenetPravila.prejetIndeksator("https://nzbfinder.ws/api", ix))
+    val nas = "https://nzbfinder.ws" to ix
+    val drug = "https://nzbfinder.ws" to "0a1b2c3d4e5f60718293a4b5c6d7e8f9"
+    klicev = 0
+    preveriEnako("prejem: nic prejeto -> zavrni brez klica", listOf(UsenetPravila.Sprejem.ZAVRNI, 0),
+        listOf(UsenetPravila.sprejem(null, nas, true, preverba(DebridPravila.Preverba.VELJA)), klicev))
+    preveriEnako("prejem: enak potrjenemu -> brez klica", listOf(UsenetPravila.Sprejem.ENAK, 0),
+        listOf(UsenetPravila.sprejem(nas, nas, true, preverba(DebridPravila.Preverba.NE_VELJA)), klicev))
+    preveriEnako("prejem: zavrnjen ne prepise veljavnega", listOf(UsenetPravila.Sprejem.ZAVRNI, 1),
+        listOf(UsenetPravila.sprejem(drug, nas, true, preverba(DebridPravila.Preverba.NE_VELJA)), klicev))
+    preveriEnako("prejem: brez odgovora ne prepise", UsenetPravila.Sprejem.ZAVRNI,
+        UsenetPravila.sprejem(drug, nas, true, preverba(DebridPravila.Preverba.NI_ODGOVORA)))
+    preveriEnako("prejem: meja ne prepise", UsenetPravila.Sprejem.ZAVRNI,
+        UsenetPravila.sprejem(drug, nas, true, preverba(DebridPravila.Preverba.MEJA)))
+    preveriEnako("prejem: potrjen s te naprave se shrani", UsenetPravila.Sprejem.SHRANI,
+        UsenetPravila.sprejem(drug, nas, true, preverba(DebridPravila.Preverba.VELJA)))
+    klicev = 0
+    preveriEnako("prejem: enak, a tu nepreverjen -> preveri", listOf(UsenetPravila.Sprejem.SHRANI, 1),
+        listOf(UsenetPravila.sprejem(nas, nas, false, preverba(DebridPravila.Preverba.VELJA)), klicev))
+
+    // Pregled Grok 41, Z2: ponoven vpis istega indeksatorja brez odgovora ne odklene »zaklenjen« ali »ne velja«.
+    val zaklIzpad = UsenetPravila.vpis("nzbfinder.ws", ix, DebridPravila.StanjeKljuca.ZAKLENJEN, preverba(DebridPravila.Preverba.NI_ODGOVORA))
+    preveriEnako("Z2: zaklenjen indeksator + isti kljuc + brez odgovora -> zaklenjen", DebridPravila.StanjeKljuca.ZAKLENJEN, zaklIzpad.stanje)
+    val nvMeja = UsenetPravila.vpis("nzbfinder.ws", ix, DebridPravila.StanjeKljuca.NE_VELJA, preverba(DebridPravila.Preverba.MEJA))
+    preveriEnako("Z2: ne velja + Cloudflare/meja -> ne velja", DebridPravila.StanjeKljuca.NE_VELJA, nvMeja.stanje)
+    val zaklVelja = UsenetPravila.vpis("nzbfinder.ws", ix, DebridPravila.StanjeKljuca.ZAKLENJEN, preverba(DebridPravila.Preverba.VELJA))
+    preveriEnako("Z2: zaklenjen + indeksator potrdi -> velja", DebridPravila.StanjeKljuca.VELJA, zaklVelja.stanje)
+
+    // Pregled Grok 41, Z1: povezava NZB iz pomnilnika gre ven samo s kljucem, s katerim je bila najdena, in samo, ce
+    // indeksator in TorBox smeta klicati (prej: klik na vir v odprtem seznamu je poslal zaklenjen ali zamenjan kljuc).
+    val k1 = DebridPravila.odtisStanja("https://nzbfinder.ws|$ix")
+    val k2 = DebridPravila.odtisStanja("https://nzbfinder.ws|0a1b2c3d4e5f60718293a4b5c6d7e8f9")
+    val nzbUrl = "https://nzbfinder.ws/getnzb/abc.nzb?r=$ix"
+    val pov = UsenetPravila.Povezave()
+    pov.dodaj("usenet:1", nzbUrl, k1)
+    preveriEnako("Z1: isti kljuc - povezava gre", nzbUrl, pov.zaPrenos("usenet:1", k1))
+    preveriEnako("Z1: zamenjan kljuc - brez povezave (stari kljuc ne gre ven)", null, pov.zaPrenos("usenet:1", k2))
+    preveriEnako("Z1: ... in povezave starega kljuca ni vec", 0, pov.velikost())
+    pov.dodaj("usenet:1", nzbUrl, k1)
+    preveriEnako("Z1: odstranjen indeksator - brez povezave", null, pov.zaPrenos("usenet:1", null))
+    pov.dodaj("usenet:1", nzbUrl, k1); pov.dodaj("usenet:2", nzbUrl + "2", k2)
+    pov.obdrzi(k2)
+    preveriEnako("Z1: vpis novega kljuca - ostanejo samo njegove povezave", listOf(null, nzbUrl + "2"),
+        listOf(pov.zaPrenos("usenet:1", k1), pov.zaPrenos("usenet:2", k2)))
+    pov.pozabi(k2)
+    preveriEnako("Z1: zavrnjen ali zaklenjen kljuc - njegove povezave gredo", 0, pov.velikost())
+    pov.dodaj("usenet:3", nzbUrl, k1); pov.obdrzi(null)
+    preveriEnako("Z1: »Odstrani« - nobene povezave", 0, pov.velikost())
+    val zk = DebridPravila.StanjeKljuca.ZAKLENJEN; val nv = DebridPravila.StanjeKljuca.NE_VELJA; val v = DebridPravila.StanjeKljuca.VELJA
+    preveriEnako("Z1: zaklenjen indeksator - brez klica", TorBoxPravila.NAPAKA_ZAKLENJEN to UsenetPravila.PONUDNIK,
+        UsenetPravila.oviraPrenosa(true, v, true, zk))
+    preveriEnako("Z1: indeksator ne velja - brez klica", TorBoxPravila.NAPAKA_KLJUC to UsenetPravila.PONUDNIK,
+        UsenetPravila.oviraPrenosa(true, null, true, nv))
+    preveriEnako("Z1: TorBox zaklenjen - indeksator tudi ne dobi zahteve", TorBoxPravila.NAPAKA_ZAKLENJEN to DebridPravila.TORBOX,
+        UsenetPravila.oviraPrenosa(true, zk, true, v))
+    preveriEnako("Z1: TorBox ne velja", TorBoxPravila.NAPAKA_KLJUC to DebridPravila.TORBOX, UsenetPravila.oviraPrenosa(true, nv, true, null))
+    preveriEnako("Z1: brez kljuca TorBox", TorBoxPravila.NAPAKA_KLJUC to DebridPravila.TORBOX, UsenetPravila.oviraPrenosa(false, null, true, v))
+    preveriEnako("Z1: brez indeksatorja", UsenetPravila.NAPAKA_INDEKSATOR to UsenetPravila.PONUDNIK, UsenetPravila.oviraPrenosa(true, v, false, null))
+    preveriEnako("Z1: oba smeta (velja, nepreverjen, brez stanja)", listOf(null, null, null), listOf(
+        UsenetPravila.oviraPrenosa(true, v, true, v), UsenetPravila.oviraPrenosa(true, DebridPravila.StanjeKljuca.NEPREVERJEN, true, null),
+        UsenetPravila.oviraPrenosa(true, null, true, DebridPravila.StanjeKljuca.NEPREVERJEN)))
+
+    // Pregled Grok 48, A2: po prenosu NZB se TorBox preveri znova za kljuc, ki gre res TorBoxu.
+    val zkA2 = DebridPravila.StanjeKljuca.ZAKLENJEN
+    preveriEnako("A2: zaklenjen med prenosom NZB - brez klica", UsenetPravila.napakaStanja(zkA2) to DebridPravila.TORBOX,
+        UsenetPravila.oviraTorBoxa("tb-izmisljen", zkA2))
+    preveriEnako("A2: ne velja - brez klica", DebridPravila.TORBOX,
+        UsenetPravila.oviraTorBoxa("tb-izmisljen", DebridPravila.StanjeKljuca.NE_VELJA)?.second)
+    preveriEnako("A2: kljuc odstranjen med prenosom", TorBoxPravila.NAPAKA_KLJUC to DebridPravila.TORBOX, UsenetPravila.oviraTorBoxa(null, null))
+    preveriEnako("A2: nepreverjen in velja smeta", listOf(null, null, null), listOf(UsenetPravila.oviraTorBoxa("k", null),
+        UsenetPravila.oviraTorBoxa("k", DebridPravila.StanjeKljuca.NEPREVERJEN), UsenetPravila.oviraTorBoxa("k", DebridPravila.StanjeKljuca.VELJA)))
+    // Usenet.tok (Android, brez JVM preizkusa): preverba je PO prenosu NZB in TorBox dobi natanko preverjen kljuc;
+    // oba zapisa stanja preneseta zaporo drugega kljuca z mesta (A3).
+    if (args.size >= 2) {
+        val usenet = java.io.File(args[0]).readText()
+        val debrid = java.io.File(args[1]).readText()
+        val prenos = usenet.indexOf("val (nzb, napaka) = nzb(povezava)")
+        val ovira = usenet.indexOf("UsenetPravila.oviraTorBoxa(kljucZahteve")
+        val klic = usenet.indexOf("TorBox.usenet(c, nzb, ime, indeks, samoTakoj, napredek, kljucZahteve)")
+        preveriEnako("A2: Usenet.tok preveri TorBox po prenosu NZB in poslje preverjen kljuc", true, prenos in 0 until ovira && ovira < klic)
+        preveriEnako("A3: zapisi (indeksator in debrid) preneseta zaporo z mesta", true,
+            "DebridPravila.zaporePredPrepisom(" in usenet && "DebridPravila.zaporePredPrepisom(" in debrid)
+    } else { napak++; println("  NAPAKA  A2/A3: brez poti do Usenet.kt in Debrid.kt") }
 
     if (napak == 0) println("UsenetPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

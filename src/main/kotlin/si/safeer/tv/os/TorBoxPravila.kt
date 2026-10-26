@@ -100,9 +100,16 @@ object TorBoxPravila {
     const val NAPAKA_NI_DATOTEKE = "ni_datoteke"
     const val NAPAKA_PRENASA = "prenasa"
     const val NAPAKA_STREZNIK = "streznik"
+    /**
+     * Varovalo racunov (lastnik 26. 10. 2026): racun je zaklenjen ali ne dovoli tega naslova (Real-Debrid 9, 14, 22;
+     * AllDebrid AUTH_BLOCKED, AUTH_USER_BANNED) - Safeer storitve ne klice vec, dokler uporabnik ne tapne »Preveri«.
+     */
+    const val NAPAKA_ZAKLENJEN = "zaklenjen"
 
     fun vrstaNapake(httpKoda: Int, koda: String?): String = when {
-        koda in setOf("NO_AUTH", "BAD_TOKEN", "AUTH_ERROR") || httpKoda == 401 || httpKoda == 403 -> NAPAKA_KLJUC
+        // Pregled Grok 34, E3 / skupni primeri v2: 403 BREZ kode TorBoxa (stran CDN, blokada IP) o kljucu ne pove nicesar -
+        // streznik (prej »kljuc« - veljaven kljuc bi dobil »ne velja«). 401 brez telesa ostane kljuc.
+        koda in setOf("NO_AUTH", "BAD_TOKEN", "AUTH_ERROR") || httpKoda == 401 -> NAPAKA_KLJUC
         koda in setOf("ACTIVE_LIMIT", "COOLDOWN_LIMIT", "MONTHLY_LIMIT") || httpKoda == 429 -> NAPAKA_MEJA
         koda in setOf("PLAN_RESTRICTED_FEATURE", "DOWNLOAD_TOO_LARGE") -> NAPAKA_PAKET
         koda in setOf("BOZO_TORRENT", "ITEM_NOT_FOUND", "LINK_OFFLINE") -> NAPAKA_NI_DATOTEKE

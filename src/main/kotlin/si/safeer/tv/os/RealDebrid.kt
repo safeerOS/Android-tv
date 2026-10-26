@@ -17,7 +17,8 @@ object RealDebrid {
     private fun napaka(o: Debrid.Odgovor): TorBox.Izid {
         val j = o.json
         val koda = j?.optInt("error_code", -999)?.takeIf { it != -999 }
-        return TorBox.Izid(napaka = DebridPravila.rdVrstaNapake(o.koda, koda), opis = j?.optString("error").orEmpty().take(200),
+        // Pregled Grok 41, Z8: med uporabo 9 ni napacen kljuc ([DebridPravila.rdVrstaNapakeUporabe]).
+        return TorBox.Izid(napaka = DebridPravila.rdVrstaNapakeUporabe(o.koda, koda), opis = j?.optString("error").orEmpty().take(200),
             ponudnik = DebridPravila.REAL_DEBRID)
     }
 

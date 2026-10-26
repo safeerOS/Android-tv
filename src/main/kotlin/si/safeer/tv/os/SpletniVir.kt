@@ -757,7 +757,9 @@ object SpletniVir {
         // Grok 15, N6: kanal ali postaja v zivo sme https -> http (2 od 87 postaj iz kataloga, izmerjeno 25. 10. 2026).
         val http = DataSource.Factory { PoProtokolu(varno.createDataSource(), odprto.createDataSource(), vZivo = rokPovezaveMs > 0) }
         val app = c.applicationContext
-        return ResolvingDataSource.Factory(DefaultDataSource.Factory(c, http)) { izvirna ->
+        val osnovna = ResolvingDataSource.Factory(DefaultDataSource.Factory(c, http)) { izvirna ->
+            // Tok Webtor sem ne pride: odpre ga [IzbirniVir] prek [WebtorVir] (preverjen koncni naslov, brez preusmeritev,
+            // pripeti naslovi IP - pregled 26, T1); neprepoznan tok na webtor.io se ne odpre (fail-closed).
             // Webtor rezerva: tok dodatka s poverilnico ima v aplikaciji nadomestek brez zetona - pravi naslov samo za zahtevo.
             val pravi = SkrivniDodatki.dejanski(app, izvirna.uri.toString())
             // Tok s poverilnico je oznacen ([TOK_S_POVERILNICO]): nikoli https -> http, tudi v zivo (Grok 15, N6).
@@ -769,6 +771,7 @@ object SpletniVir {
             // poslal tudi cilju preusmeritve (gostitelj toka); zeton v poti zadosca.
             spec.withAdditionalHeaders(glaveZa(url, glaveVsem, piskotki = spec === izvirna))
         }
+        return DataSource.Factory { IzbirniVir(app, osnovna.createDataSource()) { url -> glaveZa(url, glaveVsem, piskotki = false) } }
     }
 
     /**

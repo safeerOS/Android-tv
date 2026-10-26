@@ -1,11 +1,15 @@
 package si.safeer.tv.os
 
+import si.safeer.tv.os.WebtorPravila.Datoteka
 import si.safeer.tv.os.WebtorPravila.Izid
 import si.safeer.tv.os.WebtorPravila.Kljuc
 import si.safeer.tv.os.WebtorPravila.Korak
 import si.safeer.tv.os.WebtorPravila.Oznaka
+import si.safeer.tv.os.WebtorPravila.Posoda
+import si.safeer.tv.os.WebtorPravila.Pregled
 import si.safeer.tv.os.WebtorPravila.Takoj
 import si.safeer.tv.os.WebtorPravila.Vrsta
+import si.safeer.tv.os.WebtorPravila.Vsebina
 
 private var napak = 0
 
@@ -96,6 +100,17 @@ fun main() {
     preveriEnako("rok druge sonde: ostanek skupnega", 5_000L, W.rokSonde(100, 10_100, 1))
     preveriEnako("rok porabljen", 0L, W.rokSonde(100, 20_000, 1))
     preveriEnako("najvec 2 sondi", 0L, W.rokSonde(100, 200, 2))
+    // Vzporedne sonde (izmerjeno 25. 10.: 4 od 16 kandidatov napacna datoteka, prenos do 14 s).
+    preveriEnako("vzporedno: prvi pripravljen", 0, W.izberiSondo(listOf(true, null), 0, false))
+    preveriEnako("vzporedno: prvi napacen, drugi pripravljen", 1, W.izberiSondo(listOf(false, true), 0, false))
+    preveriEnako("vzporedno: drugi pripravljen, prvi se caka", W.CAKAJ, W.izberiSondo(listOf(null, true), 1_000, false))
+    preveriEnako("vzporedno: drugi pripravljen, boljsi po 3 s ne", 1, W.izberiSondo(listOf(null, true), 3_000, false))
+    preveriEnako("vzporedno: rok potekel - pripravljeni", 1, W.izberiSondo(listOf(null, true), 0, true))
+    preveriEnako("vzporedno: noben ne", W.NOBENA, W.izberiSondo(listOf(false, false), null, false))
+    preveriEnako("vzporedno: se cakamo", W.CAKAJ, W.izberiSondo(listOf(false, null), null, false))
+    preveriEnako("vzporedno: rok potekel, nic", W.NOBENA, W.izberiSondo(listOf(null, null), null, true))
+    preveriEnako("vzporedno: en kandidat", 0, W.izberiSondo(listOf(true), 0, false))
+    preveriEnako("vzporedno: prazno", W.NOBENA, W.izberiSondo(emptyList(), null, false))
 
     // --- TorBox v ozadju in magnet
     preveriEnako("TorBox v ozadju: da", true, W.dodajVTorBox(true, true, false, a))
@@ -122,6 +137,147 @@ fun main() {
     preveriEnako("Usenet: rok potekel, nic", W.NOBENA, W.izberiUsenet(listOf(null, false, null), true))
     preveriEnako("Usenet: prazno", W.NOBENA, W.izberiUsenet(emptyList(), false))
 
+    // --- Izmerjeno 25. 10. 2026 (OnePlus 9, 0 od 3): datoteka toka Webtor je `idx` v JWT, ne polje fileIdx odgovora.
+    // Kolesarski tatovi 1080p 6,56 GB: dodatek (Torrentio) toka ni dal fileIdx -> Webtor idx 0 -> /resolve = naslovnica .jpg.
+    val kt = "c4f058d39c".padEnd(40, '0')
+    val tokKt = "https://webtor.io/safeer-skrito-0123456789abcdef/resolve/" + jwt("{\"hash\":\"$kt\",\"idx\":0,\"exp\":1}")
+    preveriEnako("Webtor: datoteka iz JWT (fileIdx 0 v odgovoru izpuscen)", Kljuc(kt, 0), W.kljucWebtor(kt, tokKt))
+    preveriEnako("Webtor: JWT brez idx = najvecji video", Kljuc(kt, -1),
+        W.kljucWebtor(kt, "https://webtor.io/x/resolve/" + jwt("{\"hash\":\"$kt\",\"exp\":1}")))
+    preveriEnako("Webtor: brez JWT datoteka neznana", Kljuc(kt, W.IDX_NEZNAN), W.kljucWebtor(kt, "https://webtor.io/x/resolve/abc"))
+    preveriEnako("Webtor: brez JWT in brez hasha", null, W.kljucWebtor("", "https://webtor.io/x/resolve/abc"))
+    // Gradnja dcc8dce na OnePlus 9: vseh 48 tokov brez JWT - nadomestek skrivnega toka skrije pot /resolve/<JWT>; JWT se bere
+    // iz pravega naslova (Stremio.prilagodi), oblika naslova brez JWT gre v dnevnik brez vrednosti.
+    preveriEnako("nadomestek brez poti JWT ne da", Kljuc(kt, W.IDX_NEZNAN), W.kljucWebtor(kt, "https://webtor.io/safeer-skrito-0123456789abcdef"))
+    preveriEnako("pravi naslov z zetonom da JWT", Kljuc(kt, 0), W.kljucWebtor(kt, "https://webtor.io/token/Ab12Cd34/stremio/resolve/" + jwt("{\"hash\":\"$kt\",\"idx\":0,\"exp\":1}")))
+    preveriEnako("oblika JWT", "resolve=da delov=3 dolzina=${tokKt.substringAfter("/resolve/").length} telo=da polja=exp,hash,idx poizvedba=ne", W.oblikaJwt(tokKt))
+    preveriEnako("oblika: nadomestek brez poti", "resolve=ne delov=1 dolzina=30 telo=ne poizvedba=ne", W.oblikaJwt("https://webtor.io/safeer-skrito-0123456789abcdef"))
+    preveriEnako("oblika: ni JWT", "resolve=da delov=1 dolzina=6 telo=ne poizvedba=da", W.oblikaJwt("https://webtor.io/x/resolve/abcdef?x=1"))
+    preveriEnako("oblika ne izda vrednosti", false, W.oblikaJwt(tokKt).contains(kt))
+    preveriEnako("kljuc toka ohrani neznano datoteko", Kljuc(kt, W.IDX_NEZNAN), W.kljucToka(kt, W.IDX_NEZNAN))
+    preveriEnako("kljuc toka: -1", Kljuc(kt, -1), W.kljucToka(kt.uppercase(), -1))
+    preveriEnako("nas tok brez fileIdx (-1) NI ista izdaja kot Webtor idx 0", false, W.kljuc(kt, -1) == W.kljucWebtor(kt, tokKt))
+    preveriEnako("nas tok fileIdx 0 JE ista izdaja kot Webtor idx 0", true, W.kljuc(kt, 0) == W.kljucWebtor(kt, tokKt))
+    preveriEnako("ime videa", true, W.jeVideoIme("Bicycle.Thieves.1948.1080p.BluRay.x264-[YTS.AM].mp4"))
+    preveriEnako("ime: naslovnica", false, W.jeVideoIme("Cover.jpg"))
+    preveriEnako("ime: glasba", false, W.jeVideoIme("01 - Theme.mp3"))
+    preveriEnako("ime: vzorec", false, W.jeVideoIme("Movie.2020/Sample/movie-sample.mkv"))
+    preveriEnako("ime: WMV ga predvajalnik ne zna", false, W.jeVideoIme("film.wmv"))
+    preveriEnako("ime: brez koncnice", null, W.jeVideoIme("Bicycle Thieves [1948] 1080p"))
+    preveriEnako("ime: prazno", null, W.jeVideoIme(""))
+    preveriEnako("datoteka: idx 0 brez imena in brez nase datoteke", Datoteka.NEGOTOVA, W.datoteka(0, "", -1, ""))
+    preveriEnako("datoteka: idx 0 brez imena, nasega toka ni", Datoteka.NEGOTOVA, W.datoteka(0, "", null, ""))
+    preveriEnako("datoteka: ime toka Webtor je video", Datoteka.VIDEO, W.datoteka(0, "Film.1948.1080p.mkv", null, ""))
+    preveriEnako("datoteka: ime toka Webtor je slika", Datoteka.NI_VIDEO, W.datoteka(3, "poster.jpg", 3, "Film.mkv"))
+    preveriEnako("datoteka: JWT brez idx", Datoteka.NAJVECJI, W.datoteka(-1, "", null, ""))
+    preveriEnako("datoteka: nas dodatek je dal isti indeks", Datoteka.VIDEO, W.datoteka(2, "", 2, "Film.mkv"))
+    preveriEnako("datoteka: nas dodatek isti indeks brez imena", Datoteka.VIDEO, W.datoteka(2, "", 2, ""))
+    preveriEnako("datoteka: nas indeks je drug", Datoteka.NEGOTOVA, W.datoteka(0, "", 5, "Film.mkv"))
+    preveriEnako("datoteka: brez JWT", Datoteka.NEGOTOVA, W.datoteka(W.IDX_NEZNAN, "Film.mkv", 0, "Film.mkv"))
+    // Vrstni red z datotekami: negotova datoteka ni »takoj« in je zadnja, NI_VIDEO izpade, ista izdaja ne velja za negotovo.
+    val wd = listOf(Kljuc(kt, 0) to Vrsta.PRENOS, Kljuc(a, 0) to Vrsta.PRENOS, Kljuc(b, -1) to Vrsta.PREDPOMNJEN,
+        Kljuc(c, 4) to Vrsta.PREDPOMNJEN, Kljuc(d, 1) to Vrsta.PRENOS)
+    val dd = listOf(Datoteka.NEGOTOVA, Datoteka.VIDEO, Datoteka.NAJVECJI, Datoteka.NEGOTOVA, Datoteka.NI_VIDEO)
+    preveriEnako("vrstni red z datotekami", listOf(1, 2, 0, 3), W.vrstniRed(listOf(W.kljuc(kt, -1), Kljuc(a, 0)), wd, true, datoteke = dd))
+    preveriEnako("vrstni red z datotekami: negotova z istim kljucem ni ista izdaja", listOf(1, 2, 0, 3),
+        W.vrstniRed(listOf(Kljuc(kt, 0), Kljuc(a, 0)), wd, true, datoteke = dd))
+    preveriEnako("vrstni red z datotekami: takoj brez negotove", listOf(2), W.vrstniRed(emptyList(), wd, true, samoTakoj = true, datoteke = dd))
+    preveriEnako("za izdajo: negotova ne", -1, W.zaIzdajo(Kljuc(kt, 0), wd, true, dd))
+    preveriEnako("za izdajo: video", 1, W.zaIzdajo(Kljuc(a, 0), wd, true, dd))
+    preveriEnako("za izdajo: ni video", -1, W.zaIzdajo(Kljuc(d, 1), wd, true, dd))
+
+    // --- Vsebina sonde: prvi bajti, Content-Type, velikost (Grob krejsnic: AVI s kodekom, ki ga Media3 izpusti -> samo zvok).
+    fun bajti(vararg x: Int) = ByteArray(x.size) { x[it].toByte() }
+    fun z(s: String) = s.toByteArray(Charsets.ISO_8859_1)
+    fun le(v: Int) = bajti(v and 0xFF, (v shr 8) and 0xFF, (v shr 16) and 0xFF, (v shr 24) and 0xFF)
+    fun avi(kodek: String): ByteArray {
+        val strh = z("strh") + le(56) + z("vids") + z("XVID") + ByteArray(48)
+        val strf = z("strf") + le(40) + le(40) + le(720) + le(480) + bajti(1, 0, 24, 0) + z(kodek) + ByteArray(20)
+        val strl = z("LIST") + le(4 + strh.size + strf.size) + z("strl") + strh + strf
+        val avih = z("avih") + le(56) + ByteArray(56)
+        val hdrl = z("LIST") + le(4 + avih.size + strl.size) + z("hdrl") + avih + strl
+        return z("RIFF") + le(1_000_000) + z("AVI ") + hdrl + ByteArray(4096)
+    }
+    val mkv = bajti(0x1A, 0x45, 0xDF, 0xA3) + ByteArray(4092)
+    val mp4 = bajti(0, 0, 0, 0x20) + z("ftypisom") + ByteArray(4084)
+    val ts = ByteArray(4096).also { for (i in 0 until 4096 step 188) it[i] = 0x47 }
+    val m2ts = ByteArray(4096).also { for (i in 4 until 4096 step 192) it[i] = 0x47 }
+    val jpg = bajti(0xFF, 0xD8, 0xFF, 0xE0) + z("\u0000\u0010JFIF") + ByteArray(100)
+    val mp3 = z("ID3") + bajti(3, 0, 0) + ByteArray(100)
+    val mp3brez = bajti(0xFF, 0xFB, 0x90, 0x64) + ByteArray(100)
+    val GiB = 1024L * 1024L * 1024L
+    val vse: (String) -> Boolean = { true }
+    val brezMp4v: (String) -> Boolean = { it != "video/mp4v-es" }
+    // MKV s stisnjeno sledjo (izmerjeno 25. 10.: Mezda strahu 28,7 GB, »ContentCompAlgo 0 not supported« v Media3).
+    fun el(id: Int, vararg vsebina: ByteArray): ByteArray {
+        val v = vsebina.fold(ByteArray(0)) { a, b -> a + b }
+        val idB = when { id > 0xFFFFFF -> bajti(id ushr 24, (id ushr 16) and 0xFF, (id ushr 8) and 0xFF, id and 0xFF)
+            id > 0xFFFF -> bajti(id ushr 16, (id ushr 8) and 0xFF, id and 0xFF); id > 0xFF -> bajti(id ushr 8, id and 0xFF); else -> bajti(id) }
+        return idB + bajti(0x40 or (v.size ushr 8), v.size and 0xFF) + v              // 2-bajtna velikost
+    }
+    fun mkvS(algo: Int, scope: Int = 1) = el(0x1A45DFA3, el(0x4282, z("matroska"))) + bajti(0x18, 0x53, 0x80, 0x67, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF) +
+        el(0x114D9B74, ByteArray(40)) + el(0xEC, ByteArray(4000)) + el(0x1549A966, el(0x2AD7B1, bajti(0x0F, 0x42, 0x40))) +
+        el(0x1654AE6B, el(0xAE, el(0xD7, bajti(1)), el(0x86, z("V_MPEG4/ISO/AVC"))), el(0xAE, el(0xD7, bajti(2)), el(0x86, z("S_VOBSUB")),
+            el(0x6D80, el(0x6240, el(0x5031, bajti(0)), el(0x5032, bajti(scope)), el(0x5034, el(0x4254, bajti(algo))))))) +
+        el(0x1F43B675, ByteArray(100))
+    preveriEnako("MKV: zlib na sledi (Media3 ne zna)", "ContentCompAlgo=0", W.mkvNepodprto(mkvS(0)))
+    preveriEnako("MKV: odstranjena glava (Media3 zna)", "", W.mkvNepodprto(mkvS(3)))
+    preveriEnako("MKV: obseg kodiranja 2", "ContentEncodingScope=2", W.mkvNepodprto(mkvS(3, scope = 2)))
+    preveriEnako("MKV: brez kodiranja", "", W.mkvNepodprto(mkvS(3).copyOfRange(0, 60)))
+    preveriEnako("MKV: Tracks za 4096 bajti (Void 4 KB)", true, mkvS(0).size > 4096 && W.mkvNepodprto(mkvS(0).copyOfRange(0, 4096)) == "")
+    preveriEnako("pregled: MKV z zlib = nepodprt", Pregled(Vsebina.NEPODPRTA, Posoda.MKV, "ContentCompAlgo=0"), W.pregled("application/octet-stream", mkvS(0), 30 * GiB, 28.74, vse))
+    preveriEnako("pregled: MKV z odstranjeno glavo = video", Vsebina.VIDEO, W.pregled("application/octet-stream", mkvS(3), 30 * GiB, 28.74, vse).vsebina)
+    preveriEnako("posoda MKV", Posoda.MKV, W.posoda(mkv))
+    preveriEnako("posoda MP4", Posoda.MP4, W.posoda(mp4))
+    preveriEnako("posoda HEIF ni video", Posoda.HEIF, W.posoda(bajti(0, 0, 0, 0x18) + z("ftypheic") + ByteArray(20)))
+    preveriEnako("posoda M4A", Posoda.M4A, W.posoda(bajti(0, 0, 0, 0x18) + z("ftypM4A ") + ByteArray(20)))
+    preveriEnako("posoda TS", Posoda.TS, W.posoda(ts))
+    preveriEnako("posoda M2TS", Posoda.TS, W.posoda(m2ts))
+    preveriEnako("posoda AVI", Posoda.AVI, W.posoda(avi("XVID")))
+    preveriEnako("posoda JPEG", Posoda.JPEG, W.posoda(jpg))
+    preveriEnako("posoda MP3 (ID3)", Posoda.ZVOK, W.posoda(mp3))
+    preveriEnako("posoda MP3 (okvir)", Posoda.ZVOK, W.posoda(mp3brez))
+    preveriEnako("posoda besedilo (nfo)", Posoda.BESEDILO, W.posoda(z("Release notes: Bicycle Thieves 1948 1080p BluRay x264 ....... 1234567890")))
+    preveriEnako("posoda PS", Posoda.PS, W.posoda(bajti(0, 0, 1, 0xBA) + ByteArray(20)))
+    preveriEnako("posoda ASF", Posoda.ASF, W.posoda(bajti(0x30, 0x26, 0xB2, 0x75) + ByteArray(20)))
+    preveriEnako("posoda prazno", Posoda.NEZNANO, W.posoda(ByteArray(0)))
+    preveriEnako("AVI kodek XVID", "XVID", W.aviKodek(avi("XVID")))
+    preveriEnako("AVI kodek DIV3", "DIV3", W.aviKodek(avi("DIV3")))
+    preveriEnako("AVI brez glave strl", "", W.aviKodek(z("RIFF") + le(10) + z("AVI ") + ByteArray(200)))
+    preveriEnako("AVI MIME XVID", "video/mp4v-es", W.aviMime("XVID"))
+    preveriEnako("AVI MIME DIV3 (Media3 ga izpusti)", null, W.aviMime("DIV3"))
+    preveriEnako("AVI MIME x264 (Media3 ga izpusti)", null, W.aviMime("x264"))
+    preveriEnako("pregled: naslovnica jpg z 206", Vsebina.NI_VIDEO, W.pregled("image/jpeg", jpg, 120_000, 6.56, vse).vsebina)
+    preveriEnako("pregled: jpg z octet-stream", Vsebina.NI_VIDEO, W.pregled("application/octet-stream", jpg, 120_000, 6.56, vse).vsebina)
+    preveriEnako("pregled: mp3", Vsebina.NI_VIDEO, W.pregled("audio/mpeg", mp3, 8_000_000, 0.64, vse).vsebina)
+    preveriEnako("pregled: MKV octet-stream", Pregled(Vsebina.VIDEO, Posoda.MKV), W.pregled("application/octet-stream", mkv, 7 * GiB, 6.56, vse))
+    preveriEnako("pregled: MKV brez Content-Type", Vsebina.VIDEO, W.pregled(null, mkv, 7 * GiB, 0.0, vse).vsebina)
+    preveriEnako("pregled: MKV z audio/x-matroska (mka)", Vsebina.NI_VIDEO, W.pregled("audio/x-matroska", mkv, 300_000_000, 0.0, vse).vsebina)
+    preveriEnako("pregled: MP4 video/mp4", Vsebina.VIDEO, W.pregled("video/mp4", mp4, 2 * GiB, 1.4, vse).vsebina)
+    preveriEnako("pregled: TS", Vsebina.VIDEO, W.pregled("video/mp2t", ts, 2 * GiB, 2.0, vse).vsebina)
+    preveriEnako("pregled: AVI XVID", Pregled(Vsebina.VIDEO, Posoda.AVI, "XVID"), W.pregled("video/x-msvideo", avi("XVID"), 700_000_000, 0.64, vse))
+    preveriEnako("pregled: AVI DIV3 - Media3 izpusti video", Pregled(Vsebina.NEPODPRTA, Posoda.AVI, "DIV3"),
+        W.pregled("video/x-msvideo", avi("DIV3"), 700_000_000, 0.64, vse))
+    preveriEnako("pregled: AVI MP43 brez dekoderja", Vsebina.NEPODPRTA, W.pregled("video/x-msvideo", avi("MP43"), 700_000_000, 0.64, { it != "video/mp43" }).vsebina)
+    preveriEnako("pregled: AVI XVID brez dekoderja", Vsebina.NEPODPRTA, W.pregled(null, avi("XVID"), 700_000_000, 0.64, brezMp4v).vsebina)
+    preveriEnako("pregled: ASF/WMV", Vsebina.NEPODPRTA, W.pregled("video/x-ms-asf", bajti(0x30, 0x26, 0xB2, 0x75) + ByteArray(20), GiB, 1.0, vse).vsebina)
+    preveriEnako("pregled: vzorec 60 MB pri filmu 6,56 GB", Vsebina.PREMAJHNA, W.pregled(null, mkv, 60_000_000, 6.56, vse).vsebina)
+    preveriEnako("pregled: datoteka pod 10 MiB", Vsebina.PREMAJHNA, W.pregled(null, mkv, 5_000_000, 0.0, vse).vsebina)
+    preveriEnako("pregled: paket 480 GB, datoteka 1,4 GB", Vsebina.VIDEO, W.pregled(null, mp4, 1_500_000_000, 480.0, vse).vsebina)
+    preveriEnako("pregled: film 700 MB pri opisu 6,56 GB", Vsebina.VIDEO, W.pregled(null, mkv, 700_000_000, 6.56, vse).vsebina)
+    preveriEnako("pregled: neznana velikost", Vsebina.VIDEO, W.pregled(null, mkv, -1, 6.56, vse).vsebina)
+    preveriEnako("pregled: neznano z video/*", Vsebina.VIDEO, W.pregled("video/x-flv2", bajti(1, 2, 3, 4, 5) + ByteArray(10), GiB, 1.0, vse).vsebina)
+    preveriEnako("pregled: neznano z octet-stream", Vsebina.NI_VIDEO, W.pregled("application/octet-stream", bajti(1, 2, 3, 4, 5) + ByteArray(10), GiB, 1.0, vse).vsebina)
+    preveriEnako("pregled: html stran napake", Vsebina.NI_VIDEO, W.pregled("text/html", z("<!doctype html><html><body>Error</body></html>"), 47, 1.0, vse).vsebina)
+    preveriEnako("sonda 206 + naslovnica = napacna vsebina", Izid.NAPACNA_VSEBINA, W.odlocitev(206, 2796, false, Vsebina.NI_VIDEO))
+    preveriEnako("sonda 206 + AVI brez videa = napacna vsebina", Izid.NAPACNA_VSEBINA, W.odlocitev(206, 6690, false, Vsebina.NEPODPRTA))
+    preveriEnako("sonda 206 + video = predvajaj", Izid.PREDVAJAJ, W.odlocitev(206, 800, false, Vsebina.VIDEO))
+    preveriEnako("sonda 404 ostane ni toka", Izid.NI_TOKA, W.odlocitev(404, null, false, null))
+    preveriEnako("velikost iz Content-Range", 7_043_825_664L, W.skupnaVelikost(206, "bytes 0-4095/7043825664", -1))
+    preveriEnako("velikost: Content-Range *", -1L, W.skupnaVelikost(206, "bytes 0-4095/*", -1))
+    preveriEnako("velikost iz Content-Length (200)", 123L, W.skupnaVelikost(200, null, 123))
+    preveriEnako("velikost: 206 brez Content-Range", -1L, W.skupnaVelikost(206, null, 4096))
+
     // Pregled U4: sonda ne sme v domace omrezje ali na to napravo (po razresitvi DNS).
     fun ip(vararg b: Int) = ByteArray(b.size) { b[it].toByte() }
     preveriEnako("192.168.1.1 zaseben", true, W.zasebenNaslov(ip(192, 168, 1, 1)))
@@ -138,6 +294,41 @@ fun main() {
     preveriEnako("fe80::1 link-local", true, W.zasebenNaslov(ip(0xfe, 0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1)))
     preveriEnako("::ffff:192.168.0.1 zaseben", true, W.zasebenNaslov(ip(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 192, 168, 0, 1)))
     preveriEnako("2606:4700::1111 javen", false, W.zasebenNaslov(ip(0x26, 0x06, 0x47, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x11, 0x11)))
+
+    // Pregled 26, T1: pot predvajalnika - tok na webtor.io gre samo prek sonde (WEBTOR) ali se ne odpre (ZAVRNI), nikoli po
+    // stari poti, kjer bi predvajalnik sledil preusmeritvam sam.
+    val res = "https://webtor.io/token/Ab12Cd34/stremio/resolve/" + jwt("{\"hash\":\"${"a".repeat(40)}\",\"idx\":0}")
+    val nad = "https://webtor.io/safeer-skrito-0123456789abcdef/stremio/resolve/" + jwt("{\"hash\":\"${"a".repeat(40)}\"}")
+    preveriEnako("pot: pravi /resolve/", WebtorPravila.Pot.WEBTOR, W.potPredvajalnika(nad, res, false))
+    preveriEnako("pot: nadomestek z /resolve/, pravi enak", WebtorPravila.Pot.WEBTOR, W.potPredvajalnika(res, res, false))
+    preveriEnako("pot: neznan nadomestek", WebtorPravila.Pot.ZAVRNI, W.potPredvajalnika(nad, nad, true))
+    preveriEnako("pot: webtor.io brez /resolve/", WebtorPravila.Pot.ZAVRNI, W.potPredvajalnika("https://webtor.io/token/x/stremio/stream/movie/tt1.json", "https://webtor.io/token/x/stremio/stream/movie/tt1.json", false))
+    preveriEnako("pot: /resolve/ po http", WebtorPravila.Pot.ZAVRNI, W.potPredvajalnika("http://webtor.io/x/resolve/a.b.c", "http://webtor.io/x/resolve/a.b.c", false))
+    preveriEnako("pot: poddomena webtor.io", WebtorPravila.Pot.ZAVRNI, W.potPredvajalnika("https://api.webtor.io/f.mkv", "https://api.webtor.io/f.mkv", false))
+    preveriEnako("pot: lazni webtor.io.zlo.com je navaden", WebtorPravila.Pot.NAVADNA, W.potPredvajalnika("https://webtor.io.zlo.com/f.mkv", "https://webtor.io.zlo.com/f.mkv", false))
+    preveriEnako("pot: navaden CDN", WebtorPravila.Pot.NAVADNA, W.potPredvajalnika("https://cdn.example/film.mkv", "https://cdn.example/film.mkv", false))
+    preveriEnako("pot: lokalna datoteka", WebtorPravila.Pot.NAVADNA, W.potPredvajalnika("file:///sdcard/film.mkv", "file:///sdcard/film.mkv", false))
+
+    // Pregled 26, T3: diagnostika samo z rokom (najvec 6 h naprej), pozabljena lastnost se izklopi sama.
+    val zdajS = 1_793_000_000L
+    preveriEnako("diagnostika: ura v prihodnosti", true, W.diagnostikaVelja("${zdajS + 3600}", zdajS))
+    preveriEnako("diagnostika: potekla", false, W.diagnostikaVelja("${zdajS - 1}", zdajS))
+    preveriEnako("diagnostika: predalec naprej", false, W.diagnostikaVelja("${zdajS + W.DIAGNOSTIKA_NAJVEC_S + 1}", zdajS))
+    preveriEnako("diagnostika: stara oblika DEBUG", false, W.diagnostikaVelja("DEBUG", zdajS))
+    preveriEnako("diagnostika: prazno", false, W.diagnostikaVelja("", zdajS))
+    preveriEnako("diagnostika: ni lastnosti", false, W.diagnostikaVelja(null, zdajS))
+    // Pregled Grok 32, G4/G6: getprop (nov proces) samo pri vklopljenem razvijalskem adb in dovoljenem imenu.
+    var branj = 0
+    val beri: (String) -> String? = { branj++; "${zdajS + 3600}" }
+    preveriEnako("G4: brez adb takoj false", false, W.diagnostikaVklopljena("debug.safeer.usenet_samo", zdajS, { false }, beri))
+    preveriEnako("G4: brez adb ni procesa", 0, branj)
+    preveriEnako("G6: persist ni dovoljen (brez procesa)", false, W.diagnostikaVklopljena("persist.safeer.usenet_samo", zdajS, { true }, beri))
+    preveriEnako("G6: tuja lastnost ne", false, W.diagnostikaVklopljena("debug.drug.x", zdajS, { true }, beri))
+    preveriEnako("G6: posebni znaki ne", false, W.diagnostikaVklopljena("debug.safeer.x; rm", zdajS, { true }, beri))
+    preveriEnako("G4: nedovoljeno ime brez procesa", 0, branj)
+    preveriEnako("G4: adb in veljaven rok", true, W.diagnostikaVklopljena("debug.safeer.webtor_samo", zdajS, { true }, beri))
+    preveriEnako("G4: en proces", 1, branj)
+    preveriEnako("G4: getprop brez odgovora (rok)", false, W.diagnostikaVklopljena("debug.safeer.webtor_samo", zdajS, { true }, { null }))
 
     if (napak == 0) println("WebtorPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

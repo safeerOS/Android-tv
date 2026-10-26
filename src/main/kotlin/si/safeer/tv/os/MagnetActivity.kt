@@ -338,7 +338,7 @@ class MagnetActivity : OsActivity() {
             .setNeutralButton(R.string.magnet_neposredno) { _, _ -> preberi(uri, false, neposredno = true) }
         when (izid.napaka) {
             DebridPravila.NAPAKA_NI_PREDPOMNJENO -> g.setPositiveButton(R.string.os_debrid_pocakaj) { _, _ -> predvajajDebrid(uri, ime, false) }
-            TorBoxPravila.NAPAKA_KLJUC -> g.setPositiveButton(R.string.os_torbox_popravi) { _, _ -> odpriNastavitveDebrida() }
+            TorBoxPravila.NAPAKA_KLJUC, TorBoxPravila.NAPAKA_ZAKLENJEN -> g.setPositiveButton(R.string.os_torbox_popravi) { _, _ -> odpriNastavitveDebrida() }
         }
         val okno = g.create()
         okno.setOnShowListener { okno.getButton(AlertDialog.BUTTON_NEGATIVE)?.requestFocus() }

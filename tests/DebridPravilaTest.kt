@@ -45,7 +45,11 @@ fun main() {
     preveriEnako("RD dead je koncna", true, DebridPravila.rdKoncnaNapaka("dead"))
     preveriEnako("RD queued ni koncna", false, DebridPravila.rdKoncnaNapaka("queued"))
     preveriEnako("RD 8 bad token", TorBoxPravila.NAPAKA_KLJUC, DebridPravila.rdVrstaNapake(401, 8))
-    preveriEnako("RD 9 permission denied", TorBoxPravila.NAPAKA_PAKET, DebridPravila.rdVrstaNapake(403, 9))
+    // Varovalo racunov (lastnik 26. 10. 2026, skupni primeri v2): 14, 22 = racun zaklenjen, 9 = ne velja (prej 9 paket = velja).
+    preveriEnako("RD 9 permission denied: kljuc (nikoli velja)", TorBoxPravila.NAPAKA_KLJUC, DebridPravila.rdVrstaNapake(403, 9))
+    preveriEnako("RD 14 account locked: zaklenjen", TorBoxPravila.NAPAKA_ZAKLENJEN, DebridPravila.rdVrstaNapake(403, 14))
+    preveriEnako("RD 22 IP not allowed: zaklenjen", TorBoxPravila.NAPAKA_ZAKLENJEN, DebridPravila.rdVrstaNapake(403, 22))
+    preveriEnako("RD 20 ne za brezplacne: paket", TorBoxPravila.NAPAKA_PAKET, DebridPravila.rdVrstaNapake(403, 20))
     preveriEnako("RD 34 too many requests", TorBoxPravila.NAPAKA_MEJA, DebridPravila.rdVrstaNapake(429, 34))
     preveriEnako("RD 23 promet porabljen", TorBoxPravila.NAPAKA_MEJA, DebridPravila.rdVrstaNapake(503, 23))
     preveriEnako("RD 35 infringing file", TorBoxPravila.NAPAKA_NI_DATOTEKE, DebridPravila.rdVrstaNapake(451, 35))
@@ -55,7 +59,8 @@ fun main() {
 
     // AllDebrid
     preveriEnako("AD AUTH_BAD_APIKEY", TorBoxPravila.NAPAKA_KLJUC, DebridPravila.adVrstaNapake(200, "AUTH_BAD_APIKEY"))
-    preveriEnako("AD AUTH_BLOCKED", TorBoxPravila.NAPAKA_KLJUC, DebridPravila.adVrstaNapake(200, "AUTH_BLOCKED"))
+    preveriEnako("AD AUTH_BLOCKED (nova lokacija): zaklenjen", TorBoxPravila.NAPAKA_ZAKLENJEN, DebridPravila.adVrstaNapake(200, "AUTH_BLOCKED"))
+    preveriEnako("AD AUTH_USER_BANNED: zaklenjen", TorBoxPravila.NAPAKA_ZAKLENJEN, DebridPravila.adVrstaNapake(200, "AUTH_USER_BANNED"))
     preveriEnako("AD MUST_BE_PREMIUM", TorBoxPravila.NAPAKA_PAKET, DebridPravila.adVrstaNapake(200, "MUST_BE_PREMIUM"))
     preveriEnako("AD MAGNET_INVALID_URI", TorBoxPravila.NAPAKA_NI_DATOTEKE, DebridPravila.adVrstaNapake(200, "MAGNET_INVALID_URI"))
     preveriEnako("AD 429", TorBoxPravila.NAPAKA_MEJA, DebridPravila.adVrstaNapake(429, null))
@@ -248,6 +253,230 @@ fun main() {
     preveriEnako("Z1: nov torrent brez potrditve: ne", false, DebridPravila.pomocVRoju(zeHrani = false, p2pPotrjen = false))
     preveriEnako("Z1: nov torrent s potrditvijo: da", true, DebridPravila.pomocVRoju(zeHrani = false, p2pPotrjen = true))
     preveriEnako("Z1: torrent, ki ga naprava ze hrani: da", true, DebridPravila.pomocVRoju(zeHrani = true, p2pPotrjen = false))
+
+    // Lastnik 25. 10. 2026: vzorec kljuca iz navodil (»XXXXXXXX-XXXX-…«) se je shranil kot »kljuc vpisan ✓« in usklajevanje ga je
+    // razneslo po ozjem krogu. Vzorec ni kljuc; prejeti vzorec ne gre naprej; stanje odloca o shranjevanju in usklajevanju.
+    val vzorec = "XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+    val tbk = "3f1c9a2e-7b4d-4e8a-9c21-5d6f0b8e1a47"
+    preveriEnako("vzorec X ni kljuc", true, DebridPravila.jeVzorecKljuca(vzorec))
+    preveriEnako("vzorec x z 4 in y ni kljuc", true, DebridPravila.jeVzorecKljuca("xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"))
+    preveriEnako("ista crka ni kljuc", true, DebridPravila.jeVzorecKljuca("AAAAAAAAAAAAAAAAAAAAAAAA"))
+    preveriEnako("your_api_key ni kljuc", true, DebridPravila.jeVzorecKljuca("YOUR_API_KEY_HERE_1234567"))
+    preveriEnako("pravi UUID TorBox je kljuc", false, DebridPravila.jeVzorecKljuca(tbk))
+    preveriEnako("RD zeton je kljuc", false, DebridPravila.jeVzorecKljuca("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ABCDEFGHIJKLMNOP"))
+    preveriEnako("AD kljuc je kljuc", false, DebridPravila.jeVzorecKljuca("aBcD1234eFgH5678iJkL"))
+    preveriEnako("vnos: vzorec TorBox zavrnjen", null, DebridPravila.kljucIzVnosa(" $vzorec ", tb))
+    preveriEnako("vnos: pravi TorBox", tbk, DebridPravila.kljucIzVnosa(" $tbk\n", tb))
+    preveriEnako("prejeti vzorec ne gre v shrambo (usklajevanje, Poslji kljuce)", emptyMap<String, String>(),
+        DebridPravila.prejetiKljuci(mapOf(tb to vzorec, rd to "RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR")))
+    preveriEnako("prejeti pravi ostane", mapOf(tb to tbk), DebridPravila.prejetiKljuci(mapOf(tb to tbk)))
+    // Izid preverbe pri storitvi
+    preveriEnako("TorBox 200 success: velja", DebridPravila.Preverba.VELJA, DebridPravila.preverbaTorBox(200, true, null))
+    preveriEnako("TorBox 401 BAD_TOKEN: ne velja", DebridPravila.Preverba.NE_VELJA, DebridPravila.preverbaTorBox(401, false, "BAD_TOKEN"))
+    preveriEnako("TorBox 403 AUTH_ERROR: ne velja", DebridPravila.Preverba.NE_VELJA, DebridPravila.preverbaTorBox(403, false, "AUTH_ERROR"))
+    preveriEnako("TorBox 429: meja (kljuc verjetno dober)", DebridPravila.Preverba.MEJA, DebridPravila.preverbaTorBox(429, false, null))
+    preveriEnako("TorBox 502: ni odgovora", DebridPravila.Preverba.NI_ODGOVORA, DebridPravila.preverbaTorBox(502, false, null))
+    preveriEnako("brez povezave: ni odgovora", DebridPravila.Preverba.NI_ODGOVORA, DebridPravila.preverbaTorBox(0, false, null))
+    preveriEnako("RD 200 z uporabnikom: velja", DebridPravila.Preverba.VELJA, DebridPravila.preverbaRd(200, null, true))
+    preveriEnako("RD bad_token (8): ne velja", DebridPravila.Preverba.NE_VELJA, DebridPravila.preverbaRd(401, 8, false))
+    preveriEnako("RD account locked (14): zaklenjen, ne velja", DebridPravila.Preverba.ZAKLENJEN, DebridPravila.preverbaRd(403, 14, false))
+    preveriEnako("RD 9 nikoli velja", DebridPravila.Preverba.NE_VELJA, DebridPravila.preverbaRdOdgovor(403, 9L, null, null))
+    preveriEnako("RD 22 IP not allowed: zaklenjen (prej ni odgovora - preverba na 10 min)", DebridPravila.Preverba.ZAKLENJEN, DebridPravila.preverbaRdOdgovor(403, 22L, null, null))
+    preveriEnako("AD AUTH_BLOCKED: zaklenjen", DebridPravila.Preverba.ZAKLENJEN, DebridPravila.preverbaAd(200, "error", "AUTH_BLOCKED"))
+    // Varovalo racunov K1: ne velja in zaklenjen se ne klice (tudi ne samodejna preverba); rocno najvec 1 na minuto.
+    val SKL = DebridPravila.StanjeKljuca.values().toList()
+    preveriEnako("K1: sme klicati", listOf(true, false, true, false), SKL.map { DebridPravila.smeKlicati(it) })
+    preveriEnako("K1: brez stanja sme (preverba ob vpisu)", true, DebridPravila.smeKlicati(null))
+    preveriEnako("K1: zaklenjen se shrani kot zaklenjen", DebridPravila.StanjeKljuca.ZAKLENJEN, DebridPravila.stanjePoPreverbi(DebridPravila.Preverba.ZAKLENJEN))
+    preveriEnako("K1: zaklenjen se ne preveri sam", false, DebridPravila.preveriZdaj(DebridPravila.StanjeKljuca.ZAKLENJEN, 0L, 10_000_000L))
+    preveriEnako("K1: zaklenjen prejet se ne sprejme", false, DebridPravila.sprejmiPrejetega(DebridPravila.Preverba.ZAKLENJEN))
+    preveriEnako("K1: zaklenjen ne gre v krog", false, DebridPravila.zaUskladitev(DebridPravila.StanjeKljuca.ZAKLENJEN))
+    preveriEnako("K1: rocno - prvic", true, DebridPravila.rocnaPreverbaDovoljena(0L, 1_000_000L))
+    preveriEnako("K1: rocno - po 30 s ne", false, DebridPravila.rocnaPreverbaDovoljena(1_000_000L, 1_030_000L))
+    preveriEnako("K1: rocno - po minuti da", true, DebridPravila.rocnaPreverbaDovoljena(1_000_000L, 1_060_000L))
+    preveriEnako("K1: rocno brez odgovora - stanje ostane", null, DebridPravila.stanjePoRocniPreverbi(DebridPravila.Preverba.NI_ODGOVORA))
+    preveriEnako("K1: rocno zavrnjen - ne velja", DebridPravila.StanjeKljuca.NE_VELJA, DebridPravila.stanjePoRocniPreverbi(DebridPravila.Preverba.NE_VELJA))
+    preveriEnako("K1: rocno potrjen - velja", DebridPravila.StanjeKljuca.VELJA, DebridPravila.stanjePoRocniPreverbi(DebridPravila.Preverba.VELJA))
+    preveriEnako("K1: nov kljuc zaklenjenega racuna ne zamenja veljavnega", DebridPravila.Vpis.ZAVRNI, DebridPravila.obVpisu(DebridPravila.StanjeKljuca.ZAKLENJEN, shranjenVelja = true, enak = false))
+    preveriEnako("K1: isti kljuc dobi zaklenjen", DebridPravila.Vpis.ZAMENJAJ, DebridPravila.obVpisu(DebridPravila.StanjeKljuca.ZAKLENJEN, shranjenVelja = true, enak = true))
+    preveriEnako("K1: cakajoci zaklenjen se zavrze (brez ponovitev)", DebridPravila.Cakajoc.ZAVRZI, DebridPravila.poPreverbiCakajocega(DebridPravila.Preverba.ZAKLENJEN))
+    preveriEnako("K1: zaklenjen je najpomembnejsi razlog", TorBoxPravila.NAPAKA_ZAKLENJEN, DebridPravila.razlogZaUporabnika(listOf(TorBoxPravila.NAPAKA_KLJUC, TorBoxPravila.NAPAKA_ZAKLENJEN)))
+    // Pregled Grok 34, E3 / 33, F7: brez pozitivnega dokaza ni »velja«.
+    preveriEnako("E3: RD 403 brez telesa (CDN, blokada IP): ni odgovora", DebridPravila.Preverba.NI_ODGOVORA, DebridPravila.preverbaRdOdgovor(403, null, null, null))
+    preveriEnako("E3: RD 403 permission_denied (9) s kodo RD: ne velja (varovalo racunov - nikoli velja)", DebridPravila.Preverba.NE_VELJA, DebridPravila.preverbaRdOdgovor(403, 9, null, null))
+    preveriEnako("F7: RD 200 brez telesa: ni odgovora", DebridPravila.Preverba.NI_ODGOVORA, DebridPravila.preverbaRdOdgovor(200, null, null, null))
+    preveriEnako("F7: RD 200 z id: velja", DebridPravila.Preverba.VELJA, DebridPravila.preverbaRdOdgovor(200, null, 123L, null))
+    preveriEnako("F7: RD 200 z username: velja", DebridPravila.Preverba.VELJA, DebridPravila.preverbaRdOdgovor(200, null, null, "uporabnik"))
+    preveriEnako("F7: RD 200 s praznim username: ni odgovora", DebridPravila.Preverba.NI_ODGOVORA, DebridPravila.preverbaRdOdgovor(200, null, null, " "))
+    preveriEnako("E3: RD 401 brez telesa: ne velja (skupni primeri)", DebridPravila.Preverba.NE_VELJA, DebridPravila.preverbaRdOdgovor(401, null, null, null))
+    preveriEnako("E3: RD 429 brez telesa: meja", DebridPravila.Preverba.MEJA, DebridPravila.preverbaRdOdgovor(429, null, null, null))
+    preveriEnako("E3: RD 502 brez telesa: ni odgovora", DebridPravila.Preverba.NI_ODGOVORA, DebridPravila.preverbaRdOdgovor(502, null, null, null))
+    preveriEnako("AD success: velja", DebridPravila.Preverba.VELJA, DebridPravila.preverbaAd(200, "success", null))
+    preveriEnako("AD AUTH_BAD_APIKEY s HTTP 200: ne velja", DebridPravila.Preverba.NE_VELJA, DebridPravila.preverbaAd(200, "error", "AUTH_BAD_APIKEY"))
+    // Varovalo racunov: stanje racuna (brez kljuca) v ozji krog - ne velja / zaklenjen ustavi vse naprave, Preveri jih spusti.
+    val SK2 = DebridPravila.StanjeKljuca.values().toList()
+    preveriEnako("krog: dokoncna stanja", listOf(true, true, false, true), SK2.map { DebridPravila.stanjeVKrog(it) })
+    preveriEnako("krog: zaklenjen z druge naprave ustavi tukajsnji veljaven", true, DebridPravila.sprejmiStanje(1_000L, DebridPravila.StanjeKljuca.ZAKLENJEN, 2_000L, 3_000L))
+    preveriEnako("krog: ne velja brez tukajsnjega stanja", true, DebridPravila.sprejmiStanje(null, DebridPravila.StanjeKljuca.NE_VELJA, 2_000L, 3_000L))
+    preveriEnako("krog: starejse ne", false, DebridPravila.sprejmiStanje(2_000L, DebridPravila.StanjeKljuca.VELJA, 1_000L, 3_000L))
+    preveriEnako("krog: enak cas ne (brez ping-ponga)", false, DebridPravila.sprejmiStanje(2_000L, DebridPravila.StanjeKljuca.ZAKLENJEN, 2_000L, 3_000L))
+    preveriEnako("krog: nepreverjen ne gre", false, DebridPravila.sprejmiStanje(null, DebridPravila.StanjeKljuca.NEPREVERJEN, 2_000L, 3_000L))
+    preveriEnako("krog: iz dalnje prihodnosti ne", false, DebridPravila.sprejmiStanje(null, DebridPravila.StanjeKljuca.ZAKLENJEN, 3_000L + 11 * 60_000L, 3_000L))
+    preveriEnako("krog: brez casa ne", false, DebridPravila.sprejmiStanje(null, DebridPravila.StanjeKljuca.ZAKLENJEN, 0L, 3_000L))
+    preveriEnako("krog: ime stanja", DebridPravila.StanjeKljuca.ZAKLENJEN, DebridPravila.stanjeIzImena("zaklenjen"))
+    preveriEnako("krog: neznano ime", null, DebridPravila.stanjeIzImena("odklenjen"))
+    // Pregled Grok 33, F5: izid zahteve velja samo za kljuc in storitev zahteve.
+    preveriEnako("F5: isti kljuc in storitev", true, DebridPravila.izidZaKljuc("K1", "K1", "torbox", "torbox"))
+    preveriEnako("F5: storitev izida ni vpisana (prazno)", true, DebridPravila.izidZaKljuc("K1", "K1", "realdebrid", ""))
+    preveriEnako("F5: kljuc zamenjan med zahtevo", false, DebridPravila.izidZaKljuc("K2", "K1", "torbox", "torbox"))
+    preveriEnako("F5: izid druge storitve", false, DebridPravila.izidZaKljuc("K1", "K1", "realdebrid", "alldebrid"))
+    preveriEnako("F5: kljuca medtem ni", false, DebridPravila.izidZaKljuc(null, "K1", "torbox", "torbox"))
+    // Pregled Grok 33, F9: prejeti kljuc, ki ga ni bilo mogoce preveriti, ni »zavrnjen«.
+    preveriEnako("F9: prejet veljaven: shranjen", DebridPravila.Prejem.SHRANJEN, DebridPravila.prejem(DebridPravila.Preverba.VELJA))
+    preveriEnako("F9: prejet brez povezave: ni preverjen (poslji znova)", DebridPravila.Prejem.NI_PREVERJEN, DebridPravila.prejem(DebridPravila.Preverba.NI_ODGOVORA))
+    preveriEnako("F9: prejet ob meji: ni preverjen", DebridPravila.Prejem.NI_PREVERJEN, DebridPravila.prejem(DebridPravila.Preverba.MEJA))
+    preveriEnako("F9: prejet zavrnjen: zavrnjen", DebridPravila.Prejem.ZAVRNJEN, DebridPravila.prejem(DebridPravila.Preverba.NE_VELJA))
+    preveriEnako("F9: prejet zaklenjen racun: zavrnjen", DebridPravila.Prejem.ZAVRNJEN, DebridPravila.prejem(DebridPravila.Preverba.ZAKLENJEN))
+    // Pregled Grok 33, F3: vpis brez povezave (429, 5xx) ne prepise veljavnega - caka ob strani.
+    preveriEnako("F3: veljaven + nepreverjen nov -> ob strani", DebridPravila.Vpis.OB_STRANI, DebridPravila.obVpisu(DebridPravila.StanjeKljuca.NEPREVERJEN, shranjenVelja = true, enak = false))
+    preveriEnako("F3: veljaven + isti nepreverjen -> ohrani", DebridPravila.Vpis.OHRANI, DebridPravila.obVpisu(DebridPravila.StanjeKljuca.NEPREVERJEN, shranjenVelja = true, enak = true))
+    preveriEnako("F3: potrjen nov zamenja", DebridPravila.Vpis.ZAMENJAJ, DebridPravila.obVpisu(DebridPravila.StanjeKljuca.VELJA, shranjenVelja = true, enak = false))
+    preveriEnako("F3: brez veljavnega nepreverjen zamenja", DebridPravila.Vpis.ZAMENJAJ, DebridPravila.obVpisu(DebridPravila.StanjeKljuca.NEPREVERJEN, shranjenVelja = false, enak = false))
+    preveriEnako("F3: cakajoci potrjen zamenja", DebridPravila.Cakajoc.ZAMENJAJ, DebridPravila.poPreverbiCakajocega(DebridPravila.Preverba.VELJA))
+    preveriEnako("F3: cakajoci zavrnjen se zavrze", DebridPravila.Cakajoc.ZAVRZI, DebridPravila.poPreverbiCakajocega(DebridPravila.Preverba.NE_VELJA))
+    preveriEnako("F3: cakajoci vzorec se zavrze", DebridPravila.Cakajoc.ZAVRZI, DebridPravila.poPreverbiCakajocega(DebridPravila.Preverba.OBLIKA))
+    preveriEnako("F3: cakajoci brez povezave caka", DebridPravila.Cakajoc.CAKA, DebridPravila.poPreverbiCakajocega(DebridPravila.Preverba.NI_ODGOVORA))
+    preveriEnako("F3: cakajoci meja caka", DebridPravila.Cakajoc.CAKA, DebridPravila.poPreverbiCakajocega(DebridPravila.Preverba.MEJA))
+    // Shranjevanje, usklajevanje, prejem
+    preveriEnako("zavrnjen se ne shrani", null, DebridPravila.stanjePoPreverbi(DebridPravila.Preverba.NE_VELJA))
+    preveriEnako("vzorec se ne shrani", null, DebridPravila.stanjePoPreverbi(DebridPravila.Preverba.OBLIKA))
+    preveriEnako("brez povezave: nepreverjen", DebridPravila.StanjeKljuca.NEPREVERJEN, DebridPravila.stanjePoPreverbi(DebridPravila.Preverba.NI_ODGOVORA))
+    preveriEnako("veljaven: velja", DebridPravila.StanjeKljuca.VELJA, DebridPravila.stanjePoPreverbi(DebridPravila.Preverba.VELJA))
+    preveriEnako("usklajevanje: samo veljaven", listOf(true, false, false, false),
+        listOf(DebridPravila.StanjeKljuca.VELJA, DebridPravila.StanjeKljuca.NEPREVERJEN, DebridPravila.StanjeKljuca.NE_VELJA, null).map { DebridPravila.zaUskladitev(it) })
+    preveriEnako("prejeti: samo, ce ga storitev potrdi tudi tu", listOf(true, false, false, false),
+        listOf(DebridPravila.Preverba.VELJA, DebridPravila.Preverba.NE_VELJA, DebridPravila.Preverba.NI_ODGOVORA, DebridPravila.Preverba.MEJA).map { DebridPravila.sprejmiPrejetega(it) })
+    // Stanje je vezano na kljuc
+    val o1 = DebridPravila.odtisStanja(tbk)
+    preveriEnako("odtis ne razkrije kljuca", false, o1.contains(tbk.take(8)))
+    val zapis = DebridPravila.zapisStanja(DebridPravila.StanjeKljuca.VELJA, o1, 2, 1000L)
+    preveriEnako("stanje istega kljuca", Triple(DebridPravila.StanjeKljuca.VELJA, 2, 1000L), DebridPravila.stanjeIzZapisa(zapis, o1))
+    preveriEnako("stanje drugega kljuca ne velja", null, DebridPravila.stanjeIzZapisa(zapis, DebridPravila.odtisStanja(vzorec)))
+    preveriEnako("ime paketa Pro", "Pro", DebridPravila.imePaketa(2))
+    preveriEnako("preveri: brez stanja da (se ni bil preverjen)", true, DebridPravila.preveriZdaj(null, 0L, 1_800_000_000_000L))
+    preveriEnako("v2: brez stanja najvec enkrat na 10 min za ta kljuc", false, DebridPravila.preveriZdaj(null, 1_000_000L, 1_001_000L))
+    preveriEnako("preveri: nepreverjen po 10 min da", true, DebridPravila.preveriZdaj(DebridPravila.StanjeKljuca.NEPREVERJEN, 0L, DebridPravila.PREVERI_ZNOVA_MS))
+    preveriEnako("preveri: nepreverjen pred 10 min ne", false, DebridPravila.preveriZdaj(DebridPravila.StanjeKljuca.NEPREVERJEN, 0L, DebridPravila.PREVERI_ZNOVA_MS - 1))
+    preveriEnako("preveri: veljaven ne (do napake 401)", false, DebridPravila.preveriZdaj(DebridPravila.StanjeKljuca.VELJA, 0L, 10 * DebridPravila.PREVERI_ZNOVA_MS))
+
+    // Pregled Grok 41, Z2: ponoven vpis istega kljuca brez odgovora ne odklene »ne velja« ali »zaklenjen«; vpis in »Preveri«
+    // istega kljuca najvec enkrat na minuto (po kljucu, ne po storitvi).
+    val sk = DebridPravila.StanjeKljuca.values().associateBy { it.name }
+    preveriEnako("Z2: zaklenjen + isti kljuc + brez odgovora -> zaklenjen", sk["ZAKLENJEN"],
+        DebridPravila.stanjePoVpisu(sk["ZAKLENJEN"], DebridPravila.Preverba.NI_ODGOVORA))
+    preveriEnako("Z2: ne velja + isti kljuc + meja (429) -> ne velja", sk["NE_VELJA"],
+        DebridPravila.stanjePoVpisu(sk["NE_VELJA"], DebridPravila.Preverba.MEJA))
+    preveriEnako("Z2: zaklenjen + odgovor velja -> velja", sk["VELJA"], DebridPravila.stanjePoVpisu(sk["ZAKLENJEN"], DebridPravila.Preverba.VELJA))
+    preveriEnako("Z2: zaklenjen + odgovor ne velja -> ne shrani", null, DebridPravila.stanjePoVpisu(sk["ZAKLENJEN"], DebridPravila.Preverba.NE_VELJA))
+    preveriEnako("Z2: nov kljuc brez odgovora -> nepreverjen", sk["NEPREVERJEN"], DebridPravila.stanjePoVpisu(null, DebridPravila.Preverba.NI_ODGOVORA))
+    preveriEnako("Z2: veljaven isti kljuc brez odgovora -> nepreverjen (obVpisu ga ohrani)", sk["NEPREVERJEN"],
+        DebridPravila.stanjePoVpisu(sk["VELJA"], DebridPravila.Preverba.NI_ODGOVORA))
+    val rocne = DebridPravila.RocnePreverbe()
+    val tr0 = 1_800_000_000_000L
+    preveriEnako("Z2: prvi vpis kljuca gre storitvi", 0L, rocne.cez(rd, "o1", tr0))
+    preveriEnako("Z2: isti kljuc cez 30 s - brez klica, se 30 s", 30_000L, rocne.cez(rd, "o1", tr0 + 30_000))
+    preveriEnako("Z2: drug kljuc iste storitve gre", 0L, rocne.cez(rd, "o2", tr0 + 30_000))
+    preveriEnako("Z2: isti odtis druge storitve gre", 0L, rocne.cez(tb, "o1", tr0 + 30_000))
+    preveriEnako("Z2: isti kljuc po minuti spet gre", 0L, rocne.cez(rd, "o1", tr0 + 60_000))
+    preveriEnako("Z2: ura nazaj ne zaklene za vedno", 0L, rocne.cez(rd, "o1", tr0 - 1))
+
+    // Pregled Grok 41, Z3 (in namizje S3): zapora po kljucu, ne po storitvi; »Razveljavi« ne vrne zaklenjenega kljuca kot
+    // nepreverjenega; zapora v pomnilniku velja pred zapisom; neberljiv zapis istega kljuca odpove zaprto.
+    val zo1 = "aaaaaaaaaaaaaaaa"; val zo2 = "bbbbbbbbbbbbbbbb"
+    var zap = DebridPravila.zZaporo(null, zo1, DebridPravila.StanjeKljuca.ZAKLENJEN)
+    zap = DebridPravila.zZaporo(zap, zo2, DebridPravila.StanjeKljuca.VELJA)
+    preveriEnako("Z3: zapora K1 ostane, ko je shranjen veljaven K2", sk["ZAKLENJEN"], DebridPravila.zaporeIzZapisa(zap)[zo1])
+    preveriEnako("Z3: K1 (na mestu je K2) je zaklenjen, ne »brez stanja«", sk["ZAKLENJEN"],
+        DebridPravila.stanjeZZaporo(null, null, DebridPravila.zaporeIzZapisa(zap)[zo1]))
+    preveriEnako("Z3: »Razveljavi« vrne zaklenjen K1 zaklenjen", sk["ZAKLENJEN"], DebridPravila.stanjeObObnovi(sk["ZAKLENJEN"]))
+    preveriEnako("Z3: »Razveljavi« kljuca, ki ne velja - ne velja", sk["NE_VELJA"], DebridPravila.stanjeObObnovi(sk["NE_VELJA"]))
+    preveriEnako("Z3: »Razveljavi« brez zapore - nepreverjen (ena preverba)", sk["NEPREVERJEN"], DebridPravila.stanjeObObnovi(null))
+    preveriEnako("Z3: nepreverjen na mestu zapore ne odpravi", sk["NE_VELJA"], DebridPravila.stanjeZZaporo(null, sk["NEPREVERJEN"], sk["NE_VELJA"]))
+    preveriEnako("Z3: »velja« na mestu (Preveri) zaporo odpravi", sk["VELJA"], DebridPravila.stanjeZZaporo(null, sk["VELJA"], sk["NE_VELJA"]))
+    preveriEnako("Z3: »velja« pobrise zapis zapore", null,
+        DebridPravila.zaporeIzZapisa(DebridPravila.zZaporo(zap, zo1, DebridPravila.StanjeKljuca.VELJA))[zo1])
+    preveriEnako("Z3: »nepreverjen« zapore ne pobrise", sk["ZAKLENJEN"],
+        DebridPravila.zaporeIzZapisa(DebridPravila.zZaporo(zap, zo1, DebridPravila.StanjeKljuca.NEPREVERJEN))[zo1])
+    preveriEnako("S3: zapora v pomnilniku velja, tudi ce zapisa ni", sk["ZAKLENJEN"], DebridPravila.stanjeZZaporo(sk["ZAKLENJEN"], null, null))
+    preveriEnako("S3: zapora v pomnilniku pred starim »velja« na mestu", sk["NE_VELJA"], DebridPravila.stanjeZZaporo(sk["NE_VELJA"], sk["VELJA"], null))
+    var mnogo: String? = null
+    for (i in 0 until 12) mnogo = DebridPravila.zZaporo(mnogo, "odtis$i", DebridPravila.StanjeKljuca.NE_VELJA)
+    val mz = DebridPravila.zaporeIzZapisa(mnogo)
+    preveriEnako("Z3: najvec 8 zapor, najstarejse odpadejo", listOf(8, null, sk["NE_VELJA"]), listOf(mz.size, mz["odtis0"], mz["odtis11"]))
+    preveriEnako("S3: neberljiv zapis je »ne velja«", sk["NE_VELJA"], DebridPravila.stanjeIzZapisa("pokvarjeno", o1)?.first)
+    preveriEnako("S3: neznano stanje istega kljuca je »ne velja«", sk["NE_VELJA"], DebridPravila.stanjeIzZapisa("NOVO|$o1||5", o1)?.first)
+    preveriEnako("S3: zapis istega kljuca brez casa je »ne velja«", sk["NE_VELJA"], DebridPravila.stanjeIzZapisa("VELJA|$o1", o1)?.first)
+    preveriEnako("S3: zapis drugega kljuca ostane »brez stanja«", null,
+        DebridPravila.stanjeIzZapisa("VELJA|${DebridPravila.odtisStanja(vzorec)}||5", o1))
+
+    // Pregled Grok 41, Z5 (namizje S6): zaporo odklene samo »Preveri« ali vpis - ne pozen uspeh in ne »velja« z druge
+    // naprave, ki ni iz »Preveri«.
+    val nk = TorBoxPravila.NAPAKA_KLJUC; val nz = TorBoxPravila.NAPAKA_ZAKLENJEN; val velja = DebridPravila.StanjeKljuca.VELJA
+    preveriEnako("Z5: pozen uspeh ne odpravi »zaklenjen«", null, DebridPravila.stanjePoUporabi(sk["ZAKLENJEN"], "", true))
+    preveriEnako("Z5: pozen uspeh ne odpravi »ne velja«", null, DebridPravila.stanjePoUporabi(sk["NE_VELJA"], "", true))
+    preveriEnako("Z5: uspeh potrdi nepreverjen", velja, DebridPravila.stanjePoUporabi(sk["NEPREVERJEN"], "", true))
+    preveriEnako("Z5: uspeh potrdi kljuc brez stanja", velja, DebridPravila.stanjePoUporabi(null, "", true))
+    preveriEnako("Z5: veljaven ostane brez zapisa", null, DebridPravila.stanjePoUporabi(velja, "", true))
+    preveriEnako("Z5: zavrnitev med uporabo zapre veljavnega", sk["NE_VELJA"], DebridPravila.stanjePoUporabi(velja, nk, false))
+    preveriEnako("Z5: zaklep med uporabo", sk["ZAKLENJEN"], DebridPravila.stanjePoUporabi(sk["NE_VELJA"], nz, false))
+    preveriEnako("Z5: isti zaklep znova - brez zapisa", null, DebridPravila.stanjePoUporabi(sk["ZAKLENJEN"], nz, false))
+    preveriEnako("Z5: krog - »velja« brez »Preveri« ne odpravi tukajsnje zapore", false,
+        DebridPravila.sprejmiStanje(1_000L, velja, 2_000L, 3_000L, sk["ZAKLENJEN"], rocno = false))
+    preveriEnako("Z5: krog - »velja« iz »Preveri« jo odpravi", true, DebridPravila.sprejmiStanje(1_000L, velja, 2_000L, 3_000L, sk["ZAKLENJEN"], rocno = true))
+    preveriEnako("Z5: krog - »velja« za nepreverjen gre", true, DebridPravila.sprejmiStanje(1_000L, velja, 2_000L, 3_000L, sk["NEPREVERJEN"]))
+    val zr = DebridPravila.zapisStanja(velja, o1, 2, 5L, rocno = true)
+    preveriEnako("Z5: »velja« iz »Preveri« nosi oznako in se prebere", listOf(true, Triple(velja, 2, 5L)),
+        listOf(DebridPravila.rocnoIzZapisa(zr), DebridPravila.stanjeIzZapisa(zr, o1)))
+    preveriEnako("Z5: brez oznake", false, DebridPravila.rocnoIzZapisa(DebridPravila.zapisStanja(velja, o1, 2, 5L)))
+    preveriEnako("Z5: oznaka samo pri »velja«", false,
+        DebridPravila.rocnoIzZapisa(DebridPravila.zapisStanja(DebridPravila.StanjeKljuca.ZAKLENJEN, o1, null, 5L, rocno = true)))
+
+    // Pregled Grok 41, Z8 (namizje S4): RD 9 med uporabo ne zapre veljavnega kljuca; ob vpisu ostane »ne velja za to rabo«.
+    val rd9 = DebridPravila.rdVrstaNapakeUporabe(403, 9)
+    preveriEnako("Z8: RD 9 med uporabo ni napacen kljuc", DebridPravila.NAPAKA_DOVOLJENJE, rd9)
+    preveriEnako("Z8: RD 9 ne zapre veljavnega kljuca", null, DebridPravila.stanjePoUporabi(velja, rd9, false))
+    preveriEnako("Z8: RD 9 ne spremeni zapore", null, DebridPravila.stanjePoUporabi(sk["ZAKLENJEN"], rd9, false))
+    preveriEnako("Z8: RD 9 pri nepreverjenem - ne velja za to rabo", sk["NE_VELJA"], DebridPravila.stanjePoUporabi(sk["NEPREVERJEN"], rd9, false))
+    preveriEnako("Z8: sporocilo pri veljavnem - paket", TorBoxPravila.NAPAKA_PAKET, DebridPravila.napakaDovoljenja(velja))
+    preveriEnako("Z8: sporocilo pri nepotrjenem - kljuc", TorBoxPravila.NAPAKA_KLJUC, DebridPravila.napakaDovoljenja(sk["NE_VELJA"]))
+    preveriEnako("Z8: ob vpisu (/user) RD 9 ostane »ne velja« (skupni primeri v2)", DebridPravila.Preverba.NE_VELJA, DebridPravila.preverbaRd(403, 9, false))
+    preveriEnako("Z8: RD 8 med uporabo ostane kljuc", TorBoxPravila.NAPAKA_KLJUC, DebridPravila.rdVrstaNapakeUporabe(401, 8))
+
+    // Pregled Grok 41, Z9: sporocilo po »Preveri« - 429 ni »ni povezave«.
+    preveriEnako("Z9: »Preveri« z 429 - meja (stanje ostane)", DebridPravila.PoPreveri.MEJA, DebridPravila.poPreveri(DebridPravila.Preverba.MEJA))
+    preveriEnako("Z9: »Preveri« brez odgovora - ni odgovora", DebridPravila.PoPreveri.NI_ODGOVORA, DebridPravila.poPreveri(DebridPravila.Preverba.NI_ODGOVORA))
+    preveriEnako("Z9: prezgodaj - pocakaj", DebridPravila.PoPreveri.POCAKAJ, DebridPravila.poPreveri(null))
+    preveriEnako("Z9: vzorec - ne velja", DebridPravila.PoPreveri.NE_VELJA, DebridPravila.poPreveri(DebridPravila.Preverba.OBLIKA))
+
+    // Pregled Grok 48, A3: zapora kljuca o1 je samo na mestu (zapisana pred a15fb57), seznam zapor je prazen. Vpis K2 mesto
+    // prepise - zapora o1 mora ostati (prej je izginila in »Razveljavi« je vrnil K1 kot nepreverjenega).
+    run {
+        val zk = DebridPravila.StanjeKljuca.ZAKLENJEN
+        val o1 = DebridPravila.odtisStanja("K1-izmisljen-kljuc-0001"); val o2 = DebridPravila.odtisStanja("K2-izmisljen-kljuc-0002")
+        val mesto = DebridPravila.zapisStanja(zk, o1, null, 1000L)
+        val zapore = DebridPravila.zZaporo(DebridPravila.zaporePredPrepisom(mesto, null, o2), o2, DebridPravila.StanjeKljuca.NEPREVERJEN)
+        val novoMesto = DebridPravila.zapisStanja(DebridPravila.StanjeKljuca.NEPREVERJEN, o2, null, 2000L)
+        preveriEnako("A3: zapora o1 v seznamu po vpisu K2", zk, DebridPravila.zaporeIzZapisa(zapore)[o1])
+        preveriEnako("A3: stanje o1 po vpisu K2 ostane zaklenjen", zk, DebridPravila.stanjeZZaporo(null,
+            DebridPravila.stanjeIzZapisa(novoMesto, o1)?.first, DebridPravila.zaporeIzZapisa(zapore)[o1]))
+        preveriEnako("A3: Razveljavi vrne K1 z zaporo", zk, DebridPravila.stanjeObObnovi(DebridPravila.zaporeIzZapisa(zapore)[o1]))
+        val nv = DebridPravila.zapisStanja(DebridPravila.StanjeKljuca.NE_VELJA, o1, null, 1000L)
+        preveriEnako("A3: tudi »ne velja« se prenese", DebridPravila.StanjeKljuca.NE_VELJA,
+            DebridPravila.zaporeIzZapisa(DebridPravila.zaporePredPrepisom(nv, null, o2))[o1])
+        preveriEnako("A3: velja na mestu ni zapora", null,
+            DebridPravila.zaporeIzZapisa(DebridPravila.zaporePredPrepisom(DebridPravila.zapisStanja(DebridPravila.StanjeKljuca.VELJA, o1, null, 1L), null, o2))[o1])
+        preveriEnako("A3: isti kljuc - seznam nespremenjen", null, DebridPravila.zaporePredPrepisom(mesto, null, o1))
+    }
 
     if (napak == 0) println("DebridPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

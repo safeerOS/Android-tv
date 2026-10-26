@@ -35,6 +35,20 @@ object TorBox {
 
     fun pozabiKljuc(c: Context) { SporocilaSkrivnosti.pozabi(c, SKRIVNOST) }
 
+    /**
+     * Lastnik 25. 10. 2026: preverba kljuca z »user/me« (nic ne doda v racun). Odgovor nosi tudi e-naslov racuna - vzamemo
+     * SAMO paket (polje »plan«), nic ne gre v dnevnik. (izid, paket); brez povezave NI_ODGOVORA.
+     */
+    fun preveri(kljuc: String): Pair<DebridPravila.Preverba, Int?> = try {
+        val o = klic(DebridPravila.TORBOX_UPORABNIK, kljuc, rokMs = 8_000)
+        val j = o.json
+        val data = j?.optJSONObject("data")
+        // Skupni primeri z namizjem (kljuci-preverba.json): polja strogo, kot jih prebere namizje.
+        DebridPravila.preverbaTorBoxOdgovor(o.koda, j?.opt("success"), j?.opt("error"), data != null, data?.opt("plan"))
+    } catch (e: Exception) {
+        Log.i(TAG, "preverba: ${e.javaClass.simpleName}"); DebridPravila.Preverba.NI_ODGOVORA to null
+    }
+
     /** Izid: [url] povezava CDN za predvajanje ali [napaka] (TorBoxPravila.NAPAKA_*) z [opis] TorBoxa za uporabnika. */
     class Izid(val url: String? = null, val napaka: String = "", val opis: String = "", val cakajMs: Long = 0L,
                /** Naloga 128: storitev, ki je dala povezavo ali napako (DebridPravila.TORBOX ...). */
@@ -107,7 +121,11 @@ object TorBox {
         if (h.isEmpty()) return emptySet()
         return try {
             val o = klic(TorBoxPravila.naslovPredpomnjenihVec(h), kljuc, rokMs = rokMs)
-            if (!uspeh(o)) return emptySet()
+            if (!uspeh(o)) {
+                // Lastnik 25. 10. 2026: zavrnjen kljuc ze ob preverbi ⚡ - vrstica v »Debrid storitve« pove »ne velja«.
+                Debrid.obIzidu(c, DebridPravila.TORBOX, kljuc, DebridPravila.TORBOX, napaka(o).napaka, false)
+                return emptySet()
+            }
             val data = o.json?.optJSONObject("data") ?: return emptySet()
             DebridPravila.predpomnjeni(data.keys().asSequence().toList(), h).also { Log.i(TAG, "checkcached: ${it.size} od ${h.size} pripravljenih") }
         } catch (e: Exception) {
@@ -222,8 +240,10 @@ object TorBox {
      * (napaka »ni predpomnjeno«, uporabnik lahko izbere »Pocakaj na prenos«). Sicer cakamo do
      * [UsenetPravila.CAKAJ_PRENOSA_MS] z napredkom. Izid nosi ponudnika TorBox. Z delovne niti.
      */
-    fun usenet(c: Context, nzb: ByteArray, ime: String, indeks: Int, samoTakoj: Boolean, napredek: (Int) -> Unit = {}): Izid {
-        val kljuc = kljuc(c) ?: return Izid(napaka = TorBoxPravila.NAPAKA_KLJUC, ponudnik = DebridPravila.TORBOX)
+    fun usenet(c: Context, nzb: ByteArray, ime: String, indeks: Int, samoTakoj: Boolean, napredek: (Int) -> Unit = {},
+               kljucZahteve: String? = null): Izid {
+        // [kljucZahteve]: kljuc, za katerega je klicatelj tik pred tem preveril smeKlicati (pregled Grok 48, A2)
+        val kljuc = kljucZahteve ?: kljuc(c) ?: return Izid(napaka = TorBoxPravila.NAPAKA_KLJUC, ponudnik = DebridPravila.TORBOX)
         fun z(iz: Izid) = Izid(iz.url, iz.napaka, iz.opis, iz.cakajMs, DebridPravila.TORBOX)
         return try {
             Debrid.preveriPreklic()

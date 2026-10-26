@@ -10,6 +10,7 @@ import si.safeer.tv.R
 object DebridBesedila {
     fun sporocilo(c: Context, izid: TorBox.Izid, storitev: String): String = when (izid.napaka) {
         TorBoxPravila.NAPAKA_KLJUC -> c.getString(R.string.os_torbox_napaka_kljuc, storitev)
+        TorBoxPravila.NAPAKA_ZAKLENJEN -> zaklenjen(c, izid.ponudnik, storitev)
         // Pregled 6: »60 novih na uro« je meja TorBoxa - pri drugi storitvi njeno ime in meja paketa.
         TorBoxPravila.NAPAKA_MEJA -> if (izid.cakajMs > 0 && izid.ponudnik == DebridPravila.TORBOX)
                 c.getString(R.string.os_torbox_napaka_meja, ((izid.cakajMs + 59_999) / 60_000).toInt())
@@ -21,6 +22,13 @@ object DebridBesedila {
         UsenetPravila.NAPAKA_INDEKSATOR -> c.getString(R.string.os_usenet_napaka_indeksator)
         else -> c.getString(R.string.os_torbox_napaka_streznik, storitev)
     } + if (izid.opis.isNotBlank()) "\n\n" + izid.opis else ""
+
+    /** Varovalo racunov (lastnik 26. 10. 2026): kaj narediti, ko je racun zaklenjen - Safeer storitve do »Preveri« ne klice. */
+    fun zaklenjen(c: Context, ponudnik: String, storitev: String): String = when (ponudnik) {
+        DebridPravila.REAL_DEBRID -> c.getString(R.string.os_debrid_zaklenjen_rd)
+        DebridPravila.ALLDEBRID -> c.getString(R.string.os_debrid_zaklenjen_ad)
+        else -> c.getString(R.string.os_debrid_zaklenjen, storitev)
+    }
 
     fun naslov(c: Context, izid: TorBox.Izid, storitev: String): String =
         if (izid.napaka == DebridPravila.NAPAKA_NI_PREDPOMNJENO) c.getString(R.string.os_debrid_napaka_naslov_vse)

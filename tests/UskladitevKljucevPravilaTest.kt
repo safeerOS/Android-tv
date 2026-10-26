@@ -22,6 +22,12 @@ private class Naprava(val id: String) {
         if (v == null) vrednosti.remove(k) else vrednosti[k] = v
         meta.putAll(UskladitevKljucevPravila.lokalneSpremembe(meta, vrednosti.mapValues { odtis(it.value) }, emptySet(), id, ura, false))
     }
+    /** »Odstrani« na tej napravi (pregled Grok 33, F1): [vKrog] = kljuc je tu veljal. */
+    fun odstrani(k: String, vKrog: Boolean, ura: Long) {
+        val m = HashMap(UskladitevKljucevPravila.poOdstranitvi(meta, k, vKrog))
+        meta.clear(); meta.putAll(m)
+        spremeni(k, null, ura)
+    }
     /** Samo lastni zapisi (pregled U2). */
     fun stanje() = UskladitevKljucevPravila.zaPoslati(meta, vrednosti, id)
     /** Prejem od naprave [od]: samo zapisi z izvorom posiljatelja (pregled U1). */
@@ -178,6 +184,43 @@ fun main() {
     preveriEnako("N10: vrednost ima prednost", "pravi.test", P.prikazGostitelja("https://pravi.test/x/manifest.json", "torrentio.strem.fun", "pravi.test"))
     preveriEnako("N10: brez vrednosti - trditev ocisceno", "torrentio.strem.fun", P.prikazGostitelja("", "Torrentio.Strem.Fun‮", ""))
     preveriEnako("N10: brez nevidnih znakov", "evilmoc.test", P.samoImeGostitelja("evil​moc.test"))
+
+    // Lastnik 25. 10. 2026: z vrednostjo gre samo potrjen kljuc (debrid in indeksator); nepreverjen ali zavrnjen je neznan.
+    preveriEnako("oddaja: potrjen gre z vrednostjo", UskladitevKljucevPravila.Oddaja.VREDNOST, P.oddaja(prebran = true, shranjen = true, velja = true))
+    preveriEnako("oddaja: nepreverjen ali zavrnjen je neznan", UskladitevKljucevPravila.Oddaja.NEZNAN, P.oddaja(prebran = true, shranjen = true, velja = false))
+    preveriEnako("oddaja: neberljiv (Keystore) je neznan", UskladitevKljucevPravila.Oddaja.NEZNAN, P.oddaja(prebran = false, shranjen = true, velja = false))
+    preveriEnako("oddaja: ni kljuca -> izbris", UskladitevKljucevPravila.Oddaja.BREZ, P.oddaja(prebran = false, shranjen = false, velja = false))
+    // Nepreverjen indeksator (neznan) na drugih napravah ne povozi in ne izbrise ze poslanega veljavnega.
+    preveriEnako("oddaja: neznan indeksator ne izbrise poslanega", emptyMap<String, Meta>(),
+        P.lokalneSpremembe(mapOf("usenet" to Meta(5, "a", false, "h")), emptyMap(), setOf("usenet"), "a", 10, false))
+
+    // Pregled Grok 33, F1: »Odstrani« kljuca, ki tu ni veljal, ne izbrise veljavnega na drugih napravah.
+    run {
+        val telF = Naprava("telefon"); val tvF = Naprava("tv")
+        telF.spremeni(tb, "K1", 100)
+        preveriEnako("F1: TV prejme veljaven kljuc s telefona", 1, tvF.prejmi(telF.stanje(), 200, "telefon"))
+        // Na TV kljuc ne velja (npr. 401 med uporabo) - uporabnik pritisne »Odstrani«.
+        tvF.odstrani(tb, vKrog = false, ura = 300)
+        preveriEnako("F1: neveljaven odstranjen - TV nima groba za poslati", emptyList<Zapis>(), tvF.stanje())
+        preveriEnako("F1: telefon nic ne prejme", 0, telF.prejmi(tvF.stanje(), 400, "tv"))
+        preveriEnako("F1: telefon obdrzi veljaven kljuc", "K1", telF.vrednosti[tb])
+        preveriEnako("F1: TV spet sprejme veljaven kljuc s telefona", 1, tvF.prejmi(telF.stanje(), 500, "telefon"))
+        preveriEnako("F1: TV ima spet K1", "K1", tvF.vrednosti[tb])
+        // Veljaven kljuc odstranjen: izbris gre v krog (kot doslej).
+        tvF.odstrani(tb, vKrog = true, ura = 600)
+        preveriEnako("F1: veljaven odstranjen - grob gre v krog", 1, telF.prejmi(tvF.stanje(), 700, "tv"))
+        preveriEnako("F1: telefon izbrise kljuc", null, telF.vrednosti[tb])
+    }
+    preveriEnako("F1: izbris v krog samo za veljaven", listOf(true, false), listOf(true, false).map { P.izbrisVKrog(it) })
+    preveriEnako("F1: grob ostane grob", mapOf(tb to Meta(3, "a", true, "")), P.poOdstranitvi(mapOf(tb to Meta(3, "a", true, "")), tb, false))
+
+    // Pregled Grok 33, F2: med preverbo brez zaklepa je uporabnik tu vpisal nov kljuc - prejeti starejsi se ne shrani.
+    run {
+        val prejet = Zapis(tb, 100, "telefon", false, "K1")
+        val medtem = mapOf(tb to Meta(150, "tv", false, "oK2"))
+        preveriEnako("F2: vmes lokalna sprememba - prejeti ne zmaga", emptyList<Zapis>(), P.seVednoNovejsi(medtem, listOf(prejet)))
+        preveriEnako("F2: brez vmesne spremembe - prejeti se shrani", listOf(prejet), P.seVednoNovejsi(mapOf(tb to Meta(50, "tv", false, "o")), listOf(prejet)))
+    }
 
     if (napak == 0) println("UskladitevKljucevPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

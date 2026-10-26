@@ -201,13 +201,14 @@ java -cp "$OUT/os.jar" si.safeer.tv.os.OddaljenoPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.MiniPredvajalnikPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.TorBoxPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.DebridPravilaTestKt
-java -cp "$OUT/os.jar" si.safeer.tv.os.UsenetPravilaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.UsenetPravilaTestKt "$SRC/si/safeer/tv/os/Usenet.kt" "$SRC/si/safeer/tv/os/Debrid.kt"
 java -cp "$OUT/os.jar" si.safeer.tv.os.SerijePravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.NapredekKljucTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.KakovostPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.PreizkusPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/debrid-serije.json"
 java -cp "$OUT/os.jar" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/webtor-rezerva.json"
+java -cp "$OUT/os.jar" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/kljuci-preverba.json"
 java -cp "$OUT/os.jar" si.safeer.tv.os.DodatkiProtokolTestKt "$PROJECT_DIR/docs/DODATKI-PROTOKOL.md"
 java -cp "$OUT/os.jar" si.safeer.tv.os.DatotekePravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.NedelujocePravilaTestKt
@@ -249,6 +250,16 @@ java -cp "$OUT/neposredna.jar" si.safeer.tv.link.NeposrednaPotTestKt
     "$TEST_DIR/LinkDatotekePravilaTest.kt" \
     -include-runtime -d "$OUT/linkdatoteke.jar"
 java -cp "$OUT/linkdatoteke.jar" si.safeer.tv.link.LinkDatotekePravilaTestKt
+
+# Pregled 26 (T1): zahteve toka Webtor prek OkHttp - brez preusmeritev, samo preverjeni javni naslovi IP (brez DNS
+# rebindinga), pripet DNS za predvajalnik; lokalni streznik HTTP iz JDK.
+WEBTOR_LIBS="$PROJECT_DIR/libs/okhttp-4.12.0.jar:$PROJECT_DIR/libs/okio-jvm-3.6.0.jar"
+"$KOTLINC" -J-Xmx1g -cp "$WEBTOR_LIBS" \
+    "$SRC/si/safeer/tv/os/WebtorPravila.kt" \
+    "$SRC/si/safeer/tv/os/WebtorHttp.kt" \
+    "$TEST_DIR/WebtorHttpTest.kt" \
+    -include-runtime -d "$OUT/webtorhttp.jar"
+java -cp "$OUT/webtorhttp.jar:$WEBTOR_LIBS" si.safeer.tv.os.WebtorHttpTestKt
 
 python3 "$TEST_DIR/preveri_tv_ikone.py"
 python3 "$TEST_DIR/preveri_naslovno_vrstico.py"
