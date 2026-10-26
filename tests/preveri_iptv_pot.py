@@ -69,9 +69,17 @@ preveri("secrets.sync (oddaja geslo naprej) ostane samo pri dokazu dodan tu", re
 
 print("Grok 68: prva povezava ni samodejna (Ą2); dokaz ozjega kroga je posiljatelj v krogu TE naprave (Ą3)")
 pr = telo(iptv, "fun pripravi(")
-preveri("Ą2: pripravi poda dokaz »dodan tu« in »uporabljen« odlocitvi", "dodanTuDokaz = MedijskiViri.dodanTuZDokazom(" in pr and "uporabljen = uporabljen(" in pr)
-preveri("Ą2: odlociPripravo uporablja smePrvaPovezavaBrezUporabnika", "smePrvaPovezavaBrezUporabnika(" in koda("IptvPravila.kt"))
-preveri("Ą2: uspelo odprtje seznama zapise osvezenOb (poIzidu), osveziSeznam ga klice", "poIzidu(" in telo(viri, "fun osveziSeznam(") and "kljucOsvezitve(naslov)" in telo(iptv, "fun poIzidu("))
+preveri("Ą2: pripravi poda dokaz »dodan tu« in uporabnikovo namero odlocitvi", "dodanTuDokaz = MedijskiViri.dodanTuZDokazom(" in pr and "uporabnik = uporabnik" in pr)
+preveri("Ą2: odlociPripravo uporablja uporabnikSprozilPovezavo", "uporabnikSprozilPovezavo(" in telo(koda("IptvPravila.kt"), "fun odlociPripravo("))
+osz = telo(viri, "fun osveziSeznam(")
+racun_veja = osz.split("val p = try { URL(pravi)")[0]
+preveri("Ą2: odprtje seznama z racunom gre prek IptvSeznami.pripravi(uporabnik = true) (en predpomnilnik, en premor, ena prijava)", "IptvSeznami.pripravi(ctx, naslov, uporabnik = true)" in racun_veja)
+preveri("Ą2: odprtje seznama z racunom nima lastnega branja omrezja", "openConnection" not in racun_veja)
+preveri("Ą2: isti prenos napolni skladbe pogleda (prenesi -> shraniSkladbeSeznama)", "shraniSkladbeSeznama(" in telo(iptv, "private fun prenesi("))
+preveri("Ą2: mreza TV v zivo poda namero uporabnika (naloziKanale)", "IptvSeznami.pripravi(app, n, uporabnik = m.uporabnik)" in gl)
+preveri("Ą2: samo izrecna izbira zavihka (stranska vrstica, zavihek v namenu) je uporabnikova namera", gl.count("izrecno = true") == 2 and "izberi(razdelekZavihka(z), izrecno = true)" in gl and "izberi(razdelekZavihka(it), izrecno = true)" in gl)
+preveri("Ą2: mreza zapomni namero (m.uporabnik = izrecno)", "m.uporabnik = izrecno" in gl)
+preveri("Ą2: samodejni ponovni poskusi mreze (3 mesta) namere ne prenesejo", len(re.findall(r"odpriKanale\(m\.zvrst, m\.jezik\)", gl)) == 3)
 sink = koda("SeznamiSink.kt")
 preveri("Ą3: lists.get - dokaz ozjega kroga zdruzi OzjiKrog.vKrogu(naprava) in odgovor", re.search(r"odOzjegaKroga\(try \{ OzjiKrog\.vKrogu\(app, naprava\)", sink) is not None)
 preveri("Ą3: secrets.sync - sprejem zahteva vKrogu (OzjiKrog.vKrogu(od))", "OzjiKrog.vKrogu(a, od)" in uskl and "P.sprejem(vklopljeno(a), vKrogu," in uskl)
@@ -92,9 +100,6 @@ preveri("IptvSeznami.pripravi: brez lastnega predpomnilnika in premora mimo odlo
 pr = telo(iptv, "fun prenesi(")
 preveri("IptvSeznami.prenesi zapise poskus prijave (od tu steje meja 1 na minuto)", "zapisiPoskus(" in pr)
 os_ = telo(viri, "fun osveziSeznam(")
-preveri("osveziSeznam (odprtje seznama): za racun ista odlocitev (24-urni predpomnilnik, premor I5), brez izrecne osvezitve",
-        "IptvPravila.smeNaOmrezjeSeznam(" in os_ and "izrecno = false" in os_)
-preveri("osveziSeznam: zapise poskus prijave in izid (premor I5, cas branja)", "IptvSeznami.zapisiPoskus(" in os_ and "IptvSeznami.poIzidu(" in os_)
 # rocno = true samo pri izrecnem kliku »Poskusi znova«: nobeno odprtje (seznama, TV v zivo, pregled) ne sme klicati pripravi z rocno.
 klici = []
 for f in sorted(OS.glob("*.kt")):

@@ -439,15 +439,15 @@ object IptvPravila {
     }
 
     /**
-     * Grok 68, Ą2 (odlocitev lastnika 26. 10. 12:10: »prva povezava je ob prvi uporabi«): Android nima stanja »se ni uporabljen«, zato
-     * ga ta pogoj nadomesti. Vir z racunom, ki NI dodan tu z dokazom (prejet iz ozjega kroga ali dovoljen: [uporaba]), na tej napravi
-     * ne dobi prve povezave od samodejnega klica [IptvSeznami.pripravi] (mreza TV v zivo po zagonu, ponovni poskusi mreze, osvezitev
-     * zaslona po prejemu): [uporabljen] = uporabnik je seznam ze odprl (osveziSeznam je uspel) ali je datoteka seznama ze na disku.
-     * Prvo povezavo naredi uporabnikovo odprtje seznama ([MedijskiViri.osveziSeznam]) ali izrecen klik [izrecno]; sele potem sme
-     * mreza TV v zivo seznam prenesti in osveziti (24 h, I5, najvec 1/min). Vir z dokazom »dodan tu« in javni seznami kot doslej.
+     * Grok 68, Ą2 (odlocitev lastnika 26. 10.: »uporabnik, ki SAM izbere zavihek TV v zivo, pricakuje svoje kanale«): Android nima
+     * stanja »se ni uporabljen«, zato ga nadomesti ta pogoj. Vir z racunom, ki NI dodan tu z dokazom (prejet iz ozjega kroga ali
+     * dovoljen: [uporabaPoPrejemu]), dobi povezavo samo, ce jo sprozi uporabnik: [uporabnik] = odprtje seznama
+     * ([MedijskiViri.osveziSeznam]) ali izrecna izbira zavihka TV v zivo (dotik, daljinec); [izrecno] = klik »Poskusi znova«.
+     * Samodejni klici (obnova zaslona ob zagonu, samodejni ponovni poskusi mreze, osvezitev po spremembi virov, pregled v ozadju)
+     * ne naredijo ne prve povezave ne osvezitve: pokazejo, kar je ze na disku. Vir z dokazom »dodan tu« in javni seznami kot doslej.
      */
-    fun smePrvaPovezavaBrezUporabnika(naslov: String, dodanTuDokaz: Boolean, izrecno: Boolean, uporabljen: Boolean): Boolean =
-        !virZRacunom("seznam", naslov.trim()) || dodanTuDokaz || izrecno || uporabljen
+    fun uporabnikSprozilPovezavo(naslov: String, dodanTuDokaz: Boolean, izrecno: Boolean, uporabnik: Boolean): Boolean =
+        !virZRacunom("seznam", naslov.trim()) || dodanTuDokaz || izrecno || uporabnik
 
     /** Kaj naj [IptvSeznami.pripravi] naredi s seznamom: nic (stari velja), osvezitev v ozadju (stari velja do konca) ali prenos zdaj. */
     enum class Priprava { BREZ, V_OZADJU, ZDAJ }
@@ -457,9 +457,11 @@ object IptvPravila {
      * [smeNaOmrezjeSeznam]; seznam, ki je ze na disku ([prenesenOb] != null), se osvezi v ozadju, sicer takoj.
      */
     fun odlociPripravo(naslov: String, dodanTu: Boolean, izrecno: Boolean, prenesenOb: Long?, napaka: NapakaPrenosa?,
-                       zadnjiPoskusOb: Long, zdaj: Long, dodanTuDokaz: Boolean = dodanTu, uporabljen: Boolean = true): Priprava {
+                       zadnjiPoskusOb: Long, zdaj: Long, dodanTuDokaz: Boolean = dodanTu, uporabnik: Boolean = false): Priprava {
         if (!smeSamodejnoPrenesti(naslov, dodanTu, izrecno)) return Priprava.BREZ
-        if (!smePrvaPovezavaBrezUporabnika(naslov, dodanTuDokaz, izrecno, uporabljen)) return Priprava.BREZ
+        if (!uporabnikSprozilPovezavo(naslov, dodanTuDokaz, izrecno, uporabnik)) return Priprava.BREZ
+        // Odprtje seznama in izbira zavihka si delita isti predpomnilnik, premor I5 in mejo 1-krat na minuto (en vir, ena prijava).
+        if (uporabnik && !izrecno && virZRacunom("seznam", naslov.trim()) && !smeRocnoOsveziti(zadnjiPoskusOb, zdaj)) return Priprava.BREZ
         if (!smeNaOmrezjeSeznam(prenesenOb, napaka, zadnjiPoskusOb, zdaj, izrecno)) return Priprava.BREZ
         return if (prenesenOb != null && !izrecno) Priprava.V_OZADJU else Priprava.ZDAJ
     }

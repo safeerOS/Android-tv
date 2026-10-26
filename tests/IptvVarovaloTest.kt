@@ -186,34 +186,37 @@ fun main() {
     preveriEnako("TV v zivo, vir iz ozjega kroga, ponudnik zavrne: samo premor I5 (nikoli zaklep)", 4, tvVZivo(IptvPravila.smeUporabiti(false, true), dan, 403))
     preveriEnako("TV v zivo, tuja kopija brez dovoljenja: nobene prijave", 0, tvVZivo(IptvPravila.smeUporabiti(false, false), dan, 200))
     preveriEnako("izrecni kliki na vir iz ozjega kroga: najvec 1 na minuto", 10, kliki(IptvPravila.smeUporabiti(false, true), 60, 10, 200))
-    // Grok 68, Ą2: vir iz ozjega kroga (uporaba dovoljena, brez dokaza »dodan tu«): prva povezava samo ob uporabnikovem odprtju seznama.
-    // Stanje kot v IptvSeznami: datoteka (prenesenOb), uspelo odprtje seznama (osvezenOb), napaka I5, zadnji poskus.
-    fun krogBrezUporabnika(minut: Int, koda: Int, odpreMinuta: Int?): Int {
+    // Grok 68, Ą2: vir iz ozjega kroga (uporaba dovoljena, brez dokaza »dodan tu«). Vse poti uporabljajo isto odlocitev kot IptvSeznami.pripravi:
+    // samodejni klic (obnova zaslona, ponovni poskusi mreze, osvezitev po spremembi virov) ima uporabnik = false; izbira zavihka TV v zivo
+    // in odprtje seznama (MedijskiViri.osveziSeznam -> pripravi) uporabnik = true. Stanje (datoteka, napaka, zadnji poskus) je skupno vsem potem.
+    fun krog(minut: Int, koda: Int, zavihek: Set<Int>, odprtjeSeznama: Set<Int>): Int {
         val s = Seznam(null, null, 0L)
-        var osvezenOb: Long? = null
         var prijav = 0
+        fun klic(zdaj: Long, uporabnik: Boolean) {
+            if (IptvPravila.odlociPripravo(racunAp, true, false, s.prenesenOb, s.napaka, s.zadnjiPoskus, zdaj, dodanTuDokaz = false, uporabnik = uporabnik) != IptvPravila.Priprava.BREZ) { prenos(s, zdaj, koda); prijav++ }
+        }
         for (m in 0..minut) {
             val zdaj = t0 + m * minuta
-            if (odpreMinuta == m && IptvPravila.smeNaOmrezjeSeznam(osvezenOb, s.napaka, s.zadnjiPoskus, zdaj, izrecno = false)) {
-                prenos(s, zdaj, koda); prijav++      // MedijskiViri.osveziSeznam: uporabnikovo odprtje
-                s.prenesenOb = null                   // odprtje piše svojo shrambo skladb, ne datoteke mreze TV v zivo
-                if (koda in 200..299) osvezenOb = zdaj
-            }
-            val uporabljen = s.prenesenOb != null || osvezenOb != null
-            // IptvSeznami.pripravi iz mreze TV v zivo (samodejni klic, rocno = false), vir iz ozjega kroga brez dokaza.
-            if (IptvPravila.odlociPripravo(racunAp, true, false, s.prenesenOb, s.napaka, s.zadnjiPoskus, zdaj,
-                    dodanTuDokaz = false, uporabljen = uporabljen) != IptvPravila.Priprava.BREZ) { prenos(s, zdaj, koda); prijav++ }
+            klic(zdaj, uporabnik = false)                    // samodejni klici vsako minuto
+            if (m in zavihek) klic(zdaj, uporabnik = true)   // izrecna izbira zavihka TV v zivo
+            if (m in odprtjeSeznama) klic(zdaj, uporabnik = true)  // odprtje seznama (isti vir, isto stanje)
         }
         return prijav
     }
-    preveriEnako("Ą2: vir iz kroga, TV v zivo odprta vsako minuto 24 ur, uporabnik seznama ne odpre: nobene povezave", 0, krogBrezUporabnika(dan, 200, null))
-    preveriEnako("Ą2: ... tudi ce ponudnik zavrne: nobene povezave", 0, krogBrezUporabnika(dan, 403, null))
-    preveriEnako("Ą2: uporabnik odpre seznam: odprtje + ena priprava mreze TV v zivo, nato predpomnilnik 24 h", 2, krogBrezUporabnika(dan, 200, 10))
-    preveriEnako("Ą2: odprtje zavrne ponudnik: samodejna priprava ne gre mimo (en poskus, nikoli zaklep)", 1, krogBrezUporabnika(dan, 403, 10))
-    preveriEnako("Ą2: vir z dokazom »dodan tu«: prva povezava kot doslej (brez odprtja)", 2,
+    val brez = emptySet<Int>()
+    preveriEnako("Ą2: vir iz kroga, samodejni klici vsako minuto 24 ur, uporabnik nic ne izbere: nobene povezave", 0, krog(dan, 200, brez, brez))
+    preveriEnako("Ą2: ... tudi ce ponudnik zavrne: nobene povezave", 0, krog(dan, 403, brez, brez))
+    preveriEnako("Ą2: uporabnik izbere zavihek TV v zivo: ena prijava, nato samodejni klici nic (predpomnilnik 24 h)", 1, krog(dan, 200, setOf(10), brez))
+    preveriEnako("Ą2: ... ponudnik zavrne: en poskus, nikoli zaklep", 1, krog(dan, 403, setOf(10), brez))
+    preveriEnako("Ą2: zavihek in odprtje seznama v isti minuti: ena prijava (skupen predpomnilnik)", 1, krog(dan, 200, setOf(10), setOf(10)))
+    preveriEnako("Ą2: zavihek, minuto pozneje odprtje seznama: se vedno ena prijava", 1, krog(dan, 200, setOf(10), setOf(11)))
+    preveriEnako("Ą2: odprtje seznama, nato zavihek: ena prijava", 1, krog(dan, 200, setOf(12), setOf(10)))
+    preveriEnako("Ą2: uporabnik spet izbere zavihek po vec kot 24 urah: ena osvezitev", 2, krog(1600, 200, setOf(10, 1500), brez))
+    preveriEnako("Ą2: po zavrnitvi uporabnik ponavlja zavihek vsako minuto: premor I5 (10 min, 1 h, 6 h)", 4, krog(dan, 403, (10..dan).toSet(), brez))
+    preveriEnako("Ą2: vir z dokazom »dodan tu«: prva povezava kot doslej, tudi brez uporabnika", 2,
         run { val s = Seznam(null, null, 0L); var p = 0
             for (m in 0..dan) { val z = t0 + m * minuta
-                if (IptvPravila.odlociPripravo(racunAp, true, false, s.prenesenOb, s.napaka, s.zadnjiPoskus, z, dodanTuDokaz = true, uporabljen = false) != IptvPravila.Priprava.BREZ) { prenos(s, z, 200); p++ } }
+                if (IptvPravila.odlociPripravo(racunAp, true, false, s.prenesenOb, s.napaka, s.zadnjiPoskus, z, dodanTuDokaz = true, uporabnik = false) != IptvPravila.Priprava.BREZ) { prenos(s, z, 200); p++ } }
             p })
     preveriEnako("odprtje seznama vsako minuto 24 ur, racun deluje: prva prijava in ena osvezitev po 24 urah", 2, odprtjeSeznama(dan, 200))
     preveriEnako("odprtje seznama vsako minuto 24 ur, ponudnik zavrne: samo premor I5", 4, odprtjeSeznama(dan, 403))

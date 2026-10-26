@@ -367,16 +367,18 @@ fun main() {
     preveriEnako("vpisan tu: uporaben", true, uporabno(g))
     preveriEnako("vpisan tu: gre z vrednostjo v ozji krog te naprave", UskladitevKljucevPravila.Oddaja.VREDNOST, oddajaK(g))
     // Odstranjen vir izgubi uporabo; ista kopija znova od zunaj kroga je spet fail-closed.
-    // Grok 68, Ą2: prva povezava ni samodejna - vir iz kroga (uporaba, brez dokaza) jo dobi sele po uporabnikovem odprtju seznama.
-    preveriEnako("Ą2: iz kroga, se neuporabljen, samodejni klic: ne", false, IptvPravila.smePrvaPovezavaBrezUporabnika(e, dodanTuDokaz = false, izrecno = false, uporabljen = false))
-    preveriEnako("Ą2: iz kroga, uporabnik je seznam ze odprl: da", true, IptvPravila.smePrvaPovezavaBrezUporabnika(e, dodanTuDokaz = false, izrecno = false, uporabljen = true))
-    preveriEnako("Ą2: iz kroga, izrecen klik: da", true, IptvPravila.smePrvaPovezavaBrezUporabnika(e, dodanTuDokaz = false, izrecno = true, uporabljen = false))
-    preveriEnako("Ą2: dodan tu z dokazom: kot doslej", true, IptvPravila.smePrvaPovezavaBrezUporabnika(e, dodanTuDokaz = true, izrecno = false, uporabljen = false))
-    preveriEnako("Ą2: javni seznam: kot doslej", true, IptvPravila.smePrvaPovezavaBrezUporabnika("https://iptv-org.github.io/iptv/countries/si.m3u", dodanTuDokaz = false, izrecno = false, uporabljen = false))
-    preveriEnako("Ą2: odlociPripravo za vir iz kroga brez uporabe: BREZ", IptvPravila.Priprava.BREZ,
-        IptvPravila.odlociPripravo(e, true, false, null, null, 0L, 1_800_000_000_000L, dodanTuDokaz = false, uporabljen = false))
-    preveriEnako("Ą2: odlociPripravo za isti vir po odprtju seznama: ZDAJ", IptvPravila.Priprava.ZDAJ,
-        IptvPravila.odlociPripravo(e, true, false, null, null, 0L, 1_800_000_000_000L, dodanTuDokaz = false, uporabljen = true))
+    // Grok 68, Ą2: povezavo vira iz kroga (uporaba, brez dokaza) sprozi samo uporabnik (odprtje seznama, izrecna izbira zavihka TV v zivo).
+    preveriEnako("Ą2: iz kroga, samodejni klic (obnova zaslona, ponovni poskus, osvezitev po spremembi virov): ne", false, IptvPravila.uporabnikSprozilPovezavo(e, dodanTuDokaz = false, izrecno = false, uporabnik = false))
+    preveriEnako("Ą2: iz kroga, uporabnik odpre seznam ali izbere zavihek TV v zivo: da", true, IptvPravila.uporabnikSprozilPovezavo(e, dodanTuDokaz = false, izrecno = false, uporabnik = true))
+    preveriEnako("Ą2: iz kroga, izrecen klik »Poskusi znova«: da", true, IptvPravila.uporabnikSprozilPovezavo(e, dodanTuDokaz = false, izrecno = true, uporabnik = false))
+    preveriEnako("Ą2: dodan tu z dokazom: kot doslej", true, IptvPravila.uporabnikSprozilPovezavo(e, dodanTuDokaz = true, izrecno = false, uporabnik = false))
+    preveriEnako("Ą2: javni seznam: kot doslej", true, IptvPravila.uporabnikSprozilPovezavo("https://iptv-org.github.io/iptv/countries/si.m3u", dodanTuDokaz = false, izrecno = false, uporabnik = false))
+    preveriEnako("Ą2: odlociPripravo za vir iz kroga, samodejni klic: BREZ", IptvPravila.Priprava.BREZ,
+        IptvPravila.odlociPripravo(e, true, false, null, null, 0L, 1_800_000_000_000L, dodanTuDokaz = false, uporabnik = false))
+    preveriEnako("Ą2: odlociPripravo za isti vir, uporabnik izbere zavihek: ZDAJ", IptvPravila.Priprava.ZDAJ,
+        IptvPravila.odlociPripravo(e, true, false, null, null, 0L, 1_800_000_000_000L, dodanTuDokaz = false, uporabnik = true))
+    preveriEnako("Ą2: ... a najvec 1-krat na minuto (odprtje seznama in zavihek si delita mejo)", IptvPravila.Priprava.BREZ,
+        IptvPravila.odlociPripravo(e, true, false, null, null, 1_800_000_000_000L - 30_000L, 1_800_000_000_000L, dodanTuDokaz = false, uporabnik = true))
     uporabaK = IptvPravila.uporabaPoPrejemu(uporabaK, emptySet(), setOf(a, b, f, g), odKroga = false)
     preveriEnako("odstranjen vir iz ozjega kroga izgubi uporabo", false, uporabno(e))
     uporabaK = IptvPravila.uporabaPoPrejemu(uporabaK, setOf(e), setOf(a, b, e, f, g), odKroga = false)

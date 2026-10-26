@@ -848,16 +848,17 @@ object MedijskiViri {
         // Vir z racunom: v aplikaciji nadomestek, pravi naslov samo za zahtevo; neznana skrivnost (Keystore) = nobene zahteve.
         val pravi = SkrivniDodatki.dejanski(ctx, naslov)
         if (SkrivnostiPravila.jeNadomestek(pravi)) return skladbeSeznama(ctx, naslov)
-        // Grok 52, Ñ2 + Grok 60, Ů1: odprtje seznama z racunom NI nova prijava ob vsakem odprtju: 24-urni predpomnilnik zadnjega branja in
-        // premor I5 po napaki (zavrnjen racun: 10 min, 1 h, 6 h, 24 h) - ista odlocitev kot za mrezo TV v zivo
-        // ([IptvPravila.smeNaOmrezjeSeznam]); klic je vedno uporabnikovo odprtje (prevzem z druge naprave seznama ne prebere vec).
-        // Izid gre v isto shrambo napak kot prenos za mrezo TV v zivo.
-        val racun = IptvPravila.virZRacunom(SEZNAM, naslov)
-        if (racun) {
+        // Grok 52, Ñ2 + Grok 60, Ů1 + Grok 68: odprtje seznama z racunom je uporabnikova namera, a NI nova prijava ob vsakem odprtju in ne
+        // druga prijava ob mrezi TV v zivo: ena odlocitev ([IptvSeznami.pripravi] z [uporabnik]), skupen predpomnilnik 24 h, premor I5 in
+        // meja 1-krat na minuto na vir. Isti prenos napolni datoteko mreze TV v zivo in skladbe tega pogleda ([shraniSkladbeSeznama]).
+        if (IptvPravila.virZRacunom(SEZNAM, naslov)) {
+            IptvSeznami.pripravi(ctx, naslov, uporabnik = true)
             val shranjene = skladbeSeznama(ctx, naslov)
-            if (!IptvPravila.smeNaOmrezjeSeznam(if (shranjene.isEmpty()) null else IptvSeznami.osvezenOb(ctx, naslov), IptvSeznami.napaka(ctx, naslov),
-                    IptvSeznami.zadnjiPoskus(ctx, naslov), System.currentTimeMillis(), izrecno = false)) return shranjene
-            IptvSeznami.zapisiPoskus(ctx, naslov)
+            if (shranjene.isNotEmpty()) return shranjene
+            // Seznam je ze na disku (prenos iz casa pred tem pravilom), pogled pa se ni shranjen: prvih 1000 kanalov iz datoteke.
+            val izDatoteke = ArrayList<Jamendo.Skladba>()
+            IptvSeznami.zaVsakega(ctx, naslov) { izDatoteke += it; izDatoteke.size < 1000 }
+            return izDatoteke
         }
         val p = try { URL(pravi).openConnection() as HttpURLConnection } catch (_: Exception) { return skladbeSeznama(ctx, naslov) }
         p.connectTimeout = 8_000; p.readTimeout = 10_000
@@ -870,9 +871,14 @@ object MedijskiViri {
             if (koda in 200..299) beriSeznam(p.inputStream.bufferedReader().use {
                 IptvPravila.omejenoBesedilo(it, IptvPravila.NAJVEC_ZNAKOV_SEZNAMA, IptvPravila.NAJVEC_BRANJE_MS) }, pravi, naslov) else emptyList()
         } catch (_: Exception) { emptyList() } finally { p.disconnect() }
-        if (racun) IptvSeznami.poIzidu(ctx, naslov, koda, nove.size)
         if (nove.isNotEmpty()) pisi(ctx, kljucSeznama(naslov), pisiSkladbe(nove.take(1000)))
         return nove.ifEmpty { skladbeSeznama(ctx, naslov) }
+    }
+
+    /** Grok 68: pogled seznama z racunom dobi skladbe iz prenosa mreze TV v zivo ([IptvSeznami.prenesi]); [telo] je prvih 2 mio znakov seznama. */
+    fun shraniSkladbeSeznama(ctx: Context, naslov: String, pravi: String, telo: String) {
+        val nove = beriSeznam(telo, pravi, naslov)
+        if (nove.isNotEmpty()) pisi(ctx, kljucSeznama(naslov), pisiSkladbe(nove.take(1000)))
     }
 
     /** Skladbe iz dodanih seznamov, ki ustrezajo iskanju (z virom, ki pove izvor). */

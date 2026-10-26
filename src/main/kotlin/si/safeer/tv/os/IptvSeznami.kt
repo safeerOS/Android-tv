@@ -67,50 +67,35 @@ object IptvSeznami {
      * Seznam je na disku in ni zastarel: nic. Zastarel: prenese ga v ozadju (stari velja do konca). Ga ni: prenese ga zdaj
      * (klic iz ozadja). Vrne podatke, ki zdaj veljajo.
      */
-    fun pripravi(c: Context, naslov: String, rocno: Boolean = false): Podatki? {
+    fun pripravi(c: Context, naslov: String, rocno: Boolean = false, uporabnik: Boolean = false): Podatki? {
         val p = podatki(c, naslov)
         // Grok 52, Ñ2 + Grok 60, Ů1/Ů2: ENA odlocitev ([IptvPravila.odlociPripravo]). Seznam z racunom se samodejno prenasa samo na napravi,
         // kjer je dodan z dokazom (odprtje TV v zivo, 24-urna osvezitev, predpomnilnik 24 ur); drugje samo na izrecen klik [rocno]
         // (»Poskusi znova«), najvec 1-krat na minuto na racun. Grok 39, I5: po zavrnjenem ali neuspelem prenosu premor (10 min, 1 h,
-        // 6 h, 24 h) - vsak poskus je prijava v racun ponudnika.
+        // 6 h, 24 h) - vsak poskus je prijava v racun ponudnika. Grok 68, Ą2: vir iz ozjega kroga (brez dokaza »dodan tu«) dobi povezavo
+        // samo, ce jo sprozi uporabnik ([uporabnik]: odprtje seznama, izrecna izbira zavihka TV v zivo) ali [rocno]; odprtje seznama in
+        // mreza TV v zivo si delita ta predpomnilnik, premor I5 in mejo 1-krat na minuto (en vir, ena prijava).
         return when (IptvPravila.odlociPripravo(naslov, MedijskiViri.uporabaDovoljena(c, naslov), rocno, p?.prenesenOb, napaka(c, naslov),
             zadnjiPoskus(c, naslov), System.currentTimeMillis(), dodanTuDokaz = MedijskiViri.dodanTuZDokazom(c, naslov),
-            uporabljen = uporabljen(c, naslov, p))) {
+            uporabnik = uporabnik)) {
             IptvPravila.Priprava.BREZ -> p
             IptvPravila.Priprava.V_OZADJU -> { Thread({ prenesi(c, naslov) }, "safeer-iptv").apply { isDaemon = true; priority = Thread.MIN_PRIORITY }.start(); p }
             IptvPravila.Priprava.ZDAJ -> prenesi(c, naslov)
         }
     }
 
-    /**
-     * Grok 68, Ą2: ali je uporabnik seznam ze uporabil na tej napravi - datoteka seznama je na disku ([p] != null: prenesel ga je
-     * uporabnikov klik ali vir z dokazom) ali je odprtje seznama ([MedijskiViri.osveziSeznam]) ze uspelo ([osvezenOb] > 0).
-     */
-    fun uporabljen(c: Context, naslov: String, p: Podatki? = podatki(c, naslov)): Boolean = p != null || osvezenOb(c, naslov) > 0L
-
-    /** Grok 60, Ů1: zadnja prijava v racun seznama (ms, uspela ali ne) in zadnje uspesno branje za pogled seznama ([MedijskiViri.osveziSeznam]). */
+    /** Grok 60, Ů1: zadnja prijava v racun seznama (ms, uspela ali ne). */
     private const val PREFS_POSKUSI = "safeer_iptv_seznami_poskusi"
     private fun poskusi(c: Context) = c.applicationContext.getSharedPreferences(PREFS_POSKUSI, Context.MODE_PRIVATE)
     private fun kljucPoskusa(naslov: String) = "p:" + KanaliPravila.odtisDodatka(naslov)
-    private fun kljucOsvezitve(naslov: String) = "o:" + KanaliPravila.odtisDodatka(naslov)
 
     /** Grok 60, Ů1: kdaj smo se nazadnje poskusili prijaviti v racun seznama (0 = nikoli; javni seznami se ne zapisujejo). */
     fun zadnjiPoskus(c: Context, naslov: String): Long = try { poskusi(c).getLong(kljucPoskusa(naslov), 0L) } catch (_: Exception) { 0L }
-
-    /** Grok 60, Ů1: kdaj je bil seznam za pogled seznama nazadnje uspesno prebran (0 = nikoli ali pred popravkom). */
-    fun osvezenOb(c: Context, naslov: String): Long = try { poskusi(c).getLong(kljucOsvezitve(naslov), 0L) } catch (_: Exception) { 0L }
 
     /** Grok 60, Ů1: tik pred zahtevo, ki se prijavi v racun [naslov] (samo vir z racunom): od tu steje meja 1-krat na minuto. */
     fun zapisiPoskus(c: Context, naslov: String) {
         if (!IptvPravila.virZRacunom(MedijskiViri.SEZNAM, naslov)) return
         try { poskusi(c).edit().putLong(kljucPoskusa(naslov), System.currentTimeMillis()).apply() } catch (_: Exception) { }
-    }
-
-    /** Grok 52, Ñ2: izid prenosa, ki ga je naredila druga pot ([MedijskiViri.osveziSeznam]): napaka zacne premor, uspeh ga izbrise. */
-    fun poIzidu(c: Context, naslov: String, koda: Int, kanalov: Int) {
-        if (IptvPravila.napakaPrenosa(koda, kanalov, naslov)) { poNeuspehu(c, naslov, koda, kanalov); return }
-        zapisiNapako(c, naslov, null)
-        try { poskusi(c).edit().putLong(kljucOsvezitve(naslov), System.currentTimeMillis()).apply() } catch (_: Exception) { }
     }
 
     /** Grok 39, I5: napaka zadnjega prenosa seznama (za kartico vira in premor); null = je ni. */
@@ -158,12 +143,16 @@ object IptvSeznami {
                 val m = ((if (IptvPravila.virZRacunom(MedijskiViri.SEZNAM, naslov)) null else mapaUsb(c)) ?: mapa(c)).apply { mkdirs() }
                 val zacasna = File(m, ime(naslov) + ".tmp")
                 val bralnik = IptvPravila.Bralnik(pravi, drzava, jezik)
+                // Grok 68: pogled seznama z racunom dobi skladbe iz ISTEGA prenosa (ena prijava): prvih 2 mio znakov besedila.
+                val zaPogled = IptvPravila.virZRacunom(MedijskiViri.SEZNAM, naslov)
+                val besedilo = StringBuilder()
                 val zvrsti = HashSet<String>(); val jeziki = HashSet<String>()
                 zacasna.bufferedWriter().use { w ->
                     p.inputStream.bufferedReader().use { r ->
                         // Naloga 86 (M7): vrstica najvec [IptvPravila.NAJVEC_VRSTICA] znakov (daljsa se preskoci, ne bere v pomnilnik),
                         // skupaj najvec [NAJVEC_BAJTOV] - prej je readLine() prebral celo vrstico brez preloma (OOM).
                         IptvPravila.vrstice(r, IptvPravila.NAJVEC_VRSTICA, NAJVEC_BAJTOV) { l ->
+                            if (zaPogled && besedilo.length < IptvPravila.NAJVEC_ZNAKOV_SEZNAMA) besedilo.append(l).append('\n')
                             val v = bralnik.vrstica(l) ?: return@vrstice
                             if (v.zvrst.isNotEmpty()) zvrsti += v.zvrst
                             if (v.jezik.isNotEmpty()) jeziki += v.jezik
@@ -182,6 +171,7 @@ object IptvSeznami {
                 for (drug in listOfNotNull(mapa(c), mapaUsb(c)).filter { it.path != m.path })
                     for (pr in listOf(".tsv", ".info")) try { File(drug, ime(naslov) + pr).delete() } catch (_: Throwable) { }
                 podatki[naslov] = podatkiNovi
+                if (zaPogled) MedijskiViri.shraniSkladbeSeznama(c, naslov, pravi, besedilo.toString())
                 android.util.Log.i("SafeerOsMedia", "seznam IPTV: kanalov=${bralnik.kanalov}, zvrsti=${zvrsti.size}, jeziki=${jeziki.size}, " +
                     "drzava seznama=${drzava.ifEmpty { "-" }}, jezik seznama=${jezik.ifEmpty { "-" }}, po ${android.os.SystemClock.uptimeMillis() - od} ms")
                 return podatkiNovi
@@ -262,7 +252,7 @@ object IptvSeznami {
     fun pozabi(c: Context, naslov: String) {
         podatki.remove(naslov)
         zapisiNapako(c, naslov, null)
-        try { poskusi(c).edit().remove(kljucPoskusa(naslov)).remove(kljucOsvezitve(naslov)).apply() } catch (_: Exception) { }
+        try { poskusi(c).edit().remove(kljucPoskusa(naslov)).apply() } catch (_: Exception) { }
         for (m in listOfNotNull(mapa(c), mapaUsb(c))) for (pr in listOf(".tsv", ".info")) try { File(m, ime(naslov) + pr).delete() } catch (_: Exception) { }
     }
 
