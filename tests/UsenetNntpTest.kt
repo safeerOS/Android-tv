@@ -660,6 +660,25 @@ fun main() {
             }
             UsenetNntp.dovoliPrijavoZnova("localhost", UPORABNIK, GESLO)
         }
+        // Zapah ustavi vse zive bazene racuna (pregled Grok 44 D2): prej je drug bazen istega racuna nadaljeval na starih sejah
+        // in odpiral nove; odtis je bil vezan na ime streznika (vsako ime ponudnika je dobilo svoj poskus).
+        LazniStreznik(prava.streznik).use { s ->
+            println("zapah: vsi bazeni racuna")
+            s.clanki[ID] = clanek(20_000, 14).poslano
+            s.napacno = "481 Authentication failed"
+            fun gesel() = s.ukazi.count { it == "AUTHINFO PASS" }
+            UsenetNntp(nastavitve(s.vrata, povezav = 2), prava.zaupaj).use { k1 ->
+                preveriEnako("bazen 1: ziva seja", "OK", izid { k1.body(ID) })
+                s.zamenjajGeslo("geslo-zamenjano-pri-ponudniku", zapriSeje = false)
+                UsenetNntp(nastavitve(s.vrata), prava.zaupaj).use { k2 -> preveriEnako("bazen 2: zavrnjen", "PRIJAVA", izid { k2.preveri() }) }
+                val pred = s.povezav.get() to gesel()
+                preveriEnako("bazen 1: ustavljen z zapahom", "PRIJAVA", izid { k1.body(ID) })
+                preveriEnako("bazen 1: brez nove povezave in gesla", pred, s.povezav.get() to gesel())
+                preveriEnako("bazen 1: seje zaprte", 0, k1.odprtih)
+            }
+            UsenetNntp.dovoliPrijavoZnova("localhost", UPORABNIK, GESLO)
+            preveriEnako("ponudnik: eu.news.x. = news.x", UsenetNntp.ponudnik("news.primer.invalid"), UsenetNntp.ponudnik("EU.News.Primer.Invalid."))
+        }
         // Trajni zapah (pregled Grok 44 D2): prej samo v pomnilniku procesa - po ponovnem zagonu aplikacije (TV jo pogosto
         // ustavi), sesutju ali posodobitvi je nov proces znova poslal napacno geslo. Zdaj nov proces ne poslje AUTHINFO.
         LazniStreznik(prava.streznik).use { s ->

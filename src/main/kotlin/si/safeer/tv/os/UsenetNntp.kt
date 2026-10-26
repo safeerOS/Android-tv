@@ -14,6 +14,8 @@ import java.security.MessageDigest
 import java.security.SecureRandom
 import java.security.cert.CertificateParsingException
 import java.security.cert.X509Certificate
+import java.util.Collections
+import java.util.WeakHashMap
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -161,7 +163,23 @@ class UsenetNntp(
         /** Prijave brez odgovora po odtisu racuna (geslo je morda prislo do streznika): prvic premor, drugic zapored zapah. */
         private val NEZNANE = ConcurrentHashMap<String, Int>()
 
-        internal fun ponudnik(gostitelj: String): String = gostitelj.trim().lowercase().trimEnd('.')
+        /** Drugi nivo pod drzavno domeno, ki se ni ponudnik (news.x.co.uk -> x.co.uk) - brez seznama javnih pripon. */
+        private val DRUGI_NIVO = setOf("co", "com", "net", "org", "ac", "or", "ne", "gov", "edu")
+        /** Zivi bazeni: zapah racuna ustavi vse bazene istega racuna (pregled Grok 44 D2). */
+        private val BAZENI: MutableSet<UsenetNntp> = Collections.synchronizedSet(Collections.newSetFromMap(WeakHashMap()))
+
+        /**
+         * Ponudnik iz imena streznika (skupni primeri nntp_ponudnik): zadnji dve oznaki (news.x.com, eu.news.x.com. ->
+         * x.com), pri drzavni domeni z drugim nivojem tri (news.x.co.uk -> x.co.uk); naslov IP ostane cel. Zapah in vrata
+         * prijave veljajo za racun pri ponudniku, ne za ime streznika (Grok 44 D2: vsako ime je dobilo svoj poskus).
+         */
+        fun ponudnik(gostitelj: String): String {
+            val g = gostitelj.trim().lowercase().trimEnd('.')
+            if (g.isEmpty() || ':' in g || g.all { it in '0'..'9' || it == '.' }) return g
+            val d = g.split('.')
+            val n = if (d.size >= 3 && d.last().length == 2 && d[d.size - 2] in DRUGI_NIVO) 3 else 2
+            return d.takeLast(n).joinToString(".")
+        }
 
         private fun zgosti(vararg polja: String): String {
             val md = MessageDigest.getInstance("SHA-256")
@@ -898,6 +916,10 @@ class UsenetNntp(
     /** Zapah racuna se preveri ob prvi zahtevi ([preveriZapah]) - hramba in pocasen odtis nikoli na glavni niti. */
     @Volatile private var ustavljen: Vrsta? = null
     @Volatile private var zapahPreverjen = false
+
+    init {
+        BAZENI += this
+    }
     private val odtis = odtisRacuna(n.gostitelj, n.uporabnik, n.geslo)
     private val vrata: ReentrantLock? = n.uporabnik?.let { vrataPrijave(n.gostitelj, it) }
     private var zgornja = n.povezav
@@ -950,7 +972,10 @@ class UsenetNntp(
             }
             if (System.nanoTime() - rokDo >= 0) return Vrsta.ROK   // faza je se povezava: geslo ni bilo poslano
         }
-        val ovira = zaklep.zZaklepom { if (zaprto) Vrsta.ZAPRTO else ustavljen }
+        val ovira = zaklep.zZaklepom {
+            if (ustavljen == null && odtis != null && odtis in ZAVRNJENI) ustavljen = Vrsta.PRIJAVA   // zapah drugega bazena racuna
+            if (zaprto) Vrsta.ZAPRTO else ustavljen
+        }
         if (ovira != null) v.unlock()
         return ovira
     }
@@ -1069,6 +1094,11 @@ class UsenetNntp(
             try {
                 while (true) {
                     if (zaprto) throw NapakaNntp(Vrsta.ZAPRTO)
+                    if (ustavljen == null && odtis != null && odtis in ZAVRNJENI) {
+                        ustavljen = Vrsta.PRIJAVA   // zapah drugega bazena istega racuna: tudi stare seje ne (Grok 44 D2)
+                        zavrzi += prosti
+                        prosti.clear()
+                    }
                     ustavljen?.let { throw NapakaNntp(it) }
                     val zdaj = System.nanoTime()
                     if (najvec < zgornja && zadnjaMeja != 0L && zdaj - zadnjaMeja >= RAST_BAZENA_S * n.msNaSekundoPremora * 1_000_000L) {
@@ -1153,6 +1183,11 @@ class UsenetNntp(
             v
         }
         for (p in vse) p.zapri()
+        if (racun && odtis != null) {
+            // Zavrnjena prijava ustavi vse povezave racuna - tudi drugih zivih bazenov (Grok 44 D2).
+            val drugi = synchronized(BAZENI) { BAZENI.filter { it !== this && it.odtis == odtis } }
+            for (b in drugi) b.ustavi(Vrsta.PRIJAVA, false)
+        }
     }
 
     private fun premor(zmanjsaj: Boolean, vrsta: Vrsta) {

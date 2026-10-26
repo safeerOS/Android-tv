@@ -177,7 +177,8 @@ private fun izracunaj(f: String, v: Map<String, Any?>): Any? = when (f) {
         .let { mapOf("najvec" to it.first.toLong(), "premor_s" to it.second) }
     "nntp_poverilnica" -> UsenetNntp.varenArgument(v.niz("vrednost")!!)
     "nntp_id_odgovora" -> UsenetNntp.idOdgovoraUstreza(v.niz("vrstica")!!, v.niz("id")!!)
-    // v4 (26. 10. 2026, Grok 44 D2): trajni zapah racuna brez gesla.
+    // v4 (26. 10. 2026, Grok 44 D2): zapah po racunu pri ponudniku, trajni zapah racuna brez gesla.
+    "nntp_ponudnik" -> UsenetNntp.ponudnik(v.niz("gostitelj")!!)
     "nntp_zapah_odtis" -> UsenetNntp.zapahOdtis(hex(v.niz("sol_hex")!!), v.niz("ponudnik")!!, v.niz("uporabnik")!!, v.niz("geslo")!!)
         .let { mapOf("racun" to it.first, "geslo" to it.second) }
     "nntp_id" -> UsenetNzb.cistId(v.niz("id")!!)
