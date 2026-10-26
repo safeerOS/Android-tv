@@ -196,6 +196,40 @@ private fun iptvRacunPrimeri(koren: Map<String, Any?>) {
         preveriEnako("seznam ${s.niz("opis") ?: s.niz("url")}: javni", s["javni"], IptvPravila.javniBrezplacni(s.niz("url")!!))
     for (k in koren["kanali"] as List<Map<String, Any?>>)
         preveriEnako("kanal ${k.niz("opis") ?: k.niz("url")}: racun", k["racun"], IptvPravila.jeVirSPoverilnico(k.niz("url")!!, seznam = false))
+    // Verzija 2 (Linux, pregled 46 Ö1): viri.ozji = vir gre samo v ozji krog ([smeZNavadnoUskladitvijo] false), viri.prikaz = zaslon.
+    // Naslov se primerja SUROV (presledek ali nevidni znak okoli naslova ni pozitivno znan javen). Android nima oznake »javen«
+    // (lastnikov zaslon ni narejen): primer z oznacen=true in ozji=false je tu strozji (ozji=true, samo gostitelj) - preveri se to.
+    var oznakaPreskocena = 0
+    for (v in (koren["viri"] as? List<Map<String, Any?>>).orEmpty()) {
+        val n = v.niz("naslov")!!
+        val opis = "vir ${v.niz("opis") ?: n.trim()}"
+        if (v["oznacen"] == true && v["ozji"] == false) {
+            oznakaPreskocena++
+            preveriEnako("$opis: Android brez oznake javnega - ozji", true, !IptvPravila.smeZNavadnoUskladitvijo("seznam", n))
+            continue
+        }
+        preveriEnako("$opis: ozji", v["ozji"], !IptvPravila.smeZNavadnoUskladitvijo("seznam", n))
+        // Zaslon: Android ima svojo obliko (javni seznam brez sheme, drugo samo gostitelj brez vrat, naslov, ki ni http(s), »…«);
+        // enako kot Linux pa nikoli skrivnosti. Naslov s presledkom okoli Android pred prikazom obreze (preverjeno zgoraj).
+        val prikaz = IptvPravila.zaPrikaz(n)
+        preveriEnako("$opis: na zaslonu brez gesla", true, listOf("skrito-geslo", "uporabnik", "00:1A:79").none { it in prikaz })
+        val pricakovan = v.niz("prikaz")
+        if (pricakovan != null && n == n.trim()) {
+            val android = if (v["ozji"] == false) pricakovan.removePrefix("https://").removePrefix("http://")
+                else if (n.lowercase().startsWith("http://") || n.lowercase().startsWith("https://")) pricakovan.substringBefore(':') else "…"
+            preveriEnako("$opis: prikaz", android, prikaz)
+        }
+    }
+    println("  oznaka »javen« (Android je ni): $oznakaPreskocena primer strozje")
+    // Verzija 3 (Linux, pregled 51 Ê3): prevzem z lists.get. ozji true - vsak vir; false ali BREZ kljuca (null, starejsa razlicica) -
+    // samo pozitivno znan javen. Android ozji ne bere iz odgovora: odloci po lastnem ozjem krogu ([prevzemZNavadnoUskladitvijo]).
+    for (v in (koren["prevzem"] as? List<Map<String, Any?>>).orEmpty())
+        preveriEnako("prevzem ${v.niz("opis") ?: v.niz("naslov")} (ozji=${v["ozji"]})", v["prevzem"],
+            IptvPravila.prevzemZNavadnoUskladitvijo("seznam", v.niz("naslov")!!, IptvPravila.odOzjegaKroga(true, v["ozji"] as? Boolean)))
+    preveriEnako("odgovor ozji=true, naprava v nasem krogu: vzemi vse", true, IptvPravila.odOzjegaKroga(true, true))
+    preveriEnako("odgovor ozji=false: samo javno", false, IptvPravila.odOzjegaKroga(true, false))
+    preveriEnako("odgovor brez kljuca (starejsa razlicica): samo javno", false, IptvPravila.odOzjegaKroga(true, null))
+    preveriEnako("odgovor ozji=true, a naprava ni v nasem krogu: samo javno (krog je na napravo)", false, IptvPravila.odOzjegaKroga(false, true))
 }
 
 @Suppress("UNCHECKED_CAST")

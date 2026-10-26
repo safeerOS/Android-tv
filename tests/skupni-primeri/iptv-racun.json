@@ -1,5 +1,6 @@
 {
- "opis": "Skupni primeri zascite racuna IPTV za vse platforme Safeer (Linux core/kanali_iptv, Android IptvPravila). Lastnik, 26. 10. 2026: »Nevarnost zaklepa racuna je prioriteta.« Pregled 39, I1 (ob dvomu ne): v ozadju se preverja SAMO seznam, ki je pozitivno znan javni brezplacni vir (iptv-org.github.io, raw.githubusercontent.com/iptv-org/, raw.githubusercontent.com/Free-TV/IPTV/; odkodirana pot brez ../ in //) in v naslovu nima racuna - ali ga je uporabnik izrecno oznacil kot javnega (tu ne). seznami.javni: sme v preverbo v ozadju. kanali.racun: naslov toka nosi racun pri ponudniku (nikoli v preverbo v ozadju).",
+ "opis": "Skupni primeri zascite racuna IPTV za vse platforme Safeer (Linux core/kanali_iptv, Android IptvPravila). Lastnik, 26. 10. 2026: »Nevarnost zaklepa racuna je prioriteta.« Pregled 39, I1 (ob dvomu ne): v ozadju se preverja SAMO seznam, ki je pozitivno znan javni brezplacni vir (iptv-org.github.io, raw.githubusercontent.com/iptv-org/, raw.githubusercontent.com/Free-TV/IPTV/; odkodirana pot brez ../ in //) in v naslovu nima racuna - ali ga je uporabnik izrecno oznacil kot javnega (tu ne). seznami.javni: sme v preverbo v ozadju. kanali.racun: naslov toka nosi racun pri ponudniku (nikoli v preverbo v ozadju). Pregled 46, Ö1 (verzija 2, ob dvomu ne): viri.ozji: vir (seznam, podkast, dodatek ...) gre napravam zunaj ozjega kroga in na zaslon s celim naslovom SAMO, ce je pozitivno znan javen - naslov http(s) brez presledkov in nevidnih znakov, brez racuna v naslovu (seznami.javni) in znan javni seznam ali ga je uporabnik oznacil kot javnega (oznacen); vse drugo samo ozjemu krogu, na zaslonu samo gostitelj[:vrata] (viri.prikaz; naslov pred tem obrezan). Pregled 46, Ö3 (prevzem): odgovor lists.get {} ima 'ozji' (ali je vprasujoca naprava v ozjem krogu); prejemnik vir prevzame: ozji true - vsak; false - samo pozitivno znan javen; brez kljuca (starejsa razlicica; verzija 3, pregled 51, Ê3) - kot false, torej samo pozitivno znan javen (ne vemo, ali nas ima v ozjem krogu; hevristika racuna neznane oblike ne ujame).",
+ "verzija": 3,
  "seznami": [
   {
    "url": "https://iptv-org.github.io/iptv/countries/si.m3u",
@@ -113,6 +114,176 @@
   {
    "url": "https://cdn.test/hls/kanal/index.m3u8",
    "racun": false
+  }
+ ],
+ "viri": [
+  {
+   "naslov": "https://iptv-org.github.io/iptv/countries/si.m3u",
+   "ozji": false,
+   "prikaz": "https://iptv-org.github.io/iptv/countries/si.m3u"
+  },
+  {
+   "naslov": "https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8",
+   "ozji": false
+  },
+  {
+   "naslov": "https://seznam.primer.test/tv.m3u",
+   "oznacen": true,
+   "ozji": false,
+   "prikaz": "https://seznam.primer.test/tv.m3u",
+   "opis": "uporabnik ga je oznacil kot javnega"
+  },
+  {
+   "naslov": "https://seznam.primer.test/tv.m3u",
+   "ozji": true,
+   "prikaz": "seznam.primer.test",
+   "opis": "neznan seznam brez oznake"
+  },
+  {
+   "naslov": "http://ponudnik.primer.test:8080/playlist/uporabnik/skrito-geslo/m3u_plus",
+   "ozji": true,
+   "prikaz": "ponudnik.primer.test:8080",
+   "opis": "Xtream v obliki poti"
+  },
+  {
+   "naslov": "http://ponudnik.primer.test:8080/get/uporabnik/skrito-geslo/m3u",
+   "ozji": true,
+   "prikaz": "ponudnik.primer.test:8080"
+  },
+  {
+   "naslov": "https://ponudnik.primer.test/m3u/skrito-geslo.m3u",
+   "ozji": true,
+   "prikaz": "ponudnik.primer.test",
+   "opis": "zeton v poti"
+  },
+  {
+   "naslov": "http://ponudnik.primer.test/c/00:1A:79:00:00:01",
+   "ozji": true,
+   "prikaz": "ponudnik.primer.test",
+   "opis": "racun (mac) v poti"
+  },
+  {
+   "naslov": "https://kratka.primer.test/aBc123",
+   "ozji": true,
+   "prikaz": "kratka.primer.test",
+   "opis": "kratka povezava (za njo je lahko get.php z geslom)"
+  },
+  {
+   "naslov": "rtsp://uporabnik:skrito-geslo@kamera.primer.test:554/tok",
+   "ozji": true,
+   "prikaz": "kamera.primer.test:554",
+   "opis": "shema, ki ni http(s)"
+  },
+  {
+   "naslov": "rtmp://tok.primer.test/zivo/skrito-geslo",
+   "ozji": true,
+   "prikaz": "tok.primer.test"
+  },
+  {
+   "naslov": " http://ponudnik.primer.test:8080/get.php?username=uporabnik&password=skrito-geslo",
+   "ozji": true,
+   "prikaz": "ponudnik.primer.test:8080",
+   "opis": "presledek pred shemo"
+  },
+  {
+   "naslov": "\u200bhttps://iptv-org.github.io/iptv/index.m3u",
+   "ozji": true,
+   "opis": "nevidni znak pred shemo"
+  },
+  {
+   "naslov": "https://iptv-org.github.io/iptv/index.m3u ",
+   "ozji": true,
+   "prikaz": "iptv-org.github.io",
+   "opis": "presledek za naslovom"
+  },
+  {
+   "naslov": "https://iptv-org.github.io/iptv/index.m3u?username=uporabnik&password=skrito-geslo",
+   "ozji": true,
+   "prikaz": "iptv-org.github.io"
+  },
+  {
+   "naslov": "https://uporabnik:skrito-geslo@iptv-org.github.io/iptv/index.m3u",
+   "ozji": true,
+   "prikaz": "iptv-org.github.io"
+  },
+  {
+   "naslov": "http://ponudnik.primer.test:8080/get.php?username=uporabnik&password=skrito-geslo&type=m3u_plus",
+   "oznacen": true,
+   "ozji": true,
+   "prikaz": "ponudnik.primer.test:8080",
+   "opis": "oznaka ne odpre naslova z racunom"
+  },
+  {
+   "naslov": "https://feeds.primer.test/podcast/oddaja/12345",
+   "ozji": true,
+   "prikaz": "feeds.primer.test",
+   "opis": "podkast ni pozitivno znan javen"
+  },
+  {
+   "naslov": "https://dodatek.primer.test/realdebrid=skrito-geslo/manifest.json",
+   "ozji": true,
+   "prikaz": "dodatek.primer.test",
+   "opis": "dodatek Stremio s kljucem debrid v poti"
+  },
+  {
+   "naslov": "",
+   "ozji": true,
+   "prikaz": ""
+  }
+ ],
+ "prevzem": [
+  {
+   "naslov": "http://ponudnik.primer.test:8080/get.php?username=uporabnik&password=skrito-geslo",
+   "ozji": null,
+   "prevzem": false
+  },
+  {
+   "naslov": "https://uporabnik:skrito-geslo@seznam.primer.test/tv.m3u",
+   "ozji": null,
+   "prevzem": false
+  },
+  {
+   "naslov": "https://seznam.primer.test/tv.m3u?token=skrito-geslo",
+   "ozji": null,
+   "prevzem": false
+  },
+  {
+   "naslov": "http://ponudnik.primer.test:8080/playlist/uporabnik/skrito-geslo/m3u_plus",
+   "ozji": null,
+   "prevzem": false,
+   "opis": "starejsa naprava (brez kljuca ozji): ob dvomu ne, tudi oblike, ki je hevristika ne pozna (verzija 3, pregled 51, Ê3)"
+  },
+  {
+   "naslov": "http://ponudnik.primer.test:8080/playlist/uporabnik/skrito-geslo/m3u_plus",
+   "ozji": false,
+   "prevzem": false
+  },
+  {
+   "naslov": "https://dodatek.primer.test/manifest.json",
+   "ozji": false,
+   "prevzem": false
+  },
+  {
+   "naslov": "https://iptv-org.github.io/iptv/countries/si.m3u",
+   "ozji": false,
+   "prevzem": true
+  },
+  {
+   "naslov": "http://ponudnik.primer.test:8080/get.php?username=uporabnik&password=skrito-geslo",
+   "ozji": true,
+   "prevzem": true
+  },
+  {
+   "naslov": "https://iptv-org.github.io/iptv/countries/si.m3u",
+   "ozji": null,
+   "prevzem": true,
+   "opis": "starejsa naprava: pozitivno znan javen seznam se prevzame"
+  },
+  {
+   "naslov": "https://podkast.primer.test/zasebno/feed.xml",
+   "ozji": null,
+   "prevzem": false,
+   "opis": "starejsa naprava: karkoli, kar ni pozitivno znano javno, ne"
   }
  ]
 }

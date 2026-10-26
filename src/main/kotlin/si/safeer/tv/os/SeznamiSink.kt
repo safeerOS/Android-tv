@@ -102,8 +102,9 @@ object SeznamiSink {
             val premori = JSONObject()
             try { Stremio.pripravi(ctx) } catch (_: Throwable) { }       // shranjeni premori iz prejsnjega zagona
             try { Stremio.premori().forEach { (osnova, se) -> premori.put(RazpolozljivostPravila.odtisNaslova(osnova), se) } } catch (_: Throwable) { }
+            // »ozji«: ali je vprasujoca naprava v ozjem krogu TE naprave (kot Linux; prejemnik brez kljuca vzame samo javno).
             return JSONObject().put("lists", a).put("deleted", izbrisani).put("sources", viri).put("sources_deleted", izbrisaniViri)
-                .put("razpolozljivost", Razpolozljivost.povzetek(ctx)).put("premori", premori).apply {
+                .put("ozji", ozji).put("razpolozljivost", Razpolozljivost.povzetek(ctx)).put("premori", premori).apply {
                     // Grok 46, Ö3: napravi zunaj ozjega kroga preklic virov z racunom, ki jih je starejsa razlicica dala vsem.
                     if (!ozji) try { MedijskiViri.preklicZunajKroga(ctx)?.let { put("sources_revoked", it) } } catch (e: Exception) {
                         Log.w(TAG, "preklic: ${e.javaClass.simpleName}") }
@@ -198,7 +199,9 @@ object SeznamiSink {
         val kazalo = vprasaj(link, naprava, JSONObject()) ?: return false
         var spremenjeno = false
         // Grok 46, Ö1: vir, ki ni pozitivno znan javen, samo od naprave v ozjem krogu te naprave (preveri se ob vsakem prevzemu).
-        val ozji = try { OzjiKrog.vKrogu(app, naprava) } catch (_: Throwable) { false }
+        // Linux Ê3 (skupni primeri verzija 3): odgovor brez kljuca »ozji« velja kot false - samo pozitivno znan javen vir.
+        val ozji = IptvPravila.odOzjegaKroga(try { OzjiKrog.vKrogu(app, naprava) } catch (_: Throwable) { false },
+            if (kazalo.has("ozji")) kazalo.optBoolean("ozji", false) else null)
         try { prevzemiRazpolozljivost(app, link, naprava, kazalo) } catch (e: Exception) { Log.w(TAG, "razpolozljivost od $naprava: ${e.message}") }
         // Dodatek je omejil drugo napravo v istem domu: pocakamo tudi mi (nase poizvedbe bi omejitev samo podaljsale).
         try {

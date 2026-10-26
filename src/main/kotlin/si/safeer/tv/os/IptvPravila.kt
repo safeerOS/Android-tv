@@ -523,8 +523,18 @@ object IptvPravila {
      */
     fun smeZNavadnoUskladitvijo(tip: String, naslov: String): Boolean {
         if (tip == "stremio") return SkrivnostiPravila.smeMedVseNaprave(naslov)
+        // Skupni primeri verzija 2 (Linux): naslov s presledkom okoli ni pozitivno znan javen (surov niz, ne obrezan) - ob dvomu ne.
+        if (naslov != naslov.trim()) return false
         return !virZRacunom(if (tip == "url") "seznam" else tip, naslov)
     }
+
+    /**
+     * Skupni primeri verzija 3 (Linux Ê3, lastnik: ob dvomu ne): ali smemo od naprave, ki je odgovorila na lists.get, sprejeti vir,
+     * ki ni pozitivno znan javen. Treba je OBOJE: naprava je v ozjem krogu TE naprave ([vMojemKrogu]) in odgovor to potrjuje s
+     * kljucem »ozji« ([ozjiOdgovora]; null = kljuca ni, starejsa razlicica - ne vemo, ali nas ima v svojem krogu, in njena
+     * hevristika racuna neznane oblike ne ujame, zato velja kot false).
+     */
+    fun odOzjegaKroga(vMojemKrogu: Boolean, ozjiOdgovora: Boolean?): Boolean = vMojemKrogu && ozjiOdgovora == true
 
     /**
      * Prejem z navadnim usklajevanjem (lists.get) od naprave [odOzjegaKroga] (v ozjem krogu TE naprave): kar ni pozitivno znano
