@@ -201,7 +201,7 @@ object Usenet {
      * `debug.safeer.usenet_samo` = cas izteka v sekundah (najvec 6 h, samo adb, ne ostane po ponovnem zagonu - kot
      * [Webtor.samoWebtor]). Samodejna izbira takrat vzame samo Usenet: pripravljen pri TorBoxu, nato s cakanjem na prenos.
      */
-    fun samoUsenet(): Boolean = Webtor.diagnostika("debug.safeer.usenet_samo")
+    fun samoUsenet(c: Context): Boolean = Webtor.diagnostika(c, "debug.safeer.usenet_samo")
 
     /** Povezave NZB po id-ju toka (najvec [NAJVEC_POVEZAV], najstarejse odpadejo). */
     private const val NAJVEC_POVEZAV = 500

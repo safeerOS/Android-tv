@@ -317,6 +317,18 @@ fun main() {
     preveriEnako("diagnostika: stara oblika DEBUG", false, W.diagnostikaVelja("DEBUG", zdajS))
     preveriEnako("diagnostika: prazno", false, W.diagnostikaVelja("", zdajS))
     preveriEnako("diagnostika: ni lastnosti", false, W.diagnostikaVelja(null, zdajS))
+    // Pregled Grok 32, G4/G6: getprop (nov proces) samo pri vklopljenem razvijalskem adb in dovoljenem imenu.
+    var branj = 0
+    val beri: (String) -> String? = { branj++; "${zdajS + 3600}" }
+    preveriEnako("G4: brez adb takoj false", false, W.diagnostikaVklopljena("debug.safeer.usenet_samo", zdajS, { false }, beri))
+    preveriEnako("G4: brez adb ni procesa", 0, branj)
+    preveriEnako("G6: persist ni dovoljen (brez procesa)", false, W.diagnostikaVklopljena("persist.safeer.usenet_samo", zdajS, { true }, beri))
+    preveriEnako("G6: tuja lastnost ne", false, W.diagnostikaVklopljena("debug.drug.x", zdajS, { true }, beri))
+    preveriEnako("G6: posebni znaki ne", false, W.diagnostikaVklopljena("debug.safeer.x; rm", zdajS, { true }, beri))
+    preveriEnako("G4: nedovoljeno ime brez procesa", 0, branj)
+    preveriEnako("G4: adb in veljaven rok", true, W.diagnostikaVklopljena("debug.safeer.webtor_samo", zdajS, { true }, beri))
+    preveriEnako("G4: en proces", 1, branj)
+    preveriEnako("G4: getprop brez odgovora (rok)", false, W.diagnostikaVklopljena("debug.safeer.webtor_samo", zdajS, { true }, { null }))
 
     if (napak == 0) println("WebtorPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

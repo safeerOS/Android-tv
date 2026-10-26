@@ -195,16 +195,36 @@ object Webtor {
      * adb, ne ostane po ponovnem zagonu (ni persist) in je ne vklopi globalna raven dnevnika (prej log.tag.* - tudi
      * persist in globalno). Primer: `adb shell setprop debug.safeer.webtor_samo $(( $(date +%s) + 3600 ))`.
      */
-    internal fun diagnostika(lastnost: String): Boolean = try {
-        val p = Runtime.getRuntime().exec(arrayOf("getprop", lastnost))
-        val v = p.inputStream.bufferedReader().use { it.readLine() }
-        WebtorPravila.diagnostikaVelja(v, System.currentTimeMillis() / 1000)
-    } catch (_: Throwable) { false }
+    internal fun diagnostika(c: Context, lastnost: String): Boolean = try {
+        // Pregled Grok 32, G4/G6 (isto pravilo kot DiagnostikaPravila na veji z3-sejanje - ob zdruzitvi eno): getprop samo
+        // pri vklopljenem razvijalskem adb, z rokom in destroy(); prej nov proces ob vsaki izbiri toka pri vseh uporabnikih.
+        WebtorPravila.diagnostikaVklopljena(lastnost, System.currentTimeMillis() / 1000, { adbVklopljen(c) }, ::getprop)
+    } catch (_: InterruptedException) { Thread.currentThread().interrupt(); false } catch (_: Throwable) { false }
 
-    fun meritev(): Boolean = diagnostika("debug.safeer.webtor_meri")
+    /**
+     * Razvijalski adb: razhroscevanje USB (Settings.Global.ADB_ENABLED == 1) ali brezzicno razhroscevanje (adb_wifi_enabled,
+     * Android 11+; ce ga sistem ne da prebrati, ne velja). Brez tega lastnosti `debug.*` ne more nastaviti nihce razen sistema.
+     */
+    private fun adbVklopljen(c: Context): Boolean {
+        val cr = c.applicationContext.contentResolver
+        if (android.provider.Settings.Global.getInt(cr, android.provider.Settings.Global.ADB_ENABLED, 0) == 1) return true
+        return try { android.provider.Settings.Global.getInt(cr, "adb_wifi_enabled", 0) == 1 } catch (_: Exception) { false }
+    }
+
+    /** getprop brez lupine (tabela argumentov), vhod zaprt; po koncu ali roku se proces konca (destroy). null = ni odgovora. */
+    private fun getprop(lastnost: String): String? {
+        val p = ProcessBuilder("getprop", lastnost).redirectErrorStream(true).start()
+        return try {
+            p.outputStream.close()
+            if (!p.waitFor(WebtorPravila.DIAGNOSTIKA_ROK_MS, java.util.concurrent.TimeUnit.MILLISECONDS)) null
+            else p.inputStream.bufferedReader().use { it.readLine() }
+        } finally { p.destroy() }
+    }
+
+    fun meritev(c: Context): Boolean = diagnostika(c, "debug.safeer.webtor_meri")
 
     /** Izbira toka gre po poti rezerve Webtor (meritev, glej [diagnostika]). */
-    fun samoWebtor(): Boolean = diagnostika("debug.safeer.webtor_samo")
+    fun samoWebtor(c: Context): Boolean = diagnostika(c, "debug.safeer.webtor_samo")
 
     /**
      * Meritev za odlocitve po podatkih (rok sonde, izbira datoteke): vsak kandidat ([oznaka] brez naslova, nadomestek

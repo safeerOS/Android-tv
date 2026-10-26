@@ -8748,7 +8748,7 @@ class GlasbaActivity : OsActivity() {
         // debridu, neposrednih povezav in Useneta; torrenti ostanejo za ujemanje izdaje Webtor. Izmerjeno 25. 10. 2026: Sintel in
         // Tears of Steel imata neposredno povezavo, zato rezerve Webtor brez tega ni mogoce izmeriti. Pregled 26, T3: viden znak,
         // brez TorBoxa v ozadju in brez poti mimo Webtorja (ce Webtor ne predvaja, se izbira konca).
-        val samoWebtor = Webtor.samoWebtor()
+        val samoWebtor = Webtor.samoWebtor(this)
         if (samoWebtor) {
             android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Webtor")
             Toast.makeText(this, R.string.os_webtor_diagnostika, Toast.LENGTH_LONG).show()
@@ -8756,7 +8756,7 @@ class GlasbaActivity : OsActivity() {
         // Diagnostika razvijalca ([Usenet.samoUsenet], samo prek adb, z rokom; lastnik 25. 10. 2026: meritev Useneta samo po
         // samodejni poti): samodejna izbira vzame samo Usenet - brez ⚡ torrentov, neposrednih povezav in Webtorja; ce Usenet
         // ne predvaja, se izbira konca (brez poti mimo). Viden znak kot pri Webtorju.
-        val samoUsenet = !samoWebtor && !rocno && Usenet.samoUsenet()
+        val samoUsenet = !samoWebtor && !rocno && Usenet.samoUsenet(this)
         if (samoUsenet) {
             android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Usenet")
             Toast.makeText(this, R.string.os_usenet_diagnostika, Toast.LENGTH_LONG).show()
@@ -8935,7 +8935,7 @@ class GlasbaActivity : OsActivity() {
             datoteke = datotekeWebtor).map { webtorPoKakovosti[it] }
         // Diagnostika na zahtevo razvijalca (`setprop log.tag.SafeerWebtorMeri DEBUG`): meritev prvih kandidatov vzporedno, brez
         // predvajanja - cas do prvega bajta pri prenosu in vsebina, ki jo /resolve res vrne (tudi za NEGOTOVA, ki jih ne izberemo).
-        if (Webtor.meritev() && webtorPoKakovosti.isNotEmpty()) {
+        if (Webtor.meritev(this) && webtorPoKakovosti.isNotEmpty()) {
             val kandidati = (webtor + webtorPoKakovosti.filter { it !in webtor }).take(16)
             Webtor.meri(this, kandidati.map { w ->
                 val k = kljucWebtor(w)

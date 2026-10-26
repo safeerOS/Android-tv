@@ -103,6 +103,20 @@ object WebtorPravila {
         return doS > zdajS && doS - zdajS <= DIAGNOSTIKA_NAJVEC_S
     }
 
+    /** getprop odgovori v nekaj ms; dlje ne cakamo (izbira toka tece na glavni niti). */
+    const val DIAGNOSTIKA_ROK_MS = 500L
+
+    /** Ime lastnosti diagnostike: samo `debug.safeer.*` (lastnosti drugih aplikacij ne beremo; kot DiagnostikaPravila). */
+    fun diagnostikaLastnost(ime: String): Boolean = Regex("^debug\\.safeer\\.[a-z0-9_]{1,40}$").matches(ime)
+
+    /**
+     * Pregled Grok 32, G4/G6 (isto kot DiagnostikaPravila.vklopljena na veji z3-sejanje): vklopljena samo za dovoljeno ime,
+     * pri vklopljenem razvijalskem adb ([adbVklopljen]) in z veljavnim rokom. [beri] (getprop - nov proces) se klice SAMO,
+     * ce prvi dve veljata: brez adb takoj false.
+     */
+    fun diagnostikaVklopljena(lastnost: String, zdajS: Long, adbVklopljen: () -> Boolean, beri: (String) -> String?): Boolean =
+        diagnostikaLastnost(lastnost) && adbVklopljen() && diagnostikaVelja(beri(lastnost), zdajS)
+
     /**
      * Pregled V1: gostitelja toka se Scit nauci samo iz zahteve, ki se je ZACELA na `https://webtor.io/.../resolve/`, samo
      * KONCNEGA gostitelja (po vseh preusmeritvah, https) in sele po odgovoru 2xx. null = nicesar se ne naucimo. Nadaljnje
