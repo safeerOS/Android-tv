@@ -8,6 +8,7 @@ import java.net.Socket
 import java.security.KeyStore
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import javax.net.ssl.KeyManagerFactory
 import javax.net.ssl.SSLContext
@@ -46,7 +47,8 @@ private fun izid(f: () -> Unit): String = try {
     zapomni(e); "NIT"
 }
 
-private class Potrdilo(val streznik: SSLContext, val zaupaj: SSLSocketFactory, val list: java.security.cert.X509Certificate)
+private class Potrdilo(val streznik: SSLContext, val zaupaj: SSLSocketFactory, val list: java.security.cert.X509Certificate,
+                       val pot: File)
 
 /** Samopodpisano potrdilo z imeni [san] (keytool -ext SAN=...): kontekst streznika in tovarna, ki mu zaupa. */
 private fun potrdilo(mapa: File, cn: String, san: String): Potrdilo {
@@ -72,7 +74,46 @@ private fun potrdilo(mapa: File, cn: String, san: String): Potrdilo {
     tmf.init(zaupane)
     val k = SSLContext.getInstance("TLS")
     k.init(null, tmf.trustManagers, null)
-    return Potrdilo(s, k.socketFactory, ks.getCertificate("a") as java.security.cert.X509Certificate)
+    return Potrdilo(s, k.socketFactory, ks.getCertificate("a") as java.security.cert.X509Certificate, shramba)
+}
+
+/** Tovarna TLS, ki zaupa samo potrdilu iz [pot] (nov proces v preizkusu trajnega zapaha). */
+private fun tovarnaIzP12(pot: File): SSLSocketFactory {
+    val ks = KeyStore.getInstance("PKCS12")
+    pot.inputStream().use { ks.load(it, "preizkus".toCharArray()) }
+    val zaupane = KeyStore.getInstance("PKCS12")
+    zaupane.load(null, null)
+    zaupane.setCertificateEntry("s", ks.getCertificate("a"))
+    val tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+    tmf.init(zaupane)
+    return SSLContext.getInstance("TLS").apply { init(null, tmf.trustManagers, null) }.socketFactory
+}
+
+/** Hramba trajnega zapaha v datoteki (v aplikaciji SporocilaSkrivnosti). */
+private class DatotecnaShramba(val f: File) : UsenetNntp.ShrambaZapaha {
+    override fun beri(): String? = if (f.exists()) f.readText() else null
+    override fun pisi(besedilo: String): Boolean {
+        f.writeText(besedilo)
+        return true
+    }
+}
+
+/** Nov proces (ponovni zagon aplikacije, sesutje, posodobitev) z isto hrambo: izid prve zahteve. */
+private fun novProces(shramba: File, vrata: Int, geslo: String, p12: File): String {
+    val java = File(System.getProperty("java.home"), "bin/java").path
+    val p = ProcessBuilder(java, "-cp", System.getProperty("java.class.path"), "si.safeer.tv.os.UsenetNovProces",
+        shramba.path, vrata.toString(), geslo, p12.path).redirectErrorStream(true).start()
+    val izpis = p.inputStream.bufferedReader().readText()
+    if (!p.waitFor(60, TimeUnit.SECONDS)) p.destroyForcibly()
+    return izpis.trim().lines().lastOrNull().orEmpty()
+}
+
+object UsenetNovProces {
+    @JvmStatic
+    fun main(a: Array<String>) {
+        UsenetNntp.shrambaZapaha = DatotecnaShramba(File(a[0]))
+        UsenetNntp(nastavitve(a[1].toInt(), geslo = a[2]), tovarnaIzP12(File(a[3]))).use { k -> println(izid { k.body(ID) }) }
+    }
 }
 
 /** Lazni streznik NNTP: prijava, BODY, STAT, prekinitev sredi bloka, zamuda, posiljanje po koscih. */
@@ -618,6 +659,35 @@ fun main() {
                 preveriEnako("ponudnik zapre seje: PRIJAVA, nobena OK", true, "PRIJAVA" in izidi && "OK" !in izidi)
             }
             UsenetNntp.dovoliPrijavoZnova("localhost", UPORABNIK, GESLO)
+        }
+        // Trajni zapah (pregled Grok 44 D2): prej samo v pomnilniku procesa - po ponovnem zagonu aplikacije (TV jo pogosto
+        // ustavi), sesutju ali posodobitvi je nov proces znova poslal napacno geslo. Zdaj nov proces ne poslje AUTHINFO.
+        LazniStreznik(prava.streznik).use { s ->
+            println("trajni zapah")
+            s.clanki[ID] = clanek(20_000, 13).poslano
+            fun gesel() = s.ukazi.count { it == "AUTHINFO PASS" }
+            val datoteka = File(mapa, "usenet-zapah")
+            UsenetNntp.shrambaZapaha = DatotecnaShramba(datoteka)
+            UsenetNntp(nastavitve(s.vrata, geslo = "napacno-geslo-z"), prava.zaupaj).use { k ->
+                preveriEnako("trajni zapah: zavrnjeno", "PRIJAVA" to 1, izid { k.body(ID) } to gesel())
+            }
+            preveriEnako("nov proces: PRIJAVA", "PRIJAVA", novProces(datoteka, s.vrata, "napacno-geslo-z", prava.pot))
+            preveriEnako("nov proces: brez povezave in AUTHINFO", 1 to 1, s.povezav.get() to gesel())
+            preveriEnako("hramba brez gesla, imena in gostitelja", false,
+                datoteka.readText().let { it.contains("napacno-geslo-z") || it.contains(UPORABNIK) || it.contains("localhost") })
+            preveriEnako("nov proces z drugim geslom gre", "OK" to 2, novProces(datoteka, s.vrata, GESLO, prava.pot) to gesel())
+            UsenetNntp(nastavitve(s.vrata, geslo = "napacno-geslo-z"), prava.zaupaj).use { k ->
+                preveriEnako("preveri() brez odklepa ne poskusi", "PRIJAVA" to 2, izid { k.preveri() } to gesel())
+                preveriEnako("uporabnikov Preveri: en nov poskus", "PRIJAVA" to 3, izid { k.preveri(odkleni = true) } to gesel())
+            }
+            preveriEnako("po novi zavrnitvi spet trajno", "PRIJAVA" to 3, novProces(datoteka, s.vrata, "napacno-geslo-z", prava.pot) to gesel())
+            UsenetNntp.dovoliPrijavoZnova("localhost", UPORABNIK, "napacno-geslo-z")   // nov vpis poverilnic
+            preveriEnako("po novem vpisu en poskus", "PRIJAVA" to 4, novProces(datoteka, s.vrata, "napacno-geslo-z", prava.pot) to gesel())
+            UsenetNntp.dovoliPrijavoZnova("localhost", UPORABNIK, "napacno-geslo-z")
+            datoteka.writeText("safeer-usenet-zapah 1\nni zapis\n" + "zz".repeat(70) + "\n")
+            UsenetNntp.shrambaZapaha = DatotecnaShramba(datoteka)
+            preveriEnako("pokvarjena hramba: ni zapaha, brez napake", false, UsenetNntp.prijavaZavrnjena("localhost", UPORABNIK, GESLO))
+            UsenetNntp.shrambaZapaha = null
         }
         LazniStreznik(prava.streznik).use { s ->
             s.pozdrav = "502 Too many connections"

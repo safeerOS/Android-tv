@@ -177,6 +177,9 @@ private fun izracunaj(f: String, v: Map<String, Any?>): Any? = when (f) {
         .let { mapOf("najvec" to it.first.toLong(), "premor_s" to it.second) }
     "nntp_poverilnica" -> UsenetNntp.varenArgument(v.niz("vrednost")!!)
     "nntp_id_odgovora" -> UsenetNntp.idOdgovoraUstreza(v.niz("vrstica")!!, v.niz("id")!!)
+    // v4 (26. 10. 2026, Grok 44 D2): trajni zapah racuna brez gesla.
+    "nntp_zapah_odtis" -> UsenetNntp.zapahOdtis(hex(v.niz("sol_hex")!!), v.niz("ponudnik")!!, v.niz("uporabnik")!!, v.niz("geslo")!!)
+        .let { mapOf("racun" to it.first, "geslo" to it.second) }
     "nntp_id" -> UsenetNzb.cistId(v.niz("id")!!)
     "varno_ime" -> UsenetNzb.varnoIme(v.niz("ime")!!)
     "nzb_ime" -> UsenetNzb.imeIzZadeve(v.niz("subject")!!)
@@ -194,7 +197,8 @@ private fun izracunaj(f: String, v: Map<String, Any?>): Any? = when (f) {
             "vrata" to UsenetNntp.VRATA.toLong(), "prosta_najdlje_s" to UsenetNntp.PROSTA_NAJDLJE_S,
             "premor_od_s" to UsenetNntp.PREMOR_OD_S, "premor_brez_odprtih_s" to UsenetNntp.PREMOR_BREZ_ODPRTIH_S,
             "premor_do_s" to UsenetNntp.PREMOR_DO_S, "rast_bazena_s" to UsenetNntp.RAST_BAZENA_S,
-            "ziva_prijava_s" to UsenetNntp.ZIVA_PRIJAVA_S)
+            "ziva_prijava_s" to UsenetNntp.ZIVA_PRIJAVA_S, "zapah_ponovitev" to UsenetNntp.ZAPAH_PONOVITEV.toLong(),
+            "zapahov_najvec" to UsenetNntp.NAJVEC_ZAPAHOV.toLong())
     }
     "uskladitev_novejsi" -> UskladitevKljucevPravila.novejsi(v["cas"] as Long, v.niz("izvor")!!, v["izbrisan"] as Boolean,
         (v["star"] as List<Any?>?)?.let { UskladitevKljucevPravila.Meta(it[0] as Long, it[1] as String, it[2] as Boolean, "") })

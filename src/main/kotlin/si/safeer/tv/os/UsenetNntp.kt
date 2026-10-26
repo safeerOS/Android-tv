@@ -23,6 +23,8 @@ import javax.net.ssl.SSLContext
 import javax.net.ssl.SSLHandshakeException
 import javax.net.ssl.SSLSocket
 import javax.net.ssl.SSLSocketFactory
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
 
 /**
  * Pogon Usenet, korak 1: odjemalec NNTP samo prek TLS (RFC 3977, AUTHINFO RFC 4643, NNTP prek TLS RFC 8143, vrata 563)
@@ -40,7 +42,10 @@ import javax.net.ssl.SSLSocketFactory
  *   geslo. Dokler ni zive prijave, se odpira ena sama povezava naenkrat ([smeOdpreti]). Pri AUTHINFO je vsak odgovor
  *   razen 281/381 in jasne meje povezav zavrnjena prijava - tudi »481 Authentication failed« po uspeli prijavi (geslo se
  *   je med sejo morda spremenilo; pregled Grok 44 D1). Zavrnjena prijava ustavi bazen, zapre vse povezave in zapre
- *   racun, dokler uporabnik poverilnic ne vpise znova ([dovoliPrijavoZnova]) - napacno geslo pride do streznika enkrat.
+ *   racun, dokler uporabnik poverilnic ne vpise znova ([dovoliPrijavoZnova]) ali sam ne klikne »Preveri«
+ *   ([preveri] z odkleni) - napacno geslo pride do streznika enkrat. Zapah je trajen (pregled Grok 44 D2): prezivi
+ *   ponovni zagon, sesutje in posodobitev aplikacije ([shrambaZapaha]; aplikacija pred prvo rabo poklice
+ *   [UsenetZapahShramba.namesti]).
  *   »Prevec povezav« bazen skrci na sprejete povezave in zacne premor novih ([novPremor]) - nikoli nov poskus prijave v
  *   zanki.
  * - Odgovori streznika ([izid], skupni primeri nntp_izid) in napake odjemalca ([Vrsta]): ni clanka, prijava, zaseden,
@@ -122,6 +127,15 @@ class UsenetNntp(
     /** Kaj bazen naredi po napaki (skupni primeri nntp_ukrep; namizje isto v core/usenet_nntp.ukrep_bazena). */
     enum class Ukrep { VRNI, ZNOVA, NAPAKA, ZMANJSAJ_POCAKAJ, POCAKAJ, NEZNANA_PRIJAVA, USTAVI_RACUN, USTAVI_BAZEN }
 
+    /**
+     * Trajna hramba zapaha racuna (pregled Grok 44 D2): besedilo z zapisi (sol, odtis racuna, pocasen odtis gesla) -
+     * nikoli geslo. Aplikacija: [UsenetZapahShramba] (SporocilaSkrivnosti, kljuc Android Keystore).
+     */
+    interface ShrambaZapaha {
+        fun beri(): String?
+        fun pisi(besedilo: String): Boolean
+    }
+
     /** Telo odgovora brez koncne vrstice in podvojenih pik ter bajti za njo (naslednji odgovor). */
     class Telo(val telo: ByteArray, val ostanek: ByteArray)
 
@@ -167,9 +181,128 @@ class UsenetNntp(
         private fun vrataPrijave(gostitelj: String, uporabnik: String): ReentrantLock =
             PRIJAVE.computeIfAbsent(zgosti("prijava", ponudnik(gostitelj), uporabnik)) { ReentrantLock() }
 
-        /** Ali je ponudnik te poverilnice ze zavrnil (do ponovnega vpisa jih ne posiljamo). */
-        fun prijavaZavrnjena(gostitelj: String, uporabnik: String?, geslo: String?): Boolean =
-            odtisRacuna(gostitelj, uporabnik, geslo)?.let { it in ZAVRNJENI } ?: false
+        /**
+         * Ali je ponudnik te poverilnice ze zavrnil - v tem procesu ali prej (trajni zapah, Grok 44 D2). Do ponovnega vpisa
+         * ali uporabnikovega »Preveri« jih ne posiljamo. Bere hrambo - ne na glavni niti.
+         */
+        fun prijavaZavrnjena(gostitelj: String, uporabnik: String?, geslo: String?): Boolean {
+            val o = odtisRacuna(gostitelj, uporabnik, geslo) ?: return false
+            if (o in ZAVRNJENI) return true
+            if (uporabnik == null || !trajnoZavrnjen(ponudnik(gostitelj), uporabnik, geslo.orEmpty())) return false
+            ZAVRNJENI += o
+            return true
+        }
+
+        /**
+         * Trajni zapah (pregled Grok 44 D2): zapis = sol (16 B, svoja za vsak zapis), racun = SHA-256(sol, ponudnik,
+         * uporabnik), geslo = PBKDF2-HMAC-SHA256(ponudnik, uporabnik, geslo; sol, [ZAPAH_PONOVITEV]) - nikoli geslo. Pocasen
+         * odtis, ker je zavrnjeno geslo pogosto tipkarska napaka pravega. Zapis z lastno soljo je prenosljiv (korak 3).
+         */
+        const val ZAPAH_PONOVITEV = 100_000
+        const val NAJVEC_ZAPAHOV = 32
+        private const val GLAVA_ZAPAHA = "safeer-usenet-zapah 1"
+        private val ZAPAH_ZAKLEP = Any()
+        /** Prebrani zapisi (pod [ZAPAH_ZAKLEP]); null = se niso prebrani - Keystore se ne odpira ob vsaki prijavi. */
+        private var zapahi: List<Zapis>? = null
+
+        /** Hramba trajnega zapaha; null = samo pomnilnik procesa (preizkusi JVM). */
+        @Volatile var shrambaZapaha: ShrambaZapaha? = null
+            set(v) {
+                synchronized(ZAPAH_ZAKLEP) {
+                    field = v
+                    zapahi = null
+                }
+            }
+
+        private class Zapis(val sol: ByteArray, val racun: String, val geslo: String, val cas: Long)
+
+        private fun polja(vararg p: String): ByteArray {
+            val o = java.io.ByteArrayOutputStream()
+            for (x in p) {
+                val b = x.toByteArray(Charsets.UTF_8)
+                o.write(byteArrayOf((b.size ushr 24).toByte(), (b.size ushr 16).toByte(), (b.size ushr 8).toByte(), b.size.toByte()))
+                o.write(b)
+            }
+            return o.toByteArray()
+        }
+
+        private fun hex(b: ByteArray): String = b.joinToString("") { "%02x".format(it) }
+
+        private fun odtisZapisa(sol: ByteArray, ponudnik: String, uporabnik: String): String =
+            MessageDigest.getInstance("SHA-256").let {
+                it.update(sol)
+                it.update(polja(ponudnik, uporabnik))
+                hex(it.digest())
+            }
+
+        /** (racun, geslo) zapisa trajnega zapaha, sestnajstisko (skupni primeri nntp_zapah_odtis; namizje isto). */
+        fun zapahOdtis(sol: ByteArray, ponudnik: String, uporabnik: String, geslo: String): Pair<String, String> =
+            odtisZapisa(sol, ponudnik, uporabnik) to hex(pbkdf2(polja(ponudnik, uporabnik, geslo), sol, ZAPAH_PONOVITEV))
+
+        /** PBKDF2-HMAC-SHA256 z enim blokom (32 B); geslo so bajti (SecretKeyFactory sprejme samo znake). */
+        private fun pbkdf2(geslo: ByteArray, sol: ByteArray, ponovitev: Int): ByteArray {
+            val mac = Mac.getInstance("HmacSHA256")
+            mac.init(SecretKeySpec(geslo, "HmacSHA256"))
+            mac.update(sol)
+            var u = mac.doFinal(byteArrayOf(0, 0, 0, 1))
+            val t = u.copyOf()
+            for (i in 1 until ponovitev) {
+                u = mac.doFinal(u)
+                for (j in t.indices) t[j] = (t[j].toInt() xor u[j].toInt()).toByte()
+            }
+            return t
+        }
+
+        private fun jeHex(s: String): Boolean = s.all { it in '0'..'9' || it in 'a'..'f' }
+
+        /** Zapisi iz hrambe (pod [ZAPAH_ZAKLEP]); nepopolno ali tuje besedilo = brez zapisov (ne ustavi pogona). */
+        private fun zapisi(): List<Zapis> {
+            zapahi?.let { return it }
+            val besedilo = try { shrambaZapaha?.beri() } catch (_: Throwable) { null }
+            val vrstice = besedilo?.take(64 * 1024)?.lines().orEmpty()
+            val z = if (vrstice.firstOrNull() != GLAVA_ZAPAHA) emptyList() else vrstice.drop(1).mapNotNull { v ->
+                val d = v.split(' ')
+                if (d.size == 4 && d[0].length == 32 && d[1].length == 64 && d[2].length == 64 && jeHex(d[0] + d[1] + d[2]) &&
+                    d[3].length in 1..18 && d[3].all { it in '0'..'9' })
+                    Zapis(ByteArray(16) { d[0].substring(2 * it, 2 * it + 2).toInt(16).toByte() }, d[1], d[2], d[3].toLong())
+                else null
+            }.takeLast(NAJVEC_ZAPAHOV)
+            zapahi = z
+            return z
+        }
+
+        private fun pisiZapise(z: List<Zapis>) {
+            val s = shrambaZapaha ?: return
+            val b = (listOf(GLAVA_ZAPAHA) + z.map { "${hex(it.sol)} ${it.racun} ${it.geslo} ${it.cas}" }).joinToString("\n") + "\n"
+            zapahi = z   // velja do konca procesa tudi, ce se hramba ne posreci
+            try { s.pisi(b) } catch (_: Throwable) { }
+        }
+
+        private fun zapisiRacuna(z: List<Zapis>, ponudnik: String, uporabnik: String): List<Zapis> =
+            z.filter { MessageDigest.isEqual(odtisZapisa(it.sol, ponudnik, uporabnik).toByteArray(), it.racun.toByteArray()) }
+
+        private fun trajnoZavrnjen(ponudnik: String, uporabnik: String, geslo: String): Boolean {
+            if (shrambaZapaha == null) return false
+            val z = synchronized(ZAPAH_ZAKLEP) { zapisiRacuna(zapisi(), ponudnik, uporabnik) }
+            return z.any { MessageDigest.isEqual(zapahOdtis(it.sol, ponudnik, uporabnik, geslo).second.toByteArray(), it.geslo.toByteArray()) }
+        }
+
+        private fun zapisiZapah(ponudnik: String, uporabnik: String, geslo: String) {
+            if (shrambaZapaha == null) return
+            val sol = ByteArray(16).also { SecureRandom().nextBytes(it) }
+            val (racun, g) = zapahOdtis(sol, ponudnik, uporabnik, geslo)   // pocasen odtis izven zaklepa
+            synchronized(ZAPAH_ZAKLEP) { pisiZapise((zapisi() + Zapis(sol, racun, g, System.currentTimeMillis() / 1000)).takeLast(NAJVEC_ZAPAHOV)) }
+        }
+
+        /** Zapahi racuna gredo stran (nov vpis, »Preveri«, uspela prijava - staro napacno geslo ni vec shranjeno). */
+        private fun pozabiZapahe(ponudnik: String, uporabnik: String) {
+            if (shrambaZapaha == null) return
+            synchronized(ZAPAH_ZAKLEP) {
+                val z = zapisi()
+                val r = zapisiRacuna(z, ponudnik, uporabnik)
+                if (r.isNotEmpty()) pisiZapise(z - r.toSet())
+            }
+        }
 
         /**
          * Uporabnik je poverilnice vpisal znova (tudi enake - npr. po podaljsanju narocnine): en nov poskus prijave je spet
@@ -180,6 +313,7 @@ class UsenetNntp(
                 ZAVRNJENI.remove(it)
                 NEZNANE.remove(it)
             }
+            if (uporabnik != null) pozabiZapahe(ponudnik(gostitelj), uporabnik)
         }
 
         const val VRATA = 563
@@ -761,8 +895,9 @@ class UsenetNntp(
     private val vRabi = HashSet<Povezava>()
     private val odprto = AtomicInteger()
     @Volatile private var zaprto = false
-    @Volatile private var ustavljen: Vrsta? =
-        if (prijavaZavrnjena(n.gostitelj, n.uporabnik, n.geslo)) Vrsta.PRIJAVA else null
+    /** Zapah racuna se preveri ob prvi zahtevi ([preveriZapah]) - hramba in pocasen odtis nikoli na glavni niti. */
+    @Volatile private var ustavljen: Vrsta? = null
+    @Volatile private var zapahPreverjen = false
     private val odtis = odtisRacuna(n.gostitelj, n.uporabnik, n.geslo)
     private val vrata: ReentrantLock? = n.uporabnik?.let { vrataPrijave(n.gostitelj, it) }
     private var zgornja = n.povezav
@@ -830,6 +965,7 @@ class UsenetNntp(
             val k = odtis ?: return
             if (vrsta == null) {
                 NEZNANE.remove(k)
+                pozabiZapahe(ponudnik(n.gostitelj), n.uporabnik!!)   // racun dela s tem geslom: stari zapahi niso potrebni
                 return
             }
             when (ukrep(vrsta, FazaPovezave.PRIJAVA, false, 0)) {
@@ -845,13 +981,38 @@ class UsenetNntp(
     /** Zapah racuna (zavrnjena prijava ali druga zapored brez odgovora): nobenega AUTHINFO vec, bazen ustavljen. */
     private fun zapahni() {
         odtis?.let {
-            ZAVRNJENI += it
             NEZNANE.remove(it)
+            // Trajno (Grok 44 D2): prezivi ponovni zagon, sesutje in posodobitev aplikacije.
+            if (ZAVRNJENI.add(it)) zapisiZapah(ponudnik(n.gostitelj), n.uporabnik!!, n.geslo.orEmpty())
         }
         zaklep.zZaklepom {
             if (ustavljen == null) ustavljen = Vrsta.PRIJAVA
             pogoj.signalAll()
         }
+    }
+
+    /** Trajni zapah racuna ob prvi zahtevi (bere hrambo; zDelom ni nikoli na glavni niti). */
+    private fun preveriZapah() {
+        if (zapahPreverjen) return
+        if (prijavaZavrnjena(n.gostitelj, n.uporabnik, n.geslo)) zaklep.zZaklepom { if (ustavljen == null) ustavljen = Vrsta.PRIJAVA }
+        zapahPreverjen = true
+    }
+
+    /**
+     * »Preizkusi povezavo«: vedno nova povezava s prijavo (prosta povezava ni dokaz, da streznik se dela). Zapah velja
+     * tudi tu. [odkleni]: uporabnik je sam kliknil »Preveri« (lastnik 26. 10. 2026: zapah odklene samo nov vpis poverilnic
+     * ali uporabnikov »Preveri«) - en nov poskus prijave; nikoli samodejno. Napaka: [NapakaNntp].
+     */
+    fun preveri(odkleni: Boolean = false) {
+        if (odkleni && odtis != null) {
+            dovoliPrijavoZnova(n.gostitelj, n.uporabnik, n.geslo)
+            zapahPreverjen = true
+            zaklep.zZaklepom {
+                if (ustavljen == Vrsta.PRIJAVA) ustavljen = null
+                pogoj.signalAll()
+            }
+        }
+        zDelom(true) { }
     }
 
     /** Telo clanka [id] (message-id z < > ali brez) za [UsenetYenc.dekodiraj]. Napaka: [NapakaNntp]; neveljaven id: IllegalArgumentException. */
@@ -1020,10 +1181,11 @@ class UsenetNntp(
         for (p in stare) p.zapri()
     }
 
-    private fun <T> zDelom(delo: (Povezava) -> T): T {
+    private fun <T> zDelom(svezaNajprej: Boolean = false, delo: (Povezava) -> T): T {
         check(Looper.myLooper() != Looper.getMainLooper()) { "NNTP ne sme teci na glavni niti" }
+        preveriZapah()
         val rokDo = System.nanoTime() + n.rokCakanjaMs * 1_000_000L
-        var sveza = false
+        var sveza = svezaNajprej
         var poskus = 0
         while (true) {
             val (p, stara) = vzemi(rokDo, sveza)
