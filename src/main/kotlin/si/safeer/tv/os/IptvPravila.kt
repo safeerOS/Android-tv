@@ -682,6 +682,31 @@ object IptvPravila {
     }
 
     /**
+     * Grok 60, Ů3: grobovi, ki jih [brezGrobovZRacunom] zavrze (isti pogoj), so izbrisani viri, ki jih je starejsa razlicica dala
+     * VSEM napravam v Linku - kopije so pri drugih napravah se vedno, tudi ce lastnik vira tu ni vec. Preden grob izgine (v njem je
+     * geslo), iz njega vzamemo samo odtis racuna in gostitelja: »odtis|gostitelj«. Edino zdravilo za razposlano kopijo je menjava
+     * gesla, zato lastnik opozorilo dobi tudi za te vire ([opozoriloIzbrisanih]).
+     */
+    fun izbrisaniRacuniPredPrehodom(izbrisani: Map<String, Long>): Set<String> = izbrisani.keys.mapNotNull { k ->
+        val tip = k.substringBefore('|').let { if (it == "url") "seznam" else it }
+        val s = skrivnostVira(tip, k.substringAfter('|', "")) ?: return@mapNotNull null
+        odtisRacuna(s) + "|" + gostitelj(s).ifEmpty { "IPTV" }
+    }.toSet()
+
+    /** Odtisi iz zapisov [izbrisaniRacuniPredPrehodom] (za oznako »opozorilo videno«). */
+    fun odtisiIzbrisanih(izbrisani: Set<String>): Set<String> = izbrisani.map { it.substringBefore('|') }.toSet()
+
+    /**
+     * Gostitelji izbrisanih virov, za katere lastnik opozorila se ni videl: brez tistih, ki jih ze pokrije opozorilo za obstojece
+     * vire ([ze] = odtisi tega opozorila) ali jih je lastnik ze videl ([opozorjeni]). Vsak gostitelj enkrat.
+     */
+    fun opozoriloIzbrisanih(izbrisani: Set<String>, ze: Set<String>, opozorjeni: Set<String>): List<String> =
+        izbrisani.sorted().mapNotNull { e ->
+            val odtis = e.substringBefore('|')
+            if (odtis in ze || odtis in opozorjeni) null else e.substringAfter('|', "").ifEmpty { "IPTV" }
+        }.distinct()
+
+    /**
      * Skladba (kanal, tok dodatka) nosi racun, ce ga nosi kateri od njenih naslovov http(s) ([naslovi]: tok, povezava,
      * seznam): pot ali parameter racuna ([jeVirSPoverilnico] kot za tok), nadomestek ali nerazumljiv naslov.
      */

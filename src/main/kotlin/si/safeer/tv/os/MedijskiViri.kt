@@ -621,6 +621,14 @@ object MedijskiViri {
         }
         // Grobovi izbrisanih virov z geslom v kljucu (sli so z usklajevanjem virov vsem napravam) izginejo.
         val izbrisani = beriCase(a, VIRI_IZBRISANI)
+        // Grok 60, Ů3: pred brisanjem groba (v kljucu je geslo) si zapomnimo samo odtis in gostitelja izbrisanega vira - kopije so pri
+        // drugih napravah se vedno, zato lastnik opozorilo za menjavo gesla dobi tudi zanje. Zapis je trajen, preden grob izgine.
+        val izbrisaniRacuni = IptvPravila.izbrisaniRacuniPredPrehodom(izbrisani)
+        if (izbrisaniRacuni.isNotEmpty()) {
+            val pred = (p.getStringSet(VIRI_IZBRISANI_PRED, null) ?: emptySet()) + izbrisaniRacuni
+            p.edit().putStringSet(VIRI_IZBRISANI_PRED, HashSet(pred)).commit()
+            obvestiRacune()
+        }
         val brez = IptvPravila.brezGrobovZRacunom(izbrisani)
         if (brez.size != izbrisani.size) {
             p.edit().putString(VIRI_IZBRISANI, JSONObject(brez as Map<*, *>).toString()).commit()
@@ -1154,6 +1162,8 @@ object MedijskiViri {
     // ------------------------------------------------------------------ Grok 46, Ö3: ze razposlane kopije
 
     private const val VIRI_PRED_PREHODOM = "viri_racun_pred_prehodom"
+    /** Grok 60, Ů3: »odtis|gostitelj« izbrisanih virov z racunom iz groba pred prehodom ([IptvPravila.izbrisaniRacuniPredPrehodom]). */
+    private const val VIRI_IZBRISANI_PRED = "viri_racun_izbrisani_pred_prehodom"
     private const val RACUNI_OPOZORJENI = "racuni_geslo_opozorjeni"
     private const val PREKLIC_OBDRZANI = "racuni_preklic_obdrzani"
 
@@ -1215,14 +1225,17 @@ object MedijskiViri {
      */
     fun opozoriloDeljenja(ctx: Context): List<String> {
         val (za, viri) = zaOpozorilo(ctx)
-        if (za.isEmpty()) return emptyList()
-        return viri.filter { odtisVira(it) in za }.map { IptvPravila.zaPrikaz(it.naslov) }.distinct()
+        val obstojeci = viri.filter { odtisVira(it) in za }.map { IptvPravila.zaPrikaz(it.naslov) }
+        // Grok 60, Ů3: tudi vir, ki ga je lastnik ze izbrisal, a je bil prej deljen (kopije pri drugih napravah, ki jih izbris ni dosegel).
+        val izbrisani = IptvPravila.opozoriloIzbrisanih(mnozica(ctx, VIRI_IZBRISANI_PRED), za, mnozica(ctx, RACUNI_OPOZORJENI))
+        return (obstojeci + izbrisani).distinct()
     }
 
     /** Lastnik je opozorilo videl: ne pokaze se vec (za vir, ki je nastal po prehodu, se ne pokaze nikoli). */
     fun opozoriloVideno(ctx: Context) {
         val (za, _) = zaOpozorilo(ctx)
-        if (za.isNotEmpty()) nastavitve(ctx).edit().putStringSet(RACUNI_OPOZORJENI, HashSet(mnozica(ctx, RACUNI_OPOZORJENI) + za)).apply()
+        val videno = za + IptvPravila.odtisiIzbrisanih(mnozica(ctx, VIRI_IZBRISANI_PRED))
+        if (videno.isNotEmpty()) nastavitve(ctx).edit().putStringSet(RACUNI_OPOZORJENI, HashSet(mnozica(ctx, RACUNI_OPOZORJENI) + videno)).apply()
     }
 
     /** Preklic z naprave [naprava] (ime [ime]): viri te naprave (naslovi v aplikaciji), o katerih odloci uporabnik. */

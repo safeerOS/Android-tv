@@ -330,5 +330,31 @@ fun main() {
     // 6) Izrecen klik uporabnika (»Poskusi znova«) je se vedno dovoljen na napravi brez dokaza (po premoru I5 in najvec 1-krat na minuto).
     preveriEnako("izrecen klik na vir brez dokaza: da", true, IptvPravila.smeSamodejnoPrenesti(b, dodanTu = false, izrecno = true))
 
+    println()
+    println("== Grok 60, Ů3: opozorilo za menjavo gesla zajame tudi ze izbrisane, a prej deljene vire ==")
+    // Grobovi (tip|naslov -> cas) iz casa pred prehodom: izbrisani viri z geslom v kljucu so sli z usklajevanjem vsem napravam.
+    val grobovPred = mapOf("seznam|$XTREAM" to 1000L, "url|$TVH" to 1100L, "tok|$TOK" to 1200L,
+        "seznam|${nadomestek(7)}" to 1300L, "seznam|$JAVNI" to 1400L, "stremio|https://v3-cinemeta.strem.io/manifest.json" to 1500L)
+    val izbrisaniRacuni = IptvPravila.izbrisaniRacuniPredPrehodom(grobovPred)
+    preveriEnako("zapomnjeni so vsi trije izbrisani viri z racunom (ne nadomestek, ne javni seznam, ne dodatek)", 3, izbrisaniRacuni.size)
+    preveriEnako("zapis je odtis in gostitelj", setOf(IptvPravila.odtisRacuna(XTREAM) + "|" + IptvPravila.gostitelj(XTREAM),
+        IptvPravila.odtisRacuna(TVH) + "|" + IptvPravila.gostitelj(TVH), IptvPravila.odtisRacuna(TOK) + "|" + IptvPravila.gostitelj(TOK)), izbrisaniRacuni)
+    preveri("v zapisu ni ne uporabnika ne gesla", izbrisaniRacuni.none { UPORABNIK in it || GESLO in it })
+    preveriEnako("zapomnimo si natanko tiste grobove, ki jih prehod zavrze", grobovPred.size - IptvPravila.brezGrobovZRacunom(grobovPred).size, izbrisaniRacuni.size)
+    preveriEnako("sele po brisanju grobov podatka ni vec (vrstni red: najprej zapomni, nato zavrzi)", emptySet<String>(),
+        IptvPravila.izbrisaniRacuniPredPrehodom(IptvPravila.brezGrobovZRacunom(grobovPred)))
+    // Brez popravka: opozorilo za obstojece vire ne pozna izbrisanih (presek z zdaj), seznam pa je prazen - lastnik ne izve nic.
+    preveriEnako("nadzor: opozorilo za obstojece vire izbrisanih ne zajame", emptySet<String>(),
+        IptvPravila.zaOpozorilo(IptvPravila.racuniPredPrehodom(emptyList()), emptySet(), emptySet()))
+    val gostiteljiOpozorila = IptvPravila.opozoriloIzbrisanih(izbrisaniRacuni, ze = emptySet(), opozorjeni = emptySet())
+    preveriEnako("opozorilo: gostitelji izbrisanih virov (vsak enkrat)", setOf("ponudnik.primer.test", "tvh.primer.test"), gostiteljiOpozorila.toSet())
+    preveriEnako("opozorilo: vsak gostitelj enkrat", 2, gostiteljiOpozorila.size)
+    preveriEnako("opozorilo: izbrisan vir, ki ga ze pokriva opozorilo za obstojece vire, ne podvaja", listOf("ponudnik.primer.test"),
+        IptvPravila.opozoriloIzbrisanih(izbrisaniRacuni, ze = setOf(IptvPravila.odtisRacuna(TVH)), opozorjeni = emptySet()))
+    val videno = IptvPravila.odtisiIzbrisanih(izbrisaniRacuni)
+    preveriEnako("po »videno« opozorila ni vec", emptyList<String>(), IptvPravila.opozoriloIzbrisanih(izbrisaniRacuni, ze = emptySet(), opozorjeni = videno))
+    preveriEnako("brez izbrisanih virov z racunom ni opozorila", emptyList<String>(),
+        IptvPravila.opozoriloIzbrisanih(IptvPravila.izbrisaniRacuniPredPrehodom(mapOf("seznam|$JAVNI" to 1L)), emptySet(), emptySet()))
+
     if (napak == 0) println("IptvRacunTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }
