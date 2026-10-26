@@ -181,6 +181,13 @@ object DeljenjePravila {
                             vKrogu: Boolean = smeZaslon, spremenjenaJeCilj: Boolean = true): Boolean =
         (tece || cakaNaOdklep) && cilj.isNotBlank() && (!vKrogu || (spremenjenaJeCilj && !smeZaslon))
 
+    /**
+     * Grok 23, R2: zahteva za konec zaradi dostopa nosi napravo, za katero je bila odlocena ([pricakovan]). Ce se je vmes
+     * zacelo deljenje DRUGI napravi ([cilj], [tece]), ga ne ustavi. null = konec brez pogoja (gumb Ustavi, obvestilo).
+     */
+    fun ustaviZaCilj(pricakovan: String?, cilj: String, tece: Boolean, cakaNaOdklep: Boolean): Boolean =
+        pricakovan == null || pricakovan == cilj || (!tece && !cakaNaOdklep)
+
     /** Tipke Safeer Vnosa, ki pomenijo »Nazaj« (VnosStoritev.tipka: GLOBAL_ACTION_BACK). */
     val TIPKE_NAZAJ = setOf("back", "nazaj")
 
@@ -198,7 +205,8 @@ object DeljenjePravila {
      * upravljas samo s telefonom, med vprasanjem ne obtici.
      */
     fun zavrnitevVnosa(cakaNaOdklep: Boolean, zaklenjeno: Boolean, vprasanjeOdprto: Boolean, samoNazaj: Boolean = false): ZavrnitevVnosa = when {
-        vprasanjeOdprto && samoNazaj -> ZavrnitevVnosa.NI
+        // Grok 23, R4: izjema »Nazaj« ne velja na zaklenjeni napravi in med cakanjem na odklep (zaklenjeno = brez vnosa).
+        vprasanjeOdprto && samoNazaj && !cakaNaOdklep && !zaklenjeno -> ZavrnitevVnosa.NI
         vprasanjeOdprto -> ZavrnitevVnosa.VPRASANJE
         cakaNaOdklep -> ZavrnitevVnosa.CAKA_NA_ODKLEP
         zaklenjeno -> ZavrnitevVnosa.ZAKLENJENO

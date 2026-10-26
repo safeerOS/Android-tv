@@ -524,8 +524,18 @@ object OsPravila {
      * Grok 15, N6: preusmeritev https -> http je dovoljena samo za postajo ali kanal v zivo brez poverilnice - izmerjeno
      * 25. 10. 2026: 2 od 87 postaj iz kataloga (Radio Browser) preusmeri https na http in brez tega ne igrata. Posnetek
      * (povezava debrida z zetonom) in tok s poverilnico ostaneta brez.
+     * Grok 23, R1: »brez poverilnice« ne sme sloneti samo na oznaki nadomestka ([sPoverilnico]) - Media3 iste glave poslje
+     * tudi na naslednji skok. Dokler predvajalnik ne preverja ciljev preusmeritev (N5), velja samo za zahtevo [naslov] brez
+     * lastnih glav razen [GLAVE_BREZ_POVERILNICE] ([glave]: piskotki, Referer, Authorization, glave toka ne gredo po http)
+     * in brez skrivnosti v naslovu (uporabnik/geslo, zeton v poti ali poizvedbi, pot Xtream /live/<ime>/<geslo>/).
      */
-    fun dovoliHttpPreusmeritev(vZivo: Boolean, sPoverilnico: Boolean): Boolean = vZivo && !sPoverilnico
+    fun dovoliHttpPreusmeritev(vZivo: Boolean, sPoverilnico: Boolean, naslov: String, glave: Collection<String>): Boolean =
+        vZivo && !sPoverilnico && glave.all { it.trim().lowercase(java.util.Locale.ROOT) in GLAVE_BREZ_POVERILNICE } &&
+            !SkrivnostiPravila.jeSkrivenNaslov(naslov) && !RX_XTREAM.containsMatchIn(naslov.trim())
+
+    /** Glave zahteve, ki niso poverilnica: UA brskalnika (doda ga Safeer) in Icy-MetaData (doda ga Media3 za postaje). */
+    val GLAVE_BREZ_POVERILNICE = setOf("user-agent", "icy-metadata")
+    private val RX_XTREAM = Regex("^https?://[^/?#]+/(?:live|movie|series|timeshift)/[^/?#]+/[^/?#]+/", RegexOption.IGNORE_CASE)
 
     /** Slika iz uporabnikovega spletnega vira sme le na javno ime gostitelja po https (Grok 10, M6). */
     fun varnaSlikaVira(url: String): Boolean {

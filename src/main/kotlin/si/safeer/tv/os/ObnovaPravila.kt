@@ -52,8 +52,13 @@ object ObnovaPravila {
         return velikost
     }
 
-    /** Po preverjanju: koncan torrent brez »Deli naprej« ostane ustavljen (ne oddajamo), vse drugo tece naprej. */
-    fun tecePoPreverjanju(koncan: Boolean, deliNaprej: Boolean): Boolean = !koncan || deliNaprej
+    /**
+     * Po preverjanju: koncan torrent brez »Deli naprej« ostane ustavljen (ne oddajamo). Nedokoncan tece naprej, razen
+     * zacasnega ([zacasen]: film iz kataloga ali pomoc napravi, ne »Obdrži«), ki ga nihce ne gleda ([vRabi]) - Grok 9, Z3:
+     * ob zagonu ne gre v roj, spet ga zazene sele predvajanje.
+     */
+    fun tecePoPreverjanju(koncan: Boolean, deliNaprej: Boolean, zacasen: Boolean = false, vRabi: Boolean = false): Boolean =
+        deliNaprej || (!koncan && (!zacasen || vRabi))
 
     private val HASH = Regex("^[0-9a-f]{40}$")
     private val VRSTE = setOf("torrent", "resume")

@@ -165,12 +165,20 @@ fun main() {
 
     // Grok 15, N1: sprememba dostopa druge naprave seje ne konca; umik iz kroga in odvzem zaslona tej napravi jo.
     check(!DeljenjePravila.ustaviZaradiDostopa(true, false, "n-a", smeZaslon = false, vKrogu = true, spremenjenaJeCilj = false)) { "N1: druga naprava" }
+    // Grok 23, R2: konec, odlocen za napravo A, ne ustavi deljenja, ki se je vmes zacelo napravi B.
+    check(!DeljenjePravila.ustaviZaCilj("n-a", "n-b", tece = true, cakaNaOdklep = false)) { "R2: nova seja druge naprave" }
+    check(!DeljenjePravila.ustaviZaCilj("n-a", "n-b", tece = false, cakaNaOdklep = true)) { "R2: druga naprava caka na odklep" }
+    check(DeljenjePravila.ustaviZaCilj("n-a", "n-a", tece = true, cakaNaOdklep = false)) { "R2: ista naprava" }
+    check(DeljenjePravila.ustaviZaCilj(null, "n-b", tece = true, cakaNaOdklep = false)) { "R2: Ustavi brez pogoja" }
+    check(DeljenjePravila.ustaviZaCilj("n-a", "", tece = false, cakaNaOdklep = false)) { "R2: nic ne tece - pospravi" }
     check(DeljenjePravila.ustaviZaradiDostopa(true, false, "n-a", smeZaslon = false, vKrogu = false, spremenjenaJeCilj = false)) { "N1: umik iz kroga" }
     check(DeljenjePravila.ustaviZaradiDostopa(true, false, "n-a", smeZaslon = false, vKrogu = true, spremenjenaJeCilj = true)) { "N1: odvzem zaslona" }
     check(!DeljenjePravila.ustaviZaradiDostopa(true, false, "n-a", smeZaslon = true, vKrogu = true, spremenjenaJeCilj = true)) { "N1: zaslon ostal" }
     // Grok 15, N2: med vprasanjem je dovoljen samo »Nazaj« (vprasanje zavrne).
     check(DeljenjePravila.zavrnitevVnosa(false, false, vprasanjeOdprto = true, samoNazaj = true) == DeljenjePravila.ZavrnitevVnosa.NI) { "N2: Nazaj" }
     check(DeljenjePravila.zavrnitevVnosa(false, false, vprasanjeOdprto = true, samoNazaj = false) == DeljenjePravila.ZavrnitevVnosa.VPRASANJE) { "N2: drug vnos" }
+    check(DeljenjePravila.zavrnitevVnosa(false, zaklenjeno = true, vprasanjeOdprto = true, samoNazaj = true) != DeljenjePravila.ZavrnitevVnosa.NI) { "R4: Nazaj na zaklenjeni napravi" }
+    check(DeljenjePravila.zavrnitevVnosa(cakaNaOdklep = true, zaklenjeno = false, vprasanjeOdprto = true, samoNazaj = true) != DeljenjePravila.ZavrnitevVnosa.NI) { "R4: Nazaj med cakanjem na odklep" }
     check(DeljenjePravila.samoNazaj("input.key", " Back ") && DeljenjePravila.samoNazaj("input.key", "nazaj")) { "N2: tipka nazaj" }
     check(!DeljenjePravila.samoNazaj("input.key", "enter") && !DeljenjePravila.samoNazaj("input.tap", "back")) { "N2: druge tipke" }
     check(DeljenjePravila.ROK_VPRASANJA_MS in 1..120_000L) { "N2: rok vprasanja" }

@@ -47,9 +47,12 @@
     <string name="magnet_p2p_naslov">Il tuo indirizzo IP sarà visibile</string>
     <string name="magnet_p2p_opis">Senza un servizio debrid, Safeer si collega direttamente agli altri peer di questo torrent e tutti nello sciame vedono il tuo indirizzo IP. Con TorBox (o Real-Debrid, AllDebrid) il servizio scarica il torrent e tu ricevi solo lo stream: il tuo indirizzo IP resta nascosto.</string>
     <string name="magnet_p2p_vseeno">Collegati direttamente comunque</string>
+    <string name="os_p2p_diagnostika">Diagnostica: solo P2P su questo dispositivo (test sviluppatore)</string>
     <string name="magnet_p2p_dodaj">Aggiungi TorBox</string>
     <string name="magnet_debrid_opis">%1$s scarica questo torrent per te: il tuo indirizzo IP non è visibile agli altri peer.</string>
     <string name="magnet_debrid_predvajaj">Riproduci tramite %1$s</string>
     <string name="magnet_neposredno">Apri direttamente (P2P)</string>
     <string name="magnet_p2p_preklicano">Non aperto: il tuo indirizzo IP non è stato mostrato a nessuno.</string>
+    <!-- Pregled Grok 32, G2: diagnostika samo P2P brez torrenta -->
+    <string name="os_p2p_diagnostika_ni_torrenta">Diagnostica solo P2P: nessun torrent di questo contenuto è adatto a questo dispositivo, non viene riprodotto nulla.</string>
 </resources>

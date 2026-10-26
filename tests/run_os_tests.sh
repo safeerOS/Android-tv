@@ -24,6 +24,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/os/ObvestilaTokov.kt" \
     "$SRC/si/safeer/tv/os/SeznamiPravila.kt" \
     "$SRC/si/safeer/tv/os/ZacasniPravila.kt" \
+    "$SRC/si/safeer/tv/os/DiagnostikaPravila.kt" \
     "$SRC/si/safeer/tv/os/ZasebniDodatki.kt" \
     "$SRC/si/safeer/tv/os/KnjiznicaKroga.kt" \
     "$SRC/si/safeer/tv/os/RazpolozljivostPravila.kt" \
@@ -67,6 +68,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/ObvestilaTokovTest.kt" \
     "$TEST_DIR/SeznamiPravilaTest.kt" \
     "$TEST_DIR/ZacasniPravilaTest.kt" \
+    "$TEST_DIR/DiagnostikaPravilaTest.kt" \
     "$TEST_DIR/ZasebniDodatkiTest.kt" \
     "$TEST_DIR/KnjiznicaKrogaTest.kt" \
     "$TEST_DIR/RazpolozljivostPravilaTest.kt" \
@@ -162,6 +164,7 @@ java -cp "$OUT/os.jar" si.safeer.tv.os.TokIzbiraTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.ObvestilaTokovTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.SeznamiPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.ZacasniPravilaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.DiagnostikaPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.ZasebniDodatkiTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.KnjiznicaKrogaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.RazpolozljivostPravilaTestKt

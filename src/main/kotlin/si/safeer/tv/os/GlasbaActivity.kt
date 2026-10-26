@@ -8747,6 +8747,16 @@ class GlasbaActivity : OsActivity() {
                           obNeuspehu: (() -> Unit)? = null) {
         // Pregled A1: nova izbira toka - prejsnje cakanje na debrid/Usenet ne odpre nicesar vec.
         prekiniDebrid()
+        // Diagnostika razvijalca ([Diagnostika.samoP2p], samo prek adb, z rokom; lastnik 25. 10. 2026: Z3 v zivo samo po
+        // samodejni poti in samo z odprtimi filmi CC): samodejna izbira vzame najboljsi torrent na TEJ napravi - brez
+        // neposrednih povezav, debrida, Useneta, Webtorja in pomocnikov v Linku. Opozorilo pred rojem ostane.
+        val samoP2p = !rocno && Diagnostika.samoP2p(this)
+        if (samoP2p) {
+            android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo P2P")
+            // Pregled Grok 32, G5: Toast samo na glavni niti. izberiTok se klice prek glavna.post (preverjeno: vsi klicatelji),
+            // runOnUiThread to zagotovi tudi za morebitnega klicatelja z delovne niti (Toast tam vrze izjemo).
+            runOnUiThread { Toast.makeText(this, R.string.os_p2p_diagnostika, Toast.LENGTH_LONG).show() }
+        }
         val predpomnjeni = pripravljeno.predpomnjeni
         // Webtor rezerva (25. 10. 2026): tokovi Webtor [⚡TB] (podvajajo nas TorBox) in [P2P] (posnetek z oglasom za paket)
         // izpadejo takoj ([WebtorPravila.skrij]).
@@ -8920,6 +8930,21 @@ class GlasbaActivity : OsActivity() {
             if (torrenti.isNotEmpty()) { odpri(torrenti.first()); return true }
             if (posnetek != null) { odpri(posnetek); return true }
             return false
+        }
+        if (samoP2p) {
+            val t = torrentiPoKakovosti.firstOrNull()
+            if (t == null) {
+                android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo P2P - ni torrenta, ki gre na to napravo")
+                // Pregled Grok 32, G2: prej tih konec (samo dnevnik) - viden razlog in klicatelj izve za neuspeh (epizoda: nazaj
+                // na seznam epizod). Druge poti ni (diagnostika), kartica pa ne izgine (oznaciNiNaVoljo se ne klice).
+                runOnUiThread { Toast.makeText(this, R.string.os_p2p_diagnostika_ni_torrenta, Toast.LENGTH_LONG).show() }
+                obNeuspehu?.invoke()
+                return
+            }
+            android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo P2P; izbran=${TokIzbira.opisi(opis(t))}, sejalcev=${TokIzbira.sejalci(opis(t))}")
+            opozoriPredRojem(t.url) { torrentBrezRacunalnika(sk, naslov, t.url, t.datoteka,
+                (TokIzbira.opisi(t.ime + " " + t.opis).gb * 1024.0 * 1024.0 * 1024.0).toLong(), "", samoNaprava = TA_NAPRAVA) }
+            return
         }
         if (!rocno) {
             // Naloga 141 + lastnik 24.-25. 10. 2026 (07:25): Usenet je prvi, ce ga uporabnik ima (najboljsa kakovost in hitrost,

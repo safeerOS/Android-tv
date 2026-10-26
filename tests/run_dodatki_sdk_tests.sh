@@ -18,6 +18,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/os/OsPravila.kt" \
     "$SRC/si/safeer/tv/os/NedelujocePravila.kt" \
     "$SRC/si/safeer/tv/os/JezikiVsebine.kt" \
+    "$SRC/si/safeer/tv/os/SkrivnostiPravila.kt" \
     "$PROJECT_DIR/sdk/primer/PrimerDodatka.kt" \
     "$PROJECT_DIR/sdk/orodja/PreveriDodatek.kt" \
     "$TEST_DIR/DodatkiSdkTest.kt" \
