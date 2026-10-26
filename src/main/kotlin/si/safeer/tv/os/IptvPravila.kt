@@ -473,6 +473,24 @@ object IptvPravila {
         return (osnova + novi) intersect zdaj
     }
 
+    /**
+     * Grok 60, Ů2 (lastnik: fail-closed): vir z racunom je »dodan tu« SAMO z dokazom - zapisom ob dodajanju na tej napravi.
+     * [viriTukaj] (TV vzame vire izpred pravila za svoje) velja samo se za delitev dela pri pregledu javnih seznamov in
+     * dodatkov brez poverilnic, kjer ni racuna, ki bi se zaklenil; za vir z racunom (samodejni prenos [smeSamodejnoPrenesti],
+     * secrets.sync z vrednostjo) je podedovana kopija izpred pravila - tudi tista z naprave zunaj lastnikovega kroga - tuja,
+     * dokler uporabnik na tej napravi ne potrdi ([potrditevDodanTu]) ali vira ne vpise sam.
+     *
+     * [dokaz] = dosedanji zapis (null = zapisa se ni: vsi viri so podedovani), [novi] = viri, ki jih uporabnik dodaja zdaj
+     * (naslov pred zavarovanjem ni bil med shranjenimi), [zdaj] = viri po shranjevanju, [prejeto] = sprememba je prevzem z
+     * druge naprave (nikoli dokaz). Odstranjeni izpadejo.
+     */
+    fun dokazDodanTu(dokaz: Set<String>?, novi: Set<String>, zdaj: Set<String>, prejeto: Boolean): Set<String> =
+        ((dokaz ?: emptySet()) + (if (prejeto) emptySet() else novi)) intersect zdaj
+
+    /** Grok 60, Ů2: uporabnik je na tej napravi izrecno potrdil, da je vir [naslov] dodal tu; vira, ki ga ni, ne potrdi. */
+    fun potrditevDodanTu(dokaz: Set<String>?, zdaj: Set<String>, naslov: String): Set<String> =
+        ((dokaz ?: emptySet()) + (if (naslov in zdaj) setOf(naslov) else emptySet())) intersect zdaj
+
     // ------------------------------------------------------------------ viri z racunom - sifrirano
 
     /**
@@ -574,8 +592,9 @@ object IptvPravila {
 
     /**
      * Ali se seznam sme prenesti SAMODEJNO (odprtje TV v zivo, 24-urna osvezitev): vir z racunom samo na napravi, kjer je bil
-     * dodan ([dodanTu]; TV, ce je vir tam od prej - [viriTukaj]); na drugih napravah v krogu samo na uporabnikov klik
-     * ([izrecno]: odprtje seznama, »Poskusi znova«), vedno ob premoru I5 ([smePrenesti]). Javni seznam kot doslej.
+     * dodan Z DOKAZOM ([dodanTu] = [dokazDodanTu]; Grok 60, Ů2: tudi TV vire izpred pravila sele po potrditvi uporabnika); na
+     * drugih napravah v krogu samo na izrecen uporabnikov klik ([izrecno]: »Poskusi znova«; odprtje seznama je klic brez
+     * [izrecno], glej [smeNaOmrezjeSeznam]), vedno ob premoru I5 ([smePrenesti]). Javni seznam kot doslej.
      */
     fun smeSamodejnoPrenesti(naslov: String, dodanTu: Boolean, izrecno: Boolean): Boolean =
         !virZRacunom("seznam", naslov.trim()) || dodanTu || izrecno

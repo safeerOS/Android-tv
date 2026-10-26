@@ -762,7 +762,11 @@ object MedijskiViri {
         }
         val cisto = vnos.trim().let { if (it.startsWith("http://") || it.startsWith("https://")) it else "https://$it" }
         if (PeerTube.jeBlokiran(cisto.substringBefore('|').trim())) return null
-        obstojeciVir(ctx, vnos)?.let { return it }
+        obstojeciVir(ctx, vnos)?.let { obstojeci ->
+            // Grok 60, Ů2: uporabnik je na TEJ napravi sam vpisal vir z racunom, ki ga naprava ze ima (podedovan ali prejet) - to je dokaz.
+            if (IptvPravila.virZRacunom(obstojeci.tip, obstojeci.naslov)) potrdiDodanTu(ctx, obstojeci.naslov)
+            return obstojeci
+        }
         prekliciOdstranjen(ctx, cisto)
         if (vnos.contains("{q}") || vnos.contains("{searchTerms}")) {
             val g = try { URL(vnos.substringBefore('|').trim()).host } catch (_: Exception) { return null }
@@ -955,10 +959,13 @@ object MedijskiViri {
         // Pregled U6: ce sifriranje ne uspe, novega pravega naslova ne zapisemo (prej je slo v nastavitve necifrirano);
         // ze shranjen (iz casa pred prehodom) ostane, kot je - ne izgubi se. U5: novega po http ne sprejmemo.
         val prejsnji = rocni(ctx).map { it.naslov }.toSet()
+        // Grok 60, Ů2: naslovi (po zavarovanju) virov, ki jih uporabnik dodaja zdaj - po VHODNEM naslovu (zavarovanje ze shranjenega
+        // vira pravega naslova ne naredi novega vira: prehod ne sme podedovanemu viru dati dokaza).
+        val noviTu = HashSet<String>()
         val viri = viriVnosa.mapNotNull { v ->
             // Lastnik, 26. 10. 2026: vir z racunom IPTV nikoli s pravim naslovom v nastavitvah (varovalka za vse poti dodajanja,
             // tudi prevzem); ce sifriranje ne uspe, ze shranjen ostane (ne izgubi se), nov se ne shrani.
-            if (IptvPravila.virZRacunom(v.tip, v.naslov) && !SkrivnostiPravila.jeNadomestek(v.naslov))
+            val r: Vir? = if (IptvPravila.virZRacunom(v.tip, v.naslov) && !SkrivnostiPravila.jeNadomestek(v.naslov))
                 IptvPravila.zaShrambo(IptvPravila.ZapisVira(v.tip, v.ime, v.naslov), v.naslov in prejsnji) { SkrivniDodatki.zavarujCel(ctx, it) }
                     ?.let { Vir(it.tip, it.ime, it.naslov) }
                     .also { if (it == null) android.util.Log.w("SafeerOsMedia", "vira z racunom ni bilo mogoce zavarovati - ni shranjen") }
@@ -967,6 +974,7 @@ object MedijskiViri {
             else if (!v.naslov.trim().startsWith("https://")) null.also { android.util.Log.w("SafeerOsMedia", "dodatek s poverilnico po http ni shranjen") }
             else SkrivniDodatki.zavaruj(ctx, v.naslov)?.let { v.copy(naslov = it) }
                 .also { if (it == null) android.util.Log.w("SafeerOsMedia", "dodatka s poverilnico ni bilo mogoce zavarovati - ni shranjen") }
+            r?.also { if (v.naslov !in prejsnji) noviTu += it.naslov }
         }
         val prej = rocni(ctx).map { kljucUskladitve(it) }.toSet()
         val zdaj = viri.map { kljucUskladitve(it) }.toSet()
@@ -984,9 +992,13 @@ object MedijskiViri {
         val tukaj = IptvPravila.viriTukaj(prejsnji, viri.map { it.naslov }.toSet(),
             ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getStringSet(VIRI_TUKAJ, null)?.toSet(),
             prejeto = prejeto || cas != 0L, jeTv = Sosed.jeTelevizor(ctx))
+        // Grok 60, Ů2: dokaz, da je vir dodan na tej napravi - samo uporabnikovo dodajanje tu; prevzem, podedovan vir (zapisa ni) in
+        // vir, ki ga je prejela druga naprava, ga nimajo, dokler uporabnik vira ne potrdi ([potrdiDodanTu]).
+        val dokaz = IptvPravila.dokazDodanTu(ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getStringSet(VIRI_DOKAZ, null)?.toSet(),
+            noviTu, viri.map { it.naslov }.toSet(), prejeto = prejeto || cas != 0L)
         val urejanje = ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().putString(KLJUC, a.toString())
             .putString(VIRI_CASI, JSONObject(casi as Map<*, *>).toString()).putString(VIRI_IZBRISANI, JSONObject(izbrisani as Map<*, *>).toString())
-            .putStringSet(VIRI_TUKAJ, HashSet(tukaj))
+            .putStringSet(VIRI_TUKAJ, HashSet(tukaj)).putStringSet(VIRI_DOKAZ, HashSet(dokaz))
         // Naloga 62: vir dodan ali odstranjen - police in mreze z diska iz casa pred tem ne veljajo vec.
         if (prej != zdaj) urejanje.putLong(VIRI_SPREMENJENI, maxOf(ura, spremenjeni(ctx) + 1))
         urejanje.apply()
@@ -1001,9 +1013,39 @@ object MedijskiViri {
 
     private const val VIRI_TUKAJ = "viri_dodani_tu"
 
+    /** Grok 60, Ů2: dokaz »dodan tu« (nov kljuc: zapis iz casa pred popravkom, kjer je TV vzela vire izpred pravila za svoje, ne velja). */
+    private const val VIRI_DOKAZ = "viri_dodani_tu_dokaz"
+
+    /**
+     * Grok 60, Ů2 (fail-closed): ali je vir z racunom [naslov] dodan na tej napravi Z DOKAZOM (zapis ob dodajanju tu ali potrditev
+     * uporabnika, [IptvPravila.dokazDodanTu]). Samo tak vir se na tej napravi samodejno prenasa ([IptvSeznami.pripravi]) in gre po
+     * secrets.sync z vrednostjo v ozji krog te naprave ([UskladitevKljucev]); podedovan (zapisa ni, tudi na TV) ali prejet vir
+     * ne. Brez @Synchronized: bere ga tudi zaslon (kartica vira); zapis je atomaren.
+     */
+    fun dodanTuZDokazom(ctx: Context, naslov: String): Boolean =
+        ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getStringSet(VIRI_DOKAZ, null)?.contains(naslov) == true
+
+    /**
+     * Grok 60, Ů2: uporabnik je na tej napravi izrecno potrdil (meni vira) ali sam znova vpisal vir z racunom, ki ga ta naprava ze
+     * ima: od zdaj velja za dodanega tu. Pot za podedovane vire in vire, prejete od druge naprave. Vrne true, ce vir ima dokaz.
+     */
+    @Synchronized fun potrdiDodanTu(ctx: Context, naslov: String): Boolean {
+        val p = ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)
+        val prej = p.getStringSet(VIRI_DOKAZ, null)?.toSet()
+        val novo = IptvPravila.potrditevDodanTu(prej, rocni(ctx).map { it.naslov }.toSet(), naslov)
+        if (novo != (prej ?: emptySet<String>())) {
+            p.edit().putStringSet(VIRI_DOKAZ, HashSet(novo)).apply()
+            // Vir z racunom gre odslej v ozji krog te naprave (kot ob dodajanju).
+            if (naslov in novo) UskladitevKljucev.sprozi(ctx)
+        }
+        return naslov in novo
+    }
+
     /**
      * Lastnik, 26. 10. 2026: ali je bil vir [naslov] dodan na tej napravi ([IptvPravila.viriTukaj]) - v krogu naprav ga v
-     * ozadju preverja samo ta naprava; prejet z druge naprave se tu v ozadju ne preverja.
+     * ozadju preverja samo ta naprava; prejet z druge naprave se tu v ozadju ne preverja. SAMO za delitev dela pri pregledu
+     * javnih seznamov in dodatkov brez poverilnic (TV vzame vire izpred pravila za svoje, ker tam ni racuna za zaklep); vir z
+     * racunom odloca [dodanTuZDokazom] (Grok 60, Ů2).
      */
     @Synchronized fun dodanTu(ctx: Context, naslov: String): Boolean {
         val p = ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)

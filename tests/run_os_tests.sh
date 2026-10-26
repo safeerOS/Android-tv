@@ -272,3 +272,5 @@ python3 "$TEST_DIR/preveri_tv_ikone.py"
 python3 "$TEST_DIR/preveri_naslovno_vrstico.py"
 python3 "$TEST_DIR/preveri_dostop_v_ozadju.py"
 python3 "$TEST_DIR/preveri_preizkus_po_gradnji.py"
+# Grok 60: pot vira z racunom IPTV - pravi razredi aplikacije klicejo odlocitve, ki jih dokazujejo preizkusi pravil.
+python3 "$TEST_DIR/preveri_iptv_pot.py"

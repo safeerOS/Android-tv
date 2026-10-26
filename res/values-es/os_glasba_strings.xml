@@ -352,6 +352,10 @@
     <string name="os_iptv_seznam_zavrnjen">El proveedor rechazó la lista: revisa tu cuenta con el proveedor. Nuevo intento %1$s.</string>
     <string name="os_iptv_seznam_ni_prenesen">No se pudo descargar la lista. Nuevo intento %1$s.</string>
     <string name="os_iptv_poskusi_znova">Volver a descargar la lista</string>
+    <!-- Grok 60, Ů2: vir z racunom, ki ga ta naprava ni dodala sama, se ne prenasa samodejno, dokler uporabnik tega ne dovoli. -->
+    <string name="os_iptv_potrdi_tu">Permitir la descarga automática en este dispositivo</string>
+    <string name="os_iptv_ni_dodan_tu">sin descarga automática – mantén OK y permítela</string>
+    <string name="os_iptv_potrjen_tu">La lista se actualizará automáticamente en este dispositivo. Solo se comparte con los dispositivos del círculo cercano de este dispositivo.</string>
     <!-- Grok 46, Ö3: geslo seznama IPTV je starejsa razlicica dala napravam zunaj ozjega kroga (lastnik: %1$s = gostitelji). -->
     <string name="os_iptv_deljeno_naslov">La contraseña de la lista IPTV se ha compartido</string>
     <string name="os_iptv_deljeno_sporocilo">Una versión anterior de Safeer también envió la lista con cuenta (%1$s) a dispositivos fuera del círculo de confianza cercano. Te recomendamos cambiar la contraseña con el proveedor y volver a añadir la lista con la nueva contraseña.</string>

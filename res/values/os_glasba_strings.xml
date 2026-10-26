@@ -351,6 +351,10 @@
     <string name="os_iptv_seznam_zavrnjen">The provider rejected the playlist – check your account with the provider. Retrying %1$s.</string>
     <string name="os_iptv_seznam_ni_prenesen">The playlist could not be downloaded. Retrying %1$s.</string>
     <string name="os_iptv_poskusi_znova">Try downloading the playlist again</string>
+    <!-- Grok 60, Ů2: vir z racunom, ki ga ta naprava ni dodala sama, se ne prenasa samodejno, dokler uporabnik tega ne dovoli. -->
+    <string name="os_iptv_potrdi_tu">Allow automatic download on this device</string>
+    <string name="os_iptv_ni_dodan_tu">no automatic download – hold OK to allow</string>
+    <string name="os_iptv_potrjen_tu">The playlist will refresh automatically on this device. It is shared only with devices in this device’s inner circle.</string>
     <!-- Grok 46, Ö3: geslo seznama IPTV je starejsa razlicica dala napravam zunaj ozjega kroga (lastnik: %1$s = gostitelji). -->
     <string name="os_iptv_deljeno_naslov">The IPTV playlist password was shared</string>
     <string name="os_iptv_deljeno_sporocilo">An older version of Safeer also sent the playlist with an account (%1$s) to devices outside the inner circle of trust. We recommend changing the password with the provider and adding the playlist again with the new password.</string>

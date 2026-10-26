@@ -352,6 +352,10 @@
     <string name="os_iptv_seznam_zavrnjen">Der Anbieter hat die Liste abgelehnt – prüfe dein Konto beim Anbieter. Neuer Versuch %1$s.</string>
     <string name="os_iptv_seznam_ni_prenesen">Die Liste konnte nicht geladen werden. Neuer Versuch %1$s.</string>
     <string name="os_iptv_poskusi_znova">Liste erneut laden</string>
+    <!-- Grok 60, Ů2: vir z racunom, ki ga ta naprava ni dodala sama, se ne prenasa samodejno, dokler uporabnik tega ne dovoli. -->
+    <string name="os_iptv_potrdi_tu">Automatisches Laden auf diesem Gerät erlauben</string>
+    <string name="os_iptv_ni_dodan_tu">kein automatisches Laden – OK gedrückt halten und erlauben</string>
+    <string name="os_iptv_potrjen_tu">Die Liste wird auf diesem Gerät automatisch aktualisiert. Sie wird nur mit Geräten im engeren Kreis dieses Geräts geteilt.</string>
     <!-- Grok 46, Ö3: geslo seznama IPTV je starejsa razlicica dala napravam zunaj ozjega kroga (lastnik: %1$s = gostitelji). -->
     <string name="os_iptv_deljeno_naslov">Das Passwort der IPTV-Liste wurde geteilt</string>
     <string name="os_iptv_deljeno_sporocilo">Eine ältere Safeer-Version hat die Liste mit Konto (%1$s) auch an Geräte außerhalb des engeren Vertrauenskreises gesendet. Wir empfehlen, das Passwort beim Anbieter zu ändern und die Liste mit dem neuen Passwort erneut hinzuzufügen.</string>

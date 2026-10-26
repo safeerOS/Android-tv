@@ -5338,7 +5338,7 @@ class GlasbaActivity : OsActivity() {
             Vir(MedijskiViri.kljucPripetega(v), when { v.jePeerTube -> R.drawable.os_ikona_video; v.jeSplet || v.jeDodatek -> R.drawable.os_ikona_splet
                     v.jeImenik -> R.drawable.os_ikona_radio; v.jeBesedila -> R.drawable.os_ikona_podnapisi; else -> R.drawable.os_ikona_glasba },
                 // Dodatek: ime iz manifesta (Cinemeta, Torrentio ...) in samo streznik - naslov ima lahko kljuc storitve.
-                0xFF7FB2FF.toInt(), if (v.jeStremio) Stremio.imeIzPredpomnilnika(v.naslov) ?: v.ime else v.ime, when {
+                0xFF7FB2FF.toInt(), if (v.jeStremio) Stremio.imeIzPredpomnilnika(v.naslov) ?: v.ime else v.ime, (when {
                     v.jePeerTube -> "PeerTube · ${v.naslov}"
                     // Naloga 57d: dodatek, ki zaporedoma ne odgovarja, ima oznako (izgine sama, ko spet odgovori).
                     v.jeStremio -> getString(R.string.os_mediji_dodatek_stremio) + " · " + (android.net.Uri.parse(Stremio.osnova(v.naslov)).host ?: "") +
@@ -5371,7 +5371,11 @@ class GlasbaActivity : OsActivity() {
                     // Tok z racunom (nadomestek ali pravi naslov, ki ga ni bilo mogoce sifrirati): samo gostitelj (26. 10. 2026).
                     IptvPravila.virZRacunom(v.tip, v.naslov) -> IptvPravila.zaPrikaz(v.naslov)
                     else -> v.naslov.removePrefix("https://").removePrefix("http://")
-                }, {
+                }) +
+                    // Grok 60, Ů2: vir z racunom, ki ga ta naprava ni dodala sama (podedovan ali prejet), se ne prenasa samodejno in ne gre
+                    // v ozji krog te naprave - uporabnik izve, kaj storiti (zadrzan OK -> Dovoli samodejni prenos).
+                    (if (IptvPravila.virZRacunom(v.tip, v.naslov) && !MedijskiViri.dodanTuZDokazom(this, v.naslov))
+                        " · " + getString(R.string.os_iptv_ni_dodan_tu) else ""), {
                     when {
                         v.jePeerTube -> { fokusVVsebino = true; izberi(VIDEO) }
                         // Naloga 69: imenik postaj odpre Radio (domace postaje, zvrsti, iskanje).
@@ -5608,8 +5612,21 @@ class GlasbaActivity : OsActivity() {
                 val zacet = PregledKanalov.zacni(applicationContext, dodan.naslov, rocno = true, jeSeznam = dodan.jeSeznam)
                 Toast.makeText(this, if (zacet) R.string.os_pregled_kanalov_zacet else R.string.os_pregled_kanalov_po_predvajanju, Toast.LENGTH_SHORT).show()
             }) else emptyList()) +
+            // Grok 60, Ů2: vir z racunom, ki ga ta naprava ni dodala sama (podedovan, prejet od druge naprave): samodejni prenos in
+            // deljenje v ozji krog te naprave sele po izrecnem dovoljenju uporabnika.
+            (if (IptvPravila.virZRacunom(dodan.tip, dodan.naslov) && !MedijskiViri.dodanTuZDokazom(this, dodan.naslov))
+                listOf(getString(R.string.os_iptv_potrdi_tu) to {
+                    val app = applicationContext
+                    try { delavec.execute { MedijskiViri.potrdiDodanTu(app, dodan.naslov); glavna.post {
+                        Toast.makeText(this, R.string.os_iptv_potrjen_tu, Toast.LENGTH_LONG).show()
+                        if (!isFinishing && razdelek == VIRI) izberiNaMestu(VIRI) } } }
+                    catch (_: java.util.concurrent.RejectedExecutionException) { }
+                }) else emptyList()) +
             // Grok 39, I5: po zavrnjenem prenosu (uporabnik je uredil racun pri ponudniku) en poskus takoj, ne sele po premoru.
-            (if (dodan.jeSeznam && IptvSeznami.napaka(this, dodan.naslov) != null) listOf(getString(R.string.os_iptv_poskusi_znova) to {
+            // Grok 60, Ů2: tudi seznam z racunom, ki ni dodan tu in se ne prenasa sam - izrecen klik je dovoljen (najvec 1-krat na minuto).
+            (if (dodan.jeSeznam && (IptvSeznami.napaka(this, dodan.naslov) != null ||
+                    (IptvPravila.virZRacunom(dodan.tip, dodan.naslov) && !MedijskiViri.dodanTuZDokazom(this, dodan.naslov))))
+                listOf(getString(R.string.os_iptv_poskusi_znova) to {
                 val app = applicationContext
                 try { delavec.execute { IptvSeznami.pripravi(app, dodan.naslov, rocno = true); glavna.post { if (!isFinishing && razdelek == VIRI) izberiNaMestu(VIRI) } } }
                 catch (_: java.util.concurrent.RejectedExecutionException) { }

@@ -285,5 +285,50 @@ fun main() {
     preveriEnako("prejet po secrets.sync ni poslan naprej (izvor ni ta naprava)", false, kSync in poslano)
     preveriEnako("neberljiva skrivnost (Keystore) ne gre, tudi ce je dodana tu", UskladitevKljucevPravila.Oddaja.NEZNAN, UskladitevKljucevPravila.oddajaIptv(false, true))
 
+    println()
+    println("== Grok 60, Ů2: »dodan tu« samo z dokazom - izjema TV za vire izpred pravila je ukinjena ==")
+    // Naprava po posodobitvi: zapisa dokaza se ni, viri izpred pravila (tudi taki, ki jih je prinesla starejsa razlicica z naprave
+    // zunaj lastnikovega kroga) so podedovani. Isti klici kot MedijskiViri.shrani ([dokazDodanTu]), MedijskiViri.potrdiDodanTu
+    // ([potrditevDodanTu]), IptvSeznami.pripravi in UskladitevKljucev.trenutne ([smeSamodejnoPrenesti], [oddajaIptv]).
+    fun nadomestek(n: Int) = "http://ponudnik$n.primer.test:8080/" + SkrivnostiPravila.OZNAKA + "0123456789abcdef"
+    val a = nadomestek(1); val b = nadomestek(2); val c = nadomestek(3); val d = nadomestek(4)
+    val izpredPravila = setOf(a, b)
+    fun samodejno(dokaz: Set<String>?, n: String) = IptvPravila.smeSamodejnoPrenesti(n, dokaz?.contains(n) == true, izrecno = false)
+    fun oddaja(dokaz: Set<String>?, n: String) = UskladitevKljucevPravila.oddajaIptv(true, dokaz?.contains(n) == true)
+    // 1) TV, prvi shrani() po posodobitvi brez novega vira (npr. brisanje drugega vira): podedovani nimajo dokaza.
+    val dokaz: Set<String>? = null
+    var tv = IptvPravila.dokazDodanTu(dokaz, novi = emptySet(), zdaj = izpredPravila, prejeto = false)
+    preveriEnako("podedovan vir na TV: nima dokaza", emptySet<String>(), tv)
+    preveriEnako("podedovan vir na TV: ne prenasa se samodejno (odprtje TV v zivo, 24-urna osvezitev)", false, samodejno(tv, a))
+    preveriEnako("podedovan vir na TV: ne gre z vrednostjo v ozji krog (secrets.sync)", UskladitevKljucevPravila.Oddaja.NEZNAN, oddaja(tv, a))
+    preveriEnako("podedovan vir brez zapisa (nic se ni shranjeno): tudi ne", false, samodejno(null, a))
+    // Stara izjema (viriTukaj, jeTv): vire izpred pravila je dajala TV - ravno to ne sme veljati za vir z racunom.
+    preveriEnako("nadzor: stara izjema TV bi vzela oba vira za svoja", izpredPravila, IptvPravila.viriTukaj(emptySet(), izpredPravila, null, prejeto = false, jeTv = true))
+    // 2) Uporabnik na TV doda nov vir: dokaz samo zanj.
+    tv = IptvPravila.dokazDodanTu(tv, novi = setOf(c), zdaj = izpredPravila + c, prejeto = false)
+    preveriEnako("vir, dodan na TV: dokaz", setOf(c), tv)
+    preveriEnako("vir, dodan na TV: samodejni prenos da", true, samodejno(tv, c))
+    preveriEnako("vir, dodan na TV: gre z vrednostjo v ozji krog te naprave", UskladitevKljucevPravila.Oddaja.VREDNOST, oddaja(tv, c))
+    preveriEnako("podedovan vir poleg: se vedno ne", false, samodejno(tv, a))
+    // 3) Vir, prejet od druge naprave (lists.get, secrets.sync): ni dokaza, tudi ce ga je prinesel »nov« shrani().
+    tv = IptvPravila.dokazDodanTu(tv, novi = setOf(d), zdaj = izpredPravila + c + d, prejeto = true)
+    preveriEnako("prejet vir: brez dokaza", setOf(c), tv)
+    preveriEnako("prejet vir: ne prenasa se samodejno", false, samodejno(tv, d))
+    preveriEnako("prejet vir: ne gre naprej (A -> B -> C ni mogoc)", UskladitevKljucevPravila.Oddaja.NEZNAN, oddaja(tv, d))
+    // 4) Uporabnik na tej napravi potrdi podedovan vir: od zdaj velja za dodanega tu; vira, ki ga ni, ne potrdi.
+    tv = IptvPravila.potrditevDodanTu(tv, izpredPravila + c + d, a)
+    preveriEnako("potrjen podedovan vir: dokaz", setOf(a, c), tv)
+    preveriEnako("potrjen podedovan vir: samodejni prenos", true, samodejno(tv, a))
+    preveriEnako("potrjen podedovan vir: z vrednostjo v ozji krog", UskladitevKljucevPravila.Oddaja.VREDNOST, oddaja(tv, a))
+    preveriEnako("potrditev neobstojecega vira ne naredi nic", tv, IptvPravila.potrditevDodanTu(tv, izpredPravila + c + d, nadomestek(9)))
+    preveriEnako("potrditev brez zapisa dokaza (prva na tej napravi)", setOf(b), IptvPravila.potrditevDodanTu(null, izpredPravila, b))
+    // 5) Odstranjen vir izgubi dokaz; ko pride ista kopija znova z druge naprave, je spet brez dokaza.
+    tv = IptvPravila.dokazDodanTu(tv, novi = emptySet(), zdaj = setOf(b, c, d), prejeto = false)
+    preveriEnako("odstranjen vir izgubi dokaz", setOf(c), tv)
+    tv = IptvPravila.dokazDodanTu(tv, novi = setOf(a), zdaj = setOf(a, b, c, d), prejeto = true)
+    preveriEnako("ista kopija znova prejeta: brez dokaza", false, samodejno(tv, a))
+    // 6) Izrecen klik uporabnika (»Poskusi znova«) je se vedno dovoljen na napravi brez dokaza (po premoru I5 in najvec 1-krat na minuto).
+    preveriEnako("izrecen klik na vir brez dokaza: da", true, IptvPravila.smeSamodejnoPrenesti(b, dodanTu = false, izrecno = true))
+
     if (napak == 0) println("IptvRacunTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

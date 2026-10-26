@@ -192,7 +192,8 @@ object UskladitevKljucev {
             val pravi = SkrivniDodatki.dejanski(vir.naslov)
             val berljiv = pravi != vir.naslov && IptvPravila.skrivnostVira(vir.tip, pravi) == pravi
             // Grok 52, Ñ4: z vrednostjo samo vir, dodan na tej napravi - prejet ali podedovan je tuj (neznan: ne gre naprej, brez groba).
-            when (P.oddajaIptv(berljiv, MedijskiViri.dodanTu(c, vir.naslov))) {
+            // Grok 60, Ů2: »dodan tu« samo z dokazom (tudi TV podedovanih virov izpred pravila ne vzame za svoje, dokler jih uporabnik ne potrdi).
+            when (P.oddajaIptv(berljiv, MedijskiViri.dodanTuZDokazom(c, vir.naslov))) {
                 UskladitevKljucevPravila.Oddaja.VREDNOST -> v[k] = JSONObject().put("url", pravi).put("tip", vir.tip).put("ime", vir.ime).toString()
                 else -> neznani += k
             }

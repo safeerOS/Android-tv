@@ -71,7 +71,7 @@ object IptvSeznami {
         val p = podatki(c, naslov)
         // Grok 52, Ñ2: seznam z racunom se na napravi, kjer ni bil dodan, ne prenasa sam (odprtje TV v zivo, 24-urna osvezitev):
         // prijava v racun je samo na uporabnikov klik (odprtje seznama, »Poskusi znova« = [rocno]).
-        if (!IptvPravila.smeSamodejnoPrenesti(naslov, MedijskiViri.dodanTu(c, naslov), rocno)) return p
+        if (!IptvPravila.smeSamodejnoPrenesti(naslov, MedijskiViri.dodanTuZDokazom(c, naslov), rocno)) return p
         if (!rocno && p != null && !IptvPravila.zastarel(p.prenesenOb, System.currentTimeMillis())) return p
         // Grok 39, I5: po zavrnjenem ali neuspelem prenosu premor (10 min, 1 h, 6 h, 24 h) - vsak poskus je prijava v racun
         // ponudnika; prej se je seznam prenasal ob vsakem odprtju TV v zivo. [rocno] (»Poskusi znova«) takoj, 1-krat na minuto.
