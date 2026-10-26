@@ -88,8 +88,9 @@ fun main() {
     }
     streznik.start()
     val izIzjeme: (IOException, String) -> Pair<OsPravila.IzidSonde, String> = { e, _ -> X to "napaka ${e.javaClass.simpleName}" }
+    // Krajevni streznik je na 127.0.0.1: preizkusi verige dovolijo ta naslov (privzeto sonda zasebnih ciljev ne odpre - J2 spodaj).
     fun sonda(pot: String, rokMs: Long = 4000, rokZahtevkaMs: Int = 1500, glave: Map<String, String> = emptyMap()) =
-        SondaVeriga.preveri(osnova + pot, { glave }, izIzjeme, SondaVeriga.Nastavitve(rokMs = rokMs, rokZahtevkaMs = rokZahtevkaMs))
+        SondaVeriga.preveri(osnova + pot, { glave }, izIzjeme, SondaVeriga.Nastavitve(rokMs = rokMs, rokZahtevkaMs = rokZahtevkaMs, zaseben = { false }))
     fun cas(blok: () -> Pair<OsPravila.IzidSonde, String>): Pair<Pair<OsPravila.IzidSonde, String>, Long> {
         val od = System.nanoTime(); val r = blok(); return r to (System.nanoTime() - od) / 1_000_000
     }
@@ -119,6 +120,45 @@ fun main() {
     preveriEnako("2xx, ni seznam (stran) - ziv kot doslej", Z, sonda("/stran").first)
     preveriEnako("404 prvega naslova - mrtev", M, sonda("/ni-ga").first)
     preveriEnako("ni http - ne vemo", X, SondaVeriga.preveri("rtmp://a/b", { emptyMap() }, izIzjeme).first)
+
+    // ---- J2/J10 (26. 10. 2026, kot Linux a85eef2): nikoli na to napravo ali v domace omrezje, tudi ne po preusmeritvi.
+    val zahtevStevca = java.util.concurrent.atomic.AtomicInteger(0)
+    streznik.createContext("/stevec") { x -> zahtevStevca.incrementAndGet(); odgovori(x, 200, "x".repeat(200)) }
+    val privzeto = SondaVeriga.preveri("$osnova/stevec", { emptyMap() }, izIzjeme)
+    preveriEnako("J2: privzeto na 127.0.0.1 ne - ne vemo (${privzeto.second})", X to true, privzeto.first to privzeto.second.contains("zaseben"))
+    val ime = SondaVeriga.preveri("http://localhost:${streznik.address.port}/stevec", { emptyMap() }, izIzjeme)
+    preveriEnako("J2: ime localhost (DNS -> loopback) ne (${ime.second})", X to true, ime.first to ime.second.contains("zaseben"))
+    preveriEnako("J2: na strezniku ni bilo nobene zahteve", 0, zahtevStevca.get())
+    val drugi = HttpServer.create(InetSocketAddress("127.0.0.2", 0), 0)
+    val zahtevDrugi = java.util.concurrent.atomic.AtomicInteger(0)
+    drugi.createContext("/") { x -> zahtevDrugi.incrementAndGet(); odgovori(x, 200, "x".repeat(200)) }
+    drugi.start()
+    streznik.createContext("/na-drugi") { x -> odgovori(x, 302, "", mapOf("Location" to "http://127.0.0.2:${drugi.address.port}/cilj")) }
+    val samo2 = { b: ByteArray -> b.size == 4 && b[0].toInt() == 127 && b[3].toInt() == 2 }
+    val pre = SondaVeriga.preveri("$osnova/na-drugi", { emptyMap() }, izIzjeme, SondaVeriga.Nastavitve(zaseben = samo2))
+    preveriEnako("J2: preusmeritev na zaseben cilj - ne vemo (${pre.second})", X to true, pre.first to pre.second.contains("zaseben"))
+    preveriEnako("J2: zasebni cilj po preusmeritvi ni dobil zahteve", 0, zahtevDrugi.get())
+    preveriEnako("J2 nadzor: dovoljen cilj po preusmeritvi - ziv", Z, SondaVeriga.preveri("$osnova/na-drugi", { emptyMap() }, izIzjeme, SondaVeriga.Nastavitve(zaseben = { false })).first)
+    preveriEnako("J2 nadzor: dovoljen cilj je dobil zahtevo", 1, zahtevDrugi.get())
+    drugi.stop(0)
+    // ---- J1 (kot Linux f85e316): DNS pod rokom sonde, vsako ime enkrat na sondo (povezava gre na preverjene naslove).
+    val (dnsPocasen, tDns) = cas { SondaVeriga.preveri("http://pocasen.primer.test/a.m3u8", { emptyMap() }, izIzjeme,
+        SondaVeriga.Nastavitve(rokMs = 1000, zaseben = { false }, razresi = { spi(5000); listOf(java.net.InetAddress.getByName("127.0.0.1")) })) }
+    preveriEnako("J1: pocasen DNS - rok sonde, ne vemo (${dnsPocasen.second})", X, dnsPocasen.first)
+    preveriEnako("J1: pocasen DNS ne zadrzi sonde (izmerjeno $tDns ms < 1600)", true, tDns < 1600)
+    val razresitev = java.util.concurrent.atomic.AtomicInteger(0)
+    val enkrat = SondaVeriga.preveri("http://kanal.primer.test:${streznik.address.port}/n3/master.m3u8", { emptyMap() }, izIzjeme,
+        SondaVeriga.Nastavitve(zaseben = { false }, razresi = { razresitev.incrementAndGet(); listOf(java.net.InetAddress.getByName("127.0.0.1")) }))
+    preveriEnako("J1: veriga HLS po imenu - ziv (${enkrat.second})", Z, enkrat.first)
+    preveriEnako("J1: ime razreseno enkrat na sondo (glavni, razlicice, kosi)", 1, razresitev.get())
+    // ---- J10: naslovi IP
+    fun z(n: String) = SondaVeriga.zasebenCilj(java.net.InetAddress.getByName(n).address)
+    for ((n, p) in listOf("127.0.0.1" to true, "10.1.2.3" to true, "192.168.1.1" to true, "100.64.0.1" to true, "169.254.1.1" to true,
+        "192.0.2.1" to true, "198.18.0.1" to true, "203.0.113.5" to true, "8.8.8.8" to false, "::1" to true, "::" to true,
+        "fe80::1" to true, "fd00::1" to true, "::ffff:192.168.1.1" to true, "::127.0.0.1" to true, "64:ff9b::c0a8:101" to true,
+        "64:ff9b::808:808" to false, "64:ff9b:1::c0a8:101" to true, "2002:c0a8:101::1" to true, "2002:808:808::1" to false,
+        "2001:db8::1" to true, "2001:0:4136:e378::1" to true, "2606:4700:4700::1111" to false, "ff02::1" to true))
+        preveriEnako("J10: $n zaseben=$p", p, z(n))
 
     streznik.stop(0)
     println(if (napak == 0) "Sonda toka: vse v redu" else "Sonda toka: $napak napak")

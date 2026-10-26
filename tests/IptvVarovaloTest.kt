@@ -41,7 +41,9 @@ fun main() {
             if (!IptvPravila.preverbaDovoljena(seznam, v.url)) continue
             val g = IptvPravila.gostitelj(v.url)
             if (vrata.zasedi(g, System.currentTimeMillis(), System.nanoTime() / 1_000_000L) != IptvPravila.VrataGostiteljev.Izid.DA) continue
-            try { SondaVeriga.preveri(v.url, { emptyMap() }, izIzjeme); sond++ } finally { vrata.sprosti(g, System.nanoTime() / 1_000_000L) }
+            // Krajevni streznik je na 127.0.0.1 - sonda ga v preizkusu sme (privzeto zasebnih ciljev ne odpre).
+            try { SondaVeriga.preveri(v.url, { emptyMap() }, izIzjeme, SondaVeriga.Nastavitve(zaseben = { false })); sond++ }
+            finally { vrata.sprosti(g, System.nanoTime() / 1_000_000L) }
         }
         return sond
     }
