@@ -216,11 +216,31 @@ fun main() {
         IptvPravila.preklicani(listOf(Triple(nadX, XTREAM, 5L)), sol, preklic, emptySet()))
     preveriEnako("prejemnik: ze rekel »obdrzi« - nic", emptyList<String>(), IptvPravila.preklicani(lokalni, sol, preklic, setOf(nadX)))
     preveriEnako("prejemnik: pokvarjena sol - nic", emptyList<String>(), IptvPravila.preklicani(lokalni, "x", preklic, emptySet()))
-    preveriEnako("lastnik: opozorilo, ko vire zahteva naprava zunaj ozjega kroga", setOf(oX), IptvPravila.zaOpozorilo(setOf(oX), setOf(oX, oN), true, emptySet()))
-    preveriEnako("lastnik: samo ozji krog - ni bilo deljeno, brez opozorila", emptySet<String>(), IptvPravila.zaOpozorilo(setOf(oX), setOf(oX), false, emptySet()))
-    preveriEnako("lastnik: opozorilo samo enkrat", emptySet<String>(), IptvPravila.zaOpozorilo(setOf(oX), setOf(oX), true, setOf(oX)))
-    preveriEnako("lastnik: vir brez gesla pred prehodom (radio) - brez opozorila", emptySet<String>(), IptvPravila.zaOpozorilo(emptySet(), setOf(oN), true, emptySet()))
-    preveriEnako("lastnik: izbrisan vir - brez opozorila", emptySet<String>(), IptvPravila.zaOpozorilo(setOf(oX), emptySet(), true, emptySet()))
+    preveriEnako("lastnik: opozorilo za vir izpred prehoda (brez vprasanja naprave zunaj kroga)", setOf(oX), IptvPravila.zaOpozorilo(setOf(oX), setOf(oX, oN), emptySet()))
+    preveriEnako("lastnik: opozorilo samo enkrat", emptySet<String>(), IptvPravila.zaOpozorilo(setOf(oX), setOf(oX), setOf(oX)))
+    preveriEnako("lastnik: vir, dodan po prehodu - brez opozorila", emptySet<String>(), IptvPravila.zaOpozorilo(emptySet(), setOf(oN), emptySet()))
+    preveriEnako("lastnik: izbrisan vir - brez opozorila", emptySet<String>(), IptvPravila.zaOpozorilo(setOf(oX), emptySet(), emptySet()))
+
+    println()
+    println("== Grok 52, Ñ3: opozorilo in preklic za vse vire z racunom izpred prehoda ==")
+    val zgresena = "http://ponudnik.primer.test:8080/playlist/$UPORABNIK/$GESLO/m3u_plus"      // oblika, ki je hevristika ne pozna
+    val radio = "https://radio.primer.test/val202.mp3"
+    val predPrehodom = IptvPravila.racuniPredPrehodom(listOf(ZapisVira("seznam", "get", XTREAM), ZapisVira("seznam", "playlist", zgresena),
+        ZapisVira("tok-hls-video", "kanal", TOK), ZapisVira("tok", "radio", radio), ZapisVira("seznam", "si", JAVNI),
+        ZapisVira("seznam", "nadomestek", zapisi[0]!!.naslov), ZapisVira("splet", "stran", "https://stran.primer.test/"),
+        ZapisVira("seznam", "rtsp", "rtsp://$UPORABNIK:$GESLO@kamera.primer.test/live")))
+    preveriEnako("pred prehodom: vsi viri z racunom (tudi neznane oblike in radio), brez javnega, nadomestka in strani",
+        setOf(IptvPravila.odtisRacuna(XTREAM), IptvPravila.odtisRacuna(zgresena), IptvPravila.odtisRacuna(TOK), IptvPravila.odtisRacuna(radio)), predPrehodom)
+    preveri("vir neznane oblike dobi opozorilo", IptvPravila.odtisRacuna(zgresena) in IptvPravila.zaOpozorilo(predPrehodom, predPrehodom, emptySet()))
+    // Nesifriran ob prehodu (Keystore ne dela) in neznane oblike: odtis je isti kot odtis nadomestka, ki bi ga vir dobil -
+    // opozorilo in preklic ga najdeta (MedijskiViri.racuni vzame odtis pravega naslova, ce nadomestka ni).
+    val nesifrirani = IptvPravila.racuniPredPrehodom(listOf(ZapisVira("seznam", "playlist", zgresena)))
+    val prekNes = IptvPravila.preklicZa(listOf(Triple(IptvPravila.odtisRacuna(zgresena), zgresena, 1761400000000L)), nesifrirani, sol)
+    preveriEnako("nesifriran vir neznane oblike ob prehodu dobi preklic", 1, prekNes.size)
+    preveriEnako("prejemnik nesifriranega vira najde preklic", listOf(zgresena), IptvPravila.preklicani(listOf(Triple(zgresena, zgresena, 1761400000000L)), sol, prekNes, emptySet()))
+    // Isti odtis kot nadomestek, ki ga vir dobi ob sifriranju (preklic po prehodu sifriranja ne izgubi vira).
+    preveriEnako("odtis pravega naslova = odtis nadomestka", SkrivnostiPravila.nadomestnaOsnova(SkrivnostiPravila.nadomestek(zgresena)!!)!!.substringAfterLast(SkrivnostiPravila.OZNAKA),
+        IptvPravila.odtisRacuna(zgresena))
 
     println()
     println("== Grok 52, Ñ1: skladbe, ki niso iz vira (dodatki): fail-closed ==")

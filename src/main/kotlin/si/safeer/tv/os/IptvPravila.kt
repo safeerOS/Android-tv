@@ -731,12 +731,22 @@ object IptvPravila {
     }
 
     /**
-     * Viri z racunom, za katere lastnik enkrat dobi opozorilo »geslo je bilo deljeno«: poverilnico so imeli ze pred prehodom
-     * ([sPoverilnico], odtisi - starejsa razlicica jih je dala vsaki napravi, ki je vprasala za vire), se obstajajo ([zdaj]) in
-     * za vire je vprasala naprava zunaj ozjega kroga ([zunajKroga]) - samo takrat je bilo geslo res deljeno. Brez ze opozorjenih.
+     * Grok 52, Ñ3 (lastnik, fail-closed): odtisi VSEH virov z racunom ob prehodu ([viri] = zapisi Mojih virov pred prehodom, pravi
+     * naslovi) - tudi tistih, ki jih ni bilo mogoce sifrirati, in tistih neznane oblike (».../playlist/<u>/<g>/m3u_plus«, zeton v
+     * poti), ki jih hevristika [jeVirSPoverilnico] ne prepozna. Starejsa razlicica je vsak tak vir dala vsaki napravi, ki je
+     * vprasala za vire; kdo je vprasal, za preteklost ni mogoce ugotoviti.
      */
-    fun zaOpozorilo(sPoverilnico: Set<String>, zdaj: Set<String>, zunajKroga: Boolean, opozorjeni: Set<String>): Set<String> =
-        if (!zunajKroga) emptySet() else (sPoverilnico intersect zdaj) - opozorjeni
+    fun racuniPredPrehodom(viri: List<ZapisVira>): Set<String> =
+        viri.mapNotNull { skrivnostVira(it.tip, it.naslov) }.map { odtisRacuna(it) }.toSet()
+
+    /**
+     * Viri z racunom, za katere lastnik enkrat dobi opozorilo »geslo je bilo deljeno«: so bili tu ze pred prehodom ([predPrehodom],
+     * [racuniPredPrehodom]), se obstajajo ([zdaj]) in lastnik opozorila se ni videl ([opozorjeni]). Opozorilo se pokaze ob prvem
+     * zagonu po posodobitvi, ne sele ko vprasa naprava zunaj ozjega kroga: naprave, ki so Link ze zapustile (telefon gosta,
+     * prodana naprava), ne vprasajo nikoli, a kopijo se imajo. Opozorilo je neskodljivo; manjka le, kar je nastalo po prehodu.
+     */
+    fun zaOpozorilo(predPrehodom: Set<String>, zdaj: Set<String>, opozorjeni: Set<String>): Set<String> =
+        (predPrehodom intersect zdaj) - opozorjeni
 
     /** Odtis vira z racunom (kljuc »iptv:<odtis>« v ozjem krogu) = odtis nadomestka ([SkrivnostiPravila.nadomestek]). */
     fun odtisRacuna(skrivnost: String): String = SkrivnostiPravila.odtis(skrivnost.trim())
