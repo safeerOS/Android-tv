@@ -181,4 +181,7 @@
     <string name="os_debrid_kljuc_meja">%1$s sta limitando le richieste: la chiave è salvata come non verificata. Safeer la ricontrolla tra qualche minuto e fino ad allora non la invia agli altri dispositivi.</string>
     <string name="os_debrid_prejeto_ni_preverjeno">%1$s: non è stato possibile verificare la chiave ora (nessuna connessione o troppe richieste), non è stata salvata. Inviala di nuovo quando sei online.</string>
     <string name="os_debrid_napaka_shranjevanja">Non è stato possibile salvare la chiave in modo sicuro su questo dispositivo. Riprova.</string>
+    <!-- Pregled Grok 31, H2: viden konec diagnostike samo Usenet -->
+    <string name="os_usenet_diagnostika_konec">Diagnostica solo Usenet: Usenet non ha riprodotto, il motivo è nel registro (SafeerOsMedia).</string>
+    <string name="os_usenet_diagnostika_ni_izdaj">Diagnostica solo Usenet: l’indicizzatore non ha restituito versioni per questo contenuto.</string>
 </resources>

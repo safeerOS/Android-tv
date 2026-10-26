@@ -181,4 +181,7 @@
     <string name="os_debrid_kljuc_meja">%1$s begrenzt gerade die Anfragen – der Schlüssel ist als ungeprüft gespeichert. Safeer prüft ihn in einigen Minuten erneut und sendet ihn bis dahin nicht an deine anderen Geräte.</string>
     <string name="os_debrid_prejeto_ni_preverjeno">%1$s: Der Schlüssel konnte gerade nicht geprüft werden (keine Verbindung oder zu viele Anfragen) – er wurde nicht gespeichert. Sende ihn erneut, wenn du online bist.</string>
     <string name="os_debrid_napaka_shranjevanja">Der Schlüssel konnte auf diesem Gerät nicht sicher gespeichert werden. Versuche es erneut.</string>
+    <!-- Pregled Grok 31, H2: viden konec diagnostike samo Usenet -->
+    <string name="os_usenet_diagnostika_konec">Diagnose nur Usenet: Usenet hat nicht abgespielt – der Grund steht im Protokoll (SafeerOsMedia).</string>
+    <string name="os_usenet_diagnostika_ni_izdaj">Diagnose nur Usenet: Der Indexer hat für diesen Inhalt keine Releases geliefert.</string>
 </resources>

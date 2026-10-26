@@ -8771,6 +8771,9 @@ class GlasbaActivity : OsActivity() {
         if (samoUsenet && tokovi.isEmpty()) {
             // Brez izdaj Usenet (indeksator jih nima) se diagnostika konca tu - vsebina ne izgine s seznama.
             android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Usenet - indeksator ni dal izdaj")
+            // Pregled Grok 31, H2: viden konec diagnostike (prej samo dnevnik); klicatelj izve za neuspeh.
+            Toast.makeText(this, R.string.os_usenet_diagnostika_ni_izdaj, Toast.LENGTH_LONG).show()
+            obNeuspehu?.invoke()
             return
         }
         // Brez predvajljivega toka ni okna in ni seznama povezav (prosnje za donacijo, Discord, "No streams found" so ze
@@ -9006,7 +9009,16 @@ class GlasbaActivity : OsActivity() {
             fun naKonec() {
                 // Diagnostika samo Webtor (pregled 26, T3): brez TorBoxa s cakanjem in brez torrenta na napravi.
                 if (samoWebtor) { android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Webtor - Webtor ni predvajal"); return }
-                if (samoUsenet) { android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Usenet - Usenet ni predvajal"); return }
+                if (samoUsenet) {
+                    // Pregled Grok 31, H2: viden konec (prej samo dnevnik) in v dnevniku, koliko izdaj je bilo poskusenih - meritev
+                    // ne sme pokazati »Usenet ne dela«, ce izdaje do meje samodejne izbire sploh ni bilo.
+                    android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Usenet - Usenet ni predvajal (pripravljen pri TorBoxu: ne, " +
+                        "s cakanjem poskusenih ${poskusi.size} od ${usenet.size}" +
+                        (if (poskusi.isEmpty()) " - nobena izdaja do ${UsenetPravila.NAJVEC_GB_SAMODEJNO.toInt()} GB" else "") + ")")
+                    Toast.makeText(this, R.string.os_usenet_diagnostika_konec, Toast.LENGTH_LONG).show()
+                    obNeuspehu?.invoke()
+                    return
+                }
                 if (!samodejnoBrezUseneta()) Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslov), Toast.LENGTH_SHORT).show()
             }
             // Webtor: [samoTakoj] = korak 2 ([⚡WT]), sicer korak 4 ([WT]); skupaj najvec 2 kroga sond in 15 s ([webtorRok]).

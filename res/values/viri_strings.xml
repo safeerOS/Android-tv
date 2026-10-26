@@ -181,4 +181,7 @@
     <string name="os_debrid_kljuc_meja">%1$s is limiting requests right now – the key is saved as unverified. Safeer checks it again in a few minutes and does not send it to your other devices until then.</string>
     <string name="os_debrid_prejeto_ni_preverjeno">%1$s: the key could not be checked right now (no connection or too many requests) – it was not saved. Send it again when you are online.</string>
     <string name="os_debrid_napaka_shranjevanja">The key could not be saved securely on this device. Try again.</string>
+    <!-- Pregled Grok 31, H2: viden konec diagnostike samo Usenet -->
+    <string name="os_usenet_diagnostika_konec">Usenet-only diagnostics: Usenet did not play – the reason is in the log (SafeerOsMedia).</string>
+    <string name="os_usenet_diagnostika_ni_izdaj">Usenet-only diagnostics: the indexer returned no releases for this title.</string>
 </resources>
