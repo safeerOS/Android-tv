@@ -186,6 +186,13 @@ object UskladitevKljucevPravila {
         else vrednosti[k]?.let { Zapis(k, m.cas, m.izvor, false, it) }
     }.take(NAJVEC_ZAPISOV)
 
+    /**
+     * Pregled 96, V1: odtis prejetega zapisa se racuna iz vrednosti, kot jo ta naprava po shranitvi PREBERE ([prebrana]; null =
+     * je ne more prebrati - ostane prejeta). Drugacna oblika istega kljuca bi sicer ob naslednji uskladitvi veljala za lastno
+     * spremembo te naprave in sla v NJEN ozji krog (A -> B -> C, U2).
+     */
+    fun vrednostZaOdtis(prejeta: String, prebrana: String?): String = prebrana ?: prejeta
+
     /** Povabilo (pregled U3): imena kljucev brez vrednosti - vrednosti sele po potrditvi na drugi napravi. */
     fun zaPovabilo(zapisi: List<Zapis>): List<Zapis> = zapisi.map { it.copy(vrednost = "") }
 

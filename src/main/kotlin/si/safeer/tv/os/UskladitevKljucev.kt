@@ -388,17 +388,23 @@ object UskladitevKljucev {
             val zaUporabo = P.brezNeberljivih(vsiZaUporabo, neberljivi)
             val zam = P.zamenjave(meta, zaUporabo)
             if (zam.isNotEmpty()) prejsnje = zam.associate { it.kljuc to vr[it.kljuc] }
-            var n = 0
-            val uspeli = ArrayList<String>()
+            val shranjeni = ArrayList<UskladitevKljucevPravila.Zapis>()
             for (z in zaUporabo) {
                 if (!(try { pripravljeni.getValue(z).shrani() } catch (e: Exception) { Log.w(TAG, "shrani: ${e.javaClass.simpleName}"); false })) continue
-                meta[z.kljuc] = UskladitevKljucevPravila.Meta(z.cas, z.izvor, z.izbrisan, if (z.izbrisan) "" else odtisVrednosti(c, z.vrednost))
-                uspeli += z.kljuc
-                n++
+                shranjeni += z
             }
-            if (n > 0) pisiMeta(c, meta)
+            if (shranjeni.isNotEmpty()) {
+                // Pregled 96, V1 (26. 10. 2026): odtis iz vrednosti, kot jo ta naprava po shranitvi prebere - drugace oblikovan
+                // prejeti kljuc (JSON namizja, normaliziran naslov) bi naslednja uskladitev vzela za lastno spremembo te
+                // naprave in ga poslala v NJEN ozji krog (A -> B -> C, U2).
+                val poShranitvi = if (shranjeni.any { !it.izbrisan }) trenutne(c).first else emptyMap()
+                for (z in shranjeni) meta[z.kljuc] = UskladitevKljucevPravila.Meta(z.cas, z.izvor, z.izbrisan,
+                    if (z.izbrisan) "" else odtisVrednosti(c, P.vrednostZaOdtis(z.vrednost, poShranitvi[z.kljuc])))
+                pisiMeta(c, meta)
+            }
+            val uspeli = shranjeni.map { it.kljuc }
             zamenjani = zam.map { it.kljuc }.filter { it in uspeli }
-            n
+            shranjeni.size
         }
         if (uporabljenih > 0) {
             Log.i(TAG, "prejetih sprememb: $uporabljenih")

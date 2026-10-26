@@ -222,5 +222,21 @@ fun main() {
         preveriEnako("F2: brez vmesne spremembe - prejeti se shrani", listOf(prejet), P.seVednoNovejsi(mapOf(tb to Meta(50, "tv", false, "o")), listOf(prejet)))
     }
 
+    // Pregled 96, V1: prejeti kljuc v drugi obliki (JSON namizja) ne postane lastni zapis in ne gre v krog prejemnika.
+    run {
+        val od = { v: String -> SkrivnostiPravila.odtisSKljucem("00".repeat(32), "safeer-sinh|$v") }
+        val prejeto = "{\"url\": \"https://idx.example\", \"key\": \"0123456789abcdef0123456789abcdef\"}"
+        val prebrano = "{\"url\":\"https:\\/\\/idx.example\",\"key\":\"0123456789abcdef0123456789abcdef\"}"
+        val trenutni = mapOf(P.KLJUC_USENET to od(prebrano))
+        val stara = mapOf(P.KLJUC_USENET to Meta(1_000L, "naprava-A", false, od(prejeto)))
+        preveriEnako("V1: odtis prejetih bajtov - brez popravka bi postal lastna sprememba", true,
+            P.lokalneSpremembe(stara, trenutni, emptySet(), "naprava-B", 2_000L, false).isNotEmpty())
+        val meta = mapOf(P.KLJUC_USENET to Meta(1_000L, "naprava-A", false, od(P.vrednostZaOdtis(prejeto, prebrano))))
+        val spr = P.lokalneSpremembe(meta, trenutni, emptySet(), "naprava-B", 2_000L, false)
+        preveriEnako("V1: prebrana oblika - ni lastna sprememba", emptyMap<String, Meta>(), spr)
+        preveriEnako("V1: ne gre naprej v krog B", emptyList<Zapis>(), P.zaPoslati(meta + spr, mapOf(P.KLJUC_USENET to prebrano), "naprava-B"))
+        preveriEnako("V1: neberljiva po shranitvi - ostane prejeta", prejeto, P.vrednostZaOdtis(prejeto, null))
+    }
+
     if (napak == 0) println("UskladitevKljucevPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }
