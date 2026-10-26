@@ -5353,11 +5353,16 @@ class GlasbaActivity : OsActivity() {
                         (PregledKanalov.opis(this, v.naslov)?.let { " · $it" } ?: "")
                     v.tip == MedijskiViri.API -> "API · " + (try { java.net.URL(v.naslov.substringBefore('|').trim()).host } catch (_: Exception) { "" })
                     // Naloga 80: seznam IPTV pove, koliko kanalov ima, in napredek pregleda mrtvih.
-                    v.jeSeznam && (IptvSeznami.podatki(this, v.naslov)?.kanalov ?: 0) > 0 -> v.naslov.removePrefix("https://").removePrefix("http://") +
+                    // Grok 39, I5: ponudnik je seznam zavrnil ali prenos ni uspel - kaj je in kdaj poskusimo znova (brez gesla na zaslonu).
+                    v.jeSeznam && IptvSeznami.napaka(this, v.naslov) != null -> IptvPravila.zaPrikaz(v.naslov) + " · " +
+                        opisNapakeSeznama(IptvSeznami.napaka(this, v.naslov)!!)
+                    v.jeSeznam && (IptvSeznami.podatki(this, v.naslov)?.kanalov ?: 0) > 0 -> IptvPravila.zaPrikaz(v.naslov) +
                         " · " + resources.getQuantityString(R.plurals.os_iptv_kanalov, IptvSeznami.podatki(this, v.naslov)!!.kanalov, IptvSeznami.podatki(this, v.naslov)!!.kanalov) +
                         (PregledKanalov.opis(this, v.naslov)?.let { " · $it" } ?: "")
                     // Naloga 89: kje uporabnik besedila najde (predvajalnik), brez naslova streznika.
                     v.jeBesedila -> getString(R.string.os_besedila_vir_opis)
+                    // Seznam s poverilnico (Xtream): na zaslonu samo gostitelj - geslo ne.
+                    v.jeSeznam -> IptvPravila.zaPrikaz(v.naslov)
                     else -> v.naslov.removePrefix("https://").removePrefix("http://")
                 }, {
                     when {
@@ -5596,12 +5601,26 @@ class GlasbaActivity : OsActivity() {
                 val zacet = PregledKanalov.zacni(applicationContext, dodan.naslov, rocno = true, jeSeznam = dodan.jeSeznam)
                 Toast.makeText(this, if (zacet) R.string.os_pregled_kanalov_zacet else R.string.os_pregled_kanalov_po_predvajanju, Toast.LENGTH_SHORT).show()
             }) else emptyList()) +
+            // Grok 39, I5: po zavrnjenem prenosu (uporabnik je uredil racun pri ponudniku) en poskus takoj, ne sele po premoru.
+            (if (dodan.jeSeznam && IptvSeznami.napaka(this, dodan.naslov) != null) listOf(getString(R.string.os_iptv_poskusi_znova) to {
+                val app = applicationContext
+                try { delavec.execute { IptvSeznami.pripravi(app, dodan.naslov, rocno = true); glavna.post { if (!isFinishing && razdelek == VIRI) izberiNaMestu(VIRI) } } }
+                catch (_: java.util.concurrent.RejectedExecutionException) { }
+            }) else emptyList()) +
             listOf(getString(R.string.os_media_izbrisi_vir) to { odstraniVir(dodan, v.ime) })
         pokaziBrisanje(AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(v.ime)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
             .setNegativeButton(getString(R.string.os_preklici), null)
         )
+    }
+
+    /** Grok 39, I5: »Ponudnik je seznam zavrnil … Znova poskusim cez 1 uro.« (cas v jeziku naprave). */
+    private fun opisNapakeSeznama(n: IptvPravila.NapakaPrenosa): String {
+        val zdaj = System.currentTimeMillis()
+        val kdaj = android.text.format.DateUtils.getRelativeTimeSpanString(maxOf(n.naslednjiOb, zdaj + 60_000L), zdaj,
+            android.text.format.DateUtils.MINUTE_IN_MILLIS).toString()
+        return getString(if (n.zavrnjen) R.string.os_iptv_seznam_zavrnjen else R.string.os_iptv_seznam_ni_prenesen, kdaj)
     }
 
     private fun izmenicno(seznami: List<List<Jamendo.Skladba>>) =

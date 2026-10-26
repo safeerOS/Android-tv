@@ -348,6 +348,10 @@
     <string name="os_pregled_kanalov_zdaj">Controlla canali ora</string>
     <string name="os_pregled_kanalov_zacet">Controllo dei canali di questo componente in background.</string>
     <string name="os_pregled_kanalov_po_predvajanju">I canali verranno controllati al termine della riproduzione.</string>
+    <!-- Grok 39, I5: ponudnik je seznam IPTV zavrnil; %1$s = kdaj znova (npr. »cez 1 uro«). -->
+    <string name="os_iptv_seznam_zavrnjen">Il provider ha rifiutato la lista: controlla il tuo account presso il provider. Nuovo tentativo %1$s.</string>
+    <string name="os_iptv_seznam_ni_prenesen">Non è stato possibile scaricare la lista. Nuovo tentativo %1$s.</string>
+    <string name="os_iptv_poskusi_znova">Scarica di nuovo la lista</string>
     <!-- Naloga 76: mreza TV v zivo caka na zasebne kategorije dodatkov. -->
     <string name="os_tv_preverjam_kategorije">Controllo delle categorie dei componenti…</string>
     <!-- Naloga 77: dodatek ima samo kataloge za iskanje (YouTubio). -->

@@ -348,6 +348,10 @@
     <string name="os_pregled_kanalov_zdaj">Sender jetzt prüfen</string>
     <string name="os_pregled_kanalov_zacet">Die Sender dieses Add-ons werden im Hintergrund geprüft.</string>
     <string name="os_pregled_kanalov_po_predvajanju">Die Sender werden geprüft, wenn die Wiedergabe endet.</string>
+    <!-- Grok 39, I5: ponudnik je seznam IPTV zavrnil; %1$s = kdaj znova (npr. »cez 1 uro«). -->
+    <string name="os_iptv_seznam_zavrnjen">Der Anbieter hat die Liste abgelehnt – prüfe dein Konto beim Anbieter. Neuer Versuch %1$s.</string>
+    <string name="os_iptv_seznam_ni_prenesen">Die Liste konnte nicht geladen werden. Neuer Versuch %1$s.</string>
+    <string name="os_iptv_poskusi_znova">Liste erneut laden</string>
     <!-- Naloga 76: mreza TV v zivo caka na zasebne kategorije dodatkov. -->
     <string name="os_tv_preverjam_kategorije">Kategorien der Add-ons werden geprüft …</string>
     <!-- Naloga 77: dodatek ima samo kataloge za iskanje (YouTubio). -->

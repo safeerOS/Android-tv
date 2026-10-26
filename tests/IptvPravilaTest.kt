@@ -233,6 +233,34 @@ fun main() {
     preveriEnako("gostitelj: ni http", "", IptvPravila.gostitelj("rtmp://cdn.primer.test/a"))
 
     println()
+    println("== I5: zavrnjen seznam se ne prenasa ob vsakem odprtju (10 min, 1 h, 6 h, 24 h) ==")
+    val t0 = 1_000_000_000L
+    val n1 = IptvPravila.poNapaki(null, t0, zavrnjen = true)
+    preveriEnako("I5: prva napaka - 10 min", t0 + 600_000L, n1.naslednjiOb)
+    preveriEnako("I5: med premorom ne", false, IptvPravila.smePrenesti(n1, t0 + 599_000L))
+    preveriEnako("I5: po premoru da", true, IptvPravila.smePrenesti(n1, t0 + 600_000L))
+    val n2 = IptvPravila.poNapaki(n1, t0 + 600_000L, true)
+    val n3 = IptvPravila.poNapaki(n2, t0, true)
+    val n4 = IptvPravila.poNapaki(n3, t0, true)
+    val n5 = IptvPravila.poNapaki(n4, t0, true)
+    preveriEnako("I5: premori 1 h, 6 h, 24 h, 24 h", listOf(3_600_000L, 21_600_000L, 86_400_000L, 86_400_000L),
+        listOf(n2.naslednjiOb - (t0 + 600_000L), n3.naslednjiOb - t0, n4.naslednjiOb - t0, n5.naslednjiOb - t0))
+    preveriEnako("I5: ura nazaj ne zaklene", true, IptvPravila.smePrenesti(n5, t0 - 3 * 86_400_000L))
+    preveriEnako("I5: rocno takoj", true, IptvPravila.smePrenesti(n5, t0 + 61_000L, rocno = true))
+    preveriEnako("I5: rocno najvec enkrat na minuto", false, IptvPravila.smePrenesti(n5, t0 + 30_000L, rocno = true))
+    preveriEnako("I5: shramba", n4, IptvPravila.NapakaPrenosa.izNiza(n4.vNiz()))
+    preveriEnako("I5: pokvarjena shramba", null, IptvPravila.NapakaPrenosa.izNiza("1;x"))
+    preveriEnako("I5: Xtream 403 - zavrnjen", true, IptvPravila.zavrnjen(403, 0, xtream))
+    preveriEnako("I5: Xtream 200 brez kanalov - zavrnjen (potekel racun)", true, IptvPravila.zavrnjen(200, 0, xtream))
+    preveriEnako("I5: Xtream napaka povezave - premor", true, IptvPravila.napakaPrenosa(0, 0, xtream))
+    preveriEnako("I5: Xtream 200 s kanali - ni napaka", false, IptvPravila.napakaPrenosa(200, 5000, xtream))
+    preveriEnako("I5: javni seznam ob izpadu omrezja ne caka", false, IptvPravila.napakaPrenosa(0, 0, "https://iptv-org.github.io/iptv/countries/si.m3u"))
+    preveriEnako("I5: javni seznam 404 - premor", true, IptvPravila.napakaPrenosa(404, 0, "https://iptv-org.github.io/iptv/countries/si.m3u"))
+    preveriEnako("I5: javni seznam 404 ni zavrnitev racuna", false, IptvPravila.zavrnjen(404, 0, "https://iptv-org.github.io/iptv/countries/si.m3u"))
+    preveriEnako("prikaz: Xtream samo gostitelj (geslo ne na zaslon)", "ponudnik.primer.test", IptvPravila.zaPrikaz(xtream))
+    preveriEnako("prikaz: javni seznam", "iptv-org.github.io/iptv/countries/si.m3u", IptvPravila.zaPrikaz("https://iptv-org.github.io/iptv/countries/si.m3u"))
+
+    println()
     println("== v krogu preverja samo naprava, kjer je bil vir dodan ==")
     val virA = "https://iptv-org.github.io/iptv/countries/si.m3u"
     val virB = "https://iptv-org.github.io/iptv/languages/eng.m3u"

@@ -347,6 +347,10 @@
     <string name="os_pregled_kanalov_zdaj">Preveri kanale zdaj</string>
     <string name="os_pregled_kanalov_zacet">Kanale tega dodatka preverjam v ozadju.</string>
     <string name="os_pregled_kanalov_po_predvajanju">Kanale preverim, ko se predvajanje ustavi.</string>
+    <!-- Grok 39, I5: ponudnik je seznam IPTV zavrnil; %1$s = kdaj znova (npr. »cez 1 uro«). -->
+    <string name="os_iptv_seznam_zavrnjen">Ponudnik je seznam zavrnil – preveri račun pri ponudniku. Znova poskusim %1$s.</string>
+    <string name="os_iptv_seznam_ni_prenesen">Seznama ni bilo mogoče prenesti. Znova poskusim %1$s.</string>
+    <string name="os_iptv_poskusi_znova">Poskusi znova prenesti seznam</string>
     <!-- Naloga 76: mreza TV v zivo caka na zasebne kategorije dodatkov. -->
     <string name="os_tv_preverjam_kategorije">Preverjam kategorije dodatkov …</string>
     <!-- Naloga 77: dodatek ima samo kataloge za iskanje (YouTubio). -->

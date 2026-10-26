@@ -307,6 +307,59 @@ object IptvPravila {
     fun zakajNeVOzadju(jeSeznam: Boolean, naslov: String, dodanTu: Boolean, rocno: Boolean): String =
         zakajNePregleda(jeSeznam, naslov).ifEmpty { if (!rocno && !dodanTu) "vir z druge naprave" else "" }
 
+    /** Naslov seznama za zaslon: s poverilnico (ali neznan) samo gostitelj - geslo Xtream ne gre na zaslon TV. */
+    fun zaPrikaz(naslov: String): String =
+        if (jeVirSPoverilnico(naslov, seznam = true)) gostitelj(naslov) else naslov.removePrefix("https://").removePrefix("http://")
+
+    /**
+     * Pregled Grok 39, I5: seznam, ki ga ponudnik zavrne (401/403, potekel racun), ali prenos, ki ne uspe, se ne prenasa
+     * znova ob vsakem odprtju TV v zivo - premor 10 min, 1 h, 6 h, nato 24 h (vsak poskus je prijava v racun; ponudniki
+     * Xtream zaklenejo racun ali IP po poplavi napacnih prijav). Uspeh premor izbrise.
+     */
+    val PREMORI_PRENOSA_MS = listOf(10 * 60_000L, 3_600_000L, 6 * 3_600_000L, 24 * 3_600_000L)
+
+    /** Zaporedne napake prenosa seznama, cas naslednjega dovoljenega poskusa in ali je ponudnik seznam zavrnil. */
+    data class NapakaPrenosa(val zaporednih: Int, val naslednjiOb: Long, val zavrnjen: Boolean, val zadnjiOb: Long) {
+        fun vNiz() = "$zaporednih;$naslednjiOb;${if (zavrnjen) 1 else 0};$zadnjiOb"
+        companion object {
+            fun izNiza(s: String?): NapakaPrenosa? {
+                val d = s.orEmpty().split(';')
+                if (d.size != 4) return null
+                return NapakaPrenosa(d[0].toIntOrNull() ?: return null, d[1].toLongOrNull() ?: return null, d[2] == "1", d[3].toLongOrNull() ?: return null)
+            }
+        }
+    }
+
+    /**
+     * Ali je izid prenosa napaka s premorom: odgovor ni 2xx; pri seznamu, ki ni znani javni, tudi 2xx brez kanalov (Xtream
+     * potekel racun pogosto vrne prazen seznam) in vsaka napaka povezave ([koda] 0). Javni seznam ob izpadu omrezja ne caka.
+     */
+    fun napakaPrenosa(koda: Int, kanalov: Int, naslovSeznama: String): Boolean = when {
+        koda in 200..299 -> kanalov == 0 && !javniBrezplacni(naslovSeznama)
+        koda == 0 -> !javniBrezplacni(naslovSeznama)
+        else -> true
+    }
+
+    /** Ponudnik je seznam zavrnil (racun, geslo, potekla narocnina) - uporabnik to vidi na kartici vira. */
+    fun zavrnjen(koda: Int, kanalov: Int, naslovSeznama: String): Boolean =
+        koda == 401 || koda == 403 || (koda in 200..299 && kanalov == 0 && !javniBrezplacni(naslovSeznama))
+
+    /** Napaka po neuspelem prenosu ob [zdaj]: naslednji premor iz [PREMORI_PRENOSA_MS]. */
+    fun poNapaki(prej: NapakaPrenosa?, zdaj: Long, zavrnjen: Boolean): NapakaPrenosa {
+        val n = (prej?.zaporednih ?: 0) + 1
+        return NapakaPrenosa(n, zdaj + PREMORI_PRENOSA_MS[minOf(n, PREMORI_PRENOSA_MS.size) - 1], zavrnjen, zdaj)
+    }
+
+    /**
+     * Ali se seznam ta hip sme prenesti: brez napake ali po premoru; ura, prestavljena nazaj (premor bi trajal dlje od
+     * najdaljsega), ne zaklene. [rocno] (»Poskusi znova«): takoj, a najvec enkrat na minuto.
+     */
+    fun smePrenesti(napaka: NapakaPrenosa?, zdaj: Long, rocno: Boolean = false): Boolean = when {
+        napaka == null -> true
+        rocno -> zdaj - napaka.zadnjiOb !in 0 until 60_000L
+        else -> zdaj >= napaka.naslednjiOb || napaka.naslednjiOb - zdaj > PREMORI_PRENOSA_MS.last()
+    }
+
     /** Gostitelj naslova http(s) z malimi crkami ("" = ni naslov http(s)) - kljuc vrat preverb ([VrataGostiteljev]). */
     fun gostitelj(naslov: String): String = deli(naslov)?.gostitelj.orEmpty()
 
