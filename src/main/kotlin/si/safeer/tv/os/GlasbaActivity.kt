@@ -8933,7 +8933,14 @@ class GlasbaActivity : OsActivity() {
         }
         if (samoP2p) {
             val t = torrentiPoKakovosti.firstOrNull()
-            if (t == null) { android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo P2P - ni torrenta, ki gre na to napravo"); return }
+            if (t == null) {
+                android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo P2P - ni torrenta, ki gre na to napravo")
+                // Pregled Grok 32, G2: prej tih konec (samo dnevnik) - viden razlog in klicatelj izve za neuspeh (epizoda: nazaj
+                // na seznam epizod). Druge poti ni (diagnostika), kartica pa ne izgine (oznaciNiNaVoljo se ne klice).
+                runOnUiThread { Toast.makeText(this, R.string.os_p2p_diagnostika_ni_torrenta, Toast.LENGTH_LONG).show() }
+                obNeuspehu?.invoke()
+                return
+            }
             android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo P2P; izbran=${TokIzbira.opisi(opis(t))}, sejalcev=${TokIzbira.sejalci(opis(t))}")
             opozoriPredRojem(t.url) { torrentBrezRacunalnika(sk, naslov, t.url, t.datoteka,
                 (TokIzbira.opisi(t.ime + " " + t.opis).gb * 1024.0 * 1024.0 * 1024.0).toLong(), "", samoNaprava = TA_NAPRAVA) }
