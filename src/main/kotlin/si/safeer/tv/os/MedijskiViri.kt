@@ -942,7 +942,7 @@ object MedijskiViri {
         val viri = viriVnosa.mapNotNull { v ->
             // Lastnik, 26. 10. 2026: vir z racunom IPTV nikoli s pravim naslovom v nastavitvah (varovalka za vse poti dodajanja,
             // tudi prevzem); ce sifriranje ne uspe, ze shranjen ostane (ne izgubi se), nov se ne shrani.
-            if (IptvPravila.skrivnostVira(v.tip, v.naslov) != null)
+            if (IptvPravila.virZRacunom(v.tip, v.naslov) && !SkrivnostiPravila.jeNadomestek(v.naslov))
                 IptvPravila.zaShrambo(IptvPravila.ZapisVira(v.tip, v.ime, v.naslov), v.naslov in prejsnji) { SkrivniDodatki.zavarujCel(ctx, it) }
                     ?.let { Vir(it.tip, it.ime, it.naslov) }
                     .also { if (it == null) android.util.Log.w("SafeerOsMedia", "vira z racunom ni bilo mogoce zavarovati - ni shranjen") }
@@ -1013,8 +1013,11 @@ object MedijskiViri {
         o.keys().asSequence().associateWith { o.optLong(it) }.toMutableMap()
     } catch (_: Exception) { mutableMapOf() }
 
-    /** Vir, ki ga smemo poslati drugi napravi ali prevzeti z nje: znana vrsta, javen naslov, ni blokiran. */
-    private fun uskladljiv(v: Vir): Boolean =
+    /**
+     * Vir, ki ga smemo poslati drugi napravi ali prevzeti z nje: znana vrsta, javen naslov, ni blokiran. [odOzjegaKroga]: prevzem
+     * od naprave v ozjem krogu te naprave - sme tudi vir, ki ni pozitivno znan javen ([IptvPravila.prevzemZNavadnoUskladitvijo]).
+     */
+    private fun uskladljiv(v: Vir, odOzjegaKroga: Boolean = false): Boolean =
         VRSTE_ZA_USKLADITEV.matches(v.tip) && v.naslov.length in 4..2048 && v.ime.length <= 200 &&
             v.naslov.none { it < ' ' } && v.ime.none { it < ' ' } && !PeerTube.jeBlokiran(v.naslov) &&
             (v.jePeerTube || v.naslov.startsWith("http://") || v.naslov.startsWith("https://")) &&
@@ -1023,8 +1026,9 @@ object MedijskiViri {
             // (Debrid.posljiKljuce, potrditev na prejemni napravi), nikoli z navadnim usklajevanjem virov.
             !(v.jeStremio && !SkrivnostiPravila.smeMedVseNaprave(v.naslov)) &&
             // Lastnik, 26. 10. 2026: vir z racunom IPTV (pravi naslov ali nadomestek) enako - samo ozji krog (UskladitevKljucev,
-            // kljuc »iptv:<odtis>«); prej je sel vsem napravam v Linku. Velja v obe smeri (zaUskladitev, prevzemiVir).
-            IptvPravila.smeZNavadnoUskladitvijo(v.tip, v.naslov)
+            // kljuc »iptv:<odtis>«); prej je sel vsem napravam v Linku. Grok 46, Ö1: fail-closed - z navadnim usklajevanjem samo
+            // pozitivno znan javni seznam; prevzem drugega samo od naprave v ozjem krogu.
+            IptvPravila.prevzemZNavadnoUskladitvijo(v.tip, v.naslov, odOzjegaKroga)
 
     /** Ali ta vir potuje med napravami v Linku (za besedilo ob brisanju): zaseben ali se neznan dodatek ne. */
     fun greMedNaprave(v: Vir): Boolean =
@@ -1098,8 +1102,8 @@ object MedijskiViri {
     }
 
     /** Vir z druge naprave: dodamo ga, ce ga tu se ni in ga tu nismo izbrisali pozneje, kot je bil tam dodan. */
-    @Synchronized fun prevzemiVir(ctx: Context, v: Vir, cas: Long): Boolean {
-        if (!uskladljiv(v)) return false
+    @Synchronized fun prevzemiVir(ctx: Context, v: Vir, cas: Long, odOzjegaKroga: Boolean = false): Boolean {
+        if (!uskladljiv(v, odOzjegaKroga)) return false
         val k = kljucUskladitve(v)
         val moji = rocni(ctx)
         if (moji.any { kljucUskladitve(it) == k } || moji.size >= 400) return false
@@ -1115,10 +1119,11 @@ object MedijskiViri {
      * Naslov, ki ga je uporabnik dodal na racunalniku (vrsta [VRSTA_URL]): racunalnik vrste ne pozna, doloci jo ta
      * naprava sama (prebere naslov - klic iz ozadja). Vrne true, ce je vir dodan.
      */
-    fun prevzemiNaslov(ctx: Context, naslov: String, ime: String, cas: Long): Boolean {
+    fun prevzemiNaslov(ctx: Context, naslov: String, ime: String, cas: Long, odOzjegaKroga: Boolean = false): Boolean {
         if (naslov.length !in 4..2048 || naslov.any { it < ' ' } || !(naslov.startsWith("http://") || naslov.startsWith("https://"))) return false
-        // Lastnik, 26. 10. 2026: naslov z racunom ne z navadnim usklajevanjem - in ne razvrscamo ga (zahteva = prijava v racun).
-        if (!IptvPravila.smeZNavadnoUskladitvijo(VRSTA_URL, naslov)) return false
+        // Lastnik, 26. 10. 2026: naslov, ki ni znan javni seznam, samo od naprave v ozjem krogu - drugace ga niti ne razvrscamo
+        // (zahteva = prijava v racun, Grok 46 Ö1).
+        if (!IptvPravila.prevzemZNavadnoUskladitvijo(VRSTA_URL, naslov, odOzjegaKroga)) return false
         synchronized(this) {
             val moji = rocni(ctx)
             if (moji.size >= 400 || moji.any { it.naslov == naslov || (!it.jePeerTube && kanonicniNaslov(it.naslov) == kanonicniNaslov(naslov)) }) return false
@@ -1129,17 +1134,22 @@ object MedijskiViri {
         if (PeerTube.jeBlokiran(naslov) || !jePredvajljiv(naslov)) return false
         val gostitelj = try { URL(naslov).host } catch (_: Exception) { return false }
         val v = razvrsti(ctx, naslov, gostitelj) ?: return false
-        return prevzemiVir(ctx, if (ime.isBlank() || ime.length > 200 || ime.any { it < ' ' }) v else v.copy(ime = ime), cas)
+        return prevzemiVir(ctx, if (ime.isBlank() || ime.length > 200 || ime.any { it < ' ' }) v else v.copy(ime = ime), cas, odOzjegaKroga)
     }
 
     /** Vrsta vira v usklajevanju, ki jo poslje racunalnik za naslov, dodan tam (core/viri_sink.py). */
     const val VRSTA_URL = "url"
 
     /** Vir je bil izbrisan na drugi napravi ob [cas]: izgine tudi tu, ce ga tu nismo dodali pozneje. Vrne true ob izbrisu. */
-    @Synchronized fun prevzemiIzbrisVira(ctx: Context, kljuc: String, cas: Long): Boolean {
-        if (cas <= 0L || kljuc.length > 2100) return false
-        // Lastnik, 26. 10. 2026: izbris vira z racunom (ali dodatka s poverilnico) pride samo iz ozjega kroga (UskladitevKljucev).
-        if (!IptvPravila.smeZNavadnoUskladitvijo(kljuc.substringBefore('|'), kljuc.substringAfter('|', ""))) return false
+    @Synchronized fun prevzemiIzbrisVira(ctx: Context, kljucPrejet: String, cas: Long, odOzjegaKroga: Boolean = false): Boolean {
+        if (cas <= 0L || kljucPrejet.length > 2100) return false
+        // Lastnik, 26. 10. 2026: izbris vira z racunom (ali dodatka s poverilnico) pride samo iz ozjega kroga (UskladitevKljucev ali
+        // lists.get naprave v ozjem krogu - Linux); vir z racunom je tu nadomestek, zato izbris s pravim naslovom velja zanj.
+        val tipK = kljucPrejet.substringBefore('|')
+        val naslovK = kljucPrejet.substringAfter('|', "")
+        if (!IptvPravila.prevzemZNavadnoUskladitvijo(tipK, naslovK, odOzjegaKroga)) return false
+        val kljuc = IptvPravila.skrivnostVira(if (tipK == VRSTA_URL) SEZNAM else tipK, naslovK)
+            ?.let { SkrivnostiPravila.nadomestek(it) }?.let { "$tipK|$it" } ?: kljucPrejet
         val odRacunalnika = kljuc.startsWith("$VRSTA_URL|")
         // Racunalnik ne pozna vrste, ki jo je naslovu dala ta naprava: izbris "url|<naslov>" velja za vir s tem naslovom.
         val moj = rocni(ctx).firstOrNull { kljucUskladitve(it) == kljuc }

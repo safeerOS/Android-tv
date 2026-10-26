@@ -78,12 +78,12 @@ fun main() {
     preveriEnako("sources_deleted: brez virov z racunom in dodatkov s poverilnico",
         setOf("seznam|$JAVNI", "stremio|https://v3-cinemeta.strem.io/manifest.json"), sourcesDeleted.keys)
     val kanal = SeznamiPravila.Zapis("Kanal 101", "", url = TOK, video = true, izvirnik = """{"zvok":"$TOK"}""")
-    val zunaj = IptvPravila.zapisZaNavadniKrog(kanal, listOf(TOK, TOK, zapisi[0]!!.naslov))
+    val zunaj = IptvPravila.zapisZaNavadniKrog(kanal, listOf(TOK, TOK, zapisi[0]!!.naslov), izVira = true)
     preveri("seznam predvajanja: kanal z racunom brez toka", !imaRacun(zunaj.toString()) && zunaj.url.isEmpty() && zunaj.izvirnik.isEmpty())
     preveriEnako("seznam predvajanja: ime kanala ostane", "Kanal 101", zunaj.naslov)
     val javniKanal = SeznamiPravila.Zapis("TV SLO 1", "", url = "https://cdn.primer.test/slo1/index.m3u8?token=podpis", video = true)
     preveriEnako("seznam predvajanja: javni kanal (podpis CDN) ostane", javniKanal,
-        IptvPravila.zapisZaNavadniKrog(javniKanal, listOf(javniKanal.url, javniKanal.url, JAVNI)))
+        IptvPravila.zapisZaNavadniKrog(javniKanal, listOf(javniKanal.url, javniKanal.url, JAVNI), izVira = true))
     preveriEnako("prevzem od naprave brez toka ne izbrise nasega kanala", listOf(kanal),
         SeznamiPravila.prevzemi(listOf(kanal), listOf(SeznamiPravila.Zapis("Kanal 101", "", video = true)), 400))
     preveri("Nadaljuj na drugi napravi: kanal z racunom", IptvPravila.skladbaZRacunom(listOf(TOK, TOK, "")))
@@ -144,6 +144,60 @@ fun main() {
     val grobovi2 = mapOf("seznam|$XTREAM" to 1L, "url|$TOK" to 2L, "seznam|$JAVNI" to 3L, "seznam|${(zamenjave[XTREAM] ?: "-")}" to 4L)
     preveriEnako("prehod: grobovi s pravim naslovom z racunom izginejo",
         setOf("seznam|$JAVNI", "seznam|${(zamenjave[XTREAM] ?: "-")}"), IptvPravila.brezGrobovZRacunom(grobovi2).keys)
+
+    println()
+    println("== Grok 46, Ö1: fail-closed - navadnemu krogu samo pozitivno znan javni vir ==")
+    val neznane = listOf(
+        ZapisVira("seznam", "m3u_plus", "http://ponudnik.primer.test:8080/playlist/$UPORABNIK/$GESLO/m3u_plus"),
+        ZapisVira("seznam", "m3u", "http://ponudnik.primer.test:8080/get/$UPORABNIK/$GESLO/m3u"),
+        ZapisVira("seznam", "seznam", "https://ponudnik.primer.test/m3u/${GESLO}Zx81kqP0aa.m3u"),
+        ZapisVira("seznam", "Ab3dE", "https://kratko.primer.test/Ab3dE"),
+        ZapisVira("seznam", "$GESLO", "http://ponudnik.primer.test/$UPORABNIK/$GESLO"),
+        ZapisVira("seznam", "playlist", " $XTREAM"),
+        ZapisVira("seznam", "playlist", "http://tvh.primer.test:9981/playlist"),
+        ZapisVira("tok", "kamera", "rtsp://$UPORABNIK:$GESLO@kamera.primer.test/live"),
+        ZapisVira("tok", "radio", "https://radio.primer.test/val202.mp3"))
+    for (v in neznane) {
+        preveri("ne gre v navadni krog: ${v.tip} ${IptvPravila.zaPrikaz(v.naslov)}", !IptvPravila.smeZNavadnoUskladitvijo(v.tip, v.naslov))
+        preveri("ne sprejme se od naprave zunaj ozjega kroga: ${IptvPravila.zaPrikaz(v.naslov)}", !IptvPravila.prevzemZNavadnoUskladitvijo(v.tip, v.naslov, false))
+        preveri("na zaslonu brez racuna: ${IptvPravila.zaPrikaz(v.naslov)}", !imaRacun(IptvPravila.zaPrikaz(v.naslov)) &&
+            !IptvPravila.zaPrikaz(v.naslov).contains('/'))
+        val z = IptvPravila.zaShrambo(v, false, Shramba().zavaruj)
+        preveri("v nastavitvah brez racuna: ${IptvPravila.zaPrikaz(v.naslov)}", z == null || !imaRacun(z.naslov + "|" + z.ime))
+    }
+    preveriEnako("na zaslonu Xtream v obliki poti: samo gostitelj", "ponudnik.primer.test", IptvPravila.zaPrikaz(neznane[0].naslov))
+    preveriEnako("na zaslonu presledek pred naslovom: samo gostitelj", "ponudnik.primer.test", IptvPravila.zaPrikaz(neznane[5].naslov))
+    preveriEnako("ne-http (rtsp) z racunom se ne shrani kot nov vir (ni nadomestka)", null, IptvPravila.zaShrambo(neznane[7], false, Shramba().zavaruj))
+    preveri("javni seznam gre v navadni krog in je cel na zaslonu", IptvPravila.smeZNavadnoUskladitvijo("seznam", JAVNI) &&
+        IptvPravila.zaPrikaz(JAVNI) == "iptv-org.github.io/iptv/countries/si.m3u")
+    preveri("od naprave v ozjem krogu se vir z racunom sprejme (Linux 0f3f368)", IptvPravila.prevzemZNavadnoUskladitvijo("seznam", XTREAM, true) &&
+        IptvPravila.prevzemZNavadnoUskladitvijo("url", XTREAM, true))
+    preveri("od naprave v ozjem krogu nikoli dodatek s poverilnico ali nadomestek",
+        !IptvPravila.prevzemZNavadnoUskladitvijo("stremio", "https://dodatek.primer.test/realdebrid=ABCDEFGHIJ1234567890xyz/manifest.json", true) &&
+        !IptvPravila.prevzemZNavadnoUskladitvijo("seznam", zapisi[0]!!.naslov, true))
+    preveri("podkast ni IPTV - gre", IptvPravila.smeZNavadnoUskladitvijo("podkast", "https://podkast.primer.test/rss.xml"))
+
+    println()
+    println("== Grok 46, Ö2: vir seznama in vsa polja skladbe ==")
+    preveriEnako("vir seznama z naslovom Xtream ne gre", "", IptvPravila.virSeznamaZaNavadniKrog(XTREAM))
+    preveriEnako("vir seznama YouTube ostane", "YouTube", IptvPravila.virSeznamaZaNavadniKrog("YouTube"))
+    val slikaRacun = SeznamiPravila.Zapis("Pesem", "Izvajalec", "abc12345678", slika = "https://ponudnik.primer.test/images/1.png?username=$UPORABNIK&password=$GESLO")
+    val slikaZunaj = IptvPravila.zapisZaNavadniKrog(slikaRacun, emptyList(), izVira = false)
+    preveri("slika z racunom ne gre", !imaRacun(slikaZunaj.toString()))
+    preveriEnako("posnetek YouTube ostane", "abc12345678", slikaZunaj.youtube)
+    val android = SeznamiPravila.Zapis("Film", "", url = "https://cdn.primer.test/film.mp4",
+        izvirnik = """{"id":"x","podnapisi":["http:\/\/ponudnik.primer.test:8080\/movie\/$UPORABNIK\/$GESLO\/5.srt"]}""")
+    preveri("zapis android z naslovom z racunom ne gre", !imaRacun(IptvPravila.zapisZaNavadniKrog(android, listOf(android.url), izVira = false).toString()))
+    val domaci = SeznamiPravila.Zapis("Kanal 1", "", url = "http://tvh.primer.test:9981/stream/channel/1", slika = "http://tvh.primer.test:9981/imagecache/1", video = true)
+    val domaciZunaj = IptvPravila.zapisZaNavadniKrog(domaci, listOf(domaci.url, domaci.url, "http://tvh.primer.test:9981/playlist"), izVira = true)
+    preveri("kanal domacega streznika (ni znan javen) brez toka in brez logotipa", domaciZunaj.url.isEmpty() && domaciZunaj.slika.isEmpty())
+    val navadna = SeznamiPravila.Zapis("Pesem", "Izvajalec", url = "https://glasba.primer.test/p.mp3", slika = "https://glasba.primer.test/p.jpg")
+    preveriEnako("navadna skladba (ni iz vira) brez racuna ostane", navadna, IptvPravila.zapisZaNavadniKrog(navadna, listOf(navadna.url), izVira = false))
+    preveri("Nadaljuj: kanal domacega streznika ne gre zunaj ozjega kroga", !IptvPravila.skladbaCelaZaNavadniKrog(true, listOf(domaci.url, domaci.url)))
+    preveri("Nadaljuj: kanal javnega seznama gre", IptvPravila.skladbaCelaZaNavadniKrog(true, listOf(javniKanal.url, javniKanal.url, JAVNI, "")))
+    preveri("id iz vira: kanal, vnos seznama, kartica toka", IptvPravila.izViraSeznamaAliToka("iptv:x", false) &&
+        IptvPravila.izViraSeznamaAliToka("seznam:x", false) && IptvPravila.izViraSeznamaAliToka("vir:x", false) &&
+        !IptvPravila.izViraSeznamaAliToka("vir:x", true) && !IptvPravila.izViraSeznamaAliToka("yt:x", false))
 
     if (napak == 0) println("IptvRacunTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

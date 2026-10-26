@@ -97,7 +97,8 @@ object SkrivniDodatki {
      */
     fun zavarujCel(c: Context, naslov: String): String? {
         val p = naslov.trim()
-        if (IptvPravila.skrivnostVira(MedijskiViri.SEZNAM, p) != p) return null
+        val m = p.lowercase(java.util.Locale.ROOT)
+        if ((!m.startsWith("http://") && !m.startsWith("https://")) || '#' in p || SkrivnostiPravila.jeNadomestek(p)) return null
         val n = SkrivnostiPravila.nadomestek(p) ?: return null
         return if (shraniSkrivnost(c, p, n)) n else null
     }

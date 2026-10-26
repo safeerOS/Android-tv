@@ -311,8 +311,10 @@ object Zvocniki {
             konec(null)
         }) {
             if (moj != zagon) return@naDelavcu
-            url = sk.zvok
-            var mime = DlnaPravila.mime(sk.zvok, sk.mime)
+            // Vir z racunom (in tok dodatka s poverilnico) je v aplikaciji nadomestek: zvocnik v domacem omrezju dobi pravi
+            // naslov (sam bere tok), drugam ne gre (26. 10. 2026).
+            url = SkrivniDodatki.dejanski(app, sk.zvok)
+            var mime = DlnaPravila.mime(url, sk.mime)
             if (DlnaPravila.lokalniVir(sk.zvok)) {
                 // Datoteka te naprave: ponudi jo nas majhen streznik (samo ta datoteka, pod zetonom).
                 val s = streznik ?: ZvocnikStreznik(app).also { streznik = it }
@@ -348,7 +350,7 @@ object Zvocniki {
             val ms = try {
                 val b = android.media.MediaMetadataRetriever()       // v try: napaka sistemske knjiznice ne sme podreti aplikacije
                 bralnik = b
-                val vir = sk.zvok
+                val vir = SkrivniDodatki.dejanski(ctx, sk.zvok)
                 when {
                     vir.startsWith("content://", true) || vir.startsWith("file://", true) -> b.setDataSource(ctx, android.net.Uri.parse(vir))
                     vir.startsWith("/") -> b.setDataSource(vir)

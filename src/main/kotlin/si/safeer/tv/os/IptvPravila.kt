@@ -317,9 +317,12 @@ object IptvPravila {
     fun zakajNeVOzadju(jeSeznam: Boolean, naslov: String, dodanTu: Boolean, rocno: Boolean): String =
         zakajNePregleda(jeSeznam, naslov).ifEmpty { if (!rocno && !dodanTu) "vir z druge naprave" else "" }
 
-    /** Naslov seznama za zaslon: s poverilnico (ali neznan) samo gostitelj - geslo Xtream ne gre na zaslon TV. */
+    /**
+     * Naslov seznama ali toka za zaslon. Grok 46, Ö1 (fail-closed): cel naslov samo za pozitivno znan javni seznam
+     * ([javniBrezplacni]); vse drugo (Xtream v kateri koli obliki, zeton v poti, nadomestek, neznana oblika) samo gostitelj.
+     */
     fun zaPrikaz(naslov: String): String =
-        if (jeVirSPoverilnico(naslov, seznam = true)) gostitelj(naslov) else naslov.removePrefix("https://").removePrefix("http://")
+        if (javniBrezplacni(naslov)) naslov.trim().removePrefix("https://").removePrefix("http://") else gostitelj(naslov).ifEmpty { "…" }
 
     /**
      * Pregled Grok 39, I5: seznam, ki ga ponudnik zavrne (401/403, potekel racun), ali prenos, ki ne uspe, se ne prenasa
@@ -470,20 +473,28 @@ object IptvPravila {
     fun jeVrstaRacuna(tip: String): Boolean = VRSTE_RACUNA.matches(tip)
 
     /**
-     * Pravi naslov vira z racunom - to je skrivnost (http(s), brez fragmenta); null = vrsta brez racuna, naslov brez
-     * poverilnice ali ze nadomestek. Nerazumljiv naslov http(s) velja kot racun (fail-closed, [jeVirSPoverilnico]).
+     * Grok 46, Ö1 (lastnik: fail-closed): prepoznava racuna po obliki naslova je hevristika, ki ob neznani obliki odpre
+     * (».../playlist/<u>/<g>/m3u_plus«, zeton v poti, kratka povezava). Zato je vir vrste seznam/tok POZITIVNO znan kot brez
+     * racuna samo, ce je znan javni brezplacni seznam ([javniBrezplacni]: [JAVNI_SEZNAMI], brez racuna v naslovu); vse drugo
+     * velja kot vir z racunom - sifrirano, samo ozji krog, na zaslonu samo gostitelj.
+     */
+    fun znanJaven(tip: String, naslov: String): Boolean = tip == "seznam" && javniBrezplacni(naslov)
+
+    /**
+     * Pravi naslov vira z racunom - to je skrivnost (http(s), brez fragmenta); null = vrsta brez racuna, pozitivno znan
+     * javni seznam ([znanJaven]) ali ze nadomestek. Naslov, ki ni http(s), se ne da zavarovati (in ne usklajevati).
      */
     fun skrivnostVira(tip: String, naslov: String): String? {
         if (!jeVrstaRacuna(tip)) return null
         val n = naslov.trim().substringBefore('#')
-        if (!n.startsWith("http://") && !n.startsWith("https://")) return null
-        if (SkrivnostiPravila.jeNadomestek(n) || !jeVirSPoverilnico(n, seznam = true)) return null
+        val m = n.lowercase(java.util.Locale.ROOT)
+        if (!m.startsWith("http://") && !m.startsWith("https://")) return null
+        if (SkrivnostiPravila.jeNadomestek(n) || znanJaven(tip, n)) return null
         return n
     }
 
-    /** Vir z racunom v kateri koli obliki (pravi naslov ali nadomestek). */
-    fun virZRacunom(tip: String, naslov: String): Boolean =
-        jeVrstaRacuna(tip) && (SkrivnostiPravila.jeNadomestek(naslov) || skrivnostVira(tip, naslov) != null)
+    /** Vir z racunom v kateri koli obliki (pravi naslov, nadomestek, neznana oblika) - fail-closed: vse razen [znanJaven]. */
+    fun virZRacunom(tip: String, naslov: String): Boolean = jeVrstaRacuna(tip) && !znanJaven(tip, naslov.trim())
 
     /**
      * Vir ali grob vira (vrsta, naslov) sme z navadnim usklajevanjem virov (lists.get: »sources«, »sources_deleted«) - v obe
@@ -494,6 +505,14 @@ object IptvPravila {
         if (tip == "stremio") return SkrivnostiPravila.smeMedVseNaprave(naslov)
         return !virZRacunom(if (tip == "url") "seznam" else tip, naslov)
     }
+
+    /**
+     * Prejem z navadnim usklajevanjem (lists.get) od naprave [odOzjegaKroga] (v ozjem krogu TE naprave): kar ni pozitivno znano
+     * javno ([smeZNavadnoUskladitvijo]), samo od naprave v ozjem krogu (Linux 0f3f368 ji vir z racunom poslje po tej poti; tu
+     * se shrani sifriran). Dodatek s poverilnico in nadomestek nikoli - ta gresta samo s secrets.sync.
+     */
+    fun prevzemZNavadnoUskladitvijo(tip: String, naslov: String, odOzjegaKroga: Boolean): Boolean =
+        smeZNavadnoUskladitvijo(tip, naslov) || (odOzjegaKroga && tip != "stremio" && !SkrivnostiPravila.jeNadomestek(naslov))
 
     /** Odseki pravega naslova, ki so lahko del racuna: uporabnik, geslo, odseki poti (tudi brez koncnice), vrednosti poizvedbe. */
     private fun deliRacuna(naslov: String): Set<String> {
@@ -531,10 +550,13 @@ object IptvPravila {
     /**
      * Zapis vira za navadne nastavitve. Vir z racunom: [zavaruj] skrivnost (pravi naslov) shrani sifrirano in vrne nadomestek;
      * zapis dobi nadomestek in [varnoIme]. Ce sifriranje ne uspe (null): ze shranjen vir ([zeShranjen], iz casa pred prehodom)
-     * ostane, kot je - ne izgubi se, a ne gre nikamor ([smeZNavadnoUskladitvijo]); nov se ne shrani (null).
+     * ostane, kot je - ne izgubi se, a ne gre nikamor ([smeZNavadnoUskladitvijo]); nov se ne shrani (null). Enako vir z
+     * racunom, ki ni http(s) (ni nadomestka).
      */
     fun zaShrambo(z: ZapisVira, zeShranjen: Boolean, zavaruj: (String) -> String?): ZapisVira? {
-        val s = skrivnostVira(z.tip, z.naslov) ?: return z
+        // Vir z racunom, ki ga ni mogoce zavarovati (shema ni http(s) - npr. rtsp://u:g@): nov se ne shrani (fail-closed).
+        val s = skrivnostVira(z.tip, z.naslov)
+            ?: return if (virZRacunom(z.tip, z.naslov) && !SkrivnostiPravila.jeNadomestek(z.naslov)) z.takeIf { zeShranjen } else z
         val n = zavaruj(s) ?: return if (zeShranjen) z else null
         return ZapisVira(z.tip, varnoIme(z.ime, s), n)
     }
@@ -583,14 +605,43 @@ object IptvPravila {
         (t.startsWith("http://") || t.startsWith("https://")) && jeVirSPoverilnico(t, seznam = false)
     }
 
+    /** Id skladbe iz vira seznam/tok (kanal »iptv:«, vnos seznama »seznam:«, kartica vira »vir:«, »vir-seznam:«); stran ne. */
+    fun izViraSeznamaAliToka(id: String, jeStran: Boolean): Boolean = !jeStran &&
+        (id.startsWith("iptv:") || id.startsWith("seznam:") || id.startsWith("vir-seznam:") || id.startsWith("vir:"))
+
+    /** Naslovi http(s) v besedilu (tudi v JSON, kjer je »/« zapisan kot »\/«) - za polna polja skladbe (zapis »android«). */
+    fun nasloviVBesedilu(besedilo: String): List<String> =
+        Regex("(?i)https?://[^\\s\"'<>\\\\]+").findAll(besedilo.replace("\\/", "/")).map { it.value }.toList()
+
     /**
-     * Skladba seznama predvajanja za napravo ZUNAJ ozjega kroga (lists.get; lastnik, 26. 10. 2026, kot Linux 0f3f368): ce
-     * nosi racun ([skladbaZRacunom] za [naslovi] in zapisani tok), gre brez toka in brez polnega zapisa - ime, izvajalec,
-     * trajanje in slika (brez racuna) ostanejo. Napravi v ozjem krogu gre cel zapis.
+     * Grok 46, Ö1/Ö2 (fail-closed): skladba gre cela napravi ZUNAJ ozjega kroga samo, ce je pozitivno brez racuna - skladba iz
+     * vira seznam/tok ([izVira]) samo iz znanega javnega seznama, vsaka pa samo, ce noben njen naslov ([naslovi]: tok, povezava,
+     * seznam, slika, naslovi v zapisu android) ne nosi racuna ([skladbaZRacunom]).
      */
-    fun zapisZaNavadniKrog(z: SeznamiPravila.Zapis, naslovi: List<String>): SeznamiPravila.Zapis =
-        if (!skladbaZRacunom(naslovi + z.url)) z
-        else SeznamiPravila.Zapis(z.naslov, z.izvajalec, "", z.sekund, if (skladbaZRacunom(listOf(z.slika))) "" else z.slika, "", z.video, "")
+    fun skladbaCelaZaNavadniKrog(izVira: Boolean, naslovi: List<String>): Boolean {
+        val n = naslovi.filter { it.isNotBlank() }
+        return (!izVira || n.any { znanJaven("seznam", it) }) && !skladbaZRacunom(n)
+    }
+
+    /**
+     * Skladba seznama predvajanja za napravo ZUNAJ ozjega kroga (lists.get; kot Linux 0f3f368, Grok 46 Ö2): ce ni
+     * [skladbaCelaZaNavadniKrog], gre brez toka, brez zapisa android in brez slike pri skladbi iz vira (logotip s panela
+     * ponudnika) ali s sliko z racunom - ime, izvajalec, posnetek YouTube in trajanje ostanejo. Napravi v ozjem krogu gre cela.
+     */
+    fun zapisZaNavadniKrog(z: SeznamiPravila.Zapis, naslovi: List<String>, izVira: Boolean): SeznamiPravila.Zapis {
+        if (skladbaCelaZaNavadniKrog(izVira, naslovi + z.url + z.slika + nasloviVBesedilu(z.izvirnik))) return z
+        val slika = z.slika.takeIf { !izVira && it.isNotBlank() && !skladbaZRacunom(listOf(it)) }.orEmpty()
+        return SeznamiPravila.Zapis(z.naslov, z.izvajalec, z.youtube, z.sekund, slika, "", z.video, "")
+    }
+
+    /**
+     * Polje »vir« seznama predvajanja za napravo zunaj ozjega kroga (Grok 46, Ö2): samo ime storitve (»YouTube«, »Spotify«),
+     * nikoli naslov (uvoz seznama IPTV bi tja lahko zapisal naslov z geslom).
+     */
+    fun virSeznamaZaNavadniKrog(vir: String): String {
+        val v = vir.trim()
+        return if (v.length > 40 || v.any { it == '/' || it == ':' || it == '@' || it == '?' || it == '=' || it == '&' || it < ' ' }) "" else v
+    }
 
     /** Odtis vira z racunom (kljuc »iptv:<odtis>« v ozjem krogu) = odtis nadomestka ([SkrivnostiPravila.nadomestek]). */
     fun odtisRacuna(skrivnost: String): String = SkrivnostiPravila.odtis(skrivnost.trim())
