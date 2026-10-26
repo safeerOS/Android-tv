@@ -9630,6 +9630,9 @@ class GlasbaActivity : OsActivity() {
 
     // ------------------------------------------------------------------ Grok 46, Ö3: ze razposlane kopije gesla IPTV
 
+    /** Lastnik, 26. 10. 2026: opozorila »geslo je bilo deljeno« ne kazemo. */
+    private val OPOZORILO_GESLA_DELJENO = false
+
     private var racunOkno: AlertDialog? = null
     private val obRacunih: () -> Unit = { if (!isFinishing && !isDestroyed) pokaziRacune() }
 
@@ -9640,7 +9643,9 @@ class GlasbaActivity : OsActivity() {
      */
     private fun pokaziRacune() {
         if (racunOkno?.isShowing == true || uskladitevOkno?.isShowing == true || isFinishing) return
-        val gostitelji = MedijskiViri.opozoriloDeljenja(this)
+        // Lastnik, 26. 10. 2026: opozorilo »geslo je bilo deljeno« prestrasi uporabnika (pomisli na e-posto, banko) - ne kazemo ga;
+        // kljuci in skrivnosti se sinhronizirajo v ozjem krogu uporabnikovih naprav, sifrirano. Ostane samo odlocitev o preklicu.
+        val gostitelji = if (OPOZORILO_GESLA_DELJENO) MedijskiViri.opozoriloDeljenja(this) else emptyList()
         val okno = if (gostitelji.isNotEmpty()) AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(R.string.os_iptv_deljeno_naslov)
             .setMessage(getString(R.string.os_iptv_deljeno_sporocilo, gostitelji.joinToString(", ")))
