@@ -261,6 +261,14 @@ fun main() {
     preveriEnako("prejem: enak, a tu nepreverjen -> preveri", listOf(UsenetPravila.Sprejem.SHRANI, 1),
         listOf(UsenetPravila.sprejem(nas, nas, false, preverba(DebridPravila.Preverba.VELJA)), klicev))
 
+    // Pregled Grok 41, Z2: ponoven vpis istega indeksatorja brez odgovora ne odklene »zaklenjen« ali »ne velja«.
+    val zaklIzpad = UsenetPravila.vpis("nzbfinder.ws", ix, DebridPravila.StanjeKljuca.ZAKLENJEN, preverba(DebridPravila.Preverba.NI_ODGOVORA))
+    preveriEnako("Z2: zaklenjen indeksator + isti kljuc + brez odgovora -> zaklenjen", DebridPravila.StanjeKljuca.ZAKLENJEN, zaklIzpad.stanje)
+    val nvMeja = UsenetPravila.vpis("nzbfinder.ws", ix, DebridPravila.StanjeKljuca.NE_VELJA, preverba(DebridPravila.Preverba.MEJA))
+    preveriEnako("Z2: ne velja + Cloudflare/meja -> ne velja", DebridPravila.StanjeKljuca.NE_VELJA, nvMeja.stanje)
+    val zaklVelja = UsenetPravila.vpis("nzbfinder.ws", ix, DebridPravila.StanjeKljuca.ZAKLENJEN, preverba(DebridPravila.Preverba.VELJA))
+    preveriEnako("Z2: zaklenjen + indeksator potrdi -> velja", DebridPravila.StanjeKljuca.VELJA, zaklVelja.stanje)
+
     // Pregled Grok 41, Z1: povezava NZB iz pomnilnika gre ven samo s kljucem, s katerim je bila najdena, in samo, ce
     // indeksator in TorBox smeta klicati (prej: klik na vir v odprtem seznamu je poslal zaklenjen ali zamenjan kljuc).
     val k1 = DebridPravila.odtisStanja("https://nzbfinder.ws|$ix")

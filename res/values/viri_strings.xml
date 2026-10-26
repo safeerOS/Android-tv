@@ -177,6 +177,8 @@
     <string name="os_debrid_vpisi_nov">Enter a new key</string>
     <string name="os_debrid_preveri_pocakaj">You can check again in a minute (every rejected request counts with the service).</string>
     <string name="os_debrid_preveri_ni_povezave">%1$s cannot be reached right now – the status stays and Safeer still does not use it. Try again later.</string>
+    <!-- Pregled Grok 41, Z2/Z9: meja (429) pri »Preveri« ali ponovnem vpisu istega kljuca - stanje ostane -->
+    <string name="os_debrid_preveri_meja">%1$s is limiting requests right now – the status stays and Safeer still does not use it. Try again in a few minutes.</string>
     <!-- Pregled Grok 33, F9: sporocila ob meji, nepreverjenem prejemu in napaki shrambe -->
     <string name="os_debrid_kljuc_meja">%1$s is limiting requests right now – the key is saved as unverified. Safeer checks it again in a few minutes and does not send it to your other devices until then.</string>
     <string name="os_debrid_prejeto_ni_preverjeno">%1$s: the key could not be checked right now (no connection or too many requests) – it was not saved. Send it again when you are online.</string>

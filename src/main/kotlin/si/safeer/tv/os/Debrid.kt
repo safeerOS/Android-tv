@@ -133,17 +133,34 @@ object Debrid {
      * [napakaShrambe] = sifrirana shramba ni uspela (prej se je pokazalo kot »neveljaven kljuc«).
      */
     class IzidVpisa(val preverba: DebridPravila.Preverba, val paket: Int?, val caka: Boolean = false,
-                    val zastarel: Boolean = false, val napakaShrambe: Boolean = false)
+                    val zastarel: Boolean = false, val napakaShrambe: Boolean = false,
+                    /** Pregled Grok 41, Z2: isti kljuc je sel storitvi pred manj kot minuto - brez klica. */
+                    val pocakaj: Boolean = false,
+                    /** Pregled Grok 41, Z2: storitev ni odgovorila - »ne velja« ali »zaklenjen« istega kljuca ostane. */
+                    val ostalo: Boolean = false)
+
+    /** Pregled Grok 41, Z2: »Preveri« in vpis po kljucu najvec enkrat na minuto (debrid in indeksator, [Usenet]). */
+    internal val rocne = DebridPravila.RocnePreverbe()
 
     /** Stevec vpisov po storitvi: preverba traja do ~16 s, okno se zapre takoj - zmaga zadnji VPISANI, ne zadnji koncani. */
     private val stevecVpisov = java.util.concurrent.ConcurrentHashMap<String, Int>()
 
     fun vpisiKljuc(c: Context, p: String, vnos: String): IzidVpisa {
         val k = DebridPravila.kljucIzVnosa(vnos, p) ?: return IzidVpisa(DebridPravila.Preverba.OBLIKA, null)
+        // Pregled Grok 41, Z2: isti kljuc najvec enkrat na minuto, skupaj s »Preveri« (vsak zavrnjen klic je poskus prijave).
+        if (rocne.cez(p, DebridPravila.odtisStanja(k), System.currentTimeMillis()) > 0)
+            return IzidVpisa(DebridPravila.Preverba.NI_ODGOVORA, null, pocakaj = true)
+        val prej = if (kljuc(c, p) == k) stanjeKljuca(c, p)?.first else null
         val st = stevecVpisov.merge(p, 1) { a, b -> a + b } ?: 1
         val izid = preveriKljuc(p, k)
         if (stevecVpisov[p] != st) { Log.i(TAG, "${DebridPravila.ime(p)}: medtem vpisan drug kljuc - ta izid se zavrze"); return IzidVpisa(izid.first, null, zastarel = true) }
-        val s = DebridPravila.stanjePoPreverbi(izid.first) ?: return IzidVpisa(izid.first, izid.second)
+        // Pregled Grok 41, Z2: ponoven vpis kljuca »ne velja« ali »zaklenjen« brez odgovora storitve (izpad, 429, 5xx) ga
+        // ne odklene - prej je postal »nepreverjen« in ⚡, predvajanje in preverba na 10 min so spet klicali storitev.
+        val s = DebridPravila.stanjePoVpisu(prej, izid.first) ?: return IzidVpisa(izid.first, izid.second)
+        if (s == prej && !DebridPravila.smeKlicati(s) && DebridPravila.stanjePoRocniPreverbi(izid.first) == null) {
+            Log.i(TAG, "${DebridPravila.ime(p)}: ponoven vpis brez odgovora storitve - stanje ostane")
+            return IzidVpisa(izid.first, null, ostalo = true)
+        }
         when (DebridPravila.obVpisu(s, kljucVelja(c, p), kljuc(c, p) == k)) {
             // Pregled Grok 33, F3: storitve ni bilo mogoce doseci - veljaven kljuc ostane, novi caka ob strani.
             DebridPravila.Vpis.OB_STRANI -> {
@@ -402,19 +419,15 @@ object Debrid {
         return n
     }
 
-    /** Zadnji »Preveri« po storitvi (samo v pomnilniku). */
-    private val zadnjaRocna = java.util.concurrent.ConcurrentHashMap<String, Long>()
-
     /**
      * »Preveri« v oknu (varovalo racunov K1): edina nova preverba kljuca, ki ne velja ali je racun zaklenjen - najvec enkrat
-     * na minuto ([DebridPravila.rocnaPreverbaDovoljena]). Brez odgovora stanje ostane (ni samodejnih ponovitev). Delovna nit.
-     * null = prezgodaj (pocakaj minuto).
+     * na minuto za ta kljuc, skupaj z vpisom ([rocne], pregled Grok 41, Z2). Brez odgovora stanje ostane (ni samodejnih
+     * ponovitev). Delovna nit. null = prezgodaj (pocakaj minuto).
      */
     fun preveriRocno(c: Context, p: String): DebridPravila.Preverba? {
         val k = kljuc(c, p) ?: return DebridPravila.Preverba.OBLIKA
         val zdaj = System.currentTimeMillis()
-        if (!DebridPravila.rocnaPreverbaDovoljena(zadnjaRocna[p] ?: 0L, zdaj)) return null
-        zadnjaRocna[p] = zdaj
+        if (rocne.cez(p, DebridPravila.odtisStanja(k), zdaj) > 0) return null
         val prej = stanjeKljuca(c, p)
         val (izid, paket) = preveriKljuc(p, k)
         val s = DebridPravila.stanjePoRocniPreverbi(izid) ?: return izid

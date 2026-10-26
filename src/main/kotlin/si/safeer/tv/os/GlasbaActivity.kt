@@ -9393,7 +9393,9 @@ class GlasbaActivity : OsActivity() {
             stanjeIx == DebridPravila.StanjeKljuca.ZAKLENJEN -> getString(R.string.os_debrid_vrstica_zaklenjen, getString(R.string.os_usenet_ime_kratko, gostIx))
             else -> getString(R.string.os_debrid_vrstica_nepreverjen, getString(R.string.os_usenet_ime_kratko, gostIx))
         }
-        vrstice += vrsticaIx to { usenetIndeksator() }
+        // Pregled Grok 41, Z2: indeksator »ne velja« ali »zaklenjen« - okno z navodilom in »Preveri« (kot kljuc debrid).
+        val ustavljenIx = gostIx != null && !DebridPravila.smeKlicati(stanjeIx)
+        vrstice += vrsticaIx to { if (ustavljenIx && gostIx != null) stanjeIndeksatorjaOkno(gostIx) else usenetIndeksator() }
         val takoj = Debrid.samoTakoj(this)
         vrstice += getString(if (takoj) R.string.os_debrid_samo_takoj_vkl else R.string.os_debrid_samo_takoj_izk) to {
             Debrid.nastaviSamoTakoj(this, !takoj); osveziNaMestu(); nastavitveDebrida()
@@ -9642,13 +9644,15 @@ class GlasbaActivity : OsActivity() {
                 val app = applicationContext
                 Thread({
                     // Pregled Grok 33, F9 / 34, E8: telo niti v try (izjema bi sesula aplikacijo).
-                    val izid = try { Usenet.vpisi(app, n, k) } catch (e: Exception) {
+                    val iv = try { Usenet.vpisi(app, n, k) } catch (e: Exception) {
                         android.util.Log.w("SafeerUsenet", "vpis: ${e.javaClass.simpleName}"); null
                     }
                     glavna.post {
                         if (isFinishing || isDestroyed) return@post
-                        if (izid == null) { Toast.makeText(this, R.string.os_debrid_napaka_shranjevanja, Toast.LENGTH_LONG).show(); osveziNaMestu(); nastavitveDebrida(); return@post }
-                        val sporocilo = when (izid) {
+                        if (iv == null) { Toast.makeText(this, R.string.os_debrid_napaka_shranjevanja, Toast.LENGTH_LONG).show(); osveziNaMestu(); nastavitveDebrida(); return@post }
+                        val izid = iv.preverba
+                        val sporocilo = if (iv.pocakaj) getString(R.string.os_debrid_preveri_pocakaj)
+                            else if (iv.ostalo) brezOdgovora(izid, ime) else when (izid) {
                             DebridPravila.Preverba.VELJA -> getString(R.string.os_debrid_kljuc_velja, ime, "")
                             DebridPravila.Preverba.NE_VELJA -> getString(R.string.os_debrid_kljuc_zavrnjen, ime)
                             // Varovalo racunov: Newznab 101 - racun suspendiran, indeksatorja ne klicemo.
@@ -9707,6 +9711,8 @@ class GlasbaActivity : OsActivity() {
                         if (iv.zastarel) return@post
                         // Pregled Grok 33, F3: brez povezave novi kljuc caka ob strani, veljaven ostane v uporabi.
                         val sporocilo = if (iv.napakaShrambe) getString(R.string.os_debrid_napaka_shranjevanja)
+                            else if (iv.pocakaj) getString(R.string.os_debrid_preveri_pocakaj)
+                            else if (iv.ostalo) brezOdgovora(izid, ime)
                             else if (iv.caka) getString(R.string.os_debrid_kljuc_caka, ime) else when (izid) {
                             DebridPravila.Preverba.VELJA ->
                                 getString(R.string.os_debrid_kljuc_velja, ime, paket?.let { " (" + DebridPravila.imePaketa(it) + ")" }.orEmpty())
@@ -9730,6 +9736,53 @@ class GlasbaActivity : OsActivity() {
         }
         val okno = g.create()
         Kontroler.pokazi(okno); okno.show()
+    }
+
+    /**
+     * Pregled Grok 41, Z2: storitev ni odgovorila (izpad ali meja) na »Preveri« ali ponoven vpis istega kljuca - stanje
+     * »ne velja« ali »zaklenjen« ostane in okno to pove (prej »kljuc shranjen kot nepreverjen«).
+     */
+    private fun brezOdgovora(izid: DebridPravila.Preverba, ime: String): String =
+        if (izid == DebridPravila.Preverba.MEJA) getString(R.string.os_debrid_preveri_meja, ime)
+        else getString(R.string.os_debrid_preveri_ni_povezave, ime)
+
+    /**
+     * Pregled Grok 41, Z2: indeksator »ne velja« ali »zaklenjen« - Safeer ga ne klice. Kot [stanjeKljucaOkno]: navodilo,
+     * »Preveri« (edina nova preverba, najvec enkrat na minuto) in »Vpisi nov kljuc« (okno z naslovom, kljucem in »Odstrani«).
+     */
+    private fun stanjeIndeksatorjaOkno(gost: String) {
+        val ime = getString(R.string.os_usenet_ime_kratko, gost)
+        val zaklenjen = Usenet.stanje(this) == DebridPravila.StanjeKljuca.ZAKLENJEN
+        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(R.string.os_usenet_naslov)
+            .setMessage(getString(if (zaklenjen) R.string.os_debrid_zaklenjen else R.string.os_debrid_ne_velja_navodilo, ime))
+            .setPositiveButton(R.string.os_debrid_preveri) { _, _ -> preveriIndeksatorRocno(ime) }
+            .setNeutralButton(R.string.os_debrid_vpisi_nov) { _, _ -> usenetIndeksator() }
+            .setNegativeButton(R.string.os_preklici) { _, _ -> nastavitveDebrida() }
+            .create()
+        Kontroler.pokazi(okno); okno.show()
+    }
+
+    private fun preveriIndeksatorRocno(ime: String) {
+        Toast.makeText(this, getString(R.string.os_debrid_preverjam, ime), Toast.LENGTH_SHORT).show()
+        val app = applicationContext
+        Thread({
+            val izid = try { Usenet.preveriRocno(app) } catch (e: Exception) {
+                android.util.Log.w("SafeerUsenet", "rocna preverba: ${e.javaClass.simpleName}"); DebridPravila.Preverba.NI_ODGOVORA
+            }
+            glavna.post {
+                if (isFinishing || isDestroyed) return@post
+                val sporocilo = when (izid) {
+                    null -> getString(R.string.os_debrid_preveri_pocakaj)
+                    DebridPravila.Preverba.VELJA -> getString(R.string.os_debrid_kljuc_velja, ime, "")
+                    DebridPravila.Preverba.ZAKLENJEN -> getString(R.string.os_debrid_zaklenjen, ime)
+                    DebridPravila.Preverba.NE_VELJA, DebridPravila.Preverba.OBLIKA -> getString(R.string.os_debrid_ne_velja_navodilo, ime)
+                    else -> brezOdgovora(izid, ime)
+                }
+                Toast.makeText(this, sporocilo, Toast.LENGTH_LONG).show()
+                osveziNaMestu(); nastavitveDebrida()
+            }
+        }, "safeer-usenet-rocno").start()
     }
 
     /** Varovalo racunov: kaj narediti, ko kljuc ne velja ali je racun zaklenjen (Safeer storitve do »Preveri« ne klice). */

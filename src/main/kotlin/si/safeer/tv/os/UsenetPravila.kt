@@ -184,11 +184,15 @@ object UsenetPravila {
     /**
      * Vpis indeksatorja (lastnik 25. 10. 2026, kot kljuci debrid): ne-kljuc ali vzorec se zavrne brez klica; [preveri] vprasa
      * indeksator s te naprave; zavrnjen kljuc se ne shrani, izpad ali meja ga shrani kot nepreverjenega (ne gre na druge naprave).
+     * Pregled Grok 41, Z2: [prej] = stanje ISTEGA naslova in kljuca, ce je ze shranjen - »ne velja« in »zaklenjen« brez
+     * odgovora ostaneta ([DebridPravila.stanjePoVpisu]).
      */
-    fun vpis(naslov: String, kljuc: String, preveri: (String, String) -> DebridPravila.Preverba): Vpis {
+    fun vpis(naslov: String, kljuc: String, preveri: (String, String) -> DebridPravila.Preverba): Vpis = vpis(naslov, kljuc, null, preveri)
+
+    fun vpis(naslov: String, kljuc: String, prej: DebridPravila.StanjeKljuca?, preveri: (String, String) -> DebridPravila.Preverba): Vpis {
         val ix = izVnosa(naslov, kljuc) ?: return Vpis(DebridPravila.Preverba.OBLIKA, null, null)
         val izid = preveri(ix.first, ix.second)
-        val s = DebridPravila.stanjePoPreverbi(izid)
+        val s = DebridPravila.stanjePoVpisu(prej, izid)
         return Vpis(izid, if (s != null) ix else null, s)
     }
 

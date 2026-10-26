@@ -183,15 +183,48 @@ object Usenet {
      * zavrnjen kljuc se NE shrani; brez odgovora se shrani kot nepreverjen in ne gre na druge naprave, dokler ga indeksator
      * ne potrdi ([preveriNepreverjenega]). Veljaven gre sam v ozji krog.
      */
-    fun vpisi(c: Context, naslov: String, kljuc: String): DebridPravila.Preverba {
-        val v = UsenetPravila.vpis(naslov, kljuc) { o, k -> preveri(o, k) }
-        val ix = v.shrani ?: return v.izid
-        val s = v.stanje ?: return v.izid
-        if (!shrani(c, ix.first, ix.second)) return DebridPravila.Preverba.OBLIKA
+    fun vpisi(c: Context, naslov: String, kljuc: String): Debrid.IzidVpisa {
+        val vnos = UsenetPravila.izVnosa(naslov, kljuc) ?: return Debrid.IzidVpisa(DebridPravila.Preverba.OBLIKA, null)
+        val o = odtis(vnos.first, vnos.second)
+        // Pregled Grok 41, Z2: isti naslov in kljuc najvec enkrat na minuto, skupaj s »Preveri« (kot kljuci debrid).
+        if (Debrid.rocne.cez(UsenetPravila.VRSTA, o, System.currentTimeMillis()) > 0)
+            return Debrid.IzidVpisa(DebridPravila.Preverba.NI_ODGOVORA, null, pocakaj = true)
+        val prej = indeksator(c)?.takeIf { odtis(it.osnova, it.kljuc) == o }?.let { stanje(c) }
+        val v = UsenetPravila.vpis(naslov, kljuc, prej) { a, b -> preveri(a, b) }
+        val ix = v.shrani ?: return Debrid.IzidVpisa(v.izid, null)
+        val s = v.stanje ?: return Debrid.IzidVpisa(v.izid, null)
+        // Pregled Grok 41, Z2: ponoven vpis indeksatorja »ne velja« ali »zaklenjen« brez odgovora - stanje ostane.
+        if (s == prej && !DebridPravila.smeKlicati(s) && DebridPravila.stanjePoRocniPreverbi(v.izid) == null) {
+            Log.i(TAG, "indeksator: ponoven vpis brez odgovora - stanje ostane")
+            return Debrid.IzidVpisa(v.izid, null, ostalo = true)
+        }
+        if (!shrani(c, ix.first, ix.second)) return Debrid.IzidVpisa(DebridPravila.Preverba.OBLIKA, null)
         zapisiStanje(c, ix.first, ix.second, s)
         zadnjaPreverba = System.currentTimeMillis()
         if (DebridPravila.zaUskladitev(s)) UskladitevKljucev.sprozi(c)
-        return v.izid
+        return Debrid.IzidVpisa(v.izid, null)
+    }
+
+    /**
+     * Pregled Grok 41, Z2: »Preveri« za indeksator (prej ga ni bilo - »zaklenjen« ali »ne velja« je spremenil samo nov vpis,
+     * ki je brez odgovora zapisal »nepreverjen«). Kot [Debrid.preveriRocno]: najvec enkrat na minuto za ta kljuc, brez
+     * odgovora stanje ostane. Delovna nit. null = prezgodaj.
+     */
+    fun preveriRocno(c: Context): DebridPravila.Preverba? {
+        val ix = indeksator(c) ?: return DebridPravila.Preverba.OBLIKA
+        val o = odtis(ix.osnova, ix.kljuc)
+        if (Debrid.rocne.cez(UsenetPravila.VRSTA, o, System.currentTimeMillis()) > 0) return null
+        val izid = preveri(ix.osnova, ix.kljuc)
+        val s = DebridPravila.stanjePoRocniPreverbi(izid) ?: return izid
+        // Indeksator, zamenjan med preverbo, dobi svojo preverbo - ta izid velja samo za kljuc zahteve.
+        if (indeksator(c)?.let { odtis(it.osnova, it.kljuc) } != o) return izid
+        zapisiStanje(c, ix.osnova, ix.kljuc, s)
+        zadnjaPreverba = System.currentTimeMillis()
+        if (!DebridPravila.smeKlicati(s)) povezave.pozabi(o)
+        Log.i(TAG, "indeksator: rocna preverba - $izid")
+        // Varovalo racunov: tudi »ne velja« in »zaklenjen« gresta v ozji krog (stanje, ne kljuc).
+        UskladitevKljucev.sprozi(c)
+        return izid
     }
 
     /**

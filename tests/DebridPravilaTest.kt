@@ -364,5 +364,26 @@ fun main() {
     preveriEnako("preveri: nepreverjen pred 10 min ne", false, DebridPravila.preveriZdaj(DebridPravila.StanjeKljuca.NEPREVERJEN, 0L, DebridPravila.PREVERI_ZNOVA_MS - 1))
     preveriEnako("preveri: veljaven ne (do napake 401)", false, DebridPravila.preveriZdaj(DebridPravila.StanjeKljuca.VELJA, 0L, 10 * DebridPravila.PREVERI_ZNOVA_MS))
 
+    // Pregled Grok 41, Z2: ponoven vpis istega kljuca brez odgovora ne odklene »ne velja« ali »zaklenjen«; vpis in »Preveri«
+    // istega kljuca najvec enkrat na minuto (po kljucu, ne po storitvi).
+    val sk = DebridPravila.StanjeKljuca.values().associateBy { it.name }
+    preveriEnako("Z2: zaklenjen + isti kljuc + brez odgovora -> zaklenjen", sk["ZAKLENJEN"],
+        DebridPravila.stanjePoVpisu(sk["ZAKLENJEN"], DebridPravila.Preverba.NI_ODGOVORA))
+    preveriEnako("Z2: ne velja + isti kljuc + meja (429) -> ne velja", sk["NE_VELJA"],
+        DebridPravila.stanjePoVpisu(sk["NE_VELJA"], DebridPravila.Preverba.MEJA))
+    preveriEnako("Z2: zaklenjen + odgovor velja -> velja", sk["VELJA"], DebridPravila.stanjePoVpisu(sk["ZAKLENJEN"], DebridPravila.Preverba.VELJA))
+    preveriEnako("Z2: zaklenjen + odgovor ne velja -> ne shrani", null, DebridPravila.stanjePoVpisu(sk["ZAKLENJEN"], DebridPravila.Preverba.NE_VELJA))
+    preveriEnako("Z2: nov kljuc brez odgovora -> nepreverjen", sk["NEPREVERJEN"], DebridPravila.stanjePoVpisu(null, DebridPravila.Preverba.NI_ODGOVORA))
+    preveriEnako("Z2: veljaven isti kljuc brez odgovora -> nepreverjen (obVpisu ga ohrani)", sk["NEPREVERJEN"],
+        DebridPravila.stanjePoVpisu(sk["VELJA"], DebridPravila.Preverba.NI_ODGOVORA))
+    val rocne = DebridPravila.RocnePreverbe()
+    val tr0 = 1_800_000_000_000L
+    preveriEnako("Z2: prvi vpis kljuca gre storitvi", 0L, rocne.cez(rd, "o1", tr0))
+    preveriEnako("Z2: isti kljuc cez 30 s - brez klica, se 30 s", 30_000L, rocne.cez(rd, "o1", tr0 + 30_000))
+    preveriEnako("Z2: drug kljuc iste storitve gre", 0L, rocne.cez(rd, "o2", tr0 + 30_000))
+    preveriEnako("Z2: isti odtis druge storitve gre", 0L, rocne.cez(tb, "o1", tr0 + 30_000))
+    preveriEnako("Z2: isti kljuc po minuti spet gre", 0L, rocne.cez(rd, "o1", tr0 + 60_000))
+    preveriEnako("Z2: ura nazaj ne zaklene za vedno", 0L, rocne.cez(rd, "o1", tr0 - 1))
+
     if (napak == 0) println("DebridPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

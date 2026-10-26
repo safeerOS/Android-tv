@@ -177,6 +177,8 @@
     <string name="os_debrid_vpisi_nov">Vpiši nov ključ</string>
     <string name="os_debrid_preveri_pocakaj">Preveriš lahko znova čez minuto (vsaka zavrnjena zahteva šteje pri storitvi).</string>
     <string name="os_debrid_preveri_ni_povezave">%1$s zdaj ni dosegljiv – stanje ostane, Safeer ga še vedno ne kliče. Poskusi pozneje.</string>
+    <!-- Pregled Grok 41, Z2/Z9: meja (429) pri »Preveri« ali ponovnem vpisu istega kljuca - stanje ostane -->
+    <string name="os_debrid_preveri_meja">%1$s trenutno omejuje število zahtev – stanje ostane, Safeer ga še vedno ne kliče. Poskusi čez nekaj minut.</string>
     <!-- Pregled Grok 33, F9: sporocila ob meji, nepreverjenem prejemu in napaki shrambe -->
     <string name="os_debrid_kljuc_meja">%1$s trenutno omejuje število zahtev – ključ je shranjen kot nepreverjen. Safeer ga preveri čez nekaj minut in ga do takrat ne pošlje drugim napravam.</string>
     <string name="os_debrid_prejeto_ni_preverjeno">%1$s: ključa zdaj ni bilo mogoče preveriti (ni povezave ali omejitev zahtev) – ni shranjen. Pošlji ga znova, ko bo povezava.</string>

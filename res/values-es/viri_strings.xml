@@ -177,6 +177,8 @@
     <string name="os_debrid_vpisi_nov">Escribir una clave nueva</string>
     <string name="os_debrid_preveri_pocakaj">Puedes volver a comprobar dentro de un minuto (cada solicitud rechazada cuenta en el servicio).</string>
     <string name="os_debrid_preveri_ni_povezave">%1$s no está disponible ahora: el estado se mantiene y Safeer sigue sin usarlo. Inténtalo más tarde.</string>
+    <!-- Pregled Grok 41, Z2/Z9: meja (429) pri »Preveri« ali ponovnem vpisu istega kljuca - stanje ostane -->
+    <string name="os_debrid_preveri_meja">%1$s está limitando las solicitudes ahora: el estado se mantiene y Safeer sigue sin usarlo. Inténtalo dentro de unos minutos.</string>
     <!-- Pregled Grok 33, F9: sporocila ob meji, nepreverjenem prejemu in napaki shrambe -->
     <string name="os_debrid_kljuc_meja">%1$s está limitando las solicitudes ahora: la clave se guardó como no verificada. Safeer la volverá a comprobar en unos minutos y hasta entonces no la enviará a tus otros dispositivos.</string>
     <string name="os_debrid_prejeto_ni_preverjeno">%1$s: no se pudo comprobar la clave ahora (sin conexión o demasiadas solicitudes); no se ha guardado. Vuelve a enviarla cuando tengas conexión.</string>

@@ -177,6 +177,8 @@
     <string name="os_debrid_vpisi_nov">Saisir une nouvelle clé</string>
     <string name="os_debrid_preveri_pocakaj">Tu pourras vérifier de nouveau dans une minute (chaque requête refusée compte auprès du service).</string>
     <string name="os_debrid_preveri_ni_povezave">%1$s est injoignable pour l’instant – l’état reste et Safeer ne l’utilise toujours pas. Réessaie plus tard.</string>
+    <!-- Pregled Grok 41, Z2/Z9: meja (429) pri »Preveri« ali ponovnem vpisu istega kljuca - stanje ostane -->
+    <string name="os_debrid_preveri_meja">%1$s limite les requêtes pour l’instant – l’état reste et Safeer ne l’utilise toujours pas. Réessaie dans quelques minutes.</string>
     <!-- Pregled Grok 33, F9: sporocila ob meji, nepreverjenem prejemu in napaki shrambe -->
     <string name="os_debrid_kljuc_meja">%1$s limite les requêtes pour l’instant – la clé est enregistrée comme non vérifiée. Safeer la revérifie dans quelques minutes et ne l’envoie pas à tes autres appareils d’ici là.</string>
     <string name="os_debrid_prejeto_ni_preverjeno">%1$s : la clé n’a pas pu être vérifiée pour l’instant (pas de connexion ou trop de requêtes) – elle n’a pas été enregistrée. Renvoie-la quand tu seras en ligne.</string>

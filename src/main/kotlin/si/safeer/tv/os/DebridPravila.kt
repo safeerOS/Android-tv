@@ -501,6 +501,38 @@ object DebridPravila {
 
     fun rocnaPreverbaDovoljena(zadnjic: Long, zdaj: Long): Boolean = zdaj - zadnjic !in 0 until ROCNA_PREVERBA_MS
 
+    /**
+     * Pregled Grok 41, Z2 (kot namizje a2e58cd, Grokov pregled 40, S8): »Preveri« in vpis ISTEGA kljuca skupaj najvec enkrat
+     * na minuto ([ROCNA_PREVERBA_MS]) - po kljucu (odtis), ne po storitvi. Prej je bila meja samo pri »Preveri« in po
+     * storitvi; vpis istega kljuca je ni imel (vsak »Shrani« je bil pri storitvi nov poskus prijave). Samo v pomnilniku,
+     * najvec [najvec] kljucev.
+     */
+    class RocnePreverbe(private val najvec: Int = 64) {
+        private val zadnja = LinkedHashMap<String, Long>()
+
+        /** 0 = klic sme k storitvi [storitev] s kljucem [odtis] (cas se zabelezi), sicer ms do naslednjega. */
+        @Synchronized fun cez(storitev: String, odtis: String, zdaj: Long): Long {
+            val k = "$storitev|$odtis"
+            val zadnjic = zadnja[k]
+            if (zadnjic != null && !rocnaPreverbaDovoljena(zadnjic, zdaj)) return ROCNA_PREVERBA_MS - (zdaj - zadnjic)
+            zadnja.remove(k)
+            zadnja[k] = zdaj
+            while (zadnja.size > najvec) zadnja.remove(zadnja.keys.first())
+            return 0L
+        }
+    }
+
+    /**
+     * Pregled Grok 41, Z2 (kot namizje dd60d3a, stanje_po_vpisu): stanje ob vpisu kljuca. [prej] je stanje ISTEGA kljuca, ce
+     * je ze shranjen (nov kljuc: null). Ponoven vpis kljuca »ne velja« ali »zaklenjen« brez odgovora storitve (izpad, 429,
+     * 5xx, 3xx, 403 brez kode) ga ne odklene - prej je postal »nepreverjen«, ki ga [smeKlicati] dovoli: ⚡, predvajanje in
+     * preverba na 10 min so spet klicali zaklenjen racun brez dokaza, da velja. Sicer [stanjePoPreverbi].
+     */
+    fun stanjePoVpisu(prej: StanjeKljuca?, p: Preverba): StanjeKljuca? {
+        val s = stanjePoPreverbi(p)
+        return if (s == StanjeKljuca.NEPREVERJEN && (prej == StanjeKljuca.NE_VELJA || prej == StanjeKljuca.ZAKLENJEN)) prej else s
+    }
+
     /** Stanje po »Preveri«: brez odgovora ali meja stanja ne spremeni (null - ostane ustavljen, brez samodejnih ponovitev). */
     fun stanjePoRocniPreverbi(p: Preverba): StanjeKljuca? = when (p) {
         Preverba.VELJA -> StanjeKljuca.VELJA
