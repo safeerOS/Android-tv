@@ -286,6 +286,11 @@ private fun iptvRacunPrimeri(koren: Map<String, Any?>) {
             }
         }
         preveriEnako("ozji_krog ${v.niz("opis") ?: n} (ozji=${v["ozji"]})", v["stanje"], stanje)
+        // Grok 68, Ą3: dokaz ozjega kroga = posiljatelj je v ozjem krogu TE naprave IN odgovor to potrjuje; polje v odgovoru samo ne zadostuje
+        // (naprava zunaj kroga lahko poslje ozji = true): prvo_uporaba je nemogoc, vir z racunom se ne prevzame.
+        val tuj = IptvPravila.odOzjegaKroga(false, v["ozji"] as? Boolean)
+        val stanjeTuj = if (!IptvPravila.prevzemZNavadnoUskladitvijo("url", n, tuj)) "ni_prevzet" else if (!IptvPravila.virZRacunom("seznam", n)) "javen" else "prvo_uporaba"
+        preveriEnako("ozji_krog, posiljatelj NI v nasem krogu: ${v.niz("opis") ?: n}", if (v["stanje"] == "javen") "javen" else "ni_prevzet", stanjeTuj)
         ozjih++
     }
     println("  ozji_krog: $ozjih primerov")

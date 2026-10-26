@@ -186,6 +186,35 @@ fun main() {
     preveriEnako("TV v zivo, vir iz ozjega kroga, ponudnik zavrne: samo premor I5 (nikoli zaklep)", 4, tvVZivo(IptvPravila.smeUporabiti(false, true), dan, 403))
     preveriEnako("TV v zivo, tuja kopija brez dovoljenja: nobene prijave", 0, tvVZivo(IptvPravila.smeUporabiti(false, false), dan, 200))
     preveriEnako("izrecni kliki na vir iz ozjega kroga: najvec 1 na minuto", 10, kliki(IptvPravila.smeUporabiti(false, true), 60, 10, 200))
+    // Grok 68, Ą2: vir iz ozjega kroga (uporaba dovoljena, brez dokaza »dodan tu«): prva povezava samo ob uporabnikovem odprtju seznama.
+    // Stanje kot v IptvSeznami: datoteka (prenesenOb), uspelo odprtje seznama (osvezenOb), napaka I5, zadnji poskus.
+    fun krogBrezUporabnika(minut: Int, koda: Int, odpreMinuta: Int?): Int {
+        val s = Seznam(null, null, 0L)
+        var osvezenOb: Long? = null
+        var prijav = 0
+        for (m in 0..minut) {
+            val zdaj = t0 + m * minuta
+            if (odpreMinuta == m && IptvPravila.smeNaOmrezjeSeznam(osvezenOb, s.napaka, s.zadnjiPoskus, zdaj, izrecno = false)) {
+                prenos(s, zdaj, koda); prijav++      // MedijskiViri.osveziSeznam: uporabnikovo odprtje
+                s.prenesenOb = null                   // odprtje piše svojo shrambo skladb, ne datoteke mreze TV v zivo
+                if (koda in 200..299) osvezenOb = zdaj
+            }
+            val uporabljen = s.prenesenOb != null || osvezenOb != null
+            // IptvSeznami.pripravi iz mreze TV v zivo (samodejni klic, rocno = false), vir iz ozjega kroga brez dokaza.
+            if (IptvPravila.odlociPripravo(racunAp, true, false, s.prenesenOb, s.napaka, s.zadnjiPoskus, zdaj,
+                    dodanTuDokaz = false, uporabljen = uporabljen) != IptvPravila.Priprava.BREZ) { prenos(s, zdaj, koda); prijav++ }
+        }
+        return prijav
+    }
+    preveriEnako("Ą2: vir iz kroga, TV v zivo odprta vsako minuto 24 ur, uporabnik seznama ne odpre: nobene povezave", 0, krogBrezUporabnika(dan, 200, null))
+    preveriEnako("Ą2: ... tudi ce ponudnik zavrne: nobene povezave", 0, krogBrezUporabnika(dan, 403, null))
+    preveriEnako("Ą2: uporabnik odpre seznam: odprtje + ena priprava mreze TV v zivo, nato predpomnilnik 24 h", 2, krogBrezUporabnika(dan, 200, 10))
+    preveriEnako("Ą2: odprtje zavrne ponudnik: samodejna priprava ne gre mimo (en poskus, nikoli zaklep)", 1, krogBrezUporabnika(dan, 403, 10))
+    preveriEnako("Ą2: vir z dokazom »dodan tu«: prva povezava kot doslej (brez odprtja)", 2,
+        run { val s = Seznam(null, null, 0L); var p = 0
+            for (m in 0..dan) { val z = t0 + m * minuta
+                if (IptvPravila.odlociPripravo(racunAp, true, false, s.prenesenOb, s.napaka, s.zadnjiPoskus, z, dodanTuDokaz = true, uporabljen = false) != IptvPravila.Priprava.BREZ) { prenos(s, z, 200); p++ } }
+            p })
     preveriEnako("odprtje seznama vsako minuto 24 ur, racun deluje: prva prijava in ena osvezitev po 24 urah", 2, odprtjeSeznama(dan, 200))
     preveriEnako("odprtje seznama vsako minuto 24 ur, ponudnik zavrne: samo premor I5", 4, odprtjeSeznama(dan, 403))
     preveriEnako("izrecni kliki vsakih 10 s (10 min): najvec 1 prijava na minuto", 10, kliki(false, 60, 10, 200))

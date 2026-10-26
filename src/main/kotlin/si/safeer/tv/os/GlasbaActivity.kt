@@ -5623,9 +5623,11 @@ class GlasbaActivity : OsActivity() {
                     catch (_: java.util.concurrent.RejectedExecutionException) { }
                 }) else emptyList()) +
             // Grok 39, I5: po zavrnjenem prenosu (uporabnik je uredil racun pri ponudniku) en poskus takoj, ne sele po premoru.
+            // Grok 68, Ą2: seznam z racunom, ki ga na tej napravi se nihce ni uporabil (mreza TV v zivo ga brez uporabnika ne prenese), ima izrecen klik.
             // Grok 60, Ů2: tudi seznam z racunom, ki ni dodan tu in se ne prenasa sam - izrecen klik je dovoljen (najvec 1-krat na minuto).
             (if (dodan.jeSeznam && (IptvSeznami.napaka(this, dodan.naslov) != null ||
-                    (IptvPravila.virZRacunom(dodan.tip, dodan.naslov) && !MedijskiViri.uporabaDovoljena(this, dodan.naslov))))
+                    (IptvPravila.virZRacunom(dodan.tip, dodan.naslov) && (!MedijskiViri.uporabaDovoljena(this, dodan.naslov) ||
+                        !IptvSeznami.uporabljen(this, dodan.naslov)))))
                 listOf(getString(R.string.os_iptv_poskusi_znova) to {
                 val app = applicationContext
                 try { delavec.execute { IptvSeznami.pripravi(app, dodan.naslov, rocno = true); glavna.post { if (!isFinishing && razdelek == VIRI) izberiNaMestu(VIRI) } } }

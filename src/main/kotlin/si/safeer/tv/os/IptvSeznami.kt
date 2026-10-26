@@ -74,12 +74,19 @@ object IptvSeznami {
         // (»Poskusi znova«), najvec 1-krat na minuto na racun. Grok 39, I5: po zavrnjenem ali neuspelem prenosu premor (10 min, 1 h,
         // 6 h, 24 h) - vsak poskus je prijava v racun ponudnika.
         return when (IptvPravila.odlociPripravo(naslov, MedijskiViri.uporabaDovoljena(c, naslov), rocno, p?.prenesenOb, napaka(c, naslov),
-            zadnjiPoskus(c, naslov), System.currentTimeMillis())) {
+            zadnjiPoskus(c, naslov), System.currentTimeMillis(), dodanTuDokaz = MedijskiViri.dodanTuZDokazom(c, naslov),
+            uporabljen = uporabljen(c, naslov, p))) {
             IptvPravila.Priprava.BREZ -> p
             IptvPravila.Priprava.V_OZADJU -> { Thread({ prenesi(c, naslov) }, "safeer-iptv").apply { isDaemon = true; priority = Thread.MIN_PRIORITY }.start(); p }
             IptvPravila.Priprava.ZDAJ -> prenesi(c, naslov)
         }
     }
+
+    /**
+     * Grok 68, Ą2: ali je uporabnik seznam ze uporabil na tej napravi - datoteka seznama je na disku ([p] != null: prenesel ga je
+     * uporabnikov klik ali vir z dokazom) ali je odprtje seznama ([MedijskiViri.osveziSeznam]) ze uspelo ([osvezenOb] > 0).
+     */
+    fun uporabljen(c: Context, naslov: String, p: Podatki? = podatki(c, naslov)): Boolean = p != null || osvezenOb(c, naslov) > 0L
 
     /** Grok 60, Ů1: zadnja prijava v racun seznama (ms, uspela ali ne) in zadnje uspesno branje za pogled seznama ([MedijskiViri.osveziSeznam]). */
     private const val PREFS_POSKUSI = "safeer_iptv_seznami_poskusi"
