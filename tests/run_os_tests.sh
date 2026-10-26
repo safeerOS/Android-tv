@@ -140,6 +140,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/SondaVerigaTest.kt" \
     "$TEST_DIR/IptvVarovaloTest.kt" \
     "$TEST_DIR/IptvRacunTest.kt" \
+    "$TEST_DIR/IptvPrijavaRacunaTest.kt" \
     "$SRC/si/safeer/tv/os/PriljubljeniKanaliPravila.kt" \
     "$TEST_DIR/PriljubljeniKanaliPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/DovoljenjaPravila.kt" \
@@ -232,6 +233,8 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SondaVerigaTestKt
 # Lastnik, 26. 10. 2026 (nevarnost zaklepa racuna): seznam Xtream s 5000 kanali in seznam z druge naprave - nobene povezave.
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.IptvVarovaloTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.IptvRacunTestKt
+# Pregled 105, S2 in S3 (26. 10. 2026): prejet vir z racunom pod nadomestkom, ena prijava na racun (ne na naslov).
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.IptvPrijavaRacunaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PriljubljeniKanaliPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.DovoljenjaPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZasebnoTestKt

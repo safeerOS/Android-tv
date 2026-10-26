@@ -452,17 +452,91 @@ object IptvPravila {
      * Grok 68, Ą5: ena prijava na vir naenkrat. Odlocitev in rezervacija sta ENA atomarna poteza: dva socasna klica (»Poskusi znova«,
      * prva uporaba, osvezitev v ozadju) bi sicer oba odlocila »prenesi«, preden prvi zapise poskus, in ponudniku poslala dve prijavi.
      * [rezerviraj] vrne null, ce za [kljuc] ze tece prenos (nobene druge zahteve); sicer odlocitev, in ce ni BREZ, je vir rezerviran do [sprosti].
+     * Pregled 105, S3 (26. 10. 2026): [kljuc] je RACUN ([kljucRacuna]) - seznama m3u in m3u_plus istega racuna sta dva vira, a ena
+     * prijava pri ponudniku. Zato rezervacija hrani tudi [naslov] vira, ki se prenasa: [vsi] vrne naslove (njihovih datotek se ne brise).
      */
     class EnaPrijava {
-        private val tece = HashSet<String>()
-        @Synchronized fun rezerviraj(kljuc: String, odlocitev: () -> Priprava): Priprava? {
+        private val tece = HashMap<String, String>()
+        @Synchronized fun rezerviraj(kljuc: String, odlocitev: () -> Priprava): Priprava? = rezerviraj(kljuc, kljuc, odlocitev)
+        @Synchronized fun rezerviraj(kljuc: String, naslov: String, odlocitev: () -> Priprava): Priprava? {
             if (kljuc in tece) return null
             val o = odlocitev()
-            if (o != Priprava.BREZ) tece.add(kljuc)
+            if (o != Priprava.BREZ) tece[kljuc] = naslov
             return o
         }
         @Synchronized fun sprosti(kljuc: String) { tece.remove(kljuc) }
-        @Synchronized fun vsi(): Set<String> = tece.toSet()
+        /** Naslovi virov, ki se ta hip prenasajo (ne kljuci racunov). */
+        @Synchronized fun vsi(): Set<String> = tece.values.toSet()
+    }
+
+    // Pregled 105, S3 (26. 10. 2026; lastnik: racun IPTV nikoli z dvema hkratnima povezavama): en racun ima pogosto vec virov
+    // (get.php type=m3u in m3u_plus, xmltv.php, kanal /live/<u>/<g>/), zato prijava, meja 1-krat na minuto in premor I5 ne smejo
+    // veljati po naslovu. Racun = gostitelj (brez vrat, male crke) + uporabnik; uporabnika jemljemo samo iz znanih oblik.
+    private val RX_XTREAM_RACUN = Regex("/(?:live|movie|movies|series|timeshift)/([^/]+)/([^/]+)/", RegexOption.IGNORE_CASE)
+    private val RX_KRATKA_RACUN = Regex("^/([^/]+)/([^/]+)/\\d+(?:\\.[a-z0-9]{1,5})?$", RegexOption.IGNORE_CASE)
+    private val PARAMETRI_UPORABNIKA = listOf("username", "user", "login")
+    private val PARAMETRI_GESLA = listOf("password", "pass", "passwd", "pwd")
+
+    /**
+     * Gostitelj, uporabnik in geslo racuna v pravem naslovu [pravi] (odkodirano); null = uporabnika ne prepoznamo (zeton, neznana
+     * oblika). Vrstni red: parameter (username/user/login, Stalker mac), uporabnik:geslo@, pot Xtream, kratka pot Xtream.
+     * Uporabnik ostane z velikimi in malimi crkami: dva razlicna racuna se ne smeta zdruziti v enega.
+     */
+    private fun racunNaslova(pravi: String): Triple<String, String, String>? {
+        val d = deli(pravi) ?: return null
+        val ostalo = pravi.trim().substringBefore('#').substringAfter("://")
+        val konec = ostalo.indexOfFirst { it == '/' || it == '?' }.let { if (it < 0) ostalo.length else it }
+        val oblast = ostalo.substring(0, konec)
+        val parametri = HashMap<String, String>()
+        for (par in ostalo.substring(konec).substringAfter('?', "").split('&', ';')) {
+            val k = odkodiraj(par.substringBefore('='), plus = true)?.trim()?.lowercase(java.util.Locale.ROOT) ?: return null
+            val v = odkodiraj(par.substringAfter('=', ""), plus = true) ?: return null
+            // Prva vrednost velja (ponovljen parameter ne zamenja racuna).
+            if (k.isNotEmpty() && v.isNotEmpty() && k !in parametri) parametri[k] = v
+        }
+        val geslo = PARAMETRI_GESLA.firstNotNullOfOrNull { parametri[it] }.orEmpty()
+        PARAMETRI_UPORABNIKA.firstNotNullOfOrNull { parametri[it] }?.let { return Triple(d.gostitelj, "u:$it", geslo) }
+        parametri["mac"]?.let { return Triple(d.gostitelj, "mac:" + it.lowercase(java.util.Locale.ROOT), "") }
+        if ('@' in oblast) {
+            val ui = oblast.substringBeforeLast('@')
+            val u = odkodiraj(ui.substringBefore(':'), plus = false) ?: return null
+            if (u.isNotEmpty()) return Triple(d.gostitelj, "u:$u", odkodiraj(ui.substringAfter(':', ""), plus = false) ?: return null)
+        }
+        // Z zetonom pot ni racun (dva zetona na isti poti sta lahko dva racuna): ostane po viru.
+        if (parametri.keys.any { it in ZETON_PARAMETRI }) return null
+        val pot = ostalo.substring(konec).substringBefore('?')
+        val m = RX_XTREAM_RACUN.find(pot) ?: RX_KRATKA_RACUN.find(pot) ?: return null
+        val u = odkodiraj(m.groupValues[1], plus = false) ?: return null
+        val g = odkodiraj(m.groupValues[2], plus = false) ?: return null
+        return Triple(d.gostitelj, "u:$u", g)
+    }
+
+    /** Deli s predpono dolzine: »a\nb« + »c« in »a« + »b\nc« ne dasta istega niza (uporabnik je lahko karkoli). */
+    private fun spoji(vararg kosi: String): String = kosi.joinToString("") { "${it.length}:$it" }
+
+    /**
+     * Pregled 105, S3: kljuc prijave za pravi naslov vira [pravi] - »racun:<odtis gostitelja in uporabnika>«; brez prepoznanega
+     * uporabnika »vir:<odtis naslova>« (kot doslej: po viru). V kljucu ni uporabnika ne gesla (gre v kljuce nastavitev).
+     */
+    fun kljucRacuna(pravi: String): String =
+        racunNaslova(pravi)?.let { (g, u, _) -> "racun:" + SkrivnostiPravila.odtis(spoji(g, u)) } ?: ("vir:" + odtisRacuna(pravi))
+
+    /**
+     * Pregled 105, S3: kljuc premora I5 - racun Z geslom. Ponudnik zavrne ali zaklene prijavo s tem geslom; vir z novim geslom
+     * istega uporabnika (uporabnik ga je popravil) ne caka na premor starega. null = uporabnika ne prepoznamo (premor ostane po viru).
+     */
+    fun kljucPoverilnice(pravi: String): String? =
+        racunNaslova(pravi)?.let { (g, u, p) -> "geslo:" + SkrivnostiPravila.odtis(spoji(g, u, p)) }
+
+    /**
+     * Pregled 105, S3: napaka za odlocitev - strozja od napake vira [vira] in napake racuna [racuna] (kasnejsi naslednji poskus).
+     * Vir istega racuna tako ne obide premora, ki ga je sprozil drug vir.
+     */
+    fun strozjaNapaka(vira: NapakaPrenosa?, racuna: NapakaPrenosa?): NapakaPrenosa? = when {
+        vira == null -> racuna
+        racuna == null -> vira
+        racuna.naslednjiOb > vira.naslednjiOb || (racuna.naslednjiOb == vira.naslednjiOb && racuna.zadnjiOb > vira.zadnjiOb) -> racuna
+        else -> vira
     }
 
     /**
@@ -682,6 +756,15 @@ object IptvPravila {
      */
     fun prevzemZNavadnoUskladitvijo(tip: String, naslov: String, odOzjegaKroga: Boolean): Boolean =
         smeZNavadnoUskladitvijo(tip, naslov) || (odOzjegaKroga && tip != "stremio" && !SkrivnostiPravila.jeNadomestek(naslov))
+
+    /**
+     * Pregled 105, S2 (26. 10. 2026; lastnik: o vsebinah te naprave odloca samo ta naprava): naslov, pod katerim je prejet vir v
+     * Mojih virih te naprave. Naprava iz ozjega kroga vir z racunom poslje s PRAVIM naslovom, tu je shranjen kot nadomestek - tudi
+     * grob izbrisa in dovoljenje uporabe. Brez te preslikave se je tu izbrisan vir vrnil (z dovoljeno uporabo). Vrsta »url«
+     * (racunalnik) velja kot seznam, kot pri izbrisu. Vir brez racuna in ze nadomestek ostaneta, kot sta.
+     */
+    fun naslovVAplikaciji(tip: String, naslov: String): String =
+        skrivnostVira(if (tip == "url") "seznam" else tip, naslov)?.let { SkrivnostiPravila.nadomestek(it) } ?: naslov
 
     // ------------------------------------------------------------------ Grok 52, Ñ2: prejet vir z racunom se ne prenese
 

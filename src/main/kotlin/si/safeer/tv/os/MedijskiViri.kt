@@ -1329,21 +1329,31 @@ object MedijskiViri {
         if (v.jeSeznam) try { IptvSeznami.pozabi(ctx, v.naslov) } catch (_: Exception) { }
     }
 
-    /** Vir z druge naprave: dodamo ga, ce ga tu se ni in ga tu nismo izbrisali pozneje, kot je bil tam dodan. */
+    /**
+     * Vir z druge naprave: dodamo ga, ce ga tu se ni in ga tu nismo izbrisali pozneje, kot je bil tam dodan.
+     * Pregled 105, S2 (26. 10. 2026): vir z racunom pride iz ozjega kroga s PRAVIM naslovom, tu pa so vir, grob izbrisa in
+     * dovoljenje uporabe pod nadomestkom ([IptvPravila.naslovVAplikaciji]). Prej se je tu izbrisan vir vrnil (z dovoljeno
+     * uporabo), dovoljenje za obstojeci vir pa ni zadelo nicesar. Iscemo pod obema kljucema: pravi ostane za zapis izpred prehoda.
+     */
     @Synchronized fun prevzemiVir(ctx: Context, v: Vir, cas: Long, odOzjegaKroga: Boolean = false): Boolean {
         if (!uskladljiv(v, odOzjegaKroga)) return false
-        val k = kljucUskladitve(v)
+        val tu = v.copy(naslov = IptvPravila.naslovVAplikaciji(v.tip, v.naslov))
+        val kljuci = setOf(kljucUskladitve(tu), kljucUskladitve(v))
         val moji = rocni(ctx)
-        if (moji.any { kljucUskladitve(it) == k }) {
+        val obstojeci = moji.firstOrNull { kljucUskladitve(it) in kljuci }
+        if (obstojeci != null) {
             // Ze imamo vir, naprava iz ozjega kroga pa ga ima tudi: pozitiven dokaz izvora (podedovana kopija postane uporabna).
-            if (odOzjegaKroga && IptvPravila.virZRacunom(v.tip, v.naslov)) dovoliUporabo(ctx, v.naslov)
+            // Dovoljenje gre pod naslov, ki ga ima vir TU (nadomestek) - le tega bere [uporabaDovoljena].
+            if (odOzjegaKroga && IptvPravila.virZRacunom(v.tip, v.naslov)) dovoliUporabo(ctx, obstojeci.naslov)
             return false
         }
         if (moji.size >= 400) return false
         // Ista spletna stran pod drugim naslovom je isti vir.
         if (v.jeSplet && moji.any { it.jeSplet && istaSpletnaStran(it.naslov, v.naslov) }) return false
-        if (!SeznamiPravila.virPrevzamemo(false, beriCase(ctx, VIRI_IZBRISANI)[k], cas)) return false
-        prekliciOdstranjen(ctx, v.naslov)
+        val izbrisani = beriCase(ctx, VIRI_IZBRISANI)
+        if (!SeznamiPravila.virPrevzamemo(false, kljuci.mapNotNull { izbrisani[it] }.maxOrNull(), cas)) return false
+        prekliciOdstranjen(ctx, tu.naslov)
+        // Shranimo PRAVI naslov: [shrani] ga zavaruje in shrani nadomestek (sam nadomestek je brez skrivnosti - vir ne bi deloval).
         shrani(ctx, moji + v, if (cas > 0L) cas else 1L, odKroga = odOzjegaKroga)
         return true
     }
@@ -1357,11 +1367,13 @@ object MedijskiViri {
         // Lastnik, 26. 10. 2026: naslov, ki ni znan javni seznam, samo od naprave v ozjem krogu - drugace ga niti ne razvrscamo
         // (zahteva = prijava v racun, Grok 46 Ö1).
         if (!IptvPravila.prevzemZNavadnoUskladitvijo(VRSTA_URL, naslov, odOzjegaKroga)) return false
+        // Pregled 105, S2: vir z racunom je tu shranjen kot nadomestek - dvojnik in grob izbrisa iscemo tudi pod njim.
+        val tu = IptvPravila.naslovVAplikaciji(VRSTA_URL, naslov)
         synchronized(this) {
             val moji = rocni(ctx)
-            if (moji.size >= 400 || moji.any { it.naslov == naslov || (!it.jePeerTube && kanonicniNaslov(it.naslov) == kanonicniNaslov(naslov)) }) return false
+            if (moji.size >= 400 || moji.any { it.naslov == naslov || it.naslov == tu || (!it.jePeerTube && kanonicniNaslov(it.naslov) == kanonicniNaslov(naslov)) }) return false
             // Tu izbrisan pozneje, kot je bil na racunalniku dodan: se ne vrne (ne glede na vrsto, ki jo je imel tukaj).
-            val izbris = beriCase(ctx, VIRI_IZBRISANI).filterKeys { it.substringAfter('|') == naslov }.values.maxOrNull()
+            val izbris = beriCase(ctx, VIRI_IZBRISANI).filterKeys { it.substringAfter('|').let { n -> n == naslov || n == tu } }.values.maxOrNull()
             if (!SeznamiPravila.virPrevzamemo(false, izbris, cas)) return false
         }
         if (PeerTube.jeBlokiran(naslov) || !jePredvajljiv(naslov)) return false
