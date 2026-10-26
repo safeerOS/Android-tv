@@ -1,0 +1,2917 @@
+{
+ "verzija": 1,
+ "opis": "Skupni primeri za stevec virov predvajanja (Python in Kotlin). Vse vrednosti so izmisljene.",
+ "pravila": {
+  "viri": [
+   "debrid_takoj",
+   "usenet_torbox",
+   "usenet_lasten",
+   "usenet_cakanje",
+   "webtor",
+   "debrid_cakanje",
+   "p2p",
+   "iptv",
+   "drugo"
+  ],
+  "neznan_vir": "Vsak niz, ki se tocno ne ujema (tudi druga velikost crk, prazen niz, null), je 'drugo'.",
+  "predvajal": "uspeh == true in trajanje_s >= 60. Uspeh s trajanjem < 60 je 'kratki'. uspeh == false je 'neuspehi'.",
+  "trajanje": "Negativno ali neveljavno trajanje je 0. ure_gledanja sesteje samo trajanja predvajanj.",
+  "cas_do_slike": "V vzorec gre samo pri uspehu (tudi kratkem) in ce ni null ter >= 0. Na vir na dan se hrani prvih 50 vrednosti.",
+  "percentil": "Najblizji rang brez interpolacije: urejeno narascajoce, rang = ceil(p*n/100) = (p*n + 99) div 100, vrednost = urejeno[rang-1]. mediana = p50 (pri sodem n spodnja srednja), p90 = p90. Prazen vzorec -> null.",
+  "zaokrozevanje": "Pol navzgor s celimi stevili: ure_gledanja = (2*sekunde*100 + 3600) div 7200 / 100 (dve decimalki); delez = (2*predvajal*10000 + skupaj) div (2*skupaj) / 10000 (stiri decimalke), 0.0 ce skupaj == 0.",
+  "datum": "zdaj je lokalni cas brez pasu (ISO 8601); dan zapisa je njegov datum. Okno dni: od = zdaj.datum - (dni-1) do zdaj.datum vkljucno; dni < 1 -> 1.",
+  "torbox": "Za torbox stejejo usenet_torbox ter debrid_takoj in debrid_cakanje s storitvijo, ki je po trim + lowercase enaka 'torbox'. Pri drugih virih se storitev ne uposteva.",
+  "priporocilo": "skupaj_predvajal < 10 -> premalo_podatkov; sicer predvajal narocnine == 0 -> ni_rabe; sicer obdrzi.",
+  "rotacija": "Ob vsakem pisanju se zbrisejo dnevi pred zdaj.datum - 119 dni (ostane najvec 120 dni).",
+  "primerjava": "pricakovano je podmnozica povzetka: preverijo se samo navedeni kljuci; null pomeni, da mora biti vrednost null."
+ },
+ "primeri": [
+  {
+   "ime": "prazno",
+   "opis": "Brez zapisov: vse nic, mediana null.",
+   "zapisi": [],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "skupaj_predvajal": 0,
+    "skupaj_neuspehi": 0,
+    "dni": 7,
+    "od": "2026-10-14",
+    "do": "2026-10-20",
+    "viri": {
+     "webtor": {
+      "predvajal": 0,
+      "neuspehi": 0,
+      "ure_gledanja": 0.0,
+      "mediana_ms": null,
+      "p90_ms": null,
+      "delez": 0.0
+     }
+    },
+    "narocnine": {
+     "webtor": {
+      "predvajal": 0,
+      "delez": 0.0,
+      "priporocilo": "premalo_podatkov"
+     },
+     "torbox": {
+      "predvajal": 0,
+      "priporocilo": "premalo_podatkov"
+     }
+    }
+   }
+  },
+  {
+   "ime": "tocno_60_s",
+   "opis": "Tocno 60 s steje kot predvajal.",
+   "zapisi": [
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 60,
+     "zdaj": "2026-10-20T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "skupaj_predvajal": 1,
+    "viri": {
+     "webtor": {
+      "predvajal": 1,
+      "kratki": 0,
+      "ure_gledanja": 0.02,
+      "delez": 1.0
+     }
+    }
+   }
+  },
+  {
+   "ime": "59_s",
+   "opis": "59 s je kratek preizkus; cas do slike se vseeno uposteva.",
+   "zapisi": [
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 59,
+     "zdaj": "2026-10-20T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "skupaj_predvajal": 0,
+    "viri": {
+     "webtor": {
+      "predvajal": 0,
+      "kratki": 1,
+      "ure_gledanja": 0.0,
+      "mediana_ms": 1000,
+      "p90_ms": 1000,
+      "delez": 0.0
+     }
+    }
+   }
+  },
+  {
+   "ime": "neuspeh",
+   "opis": "Neuspeh steje posebej, cas do slike se ne uposteva.",
+   "zapisi": [
+    {
+     "vir": "p2p",
+     "uspeh": false,
+     "cas_do_slike_ms": 500,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "skupaj_predvajal": 0,
+    "skupaj_neuspehi": 1,
+    "viri": {
+     "p2p": {
+      "predvajal": 0,
+      "neuspehi": 1,
+      "mediana_ms": null,
+      "ure_gledanja": 0.0
+     }
+    }
+   }
+  },
+  {
+   "ime": "uspeh_brez_casa",
+   "opis": "Uspeh s cas_do_slike_ms null: predvajal da, vzorec ne.",
+   "zapisi": [
+    {
+     "vir": "iptv",
+     "uspeh": true,
+     "cas_do_slike_ms": null,
+     "trajanje_s": 1800,
+     "zdaj": "2026-10-20T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "skupaj_predvajal": 1,
+    "viri": {
+     "iptv": {
+      "predvajal": 1,
+      "ure_gledanja": 0.5,
+      "mediana_ms": null,
+      "p90_ms": null
+     }
+    }
+   }
+  },
+  {
+   "ime": "neuspeh_brez_trajanja",
+   "opis": "Neuspeh z 0 s in brez casa.",
+   "zapisi": [
+    {
+     "vir": "usenet_lasten",
+     "uspeh": false,
+     "cas_do_slike_ms": null,
+     "trajanje_s": 0,
+     "zdaj": "2026-10-20T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "skupaj_neuspehi": 1,
+    "viri": {
+     "usenet_lasten": {
+      "neuspehi": 1,
+      "predvajal": 0,
+      "kratki": 0
+     }
+    }
+   }
+  },
+  {
+   "ime": "neznan_vir",
+   "opis": "Neznan niz gre v drugo.",
+   "zapisi": [
+    {
+     "vir": "izmisljen_vir_x",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "skupaj_predvajal": 1,
+    "viri": {
+     "drugo": {
+      "predvajal": 1,
+      "delez": 1.0
+     }
+    }
+   }
+  },
+  {
+   "ime": "vir_velike_crke",
+   "opis": "Vir se primerja tocno; WEBTOR je drugo.",
+   "zapisi": [
+    {
+     "vir": "WEBTOR",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "viri": {
+     "drugo": {
+      "predvajal": 1
+     },
+     "webtor": {
+      "predvajal": 0
+     }
+    },
+    "narocnine": {
+     "webtor": {
+      "predvajal": 0
+     }
+    }
+   }
+  },
+  {
+   "ime": "vir_prazen_in_null",
+   "opis": "Prazen niz in null gresta v drugo.",
+   "zapisi": [
+    {
+     "vir": "",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": null,
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "viri": {
+     "drugo": {
+      "predvajal": 2
+     }
+    }
+   }
+  },
+  {
+   "ime": "storitev_torbox",
+   "opis": "debrid_takoj s storitvijo torbox steje za torbox.",
+   "zapisi": [
+    {
+     "vir": "debrid_takoj",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00",
+     "storitev": "torbox"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "viri": {
+     "debrid_takoj": {
+      "predvajal": 1
+     }
+    },
+    "narocnine": {
+     "torbox": {
+      "predvajal": 1,
+      "delez": 1.0
+     }
+    }
+   }
+  },
+  {
+   "ime": "storitev_razlicice",
+   "opis": "Velikost crk in presledki se ne upostevajo.",
+   "zapisi": [
+    {
+     "vir": "debrid_takoj",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00",
+     "storitev": "TorBox"
+    },
+    {
+     "vir": "debrid_takoj",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00",
+     "storitev": " TORBOX "
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "viri": {
+     "debrid_takoj": {
+      "predvajal": 2
+     }
+    },
+    "narocnine": {
+     "torbox": {
+      "predvajal": 2
+     }
+    }
+   }
+  },
+  {
+   "ime": "storitev_druga_in_null",
+   "opis": "Druga storitev ali null ne steje za torbox.",
+   "zapisi": [
+    {
+     "vir": "debrid_takoj",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00",
+     "storitev": "izmisljena_storitev"
+    },
+    {
+     "vir": "debrid_takoj",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "debrid_takoj",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00",
+     "storitev": ""
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "viri": {
+     "debrid_takoj": {
+      "predvajal": 3
+     }
+    },
+    "narocnine": {
+     "torbox": {
+      "predvajal": 0
+     }
+    }
+   }
+  },
+  {
+   "ime": "usenet_torbox",
+   "opis": "usenet_torbox vedno steje za torbox.",
+   "zapisi": [
+    {
+     "vir": "usenet_torbox",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "narocnine": {
+     "torbox": {
+      "predvajal": 1
+     }
+    }
+   }
+  },
+  {
+   "ime": "debrid_cakanje_torbox",
+   "opis": "debrid_cakanje s storitvijo torbox steje, brez nje ne.",
+   "zapisi": [
+    {
+     "vir": "debrid_cakanje",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00",
+     "storitev": "torbox"
+    },
+    {
+     "vir": "debrid_cakanje",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "viri": {
+     "debrid_cakanje": {
+      "predvajal": 2
+     }
+    },
+    "narocnine": {
+     "torbox": {
+      "predvajal": 1,
+      "delez": 0.5
+     }
+    }
+   }
+  },
+  {
+   "ime": "storitev_pri_drugih_virih",
+   "opis": "Storitev torbox pri webtor, p2p ali usenet_lasten se ne uposteva.",
+   "zapisi": [
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00",
+     "storitev": "torbox"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00",
+     "storitev": "torbox"
+    },
+    {
+     "vir": "usenet_lasten",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00",
+     "storitev": "torbox"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "narocnine": {
+     "torbox": {
+      "predvajal": 0
+     },
+     "webtor": {
+      "predvajal": 1
+     }
+    }
+   }
+  },
+  {
+   "ime": "torbox_kratek_ne_steje",
+   "opis": "Kratek ogled prek torbox ne steje.",
+   "zapisi": [
+    {
+     "vir": "usenet_torbox",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 30,
+     "zdaj": "2026-10-20T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "narocnine": {
+     "torbox": {
+      "predvajal": 0
+     }
+    },
+    "viri": {
+     "usenet_torbox": {
+      "kratki": 1
+     }
+    }
+   }
+  },
+  {
+   "ime": "9_predvajanj",
+   "opis": "9 predvajanj je premalo.",
+   "zapisi": [
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "skupaj_predvajal": 9,
+    "narocnine": {
+     "webtor": {
+      "priporocilo": "premalo_podatkov"
+     },
+     "torbox": {
+      "priporocilo": "premalo_podatkov"
+     }
+    }
+   }
+  },
+  {
+   "ime": "10_predvajanj_samo_webtor",
+   "opis": "10 predvajanj: webtor obdrzi, torbox ni_rabe.",
+   "zapisi": [
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "skupaj_predvajal": 10,
+    "narocnine": {
+     "webtor": {
+      "priporocilo": "obdrzi"
+     },
+     "torbox": {
+      "priporocilo": "ni_rabe",
+      "predvajal": 0
+     }
+    }
+   }
+  },
+  {
+   "ime": "10_predvajanj_brez_narocnin",
+   "opis": "10 predvajanj prek p2p: obe ni_rabe.",
+   "zapisi": [
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "narocnine": {
+     "webtor": {
+      "priporocilo": "ni_rabe"
+     },
+     "torbox": {
+      "priporocilo": "ni_rabe"
+     }
+    }
+   }
+  },
+  {
+   "ime": "10_predvajanj_mesano",
+   "opis": "Mesano: obe obdrzi, delezi.",
+   "zapisi": [
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "usenet_torbox",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "usenet_torbox",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "usenet_torbox",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "iptv",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "iptv",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "skupaj_predvajal": 10,
+    "viri": {
+     "webtor": {
+      "delez": 0.5
+     },
+     "usenet_torbox": {
+      "delez": 0.3
+     },
+     "iptv": {
+      "delez": 0.2
+     }
+    },
+    "narocnine": {
+     "webtor": {
+      "priporocilo": "obdrzi",
+      "delez": 0.5
+     },
+     "torbox": {
+      "priporocilo": "obdrzi",
+      "predvajal": 3,
+      "delez": 0.3
+     }
+    }
+   }
+  },
+  {
+   "ime": "10_torbox_iz_treh_virov",
+   "opis": "torbox iz treh virov: obdrzi, webtor ni_rabe.",
+   "zapisi": [
+    {
+     "vir": "debrid_takoj",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00",
+     "storitev": "torbox"
+    },
+    {
+     "vir": "debrid_takoj",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00",
+     "storitev": "torbox"
+    },
+    {
+     "vir": "debrid_takoj",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00",
+     "storitev": "torbox"
+    },
+    {
+     "vir": "debrid_takoj",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00",
+     "storitev": "torbox"
+    },
+    {
+     "vir": "usenet_torbox",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "usenet_torbox",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "usenet_torbox",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "debrid_cakanje",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00",
+     "storitev": "torbox"
+    },
+    {
+     "vir": "debrid_cakanje",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00",
+     "storitev": "torbox"
+    },
+    {
+     "vir": "debrid_cakanje",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00",
+     "storitev": "torbox"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "narocnine": {
+     "torbox": {
+      "predvajal": 10,
+      "priporocilo": "obdrzi",
+      "delez": 1.0
+     },
+     "webtor": {
+      "priporocilo": "ni_rabe"
+     }
+    }
+   }
+  },
+  {
+   "ime": "neuspehi_in_kratki_ne_stejejo",
+   "opis": "9 predvajanj + neuspehi + kratki je se vedno premalo.",
+   "zapisi": [
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": false,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": false,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": false,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": false,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": false,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 10,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 10,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 10,
+     "zdaj": "2026-10-20T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "skupaj_predvajal": 9,
+    "skupaj_neuspehi": 5,
+    "narocnine": {
+     "webtor": {
+      "priporocilo": "premalo_podatkov"
+     },
+     "torbox": {
+      "priporocilo": "premalo_podatkov"
+     }
+    },
+    "viri": {
+     "p2p": {
+      "kratki": 3,
+      "predvajal": 0
+     }
+    }
+   }
+  },
+  {
+   "ime": "okno_7_dni",
+   "opis": "dni=7 zajame danes in 6 dni nazaj; jutri ne.",
+   "zapisi": [
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-13T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-14T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T00:00:01"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-21T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "skupaj_predvajal": 2,
+    "od": "2026-10-14",
+    "do": "2026-10-20"
+   }
+  },
+  {
+   "ime": "okno_1_dan",
+   "opis": "dni=1 je samo danasnji lokalni datum.",
+   "zapisi": [
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-13T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-14T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T00:00:01"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-21T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 1,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "skupaj_predvajal": 1,
+    "od": "2026-10-20"
+   }
+  },
+  {
+   "ime": "okno_30_dni",
+   "opis": "dni=30 zajame vse pretekle dni.",
+   "zapisi": [
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-13T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-14T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T00:00:01"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-21T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 30,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "skupaj_predvajal": 3,
+    "od": "2026-09-21"
+   }
+  },
+  {
+   "ime": "okno_0_dni",
+   "opis": "dni=0 se obravnava kot 1.",
+   "zapisi": [
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-13T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-14T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T00:00:01"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-21T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 0,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "dni": 1,
+    "skupaj_predvajal": 1
+   }
+  },
+  {
+   "ime": "lokalni_datum_polnoc",
+   "opis": "23:59:59 in 00:00:00 sta razlicna dneva.",
+   "zapisi": [
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T23:59:59"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T00:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 1,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "skupaj_predvajal": 1
+   }
+  },
+  {
+   "ime": "mediana_liho",
+   "opis": "Liho stevilo: [300,100,200].",
+   "zapisi": [
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 300,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 100,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 200,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "viri": {
+     "p2p": {
+      "mediana_ms": 200,
+      "p90_ms": 300
+     }
+    }
+   }
+  },
+  {
+   "ime": "mediana_sodo",
+   "opis": "Sodo stevilo: najblizji rang vzame spodnjo srednjo.",
+   "zapisi": [
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 400,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 100,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 300,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 200,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "viri": {
+     "p2p": {
+      "mediana_ms": 200,
+      "p90_ms": 400
+     }
+    }
+   }
+  },
+  {
+   "ime": "mediana_deset",
+   "opis": "100..1000: mediana rang 5, p90 rang 9.",
+   "zapisi": [
+    {
+     "vir": "iptv",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "iptv",
+     "uspeh": true,
+     "cas_do_slike_ms": 900,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "iptv",
+     "uspeh": true,
+     "cas_do_slike_ms": 800,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "iptv",
+     "uspeh": true,
+     "cas_do_slike_ms": 700,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "iptv",
+     "uspeh": true,
+     "cas_do_slike_ms": 600,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "iptv",
+     "uspeh": true,
+     "cas_do_slike_ms": 500,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "iptv",
+     "uspeh": true,
+     "cas_do_slike_ms": 400,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "iptv",
+     "uspeh": true,
+     "cas_do_slike_ms": 300,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "iptv",
+     "uspeh": true,
+     "cas_do_slike_ms": 200,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "iptv",
+     "uspeh": true,
+     "cas_do_slike_ms": 100,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "viri": {
+     "iptv": {
+      "mediana_ms": 500,
+      "p90_ms": 900
+     }
+    }
+   }
+  },
+  {
+   "ime": "mediana_ena",
+   "opis": "Ena vrednost.",
+   "zapisi": [
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 750,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "viri": {
+     "webtor": {
+      "mediana_ms": 750,
+      "p90_ms": 750
+     }
+    }
+   }
+  },
+  {
+   "ime": "mediana_dve",
+   "opis": "Dve vrednosti: mediana spodnja, p90 zgornja.",
+   "zapisi": [
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 900,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 100,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "viri": {
+     "webtor": {
+      "mediana_ms": 100,
+      "p90_ms": 900
+     }
+    }
+   }
+  },
+  {
+   "ime": "vzorec_meja_50",
+   "opis": "60 zapisov v dnevu: v vzorcu ostane prvih 50.",
+   "zapisi": [
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 1,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 2,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 3,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 4,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 5,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 6,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 7,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 8,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 9,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 10,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 11,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 12,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 13,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 14,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 15,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 16,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 17,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 18,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 19,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 20,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 21,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 22,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 23,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 24,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 25,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 26,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 27,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 28,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 29,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 30,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 31,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 32,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 33,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 34,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 35,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 36,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 37,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 38,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 39,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 40,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 41,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 42,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 43,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 44,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 45,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 46,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 47,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 48,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 49,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 50,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 51,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 52,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 53,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 54,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 55,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 56,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 57,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 58,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 59,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 60,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "skupaj_predvajal": 60,
+    "viri": {
+     "p2p": {
+      "predvajal": 60,
+      "ure_gledanja": 60.0,
+      "mediana_ms": 25,
+      "p90_ms": 45
+     }
+    }
+   }
+  },
+  {
+   "ime": "vzorec_dva_dneva",
+   "opis": "Meja 50 velja na dan; dva dneva skupaj 100 vrednosti.",
+   "zapisi": [
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 1,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 2,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 3,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 4,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 5,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 6,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 7,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 8,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 9,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 10,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 11,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 12,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 13,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 14,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 15,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 16,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 17,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 18,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 19,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 20,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 21,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 22,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 23,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 24,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 25,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 26,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 27,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 28,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 29,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 30,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 31,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 32,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 33,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 34,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 35,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 36,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 37,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 38,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 39,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 40,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 41,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 42,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 43,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 44,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 45,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 46,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 47,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 48,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 49,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 50,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-19T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 51,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 52,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 53,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 54,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 55,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 56,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 57,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 58,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 59,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 60,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 61,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 62,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 63,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 64,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 65,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 66,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 67,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 68,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 69,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 70,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 71,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 72,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 73,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 74,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 75,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 76,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 77,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 78,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 79,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 80,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 81,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 82,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 83,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 84,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 85,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 86,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 87,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 88,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 89,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 90,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 91,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 92,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 93,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 94,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 95,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 96,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 97,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 98,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 99,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 100,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "viri": {
+     "p2p": {
+      "mediana_ms": 50,
+      "p90_ms": 90
+     }
+    }
+   }
+  },
+  {
+   "ime": "ure_zaokrozevanje",
+   "opis": "90 s = 0.025 h -> pol navzgor 0.03.",
+   "zapisi": [
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 90,
+     "zdaj": "2026-10-20T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "viri": {
+     "webtor": {
+      "ure_gledanja": 0.03
+     }
+    }
+   }
+  },
+  {
+   "ime": "ure_vsota",
+   "opis": "5400 + 1800 s = 2.0 h.",
+   "zapisi": [
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 5400,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 1800,
+     "zdaj": "2026-10-20T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "viri": {
+     "webtor": {
+      "ure_gledanja": 2.0
+     }
+    }
+   }
+  },
+  {
+   "ime": "delez_zaokrozevanje",
+   "opis": "1/3 in 2/3 na stiri decimalke.",
+   "zapisi": [
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    },
+    {
+     "vir": "p2p",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "viri": {
+     "webtor": {
+      "delez": 0.3333
+     },
+     "p2p": {
+      "delez": 0.6667
+     }
+    },
+    "narocnine": {
+     "webtor": {
+      "delez": 0.3333
+     }
+    }
+   }
+  },
+  {
+   "ime": "negativne_vrednosti",
+   "opis": "Negativno trajanje je 0 (kratek), negativen cas je null.",
+   "zapisi": [
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": -5,
+     "trajanje_s": -100,
+     "zdaj": "2026-10-20T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 7,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "viri": {
+     "webtor": {
+      "predvajal": 0,
+      "kratki": 1,
+      "mediana_ms": null
+     }
+    }
+   }
+  },
+  {
+   "ime": "rotacija_120_dni",
+   "opis": "Ob pisanju se zbrisejo dnevi starejsi od 120 (danes + 119 nazaj ostane).",
+   "zapisi": [
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-06-12T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-06-22T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-06-23T20:00:00"
+    },
+    {
+     "vir": "webtor",
+     "uspeh": true,
+     "cas_do_slike_ms": 1000,
+     "trajanje_s": 3600,
+     "zdaj": "2026-10-20T20:00:00"
+    }
+   ],
+   "povzetek": {
+    "dni": 400,
+    "zdaj": "2026-10-20T20:00:00"
+   },
+   "pricakovano": {
+    "skupaj_predvajal": 2
+   }
+  }
+ ]
+}

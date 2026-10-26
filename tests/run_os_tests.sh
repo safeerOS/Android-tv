@@ -105,6 +105,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/OddaljenoPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/MiniPredvajalnikPravila.kt" \
     "$TEST_DIR/MiniPredvajalnikPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/StevecVirov.kt" \
+    "$TEST_DIR/StevecVirovTest.kt" \
     "$SRC/si/safeer/tv/os/TorBoxPravila.kt" \
     "$TEST_DIR/TorBoxPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/DebridPravila.kt" \
@@ -196,6 +198,7 @@ java -cp "$OUT/os.jar" si.safeer.tv.os.AplikacijePredpomnilnikTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.SporocilaPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.OddaljenoPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.MiniPredvajalnikPravilaTestKt
+java -cp "$OUT/os.jar" si.safeer.tv.os.StevecVirovTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.TorBoxPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.DebridPravilaTestKt
 java -cp "$OUT/os.jar" si.safeer.tv.os.UsenetPravilaTestKt
