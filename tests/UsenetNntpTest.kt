@@ -46,16 +46,17 @@ private fun izid(f: () -> Unit): String = try {
     zapomni(e); "NIT"
 }
 
-private class Potrdilo(val streznik: SSLContext, val zaupaj: SSLSocketFactory)
+private class Potrdilo(val streznik: SSLContext, val zaupaj: SSLSocketFactory, val list: java.security.cert.X509Certificate)
 
 /** Samopodpisano potrdilo z imeni [san] (keytool -ext SAN=...): kontekst streznika in tovarna, ki mu zaupa. */
 private fun potrdilo(mapa: File, cn: String, san: String): Potrdilo {
     val shramba = File(mapa, "p-${System.nanoTime()}.p12")
     val geslo = "preizkus"
     val keytool = File(System.getProperty("java.home"), "bin/keytool").path
-    val p = ProcessBuilder(keytool, "-genkeypair", "-alias", "a", "-keyalg", "EC", "-groupname", "secp256r1",
-        "-dname", "CN=$cn", "-ext", "SAN=$san", "-validity", "2", "-storetype", "PKCS12", "-keystore", shramba.path,
-        "-storepass", geslo, "-keypass", geslo).redirectErrorStream(true).start()
+    val ext = if (san.isEmpty()) emptyList() else listOf("-ext", "SAN=$san")
+    val p = ProcessBuilder(listOf(keytool, "-genkeypair", "-alias", "a", "-keyalg", "EC", "-groupname", "secp256r1",
+        "-dname", "CN=$cn") + ext + listOf("-validity", "2", "-storetype", "PKCS12", "-keystore", shramba.path,
+        "-storepass", geslo, "-keypass", geslo)).redirectErrorStream(true).start()
     val izpis = p.inputStream.bufferedReader().readText()
     check(p.waitFor() == 0) { "keytool: $izpis" }
     val ks = KeyStore.getInstance("PKCS12")
@@ -71,7 +72,7 @@ private fun potrdilo(mapa: File, cn: String, san: String): Potrdilo {
     tmf.init(zaupane)
     val k = SSLContext.getInstance("TLS")
     k.init(null, tmf.trustManagers, null)
-    return Potrdilo(s, k.socketFactory)
+    return Potrdilo(s, k.socketFactory, ks.getCertificate("a") as java.security.cert.X509Certificate)
 }
 
 /** Lazni streznik NNTP: prijava, BODY, STAT, prekinitev sredi bloka, zamuda, posiljanje po koscih. */
@@ -408,6 +409,32 @@ fun main() {
                 preveriEnako("9 hkratnih clankov uspe", List(9) { "OK" }, izidi.toList())
                 preveriEnako("najvec 3 povezave hkrati (bilo ${s.najvecHkrati.get()})", true, s.najvecHkrati.get() <= 3)
                 preveriEnako("povezave se ponovno rabijo", 3, s.povezav.get())
+            }
+        }
+        // Nasa preverba imena (RFC 6125) neodvisno od platforme TLS (Grok 35 Y1).
+        println("ime v potrdilu (RFC 6125)")
+        preveriEnako("ime: localhost", true, UsenetNntp.imeUstreza("localhost", prava.list))
+        preveriEnako("ime: velike crke in pika na koncu", true, UsenetNntp.imeUstreza("LocalHost.", prava.list))
+        preveriEnako("ime: IP v SAN", true, UsenetNntp.imeUstreza("127.0.0.1", prava.list))
+        preveriEnako("ime: drug IP", false, UsenetNntp.imeUstreza("127.0.0.2", prava.list))
+        preveriEnako("ime: IPv6 ni v SAN", false, UsenetNntp.imeUstreza("::1", prava.list))
+        preveriEnako("ime: localhost2", false, UsenetNntp.imeUstreza("localhost2", prava.list))
+        preveriEnako("ime: napacno.example za drugo potrdilo", false, UsenetNntp.imeUstreza("localhost", napacna.list))
+        preveriEnako("ime: prazno", false, UsenetNntp.imeUstreza("", prava.list))
+        preveriEnako("dns: *.primer.invalid / news", true, UsenetNntp.dnsUstreza("news.primer.invalid", "*.primer.invalid"))
+        preveriEnako("dns: * samo ena oznaka", false, UsenetNntp.dnsUstreza("a.b.primer.invalid", "*.primer.invalid"))
+        preveriEnako("dns: * ne velja za golo domeno", false, UsenetNntp.dnsUstreza("primer.invalid", "*.primer.invalid"))
+        preveriEnako("dns: *.invalid prevec splosno", false, UsenetNntp.dnsUstreza("news.invalid", "*.invalid"))
+        preveriEnako("dns: delni nadomestni znak ne", false, UsenetNntp.dnsUstreza("news.primer.invalid", "n*.primer.invalid"))
+        preveriEnako("dns: pripona brez pike ne", false, UsenetNntp.dnsUstreza("xprimer.invalid", "*.primer.invalid"))
+        val brezSan = potrdilo(mapa, "localhost", "")
+        preveriEnako("ime: brez SAN (samo CN) ne", false, UsenetNntp.imeUstreza("localhost", brezSan.list))
+        // Naprava, ki endpointIdentificationAlgorithm ne uposteva: zaupano potrdilo za drugo ime mora pasti na nasi preverbi.
+        LazniStreznik(napacna.streznik).use { s ->
+            s.clanki[ID] = clanek(1000, 4).poslano
+            UsenetNntp(UsenetNntp.Nastavitve("localhost", UPORABNIK, GESLO, vrata = s.vrata, endpointHttps = false), napacna.zaupaj).use { k ->
+                preveriEnako("brez endpoint: napacno ime -> POTRDILO (nasa preverba)", "POTRDILO", izid { k.body(ID) })
+                preveriEnako("brez endpoint: noben ukaz (ne AUTHINFO)", 0, s.ukazi.size)
             }
         }
         // Veljavno (zaupano) potrdilo za drugo ime: SSLSocket imena sam ne preveri - pade samo z endpointIdentification.

@@ -5,11 +5,15 @@ import java.io.Closeable
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
+import java.net.IDN
+import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.net.SocketTimeoutException
 import java.security.MessageDigest
 import java.security.SecureRandom
+import java.security.cert.CertificateParsingException
+import java.security.cert.X509Certificate
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
@@ -23,9 +27,10 @@ import javax.net.ssl.SSLSocketFactory
  * Pogon Usenet, korak 1: odjemalec NNTP samo prek TLS (RFC 3977, AUTHINFO RFC 4643, NNTP prek TLS RFC 8143, vrata 563)
  * z bazenom povezav. Brez Androida razen preverbe glavne niti (tests/UsenetNntpTest.kt: lazni streznik na 127.0.0.1).
  *
- * - TLS 1.2 ali 1.3; potrdilo preveri [tovarna] (privzeto sistemske overitelje), IME streznika pa
- *   endpointIdentificationAlgorithm = "HTTPS": SSLSocket imena sam NE preveri (veljavno potrdilo za drugo ime bi
- *   sicer obveljalo). [imePotrdila] je dodatna preverba po rokovanju (Android: HttpsURLConnection.getDefaultHostnameVerifier()).
+ * - TLS 1.2 ali 1.3; potrdilo preveri [tovarna] (privzeto sistemske overitelje), IME streznika pa dvakrat:
+ *   endpointIdentificationAlgorithm = "HTTPS" (SSLSocket imena sam NE preveri) in VEDNO se nasa [imeUstreza] po RFC 6125
+ *   pred pozdravom in AUTHINFO - ne zanasamo se, da ga Conscrypt na vsaki TV upostevan (pregled Grok 35 Y1). [imePotrdila]
+ *   je izbirna tretja preverba (Android: HttpsURLConnection.getDefaultHostnameVerifier()).
  * - Bazen: privzeto [PRIVZETO_POVEZAV], najvec [NAJVEC_POVEZAV] (ponudnik ima mejo povezav na racun, npr. 50 - vec naprav
  *   v krogu si jih deli; [nastaviNajvec] za proracun povezav med napravami, korak 3). Povezava, ki je bila predolgo
  *   prosta, gre stran; kaj naredi bazen po napaki, pove [ukrep] (skupni primeri nntp_ukrep, enako namizje).
@@ -65,6 +70,8 @@ class UsenetNntp(
         val poskusov: Int = 2,
         /** Milisekund na sekundo premora (preizkusi skrajsajo premor; v aplikaciji vedno 1000). */
         internal val msNaSekundoPremora: Long = 1000,
+        /** Samo preizkus: izklopi endpointIdentificationAlgorithm (kot naprava, ki ga ne uposteva) - [imeUstreza] ostane. */
+        internal val endpointHttps: Boolean = true,
     ) {
         internal val geslo: String? = geslo
         val povezav: Int = povezav.coerceIn(1, NAJVEC_POVEZAV)
@@ -281,6 +288,44 @@ class UsenetNntp(
             return n to p
         }
 
+        /**
+         * Ime gostitelja proti potrdilu (RFC 6125): DNS samo iz subjectAltName (brez CN - javni overitelji imen v CN ne
+         * uporabljajo); nadomestni znak samo kot cela prva oznaka in ne nad zadnjima dvema (»*.com« ne); IP samo proti
+         * IP v subjectAltName. Brez DNS (InetAddress samo za zapis IP). Neodvisno od platforme TLS.
+         */
+        fun imeUstreza(gostitelj: String, potrdilo: X509Certificate): Boolean {
+            val san = try { potrdilo.subjectAlternativeNames } catch (_: CertificateParsingException) { null } ?: return false
+            val g = gostitelj.trim().trimEnd('.').lowercase()
+            if (g.isEmpty()) return false
+            val ip = ipBajti(g)
+            if (ip != null) {
+                return san.any { e -> e.size >= 2 && e[0] == 7 && (e[1] as? String)?.let { ipBajti(it.lowercase()) }?.contentEquals(ip) == true }
+            }
+            val ascii = try { IDN.toASCII(g) } catch (_: IllegalArgumentException) { return false }
+            return san.any { e -> e.size >= 2 && e[0] == 2 && (e[1] as? String)?.let { dnsUstreza(ascii, it) } == true }
+        }
+
+        /** Ime gostitelja (ASCII, male crke) proti enemu dNSName iz potrdila (RFC 6125 6.4). */
+        fun dnsUstreza(gostitelj: String, vzorec: String): Boolean {
+            val v = vzorec.trim().trimEnd('.').lowercase()
+            if (v.isEmpty() || gostitelj.isEmpty()) return false
+            if (!v.startsWith("*.")) return '*' !in v && v == gostitelj
+            val pripona = v.substring(1)
+            if ('*' in pripona || pripona.count { it == '.' } < 2) return false
+            if (!gostitelj.endsWith(pripona)) return false
+            val prva = gostitelj.substring(0, gostitelj.length - pripona.length)
+            return prva.isNotEmpty() && '.' !in prva
+        }
+
+        /** Bajti naslova IP iz zapisa (IPv4 s stirimi stevili ali IPv6 z »:«); null = ni IP. Brez DNS. */
+        private fun ipBajti(s: String): ByteArray? {
+            val v4 = Regex("[0-9]{1,3}(\\.[0-9]{1,3}){3}").matches(s)
+            if (!v4 && ':' !in s) return null
+            if (v4 && s.split('.').any { it.toInt() > 255 }) return null
+            if (!v4 && !s.all { it in '0'..'9' || it in 'a'..'f' || it == ':' || it == '.' }) return null
+            return try { InetAddress.getByName(s).address } catch (_: Exception) { null }
+        }
+
         /** Ali odgovor 222/223 velja za zahtevani clanek (skupni primeri nntp_id_odgovora): prvi <...> mora biti [id]. */
         fun idOdgovoraUstreza(vrstica: String, id: String): Boolean {
             val i = vrstica.indexOf('<')
@@ -461,7 +506,7 @@ class UsenetNntp(
                 val protokoli = t.supportedProtocols.filter { it in PROTOKOLI }
                 if (protokoli.isEmpty()) throw NapakaNntp(Vrsta.POTRDILO)
                 val p = t.sslParameters
-                p.endpointIdentificationAlgorithm = "HTTPS"
+                if (n.endpointHttps) p.endpointIdentificationAlgorithm = "HTTPS"
                 p.protocols = protokoli.toTypedArray()
                 t.sslParameters = p
                 t.soTimeout = n.rokBranjaMs
@@ -472,6 +517,9 @@ class UsenetNntp(
                 }
                 val seja = t.session
                 if (seja.protocol !in PROTOKOLI) throw NapakaNntp(Vrsta.POTRDILO)
+                // Nasa preverba imena VEDNO, pred pozdravom in AUTHINFO (Grok 35 Y1): poverilnice ne gredo k napacnemu imenu.
+                val list = seja.peerCertificates.firstOrNull() as? X509Certificate ?: throw NapakaNntp(Vrsta.POTRDILO)
+                if (!imeUstreza(n.gostitelj, list)) throw NapakaNntp(Vrsta.POTRDILO)
                 if (imePotrdila != null && !imePotrdila.verify(n.gostitelj, seja)) throw NapakaNntp(Vrsta.POTRDILO)
                 vhod = t.inputStream
                 izhod = t.outputStream
