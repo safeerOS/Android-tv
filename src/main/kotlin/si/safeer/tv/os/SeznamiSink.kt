@@ -103,7 +103,11 @@ object SeznamiSink {
             try { Stremio.pripravi(ctx) } catch (_: Throwable) { }       // shranjeni premori iz prejsnjega zagona
             try { Stremio.premori().forEach { (osnova, se) -> premori.put(RazpolozljivostPravila.odtisNaslova(osnova), se) } } catch (_: Throwable) { }
             return JSONObject().put("lists", a).put("deleted", izbrisani).put("sources", viri).put("sources_deleted", izbrisaniViri)
-                .put("razpolozljivost", Razpolozljivost.povzetek(ctx)).put("premori", premori)
+                .put("razpolozljivost", Razpolozljivost.povzetek(ctx)).put("premori", premori).apply {
+                    // Grok 46, Ö3: napravi zunaj ozjega kroga preklic virov z racunom, ki jih je starejsa razlicica dala vsem.
+                    if (!ozji) try { MedijskiViri.preklicZunajKroga(ctx)?.let { put("sources_revoked", it) } } catch (e: Exception) {
+                        Log.w(TAG, "preklic: ${e.javaClass.simpleName}") }
+                }
         }
         val sz = seznami.firstOrNull { it.ime == ime } ?: return JSONObject().put("ime", ime).put("stevilo", 0).put("skladbe", JSONArray())
         val od = p.optInt("od").coerceAtLeast(0)
@@ -247,6 +251,13 @@ object SeznamiSink {
             }
             if (viri) { viriSpremenjeni = android.os.SystemClock.elapsedRealtime(); spremenjeno = true }
         } catch (e: Exception) { Log.w(TAG, "viri od $naprava: ${e.javaClass.simpleName}") }
+        // Grok 46, Ö3: lastnik vira z racunom ga s to napravo ne deli vec (prisel je s starejso razlicico) - odloci uporabnik.
+        try {
+            kazalo.optJSONObject("sources_revoked")?.let { r ->
+                val ime = try { link.naprave.firstOrNull { it.id == naprava }?.ime } catch (_: Throwable) { null }
+                MedijskiViri.preklicPrejet(app, naprava, ime?.takeIf { it.isNotBlank() } ?: naprava, r)
+            }
+        } catch (e: Exception) { Log.w(TAG, "preklic od $naprava: ${e.javaClass.simpleName}") }
         // 1) Izbrisi: seznam, ki je bil drugje izbrisan in ga tu od takrat nismo spremenili, izgine tudi tukaj.
         kazalo.optJSONObject("deleted")?.let { izbrisani ->
             val moji = MedijskiViri.seznami(app).associateBy { it.ime }

@@ -643,6 +643,41 @@ object IptvPravila {
         return if (v.length > 40 || v.any { it == '/' || it == ':' || it == '@' || it == '?' || it == '=' || it == '&' || it < ' ' }) "" else v
     }
 
+    // ------------------------------------------------------------------ Grok 46, Ö3: ze razposlane kopije
+
+    /**
+     * Preklic za napravo ZUNAJ ozjega kroga (lists.get »sources_revoked«): viri z racunom te naprave ([viri]: odtis
+     * nadomestka, pravi naslov, cas dodajanja), ki so bili tu ze pred prehodom ([predPrehodom] = odtisi) - starejsa razlicica
+     * jih je z usklajevanjem dala vsem napravam v Linku. Vnos je HMAC pravega naslova s [sol] (nakljucna za vsak odgovor: iz
+     * preklica se naslova ne prebere in odgovorov se ne da povezati) in cas (isti zapis ima na obeh napravah isti cas).
+     */
+    fun preklicZa(viri: List<Triple<String, String, Long>>, predPrehodom: Set<String>, sol: String): List<Pair<String, Long>> =
+        viri.filter { it.first in predPrehodom }.map { SkrivnostiPravila.odtisSKljucem(sol, it.second) to it.third }.take(NAJVEC_PREKLICA)
+
+    const val NAJVEC_PREKLICA = 200
+    private val RX_SOL = Regex("^[0-9a-f]{32,128}$")
+
+    /**
+     * Prejet preklic z druge naprave: kateri viri z racunom te naprave ([lokalni]: naslov v aplikaciji, pravi naslov, cas) so
+     * ISTI zapis (HMAC pravega naslova s [sol] in cas se ujemata) - lastnik ga z napravami zunaj svojega ozjega kroga ne deli
+     * vec. Samodejno se ne odstrani nic (ta naprava je lahko tudi izvor zapisa - ure in »dodan tu« iz casa pred prehodom tega
+     * ne povedo): uporabnik odloci. Brez tistih, za katere je ze rekel »obdrzi« ([obdrzani] = naslovi v aplikaciji).
+     */
+    fun preklicani(lokalni: List<Triple<String, String, Long>>, sol: String, prejeti: List<Pair<String, Long>>, obdrzani: Set<String>): List<String> {
+        if (!RX_SOL.matches(sol)) return emptyList()
+        val p = prejeti.take(NAJVEC_PREKLICA).toSet()
+        return lokalni.filter { (naslov, pravi, cas) -> naslov !in obdrzani && (SkrivnostiPravila.odtisSKljucem(sol, pravi) to cas) in p }
+            .map { it.first }
+    }
+
+    /**
+     * Viri z racunom, za katere lastnik enkrat dobi opozorilo »geslo je bilo deljeno«: poverilnico so imeli ze pred prehodom
+     * ([sPoverilnico], odtisi - starejsa razlicica jih je dala vsaki napravi, ki je vprasala za vire), se obstajajo ([zdaj]) in
+     * za vire je vprasala naprava zunaj ozjega kroga ([zunajKroga]) - samo takrat je bilo geslo res deljeno. Brez ze opozorjenih.
+     */
+    fun zaOpozorilo(sPoverilnico: Set<String>, zdaj: Set<String>, zunajKroga: Boolean, opozorjeni: Set<String>): Set<String> =
+        if (!zunajKroga) emptySet() else (sPoverilnico intersect zdaj) - opozorjeni
+
     /** Odtis vira z racunom (kljuc »iptv:<odtis>« v ozjem krogu) = odtis nadomestka ([SkrivnostiPravila.nadomestek]). */
     fun odtisRacuna(skrivnost: String): String = SkrivnostiPravila.odtis(skrivnost.trim())
 

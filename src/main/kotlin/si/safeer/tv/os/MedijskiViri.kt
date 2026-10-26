@@ -610,6 +610,15 @@ object MedijskiViri {
         // Lastnik, 26. 10. 2026: viri z racunom IPTV so bili v nastavitvah s pravim naslovom (in z usklajevanjem virov pri vseh
         // napravah v Linku). Skrivnost gre v sifrirano shrambo, pravi naslov se v vseh nastavitvah zamenja z nadomestkom.
         val racuni = IptvPravila.zamenjaveRacunov(drugi) { SkrivniDodatki.zavarujCel(a, it) }
+        // Grok 46, Ö3: kaj je bilo tu ze pred prehodom (starejsa razlicica je to dala vsem napravam v Linku) - za preklic na
+        // napravah zunaj ozjega kroga in za enkratno opozorilo lastniku (samo vir s poverilnico). Samo odtisi.
+        if (racuni.isNotEmpty()) {
+            fun odtis(n: String) = n.substringAfterLast(SkrivnostiPravila.OZNAKA)
+            val pred = (p.getStringSet(VIRI_PRED_PREHODOM, null) ?: emptySet()) + racuni.values.map { odtis(it) }
+            val sPov = (p.getStringSet(RACUNI_PRED_PREHODOM, null) ?: emptySet()) +
+                racuni.filterKeys { IptvPravila.jeVirSPoverilnico(it, seznam = true) }.values.map { odtis(it) }
+            p.edit().putStringSet(VIRI_PRED_PREHODOM, HashSet(pred)).putStringSet(RACUNI_PRED_PREHODOM, HashSet(sPov)).commit()
+        }
         // Grobovi izbrisanih virov z geslom v kljucu (sli so z usklajevanjem virov vsem napravam) izginejo.
         val izbrisani = beriCase(a, VIRI_IZBRISANI)
         val brez = IptvPravila.brezGrobovZRacunom(izbrisani)
@@ -1091,6 +1100,108 @@ object MedijskiViri {
         val v = Vir(tip, IptvPravila.varnoIme(ime, s), n)
         shrani(ctx, rocni(ctx) + v, prejeto = prejeto)
         return v
+    }
+
+    // ------------------------------------------------------------------ Grok 46, Ö3: ze razposlane kopije
+
+    private const val VIRI_PRED_PREHODOM = "viri_racun_pred_prehodom"
+    private const val RACUNI_PRED_PREHODOM = "racuni_geslo_pred_prehodom"
+    private const val RACUNI_DELJENI = "racuni_geslo_deljeni"
+    private const val RACUNI_OPOZORJENI = "racuni_geslo_opozorjeni"
+    private const val PREKLIC_OBDRZANI = "racuni_preklic_obdrzani"
+
+    /** Zaslon, ki pokaze opozorilo o deljenem geslu ali vprasanje o preklicanem viru (GlasbaActivity); klic na glavni niti. */
+    val poslusalciRacunov = java.util.concurrent.CopyOnWriteArraySet<() -> Unit>()
+    private fun obvestiRacune() = android.os.Handler(android.os.Looper.getMainLooper()).post {
+        for (p in poslusalciRacunov) try { p() } catch (_: Throwable) { }
+    }
+
+    private fun nastavitve(ctx: Context) = ctx.applicationContext.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)
+    private fun mnozica(ctx: Context, k: String): Set<String> = nastavitve(ctx).getStringSet(k, null)?.toSet() ?: emptySet()
+
+    /** Viri z racunom te naprave: odtis nadomestka, pravi naslov (ce je skrivnost znana), cas dodajanja, naslov v aplikaciji. */
+    private class Racun(val odtis: String, val pravi: String, val cas: Long, val naslov: String)
+    private fun racuni(ctx: Context): List<Racun> {
+        SkrivniDodatki.nalozi(ctx)
+        val casi = beriCase(ctx, VIRI_CASI)
+        return rocni(ctx).filter { IptvPravila.jeVrstaRacuna(it.tip) }.mapNotNull { v ->
+            val pravi = SkrivniDodatki.dejanski(v.naslov)
+            if (SkrivnostiPravila.jeNadomestek(pravi)) return@mapNotNull null
+            val odtis = SkrivnostiPravila.nadomestnaOsnova(v.naslov)?.substringAfterLast(SkrivnostiPravila.OZNAKA) ?: IptvPravila.odtisRacuna(pravi)
+            Racun(odtis, pravi, casi[kljucUskladitve(v)] ?: 0L, v.naslov)
+        }
+    }
+
+    /**
+     * Grok 46, Ö3 - lastnik: za vire je vprasala naprava ZUNAJ ozjega kroga (SeznamiSink). Vrne preklic za tiste vire z racunom,
+     * ki jih je starejsa razlicica dala vsem napravam (null = ni kaj preklicati), in si zapomni, da je bilo geslo res deljeno
+     * (enkratno opozorilo lastniku).
+     */
+    fun preklicZunajKroga(ctx: Context): JSONObject? {
+        val pred = mnozica(ctx, VIRI_PRED_PREHODOM)
+        if (pred.isEmpty()) return null
+        val r = racuni(ctx)
+        val nova = IptvPravila.zaOpozorilo(mnozica(ctx, RACUNI_PRED_PREHODOM), r.map { it.odtis }.toSet(), true, mnozica(ctx, RACUNI_OPOZORJENI))
+        if (nova.isNotEmpty() && !mnozica(ctx, RACUNI_DELJENI).containsAll(nova)) {
+            nastavitve(ctx).edit().putStringSet(RACUNI_DELJENI, HashSet(mnozica(ctx, RACUNI_DELJENI) + nova)).apply()
+            obvestiRacune()
+        }
+        val b = ByteArray(16).also { java.security.SecureRandom().nextBytes(it) }
+        val sol = b.joinToString("") { "%02x".format(it) }
+        val vnosi = IptvPravila.preklicZa(r.map { Triple(it.odtis, it.pravi, it.cas) }, pred, sol)
+        if (vnosi.isEmpty()) return null
+        val a = JSONArray()
+        vnosi.forEach { (h, c) -> a.put(JSONObject().put("h", h).put("c", c)) }
+        return JSONObject().put("s", sol).put("o", a)
+    }
+
+    /** Gostitelji virov, za katere lastnik se ni videl opozorila »geslo je bilo deljeno« (prazno = ni opozorila). */
+    fun opozoriloDeljenja(ctx: Context): List<String> {
+        val za = mnozica(ctx, RACUNI_DELJENI) - mnozica(ctx, RACUNI_OPOZORJENI)
+        if (za.isEmpty()) return emptyList()
+        return rocni(ctx).filter { IptvPravila.jeVrstaRacuna(it.tip) &&
+            SkrivnostiPravila.nadomestnaOsnova(it.naslov)?.substringAfterLast(SkrivnostiPravila.OZNAKA) in za }
+            .map { IptvPravila.zaPrikaz(it.naslov) }.distinct()
+    }
+
+    /** Lastnik je opozorilo videl: ne pokaze se vec (za nov deljen vir pa). */
+    fun opozoriloVideno(ctx: Context) {
+        nastavitve(ctx).edit().putStringSet(RACUNI_OPOZORJENI, HashSet(mnozica(ctx, RACUNI_OPOZORJENI) + mnozica(ctx, RACUNI_DELJENI))).apply()
+    }
+
+    /** Preklic z naprave [naprava] (ime [ime]): viri te naprave (naslovi v aplikaciji), o katerih odloci uporabnik. */
+    class Preklic(val naprava: String, val ime: String, val naslovi: List<String>)
+    private val preklici = java.util.concurrent.ConcurrentHashMap<String, Preklic>()
+
+    /** Grok 46, Ö3 - prejemna naprava: preklic iz kazala druge naprave (SeznamiSink). Klic iz ozadja. */
+    fun preklicPrejet(ctx: Context, naprava: String, ime: String, o: JSONObject) {
+        val a = o.optJSONArray("o") ?: return
+        val prejeti = (0 until minOf(a.length(), IptvPravila.NAJVEC_PREKLICA)).mapNotNull { a.optJSONObject(it) }
+            .map { it.optString("h") to it.optLong("c") }
+        val zaVprasati = IptvPravila.preklicani(racuni(ctx).map { Triple(it.naslov, it.pravi, it.cas) }, o.optString("s"), prejeti,
+            mnozica(ctx, PREKLIC_OBDRZANI))
+        if (zaVprasati.isEmpty() || preklici[naprava]?.naslovi == zaVprasati) return
+        preklici[naprava] = Preklic(naprava, ime, zaVprasati)
+        android.util.Log.i("SafeerOsMedia", "viri z racunom: preklic z druge naprave za ${zaVprasati.size} virov - odloci uporabnik")
+        obvestiRacune()
+    }
+
+    /** Najstarejsi preklic, o katerem uporabnik se ni odlocil, ali null. */
+    fun preklic(): Preklic? = preklici.values.firstOrNull()
+
+    /** Gostitelji virov preklica (za vprasanje - brez uporabnika in gesla). */
+    fun opisPreklica(p: Preklic): String = p.naslovi.map { IptvPravila.zaPrikaz(it) }.distinct().joinToString(", ")
+
+    /** Uporabnik je odlocil: [odstrani] = viri izginejo s te naprave; sicer ostanejo in vprasanja zanje ni vec. */
+    fun odlociPreklic(ctx: Context, p: Preklic, odstrani: Boolean) {
+        preklici.remove(p.naprava)
+        if (!odstrani) { nastavitve(ctx).edit().putStringSet(PREKLIC_OBDRZANI, HashSet(mnozica(ctx, PREKLIC_OBDRZANI) + p.naslovi)).apply(); return }
+        val a = ctx.applicationContext
+        for (n in p.naslovi) {
+            val v = rocni(a).firstOrNull { it.naslov == n } ?: continue
+            odstrani(a, v)
+            if (v.jeSeznam) Thread({ try { IptvSeznami.pozabi(a, n) } catch (_: Exception) { } }, "safeer-iptv-preklic").apply { isDaemon = true }.start()
+        }
     }
 
     /** Usklajevanje: vir z racunom z odtisom [odtis] je bil izbrisan na drugi napravi v ozjem krogu. Klic iz ozadja. */

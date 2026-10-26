@@ -352,6 +352,13 @@
     <string name="os_iptv_seznam_zavrnjen">Der Anbieter hat die Liste abgelehnt – prüfe dein Konto beim Anbieter. Neuer Versuch %1$s.</string>
     <string name="os_iptv_seznam_ni_prenesen">Die Liste konnte nicht geladen werden. Neuer Versuch %1$s.</string>
     <string name="os_iptv_poskusi_znova">Liste erneut laden</string>
+    <!-- Grok 46, Ö3: geslo seznama IPTV je starejsa razlicica dala napravam zunaj ozjega kroga (lastnik: %1$s = gostitelji). -->
+    <string name="os_iptv_deljeno_naslov">Das Passwort der IPTV-Liste wurde geteilt</string>
+    <string name="os_iptv_deljeno_sporocilo">Eine ältere Safeer-Version hat die Liste mit Konto (%1$s) auch an Geräte außerhalb des engeren Vertrauenskreises gesendet. Wir empfehlen, das Passwort beim Anbieter zu ändern und die Liste mit dem neuen Passwort erneut hinzuzufügen.</string>
+    <!-- Prejemnik: %1$s = gostitelji seznamov, %2$s = ime naprave. -->
+    <string name="os_iptv_preklic_naslov">Liste mit Konto von einem anderen Gerät</string>
+    <string name="os_iptv_preklic_sporocilo">%2$s teilt die Liste %1$s nicht mehr mit Geräten außerhalb seines engeren Vertrauenskreises – sie kam womöglich über eine ältere Safeer-Version hierher. Von diesem Gerät entfernen? Wenn du sie auf diesem Gerät selbst hinzugefügt hast, wähle Behalten.</string>
+    <string name="os_iptv_preklic_obdrzi">Behalten</string>
     <!-- Naloga 76: mreza TV v zivo caka na zasebne kategorije dodatkov. -->
     <string name="os_tv_preverjam_kategorije">Kategorien der Add-ons werden geprüft …</string>
     <!-- Naloga 77: dodatek ima samo kataloge za iskanje (YouTubio). -->

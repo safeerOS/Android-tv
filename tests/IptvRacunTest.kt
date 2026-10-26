@@ -199,5 +199,28 @@ fun main() {
         IptvPravila.izViraSeznamaAliToka("seznam:x", false) && IptvPravila.izViraSeznamaAliToka("vir:x", false) &&
         !IptvPravila.izViraSeznamaAliToka("vir:x", true) && !IptvPravila.izViraSeznamaAliToka("yt:x", false))
 
+    println()
+    println("== Grok 46, Ö3: ze razposlane kopije - preklic in opozorilo ==")
+    val oX = IptvPravila.odtisRacuna(XTREAM)
+    val oN = IptvPravila.odtisRacuna(TOK)
+    val sol = "00112233445566778899aabbccddeeff"
+    val preklic = IptvPravila.preklicZa(listOf(Triple(oX, XTREAM, 1761400000000L), Triple(oN, TOK, 1761500000000L)), setOf(oX), sol)
+    preveriEnako("preklic: samo vir, ki je bil tu ze pred prehodom", 1, preklic.size)
+    preveri("preklic ne nosi naslova ne odtisa nadomestka", !imaRacun(preklic.toString()) && !preklic.toString().contains(oX))
+    preveri("preklic: druga sol, drug vnos (odgovorov se ne da povezati)",
+        IptvPravila.preklicZa(listOf(Triple(oX, XTREAM, 1L)), setOf(oX), "ffeeddccbbaa99887766554433221100") != IptvPravila.preklicZa(listOf(Triple(oX, XTREAM, 1L)), setOf(oX), sol))
+    val nadX = zapisi[0]!!.naslov
+    val lokalni = listOf(Triple(nadX, XTREAM, 1761400000000L), Triple("http://ponudnik.primer.test:8080/safeer-skrito-0123456789abcdef", TOK, 1761500000000L))
+    preveriEnako("prejemnik: isti zapis (naslov in cas) - vprasaj", listOf(nadX), IptvPravila.preklicani(lokalni, sol, preklic, emptySet()))
+    preveriEnako("prejemnik: isti naslov, drug cas (dodal ga je sam) - nic", emptyList<String>(),
+        IptvPravila.preklicani(listOf(Triple(nadX, XTREAM, 5L)), sol, preklic, emptySet()))
+    preveriEnako("prejemnik: ze rekel »obdrzi« - nic", emptyList<String>(), IptvPravila.preklicani(lokalni, sol, preklic, setOf(nadX)))
+    preveriEnako("prejemnik: pokvarjena sol - nic", emptyList<String>(), IptvPravila.preklicani(lokalni, "x", preklic, emptySet()))
+    preveriEnako("lastnik: opozorilo, ko vire zahteva naprava zunaj ozjega kroga", setOf(oX), IptvPravila.zaOpozorilo(setOf(oX), setOf(oX, oN), true, emptySet()))
+    preveriEnako("lastnik: samo ozji krog - ni bilo deljeno, brez opozorila", emptySet<String>(), IptvPravila.zaOpozorilo(setOf(oX), setOf(oX), false, emptySet()))
+    preveriEnako("lastnik: opozorilo samo enkrat", emptySet<String>(), IptvPravila.zaOpozorilo(setOf(oX), setOf(oX), true, setOf(oX)))
+    preveriEnako("lastnik: vir brez gesla pred prehodom (radio) - brez opozorila", emptySet<String>(), IptvPravila.zaOpozorilo(emptySet(), setOf(oN), true, emptySet()))
+    preveriEnako("lastnik: izbrisan vir - brez opozorila", emptySet<String>(), IptvPravila.zaOpozorilo(setOf(oX), emptySet(), true, emptySet()))
+
     if (napak == 0) println("IptvRacunTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

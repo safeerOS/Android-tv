@@ -352,6 +352,13 @@
     <string name="os_iptv_seznam_zavrnjen">Le fournisseur a refusé la liste – vérifie ton compte chez le fournisseur. Nouvel essai %1$s.</string>
     <string name="os_iptv_seznam_ni_prenesen">La liste n’a pas pu être téléchargée. Nouvel essai %1$s.</string>
     <string name="os_iptv_poskusi_znova">Retélécharger la liste</string>
+    <!-- Grok 46, Ö3: geslo seznama IPTV je starejsa razlicica dala napravam zunaj ozjega kroga (lastnik: %1$s = gostitelji). -->
+    <string name="os_iptv_deljeno_naslov">Le mot de passe de la liste IPTV a été partagé</string>
+    <string name="os_iptv_deljeno_sporocilo">Une ancienne version de Safeer a aussi envoyé la liste avec compte (%1$s) à des appareils hors du cercle de confiance proche. Nous vous recommandons de changer le mot de passe auprès du fournisseur et d’ajouter à nouveau la liste avec le nouveau mot de passe.</string>
+    <!-- Prejemnik: %1$s = gostitelji seznamov, %2$s = ime naprave. -->
+    <string name="os_iptv_preklic_naslov">Liste avec compte d’un autre appareil</string>
+    <string name="os_iptv_preklic_sporocilo">%2$s ne partage plus la liste %1$s avec les appareils hors de son cercle de confiance proche – elle est peut-être arrivée ici via une ancienne version de Safeer. La retirer de cet appareil ? Si vous l’avez ajoutée vous-même sur cet appareil, choisissez Conserver.</string>
+    <string name="os_iptv_preklic_obdrzi">Conserver</string>
     <!-- Naloga 76: mreza TV v zivo caka na zasebne kategorije dodatkov. -->
     <string name="os_tv_preverjam_kategorije">Vérification des catégories des extensions…</string>
     <!-- Naloga 77: dodatek ima samo kataloge za iskanje (YouTubio). -->

@@ -351,6 +351,13 @@
     <string name="os_iptv_seznam_zavrnjen">The provider rejected the playlist – check your account with the provider. Retrying %1$s.</string>
     <string name="os_iptv_seznam_ni_prenesen">The playlist could not be downloaded. Retrying %1$s.</string>
     <string name="os_iptv_poskusi_znova">Try downloading the playlist again</string>
+    <!-- Grok 46, Ö3: geslo seznama IPTV je starejsa razlicica dala napravam zunaj ozjega kroga (lastnik: %1$s = gostitelji). -->
+    <string name="os_iptv_deljeno_naslov">The IPTV playlist password was shared</string>
+    <string name="os_iptv_deljeno_sporocilo">An older version of Safeer also sent the playlist with an account (%1$s) to devices outside the inner circle of trust. We recommend changing the password with the provider and adding the playlist again with the new password.</string>
+    <!-- Prejemnik: %1$s = gostitelji seznamov, %2$s = ime naprave. -->
+    <string name="os_iptv_preklic_naslov">Playlist with an account from another device</string>
+    <string name="os_iptv_preklic_sporocilo">%2$s no longer shares the playlist %1$s with devices outside its inner circle of trust – it may have come here through an older version of Safeer. Remove it from this device? If you added it on this device yourself, choose Keep.</string>
+    <string name="os_iptv_preklic_obdrzi">Keep</string>
     <!-- Naloga 76: mreza TV v zivo caka na zasebne kategorije dodatkov. -->
     <string name="os_tv_preverjam_kategorije">Checking add-on categories…</string>
     <!-- Naloga 77: dodatek ima samo kataloge za iskanje (YouTubio). -->

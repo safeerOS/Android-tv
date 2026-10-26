@@ -542,6 +542,9 @@ class GlasbaActivity : OsActivity() {
         UskladitevKljucev.poslusalci.add(obUskladitvi)
         pokaziCakajoceUskladitve()
         pokaziSpremembeUskladitve()
+        // Grok 46, Ö3: geslo seznama je bilo deljeno (lastnik) ali seznam z racunom z druge naprave (prejemnik) - enkrat.
+        MedijskiViri.poslusalciRacunov.add(obRacunih)
+        pokaziRacune()
         UskladitevKljucev.sprozi(this, 1_500)
         // Kanal, ki je odpovedal, medtem ko je bil na zaslonu predvajalnik, in postaja, ki odpove tukaj.
         MrtviKanali.poslusalci.add(obMrtvemKanalu)
@@ -591,6 +594,7 @@ class GlasbaActivity : OsActivity() {
     override fun onStop() {
         Debrid.poslusalciPrejetih.remove(obPrejetihKljucih)
         UskladitevKljucev.poslusalci.remove(obUskladitvi)
+        MedijskiViri.poslusalciRacunov.remove(obRacunih)
         // Pregled 2: cakanja na debrid/Usenet onStop ne prekine (ugasnjen zaslon, ohranjevalnik TV) - prekine ga odhod
         // uporabnika (onUserLeaveHint), nova izbira, Preklici ali onDestroy; izid med ustavitvijo pocaka na onStart.
         // Mesto dotika velja za vrnitev samo, ce je ta dotik zaslon zapustil (predvajalnik se odpre v nekaj sekundah);
@@ -9530,6 +9534,39 @@ class GlasbaActivity : OsActivity() {
         // Privzeto Sprejmi: uporabnik je napravo sam dodal v ozji krog.
         okno.setOnShowListener { okno.getButton(AlertDialog.BUTTON_POSITIVE)?.requestFocus() }
         uskladitevOkno = okno
+        Kontroler.pokazi(okno); okno.show()
+    }
+
+    // ------------------------------------------------------------------ Grok 46, Ö3: ze razposlane kopije gesla IPTV
+
+    private var racunOkno: AlertDialog? = null
+    private val obRacunih: () -> Unit = { if (!isFinishing && !isDestroyed) pokaziRacune() }
+
+    /**
+     * Lastnik: starejsa razlicica je vir z racunom dala napravam zunaj ozjega kroga - enkrat priporocilo, naj geslo zamenja
+     * (edini zanesljiv popravek ze razposlanih kopij). Prejemnik: lastnik vira ga s to napravo ne deli vec - odstrani ali obdrzi
+     * (samodejno ne: ta naprava je lahko tudi izvor zapisa).
+     */
+    private fun pokaziRacune() {
+        if (racunOkno?.isShowing == true || uskladitevOkno?.isShowing == true || isFinishing) return
+        val gostitelji = MedijskiViri.opozoriloDeljenja(this)
+        val okno = if (gostitelji.isNotEmpty()) AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(R.string.os_iptv_deljeno_naslov)
+            .setMessage(getString(R.string.os_iptv_deljeno_sporocilo, gostitelji.joinToString(", ")))
+            .setPositiveButton(android.R.string.ok) { _, _ -> MedijskiViri.opozoriloVideno(this) }
+            .create()
+        else {
+            val p = MedijskiViri.preklic() ?: return
+            val naprava = DatotekeActivity.lepoIme(p.ime).ifBlank { p.ime.ifBlank { p.naprava } }
+            AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(R.string.os_iptv_preklic_naslov)
+                .setMessage(getString(R.string.os_iptv_preklic_sporocilo, MedijskiViri.opisPreklica(p), naprava))
+                .setPositiveButton(R.string.os_mediji_odstrani) { _, _ -> MedijskiViri.odlociPreklic(this, p, true); poSpremembiVirov(); izberiNaMestu(razdelek) }
+                .setNegativeButton(R.string.os_iptv_preklic_obdrzi) { _, _ -> MedijskiViri.odlociPreklic(this, p, false) }
+                .create()
+        }
+        okno.setOnDismissListener { if (racunOkno === okno) racunOkno = null }
+        racunOkno = okno
         Kontroler.pokazi(okno); okno.show()
     }
 
