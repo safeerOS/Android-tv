@@ -25,9 +25,16 @@ class UsenetMedia3Vir(private val bralnik: UsenetBralnik.Bralnik) : BaseDataSour
         val NASLOV: Uri = Uri.parse("$SHEMA:film")
     }
 
-    /** Tovarna za ExoPlayer: vsak vir bere iz istega bralnika (skok = nov open). */
-    class Tovarna(private val bralnik: UsenetBralnik.Bralnik) : DataSource.Factory {
+    /**
+     * Tovarna za ExoPlayer: vsak vir bere iz istega bralnika (skok = nov open). Lastnistvo (pregled Grok 61 W4): bralnik
+     * je v lasti tovarne - kdor jo ustvari, ob koncu predvajanja (po player.release()) poklice [close], ki zapre bralnik
+     * (niti, LRU). Posamezen vir bralnika nikoli ne zapre, ker ExoPlayer ob vsakem skoku zapre in odpre nov vir.
+     * Preklic nalaganja: ExoPlayer prekine nit nalagalnika; bralnik cakanje prekine z java.io.InterruptedIOException
+     * (Media3 jo razume kot preklic, ne kot napako vira), branje vnaprej pa se ob skoku zavrze.
+     */
+    class Tovarna(private val bralnik: UsenetBralnik.Bralnik) : DataSource.Factory, java.io.Closeable {
         override fun createDataSource(): DataSource = UsenetMedia3Vir(bralnik)
+        override fun close() = bralnik.close()
     }
 
     private val branje = UsenetBralnik.Branje(bralnik)

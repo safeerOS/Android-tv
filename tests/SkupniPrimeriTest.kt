@@ -232,6 +232,25 @@ private fun izracunaj(f: String, v: Map<String, Any?>): Any? = when (f) {
         val (ime, velikost, kosi) = UsenetRar.sestavi(b.indices.map { UsenetRar.razcleniZvezek(b[it], vel[it]) })
         mapOf("izid" to "ok", "ime" to ime, "velikost" to velikost, "kosi" to kosi.map { listOf(it.zvezek.toLong(), it.odmik, it.dolzina) })
     } catch (e: UsenetRar.NapakaRar) { mapOf("izid" to e.izid.name.lowercase()) }
+    // v6 (26. 10. 2026, pregled Grok 58 in 61): meje preslikave (T1), vzorec kot beseda (T13), izbira datotek, meje.
+    "tok_preslikava" -> try {
+        mapOf("izid" to "ok", "celota" to UsenetTok.mejePreslikave(v.cel("stevil_v_nzb")!!, v.cel("manjka_v_nzb")!!,
+            v["velikost"] as Long, v.cel("skupaj")).toLong())
+    } catch (e: UsenetTok.NapakaToka) { mapOf("izid" to e.izid.name.lowercase()) }
+    "tok_vzorec" -> UsenetBralnik.jeVzorec(v.niz("ime"))
+    "tok_izbira" -> try {
+        val nzb = UsenetNzb.Nzb((v["datoteke"] as List<List<Any?>>).map {
+            UsenetNzb.Datoteka(it[0] as String, 0L, emptyList(), listOf(UsenetNzb.Segment(1, it[1] as Long, "a@primer.invalid")), 0)
+        }, null, false)
+        val (vrsta, indeksi) = UsenetBralnik.izberiDatoteke(nzb)
+        mapOf("izid" to "ok", "vrsta" to vrsta, "indeksi" to indeksi.map { it.toLong() })
+    } catch (e: UsenetBralnik.NapakaIzdaje) { mapOf("izid" to e.izid) }
+    "tok_meje" -> mapOf("segmentov_datoteke" to UsenetTok.NAJVEC_SEGMENTOV_DATOTEKE.toLong(), "del_bajtov" to UsenetTok.NAJVEC_DELA,
+        "priprava_hkrati" to UsenetBralnik.PRIPRAVA_HKRATI.toLong(), "priprave_bajtov" to UsenetBralnik.NAJVEC_PRIPRAVE_BAJTOV,
+        "glav_segmentov" to UsenetBralnik.NAJVEC_GLAV_SEGMENTOV, "glav_bajtov" to UsenetBralnik.NAJVEC_GLAV_BAJTOV,
+        "poskusov" to UsenetBralnik.NAJVEC_POSKUSOV.toLong(), "preklicev" to UsenetBralnik.NAJVEC_PREKLICEV.toLong(),
+        "streznik_povezav" to UsenetStreznik.NAJVEC_POVEZAV.toLong(), "streznik_rok_s" to UsenetStreznik.ROK_POVEZAVE_MS / 1000,
+        "vint_najvec" to UsenetRar.NAJVEC_VINT, "zvezkov_najvec" to UsenetRar.NAJVEC_ZVEZKOV)
     "uskladitev_novejsi" ->UskladitevKljucevPravila.novejsi(v["cas"] as Long, v.niz("izvor")!!, v["izbrisan"] as Boolean,
         (v["star"] as List<Any?>?)?.let { UskladitevKljucevPravila.Meta(it[0] as Long, it[1] as String, it[2] as Boolean, "") })
     else -> error("neznano pravilo: $f")
@@ -249,5 +268,9 @@ fun main(args: Array<String>) {
         preveriEnako("$f $vhod", p["izhod"], dobljeno)
     }
     println("  primerov: $primerov (verzija ${koren["verzija"]})")
+    // usenet-pogon v6: natancno 560 primerov (pregled Grok 58 T14: »najmanj« ne ujame izgube primerov)
+    if (pot.endsWith("usenet-pogon.json") && (koren["verzija"] != 6L || primerov != 560)) {
+        println("usenet-pogon.json: pricakovana verzija 6 s 560 primeri"); System.exit(1)
+    }
     if (napak == 0) println("SkupniPrimeriTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

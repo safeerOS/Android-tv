@@ -25,6 +25,8 @@ object UsenetRar {
     const val NAJVEC_BLOKOV = 10_000
     const val NAJVEC_GLAVA5 = 2 * 1024 * 1024
     const val NAJVEC_IME = 4096
+    const val NAJVEC_VINT = Long.MAX_VALUE
+    const val NAJVEC_ZVEZKOV = 1_000_000L
 
     class Vnos(
         val ime: String?, val odmik: Long, val dolzina: Long, val velikost: Long,
@@ -55,7 +57,10 @@ object UsenetRar {
         for (k in 0 until 10) {
             if (od + k >= b.size) throw NapakaRar(Izid.NEPOPOLNO)
             val c = b[od + k].toInt() and 0xFF
-            if (premik < 64) v = v or ((c and 0x7F).toLong() shl premik)
+            // 10. bajt nosi samo bit 63: vec ali bit 63 sam bi dal vrednost nad Long.MAX_VALUE (negativen Long - pregled
+            // Grok 61 W1: negativne dolzine so zaobsle meje in copyOfRange je vrgel izjemo mimo NapakaRar).
+            if (k == 9 && c > 0) throw NapakaRar(Izid.POSKODOVAN)
+            v = v or ((c and 0x7F).toLong() shl premik)
             if (c and 0x80 == 0) return v to od + k + 1
             premik += 7
         }
@@ -110,12 +115,15 @@ object UsenetRar {
                     var o = 32
                     if (zast and 0x0100 != 0) {
                         if (vel < 40) throw NapakaRar(Izid.POSKODOVAN)
+                        // zgornji bit HIGH_PACK/HIGH_UNP bi dal negativen Long (W1)
+                        if (u32(glava, 32) and 0x80000000L != 0L || u32(glava, 36) and 0x80000000L != 0L) throw NapakaRar(Izid.POSKODOVAN)
                         paket = paket or (u32(glava, 32) shl 32)
                         nest = nest or (u32(glava, 36) shl 32)
                         o = 40
                         dodatno = paket
                     }
                     if (nIme > NAJVEC_IME || o + nIme > vel) throw NapakaRar(Izid.POSKODOVAN)
+                    if (paket > velikost - (i + vel)) throw NapakaRar(Izid.POSKODOVAN)  // podatki ne segajo cez zvezek
                     vnosi += Vnos(ime(glava.copyOfRange(o, o + nIme), zast and 0x0200 != 0), i + vel, paket, nest,
                         zast and 0x01 != 0, zast and 0x02 != 0, zast and 0xE0 == 0xE0, metoda == 0x30, zast and 0x04 != 0)
                 }
@@ -173,7 +181,7 @@ object UsenetRar {
             } catch (_: NapakaRar) {
                 throw NapakaRar(Izid.POSKODOVAN)
             }
-            if (dod > h.size - k) throw NapakaRar(Izid.POSKODOVAN)
+            if (dod < 0 || dod > h.size - k || pod < 0 || pod > velikost - (i + z + vel)) throw NapakaRar(Izid.POSKODOVAN)
             if (vrsta == 4L) throw NapakaRar(Izid.SIFRIRANE_GLAVE)
             if (prvi && vrsta != 1L) throw NapakaRar(Izid.POSKODOVAN)
             try {
@@ -181,7 +189,11 @@ object UsenetRar {
                     1L -> {
                         val (af, k2) = vint(h, k)
                         vec = af and 0x1L != 0L
-                        if (af and 0x2L != 0L) stevilka = vint(h, k2).first.toInt() else if (vec) stevilka = 0
+                        if (af and 0x2L != 0L) {
+                            val sv = vint(h, k2).first
+                            if (sv > NAJVEC_ZVEZKOV) throw NapakaRar(Izid.POSKODOVAN)
+                            stevilka = sv.toInt()
+                        } else if (vec) stevilka = 0
                     }
                     2L -> {
                         val (ff, k1) = vint(h, k)
@@ -192,7 +204,7 @@ object UsenetRar {
                         val (ci, k4) = vint(h, kk); kk = k4
                         kk = vint(h, kk).second
                         val (nIme, k5) = vint(h, kk); kk = k5
-                        if (nIme > NAJVEC_IME || kk + nIme > h.size - dod) throw NapakaRar(Izid.POSKODOVAN)
+                        if (nIme < 0 || nIme > NAJVEC_IME || kk + nIme > h.size - dod) throw NapakaRar(Izid.POSKODOVAN)
                         val imeD = ime(h.copyOfRange(kk, (kk + nIme).toInt()))
                         val sifriran = if (dod > 0) imaZapis(h.copyOfRange((h.size - dod).toInt(), h.size), 0x01) else false
                         vnosi += Vnos(imeD, i + z + vel, pod, if (ff and 0x8L != 0L) -1 else nest, zast and 0x8L != 0L,
@@ -216,8 +228,13 @@ object UsenetRar {
 
     fun razcleniZvezek(beri: Beri, velikost: Long): Zvezek {
         val z = beri.beri(0, 8)
-        if (zacetek(z, PODPIS5)) return rar5(beri, velikost)
-        if (zacetek(z, PODPIS4)) return rar4(beri, velikost)
+        try {
+            if (zacetek(z, PODPIS5)) return rar5(beri, velikost)
+            if (zacetek(z, PODPIS4)) return rar4(beri, velikost)
+        } catch (e: RuntimeException) {
+            // varovalo (W1): nobena napaka razclenjevanja ne sme iz razcleniZvezek mimo NapakaRar
+            throw NapakaRar(Izid.POSKODOVAN)
+        }
         throw NapakaRar(Izid.NI_RAR)
     }
 
@@ -227,7 +244,16 @@ object UsenetRar {
     /** Odlocitev PRED ponudbo iz prvih bajtov prvega zvezka (skupni primeri rar_glava). */
     fun preveri(prviBajti: ByteArray, velikost: Long = Long.MAX_VALUE / 2): Izid {
         val z = try { razcleniZvezek(prviBajti, velikost) } catch (e: NapakaRar) { return e.izid }
+        return odloci(z, velikost)
+    }
+
+    /**
+     * Odlocitev iz razclenjenih glav. Pregled Grok 58 T2: ce glave segajo cez prebrane bajte, odloci samo datoteka, ki
+     * je ocitno film - razdeljena cez zvezke ali vsaj pol zvezka; sicer NEPOPOLNO in bralnik prebere glave naprej.
+     */
+    fun odloci(z: Zvezek, velikost: Long = Long.MAX_VALUE / 2): Izid {
         val v = glavniVnos(z) ?: return if (z.nepopolno) Izid.NEPOPOLNO else Izid.NI_DATOTEKE
+        if (z.nepopolno && !(v.po || (v.velikost >= 0 && v.velikost >= (velikost + 1) / 2))) return Izid.NEPOPOLNO
         return when {
             v.sifriran -> Izid.SIFRIRAN
             !v.store -> Izid.STISNJEN

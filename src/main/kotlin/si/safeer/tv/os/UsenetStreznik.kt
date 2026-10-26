@@ -23,7 +23,12 @@ import java.util.concurrent.atomic.AtomicInteger
  *   message-id v naslovu; zeton se primerja v konstantnem casu; glava Host mora biti 127.0.0.1 ali localhost z nasimi vrati.
  * - Brez dnevnika zahtev (pot nosi zeton). reuseAddress izklopljen. Medpomnilnik posiljanja 256 KiB.
  * - 206 z Content-Range, 200 brez ali z neveljavnim/vecdelnim Range, HEAD, 416 izven obsega (bytes * /N), 405, 404.
- * - [close] ob koncu predvajanja ali sam po [nedejavnostMs] brez zahtev in odprtih povezav; zapre tudi bralnik.
+ * - [close] ob koncu predvajanja ali sam po [nedejavnostMs] brez zahtev z veljavnim zetonom; zapre tudi bralnik.
+ * - Pregled Grok 61 W2 / 58 T7: najvec [NAJVEC_POVEZAV] hkratnih povezav (nad tem takoj zapre - prej nit na vsako
+ *   povezavo brez meje, OutOfMemoryError: pthread_create je sesul aplikacijo), glave v [ROK_POVEZAVE_MS], nedejavnost
+ *   steje samo zahteve z veljavnim zetonom, po 404 se povezava zapre.
+ * - T12: prvi kos se prebere pred glavami: trajna napaka (luknja, pokvarjen ...) da 502, prehodna 503 - ne prirezanega
+ *   200/206; enota Range ne glede na velike crke.
  */
 class UsenetStreznik(
     private val bralnik: UsenetBralnik.Bralnik,
@@ -37,10 +42,13 @@ class UsenetStreznik(
         const val KOS = 256 * 1024
         const val SNDBUF = 256 * 1024
         private const val NAJVEC_GLAVE = 8192
+        const val NAJVEC_POVEZAV = 16
+        const val ROK_POVEZAVE_MS = 60_000L
+        private val TRAJNE = setOf(UsenetTok.Izid.LUKNJA, UsenetTok.Izid.POKVARJEN, UsenetTok.Izid.NESKLADNO, UsenetTok.Izid.IZVEN)
         private val VRSTE = mapOf(".mkv" to "video/x-matroska", ".mp4" to "video/mp4", ".m4v" to "video/mp4",
             ".webm" to "video/webm", ".avi" to "video/x-msvideo", ".ts" to "video/mp2t", ".m2ts" to "video/mp2t",
             ".mov" to "video/quicktime", ".wmv" to "video/x-ms-wmv", ".mpg" to "video/mpeg", ".mpeg" to "video/mpeg")
-        private val RANGE = Regex("^bytes=(\\d{0,19})-(\\d{0,19})$")
+        private val RANGE = Regex("^bytes=(\\d{0,19})-(\\d{0,19})$", RegexOption.IGNORE_CASE)
 
         /** Obseg iz glave Range: (zacetek, konec vkljucno), null = cela datoteka, (-1, -1) = 416. */
         fun obseg(glava: String?, velikost: Long): Pair<Long, Long>? {
@@ -78,6 +86,7 @@ class UsenetStreznik(
     }
     val vrata: Int = posluh.localPort
     val url: String = "http://$GOSTITELJ:$vrata/$zeton/$pot"
+    /** Zahteve z veljavnim zetonom v teku (nedejavnost); povezave so v [vticnice]. */
     private val odprtih = AtomicInteger()
     @Volatile private var zadnja = System.nanoTime()
     @Volatile var zaprt = false; private set
@@ -100,10 +109,23 @@ class UsenetStreznik(
     private fun sprejemaj() {
         while (!zaprt) {
             val s = try { posluh.accept() } catch (_: IOException) { return }
-            vticnice += s
-            Thread({ strezi(s) }, "safeer-usenet-http-zahteva").apply { isDaemon = true; start() }
+            val sprejeta = synchronized(vticnice) { (vticnice.size < NAJVEC_POVEZAV).also { if (it) vticnice += s } }
+            if (!sprejeta) {
+                try { s.close() } catch (_: IOException) { }  // nad mejo: takoj zapri, brez niti
+                continue
+            }
+            try {
+                Thread({ strezi(s) }, "safeer-usenet-http-zahteva").apply { isDaemon = true; start() }
+            } catch (_: Throwable) {
+                // OutOfMemoryError: pthread_create ali podobno - povezava proc, streznik in aplikacija ostaneta (W2)
+                vticnice -= s
+                try { s.close() } catch (_: IOException) { }
+            }
         }
     }
+
+    /** Za preizkus: odprte povezave. */
+    internal val povezav: Int get() = vticnice.size
 
     override fun close() {
         synchronized(this) {
@@ -116,12 +138,13 @@ class UsenetStreznik(
         try { obKoncu?.invoke() } catch (_: Exception) { }
     }
 
-    private fun vrstica(vhod: BufferedInputStream, meja: IntArray): String? {
+    private fun vrstica(vhod: BufferedInputStream, meja: IntArray, rok: Long): String? {
         val sb = StringBuilder()
         while (true) {
             val c = vhod.read()
             if (c < 0) return if (sb.isEmpty()) null else sb.toString()
             if (--meja[0] < 0) throw IOException("glava prevelika")
+            if (System.nanoTime() > rok) throw IOException("glava prepocasna")  // kapljanje po bajt pod soTimeout
             if (c == '\n'.code) return sb.toString().removeSuffix("\r")
             sb.append(c.toChar())
         }
@@ -143,25 +166,23 @@ class UsenetStreznik(
     }
 
     private fun strezi(s: Socket) {
-        odprtih.incrementAndGet()
-        zadnja = System.nanoTime()
         try {
             s.sendBufferSize = SNDBUF
-            s.soTimeout = 60_000
+            s.soTimeout = ROK_POVEZAVE_MS.toInt()
             val vhod = BufferedInputStream(s.getInputStream())
             val izhod = s.getOutputStream()
             while (!zaprt) {
                 val meja = intArrayOf(NAJVEC_GLAVE)
-                val zahteva = vrstica(vhod, meja) ?: return
+                val zahteva = vrstica(vhod, meja, Long.MAX_VALUE) ?: return  // med zahtevami velja soTimeout
                 if (zahteva.isEmpty()) continue
+                val rok = System.nanoTime() + ROK_POVEZAVE_MS * 1_000_000
                 val glave = HashMap<String, String>()
                 while (true) {
-                    val v = vrstica(vhod, meja) ?: return
+                    val v = vrstica(vhod, meja, rok) ?: return
                     if (v.isEmpty()) break
                     val i = v.indexOf(':')
                     if (i > 0) glave.putIfAbsent(v.substring(0, i).trim().lowercase(), v.substring(i + 1).trim())
                 }
-                zadnja = System.nanoTime()
                 val deli = zahteva.split(' ')
                 if (deli.size != 3) return
                 val metoda = deli[0]
@@ -170,33 +191,17 @@ class UsenetStreznik(
                     pisi(izhod, 405, "Method Not Allowed", listOf("Allow" to "GET, HEAD") + prazno); izhod.flush(); continue
                 }
                 if (zaprt || !dovoljeno(deli[1], glave["host"])) {
-                    pisi(izhod, 404, "Not Found", prazno); izhod.flush(); continue
+                    // zeton pred vsem ostalim; brez njega povezava ne ostane in ne osvezi nedejavnosti (T7)
+                    pisi(izhod, 404, "Not Found", listOf("Connection" to "close") + prazno); izhod.flush(); return
                 }
-                val o = obseg(glave["range"], velikost)
-                if (o != null && o.first < 0) {
-                    pisi(izhod, 416, "Range Not Satisfiable", listOf("Content-Range" to "bytes */$velikost", "Accept-Ranges" to "bytes") + prazno)
-                    izhod.flush(); continue
-                }
-                val (zacetek, konec) = o ?: (0L to velikost - 1)
-                val g = arrayListOf("Content-Type" to vrsta, "Accept-Ranges" to "bytes", "Cache-Control" to "no-store",
-                    "Content-Length" to maxOf(0L, konec - zacetek + 1).toString())
-                if (o != null) g += "Content-Range" to "bytes $zacetek-$konec/$velikost"
-                pisi(izhod, if (o == null) 200 else 206, if (o == null) "OK" else "Partial Content", g)
-                if (metoda == "HEAD") { izhod.flush(); continue }
-                var poz = zacetek
+                odprtih.incrementAndGet()
+                zadnja = System.nanoTime()
                 try {
-                    while (poz <= konec) {
-                        val kos = bralnik.beri(poz, minOf(KOS.toLong(), konec - poz + 1).toInt())
-                        if (kos.isEmpty()) break
-                        izhod.write(kos)
-                        poz += kos.size
-                        zadnja = System.nanoTime()
-                    }
-                    izhod.flush()
-                } catch (_: UsenetTok.NapakaToka) {
-                    return  // obljubljene dolzine ni bilo: povezavo zapremo, predvajalnik odpre znova
+                    if (!odgovori(izhod, metoda, glave["range"])) return
+                } finally {
+                    odprtih.decrementAndGet()
+                    zadnja = System.nanoTime()
                 }
-                if (poz <= konec) return
             }
         } catch (_: SocketException) {
             // predvajalnik je zaprl povezavo (skok, konec)
@@ -204,8 +209,48 @@ class UsenetStreznik(
         } finally {
             vticnice -= s
             try { s.close() } catch (_: IOException) { }
-            odprtih.decrementAndGet()
-            zadnja = System.nanoTime()
         }
+    }
+
+    /** Odgovor na veljavno zahtevo; false = povezavo zapri. */
+    private fun odgovori(izhod: OutputStream, metoda: String, range: String?): Boolean {
+        val prazno = listOf("Content-Length" to "0")
+        val o = obseg(range, velikost)
+        if (o != null && o.first < 0) {
+            pisi(izhod, 416, "Range Not Satisfiable", listOf("Content-Range" to "bytes */$velikost", "Accept-Ranges" to "bytes") + prazno)
+            izhod.flush(); return true
+        }
+        val (zacetek, konec) = o ?: (0L to velikost - 1)
+        var prvi = ByteArray(0)
+        if (metoda == "GET" && konec >= zacetek) {
+            try {
+                prvi = bralnik.beri(zacetek, minOf(KOS.toLong(), konec - zacetek + 1).toInt())
+            } catch (e: UsenetTok.NapakaToka) {
+                val koda = if (e.izid in TRAJNE) 502 else 503
+                pisi(izhod, koda, if (koda == 502) "Bad Gateway" else "Service Unavailable", listOf("Connection" to "close") + prazno)
+                izhod.flush()
+                return false
+            }
+        }
+        val g = arrayListOf("Content-Type" to vrsta, "Accept-Ranges" to "bytes", "Cache-Control" to "no-store",
+            "Content-Length" to maxOf(0L, konec - zacetek + 1).toString())
+        if (o != null) g += "Content-Range" to "bytes $zacetek-$konec/$velikost"
+        pisi(izhod, if (o == null) 200 else 206, if (o == null) "OK" else "Partial Content", g)
+        if (metoda == "HEAD") { izhod.flush(); return true }
+        var poz = zacetek
+        try {
+            while (poz <= konec) {
+                val kos = if (prvi.isNotEmpty()) prvi else bralnik.beri(poz, minOf(KOS.toLong(), konec - poz + 1).toInt())
+                prvi = ByteArray(0)
+                if (kos.isEmpty()) break
+                izhod.write(kos)
+                poz += kos.size
+                zadnja = System.nanoTime()
+            }
+            izhod.flush()
+        } catch (_: UsenetTok.NapakaToka) {
+            return false  // obljubljene dolzine ni bilo: povezavo zapremo, predvajalnik odpre znova
+        }
+        return poz > konec
     }
 }

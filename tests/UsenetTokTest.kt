@@ -103,6 +103,9 @@ private class Objava(val delBajtov: Int = 700 * 1024, private val predpomni: Boo
     val poslano = AtomicLong()
     val poslanih = AtomicLong()
     val manjka: MutableSet<String> = Collections.newSetFromMap(ConcurrentHashMap())
+    /** Clanki, ki pridejo pokvarjeni (ni yEnc), in koliko krat je bil vsak clanek poslan (T3). */
+    val pokvarjeni: MutableSet<String> = Collections.newSetFromMap(ConcurrentHashMap())
+    val poClanku = ConcurrentHashMap<String, Int>()
 
     fun dodaj(ime: String, v: Vsebina): List<String> {
         val n = maxOf(1L, (v.velikost + delBajtov - 1) / delBajtov).toInt()
@@ -117,6 +120,8 @@ private class Objava(val delBajtov: Int = 700 * 1024, private val predpomni: Boo
     /** Telo clanka (CRLF, brez podvojenih pik), kot ga vrne UsenetNntp.body. */
     fun telo(id: String): ByteArray {
         if (!ima(id)) throw UsenetNntp.NapakaNntp(UsenetNntp.Vrsta.NI_CLANKA, 430)
+        poClanku.merge(id, 1, Int::plus)
+        if (id in pokvarjeni) return "nesmisel\r\n".toByteArray()
         if (predpomni) kodirani[id]?.let { poslano.addAndGet(it.size.toLong()); poslanih.incrementAndGet(); return it }
         val (d, st) = clanki.getValue(id)
         val (ime, v, idji) = datoteke[d]
@@ -192,6 +197,14 @@ private object Rar {
         PODPIS4 + blok4(0x73, (if (vec) 0x11 else 0) or (if (vec && prvi) 0x100 else 0), ByteArray(6))
 
     val konec4 get() = blok4(0x7B, 0x4000, ByteArray(0))
+
+    /** RAR4 glava z LHD_LARGE (0x100): HIGH_PACK z zgornjim bitom (W1). */
+    fun glava4Velika(ime: String, kos: ByteArray, highPack: Long): ByteArray {
+        val i = ime.toByteArray(Charsets.UTF_8)
+        val telo = le32(kos.size.toLong()) + le32(kos.size.toLong()) + byteArrayOf(2) + le32(crc(kos)) + le32(0) + byteArrayOf(29, 0x30) +
+            le16(i.size) + le32(0x20) + le32(highPack) + le32(0) + i
+        return blok4(0x74, 0x8000 or 0x100, telo)
+    }
 
     /** Vec zvezkov store nad leno vsebino (glave prave, podatki se ne kopirajo). */
     fun zvezki(razlicica: Int, ime: String, film: Vsebina, naZvezek: Long): List<Vsebina> {
@@ -354,7 +367,8 @@ private fun preslikava() {
     enako("dve zdruzeni objavi: vsi odmiki najdeni", 40, vsaj)
     val luknja = UsenetNzb.Datoteka("film.mkv", 0, emptyList(), listOf(1, 2, 4, 5, 6, 7).map { UsenetNzb.Segment(it, 1000, "d$it@primer.invalid") }, 1)
     val p = UsenetTok.Preslikava(luknja, del(1))
-    enako("luknja v NZB", listOf(3), p.manjkajo)
+    enako("luknja v NZB", listOf(3), p.manjkajoci())
+    enako("stevilo manjkajocih", 1, p.manjka)
     enako("branje v luknji", "luknja", izid { p.poisci(650) })
     enako("toString brez id", false, p.toString().contains("primer.invalid"))
 }
@@ -373,10 +387,10 @@ private fun rar() {
         enako("RAR$r prvih 30 B = nepopolno", UsenetRar.Izid.NEPOPOLNO, UsenetRar.preveri(vols[0].beri(0, 30), vols[0].velikost))
         enako("RAR$r manjka srednji", "neskladno", izid { UsenetRar.sestavi(listOf(zv[0], zv[2])) })
     }
-    val st = Rar.glavni5(0, false) + Rar.glava5("Film.mkv", 100_000, ByteArray(500), metoda = 3) + Rar.konec5(true)
-    enako("RAR5 stisnjen", UsenetRar.Izid.STISNJEN, UsenetRar.preveri(st))
+    val st = Rar.glavni5(0, false) + Rar.glava5("Film.mkv", 100_000, ByteArray(500), metoda = 3) + ByteArray(500) + Rar.konec5(true)
+    enako("RAR5 stisnjen", UsenetRar.Izid.STISNJEN, UsenetRar.preveri(st, st.size.toLong()))
     val sif = Rar.glavni4(false, true) + Rar.glava4("Film.mkv", 500, ByteArray(500), sifriran = true) + ByteArray(500) + Rar.konec4
-    enako("RAR4 sifriran", UsenetRar.Izid.SIFRIRAN, UsenetRar.preveri(sif))
+    enako("RAR4 sifriran", UsenetRar.Izid.SIFRIRAN, UsenetRar.preveri(sif, sif.size.toLong()))
     enako("mkv ni RAR", UsenetRar.Izid.NI_RAR, UsenetRar.preveri(byteArrayOf(0x1A, 0x45, -33, -93) + ByteArray(60)))
     enako("vrstni red .r00", listOf(1, 2, 0), UsenetRar.vrstniRedZvezkov(listOf("A.r01", "a.rar", "a.r00")))
 }
@@ -661,6 +675,186 @@ private fun meritevPrenosa() {
     }
 }
 
+// ------------------------------------------------------------------ popravki pregledov Grok 58 in 61 (naloga 29)
+
+private fun nzbIz(o: Objava, izpusti: Set<String> = emptySet()) = UsenetNzb.razcleni(o.nzb(izpusti))
+
+private fun popravki58() {
+    println("popravki pregledov Grok 58 in 61")
+    // T1: yEnc total=999 999 999 iz enega clanka - prej seznam vseh manjkajocih stevilk (OOM na TV)
+    val film = Leno(1000, 1).beri(0, 1000)
+    val velik = UsenetYenc.dekodiraj(YencKodirnik.kodiraj(film, "x.mkv", 1, 999_999_999, 0, 100_000_000_000L))
+    val dat = UsenetNzb.Datoteka("x.mkv", 0, emptyList(), listOf(UsenetNzb.Segment(1, 1000, "a@primer.invalid")), 0)
+    val rt = Runtime.getRuntime()
+    System.gc()
+    val pred = rt.totalMemory() - rt.freeMemory()
+    var t0 = System.nanoTime()
+    enako("T1 velik total = neskladno", "neskladno", izid { UsenetTok.Preslikava(dat, velik) })
+    val ms = (System.nanoTime() - t0) / 1e6
+    val mib = (rt.totalMemory() - rt.freeMemory() - pred) / MIB.toDouble()
+    println("  T1: ${"%.1f".format(ms)} ms, ${"%.1f".format(mib)} MiB")
+    preveri("T1 hitro (< 100 ms)", ms < 100, "($ms ms)")
+    val p50 = UsenetTok.Preslikava(dat, UsenetYenc.dekodiraj(YencKodirnik.kodiraj(film, "x.mkv", 1, 50, 0, 50_000)))
+    enako("T1 dovoljen total: luknje kot stevilo", Triple(50, 49, listOf(2, 3, 4)), Triple(p50.celota, p50.manjka, p50.manjkajoci(3)))
+    enako("T1 velikost nad celota x 4 MiB", "neskladno",
+        izid { UsenetTok.Preslikava(dat, UsenetYenc.dekodiraj(YencKodirnik.kodiraj(film, "x.mkv", 1, 3, 0, 3 * 4 * MIB + 1))) })
+    val o1 = Objava().apply { dodaj("Film.mkv", Bajti(film)) }
+    t0 = System.nanoTime()
+    enako("T1 preveriIzdajo z enim clankom", "neskladno",
+        UsenetBralnik.preveriIzdajo(nzbIz(o1)) { YencKodirnik.kodiraj(film, "Film.mkv", 1, 999_999_999, 0, 100_000_000_000L) })
+    preveri("T1 preveriIzdajo hitro", (System.nanoTime() - t0) < 500_000_000L)
+
+    // T2: store vzorec pred stisnjenim filmom - glava filma ni v prvem segmentu
+    val vz = Leno(2 * MIB, 3).beri(0, (2 * MIB).toInt())
+    val fm = Leno(5 * MIB, 4).beri(0, (5 * MIB).toInt())
+    for ((metoda, pricakovano) in listOf(3 to "stisnjen", 0 to "ok")) {
+        val vol = Rar.glavni5(0, false) + Rar.glava5("Film.sample.mkv", vz.size.toLong(), vz) + vz +
+            Rar.glava5("Film.mkv", fm.size.toLong(), fm, metoda = metoda) + fm + Rar.konec5(true)
+        val o = Objava().apply { dodaj("Film.rar", Bajti(vol)) }
+        enako("T2 prvi segment = nepopolno", UsenetRar.Izid.NEPOPOLNO, UsenetRar.preveri(vol.copyOfRange(0, 700 * 1024), vol.size.toLong()))
+        enako("T2 preveriIzdajo metoda $metoda", pricakovano, UsenetBralnik.preveriIzdajo(nzbIz(o), o::telo))
+        if (metoda != 0) {
+            enako("T2 pripravi stisnjen", "stisnjen", izid { UsenetBralnik.pripravi(nzbIz(o), o::telo) })
+        } else {
+            val vir = UsenetBralnik.pripravi(nzbIz(o), o::telo).first
+            enako("T2 predvaja film, ne vzorca", "Film.mkv" to fm.size.toLong(), vir.ime to vir.velikost)
+            UsenetBralnik.Bralnik(o::telo, vir).use { b ->
+                preveri("T2 bajti filma", UsenetBralnik.beriVse(b, 1000, 50_000).contentEquals(fm.copyOfRange(1000, 51_000)))
+            }
+        }
+    }
+
+    // T3: pokvarjen segment se prenese najvec enkrat
+    val o3 = Objava().apply { dodaj("Film.mkv", Leno(20 * MIB, 9)) }
+    val slab = o3.datoteke[0].third[5]
+    o3.pokvarjeni += slab
+    bralnik(o3).use { b ->
+        UsenetBralnik.beriVse(b, 0, 5 * 700 * 1024 - 10)
+        pocakajMir(b)
+        repeat(20) { b.beri(0, 1000) }
+        enako("T3 pokvarjen", "pokvarjen", izid { b.beri(5 * 700 * 1024L + 1, 10) })
+        enako("T3 pokvarjen znova (iz spomina)", "pokvarjen", izid { b.beri(5 * 700 * 1024L + 1, 10) })
+        pocakajMir(b)
+        preveri("T3 pokvarjen clanek se ne prenasa znova", (o3.poClanku[slab] ?: 0) <= 1, "(${o3.poClanku[slab]})")
+    }
+
+    // T4: priprava 60 zvezkov - najvec PRIPRAVA_HKRATI hkrati, meja prometa
+    val f4 = Leno(60 * 300 * 1024L, 5)
+    val o4 = Objava(100 * 1024).apply { Rar.zvezki(5, "Film.mkv", f4, 300 * 1024L).forEachIndexed { i, z -> dodaj("Film.part%02d.rar".format(i + 1), z) } }
+    val hkrati = java.util.concurrent.atomic.AtomicInteger()
+    val najvec = java.util.concurrent.atomic.AtomicInteger()
+    val vir4 = UsenetBralnik.pripravi(nzbIz(o4), { id ->
+        najvec.accumulateAndGet(hkrati.incrementAndGet(), ::maxOf)
+        try { Thread.sleep(2); o4.telo(id) } finally { hkrati.decrementAndGet() }
+    }).first
+    enako("T4 velikost filma", f4.velikost, vir4.velikost)
+    preveri("T4 najvec hkrati", najvec.get() <= UsenetBralnik.PRIPRAVA_HKRATI, "(${najvec.get()})")
+    enako("T4 nad mejo prometa = prevec", "prevec", izid { UsenetBralnik.pripravi(nzbIz(o4), o4::telo, najvecBajtov = MIB) })
+
+    // T5: 40 storitvenih blokov po 1,5 MiB pred glavo datoteke - iskanje glav z mejo
+    val blok = Rar.blok5(3, 0, Rar.vint(0) + Rar.vint(0) + Rar.vint(0) + Rar.vint(0) + Rar.vint(0) + Rar.vint(0), ByteArray(0), (1.5 * MIB).toLong())
+    val nicle = Bajti(ByteArray((1.5 * MIB).toInt()))
+    val f5 = Leno(MIB, 7).beri(0, MIB.toInt())
+    val deli5 = ArrayList<Vsebina>()
+    deli5 += Bajti(Rar.glavni5(0, true))
+    repeat(40) { deli5 += Bajti(blok); deli5 += nicle }
+    deli5 += Bajti(Rar.glava5("Film.mkv", f5.size.toLong(), f5, po = true) + f5 + Rar.konec5(false))
+    val vol5 = Zlepek(deli5.map { Triple(it, 0L, it.velikost) })
+    val vol52 = Rar.glavni5(1, true) + Rar.glava5("Film.mkv", f5.size.toLong(), f5, pred = true) + f5 + Rar.konec5(true)
+    val o5 = Objava().apply { dodaj("Film.part1.rar", vol5); dodaj("Film.part2.rar", Bajti(vol52)) }
+    enako("T5 iskanje glav z mejo = prevec", "prevec", UsenetBralnik.preveriIzdajo(nzbIz(o5), o5::telo))
+    preveri("T5 najvec segmentov", o5.poslanih.get() <= 1 + UsenetBralnik.NAJVEC_GLAV_SEGMENTOV + 1, "(${o5.poslanih.get()})")
+
+    // T9: close zbudi bralca, ki caka na prenos v teku
+    val o9 = Objava().apply { dodaj("Film.mkv", Leno(4 * MIB, 1)) }
+    val vir9 = UsenetBralnik.pripravi(nzbIz(o9), o9::telo).first
+    val sprosti = java.util.concurrent.CountDownLatch(1)
+    val b9 = UsenetBralnik.Bralnik({ id -> sprosti.await(10, java.util.concurrent.TimeUnit.SECONDS); o9.telo(id) }, vir9)
+    var izid9: String? = null
+    val t9 = Thread { izid9 = izid { b9.beri(2 * MIB, 10) } }.apply { start() }
+    Thread.sleep(100)
+    b9.close()
+    t9.join(1000)
+    preveri("T9 bralec se zbudi ob close", !t9.isAlive)
+    enako("T9 izid zaprto", "zaprto", izid9)
+    sprosti.countDown()
+
+    // W4: prekinjena nit nalagalnika (Media3) dobi InterruptedIOException, ne splosne napake
+    val o4b = Objava().apply { dodaj("Film.mkv", Leno(4 * MIB, 2)) }
+    val sprosti4 = java.util.concurrent.CountDownLatch(1)
+    val b4 = UsenetBralnik.Bralnik({ id -> sprosti4.await(10, java.util.concurrent.TimeUnit.SECONDS); o4b.telo(id) },
+        UsenetBralnik.pripravi(nzbIz(o4b), o4b::telo).first)
+    var napaka4: Throwable? = null
+    val t4 = Thread { try { b4.beri(2 * MIB, 10) } catch (e: Throwable) { napaka4 = e } }.apply { start() }
+    Thread.sleep(100)
+    t4.interrupt()
+    t4.join(1000)
+    preveri("W4 InterruptedIOException", napaka4 is java.io.InterruptedIOException, "(${napaka4?.javaClass?.simpleName})")
+    sprosti4.countDown()
+    b4.close()
+
+    // T12: Range z velikimi crkami; napaka na zacetku = 502 pred glavami (ne prirezan 206)
+    enako("T12 Bytes=", 0L to 9L, UsenetStreznik.obseg("Bytes=0-9", 100))
+    val o12 = Objava().apply { dodaj("Film.mkv", Leno(3 * MIB, 2)) }
+    val b12 = bralnik(o12)
+    o12.manjka += o12.datoteke[0].third[1]
+    UsenetStreznik(b12).use { s ->
+        val c = http(s.url, 700 * 1024L + 5, null)
+        enako("T12 502 pred glavami", 502, c.responseCode)
+    }
+
+    // T13: vzorec kot beseda; zakrito ime s podpisom RAR je en zvezek
+    for ((ime, je) in listOf("Film.Sample.mkv" to true, "sample-film.mkv" to true, "Film.2026.vzorec.mkv" to true,
+            "Samplers.2026.1080p.mkv" to false, "The.Sampler.mkv" to false, "Film.mkv" to false)) {
+        enako("T13 vzorec $ime", je, UsenetBralnik.jeVzorec(ime))
+    }
+    val f13 = Leno(3 * MIB, 8).beri(0, (3 * MIB).toInt())
+    val en = Rar.glavni5(0, false) + Rar.glava5("Film.mkv", f13.size.toLong(), f13) + f13 + Rar.konec5(true)
+    val o13 = Objava().apply { dodaj("a8f3c2d19e7b", Bajti(en)) }
+    enako("T13 zakrito ime: ok", "ok", UsenetBralnik.preveriIzdajo(nzbIz(o13), o13::telo))
+    val vir13 = UsenetBralnik.pripravi(nzbIz(o13), o13::telo).first
+    enako("T13 zakrito ime: film", "Film.mkv" to f13.size.toLong(), vir13.ime to vir13.velikost)
+    UsenetBralnik.Bralnik(o13::telo, vir13).use { b ->
+        preveri("T13 pretaka film, ne surovega zvezka", UsenetBralnik.beriVse(b, 5, 1000).contentEquals(f13.copyOfRange(5, 1005)))
+    }
+    val o13b = Objava().apply { Rar.zvezki(5, "Film.mkv", Bajti(f13), MIB).forEachIndexed { i, z -> dodaj("%032x".format(i), z) } }
+    enako("T13 vec zakritih zvezkov = ni_podprto", "ni_podprto", UsenetBralnik.preveriIzdajo(nzbIz(o13b), o13b::telo))
+    preveri("T13 pripravi vec zakritih zvezkov zavrne",
+        try { UsenetBralnik.pripravi(nzbIz(o13b), o13b::telo); false } catch (e: UsenetBralnik.NapakaIzdaje) { e.izid == "ni_podprto" })
+
+    // W1: negativna cela stevila (vint nad Long.MAX_VALUE, HIGH_PACK z zgornjim bitom, podatki cez zvezek)
+    val polja = Rar.vint(0) + Rar.vint(1) + Rar.vint(0x20) + Rar.vint(0) + Rar.vint(0) + ByteArray(9) { -1 } + byteArrayOf(1) + "x".toByteArray()
+    val arh = Rar.PODPIS5 + Rar.blok5(1, 0, Rar.vint(0)) + Rar.blok5(2, 0, polja, ByteArray(0), 1) + "x".toByteArray()
+    enako("W1 RAR5 negativna dolzina imena", UsenetRar.Izid.POSKODOVAN, UsenetRar.preveri(arh, arh.size.toLong()))
+    val r4 = Rar.glavni4(false, true) + Rar.glava4Velika("film.mkv", "abc".toByteArray(), 0xFFFFFFFFL) + "abc".toByteArray() + Rar.konec4
+    enako("W1 RAR4 HIGH_PACK zgornji bit", UsenetRar.Izid.POSKODOVAN, UsenetRar.preveri(r4, r4.size.toLong()))
+    val cez = Rar.glavni5(0, false) + Rar.glava5("a.mkv", 10, "0123456789".toByteArray()) + "0123".toByteArray()
+    enako("W1 podatki cez konec zvezka", UsenetRar.Izid.POSKODOVAN, UsenetRar.preveri(cez, cez.size.toLong()))
+
+    // W6: brez segmenta 1 ali z luknjo v NZB ni ponujena
+    val o6 = Objava().apply { dodaj("Film.mkv", Leno(5 * 700 * 1024L, 4)) }
+    enako("W6 brez segmenta 1", "luknja", UsenetBralnik.preveriIzdajo(nzbIz(o6, setOf(o6.datoteke[0].third[0])), o6::telo))
+    enako("W6 luknja v sredini", "luknja", UsenetBralnik.preveriIzdajo(nzbIz(o6, setOf(o6.datoteke[0].third[2])), o6::telo))
+    enako("W6 cela", "ok", UsenetBralnik.preveriIzdajo(nzbIz(o6), o6::telo))
+
+    // W2 / T7: poplava povezav brez zetona - najvec NAJVEC_POVEZAV, streznik se vseeno sam zapre
+    val o7 = Objava().apply { dodaj("Film.mkv", Leno(MIB, 1)) }
+    val s7 = UsenetStreznik(bralnik(o7), nedejavnostMs = 500)
+    val prazne = (1..UsenetStreznik.NAJVEC_POVEZAV + 40).map { Socket("127.0.0.1", s7.vrata) }
+    try {
+        Thread.sleep(300)
+        preveri("W2 povezav najvec ${UsenetStreznik.NAJVEC_POVEZAV}", s7.povezav <= UsenetStreznik.NAJVEC_POVEZAV, "(${s7.povezav})")
+        val niti = Thread.getAllStackTraces().keys.count { it.name == "safeer-usenet-http-zahteva" }
+        preveri("W2 niti najvec ${UsenetStreznik.NAJVEC_POVEZAV}", niti <= UsenetStreznik.NAJVEC_POVEZAV, "($niti)")
+        val konec = System.nanoTime() + 5_000_000_000L
+        while (!s7.zaprt && System.nanoTime() < konec) Thread.sleep(50)
+        preveri("T7 povezave brez zetona ne drzijo streznika zivega", s7.zaprt)
+    } finally {
+        prazne.forEach { try { it.close() } catch (_: IOException) { } }
+        s7.close()
+    }
+}
+
 fun main(args: Array<String>) {
     println("Preizkus pogona Usenet, korak 2 (tok, RAR, bralnik, streznik)")
     val mapa = java.nio.file.Files.createTempDirectory("usenet-tok").toFile()
@@ -669,6 +863,7 @@ fun main(args: Array<String>) {
         rar()
         bralnikPreizkusi()
         streznik()
+        popravki58()
         val t = tls(mapa)
         konecDoKonca(mapa, t)
         if ("--meritev" in args) { meritevPrenosa(); meritev(t) }

@@ -101,6 +101,11 @@ object UsenetBralnik {
         @Volatile var lruBajtov = 0L; private set
         private val vTeku = HashMap<Kljuc, CompletableFuture<ByteArray>>()
         private val cakajo = HashMap<Kljuc, CompletableFuture<ByteArray>>()
+        /** T3: segment, ki je padel, se do konca seje ne prenese znova; napaka omrezja dobi se en poskus. */
+        private val napake = HashMap<Kljuc, Throwable>()
+        private val poskusi = HashMap<Kljuc, Int>()
+        /** W3: koliko bralcev caka na kljuc - okno drugega bralca ga ne preklice. */
+        private val zahtevani = HashMap<Kljuc, Int>()
         private val vrsta = PriorityQueue<Naloga>(compareBy<Naloga>({ it.prednost }, { it.zap }))
         private val zap = AtomicLong()
         @Volatile var zaprt = false; private set
@@ -121,7 +126,7 @@ object UsenetBralnik {
         override fun toString() = "Bralnik($vir, z omrezja ${zOmrezja.get()} B)"
 
         /** Ali kakega branja ni v teku (preizkusi, meritev). */
-        fun miruje(): Boolean = zaklep.withLock { vTeku.isEmpty() }
+        fun miruje(): Boolean = zaklep.withLock { vTeku.isEmpty() && cakajo.isEmpty() }
 
         private fun delavec() {
             while (true) {
@@ -137,8 +142,11 @@ object UsenetBralnik {
                 val k = kljuc ?: return
                 val ff = f ?: continue  // zavrzeno ob skoku
                 val podatki = try { prenesi(k) } catch (e: Throwable) {
-                    zaklep.withLock { vTeku.remove(k) }
-                    ff.completeExceptionally(e)
+                    zaklep.withLock {
+                        vTeku.remove(k)
+                        zapomni(k, e)
+                    }
+                    ff.completeExceptionally(e)  // ce je close ze nastavil ZAPRTO, nima ucinka
                     null
                 }
                 if (podatki != null) {
@@ -149,6 +157,14 @@ object UsenetBralnik {
                     ff.complete(podatki)
                 }
             }
+        }
+
+        /** Pod zaklepom: trajna napaka segmenta takoj, napaka omrezja po [NAJVEC_POSKUSOV]. */
+        private fun zapomni(k: Kljuc, e: Throwable) {
+            if (e is UsenetTok.NapakaToka || e is UsenetRar.NapakaRar) { napake[k] = e; return }
+            val n = (poskusi[k] ?: 0) + 1
+            poskusi[k] = n
+            if (n >= NAJVEC_POSKUSOV) napake[k] = e
         }
 
         private fun prenesi(k: Kljuc): ByteArray {
@@ -180,9 +196,13 @@ object UsenetBralnik {
             }
         }
 
-        /** Pod zaklepom: future segmenta, null = ze v LRU. */
+        /** Pod zaklepom: future segmenta, null = ze v LRU ali (pri branju vnaprej) segment ze padel. */
         private fun zahtevaj(k: Kljuc, prednost: Int): CompletableFuture<ByteArray>? {
             if (lru.containsKey(k)) return null
+            napake[k]?.let { e ->
+                if (prednost > 0) return null  // ne znova vnaprej (T3)
+                return CompletableFuture<ByteArray>().apply { completeExceptionally(e) }
+            }
             vTeku[k]?.let { f ->
                 if (prednost == 0 && cakajo.containsKey(k)) {
                     vrsta += Naloga(0, zap.incrementAndGet(), k)  // vnaprej -> zahtevano: naprej v vrsti
@@ -199,12 +219,14 @@ object UsenetBralnik {
         }
 
         private fun segment(k: Kljuc): ByteArray {
-            while (true) {
+            repeat(NAJVEC_PREKLICEV) {
                 val f = zaklep.withLock {
                     if (zaprt) throw UsenetTok.NapakaToka(UsenetTok.Izid.ZAPRTO)
                     lru[k]?.let { return it }
-                    zahtevaj(k, 0)
-                } ?: continue
+                    val ff = zahtevaj(k, 0)
+                    if (ff != null) zahtevani[k] = (zahtevani[k] ?: 0) + 1
+                    ff
+                } ?: return segment(k)
                 try {
                     return f.get()
                 } catch (_: CancellationException) {
@@ -213,8 +235,18 @@ object UsenetBralnik {
                     val v = e.cause
                     if (v is IOException) throw v
                     throw IOException("usenet bralnik: " + (v?.javaClass?.simpleName ?: "napaka"))
+                } catch (e: InterruptedException) {
+                    // W4: Media3 ob preklicu nalaganja prekine nit nalagalnika - DataSource mora vrzi InterruptedIOException
+                    Thread.currentThread().interrupt()
+                    throw java.io.InterruptedIOException("usenet bralnik: prekinjeno")
+                } finally {
+                    zaklep.withLock {
+                        val n = (zahtevani[k] ?: 1) - 1
+                        if (n > 0) zahtevani[k] = n else zahtevani.remove(k)
+                    }
                 }
             }
+            throw UsenetTok.NapakaToka(UsenetTok.Izid.PREKINJENO)  // W3: prej while (true) brez meje
         }
 
         private fun beriDatoteko(d: Int, odmik: Long, n: Long): ByteArray {
@@ -237,7 +269,8 @@ object UsenetBralnik {
             for ((d, o, n) in vir.razponi(od, okno)) for (st in vir.preslikave[d].segmentiOkna(o, n)) kljuci += Kljuc(d, st)
             zaklep.withLock {
                 val zelja = kljuci.toHashSet()
-                val odvec = cakajo.keys.filter { it !in zelja }
+                // skok: cakajoca branja vnaprej zunaj okna proc - ne tista, na katera caka kak bralec (W3)
+                val odvec = cakajo.keys.filter { it !in zelja && (zahtevani[it] ?: 0) == 0 }
                 for (k in odvec) {
                     cakajo.remove(k)?.cancel(false)
                     vTeku.remove(k)
@@ -268,10 +301,14 @@ object UsenetBralnik {
             return podatki
         }
 
-        /** Konec predvajanja: vrsta proc, LRU sproscen, niti koncajo; zahteve v teku se ne caka. */
+        /**
+         * Konec predvajanja: vrsta proc, LRU sproscen, niti koncajo; bralci, ki cakajo na prenos v teku, se takoj zbudijo
+         * z ZAPRTO (T9). Prenos clanka, ki ze tece, se konca v UsenetNntp, njegov izid se zavrze.
+         */
         override fun close() {
             zaklep.withLock {
                 zaprt = true
+                for (f in vTeku.values) f.completeExceptionally(UsenetTok.NapakaToka(UsenetTok.Izid.ZAPRTO))
                 for (f in cakajo.values) f.cancel(false)
                 cakajo.clear()
                 vrsta.clear()
@@ -317,10 +354,25 @@ object UsenetBralnik {
     private val VIDEO = listOf(".mkv", ".mp4", ".m4v", ".avi", ".ts", ".m2ts", ".webm", ".mov", ".wmv", ".mpg", ".mpeg")
     private val NI_VSEBINA = listOf(".par2", ".nfo", ".sfv", ".nzb", ".jpg", ".jpeg", ".png", ".txt", ".srr", ".url", ".md5")
 
+    /** T3: napaka omrezja pri istem segmentu - po toliko poskusih se ne prenasa vec. */
+    const val NAJVEC_POSKUSOV = 2
+    /** W3: zahtevano branje, ki ga okno drugega bralca preklice, se ponovi najvec toliko krat. */
+    const val NAJVEC_PREKLICEV = 3
+    /** T4: priprava bere hkrati najvec toliko zvezkov in zacetek vsakega sprosti takoj po razclenitvi glav. */
+    const val PRIPRAVA_HKRATI = 4
+    /** T4: meja prometa priprave; vec = PREVEC (600 zvezkov po 700 KiB = 410 MiB). */
+    const val NAJVEC_PRIPRAVE_BAJTOV = 512 * MIB
+    /** T5: glave, ki niso v prvem segmentu zvezka: najvec toliko segmentov in bajtov na zvezek, sicer PREVEC. */
+    const val NAJVEC_GLAV_SEGMENTOV = 8L
+    const val NAJVEC_GLAV_BAJTOV = 16 * MIB
+
     /** 7z, zip, vec arhivov ... (deobfuskacija je F2) in izdaja brez filma. */
     class NapakaIzdaje(val izid: String) : IOException("usenet izdaja: $izid")
 
-    private fun jeVzorec(ime: String) = ime.lowercase().let { "sample" in it || "vzorec" in it }
+    /** T13: vzorec je samostojna beseda v imenu (»Film.Sample.mkv«), ne podniz (»Samplers.2026.mkv«) - tok_vzorec. */
+    private val VZOREC = Regex("(^|[._ \\-\\[(])(sample|vzorec)([._ \\-\\])]|$)", RegexOption.IGNORE_CASE)
+
+    fun jeVzorec(ime: String?): Boolean = VZOREC.containsMatchIn(ime ?: "")
 
     private fun jeZvezek(ime: String): Boolean {
         val m = ime.lowercase()
@@ -329,7 +381,14 @@ object UsenetBralnik {
             (k.length == 3 && k[0] == 'r' && k.substring(1).all { it.isDigit() })
     }
 
-    /** ("rar" ali "video", indeksi datotek v vrstnem redu). Napaka: [NapakaIzdaje] ni_podprto ali ni_filma. */
+    /** Najvecja datoteka; pri enaki velikosti prva (enako kot Python max po (bajtov, -i)). */
+    private fun najvecja(nzb: UsenetNzb.Nzb, kandidati: List<Int>): Int {
+        var naj = kandidati[0]
+        for (i in kandidati) if (nzb.datoteke[i].bajtov > nzb.datoteke[naj].bajtov) naj = i
+        return naj
+    }
+
+    /** ("rar" ali "video", indeksi datotek v vrstnem redu) - tok_izbira. Napaka: [NapakaIzdaje] ni_podprto ali ni_filma. */
     fun izberiDatoteke(nzb: UsenetNzb.Nzb): Pair<String, List<Int>> {
         val imena = nzb.datoteke.map { it.ime ?: "" }
         val rar = imena.indices.filter { jeZvezek(imena[it]) && !jeVzorec(imena[it]) }
@@ -338,11 +397,11 @@ object UsenetBralnik {
             return "rar" to red.map { rar[it] }
         }
         val video = imena.indices.filter { i -> VIDEO.any { imena[i].lowercase().endsWith(it) } && !jeVzorec(imena[i]) }
-        if (video.isNotEmpty()) return "video" to listOf(video.maxByOrNull { nzb.datoteke[it].bajtov }!!)
+        if (video.isNotEmpty()) return "video" to listOf(najvecja(nzb, video))
         if (imena.any { i -> listOf(".7z", ".zip", ".001").any { i.lowercase().endsWith(it) } }) throw NapakaIzdaje("ni_podprto")
         val kandidati = imena.indices.filter { i -> NI_VSEBINA.none { imena[i].lowercase().endsWith(it) } }
         if (kandidati.isEmpty()) throw NapakaIzdaje("ni_filma")
-        return "video" to listOf(kandidati.maxByOrNull { nzb.datoteke[it].bajtov }!!)
+        return "video" to listOf(najvecja(nzb, kandidati))
     }
 
     private class Prvi(val preslikava: UsenetTok.Preslikava, val zacetek: ByteArray, val bajtov: Int)
@@ -359,53 +418,125 @@ object UsenetBralnik {
         return Prvi(UsenetTok.Preslikava(d, del, s.stevilka), if (del.zacetek == 0L) del.podatki else ByteArray(0), surovo.size)
     }
 
+    private fun jeRar(z: ByteArray): Boolean = zacne(z, UsenetRar.PODPIS4) || zacne(z, UsenetRar.PODPIS5)
+
+    private fun zacne(z: ByteArray, p: ByteArray) = z.size >= p.size && p.indices.all { z[it] == p[it] }
+
     /**
-     * NZB -> (Vir filma, bajti z omrezja za pripravo). Prvi segment vsake izbrane datoteke (vzporedno) da preslikavo in
-     * glave RAR; stisnjen ali sifriran RAR = [UsenetRar.NapakaRar] PRED ponudbo. Nikoli na glavni niti.
+     * Glave zvezka iz zacetka (prvi segment); ce segajo cez in jih rabimo ([celo] ali ni nobene datoteke), branje naprej
+     * prek bralnika brez okna vnaprej z mejo NAJVEC_GLAV_* (T5; prej brez meje). (zvezek, bajti z omrezja).
      */
-    fun pripravi(nzb: UsenetNzb.Nzb, telo: (String) -> ByteArray, vzporedno: Int = 8): Pair<Vir, Long> {
-        check(Looper.myLooper() != Looper.getMainLooper()) { "Usenet ne sme teci na glavni niti" }
-        val (vrstaIzdaje, izbrane) = izberiDatoteke(nzb)
-        val bazen = Executors.newFixedThreadPool(maxOf(1, minOf(vzporedno, izbrane.size))) { r ->
-            Thread(r, "safeer-usenet-priprava").apply { isDaemon = true }
+    private fun glave(telo: (String) -> ByteArray, p: UsenetTok.Preslikava, zacetek: ByteArray, celo: Boolean): Pair<UsenetRar.Zvezek, Long> {
+        val z = if (zacetek.isNotEmpty()) UsenetRar.razcleniZvezek(zacetek, p.velikost) else null
+        if (z != null && !(z.nepopolno && (celo || z.vnosi.isEmpty()))) return z to 0L
+        val b = Bralnik(telo, Vir(listOf(p), listOf(KosVira(0, 0, p.velikost))), Profil(0, 0, 8 * MIB, 1))
+        fun meja() {
+            if (b.segmentov.get() > NAJVEC_GLAV_SEGMENTOV || b.zOmrezja.get() > NAJVEC_GLAV_BAJTOV) {
+                throw UsenetTok.NapakaToka(UsenetTok.Izid.PREVEC)
+            }
         }
-        val prvi = try {
-            izbrane.map { i -> bazen.submit<Prvi> { prviSegment(telo, nzb.datoteke[i]) } }.map {
-                try { it.get() } catch (e: ExecutionException) { throw (e.cause as? IOException) ?: IOException("usenet priprava") }
+        try {
+            val zz = UsenetRar.razcleniZvezek({ o, k ->
+                if (o + k <= zacetek.size) zacetek.copyOfRange(o.toInt(), (o + k).toInt())  // prvi segment je ze tu
+                else {
+                    meja()
+                    beriVse(b, o, k).also { meja() }
+                }
+            }, p.velikost)
+            return zz to b.zOmrezja.get()
+        } finally {
+            b.close()
+        }
+    }
+
+    /** Prvi zvezek: odlocitev store/stisnjen/sifriran na celem seznamu glav, ce prvi segment ne zadosca (T2). */
+    private fun odlociPrvega(telo: (String) -> ByteArray, p: UsenetTok.Preslikava, zacetek: ByteArray): Pair<UsenetRar.Zvezek, Long> {
+        var izid = UsenetRar.preveri(zacetek, p.velikost)
+        if (izid == UsenetRar.Izid.NEPOPOLNO) {
+            val (z, bajtov) = glave(telo, p, zacetek, true)
+            izid = UsenetRar.odloci(z, p.velikost)
+            if (izid != UsenetRar.Izid.OK) throw UsenetRar.NapakaRar(izid)
+            return z to bajtov
+        }
+        if (izid != UsenetRar.Izid.OK) throw UsenetRar.NapakaRar(izid)
+        return UsenetRar.razcleniZvezek(zacetek, p.velikost) to 0L
+    }
+
+    private class Odlocitev(val vrsta: String, val izbrane: List<Int>, val preslikava: UsenetTok.Preslikava, val zvezek: UsenetRar.Zvezek?, val bajtov: Long)
+
+    /**
+     * Skupna odlocitev za [preveriIzdajo] in [pripravi] (T13). Zakrito ime s podpisom RAR je RAR z enim zvezkom (vec
+     * zvezkov z zakritimi imeni ne znamo urediti: ni_podprto).
+     */
+    private fun prvi(nzb: UsenetNzb.Nzb, telo: (String) -> ByteArray): Odlocitev {
+        val (vrsta, izbrane) = izberiDatoteke(nzb)
+        val p = prviSegment(telo, nzb.datoteke[izbrane[0]])
+        if (vrsta == "video" && !jeRar(p.zacetek)) return Odlocitev(vrsta, izbrane, p.preslikava, null, p.bajtov.toLong())
+        val (z, b2) = odlociPrvega(telo, p.preslikava, p.zacetek)
+        if (vrsta == "video" && z.vecZvezkov) throw NapakaIzdaje("ni_podprto")
+        return Odlocitev("rar", izbrane, p.preslikava, z, p.bajtov + b2)
+    }
+
+    /**
+     * NZB -> (Vir filma, bajti z omrezja za pripravo). Prvi zvezek odloci (T2), ostali zvezki se berejo najvec
+     * [vzporedno] hkrati, zacetek se sprosti takoj po razclenitvi (T4; prej vsi prvi segmenti hkrati v RAM - na TV
+     * OutOfMemoryError), skupni promet najvec [najvecBajtov] (PREVEC). Stisnjen ali sifriran RAR = [UsenetRar.NapakaRar]
+     * PRED ponudbo. Nikoli na glavni niti.
+     */
+    fun pripravi(
+        nzb: UsenetNzb.Nzb, telo: (String) -> ByteArray, vzporedno: Int = PRIPRAVA_HKRATI, najvecBajtov: Long = NAJVEC_PRIPRAVE_BAJTOV,
+    ): Pair<Vir, Long> {
+        check(Looper.myLooper() != Looper.getMainLooper()) { "Usenet ne sme teci na glavni niti" }
+        val o = prvi(nzb, telo)
+        var bajtov = o.bajtov
+        if (o.vrsta == "video") {
+            return Vir(listOf(o.preslikava), listOf(KosVira(0, 0, o.preslikava.velikost)), nzb.datoteke[o.izbrane[0]].ime) to bajtov
+        }
+        val n = o.izbrane.size
+        val preslikave = arrayOfNulls<UsenetTok.Preslikava>(n)
+        val zvezki = arrayOfNulls<UsenetRar.Zvezek>(n)
+        preslikave[0] = o.preslikava
+        zvezki[0] = o.zvezek
+        val hkrati = maxOf(1, vzporedno)
+        val bazen = Executors.newFixedThreadPool(hkrati) { r -> Thread(r, "safeer-usenet-priprava").apply { isDaemon = true } }
+        val koncani = java.util.concurrent.ExecutorCompletionService<Triple<Int, UsenetTok.Preslikava, Pair<UsenetRar.Zvezek, Long>>>(bazen)
+        try {
+            var naslednji = 1
+            var tece = 0
+            while (naslednji < n || tece > 0) {
+                while (naslednji < n && tece < hkrati) {
+                    val i = naslednji
+                    koncani.submit {
+                        val p = prviSegment(telo, nzb.datoteke[o.izbrane[i]])
+                        val (z, b2) = glave(telo, p.preslikava, p.zacetek, false)
+                        Triple(i, p.preslikava, z to p.bajtov + b2)  // zacetek gre stran tu
+                    }
+                    naslednji++
+                    tece++
+                }
+                val izid = try {
+                    koncani.take().get()
+                } catch (e: ExecutionException) {
+                    throw (e.cause as? IOException) ?: IOException("usenet priprava: " + (e.cause?.javaClass?.simpleName ?: "napaka"))
+                } catch (e: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    throw java.io.InterruptedIOException("usenet priprava: prekinjeno")
+                }
+                tece--
+                preslikave[izid.first] = izid.second
+                zvezki[izid.first] = izid.third.first
+                bajtov += izid.third.second
+                if (bajtov > najvecBajtov) throw UsenetTok.NapakaToka(UsenetTok.Izid.PREVEC)
             }
         } finally {
             bazen.shutdownNow()
         }
-        var bajtov = prvi.sumOf { it.bajtov.toLong() }
-        val preslikave = prvi.map { it.preslikava }
-        if (vrstaIzdaje == "video") {
-            return Vir(preslikave, listOf(KosVira(0, 0, preslikave[0].velikost)), nzb.datoteke[izbrane[0]].ime) to bajtov
-        }
-        val zvezki = ArrayList<UsenetRar.Zvezek>()
-        for ((n, p) in prvi.withIndex()) {
-            if (n == 0) {
-                val izid = UsenetRar.preveri(p.zacetek, p.preslikava.velikost)
-                if (izid != UsenetRar.Izid.OK && izid != UsenetRar.Izid.NEPOPOLNO) throw UsenetRar.NapakaRar(izid)
-            }
-            var z = if (p.zacetek.isNotEmpty()) UsenetRar.razcleniZvezek(p.zacetek, p.preslikava.velikost) else null
-            if (z == null || (z.nepopolno && z.vnosi.isEmpty())) {
-                // glave cez prvi segment: beri zvezek prek bralnika z majhnim oknom
-                val b = Bralnik(telo, Vir(listOf(p.preslikava), listOf(KosVira(0, 0, p.preslikava.velikost))), Profil(MIB, MIB, 8 * MIB, 2))
-                try {
-                    z = UsenetRar.razcleniZvezek({ o, k -> beriVse(b, o, k) }, p.preslikava.velikost)
-                } finally {
-                    bajtov += b.zOmrezja.get()
-                    b.close()
-                }
-            }
-            zvezki += z
-        }
-        val (ime, _, kosi) = UsenetRar.sestavi(zvezki)
-        return Vir(preslikave, kosi.map { KosVira(it.zvezek, it.odmik, it.dolzina) }, ime) to bajtov
+        val (ime, _, kosi) = UsenetRar.sestavi(zvezki.map { it!! })
+        return Vir(preslikave.map { it!! }, kosi.map { KosVira(it.zvezek, it.odmik, it.dolzina) }, ime) to bajtov
     }
 
     fun beriVse(b: Bralnik, odmik: Long, n: Int): ByteArray {
-        val izid = java.io.ByteArrayOutputStream(maxOf(0, n))
+        val izid = java.io.ByteArrayOutputStream(maxOf(0, minOf(n, 1 shl 20)))
         var o = odmik
         var ostane = n
         while (ostane > 0) {
@@ -419,19 +550,24 @@ object UsenetBralnik {
     }
 
     /**
-     * Pred ponudbo: ali izdajo lahko predvajamo - EN clanek (prvi segment prvega zvezka ali datoteke). Izid v malih
-     * crkah kot v skupnih primerih ("ok", "stisnjen", "sifriran", "sifrirane_glave", "ni_podprto", "luknja" ...).
+     * Pred ponudbo: ali izdajo lahko predvajamo. Prvi segment prve datoteke ali zvezka (pri RAR, ce glave segajo cez,
+     * se nekaj segmentov z mejo - T2/T5). Izid v malih crkah kot v skupnih primerih ("ok", "stisnjen", "sifriran",
+     * "ni_podprto", "luknja", "prevec" ...). Izdaja brez segmenta 1 ali z luknjami v NZB ni ponujena (W6).
      */
     fun preveriIzdajo(nzb: UsenetNzb.Nzb, telo: (String) -> ByteArray): String {
         check(Looper.myLooper() != Looper.getMainLooper()) { "Usenet ne sme teci na glavni niti" }
-        val (vrstaIzdaje, izbrane) = try { izberiDatoteke(nzb) } catch (e: NapakaIzdaje) { return e.izid }
-        val p = try { prviSegment(telo, nzb.datoteke[izbrane[0]]) } catch (e: UsenetTok.NapakaToka) { return e.izid.name.lowercase() }
-        val z = p.zacetek
-        if (vrstaIzdaje == "video") {
-            val rar = z.size >= 7 && (0 until 6).all { z[it] == UsenetRar.PODPIS4[it] } && (z[6].toInt() == 0 || z[6].toInt() == 1)
-            return if (rar) UsenetRar.preveri(z, p.preslikava.velikost).name.lowercase() else "ok"
+        return try {
+            val (_, izbrane) = izberiDatoteke(nzb)
+            val d = nzb.datoteke[izbrane[0]]
+            if (d.segmenti[0].stevilka != 1 || d.manjka > 0) return "luknja"
+            val o = prvi(nzb, telo)
+            if (o.preslikava.imaLuknje) "luknja" else "ok"
+        } catch (e: NapakaIzdaje) {
+            e.izid
+        } catch (e: UsenetTok.NapakaToka) {
+            e.izid.name.lowercase()
+        } catch (e: UsenetRar.NapakaRar) {
+            e.izid.name.lowercase()
         }
-        val izid = UsenetRar.preveri(z, p.preslikava.velikost)
-        return if (izid == UsenetRar.Izid.NEPOPOLNO) "ok" else izid.name.lowercase()
     }
 }
