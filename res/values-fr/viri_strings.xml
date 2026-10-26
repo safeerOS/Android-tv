@@ -183,6 +183,8 @@
     <string name="os_debrid_kljuc_meja">%1$s limite les requêtes pour l’instant – la clé est enregistrée comme non vérifiée. Safeer la revérifie dans quelques minutes et ne l’envoie pas à tes autres appareils d’ici là.</string>
     <string name="os_debrid_prejeto_ni_preverjeno">%1$s : la clé n’a pas pu être vérifiée pour l’instant (pas de connexion ou trop de requêtes) – elle n’a pas été enregistrée. Renvoie-la quand tu seras en ligne.</string>
     <string name="os_debrid_napaka_shranjevanja">La clé n’a pas pu être enregistrée de façon sécurisée sur cet appareil. Réessaie.</string>
+    <!-- Pregled Grok 41, Z9: programska napaka pri vpisu ali »Preveri« ni »napaka shranjevanja« ali »ni povezave« -->
+    <string name="os_debrid_napaka_notranja">Une erreur interne s’est produite dans Safeer avec %1$s. Vérifie l’état dans cette fenêtre et réessaie.</string>
     <!-- Pregled Grok 31, H2: viden konec diagnostike samo Usenet -->
     <string name="os_usenet_diagnostika_konec">Diagnostic Usenet uniquement : Usenet n’a pas pu lire – la raison est dans le journal (SafeerOsMedia).</string>
     <string name="os_usenet_diagnostika_ni_izdaj">Diagnostic Usenet uniquement : l’indexeur n’a renvoyé aucune version pour ce contenu.</string>

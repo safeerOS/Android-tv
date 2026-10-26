@@ -183,6 +183,8 @@
     <string name="os_debrid_kljuc_meja">%1$s trenutno omejuje število zahtev – ključ je shranjen kot nepreverjen. Safeer ga preveri čez nekaj minut in ga do takrat ne pošlje drugim napravam.</string>
     <string name="os_debrid_prejeto_ni_preverjeno">%1$s: ključa zdaj ni bilo mogoče preveriti (ni povezave ali omejitev zahtev) – ni shranjen. Pošlji ga znova, ko bo povezava.</string>
     <string name="os_debrid_napaka_shranjevanja">Ključa ni bilo mogoče varno shraniti na tej napravi. Poskusi znova.</string>
+    <!-- Pregled Grok 41, Z9: programska napaka pri vpisu ali »Preveri« ni »napaka shranjevanja« ali »ni povezave« -->
+    <string name="os_debrid_napaka_notranja">V Safeerju je prišlo do notranje napake pri %1$s. Preveri stanje v tem oknu in poskusi znova.</string>
     <!-- Pregled Grok 31, H2: viden konec diagnostike samo Usenet -->
     <string name="os_usenet_diagnostika_konec">Diagnostika samo Usenet: Usenet ni predvajal – razlog je v dnevniku (SafeerOsMedia).</string>
     <string name="os_usenet_diagnostika_ni_izdaj">Diagnostika samo Usenet: indeksator za to vsebino ni dal izdaj.</string>

@@ -238,7 +238,8 @@ object Usenet {
             Log.i(TAG, "indeksator: ponoven vpis brez odgovora - stanje ostane")
             return Debrid.IzidVpisa(v.izid, null, ostalo = true)
         }
-        if (!shrani(c, ix.first, ix.second)) return Debrid.IzidVpisa(DebridPravila.Preverba.OBLIKA, null)
+        // Pregled Grok 41, Z9: neuspela sifrirana shramba ni »neveljaven vnos« (prej OBLIKA).
+        if (!shrani(c, ix.first, ix.second)) return Debrid.IzidVpisa(v.izid, null, napakaShrambe = true)
         // Pregled Grok 41, Z5: »velja« iz vpisa odpravi zaporo tudi na drugih napravah ozjega kroga.
         zapisiStanje(c, ix.first, ix.second, s, rocno = true)
         zadnjaPreverba = System.currentTimeMillis()

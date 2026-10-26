@@ -447,5 +447,11 @@ fun main() {
     preveriEnako("Z8: ob vpisu (/user) RD 9 ostane »ne velja« (skupni primeri v2)", DebridPravila.Preverba.NE_VELJA, DebridPravila.preverbaRd(403, 9, false))
     preveriEnako("Z8: RD 8 med uporabo ostane kljuc", TorBoxPravila.NAPAKA_KLJUC, DebridPravila.rdVrstaNapakeUporabe(401, 8))
 
+    // Pregled Grok 41, Z9: sporocilo po »Preveri« - 429 ni »ni povezave«.
+    preveriEnako("Z9: »Preveri« z 429 - meja (stanje ostane)", DebridPravila.PoPreveri.MEJA, DebridPravila.poPreveri(DebridPravila.Preverba.MEJA))
+    preveriEnako("Z9: »Preveri« brez odgovora - ni odgovora", DebridPravila.PoPreveri.NI_ODGOVORA, DebridPravila.poPreveri(DebridPravila.Preverba.NI_ODGOVORA))
+    preveriEnako("Z9: prezgodaj - pocakaj", DebridPravila.PoPreveri.POCAKAJ, DebridPravila.poPreveri(null))
+    preveriEnako("Z9: vzorec - ne velja", DebridPravila.PoPreveri.NE_VELJA, DebridPravila.poPreveri(DebridPravila.Preverba.OBLIKA))
+
     if (napak == 0) println("DebridPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

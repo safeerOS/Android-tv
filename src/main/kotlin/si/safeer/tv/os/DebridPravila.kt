@@ -576,6 +576,18 @@ object DebridPravila {
         return if (s == StanjeKljuca.NEPREVERJEN && (prej == StanjeKljuca.NE_VELJA || prej == StanjeKljuca.ZAKLENJEN)) prej else s
     }
 
+    /** Pregled Grok 41, Z9: kaj okno pove po »Preveri« ([izid] null = prezgodaj). Prej je bila meja (429) »ni povezave«. */
+    enum class PoPreveri { POCAKAJ, VELJA, ZAKLENJEN, NE_VELJA, MEJA, NI_ODGOVORA }
+
+    fun poPreveri(izid: Preverba?): PoPreveri = when (izid) {
+        null -> PoPreveri.POCAKAJ
+        Preverba.VELJA -> PoPreveri.VELJA
+        Preverba.ZAKLENJEN -> PoPreveri.ZAKLENJEN
+        Preverba.NE_VELJA, Preverba.OBLIKA -> PoPreveri.NE_VELJA
+        Preverba.MEJA -> PoPreveri.MEJA
+        Preverba.NI_ODGOVORA -> PoPreveri.NI_ODGOVORA
+    }
+
     /** Stanje po »Preveri«: brez odgovora ali meja stanja ne spremeni (null - ostane ustavljen, brez samodejnih ponovitev). */
     fun stanjePoRocniPreverbi(p: Preverba): StanjeKljuca? = when (p) {
         Preverba.VELJA -> StanjeKljuca.VELJA

@@ -181,7 +181,9 @@ object Debrid {
                     /** Pregled Grok 41, Z2: isti kljuc je sel storitvi pred manj kot minuto - brez klica. */
                     val pocakaj: Boolean = false,
                     /** Pregled Grok 41, Z2: storitev ni odgovorila - »ne velja« ali »zaklenjen« istega kljuca ostane. */
-                    val ostalo: Boolean = false)
+                    val ostalo: Boolean = false,
+                    /** Pregled Grok 41, Z9: programska napaka (izjema) - ne »napaka shranjevanja«. */
+                    val notranja: Boolean = false)
 
     /** Pregled Grok 41, Z2: »Preveri« in vpis po kljucu najvec enkrat na minuto (debrid in indeksator, [Usenet]). */
     internal val rocne = DebridPravila.RocnePreverbe()
