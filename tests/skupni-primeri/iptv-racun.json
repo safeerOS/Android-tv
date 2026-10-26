@@ -1,6 +1,6 @@
 {
- "opis": "Skupni primeri zascite racuna IPTV za vse platforme Safeer (Linux core/kanali_iptv, Android IptvPravila). Lastnik, 26. 10. 2026: »Nevarnost zaklepa racuna je prioriteta.« Pregled 39, I1 (ob dvomu ne): v ozadju se preverja SAMO seznam, ki je pozitivno znan javni brezplacni vir (iptv-org.github.io, raw.githubusercontent.com/iptv-org/, raw.githubusercontent.com/Free-TV/IPTV/; odkodirana pot brez ../ in //) in v naslovu nima racuna - ali ga je uporabnik izrecno oznacil kot javnega (tu ne). seznami.javni: sme v preverbo v ozadju. kanali.racun: naslov toka nosi racun pri ponudniku (nikoli v preverbo v ozadju). Pregled 46, Ö1 (verzija 2, ob dvomu ne): viri.ozji: vir (seznam, podkast, dodatek ...) gre napravam zunaj ozjega kroga in na zaslon s celim naslovom SAMO, ce je pozitivno znan javen - naslov http(s) brez presledkov in nevidnih znakov, brez racuna v naslovu (seznami.javni) in znan javni seznam ali ga je uporabnik oznacil kot javnega (oznacen); vse drugo samo ozjemu krogu, na zaslonu samo gostitelj[:vrata] (viri.prikaz; naslov pred tem obrezan). Pregled 46, Ö3 (prevzem): odgovor lists.get {} ima 'ozji' (ali je vprasujoca naprava v ozjem krogu); prejemnik vir prevzame: ozji true - vsak; false - samo pozitivno znan javen; brez kljuca (starejsa razlicica; verzija 3, pregled 51, Ê3) - kot false, torej samo pozitivno znan javen (ne vemo, ali nas ima v ozjem krogu; hevristika racuna neznane oblike ne ujame). Pregled 57 (verzija 4, ob dvomu ne, fail-closed): »caka«: vir, prejet z druge naprave (lists.get), ob prejemu NE naredi nobene povezave (ne prenosa, ne pinga, ne rezervne poti), dokler uporabnik na tej napravi izrecno ne osvezi vira - vsak, ki ni pozitivno znan javen (znan_javen), ne glede na vrsto, ki jo poslje druga naprava, in obliko naslova; »racun_vira«: vsak vir, ki ni pozitivno znan javen (ali ga je uporabnik oznacil kot javnega), je vir z racunom pri ponudniku: premor ob vsakem odgovoru brez seznama in ena zahteva, tudi pred prvim uspesnim branjem; »vdelava«: stran HTML brez predvajljive vsebine, ki jo uporabnik SAM doda na tej napravi (ni prejeta) in ima naslov (tudi po preusmeritvi) brez znakov poverilnice (user:pass@, username=, password=, token=, /live/<u>/<g>/ ...), dobi vnos »Vdelana vsebina« namesto zavrnitve.",
- "verzija": 4,
+ "opis": "Skupni primeri zascite racuna IPTV za vse platforme Safeer (Linux core/kanali_iptv, Android IptvPravila). Lastnik, 26. 10. 2026: »Nevarnost zaklepa racuna je prioriteta.« Pregled 39, I1 (ob dvomu ne): v ozadju se preverja SAMO seznam, ki je pozitivno znan javni brezplacni vir (iptv-org.github.io, raw.githubusercontent.com/iptv-org/, raw.githubusercontent.com/Free-TV/IPTV/; odkodirana pot brez ../ in //) in v naslovu nima racuna - ali ga je uporabnik izrecno oznacil kot javnega (tu ne). seznami.javni: sme v preverbo v ozadju. kanali.racun: naslov toka nosi racun pri ponudniku (nikoli v preverbo v ozadju). Pregled 46, Ö1 (verzija 2, ob dvomu ne): viri.ozji: vir (seznam, podkast, dodatek ...) gre napravam zunaj ozjega kroga in na zaslon s celim naslovom SAMO, ce je pozitivno znan javen - naslov http(s) brez presledkov in nevidnih znakov, brez racuna v naslovu (seznami.javni) in znan javni seznam ali ga je uporabnik oznacil kot javnega (oznacen); vse drugo samo ozjemu krogu, na zaslonu samo gostitelj[:vrata] (viri.prikaz; naslov pred tem obrezan). Pregled 46, Ö3 (prevzem): odgovor lists.get {} ima 'ozji' (ali je vprasujoca naprava v ozjem krogu); prejemnik vir prevzame: ozji true - vsak; false - samo pozitivno znan javen; brez kljuca (starejsa razlicica; verzija 3, pregled 51, Ê3) - kot false, torej samo pozitivno znan javen (ne vemo, ali nas ima v ozjem krogu; hevristika racuna neznane oblike ne ujame). Pregled 57 (verzija 4, ob dvomu ne, fail-closed): »caka«: vir, prejet z druge naprave (lists.get), ob prejemu NE naredi nobene povezave (ne prenosa, ne pinga, ne rezervne poti), dokler uporabnik na tej napravi izrecno ne osvezi vira - vsak, ki ni pozitivno znan javen (znan_javen), ne glede na vrsto, ki jo poslje druga naprava, in obliko naslova; »racun_vira«: vsak vir, ki ni pozitivno znan javen (ali ga je uporabnik oznacil kot javnega), je vir z racunom pri ponudniku: premor ob vsakem odgovoru brez seznama in ena zahteva, tudi pred prvim uspesnim branjem; »vdelava«: stran HTML brez predvajljive vsebine, ki jo uporabnik SAM doda na tej napravi (ni prejeta) in ima naslov (tudi po preusmeritvi) brez znakov poverilnice (user:pass@, username=, password=, token=, /live/<u>/<g>/ ...), dobi vnos »Vdelana vsebina« namesto zavrnitve. Verzija 5 (lastnik, 26. 10. 2026: vse naprave pripadajo uporabniku), ozji_krog: kaj naredimo z virom z druge naprave glede na odgovor »ozji« (naprava nas ima v ozjem krogu): javen - prenos takoj; prvo_uporaba - viri z racunom ali neznane oblike iz ozjega kroga se pokazejo takoj, v ozadju se ne osvezujejo, ena povezava je ob prvi uporabi na tej napravi (odprtje seznama), nato 24-urni predpomnilnik in najvec ena osvezitev na minuto, premor po napaki ostane; ni_prevzet - brez dokaza o ozjem krogu vira z racunom ne prevzamemo (razdelek caka velja za vir, ki ga kdo vseeno doda brez tega dokaza: caka uporabnikovo osvezitev). Razdelki do verzije 4 so nespremenjeni.",
+ "verzija": 5,
  "seznami": [
   {
    "url": "https://iptv-org.github.io/iptv/countries/si.m3u",
@@ -421,6 +421,80 @@
    "racun": true,
    "vdelava": false,
    "opis": "prejet z druge naprave: caka, vdelave ni"
+  }
+ ],
+ "ozji_krog": [
+  {
+   "naslov": "https://iptv-org.github.io/iptv/countries/si.m3u",
+   "ozji": true,
+   "stanje": "javen",
+   "opis": "pozitivno znan javen vir: prenos takoj, ne glede na odgovor naprave"
+  },
+  {
+   "naslov": "https://iptv-org.github.io/iptv/countries/si.m3u",
+   "ozji": false,
+   "stanje": "javen",
+   "opis": "pozitivno znan javen vir: prenos takoj, ne glede na odgovor naprave"
+  },
+  {
+   "naslov": "https://iptv-org.github.io/iptv/countries/si.m3u",
+   "ozji": null,
+   "stanje": "javen",
+   "opis": "pozitivno znan javen vir: prenos takoj, ne glede na odgovor naprave"
+  },
+  {
+   "naslov": "http://ponudnik.primer.test:8080/get.php?username=uporabnik&password=skrito-geslo&type=m3u_plus",
+   "ozji": true,
+   "stanje": "prvo_uporaba",
+   "opis": "racun v naslovu, naprava nas ima v ozjem krogu: viden takoj, brez povezave ob prejemu in v ozadju, ena povezava ob prvi uporabi, nato predpomnilnik 24 h in najvec ena osvezitev na minuto"
+  },
+  {
+   "naslov": "http://ponudnik.primer.test:8080/get.php?username=uporabnik&password=skrito-geslo&type=m3u_plus",
+   "ozji": false,
+   "stanje": "ni_prevzet",
+   "opis": "racun v naslovu, naprava nas nima v ozjem krogu: fail-closed, vira ne prevzamemo"
+  },
+  {
+   "naslov": "http://ponudnik.primer.test:8080/get.php?username=uporabnik&password=skrito-geslo&type=m3u_plus",
+   "ozji": null,
+   "stanje": "ni_prevzet",
+   "opis": "racun v naslovu, starejsa razlicica brez zastavice ozji (neznan izvor): fail-closed"
+  },
+  {
+   "naslov": "http://kratka.primer.test/abc",
+   "ozji": true,
+   "stanje": "prvo_uporaba",
+   "opis": "neprepoznana oblika iz ozjega kroga: kot racun (premor, ena zahteva), viden takoj"
+  },
+  {
+   "naslov": "http://kratka.primer.test/abc",
+   "ozji": false,
+   "stanje": "ni_prevzet",
+   "opis": "neprepoznana oblika zunaj ozjega kroga: fail-closed"
+  },
+  {
+   "naslov": "http://kratka.primer.test/abc",
+   "ozji": null,
+   "stanje": "ni_prevzet",
+   "opis": "neprepoznana oblika, neznan izvor: fail-closed"
+  },
+  {
+   "naslov": "http://ponudnik.primer.test:8080/7f3a9c1e5b2d/tv",
+   "ozji": true,
+   "stanje": "prvo_uporaba",
+   "opis": "zeton v poti iz ozjega kroga"
+  },
+  {
+   "naslov": "https://podkast.primer.si/zasebno/zeton123",
+   "ozji": true,
+   "stanje": "prvo_uporaba",
+   "opis": "podkast neznanega izvora iz ozjega kroga: viden takoj, prva povezava ob odprtju"
+  },
+  {
+   "naslov": "https://podkast.primer.si/zasebno/zeton123",
+   "ozji": null,
+   "stanje": "ni_prevzet",
+   "opis": "podkast neznanega izvora brez dokaza o ozjem krogu: fail-closed"
   }
  ]
 }

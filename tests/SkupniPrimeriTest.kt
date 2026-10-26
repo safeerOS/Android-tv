@@ -267,6 +267,28 @@ private fun iptvRacunPrimeri(koren: Map<String, Any?>) {
         vdelav++
     }
     println("  racun_vira: $racunov primerov, vdelava: $vdelav, strozje brez oznake javnega: $strozje")
+    // Verzija 5 (Linux viri_sink.stanje_prejetega; lastnik 26. 10. 2026: vse naprave pripadajo uporabniku): stanje vira z druge naprave glede
+    // na odgovor »ozji« (naprava je v ozjem krogu te naprave). javen = prenos takoj; prvo_uporaba = viden takoj, brez povezave ob prejemu
+    // in v ozadju, uporaben ob prvi uporabi (Android: [uporabaPoPrejemu] + [smeSamodejnoPrenesti]); ni_prevzet = fail-closed.
+    var ozjih = 0
+    for (v in (koren["ozji_krog"] as? List<Map<String, Any?>>).orEmpty()) {
+        val n = v.niz("naslov")!!
+        val odKroga = IptvPravila.odOzjegaKroga(true, v["ozji"] as? Boolean)
+        val stanje = when {
+            !IptvPravila.prevzemZNavadnoUskladitvijo("url", n, odKroga) -> "ni_prevzet"
+            !IptvPravila.virZRacunom("seznam", n) -> if (IptvPravila.osveziPoPrejemu("seznam", n)) "javen" else "javen_brez_prenosa"
+            else -> {
+                val uporaba = IptvPravila.uporabaPoPrejemu(null, setOf(n), setOf(n), odKroga)
+                val dokaz = IptvPravila.dokazDodanTu(null, setOf(n), setOf(n), prejeto = true)
+                val uporabno = IptvPravila.smeUporabiti(n in dokaz, n in uporaba)
+                val brezPovezave = IptvPravila.prejetNaslov(n) { null } != null && !IptvPravila.osveziPoPrejemu("seznam", n)
+                if (uporabno && IptvPravila.smeSamodejnoPrenesti(n, uporabno, izrecno = false) && brezPovezave && n !in dokaz) "prvo_uporaba" else "caka"
+            }
+        }
+        preveriEnako("ozji_krog ${v.niz("opis") ?: n} (ozji=${v["ozji"]})", v["stanje"], stanje)
+        ozjih++
+    }
+    println("  ozji_krog: $ozjih primerov")
 }
 
 @Suppress("UNCHECKED_CAST")
