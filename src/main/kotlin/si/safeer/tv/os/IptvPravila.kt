@@ -562,6 +562,24 @@ object IptvPravila {
         skrivnostVira(tip, k.substringAfter('|', "")) == null
     }
 
+    /**
+     * Skladba (kanal, tok dodatka) nosi racun, ce ga nosi kateri od njenih naslovov http(s) ([naslovi]: tok, povezava,
+     * seznam): pot ali parameter racuna ([jeVirSPoverilnico] kot za tok), nadomestek ali nerazumljiv naslov.
+     */
+    fun skladbaZRacunom(naslovi: List<String>): Boolean = naslovi.any { n ->
+        val t = n.trim()
+        (t.startsWith("http://") || t.startsWith("https://")) && jeVirSPoverilnico(t, seznam = false)
+    }
+
+    /**
+     * Skladba seznama predvajanja za napravo ZUNAJ ozjega kroga (lists.get; lastnik, 26. 10. 2026, kot Linux 0f3f368): ce
+     * nosi racun ([skladbaZRacunom] za [naslovi] in zapisani tok), gre brez toka in brez polnega zapisa - ime, izvajalec,
+     * trajanje in slika (brez racuna) ostanejo. Napravi v ozjem krogu gre cel zapis.
+     */
+    fun zapisZaNavadniKrog(z: SeznamiPravila.Zapis, naslovi: List<String>): SeznamiPravila.Zapis =
+        if (!skladbaZRacunom(naslovi + z.url)) z
+        else SeznamiPravila.Zapis(z.naslov, z.izvajalec, "", z.sekund, if (skladbaZRacunom(listOf(z.slika))) "" else z.slika, "", z.video, "")
+
     /** Odtis vira z racunom (kljuc »iptv:<odtis>« v ozjem krogu) = odtis nadomestka ([SkrivnostiPravila.nadomestek]). */
     fun odtisRacuna(skrivnost: String): String = SkrivnostiPravila.odtis(skrivnost.trim())
 

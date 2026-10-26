@@ -90,7 +90,8 @@ object SeznamiSink {
             val viri = JSONArray()
             MedijskiViri.zaUskladitev(ctx).forEach { (v, cas) -> viri.put(JSONObject().put("tip", v.tip).put("ime", v.ime).put("naslov", v.naslov).put("cas", cas)) }
             val izbrisaniViri = JSONObject()
-            MedijskiViri.izbrisaniViri(ctx).forEach { (k, v) -> izbrisaniViri.put(k, v) }
+            // Lastnik, 26. 10. 2026: brez grobov virov z racunom in dodatkov s poverilnico (njihov izbris gre samo v ozji krog).
+            MedijskiViri.izbrisaniViriZaUskladitev(ctx).forEach { (k, v) -> izbrisaniViri.put(k, v) }
             // Premori dodatkov (odtis naslova -> koliko ms se): dodatek omejuje po domacem naslovu, zato pocakajo vse naprave.
             val premori = JSONObject()
             try { Stremio.pripravi(ctx) } catch (_: Throwable) { }       // shranjeni premori iz prejsnjega zagona
@@ -101,7 +102,15 @@ object SeznamiSink {
         val sz = seznami.firstOrNull { it.ime == ime } ?: return JSONObject().put("ime", ime).put("stevilo", 0).put("skladbe", JSONArray())
         val od = p.optInt("od").coerceAtLeast(0)
         val skladbe = JSONArray()
-        sz.skladbe.drop(od).take(STRAN).forEach { skladbe.put(json(vZapis(it))) }
+        // Lastnik, 26. 10. 2026: skladba z racunom (kanal Xtream /live/<u>/<g>/, tok dodatka s poverilnico) gre s tokom samo
+        // napravi v ozjem krogu te naprave; druga dobi skladbo brez toka (kot Linux 0f3f368). Posiljatelja vpise sprejemnik.
+        val ozji = try {
+            p.optString(si.safeer.tv.link.Daljinec.PARAM_POSILJATELJ).let { it.isNotBlank() && OzjiKrog.vKrogu(ctx, it) }
+        } catch (_: Throwable) { false }
+        sz.skladbe.drop(od).take(STRAN).forEach { s ->
+            val z = vZapis(s)
+            skladbe.put(json(if (ozji) z else IptvPravila.zapisZaNavadniKrog(z, listOf(s.zvok, s.povezava, s.streznik))))
+        }
         return JSONObject().put("ime", sz.ime).put("vir", sz.vir).put("cas", sz.cas).put("stevilo", sz.skladbe.size).put("od", od).put("skladbe", skladbe)
     }
 
@@ -198,8 +207,13 @@ object SeznamiSink {
                 for (k in d.keys()) if (MedijskiViri.prevzemiIzbrisVira(app, k, d.optLong(k))) { viri = true; Log.i(TAG, "vir izbrisan (od $naprava)") }
             }
             kazalo.optJSONArray("sources")?.let { a ->
+                var zRacunom = 0
                 for (i in 0 until minOf(a.length(), 200)) {
                     val o = a.optJSONObject(i) ?: continue
+                    // Lastnik, 26. 10. 2026: vir z racunom IPTV (in dodatek s poverilnico) gre samo v ozji krog (secrets.sync) - z
+                    // navadnim usklajevanjem ga ne sprejmemo od nobene naprave (starejsa razlicica ga se poslje) in ga ne beremo
+                    // (razvrscanje ali manifest = zahteva z uporabnikovim racunom).
+                    if (!IptvPravila.smeZNavadnoUskladitvijo(o.optString("tip"), o.optString("naslov"))) { zRacunom++; continue }
                     // Naslov, dodan na racunalniku: vrsto (podkast, seznam, tok, stran) doloci ta naprava sama; naslov,
                     // ki ga ta trenutek ni mogoce prebrati, poskusimo spet cez 10 minut.
                     if (o.optString("tip") == MedijskiViri.VRSTA_URL) {
@@ -225,6 +239,7 @@ object SeznamiSink {
                     // Seznam .m3u se prebere ob dodajanju: tu ga preberemo zdaj (smo v ozadju).
                     if (v.jeSeznam) try { MedijskiViri.osveziSeznam(app, v.naslov) } catch (_: Exception) { }
                 }
+                if (zRacunom > 0) Log.i(TAG, "virov z racunom ali poverilnico z navadnim usklajevanjem zavrnjenih: $zRacunom (od $naprava)")
             }
             if (viri) { viriSpremenjeni = android.os.SystemClock.elapsedRealtime(); spremenjeno = true }
         } catch (e: Exception) { Log.w(TAG, "viri od $naprava: ${e.message}") }

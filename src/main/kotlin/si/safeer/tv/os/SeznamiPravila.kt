@@ -68,8 +68,14 @@ object SeznamiPravila {
      */
     fun prevzemi(moje: List<Zapis>, tuje: List<Zapis>, najvec: Int): List<Zapis> {
         val znani = moje.filter { it.youtube.isNotBlank() }.associateBy { it.kljuc }
+        // Lastnik, 26. 10. 2026: skladba brez naslova (kanal z racunom, ki ga naprava zunaj ozjega kroga dobi brez toka -
+        // IptvPravila.zapisZaNavadniKrog) ne izbrise nasega polnega zapisa iste skladbe, ko seznam prevzamemo od nje.
+        val polni = moje.filter { it.youtube.isBlank() && (it.url.isNotBlank() || it.izvirnik.isNotBlank()) }.associateBy { it.kljuc }
         return tuje.map { t ->
-            val m = if (t.youtube.isBlank() && t.url.isBlank()) znani[t.kljuc] else null
+            val prazen = t.youtube.isBlank() && t.url.isBlank()
+            val p = if (prazen && t.izvirnik.isBlank()) polni[t.kljuc] else null
+            if (p != null) return@map p
+            val m = if (prazen) znani[t.kljuc] else null
             if (m != null) t.copy(youtube = m.youtube, slika = m.slika.ifBlank { t.slika }) else t
         }.distinctBy { it.kljuc }.take(najvec)
     }
