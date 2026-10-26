@@ -357,8 +357,8 @@
     <string name="os_iptv_ni_dodan_tu">kein automatisches Laden – OK gedrückt halten und erlauben</string>
     <string name="os_iptv_potrjen_tu">Die Liste wird auf diesem Gerät beim Öffnen aktualisiert. Sie wird nicht an andere Geräte gesendet – dafür die Quelle selbst auf diesem Gerät eingeben.</string>
     <!-- Grok 46, Ö3: geslo seznama IPTV je starejsa razlicica dala napravam zunaj ozjega kroga (lastnik: %1$s = gostitelji). -->
-    <string name="os_iptv_deljeno_naslov">Das Passwort der IPTV-Liste wurde geteilt</string>
-    <string name="os_iptv_deljeno_sporocilo">Eine ältere Safeer-Version hat die Liste mit Konto (%1$s) auch an Geräte außerhalb des engeren Vertrauenskreises gesendet. Wir empfehlen, das Passwort beim Anbieter zu ändern und die Liste mit dem neuen Passwort erneut hinzuzufügen.</string>
+    <string name="os_iptv_deljeno_naslov">Eine IPTV-Liste wurde möglicherweise geteilt</string>
+    <string name="os_iptv_deljeno_sporocilo">Eine ältere Safeer-Version hat die Liste (%1$s) auch an Geräte außerhalb des engeren Vertrauenskreises gesendet. Wenn die Liste ein Passwort hat, ändere es beim Anbieter und füge die Liste mit dem neuen Passwort erneut hinzu. Eine öffentliche Liste ohne Passwort (zum Beispiel Radio) kannst du ignorieren.</string>
     <!-- Prejemnik: %1$s = gostitelji seznamov, %2$s = ime naprave. -->
     <string name="os_iptv_preklic_naslov">Liste mit Konto von einem anderen Gerät</string>
     <string name="os_iptv_preklic_sporocilo">%2$s teilt die Liste %1$s nicht mehr mit Geräten außerhalb seines engeren Vertrauenskreises – sie kam womöglich über eine ältere Safeer-Version hierher. Von diesem Gerät entfernen? Wenn du sie auf diesem Gerät selbst hinzugefügt hast, wähle Behalten.</string>

@@ -356,8 +356,8 @@
     <string name="os_iptv_ni_dodan_tu">no automatic download – hold OK to allow</string>
     <string name="os_iptv_potrjen_tu">The playlist will refresh when opened on this device. It is not sent to other devices – to share it, enter the source yourself on this device.</string>
     <!-- Grok 46, Ö3: geslo seznama IPTV je starejsa razlicica dala napravam zunaj ozjega kroga (lastnik: %1$s = gostitelji). -->
-    <string name="os_iptv_deljeno_naslov">The IPTV playlist password was shared</string>
-    <string name="os_iptv_deljeno_sporocilo">An older version of Safeer also sent the playlist with an account (%1$s) to devices outside the inner circle of trust. We recommend changing the password with the provider and adding the playlist again with the new password.</string>
+    <string name="os_iptv_deljeno_naslov">An IPTV playlist may have been shared</string>
+    <string name="os_iptv_deljeno_sporocilo">An older version of Safeer also sent the playlist (%1$s) to devices outside the inner circle of trust. If the playlist has a password, change it with the provider and add the playlist again with the new password. A public playlist without a password (for example radio) can be ignored.</string>
     <!-- Prejemnik: %1$s = gostitelji seznamov, %2$s = ime naprave. -->
     <string name="os_iptv_preklic_naslov">Playlist with an account from another device</string>
     <string name="os_iptv_preklic_sporocilo">%2$s no longer shares the playlist %1$s with devices outside its inner circle of trust – it may have come here through an older version of Safeer. Remove it from this device? If you added it on this device yourself, choose Keep.</string>
