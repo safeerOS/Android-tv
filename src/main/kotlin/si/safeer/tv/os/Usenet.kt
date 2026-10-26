@@ -71,20 +71,45 @@ object Usenet {
      * s te naprave ([UsenetPravila.sprejem]); zavrnjen nikoli ne prepise shranjenega, brez odgovora pocaka na naslednjo
      * uskladitev. false = ni uporabljen.
      */
-    fun sprejmi(c: Context, naslov: String, kljuc: String): Boolean {
+    fun sprejmi(c: Context, naslov: String, kljuc: String): Boolean =
+        preveriPrejetega(c, naslov, kljuc).second?.let { shraniPrejetega(c, it) } ?: false
+
+    /** Prejet indeksator, ki ga je indeksator potrdil s te naprave; shrani ga [shraniPrejetega] brez omrezja. */
+    class Potrjen(val osnova: String, val kljuc: String, val zeShranjen: Boolean)
+
+    /**
+     * Pregled Grok 33, F2: preverba prejetega indeksatorja (omrezje - delovna nit brez zaklepa usklajevanja) loceno od
+     * shranjevanja ([shraniPrejetega], brez omrezja). (izid, potrjen); potrjen samo pri VELJA.
+     */
+    fun preveriPrejetega(c: Context, naslov: String, kljuc: String): Pair<DebridPravila.Preverba, Potrjen?> {
         val prejet = UsenetPravila.prejetIndeksator(naslov, kljuc)
         val shranjen = indeksator(c)?.let { it.osnova to it.kljuc }
-        return when (UsenetPravila.sprejem(prejet, shranjen, velja(c)) { o, k -> preveri(o, k) }) {
-            UsenetPravila.Sprejem.ENAK -> true
-            UsenetPravila.Sprejem.ZAVRNI -> { Log.i(TAG, "prejeti indeksator: ni potrjen - ni uporabljen"); false }
-            UsenetPravila.Sprejem.SHRANI -> {
-                val ix = prejet ?: return false
-                if (!shrani(c, ix.first, ix.second)) return false
-                zapisiStanje(c, ix.first, ix.second, DebridPravila.StanjeKljuca.VELJA)
-                zadnjaPreverba = System.currentTimeMillis()
-                true
-            }
+        var izid = DebridPravila.Preverba.OBLIKA
+        val odlocitev = UsenetPravila.sprejem(prejet, shranjen, velja(c)) { o, k -> preveri(o, k).also { izid = it } }
+        val ix = prejet ?: return izid to null
+        return when (odlocitev) {
+            UsenetPravila.Sprejem.ENAK -> DebridPravila.Preverba.VELJA to Potrjen(ix.first, ix.second, true)
+            UsenetPravila.Sprejem.ZAVRNI -> { Log.i(TAG, "prejeti indeksator: $izid - ni uporabljen"); izid to null }
+            UsenetPravila.Sprejem.SHRANI -> izid to Potrjen(ix.first, ix.second, false)
         }
+    }
+
+    /** Shrani potrjen prejeti indeksator - brez omrezja (tudi pod zaklepom usklajevanja). */
+    fun shraniPrejetega(c: Context, pr: Potrjen): Boolean {
+        if (pr.zeShranjen) return true
+        if (!shrani(c, pr.osnova, pr.kljuc)) return false
+        zapisiStanje(c, pr.osnova, pr.kljuc, DebridPravila.StanjeKljuca.VELJA)
+        zadnjaPreverba = System.currentTimeMillis()
+        return true
+    }
+
+    /** Razveljavitev spremembe z druge naprave (pregled Grok 33, F2): prejsnji indeksator nazaj brez omrezja, kot nepreverjen. */
+    fun obnovi(c: Context, naslov: String, kljuc: String): Boolean {
+        val ix = UsenetPravila.izVnosa(naslov, kljuc) ?: return false
+        if (!shrani(c, ix.first, ix.second)) return false
+        zapisiStanje(c, ix.first, ix.second, DebridPravila.StanjeKljuca.NEPREVERJEN)
+        zadnjaPreverba = 0L
+        return true
     }
 
     private fun zapisiStanje(c: Context, osnova: String, kljuc: String, s: DebridPravila.StanjeKljuca) {
@@ -98,7 +123,7 @@ object Usenet {
      * Preverba pri indeksatorju: eno iskanje ([UsenetPravila.naslovPreverbe]), brez sledenja preusmeritvi (kljuc je v naslovu),
      * rok 8 s, najvec 64 KiB odgovora. Naslov ne gre v dnevnik. Samo z delovne niti.
      */
-    fun preveri(osnova: String, kljuc: String): DebridPravila.Preverba = try {
+    fun preveri(osnova: String, kljuc: String): DebridPravila.Preverba = if (!Debrid.smeOmrezje(TAG)) DebridPravila.Preverba.NI_ODGOVORA else try {
         val p = URL(UsenetPravila.naslovPreverbe(osnova, kljuc)).openConnection() as HttpURLConnection
         try {
             p.connectTimeout = 8_000; p.readTimeout = 8_000

@@ -87,7 +87,7 @@ object Debrid {
      * Preverba kljuca pri storitvi (TorBox user/me, Real-Debrid /user, AllDebrid /user - nic ne doda v racun). Samo z delovne
      * niti. Odgovora ne zapisemo nikamor (nosi tudi e-naslov racuna) - samo izid in paket.
      */
-    fun preveriKljuc(p: String, kljuc: String): Pair<DebridPravila.Preverba, Int?> = when (p) {
+    fun preveriKljuc(p: String, kljuc: String): Pair<DebridPravila.Preverba, Int?> = if (!smeOmrezje(TAG)) DebridPravila.Preverba.NI_ODGOVORA to null else when (p) {
         DebridPravila.TORBOX -> TorBox.preveri(kljuc)
         DebridPravila.REAL_DEBRID -> try {
             val o = klic(DebridPravila.RD_UPORABNIK, kljuc, povezavaMs = 8_000, branjeMs = 8_000)
@@ -117,17 +117,57 @@ object Debrid {
     }
 
     /**
-     * Kljuc z druge naprave (usklajevanje, »Poslji kljuce«) - delovna nit. Uporabi se samo, ce ga storitev potrdi tudi s te
-     * naprave ([DebridPravila.sprejmiPrejetega]): zavrnjen nikoli ne prepise veljavnega, brez povezave pocaka na naslednjo
-     * uskladitev. false = ni uporabljen.
+     * Pregled Grok 33, F2: omrezna preverba kljuca samo z delovne niti in nikoli pod zaklepom usklajevanja. Prej je prejem
+     * `secrets.sync` (Daljinec tece na glavni niti) klical preverbo na glavni niti - NetworkOnMainThreadException je tiho
+     * postal »ni odgovora« in prejeti kljuc ni bil nikoli sprejet; pod zaklepom pa bi glavna nit cakala na omrezje (ANR).
+     * Programska napaka je zdaj vidna v dnevniku, izid je varen (ni odgovora - nic se ne shrani).
      */
-    fun sprejmiKljuc(c: Context, p: String, vnos: String): Boolean {
-        val k = DebridPravila.kljucIzVnosa(vnos, p) ?: return false
-        if (kljuc(c, p) == k && kljucVelja(c, p)) return true
+    internal fun smeOmrezje(tag: String): Boolean {
+        val glavna = android.os.Looper.myLooper() == android.os.Looper.getMainLooper()
+        val podZaklepom = UskladitevKljucev.drziZaklep()
+        if (!glavna && !podZaklepom) return true
+        Log.e(tag, "preverba kljuca ni narejena: ${if (glavna) "glavna nit" else "pod zaklepom usklajevanja"} (programska napaka)")
+        return false
+    }
+
+    /** Prejet kljuc, ki ga je storitev potrdila s te naprave ([preveriPrejetega]); shrani ga [shraniPrejetega] brez omrezja. */
+    class Potrjen(val ponudnik: String, val kljuc: String, val paket: Int?, val zeShranjen: Boolean)
+
+    /**
+     * Kljuc z druge naprave (usklajevanje, »Poslji kljuce«): oblika in preverba pri storitvi s te naprave - omrezje, samo
+     * delovna nit brez zaklepa ([smeOmrezje]). Potrjen je samo kljuc, ki ga storitev potrdi tudi s te naprave
+     * ([DebridPravila.sprejmiPrejetega]); zavrnjen nikoli ne prepise veljavnega, brez povezave pocaka na naslednjo uskladitev.
+     */
+    fun preveriPrejetega(c: Context, p: String, vnos: String): Pair<DebridPravila.Preverba, Potrjen?> {
+        val k = DebridPravila.kljucIzVnosa(vnos, p) ?: return DebridPravila.Preverba.OBLIKA to null
+        if (kljuc(c, p) == k && kljucVelja(c, p)) return DebridPravila.Preverba.VELJA to Potrjen(p, k, null, true)
         val (izid, paket) = preveriKljuc(p, k)
-        if (!DebridPravila.sprejmiPrejetega(izid)) { Log.i(TAG, "prejeti kljuc ${DebridPravila.ime(p)}: $izid - ni uporabljen"); return false }
+        if (!DebridPravila.sprejmiPrejetega(izid)) { Log.i(TAG, "prejeti kljuc ${DebridPravila.ime(p)}: $izid - ni uporabljen"); return izid to null }
+        return izid to Potrjen(p, k, paket, false)
+    }
+
+    /** Shrani potrjen prejeti kljuc - brez omrezja (tudi pod zaklepom usklajevanja). false = shramba ni uspela. */
+    fun shraniPrejetega(c: Context, pr: Potrjen): Boolean {
+        if (pr.zeShranjen) return true
+        if (!shraniKljuc(c, pr.ponudnik, pr.kljuc)) return false
+        zapisiStanje(c, pr.ponudnik, pr.kljuc, DebridPravila.StanjeKljuca.VELJA, pr.paket)
+        return true
+    }
+
+    /** Kljuc z druge naprave - preverba in shranjevanje (delovna nit, brez zaklepa). false = ni uporabljen. */
+    fun sprejmiKljuc(c: Context, p: String, vnos: String): Boolean =
+        preveriPrejetega(c, p, vnos).second?.let { shraniPrejetega(c, it) } ?: false
+
+    /**
+     * Razveljavitev spremembe z druge naprave (pregled Grok 33, F2): prejsnji kljuc te naprave se vrne BREZ omrezja (prej
+     * preverba pod zaklepom; brez povezave razveljavitev tiho ni uspela) - kot nepreverjen: uskladitev ga takoj preveri
+     * ([preveriNepreverjene]) in sele potrjen gre spet drugim napravam.
+     */
+    fun obnoviKljuc(c: Context, p: String, vnos: String): Boolean {
+        val k = DebridPravila.kljucIzVnosa(vnos, p) ?: return false
         if (!shraniKljuc(c, p, k)) return false
-        zapisiStanje(c, p, k, DebridPravila.StanjeKljuca.VELJA, paket)
+        zapisiStanje(c, p, k, DebridPravila.StanjeKljuca.NEPREVERJEN, null)
+        zadnjaPreverba.remove(p)
         return true
     }
 

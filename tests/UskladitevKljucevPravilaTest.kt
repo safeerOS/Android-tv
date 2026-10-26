@@ -198,5 +198,13 @@ fun main() {
     preveriEnako("F1: izbris v krog samo za veljaven", listOf(true, false), listOf(true, false).map { P.izbrisVKrog(it) })
     preveriEnako("F1: grob ostane grob", mapOf(tb to Meta(3, "a", true, "")), P.poOdstranitvi(mapOf(tb to Meta(3, "a", true, "")), tb, false))
 
+    // Pregled Grok 33, F2: med preverbo brez zaklepa je uporabnik tu vpisal nov kljuc - prejeti starejsi se ne shrani.
+    run {
+        val prejet = Zapis(tb, 100, "telefon", false, "K1")
+        val medtem = mapOf(tb to Meta(150, "tv", false, "oK2"))
+        preveriEnako("F2: vmes lokalna sprememba - prejeti ne zmaga", emptyList<Zapis>(), P.seVednoNovejsi(medtem, listOf(prejet)))
+        preveriEnako("F2: brez vmesne spremembe - prejeti se shrani", listOf(prejet), P.seVednoNovejsi(mapOf(tb to Meta(50, "tv", false, "o")), listOf(prejet)))
+    }
+
     if (napak == 0) println("UskladitevKljucevPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

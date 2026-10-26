@@ -143,6 +143,13 @@ object UskladitevKljucevPravila {
         return najnovejsi.values.filter { novejsi(it.cas, it.izvor, it.izbrisan, meta[it.kljuc]) }
     }
 
+    /**
+     * Pregled Grok 33, F2: prejeti zapisi so se preverjali brez zaklepa (omrezje) - shrani se samo, kar je se vedno novejse
+     * od zapisov tu (vmes je lahko uporabnik tu kljuc spremenil ali je prisel novejsi zapis).
+     */
+    fun seVednoNovejsi(meta: Map<String, Meta>, zapisi: List<Zapis>): List<Zapis> =
+        zapisi.filter { novejsi(it.cas, it.izvor, it.izbrisan, meta[it.kljuc]) }
+
     fun veljavenZapis(z: Zapis, ura: Long, ponudniki: Set<String>, veljavnaVrednost: (String, String) -> Boolean): Boolean {
         if (!veljavenKljuc(z.kljuc, ponudniki)) return false
         if (z.cas < CAS_UVOZA || z.cas > ura + NAJVEC_NAPREJ_MS) return false
