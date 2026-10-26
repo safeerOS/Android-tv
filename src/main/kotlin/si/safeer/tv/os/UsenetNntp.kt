@@ -70,6 +70,11 @@ class UsenetNntp(
         val poskusov: Int = 2,
         /** Milisekund na sekundo premora (preizkusi skrajsajo premor; v aplikaciji vedno 1000). */
         internal val msNaSekundoPremora: Long = 1000,
+        /**
+         * Skupen proracun pomnilnika teles v bazenu (pregled Grok 35 Y3): TV (Philips, izmerjeno 17. 9.: heapgrowthlimit
+         * 192 MB, largeHeap 512 MB, Safeer TV ze ~85 MB Dalvik) - 24 MiB je 14 hkratnih osnov po 1,5 MiB + rast.
+         */
+        val proracunBajtov: Long = PRORACUN_BAJTOV,
         /** Samo preizkus: izklopi endpointIdentificationAlgorithm (kot naprava, ki ga ne uposteva) - [imeUstreza] ostane. */
         internal val endpointHttps: Boolean = true,
     ) {
@@ -175,7 +180,12 @@ class UsenetNntp(
 
         /** RFC 3977: vrstica odgovora najvec 512 bajtov; dovolimo vec, a ne neomejeno (vrstica_bajtov). */
         const val NAJVEC_VRSTICE = 4096
-        private const val ZACETNI_BLOK = 1024 * 1024
+        /** Prvi blok telesa: 256 KiB (prej 1 MiB za vsak BODY), raste do osnove in nato z zetonom rasti. */
+        private const val ZACETNI_BLOK = 256 * 1024
+
+        /** Privzeti proracun teles na bazen (Android) in osnova enega telesa (clanek do ~1,25 MiB je ne preseze). */
+        const val PRORACUN_BAJTOV = 24L * 1024 * 1024
+        const val OSNOVA_TELESA = 1536 * 1024
         private const val MEDPOMNILNIK = 64 * 1024
 
         /** RFC 3977 priporoca streznikom vsaj 3 min; 60 s je varno pod tem. */
@@ -562,31 +572,46 @@ class UsenetNntp(
             return true
         }
 
-        /** Telo do vrstice ».« (brez nje), brez podvojenih pik ([telo]). */
+        /**
+         * Telo do vrstice ».« (brez nje), brez podvojenih pik ([telo]). Medpomnilnik raste do osnove proracuna, cez njo
+         * samo z zetonom rasti (Grok 35 Y3: prej 1 MiB na vsak BODY in do 16 MiB na povezavo brez skupne meje).
+         */
         private fun blok(rokDo: Long): ByteArray {
-            var izid = ByteArray(maxOf(ZACETNI_BLOK, dolz - poz))
-            var n = dolz - poz
-            System.arraycopy(buf, poz, izid, 0, n)
-            poz = 0
-            dolz = 0
-            var od = 0
-            while (true) {
-                val k = najdiKonec(izid, 0, od, n)
-                if (k >= 0) {
-                    // Brez cevovoda streznik za koncem ne poslje nicesar; ce pa, ostane za naslednji odgovor.
-                    val ostanek = n - (k + 3)
-                    if (ostanek > buf.size) throw NapakaNntp(Vrsta.NAPAKA_PROTOKOLA)
-                    System.arraycopy(izid, k + 3, buf, 0, ostanek)
-                    dolz = ostanek
-                    return odstraniPike(izid, 0, k)
+            if (!proracun.zasezi(rokDo)) throw NapakaNntp(Vrsta.ROK)
+            var rast = false
+            try {
+                var izid = ByteArray(minOf(maxOf(ZACETNI_BLOK, dolz - poz), NAJVEC_TELESA))
+                var n = dolz - poz
+                System.arraycopy(buf, poz, izid, 0, n)
+                poz = 0
+                dolz = 0
+                var od = 0
+                while (true) {
+                    val k = najdiKonec(izid, 0, od, n)
+                    if (k >= 0) {
+                        // Brez cevovoda streznik za koncem ne poslje nicesar; ce pa, ostane za naslednji odgovor.
+                        val ostanek = n - (k + 3)
+                        if (ostanek > buf.size) throw NapakaNntp(Vrsta.NAPAKA_PROTOKOLA)
+                        System.arraycopy(izid, k + 3, buf, 0, ostanek)
+                        dolz = ostanek
+                        return odstraniPike(izid, 0, k)
+                    }
+                    od = maxOf(0, n - 2)   // konec je lahko razdeljen med dve branji
+                    if (System.nanoTime() - rokDo > 0) throw NapakaNntp(Vrsta.ROK)
+                    if (n == izid.size) {
+                        if (izid.size >= NAJVEC_TELESA) throw NapakaNntp(Vrsta.NAPAKA_PROTOKOLA)
+                        val nova = if (izid.size < proracun.osnova) minOf(izid.size * 2, proracun.osnova)
+                            else minOf(izid.size * 2, NAJVEC_TELESA)
+                        if (nova > proracun.osnova && !rast) {
+                            if (!proracun.rasti(rokDo)) throw NapakaNntp(Vrsta.ROK)
+                            rast = true
+                        }
+                        izid = izid.copyOf(nova)
+                    }
+                    n += beri(izid, n, izid.size - n)
                 }
-                od = maxOf(0, n - 2)   // konec je lahko razdeljen med dve branji
-                if (System.nanoTime() - rokDo > 0) throw NapakaNntp(Vrsta.ROK)
-                if (n == izid.size) {
-                    if (izid.size >= NAJVEC_TELESA) throw NapakaNntp(Vrsta.NAPAKA_PROTOKOLA)
-                    izid = izid.copyOf(minOf(izid.size * 2, NAJVEC_TELESA))
-                }
-                n += beri(izid, n, izid.size - n)
+            } finally {
+                proracun.sprosti(rast)
             }
         }
 
@@ -606,6 +631,64 @@ class UsenetNntp(
             zapri()
         }
     }
+
+    /**
+     * Skupen proracun pomnilnika teles (enako namizje, core/usenet_nntp.Proracun): vsako telo pred branjem zaseze osnovo
+     * [osnova]; vecje vzame se edini zeton rasti (do [NAJVEC_TELESA]). Nihce ne caka, medtem ko drzi del rasti - zato ni
+     * zastoja (zasezanje po delih je na namizju 6 hkratnih teles po 1,2 MiB v 3 MiB zaklenilo do roka). Steje medpomnilnik
+     * telesa; kratkotrajna kopija brez pik ni steta.
+     */
+    internal class Proracun(bajtov: Long, val osnova: Int = OSNOVA_TELESA) {
+        val rast: Int = maxOf(0, NAJVEC_TELESA - osnova)
+        val bajtov: Long = maxOf(bajtov, osnova.toLong() + rast)
+        private val z = ReentrantLock()
+        private val c = z.newCondition()
+        private var osnov = 0
+        private var rastZasedena = false
+        @Volatile var najvecZasedeno = 0L
+
+        val zasedeno: Long get() = osnov.toLong() * osnova + if (rastZasedena) rast else 0
+
+        private fun cakaj(rokDo: Long, lahko: () -> Boolean): Boolean {
+            while (!lahko()) {
+                val ns = rokDo - System.nanoTime()
+                if (ns <= 0) return false
+                try { c.awaitNanos(ns) } catch (e: InterruptedException) { Thread.currentThread().interrupt(); return false }
+            }
+            return true
+        }
+
+        fun zasezi(rokDo: Long): Boolean {
+            z.lock()
+            try {
+                if (!cakaj(rokDo) { (osnov + 1).toLong() * osnova + rast <= bajtov }) return false
+                osnov++
+                najvecZasedeno = maxOf(najvecZasedeno, zasedeno)
+                return true
+            } finally { z.unlock() }
+        }
+
+        fun rasti(rokDo: Long): Boolean {
+            z.lock()
+            try {
+                if (!cakaj(rokDo) { !rastZasedena }) return false
+                rastZasedena = true
+                najvecZasedeno = maxOf(najvecZasedeno, zasedeno)
+                return true
+            } finally { z.unlock() }
+        }
+
+        fun sprosti(rast: Boolean) {
+            z.lock()
+            try {
+                osnov--
+                if (rast) rastZasedena = false
+                c.signalAll()
+            } finally { z.unlock() }
+        }
+    }
+
+    internal val proracun = Proracun(n.proracunBajtov)
 
     /** IOException vticnice -> vrsta: rok, zaprto (bazen zaprt) ali omrezje. */
     private fun napakaVticnice(e: IOException): NapakaNntp = when {

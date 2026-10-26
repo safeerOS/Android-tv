@@ -371,6 +371,27 @@ fun main() {
             }
             s.poKoscih = false
 
+            println("proracun teles (Grok 35 Y3)")
+            s.clanki["velik2@lazni.invalid"] = clanek(1_300_000, 21).poslano
+            s.poKoscih = false
+            s.zamudaMs = 20
+            UsenetNntp(UsenetNntp.Nastavitve("localhost", UPORABNIK, GESLO, vrata = s.vrata, povezav = 6, rokBranjaMs = 10_000,
+                    rokCakanjaMs = 30_000, proracunBajtov = 0), prava.zaupaj).use { k ->
+                // Najmanjsi proracun: ena osnova + rast - 6 hkratnih clankov po 1,3 MiB mora uspeti (brez zastoja).
+                preveriEnako("proracun: 6 x 1,3 MiB v najmanjsem proracunu", List(6) { "OK" }, hkrati(k, 6, 1, "velik2@lazni.invalid"))
+                preveriEnako("proracun: nikoli vec od proracuna", true, k.proracun.najvecZasedeno <= k.proracun.bajtov)
+                preveriEnako("proracun: vse sproscen", 0L, k.proracun.zasedeno)
+            }
+            s.zamudaMs = 0
+            s.clanki.remove("velik2@lazni.invalid")
+            val pr = UsenetNntp.Proracun(0, osnova = 1024)
+            val t0 = System.nanoTime()
+            preveriEnako("proracun: prva osnova", true, pr.zasezi(t0 + 1_000_000_000L))
+            preveriEnako("proracun: druga osnova ni prostora do roka", false, pr.zasezi(System.nanoTime() + 200_000_000L))
+            preveriEnako("proracun: en zeton rasti", true to false, pr.rasti(System.nanoTime() + 100_000_000L) to pr.rasti(System.nanoTime() + 100_000_000L))
+            pr.sprosti(true)
+            preveriEnako("proracun: sproscen", 0L, pr.zasedeno)
+
             println("prevelik clanek")
             s.clanki["velik@lazni.invalid"] = ByteArray(UsenetNntp.NAJVEC_TELESA + 10) { 'k'.code.toByte() }
             UsenetNntp(nastavitve(s.vrata), prava.zaupaj).use { k ->
