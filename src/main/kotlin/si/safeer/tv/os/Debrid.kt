@@ -209,7 +209,15 @@ object Debrid {
         if (stevecVpisov[p] != st) { Log.i(TAG, "${DebridPravila.ime(p)}: medtem vpisan drug kljuc - ta izid se zavrze"); return IzidVpisa(izid.first, null, zastarel = true) }
         // Pregled Grok 41, Z2: ponoven vpis kljuca »ne velja« ali »zaklenjen« brez odgovora storitve (izpad, 429, 5xx) ga
         // ne odklene - prej je postal »nepreverjen« in ⚡, predvajanje in preverba na 10 min so spet klicali storitev.
-        val s = DebridPravila.stanjePoVpisu(prej, izid.first) ?: return IzidVpisa(izid.first, izid.second)
+        val s = DebridPravila.stanjePoVpisu(prej, izid.first) ?: run {
+            // Pregled 104, S2 (26. 10. 2026): zavrnjen shranjen kljuc dobi »ne velja« (kot »Preveri«) in stanje gre v ozji
+            // krog - prej je ostal »velja« (uporaba, uskladitev). Neshranjen dobi samo zaporo po kljucu (prejem ga ne klice).
+            DebridPravila.zaporaPoZavrnitvi(izid.first)?.let { z ->
+                if (kljuc(c, p) == k) { zapisiStanje(c, p, k, z, null, rocno = true); UskladitevKljucev.sprozi(c) }
+                else zapisiZaporo(c, p, DebridPravila.odtisStanja(k), z)
+            }
+            return IzidVpisa(izid.first, izid.second)
+        }
         if (s == prej && !DebridPravila.smeKlicati(s) && DebridPravila.stanjePoRocniPreverbi(izid.first) == null) {
             Log.i(TAG, "${DebridPravila.ime(p)}: ponoven vpis brez odgovora storitve - stanje ostane")
             return IzidVpisa(izid.first, null, ostalo = true)
@@ -324,7 +332,12 @@ object Debrid {
         if (s == DebridPravila.StanjeKljuca.NE_VELJA) return DebridPravila.Preverba.NE_VELJA to null
         if (s == DebridPravila.StanjeKljuca.ZAKLENJEN) return DebridPravila.Preverba.ZAKLENJEN to null
         val (izid, paket) = preveriKljuc(p, k)
-        if (!DebridPravila.sprejmiPrejetega(izid)) { Log.i(TAG, "prejeti kljuc ${DebridPravila.ime(p)}: $izid - ni uporabljen"); return izid to null }
+        if (!DebridPravila.sprejmiPrejetega(izid)) {
+            // Pregled 104, S1 (26. 10. 2026): zavrnjen ali zaklenjen prejeti kljuc dobi zaporo po kljucu (mesto ostane) - prej
+            // je vsaka naslednja uskladitev istega kljuca spet klicala storitev (RD 22, AD AUTH_BLOCKED: nova e-posta).
+            DebridPravila.zaporaPoZavrnitvi(izid)?.let { zapisiZaporo(c, p, DebridPravila.odtisStanja(k), it) }
+            Log.i(TAG, "prejeti kljuc ${DebridPravila.ime(p)}: $izid - ni uporabljen"); return izid to null
+        }
         return izid to Potrjen(p, k, paket, false)
     }
 

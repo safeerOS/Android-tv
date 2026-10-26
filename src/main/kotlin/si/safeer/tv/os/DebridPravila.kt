@@ -757,6 +757,17 @@ object DebridPravila {
      */
     fun sprejmiPrejetega(p: Preverba): Boolean = p == Preverba.VELJA
 
+    /**
+     * Pregled 104, S1/S2 (26. 10. 2026): zapora po kljucu, ko storitev kljuc zavrne ali je racun zaklenjen (prejem z druge
+     * naprave, ponoven vpis shranjenega) - brez nje je vsaka naslednja uskladitev ali uporaba spet klicala storitev (K1).
+     * null = brez zapore (izpad, meja, oblika ali veljaven).
+     */
+    fun zaporaPoZavrnitvi(p: Preverba): StanjeKljuca? = when (p) {
+        Preverba.NE_VELJA -> StanjeKljuca.NE_VELJA
+        Preverba.ZAKLENJEN -> StanjeKljuca.ZAKLENJEN
+        else -> null
+    }
+
     fun imePaketa(paket: Int?): String = paket?.let { TORBOX_PAKETI[it] ?: "plan $it" }.orEmpty()
 
     /** Stanje velja za natanko ta kljuc (zamenjan kljuc nima stanja prejsnjega). Kljuc ostane skrit (SHA-256, 16 znakov). */
