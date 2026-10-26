@@ -165,4 +165,16 @@
     <string name="os_debrid_kljuc_caka">%1$s konnte den Schlüssel gerade nicht prüfen – dein bisheriger gültiger Schlüssel bleibt in Verwendung. Safeer prüft den neuen erneut und verwendet ihn erst, wenn der Dienst ihn bestätigt.</string>
     <string name="os_debrid_vrstica_caka">neuer Schlüssel wartet auf Prüfung</string>
     <string name="os_debrid_vrstica_caka_zavrnjen">der Dienst hat den neuen Schlüssel abgelehnt – der bisherige ist in Verwendung</string>
+    <!-- Varovalo racunov (lastnik 26. 10. 2026): kljuc ne velja ali racun zaklenjen - Safeer storitve ne klice do Preveri -->
+    <string name="os_debrid_zaklenjen_rd">Real-Debrid hat das Konto gesperrt oder lässt diese IP-Adresse nicht zu. Damit das Konto nicht gesperrt wird, verwendet Safeer es auf keinem Gerät mehr. Entsperre es auf real-debrid.com (oder schreibe dem Support) und tippe dann auf „Prüfen“.</string>
+    <string name="os_debrid_zaklenjen_ad">AllDebrid verlangt die Bestätigung eines neuen Standorts oder Geräts und hat dir eine E-Mail geschickt. Bestätige sie und tippe dann auf „Prüfen“. Bis dahin ruft Safeer AllDebrid auf keinem Gerät auf – jede Anfrage würde eine neue E-Mail auslösen.</string>
+    <string name="os_debrid_zaklenjen">%1$s hat das Konto gesperrt. Safeer verwendet es auf keinem Gerät mehr. Prüfe dein Konto auf der Website des Dienstes und tippe dann auf „Prüfen“.</string>
+    <string name="os_debrid_ne_velja_navodilo">%1$s hat den Schlüssel abgelehnt. Safeer verwendet ihn auf keinem Gerät mehr (wiederholte Versuche könnten das Konto sperren). Gib einen neuen Schlüssel ein oder tippe auf „Prüfen“, wenn du ihn beim Dienst korrigiert hast.</string>
+    <string name="os_debrid_vrstica_zaklenjen_rd">Real-Debrid – Konto gesperrt: auf real-debrid.com entsperren, dann „Prüfen“</string>
+    <string name="os_debrid_vrstica_zaklenjen_ad">AllDebrid – neuen Standort in der E-Mail von AllDebrid bestätigen, dann „Prüfen“</string>
+    <string name="os_debrid_vrstica_zaklenjen">%1$s – Konto gesperrt: beim Dienst prüfen, dann „Prüfen“</string>
+    <string name="os_debrid_preveri">Prüfen</string>
+    <string name="os_debrid_vpisi_nov">Neuen Schlüssel eingeben</string>
+    <string name="os_debrid_preveri_pocakaj">Du kannst in einer Minute erneut prüfen (jede abgelehnte Anfrage zählt beim Dienst).</string>
+    <string name="os_debrid_preveri_ni_povezave">%1$s ist gerade nicht erreichbar – der Status bleibt, Safeer verwendet den Dienst weiterhin nicht. Versuche es später.</string>
 </resources>

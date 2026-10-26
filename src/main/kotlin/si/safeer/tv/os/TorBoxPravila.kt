@@ -100,6 +100,11 @@ object TorBoxPravila {
     const val NAPAKA_NI_DATOTEKE = "ni_datoteke"
     const val NAPAKA_PRENASA = "prenasa"
     const val NAPAKA_STREZNIK = "streznik"
+    /**
+     * Varovalo racunov (lastnik 26. 10. 2026): racun je zaklenjen ali ne dovoli tega naslova (Real-Debrid 9, 14, 22;
+     * AllDebrid AUTH_BLOCKED, AUTH_USER_BANNED) - Safeer storitve ne klice vec, dokler uporabnik ne tapne »Preveri«.
+     */
+    const val NAPAKA_ZAKLENJEN = "zaklenjen"
 
     fun vrstaNapake(httpKoda: Int, koda: String?): String = when {
         koda in setOf("NO_AUTH", "BAD_TOKEN", "AUTH_ERROR") || httpKoda == 401 || httpKoda == 403 -> NAPAKA_KLJUC

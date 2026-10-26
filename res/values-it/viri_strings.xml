@@ -165,4 +165,16 @@
     <string name="os_debrid_kljuc_caka">%1$s non ha potuto verificare la chiave ora: la tua chiave valida attuale resta in uso. Safeer ricontrolla la nuova e la usa solo quando il servizio la conferma.</string>
     <string name="os_debrid_vrstica_caka">nuova chiave in attesa di verifica</string>
     <string name="os_debrid_vrstica_caka_zavrnjen">il servizio ha rifiutato la nuova chiave: è in uso quella precedente</string>
+    <!-- Varovalo racunov (lastnik 26. 10. 2026): kljuc ne velja ali racun zaklenjen - Safeer storitve ne klice do Preveri -->
+    <string name="os_debrid_zaklenjen_rd">Real-Debrid ha bloccato l’account o non consente questo indirizzo IP. Per evitare la sospensione, Safeer non lo usa più su nessun dispositivo. Sbloccalo su real-debrid.com (o scrivi al loro supporto), poi tocca «Verifica».</string>
+    <string name="os_debrid_zaklenjen_ad">AllDebrid chiede di confermare una nuova posizione o un nuovo dispositivo e ti ha inviato un’e-mail. Confermala, poi tocca «Verifica». Fino ad allora Safeer non contatta AllDebrid da nessun dispositivo: ogni richiesta invierebbe una nuova e-mail.</string>
+    <string name="os_debrid_zaklenjen">%1$s ha bloccato l’account. Safeer non lo usa più su nessun dispositivo. Controlla l’account sul sito del servizio, poi tocca «Verifica».</string>
+    <string name="os_debrid_ne_velja_navodilo">%1$s ha rifiutato la chiave. Safeer non la usa più su nessun dispositivo (tentativi ripetuti potrebbero bloccare l’account). Inserisci una nuova chiave o tocca «Verifica» se l’hai corretta presso il servizio.</string>
+    <string name="os_debrid_vrstica_zaklenjen_rd">Real-Debrid – account bloccato: sbloccalo su real-debrid.com, poi «Verifica»</string>
+    <string name="os_debrid_vrstica_zaklenjen_ad">AllDebrid – conferma la nuova posizione nell’e-mail di AllDebrid, poi «Verifica»</string>
+    <string name="os_debrid_vrstica_zaklenjen">%1$s – account bloccato: controllalo presso il servizio, poi «Verifica»</string>
+    <string name="os_debrid_preveri">Verifica</string>
+    <string name="os_debrid_vpisi_nov">Inserisci una nuova chiave</string>
+    <string name="os_debrid_preveri_pocakaj">Puoi verificare di nuovo tra un minuto (ogni richiesta rifiutata conta presso il servizio).</string>
+    <string name="os_debrid_preveri_ni_povezave">%1$s non è raggiungibile ora: lo stato resta e Safeer continua a non usarlo. Riprova più tardi.</string>
 </resources>

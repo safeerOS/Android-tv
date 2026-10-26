@@ -91,7 +91,7 @@ object DebridPravila {
      * najbolj pomenljiva napaka: zavrnjen kljuc > meja > paket > ni datoteke > ni predpomnjeno > streznik.
      */
     fun razlogZaUporabnika(napake: List<String>): String {
-        val red = listOf(TorBoxPravila.NAPAKA_KLJUC, TorBoxPravila.NAPAKA_MEJA, TorBoxPravila.NAPAKA_PAKET,
+        val red = listOf(TorBoxPravila.NAPAKA_ZAKLENJEN, TorBoxPravila.NAPAKA_KLJUC, TorBoxPravila.NAPAKA_MEJA, TorBoxPravila.NAPAKA_PAKET,
             TorBoxPravila.NAPAKA_NI_DATOTEKE, NAPAKA_NI_PREDPOMNJENO, TorBoxPravila.NAPAKA_PRENASA, TorBoxPravila.NAPAKA_STREZNIK)
         return red.firstOrNull { it in napake } ?: TorBoxPravila.NAPAKA_STREZNIK
     }
@@ -150,8 +150,11 @@ object DebridPravila {
      */
     fun rdVrstaNapake(http: Int, koda: Int?): String = when {
         // Koda Real-Debrid ima prednost pred HTTP (37 »disabled endpoint« pride tudi s 403, a ni stvar paketa).
+        // Varovalo racunov (lastnik 26. 10. 2026): 9 permission denied, 14 account locked, 22 IP not allowed = racun zaklenjen
+        // (prej 9 in 14 »paket« = kljuc velja, 22 streznik - zaklenjen racun smo klicali naprej).
+        koda in setOf(9, 14, 22) -> TorBoxPravila.NAPAKA_ZAKLENJEN
         koda == 8 -> TorBoxPravila.NAPAKA_KLJUC
-        koda in setOf(9, 14, 20, 29) -> TorBoxPravila.NAPAKA_PAKET
+        koda in setOf(20, 29) -> TorBoxPravila.NAPAKA_PAKET
         koda in setOf(5, 21, 23, 34, 36) -> TorBoxPravila.NAPAKA_MEJA
         koda in setOf(24, 28, 30, 35) -> TorBoxPravila.NAPAKA_NI_DATOTEKE
         koda != null -> TorBoxPravila.NAPAKA_STREZNIK
@@ -169,6 +172,9 @@ object DebridPravila {
     fun adVrstaNapake(http: Int, koda: String?): String {
         val k = koda.orEmpty()
         return when {
+            // Varovalo racunov: nova lokacija ali naprava (potrditev po e-posti) in prepoved racuna - vsak nov klic bi poslal novo
+            // e-posto oziroma ponavljal prijavo (prej »kljuc ne velja«).
+            k == "AUTH_BLOCKED" || k == "AUTH_USER_BANNED" -> TorBoxPravila.NAPAKA_ZAKLENJEN
             k.startsWith("AUTH_") || http == 401 -> TorBoxPravila.NAPAKA_KLJUC
             k == "MUST_BE_PREMIUM" || k == "MAGNET_MUST_BE_PREMIUM" || k == "FREE_TRIAL_LIMIT_REACHED" -> TorBoxPravila.NAPAKA_PAKET
             k == "MAGNET_TOO_MANY_ACTIVE" || k == "MAGNET_TOO_MANY" || http == 429 || http == 503 -> TorBoxPravila.NAPAKA_MEJA
@@ -460,10 +466,30 @@ object DebridPravila {
     // shrani, med naprave gre samo preverjen veljaven, prejeti pa se pred uporabo preveri tudi na prejemni napravi.
 
     /** Izid preverbe kljuca pri storitvi. */
-    enum class Preverba { VELJA, NE_VELJA, NI_ODGOVORA, MEJA, OBLIKA }
+    enum class Preverba { VELJA, NE_VELJA, NI_ODGOVORA, MEJA, OBLIKA, ZAKLENJEN }
 
     /** Stanje shranjenega kljuca (vezano na kljuc - [odtisStanja]). */
-    enum class StanjeKljuca { VELJA, NE_VELJA, NEPREVERJEN }
+    enum class StanjeKljuca { VELJA, NE_VELJA, NEPREVERJEN, ZAKLENJEN }
+
+    /**
+     * Varovalo racunov K1 (lastnik 26. 10. 2026): s kljucem, ki ne velja, ali z zaklenjenim racunom Safeer storitve NE klice
+     * (ne ⚡, ne predvajanje, ne ozadje, ne samodejna preverba) - prej je bilo stanje samo za prikaz in vsako odprtje vsebine
+     * je klicalo storitev z zavrnjenim kljucem (RD: »bruteforcing will leave you blocked«). Nova preverba samo ob »Preveri«.
+     */
+    fun smeKlicati(s: StanjeKljuca?): Boolean = s != StanjeKljuca.NE_VELJA && s != StanjeKljuca.ZAKLENJEN
+
+    /** »Preveri« uporabnika najvec enkrat na minuto (vsaka zavrnjena zahteva steje v mejo storitve). */
+    const val ROCNA_PREVERBA_MS = 60_000L
+
+    fun rocnaPreverbaDovoljena(zadnjic: Long, zdaj: Long): Boolean = zdaj - zadnjic !in 0 until ROCNA_PREVERBA_MS
+
+    /** Stanje po »Preveri«: brez odgovora ali meja stanja ne spremeni (null - ostane ustavljen, brez samodejnih ponovitev). */
+    fun stanjePoRocniPreverbi(p: Preverba): StanjeKljuca? = when (p) {
+        Preverba.VELJA -> StanjeKljuca.VELJA
+        Preverba.ZAKLENJEN -> StanjeKljuca.ZAKLENJEN
+        Preverba.NE_VELJA, Preverba.OBLIKA -> StanjeKljuca.NE_VELJA
+        Preverba.NI_ODGOVORA, Preverba.MEJA -> null
+    }
 
     const val TORBOX_UPORABNIK = "https://api.torbox.app/v1/api/user/me"
     const val RD_UPORABNIK = "$RD_OSNOVA/user"
@@ -495,6 +521,7 @@ object DebridPravila {
     /** Napaka storitve (TorBoxPravila.NAPAKA_*) -> izid preverbe: zavrnjen kljuc ne velja, meja in paket kljuca ne zavrneta. */
     fun preverbaIzNapake(vrsta: String): Preverba = when (vrsta) {
         TorBoxPravila.NAPAKA_KLJUC -> Preverba.NE_VELJA
+        TorBoxPravila.NAPAKA_ZAKLENJEN -> Preverba.ZAKLENJEN
         TorBoxPravila.NAPAKA_MEJA -> Preverba.MEJA
         TorBoxPravila.NAPAKA_PAKET -> Preverba.VELJA
         else -> Preverba.NI_ODGOVORA
@@ -509,7 +536,7 @@ object DebridPravila {
 
     /**
      * Real-Debrid /user: velja samo s pozitivnim dokazom - 2xx z objektom uporabnika ([dokaz] = `id` ali `username`) ali
-     * koda napake racuna (9 permission denied = znan, a omejen racun); 401 ali koda 8 = ne velja. Pregled Grok 34, E3 (in
+     * koda paketa (20, 29); 401 ali koda 8 = ne velja; 9, 14, 22 = racun zaklenjen (varovalo racunov). Pregled Grok 34, E3 (in
      * 33, F7): 403 ali 2xx BREZ kode RD (stran CDN, blokada IP podatkovnega centra ali VPN) o kljucu ne pove nicesar - ni
      * odgovora (prej velja: napacen kljuc bi sel v krog, naprave za istim IP pa bi ga »potrdile«). Kot indeksator (403 brez
      * napake Newznab = ni odgovora).
@@ -556,10 +583,12 @@ object DebridPravila {
         Preverba.VELJA -> StanjeKljuca.VELJA
         Preverba.MEJA, Preverba.NI_ODGOVORA -> StanjeKljuca.NEPREVERJEN
         Preverba.NE_VELJA, Preverba.OBLIKA -> null
+        // Varovalo racunov: kljuc je pravi, racun pa zaklenjen - shrani se (vrstica pove, kaj narediti), a se ne klice.
+        Preverba.ZAKLENJEN -> StanjeKljuca.ZAKLENJEN
     }
 
     /** Kam gre vpisan kljuc po preverbi (pregled Grok 33, F3). */
-    enum class Vpis { ZAMENJAJ, OB_STRANI, OHRANI }
+    enum class Vpis { ZAMENJAJ, OB_STRANI, OHRANI, ZAVRNI }
 
     /**
      * Pregled Grok 33, F3: vpisan kljuc s stanjem [novo] (po preverbi; zavrnjen se sploh ne shrani). Potrjen zamenja
@@ -569,6 +598,8 @@ object DebridPravila {
      */
     fun obVpisu(novo: StanjeKljuca, shranjenVelja: Boolean, enak: Boolean): Vpis = when {
         novo == StanjeKljuca.VELJA -> Vpis.ZAMENJAJ
+        // Varovalo racunov: nov kljuc zaklenjenega racuna ne zamenja veljavnega (enak kljuc dobi stanje »zaklenjen«).
+        novo == StanjeKljuca.ZAKLENJEN -> if (shranjenVelja && !enak) Vpis.ZAVRNI else Vpis.ZAMENJAJ
         shranjenVelja && enak -> Vpis.OHRANI
         shranjenVelja -> Vpis.OB_STRANI
         else -> Vpis.ZAMENJAJ
@@ -579,7 +610,8 @@ object DebridPravila {
 
     fun poPreverbiCakajocega(p: Preverba): Cakajoc = when (p) {
         Preverba.VELJA -> Cakajoc.ZAMENJAJ
-        Preverba.NE_VELJA, Preverba.OBLIKA -> Cakajoc.ZAVRZI
+        // Zaklenjen racun: brez samodejnih ponovitev (varovalo racunov) - zavrze se.
+        Preverba.NE_VELJA, Preverba.OBLIKA, Preverba.ZAKLENJEN -> Cakajoc.ZAVRZI
         Preverba.NI_ODGOVORA, Preverba.MEJA -> Cakajoc.CAKA
     }
 

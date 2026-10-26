@@ -165,4 +165,16 @@
     <string name="os_debrid_kljuc_caka">%1$s ključa zdaj ni mogel preveriti – dosedanji veljavni ključ ostane v uporabi. Novega Safeer preveri znova in ga uporabi šele, ko ga storitev potrdi.</string>
     <string name="os_debrid_vrstica_caka">nov ključ čaka na preverbo</string>
     <string name="os_debrid_vrstica_caka_zavrnjen">novi ključ je storitev zavrnila – v uporabi je dosedanji</string>
+    <!-- Varovalo racunov (lastnik 26. 10. 2026): kljuc ne velja ali racun zaklenjen - Safeer storitve ne klice do Preveri -->
+    <string name="os_debrid_zaklenjen_rd">Real-Debrid je račun zaklenil ali ne dovoli tega naslova IP. Da račun ne dobi prepovedi, ga Safeer ne uporablja več na nobeni napravi. Odkleni ga na real-debrid.com (ali piši njihovi podpori), nato tapni »Preveri«.</string>
+    <string name="os_debrid_zaklenjen_ad">AllDebrid zahteva potrditev nove lokacije ali naprave in ti je poslal e-pošto. Potrdi jo, nato tapni »Preveri«. Safeer do takrat AllDebrida ne kliče na nobeni napravi – vsak klic bi poslal novo e-pošto.</string>
+    <string name="os_debrid_zaklenjen">%1$s je račun zaklenil. Safeer ga ne uporablja več na nobeni napravi. Preveri račun na strani storitve, nato tapni »Preveri«.</string>
+    <string name="os_debrid_ne_velja_navodilo">%1$s je ključ zavrnil. Safeer ga ne uporablja več na nobeni napravi (ponavljanje bi lahko zaklenilo račun). Vpiši nov ključ ali tapni »Preveri«, če si ga pri storitvi popravil.</string>
+    <string name="os_debrid_vrstica_zaklenjen_rd">Real-Debrid – račun zaklenjen: odkleni ga na real-debrid.com, nato »Preveri«</string>
+    <string name="os_debrid_vrstica_zaklenjen_ad">AllDebrid – potrdi novo lokacijo v e-pošti AllDebrid, nato »Preveri«</string>
+    <string name="os_debrid_vrstica_zaklenjen">%1$s – račun zaklenjen: preveri ga pri storitvi, nato »Preveri«</string>
+    <string name="os_debrid_preveri">Preveri</string>
+    <string name="os_debrid_vpisi_nov">Vpiši nov ključ</string>
+    <string name="os_debrid_preveri_pocakaj">Preveriš lahko znova čez minuto (vsaka zavrnjena zahteva šteje pri storitvi).</string>
+    <string name="os_debrid_preveri_ni_povezave">%1$s zdaj ni dosegljiv – stanje ostane, Safeer ga še vedno ne kliče. Poskusi pozneje.</string>
 </resources>

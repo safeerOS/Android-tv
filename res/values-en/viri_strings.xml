@@ -165,4 +165,16 @@
     <string name="os_debrid_kljuc_caka">%1$s could not check the key right now – your current valid key stays in use. Safeer checks the new one again and uses it only once the service confirms it.</string>
     <string name="os_debrid_vrstica_caka">new key waiting to be checked</string>
     <string name="os_debrid_vrstica_caka_zavrnjen">the service rejected the new key – the previous one is in use</string>
+    <!-- Varovalo racunov (lastnik 26. 10. 2026): kljuc ne velja ali racun zaklenjen - Safeer storitve ne klice do Preveri -->
+    <string name="os_debrid_zaklenjen_rd">Real-Debrid has locked the account or does not allow this IP address. To keep the account from being banned, Safeer no longer uses it on any device. Unlock it at real-debrid.com (or contact their support), then tap “Check”.</string>
+    <string name="os_debrid_zaklenjen_ad">AllDebrid wants you to confirm a new location or device and has sent you an email. Confirm it, then tap “Check”. Until then Safeer does not contact AllDebrid from any device – every request would send a new email.</string>
+    <string name="os_debrid_zaklenjen">%1$s has locked the account. Safeer no longer uses it on any device. Check your account on the service’s website, then tap “Check”.</string>
+    <string name="os_debrid_ne_velja_navodilo">%1$s rejected the key. Safeer no longer uses it on any device (repeated attempts could lock the account). Enter a new key, or tap “Check” if you have fixed it with the service.</string>
+    <string name="os_debrid_vrstica_zaklenjen_rd">Real-Debrid – account locked: unlock it at real-debrid.com, then “Check”</string>
+    <string name="os_debrid_vrstica_zaklenjen_ad">AllDebrid – confirm the new location in the AllDebrid email, then “Check”</string>
+    <string name="os_debrid_vrstica_zaklenjen">%1$s – account locked: check it with the service, then “Check”</string>
+    <string name="os_debrid_preveri">Check</string>
+    <string name="os_debrid_vpisi_nov">Enter a new key</string>
+    <string name="os_debrid_preveri_pocakaj">You can check again in a minute (every rejected request counts with the service).</string>
+    <string name="os_debrid_preveri_ni_povezave">%1$s cannot be reached right now – the status stays and Safeer still does not use it. Try again later.</string>
 </resources>

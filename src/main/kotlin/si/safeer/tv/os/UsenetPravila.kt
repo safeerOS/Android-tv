@@ -336,7 +336,7 @@ object UsenetPravila {
      * paket in meja ostanejo svoje napake (vrstaNapake TorBoxa); vse drugo pri »samo takoj« pomeni »ni pripravljeno«.
      */
     fun niPredpomnjeno(samoTakoj: Boolean, vrstaNapake: String): Boolean =
-        samoTakoj && vrstaNapake !in setOf(TorBoxPravila.NAPAKA_KLJUC, TorBoxPravila.NAPAKA_PAKET, TorBoxPravila.NAPAKA_MEJA)
+        samoTakoj && vrstaNapake !in setOf(TorBoxPravila.NAPAKA_KLJUC, TorBoxPravila.NAPAKA_PAKET, TorBoxPravila.NAPAKA_MEJA, TorBoxPravila.NAPAKA_ZAKLENJEN)
 
     /**
      * Samodejna izbira (lastnik, 24. 10. 2026: »automatsko se zažene najboljši vir … v našem primeru usenet«): Usenet gre

@@ -8861,7 +8861,8 @@ class GlasbaActivity : OsActivity() {
                         if (Debrid.aktivna(this) != null) prekDebrida(t.url, t.datoteka, { cdn -> odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap())) }, brez)
                         else {
                             // Pregled A5: kljuc je vpisan, a neberljiv (Keystore) - ne tiho na neposredni torrent (naslov IP).
-                            val neberljiva = Debrid.neberljiva(this)
+                            // Varovalo racunov: enako, ce kljuc ne velja ali je racun zaklenjen (Safeer ga ne klice).
+                            val neberljiva = Debrid.neberljiva(this) ?: Debrid.ustavljena(this)
                             if (neberljiva != null) kljucNeberljiv(neberljiva, brez) else brez()
                         }
                     }
@@ -9207,7 +9208,7 @@ class GlasbaActivity : OsActivity() {
                     .setNegativeButton(R.string.os_preklici, null)
                 if (brez != null) g.setPositiveButton(R.string.os_debrid_brez) { _, _ -> brez() }
                 when (izid.napaka) {
-                    TorBoxPravila.NAPAKA_KLJUC, UsenetPravila.NAPAKA_INDEKSATOR -> g.setNeutralButton(R.string.os_torbox_popravi) { _, _ -> nastavitveDebrida() }
+                    TorBoxPravila.NAPAKA_KLJUC, TorBoxPravila.NAPAKA_ZAKLENJEN, UsenetPravila.NAPAKA_INDEKSATOR -> g.setNeutralButton(R.string.os_torbox_popravi) { _, _ -> nastavitveDebrida() }
                     DebridPravila.NAPAKA_NI_PREDPOMNJENO -> g.setNeutralButton(R.string.os_debrid_pocakaj) { _, _ ->
                         prekDebrida(magnet, datoteka, naprej, brez, samoTakoj = false, usenetIme = usenetIme) }
                 }
@@ -9307,12 +9308,14 @@ class GlasbaActivity : OsActivity() {
      */
     private fun kljucNeberljiv(p: String, brez: () -> Unit) {
         val ime = DebridPravila.ime(p)
+        // Varovalo racunov: berljiv kljuc, ki ne velja ali je racun zaklenjen - okno pove, kaj narediti, »Popravi« odpre »Preveri«.
+        val ustavljen = Debrid.imaKljuc(this, p)
         // Pregled 10: tudi »Odstrani kljuc« - sicer bi se okno pokazalo ob vsakem torrentu. Preklic je tipka Nazaj; privzet
         // (fokus) je varen gumb »Popravi kljuc«, ne »brez zasebnosti«.
         val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(getString(R.string.os_torbox_napaka_naslov, ime))
-            .setMessage(getString(R.string.os_debrid_kljuc_neberljiv, ime))
-            .setNegativeButton(R.string.os_torbox_popravi) { _, _ -> kljucDebrida(p) }
+            .setMessage(if (ustavljen) navodiloRacuna(p, Debrid.stanjeKljuca(this, p)?.first) else getString(R.string.os_debrid_kljuc_neberljiv, ime))
+            .setNegativeButton(R.string.os_torbox_popravi) { _, _ -> if (ustavljen) stanjeKljucaOkno(p) else kljucDebrida(p) }
             .setNeutralButton(R.string.os_torbox_odstrani) { _, _ ->
                 // Pregled Grok 33, F1: neberljiv kljuc se odstrani samo tu (druge naprave obdrzijo svoj veljaven).
                 odstranjenoSporocilo(ime, Debrid.odstraniKljuc(this, p))
@@ -9349,6 +9352,12 @@ class GlasbaActivity : OsActivity() {
                 stanje?.first == DebridPravila.StanjeKljuca.VELJA ->
                     getString(R.string.os_debrid_vrstica_velja, ime, stanje.second?.let { " (" + DebridPravila.imePaketa(it) + ")" }.orEmpty())
                 stanje?.first == DebridPravila.StanjeKljuca.NE_VELJA -> getString(R.string.os_debrid_vrstica_ne_velja, ime)
+                // Varovalo racunov (lastnik 26. 10. 2026): vrstica pove, kaj narediti.
+                stanje?.first == DebridPravila.StanjeKljuca.ZAKLENJEN -> when (p) {
+                    DebridPravila.REAL_DEBRID -> getString(R.string.os_debrid_vrstica_zaklenjen_rd)
+                    DebridPravila.ALLDEBRID -> getString(R.string.os_debrid_vrstica_zaklenjen_ad)
+                    else -> getString(R.string.os_debrid_vrstica_zaklenjen, ime)
+                }
                 else -> getString(R.string.os_debrid_vrstica_nepreverjen, ime)
             }
             // Pregled Grok 33, F3: nov kljuc, vpisan brez povezave, caka ob strani (ali ga je storitev zavrnila).
@@ -9357,7 +9366,9 @@ class GlasbaActivity : OsActivity() {
                 Debrid.cakajocZavrnjen(this, p) -> " · " + getString(R.string.os_debrid_vrstica_caka_zavrnjen)
                 else -> ""
             }
-            vrstice += vrstica + caka + meritev to { kljucDebrida(p) }
+            // Varovalo racunov: kljuc, ki ne velja, ali zaklenjen racun - okno z navodilom in »Preveri« (edina nova preverba).
+            val ustavljen = Debrid.imaKljuc(this, p) && !DebridPravila.smeKlicati(stanje?.first)
+            vrstice += vrstica + caka + meritev to { if (ustavljen) stanjeKljucaOkno(p) else kljucDebrida(p) }
         }
         // Naloga 141: Usenet indeksator (Newznab) - NZB najde indeksator, prenese in pretaka TorBox (Pro).
         // Lastnik 25. 10. 2026: kot pri kljucih debrid vrstica pove, ali je kljuc indeksatorja potrjen.
@@ -9669,6 +9680,7 @@ class GlasbaActivity : OsActivity() {
                             DebridPravila.Preverba.VELJA ->
                                 getString(R.string.os_debrid_kljuc_velja, ime, paket?.let { " (" + DebridPravila.imePaketa(it) + ")" }.orEmpty())
                             DebridPravila.Preverba.NE_VELJA -> getString(R.string.os_debrid_kljuc_zavrnjen, ime)
+                            DebridPravila.Preverba.ZAKLENJEN -> navodiloRacuna(p, DebridPravila.StanjeKljuca.ZAKLENJEN)
                             DebridPravila.Preverba.OBLIKA -> getString(R.string.os_torbox_neveljaven)
                             else -> getString(R.string.os_debrid_kljuc_nepreverjen, ime)
                         }
@@ -9685,6 +9697,50 @@ class GlasbaActivity : OsActivity() {
         }
         val okno = g.create()
         Kontroler.pokazi(okno); okno.show()
+    }
+
+    /** Varovalo racunov: kaj narediti, ko kljuc ne velja ali je racun zaklenjen (Safeer storitve do »Preveri« ne klice). */
+    private fun navodiloRacuna(p: String, s: DebridPravila.StanjeKljuca?): String =
+        if (s == DebridPravila.StanjeKljuca.ZAKLENJEN) DebridBesedila.zaklenjen(this, p, DebridPravila.ime(p))
+        else getString(R.string.os_debrid_ne_velja_navodilo, DebridPravila.ime(p))
+
+    /**
+     * Varovalo racunov K1 (lastnik 26. 10. 2026): kljuc ne velja ali je racun zaklenjen - Safeer storitve ne klice na nobeni
+     * napravi. Okno pove, kaj narediti; »Preveri« je edina nova preverba (najvec enkrat na minuto), »Vpisi nov kljuc« odpre vpis.
+     */
+    private fun stanjeKljucaOkno(p: String) {
+        val ime = DebridPravila.ime(p)
+        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.os_debrid_kljuc_naslov, ime))
+            .setMessage(navodiloRacuna(p, Debrid.stanjeKljuca(this, p)?.first))
+            .setPositiveButton(R.string.os_debrid_preveri) { _, _ -> preveriKljucRocno(p) }
+            .setNeutralButton(R.string.os_debrid_vpisi_nov) { _, _ -> kljucDebrida(p) }
+            .setNegativeButton(R.string.os_preklici) { _, _ -> nastavitveDebrida() }
+            .create()
+        Kontroler.pokazi(okno); okno.show()
+    }
+
+    private fun preveriKljucRocno(p: String) {
+        val ime = DebridPravila.ime(p)
+        Toast.makeText(this, getString(R.string.os_debrid_preverjam, ime), Toast.LENGTH_SHORT).show()
+        val app = applicationContext
+        Thread({
+            val izid = try { Debrid.preveriRocno(app, p) } catch (e: Exception) {
+                android.util.Log.w("SafeerDebrid", "rocna preverba: ${e.javaClass.simpleName}"); DebridPravila.Preverba.NI_ODGOVORA
+            }
+            glavna.post {
+                if (isFinishing || isDestroyed) return@post
+                val sporocilo = when (izid) {
+                    null -> getString(R.string.os_debrid_preveri_pocakaj)
+                    DebridPravila.Preverba.VELJA -> getString(R.string.os_debrid_kljuc_velja, ime, "")
+                    DebridPravila.Preverba.ZAKLENJEN -> navodiloRacuna(p, DebridPravila.StanjeKljuca.ZAKLENJEN)
+                    DebridPravila.Preverba.NE_VELJA, DebridPravila.Preverba.OBLIKA -> navodiloRacuna(p, DebridPravila.StanjeKljuca.NE_VELJA)
+                    else -> getString(R.string.os_debrid_preveri_ni_povezave, ime)
+                }
+                Toast.makeText(this, sporocilo, Toast.LENGTH_LONG).show()
+                osveziNaMestu(); nastavitveDebrida()
+            }
+        }, "safeer-debrid-rocno").start()
     }
 
     /** Pregled Grok 33, F1: po »Odstrani« uporabnik izve, ali je kljuc odstranjen tudi na drugih napravah ozjega kroga. */

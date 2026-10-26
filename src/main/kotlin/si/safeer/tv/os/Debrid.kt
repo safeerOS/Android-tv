@@ -39,7 +39,28 @@ object Debrid {
     /** Ali ima uporabnik vpisan kljuc vsaj ene storitve. */
     fun imaKateriKljuc(c: Context): Boolean = DebridPravila.VSI.any { imaKljuc(c, it) }
 
-    fun zKljucem(c: Context): Set<String> = DebridPravila.VSI.filterTo(LinkedHashSet()) { imaKljuc(c, it) }
+    /**
+     * Storitve, ki jih Safeer sme klicati: kljuc je vpisan IN ne velja »ne velja« ali »zaklenjen« (varovalo racunov K1,
+     * lastnik 26. 10. 2026 - prej je bilo stanje samo za prikaz: vsako odprtje vsebine in predvajanje je klicalo storitev z
+     * zavrnjenim kljucem ali zaklenjenim racunom). Iz tega gredo vrstniRed, aktivna, ⚡ (predpomnjeni) in predvajanje.
+     */
+    fun zKljucem(c: Context): Set<String> = DebridPravila.VSI.filterTo(LinkedHashSet()) { uporaben(c, it) }
+
+    /** Kljuc je vpisan in ga smemo uporabiti (en klic Keystore). */
+    private fun uporaben(c: Context, p: String): Boolean {
+        val k = kljuc(c, p) ?: return false
+        return DebridPravila.smeKlicati(DebridPravila.stanjeIzZapisa(prefs(c).getString(KLJUC_STANJE + p, null), DebridPravila.odtisStanja(k))?.first)
+    }
+
+    /**
+     * Storitev, katere kljuc je vpisan, a ga Safeer ne uporablja (ne velja ali racun zaklenjen) - torrent takrat NE gre tiho
+     * mimo debrida (kot [neberljiva]): uporabnik izve, kaj narediti. null = take ni ali je izbral »Brez debrida«.
+     */
+    fun ustavljena(c: Context): String? {
+        if (prefs(c).getBoolean(KLJUC_IZKLOPLJENO, false)) return null
+        val ustavljene = DebridPravila.VSI.filterTo(LinkedHashSet()) { imaKljuc(c, it) && !uporaben(c, it) }
+        return DebridPravila.vrstniRed(ustavljene, prednostna(c)).firstOrNull()
+    }
 
     /** Pregled A5: kljuc storitve je shranjen - ne glede na to, ali ga Keystore se zna odsifrirati. */
     fun kljucShranjen(c: Context, p: String): Boolean = when (p) {
@@ -123,6 +144,8 @@ object Debrid {
                 return IzidVpisa(izid.first, null, caka = true)
             }
             DebridPravila.Vpis.OHRANI -> { pozabiCakajocega(c, p); return IzidVpisa(izid.first, null, caka = true) }
+            // Varovalo racunov: nov kljuc zaklenjenega racuna ne zamenja veljavnega - nic se ne shrani, okno pove zakaj.
+            DebridPravila.Vpis.ZAVRNI -> return IzidVpisa(izid.first, null)
             DebridPravila.Vpis.ZAMENJAJ -> Unit
         }
         if (!shraniKljuc(c, p, k)) return IzidVpisa(DebridPravila.Preverba.OBLIKA, null)
@@ -206,7 +229,13 @@ object Debrid {
      */
     fun preveriPrejetega(c: Context, p: String, vnos: String): Pair<DebridPravila.Preverba, Potrjen?> {
         val k = DebridPravila.kljucIzVnosa(vnos, p) ?: return DebridPravila.Preverba.OBLIKA to null
-        if (kljuc(c, p) == k && kljucVelja(c, p)) return DebridPravila.Preverba.VELJA to Potrjen(p, k, null, true)
+        if (kljuc(c, p) == k) {
+            val s = stanjeKljuca(c, p)?.first
+            if (s == DebridPravila.StanjeKljuca.VELJA) return DebridPravila.Preverba.VELJA to Potrjen(p, k, null, true)
+            // Varovalo racunov K1: isti kljuc, ki tu ne velja ali je racun zaklenjen - brez klica storitve.
+            if (s == DebridPravila.StanjeKljuca.NE_VELJA) return DebridPravila.Preverba.NE_VELJA to null
+            if (s == DebridPravila.StanjeKljuca.ZAKLENJEN) return DebridPravila.Preverba.ZAKLENJEN to null
+        }
         val (izid, paket) = preveriKljuc(p, k)
         if (!DebridPravila.sprejmiPrejetega(izid)) { Log.i(TAG, "prejeti kljuc ${DebridPravila.ime(p)}: $izid - ni uporabljen"); return izid to null }
         return izid to Potrjen(p, k, paket, false)
@@ -266,7 +295,11 @@ object Debrid {
         val prej = stanjeKljuca(c, p)
         if (napaka == TorBoxPravila.NAPAKA_KLJUC && prej?.first != DebridPravila.StanjeKljuca.NE_VELJA) {
             zapisiStanje(c, p, k, DebridPravila.StanjeKljuca.NE_VELJA, null)
-            Log.i(TAG, "${DebridPravila.ime(p)}: kljuc zavrnjen med uporabo - stanje »ne velja«")
+            Log.i(TAG, "${DebridPravila.ime(p)}: kljuc zavrnjen med uporabo - stanje »ne velja«, storitve ne klicemo vec")
+        } else if (napaka == TorBoxPravila.NAPAKA_ZAKLENJEN && prej?.first != DebridPravila.StanjeKljuca.ZAKLENJEN) {
+            // Varovalo racunov: zaklenjen racun ali nova lokacija - od zdaj brez klicev, dokler uporabnik ne tapne »Preveri«.
+            zapisiStanje(c, p, k, DebridPravila.StanjeKljuca.ZAKLENJEN, prej?.second)
+            Log.i(TAG, "${DebridPravila.ime(p)}: racun zaklenjen - storitve ne klicemo vec")
         } else if (uspeh && prej?.first != DebridPravila.StanjeKljuca.VELJA) {
             zapisiStanje(c, p, k, DebridPravila.StanjeKljuca.VELJA, prej?.second)
             UskladitevKljucev.sprozi(c)
@@ -296,6 +329,29 @@ object Debrid {
     }
 
     private fun prefs(c: Context) = c.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+    /** Zadnji »Preveri« po storitvi (samo v pomnilniku). */
+    private val zadnjaRocna = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    /**
+     * »Preveri« v oknu (varovalo racunov K1): edina nova preverba kljuca, ki ne velja ali je racun zaklenjen - najvec enkrat
+     * na minuto ([DebridPravila.rocnaPreverbaDovoljena]). Brez odgovora stanje ostane (ni samodejnih ponovitev). Delovna nit.
+     * null = prezgodaj (pocakaj minuto).
+     */
+    fun preveriRocno(c: Context, p: String): DebridPravila.Preverba? {
+        val k = kljuc(c, p) ?: return DebridPravila.Preverba.OBLIKA
+        val zdaj = System.currentTimeMillis()
+        if (!DebridPravila.rocnaPreverbaDovoljena(zadnjaRocna[p] ?: 0L, zdaj)) return null
+        zadnjaRocna[p] = zdaj
+        val prej = stanjeKljuca(c, p)
+        val (izid, paket) = preveriKljuc(p, k)
+        val s = DebridPravila.stanjePoRocniPreverbi(izid) ?: return izid
+        zapisiStanje(c, p, k, s, paket ?: prej?.second)
+        zadnjaPreverba[p] = zdaj
+        Log.i(TAG, "${DebridPravila.ime(p)}: rocna preverba - $izid")
+        if (DebridPravila.zaUskladitev(s)) UskladitevKljucev.sprozi(c)
+        return izid
+    }
 
     /** »Samo takoj predvajljivo« (predpomnjeno): privzeto vklopljeno - uporabnik ne caka na prenos na streznik. */
     fun samoTakoj(c: Context): Boolean = prefs(c).getBoolean(KLJUC_SAMO_TAKOJ, true)
@@ -601,7 +657,8 @@ object Debrid {
             glavna.post { nato(if (!link.povezan) "ni_povezave" else "ni_zascite") }; return
         }
         val k = JSONObject()
-        for (p in DebridPravila.VSI) kljuc(c, p)?.let { k.put(p, it) }
+        // Varovalo racunov K1: kljuc, ki ne velja ali je racun zaklenjen, ne gre na drugo napravo (tam bi ga preverila znova).
+        for (p in DebridPravila.VSI) if (uporaben(c, p)) kljuc(c, p)?.let { k.put(p, it) }
         val parametri = JSONObject().put("keys", k)
         // Naloga 141: tudi indeksator Usenet (isto sifrirano pot; tam se shrani sele po potrditvi).
         Usenet.indeksator(c)?.let { parametri.put("usenet", JSONObject().put("url", it.osnova).put("key", it.kljuc)) }

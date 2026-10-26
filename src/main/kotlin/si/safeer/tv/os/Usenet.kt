@@ -28,6 +28,12 @@ object Usenet {
 
     fun imaIndeksator(c: Context): Boolean = indeksator(c) != null
 
+    /**
+     * Indeksator, ki ga Safeer sme klicati (varovalo racunov K1, lastnik 26. 10. 2026): ne, ce ga je indeksator zavrnil
+     * (»ne velja«) - prej je vsako odprtje vsebine iskalo z zavrnjenim kljucem. Nova preverba samo z vpisom (Shrani).
+     */
+    fun zaUporabo(c: Context): Indeksator? = indeksator(c)?.takeIf { DebridPravila.smeKlicati(stanje(c)) }
+
     /** Izbris z druge naprave (grob usklajevanja) ali razveljavitev - izbris tu in uskladitev. */
     fun pozabi(c: Context) {
         brisi(c); UskladitevKljucev.sprozi(c)
@@ -84,6 +90,8 @@ object Usenet {
     fun preveriPrejetega(c: Context, naslov: String, kljuc: String): Pair<DebridPravila.Preverba, Potrjen?> {
         val prejet = UsenetPravila.prejetIndeksator(naslov, kljuc)
         val shranjen = indeksator(c)?.let { it.osnova to it.kljuc }
+        // Varovalo racunov K1: isti indeksator, ki ga je indeksator tu zavrnil - brez klica.
+        if (prejet != null && prejet == shranjen && !DebridPravila.smeKlicati(stanje(c))) return DebridPravila.Preverba.NE_VELJA to null
         var izid = DebridPravila.Preverba.OBLIKA
         val odlocitev = UsenetPravila.sprejem(prejet, shranjen, velja(c)) { o, k -> preveri(o, k).also { izid = it } }
         val ix = prejet ?: return izid to null
@@ -194,7 +202,7 @@ object Usenet {
      * Ali Usenet sploh iscemo: indeksator, kljuc TorBox (prenese in pretaka TorBox) in uporabnik ni izbral »Brez debrida«.
      * TorBox brez paketa Pro vrne napako paketa ob predvajanju (okno pove zakaj).
      */
-    fun jeNaVoljo(c: Context): Boolean = imaIndeksator(c) && TorBox.imaKljuc(c) && Debrid.aktivna(c) != null
+    fun jeNaVoljo(c: Context): Boolean = zaUporabo(c) != null && DebridPravila.TORBOX in Debrid.zKljucem(c) && Debrid.aktivna(c) != null
 
     /**
      * Diagnostika razvijalca (lastnik 25. 10. 2026: Usenet merimo samo po samodejni poti, brez rocne izbire vira):
@@ -214,7 +222,7 @@ object Usenet {
      * [rokMs] za odgovor indeksatorja.
      */
     fun isci(c: Context, id: String, rokMs: Int = UsenetPravila.ISKANJE_ROK_MS): List<Stremio.Tok> {
-        val ix = indeksator(c) ?: return emptyList()
+        val ix = zaUporabo(c) ?: return emptyList()
         val naslov = UsenetPravila.naslovIskanja(ix.osnova, ix.kljuc, id) ?: return emptyList()
         return try {
             val (koda, telo) = beri(naslov, rokMs, 4 * 1024 * 1024)
