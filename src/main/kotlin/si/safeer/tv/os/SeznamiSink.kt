@@ -115,7 +115,8 @@ object SeznamiSink {
         sz.skladbe.drop(od).take(STRAN).forEach { s ->
             val z = vZapis(s)
             skladbe.put(json(if (ozji) z else IptvPravila.zapisZaNavadniKrog(z, listOf(s.zvok, s.povezava, s.streznik),
-                IptvPravila.izViraSeznamaAliToka(s.id, s.mime == MedijskiViri.STRAN))))
+                IptvPravila.izViraSeznamaAliToka(s.id, s.mime == MedijskiViri.STRAN),
+                if (Stremio.jeEnota(s)) Stremio.razstavi(s)?.first.orEmpty() else null)))
         }
         return JSONObject().put("ime", sz.ime).put("vir", vir(sz)).put("cas", sz.cas).put("stevilo", sz.skladbe.size).put("od", od).put("skladbe", skladbe)
     }

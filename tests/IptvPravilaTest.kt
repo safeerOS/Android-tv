@@ -188,7 +188,19 @@ fun main() {
     preveriEnako("pregled: javni seznam da", "", IptvPravila.zakajNePregleda(true, "https://iptv-org.github.io/iptv/countries/si.m3u"))
     preveriEnako("pregled: dodatek z zetonom ne", "dodatek s poverilnico",
         IptvPravila.zakajNePregleda(false, "https://torrentio.strem.fun/realdebrid=ABCDEFGHIJKLMNOPQRSTUVWXYZ123456/manifest.json"))
-    preveriEnako("pregled: javni dodatek da", "", IptvPravila.zakajNePregleda(false, "https://iptv.primer.test/manifest.json"))
+    // Grok 52, Ñ1 (fail-closed): dodatek, ki ni na pozitivnem seznamu, se ne pregleda, tudi ce naslov ne kaze racuna
+    // (racun na strezniku dodatka, nastavitve v base64 brez kljucnega polja, domaci strezniki).
+    preveriEnako("pregled: dodatek neznane oblike ne", "dodatek ni znan javni", IptvPravila.zakajNePregleda(false, "https://iptv.primer.test/manifest.json"))
+    preveriEnako("pregled: dodatek z nastavitvami v poti ne", "dodatek ni znan javni",
+        IptvPravila.zakajNePregleda(false, "https://iptv.primer.test/eyJ1IjoiYSIsInAiOiJiIn0/manifest.json"))
+    preveriEnako("pregled: dodatek na domacem streznik ne", "dodatek ni znan javni", IptvPravila.zakajNePregleda(false, "http://192.168.1.5:7000/manifest.json"))
+    preveriEnako("pregled: znan javni dodatek (Cinemeta) da", "", IptvPravila.zakajNePregleda(false, "https://v3-cinemeta.strem.io/manifest.json"))
+    preveriEnako("javni dodatek: osnova brez manifesta", true, IptvPravila.javniDodatek("https://v3-cinemeta.strem.io"))
+    preveriEnako("javni dodatek: lazni gostitelj", false, IptvPravila.javniDodatek("https://v3-cinemeta.strem.io.primer.test/manifest.json"))
+    preveriEnako("javni dodatek: z uporabnikom", false, IptvPravila.javniDodatek("https://u:g@v3-cinemeta.strem.io/manifest.json"))
+    preveriEnako("javni dodatek: pot ..", false, IptvPravila.javniDodatek("https://v3-cinemeta.strem.io/../x/manifest.json"))
+    preveriEnako("javni dodatek: stremio:// ne razumemo - ni javen", false, IptvPravila.javniDodatek("stremio://v3-cinemeta.strem.io/manifest.json"))
+    preveriEnako("javni dodatek: nadomestek", false, IptvPravila.javniDodatek("https://v3-cinemeta.strem.io/" + SkrivnostiPravila.OZNAKA + "0123456789abcdef"))
 
     println()
     println("== J4: regularni izrazi #EXTINF in imena v linearnem casu ==")

@@ -300,13 +300,33 @@ object IptvPravila {
             jeVirSPoverilnico(naslovDodatka, seznam = true)
 
     /**
-     * Zakaj se kanali vira [naslov] ne pregledajo ("" = smejo): seznam, ki ni javni brezplacni, in dodatek s poverilnico
-     * nikoli - tudi z rocnim »Preveri kanale zdaj« ne (seznam Xtream s 5000 kanali je 5000 odprtij racuna).
+     * Grok 52, Ñ1 (lastnik: fail-closed tudi za dodatke): pozitiven seznam znanih javnih dodatkov Stremio (gostitelj, zacetek
+     * poti z malimi crkami). Samo kanale teh dodatkov preverjamo v ozadju in v mrezi TV v zivo, samo njihove skladbe gredo
+     * cele napravi zunaj ozjega kroga. Oblika naslova dodatka ne dokazuje, da je javen: dodatek, ki racun hrani na strezniku
+     * ali ga skrije v nastavitve (base64 v poti, posredniski tok), nima v naslovu nicesar prepoznavnega. Do izrecne oznake
+     * lastnika (vmesnika se ni) je v seznamu samo katalog Cinemeta (brez tokov); druge dodamo, ko so preverjeni.
+     */
+    val JAVNI_DODATKI = listOf("v3-cinemeta.strem.io" to "/")
+
+    /** Dodatek je pozitivno znan javen ([JAVNI_DODATKI]) in v naslovu nima poverilnice; osnova ali naslov manifesta. */
+    fun javniDodatek(naslov: String): Boolean {
+        if (dodatekSPoverilnico(naslov)) return false
+        val d = deli(naslov) ?: return false
+        val pot = (odkodiraj(d.pot, plus = false) ?: return false).lowercase(java.util.Locale.ROOT).ifEmpty { "/" }
+        if (".." in pot || "//" in pot) return false
+        return JAVNI_DODATKI.any { (g, p) -> d.gostitelj == g && pot.startsWith(p) }
+    }
+
+    /**
+     * Zakaj se kanali vira [naslov] ne pregledajo ("" = smejo): seznam, ki ni javni brezplacni, in dodatek, ki ni pozitivno
+     * znan javen ([javniDodatek]), nikoli - tudi z rocnim »Preveri kanale zdaj« ne (seznam Xtream s 5000 kanali je 5000
+     * odprtij racuna; dodatek z racunom na strezniku je ena povezava na sondo).
      */
     fun zakajNePregleda(jeSeznam: Boolean, naslov: String): String = when {
         jeSeznam && jeVirSPoverilnico(naslov, seznam = true) -> "seznam s poverilnico"
         jeSeznam && !javniBrezplacni(naslov) -> "ni javni brezplacni seznam"
         !jeSeznam && dodatekSPoverilnico(naslov) -> "dodatek s poverilnico"
+        !jeSeznam && !javniDodatek(naslov) -> "dodatek ni znan javni"
         else -> ""
     }
 
@@ -602,7 +622,9 @@ object IptvPravila {
      */
     fun skladbaZRacunom(naslovi: List<String>): Boolean = naslovi.any { n ->
         val t = n.trim()
-        (t.startsWith("http://") || t.startsWith("https://")) && jeVirSPoverilnico(t, seznam = false)
+        if (t.startsWith("http://") || t.startsWith("https://")) jeVirSPoverilnico(t, seznam = false)
+        // Grok 52, Ñ1: druga shema (rtsp://u:g@kamera, ftp://) z uporabnikom v naslovu je racun - prej je sla skozi.
+        else t.indexOf("://").let { i -> i > 0 && '@' in t.substring(i + 3).substringBefore('/').substringBefore('?') }
     }
 
     /** Id skladbe iz vira seznam/tok (kanal »iptv:«, vnos seznama »seznam:«, kartica vira »vir:«, »vir-seznam:«); stran ne. */
@@ -615,12 +637,13 @@ object IptvPravila {
 
     /**
      * Grok 46, Ö1/Ö2 (fail-closed): skladba gre cela napravi ZUNAJ ozjega kroga samo, ce je pozitivno brez racuna - skladba iz
-     * vira seznam/tok ([izVira]) samo iz znanega javnega seznama, vsaka pa samo, ce noben njen naslov ([naslovi]: tok, povezava,
-     * seznam, slika, naslovi v zapisu android) ne nosi racuna ([skladbaZRacunom]).
+     * vira seznam/tok ([izVira]) samo iz znanega javnega seznama, kartica dodatka ([dodatek] = osnova dodatka, null = ni
+     * kartica dodatka) samo iz znanega javnega dodatka ([javniDodatek], Grok 52 Ñ1), vsaka pa samo, ce noben njen naslov
+     * ([naslovi]: tok, povezava, seznam, slika, naslovi v zapisu android) ne nosi racuna ([skladbaZRacunom]).
      */
-    fun skladbaCelaZaNavadniKrog(izVira: Boolean, naslovi: List<String>): Boolean {
+    fun skladbaCelaZaNavadniKrog(izVira: Boolean, naslovi: List<String>, dodatek: String? = null): Boolean {
         val n = naslovi.filter { it.isNotBlank() }
-        return (!izVira || n.any { znanJaven("seznam", it) }) && !skladbaZRacunom(n)
+        return (!izVira || n.any { znanJaven("seznam", it) }) && (dodatek == null || javniDodatek(dodatek)) && !skladbaZRacunom(n)
     }
 
     /**
@@ -628,9 +651,10 @@ object IptvPravila {
      * [skladbaCelaZaNavadniKrog], gre brez toka, brez zapisa android in brez slike pri skladbi iz vira (logotip s panela
      * ponudnika) ali s sliko z racunom - ime, izvajalec, posnetek YouTube in trajanje ostanejo. Napravi v ozjem krogu gre cela.
      */
-    fun zapisZaNavadniKrog(z: SeznamiPravila.Zapis, naslovi: List<String>, izVira: Boolean): SeznamiPravila.Zapis {
-        if (skladbaCelaZaNavadniKrog(izVira, naslovi + z.url + z.slika + nasloviVBesedilu(z.izvirnik))) return z
-        val slika = z.slika.takeIf { !izVira && it.isNotBlank() && !skladbaZRacunom(listOf(it)) }.orEmpty()
+    fun zapisZaNavadniKrog(z: SeznamiPravila.Zapis, naslovi: List<String>, izVira: Boolean, dodatek: String? = null): SeznamiPravila.Zapis {
+        if (skladbaCelaZaNavadniKrog(izVira, naslovi + z.url + z.slika + nasloviVBesedilu(z.izvirnik), dodatek)) return z
+        // Slika kartice dodatka, ki ni znan javen, ne gre (logotip s panela ponudnika), kot pri skladbi iz vira.
+        val slika = z.slika.takeIf { !izVira && dodatek == null && it.isNotBlank() && !skladbaZRacunom(listOf(it)) }.orEmpty()
         return SeznamiPravila.Zapis(z.naslov, z.izvajalec, z.youtube, z.sekund, slika, "", z.video, "")
     }
 

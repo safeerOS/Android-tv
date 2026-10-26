@@ -222,5 +222,26 @@ fun main() {
     preveriEnako("lastnik: vir brez gesla pred prehodom (radio) - brez opozorila", emptySet<String>(), IptvPravila.zaOpozorilo(emptySet(), setOf(oN), true, emptySet()))
     preveriEnako("lastnik: izbrisan vir - brez opozorila", emptySet<String>(), IptvPravila.zaOpozorilo(setOf(oX), emptySet(), true, emptySet()))
 
+    println()
+    println("== Grok 52, Ñ1: skladbe, ki niso iz vira (dodatki): fail-closed ==")
+    val dodatekPosrednik = "https://iptv-posrednik.primer.test/eyJ1IjoidXBvcmFibmlrNyIsInAiOiJnZXNsbzEyMyJ9"
+    val tokPosrednik = "https://iptv-posrednik.primer.test/p/eyJ1IjoidXBvcmFibmlrNyIsInAiOiJnZXNsbzEyMyJ9/123/index.m3u8"
+    val kartica = SeznamiPravila.Zapis("Kanal 5", "", url = tokPosrednik, slika = "https://iptv-posrednik.primer.test/logo/5.png", video = true,
+        izvirnik = """{"id":"stremio|tv|5|$dodatekPosrednik","zvok":"$tokPosrednik"}""")
+    preveri("skladba iz dodatka neznane oblike ne gre cela", !IptvPravila.skladbaCelaZaNavadniKrog(false, listOf(tokPosrednik), dodatekPosrednik))
+    val zunajD = IptvPravila.zapisZaNavadniKrog(kartica, listOf(tokPosrednik), izVira = false, dodatek = dodatekPosrednik)
+    preveri("zapis iz dodatka: brez toka, zapisa android in slike", zunajD.url.isEmpty() && zunajD.izvirnik.isEmpty() && zunajD.slika.isEmpty())
+    preveriEnako("zapis iz dodatka: ime ostane", "Kanal 5", zunajD.naslov)
+    val cinemeta = SeznamiPravila.Zapis("Film", "", url = "", slika = "https://images.metahub.space/poster/small/tt0111161/img",
+        izvirnik = """{"id":"stremio|movie|tt0111161|https://v3-cinemeta.strem.io"}""")
+    preveriEnako("zapis iz znanega javnega dodatka (Cinemeta) ostane cel", cinemeta,
+        IptvPravila.zapisZaNavadniKrog(cinemeta, emptyList(), izVira = false, dodatek = "https://v3-cinemeta.strem.io"))
+    preveri("kartica dodatka z nadomestkom ne gre cela", !IptvPravila.skladbaCelaZaNavadniKrog(false, emptyList(),
+        "https://v3-cinemeta.strem.io/" + SkrivnostiPravila.OZNAKA + "0123456789abcdef"))
+    preveri("brez dodatka (navadna skladba) brez racuna ostane", IptvPravila.skladbaCelaZaNavadniKrog(false, listOf("https://glasba.primer.test/p.mp3"), null))
+    preveri("rtsp z uporabnikom in geslom je racun", IptvPravila.skladbaZRacunom(listOf("rtsp://$UPORABNIK:$GESLO@kamera.primer.test/live")))
+    preveri("ftp z uporabnikom je racun", IptvPravila.skladbaZRacunom(listOf("ftp://$UPORABNIK@datoteke.primer.test/glasba.mp3")))
+    preveri("rtsp brez uporabnika ni racun", !IptvPravila.skladbaZRacunom(listOf("rtsp://kamera.primer.test/live", "magnet:?xt=urn:btih:abc", "content://media/external/audio/1")))
+
     if (napak == 0) println("IptvRacunTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

@@ -73,6 +73,29 @@ fun main() {
     zahtev.set(0)
     preveriEnako("nadzor: javni seznam, dodan tu: sond", 5, pregled(javni, prosti, dodanTu = true, rocno = false))
     preveriEnako("nadzor: zahtev na strezniku", 5, zahtev.get())
+    // 5) Grok 52, Ñ1 (fail-closed): kanal dodatka se preveri samo, ce je dodatek pozitivno znan javen (PregledKanalov.smeSonda);
+    // dodatek z racunom v nastavitvah (base64 v poti) ali na strezniku ne odpre nobene povezave.
+    fun sondaDodatka(dodatek: String, tokUrl: String): Int {
+        if (!IptvPravila.javniDodatek(dodatek)) return 0
+        if (IptvPravila.jeVirSPoverilnico(tokUrl, seznam = false)) return 0
+        val g = IptvPravila.gostitelj(tokUrl)
+        val vrata = IptvPravila.VrataGostiteljev(premorMs = 0L)
+        if (vrata.zasedi(g, System.currentTimeMillis(), System.nanoTime() / 1_000_000L) != IptvPravila.VrataGostiteljev.Izid.DA) return 0
+        try { SondaVeriga.preveri(tokUrl, { emptyMap() }, izIzjeme, SondaVeriga.Nastavitve(zaseben = { false })); return 1 }
+        finally { vrata.sprosti(g, System.nanoTime() / 1_000_000L) }
+    }
+    val b64 = "eyJ1IjoidXBvcmFibmlrNyIsInAiOiJnZXNsbzEyMyJ9"        // {"u":"uporabnik7","p":"geslo123"}
+    zahtev.set(0)
+    var sondDodatka = 0
+    for (i in 0 until 50) sondDodatka += sondaDodatka("https://iptv-posrednik.primer.test/$b64", "$tok/p/$b64/$i/index.m3u8")
+    preveriEnako("dodatek z racunom v nastavitvah (base64 v poti), 50 kanalov: sond", 0, sondDodatka)
+    preveriEnako("dodatek z racunom v nastavitvah: zahtev na strezniku", 0, zahtev.get())
+    sondDodatka = 0
+    for (i in 0 until 50) sondDodatka += sondaDodatka("https://iptv-posrednik.primer.test", "$tok/stream/$i.m3u8")
+    preveriEnako("dodatek neznane oblike brez vidne poverilnice, 50 kanalov: sond", 0, sondDodatka)
+    preveriEnako("dodatek neznane oblike: zahtev na strezniku", 0, zahtev.get())
+    preveriEnako("nadzor: znan javni dodatek, javni tok: sond", 1, sondaDodatka("https://v3-cinemeta.strem.io", "$tok/stream/1.m3u8"))
+    preveriEnako("nadzor: zahtev na strezniku", 1, zahtev.get())
     streznik.stop(0)
     if (napak == 0) println("IptvVarovaloTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

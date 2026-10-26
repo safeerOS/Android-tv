@@ -100,7 +100,7 @@ object Predaja {
         // napravi v ozjem krogu te naprave - druga bi dobila uporabnika in geslo (play.state, »Poslji na napravo«). Grok 46,
         // Ö1/Ö2 (fail-closed): skladba iz vira seznam/tok samo iz znanega javnega seznama, vsak naslov skladbe brez racuna.
         if (!IptvPravila.skladbaCelaZaNavadniKrog(IptvPravila.izViraSeznamaAliToka(sk.id, sk.mime == MedijskiViri.STRAN),
-                listOf(sk.zvok, sk.povezava, sk.streznik, sk.slika)) &&
+                listOf(sk.zvok, sk.povezava, sk.streznik, sk.slika), if (Stremio.jeEnota(sk)) Stremio.razstavi(sk)?.first.orEmpty() else null) &&
             !(posiljatelj.isNotBlank() && try { OzjiKrog.vKrogu(ctx, posiljatelj) } catch (_: Throwable) { false })) return null
         if (sk.zvok.startsWith("content://") || sk.zvok.startsWith("file:") || sk.zvok.startsWith("/")) return null
         // Datoteka naprave brez znanega streznika (stara zgodovina): naslov z zetonom te naprave drugje ne velja.

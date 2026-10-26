@@ -94,13 +94,14 @@ object PregledKanalov {
 
     /**
      * Ali sme preverba odpreti tok kanala [sk] (pregled in mreza TV v zivo): kanal seznama samo iz javnega brezplacnega
-     * seznama in brez racuna v naslovu toka ([IptvPravila.preverbaDovoljena]); kanal dodatka samo iz dodatka brez
-     * poverilnice. Ostali ostanejo vidni - o njih odloci pravo predvajanje.
+     * seznama in brez racuna v naslovu toka ([IptvPravila.preverbaDovoljena]); kanal dodatka samo iz pozitivno znanega javnega
+     * dodatka ([IptvPravila.javniDodatek], Grok 52 Ñ1 - prej je veljalo »ni prepoznan racun«, kar ob neznani obliki odpre).
+     * Ostali ostanejo vidni - o njih odloci pravo predvajanje.
      */
     fun smeSonda(c: Context, sk: Jamendo.Skladba): Boolean {
         if (IptvSeznami.jeKanal(sk)) return IptvPravila.preverbaDovoljena(sk.streznik, sk.zvok)
         val dodatek = Stremio.razstavi(sk)?.first ?: return false
-        return !IptvPravila.dodatekSPoverilnico(dodatek) && !jeDodatekSPoverilnico(c, dodatek)
+        return IptvPravila.javniDodatek(dodatek) && !jeDodatekSPoverilnico(c, dodatek)
     }
 
     private fun dodatkiSPoverilnico(c: Context): Set<String> = sPoverilnico ?: try {
