@@ -304,9 +304,11 @@ object Usenet {
     fun tok(c: Context, idToka: String, ime: String, indeks: Int, samoTakoj: Boolean, napredek: (Int) -> Unit): TorBox.Izid {
         val (nzb, napaka) = nzb(idToka)
         if (nzb == null) return TorBox.Izid(napaka = napaka.ifBlank { UsenetPravila.NAPAKA_INDEKSATOR }, ponudnik = UsenetPravila.PONUDNIK)
+        // Pregled Grok 33, F5: izid velja za kljuc TorBox, s katerim je sla zahteva (ne za kljuc, vpisan med prenosom).
+        val kljucZahteve = TorBox.kljuc(c)
         return TorBox.usenet(c, nzb, ime, indeks, samoTakoj, napredek).also {
             // Lastnik 25. 10. 2026: stanje kljuca TorBox sledi uporabi (401 -> »ne velja«).
-            try { Debrid.obIzidu(c, DebridPravila.TORBOX, it.napaka, it.url != null) } catch (_: Exception) { }
+            if (kljucZahteve != null) try { Debrid.obIzidu(c, DebridPravila.TORBOX, kljucZahteve, DebridPravila.TORBOX, it.napaka, it.url != null) } catch (_: Exception) { }
         }
     }
 

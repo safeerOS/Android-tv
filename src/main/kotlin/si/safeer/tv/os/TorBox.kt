@@ -123,7 +123,7 @@ object TorBox {
             val o = klic(TorBoxPravila.naslovPredpomnjenihVec(h), kljuc, rokMs = rokMs)
             if (!uspeh(o)) {
                 // Lastnik 25. 10. 2026: zavrnjen kljuc ze ob preverbi ⚡ - vrstica v »Debrid storitve« pove »ne velja«.
-                Debrid.obIzidu(c, DebridPravila.TORBOX, napaka(o).napaka, false)
+                Debrid.obIzidu(c, DebridPravila.TORBOX, kljuc, DebridPravila.TORBOX, napaka(o).napaka, false)
                 return emptySet()
             }
             val data = o.json?.optJSONObject("data") ?: return emptySet()

@@ -289,9 +289,17 @@ object Debrid {
         return spremenjeno
     }
 
-    /** Med uporabo: zavrnjen kljuc (401) -> »ne velja«; povezava od storitve -> kljuc velja (stanje se osvezi samo). */
-    fun obIzidu(c: Context, p: String, napaka: String, uspeh: Boolean) {
+    /**
+     * Med uporabo: zavrnjen kljuc (401) -> »ne velja«; povezava od storitve -> kljuc velja (stanje se osvezi samo).
+     * Pregled Grok 33, F5: izid velja samo za kljuc, s katerim je sla zahteva ([kljucZahteve]), in za storitev, ki je
+     * odgovorila ([ponudnikIzida], prazno = [p]) - prej je izid dobil trenutno shranjen kljuc: ob menjavi med dolgim
+     * prenosom je nov (morda nepreverjen) kljuc dobil »velja« in sel v ozji krog, ali veljaven »ne velja«.
+     */
+    fun obIzidu(c: Context, p: String, kljucZahteve: String, ponudnikIzida: String, napaka: String, uspeh: Boolean) {
         val k = kljuc(c, p) ?: return
+        if (!DebridPravila.izidZaKljuc(k, kljucZahteve, p, ponudnikIzida)) {
+            Log.i(TAG, "${DebridPravila.ime(p)}: izid za drug kljuc ali storitev - stanje ostane"); return
+        }
         val prej = stanjeKljuca(c, p)
         if (napaka == TorBoxPravila.NAPAKA_KLJUC && prej?.first != DebridPravila.StanjeKljuca.NE_VELJA) {
             zapisiStanje(c, p, k, DebridPravila.StanjeKljuca.NE_VELJA, null)
@@ -625,7 +633,7 @@ object Debrid {
         // Naloga 136: oznaka ⚡ za Real-Debrid in AllDebrid iz tega, kar je storitev pravkar odgovorila.
         try { zapomniIzid(c, p, magnet, iz) } catch (e: Exception) { Log.w(TAG, "zapomni: ${e.javaClass.simpleName}") }
         // Lastnik 25. 10. 2026: stanje kljuca sledi uporabi (401 -> »ne velja«, povezava -> velja).
-        try { obIzidu(c, p, iz.napaka, iz.url != null) } catch (e: Exception) { Log.w(TAG, "stanje kljuca: ${e.javaClass.simpleName}") }
+        try { obIzidu(c, p, k, iz.ponudnik, iz.napaka, iz.url != null) } catch (e: Exception) { Log.w(TAG, "stanje kljuca: ${e.javaClass.simpleName}") }
         // Pregled A4: TorBox.tok storitve ne vpise - izid vedno nosi storitev, ki je odgovorila.
         return if (iz.ponudnik.isNotEmpty()) iz else TorBox.Izid(iz.url, iz.napaka, iz.opis, iz.cakajMs, p)
     }

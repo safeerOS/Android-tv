@@ -605,6 +605,13 @@ object DebridPravila {
         Preverba.ZAKLENJEN -> StanjeKljuca.ZAKLENJEN
     }
 
+    /**
+     * Pregled Grok 33, F5: izid zahteve (401 ali povezava) velja za shranjen kljuc samo, ce je to kljuc, s katerim je sla
+     * zahteva ([kljucZahteve]), in ce je odgovorila ta storitev ([ponudnikIzida] prazno = [ponudnik]).
+     */
+    fun izidZaKljuc(kljucZdaj: String?, kljucZahteve: String, ponudnik: String, ponudnikIzida: String): Boolean =
+        kljucZdaj != null && kljucZdaj == kljucZahteve && (ponudnikIzida.isEmpty() || ponudnikIzida == ponudnik)
+
     /** Kam gre vpisan kljuc po preverbi (pregled Grok 33, F3). */
     enum class Vpis { ZAMENJAJ, OB_STRANI, OHRANI, ZAVRNI }
 
