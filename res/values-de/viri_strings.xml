@@ -177,4 +177,8 @@
     <string name="os_debrid_vpisi_nov">Neuen Schlüssel eingeben</string>
     <string name="os_debrid_preveri_pocakaj">Du kannst in einer Minute erneut prüfen (jede abgelehnte Anfrage zählt beim Dienst).</string>
     <string name="os_debrid_preveri_ni_povezave">%1$s ist gerade nicht erreichbar – der Status bleibt, Safeer verwendet den Dienst weiterhin nicht. Versuche es später.</string>
+    <!-- Pregled Grok 33, F9: sporocila ob meji, nepreverjenem prejemu in napaki shrambe -->
+    <string name="os_debrid_kljuc_meja">%1$s begrenzt gerade die Anfragen – der Schlüssel ist als ungeprüft gespeichert. Safeer prüft ihn in einigen Minuten erneut und sendet ihn bis dahin nicht an deine anderen Geräte.</string>
+    <string name="os_debrid_prejeto_ni_preverjeno">%1$s: Der Schlüssel konnte gerade nicht geprüft werden (keine Verbindung oder zu viele Anfragen) – er wurde nicht gespeichert. Sende ihn erneut, wenn du online bist.</string>
+    <string name="os_debrid_napaka_shranjevanja">Der Schlüssel konnte auf diesem Gerät nicht sicher gespeichert werden. Versuche es erneut.</string>
 </resources>

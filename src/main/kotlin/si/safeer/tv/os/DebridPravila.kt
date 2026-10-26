@@ -612,6 +612,20 @@ object DebridPravila {
     fun izidZaKljuc(kljucZdaj: String?, kljucZahteve: String, ponudnik: String, ponudnikIzida: String): Boolean =
         kljucZdaj != null && kljucZdaj == kljucZahteve && (ponudnikIzida.isEmpty() || ponudnikIzida == ponudnik)
 
+    /** Izid prejetega kljuca za okno (pregled Grok 33, F9). */
+    enum class Prejem { SHRANJEN, ZAVRNJEN, NI_PREVERJEN }
+
+    /**
+     * Pregled Grok 33, F9: prej je okno vsak neshranjen prejeti kljuc pokazalo kot »storitev ga je zavrnila« - tudi, ko je
+     * ni bilo mogoce doseci (ni povezave, meja). Rocna pot (»Poslji kljuce«) kljuca ne poslje znova, zato mora uporabnik vedeti,
+     * da naj ga poslje znova.
+     */
+    fun prejem(p: Preverba): Prejem = when (p) {
+        Preverba.VELJA -> Prejem.SHRANJEN
+        Preverba.NE_VELJA, Preverba.OBLIKA, Preverba.ZAKLENJEN -> Prejem.ZAVRNJEN
+        Preverba.NI_ODGOVORA, Preverba.MEJA -> Prejem.NI_PREVERJEN
+    }
+
     /** Kam gre vpisan kljuc po preverbi (pregled Grok 33, F3). */
     enum class Vpis { ZAMENJAJ, OB_STRANI, OHRANI, ZAVRNI }
 

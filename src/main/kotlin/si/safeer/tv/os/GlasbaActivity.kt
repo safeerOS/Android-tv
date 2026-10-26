@@ -9578,13 +9578,19 @@ class GlasbaActivity : OsActivity() {
                 // Lastnik 25. 10. 2026: prejeti kljuci se preverijo pri storitvi (omrezje - delovna nit); zavrnjen se ne shrani.
                 val app = applicationContext
                 Thread({
-                    val shranjeni = Debrid.shraniPrejete(app, p)
-                    val zavrnjeni = p.kljuci.keys.filter { it !in shranjeni }
+                    // Pregled Grok 33, F9: telo niti v try (izjema bi sesula aplikacijo); okno loci zavrnjen od nepreverjenega.
+                    val izid = try { Debrid.shraniPrejete(app, p) } catch (e: Exception) {
+                        android.util.Log.w("SafeerDebrid", "prejeti kljuci: ${e.javaClass.simpleName}"); null
+                    }
                     glavna.post {
                         if (isFinishing || isDestroyed) return@post
-                        Toast.makeText(this, getString(R.string.os_debrid_prejeto_shranjeno, shranjeni.joinToString(", ") { ime(it) }), Toast.LENGTH_LONG).show()
-                        if (zavrnjeni.isNotEmpty())
-                            Toast.makeText(this, getString(R.string.os_debrid_kljuc_zavrnjen, zavrnjeni.joinToString(", ") { ime(it) }), Toast.LENGTH_LONG).show()
+                        if (izid == null) { Toast.makeText(this, R.string.os_debrid_napaka_shranjevanja, Toast.LENGTH_LONG).show(); return@post }
+                        if (izid.shranjeni.isNotEmpty())
+                            Toast.makeText(this, getString(R.string.os_debrid_prejeto_shranjeno, izid.shranjeni.joinToString(", ") { ime(it) }), Toast.LENGTH_LONG).show()
+                        if (izid.zavrnjeni.isNotEmpty())
+                            Toast.makeText(this, getString(R.string.os_debrid_kljuc_zavrnjen, izid.zavrnjeni.joinToString(", ") { ime(it) }), Toast.LENGTH_LONG).show()
+                        if (izid.nepreverjeni.isNotEmpty())
+                            Toast.makeText(this, getString(R.string.os_debrid_prejeto_ni_preverjeno, izid.nepreverjeni.joinToString(", ") { ime(it) }), Toast.LENGTH_LONG).show()
                         osveziNaMestu()
                     }
                 }, "safeer-debrid-prejeti").start()
@@ -9623,9 +9629,13 @@ class GlasbaActivity : OsActivity() {
                 Toast.makeText(this, getString(R.string.os_debrid_preverjam, ime), Toast.LENGTH_SHORT).show()
                 val app = applicationContext
                 Thread({
-                    val izid = Usenet.vpisi(app, n, k)
+                    // Pregled Grok 33, F9 / 34, E8: telo niti v try (izjema bi sesula aplikacijo).
+                    val izid = try { Usenet.vpisi(app, n, k) } catch (e: Exception) {
+                        android.util.Log.w("SafeerUsenet", "vpis: ${e.javaClass.simpleName}"); null
+                    }
                     glavna.post {
                         if (isFinishing || isDestroyed) return@post
+                        if (izid == null) { Toast.makeText(this, R.string.os_debrid_napaka_shranjevanja, Toast.LENGTH_LONG).show(); osveziNaMestu(); nastavitveDebrida(); return@post }
                         val sporocilo = when (izid) {
                             DebridPravila.Preverba.VELJA -> getString(R.string.os_debrid_kljuc_velja, ime, "")
                             DebridPravila.Preverba.NE_VELJA -> getString(R.string.os_debrid_kljuc_zavrnjen, ime)
@@ -9673,18 +9683,26 @@ class GlasbaActivity : OsActivity() {
                 Toast.makeText(this, getString(R.string.os_debrid_preverjam, ime), Toast.LENGTH_SHORT).show()
                 val app = applicationContext
                 Thread({
-                    val iv = Debrid.vpisiKljuc(app, p, vnos)
+                    // Pregled Grok 33, F9: telo niti v try (izjema bi sesula aplikacijo).
+                    val iv = try { Debrid.vpisiKljuc(app, p, vnos) } catch (e: Exception) {
+                        android.util.Log.w("SafeerDebrid", "vpis: ${e.javaClass.simpleName}"); Debrid.IzidVpisa(DebridPravila.Preverba.NI_ODGOVORA, null, napakaShrambe = true)
+                    }
                     val izid = iv.preverba
                     val paket = iv.paket
                     glavna.post {
                         if (isFinishing || isDestroyed) return@post
+                        // Pregled Grok 33, F9: medtem vpisan drug kljuc te storitve - njegov izid pove okno sam.
+                        if (iv.zastarel) return@post
                         // Pregled Grok 33, F3: brez povezave novi kljuc caka ob strani, veljaven ostane v uporabi.
-                        val sporocilo = if (iv.caka) getString(R.string.os_debrid_kljuc_caka, ime) else when (izid) {
+                        val sporocilo = if (iv.napakaShrambe) getString(R.string.os_debrid_napaka_shranjevanja)
+                            else if (iv.caka) getString(R.string.os_debrid_kljuc_caka, ime) else when (izid) {
                             DebridPravila.Preverba.VELJA ->
                                 getString(R.string.os_debrid_kljuc_velja, ime, paket?.let { " (" + DebridPravila.imePaketa(it) + ")" }.orEmpty())
                             DebridPravila.Preverba.NE_VELJA -> getString(R.string.os_debrid_kljuc_zavrnjen, ime)
                             DebridPravila.Preverba.ZAKLENJEN -> navodiloRacuna(p, DebridPravila.StanjeKljuca.ZAKLENJEN)
                             DebridPravila.Preverba.OBLIKA -> getString(R.string.os_torbox_neveljaven)
+                            // Pregled Grok 33, F9: 429 ni »ni povezave«.
+                            DebridPravila.Preverba.MEJA -> getString(R.string.os_debrid_kljuc_meja, ime)
                             else -> getString(R.string.os_debrid_kljuc_nepreverjen, ime)
                         }
                         Toast.makeText(this, sporocilo, Toast.LENGTH_LONG).show()

@@ -127,17 +127,27 @@ object Debrid {
      * zavrnjen kljuc se NE shrani; brez povezave se shrani kot nepreverjen in ne gre na druge naprave, dokler ga storitev ne
      * potrdi ([preveriNepreverjene]). Veljaven gre sam v ozji krog.
      */
-    /** Izid vpisa: preverba, paket in [caka] = novi kljuc caka ob strani, dosedanji veljaven ostane (pregled Grok 33, F3). */
-    class IzidVpisa(val preverba: DebridPravila.Preverba, val paket: Int?, val caka: Boolean = false)
+    /**
+     * Izid vpisa: preverba, paket in [caka] = novi kljuc caka ob strani, dosedanji veljaven ostane (pregled Grok 33, F3).
+     * Pregled Grok 33, F9: [zastarel] = medtem je bil vpisan drug kljuc te storitve (izid se zavrze, okno ga ne pokaze);
+     * [napakaShrambe] = sifrirana shramba ni uspela (prej se je pokazalo kot »neveljaven kljuc«).
+     */
+    class IzidVpisa(val preverba: DebridPravila.Preverba, val paket: Int?, val caka: Boolean = false,
+                    val zastarel: Boolean = false, val napakaShrambe: Boolean = false)
+
+    /** Stevec vpisov po storitvi: preverba traja do ~16 s, okno se zapre takoj - zmaga zadnji VPISANI, ne zadnji koncani. */
+    private val stevecVpisov = java.util.concurrent.ConcurrentHashMap<String, Int>()
 
     fun vpisiKljuc(c: Context, p: String, vnos: String): IzidVpisa {
         val k = DebridPravila.kljucIzVnosa(vnos, p) ?: return IzidVpisa(DebridPravila.Preverba.OBLIKA, null)
+        val st = stevecVpisov.merge(p, 1) { a, b -> a + b } ?: 1
         val izid = preveriKljuc(p, k)
+        if (stevecVpisov[p] != st) { Log.i(TAG, "${DebridPravila.ime(p)}: medtem vpisan drug kljuc - ta izid se zavrze"); return IzidVpisa(izid.first, null, zastarel = true) }
         val s = DebridPravila.stanjePoPreverbi(izid.first) ?: return IzidVpisa(izid.first, izid.second)
         when (DebridPravila.obVpisu(s, kljucVelja(c, p), kljuc(c, p) == k)) {
             // Pregled Grok 33, F3: storitve ni bilo mogoce doseci - veljaven kljuc ostane, novi caka ob strani.
             DebridPravila.Vpis.OB_STRANI -> {
-                if (!SporocilaSkrivnosti.shrani(c, imeCakajocega(p), k)) return IzidVpisa(DebridPravila.Preverba.OBLIKA, null)
+                if (!SporocilaSkrivnosti.shrani(c, imeCakajocega(p), k)) return IzidVpisa(izid.first, null, napakaShrambe = true)
                 prefs(c).edit().remove(KLJUC_CAKA_ZAVRNJEN + p).apply()
                 zadnjaPreverba[CAKA + p] = System.currentTimeMillis()
                 Log.i(TAG, "${DebridPravila.ime(p)}: nov kljuc caka na preverbo, veljaven ostane")
@@ -148,7 +158,7 @@ object Debrid {
             DebridPravila.Vpis.ZAVRNI -> return IzidVpisa(izid.first, null)
             DebridPravila.Vpis.ZAMENJAJ -> Unit
         }
-        if (!shraniKljuc(c, p, k)) return IzidVpisa(DebridPravila.Preverba.OBLIKA, null)
+        if (!shraniKljuc(c, p, k)) return IzidVpisa(izid.first, null, napakaShrambe = true)
         pozabiCakajocega(c, p)
         zapisiStanje(c, p, k, s, izid.second)
         zadnjaPreverba[DebridPravila.odtisStanja(k)] = System.currentTimeMillis()
@@ -249,9 +259,15 @@ object Debrid {
         return true
     }
 
-    /** Kljuc z druge naprave - preverba in shranjevanje (delovna nit, brez zaklepa). false = ni uporabljen. */
-    fun sprejmiKljuc(c: Context, p: String, vnos: String): Boolean =
-        preveriPrejetega(c, p, vnos).second?.let { shraniPrejetega(c, it) } ?: false
+    /**
+     * Kljuc z druge naprave - preverba in shranjevanje (delovna nit, brez zaklepa). Pregled Grok 33, F9: vrne izid preverbe
+     * (VELJA = shranjen), da okno loci »zavrnjen« od »ni bilo mogoce preveriti«; napaka shrambe = ni odgovora (poslji znova).
+     */
+    fun sprejmiKljuc(c: Context, p: String, vnos: String): DebridPravila.Preverba {
+        val (izid, pr) = preveriPrejetega(c, p, vnos)
+        if (pr == null) return izid
+        return if (shraniPrejetega(c, pr)) DebridPravila.Preverba.VELJA else DebridPravila.Preverba.NI_ODGOVORA
+    }
 
     /**
      * Razveljavitev spremembe z druge naprave (pregled Grok 33, F2): prejsnji kljuc te naprave se vrne BREZ omrezja (prej
@@ -687,13 +703,20 @@ object Debrid {
     /** Webtor rezerva: v seznamu shranjenih [shraniPrejete] je dodatek s poverilnico »dodatek|<gostitelj>«. */
     const val PREDPONA_DODATKA = "dodatek|"
 
-    /** Potrjeni prejeti kljuci: shranijo se kot vpisani tu. Vrne storitve, ki so bile shranjene. */
-    fun shraniPrejete(c: Context, p: Prejeti): List<String> =
+    /** Izid shranjevanja prejetih (pregled Grok 33, F9): storitve in »usenet« po izidu; dodatki so med shranjenimi. */
+    class IzidPrejetih(val shranjeni: List<String>, val zavrnjeni: List<String>, val nepreverjeni: List<String>)
+
+    /** Potrjeni prejeti kljuci: shranijo se kot vpisani tu (delovna nit). */
+    fun shraniPrejete(c: Context, p: Prejeti): IzidPrejetih {
         // Lastnik 25. 10. 2026: prejeti kljuc se pred shranjevanjem preveri pri storitvi ([sprejmiKljuc]) - delovna nit.
-        p.kljuci.filter { (ponudnik, k) -> sprejmiKljuc(c, ponudnik, k) }.keys.toList() +
-            listOfNotNull(p.indeksator?.takeIf { (n, k) -> Usenet.sprejmi(c, n, k) }?.let { UsenetPravila.VRSTA }) +
-            // Webtor rezerva: dodatki s poverilnico - sifrirano kot nadomestek ([MedijskiViri.dodajDodatek]).
-            p.dodatki.mapNotNull { n -> MedijskiViri.dodajDodatek(c, MedijskiViri.STREMIO, n, "")?.let { PREDPONA_DODATKA + Zasebno.gostitelj(n) } }
+        val izidi = LinkedHashMap<String, DebridPravila.Preverba>()
+        for ((ponudnik, k) in p.kljuci) izidi[ponudnik] = sprejmiKljuc(c, ponudnik, k)
+        p.indeksator?.let { (n, k) -> izidi[UsenetPravila.VRSTA] = Usenet.sprejmi(c, n, k) }
+        // Webtor rezerva: dodatki s poverilnico - sifrirano kot nadomestek ([MedijskiViri.dodajDodatek]).
+        val dodatki = p.dodatki.mapNotNull { n -> MedijskiViri.dodajDodatek(c, MedijskiViri.STREMIO, n, "")?.let { PREDPONA_DODATKA + Zasebno.gostitelj(n) } }
+        fun z(v: DebridPravila.Prejem) = izidi.filterValues { DebridPravila.prejem(it) == v }.keys.toList()
+        return IzidPrejetih(z(DebridPravila.Prejem.SHRANJEN) + dodatki, z(DebridPravila.Prejem.ZAVRNJEN), z(DebridPravila.Prejem.NI_PREVERJEN))
+    }
 
     /**
      * Poslje vse vpisane kljuce napravi [n] - samo po sifrirani poti od naprave do naprave ([DebridPravila.smePoslatiKljuc]).

@@ -97,8 +97,12 @@ object Usenet {
      * s te naprave ([UsenetPravila.sprejem]); zavrnjen nikoli ne prepise shranjenega, brez odgovora pocaka na naslednjo
      * uskladitev. false = ni uporabljen.
      */
-    fun sprejmi(c: Context, naslov: String, kljuc: String): Boolean =
-        preveriPrejetega(c, naslov, kljuc).second?.let { shraniPrejetega(c, it) } ?: false
+    /** Pregled Grok 33, F9 (kot Debrid.sprejmiKljuc): izid preverbe, VELJA = shranjen. */
+    fun sprejmi(c: Context, naslov: String, kljuc: String): DebridPravila.Preverba {
+        val (izid, pr) = preveriPrejetega(c, naslov, kljuc)
+        if (pr == null) return izid
+        return if (shraniPrejetega(c, pr)) DebridPravila.Preverba.VELJA else DebridPravila.Preverba.NI_ODGOVORA
+    }
 
     /** Prejet indeksator, ki ga je indeksator potrdil s te naprave; shrani ga [shraniPrejetega] brez omrezja. */
     class Potrjen(val osnova: String, val kljuc: String, val zeShranjen: Boolean)

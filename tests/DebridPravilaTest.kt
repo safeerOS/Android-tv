@@ -326,6 +326,12 @@ fun main() {
     preveriEnako("F5: kljuc zamenjan med zahtevo", false, DebridPravila.izidZaKljuc("K2", "K1", "torbox", "torbox"))
     preveriEnako("F5: izid druge storitve", false, DebridPravila.izidZaKljuc("K1", "K1", "realdebrid", "alldebrid"))
     preveriEnako("F5: kljuca medtem ni", false, DebridPravila.izidZaKljuc(null, "K1", "torbox", "torbox"))
+    // Pregled Grok 33, F9: prejeti kljuc, ki ga ni bilo mogoce preveriti, ni »zavrnjen«.
+    preveriEnako("F9: prejet veljaven: shranjen", DebridPravila.Prejem.SHRANJEN, DebridPravila.prejem(DebridPravila.Preverba.VELJA))
+    preveriEnako("F9: prejet brez povezave: ni preverjen (poslji znova)", DebridPravila.Prejem.NI_PREVERJEN, DebridPravila.prejem(DebridPravila.Preverba.NI_ODGOVORA))
+    preveriEnako("F9: prejet ob meji: ni preverjen", DebridPravila.Prejem.NI_PREVERJEN, DebridPravila.prejem(DebridPravila.Preverba.MEJA))
+    preveriEnako("F9: prejet zavrnjen: zavrnjen", DebridPravila.Prejem.ZAVRNJEN, DebridPravila.prejem(DebridPravila.Preverba.NE_VELJA))
+    preveriEnako("F9: prejet zaklenjen racun: zavrnjen", DebridPravila.Prejem.ZAVRNJEN, DebridPravila.prejem(DebridPravila.Preverba.ZAKLENJEN))
     // Pregled Grok 33, F3: vpis brez povezave (429, 5xx) ne prepise veljavnega - caka ob strani.
     preveriEnako("F3: veljaven + nepreverjen nov -> ob strani", DebridPravila.Vpis.OB_STRANI, DebridPravila.obVpisu(DebridPravila.StanjeKljuca.NEPREVERJEN, shranjenVelja = true, enak = false))
     preveriEnako("F3: veljaven + isti nepreverjen -> ohrani", DebridPravila.Vpis.OHRANI, DebridPravila.obVpisu(DebridPravila.StanjeKljuca.NEPREVERJEN, shranjenVelja = true, enak = true))
