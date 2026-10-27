@@ -1,6 +1,5 @@
 package si.safeer.tv.os
 
-import android.animation.ValueAnimator
 import android.content.Context
 import android.content.Intent
 import android.graphics.Typeface
@@ -195,7 +194,7 @@ class PokrajinaActivity : OsActivity() {
         v.setOnFocusChangeListener { p, ima ->
             prej?.onFocusChange(p, ima)
             val cilj = if (ima) PokrajinaPravila.povecava(zmanjsano()) else 1f
-            val cas = PokrajinaPravila.trajanje(150, ValueAnimator.getDurationScale(), zmanjsano())
+            val cas = PokrajinaPravila.trajanje(150, Settings.Global.getFloat(contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f), zmanjsano())
             if (cas == 0L) { p.scaleX = cilj; p.scaleY = cilj } else p.animate().scaleX(cilj).scaleY(cilj).setDuration(cas).start()
         }
     }

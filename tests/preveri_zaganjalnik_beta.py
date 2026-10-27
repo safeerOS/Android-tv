@@ -214,6 +214,10 @@ def main() -> int:
     preveri("gradnja -PsafeerBeta=N: pripona -beta.N in BuildConfig.BETA",
             "project.findProperty('safeerBeta')" in gradle and "\"-beta.$beta\"" in gradle and "buildConfigField 'boolean', 'BETA'" in gradle)
     preveri("gradnja zavrne neveljavno stevilko bete", "[1-9][0-9]{0,3}" in gradle and "throw new GradleException" in gradle)
+    # CI 40481571137 (Lint NewApi): ValueAnimator.getDurationScale je sele od API 33, minSdk je 28 - na starejsem TV bi
+    # se Pokrajina sesula. Skala animacij se bere iz Settings.Global.ANIMATOR_DURATION_SCALE (vse razlicice).
+    pokrajina = (KOREN / "src/main/kotlin/si/safeer/tv/os/PokrajinaActivity.kt").read_text(encoding="utf-8")
+    preveri("Pokrajina brez API 33 (getDurationScale) pri minSdk 28", "getDurationScale" not in pokrajina)
     # Rocna gradnja bete v CI: vhod »beta« gre prek okolja v -PsafeerBeta (brez vhoda gradnja kot prej).
     ci = (KOREN / ".github" / "workflows" / "gradnja.yml").read_text(encoding="utf-8")
     preveri("CI: rocna gradnja z vhodom beta poda -PsafeerBeta",
