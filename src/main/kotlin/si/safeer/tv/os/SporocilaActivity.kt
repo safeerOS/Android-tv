@@ -48,6 +48,8 @@ class SporocilaActivity : OsActivity() {
     private lateinit var sporocilaDrsnik: ScrollView
     private lateinit var sporocilaSeznam: LinearLayout
     private lateinit var odgovor: EditText
+    /** Nacin pisanja odgovora: glava in seznam izgineta, vidni so pogovor, zadnje sporocilo in polje (zgradi). */
+    private var uskladiPisanje: () -> Unit = {}
     private lateinit var posljiGumb: View
 
     private val delavec = Executors.newSingleThreadExecutor()
@@ -294,6 +296,11 @@ class SporocilaActivity : OsActivity() {
             }
             setOnKeyListener { v, koda, d ->
                 if (koda == KeyEvent.KEYCODE_ENTER && d.isCtrlPressed && d.action == KeyEvent.ACTION_UP) { poslji(); true }
+                else if (koda == KeyEvent.KEYCODE_BACK && (v as EditText).showSoftInputOnFocus &&
+                    packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK)) {
+                    if (d.action == KeyEvent.ACTION_UP) { v.showSoftInputOnFocus = false; uskladiPisanje() }
+                    true
+                }
                 else tipkovnicaNaOk(v as EditText, koda, d)
             }
         }
@@ -322,9 +329,13 @@ class SporocilaActivity : OsActivity() {
             (if (siroko) listOf(seznamPlosca) else emptyList()) +
             listOfNotNull(dejanjaPogovora.parent as? View)   // vrstica dejanj pogovora (osebe, oznake, iskanje)
         var skrito: Map<View, Int>? = null   // vidnost pred skritjem: kar je bilo skrito ze prej, ostane skrito
-        root.viewTreeObserver.addOnGlobalLayoutListener {
+        val tv = packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK)
+        uskladiPisanje = {
             val vidno = android.graphics.Rect().also { root.getWindowVisibleDisplayFrame(it) }
-            val pisem = SporocilaHitroPravila.tipkovnicaOdprta(vidno.height(), root.rootView.height) && odgovor.hasFocus()
+            // TV: tipkovnica je odprta, ko jo je OK odprl na polju Odgovor (tipkovnica TV vidnega okna ne zmanjsa vedno);
+            // telefon in tablica: vidni del okna (adjustResize).
+            val pisem = odgovor.hasFocus() && ((tv && odgovor.showSoftInputOnFocus) ||
+                SporocilaHitroPravila.tipkovnicaOdprta(vidno.height(), root.rootView.height))
             if (pisem && skrito == null) {
                 skrito = glavaZaslona.associateWith { it.visibility }
                 glavaZaslona.forEach { it.visibility = View.GONE }
@@ -332,6 +343,7 @@ class SporocilaActivity : OsActivity() {
                 sporocilaDrsnik.post { sporocilaDrsnik.scrollTo(0, (sporocilaSeznam.height - sporocilaDrsnik.height).coerceAtLeast(0)) }
             } else if (!pisem) skrito?.let { prej -> skrito = null; prej.forEach { (v, s) -> v.visibility = s } }
         }
+        root.viewTreeObserver.addOnGlobalLayoutListener { uskladiPisanje() }
         return root
     }
 
@@ -620,6 +632,7 @@ class SporocilaActivity : OsActivity() {
         e.setOnFocusChangeListener { v, ima ->
             prej?.onFocusChange(v, ima)
             if (!ima) (v as EditText).showSoftInputOnFocus = false
+            v.post { uskladiPisanje() }
         }
     }
 
@@ -628,6 +641,7 @@ class SporocilaActivity : OsActivity() {
         if (koda != KeyEvent.KEYCODE_DPAD_CENTER && koda != KeyEvent.KEYCODE_ENTER) return false
         e.showSoftInputOnFocus = true
         (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).showSoftInput(e, 0)
+        e.post { uskladiPisanje() }
         return true
     }
 

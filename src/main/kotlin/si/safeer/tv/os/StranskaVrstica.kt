@@ -54,6 +54,12 @@ class StranskaVrstica private constructor(
 
     /** Naprava z dotikom (telefon, tablica); sicer televizor z daljincem (tudi preizkusna gradnja »TV nacin«). */
     private val dotik = !Naprava.jeTelevizor(dejavnost)
+    /**
+     * Lastnik 27. 10. 2026: z novim zaganjalnikom (beta) na TV se stranska vrstica ne sme videti nikjer - vsebina dobi celo
+     * sirino. Odloci [prilagodiSirino], ki vidnost nastavi ob vsaki postavitvi (beta 3 jo je skrila samo ob gradnji,
+     * prilagodiSirino pa jo je takoj znova pokazal).
+     */
+    private val brezVrstice = !ZaganjalnikBetaPravila.stranskaVrstica(!dotik, ZaganjalnikBeta.vklopljen(dejavnost))
     private val shramba = dejavnost.getSharedPreferences(SHRAMBA, android.content.Context.MODE_PRIVATE)
     private var nacin = trenutniNacin()
     /** Tirnica: uporabnik je z gumbom menija izbral imena ob ikonah (velja za vse zaslone Safeer OS). */
@@ -188,8 +194,6 @@ class StranskaVrstica private constructor(
         drsnik.addView(meni, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         addView(drsnik, LayoutParams(dejavnost.resources.getDimensionPixelSize(R.dimen.os_meni_sirina),
             ViewGroup.LayoutParams.MATCH_PARENT))
-        // Lastnik 27. 10. 2026: z novim zaganjalnikom (beta) na TV brez stranske vrstice - vsebina dobi celo sirino.
-        if (!ZaganjalnikBetaPravila.stranskaVrstica(!dotik, ZaganjalnikBeta.vklopljen(dejavnost))) drsnik.visibility = View.GONE
         (vsebina.parent as? ViewGroup)?.removeView(vsebina)
         okvir.addView(vsebina, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         zastor.setBackgroundColor(0x8C000000.toInt())
@@ -367,6 +371,7 @@ class StranskaVrstica private constructor(
         val lp = drsnik.layoutParams as? LayoutParams ?: LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT)
         lp.height = ViewGroup.LayoutParams.MATCH_PARENT
         when {
+            brezVrstice -> { drsnik.visibility = View.GONE; lp.marginEnd = 0 }
             nacin == Nacin.PREDAL && !predalOdprt -> {
                 drsnik.visibility = View.GONE; lp.marginEnd = 0
             }
