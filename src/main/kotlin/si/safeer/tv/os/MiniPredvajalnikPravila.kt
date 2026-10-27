@@ -123,9 +123,11 @@ object PredvajajNaNapraviPravila {
     const val ZVOCNIK = "zvocnik"
     const val NAPRAVA = "naprava"
     const val SISTEM = "sistem"
+    /** Lastnik 27. 10. 2026: brez najdenega zvocnika uporabnik vidi, da Safeer isce v omrezju (in lahko isce znova). */
+    const val ISCI_ZNOVA = "isci_znova"
 
     /** Postavke izbire: (vrsta, indeks v svojem seznamu). Sistemski izhod je vedno zadnji - tudi, ce v omrezju ni nic. */
     fun izbire(zvocnikov: Int, naprav: Int): List<Pair<String, Int>> =
-        (0 until zvocnikov.coerceAtLeast(0)).map { ZVOCNIK to it } +
+        (if (zvocnikov > 0) (0 until zvocnikov).map { ZVOCNIK to it } else listOf(ISCI_ZNOVA to 0)) +
             (0 until naprav.coerceAtLeast(0)).map { NAPRAVA to it } + (SISTEM to 0)
 }

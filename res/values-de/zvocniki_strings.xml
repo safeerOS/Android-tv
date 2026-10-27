@@ -2,7 +2,10 @@
 <resources>
     <string name="zvocnik_predvajaj_na">Auf Lautsprecher abspielen</string>
     <string name="zvocnik_na_napravi">Auf Gerät abspielen</string>
-    <string name="zvocnik_sistemski_izhod">Bluetooth und andere Geräteausgänge</string>
+    <string name="zvocnik_sistemski_izhod">Bluetooth und Ausgänge dieses Geräts</string>
+    <string name="zvocnik_vrsta_lan">Lautsprecher im Netzwerk (WLAN)</string>
+    <string name="zvocnik_vrsta_safeer">Safeer-Gerät</string>
+    <string name="zvocnik_ni_v_omrezju">Kein Lautsprecher im Netzwerk (WLAN) gefunden – erneut suchen</string>
     <!-- Naloga 104: vidna oznaka gumba za izbiro zvocnika na zaslonu predvajanja. -->
     <string name="zvocnik_oznaka">Lautsprecher</string>
     <string name="zvocnik_na">Auf Lautsprecher: %1$s</string>

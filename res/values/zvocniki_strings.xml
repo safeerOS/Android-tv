@@ -2,7 +2,10 @@
 <resources>
     <string name="zvocnik_predvajaj_na">Play on speaker</string>
     <string name="zvocnik_na_napravi">Play on device</string>
-    <string name="zvocnik_sistemski_izhod">Bluetooth and other device outputs</string>
+    <string name="zvocnik_sistemski_izhod">Bluetooth and outputs of this device</string>
+    <string name="zvocnik_vrsta_lan">speaker on your network (Wi-Fi)</string>
+    <string name="zvocnik_vrsta_safeer">Safeer device</string>
+    <string name="zvocnik_ni_v_omrezju">No speaker found on your network (Wi-Fi) – search again</string>
     <!-- Naloga 104: vidna oznaka gumba za izbiro zvocnika na zaslonu predvajanja. -->
     <string name="zvocnik_oznaka">Speaker</string>
     <string name="zvocnik_na">On speaker: %1$s</string>

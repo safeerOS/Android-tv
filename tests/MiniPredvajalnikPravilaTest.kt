@@ -74,8 +74,8 @@ fun main() {
     val N = PredvajajNaNapraviPravila
     preveriEnako("zvocnika in naprava, sistem zadnji",
         listOf(N.ZVOCNIK to 0, N.ZVOCNIK to 1, N.NAPRAVA to 0, N.SISTEM to 0), N.izbire(2, 1))
-    preveriEnako("v omrezju nic: samo Bluetooth/sistem", listOf(N.SISTEM to 0), N.izbire(0, 0))
-    preveriEnako("samo naprave Linka", listOf(N.NAPRAVA to 0, N.SISTEM to 0), N.izbire(0, 1))
+    preveriEnako("v omrezju nic: isci znova, nato Bluetooth/sistem", listOf(N.ISCI_ZNOVA to 0, N.SISTEM to 0), N.izbire(0, 0))
+    preveriEnako("samo naprave Linka: isci znova pred njimi", listOf(N.ISCI_ZNOVA to 0, N.NAPRAVA to 0, N.SISTEM to 0), N.izbire(0, 1))
 
     if (napak == 0) println("MiniPredvajalnikPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

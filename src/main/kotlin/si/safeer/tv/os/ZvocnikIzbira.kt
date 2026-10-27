@@ -69,8 +69,9 @@ object ZvocnikIzbira {
             val izbire = PredvajajNaNapraviPravila.izbire(zvocniki.size, naprave.size)
             val imena = izbire.map { (vrsta, i) ->
                 when (vrsta) {
-                    PredvajajNaNapraviPravila.ZVOCNIK -> imeZvocnika(zvocniki[i]) + " · " + a.getString(R.string.zvocnik_oznaka)
-                    PredvajajNaNapraviPravila.NAPRAVA -> DatotekeActivity.lepoIme(naprave[i].ime) + " · Safeer"
+                    PredvajajNaNapraviPravila.ZVOCNIK -> imeZvocnika(zvocniki[i]) + " · " + a.getString(R.string.zvocnik_vrsta_lan)
+                    PredvajajNaNapraviPravila.NAPRAVA -> DatotekeActivity.lepoIme(naprave[i].ime) + " · " + a.getString(R.string.zvocnik_vrsta_safeer)
+                    PredvajajNaNapraviPravila.ISCI_ZNOVA -> a.getString(R.string.zvocnik_ni_v_omrezju)
                     else -> a.getString(R.string.zvocnik_sistemski_izhod)
                 }
             }
@@ -79,6 +80,7 @@ object ZvocnikIzbira {
                 when (vrsta) {
                     PredvajajNaNapraviPravila.ZVOCNIK -> izberiZvocnik(a, zvocniki[i], sk, spremenjeno)
                     PredvajajNaNapraviPravila.NAPRAVA -> posljiNaNapravo(a, naprave[i], spremenjeno)
+                    PredvajajNaNapraviPravila.ISCI_ZNOVA -> predvajajNaNapravi(a, sk, spremenjeno)
                     else -> sistemskiIzhod(a)
                 }
             }.setNegativeButton(a.getString(R.string.os_preklici), null))
