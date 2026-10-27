@@ -214,6 +214,11 @@ def main() -> int:
     preveri("gradnja -PsafeerBeta=N: pripona -beta.N in BuildConfig.BETA",
             "project.findProperty('safeerBeta')" in gradle and "\"-beta.$beta\"" in gradle and "buildConfigField 'boolean', 'BETA'" in gradle)
     preveri("gradnja zavrne neveljavno stevilko bete", "[1-9][0-9]{0,3}" in gradle and "throw new GradleException" in gradle)
+    # Rocna gradnja bete v CI: vhod »beta« gre prek okolja v -PsafeerBeta (brez vhoda gradnja kot prej).
+    ci = (KOREN / ".github" / "workflows" / "gradnja.yml").read_text(encoding="utf-8")
+    preveri("CI: rocna gradnja z vhodom beta poda -PsafeerBeta",
+            "inputs:" in ci and "beta:" in ci and "SAFEER_BETA: ${{ github.event.inputs.beta }}" in ci
+            and '"-PsafeerBeta=$SAFEER_BETA"' in ci and "${{ github.event.inputs.beta }}\"" not in ci)
     # Brez zastavice ostane navadna razlicica (stevilka se z izdajami spreminja, zato samo oblika brez pripone).
     preveri("brez zastavice ostane ime razlicice kot prej",
             len(re.findall(r"versionName = '[0-9]+\.[0-9]+\.[0-9]+'", gradle)) >= 2)

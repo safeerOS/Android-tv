@@ -13,6 +13,13 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      beta:
+        # Naloga 42 F: rocna gradnja bete (-PsafeerBeta=N -> razlicica -beta.N, stikalo »Nov zaganjalnik« na TV).
+        # Prazno = navadna gradnja kot doslej. Vrednost preveri build.gradle (1-9999).
+        description: 'Stevilka bete (prazno = navadna gradnja)'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -69,8 +76,16 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v6
 
+      # Vhod beta gre prek okolja (ne neposredno v ukaz); brez vhoda (push, pull_request) je gradnja enaka kot prej.
       - name: Nepodpisan APK (brez kljuca)
-        run: ./gradlew --no-daemon assembleRelease
+        env:
+          SAFEER_BETA: ${{ github.event.inputs.beta }}
+        run: |
+          if [ -n "$SAFEER_BETA" ]; then
+            ./gradlew --no-daemon assembleRelease "-PsafeerBeta=$SAFEER_BETA"
+          else
+            ./gradlew --no-daemon assembleRelease
+          fi
 
       - name: Povej, kaj je nastalo
         run: |
