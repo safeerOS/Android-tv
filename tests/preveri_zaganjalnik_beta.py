@@ -296,6 +296,15 @@ def main() -> int:
     for x in ("os", "dotik"):
         xml = (KOREN / "okusi" / x / "res/xml/safeer_vnos.xml").read_text(encoding="utf-8")
         preveri(f"safeer_vnos.xml ({x}): filter tipk", 'android:canRequestFilterKeyEvents="true"' in xml and "flagRequestFilterKeyEvents" in xml)
+    print("\n== glasba z Useneta (lastnik 27. 10.) ==")
+    gl = (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8")
+    us = (SRC / "os/Usenet.kt").read_text(encoding="utf-8")
+    la = (SRC / "os/UsenetLastni.kt").read_text(encoding="utf-8")
+    preveri("iskanje glasbe pri indeksatorju (izvajalec in skladba) med zadetki", "Usenet.isciGlasbo(applicationContext, beseda)" in gl
+            and "UsenetGlasbaPravila.naslovIskanjaSkladbe(" in us and "rezultati[14] as? List<UsenetPravila.Zadetek>" in gl)
+    preveri("samo z lastnim ponudnikom in indeksatorjem", "fun glasbaNaVoljo(c: Context): Boolean = zaUporabo(c) != null && UsenetLastni.naVoljo(c)" in us)
+    preveri("klik predvaja album v obstojecem predvajalniku, pri iskani skladbi", "predvajaj(seznam, UsenetGlasbaPravila.zacetnaSkladba(" in gl)
+    preveri("album: ena seja in en bazen, Pozabi zapre vse skladbe", "s.strezniki.forEach { try { it.close() }" in la and "fun predvajajAlbum(" in la)
     # Rocna gradnja bete v CI: vhod »beta« gre prek okolja v -PsafeerBeta (brez vhoda gradnja kot prej).
     ci = (KOREN / ".github" / "workflows" / "gradnja.yml").read_text(encoding="utf-8")
     preveri("CI: rocna gradnja z vhodom beta poda -PsafeerBeta",
@@ -329,7 +338,7 @@ def main() -> int:
     print("\n== Usenet v Medijskem centru: lasten pogon (lastnik 27. 10.) ==")
     preveri("Usenet.tok: z vpisanim ponudnikom lasten pogon (NZB od indeksatorja -> UsenetLastni.predvajaj)",
             "if (UsenetLastniPravila.lastni(lastni, UsenetLastni.naVoljo(c))) return tokLastni(c, idToka, ime)" in usenet
-            and "return UsenetLastni.predvajaj(c, nzb, ime)" in usenet)
+            and "else UsenetLastni.predvajaj(c, nzb, ime)" in usenet)
     preveri("Usenet v Medijskem centru tudi brez TorBoxa (lasten ponudnik)", "lastni = UsenetLastni.naVoljo(c))" in usenet)
     preveri("samodejna izbira: z lastnim ponudnikom Usenet sam, zaporedno, brez okna vira",
             "if (UsenetLastni.naVoljo(app)) {" in glasba and "lastni = true) }" in glasba)

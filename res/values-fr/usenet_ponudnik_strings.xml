@@ -3,4 +3,6 @@
 <resources>
     <string name="os_usenet_dodaj_ponudnika">Ajouter un fournisseur Usenet</string>
     <string name="os_usenet_ponudnik_naslov">Fournisseur Usenet</string>
+    <string name="os_usenet_album_pripravljam">Préparation de l’album %1$s …</string>
+    <string name="os_usenet_album_ni">Impossible de lire cet album : ses fichiers sont dans une archive ou indisponibles.</string>
 </resources>

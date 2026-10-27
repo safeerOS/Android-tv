@@ -535,6 +535,18 @@ object UsenetBralnik {
         return Vir(preslikave.map { it!! }, kosi.map { KosVira(it.zvezek, it.odmik, it.dolzina) }, ime) to bajtov
     }
 
+    /**
+     * Lastnik 27. 10. 2026 (glasba): ena gola datoteka iz NZB (skladba albuma) kot [Vir] - prvi segment da preslikavo.
+     * Arhiv (RAR) tu ni podprt (album v RAR je druga faza). Nikoli na glavni niti.
+     */
+    fun pripraviDatoteko(d: UsenetNzb.Datoteka, telo: (String) -> ByteArray): Vir {
+        check(Looper.myLooper() != Looper.getMainLooper()) { "Usenet ne sme teci na glavni niti" }
+        if (d.segmenti.isEmpty() || d.segmenti[0].stevilka != 1 || d.manjka > 0) throw UsenetTok.NapakaToka(UsenetTok.Izid.LUKNJA)
+        val p = prviSegment(telo, d)
+        if (p.preslikava.imaLuknje) throw UsenetTok.NapakaToka(UsenetTok.Izid.LUKNJA)
+        return Vir(listOf(p.preslikava), listOf(KosVira(0, 0, p.preslikava.velikost)), d.ime)
+    }
+
     fun beriVse(b: Bralnik, odmik: Long, n: Int): ByteArray {
         val izid = java.io.ByteArrayOutputStream(maxOf(0, minOf(n, 1 shl 20)))
         var o = odmik

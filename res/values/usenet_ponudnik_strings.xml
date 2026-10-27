@@ -3,4 +3,6 @@
 <resources>
     <string name="os_usenet_dodaj_ponudnika">Add a Usenet provider</string>
     <string name="os_usenet_ponudnik_naslov">Usenet provider</string>
+    <string name="os_usenet_album_pripravljam">Preparing album %1$s …</string>
+    <string name="os_usenet_album_ni">This album cannot be played: its files are in an archive or not available.</string>
 </resources>

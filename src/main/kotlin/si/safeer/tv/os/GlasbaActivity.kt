@@ -6470,7 +6470,7 @@ class GlasbaActivity : OsActivity() {
         val taNaprava = getString(if (jeTv()) R.string.os_media_ta_tv else R.string.os_media_ta_naprava)
         // Preklic starih poizvedb: hitro zaporedno iskanje ne sme pustiti kupa zivih niti.
         synchronized(iskanjeNiti) { iskanjeNiti.forEach { it.cancel(true) }; iskanjeNiti.clear() }
-        val rezultati = arrayOfNulls<Any>(14)
+        val rezultati = arrayOfNulls<Any>(15)
         val stremioNaslovi = MedijskiViri.vsi(this).filter { it.jeStremio }.map { it.naslov }
         val spletniViri = MedijskiViri.vsi(this).filter { it.jeSplet || it.tip == MedijskiViri.API }
         val imenaSpletnihVirov = spletniViri.map { it.ime }
@@ -6517,6 +6517,9 @@ class GlasbaActivity : OsActivity() {
             // Naloga 81: katalogi samo za iskanje (YouTubio: tip YouTube, obvezni search) - lastno opravilo z daljsim rokom
             // ([OsPravila.iskanjeKoncano]); zasebnih kategorij kanalov nimajo.
             { if (samoDodatek != null) emptyList<Jamendo.Skladba>() else try { Stremio.isci(Stremio.zKatalogom(stremioNaslovi), beseda, samoIskanje = true) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
+            // Lastnik 27. 10. 2026: glasba z Useneta (izvajalec ali skladba) pri uporabnikovem indeksatorju - samo z lastnim ponudnikom.
+            { if (samoDodatek != null || !Usenet.glasbaNaVoljo(applicationContext)) emptyList<UsenetPravila.Zadetek>()
+              else try { Usenet.isciGlasbo(applicationContext, beseda) } catch (_: Exception) { emptyList<UsenetPravila.Zadetek>() } },
         )
         // Iskanje v zasebnem dodatku vprasa samo ta dodatek (opravilo 11); ostali viri ostanejo prazni.
         val futures = opravila.mapIndexed { i, f -> iskanjeDelavec.submit { rezultati[i] = if (samoDodatek != null && i != 11) emptyList<Any>() else f() } }
@@ -6539,6 +6542,7 @@ class GlasbaActivity : OsActivity() {
             // Cesar noben dodatek ne predvaja, med zadetki ni.
             val izDodatkov = izDodatkovVsi.filterNot { znanoNiNaVoljo(it) || cakaNaKnjiznico(it) }
             @Suppress("UNCHECKED_CAST") val tvKanali = rezultati[12] as? List<Jamendo.Skladba> ?: emptyList()
+            @Suppress("UNCHECKED_CAST") val usenetAlbumi = rezultati[14] as? List<UsenetPravila.Zadetek> ?: emptyList()
             // Zadetki dodatkov po vrsti vsebine: vsak pristane v svoji polici (film, serija, TV v zivo, glasba, radio).
             val dodatkiPoRazredu = izDodatkov.groupBy { Stremio.razredEnote(it) }
             // Naloga 81: drug video (tip YouTube ...) ni film - gre v polico Video; iskanje iz Glasbe: med glasbo (posnetki).
@@ -6633,6 +6637,11 @@ class GlasbaActivity : OsActivity() {
                     Vrsta("🎬 " + getString(R.string.os_media_filmi), videi(ostali(poUjemanju(dFilmi)), beseda), video = true),
                     Vrsta("📺 " + getString(R.string.os_media_serije), videi(ostali(poUjemanju(dSerije)), beseda), video = true),
                     Vrsta("📡 " + getString(R.string.os_mediji_tv_v_zivo), videi(ostali(poUjemanju(dTv + tvKanali)), beseda), video = true),
+                    // Lastnik 27. 10. 2026: izdaje glasbe z Useneta - klik takoj predvaja (pri iskani skladbi, kot pri YouTubu).
+                    Vrsta("\uD83D\uDCE6 Usenet", usenetAlbumi.map { z ->
+                        Kartica(UsenetGlasbaPravila.lepNaslov(z.naslov), UsenetGlasbaPravila.velikost(z.velikost), "", { predvajajUsenetAlbum(z, beseda) },
+                            ikona = R.drawable.os_ikona_glasba, id = "usenet:" + UsenetPravila.idToka(z.povezava))
+                    }, skladbe = true),
                     Vrsta(getString(R.string.os_mediji_glasba), skladbe(ostali(poUjemanju(dGlasba) + (if (vGlasbo) poUjemanju(dVideo) else emptyList()) +
                         glasba + spletAvdio + spletVideospoti), beseda), skladbe = true),
                     Vrsta(getString(R.string.os_glasba_video), videi(ostali((if (vGlasbo) emptyList() else poUjemanju(dVideo)) + videi + javnaLast + spletFilmiInSerije), beseda), video = true),
@@ -7429,6 +7438,30 @@ class GlasbaActivity : OsActivity() {
     }
 
     /** Glasba in radio zacneta takoj (ves seznam v vrsto, naprej/nazaj preklaplja); video najprej razresimo. */
+    /**
+     * Lastnik 27. 10. 2026: album z Useneta kot vrsta skladb v obstojecem predvajalniku. Priprava (NZB, prvi segment vsake
+     * skladbe) tece v ozadju; predvajanje zacne pri skladbi, ki ustreza iskanju (UsenetGlasbaPravila.zacetnaSkladba).
+     */
+    private fun predvajajUsenetAlbum(z: UsenetPravila.Zadetek, beseda: String) {
+        val app = applicationContext
+        Toast.makeText(this, getString(R.string.os_usenet_album_pripravljam, UsenetGlasbaPravila.lepNaslov(z.naslov)), Toast.LENGTH_SHORT).show()
+        val id = UsenetPravila.idToka(z.povezava)
+        Thread({
+            val album = try { Usenet.albumLastni(app, id) } catch (_: Exception) { UsenetLastni.Album(emptyList(), "napaka") }
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                if (album.skladbe.isEmpty()) {
+                    android.util.Log.i("SafeerOsMedia", "glasba usenet: ni predvajal (${album.napaka})")
+                    Toast.makeText(this, getString(R.string.os_usenet_album_ni), Toast.LENGTH_LONG).show()
+                    return@runOnUiThread
+                }
+                val izvajalec = UsenetGlasbaPravila.izvajalec(z.naslov)
+                val seznam = album.skladbe.mapIndexed { i, (ime, url) -> Jamendo.Skladba("usenet:$id:$i", ime, izvajalec, "", url, "") }
+                predvajaj(seznam, UsenetGlasbaPravila.zacetnaSkladba(album.skladbe.map { it.first }, beseda))
+            }
+        }, "safeer-usenet-album").start()
+    }
+
     private fun predvajaj(seznam: List<Jamendo.Skladba>, i: Int,
                           /** Pregled B-S1: klik na kartico v Nedavno (odgledana epizoda serije -> naslednja). */
                           izNedavnih: Boolean = false) {

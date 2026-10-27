@@ -47,7 +47,10 @@ class UsenetStreznik(
         private val TRAJNE = setOf(UsenetTok.Izid.LUKNJA, UsenetTok.Izid.POKVARJEN, UsenetTok.Izid.NESKLADNO, UsenetTok.Izid.IZVEN)
         private val VRSTE = mapOf(".mkv" to "video/x-matroska", ".mp4" to "video/mp4", ".m4v" to "video/mp4",
             ".webm" to "video/webm", ".avi" to "video/x-msvideo", ".ts" to "video/mp2t", ".m2ts" to "video/mp2t",
-            ".mov" to "video/quicktime", ".wmv" to "video/x-ms-wmv", ".mpg" to "video/mpeg", ".mpeg" to "video/mpeg")
+            ".mov" to "video/quicktime", ".wmv" to "video/x-ms-wmv", ".mpg" to "video/mpeg", ".mpeg" to "video/mpeg",
+            // Lastnik 27. 10. 2026: glasba z Useneta (UsenetGlasbaPravila.ZVOK).
+            ".flac" to "audio/flac", ".mp3" to "audio/mpeg", ".m4a" to "audio/mp4", ".aac" to "audio/aac",
+            ".ogg" to "audio/ogg", ".opus" to "audio/ogg", ".wav" to "audio/wav")
         private val RANGE = Regex("^bytes=(\\d{0,19})-(\\d{0,19})$", RegexOption.IGNORE_CASE)
 
         /** Obseg iz glave Range: (zacetek, konec vkljucno), null = cela datoteka, (-1, -1) = 416. */

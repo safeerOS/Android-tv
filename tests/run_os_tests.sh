@@ -132,6 +132,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/UsenetNzbTest.kt" \
     "$TEST_DIR/UsenetTokTest.kt" \
     "$SRC/si/safeer/tv/os/UsenetLastniPravila.kt" \
+    "$SRC/si/safeer/tv/os/UsenetGlasbaPravila.kt" \
+    "$TEST_DIR/UsenetGlasbaPravilaTest.kt" \
     "$TEST_DIR/UsenetLastniPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/UsenetNntp.kt" \
     "$TEST_DIR/UsenetNntpTest.kt" \
@@ -254,6 +256,7 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.UsenetNntpTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.UsenetTokTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/usenet-pogon.json"
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.UsenetLastniPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.UsenetGlasbaPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SerijePravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.NapredekKljucTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.KakovostPravilaTestKt

@@ -21,6 +21,8 @@ object UsenetLastni {
 
     private class Seja(val ponudnik: UsenetPonudnikPravila.Ponudnik, val nntp: UsenetNntp, val meje: UsenetPonudnikPravila.MejeRacunov) {
         @Volatile var streznik: UsenetStreznik? = null
+        /** Glasba: streznik za vsako skladbo albuma (ena seja, en bazen racuna). */
+        @Volatile var strezniki: List<UsenetStreznik> = emptyList()
         val zaprta = AtomicBoolean(false)
     }
 
@@ -89,6 +91,59 @@ object UsenetLastni {
         }
     }
 
+    /** Album za predvajalnik: (ime skladbe, naslov 127.0.0.1) po vrsti, ali [napaka] (stalen niz). */
+    class Album(val skladbe: List<Pair<String, String>>, val napaka: String = "")
+
+    /**
+     * Lastnik 27. 10. 2026 (glasba): album iz [nzb] - zvocne datoteke (UsenetGlasbaPravila.skladbe), vsaka svoj streznik
+     * na 127.0.0.1 z zetonom, ena seja in en bazen racuna (meja povezav velja za ves album). Prejsnji film ali album se
+     * najprej zapre. Album v RAR (brez golih zvocnih datotek) = napaka »ni_skladb«.
+     */
+    fun predvajajAlbum(c: Context, nzb: ByteArray): Album {
+        check(Looper.myLooper() != Looper.getMainLooper()) { "Usenet ne sme teci na glavni niti" }
+        val shramba = UsenetPonudnik.get(c)
+        val p = shramba.preberi() ?: return Album(emptyList(), "ni_ponudnika")
+        val (geslo, ovira) = shramba.zaBazen(p)
+        if (geslo == null) return Album(emptyList(), ovira ?: "ni_gesla")
+        ustavi()
+        val meje = shramba.meje
+        if (!meje.zasedi(p)) return Album(emptyList(), "zaseden")
+        var nova: Seja? = null
+        return try {
+            UsenetZapahShramba.namesti(c)
+            val nntp = UsenetNntp(UsenetNntp.Nastavitve(p.gostitelj, p.uporabnik, geslo.vrednost(), p.vrata, p.najvecPovezav))
+            val s = Seja(p, nntp, meje)
+            nova = s
+            val razclenjen = UsenetNzb.razcleni(nzb)
+            val izbrane = UsenetGlasbaPravila.skladbe(razclenjen.datoteke.map { it.ime })
+            if (izbrane.isEmpty()) { koncaj(s); return Album(emptyList(), "ni_skladb") }
+            val profil = UsenetBralnik.PROFILI.getValue(if (Naprava.jeTelevizor(c)) "tv" else "telefon")
+            val skladbe = ArrayList<Pair<String, String>>()
+            val strezniki = ArrayList<UsenetStreznik>()
+            for (i in izbrane) {
+                val d = razclenjen.datoteke[i]
+                // Skladba z luknjo ali brez prvega segmenta izpade, album gre naprej.
+                val vir = try { UsenetBralnik.pripraviDatoteko(d, nntp::body) } catch (e: UsenetTok.NapakaToka) { null }
+                if (vir != null) {
+                    val st = UsenetStreznik(UsenetBralnik.Bralnik(nntp::body, vir, profil))
+                    strezniki.add(st)
+                    skladbe.add(UsenetGlasbaPravila.imeSkladbe(d.ime) to st.url)
+                }
+            }
+            s.strezniki = strezniki
+            if (skladbe.isEmpty()) { koncaj(s); return Album(emptyList(), "luknja") }
+            synchronized(zaklep) { seja = s }
+            Log.i(TAG, "glasba: album pripravljen (${skladbe.size} skladb)")   // brez imen
+            Album(skladbe)
+        } catch (e: Throwable) {
+            if (e is InterruptedException || e is java.io.InterruptedIOException) Thread.currentThread().interrupt()
+            Log.i(TAG, "glasba: ${e.javaClass.simpleName}")
+            val s = nova
+            if (s != null) koncaj(s) else meje.sprosti(p)
+            Album(emptyList(), razlog(e))
+        }
+    }
+
     /** Konec predvajanja ali »Pozabi«: zapre streznik, bralnik in bazen trenutnega filma. Varno veckrat in iz katerekoli niti. */
     fun ustavi() {
         val s = synchronized(zaklep) { seja.also { seja = null } } ?: return
@@ -99,6 +154,7 @@ object UsenetLastni {
         if (!s.zaprta.compareAndSet(false, true)) return
         synchronized(zaklep) { if (seja === s) seja = null }
         try { s.streznik?.close() } catch (_: Throwable) { }
+        s.strezniki.forEach { try { it.close() } catch (_: Throwable) { } }
         try { s.nntp.close() } catch (_: Throwable) { }
         s.meje.sprosti(s.ponudnik)
     }

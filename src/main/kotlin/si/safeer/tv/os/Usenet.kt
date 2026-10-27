@@ -468,13 +468,53 @@ object Usenet {
      * predvaja lasten pogon z uporabnikovim ponudnikom NNTP ([UsenetLastni]) - brez TorBoxa.
      */
     private fun tokLastni(c: Context, idToka: String, ime: String): TorBox.Izid {
-        val ix = indeksator(c) ?: return TorBox.Izid(napaka = UsenetPravila.NAPAKA_INDEKSATOR, ponudnik = UsenetPravila.PONUDNIK)
+        val (nzb, napaka) = nzbLastni(c, idToka)
+        return if (nzb == null) napaka ?: TorBox.Izid(napaka = UsenetPravila.NAPAKA_INDEKSATOR, ponudnik = UsenetPravila.PONUDNIK)
+        else UsenetLastni.predvajaj(c, nzb, ime)
+    }
+
+    /** Glasba z Useneta: indeksator in lasten ponudnik (pretakanje samo prek lastnega pogona, ne TorBoxa). */
+    fun glasbaNaVoljo(c: Context): Boolean = zaUporabo(c) != null && UsenetLastni.naVoljo(c)
+
+    /**
+     * Lastnik 27. 10. 2026 (»brskanje po izvajalcu ali skladbi kot pri YouTubu«): izdaje glasbe pri indeksatorju - iskanje
+     * izdaj (izvajalec, album) in skladb (t=music&track) hkrati, zdruzeno. Povezave NZB ostanejo v pomnilniku kot pri filmih.
+     */
+    fun isciGlasbo(c: Context, beseda: String, rokMs: Int = UsenetPravila.ISKANJE_ROK_MS): List<UsenetPravila.Zadetek> {
+        val ix = zaUporabo(c) ?: return emptyList()
+        val odtisIskanja = odtis(ix.osnova, ix.kljuc)
+        fun enkrat(naslov: String?): List<UsenetPravila.Zadetek> {
+            if (naslov == null) return emptyList()
+            return try {
+                val (koda, telo) = beri(naslov, rokMs, 4 * 1024 * 1024) ?: return emptyList()
+                try { obOdgovoru(c, ix, UsenetPravila.preverbaIndeksatorja(koda, telo)) } catch (_: Exception) { }
+                if (koda !in 200..299 || UsenetPravila.napaka(telo) != null) emptyList() else UsenetPravila.zadetki(telo, ix.osnova)
+            } catch (e: Exception) { Log.w(TAG, "glasba iskanje: ${e.javaClass.simpleName}"); emptyList() }
+        }
+        val izdaje = enkrat(UsenetGlasbaPravila.naslovIskanja(ix.osnova, ix.kljuc, beseda))
+        val skladbe = enkrat(UsenetGlasbaPravila.naslovIskanjaSkladbe(ix.osnova, ix.kljuc, beseda))
+        return UsenetGlasbaPravila.zdruzi(izdaje, skladbe) { it.povezava }.also { l ->
+            l.forEach { povezave.dodaj(UsenetPravila.idToka(it.povezava), it.povezava, odtisIskanja) }
+            Log.i(TAG, "glasba iskanje: ${l.size} izdaj")
+        }
+    }
+
+    /** Album izdaje [idToka] (iz [isciGlasbo]) z lastnim pogonom; delovna nit. */
+    fun albumLastni(c: Context, idToka: String): UsenetLastni.Album {
+        val (nzb, napaka) = nzbLastni(c, idToka)
+        return if (nzb == null) UsenetLastni.Album(emptyList(), napaka?.napaka ?: UsenetPravila.NAPAKA_INDEKSATOR)
+        else UsenetLastni.predvajajAlbum(c, nzb)
+    }
+
+    /** NZB za lasten pogon (pravila indeksatorja kot za TorBox): (NZB, null) ali (null, izid napake). */
+    private fun nzbLastni(c: Context, idToka: String): Pair<ByteArray?, TorBox.Izid?> {
+        val ix = indeksator(c) ?: return null to TorBox.Izid(napaka = UsenetPravila.NAPAKA_INDEKSATOR, ponudnik = UsenetPravila.PONUDNIK)
         UsenetPravila.oviraPrenosa(true, null, true, stanje(c))?.let { (n, p) ->
             Log.i(TAG, "lasten pogon: indeksator brez klica ($n)")
-            return TorBox.Izid(napaka = n, ponudnik = p)
+            return null to TorBox.Izid(napaka = n, ponudnik = p)
         }
         val povezava = povezave.zaPrenos(idToka, odtis(ix.osnova, ix.kljuc))
-            ?: return TorBox.Izid(napaka = UsenetPravila.NAPAKA_INDEKSATOR, ponudnik = UsenetPravila.PONUDNIK)
+            ?: return null to TorBox.Izid(napaka = UsenetPravila.NAPAKA_INDEKSATOR, ponudnik = UsenetPravila.PONUDNIK)
         val (nzb, napaka) = nzb(povezava)
         val izidNzb = when {
             nzb != null -> DebridPravila.Preverba.VELJA
@@ -483,8 +523,8 @@ object Usenet {
             else -> null
         }
         if (izidNzb != null) try { obOdgovoru(c, ix, izidNzb) } catch (_: Exception) { }
-        if (nzb == null) return TorBox.Izid(napaka = napaka.ifBlank { UsenetPravila.NAPAKA_INDEKSATOR }, ponudnik = UsenetPravila.PONUDNIK)
-        return UsenetLastni.predvajaj(c, nzb, ime)
+        if (nzb == null) return null to TorBox.Izid(napaka = napaka.ifBlank { UsenetPravila.NAPAKA_INDEKSATOR }, ponudnik = UsenetPravila.PONUDNIK)
+        return nzb to null
     }
 
     /** (koda, telo) ali null, ce je odgovor vecji od [najvec] (ga ne odrezemo - zavrnemo). */
