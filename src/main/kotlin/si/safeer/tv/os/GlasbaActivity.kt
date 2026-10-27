@@ -519,6 +519,10 @@ class GlasbaActivity : OsActivity() {
      */
     @Volatile private var vOspredju = false
 
+    /** Lastnik 27. 10. 2026: mini predvajalnik tudi v Medijskem centru (prej samo na domacem zaslonu). */
+    private var dock: MiniPredvajalnik? = null
+    private val dockPoslusalec: () -> Unit = { runOnUiThread { if (!isFinishing && !isDestroyed) dock?.osvezi() } }
+
     override fun onStart() {
         super.onStart()
         // Samostojni Predvajalnik: to je njegov domaci zaslon - nova razlicica s safeer.si se ponudi tu (tiha pasica).
@@ -532,6 +536,14 @@ class GlasbaActivity : OsActivity() {
         // Preverjanje odprte mreze, ustavljeno ob odhodu z zaslona, se nadaljuje.
         if (odprtKatalog != null) narociUmiri()
         GlasbaStoritev.poslusalci.add(poslusalec)
+        // Mini predvajalnik (skladba z Useneta, radio, seznam): upravljanje brez celozaslonskega predvajalnika. Naslov odpre
+        // predvajalnik; Safeer Player (samostojna aplikacija) ga ima prav tako.
+        if (dock == null) dock = MiniPredvajalnik.naOknu(this) {
+            try { startActivity(Intent(this, PredvajanjeActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)) } catch (_: Exception) { }
+        }
+        GlasbaStoritev.poslusalci.add(dockPoslusalec)
+        OddaljenoPredvajanje.poslusalci.add(dockPoslusalec)
+        dock?.osvezi()
         narociVrnitevVidea()
         // Naloga 124: kaj je novega v posodobljenem dodatku (enkrat).
         pokaziSpremembeDodatkov()
@@ -603,6 +615,9 @@ class GlasbaActivity : OsActivity() {
         if (android.os.SystemClock.uptimeMillis() - mestoKlikaOb > 10_000L) mestoKlika = null
         link.odstrani(linkPoslusalec)
         GlasbaStoritev.poslusalci.remove(poslusalec)
+        GlasbaStoritev.poslusalci.remove(dockPoslusalec)
+        OddaljenoPredvajanje.poslusalci.remove(dockPoslusalec)
+        dock?.ustavi()
         MrtviKanali.poslusalci.remove(obMrtvemKanalu)
         if (Razpolozljivost.obSpremembi === obRazpolozljivosti) Razpolozljivost.obSpremembi = null
         if (PregledKanalov.obSpremembi === obPregleduKanalov) PregledKanalov.obSpremembi = null
@@ -641,6 +656,8 @@ class GlasbaActivity : OsActivity() {
     /** Nazaj iz razdelka vrne na nadzorno plosco; s plosce zapusti Safeer Media. */
     @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun onBackPressed() {
+        // Odprt mini predvajalnik se najprej skrije (kot na domacem zaslonu).
+        if (dock?.skrijCeOdprt() == true) return
         // Podstran (»Pokazi vse« bloka, seznam predvajanja, epizode, izvajalec): nazaj na stran, s katere je bila odprta,
         // na isto mesto - tudi kadar je bila odprta z druge podstrani ali iz mreze.
         if (podstrani.odprta) { zapriPodstran(); return }

@@ -358,6 +358,10 @@ def main() -> int:
             "newTrie.pripravi()" + chr(10) + "        threatTrie = newTrie" in te)
     preveri("OOM: zanka pojavnih oken ne ustvarja pogledov (PojavnaOknaMeja)",
             ce.index("PojavnaOknaMeja.dovoli(pojavnaOknaCasi") < ce.index("return naPojavnoOkno?.invoke(resultMsg)"))
+    gl5 = (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8")
+    preveri("mini predvajalnik tudi v Medijskem centru (zivljenjski cikel in Nazaj)",
+            "dock = MiniPredvajalnik.naOknu(this)" in gl5 and "GlasbaStoritev.poslusalci.remove(dockPoslusalec)" in gl5
+            and "if (dock?.skrijCeOdprt() == true) return" in gl5)
     # Rocna gradnja bete v CI: vhod »beta« gre prek okolja v -PsafeerBeta (brez vhoda gradnja kot prej).
     ci = (KOREN / ".github" / "workflows" / "gradnja.yml").read_text(encoding="utf-8")
     preveri("CI: rocna gradnja z vhodom beta poda -PsafeerBeta",
