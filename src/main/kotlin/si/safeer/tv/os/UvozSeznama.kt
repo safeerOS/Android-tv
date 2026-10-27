@@ -88,6 +88,16 @@ object UvozSeznama {
         return Uvoz(prva.ime.ifBlank { "YouTube" }, v.map { youtubeSkladba(it.id, it.naslov, it.kanal, video = !glasba) }, "YouTube")
     }
 
+    /**
+     * Samodejni mix sorodnih skladb za glasbo z YouTuba (lastnik 27. 10. 2026: po zadnji skladbi naj glasba tece naprej).
+     * [zeVVrsti]: id-ji posnetkov, ki so ze v vrsti (ne ponovimo jih). Brez omrezja ali odgovora: prazen seznam.
+     */
+    fun mix(videoId: String, zeVVrsti: Set<String>): List<Jamendo.Skladba> {
+        val o = beri("https://www.youtube.com/youtubei/v1/next?prettyPrint=false", youtube = true, telo = YoutubeMixPravila.zahteva(videoId))
+            ?.let { try { JSONObject(it) } catch (_: Exception) { null } } ?: return emptyList()
+        return YoutubeMixPravila.izMixa(o, videoId, zeVVrsti).map { youtubeSkladba(it.id, it.naslov, it.kanal, video = false) }
+    }
+
     internal fun youtubeSkladba(id: String, naslov: String, kanal: String, video: Boolean): Jamendo.Skladba {
         // "Izvajalec - Naslov (Official Video)" razdelimo; kanal ostane izvajalec, kadar locila ni.
         val cistKanal = kanal.removeSuffix(" - Topic").removeSuffix("VEVO").trim()
