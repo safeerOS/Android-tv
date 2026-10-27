@@ -226,6 +226,8 @@ class SporocilaActivity : OsActivity() {
                 override fun afterTextChanged(p0: android.text.Editable?) { narisiSeznam() }
             })
         }
+        tipkovnicaSeleNaOk(iskanje)
+        iskanje.setOnKeyListener { v, koda, d -> tipkovnicaNaOk(v as EditText, koda, d) }
         root.addView(iskanje, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(8) })
         filtriVrsta = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         root.addView(HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(filtriVrsta) },
@@ -290,10 +292,12 @@ class SporocilaActivity : OsActivity() {
             background = GradientDrawable().apply {
                 cornerRadius = dp(12).toFloat(); setColor(osBarva(R.color.os_ozadje)); setStroke(dp(1), osBarva(R.color.os_crta))
             }
-            setOnKeyListener { _, koda, d ->
-                if (koda == KeyEvent.KEYCODE_ENTER && d.isCtrlPressed && d.action == KeyEvent.ACTION_UP) { poslji(); true } else false
+            setOnKeyListener { v, koda, d ->
+                if (koda == KeyEvent.KEYCODE_ENTER && d.isCtrlPressed && d.action == KeyEvent.ACTION_UP) { poslji(); true }
+                else tipkovnicaNaOk(v as EditText, koda, d)
             }
         }
+        tipkovnicaSeleNaOk(odgovor)
         vnos.addView(odgovor, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(10) })
         posljiGumb = gumb(getString(R.string.os_spor_poslji)).apply { id = View.generateViewId(); setOnClickListener { poslji() } }
         vnos.addView(posljiGumb)
@@ -311,6 +315,23 @@ class SporocilaActivity : OsActivity() {
             telo.addView(pogovorPlosca, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
         }
         root.addView(telo, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        // Lastnik 27. 10. 2026 (TV, odgovor na sporocilo): z odprto tipkovnico je ostalo ~600 tock, od tega je glava
+        // (naslov, kanali, iskanje, filtri) vzela ~430 - pogovor in polje Odgovor nista bila vidna. Dokler je tipkovnica
+        // odprta med pisanjem odgovora, glava in seznam pogovorov izgineta in pogovor dobi ves prostor nad tipkovnico.
+        val glavaZaslona = (0 until root.childCount).map { root.getChildAt(it) }.filter { it !== telo } +
+            (if (siroko) listOf(seznamPlosca) else emptyList()) +
+            listOfNotNull(dejanjaPogovora.parent as? View)   // vrstica dejanj pogovora (osebe, oznake, iskanje)
+        var skrito: Map<View, Int>? = null   // vidnost pred skritjem: kar je bilo skrito ze prej, ostane skrito
+        root.viewTreeObserver.addOnGlobalLayoutListener {
+            val vidno = android.graphics.Rect().also { root.getWindowVisibleDisplayFrame(it) }
+            val pisem = SporocilaHitroPravila.tipkovnicaOdprta(vidno.height(), root.rootView.height) && odgovor.hasFocus()
+            if (pisem && skrito == null) {
+                skrito = glavaZaslona.associateWith { it.visibility }
+                glavaZaslona.forEach { it.visibility = View.GONE }
+                // Zadnje sporocilo, ki mu odgovarjas, ostane vidno tik nad poljem (brez premika fokusa).
+                sporocilaDrsnik.post { sporocilaDrsnik.scrollTo(0, (sporocilaSeznam.height - sporocilaDrsnik.height).coerceAtLeast(0)) }
+            } else if (!pisem) skrito?.let { prej -> skrito = null; prej.forEach { (v, s) -> v.visibility = s } }
+        }
         return root
     }
 
@@ -585,6 +606,29 @@ class SporocilaActivity : OsActivity() {
             glavna.post { if (!unicena) narisiSeznam() }
         } else narisiSeznam()
         odgovor.requestFocus()
+    }
+
+    /**
+     * Lastnik 27. 10. 2026 (TV): ob odprtju pogovora je fokus na polju Odgovor odprl tipkovnico cez pol zaslona. Z daljincem
+     * fokus polja tipkovnice ne odpre; odpre jo OK (Enter) in ob odhodu fokusa se spet skrije (kot lupa v Pokrajini).
+     * Na telefonu in tablici ostane, kot je bilo.
+     */
+    private fun tipkovnicaSeleNaOk(e: EditText) {
+        if (!packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK)) return
+        e.showSoftInputOnFocus = false
+        val prej = e.onFocusChangeListener
+        e.setOnFocusChangeListener { v, ima ->
+            prej?.onFocusChange(v, ima)
+            if (!ima) (v as EditText).showSoftInputOnFocus = false
+        }
+    }
+
+    private fun tipkovnicaNaOk(e: EditText, koda: Int, d: KeyEvent): Boolean {
+        if (d.action != KeyEvent.ACTION_DOWN || e.showSoftInputOnFocus) return false
+        if (koda != KeyEvent.KEYCODE_DPAD_CENTER && koda != KeyEvent.KEYCODE_ENTER) return false
+        e.showSoftInputOnFocus = true
+        (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).showSoftInput(e, 0)
+        return true
     }
 
     private fun narisiSporocila() {

@@ -58,4 +58,10 @@ object SporocilaHitroPravila {
     fun opozorilo(vOspredju: Boolean, odprtPogovor: Boolean): Boolean = vOspredju && !odprtPogovor
 
     fun ustaviPredvajanje(): Boolean = false
+
+    /**
+     * Lastnik 27. 10. 2026 (TV): tipkovnica na zaslonu je odprta, ko je vidni del okna manjsi od 80 % zaslona (adjustResize).
+     * Takrat se v Sporocilih med pisanjem odgovora glava skrije, da pogovor in polje Odgovor ostaneta vidna.
+     */
+    fun tipkovnicaOdprta(vidnaVisina: Int, polnaVisina: Int): Boolean = polnaVisina > 0 && vidnaVisina < polnaVisina * 0.8
 }

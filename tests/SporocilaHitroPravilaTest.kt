@@ -46,5 +46,11 @@ fun main() {
     preveriEnako("predvajanje se nikoli ne ustavi", false, SporocilaHitroPravila.ustaviPredvajanje())
     preveriEnako("opozorilo izgine samo", 6_000L, SporocilaHitroPravila.OPOZORILO_MS)
 
+    // Lastnik 27. 10. 2026: tipkovnica odprta (vidni del okna pod 80 %)
+    preveriEnako("tipkovnica cez pol zaslona: odprta", true, SporocilaHitroPravila.tipkovnicaOdprta(600, 1080))
+    preveriEnako("brez tipkovnice: zaprta", false, SporocilaHitroPravila.tipkovnicaOdprta(1080, 1080))
+    preveriEnako("sistemska vrstica (malo manj): zaprta", false, SporocilaHitroPravila.tipkovnicaOdprta(1000, 1080))
+    preveriEnako("neznana visina: zaprta", false, SporocilaHitroPravila.tipkovnicaOdprta(0, 0))
+
     if (napak == 0) println("SporocilaHitroPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }
