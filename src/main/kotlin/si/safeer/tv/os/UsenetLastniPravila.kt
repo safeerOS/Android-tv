@@ -50,4 +50,14 @@ object UsenetLastniPravila {
 
     /** Okno: stisnjen ali sifriran arhiv ima svoje besedilo (sproti ga ne moremo brati), drugo splosno. */
     fun albumStisnjen(napaka: String): Boolean = napaka == "stisnjen" || napaka == "sifriran"
+
+    /**
+     * Vodja 27. 10. 2026 (TV beta.12): film je sel prek lastnega pogona, obvestilo pa je reklo »TorBox« - pripravljen Usenet
+     * je izgubil ponudnika. Lasten pogon = [PONUDNIK] (TorBox.Izid.ponudnik iz tokLastni); vse drugo je TorBox.
+     */
+    fun jeLastni(ponudnik: String?): Boolean = ponudnik == PONUDNIK
+
+    /** Dnevnik izbire (brez imena izdaje): kdo predvaja pripravljen Usenet. */
+    fun dnevnikPripravljenega(ponudnik: String?): String =
+        if (jeLastni(ponudnik)) "Usenet lasten pogon" else "Usenet pripravljen pri TorBoxu"
 }

@@ -37,6 +37,12 @@ fun main() {
     preveriEnako("album RAR neskladno", "rar_neskladno", L.napakaAlbumaRar("NESKLADNO"))
     preveriEnako("okno: stisnjen ima svoje besedilo", true, L.albumStisnjen("stisnjen"))
     preveriEnako("okno: luknja splosno", false, L.albumStisnjen("luknja"))
+    // Vodja 27. 10. 2026: film prek lastnega pogona - napis in dnevnik ne smeta reci TorBox.
+    preveriEnako("lasten pogon je lastni", true, L.jeLastni(L.PONUDNIK))
+    preveriEnako("TorBox ni lastni", false, L.jeLastni(DebridPravila.TORBOX))
+    preveriEnako("brez ponudnika ni lastni", false, L.jeLastni(null))
+    preveriEnako("dnevnik lasten pogon", "Usenet lasten pogon", L.dnevnikPripravljenega(L.PONUDNIK))
+    preveriEnako("dnevnik TorBox", "Usenet pripravljen pri TorBoxu", L.dnevnikPripravljenega(DebridPravila.TORBOX))
     println(if (napak == 0) "UsenetLastniPravilaTest: OK" else "UsenetLastniPravilaTest: $napak napak")
     if (napak > 0) kotlin.system.exitProcess(1)
 }

@@ -189,4 +189,5 @@
     <string name="os_usenet_diagnostika_konec">Diagnostic Usenet uniquement : Usenet n’a pas pu lire – la raison est dans le journal (SafeerOsMedia).</string>
     <string name="os_usenet_diagnostika_ni_izdaj">Diagnostic Usenet uniquement : l’indexeur n’a renvoyé aucune version pour ce contenu.</string>
     <string name="os_debrid_izbira_vse">Toutes les sources</string>
+    <string name="os_usenet_predvaja_lastni">Lecture via Usenet (votre fournisseur)</string>
 </resources>

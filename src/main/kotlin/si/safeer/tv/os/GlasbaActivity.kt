@@ -7782,8 +7782,13 @@ class GlasbaActivity : OsActivity() {
         return Pripravljeno(pp, usenet?.invoke())
     }
 
+    /** »Predvaja prek …«: lasten ponudnik Usenet ima svoj napis (vodja 27. 10. 2026), sicer ime debrid storitve. */
+    private fun napisPredvajaPrek(ponudnik: String?): String =
+        if (UsenetLastniPravila.jeLastni(ponudnik)) getString(R.string.os_usenet_predvaja_lastni)
+        else getString(R.string.os_debrid_predvaja_prek, DebridPravila.ime(ponudnik.orEmpty()))
+
     /** Kaj je takoj predvajljivo za izbiro toka: ⚡ torrenti pri debridu in (samodejno) Usenet, ki ga ima TorBox pripravljenega. */
-    class Pripravljeno(val predpomnjeni: Set<String> = emptySet(), val usenet: Pair<Stremio.Tok, String>? = null)
+    class Pripravljeno(val predpomnjeni: Set<String> = emptySet(), val usenet: Triple<Stremio.Tok, String, String>? = null)
 
     /** Lastne niti za vzporedno preverbo »Usenet pripravljen« (blokirajoci klici indeksatorja in TorBoxa). */
     private val usenetDelavec = Executors.newCachedThreadPool { r -> Thread(r, "safeer-usenet").apply { isDaemon = true } }
@@ -7793,7 +7798,7 @@ class GlasbaActivity : OsActivity() {
      * nic se ne prenasa). Vrne cakalnik: najboljsa pripravljena izdaja in njena povezava ([WebtorPravila.izberiUsenet]) ali
      * null; skupni rok [WebtorPravila.USENET_ROK_MS] od zacetka (preverba ⚡ tece medtem).
      */
-    private fun zacniUsenetPripravljen(kandidati: List<Stremio.Tok>): (() -> Pair<Stremio.Tok, String>?)? {
+    private fun zacniUsenetPripravljen(kandidati: List<Stremio.Tok>): (() -> Triple<Stremio.Tok, String, String>?)? {
         val app = applicationContext
         // Lastnik 27. 10. 2026: z lastnim ponudnikom NNTP je vsaka izdaja takoj predvajljiva (pretakamo neposredno) - Usenet
         // se izbere sam, brez okna »Izberi vir«; zaporedno (en film naenkrat, en bazen racuna), najboljsa nato naslednja.
@@ -7801,11 +7806,12 @@ class GlasbaActivity : OsActivity() {
             val zapored = kandidati.take(UsenetLastniPravila.NAJVEC_POSKUSOV)
             if (zapored.isEmpty()) return null
             return {
-                var izbran: Pair<Stremio.Tok, String>? = null
+                var izbran: Triple<Stremio.Tok, String, String>? = null
                 for (t in zapored) {
                     if (izbran != null || Thread.currentThread().isInterrupted) break
                     val izid = try { Usenet.tok(app, t.url, t.opis.substringBefore('\n'), t.datoteka, false, {}, lastni = true) } catch (_: Exception) { null }
-                    izid?.url?.let { izbran = t to it }
+                    // Vodja 27. 10. 2026: ponudnik gre zraven (prej samo tok in naslov - obvestilo je reklo TorBox).
+                    izid?.url?.let { izbran = Triple(t, it, izid.ponudnik.ifBlank { UsenetLastniPravila.PONUDNIK }) }
                 }
                 android.util.Log.i("SafeerOsMedia", "tokovi: Usenet lasten pogon: ${if (izbran != null) "da" else "ne"}")
                 izbran
@@ -7818,12 +7824,12 @@ class GlasbaActivity : OsActivity() {
             prvi.map { t -> usenetDelavec.submit<TorBox.Izid> { Usenet.tok(app, t.url, t.opis.substringBefore('\n'), t.datoteka, true, {}, lastni = false) } }
         } catch (_: java.util.concurrent.RejectedExecutionException) { return null }
         return {
-            var izbran: Pair<Stremio.Tok, String>? = null
+            var izbran: Triple<Stremio.Tok, String, String>? = null
             while (true) {
                 val potekel = android.os.SystemClock.elapsedRealtime() - zacetek >= WebtorPravila.USENET_ROK_MS
                 val izidi = niti.map { f -> if (!f.isDone) null else (try { f.get().url != null } catch (_: Exception) { false }) }
                 val i = WebtorPravila.izberiUsenet(izidi, potekel)
-                if (i >= 0) { niti[i].get().url?.let { izbran = prvi[i] to it }; break }
+                if (i >= 0) { niti[i].get().url?.let { izbran = Triple(prvi[i], it, DebridPravila.TORBOX) }; break }
                 if (i == WebtorPravila.NOBENA) break
                 try { Thread.sleep(100) } catch (_: InterruptedException) { Thread.currentThread().interrupt(); break }
             }
@@ -9138,9 +9144,9 @@ class GlasbaActivity : OsActivity() {
             // najvec 6 s); (2) takoj: ⚡ torrent, ziva neposredna povezava, [⚡WT]; (3) Usenet s cakanjem na prenos;
             // (4) Webtor [WT]; (5) TorBox s cakanjem in ostalo ([samodejnoBrezUseneta]). Nikoli okno »izberi vir«.
             val poskusi = UsenetPravila.zaSamodejno(usenet.map { TokIzbira.opisi(opis(it)).gb }).map { usenet[it] }
-            pripravljeno.usenet?.takeIf { !samoWebtor }?.let { (t, cdn) ->
-                android.util.Log.i("SafeerOsMedia", "tokovi: Usenet pripravljen pri TorBoxu; izbran=${TokIzbira.opisi(opis(t))}")
-                Toast.makeText(this, getString(R.string.os_debrid_predvaja_prek, DebridPravila.ime(DebridPravila.TORBOX)), Toast.LENGTH_SHORT).show()
+            pripravljeno.usenet?.takeIf { !samoWebtor }?.let { (t, cdn, ponudnik) ->
+                android.util.Log.i("SafeerOsMedia", "tokovi: ${UsenetLastniPravila.dnevnikPripravljenega(ponudnik)}; izbran=${TokIzbira.opisi(opis(t))}")
+                Toast.makeText(this, napisPredvajaPrek(ponudnik), Toast.LENGTH_SHORT).show()
                 odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap()))
                 return
             }
@@ -9328,7 +9334,8 @@ class GlasbaActivity : OsActivity() {
         val delo = try { debridDelavec.submit(Runnable {
             // Ime storitve za napredek: Usenet prenasa TorBox, torrent storitev, ki caka (sprva prednostna).
             // Neodvisni pregled 2: Debrid.tok pove storitev, ki res caka (obCakanju) - ni nujno prednostna.
-            var ime = if (usenetIme != null) DebridPravila.ime(DebridPravila.TORBOX)
+            var ime = if (usenetIme != null) (if (UsenetLastni.vUporabi(applicationContext)) getString(R.string.os_usenet_lastni_kratko)
+                    else DebridPravila.ime(DebridPravila.TORBOX))
                 else Debrid.vrstniRed(applicationContext).firstOrNull()?.let { DebridPravila.ime(it) } ?: getString(R.string.os_debrid)
             val napredek = { odstotek: Int ->
                 if (odstotek != zadnjiOdstotek) {
@@ -9359,7 +9366,7 @@ class GlasbaActivity : OsActivity() {
                 zapriOknoDebrida()
                 val url = izid.url
                 if (url != null) {
-                    Toast.makeText(this, getString(R.string.os_debrid_predvaja_prek, DebridPravila.ime(izid.ponudnik)), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, napisPredvajaPrek(izid.ponudnik), Toast.LENGTH_SHORT).show()
                     naprej(url); return@obdelaj
                 }
                 if (obNeuspehu != null) {

@@ -325,6 +325,11 @@ def main() -> int:
     nov = pk.split("override fun onNewIntent(intent: Intent?) {", 1)[1].split(chr(10) + "    }", 1)[0]
     preveri("lupa: Domov jo zapre in ne aktivira znova", "zapriLupo()" in nov and "requestFocus()" not in nov)
     preveri("lupa: odhod z domacega zaslona jo pocisti (onStop)", "zapriLupo()" in pk.split("override fun onStop() {", 1)[1].split(chr(10) + "    }", 1)[0])
+    gl3 = (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8")
+    preveri("Usenet: obvestilo in dnevnik po ponudniku (lasten pogon ni TorBox)",
+            "UsenetLastniPravila.dnevnikPripravljenega(ponudnik)" in gl3 and "napisPredvajaPrek(ponudnik)" in gl3
+            and "Usenet pripravljen pri TorBoxu; izbran" not in gl3
+            and "Triple(t, it, izid.ponudnik.ifBlank { UsenetLastniPravila.PONUDNIK })" in gl3)
     # Rocna gradnja bete v CI: vhod »beta« gre prek okolja v -PsafeerBeta (brez vhoda gradnja kot prej).
     ci = (KOREN / ".github" / "workflows" / "gradnja.yml").read_text(encoding="utf-8")
     preveri("CI: rocna gradnja z vhodom beta poda -PsafeerBeta",

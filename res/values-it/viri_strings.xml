@@ -189,4 +189,5 @@
     <string name="os_usenet_diagnostika_konec">Diagnostica solo Usenet: Usenet non ha riprodotto, il motivo è nel registro (SafeerOsMedia).</string>
     <string name="os_usenet_diagnostika_ni_izdaj">Diagnostica solo Usenet: l’indicizzatore non ha restituito versioni per questo contenuto.</string>
     <string name="os_debrid_izbira_vse">Tutte le fonti</string>
+    <string name="os_usenet_predvaja_lastni">Riproduzione tramite Usenet (il tuo provider)</string>
 </resources>
