@@ -11,4 +11,5 @@
     <string name="pk_poslji">Enviar</string>
     <string name="pk_poslano">Enviado</string>
     <string name="pk_ni_poslano">No se envió. Inténtalo de nuevo en Mensajes.</string>
+    <string name="pk_spor_ti">Tú</string>
 </resources>

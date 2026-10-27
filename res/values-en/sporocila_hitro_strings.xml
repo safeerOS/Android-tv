@@ -11,4 +11,5 @@
     <string name="pk_poslji">Send</string>
     <string name="pk_poslano">Sent</string>
     <string name="pk_ni_poslano">Not sent. Try again in Messages.</string>
+    <string name="pk_spor_ti">You</string>
 </resources>

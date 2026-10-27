@@ -11,4 +11,5 @@
     <string name="pk_poslji">Pošlji</string>
     <string name="pk_poslano">Poslano</string>
     <string name="pk_ni_poslano">Ni poslano. Poskusi znova v Sporočilih.</string>
+    <string name="pk_spor_ti">Ti</string>
 </resources>

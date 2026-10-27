@@ -256,9 +256,15 @@ def main() -> int:
             re.search(r"when \{\s*brezVrstice -> \{ drsnik\.visibility = View\.GONE", prilagodi) is not None)
     preveri("vrstico pokaze samo prilagodiSirino", stranska.count("drsnik.visibility = View.VISIBLE") == prilagodi.count("drsnik.visibility = View.VISIBLE"))
     preveri("Sporocila: med pisanjem odgovora z odprto tipkovnico glava izgine",
-            "val pisem = odgovor.hasFocus() && ((tv && odgovor.showSoftInputOnFocus) ||" in spor)
-    preveri("Sporocila: OK na polju Odgovor vklopi nacin pisanja, Nazaj ga zapusti",
-            "e.post { uskladiPisanje() }" in spor and "KeyEvent.KEYCODE_BACK && (v as EditText).showSoftInputOnFocus" in spor)
+            "val pisem = !tv && odgovor.hasFocus() && SporocilaHitroPravila.tipkovnicaOdprta(" in spor)
+    print("\n== Sporocila: pisanje odgovora na TV po skici (lastnik 27. 10.) ==")
+    preveri("OK na polju Odgovor odpre pas pisanja, nato tipkovnico", "if (e === odgovor && packageManager.hasSystemFeature(" in spor
+            and re.search(r"vstopiVPisanje\(\)\s*e\.post \{\s*e\.requestFocus\(\)", spor) is not None)
+    preveri("Nazaj zapusti pas pisanja (polje in zaslon)", "if (pisanjeTece) { izstopiIzPisanja(); return }" in spor
+            and "KeyEvent.KEYCODE_BACK && pisanjeTece" in spor)
+    preveri("kanali osebe ob strani, odgovor gre po izbranem", "(listOf(p) + pogovoriOsebe(p)).distinctBy" in spor and "izbran = q" in spor)
+    preveri("oblacki zadnjih sporocil, zadnje poudarjeno", "shramba.sporocila(p.kanalId, p.id).takeLast(4)" in spor and "poudarjeno = jeZadnje" in spor)
+    preveri("vrstica Odgovor + Poslji se prestavi (ni podvojenega polja)", "pisanjeVnos.addView(vnosVrstica" in spor and spor.count("odgovor = EditText(") == 1)
     preveri("Sporocila: med pisanjem vidno zadnje sporocilo, dejanja pogovora skrita",
             "listOfNotNull(dejanjaPogovora.parent as? View)" in spor and "sporocilaDrsnik.scrollTo(0, (sporocilaSeznam.height" in spor)
     # Lastnik 27. 10. 2026: tudi Nastavitve in vsi drugi zasloni z beto na TV brez stranske vrstice - vsi gredo skozi

@@ -11,4 +11,5 @@
     <string name="pk_poslji">Senden</string>
     <string name="pk_poslano">Gesendet</string>
     <string name="pk_ni_poslano">Nicht gesendet. Versuche es in Nachrichten erneut.</string>
+    <string name="pk_spor_ti">Du</string>
 </resources>
