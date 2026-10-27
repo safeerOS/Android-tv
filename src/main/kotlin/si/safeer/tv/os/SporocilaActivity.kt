@@ -335,13 +335,22 @@ class SporocilaActivity : OsActivity() {
         kanaliVrsta.removeAllViews()
         for (k in shramba.kanali()) {
             val napaka = k.stanje.startsWith("napaka")
+            val splet = k.vrsta == SpletniKlepetiPravila.VRSTA
+            val neprebrano = if (splet) shramba.stanjeKanala(k.id).optInt("neprebrano", 0) else 0
             val cip = TextView(this).apply {
-                text = (if (k.vrsta == "email") "✉ " else "💬 ") + k.ime + (if (napaka) "  ⚠" else "")
+                text = (if (k.vrsta == "email") "✉ " else if (splet) "🌐 " else "💬 ") + k.ime +
+                    (if (neprebrano > 0) " ($neprebrano)" else "") + (if (napaka) "  ⚠" else "")
                 setTextColor(osBarva(if (napaka) R.color.os_opozorilo else R.color.os_besedilo)); textSize = 13f
                 isFocusable = true; isClickable = true; maxLines = 1; tag = "kanal|" + k.id
                 setPadding(dp(14), dp(8), dp(14), dp(8)); setBackgroundResource(R.drawable.os_meni_postavka)
                 contentDescription = k.ime + " " + besediloStanja(k.stanje)
-                setOnClickListener { if (k.vrsta == KlepetLinka.VRSTA) pisiNapravi() else urediKanal(k) }
+                setOnClickListener {
+                    if (k.vrsta == KlepetLinka.VRSTA) pisiNapravi()
+                    else if (splet) SpletniKlepetActivity.odpri(this@SporocilaActivity, k.id)
+                    else urediKanal(k)
+                }
+                // Spletna storitev: klik odpre, dolg pritisk (tudi OK na daljincu) uredi ali odstrani.
+                if (splet) setOnLongClickListener { urediKanal(k); true }
             }
             kanaliVrsta.addView(cip, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(8) })
         }
@@ -790,8 +799,9 @@ class SporocilaActivity : OsActivity() {
         val chatwoot = gumb(getString(R.string.os_spor_chatwoot))
         val aplikacije = gumb(getString(R.string.os_spor_aplikacije))
         val lastniApi = gumb(getString(R.string.os_spor_lastni_api))
-        // Stiri zavihki: na sirokem zaslonu v eni vrsti, na telefonu 2 x 2 - vsi vidni, brez lomljenja besed.
-        val zavihki = listOf(eposta, chatwoot, aplikacije, lastniApi)
+        val spletni = gumb(getString(R.string.os_spor_splet))
+        // Pet zavihkov: na sirokem zaslonu v eni vrsti, na telefonu 3 + 2 - vsi vidni, brez lomljenja besed.
+        val zavihki = listOf(eposta, spletni, chatwoot, aplikacije, lastniApi)
         zavihki.forEach { it.maxLines = 1; it.isSingleLine = true; it.gravity = Gravity.CENTER }
         fun vrstaZavihkov(g: List<TextView>) = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -799,7 +809,7 @@ class SporocilaActivity : OsActivity() {
         }
         val izbira = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            if (siroko) addView(vrstaZavihkov(zavihki)) else { addView(vrstaZavihkov(zavihki.take(2))); addView(vrstaZavihkov(zavihki.drop(2))) }
+            if (siroko) addView(vrstaZavihkov(zavihki)) else { addView(vrstaZavihkov(zavihki.take(3))); addView(vrstaZavihkov(zavihki.drop(3))) }
         }
         // Lastni API: Matrix (streznik + zeton) ali Telegram Bot (zeton od @BotFather) - navodila povedo, kje ju dobis.
         var protokol = "matrix"
@@ -930,9 +940,55 @@ class SporocilaActivity : OsActivity() {
             }
         }
 
+        // Spletne storitve (lastnik 27. 10. 2026, katalog po vzoru Ferdium kot na Linuxu): nobena ni vklopljena -
+        // uporabnik doda samo tiste, ki jih rabi (vsaka zasede pomnilnik). Vsaka ima svojo prijavo (profil WebViewa).
+        val jezik = resources.configuration.locales[0].language
+        val katalog = try { assets.open("sporocila/spletni-klepeti.json").bufferedReader().use { SpletniKlepetiPravila.razcleni(it.readText()) } }
+            catch (_: Throwable) { SpletniKlepetiPravila.Katalog(emptyList(), emptyMap()) }
+        val spletOpis = TextView(this).apply { text = getString(R.string.os_spor_splet_opis); setTextColor(osBarva(R.color.os_umirjeno)); textSize = 12f; setPadding(0, dp(10), 0, dp(6)) }
+        val spletIsci = polje(R.string.os_spor_splet_isci)
+        val spletSeznam = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val spletLasten = TextView(this).apply { text = getString(R.string.os_spor_splet_lasten); setTextColor(osBarva(R.color.os_besedilo)); textSize = 14f; typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL); setPadding(0, dp(14), 0, dp(4)) }
+        val spletUrl = polje(R.string.os_spor_splet_url, InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
+        val spletIme = polje(R.string.os_spor_api_ime)
+        val sFields = listOf(spletOpis, spletIsci, spletSeznam, spletLasten, spletUrl, spletIme)
+        fun narisiSplet() {
+            spletSeznam.removeAllViews()
+            val dodani = shramba.kanali().filter { it.vrsta == SpletniKlepetiPravila.VRSTA }.map { it.nastavitve.optString("katalog") }.toSet()
+            val zadetki = katalog.isci(spletIsci.text?.toString().orEmpty(), jezik)
+            if (zadetki.isEmpty()) spletSeznam.addView(TextView(this).apply { text = getString(R.string.os_spor_splet_ni_zadetkov); setTextColor(osBarva(R.color.os_umirjeno)); textSize = 13f; setPadding(0, dp(6), 0, dp(6)) })
+            for (s in zadetki) {
+                val ime = katalog.ime(s, jezik)
+                val vrstica = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; isFocusable = true; isClickable = true
+                    setPadding(dp(12), dp(8), dp(12), dp(8)); setBackgroundResource(R.drawable.os_meni_postavka)
+                    contentDescription = ime
+                    addView(ikonaStoritve(s, ime), LinearLayout.LayoutParams(dp(30), dp(30)).apply { marginEnd = dp(12) })
+                    addView(LinearLayout(this@SporocilaActivity).apply {
+                        orientation = LinearLayout.VERTICAL
+                        addView(TextView(this@SporocilaActivity).apply { text = ime; setTextColor(osBarva(R.color.os_besedilo)); textSize = 15f; maxLines = 1 })
+                        addView(TextView(this@SporocilaActivity).apply {
+                            text = getString(when (s.vrsta) { SpletniKlepetiPravila.POSTA -> R.string.os_spor_splet_vrsta_posta; SpletniKlepetiPravila.AI -> R.string.os_spor_splet_vrsta_ai; else -> R.string.os_spor_splet_vrsta_klepet }) +
+                                (if (s.id in dodani) " · " + getString(R.string.os_spor_splet_ze_dodano) else "")
+                            setTextColor(osBarva(R.color.os_umirjeno)); textSize = 12f
+                        })
+                    }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+                    setOnClickListener { if (dodajSpletniKanal(s.id, ime, s.splet)) okno.dismiss() }
+                }
+                spletSeznam.addView(vrstica, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
+            }
+        }
+        spletIsci.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
+            override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
+            override fun afterTextChanged(p0: android.text.Editable?) { narisiSplet() }
+        })
+
         fun nastaviVrsto(v: String) {
             vrsta = v
-            for ((g, ime) in listOf(eposta to "email", chatwoot to "chatwoot", aplikacije to "aplikacije", lastniApi to "api")) { g.isSelected = v == ime; g.isActivated = v == ime }
+            for ((g, ime) in listOf(eposta to "email", spletni to "splet", chatwoot to "chatwoot", aplikacije to "aplikacije", lastniApi to "api")) { g.isSelected = v == ime; g.isActivated = v == ime }
+            sFields.forEach { it.visibility = if (v == "splet") View.VISIBLE else View.GONE }
+            if (v == "splet" && spletSeznam.childCount == 0) narisiSplet()
             cFields.forEach { it.visibility = if (v == "chatwoot") View.VISIBLE else View.GONE }
             aFields.forEach { it.visibility = if (v == "api") View.VISIBLE else View.GONE }
             if (v == "api") nastaviProtokol(protokol)
@@ -944,10 +1000,11 @@ class SporocilaActivity : OsActivity() {
         chatwoot.setOnClickListener { nastaviVrsto("chatwoot") }
         aplikacije.setOnClickListener { nastaviVrsto("aplikacije") }
         lastniApi.setOnClickListener { nastaviVrsto("api") }
+        spletni.setOnClickListener { nastaviVrsto("splet") }
 
         val polja = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(8), dp(20), 0)
-            addView(izbira); (korak1 + korak2 + cFields + aFields).forEach { addView(it) }; addView(seznamAplikacij); addView(napaka)
+            addView(izbira); (korak1 + korak2 + cFields + aFields + sFields).forEach { addView(it) }; addView(seznamAplikacij); addView(napaka)
         }
         okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(R.string.os_spor_dodaj)
@@ -987,6 +1044,15 @@ class SporocilaActivity : OsActivity() {
                     val lokalni = st.startsWith("http://localhost") || st.startsWith("http://127.")
                     if (!(st.startsWith("https://") || lokalni) || skrivnost.isEmpty()) { pokaziNapako(napaka, getString(R.string.os_spor_api_manjka_matrix)); return@setOnClickListener }
                     kanal = SporocilaShramba.Kanal(id, "matrix", apiIme.text?.toString().orEmpty().trim().ifBlank { st.removePrefix("https://") }, "", JSONObject().put("streznik", st))
+                } else if (vrsta == "splet") {
+                    // Lasten naslov (Mattermost, Rocket.Chat, lasten Element ...): samo https, brez imena in gesla v naslovu.
+                    val u = try { SpletniKlepetiPravila.preveriNaslov(spletUrl.text?.toString()) } catch (e: SpletniKlepetiPravila.NeveljavenNaslov) {
+                        pokaziNapako(napaka, getString(if (e.koda == "prazno") R.string.os_spor_splet_izberi else R.string.os_spor_splet_napaka_naslov))
+                        return@setOnClickListener
+                    }
+                    val ime = spletIme.text?.toString().orEmpty().trim().ifBlank { SpletniKlepetiPravila.imeIzNaslova(u) }
+                    if (dodajSpletniKanal("", ime, u)) okno.dismiss()
+                    return@setOnClickListener
                 } else if (vrsta == "api") {
                     skrivnost = apiZeton.text?.toString().orEmpty().trim()
                     if (!skrivnost.contains(":") || skrivnost.length < 20) { pokaziNapako(napaka, getString(R.string.os_spor_api_manjka_telegram)); return@setOnClickListener }
@@ -1042,7 +1108,53 @@ class SporocilaActivity : OsActivity() {
         return t to privzeto
     }
 
+    /** Doda spletno storitev (brez gesla - prijava je v oknu storitve) in jo takoj odpre. */
+    private fun dodajSpletniKanal(katalogId: String, ime: String, url: String): Boolean {
+        if (shramba.kanali().count { it.vrsta == SpletniKlepetiPravila.VRSTA } >= SpletniKlepetiPravila.NAJVEC_KANALOV) {
+            Toast.makeText(this, R.string.os_spor_splet_najvec, Toast.LENGTH_LONG).show()
+            return false
+        }
+        val id = UUID.randomUUID().toString().take(8)
+        shramba.dodajKanal(SporocilaShramba.Kanal(id, SpletniKlepetiPravila.VRSTA, ime.take(SpletniKlepetiPravila.NAJDALJSE_IME), "povezan",
+            JSONObject().put("katalog", katalogId).put("url", url)))
+        narisiKanale()
+        SpletniKlepetActivity.odpri(this, id)
+        return true
+    }
+
+    /** Ikona storitve iz kataloga (PNG, izrisan iz SVG ob izdelavi kataloga) ali zacetnica v krogu. */
+    private fun ikonaStoritve(s: SpletniKlepetiPravila.Storitev, ime: String): View {
+        val slika = if (s.ikona.isEmpty()) null else try {
+            val b = android.util.Base64.decode(s.ikona, android.util.Base64.DEFAULT)
+            android.graphics.BitmapFactory.decodeByteArray(b, 0, b.size)
+        } catch (_: Throwable) { null }
+        if (slika != null) return ImageView(this).apply { setImageBitmap(slika); scaleType = ImageView.ScaleType.FIT_CENTER; importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO }
+        return TextView(this).apply {
+            text = ime.trim().take(1).uppercase(); gravity = Gravity.CENTER; textSize = 14f
+            setTextColor(osBarva(R.color.os_ozadje)); typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
+            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(osBarva(R.color.os_mint)) }
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }
+    }
+
+    private fun urediSpletniKanal(k: SporocilaShramba.Kanal) {
+        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(k.ime)
+            .setMessage(SpletniKlepetiPravila.gostitelj(k.nastavitve.optString("url")))
+            .setPositiveButton(R.string.os_spor_splet_odpri) { _, _ -> SpletniKlepetActivity.odpri(this, k.id) }
+            .setNeutralButton(R.string.os_spor_odstrani) { _, _ ->
+                shramba.odstraniKanal(k.id)
+                SpletniKlepetActivity.pozabiProfil(k.id)   // prijava in piskotki te storitve
+                narisiKanale()
+            }
+            .setNegativeButton(R.string.os_preklici, null)
+            .create()
+        Kontroler.pokazi(okno)
+        okno.show()
+    }
+
     private fun urediKanal(k: SporocilaShramba.Kanal) {
+        if (k.vrsta == SpletniKlepetiPravila.VRSTA) { urediSpletniKanal(k); return }
         val stanje = besediloStanja(k.stanje)
         val geslo = polje(if (k.vrsta == "email") R.string.os_spor_geslo else R.string.os_spor_zeton,
             InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)

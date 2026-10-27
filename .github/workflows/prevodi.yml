@@ -111,6 +111,13 @@ jobs:
           JSON_JAR: /tmp/json.jar
         run: bash tests/run_zvocnik_cast_tests.sh
 
+      # Sporocila: spletne storitve (katalog po vzoru Ferdium iz Safeer-linux), neprebrano iz naslova strani, lasten naslov.
+      - name: Sporocila - spletne storitve
+        env:
+          KOTLINC: /tmp/kotlinc/bin/kotlinc
+          JSON_JAR: /tmp/json.jar
+        run: bash tests/run_spletni_klepeti_tests.sh
+
       # Skripta, ki jo vgrajeni brskalnik na YouTubu zazene pred skriptami strani (posnetek brez cakanja na oglas).
       # Tece v Node (na tem poganjalcu je ze namescen) z nadomestki za okno, dokument in zgodovino.
       - name: YouTube v vgrajenem brskalniku (zacetek brez cakanja)

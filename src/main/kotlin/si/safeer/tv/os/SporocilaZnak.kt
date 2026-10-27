@@ -65,7 +65,9 @@ object SporocilaZnak {
     fun osvezi(a: Activity, gumb: View?) {
         gumb ?: return
         Thread({
-            val koliko = try { SporocilaShramba(a).use { s -> s.pogovori().sumOf { it.neprebrano } } } catch (_: Throwable) { 0 }
+            // Spletne storitve (WhatsApp, Telegram ... v Sporocilih) stejejo neprebrana iz naslova strani (stanje kanala).
+            val koliko = try { SporocilaShramba(a).use { s -> s.pogovori().sumOf { it.neprebrano } +
+                s.kanali().filter { it.vrsta == SpletniKlepetiPravila.VRSTA }.sumOf { s.stanjeKanala(it.id).optInt("neprebrano", 0).coerceAtLeast(0) } } } catch (_: Throwable) { 0 }
             glavna.post {
                 if (a.isFinishing) return@post
                 val z = gumb.findViewWithTag<TextView>("znacka") ?: return@post

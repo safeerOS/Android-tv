@@ -253,6 +253,11 @@ class SporocilaShramba(c: Context) : SQLiteOpenHelper(c.applicationContext, "spo
         writableDatabase.execSQL("UPDATE kanali SET stanje=? WHERE id=?", arrayOf(stanje, id))
     }
 
+    /** Nastavitve kanala (spletna storitev: namizna ali mobilna stran). */
+    fun posodobiNastavitve(id: String, n: JSONObject) {
+        writableDatabase.execSQL("UPDATE kanali SET nastavitve=? WHERE id=?", arrayOf(n.toString(), id))
+    }
+
     fun stanjeKanala(id: String): JSONObject = readableDatabase.rawQuery("SELECT stanje_kanala FROM kanali WHERE id=?", arrayOf(id)).use {
         if (it.moveToFirst()) try { JSONObject(it.getString(0) ?: "{}") } catch (_: Throwable) { JSONObject() } else JSONObject()
     }
