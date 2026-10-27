@@ -306,6 +306,13 @@ class SporocilaActivity : OsActivity() {
             }
         }
         tipkovnicaSeleNaOk(odgovor)
+        // Lastnik 27. 10. 2026 (TV »zastekal«): vecvrsticno polje - Enter na tipkovnici je dodal vrstico, do Poslji ni bilo
+        // poti iz tipkovnice. Na TV Enter poslje (besedilo se se lomi v vrstice); dejanje Poslji tipkovnice zdaj res poslje.
+        if (packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK)) {
+            odgovor.setRawInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES)
+            odgovor.setHorizontallyScrolling(false); odgovor.maxLines = 5
+        }
+        odgovor.setOnEditorActionListener { _, akcija, _ -> if (akcija == EditorInfo.IME_ACTION_SEND) { poslji(); true } else false }
         vnos.addView(odgovor, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(10) })
         posljiGumb = gumb(getString(R.string.os_spor_poslji)).apply { id = View.generateViewId(); setOnClickListener { poslji() } }
         vnos.addView(posljiGumb)
@@ -790,12 +797,27 @@ class SporocilaActivity : OsActivity() {
                 })
                 addView(TextView(this@SporocilaActivity).apply {
                     text = sp.besedilo; textSize = if (jeZadnje) 17f else 14f; setTextColor(osBarva(R.color.os_besedilo))
-                    maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.END; maxWidth = dp(if (jeZadnje) 460 else 300)
+                    maxLines = if (jeZadnje) 3 else 2; ellipsize = android.text.TextUtils.TruncateAt.END; maxWidth = dp(if (jeZadnje) 460 else 300)
+                    breakStrategy = android.text.Layout.BREAK_STRATEGY_SIMPLE
                 })
             }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(10) })
         }
-        // Zadnje sporocilo vidno desno (brez premika fokusa).
-        pisanjeOblacki.post { (pisanjeOblacki.parent as? View)?.scrollTo(pisanjeOblacki.width, 0) }
+        // Lastnik 27. 10. 2026 (beta 7): dolg naslov je naredil oblacek sirsi od pasu in levi del je bil odrezan. Besedilo
+        // oblacka je najvec sirina pasu (dolg naslov se prelomi), zadnje sporocilo je vidno v celoti, poravnano levo, ce je
+        // sirse od preostanka pasu (brez premika fokusa).
+        val pas = pisanjeOblacki.parent as? View
+        pas?.post {
+            val sirina = pas.width
+            if (sirina <= 0) return@post
+            val najvec = (sirina - dp(28) - dp(10)).coerceAtLeast(dp(120))
+            for (i in 0 until pisanjeOblacki.childCount) {
+                ((pisanjeOblacki.getChildAt(i) as? LinearLayout)?.getChildAt(1) as? TextView)?.let { if (it.maxWidth > najvec) it.maxWidth = najvec }
+            }
+            pisanjeOblacki.post {
+                val zadnji = pisanjeOblacki.getChildAt(pisanjeOblacki.childCount - 1) ?: return@post
+                pas.scrollTo(if (zadnji.width >= sirina) zadnji.left else (zadnji.right - sirina).coerceAtLeast(0), 0)
+            }
+        }
     }
 
     private fun narisiSporocila() {

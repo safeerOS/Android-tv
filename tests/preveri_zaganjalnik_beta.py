@@ -282,6 +282,11 @@ def main() -> int:
     preveri("besedili ploscice v 7 mapah", all((KOREN / "res" / m / "usenet_ponudnik_strings.xml").is_file() for m in
             ("values", "values-sl", "values-en", "values-de", "values-es", "values-fr", "values-it")))
     preveri("domaci zaslon brez oznake Safeer OS levo zgoraj", "R.string.os_app_name" not in pokrajina.split("private fun glava()")[1].split("\n    private fun ")[0])
+    preveri("pas pisanja: oblacek najvec sirina pasu, zadnje sporocilo vidno v celoti",
+            "if (it.maxWidth > najvec) it.maxWidth = najvec" in spor and "if (zadnji.width >= sirina) zadnji.left" in spor
+            and "scrollTo(pisanjeOblacki.width, 0)" not in spor)
+    preveri("pas pisanja: Enter na tipkovnici TV poslje (ni vec ujet v tipkovnici)",
+            "akcija == EditorInfo.IME_ACTION_SEND) { poslji(); true }" in spor and "odgovor.setRawInputType(InputType.TYPE_CLASS_TEXT" in spor)
     # Rocna gradnja bete v CI: vhod »beta« gre prek okolja v -PsafeerBeta (brez vhoda gradnja kot prej).
     ci = (KOREN / ".github" / "workflows" / "gradnja.yml").read_text(encoding="utf-8")
     preveri("CI: rocna gradnja z vhodom beta poda -PsafeerBeta",
