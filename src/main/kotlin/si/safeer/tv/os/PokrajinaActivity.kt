@@ -46,7 +46,7 @@ class PokrajinaActivity : OsActivity() {
     private lateinit var ura: TextView
     private lateinit var datum: TextView
     private lateinit var vreme: TextView
-    private lateinit var mrezaAplikacij: LinearLayout
+    private lateinit var vrstaAplikacij: LinearLayout
     private lateinit var dok: LinearLayout
     private lateinit var zadetki: LinearLayout
     private lateinit var poljeLupe: EditText
@@ -98,15 +98,16 @@ class PokrajinaActivity : OsActivity() {
             val rob = (resources.displayMetrics.widthPixels * 0.2f).toInt()
             marginStart = rob; marginEnd = rob; topMargin = dp(8)
         })
-        // Lastnik 27. 10. 2026 (zgled »TV zaganjalnik«): aplikacije v mrezi po sest, prva vrsta priljubljene in spletne,
-        // nato vse druge; brez zunanjega okvirja (lastnik: »brez zunanje obrobe«). Mreza se drsi navpicno s fokusom.
-        mrezaAplikacij = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(6), dp(8), dp(6), dp(8)) }
-        val drsnik = android.widget.ScrollView(this).apply {
-            isVerticalScrollBarEnabled = false; clipToPadding = false; clipChildren = false
-            isVerticalFadingEdgeEnabled = true; setFadingEdgeLength(dp(36))
-            addView(mrezaAplikacij)
+        vsebina.addView(View(this), LinearLayout.LayoutParams(0, 0, 1f))
+        // Lastnik 27. 10. 2026: ENA vrstica - priljubljene spletne in namescene aplikacije in »+ Dodaj«, plosce po zgledu
+        // (zaobljene, brez obrobe; obroba samo s fokusom). Vse aplikacije so za gumbom Aplikacije v spodnji vrstici.
+        vrstaAplikacij = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(dp(4), dp(10), dp(4), dp(10)) }
+        val drsnik = HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false; clipToPadding = false; clipChildren = false
+            isHorizontalFadingEdgeEnabled = true; setFadingEdgeLength(dp(48))
+            addView(vrstaAplikacij)
         }
-        vsebina.addView(drsnik, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f).apply { topMargin = dp(14) })
+        vsebina.addView(drsnik, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         dok = plavajocaVrstica()
         vsebina.addView(dok, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(14) })
         koren.addView(vsebina, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
@@ -357,7 +358,7 @@ class PokrajinaActivity : OsActivity() {
      * obroba (in povecava) samo na plosci s fokusom, da je na TV z daljincem vidno, kje si.
      */
     private fun kartica(ikona: android.graphics.drawable.Drawable?, ikonaRes: Int, ime: String, klik: (View) -> Unit): View {
-        val v = LayoutInflater.from(this).inflate(R.layout.os_kartica_ikona, mrezaAplikacij, false)
+        val v = LayoutInflater.from(this).inflate(R.layout.os_kartica_ikona, vrstaAplikacij, false)
         val slika = v.findViewById<ImageView>(R.id.ikona)
         if (ikona != null) slika.setImageDrawable(ikona) else slika.setImageResource(ikonaRes)
         slika.layoutParams = slika.layoutParams.apply { width = dp(64); height = dp(64) }
@@ -374,47 +375,56 @@ class PokrajinaActivity : OsActivity() {
         return v
     }
 
-    /** Ena vrsta mreze: plosce enako siroke (sest v vrsti), prazna mesta zapolni prazen prostor, da plosce ne rastejo. */
-    private fun vrstaMreze(plosce: List<View>): LinearLayout = LinearLayout(this).apply {
-        orientation = LinearLayout.HORIZONTAL
-        for (i in 0 until PokrajinaPravila.STOLPCEV) {
-            val p = plosce.getOrNull(i) ?: View(this@PokrajinaActivity)
-            addView(p, LinearLayout.LayoutParams(0, dp(118), 1f).apply { marginStart = dp(10); marginEnd = dp(10); topMargin = dp(10); bottomMargin = dp(10) })
-        }
+    /** Sirina plosce: sest v vrsti cez vsebino zaslona; vec plosc je za drsenjem desno. */
+    private fun sirinaPlosce(): Int = ((resources.displayMetrics.widthPixels - dp(88)) / PokrajinaPravila.STOLPCEV - dp(20)).coerceAtLeast(dp(110))
+
+    private fun dodajVVrsto(v: View) {
+        vrstaAplikacij.addView(v, LinearLayout.LayoutParams(sirinaPlosce(), dp(118)).apply { marginStart = dp(10); marginEnd = dp(10) })
     }
 
     private fun narisiAplikacije() {
-        mrezaAplikacij.removeAllViews()
+        vrstaAplikacij.removeAllViews()
         val vsi = Aplikacije.zadnjiZnani(this) ?: Aplikacije.seznam(this)
-        val plosce = LinkedHashMap<String, View>()
-        for (a in vsi) {
-            val v = kartica(Aplikacije.ikonaIzPomnilnika(a.paket), R.drawable.os_ikona_mreza, a.ime) { k ->
-                odpri(Intent(a.namera).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), izPloscice(k))
+        val poPaketu = vsi.associateBy { it.paket }
+        val spletne = SpletneAplikacije.seznam(this).associateBy { "splet:" + it.url }
+        val vrsta = PokrajinaPravila.vrstaPriljubljenih(Priljubljene.seznam(this) + spletne.keys, poPaketu.keys + spletne.keys)
+        for (id in vrsta) {
+            val a = poPaketu[id]
+            if (a != null) {
+                val v = kartica(Aplikacije.ikonaIzPomnilnika(a.paket), R.drawable.os_ikona_mreza, a.ime) { k ->
+                    odpri(Intent(a.namera).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), izPloscice(k))
+                }
+                if (Aplikacije.ikonaIzPomnilnika(a.paket) == null)
+                    Aplikacije.ikonaLeno(this, a) { Aplikacije.ikonaIzPomnilnika(a.paket)?.let { v.findViewById<ImageView>(R.id.ikona).setImageDrawable(it) } }
+                dodajVVrsto(v)
+                continue
             }
-            if (Aplikacije.ikonaIzPomnilnika(a.paket) == null)
-                Aplikacije.ikonaLeno(this, a) { Aplikacije.ikonaIzPomnilnika(a.paket)?.let { v.findViewById<ImageView>(R.id.ikona).setImageDrawable(it) } }
-            plosce.putIfAbsent(a.paket, v)
-        }
-        val spletne = ArrayList<String>()
-        for (s in SpletneAplikacije.seznam(this)) {
+            val s = spletne[id] ?: continue
             val ime = s.ime.ifBlank { SpletneAplikacije.gostitelj(s.url) }
-            val id = "splet:" + s.url
-            spletne.add(id)
-            plosce.putIfAbsent(id, kartica(SpletneAplikacije.ikona(this, s), R.drawable.os_ikona_splet, ime) { _ ->
+            dodajVVrsto(kartica(SpletneAplikacije.ikona(this, s), R.drawable.os_ikona_splet, ime) { _ ->
                 Nadaljuj.zapisi(this, Nadaljuj.Vnos(vrsta = Nadaljuj.SPLETNA, ime = ime, url = s.url))
                 odpri(Brskalnik.namera(this).putExtra("spletna_aplikacija", s.url).putExtra("aplikacija_ime", ime)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             })
         }
-        // Prva vrsta: priljubljene in spletne aplikacije (kot prej v vrstici), nato vse druge po imenu.
-        val mreza = PokrajinaPravila.mreza(Priljubljene.seznam(this) + spletne, plosce.keys.toList())
-        if (mreza.prva.isEmpty() && mreza.vrste.isEmpty()) {
-            // Brez aplikacij: plosca pove, kaj naredi (izbira aplikacij), ne prazen zaslon.
-            mrezaAplikacij.addView(vrstaMreze(listOf(kartica(null, R.drawable.os_ikona_mreza, getString(R.string.os_aplikacije_izberi)) { odpriAplikacije() })))
-            return
-        }
-        if (mreza.prva.isNotEmpty()) mrezaAplikacij.addView(vrstaMreze(mreza.prva.mapNotNull { plosce[it] }))
-        for (vrsta in mreza.vrste) mrezaAplikacij.addView(vrstaMreze(vrsta.mapNotNull { plosce[it] }))
+        // Zadnja plosca: uporabnik si sam doda aplikacijo s televizorja ali spletno aplikacijo.
+        dodajVVrsto(kartica(null, R.drawable.os_ikona_plus, getString(R.string.os_spletne_dodaj)) { dodajAplikacijo() })
+    }
+
+    /** »+ Dodaj«: aplikacija s televizorja (seznam vseh, dolg pritisk doda) ali spletna aplikacija (kot na starem zaslonu). */
+    private fun dodajAplikacijo() {
+        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(R.string.pk_dodaj_naslov)
+            .setItems(arrayOf(getString(R.string.pk_dodaj_tv), getString(R.string.pk_dodaj_splet))) { _, i ->
+                if (i == 0) {
+                    android.widget.Toast.makeText(this, R.string.pk_dodaj_tv_namig, android.widget.Toast.LENGTH_LONG).show()
+                    odpri(Intent(this, AplikacijeTvActivity::class.java))
+                } else SpletnaDodaj.izberi(this) { narisiAplikacije() }
+            }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .create()
+        Kontroler.pokazi(okno)
+        okno.show()
     }
 
     // ------------------------------------------------------------------ plavajoca vrstica
@@ -462,7 +472,7 @@ class PokrajinaActivity : OsActivity() {
         when (r) {
             PokrajinaPravila.MEDIJI -> odpri(Intent(this, GlasbaActivity::class.java))
             PokrajinaPravila.SPLET -> odpri(Brskalnik.namera(this).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            PokrajinaPravila.LINK -> napraveKroga()
+            PokrajinaPravila.LINK -> odpri(Intent(this, NapraveActivity::class.java))
             PokrajinaPravila.SPOROCILA -> odpri(Intent(this, SporocilaActivity::class.java))
             PokrajinaPravila.APLIKACIJE -> odpriAplikacije()
             PokrajinaPravila.DATOTEKE -> odpri(Intent(this, DatotekeActivity::class.java))
@@ -475,36 +485,6 @@ class PokrajinaActivity : OsActivity() {
      * napravo: gledanje zaslona in upravljanje z daljincem po isti poti kot kartica Zaslon na starem domacem zaslonu.
      * Zadnja vrstica odpre celoten Safeer Link (naprave, krog, nastavitve).
      */
-    private fun napraveKroga() {
-        val link = LinkUpravitelj.pridobi(this)
-        val deli = si.safeer.tv.link.Daljinec.ZMOZNOST_DELI_ZASLON
-        val po = LinkOdjemalec.drugeZaPrikaz(link.naprave, Identiteta.id(this)).associateBy { it.id }
-        val naprave = NapraveKrogaPravila.zaPrikaz(po.values.map {
-            NapraveKrogaPravila.Naprava(it.id, it.ime.ifBlank { it.id }, it.zmoznosti.toSet(), link.jeTaNaprava(it), OzjiKrog.vKrogu(this, it.id), link.povezan)
-        })
-        val imena = naprave.map { n ->
-            n.ime + "  ·  " + getString(when (NapraveKrogaPravila.pot(n.zmoznosti, deli)) {
-                NapraveKrogaPravila.POT_RACUNALNIK, NapraveKrogaPravila.POT_DELI_ZASLON -> R.string.pk_link_zaslon
-                else -> R.string.pk_link_naprava
-            })
-        } + getString(R.string.pk_link_vse)
-        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setTitle(R.string.os_meni_naprave)
-            .setItems(imena.toTypedArray()) { _, i ->
-                val n = naprave.getOrNull(i)
-                val r = n?.let { po[it.id] }
-                if (n == null || r == null) { odpri(Intent(this, NapraveActivity::class.java)); return@setItems }
-                when (NapraveKrogaPravila.pot(n.zmoznosti, deli)) {
-                    NapraveKrogaPravila.POT_RACUNALNIK -> odpri(Intent(this, ZaslonActivity::class.java).putExtra(DatotekeActivity.EXTRA_RACUNALNIK, r.id))
-                    NapraveKrogaPravila.POT_DELI_ZASLON -> PovezaniZasloni.zaprosi(this, link, r)
-                    else -> odpri(Intent(this, NapraveActivity::class.java))
-                }
-            }
-            .setNegativeButton(getString(R.string.os_preklici), null)
-            .create()
-        Kontroler.pokazi(okno)
-        okno.show()
-    }
 
     /** Odpiranje, ki ne utihne: napaka se pokaze (kot na starem domacem zaslonu), ne izgine. */
     private fun odpri(namera: Intent, moznosti: Bundle? = null) {

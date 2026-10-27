@@ -9,4 +9,10 @@
     <string name="pk_vreme_kraj_opis">Weather comes from Open-Meteo.com (CC BY 4.0) only for the place you enter here. Leave empty to turn weather off.</string>
     <string name="pk_vreme_ni_najden">Place not found. Check the spelling.</string>
     <string name="pk_vreme_opis">Weather in %1$s: %2$s</string>
+    <string name="pk_dodaj_naslov">Add to the home screen</string>
+    <string name="pk_dodaj_tv">App from this TV</string>
+    <string name="pk_dodaj_tv_namig">Hold OK on an app to add it to the home screen</string>
+    <string name="pk_dodaj_splet">Web app</string>
+    <string name="pk_link_povezane">Connected devices</string>
+    <string name="pk_link_osvezi">Refresh</string>
 </resources>

@@ -90,24 +90,17 @@ object PokrajinaPravila {
         return (0xFF shl 24) or (k(16) shl 16) or (k(8) shl 8) or k(0)
     }
 
-    /** Stolpcev v mrezi aplikacij (zgled lastnika 27. 10. 2026: sest plosc v vrsti). */
+    /** Plosc v vrstici brez drsenja (zgled lastnika 27. 10. 2026: sest plosc v vrsti); vec jih je za drsenjem desno. */
     const val STOLPCEV = 6
 
-    /** Mreza aplikacij: [prva] vrsta v steklenem okvirju (priljubljene) in [vrste] pod njo (vse druge). */
-    data class Mreza(val prva: List<String>, val vrste: List<List<String>>)
-
     /**
-     * Lastnik 27. 10. 2026 (zgled »TV zaganjalnik«): aplikacije v mrezi namesto ene drsece vrstice. Prva vrsta so
-     * priljubljene (najvec [stolpcev], vrstni red uporabnika); preostale priljubljene in vse druge aplikacije (vrstni red
-     * [vse], brez ponovitev) gredo pod njo po [stolpcev] v vrsto. Priljubljena, ki je ni vec med [vse], se ne pokaze.
+     * Lastnik 27. 10. 2026: na domacem zaslonu ENA vrstica - priljubljene spletne in namescene aplikacije (vrstni red
+     * uporabnika) in na koncu »+ Dodaj«; vse aplikacije (TV in drugih naprav) so za gumbom Aplikacije. Priljubljena, ki
+     * je ni vec med [vse] (odstranjena aplikacija), se ne pokaze; vsaka samo enkrat.
      */
-    fun mreza(priljubljene: List<String>, vse: List<String>, stolpcev: Int = STOLPCEV): Mreza {
-        if (stolpcev <= 0) return Mreza(emptyList(), emptyList())
+    fun vrstaPriljubljenih(priljubljene: List<String>, vse: Collection<String>): List<String> {
         val znane = vse.toSet()
-        val izbrane = priljubljene.distinct().filter { it in znane }
-        val prva = izbrane.take(stolpcev)
-        val ostale = (izbrane.drop(stolpcev) + vse.distinct().filter { it !in izbrane })
-        return Mreza(prva, ostale.chunked(stolpcev))
+        return priljubljene.distinct().filter { it in znane }
     }
 
     /** Fokus po vrstici z daljincem: levo/desno ostane v vrstici, na robu se ustavi (ne skoci v drugo vrstico). */

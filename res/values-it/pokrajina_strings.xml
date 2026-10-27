@@ -9,4 +9,10 @@
     <string name="pk_vreme_kraj_opis">Il meteo arriva da Open-Meteo.com (CC BY 4.0) solo per il luogo che inserisci qui. Lascia vuoto per disattivarlo.</string>
     <string name="pk_vreme_ni_najden">Luogo non trovato. Controlla come è scritto.</string>
     <string name="pk_vreme_opis">Meteo a %1$s: %2$s</string>
+    <string name="pk_dodaj_naslov">Aggiungi alla schermata iniziale</string>
+    <string name="pk_dodaj_tv">App di questo televisore</string>
+    <string name="pk_dodaj_tv_namig">Tieni premuto OK su un’app per aggiungerla alla schermata iniziale</string>
+    <string name="pk_dodaj_splet">App web</string>
+    <string name="pk_link_povezane">Dispositivi connessi</string>
+    <string name="pk_link_osvezi">Aggiorna</string>
 </resources>

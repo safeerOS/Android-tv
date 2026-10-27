@@ -1358,82 +1358,11 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             .let { Kontroler.pokazi(it.show()) }
     }
 
-    /**
-     * Dodajanje brez tipkanja na daljincu: ponudimo strani, ki jih ima uporabnik ze na domaci
-     * strani brskalnika ("Moje strani"). Ime in ikono nato prinese manifest spletne aplikacije.
-     */
-    private fun dodajSpletno() {
-        val ploscice = try { si.safeer.tv.HomeTilesStore.load(this) } catch (_: Throwable) { mutableListOf() }
-        val proste = ploscice.filterNot { SpletneAplikacije.jeDodana(this, it.url) }
-        // Prva izbira je vedno vnos naslova: uporabnik lahko doda katerokoli stran, ne le tistih,
-        // ki jih ima ze na domaci strani brskalnika.
-        val imena = (listOf(getString(R.string.os_spletne_vnesi)) +
-            proste.map { it.title.ifBlank { SpletneAplikacije.gostitelj(it.url) } }).toTypedArray()
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setTitle(getString(R.string.os_spletne_dodaj_naslov))
-            .setItems(imena) { _, i ->
-                if (i == 0) vnesiNaslovSpletne()
-                else proste.getOrNull(i - 1)?.let { dodajSpletnoAplikacijo(it.url, it.title) }
-            }
-            .setNegativeButton(getString(R.string.os_preklici), null)
-            .let { Kontroler.pokazi(it.show()) }
-    }
-
-    /**
-     * Vnos naslova z daljincem. Tipkanje na televizorju ni prijetno, zato naslov dopolnimo sami
-     * (brez "https://" gre tudi) in ga zavrnemo, ce ni videti kot spletni naslov.
-     */
-    private fun vnesiNaslovSpletne() {
-        val polje = android.widget.EditText(this).apply {
-            hint = getString(R.string.os_spletne_vnesi_namig)
-            setSingleLine()
-            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI
-            setTextColor(osBarva(R.color.os_besedilo))
-            setHintTextColor(osBarva(R.color.os_umirjeno))
-        }
-        val okvir = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            val r = (resources.displayMetrics.density * 24).toInt()
-            setPadding(r, r / 2, r, 0)
-            addView(polje)
-        }
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setTitle(getString(R.string.os_spletne_vnesi))
-            .setView(okvir)
-            .setPositiveButton(getString(R.string.os_spletne_dodaj_gumb)) { _, _ ->
-                val naslov = celoten(polje.text.toString())
-                if (naslov == null) {
-                    Toast.makeText(this, getString(R.string.os_spletne_neveljaven), Toast.LENGTH_LONG).show()
-                } else if (SpletneAplikacije.jeDodana(this, naslov)) {
-                    Toast.makeText(this, getString(R.string.os_spletne_ze_dodana), Toast.LENGTH_LONG).show()
-                } else {
-                    dodajSpletnoAplikacijo(naslov, SpletneAplikacije.gostitelj(naslov))
-                }
-            }
-            .setNegativeButton(getString(R.string.os_preklici), null)
-            .let { Kontroler.pokazi(it.show()) }
-        polje.requestFocus()
-    }
-
-    /** Naslov, kot ga je vnesel uporabnik, dopolnjen v celoten https naslov; null, ce to ni naslov. */
-    private fun celoten(vnos: String): String? {
-        val t = vnos.trim().replace(" ", "")
-        if (t.isEmpty()) return null
-        val z = if (t.startsWith("http://") || t.startsWith("https://")) t else "https://$t"
-        return try {
-            val u = java.net.URL(z)
-            if (u.host.contains(".") && !u.host.startsWith(".") && !u.host.endsWith(".")) z else null
-        } catch (_: Throwable) { null }
-    }
-
-    private fun dodajSpletnoAplikacijo(url: String, ime: String) {
-        Toast.makeText(this, getString(R.string.os_spletne_dodajam), Toast.LENGTH_SHORT).show()
-        SpletneAplikacije.dodaj(this, url, ime) {
-            if (isFinishing) return@dodaj
-            narisiSpletne()
-            // Prvic ponudimo, da se spletne aplikacije pokazejo tudi na domacem zaslonu TV.
-            DomacaVrsta.ponudiEnkrat(this)
-        }
+    /** Dodajanje spletne aplikacije (skupno z novim zaganjalnikom, [SpletnaDodaj]). */
+    private fun dodajSpletno() = SpletnaDodaj.izberi(this) {
+        narisiSpletne()
+        // Prvic ponudimo, da se spletne aplikacije pokazejo tudi na domacem zaslonu TV.
+        DomacaVrsta.ponudiEnkrat(this)
     }
 
     // ------------------------------------------------------------------ Aplikacije
