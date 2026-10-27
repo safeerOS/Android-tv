@@ -724,4 +724,5 @@
     <string name="os_pomoc_opis">When two of your devices cannot reach each other directly (e.g. one is behind another router), this device connects them: it introduces them to each other and passes their messages on. Only for devices in your circle of trust. When off, such devices do not see each other through this device.</string>
     <string name="os_pomoc_da">Yes, help</string>
     <string name="os_pomoc_ne">No</string>
+    <string name="os_zaganjalnik_edini">Safeer OS is the only launcher on this TV. Turning it off would leave a black screen, so it stays on. First enable another launcher in the TV’s system settings.</string>
 </resources>

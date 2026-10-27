@@ -113,6 +113,13 @@ object ZaganjalnikPravila {
         // takrat velja samo okno svezih padcev ([svezi]).
         if (od > zdaj) casi else casi.filter { it > od }
 
+    /**
+     * Lastnik 27. 10. 2026: rocni izklop domacega zaslona na televizorju brez drugega pravega zaganjalnika je pustil
+     * sistemski FallbackHome - crn zaslon brez poti nazaj. Izklop je dovoljen samo, ce obstaja drug pravi zaganjalnik
+     * (isti pogoj kot [vrniPrejsnjemu] po padcih).
+     */
+    fun smeOpustiti(drugiZaganjalniki: Int): Boolean = drugiZaganjalniki > 0
+
     /** Ali je zaganjalnik pravi (ne sistemski FallbackHome z negativno prednostjo). */
     fun jePraviZaganjalnik(paket: String, razred: String, prednost: Int, nas: String): Boolean =
         paket != nas && prednost >= 0 && !razred.endsWith("FallbackHome")

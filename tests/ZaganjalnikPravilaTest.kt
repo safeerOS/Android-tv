@@ -193,6 +193,9 @@ fun main() {
         preveri("Z5: trije padci po popravku ure vrnejo", ZaganjalnikPravila.vrniPrejsnjemu(
             ZaganjalnikPravila.padciPo(listOf(zdaj - 3000, zdaj - 2000, zdaj - 1000), zdaj + ura, zdaj), zdaj, 1))
     }
+    // Lastnik 27. 10. 2026: izklop domacega zaslona na TV brez drugega zaganjalnika = crn zaslon
+    preveri("izklop brez drugega zaganjalnika zavrnjen", !ZaganjalnikPravila.smeOpustiti(0))
+    preveri("izklop z drugim zaganjalnikom dovoljen", ZaganjalnikPravila.smeOpustiti(1))
     println(if (napak == 0) "\nVSE OK" else "\nNAPAK: $napak")
     if (napak > 0) kotlin.system.exitProcess(1)
 }

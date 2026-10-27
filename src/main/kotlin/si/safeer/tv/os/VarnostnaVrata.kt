@@ -31,6 +31,11 @@ object VarnostnaVrata {
 
     /** En dotik nazaj na tovarniski zaganjalnik (Safeer ni vec domaci zaslon, prejsnji zaganjalnik se takoj odpre). */
     fun vrni(c: Context) {
+        // Brez drugega zaganjalnika (TV) bi vrnitev pustila crn FallbackHome: Safeer ostane domaci zaslon.
+        if (Zaganjalnik.jePonujen(c) && !Zaganjalnik.smeOpustiti(c)) {
+            Toast.makeText(c.applicationContext, R.string.os_zaganjalnik_edini, Toast.LENGTH_LONG).show()
+            return
+        }
         val odprt = Zaganjalnik.vrniTovarniskega(c)
         Toast.makeText(c.applicationContext, if (odprt) R.string.zg_vrnjen else R.string.nz_vrata_vrnjeno, Toast.LENGTH_LONG).show()
     }

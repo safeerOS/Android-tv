@@ -551,6 +551,15 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
      * in odpremo sistemsko okno; izklop pa naredimo sami, da je pot nazaj vedno pri roki.
      */
     private fun preklopiZaganjalnik(jeVklopljen: Boolean) {
+        // Lastnik 27. 10. 2026: brez drugega zaganjalnika bi izklop pustil crn zaslon - ostane vklopljen, povemo zakaj.
+        if (jeVklopljen && Zaganjalnik.jePonujen(this) && !Zaganjalnik.smeOpustiti(this)) {
+            android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(getString(R.string.os_zaganjalnik))
+                .setMessage(getString(R.string.os_zaganjalnik_edini))
+                .setNegativeButton(getString(R.string.os_preklici), null)
+                .let { Kontroler.pokazi(it.show()) }
+            return
+        }
         // Vklopljeno, a televizor domacega zaslona ne da: povejmo naravnost, kaj se dogaja,
         // in ponudimo izklop - brez tega uporabnik misli, da je napaka pri nas.
         if (jeVklopljen && Zaganjalnik.stanje(this) == Zaganjalnik.TELEVIZOR_OBDRZI) {

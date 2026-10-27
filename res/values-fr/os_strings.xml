@@ -716,4 +716,5 @@
     <string name="os_pomoc_opis">Quand deux de tes appareils ne peuvent pas se joindre directement (p. ex. l\'un est derrière un autre routeur), cet appareil les relie : il les présente l\'un à l\'autre et transmet leurs messages. Uniquement pour les appareils de ton cercle de confiance. Désactivé, ces appareils ne se voient pas par cet appareil.</string>
     <string name="os_pomoc_da">Oui, aider</string>
     <string name="os_pomoc_ne">Non</string>
+    <string name="os_zaganjalnik_edini">Safeer OS est le seul lanceur de ce téléviseur. Le désactiver laisserait un écran noir, il reste donc activé. Active d’abord un autre lanceur dans les paramètres système du téléviseur.</string>
 </resources>

@@ -716,4 +716,5 @@
     <string name="os_pomoc_opis">Wenn sich zwei deiner Geräte nicht direkt erreichen (z. B. eines hinter einem anderen Router), verbindet sie dieses Gerät: Es stellt sie einander vor und leitet ihre Nachrichten weiter. Nur für Geräte aus deinem Vertrauenskreis. Ausgeschaltet sehen sich solche Geräte über dieses Gerät nicht.</string>
     <string name="os_pomoc_da">Ja, helfen</string>
     <string name="os_pomoc_ne">Nein</string>
+    <string name="os_zaganjalnik_edini">Safeer OS ist der einzige Launcher auf diesem Fernseher. Ohne ihn bliebe der Bildschirm schwarz, daher bleibt er aktiv. Aktiviere zuerst einen anderen Launcher in den Systemeinstellungen des Fernsehers.</string>
 </resources>
