@@ -365,6 +365,9 @@ def main() -> int:
     gl6 = (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8")
     preveri("album z Useneta: lepi naslovi in izvajalec (UsenetGlasbaPravila.lepeSkladbe)",
             "UsenetGlasbaPravila.lepeSkladbe(album.skladbe.map { it.first }" in gl6)
+    ul = (SRC / "os/UsenetLastni.kt").read_text(encoding="utf-8")
+    preveri("album z Useneta: strezniki skladb ne potecejo po 5 min",
+            "nedejavnostMs = UsenetLastniPravila.NEDEJAVNOST_ALBUMA_MS" in ul.split("fun predvajajAlbum(", 1)[1].split(chr(10) + "    }", 1)[0])
     # Rocna gradnja bete v CI: vhod »beta« gre prek okolja v -PsafeerBeta (brez vhoda gradnja kot prej).
     ci = (KOREN / ".github" / "workflows" / "gradnja.yml").read_text(encoding="utf-8")
     preveri("CI: rocna gradnja z vhodom beta poda -PsafeerBeta",

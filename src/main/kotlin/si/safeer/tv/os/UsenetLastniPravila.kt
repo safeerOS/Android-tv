@@ -63,4 +63,10 @@ object UsenetLastniPravila {
 
     /** Lastnik 27. 10. 2026: priprava toka Usenet z lastnim ponudnikom ima svoj napis (ne »prek debrid storitve«). */
     fun pripravaLastnega(usenet: Boolean, lastniVUporabi: Boolean): Boolean = usenet && lastniVUporabi
+
+    /**
+     * Lastnik 27. 10. 2026: strezniki skladb albuma nastanejo vsi ob zacetku; skladba, ki je se ni na vrsti, ne sme poteci
+     * po 5 min mirovanja (UsenetStreznik.NEDEJAVNOST_MS - album je obstal po 4 skladbah). Zaprejo se z UsenetLastni.ustavi.
+     */
+    const val NEDEJAVNOST_ALBUMA_MS = 4L * 60 * 60 * 1000
 }

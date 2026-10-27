@@ -43,6 +43,8 @@ fun main() {
     preveriEnako("brez ponudnika ni lastni", false, L.jeLastni(null))
     preveriEnako("dnevnik lasten pogon", "Usenet lasten pogon", L.dnevnikPripravljenega(L.PONUDNIK))
     preveriEnako("dnevnik TorBox", "Usenet pripravljen pri TorBoxu", L.dnevnikPripravljenega(DebridPravila.TORBOX))
+    // Lastnik 27. 10. 2026: album z 20 skladbami po 10 min ne sme poteci (prej 5 min mirovanja na skladbo).
+    preveriEnako("album: strezniki skladb zivijo vsaj 3 ure", true, L.NEDEJAVNOST_ALBUMA_MS >= 3L * 60 * 60 * 1000)
     // Lastnik 27. 10. 2026: napis med pripravo toka.
     preveriEnako("Usenet z lastnim ponudnikom: svoj napis", true, L.pripravaLastnega(usenet = true, lastniVUporabi = true))
     preveriEnako("Usenet prek TorBoxa: napis debrid", false, L.pripravaLastnega(usenet = true, lastniVUporabi = false))

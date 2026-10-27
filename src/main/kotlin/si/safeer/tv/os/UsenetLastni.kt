@@ -147,7 +147,8 @@ object UsenetLastni {
             val strezniki = ArrayList<UsenetStreznik>()
             for ((ime, vir) in viri) {
                 if (vir != null) {
-                    val st = UsenetStreznik(UsenetBralnik.Bralnik(nntp::body, vir, profil))
+                    // Skladba, ki se ni na vrsti, ne potece po 5 min (lastnik 27. 10. 2026: album je obstal po 4 skladbah).
+                    val st = UsenetStreznik(UsenetBralnik.Bralnik(nntp::body, vir, profil), nedejavnostMs = UsenetLastniPravila.NEDEJAVNOST_ALBUMA_MS)
                     strezniki.add(st)
                     skladbe.add(UsenetGlasbaPravila.imeSkladbe(ime) to st.url)
                 }
