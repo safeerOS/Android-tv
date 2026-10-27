@@ -281,6 +281,7 @@ def main() -> int:
             "R.string.os_usenet_dodaj_ponudnika" in viri and "UsenetPonudnikOkno.pokazi(this)" in viri)
     preveri("besedili ploscice v 7 mapah", all((KOREN / "res" / m / "usenet_ponudnik_strings.xml").is_file() for m in
             ("values", "values-sl", "values-en", "values-de", "values-es", "values-fr", "values-it")))
+    preveri("domaci zaslon brez oznake Safeer OS levo zgoraj", "R.string.os_app_name" not in pokrajina.split("private fun glava()")[1].split("\n    private fun ")[0])
     # Rocna gradnja bete v CI: vhod »beta« gre prek okolja v -PsafeerBeta (brez vhoda gradnja kot prej).
     ci = (KOREN / ".github" / "workflows" / "gradnja.yml").read_text(encoding="utf-8")
     preveri("CI: rocna gradnja z vhodom beta poda -PsafeerBeta",

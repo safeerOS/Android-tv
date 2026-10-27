@@ -195,16 +195,7 @@ class PokrajinaActivity : OsActivity() {
 
     private fun glava(): View {
         val g = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        val znak = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-            background = steklo(28, fokusMogoc = false)
-            setPadding(dp(14), dp(8), dp(20), dp(8))
-            addView(ImageView(this@PokrajinaActivity).apply { setImageResource(R.drawable.os_ikona_scit); setColorFilter(osBarva(R.color.os_mint)) },
-                LinearLayout.LayoutParams(dp(30), dp(30)))
-            addView(besedilo(getString(R.string.os_app_name), 20f, krepko = true), LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(10) })
-        }
-        g.addView(znak)
+        // Lastnik 27. 10. 2026: brez oznake »Safeer OS« levo zgoraj - glava ima samo vreme in uro.
         g.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
         // Vreme: brez izbranega kraja ga ni (ne nadomestka); OK na uri odpre izbiro kraja.
         vreme = besedilo("", 26f).apply { visibility = View.GONE }
