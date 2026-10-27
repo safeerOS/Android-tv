@@ -7744,12 +7744,28 @@ class GlasbaActivity : OsActivity() {
      * null; skupni rok [WebtorPravila.USENET_ROK_MS] od zacetka (preverba ⚡ tece medtem).
      */
     private fun zacniUsenetPripravljen(kandidati: List<Stremio.Tok>): (() -> Pair<Stremio.Tok, String>?)? {
+        val app = applicationContext
+        // Lastnik 27. 10. 2026: z lastnim ponudnikom NNTP je vsaka izdaja takoj predvajljiva (pretakamo neposredno) - Usenet
+        // se izbere sam, brez okna »Izberi vir«; zaporedno (en film naenkrat, en bazen racuna), najboljsa nato naslednja.
+        if (UsenetLastni.naVoljo(app)) {
+            val zapored = kandidati.take(UsenetLastniPravila.NAJVEC_POSKUSOV)
+            if (zapored.isEmpty()) return null
+            return {
+                var izbran: Pair<Stremio.Tok, String>? = null
+                for (t in zapored) {
+                    if (izbran != null || Thread.currentThread().isInterrupted) break
+                    val izid = try { Usenet.tok(app, t.url, t.opis.substringBefore('\n'), t.datoteka, false, {}, lastni = true) } catch (_: Exception) { null }
+                    izid?.url?.let { izbran = t to it }
+                }
+                android.util.Log.i("SafeerOsMedia", "tokovi: Usenet lasten pogon: ${if (izbran != null) "da" else "ne"}")
+                izbran
+            }
+        }
         val prvi = kandidati.take(WebtorPravila.USENET_VZPOREDNO)
         if (prvi.isEmpty()) return null
-        val app = applicationContext
         val zacetek = android.os.SystemClock.elapsedRealtime()
         val niti = try {
-            prvi.map { t -> usenetDelavec.submit<TorBox.Izid> { Usenet.tok(app, t.url, t.opis.substringBefore('\n'), t.datoteka, true) {} } }
+            prvi.map { t -> usenetDelavec.submit<TorBox.Izid> { Usenet.tok(app, t.url, t.opis.substringBefore('\n'), t.datoteka, true, {}, lastni = false) } }
         } catch (_: java.util.concurrent.RejectedExecutionException) { return null }
         return {
             var izbran: Pair<Stremio.Tok, String>? = null

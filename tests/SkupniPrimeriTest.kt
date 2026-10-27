@@ -3,9 +3,10 @@ package si.safeer.tv.os
 import java.io.File
 
 /**
- * Naloga 134: skupni preizkusni primeri za Android in namizje (tests/skupni-primeri/debrid-serije.json). Ista datoteka je
- * v repozitorijih Safeer-linux in Safeer-windows (tests/test_skupni_primeri.py) - pravilo, spremenjeno samo na eni
- * strani, tu ali tam pade. Testi s kotlinc nimajo knjiznice JSON, zato je tu majhen bralnik.
+ * Naloga 134: skupni preizkusni primeri za Android in namizje (tests/skupni-primeri: debrid-serije.json,
+ * webtor-rezerva.json, usenet-pogon.json). Ista datoteka je v repozitorijih Safeer-linux in Safeer-windows
+ * (tests/test_skupni_primeri.py) - pravilo, spremenjeno samo na eni strani, tu ali tam pade. Testi s kotlinc nimajo
+ * knjiznice JSON, zato je tu majhen bralnik.
  */
 private var napak = 0
 private var primerov = 0
@@ -78,9 +79,55 @@ private fun hex(h: String) = ByteArray(h.length / 2) { h.substring(it * 2, it * 
 private fun imeIzida(e: Enum<*>) = e.name.lowercase(java.util.Locale.ROOT)
 private fun preverbaIz(s: String) = DebridPravila.Preverba.valueOf(s.uppercase(java.util.Locale.ROOT))
 private fun stanjeIz(s: String) = DebridPravila.StanjeKljuca.valueOf(s.uppercase(java.util.Locale.ROOT))
+@Suppress("UNCHECKED_CAST")
+private fun znani(v: Map<String, Any?>): Map<Int, Pair<Long, Long>> =
+    (v["znani"] as List<List<Long>>).associate { it[0].toInt() to (it[1] to it[2]) }
+
+private fun rarIzhod(b: ByteArray, velikost: Long): Map<String, Any?> {
+    val izid = UsenetRar.preveri(b, velikost).name.lowercase()
+    val z = try { UsenetRar.razcleniZvezek(b, velikost) } catch (_: UsenetRar.NapakaRar) { return mapOf("izid" to izid) }
+    return mapOf("izid" to izid, "rar" to z.razlicica.toLong(), "zvezek" to z.stevilka?.toLong(), "vec_zvezkov" to z.vecZvezkov,
+        "datoteke" to z.vnosi.map {
+            mapOf("ime" to it.ime, "odmik" to it.odmik, "dolzina" to it.dolzina, "velikost" to it.velikost, "pred" to it.pred,
+                "po" to it.po, "store" to it.store, "sifriran" to it.sifriran, "mapa" to it.mapa)
+        })
+}
 
 private fun meritev(m: Map<String, Any?>) =
     DebridPravila.Meritev(m.niz("ponudnik")!!, m["ping_ms"] as Long, m["bajtov"] as Long, m["cas_ms"] as Long)
+
+private val B64D = java.util.Base64.getDecoder()
+private fun b64(b: ByteArray) = java.util.Base64.getEncoder().encodeToString(b)
+
+/** Ukaz NNTP iz skupnih primerov (»AUTHINFO USER« ...) v fazo odjemalca. */
+private fun fazaNntp(ukaz: String) = when (ukaz) {
+    "AUTHINFO USER" -> UsenetNntp.Faza.UPORABNIK
+    "AUTHINFO PASS" -> UsenetNntp.Faza.GESLO
+    else -> UsenetNntp.Faza.valueOf(ukaz)
+}
+
+/** Izid yEnc v obliki skupnih primerov: zacetek od 1, konec vkljucno; telo null = prirezano (NNTP brez konca). */
+private fun usenetYenc(telo: ByteArray?): Map<String, Any?> {
+    if (telo == null) return mapOf("izid" to "prirezano")
+    return try {
+        val d = UsenetYenc.dekodiraj(telo)
+        mapOf("izid" to "ok", "ime" to d.ime, "del" to d.del?.toLong(), "skupaj" to d.delov?.toLong(), "velikost" to d.velikostDatoteke,
+            "zacetek" to d.zacetek + 1, "konec" to d.konec, "crc32" to String.format("%08x", d.crc32),
+            "crc_preverjen" to d.crcPreverjen, "podatki_b64" to b64(d.podatki))
+    } catch (e: UsenetYenc.NapakaYenc) {
+        mapOf("izid" to e.vrsta.name.lowercase())
+    }
+}
+
+private fun usenetNzb(bajti: ByteArray): Map<String, Any?> = try {
+    val n = UsenetNzb.razcleni(bajti)
+    mapOf("izid" to "ok", "naslov" to n.naslov, "ima_geslo" to n.imaGeslo, "datoteke" to n.datoteke.map { d ->
+        mapOf("ime" to d.ime, "skupine" to d.skupine, "bajtov_nzb" to d.bajtov, "manjka" to d.manjka.toLong(),
+            "segmenti" to d.segmenti.map { listOf(it.stevilka.toLong(), it.bajtov, it.id) })
+    })
+} catch (e: UsenetNzb.NapakaNzb) {
+    mapOf("izid" to e.vrsta.name.lowercase())
+}
 
 /** Izracun pravila za primer - imena funkcij so skupna (Python), tu preslikana v Kotlin. */
 @Suppress("UNCHECKED_CAST")
@@ -134,7 +181,81 @@ private fun izracunaj(f: String, v: Map<String, Any?>): Any? = when (f) {
     "izberi_usenet" -> WebtorPravila.izberiUsenet(v["izidi"] as List<Boolean?>, v["rok_potekel"] as Boolean).toLong()
     "scit_dovoljena" -> si.safeer.tv.scit.ScitIzjeme.dovoljena(v.niz("ime")!!, (v["naucene"] as Map<String, Any?>).mapValues { it.value as Long }, v["zdaj"] as Long)
     "scit_primeren_za_ucenje" -> si.safeer.tv.scit.ScitIzjeme.primerenZaUcenje(v.niz("gostitelj")!!)
-    "uskladitev_novejsi" -> UskladitevKljucevPravila.novejsi(v["cas"] as Long, v.niz("izvor")!!, v["izbrisan"] as Boolean,
+    // Pogon Usenet, korak 1 (tests/skupni-primeri/usenet-pogon.json, lastnik datoteke je Safeer-linux).
+    "yenc_dekodiraj" -> usenetYenc(B64D.decode(v.niz("telo_b64")!!))
+    "nntp_telo" -> UsenetNntp.telo(B64D.decode(v.niz("surovo_b64")!!))?.let { mapOf("telo_b64" to b64(it.telo), "ostanek_b64" to b64(it.ostanek)) }
+    "yenc_iz_nntp" -> usenetYenc(UsenetNntp.telo(B64D.decode(v.niz("surovo_b64")!!))?.telo)
+    "nntp_izid" -> UsenetNntp.izid(fazaNntp(v.niz("ukaz")!!), v.niz("vrstica")!!).name.lowercase()
+    // v3 (26. 10. 2026, zaklep racuna): ukrep bazena, odpiranje povezav, premor, poverilnica, odgovor za clanek.
+    "nntp_ukrep" -> UsenetNntp.ukrep(UsenetNntp.Vrsta.valueOf(v.niz("izid")!!.uppercase()),
+        UsenetNntp.FazaPovezave.valueOf(v.niz("faza")!!.uppercase()), v["stara"] as Boolean, v.cel("poskus")!!).name.lowercase()
+    "nntp_sme_odpreti" -> UsenetNntp.smeOdpreti(v["ustavljen"] as Boolean, v["premor"] as Boolean, v.cel("odprtih")!!,
+        v.cel("najvec")!!, v["uspela"] as Boolean, v["sonda"] as Boolean)
+    "nntp_premor" -> UsenetNntp.novPremor(v.cel("najvec")!!, v.cel("odprtih")!!, v["premor_s"] as Long, v["tece"] as Boolean, v["zmanjsaj"] as Boolean)
+        .let { mapOf("najvec" to it.first.toLong(), "premor_s" to it.second) }
+    "nntp_poverilnica" -> UsenetNntp.varenArgument(v.niz("vrednost")!!)
+    "nntp_id_odgovora" -> UsenetNntp.idOdgovoraUstreza(v.niz("vrstica")!!, v.niz("id")!!)
+    // v4 (26. 10. 2026, Grok 44 D2): zapah po racunu pri ponudniku, trajni zapah racuna brez gesla.
+    "nntp_ponudnik" -> UsenetNntp.ponudnik(v.niz("gostitelj")!!)
+    "nntp_zapah_odtis" -> UsenetNntp.zapahOdtis(hex(v.niz("sol_hex")!!), v.niz("ponudnik")!!, v.niz("uporabnik")!!, v.niz("geslo")!!)
+        .let { mapOf("racun" to it.first, "geslo" to it.second) }
+    "nntp_id" -> UsenetNzb.cistId(v.niz("id")!!)
+    "varno_ime" -> UsenetNzb.varnoIme(v.niz("ime")!!)
+    "nzb_ime" -> UsenetNzb.imeIzZadeve(v.niz("subject")!!)
+    "nzb_razcleni" -> usenetNzb(v.niz("xml")?.toByteArray(Charsets.UTF_8) ?: B64D.decode(v.niz("xml_b64")!!))
+    "usenet_meje" -> UsenetNzb.Meje().let { m ->
+        mapOf("nzb_bajtov" to UsenetPravila.NAJVEC_NZB_BAJTOV.toLong(), "nzb_datotek" to m.datotek.toLong(),
+            "nzb_segmentov" to m.segmentov.toLong(), "nzb_elementov" to m.elementov.toLong(),
+            "segmentov_datoteke" to m.segmentovDatoteke.toLong(),
+            "telo_bajtov" to UsenetNntp.NAJVEC_TELESA.toLong(), "del_bajtov" to UsenetYenc.NAJVEC_DELA.toLong(),
+            "ime_znakov" to UsenetNzb.NAJVEC_IMENA.toLong(), "ime_bajtov" to UsenetNzb.NAJVEC_IMENA_BAJTOV.toLong(),
+            "naslov_znakov" to UsenetNzb.NAJVEC_NASLOVA.toLong(),
+            "skupin" to m.skupin.toLong(), "vrstica_bajtov" to UsenetNntp.NAJVEC_VRSTICE.toLong(), "id_znakov" to UsenetNzb.NAJVEC_ID.toLong(),
+            "poverilnica_bajtov" to UsenetNntp.NAJVEC_POVERILNICE.toLong(),
+            "povezav_privzeto" to UsenetNntp.PRIVZETO_POVEZAV.toLong(), "povezav_najvec" to UsenetNntp.NAJVEC_POVEZAV.toLong(),
+            "vrata" to UsenetNntp.VRATA.toLong(), "prosta_najdlje_s" to UsenetNntp.PROSTA_NAJDLJE_S,
+            "premor_od_s" to UsenetNntp.PREMOR_OD_S, "premor_brez_odprtih_s" to UsenetNntp.PREMOR_BREZ_ODPRTIH_S,
+            "premor_do_s" to UsenetNntp.PREMOR_DO_S, "rast_bazena_s" to UsenetNntp.RAST_BAZENA_S,
+            "ziva_prijava_s" to UsenetNntp.ZIVA_PRIJAVA_S, "zapah_ponovitev" to UsenetNntp.ZAPAH_PONOVITEV.toLong(),
+            "zapahov_najvec" to UsenetNntp.NAJVEC_ZAPAHOV.toLong(), "napak_ukaza_zapored" to UsenetNntp.NAPAK_UKAZA_ZAPORED.toLong())
+    }
+    // Pogon Usenet, korak 2 (usenet-pogon.json v5): preslikava odmikov, RAR store, okno vnaprej.
+    "tok_odmik" -> try {
+        val u = UsenetTok.poisci(v["velikost"] as Long, v.cel("celota")!!, v["del_bajtov"] as Long?, znani(v), v["odmik"] as Long)
+        mapOf("izid" to "ok", "segment" to u.stevilka.toLong(), "odmik" to u.odmik, "natancno" to u.natancno)
+    } catch (e: UsenetTok.NapakaToka) { mapOf("izid" to e.izid.name.lowercase()) }
+    "tok_segmenti" -> UsenetTok.segmentiOkna(v["velikost"] as Long, v.cel("celota")!!, v["del_bajtov"] as Long?, znani(v),
+        v["odmik"] as Long, v["dolzina"] as Long).map { it.toLong() }
+    "tok_okno" -> UsenetBralnik.oknoVnaprej(v["zaporedno_prebrano"] as Long, v["zacetno"] as Long, v["najvec"] as Long)
+    "tok_profili" -> UsenetBralnik.PROFILI.mapValues { (_, p) -> listOf(p.okno, p.zacetno, p.lru, p.vzporedno.toLong()) }
+    "rar_glava" -> rarIzhod(B64D.decode(v.niz("glava_b64")!!), v["velikost"] as Long)
+    "rar_zvezki" -> UsenetRar.vrstniRedZvezkov(v.nizi("imena"))?.map { it.toLong() }
+    "rar_sestavi" -> try {
+        val b = (v["zvezki_b64"] as List<String>).map { B64D.decode(it) }
+        val vel = v["velikosti"] as List<Long>
+        val (ime, velikost, kosi) = UsenetRar.sestavi(b.indices.map { UsenetRar.razcleniZvezek(b[it], vel[it]) })
+        mapOf("izid" to "ok", "ime" to ime, "velikost" to velikost, "kosi" to kosi.map { listOf(it.zvezek.toLong(), it.odmik, it.dolzina) })
+    } catch (e: UsenetRar.NapakaRar) { mapOf("izid" to e.izid.name.lowercase()) }
+    // v6 (26. 10. 2026, pregled Grok 58 in 61): meje preslikave (T1), vzorec kot beseda (T13), izbira datotek, meje.
+    "tok_preslikava" -> try {
+        mapOf("izid" to "ok", "celota" to UsenetTok.mejePreslikave(v.cel("stevil_v_nzb")!!, v.cel("manjka_v_nzb")!!,
+            v["velikost"] as Long, v.cel("skupaj")).toLong())
+    } catch (e: UsenetTok.NapakaToka) { mapOf("izid" to e.izid.name.lowercase()) }
+    "tok_vzorec" -> UsenetBralnik.jeVzorec(v.niz("ime"))
+    "tok_izbira" -> try {
+        val nzb = UsenetNzb.Nzb((v["datoteke"] as List<List<Any?>>).map {
+            UsenetNzb.Datoteka(it[0] as String, 0L, emptyList(), listOf(UsenetNzb.Segment(1, it[1] as Long, "a@primer.invalid")), 0)
+        }, null, false)
+        val (vrsta, indeksi) = UsenetBralnik.izberiDatoteke(nzb)
+        mapOf("izid" to "ok", "vrsta" to vrsta, "indeksi" to indeksi.map { it.toLong() })
+    } catch (e: UsenetBralnik.NapakaIzdaje) { mapOf("izid" to e.izid) }
+    "tok_meje" -> mapOf("segmentov_datoteke" to UsenetTok.NAJVEC_SEGMENTOV_DATOTEKE.toLong(), "del_bajtov" to UsenetTok.NAJVEC_DELA,
+        "priprava_hkrati" to UsenetBralnik.PRIPRAVA_HKRATI.toLong(), "priprave_bajtov" to UsenetBralnik.NAJVEC_PRIPRAVE_BAJTOV,
+        "glav_segmentov" to UsenetBralnik.NAJVEC_GLAV_SEGMENTOV, "glav_bajtov" to UsenetBralnik.NAJVEC_GLAV_BAJTOV,
+        "poskusov" to UsenetBralnik.NAJVEC_POSKUSOV.toLong(), "preklicev" to UsenetBralnik.NAJVEC_PREKLICEV.toLong(),
+        "streznik_povezav" to UsenetStreznik.NAJVEC_POVEZAV.toLong(), "streznik_rok_s" to UsenetStreznik.ROK_POVEZAVE_MS / 1000,
+        "vint_najvec" to UsenetRar.NAJVEC_VINT, "zvezkov_najvec" to UsenetRar.NAJVEC_ZVEZKOV)
+    "uskladitev_novejsi" ->UskladitevKljucevPravila.novejsi(v["cas"] as Long, v.niz("izvor")!!, v["izbrisan"] as Boolean,
         (v["star"] as List<Any?>?)?.let { UskladitevKljucevPravila.Meta(it[0] as Long, it[1] as String, it[2] as Boolean, "") })
     // Preverba kljucev debrid in indeksatorja (tests/skupni-primeri/kljuci-preverba.json, 25. 10. 2026). Telo odgovora pride
     // kot Map iz bralnika - iste funkcije polj kot v aplikaciji (TorBox.preveri, Debrid.preveriKljuc), izidi z malimi crkami.
@@ -329,5 +450,9 @@ fun main(args: Array<String>) {
         preveriEnako("$f $vhod", p["izhod"], dobljeno)
     }
     println("  primerov: $primerov (verzija ${koren["verzija"]})")
+    // usenet-pogon v6: natancno 560 primerov (pregled Grok 58 T14: »najmanj« ne ujame izgube primerov)
+    if (pot.endsWith("usenet-pogon.json") && (koren["verzija"] != 6L || primerov != 560)) {
+        println("usenet-pogon.json: pricakovana verzija 6 s 560 primeri"); System.exit(1)
+    }
     if (napak == 0) println("SkupniPrimeriTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

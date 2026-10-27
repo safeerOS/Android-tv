@@ -264,13 +264,27 @@ def main() -> int:
     nntp = (SRC / "os/UsenetNntp.kt").read_text(encoding="utf-8") if (SRC / "os/UsenetNntp.kt").is_file() else ""
     usk2 = (SRC / "os/UskladitevKljucev.kt").read_text(encoding="utf-8")
     preveri("Moji viri › Usenet ponudnik v Medijskem centru", "UsenetPonudnikOkno.pokazi(this)" in glasba)
-    preveri("Preveri uporabi shranjenega ponudnika in UsenetNntp z mejo racuna",
-            "UsenetNntp.prijava(pp, gg, protokoli, shramba.meje)" in okno and "shramba.zaBazen(p)" in okno)
-    preveri("Preveri samo na delovni niti", re.search(r"Thread\(\{\s*val kljuc = try \{\s*shramba\.preveri\(", okno) is not None)
-    preveri("UsenetNntp: zasedi pred povezavo, sprosti v finally",
-            re.search(r"if \(!meje\.zasedi\(p\)\) return.*?finally \{.*?meje\.sprosti\(p\)", nntp, re.S) is not None)
-    preveri("UsenetNntp: TLS z varniParametri", "P.varniParametri(s.sslParameters)" in nntp)
-    preveri("UsenetNntp in okno ne pisejo v dnevnik", "Log." not in nntp and "Log." not in okno and "println" not in nntp)
+    lastni = (SRC / "os/UsenetLastni.kt").read_text(encoding="utf-8")
+    usenet = (SRC / "os/Usenet.kt").read_text(encoding="utf-8")
+    glasba = (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8")
+    preveri("Preveri: shranjen ponudnik, odjemalec Grok (UsenetNntp) z mejo racuna",
+            "UsenetLastni.prijava(a, pp, gg, shramba.meje)" in okno and "shramba.zaBazen(p)" in okno)
+    preveri("prijava in film: zasedi pred povezavo, sprosti v finally / ob koncu",
+            re.search(r"if \(!meje\.zasedi\(p\)\).*?finally \{\s*meje\.sprosti\(p\)", lastni, re.S) is not None
+            and "s.meje.sprosti(s.ponudnik)" in lastni)
+    preveri("film: en naenkrat (ustavi pred novim), Pozabi ustavi film", "ustavi()   // en film naenkrat" in lastni
+            and "UsenetLastni.ustavi(); shramba.pozabi()" in okno)
+    preveri("geslo ne gre v dnevnik", not re.search(r"Log\.[a-z]\([^)]*(geslo|vrednost)", lastni))
+    print("\n== Usenet v Medijskem centru: lasten pogon (lastnik 27. 10.) ==")
+    preveri("Usenet.tok: z vpisanim ponudnikom lasten pogon (NZB od indeksatorja -> UsenetLastni.predvajaj)",
+            "if (UsenetLastniPravila.lastni(lastni, UsenetLastni.naVoljo(c))) return tokLastni(c, idToka, ime)" in usenet
+            and "return UsenetLastni.predvajaj(c, nzb, ime)" in usenet)
+    preveri("Usenet v Medijskem centru tudi brez TorBoxa (lasten ponudnik)", "lastni = UsenetLastni.naVoljo(c))" in usenet)
+    preveri("samodejna izbira: z lastnim ponudnikom Usenet sam, zaporedno, brez okna vira",
+            "if (UsenetLastni.naVoljo(app)) {" in glasba and "lastni = true) }" in glasba)
+    preveri("vzporedna preverba TorBoxa ne odpre lastnega pogona", "t.datoteka, true, {}, lastni = false)" in glasba)
+    preveri("film gre v obstojeci predvajalnik kot navaden naslov (127.0.0.1, zeton)",
+            "TorBox.Izid(url = streznik.url, ponudnik = UsenetLastniPravila.PONUDNIK)" in lastni)
     preveri("geslo se v oknu nikoli ne pokaze (polje prazno ob odprtju)", 'polje(t("POLJE_GESLO"), InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD, "")' in okno)
     preveri("ponudnik v ozjem krogu prek secrets.sync (posiljanje, prejem, grob)",
             "P.KLJUC_USENET_PONUDNIK] = UsenetPonudnikPravila.Json.pisi(" in usk2 and

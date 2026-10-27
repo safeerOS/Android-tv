@@ -120,6 +120,19 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/UsenetPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/UsenetPonudnikPravila.kt" \
     "$TEST_DIR/UsenetPonudnikPravilaTest.kt" \
+    "$TEST_DIR/stubs/Looper.kt" \
+    "$SRC/si/safeer/tv/os/UsenetYenc.kt" \
+    "$SRC/si/safeer/tv/os/UsenetNzb.kt" \
+    "$SRC/si/safeer/tv/os/UsenetTok.kt" \
+    "$SRC/si/safeer/tv/os/UsenetRar.kt" \
+    "$SRC/si/safeer/tv/os/UsenetBralnik.kt" \
+    "$SRC/si/safeer/tv/os/UsenetStreznik.kt" \
+    "$TEST_DIR/UsenetTestnaPomoc.kt" \
+    "$TEST_DIR/UsenetYencTest.kt" \
+    "$TEST_DIR/UsenetNzbTest.kt" \
+    "$TEST_DIR/UsenetTokTest.kt" \
+    "$SRC/si/safeer/tv/os/UsenetLastniPravila.kt" \
+    "$TEST_DIR/UsenetLastniPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/UsenetNntp.kt" \
     "$TEST_DIR/UsenetNntpTest.kt" \
     "$SRC/si/safeer/tv/os/SerijePravila.kt" \
@@ -235,7 +248,12 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.UsenetPravilaTestKt "$SRC/si
 # Ponudnik Usenet: ista pravila kot core/usenet_ponudnik.py (skupni primeri iz reference, naloga 111).
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.UsenetPonudnikPravilaTestKt "$TEST_DIR/skupni-primeri/usenet-ponudnik.jsonl"
 # Naloga 42 G: prijava NNTP s shranjenim ponudnikom - lazni streznik na 127.0.0.1, odzivi kot core/usenet_nntp.py.
-java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.UsenetNntpTestKt "$TEST_DIR/skupni-primeri/usenet-nntp-izid.json"
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.UsenetYencTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.UsenetNzbTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.UsenetNntpTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.UsenetTokTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/usenet-pogon.json"
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.UsenetLastniPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SerijePravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.NapredekKljucTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.KakovostPravilaTestKt

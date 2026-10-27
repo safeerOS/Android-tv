@@ -101,6 +101,21 @@ its old name anywhere outside the bookmark lists.
 
 This is a deliberate promise: the browser should work on your sites, not on ours.
 
+## Usenet
+
+- Safeer is a client, like a newsreader. You are responsible for your account with your Usenet provider, for the
+  content you access and for using it lawfully.
+- No NZB indexer is preset and Safeer bundles none. You add your own indexer (Newznab address and API key).
+- Any NNTP provider works through one generic setting: server, port, TLS, username, password and number of
+  connections.
+- With the built-in Usenet engine everything happens on your device: Safeer connects only to your indexer and your
+  NNTP provider (TLS by default). Nothing goes to a Safeer server or any other cloud.
+- Safeer gives no recommendations about content or providers.
+
+Status: the built-in Usenet engine (NNTP straight from your device) is in development and not yet in a release. Until
+then Usenet plays through a debrid service you set up yourself - in that case the NZB file and playback go through
+that service.
+
 ## Install
 
 Download the APK from [Releases](../../releases/latest), allow installation from unknown

@@ -326,7 +326,8 @@ object Usenet {
      * Ali Usenet sploh iscemo: indeksator, kljuc TorBox (prenese in pretaka TorBox) in uporabnik ni izbral »Brez debrida«.
      * TorBox brez paketa Pro vrne napako paketa ob predvajanju (okno pove zakaj).
      */
-    fun jeNaVoljo(c: Context): Boolean = zaUporabo(c) != null && DebridPravila.TORBOX in Debrid.zKljucem(c) && Debrid.aktivna(c) != null
+    fun jeNaVoljo(c: Context): Boolean = UsenetLastniPravila.naVoljo(zaUporabo(c) != null,
+        torBox = DebridPravila.TORBOX in Debrid.zKljucem(c) && Debrid.aktivna(c) != null, lastni = UsenetLastni.naVoljo(c))
 
     /**
      * Diagnostika razvijalca (lastnik 25. 10. 2026: Usenet merimo samo po samodejni poti, brez rocne izbire vira):
@@ -422,7 +423,10 @@ object Usenet {
      * meja, druga napaka) gre v izid s ponudnikom [UsenetPravila.PONUDNIK] - okno imenuje indeksator (ne TorBoxa), »Popravi«
      * ponudi samo pri zavrnjenem kljucu (prej je bila vsaka napaka [UsenetPravila.NAPAKA_INDEKSATOR] z gumbom »Popravi«).
      */
-    fun tok(c: Context, idToka: String, ime: String, indeks: Int, samoTakoj: Boolean, napredek: (Int) -> Unit): TorBox.Izid {
+    fun tok(c: Context, idToka: String, ime: String, indeks: Int, samoTakoj: Boolean, napredek: (Int) -> Unit,
+            /** Lastnik 27. 10. 2026: null = lasten pogon, ce je ponudnik vpisan; true samo lasten; false samo TorBox. */
+            lastni: Boolean? = null): TorBox.Izid {
+        if (UsenetLastniPravila.lastni(lastni, UsenetLastni.naVoljo(c))) return tokLastni(c, idToka, ime)
         // Pregled Grok 41, Z1: pred vsakim prenosom stanje indeksatorja in TorBoxa ter kljuc, s katerim je bila povezava
         // najdena - prej je klik na vir v odprtem seznamu poslal zaklenjen ali zamenjan kljuc indeksatorju, nato TorBoxu.
         val ix = indeksator(c)
@@ -457,6 +461,30 @@ object Usenet {
             // Lastnik 25. 10. 2026: stanje kljuca TorBox sledi uporabi (401 -> »ne velja«).
             if (kljucZahteve != null) try { Debrid.obIzidu(c, DebridPravila.TORBOX, kljucZahteve, DebridPravila.TORBOX, it.napaka, it.url != null) } catch (_: Exception) { }
         }
+    }
+
+    /**
+     * Lastnik 27. 10. 2026: NZB od indeksatorja (ista pravila kot za TorBox: stanje kljuca, odtis povezave iz iskanja),
+     * predvaja lasten pogon z uporabnikovim ponudnikom NNTP ([UsenetLastni]) - brez TorBoxa.
+     */
+    private fun tokLastni(c: Context, idToka: String, ime: String): TorBox.Izid {
+        val ix = indeksator(c) ?: return TorBox.Izid(napaka = UsenetPravila.NAPAKA_INDEKSATOR, ponudnik = UsenetPravila.PONUDNIK)
+        UsenetPravila.oviraPrenosa(true, null, true, stanje(c))?.let { (n, p) ->
+            Log.i(TAG, "lasten pogon: indeksator brez klica ($n)")
+            return TorBox.Izid(napaka = n, ponudnik = p)
+        }
+        val povezava = povezave.zaPrenos(idToka, odtis(ix.osnova, ix.kljuc))
+            ?: return TorBox.Izid(napaka = UsenetPravila.NAPAKA_INDEKSATOR, ponudnik = UsenetPravila.PONUDNIK)
+        val (nzb, napaka) = nzb(povezava)
+        val izidNzb = when {
+            nzb != null -> DebridPravila.Preverba.VELJA
+            napaka == TorBoxPravila.NAPAKA_KLJUC -> DebridPravila.Preverba.NE_VELJA
+            napaka == TorBoxPravila.NAPAKA_ZAKLENJEN -> DebridPravila.Preverba.ZAKLENJEN
+            else -> null
+        }
+        if (izidNzb != null) try { obOdgovoru(c, ix, izidNzb) } catch (_: Exception) { }
+        if (nzb == null) return TorBox.Izid(napaka = napaka.ifBlank { UsenetPravila.NAPAKA_INDEKSATOR }, ponudnik = UsenetPravila.PONUDNIK)
+        return UsenetLastni.predvajaj(c, nzb, ime)
     }
 
     /** (koda, telo) ali null, ce je odgovor vecji od [najvec] (ga ne odrezemo - zavrnemo). */

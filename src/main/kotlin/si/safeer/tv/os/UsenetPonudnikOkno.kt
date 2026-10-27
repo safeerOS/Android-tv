@@ -116,7 +116,7 @@ object UsenetPonudnikOkno {
                 preveri.isEnabled = false
                 Thread({
                     val kljuc = try {
-                        shramba.preveri(p, g) { pp, gg, protokoli -> UsenetNntp.prijava(pp, gg, protokoli, shramba.meje) }
+                        shramba.preveri(p, g) { pp, gg, _ -> UsenetLastni.prijava(a, pp, gg, shramba.meje) }
                     } catch (e: P.NapakaPonudnika) { e.razlog } catch (_: Throwable) { P.NI_ODGOVORA }
                     glavna.post {
                         izid.text = t(kljuc)
@@ -130,7 +130,7 @@ object UsenetPonudnikOkno {
                 val potrdi = AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                     .setTitle(t("GUMB_POZABI"))
                     .setPositiveButton(t("GUMB_POZABI")) { _, _ ->
-                        shramba.pozabi()
+                        UsenetLastni.ustavi(); shramba.pozabi()
                         UskladitevKljucev.sprozi(a.applicationContext)
                         okno.dismiss(); potem()
                     }
