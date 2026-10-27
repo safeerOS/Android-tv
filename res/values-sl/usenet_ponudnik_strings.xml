@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lastnik 27. 10. 2026: ploscica ponudnika Usenet v Mojih virih. -->
+<resources>
+    <string name="os_usenet_dodaj_ponudnika">Dodaj ponudnika Usenet</string>
+    <string name="os_usenet_ponudnik_naslov">Ponudnik Usenet</string>
+</resources>

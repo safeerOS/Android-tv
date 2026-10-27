@@ -5550,18 +5550,20 @@ class GlasbaActivity : OsActivity() {
      */
     private fun viriVrste(): List<Vrsta> {
         val pripeti = MedijskiViri.pripeti(this)
-        // Seznami predvajanja (Shrani vrsto na zaslonu predvajanja) imajo v Brskaj svojo polico.
-        val seznami = MedijskiViri.seznami(this)
-        val vrstaSeznamov = if (seznami.isEmpty()) emptyList() else listOf(Vrsta(getString(R.string.os_seznami_predvajanja),
-            seznami.map { karticaSeznama(it) }, mala = true))
-        return vrstaSeznamov + listOf(Vrsta("", listOf(
+        // Lastnik 27. 10. 2026: seznami predvajanja spadajo h glasbi (tam imajo svojo vrsto) - v Mojih virih jih ni vec na vrhu.
+        val usenetVpisan = try { UsenetPonudnik.get(this).stanje().vpisan } catch (_: Throwable) { false }
+        return listOf(Vrsta("", listOf(
             Kartica(getString(R.string.os_mediji_dodaj), getString(R.string.os_mediji_dodaj_opis), "", { dodajVir() }, ikona = R.drawable.os_ikona_plus),
             // Naloga 125: dolg pritisk vklopi ali izklopi razvojni nacin dodatkov.
             Kartica(getString(R.string.os_mediji_dodatki), getString(R.string.os_mediji_dodatki_opis), "", { dodajDodatke() }, { preklopiRazvoj() }, ikona = R.drawable.os_ikona_plus),
             Kartica(getString(R.string.os_uvoz_naslov), getString(R.string.os_uvoz_opis), "", { uvoziSeznam() }, ikona = R.drawable.os_ikona_plus),
             // Naloga 119: TorBox - zasebni in hitrejsi torrenti s kljucem uporabnika.
             // Naloga 128: TorBox, Real-Debrid in AllDebrid na enem mestu.
-            Kartica(getString(R.string.os_debrid), opisDebrida(), "", { nastavitveDebrida() }, ikona = R.drawable.os_ikona_zaklep)) +
+            Kartica(getString(R.string.os_debrid), opisDebrida(), "", { nastavitveDebrida() }, ikona = R.drawable.os_ikona_zaklep),
+            // Lastnik 27. 10. 2026: lasten ponudnik Usenet (filmi in serije neposredno, brez TorBoxa) - vidno v Mojih virih.
+            Kartica(getString(if (usenetVpisan) R.string.os_usenet_ponudnik_naslov else R.string.os_usenet_dodaj_ponudnika),
+                UsenetPonudnikOkno.vrstica(this), "", { UsenetPonudnikOkno.pokazi(this) { osveziNaMestu() } },
+                ikona = if (usenetVpisan) R.drawable.os_ikona_zaklep else R.drawable.os_ikona_plus)) +
             vsiViri().map { v -> Kartica((if (v.kljuc in pripeti) "★ " else "") + v.ime, v.opis, "", { v.odpri() }, { dolgoNaViru(v) }, ikona = v.ikona) } +
             // Naloga 124: mape dodatkov (protokol v1) - npr. uporabnikov racun pri storitvi.
             karticeMapDodatkov() +
