@@ -283,7 +283,7 @@ def main() -> int:
             ("values", "values-sl", "values-en", "values-de", "values-es", "values-fr", "values-it")))
     preveri("domaci zaslon brez oznake Safeer OS levo zgoraj", "R.string.os_app_name" not in pokrajina.split("private fun glava()")[1].split("\n    private fun ")[0])
     preveri("pas pisanja: oblacek najvec sirina pasu, zadnje sporocilo vidno v celoti",
-            "if (it.maxWidth > najvec) it.maxWidth = najvec" in spor and "if (zadnji.width >= sirina) zadnji.left" in spor
+            "if (it.maxWidth > najvec) it.maxWidth = najvec" in spor and "pas.scrollTo(0, (zadnji.bottom - pas.height).coerceAtLeast(0))" in spor
             and "scrollTo(pisanjeOblacki.width, 0)" not in spor)
     preveri("pas pisanja: Enter na tipkovnici TV poslje (ni vec ujet v tipkovnici)",
             "akcija == EditorInfo.IME_ACTION_SEND) { poslji(); true }" in spor and "odgovor.setRawInputType(InputType.TYPE_CLASS_TEXT" in spor)
@@ -311,6 +311,13 @@ def main() -> int:
     preveri("filter Torrenti prek: tudi Usenet (lasten ponudnik), izbira debrida ga izklopi",
             'DebridPravila.OZNAKA_PREDPOMNJEN + " Usenet"' in gl2 and "i == iVse -> { UsenetLastni.nastaviIzbran(this, true)" in gl2
             and "Debrid.nastaviAktivno(this, sKljucem[i]); UsenetLastni.nastaviIzbran(this, false)" in gl2)
+    sp2 = (SRC / "os/SporocilaActivity.kt").read_text(encoding="utf-8")
+    preveri("pas pisanja: en fokus (poudarek brez obrobe v barvi fokusa)",
+            "if (poudarjeno) plosca(R.color.os_kartica_obroba, 1," in sp2 and "if (poudarjeno) plosca(R.color.os_mint" not in sp2)
+    preveri("pas pisanja: pogovor navpicno, tvoje sporocilo desno pod prejetim",
+            "pisanjeOblacki = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }" in sp2
+            and 'gravity = if (sp.smer == "ven") android.view.Gravity.END else android.view.Gravity.START' in sp2
+            and "HorizontalScrollView(this@SporocilaActivity).apply { isHorizontalScrollBarEnabled = false; addView(pisanjeOblacki)" not in sp2)
     # Rocna gradnja bete v CI: vhod »beta« gre prek okolja v -PsafeerBeta (brez vhoda gradnja kot prej).
     ci = (KOREN / ".github" / "workflows" / "gradnja.yml").read_text(encoding="utf-8")
     preveri("CI: rocna gradnja z vhodom beta poda -PsafeerBeta",

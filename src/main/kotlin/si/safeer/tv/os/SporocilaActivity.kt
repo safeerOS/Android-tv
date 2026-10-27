@@ -687,7 +687,8 @@ class SporocilaActivity : OsActivity() {
             setColor(osBarva(ozadje)); cornerRadius = dp(polmerDp).toFloat(); setStroke(dp(debelina), osBarva(obroba))
         }
         if (fokusMogoc) addState(intArrayOf(android.R.attr.state_focused), plosca(R.color.os_mint, 3, R.color.os_kartica_steklo_fokus))
-        addState(intArrayOf(), if (poudarjeno) plosca(R.color.os_mint, 2, R.color.os_kartica_steklo_fokus) else plosca(R.color.os_kartica_obroba, 1, R.color.os_kartica_steklo))
+        // Lastnik 27. 10. 2026: poudarek (izbran kanal, zadnje sporocilo) brez obrobe v barvi fokusa - sicer sta bila na TV dva fokusa.
+        addState(intArrayOf(), if (poudarjeno) plosca(R.color.os_kartica_obroba, 1, R.color.os_kartica_steklo_fokus) else plosca(R.color.os_kartica_obroba, 1, R.color.os_kartica_steklo))
     }
 
     /**
@@ -701,12 +702,13 @@ class SporocilaActivity : OsActivity() {
             textSize = 13f; setTextColor(osBarva(R.color.os_besedilo)); background = steklo(14, false)
             setPadding(dp(12), dp(4), dp(12), dp(4))
         }
-        pisanjeOblacki = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        // Lastnik 27. 10. 2026: pogovor navpicno - tvoj odgovor je pod sporocilom, ki ti ga je poslala druga naprava ali oseba.
+        pisanjeOblacki = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         pisanjeVnos = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val desno = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             addView(pisanjeOznaka, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-            addView(android.widget.HorizontalScrollView(this@SporocilaActivity).apply { isHorizontalScrollBarEnabled = false; addView(pisanjeOblacki) },
+            addView(ScrollView(this@SporocilaActivity).apply { isVerticalScrollBarEnabled = false; isFocusable = false; addView(pisanjeOblacki) },
                 LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10) })
             addView(pisanjeVnos, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12) })
         }
@@ -799,7 +801,10 @@ class SporocilaActivity : OsActivity() {
                     text = sp.besedilo; textSize = if (jeZadnje) 17f else 14f; setTextColor(osBarva(R.color.os_besedilo))
                     maxLines = if (jeZadnje) 3 else 2; ellipsize = android.text.TextUtils.TruncateAt.END; maxWidth = dp(if (jeZadnje) 460 else 300)
                 })
-            }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(10) })
+            }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                if (i > 0) topMargin = dp(8)
+                gravity = if (sp.smer == "ven") android.view.Gravity.END else android.view.Gravity.START
+            })
         }
         // Lastnik 27. 10. 2026 (beta 7): dolg naslov je naredil oblacek sirsi od pasu in levi del je bil odrezan. Besedilo
         // oblacka je najvec sirina pasu (dolg naslov se prelomi), zadnje sporocilo je vidno v celoti, poravnano levo, ce je
@@ -814,7 +819,7 @@ class SporocilaActivity : OsActivity() {
             }
             pisanjeOblacki.post {
                 val zadnji = pisanjeOblacki.getChildAt(pisanjeOblacki.childCount - 1) ?: return@post
-                pas.scrollTo(if (zadnji.width >= sirina) zadnji.left else (zadnji.right - sirina).coerceAtLeast(0), 0)
+                pas.scrollTo(0, (zadnji.bottom - pas.height).coerceAtLeast(0))
             }
         }
     }
