@@ -352,6 +352,12 @@ def main() -> int:
     preveri("vreme: kraj se izbere v Nastavitvah novega zaganjalnika", "VremeKraj.izberi(this) { narisi() }" in na3)
     preveri("vreme: osvezi se med prikazom (tik ure, najvec na 30 min)",
             "osveziVreme()" in pk3.split("private val tikUre = object : Runnable {", 1)[1].split(chr(10) + "    }", 1)[0])
+    te = (SRC / "ThreatBlockEngine.kt").read_text(encoding="utf-8")
+    ce = (SRC / "ChromiumEngineView.kt").read_text(encoding="utf-8")
+    preveri("OOM: seznam groznj se uredi v niti posodobitve, ne ob prvem iskanju",
+            "newTrie.pripravi()" + chr(10) + "        threatTrie = newTrie" in te)
+    preveri("OOM: zanka pojavnih oken ne ustvarja pogledov (PojavnaOknaMeja)",
+            ce.index("PojavnaOknaMeja.dovoli(pojavnaOknaCasi") < ce.index("return naPojavnoOkno?.invoke(resultMsg)"))
     # Rocna gradnja bete v CI: vhod »beta« gre prek okolja v -PsafeerBeta (brez vhoda gradnja kot prej).
     ci = (KOREN / ".github" / "workflows" / "gradnja.yml").read_text(encoding="utf-8")
     preveri("CI: rocna gradnja z vhodom beta poda -PsafeerBeta",

@@ -133,6 +133,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/UsenetTokTest.kt" \
     "$SRC/si/safeer/tv/os/UsenetLastniPravila.kt" \
     "$SRC/si/safeer/tv/os/UsenetGlasbaPravila.kt" \
+    "$SRC/si/safeer/tv/PojavnaOknaMeja.kt" \
+    "$TEST_DIR/PojavnaOknaMejaTest.kt" \
     "$TEST_DIR/UsenetGlasbaPravilaTest.kt" \
     "$TEST_DIR/UsenetLastniPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/UsenetNntp.kt" \
@@ -197,6 +199,7 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.OsPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.GalerijaPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.VarnaSlikaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.PredajaStraniTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.PojavnaOknaMejaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.JezikiVsebineTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZapiskiShrambaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.SpletMostPravilaTestKt

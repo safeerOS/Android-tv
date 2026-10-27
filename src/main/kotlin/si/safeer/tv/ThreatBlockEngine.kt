@@ -186,6 +186,8 @@ object ThreatBlockEngine {
                 added++
             }
         }
+        // Urejanje in strnitev tukaj (nit posodobitve seznamov), ne ob prvem iskanju na glavni niti (lastnik 27. 10. 2026).
+        newTrie.pripravi()
         threatTrie = newTrie
         return added
     }
