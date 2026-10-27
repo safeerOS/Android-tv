@@ -331,15 +331,66 @@ object DomacaLupa {
         return true
     }
 
+    /**
+     * Naloga 42 E: ENA razclemba ukazov za lupo in glas ([LupaPravila.razcleni]) - »<kaj> na <napravo>« (naprava po imenu
+     * v ozjem krogu ali po vrsti), vreme, »isci v spletu«, spletni naslov, sicer iskanje v Medijih.
+     */
     fun izvedi(a: Activity, niz: String) {
         val q = niz.trim()
         if (q.length < 2) return
-        PrikaziNa.razcleni(q)?.takeIf { it.naslov.isNotBlank() }?.let { PrikaziNa.izberiInPoslji(a, it); return }
-        if (jeNaslov(q)) {
-            val url = if (q.startsWith("http://") || q.startsWith("https://")) q else "https://$q"
-            try { a.startActivity(Brskalnik.namera(a).setAction(Intent.ACTION_VIEW).setData(Uri.parse(url))); return } catch (_: Throwable) { }
+        val u = LupaPravila.razcleni(q, napraveKroga(a))
+        when (u.vrsta) {
+            LupaPravila.PRIKAZI_NA -> if (u.vsebina.isNotBlank()) { prikaziNa(a, u); return }
+            LupaPravila.VREME -> { vreme(a, u); return }
+            LupaPravila.ISCI_SPLET -> if (u.vsebina.isNotBlank()) { odpriSplet(a, si.safeer.tv.SmartOmnibox.iskanje(a, u.vsebina)); return }
+            LupaPravila.SPLET -> if (odpriSplet(a, u.vsebina)) return
         }
         a.startActivity(Intent(a, GlasbaActivity::class.java).putExtra(GlasbaActivity.ISKANJE_BESEDA, q))
+    }
+
+    /** Druge naprave v OZJEM krogu (id, ime) - samo te so lahko cilj ukaza po imenu. */
+    fun napraveKroga(c: Context): List<Pair<String, String>> = try {
+        val link = LinkUpravitelj.pridobi(c.applicationContext)
+        link.naprave.filter { !link.jeTaNaprava(it) && OzjiKrog.vKrogu(c, it.id) }.map { it.id to DatotekeActivity.lepoIme(it.ime) }
+    } catch (_: Throwable) { emptyList() }
+
+    private fun odpriSplet(a: Activity, url: String): Boolean = try {
+        a.startActivity(Brskalnik.namera(a).setAction(Intent.ACTION_VIEW).setData(Uri.parse(url))); true
+    } catch (_: Throwable) { false }
+
+    private fun prikaziNa(a: Activity, u: LupaPravila.Ukaz) {
+        if (u.naprava.isNotEmpty()) {
+            val n = LinkUpravitelj.pridobi(a.applicationContext).naprave.firstOrNull { it.id == u.naprava }
+            if (n != null) { PrikaziNa.poslji(a, n, u.vsebina); return }
+        }
+        PrikaziNa.izberiInPoslji(a, PrikaziNa.Cilj(u.vsebina, u.vrsteNaprav))
+    }
+
+    /**
+     * Vreme: »vreme« ali »vreme v <kraj>« - iskanje v spletu na tej napravi (iskalnik uporabnika); »vreme na TV« ali na
+     * napravo po imenu - ista stran se odpre na tisti napravi (ukaz open_url prek Linka, samo naprava v ozjem krogu).
+     */
+    private fun vreme(a: Activity, u: LupaPravila.Ukaz) {
+        val poizvedba = (a.getString(R.string.pk_vreme_beseda) + " " + u.vsebina).trim()
+        val url = si.safeer.tv.SmartOmnibox.iskanje(a, poizvedba)
+        val link = LinkUpravitelj.pridobi(a.applicationContext)
+        val cilji = when {
+            u.naprava.isNotEmpty() -> link.naprave.filter { it.id == u.naprava }
+            u.vrsteNaprav.isNotEmpty() -> link.naprave.filter { !link.jeTaNaprava(it) && it.platforma in u.vrsteNaprav && OzjiKrog.vKrogu(a, it.id) }
+            else -> emptyList()
+        }
+        if (u.naprava.isEmpty() && u.vrsteNaprav.isEmpty()) { odpriSplet(a, url); return }
+        val n = cilji.firstOrNull()
+        if (n == null) { Toast.makeText(a, R.string.os_prikazi_na_ni_naprave, Toast.LENGTH_LONG).show(); return }
+        val ime = DatotekeActivity.lepoIme(n.ime)
+        link.ukaz(n.id, "open_url", org.json.JSONObject().put("url", url).put("title", poizvedba), 15_000,
+            LinkOdjemalec.Odgovor { izid, _ ->
+                a.runOnUiThread {
+                    if (a.isFinishing) return@runOnUiThread
+                    Toast.makeText(a, if (izid?.optBoolean("ok") == true) a.getString(R.string.os_prikazi_na_odpira, ime, poizvedba)
+                        else a.getString(R.string.os_prikazi_na_napaka, ime), Toast.LENGTH_LONG).show()
+                }
+            })
     }
 
     /** Spletni naslov (domena s piko, brez presledkov) - gre v brskalnik, ne v iskanje medijev. */

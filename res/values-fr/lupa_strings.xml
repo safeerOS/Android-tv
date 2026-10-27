@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Naloga 42 E: lupa kot na racunalniku in glasovni ukazi (os/PokrajinaActivity, os/DomacaLupa). -->
+<resources>
+    <string name="pk_lupa_programi">Applis</string>
+    <string name="pk_lupa_mediji">Chercher dans Media Center : « %1$s »</string>
+    <string name="pk_lupa_splet">Chercher sur le web : « %1$s »</string>
+    <string name="pk_lupa_predlogi">Du web</string>
+    <string name="pk_vreme_beseda">météo</string>
+    <string name="pk_lupa_splet_predlogi">Suggestions du web pendant la recherche</string>
+    <string name="pk_lupa_splet_predlogi_opis">À partir de trois lettres, ce que tu tapes va à ton moteur de recherche (comme dans Web).</string>
+</resources>

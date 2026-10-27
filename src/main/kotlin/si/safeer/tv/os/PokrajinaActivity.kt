@@ -51,6 +51,8 @@ class PokrajinaActivity : OsActivity() {
     private lateinit var naslovAplikacij: TextView
     private lateinit var dok: LinearLayout
     private lateinit var vrstaSporocil: LinearLayout
+    private lateinit var zadetki: LinearLayout
+    private lateinit var poljeLupe: EditText
 
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -89,6 +91,16 @@ class PokrajinaActivity : OsActivity() {
         vsebina.addView(lupa(), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
             val rob = (resources.displayMetrics.widthPixels * 0.2f).toInt()
             marginStart = rob; marginEnd = rob
+        })
+        // Naloga 42 E: zadetki lupe kot na racunalniku (programi, datoteke, nastavitve, mediji, splet) - samo med iskanjem.
+        zadetki = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; visibility = View.GONE
+            background = steklo(20, fokusMogoc = false)
+            setPadding(dp(14), dp(8), dp(14), dp(8))
+        }
+        vsebina.addView(zadetki, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            val rob = (resources.displayMetrics.widthPixels * 0.2f).toInt()
+            marginStart = rob; marginEnd = rob; topMargin = dp(8)
         })
         vsebina.addView(View(this), LinearLayout.LayoutParams(0, 0, 1f))
         naslovAplikacij = TextView(this).apply {
@@ -258,9 +270,100 @@ class PokrajinaActivity : OsActivity() {
             }
         }
         okvir.addView(polje, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        poljeLupe = polje
+        polje.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                glavna.removeCallbacks(iskanjeZamik)
+                glavna.postDelayed(iskanjeZamik, 250)
+            }
+        })
         // Ista lupa kot na starem domacem zaslonu: »… na TV«, spletni naslov, iskanje v Medijih; mikrofon doda DomacaLupa.
         DomacaLupa.prevzemi(this, polje, okvir) { }
         return okvir
+    }
+
+    // ------------------------------------------------------------------ zadetki lupe (naloga 42 E)
+
+    private val iskanjeZamik = Runnable { if (!isFinishing && !isDestroyed) narisiZadetke(poljeLupe.text?.toString().orEmpty()) }
+    /** Stevec iskanja: odgovor iskalnika za staro poizvedbo ne prepise novejsih zadetkov. */
+    private var iskanjeSt = 0
+
+    /** Sprotni predlogi iz spleta (iskalnik uporabnika, isti kot v brskalniku); izklop v Nastavitvah novega zaganjalnika. */
+    private fun spletniPredlogi(): Boolean = shramba().getBoolean(KLJUC_SPLET_PREDLOGI, true)
+
+    private fun vrsticaZadetka(ikona: Int, napis: String, klik: () -> Unit): View = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+        isFocusable = true; isClickable = true
+        background = steklo(12).apply { alpha = 0 }
+        setOnFocusChangeListener { v, ima -> v.background.alpha = if (ima) 255 else 0 }
+        setPadding(dp(10), dp(7), dp(10), dp(7))
+        setOnClickListener { klik(); poljeLupe.setText("") }
+        addView(ImageView(this@PokrajinaActivity).apply { setImageResource(ikona); setColorFilter(osBarva(R.color.os_mint)) },
+            LinearLayout.LayoutParams(dp(22), dp(22)))
+        addView(besedilo(napis, 16f).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END },
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(12) })
+    }
+
+    private fun naslovSkupine(napis: Int) = besedilo(getString(napis), 13f, R.color.os_umirjeno).apply { setPadding(dp(4), dp(6), 0, dp(2)) }
+
+    /**
+     * Zadetki med tipkanjem: programi televizorja, nedavne datoteke, nastavitve, iskanje v Medijih, »Isci v spletu« in
+     * sprotni predlogi iskalnika. Enter ali OK na polju izvede ukaz (DomacaLupa.izvedi: »… na TV«, vreme, naslov).
+     */
+    private fun narisiZadetke(poizvedba: String) {
+        val q = poizvedba.trim()
+        val st = ++iskanjeSt
+        zadetki.removeAllViews()
+        if (q.isEmpty()) { zadetki.visibility = View.GONE; return }
+        val vsi = Aplikacije.zadnjiZnani(this) ?: emptyList()
+        val programi = LupaPravila.najboljsi(vsi, q, 4) { it.ime }
+        if (programi.isNotEmpty()) {
+            zadetki.addView(naslovSkupine(R.string.pk_lupa_programi))
+            for (a in programi) zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_aplikacije, a.ime) {
+                odpri(Intent(a.namera).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            })
+        }
+        val datoteke = LupaPravila.najboljsi(Nadaljuj.seznam(this).filter { it.vrsta in ZaganjalnikPravila.VRSTE_DATOTEK }, q, 3) { it.ime }
+        if (datoteke.isNotEmpty()) {
+            zadetki.addView(naslovSkupine(R.string.os_meni_datoteke))
+            val link = LinkUpravitelj.pridobi(this)
+            for (n in datoteke) zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_datoteka, n.ime) {
+                NadaljujOdpri.datoteka(this, link, n) { _ -> android.widget.Toast.makeText(this, getString(R.string.os_nadaljuj_ni_vec, n.ime),
+                    android.widget.Toast.LENGTH_LONG).show() }
+            })
+        }
+        val nastavitve = listOf(
+            getString(R.string.os_meni_nastavitve) to Intent(this, NastavitveActivity::class.java),
+            getString(R.string.os_videz) to Intent(this, VidezActivity::class.java),
+            getString(R.string.dov_naslov) to Intent(this, DovoljenjaActivity::class.java),
+            getString(R.string.os_meni_naprave) to Intent(this, NapraveActivity::class.java),
+        )
+        val zadetkiNastavitev = LupaPravila.najboljsi(nastavitve, q, 3) { it.first }
+        if (zadetkiNastavitev.isNotEmpty()) {
+            zadetki.addView(naslovSkupine(R.string.os_meni_nastavitve))
+            for ((ime, namera) in zadetkiNastavitev) zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_nastavitve, ime) { odpri(namera) })
+        }
+        zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_predvajaj, getString(R.string.pk_lupa_mediji, q)) {
+            odpri(Intent(this, GlasbaActivity::class.java).putExtra(GlasbaActivity.ISKANJE_BESEDA, q))
+        })
+        zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_splet, getString(R.string.pk_lupa_splet, q)) {
+            odpri(Brskalnik.namera(this).setAction(Intent.ACTION_VIEW).setData(android.net.Uri.parse(si.safeer.tv.SmartOmnibox.iskanje(this, q))))
+        })
+        zadetki.visibility = View.VISIBLE
+        // Sprotni zadetki iz spleta: samo od treh znakov, ne za naslov, in samo ce iskalnik predloge ima.
+        val predloge = si.safeer.tv.SmartOmnibox.iskalnik(this).predlogi ?: return
+        if (!LupaPravila.predlogeIskati(q, spletniPredlogi())) return
+        Thread({
+            val odgovor = beri(predloge + java.net.URLEncoder.encode(q, "UTF-8"))
+            val seznam = odgovor?.let { LupaPravila.predlogi(it, q) }.orEmpty()
+            glavna.post {
+                if (isFinishing || isDestroyed || st != iskanjeSt || seznam.isEmpty()) return@post
+                zadetki.addView(naslovSkupine(R.string.pk_lupa_predlogi))
+                for (p in seznam) zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_isci, p) { DomacaLupa.izvedi(this, p) })
+            }
+        }, "safeer-lupa-predlogi").start()
     }
 
     // ------------------------------------------------------------------ priljubljene in spletne aplikacije
@@ -632,6 +735,7 @@ class PokrajinaActivity : OsActivity() {
     companion object {
         private const val TAG = "SafeerPokrajina"
         const val KLJUC_ZMANJSANO = "pokrajina_zmanjsano_gibanje"
+        const val KLJUC_SPLET_PREDLOGI = "pokrajina_splet_predlogi"
         private const val KLJUC_KRAJ_IME = "vreme_kraj_ime"
         private const val KLJUC_KRAJ_SIRINA = "vreme_kraj_sirina"
         private const val KLJUC_KRAJ_DOLZINA = "vreme_kraj_dolzina"

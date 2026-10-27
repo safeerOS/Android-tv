@@ -168,6 +168,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/PokrajinaPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/SporocilaHitroPravila.kt" \
     "$TEST_DIR/SporocilaHitroPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/LupaPravila.kt" \
+    "$TEST_DIR/LupaPravilaTest.kt" \
     -include-runtime -d "$OUT/os.jar"
 
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.OsPravilaTestKt
@@ -263,6 +265,8 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PokrajinaPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SporocilaHitroPravilaTestKt
 # Naloga 42 D: naprave ozjega kroga (ista pot kot kartica Zaslon), zaupanje se uskladi samo v krogu, nikoli iz sporocila.
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.NapraveKrogaPravilaTestKt
+# Naloga 42 E: ena razclemba ukazov lupe in glasu (naprava po imenu v krogu, vreme, splet), zadetki in predlogi.
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.LupaPravilaTestKt
 
 # Neposredna povezava TLS s pripetim potrdilom do naprave z vec naslovi (docs/LINK-MESH.md, pravilo 8):
 # prave vticnice na naslovih zanke, potrdila naredi keytool iz JDK.

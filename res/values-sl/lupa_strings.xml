@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Naloga 42 E: lupa kot na racunalniku in glasovni ukazi (os/PokrajinaActivity, os/DomacaLupa). -->
+<resources>
+    <string name="pk_lupa_programi">Aplikacije</string>
+    <string name="pk_lupa_mediji">Išči v Medijskem centru: »%1$s«</string>
+    <string name="pk_lupa_splet">Išči v spletu: »%1$s«</string>
+    <string name="pk_lupa_predlogi">Iz spleta</string>
+    <string name="pk_vreme_beseda">vreme</string>
+    <string name="pk_lupa_splet_predlogi">Sprotni zadetki iz spleta v iskanju</string>
+    <string name="pk_lupa_splet_predlogi_opis">Od treh črk naprej gre natipkano tvojemu iskalniku (kot v Spletu).</string>
+</resources>

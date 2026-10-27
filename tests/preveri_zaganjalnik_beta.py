@@ -23,6 +23,8 @@ DATOTEKE = [
     "os/MiniPredvajalnik.kt",
     "os/SporociloPasica.kt",
     "os/NapraveKrogaPravila.kt",
+    "os/DomacaLupa.kt",
+    "os/PrikaziNa.kt",
 ]
 
 napak = 0
@@ -189,6 +191,20 @@ def main() -> int:
     for d in ("os/KlepetLinka.kt", "os/SporocilaKanali.kt", "os/SporocilaHitroPravila.kt", "os/SporociloPasica.kt", "os/PokrajinaActivity.kt"):
         t = (SRC / d).read_text(encoding="utf-8")
         preveri(f"{d}: sporocilo ne podeli dostopa", dajeDostop.search(t) is None)
+
+    print("\n== lupa in glasovni ukazi (del E) ==")
+    lupa = vsebina.get("os/DomacaLupa.kt", "")
+    prikazi = vsebina.get("os/PrikaziNa.kt", "")
+    preveri("lupa in glas: ena razclemba (LupaPravila.razcleni z napravami kroga)",
+            "LupaPravila.razcleni(q, napraveKroga(a))" in lupa)
+    preveri("PrikaziNa nima vec svoje razclembe (VZORCI) - uporabi LupaPravila", "VZORCI" not in prikazi and "LupaPravila.razcleni(niz)" in prikazi)
+    preveri("cilj po imenu samo iz ozjega kroga", re.search(r"fun napraveKroga\(c: Context\).*?OzjiKrog\.vKrogu\(c, it\.id\)", lupa, re.S) is not None)
+    preveri("cilj po vrsti samo iz ozjega kroga", "OzjiKrog.vKrogu(ctx, it.id)" in prikazi)
+    preveri("vreme na napravo prek Linka (open_url)", 'link.ukaz(n.id, "open_url"' in lupa)
+    for skupina in ("pk_lupa_programi", "VRSTE_DATOTEK", "os_meni_nastavitve", "pk_lupa_mediji", "pk_lupa_splet", "pk_lupa_predlogi"):
+        preveri(f"zadetki lupe: {skupina}", skupina in pokrajina)
+    preveri("sprotni predlogi samo po pravilu (od 3 znakov, ne naslov, stikalo)", "LupaPravila.predlogeIskati(q, spletniPredlogi())" in pokrajina)
+    preveri("glasovni vnos (mikrofon) v lupi novega zaganjalnika", "DomacaLupa.prevzemi(this, polje, okvir)" in pokrajina and "fun glas(a: Activity)" in lupa)
     return konec()
 
 
