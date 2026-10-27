@@ -118,6 +118,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/DebridZaporaTest.kt" \
     "$SRC/si/safeer/tv/os/UsenetPravila.kt" \
     "$TEST_DIR/UsenetPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/UsenetPonudnikPravila.kt" \
+    "$TEST_DIR/UsenetPonudnikPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/SerijePravila.kt" \
     "$TEST_DIR/SerijePravilaTest.kt" \
     "$SRC/si/safeer/tv/os/NapredekKljuc.kt" \
@@ -228,6 +230,8 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.DebridPravilaTestKt
 # Pregled 104, S1/S2 (26. 10. 2026): zavrnjen ali zaklenjen kljuc (prejem, ponoven vpis) dobi zaporo - brez novih klicev.
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.DebridZaporaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.UsenetPravilaTestKt "$SRC/si/safeer/tv/os/Usenet.kt" "$SRC/si/safeer/tv/os/Debrid.kt"
+# Ponudnik Usenet: ista pravila kot core/usenet_ponudnik.py (skupni primeri iz reference, naloga 111).
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.UsenetPonudnikPravilaTestKt "$TEST_DIR/skupni-primeri/usenet-ponudnik.jsonl"
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SerijePravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.NapredekKljucTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.KakovostPravilaTestKt

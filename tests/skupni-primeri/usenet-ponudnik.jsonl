@@ -1,0 +1,323 @@
+{"domace": false, "g": "news.example", "izid": "OK", "racun": "news.example", "vrsta": "gostitelj"}
+{"domace": false, "g": "NEWS.Example", "izid": "OK", "racun": "news.example", "vrsta": "gostitelj"}
+{"domace": false, "g": "eu.news.example", "izid": "OK", "racun": "news.example", "vrsta": "gostitelj"}
+{"domace": null, "g": "news.example.", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": null, "g": ".news.example", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": null, "g": "news..example", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": null, "g": "news.example:563", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": null, "g": "nntps://news.example", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": null, "g": "news.example/pot", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": null, "g": "uporabnik1@news.example", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": null, "g": "news example", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": null, "g": "news\texample", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": null, "g": "[::1]", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": null, "g": "", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": false, "g": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.example", "izid": "OK", "racun": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.example", "vrsta": "gostitelj"}
+{"domace": null, "g": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.example", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": false, "g": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.ex", "izid": "OK", "racun": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.ex", "vrsta": "gostitelj"}
+{"domace": false, "g": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.e", "izid": "OK", "racun": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.e", "vrsta": "gostitelj"}
+{"domace": null, "g": "-news.example", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": null, "g": "news-.example", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": false, "g": "ne-ws.example", "izid": "OK", "racun": "ne-ws.example", "vrsta": "gostitelj"}
+{"domace": null, "g": "news_1.example", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": null, "g": "123", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": null, "g": "999.1.1.1", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": null, "g": "1.2.3", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": false, "g": "1.2.3.4", "izid": "OK", "racun": "1.2.3.4", "vrsta": "gostitelj"}
+{"domace": null, "g": "01.2.3.4", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": null, "g": "256.1.1.1", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": false, "g": "0.0.0.0", "izid": "OK", "racun": "0.0.0.0", "vrsta": "gostitelj"}
+{"domace": true, "g": "127.0.0.1", "izid": "OK", "racun": "127.0.0.1", "vrsta": "gostitelj"}
+{"domace": true, "g": "10.0.0.5", "izid": "OK", "racun": "10.0.0.5", "vrsta": "gostitelj"}
+{"domace": true, "g": "172.16.0.1", "izid": "OK", "racun": "172.16.0.1", "vrsta": "gostitelj"}
+{"domace": false, "g": "172.32.0.1", "izid": "OK", "racun": "172.32.0.1", "vrsta": "gostitelj"}
+{"domace": true, "g": "192.168.1.10", "izid": "OK", "racun": "192.168.1.10", "vrsta": "gostitelj"}
+{"domace": true, "g": "169.254.3.4", "izid": "OK", "racun": "169.254.3.4", "vrsta": "gostitelj"}
+{"domace": false, "g": "203.0.113.5", "izid": "OK", "racun": "203.0.113.5", "vrsta": "gostitelj"}
+{"domace": false, "g": "8.8.8.8", "izid": "OK", "racun": "8.8.8.8", "vrsta": "gostitelj"}
+{"domace": true, "g": "::1", "izid": "OK", "racun": "::1", "vrsta": "gostitelj"}
+{"domace": false, "g": "::", "izid": "OK", "racun": "::", "vrsta": "gostitelj"}
+{"domace": true, "g": "fe80::1", "izid": "OK", "racun": "fe80::1", "vrsta": "gostitelj"}
+{"domace": true, "g": "fe80::1%eth0", "izid": "OK", "racun": "fe80::1%eth0", "vrsta": "gostitelj"}
+{"domace": null, "g": "fe80::1%", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": true, "g": "fd12:3456::1", "izid": "OK", "racun": "fd12:3456::1", "vrsta": "gostitelj"}
+{"domace": true, "g": "fc00::1", "izid": "OK", "racun": "fc00::1", "vrsta": "gostitelj"}
+{"domace": false, "g": "fe00::1", "izid": "OK", "racun": "fe00::1", "vrsta": "gostitelj"}
+{"domace": false, "g": "2001:db8::1", "izid": "OK", "racun": "2001:db8::1", "vrsta": "gostitelj"}
+{"domace": true, "g": "::ffff:192.168.1.1", "izid": "OK", "racun": "::ffff:192.168.1.1", "vrsta": "gostitelj"}
+{"domace": false, "g": "::ffff:8.8.8.8", "izid": "OK", "racun": "::ffff:8.8.8.8", "vrsta": "gostitelj"}
+{"domace": false, "g": "1:2:3:4:5:6:7:8", "izid": "OK", "racun": "1:2:3:4:5:6:7:8", "vrsta": "gostitelj"}
+{"domace": null, "g": "1:2:3:4:5:6:7:8:9", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": null, "g": "1::2::3", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": null, "g": ":1:2:3:4:5:6:7", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": null, "g": "1:2:3:4:5:6:7:", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": false, "g": "::1.2.3.4", "izid": "OK", "racun": "::1.2.3.4", "vrsta": "gostitelj"}
+{"domace": false, "g": "1:2:3:4:5:6:1.2.3.4", "izid": "OK", "racun": "1:2:3:4:5:6:1.2.3.4", "vrsta": "gostitelj"}
+{"domace": null, "g": "12345::1", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": null, "g": "g::1", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": null, "g": "1:2", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": null, "g": "::ffff:1.2.3", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": false, "g": "b\u00fccher.example", "izid": "OK", "racun": "b\u00fccher.example", "vrsta": "gostitelj"}
+{"domace": false, "g": "B\u00dcCHER.example", "izid": "OK", "racun": "b\u00fccher.example", "vrsta": "gostitelj"}
+{"domace": false, "g": "xn--bcher-kva.example", "izid": "OK", "racun": "xn--bcher-kva.example", "vrsta": "gostitelj"}
+{"domace": null, "g": "xn--.example", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": false, "g": "m\u00fcnchen.de", "izid": "OK", "racun": "m\u00fcnchen.de", "vrsta": "gostitelj"}
+{"domace": false, "g": "\u4f8b\u3048.\u30c6\u30b9\u30c8", "izid": "OK", "racun": "\u4f8b\u3048.\u30c6\u30b9\u30c8", "vrsta": "gostitelj"}
+{"domace": false, "g": "a\u3002example", "izid": "OK", "racun": "a\u3002example", "vrsta": "gostitelj"}
+{"domace": null, "g": "news.example\u3002", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": null, "g": "\u00a0news.example", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": false, "g": "news\u200b.example", "izid": "OK", "racun": "news\u200b.example", "vrsta": "gostitelj"}
+{"domace": null, "g": "\ud800.example", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": null, "g": "\u0000", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": null, "g": "news.ex\u007fample", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": false, "g": "news.co.uk", "izid": "OK", "racun": "news.co.uk", "vrsta": "gostitelj"}
+{"domace": false, "g": "eu.news.co.uk", "izid": "OK", "racun": "news.co.uk", "vrsta": "gostitelj"}
+{"domace": false, "g": "a.b.c.d.example", "izid": "OK", "racun": "d.example", "vrsta": "gostitelj"}
+{"domace": null, "g": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": null, "g": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": false, "g": "1e100", "izid": "OK", "racun": "1e100", "vrsta": "gostitelj"}
+{"domace": false, "g": "news.123", "izid": "OK", "racun": "news.123", "vrsta": "gostitelj"}
+{"domace": false, "g": "0x7f.1.1.1", "izid": "OK", "racun": "1.1", "vrsta": "gostitelj"}
+{"domace": false, "g": "\uff11.example", "izid": "OK", "racun": "\uff11.example", "vrsta": "gostitelj"}
+{"domace": null, "g": "news.example\n", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": false, "g": "\u00df.example", "izid": "OK", "racun": "\u00df.example", "vrsta": "gostitelj"}
+{"domace": null, "g": "a.-b", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": null, "g": "a.b-", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": false, "g": "localhost", "izid": "OK", "racun": "localhost", "vrsta": "gostitelj"}
+{"domace": null, "g": "1:2:3:4::5:6:7:8", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": null, "g": "::1:2:3:4:5:6:7:8", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": false, "g": "1:2:3:4:5:6:7::", "izid": "OK", "racun": "1:2:3:4:5:6:7::", "vrsta": "gostitelj"}
+{"domace": false, "g": "1::2:3:4:5:6:7", "izid": "OK", "racun": "1::2:3:4:5:6:7", "vrsta": "gostitelj"}
+{"domace": null, "g": "\udc00.example", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": null, "g": "fe80::1%a%b", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"domace": null, "g": "::ffff:1.2.3.04", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
+{"izid": true, "v": "uporabnik1", "vrsta": "poverilnica"}
+{"izid": false, "v": "", "vrsta": "poverilnica"}
+{"izid": true, "v": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "vrsta": "poverilnica"}
+{"izid": false, "v": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "vrsta": "poverilnica"}
+{"izid": true, "v": "\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d", "vrsta": "poverilnica"}
+{"izid": false, "v": "\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d", "vrsta": "poverilnica"}
+{"izid": false, "v": "a\tb", "vrsta": "poverilnica"}
+{"izid": false, "v": "a\u007fb", "vrsta": "poverilnica"}
+{"izid": true, "v": "a b", "vrsta": "poverilnica"}
+{"izid": false, "v": "\ud800", "vrsta": "poverilnica"}
+{"izid": true, "v": "\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00", "vrsta": "poverilnica"}
+{"izid": false, "v": "\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00", "vrsta": "poverilnica"}
+{"izid": true, "v": "geslo:z!znaki", "vrsta": "poverilnica"}
+{"izid": false, "v": "\n", "vrsta": "poverilnica"}
+{"izid": false, "v": "\udc00", "vrsta": "poverilnica"}
+{"izid": false, "v": "a\udc00b", "vrsta": "poverilnica"}
+{"izid": true, "v": "\ud800\udc00", "vrsta": "poverilnica"}
+{"d": {"gostitelj": "news.example", "uporabnik": "uporabnik1", "vrata": 563}, "izid": "OK", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "uporabnik": "uporabnik1", "vrata": 119}, "izid": "OK", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "uporabnik": "uporabnik1", "vrata": 0}, "izid": "usenet ponudnik: neveljavna vrata", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "uporabnik": "uporabnik1", "vrata": 65535}, "izid": "OK", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "uporabnik": "uporabnik1", "vrata": 65536}, "izid": "usenet ponudnik: neveljavna vrata", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "uporabnik": "uporabnik1", "vrata": -1}, "izid": "usenet ponudnik: neveljavna vrata", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "uporabnik": "uporabnik1", "vrata": true}, "izid": "usenet ponudnik: neveljavna vrata", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "uporabnik": "uporabnik1", "vrata": "563"}, "izid": "usenet ponudnik: neveljavna vrata", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "uporabnik": "uporabnik1", "vrata": 563.0}, "izid": "usenet ponudnik: neveljavna vrata", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "uporabnik": "uporabnik1", "vrata": null}, "izid": "usenet ponudnik: neveljavna vrata", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "najvec_povezav": 1, "uporabnik": "uporabnik1"}, "izid": "OK", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "najvec_povezav": 8, "uporabnik": "uporabnik1"}, "izid": "OK", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "najvec_povezav": 50, "uporabnik": "uporabnik1"}, "izid": "OK", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "najvec_povezav": 100, "uporabnik": "uporabnik1"}, "izid": "OK", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "najvec_povezav": 101, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: najvec_povezav mora biti 1-100", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "najvec_povezav": 0, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: najvec_povezav mora biti 1-100", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "najvec_povezav": false, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: najvec_povezav mora biti 1-100", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "najvec_povezav": "8", "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: najvec_povezav mora biti 1-100", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "najvec_povezav": 8.0, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: najvec_povezav mora biti 1-100", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "ime": "", "uporabnik": "uporabnik1"}, "izid": "OK", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "ime": "Moj ponudnik", "uporabnik": "uporabnik1"}, "izid": "OK", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "ime": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "uporabnik": "uporabnik1"}, "izid": "OK", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "ime": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: neveljavno ime", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "ime": "\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d\u010d", "uporabnik": "uporabnik1"}, "izid": "OK", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "ime": "a\nb", "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: neveljavno ime", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "ime": "a\u007f", "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: neveljavno ime", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "ime": 5, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: neveljavno ime", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "ime": null, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: neveljavno ime", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "ime": "\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00\ud83d\ude00", "uporabnik": "uporabnik1"}, "izid": "OK", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "tls": true, "uporabnik": "uporabnik1"}, "izid": "OK", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "tls": false, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: brez TLS samo z nevarno_brez_tls=True", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "tls": 1, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: tls mora biti bool", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "tls": null, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: tls mora biti bool", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "tls": "true", "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: tls mora biti bool", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "nevarno_brez_tls": false, "uporabnik": "uporabnik1"}, "izid": "OK", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "nevarno_brez_tls": true, "uporabnik": "uporabnik1"}, "izid": "OK", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "nevarno_brez_tls": 0, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: tls mora biti bool", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "nevarno_brez_tls": true, "tls": true, "uporabnik": "uporabnik1"}, "izid": "OK", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "nevarno_brez_tls": false, "tls": true, "uporabnik": "uporabnik1"}, "izid": "OK", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "nevarno_brez_tls": "x", "tls": true, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: tls mora biti bool", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "nevarno_brez_tls": true, "tls": false, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: brez TLS samo do naslova IP v domacem omrezju", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "nevarno_brez_tls": false, "tls": false, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: brez TLS samo z nevarno_brez_tls=True", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "nevarno_brez_tls": "x", "tls": false, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: tls mora biti bool", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "nevarno_brez_tls": true, "tls": null, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: tls mora biti bool", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "nevarno_brez_tls": false, "tls": null, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: tls mora biti bool", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "nevarno_brez_tls": "x", "tls": null, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: tls mora biti bool", "vrsta": "zapis"}
+{"d": {"gostitelj": "192.168.1.10", "nevarno_brez_tls": true, "tls": true, "uporabnik": "uporabnik1"}, "izid": "OK", "vrsta": "zapis"}
+{"d": {"gostitelj": "192.168.1.10", "nevarno_brez_tls": false, "tls": true, "uporabnik": "uporabnik1"}, "izid": "OK", "vrsta": "zapis"}
+{"d": {"gostitelj": "192.168.1.10", "nevarno_brez_tls": "x", "tls": true, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: tls mora biti bool", "vrsta": "zapis"}
+{"d": {"gostitelj": "192.168.1.10", "nevarno_brez_tls": true, "tls": false, "uporabnik": "uporabnik1"}, "izid": "OK", "vrsta": "zapis"}
+{"d": {"gostitelj": "192.168.1.10", "nevarno_brez_tls": false, "tls": false, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: brez TLS samo z nevarno_brez_tls=True", "vrsta": "zapis"}
+{"d": {"gostitelj": "192.168.1.10", "nevarno_brez_tls": "x", "tls": false, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: tls mora biti bool", "vrsta": "zapis"}
+{"d": {"gostitelj": "192.168.1.10", "nevarno_brez_tls": true, "tls": null, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: tls mora biti bool", "vrsta": "zapis"}
+{"d": {"gostitelj": "192.168.1.10", "nevarno_brez_tls": false, "tls": null, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: tls mora biti bool", "vrsta": "zapis"}
+{"d": {"gostitelj": "192.168.1.10", "nevarno_brez_tls": "x", "tls": null, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: tls mora biti bool", "vrsta": "zapis"}
+{"d": {"gostitelj": "8.8.8.8", "nevarno_brez_tls": true, "tls": true, "uporabnik": "uporabnik1"}, "izid": "OK", "vrsta": "zapis"}
+{"d": {"gostitelj": "8.8.8.8", "nevarno_brez_tls": false, "tls": true, "uporabnik": "uporabnik1"}, "izid": "OK", "vrsta": "zapis"}
+{"d": {"gostitelj": "8.8.8.8", "nevarno_brez_tls": "x", "tls": true, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: tls mora biti bool", "vrsta": "zapis"}
+{"d": {"gostitelj": "8.8.8.8", "nevarno_brez_tls": true, "tls": false, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: brez TLS samo do naslova IP v domacem omrezju", "vrsta": "zapis"}
+{"d": {"gostitelj": "8.8.8.8", "nevarno_brez_tls": false, "tls": false, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: brez TLS samo z nevarno_brez_tls=True", "vrsta": "zapis"}
+{"d": {"gostitelj": "8.8.8.8", "nevarno_brez_tls": "x", "tls": false, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: tls mora biti bool", "vrsta": "zapis"}
+{"d": {"gostitelj": "8.8.8.8", "nevarno_brez_tls": true, "tls": null, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: tls mora biti bool", "vrsta": "zapis"}
+{"d": {"gostitelj": "8.8.8.8", "nevarno_brez_tls": false, "tls": null, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: tls mora biti bool", "vrsta": "zapis"}
+{"d": {"gostitelj": "8.8.8.8", "nevarno_brez_tls": "x", "tls": null, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: tls mora biti bool", "vrsta": "zapis"}
+{"d": {"gostitelj": "fe80::1", "nevarno_brez_tls": true, "tls": true, "uporabnik": "uporabnik1"}, "izid": "OK", "vrsta": "zapis"}
+{"d": {"gostitelj": "fe80::1", "nevarno_brez_tls": false, "tls": true, "uporabnik": "uporabnik1"}, "izid": "OK", "vrsta": "zapis"}
+{"d": {"gostitelj": "fe80::1", "nevarno_brez_tls": "x", "tls": true, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: tls mora biti bool", "vrsta": "zapis"}
+{"d": {"gostitelj": "fe80::1", "nevarno_brez_tls": true, "tls": false, "uporabnik": "uporabnik1"}, "izid": "OK", "vrsta": "zapis"}
+{"d": {"gostitelj": "fe80::1", "nevarno_brez_tls": false, "tls": false, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: brez TLS samo z nevarno_brez_tls=True", "vrsta": "zapis"}
+{"d": {"gostitelj": "fe80::1", "nevarno_brez_tls": "x", "tls": false, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: tls mora biti bool", "vrsta": "zapis"}
+{"d": {"gostitelj": "fe80::1", "nevarno_brez_tls": true, "tls": null, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: tls mora biti bool", "vrsta": "zapis"}
+{"d": {"gostitelj": "fe80::1", "nevarno_brez_tls": false, "tls": null, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: tls mora biti bool", "vrsta": "zapis"}
+{"d": {"gostitelj": "fe80::1", "nevarno_brez_tls": "x", "tls": null, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: tls mora biti bool", "vrsta": "zapis"}
+{"d": {"gostitelj": "::ffff:10.1.1.1", "nevarno_brez_tls": true, "tls": true, "uporabnik": "uporabnik1"}, "izid": "OK", "vrsta": "zapis"}
+{"d": {"gostitelj": "::ffff:10.1.1.1", "nevarno_brez_tls": false, "tls": true, "uporabnik": "uporabnik1"}, "izid": "OK", "vrsta": "zapis"}
+{"d": {"gostitelj": "::ffff:10.1.1.1", "nevarno_brez_tls": "x", "tls": true, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: tls mora biti bool", "vrsta": "zapis"}
+{"d": {"gostitelj": "::ffff:10.1.1.1", "nevarno_brez_tls": true, "tls": false, "uporabnik": "uporabnik1"}, "izid": "OK", "vrsta": "zapis"}
+{"d": {"gostitelj": "::ffff:10.1.1.1", "nevarno_brez_tls": false, "tls": false, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: brez TLS samo z nevarno_brez_tls=True", "vrsta": "zapis"}
+{"d": {"gostitelj": "::ffff:10.1.1.1", "nevarno_brez_tls": "x", "tls": false, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: tls mora biti bool", "vrsta": "zapis"}
+{"d": {"gostitelj": "::ffff:10.1.1.1", "nevarno_brez_tls": true, "tls": null, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: tls mora biti bool", "vrsta": "zapis"}
+{"d": {"gostitelj": "::ffff:10.1.1.1", "nevarno_brez_tls": false, "tls": null, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: tls mora biti bool", "vrsta": "zapis"}
+{"d": {"gostitelj": "::ffff:10.1.1.1", "nevarno_brez_tls": "x", "tls": null, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: tls mora biti bool", "vrsta": "zapis"}
+{"d": {"gostitelj": "bad host", "nevarno_brez_tls": true, "tls": true, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: neveljaven gostitelj", "vrsta": "zapis"}
+{"d": {"gostitelj": "bad host", "nevarno_brez_tls": false, "tls": true, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: neveljaven gostitelj", "vrsta": "zapis"}
+{"d": {"gostitelj": "bad host", "nevarno_brez_tls": "x", "tls": true, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: neveljaven gostitelj", "vrsta": "zapis"}
+{"d": {"gostitelj": "bad host", "nevarno_brez_tls": true, "tls": false, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: neveljaven gostitelj", "vrsta": "zapis"}
+{"d": {"gostitelj": "bad host", "nevarno_brez_tls": false, "tls": false, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: neveljaven gostitelj", "vrsta": "zapis"}
+{"d": {"gostitelj": "bad host", "nevarno_brez_tls": "x", "tls": false, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: neveljaven gostitelj", "vrsta": "zapis"}
+{"d": {"gostitelj": "bad host", "nevarno_brez_tls": true, "tls": null, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: neveljaven gostitelj", "vrsta": "zapis"}
+{"d": {"gostitelj": "bad host", "nevarno_brez_tls": false, "tls": null, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: neveljaven gostitelj", "vrsta": "zapis"}
+{"d": {"gostitelj": "bad host", "nevarno_brez_tls": "x", "tls": null, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: neveljaven gostitelj", "vrsta": "zapis"}
+{"d": {}, "izid": "usenet ponudnik: neveljaven zapis", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example"}, "izid": "usenet ponudnik: neveljaven zapis", "vrsta": "zapis"}
+{"d": {"uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: neveljaven zapis", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "insecure": true, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: neveljaven zapis", "vrsta": "zapis"}
+{"d": {"geslo": "x", "gostitelj": "news.example", "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: neveljaven zapis", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "uporabnik": "", "vrata": 0}, "izid": "usenet ponudnik: neveljavna vrata", "vrsta": "zapis"}
+{"d": {"gostitelj": "", "uporabnik": "", "vrata": 0}, "izid": "usenet ponudnik: neveljaven gostitelj", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "uporabnik": 5}, "izid": "usenet ponudnik: neveljavno uporabnisko ime", "vrsta": "zapis"}
+{"d": {"gostitelj": null, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: neveljaven gostitelj", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "ime": "\n", "najvec_povezav": 0, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: najvec_povezav mora biti 1-100", "vrsta": "zapis"}
+{"d": {"gostitelj": "news.example", "ime": "\n", "tls": 1, "uporabnik": "uporabnik1"}, "izid": "usenet ponudnik: neveljavno ime", "vrsta": "zapis"}
+{"g": "news.example", "kljuc_gesla": "usenet-ponudnik-69c5cbe5933048b52ab94d802e813609ba114048c5e5b3e3d9cec4f044288555", "kljuc_racuna": "27467cd9821ca142b2d8ba348262542d867dca0f32fd9a35fd3392a00d8f9048", "u": "uporabnik1", "vrsta": "kljuc"}
+{"g": "NEWS.example", "kljuc_gesla": "usenet-ponudnik-69c5cbe5933048b52ab94d802e813609ba114048c5e5b3e3d9cec4f044288555", "kljuc_racuna": "27467cd9821ca142b2d8ba348262542d867dca0f32fd9a35fd3392a00d8f9048", "u": "uporabnik1", "vrsta": "kljuc"}
+{"g": "eu.news.example", "kljuc_gesla": "usenet-ponudnik-f1dfb473212b52a8ee3d135e8b893dafd74db930260ee932929d7652e3006fb9", "kljuc_racuna": "27467cd9821ca142b2d8ba348262542d867dca0f32fd9a35fd3392a00d8f9048", "u": "uporabnik1", "vrsta": "kljuc"}
+{"g": "news.example", "kljuc_gesla": "usenet-ponudnik-bddffdc39d81d53a291b756c2aea928987b46ad6e67e831f47e0982c228ca9b6", "kljuc_racuna": "e86dde41775ba4b65a7af9368286bd372b94653a6efe2eacdec6ffabd8d7d8e8", "u": "Uporabnik1", "vrsta": "kljuc"}
+{"g": "news.co.uk", "kljuc_gesla": "usenet-ponudnik-819b6257d4f5661e9e5457f91d839b4bcc5408726588da6efc137794146bc92b", "kljuc_racuna": "be4a68bb7c9144bf072bf18b940e9193baac62c67bd842cfc27e3798ded1b275", "u": "u", "vrsta": "kljuc"}
+{"g": "eu.news.co.uk", "kljuc_gesla": "usenet-ponudnik-d61424446674d94369a2a122eaf9f7d083cdb5d38d622089a109195e192fc939", "kljuc_racuna": "be4a68bb7c9144bf072bf18b940e9193baac62c67bd842cfc27e3798ded1b275", "u": "u", "vrsta": "kljuc"}
+{"g": "b\u00fccher.example", "kljuc_gesla": "usenet-ponudnik-2b7993c73c33e9cd813912f866d2f9892f8a91f34b588d2d97fc25290d9e9beb", "kljuc_racuna": "611c37afb1e189a7a13e6ab6a5c3682f407d3230c749d1254e5ce74c84036e7c", "u": "\u010d", "vrsta": "kljuc"}
+{"g": "192.168.1.10", "kljuc_gesla": "usenet-ponudnik-0147f0a6601dbcf753f848a30e60db04974f11f0b58421115adbfbb0aecaa5cc", "kljuc_racuna": "01f63ef98bef7beb8629ec139e51f925915f864c887040727035cefd78b43197", "u": "uporabnik1", "vrsta": "kljuc"}
+{"g": "fe80::1", "kljuc_gesla": "usenet-ponudnik-e146cf0fd7c8c3de4a35af13618ff83db7112f1650a7a99e883b4764f54b6941", "kljuc_racuna": "cc5d3de5bada26615135a4bb1b819c5b67c97c990030f3fde97e2599fa9a6b0a", "u": "uporabnik1", "vrsta": "kljuc"}
+{"geslo": "geslo1", "odtis": "dabb5ab96fa38964d34704d373eef4b37fb47d2feb928ee40fc8c3b26c0d9c5e", "p": "news.example", "racun": "372c4c11b4630021d786d7523d6f88f78a3785876827cdf1ec7ec222ae145473", "sol": "00000000000000000000000000000000", "u": "uporabnik1", "vrsta": "zapah"}
+{"geslo": "\u010d\ud83d\ude00", "odtis": "9cd391a70bda3613a6f5694c43bc4d754aa4b04deda66d1dfc1d68b89447fbd4", "p": "news.example", "racun": "f59db7bcce13aef7389802bb9f69c575ccf8e0148cec0340cd8b7a11a38c27c2", "sol": "0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f0f", "u": "uporabnik1", "vrsta": "zapah"}
+{"geslo": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "odtis": "1d1398b22a10b488c974c470210ae73f629ac2a667722ce8b4c39b95be8a11b8", "p": "news.co.uk", "racun": "a28843f51fa759d22ab1134abef7c39e125a691ee190efa7b88035c18d4fbc09", "sol": "a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5", "u": "u", "vrsta": "zapah"}
+{"izid": "prijava", "ukrep": "ustavi_racun", "vrsta": "ukrep"}
+{"izid": "zaseden", "ukrep": "zmanjsaj_pocakaj", "vrsta": "ukrep"}
+{"izid": "napaka_streznika", "ukrep": "ustavi_racun", "vrsta": "ukrep"}
+{"izid": "napaka_protokola", "ukrep": "neznana_prijava", "vrsta": "ukrep"}
+{"izid": "zaprto", "ukrep": "neznana_prijava", "vrsta": "ukrep"}
+{"izid": "dostop", "ukrep": "ustavi_racun", "vrsta": "ukrep"}
+{"izid": "omrezje", "ukrep": "neznana_prijava", "vrsta": "ukrep"}
+{"izid": "rok", "ukrep": "neznana_prijava", "vrsta": "ukrep"}
+{"izid": "potrdilo", "ukrep": "ustavi_racun", "vrsta": "ukrep"}
+{"izid": "neznan", "ukrep": "ustavi_racun", "vrsta": "ukrep"}
+{"faza": "povezava", "izid": "prijava", "rezultat": "ZAKLENJEN", "vrsta": "izid", "zapahnjen": true}
+{"faza": "povezava", "izid": "prijava", "rezultat": "NI_ODGOVORA", "vrsta": "izid", "zapahnjen": false}
+{"faza": "prijava", "izid": "prijava", "rezultat": "NE_VELJA", "vrsta": "izid", "zapahnjen": true}
+{"faza": "prijava", "izid": "prijava", "rezultat": "NI_ODGOVORA", "vrsta": "izid", "zapahnjen": false}
+{"faza": "ukaz", "izid": "prijava", "rezultat": "ZAKLENJEN", "vrsta": "izid", "zapahnjen": true}
+{"faza": "ukaz", "izid": "prijava", "rezultat": "NI_ODGOVORA", "vrsta": "izid", "zapahnjen": false}
+{"faza": "povezava", "izid": "zaseden", "rezultat": "PREVEC_POVEZAV", "vrsta": "izid", "zapahnjen": true}
+{"faza": "povezava", "izid": "zaseden", "rezultat": "PREVEC_POVEZAV", "vrsta": "izid", "zapahnjen": false}
+{"faza": "prijava", "izid": "zaseden", "rezultat": "PREVEC_POVEZAV", "vrsta": "izid", "zapahnjen": true}
+{"faza": "prijava", "izid": "zaseden", "rezultat": "PREVEC_POVEZAV", "vrsta": "izid", "zapahnjen": false}
+{"faza": "ukaz", "izid": "zaseden", "rezultat": "PREVEC_POVEZAV", "vrsta": "izid", "zapahnjen": true}
+{"faza": "ukaz", "izid": "zaseden", "rezultat": "PREVEC_POVEZAV", "vrsta": "izid", "zapahnjen": false}
+{"faza": "povezava", "izid": "napaka_streznika", "rezultat": "ZAKLENJEN", "vrsta": "izid", "zapahnjen": true}
+{"faza": "povezava", "izid": "napaka_streznika", "rezultat": "NI_ODGOVORA", "vrsta": "izid", "zapahnjen": false}
+{"faza": "prijava", "izid": "napaka_streznika", "rezultat": "ZAKLENJEN", "vrsta": "izid", "zapahnjen": true}
+{"faza": "prijava", "izid": "napaka_streznika", "rezultat": "NI_ODGOVORA", "vrsta": "izid", "zapahnjen": false}
+{"faza": "ukaz", "izid": "napaka_streznika", "rezultat": "ZAKLENJEN", "vrsta": "izid", "zapahnjen": true}
+{"faza": "ukaz", "izid": "napaka_streznika", "rezultat": "NI_ODGOVORA", "vrsta": "izid", "zapahnjen": false}
+{"faza": "povezava", "izid": "napaka_protokola", "rezultat": "ZAKLENJEN", "vrsta": "izid", "zapahnjen": true}
+{"faza": "povezava", "izid": "napaka_protokola", "rezultat": "NI_ODGOVORA", "vrsta": "izid", "zapahnjen": false}
+{"faza": "prijava", "izid": "napaka_protokola", "rezultat": "ZAKLENJEN", "vrsta": "izid", "zapahnjen": true}
+{"faza": "prijava", "izid": "napaka_protokola", "rezultat": "NI_ODGOVORA", "vrsta": "izid", "zapahnjen": false}
+{"faza": "ukaz", "izid": "napaka_protokola", "rezultat": "ZAKLENJEN", "vrsta": "izid", "zapahnjen": true}
+{"faza": "ukaz", "izid": "napaka_protokola", "rezultat": "NI_ODGOVORA", "vrsta": "izid", "zapahnjen": false}
+{"faza": "povezava", "izid": "zaprto", "rezultat": "ZAKLENJEN", "vrsta": "izid", "zapahnjen": true}
+{"faza": "povezava", "izid": "zaprto", "rezultat": "NI_ODGOVORA", "vrsta": "izid", "zapahnjen": false}
+{"faza": "prijava", "izid": "zaprto", "rezultat": "ZAKLENJEN", "vrsta": "izid", "zapahnjen": true}
+{"faza": "prijava", "izid": "zaprto", "rezultat": "NI_ODGOVORA", "vrsta": "izid", "zapahnjen": false}
+{"faza": "ukaz", "izid": "zaprto", "rezultat": "ZAKLENJEN", "vrsta": "izid", "zapahnjen": true}
+{"faza": "ukaz", "izid": "zaprto", "rezultat": "NI_ODGOVORA", "vrsta": "izid", "zapahnjen": false}
+{"faza": "povezava", "izid": "dostop", "rezultat": "PREVEC_POVEZAV", "vrsta": "izid", "zapahnjen": true}
+{"faza": "povezava", "izid": "dostop", "rezultat": "PREVEC_POVEZAV", "vrsta": "izid", "zapahnjen": false}
+{"faza": "prijava", "izid": "dostop", "rezultat": "ZAKLENJEN", "vrsta": "izid", "zapahnjen": true}
+{"faza": "prijava", "izid": "dostop", "rezultat": "NI_ODGOVORA", "vrsta": "izid", "zapahnjen": false}
+{"faza": "ukaz", "izid": "dostop", "rezultat": "ZAKLENJEN", "vrsta": "izid", "zapahnjen": true}
+{"faza": "ukaz", "izid": "dostop", "rezultat": "NI_ODGOVORA", "vrsta": "izid", "zapahnjen": false}
+{"faza": "povezava", "izid": "omrezje", "rezultat": "ZAKLENJEN", "vrsta": "izid", "zapahnjen": true}
+{"faza": "povezava", "izid": "omrezje", "rezultat": "NI_ODGOVORA", "vrsta": "izid", "zapahnjen": false}
+{"faza": "prijava", "izid": "omrezje", "rezultat": "ZAKLENJEN", "vrsta": "izid", "zapahnjen": true}
+{"faza": "prijava", "izid": "omrezje", "rezultat": "NI_ODGOVORA", "vrsta": "izid", "zapahnjen": false}
+{"faza": "ukaz", "izid": "omrezje", "rezultat": "ZAKLENJEN", "vrsta": "izid", "zapahnjen": true}
+{"faza": "ukaz", "izid": "omrezje", "rezultat": "NI_ODGOVORA", "vrsta": "izid", "zapahnjen": false}
+{"faza": "povezava", "izid": "rok", "rezultat": "ZAKLENJEN", "vrsta": "izid", "zapahnjen": true}
+{"faza": "povezava", "izid": "rok", "rezultat": "NI_ODGOVORA", "vrsta": "izid", "zapahnjen": false}
+{"faza": "prijava", "izid": "rok", "rezultat": "ZAKLENJEN", "vrsta": "izid", "zapahnjen": true}
+{"faza": "prijava", "izid": "rok", "rezultat": "NI_ODGOVORA", "vrsta": "izid", "zapahnjen": false}
+{"faza": "ukaz", "izid": "rok", "rezultat": "ZAKLENJEN", "vrsta": "izid", "zapahnjen": true}
+{"faza": "ukaz", "izid": "rok", "rezultat": "NI_ODGOVORA", "vrsta": "izid", "zapahnjen": false}
+{"faza": "povezava", "izid": "potrdilo", "rezultat": "ZAKLENJEN", "vrsta": "izid", "zapahnjen": true}
+{"faza": "povezava", "izid": "potrdilo", "rezultat": "NI_ODGOVORA", "vrsta": "izid", "zapahnjen": false}
+{"faza": "prijava", "izid": "potrdilo", "rezultat": "ZAKLENJEN", "vrsta": "izid", "zapahnjen": true}
+{"faza": "prijava", "izid": "potrdilo", "rezultat": "NI_ODGOVORA", "vrsta": "izid", "zapahnjen": false}
+{"faza": "ukaz", "izid": "potrdilo", "rezultat": "ZAKLENJEN", "vrsta": "izid", "zapahnjen": true}
+{"faza": "ukaz", "izid": "potrdilo", "rezultat": "NI_ODGOVORA", "vrsta": "izid", "zapahnjen": false}
+{"faza": "povezava", "izid": "neznan", "rezultat": "ZAKLENJEN", "vrsta": "izid", "zapahnjen": true}
+{"faza": "povezava", "izid": "neznan", "rezultat": "NI_ODGOVORA", "vrsta": "izid", "zapahnjen": false}
+{"faza": "prijava", "izid": "neznan", "rezultat": "ZAKLENJEN", "vrsta": "izid", "zapahnjen": true}
+{"faza": "prijava", "izid": "neznan", "rezultat": "NI_ODGOVORA", "vrsta": "izid", "zapahnjen": false}
+{"faza": "ukaz", "izid": "neznan", "rezultat": "ZAKLENJEN", "vrsta": "izid", "zapahnjen": true}
+{"faza": "ukaz", "izid": "neznan", "rezultat": "NI_ODGOVORA", "vrsta": "izid", "zapahnjen": false}
+{"besedilo": "ZAKLENJEN", "geslo": true, "sl": "Prijava je bila zavrnjena, zato Safeer gesla ne po\u0161ilja ve\u010d. Ko poverilnice preveri\u0161 pri ponudniku, jih vpi\u0161i znova.", "stanje": "ZAKLENJEN", "vrsta": "stanje", "zadnji": null, "zapahnjen": true}
+{"besedilo": "NEPREVERJEN", "geslo": true, "sl": "Ponudnik je shranjen. Klikni \u00bbPreveri\u00ab, \u010de \u017eeli\u0161 preizkusiti prijavo.", "stanje": "NEPREVERJEN", "vrsta": "stanje", "zadnji": null, "zapahnjen": false}
+{"besedilo": "ni_gesla", "geslo": false, "sl": "Geslo za ponudnika ni shranjeno. Vpi\u0161i ga znova v nastavitvah Useneta.", "stanje": "NEPREVERJEN", "vrsta": "stanje", "zadnji": null, "zapahnjen": true}
+{"besedilo": "ni_gesla", "geslo": false, "sl": "Geslo za ponudnika ni shranjeno. Vpi\u0161i ga znova v nastavitvah Useneta.", "stanje": "NEPREVERJEN", "vrsta": "stanje", "zadnji": null, "zapahnjen": false}
+{"besedilo": "ZAKLENJEN", "geslo": true, "sl": "Prijava je bila zavrnjena, zato Safeer gesla ne po\u0161ilja ve\u010d. Ko poverilnice preveri\u0161 pri ponudniku, jih vpi\u0161i znova.", "stanje": "ZAKLENJEN", "vrsta": "stanje", "zadnji": "VELJA", "zapahnjen": true}
+{"besedilo": "VELJA", "geslo": true, "sl": "Prijava pri ponudniku deluje.", "stanje": "VELJA", "vrsta": "stanje", "zadnji": "VELJA", "zapahnjen": false}
+{"besedilo": "VELJA", "geslo": false, "sl": "Prijava pri ponudniku deluje.", "stanje": "VELJA", "vrsta": "stanje", "zadnji": "VELJA", "zapahnjen": true}
+{"besedilo": "VELJA", "geslo": false, "sl": "Prijava pri ponudniku deluje.", "stanje": "VELJA", "vrsta": "stanje", "zadnji": "VELJA", "zapahnjen": false}
+{"besedilo": "NE_VELJA", "geslo": true, "sl": "Ponudnik je zavrnil prijavo. Preveri uporabni\u0161ko ime in geslo in ju vpi\u0161i znova - do takrat Safeer gesla ne po\u0161ilja (za\u0161\u010dita pred zaklepom ra\u010duna).", "stanje": "NE_VELJA", "vrsta": "stanje", "zadnji": "NE_VELJA", "zapahnjen": true}
+{"besedilo": "NEPREVERJEN", "geslo": true, "sl": "Ponudnik je shranjen. Klikni \u00bbPreveri\u00ab, \u010de \u017eeli\u0161 preizkusiti prijavo.", "stanje": "NEPREVERJEN", "vrsta": "stanje", "zadnji": "NE_VELJA", "zapahnjen": false}
+{"besedilo": "ni_gesla", "geslo": false, "sl": "Geslo za ponudnika ni shranjeno. Vpi\u0161i ga znova v nastavitvah Useneta.", "stanje": "NEPREVERJEN", "vrsta": "stanje", "zadnji": "NE_VELJA", "zapahnjen": true}
+{"besedilo": "ni_gesla", "geslo": false, "sl": "Geslo za ponudnika ni shranjeno. Vpi\u0161i ga znova v nastavitvah Useneta.", "stanje": "NEPREVERJEN", "vrsta": "stanje", "zadnji": "NE_VELJA", "zapahnjen": false}
+{"besedilo": "ZAKLENJEN", "geslo": true, "sl": "Prijava je bila zavrnjena, zato Safeer gesla ne po\u0161ilja ve\u010d. Ko poverilnice preveri\u0161 pri ponudniku, jih vpi\u0161i znova.", "stanje": "ZAKLENJEN", "vrsta": "stanje", "zadnji": "ZAKLENJEN", "zapahnjen": true}
+{"besedilo": "NEPREVERJEN", "geslo": true, "sl": "Ponudnik je shranjen. Klikni \u00bbPreveri\u00ab, \u010de \u017eeli\u0161 preizkusiti prijavo.", "stanje": "NEPREVERJEN", "vrsta": "stanje", "zadnji": "ZAKLENJEN", "zapahnjen": false}
+{"besedilo": "ni_gesla", "geslo": false, "sl": "Geslo za ponudnika ni shranjeno. Vpi\u0161i ga znova v nastavitvah Useneta.", "stanje": "NEPREVERJEN", "vrsta": "stanje", "zadnji": "ZAKLENJEN", "zapahnjen": true}
+{"besedilo": "ni_gesla", "geslo": false, "sl": "Geslo za ponudnika ni shranjeno. Vpi\u0161i ga znova v nastavitvah Useneta.", "stanje": "NEPREVERJEN", "vrsta": "stanje", "zadnji": "ZAKLENJEN", "zapahnjen": false}
+{"besedilo": "ZAKLENJEN", "geslo": true, "sl": "Prijava je bila zavrnjena, zato Safeer gesla ne po\u0161ilja ve\u010d. Ko poverilnice preveri\u0161 pri ponudniku, jih vpi\u0161i znova.", "stanje": "ZAKLENJEN", "vrsta": "stanje", "zadnji": "NI_ODGOVORA", "zapahnjen": true}
+{"besedilo": "NEPREVERJEN", "geslo": true, "sl": "Ponudnik je shranjen. Klikni \u00bbPreveri\u00ab, \u010de \u017eeli\u0161 preizkusiti prijavo.", "stanje": "NEPREVERJEN", "vrsta": "stanje", "zadnji": "NI_ODGOVORA", "zapahnjen": false}
+{"besedilo": "ni_gesla", "geslo": false, "sl": "Geslo za ponudnika ni shranjeno. Vpi\u0161i ga znova v nastavitvah Useneta.", "stanje": "NEPREVERJEN", "vrsta": "stanje", "zadnji": "NI_ODGOVORA", "zapahnjen": true}
+{"besedilo": "ni_gesla", "geslo": false, "sl": "Geslo za ponudnika ni shranjeno. Vpi\u0161i ga znova v nastavitvah Useneta.", "stanje": "NEPREVERJEN", "vrsta": "stanje", "zadnji": "NI_ODGOVORA", "zapahnjen": false}
+{"besedilo": "ZAKLENJEN", "geslo": true, "sl": "Prijava je bila zavrnjena, zato Safeer gesla ne po\u0161ilja ve\u010d. Ko poverilnice preveri\u0161 pri ponudniku, jih vpi\u0161i znova.", "stanje": "ZAKLENJEN", "vrsta": "stanje", "zadnji": "PREPOGOSTO", "zapahnjen": true}
+{"besedilo": "NEPREVERJEN", "geslo": true, "sl": "Ponudnik je shranjen. Klikni \u00bbPreveri\u00ab, \u010de \u017eeli\u0161 preizkusiti prijavo.", "stanje": "NEPREVERJEN", "vrsta": "stanje", "zadnji": "PREPOGOSTO", "zapahnjen": false}
+{"besedilo": "ni_gesla", "geslo": false, "sl": "Geslo za ponudnika ni shranjeno. Vpi\u0161i ga znova v nastavitvah Useneta.", "stanje": "NEPREVERJEN", "vrsta": "stanje", "zadnji": "PREPOGOSTO", "zapahnjen": true}
+{"besedilo": "ni_gesla", "geslo": false, "sl": "Geslo za ponudnika ni shranjeno. Vpi\u0161i ga znova v nastavitvah Useneta.", "stanje": "NEPREVERJEN", "vrsta": "stanje", "zadnji": "PREPOGOSTO", "zapahnjen": false}
+{"besedilo": "ZAKLENJEN", "geslo": true, "sl": "Prijava je bila zavrnjena, zato Safeer gesla ne po\u0161ilja ve\u010d. Ko poverilnice preveri\u0161 pri ponudniku, jih vpi\u0161i znova.", "stanje": "ZAKLENJEN", "vrsta": "stanje", "zadnji": 5, "zapahnjen": true}
+{"besedilo": "NEPREVERJEN", "geslo": true, "sl": "Ponudnik je shranjen. Klikni \u00bbPreveri\u00ab, \u010de \u017eeli\u0161 preizkusiti prijavo.", "stanje": "NEPREVERJEN", "vrsta": "stanje", "zadnji": 5, "zapahnjen": false}
+{"besedilo": "ni_gesla", "geslo": false, "sl": "Geslo za ponudnika ni shranjeno. Vpi\u0161i ga znova v nastavitvah Useneta.", "stanje": "NEPREVERJEN", "vrsta": "stanje", "zadnji": 5, "zapahnjen": true}
+{"besedilo": "ni_gesla", "geslo": false, "sl": "Geslo za ponudnika ni shranjeno. Vpi\u0161i ga znova v nastavitvah Useneta.", "stanje": "NEPREVERJEN", "vrsta": "stanje", "zadnji": 5, "zapahnjen": false}
+{"sl": "Usenet se poka\u017ee, ko v nastavitvah vpi\u0161e\u0161 svojega ponudnika NNTP.", "stanje": null, "vpisan": false, "vrsta": "stanje_prazno"}
