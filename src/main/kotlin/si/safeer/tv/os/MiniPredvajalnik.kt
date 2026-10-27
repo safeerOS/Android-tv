@@ -328,6 +328,9 @@ class MiniPredvajalnik(
         gumbi.addView(gumb(R.drawable.os_ikona_naslednja, a.getString(R.string.zg_naslednja), "dock:naslednja") { GlasbaStoritev.naslednja() }, LinearLayout.LayoutParams(g, g))
         val gZvocnik = gumb(R.drawable.os_ikona_predvajaj_na, a.getString(R.string.zvocnik_na_napravi), "dock:zvocnik") { zvocnik() }
         gumbi.addView(gZvocnik, LinearLayout.LayoutParams(g, g))
+        // Naloga 42 B: glasnost brez zapuscanja domacega zaslona (kot na racunalniku) - tiste naprave, ki igra.
+        gumbi.addView(gumb(R.drawable.os_ikona_tisje, a.getString(R.string.zvocnik_tisje), "dock:tisje") { glasnost(-1) }, LinearLayout.LayoutParams(g, g))
+        gumbi.addView(gumb(R.drawable.os_ikona_glasneje, a.getString(R.string.zvocnik_glasneje), "dock:glasneje") { glasnost(1) }, LinearLayout.LayoutParams(g, g))
         gumbi.addView(gumb(R.drawable.os_ikona_zapri, a.getString(R.string.zg_dock_skrij), "dock:skrij") { nastaviOdprt(false, fokus = daljinec) }, LinearLayout.LayoutParams(g, g))
         c.addView(gumbi)
         val lp = if (pokoncen) FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, gravitacija(m))
@@ -352,6 +355,21 @@ class MiniPredvajalnik(
     private fun skociNa(korak: Int) {
         val trajanje = try { GlasbaStoritev.trajanjeMs() } catch (_: Throwable) { 0L }
         if (trajanje > 0) try { GlasbaStoritev.skoci(MiniPredvajalnikPravila.casIzDrsnika(korak, trajanje)) } catch (_: Throwable) { }
+    }
+
+    /**
+     * Glasneje ([smer] 1) ali tisje (-1) za tisto, kar igra ([MiniPredvajalnikPravila.ciljGlasnosti]). Ta naprava: kot tipka
+     * za glasnost na daljincu (sistem pokaze svoj drsnik); zvocnik in druga naprava: isti koraki kot v izbiri zvocnika.
+     */
+    private fun glasnost(smer: Int) {
+        val naDrugi = try { GlasbaStoritev.naDrugiNapravi() } catch (_: Throwable) { false }
+        val naZvocniku = try { GlasbaStoritev.naZvocniku() } catch (_: Throwable) { false }
+        when (MiniPredvajalnikPravila.ciljGlasnosti(naDrugi, naZvocniku)) {
+            MiniPredvajalnikPravila.GLASNOST_DRUGA -> OddaljenoPredvajanje.glasnostZa(smer * MiniPredvajalnikPravila.KORAK_DRUGA)
+            MiniPredvajalnikPravila.GLASNOST_ZVOCNIK -> Zvocniki.glasnostZa(smer * ZvocnikPravila.korakGlasnosti(Zvocniki.najGlasnost, Zvocniki.lestvicaZnana))
+            else -> a.getSystemService(android.media.AudioManager::class.java)?.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC,
+                if (smer > 0) android.media.AudioManager.ADJUST_RAISE else android.media.AudioManager.ADJUST_LOWER, android.media.AudioManager.FLAG_SHOW_UI)
+        }
     }
 
     /** Izbira mesta (dolg pritisk na rocico ali kartico): zgoraj, spodaj, levo, desno ali v seznamu. */

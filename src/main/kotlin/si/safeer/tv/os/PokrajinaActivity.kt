@@ -118,12 +118,24 @@ class PokrajinaActivity : OsActivity() {
         narisiAplikacije()
         prikaziVreme()
         osveziVreme()
+        // Naloga 42 B: mini predvajalnik kot na racunalniku - kaj igra, premor/naprej/nazaj/glasnost, odpri - brez
+        // zapuscanja domacega zaslona (isti dock kot na starem domacem zaslonu, MiniPredvajalnik.naOknu).
+        if (dock == null) dock = MiniPredvajalnik.naOknu(this) { odpri(GlasbaStoritev.namenKartice(this)) }
+        GlasbaStoritev.poslusalci.add(medijiPoslusalec)
+        OddaljenoPredvajanje.poslusalci.add(medijiPoslusalec)
+        dock?.osvezi()
     }
 
     override fun onStop() {
+        GlasbaStoritev.poslusalci.remove(medijiPoslusalec)
+        OddaljenoPredvajanje.poslusalci.remove(medijiPoslusalec)
+        dock?.ustavi()
         glavna.removeCallbacks(tikUre)
         super.onStop()
     }
+
+    private var dock: MiniPredvajalnik? = null
+    private val medijiPoslusalec: () -> Unit = { runOnUiThread { dock?.osvezi() } }
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
@@ -135,6 +147,7 @@ class PokrajinaActivity : OsActivity() {
     @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun onBackPressed() {
         if (DomacaLupa.nazaj(this)) return
+        if (dock?.skrijCeOdprt() == true) return
         if (Zaganjalnik.jeIzbran(this)) return
         super.onBackPressed()
     }

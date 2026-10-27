@@ -72,6 +72,28 @@ object MiniPredvajalnikPravila {
         !priklopljen || zgrajenoMesto == null || mesto(zgrajenoMesto) != mesto(mesto)
 
     /**
+     * Naloga 42 B (27. 10. 2026, lastnik: »kot na racunalniku«): gumbi docka v tem vrstnem redu - prejsnja, premor ali
+     * predvajaj, naslednja, zvocnik, tisje, glasneje, skrij. Glasnost brez zapuscanja domacega zaslona.
+     */
+    val GUMBI = listOf("prejsnja", "predvajaj", "naslednja", "zvocnik", "tisje", "glasneje", "skrij")
+
+    const val GLASNOST_TU = "tu"
+    const val GLASNOST_ZVOCNIK = "zvocnik"
+    const val GLASNOST_DRUGA = "druga"
+    /** Korak glasnosti druge naprave (odstotki, kot drsnik v ZvocnikIzbira). */
+    const val KORAK_DRUGA = 5
+
+    /**
+     * Cigava glasnost se spremeni: ta naprava upravlja drugo (seja daljinca, naloga 117) - glasnost tiste naprave; glasba
+     * igra na zvocniku v omrezju - glasnost zvocnika; sicer glasnost te naprave (kot tipki za glasnost na daljincu).
+     */
+    fun ciljGlasnosti(naDrugiNapravi: Boolean, naZvocniku: Boolean): String = when {
+        naDrugiNapravi -> GLASNOST_DRUGA
+        naZvocniku -> GLASNOST_ZVOCNIK
+        else -> GLASNOST_TU
+    }
+
+    /**
      * Lastnik 27. 10. 2026: v docku ni bilo mogoce premakniti predvajanja naprej in ne predvajati na zvocniku (v
      * celozaslonskem predvajalniku oboje dela). Drsnik casa: samo za skladbo s trajanjem na tej napravi ali zvocniku
      * (radio in tok v zivo nimata konca; drugo napravo upravlja okno »Upravljaj napravo«).

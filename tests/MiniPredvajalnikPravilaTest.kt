@@ -77,5 +77,14 @@ fun main() {
     preveriEnako("v omrezju nic: samo Bluetooth/sistem", listOf(N.SISTEM to 0), N.izbire(0, 0))
     preveriEnako("samo naprave Linka", listOf(N.NAPRAVA to 0, N.SISTEM to 0), N.izbire(0, 1))
 
+    println("\n== naloga 42 B: glasnost v docku ==")
+    preveriEnako("gumbi: tisje in glasneje med zvocnikom in skrij", listOf("prejsnja", "predvajaj", "naslednja", "zvocnik", "tisje", "glasneje", "skrij"),
+        MiniPredvajalnikPravila.GUMBI)
+    preveriEnako("igra tu: glasnost te naprave", MiniPredvajalnikPravila.GLASNOST_TU, MiniPredvajalnikPravila.ciljGlasnosti(false, false))
+    preveriEnako("igra na zvocniku: zvocnik", MiniPredvajalnikPravila.GLASNOST_ZVOCNIK, MiniPredvajalnikPravila.ciljGlasnosti(false, true))
+    preveriEnako("upravlja drugo napravo: tista naprava", MiniPredvajalnikPravila.GLASNOST_DRUGA, MiniPredvajalnikPravila.ciljGlasnosti(true, false))
+    preveriEnako("druga naprava ima prednost pred zvocnikom", MiniPredvajalnikPravila.GLASNOST_DRUGA, MiniPredvajalnikPravila.ciljGlasnosti(true, true))
+    preveriEnako("korak druge naprave", 5, MiniPredvajalnikPravila.KORAK_DRUGA)
+
     if (napak == 0) println("MiniPredvajalnikPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

@@ -20,6 +20,7 @@ JEZIKI = ["values", "values-en", "values-sl", "values-de", "values-es", "values-
 DATOTEKE = [
     "os/PokrajinaActivity.kt",
     "os/ZaganjalnikBeta.kt",
+    "os/MiniPredvajalnik.kt",
 ]
 
 napak = 0
@@ -122,6 +123,11 @@ def main() -> int:
     preveri("tema je v izbiri (Videz) na prvem mestu", re.search(r"val VSE = listOf\(\s*(//[^\n]*\n\s*)*Vnos\(PokrajinaPravila\.TEMA", tema) is not None)
     preveri("brez izbire velja Pokrajina samo z novim zaganjalnikom", "PokrajinaPravila.tema(shranjena, ZaganjalnikBeta.vklopljen(c))" in tema)
     b = barve()
+    manjka = [k for k in ("ozadje", "besedilo", "umirjeno", "mint", "kartica_steklo", "kartica_steklo_fokus", "kartica_obroba")
+              if "tema_pokrajina_" + k not in b]
+    preveri("barve teme Pokrajina", not manjka, "manjka " + ", ".join(manjka))
+    if manjka:
+        return konec()
     p = lambda ime: b["tema_pokrajina_" + ime]
     steklo = cez(p("kartica_steklo"), p("ozadje"))
     steklo_f = cez(p("kartica_steklo_fokus"), p("ozadje"))
@@ -145,6 +151,11 @@ def main() -> int:
         najdeno = re.findall(r"(?i)\b(TODO|FIXME|lorem|placeholder|coming soon|kmalu na voljo)\b", t)
         preveri(f"{d}: brez nadomestkov", not najdeno, ", ".join(najdeno))
 
+    preveri("mini predvajalnik na novem domacem zaslonu", "MiniPredvajalnik.naOknu(this)" in vsebina.get("os/PokrajinaActivity.kt", ""))
+    return konec()
+
+
+def konec() -> int:
     print()
     if napak:
         print(f"preveri_zaganjalnik_beta: {napak} napak")
