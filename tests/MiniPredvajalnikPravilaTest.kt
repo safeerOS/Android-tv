@@ -63,9 +63,9 @@ fun main() {
 
     // Obvestilo kot medijski predvajalnik (zaklenjen zaslon, hitre nastavitve)
     val O = ObvestiloPredvajanjaPravila
-    preveriEnako("skladba z naslednjo", listOf(O.NAZAJ, O.PREKLOPI, O.NAPREJ, O.USTAVI), O.dejanja(imaNaslednjo = true, radio = false))
-    preveriEnako("zadnja skladba: Nazaj ostane", listOf(O.NAZAJ, O.PREKLOPI, O.USTAVI), O.dejanja(imaNaslednjo = false, radio = false))
-    preveriEnako("radio", listOf(O.PREKLOPI, O.USTAVI), O.dejanja(imaNaslednjo = true, radio = true))
+    preveriEnako("skladba z naslednjo", listOf(O.NAZAJ, O.PREKLOPI, O.NAPREJ, O.NA_NAPRAVI, O.USTAVI), O.dejanja(imaNaslednjo = true, radio = false))
+    preveriEnako("zadnja skladba: Nazaj ostane", listOf(O.NAZAJ, O.PREKLOPI, O.NA_NAPRAVI, O.USTAVI), O.dejanja(imaNaslednjo = false, radio = false))
+    preveriEnako("radio: tudi na napravi", listOf(O.PREKLOPI, O.NA_NAPRAVI, O.USTAVI), O.dejanja(imaNaslednjo = true, radio = true))
     preveriEnako("strnjeno: nazaj, preklopi, naprej", listOf(0, 1, 2), O.strnjeno(O.dejanja(true, false)).toList())
     preveriEnako("strnjeno brez Ustavi", listOf(0, 1), O.strnjeno(O.dejanja(false, false)).toList())
     preveriEnako("strnjeno radio", listOf(0), O.strnjeno(O.dejanja(true, true)).toList())

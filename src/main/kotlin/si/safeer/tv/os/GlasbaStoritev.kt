@@ -338,6 +338,11 @@ class GlasbaStoritev : Service() {
                 override fun onSkipToPrevious() { prejsnjaTu() }
                 override fun onStop() { konec() }
                 override fun onSeekTo(pos: Long) { skoci(pos) }
+                // Gumb »Predvajaj na napravi« v predvajalniku sistema (zaklenjen zaslon, hitre nastavitve).
+                override fun onCustomAction(action: String, extras: android.os.Bundle?) {
+                    if (action != AKCIJA_NA_NAPRAVI) return
+                    try { izbiraNaprave().send() } catch (e: Exception) { Log.i("SafeerOsMedia", "izbira naprave: ${e.javaClass.simpleName}") }
+                }
             })
             isActive = true
         }
@@ -1209,6 +1214,12 @@ class GlasbaStoritev : Service() {
         return true
     }
 
+    /** Predvajalnik z odprto izbiro naprave (lastnik 27. 10. 2026: zvocniki v omrezju tudi brez odprtega Safeer OS). */
+    private fun izbiraNaprave(): PendingIntent = PendingIntent.getActivity(this, 15,
+        Intent(this, PredvajanjeActivity::class.java).putExtra(PredvajanjeActivity.IZBERI_NAPRAVO, true)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+
     private fun zacniVOspredju() {
         val o = obvestilo()
         if (Build.VERSION.SDK_INT >= 29) startForeground(ID, o, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
@@ -1245,10 +1256,13 @@ class GlasbaStoritev : Service() {
                 ObvestiloPredvajanjaPravila.PREKLOPI -> listOf(if (igra()) R.drawable.os_ikona_pavza else R.drawable.os_ikona_predvajaj,
                     getString(if (igra()) R.string.zg_premor else R.string.zg_predvajaj), AKCIJA_TOGGLE, 11)
                 ObvestiloPredvajanjaPravila.NAPREJ -> listOf(R.drawable.os_ikona_naslednja, getString(R.string.zg_naslednja), AKCIJA_NAPREJ, 12)
+                ObvestiloPredvajanjaPravila.NA_NAPRAVI -> listOf(R.drawable.os_ikona_predvajaj_na, getString(R.string.zvocnik_na_napravi), "", 15)
                 else -> listOf(R.drawable.os_ikona_ustavi, "Ustavi", AKCIJA_USTAVI, 13)
             }
+            // »Predvajaj na napravi« odpre predvajalnik z izbiro naprave (izbira rabi zaslon); ostali gumbi gredo storitvi.
+            val namen = if (d == ObvestiloPredvajanjaPravila.NA_NAPRAVI) izbiraNaprave() else dejanje(akcija as String, koda as Int)
             b.addAction(Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(this, ikona as Int),
-                opis as String, dejanje(akcija as String, koda as Int)).build())
+                opis as String, namen).build())
         }
         b.setStyle(Notification.MediaStyle().also { st ->
             seja?.let { st.setMediaSession(it.sessionToken) }
@@ -1274,6 +1288,8 @@ class GlasbaStoritev : Service() {
             .setActions(PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_PLAY_PAUSE or
                 PlaybackState.ACTION_SKIP_TO_NEXT or PlaybackState.ACTION_SKIP_TO_PREVIOUS or PlaybackState.ACTION_STOP or
                 PlaybackState.ACTION_SEEK_TO)
+            .addCustomAction(PlaybackState.CustomAction.Builder(AKCIJA_NA_NAPRAVI, getString(R.string.zvocnik_na_napravi),
+                R.drawable.os_ikona_predvajaj_na).build())
             .setState(stanjeSeje(), polozajMs(), if (stanjeSeje() == PlaybackState.STATE_BUFFERING) 0f else hitrostZaSejo())
             .build())
         uskladiGlasnostSeje()
@@ -1306,6 +1322,7 @@ class GlasbaStoritev : Service() {
         private const val AKCIJA_NAPREJ = "si.safeer.media.NEXT"
         private const val AKCIJA_USTAVI = "si.safeer.media.STOP"
         private const val AKCIJA_NAZAJ = "si.safeer.media.PREVIOUS"
+        private const val AKCIJA_NA_NAPRAVI = "si.safeer.media.NA_NAPRAVI"
         /** Strani, za katere vemo, da v varcnem pogledu ne tecejo (aplikacije v JavaScriptu). */
         private val POLNI_POGON = setOf("youtube.com", "youtu.be")
 

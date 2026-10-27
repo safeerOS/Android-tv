@@ -102,14 +102,16 @@ object ObvestiloPredvajanjaPravila {
     const val PREKLOPI = "preklopi"
     const val NAPREJ = "naprej"
     const val USTAVI = "ustavi"
+    /** Lastnik 27. 10. 2026: »Predvajaj na napravi« (zvocniki v omrezju, naprave Linka, Bluetooth) tudi brez odprtega OS. */
+    const val NA_NAPRAVI = "na_napravi"
 
     /** Gumbi obvestila po vrsti. Nazaj ima vsaka skladba (zacetek posnetka); radio nima ne Nazaj ne Naprej. */
     fun dejanja(imaNaslednjo: Boolean, radio: Boolean): List<String> =
-        listOfNotNull(NAZAJ.takeIf { !radio }, PREKLOPI, NAPREJ.takeIf { imaNaslednjo && !radio }, USTAVI)
+        listOfNotNull(NAZAJ.takeIf { !radio }, PREKLOPI, NAPREJ.takeIf { imaNaslednjo && !radio }, NA_NAPRAVI, USTAVI)
 
-    /** Indeksi gumbov v strnjenem obvestilu (najvec trije): Nazaj, Predvajaj/Pavza, Naprej - Ustavi samo v razsirjenem. */
+    /** Indeksi gumbov v strnjenem obvestilu (najvec trije): Nazaj, Predvajaj/Pavza, Naprej - ostalo samo v razsirjenem. */
     fun strnjeno(dejanja: List<String>): IntArray =
-        dejanja.withIndex().filter { it.value != USTAVI }.map { it.index }.take(3).toIntArray()
+        dejanja.withIndex().filter { it.value != USTAVI && it.value != NA_NAPRAVI }.map { it.index }.take(3).toIntArray()
 }
 
 /**
