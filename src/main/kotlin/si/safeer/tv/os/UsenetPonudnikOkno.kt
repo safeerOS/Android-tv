@@ -122,6 +122,12 @@ object UsenetPonudnikOkno {
                         izid.text = t(kljuc)
                         preveri.isEnabled = kljuc != P.NE_VELJA && kljuc != P.ZAKLENJEN
                         if (kljuc == P.NE_VELJA || kljuc == P.ZAKLENJEN) geslo.requestFocus()
+                        // Lastnik 27. 10. 2026: prijava deluje, vse je shranjeno - Shrani postane Zapri in dobi fokus (en OK).
+                        if (kljuc == P.VELJA) {
+                            shrani.text = t("GUMB_ZAPRI")
+                            shrani.setOnClickListener { okno.dismiss(); potem() }
+                            shrani.requestFocus()
+                        }
                         potem()
                     }
                 }, "safeer-usenet-ponudnik-preveri").start()

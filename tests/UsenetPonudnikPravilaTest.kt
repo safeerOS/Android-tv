@@ -319,7 +319,7 @@ private fun besedila() {
     val kljuci = listOf("NI_VPISAN", P.NEPREVERJEN, P.NI_GESLA, P.VELJA, P.NE_VELJA, P.ZAKLENJEN, P.NI_ODGOVORA,
         P.PREVEC_POVEZAV, P.PREPOGOSTO, P.BREZ_TLS, P.N_GOSTITELJ, P.N_VRATA, P.N_UPORABNIK, P.N_GESLO, P.N_POVEZAV,
         P.N_IME, P.N_BREZ_TLS, P.N_BREZ_TLS_DOMA, "NASLOV", "POLJE_STREZNIK", "POLJE_VRATA", "POLJE_TLS",
-        "POLJE_UPORABNIK", "POLJE_GESLO", "POLJE_POVEZAV", "GUMB_SHRANI", "GUMB_PREVERI", "GUMB_POZABI")
+        "POLJE_UPORABNIK", "POLJE_GESLO", "POLJE_POVEZAV", "GUMB_SHRANI", "GUMB_PREVERI", "GUMB_POZABI", "GUMB_ZAPRI")
     for (k in kljuci) for (j in P.JEZIKI) {
         val b = P.BESEDILA[k]?.get(j)
         if (b.isNullOrBlank()) { napak++; println("NAPAKA besedilo manjka: $k/$j") }

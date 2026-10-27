@@ -1051,6 +1051,8 @@ object UsenetPonudnikPravila {
             "fr" to "Enregistrer", "it" to "Salva"),
         "GUMB_PREVERI" to mapOf("sl" to "Preveri", "en" to "Check", "de" to "Prüfen", "es" to "Comprobar",
             "fr" to "Vérifier", "it" to "Verifica"),
+        "GUMB_ZAPRI" to mapOf("sl" to "Zapri", "en" to "Close", "de" to "Schließen", "es" to "Cerrar",
+            "fr" to "Fermer", "it" to "Chiudi"),
         "GUMB_POZABI" to mapOf("sl" to "Pozabi ponudnika", "en" to "Forget provider", "de" to "Anbieter entfernen",
             "es" to "Olvidar proveedor", "fr" to "Oublier le fournisseur", "it" to "Dimentica provider"),
         "OPOZORILO_BREZ_TLS" to mapOf(

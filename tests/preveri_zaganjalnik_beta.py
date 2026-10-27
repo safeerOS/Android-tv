@@ -305,6 +305,8 @@ def main() -> int:
     preveri("samo z lastnim ponudnikom in indeksatorjem", "fun glasbaNaVoljo(c: Context): Boolean = zaUporabo(c) != null && UsenetLastni.naVoljo(c)" in us)
     preveri("klik predvaja album v obstojecem predvajalniku, pri iskani skladbi", "predvajaj(seznam, UsenetGlasbaPravila.zacetnaSkladba(" in gl)
     preveri("album: ena seja in en bazen, Pozabi zapre vse skladbe", "s.strezniki.forEach { try { it.close() }" in la and "fun predvajajAlbum(" in la)
+    okno_up = (SRC / "os/UsenetPonudnikOkno.kt").read_text(encoding="utf-8")
+    preveri("okno ponudnika: po uspesni preverbi Zapri s fokusom", re.search(r"if \(kljuc == P\.VELJA\) \{\s*shrani\.text = t\(\"GUMB_ZAPRI\"\)", okno_up) is not None)
     # Rocna gradnja bete v CI: vhod »beta« gre prek okolja v -PsafeerBeta (brez vhoda gradnja kot prej).
     ci = (KOREN / ".github" / "workflows" / "gradnja.yml").read_text(encoding="utf-8")
     preveri("CI: rocna gradnja z vhodom beta poda -PsafeerBeta",
