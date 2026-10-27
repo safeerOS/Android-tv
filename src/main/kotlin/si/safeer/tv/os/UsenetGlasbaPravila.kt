@@ -80,6 +80,61 @@ object UsenetGlasbaPravila {
         return s.ifBlank { "Skladba" }
     }
 
+    private val MALE = setOf("a", "an", "the", "and", "or", "of", "for", "in", "on", "at", "to", "by", "with", "from", "vs")
+
+    /** Velike zacetnice samo za ime, ki je v celoti z malimi crkami (pravilnih zapisov, npr. »AC/DC«, »iPhone«, ne spreminjamo). */
+    fun zacetnice(t: String): String {
+        if (t.any { it.isUpperCase() }) return t
+        val besede = t.split(' ')
+        return besede.mapIndexed { i, b ->
+            if (b.isEmpty() || (i in 1 until besede.size - 1 && b in MALE)) b else b.replaceFirstChar { it.titlecase() }
+        }.joinToString(" ")
+    }
+
+    private fun kljuc(t: String) = t.lowercase().replace(Regex("[^\\p{L}\\p{N}]+"), " ").trim()
+
+    /**
+     * Lastnik 27. 10. 2026: (naslov, izvajalec) za vsako skladbo albuma z Useneta. Imena datotek so pogosto »izvajalec-naslov
+     * album« z malimi crkami in podcrtaji. Predpona pred »-«, ki jo ima vec kot pol skladb, je izvajalec (svoje polje, z
+     * velikimi zacetnicami); skupen zakljucek za dvojnim presledkom ali v oklepaju (ime albuma) se umakne; naslov z malimi
+     * crkami dobi velike zacetnice. Odloca cel album - naslov z vezajem (»Re-Arrange«) ene skladbe se ne razbije.
+     * [izvajalecIzdaje] (iz naslova izdaje) ima prednost, ce ga poznamo.
+     */
+    fun lepeSkladbe(imena: List<String?>, izvajalecIzdaje: String = ""): List<Pair<String, String>> {
+        val osnove = imena.map { imeSkladbe(it).replace(Regex("[\\t ]{3,}"), "  ").trim() }
+        val pol = osnove.size / 2
+        // Izvajalec: predpona do prvega »-« (z ali brez presledkov), enaka pri vec kot pol skladb.
+        val predpone = osnove.map { o -> o.indexOf('-').takeIf { it > 0 }?.let { kljuc(o.substring(0, it)) }.orEmpty() }
+        val izvKljuc = predpone.filter { it.isNotEmpty() }.groupingBy { it }.eachCount().maxByOrNull { it.value }
+            ?.takeIf { it.value > pol || (osnove.size == 1 && it.key == kljuc(izvajalecIzdaje)) }?.key
+        val brezIzvajalca = osnove.mapIndexed { i, o ->
+            if (izvKljuc != null && predpone[i] == izvKljuc) o.substring(o.indexOf('-') + 1).trim() else o
+        }
+        // Album: zakljucek za dvojnim presledkom ali v zadnjem oklepaju, enak pri vec kot pol skladb.
+        fun zakljucek(t: String): String {
+            val m = Regex("\\(([^()]+)\\)\\s*$").find(t)
+            if (m != null) return m.groupValues[1]
+            val d = t.lastIndexOf("  ")
+            return if (d > 0) t.substring(d) else ""
+        }
+        val zakljucki = brezIzvajalca.map { kljuc(zakljucek(it)) }
+        val albKljuc = zakljucki.filter { it.isNotEmpty() }.groupingBy { it }.eachCount().maxByOrNull { it.value }
+            ?.takeIf { it.value > pol && osnove.size > 1 }?.key
+        val izvajalec = izvajalecIzdaje.trim().ifBlank {
+            izvKljuc?.let { k -> osnove.first { o -> o.indexOf('-') > 0 && kljuc(o.substring(0, o.indexOf('-'))) == k }
+                .let { zacetnice(it.substring(0, it.indexOf('-')).trim()) } }.orEmpty()
+        }
+        return brezIzvajalca.mapIndexed { i, t ->
+            var n = t
+            if (albKljuc != null && zakljucki[i] == albKljuc) {
+                val z = zakljucek(n)
+                n = n.substring(0, n.length - z.length).trimEnd().removeSuffix("(").trimEnd()
+            }
+            n = n.replace(Regex("\\s+"), " ").trim().trim('-', ' ')
+            (zacetnice(n).ifBlank { imeSkladbe(imena[i]) }) to izvajalec
+        }
+    }
+
     /** Izvajalec iz naslova izdaje »Izvajalec - Album (Leto) [FLAC]«; brez » - « prazno. */
     fun izvajalec(naslovIzdaje: String): String {
         val n = lepNaslov(naslovIzdaje)

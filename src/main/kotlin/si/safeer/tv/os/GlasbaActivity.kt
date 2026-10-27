@@ -7522,8 +7522,9 @@ class GlasbaActivity : OsActivity() {
                         else R.string.os_usenet_album_ni), Toast.LENGTH_LONG).show()
                     return@runOnUiThread
                 }
-                val izvajalec = UsenetGlasbaPravila.izvajalec(z.naslov)
-                val seznam = album.skladbe.mapIndexed { i, (ime, url) -> Jamendo.Skladba("usenet:$id:$i", ime, izvajalec, "", url, "") }
+                // Lastnik 27. 10. 2026: naslov in izvajalec lepse (izvajalec ostane, v svojem polju) - pravilo za cel album.
+                val lepe = UsenetGlasbaPravila.lepeSkladbe(album.skladbe.map { it.first }, UsenetGlasbaPravila.izvajalec(z.naslov))
+                val seznam = album.skladbe.mapIndexed { i, (_, url) -> Jamendo.Skladba("usenet:$id:$i", lepe[i].first, lepe[i].second, "", url, "") }
                 predvajaj(seznam, UsenetGlasbaPravila.zacetnaSkladba(album.skladbe.map { it.first }, beseda))
             }
         }, "safeer-usenet-album").start()

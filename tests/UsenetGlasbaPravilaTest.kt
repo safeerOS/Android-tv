@@ -34,6 +34,22 @@ fun main() {
     preveriEnako("prazno ime", "Skladba", G.imeSkladbe(null))
     preveriEnako("izvajalec iz naslova", "Izvajalec", G.izvajalec("Izvajalec - Album (2020) [FLAC]"))
     preveriEnako("brez izvajalca", "", G.izvajalec("Album"))
+    // Lastnik 27. 10. 2026 (TV, album z Useneta): imena kot so prisla z Useneta.
+    val lp = G.lepeSkladbe(listOf(
+        "01-linkin_park-waiting_for_the_end__unshatter_film_soundtrack.mp3",
+        "02-linkin_park-numb__unshatter_film_soundtrack.mp3",
+        "03-linkin_park-in_the_end__unshatter_film_soundtrack.mp3",
+        "04-linkin_park-break_collapse__interlude___unshatter_film_soundtrack.mp3"))
+    preveriEnako("album: naslov brez izvajalca in albuma, velike zacetnice", "Waiting for the End", lp[0].first)
+    preveriEnako("album: izvajalec ostane v svojem polju", "Linkin Park", lp[0].second)
+    preveriEnako("album: kratek naslov", "Numb", lp[1].first)
+    preveriEnako("album: vsi imajo izvajalca", setOf("Linkin Park"), lp.map { it.second }.toSet())
+    preveriEnako("album: izvajalec iz naslova izdaje ima prednost", "Linkin Park",
+        G.lepeSkladbe(listOf("01 - Numb.flac", "02 - Faint.flac"), "Linkin Park")[0].second)
+    val pravilno = G.lepeSkladbe(listOf("01 - AC-DC Live.flac", "02 - Re-Arrange.flac", "03 - Hold On.flac"))
+    preveriEnako("pravilno zapisana imena ostanejo (vezaj v naslovu ni izvajalec)", listOf("AC-DC Live", "Re-Arrange", "Hold On"), pravilno.map { it.first })
+    preveriEnako("brez skupnega izvajalca: izvajalec prazen", "", pravilno[0].second)
+    preveriEnako("ena skladba brez vzorca: ime ostane", "Song", G.lepeSkladbe(listOf("01 - song.mp3"))[0].first)
     preveriEnako("lep naslov z pikami", "Izvajalec Album 2020 FLAC", G.lepNaslov("Izvajalec.Album.2020.FLAC"))
     preveriEnako("velikost MB", "350 MB", G.velikost(350L * 1024 * 1024))
     preveriEnako("velikost GB", "1.5 GB", G.velikost(1536L * 1024 * 1024))
