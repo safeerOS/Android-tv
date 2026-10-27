@@ -9485,6 +9485,8 @@ class GlasbaActivity : OsActivity() {
         // Pregled Grok 41, Z2: indeksator »ne velja« ali »zaklenjen« - okno z navodilom in »Preveri« (kot kljuc debrid).
         val ustavljenIx = gostIx != null && !DebridPravila.smeKlicati(stanjeIx)
         vrstice += vrsticaIx to { if (ustavljenIx && gostIx != null) stanjeIndeksatorjaOkno(gostIx) else usenetIndeksator() }
+        // Naloga 42 G: lasten ponudnik Usenet (NNTP) - okno »Moji viri › Usenet ponudnik« (geslo v Keystore, Preveri na klik).
+        vrstice += UsenetPonudnikOkno.vrstica(this) to { UsenetPonudnikOkno.pokazi(this) { osveziNaMestu() } }
         val takoj = Debrid.samoTakoj(this)
         vrstice += getString(if (takoj) R.string.os_debrid_samo_takoj_vkl else R.string.os_debrid_samo_takoj_izk) to {
             Debrid.nastaviSamoTakoj(this, !takoj); osveziNaMestu(); nastavitveDebrida()

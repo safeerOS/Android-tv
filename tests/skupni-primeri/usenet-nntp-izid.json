@@ -1,0 +1,806 @@
+{
+ "opis": "Izrez iz usenet-pogon.json (Safeer-linux core/usenet_nntp.py izid_odgovora): f=nntp_izid. Naloga 42 G.",
+ "verzija": 6,
+ "primeri": [
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "POZDRAV",
+    "vrstica": "200 news.primer.invalid ready"
+   },
+   "izhod": "ok"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "POZDRAV",
+    "vrstica": "201 posting prohibited"
+   },
+   "izhod": "ok"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "POZDRAV",
+    "vrstica": "400 Service temporarily unavailable"
+   },
+   "izhod": "napaka_streznika"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "POZDRAV",
+    "vrstica": "502 Access denied"
+   },
+   "izhod": "dostop"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "POZDRAV",
+    "vrstica": "205 Bye"
+   },
+   "izhod": "zaprto"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO USER",
+    "vrstica": "381 PASS required"
+   },
+   "izhod": "geslo"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO USER",
+    "vrstica": "281 Ok"
+   },
+   "izhod": "ok"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO USER",
+    "vrstica": "481 Authentication failed"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "281 Authentication accepted"
+   },
+   "izhod": "ok"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "381 PASS required"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 Authentication rejected"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "482 Authentication commands issued out of sequence"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "502 Authentication failed"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "502 Too many connections"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 Max Connections reached"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "430 No such article"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "ARTICLE",
+    "vrstica": "220 0 <a@primer.invalid> article"
+   },
+   "izhod": "ok"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "HEAD",
+    "vrstica": "221 0 <a@primer.invalid> head"
+   },
+   "izhod": "ok"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "222 0 <a@primer.invalid> body"
+   },
+   "izhod": "ok"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "222"
+   },
+   "izhod": "ok"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "STAT",
+    "vrstica": "223 0 <a@primer.invalid>"
+   },
+   "izhod": "ok"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "QUIT",
+    "vrstica": "205 closing connection"
+   },
+   "izhod": "ok"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "220 0 <a@primer.invalid>"
+   },
+   "izhod": "napaka_protokola"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "STAT",
+    "vrstica": "222 0 <a@primer.invalid>"
+   },
+   "izhod": "napaka_protokola"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "430 No such article"
+   },
+   "izhod": "ni_clanka"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "STAT",
+    "vrstica": "430 no such article"
+   },
+   "izhod": "ni_clanka"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "ARTICLE",
+    "vrstica": "423 No article with that number"
+   },
+   "izhod": "ni_clanka"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "480 Authentication required"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "481 Authentication failed"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "400 Idle timeout, closing connection"
+   },
+   "izhod": "zaprto"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "502 Service permanently unavailable"
+   },
+   "izhod": "dostop"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "403 Archive server error"
+   },
+   "izhod": "napaka_streznika"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "500 What?"
+   },
+   "izhod": "napaka_protokola"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "501 Syntax error"
+   },
+   "izhod": "napaka_protokola"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "411 No such group"
+   },
+   "izhod": "napaka_protokola"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "205 Bye"
+   },
+   "izhod": "zaprto"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "abc"
+   },
+   "izhod": "napaka_protokola"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": ""
+   },
+   "izhod": "napaka_protokola"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "2220 x"
+   },
+   "izhod": "napaka_protokola"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "22 x"
+   },
+   "izhod": "napaka_protokola"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "222x"
+   },
+   "izhod": "napaka_protokola"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "699 x"
+   },
+   "izhod": "napaka_protokola"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "099 x"
+   },
+   "izhod": "napaka_protokola"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 Authentication failed for this connection"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 Authentication failed: too many connections"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 Too many failed login attempts"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 Connection limit reached, account blocked"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 Invalid password, too many connections"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "482 Too many connections for this account"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "502 Connection limit exceeded"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "502 Maximum number of connections reached"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 No more connections allowed"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 Connections exceeded"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "400 Service temporarily unavailable"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "400 Too many connections"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "500 What?"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "205 Bye"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "abc"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": ""
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO USER",
+    "vrstica": "502 Command unavailable"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO USER",
+    "vrstica": "480 Authentication required"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO USER",
+    "vrstica": "482 Too many connections"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO USER",
+    "vrstica": "481 connection refused"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "POZDRAV",
+    "vrstica": "400 Too many connections, try again later"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "POZDRAV",
+    "vrstica": "502 Too many connections"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "POZDRAV",
+    "vrstica": "502 Too many failed connections from your IP, blocked"
+   },
+   "izhod": "dostop"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "POZDRAV",
+    "vrstica": "481 Authentication required"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "400 Too many connections"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "502 Too many connections"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "400 connection closed"
+   },
+   "izhod": "zaprto"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "STAT",
+    "vrstica": "502 Access restricted"
+   },
+   "izhod": "dostop"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "STAT",
+    "vrstica": "482 Authentication commands out of sequence"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "480 Too many connections"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "480 Authentication required"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "480 Authentication error"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 Authentication failed"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "502 Authentication failed"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO USER",
+    "vrstica": "481 Authentication failed"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 Invalid username or password"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "482 Authentication commands issued out of sequence"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 Account locked"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "502 Account suspended"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 Subscription expired"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 IP banned"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "480"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 Authentication failed, too many connections"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "482 Authentication rejected: connection limit"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 Unauthorized - max connections"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 Login refused: too many connections"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 Credentials rejected (connection limit)"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO USER",
+    "vrstica": "481 Logon denied, too many connections"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "481 Too many connections"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "480 Connection limit reached"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "502 Too many connections for this user"
+   },
+   "izhod": "zaseden"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "AUTHINFO PASS",
+    "vrstica": "281 Ok"
+   },
+   "izhod": "ok"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "480 Authentication required, too many connections"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "BODY",
+    "vrstica": "481 Authentication failed"
+   },
+   "izhod": "prijava"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "POZDRAV",
+    "vrstica": "502 Access denied"
+   },
+   "izhod": "dostop"
+  },
+  {
+   "f": "nntp_izid",
+   "vhod": {
+    "ukaz": "POZDRAV",
+    "vrstica": "400 Too many connections, login later"
+   },
+   "izhod": "napaka_streznika"
+  }
+ ]
+}

@@ -26,6 +26,8 @@ DATOTEKE = [
     "os/DomacaLupa.kt",
     "os/PrikaziNa.kt",
     "os/NastavitveActivity.kt",
+    "os/UsenetPonudnikOkno.kt",
+    "os/UsenetNntp.kt",
 ]
 
 napak = 0
@@ -218,6 +220,24 @@ def main() -> int:
             "ZaganjalnikBetaPravila.stikaloVidno(tv, si.safeer.tv.BuildConfig.BETA, ZaganjalnikBeta.vklopljen(this))" in nast and "R.string.pk_beta" in nast)
     preveri("preklop odpre domaci zaslon znova (stari ali novi)", re.search(r"fun preklopiBeto\(\) \{\s*ZaganjalnikBeta\.nastavi\(this, !ZaganjalnikBeta\.vklopljen\(this\)\)", nast) is not None)
     beta = vsebina.get("os/ZaganjalnikBeta.kt", "")
+    print("\n== Usenet ponudnik: vezava (del G) ==")
+    glasba = (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8")
+    okno = (SRC / "os/UsenetPonudnikOkno.kt").read_text(encoding="utf-8") if (SRC / "os/UsenetPonudnikOkno.kt").is_file() else ""
+    nntp = (SRC / "os/UsenetNntp.kt").read_text(encoding="utf-8") if (SRC / "os/UsenetNntp.kt").is_file() else ""
+    usk2 = (SRC / "os/UskladitevKljucev.kt").read_text(encoding="utf-8")
+    preveri("Moji viri › Usenet ponudnik v Medijskem centru", "UsenetPonudnikOkno.pokazi(this)" in glasba)
+    preveri("Preveri uporabi shranjenega ponudnika in UsenetNntp z mejo racuna",
+            "UsenetNntp.prijava(pp, gg, protokoli, shramba.meje)" in okno and "shramba.zaBazen(p)" in okno)
+    preveri("Preveri samo na delovni niti", re.search(r"Thread\(\{\s*val kljuc = try \{\s*shramba\.preveri\(", okno) is not None)
+    preveri("UsenetNntp: zasedi pred povezavo, sprosti v finally",
+            re.search(r"if \(!meje\.zasedi\(p\)\) return.*?finally \{.*?meje\.sprosti\(p\)", nntp, re.S) is not None)
+    preveri("UsenetNntp: TLS z varniParametri", "P.varniParametri(s.sslParameters)" in nntp)
+    preveri("UsenetNntp in okno ne pisejo v dnevnik", "Log." not in nntp and "Log." not in okno and "println" not in nntp)
+    preveri("geslo se v oknu nikoli ne pokaze (polje prazno ob odprtju)", 'polje(t("POLJE_GESLO"), InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD, "")' in okno)
+    preveri("ponudnik v ozjem krogu prek secrets.sync (posiljanje, prejem, grob)",
+            "P.KLJUC_USENET_PONUDNIK] = UsenetPonudnikPravila.Json.pisi(" in usk2 and
+            "UsenetPonudnik.get(c).prejetoIzKroga(pp, g)" in usk2 and "UsenetPonudnik.get(c).pozabi(); true" in usk2)
+
     preveri("ista shramba in kljuc kot pravila (vrnitev ne brise nicesar)",
             'const val KLJUC = "zaganjalnik_beta"' in beta and ".putBoolean(KLJUC, da).apply()" in beta and ".clear()" not in beta)
     return konec()

@@ -201,6 +201,14 @@ object UskladitevKljucev {
                 else -> neznani += k
             }
         }
+        // Naloga 42 G: ponudnik Usenet (NNTP) z geslom - samo, ce je geslo berljivo; vpisan z neberljivim geslom (Keystore)
+        // je neznan (brez groba, drugim napravam ne izbrise ponudnika).
+        try {
+            val up = UsenetPonudnik.get(c)
+            val zk = up.zaKrog()
+            if (zk != null) v[P.KLJUC_USENET_PONUDNIK] = UsenetPonudnikPravila.Json.pisi(mapOf("ponudnik" to zk.ponudnik, "geslo" to zk.geslo.vrednost()))
+            else if (up.preberi() != null) neznani += P.KLJUC_USENET_PONUDNIK
+        } catch (_: Throwable) { neznani += P.KLJUC_USENET_PONUDNIK }
         // Naloga 42 D: »Vedno dovoli« za deljenje zaslona - samo za naprave v ozjem krogu te naprave. Zaupanje, ki ga tu ni
         // vec, gre kot grob (odvzem velja na vseh napravah kroga).
         for (j in NapraveKrogaPravila.zaPoslati(si.safeer.tv.link.ZaupanjeZaslona.vsaJedra(c)) { si.safeer.tv.link.ZaupanjeZaslona.jedroVKrogu(c, it) })
@@ -239,8 +247,16 @@ object UskladitevKljucev {
             SkrivnostiPravila.skrivnaPredponaDodatka(v)?.let { SkrivnostiPravila.odtis(it) } == k.removePrefix(P.PREDPONA_DODATKA)
         k.startsWith(P.PREDPONA_IPTV) -> prejetRacun(k, v) != null
         k.startsWith(P.PREDPONA_ZAUPANJA) -> v == "1" && NapraveKrogaPravila.veljavnoJedro(k.removePrefix(P.PREDPONA_ZAUPANJA))
+        k == P.KLJUC_USENET_PONUDNIK -> ponudnikIzVrednosti(v) != null
         else -> false
     }
+
+    /** Naloga 42 G: (ponudnik, geslo) iz vrednosti zapisa, preverjena z UsenetPonudnikPravila.izKroga; null = neveljavno. */
+    private fun ponudnikIzVrednosti(v: String): Pair<Any?, String?>? = try {
+        val d = UsenetPonudnikPravila.Json.beri(v) as? Map<*, *>
+        val g = d?.get("geslo") as? String
+        if (d == null || UsenetPonudnikPravila.izKroga(d["ponudnik"], g) == null) null else d["ponudnik"] to g
+    } catch (_: Exception) { null }
 
     /**
      * Naloga 42 D: prejeto zaupanje (ali odvzem) za napravo z jedrom iz [kljuc]. Posiljatelj je ze preverjen (ozji krog,
@@ -315,6 +331,10 @@ object UskladitevKljucev {
             // Naloga 42 D: zaupanje za deljenje zaslona (ali odvzem) - samo za napravo v ozjem krogu te naprave.
             z.kljuc.startsWith(P.PREDPONA_ZAUPANJA) ->
                 if (zaupanjeVelja(c, z.kljuc)) Pripravljen(z) { nastaviZaupanje(c, z.kljuc, !z.izbrisan) } else null
+            // Naloga 42 G: ponudnik Usenet - shrani se (geslo v Keystore) brez prijave; zapaha prejem ne odklene.
+            z.kljuc == P.KLJUC_USENET_PONUDNIK ->
+                if (z.izbrisan) Pripravljen(z) { UsenetPonudnik.get(c).pozabi(); true }
+                else ponudnikIzVrednosti(z.vrednost)?.let { (pp, g) -> Pripravljen(z) { UsenetPonudnik.get(c).prejetoIzKroga(pp, g) } }
             else -> null
         }
     } catch (e: Exception) { Log.w(TAG, "pripravi: ${e.javaClass.simpleName}"); null }
@@ -351,6 +371,9 @@ object UskladitevKljucev {
                 if (v == null) { MedijskiViri.odstraniRacun(c, k.removePrefix(P.PREDPONA_IPTV)); true }
                 else prejetRacun(k, v)?.let { r -> MedijskiViri.dodajRacun(c, r.tip, r.naslov, r.ime, prejeto = true) } != null
             k.startsWith(P.PREDPONA_ZAUPANJA) -> if (v == null || zaupanjeVelja(c, k)) nastaviZaupanje(c, k, v != null) else false
+            k == P.KLJUC_USENET_PONUDNIK ->
+                if (v == null) { UsenetPonudnik.get(c).pozabi(); true }
+                else ponudnikIzVrednosti(v)?.let { (pp, g) -> UsenetPonudnik.get(c).prejetoIzKroga(pp, g) } ?: false
             else -> false
         }
     } catch (e: Exception) { Log.w(TAG, "obnovi: ${e.javaClass.simpleName}"); false }
@@ -601,6 +624,9 @@ object UskladitevKljucev {
         // Grok 15, N10: z vrednostjo velja gostitelj iz nje; trditev posiljatelja (g) samo brez vrednosti in samo kot ime.
         kljuc.startsWith(P.PREDPONA_IPTV) -> "IPTV · " + P.prikazGostitelja(vrednost.orEmpty(), gostitelj, gostiteljRacuna(vrednost.orEmpty()))
         // Naloga 42 D: v oknu potrditve je zaupanje »Safeer Link · <skrajsano jedro>« (ime znamke, brez prevoda).
+        // Naloga 42 G: ponudnik Usenet - samo gostitelj (brez uporabnika in gesla).
+        kljuc == P.KLJUC_USENET_PONUDNIK -> "Usenet NNTP" + (vrednost?.let { ponudnikIzVrednosti(it)?.first as? Map<*, *> }
+            ?.get("gostitelj")?.toString()?.let { " · $it" }.orEmpty())
         kljuc.startsWith(P.PREDPONA_ZAUPANJA) -> "Safeer Link · " + si.safeer.tv.cast.E2e.zakrij(kljuc.removePrefix(P.PREDPONA_ZAUPANJA))
         else -> Debrid.PREDPONA_DODATKA + P.prikazGostitelja(vrednost.orEmpty(), gostitelj, Zasebno.gostitelj(vrednost.orEmpty()))
     }
