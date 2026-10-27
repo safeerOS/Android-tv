@@ -106,6 +106,21 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             finish()
             return
         }
+        // Naloga 42: nov TV zaganjalnik (beta). Domov ostane vstopna tocka (tipka Domov, alias), zaslon pa je
+        // PokrajinaActivity; dodatki namere (os_vrni ...) gredo zraven. Izklop bete v Nastavitvah vrne ta zaslon.
+        if (ZaganjalnikBeta.vklopljen(this)) {
+            try {
+                val nov = Intent(this, PokrajinaActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                intent?.extras?.let { nov.putExtras(it) }
+                if (intent?.hasCategory(Intent.CATEGORY_HOME) == true) nov.addCategory(Intent.CATEGORY_HOME)
+                startActivity(nov)
+                finish()
+                @Suppress("DEPRECATION") overridePendingTransition(0, 0)
+                return
+            } catch (e: Throwable) {
+                android.util.Log.w(TAG, "Nov zaganjalnik se ni odprl, ostane stari: ${e.javaClass.simpleName}")
+            }
+        }
         // Naloga 67: najvec ena DomovActivity. Safeer OS je domaci zaslon, ta instanca pa ni prisla z namero domacega
         // zaslona (izrecen zagon): namero z dodatki (os_vrni ...) predamo domaci instanci (onNewIntent) in se koncamo, da
         // ne ostane drugi dom v navadnem opravilu. Za uporabnika je enako kot tipka Domov.

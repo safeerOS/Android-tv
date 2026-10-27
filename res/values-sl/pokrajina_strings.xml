@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Naloga 42: nov TV zaganjalnik Pokrajina (beta) - os/PokrajinaActivity, os/ZaganjalnikBeta. -->
+<resources>
+    <string name="pk_priljubljene">Priljubljene in spletne aplikacije</string>
+    <string name="pk_mediji">Safeer Media Center</string>
+    <string name="pk_aplikacije">Aplikacije</string>
+    <string name="pk_vreme_kraj">Kraj za vreme</string>
+    <string name="pk_vreme_kraj_namig">npr. Ljubljana</string>
+    <string name="pk_vreme_kraj_opis">Vreme pride z Open-Meteo.com (CC BY 4.0) samo za kraj, ki ga vpišeš tukaj. Pusti prazno, da vreme izklopiš.</string>
+    <string name="pk_vreme_ni_najden">Kraja ni mogoče najti. Preveri zapis.</string>
+    <string name="pk_vreme_opis">Vreme v kraju %1$s: %2$s</string>
+</resources>

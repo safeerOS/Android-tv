@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Naloga 42: nov TV zaganjalnik Pokrajina (beta) - os/PokrajinaActivity, os/ZaganjalnikBeta. -->
+<resources>
+    <string name="pk_priljubljene">Preferite e app web</string>
+    <string name="pk_mediji">Safeer Media Center</string>
+    <string name="pk_aplikacije">App</string>
+    <string name="pk_vreme_kraj">Luogo per il meteo</string>
+    <string name="pk_vreme_kraj_namig">es. Ljubljana</string>
+    <string name="pk_vreme_kraj_opis">Il meteo arriva da Open-Meteo.com (CC BY 4.0) solo per il luogo che inserisci qui. Lascia vuoto per disattivarlo.</string>
+    <string name="pk_vreme_ni_najden">Luogo non trovato. Controlla come è scritto.</string>
+    <string name="pk_vreme_opis">Meteo a %1$s: %2$s</string>
+</resources>

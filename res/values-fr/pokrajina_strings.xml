@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Naloga 42: nov TV zaganjalnik Pokrajina (beta) - os/PokrajinaActivity, os/ZaganjalnikBeta. -->
+<resources>
+    <string name="pk_priljubljene">Favoris et applis web</string>
+    <string name="pk_mediji">Safeer Media Center</string>
+    <string name="pk_aplikacije">Applis</string>
+    <string name="pk_vreme_kraj">Lieu pour la météo</string>
+    <string name="pk_vreme_kraj_namig">p. ex. Ljubljana</string>
+    <string name="pk_vreme_kraj_opis">La météo vient d\'Open-Meteo.com (CC BY 4.0), uniquement pour le lieu saisi ici. Laisse vide pour désactiver la météo.</string>
+    <string name="pk_vreme_ni_najden">Lieu introuvable. Vérifie l\'orthographe.</string>
+    <string name="pk_vreme_opis">Météo à %1$s : %2$s</string>
+</resources>
