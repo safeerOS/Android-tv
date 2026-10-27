@@ -70,4 +70,44 @@ object MiniPredvajalnikPravila {
      */
     fun zgradiZnova(zgrajenoMesto: String?, mesto: String, priklopljen: Boolean): Boolean =
         !priklopljen || zgrajenoMesto == null || mesto(zgrajenoMesto) != mesto(mesto)
+
+    /**
+     * Lastnik 27. 10. 2026: v docku ni bilo mogoce premakniti predvajanja naprej in ne predvajati na zvocniku (v
+     * celozaslonskem predvajalniku oboje dela). Drsnik casa: samo za skladbo s trajanjem na tej napravi ali zvocniku
+     * (radio in tok v zivo nimata konca; drugo napravo upravlja okno »Upravljaj napravo«).
+     */
+    fun drsnik(trajanjeMs: Long, radio: Boolean, oddaljeno: Boolean): Boolean = trajanjeMs > 0 && !radio && !oddaljeno
+
+    /** Gumb »Predvajaj na zvocniku« (ali upravljanje zvocnika, ki ze igra): kadar glasba igra na tej napravi ali zvocniku. */
+    fun gumbZvocnik(imaSkladbo: Boolean, oddaljeno: Boolean): Boolean = imaSkladbo && !oddaljeno
+
+    const val DRSNIK_KORAKOV = 1000
+
+    /** Polozaj drsnika (0..[DRSNIK_KORAKOV]) iz casa; brez trajanja 0. */
+    fun korakDrsnika(polozajMs: Long, trajanjeMs: Long): Int =
+        if (trajanjeMs <= 0) 0 else (polozajMs.coerceIn(0L, trajanjeMs) * DRSNIK_KORAKOV / trajanjeMs).toInt()
+
+    /** Cas (ms) za korak drsnika - kamor uporabnik premakne. */
+    fun casIzDrsnika(korak: Int, trajanjeMs: Long): Long =
+        if (trajanjeMs <= 0) 0L else korak.coerceIn(0, DRSNIK_KORAKOV).toLong() * trajanjeMs / DRSNIK_KORAKOV
+}
+
+/**
+ * Lastnik 27. 10. 2026: »ne morem upravljati predvajalnika, ko Safeer OS ni odprt (kot pri Spotifyju)«. Obvestilo je bilo
+ * navadno (brez Notification.MediaStyle in seje), zato ga Android ni pokazal kot predvajalnik na zaklenjenem zaslonu in v
+ * hitrih nastavitvah; manjkal je tudi gumb Nazaj. Ciste odlocitve (preizkus: tests/MiniPredvajalnikPravilaTest.kt).
+ */
+object ObvestiloPredvajanjaPravila {
+    const val NAZAJ = "nazaj"
+    const val PREKLOPI = "preklopi"
+    const val NAPREJ = "naprej"
+    const val USTAVI = "ustavi"
+
+    /** Gumbi obvestila po vrsti. Nazaj ima vsaka skladba (zacetek posnetka); radio nima ne Nazaj ne Naprej. */
+    fun dejanja(imaNaslednjo: Boolean, radio: Boolean): List<String> =
+        listOfNotNull(NAZAJ.takeIf { !radio }, PREKLOPI, NAPREJ.takeIf { imaNaslednjo && !radio }, USTAVI)
+
+    /** Indeksi gumbov v strnjenem obvestilu (najvec trije): Nazaj, Predvajaj/Pavza, Naprej - Ustavi samo v razsirjenem. */
+    fun strnjeno(dejanja: List<String>): IntArray =
+        dejanja.withIndex().filter { it.value != USTAVI }.map { it.index }.take(3).toIntArray()
 }

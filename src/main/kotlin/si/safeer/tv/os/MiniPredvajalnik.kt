@@ -18,6 +18,7 @@ import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.SeekBar
 import android.widget.TextView
 import si.safeer.tv.R
 
@@ -70,6 +71,10 @@ class MiniPredvajalnik(
     private var izvajalecPogled: TextView? = null
     private var gumbPredvajaj: ImageButton? = null
     private var radioIkona = false
+    // Lastnik 27. 10. 2026: drsnik casa in zvocnik v docku (kot v celozaslonskem predvajalniku).
+    private var drsnik: SeekBar? = null
+    private var gumbZvocnik: ImageButton? = null
+    private var vlece = false
 
     val mesto: String get() = MiniPredvajalnikPravila.mesto(nastavitve.getString(KLJUC_MESTO, null))
         .let { if (!dovoliSeznam && it == MiniPredvajalnikPravila.V_SEZNAMU) MiniPredvajalnikPravila.PRIVZETO else it }
@@ -115,6 +120,7 @@ class MiniPredvajalnik(
             it.setImageResource(if (igra) R.drawable.os_ikona_pavza else R.drawable.os_ikona_predvajaj)
             it.contentDescription = a.getString(if (igra) R.string.zg_premor else R.string.zg_predvajaj)
         }
+        osveziCas(radio)
         (rocica as? ImageButton)?.let {
             if (radio != radioIkona) { radioIkona = radio; it.setImageResource(if (radio) R.drawable.os_ikona_radio else R.drawable.os_ikona_glasba) }
             it.contentDescription = a.getString(R.string.zg_dock_pokazi) + ": " + naslov
@@ -127,7 +133,39 @@ class MiniPredvajalnik(
         nastaviOdprt(false, fokus = kartica?.findFocus() != null); return true
     }
 
-    fun ustavi() { glavna.removeCallbacks(samodejno) }
+    fun ustavi() { glavna.removeCallbacks(samodejno); glavna.removeCallbacks(casovnik) }
+
+    private fun oddaljeno(): Boolean = try { GlasbaStoritev.naDrugiNapravi() } catch (_: Throwable) { false }
+
+    /** Drsnik in gumb zvocnika po stanju predvajanja (skrita, kadar nimata smisla - radio, druga naprava). */
+    private fun osveziCas(radio: Boolean) {
+        val odd = oddaljeno()
+        val tu = try { GlasbaStoritev.trenutna() } catch (_: Throwable) { null }
+        val trajanje = if (odd) 0L else try { GlasbaStoritev.trajanjeMs() } catch (_: Throwable) { 0L }
+        drsnik?.let { d ->
+            val viden = MiniPredvajalnikPravila.drsnik(trajanje, radio, odd)
+            d.visibility = if (viden) View.VISIBLE else View.GONE
+            if (viden && !vlece) d.progress = MiniPredvajalnikPravila.korakDrsnika(
+                try { GlasbaStoritev.polozajMs() } catch (_: Throwable) { 0L }, trajanje)
+        }
+        gumbZvocnik?.let { g ->
+            g.visibility = if (MiniPredvajalnikPravila.gumbZvocnik(tu != null, odd)) View.VISIBLE else View.GONE
+            val na = try { GlasbaStoritev.naZvocniku() } catch (_: Throwable) { false }
+            g.imageTintList = ColorStateList.valueOf(barva(if (na) R.color.os_mint else R.color.os_besedilo))
+            g.contentDescription = if (na) a.getString(R.string.zvocnik_na, Zvocniki.aktivni?.ime.orEmpty()) else a.getString(R.string.zvocnik_predvajaj_na)
+        }
+        glavna.removeCallbacks(casovnik)
+        if (drsnik?.visibility == View.VISIBLE && odprt && koren?.visibility == View.VISIBLE) glavna.postDelayed(casovnik, 1_000L)
+    }
+
+    /** Cas na drsniku tece, dokler je dock odprt in na zaslonu. */
+    private val casovnik = Runnable { if (koren?.parent === okvir) osveziCas(radioIkona) }
+
+    private fun zvocnik() {
+        val na = try { GlasbaStoritev.naZvocniku() } catch (_: Throwable) { false }
+        if (na) ZvocnikIzbira.upravljaj(a) { osvezi() }
+        else GlasbaStoritev.trenutna()?.let { sk -> ZvocnikIzbira.izberi(a, sk) { osvezi() } }
+    }
 
     private val samodejno = object : Runnable {
         override fun run() {
@@ -151,6 +189,7 @@ class MiniPredvajalnik(
         glavna.removeCallbacks(samodejno)
         if (da) {
             glavna.postDelayed(samodejno, 1_000L)
+            osveziCas(radioIkona)
             if (fokus) kartica?.findViewWithTag<View>("dock:predvajaj")?.requestFocus()
         } else if (fokus) rocica?.requestFocus()
     }
@@ -249,6 +288,26 @@ class MiniPredvajalnik(
             visibility = if (izvajalec.isNotBlank()) View.VISIBLE else View.GONE
         }
         besedila.addView(iPogled)
+        // Drsnik casa: premik naprej ali nazaj po skladbi (tudi na zvocniku - GlasbaStoritev.skoci).
+        val d = SeekBar(a).apply {
+            max = MiniPredvajalnikPravila.DRSNIK_KORAKOV
+            tag = "dock:cas"
+            contentDescription = a.getString(R.string.zg_dock_cas)
+            progressTintList = ColorStateList.valueOf(barva(R.color.os_mint))
+            thumbTintList = ColorStateList.valueOf(barva(R.color.os_mint))
+            setPadding(0, dp(4), 0, dp(2))
+            visibility = View.GONE
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(s: SeekBar, korak: Int, odUporabnika: Boolean) {
+                    if (odUporabnika) zadnjiDotik = SystemClock.uptimeMillis()
+                    // Daljinec (levo/desno) nima »spusti«: premik takoj.
+                    if (odUporabnika && !vlece) skociNa(korak)
+                }
+                override fun onStartTrackingTouch(s: SeekBar) { vlece = true }
+                override fun onStopTrackingTouch(s: SeekBar) { vlece = false; skociNa(s.progress) }
+            })
+        }
+        besedila.addView(d, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         if (pokoncen) c.addView(besedila, LinearLayout.LayoutParams(dp(180), ViewGroup.LayoutParams.WRAP_CONTENT))
         else c.addView(besedila, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         val g = dp(if (daljinec) 48 else 44)
@@ -269,6 +328,8 @@ class MiniPredvajalnik(
             a.getString(if (igra) R.string.zg_premor else R.string.zg_predvajaj), "dock:predvajaj") { GlasbaStoritev.preklopi() }
         gumbi.addView(gPredvajaj, LinearLayout.LayoutParams(g, g))
         gumbi.addView(gumb(R.drawable.os_ikona_naslednja, a.getString(R.string.zg_naslednja), "dock:naslednja") { GlasbaStoritev.naslednja() }, LinearLayout.LayoutParams(g, g))
+        val gZvocnik = gumb(R.drawable.os_ikona_predvajaj_na, a.getString(R.string.zvocnik_predvajaj_na), "dock:zvocnik") { zvocnik() }
+        gumbi.addView(gZvocnik, LinearLayout.LayoutParams(g, g))
         gumbi.addView(gumb(R.drawable.os_ikona_zapri, a.getString(R.string.zg_dock_skrij), "dock:skrij") { nastaviOdprt(false, fokus = daljinec) }, LinearLayout.LayoutParams(g, g))
         c.addView(gumbi)
         val lp = if (pokoncen) FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, gravitacija(m))
@@ -284,9 +345,15 @@ class MiniPredvajalnik(
         k.isClickable = false
         koren = k; rocica = r; kartica = c
         zgrajenoMesto = m; naslovPogled = nPogled; izvajalecPogled = iPogled; gumbPredvajaj = gPredvajaj; radioIkona = radio
+        drsnik = d; gumbZvocnik = gZvocnik
         // Nov dock (prvic ali novo mesto): odprt dock dobi poln cas do samodejnega skrivanja, osvezitve pa ga ne podaljsajo.
         if (zadnjiDotik == 0L) zadnjiDotik = SystemClock.uptimeMillis()
         uveljaviOdprt(odprt, fokus = fokusVDocku)
+    }
+
+    private fun skociNa(korak: Int) {
+        val trajanje = try { GlasbaStoritev.trajanjeMs() } catch (_: Throwable) { 0L }
+        if (trajanje > 0) try { GlasbaStoritev.skoci(MiniPredvajalnikPravila.casIzDrsnika(korak, trajanje)) } catch (_: Throwable) { }
     }
 
     /** Izbira mesta (dolg pritisk na rocico ali kartico): zgoraj, spodaj, levo, desno ali v seznamu. */

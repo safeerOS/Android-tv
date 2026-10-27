@@ -347,6 +347,7 @@ class GlasbaStoritev : Service() {
             // Obvestilo kaze to napravo - gumbi upravljajo to napravo (pregled C1).
             AKCIJA_TOGGLE -> { preklopiTu(); return START_NOT_STICKY }
             AKCIJA_NAPREJ -> { naslednjaTu(); return START_NOT_STICKY }
+            AKCIJA_NAZAJ -> { prejsnjaTu(); return START_NOT_STICKY }
             AKCIJA_USTAVI -> { ustaviPredvajanje(); return START_NOT_STICKY }
         }
         zacniVOspredju()
@@ -1182,13 +1183,27 @@ class GlasbaStoritev : Service() {
             .setContentIntent(odpri)
             // Kje igra, kadar ne igra ta naprava: gumbi obvestila takrat upravljajo zvocnik.
             .setSubText(Zvocniki.napis(this))
-            .addAction(Notification.Action.Builder(
-                android.graphics.drawable.Icon.createWithResource(this, if (igra()) R.drawable.os_ikona_pavza else R.drawable.os_ikona_predvajaj),
-                if (igra()) "Pavza" else "Predvajaj", dejanje(AKCIJA_TOGGLE, 11)).build())
-        if (imaNaslednjo()) b.addAction(Notification.Action.Builder(
-            android.graphics.drawable.Icon.createWithResource(this, R.drawable.os_ikona_naslednja), "Naprej", dejanje(AKCIJA_NAPREJ, 12)).build())
-        b.addAction(Notification.Action.Builder(
-            android.graphics.drawable.Icon.createWithResource(this, R.drawable.os_ikona_ustavi), "Ustavi", dejanje(AKCIJA_USTAVI, 13)).build())
+            // Na zaklenjenem zaslonu cel predvajalnik (kot drugi glasbeni programi); vsebina je naslov skladbe.
+            .setVisibility(Notification.VISIBILITY_PUBLIC)
+        // Lastnik 27. 10. 2026: upravljanje tudi, ko Safeer OS ni odprt (kot Spotify). MediaStyle s sejo: Android pokaze
+        // predvajalnik na zaklenjenem zaslonu in v hitrih nastavitvah z drsnikom casa (seja ima ACTION_SEEK_TO in trajanje).
+        val radio = s?.radio == true
+        val dejanja = ObvestiloPredvajanjaPravila.dejanja(imaNaslednjo(), radio)
+        for (d in dejanja) {
+            val (ikona, opis, akcija, koda) = when (d) {
+                ObvestiloPredvajanjaPravila.NAZAJ -> listOf(R.drawable.os_ikona_prejsnja, getString(R.string.zg_prejsnja), AKCIJA_NAZAJ, 14)
+                ObvestiloPredvajanjaPravila.PREKLOPI -> listOf(if (igra()) R.drawable.os_ikona_pavza else R.drawable.os_ikona_predvajaj,
+                    getString(if (igra()) R.string.zg_premor else R.string.zg_predvajaj), AKCIJA_TOGGLE, 11)
+                ObvestiloPredvajanjaPravila.NAPREJ -> listOf(R.drawable.os_ikona_naslednja, getString(R.string.zg_naslednja), AKCIJA_NAPREJ, 12)
+                else -> listOf(R.drawable.os_ikona_ustavi, "Ustavi", AKCIJA_USTAVI, 13)
+            }
+            b.addAction(Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(this, ikona as Int),
+                opis as String, dejanje(akcija as String, koda as Int)).build())
+        }
+        b.setStyle(Notification.MediaStyle().also { st ->
+            seja?.let { st.setMediaSession(it.sessionToken) }
+            st.setShowActionsInCompactView(*ObvestiloPredvajanjaPravila.strnjeno(dejanja))
+        })
         return b.setOngoing(true).build()
     }
 
@@ -1240,6 +1255,7 @@ class GlasbaStoritev : Service() {
         private const val AKCIJA_TOGGLE = "si.safeer.media.TOGGLE"
         private const val AKCIJA_NAPREJ = "si.safeer.media.NEXT"
         private const val AKCIJA_USTAVI = "si.safeer.media.STOP"
+        private const val AKCIJA_NAZAJ = "si.safeer.media.PREVIOUS"
         /** Strani, za katere vemo, da v varcnem pogledu ne tecejo (aplikacije v JavaScriptu). */
         private val POLNI_POGON = setOf("youtube.com", "youtu.be")
 

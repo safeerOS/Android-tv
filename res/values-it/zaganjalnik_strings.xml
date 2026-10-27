@@ -33,6 +33,7 @@
     <!-- Naloga 118: mini predvajalnik kot dock ob robu domacega zaslona -->
     <string name="zg_dock_pokazi">Mostra il lettore</string>
     <string name="zg_dock_skrij">Nascondi il lettore</string>
+    <string name="zg_dock_cas">Posizione nel brano</string>
     <string name="zg_dock_mesto">Posizione del mini lettore</string>
     <string name="zg_dock_zgoraj">In alto</string>
     <string name="zg_dock_spodaj">In basso</string>

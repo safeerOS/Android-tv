@@ -48,5 +48,27 @@ fun main() {
     preveriEnako("ni vec na zaslonu: zgradi", true, MiniPredvajalnikPravila.zgradiZnova("spodaj", "spodaj", false))
     preveriEnako("neznano shranjeno = privzeto: samo osvezi", false, MiniPredvajalnikPravila.zgradiZnova("spodaj", "sredina", true))
 
+    // Lastnik 27. 10.: drsnik casa in zvocnik v docku
+    preveriEnako("skladba s trajanjem: drsnik", true, MiniPredvajalnikPravila.drsnik(180_000L, radio = false, oddaljeno = false))
+    preveriEnako("radio: brez drsnika", false, MiniPredvajalnikPravila.drsnik(180_000L, radio = true, oddaljeno = false))
+    preveriEnako("brez trajanja (nalaga): brez drsnika", false, MiniPredvajalnikPravila.drsnik(0L, radio = false, oddaljeno = false))
+    preveriEnako("druga naprava: brez drsnika", false, MiniPredvajalnikPravila.drsnik(180_000L, radio = false, oddaljeno = true))
+    preveriEnako("skladba tu: gumb zvocnik", true, MiniPredvajalnikPravila.gumbZvocnik(imaSkladbo = true, oddaljeno = false))
+    preveriEnako("druga naprava: brez gumba zvocnik", false, MiniPredvajalnikPravila.gumbZvocnik(imaSkladbo = true, oddaljeno = true))
+    preveriEnako("polovica skladbe = 500", 500, MiniPredvajalnikPravila.korakDrsnika(90_000L, 180_000L))
+    preveriEnako("cez konec = 1000", 1000, MiniPredvajalnikPravila.korakDrsnika(999_000L, 180_000L))
+    preveriEnako("brez trajanja = 0", 0, MiniPredvajalnikPravila.korakDrsnika(5_000L, 0L))
+    preveriEnako("korak 250 = cetrtina", 45_000L, MiniPredvajalnikPravila.casIzDrsnika(250, 180_000L))
+    preveriEnako("korak cez meje", 180_000L, MiniPredvajalnikPravila.casIzDrsnika(5000, 180_000L))
+
+    // Obvestilo kot medijski predvajalnik (zaklenjen zaslon, hitre nastavitve)
+    val O = ObvestiloPredvajanjaPravila
+    preveriEnako("skladba z naslednjo", listOf(O.NAZAJ, O.PREKLOPI, O.NAPREJ, O.USTAVI), O.dejanja(imaNaslednjo = true, radio = false))
+    preveriEnako("zadnja skladba: Nazaj ostane", listOf(O.NAZAJ, O.PREKLOPI, O.USTAVI), O.dejanja(imaNaslednjo = false, radio = false))
+    preveriEnako("radio", listOf(O.PREKLOPI, O.USTAVI), O.dejanja(imaNaslednjo = true, radio = true))
+    preveriEnako("strnjeno: nazaj, preklopi, naprej", listOf(0, 1, 2), O.strnjeno(O.dejanja(true, false)).toList())
+    preveriEnako("strnjeno brez Ustavi", listOf(0, 1), O.strnjeno(O.dejanja(false, false)).toList())
+    preveriEnako("strnjeno radio", listOf(0), O.strnjeno(O.dejanja(true, true)).toList())
+
     if (napak == 0) println("MiniPredvajalnikPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

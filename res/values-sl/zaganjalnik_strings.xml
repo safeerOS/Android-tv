@@ -33,6 +33,7 @@
     <!-- Naloga 118: mini predvajalnik kot dock ob robu domacega zaslona -->
     <string name="zg_dock_pokazi">Pokaži predvajalnik</string>
     <string name="zg_dock_skrij">Skrij predvajalnik</string>
+    <string name="zg_dock_cas">Položaj v skladbi</string>
     <string name="zg_dock_mesto">Mesto mini predvajalnika</string>
     <string name="zg_dock_zgoraj">Zgoraj</string>
     <string name="zg_dock_spodaj">Spodaj</string>

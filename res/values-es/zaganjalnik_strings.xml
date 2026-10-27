@@ -33,6 +33,7 @@
     <!-- Naloga 118: mini predvajalnik kot dock ob robu domacega zaslona -->
     <string name="zg_dock_pokazi">Mostrar reproductor</string>
     <string name="zg_dock_skrij">Ocultar reproductor</string>
+    <string name="zg_dock_cas">Posición en la pista</string>
     <string name="zg_dock_mesto">Posición del minirreproductor</string>
     <string name="zg_dock_zgoraj">Arriba</string>
     <string name="zg_dock_spodaj">Abajo</string>
