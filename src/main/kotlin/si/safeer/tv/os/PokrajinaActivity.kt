@@ -135,6 +135,8 @@ class PokrajinaActivity : OsActivity() {
         OddaljenoPredvajanje.poslusalci.remove(medijiPoslusalec)
         dock?.ustavi()
         glavna.removeCallbacks(tikUre)
+        // Medijski center ali drug program iz lupe: ob vrnitvi domaci zaslon brez starega iskanja (vodja 27. 10. 2026).
+        zapriLupo()
         super.onStop()
     }
 
@@ -143,13 +145,30 @@ class PokrajinaActivity : OsActivity() {
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
-        // Tipka Domov na domacem zaslonu: fokus nazaj na lupo, kot pri sistemskem zaganjalniku.
-        if (intent?.hasCategory(Intent.CATEGORY_HOME) == true) findViewById<View>(android.R.id.content)?.findViewWithTag<View>(DomacaLupa.OZNAKA_POLJA)?.requestFocus()
+        // Tipka Domov na domacem zaslonu (vodja 27. 10. 2026): razprta lupa se zapre in pokaze se domaci zaslon - prej je
+        // Domov fokus namenoma vrnil v lupo in lupe z daljincem ni bilo mogoce zapreti.
+        if (intent?.hasCategory(Intent.CATEGORY_HOME) == true) zapriLupo()
+    }
+
+    /** Nazaj, Domov, odhod z zaslona: besedilo, predlogi in tipkovnica stran, fokus s polja navzdol na ploscice. */
+    private fun zapriLupo(): Boolean {
+        if (!::poljeLupe.isInitialized) return false
+        val vLupi = poljeLupe.hasFocus() || zadetki.hasFocus()
+        if (!PokrajinaPravila.zapriLupo(poljeLupe.text, zadetki.visibility == View.VISIBLE, vLupi)) return false
+        (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).hideSoftInputFromWindow(poljeLupe.windowToken, 0)
+        poljeLupe.showSoftInputOnFocus = false
+        glavna.removeCallbacks(iskanjeZamik)
+        poljeLupe.setText("")
+        iskanjeSt++
+        zadetki.removeAllViews(); zadetki.visibility = View.GONE
+        if (vLupi) { val dol = poljeLupe.focusSearch(View.FOCUS_DOWN); if (dol != null && dol !== poljeLupe) dol.requestFocus() else poljeLupe.clearFocus() }
+        return true
     }
 
     /** Domaci zaslon nima kam nazaj (kot pri zaganjalniku televizorja); razprta lupa se zapre. */
     @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun onBackPressed() {
+        if (zapriLupo()) return
         if (DomacaLupa.nazaj(this)) return
         if (dock?.skrijCeOdprt() == true) return
         if (Zaganjalnik.jeIzbran(this)) return

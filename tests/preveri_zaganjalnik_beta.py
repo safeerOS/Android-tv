@@ -318,6 +318,13 @@ def main() -> int:
             "pisanjeOblacki = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }" in sp2
             and 'gravity = if (sp.smer == "ven") android.view.Gravity.END else android.view.Gravity.START' in sp2
             and "HorizontalScrollView(this@SporocilaActivity).apply { isHorizontalScrollBarEnabled = false; addView(pisanjeOblacki)" not in sp2)
+    pk = (SRC / "os/PokrajinaActivity.kt").read_text(encoding="utf-8")
+    nazaj = pk.split("override fun onBackPressed() {", 1)[1].split(chr(10) + "    }", 1)[0]
+    preveri("lupa: Nazaj jo najprej zapre (prej je DomacaLupa.nazaj brez krmila vrnil false)",
+            nazaj.strip().startswith("if (zapriLupo()) return"))
+    nov = pk.split("override fun onNewIntent(intent: Intent?) {", 1)[1].split(chr(10) + "    }", 1)[0]
+    preveri("lupa: Domov jo zapre in ne aktivira znova", "zapriLupo()" in nov and "requestFocus()" not in nov)
+    preveri("lupa: odhod z domacega zaslona jo pocisti (onStop)", "zapriLupo()" in pk.split("override fun onStop() {", 1)[1].split(chr(10) + "    }", 1)[0])
     # Rocna gradnja bete v CI: vhod »beta« gre prek okolja v -PsafeerBeta (brez vhoda gradnja kot prej).
     ci = (KOREN / ".github" / "workflows" / "gradnja.yml").read_text(encoding="utf-8")
     preveri("CI: rocna gradnja z vhodom beta poda -PsafeerBeta",

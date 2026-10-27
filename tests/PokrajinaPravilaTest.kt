@@ -100,5 +100,11 @@ fun main() {
     preveriEnako("brez priljubljenih prazno (ostane samo + Dodaj)", emptyList<String>(), PokrajinaPravila.vrstaPriljubljenih(emptyList(), vse))
     preveriEnako("sest plosc v vrsti", 6, PokrajinaPravila.STOLPCEV)
 
+    println("\n== lupa: Nazaj in Domov jo zapreta (vodja 27. 10.) ==")
+    preveriEnako("besedilo v lupi: zapri", true, PokrajinaPravila.zapriLupo("test", zadetkiVidni = true, fokusVLupi = true))
+    preveriEnako("predlogi vidni brez fokusa: zapri", true, PokrajinaPravila.zapriLupo("", zadetkiVidni = true, fokusVLupi = false))
+    preveriEnako("prazna lupa s fokusom (daljinec): fokus na ploscice", true, PokrajinaPravila.zapriLupo("", zadetkiVidni = false, fokusVLupi = true))
+    preveriEnako("lupa zaprta, fokus drugje: Nazaj gre naprej", false, PokrajinaPravila.zapriLupo(null, zadetkiVidni = false, fokusVLupi = false))
+
     if (napak == 0) println("PokrajinaPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

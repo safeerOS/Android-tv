@@ -91,6 +91,14 @@ object PokrajinaPravila {
     }
 
     /** Plosc v vrstici brez drsenja (zgled lastnika 27. 10. 2026: sest plosc v vrsti); vec jih je za drsenjem desno. */
+    /**
+     * Lastnik in vodja 27. 10. 2026 (TV beta): Nazaj, Domov in odhod z domacega zaslona zaprejo razprto lupo - besedilo,
+     * predloge in fokus v njej - kot zaganjalnik televizorja. Prej lupa v Pokrajini ni imela krmila DomacaLupa in Nazaj ni
+     * naredil nic (»sele ko sem pobrisal vse crke, je skrilo predloge«), Domov pa je fokus namenoma vrnil v lupo.
+     */
+    fun zapriLupo(besedilo: CharSequence?, zadetkiVidni: Boolean, fokusVLupi: Boolean): Boolean =
+        !besedilo.isNullOrEmpty() || zadetkiVidni || fokusVLupi
+
     const val STOLPCEV = 6
 
     /**
