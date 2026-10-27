@@ -39,4 +39,15 @@ object UsenetLastniPravila {
             UsenetNntp.Vrsta.NAPAKA_PROTOKOLA -> UsenetPonudnikPravila.Prijava(UsenetPonudnikPravila.NNTP_NAPAKA_PROTOKOLA, UsenetPonudnikPravila.FAZA_POVEZAVA)
             else -> UsenetPonudnikPravila.Prijava(UsenetPonudnikPravila.NNTP_NAPAKA_STREZNIKA, UsenetPonudnikPravila.FAZA_POVEZAVA)
         }
+
+    /** Album v RAR (vodja 27. 10. 2026): izid UsenetRar -> stalen niz napake albuma (stisnjen/sifriran ima svoje besedilo). */
+    fun napakaAlbumaRar(izid: String): String = when (izid.uppercase()) {
+        "STISNJEN" -> "stisnjen"
+        "SIFRIRAN", "SIFRIRANE_GLAVE" -> "sifriran"
+        "NI_RAR", "NI_DATOTEKE" -> "ni_skladb"
+        else -> "rar_" + izid.lowercase()
+    }
+
+    /** Okno: stisnjen ali sifriran arhiv ima svoje besedilo (sproti ga ne moremo brati), drugo splosno. */
+    fun albumStisnjen(napaka: String): Boolean = napaka == "stisnjen" || napaka == "sifriran"
 }

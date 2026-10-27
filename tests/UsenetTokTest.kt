@@ -206,6 +206,38 @@ private object Rar {
         return blok4(0x74, 0x8000 or 0x100, telo)
     }
 
+    /**
+     * Album (vodja 27. 10. 2026): [datoteke] po vrsti v zvezkih po [naZvezek] bajtov podatkov; skladba, ki ne gre vec v
+     * zvezek, se nadaljuje na zacetku naslednjega (pred/po). [metoda] null = store.
+     */
+    fun album(razlicica: Int, datoteke: List<Pair<String, ByteArray>>, naZvezek: Int, metoda: Int? = null): List<Vsebina> {
+        val zvezki = ArrayList<ArrayList<ByteArray>>()
+        var trenutni = ArrayList<ByteArray>()
+        var prostor = naZvezek
+        for ((ime, b) in datoteke) {
+            var od = 0
+            while (od < b.size) {
+                if (prostor == 0) { zvezki += trenutni; trenutni = ArrayList(); prostor = naZvezek }
+                val d = minOf(prostor, b.size - od)
+                val kos = b.copyOfRange(od, od + d)
+                val pred = od > 0
+                val po = od + d < b.size
+                trenutni += if (razlicica == 5) glava5(ime, b.size.toLong(), kos, metoda = metoda ?: 0, pred = pred, po = po)
+                    else glava4(ime, b.size.toLong(), kos, metoda = metoda ?: 0x30, pred = pred, po = po)
+                trenutni += kos
+                od += d
+                prostor -= d
+            }
+        }
+        zvezki += trenutni
+        val n = zvezki.size
+        return zvezki.mapIndexed { i, deli ->
+            val zacetek = if (razlicica == 5) glavni5(i, n > 1) else glavni4(n > 1, i == 0)
+            val rep = if (razlicica == 5) konec5(i == n - 1) else konec4
+            Bajti(deli.fold(zacetek) { a, x -> a + x } + rep)
+        }
+    }
+
     /** Vec zvezkov store nad leno vsebino (glave prave, podatki se ne kopirajo). */
     fun zvezki(razlicica: Int, ime: String, film: Vsebina, naZvezek: Long): List<Vsebina> {
         val n = ((film.velikost + naZvezek - 1) / naZvezek).toInt()
@@ -393,6 +425,35 @@ private fun rar() {
     enako("RAR4 sifriran", UsenetRar.Izid.SIFRIRAN, UsenetRar.preveri(sif, sif.size.toLong()))
     enako("mkv ni RAR", UsenetRar.Izid.NI_RAR, UsenetRar.preveri(byteArrayOf(0x1A, 0x45, -33, -93) + ByteArray(60)))
     enako("vrstni red .r00", listOf(1, 2, 0), UsenetRar.vrstniRedZvezkov(listOf("A.r01", "a.rar", "a.r00")))
+}
+
+/** Lastnik in vodja 27. 10. 2026: na TV je glasba z Useneta vedno koncala z »ni_skladb« - albumi so v RAR. */
+private fun albumRar() {
+    println("album v RAR")
+    val skladbe = listOf("01 - Prva.flac" to Leno(900_000, 11), "02 - Druga.flac" to Leno(1_700_000, 12), "03 - Tretja.mp3" to Leno(400_000, 13))
+    val bajti = skladbe.map { it.first to it.second.beri(0, it.second.velikost.toInt()) } + ("cover.jpg" to ByteArray(5000) { 7 })
+    for (r in listOf(4, 5)) {
+        val o = Objava(delBajtov = 256 * 1024)
+        Rar.album(r, bajti, 1_200_000).forEachIndexed { i, z -> o.dodaj("Album.part${i + 1}.rar", z) }
+        o.dodaj("Album.nfo", Bajti("nfo".toByteArray()))
+        val album = UsenetBralnik.pripraviAlbum(UsenetNzb.razcleni(o.nzb()), o::telo)
+        enako("RAR$r: tri skladbe po vrsti (slika in nfo ne)", skladbe.map { it.first }, album.map { it.first })
+        var dobri = 0
+        for ((k, par) in album.withIndex()) {
+            UsenetBralnik.Bralnik(o::telo, par.second).use { b ->
+                if (UsenetBralnik.beriVse(b, 0, bajti[k].second.size).contentEquals(bajti[k].second)) dobri++
+            }
+        }
+        enako("RAR$r: skladbe bajt za bajtom, tudi cez meje zvezkov", 3, dobri)
+        enako("RAR$r: druga skladba je v treh zvezkih", 3, album.getOrNull(1)?.second?.kosi?.size)
+    }
+    val o2 = Objava(delBajtov = 256 * 1024)
+    Rar.album(5, bajti, 1_200_000, metoda = 3).forEachIndexed { i, z -> o2.dodaj("Album.part${i + 1}.rar", z) }
+    enako("stisnjen album: napaka stisnjen (ne ni_skladb)", "stisnjen", izid { UsenetBralnik.pripraviAlbum(UsenetNzb.razcleni(o2.nzb()), o2::telo) })
+    val o3 = Objava().apply { dodaj("Album.nfo", Bajti("x".toByteArray())) }
+    enako("brez arhiva: prazno (ni_skladb)", 0, UsenetBralnik.pripraviAlbum(UsenetNzb.razcleni(o3.nzb()), o3::telo).size)
+    val o4 = Objava().apply { Rar.album(4, bajti.take(1), 2_000_000).forEach { dodaj("Album.rar", it) } }
+    enako("en zvezek .rar", listOf("01 - Prva.flac"), UsenetBralnik.pripraviAlbum(UsenetNzb.razcleni(o4.nzb()), o4::telo).map { it.first })
 }
 
 private fun bralnikPreizkusi() {
@@ -861,6 +922,7 @@ fun main(args: Array<String>) {
     try {
         preslikava()
         rar()
+        albumRar()
         bralnikPreizkusi()
         streznik()
         popravki58()

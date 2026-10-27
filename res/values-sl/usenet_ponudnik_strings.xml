@@ -4,5 +4,6 @@
     <string name="os_usenet_dodaj_ponudnika">Dodaj ponudnika Usenet</string>
     <string name="os_usenet_ponudnik_naslov">Ponudnik Usenet</string>
     <string name="os_usenet_album_pripravljam">Pripravljam album %1$s …</string>
-    <string name="os_usenet_album_ni">Tega albuma ne morem predvajati: datoteke so v arhivu ali niso dosegljive.</string>
+    <string name="os_usenet_album_ni">Tega albuma ni mogoče predvajati: njegove datoteke niso na voljo.</string>
+    <string name="os_usenet_album_stisnjen">Album je v stisnjenem ali šifriranem arhivu RAR – Safeer sproti predvaja samo nestisnjene arhive.</string>
 </resources>

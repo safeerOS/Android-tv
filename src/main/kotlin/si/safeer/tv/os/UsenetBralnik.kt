@@ -365,6 +365,9 @@ object UsenetBralnik {
     /** T5: glave, ki niso v prvem segmentu zvezka: najvec toliko segmentov in bajtov na zvezek, sicer PREVEC. */
     const val NAJVEC_GLAV_SEGMENTOV = 8L
     const val NAJVEC_GLAV_BAJTOV = 16 * MIB
+    /** Album v RAR: zvezek ima glavo vsake skladbe med podatki - vec segmentov za glave na zvezek (skupni promet ostane omejen). */
+    const val NAJVEC_GLAV_SEGMENTOV_ALBUM = 48L
+    const val NAJVEC_GLAV_BAJTOV_ALBUM = 64 * MIB
 
     /** 7z, zip, vec arhivov ... (deobfuskacija je F2) in izdaja brez filma. */
     class NapakaIzdaje(val izid: String) : IOException("usenet izdaja: $izid")
@@ -426,12 +429,13 @@ object UsenetBralnik {
      * Glave zvezka iz zacetka (prvi segment); ce segajo cez in jih rabimo ([celo] ali ni nobene datoteke), branje naprej
      * prek bralnika brez okna vnaprej z mejo NAJVEC_GLAV_* (T5; prej brez meje). (zvezek, bajti z omrezja).
      */
-    private fun glave(telo: (String) -> ByteArray, p: UsenetTok.Preslikava, zacetek: ByteArray, celo: Boolean): Pair<UsenetRar.Zvezek, Long> {
+    private fun glave(telo: (String) -> ByteArray, p: UsenetTok.Preslikava, zacetek: ByteArray, celo: Boolean,
+                      najvecSegmentov: Long = NAJVEC_GLAV_SEGMENTOV, najvecBajtov: Long = NAJVEC_GLAV_BAJTOV): Pair<UsenetRar.Zvezek, Long> {
         val z = if (zacetek.isNotEmpty()) UsenetRar.razcleniZvezek(zacetek, p.velikost) else null
         if (z != null && !(z.nepopolno && (celo || z.vnosi.isEmpty()))) return z to 0L
         val b = Bralnik(telo, Vir(listOf(p), listOf(KosVira(0, 0, p.velikost))), Profil(0, 0, 8 * MIB, 1))
         fun meja() {
-            if (b.segmentov.get() > NAJVEC_GLAV_SEGMENTOV || b.zOmrezja.get() > NAJVEC_GLAV_BAJTOV) {
+            if (b.segmentov.get() > najvecSegmentov || b.zOmrezja.get() > najvecBajtov) {
                 throw UsenetTok.NapakaToka(UsenetTok.Izid.PREVEC)
             }
         }
@@ -537,7 +541,7 @@ object UsenetBralnik {
 
     /**
      * Lastnik 27. 10. 2026 (glasba): ena gola datoteka iz NZB (skladba albuma) kot [Vir] - prvi segment da preslikavo.
-     * Arhiv (RAR) tu ni podprt (album v RAR je druga faza). Nikoli na glavni niti.
+     * Album v RAR gre skozi [pripraviAlbum]. Nikoli na glavni niti.
      */
     fun pripraviDatoteko(d: UsenetNzb.Datoteka, telo: (String) -> ByteArray): Vir {
         check(Looper.myLooper() != Looper.getMainLooper()) { "Usenet ne sme teci na glavni niti" }
@@ -545,6 +549,52 @@ object UsenetBralnik {
         val p = prviSegment(telo, d)
         if (p.preslikava.imaLuknje) throw UsenetTok.NapakaToka(UsenetTok.Izid.LUKNJA)
         return Vir(listOf(p.preslikava), listOf(KosVira(0, 0, p.preslikava.velikost)), d.ime)
+    }
+
+    /**
+     * Lastnik in vodja 27. 10. 2026: album v RAR (store, en ali vec zvezkov) - na TV je glasba z Useneta prej vedno koncala
+     * z »ni_skladb«. Zvezki po vrsti, iz vsakega CEL seznam glav; vsaka zvocna datoteka arhiva (po stevilki skladbe) svoj
+     * [Vir] nad istimi zvezki. Prazno = arhiva ni ali v njem ni zvocnih datotek. Stisnjen ali sifriran arhiv =
+     * [UsenetRar.NapakaRar] (sproti ga ne moremo brati). Promet najvec [najvecBajtov]. Nikoli na glavni niti.
+     */
+    fun pripraviAlbum(nzb: UsenetNzb.Nzb, telo: (String) -> ByteArray, najvecBajtov: Long = NAJVEC_PRIPRAVE_BAJTOV): List<Pair<String?, Vir>> {
+        check(Looper.myLooper() != Looper.getMainLooper()) { "Usenet ne sme teci na glavni niti" }
+        val imena = nzb.datoteke.map { it.ime ?: "" }
+        val kandidati = imena.indices.filter { jeZvezek(imena[it]) && !jeVzorec(imena[it]) }
+        if (kandidati.isEmpty()) return emptyList()
+        val red = UsenetRar.vrstniRedZvezkov(kandidati.map { imena[it] }) ?: throw NapakaIzdaje("ni_podprto")
+        val preslikave = ArrayList<UsenetTok.Preslikava>()
+        val zvezki = ArrayList<UsenetRar.Zvezek>()
+        var bajtov = 0L
+        for ((n, k) in red.withIndex()) {
+            val d = nzb.datoteke[kandidati[k]]
+            if (d.segmenti.isEmpty() || d.segmenti[0].stevilka != 1 || d.manjka > 0) throw UsenetTok.NapakaToka(UsenetTok.Izid.LUKNJA)
+            val p = prviSegment(telo, d)
+            if (n == 0 && !jeRar(p.zacetek)) throw UsenetRar.NapakaRar(UsenetRar.Izid.NI_RAR)
+            val (z, b2) = glave(telo, p.preslikava, p.zacetek, true, NAJVEC_GLAV_SEGMENTOV_ALBUM, NAJVEC_GLAV_BAJTOV_ALBUM)
+            bajtov += p.bajtov + b2
+            if (bajtov > najvecBajtov) throw UsenetTok.NapakaToka(UsenetTok.Izid.PREVEC)
+            preslikave += p.preslikava
+            zvezki += z
+        }
+        val vnosi = zvezki.withIndex().flatMap { (n, z) -> UsenetRar.zacetniVnosi(z).map { n to it } }
+        var prva: IOException? = null
+        val izid = ArrayList<Pair<String?, Vir>>()
+        for (k in UsenetGlasbaPravila.skladbe(vnosi.map { it.second.ime })) {
+            val (n, v) = vnosi[k]
+            try {
+                val (_, kosi) = UsenetRar.sestaviVnos(zvezki, n, v)
+                // Skladba z luknjo izpade, album gre naprej (kot pri golih datotekah).
+                if (kosi.any { preslikave[it.zvezek].imaLuknje }) throw UsenetTok.NapakaToka(UsenetTok.Izid.LUKNJA)
+                izid += v.ime to Vir(preslikave, kosi.map { KosVira(it.zvezek, it.odmik, it.dolzina) }, v.ime)
+            } catch (e: UsenetRar.NapakaRar) {
+                if (prva == null) prva = e
+            } catch (e: UsenetTok.NapakaToka) {
+                if (prva == null) prva = e
+            }
+        }
+        if (izid.isEmpty()) prva?.let { throw it }
+        return izid
     }
 
     fun beriVse(b: Bralnik, odmik: Long, n: Int): ByteArray {

@@ -7466,7 +7466,8 @@ class GlasbaActivity : OsActivity() {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 if (album.skladbe.isEmpty()) {
                     android.util.Log.i("SafeerOsMedia", "glasba usenet: ni predvajal (${album.napaka})")
-                    Toast.makeText(this, getString(R.string.os_usenet_album_ni), Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, getString(if (UsenetLastniPravila.albumStisnjen(album.napaka)) R.string.os_usenet_album_stisnjen
+                        else R.string.os_usenet_album_ni), Toast.LENGTH_LONG).show()
                     return@runOnUiThread
                 }
                 val izvajalec = UsenetGlasbaPravila.izvajalec(z.naslov)

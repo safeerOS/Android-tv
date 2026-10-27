@@ -4,5 +4,6 @@
     <string name="os_usenet_dodaj_ponudnika">Ajouter un fournisseur Usenet</string>
     <string name="os_usenet_ponudnik_naslov">Fournisseur Usenet</string>
     <string name="os_usenet_album_pripravljam">Préparation de l’album %1$s …</string>
-    <string name="os_usenet_album_ni">Impossible de lire cet album : ses fichiers sont dans une archive ou indisponibles.</string>
+    <string name="os_usenet_album_ni">Impossible de lire cet album : ses fichiers ne sont pas disponibles.</string>
+    <string name="os_usenet_album_stisnjen">Cet album est dans une archive RAR compressée ou chiffrée – Safeer ne lit en continu que les archives non compressées.</string>
 </resources>

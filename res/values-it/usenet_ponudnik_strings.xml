@@ -4,5 +4,6 @@
     <string name="os_usenet_dodaj_ponudnika">Aggiungi un provider Usenet</string>
     <string name="os_usenet_ponudnik_naslov">Provider Usenet</string>
     <string name="os_usenet_album_pripravljam">Preparo l’album %1$s …</string>
-    <string name="os_usenet_album_ni">Impossibile riprodurre questo album: i file sono in un archivio o non disponibili.</string>
+    <string name="os_usenet_album_ni">Impossibile riprodurre questo album: i suoi file non sono disponibili.</string>
+    <string name="os_usenet_album_stisnjen">Questo album è in un archivio RAR compresso o cifrato: Safeer riproduce in streaming solo archivi non compressi.</string>
 </resources>

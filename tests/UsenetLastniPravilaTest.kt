@@ -30,6 +30,13 @@ fun main() {
     preveriEnako("omrezje brez zapaha = ni odgovora", P.NI_ODGOVORA,
         P.izidNapake(L.prijavaIz(UsenetNntp.Vrsta.OMREZJE).izid, L.prijavaIz(UsenetNntp.Vrsta.OMREZJE).faza, false))
     for (v in UsenetNntp.Vrsta.values()) preveriEnako("vsaka napaka ima izid ($v)", true, L.prijavaIz(v).izid.isNotBlank())
+    // Album v RAR (vodja 27. 10. 2026): stisnjen in sifriran imata svoje besedilo, ni_rar je izdaja brez skladb.
+    preveriEnako("album RAR stisnjen", "stisnjen", L.napakaAlbumaRar("STISNJEN"))
+    preveriEnako("album RAR sifrirane glave", "sifriran", L.napakaAlbumaRar("SIFRIRANE_GLAVE"))
+    preveriEnako("album brez RAR", "ni_skladb", L.napakaAlbumaRar("NI_RAR"))
+    preveriEnako("album RAR neskladno", "rar_neskladno", L.napakaAlbumaRar("NESKLADNO"))
+    preveriEnako("okno: stisnjen ima svoje besedilo", true, L.albumStisnjen("stisnjen"))
+    preveriEnako("okno: luknja splosno", false, L.albumStisnjen("luknja"))
     println(if (napak == 0) "UsenetLastniPravilaTest: OK" else "UsenetLastniPravilaTest: $napak napak")
     if (napak > 0) kotlin.system.exitProcess(1)
 }

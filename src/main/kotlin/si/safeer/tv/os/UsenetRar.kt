@@ -289,6 +289,37 @@ object UsenetRar {
         return vrsta.map { it.third }
     }
 
+    /** Album (vodja 27. 10. 2026): datoteke, ki se ZACNEJO v zvezku [z] - ne nadaljevanje iz prejsnjega in ne mapa. */
+    fun zacetniVnosi(z: Zvezek): List<Vnos> = z.vnosi.filter { !it.mapa && !it.pred }
+
+    /**
+     * Album: (velikost, kosi) datoteke [v], ki se zacne v zvezku [od], cez naslednje zvezke - enaka pravila kot [sestavi]
+     * za film (samo store, nadaljevanje je prvi vnos naslednjega zvezka z istim imenom in velikostjo).
+     */
+    fun sestaviVnos(zvezki: List<Zvezek>, od: Int, v: Vnos): Pair<Long, List<Kos>> {
+        if (v.sifriran) throw NapakaRar(Izid.SIFRIRAN)
+        if (!v.store) throw NapakaRar(Izid.STISNJEN)
+        if (v.pred || od !in zvezki.indices) throw NapakaRar(Izid.NESKLADNO)
+        val kosi = arrayListOf(Kos(od, v.odmik, v.dolzina))
+        var skupaj = v.dolzina
+        var trenutni = v
+        var n = od + 1
+        while (trenutni.po) {
+            val z = zvezki.getOrNull(n) ?: throw NapakaRar(Izid.NESKLADNO)
+            if (z.razlicica != zvezki[od].razlicica) throw NapakaRar(Izid.NESKLADNO)
+            val nasl = z.vnosi.firstOrNull { it.pred && !it.mapa }
+            if (nasl == null || nasl.ime != v.ime || (v.velikost >= 0 && nasl.velikost != v.velikost)) throw NapakaRar(Izid.NESKLADNO)
+            if (nasl.sifriran) throw NapakaRar(Izid.SIFRIRAN)
+            if (!nasl.store) throw NapakaRar(Izid.STISNJEN)
+            kosi += Kos(n, nasl.odmik, nasl.dolzina)
+            skupaj += nasl.dolzina
+            trenutni = nasl
+            n++
+        }
+        if (v.velikost >= 0 && skupaj != v.velikost) throw NapakaRar(Izid.NESKLADNO)
+        return skupaj to kosi
+    }
+
     /** (ime, velikost, kosi) glavne datoteke iz zvezkov v vrstnem redu (skupni primeri rar_sestavi). */
     fun sestavi(zvezki: List<Zvezek>): Triple<String?, Long, List<Kos>> {
         if (zvezki.isEmpty()) throw NapakaRar(Izid.NI_DATOTEKE)

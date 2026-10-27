@@ -109,7 +109,8 @@ object UsenetLastni {
     /**
      * Lastnik 27. 10. 2026 (glasba): album iz [nzb] - zvocne datoteke (UsenetGlasbaPravila.skladbe), vsaka svoj streznik
      * na 127.0.0.1 z zetonom, ena seja in en bazen racuna (meja povezav velja za ves album). Prejsnji film ali album se
-     * najprej zapre. Album v RAR (brez golih zvocnih datotek) = napaka »ni_skladb«.
+     * najprej zapre. Album v RAR store (vodja 27. 10. 2026) gre skozi [UsenetBralnik.pripraviAlbum]; stisnjen ali sifriran
+     * arhiv = napaka »stisnjen«/»sifriran«, izdaja brez zvocnih datotek = »ni_skladb«.
      */
     fun predvajajAlbum(c: Context, nzb: ByteArray): Album {
         check(Looper.myLooper() != Looper.getMainLooper()) { "Usenet ne sme teci na glavni niti" }
@@ -128,18 +129,27 @@ object UsenetLastni {
             nova = s
             val razclenjen = UsenetNzb.razcleni(nzb)
             val izbrane = UsenetGlasbaPravila.skladbe(razclenjen.datoteke.map { it.ime })
-            if (izbrane.isEmpty()) { koncaj(s); return Album(emptyList(), "ni_skladb") }
+            val viri: List<Pair<String?, UsenetBralnik.Vir?>> = if (izbrane.isNotEmpty()) izbrane.map { i ->
+                val d = razclenjen.datoteke[i]
+                // Skladba z luknjo ali brez prvega segmenta izpade, album gre naprej.
+                d.ime to try { UsenetBralnik.pripraviDatoteko(d, nntp::body) } catch (e: UsenetTok.NapakaToka) { null }
+            } else {
+                // Vodja 27. 10. 2026: albumi so vecinoma v RAR - skladbe iz zvezkov (prej vedno »ni_skladb«).
+                val rar = try { UsenetBralnik.pripraviAlbum(razclenjen, nntp::body) }
+                    catch (e: UsenetRar.NapakaRar) { koncaj(s); return Album(emptyList(), UsenetLastniPravila.napakaAlbumaRar(e.izid.name)) }
+                    catch (e: UsenetBralnik.NapakaIzdaje) { koncaj(s); return Album(emptyList(), e.izid) }
+                if (rar.isEmpty()) { koncaj(s); return Album(emptyList(), "ni_skladb") }
+                Log.i(TAG, "glasba: album iz RAR (${rar.size} skladb)")   // brez imen
+                rar
+            }
             val profil = UsenetBralnik.PROFILI.getValue(if (Naprava.jeTelevizor(c)) "tv" else "telefon")
             val skladbe = ArrayList<Pair<String, String>>()
             val strezniki = ArrayList<UsenetStreznik>()
-            for (i in izbrane) {
-                val d = razclenjen.datoteke[i]
-                // Skladba z luknjo ali brez prvega segmenta izpade, album gre naprej.
-                val vir = try { UsenetBralnik.pripraviDatoteko(d, nntp::body) } catch (e: UsenetTok.NapakaToka) { null }
+            for ((ime, vir) in viri) {
                 if (vir != null) {
                     val st = UsenetStreznik(UsenetBralnik.Bralnik(nntp::body, vir, profil))
                     strezniki.add(st)
-                    skladbe.add(UsenetGlasbaPravila.imeSkladbe(d.ime) to st.url)
+                    skladbe.add(UsenetGlasbaPravila.imeSkladbe(ime) to st.url)
                 }
             }
             s.strezniki = strezniki
