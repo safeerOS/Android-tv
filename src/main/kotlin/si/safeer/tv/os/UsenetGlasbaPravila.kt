@@ -12,7 +12,8 @@ object UsenetGlasbaPravila {
     /** Newznab: 3000 zvok (3010 MP3, 3030 zvocne knjige, 3040 lossless/FLAC, 3050 ostalo) - vse podkategorije hkrati. */
     const val KATEGORIJA = "3000"
     /** Najvec skladb iz ene izdaje (diskografija z 2000 datotekami ne odpre 2000 tokov). */
-    const val NAJVEC_SKLADB = 60
+    // Lastnik 27. 10. 2026: skladbe se pripravijo sproti (najvec 5 odprtih) - meja je samo varovalo velikih izdaj.
+    const val NAJVEC_SKLADB = 500
     /** Zvocne datoteke, ki jih predvajalnik (Media3) zna brez dodatnih kodekov. */
     val ZVOK = listOf(".flac", ".mp3", ".m4a", ".aac", ".ogg", ".opus", ".wav")
 
@@ -134,6 +135,22 @@ object UsenetGlasbaPravila {
             (zacetnice(n).ifBlank { imeSkladbe(imena[i]) }) to izvajalec
         }
     }
+
+    /** Priljubljeni album: ista izdaja ne glede na velike crke, pike, podcrtaje in presledke. */
+    fun istiAlbum(a: String, b: String): Boolean = kljuc(lepNaslov(a)).let { it.isNotEmpty() && it == kljuc(lepNaslov(b)) }
+
+    /**
+     * Shranjen album med zadetki novega iskanja: najprej ista izdaja z isto velikostjo (± 1 %), nato ista izdaja; -1 = ni
+     * je vec pri indeksatorju.
+     */
+    fun izberiShranjenega(zadetki: List<Pair<String, Long>>, naslov: String, velikost: Long): Int {
+        val isti = zadetki.indices.filter { istiAlbum(zadetki[it].first, naslov) }
+        if (isti.isEmpty()) return -1
+        if (velikost > 0) isti.firstOrNull { kotiVelikost(zadetki[it].second, velikost) }?.let { return it }
+        return isti.first()
+    }
+
+    private fun kotiVelikost(a: Long, b: Long) = a > 0 && kotlin.math.abs(a - b) <= maxOf(a, b) / 100
 
     /** Izvajalec iz naslova izdaje »Izvajalec - Album (Leto) [FLAC]«; brez » - « prazno. */
     fun izvajalec(naslovIzdaje: String): String {

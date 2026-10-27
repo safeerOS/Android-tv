@@ -6,4 +6,11 @@
     <string name="os_usenet_album_pripravljam">Preparing album %1$s …</string>
     <string name="os_usenet_album_ni">This album cannot be played: its files are not available.</string>
     <string name="os_usenet_album_stisnjen">This album is in a compressed or encrypted RAR archive – Safeer can only play stored (uncompressed) archives while streaming.</string>
+    <string name="os_usenet_albumi">Favourite albums (Usenet)</string>
+    <string name="os_usenet_album_shranjen">Saved to favourites: %1$s</string>
+    <string name="os_usenet_album_odstranjen">Removed from favourites: %1$s</string>
+    <string name="os_usenet_album_ni_vec">This album is no longer available from your indexer.</string>
+    <string name="os_usenet_album_preimenuj">Rename</string>
+    <string name="os_usenet_album_odstrani">Remove from favourites</string>
+    <string name="os_usenet_album_ime_namig">A name you will remember</string>
 </resources>

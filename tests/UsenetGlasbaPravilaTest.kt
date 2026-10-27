@@ -34,6 +34,13 @@ fun main() {
     preveriEnako("prazno ime", "Skladba", G.imeSkladbe(null))
     preveriEnako("izvajalec iz naslova", "Izvajalec", G.izvajalec("Izvajalec - Album (2020) [FLAC]"))
     preveriEnako("brez izvajalca", "", G.izvajalec("Album"))
+    // Lastnik 27. 10. 2026: priljubljeni album se po imenu najde v novem iskanju.
+    val shranjen = "Linkin.Park-Unshatter.OST-2026-FLAC"
+    preveriEnako("isti album ne glede na pike in velike crke", true, G.istiAlbum(shranjen, "linkin park unshatter ost 2026 flac"))
+    preveriEnako("drug album ni isti", false, G.istiAlbum(shranjen, "Linkin.Park-Meteora-2003-FLAC"))
+    preveriEnako("med zadetki: ista velikost ima prednost", 2,
+        G.izberiShranjenega(listOf("Drugo" to 1L, shranjen to 900L, "Linkin Park Unshatter OST 2026 FLAC" to 1_000_000L), shranjen, 1_000_500L))
+    preveriEnako("albuma ni vec: -1", -1, G.izberiShranjenega(listOf("Drugo" to 1L), shranjen, 5L))
     // Lastnik 27. 10. 2026 (TV, album z Useneta): imena kot so prisla z Useneta.
     val lp = G.lepeSkladbe(listOf(
         "01-linkin_park-waiting_for_the_end__unshatter_film_soundtrack.mp3",

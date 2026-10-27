@@ -191,4 +191,6 @@
     <string name="os_debrid_izbira_vse">Todas las fuentes</string>
     <string name="os_usenet_predvaja_lastni">Reproduciendo mediante Usenet (tu proveedor)</string>
     <string name="os_usenet_pripravljam">Preparando mediante Usenet…</string>
+    <string name="os_samodejno_naslednja">Reproducir la siguiente pista automáticamente</string>
+    <string name="os_samodejno_album">Continuar al terminar el álbum</string>
 </resources>

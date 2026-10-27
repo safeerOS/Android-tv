@@ -1076,6 +1076,25 @@ class PredvajanjeActivity : OsActivity() {
                 napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, i)
             }
         }
+        // Lastnik 27. 10. 2026: samodejno naslednja skladba in samodejno naprej po koncu albuma (privzeto vklopljeno).
+        if (!video && p != null && zdaj?.radio != true) {
+            val iN = predlogiNiz.childCount
+            val naslednja = GlasbaStoritev.samodejnoNaslednja(this)
+            dejanje(getString(R.string.os_samodejno_naslednja),
+                getString(if (naslednja) R.string.os_mediji_vklopljeno else R.string.os_mediji_izklopljeno), R.drawable.os_ikona_naslednja) {
+                GlasbaStoritev.nastaviSamodejnoNaslednja(this, !naslednja)
+                povejStanje(getString(R.string.os_samodejno_naslednja), getString(if (!naslednja) R.string.os_mediji_vklopljeno else R.string.os_mediji_izklopljeno))
+                napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, iN)
+            }
+            val iA = predlogiNiz.childCount
+            val album = GlasbaStoritev.samodejnoAlbum(this)
+            dejanje(getString(R.string.os_samodejno_album),
+                getString(if (album) R.string.os_mediji_vklopljeno else R.string.os_mediji_izklopljeno), R.drawable.os_ikona_glasba) {
+                GlasbaStoritev.nastaviSamodejnoAlbum(this, !album)
+                povejStanje(getString(R.string.os_samodejno_album), getString(if (!album) R.string.os_mediji_vklopljeno else R.string.os_mediji_izklopljeno))
+                napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, iA)
+            }
+        }
         if (!video && p != null && zdaj?.radio != true) {
             val i = predlogiNiz.childCount
             dejanje(getString(R.string.os_mediji_ponavljanje), getString(when (p.repeatMode) {

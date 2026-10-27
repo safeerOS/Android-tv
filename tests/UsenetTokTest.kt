@@ -456,6 +456,31 @@ private fun albumRar() {
     enako("en zvezek .rar", listOf("01 - Prva.flac"), UsenetBralnik.pripraviAlbum(UsenetNzb.razcleni(o4.nzb()), o4::telo).map { it.first })
 }
 
+/** Lastnik 27. 10. 2026: album prek enega streznika, skladbe se pripravijo ob prvi zahtevi, odprtih najvec 5. */
+private fun albumOkno() {
+    println("album: en streznik, najvec 5 odprtih")
+    val o = Objava(delBajtov = 128 * 1024)
+    val skladbe = (1..8).map { n -> "%02d - Skladba.mp3".format(n) to Leno(300_000L + n * 1000, 30L + n) }
+    skladbe.forEach { (ime, v) -> o.dodaj(ime, v) }
+    val nzb = UsenetNzb.razcleni(o.nzb())
+    val izvor = AlbumIzvor(nzb.datoteke.map { d -> d.ime to { UsenetBralnik.pripraviDatoteko(d, o::telo) } }, o::telo,
+        UsenetBralnik.PROFILI.getValue("tv"))
+    enako("pred prvo zahtevo nic odprtega", 0, izvor.odprtih)
+    UsenetStreznik(izvor, nedejavnostMs = 60_000L).use { s ->
+        var dobri = 0
+        for ((i, par) in skladbe.withIndex()) {
+            val c = http(s.urlSkladbe(i), 0, 999)
+            if (c.responseCode == 206 && c.inputStream.readBytes().contentEquals(par.second.beri(0, 1000))) dobri++
+        }
+        enako("8 skladb prek enega streznika, bajti enaki", 8, dobri)
+        enako("odprtih bralnikov najvec 5", AlbumIzvor.NAJVEC_ODPRTIH, izvor.odprtih)
+        enako("zaprta skladba se pripravi znova", 206, http(s.urlSkladbe(0), 0, 99).responseCode)
+        enako("neobstojeca skladba 404", 404, http(s.urlSkladbe(0).replace("/0/", "/99/"), 0, 9).responseCode)
+        preveri("naslov skladbe brez imena izdaje", "Skladba" !in s.urlSkladbe(3))
+    }
+    enako("po zaprtju nic odprtega", 0, izvor.odprtih)
+}
+
 private fun bralnikPreizkusi() {
     println("bralnik")
     enako("okno po skoku", MIB, UsenetBralnik.oknoVnaprej(0, MIB, 16 * MIB))
@@ -923,6 +948,7 @@ fun main(args: Array<String>) {
         preslikava()
         rar()
         albumRar()
+        albumOkno()
         bralnikPreizkusi()
         streznik()
         popravki58()

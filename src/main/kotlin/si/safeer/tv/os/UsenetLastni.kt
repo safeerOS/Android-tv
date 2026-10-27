@@ -129,10 +129,11 @@ object UsenetLastni {
             nova = s
             val razclenjen = UsenetNzb.razcleni(nzb)
             val izbrane = UsenetGlasbaPravila.skladbe(razclenjen.datoteke.map { it.ime })
-            val viri: List<Pair<String?, UsenetBralnik.Vir?>> = if (izbrane.isNotEmpty()) izbrane.map { i ->
+            // Lastnik 27. 10. 2026: skladba se pripravi sele ob prvi zahtevi predvajalnika (AlbumIzvor); luknja da 502 in
+            // predvajalnik gre na naslednjo.
+            val viri: List<Pair<String?, () -> UsenetBralnik.Vir>> = if (izbrane.isNotEmpty()) izbrane.map { i ->
                 val d = razclenjen.datoteke[i]
-                // Skladba z luknjo ali brez prvega segmenta izpade, album gre naprej.
-                d.ime to try { UsenetBralnik.pripraviDatoteko(d, nntp::body) } catch (e: UsenetTok.NapakaToka) { null }
+                d.ime to { UsenetBralnik.pripraviDatoteko(d, nntp::body) }
             } else {
                 // Vodja 27. 10. 2026: albumi so vecinoma v RAR - skladbe iz zvezkov (prej vedno »ni_skladb«).
                 val rar = try { UsenetBralnik.pripraviAlbum(razclenjen, nntp::body) }
@@ -140,20 +141,14 @@ object UsenetLastni {
                     catch (e: UsenetBralnik.NapakaIzdaje) { koncaj(s); return Album(emptyList(), e.izid) }
                 if (rar.isEmpty()) { koncaj(s); return Album(emptyList(), "ni_skladb") }
                 Log.i(TAG, "glasba: album iz RAR (${rar.size} skladb)")   // brez imen
-                rar
+                rar.map { (ime, vir) -> ime to { vir } }
             }
             val profil = UsenetBralnik.PROFILI.getValue(if (Naprava.jeTelevizor(c)) "tv" else "telefon")
-            val skladbe = ArrayList<Pair<String, String>>()
-            val strezniki = ArrayList<UsenetStreznik>()
-            for ((ime, vir) in viri) {
-                if (vir != null) {
-                    // Skladba, ki se ni na vrsti, ne potece po 5 min (lastnik 27. 10. 2026: album je obstal po 4 skladbah).
-                    val st = UsenetStreznik(UsenetBralnik.Bralnik(nntp::body, vir, profil), nedejavnostMs = UsenetLastniPravila.NEDEJAVNOST_ALBUMA_MS)
-                    strezniki.add(st)
-                    skladbe.add(UsenetGlasbaPravila.imeSkladbe(ime) to st.url)
-                }
-            }
-            s.strezniki = strezniki
+            // En streznik za cel album (lastnik 27. 10. 2026): v pomnilniku najvec AlbumIzvor.NAJVEC_ODPRTIH skladb; skladba,
+            // ki se ni na vrsti, ne potece (rok nedejavnosti za album, prej 5 min - album je obstal po 4 skladbah).
+            val st = UsenetStreznik(AlbumIzvor(viri, nntp::body, profil), nedejavnostMs = UsenetLastniPravila.NEDEJAVNOST_ALBUMA_MS)
+            s.strezniki = listOf(st)
+            val skladbe = viri.mapIndexed { i, (ime, _) -> UsenetGlasbaPravila.imeSkladbe(ime) to st.urlSkladbe(i) }
             if (skladbe.isEmpty()) { koncaj(s); return Album(emptyList(), "luknja") }
             synchronized(zaklep) { seja = s }
             Log.i(TAG, "glasba: album pripravljen (${skladbe.size} skladb)")   // brez imen

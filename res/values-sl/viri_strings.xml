@@ -191,4 +191,6 @@
     <string name="os_debrid_izbira_vse">Vsi viri</string>
     <string name="os_usenet_predvaja_lastni">Predvaja prek Useneta (lasten ponudnik)</string>
     <string name="os_usenet_pripravljam">Pripravljam prek Useneta …</string>
+    <string name="os_samodejno_naslednja">Samodejno naslednja skladba</string>
+    <string name="os_samodejno_album">Samodejno naprej po koncu albuma</string>
 </resources>

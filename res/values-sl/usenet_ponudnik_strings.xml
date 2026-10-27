@@ -6,4 +6,11 @@
     <string name="os_usenet_album_pripravljam">Pripravljam album %1$s …</string>
     <string name="os_usenet_album_ni">Tega albuma ni mogoče predvajati: njegove datoteke niso na voljo.</string>
     <string name="os_usenet_album_stisnjen">Album je v stisnjenem ali šifriranem arhivu RAR – Safeer sproti predvaja samo nestisnjene arhive.</string>
+    <string name="os_usenet_albumi">Priljubljeni albumi (Usenet)</string>
+    <string name="os_usenet_album_shranjen">Shranjeno med priljubljene: %1$s</string>
+    <string name="os_usenet_album_odstranjen">Odstranjeno iz priljubljenih: %1$s</string>
+    <string name="os_usenet_album_ni_vec">Tega albuma tvoj indeksator nima več.</string>
+    <string name="os_usenet_album_preimenuj">Preimenuj</string>
+    <string name="os_usenet_album_odstrani">Odstrani iz priljubljenih</string>
+    <string name="os_usenet_album_ime_namig">Ime, ki si ga boš zapomnil</string>
 </resources>

@@ -3070,6 +3070,17 @@ class GlasbaActivity : OsActivity() {
                 Vrsta(getString(R.string.os_mediji_prilj_video), videi(p.filter { it.video }), video = true),
             ) + seznamiBlok(seznami)
             GLASBA -> listOf(Vrsta(getString(R.string.os_mediji_prilj_glasba), skladbe(p.filterNot { it.video || it.radio }), skladbe = true)) +
+                // Lastnik 27. 10. 2026: priljubljeni albumi z Useneta (samo z lastnim ponudnikom - sicer jih ni mogoce predvajati).
+                listOfNotNull(UsenetAlbumi.seznam(this).takeIf { it.isNotEmpty() && UsenetLastni.naVoljo(this) }?.let { albumi ->
+                    Vrsta(getString(R.string.os_usenet_albumi), albumi.map { a ->
+                        // Lastno ime (ce ga je dal), spodaj ime izdaje in velikost; dolg pritisk: Preimenuj ali Odstrani.
+                        Kartica(a.ime.ifBlank { UsenetGlasbaPravila.lepNaslov(a.naslov) },
+                            listOf(if (a.ime.isNotBlank()) UsenetGlasbaPravila.lepNaslov(a.naslov) else "", UsenetGlasbaPravila.velikost(a.velikost))
+                                .filter { it.isNotBlank() }.joinToString(" · "), "", { predvajajShranjenUsenetAlbum(a) },
+                            dolgo = { urediUsenetAlbum(a) }, oznaka = "★",
+                            ikona = R.drawable.os_ikona_glasba, id = "usenet-album:" + a.naslov.hashCode())
+                    }, skladbe = true)
+                }) +
                 // Naloga 83: tudi uvozeni seznami YouTube (posnetki) - lastnik jih isce v Music.
                 seznamiBlok(seznami.filter { sz -> OsPravila.seznamZaGlasbo(sz.vir, sz.skladbe.all { it.video }) })
             RADIO -> listOf(Vrsta(getString(R.string.os_media_prilj_radio), skladbe(p.filter { it.radio }), kanali = true))
@@ -6671,7 +6682,10 @@ class GlasbaActivity : OsActivity() {
                     Vrsta("📡 " + getString(R.string.os_mediji_tv_v_zivo), videi(ostali(poUjemanju(dTv + tvKanali)), beseda), video = true),
                     // Lastnik 27. 10. 2026: izdaje glasbe z Useneta - klik takoj predvaja (pri iskani skladbi, kot pri YouTubu).
                     Vrsta("\uD83D\uDCE6 Usenet", usenetAlbumi.map { z ->
+                        // Lastnik 27. 10. 2026: dolg pritisk shrani album med priljubljene (ali ga odstrani).
                         Kartica(UsenetGlasbaPravila.lepNaslov(z.naslov), UsenetGlasbaPravila.velikost(z.velikost), "", { predvajajUsenetAlbum(z, beseda) },
+                            dolgo = { preklopiUsenetAlbum(z.naslov, z.velikost) },
+                            oznaka = if (UsenetAlbumi.je(this, z.naslov)) "★" else "",
                             ikona = R.drawable.os_ikona_glasba, id = "usenet:" + UsenetPravila.idToka(z.povezava))
                     }, skladbe = true),
                     Vrsta(getString(R.string.os_mediji_glasba), skladbe(ostali(poUjemanju(dGlasba) + (if (vGlasbo) poUjemanju(dVideo) else emptyList()) +
@@ -7508,6 +7522,56 @@ class GlasbaActivity : OsActivity() {
      * Lastnik 27. 10. 2026: album z Useneta kot vrsta skladb v obstojecem predvajalniku. Priprava (NZB, prvi segment vsake
      * skladbe) tece v ozadju; predvajanje zacne pri skladbi, ki ustreza iskanju (UsenetGlasbaPravila.zacetnaSkladba).
      */
+    /** Dolg pritisk na album z Useneta: med priljubljene ali iz njih (samo ime in velikost izdaje). */
+    private fun preklopiUsenetAlbum(naslov: String, velikost: Long) {
+        val zdaj = UsenetAlbumi.preklopi(this, naslov, velikost)
+        Toast.makeText(this, getString(if (zdaj) R.string.os_usenet_album_shranjen else R.string.os_usenet_album_odstranjen,
+            UsenetGlasbaPravila.lepNaslov(naslov)), Toast.LENGTH_SHORT).show()
+        osveziNaMestu()
+    }
+
+    /** Priljubljen album: Preimenuj (ime, ki si ga uporabnik lazje zapomni) ali Odstrani iz priljubljenih. */
+    private fun urediUsenetAlbum(a: UsenetAlbumi.Album) {
+        val izbire = arrayOf(getString(R.string.os_usenet_album_preimenuj), getString(R.string.os_usenet_album_odstrani))
+        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(a.ime.ifBlank { UsenetGlasbaPravila.lepNaslov(a.naslov) })
+            .setItems(izbire) { _, i -> if (i == 0) preimenujUsenetAlbum(a) else preklopiUsenetAlbum(a.naslov, a.velikost) }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .create()
+        Kontroler.pokazi(okno); okno.show()
+    }
+
+    private fun preimenujUsenetAlbum(a: UsenetAlbumi.Album) {
+        val polje = android.widget.EditText(this).apply {
+            setSingleLine(); setText(a.ime); hint = getString(R.string.os_usenet_album_ime_namig)
+            filters = arrayOf(android.text.InputFilter.LengthFilter(UsenetAlbumi.NAJDALJSE_IME))
+        }
+        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(R.string.os_usenet_album_preimenuj)
+            .setMessage(UsenetGlasbaPravila.lepNaslov(a.naslov))
+            .setView(polje)
+            .setPositiveButton(android.R.string.ok) { _, _ -> UsenetAlbumi.preimenuj(this, a.naslov, polje.text.toString()); osveziNaMestu() }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .create()
+        Kontroler.pokazi(okno); okno.show()
+    }
+
+    /** Priljubljeni album: povezave nimamo (kljuc!) - ena poizvedba pri indeksatorju po imenu izdaje, nato predvajanje. */
+    private fun predvajajShranjenUsenetAlbum(a: UsenetAlbumi.Album) {
+        val app = applicationContext
+        pokaziPripravljam(getString(R.string.os_usenet_album_pripravljam, UsenetGlasbaPravila.lepNaslov(a.naslov)))
+        Thread({
+            val zadetki = try { Usenet.isciGlasbo(app, UsenetGlasbaPravila.lepNaslov(a.naslov)) } catch (_: Exception) { emptyList() }
+            val i = UsenetGlasbaPravila.izberiShranjenega(zadetki.map { it.naslov to it.velikost }, a.naslov, a.velikost)
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                skrijPripravljam()
+                if (i < 0) { Toast.makeText(this, R.string.os_usenet_album_ni_vec, Toast.LENGTH_LONG).show(); return@runOnUiThread }
+                predvajajUsenetAlbum(zadetki[i], "")
+            }
+        }, "safeer-usenet-priljubljen").start()
+    }
+
     private fun predvajajUsenetAlbum(z: UsenetPravila.Zadetek, beseda: String) {
         val app = applicationContext
         Toast.makeText(this, getString(R.string.os_usenet_album_pripravljam, UsenetGlasbaPravila.lepNaslov(z.naslov)), Toast.LENGTH_SHORT).show()

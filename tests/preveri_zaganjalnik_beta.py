@@ -368,6 +368,20 @@ def main() -> int:
     ul = (SRC / "os/UsenetLastni.kt").read_text(encoding="utf-8")
     preveri("album z Useneta: strezniki skladb ne potecejo po 5 min",
             "nedejavnostMs = UsenetLastniPravila.NEDEJAVNOST_ALBUMA_MS" in ul.split("fun predvajajAlbum(", 1)[1].split(chr(10) + "    }", 1)[0])
+    ul2 = (SRC / "os/UsenetLastni.kt").read_text(encoding="utf-8")
+    preveri("album z Useneta: en streznik, skladbe sproti (najvec 5 odprtih)",
+            "UsenetStreznik(AlbumIzvor(viri, nntp::body, profil)" in ul2 and "for ((ime, vir) in viri)" not in ul2)
+    gl7 = (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8")
+    ua = (SRC / "os/UsenetAlbumi.kt").read_text(encoding="utf-8")
+    preveri("priljubljeni albumi z Useneta: dolg pritisk in vrstica, brez povezave NZB v shrambi",
+            "dolgo = { preklopiUsenetAlbum(z.naslov, z.velikost) }" in gl7 and "R.string.os_usenet_albumi" in gl7
+            and "urediUsenetAlbum(a)" in gl7 and "fun preimenuj(" in ua
+            and "povezava" not in ua.split("object UsenetAlbumi", 1)[1].replace("povezava NZB", ""))
+    gs = (SRC / "os/GlasbaStoritev.kt").read_text(encoding="utf-8")
+    pa = (SRC / "os/PredvajanjeActivity.kt").read_text(encoding="utf-8")
+    preveri("predvajalnik: stikali samodejno naslednja skladba in album (privzeto vklopljeni)",
+            "MiniPredvajalnikPravila.poKoncuSkladbe(samodejnoNaslednja(this), samodejnoAlbum(this)" in gs
+            and "p.pauseAtEndOfMediaItems = !samodejnoNaslednja(this)" in gs and "R.string.os_samodejno_album" in pa)
     # Rocna gradnja bete v CI: vhod »beta« gre prek okolja v -PsafeerBeta (brez vhoda gradnja kot prej).
     ci = (KOREN / ".github" / "workflows" / "gradnja.yml").read_text(encoding="utf-8")
     preveri("CI: rocna gradnja z vhodom beta poda -PsafeerBeta",

@@ -62,6 +62,24 @@ object MiniPredvajalnikPravila {
 
     /** Lastnik 27. 10. 2026: film ali epizoda, ki ne igra - »Predvajaj« odpre celozaslonski predvajalnik (isti tok). */
     const val ODPRI_PREDVAJALNIK = "odpri_predvajalnik"
+
+    /** Lastnik 27. 10. 2026: stikali v predvajalniku, privzeto vklopljeni. */
+    const val KLJUC_SAMODEJNO_NASLEDNJA = "samodejno_naslednja_skladba"
+    const val KLJUC_SAMODEJNO_ALBUM = "samodejno_naslednji_album"
+    const val PO_KONCU_NASLEDNJA = "naslednja"
+    const val PO_KONCU_MIX = "mix"
+    const val PO_KONCU_KONEC = "konec"
+
+    /**
+     * Kaj po koncu skladbe: naslednja v vrsti (ce je in je samodejno naslednja vklopljeno), samodejno naprej po zadnji
+     * skladbi albuma ali seznama (mix - ce sta vklopljeni obe stikali) ali konec.
+     */
+    fun poKoncuSkladbe(naslednja: Boolean, album: Boolean, imaNaslednjo: Boolean): String = when {
+        !naslednja -> PO_KONCU_KONEC
+        imaNaslednjo -> PO_KONCU_NASLEDNJA
+        album -> PO_KONCU_MIX
+        else -> PO_KONCU_KONEC
+    }
     const val PREKLOPI_ZVOK = "preklopi"
     const val ODPRI_MEDIJE = "odpri_medije"
 

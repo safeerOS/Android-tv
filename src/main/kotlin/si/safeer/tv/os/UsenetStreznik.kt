@@ -31,11 +31,31 @@ import java.util.concurrent.atomic.AtomicInteger
  *   200/206; enota Range ne glede na velike crke.
  */
 class UsenetStreznik(
-    private val bralnik: UsenetBralnik.Bralnik,
-    ime: String? = bralnik.vir.ime,
+    private val izvor: Izvor,
     private val nedejavnostMs: Long = NEDEJAVNOST_MS,
     private val obKoncu: (() -> Unit)? = null,
 ) : Closeable {
+    /**
+     * Kaj streznik streze (lastnik 27. 10. 2026): ena datoteka (film - naslov [url]) ali skladbe albuma ([urlSkladbe],
+     * vsaka svoj bralnik, pripravljen sele ob prvi zahtevi - [AlbumIzvor]).
+     */
+    interface Izvor : Closeable {
+        val stevilo: Int
+        fun ime(i: Int): String?
+        /** Bralnik datoteke [i]; lahko jo pripravi (prvi segment) - [UsenetTok.NapakaToka] ob luknji. */
+        fun bralnik(i: Int): UsenetBralnik.Bralnik
+    }
+
+    private class EnaDatoteka(private val b: UsenetBralnik.Bralnik, private val imeDatoteke: String?) : Izvor {
+        override val stevilo = 1
+        override fun ime(i: Int) = imeDatoteke
+        override fun bralnik(i: Int) = b
+        override fun close() = b.close()
+    }
+
+    constructor(bralnik: UsenetBralnik.Bralnik, ime: String? = bralnik.vir.ime, nedejavnostMs: Long = NEDEJAVNOST_MS,
+                obKoncu: (() -> Unit)? = null) : this(EnaDatoteka(bralnik, ime), nedejavnostMs, obKoncu)
+
     companion object {
         const val GOSTITELJ = "127.0.0.1"
         const val NEDEJAVNOST_MS = 300_000L
@@ -79,16 +99,20 @@ class UsenetStreznik(
         }
     }
 
-    val velikost: Long = bralnik.vir.velikost
+    /** Velikost datoteke (film); pri albumu -1 (vsaka skladba ima svojo). */
+    val velikost: Long get() = if (izvor.stevilo == 1) izvor.bralnik(0).vir.velikost else -1L
     val zeton: String = Base64.getUrlEncoder().withoutPadding().encodeToString(ByteArray(32).also { SecureRandom().nextBytes(it) })
-    val pot: String = imePoti(ime)
-    private val vrsta = VRSTE["." + pot.substringAfterLast('.')] ?: "application/octet-stream"
+    val pot: String = imePoti(izvor.ime(0))
+    private fun vrsta(i: Int) = VRSTE["." + imePoti(izvor.ime(i)).substringAfterLast('.')] ?: "application/octet-stream"
     private val posluh = ServerSocket().apply {
         reuseAddress = false
         bind(java.net.InetSocketAddress(InetAddress.getByName(GOSTITELJ), 0), 50)
     }
     val vrata: Int = posluh.localPort
     val url: String = "http://$GOSTITELJ:$vrata/$zeton/$pot"
+
+    /** Naslov skladbe [i] albuma: stevilka in koncnica, nic iz imena izdaje. */
+    fun urlSkladbe(i: Int): String = "http://$GOSTITELJ:$vrata/$zeton/$i/${imePoti(izvor.ime(i))}"
     /** Zahteve z veljavnim zetonom v teku (nedejavnost); povezave so v [vticnice]. */
     private val odprtih = AtomicInteger()
     @Volatile private var zadnja = System.nanoTime()
@@ -137,7 +161,7 @@ class UsenetStreznik(
         }
         try { posluh.close() } catch (_: IOException) { }
         synchronized(vticnice) { for (s in vticnice) try { s.close() } catch (_: IOException) { } }
-        bralnik.close()
+        try { izvor.close() } catch (_: Exception) { }
         try { obKoncu?.invoke() } catch (_: Exception) { }
     }
 
@@ -160,12 +184,17 @@ class UsenetStreznik(
         izhod.write(sb.toString().toByteArray(Charsets.ISO_8859_1))
     }
 
-    private fun dovoljeno(cilj: String, gost: String?): Boolean {
+    /** Indeks datoteke za veljavno zahtevo (zeton, Host, pot) ali -1. Film: /zeton/pot, album: /zeton/<i>/pot. */
+    private fun indeks(cilj: String, gost: String?): Int {
         val deli = cilj.substringBefore('?').split('/')
-        val pravi = deli.size == 3 && deli[0].isEmpty() &&
-            MessageDigest.isEqual(deli[1].toByteArray(Charsets.ISO_8859_1), zeton.toByteArray(Charsets.ISO_8859_1)) && deli[2] == pot
         val g = (gost ?: "").trim().lowercase()
-        return pravi && (g == "$GOSTITELJ:$vrata" || g == "localhost:$vrata")
+        if (g != "$GOSTITELJ:$vrata" && g != "localhost:$vrata") return -1
+        if (deli.size < 3 || deli[0].isNotEmpty() ||
+            !MessageDigest.isEqual(deli[1].toByteArray(Charsets.ISO_8859_1), zeton.toByteArray(Charsets.ISO_8859_1))) return -1
+        if (deli.size == 3) return if (izvor.stevilo == 1 && deli[2] == pot) 0 else -1
+        if (deli.size != 4) return -1
+        val i = deli[2].toIntOrNull() ?: return -1
+        return if (i in 0 until izvor.stevilo && deli[2] == i.toString() && deli[3] == imePoti(izvor.ime(i))) i else -1
     }
 
     private fun strezi(s: Socket) {
@@ -193,14 +222,15 @@ class UsenetStreznik(
                 if (metoda != "GET" && metoda != "HEAD") {
                     pisi(izhod, 405, "Method Not Allowed", listOf("Allow" to "GET, HEAD") + prazno); izhod.flush(); continue
                 }
-                if (zaprt || !dovoljeno(deli[1], glave["host"])) {
+                val i = if (zaprt) -1 else indeks(deli[1], glave["host"])
+                if (i < 0) {
                     // zeton pred vsem ostalim; brez njega povezava ne ostane in ne osvezi nedejavnosti (T7)
                     pisi(izhod, 404, "Not Found", listOf("Connection" to "close") + prazno); izhod.flush(); return
                 }
                 odprtih.incrementAndGet()
                 zadnja = System.nanoTime()
                 try {
-                    if (!odgovori(izhod, metoda, glave["range"])) return
+                    if (!odgovori(izhod, metoda, glave["range"], i)) return
                 } finally {
                     odprtih.decrementAndGet()
                     zadnja = System.nanoTime()
@@ -216,8 +246,19 @@ class UsenetStreznik(
     }
 
     /** Odgovor na veljavno zahtevo; false = povezavo zapri. */
-    private fun odgovori(izhod: OutputStream, metoda: String, range: String?): Boolean {
+    private fun odgovori(izhod: OutputStream, metoda: String, range: String?, i: Int): Boolean {
         val prazno = listOf("Content-Length" to "0")
+        // Album: skladba se pripravi ob prvi zahtevi; luknja je trajna (502), drugo prehodno (503) - predvajalnik gre naprej.
+        val bralnik = try { izvor.bralnik(i) } catch (e: UsenetTok.NapakaToka) {
+            val koda = if (e.izid in TRAJNE) 502 else 503
+            pisi(izhod, koda, if (koda == 502) "Bad Gateway" else "Service Unavailable", listOf("Connection" to "close") + prazno)
+            izhod.flush(); return false
+        } catch (_: IOException) {
+            pisi(izhod, 503, "Service Unavailable", listOf("Connection" to "close") + prazno)
+            izhod.flush(); return false
+        }
+        val velikost = bralnik.vir.velikost
+        val vrsta = vrsta(i)
         val o = obseg(range, velikost)
         if (o != null && o.first < 0) {
             pisi(izhod, 416, "Range Not Satisfiable", listOf("Content-Range" to "bytes */$velikost", "Accept-Ranges" to "bytes") + prazno)
@@ -255,5 +296,54 @@ class UsenetStreznik(
             return false  // obljubljene dolzine ni bilo: povezavo zapremo, predvajalnik odpre znova
         }
         return poz > konec
+    }
+}
+
+/**
+ * Lastnik 27. 10. 2026: skladbe albuma z Useneta. Vsaka se pripravi (prvi segment, bralnik z nitmi in predpomnilnikom) sele
+ * ob prvi zahtevi predvajalnika; odprtih je najvec [najvecOdprtih] - najdlje neuporabljena se zapre in se ob ponovni
+ * zahtevi pripravi znova. Prej so bile pripravljene vse hkrati (do 32 MB in 6 niti na skladbo na TV) in ostale odprte.
+ */
+class AlbumIzvor(
+    private val skladbe: List<Pair<String?, () -> UsenetBralnik.Vir>>,
+    private val telo: (String) -> ByteArray,
+    private val profil: UsenetBralnik.Profil,
+    private val najvecOdprtih: Int = NAJVEC_ODPRTIH,
+) : UsenetStreznik.Izvor {
+    companion object { const val NAJVEC_ODPRTIH = 5 }
+
+    private val viri = arrayOfNulls<UsenetBralnik.Vir>(skladbe.size)
+    private val odprti = LinkedHashMap<Int, UsenetBralnik.Bralnik>(8, 0.75f, true)
+    private val priprava = Array(skladbe.size) { Any() }
+    @Volatile private var zaprt = false
+
+    override val stevilo: Int get() = skladbe.size
+    override fun ime(i: Int): String? = skladbe[i].first
+
+    /** Za preizkus: odprti bralniki. */
+    val odprtih: Int @Synchronized get() = odprti.size
+
+    override fun bralnik(i: Int): UsenetBralnik.Bralnik {
+        synchronized(this) { if (zaprt) throw IOException("album zaprt"); odprti[i]?.let { return it } }
+        // Priprava (omrezje) brez skupnega zaklepa: trenutna skladba med pripravo naslednje ne caka.
+        synchronized(priprava[i]) {
+            synchronized(this) { odprti[i]?.let { return it } }
+            val vir = viri[i] ?: skladbe[i].second().also { viri[i] = it }
+            val b = UsenetBralnik.Bralnik(telo, vir, profil)
+            val stari = ArrayList<UsenetBralnik.Bralnik>()
+            synchronized(this) {
+                if (zaprt) { b.close(); throw IOException("album zaprt") }
+                odprti[i] = b
+                val iter = odprti.entries.iterator()
+                while (odprti.size > najvecOdprtih && iter.hasNext()) { val e = iter.next(); if (e.key != i) { stari += e.value; iter.remove() } }
+            }
+            stari.forEach { try { it.close() } catch (_: Exception) { } }
+            return b
+        }
+    }
+
+    override fun close() {
+        val vsi = synchronized(this) { zaprt = true; ArrayList(odprti.values).also { odprti.clear() } }
+        vsi.forEach { try { it.close() } catch (_: Exception) { } }
     }
 }

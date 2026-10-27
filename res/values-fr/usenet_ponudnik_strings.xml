@@ -6,4 +6,11 @@
     <string name="os_usenet_album_pripravljam">Préparation de l’album %1$s …</string>
     <string name="os_usenet_album_ni">Impossible de lire cet album : ses fichiers ne sont pas disponibles.</string>
     <string name="os_usenet_album_stisnjen">Cet album est dans une archive RAR compressée ou chiffrée – Safeer ne lit en continu que les archives non compressées.</string>
+    <string name="os_usenet_albumi">Albums favoris (Usenet)</string>
+    <string name="os_usenet_album_shranjen">Ajouté aux favoris : %1$s</string>
+    <string name="os_usenet_album_odstranjen">Retiré des favoris : %1$s</string>
+    <string name="os_usenet_album_ni_vec">Cet album n’est plus disponible chez ton indexeur.</string>
+    <string name="os_usenet_album_preimenuj">Renommer</string>
+    <string name="os_usenet_album_odstrani">Retirer des favoris</string>
+    <string name="os_usenet_album_ime_namig">Un nom dont tu te souviendras</string>
 </resources>
