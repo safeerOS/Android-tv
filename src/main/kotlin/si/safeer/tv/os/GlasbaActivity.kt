@@ -592,6 +592,7 @@ class GlasbaActivity : OsActivity() {
     }
 
     override fun onStop() {
+        skrijPripravljam()      // predvajalnik je odprt ali uporabnik je odsel: pas ne ostane za vrnitev
         Debrid.poslusalciPrejetih.remove(obPrejetihKljucih)
         UskladitevKljucev.poslusalci.remove(obUskladitvi)
         MedijskiViri.poslusalciRacunov.remove(obRacunih)
@@ -7338,11 +7339,45 @@ class GlasbaActivity : OsActivity() {
         val kljuc = sk.id.ifBlank { sk.povezava.ifBlank { sk.naslov } }
         if (!pripraveVTeKu.add(kljuc)) return null
         prekiniDebrid()     // pregled A1: nova izbira - prejsnje cakanje na debrid ne odpre nicesar vec
-        Toast.makeText(this, getString(R.string.os_media_pripravljam, sk.naslov), Toast.LENGTH_SHORT).show()
+        pokaziPripravljam(getString(R.string.os_media_pripravljam, sk.naslov))
         return kljuc
     }
 
-    private fun koncajPripravo(kljuc: String) { pripraveVTeKu.remove(kljuc) }
+    private fun koncajPripravo(kljuc: String) {
+        pripraveVTeKu.remove(kljuc)
+        if (pripraveVTeKu.isEmpty() && debridDelo == null) skrijPripravljam()
+    }
+
+    /**
+     * Lastnik 27. 10. 2026: od klika do predvajalnika viden pas »Pripravljam …« na vrhu zaslona (prej kratek Toast, nato
+     * nekaj sekund nic, medtem ko se je pripravljal Usenet in preverjali drugi viri). Nad vsebino (addContentView), brez fokusa.
+     */
+    private var pripravljamPas: TextView? = null
+
+    private fun pokaziPripravljam(besedilo: String) {
+        if (isFinishing || isDestroyed) return
+        val pas = pripravljamPas ?: TextView(this).apply {
+            setTextColor(osBarva(R.color.os_besedilo))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, if (jeSirokTv()) 18f else 15f)
+            background = GradientDrawable().apply {
+                setColor(osBarva(R.color.os_kartica_dvignjena)); cornerRadius = dp(20).toFloat(); setStroke(dp(1), osBarva(R.color.os_kartica_obroba))
+            }
+            setPadding(dp(20), dp(10), dp(20), dp(10))
+            elevation = dp(8).toFloat()
+            isFocusable = false
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        }.also {
+            pripravljamPas = it
+            addContentView(it, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply { topMargin = dp(18) })
+        }
+        pas.text = besedilo
+        pas.visibility = View.VISIBLE
+        pas.bringToFront()
+    }
+
+    private fun skrijPripravljam() { pripravljamPas?.visibility = View.GONE }
 
     private fun pripravaNiUspela(kljuc: String, sk: Jamendo.Skladba) {
         koncajPripravo(kljuc)
@@ -7805,6 +7840,8 @@ class GlasbaActivity : OsActivity() {
         if (UsenetLastni.vUporabi(app)) {
             val zapored = kandidati.take(UsenetLastniPravila.NAJVEC_POSKUSOV)
             if (zapored.isEmpty()) return null
+            // Lastnik 27. 10. 2026: priprava lastnega pogona traja nekaj sekund - uporabnik vidi, da se nekaj dogaja.
+            glavna.post { if (!isFinishing && !isDestroyed && pripraveVTeKu.isNotEmpty()) pokaziPripravljam(getString(R.string.os_usenet_pripravljam)) }
             return {
                 var izbran: Triple<Stremio.Tok, String, String>? = null
                 for (t in zapored) {
@@ -9328,8 +9365,11 @@ class GlasbaActivity : OsActivity() {
         prekiniDebrid()
         val rod = rodDebrida.get()
         fun velja() = rodDebrida.get() == rod && !isFinishing && !isDestroyed
-        if (vOspredju) Toast.makeText(this, R.string.os_debrid_pripravljam, Toast.LENGTH_SHORT).show()
-        besediloDebrida = getString(R.string.os_debrid_pripravljam)
+        // Lastnik 27. 10. 2026: lasten ponudnik Usenet ni »debrid storitev«; napis ostane viden do predvajalnika ali napake.
+        val pripravljam = getString(if (UsenetLastniPravila.pripravaLastnega(usenetIme != null, UsenetLastni.vUporabi(applicationContext)))
+            R.string.os_usenet_pripravljam else R.string.os_debrid_pripravljam)
+        if (vOspredju) pokaziPripravljam(pripravljam)
+        besediloDebrida = pripravljam
         var zadnjiOdstotek = -1
         val delo = try { debridDelavec.submit(Runnable {
             // Ime storitve za napredek: Usenet prenasa TorBox, torrent storitev, ki caka (sprva prednostna).
@@ -9450,6 +9490,7 @@ class GlasbaActivity : OsActivity() {
     private var debridOkno: AlertDialog? = null
 
     private fun zapriOknoDebrida() {
+        skrijPripravljam()
         val o = debridOkno ?: return
         debridOkno = null
         try { if (o.isShowing) o.dismiss() } catch (_: Exception) { }

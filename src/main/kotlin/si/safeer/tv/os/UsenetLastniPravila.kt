@@ -60,4 +60,7 @@ object UsenetLastniPravila {
     /** Dnevnik izbire (brez imena izdaje): kdo predvaja pripravljen Usenet. */
     fun dnevnikPripravljenega(ponudnik: String?): String =
         if (jeLastni(ponudnik)) "Usenet lasten pogon" else "Usenet pripravljen pri TorBoxu"
+
+    /** Lastnik 27. 10. 2026: priprava toka Usenet z lastnim ponudnikom ima svoj napis (ne »prek debrid storitve«). */
+    fun pripravaLastnega(usenet: Boolean, lastniVUporabi: Boolean): Boolean = usenet && lastniVUporabi
 }

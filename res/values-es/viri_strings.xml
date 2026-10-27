@@ -190,4 +190,5 @@
     <string name="os_usenet_diagnostika_ni_izdaj">Diagnóstico solo Usenet: el indexador no devolvió ninguna versión para este contenido.</string>
     <string name="os_debrid_izbira_vse">Todas las fuentes</string>
     <string name="os_usenet_predvaja_lastni">Reproduciendo mediante Usenet (tu proveedor)</string>
+    <string name="os_usenet_pripravljam">Preparando mediante Usenet…</string>
 </resources>

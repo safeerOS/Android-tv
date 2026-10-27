@@ -43,6 +43,10 @@ fun main() {
     preveriEnako("brez ponudnika ni lastni", false, L.jeLastni(null))
     preveriEnako("dnevnik lasten pogon", "Usenet lasten pogon", L.dnevnikPripravljenega(L.PONUDNIK))
     preveriEnako("dnevnik TorBox", "Usenet pripravljen pri TorBoxu", L.dnevnikPripravljenega(DebridPravila.TORBOX))
+    // Lastnik 27. 10. 2026: napis med pripravo toka.
+    preveriEnako("Usenet z lastnim ponudnikom: svoj napis", true, L.pripravaLastnega(usenet = true, lastniVUporabi = true))
+    preveriEnako("Usenet prek TorBoxa: napis debrid", false, L.pripravaLastnega(usenet = true, lastniVUporabi = false))
+    preveriEnako("torrent: napis debrid", false, L.pripravaLastnega(usenet = false, lastniVUporabi = true))
     println(if (napak == 0) "UsenetLastniPravilaTest: OK" else "UsenetLastniPravilaTest: $napak napak")
     if (napak > 0) kotlin.system.exitProcess(1)
 }

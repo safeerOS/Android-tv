@@ -330,6 +330,13 @@ def main() -> int:
             "UsenetLastniPravila.dnevnikPripravljenega(ponudnik)" in gl3 and "napisPredvajaPrek(ponudnik)" in gl3
             and "Usenet pripravljen pri TorBoxu; izbran" not in gl3
             and "Triple(t, it, izid.ponudnik.ifBlank { UsenetLastniPravila.PONUDNIK })" in gl3)
+    gl4 = (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8")
+    zp = gl4.split("private fun zacniPripravo(", 1)[1].split(chr(10) + "    }", 1)[0]
+    preveri("priprava: viden pas Pripravljam od klika (ne kratek Toast)",
+            "pokaziPripravljam(getString(R.string.os_media_pripravljam, sk.naslov))" in zp and "Toast" not in zp)
+    preveri("priprava: lasten Usenet ni »prek debrid storitve«",
+            "Toast.makeText(this, R.string.os_debrid_pripravljam" not in gl4 and "R.string.os_usenet_pripravljam" in gl4
+            and "skrijPripravljam()      // predvajalnik je odprt" in gl4)
     # Rocna gradnja bete v CI: vhod »beta« gre prek okolja v -PsafeerBeta (brez vhoda gradnja kot prej).
     ci = (KOREN / ".github" / "workflows" / "gradnja.yml").read_text(encoding="utf-8")
     preveri("CI: rocna gradnja z vhodom beta poda -PsafeerBeta",
