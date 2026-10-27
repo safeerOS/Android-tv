@@ -162,11 +162,10 @@ def main() -> int:
 
     print("\n== sporocila na hitro (del C) ==")
     pokrajina = vsebina.get("os/PokrajinaActivity.kt", "")
-    preveri("domaci zaslon kaze zadnja sporocila", "SporocilaHitroPravila.zadnja(" in pokrajina)
-    preveri("dejanja ob fokusu iz pravil (kopiraj, odgovori, poslji kopirano)", "SporocilaHitroPravila.dejanja(" in pokrajina)
-    preveri("poslji kopirano sele po potrditvi", re.search(r"fun posljiKopirano\([^)]*\) \{.*?AlertDialog\.Builder.*?setPositiveButton", pokrajina, re.S) is not None)
-    preveri("odgovor gre po kanalu pogovora (SporocilaKanali.poslji) v ozadju",
-            re.search(r'Thread\(\{\s*val napaka = try \{ SporocilaKanali\.poslji\(', pokrajina) is not None)
+    # Lastnik 27. 10. 2026 (na TV z beto): vrstica zadnjih sporocil na domacem zaslonu je nepotrebna - odstranjena.
+    # Sporocila ostanejo v aplikaciji Sporocila (gumb v vrstici), opozorilo med predvajanjem ostane spodaj.
+    preveri("domaci zaslon brez vrstice zadnjih sporocil",
+            "SporocilaHitroPravila" not in pokrajina and "vrstaSporocil" not in pokrajina and "KlepetLinka.poslusalci" not in pokrajina)
     os_act = (SRC / "os/OsActivity.kt").read_text(encoding="utf-8")
     preveri("vsak zaslon Safeer OS v ospredju pokaze opozorilo (samo z novim zaganjalnikom)", "KlepetLinka.prikaz = if (!ZaganjalnikBeta.vklopljen(this)) null" in os_act)
     preveri("opozorilo se ob odhodu zaslona umakne", re.search(r"override fun onPause\(\) \{.*?KlepetLinka\.prikaz = null", os_act, re.S) is not None)
@@ -218,6 +217,15 @@ def main() -> int:
     # se Pokrajina sesula. Skala animacij se bere iz Settings.Global.ANIMATOR_DURATION_SCALE (vse razlicice).
     pokrajina = (KOREN / "src/main/kotlin/si/safeer/tv/os/PokrajinaActivity.kt").read_text(encoding="utf-8")
     preveri("Pokrajina brez API 33 (getDurationScale) pri minSdk 28", "getDurationScale" not in pokrajina)
+    # Lastnik 27. 10. 2026: izklop domacega zaslona na TV brez drugega zaganjalnika je pustil crn FallbackHome.
+    nast = (KOREN / "src/main/kotlin/si/safeer/tv/os/NastavitveActivity.kt").read_text(encoding="utf-8")
+    vrata = (KOREN / "src/main/kotlin/si/safeer/tv/os/VarnostnaVrata.kt").read_text(encoding="utf-8")
+    preveri("izklop domacega zaslona brez drugega zaganjalnika zavrnjen (Nastavitve, varnostna vrata)",
+            "!Zaganjalnik.smeOpustiti(this)" in nast.split("private fun preklopiZaganjalnik")[1][:600]
+            and "!Zaganjalnik.smeOpustiti(c)" in vrata.split("fun vrni(c: Context)")[1][:400])
+    preveri("besedilo os_zaganjalnik_edini v 7 mapah", all("name=\"os_zaganjalnik_edini\"" in
+            (KOREN / "res" / m / "os_strings.xml").read_text(encoding="utf-8") for m in
+            ("values", "values-sl", "values-en", "values-de", "values-es", "values-fr", "values-it")))
     # Rocna gradnja bete v CI: vhod »beta« gre prek okolja v -PsafeerBeta (brez vhoda gradnja kot prej).
     ci = (KOREN / ".github" / "workflows" / "gradnja.yml").read_text(encoding="utf-8")
     preveri("CI: rocna gradnja z vhodom beta poda -PsafeerBeta",
