@@ -226,6 +226,25 @@ def main() -> int:
     preveri("besedilo os_zaganjalnik_edini v 7 mapah", all("name=\"os_zaganjalnik_edini\"" in
             (KOREN / "res" / m / "os_strings.xml").read_text(encoding="utf-8") for m in
             ("values", "values-sl", "values-en", "values-de", "values-es", "values-fr", "values-it")))
+    # Lastnik 27. 10. 2026 (TV): v Sporocilih se tipkovnica ne odpre sama ob fokusu (pokrila je pol zaslona), samo na OK.
+    spor = (SRC / "os/SporocilaActivity.kt").read_text(encoding="utf-8")
+    preveri("Sporocila: tipkovnica na TV sele na OK (Odgovor in Isci)",
+            "tipkovnicaSeleNaOk(odgovor)" in spor and "tipkovnicaSeleNaOk(iskanje)" in spor
+            and "e.showSoftInputOnFocus = false" in spor and "FEATURE_LEANBACK" in spor.split("private fun tipkovnicaSeleNaOk")[1][:300])
+    stranska = (SRC / "os/StranskaVrstica.kt").read_text(encoding="utf-8")
+    preveri("z beto na TV zasloni brez stranske vrstice",
+            "if (!ZaganjalnikBetaPravila.stranskaVrstica(!dotik, ZaganjalnikBeta.vklopljen(dejavnost))) drsnik.visibility = View.GONE" in stranska)
+    preveri("Sporocila: med pisanjem odgovora z odprto tipkovnico glava izgine",
+            "SporocilaHitroPravila.tipkovnicaOdprta(vidno.height(), root.rootView.height) && odgovor.hasFocus()" in spor)
+    preveri("Sporocila: med pisanjem vidno zadnje sporocilo, dejanja pogovora skrita",
+            "listOfNotNull(dejanjaPogovora.parent as? View)" in spor and "sporocilaDrsnik.scrollTo(0, (sporocilaSeznam.height" in spor)
+    # Lastnik 27. 10. 2026: tudi Nastavitve in vsi drugi zasloni z beto na TV brez stranske vrstice - vsi gredo skozi
+    # StranskaVrstica.ovij (tam se vrstica skrije); zaslon s svojo vrstico mimo nje bi to obsel.
+    for z in ("os/NastavitveActivity.kt", "os/DovoljenjaActivity.kt", "os/SporocilaActivity.kt", "os/DatotekeActivity.kt",
+              "os/NapraveActivity.kt", "os/AplikacijeHostaActivity.kt", "os/ZapiskiActivity.kt", "os/GlasbaActivity.kt",
+              "MainActivity.kt"):
+        preveri(f"{z}: stranska vrstica samo prek StranskaVrstica.ovij", "StranskaVrstica.ovij(" in (SRC / z).read_text(encoding="utf-8"))
+    preveri("stranska vrstica nastane samo v StranskaVrstica (zasebni konstruktor)", "class StranskaVrstica private constructor(" in stranska)
     # Rocna gradnja bete v CI: vhod »beta« gre prek okolja v -PsafeerBeta (brez vhoda gradnja kot prej).
     ci = (KOREN / ".github" / "workflows" / "gradnja.yml").read_text(encoding="utf-8")
     preveri("CI: rocna gradnja z vhodom beta poda -PsafeerBeta",

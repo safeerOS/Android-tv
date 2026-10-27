@@ -28,4 +28,11 @@ object ZaganjalnikBetaPravila {
 
     /** Preklop spremeni samo kljuc bete; vse druge nastavitve ostanejo nespremenjene. */
     fun poPreklopu(nastavitve: Map<String, Any?>, vklop: Boolean): Map<String, Any?> = nastavitve + (KLJUC to vklop)
+
+    /**
+     * Lastnik 27. 10. 2026: z novim zaganjalnikom (beta) na televizorju zasloni Safeer OS (Sporocila, Datoteke, Nastavitve
+     * ...) nimajo stranske vrstice gumbov - ostane videz novega namizja, nazaj gre s tipko Nazaj. Brez bete in na dotik
+     * ostane vrstica kot prej.
+     */
+    fun stranskaVrstica(jeTelevizor: Boolean, betaVklopljena: Boolean): Boolean = !(jeTelevizor && betaVklopljena)
 }

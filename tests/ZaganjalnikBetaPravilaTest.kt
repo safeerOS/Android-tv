@@ -34,5 +34,10 @@ fun main() {
     preveriEnako("brez izbrane teme: stari zaganjalnik dobi prejsnjo privzeto", "namizje", PokrajinaPravila.tema(null, false))
     preveriEnako("izbrana tema ostane tudi po vrnitvi", "nord", PokrajinaPravila.tema(prej["os_tema"] as String, false))
 
+    // Lastnik 27. 10. 2026: z beto na TV brez stranske vrstice
+    preveriEnako("beta na TV: brez stranske vrstice", false, ZaganjalnikBetaPravila.stranskaVrstica(true, true))
+    preveriEnako("TV brez bete: vrstica ostane", true, ZaganjalnikBetaPravila.stranskaVrstica(true, false))
+    preveriEnako("dotik z beto: vrstica ostane", true, ZaganjalnikBetaPravila.stranskaVrstica(false, true))
+
     if (napak == 0) println("ZaganjalnikBetaPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

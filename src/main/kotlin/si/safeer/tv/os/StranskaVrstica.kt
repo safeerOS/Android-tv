@@ -188,6 +188,8 @@ class StranskaVrstica private constructor(
         drsnik.addView(meni, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         addView(drsnik, LayoutParams(dejavnost.resources.getDimensionPixelSize(R.dimen.os_meni_sirina),
             ViewGroup.LayoutParams.MATCH_PARENT))
+        // Lastnik 27. 10. 2026: z novim zaganjalnikom (beta) na TV brez stranske vrstice - vsebina dobi celo sirino.
+        if (!ZaganjalnikBetaPravila.stranskaVrstica(!dotik, ZaganjalnikBeta.vklopljen(dejavnost))) drsnik.visibility = View.GONE
         (vsebina.parent as? ViewGroup)?.removeView(vsebina)
         okvir.addView(vsebina, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         zastor.setBackgroundColor(0x8C000000.toInt())
