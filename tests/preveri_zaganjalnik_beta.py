@@ -214,7 +214,9 @@ def main() -> int:
     preveri("gradnja -PsafeerBeta=N: pripona -beta.N in BuildConfig.BETA",
             "project.findProperty('safeerBeta')" in gradle and "\"-beta.$beta\"" in gradle and "buildConfigField 'boolean', 'BETA'" in gradle)
     preveri("gradnja zavrne neveljavno stevilko bete", "[1-9][0-9]{0,3}" in gradle and "throw new GradleException" in gradle)
-    preveri("brez zastavice ostane ime razlicice kot prej", "versionName = '2.1.232'" in gradle and "versionName = '0.5.110'" in gradle)
+    # Brez zastavice ostane navadna razlicica (stevilka se z izdajami spreminja, zato samo oblika brez pripone).
+    preveri("brez zastavice ostane ime razlicice kot prej",
+            len(re.findall(r"versionName = '[0-9]+\.[0-9]+\.[0-9]+'", gradle)) >= 2)
     nast = vsebina.get("os/NastavitveActivity.kt", "")
     preveri("stikalo »Nov zaganjalnik (beta)« v Nastavitvah, po pravilu vidnosti",
             "ZaganjalnikBetaPravila.stikaloVidno(tv, si.safeer.tv.BuildConfig.BETA, ZaganjalnikBeta.vklopljen(this))" in nast and "R.string.pk_beta" in nast)
