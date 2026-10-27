@@ -798,7 +798,6 @@ class SporocilaActivity : OsActivity() {
                 addView(TextView(this@SporocilaActivity).apply {
                     text = sp.besedilo; textSize = if (jeZadnje) 17f else 14f; setTextColor(osBarva(R.color.os_besedilo))
                     maxLines = if (jeZadnje) 3 else 2; ellipsize = android.text.TextUtils.TruncateAt.END; maxWidth = dp(if (jeZadnje) 460 else 300)
-                    breakStrategy = android.text.Layout.BREAK_STRATEGY_SIMPLE
                 })
             }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(10) })
         }
