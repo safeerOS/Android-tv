@@ -345,6 +345,13 @@ def main() -> int:
     preveri("dock: Predvajaj pri filmu odpre celozaslonski predvajalnik (ne samo zvok)",
             "MiniPredvajalnikPravila.dejanjePredvajaj(videoTu(), igraZdaj)" in md and "\"dock:predvajaj\") { GlasbaStoritev.preklopi() }" not in md)
     preveri("dock: Nazaj ga skrije na Pokrajini", "dock?.skrijCeOdprt() == true" in pk2)
+    pk3 = (SRC / "os/PokrajinaActivity.kt").read_text(encoding="utf-8")
+    na3 = (SRC / "os/NastavitveActivity.kt").read_text(encoding="utf-8")
+    preveri("vreme: klik na uro ne odpre izbire kraja (lastnik 27. 10.)", "izberiKraj" not in pk3 and "VremeKraj.izberi" not in pk3)
+    preveri("ura: brez okvirja in ni gumb", "isFocusable = false; isClickable = false" in pk3 and "background = steklo(28)" not in pk3)
+    preveri("vreme: kraj se izbere v Nastavitvah novega zaganjalnika", "VremeKraj.izberi(this) { narisi() }" in na3)
+    preveri("vreme: osvezi se med prikazom (tik ure, najvec na 30 min)",
+            "osveziVreme()" in pk3.split("private val tikUre = object : Runnable {", 1)[1].split(chr(10) + "    }", 1)[0])
     # Rocna gradnja bete v CI: vhod »beta« gre prek okolja v -PsafeerBeta (brez vhoda gradnja kot prej).
     ci = (KOREN / ".github" / "workflows" / "gradnja.yml").read_text(encoding="utf-8")
     preveri("CI: rocna gradnja z vhodom beta poda -PsafeerBeta",

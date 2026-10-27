@@ -72,6 +72,9 @@ class PokrajinaActivity : OsActivity() {
             val zdaj = System.currentTimeMillis()
             ura.text = PokrajinaPravila.ura(zdaj, jezik(), TimeZone.getDefault())
             datum.text = PokrajinaPravila.datum(zdaj, jezik(), TimeZone.getDefault())
+            // Lastnik 27. 10. 2026: vreme vsaj priblizno sveze tudi, ko je domaci zaslon ves vecer na TV - prej samo ob
+            // odprtju zaslona. Klic gre na splet najvec na VremePravila.OSVEZI_MS (30 min), sicer nic.
+            osveziVreme()
             glavna.postDelayed(this, PokrajinaPravila.doNaslednjeMinute(zdaj))
         }
     }
@@ -226,17 +229,16 @@ class PokrajinaActivity : OsActivity() {
         val g = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         // Lastnik 27. 10. 2026: brez oznake »Safeer OS« levo zgoraj - glava ima samo vreme in uro.
         g.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
-        // Vreme: brez izbranega kraja ga ni (ne nadomestka); OK na uri odpre izbiro kraja.
+        // Vreme: brez izbranega kraja ga ni (ne nadomestka). Lastnik 27. 10. 2026: kraj se izbere v Nastavitvah, ne s klikom
+        // na uro (VremeKraj) - ura je samo prikaz.
         vreme = besedilo("", 26f).apply { visibility = View.GONE }
         g.addView(vreme, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(22) })
         val cas = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; gravity = Gravity.END
             // Zgled lastnika 27. 10. 2026: ura v stekleni tabletki desno zgoraj (fokus doda obrobo iz [steklo]).
+            // Lastnik 27. 10. 2026: ura brez okvirja in ni gumb (ni fokusa ne klika).
             setPadding(dp(18), dp(6), dp(18), dp(6))
-            isFocusable = true
-            background = steklo(28)
-            contentDescription = getString(R.string.pk_vreme_kraj)
-            setOnClickListener { izberiKraj() }
+            isFocusable = false; isClickable = false
         }
         ura = besedilo("", 34f, krepko = true).apply { gravity = Gravity.END }
         datum = besedilo("", 16f, R.color.os_umirjeno).apply { gravity = Gravity.END }
@@ -560,70 +562,17 @@ class PokrajinaActivity : OsActivity() {
         }, "safeer-vreme").start()
     }
 
-    /** Izbira kraja za vreme; prazno izklopi vreme (in izbrise zadnje vreme). */
-    private fun izberiKraj() {
-        val polje = EditText(this).apply {
-            setSingleLine(); setText(kraj()?.ime.orEmpty()); hint = getString(R.string.pk_vreme_kraj_namig)
-        }
-        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setTitle(R.string.pk_vreme_kraj)
-            .setMessage(R.string.pk_vreme_kraj_opis)
-            .setView(polje)
-            .setPositiveButton(android.R.string.ok) { _, _ -> shraniKraj(polje.text.toString()) }
-            .setNegativeButton(getString(R.string.os_preklici), null)
-            .create()
-        Kontroler.pokazi(okno)
-        okno.show()
-    }
-
-    private fun shraniKraj(vnos: String) {
-        val naslov = VremePravila.naslovIskanja(vnos, jezik().language)
-        if (naslov == null) {
-            shramba().edit().remove(KLJUC_KRAJ_IME).remove(KLJUC_KRAJ_SIRINA).remove(KLJUC_KRAJ_DOLZINA).remove(KLJUC_VREME_CAS).apply()
-            prikaziVreme(); return
-        }
-        Thread({
-            val k = beri(naslov)?.let { VremePravila.razcleniKraj(it) }
-            glavna.post {
-                if (isFinishing || isDestroyed) return@post
-                if (k == null) { android.widget.Toast.makeText(this, R.string.pk_vreme_ni_najden, android.widget.Toast.LENGTH_LONG).show(); return@post }
-                shramba().edit().putString(KLJUC_KRAJ_IME, k.ime).putString(KLJUC_KRAJ_SIRINA, k.sirina.toString())
-                    .putString(KLJUC_KRAJ_DOLZINA, k.dolzina.toString()).remove(KLJUC_VREME_CAS).apply()
-                osveziVreme(prisilno = true)
-            }
-        }, "safeer-vreme-kraj").start()
-    }
-
-    /** GET z rokom, brez preusmeritev drugam, najvec 64 KiB; null ob napaki ali odgovoru, ki ni 200. */
-    private fun beri(naslov: String): String? = try {
-        val p = URL(naslov).openConnection() as HttpURLConnection
-        p.connectTimeout = 6_000; p.readTimeout = 6_000
-        p.instanceFollowRedirects = false
-        p.setRequestProperty("User-Agent", "Safeer OS (https://safeer.si)")
-        p.setRequestProperty("Accept", "application/json")
-        try {
-            if (p.responseCode != 200) null
-            else p.inputStream.use { vhod ->
-                val bajti = java.io.ByteArrayOutputStream()
-                val buf = ByteArray(8 * 1024)
-                var n = vhod.read(buf)
-                while (n >= 0 && bajti.size() <= 64 * 1024) {
-                    bajti.write(buf, 0, n)
-                    n = vhod.read(buf)
-                }
-                if (bajti.size() > 64 * 1024) null else bajti.toString("UTF-8")
-            }
-        } finally { p.disconnect() }
-    } catch (e: Throwable) { Log.i(TAG, "Vreme: ${e.javaClass.simpleName}"); null }
+    /** GET za vreme in predloge lupe (VremeKraj.beri: rok, brez preusmeritev, najvec 64 KiB). */
+    private fun beri(naslov: String): String? = VremeKraj.beri(naslov)
 
     companion object {
         private const val TAG = "SafeerPokrajina"
         const val KLJUC_ZMANJSANO = "pokrajina_zmanjsano_gibanje"
         const val KLJUC_SPLET_PREDLOGI = "pokrajina_splet_predlogi"
-        private const val KLJUC_KRAJ_IME = "vreme_kraj_ime"
-        private const val KLJUC_KRAJ_SIRINA = "vreme_kraj_sirina"
-        private const val KLJUC_KRAJ_DOLZINA = "vreme_kraj_dolzina"
-        private const val KLJUC_VREME_CAS = "vreme_cas"
+        private const val KLJUC_KRAJ_IME = VremeKraj.KLJUC_IME
+        private const val KLJUC_KRAJ_SIRINA = VremeKraj.KLJUC_SIRINA
+        private const val KLJUC_KRAJ_DOLZINA = VremeKraj.KLJUC_DOLZINA
+        private const val KLJUC_VREME_CAS = VremeKraj.KLJUC_CAS
         private const val KLJUC_VREME_STOPINJ = "vreme_stopinj"
         private const val KLJUC_VREME_KODA = "vreme_koda"
     }

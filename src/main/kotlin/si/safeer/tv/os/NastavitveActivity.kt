@@ -300,6 +300,10 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 osShramba().edit().putBoolean(PokrajinaActivity.KLJUC_SPLET_PREDLOGI, !osShramba().getBoolean(PokrajinaActivity.KLJUC_SPLET_PREDLOGI, true)).apply()
                 narisi()
             },
+            // Lastnik 27. 10. 2026: kraj za vreme na domacem zaslonu se izbere tukaj (prej klik na uro).
+            if (!ZaganjalnikBeta.vklopljen(this)) null
+            else safeer(R.drawable.os_ikona_domov, R.string.pk_vreme_kraj, R.string.pk_vreme_kraj_opis,
+                VremeKraj.ime(this) ?: vklop(false)) { VremeKraj.izberi(this) { narisi() } },
             if (!ZaganjalnikBeta.vklopljen(this)) null
             else safeer(R.drawable.os_ikona_slika, R.string.pk_zmanjsano, R.string.pk_zmanjsano_opis,
                 vklop(osShramba().getBoolean(PokrajinaActivity.KLJUC_ZMANJSANO, false))) {
