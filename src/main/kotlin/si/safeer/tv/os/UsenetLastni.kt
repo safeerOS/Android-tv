@@ -36,6 +36,18 @@ object UsenetLastni {
         p != null && p.tls && s.zaBazen(p).first != null
     } catch (_: Throwable) { false }
 
+    private const val KLJUC_IZBRAN = "usenet_izbran"
+
+    /** Lastnik 27. 10. 2026: izbira v filtru »Torrenti prek« - Usenet (privzeto, ce je ponudnik vpisan) ali debrid. */
+    fun izbran(c: Context): Boolean = c.getSharedPreferences("safeer_os", Context.MODE_PRIVATE).getBoolean(KLJUC_IZBRAN, true)
+
+    fun nastaviIzbran(c: Context, da: Boolean) {
+        c.getSharedPreferences("safeer_os", Context.MODE_PRIVATE).edit().putBoolean(KLJUC_IZBRAN, da).apply()
+    }
+
+    /** Filmi in serije gredo prek lastnega ponudnika: vpisan in izbran v filtru. Glasba uporablja [naVoljo]. */
+    fun vUporabi(c: Context): Boolean = naVoljo(c) && izbran(c)
+
     /** »Preveri« v oknu ponudnika: ena prijava z odklepom zapaha (uporabnikov klik) in mestom v meji racuna. Delovna nit. */
     fun prijava(c: Context, p: UsenetPonudnikPravila.Ponudnik, geslo: UsenetPonudnikPravila.Geslo,
                 meje: UsenetPonudnikPravila.MejeRacunov): UsenetPonudnikPravila.Prijava {

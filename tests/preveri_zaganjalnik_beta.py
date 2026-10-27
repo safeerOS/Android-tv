@@ -307,6 +307,10 @@ def main() -> int:
     preveri("album: ena seja in en bazen, Pozabi zapre vse skladbe", "s.strezniki.forEach { try { it.close() }" in la and "fun predvajajAlbum(" in la)
     okno_up = (SRC / "os/UsenetPonudnikOkno.kt").read_text(encoding="utf-8")
     preveri("okno ponudnika: po uspesni preverbi Zapri s fokusom", re.search(r"if \(kljuc == P\.VELJA\) \{\s*shrani\.text = t\(\"GUMB_ZAPRI\"\)", okno_up) is not None)
+    gl2 = (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8")
+    preveri("filter Torrenti prek: tudi Usenet (lasten ponudnik), izbira debrida ga izklopi",
+            'DebridPravila.OZNAKA_PREDPOMNJEN + " Usenet"' in gl2 and "i == iVse -> { UsenetLastni.nastaviIzbran(this, true)" in gl2
+            and "Debrid.nastaviAktivno(this, sKljucem[i]); UsenetLastni.nastaviIzbran(this, false)" in gl2)
     # Rocna gradnja bete v CI: vhod »beta« gre prek okolja v -PsafeerBeta (brez vhoda gradnja kot prej).
     ci = (KOREN / ".github" / "workflows" / "gradnja.yml").read_text(encoding="utf-8")
     preveri("CI: rocna gradnja z vhodom beta poda -PsafeerBeta",
@@ -339,11 +343,11 @@ def main() -> int:
     preveri("geslo ne gre v dnevnik", not re.search(r"Log\.[a-z]\([^)]*(geslo|vrednost)", lastni))
     print("\n== Usenet v Medijskem centru: lasten pogon (lastnik 27. 10.) ==")
     preveri("Usenet.tok: z vpisanim ponudnikom lasten pogon (NZB od indeksatorja -> UsenetLastni.predvajaj)",
-            "if (UsenetLastniPravila.lastni(lastni, UsenetLastni.naVoljo(c))) return tokLastni(c, idToka, ime)" in usenet
+            "if (UsenetLastniPravila.lastni(lastni, UsenetLastni.vUporabi(c))) return tokLastni(c, idToka, ime)" in usenet
             and "else UsenetLastni.predvajaj(c, nzb, ime)" in usenet)
-    preveri("Usenet v Medijskem centru tudi brez TorBoxa (lasten ponudnik)", "lastni = UsenetLastni.naVoljo(c))" in usenet)
+    preveri("Usenet v Medijskem centru tudi brez TorBoxa (lasten ponudnik)", "lastni = UsenetLastni.vUporabi(c))" in usenet)
     preveri("samodejna izbira: z lastnim ponudnikom Usenet sam, zaporedno, brez okna vira",
-            "if (UsenetLastni.naVoljo(app)) {" in glasba and "lastni = true) }" in glasba)
+            "if (UsenetLastni.vUporabi(app)) {" in glasba and "lastni = true) }" in glasba)
     preveri("vzporedna preverba TorBoxa ne odpre lastnega pogona", "t.datoteka, true, {}, lastni = false)" in glasba)
     preveri("film gre v obstojeci predvajalnik kot navaden naslov (127.0.0.1, zeton)",
             "TorBox.Izid(url = streznik.url, ponudnik = UsenetLastniPravila.PONUDNIK)" in lastni)

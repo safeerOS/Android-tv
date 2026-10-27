@@ -2956,16 +2956,30 @@ class GlasbaActivity : OsActivity() {
             // 5) Naloga 130: prek katere debrid storitve gredo torrenti; privzeto tista, za katero je vpisan kljuc.
             val sKljucem = Debrid.vrstniRed(this)
             val aktivna = Debrid.aktivna(this)
-            // Brez kljuca: napis »Debrid: vpisi kljuc«, izbira odpre okno »Debrid storitve«.
+            // Lastnik 27. 10. 2026: tudi lasten ponudnik Usenet je izbira (filmi in serije neposredno prek NNTP) in
+            // »All sources« - Usenet, vse debrid storitve s kljucem (prednostna najprej) in ostali viri (povezave, dodatki, Webtor).
+            val usenet = UsenetLastni.naVoljo(this)
+            val iUsenet = if (usenet) sKljucem.size else -1
+            val iVse = if (usenet && sKljucem.isNotEmpty()) sKljucem.size + 1 else -1
+            val iBrez = sKljucem.size + (if (usenet) 1 else 0) + (if (iVse >= 0) 1 else 0)
+            // Brez kljuca in ponudnika: napis »Debrid: vpisi kljuc«, izbira odpre okno »Debrid storitve«.
             val moznosti = sKljucem.map { DebridPravila.OZNAKA_PREDPOMNJEN + " " + DebridPravila.ime(it) } +
+                (if (usenet) listOf(DebridPravila.OZNAKA_PREDPOMNJEN + " Usenet") else emptyList()) +
+                (if (iVse >= 0) listOf(DebridPravila.OZNAKA_PREDPOMNJEN + " " + getString(R.string.os_debrid_izbira_vse)) else emptyList()) +
                 (if (sKljucem.isEmpty()) emptyList() else listOf(getString(R.string.os_debrid_izbira_brez))) +
                 getString(R.string.os_debrid_izbira_nastavitve)
-            izbira("debrid", moznosti, when { sKljucem.isEmpty() -> -1; aktivna != null -> sKljucem.indexOf(aktivna); else -> sKljucem.size },
+            izbira("debrid", moznosti, when {
+                    usenet && UsenetLastni.izbran(this) -> if (aktivna != null && iVse >= 0) iVse else iUsenet
+                    sKljucem.isEmpty() -> -1
+                    aktivna != null -> sKljucem.indexOf(aktivna)
+                    else -> iBrez },
                 getString(R.string.os_debrid_izbira_naslov), druga ?: niz,
-                if (sKljucem.isEmpty()) getString(R.string.os_debrid_izbira_dodaj) else null) { i ->
+                if (sKljucem.isEmpty() && !usenet) getString(R.string.os_debrid_izbira_dodaj) else null) { i ->
                 when {
-                    i < sKljucem.size -> Debrid.nastaviAktivno(this, sKljucem[i])
-                    i == sKljucem.size && sKljucem.isNotEmpty() -> Debrid.nastaviAktivno(this, null)
+                    i < sKljucem.size -> { Debrid.nastaviAktivno(this, sKljucem[i]); UsenetLastni.nastaviIzbran(this, false) }
+                    i == iUsenet -> { UsenetLastni.nastaviIzbran(this, true); if (sKljucem.isNotEmpty()) Debrid.nastaviAktivno(this, null) }
+                    i == iVse -> { UsenetLastni.nastaviIzbran(this, true); Debrid.nastaviAktivno(this, aktivna ?: sKljucem.first()) }
+                    i == iBrez && sKljucem.isNotEmpty() -> { Debrid.nastaviAktivno(this, null); UsenetLastni.nastaviIzbran(this, false) }
                     else -> { nastavitveDebrida(); return@izbira }
                 }
                 odpriBrskanje(o.tip, o.zvrst, o.jezik)
@@ -7782,7 +7796,7 @@ class GlasbaActivity : OsActivity() {
         val app = applicationContext
         // Lastnik 27. 10. 2026: z lastnim ponudnikom NNTP je vsaka izdaja takoj predvajljiva (pretakamo neposredno) - Usenet
         // se izbere sam, brez okna »Izberi vir«; zaporedno (en film naenkrat, en bazen racuna), najboljsa nato naslednja.
-        if (UsenetLastni.naVoljo(app)) {
+        if (UsenetLastni.vUporabi(app)) {
             val zapored = kandidati.take(UsenetLastniPravila.NAJVEC_POSKUSOV)
             if (zapored.isEmpty()) return null
             return {

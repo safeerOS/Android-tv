@@ -188,4 +188,5 @@
     <!-- Pregled Grok 31, H2: viden konec diagnostike samo Usenet -->
     <string name="os_usenet_diagnostika_konec">Diagnose nur Usenet: Usenet hat nicht abgespielt – der Grund steht im Protokoll (SafeerOsMedia).</string>
     <string name="os_usenet_diagnostika_ni_izdaj">Diagnose nur Usenet: Der Indexer hat für diesen Inhalt keine Releases geliefert.</string>
+    <string name="os_debrid_izbira_vse">Alle Quellen</string>
 </resources>

@@ -327,7 +327,7 @@ object Usenet {
      * TorBox brez paketa Pro vrne napako paketa ob predvajanju (okno pove zakaj).
      */
     fun jeNaVoljo(c: Context): Boolean = UsenetLastniPravila.naVoljo(zaUporabo(c) != null,
-        torBox = DebridPravila.TORBOX in Debrid.zKljucem(c) && Debrid.aktivna(c) != null, lastni = UsenetLastni.naVoljo(c))
+        torBox = DebridPravila.TORBOX in Debrid.zKljucem(c) && Debrid.aktivna(c) != null, lastni = UsenetLastni.vUporabi(c))
 
     /**
      * Diagnostika razvijalca (lastnik 25. 10. 2026: Usenet merimo samo po samodejni poti, brez rocne izbire vira):
@@ -426,7 +426,7 @@ object Usenet {
     fun tok(c: Context, idToka: String, ime: String, indeks: Int, samoTakoj: Boolean, napredek: (Int) -> Unit,
             /** Lastnik 27. 10. 2026: null = lasten pogon, ce je ponudnik vpisan; true samo lasten; false samo TorBox. */
             lastni: Boolean? = null): TorBox.Izid {
-        if (UsenetLastniPravila.lastni(lastni, UsenetLastni.naVoljo(c))) return tokLastni(c, idToka, ime)
+        if (UsenetLastniPravila.lastni(lastni, UsenetLastni.vUporabi(c))) return tokLastni(c, idToka, ime)
         // Pregled Grok 41, Z1: pred vsakim prenosom stanje indeksatorja in TorBoxa ter kljuc, s katerim je bila povezava
         // najdena - prej je klik na vir v odprtem seznamu poslal zaklenjen ali zamenjan kljuc indeksatorju, nato TorBoxu.
         val ix = indeksator(c)
