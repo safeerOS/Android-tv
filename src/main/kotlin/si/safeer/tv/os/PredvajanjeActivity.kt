@@ -646,6 +646,7 @@ class PredvajanjeActivity : OsActivity() {
         zbudi()
         if (dotik) glavna.post { if (!isFinishing && !predlogiOdprti()) odpriPredloge() }
         zatemniIzNamena()
+        izberiNapravoIzNamena()
     }
 
     /** S plosce Safeer Media: takoj zatemni (samo zvok). Tudi ob onNewIntent - obstojeci zaslon
@@ -680,6 +681,13 @@ class PredvajanjeActivity : OsActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         zatemniIzNamena()
+        izberiNapravoIzNamena()
+    }
+
+    private fun izberiNapravoIzNamena() {
+        if (!intent.getBooleanExtra(IZBERI_NAPRAVO, false)) return
+        intent.removeExtra(IZBERI_NAPRAVO)
+        glavna.post { if (!isFinishing) GlasbaStoritev.trenutna()?.let { ZvocnikIzbira.predvajajNaNapravi(this, it) { osvezi() } } }
     }
 
     // ------------------------------------------------------------------ podnapisi iz datoteke (video z naprave)
@@ -726,6 +734,8 @@ class PredvajanjeActivity : OsActivity() {
         /** Razmik med karticami omejene vrste in mreze (dp). */
         private const val RAZMIK_KARTIC = 12
         const val ZATEMNI = "zatemni"
+        /** Iz obvestila ali predvajalnika sistema: odpri izbiro naprave (zvocniki v omrezju, naprave Linka, Bluetooth). */
+        const val IZBERI_NAPRAVO = "izberi_napravo"
         /** Predvajanje je odprl zaslon Datoteke: Nazaj vrne v mapo, iz katere je uporabnik prisel. */
         const val IZ_DATOTEK = "iz_datotek"
         const val PIP_PREKLOPI = "si.safeer.tv.os.PIP_PREKLOPI"

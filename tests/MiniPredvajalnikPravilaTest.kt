@@ -63,9 +63,9 @@ fun main() {
 
     // Obvestilo kot medijski predvajalnik (zaklenjen zaslon, hitre nastavitve)
     val O = ObvestiloPredvajanjaPravila
-    preveriEnako("skladba z naslednjo", listOf(O.NAZAJ, O.PREKLOPI, O.NAPREJ, O.USTAVI), O.dejanja(imaNaslednjo = true, radio = false))
-    preveriEnako("zadnja skladba: Nazaj ostane", listOf(O.NAZAJ, O.PREKLOPI, O.USTAVI), O.dejanja(imaNaslednjo = false, radio = false))
-    preveriEnako("radio", listOf(O.PREKLOPI, O.USTAVI), O.dejanja(imaNaslednjo = true, radio = true))
+    preveriEnako("skladba z naslednjo", listOf(O.NAZAJ, O.PREKLOPI, O.NAPREJ, O.NA_NAPRAVI, O.USTAVI), O.dejanja(imaNaslednjo = true, radio = false))
+    preveriEnako("zadnja skladba: Nazaj ostane", listOf(O.NAZAJ, O.PREKLOPI, O.NA_NAPRAVI, O.USTAVI), O.dejanja(imaNaslednjo = false, radio = false))
+    preveriEnako("radio: tudi na napravi", listOf(O.PREKLOPI, O.NA_NAPRAVI, O.USTAVI), O.dejanja(imaNaslednjo = true, radio = true))
     preveriEnako("strnjeno: nazaj, preklopi, naprej", listOf(0, 1, 2), O.strnjeno(O.dejanja(true, false)).toList())
     preveriEnako("strnjeno brez Ustavi", listOf(0, 1), O.strnjeno(O.dejanja(false, false)).toList())
     preveriEnako("strnjeno radio", listOf(0), O.strnjeno(O.dejanja(true, true)).toList())
@@ -74,8 +74,8 @@ fun main() {
     val N = PredvajajNaNapraviPravila
     preveriEnako("zvocnika in naprava, sistem zadnji",
         listOf(N.ZVOCNIK to 0, N.ZVOCNIK to 1, N.NAPRAVA to 0, N.SISTEM to 0), N.izbire(2, 1))
-    preveriEnako("v omrezju nic: samo Bluetooth/sistem", listOf(N.SISTEM to 0), N.izbire(0, 0))
-    preveriEnako("samo naprave Linka", listOf(N.NAPRAVA to 0, N.SISTEM to 0), N.izbire(0, 1))
+    preveriEnako("v omrezju nic: isci znova, nato Bluetooth/sistem", listOf(N.ISCI_ZNOVA to 0, N.SISTEM to 0), N.izbire(0, 0))
+    preveriEnako("samo naprave Linka: isci znova pred njimi", listOf(N.ISCI_ZNOVA to 0, N.NAPRAVA to 0, N.SISTEM to 0), N.izbire(0, 1))
 
     println("\n== naloga 42 B: glasnost v docku ==")
     preveriEnako("gumbi: tisje in glasneje med zvocnikom in skrij", listOf("prejsnja", "predvajaj", "naslednja", "zvocnik", "tisje", "glasneje", "skrij"),

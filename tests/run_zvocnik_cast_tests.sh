@@ -16,8 +16,9 @@ OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 
 "$KOTLINC" -J-Xmx1g -cp "$JSON_JAR" \
-    "$SRC/YoutubeZvokPravila.kt" "$SRC/CastPravila.kt" "$SRC/ZvocnikPravila.kt" "$SRC/DlnaPravila.kt" \
-    "$TEST_DIR/YoutubeZvokPravilaTest.kt" "$TEST_DIR/CastPravilaTest.kt" \
+    "$SRC/YoutubeZvokPravila.kt" "$SRC/YoutubeMixPravila.kt" "$SRC/CastPravila.kt" "$SRC/ZvocnikPravila.kt" "$SRC/DlnaPravila.kt" \
+    "$TEST_DIR/YoutubeZvokPravilaTest.kt" "$TEST_DIR/YoutubeMixPravilaTest.kt" "$TEST_DIR/CastPravilaTest.kt" \
     -include-runtime -d "$OUT/zvocnik.jar"
 java -cp "$OUT/zvocnik.jar:$JSON_JAR" si.safeer.tv.os.YoutubeZvokPravilaTestKt
+java -cp "$OUT/zvocnik.jar:$JSON_JAR" si.safeer.tv.os.YoutubeMixPravilaTestKt
 java -cp "$OUT/zvocnik.jar:$JSON_JAR" si.safeer.tv.os.CastPravilaTestKt

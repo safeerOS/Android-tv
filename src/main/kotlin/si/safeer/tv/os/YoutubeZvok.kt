@@ -56,9 +56,19 @@ object YoutubeZvok {
         return zapisi[id]?.izid?.tok?.takeIf { YoutubeZvokPravila.velja(it, zdajS()) }
     }
 
-    /** Nedavno ugotovljeno, da posnetka ni mogoce poslati (DRM, ni toka, ni na voljo). */
+    /** Kdaj je YouTube nazadnje zavrnil zvocni tok (HTTP 403/410 ob odprtju) - glej [YoutubeVrstaPravila.tokZavrnjen]. */
+    @Volatile private var zavrnjenOdMs = 0L
+
+    /** Tok je bil zavrnjen: naslova te skladbe ne uporabimo vec in [YoutubeVrstaPravila.ZAVRNJEN_VELJA_MS] gremo na stran. */
+    fun tokZavrnjen(sk: Jamendo.Skladba) {
+        videoId(sk)?.let { zapisi.remove(it) }
+        zavrnjenOdMs = System.currentTimeMillis()
+    }
+
+    /** Nedavno ugotovljeno, da posnetka ni mogoce poslati (DRM, ni toka, ni na voljo) - ali da YouTube tokove zavraca. */
     fun znanoNe(sk: Jamendo.Skladba): Boolean {
         val id = videoId(sk) ?: return false
+        if (zavrnjenOdMs != 0L && System.currentTimeMillis() - zavrnjenOdMs < YoutubeVrstaPravila.ZAVRNJEN_VELJA_MS) return true
         val z = zapisi[id] ?: return false
         return z.izid.tok == null && System.currentTimeMillis() - z.kdajMs < NE_VELJA_MS &&
             z.izid.razlog in setOf(YoutubeZvokPravila.Razlog.DRM, YoutubeZvokPravila.Razlog.NI_OK, YoutubeZvokPravila.Razlog.BREZ_TOKA)

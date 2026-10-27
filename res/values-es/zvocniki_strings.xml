@@ -2,7 +2,10 @@
 <resources>
     <string name="zvocnik_predvajaj_na">Reproducir en altavoz</string>
     <string name="zvocnik_na_napravi">Reproducir en dispositivo</string>
-    <string name="zvocnik_sistemski_izhod">Bluetooth y otras salidas del dispositivo</string>
+    <string name="zvocnik_sistemski_izhod">Bluetooth y salidas de este dispositivo</string>
+    <string name="zvocnik_vrsta_lan">altavoz en la red (Wi-Fi)</string>
+    <string name="zvocnik_vrsta_safeer">dispositivo Safeer</string>
+    <string name="zvocnik_ni_v_omrezju">No se encontró ningún altavoz en la red (Wi-Fi): buscar de nuevo</string>
     <!-- Naloga 104: vidna oznaka gumba za izbiro zvocnika na zaslonu predvajanja. -->
     <string name="zvocnik_oznaka">Altavoz</string>
     <string name="zvocnik_na">En altavoz: %1$s</string>

@@ -187,7 +187,7 @@ class GlasbaStoritev : Service() {
             }
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 igraZadnje = predvajalnik?.let { teceLokalno(it) } ?: isPlaying
-                if (isPlaying) { zacelo = true; koncnaNapaka = null; zapomniNedavnoEnkrat() }
+                if (isPlaying) { zacelo = true; koncnaNapaka = null; zapomniNedavnoEnkrat(); zaporedneNapake = 0 }
                 // Naloga 75: pregled kanalov dodatkov v ozadju ne tece med predvajanjem.
                 if (isPlaying) PregledKanalov.ustavi("predvajanje")
                 // Naloga 64: nas predvajalnik igra - WebView-ji, ki so iskali tok, in njihov izrisovalnik (~178 MB) niso vec
@@ -243,7 +243,24 @@ class GlasbaStoritev : Service() {
                     nalozi(listOf(enota.copy(mime = androidx.media3.common.MimeTypes.APPLICATION_M3U8)), 0, streznikTrenutni)
                     return
                 }
-                if (p.hasNextMediaItem()) {
+                // Lastnik 27. 10. 2026 13:48: YouTube je zavrnil tok (403) - skladba gre na spletno stran, ne naslednja.
+                val vVrsti = spletnaVrsta.getOrNull(spletniIndeks)
+                if (vVrsti != null && enota?.id == vVrsti.id &&
+                    YoutubeVrstaPravila.tokZavrnjen(httpKoda(error), YoutubeZvok.jeYoutube(vVrsti), vVrsti.video)) {
+                    Log.i("SafeerOsMedia", "youtube: tok zavrnjen (http=${httpKoda(error)}), spletna stran")
+                    YoutubeZvok.tokZavrnjen(vVrsti)
+                    zacniSplet(vVrsti.copy(zvok = "", mime = ""), true)
+                    return
+                }
+                // Brez konca preskakovanja: najvec NAJVEC_ZAPOREDNIH_NAPAK zapored in samo, ce uporabnik ni ustavil.
+                val naprej = YoutubeVrstaPravila.naprejPoNapaki(zaporedneNapake,
+                    p.hasNextMediaItem() || spletnaVrsta.size > spletniIndeks + 1, p.playWhenReady)
+                zaporedneNapake++
+                if (!naprej && (p.hasNextMediaItem() || spletnaVrsta.size > spletniIndeks + 1)) {
+                    Log.i("SafeerOsMedia", "napaka: ne naprej (zapored=$zaporedneNapake, zeli igrati=${p.playWhenReady})")
+                    obvesti(getString(R.string.os_nedel_skladba, ime.ifBlank { "?" }, NedelujoceSkladbe.opis(this@GlasbaStoritev, NedelujocePravila.NI_TOKA)))
+                    ustaviPredvajanje()
+                } else if (p.hasNextMediaItem()) {
                     obvesti(getString(R.string.os_media_napaka_naslednja, ime.ifBlank { "?" }))
                     p.seekToNextMediaItem(); p.prepare(); p.play()
                 } else if (spletnaVrsta.size > spletniIndeks + 1) {
@@ -321,6 +338,11 @@ class GlasbaStoritev : Service() {
                 override fun onSkipToPrevious() { prejsnjaTu() }
                 override fun onStop() { konec() }
                 override fun onSeekTo(pos: Long) { skoci(pos) }
+                // Gumb »Predvajaj na napravi« v predvajalniku sistema (zaklenjen zaslon, hitre nastavitve).
+                override fun onCustomAction(action: String, extras: android.os.Bundle?) {
+                    if (action != AKCIJA_NA_NAPRAVI) return
+                    try { izbiraNaprave().send() } catch (e: Exception) { Log.i("SafeerOsMedia", "izbira naprave: ${e.javaClass.simpleName}") }
+                }
             })
             isActive = true
         }
@@ -436,7 +458,37 @@ class GlasbaStoritev : Service() {
     /** Posnetek je pri koncu: v vrsti posnetkov s strani (seznam predvajanja) zacne naslednji, sicer je konec. */
     private fun poKoncu() {
         if (spletnaVrsta.size > spletniIndeks + 1) android.os.Handler(mainLooper).post { zacniElement(spletniIndeks + 1) }
-        else konec()
+        else if (!nadaljujZMixom(koncajBrez = true)) konec()
+    }
+
+    private var nalagaMix = false
+
+    /**
+     * Lastnik 27. 10. 2026: glasba z YouTuba po zadnji skladbi v vrsti (konec ali Naprej) ne obstane, ampak se nadaljuje s
+     * samodejnim mixom sorodnih skladb ([YoutubeMixPravila], [UvozSeznama.mix]); vrsta se podaljsa, nalaga se v ozadju.
+     * Vrne false, ce mix ne pride v postev (takrat velja dosedanje: konec). [koncajBrez]: ce mixa ni, se predvajanje konca
+     * (konec skladbe); na Naprej pa ostane, kot je.
+     */
+    private fun nadaljujZMixom(koncajBrez: Boolean): Boolean {
+        val zdaj = spletnaVrsta.getOrNull(spletniIndeks) ?: return false
+        if (!YoutubeMixPravila.samodejnoNaprej(spletnaVrsta.size > spletniIndeks + 1, YoutubeZvok.jeYoutube(zdaj), zdaj.video)) return false
+        val id = YoutubeZvok.videoId(zdaj) ?: return false
+        if (nalagaMix) return true
+        nalagaMix = true
+        val zeton = zetonVrste
+        val ze = spletnaVrsta.mapNotNull { YoutubeZvok.videoId(it) }.toSet()
+        Thread {
+            val nove = try { UvozSeznama.mix(id, ze) } catch (_: Throwable) { emptyList() }
+            android.os.Handler(mainLooper).post {
+                nalagaMix = false
+                if (zeton != zetonVrste) return@post                       // vmes je uporabnik zagnal kaj drugega
+                Log.i("SafeerOsMedia", "mix: +${nove.size} po \"${zdaj.naslov.take(40)}\"")
+                if (nove.isEmpty()) { if (koncajBrez) konec(); return@post }
+                spletnaVrsta = spletnaVrsta + nove
+                zacniElement(spletniIndeks + 1)
+            }
+        }.apply { name = "SafeerMix"; isDaemon = true }.start()
+        return true
     }
 
     /**
@@ -534,6 +586,9 @@ class GlasbaStoritev : Service() {
             }
         }.apply { name = "Safeer-youtube-zvok-vrsta"; start() }
     }
+
+    /** Napake predvajalnika zapored (lastnik 27. 10. 2026: preskakovanje brez konca); nic, ko kaj zaigra. */
+    private var zaporedneNapake = 0
 
     /** Naloga 113: koliko spletnih strani je zapored obstalo (rok brez predvajanja); nic, ko kaj zaigra. */
     private var zaporedniZastoji = 0
@@ -1159,6 +1214,12 @@ class GlasbaStoritev : Service() {
         return true
     }
 
+    /** Predvajalnik z odprto izbiro naprave (lastnik 27. 10. 2026: zvocniki v omrezju tudi brez odprtega Safeer OS). */
+    private fun izbiraNaprave(): PendingIntent = PendingIntent.getActivity(this, 15,
+        Intent(this, PredvajanjeActivity::class.java).putExtra(PredvajanjeActivity.IZBERI_NAPRAVO, true)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+
     private fun zacniVOspredju() {
         val o = obvestilo()
         if (Build.VERSION.SDK_INT >= 29) startForeground(ID, o, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
@@ -1188,17 +1249,20 @@ class GlasbaStoritev : Service() {
         // Lastnik 27. 10. 2026: upravljanje tudi, ko Safeer OS ni odprt (kot Spotify). MediaStyle s sejo: Android pokaze
         // predvajalnik na zaklenjenem zaslonu in v hitrih nastavitvah z drsnikom casa (seja ima ACTION_SEEK_TO in trajanje).
         val radio = s?.radio == true
-        val dejanja = ObvestiloPredvajanjaPravila.dejanja(imaNaslednjo(), radio)
+        val dejanja = ObvestiloPredvajanjaPravila.dejanja(imaNaprej(), radio)
         for (d in dejanja) {
             val (ikona, opis, akcija, koda) = when (d) {
                 ObvestiloPredvajanjaPravila.NAZAJ -> listOf(R.drawable.os_ikona_prejsnja, getString(R.string.zg_prejsnja), AKCIJA_NAZAJ, 14)
                 ObvestiloPredvajanjaPravila.PREKLOPI -> listOf(if (igra()) R.drawable.os_ikona_pavza else R.drawable.os_ikona_predvajaj,
                     getString(if (igra()) R.string.zg_premor else R.string.zg_predvajaj), AKCIJA_TOGGLE, 11)
                 ObvestiloPredvajanjaPravila.NAPREJ -> listOf(R.drawable.os_ikona_naslednja, getString(R.string.zg_naslednja), AKCIJA_NAPREJ, 12)
+                ObvestiloPredvajanjaPravila.NA_NAPRAVI -> listOf(R.drawable.os_ikona_predvajaj_na, getString(R.string.zvocnik_na_napravi), "", 15)
                 else -> listOf(R.drawable.os_ikona_ustavi, "Ustavi", AKCIJA_USTAVI, 13)
             }
+            // »Predvajaj na napravi« odpre predvajalnik z izbiro naprave (izbira rabi zaslon); ostali gumbi gredo storitvi.
+            val namen = if (d == ObvestiloPredvajanjaPravila.NA_NAPRAVI) izbiraNaprave() else dejanje(akcija as String, koda as Int)
             b.addAction(Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(this, ikona as Int),
-                opis as String, dejanje(akcija as String, koda as Int)).build())
+                opis as String, namen).build())
         }
         b.setStyle(Notification.MediaStyle().also { st ->
             seja?.let { st.setMediaSession(it.sessionToken) }
@@ -1224,6 +1288,8 @@ class GlasbaStoritev : Service() {
             .setActions(PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_PLAY_PAUSE or
                 PlaybackState.ACTION_SKIP_TO_NEXT or PlaybackState.ACTION_SKIP_TO_PREVIOUS or PlaybackState.ACTION_STOP or
                 PlaybackState.ACTION_SEEK_TO)
+            .addCustomAction(PlaybackState.CustomAction.Builder(AKCIJA_NA_NAPRAVI, getString(R.string.zvocnik_na_napravi),
+                R.drawable.os_ikona_predvajaj_na).build())
             .setState(stanjeSeje(), polozajMs(), if (stanjeSeje() == PlaybackState.STATE_BUFFERING) 0f else hitrostZaSejo())
             .build())
         uskladiGlasnostSeje()
@@ -1256,6 +1322,7 @@ class GlasbaStoritev : Service() {
         private const val AKCIJA_NAPREJ = "si.safeer.media.NEXT"
         private const val AKCIJA_USTAVI = "si.safeer.media.STOP"
         private const val AKCIJA_NAZAJ = "si.safeer.media.PREVIOUS"
+        private const val AKCIJA_NA_NAPRAVI = "si.safeer.media.NA_NAPRAVI"
         /** Strani, za katere vemo, da v varcnem pogledu ne tecejo (aplikacije v JavaScriptu). */
         private val POLNI_POGON = setOf("youtube.com", "youtu.be")
 
@@ -1306,6 +1373,10 @@ class GlasbaStoritev : Service() {
 
         /** Ali Naprej kam pelje: naslednja skladba navadne vrste ali naslednji posnetek seznama. */
         fun imaNaslednjo(): Boolean = spletnaVrsta.size > spletniIndeks + 1 || predvajalnik?.hasNextMediaItem() == true
+
+        /** Ali gumb Naprej kam pelje - tudi zadnja glasba z YouTuba (samodejni mix). Za gumbe; vrsta sama gleda [imaNaslednjo]. */
+        fun imaNaprej(): Boolean = imaNaslednjo() || spletnaVrsta.getOrNull(spletniIndeks)?.let {
+            YoutubeMixPravila.samodejnoNaprej(false, YoutubeZvok.jeYoutube(it), it.video) } == true
 
         // ---- Kdo igra: ta naprava ali zvocnik v omrezju ([Zvocniki]). Zasloni, seja, obvestilo in tipke sprasujejo tu.
 
@@ -1517,7 +1588,9 @@ class GlasbaStoritev : Service() {
             val s = primerek
             if (s != null && spletnaVrsta.size > spletniIndeks + 1) s.zacniElement(spletniIndeks + 1)
             // Na zvocniku: med premorom se naslednja samo nalozi (kot na tej napravi ostane premor).
-            else predvajalnik?.let { if (it.hasNextMediaItem()) { it.seekToNextMediaItem(); s?.poPremikuVVrsti(false, !naZvocniku() || Zvocniki.stanje.zeliIgrati) } }
+            else if (predvajalnik?.hasNextMediaItem() == true) predvajalnik?.let { it.seekToNextMediaItem(); s?.poPremikuVVrsti(false, !naZvocniku() || Zvocniki.stanje.zeliIgrati) }
+            // Zadnja skladba z YouTuba: Naprej nadaljuje s samodejnim mixom (lastnik 27. 10. 2026).
+            else s?.nadaljujZMixom(koncajBrez = false)
         }
 
         /** Nazaj: po prvih sekundah na zacetek posnetka, sicer prejsnji (kot pri vsakem predvajalniku). */

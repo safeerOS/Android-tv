@@ -2,7 +2,10 @@
 <resources>
     <string name="zvocnik_predvajaj_na">Predvajaj na zvočniku</string>
     <string name="zvocnik_na_napravi">Predvajaj na napravi</string>
-    <string name="zvocnik_sistemski_izhod">Bluetooth in drugi izhodi naprave</string>
+    <string name="zvocnik_sistemski_izhod">Bluetooth in izhodi te naprave</string>
+    <string name="zvocnik_vrsta_lan">zvočnik v omrežju (Wi-Fi)</string>
+    <string name="zvocnik_vrsta_safeer">naprava Safeer</string>
+    <string name="zvocnik_ni_v_omrezju">V omrežju (Wi-Fi) ni najdenega zvočnika – išči znova</string>
     <!-- Naloga 104: vidna oznaka gumba za izbiro zvocnika na zaslonu predvajanja. -->
     <string name="zvocnik_oznaka">Zvočnik</string>
     <string name="zvocnik_na">Na zvočniku: %1$s</string>
