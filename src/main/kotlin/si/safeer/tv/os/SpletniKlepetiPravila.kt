@@ -179,8 +179,12 @@ object SpletniKlepetiPravila {
     /** Ime profila WebViewa (piskotki in shramba vsake storitve loceni); id kanala je 8 znakov iz UUID. */
     fun profil(kanalId: String): String = "sporocila-" + kanalId.filter { it.isLetterOrDigit() || it == '-' }.take(40)
 
-    /** Namizna stran privzeto na sirokem zaslonu (TV, tablica, zunanji zaslon); na telefonu po izbiri uporabnika. */
-    fun namiznaPrivzeto(siroko: Boolean): Boolean = siroko
+    /**
+     * Namizna stran privzeto na VSEH napravah (kot Ferdium in Linux): meritev 27. 10. 2026 na testnem telefonu - Messenger
+     * z mobilnim brskalnikom pokaze samo »Prenesi aplikacijo Messenger«, z namiznim dela (stran je odzivna, tudi na
+     * ozkem zaslonu). Mobilno stran uporabnik izbere sam (gumb v glavi, zapomni se za kanal).
+     */
+    fun namiznaPrivzeto(@Suppress("UNUSED_PARAMETER") siroko: Boolean): Boolean = true
 
     /** Namizni UA: Chrome na Linuxu z razlicico WebViewa naprave (nekatere strani mobilnega brskalnika ne podpirajo). */
     fun namizniUa(mobilni: String): String {

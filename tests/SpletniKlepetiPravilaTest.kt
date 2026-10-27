@@ -55,7 +55,7 @@ fun main() {
         P.namizniUa("Mozilla/5.0 (Linux; Android 14; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/141.0.7390.122 Mobile Safari/537.36")
             .contains("X11; Linux x86_64") && P.namizniUa("x Chrome/141.0.7390.122 y").contains("Chrome/141.0.7390.122 Safari"))
     preveriEnako("namizna stran privzeto na sirokem zaslonu", true, P.namiznaPrivzeto(true))
-    preveriEnako("telefon: mobilna stran", false, P.namiznaPrivzeto(false))
+    preveriEnako("namizna stran privzeto tudi na telefonu (Messenger mobilno: samo »prenesi aplikacijo«)", true, P.namiznaPrivzeto(false))
 
     println("Katalog")
     val surovo = JSONObject().put("pripisi", JSONObject().put("sl", JSONObject().put("osebno", "osebni")).put("en", JSONObject().put("osebno", "personal")))

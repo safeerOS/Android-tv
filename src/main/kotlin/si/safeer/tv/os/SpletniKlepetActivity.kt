@@ -182,7 +182,10 @@ class SpletniKlepetActivity : OsActivity() {
         k.nastavitve.put("namizna", namizna)
         try { shramba.posodobiNastavitve(k.id, k.nastavitve) } catch (_: Throwable) { }
         namiznaGumb.text = namiznaBesedilo()
-        splet?.let { nastaviUa(it.settings); it.reload() }
+        // Znova od naslova storitve, ne reload(): stran, ki je mobilni brskalnik preusmerila na »prenesi aplikacijo«,
+        // bi sicer ostala tam (meritev 27. 10.: Messenger po preklopu na facebook.com namesto na sporocila).
+        val zacetek = try { SpletniKlepetiPravila.preveriNaslov(k.nastavitve.optString("url")) } catch (_: SpletniKlepetiPravila.NeveljavenNaslov) { null }
+        splet?.let { nastaviUa(it.settings); if (zacetek != null) it.loadUrl(zacetek) else it.reload() }
     }
 
     private fun zapomniNeprebrano(n: Int) {
