@@ -111,3 +111,19 @@ object ObvestiloPredvajanjaPravila {
     fun strnjeno(dejanja: List<String>): IntArray =
         dejanja.withIndex().filter { it.value != USTAVI }.map { it.index }.take(3).toIntArray()
 }
+
+/**
+ * Lastnik 27. 10. 2026: »pogresam moznost, da poslji skladbo na zvocnik prek LAN - zdaj lahko samo prek Bluetootha z gumbom
+ * Ta telefon« (sistemski izbirnik izhoda Androida pozna samo svoje izhode). En gumb »Predvajaj na napravi« zato ponudi
+ * vse po vrsti: zvocnike v omrezju (DLNA), naprave Safeer v Linku in na koncu Bluetooth/izhode naprave (sistem).
+ */
+object PredvajajNaNapraviPravila {
+    const val ZVOCNIK = "zvocnik"
+    const val NAPRAVA = "naprava"
+    const val SISTEM = "sistem"
+
+    /** Postavke izbire: (vrsta, indeks v svojem seznamu). Sistemski izhod je vedno zadnji - tudi, ce v omrezju ni nic. */
+    fun izbire(zvocnikov: Int, naprav: Int): List<Pair<String, Int>> =
+        (0 until zvocnikov.coerceAtLeast(0)).map { ZVOCNIK to it } +
+            (0 until naprav.coerceAtLeast(0)).map { NAPRAVA to it } + (SISTEM to 0)
+}

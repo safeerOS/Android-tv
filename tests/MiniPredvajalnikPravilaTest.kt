@@ -70,5 +70,12 @@ fun main() {
     preveriEnako("strnjeno brez Ustavi", listOf(0, 1), O.strnjeno(O.dejanja(false, false)).toList())
     preveriEnako("strnjeno radio", listOf(0), O.strnjeno(O.dejanja(true, true)).toList())
 
+    // Lastnik 27. 10.: »Predvajaj na napravi« - zvocniki v omrezju, naprave Linka, nazadnje Bluetooth (sistem)
+    val N = PredvajajNaNapraviPravila
+    preveriEnako("zvocnika in naprava, sistem zadnji",
+        listOf(N.ZVOCNIK to 0, N.ZVOCNIK to 1, N.NAPRAVA to 0, N.SISTEM to 0), N.izbire(2, 1))
+    preveriEnako("v omrezju nic: samo Bluetooth/sistem", listOf(N.SISTEM to 0), N.izbire(0, 0))
+    preveriEnako("samo naprave Linka", listOf(N.NAPRAVA to 0, N.SISTEM to 0), N.izbire(0, 1))
+
     if (napak == 0) println("MiniPredvajalnikPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

@@ -5687,7 +5687,7 @@ class GlasbaActivity : OsActivity() {
             }
             Kartica(sk.naslov, sk.izvajalec, sk.slika, {
                 zadnjiIzbran = sk.id
-                if (jeVrstaPosnetkov(sk, seznam)) predvajajVrstoPosnetkov(celota, sk)
+                if (jeVrstaPosnetkov(sk, seznam) || YoutubeVrstaPravila.kotVrsta(YoutubeZvok.jeYoutube(sk), sk.video)) predvajajVrstoPosnetkov(celota, sk)
                 else if (SpletniVir.jeEnota(sk)) razresiSplet(sk)
                 else celota.filterNot { it.mime == MedijskiViri.STRAN }.let { p -> predvajaj(p, p.indexOf(sk)) }
             }, { meni(sk, celota, vrsta, seznam) }, ikona = ikona, oznaka = oznaka, id = sk.id,
@@ -5773,7 +5773,8 @@ class GlasbaActivity : OsActivity() {
                 val vse = razlicice?.get(sk.id) ?: urejene
                 zadnjeRazlicice = vse.map { it.id }
                 when {
-                    jeVrstaPosnetkov(sk, seznam) -> predvajajVrstoPosnetkov(celotaZdaj(), sk)
+                    jeVrstaPosnetkov(sk, seznam) || YoutubeVrstaPravila.kotVrsta(YoutubeZvok.jeYoutube(sk), sk.video) ->
+                        predvajajVrstoPosnetkov(celotaZdaj(), sk)
                     SpletniVir.jeEnota(sk) -> razresiSplet(sk, vse.drop(1))
                     // Naloga 91a: ce dodatki ne dajo toka, igra prva ziva razlicica seznama IPTV (tiho).
                     Stremio.jeEnota(sk) && vse.size > 1 -> {

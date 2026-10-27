@@ -152,7 +152,7 @@ class MiniPredvajalnik(
             g.visibility = if (MiniPredvajalnikPravila.gumbZvocnik(tu != null, odd)) View.VISIBLE else View.GONE
             val na = try { GlasbaStoritev.naZvocniku() } catch (_: Throwable) { false }
             g.imageTintList = ColorStateList.valueOf(barva(if (na) R.color.os_mint else R.color.os_besedilo))
-            g.contentDescription = if (na) a.getString(R.string.zvocnik_na, Zvocniki.aktivni?.ime.orEmpty()) else a.getString(R.string.zvocnik_predvajaj_na)
+            g.contentDescription = if (na) a.getString(R.string.zvocnik_na, Zvocniki.aktivni?.ime.orEmpty()) else a.getString(R.string.zvocnik_na_napravi)
         }
         glavna.removeCallbacks(casovnik)
         if (drsnik?.visibility == View.VISIBLE && odprt && koren?.visibility == View.VISIBLE) glavna.postDelayed(casovnik, 1_000L)
@@ -162,9 +162,7 @@ class MiniPredvajalnik(
     private val casovnik = Runnable { if (koren?.parent === okvir) osveziCas(radioIkona) }
 
     private fun zvocnik() {
-        val na = try { GlasbaStoritev.naZvocniku() } catch (_: Throwable) { false }
-        if (na) ZvocnikIzbira.upravljaj(a) { osvezi() }
-        else GlasbaStoritev.trenutna()?.let { sk -> ZvocnikIzbira.izberi(a, sk) { osvezi() } }
+        GlasbaStoritev.trenutna()?.let { sk -> ZvocnikIzbira.predvajajNaNapravi(a, sk) { osvezi() } }
     }
 
     private val samodejno = object : Runnable {
@@ -328,7 +326,7 @@ class MiniPredvajalnik(
             a.getString(if (igra) R.string.zg_premor else R.string.zg_predvajaj), "dock:predvajaj") { GlasbaStoritev.preklopi() }
         gumbi.addView(gPredvajaj, LinearLayout.LayoutParams(g, g))
         gumbi.addView(gumb(R.drawable.os_ikona_naslednja, a.getString(R.string.zg_naslednja), "dock:naslednja") { GlasbaStoritev.naslednja() }, LinearLayout.LayoutParams(g, g))
-        val gZvocnik = gumb(R.drawable.os_ikona_predvajaj_na, a.getString(R.string.zvocnik_predvajaj_na), "dock:zvocnik") { zvocnik() }
+        val gZvocnik = gumb(R.drawable.os_ikona_predvajaj_na, a.getString(R.string.zvocnik_na_napravi), "dock:zvocnik") { zvocnik() }
         gumbi.addView(gZvocnik, LinearLayout.LayoutParams(g, g))
         gumbi.addView(gumb(R.drawable.os_ikona_zapri, a.getString(R.string.zg_dock_skrij), "dock:skrij") { nastaviOdprt(false, fokus = daljinec) }, LinearLayout.LayoutParams(g, g))
         c.addView(gumbi)

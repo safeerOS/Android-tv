@@ -517,7 +517,7 @@ class PredvajanjeActivity : OsActivity() {
         // naprave (ne glasnosti ali utisanja) z vidno oznako »Zvocnik«, VEDNO zgoraj desno ([prilagodiZaslonu]); ista izbira je
         // tudi v »Vec moznosti«. Ni v seznamu [okrogli]: pripet je na koren, ne dobi mer vrste gumbov.
         gumbZvocnik = TextView(this).apply {
-            text = getString(R.string.zvocnik_oznaka); contentDescription = getString(R.string.zvocnik_predvajaj_na)
+            text = getString(R.string.zvocnik_na_napravi); contentDescription = getString(R.string.zvocnik_na_napravi)
             setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.os_ikona_predvajaj_na, 0, 0, 0)
             compoundDrawablePadding = dp(8)
             compoundDrawableTintList = android.content.res.ColorStateList.valueOf(osBarva(R.color.os_besedilo))
@@ -1434,18 +1434,21 @@ class PredvajanjeActivity : OsActivity() {
     private fun osveziGumbZvocnika(sk: Jamendo.Skladba) {
         val g = gumbZvocnik ?: return
         val na = GlasbaStoritev.naZvocniku()
-        g.visibility = if (!zaklenjeno && (!sk.video || GlasbaStoritev.zvokIzVidea(sk)) && (na || GlasbaStoritev.zaZvocnikPonudba(this, sk) { if (!isFinishing) osveziGumbZvocnika(sk) })) View.VISIBLE else View.GONE
+        // Gumb »Predvajaj na napravi«: vedno, ko je zaslon odklenjen (naprave Linka in Bluetooth ne rabijo toka za zvocnik).
+        // Razresevanje toka za zvocnik (YouTube) zacnemo vnaprej, da je zvocnik v izbiri, ko jo uporabnik odpre.
+        if (!na && (!sk.video || GlasbaStoritev.zvokIzVidea(sk))) GlasbaStoritev.zaZvocnikPonudba(this, sk) {}
+        g.visibility = if (!zaklenjeno) View.VISIBLE else View.GONE
         val barva = osBarva(if (na) R.color.os_mint else R.color.os_besedilo)
         g.compoundDrawableTintList = android.content.res.ColorStateList.valueOf(barva)
         g.setTextColor(barva)
-        g.contentDescription = (if (na) Zvocniki.napis(this) else null) ?: getString(R.string.zvocnik_predvajaj_na)
+        g.contentDescription = (if (na) Zvocniki.napis(this) else null) ?: getString(R.string.zvocnik_na_napravi)
     }
 
     /** Glasba ze igra na zvocniku: upravljanje (glasnost, premor, nazaj na to napravo); sicer izbira zvocnika. */
     private fun izberiZvocnik() {
         val zdaj = GlasbaStoritev.trenutna() ?: return
-        if (Zvocniki.aktivni != null) ZvocnikIzbira.upravljaj(this) { osvezi() }
-        else if (GlasbaStoritev.zaZvocnikPonudba(this, zdaj) {}) ZvocnikIzbira.izberi(this, zdaj) { osvezi() }
+        // Lastnik 27. 10. 2026: en gumb za zvocnike v omrezju, naprave Linka in Bluetooth (ZvocnikIzbira.predvajajNaNapravi).
+        ZvocnikIzbira.predvajajNaNapravi(this, zdaj) { osvezi() }
     }
 
     /** Video iz predlogov: razresimo datoteko in ga predvajamo tu - zaslon ostane odprt. */

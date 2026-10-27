@@ -1552,6 +1552,10 @@ class GlasbaStoritev : Service() {
         }
 
         fun predvajajSplet(ctx: Context, sk: Jamendo.Skladba, dovoliPrevzem: Boolean = true) {
+            // Glasba z YouTuba: najprej zvok prek Media3 (vrsta, zacniEnoto), stran samo kot rezerva (YoutubeVrstaPravila).
+            if (YoutubeVrstaPravila.posameznoPrekMedia3(YoutubeZvok.jeYoutube(sk), sk.video, dovoliPrevzem) && SpletniVir.jeEnota(sk)) {
+                predvajajVrsto(ctx, listOf(sk), 0); return
+            }
             koncajDaljinec()
             zapustiVrsto(sk.id)
             cakajocaVrsta = null

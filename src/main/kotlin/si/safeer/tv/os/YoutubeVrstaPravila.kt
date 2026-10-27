@@ -36,4 +36,19 @@ object YoutubeVrstaPravila {
     /** Po zastoju: naslednja skladba, ce obstaja in nismo ze [NAJVEC_ZAPOREDNIH_ZASTOJEV]-krat zapored obstali. */
     fun naprejPoZastoju(zaporedniZastoji: Int, imaNaslednjo: Boolean): Boolean =
         imaNaslednjo && zaporedniZastoji < NAJVEC_ZAPOREDNIH_ZASTOJEV
+
+    /**
+     * Lastnik 27. 10. 2026 (testni telefon): posnetek YouTube, izbran na polici ali v zadetkih (ne iz seznama), je sel
+     * mimo vrste naravnost na spletno stran (POLNI_POGON youtube.com, »stopnja=3«): sam v vrsti, zato Naprej ni delal in
+     * ob koncu se je predvajalnik ugasnil. Glasba z YouTuba (ne video) zato igra kot vrsta posnetkov z zaslona - prek
+     * Media3 kot seznami (naloga 113), z naslednjo skladbo ob koncu. Video ostane na strani (slika).
+     */
+    fun kotVrsta(jeYoutube: Boolean, video: Boolean): Boolean = jeYoutube && !video
+
+    /**
+     * Posamezen posnetek (nadaljuj, deljena povezava, predlogi): glasba z YouTuba gre najprej v Media3 (vrsta z enim
+     * posnetkom), stran ostane rezerva. [dovoliPrevzem] false je ze rezerva po napaki Media3 - takrat stran, brez zanke.
+     */
+    fun posameznoPrekMedia3(jeYoutube: Boolean, video: Boolean, dovoliPrevzem: Boolean): Boolean =
+        dovoliPrevzem && kotVrsta(jeYoutube, video)
 }

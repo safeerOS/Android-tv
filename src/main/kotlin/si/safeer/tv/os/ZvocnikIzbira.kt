@@ -32,18 +32,84 @@ object ZvocnikIzbira {
                 return@najdi
             }
             pokazi(a, gradnik(a).setTitle(R.string.zvocnik_predvajaj_na)
-                .setItems(najdeni.map { z -> if (z.model.isNotBlank() && z.model != z.ime) "${z.ime} · ${z.model}" else z.ime }.toTypedArray()) { _, i ->
-                    val z = najdeni[i]
-                    Zvocniki.tujVir(z) { vir ->
-                        if (a.isFinishing) return@tujVir
-                        if (vir == null) poslji(a, z, sk, spremenjeno)
-                        else pokazi(a, gradnik(a).setTitle(z.ime).setMessage(a.getString(R.string.zvocnik_zaseden, z.ime, vir))
-                            .setPositiveButton(R.string.zvocnik_preklopi) { _, _ -> poslji(a, z, sk, spremenjeno) }
-                            .setNegativeButton(a.getString(R.string.os_preklici), null))
-                    }
-                }
+                .setItems(najdeni.map { z -> imeZvocnika(z) }.toTypedArray()) { _, i -> izberiZvocnik(a, najdeni[i], sk, spremenjeno) }
                 .setNegativeButton(a.getString(R.string.os_preklici), null))
         }
+    }
+
+    private fun imeZvocnika(z: DlnaPravila.Zvocnik): String =
+        if (z.model.isNotBlank() && z.model != z.ime) "${z.ime} · ${z.model}" else z.ime
+
+    private fun izberiZvocnik(a: Activity, z: DlnaPravila.Zvocnik, sk: Jamendo.Skladba, spremenjeno: () -> Unit) {
+        Zvocniki.tujVir(z) { vir ->
+            if (a.isFinishing) return@tujVir
+            if (vir == null) poslji(a, z, sk, spremenjeno)
+            else pokazi(a, gradnik(a).setTitle(z.ime).setMessage(a.getString(R.string.zvocnik_zaseden, z.ime, vir))
+                .setPositiveButton(R.string.zvocnik_preklopi) { _, _ -> poslji(a, z, sk, spremenjeno) }
+                .setNegativeButton(a.getString(R.string.os_preklici), null))
+        }
+    }
+
+    /**
+     * Lastnik 27. 10. 2026: en gumb »Predvajaj na napravi« (mini predvajalnik, predvajalnik) - zvocniki v omrezju, naprave
+     * Safeer v Linku in Bluetooth/izhodi naprave ([PredvajajNaNapraviPravila]). Ce ze igra na zvocniku: upravljanje zvocnika.
+     */
+    fun predvajajNaNapravi(a: Activity, sk: Jamendo.Skladba, spremenjeno: () -> Unit) {
+        if (Zvocniki.aktivni != null) { upravljaj(a, spremenjeno); return }
+        val naslov = a.getString(R.string.zvocnik_na_napravi)
+        val iscem = pokazi(a, gradnik(a).setTitle(naslov).setMessage(R.string.zvocnik_iscem)
+            .setNegativeButton(a.getString(R.string.os_preklici), null))
+        val naprave = try { Predaja.cilji(a) } catch (_: Throwable) { emptyList() }
+        // Zvocnik dobi samo, kar zna predvajati (YouTube: ko je tok razresen - GlasbaStoritev.zaZvocnikPonudba).
+        val zaZvocnik = GlasbaStoritev.zaZvocnikPonudba(a, sk) {}
+        Zvocniki.najdi(a) { najdeni ->
+            if (!iscem.isShowing || a.isFinishing) return@najdi
+            iscem.dismiss()
+            val zvocniki = if (zaZvocnik) najdeni else emptyList()
+            val izbire = PredvajajNaNapraviPravila.izbire(zvocniki.size, naprave.size)
+            val imena = izbire.map { (vrsta, i) ->
+                when (vrsta) {
+                    PredvajajNaNapraviPravila.ZVOCNIK -> imeZvocnika(zvocniki[i]) + " · " + a.getString(R.string.zvocnik_oznaka)
+                    PredvajajNaNapraviPravila.NAPRAVA -> DatotekeActivity.lepoIme(naprave[i].ime) + " · Safeer"
+                    else -> a.getString(R.string.zvocnik_sistemski_izhod)
+                }
+            }
+            pokazi(a, gradnik(a).setTitle(naslov).setItems(imena.toTypedArray()) { _, k ->
+                val (vrsta, i) = izbire[k]
+                when (vrsta) {
+                    PredvajajNaNapraviPravila.ZVOCNIK -> izberiZvocnik(a, zvocniki[i], sk, spremenjeno)
+                    PredvajajNaNapraviPravila.NAPRAVA -> posljiNaNapravo(a, naprave[i], spremenjeno)
+                    else -> sistemskiIzhod(a)
+                }
+            }.setNegativeButton(a.getString(R.string.os_preklici), null))
+        }
+    }
+
+    /** Kar igra tu, drugi napravi Safeer v Linku (tam caka Sprejmi); od tod jo ta naprava upravlja (naloga 117). */
+    fun posljiNaNapravo(a: Activity, c: LinkOdjemalec.Naprava, spremenjeno: () -> Unit) {
+        val ime = DatotekeActivity.lepoIme(c.ime)
+        Predaja.poslji(a, c) { koda ->
+            if (a.isFinishing) return@poslji
+            if (koda == "ok" || koda == "ok_odpri") OddaljenoPredvajanje.zacni(a, c)
+            val b = when (koda) {
+                "ok" -> a.getString(R.string.os_predaja_poslano, ime)
+                "ok_odpri" -> a.getString(R.string.os_predaja_poslano_odpri, ime)
+                "ni_deljeno" -> a.getString(R.string.os_predaja_poslji_ni_deljeno)
+                "stara" -> a.getString(R.string.os_predaja_poslji_stara, ime)
+                "izklopljeno" -> a.getString(R.string.os_predaja_poslji_izklopljeno, ime)
+                else -> a.getString(R.string.os_predaja_poslji_napaka, ime)
+            }
+            Toast.makeText(a, b, Toast.LENGTH_LONG).show()
+            spremenjeno()
+        }
+    }
+
+    /** Bluetooth in drugi izhodi naprave: sistemski izbirnik izhoda (Android 14+), sicer nastavitve Bluetootha. */
+    private fun sistemskiIzhod(a: Activity) {
+        if (android.os.Build.VERSION.SDK_INT >= 34) {
+            try { if (android.media.MediaRouter2.getInstance(a).showSystemOutputSwitcher()) return } catch (_: Throwable) { }
+        }
+        try { a.startActivity(android.content.Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS)) } catch (_: Throwable) { }
     }
 
     private fun poslji(a: Activity, z: DlnaPravila.Zvocnik, sk: Jamendo.Skladba, spremenjeno: () -> Unit) {

@@ -24,6 +24,13 @@ fun main() {
     preveriEnako("zastoj, naslednja obstaja: naprej", true, P.naprejPoZastoju(0, imaNaslednjo = true))
     preveriEnako("zastoj, zadnja v vrsti: obstane z obvestilom", false, P.naprejPoZastoju(0, imaNaslednjo = false))
     preveriEnako("tretji zastoj zapored: obstane", false, P.naprejPoZastoju(3, imaNaslednjo = true))
+    // Lastnik 27. 10.: posnetek YouTube s police/iskanja ne sme iti mimo vrste na spletno stran (Naprej, konec skladbe)
+    preveriEnako("glasba YouTube s police: vrsta", true, P.kotVrsta(jeYoutube = true, video = false))
+    preveriEnako("video YouTube: ostane na strani", false, P.kotVrsta(jeYoutube = true, video = true))
+    preveriEnako("ni YouTube: dosedanja pot", false, P.kotVrsta(jeYoutube = false, video = false))
+    preveriEnako("posamezna glasba YouTube: najprej Media3", true, P.posameznoPrekMedia3(true, false, dovoliPrevzem = true))
+    preveriEnako("rezerva po napaki Media3: stran, brez zanke", false, P.posameznoPrekMedia3(true, false, dovoliPrevzem = false))
+    preveriEnako("posamezen video: stran", false, P.posameznoPrekMedia3(true, true, dovoliPrevzem = true))
     println(if (napak == 0) "VSE OK" else "NAPAK: $napak")
     if (napak > 0) kotlin.system.exitProcess(1)
 }
