@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Naloga 42 F: beta novega TV zaganjalnika - stikalo in izbire v Nastavitvah (os/NastavitveActivity). -->
+<resources>
+    <string name="pk_beta">Nov zaganjalnik (beta)</string>
+    <string name="pk_beta_opis">Domači zaslon s temo Pokrajina. Izklopi ga za vrnitev na prejšnjega; nastavitve ostanejo.</string>
+    <string name="pk_zmanjsano">Zmanjšano gibanje</string>
+    <string name="pk_zmanjsano_opis">Nov zaganjalnik brez animacij in povečave ob fokusu; okvir fokusa ostane.</string>
+</resources>
