@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Naloga 42 D: Safeer Link - naprave ozjega kroga na novem TV zaganjalniku (os/PokrajinaActivity). -->
+<resources>
+    <string name="pk_link_zaslon">Bildschirm ansehen und steuern</string>
+    <string name="pk_link_naprava">in Safeer Link</string>
+    <string name="pk_link_vse">Ganz Safeer Link …</string>
+</resources>

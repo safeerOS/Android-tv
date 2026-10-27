@@ -475,12 +475,48 @@ class PokrajinaActivity : OsActivity() {
         when (r) {
             PokrajinaPravila.MEDIJI -> odpri(Intent(this, GlasbaActivity::class.java))
             PokrajinaPravila.SPLET -> odpri(Brskalnik.namera(this).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            PokrajinaPravila.LINK -> odpri(Intent(this, NapraveActivity::class.java))
+            PokrajinaPravila.LINK -> napraveKroga()
             PokrajinaPravila.SPOROCILA -> odpri(Intent(this, SporocilaActivity::class.java))
             PokrajinaPravila.APLIKACIJE -> odpriAplikacije()
             PokrajinaPravila.DATOTEKE -> odpri(Intent(this, DatotekeActivity::class.java))
             else -> odpri(Intent(this, NastavitveActivity::class.java))
         }
+    }
+
+    /**
+     * Naloga 42 D: Safeer Link -> povezane naprave ozjega kroga (druge naprave zunaj kroga se ne pokazejo). Klik na
+     * napravo: gledanje zaslona in upravljanje z daljincem po isti poti kot kartica Zaslon na starem domacem zaslonu.
+     * Zadnja vrstica odpre celoten Safeer Link (naprave, krog, nastavitve).
+     */
+    private fun napraveKroga() {
+        val link = LinkUpravitelj.pridobi(this)
+        val deli = si.safeer.tv.link.Daljinec.ZMOZNOST_DELI_ZASLON
+        val po = LinkOdjemalec.drugeZaPrikaz(link.naprave, Identiteta.id(this)).associateBy { it.id }
+        val naprave = NapraveKrogaPravila.zaPrikaz(po.values.map {
+            NapraveKrogaPravila.Naprava(it.id, it.ime.ifBlank { it.id }, it.zmoznosti.toSet(), link.jeTaNaprava(it), OzjiKrog.vKrogu(this, it.id), link.povezan)
+        })
+        val imena = naprave.map { n ->
+            n.ime + "  ·  " + getString(when (NapraveKrogaPravila.pot(n.zmoznosti, deli)) {
+                NapraveKrogaPravila.POT_RACUNALNIK, NapraveKrogaPravila.POT_DELI_ZASLON -> R.string.pk_link_zaslon
+                else -> R.string.pk_link_naprava
+            })
+        } + getString(R.string.pk_link_vse)
+        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(R.string.os_meni_naprave)
+            .setItems(imena.toTypedArray()) { _, i ->
+                val n = naprave.getOrNull(i)
+                val r = n?.let { po[it.id] }
+                if (n == null || r == null) { odpri(Intent(this, NapraveActivity::class.java)); return@setItems }
+                when (NapraveKrogaPravila.pot(n.zmoznosti, deli)) {
+                    NapraveKrogaPravila.POT_RACUNALNIK -> odpri(Intent(this, ZaslonActivity::class.java).putExtra(DatotekeActivity.EXTRA_RACUNALNIK, r.id))
+                    NapraveKrogaPravila.POT_DELI_ZASLON -> PovezaniZasloni.zaprosi(this, link, r)
+                    else -> odpri(Intent(this, NapraveActivity::class.java))
+                }
+            }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .create()
+        Kontroler.pokazi(okno)
+        okno.show()
     }
 
     /** Odpiranje, ki ne utihne: napaka se pokaze (kot na starem domacem zaslonu), ne izgine. */

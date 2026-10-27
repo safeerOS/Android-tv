@@ -156,7 +156,9 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/scit/ScitIzjeme.kt" \
     "$TEST_DIR/ScitIzjemeTest.kt" \
     "$SRC/si/safeer/tv/os/UskladitevKljucevPravila.kt" \
+    "$SRC/si/safeer/tv/os/NapraveKrogaPravila.kt" \
     "$TEST_DIR/UskladitevKljucevPravilaTest.kt" \
+    "$TEST_DIR/NapraveKrogaPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/NamestitevPravila.kt" \
     "$TEST_DIR/NamestitevPravilaTest.kt" \
     "$SRC/si/safeer/tv/cast/SafeerLog.kt" \
@@ -259,6 +261,8 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.cast.SafeerLogTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PokrajinaPravilaTestKt
 # Naloga 42 C: Sporocila na hitro (kopiraj, odgovori, poslji kopirano) in tiho opozorilo brez ustavitve predvajanja.
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SporocilaHitroPravilaTestKt
+# Naloga 42 D: naprave ozjega kroga (ista pot kot kartica Zaslon), zaupanje se uskladi samo v krogu, nikoli iz sporocila.
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.NapraveKrogaPravilaTestKt
 
 # Neposredna povezava TLS s pripetim potrdilom do naprave z vec naslovi (docs/LINK-MESH.md, pravilo 8):
 # prave vticnice na naslovih zanke, potrdila naredi keytool iz JDK.

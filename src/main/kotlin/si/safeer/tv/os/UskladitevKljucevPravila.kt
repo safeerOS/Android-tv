@@ -50,6 +50,12 @@ object UskladitevKljucevPravila {
     fun kljucDebrid(ponudnik: String) = PREDPONA_DEBRID + ponudnik
     fun kljucDodatka(odtis: String) = PREDPONA_DODATKA + odtis
     fun kljucIptv(odtis: String) = PREDPONA_IPTV + odtis
+    /**
+     * Naloga 42 D (27. 10. 2026): »Vedno dovoli« za deljenje zaslona napravi z jedrom (ZaupanjeZaslona) velja na vseh
+     * napravah ozjega kroga - vrednost je "1", izbris (grob) zaupanje odvzame povsod. Pravila: [NapraveKrogaPravila].
+     */
+    const val PREDPONA_ZAUPANJA = "zaupanje:"
+    fun kljucZaupanja(jedro: String) = PREDPONA_ZAUPANJA + jedro
 
     private val RX_ODTIS = Regex("^[0-9a-f]{16}$")
 
@@ -58,6 +64,7 @@ object UskladitevKljucevPravila {
         k == KLJUC_USENET -> true
         k.startsWith(PREDPONA_DODATKA) -> RX_ODTIS.matches(k.removePrefix(PREDPONA_DODATKA))
         k.startsWith(PREDPONA_IPTV) -> RX_ODTIS.matches(k.removePrefix(PREDPONA_IPTV))
+        k.startsWith(PREDPONA_ZAUPANJA) -> NapraveKrogaPravila.veljavnoJedro(k.removePrefix(PREDPONA_ZAUPANJA))
         else -> false
     }
 

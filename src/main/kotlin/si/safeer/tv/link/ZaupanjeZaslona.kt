@@ -44,6 +44,36 @@ object ZaupanjeZaslona {
             ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putStringSet(KLJUC, novo).apply()
         }
         Log.i(TAG, "Deljenje zaslona napravi ${si.safeer.tv.cast.E2e.zakrij(j)}: ${if (da) "vedno dovoli" else "vsakic vprasaj"}")
+        // Naloga 42 D: izbira velja na vseh napravah ozjega kroga (usklajevanje kljucev, sifrirano).
+        try { si.safeer.tv.os.UskladitevKljucev.sprozi(ctx.applicationContext) } catch (_: Throwable) { }
+    }
+
+    /** Naloga 42 D: jedra naprav z »Vedno dovoli« (za usklajevanje v ozjem krogu; brez preverbe kroga - to naredi klicatelj). */
+    fun vsaJedra(ctx: Context): Set<String> = zapis(ctx)
+
+    /** Naprava z jedrom [jedro] je v ozjem krogu te naprave (ta naprava sama ne steje). */
+    fun jedroVKrogu(ctx: Context, jedro: String): Boolean = try {
+        jedro.isNotBlank() && !jeTaNapravaJedro(ctx, jedro) && OzjiKrogPravila.vKrogu(si.safeer.tv.cast.Dostop.zmoznostiJedra(ctx, jedro), false)
+    } catch (_: Throwable) { false }
+
+    /** Jedro je ta naprava (zaupanja si sama ne da). Napaka pri preverbi = ta naprava (nic se ne zapise). */
+    fun jeTaNapravaJedro(ctx: Context, jedro: String): Boolean =
+        try { si.safeer.tv.cast.Dostop.jeTaNaprava(ctx, jedro) } catch (_: Throwable) { true }
+
+    /**
+     * Naloga 42 D: zaupanje, prejeto od druge naprave ozjega kroga (UskladitevKljucev, preverjeno z
+     * NapraveKrogaPravila.sprejmiZaupanje), se zapise tu po jedru - brez ponovne potrditve, kot ce bi ga dal uporabnik tu.
+     */
+    fun nastaviJedro(ctx: Context, jedro: String, da: Boolean) {
+        if (jedro.isBlank()) return
+        if (da && !jedroVKrogu(ctx, jedro)) return
+        synchronized(this) {
+            val novo = HashSet(zapis(ctx))
+            val spremenjeno = if (da) novo.add(jedro) else novo.remove(jedro)
+            if (!spremenjeno) return
+            ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putStringSet(KLJUC, novo).apply()
+        }
+        Log.i(TAG, "Deljenje zaslona napravi ${si.safeer.tv.cast.E2e.zakrij(jedro)}: ${if (da) "vedno dovoli" else "vsakic vprasaj"} (ozji krog)")
     }
 
     fun vKrogu(ctx: Context, id: String): Boolean = try {

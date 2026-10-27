@@ -22,6 +22,7 @@ DATOTEKE = [
     "os/ZaganjalnikBeta.kt",
     "os/MiniPredvajalnik.kt",
     "os/SporociloPasica.kt",
+    "os/NapraveKrogaPravila.kt",
 ]
 
 napak = 0
@@ -169,6 +170,25 @@ def main() -> int:
     klepet = (SRC / "os/KlepetLinka.kt").read_text(encoding="utf-8")
     preveri("prejem sporocila sprozi opozorilo samo zunaj odprtega pogovora",
             "SporocilaHitroPravila.opozorilo(vOspredju = true, odprtPogovor = odprt)" in klepet)
+
+    print("\n== Safeer Link: naprave ozjega kroga (del D) ==")
+    preveri("Safeer Link v vrstici odpre naprave kroga", "PokrajinaPravila.LINK -> napraveKroga()" in pokrajina)
+    preveri("seznam samo iz ozjega kroga (NapraveKrogaPravila.zaPrikaz z OzjiKrog.vKrogu)",
+            "NapraveKrogaPravila.zaPrikaz(" in pokrajina and "OzjiKrog.vKrogu(this, it.id)" in pokrajina)
+    domov = (SRC / "os/DomovActivity.kt").read_text(encoding="utf-8")
+    for pot in ("PovezaniZasloni.zaprosi(this, link, r)", "Intent(this, ZaslonActivity::class.java)", "DatotekeActivity.EXTRA_RACUNALNIK"):
+        preveri(f"ista pot kot kartica Zaslon: {pot}", pot in pokrajina and pot in domov)
+    usk = (SRC / "os/UskladitevKljucev.kt").read_text(encoding="utf-8")
+    preveri("prejeto zaupanje se uporabi samo po NapraveKrogaPravila.sprejmiZaupanje",
+            re.search(r"P\.PREDPONA_ZAUPANJA\) ->\s*if \(zaupanjeVelja\(c, z\.kljuc\)\)", usk) is not None and
+            "NapraveKrogaPravila.sprejmiZaupanje(NapraveKrogaPravila.VIR_USKLADITEV" in usk)
+    preveri("poslje se samo zaupanje napravam v krogu", "NapraveKrogaPravila.zaPoslati(si.safeer.tv.link.ZaupanjeZaslona.vsaJedra(c))" in usk)
+    preveri("prejem usklajevanja zahteva ozji krog posiljatelja", "val vKrogu = od.isNotBlank() && OzjiKrog.vKrogu(a, od)" in usk)
+    # Dostopa nikoli ne podeli besedilo sporocila: poti sporocil ne klicejo nicesar, kar daje dostop ali zaupanje.
+    dajeDostop = re.compile(r"ZaupanjeZaslona\.nastavi|Dostop\.(?:nastavi|dodaj|odpri|dovoli)|nastaviJedro")
+    for d in ("os/KlepetLinka.kt", "os/SporocilaKanali.kt", "os/SporocilaHitroPravila.kt", "os/SporociloPasica.kt", "os/PokrajinaActivity.kt"):
+        t = (SRC / d).read_text(encoding="utf-8")
+        preveri(f"{d}: sporocilo ne podeli dostopa", dajeDostop.search(t) is None)
     return konec()
 
 

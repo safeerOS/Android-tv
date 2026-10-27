@@ -201,6 +201,10 @@ object UskladitevKljucev {
                 else -> neznani += k
             }
         }
+        // Naloga 42 D: »Vedno dovoli« za deljenje zaslona - samo za naprave v ozjem krogu te naprave. Zaupanje, ki ga tu ni
+        // vec, gre kot grob (odvzem velja na vseh napravah kroga).
+        for (j in NapraveKrogaPravila.zaPoslati(si.safeer.tv.link.ZaupanjeZaslona.vsaJedra(c)) { si.safeer.tv.link.ZaupanjeZaslona.jedroVKrogu(c, it) })
+            v[P.kljucZaupanja(j)] = "1"
         return v to neznani
     }
 
@@ -234,7 +238,23 @@ object UskladitevKljucev {
         k.startsWith(P.PREDPONA_DODATKA) -> SkrivnostiPravila.veljavenSkrivniDodatek(v) &&
             SkrivnostiPravila.skrivnaPredponaDodatka(v)?.let { SkrivnostiPravila.odtis(it) } == k.removePrefix(P.PREDPONA_DODATKA)
         k.startsWith(P.PREDPONA_IPTV) -> prejetRacun(k, v) != null
+        k.startsWith(P.PREDPONA_ZAUPANJA) -> v == "1" && NapraveKrogaPravila.veljavnoJedro(k.removePrefix(P.PREDPONA_ZAUPANJA))
         else -> false
+    }
+
+    /**
+     * Naloga 42 D: prejeto zaupanje (ali odvzem) za napravo z jedrom iz [kljuc]. Posiljatelj je ze preverjen (ozji krog,
+     * potrjena naprava, izvor = posiljatelj - [prejmi], [prejmiZapise]); tu se preveri se ciljna naprava.
+     */
+    private fun zaupanjeVelja(c: Context, kljuc: String): Boolean {
+        val j = kljuc.removePrefix(P.PREDPONA_ZAUPANJA)
+        return NapraveKrogaPravila.sprejmiZaupanje(NapraveKrogaPravila.VIR_USKLADITEV, posiljateljVKrogu = true, jedro = j,
+            jedroVKrogu = si.safeer.tv.link.ZaupanjeZaslona.jedroVKrogu(c, j), jedroJeTaNaprava = si.safeer.tv.link.ZaupanjeZaslona.jeTaNapravaJedro(c, j))
+    }
+
+    private fun nastaviZaupanje(c: Context, kljuc: String, da: Boolean): Boolean {
+        si.safeer.tv.link.ZaupanjeZaslona.nastaviJedro(c, kljuc.removePrefix(P.PREDPONA_ZAUPANJA), da)
+        return true
     }
 
     /**
@@ -292,6 +312,9 @@ object UskladitevKljucev {
                 // Lastnik, 26. 10. 2026: prejet vir z racunom se samo shrani (sifrirano) - ne prenese in ne preverja (vsak prenos
                 // je prijava v racun); seznam se prenese, ko ga uporabnik na tej napravi odpre.
                 else prejetRacun(z.kljuc, z.vrednost)?.let { r -> Pripravljen(z) { MedijskiViri.dodajRacun(c, r.tip, r.naslov, r.ime, prejeto = true) != null } }
+            // Naloga 42 D: zaupanje za deljenje zaslona (ali odvzem) - samo za napravo v ozjem krogu te naprave.
+            z.kljuc.startsWith(P.PREDPONA_ZAUPANJA) ->
+                if (zaupanjeVelja(c, z.kljuc)) Pripravljen(z) { nastaviZaupanje(c, z.kljuc, !z.izbrisan) } else null
             else -> null
         }
     } catch (e: Exception) { Log.w(TAG, "pripravi: ${e.javaClass.simpleName}"); null }
@@ -327,6 +350,7 @@ object UskladitevKljucev {
             k.startsWith(P.PREDPONA_IPTV) ->
                 if (v == null) { MedijskiViri.odstraniRacun(c, k.removePrefix(P.PREDPONA_IPTV)); true }
                 else prejetRacun(k, v)?.let { r -> MedijskiViri.dodajRacun(c, r.tip, r.naslov, r.ime, prejeto = true) } != null
+            k.startsWith(P.PREDPONA_ZAUPANJA) -> if (v == null || zaupanjeVelja(c, k)) nastaviZaupanje(c, k, v != null) else false
             else -> false
         }
     } catch (e: Exception) { Log.w(TAG, "obnovi: ${e.javaClass.simpleName}"); false }
@@ -576,6 +600,8 @@ object UskladitevKljucev {
         kljuc == P.KLJUC_USENET -> "Usenet"
         // Grok 15, N10: z vrednostjo velja gostitelj iz nje; trditev posiljatelja (g) samo brez vrednosti in samo kot ime.
         kljuc.startsWith(P.PREDPONA_IPTV) -> "IPTV · " + P.prikazGostitelja(vrednost.orEmpty(), gostitelj, gostiteljRacuna(vrednost.orEmpty()))
+        // Naloga 42 D: v oknu potrditve je zaupanje »Safeer Link · <skrajsano jedro>« (ime znamke, brez prevoda).
+        kljuc.startsWith(P.PREDPONA_ZAUPANJA) -> "Safeer Link · " + si.safeer.tv.cast.E2e.zakrij(kljuc.removePrefix(P.PREDPONA_ZAUPANJA))
         else -> Debrid.PREDPONA_DODATKA + P.prikazGostitelja(vrednost.orEmpty(), gostitelj, Zasebno.gostitelj(vrednost.orEmpty()))
     }
 
