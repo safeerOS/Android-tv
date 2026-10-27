@@ -275,7 +275,7 @@ def main() -> int:
         preveri(f"{z}: stranska vrstica samo prek StranskaVrstica.ovij", "StranskaVrstica.ovij(" in (SRC / z).read_text(encoding="utf-8"))
     preveri("stranska vrstica nastane samo v StranskaVrstica (zasebni konstruktor)", "class StranskaVrstica private constructor(" in stranska)
     print("\n== Moji viri (lastnik 27. 10.) ==")
-    viri_glasba = glasba.split("private fun viriVrste()")[1].split("\n    private fun ")[0]
+    viri_glasba = (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8").split("private fun viriVrste()")[1].split("\n    private fun ")[0]
     preveri("Moji viri: brez seznamov predvajanja (so pri glasbi)", "MedijskiViri.seznami(" not in viri_glasba)
     preveri("Moji viri: ploscica Add a Usenet provider odpre okno ponudnika",
             "R.string.os_usenet_dodaj_ponudnika" in viri_glasba and "UsenetPonudnikOkno.pokazi(this)" in viri_glasba)
