@@ -493,8 +493,65 @@ class GlasbaStoritev : Service() {
                     }
                 }.apply { name = "Safeer-uvoz-najdi"; start() }
             }
-            SpletniVir.jeEnota(sk) -> { zacniSplet(sk.copy(zvok = "", mime = ""), true); pripraviNaslednjo(i + 1) }
+            SpletniVir.jeEnota(sk) -> { zacniEnoto(sk, moj); pripraviNaslednjo(i + 1) }
             else -> { nalozi(listOf(sk), 0, null); pripraviNaslednjo(i + 1) }
+        }
+    }
+
+    /**
+     * Naloga 113: enota spletnega vira iz vrste. Posnetek YouTube igra najprej kot zvok v nasem predvajalniku (Media3,
+     * [YoutubeZvok] - odjemalec VISIONOS, brez vgradnje, brez strani v WebView, brez DRM); sele ce YouTube toka ne da, gre
+     * na spletno stran ([SpletniIgralec]), ki ima rok ([YoutubeVrstaPravila.ROK_ZASTOJA_MS]).
+     */
+    private fun zacniEnoto(sk: Jamendo.Skladba, moj: Int) {
+        val spletna = sk.copy(zvok = "", mime = "")
+        if (YoutubeVrstaPravila.pot(YoutubeZvok.jeYoutube(sk), Zvocniki.aktivni != null, YoutubeZvok.znanoNe(sk)) != YoutubeVrstaPravila.Pot.MEDIA3_ZVOK ||
+            // Cela skladba na USB (naloga 89) ima prednost - zacniSplet jo igra brez omrezja.
+            (!sk.video && !sk.radio && PredpomnilnikZvoka.celota(spletna) != null)) {
+            zacniSplet(spletna, true); return
+        }
+        // Zaslon ze kaze naslov, medtem ko YouTube vprasamo za tok (obicajno < 1 s, iz priprave takoj).
+        val izbrano = ++izbir
+        exo?.let { it.stop(); it.clearMediaItems() }
+        koncajSplet()
+        exo?.let { predvajalnik = it }
+        vrsta = listOf(sk); osvezi()
+        Thread {
+            val tok = try { YoutubeZvok.razresi(this, sk) } catch (e: Exception) {
+                Log.i("SafeerOsMedia", "youtube: toka ni (${(e as? YoutubeZvok.NiToka)?.razlog ?: e.javaClass.simpleName}), spletna stran")
+                null
+            }
+            android.os.Handler(mainLooper).post {
+                // Uporabnik je medtem izbral kaj drugega (vrsta ali posamezna skladba): ta izid ne velja vec.
+                if (moj != zetonVrste || primerek !== this || izbrano != izbir) return@post
+                if (tok == null) { zacniSplet(spletna, true); return@post }
+                Log.i("SafeerOsMedia", "stopnja=1 uspeh=Media3 youtube itag=${tok.itag}")
+                // Tok zahtevamo z istim User-Agent, s katerim smo naslov dobili (kot posrednik zvocnika).
+                SpletniVir.zapomniGlaveToka(tok.url, mapOf("User-Agent" to YoutubeZvokPravila.UA))
+                zaporedniZastoji = 0
+                nalozi(listOf(sk.copy(zvok = tok.url, mime = tok.mime, video = false)), 0, null)
+            }
+        }.apply { name = "Safeer-youtube-zvok-vrsta"; start() }
+    }
+
+    /** Naloga 113: koliko spletnih strani je zapored obstalo (rok brez predvajanja); nic, ko kaj zaigra. */
+    private var zaporedniZastoji = 0
+
+    /**
+     * Naloga 113: spletna stran posnetka v roku ni zacela igrati. Uporabnik izve, katera skladba ne gre in da gre vrsta
+     * naprej; razlog ni trajen (stran lahko drugic dela), zato ga ne zapisemo kot trajnega.
+     */
+    private fun zastojSpletneStrani(s: SpletniIgralec, sk: Jamendo.Skladba) {
+        if (spletni !== s) return
+        val imaNaslednjo = spletnaVrsta.size > spletniIndeks + 1
+        val naprej = YoutubeVrstaPravila.naprejPoZastoju(zaporedniZastoji, imaNaslednjo)
+        zaporedniZastoji++
+        Log.i("SafeerOsMedia", "zastoj strani: \"${sk.naslov.take(40)}\", naprej=$naprej")
+        NedelujoceSkladbe.zapomni(this, sk.id, NedelujocePravila.NI_TOKA, sk.naslov)
+        android.os.Handler(mainLooper).post {
+            if (spletni !== s || primerek !== this) return@post
+            if (naprej) { obvesti(getString(R.string.os_media_napaka_naslednja, sk.naslov)); zacniElement(spletniIndeks + 1) }
+            else { obvesti(getString(R.string.os_nedel_skladba, sk.naslov, NedelujoceSkladbe.opis(this, NedelujocePravila.NI_TOKA))); ustaviPredvajanje() }
         }
     }
 
@@ -552,7 +609,8 @@ class GlasbaStoritev : Service() {
     /** Naslednji uvozeni skladbi poiscemo posnetek ze med predvajanjem trenutne: prehod je potem brez cakanja. */
     private fun pripraviNaslednjo(i: Int) {
         // Na zvocniku: tok YouTube naslednjega posnetka razresimo vnaprej - naslednja skladba stece brez cakanja na YouTube.
-        spletnaVrsta.getOrNull(i)?.takeIf { Zvocniki.aktivni != null && YoutubeZvok.jeYoutube(it) }?.let { YoutubeZvok.pripravi(this, it) {} }
+        // Naloga 113: tudi na tej napravi (Media3) - naslednji posnetek YouTube stece brez cakanja na YouTube.
+        spletnaVrsta.getOrNull(i)?.takeIf { YoutubeZvok.jeYoutube(it) }?.let { YoutubeZvok.pripravi(this, it) {} }
         val sk = spletnaVrsta.getOrNull(i)?.takeIf { UvozSeznama.jeIskana(it) } ?: return
         Thread {
             val najden = try { UvozSeznama.najdi(sk) } catch (_: Exception) { null } ?: return@Thread
@@ -1017,10 +1075,12 @@ class GlasbaStoritev : Service() {
         spletni?.takeIf { it !== s }?.release()
         // Naloga 109: napaka predvajalnika na strani (YouTube) z razlogom.
         s.obNapakiStrani = { besedilo -> napakaSpletneStrani(s, sk, besedilo) }
+        // Naloga 113: stran, ki ne zacne igrati, ne nalaga vecno.
+        s.obZastoju = { zastojSpletneStrani(s, sk) }
         s.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 // Naloga 109: skladba igra - star zapis, da ne deluje, ne velja vec.
-                if (isPlaying) NedelujoceSkladbe.pozabi(this@GlasbaStoritev, sk.id)
+                if (isPlaying) { NedelujoceSkladbe.pozabi(this@GlasbaStoritev, sk.id); zaporedniZastoji = 0 }
                 // Nadaljevanje po zvocniku: na mesto, kjer je zvocnik nehal - ko stran zares igra (prej bi skok izgubila).
                 val zacetek = zacetekSpleta
                 if (isPlaying && zacetek != null && zacetek.first == sk.id) { zacetekSpleta = null; s.seekTo(zacetek.second) }

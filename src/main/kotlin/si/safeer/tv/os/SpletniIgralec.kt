@@ -7,6 +7,7 @@ import android.content.Context
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
@@ -131,12 +132,31 @@ open class SpletniIgralec protected constructor(
         }
     }
 
+    /**
+     * Naloga 113: stran, ki od nalaganja v [YoutubeVrstaPravila.ROK_ZASTOJA_MS] ne zacne igrati (logcat 27. 10. 2026:
+     * m.youtube.com obvisi v BUFFERING, position=0, brez napake na strani), javimo poslusalcu enkrat - vrsta gre naprej z
+     * obvestilom. Prej je skladba nalagala v nedogled.
+     */
+    var obZastoju: (() -> Unit)? = null
+    private var zastojJavljen = false
+    /** Cas nalaganja strani (0 = stran nalaga nekdo drug, npr. LahkaStran, ki ima svoj rok). */
+    private var nalozenoOd = 0L
+
+    private fun preveriZastoj() {
+        if (zastojJavljen || obZastoju == null || nalozenoOd == 0L) return
+        if (!YoutubeVrstaPravila.zastoj(SystemClock.uptimeMillis() - nalozenoOd, polozaj, pripravljeno, zelja)) return
+        zastojJavljen = true
+        Log.i("SafeerOsMedia", "spletni igralec: stran ne zacne igrati v ${YoutubeVrstaPravila.ROK_ZASTOJA_MS / 1000} s - zastoj")
+        obZastoju?.invoke()
+    }
+
     private val tik = object : Runnable {
         override fun run() {
             if (sproscen) return
             if (kino) vklopiKino()
             if (vgradno && polozaj <= 0L) preveriVgradno()
             preveriNapakoStrani()
+            preveriZastoj()
             // Casovniki JS so skupni vsem pogledom procesa; ce jih je brskalnik ustavil, stran ne tece.
             if (zelja) pogled.resumeTimers()
             pogled.evaluateJavascript(STANJE_JS) { r ->
@@ -170,6 +190,7 @@ open class SpletniIgralec protected constructor(
     init {
         ura.postDelayed(tik, 1_500)
         if (samodejnoNalozi) {
+            nalozenoOd = SystemClock.uptimeMillis()
             val vgradna = vgradnaStran(sk.povezava)
             if (vgradna != null) {
                 vgradno = true
@@ -187,6 +208,8 @@ open class SpletniIgralec protected constructor(
             if (sproscen || !vgradno || r != "true") return@evaluateJavascript
             vgradno = false
             Log.i("SafeerOsMedia", "vgradni predvajalnik ni dovoljen, polna stran")
+            // Polna stran dobi svoj rok (naloga 113).
+            nalozenoOd = SystemClock.uptimeMillis()
             pogled.loadUrl(sk.povezava)
         }
     }
