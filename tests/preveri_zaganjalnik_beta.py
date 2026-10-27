@@ -337,6 +337,14 @@ def main() -> int:
     preveri("priprava: lasten Usenet ni »prek debrid storitve«",
             "Toast.makeText(this, R.string.os_debrid_pripravljam" not in gl4 and "R.string.os_usenet_pripravljam" in gl4
             and "skrijPripravljam()      // predvajalnik je odprt" in gl4)
+    md = (SRC / "os/MiniPredvajalnik.kt").read_text(encoding="utf-8")
+    pk2 = (SRC / "os/PokrajinaActivity.kt").read_text(encoding="utf-8")
+    preveri("dock: na Pokrajini nad spodnjo vrstico (odmik ob postavitvi vrstice)",
+            "dock?.nastaviRob(koren.height - dok.top + dp(8))" in pk2 and "dok.addOnLayoutChangeListener" in pk2
+            and "k.addView(c, odmakni(lp, m))" in md)
+    preveri("dock: Predvajaj pri filmu odpre celozaslonski predvajalnik (ne samo zvok)",
+            "MiniPredvajalnikPravila.dejanjePredvajaj(videoTu(), igraZdaj)" in md and "\"dock:predvajaj\") { GlasbaStoritev.preklopi() }" not in md)
+    preveri("dock: Nazaj ga skrije na Pokrajini", "dock?.skrijCeOdprt() == true" in pk2)
     # Rocna gradnja bete v CI: vhod »beta« gre prek okolja v -PsafeerBeta (brez vhoda gradnja kot prej).
     ci = (KOREN / ".github" / "workflows" / "gradnja.yml").read_text(encoding="utf-8")
     preveri("CI: rocna gradnja z vhodom beta poda -PsafeerBeta",

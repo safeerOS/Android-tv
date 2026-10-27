@@ -7,6 +7,24 @@ private fun preveriEnako(opis: String, pricakovano: Any?, dobljeno: Any?) =
 
 /** Naloga 118: mini predvajalnik kot dock ob robu domacega zaslona ([MiniPredvajalnikPravila]). */
 fun main() {
+    // Lastnik in vodja 27. 10. 2026 (TV beta 14): Nadaljuj pri filmu, dock nad spodnjo vrstico.
+    run {
+        val P = MiniPredvajalnikPravila
+        val enako = { opis: String, pricakovano: Any?, dobljeno: Any? ->
+            if (pricakovano != dobljeno) { println("  NAPAKA  $opis: pricakovano $pricakovano, dobljeno $dobljeno"); kotlin.system.exitProcess(1) }
+            else println("  ok  $opis")
+        }
+        enako("film na pavzi: Predvajaj odpre celozaslonski predvajalnik", P.ODPRI_PREDVAJALNIK, P.dejanjePredvajaj(video = true, igra = false))
+        enako("film igra: Pavza ostane pavza", P.PREKLOPI_ZVOK, P.dejanjePredvajaj(video = true, igra = true))
+        enako("glasba na pavzi: preklopi kot doslej", P.PREKLOPI_ZVOK, P.dejanjePredvajaj(video = false, igra = false))
+        enako("klik na naslov filma: predvajalnik", P.ODPRI_PREDVAJALNIK, P.klikNaslova(true))
+        enako("klik na naslov glasbe: Medijski center", P.ODPRI_MEDIJE, P.klikNaslova(false))
+        enako("dock spodaj: nad spodnjo vrstico", 120, P.dodatniRob(P.PRIVZETO, spodaj = 120))
+        enako("dock zgoraj: brez odmika", 0, P.dodatniRob(P.ZGORAJ, spodaj = 120))
+        enako("dock levo: samo levi odmik", 0, P.dodatniRob(P.LEVO, spodaj = 120))
+        enako("negativen odmik ni mogoc", 0, P.dodatniRob(P.PRIVZETO, spodaj = -5))
+    }
+
     println("Preizkus mini predvajalnika (dock)")
 
     preveriEnako("privzeto spodaj", "spodaj", MiniPredvajalnikPravila.mesto(null))

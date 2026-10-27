@@ -109,6 +109,7 @@ class PokrajinaActivity : OsActivity() {
         }
         vsebina.addView(drsnik, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         dok = plavajocaVrstica()
+        dok.addOnLayoutChangeListener { _, _, t, _, b, _, st, _, sb -> if (t != st || b != sb) robDocka() }
         vsebina.addView(dok, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(14) })
         koren.addView(vsebina, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         setContentView(koren)
@@ -125,6 +126,9 @@ class PokrajinaActivity : OsActivity() {
         // Naloga 42 B: mini predvajalnik kot na racunalniku - kaj igra, premor/naprej/nazaj/glasnost, odpri - brez
         // zapuscanja domacega zaslona (isti dock kot na starem domacem zaslonu, MiniPredvajalnik.naOknu).
         if (dock == null) dock = MiniPredvajalnik.naOknu(this) { odpri(GlasbaStoritev.namenKartice(this)) }
+        // Vodja 27. 10. 2026 (TV beta 14): dock je bil cez spodnjo vrstico (med »Safeer Media« in »Settings« ikone niso bile
+        // vidne) - pusti ji prostor; ob vsaki postavitvi vrstice znova (zasuk, velikost pisave).
+        dok.post { robDocka() }
         GlasbaStoritev.poslusalci.add(medijiPoslusalec)
         OddaljenoPredvajanje.poslusalci.add(medijiPoslusalec)
         dock?.osvezi()
@@ -141,6 +145,12 @@ class PokrajinaActivity : OsActivity() {
     }
 
     private var dock: MiniPredvajalnik? = null
+
+    /** Prostor pod dockom: od vrha spodnje vrstice do roba zaslona in se malo razmika. */
+    private fun robDocka() {
+        if (!::koren.isInitialized || dok.height == 0) return
+        dock?.nastaviRob(koren.height - dok.top + dp(8))
+    }
     private val medijiPoslusalec: () -> Unit = { runOnUiThread { dock?.osvezi() } }
 
     override fun onNewIntent(intent: Intent?) {

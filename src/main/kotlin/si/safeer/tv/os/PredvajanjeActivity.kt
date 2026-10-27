@@ -647,6 +647,7 @@ class PredvajanjeActivity : OsActivity() {
         if (dotik) glavna.post { if (!isFinishing && !predlogiOdprti()) odpriPredloge() }
         zatemniIzNamena()
         izberiNapravoIzNamena()
+        nadaljujIzNamena()
     }
 
     /** S plosce Safeer Media: takoj zatemni (samo zvok). Tudi ob onNewIntent - obstojeci zaslon
@@ -682,6 +683,14 @@ class PredvajanjeActivity : OsActivity() {
         setIntent(intent)
         zatemniIzNamena()
         izberiNapravoIzNamena()
+        nadaljujIzNamena()
+    }
+
+    /** Obvestilo »Predvajaj« pri filmu (lastnik 27. 10. 2026): predvajalnik se odpre na istem mestu in nadaljuje. */
+    private fun nadaljujIzNamena() {
+        if (!intent.getBooleanExtra(NADALJUJ, false)) return
+        intent.removeExtra(NADALJUJ)
+        try { GlasbaStoritev.predvajalnik?.play() } catch (_: Throwable) { }
     }
 
     private fun izberiNapravoIzNamena() {
@@ -736,6 +745,7 @@ class PredvajanjeActivity : OsActivity() {
         const val ZATEMNI = "zatemni"
         /** Iz obvestila ali predvajalnika sistema: odpri izbiro naprave (zvocniki v omrezju, naprave Linka, Bluetooth). */
         const val IZBERI_NAPRAVO = "izberi_napravo"
+        const val NADALJUJ = "nadaljuj"
         /** Predvajanje je odprl zaslon Datoteke: Nazaj vrne v mapo, iz katere je uporabnik prisel. */
         const val IZ_DATOTEK = "iz_datotek"
         const val PIP_PREKLOPI = "si.safeer.tv.os.PIP_PREKLOPI"

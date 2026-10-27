@@ -1260,7 +1260,16 @@ class GlasbaStoritev : Service() {
                 else -> listOf(R.drawable.os_ikona_ustavi, "Ustavi", AKCIJA_USTAVI, 13)
             }
             // »Predvajaj na napravi« odpre predvajalnik z izbiro naprave (izbira rabi zaslon); ostali gumbi gredo storitvi.
-            val namen = if (d == ObvestiloPredvajanjaPravila.NA_NAPRAVI) izbiraNaprave() else dejanje(akcija as String, koda as Int)
+            val namen = when {
+                d == ObvestiloPredvajanjaPravila.NA_NAPRAVI -> izbiraNaprave()
+                // Lastnik 27. 10. 2026: Predvajaj pri filmu ali epizodi odpre predvajalnik s sliko (ne samo zvok v ozadju).
+                d == ObvestiloPredvajanjaPravila.PREKLOPI && MiniPredvajalnikPravila.dejanjePredvajaj(s?.video == true, igra()) ==
+                    MiniPredvajalnikPravila.ODPRI_PREDVAJALNIK -> PendingIntent.getActivity(this, 16,
+                    Intent(this, PredvajanjeActivity::class.java).putExtra(PredvajanjeActivity.NADALJUJ, true)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                else -> dejanje(akcija as String, koda as Int)
+            }
             b.addAction(Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(this, ikona as Int),
                 opis as String, namen).build())
         }
