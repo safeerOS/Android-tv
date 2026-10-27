@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Naloga 42 F: beta novega TV zaganjalnika - stikalo in izbire v Nastavitvah (os/NastavitveActivity). -->
+<resources>
+    <string name="pk_beta">Nuevo lanzador (beta)</string>
+    <string name="pk_beta_opis">Pantalla de inicio con el tema Paisaje. Desactívalo para volver al anterior; tus ajustes se mantienen.</string>
+    <string name="pk_zmanjsano">Reducir movimiento</string>
+    <string name="pk_zmanjsano_opis">Nuevo lanzador sin animaciones ni zoom al enfocar; el marco de foco se mantiene.</string>
+</resources>

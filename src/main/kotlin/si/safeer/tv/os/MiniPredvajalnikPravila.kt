@@ -60,6 +60,31 @@ object MiniPredvajalnikPravila {
     /** Odprt dock se sam skrije po toliko casa brez dotika (z daljincem: dokler ima fokus, ostane odprt). */
     const val SAMODEJNO_SKRIJ_MS = 8_000L
 
+    /** Lastnik 27. 10. 2026: film ali epizoda, ki ne igra - »Predvajaj« odpre celozaslonski predvajalnik (isti tok). */
+    const val ODPRI_PREDVAJALNIK = "odpri_predvajalnik"
+    const val PREKLOPI_ZVOK = "preklopi"
+    const val ODPRI_MEDIJE = "odpri_medije"
+
+    /**
+     * »Predvajaj/Nadaljuj« v docku in v obvestilu: video (film, epizoda), ki ne igra, gre v celozaslonski predvajalnik na
+     * istem mestu (prej samo zvok v ozadju, slike ni bilo); Pavza ostane pavza; glasba se preklopi kot doslej.
+     */
+    fun dejanjePredvajaj(video: Boolean, igra: Boolean): String = if (video && !igra) ODPRI_PREDVAJALNIK else PREKLOPI_ZVOK
+
+    /** Klik na naslov v docku: video v celozaslonski predvajalnik, glasba v Medijski center. */
+    fun klikNaslova(video: Boolean): String = if (video) ODPRI_PREDVAJALNIK else ODPRI_MEDIJE
+
+    /**
+     * Vodja 27. 10. 2026 (TV beta 14): na zaslonu z lastno vrstico ob robu (Pokrajina: spodnja vrstica) dock ne sme lezati
+     * cez njo - dodaten odmik na strani, kjer je dock. Zgoraj nic (tam sta ura in lupa, dock ZGORAJ izbere uporabnik).
+     */
+    fun dodatniRob(mesto: String, spodaj: Int, levo: Int = 0, desno: Int = 0): Int = when (mesto) {
+        ZGORAJ -> 0
+        LEVO -> maxOf(0, levo)
+        DESNO -> maxOf(0, desno)
+        else -> maxOf(0, spodaj)
+    }
+
     fun samodejnoSkrij(odprt: Boolean, imaFokus: Boolean, zadnjiDotikMs: Long, zdajMs: Long): Boolean =
         odprt && !imaFokus && zdajMs - zadnjiDotikMs >= SAMODEJNO_SKRIJ_MS
 
@@ -70,6 +95,28 @@ object MiniPredvajalnikPravila {
      */
     fun zgradiZnova(zgrajenoMesto: String?, mesto: String, priklopljen: Boolean): Boolean =
         !priklopljen || zgrajenoMesto == null || mesto(zgrajenoMesto) != mesto(mesto)
+
+    /**
+     * Naloga 42 B (27. 10. 2026, lastnik: »kot na racunalniku«): gumbi docka v tem vrstnem redu - prejsnja, premor ali
+     * predvajaj, naslednja, zvocnik, tisje, glasneje, skrij. Glasnost brez zapuscanja domacega zaslona.
+     */
+    val GUMBI = listOf("prejsnja", "predvajaj", "naslednja", "zvocnik", "tisje", "glasneje", "skrij")
+
+    const val GLASNOST_TU = "tu"
+    const val GLASNOST_ZVOCNIK = "zvocnik"
+    const val GLASNOST_DRUGA = "druga"
+    /** Korak glasnosti druge naprave (odstotki, kot drsnik v ZvocnikIzbira). */
+    const val KORAK_DRUGA = 5
+
+    /**
+     * Cigava glasnost se spremeni: ta naprava upravlja drugo (seja daljinca, naloga 117) - glasnost tiste naprave; glasba
+     * igra na zvocniku v omrezju - glasnost zvocnika; sicer glasnost te naprave (kot tipki za glasnost na daljincu).
+     */
+    fun ciljGlasnosti(naDrugiNapravi: Boolean, naZvocniku: Boolean): String = when {
+        naDrugiNapravi -> GLASNOST_DRUGA
+        naZvocniku -> GLASNOST_ZVOCNIK
+        else -> GLASNOST_TU
+    }
 
     /**
      * Lastnik 27. 10. 2026: v docku ni bilo mogoce premakniti predvajanja naprej in ne predvajati na zvocniku (v

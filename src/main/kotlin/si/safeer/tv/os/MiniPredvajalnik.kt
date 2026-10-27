@@ -75,6 +75,44 @@ class MiniPredvajalnik(
     private var drsnik: SeekBar? = null
     private var gumbZvocnik: ImageButton? = null
     private var vlece = false
+    // Vodja 27. 10. 2026: zaslon z vrstico ob robu (Pokrajina) pove, koliko prostora mora dock pustiti (px).
+    private var robSpodaj = 0
+
+    /** Prostor za spodnjo vrstico domacega zaslona: dock (rocica in kartica) je nad njo, ne cez njo. */
+    fun nastaviRob(spodaj: Int) {
+        if (spodaj == robSpodaj) return
+        robSpodaj = spodaj
+        zgrajenoMesto = null      // naslednja osvezitev zgradi dock z novim odmikom
+        osvezi()
+    }
+
+    private fun dodatno(m: String) = MiniPredvajalnikPravila.dodatniRob(m, robSpodaj)
+
+    private fun odmakni(lp: FrameLayout.LayoutParams, m: String): FrameLayout.LayoutParams {
+        val d = dodatno(m)
+        when (m) {
+            MiniPredvajalnikPravila.ZGORAJ -> Unit
+            MiniPredvajalnikPravila.LEVO -> lp.leftMargin += d
+            MiniPredvajalnikPravila.DESNO -> lp.rightMargin += d
+            else -> lp.bottomMargin += d
+        }
+        return lp
+    }
+
+    /** Video na tej napravi (film, epizoda) - ne druga naprava v Linku. */
+    private fun videoTu(): Boolean = !oddaljeno() && try { GlasbaStoritev.trenutna()?.video == true } catch (_: Throwable) { false }
+
+    /**
+     * Lastnik 27. 10. 2026: »Nadaljuj« pri filmu odpre celozaslonski predvajalnik na ISTEM mestu - predvajalnik se pripne na
+     * isti GlasbaStoritev.predvajalnik (isti tok, podnapisi, zvocna sled), nic se ne nalozi znova.
+     */
+    private fun odpriPredvajalnik() {
+        try { GlasbaStoritev.predvajalnik?.play() } catch (_: Throwable) { }
+        try {
+            a.startActivity(android.content.Intent(a, PredvajanjeActivity::class.java)
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP))
+        } catch (_: Throwable) { GlasbaStoritev.preklopi() }
+    }
 
     val mesto: String get() = MiniPredvajalnikPravila.mesto(nastavitve.getString(KLJUC_MESTO, null))
         .let { if (!dovoliSeznam && it == MiniPredvajalnikPravila.V_SEZNAMU) MiniPredvajalnikPravila.PRIVZETO else it }
@@ -253,7 +291,7 @@ class MiniPredvajalnik(
             setOnLongClickListener { izberiMesto(); true }
         }
         potegi(r, m)
-        k.addView(r, if (pokoncen) FrameLayout.LayoutParams(dp(30), dp(96), gravitacija(m)) else FrameLayout.LayoutParams(dp(96), dp(30), gravitacija(m)))
+        k.addView(r, odmakni(if (pokoncen) FrameLayout.LayoutParams(dp(30), dp(96), gravitacija(m)) else FrameLayout.LayoutParams(dp(96), dp(30), gravitacija(m)), m))
 
         // Kartica: kaj igra in gumbi.
         val c = LinearLayout(a).apply {
@@ -271,7 +309,7 @@ class MiniPredvajalnik(
             orientation = LinearLayout.VERTICAL
             setPadding(dp(8), 0, dp(8), 0)
             isFocusable = true
-            setOnClickListener { odpriMedije() }
+            setOnClickListener { if (MiniPredvajalnikPravila.klikNaslova(videoTu()) == MiniPredvajalnikPravila.ODPRI_PREDVAJALNIK) odpriPredvajalnik() else odpriMedije() }
         }
         val nPogled = TextView(a).apply {
             text = naslov; maxLines = if (pokoncen) 2 else 1; ellipsize = TextUtils.TruncateAt.END
@@ -323,11 +361,18 @@ class MiniPredvajalnik(
         val gumbi = LinearLayout(a).apply { orientation = if (pokoncen) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         gumbi.addView(gumb(R.drawable.os_ikona_prejsnja, a.getString(R.string.zg_prejsnja), "dock:prejsnja") { GlasbaStoritev.prejsnja() }, LinearLayout.LayoutParams(g, g))
         val gPredvajaj = gumb(if (igra) R.drawable.os_ikona_pavza else R.drawable.os_ikona_predvajaj,
-            a.getString(if (igra) R.string.zg_premor else R.string.zg_predvajaj), "dock:predvajaj") { GlasbaStoritev.preklopi() }
+            a.getString(if (igra) R.string.zg_premor else R.string.zg_predvajaj), "dock:predvajaj") {
+            val igraZdaj = try { GlasbaStoritev.igra() } catch (_: Throwable) { false }
+            if (MiniPredvajalnikPravila.dejanjePredvajaj(videoTu(), igraZdaj) == MiniPredvajalnikPravila.ODPRI_PREDVAJALNIK) odpriPredvajalnik()
+            else GlasbaStoritev.preklopi()
+        }
         gumbi.addView(gPredvajaj, LinearLayout.LayoutParams(g, g))
         gumbi.addView(gumb(R.drawable.os_ikona_naslednja, a.getString(R.string.zg_naslednja), "dock:naslednja") { GlasbaStoritev.naslednja() }, LinearLayout.LayoutParams(g, g))
         val gZvocnik = gumb(R.drawable.os_ikona_predvajaj_na, a.getString(R.string.zvocnik_na_napravi), "dock:zvocnik") { zvocnik() }
         gumbi.addView(gZvocnik, LinearLayout.LayoutParams(g, g))
+        // Naloga 42 B: glasnost brez zapuscanja domacega zaslona (kot na racunalniku) - tiste naprave, ki igra.
+        gumbi.addView(gumb(R.drawable.os_ikona_tisje, a.getString(R.string.zvocnik_tisje), "dock:tisje") { glasnost(-1) }, LinearLayout.LayoutParams(g, g))
+        gumbi.addView(gumb(R.drawable.os_ikona_glasneje, a.getString(R.string.zvocnik_glasneje), "dock:glasneje") { glasnost(1) }, LinearLayout.LayoutParams(g, g))
         gumbi.addView(gumb(R.drawable.os_ikona_zapri, a.getString(R.string.zg_dock_skrij), "dock:skrij") { nastaviOdprt(false, fokus = daljinec) }, LinearLayout.LayoutParams(g, g))
         c.addView(gumbi)
         val lp = if (pokoncen) FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, gravitacija(m))
@@ -336,7 +381,7 @@ class MiniPredvajalnik(
                 width = minOf(a.resources.displayMetrics.widthPixels - 2 * rob, dp(560))
             }
         lp.setMargins(rob, rob, rob, rob)
-        k.addView(c, lp)
+        k.addView(c, odmakni(lp, m))
 
         okvir.addView(k, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         // Prazen del docka ne lovi dotikov - pod njim je domaci zaslon.
@@ -352,6 +397,21 @@ class MiniPredvajalnik(
     private fun skociNa(korak: Int) {
         val trajanje = try { GlasbaStoritev.trajanjeMs() } catch (_: Throwable) { 0L }
         if (trajanje > 0) try { GlasbaStoritev.skoci(MiniPredvajalnikPravila.casIzDrsnika(korak, trajanje)) } catch (_: Throwable) { }
+    }
+
+    /**
+     * Glasneje ([smer] 1) ali tisje (-1) za tisto, kar igra ([MiniPredvajalnikPravila.ciljGlasnosti]). Ta naprava: kot tipka
+     * za glasnost na daljincu (sistem pokaze svoj drsnik); zvocnik in druga naprava: isti koraki kot v izbiri zvocnika.
+     */
+    private fun glasnost(smer: Int) {
+        val naDrugi = try { GlasbaStoritev.naDrugiNapravi() } catch (_: Throwable) { false }
+        val naZvocniku = try { GlasbaStoritev.naZvocniku() } catch (_: Throwable) { false }
+        when (MiniPredvajalnikPravila.ciljGlasnosti(naDrugi, naZvocniku)) {
+            MiniPredvajalnikPravila.GLASNOST_DRUGA -> OddaljenoPredvajanje.glasnostZa(smer * MiniPredvajalnikPravila.KORAK_DRUGA)
+            MiniPredvajalnikPravila.GLASNOST_ZVOCNIK -> Zvocniki.glasnostZa(smer * ZvocnikPravila.korakGlasnosti(Zvocniki.najGlasnost, Zvocniki.lestvicaZnana))
+            else -> a.getSystemService(android.media.AudioManager::class.java)?.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC,
+                if (smer > 0) android.media.AudioManager.ADJUST_RAISE else android.media.AudioManager.ADJUST_LOWER, android.media.AudioManager.FLAG_SHOW_UI)
+        }
     }
 
     /** Izbira mesta (dolg pritisk na rocico ali kartico): zgoraj, spodaj, levo, desno ali v seznamu. */

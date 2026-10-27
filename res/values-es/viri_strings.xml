@@ -188,4 +188,7 @@
     <!-- Pregled Grok 31, H2: viden konec diagnostike samo Usenet -->
     <string name="os_usenet_diagnostika_konec">Diagnóstico solo Usenet: Usenet no se reprodujo; el motivo está en el registro (SafeerOsMedia).</string>
     <string name="os_usenet_diagnostika_ni_izdaj">Diagnóstico solo Usenet: el indexador no devolvió ninguna versión para este contenido.</string>
+    <string name="os_debrid_izbira_vse">Todas las fuentes</string>
+    <string name="os_usenet_predvaja_lastni">Reproduciendo mediante Usenet (tu proveedor)</string>
+    <string name="os_usenet_pripravljam">Preparando mediante Usenet…</string>
 </resources>

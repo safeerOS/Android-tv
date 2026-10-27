@@ -137,6 +137,10 @@ open class OsActivity : Activity() {
         // "Poslji na napravo": ponudba druge naprave se pokaze kot tiha pasica na zaslonu v ospredju (ne kot okno).
         Predaja.prikaz = { po -> if (!isFinishing) PredajaObvestilo.pasica(this, po) }
         Predaja.cakajoca?.takeIf { it.velja() }?.let { PredajaObvestilo.umakni(this); PredajaObvestilo.pasica(this, it) }
+        // Naloga 42 C: novo sporocilo je tiho opozorilo cez ta zaslon (ne vzame fokusa, ne ustavi predvajanja). Del
+        // novega zaganjalnika (beta): s starim ostane vse kot prej.
+        KlepetLinka.prikaz = if (!ZaganjalnikBeta.vklopljen(this)) null
+            else { _: String, ime: String, besedilo: String -> runOnUiThread { SporociloPasica.pokazi(this, ime, besedilo) } }
     }
 
     // ------------------------------------------------------------------ zablodel OK
@@ -191,6 +195,8 @@ open class OsActivity : Activity() {
         koda.ustavi()
         palica.ustavi()
         if (Predaja.prikaz != null) { Predaja.prikaz = null; PredajaObvestilo.umakniPasico() }
+        KlepetLinka.prikaz = null
+        SporociloPasica.umakniZdaj()
         super.onPause()
     }
 }

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Naloga 42 F: beta novega TV zaganjalnika - stikalo in izbire v Nastavitvah (os/NastavitveActivity). -->
+<resources>
+    <string name="pk_beta">Nouveau lanceur (bêta)</string>
+    <string name="pk_beta_opis">Écran d\'accueil avec le thème Paysage. Désactive-le pour revenir au précédent ; tes réglages restent.</string>
+    <string name="pk_zmanjsano">Réduire les animations</string>
+    <string name="pk_zmanjsano_opis">Nouveau lanceur sans animations ni zoom au focus ; le cadre de focus reste.</string>
+</resources>

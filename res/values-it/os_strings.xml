@@ -734,4 +734,5 @@
     <string name="os_pomoc_opis">Quando due tuoi dispositivi non riescono a raggiungersi direttamente (ad es. uno è dietro un altro router), questo dispositivo li collega: li presenta l\'uno all\'altro e inoltra i loro messaggi. Solo per i dispositivi della tua cerchia di fiducia. Se disattivato, questi dispositivi non si vedono tramite questo.</string>
     <string name="os_pomoc_da">Sì, aiuta</string>
     <string name="os_pomoc_ne">No</string>
+    <string name="os_zaganjalnik_edini">Safeer OS è l’unico launcher di questo televisore. Disattivarlo lascerebbe lo schermo nero, quindi resta attivo. Attiva prima un altro launcher nelle impostazioni di sistema del televisore.</string>
 </resources>

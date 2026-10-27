@@ -7,6 +7,24 @@ private fun preveriEnako(opis: String, pricakovano: Any?, dobljeno: Any?) =
 
 /** Naloga 118: mini predvajalnik kot dock ob robu domacega zaslona ([MiniPredvajalnikPravila]). */
 fun main() {
+    // Lastnik in vodja 27. 10. 2026 (TV beta 14): Nadaljuj pri filmu, dock nad spodnjo vrstico.
+    run {
+        val P = MiniPredvajalnikPravila
+        val enako = { opis: String, pricakovano: Any?, dobljeno: Any? ->
+            if (pricakovano != dobljeno) { println("  NAPAKA  $opis: pricakovano $pricakovano, dobljeno $dobljeno"); kotlin.system.exitProcess(1) }
+            else println("  ok  $opis")
+        }
+        enako("film na pavzi: Predvajaj odpre celozaslonski predvajalnik", P.ODPRI_PREDVAJALNIK, P.dejanjePredvajaj(video = true, igra = false))
+        enako("film igra: Pavza ostane pavza", P.PREKLOPI_ZVOK, P.dejanjePredvajaj(video = true, igra = true))
+        enako("glasba na pavzi: preklopi kot doslej", P.PREKLOPI_ZVOK, P.dejanjePredvajaj(video = false, igra = false))
+        enako("klik na naslov filma: predvajalnik", P.ODPRI_PREDVAJALNIK, P.klikNaslova(true))
+        enako("klik na naslov glasbe: Medijski center", P.ODPRI_MEDIJE, P.klikNaslova(false))
+        enako("dock spodaj: nad spodnjo vrstico", 120, P.dodatniRob(P.PRIVZETO, spodaj = 120))
+        enako("dock zgoraj: brez odmika", 0, P.dodatniRob(P.ZGORAJ, spodaj = 120))
+        enako("dock levo: samo levi odmik", 0, P.dodatniRob(P.LEVO, spodaj = 120))
+        enako("negativen odmik ni mogoc", 0, P.dodatniRob(P.PRIVZETO, spodaj = -5))
+    }
+
     println("Preizkus mini predvajalnika (dock)")
 
     preveriEnako("privzeto spodaj", "spodaj", MiniPredvajalnikPravila.mesto(null))
@@ -76,6 +94,15 @@ fun main() {
         listOf(N.ZVOCNIK to 0, N.ZVOCNIK to 1, N.NAPRAVA to 0, N.SISTEM to 0), N.izbire(2, 1))
     preveriEnako("v omrezju nic: isci znova, nato Bluetooth/sistem", listOf(N.ISCI_ZNOVA to 0, N.SISTEM to 0), N.izbire(0, 0))
     preveriEnako("samo naprave Linka: isci znova pred njimi", listOf(N.ISCI_ZNOVA to 0, N.NAPRAVA to 0, N.SISTEM to 0), N.izbire(0, 1))
+
+    println("\n== naloga 42 B: glasnost v docku ==")
+    preveriEnako("gumbi: tisje in glasneje med zvocnikom in skrij", listOf("prejsnja", "predvajaj", "naslednja", "zvocnik", "tisje", "glasneje", "skrij"),
+        MiniPredvajalnikPravila.GUMBI)
+    preveriEnako("igra tu: glasnost te naprave", MiniPredvajalnikPravila.GLASNOST_TU, MiniPredvajalnikPravila.ciljGlasnosti(false, false))
+    preveriEnako("igra na zvocniku: zvocnik", MiniPredvajalnikPravila.GLASNOST_ZVOCNIK, MiniPredvajalnikPravila.ciljGlasnosti(false, true))
+    preveriEnako("upravlja drugo napravo: tista naprava", MiniPredvajalnikPravila.GLASNOST_DRUGA, MiniPredvajalnikPravila.ciljGlasnosti(true, false))
+    preveriEnako("druga naprava ima prednost pred zvocnikom", MiniPredvajalnikPravila.GLASNOST_DRUGA, MiniPredvajalnikPravila.ciljGlasnosti(true, true))
+    preveriEnako("korak druge naprave", 5, MiniPredvajalnikPravila.KORAK_DRUGA)
 
     if (napak == 0) println("MiniPredvajalnikPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

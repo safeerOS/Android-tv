@@ -592,6 +592,7 @@ class GlasbaActivity : OsActivity() {
     }
 
     override fun onStop() {
+        skrijPripravljam()      // predvajalnik je odprt ali uporabnik je odsel: pas ne ostane za vrnitev
         Debrid.poslusalciPrejetih.remove(obPrejetihKljucih)
         UskladitevKljucev.poslusalci.remove(obUskladitvi)
         MedijskiViri.poslusalciRacunov.remove(obRacunih)
@@ -2956,16 +2957,30 @@ class GlasbaActivity : OsActivity() {
             // 5) Naloga 130: prek katere debrid storitve gredo torrenti; privzeto tista, za katero je vpisan kljuc.
             val sKljucem = Debrid.vrstniRed(this)
             val aktivna = Debrid.aktivna(this)
-            // Brez kljuca: napis »Debrid: vpisi kljuc«, izbira odpre okno »Debrid storitve«.
+            // Lastnik 27. 10. 2026: tudi lasten ponudnik Usenet je izbira (filmi in serije neposredno prek NNTP) in
+            // »All sources« - Usenet, vse debrid storitve s kljucem (prednostna najprej) in ostali viri (povezave, dodatki, Webtor).
+            val usenet = UsenetLastni.naVoljo(this)
+            val iUsenet = if (usenet) sKljucem.size else -1
+            val iVse = if (usenet && sKljucem.isNotEmpty()) sKljucem.size + 1 else -1
+            val iBrez = sKljucem.size + (if (usenet) 1 else 0) + (if (iVse >= 0) 1 else 0)
+            // Brez kljuca in ponudnika: napis »Debrid: vpisi kljuc«, izbira odpre okno »Debrid storitve«.
             val moznosti = sKljucem.map { DebridPravila.OZNAKA_PREDPOMNJEN + " " + DebridPravila.ime(it) } +
+                (if (usenet) listOf(DebridPravila.OZNAKA_PREDPOMNJEN + " Usenet") else emptyList()) +
+                (if (iVse >= 0) listOf(DebridPravila.OZNAKA_PREDPOMNJEN + " " + getString(R.string.os_debrid_izbira_vse)) else emptyList()) +
                 (if (sKljucem.isEmpty()) emptyList() else listOf(getString(R.string.os_debrid_izbira_brez))) +
                 getString(R.string.os_debrid_izbira_nastavitve)
-            izbira("debrid", moznosti, when { sKljucem.isEmpty() -> -1; aktivna != null -> sKljucem.indexOf(aktivna); else -> sKljucem.size },
+            izbira("debrid", moznosti, when {
+                    usenet && UsenetLastni.izbran(this) -> if (aktivna != null && iVse >= 0) iVse else iUsenet
+                    sKljucem.isEmpty() -> -1
+                    aktivna != null -> sKljucem.indexOf(aktivna)
+                    else -> iBrez },
                 getString(R.string.os_debrid_izbira_naslov), druga ?: niz,
-                if (sKljucem.isEmpty()) getString(R.string.os_debrid_izbira_dodaj) else null) { i ->
+                if (sKljucem.isEmpty() && !usenet) getString(R.string.os_debrid_izbira_dodaj) else null) { i ->
                 when {
-                    i < sKljucem.size -> Debrid.nastaviAktivno(this, sKljucem[i])
-                    i == sKljucem.size && sKljucem.isNotEmpty() -> Debrid.nastaviAktivno(this, null)
+                    i < sKljucem.size -> { Debrid.nastaviAktivno(this, sKljucem[i]); UsenetLastni.nastaviIzbran(this, false) }
+                    i == iUsenet -> { UsenetLastni.nastaviIzbran(this, true); if (sKljucem.isNotEmpty()) Debrid.nastaviAktivno(this, null) }
+                    i == iVse -> { UsenetLastni.nastaviIzbran(this, true); Debrid.nastaviAktivno(this, aktivna ?: sKljucem.first()) }
+                    i == iBrez && sKljucem.isNotEmpty() -> { Debrid.nastaviAktivno(this, null); UsenetLastni.nastaviIzbran(this, false) }
                     else -> { nastavitveDebrida(); return@izbira }
                 }
                 odpriBrskanje(o.tip, o.zvrst, o.jezik)
@@ -5550,18 +5565,20 @@ class GlasbaActivity : OsActivity() {
      */
     private fun viriVrste(): List<Vrsta> {
         val pripeti = MedijskiViri.pripeti(this)
-        // Seznami predvajanja (Shrani vrsto na zaslonu predvajanja) imajo v Brskaj svojo polico.
-        val seznami = MedijskiViri.seznami(this)
-        val vrstaSeznamov = if (seznami.isEmpty()) emptyList() else listOf(Vrsta(getString(R.string.os_seznami_predvajanja),
-            seznami.map { karticaSeznama(it) }, mala = true))
-        return vrstaSeznamov + listOf(Vrsta("", listOf(
+        // Lastnik 27. 10. 2026: seznami predvajanja spadajo h glasbi (tam imajo svojo vrsto) - v Mojih virih jih ni vec na vrhu.
+        val usenetVpisan = try { UsenetPonudnik.get(this).stanje().vpisan } catch (_: Throwable) { false }
+        return listOf(Vrsta("", listOf(
             Kartica(getString(R.string.os_mediji_dodaj), getString(R.string.os_mediji_dodaj_opis), "", { dodajVir() }, ikona = R.drawable.os_ikona_plus),
             // Naloga 125: dolg pritisk vklopi ali izklopi razvojni nacin dodatkov.
             Kartica(getString(R.string.os_mediji_dodatki), getString(R.string.os_mediji_dodatki_opis), "", { dodajDodatke() }, { preklopiRazvoj() }, ikona = R.drawable.os_ikona_plus),
             Kartica(getString(R.string.os_uvoz_naslov), getString(R.string.os_uvoz_opis), "", { uvoziSeznam() }, ikona = R.drawable.os_ikona_plus),
             // Naloga 119: TorBox - zasebni in hitrejsi torrenti s kljucem uporabnika.
             // Naloga 128: TorBox, Real-Debrid in AllDebrid na enem mestu.
-            Kartica(getString(R.string.os_debrid), opisDebrida(), "", { nastavitveDebrida() }, ikona = R.drawable.os_ikona_zaklep)) +
+            Kartica(getString(R.string.os_debrid), opisDebrida(), "", { nastavitveDebrida() }, ikona = R.drawable.os_ikona_zaklep),
+            // Lastnik 27. 10. 2026: lasten ponudnik Usenet (filmi in serije neposredno, brez TorBoxa) - vidno v Mojih virih.
+            Kartica(getString(if (usenetVpisan) R.string.os_usenet_ponudnik_naslov else R.string.os_usenet_dodaj_ponudnika),
+                UsenetPonudnikOkno.vrstica(this), "", { UsenetPonudnikOkno.pokazi(this) { osveziNaMestu() } },
+                ikona = if (usenetVpisan) R.drawable.os_ikona_zaklep else R.drawable.os_ikona_plus)) +
             vsiViri().map { v -> Kartica((if (v.kljuc in pripeti) "★ " else "") + v.ime, v.opis, "", { v.odpri() }, { dolgoNaViru(v) }, ikona = v.ikona) } +
             // Naloga 124: mape dodatkov (protokol v1) - npr. uporabnikov racun pri storitvi.
             karticeMapDodatkov() +
@@ -6468,7 +6485,7 @@ class GlasbaActivity : OsActivity() {
         val taNaprava = getString(if (jeTv()) R.string.os_media_ta_tv else R.string.os_media_ta_naprava)
         // Preklic starih poizvedb: hitro zaporedno iskanje ne sme pustiti kupa zivih niti.
         synchronized(iskanjeNiti) { iskanjeNiti.forEach { it.cancel(true) }; iskanjeNiti.clear() }
-        val rezultati = arrayOfNulls<Any>(14)
+        val rezultati = arrayOfNulls<Any>(15)
         val stremioNaslovi = MedijskiViri.vsi(this).filter { it.jeStremio }.map { it.naslov }
         val spletniViri = MedijskiViri.vsi(this).filter { it.jeSplet || it.tip == MedijskiViri.API }
         val imenaSpletnihVirov = spletniViri.map { it.ime }
@@ -6515,6 +6532,9 @@ class GlasbaActivity : OsActivity() {
             // Naloga 81: katalogi samo za iskanje (YouTubio: tip YouTube, obvezni search) - lastno opravilo z daljsim rokom
             // ([OsPravila.iskanjeKoncano]); zasebnih kategorij kanalov nimajo.
             { if (samoDodatek != null) emptyList<Jamendo.Skladba>() else try { Stremio.isci(Stremio.zKatalogom(stremioNaslovi), beseda, samoIskanje = true) } catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
+            // Lastnik 27. 10. 2026: glasba z Useneta (izvajalec ali skladba) pri uporabnikovem indeksatorju - samo z lastnim ponudnikom.
+            { if (samoDodatek != null || !Usenet.glasbaNaVoljo(applicationContext)) emptyList<UsenetPravila.Zadetek>()
+              else try { Usenet.isciGlasbo(applicationContext, beseda) } catch (_: Exception) { emptyList<UsenetPravila.Zadetek>() } },
         )
         // Iskanje v zasebnem dodatku vprasa samo ta dodatek (opravilo 11); ostali viri ostanejo prazni.
         val futures = opravila.mapIndexed { i, f -> iskanjeDelavec.submit { rezultati[i] = if (samoDodatek != null && i != 11) emptyList<Any>() else f() } }
@@ -6537,6 +6557,7 @@ class GlasbaActivity : OsActivity() {
             // Cesar noben dodatek ne predvaja, med zadetki ni.
             val izDodatkov = izDodatkovVsi.filterNot { znanoNiNaVoljo(it) || cakaNaKnjiznico(it) }
             @Suppress("UNCHECKED_CAST") val tvKanali = rezultati[12] as? List<Jamendo.Skladba> ?: emptyList()
+            @Suppress("UNCHECKED_CAST") val usenetAlbumi = rezultati[14] as? List<UsenetPravila.Zadetek> ?: emptyList()
             // Zadetki dodatkov po vrsti vsebine: vsak pristane v svoji polici (film, serija, TV v zivo, glasba, radio).
             val dodatkiPoRazredu = izDodatkov.groupBy { Stremio.razredEnote(it) }
             // Naloga 81: drug video (tip YouTube ...) ni film - gre v polico Video; iskanje iz Glasbe: med glasbo (posnetki).
@@ -6631,6 +6652,11 @@ class GlasbaActivity : OsActivity() {
                     Vrsta("🎬 " + getString(R.string.os_media_filmi), videi(ostali(poUjemanju(dFilmi)), beseda), video = true),
                     Vrsta("📺 " + getString(R.string.os_media_serije), videi(ostali(poUjemanju(dSerije)), beseda), video = true),
                     Vrsta("📡 " + getString(R.string.os_mediji_tv_v_zivo), videi(ostali(poUjemanju(dTv + tvKanali)), beseda), video = true),
+                    // Lastnik 27. 10. 2026: izdaje glasbe z Useneta - klik takoj predvaja (pri iskani skladbi, kot pri YouTubu).
+                    Vrsta("\uD83D\uDCE6 Usenet", usenetAlbumi.map { z ->
+                        Kartica(UsenetGlasbaPravila.lepNaslov(z.naslov), UsenetGlasbaPravila.velikost(z.velikost), "", { predvajajUsenetAlbum(z, beseda) },
+                            ikona = R.drawable.os_ikona_glasba, id = "usenet:" + UsenetPravila.idToka(z.povezava))
+                    }, skladbe = true),
                     Vrsta(getString(R.string.os_mediji_glasba), skladbe(ostali(poUjemanju(dGlasba) + (if (vGlasbo) poUjemanju(dVideo) else emptyList()) +
                         glasba + spletAvdio + spletVideospoti), beseda), skladbe = true),
                     Vrsta(getString(R.string.os_glasba_video), videi(ostali((if (vGlasbo) emptyList() else poUjemanju(dVideo)) + videi + javnaLast + spletFilmiInSerije), beseda), video = true),
@@ -7313,11 +7339,45 @@ class GlasbaActivity : OsActivity() {
         val kljuc = sk.id.ifBlank { sk.povezava.ifBlank { sk.naslov } }
         if (!pripraveVTeKu.add(kljuc)) return null
         prekiniDebrid()     // pregled A1: nova izbira - prejsnje cakanje na debrid ne odpre nicesar vec
-        Toast.makeText(this, getString(R.string.os_media_pripravljam, sk.naslov), Toast.LENGTH_SHORT).show()
+        pokaziPripravljam(getString(R.string.os_media_pripravljam, sk.naslov))
         return kljuc
     }
 
-    private fun koncajPripravo(kljuc: String) { pripraveVTeKu.remove(kljuc) }
+    private fun koncajPripravo(kljuc: String) {
+        pripraveVTeKu.remove(kljuc)
+        if (pripraveVTeKu.isEmpty() && debridDelo == null) skrijPripravljam()
+    }
+
+    /**
+     * Lastnik 27. 10. 2026: od klika do predvajalnika viden pas »Pripravljam …« na vrhu zaslona (prej kratek Toast, nato
+     * nekaj sekund nic, medtem ko se je pripravljal Usenet in preverjali drugi viri). Nad vsebino (addContentView), brez fokusa.
+     */
+    private var pripravljamPas: TextView? = null
+
+    private fun pokaziPripravljam(besedilo: String) {
+        if (isFinishing || isDestroyed) return
+        val pas = pripravljamPas ?: TextView(this).apply {
+            setTextColor(osBarva(R.color.os_besedilo))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, if (jeSirokTv()) 18f else 15f)
+            background = GradientDrawable().apply {
+                setColor(osBarva(R.color.os_kartica_dvignjena)); cornerRadius = dp(20).toFloat(); setStroke(dp(1), osBarva(R.color.os_kartica_obroba))
+            }
+            setPadding(dp(20), dp(10), dp(20), dp(10))
+            elevation = dp(8).toFloat()
+            isFocusable = false
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        }.also {
+            pripravljamPas = it
+            addContentView(it, FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply { topMargin = dp(18) })
+        }
+        pas.text = besedilo
+        pas.visibility = View.VISIBLE
+        pas.bringToFront()
+    }
+
+    private fun skrijPripravljam() { pripravljamPas?.visibility = View.GONE }
 
     private fun pripravaNiUspela(kljuc: String, sk: Jamendo.Skladba) {
         koncajPripravo(kljuc)
@@ -7427,6 +7487,31 @@ class GlasbaActivity : OsActivity() {
     }
 
     /** Glasba in radio zacneta takoj (ves seznam v vrsto, naprej/nazaj preklaplja); video najprej razresimo. */
+    /**
+     * Lastnik 27. 10. 2026: album z Useneta kot vrsta skladb v obstojecem predvajalniku. Priprava (NZB, prvi segment vsake
+     * skladbe) tece v ozadju; predvajanje zacne pri skladbi, ki ustreza iskanju (UsenetGlasbaPravila.zacetnaSkladba).
+     */
+    private fun predvajajUsenetAlbum(z: UsenetPravila.Zadetek, beseda: String) {
+        val app = applicationContext
+        Toast.makeText(this, getString(R.string.os_usenet_album_pripravljam, UsenetGlasbaPravila.lepNaslov(z.naslov)), Toast.LENGTH_SHORT).show()
+        val id = UsenetPravila.idToka(z.povezava)
+        Thread({
+            val album = try { Usenet.albumLastni(app, id) } catch (_: Exception) { UsenetLastni.Album(emptyList(), "napaka") }
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                if (album.skladbe.isEmpty()) {
+                    android.util.Log.i("SafeerOsMedia", "glasba usenet: ni predvajal (${album.napaka})")
+                    Toast.makeText(this, getString(if (UsenetLastniPravila.albumStisnjen(album.napaka)) R.string.os_usenet_album_stisnjen
+                        else R.string.os_usenet_album_ni), Toast.LENGTH_LONG).show()
+                    return@runOnUiThread
+                }
+                val izvajalec = UsenetGlasbaPravila.izvajalec(z.naslov)
+                val seznam = album.skladbe.mapIndexed { i, (ime, url) -> Jamendo.Skladba("usenet:$id:$i", ime, izvajalec, "", url, "") }
+                predvajaj(seznam, UsenetGlasbaPravila.zacetnaSkladba(album.skladbe.map { it.first }, beseda))
+            }
+        }, "safeer-usenet-album").start()
+    }
+
     private fun predvajaj(seznam: List<Jamendo.Skladba>, i: Int,
                           /** Pregled B-S1: klik na kartico v Nedavno (odgledana epizoda serije -> naslednja). */
                           izNedavnih: Boolean = false) {
@@ -7732,8 +7817,13 @@ class GlasbaActivity : OsActivity() {
         return Pripravljeno(pp, usenet?.invoke())
     }
 
+    /** »Predvaja prek …«: lasten ponudnik Usenet ima svoj napis (vodja 27. 10. 2026), sicer ime debrid storitve. */
+    private fun napisPredvajaPrek(ponudnik: String?): String =
+        if (UsenetLastniPravila.jeLastni(ponudnik)) getString(R.string.os_usenet_predvaja_lastni)
+        else getString(R.string.os_debrid_predvaja_prek, DebridPravila.ime(ponudnik.orEmpty()))
+
     /** Kaj je takoj predvajljivo za izbiro toka: ⚡ torrenti pri debridu in (samodejno) Usenet, ki ga ima TorBox pripravljenega. */
-    class Pripravljeno(val predpomnjeni: Set<String> = emptySet(), val usenet: Pair<Stremio.Tok, String>? = null)
+    class Pripravljeno(val predpomnjeni: Set<String> = emptySet(), val usenet: Triple<Stremio.Tok, String, String>? = null)
 
     /** Lastne niti za vzporedno preverbo »Usenet pripravljen« (blokirajoci klici indeksatorja in TorBoxa). */
     private val usenetDelavec = Executors.newCachedThreadPool { r -> Thread(r, "safeer-usenet").apply { isDaemon = true } }
@@ -7743,21 +7833,40 @@ class GlasbaActivity : OsActivity() {
      * nic se ne prenasa). Vrne cakalnik: najboljsa pripravljena izdaja in njena povezava ([WebtorPravila.izberiUsenet]) ali
      * null; skupni rok [WebtorPravila.USENET_ROK_MS] od zacetka (preverba ⚡ tece medtem).
      */
-    private fun zacniUsenetPripravljen(kandidati: List<Stremio.Tok>): (() -> Pair<Stremio.Tok, String>?)? {
+    private fun zacniUsenetPripravljen(kandidati: List<Stremio.Tok>): (() -> Triple<Stremio.Tok, String, String>?)? {
+        val app = applicationContext
+        // Lastnik 27. 10. 2026: z lastnim ponudnikom NNTP je vsaka izdaja takoj predvajljiva (pretakamo neposredno) - Usenet
+        // se izbere sam, brez okna »Izberi vir«; zaporedno (en film naenkrat, en bazen racuna), najboljsa nato naslednja.
+        if (UsenetLastni.vUporabi(app)) {
+            val zapored = kandidati.take(UsenetLastniPravila.NAJVEC_POSKUSOV)
+            if (zapored.isEmpty()) return null
+            // Lastnik 27. 10. 2026: priprava lastnega pogona traja nekaj sekund - uporabnik vidi, da se nekaj dogaja.
+            glavna.post { if (!isFinishing && !isDestroyed && pripraveVTeKu.isNotEmpty()) pokaziPripravljam(getString(R.string.os_usenet_pripravljam)) }
+            return {
+                var izbran: Triple<Stremio.Tok, String, String>? = null
+                for (t in zapored) {
+                    if (izbran != null || Thread.currentThread().isInterrupted) break
+                    val izid = try { Usenet.tok(app, t.url, t.opis.substringBefore('\n'), t.datoteka, false, {}, lastni = true) } catch (_: Exception) { null }
+                    // Vodja 27. 10. 2026: ponudnik gre zraven (prej samo tok in naslov - obvestilo je reklo TorBox).
+                    izid?.url?.let { izbran = Triple(t, it, izid.ponudnik.ifBlank { UsenetLastniPravila.PONUDNIK }) }
+                }
+                android.util.Log.i("SafeerOsMedia", "tokovi: Usenet lasten pogon: ${if (izbran != null) "da" else "ne"}")
+                izbran
+            }
+        }
         val prvi = kandidati.take(WebtorPravila.USENET_VZPOREDNO)
         if (prvi.isEmpty()) return null
-        val app = applicationContext
         val zacetek = android.os.SystemClock.elapsedRealtime()
         val niti = try {
-            prvi.map { t -> usenetDelavec.submit<TorBox.Izid> { Usenet.tok(app, t.url, t.opis.substringBefore('\n'), t.datoteka, true) {} } }
+            prvi.map { t -> usenetDelavec.submit<TorBox.Izid> { Usenet.tok(app, t.url, t.opis.substringBefore('\n'), t.datoteka, true, {}, lastni = false) } }
         } catch (_: java.util.concurrent.RejectedExecutionException) { return null }
         return {
-            var izbran: Pair<Stremio.Tok, String>? = null
+            var izbran: Triple<Stremio.Tok, String, String>? = null
             while (true) {
                 val potekel = android.os.SystemClock.elapsedRealtime() - zacetek >= WebtorPravila.USENET_ROK_MS
                 val izidi = niti.map { f -> if (!f.isDone) null else (try { f.get().url != null } catch (_: Exception) { false }) }
                 val i = WebtorPravila.izberiUsenet(izidi, potekel)
-                if (i >= 0) { niti[i].get().url?.let { izbran = prvi[i] to it }; break }
+                if (i >= 0) { niti[i].get().url?.let { izbran = Triple(prvi[i], it, DebridPravila.TORBOX) }; break }
                 if (i == WebtorPravila.NOBENA) break
                 try { Thread.sleep(100) } catch (_: InterruptedException) { Thread.currentThread().interrupt(); break }
             }
@@ -9072,9 +9181,9 @@ class GlasbaActivity : OsActivity() {
             // najvec 6 s); (2) takoj: ⚡ torrent, ziva neposredna povezava, [⚡WT]; (3) Usenet s cakanjem na prenos;
             // (4) Webtor [WT]; (5) TorBox s cakanjem in ostalo ([samodejnoBrezUseneta]). Nikoli okno »izberi vir«.
             val poskusi = UsenetPravila.zaSamodejno(usenet.map { TokIzbira.opisi(opis(it)).gb }).map { usenet[it] }
-            pripravljeno.usenet?.takeIf { !samoWebtor }?.let { (t, cdn) ->
-                android.util.Log.i("SafeerOsMedia", "tokovi: Usenet pripravljen pri TorBoxu; izbran=${TokIzbira.opisi(opis(t))}")
-                Toast.makeText(this, getString(R.string.os_debrid_predvaja_prek, DebridPravila.ime(DebridPravila.TORBOX)), Toast.LENGTH_SHORT).show()
+            pripravljeno.usenet?.takeIf { !samoWebtor }?.let { (t, cdn, ponudnik) ->
+                android.util.Log.i("SafeerOsMedia", "tokovi: ${UsenetLastniPravila.dnevnikPripravljenega(ponudnik)}; izbran=${TokIzbira.opisi(opis(t))}")
+                Toast.makeText(this, napisPredvajaPrek(ponudnik), Toast.LENGTH_SHORT).show()
                 odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap()))
                 return
             }
@@ -9256,13 +9365,17 @@ class GlasbaActivity : OsActivity() {
         prekiniDebrid()
         val rod = rodDebrida.get()
         fun velja() = rodDebrida.get() == rod && !isFinishing && !isDestroyed
-        if (vOspredju) Toast.makeText(this, R.string.os_debrid_pripravljam, Toast.LENGTH_SHORT).show()
-        besediloDebrida = getString(R.string.os_debrid_pripravljam)
+        // Lastnik 27. 10. 2026: lasten ponudnik Usenet ni »debrid storitev«; napis ostane viden do predvajalnika ali napake.
+        val pripravljam = getString(if (UsenetLastniPravila.pripravaLastnega(usenetIme != null, UsenetLastni.vUporabi(applicationContext)))
+            R.string.os_usenet_pripravljam else R.string.os_debrid_pripravljam)
+        if (vOspredju) pokaziPripravljam(pripravljam)
+        besediloDebrida = pripravljam
         var zadnjiOdstotek = -1
         val delo = try { debridDelavec.submit(Runnable {
             // Ime storitve za napredek: Usenet prenasa TorBox, torrent storitev, ki caka (sprva prednostna).
             // Neodvisni pregled 2: Debrid.tok pove storitev, ki res caka (obCakanju) - ni nujno prednostna.
-            var ime = if (usenetIme != null) DebridPravila.ime(DebridPravila.TORBOX)
+            var ime = if (usenetIme != null) (if (UsenetLastni.vUporabi(applicationContext)) getString(R.string.os_usenet_lastni_kratko)
+                    else DebridPravila.ime(DebridPravila.TORBOX))
                 else Debrid.vrstniRed(applicationContext).firstOrNull()?.let { DebridPravila.ime(it) } ?: getString(R.string.os_debrid)
             val napredek = { odstotek: Int ->
                 if (odstotek != zadnjiOdstotek) {
@@ -9293,7 +9406,7 @@ class GlasbaActivity : OsActivity() {
                 zapriOknoDebrida()
                 val url = izid.url
                 if (url != null) {
-                    Toast.makeText(this, getString(R.string.os_debrid_predvaja_prek, DebridPravila.ime(izid.ponudnik)), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, napisPredvajaPrek(izid.ponudnik), Toast.LENGTH_SHORT).show()
                     naprej(url); return@obdelaj
                 }
                 if (obNeuspehu != null) {
@@ -9377,6 +9490,7 @@ class GlasbaActivity : OsActivity() {
     private var debridOkno: AlertDialog? = null
 
     private fun zapriOknoDebrida() {
+        skrijPripravljam()
         val o = debridOkno ?: return
         debridOkno = null
         try { if (o.isShowing) o.dismiss() } catch (_: Exception) { }
@@ -9485,6 +9599,8 @@ class GlasbaActivity : OsActivity() {
         // Pregled Grok 41, Z2: indeksator »ne velja« ali »zaklenjen« - okno z navodilom in »Preveri« (kot kljuc debrid).
         val ustavljenIx = gostIx != null && !DebridPravila.smeKlicati(stanjeIx)
         vrstice += vrsticaIx to { if (ustavljenIx && gostIx != null) stanjeIndeksatorjaOkno(gostIx) else usenetIndeksator() }
+        // Naloga 42 G: lasten ponudnik Usenet (NNTP) - okno »Moji viri › Usenet ponudnik« (geslo v Keystore, Preveri na klik).
+        vrstice += UsenetPonudnikOkno.vrstica(this) to { UsenetPonudnikOkno.pokazi(this) { osveziNaMestu() } }
         val takoj = Debrid.samoTakoj(this)
         vrstice += getString(if (takoj) R.string.os_debrid_samo_takoj_vkl else R.string.os_debrid_samo_takoj_izk) to {
             Debrid.nastaviSamoTakoj(this, !takoj); osveziNaMestu(); nastavitveDebrida()

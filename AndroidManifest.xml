@@ -271,6 +271,18 @@
             android:screenOrientation="landscape" tools:ignore="DiscouragedApi"
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
 
+        <!-- Naloga 42: nov TV zaganjalnik (beta, tema Pokrajina). Ni domaci zaslon sam: DomovActivity ga odpre, kadar je
+             beta vklopljena (ZaganjalnikBeta), zato stari domaci zaslon ostane vstopna tocka in pot nazaj. -->
+        <activity
+            android:name="si.safeer.tv.os.PokrajinaActivity"
+            android:exported="false"
+            android:label="@string/os_app_name"
+            android:theme="@style/Theme.SafeerOs"
+            android:launchMode="singleTask"
+            android:taskAffinity="${applicationId}.os"
+            android:screenOrientation="landscape" tools:ignore="DiscouragedApi"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
+
         <activity
             android:name="si.safeer.tv.os.NastavitveActivity"
             android:exported="false"

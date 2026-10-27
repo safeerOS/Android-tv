@@ -32,7 +32,13 @@ android {
         // z njo ima v imenu razlicice pripono »-tvnacin«.
         def tvNacin = (project.findProperty('safeerTvNacin') ?: 'false').toString() == 'true'
         buildConfigField 'boolean', 'TV_NACIN_PREIZKUS', tvNacin.toString()
-        if (tvNacin) versionNameSuffix = '-tvnacin'
+        // Naloga 42 F (27. 10. 2026): beta novega TV zaganjalnika (-PsafeerBeta=N, N = 1, 2 ...). Razlicica dobi pripono
+        // »-beta.N« in v Nastavitvah se pokaze stikalo »Nov zaganjalnik (beta)«. Izdaje brez zastavice ostanejo kot doslej.
+        def beta = (project.findProperty('safeerBeta') ?: '').toString().trim()
+        if (beta && !(beta ==~ /[1-9][0-9]{0,3}/)) throw new GradleException("safeerBeta mora biti stevilka 1-9999, je '$beta'")
+        buildConfigField 'boolean', 'BETA', (beta ? 'true' : 'false')
+        def pripona = (tvNacin ? '-tvnacin' : '') + (beta ? "-beta.$beta" : '')
+        if (pripona) versionNameSuffix = pripona
     }
 
     // BuildConfig je privzeto izklopljen; koda ga rabi (DEBUG, razlicica).

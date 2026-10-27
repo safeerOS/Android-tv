@@ -17,6 +17,8 @@ object Tema {
     /** Privzeta tema za vse, ki teme niso izbrali sami (izbira »safeer« ostane, kdor jo je izbral). */
     const val PRIVZETA = "namizje"
     val VSE = listOf(
+        // Naloga 42 A: tema novega TV zaganjalnika (beta); privzeta, kadar je ta vklopljen in tema ni izbrana.
+        Vnos(PokrajinaPravila.TEMA, "Pokrajina", R.style.Theme_SafeerOs_Pokrajina, R.style.Theme_SafeerOs_Pokrajina_Predvajalnik, ""),
         Vnos("namizje", "Safeer Namizje", R.style.Theme_SafeerOs_Namizje, R.style.Theme_SafeerOs_Namizje_Predvajalnik, ""),
         Vnos("safeer", "Safeer", R.style.Theme_SafeerOs, R.style.Theme_SafeerOs_Predvajalnik, ""),
         Vnos("catppuccin", "Catppuccin Mocha", R.style.Theme_SafeerOs_Catppuccin, R.style.Theme_SafeerOs_Catppuccin_Predvajalnik, "catppuccin.com"),
@@ -47,8 +49,9 @@ object Tema {
     )
 
     fun izbrana(c: Context): Vnos {
-        val id = c.getSharedPreferences("safeer_os", Context.MODE_PRIVATE).getString(KLJUC, PRIVZETA)
-        return VSE.firstOrNull { it.id == id } ?: VSE[0]
+        val shranjena = c.getSharedPreferences("safeer_os", Context.MODE_PRIVATE).getString(KLJUC, null)
+        val id = PokrajinaPravila.tema(shranjena, ZaganjalnikBeta.vklopljen(c))
+        return VSE.firstOrNull { it.id == id } ?: VSE.first { it.id == PRIVZETA }
     }
 
     fun nastavi(c: Context, id: String) {

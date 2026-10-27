@@ -48,6 +48,8 @@ class SporocilaActivity : OsActivity() {
     private lateinit var sporocilaDrsnik: ScrollView
     private lateinit var sporocilaSeznam: LinearLayout
     private lateinit var odgovor: EditText
+    /** Nacin pisanja odgovora: glava in seznam izgineta, vidni so pogovor, zadnje sporocilo in polje (zgradi). */
+    private var uskladiPisanje: () -> Unit = {}
     private lateinit var posljiGumb: View
 
     private val delavec = Executors.newSingleThreadExecutor()
@@ -170,6 +172,7 @@ class SporocilaActivity : OsActivity() {
 
     @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun onBackPressed() {
+        if (pisanjeTece) { izstopiIzPisanja(); return }
         if (!siroko && izbran != null) { pokaziPogovor(null); return }
         super.onBackPressed()
     }
@@ -226,6 +229,8 @@ class SporocilaActivity : OsActivity() {
                 override fun afterTextChanged(p0: android.text.Editable?) { narisiSeznam() }
             })
         }
+        tipkovnicaSeleNaOk(iskanje)
+        iskanje.setOnKeyListener { v, koda, d -> tipkovnicaNaOk(v as EditText, koda, d) }
         root.addView(iskanje, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(8) })
         filtriVrsta = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         root.addView(HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false; addView(filtriVrsta) },
@@ -280,6 +285,7 @@ class SporocilaActivity : OsActivity() {
         pogovorPlosca.addView(sporocilaDrsnik, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
 
         val vnos = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.BOTTOM }
+        vnosVrstica = vnos
         odgovor = EditText(this).apply {
             id = View.generateViewId()
             hint = getString(R.string.os_spor_odgovor)
@@ -290,10 +296,23 @@ class SporocilaActivity : OsActivity() {
             background = GradientDrawable().apply {
                 cornerRadius = dp(12).toFloat(); setColor(osBarva(R.color.os_ozadje)); setStroke(dp(1), osBarva(R.color.os_crta))
             }
-            setOnKeyListener { _, koda, d ->
-                if (koda == KeyEvent.KEYCODE_ENTER && d.isCtrlPressed && d.action == KeyEvent.ACTION_UP) { poslji(); true } else false
+            setOnKeyListener { v, koda, d ->
+                if (koda == KeyEvent.KEYCODE_ENTER && d.isCtrlPressed && d.action == KeyEvent.ACTION_UP) { poslji(); true }
+                else if (koda == KeyEvent.KEYCODE_BACK && pisanjeTece) {
+                    if (d.action == KeyEvent.ACTION_UP) izstopiIzPisanja()
+                    true
+                }
+                else tipkovnicaNaOk(v as EditText, koda, d)
             }
         }
+        tipkovnicaSeleNaOk(odgovor)
+        // Lastnik 27. 10. 2026 (TV »zastekal«): vecvrsticno polje - Enter na tipkovnici je dodal vrstico, do Poslji ni bilo
+        // poti iz tipkovnice. Na TV Enter poslje (besedilo se se lomi v vrstice); dejanje Poslji tipkovnice zdaj res poslje.
+        if (packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK)) {
+            odgovor.setRawInputType(InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES)
+            odgovor.setHorizontallyScrolling(false); odgovor.maxLines = 5
+        }
+        odgovor.setOnEditorActionListener { _, akcija, _ -> if (akcija == EditorInfo.IME_ACTION_SEND) { poslji(); true } else false }
         vnos.addView(odgovor, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(10) })
         posljiGumb = gumb(getString(R.string.os_spor_poslji)).apply { id = View.generateViewId(); setOnClickListener { poslji() } }
         vnos.addView(posljiGumb)
@@ -311,6 +330,33 @@ class SporocilaActivity : OsActivity() {
             telo.addView(pogovorPlosca, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
         }
         root.addView(telo, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        pisanjePlosca = zgradiPisanje()
+        root.addView(pisanjePlosca, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            val rob = (resources.displayMetrics.widthPixels * 0.08f).toInt()
+            marginStart = rob; marginEnd = rob; topMargin = dp(24)
+        })
+        // Lastnik 27. 10. 2026 (TV, odgovor na sporocilo): z odprto tipkovnico je ostalo ~600 tock, od tega je glava
+        // (naslov, kanali, iskanje, filtri) vzela ~430 - pogovor in polje Odgovor nista bila vidna. Dokler je tipkovnica
+        // odprta med pisanjem odgovora, glava in seznam pogovorov izgineta in pogovor dobi ves prostor nad tipkovnico.
+        val glavaZaslona = (0 until root.childCount).map { root.getChildAt(it) }.filter { it !== telo } +
+            (if (siroko) listOf(seznamPlosca) else emptyList()) +
+            listOfNotNull(dejanjaPogovora.parent as? View)   // vrstica dejanj pogovora (osebe, oznake, iskanje)
+        var skrito: Map<View, Int>? = null   // vidnost pred skritjem: kar je bilo skrito ze prej, ostane skrito
+        val tv = packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK)
+        uskladiPisanje = {
+            val vidno = android.graphics.Rect().also { root.getWindowVisibleDisplayFrame(it) }
+            // TV: tipkovnica je odprta, ko jo je OK odprl na polju Odgovor (tipkovnica TV vidnega okna ne zmanjsa vedno);
+            // telefon in tablica: vidni del okna (adjustResize).
+            // Na TV ima pisanje svoj pas (vstopiVPisanje); tu samo telefon in tablica (vidni del okna, adjustResize).
+            val pisem = !tv && odgovor.hasFocus() && SporocilaHitroPravila.tipkovnicaOdprta(vidno.height(), root.rootView.height)
+            if (pisem && skrito == null) {
+                skrito = glavaZaslona.associateWith { it.visibility }
+                glavaZaslona.forEach { it.visibility = View.GONE }
+                // Zadnje sporocilo, ki mu odgovarjas, ostane vidno tik nad poljem (brez premika fokusa).
+                sporocilaDrsnik.post { sporocilaDrsnik.scrollTo(0, (sporocilaSeznam.height - sporocilaDrsnik.height).coerceAtLeast(0)) }
+            } else if (!pisem) skrito?.let { prej -> skrito = null; prej.forEach { (v, s) -> v.visibility = s } }
+        }
+        root.viewTreeObserver.addOnGlobalLayoutListener { uskladiPisanje() }
         return root
     }
 
@@ -596,8 +642,200 @@ class SporocilaActivity : OsActivity() {
         odgovor.requestFocus()
     }
 
+    /**
+     * Lastnik 27. 10. 2026 (TV): ob odprtju pogovora je fokus na polju Odgovor odprl tipkovnico cez pol zaslona. Z daljincem
+     * fokus polja tipkovnice ne odpre; odpre jo OK (Enter) in ob odhodu fokusa se spet skrije (kot lupa v Pokrajini).
+     * Na telefonu in tablici ostane, kot je bilo.
+     */
+    private fun tipkovnicaSeleNaOk(e: EditText) {
+        if (!packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK)) return
+        e.showSoftInputOnFocus = false
+        val prej = e.onFocusChangeListener
+        e.setOnFocusChangeListener { v, ima ->
+            prej?.onFocusChange(v, ima)
+            if (!ima) (v as EditText).showSoftInputOnFocus = false
+            v.post { uskladiPisanje() }
+        }
+    }
+
+    private fun tipkovnicaNaOk(e: EditText, koda: Int, d: KeyEvent): Boolean {
+        if (d.action != KeyEvent.ACTION_DOWN || e.showSoftInputOnFocus) return false
+        if (koda != KeyEvent.KEYCODE_DPAD_CENTER && koda != KeyEvent.KEYCODE_ENTER) return false
+        e.showSoftInputOnFocus = true
+        if (e === odgovor && packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK)) {
+            // Pas pisanja najprej (vrstica z odgovorom se prestavi vanj), sele nato tipkovnica - prestavljen pogled izgubi fokus.
+            vstopiVPisanje()
+            e.post {
+                e.requestFocus()
+                (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).showSoftInput(e, 0)
+            }
+            return true
+        }
+        (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).showSoftInput(e, 0)
+        e.post { uskladiPisanje() }
+        return true
+    }
+
+    // ------------------------------------------------------------------ pisanje odgovora na TV (lastnik 27. 10. 2026)
+
+    private lateinit var vnosVrstica: LinearLayout
+    private lateinit var pisanjePlosca: LinearLayout
+    private lateinit var pisanjeKanali: LinearLayout
+    private lateinit var pisanjeOznaka: TextView
+    private lateinit var pisanjeOblacki: LinearLayout
+    private lateinit var pisanjeVnos: LinearLayout
+    private var pisanjeTece = false
+    private var vnosStars: ViewGroup? = null
+    private var vnosIndeks = -1
+    private var vnosParametri: ViewGroup.LayoutParams? = null
+    private var skritoPisanje: Map<View, Int>? = null
+
+    /** Steklena plosca nad pokrajino; s fokusom obroba v barvi poudarka (na TV mora biti fokus viden z dveh metrov). */
+    private fun steklo(polmerDp: Int, fokusMogoc: Boolean, poudarjeno: Boolean = false) = android.graphics.drawable.StateListDrawable().apply {
+        fun plosca(obroba: Int, debelina: Int, ozadje: Int) = GradientDrawable().apply {
+            setColor(osBarva(ozadje)); cornerRadius = dp(polmerDp).toFloat(); setStroke(dp(debelina), osBarva(obroba))
+        }
+        if (fokusMogoc) addState(intArrayOf(android.R.attr.state_focused), plosca(R.color.os_mint, 3, R.color.os_kartica_steklo_fokus))
+        // Lastnik 27. 10. 2026: poudarek (izbran kanal, zadnje sporocilo) brez obrobe v barvi fokusa - sicer sta bila na TV dva fokusa.
+        addState(intArrayOf(), if (poudarjeno) plosca(R.color.os_kartica_obroba, 1, R.color.os_kartica_steklo_fokus) else plosca(R.color.os_kartica_obroba, 1, R.color.os_kartica_steklo))
+    }
+
+    /**
+     * Pas pisanja po skici lastnika: levo kanali osebe (s katerega odgovarjas), desno oznaka kanala, vrsta oblackov zadnjih
+     * sporocil (zadnje, ki mu odgovarjas, poudarjeno) in vrstica Odgovor + Poslji (prestavi se sem iz pogovora). Ozadje je
+     * pokrajina zaslona - pas je steklen in prosojen.
+     */
+    private fun zgradiPisanje(): LinearLayout {
+        pisanjeKanali = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        pisanjeOznaka = TextView(this).apply {
+            textSize = 13f; setTextColor(osBarva(R.color.os_besedilo)); background = steklo(14, false)
+            setPadding(dp(12), dp(4), dp(12), dp(4))
+        }
+        // Lastnik 27. 10. 2026: pogovor navpicno - tvoj odgovor je pod sporocilom, ki ti ga je poslala druga naprava ali oseba.
+        pisanjeOblacki = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        pisanjeVnos = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val desno = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(pisanjeOznaka, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            addView(ScrollView(this@SporocilaActivity).apply { isVerticalScrollBarEnabled = false; isFocusable = false; addView(pisanjeOblacki) },
+                LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10) })
+            addView(pisanjeVnos, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12) })
+        }
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; visibility = View.GONE
+            background = steklo(24, false)
+            setPadding(dp(18), dp(16), dp(18), dp(16))
+            addView(ScrollView(this@SporocilaActivity).apply { isVerticalScrollBarEnabled = false; addView(pisanjeKanali) },
+                LinearLayout.LayoutParams(dp(230), ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(16) })
+            addView(desno, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        }
+    }
+
+    /** OK na polju Odgovor (TV): zaslon se umakne, ostane pas pisanja nad pokrajino. */
+    private fun vstopiVPisanje() {
+        if (izbran == null) return
+        if (!pisanjeTece) {
+            pisanjeTece = true
+            val root = koren as ViewGroup
+            skritoPisanje = (0 until root.childCount).map { root.getChildAt(it) }.filter { it !== pisanjePlosca }.associateWith { it.visibility }
+            skritoPisanje?.keys?.forEach { it.visibility = View.GONE }
+            val stars = vnosVrstica.parent as? ViewGroup
+            vnosStars = stars; vnosIndeks = stars?.indexOfChild(vnosVrstica) ?: -1; vnosParametri = vnosVrstica.layoutParams
+            stars?.removeView(vnosVrstica)
+            pisanjeVnos.addView(vnosVrstica, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            pisanjePlosca.visibility = View.VISIBLE
+        }
+        osveziKanalePisanja()
+        osveziOblacke()
+    }
+
+    /** Nazaj: tipkovnica se zapre, vrstica z odgovorom gre nazaj v pogovor, zaslon je spet cel. */
+    private fun izstopiIzPisanja() {
+        if (!pisanjeTece) return
+        pisanjeTece = false
+        pisanjeVnos.removeView(vnosVrstica)
+        val stars = vnosStars
+        if (stars != null) stars.addView(vnosVrstica, if (vnosIndeks in 0..stars.childCount) vnosIndeks else stars.childCount, vnosParametri)
+        pisanjePlosca.visibility = View.GONE
+        skritoPisanje?.forEach { (v, s) -> v.visibility = s }
+        skritoPisanje = null
+        odgovor.showSoftInputOnFocus = false
+        try { (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).hideSoftInputFromWindow(odgovor.windowToken, 0) } catch (_: Throwable) { }
+        narisiSporocila()
+        odgovor.post { odgovor.requestFocus() }
+    }
+
+    private fun imeKanala(q: SporocilaShramba.Pogovor, imena: Map<String, String>): String =
+        if (q.kanalId == KlepetLinka.KANAL) "Safeer Link" else imena[q.kanalId].orEmpty().ifBlank { q.kanalId }
+
+    /** Kanali osebe ob strani: izbira kanala je pogovor, po katerem gre odgovor (Poslji uporabi izbran pogovor). */
+    private fun osveziKanalePisanja() {
+        val p = izbran ?: return
+        val imena = shramba.kanali().associate { it.id to it.ime }
+        pisanjeOznaka.text = "\u25CF  " + imeKanala(p, imena)
+        pisanjeKanali.removeAllViews()
+        for (q in (listOf(p) + pogovoriOsebe(p)).distinctBy { it.kanalId to it.id }) {
+            val je = q.kanalId == p.kanalId && q.id == p.id
+            pisanjeKanali.addView(TextView(this).apply {
+                text = imeKanala(q, imena); textSize = 15f; isFocusable = true; isClickable = true
+                setTextColor(osBarva(if (je) R.color.os_mint else R.color.os_besedilo))
+                background = steklo(14, true, poudarjeno = je)
+                setPadding(dp(14), dp(10), dp(14), dp(10))
+                setOnClickListener {
+                    izbran = q
+                    osveziKanalePisanja(); osveziOblacke()
+                    odgovor.requestFocus()
+                }
+            }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(8) })
+        }
+    }
+
+    /** Oblacki zadnjih sporocil izbranega pogovora; zadnje (ki mu odgovarjas) je poudarjeno in vecje. */
+    private fun osveziOblacke() {
+        val p = izbran ?: return
+        val ime = imeOsebe(p, shramba.kanali().associate { it.id to it.vrsta })
+        val zadnja = shramba.sporocila(p.kanalId, p.id).takeLast(4)
+        pisanjeOblacki.removeAllViews()
+        zadnja.forEachIndexed { i, sp ->
+            val jeZadnje = i == zadnja.lastIndex
+            pisanjeOblacki.addView(LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                background = steklo(16, false, poudarjeno = jeZadnje)
+                setPadding(dp(14), dp(10), dp(14), dp(10))
+                addView(TextView(this@SporocilaActivity).apply {
+                    text = if (sp.smer == "ven") getString(R.string.pk_spor_ti) else ime
+                    textSize = 12f; setTextColor(osBarva(R.color.os_umirjeno)); maxLines = 1
+                })
+                addView(TextView(this@SporocilaActivity).apply {
+                    text = sp.besedilo; textSize = if (jeZadnje) 17f else 14f; setTextColor(osBarva(R.color.os_besedilo))
+                    maxLines = if (jeZadnje) 3 else 2; ellipsize = android.text.TextUtils.TruncateAt.END; maxWidth = dp(if (jeZadnje) 460 else 300)
+                })
+            }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                if (i > 0) topMargin = dp(8)
+                gravity = if (sp.smer == "ven") android.view.Gravity.END else android.view.Gravity.START
+            })
+        }
+        // Lastnik 27. 10. 2026 (beta 7): dolg naslov je naredil oblacek sirsi od pasu in levi del je bil odrezan. Besedilo
+        // oblacka je najvec sirina pasu (dolg naslov se prelomi), zadnje sporocilo je vidno v celoti, poravnano levo, ce je
+        // sirse od preostanka pasu (brez premika fokusa).
+        val pas = pisanjeOblacki.parent as? View
+        pas?.post {
+            val sirina = pas.width
+            if (sirina <= 0) return@post
+            val najvec = (sirina - dp(28) - dp(10)).coerceAtLeast(dp(120))
+            for (i in 0 until pisanjeOblacki.childCount) {
+                ((pisanjeOblacki.getChildAt(i) as? LinearLayout)?.getChildAt(1) as? TextView)?.let { if (it.maxWidth > najvec) it.maxWidth = najvec }
+            }
+            pisanjeOblacki.post {
+                val zadnji = pisanjeOblacki.getChildAt(pisanjeOblacki.childCount - 1) ?: return@post
+                pas.scrollTo(0, (zadnji.bottom - pas.height).coerceAtLeast(0))
+            }
+        }
+    }
+
     private fun narisiSporocila() {
         val p = izbran ?: return
+        if (pisanjeTece) osveziOblacke()   // novo ali poslano sporocilo med pisanjem
         sporocilaSeznam.removeAllViews()
         var obrobljena: View? = null
         for (s in shramba.sporocila(p.kanalId, p.id)) {

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Naloga 42: nov TV zaganjalnik Pokrajina (beta) - os/PokrajinaActivity, os/ZaganjalnikBeta. -->
+<resources>
+    <string name="pk_priljubljene">Favoriten und Web-Apps</string>
+    <string name="pk_mediji">Safeer Media Center</string>
+    <string name="pk_aplikacije">Apps</string>
+    <string name="pk_vreme_kraj">Ort für das Wetter</string>
+    <string name="pk_vreme_kraj_namig">z. B. Ljubljana</string>
+    <string name="pk_vreme_kraj_opis">Das Wetter kommt von Open-Meteo.com (CC BY 4.0), nur für den Ort, den du hier eingibst. Leer lassen schaltet das Wetter aus.</string>
+    <string name="pk_vreme_ni_najden">Ort nicht gefunden. Prüfe die Schreibweise.</string>
+    <string name="pk_vreme_opis">Wetter in %1$s: %2$s</string>
+    <string name="pk_dodaj_naslov">Zum Startbildschirm hinzufügen</string>
+    <string name="pk_dodaj_tv">App von diesem Fernseher</string>
+    <string name="pk_dodaj_tv_namig">Halte OK auf einer App gedrückt, um sie zum Startbildschirm hinzuzufügen</string>
+    <string name="pk_dodaj_splet">Web-App</string>
+    <string name="pk_link_povezane">Verbundene Geräte</string>
+    <string name="pk_link_osvezi">Aktualisieren</string>
+</resources>

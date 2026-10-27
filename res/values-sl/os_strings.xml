@@ -737,4 +737,5 @@
     <string name="os_pomoc_opis">Ko se dve tvoji napravi ne dosežeta neposredno (npr. ena je za drugim usmerjevalnikom), ju poveže ta naprava: predstavi ju drugo drugi in preda njuna sporočila naprej. Velja samo za naprave iz tvojega kroga zaupanja. Ko je izklopljeno, se taki napravi prek te naprave ne vidita.</string>
     <string name="os_pomoc_da">Da, pomagaj</string>
     <string name="os_pomoc_ne">Ne</string>
+    <string name="os_zaganjalnik_edini">Safeer OS je edini zaganjalnik na tem televizorju. Če ga izklopiš, ostane črn zaslon, zato ostane vklopljen. Najprej v sistemskih nastavitvah televizorja omogoči drug zaganjalnik.</string>
 </resources>

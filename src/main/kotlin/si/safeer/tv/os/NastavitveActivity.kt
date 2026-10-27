@@ -290,6 +290,26 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             safeer(R.drawable.os_ikona_racunalnik, R.string.os_host, R.string.os_host_opis,
                 if (Host.jeOddaljen(this)) Host.gostitelj(this).orEmpty() else getString(R.string.os_host_doma)) { preklopiHost() },
             safeer(R.drawable.os_ikona_slika, R.string.os_videz, R.string.os_videz_opis, Ozadje.ime(this)) { odpriVidez() },
+            // Naloga 42 F: nov TV zaganjalnik (beta) - stikalo in izbire, ki veljajo samo zanj. Vrnitev na starega spremeni
+            // samo stikalo (ZaganjalnikBetaPravila.poPreklopu); vse druge nastavitve ostanejo.
+            if (!ZaganjalnikBetaPravila.stikaloVidno(tv, si.safeer.tv.BuildConfig.BETA, ZaganjalnikBeta.vklopljen(this))) null
+            else safeer(R.drawable.os_ikona_domov, R.string.pk_beta, R.string.pk_beta_opis, vklop(ZaganjalnikBeta.vklopljen(this))) { preklopiBeto() },
+            if (!ZaganjalnikBeta.vklopljen(this)) null
+            else safeer(R.drawable.os_ikona_isci, R.string.pk_lupa_splet_predlogi, R.string.pk_lupa_splet_predlogi_opis,
+                vklop(osShramba().getBoolean(PokrajinaActivity.KLJUC_SPLET_PREDLOGI, true))) {
+                osShramba().edit().putBoolean(PokrajinaActivity.KLJUC_SPLET_PREDLOGI, !osShramba().getBoolean(PokrajinaActivity.KLJUC_SPLET_PREDLOGI, true)).apply()
+                narisi()
+            },
+            // Lastnik 27. 10. 2026: kraj za vreme na domacem zaslonu se izbere tukaj (prej klik na uro).
+            if (!ZaganjalnikBeta.vklopljen(this)) null
+            else safeer(R.drawable.os_ikona_domov, R.string.pk_vreme_kraj, R.string.pk_vreme_kraj_opis,
+                VremeKraj.ime(this) ?: vklop(false)) { VremeKraj.izberi(this) { narisi() } },
+            if (!ZaganjalnikBeta.vklopljen(this)) null
+            else safeer(R.drawable.os_ikona_slika, R.string.pk_zmanjsano, R.string.pk_zmanjsano_opis,
+                vklop(osShramba().getBoolean(PokrajinaActivity.KLJUC_ZMANJSANO, false))) {
+                osShramba().edit().putBoolean(PokrajinaActivity.KLJUC_ZMANJSANO, !osShramba().getBoolean(PokrajinaActivity.KLJUC_ZMANJSANO, false)).apply()
+                narisi()
+            },
             safeer(R.drawable.os_ikona_nastavitve, R.string.menu_language, R.string.os_jezik_opis,
                 si.safeer.tv.JezikVmesnika.imeIzbire(this)) { izberiJezik() },
             // Stranska vrstica na dotik: imena ob ikonah na sirokem zaslonu (isto kot gumb menija na vrhu vrstice).
@@ -535,6 +555,15 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
      * in odpremo sistemsko okno; izklop pa naredimo sami, da je pot nazaj vedno pri roki.
      */
     private fun preklopiZaganjalnik(jeVklopljen: Boolean) {
+        // Lastnik 27. 10. 2026: brez drugega zaganjalnika bi izklop pustil crn zaslon - ostane vklopljen, povemo zakaj.
+        if (jeVklopljen && Zaganjalnik.jePonujen(this) && !Zaganjalnik.smeOpustiti(this)) {
+            android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(getString(R.string.os_zaganjalnik))
+                .setMessage(getString(R.string.os_zaganjalnik_edini))
+                .setNegativeButton(getString(R.string.os_preklici), null)
+                .let { Kontroler.pokazi(it.show()) }
+            return
+        }
         // Vklopljeno, a televizor domacega zaslona ne da: povejmo naravnost, kaj se dogaja,
         // in ponudimo izklop - brez tega uporabnik misli, da je napaka pri nas.
         if (jeVklopljen && Zaganjalnik.stanje(this) == Zaganjalnik.TELEVIZOR_OBDRZI) {
@@ -601,6 +630,21 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
      * Tipke Domov nam televizor morda ne da, prvi zaslon po vklopu pa smo lahko vseeno: ob zagonu
      * sistema se Safeer OS odpre cez ves zaslon. Televizorju s tem nicesar ne spremenimo.
      */
+    /** Shramba Safeer OS (tema, beta, izbire novega zaganjalnika). */
+    private fun osShramba() = getSharedPreferences("safeer_os", MODE_PRIVATE)
+
+    /**
+     * Naloga 42 F: nov zaganjalnik vklopi ali izklopi in odpre domaci zaslon znova (DomovActivity sam izbere starega ali
+     * novega). Opravilo Safeer OS se izprazni, da ne ostane prejsnji domaci zaslon pod novim.
+     */
+    private fun preklopiBeto() {
+        ZaganjalnikBeta.nastavi(this, !ZaganjalnikBeta.vklopljen(this))
+        try {
+            startActivity(android.content.Intent(this, DomovActivity::class.java)
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK))
+        } catch (_: Throwable) { narisi() }
+    }
+
     private fun preklopiZagon() {
         val vklopljen = ZagonOb.jeVklopljen(this)
         if (vklopljen) {

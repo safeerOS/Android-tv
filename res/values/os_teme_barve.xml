@@ -110,4 +110,24 @@
     <color name="tema_namizje_meni_fokus_ozadje">#4D68A8E5</color>
     <color name="tema_namizje_siva_pika">#5C6B80</color>
     <color name="tema_namizje_ploscica_app_ozadje">#B3101A2B</color>
+    <!-- Pokrajina (naloga 42 A, 27. 10. 2026): nov TV zaganjalnik po zgledu lastnika - nocno modro nebo nad gorskim jezerom,
+         steklene plosce in svetel poudarek. Edini vir barv zaganjalnika; kontrast preverja tests/preveri_zaganjalnik_beta.py. -->
+    <color name="tema_pokrajina_ozadje">#0C1633</color>
+    <color name="tema_pokrajina_kartica">#14224A</color>
+    <color name="tema_pokrajina_kartica_dvignjena">#1B2D5E</color>
+    <color name="tema_pokrajina_mint">#8FD8FF</color>
+    <color name="tema_pokrajina_mint_temna">#0C1633</color>
+    <color name="tema_pokrajina_besedilo">#F3F7FF</color>
+    <color name="tema_pokrajina_umirjeno">#C3CEEA</color>
+    <color name="tema_pokrajina_crta">#2C407A</color>
+    <color name="tema_pokrajina_opozorilo">#FFD48F</color>
+    <color name="tema_pokrajina_sij">#338FD8FF</color>
+    <color name="tema_pokrajina_kartica_steklo">#B3101C40</color>
+    <color name="tema_pokrajina_kartica_steklo_fokus">#E61B3166</color>
+    <color name="tema_pokrajina_kartica_obroba">#4D9FD0FF</color>
+    <color name="tema_pokrajina_meni_ozadje">#E60C1633</color>
+    <color name="tema_pokrajina_meni_izbran_ozadje">#338FD8FF</color>
+    <color name="tema_pokrajina_meni_fokus_ozadje">#4D8FD8FF</color>
+    <color name="tema_pokrajina_siva_pika">#5F6F99</color>
+    <color name="tema_pokrajina_ploscica_app_ozadje">#99101C40</color>
 </resources>

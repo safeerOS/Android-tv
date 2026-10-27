@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lastnik 27. 10. 2026: ploscica ponudnika Usenet v Mojih virih. -->
+<resources>
+    <string name="os_usenet_dodaj_ponudnika">Añadir un proveedor de Usenet</string>
+    <string name="os_usenet_ponudnik_naslov">Proveedor de Usenet</string>
+    <string name="os_usenet_album_pripravljam">Preparando el álbum %1$s …</string>
+    <string name="os_usenet_album_ni">No se puede reproducir este álbum: sus archivos no están disponibles.</string>
+    <string name="os_usenet_album_stisnjen">Este álbum está en un archivo RAR comprimido o cifrado: Safeer solo reproduce en streaming archivos sin comprimir.</string>
+</resources>

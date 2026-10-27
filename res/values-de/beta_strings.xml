@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Naloga 42 F: beta novega TV zaganjalnika - stikalo in izbire v Nastavitvah (os/NastavitveActivity). -->
+<resources>
+    <string name="pk_beta">Neuer Launcher (Beta)</string>
+    <string name="pk_beta_opis">Startbildschirm mit dem Thema Landschaft. Ausschalten führt zum bisherigen zurück; Einstellungen bleiben.</string>
+    <string name="pk_zmanjsano">Bewegung reduzieren</string>
+    <string name="pk_zmanjsano_opis">Neuer Launcher ohne Animationen und Zoom beim Fokus; der Fokusrahmen bleibt.</string>
+</resources>

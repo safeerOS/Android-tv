@@ -120,6 +120,9 @@ object Zaganjalnik {
         return odpriSistemskoIzbiro(context)
     }
 
+    /** Ali je izklop domacega zaslona varen: obstaja drug pravi zaganjalnik (sicer bi ostal crn FallbackHome). */
+    fun smeOpustiti(context: Context): Boolean = ZaganjalnikPravila.smeOpustiti(drugiZaganjalniki(context).size)
+
     /** Vrni domaci zaslon televizorju: alias onemogocimo in sistem vzame svoj zaganjalnik. */
     fun opusti(context: Context) {
         nastavi(context, false)

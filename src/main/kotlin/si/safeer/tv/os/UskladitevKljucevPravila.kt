@@ -50,14 +50,27 @@ object UskladitevKljucevPravila {
     fun kljucDebrid(ponudnik: String) = PREDPONA_DEBRID + ponudnik
     fun kljucDodatka(odtis: String) = PREDPONA_DODATKA + odtis
     fun kljucIptv(odtis: String) = PREDPONA_IPTV + odtis
+    /**
+     * Naloga 42 D (27. 10. 2026): »Vedno dovoli« za deljenje zaslona napravi z jedrom (ZaupanjeZaslona) velja na vseh
+     * napravah ozjega kroga - vrednost je "1", izbris (grob) zaupanje odvzame povsod. Pravila: [NapraveKrogaPravila].
+     */
+    const val PREDPONA_ZAUPANJA = "zaupanje:"
+    /**
+     * Naloga 42 G: ponudnik Usenet (NNTP: streznik, uporabnik, geslo - UsenetPonudnik.zaKrog); vrednost je JSON
+     * {"ponudnik": {...}, "geslo": "..."}, preverjen z UsenetPonudnikPravila.izKroga. Zapah in izid preverbe ne gresta.
+     */
+    const val KLJUC_USENET_PONUDNIK = "usenet_ponudnik"
+    fun kljucZaupanja(jedro: String) = PREDPONA_ZAUPANJA + jedro
 
     private val RX_ODTIS = Regex("^[0-9a-f]{16}$")
 
     fun veljavenKljuc(k: String, ponudniki: Set<String>): Boolean = when {
         k.startsWith(PREDPONA_DEBRID) -> k.removePrefix(PREDPONA_DEBRID) in ponudniki
         k == KLJUC_USENET -> true
+        k == KLJUC_USENET_PONUDNIK -> true
         k.startsWith(PREDPONA_DODATKA) -> RX_ODTIS.matches(k.removePrefix(PREDPONA_DODATKA))
         k.startsWith(PREDPONA_IPTV) -> RX_ODTIS.matches(k.removePrefix(PREDPONA_IPTV))
+        k.startsWith(PREDPONA_ZAUPANJA) -> NapraveKrogaPravila.veljavnoJedro(k.removePrefix(PREDPONA_ZAUPANJA))
         else -> false
     }
 

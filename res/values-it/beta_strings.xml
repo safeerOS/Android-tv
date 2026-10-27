@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Naloga 42 F: beta novega TV zaganjalnika - stikalo in izbire v Nastavitvah (os/NastavitveActivity). -->
+<resources>
+    <string name="pk_beta">Nuovo launcher (beta)</string>
+    <string name="pk_beta_opis">Schermata home con il tema Paesaggio. Disattivalo per tornare al precedente; le impostazioni restano.</string>
+    <string name="pk_zmanjsano">Riduci movimento</string>
+    <string name="pk_zmanjsano_opis">Nuovo launcher senza animazioni né zoom sul focus; la cornice del focus resta.</string>
+</resources>
