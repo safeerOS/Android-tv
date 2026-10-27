@@ -176,12 +176,27 @@ def main() -> int:
             "SporocilaHitroPravila.opozorilo(vOspredju = true, odprtPogovor = odprt)" in klepet)
 
     print("\n== Safeer Link: naprave ozjega kroga (del D) ==")
-    preveri("Safeer Link v vrstici odpre naprave kroga", "PokrajinaPravila.LINK -> napraveKroga()" in pokrajina)
-    preveri("seznam samo iz ozjega kroga (NapraveKrogaPravila.zaPrikaz z OzjiKrog.vKrogu)",
-            "NapraveKrogaPravila.zaPrikaz(" in pokrajina and "OzjiKrog.vKrogu(this, it.id)" in pokrajina)
+    # Lastnik 27. 10. 2026 (zgled Safeer Control na Linuxu): Safeer Link odpre celoten zaslon »Povezane naprave«.
+    naprave_act = (SRC / "os/NapraveActivity.kt").read_text(encoding="utf-8")
+    preveri("Safeer Link v vrstici odpre celoten zaslon Povezane naprave",
+            "PokrajinaPravila.LINK -> odpri(Intent(this, NapraveActivity::class.java))" in pokrajina and "napraveKroga" not in pokrajina)
+    preveri("glava kot na Linuxu: Povezane naprave, + Poveži novo napravo, Osveži (samo z beto)",
+            "if (!ZaganjalnikBeta.vklopljen(this)) return" in naprave_act and "R.string.pk_link_povezane" in naprave_act
+            and "R.string.pk_link_osvezi" in naprave_act and "PrijavaActivity::class.java" in naprave_act.split("private fun dodajGumbeGlave")[1][:2500])
+    preveri("zaslon in upravljanje samo za napravo iz ozjega kroga",
+            re.search(r"if \(OzjiKrog\.vKrogu\(this, n\.id\)\) \{.*?NapraveKrogaPravila\.pot\(", naprave_act, re.S) is not None)
     domov = (SRC / "os/DomovActivity.kt").read_text(encoding="utf-8")
-    for pot in ("PovezaniZasloni.zaprosi(this, link, r)", "Intent(this, ZaslonActivity::class.java)", "DatotekeActivity.EXTRA_RACUNALNIK"):
-        preveri(f"ista pot kot kartica Zaslon: {pot}", pot in pokrajina and pot in domov)
+    for pot, nap in (("PovezaniZasloni.zaprosi(this, link, r)", "PovezaniZasloni.zaprosi(this, link, n)"),
+                     ("Intent(this, ZaslonActivity::class.java)", "Intent(this, ZaslonActivity::class.java)"),
+                     ("DatotekeActivity.EXTRA_RACUNALNIK", "DatotekeActivity.EXTRA_RACUNALNIK")):
+        preveri(f"ista pot kot kartica Zaslon: {pot}", nap in naprave_act and pot in domov)
+    print("\n== aplikacije na domacem zaslonu: ena vrstica (lastnik 27. 10.) ==")
+    preveri("ena vodoravna vrstica priljubljenih (brez mreze vseh aplikacij)",
+            "PokrajinaPravila.vrstaPriljubljenih(" in pokrajina and "HorizontalScrollView(this)" in pokrajina and "mrezaAplikacij" not in pokrajina)
+    preveri("+ Dodaj: aplikacija s TV ali spletna (skupna SpletnaDodaj)",
+            "kartica(null, R.drawable.os_ikona_plus, getString(R.string.os_spletne_dodaj)) { dodajAplikacijo() }" in pokrajina
+            and "Intent(this, AplikacijeTvActivity::class.java)" in pokrajina and "SpletnaDodaj.izberi(this)" in pokrajina
+            and "SpletnaDodaj.izberi(this)" in domov)
     usk = (SRC / "os/UskladitevKljucev.kt").read_text(encoding="utf-8")
     preveri("prejeto zaupanje se uporabi samo po NapraveKrogaPravila.sprejmiZaupanje",
             re.search(r"P\.PREDPONA_ZAUPANJA\) ->\s*if \(zaupanjeVelja\(c, z\.kljuc\)\)", usk) is not None and
@@ -264,7 +279,7 @@ def main() -> int:
     nntp = (SRC / "os/UsenetNntp.kt").read_text(encoding="utf-8") if (SRC / "os/UsenetNntp.kt").is_file() else ""
     usk2 = (SRC / "os/UskladitevKljucev.kt").read_text(encoding="utf-8")
     preveri("Moji viri › Usenet ponudnik v Medijskem centru", "UsenetPonudnikOkno.pokazi(this)" in glasba)
-    lastni = (SRC / "os/UsenetLastni.kt").read_text(encoding="utf-8")
+    lastni = (SRC / "os/UsenetLastni.kt").read_text(encoding="utf-8") if (SRC / "os/UsenetLastni.kt").is_file() else ""
     usenet = (SRC / "os/Usenet.kt").read_text(encoding="utf-8")
     glasba = (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8")
     preveri("Preveri: shranjen ponudnik, odjemalec Grok (UsenetNntp) z mejo racuna",

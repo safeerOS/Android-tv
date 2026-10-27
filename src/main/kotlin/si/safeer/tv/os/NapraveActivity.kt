@@ -53,6 +53,7 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         sporocilo = findViewById(R.id.sporocilo)
         nadnaslov.text = getString(R.string.os_link)
         naslov.text = getString(R.string.os_naprave_naslov)
+        dodajGumbeGlave()
         seznam.adapter = prilagojevalnik
         seznam.setOnItemClickListener { _, _, i, _ -> vrstice.getOrNull(i)?.ob?.invoke() }
         // Dolg pritisk (OK na daljincu, prst na tablici): preimenuj napravo v vrstici.
@@ -73,6 +74,38 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     override fun onStop() {
         link.odstrani(this)
         super.onStop()
+    }
+
+    /**
+     * Lastnik 27. 10. 2026 (zgled Safeer Control na Linuxu): z novim zaganjalnikom (beta) je to zaslon »Povezane naprave«
+     * z gumboma »+ Poveži novo napravo« in »Osveži« v glavi; ozadje ostane kot pri aplikacijah (Ozadje), brez stranske vrstice.
+     */
+    private fun dodajGumbeGlave() {
+        if (!ZaganjalnikBeta.vklopljen(this)) return
+        naslov.text = getString(R.string.pk_link_povezane)
+        val glava = naslov.parent?.parent as? android.widget.LinearLayout ?: return
+        fun gumb(napis: String, klik: () -> Unit) = TextView(this).apply {
+            text = napis; textSize = 15f; isFocusable = true; isClickable = true
+            setTextColor(osBarva(R.color.os_besedilo))
+            val polmer = resources.displayMetrics.density * 18
+            background = android.graphics.drawable.StateListDrawable().apply {
+                addState(intArrayOf(android.R.attr.state_focused), android.graphics.drawable.GradientDrawable().apply {
+                    cornerRadius = polmer; setColor(osBarva(R.color.os_kartica_steklo_fokus))
+                    setStroke((resources.displayMetrics.density * 3).toInt(), osBarva(R.color.os_mint)) })
+                addState(intArrayOf(), android.graphics.drawable.GradientDrawable().apply {
+                    cornerRadius = polmer; setColor(osBarva(R.color.os_kartica_steklo)) })
+            }
+            val p = (resources.displayMetrics.density * 14).toInt()
+            setPadding(p, p / 2, p, p / 2)
+            setOnClickListener { klik() }
+        }
+        val rob = (resources.displayMetrics.density * 10).toInt()
+        glava.addView(gumb("+ " + getString(R.string.os_naprave_povezi)) { startActivity(Intent(this, PrijavaActivity::class.java)) },
+            android.widget.LinearLayout.LayoutParams(android.view.ViewGroup.LayoutParams.WRAP_CONTENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = rob })
+        glava.addView(gumb(getString(R.string.pk_link_osvezi)) {
+            vprasano.clear(); moc.clear()
+            narisi(link.naprave); vprasajZaPomoc(link.naprave)
+        }, android.widget.LinearLayout.LayoutParams(android.view.ViewGroup.LayoutParams.WRAP_CONTENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = rob })
     }
 
     /** Vprasanje pred izklopom Safeer Linka; fokus je na »Preklici«, da nehoten OK nicesar ne izklopi. */
@@ -282,6 +315,16 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     /** Izbira za drugo napravo: njene datoteke (ce jih deli), kaj sme ona na tej napravi, novo ime. */
     private fun izbiraNaprave(n: LinkOdjemalec.Naprava) {
         val moznosti = ArrayList<Pair<String, () -> Unit>>()
+        // Lastnik 27. 10. 2026 (kot Linux »Klikni za deljenje in daljinec«): zaslon in upravljanje naprave iz ozjega kroga -
+        // ista pot kot kartica Zaslon (naloga 42 D); naprava zunaj kroga te moznosti nima.
+        if (OzjiKrog.vKrogu(this, n.id)) {
+            val zaslon = getString(R.string.pk_link_zaslon).replaceFirstChar { it.titlecase() }
+            when (NapraveKrogaPravila.pot(n.zmoznosti.toSet(), si.safeer.tv.link.Daljinec.ZMOZNOST_DELI_ZASLON)) {
+                NapraveKrogaPravila.POT_RACUNALNIK -> moznosti.add(zaslon to {
+                    startActivity(Intent(this, ZaslonActivity::class.java).putExtra(DatotekeActivity.EXTRA_RACUNALNIK, n.id)) })
+                NapraveKrogaPravila.POT_DELI_ZASLON -> moznosti.add(zaslon to { PovezaniZasloni.zaprosi(this, link, n) })
+            }
+        }
         if (n.zmoznosti.contains("files")) moznosti.add(getString(R.string.os_naprave_odpri_datoteke) to {
             startActivity(Intent(this, DatotekeActivity::class.java).putExtra(DatotekeActivity.EXTRA_RACUNALNIK, n.id)) })
         moznosti.add(getString(R.string.os_dostop_moznost) to { dostopNaprave(n) })
