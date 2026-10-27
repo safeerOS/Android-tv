@@ -187,7 +187,7 @@ class GlasbaStoritev : Service() {
             }
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 igraZadnje = predvajalnik?.let { teceLokalno(it) } ?: isPlaying
-                if (isPlaying) { zacelo = true; koncnaNapaka = null; zapomniNedavnoEnkrat() }
+                if (isPlaying) { zacelo = true; koncnaNapaka = null; zapomniNedavnoEnkrat(); zaporedneNapake = 0 }
                 // Naloga 75: pregled kanalov dodatkov v ozadju ne tece med predvajanjem.
                 if (isPlaying) PregledKanalov.ustavi("predvajanje")
                 // Naloga 64: nas predvajalnik igra - WebView-ji, ki so iskali tok, in njihov izrisovalnik (~178 MB) niso vec
@@ -243,7 +243,24 @@ class GlasbaStoritev : Service() {
                     nalozi(listOf(enota.copy(mime = androidx.media3.common.MimeTypes.APPLICATION_M3U8)), 0, streznikTrenutni)
                     return
                 }
-                if (p.hasNextMediaItem()) {
+                // Lastnik 27. 10. 2026 13:48: YouTube je zavrnil tok (403) - skladba gre na spletno stran, ne naslednja.
+                val vVrsti = spletnaVrsta.getOrNull(spletniIndeks)
+                if (vVrsti != null && enota?.id == vVrsti.id &&
+                    YoutubeVrstaPravila.tokZavrnjen(httpKoda(error), YoutubeZvok.jeYoutube(vVrsti), vVrsti.video)) {
+                    Log.i("SafeerOsMedia", "youtube: tok zavrnjen (http=${httpKoda(error)}), spletna stran")
+                    YoutubeZvok.tokZavrnjen(vVrsti)
+                    zacniSplet(vVrsti.copy(zvok = "", mime = ""), true)
+                    return
+                }
+                // Brez konca preskakovanja: najvec NAJVEC_ZAPOREDNIH_NAPAK zapored in samo, ce uporabnik ni ustavil.
+                val naprej = YoutubeVrstaPravila.naprejPoNapaki(zaporedneNapake,
+                    p.hasNextMediaItem() || spletnaVrsta.size > spletniIndeks + 1, p.playWhenReady)
+                zaporedneNapake++
+                if (!naprej && (p.hasNextMediaItem() || spletnaVrsta.size > spletniIndeks + 1)) {
+                    Log.i("SafeerOsMedia", "napaka: ne naprej (zapored=$zaporedneNapake, zeli igrati=${p.playWhenReady})")
+                    obvesti(getString(R.string.os_nedel_skladba, ime.ifBlank { "?" }, NedelujoceSkladbe.opis(this@GlasbaStoritev, NedelujocePravila.NI_TOKA)))
+                    ustaviPredvajanje()
+                } else if (p.hasNextMediaItem()) {
                     obvesti(getString(R.string.os_media_napaka_naslednja, ime.ifBlank { "?" }))
                     p.seekToNextMediaItem(); p.prepare(); p.play()
                 } else if (spletnaVrsta.size > spletniIndeks + 1) {
@@ -564,6 +581,9 @@ class GlasbaStoritev : Service() {
             }
         }.apply { name = "Safeer-youtube-zvok-vrsta"; start() }
     }
+
+    /** Napake predvajalnika zapored (lastnik 27. 10. 2026: preskakovanje brez konca); nic, ko kaj zaigra. */
+    private var zaporedneNapake = 0
 
     /** Naloga 113: koliko spletnih strani je zapored obstalo (rok brez predvajanja); nic, ko kaj zaigra. */
     private var zaporedniZastoji = 0

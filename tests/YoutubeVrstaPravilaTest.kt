@@ -31,6 +31,15 @@ fun main() {
     preveriEnako("posamezna glasba YouTube: najprej Media3", true, P.posameznoPrekMedia3(true, false, dovoliPrevzem = true))
     preveriEnako("rezerva po napaki Media3: stran, brez zanke", false, P.posameznoPrekMedia3(true, false, dovoliPrevzem = false))
     preveriEnako("posamezen video: stran", false, P.posameznoPrekMedia3(true, true, dovoliPrevzem = true))
+    // Lastnik 27. 10. 13:48: tok zavrnjen (403) pri vsaki skladbi - preskakovanje brez zvoka in brez konca
+    preveriEnako("403 glasba YouTube: spletna stran", true, P.tokZavrnjen(403, jeYoutube = true, video = false))
+    preveriEnako("410 glasba YouTube: spletna stran", true, P.tokZavrnjen(410, jeYoutube = true, video = false))
+    preveriEnako("404: ne (druga napaka)", false, P.tokZavrnjen(404, jeYoutube = true, video = false))
+    preveriEnako("403 ni YouTube: ne", false, P.tokZavrnjen(403, jeYoutube = false, video = false))
+    preveriEnako("prva napaka, naslednja obstaja: naprej", true, P.naprejPoNapaki(0, imaNaslednjo = true, zeliIgrati = true))
+    preveriEnako("tretja napaka zapored: obstane", false, P.naprejPoNapaki(3, imaNaslednjo = true, zeliIgrati = true))
+    preveriEnako("uporabnik je ustavil: ne naprej", false, P.naprejPoNapaki(0, imaNaslednjo = true, zeliIgrati = false))
+    preveriEnako("brez naslednje: ne", false, P.naprejPoNapaki(0, imaNaslednjo = false, zeliIgrati = true))
     println(if (napak == 0) "VSE OK" else "NAPAK: $napak")
     if (napak > 0) kotlin.system.exitProcess(1)
 }

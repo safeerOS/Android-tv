@@ -38,6 +38,26 @@ object YoutubeVrstaPravila {
         imaNaslednjo && zaporedniZastoji < NAJVEC_ZAPOREDNIH_ZASTOJEV
 
     /**
+     * Lastnik 27. 10. 2026 13:48 (testni telefon): YouTube je zvocni tok zavrnil (HTTP 403) pri VSAKI skladbi albuma,
+     * predvajalnik pa je vsake ~4 s skocil na naslednjo, brez zvoka in brez konca (»ko zelim prekiniti, tudi ne gre«).
+     * Zavrnjen tok (403/410) glasbe z YouTuba: skladba gre na spletno stran (rezerva, kot prej), ne na naslednjo.
+     */
+    fun tokZavrnjen(http: Int, jeYoutube: Boolean, video: Boolean): Boolean = jeYoutube && !video && (http == 403 || http == 410)
+
+    /** Ko YouTube tok zavrne, gredo tudi naslednje skladbe toliko casa naravnost na stran (vsaka bi sicer izgubila ~4 s). */
+    const val ZAVRNJEN_VELJA_MS = 30 * 60_000L
+
+    /** Najvec napak predvajalnika zapored, nato predvajanje obstane z razlogom (ne preleti cele vrste brez zvoka). */
+    const val NAJVEC_ZAPOREDNIH_NAPAK = 3
+
+    /**
+     * Po napaki predvajalnika naprej na naslednjo samo, ce naslednja obstaja, uporabnik ni ustavil ali dal na premor
+     * ([zeliIgrati]) in ni bilo ze [NAJVEC_ZAPOREDNIH_NAPAK] napak zapored (stejejo se, dokler kaj ne zaigra).
+     */
+    fun naprejPoNapaki(zaporedneNapake: Int, imaNaslednjo: Boolean, zeliIgrati: Boolean): Boolean =
+        imaNaslednjo && zeliIgrati && zaporedneNapake < NAJVEC_ZAPOREDNIH_NAPAK
+
+    /**
      * Lastnik 27. 10. 2026 (testni telefon): posnetek YouTube, izbran na polici ali v zadetkih (ne iz seznama), je sel
      * mimo vrste naravnost na spletno stran (POLNI_POGON youtube.com, »stopnja=3«): sam v vrsti, zato Naprej ni delal in
      * ob koncu se je predvajalnik ugasnil. Glasba z YouTuba (ne video) zato igra kot vrsta posnetkov z zaslona - prek
