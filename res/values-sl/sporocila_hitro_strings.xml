@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Naloga 42 C: Sporocila na hitro na novem TV zaganjalniku in tiho opozorilo (os/PokrajinaActivity, os/SporociloPasica). -->
+<resources>
+    <string name="pk_novo_sporocilo">Novo sporočilo: %1$s</string>
+    <string name="pk_kopiraj">Kopiraj</string>
+    <string name="pk_odgovori">Odgovori</string>
+    <string name="pk_poslji_kopirano">Pošlji kopirano</string>
+    <string name="pk_poslji_kopirano_naslov">Pošljem kopirano besedilo: %1$s?</string>
+    <string name="pk_kopirano">Kopirano</string>
+    <string name="pk_odgovor_namig">Odgovor za %1$s</string>
+    <string name="pk_poslji">Pošlji</string>
+    <string name="pk_poslano">Poslano</string>
+    <string name="pk_ni_poslano">Ni poslano. Poskusi znova v Sporočilih.</string>
+</resources>

@@ -164,6 +164,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/os/PokrajinaPravila.kt" \
     "$SRC/si/safeer/tv/os/VremePravila.kt" \
     "$TEST_DIR/PokrajinaPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/SporocilaHitroPravila.kt" \
+    "$TEST_DIR/SporocilaHitroPravilaTest.kt" \
     -include-runtime -d "$OUT/os.jar"
 
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.OsPravilaTestKt
@@ -255,6 +257,8 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.NamestitevPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.cast.SafeerLogTestKt
 # Naloga 42 A (27. 10. 2026): nov TV zaganjalnik (beta) - tema Pokrajina, ura in datum v jeziku vmesnika, vreme.
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PokrajinaPravilaTestKt
+# Naloga 42 C: Sporocila na hitro (kopiraj, odgovori, poslji kopirano) in tiho opozorilo brez ustavitve predvajanja.
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SporocilaHitroPravilaTestKt
 
 # Neposredna povezava TLS s pripetim potrdilom do naprave z vec naslovi (docs/LINK-MESH.md, pravilo 8):
 # prave vticnice na naslovih zanke, potrdila naredi keytool iz JDK.

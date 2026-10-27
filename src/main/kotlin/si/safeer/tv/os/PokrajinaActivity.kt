@@ -50,6 +50,7 @@ class PokrajinaActivity : OsActivity() {
     private lateinit var vrstaAplikacij: LinearLayout
     private lateinit var naslovAplikacij: TextView
     private lateinit var dok: LinearLayout
+    private lateinit var vrstaSporocil: LinearLayout
 
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -104,6 +105,9 @@ class PokrajinaActivity : OsActivity() {
             addView(vrstaAplikacij)
         }
         vsebina.addView(drsnik, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        // Naloga 42 C: Sporocila na hitro - samo, ce kaksno je (brez prazne vrstice).
+        vrstaSporocil = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; visibility = View.GONE }
+        vsebina.addView(vrstaSporocil, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(4) })
         dok = plavajocaVrstica()
         vsebina.addView(dok, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(14) })
         koren.addView(vsebina, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
@@ -124,9 +128,12 @@ class PokrajinaActivity : OsActivity() {
         GlasbaStoritev.poslusalci.add(medijiPoslusalec)
         OddaljenoPredvajanje.poslusalci.add(medijiPoslusalec)
         dock?.osvezi()
+        KlepetLinka.poslusalci.add(sporocilaPoslusalec)
+        narisiSporocila()
     }
 
     override fun onStop() {
+        KlepetLinka.poslusalci.remove(sporocilaPoslusalec)
         GlasbaStoritev.poslusalci.remove(medijiPoslusalec)
         OddaljenoPredvajanje.poslusalci.remove(medijiPoslusalec)
         dock?.ustavi()
@@ -294,6 +301,133 @@ class PokrajinaActivity : OsActivity() {
         if (vrstaAplikacij.childCount == 0) vrstaAplikacij.addView(kartica(null, R.drawable.os_ikona_mreza, getString(R.string.os_aplikacije_izberi)) {
             odpriAplikacije()
         })
+    }
+
+    // ------------------------------------------------------------------ sporocila na hitro (naloga 42 C)
+
+    private val sporocilaPoslusalec: () -> Unit = { runOnUiThread { if (!isFinishing && !isDestroyed) narisiSporocila() } }
+
+    /** Zadnji pogovori iz Sporocil (baza se bere v ozadju); zaslon jih pokaze sam, ce kaksen je. */
+    private fun narisiSporocila() {
+        Thread({
+            val zadnja = try {
+                SporocilaHitroPravila.zadnja(SporocilaShramba(this).pogovori().map {
+                    SporocilaHitroPravila.Pogovor(it.id, it.kanalId, it.ime.ifBlank { it.oseba }, it.zadnje, it.neprebrano, it.cas)
+                })
+            } catch (e: Throwable) { Log.i(TAG, "Sporocila: ${e.javaClass.simpleName}"); emptyList() }
+            glavna.post { if (!isFinishing && !isDestroyed) pokaziSporocila(zadnja) }
+        }, "safeer-hitra-sporocila").start()
+    }
+
+    private fun odlozisce(): String? = try {
+        (getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager).primaryClip
+            ?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(this)?.toString()
+    } catch (_: Throwable) { null }
+
+    private fun gumbSporocila(napis: String, klik: () -> Unit) = besedilo(napis, 15f).apply {
+        isFocusable = true; isClickable = true
+        background = steklo(14)
+        setPadding(dp(14), dp(8), dp(14), dp(8))
+        setOnClickListener { klik() }
+    }
+
+    private fun pokaziSporocila(zadnja: List<SporocilaHitroPravila.Pogovor>) {
+        val fokusJeBil = vrstaSporocil.hasFocus()
+        vrstaSporocil.removeAllViews()
+        vrstaSporocil.visibility = if (zadnja.isEmpty()) View.GONE else View.VISIBLE
+        val skupine = ArrayList<Pair<LinearLayout, LinearLayout>>()
+        for (p in zadnja) {
+            val skupina = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+            val dejanja = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; visibility = View.GONE }
+            val sporocilo = gumbSporocila(SporocilaHitroPravila.izsek(p.ime, 24) + ": " + SporocilaHitroPravila.izsek(p.zadnje, 48)) {
+                odpri(Intent(this, SporocilaActivity::class.java))
+            }
+            sporocilo.maxLines = 1; sporocilo.ellipsize = TextUtils.TruncateAt.END; sporocilo.maxWidth = dp(420)
+            if (p.neprebrano > 0) sporocilo.setTextColor(osBarva(R.color.os_mint))
+            skupina.addView(sporocilo)
+            skupina.addView(dejanja, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(6) })
+            // Dejanja se pokazejo, ko fokus pride na sporocilo; odlozisce se prebere takrat (kopirano se medtem spremeni).
+            val pokazi = {
+                dejanja.removeAllViews()
+                for (d in SporocilaHitroPravila.dejanja(p.zadnje, odgovor = true, odlozisce = odlozisce())) {
+                    val g = when (d) {
+                        SporocilaHitroPravila.KOPIRAJ -> gumbSporocila(getString(R.string.pk_kopiraj)) { kopiraj(p.zadnje) }
+                        SporocilaHitroPravila.ODGOVORI -> gumbSporocila(getString(R.string.pk_odgovori)) { odgovori(p) }
+                        else -> gumbSporocila(getString(R.string.pk_poslji_kopirano)) { posljiKopirano(p) }
+                    }
+                    g.setOnFocusChangeListener { _, _ -> vrstaSporocil.post { uskladiDejanja(skupine) } }
+                    dejanja.addView(g, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(6) })
+                }
+                dejanja.visibility = View.VISIBLE
+            }
+            sporocilo.setOnFocusChangeListener { _, ima ->
+                if (ima && dejanja.visibility != View.VISIBLE) pokazi()
+                vrstaSporocil.post { uskladiDejanja(skupine) }
+            }
+            skupine.add(skupina to dejanja)
+            vrstaSporocil.addView(skupina, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(16) })
+        }
+        // Fokus je bil v vrstici, ki se je prerisala (novo sporocilo): ostane na prvem sporocilu ali gre v spodnjo vrstico.
+        if (fokusJeBil) ((vrstaSporocil.getChildAt(0) as? ViewGroup)?.getChildAt(0) ?: dok.getChildAt(0))?.requestFocus()
+    }
+
+    /** Dejanja ostanejo samo ob sporocilu, ki ima fokus (ali ga ima kateri od njegovih gumbov). */
+    private fun uskladiDejanja(skupine: List<Pair<LinearLayout, LinearLayout>>) {
+        for ((skupina, dejanja) in skupine) if (!skupina.hasFocus()) dejanja.visibility = View.GONE
+    }
+
+    private fun kopiraj(besedilo: String) {
+        try {
+            (getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager)
+                .setPrimaryClip(android.content.ClipData.newPlainText(getString(R.string.os_meni_sporocila), besedilo))
+            android.widget.Toast.makeText(this, R.string.pk_kopirano, android.widget.Toast.LENGTH_SHORT).show()
+        } catch (_: Throwable) { }
+    }
+
+    private fun odgovori(p: SporocilaHitroPravila.Pogovor) {
+        val polje = EditText(this).apply {
+            hint = getString(R.string.pk_odgovor_namig, p.ime)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+        }
+        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(p.ime)
+            .setMessage(SporocilaHitroPravila.izsek(p.zadnje))
+            .setView(polje)
+            .setPositiveButton(R.string.pk_poslji) { _, _ -> poslji(p, polje.text.toString()) }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .create()
+        Kontroler.pokazi(okno)
+        okno.show()
+    }
+
+    /** Kopirano gre sele po potrditvi: v odlozisu je lahko kaj, cesar uporabnik ne misli poslati. */
+    private fun posljiKopirano(p: SporocilaHitroPravila.Pogovor) {
+        val kopirano = SporocilaHitroPravila.zaPosiljanje(odlozisce()) ?: return
+        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(getString(R.string.pk_poslji_kopirano_naslov, p.ime))
+            .setMessage(SporocilaHitroPravila.izsek(kopirano, 300))
+            .setPositiveButton(R.string.pk_poslji) { _, _ -> poslji(p, kopirano) }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .create()
+        Kontroler.pokazi(okno)
+        okno.show()
+    }
+
+    private fun poslji(p: SporocilaHitroPravila.Pogovor, vnos: String) {
+        val besedilo = SporocilaHitroPravila.zaPosiljanje(vnos) ?: return
+        Thread({
+            val napaka = try { SporocilaKanali.poslji(this, SporocilaShramba(this), p.kanalId, p.id, besedilo); null } catch (e: Throwable) { e }
+            glavna.post {
+                if (isFinishing || isDestroyed) return@post
+                if (napaka == null) {
+                    android.widget.Toast.makeText(this, R.string.pk_poslano, android.widget.Toast.LENGTH_SHORT).show()
+                    narisiSporocila()
+                } else {
+                    Log.i(TAG, "Odgovor ni poslan: ${SporocilaKanali.razlog(napaka)}")
+                    android.widget.Toast.makeText(this, R.string.pk_ni_poslano, android.widget.Toast.LENGTH_LONG).show()
+                }
+            }
+        }, "safeer-hitri-odgovor").start()
     }
 
     // ------------------------------------------------------------------ plavajoca vrstica

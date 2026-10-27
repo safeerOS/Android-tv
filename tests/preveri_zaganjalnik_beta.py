@@ -21,6 +21,7 @@ DATOTEKE = [
     "os/PokrajinaActivity.kt",
     "os/ZaganjalnikBeta.kt",
     "os/MiniPredvajalnik.kt",
+    "os/SporociloPasica.kt",
 ]
 
 napak = 0
@@ -152,6 +153,22 @@ def main() -> int:
         preveri(f"{d}: brez nadomestkov", not najdeno, ", ".join(najdeno))
 
     preveri("mini predvajalnik na novem domacem zaslonu", "MiniPredvajalnik.naOknu(this)" in vsebina.get("os/PokrajinaActivity.kt", ""))
+
+    print("\n== sporocila na hitro (del C) ==")
+    pokrajina = vsebina.get("os/PokrajinaActivity.kt", "")
+    preveri("domaci zaslon kaze zadnja sporocila", "SporocilaHitroPravila.zadnja(" in pokrajina)
+    preveri("dejanja ob fokusu iz pravil (kopiraj, odgovori, poslji kopirano)", "SporocilaHitroPravila.dejanja(" in pokrajina)
+    preveri("poslji kopirano sele po potrditvi", re.search(r"fun posljiKopirano\([^)]*\) \{.*?AlertDialog\.Builder.*?setPositiveButton", pokrajina, re.S) is not None)
+    preveri("odgovor gre po kanalu pogovora (SporocilaKanali.poslji) v ozadju",
+            re.search(r'Thread\(\{\s*val napaka = try \{ SporocilaKanali\.poslji\(', pokrajina) is not None)
+    os_act = (SRC / "os/OsActivity.kt").read_text(encoding="utf-8")
+    preveri("vsak zaslon Safeer OS v ospredju pokaze opozorilo (samo z novim zaganjalnikom)", "KlepetLinka.prikaz = if (!ZaganjalnikBeta.vklopljen(this)) null" in os_act)
+    preveri("opozorilo se ob odhodu zaslona umakne", re.search(r"override fun onPause\(\) \{.*?KlepetLinka\.prikaz = null", os_act, re.S) is not None)
+    pasica = vsebina.get("os/SporociloPasica.kt", "")
+    preveri("opozorilo ne vzame fokusa (predvajanje tece naprej)", "isFocusable = false" in pasica and "requestFocus" not in pasica)
+    klepet = (SRC / "os/KlepetLinka.kt").read_text(encoding="utf-8")
+    preveri("prejem sporocila sprozi opozorilo samo zunaj odprtega pogovora",
+            "SporocilaHitroPravila.opozorilo(vOspredju = true, odprtPogovor = odprt)" in klepet)
     return konec()
 
 

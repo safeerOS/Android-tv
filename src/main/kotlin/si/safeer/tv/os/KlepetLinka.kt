@@ -31,6 +31,12 @@ object KlepetLinka {
     /** Pogovor, ki je trenutno odprt na zaslonu (zanj ne pokazemo obvestila). */
     @Volatile var odprtPogovor: String? = null
 
+    /**
+     * Naloga 42 C: zaslon Safeer OS v ospredju (OsActivity.onResume) pokaze novo sporocilo kot tiho pasico, ki ne vzame
+     * fokusa in ne ustavi predvajanja ([SporociloPasica]). Klic je na niti povezave: (pogovor, ime, besedilo).
+     */
+    @Volatile var prikaz: ((String, String, String) -> Unit)? = null
+
     fun zagotoviKanal(s: SporocilaShramba) {
         if (s.kanali().none { it.id == KANAL }) s.dodajKanal(SporocilaShramba.Kanal(KANAL, VRSTA, "Safeer Link", "povezan", JSONObject()))
     }
@@ -82,6 +88,7 @@ object KlepetLinka {
         s.posodobiPogovor(SporocilaShramba.Pogovor(od, KANAL, od, ime, "", besedilo.replace('\n', ' ').take(240),
             if (odprt) 0 else 1, cas), pristej = true)
         for (p in poslusalci) try { p() } catch (_: Throwable) { }
+        prikaz?.takeIf { SporocilaHitroPravila.opozorilo(vOspredju = true, odprtPogovor = odprt) }?.let { try { it(od, ime, besedilo) } catch (_: Throwable) { } }
         if (!odprt && obvestilo) obvesti(c, od, ime, besedilo)
     }
 

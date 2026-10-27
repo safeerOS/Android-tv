@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Naloga 42 C: Sporocila na hitro na novem TV zaganjalniku in tiho opozorilo (os/PokrajinaActivity, os/SporociloPasica). -->
+<resources>
+    <string name="pk_novo_sporocilo">Nuovo messaggio da %1$s</string>
+    <string name="pk_kopiraj">Copia</string>
+    <string name="pk_odgovori">Rispondi</string>
+    <string name="pk_poslji_kopirano">Invia copiato</string>
+    <string name="pk_poslji_kopirano_naslov">Inviare il testo copiato a %1$s?</string>
+    <string name="pk_kopirano">Copiato</string>
+    <string name="pk_odgovor_namig">Risposta a %1$s</string>
+    <string name="pk_poslji">Invia</string>
+    <string name="pk_poslano">Inviato</string>
+    <string name="pk_ni_poslano">Non inviato. Riprova in Messaggi.</string>
+</resources>
