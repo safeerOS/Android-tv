@@ -184,6 +184,38 @@ class VnosStoritev : AccessibilityService() {
 
     override fun onInterrupt() {}
 
+    /** Tipka, za katero je dolg pritisk ze skocil na vrstico (do spusta ne naredi nicesar vec). */
+    private var skocilaTipka = 0
+
+    /**
+     * Lastnik 27. 10. 2026: dolg pritisk dol/gor na daljincu skoci na spodnjo/zgornjo orodno vrstico aplikacije (npr. Aurora
+     * Store, kamor kratki pritiski ne pridejo). Beremo samo kodo tipke gor/dol in ponovitev - nic drugega, nikoli besedila;
+     * kratek pritisk in vse druge tipke gredo naprej v aplikacijo nespremenjene. Samo televizor.
+     */
+    override fun onKeyEvent(event: android.view.KeyEvent): Boolean {
+        val k = event.keyCode
+        if (k != android.view.KeyEvent.KEYCODE_DPAD_DOWN && k != android.view.KeyEvent.KEYCODE_DPAD_UP) return false
+        if (!jeTelevizor()) return false
+        if (event.action == android.view.KeyEvent.ACTION_UP) {
+            val bila = skocilaTipka == k
+            skocilaTipka = 0
+            return bila
+        }
+        if (event.repeatCount == 0) return false
+        if (skocilaTipka == k) return true
+        if (!skociNaVrstico(k == android.view.KeyEvent.KEYCODE_DPAD_DOWN)) return false   // ni vrstice: navadno pomikanje
+        skocilaTipka = k
+        return true
+    }
+
+    private fun skociNaVrstico(dol: Boolean): Boolean {
+        val koren = try { rootInActiveWindow } catch (_: Throwable) { null } ?: return false
+        val kandidati = ArrayList<AccessibilityNodeInfo>()
+        zberiFokusabilne(koren, kandidati, 0)
+        val i = VnosVklopPravila.vrstica(kandidati.map { okvir(it) }, dol, velikost().second)
+        return i >= 0 && try { kandidati[i].performAction(AccessibilityNodeInfo.ACTION_FOCUS) } catch (_: Throwable) { false }
+    }
+
     // ------------------------------------------------------------------ fokus in besedilo
 
     private fun jeTelevizor(): Boolean = packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)

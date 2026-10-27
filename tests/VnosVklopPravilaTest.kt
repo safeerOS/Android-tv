@@ -143,5 +143,17 @@ fun main() {
     check(p.prvi(listOf(pl(1, 1), pl(2, 0), pl(1, 0), Okvir(0, 0, 0, 0))) == 2)
     check(p.prvi(emptyList()) == -1)
 
+    // Lastnik 27. 10. 2026: dolg pritisk dol/gor skoci na spodnjo/zgornjo orodno vrstico (visina zaslona 1080)
+    val seznam = listOf(VnosVklopPravila.Okvir(100, 300, 400, 380), VnosVklopPravila.Okvir(100, 500, 400, 580))
+    val spodnja = listOf(VnosVklopPravila.Okvir(600, 980, 760, 1060), VnosVklopPravila.Okvir(200, 985, 360, 1055), VnosVklopPravila.Okvir(900, 980, 1060, 1060))
+    val zgornja = listOf(VnosVklopPravila.Okvir(300, 20, 500, 100), VnosVklopPravila.Okvir(80, 24, 260, 96))
+    val vse = seznam + spodnja + zgornja
+    check(p.vrstica(vse, true, 1080) == 3)   // spodnja vrstica, skrajno levi gumb
+    check(p.vrstica(vse, false, 1080) == 6)  // zgornja vrstica, skrajno levi gumb
+    check(p.vrstica(seznam, true, 1080) == -1)   // brez vrstice v spodnji cetrtini: navadno pomikanje
+    check(p.vrstica(emptyList(), true, 1080) == -1)
+    check(p.vrstica(vse, true, 0) == -1)
+    check(p.vrstica(listOf(VnosVklopPravila.Okvir(0, 1000, 0, 1050)), true, 1080) == -1)   // prazen okvir ni kandidat
+
     println("VnosVklopPravilaTest: OK")
 }

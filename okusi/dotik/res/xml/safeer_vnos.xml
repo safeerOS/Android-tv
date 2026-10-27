@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Safeer Vnos: samo izvajanje potez in sistemskih tipk z racunalnika (Safeer Link). Dogodkov ne
-     beremo (samo tip, ki ga sistem zahteva), vsebino okna samo za vnos besedila v polje s fokusom. -->
+     beremo (samo tip, ki ga sistem zahteva), vsebino okna samo za vnos besedila v polje s fokusom.
+     Filter tipk (lastnik 27. 10. 2026): samo dolg pritisk gor/dol na TV skoci na orodno vrstico. -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/vnos_opis"
     android:accessibilityEventTypes="typeWindowStateChanged"
@@ -8,4 +9,5 @@
     android:notificationTimeout="1000"
     android:canPerformGestures="true"
     android:canRetrieveWindowContent="true"
-    android:accessibilityFlags="flagDefault" />
+    android:canRequestFilterKeyEvents="true"
+    android:accessibilityFlags="flagDefault|flagRequestFilterKeyEvents" />

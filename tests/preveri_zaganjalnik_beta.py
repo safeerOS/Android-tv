@@ -287,6 +287,15 @@ def main() -> int:
             and "scrollTo(pisanjeOblacki.width, 0)" not in spor)
     preveri("pas pisanja: Enter na tipkovnici TV poslje (ni vec ujet v tipkovnici)",
             "akcija == EditorInfo.IME_ACTION_SEND) { poslji(); true }" in spor and "odgovor.setRawInputType(InputType.TYPE_CLASS_TEXT" in spor)
+    print("\n== dolg pritisk gor/dol: orodna vrstica v vseh aplikacijah (lastnik 27. 10.) ==")
+    vnos = (SRC / "link/VnosStoritev.kt").read_text(encoding="utf-8")
+    preveri("Safeer Vnos: dolg pritisk skoci na vrstico (VnosVklopPravila.vrstica), kratek gre naprej",
+            "override fun onKeyEvent(" in vnos and "VnosVklopPravila.vrstica(" in vnos and "if (event.repeatCount == 0) return false" in vnos)
+    preveri("samo tipki gor/dol in samo TV", "if (k != android.view.KeyEvent.KEYCODE_DPAD_DOWN && k != android.view.KeyEvent.KEYCODE_DPAD_UP) return false" in vnos
+            and "if (!jeTelevizor()) return false" in vnos)
+    for x in ("os", "dotik"):
+        xml = (KOREN / "okusi" / x / "res/xml/safeer_vnos.xml").read_text(encoding="utf-8")
+        preveri(f"safeer_vnos.xml ({x}): filter tipk", 'android:canRequestFilterKeyEvents="true"' in xml and "flagRequestFilterKeyEvents" in xml)
     # Rocna gradnja bete v CI: vhod »beta« gre prek okolja v -PsafeerBeta (brez vhoda gradnja kot prej).
     ci = (KOREN / ".github" / "workflows" / "gradnja.yml").read_text(encoding="utf-8")
     preveri("CI: rocna gradnja z vhodom beta poda -PsafeerBeta",

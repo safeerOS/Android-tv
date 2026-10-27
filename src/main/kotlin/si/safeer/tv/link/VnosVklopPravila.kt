@@ -245,4 +245,25 @@ object VnosVklopPravila {
         }
         return najboljsi
     }
+
+    /** Del zaslona, v katerem iscemo orodno vrstico pri dolgem pritisku (spodnja ali zgornja cetrtina). */
+    const val ROB_VRSTICE = 0.25
+    /** Elementi v isti vrsti: sredina navpicno najvec toliko tock narazen. */
+    const val ISTA_VRSTA_PX = 24
+
+    /**
+     * Lastnik 27. 10. 2026 (Aurora Store na TV): dolg pritisk dol skoci na spodnjo orodno vrstico, dolg pritisk gor na
+     * zgornjo - v katerikoli aplikaciji. Med fokusabilnimi elementi v spodnji (zgornji) cetrtini zaslona [visina] izbere
+     * najnizjo (najvisjo) vrsto in v njej skrajno levega. -1 = v tem delu zaslona ni nicesar (navadno pomikanje ostane).
+     */
+    fun vrstica(kandidati: List<Okvir>, dol: Boolean, visina: Int): Int {
+        if (visina <= 0) return -1
+        val meja = visina * ROB_VRSTICE
+        val vRobu = kandidati.withIndex().filter { (_, c) ->
+            !c.prazen && if (dol) c.sredinaY >= visina - meja else c.sredinaY <= meja
+        }
+        if (vRobu.isEmpty()) return -1
+        val rob = if (dol) vRobu.maxOf { it.value.sredinaY } else vRobu.minOf { it.value.sredinaY }
+        return vRobu.filter { Math.abs(it.value.sredinaY - rob) <= ISTA_VRSTA_PX }.minByOrNull { it.value.levo }?.index ?: -1
+    }
 }
