@@ -275,10 +275,10 @@ def main() -> int:
         preveri(f"{z}: stranska vrstica samo prek StranskaVrstica.ovij", "StranskaVrstica.ovij(" in (SRC / z).read_text(encoding="utf-8"))
     preveri("stranska vrstica nastane samo v StranskaVrstica (zasebni konstruktor)", "class StranskaVrstica private constructor(" in stranska)
     print("\n== Moji viri (lastnik 27. 10.) ==")
-    viri = glasba.split("private fun viriVrste()")[1].split("\n    private fun ")[0]
-    preveri("Moji viri: brez seznamov predvajanja (so pri glasbi)", "MedijskiViri.seznami(" not in viri)
+    viri_glasba = glasba.split("private fun viriVrste()")[1].split("\n    private fun ")[0]
+    preveri("Moji viri: brez seznamov predvajanja (so pri glasbi)", "MedijskiViri.seznami(" not in viri_glasba)
     preveri("Moji viri: ploscica Add a Usenet provider odpre okno ponudnika",
-            "R.string.os_usenet_dodaj_ponudnika" in viri and "UsenetPonudnikOkno.pokazi(this)" in viri)
+            "R.string.os_usenet_dodaj_ponudnika" in viri_glasba and "UsenetPonudnikOkno.pokazi(this)" in viri_glasba)
     preveri("besedili ploscice v 7 mapah", all((KOREN / "res" / m / "usenet_ponudnik_strings.xml").is_file() for m in
             ("values", "values-sl", "values-en", "values-de", "values-es", "values-fr", "values-it")))
     preveri("domaci zaslon brez oznake Safeer OS levo zgoraj", "R.string.os_app_name" not in pokrajina.split("private fun glava()")[1].split("\n    private fun ")[0])
