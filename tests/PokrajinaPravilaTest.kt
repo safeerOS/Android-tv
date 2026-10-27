@@ -90,5 +90,17 @@ fun main() {
     preveriEnako("osvezi po 30 min", true, VremePravila.osvezi(1_000L, 1_000L + 30 * 60_000L))
     preveriEnako("ne osvezi po 5 min", false, VremePravila.osvezi(1_000L, 1_000L + 5 * 60_000L))
 
+    // Lastnik 27. 10. 2026: mreza aplikacij po zgledu (prva vrsta priljubljene v okvirju, nato vse po sest)
+    val m = PokrajinaPravila.mreza(listOf("yt", "netflix"), listOf("a", "netflix", "b", "yt", "c", "d", "e", "f", "g"), 3)
+    preveriEnako("prva vrsta: priljubljene v vrstnem redu uporabnika", listOf("yt", "netflix"), m.prva)
+    preveriEnako("ostale po tri, brez priljubljenih", listOf(listOf("a", "b", "c"), listOf("d", "e", "f"), listOf("g")), m.vrste)
+    val polna = PokrajinaPravila.mreza(listOf("1", "2", "3", "4"), listOf("1", "2", "3", "4", "x"), 3)
+    preveriEnako("prva vrsta najvec toliko kot stolpcev", listOf("1", "2", "3"), polna.prva)
+    preveriEnako("preostala priljubljena gre na zacetek mreze", listOf(listOf("4", "x")), polna.vrste)
+    preveriEnako("odstranjena priljubljena se ne pokaze", listOf("b"), PokrajinaPravila.mreza(listOf("izbrisana", "b"), listOf("b", "c"), 6).prva)
+    preveriEnako("ponovitve samo enkrat", listOf(listOf("c")), PokrajinaPravila.mreza(listOf("b", "b"), listOf("b", "c", "c"), 6).vrste)
+    preveriEnako("brez aplikacij prazno", PokrajinaPravila.Mreza(emptyList(), emptyList()), PokrajinaPravila.mreza(emptyList(), emptyList()))
+    preveriEnako("privzeto sest stolpcev", 6, PokrajinaPravila.STOLPCEV)
+
     if (napak == 0) println("PokrajinaPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

@@ -46,8 +46,7 @@ class PokrajinaActivity : OsActivity() {
     private lateinit var ura: TextView
     private lateinit var datum: TextView
     private lateinit var vreme: TextView
-    private lateinit var vrstaAplikacij: LinearLayout
-    private lateinit var naslovAplikacij: TextView
+    private lateinit var mrezaAplikacij: LinearLayout
     private lateinit var dok: LinearLayout
     private lateinit var zadetki: LinearLayout
     private lateinit var poljeLupe: EditText
@@ -85,10 +84,9 @@ class PokrajinaActivity : OsActivity() {
             setPadding(dp(40), dp(24), dp(40), dp(18))
         }
         vsebina.addView(glava(), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        vsebina.addView(View(this), LinearLayout.LayoutParams(0, 0, 1f))
         vsebina.addView(lupa(), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
             val rob = (resources.displayMetrics.widthPixels * 0.2f).toInt()
-            marginStart = rob; marginEnd = rob
+            marginStart = rob; marginEnd = rob; topMargin = dp(10)
         })
         // Naloga 42 E: zadetki lupe kot na racunalniku (programi, datoteke, nastavitve, mediji, splet) - samo med iskanjem.
         zadetki = LinearLayout(this).apply {
@@ -100,21 +98,15 @@ class PokrajinaActivity : OsActivity() {
             val rob = (resources.displayMetrics.widthPixels * 0.2f).toInt()
             marginStart = rob; marginEnd = rob; topMargin = dp(8)
         })
-        vsebina.addView(View(this), LinearLayout.LayoutParams(0, 0, 1f))
-        naslovAplikacij = TextView(this).apply {
-            setText(R.string.pk_priljubljene)
-            setTextColor(osBarva(R.color.os_besedilo)); setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
-            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-            setShadowLayer(dp(4).toFloat(), 0f, dp(1).toFloat(), 0x99000000.toInt())
+        // Lastnik 27. 10. 2026 (zgled »TV zaganjalnik«): aplikacije v mrezi po sest, prva vrsta priljubljene in spletne,
+        // nato vse druge; brez zunanjega okvirja (lastnik: »brez zunanje obrobe«). Mreza se drsi navpicno s fokusom.
+        mrezaAplikacij = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(6), dp(8), dp(6), dp(8)) }
+        val drsnik = android.widget.ScrollView(this).apply {
+            isVerticalScrollBarEnabled = false; clipToPadding = false; clipChildren = false
+            isVerticalFadingEdgeEnabled = true; setFadingEdgeLength(dp(36))
+            addView(mrezaAplikacij)
         }
-        vsebina.addView(naslovAplikacij)
-        vrstaAplikacij = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(10), 0, dp(10)) }
-        val drsnik = HorizontalScrollView(this).apply {
-            isHorizontalScrollBarEnabled = false; clipToPadding = false; clipChildren = false
-            isHorizontalFadingEdgeEnabled = true; setFadingEdgeLength(dp(48))
-            addView(vrstaAplikacij)
-        }
-        vsebina.addView(drsnik, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        vsebina.addView(drsnik, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f).apply { topMargin = dp(14) })
         dok = plavajocaVrstica()
         vsebina.addView(dok, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(14) })
         koren.addView(vsebina, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
@@ -218,11 +210,11 @@ class PokrajinaActivity : OsActivity() {
         g.addView(vreme, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(22) })
         val cas = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; gravity = Gravity.END
-            setPadding(dp(10), dp(4), dp(10), dp(4))
+            // Zgled lastnika 27. 10. 2026: ura v stekleni tabletki desno zgoraj (fokus doda obrobo iz [steklo]).
+            setPadding(dp(18), dp(6), dp(18), dp(6))
             isFocusable = true
-            background = steklo(16).apply { alpha = 0 }
+            background = steklo(28)
             contentDescription = getString(R.string.pk_vreme_kraj)
-            setOnFocusChangeListener { v, ima -> v.background.alpha = if (ima) 255 else 0 }
             setOnClickListener { izberiKraj() }
         }
         ura = besedilo("", 34f, krepko = true).apply { gravity = Gravity.END }
@@ -360,42 +352,69 @@ class PokrajinaActivity : OsActivity() {
 
     // ------------------------------------------------------------------ priljubljene in spletne aplikacije
 
+    /**
+     * Plosca aplikacije v mrezi: zaobljena, velika ikona na sredini, kratko ime spodaj. Lastnik 27. 10. 2026: brez obrobe -
+     * obroba (in povecava) samo na plosci s fokusom, da je na TV z daljincem vidno, kje si.
+     */
     private fun kartica(ikona: android.graphics.drawable.Drawable?, ikonaRes: Int, ime: String, klik: (View) -> Unit): View {
-        val v = LayoutInflater.from(this).inflate(R.layout.os_kartica_ikona, vrstaAplikacij, false)
+        val v = LayoutInflater.from(this).inflate(R.layout.os_kartica_ikona, mrezaAplikacij, false)
         val slika = v.findViewById<ImageView>(R.id.ikona)
         if (ikona != null) slika.setImageDrawable(ikona) else slika.setImageResource(ikonaRes)
-        v.findViewById<TextView>(R.id.ime).apply { text = ime; setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f) }
-        v.layoutParams = (v.layoutParams as ViewGroup.MarginLayoutParams).apply { width = dp(150); height = dp(128); marginEnd = dp(22) }
-        v.background = steklo(18)
+        slika.layoutParams = slika.layoutParams.apply { width = dp(64); height = dp(64) }
+        v.findViewById<TextView>(R.id.ime).apply { text = ime; setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f) }
+        v.background = StateListDrawable().apply {
+            addState(intArrayOf(android.R.attr.state_focused), GradientDrawable().apply {
+                setColor(osBarva(R.color.os_kartica_steklo_fokus)); cornerRadius = dp(22).toFloat(); setStroke(dp(3), osBarva(R.color.os_mint))
+            })
+            addState(intArrayOf(), GradientDrawable().apply { setColor(osBarva(R.color.os_kartica_steklo)); cornerRadius = dp(22).toFloat() })
+        }
+        v.contentDescription = ime
         v.setOnClickListener { klik(v) }
         poudariFokus(v)
         return v
     }
 
+    /** Ena vrsta mreze: plosce enako siroke (sest v vrsti), prazna mesta zapolni prazen prostor, da plosce ne rastejo. */
+    private fun vrstaMreze(plosce: List<View>): LinearLayout = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        for (i in 0 until PokrajinaPravila.STOLPCEV) {
+            val p = plosce.getOrNull(i) ?: View(this@PokrajinaActivity)
+            addView(p, LinearLayout.LayoutParams(0, dp(118), 1f).apply { marginStart = dp(10); marginEnd = dp(10); topMargin = dp(10); bottomMargin = dp(10) })
+        }
+    }
+
     private fun narisiAplikacije() {
-        vrstaAplikacij.removeAllViews()
+        mrezaAplikacij.removeAllViews()
         val vsi = Aplikacije.zadnjiZnani(this) ?: Aplikacije.seznam(this)
-        for (paket in Priljubljene.seznam(this)) {
-            val a = vsi.firstOrNull { it.paket == paket } ?: continue
+        val plosce = LinkedHashMap<String, View>()
+        for (a in vsi) {
             val v = kartica(Aplikacije.ikonaIzPomnilnika(a.paket), R.drawable.os_ikona_mreza, a.ime) { k ->
                 odpri(Intent(a.namera).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), izPloscice(k))
             }
             if (Aplikacije.ikonaIzPomnilnika(a.paket) == null)
                 Aplikacije.ikonaLeno(this, a) { Aplikacije.ikonaIzPomnilnika(a.paket)?.let { v.findViewById<ImageView>(R.id.ikona).setImageDrawable(it) } }
-            vrstaAplikacij.addView(v)
+            plosce.putIfAbsent(a.paket, v)
         }
+        val spletne = ArrayList<String>()
         for (s in SpletneAplikacije.seznam(this)) {
             val ime = s.ime.ifBlank { SpletneAplikacije.gostitelj(s.url) }
-            vrstaAplikacij.addView(kartica(SpletneAplikacije.ikona(this, s), R.drawable.os_ikona_splet, ime) { _ ->
+            val id = "splet:" + s.url
+            spletne.add(id)
+            plosce.putIfAbsent(id, kartica(SpletneAplikacije.ikona(this, s), R.drawable.os_ikona_splet, ime) { _ ->
                 Nadaljuj.zapisi(this, Nadaljuj.Vnos(vrsta = Nadaljuj.SPLETNA, ime = ime, url = s.url))
                 odpri(Brskalnik.namera(this).putExtra("spletna_aplikacija", s.url).putExtra("aplikacija_ime", ime)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             })
         }
-        // Prazna vrsta: kartica pove, kaj naredi (izbira aplikacij), ne prazen pas.
-        if (vrstaAplikacij.childCount == 0) vrstaAplikacij.addView(kartica(null, R.drawable.os_ikona_mreza, getString(R.string.os_aplikacije_izberi)) {
-            odpriAplikacije()
-        })
+        // Prva vrsta: priljubljene in spletne aplikacije (kot prej v vrstici), nato vse druge po imenu.
+        val mreza = PokrajinaPravila.mreza(Priljubljene.seznam(this) + spletne, plosce.keys.toList())
+        if (mreza.prva.isEmpty() && mreza.vrste.isEmpty()) {
+            // Brez aplikacij: plosca pove, kaj naredi (izbira aplikacij), ne prazen zaslon.
+            mrezaAplikacij.addView(vrstaMreze(listOf(kartica(null, R.drawable.os_ikona_mreza, getString(R.string.os_aplikacije_izberi)) { odpriAplikacije() })))
+            return
+        }
+        if (mreza.prva.isNotEmpty()) mrezaAplikacij.addView(vrstaMreze(mreza.prva.mapNotNull { plosce[it] }))
+        for (vrsta in mreza.vrste) mrezaAplikacij.addView(vrstaMreze(vrsta.mapNotNull { plosce[it] }))
     }
 
     // ------------------------------------------------------------------ plavajoca vrstica

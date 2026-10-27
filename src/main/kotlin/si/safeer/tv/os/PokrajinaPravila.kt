@@ -90,6 +90,26 @@ object PokrajinaPravila {
         return (0xFF shl 24) or (k(16) shl 16) or (k(8) shl 8) or k(0)
     }
 
+    /** Stolpcev v mrezi aplikacij (zgled lastnika 27. 10. 2026: sest plosc v vrsti). */
+    const val STOLPCEV = 6
+
+    /** Mreza aplikacij: [prva] vrsta v steklenem okvirju (priljubljene) in [vrste] pod njo (vse druge). */
+    data class Mreza(val prva: List<String>, val vrste: List<List<String>>)
+
+    /**
+     * Lastnik 27. 10. 2026 (zgled »TV zaganjalnik«): aplikacije v mrezi namesto ene drsece vrstice. Prva vrsta so
+     * priljubljene (najvec [stolpcev], vrstni red uporabnika); preostale priljubljene in vse druge aplikacije (vrstni red
+     * [vse], brez ponovitev) gredo pod njo po [stolpcev] v vrsto. Priljubljena, ki je ni vec med [vse], se ne pokaze.
+     */
+    fun mreza(priljubljene: List<String>, vse: List<String>, stolpcev: Int = STOLPCEV): Mreza {
+        if (stolpcev <= 0) return Mreza(emptyList(), emptyList())
+        val znane = vse.toSet()
+        val izbrane = priljubljene.distinct().filter { it in znane }
+        val prva = izbrane.take(stolpcev)
+        val ostale = (izbrane.drop(stolpcev) + vse.distinct().filter { it !in izbrane })
+        return Mreza(prva, ostale.chunked(stolpcev))
+    }
+
     /** Fokus po vrstici z daljincem: levo/desno ostane v vrstici, na robu se ustavi (ne skoci v drugo vrstico). */
     fun naslednji(indeks: Int, korak: Int, stevilo: Int): Int =
         if (stevilo <= 0) -1 else (indeks + korak).coerceIn(0, stevilo - 1)
