@@ -23,8 +23,9 @@ object UsenetPonudnikPravila {
     const val NAJVEC_POVEZAV_NNTP = 50
     const val NAJVEC_POVEZAV_RACUNA = 100
     const val NAJVEC_IME = 80
-    // Lastnik: najvec ena preverba na minuto na racun - vec poskusov z napacnim geslom vodi v zaklep racuna.
-    const val PREVERBA_NA_MS = 60_000L
+    // Najvec ena preverba na 10 s na racun (lastnik 28. 10. 2026; prej 1/min iz naloge 74, ne od lastnika): prepreci dvojni
+    // klik in tiscanje gumba; zavrnjenega gesla tako ali tako ne poslje znova zapah racuna.
+    const val PREVERBA_NA_MS = 10_000L
     const val NAJVEC_POVERILNICA_BAJTOV = 400
     const val NAJVEC_NASTAVITEV_BAJTOV = 64 * 1024
     const val VERZIJA = 1
@@ -399,7 +400,7 @@ object UsenetPonudnikPravila {
 
     // ------------------------------------------------------------------ omejitev preverb
 
-    /** 1 preverba na minuto na racun. Pod zaklepom: dva hkratna klika ne odpreta dveh povezav. */
+    /** 1 preverba na [PREVERBA_NA_MS] na racun. Pod zaklepom: dva hkratna klika ne odpreta dveh povezav. */
     class OmejevalecPreverb(private val ura: () -> Long) {
         private val zadnje = HashMap<String, Long>()
 
@@ -971,7 +972,7 @@ object UsenetPonudnikPravila {
         fun preveri(p: Ponudnik, geslo: Geslo, naGlavniNiti: Boolean, tls: Tls,
                     prijava: (Ponudnik, Geslo, List<String>) -> Prijava): String {
             // Lastnik 28. 10. 2026 (enotno na vseh izdajah): izrecni »Preveri« odklene zapah za en nov poskus, kot »Shrani«;
-            // omejitev ene preverbe na minuto ([omejevalec]) ostane.
+            // omejitev ene preverbe na 10 s ([omejevalec]) ostane.
             val izid = UsenetPonudnikPravila.preveri(p, geslo, naGlavniNiti, tls, zapahi, omejevalec, prijava, odkleni = true)
             if (izid == VELJA || izid == NE_VELJA || izid == ZAKLENJEN) zapisiPreverbo(p, izid)
             return izid
@@ -1121,12 +1122,12 @@ object UsenetPonudnikPravila {
             "fr" to "Le fournisseur signale trop de connexions simultanées. Ferme les autres applications ou réduis le nombre de connexions.",
             "it" to "Il provider segnala troppe connessioni simultanee. Chiudi altre app o riduci il numero di connessioni."),
         PREPOGOSTO to mapOf(
-            "sl" to "Preverba je mogoča enkrat na minuto. Poskusi znova čez minuto.",
-            "en" to "You can check once per minute. Try again in a minute.",
-            "de" to "Eine Prüfung ist einmal pro Minute möglich. Versuche es in einer Minute erneut.",
-            "es" to "Solo se puede comprobar una vez por minuto. Inténtalo de nuevo en un minuto.",
-            "fr" to "La vérification est possible une fois par minute. Réessaie dans une minute.",
-            "it" to "La verifica è possibile una volta al minuto. Riprova tra un minuto."),
+            "sl" to "Preverba je mogoča enkrat na 10 sekund. Poskusi znova čez nekaj sekund.",
+            "en" to "You can check once every 10 seconds. Try again in a few seconds.",
+            "de" to "Eine Prüfung ist alle 10 Sekunden möglich. Versuche es in ein paar Sekunden erneut.",
+            "es" to "Solo se puede comprobar una vez cada 10 segundos. Inténtalo de nuevo en unos segundos.",
+            "fr" to "La vérification est possible une fois toutes les 10 secondes. Réessaie dans quelques secondes.",
+            "it" to "La verifica è possibile una volta ogni 10 secondi. Riprova tra qualche secondo."),
         BREZ_TLS to mapOf(
             "sl" to "Povezava brez TLS ni podprta. Vklopi TLS (vrata 563).",
             "en" to "Connections without TLS are not supported. Turn on TLS (port 563).",
