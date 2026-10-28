@@ -35,6 +35,12 @@ object DomPreverjanje {
     private const val NAJVEC_DELAVCEV = 6
     /** Lastnik 28. 10. 2026: v oknu dodatek, ki se v 3 s ne oglasi, steje kot »nima« - naslov se skrije. */
     private const val ROK_OKNA_MS = 3_000L
+    /** Iskanje pri indeksatorju Usenet ob cakanju (vzporedno z dodatki); najvec toliko hkrati kot delavcev. */
+    private val usenetDelavec = java.util.concurrent.Executors.newFixedThreadPool(3) { r ->
+        Thread(r, "safeer-dom-usenet").apply { isDaemon = true }
+    }
+    /** Koliko naslovov je ostalo samo zaradi izdaje na Usenetu (za dnevnik). */
+    private val usenetZadetkov = java.util.concurrent.atomic.AtomicLong()
     /** Koliko casa naprave, ki ni mogla biti preverjevalec, ne vprasamo znova. */
     private const val IZLOCEN_MS = 5 * 60_000L
     /** Kljuca, ki smo ga preverjevalcu ze poslali na zalogo, toliko casa ne posiljamo znova. */
@@ -68,7 +74,7 @@ object DomPreverjanje {
 
     /** Koliko naslovov caka pri tej napravi (za dnevnik in preizkus). */
     fun stanjeVrste(): String = synchronized(zaklep) {
-        "okno=${vrsta.velikostOkna}, zaloga=${vrsta.velikostZaloge}, delavcev=$delavcev, na_zalogo_danes=${zaloga.danes}, poizvedb=${Stremio.poizvedbVOzadju.get()}, v_uri=${Stremio.opisProracuna()}"
+        "okno=${vrsta.velikostOkna}, zaloga=${vrsta.velikostZaloge}, delavcev=$delavcev, na_zalogo_danes=${zaloga.danes}, poizvedb=${Stremio.poizvedbVOzadju.get()}, v_uri=${Stremio.opisProracuna()}, usenet=${usenetZadetkov.get()}"
     }
 
     @Volatile private var dnevnikOb = 0L
@@ -168,10 +174,19 @@ object DomPreverjanje {
             val resi = synchronized(zaklep) { resevalci[k] }
             (try { resi?.invoke() } catch (_: Throwable) { null }) ?: Stremio.prvaEpizoda(id0, naslovi) ?: return konec(false)
         } else id0
-        val izid = try {
+        // Lastnik 28. 10. 2026: ob cakanju vzporedno se indeksator Usenet (ce je nastavljen) - film z izdajo na Usenetu ostane.
+        val usenet = if (okno && tip in setOf("movie", "series") && UsenetPravila.iscemo(id) && Usenet.jeNaVoljo(app))
+            try { usenetDelavec.submit<Boolean> { Usenet.isci(app, id, ROK_OKNA_MS.toInt()).isNotEmpty() } }
+            catch (_: java.util.concurrent.RejectedExecutionException) { null } else null
+        val dodatki = try {
             if (okno) Stremio.razpolozljivo(naslovi, tip, id, v.meja, velja, rokMs = ROK_OKNA_MS, poRokuNima = true)
             else Stremio.razpolozljivo(naslovi, tip, id, v.meja, velja)
         } catch (_: Exception) { null }
+        val naUsenetu = usenet?.let { f ->
+            try { f.get(ROK_OKNA_MS + 1_000L, TimeUnit.MILLISECONDS) } catch (_: Exception) { f.cancel(true); false }
+        } ?: false
+        if (naUsenetu) usenetZadetkov.incrementAndGet()
+        val izid = P.zUsenetom(dodatki, naUsenetu)
         if (izid == null && !velja()) return konec(false, preklicano = true)
         if (izid != null) Razpolozljivost.zapomni(app, k, izid)
         // Okno: odgovor steje, ce pove kaj za najsibkejso napravo, ki caka; zaloga: vsak odgovor dodatkov.

@@ -44,6 +44,13 @@ object RazpolozljivostPravila {
     }
 
     /** Izid ene poizvedbe pri dodatkih. */
+    /**
+     * Lastnik 28. 10. 2026: preverba ob cakanju vpraša tudi indeksator Usenet (proracun indeksatorja je velik - 20 000 klicev
+     * na dan, poraba ~100). Izdaja na Usenetu pomeni »je na voljo« za vsako napravo (tok je neposreden: lasten pogon ali
+     * TorBox), tudi ce dodatki nimajo nicesar ali se niso oglasili. Brez izdaje (ali brez odgovora) velja odgovor dodatkov.
+     */
+    fun zUsenetom(dodatki: Izid?, naUsenetu: Boolean): Izid? = if (naUsenetu) Izid(jeOd = 0L) else dodatki
+
     data class Izid(val jeOd: Long = BREZ, val niDo: Long = BREZ) {
         /** true / false za napravo z mejo [meja]; null = odgovor za to napravo nicesar ne pove. */
         fun velja(meja: Long): Boolean? = when {

@@ -186,6 +186,11 @@ fun main() {
     check(P.odtis(mapOf(c to 'n', b to 'u')) == "" && P.odtis(mapOf(a to 's')).length == 16)
 
     // ---- kaj smemo deliti z drugimi napravami: samo javne id-je (IMDb)
+    // Lastnik 28. 10. 2026: izdaja na Usenetu = na voljo za vsako napravo, tudi ce dodatki nimajo nicesar.
+    check(P.zUsenetom(P.Izid(niDo = P.VSE), true) == P.Izid(jeOd = 0L))
+    check(P.zUsenetom(null, true)?.velja(0L) == true)
+    check(P.zUsenetom(P.Izid(niDo = P.VSE), false) == P.Izid(niDo = P.VSE))
+    check(P.zUsenetom(null, false) == null)
     check(P.zaDelitev("movie|tt0111161") && P.zaDelitev("series|tt0944947:1:2"))
     for (zasebno in listOf("movie|zp:123", "series|kitsu:5", "Posebno|tt0111161", "movie|tt0111161|brez", "movie|tt12", "movie|" + "tt1".repeat(40)))
         check(!P.zaDelitev(zasebno)) { zasebno }
