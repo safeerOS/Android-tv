@@ -770,7 +770,8 @@ class PredvajanjeActivity : OsActivity() {
         android.util.Log.i("SafeerOsMedia", "zaslon predvajanja odhaja: video=${jeVideo()}, novo=$novoPredvajanje, " +
             "konec=$isFinishing, tece=${GlasbaStoritev.tece()}")
         if (!novoPredvajanje) zapisiNapredek()
-        if (jeVideo() && !isChangingConfigurations && !novoPredvajanje) GlasbaStoritev.predvajalnik?.pause()
+        // Lastnik 28. 10. 2026: YouTube (glasba) igra v ozadju do pavze ali stopa v mini predvajalniku.
+        if (jeVideo() && !igraVOzadju() && !isChangingConfigurations && !novoPredvajanje) GlasbaStoritev.predvajalnik?.pause()
         GlasbaStoritev.poslusalci.remove(poslusalec)
         LinkUpravitelj.pridobi(this).odstrani(linkPoslusalec)
         glavna.removeCallbacks(tik); glavna.removeCallbacks(skrij); glavna.removeCallbacks(zatemni)
@@ -782,6 +783,9 @@ class PredvajanjeActivity : OsActivity() {
     }
 
     private fun jeVideo() = GlasbaStoritev.trenutna()?.video == true
+
+    /** Posnetek z YouTuba (pogosto glasba) se ob odhodu z zaslona ne ustavi - mini predvajalnik ga ustavi. */
+    private fun igraVOzadju() = GlasbaStoritev.trenutna()?.let { YoutubeZvok.jeYoutube(it) } == true
 
     private fun osvezi() {
         if (!zagnan) return

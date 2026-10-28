@@ -409,6 +409,10 @@ def main() -> int:
     preveri("Usenet: kartica kaze album, leto in obliko (ne odrezanega imena izdaje)",
             "UsenetGlasbaPravila.kartica(z.naslov, z.velikost)" in (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8")
             and "listOf(izvajalecPod, k.podnaslov)" in (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8"))
+    pv = (SRC / "os/PredvajanjeActivity.kt").read_text(encoding="utf-8")
+    preveri("YouTube igra v ozadju po Domov (ustavi ga mini predvajalnik); drug video se ustavi",
+            "if (jeVideo() && !igraVOzadju() && !isChangingConfigurations && !novoPredvajanje) GlasbaStoritev.predvajalnik?.pause()" in pv
+            and "YoutubeZvok.jeYoutube(it)" in pv)
     # Rocna gradnja bete v CI: vhod »beta« gre prek okolja v -PsafeerBeta (brez vhoda gradnja kot prej).
     ci = (KOREN / ".github" / "workflows" / "gradnja.yml").read_text(encoding="utf-8")
     preveri("CI: rocna gradnja z vhodom beta poda -PsafeerBeta",
