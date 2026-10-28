@@ -62,6 +62,10 @@ private const val POLICA_NAJVEC = 60
 /** Koliko naslednjih najboljsih tokov gre v rezervo: mrtva povezava odpove v trenutku, zato jih je lahko vec. */
 private const val REZERVNIH_TOKOV = 6
 /** Kakovost iz naslova in povezave kartice ([GlasbaActivity.videi]): prevedeno enkrat (prej trije Regex na vsako kartico ob vsakem izrisu). */
+/** Oznaka pogleda znacke kakovosti (+ id filma), po njej [GlasbaActivity.zabeleziKakovost] najde znacko na zaslonu. */
+private const val OZNAKA_KAKOVOSTI = "kakovost:"
+/** CAM in TS (posnetek iz kina): opozorilna barva na kartici in v seznamu virov. */
+private const val BARVA_OPOZORILA_KAKOVOSTI = 0xFFFFA24A.toInt()
 private val RX_KAKOVOST_4K = Regex("(?:2160p?|4k|uhd)")
 private val RX_KAKOVOST_1080 = Regex("1080p?|full[- ]?hd|fhd")
 private val RX_KAKOVOST_720 = Regex("720p?|\\bhd\\b")
@@ -87,6 +91,8 @@ class GlasbaActivity : OsActivity() {
                                val dolgo: ((View) -> Unit)? = null, val ikona: Int = R.drawable.os_ikona_glasba,
                                val oznaka: String = "", val kakovost: String = "", val ocena: String = "",
                                val tvId: String = "",
+                               /** Id filma pri dodatku (Stremio.razstavi), za oznako kakovosti ([KakovostZnane]); prazno = brez. */
+                               val kakovostId: String = "",
                                /** Ko izbira z daljincem obstane na kartici: pripravi, kar bo klik rabil (tokovi filma), da se zacne takoj. */
                                val priprava: (() -> Unit)? = null,
                                /** Stalen kljuc kartice (id vsebine): po njem mreza ob spremembi ve, kateri pogled je kateri ([NarisanaMreza]). */
@@ -1042,18 +1048,18 @@ class GlasbaActivity : OsActivity() {
             if (plakat) {
                 addView(FrameLayout(this@GlasbaActivity).apply {
                     addView(slika, FrameLayout.LayoutParams(-1, -1))
-                    fun znacka(text: String, barva: Int, spodaj: Int) {
-                        if (text.isBlank()) return
+                    fun znacka(text: String, barva: Int, spodaj: Int, oznakaPogleda: String? = null) {
+                        // Kakovost filma ([KakovostZnane]): znacka obstaja tudi prazna (skrita), da jo priprava tokov osvezi na mestu.
+                        if (text.isBlank() && oznakaPogleda == null) return
                         addView(besedilo(10f, barva, true).apply {
-                            this.text = text.uppercase(Locale.getDefault())
+                            nastaviZnackoKakovosti(this, text, barva)
                             setPadding(dp(8), dp(4), dp(8), dp(4))
-                            background = GradientDrawable().apply {
-                                cornerRadius = dp(7).toFloat(); setColor(0xD9181D26.toInt()); setStroke(dp(1), barva)
-                            }
+                            tag = oznakaPogleda
                         }, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START).apply { leftMargin = dp(8); topMargin = dp(spodaj) })
                     }
                     znacka(k.oznaka, if (k.oznaka == getString(R.string.os_media_serija)) 0xFFA878FF.toInt() else osBarva(R.color.os_mint), 9)
-                    znacka(k.kakovost, 0xFF1CE6F2.toInt(), if (k.oznaka.isBlank()) 9 else 42)
+                    znacka(k.kakovost, barvaKakovosti(k.kakovost), if (k.oznaka.isBlank()) 9 else 42,
+                        k.kakovostId.takeIf { it.isNotBlank() }?.let { OZNAKA_KAKOVOSTI + it })
                 }, LinearLayout.LayoutParams(sirina, visina))
             } else addView(slika, LinearLayout.LayoutParams(sirina, visina))
             val dveVrstici = plakat || kanal || (velikostDp in 1..103 && !mala && !slicica)
@@ -1859,6 +1865,11 @@ class GlasbaActivity : OsActivity() {
                         ref.get()?.takeIf { it.tag == naslov }?.setImageBitmap(b)
                     }
                 }
+            } catch (e: OutOfMemoryError) {
+                // Dnevnik TV 28. 10. 2026 (04:56 in 08:07, klik na film): OOM v niti naslovnic je ubil ves proces in TV je
+                // skocil na domaci zaslon. Naslovnica izpade, polovica predpomnilnika slik se sprosti, aplikacija tece naprej.
+                SLIKE.trimToSize(SLIKE.size() / 2)
+                android.util.Log.w("SafeerOsMedia", "naslovnica: zmanjkalo pomnilnika, predpomnilnik slik zmanjsan na ${SLIKE.size() / 1024 / 1024} MB")
             } finally {
                 slikeVTeKu.remove(naslov)
                 cakajoceSlike.remove(naslov)
@@ -5808,10 +5819,12 @@ class GlasbaActivity : OsActivity() {
                 }
             }
             val signal = (sk.naslov + " " + sk.povezava).lowercase(Locale.ROOT)
-            val kakovost = when {
-                sk.quality >= 2160 || RX_KAKOVOST_4K.containsMatchIn(signal) -> "4K UHD"
-                sk.quality >= 1080 || RX_KAKOVOST_1080.containsMatchIn(signal) -> "HD 1080P"
-                sk.quality >= 720 || RX_KAKOVOST_720.containsMatchIn(signal) -> "HD"
+            // Lastnik 28. 10. 2026: najboljsa znana kakovost iz tokov (»★ 4K«, »⚠ CAM«), sicer iz metapodatkov kataloga.
+            val znana = if (Stremio.jeEnota(sk)) Stremio.razstavi(sk)?.third?.let { KakovostZnane.oznaka(this, it) } else null
+            val kakovost = znana?.let { KakovostPravila.napisKartice(it) } ?: when {
+                sk.quality >= 2160 || RX_KAKOVOST_4K.containsMatchIn(signal) -> KakovostPravila.Oznaka.UHD.napis
+                sk.quality >= 1080 || RX_KAKOVOST_1080.containsMatchIn(signal) -> KakovostPravila.Oznaka.FULL_HD.napis
+                sk.quality >= 720 || RX_KAKOVOST_720.containsMatchIn(signal) -> KakovostPravila.Oznaka.HD.napis
                 else -> ""
             }
             val kartica = Kartica(sk.naslov, podnaslov, sk.slika, {
@@ -5858,9 +5871,10 @@ class GlasbaActivity : OsActivity() {
                 ocena = sk.rating.takeIf { it > 0.0 }?.let { String.format(Locale.ROOT, "%.1f", it) }.orEmpty(),
                 ikona = if (vZivo) R.drawable.os_ikona_tv else if (sk.radio) R.drawable.os_ikona_radio else R.drawable.os_ikona_video,
                 tvId = tvId, id = sk.id,
+                kakovostId = if (Stremio.jeEnota(sk) && !Stremio.jeSerija(sk) && !vZivo) Stremio.razstavi(sk)?.third.orEmpty() else "",
                 // Televizor: ko izbira obstane na filmu iz dodatkov, tokove poiscemo vnaprej (predpomnilnik) - OK ga zazene takoj.
                 priprava = if (jeTv() && Stremio.jeEnota(sk) && !Stremio.jeSerija(sk) && !vZivo)
-                    ({ Stremio.razstavi(sk)?.let { (_, tip, id) -> tokoviVzporedno(tip, id) }; Unit }) else null)
+                    ({ Stremio.razstavi(sk)?.let { (_, tip, id) -> zabeleziKakovost(id, tokoviVzporedno(tip, id)) }; Unit }) else null)
             if (stalna) { zdaj!![sk.id] = urejene to kartica; zap!!.novih++ }
             kartica
         }.also { if (zap != null) zap.kartice = zdaj!! }     // samo kartice tega izrisa: izpadli naslovi ne ostanejo v pomnilniku
@@ -7752,6 +7766,29 @@ class GlasbaActivity : OsActivity() {
         return stremioNaslovi().also { nasloviIzrisa = zdaj to it }
     }
 
+    /** Kakovost iz tokov, ki jih ze imamo (nikoli klic indeksatorja samo za oznako); spremembo pokaze znacka na mestu. */
+    private fun zabeleziKakovost(id: String, tokovi: List<Stremio.Tok>) {
+        val nova = KakovostZnane.zabelezi(applicationContext, id, tokovi.map { it.ime + " " + it.opis }) ?: return
+        runOnUiThread {
+            if (isFinishing || isDestroyed) return@runOnUiThread
+            val napis = KakovostPravila.napisKartice(nova)
+            fun obisci(v: View) {
+                if (v is TextView && v.tag == OZNAKA_KAKOVOSTI + id) nastaviZnackoKakovosti(v, napis, barvaKakovosti(napis))
+                if (v is android.view.ViewGroup) for (i in 0 until v.childCount) obisci(v.getChildAt(i))
+            }
+            obisci(window.decorView)
+        }
+    }
+
+    private fun barvaKakovosti(napis: String): Int = if (napis.startsWith("⚠")) BARVA_OPOZORILA_KAKOVOSTI else 0xFF1CE6F2.toInt()
+
+    private fun nastaviZnackoKakovosti(v: TextView, napis: String, barva: Int) {
+        v.text = napis.uppercase(Locale.getDefault())
+        v.setTextColor(barva)
+        v.visibility = if (napis.isBlank()) View.GONE else View.VISIBLE
+        v.background = GradientDrawable().apply { cornerRadius = dp(7).toFloat(); setColor(0xD9181D26.toInt()); setStroke(dp(1), barva) }
+    }
+
     /**
      * Tokovi iz vseh dodatkov hkrati (vsak dodatek svoja nit, skupaj najvec 12 s): cakanje je toliko, kot traja
      * najpocasnejsi dodatek, ne vsota vseh (prej zaporedno).
@@ -9030,6 +9067,8 @@ class GlasbaActivity : OsActivity() {
                           obNeuspehu: (() -> Unit)? = null) {
         // Pregled A1: nova izbira toka - prejsnje cakanje na debrid/Usenet ne odpre nicesar vec.
         prekiniDebrid()
+        // Oznaka kakovosti (lastnik 28. 10. 2026): tokovi zadnjega predvajanja izboljsajo najboljso znano.
+        Stremio.razstavi(sk)?.third?.let { zabeleziKakovost(it, vsiTokovi) }
         // Diagnostika razvijalca ([Webtor.samoWebtor], samo prek adb, z rokom): pot, kjer debrid toka nima - brez ⚡ pri
         // debridu, neposrednih povezav in Useneta; torrenti ostanejo za ujemanje izdaje Webtor. Izmerjeno 25. 10. 2026: Sintel in
         // Tears of Steel imata neposredno povezavo, zato rezerve Webtor brez tega ni mogoce izmeriti. Pregled 26, T3: viden znak,
@@ -9382,10 +9421,16 @@ class GlasbaActivity : OsActivity() {
                 else when (t.vrsta) { "torrent" -> " · " + getString(R.string.os_stremio_torrent); UsenetPravila.VRSTA -> " · Usenet"; "napovednik" -> " · " + getString(R.string.os_stremio_zunanji); else -> "" }
             // Webtor rezerva: ⚡ tudi za tok, ki ga ima Webtor pripravljenega ([⚡WT]) ali TorBox v Webtor profilu ([⚡TB]).
             val takoj = pripravljen(t) || (t.vir == WebtorPravila.VIR && WebtorPravila.vrstaIz(t.oznakaVira) != WebtorPravila.Vrsta.PRENOS)
-            (if (takoj) DebridPravila.OZNAKA_PREDPOMNJEN + " " else "") +
+            val o = KakovostPravila.oznaka(t.ime + " " + t.opis)
+            val napis = (if (takoj) DebridPravila.OZNAKA_PREDPOMNJEN + " " else "") + (o?.let { "[" + it.napis + "] " } ?: "") +
                 listOf(t.ime, t.opis.replace('\n', ' ')).filter { it.isNotBlank() }.joinToString(" · ") + vrsta
+            // Lastnik 28. 10. 2026: CAM in TS v opozorilni barvi, enako kot na kartici.
+            if (o?.opozorilo == true) android.text.SpannableString(napis).apply {
+                val z = napis.indexOf("[" + o.napis + "]")
+                setSpan(android.text.style.ForegroundColorSpan(BARVA_OPOZORILA_KAKOVOSTI), z, z + o.napis.length + 2, 0)
+            } else napis
         }
-        AlertDialog.Builder(this).setTitle(naslov).setItems(imena.toTypedArray()) { _, k ->
+        AlertDialog.Builder(this).setTitle(naslov).setItems(imena.toTypedArray<CharSequence>()) { _, k ->
             val t = urejeni[k]
             // Webtor rezerva: rocno izbran tok Webtor - sonda in TorBox v ozadju; ce ne stece, ista izdaja kot torrent.
             if (t.vir == WebtorPravila.VIR) {

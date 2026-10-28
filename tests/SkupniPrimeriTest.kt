@@ -156,6 +156,10 @@ private fun izracunaj(f: String, v: Map<String, Any?>): Any? = when (f) {
     "v_nadomestek" -> SkrivnostiPravila.vNadomestek(v.niz("naslov")!!)
     "za_prikaz" -> SkrivnostiPravila.zaPrikaz(v.niz("naslov")!!)
     "odstrani_tok_ob_shranjevanju" -> SkrivnostiPravila.odstraniTokObShranjevanju(v.niz("osnova")!!, v.niz("tok")!!)
+    "kakovost_oznaka" -> KakovostPravila.oznaka(v.niz("ime")!!)?.napis
+    "kakovost_najboljsa" -> KakovostPravila.najboljsa(v.nizi("imena").filterNotNull())?.napis
+    "kakovost_zdruzi" -> KakovostPravila.zdruzi(KakovostPravila.Oznaka.izNapisa(v.niz("znana")), KakovostPravila.Oznaka.izNapisa(v.niz("nova")))?.napis
+    "kakovost_kljuc" -> KakovostPravila.kljuc(v.niz("id")!!)
     "webtor_oznaka" -> WebtorPravila.razcleni(v.niz("ime")!!).let { listOf(it.vrsta.name, it.ime) }
     "je_webtor_dodatek" -> WebtorPravila.jeWebtorDodatek(v.niz("id"), v.niz("osnova")!!)
     "webtor_nauceni_gostitelj" -> WebtorPravila.naucenGostitelj(v.niz("zacetni")!!, v.niz("koncni")!!, v.cel("koda")!!)

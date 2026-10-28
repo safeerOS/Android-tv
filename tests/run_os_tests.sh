@@ -267,6 +267,8 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PreizkusPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/debrid-serije.json"
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/webtor-rezerva.json"
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/kljuci-preverba.json"
+# Oznaka kakovosti ob imenu filma (lastnik 28. 10. 2026) - ista datoteka v Safeer-linux in Safeer-windows.
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/kakovost-oznake.json"
 # Razclenitev seznamov M3U (iptv-m3u.json, lastnik Safeer-linux): [Not 24/7], .uk = GB, vejica v atributih.
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/iptv-m3u.json"
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/iptv-racun.json"

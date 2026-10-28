@@ -53,4 +53,60 @@ object KakovostPravila {
     const val VELJA_MS = 7L * 24 * 3_600_000
 
     fun velja(kdajMs: Long, zdajMs: Long): Boolean = zdajMs - kdajMs in 0 until VELJA_MS
+
+    // --- Oznaka kakovosti ob imenu filma (lastnik 28. 10. 2026, razdelek 5) ------------------------------------------
+    // Ista pravila na Linuxu in Windows (core/kakovost_oznake.py) - skupni primeri tests/skupni-primeri/kakovost-oznake.json.
+
+    /** Oznaka kakovosti izdaje; [rang] za »najboljso znano«, [opozorilo] = posnetek iz kina (CAM, TS) v opozorilni barvi. */
+    enum class Oznaka(val napis: String, val rang: Int, val opozorilo: Boolean) {
+        CAM("CAM", 1, true), TS("TS", 2, true), SD("SD", 3, false), HD("HD", 4, false), FULL_HD("Full HD", 5, false), UHD("4K", 6, false);
+
+        companion object {
+            fun izNapisa(napis: String?): Oznaka? = values().firstOrNull { it.napis == napis }
+        }
+    }
+
+    private val CAM_BESEDE = setOf("cam", "camrip", "hdcam", "hqcam", "newcam", "camhd")
+    private val TS_BESEDE = setOf("ts", "hdts", "telesync", "tc", "hdtc", "telecine", "pdvd", "predvd", "tsrip", "hdtsrip")
+    private val UHD_BESEDE = setOf("2160p", "2160", "4k", "uhd", "4kuhd", "uhd4k")
+    private val FHD_BESEDE = setOf("1080p", "1080i", "1080", "fhd", "fullhd")
+    private val HD_BESEDE = setOf("720p", "720", "hd")
+    private val SD_BESEDE = setOf("480p", "480", "576p", "576", "360p", "sd", "dvdrip", "dvdscr", "xvid")
+    /** Koncnica datoteke ».ts« (MPEG-TS) ni telesync: tocka, »ts« in konec besedila ali presledek. */
+    private val KONCNICA_TS = Regex("""\.ts(?=$|[\s)\]])""")
+    private val LOCILA = Regex("""[^a-z0-9]+""")
+
+    /**
+     * Oznaka iz imena in opisa toka (»Torrentio 4k«, »Movie.2025.HDCAM.x264«). CAM in TS imata prednost pred locljivostjo
+     * (»HDCAM 1080p« je CAM). »Full HD« in »full-hd« sta ena beseda. Brez znane oznake vrne null (nic ne ugibamo).
+     */
+    fun oznaka(ime: String): Oznaka? {
+        val besedilo = KONCNICA_TS.replace(ime.lowercase(java.util.Locale.ROOT), " ")
+            .replace(Regex("""full[\s._-]*hd"""), " fullhd ").replace(Regex("""4k[\s._-]*uhd"""), " 4k ")
+        val besede = besedilo.split(LOCILA).filter { it.isNotEmpty() }.toSet()
+        return when {
+            besede.any { it in CAM_BESEDE } -> Oznaka.CAM
+            besede.any { it in TS_BESEDE } -> Oznaka.TS
+            besede.any { it in UHD_BESEDE } -> Oznaka.UHD
+            besede.any { it in FHD_BESEDE } -> Oznaka.FULL_HD
+            besede.any { it in HD_BESEDE } -> Oznaka.HD
+            besede.any { it in SD_BESEDE } -> Oznaka.SD
+            else -> null
+        }
+    }
+
+    /** Najboljsa oznaka med tokovi (najvisji rang); CAM samo, ce nic boljsega ni znano. */
+    fun najboljsa(imena: Iterable<String>): Oznaka? = imena.mapNotNull { oznaka(it) }.maxByOrNull { it.rang }
+
+    /** Znana oznaka se samo izboljsa: nova izdaja 4K zamenja CAM, slabsi tok (zadnje predvajanje CAM) je ne poslabsa. */
+    fun zdruzi(znana: Oznaka?, nova: Oznaka?): Oznaka? = listOfNotNull(znana, nova).maxByOrNull { it.rang }
+
+    /** Napis na kartici: »★ 4K« za oznako iz tokov, opozorilo »⚠ CAM«. */
+    fun napisKartice(o: Oznaka): String = (if (o.opozorilo) "⚠ " else "★ ") + o.napis
+
+    /** Kljuc za shrambo: samo id filma (epizode imajo svojo kakovost - »tt1:1:2« ne shranimo). */
+    fun kljuc(id: String): String? = id.takeIf { it.isNotBlank() && ':' !in it && it.length <= 64 }
+
+    /** Najvec znanih oznak v shrambi (najstarejse izpadejo). */
+    const val NAJVEC_ZNANIH = 500
 }
