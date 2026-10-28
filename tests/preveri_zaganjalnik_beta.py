@@ -397,6 +397,10 @@ def main() -> int:
     tm = (SRC / "TabManager.kt").read_text(encoding="utf-8")
     preveri("Splet: nov zavihek dobi fokus (daljinec ne obtici na orodni vrstici)",
             "if (fokusPrej !is android.widget.EditText) try { ciljniPogled.requestFocus() }" in tm.split("fun switchTab(", 1)[1].split(chr(10) + "    }", 1)[0])
+    gz = (SRC / "os/GlasbaStoritev.kt").read_text(encoding="utf-8")
+    preveri("predvajalnik: pokvarjen zvocni okvir (AC3 pri predaji zvocniku) ne ustavi videa",
+            "if (napakaZvocnegaOkvirja(error)) {" in gz and "p.seekTo(p.currentPosition + 1_000); p.prepare(); p.play()" in gz
+            and gz.index("if (napakaZvocnegaOkvirja(error)) {") < gz.index("val naprej = YoutubeVrstaPravila.naprejPoNapaki("))
     # Rocna gradnja bete v CI: vhod »beta« gre prek okolja v -PsafeerBeta (brez vhoda gradnja kot prej).
     ci = (KOREN / ".github" / "workflows" / "gradnja.yml").read_text(encoding="utf-8")
     preveri("CI: rocna gradnja z vhodom beta poda -PsafeerBeta",

@@ -82,6 +82,22 @@ class GlasbaStoritev : Service() {
         return false
     }
 
+    /** Posnetek (id) in stevilo pokvarjenih zvocnih okvirjev v njem (lastnik 28. 10. 2026). */
+    private var napakeOkvirja: Pair<String, Int> = "" to 0
+    private val NAJVEC_NAPAK_OKVIRJA = 3
+
+    /** Pokvarjen ali okrnjen okvir AC3/E-AC3/DTS/AC4 pri predaji zvocniku (razclenjevalnik glave okvirja v Media3). */
+    private fun napakaZvocnegaOkvirja(error: PlaybackException): Boolean {
+        var e: Throwable? = error.cause
+        var globina = 0
+        while (e != null && globina++ < 6) {
+            if (e is IndexOutOfBoundsException || e is java.nio.BufferUnderflowException)
+                return e.stackTrace.take(8).any { s -> listOf("Ac3Util", "Ac4Util", "DtsUtil", "DefaultAudioSink").any { s.className.endsWith(it) } }
+            e = e.cause
+        }
+        return false
+    }
+
     /** Imenik vprasamo v ozadju (odgovor pride po glavni niti, zato tu nihce ne caka); izid prebere koncna napaka. */
     private fun vprasajImenik(gostitelj: String) {
         if (gostitelj.isEmpty() || vprasanjeImeniku == gostitelj) return
@@ -233,6 +249,18 @@ class GlasbaStoritev : Service() {
                     Log.i("SafeerOsMedia", "za oknom prenosa v zivo: nazaj na zivo")
                     p.seekToDefaultPosition(); p.prepare()
                     return
+                }
+                // Lastnik 28. 10. 2026: video z racunalnika se je ustavil - pokvarjen okvir AC3 pri predaji zvocniku
+                // (Ac3Util, IndexOutOfBounds). Nadaljuj 1 s naprej (cez pokvarjen okvir), najvec NAJVEC_NAPAK_OKVIRJA na posnetek.
+                if (napakaZvocnegaOkvirja(error)) {
+                    val id = trenutna()?.id.orEmpty()
+                    val n = if (napakeOkvirja.first == id) napakeOkvirja.second + 1 else 1
+                    napakeOkvirja = id to n
+                    if (n <= NAJVEC_NAPAK_OKVIRJA) {
+                        Log.i("SafeerOsMedia", "pokvarjen zvocni okvir: naprej 1 s ($n/$NAJVEC_NAPAK_OKVIRJA)")
+                        p.seekTo(p.currentPosition + 1_000); p.prepare(); p.play()
+                        return
+                    }
                 }
                 val enota = trenutna()
                 if (enota != null && vrsta.size == 1 && enota.mime.isBlank() && enota.zvok.startsWith("http") && kotHls != enota.id &&
