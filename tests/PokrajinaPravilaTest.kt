@@ -130,5 +130,14 @@ fun main() {
     preveriEnako("prazna lupa s fokusom (daljinec): fokus na ploscice", true, PokrajinaPravila.zapriLupo("", zadetkiVidni = false, fokusVLupi = true))
     preveriEnako("lupa zaprta, fokus drugje: Nazaj gre naprej", false, PokrajinaPravila.zapriLupo(null, zadetkiVidni = false, fokusVLupi = false))
 
+    println("\n== prileganje in preliv (po zgledu tv-simple-home) ==")
+    preveriEnako("TV 1080p: polna visina plosce", true, PokrajinaPravila.visinaPlosce(150) == 118)
+    preveriEnako("tocno dovolj prostora", true, PokrajinaPravila.visinaPlosce(118) == 118)
+    preveriEnako("nizji zaslon: plosca nizja", true, PokrajinaPravila.visinaPlosce(90) == 90)
+    preveriEnako("nikoli nizja od 72 dp", true, PokrajinaPravila.visinaPlosce(10) == 72 && PokrajinaPravila.visinaPlosce(-40) == 72)
+    preveriEnako("brez zatemnitve: preliv 45 %", true, PokrajinaPravila.alfaPreliva(0) == 114)
+    preveriEnako("delna zatemnitev: samo kar manjka", true, PokrajinaPravila.alfaPreliva(30) == 38)
+    preveriEnako("dovolj zatemnjeno: brez preliva", true, PokrajinaPravila.alfaPreliva(45) == 0 && PokrajinaPravila.alfaPreliva(80) == 0)
+    preveriEnako("zunaj meja", true, PokrajinaPravila.alfaPreliva(-5) == 114 && PokrajinaPravila.alfaPreliva(500) == 0)
     if (napak == 0) println("PokrajinaPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

@@ -48,6 +48,7 @@ class PokrajinaActivity : OsActivity() {
     private lateinit var vreme: TextView
     private lateinit var vrstaAplikacij: LinearLayout
     private lateinit var dok: LinearLayout
+    private lateinit var preliv: View
     private lateinit var zadetki: LinearLayout
     private lateinit var poljeLupe: EditText
 
@@ -113,8 +114,10 @@ class PokrajinaActivity : OsActivity() {
         vsebina.addView(drsnik, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(18) })
         vsebina.addView(View(this), LinearLayout.LayoutParams(0, 0, 1f))
         dok = plavajocaVrstica()
-        dok.addOnLayoutChangeListener { _, _, t, _, b, _, st, _, sb -> if (t != st || b != sb) robDocka() }
+        dok.addOnLayoutChangeListener { _, _, t, _, b, _, st, _, sb -> if (t != st || b != sb) { robDocka(); prilagodiVisinoPlosc() } }
         vsebina.addView(dok, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(14) })
+        preliv = View(this)
+        koren.addView(preliv, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         koren.addView(vsebina, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         setContentView(koren)
         if (intent?.categories?.contains(Intent.CATEGORY_HOME) == true) Zaganjalnik.zabeleziZagonDomov(this)
@@ -123,6 +126,10 @@ class PokrajinaActivity : OsActivity() {
     override fun onStart() {
         super.onStart()
         Ozadje.uporabi(this, koren)
+        // Po zgledu tv-simple-home (Scrim): ura zgoraj in spodnja vrstica ostaneta berljivi tudi na svetli sliki.
+        val alfa = PokrajinaPravila.alfaPreliva(Ozadje.zatemnitev(this))
+        preliv.background = if (alfa == 0) null else GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+            intArrayOf(alfa shl 24, 0, 0, alfa shl 24))
         glavna.post(tikUre)
         narisiAplikacije()
         // Po vrnitvi iz aplikacije fokus na njeno plosco (po zgledu tv-simple-home FocusRestore, lastnik 28. 10. 2026):
@@ -422,10 +429,31 @@ class PokrajinaActivity : OsActivity() {
     }
 
     /** Sirina plosce: sest v vrsti cez vsebino zaslona; vec plosc je za drsenjem desno. */
+    /** Visina plosc po prostoru na zaslonu ([PokrajinaPravila.visinaPlosce]); na TV 1080p ostane 118 dp. */
+    private var visinaPlosceDp = PokrajinaPravila.VISINA_PLOSCE_DP
+
+    /** Po postavitvi: prostor od vrha vrste do spodnje vrstice; ce plosce ne gredo, jih znizamo (in nazaj, ko gredo). */
+    private fun prilagodiVisinoPlosc() {
+        val drsnik = vrstaAplikacij.parent as? View ?: return
+        if (dok.height == 0 || drsnik.height == 0) return
+        val gostota = resources.displayMetrics.density
+        // Prostor za plosco: od vrha drsnika do vrha spodnje vrstice brez njenega odmika (14) in notranjega roba vrste (2 x 10).
+        val prostorPx = dok.top - dp(14) - drsnik.top - vrstaAplikacij.paddingTop - vrstaAplikacij.paddingBottom
+        // Spodnja vrstica je pod robom zaslona (vsebina ne gre): manjka toliko, kolikor je je zunaj.
+        val zunajPx = (dok.bottom - (koren.height - dp(18))).coerceAtLeast(0)
+        val nova = PokrajinaPravila.visinaPlosce(((prostorPx - zunajPx) / gostota).toInt())
+        if (nova == visinaPlosceDp) return
+        visinaPlosceDp = nova
+        for (i in 0 until vrstaAplikacij.childCount) {
+            val v = vrstaAplikacij.getChildAt(i)
+            (v.layoutParams as? LinearLayout.LayoutParams)?.let { it.height = dp(nova); v.layoutParams = it }
+        }
+    }
+
     private fun sirinaPlosce(): Int = ((resources.displayMetrics.widthPixels - dp(88)) / PokrajinaPravila.STOLPCEV - dp(20)).coerceAtLeast(dp(110))
 
     private fun dodajVVrsto(v: View) {
-        vrstaAplikacij.addView(v, LinearLayout.LayoutParams(sirinaPlosce(), dp(118)).apply { marginStart = dp(10); marginEnd = dp(10) })
+        vrstaAplikacij.addView(v, LinearLayout.LayoutParams(sirinaPlosce(), dp(visinaPlosceDp)).apply { marginStart = dp(10); marginEnd = dp(10) })
     }
 
     private fun narisiAplikacije() {

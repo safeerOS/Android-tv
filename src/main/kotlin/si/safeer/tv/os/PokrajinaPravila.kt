@@ -102,6 +102,26 @@ object PokrajinaPravila {
     const val STOLPCEV = 6
 
     /**
+     * Prileganje vrste ploscic (po zgledu tv-simple-home LayoutBudget, lastnik 28. 10. 2026): plosca je visoka
+     * [VISINA_PLOSCE_DP], na nizjem zaslonu (telefon lezece, tablica, pisava povecana) pa toliko, kolikor je prostora med
+     * vrsto in spodnjo vrstico - nikoli nizja od [NAJNIZJA_PLOSCA_DP]; spodnja vrstica tako ne zdrsne z zaslona.
+     */
+    const val VISINA_PLOSCE_DP = 118
+    const val NAJNIZJA_PLOSCA_DP = 72
+
+    fun visinaPlosce(prostorDp: Int): Int = prostorDp.coerceIn(NAJNIZJA_PLOSCA_DP, VISINA_PLOSCE_DP)
+
+    /**
+     * Zatemnitev za berljivost (po zgledu tv-simple-home Scrim): prelivi zgoraj (ura, vreme, lupa) in spodaj (spodnja
+     * vrstica) - alfa 0-255. Ce je uporabnik ozadje ze zatemnil ([zatemnitev] 0-100), preliv doda samo, kar manjka do
+     * [NAJMANJ_ZATEMNITVE_PRELIV]; svetla slika ozadja tako besedila nikoli ne pobeli.
+     */
+    const val NAJMANJ_ZATEMNITVE_PRELIV = 45
+
+    fun alfaPreliva(zatemnitev: Int): Int =
+        ((NAJMANJ_ZATEMNITVE_PRELIV - zatemnitev.coerceIn(0, 100)).coerceAtLeast(0) * 255 / 100)
+
+    /**
      * Lastnik 27. 10. 2026: na domacem zaslonu ENA vrstica - priljubljene spletne in namescene aplikacije (vrstni red
      * uporabnika) in na koncu »+ Dodaj«; vse aplikacije (TV in drugih naprav) so za gumbom Aplikacije. Priljubljena, ki
      * je ni vec med [vse] (odstranjena aplikacija), se ne pokaze; vsaka samo enkrat.
