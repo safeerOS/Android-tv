@@ -150,6 +150,27 @@ object UsenetGlasbaPravila {
         return isti.first()
     }
 
+    /**
+     * Lastnik 28. 10. 2026: druge izdaje istega albuma kot [izbran] (za ponoven poskus pri »luknja«), brez neuspelih;
+     * najvec [najvec] (vsaka je en prenos NZB).
+     */
+    fun drugeIzdaje(naslovi: List<String>, izbran: String, najvec: Int, neuspel: (Int) -> Boolean): List<Int> =
+        jedroAlbuma(izbran).let { j ->
+            if (j.isEmpty()) emptyList()
+            else naslovi.indices.filter { naslovi[it] != izbran && jedroAlbuma(naslovi[it]) == j && !neuspel(it) }.take(najvec)
+        }
+
+    /** Izvajalec in album brez letnice, formata in skupine (»Linkin Park - Meteora (2003) [FLAC]« -> »linkin park meteora«). */
+    fun jedroAlbuma(naslovIzdaje: String): String {
+        val besede = kljuc(lepNaslov(naslovIzdaje)).split(' ').filter { it.isNotEmpty() }
+        val konec = besede.indexOfFirst { Regex("(19|20)\\d\\d").matches(it) || it in OZNAKE_FORMATA }
+        val jedro = if (konec >= 0) besede.take(konec) else besede
+        return if (jedro.size >= 2) jedro.joinToString(" ") else ""
+    }
+
+    private val OZNAKE_FORMATA = setOf("flac", "mp3", "aac", "alac", "ogg", "opus", "wav", "320", "256", "v0", "web", "cd", "cdrip",
+        "vinyl", "24bit", "16bit", "lossless", "hires", "repost")
+
     private fun kotiVelikost(a: Long, b: Long) = a > 0 && kotlin.math.abs(a - b) <= maxOf(a, b) / 100
 
     /** Izvajalec iz naslova izdaje »Izvajalec - Album (Leto) [FLAC]«; brez » - « prazno. */

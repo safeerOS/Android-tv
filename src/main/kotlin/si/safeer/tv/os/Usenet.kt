@@ -499,11 +499,32 @@ object Usenet {
         }
     }
 
-    /** Album izdaje [idToka] (iz [isciGlasbo]) z lastnim pogonom; delovna nit. */
-    fun albumLastni(c: Context, idToka: String): UsenetLastni.Album {
+    /**
+     * Album izdaje [idToka] (iz [isciGlasbo]) z lastnim pogonom; delovna nit. Lastnik 28. 10. 2026 (kvota): NZB izdaje
+     * [naslov]/[velikost], ki je ze na napravi, se ne prenasa znova; uspel se shrani, trajna napaka se zapomni.
+     */
+    fun albumLastni(c: Context, idToka: String, naslov: String = "", velikost: Long = 0L): UsenetLastni.Album {
+        albumIzShrambe(c, naslov, velikost)?.let { return it }
         val (nzb, napaka) = nzbLastni(c, idToka)
         return if (nzb == null) UsenetLastni.Album(emptyList(), napaka?.napaka ?: UsenetPravila.NAPAKA_INDEKSATOR)
-        else UsenetLastni.predvajajAlbum(c, nzb)
+        else UsenetLastni.predvajajAlbum(c, nzb).also { zabeleziAlbum(c, naslov, velikost, nzb, it) }
+    }
+
+    /** Album iz NZB na napravi (brez indeksatorja in kvote) ali null, ce ga ni. */
+    fun albumIzShrambe(c: Context, naslov: String, velikost: Long): UsenetLastni.Album? {
+        val nzb = UsenetNzbShramba.preberi(c, naslov, velikost) ?: return null
+        Log.i(TAG, "glasba: NZB z naprave (brez prenosa)")
+        return UsenetLastni.predvajajAlbum(c, nzb).also { zabeleziAlbum(c, naslov, velikost, null, it) }
+    }
+
+    private fun zabeleziAlbum(c: Context, naslov: String, velikost: Long, nzb: ByteArray?, a: UsenetLastni.Album) {
+        if (naslov.isBlank()) return
+        if (a.skladbe.isNotEmpty()) { if (nzb != null) UsenetNzbShramba.shrani(c, naslov, velikost, nzb) }
+        else if (UsenetLastniPravila.trajnaNapakaAlbuma(a.napaka)) {
+            UsenetNzbShramba.zabeleziNeuspel(c, naslov, velikost)
+            UsenetNzbShramba.odstrani(c, naslov, velikost)
+            Log.i(TAG, "glasba: izdaja ni vec na voljo (${a.napaka}) - skrita 30 dni")   // brez imena
+        }
     }
 
     /** NZB za lasten pogon (pravila indeksatorja kot za TorBox): (NZB, null) ali (null, izid napake). */

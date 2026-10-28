@@ -62,4 +62,13 @@ fun main() {
     preveriEnako("velikost GB", "1.5 GB", G.velikost(1536L * 1024 * 1024))
     println(if (napak == 0) "UsenetGlasbaPravilaTest: OK" else "UsenetGlasbaPravilaTest: $napak napak")
     if (napak > 0) kotlin.system.exitProcess(1)
+    // Lastnik 28. 10. 2026: pri »luknja« druga izdaja istega albuma, ne drug album, ne neuspela.
+    run {
+        val n = listOf("Linkin Park - Meteora (2003) [FLAC]", "Linkin Park - Meteora (2003) [MP3]", "Linkin Park - Hybrid Theory (2000)",
+            "Linkin Park - Meteora (2003) [FLAC] (repost)")
+        val d = UsenetGlasbaPravila.drugeIzdaje(n, n[0], 5) { it == 3 }
+        if (d != listOf(1)) { println("  NAPAKA  druge izdaje: $d"); kotlin.system.exitProcess(1) } else println("  ok  druge izdaje istega albuma brez neuspelih")
+        val j = UsenetGlasbaPravila.jedroAlbuma("Linkin_Park-Meteora-2003-FLAC-GRP")
+        if (j != "linkin park meteora") { println("  NAPAKA  jedro albuma: $j"); kotlin.system.exitProcess(1) } else println("  ok  jedro albuma iz imena izdaje")
+    }
 }

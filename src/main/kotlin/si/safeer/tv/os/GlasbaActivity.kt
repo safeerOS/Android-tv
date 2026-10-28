@@ -6585,7 +6585,9 @@ class GlasbaActivity : OsActivity() {
             // Cesar noben dodatek ne predvaja, med zadetki ni.
             val izDodatkov = izDodatkovVsi.filterNot { znanoNiNaVoljo(it) || cakaNaKnjiznico(it) }
             @Suppress("UNCHECKED_CAST") val tvKanali = rezultati[12] as? List<Jamendo.Skladba> ?: emptyList()
-            @Suppress("UNCHECKED_CAST") val usenetAlbumi = rezultati[14] as? List<UsenetPravila.Zadetek> ?: emptyList()
+            // Lastnik 28. 10. 2026: izdaje, ki niso vec na voljo (trajna napaka), se ne pokazejo.
+            @Suppress("UNCHECKED_CAST") val usenetAlbumi = (rezultati[14] as? List<UsenetPravila.Zadetek> ?: emptyList())
+                .filterNot { UsenetNzbShramba.jeNeuspel(applicationContext, it.naslov, it.velikost) }
             // Zadetki dodatkov po vrsti vsebine: vsak pristane v svoji polici (film, serija, TV v zivo, glasba, radio).
             val dodatkiPoRazredu = izDodatkov.groupBy { Stremio.razredEnote(it) }
             // Naloga 81: drug video (tip YouTube ...) ni film - gre v polico Video; iskanje iz Glasbe: med glasbo (posnetki).
@@ -6683,7 +6685,7 @@ class GlasbaActivity : OsActivity() {
                     // Lastnik 27. 10. 2026: izdaje glasbe z Useneta - klik takoj predvaja (pri iskani skladbi, kot pri YouTubu).
                     Vrsta("\uD83D\uDCE6 Usenet", usenetAlbumi.map { z ->
                         // Lastnik 27. 10. 2026: dolg pritisk shrani album med priljubljene (ali ga odstrani).
-                        Kartica(UsenetGlasbaPravila.lepNaslov(z.naslov), UsenetGlasbaPravila.velikost(z.velikost), "", { predvajajUsenetAlbum(z, beseda) },
+                        Kartica(UsenetGlasbaPravila.lepNaslov(z.naslov), UsenetGlasbaPravila.velikost(z.velikost), "", { predvajajUsenetAlbum(z, beseda, usenetAlbumi) },
                             dolgo = { preklopiUsenetAlbum(z.naslov, z.velikost) },
                             oznaka = if (UsenetAlbumi.je(this, z.naslov)) "★" else "",
                             ikona = R.drawable.os_ikona_glasba, id = "usenet:" + UsenetPravila.idToka(z.povezava))
@@ -7556,42 +7558,71 @@ class GlasbaActivity : OsActivity() {
         Kontroler.pokazi(okno); okno.show()
     }
 
-    /** Priljubljeni album: povezave nimamo (kljuc!) - ena poizvedba pri indeksatorju po imenu izdaje, nato predvajanje. */
+    /**
+     * Priljubljeni album: povezave nimamo (kljuc!). Lastnik 28. 10. 2026 (kvota): najprej NZB na napravi (brez indeksatorja),
+     * sicer ena poizvedba pri indeksatorju po imenu izdaje, nato predvajanje.
+     */
     private fun predvajajShranjenUsenetAlbum(a: UsenetAlbumi.Album) {
         val app = applicationContext
         pokaziPripravljam(getString(R.string.os_usenet_album_pripravljam, UsenetGlasbaPravila.lepNaslov(a.naslov)))
         Thread({
-            val zadetki = try { Usenet.isciGlasbo(app, UsenetGlasbaPravila.lepNaslov(a.naslov)) } catch (_: Exception) { emptyList() }
+            val shranjen = try { Usenet.albumIzShrambe(app, a.naslov, a.velikost) } catch (_: Exception) { null }
+            if (shranjen != null && shranjen.skladbe.isNotEmpty()) {
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    skrijPripravljam()
+                    predvajajSkladbeAlbuma(shranjen, a.naslov, "shramba" + a.naslov.hashCode(), "")
+                }
+                return@Thread
+            }
+            val zadetki = (try { Usenet.isciGlasbo(app, UsenetGlasbaPravila.lepNaslov(a.naslov)) } catch (_: Exception) { emptyList() })
+                .filterNot { UsenetNzbShramba.jeNeuspel(app, it.naslov, it.velikost) }
             val i = UsenetGlasbaPravila.izberiShranjenega(zadetki.map { it.naslov to it.velikost }, a.naslov, a.velikost)
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 skrijPripravljam()
                 if (i < 0) { Toast.makeText(this, R.string.os_usenet_album_ni_vec, Toast.LENGTH_LONG).show(); return@runOnUiThread }
-                predvajajUsenetAlbum(zadetki[i], "")
+                predvajajUsenetAlbum(zadetki[i], "", zadetki)
             }
         }, "safeer-usenet-priljubljen").start()
     }
 
-    private fun predvajajUsenetAlbum(z: UsenetPravila.Zadetek, beseda: String) {
+    /**
+     * [drugi]: zadetki istega iskanja. Lastnik 28. 10. 2026 (kvota): pri »luknja« najvec NAJVEC_DRUGIH_IZDAJ drugi izdaji
+     * istega albuma ([poskus] steje), druge napake brez ponovitve.
+     */
+    private fun predvajajUsenetAlbum(z: UsenetPravila.Zadetek, beseda: String, drugi: List<UsenetPravila.Zadetek> = emptyList(),
+                                     poskus: Int = 0, prvi: String = z.naslov) {
         val app = applicationContext
-        Toast.makeText(this, getString(R.string.os_usenet_album_pripravljam, UsenetGlasbaPravila.lepNaslov(z.naslov)), Toast.LENGTH_SHORT).show()
+        if (poskus == 0) Toast.makeText(this, getString(R.string.os_usenet_album_pripravljam, UsenetGlasbaPravila.lepNaslov(z.naslov)), Toast.LENGTH_SHORT).show()
         val id = UsenetPravila.idToka(z.povezava)
         Thread({
-            val album = try { Usenet.albumLastni(app, id) } catch (_: Exception) { UsenetLastni.Album(emptyList(), "napaka") }
+            val album = try { Usenet.albumLastni(app, id, z.naslov, z.velikost) } catch (_: Exception) { UsenetLastni.Album(emptyList(), "napaka") }
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 if (album.skladbe.isEmpty()) {
-                    android.util.Log.i("SafeerOsMedia", "glasba usenet: ni predvajal (${album.napaka})")
+                    android.util.Log.i("SafeerOsMedia", "glasba usenet: ni predvajal (${album.napaka}), poskus ${poskus + 1}")
+                    if (UsenetLastniPravila.poskusiDrugoIzdajo(album.napaka) && poskus < UsenetLastniPravila.NAJVEC_DRUGIH_IZDAJ) {
+                        val naslovi = drugi.map { it.naslov }
+                        val naslednja = UsenetGlasbaPravila.drugeIzdaje(naslovi, prvi, drugi.size) { j ->
+                            naslovi[j] == z.naslov || UsenetNzbShramba.jeNeuspel(app, drugi[j].naslov, drugi[j].velikost)
+                        }.firstOrNull()
+                        if (naslednja != null) { predvajajUsenetAlbum(drugi[naslednja], beseda, drugi, poskus + 1, prvi); return@runOnUiThread }
+                    }
                     Toast.makeText(this, getString(if (UsenetLastniPravila.albumStisnjen(album.napaka)) R.string.os_usenet_album_stisnjen
                         else R.string.os_usenet_album_ni), Toast.LENGTH_LONG).show()
                     return@runOnUiThread
                 }
-                // Lastnik 27. 10. 2026: naslov in izvajalec lepse (izvajalec ostane, v svojem polju) - pravilo za cel album.
-                val lepe = UsenetGlasbaPravila.lepeSkladbe(album.skladbe.map { it.first }, UsenetGlasbaPravila.izvajalec(z.naslov))
-                val seznam = album.skladbe.mapIndexed { i, (_, url) -> Jamendo.Skladba("usenet:$id:$i", lepe[i].first, lepe[i].second, "", url, "") }
-                predvajaj(seznam, UsenetGlasbaPravila.zacetnaSkladba(album.skladbe.map { it.first }, beseda))
+                predvajajSkladbeAlbuma(album, z.naslov, id, beseda)
             }
         }, "safeer-usenet-album").start()
+    }
+
+    private fun predvajajSkladbeAlbuma(album: UsenetLastni.Album, naslov: String, id: String, beseda: String) {
+        // Lastnik 27. 10. 2026: naslov in izvajalec lepse (izvajalec ostane, v svojem polju) - pravilo za cel album.
+        val lepe = UsenetGlasbaPravila.lepeSkladbe(album.skladbe.map { it.first }, UsenetGlasbaPravila.izvajalec(naslov))
+        val seznam = album.skladbe.mapIndexed { i, (_, url) -> Jamendo.Skladba("usenet:$id:$i", lepe[i].first, lepe[i].second, "", url, "") }
+        predvajaj(seznam, UsenetGlasbaPravila.zacetnaSkladba(album.skladbe.map { it.first }, beseda))
     }
 
     private fun predvajaj(seznam: List<Jamendo.Skladba>, i: Int,

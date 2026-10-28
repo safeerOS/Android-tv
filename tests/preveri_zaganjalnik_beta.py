@@ -370,7 +370,7 @@ def main() -> int:
             "nedejavnostMs = UsenetLastniPravila.NEDEJAVNOST_ALBUMA_MS" in ul.split("fun predvajajAlbum(", 1)[1].split(chr(10) + "    }", 1)[0])
     ul2 = (SRC / "os/UsenetLastni.kt").read_text(encoding="utf-8")
     preveri("album z Useneta: en streznik, skladbe sproti (najvec 5 odprtih)",
-            "UsenetStreznik(AlbumIzvor(viri, nntp::body, profil)" in ul2 and "for ((ime, vir) in viri)" not in ul2)
+            "AlbumIzvor(viri, nntp::body, profil)" in ul2 and "for ((ime, vir) in viri)" not in ul2)
     gl7 = (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8")
     ua = (SRC / "os/UsenetAlbumi.kt").read_text(encoding="utf-8")
     preveri("priljubljeni albumi z Useneta: dolg pritisk in vrstica, brez povezave NZB v shrambi",
@@ -382,6 +382,21 @@ def main() -> int:
     preveri("predvajalnik: stikali samodejno naslednja skladba in album (privzeto vklopljeni)",
             "MiniPredvajalnikPravila.poKoncuSkladbe(samodejnoNaslednja(this), samodejnoAlbum(this)" in gs
             and "p.pauseAtEndOfMediaItems = !samodejnoNaslednja(this)" in gs and "R.string.os_samodejno_album" in pa)
+    us = (SRC / "os/UsenetStreznik.kt").read_text(encoding="utf-8")
+    preveri("album: naslednja skladba pripravljena vnaprej (ni preskakovanja ob prvi zahtevi)",
+            "pripraviVnaprej(i + 1)" in us and "izvor.pripraviVnaprej(0)" in (SRC / "os/UsenetLastni.kt").read_text(encoding="utf-8"))
+    pk4 = (SRC / "os/PokrajinaActivity.kt").read_text(encoding="utf-8")
+    preveri("domaci zaslon: vrstica aplikacij pod lupo (prostor pod njo, mini predvajalnik je ne prekriva)",
+            pk4.index("vsebina.addView(drsnik,") < pk4.index("vsebina.addView(View(this), LinearLayout.LayoutParams(0, 0, 1f))") < pk4.index("vsebina.addView(dok,"))
+    gk = (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8")
+    uk = (SRC / "os/Usenet.kt").read_text(encoding="utf-8")
+    preveri("kvota: NZB na napravi, neuspeli skriti, druga izdaja samo pri luknji",
+            "albumIzShrambe(c, naslov, velikost)?.let { return it }" in uk and "UsenetNzbShramba.jeNeuspel(applicationContext, it.naslov, it.velikost)" in gk
+            and "UsenetLastniPravila.poskusiDrugoIzdajo(album.napaka) && poskus < UsenetLastniPravila.NAJVEC_DRUGIH_IZDAJ" in gk
+            and "Usenet.albumIzShrambe(app, a.naslov, a.velikost)" in gk)
+    tm = (SRC / "TabManager.kt").read_text(encoding="utf-8")
+    preveri("Splet: nov zavihek dobi fokus (daljinec ne obtici na orodni vrstici)",
+            "if (fokusPrej !is android.widget.EditText) try { ciljniPogled.requestFocus() }" in tm.split("fun switchTab(", 1)[1].split(chr(10) + "    }", 1)[0])
     # Rocna gradnja bete v CI: vhod »beta« gre prek okolja v -PsafeerBeta (brez vhoda gradnja kot prej).
     ci = (KOREN / ".github" / "workflows" / "gradnja.yml").read_text(encoding="utf-8")
     preveri("CI: rocna gradnja z vhodom beta poda -PsafeerBeta",

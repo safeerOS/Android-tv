@@ -466,6 +466,8 @@ private fun albumOkno() {
     val izvor = AlbumIzvor(nzb.datoteke.map { d -> d.ime to { UsenetBralnik.pripraviDatoteko(d, o::telo) } }, o::telo,
         UsenetBralnik.PROFILI.getValue("tv"))
     enako("pred prvo zahtevo nic odprtega", 0, izvor.odprtih)
+    izvor.pripraviVnaprej(0)
+    enako("vnaprej pripravljen vir ne odpre bralnika", 0, izvor.odprtih)
     UsenetStreznik(izvor, nedejavnostMs = 60_000L).use { s ->
         var dobri = 0
         for ((i, par) in skladbe.withIndex()) {

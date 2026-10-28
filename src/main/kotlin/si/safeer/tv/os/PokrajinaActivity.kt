@@ -101,7 +101,6 @@ class PokrajinaActivity : OsActivity() {
             val rob = (resources.displayMetrics.widthPixels * 0.2f).toInt()
             marginStart = rob; marginEnd = rob; topMargin = dp(8)
         })
-        vsebina.addView(View(this), LinearLayout.LayoutParams(0, 0, 1f))
         // Lastnik 27. 10. 2026: ENA vrstica - priljubljene spletne in namescene aplikacije in »+ Dodaj«, plosce po zgledu
         // (zaobljene, brez obrobe; obroba samo s fokusom). Vse aplikacije so za gumbom Aplikacije v spodnji vrstici.
         vrstaAplikacij = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(dp(4), dp(10), dp(4), dp(10)) }
@@ -110,7 +109,9 @@ class PokrajinaActivity : OsActivity() {
             isHorizontalFadingEdgeEnabled = true; setFadingEdgeLength(dp(48))
             addView(vrstaAplikacij)
         }
-        vsebina.addView(drsnik, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        // Lastnik 28. 10. 2026: vrstica pod iskalno lupo - mini predvajalnik (nad spodnjo vrstico) je ne prekriva vec.
+        vsebina.addView(drsnik, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(18) })
+        vsebina.addView(View(this), LinearLayout.LayoutParams(0, 0, 1f))
         dok = plavajocaVrstica()
         dok.addOnLayoutChangeListener { _, _, t, _, b, _, st, _, sb -> if (t != st || b != sb) robDocka() }
         vsebina.addView(dok, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(14) })

@@ -205,12 +205,16 @@ class TabManager(
 
         roki.remove(tabId)?.let(glavna::removeCallbacks)
         val ciljniPogled = zbudi(target)
+        val fokusPrej = try { container.rootView?.findFocus() } catch (_: Exception) { null }
         container.removeAllViews()
         if (ciljniPogled.parent != null) {
             (ciljniPogled.parent as? ViewGroup)?.removeView(ciljniPogled)
         }
         container.addView(ciljniPogled)
         strojniSloj(ciljniPogled, true)
+        // Lastnik 28. 10. 2026: po novem zavihku daljinec ni premikal (fokus je ostal na gumbu orodne vrstice brez cilja
+        // pod njim) - stran dobi fokus kot v zbudiAktivnega; vpis v polje (naslovna vrstica) ostane.
+        if (fokusPrej !is android.widget.EditText) try { ciljniPogled.requestFocus() } catch (_: Exception) {}
         for (tab in tabs) {
             val w = tab.webView ?: continue
             try {

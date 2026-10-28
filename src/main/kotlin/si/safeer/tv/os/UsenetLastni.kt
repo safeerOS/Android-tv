@@ -146,7 +146,9 @@ object UsenetLastni {
             val profil = UsenetBralnik.PROFILI.getValue(if (Naprava.jeTelevizor(c)) "tv" else "telefon")
             // En streznik za cel album (lastnik 27. 10. 2026): v pomnilniku najvec AlbumIzvor.NAJVEC_ODPRTIH skladb; skladba,
             // ki se ni na vrsti, ne potece (rok nedejavnosti za album, prej 5 min - album je obstal po 4 skladbah).
-            val st = UsenetStreznik(AlbumIzvor(viri, nntp::body, profil), nedejavnostMs = UsenetLastniPravila.NEDEJAVNOST_ALBUMA_MS)
+            val izvor = AlbumIzvor(viri, nntp::body, profil)
+            val st = UsenetStreznik(izvor, nedejavnostMs = UsenetLastniPravila.NEDEJAVNOST_ALBUMA_MS)
+            izvor.pripraviVnaprej(0)    // povezava NNTP in prva skladba med pripravo predvajalnika
             s.strezniki = listOf(st)
             val skladbe = viri.mapIndexed { i, (ime, _) -> UsenetGlasbaPravila.imeSkladbe(ime) to st.urlSkladbe(i) }
             if (skladbe.isEmpty()) { koncaj(s); return Album(emptyList(), "luknja") }

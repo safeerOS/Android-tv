@@ -316,6 +316,23 @@ class AlbumIzvor(
     private val odprti = LinkedHashMap<Int, UsenetBralnik.Bralnik>(8, 0.75f, true)
     private val priprava = Array(skladbe.size) { Any() }
     @Volatile private var zaprt = false
+    private val vnaprej = java.util.concurrent.Executors.newSingleThreadExecutor { r ->
+        Thread(r, "safeer-usenet-album-vnaprej").apply { isDaemon = true }
+    }
+
+    /**
+     * Lastnik 28. 10. 2026: vir skladbe [i] (prvi segment) pripravi v ozadju, se preden jo predvajalnik zahteva - brez
+     * bralnika (niti in predpomnilnik nastanejo ob zahtevi). Prej je prva zahteva cakala na povezavo NNTP in prvi segment
+     * in je predvajalnik po 8 s skladbo preskocil.
+     */
+    fun pripraviVnaprej(i: Int) {
+        if (i !in skladbe.indices || zaprt) return
+        try {
+            vnaprej.execute {
+                try { synchronized(priprava[i]) { if (viri[i] == null && !zaprt) viri[i] = skladbe[i].second() } } catch (_: Exception) { }
+            }
+        } catch (_: java.util.concurrent.RejectedExecutionException) { }
+    }
 
     override val stevilo: Int get() = skladbe.size
     override fun ime(i: Int): String? = skladbe[i].first
@@ -338,11 +355,13 @@ class AlbumIzvor(
                 while (odprti.size > najvecOdprtih && iter.hasNext()) { val e = iter.next(); if (e.key != i) { stari += e.value; iter.remove() } }
             }
             stari.forEach { try { it.close() } catch (_: Exception) { } }
+            pripraviVnaprej(i + 1)      // naslednja skladba je pripravljena, ko pride na vrsto
             return b
         }
     }
 
     override fun close() {
+        vnaprej.shutdownNow()
         val vsi = synchronized(this) { zaprt = true; ArrayList(odprti.values).also { odprti.clear() } }
         vsi.forEach { try { it.close() } catch (_: Exception) { } }
     }
