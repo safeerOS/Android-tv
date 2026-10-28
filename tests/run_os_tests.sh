@@ -361,5 +361,6 @@ python3 "$TEST_DIR/preveri_usenet_zapah.py"
 # Daljinec v brskalniku: levi rob in gumbi o piskotkih v modalnem oknu (Facebook, 28. 10. 2026)
 node "$TEST_DIR/tv_levi_rob_test.js"
 node "$TEST_DIR/tv_modalno_okno_test.js"
+node "$TEST_DIR/tv_en_klik_test.js"
 # Naloga 42: besedila v sestih jezikih, viri, kontrast teme Pokrajina, beta samo ob vklopu.
 python3 "$TEST_DIR/preveri_zaganjalnik_beta.py"

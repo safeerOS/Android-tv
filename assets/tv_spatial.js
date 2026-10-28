@@ -472,6 +472,29 @@
                 return ((location.pathname || '').toLowerCase()).indexOf('/livetv') !== -1;
             }
 
+            /* SAFEER_SIROK_GUMB_ZACETEK */
+            // Lastnik 28. 10. 2026 (Facebook na TV): gumb »Prijava« je <div role="button"> cez ves obrazec (vec kot
+            // 48 % sirine), zato ga je pravilo za siroke vsebnike izlocilo in daljinec do njega ni prisel. Sirok, a nizek
+            // element z vlogo gumba ali povezave (ali tabindex >= 0) je gumb, ne vsebnik.
+            function jeSirokGumb(el, rect, winH) {
+                if (!el || !el.getAttribute || !rect) return false;
+                var vloga = (el.getAttribute('role') || '').toLowerCase();
+                var ti = el.getAttribute('tabindex');
+                var gumb = vloga === 'button' || vloga === 'link' || vloga === 'tab' ||
+                    (ti !== null && ti !== '' && !isNaN(parseInt(ti, 10)) && parseInt(ti, 10) >= 0);
+                if (!gumb) return false;
+                return rect.height <= Math.max(72, (winH || 1080) * 0.15);
+            }
+            /* SAFEER_SIROK_GUMB_KONEC */
+
+            /* SAFEER_NA_ELEMENTU_ZACETEK */
+            // Ali je element, ki ga brskalnik vidi na tocki (zadetek), ta element ali njegov potomec.
+            function naElementu(el, zadetek) {
+                if (!el || !zadetek) return false;
+                try { return zadetek === el || (el.contains && el.contains(zadetek)); } catch (_) { return false; }
+            }
+            /* SAFEER_NA_ELEMENTU_KONEC */
+
             /* SAFEER_MODALNO_ZACETEK */
             // Lastnik 28. 10. 2026 (Facebook na TV, se vedno): gumba »Dovoli vse piskotke« / »Zavrni izbirne piskotke«
             // v besedilu omenjata piskotke, zato ju je jeNogaAliPiskotki izlocil in daljinec do njiju ni mogel. Pasico
@@ -972,7 +995,8 @@
                     var wideTxt = ((el.innerText || el.textContent || '') + '').toLowerCase();
                     var widePlay = clsCheck.indexOf('action-list') !== -1 || wideTxt.indexOf('predvajaj') !== -1 || wideTxt.indexOf('glej zdaj') !== -1;
                     if (!widePlay && clsCheck.indexOf('item--event') === -1 && clsCheck.indexOf('content-carousel__item') === -1 && clsCheck.indexOf('channel-container') === -1) {
-                        if (tag !== 'A' && tag !== 'BUTTON' && tag !== 'INPUT' && tag !== 'TEXTAREA') return false;
+                        if (tag !== 'A' && tag !== 'BUTTON' && tag !== 'INPUT' && tag !== 'TEXTAREA' &&
+                            !jeSirokGumb(el, rect, winH)) return false;
                     }
                 }
                 
@@ -2174,18 +2198,30 @@
                     var rect = el.getBoundingClientRect();
                     var cx = rect.left + rect.width / 2;
                     var cy = rect.top + rect.height / 2;
-                    var mouseOpts = { bubbles: true, cancelable: true, view: window, clientX: cx, clientY: cy, screenX: cx, screenY: cy };
-                    try { el.dispatchEvent(new PointerEvent('pointerdown', mouseOpts)); } catch(_) {}
-                    try { el.dispatchEvent(new MouseEvent('mousedown', mouseOpts)); } catch(_) {}
-                    try { el.dispatchEvent(new PointerEvent('pointerup', mouseOpts)); } catch(_) {}
-                    try { el.dispatchEvent(new MouseEvent('mouseup', mouseOpts)); } catch(_) {}
-                    try { el.dispatchEvent(new MouseEvent('click', mouseOpts)); } catch(_) {}
-                    try { el.click(); } catch(_) {}
-                    try {
-                        if (window.SafeerBridge && window.SafeerBridge.triggerNativeTap) {
-                            window.SafeerBridge.triggerNativeTap(cx, cy);
-                        }
-                    } catch(_) {}
+                    /* SAFEER_EN_KLIK_ZACETEK */
+                    // Lastnik 28. 10. 2026 (Facebook na TV): OK je sprozil TRI klike - sinteticni 'click', el.click() in
+                    // pravi dotik (triggerNativeTap). Preklopna gumba (»Pokazi geslo«) sta se zato prestavila dvakrat ali
+                    // trikrat. Zdaj natanko en klik: pravi dotik, ce je na sredini elementa res on (stran dobi zaupanja
+                    // vreden dogodek), sicer zaporedje dogodkov miske z enim samim el.click().
+                    var zadetek = null;
+                    try { zadetek = document.elementFromPoint(cx, cy); } catch(_) {}
+                    var tapnjeno = false;
+                    if (naElementu(el, zadetek)) {
+                        try {
+                            if (window.SafeerBridge && window.SafeerBridge.triggerNativeTap) {
+                                tapnjeno = window.SafeerBridge.triggerNativeTap(cx, cy) === true;
+                            }
+                        } catch(_) {}
+                    }
+                    if (!tapnjeno) {
+                        var mouseOpts = { bubbles: true, cancelable: true, view: window, clientX: cx, clientY: cy, screenX: cx, screenY: cy };
+                        try { el.dispatchEvent(new PointerEvent('pointerdown', mouseOpts)); } catch(_) {}
+                        try { el.dispatchEvent(new MouseEvent('mousedown', mouseOpts)); } catch(_) {}
+                        try { el.dispatchEvent(new PointerEvent('pointerup', mouseOpts)); } catch(_) {}
+                        try { el.dispatchEvent(new MouseEvent('mouseup', mouseOpts)); } catch(_) {}
+                        try { el.click(); } catch(_) {}
+                    }
+                    /* SAFEER_EN_KLIK_KONEC */
                 } catch(_) {}
             }
 

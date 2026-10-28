@@ -753,12 +753,14 @@ class ChromiumEngineView @JvmOverloads constructor(
         }
 
         @android.webkit.JavascriptInterface
-        fun triggerNativeTap(x: Float, y: Float) {
+        fun triggerNativeTap(x: Float, y: Float): Boolean {
+            // Vrne, ali je dotik sprejet: ce ne, stran klikne sama (natanko en klik, tv_spatial.js SAFEER_EN_KLIK).
             if (!porabiDotik()) {
                 android.util.Log.w("SafeerBridge", "Zavrnjen triggerNativeTap brez tipke daljinca.")
-                return
+                return false
             }
-            (context as? android.app.Activity)?.runOnUiThread {
+            val aktivnost = context as? android.app.Activity ?: return false
+            aktivnost.runOnUiThread {
                 try {
                     val scale = webView.scale
                     val vx = x * scale
@@ -772,6 +774,7 @@ class ChromiumEngineView @JvmOverloads constructor(
                     up.recycle()
                 } catch (_: Exception) {}
             }
+            return true
         }
     }
 
