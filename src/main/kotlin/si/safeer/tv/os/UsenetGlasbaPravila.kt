@@ -186,6 +186,34 @@ object UsenetGlasbaPravila {
         return if (' ' in t) t else t.replace('.', ' ').replace('_', ' ').trim()
     }
 
+    /** Lastnik 28. 10. 2026: kartica izdaje - izvajalec, album, leto in oblika iz imena izdaje. */
+    data class OpisIzdaje(val izvajalec: String, val album: String, val leto: String, val oblika: String)
+
+    private val LETO = Regex("(?<![0-9])(19|20)[0-9]{2}(?![0-9])")
+    private val OBLIKA = Regex("(?i)(?<![a-z0-9])(flac|mp3|aac|alac|ogg|opus|wav|dsd|24bit|hi-?res)(?![a-z0-9])")
+    private val OZNAKE = setOf("web", "cd", "cdrip", "vinyl", "lp", "320", "256", "192", "v0", "v2", "16bit", "lossless", "repost", "proper")
+
+    fun opisIzdaje(naslovIzdaje: String): OpisIzdaje {
+        val n = lepNaslov(naslovIzdaje)
+        val leto = LETO.find(n)?.value.orEmpty()
+        val oblika = OBLIKA.find(n)?.value?.uppercase()?.replace("HI-RES", "HIRES").orEmpty()
+        val deli = (if (" - " in n) n.split(" - ") else n.split("-")).map { it.trim() }.filter { it.isNotEmpty() }
+        val izvajalec = if (deli.size > 1) deli.first() else ""
+        val ostanek = (if (deli.size > 1) deli.drop(1) else deli).joinToString(" ")
+            .replace(Regex("[(\\[][^)\\]]*[)\\]]"), " ")
+        val besede = ostanek.split(Regex("\\s+")).filter { it.isNotEmpty() }
+        val konec = besede.indexOfFirst { LETO.matches(it) || OBLIKA.matches(it) || it.lowercase() in OZNAKE }
+        val album = (if (konec >= 0) besede.take(konec) else besede).joinToString(" ").trim(' ', '-', '_', '.')
+        return OpisIzdaje(izvajalec, album.ifEmpty { n }, leto, oblika)
+    }
+
+    /** (naslov, podnaslov) kartice: izvajalec vrstico nad albumom (lastnik 28. 10. 2026), spodaj leto · oblika · velikost. */
+    fun kartica(naslovIzdaje: String, velikost: Long): Pair<String, String> {
+        val o = opisIzdaje(naslovIzdaje)
+        val naslov = if (o.izvajalec.isNotEmpty()) o.izvajalec + "\n" + o.album else o.album
+        return naslov to listOf(o.leto, o.oblika, velikost(velikost)).filter { it.isNotEmpty() }.joinToString(" · ")
+    }
+
     /** Velikost izdaje za podnaslov kartice. */
     fun velikost(bajtov: Long): String = when {
         bajtov <= 0 -> ""

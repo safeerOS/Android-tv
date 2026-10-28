@@ -401,6 +401,14 @@ def main() -> int:
     preveri("predvajalnik: pokvarjen zvocni okvir (AC3 pri predaji zvocniku) ne ustavi videa",
             "if (napakaZvocnegaOkvirja(error)) {" in gz and "p.seekTo(p.currentPosition + 1_000); p.prepare(); p.play()" in gz
             and gz.index("if (napakaZvocnegaOkvirja(error)) {") < gz.index("val naprej = YoutubeVrstaPravila.naprejPoNapaki("))
+    ul3 = (SRC / "os/UsenetLastni.kt").read_text(encoding="utf-8")
+    album3 = ul3.split("fun predvajajAlbum(", 1)[1].split(chr(10) + "    }", 1)[0]
+    preveri("album: nov album ne zapre albuma, ki igra, dokler ni pripravljen (isti bazen)",
+            "val nntp = stara?.nntp ?:" in album3 and album3.index("if (stara == null) {") < album3.index("ustavi()")
+            and "if (!s.lastnikBazena) return" in ul3 and album3.index("koncaj(stara)") < album3.index("synchronized(zaklep) { seja = s }"))
+    preveri("Usenet: kartica kaze album, leto in obliko (ne odrezanega imena izdaje)",
+            "UsenetGlasbaPravila.kartica(z.naslov, z.velikost)" in (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8")
+            and "listOf(izvajalecPod, k.podnaslov)" in (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8"))
     # Rocna gradnja bete v CI: vhod »beta« gre prek okolja v -PsafeerBeta (brez vhoda gradnja kot prej).
     ci = (KOREN / ".github" / "workflows" / "gradnja.yml").read_text(encoding="utf-8")
     preveri("CI: rocna gradnja z vhodom beta poda -PsafeerBeta",

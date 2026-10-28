@@ -71,4 +71,16 @@ fun main() {
         val j = UsenetGlasbaPravila.jedroAlbuma("Linkin_Park-Meteora-2003-FLAC-GRP")
         if (j != "linkin park meteora") { println("  NAPAKA  jedro albuma: $j"); kotlin.system.exitProcess(1) } else println("  ok  jedro albuma iz imena izdaje")
     }
+    // Lastnik 28. 10. 2026: kartica Usenet - album, leto, oblika.
+    run {
+        val G2 = UsenetGlasbaPravila
+        fun je(opis: String, p: Any?, d: Any?) { if (p != d) { println("  NAPAKA  $opis: $d"); kotlin.system.exitProcess(1) } else println("  ok  $opis") }
+        je("presledki: album brez letnice in oblike", UsenetGlasbaPravila.OpisIzdaje("Linkin Park", "Hybrid Theory", "2000", "FLAC"),
+            G2.opisIzdaje("Linkin Park - Hybrid Theory (2000) [FLAC]"))
+        je("pike in vezaji", UsenetGlasbaPravila.OpisIzdaje("Linkin Park", "Unshatter", "2026", "FLAC"), G2.opisIzdaje("Linkin.Park-Unshatter-2026-FLAC-GRP"))
+        je("kartica: izvajalec vrstico nad albumom", "Linkin Park\nHybrid Theory" to "2000 · MP3 · 91 MB",
+            G2.kartica("Linkin Park - Hybrid Theory (2000) [MP3]", 91L * 1024 * 1024))
+        je("kartica brez izvajalca: samo album", "Unshatter" to "2026", G2.kartica("Unshatter 2026", 0L))
+        je("brez vezaja: celo ime brez oznak", "Unshatter", G2.opisIzdaje("Unshatter 2026 FLAC").album)
+    }
 }

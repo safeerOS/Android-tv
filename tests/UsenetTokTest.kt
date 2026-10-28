@@ -466,6 +466,9 @@ private fun albumOkno() {
     val izvor = AlbumIzvor(nzb.datoteke.map { d -> d.ime to { UsenetBralnik.pripraviDatoteko(d, o::telo) } }, o::telo,
         UsenetBralnik.PROFILI.getValue("tv"))
     enako("pred prvo zahtevo nic odprtega", 0, izvor.odprtih)
+    val pa = UsenetBralnik.profilAlbuma(UsenetBralnik.PROFILI.getValue("tv"))
+    enako("album na TV: odprte skladbe skupaj najvec 64 MiB", true, pa.lru * AlbumIzvor.NAJVEC_ODPRTIH <= 64L * 1024 * 1024)
+    enako("album: predpomnilnik drzi okno in segment", true, pa.lru >= pa.okno + 1024 * 1024)
     izvor.pripraviVnaprej(0)
     enako("vnaprej pripravljen vir ne odpre bralnika", 0, izvor.odprtih)
     UsenetStreznik(izvor, nedejavnostMs = 60_000L).use { s ->

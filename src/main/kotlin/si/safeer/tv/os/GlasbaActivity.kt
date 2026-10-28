@@ -1056,8 +1056,10 @@ class GlasbaActivity : OsActivity() {
                     znacka(k.kakovost, 0xFF1CE6F2.toInt(), if (k.oznaka.isBlank()) 9 else 42)
                 }, LinearLayout.LayoutParams(sirina, visina))
             } else addView(slika, LinearLayout.LayoutParams(sirina, visina))
+            val dveVrstici = plakat || kanal || (velikostDp in 1..103 && !mala && !slicica)
+            val izvajalecPod = if (!dveVrstici && '\n' in k.naslov) k.naslov.substringBefore('\n') else ""
             addView(besedilo(if (mala) 11f else if (kanal) 13f else 14f, osBarva(R.color.os_besedilo), true).apply {
-                text = k.naslov; maxLines = if (plakat) 2 else 1; setPadding(dp(2), dp(if (mala) 2 else 8), 0, 0)
+                text = if (izvajalecPod.isNotEmpty()) k.naslov.substringAfter('\n') else k.naslov; maxLines = if (plakat) 2 else 1; setPadding(dp(2), dp(if (mala) 2 else 8), 0, 0)
                 // Kanal: ime v dveh vrsticah (v eni je bilo odrezano), vedno dve - da so ploscice v vrsti enako visoke.
                 // Enako ozka kartica mreze (trije v vrsto na telefonu): v eni vrstici bi od naslova ostalo nekaj crk.
                 if (kanal || (velikostDp in 1..103 && !mala && !plakat && !slicica)) { setLines(2); ellipsize = android.text.TextUtils.TruncateAt.END }
@@ -1065,7 +1067,8 @@ class GlasbaActivity : OsActivity() {
             },
                 LinearLayout.LayoutParams(sirina, -2))
             if (!mala && !kanal) addView(besedilo(12f, osBarva(R.color.os_umirjeno)).apply {
-                text = listOf(k.podnaslov, k.ocena.takeIf { it.isNotBlank() }?.let { "★ $it" }.orEmpty()).filter { it.isNotBlank() }.joinToString("   ")
+                text = listOf(listOf(izvajalecPod, k.podnaslov).filter { it.isNotBlank() }.joinToString(" · "),
+                    k.ocena.takeIf { it.isNotBlank() }?.let { "★ $it" }.orEmpty()).filter { it.isNotBlank() }.joinToString("   ")
                 setPadding(dp(2), dp(2), 0, 0)
             },
                 LinearLayout.LayoutParams(sirina, -2))
@@ -6685,7 +6688,9 @@ class GlasbaActivity : OsActivity() {
                     // Lastnik 27. 10. 2026: izdaje glasbe z Useneta - klik takoj predvaja (pri iskani skladbi, kot pri YouTubu).
                     Vrsta("\uD83D\uDCE6 Usenet", usenetAlbumi.map { z ->
                         // Lastnik 27. 10. 2026: dolg pritisk shrani album med priljubljene (ali ga odstrani).
-                        Kartica(UsenetGlasbaPravila.lepNaslov(z.naslov), UsenetGlasbaPravila.velikost(z.velikost), "", { predvajajUsenetAlbum(z, beseda, usenetAlbumi) },
+                        // Lastnik 28. 10. 2026: izvajalec vrstico nad albumom, spodaj leto · oblika · velikost (prej celo ime izdaje, odrezano).
+                        val (naslovK, podK) = UsenetGlasbaPravila.kartica(z.naslov, z.velikost)
+                        Kartica(naslovK, podK, "", { predvajajUsenetAlbum(z, beseda, usenetAlbumi) },
                             dolgo = { preklopiUsenetAlbum(z.naslov, z.velikost) },
                             oznaka = if (UsenetAlbumi.je(this, z.naslov)) "★" else "",
                             ikona = R.drawable.os_ikona_glasba, id = "usenet:" + UsenetPravila.idToka(z.povezava))
