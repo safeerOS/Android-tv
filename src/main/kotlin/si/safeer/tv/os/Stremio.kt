@@ -1579,7 +1579,11 @@ object Stremio {
      * dodatek s tokom, ki ga ta naprava zmore, zadosca. [seVelja]: preverjanje v ozadju velja le, dokler uporabnik
      * gleda seznam - ko ne velja vec, dodatka ne vprasamo in vrnemo null (klicatelj iz tega ne sklepa nicesar).
      */
-    fun razpolozljivo(naslovi: List<String>, tip0: String, id: String, torrent: Long, seVelja: () -> Boolean = { true }): RazpolozljivostPravila.Izid? {
+    fun razpolozljivo(naslovi: List<String>, tip0: String, id: String, torrent: Long, seVelja: () -> Boolean = { true },
+                      /** Koliko cakamo na dodatke, preden odlocimo (prej vedno 15 s). */
+                      rokMs: Long = 15_000L,
+                      /** Lastnik 28. 10. 2026 (okno): dodatek, ki do roka ne odgovori, steje kot »nima« - ne kot »ne vemo«. */
+                      poRokuNima: Boolean = false): RazpolozljivostPravila.Izid? {
         if (naslovi.isEmpty() || !seVelja()) return null
         // Naloga 77: isti tip kot pri predvajanju (koncert »music« kot »movie«).
         val tip = tipToka(naslovi, tip0, id)
@@ -1611,7 +1615,7 @@ object Stremio {
         } }
         fun odgovori() = niti.map { f -> if (f.isDone) (try { f.get() } catch (_: Exception) { null }) else null }
         // Prvi dodatek s tokom, ki ga ta naprava zmore, zadosca (na pocasne ne cakamo); "ni" velja sele, ko so odgovorili vsi.
-        val rok = System.currentTimeMillis() + 15_000
+        val rok = System.currentTimeMillis() + rokMs
         while (true) {
             val o = odgovori()
             val potrebe = o.filterNotNull().flatten()
@@ -1620,6 +1624,14 @@ object Stremio {
             try { Thread.sleep(40) } catch (_: InterruptedException) { return null }
         }
         val o = odgovori()
+        if (poRokuNima) {
+            // Neodgovorjeni do roka: kot prazen odgovor (»nima«); poizvedbe, ki se tecejo, preklicemo. Dodatek, ki je odgovoril
+            // z napako (null po koncu), ali dodatek brez manifesta/zetona (neznano) ostane »ne vemo«.
+            val koncani = niti.map { it.isDone }
+            niti.forEach { if (!it.isDone) it.cancel(true) }
+            val vsi = !neznano && o.indices.none { o[it] == null && koncani[it] }
+            return RazpolozljivostPravila.izTokov(o.filterNotNull().flatten(), vsiOdgovorili = vsi)
+        }
         return RazpolozljivostPravila.izTokov(o.filterNotNull().flatten(), vsiOdgovorili = !neznano && o.none { it == null })
     }
 

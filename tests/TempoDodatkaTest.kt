@@ -51,6 +51,11 @@ fun main() {
 
     // --- Meja na uro -------------------------------------------------------------------------------------------------
     val s = TempoDodatka.Stanje()
+    // Lastnik 28. 10. 2026: meja 200; shranjena stara privzeta (150, brez omejitve) dobi novo takoj, znizana ostane.
+    check(p.NA_URO == 200)
+    check(TempoDodatka.Stanje.izNiza("150;0;0").naUro == 200) { "stara privzeta brez omejitve -> nova" }
+    check(TempoDodatka.Stanje.izNiza("150;1000;1000").naUro == 150) { "po omejitvi ostane, kar je bilo" }
+    check(TempoDodatka.Stanje.izNiza("75;1000;1000").naUro == 75)
     check(s.naUro == p.NA_URO && p.smeVOzadju(s, 0) && p.smeVOzadju(s, p.NA_URO - 1) && !p.smeVOzadju(s, p.NA_URO))
     // Na zalogo le do tretjine.
     check(p.smeNaZalogo(s, p.NA_URO / 3 - 1) && !p.smeNaZalogo(s, p.NA_URO / 3) && !p.smeNaZalogo(s, p.NA_URO))
@@ -85,13 +90,14 @@ fun main() {
     check(TempoDodatka.Stanje.izNiza("5;-1;-1") == TempoDodatka.Stanje(p.NA_URO_NAJMANJ, 0, 0) && TempoDodatka.Stanje.izNiza("9999;1;2") == TempoDodatka.Stanje(p.NA_URO, 1, 2))
 
     // Porabljen proracun: pocakamo, da vsota pade na tri cetrtine meje - najmanj minuto.
+    val s150 = TempoDodatka.Stanje(150, 0, 0)   // izracuni spodaj so za mejo 150 (privzeta do 28. 10. 2026)
     val poln = TempoDodatka.Ura(); poln.dodaj(t0, 50); poln.dodaj(t0 + 20 * min, 60); poln.dodaj(t0 + 40 * min, 40)
     val ob = t0 + 40 * min + 30_000L
-    check(poln.vsota(ob) == 150 && !p.smeVOzadju(s, poln.vsota(ob)))
-    check(p.cakajNaProracun(s, poln, ob) == t0 + 60 * min - ob)       // izpade prvih 50: 100 <= 112
+    check(poln.vsota(ob) == 150 && !p.smeVOzadju(s150, poln.vsota(ob)))
+    check(p.cakajNaProracun(s150, poln, ob) == t0 + 60 * min - ob)       // izpade prvih 50: 100 <= 112
     check(p.cakajNaProracun(TempoDodatka.Stanje(40, 1, 1), poln, ob) == t0 + 100 * min - ob)   // do 30: izpasti mora vse
     val komaj = TempoDodatka.Ura(); komaj.dodaj(t0, 150)
-    check(p.cakajNaProracun(s, komaj, t0 + 59 * min + 50_000L) == p.CAKAJ_NAJMANJ_MS)
+    check(p.cakajNaProracun(s150, komaj, t0 + 59 * min + 50_000L) == p.CAKAJ_NAJMANJ_MS)
 
     // --- Kar pove dodatek sam ----------------------------------------------------------------------------------------
     check(p.cakajPoGlavah(emptyMap(), t0) == null)

@@ -28,7 +28,13 @@ import si.safeer.tv.os.RazpolozljivostPravila as P
  */
 object DomPreverjanje {
     private const val TAG = "SafeerDom"
-    private const val NAJVEC_DELAVCEV = 2
+    /**
+     * Lastnik 28. 10. 2026: ko uporabnik caka (okno, »Preverjam … se N«), preverja do 6 delavcev (prej 2); delo na
+     * zalogo ostane na enem ([zalogaVDelu]). Hitrost do posameznega dodatka omejujeta zeton in urni proracun.
+     */
+    private const val NAJVEC_DELAVCEV = 6
+    /** Lastnik 28. 10. 2026: v oknu dodatek, ki se v 3 s ne oglasi, steje kot »nima« - naslov se skrije. */
+    private const val ROK_OKNA_MS = 3_000L
     /** Koliko casa naprave, ki ni mogla biti preverjevalec, ne vprasamo znova. */
     private const val IZLOCEN_MS = 5 * 60_000L
     /** Kljuca, ki smo ga preverjevalcu ze poslali na zalogo, toliko casa ne posiljamo znova. */
@@ -162,7 +168,10 @@ object DomPreverjanje {
             val resi = synchronized(zaklep) { resevalci[k] }
             (try { resi?.invoke() } catch (_: Throwable) { null }) ?: Stremio.prvaEpizoda(id0, naslovi) ?: return konec(false)
         } else id0
-        val izid = try { Stremio.razpolozljivo(naslovi, tip, id, v.meja, velja) } catch (_: Exception) { null }
+        val izid = try {
+            if (okno) Stremio.razpolozljivo(naslovi, tip, id, v.meja, velja, rokMs = ROK_OKNA_MS, poRokuNima = true)
+            else Stremio.razpolozljivo(naslovi, tip, id, v.meja, velja)
+        } catch (_: Exception) { null }
         if (izid == null && !velja()) return konec(false, preklicano = true)
         if (izid != null) Razpolozljivost.zapomni(app, k, izid)
         // Okno: odgovor steje, ce pove kaj za najsibkejso napravo, ki caka; zaloga: vsak odgovor dodatkov.

@@ -19,8 +19,10 @@ import java.util.TimeZone
  *  - ce dodatek sam pove, koliko naj pocakamo (Retry-After, RateLimit-Reset), velja njegova beseda.
  */
 object TempoDodatka {
-    /** Privzeta meja: toliko poizvedb v ozadju na uro pri enem dodatku. */
-    const val NA_URO = 150
+    /** Privzeta meja: toliko poizvedb v ozadju na uro pri enem dodatku (lastnik 28. 10. 2026: 200, prej 150). */
+    const val NA_URO = 200
+    /** Prejsnja privzeta meja: shranjeno stanje dodatka, ki se ni nikoli omejil, dobi novo [NA_URO] takoj. */
+    const val STARI_NA_URO = 150
     const val NA_URO_NAJMANJ = 30
     const val OKREVANJE_MS = 24 * 3_600_000L
     /** Porabljen proracun: preverjanje v ozadju pocaka, da vsota zadnje ure pade na toliko odstotkov meje. */
@@ -94,7 +96,8 @@ object TempoDodatka {
                 val n = d[0].toIntOrNull() ?: return Stanje()
                 val o = d[1].toLongOrNull() ?: return Stanje()
                 val k = d[2].toLongOrNull() ?: return Stanje()
-                return Stanje(n.coerceIn(NA_URO_NAJMANJ, NA_URO), o.coerceAtLeast(0L), k.coerceAtLeast(0L))
+                val meja = if (n == STARI_NA_URO && o <= 0L) NA_URO else n
+                return Stanje(meja.coerceIn(NA_URO_NAJMANJ, NA_URO), o.coerceAtLeast(0L), k.coerceAtLeast(0L))
             }
         }
     }
