@@ -279,6 +279,7 @@ class TabManager(
 
     /** Takojsnja varcna nastavitev neaktivnega pogleda brez globalnega pauseTimers. */
     private fun takojVOzadje(tab: TabModel, w: ChromiumEngineView) {
+        if (w.jeUniceno) return
         w.onPause()
         w.settings.mediaPlaybackRequiresUserGesture = true
         strojniSloj(w, false)
@@ -293,6 +294,8 @@ class TabManager(
     private fun zamrzni(tab: TabModel, prisilno: Boolean, dovoliAktivnega: Boolean = false) {
         roki.remove(tab.id)?.let(glavna::removeCallbacks)
         val w = tab.webView ?: return
+        // Pogled je medtem unicen (globoko spanje, sesutje izrisovalnika): nanj ne klicemo nicesar vec.
+        if (w.jeUniceno) return
         if (!prisilno && tab.id == activeTabId && !dovoliAktivnega) return
         if (!prisilno) {
             w.evaluateJavascript(STANJE_ZAMRZNITVE_JS) { odgovor ->

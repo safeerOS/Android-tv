@@ -370,6 +370,9 @@ class ChromiumEngineView @JvmOverloads constructor(
     @Volatile
     private var uniceno = false
 
+    /** Za klicatelje (TabManager.zamrzni): na unicenem pogledu ne klicemo nicesar (dnevnik TV 28. 10.: evaluateJavascript). */
+    val jeUniceno: Boolean get() = uniceno
+
     /**
      * Posnetek, ki ga uporabnik odpre s strani YouTuba (dotik na zadetek, naslednji posnetek), zacne sam. Na dotik je
      * za predvajanje sicer potreben dotik; stran posnetka pa se nalozi kot nova stran (assets/youtube_zacetek.js) in
