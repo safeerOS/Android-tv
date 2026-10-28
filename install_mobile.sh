@@ -1,34 +1,11 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# 📲 INSTALL SCRIPT: SAFEER MOBILE BROWSER (SAMSUNG GALAXY & ANDROID)
+# 📲 SAFEER BROWSER ZA TELEFON (Samsung Galaxy in drugi Android telefoni)
 # ==============================================================================
-set -e
-
+# Pregled 28. 10. 2026: ta skripta je na telefon namescala TV brskalnik (si.safeer.tv), ki ga je zgradil zastareli
+# build_mobile_apk.sh s podpisom za razvoj. Brskalnik za telefon je com.safeer.mobile.browser iz izdaj
+# github.com/safeerOS/Mobile-android; namesti ga install_safeer.sh (preverba SHA-256 po imenu datoteke izdaje).
+# Telefon s Safeer OS (si.safeer.phone) dobi APK iz gradnje gradnja.yml (okus telefon), podpisan s kljucem izdaje.
+set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APK="$DIR/Safeer-Browser.apk"
-
-if [ ! -f "$APK" ]; then
-    echo "⚠️ APK paket ne obstaja. Najprej gradim..."
-    bash "$DIR/build_mobile_apk.sh"
-fi
-
-echo "=========================================================="
-echo "📲 NAMEŠČAM SAFEER BROWSER NA ANDROID NAPRAVO"
-echo "=========================================================="
-
-DEVICE=$(adb devices | grep -v "List" | grep "device$" | head -n 1 | awk '{print $1}')
-
-if [ -z "$DEVICE" ]; then
-    echo "⚠️ Nobena ADB naprava ni zaznana. Povežite telefon preko USB / Brezžičnega ADB."
-    echo "Namestitveni paket se nahaja tukaj: $APK"
-    exit 0
-fi
-
-echo "📱 Zaznana naprava: $DEVICE"
-echo "📲 Nameščam APK..."
-adb -s "$DEVICE" install -r "$APK"
-
-echo "🚀 Zaganjam Safeer Browser..."
-adb -s "$DEVICE" shell am start -n "si.safeer.tv/.MainActivity"
-
-echo "✅ Uspešno nameščeno in zagnano!"
+exec bash "$DIR/install_safeer.sh" "$@"
