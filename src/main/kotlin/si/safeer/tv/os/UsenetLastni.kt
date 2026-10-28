@@ -24,6 +24,8 @@ object UsenetLastni {
         /** Glasba: streznik za vsako skladbo albuma (ena seja, en bazen racuna). */
         @Volatile var strezniki: List<UsenetStreznik> = emptyList()
         val zaprta = AtomicBoolean(false)
+        /** Lastnik 28. 10. 2026: seja, ki si bazen NNTP izposodi od albuma, ki igra, ga ob neuspehu ne zapre. */
+        @Volatile var lastnikBazena = true
     }
 
     private val zaklep = Any()
@@ -118,21 +120,29 @@ object UsenetLastni {
         val p = shramba.preberi() ?: return Album(emptyList(), "ni_ponudnika")
         val (geslo, ovira) = shramba.zaBazen(p)
         if (geslo == null) return Album(emptyList(), ovira ?: "ni_gesla")
-        ustavi()
         val meje = shramba.meje
-        if (!meje.zasedi(p)) return Album(emptyList(), "zaseden")
+        // Lastnik 28. 10. 2026: album, ki igra, ostane, dokler nov ni pripravljen - nov se pripravi v njegovem bazenu (isti
+        // racun, brez dodatnih povezav). Film ali drug racun: kot prej, najprej zapri.
+        val stara = synchronized(zaklep) { seja }?.takeIf {
+            !it.zaprta.get() && it.streznik == null && it.ponudnik.kljucRacuna == p.kljucRacuna && it.ponudnik.vrata == p.vrata
+        }
+        if (stara == null) {
+            ustavi()
+            if (!meje.zasedi(p)) return Album(emptyList(), "zaseden")
+        }
         var nova: Seja? = null
         return try {
             UsenetZapahShramba.namesti(c)
-            val nntp = UsenetNntp(UsenetNntp.Nastavitve(p.gostitelj, p.uporabnik, geslo.vrednost(), p.vrata, p.najvecPovezav))
-            val s = Seja(p, nntp, meje)
+            val nntp = stara?.nntp ?: UsenetNntp(UsenetNntp.Nastavitve(p.gostitelj, p.uporabnik, geslo.vrednost(), p.vrata, p.najvecPovezav))
+            val s = Seja(p, nntp, meje).apply { lastnikBazena = stara == null }
             nova = s
             val razclenjen = UsenetNzb.razcleni(nzb)
             val izbrane = UsenetGlasbaPravila.skladbe(razclenjen.datoteke.map { it.ime })
-            val viri: List<Pair<String?, UsenetBralnik.Vir?>> = if (izbrane.isNotEmpty()) izbrane.map { i ->
+            // Lastnik 27. 10. 2026: skladba se pripravi sele ob prvi zahtevi predvajalnika (AlbumIzvor); luknja da 502 in
+            // predvajalnik gre na naslednjo.
+            val viri: List<Pair<String?, () -> UsenetBralnik.Vir>> = if (izbrane.isNotEmpty()) izbrane.map { i ->
                 val d = razclenjen.datoteke[i]
-                // Skladba z luknjo ali brez prvega segmenta izpade, album gre naprej.
-                d.ime to try { UsenetBralnik.pripraviDatoteko(d, nntp::body) } catch (e: UsenetTok.NapakaToka) { null }
+                d.ime to { UsenetBralnik.pripraviDatoteko(d, nntp::body) }
             } else {
                 // Vodja 27. 10. 2026: albumi so vecinoma v RAR - skladbe iz zvezkov (prej vedno »ni_skladb«).
                 val rar = try { UsenetBralnik.pripraviAlbum(razclenjen, nntp::body) }
@@ -140,28 +150,31 @@ object UsenetLastni {
                     catch (e: UsenetBralnik.NapakaIzdaje) { koncaj(s); return Album(emptyList(), e.izid) }
                 if (rar.isEmpty()) { koncaj(s); return Album(emptyList(), "ni_skladb") }
                 Log.i(TAG, "glasba: album iz RAR (${rar.size} skladb)")   // brez imen
-                rar
+                rar.map { (ime, vir) -> ime to { vir } }
             }
-            val profil = UsenetBralnik.PROFILI.getValue(if (Naprava.jeTelevizor(c)) "tv" else "telefon")
-            val skladbe = ArrayList<Pair<String, String>>()
-            val strezniki = ArrayList<UsenetStreznik>()
-            for ((ime, vir) in viri) {
-                if (vir != null) {
-                    val st = UsenetStreznik(UsenetBralnik.Bralnik(nntp::body, vir, profil))
-                    strezniki.add(st)
-                    skladbe.add(UsenetGlasbaPravila.imeSkladbe(ime) to st.url)
-                }
-            }
-            s.strezniki = strezniki
+            val profil = UsenetBralnik.profilAlbuma(UsenetBralnik.PROFILI.getValue(if (Naprava.jeTelevizor(c)) "tv" else "telefon"))
+            // En streznik za cel album (lastnik 27. 10. 2026): v pomnilniku najvec AlbumIzvor.NAJVEC_ODPRTIH skladb; skladba,
+            // ki se ni na vrsti, ne potece (rok nedejavnosti za album, prej 5 min - album je obstal po 4 skladbah).
+            val izvor = AlbumIzvor(viri, nntp::body, profil)
+            val st = UsenetStreznik(izvor, nedejavnostMs = UsenetLastniPravila.NEDEJAVNOST_ALBUMA_MS)
+            izvor.pripraviVnaprej(0)    // povezava NNTP in prva skladba med pripravo predvajalnika
+            s.strezniki = listOf(st)
+            val skladbe = viri.mapIndexed { i, (ime, _) -> UsenetGlasbaPravila.imeSkladbe(ime) to st.urlSkladbe(i) }
             if (skladbe.isEmpty()) { koncaj(s); return Album(emptyList(), "luknja") }
+            if (stara != null) {
+                // Bazen preide na nov album; star album zapre samo svoj streznik.
+                stara.lastnikBazena = false
+                s.lastnikBazena = true
+                koncaj(stara)
+            }
             synchronized(zaklep) { seja = s }
-            Log.i(TAG, "glasba: album pripravljen (${skladbe.size} skladb)")   // brez imen
+            Log.i(TAG, "glasba: album pripravljen (${skladbe.size} skladb)${if (stara != null) ", prejsnji zaprt" else ""}")   // brez imen
             Album(skladbe)
         } catch (e: Throwable) {
             if (e is InterruptedException || e is java.io.InterruptedIOException) Thread.currentThread().interrupt()
             Log.i(TAG, "glasba: ${e.javaClass.simpleName}")
             val s = nova
-            if (s != null) koncaj(s) else meje.sprosti(p)
+            if (s != null) koncaj(s) else if (stara == null) meje.sprosti(p)
             Album(emptyList(), razlog(e))
         }
     }
@@ -177,6 +190,7 @@ object UsenetLastni {
         synchronized(zaklep) { if (seja === s) seja = null }
         try { s.streznik?.close() } catch (_: Throwable) { }
         s.strezniki.forEach { try { it.close() } catch (_: Throwable) { } }
+        if (!s.lastnikBazena) return   // bazen je izposojen (album, ki igra) ali predan novemu albumu
         try { s.nntp.close() } catch (_: Throwable) { }
         s.meje.sprosti(s.ponudnik)
     }

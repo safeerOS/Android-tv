@@ -7,6 +7,20 @@ private fun preveriEnako(opis: String, pricakovano: Any?, dobljeno: Any?) =
 
 /** Naloga 118: mini predvajalnik kot dock ob robu domacega zaslona ([MiniPredvajalnikPravila]). */
 fun main() {
+    // Lastnik 27. 10. 2026: stikali samodejnega nadaljevanja v predvajalniku.
+    run {
+        val P = MiniPredvajalnikPravila
+        val enako = { opis: String, pricakovano: Any?, dobljeno: Any? ->
+            if (pricakovano != dobljeno) { println("  NAPAKA  $opis: pricakovano $pricakovano, dobljeno $dobljeno"); kotlin.system.exitProcess(1) }
+            else println("  ok  $opis")
+        }
+        enako("privzeto: naslednja skladba", P.PO_KONCU_NASLEDNJA, P.poKoncuSkladbe(naslednja = true, album = true, imaNaslednjo = true))
+        enako("privzeto: po zadnji skladbi naprej (mix)", P.PO_KONCU_MIX, P.poKoncuSkladbe(naslednja = true, album = true, imaNaslednjo = false))
+        enako("naslednja izklopljena: konec po trenutni", P.PO_KONCU_KONEC, P.poKoncuSkladbe(naslednja = false, album = true, imaNaslednjo = true))
+        enako("album izklopljen: po zadnji skladbi konec", P.PO_KONCU_KONEC, P.poKoncuSkladbe(naslednja = true, album = false, imaNaslednjo = false))
+        enako("album izklopljen: skladbe albuma se vedno naprej", P.PO_KONCU_NASLEDNJA, P.poKoncuSkladbe(naslednja = true, album = false, imaNaslednjo = true))
+    }
+
     // Lastnik in vodja 27. 10. 2026 (TV beta 14): Nadaljuj pri filmu, dock nad spodnjo vrstico.
     run {
         val P = MiniPredvajalnikPravila

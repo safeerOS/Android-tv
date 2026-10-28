@@ -19,6 +19,9 @@ class ChromiumEngineView @JvmOverloads constructor(
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0
 ) : WebView(context, attrs, defStyleAttr) {
+    /** Zacetki zadnjih pojavnih oken te strani (PojavnaOknaMeja). */
+    private val pojavnaOknaCasi = ArrayDeque<Long>()
+
 
     companion object {
         /**
@@ -799,6 +802,11 @@ class ChromiumEngineView @JvmOverloads constructor(
                 resultMsg: android.os.Message?
             ): Boolean {
                 if (resultMsg == null) return false
+                // Lastnik 27. 10. 2026: zanka pojavnih oken je TV napolnila do OutOfMemoryError - nad mejo nobenega pogleda.
+                if (!PojavnaOknaMeja.dovoli(pojavnaOknaCasi, android.os.SystemClock.uptimeMillis())) {
+                    android.util.Log.i("SafeerRam", "pojavno okno zavrnjeno: prevec v kratkem casu")
+                    return false
+                }
                 // Uporabnikov klik sam po sebi ni razlog za novo okno: strani s filmi porabijo
                 // prav prvi klik na predvajalnik in z njim odprejo oglas. Zato ne gledamo, ali
                 // je bil klik, in tudi ne, na kateri strani smo - pomembno je edino, KAM okno

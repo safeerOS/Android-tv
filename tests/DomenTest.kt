@@ -247,6 +247,17 @@ private fun preizkusHitrosti() {
     preveri("iskanje je hitrejse od 50 mikrosekund", naIskanje < 50)
 }
 
+/** Lastnik 27. 10. 2026: pripravi() uredi seznam vnaprej - prvo iskanje (glavna nit) ga ne gradi vec. */
+private fun preizkusPriprave() {
+    val seznam = DomainSuffixTrie()
+    for (n in 0 until 2000) seznam.insert("domena$n.example")
+    seznam.pripravi()
+    val urejeno = DomainSuffixTrie::class.java.getDeclaredField("urejeno").apply { isAccessible = true }
+    preveriEnako("po pripravi je urejeno (iskanje ne strni)", true, urejeno.getBoolean(seznam))
+    preveriEnako("po pripravi ujemanje deluje", "domena7.example", seznam.findMatch("a.domena7.example")?.matchedDomain)
+    preveriEnako("brez dvojnikov", 2000, seznam.size)
+}
+
 fun main() {
     println("Preizkus strnjenega seznama domen")
     preizkusOsnovnih()
@@ -255,6 +266,7 @@ fun main() {
     preizkusPrimerjave()
     preizkusPorabe()
     preizkusHitrosti()
+    preizkusPriprave()
     println()
     if (napak == 0) {
         println("Vse v redu.")

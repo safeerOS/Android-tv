@@ -6,4 +6,11 @@
     <string name="os_usenet_album_pripravljam">Preparando el álbum %1$s …</string>
     <string name="os_usenet_album_ni">No se puede reproducir este álbum: sus archivos no están disponibles.</string>
     <string name="os_usenet_album_stisnjen">Este álbum está en un archivo RAR comprimido o cifrado: Safeer solo reproduce en streaming archivos sin comprimir.</string>
+    <string name="os_usenet_albumi">Álbumes favoritos (Usenet)</string>
+    <string name="os_usenet_album_shranjen">Guardado en favoritos: %1$s</string>
+    <string name="os_usenet_album_odstranjen">Quitado de favoritos: %1$s</string>
+    <string name="os_usenet_album_ni_vec">Este álbum ya no está disponible en tu indexador.</string>
+    <string name="os_usenet_album_preimenuj">Cambiar nombre</string>
+    <string name="os_usenet_album_odstrani">Quitar de favoritos</string>
+    <string name="os_usenet_album_ime_namig">Un nombre que recuerdes</string>
 </resources>

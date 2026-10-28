@@ -191,4 +191,6 @@
     <string name="os_debrid_izbira_vse">All sources</string>
     <string name="os_usenet_predvaja_lastni">Playing via Usenet (your own provider)</string>
     <string name="os_usenet_pripravljam">Preparing via Usenet…</string>
+    <string name="os_samodejno_naslednja">Play next track automatically</string>
+    <string name="os_samodejno_album">Continue after the album ends</string>
 </resources>

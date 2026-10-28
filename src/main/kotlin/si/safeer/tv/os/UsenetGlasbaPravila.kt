@@ -12,7 +12,8 @@ object UsenetGlasbaPravila {
     /** Newznab: 3000 zvok (3010 MP3, 3030 zvocne knjige, 3040 lossless/FLAC, 3050 ostalo) - vse podkategorije hkrati. */
     const val KATEGORIJA = "3000"
     /** Najvec skladb iz ene izdaje (diskografija z 2000 datotekami ne odpre 2000 tokov). */
-    const val NAJVEC_SKLADB = 60
+    // Lastnik 27. 10. 2026: skladbe se pripravijo sproti (najvec 5 odprtih) - meja je samo varovalo velikih izdaj.
+    const val NAJVEC_SKLADB = 500
     /** Zvocne datoteke, ki jih predvajalnik (Media3) zna brez dodatnih kodekov. */
     val ZVOK = listOf(".flac", ".mp3", ".m4a", ".aac", ".ogg", ".opus", ".wav")
 
@@ -80,6 +81,98 @@ object UsenetGlasbaPravila {
         return s.ifBlank { "Skladba" }
     }
 
+    private val MALE = setOf("a", "an", "the", "and", "or", "of", "for", "in", "on", "at", "to", "by", "with", "from", "vs")
+
+    /** Velike zacetnice samo za ime, ki je v celoti z malimi crkami (pravilnih zapisov, npr. »AC/DC«, »iPhone«, ne spreminjamo). */
+    fun zacetnice(t: String): String {
+        if (t.any { it.isUpperCase() }) return t
+        val besede = t.split(' ')
+        return besede.mapIndexed { i, b ->
+            if (b.isEmpty() || (i in 1 until besede.size - 1 && b in MALE)) b else b.replaceFirstChar { it.titlecase() }
+        }.joinToString(" ")
+    }
+
+    private fun kljuc(t: String) = t.lowercase().replace(Regex("[^\\p{L}\\p{N}]+"), " ").trim()
+
+    /**
+     * Lastnik 27. 10. 2026: (naslov, izvajalec) za vsako skladbo albuma z Useneta. Imena datotek so pogosto »izvajalec-naslov
+     * album« z malimi crkami in podcrtaji. Predpona pred »-«, ki jo ima vec kot pol skladb, je izvajalec (svoje polje, z
+     * velikimi zacetnicami); skupen zakljucek za dvojnim presledkom ali v oklepaju (ime albuma) se umakne; naslov z malimi
+     * crkami dobi velike zacetnice. Odloca cel album - naslov z vezajem (»Re-Arrange«) ene skladbe se ne razbije.
+     * [izvajalecIzdaje] (iz naslova izdaje) ima prednost, ce ga poznamo.
+     */
+    fun lepeSkladbe(imena: List<String?>, izvajalecIzdaje: String = ""): List<Pair<String, String>> {
+        val osnove = imena.map { imeSkladbe(it).replace(Regex("[\\t ]{3,}"), "  ").trim() }
+        val pol = osnove.size / 2
+        // Izvajalec: predpona do prvega »-« (z ali brez presledkov), enaka pri vec kot pol skladb.
+        val predpone = osnove.map { o -> o.indexOf('-').takeIf { it > 0 }?.let { kljuc(o.substring(0, it)) }.orEmpty() }
+        val izvKljuc = predpone.filter { it.isNotEmpty() }.groupingBy { it }.eachCount().maxByOrNull { it.value }
+            ?.takeIf { it.value > pol || (osnove.size == 1 && it.key == kljuc(izvajalecIzdaje)) }?.key
+        val brezIzvajalca = osnove.mapIndexed { i, o ->
+            if (izvKljuc != null && predpone[i] == izvKljuc) o.substring(o.indexOf('-') + 1).trim() else o
+        }
+        // Album: zakljucek za dvojnim presledkom ali v zadnjem oklepaju, enak pri vec kot pol skladb.
+        fun zakljucek(t: String): String {
+            val m = Regex("\\(([^()]+)\\)\\s*$").find(t)
+            if (m != null) return m.groupValues[1]
+            val d = t.lastIndexOf("  ")
+            return if (d > 0) t.substring(d) else ""
+        }
+        val zakljucki = brezIzvajalca.map { kljuc(zakljucek(it)) }
+        val albKljuc = zakljucki.filter { it.isNotEmpty() }.groupingBy { it }.eachCount().maxByOrNull { it.value }
+            ?.takeIf { it.value > pol && osnove.size > 1 }?.key
+        val izvajalec = izvajalecIzdaje.trim().ifBlank {
+            izvKljuc?.let { k -> osnove.first { o -> o.indexOf('-') > 0 && kljuc(o.substring(0, o.indexOf('-'))) == k }
+                .let { zacetnice(it.substring(0, it.indexOf('-')).trim()) } }.orEmpty()
+        }
+        return brezIzvajalca.mapIndexed { i, t ->
+            var n = t
+            if (albKljuc != null && zakljucki[i] == albKljuc) {
+                val z = zakljucek(n)
+                n = n.substring(0, n.length - z.length).trimEnd().removeSuffix("(").trimEnd()
+            }
+            n = n.replace(Regex("\\s+"), " ").trim().trim('-', ' ')
+            (zacetnice(n).ifBlank { imeSkladbe(imena[i]) }) to izvajalec
+        }
+    }
+
+    /** Priljubljeni album: ista izdaja ne glede na velike crke, pike, podcrtaje in presledke. */
+    fun istiAlbum(a: String, b: String): Boolean = kljuc(lepNaslov(a)).let { it.isNotEmpty() && it == kljuc(lepNaslov(b)) }
+
+    /**
+     * Shranjen album med zadetki novega iskanja: najprej ista izdaja z isto velikostjo (± 1 %), nato ista izdaja; -1 = ni
+     * je vec pri indeksatorju.
+     */
+    fun izberiShranjenega(zadetki: List<Pair<String, Long>>, naslov: String, velikost: Long): Int {
+        val isti = zadetki.indices.filter { istiAlbum(zadetki[it].first, naslov) }
+        if (isti.isEmpty()) return -1
+        if (velikost > 0) isti.firstOrNull { kotiVelikost(zadetki[it].second, velikost) }?.let { return it }
+        return isti.first()
+    }
+
+    /**
+     * Lastnik 28. 10. 2026: druge izdaje istega albuma kot [izbran] (za ponoven poskus pri »luknja«), brez neuspelih;
+     * najvec [najvec] (vsaka je en prenos NZB).
+     */
+    fun drugeIzdaje(naslovi: List<String>, izbran: String, najvec: Int, neuspel: (Int) -> Boolean): List<Int> =
+        jedroAlbuma(izbran).let { j ->
+            if (j.isEmpty()) emptyList()
+            else naslovi.indices.filter { naslovi[it] != izbran && jedroAlbuma(naslovi[it]) == j && !neuspel(it) }.take(najvec)
+        }
+
+    /** Izvajalec in album brez letnice, formata in skupine (»Linkin Park - Meteora (2003) [FLAC]« -> »linkin park meteora«). */
+    fun jedroAlbuma(naslovIzdaje: String): String {
+        val besede = kljuc(lepNaslov(naslovIzdaje)).split(' ').filter { it.isNotEmpty() }
+        val konec = besede.indexOfFirst { Regex("(19|20)\\d\\d").matches(it) || it in OZNAKE_FORMATA }
+        val jedro = if (konec >= 0) besede.take(konec) else besede
+        return if (jedro.size >= 2) jedro.joinToString(" ") else ""
+    }
+
+    private val OZNAKE_FORMATA = setOf("flac", "mp3", "aac", "alac", "ogg", "opus", "wav", "320", "256", "v0", "web", "cd", "cdrip",
+        "vinyl", "24bit", "16bit", "lossless", "hires", "repost")
+
+    private fun kotiVelikost(a: Long, b: Long) = a > 0 && kotlin.math.abs(a - b) <= maxOf(a, b) / 100
+
     /** Izvajalec iz naslova izdaje »Izvajalec - Album (Leto) [FLAC]«; brez » - « prazno. */
     fun izvajalec(naslovIzdaje: String): String {
         val n = lepNaslov(naslovIzdaje)
@@ -91,6 +184,34 @@ object UsenetGlasbaPravila {
     fun lepNaslov(naslovIzdaje: String): String {
         val t = naslovIzdaje.trim()
         return if (' ' in t) t else t.replace('.', ' ').replace('_', ' ').trim()
+    }
+
+    /** Lastnik 28. 10. 2026: kartica izdaje - izvajalec, album, leto in oblika iz imena izdaje. */
+    data class OpisIzdaje(val izvajalec: String, val album: String, val leto: String, val oblika: String)
+
+    private val LETO = Regex("(?<![0-9])(19|20)[0-9]{2}(?![0-9])")
+    private val OBLIKA = Regex("(?i)(?<![a-z0-9])(flac|mp3|aac|alac|ogg|opus|wav|dsd|24bit|hi-?res)(?![a-z0-9])")
+    private val OZNAKE = setOf("web", "cd", "cdrip", "vinyl", "lp", "320", "256", "192", "v0", "v2", "16bit", "lossless", "repost", "proper")
+
+    fun opisIzdaje(naslovIzdaje: String): OpisIzdaje {
+        val n = lepNaslov(naslovIzdaje)
+        val leto = LETO.find(n)?.value.orEmpty()
+        val oblika = OBLIKA.find(n)?.value?.uppercase()?.replace("HI-RES", "HIRES").orEmpty()
+        val deli = (if (" - " in n) n.split(" - ") else n.split("-")).map { it.trim() }.filter { it.isNotEmpty() }
+        val izvajalec = if (deli.size > 1) deli.first() else ""
+        val ostanek = (if (deli.size > 1) deli.drop(1) else deli).joinToString(" ")
+            .replace(Regex("[(\\[][^)\\]]*[)\\]]"), " ")
+        val besede = ostanek.split(Regex("\\s+")).filter { it.isNotEmpty() }
+        val konec = besede.indexOfFirst { LETO.matches(it) || OBLIKA.matches(it) || it.lowercase() in OZNAKE }
+        val album = (if (konec >= 0) besede.take(konec) else besede).joinToString(" ").trim(' ', '-', '_', '.')
+        return OpisIzdaje(izvajalec, album.ifEmpty { n }, leto, oblika)
+    }
+
+    /** (naslov, podnaslov) kartice: izvajalec vrstico nad albumom (lastnik 28. 10. 2026), spodaj leto · oblika · velikost. */
+    fun kartica(naslovIzdaje: String, velikost: Long): Pair<String, String> {
+        val o = opisIzdaje(naslovIzdaje)
+        val naslov = if (o.izvajalec.isNotEmpty()) o.izvajalec + "\n" + o.album else o.album
+        return naslov to listOf(o.leto, o.oblika, velikost(velikost)).filter { it.isNotEmpty() }.joinToString(" · ")
     }
 
     /** Velikost izdaje za podnaslov kartice. */

@@ -65,6 +65,13 @@ class DomainSuffixTrie {
         urejeno = false
     }
 
+    /**
+     * Lastnik 27. 10. 2026 (TV: OutOfMemoryError v strni na glavni niti ob odpiranju strani): uredi seznam zdaj, v niti, ki
+     * ga je zgradila - prvo iskanje (shouldOverrideUrlLoading) ga ne gradi vec na glavni niti.
+     */
+    @Synchronized
+    fun pripravi() { strni() }
+
     @Synchronized
     fun insertAll(domains: Collection<String>, category: String? = null, sourceFeed: String? = null) {
         for (d in domains) insert(d, category, sourceFeed)
@@ -189,6 +196,9 @@ class DomainSuffixTrie {
             novih++
         }
 
+        // Star bazen spustimo PRED novim nizom: ob malo pomnilnika ga GC lahko sprosti za novo dodelitev (prej so bile
+        // hkrati zive tri kopije - star bazen, gradilnik in nov niz; TV 27. 10. 2026: 5,5 MB dodelitev ni uspela).
+        bazen = ""
         bazen = novBazen.toString()
         zacetki = novZacetki.copyOf(novih)
         dolzine = novDolzine.copyOf(novih)

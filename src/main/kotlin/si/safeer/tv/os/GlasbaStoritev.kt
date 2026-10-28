@@ -82,6 +82,22 @@ class GlasbaStoritev : Service() {
         return false
     }
 
+    /** Posnetek (id) in stevilo pokvarjenih zvocnih okvirjev v njem (lastnik 28. 10. 2026). */
+    private var napakeOkvirja: Pair<String, Int> = "" to 0
+    private val NAJVEC_NAPAK_OKVIRJA = 3
+
+    /** Pokvarjen ali okrnjen okvir AC3/E-AC3/DTS/AC4 pri predaji zvocniku (razclenjevalnik glave okvirja v Media3). */
+    private fun napakaZvocnegaOkvirja(error: PlaybackException): Boolean {
+        var e: Throwable? = error.cause
+        var globina = 0
+        while (e != null && globina++ < 6) {
+            if (e is IndexOutOfBoundsException || e is java.nio.BufferUnderflowException)
+                return e.stackTrace.take(8).any { s -> listOf("Ac3Util", "Ac4Util", "DtsUtil", "DefaultAudioSink").any { s.className.endsWith(it) } }
+            e = e.cause
+        }
+        return false
+    }
+
     /** Imenik vprasamo v ozadju (odgovor pride po glavni niti, zato tu nihce ne caka); izid prebere koncna napaka. */
     private fun vprasajImenik(gostitelj: String) {
         if (gostitelj.isEmpty() || vprasanjeImeniku == gostitelj) return
@@ -234,6 +250,18 @@ class GlasbaStoritev : Service() {
                     p.seekToDefaultPosition(); p.prepare()
                     return
                 }
+                // Lastnik 28. 10. 2026: video z racunalnika se je ustavil - pokvarjen okvir AC3 pri predaji zvocniku
+                // (Ac3Util, IndexOutOfBounds). Nadaljuj 1 s naprej (cez pokvarjen okvir), najvec NAJVEC_NAPAK_OKVIRJA na posnetek.
+                if (napakaZvocnegaOkvirja(error)) {
+                    val id = trenutna()?.id.orEmpty()
+                    val n = if (napakeOkvirja.first == id) napakeOkvirja.second + 1 else 1
+                    napakeOkvirja = id to n
+                    if (n <= NAJVEC_NAPAK_OKVIRJA) {
+                        Log.i("SafeerOsMedia", "pokvarjen zvocni okvir: naprej 1 s ($n/$NAJVEC_NAPAK_OKVIRJA)")
+                        p.seekTo(p.currentPosition + 1_000); p.prepare(); p.play()
+                        return
+                    }
+                }
                 val enota = trenutna()
                 if (enota != null && vrsta.size == 1 && enota.mime.isBlank() && enota.zvok.startsWith("http") && kotHls != enota.id &&
                     error.errorCode == PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED) {
@@ -327,6 +355,8 @@ class GlasbaStoritev : Service() {
         })
         exo = p
         predvajalnik = p
+        // Samodejno naslednja skladba izklopljena: po trenutni skladbi pavza (lastnik 27. 10. 2026).
+        p.pauseAtEndOfMediaItems = !samodejnoNaslednja(this)
 
         seja = MediaSession(this, "SafeerGlasba").apply {
             setCallback(object : MediaSession.Callback() {
@@ -457,8 +487,12 @@ class GlasbaStoritev : Service() {
 
     /** Posnetek je pri koncu: v vrsti posnetkov s strani (seznam predvajanja) zacne naslednji, sicer je konec. */
     private fun poKoncu() {
-        if (spletnaVrsta.size > spletniIndeks + 1) android.os.Handler(mainLooper).post { zacniElement(spletniIndeks + 1) }
-        else if (!nadaljujZMixom(koncajBrez = true)) konec()
+        // Lastnik 27. 10. 2026: stikali »Samodejno naslednja skladba« in »… naprej po koncu albuma« (privzeto vklopljeni).
+        when (MiniPredvajalnikPravila.poKoncuSkladbe(samodejnoNaslednja(this), samodejnoAlbum(this), spletnaVrsta.size > spletniIndeks + 1)) {
+            MiniPredvajalnikPravila.PO_KONCU_NASLEDNJA -> android.os.Handler(mainLooper).post { zacniElement(spletniIndeks + 1) }
+            MiniPredvajalnikPravila.PO_KONCU_MIX -> if (!nadaljujZMixom(koncajBrez = true)) konec()
+            else -> konec()
+        }
     }
 
     private var nalagaMix = false
@@ -1378,6 +1412,18 @@ class GlasbaStoritev : Service() {
             stevecZagonov.incrementAndGet()
             val namen = Intent(ctx, GlasbaStoritev::class.java)
             if (Build.VERSION.SDK_INT >= 26) ctx.startForegroundService(namen) else ctx.startService(namen)
+        }
+
+        private fun nastavitveSamodejno(c: Context) = c.getSharedPreferences("safeer_os", Context.MODE_PRIVATE)
+        fun samodejnoNaslednja(c: Context): Boolean = nastavitveSamodejno(c).getBoolean(MiniPredvajalnikPravila.KLJUC_SAMODEJNO_NASLEDNJA, true)
+        fun samodejnoAlbum(c: Context): Boolean = nastavitveSamodejno(c).getBoolean(MiniPredvajalnikPravila.KLJUC_SAMODEJNO_ALBUM, true)
+        fun nastaviSamodejnoNaslednja(c: Context, da: Boolean) {
+            nastavitveSamodejno(c).edit().putBoolean(MiniPredvajalnikPravila.KLJUC_SAMODEJNO_NASLEDNJA, da).apply()
+            // pauseAtEndOfMediaItems ima samo ExoPlayer (predvajalnik je lahko tudi spletni igralec).
+            (predvajalnik as? androidx.media3.exoplayer.ExoPlayer)?.pauseAtEndOfMediaItems = !da
+        }
+        fun nastaviSamodejnoAlbum(c: Context, da: Boolean) {
+            nastavitveSamodejno(c).edit().putBoolean(MiniPredvajalnikPravila.KLJUC_SAMODEJNO_ALBUM, da).apply()
         }
 
         /** Ali Naprej kam pelje: naslednja skladba navadne vrste ali naslednji posnetek seznama. */

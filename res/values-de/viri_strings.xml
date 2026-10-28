@@ -191,4 +191,6 @@
     <string name="os_debrid_izbira_vse">Alle Quellen</string>
     <string name="os_usenet_predvaja_lastni">Wiedergabe über Usenet (eigener Anbieter)</string>
     <string name="os_usenet_pripravljam">Wird über Usenet vorbereitet …</string>
+    <string name="os_samodejno_naslednja">Nächsten Titel automatisch abspielen</string>
+    <string name="os_samodejno_album">Nach Albumende automatisch weiter</string>
 </resources>

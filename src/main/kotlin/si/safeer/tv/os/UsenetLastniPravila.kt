@@ -63,4 +63,41 @@ object UsenetLastniPravila {
 
     /** Lastnik 27. 10. 2026: priprava toka Usenet z lastnim ponudnikom ima svoj napis (ne »prek debrid storitve«). */
     fun pripravaLastnega(usenet: Boolean, lastniVUporabi: Boolean): Boolean = usenet && lastniVUporabi
+
+    /**
+     * Lastnik 27. 10. 2026: strezniki skladb albuma nastanejo vsi ob zacetku; skladba, ki je se ni na vrsti, ne sme poteci
+     * po 5 min mirovanja (UsenetStreznik.NEDEJAVNOST_MS - album je obstal po 4 skladbah). Zaprejo se z UsenetLastni.ustavi.
+     */
+    const val NEDEJAVNOST_ALBUMA_MS = 4L * 60 * 60 * 1000
+
+    /**
+     * Lastnik 28. 10. 2026 (kvota indeksatorja): izdaja s trajno napako se zapomni [NEUSPELI_DNI] dni in se ne pokaze vec;
+     * omrezje, zaseden ponudnik, kljuc ali indeksator niso trajni (drugic lahko uspe).
+     */
+    fun trajnaNapakaAlbuma(napaka: String): Boolean =
+        napaka in setOf("luknja", "ni_podprto", "ni_skladb", "ni_filma", "stisnjen", "sifriran", "nzb") || napaka.startsWith("rar_")
+
+    /** Samo manjkajoci deli (»luknja«) se pri drugi izdaji istega albuma lahko izidejo; sifrirano ali RAR ostane enako. */
+    fun poskusiDrugoIzdajo(napaka: String): Boolean = napaka == "luknja"
+
+    /** Na klik najvec toliko drugih izdaj (vsaka je en prenos NZB - kvota). */
+    const val NAJVEC_DRUGIH_IZDAJ = 2
+    const val NEUSPELI_DNI = 30
+    const val NEUSPELIH_NAJVEC = 300
+    /** Shramba NZB na napravi: najvec datotek in bajtov (najstarejsa uporaba gre prva). */
+    const val NZB_NAJVEC_DATOTEK = 40
+    const val NZB_NAJVEC_BAJTOV = 40L * 1024 * 1024
+    const val NZB_NAJVEC_ENA = 4 * 1024 * 1024
+
+    /** Neuspeli: odtis -> cas; ostanejo mlajsi od [NEUSPELI_DNI], najvec [NEUSPELIH_NAJVEC] najnovejsih. */
+    fun pocistiNeuspele(vsi: Map<String, Long>, zdajMs: Long): Map<String, Long> =
+        vsi.filterValues { zdajMs - it in 0 until NEUSPELI_DNI * 24L * 60 * 60 * 1000 }
+            .entries.sortedByDescending { it.value }.take(NEUSPELIH_NAJVEC).associate { it.key to it.value }
+
+    /** Datoteke shrambe NZB (ime, velikost, zadnja uporaba) za brisanje: najstarejse, dokler ni v mejah. */
+    fun zaBrisanje(datoteke: List<Triple<String, Long, Long>>): List<String> {
+        val po = datoteke.sortedByDescending { it.third }
+        var bajtov = 0L
+        return po.filterIndexed { i, d -> bajtov += d.second; i >= NZB_NAJVEC_DATOTEK || bajtov > NZB_NAJVEC_BAJTOV }.map { it.first }
+    }
 }

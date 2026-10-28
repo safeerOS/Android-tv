@@ -770,7 +770,8 @@ class PredvajanjeActivity : OsActivity() {
         android.util.Log.i("SafeerOsMedia", "zaslon predvajanja odhaja: video=${jeVideo()}, novo=$novoPredvajanje, " +
             "konec=$isFinishing, tece=${GlasbaStoritev.tece()}")
         if (!novoPredvajanje) zapisiNapredek()
-        if (jeVideo() && !isChangingConfigurations && !novoPredvajanje) GlasbaStoritev.predvajalnik?.pause()
+        // Lastnik 28. 10. 2026: YouTube (glasba) igra v ozadju do pavze ali stopa v mini predvajalniku.
+        if (jeVideo() && !igraVOzadju() && !isChangingConfigurations && !novoPredvajanje) GlasbaStoritev.predvajalnik?.pause()
         GlasbaStoritev.poslusalci.remove(poslusalec)
         LinkUpravitelj.pridobi(this).odstrani(linkPoslusalec)
         glavna.removeCallbacks(tik); glavna.removeCallbacks(skrij); glavna.removeCallbacks(zatemni)
@@ -782,6 +783,9 @@ class PredvajanjeActivity : OsActivity() {
     }
 
     private fun jeVideo() = GlasbaStoritev.trenutna()?.video == true
+
+    /** Posnetek z YouTuba (pogosto glasba) se ob odhodu z zaslona ne ustavi - mini predvajalnik ga ustavi. */
+    private fun igraVOzadju() = GlasbaStoritev.trenutna()?.let { YoutubeZvok.jeYoutube(it) } == true
 
     private fun osvezi() {
         if (!zagnan) return
@@ -1074,6 +1078,25 @@ class PredvajanjeActivity : OsActivity() {
                 p.shuffleModeEnabled = !p.shuffleModeEnabled
                 povejStanje(getString(R.string.os_mediji_nakljucno), getString(if (p.shuffleModeEnabled) R.string.os_mediji_vklopljeno else R.string.os_mediji_izklopljeno))
                 napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, i)
+            }
+        }
+        // Lastnik 27. 10. 2026: samodejno naslednja skladba in samodejno naprej po koncu albuma (privzeto vklopljeno).
+        if (!video && p != null && zdaj?.radio != true) {
+            val iN = predlogiNiz.childCount
+            val naslednja = GlasbaStoritev.samodejnoNaslednja(this)
+            dejanje(getString(R.string.os_samodejno_naslednja),
+                getString(if (naslednja) R.string.os_mediji_vklopljeno else R.string.os_mediji_izklopljeno), R.drawable.os_ikona_naslednja) {
+                GlasbaStoritev.nastaviSamodejnoNaslednja(this, !naslednja)
+                povejStanje(getString(R.string.os_samodejno_naslednja), getString(if (!naslednja) R.string.os_mediji_vklopljeno else R.string.os_mediji_izklopljeno))
+                napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, iN)
+            }
+            val iA = predlogiNiz.childCount
+            val album = GlasbaStoritev.samodejnoAlbum(this)
+            dejanje(getString(R.string.os_samodejno_album),
+                getString(if (album) R.string.os_mediji_vklopljeno else R.string.os_mediji_izklopljeno), R.drawable.os_ikona_glasba) {
+                GlasbaStoritev.nastaviSamodejnoAlbum(this, !album)
+                povejStanje(getString(R.string.os_samodejno_album), getString(if (!album) R.string.os_mediji_vklopljeno else R.string.os_mediji_izklopljeno))
+                napolni(zadnjiPredlogi.first, zadnjiPredlogi.second, iA)
             }
         }
         if (!video && p != null && zdaj?.radio != true) {

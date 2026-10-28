@@ -352,6 +352,67 @@ def main() -> int:
     preveri("vreme: kraj se izbere v Nastavitvah novega zaganjalnika", "VremeKraj.izberi(this) { narisi() }" in na3)
     preveri("vreme: osvezi se med prikazom (tik ure, najvec na 30 min)",
             "osveziVreme()" in pk3.split("private val tikUre = object : Runnable {", 1)[1].split(chr(10) + "    }", 1)[0])
+    te = (SRC / "ThreatBlockEngine.kt").read_text(encoding="utf-8")
+    ce = (SRC / "ChromiumEngineView.kt").read_text(encoding="utf-8")
+    preveri("OOM: seznam groznj se uredi v niti posodobitve, ne ob prvem iskanju",
+            "newTrie.pripravi()" + chr(10) + "        threatTrie = newTrie" in te)
+    preveri("OOM: zanka pojavnih oken ne ustvarja pogledov (PojavnaOknaMeja)",
+            ce.index("PojavnaOknaMeja.dovoli(pojavnaOknaCasi") < ce.index("return naPojavnoOkno?.invoke(resultMsg)"))
+    gl5 = (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8")
+    preveri("mini predvajalnik tudi v Medijskem centru (zivljenjski cikel in Nazaj)",
+            "dock = MiniPredvajalnik.naOknu(this)" in gl5 and "GlasbaStoritev.poslusalci.remove(dockPoslusalec)" in gl5
+            and "if (dock?.skrijCeOdprt() == true) return" in gl5)
+    gl6 = (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8")
+    preveri("album z Useneta: lepi naslovi in izvajalec (UsenetGlasbaPravila.lepeSkladbe)",
+            "UsenetGlasbaPravila.lepeSkladbe(album.skladbe.map { it.first }" in gl6)
+    ul = (SRC / "os/UsenetLastni.kt").read_text(encoding="utf-8")
+    preveri("album z Useneta: strezniki skladb ne potecejo po 5 min",
+            "nedejavnostMs = UsenetLastniPravila.NEDEJAVNOST_ALBUMA_MS" in ul.split("fun predvajajAlbum(", 1)[1].split(chr(10) + "    }", 1)[0])
+    ul2 = (SRC / "os/UsenetLastni.kt").read_text(encoding="utf-8")
+    preveri("album z Useneta: en streznik, skladbe sproti (najvec 5 odprtih)",
+            "AlbumIzvor(viri, nntp::body, profil)" in ul2 and "for ((ime, vir) in viri)" not in ul2)
+    gl7 = (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8")
+    ua = (SRC / "os/UsenetAlbumi.kt").read_text(encoding="utf-8")
+    preveri("priljubljeni albumi z Useneta: dolg pritisk in vrstica, brez povezave NZB v shrambi",
+            "dolgo = { preklopiUsenetAlbum(z.naslov, z.velikost) }" in gl7 and "R.string.os_usenet_albumi" in gl7
+            and "urediUsenetAlbum(a)" in gl7 and "fun preimenuj(" in ua
+            and "povezava" not in ua.split("object UsenetAlbumi", 1)[1].replace("povezava NZB", ""))
+    gs = (SRC / "os/GlasbaStoritev.kt").read_text(encoding="utf-8")
+    pa = (SRC / "os/PredvajanjeActivity.kt").read_text(encoding="utf-8")
+    preveri("predvajalnik: stikali samodejno naslednja skladba in album (privzeto vklopljeni)",
+            "MiniPredvajalnikPravila.poKoncuSkladbe(samodejnoNaslednja(this), samodejnoAlbum(this)" in gs
+            and "p.pauseAtEndOfMediaItems = !samodejnoNaslednja(this)" in gs and "R.string.os_samodejno_album" in pa)
+    us = (SRC / "os/UsenetStreznik.kt").read_text(encoding="utf-8")
+    preveri("album: naslednja skladba pripravljena vnaprej (ni preskakovanja ob prvi zahtevi)",
+            "pripraviVnaprej(i + 1)" in us and "izvor.pripraviVnaprej(0)" in (SRC / "os/UsenetLastni.kt").read_text(encoding="utf-8"))
+    pk4 = (SRC / "os/PokrajinaActivity.kt").read_text(encoding="utf-8")
+    preveri("domaci zaslon: vrstica aplikacij pod lupo (prostor pod njo, mini predvajalnik je ne prekriva)",
+            pk4.index("vsebina.addView(drsnik,") < pk4.index("vsebina.addView(View(this), LinearLayout.LayoutParams(0, 0, 1f))") < pk4.index("vsebina.addView(dok,"))
+    gk = (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8")
+    uk = (SRC / "os/Usenet.kt").read_text(encoding="utf-8")
+    preveri("kvota: NZB na napravi, neuspeli skriti, druga izdaja samo pri luknji",
+            "albumIzShrambe(c, naslov, velikost)?.let { return it }" in uk and "UsenetNzbShramba.jeNeuspel(applicationContext, it.naslov, it.velikost)" in gk
+            and "UsenetLastniPravila.poskusiDrugoIzdajo(album.napaka) && poskus < UsenetLastniPravila.NAJVEC_DRUGIH_IZDAJ" in gk
+            and "Usenet.albumIzShrambe(app, a.naslov, a.velikost)" in gk)
+    tm = (SRC / "TabManager.kt").read_text(encoding="utf-8")
+    preveri("Splet: nov zavihek dobi fokus (daljinec ne obtici na orodni vrstici)",
+            "if (fokusPrej !is android.widget.EditText) try { ciljniPogled.requestFocus() }" in tm.split("fun switchTab(", 1)[1].split(chr(10) + "    }", 1)[0])
+    gz = (SRC / "os/GlasbaStoritev.kt").read_text(encoding="utf-8")
+    preveri("predvajalnik: pokvarjen zvocni okvir (AC3 pri predaji zvocniku) ne ustavi videa",
+            "if (napakaZvocnegaOkvirja(error)) {" in gz and "p.seekTo(p.currentPosition + 1_000); p.prepare(); p.play()" in gz
+            and gz.index("if (napakaZvocnegaOkvirja(error)) {") < gz.index("val naprej = YoutubeVrstaPravila.naprejPoNapaki("))
+    ul3 = (SRC / "os/UsenetLastni.kt").read_text(encoding="utf-8")
+    album3 = ul3.split("fun predvajajAlbum(", 1)[1].split(chr(10) + "    }", 1)[0]
+    preveri("album: nov album ne zapre albuma, ki igra, dokler ni pripravljen (isti bazen)",
+            "val nntp = stara?.nntp ?:" in album3 and album3.index("if (stara == null) {") < album3.index("ustavi()")
+            and "if (!s.lastnikBazena) return" in ul3 and album3.index("koncaj(stara)") < album3.index("synchronized(zaklep) { seja = s }"))
+    preveri("Usenet: kartica kaze album, leto in obliko (ne odrezanega imena izdaje)",
+            "UsenetGlasbaPravila.kartica(z.naslov, z.velikost)" in (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8")
+            and "listOf(izvajalecPod, k.podnaslov)" in (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8"))
+    pv = (SRC / "os/PredvajanjeActivity.kt").read_text(encoding="utf-8")
+    preveri("YouTube igra v ozadju po Domov (ustavi ga mini predvajalnik); drug video se ustavi",
+            "if (jeVideo() && !igraVOzadju() && !isChangingConfigurations && !novoPredvajanje) GlasbaStoritev.predvajalnik?.pause()" in pv
+            and "YoutubeZvok.jeYoutube(it)" in pv)
     # Rocna gradnja bete v CI: vhod »beta« gre prek okolja v -PsafeerBeta (brez vhoda gradnja kot prej).
     ci = (KOREN / ".github" / "workflows" / "gradnja.yml").read_text(encoding="utf-8")
     preveri("CI: rocna gradnja z vhodom beta poda -PsafeerBeta",

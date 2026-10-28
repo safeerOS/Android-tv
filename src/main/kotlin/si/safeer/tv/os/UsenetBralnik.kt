@@ -28,6 +28,13 @@ object UsenetBralnik {
     /** [okno] najvecje okno vnaprej, [zacetno] po odprtju ali skoku, [lru] dekodirani segmenti v RAM, [vzporedno] branj. */
     data class Profil(val okno: Long, val zacetno: Long, val lru: Long, val vzporedno: Int)
 
+    /**
+     * Lastnik 28. 10. 2026: skladba albuma (zvok, nekaj MB/min) - manjse okno in predpomnilnik kot film; album drzi do
+     * AlbumIzvor.NAJVEC_ODPRTIH skladb hkrati (prej 5 x 32 MiB na TV = OutOfMemoryError po preklopih).
+     */
+    fun profilAlbuma(p: Profil): Profil =
+        p.copy(okno = minOf(p.okno, 4 * MIB), lru = minOf(p.lru, 12 * MIB), vzporedno = minOf(p.vzporedno, 3))
+
     /** Po profilu naprave (skupni primeri tok_profili; enako na namizju). */
     val PROFILI: Map<String, Profil> = linkedMapOf(
         "tv" to Profil(8 * MIB, 1 * MIB, 32 * MIB, 4),
