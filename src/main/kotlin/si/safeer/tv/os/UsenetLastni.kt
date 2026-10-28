@@ -100,7 +100,7 @@ object UsenetLastni {
             TorBox.Izid(url = streznik.url, ponudnik = UsenetLastniPravila.PONUDNIK)
         } catch (e: Throwable) {
             if (e is InterruptedException || e is java.io.InterruptedIOException) Thread.currentThread().interrupt()
-            Log.i(TAG, "lasten pogon: ${e.javaClass.simpleName}")
+            Log.i(TAG, "lasten pogon: ${e.javaClass.simpleName}" + ((e as? UsenetNntp.NapakaNntp)?.vrsta?.let { " ($it)" } ?: ""))   // vrsta brez gesla in imena (preverba 28. 10.)
             val s = nova
             if (s != null) koncaj(s) else meje.sprosti(p)
             napaka(razlog(e))

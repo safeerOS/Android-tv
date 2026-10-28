@@ -351,6 +351,13 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         nalagam.add(r.id)
         prenesi(this, r) { s, napaka ->
             nalagam.remove(r.id)
+            // Preverba TV 28. 10. 2026: brez zapisa ni bilo mogoce lociti »naprava ni odgovorila« od »prazen seznam«.
+            android.util.Log.i("SafeerAplikacije", "apps.list ${r.id.take(14)}: " + when {
+                s == null -> "napaka ${napaka.orEmpty().take(80)}"
+                s.dostop != null -> "dostop ${s.dostop}"
+                !s.omogoceno -> "izklopljeno"
+                else -> "predmetov ${s.predmeti.size}"
+            })
             if (isFinishing) return@prenesi
             nalozene.add(r.id)
             if (s?.dostop == null && napravaDostopa == r.id) { dostop.ustavi(); napravaDostopa = null }
@@ -419,7 +426,13 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private fun vOzadju(naprava: String, s: Surovo, nato: (Pretvorjeno) -> Unit) {
         try {
             pretvorbe.execute {
-                val izid = try { pretvori(naprava, s) } catch (_: Throwable) { Pretvorjeno(emptyList(), emptyMap()) }
+                val zacetek = android.os.SystemClock.uptimeMillis()
+                val izid = try { pretvori(naprava, s) } catch (e: Throwable) {
+                    android.util.Log.w("SafeerAplikacije", "pretvorba ${naprava.take(14)}: ${e.javaClass.simpleName} ${e.message?.take(120)}")
+                    Pretvorjeno(emptyList(), emptyMap())
+                }
+                android.util.Log.i("SafeerAplikacije", "naprava ${naprava.take(14)}: predmetov=${s.predmeti.size}, " +
+                    "programov=${izid.aplikacije.size}, ikon=${izid.ikone.size}, pretvorba ${android.os.SystemClock.uptimeMillis() - zacetek} ms")
                 runOnUiThread { if (!isFinishing && !isDestroyed) nato(izid) }
             }
         } catch (_: java.util.concurrent.RejectedExecutionException) { }

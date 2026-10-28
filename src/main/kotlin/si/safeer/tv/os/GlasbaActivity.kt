@@ -948,6 +948,13 @@ class GlasbaActivity : OsActivity() {
                 addView(slika, FrameLayout.LayoutParams(-1, -1))
                 slikaKartice(k.slika, slika)
             }
+            // Preverba TV 28. 10. 2026: mreza Filmi | Serije (cisti plakati) oznake kakovosti ni imela - samo police. Ista znacka
+            // (»★ 4K«, »⚠ CAM«), ki jo priprava tokov osvezi na mestu ([zabeleziKakovost]).
+            if (k.kakovost.isNotBlank() || k.kakovostId.isNotBlank()) addView(besedilo(9f, barvaKakovosti(k.kakovost), true).apply {
+                nastaviZnackoKakovosti(this, k.kakovost, barvaKakovosti(k.kakovost))
+                setPadding(dp(6), dp(2), dp(6), dp(2))
+                tag = k.kakovostId.takeIf { it.isNotBlank() }?.let { OZNAKA_KAKOVOSTI + it }
+            }, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.START).apply { leftMargin = dp(6); topMargin = dp(6) })
         }
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
