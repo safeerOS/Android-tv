@@ -88,4 +88,5 @@
     <string name="os_nadaljuj_od">Fortsetzen ab %1$s</string>
     <string name="os_od_zacetka">Von Anfang an</string>
     <string name="os_nadaljevanje_ni_mogoce">Diese Quelle kann nicht zur gespeicherten Stelle springen – Wiedergabe von Anfang an.</string>
+    <string name="os_nadaljevanje_drug_vir">Diese Quelle kann nicht springen – versuche eine andere …</string>
 </resources>

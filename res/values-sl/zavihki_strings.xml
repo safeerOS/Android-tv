@@ -92,4 +92,5 @@
     <string name="os_nadaljuj_od">Nadaljuj od %1$s</string>
     <string name="os_od_zacetka">Od začetka</string>
     <string name="os_nadaljevanje_ni_mogoce">Ta vir ne omogoča skoka na shranjeno mesto – predvajam od začetka.</string>
+    <string name="os_nadaljevanje_drug_vir">Ta vir ne omogoča skoka – poskušam drug vir …</string>
 </resources>

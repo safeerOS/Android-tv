@@ -7,6 +7,9 @@ package si.safeer.tv.os
  * prejsnji kompakten predvajalnik med odseki. Ciste odlocitve brez Androida (preizkus: tests/MiniPredvajalnikPravilaTest.kt).
  */
 object MiniPredvajalnikPravila {
+    /** Lastnik 28. 10. 2026: gumb »Zatemni zaslon« - kadar na tej napravi igra zvok (ne video, ne druga naprava). */
+    fun gumbZatemni(imaPredvajanje: Boolean, video: Boolean, oddaljeno: Boolean): Boolean = imaPredvajanje && !video && !oddaljeno
+
     const val ZGORAJ = "zgoraj"
     const val SPODAJ = "spodaj"
     const val LEVO = "levo"
@@ -195,4 +198,5 @@ object PredvajajNaNapraviPravila {
     fun izbire(zvocnikov: Int, naprav: Int): List<Pair<String, Int>> =
         (if (zvocnikov > 0) (0 until zvocnikov).map { ZVOCNIK to it } else listOf(ISCI_ZNOVA to 0)) +
             (0 until naprav.coerceAtLeast(0)).map { NAPRAVA to it } + (SISTEM to 0)
+
 }

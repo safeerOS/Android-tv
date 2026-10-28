@@ -1088,6 +1088,12 @@ private fun preizkusSlikSpletnihZadetkov() {
     preveriEnako("druga napaka brez zaslona: vir se menja", false, OsPravila.brezMenjaveVira(true, false, false))
     preveriEnako("zvok brez zaslona: kot doslej", false, OsPravila.brezMenjaveVira(false, false, true))
     preveriEnako("nadaljevanje: 10:35 ponudimo", true, OsPravila.ponudiNadaljevanje(635_668, 0))
+    // Zatemnjen zaslon (lastnik 28. 10. 2026): katerakoli tipka samo zbudi, glasnost deluje
+    preveriEnako("temno: OK samo zbudi", OsPravila.TEMNO_ZBUDI, OsPravila.tipkaNaTemnem(false, false, true, false))
+    preveriEnako("temno: spust tipke, ki je zbudila, pogoltnjen", OsPravila.TEMNO_POGOLTNI, OsPravila.tipkaNaTemnem(true, false, false, true))
+    preveriEnako("temno: glasnost deluje", OsPravila.TEMNO_NAPREJ, OsPravila.tipkaNaTemnem(false, true, true, false))
+    preveriEnako("budno: tipke kot doslej", OsPravila.TEMNO_NAPREJ, OsPravila.tipkaNaTemnem(true, false, true, false))
+    preveriEnako("budno: spust druge tipke naprej", OsPravila.TEMNO_NAPREJ, OsPravila.tipkaNaTemnem(true, false, false, false))
     preveriEnako("nadaljevanje: pod 10 s ne", false, OsPravila.ponudiNadaljevanje(9_000, 0))
     preveriEnako("nadaljevanje: zadnjih 5 % ne", false, OsPravila.ponudiNadaljevanje(96_000, 100_000))
     preveriEnako("slika: napoved 64 MB je prevelika", true, OsPravila.prevelikaNapoved(64L * 1024 * 1024))

@@ -1515,6 +1515,21 @@ class GlasbaStoritev : Service() {
         }
 
         /** Ukazi TE naprave (zaslon predvajanja, obvestilo, seja, ukazi daljinca): nikoli ne gredo na drugo napravo. */
+        /**
+         * Lastnik 28. 10. 2026 (preverba TV, beta 29): izbrani vir ne omogoca skoka na shranjeno mesto (MKV brez indeksa) -
+         * naslednji rezervni vir zacne tam (kot ob okvari vira). false, ce rezerv ni.
+         */
+        fun drugVirOd(c: Context, mesto: Long): Boolean {
+            val naslednji = rezerve.firstOrNull() ?: return false
+            val ostale = rezerve.drop(1)
+            SpletniVir.zapomniGlaveToka(naslednji.first.zvok, naslednji.second)
+            zacetnoMesto = naslednji.first.id to mesto
+            Log.i("SafeerOsMedia", "vir brez skoka: naslednji vir od $mesto ms, rezerv=${ostale.size}")
+            predvajaj(c, listOf(naslednji.first), 0)
+            rezerve = ostale
+            return true
+        }
+
         fun nadaljujTu() { if (naZvocniku()) Zvocniki.nadaljuj() else { zbudiPredvajalnik(); predvajalnik?.play() } }
 
         fun premor() {

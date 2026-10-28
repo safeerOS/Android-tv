@@ -118,5 +118,10 @@ fun main() {
     preveriEnako("druga naprava ima prednost pred zvocnikom", MiniPredvajalnikPravila.GLASNOST_DRUGA, MiniPredvajalnikPravila.ciljGlasnosti(true, true))
     preveriEnako("korak druge naprave", 5, MiniPredvajalnikPravila.KORAK_DRUGA)
 
+    // Lastnik 28. 10. 2026: gumb »Zatemni zaslon« samo za zvok na tej napravi
+    check(MiniPredvajalnikPravila.gumbZatemni(true, false, false))
+    check(!MiniPredvajalnikPravila.gumbZatemni(true, true, false)) { "video" }
+    check(!MiniPredvajalnikPravila.gumbZatemni(true, false, true)) { "druga naprava" }
+    check(!MiniPredvajalnikPravila.gumbZatemni(false, false, false)) { "nic ne igra" }
     if (napak == 0) println("MiniPredvajalnikPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

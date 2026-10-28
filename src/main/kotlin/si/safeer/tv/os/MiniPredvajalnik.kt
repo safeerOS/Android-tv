@@ -74,6 +74,8 @@ class MiniPredvajalnik(
     // Lastnik 27. 10. 2026: drsnik casa in zvocnik v docku (kot v celozaslonskem predvajalniku).
     private var drsnik: SeekBar? = null
     private var gumbZvocnik: ImageButton? = null
+    /** Lastnik 28. 10. 2026: »Zatemni zaslon« - glasba igra naprej, katerakoli tipka daljinca zaslon zbudi. */
+    private var gumbZatemni: ImageButton? = null
     private var vlece = false
     // Vodja 27. 10. 2026: zaslon z vrstico ob robu (Pokrajina) pove, koliko prostora mora dock pustiti (px).
     private var robSpodaj = 0
@@ -106,6 +108,14 @@ class MiniPredvajalnik(
      * Lastnik 27. 10. 2026: »Nadaljuj« pri filmu odpre celozaslonski predvajalnik na ISTEM mestu - predvajalnik se pripne na
      * isti GlasbaStoritev.predvajalnik (isti tok, podnapisi, zvocna sled), nic se ne nalozi znova.
      */
+    /** Zatemnjen zaslon predvajanja (samo zvok): ura in naslov na crnem, glasba igra naprej ([PredvajanjeActivity.ZATEMNI]). */
+    private fun zatemni() {
+        try {
+            a.startActivity(android.content.Intent(a, PredvajanjeActivity::class.java).putExtra(PredvajanjeActivity.ZATEMNI, true)
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP))
+        } catch (_: Throwable) { }
+    }
+
     private fun odpriPredvajalnik() {
         try { GlasbaStoritev.predvajalnik?.play() } catch (_: Throwable) { }
         try {
@@ -192,6 +202,8 @@ class MiniPredvajalnik(
             g.imageTintList = ColorStateList.valueOf(barva(if (na) R.color.os_mint else R.color.os_besedilo))
             g.contentDescription = if (na) a.getString(R.string.zvocnik_na, Zvocniki.aktivni?.ime.orEmpty()) else a.getString(R.string.zvocnik_na_napravi)
         }
+        // Zatemnitev ima smisel samo za zvok na tej napravi (video bi zakrila, druga naprava ima svoj zaslon).
+        gumbZatemni?.visibility = if (MiniPredvajalnikPravila.gumbZatemni(tu != null, tu?.video == true, odd)) View.VISIBLE else View.GONE
         glavna.removeCallbacks(casovnik)
         if (drsnik?.visibility == View.VISIBLE && odprt && koren?.visibility == View.VISIBLE) glavna.postDelayed(casovnik, 1_000L)
     }
@@ -373,6 +385,8 @@ class MiniPredvajalnik(
         // Naloga 42 B: glasnost brez zapuscanja domacega zaslona (kot na racunalniku) - tiste naprave, ki igra.
         gumbi.addView(gumb(R.drawable.os_ikona_tisje, a.getString(R.string.zvocnik_tisje), "dock:tisje") { glasnost(-1) }, LinearLayout.LayoutParams(g, g))
         gumbi.addView(gumb(R.drawable.os_ikona_glasneje, a.getString(R.string.zvocnik_glasneje), "dock:glasneje") { glasnost(1) }, LinearLayout.LayoutParams(g, g))
+        val gZatemni = gumb(R.drawable.os_ikona_luna, a.getString(R.string.os_media_zatemni), "dock:zatemni") { zatemni() }
+        gumbi.addView(gZatemni, LinearLayout.LayoutParams(g, g))
         gumbi.addView(gumb(R.drawable.os_ikona_zapri, a.getString(R.string.zg_dock_skrij), "dock:skrij") { nastaviOdprt(false, fokus = daljinec) }, LinearLayout.LayoutParams(g, g))
         c.addView(gumbi)
         val lp = if (pokoncen) FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, gravitacija(m))
@@ -388,7 +402,7 @@ class MiniPredvajalnik(
         k.isClickable = false
         koren = k; rocica = r; kartica = c
         zgrajenoMesto = m; naslovPogled = nPogled; izvajalecPogled = iPogled; gumbPredvajaj = gPredvajaj; radioIkona = radio
-        drsnik = d; gumbZvocnik = gZvocnik
+        drsnik = d; gumbZvocnik = gZvocnik; gumbZatemni = gZatemni
         // Nov dock (prvic ali novo mesto): odprt dock dobi poln cas do samodejnega skrivanja, osvezitve pa ga ne podaljsajo.
         if (zadnjiDotik == 0L) zadnjiDotik = SystemClock.uptimeMillis()
         uveljaviOdprt(odprt, fokus = fokusVDocku)

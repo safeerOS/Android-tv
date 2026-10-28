@@ -88,4 +88,5 @@
     <string name="os_nadaljuj_od">Resume from %1$s</string>
     <string name="os_od_zacetka">From the beginning</string>
     <string name="os_nadaljevanje_ni_mogoce">This source can\'t jump to the saved position – playing from the beginning.</string>
+    <string name="os_nadaljevanje_drug_vir">This source can\'t jump there – trying another source …</string>
 </resources>

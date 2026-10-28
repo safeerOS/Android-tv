@@ -552,6 +552,21 @@ object OsPravila {
      */
     const val NAJVEC_SLIKA = 4L * 1024 * 1024
 
+    const val TEMNO_NAPREJ = 0
+    const val TEMNO_ZBUDI = 1
+    const val TEMNO_POGOLTNI = 2
+
+    /**
+     * Tipka na zaslonu predvajanja (lastnik 28. 10. 2026): zatemnjen zaslon zbudi katerakoli tipka in nic drugega ne naredi
+     * ([TEMNO_ZBUDI]); spust tipke, ki je zbudila, se pogoltne ([TEMNO_POGOLTNI]); glasnost vedno deluje ([TEMNO_NAPREJ]).
+     */
+    fun tipkaNaTemnem(budna: Boolean, glasnost: Boolean, pritisk: Boolean, zbudilaTaTipka: Boolean): Int = when {
+        glasnost -> TEMNO_NAPREJ
+        !budna && pritisk -> TEMNO_ZBUDI
+        !pritisk && zbudilaTaTipka -> TEMNO_POGOLTNI
+        else -> TEMNO_NAPREJ
+    }
+
     /** Napaka dekodiranja videa, ko zaslona predvajanja ni (preklop vhoda na TV, Domov): ne menjamo vira (28. 10. 2026). */
     fun brezMenjaveVira(video: Boolean, zaslonOdprt: Boolean, napakaDekodiranja: Boolean): Boolean =
         video && !zaslonOdprt && napakaDekodiranja

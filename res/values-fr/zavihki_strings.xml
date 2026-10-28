@@ -88,4 +88,5 @@
     <string name="os_nadaljuj_od">Reprendre à %1$s</string>
     <string name="os_od_zacetka">Depuis le début</string>
     <string name="os_nadaljevanje_ni_mogoce">Cette source ne permet pas d\'aller à la position enregistrée – lecture depuis le début.</string>
+    <string name="os_nadaljevanje_drug_vir">Cette source ne permet pas le saut – essai d\'une autre …</string>
 </resources>

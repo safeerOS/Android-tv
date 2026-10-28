@@ -129,6 +129,8 @@ class PredvajanjeActivity : OsActivity() {
 
     /** Odstevanje do zatemnitve je ustavljeno, ker je nad zaslonom pogovorno okno (ali sistemska zavesa). */
     private var zatemnitevCaka = false
+    /** Tipka, ki je zbudila zatemnjen zaslon: tudi njen spust pogoltnemo (sicer bi Nazaj ob spustu zapustil zaslon). */
+    private var zbudilaTipka: Int? = null
 
     /**
      * Pod odprtim pogovornim oknom (»Vec moznosti«, izbira zvocnika, podnapisi) se zaslon ne zatemni: tipke in dotiki gredo
@@ -654,6 +656,25 @@ class PredvajanjeActivity : OsActivity() {
     private var oknoNadaljevanja: android.app.AlertDialog? = null
 
     /**
+     * Po izbiri »Nadaljuj od …«: ce vir skoka ne omogoca (MKV brez indeksa - preverba TV 28. 10. 2026: izbrano 0:58, igralo od
+     * 0:00), naslednji rezervni vir zacne na mestu ([GlasbaStoritev.drugVirOd]); najvec trikrat, nato pove, da skok ni mogoc.
+     */
+    private fun preveriSkok(mesto: Long, poskus: Int) {
+        glavna.postDelayed({
+            val q = GlasbaStoritev.predvajalnik ?: return@postDelayed
+            if (isFinishing) return@postDelayed
+            if (q.playbackState != androidx.media3.common.Player.STATE_READY) { if (poskus <= 6) preveriSkok(mesto, poskus + 1); return@postDelayed }
+            val zgresil = q.currentPosition < mesto - 30_000
+            android.util.Log.i("SafeerOsMedia", "nadaljevanje: mesto=$mesto, zdaj=${q.currentPosition}, skok=${q.isCurrentMediaItemSeekable}, poskus=$poskus")
+            if (!zgresil) return@postDelayed
+            if (poskus <= 3 && GlasbaStoritev.drugVirOd(this, mesto)) {
+                android.widget.Toast.makeText(this, R.string.os_nadaljevanje_drug_vir, android.widget.Toast.LENGTH_SHORT).show()
+                preveriSkok(mesto, poskus + 1)
+            } else android.widget.Toast.makeText(this, R.string.os_nadaljevanje_ni_mogoce, android.widget.Toast.LENGTH_LONG).show()
+        }, 4_000)
+    }
+
+    /**
      * Lastnik 28. 10. 2026: »Nadaljuj od 10:35« ali »Od zacetka«. Prej je Safeer sam skocil na shranjeno mesto - pri viru,
      * ki skoka ne omogoca (MKV brez indeksa), je rekel »Nadaljujem od …« in zacel na zacetku.
      */
@@ -668,12 +689,7 @@ class PredvajanjeActivity : OsActivity() {
             oknoNadaljevanja = null
             if (mesto > 0) {
                 p.seekTo(mesto)
-                // Vir brez moznosti skoka (MKV brez indeksa, nekateri tokovi v zivo): povemo, namesto da tiho zacne od 0.
-                glavna.postDelayed({
-                    val q = GlasbaStoritev.predvajalnik ?: return@postDelayed
-                    if (!isFinishing && q.playbackState == androidx.media3.common.Player.STATE_READY && !q.isCurrentMediaItemSeekable &&
-                        q.currentPosition < mesto - 30_000) android.widget.Toast.makeText(this, R.string.os_nadaljevanje_ni_mogoce, android.widget.Toast.LENGTH_LONG).show()
-                }, 4_000)
+                preveriSkok(mesto, 1)
             } else p.seekTo(0)
             p.play()
         }
@@ -2107,7 +2123,14 @@ class PredvajanjeActivity : OsActivity() {
         }
         val budna = tema.visibility != View.VISIBLE
         zbudi()
-        if (!budna && dogodek.keyCode != KeyEvent.KEYCODE_BACK) return true
+        // Lastnik 28. 10. 2026: zatemnjen zaslon zbudi katerakoli tipka daljinca in nic drugega ne naredi - tudi Nazaj (prej je
+        // hkrati zapustil zaslon). Glasnost deluje takoj (glasba igra naprej). Pogoltnemo tudi spust tipke, ki je zbudila.
+        when (OsPravila.tipkaNaTemnem(budna, dogodek.keyCode == KeyEvent.KEYCODE_VOLUME_UP || dogodek.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN ||
+                dogodek.keyCode == KeyEvent.KEYCODE_VOLUME_MUTE, dogodek.action == KeyEvent.ACTION_DOWN, zbudilaTipka == dogodek.keyCode)) {
+            OsPravila.TEMNO_ZBUDI -> { zbudilaTipka = dogodek.keyCode; return true }
+            OsPravila.TEMNO_POGOLTNI -> { zbudilaTipka = null; return true }
+            else -> {}
+        }
         if (mrezaOdprta()) when (dogodek.keyCode) {
             // Mreza vrste: Nazaj jo zapre (pred vrsto pod njo); smerne tipke in OK gredo mrezi, ne previjanju pod njo.
             KeyEvent.KEYCODE_BACK -> { if (dogodek.action == KeyEvent.ACTION_UP) zapriMrezoVrste(); return true }

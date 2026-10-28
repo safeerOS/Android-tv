@@ -88,4 +88,5 @@
     <string name="os_nadaljuj_od">Continuar desde %1$s</string>
     <string name="os_od_zacetka">Desde el principio</string>
     <string name="os_nadaljevanje_ni_mogoce">Esta fuente no permite saltar a la posición guardada: se reproduce desde el principio.</string>
+    <string name="os_nadaljevanje_drug_vir">Esta fuente no permite saltar: probando otra …</string>
 </resources>
