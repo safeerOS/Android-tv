@@ -376,7 +376,9 @@ def main() -> int:
             "nedejavnostMs = UsenetLastniPravila.NEDEJAVNOST_ALBUMA_MS" in ul.split("fun predvajajAlbum(", 1)[1].split(chr(10) + "    }", 1)[0])
     ul2 = (SRC / "os/UsenetLastni.kt").read_text(encoding="utf-8")
     preveri("album z Useneta: en streznik, skladbe sproti (najvec 5 odprtih)",
-            "AlbumIzvor(viri, nntp::body, profil)" in ul2 and "for ((ime, vir) in viri)" not in ul2)
+            "AlbumIzvor(viri, UsenetUsb.ovij(c, nntp::body), profil)" in ul2 and "for ((ime, vir) in viri)" not in ul2)
+    preveri("Usenet na USB: film in album gresta prek UsenetUsb.ovij (lastnik 28. 10.)",
+            "val telo = UsenetUsb.ovij(c, nntp::body)" in ul2 and "UsenetBralnik.Bralnik(telo, vir, profil)" in ul2)
     gl7 = (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8")
     ua = (SRC / "os/UsenetAlbumi.kt").read_text(encoding="utf-8")
     preveri("priljubljeni albumi z Useneta: dolg pritisk in vrstica, brez povezave NZB v shrambi",

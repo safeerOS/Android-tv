@@ -113,10 +113,17 @@ fun main() {
     preveriEnako("ime velike: brez poti ven", "kanalietc", P.imeVelike("kanali../../etc").replace("_", ""))
 
     println("\n== predvajane skladbe na USB (naloga 89) ==")
-    preveriEnako("delitev 2 GB: IPTV cetrtina, zvok polovica, baza ostanek", PredpomnilnikPravila.Delitev(512 * MB, 1024 * MB, 512 * MB),
-        PredpomnilnikPravila.delitevUsb(2 * GB))
-    preveriEnako("delitev: vsota je meja (liha)", 1001L, PredpomnilnikPravila.delitevUsb(1001).let { it.iptv + it.zvok + it.baza })
-    preveriEnako("delitev: negativna meja je 0", PredpomnilnikPravila.Delitev(0, 0, 0), PredpomnilnikPravila.delitevUsb(-5))
+    preveriEnako("delitev 2 GB: Usenet polovica, zvok cetrtina, IPTV osmina, baza ostanek",
+        PredpomnilnikPravila.Delitev(256 * MB, 512 * MB, 256 * MB, 1024 * MB), PredpomnilnikPravila.delitevUsb(2 * GB))
+    preveriEnako("delitev: vsota je meja (liha)", 1001L, PredpomnilnikPravila.delitevUsb(1001).let { it.iptv + it.zvok + it.baza + it.usenet })
+    // Usenet na USB (lastnik 28. 10. 2026): ime je SHA-256 message-id, id ni v imenu.
+    val ime = PredpomnilnikPravila.imeSegmenta("<part1of40.abc@news.example>")
+    preveriEnako("ime segmenta: 64 sestnajstiskih znakov", true, Regex("^[0-9a-f]{64}$").matches(ime))
+    preveriEnako("ime segmenta: stalno", ime, PredpomnilnikPravila.imeSegmenta("<part1of40.abc@news.example>"))
+    preveriEnako("ime segmenta: drug id, drugo ime", false, ime == PredpomnilnikPravila.imeSegmenta("<part2of40.abc@news.example>"))
+    preveriEnako("ime segmenta: brez id-ja", false, "abc" in ime || "news" in ime)
+    preveriEnako("segmenti Useneta veljajo 14 dni", 14 * 24 * 3_600_000L, PredpomnilnikPravila.ttl(PredpomnilnikPravila.USENET))
+    preveriEnako("delitev: negativna meja je 0", PredpomnilnikPravila.Delitev(0, 0, 0, 0), PredpomnilnikPravila.delitevUsb(-5))
     preveriEnako("skladba sme", true, PredpomnilnikPravila.smeVPredpomnilnikZvoka(zvok = true, vZivo = false, http = true, enodelni = true, zasebno = false))
     preveriEnako("video ne", false, PredpomnilnikPravila.smeVPredpomnilnikZvoka(zvok = false, vZivo = false, http = true, enodelni = true, zasebno = false))
     preveriEnako("radio v zivo ne", false, PredpomnilnikPravila.smeVPredpomnilnikZvoka(zvok = true, vZivo = true, http = true, enodelni = true, zasebno = false))

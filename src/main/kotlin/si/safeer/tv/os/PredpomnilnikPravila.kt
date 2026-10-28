@@ -69,6 +69,15 @@ object PredpomnilnikPravila {
     const val POLICE = "police"
     const val IPTV = "iptv"
     const val KANALI = "kanali"
+    /** Lastnik 28. 10. 2026: segmenti lastnega pogona Usenet na USB ([UsenetUsb]). */
+    const val USENET = "usenet"
+    /** Segment Useneta je obicajno 0,5-1 MB; vecjega ne beremo in ne pisemo (pokvarjena datoteka ne napolni pomnilnika). */
+    const val NAJVEC_SEGMENT = 4L * 1024 * 1024
+
+    /** Ime datoteke segmenta: SHA-256 message-id (64 sestnajstiskih znakov) - id ni nikoli v imenu ali dnevniku. */
+    fun imeSegmenta(messageId: String): String =
+        java.security.MessageDigest.getInstance("SHA-256").digest(messageId.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
     /** Naloga 89: predvajane skladbe (Media3 SimpleCache, samo USB). */
     const val ZVOK = "zvok"
     /** Naloga 89: besedila pesmi (LRCLIB) v bazi; tudi zapis »ni besedila«. */
@@ -89,6 +98,7 @@ object PredpomnilnikPravila {
         IPTV -> 7 * DAN
         KANALI -> DAN
         BESEDILA -> 30 * DAN
+        USENET -> 14 * DAN
         else -> 7 * DAN
     }
 
@@ -209,13 +219,15 @@ object PredpomnilnikPravila {
     // ---------------------------------------------------------------- naloga 89: predvajane skladbe na USB
 
     /** Delitev meje USB: (seznami IPTV, zvok, baza metapodatkov). Zvok dobi polovico - najvecji in najbolj koristen. */
-    data class Delitev(val iptv: Long, val zvok: Long, val baza: Long)
+    /** Lastnik 28. 10. 2026: Usenet polovica meje USB, zvok cetrtina, seznami IPTV osmina, baza ostanek (prej IPTV 1/4, zvok 1/2). */
+    data class Delitev(val iptv: Long, val zvok: Long, val baza: Long, val usenet: Long = 0L)
 
     fun delitevUsb(meja: Long): Delitev {
         val m = meja.coerceAtLeast(0L)
-        val iptv = m / 4
-        val zvok = m / 2
-        return Delitev(iptv, zvok, m - iptv - zvok)
+        val usenet = m / 2
+        val zvok = m / 4
+        val iptv = m / 8
+        return Delitev(iptv, zvok, m - iptv - zvok - usenet, usenet)
     }
 
     /**

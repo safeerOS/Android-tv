@@ -151,7 +151,7 @@ object UsbPredpomnilnik {
             try { usb(app)?.izprazni() } catch (_: Throwable) { napaka() }
             PredpomnilnikZvoka.izprazni(app)
             try { notranja(app)?.izprazni() } catch (_: Throwable) { }
-            try { koren?.let { k -> File(k, PredpomnilnikPravila.IPTV).deleteRecursively() } } catch (_: Throwable) { napaka() }
+            try { koren?.let { k -> File(k, PredpomnilnikPravila.IPTV).deleteRecursively(); File(k, PredpomnilnikPravila.USENET).deleteRecursively() } } catch (_: Throwable) { napaka() }
             for (m in stareNotranjeMape(app) + File(app.filesDir, "iptv_seznami")) try { m.listFiles().orEmpty().forEach { it.deleteRecursively() } } catch (_: Throwable) { }
             IptvSeznami.pozabiVse()
             android.util.Log.i("SafeerOsMedia", "predpomnilnik: pociscen (USB in notranji)")
@@ -254,8 +254,14 @@ object UsbPredpomnilnik {
         val ven = PredpomnilnikPravila.zaBrisanje(d, delitev.iptv, System.currentTimeMillis())
         for (p in ven) try { File(p).delete() } catch (_: Throwable) { }
         if (ven.isNotEmpty()) android.util.Log.i("SafeerOsMedia", "predpomnilnik USB: pocisceno ${ven.size} datotek seznamov od ${d.size}")
+        // Lastnik 28. 10. 2026: segmenti Useneta po TTL in LRU (zadnja uporaba) do svojega dela meje.
+        val usenet = File(k, PredpomnilnikPravila.USENET)
+        val seg = usenet.walkTopDown().filter { it.isFile }.map { PredpomnilnikPravila.Datoteka(it.path, PredpomnilnikPravila.USENET, it.length(), it.lastModified()) }.toList()
+        val venUsenet = PredpomnilnikPravila.zaBrisanje(seg, delitev.usenet, System.currentTimeMillis())
+        for (p in venUsenet) try { File(p).delete() } catch (_: Throwable) { }
+        if (venUsenet.isNotEmpty()) android.util.Log.i("SafeerOsMedia", "predpomnilnik USB: pocisceno ${venUsenet.size} segmentov Useneta od ${seg.size}")
         val zvok = velikost(File(k, PredpomnilnikPravila.ZVOK))
-        usb(app)?.pocisti((meja - velikost(iptv) - zvok).coerceAtLeast(delitev.baza))
+        usb(app)?.pocisti((meja - velikost(iptv) - zvok - velikost(usenet)).coerceAtLeast(delitev.baza))
     }
 
     private fun velikost(m: File): Long = try { m.walkTopDown().filter { it.isFile }.sumOf { it.length() } } catch (_: Throwable) { 0L }
