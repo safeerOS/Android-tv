@@ -320,6 +320,14 @@ class GlasbaStoritev : Service() {
                         rezerve = ostale
                         return
                     }
+                    val druga = obOdpovedi
+                    if (druga != null && !zacelo) {
+                        obOdpovedi = null
+                        Log.i("SafeerOsMedia", "tok odpovedal pred zacetkom (koda=${error.errorCode}): druga pot izbire toka")
+                        obvesti(getString(R.string.os_media_drug_vir))
+                        druga()
+                        return
+                    }
                     // Koncna napaka. Kanal ali postaja, ki pri viru ne dela, dobi stavek z razlogom in je do jutri skrit
                     // ([MrtviKanali]); ce se sploh ni zacel, predvajanje zapremo - prej je ostal crn predvajalnik brez
                     // razlage, kanal pa v mali vrstici kot »zdaj se predvaja«.
@@ -1755,12 +1763,20 @@ class GlasbaStoritev : Service() {
             rezerve = ostali
         }
 
+        /**
+         * TV 28. 10. 2026 (20:03 in 20:04): tok lastnega Useneta je dvakrat odpovedal, preden se je zacel (MatroskaExtractor,
+         * NullPointerException), rezerv ni bilo - »koncna napaka«, ceprav je bilo 44 drugih tokov. [obOdpovedi] velja za zadnje
+         * zagnano predvajanje: ce prvi tok odpove pred zacetkom in rezerv ni vec, izbira toka poskusi drugo pot (enkrat).
+         */
+        @Volatile var obOdpovedi: (() -> Unit)? = null
+
         fun predvajaj(ctx: Context, seznam: List<Jamendo.Skladba>, od: Int, streznik: DatotekeActivity.Streznik? = null) {
             if (seznam.isEmpty()) return
             koncajDaljinec()
             if (seznam.size == 1) zapustiVrsto(seznam[0].id) else { spletnaVrsta = emptyList(); zetonVrste++ }
             cakajocaVrsta = null
             rezerve = emptyList()
+            obOdpovedi = null
             cakajoci = Triple(seznam, od, streznik)
             stevecZagonov.incrementAndGet()
             val namen = Intent(ctx, GlasbaStoritev::class.java)

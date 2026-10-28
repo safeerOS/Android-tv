@@ -38,14 +38,14 @@ object KakovostZnane {
         return synchronized(znane) { znane[k] }
     }
 
-    /** Zabelezi tokove filma; vrne novo oznako, ce se je spremenila (kartico je treba osveziti), sicer null. */
-    fun zabelezi(c: Context, id: String, imenaTokov: List<String>): KakovostPravila.Oznaka? {
+    /** Zabelezi tokove filma ali epizode serije ([serija]: id serije, velja zadnja epizoda); vrne novo oznako, ce se je spremenila (kartico je treba osveziti), sicer null. */
+    fun zabelezi(c: Context, id: String, imenaTokov: List<String>, serija: Boolean = false): KakovostPravila.Oznaka? {
         val k = KakovostPravila.kljuc(id) ?: return null
         val nova = KakovostPravila.najboljsa(imenaTokov) ?: return null
         nalozi(c)
         val (sprememba, posnetek) = synchronized(znane) {
             val stara = znane[k]
-            val zdruzena = KakovostPravila.zdruzi(stara, nova)
+            val zdruzena = KakovostPravila.posodobi(stara, nova, serija)
             if (zdruzena == null || zdruzena == stara) return null
             znane[k] = zdruzena
             zdruzena to JSONObject().apply { for ((kk, v) in znane) put(kk, v.napis) }.toString()

@@ -31,5 +31,10 @@ fun main() {
     preveriEnako("glajenje 70/30", 79L, KakovostPravila.zgladi(100, 30))
     preveriEnako("meritev velja teden", true, KakovostPravila.velja(0, KakovostPravila.VELJA_MS - 1))
     preveriEnako("starejsa ne velja", false, KakovostPravila.velja(0, KakovostPravila.VELJA_MS))
+    preveriEnako("serija: zadnja epizoda zamenja boljso", KakovostPravila.Oznaka.HD, KakovostPravila.posodobi(KakovostPravila.Oznaka.UHD, KakovostPravila.Oznaka.HD, true))
+    preveriEnako("serija: epizoda brez oznake obdrzi prejsnjo", KakovostPravila.Oznaka.UHD, KakovostPravila.posodobi(KakovostPravila.Oznaka.UHD, null, true))
+    preveriEnako("serija: prva oznaka", KakovostPravila.Oznaka.CAM, KakovostPravila.posodobi(null, KakovostPravila.Oznaka.CAM, true))
+    preveriEnako("film: slabsi tok ne poslabsa", KakovostPravila.Oznaka.UHD, KakovostPravila.posodobi(KakovostPravila.Oznaka.UHD, KakovostPravila.Oznaka.HD, false))
+    preveriEnako("film: boljsi izboljsa", KakovostPravila.Oznaka.UHD, KakovostPravila.posodobi(KakovostPravila.Oznaka.CAM, KakovostPravila.Oznaka.UHD, false))
     if (napak == 0) println("KakovostPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

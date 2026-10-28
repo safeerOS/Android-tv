@@ -493,6 +493,14 @@ def main() -> int:
     preveri("Domov ne odpre tipkovnice (showSoftInputOnFocus vedno nazaj na false)",
             "        poljeLupe.showSoftInputOnFocus = false\n        val vLupi" in pk2 and "override fun onWindowFocusChanged(imaFokus: Boolean)" in pk2
             and re.search(r'PokrajinaActivity"\s+android:exported="false"\s+android:windowSoftInputMode="stateAlwaysHidden', manifest) is not None)
+    # Lastnik 28. 10. 2026: mreza Filmi | Serije pokaze vse naslove takoj (brez cakanja na vljudno preverjanje).
+    gl = (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8")
+    preveri("mreza filmov ni stroga (vsi naslovi takoj)", "private fun strogaMreza(o: OdprtKatalog): Boolean = false" in gl
+            and "if (!strogaMreza(o)) o.vec(0)" in gl)
+    # TV 28. 10. 2026: tok Useneta, ki odpove pred zacetkom, ni koncna napaka - izbira gre naprej brez Useneta.
+    st = (SRC / "os/GlasbaStoritev.kt").read_text(encoding="utf-8")
+    preveri("Usenet brez zacetka: druga pot izbire toka", "if (druga != null && !zacelo)" in st and "obOdpovedi = null\n" in st
+            and "GlasbaStoritev.obOdpovedi = {" in gl and "vsiTokovi.filter { it.vrsta != UsenetPravila.VRSTA }" in gl)
     # Zaganjalnik (TV, telefon, tablica) mora vedno imeti vecjo mejo pomnilnika.
     for okus in ("os", "telefon", "tablica"):
         man = (KOREN / "okusi" / okus / "AndroidManifest.xml").read_text(encoding="utf-8")

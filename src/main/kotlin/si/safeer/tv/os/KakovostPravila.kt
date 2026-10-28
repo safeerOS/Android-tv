@@ -101,6 +101,12 @@ object KakovostPravila {
     /** Znana oznaka se samo izboljsa: nova izdaja 4K zamenja CAM, slabsi tok (zadnje predvajanje CAM) je ne poslabsa. */
     fun zdruzi(znana: Oznaka?, nova: Oznaka?): Oznaka? = listOfNotNull(znana, nova).maxByOrNull { it.rang }
 
+    /**
+     * Lastnik 28. 10. 2026 (moznost B): serija nima ene kakovosti - kartica pokaze kakovost zadnje predvajane epizode
+     * (nova zamenja staro, tudi slabsa). Ce tokovi epizode oznake nimajo, ostane prejsnja. Film: [zdruzi].
+     */
+    fun posodobi(znana: Oznaka?, nova: Oznaka?, serija: Boolean): Oznaka? = if (serija) nova ?: znana else zdruzi(znana, nova)
+
     /** Napis na kartici: »★ 4K« za oznako iz tokov, opozorilo »⚠ CAM«. */
     fun napisKartice(o: Oznaka): String = (if (o.opozorilo) "⚠ " else "★ ") + o.napis
 

@@ -73,6 +73,8 @@ class UsenetStreznik(
             ".ogg" to "audio/ogg", ".opus" to "audio/ogg", ".wav" to "audio/wav")
         private val RANGE = Regex("^bytes=(\\d{0,19})-(\\d{0,19})$", RegexOption.IGNORE_CASE)
 
+        const val NAJVEC_DIAGNOSTIKE = 40
+
         /** Obseg iz glave Range: (zacetek, konec vkljucno), null = cela datoteka, (-1, -1) = 416. */
         fun obseg(glava: String?, velikost: Long): Pair<Long, Long>? {
             if (glava.isNullOrBlank()) return null
@@ -118,6 +120,19 @@ class UsenetStreznik(
     @Volatile private var zadnja = System.nanoTime()
     @Volatile var zaprt = false; private set
     private val vticnice = java.util.Collections.synchronizedSet(HashSet<Socket>())
+
+    /**
+     * Diagnostika (TV 28. 10. 2026: MatroskaExtractor NullPointerException pred prvo sliko - lastnik: prioriteta): prvih
+     * [NAJVEC_DIAGNOSTIKE] zahtev predvajalnika z obsegom in prvimi bajti odgovora (za MKV: ali je na odmiku Cues res
+     * element Cues 1C53BB6B). Brez naslova, zetona in imena izdaje.
+     */
+    private val diagnostik = AtomicInteger()
+    private fun dnevnik(kaj: String) {
+        // Prek odseva: ista datoteka se prevaja tudi v preizkusih JVM (tests/run_os_tests.sh), kjer android.util.Log ni.
+        try {
+            Class.forName("android.util.Log").getMethod("i", String::class.java, String::class.java).invoke(null, "SafeerUsenetHttp", kaj)
+        } catch (_: Throwable) { }
+    }
 
     init {
         Thread({ sprejemaj() }, "safeer-usenet-http").apply { isDaemon = true; start() }
@@ -271,11 +286,15 @@ class UsenetStreznik(
                 prvi = bralnik.beri(zacetek, minOf(KOS.toLong(), konec - zacetek + 1).toInt())
             } catch (e: UsenetTok.NapakaToka) {
                 val koda = if (e.izid in TRAJNE) 502 else 503
+                dnevnik("zahteva $zacetek-$konec/$velikost: $koda (${e.izid})")
                 pisi(izhod, koda, if (koda == 502) "Bad Gateway" else "Service Unavailable", listOf("Connection" to "close") + prazno)
                 izhod.flush()
                 return false
             }
         }
+        if (metoda == "GET" && diagnostik.incrementAndGet() <= NAJVEC_DIAGNOSTIKE)
+            dnevnik("zahteva range=${range ?: "-"} -> ${if (o == null) 200 else 206} $zacetek-$konec/$velikost, prvih=" +
+                prvi.take(8).joinToString("") { "%02X".format(it.toInt() and 0xFF) })
         val g = arrayListOf("Content-Type" to vrsta, "Accept-Ranges" to "bytes", "Cache-Control" to "no-store",
             "Content-Length" to maxOf(0L, konec - zacetek + 1).toString())
         if (o != null) g += "Content-Range" to "bytes $zacetek-$konec/$velikost"
@@ -292,7 +311,8 @@ class UsenetStreznik(
                 zadnja = System.nanoTime()
             }
             izhod.flush()
-        } catch (_: UsenetTok.NapakaToka) {
+        } catch (e: UsenetTok.NapakaToka) {
+            dnevnik("tok prekinjen pri $poz od $zacetek-$konec: ${e.izid}")
             return false  // obljubljene dolzine ni bilo: povezavo zapremo, predvajalnik odpre znova
         }
         return poz > konec

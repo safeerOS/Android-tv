@@ -5878,7 +5878,7 @@ class GlasbaActivity : OsActivity() {
                 ocena = sk.rating.takeIf { it > 0.0 }?.let { String.format(Locale.ROOT, "%.1f", it) }.orEmpty(),
                 ikona = if (vZivo) R.drawable.os_ikona_tv else if (sk.radio) R.drawable.os_ikona_radio else R.drawable.os_ikona_video,
                 tvId = tvId, id = sk.id,
-                kakovostId = if (Stremio.jeEnota(sk) && !Stremio.jeSerija(sk) && !vZivo) Stremio.razstavi(sk)?.third.orEmpty() else "",
+                kakovostId = if (Stremio.jeEnota(sk) && !vZivo) Stremio.razstavi(sk)?.third.orEmpty() else "",
                 // Televizor: ko izbira obstane na filmu iz dodatkov, tokove poiscemo vnaprej (predpomnilnik) - OK ga zazene takoj.
                 priprava = if (jeTv() && Stremio.jeEnota(sk) && !Stremio.jeSerija(sk) && !vZivo)
                     ({ Stremio.razstavi(sk)?.let { (_, tip, id) -> zabeleziKakovost(id, tokoviVzporedno(tip, id)) }; Unit }) else null)
@@ -7781,8 +7781,8 @@ class GlasbaActivity : OsActivity() {
     }
 
     /** Kakovost iz tokov, ki jih ze imamo (nikoli klic indeksatorja samo za oznako); spremembo pokaze znacka na mestu. */
-    private fun zabeleziKakovost(id: String, tokovi: List<Stremio.Tok>) {
-        val nova = KakovostZnane.zabelezi(applicationContext, id, tokovi.map { it.ime + " " + it.opis }) ?: return
+    private fun zabeleziKakovost(id: String, tokovi: List<Stremio.Tok>, serija: Boolean = false) {
+        val nova = KakovostZnane.zabelezi(applicationContext, id, tokovi.map { it.ime + " " + it.opis }, serija) ?: return
         runOnUiThread {
             if (isFinishing || isDestroyed) return@runOnUiThread
             val napis = KakovostPravila.napisKartice(nova)
@@ -8616,9 +8616,14 @@ class GlasbaActivity : OsActivity() {
      * filmov pokazalo in v hipu izginilo - nobenega ni bilo mogoce predvajati). Nic se ne pokaze in spet skrije: mreza
      * se polni sproti, preverjeno ostane v predpomnilniku (naslednjic je polna takoj). Velja, kadar smemo preverjati
      * (neomejeno omrezje); na mobilnih podatkih ostane po starem - pokazemo vse, cesar ne poznamo kot nepredvajljivo.
+     *
+     * Lastnik 28. 10. 2026 (»Pokazi vse takoj«): mreza ni vec stroga. Strogi nacin je kazal samo naslove, ki jih je dodatek
+     * ze potrdil, dodatki pa smejo odgovarjati vljudno (1 vprasanje na 8 s, ~110 na uro) - kartica »Preverjam … se 9« je
+     * cakala ~72 s, po ~110 naslovih v uri pa mreza ni vec rasla. Zdaj pridejo vsi naslovi kataloga takoj; preverjanje
+     * tece v ozadju (preveriMrezo), nepredvajljiv naslov izpade (znanoNiNaVoljo), ob kliku pa ga preveri predvajanje.
      */
     @Suppress("UNUSED_PARAMETER")
-    private fun strogaMreza(o: OdprtKatalog): Boolean = nasloviZaIzris().isNotEmpty() && smemPreverjati()
+    private fun strogaMreza(o: OdprtKatalog): Boolean = false
 
     /** (kandidati = vse, cesar ne poznamo kot nepredvajljivo; vidni = kar od tega res pokazemo). */
     /** Meritev podkorakov izrisa mreze (22. 10. 2026): zapise jo narisiKatalog, ce je izris pocasen. */
@@ -8838,6 +8843,8 @@ class GlasbaActivity : OsActivity() {
             o.zadnjicVec = zdaj
             o.vec(KORAK_KARTIC)
         }
+        // Nestroga mreza: uporabnik gre naprej - preverjanje v ozadju dobi nov proracun za naslove, ki prihajajo.
+        if (!strogaMreza(o)) o.vec(0)
         if (o.seKaj) naloziVecKataloga(o.naslov)
     }
 
@@ -9082,7 +9089,8 @@ class GlasbaActivity : OsActivity() {
         // Pregled A1: nova izbira toka - prejsnje cakanje na debrid/Usenet ne odpre nicesar vec.
         prekiniDebrid()
         // Oznaka kakovosti (lastnik 28. 10. 2026): tokovi zadnjega predvajanja izboljsajo najboljso znano.
-        Stremio.razstavi(sk)?.third?.let { zabeleziKakovost(it, vsiTokovi) }
+        // Serija (epizoda ima id serije): oznaka kartice je kakovost zadnje predvajane epizode.
+        Stremio.razstavi(sk)?.third?.let { zabeleziKakovost(it, vsiTokovi, Stremio.jeSerija(sk)) }
         // Diagnostika razvijalca ([Webtor.samoWebtor], samo prek adb, z rokom): pot, kjer debrid toka nima - brez ⚡ pri
         // debridu, neposrednih povezav in Useneta; torrenti ostanejo za ujemanje izdaje Webtor. Izmerjeno 25. 10. 2026: Sintel in
         // Tears of Steel imata neposredno povezavo, zato rezerve Webtor brez tega ni mogoce izmeriti. Pregled 26, T3: viden znak,
@@ -9356,6 +9364,11 @@ class GlasbaActivity : OsActivity() {
                 android.util.Log.i("SafeerOsMedia", "tokovi: ${UsenetLastniPravila.dnevnikPripravljenega(ponudnik)}; izbran=${TokIzbira.opisi(opis(t))}")
                 Toast.makeText(this, napisPredvajaPrek(ponudnik), Toast.LENGTH_SHORT).show()
                 odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap()))
+                // Ce se Usenet ne zacne (TV 28. 10. 2026: izdaja, ki je predvajalnik ne prebere), gre izbira naprej brez Useneta.
+                val brezUseneta = vsiTokovi.filter { it.vrsta != UsenetPravila.VRSTA }
+                if (brezUseneta.isNotEmpty()) GlasbaStoritev.obOdpovedi = {
+                    if (!isFinishing && !isDestroyed) izberiTok(sk, naslov, brezUseneta, rocno, Pripravljeno(pripravljeno.predpomnjeni), obNeuspehu)
+                }
                 return
             }
             fun takojBrezWebtorja(): Boolean {
