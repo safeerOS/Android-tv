@@ -1391,7 +1391,8 @@ class GlasbaStoritev : Service() {
         fun samodejnoAlbum(c: Context): Boolean = nastavitveSamodejno(c).getBoolean(MiniPredvajalnikPravila.KLJUC_SAMODEJNO_ALBUM, true)
         fun nastaviSamodejnoNaslednja(c: Context, da: Boolean) {
             nastavitveSamodejno(c).edit().putBoolean(MiniPredvajalnikPravila.KLJUC_SAMODEJNO_NASLEDNJA, da).apply()
-            predvajalnik?.pauseAtEndOfMediaItems = !da
+            // pauseAtEndOfMediaItems ima samo ExoPlayer (predvajalnik je lahko tudi spletni igralec).
+            (predvajalnik as? androidx.media3.exoplayer.ExoPlayer)?.pauseAtEndOfMediaItems = !da
         }
         fun nastaviSamodejnoAlbum(c: Context, da: Boolean) {
             nastavitveSamodejno(c).edit().putBoolean(MiniPredvajalnikPravila.KLJUC_SAMODEJNO_ALBUM, da).apply()
