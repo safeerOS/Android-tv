@@ -134,7 +134,29 @@ class ChromiumEngineView @JvmOverloads constructor(
             settings.loadWithOverviewMode = value
         }
 
+    /**
+     * Temni nacin strani. Lastnik 28. 10. 2026 (Facebook na TV): nas temni slog CSS je ugibal po imenih razredov in
+     * stran pobarval napol (bela glava, temen obrazec, siv napis na temnem) - »takega kontrasta in izgleda ni vesel
+     * nihce«. Kjer WebView zna, zato temni Chromium sam (algoritmicno, kot »temne spletne vsebine« v Chromu; strani
+     * z lastnim temnim videzom dobijo prefers-color-scheme: dark), slog CSS pa ostane samo za starejse WebViewe.
+     */
     var isDarkMode: Boolean = true
+        set(value) {
+            field = value
+            nastaviNativnoTemno(value)
+        }
+
+    /** Ali WebView temni strani sam ([isDarkMode] potem ne vstavlja sloga CSS). */
+    val nativnoTemno: Boolean by lazy {
+        try {
+            androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.ALGORITHMIC_DARKENING)
+        } catch (_: Throwable) { false }
+    }
+
+    private fun nastaviNativnoTemno(temno: Boolean) {
+        if (!nativnoTemno) return
+        try { androidx.webkit.WebSettingsCompat.setAlgorithmicDarkeningAllowed(settings, temno) } catch (_: Throwable) {}
+    }
 
     /**
      * Pogled, ki mora biti mobilni tudi na televizorju: spletni predvajalnik Safeer Media (SpletniIgralec)
@@ -237,6 +259,7 @@ class ChromiumEngineView @JvmOverloads constructor(
     private var finishedScriptNavGen = -1
 
     init {
+        nastaviNativnoTemno(isDarkMode)  // privzeta vrednost ne gre skozi setter
         setupSettings()
         setupClients()
         si.safeer.tv.os.LahkiWebViewPool.prijavi(this)     // naloga 64: izrisovalnik koncamo samo brez zivih WebView-jev

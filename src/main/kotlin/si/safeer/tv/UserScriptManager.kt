@@ -1235,7 +1235,12 @@ object UserScriptManager {
     }
 
 
-    private fun injectSiteScripts(webView: WebView, pageUrl: String?, isDarkMode: Boolean, finished: Boolean) {
+    /** Nas slog CSS samo, ce WebView ne temni sam (glej [ChromiumEngineView.isDarkMode]). */
+    private fun temniCss(webView: WebView, temno: Boolean): Boolean =
+        temno && (webView as? ChromiumEngineView)?.nativnoTemno != true
+
+    private fun injectSiteScripts(webView: WebView, pageUrl: String?, temnoNastavitev: Boolean, finished: Boolean) {
+        val isDarkMode = temniCss(webView, temnoNastavitev)
         val target = pageUrl ?: webView.url ?: ""
         if (isGoogleDomain(target)) {
             // NEVER inject any scripts or CSS into Google authentication, Google Search or reCAPTCHA to preserve 100% native environment
@@ -1328,7 +1333,7 @@ object UserScriptManager {
         webView.evaluateJavascript(ping) { result ->
             if (result != null && result.contains("ok")) {
                 webView.evaluateJavascript(MOBILE_MEDIA_AUDIO_JS, null)
-                if (!isDarkMode) removeCss(webView, "safeer-dark-mode-style")
+                if (!temniCss(webView, isDarkMode)) removeCss(webView, "safeer-dark-mode-style")
                 else webView.evaluateJavascript(SAM_TEMEN_JS, null)
                 return@evaluateJavascript
             }
@@ -1392,7 +1397,7 @@ object UserScriptManager {
     }
 
     fun injectDarkModeToggle(webView: WebView, enable: Boolean) {
-        if (enable) {
+        if (temniCss(webView, enable)) {
             injectCss(webView, TEMNI_CSS, "safeer-dark-mode-style", replace = true)
             webView.evaluateJavascript(MEDIJ_KOREN_JS, null)
         } else {
