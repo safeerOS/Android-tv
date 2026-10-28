@@ -65,7 +65,7 @@ class QrPrijavaActivity : Activity() {
             val odtis = p["f"].orEmpty().lowercase()
             val naslov = p["a"].orEmpty()
             if (!Regex("^[0-9a-f]{8,64}$").matches(id) || skrivnost.length !in 16..128 ||
-                !Regex("^[0-9a-f]{64}$").matches(odtis) || !Regex("^[0-9.]{7,15}:[0-9]{2,5}$").matches(naslov)) return null
+                !QrPravila.veljavenOdtis(odtis) || !QrPravila.zasebniNaslovSredisca(naslov)) return null
             return Pridruzitev(id, skrivnost, odtis, naslov)
         }
 
@@ -91,7 +91,7 @@ class QrPrijavaActivity : Activity() {
             val naslov = parametri["a"].orEmpty()
             if (!Regex("^[0-9a-f]{8,64}$").matches(id) || skrivnost.length !in 16..128 ||
                 !QrPravila.veljavenOdtis(odtis) ||
-                (naslov.isNotEmpty() && !Regex("^[0-9.]{7,15}:[0-9]{2,5}$").matches(naslov))) return null
+                (naslov.isNotEmpty() && !QrPravila.zasebniNaslovSredisca(naslov))) return null
             return Prijava(id, skrivnost, odtis, naslov)
         }
     }
@@ -121,13 +121,29 @@ class QrPrijavaActivity : Activity() {
     }
 
     /**
-     * Ta naprava se pridruzi srediscu, ki je pokazalo kodo (televizor). Uporabnik je kodo namenoma
-     * poskeniral, zato ni dodatnega vprasanja; odtis potrdila iz kode potrdi, da je to pravo sredisce.
+     * Ta naprava se pridruzi srediscu, ki je pokazalo kodo (televizor). Povezavo safeer://link/qr lahko odpre tudi
+     * spletna stran ali druga aplikacija, ne samo skeniranje (pregled 28. 10. 2026), zato vedno vprasamo - z naslovom
+     * in odtisom sredisca - in posebej opozorimo, ce bi naprava zapustila Safeer Link, ki mu ze zaupa. Naslov je
+     * samo zasebni (QrPravila.zasebniNaslovSredisca); odtis potrdila iz kode potrdi, da je to pravo sredisce.
      */
     private fun pridruzi(p: Pridruzitev) {
-        if (!HubPairing.token(this).isNullOrBlank() && HubTls.pripetiOdtis(this) == p.odtis) {
+        val imaZeton = !HubPairing.token(this).isNullOrBlank()
+        val pripeti = HubTls.pripetiOdtis(this)
+        if (imaZeton && pripeti.equals(p.odtis, ignoreCase = true)) {
             sporocilo(b("zePovezana")); return
         }
+        val besedilo = b("vprasajPridruzi").replace("{naslov}", p.naslov).replace("{odtis}", QrPravila.kratekOdtis(p.odtis)) +
+            (if (QrPravila.preselitev(imaZeton, pripeti, p.odtis)) "\n\n" + b("preselitev") else "")
+        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(b("naslovPridruzi"))
+            .setMessage(besedilo)
+            .setPositiveButton(b("pridruzi")) { _, _ -> povezi(p) }
+            .setNegativeButton(b("ne")) { _, _ -> finish() }
+            .setOnCancelListener { finish() }
+            .show()
+    }
+
+    private fun povezi(p: Pridruzitev) {
         val cakam = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(b("naslovPridruzi")).setMessage(b("povezujem")).setCancelable(false).show()
         HubPairing.pridruziSQr(this, p.naslov, p.odtis, p.id, p.skrivnost, si.safeer.tv.cast.HubKrmilnik.lastniId(),
@@ -245,6 +261,11 @@ class QrPrijavaActivity : Activity() {
             "ne" -> if (sl) "Ne" else "No"
             "uspeh" -> if (sl) "Računalnik »{ime}« je prijavljen." else "The computer “{ime}” is signed in."
             "naslovPridruzi" -> if (sl) "Safeer Link" else "Safeer Link"
+            "vprasajPridruzi" -> if (sl) "Povežem to napravo s Safeer Linkom na {naslov}?\nOdtis: {odtis}\n\nPoveži jo samo, če si to kodo pravkar poskeniral na svoji napravi."
+                else "Connect this device to the Safeer Link at {naslov}?\nFingerprint: {odtis}\n\nOnly connect if you just scanned this code on your own device."
+            "preselitev" -> if (sl) "Pozor: ta naprava je že v drugem Safeer Linku. Če nadaljuješ, ga zapusti."
+                else "Warning: this device is already in another Safeer Link. Continuing will leave it."
+            "pridruzi" -> if (sl) "Poveži" else "Connect"
             "povezujem" -> if (sl) "Povezujem …" else "Connecting …"
             "pridruzena" -> if (sl) "Povezano. Ta naprava je zdaj v tvojem Safeer Linku." else "Connected. This device is now in your Safeer Link."
             "zePovezana" -> if (sl) "Ta naprava je že povezana s tem Safeer Linkom." else "This device is already connected to this Safeer Link."

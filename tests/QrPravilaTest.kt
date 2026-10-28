@@ -27,5 +27,19 @@ fun main() {
                      "8.8.8.8", "010.0.0.1", "10.0.0.256", "1o.0.0.1", "10.0.0.1 ", "127.0.0.1", "169.254.0.1")) {
         check(!QrPravila.jeZasebniIpv4(h)) { "ni zasebni $h" }
     }
+
+    // Pregled 28. 10. 2026: naslov sredisca v kodi samo zaseben, opozorilo ob preselitvi iz drugega Safeer Linka.
+    for (n in listOf("192.168.0.77:8443", "10.0.0.5:1", "172.20.1.2:65535")) {
+        check(QrPravila.zasebniNaslovSredisca(n)) { "zasebni naslov $n" }
+    }
+    for (n in listOf("8.8.8.8:8443", "93.184.216.34:443", "192.168.0.77", "192.168.0.77:", "192.168.0.77:0", "192.168.0.77:65536",
+                     "192.168.0.77:08443", "10.evil.com:443", ":443", "", "192.168.0.77:84a3", "192.168.0.77:123456")) {
+        check(!QrPravila.zasebniNaslovSredisca(n)) { "ni zasebni naslov $n" }
+    }
+    check(!QrPravila.preselitev(false, o, o.reversed())) { "brez zetona ni preselitve" }
+    check(!QrPravila.preselitev(true, null, o)) { "brez pripetega odtisa ni preselitve" }
+    check(!QrPravila.preselitev(true, o.uppercase(), o)) { "isti Link ni preselitev" }
+    check(QrPravila.preselitev(true, o.reversed(), o)) { "drug odtis je preselitev" }
+    check(QrPravila.kratekOdtis(o) == "a1b2 c3d4 e5f6 a7b8")
     println("QrPravilaTest: OK")
 }
