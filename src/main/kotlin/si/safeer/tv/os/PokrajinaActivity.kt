@@ -171,6 +171,16 @@ class PokrajinaActivity : OsActivity() {
     }
     private val medijiPoslusalec: () -> Unit = { runOnUiThread { dock?.osvezi() } }
 
+    /**
+     * Preverba TV 28. 10. 2026 (beta 30): po tipki Domov je tipkovnica ostala odprta iz prejsnjega okna, fokus pa je bil na
+     * iskalni lupi. Domaci zaslon tipkovnice nikoli ne pokaze sam (manifest stateAlwaysHidden); odpre jo samo OK na lupi.
+     */
+    override fun onWindowFocusChanged(imaFokus: Boolean) {
+        super.onWindowFocusChanged(imaFokus)
+        if (imaFokus && ::poljeLupe.isInitialized && !poljeLupe.showSoftInputOnFocus)
+            (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).hideSoftInputFromWindow(window.decorView.windowToken, 0)
+    }
+
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
         // Tipka Domov na domacem zaslonu (vodja 27. 10. 2026): razprta lupa se zapre in pokaze se domaci zaslon - prej je

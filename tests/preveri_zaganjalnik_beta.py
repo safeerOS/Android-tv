@@ -491,7 +491,8 @@ def main() -> int:
             "if (brezVrstice || dotik || spodnja || imaFokus()) return false" in sv and "        if (brezVrstice) return false\n" in sv)
     pk2 = (SRC / "os/PokrajinaActivity.kt").read_text(encoding="utf-8")
     preveri("Domov ne odpre tipkovnice (showSoftInputOnFocus vedno nazaj na false)",
-            "        poljeLupe.showSoftInputOnFocus = false\n        val vLupi" in pk2)
+            "        poljeLupe.showSoftInputOnFocus = false\n        val vLupi" in pk2 and "override fun onWindowFocusChanged(imaFokus: Boolean)" in pk2
+            and re.search(r'PokrajinaActivity"\s+android:exported="false"\s+android:windowSoftInputMode="stateAlwaysHidden', manifest) is not None)
     return konec()
 
 

@@ -282,6 +282,7 @@
         <activity
             android:name="si.safeer.tv.os.PokrajinaActivity"
             android:exported="false"
+            android:windowSoftInputMode="stateAlwaysHidden|adjustNothing"
             android:label="@string/os_app_name"
             android:theme="@style/Theme.SafeerOs"
             android:launchMode="singleTask"
