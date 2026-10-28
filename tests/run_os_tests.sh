@@ -356,7 +356,10 @@ python3 "$TEST_DIR/preveri_dostop_v_ozadju.py"
 python3 "$TEST_DIR/preveri_preizkus_po_gradnji.py"
 # Grok 60: pot vira z racunom IPTV - pravi razredi aplikacije klicejo odlocitve, ki jih dokazujejo preizkusi pravil.
 python3 "$TEST_DIR/preveri_iptv_pot.py"
-# Naloga 42: besedila v sestih jezikih, viri, kontrast teme Pokrajina, beta samo ob vklopu.
 # Usenet: Shrani odklene tudi trajni zapah pogona (pomocnik 28. 10. 2026)
 python3 "$TEST_DIR/preveri_usenet_zapah.py"
+# Daljinec v brskalniku: levi rob in gumbi o piskotkih v modalnem oknu (Facebook, 28. 10. 2026)
+node "$TEST_DIR/tv_levi_rob_test.js"
+node "$TEST_DIR/tv_modalno_okno_test.js"
+# Naloga 42: besedila v sestih jezikih, viri, kontrast teme Pokrajina, beta samo ob vklopu.
 python3 "$TEST_DIR/preveri_zaganjalnik_beta.py"

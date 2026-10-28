@@ -472,8 +472,22 @@
                 return ((location.pathname || '').toLowerCase()).indexOf('/livetv') !== -1;
             }
 
+            /* SAFEER_MODALNO_ZACETEK */
+            // Lastnik 28. 10. 2026 (Facebook na TV, se vedno): gumba »Dovoli vse piskotke« / »Zavrni izbirne piskotke«
+            // v besedilu omenjata piskotke, zato ju je jeNogaAliPiskotki izlocil in daljinec do njiju ni mogel. Pasico
+            // s piskotki na dnu strani se vedno preskocimo; v modalnem oknu pa je izbira prav tisto, kar mora uporabnik
+            // narediti, zato tam noben element ni »noga ali piskotki«.
+            function jeVModalnemOknu(el) {
+                try {
+                    return !!(el && el.closest &&
+                        el.closest('[aria-modal="true"], [role="dialog"], [role="alertdialog"], dialog[open]'));
+                } catch (_) { return false; }
+            }
+            /* SAFEER_MODALNO_KONEC */
+
             function jeNogaAliPiskotki(el) {
                 if (!el) return false;
+                if (jeVModalnemOknu(el)) return false;
                 try {
                     if (el.closest && el.closest('footer, .footer, [class*="cookie"], [class*="piškot"], [class*="piskot"]')) return true;
                 } catch (_) {}
