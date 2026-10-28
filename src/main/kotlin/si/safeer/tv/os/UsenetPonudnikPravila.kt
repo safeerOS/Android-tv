@@ -268,6 +268,8 @@ object UsenetPonudnikPravila {
     fun veljavenGostitelj(g: Any?): Boolean {
         if (!nntpGostitelj(g)) return false
         val s = g as String
+        // Pregled Safeer-linux 1.0.134 (A8): ideografske pike (。．｡) niso locila imena - ime je v nastavitvah enoumno.
+        if (s.any { it == '\u3002' || it == '\uff0e' || it == '\uff61' }) return false
         if (naslovIp(s) != null) return true
         val a = (idna(s) ?: return false).lowercase()
         val oznake = a.split(".")
@@ -375,10 +377,17 @@ object UsenetPonudnikPravila {
         override fun hashCode(): Int = vSlovar().hashCode()
 
         companion object {
+            /**
+             * Pregled Safeer-linux 1.0.134 (A8): ime z mednarodnimi znaki v obliki ASCII (punycode) - TLS, odtis racuna in
+             * kljuc gesla so enaki za »news.münchen.de« in »news.xn--mnchen-3ya.de«. IP ostane, kot je.
+             */
+            private fun ascii(g: String): String =
+                if (naslovIp(g) != null || g.all { it.code < 0x80 }) g else (idna(g) ?: g).lowercase()
+
             fun ustvari(gostitelj: String, uporabnik: String, vrata: Int = VRATA, tls: Boolean = true,
                         najvecPovezav: Int = PRIVZETO_POVEZAV, ime: String = "", nevarnoBrezTls: Boolean = false): Ponudnik {
                 napaka(gostitelj, uporabnik, vrata, tls, najvecPovezav, ime, nevarnoBrezTls)?.let { throw NeveljavenVnos(it) }
-                return Ponudnik(gostitelj, uporabnik, vrata, tls, najvecPovezav, ime, nevarnoBrezTls)
+                return Ponudnik(ascii(gostitelj), uporabnik, vrata, tls, najvecPovezav, ime, nevarnoBrezTls)
             }
 
             /** Kot iz_slovarja: neznano polje ali manjkajoc gostitelj/uporabnik = "neveljaven zapis". */
@@ -392,7 +401,7 @@ object UsenetPonudnikPravila {
                 val i = if (d.containsKey("ime")) d["ime"] else ""
                 val nb = if (d.containsKey("nevarno_brez_tls")) d["nevarno_brez_tls"] else false
                 napaka(g, u, v, t, n, i, nb)?.let { throw NeveljavenVnos(it) }
-                return Ponudnik(g as String, u as String, (v as Number).toInt(), t as Boolean, (n as Number).toInt(),
+                return Ponudnik(ascii(g as String), u as String, (v as Number).toInt(), t as Boolean, (n as Number).toInt(),
                     i as String, nb as Boolean)
             }
         }
@@ -978,17 +987,22 @@ object UsenetPonudnikPravila {
             // Lastnik 28. 10. 2026 (enotno na vseh izdajah): izrecni »Preveri« odklene zapah za en nov poskus, kot »Shrani«;
             // omejitev ene preverbe na 10 s ([omejevalec]) ostane.
             val izid = UsenetPonudnikPravila.preveri(p, geslo, naGlavniNiti, tls, zapahi, omejevalec, prijava, odkleni = true)
-            if (izid == VELJA || izid == NE_VELJA || izid == ZAKLENJEN) zapisiPreverbo(p, izid)
+            if (izid == VELJA || izid == NE_VELJA || izid == ZAKLENJEN) zapisiPreverbo(p, izid, geslo)
             return izid
         }
 
         @Synchronized
-        private fun zapisiPreverbo(p: Ponudnik, izid: String) {
+        private fun zapisiPreverbo(p: Ponudnik, izid: String, g: Geslo) {
             val d = beriZapis()
             val s = ponudnikIz(d)
             if (s == null || s.kljucGesla != p.kljucGesla) return  // medtem zamenjan ponudnik: izid ne velja zanj
+            // Kot Safeer-linux (pregled 1.0.134 A4 in krog 2): med preverbo vpisano drugo geslo, vrata, TLS ali uporabnik -
+            // izid starega vpisa ne velja; drugo prikazno ime ali stevilo povezav izida ne spremeni.
+            if (zaPreverbo(s) != zaPreverbo(p) || geslo(s)?.vrednost() != g.vrednost()) return
             try { pisiZapis(s, mapOf("izid" to izid, "cas" to casS())) } catch (e: Exception) { }
         }
+
+        private fun zaPreverbo(p: Ponudnik) = listOf(p.gostitelj.lowercase(), p.vrata, p.tls, p.nevarnoBrezTls, p.uporabnik)
 
         /** Pred bazenom za predvajanje (kot ustvari_bazen): null = sme. */
         fun oviraBazena(p: Ponudnik): String? = oviraBazena(p, geslo(p), zapahi)

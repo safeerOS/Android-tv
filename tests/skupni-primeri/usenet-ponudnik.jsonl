@@ -63,7 +63,7 @@
 {"domace": null, "g": "xn--.example", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
 {"domace": false, "g": "m\u00fcnchen.de", "izid": "OK", "racun": "m\u00fcnchen.de", "vrsta": "gostitelj"}
 {"domace": false, "g": "\u4f8b\u3048.\u30c6\u30b9\u30c8", "izid": "OK", "racun": "\u4f8b\u3048.\u30c6\u30b9\u30c8", "vrsta": "gostitelj"}
-{"domace": false, "g": "a\u3002example", "izid": "OK", "racun": "a\u3002example", "vrsta": "gostitelj"}
+{"domace": null, "g": "a\u3002example", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
 {"domace": null, "g": "news.example\u3002", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
 {"domace": null, "g": "\u00a0news.example", "izid": "usenet ponudnik: neveljaven gostitelj", "racun": null, "vrsta": "gostitelj"}
 {"domace": false, "g": "news\u200b.example", "izid": "OK", "racun": "news\u200b.example", "vrsta": "gostitelj"}
@@ -216,7 +216,7 @@
 {"g": "news.example", "kljuc_gesla": "usenet-ponudnik-bddffdc39d81d53a291b756c2aea928987b46ad6e67e831f47e0982c228ca9b6", "kljuc_racuna": "e86dde41775ba4b65a7af9368286bd372b94653a6efe2eacdec6ffabd8d7d8e8", "u": "Uporabnik1", "vrsta": "kljuc"}
 {"g": "news.co.uk", "kljuc_gesla": "usenet-ponudnik-819b6257d4f5661e9e5457f91d839b4bcc5408726588da6efc137794146bc92b", "kljuc_racuna": "be4a68bb7c9144bf072bf18b940e9193baac62c67bd842cfc27e3798ded1b275", "u": "u", "vrsta": "kljuc"}
 {"g": "eu.news.co.uk", "kljuc_gesla": "usenet-ponudnik-d61424446674d94369a2a122eaf9f7d083cdb5d38d622089a109195e192fc939", "kljuc_racuna": "be4a68bb7c9144bf072bf18b940e9193baac62c67bd842cfc27e3798ded1b275", "u": "u", "vrsta": "kljuc"}
-{"g": "b\u00fccher.example", "kljuc_gesla": "usenet-ponudnik-2b7993c73c33e9cd813912f866d2f9892f8a91f34b588d2d97fc25290d9e9beb", "kljuc_racuna": "611c37afb1e189a7a13e6ab6a5c3682f407d3230c749d1254e5ce74c84036e7c", "u": "\u010d", "vrsta": "kljuc"}
+{"g": "b\u00fccher.example", "kljuc_gesla": "usenet-ponudnik-bb2e2ef81879c446ee7776bd64c0e830217a4174ff77b2e8081739ac5f4fb5cc", "kljuc_racuna": "4dc296097febbedf0880302970559c92642043f7d7d1542299c4daefb1e135a2", "u": "\u010d", "vrsta": "kljuc"}
 {"g": "192.168.1.10", "kljuc_gesla": "usenet-ponudnik-0147f0a6601dbcf753f848a30e60db04974f11f0b58421115adbfbb0aecaa5cc", "kljuc_racuna": "01f63ef98bef7beb8629ec139e51f925915f864c887040727035cefd78b43197", "u": "uporabnik1", "vrsta": "kljuc"}
 {"g": "fe80::1", "kljuc_gesla": "usenet-ponudnik-e146cf0fd7c8c3de4a35af13618ff83db7112f1650a7a99e883b4764f54b6941", "kljuc_racuna": "cc5d3de5bada26615135a4bb1b819c5b67c97c990030f3fde97e2599fa9a6b0a", "u": "uporabnik1", "vrsta": "kljuc"}
 {"geslo": "geslo1", "odtis": "dabb5ab96fa38964d34704d373eef4b37fb47d2feb928ee40fc8c3b26c0d9c5e", "p": "news.example", "racun": "372c4c11b4630021d786d7523d6f88f78a3785876827cdf1ec7ec222ae145473", "sol": "00000000000000000000000000000000", "u": "uporabnik1", "vrsta": "zapah"}

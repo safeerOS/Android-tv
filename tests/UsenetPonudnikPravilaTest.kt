@@ -332,6 +332,27 @@ private fun besedila() {
     preveriEnako("besedila za vse kljuce in 6 jezikov", true, kljuci.all { k -> P.JEZIKI.all { P.BESEDILA[k]?.get(it)?.isNotBlank() == true } })
 }
 
+// Kot Safeer-linux, pregled 1.0.134 (A4, A8, krog 2 Kimi 6).
+private fun pregled134() {
+    preveriEnako("A8: IDN v ASCII", "news.xn--mnchen-3ya.de", P.Ponudnik.ustvari("news.münchen.de", "u1").gostitelj)
+    preveriEnako("A8: ASCII ostane", "news.example", P.Ponudnik.ustvari("news.example", "u1").gostitelj)
+    preveriEnako("A8: ideografska pika zavrnjena", false, P.veljavenGostitelj("news\u3002example"))
+    preveriEnako("A8: polsiroka pika zavrnjena", false, P.veljavenGostitelj("news\uff0eexample"))
+    // A4: med preverbo vpisano drugo geslo - izid starega gesla se ne zapise.
+    val a = UpOkolje()
+    a.shramba.shrani(P1, G1)
+    val vmes: (P.Ponudnik, P.Geslo, List<String>) -> P.Prijava = { _, _, _ -> a.shramba.shrani(P1, G2); P.Prijava(P.NNTP_OK, P.FAZA_PRIJAVA) }
+    a.shramba.preveri(P1, G1, false, P.Tls.SISTEMSKI, vmes)
+    preveriEnako("A4: izid ne velja za novo geslo", P.NEPREVERJEN, a.shramba.stanje().stanje)
+    // Kimi 6: med preverbo spremenjeno samo ime - izid velja.
+    val b = UpOkolje()
+    b.shramba.shrani(P1, G1)
+    val ime: (P.Ponudnik, P.Geslo, List<String>) -> P.Prijava = { _, _, _ ->
+        b.shramba.shrani(P.Ponudnik.ustvari("news.example", "uporabnik1", ime = "Drugo ime"), G1); P.Prijava(P.NNTP_OK, P.FAZA_PRIJAVA) }
+    b.shramba.preveri(P1, G1, false, P.Tls.SISTEMSKI, ime)
+    preveriEnako("Kimi 6: drugo ime, izid velja", P.VELJA, b.shramba.stanje().stanje)
+}
+
 fun main(args: Array<String>) {
     skupniPrimeri(args.getOrElse(0) { "tests/skupni-primeri/usenet-ponudnik.jsonl" })
     skrivnostiNePuscajo()
@@ -340,6 +361,7 @@ fun main(args: Array<String>) {
     zapah()
     mejaRacuna()
     shramba()
+    pregled134()
     besedila()
     if (napak > 0) { println("UsenetPonudnikPravilaTest: $napak napak"); exitProcess(1) }
     println("UsenetPonudnikPravilaTest: VSE OK")

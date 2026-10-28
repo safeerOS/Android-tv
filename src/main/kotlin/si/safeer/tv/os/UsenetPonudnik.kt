@@ -109,7 +109,10 @@ class UsenetPonudnik private constructor(context: Context) {
 
     /** Gumb "Shrani" v oknu. Vrne false, ce geslo ni trajno (ni Keystore) - okno to pove. */
     fun shrani(p: P.Ponudnik, geslo: P.Geslo): Boolean {
+        val prej = shramba.preberi()
         val trajno = shramba.shrani(p, geslo)
+        // Kot Safeer-linux (pregled 1.0.134 A7): zamenjan racun - seja lastnega pogona starega racuna gre stran.
+        if (prej != null && prej.kljucRacuna != p.kljucRacuna) try { UsenetLastni.ustavi() } catch (_: Throwable) { }
         // Nov vpis odklene tudi trajni zapah pogona (UsenetNntp, Keystore - prezivi posodobitev); prej ga je odklenil samo
         // »Preveri«, zato je lasten pogon po ponovnem vpisu istih poverilnic ostal na NapakaNntp(PRIJAVA) brez povezave.
         try {
@@ -119,8 +122,11 @@ class UsenetPonudnik private constructor(context: Context) {
         return trajno
     }
 
-    /** Gumb "Pozabi ponudnika". */
-    fun pozabi() = shramba.pozabi()
+    /** Gumb "Pozabi ponudnika". Kot Safeer-linux (pregled 1.0.134 A7): tudi seja lastnega pogona (geslo v pomnilniku) gre stran. */
+    fun pozabi() {
+        shramba.pozabi()
+        try { UsenetLastni.ustavi() } catch (_: Throwable) { }
+    }
 
     fun stanje(): P.StanjeVmesnika = shramba.stanje()
 
