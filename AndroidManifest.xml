@@ -10,8 +10,14 @@
     <!-- minSdk in targetSdk sta v build.gradle (tu bi ju Gradle tako ali tako prepisal). -->
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- Sorodne aplikacije Safeer na istem televizorju (Safeer OS in brskalnik) se dosezejo samo, ce so
-         podpisane z istim kljucem. Dovoljenje napove brskalnik (okusi/brskalnik), obe aplikaciji ga uporabljata. -->
+    <!-- Sorodne aplikacije Safeer na isti napravi (Safeer OS, brskalnik, telefon, tablica, predvajalnik) se dosezejo samo,
+         ce so podpisane z istim kljucem. Dovoljenje NAPOVE vsaka aplikacija (pregled 28. 10. 2026): prej ga je napovedal
+         samo brskalnik, zato je na napravi brez brskalnika (telefon, tablica, samo Safeer OS) tuja aplikacija lahko
+         napovedala isto ime sama, z ravnjo »normal«, in dobila zeton Huba. Vsi okusi so podpisani z istim kljucem
+         (build.gradle, signingConfigs.storeRelease), zato Android napoved istega dovoljenja v vec paketih dovoli. -->
+    <permission
+        android:name="si.safeer.tv.permission.LINK"
+        android:protectionLevel="signature" />
     <uses-permission android:name="si.safeer.tv.permission.LINK" />
     <!-- Safeer Link: stran ali ukaz z druge naprave odpre brskalnik, tudi ko ni v ospredju
          (Android 10+ zagon iz ozadja dovoli le prek obvestila s celozaslonsko namero). -->

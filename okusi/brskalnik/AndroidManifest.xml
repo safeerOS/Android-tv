@@ -4,11 +4,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Dovoljenje istega podpisa napove brskalnik; Safeer OS ga uporablja (uses-permission v skupnem delu).
-         Tako ga na televizorju napoveduje ena sama aplikacija in namestitev druge nikoli ne trci ob njo. -->
-    <permission
-        android:name="si.safeer.tv.permission.LINK"
-        android:protectionLevel="signature" />
+    <!-- Dovoljenje si.safeer.tv.permission.LINK je napovedano v skupnem delu (vsi okusi, pregled 28. 10. 2026). -->
 
     <!-- Brskalnik mora videti Safeer OS, da mu preda spletno aplikacijo za domaci zaslon. -->
     <queries>

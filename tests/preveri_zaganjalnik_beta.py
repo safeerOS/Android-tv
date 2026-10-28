@@ -466,6 +466,15 @@ def main() -> int:
 
     preveri("ista shramba in kljuc kot pravila (vrnitev ne brise nicesar)",
             'const val KLJUC = "zaganjalnik_beta"' in beta and ".putBoolean(KLJUC, da).apply()" in beta and ".clear()" not in beta)
+
+    # Pregled 28. 10. 2026: dovoljenje istega podpisa napove vsak okus (skupni manifest), ne samo brskalnik.
+    skupni = (KOREN / "AndroidManifest.xml").read_text(encoding="utf-8")
+    preveri("dovoljenje LINK napovedano v skupnem manifestu z ravnjo signature",
+            re.search(r'<permission\s+android:name="si\.safeer\.tv\.permission\.LINK"\s+android:protectionLevel="signature"\s*/>', skupni) is not None)
+    for okus in sorted((KOREN / "okusi").glob("*/AndroidManifest.xml")):
+        besedilo = okus.read_text(encoding="utf-8")
+        preveri(f"okus {okus.parent.name} ne napove LINK z drugo ravnjo",
+                re.search(r'<permission\s+android:name="si\.safeer\.tv\.permission\.LINK"', besedilo) is None)
     return konec()
 
 
