@@ -80,7 +80,8 @@ object SpletniKlepetiPravila {
     private const val STEVILO = "(\\d{1,3}(?:[ \\u00a0\\u202f.,'’]\\d{3})+|\\d{1,5})"
     private val LOCILO = Regex("\\s[-–—|·•:]\\s")
     private val SPREDAJ_OKLEPAJ = Regex("^\\s*[(\\[]\\s*$STEVILO\\s*\\+?\\s*[)\\]]")
-    private val SPREDAJ_STEVILO = Regex("^\\s*(\\d{1,5})\\+?\\s*[-–—|·•:]\\s")
+    // Golo stevilo spredaj z locilom: najvec tri stevke (kot Safeer-linux fd1dfc6; »2024 - Koledar« ni 2024 neprebranih).
+    private val SPREDAJ_STEVILO = Regex("^\\s*(\\d{1,3})\\+?\\s*[-–—|·•:]\\s")
     private val V_DELU_OKLEPAJ = Regex("[(\\[]\\s*(\\d{1,3}(?:[ \\u00a0\\u202f.,'’]\\d{3})+|\\d{1,3})\\s*\\+?\\s*[)\\]]")
     private val OZNAKA_BREZ_STEVILA = Regex("^\\s*(?:[*•●!]\\s|[(\\[]\\s*[*•●!]\\s*[)\\]])")
 

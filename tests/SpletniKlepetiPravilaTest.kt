@@ -21,6 +21,8 @@ fun main() {
     for (n in listOf("", null, "WhatsApp", "Telegram Web", "Srečanje (2026) - Teams", "Zoom 5.0", "2048 igra",
             "Inbox - ime@example.org - Gmail", "Klepet | (3)", "x".repeat(2000))) preveriEnako("brez vzorca: ${n?.take(30)}", 0, P.neprebrano(n))
     preveriEnako("sest stevk ni stevilo", 0, P.neprebrano("(123456) X"))
+    preveriEnako("letnica spredaj ni stevilo", 0, P.neprebrano("2024 - Koledar"))
+    preveriEnako("tri stevke spredaj", 999, P.neprebrano("999 · Klepet"))
     preveriEnako("meja", P.NAJVEC_NEPREBRANIH, P.neprebrano("(99999) X"))
 
     println("Lasten naslov")
