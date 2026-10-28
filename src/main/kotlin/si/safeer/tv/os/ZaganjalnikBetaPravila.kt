@@ -23,8 +23,14 @@ object ZaganjalnikBetaPravila {
      * Stikalo v Nastavitvah: samo na televizorju; v beta gradnji vedno, sicer samo, ce je novi zaganjalnik vklopljen (da se
      * uporabnik po namestitvi izdaje brez bete lahko vrne na starega).
      */
-    fun stikaloVidno(jeTelevizor: Boolean, betaGradnja: Boolean, vklopljen: Boolean): Boolean =
-        jeTelevizor && (betaGradnja || vklopljen)
+    @Suppress("UNUSED_PARAMETER")
+    fun stikaloVidno(jeTelevizor: Boolean, betaGradnja: Boolean, vklopljen: Boolean): Boolean = false
+
+    /**
+     * Lastnik 28. 10. 2026 (glavna izdaja 2.1.233 / 0.5.111): »samo novi« - na televizorju je vedno novi zaganjalnik
+     * (Pokrajina); stikala za vrnitev na starega ni vec. Telefon in tablica imata svoj domaci zaslon.
+     */
+    fun vklopljen(jeTelevizor: Boolean): Boolean = jeTelevizor
 
     /** Preklop spremeni samo kljuc bete; vse druge nastavitve ostanejo nespremenjene. */
     fun poPreklopu(nastavitve: Map<String, Any?>, vklop: Boolean): Map<String, Any?> = nastavitve + (KLJUC to vklop)

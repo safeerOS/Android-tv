@@ -924,9 +924,14 @@ object UsenetPonudnikPravila {
         /** Izrecni vpis uporabnika v oknu (tudi enakih poverilnic) odklene zapah; enako izrecni »Preveri« (lastnik 28. 10. 2026). */
         @Synchronized
         fun shrani(p: Ponudnik, geslo: Geslo): Boolean {
+            val star = preberi()
+            val prejsnje = star?.let { geslo(it) }
             val trajno = zapisi(p, geslo)
             zapahi.odkleni(p.gostitelj, p.uporabnik, geslo)
-            omejevalec.pozabi(p.kljucRacuna)  // nov vpis sme takoj na "Preveri"
+            // Samo DRUGO geslo istega racuna sme takoj na »Preveri« (kot Safeer-linux, pregled 1.0.134 A2): ponoven vpis
+            // istega gesla, drugo ime streznika istega racuna ali »Pozabi« + vpis ne obidejo omejitve 10 s.
+            if (star != null && star.kljucRacuna == p.kljucRacuna && prejsnje != null && prejsnje.vrednost() != geslo.vrednost())
+                omejevalec.pozabi(p.kljucRacuna)
             return trajno
         }
 
@@ -963,7 +968,6 @@ object UsenetPonudnikPravila {
             if (p != null) {
                 zapahi.odkleni(p.gostitelj, p.uporabnik, geslo(p))
                 pozabiGeslo(p.kljucGesla)
-                omejevalec.pozabi(p.kljucRacuna)
             }
             nastavitve.pisi(KLJUC_NASTAVITEV, null)
         }

@@ -166,7 +166,11 @@ private fun omejitevPreverb() {
     preveriEnako("Preveri 2 v minuti", P.PREPOGOSTO, o.shramba.preveri(P1, G1, false, P.Tls.SISTEMSKI, s.prijava))
     preveriEnako("Preveri 2 brez omrezja", 1, s.klicev)
     o.shramba.shrani(P1, G1)
-    preveriEnako("nov vpis sme takoj", P.VELJA, o.shramba.preveri(P1, G1, false, P.Tls.SISTEMSKI, s.prijava))
+    preveriEnako("vpis istega gesla ne obide 10 s", P.PREPOGOSTO, o.shramba.preveri(P1, G1, false, P.Tls.SISTEMSKI, s.prijava))
+    o.shramba.pozabi(); o.shramba.shrani(P1, G1)
+    preveriEnako("Pozabi + vpis ne obide 10 s", P.PREPOGOSTO, o.shramba.preveri(P1, G1, false, P.Tls.SISTEMSKI, s.prijava))
+    o.shramba.shrani(P1, G2)
+    preveriEnako("drugo geslo sme takoj", P.VELJA, o.shramba.preveri(P1, G2, false, P.Tls.SISTEMSKI, s.prijava))
 }
 
 private fun predOmrezjem() {
@@ -221,6 +225,7 @@ private fun zapah() {
     preveriEnako("nov vpis odklene", null, o.shramba.oviraBazena(P1))
     preveriEnako("nov vpis odklene (trajno)", false, o.zapahi().zavrnjen("news.example", "uporabnik1", G1))
     s.izid = P.NNTP_OK
+    o.ura.t += P.PREVERBA_NA_MS   // vpis istega gesla ne ponastavi omejitve (pregled 1.0.134 A2)
     preveriEnako("po vpisu Preveri gre na omrezje", P.VELJA, o.shramba.preveri(P1, G1, false, P.Tls.SISTEMSKI, s.prijava))
     preveriEnako("stanje VELJA", P.VELJA, o.shramba.stanje().stanje)
 

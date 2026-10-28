@@ -21,10 +21,12 @@ fun main() {
     preveriEnako("beta.0 ni beta", 0, ZaganjalnikBetaPravila.stevilkaBete("0.5.110-beta.0"))
 
     println("\n== stikalo v Nastavitvah ==")
-    preveriEnako("TV, beta gradnja", true, ZaganjalnikBetaPravila.stikaloVidno(true, true, false))
-    preveriEnako("TV, izdaja, izklopljen: ni stikala", false, ZaganjalnikBetaPravila.stikaloVidno(true, false, false))
-    preveriEnako("TV, izdaja, a vklopljen iz bete: stikalo za vrnitev", true, ZaganjalnikBetaPravila.stikaloVidno(true, false, true))
+    // Lastnik 28. 10. 2026: glavna izdaja - samo novi zaganjalnik, brez stikala.
+    preveriEnako("TV, beta gradnja: ni stikala", false, ZaganjalnikBetaPravila.stikaloVidno(true, true, false))
+    preveriEnako("TV, izdaja: ni stikala", false, ZaganjalnikBetaPravila.stikaloVidno(true, false, true))
     preveriEnako("telefon: nikoli", false, ZaganjalnikBetaPravila.stikaloVidno(false, true, true))
+    preveriEnako("TV: vedno novi zaganjalnik", true, ZaganjalnikBetaPravila.vklopljen(true))
+    preveriEnako("telefon: ne", false, ZaganjalnikBetaPravila.vklopljen(false))
 
     println("\n== vrnitev brez izgube nastavitev ==")
     val prej = mapOf("os_tema" to "nord", "ozadje" to "gore_foto", "vreme_kraj_ime" to "Ljubljana", "lupa_odprta" to true, "zaganjalnik_beta" to true)
