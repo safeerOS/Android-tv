@@ -34,7 +34,7 @@ preozka nastavitev tiho pretrga eno od teh poti.
 - `SHA256SUMS` se zapiše ob vsaki gradnji in se takoj preveri (prej je ostajal iz stare izdaje in
   je navajal napačno vsoto).
 - Safeer OS ne zahteva več mikrofona in risanja čez druge aplikacije; oboje uporablja le brskalnik.
-- Safeer OS nima več `largeHeap` (poraba ob zagonu domačega zaslona: pod 100 MB).
+- Safeer OS na TV uporablja `android:largeHeap="true"` (odklenjena meja 512 MB namesto privzetih 192 MB za stabilnost ob multimediji in predpomnjenju ikon).
 
 ## Kritični testi pred zamenjavo
 

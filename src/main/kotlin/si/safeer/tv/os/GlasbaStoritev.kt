@@ -1484,7 +1484,8 @@ class GlasbaStoritev : Service() {
         /**
          * Po predvajanju na zvocniku predvajalnik te naprave stoji (ne nalaga), dokler ga uporabnik spet ne potrebuje:
          * preden igra, ga pripravimo. Brez tega »predvajaj« po koncu seje na zvocniku ne bi naredil nicesar. Pri navadnem
-         * predvajanju na tej napravi to stanje (stoji, ima vrsto, ni napake) ne nastane.
+         * predvajanju na tej napravi to stanje (stoji, ima vrsto) ne nastane. Tudi po napaki »predvajaj« pripravi isti
+         * vnos znova (28. 10. 2026: mini predvajalnik po vrnitvi na domaci zaslon sicer ni nadaljeval).
          */
         private fun zbudiPredvajalnik() {
             val s = primerek ?: return
@@ -1497,7 +1498,7 @@ class GlasbaStoritev : Service() {
                 e.seekToDefaultPosition(); e.prepare()
                 return
             }
-            if (predvajalnik === e && e.playbackState == Player.STATE_IDLE && e.playerError == null && e.mediaItemCount > 0) e.prepare()
+            if (predvajalnik === e && e.playbackState == Player.STATE_IDLE && e.mediaItemCount > 0) e.prepare()
         }
 
         /**

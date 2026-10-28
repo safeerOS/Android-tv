@@ -22,6 +22,7 @@ import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -104,7 +105,14 @@ class PokrajinaActivity : OsActivity() {
         })
         // Lastnik 27. 10. 2026: ENA vrstica - priljubljene spletne in namescene aplikacije in »+ Dodaj«, plosce po zgledu
         // (zaobljene, brez obrobe; obroba samo s fokusom). Vse aplikacije so za gumbom Aplikacije v spodnji vrstici.
-        vrstaAplikacij = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(dp(4), dp(10), dp(4), dp(10)) }
+        vrstaAplikacij = object : LinearLayout(this) {
+            override fun focusSearch(direction: Int): View? {
+                if (direction == View.FOCUS_DOWN) {
+                    dock?.aktivniPogledZaFokus?.let { if (it.isShown && it.isFocusable) return it }
+                }
+                return super.focusSearch(direction)
+            }
+        }.apply { orientation = LinearLayout.HORIZONTAL; setPadding(dp(4), dp(10), dp(4), dp(10)) }
         val drsnik = HorizontalScrollView(this).apply {
             isHorizontalScrollBarEnabled = false; clipToPadding = false; clipChildren = false
             isHorizontalFadingEdgeEnabled = true; setFadingEdgeLength(dp(48))
@@ -234,6 +242,24 @@ class PokrajinaActivity : OsActivity() {
             }
         }
         if (DomacaLupa.tipka(this, dogodek)) return true
+        // Možnost 1 (daljinec TV): navigacija med vrstico aplikacij, mini predvajalnikom in spodnjo vrstico
+        if (dogodek.action == KeyEvent.ACTION_DOWN) {
+            if (dogodek.keyCode == KeyEvent.KEYCODE_DPAD_DOWN && ::vrstaAplikacij.isInitialized && vrstaAplikacij.hasFocus()) {
+                dock?.aktivniPogledZaFokus?.let { target ->
+                    if (target.isShown && target.isFocusable) {
+                        target.requestFocus()
+                        return true
+                    }
+                }
+            } else if (dogodek.keyCode == KeyEvent.KEYCODE_DPAD_UP && ::dok.isInitialized && dok.hasFocus()) {
+                dock?.aktivniPogledZaFokus?.let { target ->
+                    if (target.isShown && target.isFocusable) {
+                        target.requestFocus()
+                        return true
+                    }
+                }
+            }
+        }
         return super.dispatchKeyEvent(dogodek)
     }
 
@@ -580,10 +606,19 @@ class PokrajinaActivity : OsActivity() {
     }
 
     private fun premakniPloscico(id: String, korak: Int): Boolean {
+        val pogled = vrstaAplikacij.findViewWithTag<View>(id) ?: return false
+        val i = vrstaAplikacij.indexOfChild(pogled)
+        if (i < 0) return false
         val nova = PokrajinaPravila.premakni(vrstaDomov, id, korak) ?: return false
+        val j = nova.indexOf(id)
+        if (j < 0 || j == i) return false
+
+        vrstaDomov = nova
         Priljubljene.shraniRedDomov(this, nova)
-        narisiAplikacije()
-        vrstaAplikacij.findViewWithTag<View>(id)?.requestFocus()
+
+        vrstaAplikacij.removeViewAt(i)
+        vrstaAplikacij.addView(pogled, j)
+        pogled.requestFocus()
         return true
     }
 
@@ -640,7 +675,15 @@ class PokrajinaActivity : OsActivity() {
                 PokrajinaPravila.DATOTEKE -> R.drawable.os_ikona_datoteke to R.string.os_meni_datoteke
                 else -> R.drawable.os_ikona_nastavitve to R.string.os_meni_nastavitve
             }
-            val gumb = LinearLayout(this).apply {
+            val gumb = object : LinearLayout(this) {
+                override fun focusSearch(direction: Int): View? {
+                    if (direction == View.FOCUS_UP) {
+                        // Možnost 1: ko je mini predvajalnik na voljo, fokus iz kateregakoli gumba spodnje vrstice najprej skoči nanj
+                        dock?.aktivniPogledZaFokus?.let { if (it.isShown && it.isFocusable) return it }
+                    }
+                    return super.focusSearch(direction)
+                }
+            }.apply {
                 orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER
                 isFocusable = true; isClickable = true
                 background = steklo(18).apply { alpha = 0 }

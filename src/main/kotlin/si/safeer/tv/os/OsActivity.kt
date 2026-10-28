@@ -183,6 +183,18 @@ open class OsActivity : Activity() {
     companion object {
         /** Po odprtju zaslona OK toliko casa ne steje (odboj tipke, dvojni pritisk). */
         const val ZASCITA_MS = 500L
+
+        /**
+         * Lastnik 28. 10. 2026: TV ima 2 GB sistemskega RAM-a.
+         * Z vklopom `android:largeHeap="true"` v manifestu (okusi/os/AndroidManifest.xml)
+         * sistem dvigne mejo delovnega pomnilnika (ART heap) s privzetih 192 MB na 512 MB (dalvik.vm.heapsize),
+         * kar preprecuje sesutja (OOM) ob socasnem delovanju zaganjalnika, predvajalnika in predpomnilnikov ikon.
+         */
+        fun mejaPomnilnikaMb(context: android.content.Context): Int {
+            val am = context.getSystemService(android.content.Context.ACTIVITY_SERVICE) as? android.app.ActivityManager ?: return 192
+            val jeLarge = (context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_LARGE_HEAP) != 0
+            return if (jeLarge) am.largeMemoryClass else am.memoryClass
+        }
     }
 
     /** Zaslon ni vec viden: prost (neuporabljen) lahki WebView takoj unicimo - ne caka na pomnilniski pritisk. */

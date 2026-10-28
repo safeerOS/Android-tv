@@ -117,9 +117,10 @@ class MiniPredvajalnik(
     }
 
     private fun odpriPredvajalnik() {
-        try { GlasbaStoritev.predvajalnik?.play() } catch (_: Throwable) { }
+        try { GlasbaStoritev.nadaljujTu() } catch (_: Throwable) { }
         try {
             a.startActivity(android.content.Intent(a, PredvajanjeActivity::class.java)
+                .putExtra(PredvajanjeActivity.NADALJUJ, true)
                 .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP))
         } catch (_: Throwable) { GlasbaStoritev.preklopi() }
     }
@@ -180,6 +181,11 @@ class MiniPredvajalnik(
         if (!jeOdprt) return false
         nastaviOdprt(false, fokus = kartica?.findFocus() != null); return true
     }
+
+    val rocicaPogled: View? get() = if (koren?.visibility == View.VISIBLE && rocica?.visibility == View.VISIBLE) rocica else null
+    val aktivniPogledZaFokus: View? get() = if (koren?.visibility == View.VISIBLE) {
+        if (odprt) kartica?.findViewWithTag<View>("dock:predvajaj") ?: kartica else rocica
+    } else null
 
     fun ustavi() { glavna.removeCallbacks(samodejno); glavna.removeCallbacks(casovnik) }
 
@@ -314,6 +320,8 @@ class MiniPredvajalnik(
             setPadding(dp(12), dp(8), dp(8), dp(8))
             elevation = dp(6).toFloat()
             isClickable = true
+            isFocusable = false
+            descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
             setOnLongClickListener { izberiMesto(); true }
         }
         potegi(c, m)

@@ -28,12 +28,14 @@
         <package android:name="si.safeer.tv" />
     </queries>
 
+    <!-- largeHeap (28. 10. 2026): TV ima 2 GB RAM; s privzeto mejo 192 MB (dalvik.vm.heapgrowthlimit) je ob predpomnjenju
+         ikon, spletnih aplikacijah in predvajalniku prihajalo do OOM. largeHeap da mejo dalvik.vm.heapsize (512 MB). -->
     <application
         android:label="@string/os_app_name"
         android:icon="@mipmap/os_ic_launcher"
         android:roundIcon="@mipmap/os_ic_launcher"
         android:banner="@drawable/os_banner"
-        android:largeHeap="false"
+        android:largeHeap="true"
         tools:replace="android:largeHeap">
 
         <!-- Vstopna tocka v zaganjalniku televizorja -->

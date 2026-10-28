@@ -279,7 +279,10 @@ object Aplikacije {
         val mera = px.coerceIn(16, 256)
         // Najprej majhna slika z diska: brez odpiranja virov tuje aplikacije (ta je drag del - izmerjeno na tablici
         // ~10 MB domorodnega pomnilnika za ~70 aplikacij). Velja, dokler aplikacija ni posodobljena.
-        val posodobljena = try { c.packageManager.getPackageInfo(v.paket, 0).lastUpdateTime } catch (_: Throwable) { 0L }
+        // Po zgledu CVasilakis/luncher: cas posodobitve preberemo neposredno iz APK datoteke brez Binder IPC klicev.
+        val virApk = v.info?.applicationInfo?.sourceDir ?: dejavnost(c, v)?.applicationInfo?.sourceDir
+        val posodobljena = virApk?.let { File(it).lastModified() }?.takeIf { it > 0L }
+            ?: try { c.packageManager.getPackageInfo(v.paket, 0).lastUpdateTime } catch (_: Throwable) { 0L }
         val datoteka = File(File(c.cacheDir, "namizje-ikone"), "${v.paket}-$mera.png")
         if (posodobljena > 0 && datoteka.isFile && datoteka.lastModified() >= posodobljena) {
             try { android.graphics.BitmapFactory.decodeFile(datoteka.path)?.let { return BitmapDrawable(c.resources, it) } } catch (_: Throwable) { }

@@ -744,7 +744,7 @@ class PredvajanjeActivity : OsActivity() {
     private fun nadaljujIzNamena() {
         if (!intent.getBooleanExtra(NADALJUJ, false)) return
         intent.removeExtra(NADALJUJ)
-        try { GlasbaStoritev.predvajalnik?.play() } catch (_: Throwable) { }
+        try { GlasbaStoritev.nadaljujTu() } catch (_: Throwable) { }
     }
 
     private fun izberiNapravoIzNamena() {
