@@ -357,4 +357,6 @@ python3 "$TEST_DIR/preveri_preizkus_po_gradnji.py"
 # Grok 60: pot vira z racunom IPTV - pravi razredi aplikacije klicejo odlocitve, ki jih dokazujejo preizkusi pravil.
 python3 "$TEST_DIR/preveri_iptv_pot.py"
 # Naloga 42: besedila v sestih jezikih, viri, kontrast teme Pokrajina, beta samo ob vklopu.
+# Usenet: Shrani odklene tudi trajni zapah pogona (pomocnik 28. 10. 2026)
+python3 "$TEST_DIR/preveri_usenet_zapah.py"
 python3 "$TEST_DIR/preveri_zaganjalnik_beta.py"

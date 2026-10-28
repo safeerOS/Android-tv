@@ -26,6 +26,7 @@ import si.safeer.tv.os.UsenetPonudnikPravila as P
  * Vkljucitev v GlasbaActivity in povezavo na UsenetNntp naredi vodja (prijava je podana kot lambda).
  */
 class UsenetPonudnik private constructor(context: Context) {
+    private val app: Context = context.applicationContext
     private val prefs: SharedPreferences =
         context.applicationContext.getSharedPreferences(DATOTEKA, Context.MODE_PRIVATE)
 
@@ -107,7 +108,16 @@ class UsenetPonudnik private constructor(context: Context) {
     fun preberi(): P.Ponudnik? = shramba.preberi()
 
     /** Gumb "Shrani" v oknu. Vrne false, ce geslo ni trajno (ni Keystore) - okno to pove. */
-    fun shrani(p: P.Ponudnik, geslo: P.Geslo): Boolean = shramba.shrani(p, geslo)
+    fun shrani(p: P.Ponudnik, geslo: P.Geslo): Boolean {
+        val trajno = shramba.shrani(p, geslo)
+        // Nov vpis odklene tudi trajni zapah pogona (UsenetNntp, Keystore - prezivi posodobitev); prej ga je odklenil samo
+        // »Preveri«, zato je lasten pogon po ponovnem vpisu istih poverilnic ostal na NapakaNntp(PRIJAVA) brez povezave.
+        try {
+            UsenetZapahShramba.namesti(app)
+            UsenetNntp.dovoliPrijavoZnova(p.gostitelj, p.uporabnik, geslo.vrednost())
+        } catch (_: Throwable) { }
+        return trajno
+    }
 
     /** Gumb "Pozabi ponudnika". */
     fun pozabi() = shramba.pozabi()
