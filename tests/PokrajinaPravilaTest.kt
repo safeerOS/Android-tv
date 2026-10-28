@@ -100,6 +100,30 @@ fun main() {
     preveriEnako("brez priljubljenih prazno (ostane samo + Dodaj)", emptyList<String>(), PokrajinaPravila.vrstaPriljubljenih(emptyList(), vse))
     preveriEnako("sest plosc v vrsti", 6, PokrajinaPravila.STOLPCEV)
 
+    println("\n== vrstni red in premikanje (lastnik 28. 10.) ==")
+    val vseD = setOf("yt", "netflix", "splet:https://a.si", "splet:https://b.si")
+    preveriEnako("brez shranjenega reda: privzeti", listOf("yt", "netflix", "splet:https://a.si"),
+        PokrajinaPravila.vrstaDomov(emptyList(), listOf("yt", "netflix", "splet:https://a.si"), vseD))
+    preveriEnako("shranjen red: spletna pred namesceno", listOf("splet:https://a.si", "yt", "netflix"),
+        PokrajinaPravila.vrstaDomov(listOf("splet:https://a.si", "yt"), listOf("yt", "netflix", "splet:https://a.si"), vseD))
+    preveriEnako("odstranjena izpade, nova na konec", listOf("netflix", "yt", "splet:https://b.si"),
+        PokrajinaPravila.vrstaDomov(listOf("izbrisana", "netflix"), listOf("yt", "netflix", "splet:https://b.si"), vseD))
+    preveriEnako("nepriljubljena iz reda se ne pokaze", listOf("yt"),
+        PokrajinaPravila.vrstaDomov(listOf("netflix", "yt"), listOf("yt"), vseD))
+    preveriEnako("premik desno", listOf("b", "a", "c"), PokrajinaPravila.premakni(listOf("a", "b", "c"), "a", 1))
+    preveriEnako("premik levo", listOf("a", "c", "b"), PokrajinaPravila.premakni(listOf("a", "b", "c"), "c", -1))
+    preveriEnako("na levem robu ni spremembe", null, PokrajinaPravila.premakni(listOf("a", "b"), "a", -1))
+    preveriEnako("na desnem robu ni spremembe", null, PokrajinaPravila.premakni(listOf("a", "b"), "b", 1))
+    preveriEnako("ni v vrstici", null, PokrajinaPravila.premakni(listOf("a"), "x", 1))
+    preveriEnako("tipke: levo, desno, OK, Nazaj, drugo", listOf(-1, 1, 0, 0, null),
+        listOf(21, 22, 23, 4, 19).map { PokrajinaPravila.tipkaPremikanja(it) })
+
+    println("\n== mirovanje (po zgledu tv-simple-home) ==")
+    preveriEnako("pred mejo ne miruje", false, PokrajinaPravila.mirujePo(0, PokrajinaPravila.MIROVANJE_MS - 1))
+    preveriEnako("ob meji miruje", true, PokrajinaPravila.mirujePo(0, PokrajinaPravila.MIROVANJE_MS))
+    preveriEnako("do mirovanja", 10_000L, PokrajinaPravila.doMirovanja(0, PokrajinaPravila.MIROVANJE_MS - 10_000))
+    preveriEnako("do mirovanja najmanj 1 s", 1_000L, PokrajinaPravila.doMirovanja(0, PokrajinaPravila.MIROVANJE_MS + 5))
+
     println("\n== lupa: Nazaj in Domov jo zapreta (vodja 27. 10.) ==")
     preveriEnako("besedilo v lupi: zapri", true, PokrajinaPravila.zapriLupo("test", zadetkiVidni = true, fokusVLupi = true))
     preveriEnako("predlogi vidni brez fokusa: zapri", true, PokrajinaPravila.zapriLupo("", zadetkiVidni = true, fokusVLupi = false))

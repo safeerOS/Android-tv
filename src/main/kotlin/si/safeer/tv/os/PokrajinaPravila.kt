@@ -111,6 +111,49 @@ object PokrajinaPravila {
         return priljubljene.distinct().filter { it in znane }
     }
 
+    /**
+     * Lastnik 28. 10. 2026: vrstni red vrstice doloci uporabnik - za namescene IN spletne aplikacije skupaj. [red] = shranjen
+     * vrstni red (id: paket ali »splet:<naslov>«), [kandidati] = priljubljene in spletne aplikacije v privzetem redu,
+     * [vse] = kar na napravi obstaja. Najprej shranjeni red (brez odstranjenih), nato nove na konec; vsaka enkrat.
+     */
+    fun vrstaDomov(red: List<String>, kandidati: List<String>, vse: Collection<String>): List<String> {
+        val veljavni = vrstaPriljubljenih(kandidati, vse)
+        val mnozica = veljavni.toSet()
+        val izid = red.distinct().filter { it in mnozica }.toMutableList()
+        for (id in veljavni) if (id !in izid) izid.add(id)
+        return izid
+    }
+
+    /** Premik plosce [id] za [korak] mest (-1 levo, +1 desno); null, ce se nic ne spremeni (rob vrstice, ni v vrstici). */
+    fun premakni(vrsta: List<String>, id: String, korak: Int): List<String>? {
+        val i = vrsta.indexOf(id)
+        if (i < 0 || korak == 0) return null
+        val j = (i + korak).coerceIn(0, vrsta.size - 1)
+        if (j == i) return null
+        val s = vrsta.toMutableList()
+        s.add(j, s.removeAt(i))
+        return s
+    }
+
+    /**
+     * Mirovanje (po zgledu tv-simple-home IdleTracker, lastnik 28. 10. 2026): po [MIROVANJE_MS] brez daljinca, miske ali
+     * dotika vmesnik zbledi in ostane samo ozadje (manj vzganja zaslona OLED); prvi pritisk samo zbudi.
+     */
+    const val MIROVANJE_MS = 60_000L
+
+    fun mirujePo(zadnjiVnosMs: Long, zdajMs: Long, mejaMs: Long = MIROVANJE_MS): Boolean = zdajMs - zadnjiVnosMs >= mejaMs
+
+    /** Do naslednje preverbe mirovanja (vsaj 1 s). */
+    fun doMirovanja(zadnjiVnosMs: Long, zdajMs: Long, mejaMs: Long = MIROVANJE_MS): Long = maxOf(1_000L, zadnjiVnosMs + mejaMs - zdajMs)
+
+    /** Tipka v nacinu premikanja: -1/+1 premik, 0 konec (OK, Nazaj, Domov), null = tipka ni za premikanje. */
+    fun tipkaPremikanja(koda: Int): Int? = when (koda) {
+        21 -> -1                        // KEYCODE_DPAD_LEFT
+        22 -> 1                         // KEYCODE_DPAD_RIGHT
+        23, 66, 160, 4, 111 -> 0        // DPAD_CENTER, ENTER, NUMPAD_ENTER, BACK, ESCAPE
+        else -> null
+    }
+
     /** Fokus po vrstici z daljincem: levo/desno ostane v vrstici, na robu se ustavi (ne skoci v drugo vrstico). */
     fun naslednji(indeks: Int, korak: Int, stevilo: Int): Int =
         if (stevilo <= 0) -1 else (indeks + korak).coerceIn(0, stevilo - 1)

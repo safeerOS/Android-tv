@@ -18,6 +18,7 @@ object Priljubljene {
     private const val KLJUC = "priljubljene_tv"
     private const val KLJUC_PRVIC = "priljubljene_zacetne"
     private const val KLJUC_OCISCENO = "priljubljene_prazne"
+    private const val KLJUC_RED_DOMOV = "domov_vrstni_red"
 
     private fun prefs(c: Context) = c.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -56,6 +57,21 @@ object Priljubljene {
     }
 
     fun odstrani(c: Context, paket: String) = shrani(c, seznam(c).filterNot { it == paket })
+
+    /**
+     * Lastnik 28. 10. 2026: vrstni red vrstice na novem domacem zaslonu (Pokrajina) za namescene in spletne aplikacije
+     * skupaj (id: paket ali »splet:<naslov>«). Brez zapisa velja privzeti red (PokrajinaPravila.vrstaDomov).
+     */
+    fun redDomov(c: Context): List<String> = try {
+        val polje = JSONArray(prefs(c).getString(KLJUC_RED_DOMOV, "[]") ?: "[]")
+        (0 until polje.length()).map { polje.optString(it) }.filter { it.isNotBlank() }
+    } catch (e: Throwable) { Log.w(TAG, "Vrstnega reda ni bilo mogoce prebrati: ${e.message}"); emptyList() }
+
+    fun shraniRedDomov(c: Context, red: List<String>) {
+        val polje = JSONArray()
+        for (id in red.distinct()) polje.put(id)
+        prefs(c).edit().putString(KLJUC_RED_DOMOV, polje.toString()).apply()
+    }
 
     /** Premik za [zamik] mest (-1 levo, +1 desno); vrne true, ce se je vrstni red res spremenil. */
     fun premakni(c: Context, paket: String, zamik: Int): Boolean {

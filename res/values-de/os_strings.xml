@@ -409,6 +409,8 @@
     <string name="os_vir_racunalnik">Computer</string>
     <string name="os_priljubljen_dodaj">Zum Startbildschirm</string>
     <string name="os_priljubljen_odstrani">Vom Startbildschirm entfernen</string>
+    <string name="pk_premakni">Verschieben</string>
+    <string name="pk_premikanje_namig">Mit Links und Rechts auf der Fernbedienung verschieben, zum Abschluss OK drücken.</string>
     <string name="os_odsek_priljubljene">Lieblings-Apps</string>
     <string name="os_vse_kartica">Alle Apps</string>
 <!-- Glava in stranski meni -->

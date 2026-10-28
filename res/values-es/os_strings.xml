@@ -409,6 +409,8 @@
     <string name="os_vir_racunalnik">Ordenador</string>
     <string name="os_priljubljen_dodaj">Añadir a la pantalla de inicio</string>
     <string name="os_priljubljen_odstrani">Quitar de la pantalla de inicio</string>
+    <string name="pk_premakni">Mover</string>
+    <string name="pk_premikanje_namig">Mueve con Izquierda y Derecha del mando y pulsa OK para terminar.</string>
     <string name="os_odsek_priljubljene">Aplicaciones favoritas</string>
     <string name="os_vse_kartica">Todas las apps</string>
 <!-- Glava in stranski meni -->

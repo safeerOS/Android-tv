@@ -192,7 +192,13 @@ def main() -> int:
         preveri(f"ista pot kot kartica Zaslon: {pot}", nap in naprave_act and pot in domov)
     print("\n== aplikacije na domacem zaslonu: ena vrstica (lastnik 27. 10.) ==")
     preveri("ena vodoravna vrstica priljubljenih (brez mreze vseh aplikacij)",
-            "PokrajinaPravila.vrstaPriljubljenih(" in pokrajina and "HorizontalScrollView(this)" in pokrajina and "mrezaAplikacij" not in pokrajina)
+            "PokrajinaPravila.vrstaDomov(" in pokrajina and "HorizontalScrollView(this)" in pokrajina and "mrezaAplikacij" not in pokrajina)
+    # Lastnik 28. 10. 2026: odstrani iz priljubljenih in vrstni red (namescene in spletne skupaj), dolg pritisk na plosci.
+    preveri("dolg pritisk: premakni, levo, desno, odstrani iz priljubljenih",
+            "setOnLongClickListener { moznostiPloscice(id" in pokrajina and "R.string.os_priljubljen_odstrani" in pokrajina
+            and "Priljubljene.shraniRedDomov(" in pokrajina and "PokrajinaPravila.tipkaPremikanja(" in pokrajina)
+    preveri("po zgledu tv-simple-home: mirovanje in fokus na zadnji aplikaciji",
+            "PokrajinaPravila.mirujePo(" in pokrajina and "zadnjaPloscica = id" in pokrajina)
     preveri("+ Dodaj: aplikacija s TV ali spletna (skupna SpletnaDodaj)",
             "kartica(null, R.drawable.os_ikona_plus, getString(R.string.os_spletne_dodaj)) { dodajAplikacijo() }" in pokrajina
             and "Intent(this, AplikacijeTvActivity::class.java)" in pokrajina and "SpletnaDodaj.izberi(this)" in pokrajina

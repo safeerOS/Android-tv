@@ -409,6 +409,8 @@
     <string name="os_vir_racunalnik">Computer</string>
     <string name="os_priljubljen_dodaj">Aggiungi alla schermata Home</string>
     <string name="os_priljubljen_odstrani">Rimuovi dalla schermata Home</string>
+    <string name="pk_premakni">Sposta</string>
+    <string name="pk_premikanje_namig">Sposta con Sinistra e Destra del telecomando, poi premi OK.</string>
     <string name="os_odsek_priljubljene">App preferite</string>
     <string name="os_vse_kartica">Tutte le app</string>
 <!-- Glava in stranski meni -->

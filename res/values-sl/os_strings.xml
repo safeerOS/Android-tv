@@ -409,6 +409,8 @@
     <string name="os_vir_racunalnik">Računalnik</string>
     <string name="os_priljubljen_dodaj">Na domači zaslon</string>
     <string name="os_priljubljen_odstrani">Z domačega zaslona</string>
+    <string name="pk_premakni">Premakni</string>
+    <string name="pk_premikanje_namig">Premikaj z levo in desno na daljincu, za konec pritisni OK.</string>
     <string name="os_odsek_priljubljene">Priljubljene aplikacije</string>
     <string name="os_vse_kartica">Vse aplikacije</string>
 <!-- Glava in stranski meni -->

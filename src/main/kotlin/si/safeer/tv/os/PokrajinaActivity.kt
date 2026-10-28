@@ -125,6 +125,10 @@ class PokrajinaActivity : OsActivity() {
         Ozadje.uporabi(this, koren)
         glavna.post(tikUre)
         narisiAplikacije()
+        // Po vrnitvi iz aplikacije fokus na njeno plosco (po zgledu tv-simple-home FocusRestore, lastnik 28. 10. 2026):
+        // daljinec nadaljuje tam, kjer je uporabnik bil - ne v lupi in ne na prvi plosci.
+        zadnjaPloscica?.let { id -> vrstaAplikacij.findViewWithTag<View>(id)?.let { v -> v.post { v.requestFocus() } } }
+        zbudi(animiraj = false)
         prikaziVreme()
         osveziVreme()
         // Naloga 42 B: mini predvajalnik kot na racunalniku - kaj igra, premor/naprej/nazaj/glasnost, odpri - brez
@@ -139,6 +143,9 @@ class PokrajinaActivity : OsActivity() {
     }
 
     override fun onStop() {
+        glavna.removeCallbacks(preveriMirovanje)
+        zbudi(animiraj = false)
+        glavna.removeCallbacks(preveriMirovanje)
         GlasbaStoritev.poslusalci.remove(medijiPoslusalec)
         OddaljenoPredvajanje.poslusalci.remove(medijiPoslusalec)
         dock?.ustavi()
@@ -190,6 +197,22 @@ class PokrajinaActivity : OsActivity() {
     }
 
     override fun dispatchKeyEvent(dogodek: KeyEvent): Boolean {
+        // Mirovanje: prvi pritisk samo zbudi vmesnik (tudi njegov ACTION_UP ne naredi nicesar).
+        if (dogodek.action == KeyEvent.ACTION_DOWN) {
+            zadnjiVnos = android.os.SystemClock.uptimeMillis()
+            if (mirujem) { zbudi(); pogoltnjene.add(dogodek.keyCode); return true }
+            if (dogodek.repeatCount > 0 && dogodek.keyCode in pogoltnjene) return true
+        } else if (dogodek.action == KeyEvent.ACTION_UP && pogoltnjene.remove(dogodek.keyCode)) return true
+        // Nacin premikanja plosce (lastnik 28. 10. 2026): levo/desno premika, OK/Nazaj konca.
+        premikam?.let { id ->
+            val t = PokrajinaPravila.tipkaPremikanja(dogodek.keyCode)
+            if (t != null) {
+                if (dogodek.action == KeyEvent.ACTION_DOWN) {
+                    if (t == 0) koncajPremikanje() else premakniPloscico(id, t)
+                }
+                return true
+            }
+        }
         if (DomacaLupa.tipka(this, dogodek)) return true
         return super.dispatchKeyEvent(dogodek)
     }
@@ -410,28 +433,136 @@ class PokrajinaActivity : OsActivity() {
         val vsi = Aplikacije.zadnjiZnani(this) ?: Aplikacije.seznam(this)
         val poPaketu = vsi.associateBy { it.paket }
         val spletne = SpletneAplikacije.seznam(this).associateBy { "splet:" + it.url }
-        val vrsta = PokrajinaPravila.vrstaPriljubljenih(Priljubljene.seznam(this) + spletne.keys, poPaketu.keys + spletne.keys)
+        // Lastnik 28. 10. 2026: vrstni red doloci uporabnik (namescene in spletne skupaj); dolg pritisk = moznosti.
+        val vrsta = PokrajinaPravila.vrstaDomov(Priljubljene.redDomov(this), Priljubljene.seznam(this) + spletne.keys,
+            poPaketu.keys + spletne.keys)
+        vrstaDomov = vrsta
         for (id in vrsta) {
             val a = poPaketu[id]
             if (a != null) {
                 val v = kartica(Aplikacije.ikonaIzPomnilnika(a.paket), R.drawable.os_ikona_mreza, a.ime) { k ->
+                    if (premikam != null) { koncajPremikanje(); return@kartica }
+                    zadnjaPloscica = id
                     odpri(Intent(a.namera).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), izPloscice(k))
                 }
                 if (Aplikacije.ikonaIzPomnilnika(a.paket) == null)
                     Aplikacije.ikonaLeno(this, a) { Aplikacije.ikonaIzPomnilnika(a.paket)?.let { v.findViewById<ImageView>(R.id.ikona).setImageDrawable(it) } }
+                v.tag = id
+                v.setOnLongClickListener { moznostiPloscice(id, a.ime, splet = false); true }
                 dodajVVrsto(v)
                 continue
             }
             val s = spletne[id] ?: continue
             val ime = s.ime.ifBlank { SpletneAplikacije.gostitelj(s.url) }
-            dodajVVrsto(kartica(SpletneAplikacije.ikona(this, s), R.drawable.os_ikona_splet, ime) { _ ->
+            val v = kartica(SpletneAplikacije.ikona(this, s), R.drawable.os_ikona_splet, ime) { _ ->
+                if (premikam != null) { koncajPremikanje(); return@kartica }
+                zadnjaPloscica = id
                 Nadaljuj.zapisi(this, Nadaljuj.Vnos(vrsta = Nadaljuj.SPLETNA, ime = ime, url = s.url))
                 odpri(Brskalnik.namera(this).putExtra("spletna_aplikacija", s.url).putExtra("aplikacija_ime", ime)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            })
+            }
+            v.tag = id
+            v.setOnLongClickListener { moznostiPloscice(id, ime, splet = true); true }
+            dodajVVrsto(v)
         }
         // Zadnja plosca: uporabnik si sam doda aplikacijo s televizorja ali spletno aplikacijo.
         dodajVVrsto(kartica(null, R.drawable.os_ikona_plus, getString(R.string.os_spletne_dodaj)) { dodajAplikacijo() })
+    }
+
+    /** Vrstni red, kot je trenutno narisan (za premik in shranjevanje). */
+    private var vrstaDomov: List<String> = emptyList()
+    // ------------------------------------------------------------------ mirovanje (po zgledu tv-simple-home)
+    private var zadnjiVnos = 0L
+    private var mirujem = false
+    private val pogoltnjene = HashSet<Int>()
+    private val preveriMirovanje = object : Runnable {
+        override fun run() {
+            val zdaj = android.os.SystemClock.uptimeMillis()
+            val lupa = ::poljeLupe.isInitialized && (poljeLupe.hasFocus() || zadetki.visibility == View.VISIBLE)
+            if (!mirujem && hasWindowFocus() && !lupa && premikam == null && PokrajinaPravila.mirujePo(zadnjiVnos, zdaj)) {
+                mirujem = true
+                for (i in 0 until koren.childCount) koren.getChildAt(i).animate().alpha(0f).setDuration(600).start()
+                dock?.let { glavna.post { it.skrijCeOdprt() } }
+            }
+            if (!mirujem) glavna.postDelayed(this, PokrajinaPravila.doMirovanja(zadnjiVnos, zdaj))
+        }
+    }
+
+    private fun zbudi(animiraj: Boolean = true) {
+        zadnjiVnos = android.os.SystemClock.uptimeMillis()
+        if (mirujem) {
+            mirujem = false
+            for (i in 0 until koren.childCount) koren.getChildAt(i).let { if (animiraj) it.animate().alpha(1f).setDuration(300).start() else it.alpha = 1f }
+        }
+        glavna.removeCallbacks(preveriMirovanje)
+        glavna.postDelayed(preveriMirovanje, PokrajinaPravila.MIROVANJE_MS)
+    }
+
+    override fun dispatchTouchEvent(dogodek: android.view.MotionEvent): Boolean {
+        if (dogodek.actionMasked == android.view.MotionEvent.ACTION_DOWN) {
+            val spal = mirujem
+            zbudi()
+            if (spal) return true        // dotik, ki zbudi, ne odpre ploscice
+        }
+        return super.dispatchTouchEvent(dogodek)
+    }
+
+    override fun dispatchGenericMotionEvent(dogodek: android.view.MotionEvent): Boolean {
+        zbudi()                           // premik miske ali kolescek
+        return super.dispatchGenericMotionEvent(dogodek)
+    }
+
+    /** Plosca aplikacije, ki jo je uporabnik nazadnje odprl (fokus ob vrnitvi). */
+    private var zadnjaPloscica: String? = null
+    /** Plosca, ki jo uporabnik premika z levo/desno (OK, Nazaj ali Domov konca); null = ne premika. */
+    private var premikam: String? = null
+
+    /**
+     * Lastnik 28. 10. 2026: dolg pritisk (OK na daljincu, desni klik ali dolg dotik) na plosci - premakni (levo/desno z
+     * daljincem), premik za eno mesto, odstrani iz priljubljenih. Spletna aplikacija je samo v tej vrstici: odstranitev
+     * jo odstrani.
+     */
+    private fun moznostiPloscice(id: String, ime: String, splet: Boolean) {
+        val dejanja = listOf(
+            getString(R.string.pk_premakni) to { zacniPremikanje(id) },
+            getString(R.string.os_spletne_levo) to { premakniPloscico(id, -1) },
+            getString(R.string.os_spletne_desno) to { premakniPloscico(id, 1) },
+            getString(R.string.os_priljubljen_odstrani) to { odstraniPloscico(id, splet) },
+        )
+        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(ime)
+            .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .create()
+        Kontroler.pokazi(okno)
+        okno.show()
+    }
+
+    private fun premakniPloscico(id: String, korak: Int): Boolean {
+        val nova = PokrajinaPravila.premakni(vrstaDomov, id, korak) ?: return false
+        Priljubljene.shraniRedDomov(this, nova)
+        narisiAplikacije()
+        vrstaAplikacij.findViewWithTag<View>(id)?.requestFocus()
+        return true
+    }
+
+    private fun zacniPremikanje(id: String) {
+        premikam = id
+        vrstaAplikacij.findViewWithTag<View>(id)?.requestFocus()
+        android.widget.Toast.makeText(this, R.string.pk_premikanje_namig, android.widget.Toast.LENGTH_LONG).show()
+    }
+
+    private fun koncajPremikanje() {
+        val id = premikam ?: return
+        premikam = null
+        vrstaAplikacij.findViewWithTag<View>(id)?.requestFocus()
+    }
+
+    private fun odstraniPloscico(id: String, splet: Boolean) {
+        if (splet) SpletneAplikacije.odstrani(this, id.removePrefix("splet:")) else Priljubljene.odstrani(this, id)
+        Priljubljene.shraniRedDomov(this, vrstaDomov.filterNot { it == id })
+        narisiAplikacije()
+        vrstaAplikacij.getChildAt(0)?.requestFocus()
     }
 
     /** »+ Dodaj«: aplikacija s televizorja (seznam vseh, dolg pritisk doda) ali spletna aplikacija (kot na starem zaslonu). */

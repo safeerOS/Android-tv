@@ -744,6 +744,31 @@
                     } catch (_) { continue; }
                     if (z >= najvisji) { najvisji = z; najboljsi = el; }
                 }
+                if (najboljsi) return najboljsi;
+                // Lastnik 28. 10. 2026 (Facebook na TV, okno o piskotkih): pogovorno okno, ki ni cez cel zaslon in nima
+                // z-indeksa na sebi (zatemnitev je drug element brez imena). Daljinec je skakal na povezave za oknom in
+                // do »Dovoli« / »Zavrni« ni prisel. Modalno okno (aria-modal, dialog, role=dialog) velja, ce je vidno,
+                // veliko vsaj tretjino zaslona, ima gumbe in je na vrhu: na njegovi sredini je ono samo, ne kaj drugega.
+                var dialogi;
+                try { dialogi = document.querySelectorAll('[aria-modal="true"], [role="dialog"], [role="alertdialog"], dialog[open]'); }
+                catch (_) { return null; }
+                for (var d = 0; d < dialogi.length; d++) {
+                    var dl = dialogi[d];
+                    var sd;
+                    try { sd = window.getComputedStyle(dl); } catch (_) { continue; }
+                    if (sd.display === 'none' || sd.visibility === 'hidden' || sd.pointerEvents === 'none') continue;
+                    if ((parseFloat(sd.opacity) || 1) < 0.15) continue;
+                    var rd = dl.getBoundingClientRect();
+                    if (rd.width < winW * 0.3 || rd.height < winH * 0.3) continue;
+                    try {
+                        if (!dl.querySelector('a, button, input, select, textarea, [role="button"]')) continue;
+                    } catch (_) { continue; }
+                    var cx = Math.max(1, Math.min(winW - 2, rd.left + rd.width / 2));
+                    var cy = Math.max(1, Math.min(winH - 2, rd.top + rd.height / 2));
+                    var naVrhu = document.elementFromPoint(cx, cy);
+                    if (!naVrhu || jeNasObroc(naVrhu)) continue;
+                    if (naVrhu === dl || dl.contains(naVrhu)) najboljsi = dl;     // kasnejsi v dokumentu je navadno vrhnji
+                }
                 return najboljsi;
             }
 

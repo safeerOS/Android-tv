@@ -410,6 +410,8 @@
     <string name="os_vir_racunalnik">Computer</string>
     <string name="os_priljubljen_dodaj">Add to the home screen</string>
     <string name="os_priljubljen_odstrani">Remove from the home screen</string>
+    <string name="pk_premakni">Move</string>
+    <string name="pk_premikanje_namig">Move with Left and Right on the remote, press OK when done.</string>
     <string name="os_odsek_priljubljene">Favourite apps</string>
     <string name="os_vse_kartica">All apps</string>
 <!-- Glava in stranski meni -->
