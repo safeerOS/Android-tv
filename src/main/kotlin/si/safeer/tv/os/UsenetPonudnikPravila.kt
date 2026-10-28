@@ -671,15 +671,19 @@ object UsenetPonudnikPravila {
 
     /**
      * Gumb "Preveri" (kot preveri_ponudnika): ENA prijava, vrstni red preverb enak referenci. Vse zavrnitve so PRED
-     * klicem prijava (brez omrezja). Odklepa NE: po NE_VELJA je naslednja preverba ZAKLENJEN brez omrezja.
+     * klicem prijava (brez omrezja). Brez [odkleni] je po NE_VELJA naslednja preverba ZAKLENJEN brez omrezja.
+     * Z [odkleni] (izrecen klik uporabnika, lastnik 28. 10. 2026) zapah zavrnjenega racuna sprosti za EN nov poskus,
+     * a sele ko omejevalec dovoli preverbo (PREPOGOSTO zapaha ne sprosti); stevec neznanih izidov ostane.
      */
     fun preveri(p: Ponudnik, geslo: Geslo, naGlavniNiti: Boolean, tls: Tls, zapahi: ZapahRacunov,
-                omejevalec: OmejevalecPreverb, prijava: (Ponudnik, Geslo, List<String>) -> Prijava): String {
+                omejevalec: OmejevalecPreverb, prijava: (Ponudnik, Geslo, List<String>) -> Prijava,
+                odkleni: Boolean = false): String {
         if (naGlavniNiti) throw NapakaPonudnika(GLAVNA_NIT)  // omrezje na glavni niti zamrzne okno (ANR)
         if (!p.tls) throw NapakaPonudnika(BREZ_TLS)            // pogon zna samo TLS
         val protokoli = preveriTls(tls)
-        if (zapahi.zavrnjen(p.gostitelj, p.uporabnik, geslo)) return ZAKLENJEN
+        if (!odkleni && zapahi.zavrnjen(p.gostitelj, p.uporabnik, geslo)) return ZAKLENJEN
         if (!omejevalec.rezerviraj(p.kljucRacuna)) return PREPOGOSTO
+        if (odkleni && zapahi.zavrnjen(p.gostitelj, p.uporabnik, geslo)) zapahi.odkleni(p.gostitelj, p.uporabnik, null)
         val r = try {
             prijava(p, geslo, protokoli)
         } catch (e: NapakaPonudnika) {
@@ -916,7 +920,7 @@ object UsenetPonudnikPravila {
 
         fun preberi(): Ponudnik? = ponudnikIz(beriZapis())
 
-        /** Izrecni vpis uporabnika v oknu. Nov vpis (tudi enakih poverilnic) je EDINO, kar odklene zapah. */
+        /** Izrecni vpis uporabnika v oknu (tudi enakih poverilnic) odklene zapah; enako izrecni »Preveri« (lastnik 28. 10. 2026). */
         @Synchronized
         fun shrani(p: Ponudnik, geslo: Geslo): Boolean {
             val trajno = zapisi(p, geslo)
@@ -966,7 +970,9 @@ object UsenetPonudnikPravila {
         /** Gumb "Preveri" (samo na klik, nikoli na glavni niti ali v ozadju). Zapise VELJA/NE_VELJA/ZAKLENJEN. */
         fun preveri(p: Ponudnik, geslo: Geslo, naGlavniNiti: Boolean, tls: Tls,
                     prijava: (Ponudnik, Geslo, List<String>) -> Prijava): String {
-            val izid = UsenetPonudnikPravila.preveri(p, geslo, naGlavniNiti, tls, zapahi, omejevalec, prijava)
+            // Lastnik 28. 10. 2026 (enotno na vseh izdajah): izrecni »Preveri« odklene zapah za en nov poskus, kot »Shrani«;
+            // omejitev ene preverbe na minuto ([omejevalec]) ostane.
+            val izid = UsenetPonudnikPravila.preveri(p, geslo, naGlavniNiti, tls, zapahi, omejevalec, prijava, odkleni = true)
             if (izid == VELJA || izid == NE_VELJA || izid == ZAKLENJEN) zapisiPreverbo(p, izid)
             return izid
         }

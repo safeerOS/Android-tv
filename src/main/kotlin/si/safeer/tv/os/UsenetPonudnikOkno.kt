@@ -97,7 +97,8 @@ object UsenetPonudnikOkno {
             val preveri = okno.getButton(AlertDialog.BUTTON_NEUTRAL)
             val pozabi = okno.getButton(AlertDialog.BUTTON_NEGATIVE)
             pozabi.isEnabled = stanje.vpisan
-            preveri.isEnabled = stanje.vpisan && stanje.gesloShranjeno && stanje.stanje != P.NE_VELJA && stanje.stanje != P.ZAKLENJEN
+            // Lastnik 28. 10. 2026: »Preveri« je na voljo tudi pri zaklenjenem ali zavrnjenem racunu - izrecni poskus ga odklene.
+            preveri.isEnabled = stanje.vpisan && stanje.gesloShranjeno
             shrani.setOnClickListener {
                 val (p, g) = izPolj() ?: return@setOnClickListener
                 val trajno = shramba.shrani(p, g)

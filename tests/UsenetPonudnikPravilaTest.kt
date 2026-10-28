@@ -202,11 +202,14 @@ private fun zapah() {
     o.shramba.shrani(P1, G1)
     preveriEnako("zavrnjena prijava", P.NE_VELJA, o.shramba.preveri(P1, G1, false, P.Tls.SISTEMSKI, s.prijava))
     preveriEnako("stanje NE_VELJA", P.NE_VELJA, o.shramba.stanje().stanje)
-    o.ura.t += P.PREVERBA_NA_MS
-    preveriEnako("Preveri po zavrnitvi = ZAKLENJEN", P.ZAKLENJEN, o.shramba.preveri(P1, G1, false, P.Tls.SISTEMSKI, s.prijava))
-    preveriEnako("zavrnjeno geslo poslano samo enkrat", 1, s.klicev)
-    preveriEnako("Preveri ne odklene (stanje)", P.ZAKLENJEN, o.shramba.stanje().stanje)
     preveriEnako("bazen zaklenjen", P.RACUN_ZAKLENJEN, o.shramba.oviraBazena(P1))
+    // Lastnik 28. 10. 2026: izrecni »Preveri« odklene za en nov poskus (prej ZAKLENJEN brez omrezja), najvec 1/min.
+    preveriEnako("Preveri v isti minuti: PREPOGOSTO, brez omrezja", P.PREPOGOSTO, o.shramba.preveri(P1, G1, false, P.Tls.SISTEMSKI, s.prijava))
+    preveriEnako("v isti minuti geslo ni poslano", 1, s.klicev)
+    o.ura.t += P.PREVERBA_NA_MS
+    preveriEnako("Preveri po minuti: en nov poskus", P.NE_VELJA, o.shramba.preveri(P1, G1, false, P.Tls.SISTEMSKI, s.prijava))
+    preveriEnako("en nov poskus = drugo posiljanje", 2, s.klicev)
+    preveriEnako("po zavrnitvi spet zaklenjen", P.RACUN_ZAKLENJEN, o.shramba.oviraBazena(P1))
     val alias = P.Ponudnik.ustvari("eu.news.example", "uporabnik1")
     preveriEnako("drugo ime streznika tudi zaklenjeno", P.RACUN_ZAKLENJEN, P.oviraBazena(alias, G1, o.shramba.zapahi))
     preveriEnako("po ponovnem zagonu se zaklenjen", true, o.zapahi().zavrnjen("news.example", "uporabnik1", G1))
@@ -214,10 +217,7 @@ private fun zapah() {
     preveriEnako("iz kroga isto geslo", true, o.shramba.prejetoIzKroga(P1.vSlovar(), G1.vrednost()))
     preveriEnako("krog NE odklene", P.RACUN_ZAKLENJEN, o.shramba.oviraBazena(P1))
     preveriEnako("krog NE odklene (trajno)", true, o.zapahi().zavrnjen("news.example", "uporabnik1", G1))
-    o.ura.t += P.PREVERBA_NA_MS
-    preveriEnako("krog: Preveri se vedno ZAKLENJEN", P.ZAKLENJEN, o.shramba.preveri(P1, G1, false, P.Tls.SISTEMSKI, s.prijava))
-    preveriEnako("krog: brez omrezja", 1, s.klicev)
-    o.shramba.shrani(P1, G1)  // izrecen nov vpis uporabnika
+    o.shramba.shrani(P1, G1)  // izrecen nov vpis uporabnika (tudi enakih poverilnic)
     preveriEnako("nov vpis odklene", null, o.shramba.oviraBazena(P1))
     preveriEnako("nov vpis odklene (trajno)", false, o.zapahi().zavrnjen("news.example", "uporabnik1", G1))
     s.izid = P.NNTP_OK
