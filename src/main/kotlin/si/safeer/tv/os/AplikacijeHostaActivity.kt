@@ -244,6 +244,11 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (zVirom(AppVir.RACUNALNIK)) nalozi()
     }
 
+    override fun onDestroy() {
+        pretvorbe.shutdownNow()
+        super.onDestroy()
+    }
+
     override fun onStop() {
         link.odstrani(this)
         // Na potrditev dostopa ne cakamo v ozadju; ob vrnitvi (onStart -> nalozi) se seznam zahteva znova.
@@ -387,15 +392,41 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                     if (nalagam.isEmpty()) izprazniCakajoce()
                 }
                 else -> {
-                    objavi(r.id, pretvori(r.id, s))
-                    if (programi.isEmpty() && nalagam.isEmpty()) pokaziSporocilo(getString(R.string.os_programi_prazno))
+                    nalagam.add(r.id)   // dokler ikone niso dekodirane, seznam se ni prisel (mreza ne narise praznega)
+                    vOzadju(r.id, s) { p ->
+                        nalagam.remove(r.id)
+                        ikonePng.putAll(p.ikone)
+                        objavi(r.id, p.aplikacije)
+                        if (programi.isEmpty() && nalagam.isEmpty()) pokaziSporocilo(getString(R.string.os_programi_prazno))
+                    }
                 }
             }
         }
     }
 
     /** Surov seznam naprave v aplikacije za mrezo; ikone dekodiramo tu, enkrat. */
-    private fun pretvori(naprava: String, s: Surovo): List<SafeerApp> {
+    /** Seznam naprave in njene ikone (base64) - brez stanja aktivnosti, zato lahko tece v ozadju ([pretvorbe]). */
+    private class Pretvorjeno(val aplikacije: List<SafeerApp>, val ikone: Map<String, String>)
+
+    /**
+     * Lastnik 28. 10. 2026 (dnevnik TV 08:51): dekodiranje ikon (do sto programov racunalnika, base64 -> slika) je teklo na
+     * glavni niti - zaslon Aplikacije je stal s »Sprasujem racunalnik ...«, GC je sproscal 40-50 MB na sekundo. Zdaj v ozadju.
+     */
+    private val pretvorbe = java.util.concurrent.Executors.newSingleThreadExecutor { r ->
+        Thread(r, "safeer-aplikacije-ikone").apply { isDaemon = true; priority = Thread.NORM_PRIORITY - 1 }
+    }
+
+    private fun vOzadju(naprava: String, s: Surovo, nato: (Pretvorjeno) -> Unit) {
+        try {
+            pretvorbe.execute {
+                val izid = try { pretvori(naprava, s) } catch (_: Throwable) { Pretvorjeno(emptyList(), emptyMap()) }
+                runOnUiThread { if (!isFinishing && !isDestroyed) nato(izid) }
+            }
+        } catch (_: java.util.concurrent.RejectedExecutionException) { }
+    }
+
+    private fun pretvori(naprava: String, s: Surovo): Pretvorjeno {
+        val ikone = HashMap<String, String>()
         val novi = ArrayList<SafeerApp>()
         val videni = HashSet<String>()
         for (o in s.predmeti) {
@@ -404,12 +435,12 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             if (!videni.add(kljuc)) continue
             // Racunalnik: icon_png (base64); Android: icon (data URL, WebP).
             val png = o.optString("icon_png").ifBlank { o.optString("icon").substringAfter("base64,", "") }
-            if (png.isNotBlank()) ikonePng[kljuc] = png
+            if (png.isNotBlank()) ikone[kljuc] = png
             val skupina = o.optString("group").ifBlank { if (s.android) skupinaPaketa(id) else DRUGO }
             novi.add(SafeerApp(kljuc, o.optString("name").ifBlank { id }, o.optString("comment"),
                 skupina, ikona(png), AppVir.RACUNALNIK, id, naprava))
         }
-        return novi
+        return Pretvorjeno(novi, ikone)
     }
 
     /**
@@ -481,8 +512,11 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         for ((id, sur) in HashMap(surovi)) {
             surovi.remove(id)
             if (id !in naprave || (shramba[id]?.cas ?: -1L) >= sur.cas) continue
-            val seznam = pretvori(id, sur)
-            shramba[id] = Shranjeno(sur.ime, sur.android, seznam, ikonePng.filterKeys { it.startsWith("racunalnik:$id:") }, sur.cas)
+            vOzadju(id, sur) { p ->
+                if ((shramba[id]?.cas ?: -1L) >= sur.cas) return@vOzadju
+                shramba[id] = Shranjeno(sur.ime, sur.android, p.aplikacije, p.ikone, sur.cas)
+                if (oddaljeni.none { it.racunalnik == id }) prerisi { izShrambe() }
+            }
         }
         val iz = ArrayList<SafeerApp>()
         for ((id, s) in shramba) {

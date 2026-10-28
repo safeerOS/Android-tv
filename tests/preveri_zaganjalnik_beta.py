@@ -477,6 +477,10 @@ def main() -> int:
         besedilo = okus.read_text(encoding="utf-8")
         preveri(f"okus {okus.parent.name} ne napove LINK z drugo ravnjo",
                 re.search(r'<permission\s+android:name="si\.safeer\.tv\.permission\.LINK"', besedilo) is None)
+    # Dnevnik TV 28. 10. 2026 08:51: ikone programov se dekodirajo v ozadju, ne na glavni niti.
+    ah = (SRC / "os/AplikacijeHostaActivity.kt").read_text(encoding="utf-8")
+    preveri("Aplikacije: ikone naprav v ozadju (ne na glavni niti)",
+            "objavi(r.id, pretvori(" not in ah and "val seznam = pretvori(id, sur)" not in ah and "pretvorbe.execute {" in ah)
     return konec()
 
 
