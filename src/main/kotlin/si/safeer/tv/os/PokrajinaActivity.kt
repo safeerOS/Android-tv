@@ -181,6 +181,9 @@ class PokrajinaActivity : OsActivity() {
     /** Nazaj, Domov, odhod z zaslona: besedilo, predlogi in tipkovnica stran, fokus s polja navzdol na ploscice. */
     private fun zapriLupo(): Boolean {
         if (!::poljeLupe.isInitialized) return false
+        // Preverba TV 28. 10. 2026 (beta 29): po OK v lupi je ostalo showSoftInputOnFocus = true, tudi ko lupa ni bila odprta -
+        // ob tipki Domov je polje dobilo fokus in tipkovnica se je odprla sama. Fokus spet ne odpre tipkovnice, OK jo odpre.
+        poljeLupe.showSoftInputOnFocus = false
         val vLupi = poljeLupe.hasFocus() || zadetki.hasFocus()
         if (!PokrajinaPravila.zapriLupo(poljeLupe.text, zadetki.visibility == View.VISIBLE, vLupi)) return false
         (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).hideSoftInputFromWindow(poljeLupe.windowToken, 0)

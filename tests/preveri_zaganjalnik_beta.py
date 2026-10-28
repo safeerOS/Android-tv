@@ -485,6 +485,13 @@ def main() -> int:
     preveri("Povezane naprave: ob dostopu vrstica Glej zaslon in upravljaj (brez dostopa odpre dostop)",
             "R.string.pk_link_zaslon_najprej_dostop" in naprave_act and "!vKrogu -> dostopNaprave(n)" in naprave_act
             and "PovezaniZasloni.zaprosi(this, link, n)" in naprave_act)
+    # Preverba TV 28. 10. 2026: brez stranske vrstice Nazaj zapre zaslon v enem pritisku, fokus ne gre v nevidni meni.
+    sv = (SRC / "os/StranskaVrstica.kt").read_text(encoding="utf-8")
+    preveri("skrita stranska vrstica: Nazaj in smerne tipke ne vodijo v nevidni meni",
+            "if (brezVrstice || dotik || spodnja || imaFokus()) return false" in sv and "        if (brezVrstice) return false\n" in sv)
+    pk2 = (SRC / "os/PokrajinaActivity.kt").read_text(encoding="utf-8")
+    preveri("Domov ne odpre tipkovnice (showSoftInputOnFocus vedno nazaj na false)",
+            "        poljeLupe.showSoftInputOnFocus = false\n        val vLupi" in pk2)
     return konec()
 
 

@@ -472,6 +472,8 @@ class StranskaVrstica private constructor(
      *    uporabljeni element vsebine. Premikanje znotraj vrstic in mrez ostane nespremenjeno.
      */
     fun prestrezi(dogodek: KeyEvent): Boolean {
+        // Skrita vrstica (TV z novim zaganjalnikom): nobena tipka ne vodi fokusa vanjo.
+        if (brezVrstice) return false
         if (dogodek.keyCode == KeyEvent.KEYCODE_BACK || dogodek.keyCode == KeyEvent.KEYCODE_ESCAPE) {
             if (dogodek.action == KeyEvent.ACTION_DOWN && dogodek.repeatCount == 0 && zapriPredal()) { pogoltniNazaj = true; return true }
             if (dogodek.action == KeyEvent.ACTION_UP && pogoltniNazaj) { pogoltniNazaj = false; return true }
@@ -509,7 +511,9 @@ class StranskaVrstica private constructor(
      * Vrne true, ce je fokus sel v vrstico. Na dotik nic (predal zapre [prestrezi]).
      */
     fun nazajVMeni(): Boolean {
-        if (dotik || spodnja || imaFokus()) return false
+        // Preverba TV 28. 10. 2026 (beta 29): z novim zaganjalnikom je vrstica skrita - prvi Nazaj je fokus poslal v nevidni
+        // meni (na zaslonu ni bilo izbire), sele drugi je zaslon zaprl. Brez vrstice Nazaj takoj zapre zaslon.
+        if (brezVrstice || dotik || spodnja || imaFokus()) return false
         fokusMenija()
         return imaFokus()
     }
