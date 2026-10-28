@@ -816,7 +816,8 @@ object SpletniVir {
         override fun close() { try { zdaj?.close() } finally { zdaj = null } }
     }
 
-    private const val NAJVEC_SLIKA = 16L * 1024 * 1024
+    /** Ista meja kot rezerva Jamendo.bajti ([OsPravila.NAJVEC_SLIKA]); prej 16 MB, z rezervo brez meje (OOM 28. 10. 2026). */
+    private const val NAJVEC_SLIKA = OsPravila.NAJVEC_SLIKA
 
     /** Slika spletnega vira z enakim kontekstom kot stran (Referer, piskotki, brskalniski UA). */
     fun bajtiSlike(c: Context, naslov: String): ByteArray? = try {
@@ -827,8 +828,11 @@ object SpletniVir {
         straniSlik[naslov]?.let { p.setRequestProperty("Referer", it) }
         try { CookieManager.getInstance().getCookie(naslov) } catch (_: Exception) { null }?.let { p.setRequestProperty("Cookie", it) }
         // Grok 10, M6: najvec NAJVEC_SLIKA bajtov - slika s tuje strani ne sme napolniti pomnilnika.
-        try { if (p.responseCode in 200..299) p.inputStream.use { OsPravila.beriOmejeno(it, NAJVEC_SLIKA) } else null } finally { p.disconnect() }
-    } catch (_: Exception) { null }
+        try {
+            if (p.responseCode !in 200..299 || OsPravila.prevelikaNapoved(p.contentLengthLong)) null
+            else p.inputStream.use { OsPravila.beriOmejeno(it, NAJVEC_SLIKA, p.contentLengthLong) }
+        } finally { p.disconnect() }
+    } catch (_: Exception) { null } catch (_: OutOfMemoryError) { null }   // OOM na TV 28. 10. 2026: brez slike, brez padca
 
     // ------------------------------------------------------------------ nevidni WebView
 

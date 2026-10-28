@@ -545,6 +545,33 @@ object OsPravila {
     }
 
     /** Prebere tok do [meja] bajtov; vec = null (slika s tuje strani ne sme napolniti pomnilnika - Grok 10, M6). */
+    /**
+     * Najvec bajtov ene slike (naslovnica, slika kartice) iz omrezja. Dnevnik TV 28. 10. 2026 04:56: OutOfMemoryError v
+     * Jamendo.bajti (64 MB naenkrat) - slika, ki jo je SpletniVir zaradi meje zavrnil, je sla v rezervo brez meje. Naslovnica
+     * je pomanjsana na 280-600 px, zato je 4 MB dovolj; vec slik se nalaga hkrati na TV z 2 GB pomnilnika.
+     */
+    const val NAJVEC_SLIKA = 4L * 1024 * 1024
+
+    /** Napovedana dolzina (Content-Length) presega mejo: slike sploh ne prenesemo. -1 = ni napovedana. */
+    fun prevelikaNapoved(dolzina: Long, meja: Long = NAJVEC_SLIKA): Boolean = dolzina > meja
+
+    /**
+     * Kot [beriOmejeno], a z napovedano dolzino (Content-Length) bere naravnost v polje te velikosti - brez podvajanja
+     * medpomnilnika in kopije v toByteArray (OOM na TV 28. 10. 2026 08:07: 7,7 MB slika je rabila se 2 kopiji). Ce je
+     * podatkov vec ali manj od napovedi, vrne null oz. prebrano.
+     */
+    fun beriOmejeno(vhod: java.io.InputStream, meja: Long, napovedano: Long): ByteArray? {
+        if (napovedano <= 0 || napovedano > meja) return beriOmejeno(vhod, meja)
+        val polje = ByteArray(napovedano.toInt())
+        var n = 0
+        while (n < polje.size) {
+            val r = vhod.read(polje, n, polje.size - n)
+            if (r < 0) return polje.copyOf(n)
+            n += r
+        }
+        return if (vhod.read() < 0) polje else null
+    }
+
     fun beriOmejeno(vhod: java.io.InputStream, meja: Long): ByteArray? {
         val izhod = java.io.ByteArrayOutputStream()
         val b = ByteArray(16 * 1024)

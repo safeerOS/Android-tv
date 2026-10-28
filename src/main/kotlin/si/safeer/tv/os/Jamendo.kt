@@ -137,13 +137,19 @@ object Jamendo {
         }
     }
 
-    /** Slika (naslovnica) kot bajti; majhne slike, zato brez predpomnilnika na disku. */
+    /**
+     * Slika (naslovnica) kot bajti; majhne slike, zato brez predpomnilnika na disku. Najvec [OsPravila.NAJVEC_SLIKA] -
+     * prej brez meje (OutOfMemoryError na TV 28. 10. 2026: 64 MB za eno sliko).
+     */
     fun bajti(naslov: String): ByteArray? = try {
         val p = URL(naslov).openConnection() as HttpURLConnection
         p.connectTimeout = 8_000; p.readTimeout = 10_000
         p.setRequestProperty("User-Agent", "SafeerOS")
-        try { if (p.responseCode == 200) p.inputStream.use { it.readBytes() } else null } finally { p.disconnect() }
-    } catch (_: Exception) { null }
+        try {
+            if (p.responseCode != 200 || OsPravila.prevelikaNapoved(p.contentLengthLong)) null
+            else p.inputStream.use { OsPravila.beriOmejeno(it, OsPravila.NAJVEC_SLIKA, p.contentLengthLong) }
+        } finally { p.disconnect() }
+    } catch (_: Exception) { null } catch (_: OutOfMemoryError) { null }   // brez naslovnice, a aplikacija ne pade
 
     private fun kodiraj(s: String) = URLEncoder.encode(s, "UTF-8")
 }
