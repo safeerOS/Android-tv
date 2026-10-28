@@ -15,6 +15,17 @@ package si.safeer.tv.link
  * Tu so samo pravila, brez Androida (tests/DeljenjePravilaTest.kt v navadnem JVM).
  */
 object DeljenjePravila {
+    /**
+     * Global Link (lastnik 28. 10. 2026): deljenje zaslona gre prek releja link.safeer.si, ce je vklopljen in je naprava
+     * zdoma (Link ze tece prek releja), je vklopljen preizkus »samo rele« ali domaci Hub v omrezju ne odgovori. Sicer LAN.
+     */
+    fun prekReleja(vklopljen: Boolean, zdoma: Boolean, samoRele: Boolean, lanDosegljiv: () -> Boolean): Boolean =
+        vklopljen && (zdoma || samoRele || !lanDosegljiv())
+
+    /** Naslov releja (wss://127.0.0.1:vrata) kot osnova HTTPS za Hub (brez koncne poti in posevnice). */
+    fun httpIzWs(naslov: String): String = naslov.replace(Regex("^wss"), "https").replace(Regex("^ws"), "http")
+        .substringBefore("/cast/ws").substringBefore("/link/ws").substringBefore("/safeer/ws").trimEnd('/')
+
 
     // ------------------------------------------------------------------ A1
 

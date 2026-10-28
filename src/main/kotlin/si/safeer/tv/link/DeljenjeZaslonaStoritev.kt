@@ -568,6 +568,8 @@ class DeljenjeZaslonaStoritev : Service() {
         var vticnica: Socket? = null
         var napaka = ""
         try {
+            // Global Link: zdoma gre deljenje po istem releju kot preostali Link (TLS ostane pripet na odtis Huba).
+            hubHttp = potDoHuba(hubHttp)
             val zacetek = zacniNaHubu()
             idDeljenja = zacetek.optString("id", "")
             val potPotiskanja = zacetek.optString("push_path", "")
@@ -609,6 +611,16 @@ class DeljenjeZaslonaStoritev : Service() {
             try { vticnica?.close() } catch (_: Exception) { }
             glavna.post { koncaj(napaka) }
         }
+    }
+
+    /** LAN ali krajevna vrata releja do izvoljenega Huba ([DeljenjePravila.prekReleja]); klic z delovne niti (omrezje). */
+    private fun potDoHuba(lan: String): String {
+        val gl = GlobalLink
+        if (!DeljenjePravila.prekReleja(gl.vklopljen(this), gl.zdoma, gl.samoRele(this)) { gl.lanDosegljiv(lan) }) return lan
+        val prek = gl.naslov(this, lan.replace(Regex("^https"), "wss"), HubKrmilnik.izvoljeniHub(this)?.id, prekRele = true)
+        val naslov = DeljenjePravila.httpIzWs(prek)
+        Log.i(TAG, "deljenje zaslona: pot=" + if (gl.jeRele(java.net.URI(naslov).host, java.net.URI(naslov).port)) "global" else "lan")
+        return naslov
     }
 
     /** Hub odpre deljenje in sam obvesti ciljno napravo, kje naj gleda. */

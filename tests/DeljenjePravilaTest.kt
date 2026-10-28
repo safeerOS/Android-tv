@@ -186,5 +186,15 @@ fun main() {
     check(!DeljenjePravila.zaupajIzObvestila(true, true, "n-a", "n-a", false, true, zaklenjeno = true)) { "N11: zaklenjeno" }
     check(DeljenjePravila.zaupajIzObvestila(false, true, "n-a", "n-a", false, true, zaklenjeno = true)) { "N11: preklic" }
 
+    // Global Link (lastnik 28. 10. 2026)
+    check(!DeljenjePravila.prekReleja(true, false, false) { true }) { "doma: LAN" }
+    check(DeljenjePravila.prekReleja(true, true, false) { true }) { "zdoma: rele" }
+    check(DeljenjePravila.prekReleja(true, false, true) { true }) { "preizkus samo rele" }
+    check(DeljenjePravila.prekReleja(true, false, false) { false }) { "Hub v LAN ne odgovori: rele" }
+    check(!DeljenjePravila.prekReleja(false, true, true) { false }) { "Global Link izklopljen: nikoli rele" }
+    var vprasan = false
+    check(DeljenjePravila.prekReleja(true, true, false) { vprasan = true; true } && !vprasan) { "zdoma: LAN se ne preverja" }
+    check(DeljenjePravila.httpIzWs("wss://127.0.0.1:40123") == "https://127.0.0.1:40123")
+    check(DeljenjePravila.httpIzWs("wss://192.168.0.77:8990/cast/ws") == "https://192.168.0.77:8990")
     println("DeljenjePravilaTest: OK")
 }

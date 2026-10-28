@@ -278,12 +278,20 @@ object HubTls {
                 .substringBefore("/cast/ws").substringBefore("/link/ws").substringBefore("/safeer/ws").trimEnd('/')
             val potrdilo = napaka.certificate ?: return false
             val videni = odtis(potrdilo) ?: return false
-            jeNaslovHuba(napaka.url, hubHttp) &&
+            // Global Link (lastnik 28. 10. 2026): zdoma pride ista stran Huba prek krajevnih vrat releja (127.0.0.1) - rele
+            // prenasa nespremenjen TLS Huba, zato velja isti pripeti odtis; drugih naslovov 127.0.0.1 ne sprejmemo.
+            (jeNaslovHuba(napaka.url, hubHttp) || jeReleHuba(napaka.url)) &&
                 MessageDigest.isEqual(videni.toByteArray(), pripeti.toByteArray())
         } catch (e: Throwable) {
             false
         }
     }
+
+    /** Naslov je na krajevnih vratih odprtega releja Global Link (127.0.0.1:vrata), ne katerih koli krajevnih vrat. */
+    private fun jeReleHuba(url: String): Boolean = try {
+        val u = java.net.URL(url)
+        u.protocol == "https" && si.safeer.tv.link.GlobalLink.jeRele(u.host, u.port)
+    } catch (_: Exception) { false }
 
     /** Ali je naslov (https://gostitelj:vrata/...) naslov Huba, ki mu zaupamo. */
     fun jeNaslovHuba(url: String, hubHttp: String): Boolean {

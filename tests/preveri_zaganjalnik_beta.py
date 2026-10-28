@@ -481,6 +481,10 @@ def main() -> int:
     ah = (SRC / "os/AplikacijeHostaActivity.kt").read_text(encoding="utf-8")
     preveri("Aplikacije: ikone naprav v ozadju (ne na glavni niti)",
             "objavi(r.id, pretvori(" not in ah and "val seznam = pretvori(id, sur)" not in ah and "pretvorbe.execute {" in ah)
+    # Lastnik 28. 10. 2026: v Povezanih napravah ob dostopu naprave vrstica »Glej zaslon in upravljaj«.
+    preveri("Povezane naprave: ob dostopu vrstica Glej zaslon in upravljaj (brez dostopa odpre dostop)",
+            "R.string.pk_link_zaslon_najprej_dostop" in naprave_act and "!vKrogu -> dostopNaprave(n)" in naprave_act
+            and "PovezaniZasloni.zaprosi(this, link, n)" in naprave_act)
     return konec()
 
 

@@ -172,6 +172,22 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             ) {
                 izbiraNaprave(n)
             })
+            // Lastnik 28. 10. 2026: ob dostopu naprave gumb »Glej zaslon in upravljaj« (samostojna vrstica - gumb v vrstici
+            // ListView bi z daljincem zmedel fokus). Naprava brez polnega dostopa: vrstica odpre dostop. Prej je bila moznost
+            // samo v meniju naprave; Global Link: ogled gre zdoma prek releja (ZaslonActivity, DeljenjeZaslonaStoritev).
+            val pot = NapraveKrogaPravila.pot(n.zmoznosti.toSet(), si.safeer.tv.link.Daljinec.ZMOZNOST_DELI_ZASLON)
+            if (pot != NapraveKrogaPravila.POT_NAPRAVE) {
+                val vKrogu = OzjiKrog.vKrogu(this, n.id)
+                nove.add(Vrstica(R.drawable.os_ikona_zaslon, getString(R.string.pk_link_zaslon).replaceFirstChar { it.titlecase() },
+                    lepo, if (vKrogu) "" else getString(R.string.pk_link_zaslon_najprej_dostop), n.id + "#zaslon") {
+                    when {
+                        !vKrogu -> dostopNaprave(n)
+                        pot == NapraveKrogaPravila.POT_RACUNALNIK -> startActivity(Intent(this, ZaslonActivity::class.java)
+                            .putExtra(DatotekeActivity.EXTRA_RACUNALNIK, n.id))
+                        else -> PovezaniZasloni.zaprosi(this, link, n)
+                    }
+                })
+            }
         }
         // Nova naprava: prijavno okno (prikaže QR kodo IN gumb za vpis 6-mestne kode z druge naprave -
         // en sam vstop v seznanitev, ne dva). Prej je bila tu se locena vrstica »Vpiši 6-mestno kodo«,
