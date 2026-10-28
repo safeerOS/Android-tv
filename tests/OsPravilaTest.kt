@@ -1082,6 +1082,14 @@ private fun preizkusSlikSpletnihZadetkov() {
     preveriEnako("M6: omejeno branje cez mejo", null, OsPravila.beriOmejeno(java.io.ByteArrayInputStream(ByteArray(4)), 3))
     // OOM na TV 28. 10. 2026: slika najvec 4 MB, prevelika napoved se ne prenese
     preveriEnako("slika: meja 4 MB", 4L * 1024 * 1024, OsPravila.NAJVEC_SLIKA)
+    // Lastnik 28. 10. 2026: nadaljevanje z izbiro, brez menjave vira, ko zaslona ni
+    preveriEnako("preklop vhoda: napaka dekodiranja brez zaslona ne menja vira", true, OsPravila.brezMenjaveVira(true, false, true))
+    preveriEnako("z zaslonom: napaka dekodiranja menja vir kot doslej", false, OsPravila.brezMenjaveVira(true, true, true))
+    preveriEnako("druga napaka brez zaslona: vir se menja", false, OsPravila.brezMenjaveVira(true, false, false))
+    preveriEnako("zvok brez zaslona: kot doslej", false, OsPravila.brezMenjaveVira(false, false, true))
+    preveriEnako("nadaljevanje: 10:35 ponudimo", true, OsPravila.ponudiNadaljevanje(635_668, 0))
+    preveriEnako("nadaljevanje: pod 10 s ne", false, OsPravila.ponudiNadaljevanje(9_000, 0))
+    preveriEnako("nadaljevanje: zadnjih 5 % ne", false, OsPravila.ponudiNadaljevanje(96_000, 100_000))
     preveriEnako("slika: napoved 64 MB je prevelika", true, OsPravila.prevelikaNapoved(64L * 1024 * 1024))
     preveriEnako("slika: brez napovedi (-1) beremo omejeno", false, OsPravila.prevelikaNapoved(-1))
     preveriEnako("slika: tocno meja gre", false, OsPravila.prevelikaNapoved(OsPravila.NAJVEC_SLIKA))

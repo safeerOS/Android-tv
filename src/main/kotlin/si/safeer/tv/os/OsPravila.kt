@@ -552,6 +552,14 @@ object OsPravila {
      */
     const val NAJVEC_SLIKA = 4L * 1024 * 1024
 
+    /** Napaka dekodiranja videa, ko zaslona predvajanja ni (preklop vhoda na TV, Domov): ne menjamo vira (28. 10. 2026). */
+    fun brezMenjaveVira(video: Boolean, zaslonOdprt: Boolean, napakaDekodiranja: Boolean): Boolean =
+        video && !zaslonOdprt && napakaDekodiranja
+
+    /** Ponudba »Nadaljuj od … / Od zacetka« velja, ce je mesto vsaj 10 s in ne v zadnjih 5 % (sicer je film koncan). */
+    fun ponudiNadaljevanje(mestoMs: Long, trajanjeMs: Long): Boolean =
+        mestoMs >= 10_000 && (trajanjeMs <= 0 || mestoMs < trajanjeMs * 95 / 100)
+
     /** Napovedana dolzina (Content-Length) presega mejo: slike sploh ne prenesemo. -1 = ni napovedana. */
     fun prevelikaNapoved(dolzina: Long, meja: Long = NAJVEC_SLIKA): Boolean = dolzina > meja
 

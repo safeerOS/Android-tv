@@ -85,4 +85,7 @@
     <string name="os_media_dodatek_omejuje">Un componente limita le richieste: sono mostrati i titoli già verificati.</string>
     <string name="os_media_dodatek_omejuje_min">Una fonte limita le richieste: la verifica riprende tra %1$d min.</string>
     <string name="os_media_ni_vec_v_katalogu">Le tue fonti non hanno altri titoli in questo catalogo</string>
+    <string name="os_nadaljuj_od">Riprendi da %1$s</string>
+    <string name="os_od_zacetka">Dall\'inizio</string>
+    <string name="os_nadaljevanje_ni_mogoce">Questa fonte non consente di saltare alla posizione salvata: riproduco dall\'inizio.</string>
 </resources>

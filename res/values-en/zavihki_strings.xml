@@ -85,4 +85,7 @@
     <string name="os_media_dodatek_omejuje">An add-on is limiting requests – titles checked so far are shown.</string>
     <string name="os_media_dodatek_omejuje_min">A source is limiting requests – checking continues in %1$d min.</string>
     <string name="os_media_ni_vec_v_katalogu">Your sources have no more titles in this catalogue</string>
+    <string name="os_nadaljuj_od">Resume from %1$s</string>
+    <string name="os_od_zacetka">From the beginning</string>
+    <string name="os_nadaljevanje_ni_mogoce">This source can\'t jump to the saved position – playing from the beginning.</string>
 </resources>

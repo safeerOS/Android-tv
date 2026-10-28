@@ -648,6 +648,44 @@ class PredvajanjeActivity : OsActivity() {
         zatemniIzNamena()
         izberiNapravoIzNamena()
         nadaljujIzNamena()
+        glavna.postDelayed({ ponudiNadaljevanje() }, 150)
+    }
+
+    private var oknoNadaljevanja: android.app.AlertDialog? = null
+
+    /**
+     * Lastnik 28. 10. 2026: »Nadaljuj od 10:35« ali »Od zacetka«. Prej je Safeer sam skocil na shranjeno mesto - pri viru,
+     * ki skoka ne omogoca (MKV brez indeksa), je rekel »Nadaljujem od …« in zacel na zacetku.
+     */
+    private fun ponudiNadaljevanje() {
+        if (isFinishing || oknoNadaljevanja?.isShowing == true) return
+        val (id, od) = GlasbaStoritev.ponudbaNadaljevanja ?: return
+        val p = GlasbaStoritev.predvajalnik
+        if (p == null || GlasbaStoritev.trenutna()?.id != id) { GlasbaStoritev.ponudbaNadaljevanja = null; return }
+        p.playWhenReady = false
+        fun zacni(mesto: Long) {
+            GlasbaStoritev.ponudbaNadaljevanja = null
+            oknoNadaljevanja = null
+            if (mesto > 0) {
+                p.seekTo(mesto)
+                // Vir brez moznosti skoka (MKV brez indeksa, nekateri tokovi v zivo): povemo, namesto da tiho zacne od 0.
+                glavna.postDelayed({
+                    val q = GlasbaStoritev.predvajalnik ?: return@postDelayed
+                    if (!isFinishing && q.playbackState == androidx.media3.common.Player.STATE_READY && !q.isCurrentMediaItemSeekable &&
+                        q.currentPosition < mesto - 30_000) android.widget.Toast.makeText(this, R.string.os_nadaljevanje_ni_mogoce, android.widget.Toast.LENGTH_LONG).show()
+                }, 4_000)
+            } else p.seekTo(0)
+            p.play()
+        }
+        val s = od / 1000
+        val napis = if (s >= 3600) String.format(java.util.Locale.ROOT, "%d:%02d:%02d", s / 3600, (s % 3600) / 60, s % 60)
+            else String.format(java.util.Locale.ROOT, "%d:%02d", s / 60, s % 60)
+        oknoNadaljevanja = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(GlasbaStoritev.trenutna()?.naslov.orEmpty())
+            .setItems(arrayOf(getString(R.string.os_nadaljuj_od, napis), getString(R.string.os_od_zacetka))) { _, i -> zacni(if (i == 0) od else 0L) }
+            // Nazaj: kot doslej - nadaljuje (najpogostejsa izbira, nic se ne izgubi).
+            .setOnCancelListener { zacni(od) }
+            .create().also { Kontroler.pokazi(it.apply { show() }) }
     }
 
     /** S plosce Safeer Media: takoj zatemni (samo zvok). Tudi ob onNewIntent - obstojeci zaslon

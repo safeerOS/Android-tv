@@ -89,4 +89,7 @@
     <string name="os_media_dodatek_omejuje">Dodatek omejuje poizvedbe – prikazani so že preverjeni naslovi.</string>
     <string name="os_media_dodatek_omejuje_min">Vir začasno omejuje poizvedbe – preverjanje nadaljujem čez %1$d min.</string>
     <string name="os_media_ni_vec_v_katalogu">Tvoji viri nimajo več naslovov v tem katalogu</string>
+    <string name="os_nadaljuj_od">Nadaljuj od %1$s</string>
+    <string name="os_od_zacetka">Od začetka</string>
+    <string name="os_nadaljevanje_ni_mogoce">Ta vir ne omogoča skoka na shranjeno mesto – predvajam od začetka.</string>
 </resources>

@@ -295,6 +295,14 @@ class GlasbaStoritev : Service() {
                     obvesti(getString(R.string.os_media_napaka_naslednja, ime.ifBlank { "?" }))
                     zacniElement(spletniIndeks + 1)
                 } else {
+                    // Dnevnik TV 28. 10. 2026 09:08: TV je preklopil na vhod (zaslon predvajanja je odsel, povrsina izgubljena),
+                    // dekoder je zato javil napako - to ni okvara vira. Prej je v ozadju zacela druga izdaja in prepisala
+                    // napredek. Zdaj: brez zaslona napaka dekodiranja videa ne menja vira; mesto ostane za »Nadaljuj«.
+                    if (OsPravila.brezMenjaveVira(enota?.video == true, PredvajanjeActivity.odprt, SprotnaPomoc.jeNapakaDekodiranja(error))) {
+                        Log.i("SafeerOsMedia", "napaka dekodiranja brez zaslona predvajanja: vir ostane, mesto=${p.currentPosition}")
+                        p.pause()
+                        return
+                    }
                     // Film iz dodatka ima rezervne tokove (naslednji najboljsi): poskusimo jih po vrsti, brez vprasanj.
                     val naslednji = rezerve.firstOrNull()
                     if (naslednji != null) {
@@ -1382,6 +1390,11 @@ class GlasbaStoritev : Service() {
         private var cakajoci: Triple<List<Jamendo.Skladba>, Int, DatotekeActivity.Streznik?>? = null
         /** (id posnetka, mesto v ms): naslednje nalaganje tega posnetka zacne pri tem mestu (nadaljevanje ogleda). */
         @Volatile var zacetnoMesto: Pair<String, Long>? = null
+        /**
+         * Lastnik 28. 10. 2026: film z napredkom - uporabnik izbere »Nadaljuj od …« ali »Od zacetka« (zaslon predvajanja,
+         * [PredvajanjeActivity]). (id predvajanega elementa, mesto ms); do izbire predvajanje miruje.
+         */
+        @Volatile var ponudbaNadaljevanja: Pair<String, Long>? = null
         /** Kdaj (uptimeMillis) je uporabnik izbral film iz torrenta; 0 = ne merimo. Dnevnik SafeerTorrentCas. */
         @Volatile var merimOd = 0L
         private var cakajociSplet: Pair<Jamendo.Skladba, Boolean>? = null

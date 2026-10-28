@@ -85,4 +85,7 @@
     <string name="os_media_dodatek_omejuje">Une extension limite les requêtes : les titres déjà vérifiés sont affichés.</string>
     <string name="os_media_dodatek_omejuje_min">Une source limite les requêtes : la vérification reprend dans %1$d min.</string>
     <string name="os_media_ni_vec_v_katalogu">Vos sources n’ont plus de titres dans ce catalogue</string>
+    <string name="os_nadaljuj_od">Reprendre à %1$s</string>
+    <string name="os_od_zacetka">Depuis le début</string>
+    <string name="os_nadaljevanje_ni_mogoce">Cette source ne permet pas d\'aller à la position enregistrée – lecture depuis le début.</string>
 </resources>

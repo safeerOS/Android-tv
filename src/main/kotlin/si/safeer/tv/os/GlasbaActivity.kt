@@ -7524,6 +7524,13 @@ class GlasbaActivity : OsActivity() {
         val predano = predajaPolozaj?.takeIf { it.first == sk.id }?.second?.also { predajaPolozaj = null }
         val od = predano ?: MediaNapredek.polozaj(this, sk)
         if (od <= 0) return
+        // Lastnik 28. 10. 2026: uporabnik izbere, ali nadaljuje ali zacne od zacetka (zaslon predvajanja vprasa). Predvajanje
+        // do izbire miruje. Predaja z druge naprave (»Nadaljuj tukaj«) in sprotni tok pomocnika ostaneta samodejna.
+        if (predano == null && SprotnaPomoc.tokZa(sk) == null && OsPravila.ponudiNadaljevanje(od, 0)) {
+            GlasbaStoritev.predvajalnik?.playWhenReady = false
+            GlasbaStoritev.ponudbaNadaljevanja = (GlasbaStoritev.trenutna()?.id ?: sk.id) to od
+            return
+        }
         Toast.makeText(this, getString(R.string.os_nadaljujem_od, cas(od)), Toast.LENGTH_SHORT).show()
         // Predvajalnik zacne naravnost pri shranjenem mestu (GlasbaStoritev.nalozi); sprotni tok pomocnika ga ima ze v sebi.
         if (SprotnaPomoc.tokZa(sk) == null) GlasbaStoritev.zacetnoMesto = sk.id to od
