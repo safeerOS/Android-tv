@@ -493,6 +493,12 @@ def main() -> int:
     preveri("Domov ne odpre tipkovnice (showSoftInputOnFocus vedno nazaj na false)",
             "        poljeLupe.showSoftInputOnFocus = false\n        val vLupi" in pk2 and "override fun onWindowFocusChanged(imaFokus: Boolean)" in pk2
             and re.search(r'PokrajinaActivity"\s+android:exported="false"\s+android:windowSoftInputMode="stateAlwaysHidden', manifest) is not None)
+    # Zaganjalnik (TV, telefon, tablica) mora vedno imeti vecjo mejo pomnilnika.
+    for okus in ("os", "telefon", "tablica"):
+        man = (KOREN / "okusi" / okus / "AndroidManifest.xml").read_text(encoding="utf-8")
+        preveri(f"{okus}: android:largeHeap=\"true\"",
+                re.search(r'android:largeHeap="true"\s+tools:replace="android:largeHeap"', man) is not None
+                and 'largeHeap="false"' not in man)
     return konec()
 
 

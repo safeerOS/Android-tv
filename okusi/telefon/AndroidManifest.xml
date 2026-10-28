@@ -35,11 +35,12 @@
         <package android:name="com.safeer.mobile.browser" />
     </queries>
 
+    <!-- largeHeap: zaganjalnik po vzoru TV (domaci zaslon, ikone, brskalnik, predvajalnik) potrebuje vecjo mejo pomnilnika. -->
     <application
         android:label="@string/telefon_ime"
         android:icon="@mipmap/os_ic_launcher"
         android:roundIcon="@mipmap/os_ic_launcher"
-        android:largeHeap="false"
+        android:largeHeap="true"
         tools:replace="android:largeHeap">
 
         <!-- Vstopna tocka: navaden vnos v predalu aplikacij, pokoncno in lezece. -->
