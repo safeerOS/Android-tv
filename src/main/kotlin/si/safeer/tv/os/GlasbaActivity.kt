@@ -4337,7 +4337,10 @@ class GlasbaActivity : OsActivity() {
     }
     private var mrezaVsebine: MrezaVsebine? = null
 
-    private fun glasbaSkupina(): String = getSharedPreferences(NASTAVITVE_POGLEDA, MODE_PRIVATE).getString("glasba_skupina", "").orEmpty()
+    private fun glasbaSkupina(): String {
+        val s = getSharedPreferences(NASTAVITVE_POGLEDA, MODE_PRIVATE).getString("glasba_skupina", "").orEmpty()
+        return if (s == SKUPINA_VIDEOSPOTI) "" else s
+    }
     private fun shraniGlasbaSkupino(s: String) = getSharedPreferences(NASTAVITVE_POGLEDA, MODE_PRIVATE).edit().putString("glasba_skupina", s).apply()
 
     private fun kljucMreze(i: Int) = if (i == RADIO) "r|$radioSkupina|$radioZvrst|${Locale.getDefault().country}"
@@ -4587,7 +4590,6 @@ class GlasbaActivity : OsActivity() {
     }
 
     private fun stranGlasbe(m: MrezaVsebine, prva: Boolean): Pair<List<Jamendo.Skladba>, Boolean> {
-        val videospoti = glasbaSkupina() == SKUPINA_VIDEOSPOTI
         val zvrst = glasbaZvrst
         val jezik = glasbaJezik
         // Naloga 83: vnos dodatka brez oznake jezika (koncert) izbran jezik ne skrije ([OsPravila.jezikGlasbeUstreza]).
@@ -4597,14 +4599,14 @@ class GlasbaActivity : OsActivity() {
         // Naloga 83: ponovni poskus prazne prve strani obdrzi vire - strani v teku (pocasen dodatek, Music Concerts) tecejo
         // naprej. Prej so se viri ob vsakem poskusu zamenjali z novimi in odgovor, ki je prisel po 2,5 s, je bil zavrzen.
         if (prva && (m.poskusov == 0 || m.viri.isEmpty())) {
-            // Katalogi dodatkov: uporabnikova izbira je pred vgrajenimi viri. Ob izbrani zvrsti samo katalogi, ki jo ponujajo.
-            m.viri = glasbeniKatalogi(if (videospoti) true else null).mapNotNull { k ->
+            // Katalogi dodatkov: glasba in videospoti/koncerti skupaj (null)
+            m.viri = glasbeniKatalogi(null).mapNotNull { k ->
                 if (zvrst.isEmpty()) k else k.zvrsti.firstOrNull { it.equals(zvrst, ignoreCase = true) }?.let { Stremio.zMoznostjo(k, it) }
             }.map { VirKanalov(it) }
         }
         // Vgrajeni vir, spletni viri in katalogi dodatkov hkrati; pocasen dodatek prve strani ne zadrzuje ([straniDodatkov]).
         val odmik = m.stran * GLASBA_NA_STRAN
-        val vgrajene = if (videospoti || !jeVirViden(GLASBA, VIR_JAMENDO)) null else iskanjeDelavec.submit<List<Jamendo.Skladba>> {
+        val vgrajene = if (!jeVirViden(GLASBA, VIR_JAMENDO)) null else iskanjeDelavec.submit<List<Jamendo.Skladba>> {
             // Napaka (izjema) steje kot prazen odgovor, da drugi poskus stece tudi takrat.
             fun stran() = try { Jamendo.stran(zvrst, jezik, GLASBA_NA_STRAN, odmik) } catch (_: Exception) { emptyList() }
             // Jamendo obcasno vrne prazen seznam (preverjeno 21. 9. 2026); drugi poskus ga dobi.
@@ -4612,7 +4614,6 @@ class GlasbaActivity : OsActivity() {
         }
         val spletni = if (!prva || zvrst.isNotEmpty()) null else iskanjeDelavec.submit<List<Jamendo.Skladba>> {
             vJeziku(SpletniVir.priljubljeno(this, MedijskiViri.vsi(this).filter { jeVirViden(GLASBA, kljucVira(it)) }))
-                .filter { val spot = SpletniVir.vrstaVsebine(it) == SpletniVir.VIDEOSPOT; if (videospoti) spot else !spot && !it.video }
         }
         izhod += vJeziku(straniDodatkov(m, rokDodatkov(m, prva)))
         var seKaj = m.viri.any { !it.konec || it.vTeku != null }
@@ -4830,19 +4831,12 @@ class GlasbaActivity : OsActivity() {
      */
     private fun glasbaIzbire(): View {
         val skupina = glasbaSkupina()
-        val viri = MedijskiViri.vsi(this)
-        // Videospoti dodatka: samo, dokler ne vemo, da njegova knjiznica tokov ne daje ([ZaupanjeKnjiznic]) - izbira,
-        // ki odpre prazno mrezo, ni izbira.
-        // Naloga 78: skupina je v izbiri samo, ce ima vir - videospoti: spletni vir ali dodatek z glasbenimi posnetki
-        // ([Stremio.imaVideospote], tudi koncerti) in knjiznico, ki tokove daje. Prej je bila »Music videos« ponujena ze ob
-        // glasbenem imenu dodatka in je odprla prazno mrezo. Prazna izbrana skupina je na koncu ([OsPravila.skupineIzbire]).
-        val imaVideospote = viri.any { it.jeSplet } || Stremio.imaVideospote(viri.filter { it.jeStremio && jeVirViden(GLASBA, kljucVira(it)) &&
-            ZaupanjeKnjiznic.stanje(Stremio.osnova(it.naslov)) != false }.map { it.naslov })
         val imaMoje = MedijskiViri.priljubljene(this).any { !it.video && !it.radio } ||
             MedijskiViri.seznami(this).any { sz -> sz.skladbe.isNotEmpty() && OsPravila.seznamZaGlasbo(sz.vir, sz.skladbe.all { it.video }) }
-        val imena = mapOf("" to getString(R.string.os_mediji_glasba), SKUPINA_VIDEOSPOTI to getString(R.string.os_media_videospoti),
+        val imena = mapOf("" to getString(R.string.os_mediji_glasba),
             SKUPINA_MOJE to getString(R.string.os_media_moja_glasba), SKUPINA_NAPRAVA to getString(R.string.os_krajevno_koren))
-        val skupine = OsPravila.skupineIzbire(listOf("" to true, SKUPINA_VIDEOSPOTI to imaVideospote, SKUPINA_MOJE to imaMoje) +
+        // Glasba in videospoti so združeni v eno izbiro (Glasba):
+        val skupine = OsPravila.skupineIzbire(listOf("" to true, SKUPINA_MOJE to imaMoje) +
             // Samostojni Predvajalnik: glasba iz shrambe naprave (prej polica nad spletnimi policami).
             (if (vlc) listOf(SKUPINA_NAPRAVA to true) else emptyList()), skupina).map { it to imena.getValue(it) }
         val polja = ArrayList<PoljeIzbire>()
@@ -5687,11 +5681,16 @@ class GlasbaActivity : OsActivity() {
         val pripeti = MedijskiViri.pripeti(this)
         // Lastnik 27. 10. 2026: seznami predvajanja spadajo h glasbi (tam imajo svojo vrsto) - v Mojih virih jih ni vec na vrhu.
         val usenetVpisan = try { UsenetPonudnik.get(this).stanje().vpisan } catch (_: Throwable) { false }
+        val ytPrijavljen = YouTubeUvoz.jePrijavljen(this)
         return listOf(Vrsta("", listOf(
             Kartica(getString(R.string.os_mediji_dodaj), getString(R.string.os_mediji_dodaj_opis), "", { dodajVir() }, ikona = R.drawable.os_ikona_plus),
             // Naloga 125: dolg pritisk vklopi ali izklopi razvojni nacin dodatkov.
             Kartica(getString(R.string.os_mediji_dodatki), getString(R.string.os_mediji_dodatki_opis), "", { dodajDodatke() }, { preklopiRazvoj() }, ikona = R.drawable.os_ikona_plus),
             Kartica(getString(R.string.os_uvoz_naslov), getString(R.string.os_uvoz_opis), "", { uvoziSeznam() }, ikona = R.drawable.os_ikona_plus),
+            // Samodejni uvoz YouTube playlist z računom
+            Kartica(if (ytPrijavljen) "YouTube (račun)" else "Prijava v YouTube",
+                if (ytPrijavljen) "Povezano · sinhronizacija playlist" else "Prijava in samodejni uvoz playlist",
+                "", { YouTubeUvozOkno.pokazi(this) { osveziNaMestu() } }, ikona = if (ytPrijavljen) R.drawable.os_ikona_posodobi else R.drawable.os_ikona_plus),
             // Naloga 119: TorBox - zasebni in hitrejsi torrenti s kljucem uporabnika.
             // Naloga 128: TorBox, Real-Debrid in AllDebrid na enem mestu.
             Kartica(getString(R.string.os_debrid), opisDebrida(), "", { nastavitveDebrida() }, ikona = R.drawable.os_ikona_zaklep),
