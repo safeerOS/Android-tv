@@ -988,6 +988,15 @@ private fun preizkusGlasbe89() {
 
 fun main() {
     println("Preizkus pravil Safeer OS")
+    // Lastnik 29. 10. 2026: fokus mora biti na vidnem polju (vsaj polovica pogleda na zaslonu).
+    preveriEnako("fokus: ves viden", true, OsPravila.fokusViden(100, 100))
+    preveriEnako("aplikacija na TV: Facebook siroka", true, OsPravila.sirokaAplikacijaNaTv(true, "https://www.facebook.com/"))
+    preveriEnako("aplikacija na TV: YouTube ne", false, OsPravila.sirokaAplikacijaNaTv(true, "https://www.youtube.com/tv"))
+    preveriEnako("aplikacija na telefonu: ne", false, OsPravila.sirokaAplikacijaNaTv(false, "https://www.facebook.com/"))
+    preveriEnako("aplikacija: neveljaven naslov", false, OsPravila.sirokaAplikacijaNaTv(true, "ni naslov"))
+    preveriEnako("fokus: pol viden", true, OsPravila.fokusViden(50, 100))
+    preveriEnako("fokus: manj kot pol", false, OsPravila.fokusViden(49, 100))
+    preveriEnako("fokus: pogled 0x0 (skrit meni)", false, OsPravila.fokusViden(0, 0))
     preizkusHtmlImen()
     preizkusBlokov()
     preizkusPodstrani()

@@ -100,7 +100,8 @@ object UsenetLastni {
             TorBox.Izid(url = streznik.url, ponudnik = UsenetLastniPravila.PONUDNIK)
         } catch (e: Throwable) {
             if (e is InterruptedException || e is java.io.InterruptedIOException) Thread.currentThread().interrupt()
-            Log.i(TAG, "lasten pogon: ${e.javaClass.simpleName}" + ((e as? UsenetNntp.NapakaNntp)?.vrsta?.let { " ($it)" } ?: ""))   // vrsta brez gesla in imena (preverba 28. 10.)
+            // Vrsta in koda (NapakaNntp.message: »NNTP NAPAKA_PROTOKOLA 222«) brez gesla, imena in id-ja clanka.
+            Log.i(TAG, "lasten pogon: ${e.javaClass.simpleName}" + ((e as? UsenetNntp.NapakaNntp)?.let { " (${it.vrsta}${if (it.koda > 0) " " + it.koda else ""})" } ?: ""))   // vrsta brez gesla in imena (preverba 28. 10.)
             val s = nova
             if (s != null) koncaj(s) else meje.sprosti(p)
             napaka(razlog(e))

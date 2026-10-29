@@ -1898,4 +1898,18 @@ object OsPravila {
     /** Pregled B2: preizkus sprejmemo samo z zetonom, ki ga je ta proces izdal ([izdan]: zeton, cas) in se ni potekel. */
     fun zetonPreizkusaVelja(izdan: Pair<String, Long>?, prejet: String?, zdaj: Long): Boolean =
         izdan != null && !prejet.isNullOrEmpty() && prejet == izdan.first && zdaj - izdan.second in 0 until PREIZKUS_ZETON_VELJA_MS
+
+    /** Fokus je na vidnem polju, ce je na zaslonu vsaj polovica pogleda (lastnik 29. 10. 2026: fokus ne sme uiti). */
+    fun fokusViden(vidnaPloscina: Long, celaPloscina: Long): Boolean = celaPloscina > 0 && vidnaPloscina * 2 >= celaPloscina
+
+    /**
+     * Spletna aplikacija na televizorju dobi siroko postavitev (1280 tock, pomanjsano na zaslon), razen YouTuba, ki ima
+     * svojo postavitev za TV (lastnik 29. 10. 2026: Facebook pri 960 tockah »prevelika povecava«).
+     */
+    fun sirokaAplikacijaNaTv(jeTelevizor: Boolean, naslov: String): Boolean {
+        if (!jeTelevizor) return false
+        val gostitelj = try { java.net.URI(naslov.trim()).host?.lowercase().orEmpty() } catch (_: Exception) { "" }
+        if (gostitelj.isEmpty()) return false
+        return listOf("youtube.com", "youtu.be").none { gostitelj == it || gostitelj.endsWith(".$it") }
+    }
 }

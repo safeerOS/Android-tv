@@ -122,7 +122,11 @@ class GlasbaActivity : OsActivity() {
      * Slike (plakati, naslovnice) imajo svoje niti: prej so si jih delile z nalaganjem razdelkov in ob pocasnem
      * strezniku slik je razdelek (npr. TV v zivo) cakal nanje - prazen zaslon "Nalagam" (lastnik, 2. 10. 2026: brez zastojev).
      */
-    private val slikeDelavec = Executors.newFixedThreadPool(6)
+    // Lastnik 29. 10. 2026 (03:38): plakati najboljsih zadetkov iskanja se niso naredili. Dnevnik: naslovnica z diska v
+    // povprecju 1505 ms (prej 63 ms), z omrezja 5,4 s - vrsta FIFO je bila polna plakatov mreze (zdaj vsi naslovi takoj),
+    // nove kartice so cakale za njimi. Zdaj zadnja zahteva pride prva (LIFO), zastarele pa se ne nalagajo ([zeliSliko]).
+    private val slikeDelavec = java.util.concurrent.ThreadPoolExecutor(6, 6, 0L, java.util.concurrent.TimeUnit.MILLISECONDS,
+        object : java.util.concurrent.LinkedBlockingDeque<Runnable>() { override fun offer(e: Runnable): Boolean = offerFirst(e) })
     private val iskanjeNiti = mutableListOf<Future<*>>()
     private val slikeVTeKu = ConcurrentHashMap.newKeySet<String>()
     /** Pogledi, ki cakajo isto naslovnico; tako ob prihodu slike ne prehodimo celotnega zaslona. */
@@ -841,6 +845,8 @@ class GlasbaActivity : OsActivity() {
         vsebina.viewTreeObserver.addOnGlobalLayoutListener { narociUskladiSlike() }
         // Kartica, ki je ostala zaradi izbire (naloga 55b), gre, ko se izbira premakne.
         vsebina.viewTreeObserver.addOnGlobalFocusChangeListener { _, _ -> odprtKatalog?.takeIf { it.drzim }?.let { narociUmiri() } }
+        // Lastnik 29. 10. 2026 (03:45): »ne sme se zgoditi, da fokus uide ven iz prikazanih polj«. Varovalo za ves zaslon.
+        window.decorView.viewTreeObserver.addOnGlobalFocusChangeListener { stari, nov -> varujFokus(stari, nov) }
         drsnik.setOnScrollChangeListener { _, _, y, _, _ ->
             // Plakati, ki pridejo na zaslon, dobijo sliko; tisti, ki gredo z njega, jo sprostijo (naloga 56).
             if (kotlin.math.abs(y - uskladenPri) >= dp(48)) uskladiSlike()
@@ -1804,6 +1810,36 @@ class GlasbaActivity : OsActivity() {
         drsnik.postDelayed({ uskladiNarocen = false; uskladiSlike() }, cezMs)
     }
 
+    /**
+     * Fokus mora biti na necem, kar uporabnik vidi (lastnik 29. 10. 2026). Pogled v drsniku, ki ga ni (dovolj) na zaslonu,
+     * drsnik pripelje na zaslon; fokus na nevidnem pogledu zunaj drsnika (nicelna velikost, skrit, izven okna) gre nazaj
+     * na prejsnji vidni pogled ali v drsnik. Vsak tak primer gre v dnevnik (za iskanje vzroka).
+     */
+    override fun onWindowFocusChanged(imaFokus: Boolean) {
+        super.onWindowFocusChanged(imaFokus)
+        // Vrnitev na zaslon (predvajanje, okno): fokus, ki je ostal na skritem pogledu, se ne premakne sam - preverimo ga.
+        if (imaFokus) currentFocus?.let { varujFokus(null, it) }
+    }
+
+    private fun varujFokus(stari: View?, nov: View?) {
+        if (nov == null || isFinishing) return
+        glavna.post {
+            if (isFinishing || !nov.isFocused) return@post
+            val r = android.graphics.Rect()
+            val vidno = nov.isShown && nov.getGlobalVisibleRect(r)
+            if (vidno && OsPravila.fokusViden(r.width().toLong() * r.height(), nov.width.toLong() * nov.height)) return@post
+            val vDrsniku = vrhSlikeVVsebini(nov) != null
+            android.util.Log.i("SafeerOsMedia", "fokus zunaj vidnega: ${nov.javaClass.simpleName} " +
+                "${nov.width}x${nov.height}, viden=$vidno, v drsniku=$vDrsniku, razdelek=$razdelek")
+            if (vDrsniku && nov.isShown && nov.width > 0 && nov.height > 0) {
+                nov.requestRectangleOnScreen(android.graphics.Rect(0, 0, nov.width, nov.height), false)
+                return@post
+            }
+            val nazaj = stari?.takeIf { it !== nov && it.isShown && it.isFocusable && it.getGlobalVisibleRect(android.graphics.Rect()) }
+            if (nazaj?.requestFocus() != true) drsnik.requestFocus()
+        }
+    }
+
     /** Vrh pogleda v vsebini drsnika; null = ni v njej (npr. na podstrani ali v oknu). */
     private fun vrhSlikeVVsebini(v: View): Int? {
         var y = 0
@@ -1828,7 +1864,7 @@ class GlasbaActivity : OsActivity() {
             val y = vrhSlikeVVsebini(v) ?: run { if (!ima && v.tag != naslov) naloziSliko(naslov, v); null } ?: continue
             val viden = OsPravila.vVidnem(y, v.height, zgoraj, spodaj, OsPravila.rezervaNaslovnic(v.height, drsnik.height, dp(60)))
             if (viden && !ima && v.tag != naslov) naloziSliko(naslov, v)
-            else if (!viden && ima) { v.setImageDrawable(null); v.tag = null }
+            else if (!viden && (ima || v.tag == naslov)) { v.setImageDrawable(null); v.tag = null }   // tudi cakajoca: iz vrste
         }
         // Kartice, ki se niso postavljene (pravkar dodane): pogledamo znova, a ne v nedogled (skrite kartice).
         if (nepostavljenih > 0 && nepostavljeniPoskusi++ < 20) narociUskladiSlike(100)
@@ -1849,7 +1885,10 @@ class GlasbaActivity : OsActivity() {
         // Vec kartic lahko uporablja isto naslovnico. Prenesi/dekodiraj jo samo enkrat.
         if (!slikeVTeKu.add(naslov)) return
         slikeDelavec.execute {
+            var preskoceno = false
             try {
+                // Kartica je medtem odsla z zaslona ali dobila drugo sliko: ne prenasamo (naslednji prikaz jo zahteva znova).
+                if (!zeliSliko(naslov)) { preskoceno = true; return@execute }
                 // 280 px je dovolj za TV kartice, hkrati pa precej zmanjsa heap in GC sunke na 2 GB TV.
                 // Naslovnica z diska (brez omrezja; stara z izvirnimi bajti ali nova WebP); nove shranimo za naslednje
                 // odprtje - pomanjsane na 280 px in kot WebP, ne izvirnih bajtov (naloga 56).
@@ -1879,9 +1918,19 @@ class GlasbaActivity : OsActivity() {
                 android.util.Log.w("SafeerOsMedia", "naslovnica: zmanjkalo pomnilnika, predpomnilnik slik zmanjsan na ${SLIKE.size() / 1024 / 1024} MB")
             } finally {
                 slikeVTeKu.remove(naslov)
-                cakajoceSlike.remove(naslov)
+                val pozni = cakajoceSlike.remove(naslov)?.let { synchronized(it) { it.toList() } }.orEmpty()
+                // Kartica, ki se je v vrsto prijavila sele po preskoku, ne ostane brez slike: zahteva gre znova.
+                if (preskoceno && pozni.isNotEmpty()) glavna.post {
+                    if (!isFinishing) pozni.forEach { r -> r.get()?.takeIf { it.tag == naslov }?.let { v -> v.tag = null; naloziSliko(naslov, v) } }
+                }
             }
         }
+    }
+
+    /** Ali kaksna kartica se caka na to naslovnico (pogled zivi in ima njen naslov). */
+    private fun zeliSliko(naslov: String): Boolean {
+        val l = cakajoceSlike[naslov] ?: return false
+        return synchronized(l) { l.any { it.get()?.tag == naslov } }
     }
 
     /**

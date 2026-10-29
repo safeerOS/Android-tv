@@ -437,7 +437,12 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 tabManager.createTab(this, zacetni, true).also { t ->
                     // Vir iz Safeer Media: stran kot na racunalniku (sirina 1280), pomanjsana na zaslon.
                     // Skripta velja od naslednjega nalaganja, zato prvo nalaganje ponovimo.
-                    if (zvokVOzadju) { t.webView?.namiznaSirina = 1280; t.webView?.loadUrl(zacetni) }
+                    // Lastnik 29. 10. 2026 (Facebook kot spletna aplikacija na TV): »stran je prevelika povecava« - pri 960
+                    // tockah televizorja dobi stran postavitev za tablico. Spletna aplikacija na TV zato prav tako dobi
+                    // sirino 1280, razen YouTuba (youtube.com/tv ima svojo postavitev za TV).
+                    val siroka = zvokVOzadju || si.safeer.tv.os.OsPravila.sirokaAplikacijaNaTv(
+                        si.safeer.tv.os.Naprava.jeTelevizor(this), zacetni)
+                    if (siroka) { t.webView?.namiznaSirina = 1280; t.webView?.loadUrl(zacetni) }
                 }.id
             } catch (_: Throwable) { null }
             if (zavihekAplikacije == null) odpriVZavihku(zacetni)

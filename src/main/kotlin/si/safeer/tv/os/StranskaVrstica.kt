@@ -344,6 +344,13 @@ class StranskaVrstica private constructor(
     }
 
     override fun onGlobalFocusChanged(stari: View?, novi: View?) {
+        // TV 29. 10. 2026 (03:46 Medijski center, 03:51 Facebook po napacnem geslu): fokus na postavki skritega menija
+        // (drsnik GONE, 0x0) - daljinec ni nic premikal, zaslon je bil videti zamrznjen. Velja za vse zaslone z vrstico.
+        if (novi != null && jePotomec(meni, novi) && !drsnik.isShown) {
+            android.util.Log.i("SafeerOsMedia", "fokus v skritem meniju: nazaj v vsebino")
+            post { if (dejavnost.currentFocus?.let { jePotomec(meni, it) } == true) fokusVsebine() }
+            return
+        }
         if (novi != null && jePotomec(vsebina, novi)) zadnjiFokusVsebine = novi
         if (novi != null) fokusVVsebini = jePotomec(vsebina, novi)
         // TV: v vsebini skrcena na ikone (vec prostora), ob vstopu v meni razsirjena z imeni.
@@ -390,6 +397,9 @@ class StranskaVrstica private constructor(
             }
         }
         drsnik.layoutParams = lp
+        // TV 29. 10. 2026 (03:46, dumpsys activity top): fokus je ostal na postavki menija v skritem drsniku (GONE, 0x0) -
+        // na zaslonu ni bilo nic oznaceno. Android fokusa ob skritju prednika ne premakne vedno; tu ga vrnemo v vsebino.
+        if (drsnik.visibility != View.VISIBLE && drsnik.hasFocus()) post { fokusVsebine() }
         drsnik.elevation = if (nacin == Nacin.PREDAL) dp(16).toFloat() else 0f
         izvzemiRobOdKretenj()
         zastor.visibility = if (nacin == Nacin.PREDAL && predalOdprt) View.VISIBLE else View.GONE
@@ -472,6 +482,13 @@ class StranskaVrstica private constructor(
      *    uporabljeni element vsebine. Premikanje znotraj vrstic in mrez ostane nespremenjeno.
      */
     fun prestrezi(dogodek: KeyEvent): Boolean {
+        // Fokus, ki je kljub vsemu ostal v skritem meniju: prva smerna tipka ali OK ga vrne v vsebino (prej je bila ta
+        // pomoc za skrito vrstico izkljucena, zato daljinec na TV z novim zaganjalnikom ni naredil nicesar).
+        if (!dotik && dogodek.action == KeyEvent.ACTION_DOWN && jeSmerna(dogodek.keyCode) && !drsnik.isShown &&
+            dejavnost.currentFocus?.let { jePotomec(meni, it) } == true) {
+            fokusVsebine()
+            if (dejavnost.currentFocus?.let { jePotomec(meni, it) } != true) return true
+        }
         // Skrita vrstica (TV z novim zaganjalnikom): nobena tipka ne vodi fokusa vanjo.
         if (brezVrstice) return false
         if (dogodek.keyCode == KeyEvent.KEYCODE_BACK || dogodek.keyCode == KeyEvent.KEYCODE_ESCAPE) {
@@ -500,7 +517,7 @@ class StranskaVrstica private constructor(
         if (levo == null || levo === fokus || jePotomec(meni, levo)) {
             // Predal je skrit: tipkovnica ali daljinec na telefonu ga odpre, sicer bi LEVO z roba ne naredil nicesar.
             if (nacin == Nacin.PREDAL && !predalOdprt) odpriPredal()
-            aktivnaPostavka.requestFocus()
+            fokusMenija()
             return true
         }
         return false
@@ -564,11 +581,16 @@ class StranskaVrstica private constructor(
         cilj?.requestFocus()
     }
 
-    /** Fokus je v meniju (ne v vsebini). */
-    fun imaFokus(): Boolean = dejavnost.currentFocus?.let { jePotomec(meni, it) } == true
+    /** Fokus je v meniju (ne v vsebini). Skrit meni nima fokusa: tipke gredo v [prestrezi], ki fokus vrne v vsebino. */
+    fun imaFokus(): Boolean = drsnik.isShown && dejavnost.currentFocus?.let { jePotomec(meni, it) } == true
 
     /** Fokus v meni, na aktivno postavko (na televizorju se meni ob tem razsiri z imeni). */
-    fun fokusMenija() { aktivnaPostavka.requestFocus() }
+    fun fokusMenija() {
+        // Skrit meni (brez vrstice, zaprt predal, skrita tirnica): requestFocus bi uspel tudi na skritem pogledu (Android ne
+        // gleda vidnosti prednikov) - fokus bi bil nevidno na robu zaslona. Takrat ostane v vsebini.
+        if (brezVrstice || !drsnik.isShown) { fokusVsebine(); return }
+        aktivnaPostavka.requestFocus()
+    }
 
     private fun zgradiMeni() {
         meni.orientation = VERTICAL

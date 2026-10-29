@@ -344,6 +344,15 @@ class UsenetNntp(
          */
         const val NAJVEC_TELESA = 4 * 1024 * 1024
 
+        /**
+         * Diagnostika (TV 29. 10. 2026 03:34: lasten pogon dvakrat NAPAKA_PROTOKOLA brez razloga v dnevniku): koda pove,
+         * katera meja je prijela - vrstica odgovora daljsa od [NAJVEC_VRSTICE], telo vecje od [NAJVEC_TELESA], ali odgovor
+         * za drug clanek, ki se ujema samo brez velikosti crk. Gre samo v sporocilo napake (dnevnik), ne v odlocitve.
+         */
+        const val DIAG_VRSTICA = 901
+        const val DIAG_TELO = 902
+        const val DIAG_ID_VELIKOST = 903
+
         /** Argument AUTHINFO najvec v bajtih UTF-8 (RFC 3977: ukaz najvec 512 oktetov; poverilnica_bajtov). */
         const val NAJVEC_POVERILNICE = 400
 
@@ -674,13 +683,13 @@ class UsenetNntp(
                 while (k < dolz && buf[k] != LF) k++
                 if (k < dolz) {
                     // Tudi, ce je LF prisel v istem branju (Grok 37 C7 velja tudi tu).
-                    if (k - poz > NAJVEC_VRSTICE) throw NapakaNntp(Vrsta.NAPAKA_PROTOKOLA)
+                    if (k - poz > NAJVEC_VRSTICE) throw NapakaNntp(Vrsta.NAPAKA_PROTOKOLA, DIAG_VRSTICA)
                     val v = String(buf, poz, k - poz, Charsets.ISO_8859_1).trimEnd('\r')
                     poz = k + 1
                     return v
                 }
                 pregledano = dolz - poz
-                if (pregledano >= NAJVEC_VRSTICE) throw NapakaNntp(Vrsta.NAPAKA_PROTOKOLA)
+                if (pregledano >= NAJVEC_VRSTICE) throw NapakaNntp(Vrsta.NAPAKA_PROTOKOLA, DIAG_VRSTICA)
                 if (poz > 0) {
                     System.arraycopy(buf, poz, buf, 0, dolz - poz)
                     dolz -= poz
@@ -774,7 +783,7 @@ class UsenetNntp(
             if (i == Izid.OK || i == Izid.NI_CLANKA) zadnjiUspeh = System.nanoTime()   // streznik je odgovoril: seja ziva
             vrsta(i)?.let { throw NapakaNntp(it, v.take(3).toIntOrNull() ?: 0) }
             // Odgovor za drug clanek (Grok 35 Y7): povezava ni usklajena - napaka protokola, povezava gre stran.
-            if (!idOdgovoraUstreza(v, id)) throw NapakaNntp(Vrsta.NAPAKA_PROTOKOLA, 222)
+            if (!idOdgovoraUstreza(v, id)) throw NapakaNntp(Vrsta.NAPAKA_PROTOKOLA, if (idOdgovoraUstreza(v.lowercase(), id.lowercase())) DIAG_ID_VELIKOST else 222)
             return blok(rokDo)
         }
 
@@ -815,7 +824,7 @@ class UsenetNntp(
                     od = maxOf(0, n - 2)   // konec je lahko razdeljen med dve branji
                     if (System.nanoTime() - rokDo > 0) throw NapakaNntp(Vrsta.ROK)
                     if (n == izid.size) {
-                        if (izid.size >= NAJVEC_TELESA) throw NapakaNntp(Vrsta.NAPAKA_PROTOKOLA)
+                        if (izid.size >= NAJVEC_TELESA) throw NapakaNntp(Vrsta.NAPAKA_PROTOKOLA, DIAG_TELO)
                         val nova = if (izid.size < proracun.osnova) minOf(izid.size * 2, proracun.osnova)
                             else minOf(izid.size * 2, NAJVEC_TELESA)
                         if (nova > proracun.osnova && !rast) {

@@ -36,6 +36,9 @@ private fun zapomni(e: Throwable) {
     while (t != null) { sporocila += t.toString(); t = t.cause }
 }
 
+/** Koda napake NNTP (diagnostika v sporocilu) ali -1. */
+private fun koda(f: () -> Unit): Int = try { f(); -1 } catch (e: UsenetNntp.NapakaNntp) { e.koda }
+
 /** Vrsta napake NNTP ali »OK«. */
 private fun izid(f: () -> Unit): String = try {
     f(); "OK"
@@ -144,6 +147,8 @@ private class LazniStreznik(ctx: SSLContext) : Closeable {
     @Volatile var omejen: String? = null
     /** 222 z message-id drugega clanka; bajti za koncem bloka. */
     @Volatile var drugId = false
+    /** Odgovor 222 z id-jem v velikih crkah (diagnostika DIAG_ID_VELIKOST). */
+    @Volatile var velikiId = false
     @Volatile var ostanek = ""
     val prijavljenih = AtomicInteger()
     val povezav = AtomicInteger()
@@ -221,7 +226,7 @@ private class LazniStreznik(ctx: SSLContext) : Closeable {
                     } else if (blok == null) {
                         posli("430 No article with that message-id <$id>")
                     } else {
-                        posli(if (drugId) "222 0 <drug@lazni.invalid>" else "222 0 <$id>")
+                        posli(if (drugId) "222 0 <drug@lazni.invalid>" else if (velikiId) "222 0 <${id.uppercase()}>" else "222 0 <$id>")
                         if (zamudaMs > 0) Thread.sleep(zamudaMs)
                         if (prekini.get() > 0 && prekini.decrementAndGet() >= 0) {
                             izhod.write(blok, 0, blok.size / 2)
@@ -458,7 +463,13 @@ fun main() {
                 preveriEnako("222 za drug clanek -> NAPAKA_PROTOKOLA", "NAPAKA_PROTOKOLA", izid { k.body(ID) })
                 preveriEnako("drug clanek: povezava ne ostane", 0, k.odprtih)
             }
+            UsenetNntp(nastavitve(s.vrata), prava.zaupaj).use { k -> preveriEnako("drug clanek: koda 222", 222, koda { k.body(ID) }) }
             s.drugId = false
+            s.velikiId = true
+            UsenetNntp(nastavitve(s.vrata), prava.zaupaj).use { k ->
+                preveriEnako("id v drugi velikosti crk: diagnostika", UsenetNntp.DIAG_ID_VELIKOST, koda { k.body(ID) })
+            }
+            s.velikiId = false
             s.ostanek = "223 0 <x@lazni.invalid>\r\n"
             UsenetNntp(nastavitve(s.vrata), prava.zaupaj).use { k ->
                 var t = ByteArray(0)
@@ -474,6 +485,9 @@ fun main() {
             s.clanki["velik@lazni.invalid"] = ByteArray(UsenetNntp.NAJVEC_TELESA + 10) { 'k'.code.toByte() }
             UsenetNntp(nastavitve(s.vrata), prava.zaupaj).use { k ->
                 preveriEnako("vec kot NAJVEC_TELESA -> NAPAKA_PROTOKOLA", "NAPAKA_PROTOKOLA", izid { k.body("velik@lazni.invalid") })
+            }
+            UsenetNntp(nastavitve(s.vrata), prava.zaupaj).use { k ->
+                preveriEnako("prevelik clanek: diagnostika", UsenetNntp.DIAG_TELO, koda { k.body("velik@lazni.invalid") })
             }
             s.clanki.remove("velik@lazni.invalid")
 
@@ -561,6 +575,9 @@ fun main() {
             s.pozdrav = "200 " + "x".repeat(9000)
             UsenetNntp(nastavitve(s.vrata), prava.zaupaj).use { k ->
                 preveriEnako("vrstica nad 4096 B v enem branju -> NAPAKA_PROTOKOLA", "NAPAKA_PROTOKOLA", izid { k.body(ID) })
+            }
+            UsenetNntp(nastavitve(s.vrata), prava.zaupaj).use { k ->
+                preveriEnako("dolga vrstica: diagnostika", UsenetNntp.DIAG_VRSTICA, koda { k.body(ID) })
             }
         }
 

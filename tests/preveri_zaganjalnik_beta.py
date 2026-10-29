@@ -501,6 +501,14 @@ def main() -> int:
     st = (SRC / "os/GlasbaStoritev.kt").read_text(encoding="utf-8")
     preveri("Usenet brez zacetka: druga pot izbire toka", "if (druga != null && !zacelo)" in st and "obOdpovedi = null\n" in st
             and "GlasbaStoritev.obOdpovedi = {" in gl and "vsiTokovi.filter { it.vrsta != UsenetPravila.VRSTA }" in gl)
+    # Lastnik 29. 10. 2026: plakati iskanja ne cakajo za plakati mreze (LIFO, zastarele zahteve izpadejo).
+    preveri("plakati: zadnja zahteva prva, zastarela izpade", "override fun offer(e: Runnable): Boolean = offerFirst(e)" in gl
+            and "if (!zeliSliko(naslov)) { preskoceno = true; return@execute }" in gl)
+    # Lastnik 29. 10. 2026: fokus ne sme uiti iz prikazanih polj (skrit meni, nevidni pogledi).
+    sv2 = (SRC / "os/StranskaVrstica.kt").read_text(encoding="utf-8")
+    preveri("fokus: skrit meni ne dobi fokusa, varovalo na zaslonu", "if (brezVrstice || !drsnik.isShown) { fokusVsebine(); return }" in sv2
+            and "if (drsnik.visibility != View.VISIBLE && drsnik.hasFocus()) post { fokusVsebine() }" in sv2
+            and "window.decorView.viewTreeObserver.addOnGlobalFocusChangeListener { stari, nov -> varujFokus(stari, nov) }" in gl)
     # Zaganjalnik (TV, telefon, tablica) mora vedno imeti vecjo mejo pomnilnika.
     for okus in ("os", "telefon", "tablica"):
         man = (KOREN / "okusi" / okus / "AndroidManifest.xml").read_text(encoding="utf-8")
