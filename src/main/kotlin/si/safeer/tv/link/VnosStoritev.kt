@@ -254,20 +254,34 @@ class VnosStoritev : AccessibilityService() {
         val v = fokusPogled ?: return
         val wm = okenskiUpravitelj ?: return
         try {
-            val koren = rootInActiveWindow ?: run {
-                skrijFokusOverlay()
-                return
+            // Poišči fokusirano vozlišče v aktivnem oknu ali kateremkoli drugem interaktivnem oknu
+            var vozlisce: AccessibilityNodeInfo? = null
+            var korenPaket = ""
+
+            val aktivniKoren = rootInActiveWindow
+            if (aktivniKoren != null) {
+                korenPaket = aktivniKoren.packageName?.toString().orEmpty()
+                if (korenPaket != packageName) {
+                    vozlisce = fokusirano(aktivniKoren)
+                }
             }
 
-            // Ne prekrivamo Safeer OS lastnih aktivnosti, ker imajo ze svoj nativni fokus
-            val paket = koren.packageName?.toString().orEmpty()
-            if (paket == packageName) {
-                skrijFokusOverlay()
-                return
+            if (vozlisce == null) {
+                for (w in windows) {
+                    if (w.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD) continue
+                    val r = w.root ?: continue
+                    val p = r.packageName?.toString().orEmpty()
+                    if (p == packageName) continue
+                    val f = fokusirano(r)
+                    if (f != null && f.isVisibleToUser) {
+                        vozlisce = f
+                        korenPaket = p
+                        break
+                    }
+                }
             }
 
-            val vozlisce = fokusirano(koren)
-            if (vozlisce == null || !vozlisce.isVisibleToUser) {
+            if (vozlisce == null || !vozlisce.isVisibleToUser || korenPaket == packageName) {
                 skrijFokusOverlay()
                 return
             }
@@ -348,7 +362,11 @@ class VnosStoritev : AccessibilityService() {
                 android.view.KeyEvent.KEYCODE_DPAD_RIGHT,
                 android.view.KeyEvent.KEYCODE_TAB -> {
                     glavnaNit.removeCallbacks(posodobiFokusOpravilo)
-                    glavnaNit.postDelayed(posodobiFokusOpravilo, 60)
+                    glavnaNit.postDelayed(posodobiFokusOpravilo, 20)
+                    glavnaNit.postDelayed(posodobiFokusOpravilo, 70)
+                    glavnaNit.postDelayed(posodobiFokusOpravilo, 150)
+                    glavnaNit.postDelayed(posodobiFokusOpravilo, 250)
+                    glavnaNit.postDelayed(posodobiFokusOpravilo, 380)
                 }
             }
         }
