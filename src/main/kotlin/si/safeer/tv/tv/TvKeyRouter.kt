@@ -163,27 +163,30 @@ class TvKeyRouter(private val host: MainActivity) {
 
         if (host.virtualPointerView.isPointerVisible && !isTopBarFocused) {
             val activeWv = host.activeWebView()
+            // Nacin miske (spletne aplikacije, npr. Facebook): drzana tipka pospesi kazalec.
+            val korak = if (host.virtualPointerView.trajen) si.safeer.tv.os.OsPravila.korakKazalca(event.repeatCount) else 40f
             when (keyCode) {
                 KeyEvent.KEYCODE_DPAD_UP -> {
-                    if (host.virtualPointerView.pointerY < 120f) {
+                    // V nacinu aplikacije vrstice z naslovom ni: fokus ne sme oditi v skrito polje.
+                    if (host.virtualPointerView.pointerY < 120f && host.nacinAplikacije == null) {
                         host.editUrl.requestFocus()
                     } else {
-                        host.virtualPointerView.movePointer(0f, -40f, activeWv)
+                        host.virtualPointerView.movePointer(0f, -korak, activeWv)
                     }
                     return true
                 }
                 KeyEvent.KEYCODE_DPAD_DOWN -> {
-                    host.virtualPointerView.movePointer(0f, 40f, activeWv)
+                    host.virtualPointerView.movePointer(0f, korak, activeWv)
                     return true
                 }
                 KeyEvent.KEYCODE_DPAD_LEFT -> {
                     // Kazalec na levem robu zaslona: levo od strani je stranska vrstica Safeer OS.
                     if (host.virtualPointerView.pointerX <= 10.5f && host.imaOsVrstico()) host.vOsVrstico()
-                    else host.virtualPointerView.movePointer(-40f, 0f, activeWv)
+                    else host.virtualPointerView.movePointer(-korak, 0f, activeWv)
                     return true
                 }
                 KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                    host.virtualPointerView.movePointer(40f, 0f, activeWv)
+                    host.virtualPointerView.movePointer(korak, 0f, activeWv)
                     return true
                 }
                 KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
