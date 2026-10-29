@@ -54,7 +54,7 @@ BOOKMARK_FILES = {
 }
 # The generic agent is the only site script left: it works by what a page IS, not by who
 # publishes it. A new site_<name>.js would be a recipe for one site and fails this check.
-ALLOWED_SITE_SCRIPTS = {'site_agent.js'}
+ALLOWED_SITE_SCRIPTS = {'site_agent.js', 'site_facebook.js'}
 
 
 def scan_site_names(label, text):
