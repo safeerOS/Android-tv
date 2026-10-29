@@ -295,22 +295,54 @@ class VnosStoritev : AccessibilityService() {
 
             val r = Rect()
             vozlisce.getBoundsInScreen(r)
-            val sirina = r.width()
-            val visina = r.height()
+            var levo = r.left
+            var desno = r.right
+            val zgoraj = r.top
+            val spodaj = r.bottom
 
             // Preveri smiselne dimenzije (da ne obrobimo celotnega zaslona ali praznih koordinat)
             val (zaslonSirina, zaslonVisina) = velikost()
-            if (sirina <= 10 || visina <= 10 || (sirina >= zaslonSirina - 20 && visina >= zaslonVisina - 20)) {
+            val celotnaSirina = desno - levo
+            val celotnaVisina = spodaj - zgoraj
+            if (celotnaSirina <= 10 || celotnaVisina <= 10 || (celotnaSirina >= zaslonSirina - 20 && celotnaVisina >= zaslonVisina - 20)) {
                 skrijFokusOverlay()
                 return
             }
 
-            val lp = v.layoutParams as? android.view.WindowManager.LayoutParams ?: return
+            // Ce je vrstica/naslov cez celoten zaslon (npr. naslov kategorije v Aurora Store kot "Komunikacija >"):
+            // ne obrobi celotne pasice cez vseh 1920 slikovnih pik, temvec le zacetni del z besedilom in ikono
             val d = resources.displayMetrics.density
+            val radij = if (celotnaVisina <= (32 * d).toInt()) 8 * d else 14 * d
+            (v.background as? android.graphics.drawable.GradientDrawable)?.cornerRadius = radij
+
+            if (celotnaSirina >= zaslonSirina - 100) {
+                // Poisci otroka z besedilom, ce obstaja, da dobimo lepo obrobo okoli napisa
+                var otrokZBesedilom: AccessibilityNodeInfo? = null
+                for (i in 0 until vozlisce.childCount) {
+                    val ot = try { vozlisce.getChild(i) } catch (_: Throwable) { null } ?: continue
+                    if (!ot.text.isNullOrEmpty()) {
+                        otrokZBesedilom = ot
+                        break
+                    }
+                }
+                if (otrokZBesedilom != null) {
+                    val rOt = Rect()
+                    otrokZBesedilom.getBoundsInScreen(rOt)
+                    levo = (rOt.left - (12 * d).toInt()).coerceAtLeast(0)
+                    desno = (rOt.right + (32 * d).toInt()).coerceAtMost(zaslonSirina)
+                } else {
+                    desno = (levo + (320 * d).toInt()).coerceAtMost(zaslonSirina)
+                }
+            }
+
+            val sirina = desno - levo
+            val visina = spodaj - zgoraj
+
+            val lp = v.layoutParams as? android.view.WindowManager.LayoutParams ?: return
             val odmik = (2 * d).toInt()
 
-            lp.x = (r.left - odmik).coerceAtLeast(0)
-            lp.y = (r.top - odmik).coerceAtLeast(0)
+            lp.x = (levo - odmik).coerceAtLeast(0)
+            lp.y = (zgoraj - odmik).coerceAtLeast(0)
             lp.width = sirina + (odmik * 2)
             lp.height = visina + (odmik * 2)
 
