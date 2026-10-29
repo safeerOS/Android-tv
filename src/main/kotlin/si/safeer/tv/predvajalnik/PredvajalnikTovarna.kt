@@ -59,7 +59,7 @@ object PredvajalnikTovarna {
             .setPrioritizeTimeOverSizeThresholds(true)
             .build()
         Profil.GLASBA -> DefaultLoadControl.Builder()
-            .setBufferDurationsMs(15_000, 60_000, 2_500, 5_000)
+            .setBufferDurationsMs(20_000, 60_000, 2_000, 2_500)
             .setPrioritizeTimeOverSizeThresholds(true)
             .build()
         Profil.FILM -> null

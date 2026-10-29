@@ -336,6 +336,9 @@ class UsenetStreznik(
             return napaka(503)
         }
         var poz = zacetek
+        if (i > 0 && zacetek >= minOf(velikost / 2L, 64 * 1024L)) {
+            (izvor as? AlbumIzvor)?.pocistiPrejsnje(i)
+        }
         try {
             pisi(izhod, if (o == null) 200 else 206, if (o == null) "OK" else "Partial Content", g)
             while (poz <= konec) {
@@ -349,6 +352,9 @@ class UsenetStreznik(
                 izhod.write(kos)
                 poz += kos.size
                 zadnja = System.nanoTime()
+                if (i > 0 && poz >= minOf(velikost / 2L, 64 * 1024L)) {
+                    (izvor as? AlbumIzvor)?.pocistiPrejsnje(i)
+                }
             }
             izhod.flush()
             s.setSoLinger(false, 0)
@@ -364,7 +370,9 @@ class UsenetStreznik(
 /**
  * Lastnik 27. 10. 2026: skladbe albuma z Useneta. Vsaka se pripravi (prvi segment, bralnik z nitmi in predpomnilnikom) sele
  * ob prvi zahtevi predvajalnika; odprtih je najvec [najvecOdprtih] - najdlje neuporabljena se zapre in se ob ponovni
- * zahtevi pripravi znova. Prej so bile pripravljene vse hkrati (do 32 MB in 6 niti na skladbo na TV) in ostale odprte.
+ * zahtevi pripravi znova.
+ * Lastnik 29. 10. 2026: ko se naslednja skladba predvaja (ze na manj kot polovici), se prejsnje skladbe sproti brisejo
+ * iz pomnilnika ([pocistiPrejsnje]), zato sta odprti le se aktivna in naslednja vnaprej ([NAJVEC_ODPRTIH] = 2).
  */
 class AlbumIzvor(
     private val skladbe: List<Pair<String?, () -> UsenetBralnik.Vir>>,
@@ -372,7 +380,7 @@ class AlbumIzvor(
     private val profil: UsenetBralnik.Profil,
     private val najvecOdprtih: Int = NAJVEC_ODPRTIH,
 ) : UsenetStreznik.Izvor {
-    companion object { const val NAJVEC_ODPRTIH = 5 }
+    companion object { const val NAJVEC_ODPRTIH = 2 }
 
     private val viri = arrayOfNulls<UsenetBralnik.Vir>(skladbe.size)
     private val odprti = LinkedHashMap<Int, UsenetBralnik.Bralnik>(8, 0.75f, true)
@@ -401,6 +409,26 @@ class AlbumIzvor(
 
     /** Za preizkus: odprti bralniki. */
     val odprtih: Int @Synchronized get() = odprti.size
+
+    /**
+     * Lastnik 29. 10. 2026: ko se naslednja skladba [i] predvaja (ze na manj kot polovici ali takoj po zacetku),
+     * se prejsnje skladbe (< i) takoj zaprejo in izbrisejo iz pomnilnika (RAM), da je ves prostor na voljo aktivni skladbi.
+     */
+    fun pocistiPrejsnje(i: Int) {
+        val stari = ArrayList<UsenetBralnik.Bralnik>()
+        synchronized(this) {
+            if (zaprt) return
+            val iter = odprti.entries.iterator()
+            while (iter.hasNext()) {
+                val e = iter.next()
+                if (e.key < i) {
+                    stari += e.value
+                    iter.remove()
+                }
+            }
+        }
+        stari.forEach { try { it.close() } catch (_: Exception) { } }
+    }
 
     override fun bralnik(i: Int): UsenetBralnik.Bralnik {
         synchronized(this) { if (zaprt) throw IOException("album zaprt"); odprti[i]?.let { return it } }
