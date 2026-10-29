@@ -380,7 +380,7 @@ class AlbumIzvor(
     private val profil: UsenetBralnik.Profil,
     private val najvecOdprtih: Int = NAJVEC_ODPRTIH,
 ) : UsenetStreznik.Izvor {
-    companion object { const val NAJVEC_ODPRTIH = 2 }
+    companion object { const val NAJVEC_ODPRTIH = 1 }
 
     private val viri = arrayOfNulls<UsenetBralnik.Vir>(skladbe.size)
     private val odprti = LinkedHashMap<Int, UsenetBralnik.Bralnik>(8, 0.75f, true)
