@@ -18,7 +18,20 @@ object UsenetUsb {
     private val zadetkov = AtomicLong()
     private val zadetkovBajtov = AtomicLong()
     private val zapisanih = AtomicLong()
+    private val zavrzenaPisanja = AtomicLong()
     private val dnevnikOb = AtomicLong()
+
+    /**
+     * Omejena vrsta za zapis na USB v ozadju: ce je USB kljuc pocasen ali obremenjen,
+     * se zapis zavrze (DiscardPolicy) in ne ustavlja omreznega prenosa ali predvajanja.
+     */
+    private val pisalec = java.util.concurrent.ThreadPoolExecutor(
+        1, 1,
+        0L, java.util.concurrent.TimeUnit.MILLISECONDS,
+        java.util.concurrent.ArrayBlockingQueue(16),
+        { r -> Thread({ android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND); r.run() }, "safeer-usb-zapis").apply { isDaemon = true } },
+        java.util.concurrent.ThreadPoolExecutor.DiscardPolicy()
+    )
 
     fun ovij(c: Context, telo: (String) -> ByteArray): (String) -> ByteArray {
         val app = c.applicationContext
@@ -29,7 +42,15 @@ object UsenetUsb {
                     File(File(m, ime.take(2)), ime)
                 }
             } catch (_: Throwable) { null }
-            beri(datoteka) ?: telo(id).also { zapisi(app, datoteka, it) }
+            beri(datoteka) ?: telo(id).also { bajti ->
+                if (datoteka != null && bajti.isNotEmpty() && bajti.size <= PredpomnilnikPravila.NAJVEC_SEGMENT) {
+                    try {
+                        pisalec.execute { zapisi(app, datoteka, bajti) }
+                    } catch (_: Throwable) {
+                        zavrzenaPisanja.incrementAndGet()
+                    }
+                }
+            }
         }
     }
 
@@ -46,8 +67,7 @@ object UsenetUsb {
         } catch (_: java.io.FileNotFoundException) { null } catch (_: Throwable) { UsbPredpomnilnik.napaka(); null }
     }
 
-    private fun zapisi(c: Context, f: File?, b: ByteArray) {
-        if (f == null || b.isEmpty() || b.size > PredpomnilnikPravila.NAJVEC_SEGMENT) return
+    private fun zapisi(c: Context, f: File, b: ByteArray) {
         try {
             f.parentFile?.mkdirs()
             val zac = File(f.parentFile, f.name + ".tmp")
