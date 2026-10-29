@@ -10,11 +10,13 @@ html = """<!doctype html><html><head><meta charset=utf-8></head><body>
   <h3 id="rojst">Rojstni dnevi</h3><a id="prijatelj" href="/ana">Ana</a>
 </div>
 <div role="feed">
-  <div id="obj1" aria-posinset="1"><a href="/maja">Maja</a><span>Lep dan</span></div>
-  <div id="obj2" aria-posinset="2"><a aria-label="Sponzorirano" href="#">x</a><span>Kupite</span></div>
-  <div id="obj3" aria-posinset="3"><a href="https://l.facebook.com/l.php?u=y">stran</a><div role="button">Več o tem</div></div>
-  <div id="obj4" aria-posinset="4"><a href="https://l.facebook.com/l.php?u=z">clanek</a><div role="button">Všeč mi je</div></div>
-  <div id="obj5" aria-posinset="5"><span id="lbl">Sponsored</span><a aria-labelledby="lbl" href="#">.</a></div>
+  <div id="wrapperVira">
+    <div id="obj1" aria-posinset="1"><a href="/maja">Maja</a><span>Lep dan</span></div>
+    <div id="obj2" aria-posinset="2"><a aria-label="Sponzorirano" href="#">x</a><span>Kupite</span></div>
+    <div id="obj3" data-pagelet="FeedUnit_1"><a href="https://l.facebook.com/l.php?u=y">stran</a><div role="button">Več o tem</div></div>
+    <div id="obj4" role="article"><a href="https://l.facebook.com/l.php?u=z">clanek</a><div role="button">Všeč mi je</div></div>
+    <div id="obj5" aria-posinset="5"><span id="lbl">Sponsored</span><a aria-labelledby="lbl" href="#">.</a></div>
+  </div>
 </div>
 <script>""" + skripta + """</script>
 <script>
