@@ -186,6 +186,7 @@ object PokrajinaPravila {
         82,                             // KEYCODE_MENU
         176,                            // KEYCODE_SETTINGS
         183,                            // KEYCODE_PROG_RED ali TV rdeči gumb (Philips)
+        602,                            // KEYCODE_FAC_FAC (Philips TV daljinec MENU tipka)
         171,                            // KEYCODE_WINDOW (Quick settings na nekaterih TV)
         109,                            // KEYCODE_BUTTON_SELECT (gamepad select)
         99,                             // KEYCODE_BUTTON_X (gamepad X)

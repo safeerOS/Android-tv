@@ -142,6 +142,7 @@ fun main() {
     preveriEnako("KEYCODE_MENU (82)", true, PokrajinaPravila.jeTipkaMenija(82))
     preveriEnako("KEYCODE_SETTINGS (176)", true, PokrajinaPravila.jeTipkaMenija(176))
     preveriEnako("KEYCODE_PROG_RED / Philips rdeči gumb (183)", true, PokrajinaPravila.jeTipkaMenija(183))
+    preveriEnako("KEYCODE_FAC_FAC / Philips MENU (602)", true, PokrajinaPravila.jeTipkaMenija(602))
     preveriEnako("KEYCODE_WINDOW (171)", true, PokrajinaPravila.jeTipkaMenija(171))
     preveriEnako("gamepad select (109)", true, PokrajinaPravila.jeTipkaMenija(109))
     preveriEnako("gamepad X/Y (99, 100)", true, PokrajinaPravila.jeTipkaMenija(99) && PokrajinaPravila.jeTipkaMenija(100))

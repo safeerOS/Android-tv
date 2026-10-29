@@ -205,6 +205,28 @@ class DovoljenjaActivity : OsActivity() {
             Dejanje.STRAN_CELOZASLONSKA -> odpri(v, if (Build.VERSION.SDK_INT >= 34)
                 Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.parse("package:$packageName")) else podatkiOAplikaciji())
             Dejanje.STRAN_DOSTOPNOST -> {
+                if (si.safeer.tv.link.VnosVklop.smePisati(this)) {
+                    val cr = contentResolver
+                    val nasa = komponentaVnosa(this).flattenToString()
+                    val prej = Settings.Secure.getString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
+                    if (s != Stanje.DA) {
+                        try {
+                            Settings.Secure.putString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, si.safeer.tv.link.VnosVklopPravila.dodaj(prej, nasa))
+                            Settings.Secure.putInt(cr, Settings.Secure.ACCESSIBILITY_ENABLED, 1)
+                            Toast.makeText(this, R.string.dov_da, Toast.LENGTH_SHORT).show()
+                        } catch (e: Throwable) {
+                            android.util.Log.w("SafeerOs", "Napaka pri vklopu vnosa: ${e.message}")
+                        }
+                    } else {
+                        try {
+                            Settings.Secure.putString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, si.safeer.tv.link.VnosVklopPravila.odstrani(prej, nasa))
+                        } catch (e: Throwable) {
+                            android.util.Log.w("SafeerOs", "Napaka pri izklopu vnosa: ${e.message}")
+                        }
+                    }
+                    narisi()
+                    return
+                }
                 // Kot Safeer Link (input.enable): nastavitve dostopnosti z oznacenim Safeer Vnosom, kjer sistem to zna.
                 val komponenta = komponentaVnosa(this).flattenToString()
                 odpri(v, Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
