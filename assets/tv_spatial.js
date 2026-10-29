@@ -1472,6 +1472,32 @@
                 }
                 if (document.documentElement.classList.contains('safeer-medij-fs')) updateFocusRing(null);
                 else updateFocusRing(el);
+                // Diagnostika (lastnik 29. 10. 2026, Facebook na TV: gumbi in stranska vrstica, cez katere gre izbira,
+                // ostanejo oznaceni, namigi ostanejo odprti). Brez besedil strani: samo vrsta elementa, vloga in stanje.
+                if (/(^|\.)facebook\.com$/i.test(location.hostname || '')) {
+                    try {
+                        clearTimeout(window._safeerDiagFokus);
+                        window._safeerDiagFokus = setTimeout(function() {
+                            try {
+                                var oz = [], kand = document.querySelectorAll('a,button,[role],[tabindex]');
+                                for (var i = 0; i < kand.length && oz.length < 8; i++) {
+                                    var e = kand[i], cs = window.getComputedStyle(e);
+                                    if (cs.outlineStyle === 'none' || parseFloat(cs.outlineWidth) < 1) continue;
+                                    var r = e.getBoundingClientRect();
+                                    if (r.width < 2 || r.height < 2) continue;
+                                    oz.push({ t: e.tagName, r: e.getAttribute('role') || '', ak: e.classList.contains('safeer-active-card'),
+                                        f: e.matches(':focus'), fv: e.matches(':focus-visible'), fw: e.matches(':focus-within'),
+                                        h: e.matches(':hover'), oc: cs.outlineColor, w: Math.round(r.width), v: Math.round(r.height) });
+                                }
+                                var ae = document.activeElement;
+                                window._safeerDbg('H300', 'tv_spatial.js:fb', 'oznaceni', {
+                                    n: oz.length, oz: oz, akt: ae ? (ae.tagName + ':' + (ae.getAttribute('role') || '')) : '',
+                                    jeAkt: ae === el, namigi: document.querySelectorAll('[role=tooltip]').length,
+                                    obroc: (document.getElementById('safeer-focus-target-ring') || {}).className || '' });
+                            } catch (_) {}
+                        }, 400);
+                    } catch (_) {}
+                }
                 // #region agent log
                 try {
                     window._safeerDbgHlN = (window._safeerDbgHlN || 0) + 1;
