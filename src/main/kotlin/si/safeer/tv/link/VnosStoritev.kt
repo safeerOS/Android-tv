@@ -272,6 +272,13 @@ class VnosStoritev : AccessibilityService() {
                 return
             }
 
+            // Ne prekrivamo tipk na virtualni tipkovnici (IME ima lasten TV fokus, naš overlay ne sme motiti tipkanja)
+            val vozliscePaket = vozlisce.packageName?.toString().orEmpty()
+            if (vozliscePaket.contains("inputmethod") || vozliscePaket.contains("latin") || jeFokusVTipkovnici()) {
+                skrijFokusOverlay()
+                return
+            }
+
             val r = Rect()
             vozlisce.getBoundsInScreen(r)
             val sirina = r.width()
@@ -359,11 +366,11 @@ class VnosStoritev : AccessibilityService() {
             }
         }
 
-        // 2. Križec DOL: če ima fokus vnosno polje ali je odprta tipkovnica, skrij tipkovnico in fokusiraj rezultate spodaj
+        // 2. Križec DOL: samo če je fokus neposredno v vnosnem polju (uporabnik je na iskalni vrstici, ne v tipkovnici),
+        // skrij tipkovnico in fokusiraj rezultate spodaj. Če pa je fokus v sami tipkovnici (pisanje črk), ne prestrezamo!
         if (k == android.view.KeyEvent.KEYCODE_DPAD_DOWN) {
             val polje = vnosnoPolje()
-            val tipkovnica = jeTipkovnicaOdprta()
-            if (polje != null || tipkovnica) {
+            if (polje != null && !jeFokusVTipkovnici()) {
                 if (event.action == android.view.KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
                     zapriTipkovnico()
                     if (premakniFokus("down", polje)) return true
@@ -388,6 +395,18 @@ class VnosStoritev : AccessibilityService() {
     private fun jeTipkovnicaOdprta(): Boolean {
         return try {
             windows.any { it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD }
+        } catch (_: Throwable) { false }
+    }
+
+    private fun jeFokusVTipkovnici(): Boolean {
+        return try {
+            val aktivno = windows.firstOrNull { it.isFocused }
+            if (aktivno != null && aktivno.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD) {
+                return true
+            }
+            val imeOkno = windows.firstOrNull { it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD }
+            val imeKoren = imeOkno?.root
+            imeKoren != null && (imeKoren.findFocus(AccessibilityNodeInfo.FOCUS_INPUT) != null || imeKoren.findFocus(AccessibilityNodeInfo.FOCUS_ACCESSIBILITY) != null)
         } catch (_: Throwable) { false }
     }
 
