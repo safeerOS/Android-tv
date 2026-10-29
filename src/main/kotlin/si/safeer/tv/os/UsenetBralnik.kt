@@ -29,25 +29,30 @@ object UsenetBralnik {
     data class Profil(val okno: Long, val zacetno: Long, val lru: Long, val vzporedno: Int)
 
     /**
-     * Lastnik 28. 10. 2026: skladba albuma (zvok, nekaj MB/min) - album drzi do AlbumIzvor.NAJVEC_ODPRTIH skladb hkrati
-     * (prej 5 x 32 MiB na TV = OutOfMemoryError po preklopih).
-     * 29. 10. 2026: ko se naslednja skladba predvaja (ze na manj kot polovici), se prejsnja skladba izbrise iz pomnilnika;
-     * ker ni vec 5 skladb v RAM (AlbumIzvor.NAJVEC_ODPRTIH = 2), je okno vnaprej za visoko-bitne skladbe (npr. 96 kHz 24-bit FLAC)
-     * razsirjeno na 24 MiB (zacetno 4 MiB, predpomnilnik 32 MiB), kar preprecuje stradanje medpomnilnika in prekinitve predvajanja.
+     * Lastnik 29. 10. 2026: za video in glasbeno vsebino okno vnaprej 60 MiB (zacetno 4 MiB, predpomnilnik 64 MiB),
+     * kar zagotavlja nemoteno gledanje in poslusanje vsebine ter sprotno nalaganje toka.
      */
+    fun profilVidea(p: Profil): Profil =
+        Profil(
+            okno = maxOf(p.okno, 60 * MIB),
+            zacetno = maxOf(p.zacetno, 4 * MIB),
+            lru = maxOf(p.lru, 64 * MIB),
+            vzporedno = maxOf(4, p.vzporedno)
+        )
+
     fun profilAlbuma(p: Profil): Profil =
         Profil(
-            okno = if (p.okno <= 8 * MIB) 24 * MIB else maxOf(p.okno, 24 * MIB),
-            zacetno = 4 * MIB,
-            lru = if (p.okno <= 8 * MIB) 32 * MIB else maxOf(p.lru, 48 * MIB),
+            okno = maxOf(p.okno, 60 * MIB),
+            zacetno = maxOf(p.zacetno, 4 * MIB),
+            lru = maxOf(p.lru, 64 * MIB),
             vzporedno = maxOf(4, p.vzporedno)
         )
 
     /** Po profilu naprave (skupni primeri tok_profili; enako na namizju). */
     val PROFILI: Map<String, Profil> = linkedMapOf(
-        "tv" to Profil(8 * MIB, 1 * MIB, 32 * MIB, 4),
-        "telefon" to Profil(8 * MIB, 1 * MIB, 48 * MIB, 6),
-        "namizje" to Profil(16 * MIB, 1 * MIB, 96 * MIB, 8),
+        "tv" to Profil(60 * MIB, 4 * MIB, 64 * MIB, 4),
+        "telefon" to Profil(60 * MIB, 4 * MIB, 64 * MIB, 6),
+        "namizje" to Profil(60 * MIB, 4 * MIB, 96 * MIB, 8),
     )
 
     /** Okno vnaprej: dvakratnik zaporedno prebranega od zadnjega skoka, najmanj [zacetno], najvec [najvec]. */

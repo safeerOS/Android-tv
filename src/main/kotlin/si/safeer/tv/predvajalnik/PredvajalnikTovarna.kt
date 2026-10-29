@@ -58,11 +58,10 @@ object PredvajalnikTovarna {
             .setBufferDurationsMs(1_500, 12_000, 800, 1_500)
             .setPrioritizeTimeOverSizeThresholds(true)
             .build()
-        Profil.GLASBA -> DefaultLoadControl.Builder()
+        Profil.GLASBA, Profil.FILM -> DefaultLoadControl.Builder()
             .setBufferDurationsMs(20_000, 60_000, 2_000, 2_500)
             .setPrioritizeTimeOverSizeThresholds(true)
             .build()
-        Profil.FILM -> null
     }
 
     @Volatile private var zmogljivostPredpomnjena: Zmogljivost? = null
