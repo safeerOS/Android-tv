@@ -224,7 +224,7 @@ object DomacaLupa {
      * false, gre iskanje naprej kot doslej (naslov v Splet, drugo v Medijski center).
      */
     fun prevzemi(a: Activity, polje: EditText, okvir: ViewGroup, kompaktno: Boolean = false, umakni: List<View> = emptyList(),
-                 prednost: ((String) -> Boolean)? = null, prazno: () -> Unit) {
+                 prednost: ((String) -> Boolean)? = null, zMikrofonom: Boolean = true, prazno: () -> Unit) {
         val dp = { v: Int -> dp(a, v) }
         polje.hint = a.getString(R.string.os_lupa_namig)
         polje.tag = OZNAKA_POLJA
@@ -240,11 +240,11 @@ object DomacaLupa {
                 true
             } else false
         }
-        if (polje.layoutParams is LinearLayout.LayoutParams) {
+        if (polje.layoutParams is LinearLayout.LayoutParams && zMikrofonom) {
             // Polje je bilo match_parent: zdaj deli vrstico z mikrofonom.
             polje.layoutParams = (polje.layoutParams as LinearLayout.LayoutParams).apply { width = 0; weight = 1f }
         }
-        if (okvir.findViewWithTag<View>("k:domaca_lupa_glas") == null) {
+        if (zMikrofonom && okvir.findViewWithTag<View>("k:domaca_lupa_glas") == null) {
             val mikrofon = ImageButton(a).apply {
                 setImageResource(R.drawable.os_ikona_mikrofon)
                 contentDescription = a.getString(R.string.os_lupa_glas)

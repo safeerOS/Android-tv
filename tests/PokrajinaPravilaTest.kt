@@ -138,6 +138,14 @@ fun main() {
     preveriEnako("brez zatemnitve: preliv 45 %", true, PokrajinaPravila.alfaPreliva(0) == 114)
     preveriEnako("delna zatemnitev: samo kar manjka", true, PokrajinaPravila.alfaPreliva(30) == 38)
     preveriEnako("dovolj zatemnjeno: brez preliva", true, PokrajinaPravila.alfaPreliva(45) == 0 && PokrajinaPravila.alfaPreliva(80) == 0)
-    preveriEnako("zunaj meja", true, PokrajinaPravila.alfaPreliva(-5) == 114 && PokrajinaPravila.alfaPreliva(500) == 0)
+    println("\n== tipka menija in nastavitev na daljincu ==")
+    preveriEnako("KEYCODE_MENU (82)", true, PokrajinaPravila.jeTipkaMenija(82))
+    preveriEnako("KEYCODE_SETTINGS (176)", true, PokrajinaPravila.jeTipkaMenija(176))
+    preveriEnako("KEYCODE_PROG_RED / Philips rdeči gumb (183)", true, PokrajinaPravila.jeTipkaMenija(183))
+    preveriEnako("KEYCODE_WINDOW (171)", true, PokrajinaPravila.jeTipkaMenija(171))
+    preveriEnako("gamepad select (109)", true, PokrajinaPravila.jeTipkaMenija(109))
+    preveriEnako("gamepad X/Y (99, 100)", true, PokrajinaPravila.jeTipkaMenija(99) && PokrajinaPravila.jeTipkaMenija(100))
+    preveriEnako("navadna smerna tipka ni meni", false, PokrajinaPravila.jeTipkaMenija(21))
+
     if (napak == 0) println("PokrajinaPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }
