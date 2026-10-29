@@ -42,7 +42,9 @@ data class TabModel(
     /** Zavihek je nastal kot pojavno okno (prijava); Nazaj ga zapre, ne pelje na prazno stran. */
     var jePojavni: Boolean = false,
     /** Zavihek, ki je to okno odprl - tja se vrnemo, ko ga zapremo. */
-    var odpiralec: String? = null
+    var odpiralec: String? = null,
+    /** Prilagojena namizna sirina (npr. 1280 za spletne aplikacije na TV). 0 = privzeto. */
+    var namiznaSirina: Int = 0
 )
 
 /**
@@ -176,14 +178,23 @@ class TabManager(
         }
     }
 
-    fun createTab(context: Context, url: String = "https://www.google.com", makeActive: Boolean = true): TabModel {
+    fun createTab(
+        context: Context,
+        url: String = "https://www.google.com",
+        makeActive: Boolean = true,
+        namiznaSirina: Int = 0
+    ): TabModel {
         sprostiProstor()
         val webView = ustvariPogled(context)
+        if (namiznaSirina > 0) {
+            webView.namiznaSirina = namiznaSirina
+        }
 
         val tab = TabModel(
             webView = webView,
             title = "Nov zavihek",
-            url = url
+            url = url,
+            namiznaSirina = namiznaSirina
         )
 
         tabs.add(tab)
@@ -358,6 +369,9 @@ class TabManager(
         tab.webView = w
         tab.pogledSvez = false
         try {
+            if (tab.namiznaSirina > 0) {
+                w.namiznaSirina = tab.namiznaSirina
+            }
             w.isDesktopMode = tab.isDesktop
             w.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true)
             w.onResume()
