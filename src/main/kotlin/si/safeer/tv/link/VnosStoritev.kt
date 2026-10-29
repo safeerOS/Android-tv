@@ -371,28 +371,10 @@ class VnosStoritev : AccessibilityService() {
             }
         }
 
-        // 1. Ko uporabnik sproži iskanje (ENTER ali SEARCH):
+        // 1. Ko uporabnik sproži iskanje (ENTER ali SEARCH): zapri tipkovnico
         if (k == android.view.KeyEvent.KEYCODE_SEARCH || k == android.view.KeyEvent.KEYCODE_ENTER) {
             if (event.action == android.view.KeyEvent.ACTION_DOWN) {
-                val polje = vnosnoPolje()
-                if (polje != null || jeTipkovnicaOdprta()) {
-                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                        zapriTipkovnico()
-                        premakniFokus("down", polje)
-                    }, 350)
-                }
-            }
-        }
-
-        // 2. Križec DOL: samo če je fokus neposredno v vnosnem polju (uporabnik je na iskalni vrstici, ne v tipkovnici),
-        // skrij tipkovnico in fokusiraj rezultate spodaj. Če pa je fokus v sami tipkovnici (pisanje črk), ne prestrezamo!
-        if (k == android.view.KeyEvent.KEYCODE_DPAD_DOWN) {
-            val polje = vnosnoPolje()
-            if (polje != null && !jeFokusVTipkovnici()) {
-                if (event.action == android.view.KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
-                    zapriTipkovnico()
-                    if (premakniFokus("down", polje)) return true
-                }
+                zapriTipkovnico()
             }
         }
 
