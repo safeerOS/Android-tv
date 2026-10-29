@@ -31,9 +31,10 @@ object UsenetBralnik {
     /**
      * Lastnik 28. 10. 2026: skladba albuma (zvok, nekaj MB/min) - manjse okno in predpomnilnik kot film; album drzi do
      * AlbumIzvor.NAJVEC_ODPRTIH skladb hkrati (prej 5 x 32 MiB na TV = OutOfMemoryError po preklopih).
+     * 29. 10. 2026: za visoko-bitne skladbe (npr. 96 kHz 24-bit FLAC) okno 8 MiB in 4 vzporedna branja preprecujejo stradanje medpomnilnika.
      */
     fun profilAlbuma(p: Profil): Profil =
-        p.copy(okno = minOf(p.okno, 4 * MIB), lru = minOf(p.lru, 12 * MIB), vzporedno = minOf(p.vzporedno, 3))
+        p.copy(okno = minOf(p.okno, 8 * MIB), lru = minOf(p.lru, 12 * MIB), vzporedno = minOf(p.vzporedno, 4))
 
     /** Po profilu naprave (skupni primeri tok_profili; enako na namizju). */
     val PROFILI: Map<String, Profil> = linkedMapOf(
