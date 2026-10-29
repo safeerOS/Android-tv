@@ -5667,6 +5667,14 @@ class GlasbaActivity : OsActivity() {
             }
             return true
         }
+        if (dogodek.action == KeyEvent.ACTION_DOWN && dogodek.keyCode == KeyEvent.KEYCODE_DPAD_DOWN && dogodek.repeatCount >= 1) {
+            val p = zdajGumb ?: if (vrstica.visibility == View.VISIBLE) vrstica else pPredvajaj
+            if (p != null && p.isShown) {
+                p.requestFocus()
+                pogoltniGor = KeyEvent.KEYCODE_DPAD_DOWN
+                return true
+            }
+        }
         if (dogodek.action == KeyEvent.ACTION_UP && dogodek.keyCode == pogoltniGor) { pogoltniGor = -1; return true }
         return super.dispatchKeyEvent(dogodek)
     }
@@ -10832,7 +10840,7 @@ class GlasbaActivity : OsActivity() {
             KeyEvent.KEYCODE_MEDIA_PREVIOUS -> { GlasbaStoritev.prejsnja(); return true }
             KeyEvent.KEYCODE_MEDIA_STOP -> { GlasbaStoritev.ustavi(this); return true }
             KeyEvent.KEYCODE_SEARCH -> { odpriIskanje(""); return true }
-            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> { event?.startTracking() }
+            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_DPAD_DOWN -> { event?.startTracking() }
             KeyEvent.KEYCODE_MENU, KeyEvent.KEYCODE_BUTTON_X, KeyEvent.KEYCODE_BUTTON_Y -> {
                 val f = currentFocus
                 if (f != null && f.performLongClick()) return true
@@ -10845,6 +10853,13 @@ class GlasbaActivity : OsActivity() {
         if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
             val f = currentFocus
             if (f != null && f.performLongClick()) return true
+        }
+        if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+            val p = zdajGumb ?: if (vrstica.visibility == View.VISIBLE) vrstica else pPredvajaj
+            if (p != null && p.isShown) {
+                p.requestFocus()
+                return true
+            }
         }
         return super.onKeyLongPress(keyCode, event)
     }
