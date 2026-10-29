@@ -443,6 +443,11 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                     val siroka = zvokVOzadju || si.safeer.tv.os.OsPravila.sirokaAplikacijaNaTv(
                         si.safeer.tv.os.Naprava.jeTelevizor(this), zacetni)
                     if (siroka) { t.webView?.namiznaSirina = 1280; t.webView?.loadUrl(zacetni) }
+                    // Lastnik 29. 10. 2026: Facebook ni narejen za daljinec - daljinec v njem deluje kot miska.
+                    if (si.safeer.tv.os.OsPravila.miskaZaAplikacijo(si.safeer.tv.os.Naprava.jeTelevizor(this), zacetni)) {
+                        virtualPointerView.trajen = true
+                        virtualPointerView.isPointerVisible = true
+                    }
                 }.id
             } catch (_: Throwable) { null }
             if (zavihekAplikacije == null) odpriVZavihku(zacetni)
@@ -483,6 +488,10 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         zapomniMestoAplikacije(bila)
         nacinAplikacije = null
         zvokVOzadju = false
+        if (virtualPointerView.trajen) {
+            virtualPointerView.trajen = false
+            virtualPointerView.isPointerVisible = false
+        }
         zavihekAplikacije?.let { id ->
             zavihekAplikacije = null
             try { tabManager.closeTab(this, id) } catch (_: Throwable) { }

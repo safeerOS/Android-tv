@@ -31,6 +31,12 @@ private val PRIMERI = listOf(
     Primer("https://scorecardresearch.com/beacon.js", true, "scorecardresearch"),
     Primer("https://mc.yandex.ru/watch/1", true, "yandex metrika"),
 
+    // --- oglasna omrezja in sledilci Meta ---
+    Primer("https://an.facebook.com/sdk.js", true, "meta audience network"),
+    Primer("https://pixel.facebook.com/tracker", true, "meta pixel domena"),
+    Primer("https://connect.facebook.net/en_US/fbevents.js", true, "meta fbevents skripta"),
+    Primer("https://www.facebook.com/tr/?id=123", true, "meta pixel sledilna pot /tr/"),
+
     // --- pojavna in podtaknjena okna: tega ne smemo izgubiti ---
     Primer("https://popads.net/pop.js", true, "popads"),
     Primer("https://popcash.net/p.js", true, "popcash"),
@@ -70,6 +76,8 @@ private val PRIMERI = listOf(
     Primer("https://image.tmdb.org/t/p/w500/a.jpg", false, "plakati TMDB"),
     Primer("https://core.example-cdn.net/seg1.ts", false, "segment videa"),
     Primer("https://rr1---sn-abc.googlevideo.com/videoplayback?id=1", false, "video tok"),
+    Primer("https://www.facebook.com/messages/t/1", false, "facebook klepet"),
+    Primer("https://www.facebook.com/v19.0/dialog/oauth?client_id=x", false, "facebook prijava"),
 
     // --- video tok, ki je v resnici oglas ---
     Primer("https://rr1---sn-abc.googlevideo.com/videoplayback?id=1&oad=1", true, "oglasni video tok"),

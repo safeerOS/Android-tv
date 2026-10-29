@@ -112,7 +112,8 @@ object AdBlockEngine {
         "/pcs/activeview", "/pagead/adview", "/pagead/interaction",
         "/ads.js", "/ad.js", "/adservice.", "/pixel.", "collect?v=",
         "/metrika", "/tag.js", "/monetag/", "/popunder",
-        "disable-devtool", "devtools-detector"
+        "disable-devtool", "devtools-detector",
+        "/fbevents.js", "facebook.com/tr/", "facebook.com/tr?"
     )
 
     private val TRUSTED_AD_PATHS = listOf(
@@ -169,6 +170,9 @@ object AdBlockEngine {
             "pubmatic.com", "openx.net", "smartadserver.com", "bidswitch.net", "casalemedia.com",
             "scorecardresearch.com", "quantserve.com", "hotjar.com", "clarity.ms",
             "adnxs.com", "creativecdn.com", "trafficstars.com",
+            // Oglasna omrezja in sledilci druzbe Meta (Facebook, Instagram, Audience Network, Pixel)
+            "an.facebook.com", "pixel.facebook.com", "analytics.facebook.com", "ads.facebook.com",
+            "ads.instagram.com",
             // Video oglasi in sledilci (seznam iz m6-adblock, MIT, Frederic Guiose)
             "stickyadstv.com", "videoplaza.tv", "tealiumiq.com", "tiqcdn.com", "gemius.pl", "kameleoon.com", "kameleoon.eu", "tagcommander.com", "commander1.com", "bttrack.com", "criteo.net", "nr-data.net",
             "trafficjunky.com", "trafficjunky.net", "traffichaus.com", "trafficfactory.biz",

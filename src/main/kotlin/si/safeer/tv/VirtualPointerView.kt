@@ -5,6 +5,7 @@ import android.content.Context
 import android.graphics.*
 import android.os.SystemClock
 import android.util.AttributeSet
+import android.view.InputDevice
 import android.view.MotionEvent
 import android.view.View
 import android.webkit.WebView
@@ -24,6 +25,16 @@ class VirtualPointerView @JvmOverloads constructor(
             field = value
             visibility = if (value) VISIBLE else GONE
             invalidate()
+        }
+
+    /**
+     * Nacin miske za spletne aplikacije, ki niso narejene za daljinec: kazalec se ne skrije sam
+     * in strani sporoca premike kot prava miska (lebdenje), da se meniji in namigi vedejo kot na racunalniku.
+     */
+    var trajen: Boolean = false
+        set(value) {
+            field = value
+            removeCallbacks(hideRunnable)
         }
 
     private val pointerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -77,7 +88,7 @@ class VirtualPointerView @JvmOverloads constructor(
     fun movePointer(dx: Float, dy: Float, targetWebView: WebView?): Boolean {
         isPointerVisible = true
         removeCallbacks(hideRunnable)
-        postDelayed(hideRunnable, 30000)
+        if (!trajen) postDelayed(hideRunnable, 30000)
 
         val newX = max(10f, min(width - 10f, pointerX + dx))
         val newY = max(10f, min(height - 10f, pointerY + dy))
@@ -96,8 +107,32 @@ class VirtualPointerView @JvmOverloads constructor(
             } else if (pointerY > bottomThreshold) {
                 targetWebView.scrollBy(0, 120)
             }
+            if (trajen) posljiLebdenje(targetWebView)
         }
         return true
+    }
+
+    /** Polozaj kazalca v koordinatah spletnega pogleda. */
+    private fun naPogledu(wv: WebView): Pair<Float, Float> {
+        val pogled = IntArray(2)
+        val jaz = IntArray(2)
+        wv.getLocationOnScreen(pogled)
+        getLocationOnScreen(jaz)
+        return Pair(pointerX + jaz[0] - pogled[0], pointerY + jaz[1] - pogled[1])
+    }
+
+    /** Premik miske (lebdenje): stran dobi mouseover/mousemove kot pri pravi miski. */
+    private fun posljiLebdenje(wv: WebView) {
+        try {
+            val (x, y) = naPogledu(wv)
+            val cas = SystemClock.uptimeMillis()
+            val lastnosti = arrayOf(MotionEvent.PointerProperties().apply { id = 0; toolType = MotionEvent.TOOL_TYPE_MOUSE })
+            val koordinate = arrayOf(MotionEvent.PointerCoords().apply { this.x = x; this.y = y })
+            val dogodek = MotionEvent.obtain(cas, cas, MotionEvent.ACTION_HOVER_MOVE, 1, lastnosti, koordinate,
+                0, 0, 1f, 1f, 0, 0, InputDevice.SOURCE_MOUSE, 0)
+            wv.dispatchGenericMotionEvent(dogodek)
+            dogodek.recycle()
+        } catch (_: Throwable) { }
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -108,11 +143,7 @@ class VirtualPointerView @JvmOverloads constructor(
         }
 
         // Izračunaj relativne koordinate na WebViewu
-        val location = IntArray(2)
-        targetWebView.getLocationOnScreen(location)
-
-        val wvX = pointerX - location[0]
-        val wvY = pointerY - location[1]
+        val (wvX, wvY) = naPogledu(targetWebView)
 
         val downTime = SystemClock.uptimeMillis()
         val eventTime = SystemClock.uptimeMillis()
