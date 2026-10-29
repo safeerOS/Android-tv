@@ -150,8 +150,10 @@ class GlasbaActivity : OsActivity() {
     private lateinit var zdajNaslov: TextView
     private lateinit var zdajIzvajalec: TextView
     private lateinit var zdajCas: TextView
-    /** Na dotik: pravi gumb pavza/predvajaj v mali vrstici (znak ▶ se ni dal tapniti). */
+    /** Gumbi v mali vrstici: prejsnja, pavza/predvajaj, naslednja (dostopni z dotikom ali D-padom). */
     private var zdajGumb: FrameLayout? = null
+    private var zdajPrejsnja: FrameLayout? = null
+    private var zdajNaslednja: FrameLayout? = null
     private var razdelek = DOMOV
     private var nalaganje = 0
     /** Zadnje nefiltrirane police; dialog mora ponuditi tudi trenutno izklopljen jezik. */
@@ -880,12 +882,24 @@ class GlasbaActivity : OsActivity() {
         vrstica.addView(besedila, LinearLayout.LayoutParams(0, -2, 1f))
         zdajCas = besedilo(14f, osBarva(R.color.os_mint))
         vrstica.addView(zdajCas)
-        if (!Naprava.jeTelevizor(this@GlasbaActivity)) {
-            zdajCas.visibility = View.GONE
-            zdajGumb = gumb(R.drawable.os_ikona_pavza, 44, "k:mala-pavza") {
-                GlasbaStoritev.preklopi(); osveziZdaj()
-            }.also { g -> g.contentDescription = getString(R.string.os_mediji_predvajaj_pavza); vrstica.addView(g) }
+        val gumbiVrstice = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
         }
+        val prejsnjaGumb = gumb(R.drawable.os_ikona_prejsnja, 38, "k:mala-prejsnja") {
+            GlasbaStoritev.prejsnja()
+        }.also { g -> g.contentDescription = getString(R.string.os_mediji_prejsnja); gumbiVrstice.addView(g) }
+        zdajPrejsnja = prejsnjaGumb
+
+        zdajGumb = gumb(R.drawable.os_ikona_pavza, 44, "k:mala-pavza") {
+            GlasbaStoritev.preklopi(); osveziZdaj()
+        }.also { g -> g.contentDescription = getString(R.string.os_mediji_predvajaj_pavza); gumbiVrstice.addView(g) }
+
+        val naslednjaGumb = gumb(R.drawable.os_ikona_naslednja, 38, "k:mala-naslednja") {
+            GlasbaStoritev.naslednja()
+        }.also { g -> g.contentDescription = getString(R.string.os_mediji_naslednja); gumbiVrstice.addView(g) }
+        zdajNaslednja = naslednjaGumb
+
+        vrstica.addView(gumbiVrstice, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(12) })
         desno.addView(vrstica, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
 
         // Tipke daljinca samo na televizorju; tablica se upravlja z dotikom.
