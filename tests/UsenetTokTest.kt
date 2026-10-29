@@ -478,7 +478,9 @@ private fun albumOkno() {
             if (c.responseCode == 206 && c.inputStream.readBytes().contentEquals(par.second.beri(0, 1000))) dobri++
         }
         enako("8 skladb prek enega streznika, bajti enaki", 8, dobri)
-        enako("odprtih bralnikov najvec 5", AlbumIzvor.NAJVEC_ODPRTIH, izvor.odprtih)
+        enako("odprtih bralnikov najvec 2", AlbumIzvor.NAJVEC_ODPRTIH, izvor.odprtih)
+        izvor.pocistiPrejsnje(5)
+        enako("pocistiPrejsnje zapre starejse skladbe", true, izvor.odprtih <= 2)
         enako("zaprta skladba se pripravi znova", 206, http(s.urlSkladbe(0), 0, 99).responseCode)
         enako("neobstojeca skladba 404", 404, http(s.urlSkladbe(0).replace("/0/", "/99/"), 0, 9).responseCode)
         preveri("naslov skladbe brez imena izdaje", "Skladba" !in s.urlSkladbe(3))

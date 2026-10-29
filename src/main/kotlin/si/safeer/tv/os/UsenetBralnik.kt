@@ -29,12 +29,19 @@ object UsenetBralnik {
     data class Profil(val okno: Long, val zacetno: Long, val lru: Long, val vzporedno: Int)
 
     /**
-     * Lastnik 28. 10. 2026: skladba albuma (zvok, nekaj MB/min) - manjse okno in predpomnilnik kot film; album drzi do
-     * AlbumIzvor.NAJVEC_ODPRTIH skladb hkrati (prej 5 x 32 MiB na TV = OutOfMemoryError po preklopih).
-     * 29. 10. 2026: za visoko-bitne skladbe (npr. 96 kHz 24-bit FLAC) okno 8 MiB in 4 vzporedna branja preprecujejo stradanje medpomnilnika.
+     * Lastnik 28. 10. 2026: skladba albuma (zvok, nekaj MB/min) - album drzi do AlbumIzvor.NAJVEC_ODPRTIH skladb hkrati
+     * (prej 5 x 32 MiB na TV = OutOfMemoryError po preklopih).
+     * 29. 10. 2026: ko se naslednja skladba predvaja (ze na manj kot polovici), se prejsnja skladba izbrise iz pomnilnika;
+     * ker ni vec 5 skladb v RAM (AlbumIzvor.NAJVEC_ODPRTIH = 2), je okno vnaprej za visoko-bitne skladbe (npr. 96 kHz 24-bit FLAC)
+     * razsirjeno na 24 MiB (zacetno 4 MiB, predpomnilnik 32 MiB), kar preprecuje stradanje medpomnilnika in prekinitve predvajanja.
      */
     fun profilAlbuma(p: Profil): Profil =
-        p.copy(okno = minOf(p.okno, 8 * MIB), lru = minOf(p.lru, 12 * MIB), vzporedno = minOf(p.vzporedno, 4))
+        Profil(
+            okno = if (p.okno <= 8 * MIB) 24 * MIB else maxOf(p.okno, 24 * MIB),
+            zacetno = 4 * MIB,
+            lru = if (p.okno <= 8 * MIB) 32 * MIB else maxOf(p.lru, 48 * MIB),
+            vzporedno = maxOf(4, p.vzporedno)
+        )
 
     /** Po profilu naprave (skupni primeri tok_profili; enako na namizju). */
     val PROFILI: Map<String, Profil> = linkedMapOf(
@@ -104,7 +111,7 @@ object UsenetBralnik {
         private val zaklep = ReentrantLock()
         private val pogoj = zaklep.newCondition()
         /** LRU mora drzati vsaj okno in segment ob njem, sicer bi branje vnaprej izrinilo samo sebe. */
-        val lruMeja: Long = maxOf(profil.lru, 2 * profil.okno + 8 * MIB)
+        val lruMeja: Long = maxOf(profil.lru, profil.okno + 4 * MIB)
         private val lru = LinkedHashMap<Kljuc, ByteArray>(64, 0.75f, true)
         @Volatile var lruBajtov = 0L; private set
         private val vTeku = HashMap<Kljuc, CompletableFuture<ByteArray>>()
