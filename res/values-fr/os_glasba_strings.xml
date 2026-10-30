@@ -206,6 +206,8 @@
     <string name="os_media_napaka_splosno">La lecture s\'est arrêtée à cause d\'une erreur.</string>
     <string name="os_media_napaka_naslednja">Impossible de lire « %1$s » – lecture du suivant.</string>
     <string name="os_media_ni_dekoderja_slike">Cet appareil ne peut pas afficher l\'image de cette vidéo (%1$s). Lisez-la sur un téléviseur ou un ordinateur.</string>
+    <string name="os_media_napacen_posnetek_drug">La vidéo dure %1$s, le film %2$s – probablement pas le bon film. Essai d\'une autre source.</string>
+    <string name="os_media_napacen_posnetek">La vidéo dure %1$s, le film %2$s – probablement pas le bon film. Aucune autre source.</string>
     <string name="os_media_ni_dekoderja_zvoka">Cet appareil ne peut pas lire le son de cette vidéo (%1$s).</string>
 
     <!-- Dodatki (Stremio): uporabnik vnese naslove SVOJIH dodatkov; Safeer ne prilaga katalogov. -->

@@ -1254,6 +1254,31 @@ object OsPravila {
      * seznam jezika.
      */
     /**
+     * Lastnik 30. 10. 2026: pri slovenskem filmu »Preboj« (tt11006500, 90 min) je dodatek dal torrente ameriskega
+     * »Breakthrough« (2019, 116 min) - isti angleski naslov in leto. Posnetek, ki je od filma daljsi ali krajsi za vec
+     * kot 20 min in vec kot cetrtino, skoraj gotovo ni ta film. Kratki filmi (pod 40 min) in neznana dolzina: ne vemo.
+     */
+    fun trajanjeNeUstreza(posnetekMs: Long, filmMinut: Int): Boolean {
+        if (filmMinut < 40 || posnetekMs <= 0) return false
+        val razlika = kotlin.math.abs(posnetekMs / 60_000.0 - filmMinut)
+        return razlika > maxOf(20.0, filmMinut * 0.25)
+    }
+
+    /** Dolzina filma iz Cinemete (»90 min«, »1h 30min«, »2 h«); null = ne vemo. */
+    fun minutIzOpisa(runtime: String?): Int? {
+        val t = runtime?.lowercase()?.trim().orEmpty()
+        if (t.isEmpty()) return null
+        val ure = Regex("(\\d+)\\s*h").find(t)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+        val minute = Regex("(\\d+)\\s*m").find(t)?.groupValues?.get(1)?.toIntOrNull()
+            ?: if (ure == 0) t.toIntOrNull() else 0
+        val skupaj = ure * 60 + (minute ?: 0)
+        return skupaj.takeIf { it in 1..600 }
+    }
+
+    /** »1 h 56 min« / »56 min« za sporocilo. */
+    fun napisTrajanja(minut: Int): String = if (minut >= 60) "${minut / 60} h ${minut % 60} min" else "$minut min"
+
+    /**
      * Ali Safeer TV Browser ob povezavi ponudi vgrajeni brskalnik Safeer OS: samo, ce je povezavo odprla druga
      * aplikacija (prijava iz Claude ipd.), ne Safeer sam (brskalnik ali Safeer OS) in ne neznan izvor.
      */

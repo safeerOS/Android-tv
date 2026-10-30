@@ -167,6 +167,35 @@ class GlasbaStoritev : Service() {
         brezDekoderja = kljuc
     }
 
+    /** Id posnetka, cigar dolzino smo ze preverili (ena preverba na posnetek). */
+    private var trajanjePreverjeno = ""
+
+    /**
+     * Film z IMDb: dolzina posnetka proti dolzini filma (Cinemeta). Ce se ne ujemata, je dodatek dal napacen paket
+     * (lastnik 30. 10. 2026, »Preboj«): naslednji rezervni vir od zacetka, sicer opozorilo.
+     */
+    private fun preveriTrajanje(p: Player) {
+        val s = trenutna() ?: return
+        if (!s.video || s.radio || s.mediaType != "movie" || s.imdbId.isBlank()) return
+        if (trajanjePreverjeno == s.id) return
+        val dolzina = p.duration
+        if (dolzina <= 0 || dolzina == androidx.media3.common.C.TIME_UNSET) return
+        trajanjePreverjeno = s.id
+        val imdb = s.imdbId
+        Thread {
+            val film = TrajanjeFilma.minut(imdb) ?: return@Thread
+            if (!OsPravila.trajanjeNeUstreza(dolzina, film)) return@Thread
+            android.os.Handler(mainLooper).post {
+                if (trenutna()?.id != s.id) return@post
+                val posnetek = OsPravila.napisTrajanja((dolzina / 60_000).toInt())
+                val pravi = OsPravila.napisTrajanja(film)
+                Log.i("SafeerOsMedia", "napacen posnetek: traja $posnetek, film $pravi")
+                if (drugVirOd(this, 0)) obvesti(getString(R.string.os_media_napacen_posnetek_drug, posnetek, pravi))
+                else obvesti(getString(R.string.os_media_napacen_posnetek, posnetek, pravi))
+            }
+        }.apply { isDaemon = true }.start()
+    }
+
     private fun obvesti(besedilo: String) {
         android.os.Handler(mainLooper).post {
             android.widget.Toast.makeText(applicationContext, besedilo, android.widget.Toast.LENGTH_LONG).show()
@@ -231,6 +260,7 @@ class GlasbaStoritev : Service() {
             override fun onPlaybackStateChanged(playbackState: Int) {
                 // Naloga 95: kanal v zivo, ki mu streznik zapre povezavo, se poveze znova (zaslon predvajanja ostane).
                 if (playbackState == Player.STATE_ENDED) { if (!ponoviVZivo(p, "konec toka")) poKoncu() } else osvezi()
+                if (playbackState == Player.STATE_READY) preveriTrajanje(p)
             }
             override fun onPlayerError(error: PlaybackException) {
                 // Pokvarjena skladba ne sme ustaviti vsega: naprej na naslednjo, ce obstaja. Uporabnik
