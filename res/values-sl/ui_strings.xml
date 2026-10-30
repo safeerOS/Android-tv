@@ -45,6 +45,9 @@
   <string name="ui_search_hint">Iščite na Google ali vnesite naslov…</string>
   <string name="ui_quick_sites">🔍 Hitri TV portali…</string>
   <string name="ui_pointer_on">🖱️ Kazalec TV vklopljen</string>
+  <string name="ui_pointer_drag">Vlečenje: puščice premikajo, OK spusti</string>
+  <string name="ui_odpri_povezavo_v">Odpri povezavo v</string>
+  <string name="ui_vgrajeni_brskalnik_os">Safeer OS (vgrajeni brskalnik)</string>
   <string name="ui_pointer_off">🖐️ Kazalec TV izklopljen</string>
   <string name="ui_dpad_on">🖐️ D-Pad način vklopljen</string>
   <string name="ui_background_audio">🌙 Zvok v ozadju (Zaslon ugasnjen)</string>

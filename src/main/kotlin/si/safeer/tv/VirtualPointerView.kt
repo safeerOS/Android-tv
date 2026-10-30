@@ -32,6 +32,15 @@ class VirtualPointerView @JvmOverloads constructor(
      * in strani sporoca premike kot prava miska (lebdenje), da se meniji in namigi vedejo kot na racunalniku.
      */
     var trajen: Boolean = false
+
+    /**
+     * Vlecenje z daljincem (lastnik 30. 10. 2026: varnostne preverbe »povleci obliko«, drsniki).
+     * Dolg pritisk OK zgrabi, puscice vlecejo, naslednji OK spusti. Kratek OK je klik ob spustu tipke.
+     */
+    var vlecem: Boolean = false
+        private set
+    var cakaKlik: Boolean = false
+    private var vlecenjeOd: Long = 0L
         set(value) {
             field = value
             removeCallbacks(hideRunnable)
@@ -75,8 +84,8 @@ class VirtualPointerView @JvmOverloads constructor(
         super.onDraw(canvas)
         if (!isPointerVisible) return
 
-        // 1. Zunanji krog z žarenjem (Glow Ring)
-        canvas.drawCircle(pointerX, pointerY, 18f, ringPaint)
+        // 1. Zunanji krog z žarenjem (Glow Ring); med vlecenjem vecji, da je jasno, da je nekaj zgrabljeno.
+        canvas.drawCircle(pointerX, pointerY, if (vlecem) 28f else 18f, ringPaint)
 
         // 2. Glavna pikica kazalca (Cyan Circle)
         canvas.drawCircle(pointerX, pointerY, 12f, pointerPaint)
@@ -88,7 +97,7 @@ class VirtualPointerView @JvmOverloads constructor(
     fun movePointer(dx: Float, dy: Float, targetWebView: WebView?): Boolean {
         isPointerVisible = true
         removeCallbacks(hideRunnable)
-        if (!trajen) postDelayed(hideRunnable, 30000)
+        if (!trajen && !vlecem) postDelayed(hideRunnable, 30000)
 
         val newX = max(10f, min(width - 10f, pointerX + dx))
         val newY = max(10f, min(height - 10f, pointerY + dy))
@@ -96,6 +105,12 @@ class VirtualPointerView @JvmOverloads constructor(
         pointerX = newX
         pointerY = newY
         invalidate()
+
+        if (vlecem && targetWebView != null) {
+            // Med vlecenjem stran ne drsi (premik bi se izgubil), dobi le premik prsta.
+            dotik(targetWebView, MotionEvent.ACTION_MOVE)
+            return true
+        }
 
         // Samodejno pomikanje (Auto-scroll) ko se kazalec približa vrhu ali dnu spletne strani
         if (targetWebView != null) {
@@ -133,6 +148,36 @@ class VirtualPointerView @JvmOverloads constructor(
             wv.dispatchGenericMotionEvent(dogodek)
             dogodek.recycle()
         } catch (_: Throwable) { }
+    }
+
+    private fun dotik(wv: WebView, dejanje: Int) {
+        try {
+            val (x, y) = naPogledu(wv)
+            val dogodek = MotionEvent.obtain(vlecenjeOd, SystemClock.uptimeMillis(), dejanje, x, y, 0)
+            wv.dispatchTouchEvent(dogodek)
+            dogodek.recycle()
+        } catch (_: Throwable) { }
+    }
+
+    /** Zgrabi na mestu kazalca (dotik dol). */
+    fun zacniVlecenje(wv: WebView) {
+        if (vlecem) return
+        isPointerVisible = true
+        removeCallbacks(hideRunnable)
+        vlecem = true
+        cakaKlik = false
+        vlecenjeOd = SystemClock.uptimeMillis()
+        dotik(wv, MotionEvent.ACTION_DOWN)
+        invalidate()
+    }
+
+    /** Spusti na mestu kazalca (dotik gor). */
+    fun koncajVlecenje(wv: WebView?) {
+        if (!vlecem) return
+        if (wv != null) dotik(wv, MotionEvent.ACTION_UP)
+        vlecem = false
+        if (!trajen) postDelayed(hideRunnable, 30000)
+        invalidate()
     }
 
     @SuppressLint("ClickableViewAccessibility")

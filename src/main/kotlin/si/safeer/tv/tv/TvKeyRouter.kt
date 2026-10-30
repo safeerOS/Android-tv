@@ -64,6 +64,14 @@ class TvKeyRouter(private val host: MainActivity) {
             if (handled) return true
         }
 
+        // Nacin miske: kratek OK klikne ob spustu tipke (dolg pritisk zgrabi za vlecenje).
+        if (event.action == KeyEvent.ACTION_UP && host.virtualPointerView.cakaKlik &&
+            (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER)
+        ) {
+            host.virtualPointerView.cakaKlik = false
+            host.activeWebView()?.let { host.virtualPointerView.performClickOnWebView(it) }
+            return true
+        }
         if (event.action != KeyEvent.ACTION_DOWN) {
             if (keyCode == KeyEvent.KEYCODE_BACK && profile === YoutubeTvSiteProfile) {
                 return true
@@ -191,8 +199,18 @@ class TvKeyRouter(private val host: MainActivity) {
                     return true
                 }
                 KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
-                    if (activeWv != null) {
-                        host.virtualPointerView.performClickOnWebView(activeWv)
+                    val miska = host.virtualPointerView
+                    if (activeWv == null) return true
+                    when {
+                        // Med vlecenjem: OK spusti.
+                        miska.vlecem && event.repeatCount == 0 -> miska.koncajVlecenje(activeWv)
+                        miska.vlecem -> Unit
+                        // Drzan OK (~0,5 s): zgrabi; klika ob spustu ni.
+                        event.repeatCount >= si.safeer.tv.os.OsPravila.PONOVITEV_ZA_VLECENJE -> {
+                            miska.zacniVlecenje(activeWv)
+                            Toast.makeText(host, UiText.get(R.string.ui_pointer_drag), Toast.LENGTH_SHORT).show()
+                        }
+                        event.repeatCount == 0 -> miska.cakaKlik = true
                     }
                     return true
                 }

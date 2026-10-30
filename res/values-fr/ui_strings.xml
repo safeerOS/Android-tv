@@ -45,6 +45,9 @@
   <string name="ui_search_hint">Rechercher sur Google ou saisir une adresse…</string>
   <string name="ui_quick_sites">🔍 Accès rapide aux sites TV…</string>
   <string name="ui_pointer_on">🖱️ Pointeur TV activé</string>
+  <string name="ui_pointer_drag">Glisser : les flèches déplacent, OK relâche</string>
+  <string name="ui_odpri_povezavo_v">Ouvrir le lien dans</string>
+  <string name="ui_vgrajeni_brskalnik_os">Safeer OS (navigateur intégré)</string>
   <string name="ui_pointer_off">🖐️ Pointeur TV désactivé</string>
   <string name="ui_dpad_on">🖐️ Mode touches directionnelles activé</string>
   <string name="ui_background_audio">🌙 Audio en arrière-plan (écran éteint)</string>

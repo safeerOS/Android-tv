@@ -77,16 +77,25 @@
             </intent-filter>
         </activity-alias>
 
-        <!-- Brskalnik je v tej aplikaciji samo notranji pogon za spletne aplikacije, kadar
-             Safeer Browser ni namescen: brez vnosa v zaganjalniku in brez obravnave povezav. -->
+        <!-- Vgrajeni brskalnik Safeer OS: brez vnosa v zaganjalniku, a sprejme povezave iz drugih aplikacij.
+             Lastnik 30. 10. 2026: prijava iz aplikacije (Claude) je ponudila samo Safeer TV Browser - zdaj
+             Android ob povezavi ponudi izbiro med Safeer TV Browser in vgrajenim brskalnikom Safeer OS. -->
         <activity
             android:name="si.safeer.tv.MainActivity"
-            android:exported="false"
+            android:exported="true"
             android:label="@string/os_app_name"
             android:icon="@mipmap/os_ic_launcher"
             android:banner="@drawable/os_banner"
             tools:replace="android:exported,android:label,android:icon,android:banner"
-            tools:ignore="RedundantLabel" />
+            tools:ignore="RedundantLabel">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+            </intent-filter>
+        </activity>
 
         <!-- Zagon ob vklopu televizorja (privzeto nic: prejemnik najprej pogleda nastavitev). -->
         <receiver

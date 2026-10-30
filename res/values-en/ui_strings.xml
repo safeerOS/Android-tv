@@ -45,6 +45,9 @@
   <string name="ui_search_hint">Search Google or enter an address…</string>
   <string name="ui_quick_sites">🔍 Quick TV sites…</string>
   <string name="ui_pointer_on">🖱️ TV pointer enabled</string>
+  <string name="ui_pointer_drag">Dragging: arrows move, OK releases</string>
+  <string name="ui_odpri_povezavo_v">Open link in</string>
+  <string name="ui_vgrajeni_brskalnik_os">Safeer OS (built-in browser)</string>
   <string name="ui_pointer_off">🖐️ TV pointer disabled</string>
   <string name="ui_dpad_on">🖐️ D-Pad mode enabled</string>
   <string name="ui_background_audio">🌙 Background audio (screen off)</string>

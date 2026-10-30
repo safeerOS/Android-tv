@@ -45,6 +45,9 @@
   <string name="ui_search_hint">Mit Google suchen oder Adresse eingeben…</string>
   <string name="ui_quick_sites">🔍 TV-Schnellzugriff…</string>
   <string name="ui_pointer_on">🖱️ TV-Zeiger aktiviert</string>
+  <string name="ui_pointer_drag">Ziehen: Pfeiltasten bewegen, OK lässt los</string>
+  <string name="ui_odpri_povezavo_v">Link öffnen in</string>
+  <string name="ui_vgrajeni_brskalnik_os">Safeer OS (integrierter Browser)</string>
   <string name="ui_pointer_off">🖐️ TV-Zeiger deaktiviert</string>
   <string name="ui_dpad_on">🖐️ Steuerkreuzmodus aktiviert</string>
   <string name="ui_background_audio">🌙 Hintergrundaudio (Bildschirm aus)</string>

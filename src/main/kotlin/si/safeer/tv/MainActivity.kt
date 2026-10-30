@@ -246,6 +246,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
         val targetUrl = incomingBrowseUrl(intent) ?: SpletDomaca.naslov(this)
         tabManager.createTab(this, targetUrl, true)
+        ponudiVgrajeniBrskalnik(intent)
 
         if (BuildConfig.DEBUG) {
         debugJsReceiver = object : android.content.BroadcastReceiver() {
@@ -948,6 +949,44 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         super.onDestroy()
     }
 
+    /**
+     * Lastnik 30. 10. 2026: prijava iz aplikacije (Claude) je odprla samo Safeer TV Browser, ki je privzeti
+     * brskalnik sistema - vgrajenega brskalnika Safeer OS Android sploh ne ponudi. Ko povezavo odpre druga
+     * aplikacija in je Safeer OS namescen, Safeer TV Browser vprasa, kje naj se odpre. Stran se medtem ze
+     * nalaga tukaj; izbira Safeer OS jo preda tja in ta zavihek zapre.
+     */
+    private fun ponudiVgrajeniBrskalnik(namera: Intent?) {
+        if (BuildConfig.FLAVOR != "brskalnik" || namera?.action != Intent.ACTION_VIEW) return
+        val naslov = namera.dataString ?: return
+        if (!naslov.startsWith("http://") && !naslov.startsWith("https://")) return
+        val izvor = try { referrer?.host } catch (_: Exception) { null }
+        if (!si.safeer.tv.os.OsPravila.ponudiIzbiroBrskalnika(izvor, packageName)) return
+        val os = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(naslov))
+            .setComponent(android.content.ComponentName("si.safeer.os", "si.safeer.tv.MainActivity"))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (packageManager.resolveActivity(os, 0)?.activityInfo?.exported != true) return
+        val zavihek = tabManager.getActiveTab()?.id
+        webViewContainer.post {
+            if (isFinishing) return@post
+            val okno = AlertDialog.Builder(this)
+                .setTitle(UiText.get(R.string.ui_odpri_povezavo_v))
+                .setItems(arrayOf("Safeer TV Browser", UiText.get(R.string.ui_vgrajeni_brskalnik_os))) { d, kateri ->
+                    d.dismiss()
+                    if (kateri == 1) {
+                        try {
+                            startActivity(os)
+                            if (zavihek != null && tabManager.getAllTabs().size > 1) tabManager.closeTab(this, zavihek)
+                            else moveTaskToBack(true)
+                        } catch (e: Exception) {
+                            android.util.Log.w("SafeerBrskalnik", "Safeer OS ni odprl povezave: ${e.message}")
+                        }
+                    }
+                }
+                .create()
+            try { okno.show() } catch (_: Exception) { }
+        }
+    }
+
     private fun incomingBrowseUrl(intent: Intent?): String? {
         val data = intent?.dataString
         if (!data.isNullOrEmpty()) return data
@@ -1000,6 +1039,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         // Navaden zagon brskalnika po tem, ko je tekla spletna aplikacija: vrni vrstico z naslovom.
         if (nacinAplikacije != null) izklopiNacinAplikacije()
         val url = incomingBrowseUrl(intent)
+        ponudiVgrajeniBrskalnik(intent)
         if (intent?.getBooleanExtra("exo_smoke", false) == true) {
             playback.playClearSmoke()
             return

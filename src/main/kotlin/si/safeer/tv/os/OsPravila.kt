@@ -1253,6 +1253,17 @@ object OsPravila {
      * zadnji strani ni bilo nobenega naslova v izbranem jeziku, jih ne stejemo vec kot vir - gumba ni, ce ga nima tudi
      * seznam jezika.
      */
+    /**
+     * Ali Safeer TV Browser ob povezavi ponudi vgrajeni brskalnik Safeer OS: samo, ce je povezavo odprla druga
+     * aplikacija (prijava iz Claude ipd.), ne Safeer sam (brskalnik ali Safeer OS) in ne neznan izvor.
+     */
+    fun ponudiIzbiroBrskalnika(izvor: String?, mojPaket: String): Boolean =
+        !izvor.isNullOrBlank() && izvor != mojPaket && izvor != "si.safeer.os" && izvor != "si.safeer.tv" &&
+            izvor != "android" && izvor != "com.android.systemui"
+
+    /** Ponovitev tipke OK, pri kateri drzan OK v nacinu miske zgrabi za vlecenje (~0,5 s pri 50 ms ponavljanju). */
+    const val PONOVITEV_ZA_VLECENJE = 8
+
     /** Aplikacija, ki jo je namestil uporabnik (ne sistemska; posodobljena sistemska steje kot sistemska). */
     fun uporabniskaAplikacija(sistemska: Boolean, posodobljenaSistemska: Boolean): Boolean =
         !sistemska && !posodobljenaSistemska
