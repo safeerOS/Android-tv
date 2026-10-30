@@ -162,6 +162,13 @@ object YouTubeUvozOkno {
         // Prijavna stran za YouTube z Google računom
         webView.loadUrl("https://accounts.google.com/ServiceLogin?service=youtube&continue=https://m.youtube.com")
         okno.show()
-        okno.window?.setLayout((a.resources.displayMetrics.widthPixels * 0.85).toInt(), (a.resources.displayMetrics.heightPixels * 0.88).toInt())
+        okno.window?.apply {
+            setLayout((a.resources.displayMetrics.widthPixels * 0.85).toInt(), (a.resources.displayMetrics.heightPixels * 0.88).toInt())
+            clearFlags(android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or android.view.WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM)
+            setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE or android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
+        }
+        okno.setOnShowListener {
+            webView.requestFocus()
+        }
     }
 }
