@@ -62,7 +62,7 @@ class AplikacijeTvActivity : OsActivity() {
         iskanje.showSoftInputOnFocus = false
         mreza.setOnItemClickListener { _, v, i, _ -> vnosi.getOrNull(i)?.let { zazeni(it, v) } }
         mreza.setOnItemLongClickListener { _, _, i, _ ->
-            vnosi.getOrNull(i)?.let { preklopiPriljubljeno(it) }; true
+            vnosi.getOrNull(i)?.let { moznosti(it) }; true
         }
     }
 
@@ -122,7 +122,42 @@ class AplikacijeTvActivity : OsActivity() {
         }
     }
 
-    /** Dolg pritisk: aplikacija gre na domaci zaslon ali z njega. */
+    /** Dolg pritisk: prikazi moznosti za dodajanje na zacetni zaslon ali odstranitev aplikacije. */
+    private fun moznosti(a: Aplikacije.Vnos) {
+        val bila = Priljubljene.je(this, a.paket)
+        val dejanja = ArrayList<Pair<String, () -> Unit>>()
+        dejanja.add(getString(if (bila) R.string.os_aplikacije_odstrani_domov else R.string.os_aplikacije_dodaj_domov) to {
+            preklopiPriljubljeno(a)
+        })
+        dejanja.add(getString(R.string.os_aplikacije_odstrani_app) to {
+            odstraniAplikacijo(a.paket)
+        })
+        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(a.ime)
+            .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .let { Kontroler.pokazi(it.show()) }
+    }
+
+    private fun odstraniAplikacijo(paket: String) {
+        try {
+            val intent = Intent(Intent.ACTION_UNINSTALL_PACKAGE).apply {
+                data = android.net.Uri.parse("package:$paket")
+                putExtra(Intent.EXTRA_RETURN_RESULT, true)
+            }
+            startActivity(intent)
+        } catch (_: Throwable) {
+            try {
+                val intent = Intent(Intent.ACTION_DELETE).apply {
+                    data = android.net.Uri.parse("package:$paket")
+                }
+                startActivity(intent)
+            } catch (e: Throwable) {
+                Toast.makeText(this, e.message.orEmpty(), Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     private fun preklopiPriljubljeno(a: Aplikacije.Vnos) {
         val bila = Priljubljene.je(this, a.paket)
         if (bila) Priljubljene.odstrani(this, a.paket) else Priljubljene.dodaj(this, a.paket)

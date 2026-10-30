@@ -103,6 +103,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     internal fun activeUrl(): String = tabManager.getActiveTab()?.url ?: ""
 
     internal fun isChromeFocused(): Boolean {
+        if (::mobileTopBar.isInitialized && mobileTopBar.visibility != View.VISIBLE) return false
         return btnBack.hasFocus() || btnForward?.hasFocus() == true || btnHome.hasFocus() || btnReload.hasFocus() ||
             btnFavorite.hasFocus() || btnPointerToggle.hasFocus() ||
             btnAddTab.hasFocus() || btnTabCount.hasFocus() || btnMenu.hasFocus() ||
@@ -113,8 +114,13 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     internal fun isTopBarFocused(): Boolean = isChromeFocused()
 
     internal fun nastaviVidnostChrome(vidnost: Int) {
-        mobileTopBar.visibility = vidnost
-        mobileBottomBar?.visibility = vidnost
+        val dejanskaVidnost = if (vidnost == View.VISIBLE && isTelevisionDevice() && SpletDomaca.jeSafeerOs(this)) {
+            View.GONE
+        } else {
+            vidnost
+        }
+        mobileTopBar.visibility = dejanskaVidnost
+        mobileBottomBar?.visibility = dejanskaVidnost
     }
 
     internal fun isTelevisionDevice(): Boolean {
@@ -1397,6 +1403,10 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
     /** Chrome razdelka Splet: namizni dve zgornji vrstici ali telefonski naslov zgoraj in navigacija spodaj. */
     private fun pripraviSafeerSpletChrome() {
+        if (isTelevisionDevice()) {
+            nastaviVidnostChrome(View.GONE)
+            return
+        }
         spletSirokiChrome = resources.configuration.orientation != Configuration.ORIENTATION_PORTRAIT ||
             resources.configuration.screenWidthDp >= 600
         mobileBottomBar?.let { mainRoot.removeView(it) }

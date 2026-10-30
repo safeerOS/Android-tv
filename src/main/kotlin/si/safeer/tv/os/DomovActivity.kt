@@ -1477,11 +1477,36 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 vrstaAplikacije.getChildAt(mesto.coerceIn(0, vrstaAplikacije.childCount - 1))?.requestFocus()
             }
         })
+        if (oznaka.startsWith("app:")) {
+            val paket = oznaka.removePrefix("app:")
+            if (paket.isNotBlank() && paket != packageName) {
+                dejanja.add(getString(R.string.os_aplikacije_odstrani_app) to { odstraniAplikacijo(paket) })
+            }
+        }
         android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(ime)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
             .setNegativeButton(getString(R.string.os_preklici), null)
             .let { Kontroler.pokazi(it.show()) }
+    }
+
+    private fun odstraniAplikacijo(paket: String) {
+        try {
+            val intent = Intent(Intent.ACTION_UNINSTALL_PACKAGE).apply {
+                data = android.net.Uri.parse("package:$paket")
+                putExtra(Intent.EXTRA_RETURN_RESULT, true)
+            }
+            startActivity(intent)
+        } catch (_: Throwable) {
+            try {
+                val intent = Intent(Intent.ACTION_DELETE).apply {
+                    data = android.net.Uri.parse("package:$paket")
+                }
+                startActivity(intent)
+            } catch (e: Throwable) {
+                Toast.makeText(this, e.message.orEmpty(), Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun oznakePriljubljenih(): List<String> =

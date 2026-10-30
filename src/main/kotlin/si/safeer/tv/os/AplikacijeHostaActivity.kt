@@ -897,14 +897,35 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         }
         val dejanja = ArrayList<Pair<String, () -> Unit>>()
         if (p.vir != AppVir.SPLET) dejanja.add(getString(if (na) R.string.os_priljubljen_odstrani else R.string.os_priljubljen_dodaj) to preklopi)
+        if (p.vir == AppVir.TV && p.cilj.isNotBlank() && p.cilj != packageName) {
+            dejanja.add(getString(R.string.os_aplikacije_odstrani_app) to { odstraniAplikacijo(p.cilj) })
+        }
         if (p.vir == AppVir.RACUNALNIK && p.racunalnik !in androidNaprave) dejanja.add(getString(R.string.os_program_zapri) to { zapri(p) })
         if (dejanja.isEmpty()) return
-        if (dejanja.size == 1) { dejanja[0].second(); return }
         android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(p.ime)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
             .setNegativeButton(getString(R.string.os_preklici), null)
             .let { Kontroler.pokazi(it.show()) }
+    }
+
+    private fun odstraniAplikacijo(paket: String) {
+        try {
+            val intent = Intent(Intent.ACTION_UNINSTALL_PACKAGE).apply {
+                data = android.net.Uri.parse("package:$paket")
+                putExtra(Intent.EXTRA_RETURN_RESULT, true)
+            }
+            startActivity(intent)
+        } catch (_: Throwable) {
+            try {
+                val intent = Intent(Intent.ACTION_DELETE).apply {
+                    data = android.net.Uri.parse("package:$paket")
+                }
+                startActivity(intent)
+            } catch (e: Throwable) {
+                Toast.makeText(this, e.message.orEmpty(), Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun zapri(p: SafeerApp) {

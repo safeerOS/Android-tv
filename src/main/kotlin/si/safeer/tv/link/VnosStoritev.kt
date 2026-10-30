@@ -261,7 +261,7 @@ class VnosStoritev : AccessibilityService() {
             val aktivniKoren = rootInActiveWindow
             if (aktivniKoren != null) {
                 korenPaket = aktivniKoren.packageName?.toString().orEmpty()
-                if (korenPaket != packageName) {
+                if (korenPaket != packageName && korenPaket != "com.aurora.store") {
                     vozlisce = fokusirano(aktivniKoren)
                 }
             }
@@ -271,7 +271,7 @@ class VnosStoritev : AccessibilityService() {
                     if (w.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD) continue
                     val r = w.root ?: continue
                     val p = r.packageName?.toString().orEmpty()
-                    if (p == packageName) continue
+                    if (p == packageName || p == "com.aurora.store") continue
                     val f = fokusirano(r)
                     if (f != null && f.isVisibleToUser) {
                         vozlisce = f
@@ -281,7 +281,7 @@ class VnosStoritev : AccessibilityService() {
                 }
             }
 
-            if (vozlisce == null || !vozlisce.isVisibleToUser || korenPaket == packageName) {
+            if (vozlisce == null || !vozlisce.isVisibleToUser || korenPaket == packageName || korenPaket == "com.aurora.store") {
                 skrijFokusOverlay()
                 return
             }

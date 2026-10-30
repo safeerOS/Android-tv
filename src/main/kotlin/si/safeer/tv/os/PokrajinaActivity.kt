@@ -278,10 +278,10 @@ class PokrajinaActivity : OsActivity() {
                 }
             } else if (dogodek.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
                 if (::dok.isInitialized && dok.hasFocus()) {
-                    if (mini != null) {
-                        mini.requestFocus()
-                        return true
-                    } else if (::vrstaAplikacij.isInitialized) {
+                    if (dock != null && (dock?.jeOdprt == true || mini != null)) {
+                        if (dock?.fokusiraj() == true || (mini != null && mini.requestFocus())) return true
+                    }
+                    if (::vrstaAplikacij.isInitialized) {
                         val cilj = najblizjiPogledX(vrstaAplikacij, dok.findFocus())
                             ?: (zadnjaPloscica?.let { vrstaAplikacij.findViewWithTag<View>(it) })
                             ?: vrstaAplikacij.getChildAt(0)
@@ -745,8 +745,9 @@ class PokrajinaActivity : OsActivity() {
             val gumb = object : LinearLayout(this) {
                 override fun focusSearch(direction: Int): View? {
                     if (direction == View.FOCUS_UP) {
-                        val mini = dock?.aktivniPogledZaFokus
-                        if (mini != null && mini.isShown && mini.isFocusable) return mini
+                        val mini = dock?.aktivniPogledZaFokus?.takeIf { it.isShown && it.isFocusable }
+                        if (dock?.jeOdprt == true && mini != null) return mini
+                        if (mini != null) return mini
                         if (::vrstaAplikacij.isInitialized) {
                             najblizjiPogledX(vrstaAplikacij, this)?.let { return it }
                                 ?: zadnjaPloscica?.let { vrstaAplikacij.findViewWithTag<View>(it) }?.let { return it }
