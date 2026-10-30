@@ -147,7 +147,7 @@ object IzvirniJezik {
      * Stolpci: imdb, naslov, leto, vrsta (movie/series).
      */
     fun poizvedbaPoNaslovu(beseda: String, vmesnik: String = "en"): String? {
-        val b = beseda.trim().take(120)
+        val b = beseda.replace(Regex("[\\r\\n\\t]+"), " ").trim().take(120)
         if (b.length < 2) return null
         fun niz(t: String) = "\"" + t.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
         val jeziki = listOf(vmesnik.takeIf { KODA.matches(it) } ?: "en", "en").distinct()

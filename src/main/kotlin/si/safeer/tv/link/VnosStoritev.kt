@@ -198,6 +198,7 @@ class VnosStoritev : AccessibilityService() {
     private val miskaVklopljena = HashSet<String>()
     private var okDolMs = 0L
     private var okPreklopil = false
+    private var okDolPrejet = false
 
     /** Daljinec kot miska v aplikacijah, ki niso narejene za TV (lastnik 30. 10. 2026). */
     private var miska: SistemskaMiska? = null
@@ -239,10 +240,14 @@ class VnosStoritev : AccessibilityService() {
         if (vklop) tablica?.vklopi() else tablica?.izklopi()
         // Lastnik 30. 10. 2026: telefonska aplikacija (tablicni nacin), iz katere se uporabnik vrne, ostane v ozadju in
         // zaseda pomnilnik (TV: swap poln). Ce ga je malo, jo cez 3 s zapremo - razen ce se je uporabnik medtem vrnil vanjo.
-        if (prej != null && prej != paket) {
+        // Pregled 30. 10. 2026: samo ob vrnitvi v Safeer OS (domaci zaslon) - ne med prijavo, dovoljenji ali izbirnikom
+        // (brskalnik, Googlove storitve), ki pridejo nad aplikacijo; ob zakasnitvi se ospredje preveri znova.
+        if (prej != null && prej != paket && paket == packageName) {
             val ctx = applicationContext
-            android.os.Handler(mainLooper).postDelayed({
-                if (neprilagojena != prej) Thread { si.safeer.tv.os.Pomnilnik.zapriCeMalo(ctx, prej) }.apply { isDaemon = true }.start()
+            glavnaNit.postDelayed({
+                val zdaj = try { rootInActiveWindow?.packageName?.toString() } catch (_: Throwable) { null }
+                if (neprilagojena == null && zdaj == packageName)
+                    Thread { si.safeer.tv.os.Pomnilnik.zapriCeMalo(ctx, prej) }.apply { isDaemon = true }.start()
             }, 3_000)
         }
         if (vklop && paket in miskaVklopljena) m.vklopi(paket) else m.izklopi()
@@ -250,6 +255,7 @@ class VnosStoritev : AccessibilityService() {
 
     override fun onUnbind(intent: android.content.Intent?): Boolean {
         instanca = null
+        glavnaNit.removeCallbacksAndMessages(null)
         miska?.izklopi()
         tablica?.izklopi()
         odstraniFokusOverlay()
@@ -258,6 +264,7 @@ class VnosStoritev : AccessibilityService() {
 
     override fun onDestroy() {
         instanca = null
+        glavnaNit.removeCallbacksAndMessages(null)
         miska?.izklopi()
         tablica?.izklopi()
         odstraniFokusOverlay()
@@ -595,15 +602,17 @@ class VnosStoritev : AccessibilityService() {
         if (nep != null && !jeTipkovnicaOdprta()) {
             if (k == android.view.KeyEvent.KEYCODE_DPAD_CENTER || k == android.view.KeyEvent.KEYCODE_ENTER) {
                 if (event.action == android.view.KeyEvent.ACTION_DOWN) {
-                    if (event.repeatCount == 0) { okDolMs = event.eventTime; okPreklopil = false }
+                    if (event.repeatCount == 0) { okDolMs = event.eventTime; okPreklopil = false; okDolPrejet = true }
                     else if (!okPreklopil && event.eventTime - okDolMs >= 600) {
                         okPreklopil = true
                         preklopiMisko(nep)
                     }
-                } else if (!okPreklopil) {
+                } else if (!okPreklopil && okDolPrejet) {
+                    // Pregled 30. 10. 2026: samo spust, cigar pritisk smo prejeli tu (DOWN je lahko sel tipkovnici).
+                    okDolPrejet = false
                     val m = miska
                     if (m?.paket != null) m.klik() else glavnaNit.post { aktivirajFokus() }
-                }
+                } else okDolPrejet = false
                 return true
             }
             if (miska?.paket != null && miska?.tipka(event) == true) return true
@@ -646,7 +655,8 @@ class VnosStoritev : AccessibilityService() {
 
         // 1. Ko uporabnik sproži iskanje (ENTER ali SEARCH): zapri tipkovnico
         if (k == android.view.KeyEvent.KEYCODE_SEARCH || k == android.view.KeyEvent.KEYCODE_ENTER) {
-            if (event.action == android.view.KeyEvent.ACTION_DOWN) {
+            // Pregled 30. 10. 2026: daljinci, ki za OK posljejo ENTER, so tipkovnico zaprli ob vsaki izbrani crki.
+            if (event.action == android.view.KeyEvent.ACTION_DOWN && !jeFokusVTipkovnici()) {
                 zapriTipkovnico()
             }
         }

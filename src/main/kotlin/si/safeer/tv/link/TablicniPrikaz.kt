@@ -38,15 +38,34 @@ class TablicniPrikaz(private val c: Context) {
             }
             try { wm.addView(v, lp); usmerjenost = v } catch (e: Throwable) { Log.w(TAG, "usmerjenost: ${e.message}") }
         }
-        val m = c.resources.displayMetrics
-        val dpi = si.safeer.tv.os.OsPravila.gostotaTablice(minOf(m.widthPixels, m.heightPixels), m.densityDpi)
-        if (dpi > 0 && nastaviGostoto(dpi)) {
-            c.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().putBoolean(KLJUC, true).apply()
+        val p = c.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)
+        val nasa = p.getBoolean(KLJUC, false)
+        // Pregled 30. 10. 2026: izvorna gostota iz upravitelja oken (tovarniska), ne iz trenutnih metrik - te so ob hitrem
+        // preklopu (telefonska A -> dom -> telefonska B) lahko se tablicne (240) in tablicni nacin bi izostal.
+        val zacetna = celo("getInitialDisplayDensity")
+        val osnovna = celo("getBaseDisplayDensity")
+        // Uporabnik ima svojo gostoto (»Prikaz«, adb wm density): ne spreminjamo je in je ob izhodu ne pobrisemo.
+        if (!nasa && zacetna != null && osnovna != null && zacetna != osnovna) {
+            Log.i(TAG, "uporabnikova gostota $osnovna (tovarniska $zacetna): ostane, samo lezeca usmerjenost")
+            return
         }
+        val m = c.resources.displayMetrics
+        val dpi = si.safeer.tv.os.OsPravila.gostotaTablice(minOf(m.widthPixels, m.heightPixels), zacetna ?: m.densityDpi)
+        if (dpi <= 0) return
+        // Zastavica PRED spremembo in sinhrono: ce proces umre takoj po spremembi, jo obnovi() ob naslednjem zagonu najde.
+        p.edit().putBoolean(KLJUC, true).commit()
+        if (!nastaviGostoto(dpi) && !nasa) p.edit().putBoolean(KLJUC, false).commit()
     }
 
+    /** Celostevilska vrednost upravitelja oken za zaslon 0 (gostota); null = ne vemo. */
+    private fun celo(metoda: String): Int? = try {
+        val w = upravitelj() ?: throw IllegalStateException("ni upravitelja oken")
+        Class.forName("android.view.IWindowManager").getMethod(metoda, Int::class.java).invoke(w, 0) as? Int
+    } catch (_: Throwable) { null }
+
     fun izklopi() {
-        if (!aktiven) return
+        // Tudi ce nismo aktivni: zastavica je lahko ostala (neuspel prejsnji poskus vracanja) - ponovni poskus je poceni.
+        if (!aktiven) { obnovi(); return }
         aktiven = false
         usmerjenost?.let { try { wm.removeView(it) } catch (_: Throwable) { } }
         usmerjenost = null
@@ -57,7 +76,7 @@ class TablicniPrikaz(private val c: Context) {
     fun obnovi() {
         val p = c.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)
         if (!p.getBoolean(KLJUC, false)) return
-        if (pocistiGostoto()) p.edit().putBoolean(KLJUC, false).apply()
+        if (pocistiGostoto()) p.edit().putBoolean(KLJUC, false).commit()
     }
 
     private fun upravitelj(): Any? = try {

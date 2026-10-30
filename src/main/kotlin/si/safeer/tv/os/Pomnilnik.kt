@@ -41,8 +41,15 @@ object Pomnilnik {
         }
     }
 
+    /** Dovoljenje imajo samo okusi z zaganjalnikom (os, telefon, tablica); brskalnik in predvajalnik ga nimata. */
+    private fun smemo(c: Context): Boolean =
+        c.checkSelfPermission(android.Manifest.permission.KILL_BACKGROUND_PROCESSES) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+
     /** Zapre aplikacije v ozadju. Vrne stevilo poskusov; meritev pred in po da [stanje]. Klic iz ozadja. */
+    @android.annotation.SuppressLint("MissingPermission")
     fun sprosti(c: Context): Int {
+        if (!smemo(c)) return 0
         val am = c.getSystemService(ActivityManager::class.java)
         val seznam = kandidati(c)
         for (p in seznam) try { am.killBackgroundProcesses(p) } catch (_: Throwable) { }
@@ -51,8 +58,9 @@ object Pomnilnik {
     }
 
     /** Ena aplikacija (telefonska po vrnitvi domov), samo ce je pomnilnika malo. */
+    @android.annotation.SuppressLint("MissingPermission")
     fun zapriCeMalo(c: Context, paket: String) {
-        if (!stanje(c).malo) return
+        if (!smemo(c) || !stanje(c).malo) return
         if (!OsPravila.smemoZapreti(paket, c.packageName, null, false)) return
         try { c.getSystemService(ActivityManager::class.java).killBackgroundProcesses(paket) } catch (_: Throwable) { }
         Log.i(TAG, "telefonska aplikacija zaprta po vrnitvi domov (malo pomnilnika): $paket")

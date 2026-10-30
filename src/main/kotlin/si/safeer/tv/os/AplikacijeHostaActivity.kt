@@ -304,9 +304,10 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val novi = ArrayList<SafeerApp>()
         if (zVirom(AppVir.TV)) {
             novi.addAll(SafeerAppi.naTelevizorju(this, tv, brezIkon = true))
-            // Spletne aplikacije ustvarjene na TV sodijo pod televizor (brez ločene naprave):
-            val spletne = SafeerAppi.spletne(this).map { s -> s.copy(vir = AppVir.TV) }
-            novi.addAll(spletne)
+            // Spletne aplikacije ustvarjene na TV sodijo pod televizor (brez ločene naprave). Vir ostane SPLET: zagon
+            // (Brskalnik.spletnaAplikacija), priljubljene in »Odstrani« so za spletne drugacni (pregled 30. 10. 2026:
+            // z virom TV se spletna aplikacija ob kliku ni odprla, ker nima namere paketa).
+            novi.addAll(SafeerAppi.spletne(this))
         }
         // Aplikacije televizorja se prikažejo takoj, oddaljene naprave se nalagajo v ozadju
         prerisi { krajevni = novi }
@@ -589,7 +590,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (p.vir == AppVir.TV) Priljubljene.je(this, p.cilj) else p.kljuc in priljubljeni
 
     private fun poViru(): List<SafeerApp> {
-        val poVir = izbraniVir?.let { v -> programi.filter { it.vir == v } } ?: programi
+        val poVir = izbraniVir?.let { v -> programi.filter { it.vir == v || (v == AppVir.TV && it.vir == AppVir.SPLET) } } ?: programi
         return izbranaNaprava?.let { n -> poVir.filter { it.racunalnik == n } } ?: poVir
     }
 

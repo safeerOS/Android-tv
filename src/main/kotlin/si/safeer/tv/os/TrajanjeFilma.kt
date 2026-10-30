@@ -14,16 +14,20 @@ object TrajanjeFilma {
     fun minut(imdb: String): Int? {
         if (!Regex("^tt\\d{3,12}$").matches(imdb)) return null
         znani[imdb]?.let { return it.takeIf { m -> m > 0 } }
+        // Pregled 30. 10. 2026: v pomnilnik samo pravi odgovor (200 ali 404) - izpad omrezja vprasamo naslednjic znova.
+        var odgovor = false
         val m = try {
             val c = URL("https://v3-cinemeta.strem.io/meta/movie/$imdb.json").openConnection() as HttpURLConnection
             c.connectTimeout = 6_000; c.readTimeout = 8_000
             try {
-                if (c.responseCode != 200) null
+                val koda = c.responseCode
+                odgovor = koda == 200 || koda == 404
+                if (koda != 200) null
                 else org.json.JSONObject(c.inputStream.bufferedReader().use { it.readText().take(400_000) })
                     .optJSONObject("meta")?.optString("runtime").let { OsPravila.minutIzOpisa(it) }
             } finally { c.disconnect() }
         } catch (_: Exception) { null }
-        znani[imdb] = m ?: 0
+        if (odgovor) znani[imdb] = m ?: 0
         return m
     }
 }

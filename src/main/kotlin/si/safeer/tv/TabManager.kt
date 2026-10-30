@@ -44,7 +44,9 @@ data class TabModel(
     /** Zavihek, ki je to okno odprl - tja se vrnemo, ko ga zapremo. */
     var odpiralec: String? = null,
     /** Prilagojena namizna sirina (npr. 1280 za spletne aplikacije na TV). 0 = privzeto. */
-    var namiznaSirina: Int = 0
+    var namiznaSirina: Int = 0,
+    /** Zavihek spletne aplikacije (nacin aplikacije): ob ponovnem vstopu se prevzame samo tak, ne uporabnikov zavihek. */
+    var jeAplikacija: Boolean = false
 )
 
 /**

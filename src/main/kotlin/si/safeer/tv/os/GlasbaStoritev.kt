@@ -178,6 +178,8 @@ class GlasbaStoritev : Service() {
         val s = trenutna() ?: return
         if (!s.video || s.radio || s.mediaType != "movie" || s.imdbId.isBlank()) return
         if (trajanjePreverjeno == s.id) return
+        // V zivo in tokovi brez koncne dolzine (ocena po bitni hitrosti) ne povedo prave dolzine.
+        if (p.isCurrentMediaItemLive || p.isCurrentMediaItemDynamic) return
         val dolzina = p.duration
         if (dolzina <= 0 || dolzina == androidx.media3.common.C.TIME_UNSET) return
         trajanjePreverjeno = s.id

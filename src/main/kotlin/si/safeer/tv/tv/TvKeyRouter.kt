@@ -65,11 +65,17 @@ class TvKeyRouter(private val host: MainActivity) {
         }
 
         // Nacin miske: kratek OK klikne ob spustu tipke (dolg pritisk zgrabi za vlecenje).
-        if (event.action == KeyEvent.ACTION_UP && host.virtualPointerView.cakaKlik &&
-            (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER)
-        ) {
-            host.virtualPointerView.cakaKlik = false
-            host.activeWebView()?.let { host.virtualPointerView.performClickOnWebView(it) }
+        if (event.action == KeyEvent.ACTION_UP && (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER)) {
+            host.virtualPointerView.okPorabljen = false
+            if (host.virtualPointerView.cakaKlik) {
+                host.virtualPointerView.cakaKlik = false
+                host.activeWebView()?.let { host.virtualPointerView.performClickOnWebView(it) }
+                return true
+            }
+        }
+        // Nazaj med vlecenjem: vlecenje se preklice (dotik ne obvisi v strani), Nazaj ne gre naprej.
+        if (keyCode == KeyEvent.KEYCODE_BACK && host.virtualPointerView.vlecem) {
+            if (event.action == KeyEvent.ACTION_DOWN) host.virtualPointerView.koncajVlecenje(host.activeWebView(), preklic = true)
             return true
         }
         if (event.action != KeyEvent.ACTION_DOWN) {
@@ -177,7 +183,7 @@ class TvKeyRouter(private val host: MainActivity) {
                 KeyEvent.KEYCODE_DPAD_UP -> {
                     // V nacinu aplikacije vrstice z naslovom ni: fokus ne sme oditi v skrito polje.
                     if (host.virtualPointerView.pointerY < 120f && host.nacinAplikacije == null &&
-                        host.mobileTopBar.visibility == View.VISIBLE) {
+                        host.mobileTopBar.visibility == View.VISIBLE && !host.virtualPointerView.vlecem) {
                         host.editUrl.requestFocus()
                     } else {
                         host.virtualPointerView.movePointer(0f, -korak, activeWv)
@@ -202,9 +208,9 @@ class TvKeyRouter(private val host: MainActivity) {
                     val miska = host.virtualPointerView
                     if (activeWv == null) return true
                     when {
-                        // Med vlecenjem: OK spusti.
-                        miska.vlecem && event.repeatCount == 0 -> miska.koncajVlecenje(activeWv)
-                        miska.vlecem -> Unit
+                        // Med vlecenjem: OK spusti; ponovitve iste drzane tipke ne zgrabijo znova.
+                        miska.vlecem && event.repeatCount == 0 -> { miska.koncajVlecenje(activeWv); miska.okPorabljen = true }
+                        miska.vlecem || miska.okPorabljen -> Unit
                         // Drzan OK (~0,5 s): zgrabi; klika ob spustu ni.
                         event.repeatCount >= si.safeer.tv.os.OsPravila.PONOVITEV_ZA_VLECENJE -> {
                             miska.zacniVlecenje(activeWv)

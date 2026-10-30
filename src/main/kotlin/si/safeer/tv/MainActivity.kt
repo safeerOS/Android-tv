@@ -246,7 +246,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
         val targetUrl = incomingBrowseUrl(intent) ?: SpletDomaca.naslov(this)
         tabManager.createTab(this, targetUrl, true)
-        ponudiVgrajeniBrskalnik(intent)
+        // Ob obnovi aktivnosti (vrtenje, smrt procesa) izbire ne pokazemo znova.
+        if (savedInstanceState == null) ponudiVgrajeniBrskalnik(intent, novZavihek = true)
 
         if (BuildConfig.DEBUG) {
         debugJsReceiver = object : android.content.BroadcastReceiver() {
@@ -417,6 +418,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         private set
     /** Zavihek, v katerem tece spletna aplikacija; ob izhodu ga zapremo. */
     private var zavihekAplikacije: String? = null
+    /** Zavihek, ki je bil spredaj pred vstopom v spletno aplikacijo - ob izhodu se vrnemo nanj. */
+    private var prejsnjiZavihek: String? = null
 
     /**
      * Spletna stran kot aplikacija: cez ves zaslon, brez vrstice z naslovom in brez zavihkov -
@@ -442,21 +445,26 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
             // Predpomnjenje: ce zavihek za to aplikacijo ze obstaja (v ozadju ali speč),
             // ga zgolj prebudimo/preklopimo nanj brez ponovnega dolgotrajnega nalaganja.
+            // Pregled 30. 10. 2026: samo zavihki spletnih aplikacij (ne uporabnikov zavihek ali pojavno okno prijave).
+            prejsnjiZavihek = tabManager.getActiveTab()?.id
             val obstojeci = tabManager.getAllTabs().firstOrNull { t ->
+                if (!t.jeAplikacija) return@firstOrNull false
                 val tu = (t.webView?.url ?: t.spalniNaslov.ifBlank { t.url }).trim()
                 si.safeer.tv.os.SpletneAplikacije.gostitelj(tu) == si.safeer.tv.os.SpletneAplikacije.gostitelj(naslov)
             }
 
             zavihekAplikacije = try {
                 if (obstojeci != null) {
-                    if (zeljenaSirina > 0) {
-                        obstojeci.namiznaSirina = zeljenaSirina
-                        obstojeci.webView?.namiznaSirina = zeljenaSirina
-                    }
+                    val spremenjena = obstojeci.namiznaSirina != zeljenaSirina
+                    obstojeci.namiznaSirina = zeljenaSirina
+                    obstojeci.webView?.namiznaSirina = zeljenaSirina
                     tabManager.switchTab(obstojeci.id)
+                    obstojeci.webView?.onResume()
+                    // Skripta sirine velja od naslednjega nalaganja.
+                    if (spremenjena) obstojeci.webView?.reload()
                     obstojeci.id
                 } else {
-                    tabManager.createTab(this, zacetni, true, zeljenaSirina).id
+                    tabManager.createTab(this, zacetni, true, zeljenaSirina).also { it.jeAplikacija = true }.id
                 }
             } catch (_: Throwable) { null }
 
@@ -501,6 +509,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         val bila = nacinAplikacije ?: return
         zapomniMestoAplikacije(bila)
         nacinAplikacije = null
+        val bilZvokVOzadju = zvokVOzadju
         zvokVOzadju = false
         if (virtualPointerView.trajen) {
             virtualPointerView.trajen = false
@@ -509,6 +518,13 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         // Lastnik 29. 10. 2026: Zavihek spletne aplikacije ohranimo v predpomnilniku zavihkov
         // (tabManager), da se ob ponovnem vstopu v aplikacijo ne nalaga znova iz nicle.
         // Ce pomnilnik zahteva sprostitev, TabManager po casu ali ob pritisku RAM-a poskrbi za varno zamrznitev.
+        // Pregled 30. 10. 2026: zavihek aplikacije ne ostane spredaj v navadnem brskanju - nazaj na prejsnji zavihek,
+        // aplikacija pa se ustavi (zvok, video), razen ce je bila odprta z zvokom v ozadju.
+        val aplikacija = zavihekAplikacije?.let { id -> tabManager.getAllTabs().firstOrNull { it.id == id } }
+        if (aplikacija != null && !bilZvokVOzadju) try { aplikacija.webView?.onPause() } catch (_: Throwable) { }
+        prejsnjiZavihek?.takeIf { id -> id != zavihekAplikacije && tabManager.getAllTabs().any { it.id == id } }
+            ?.let { try { tabManager.switchTab(it) } catch (_: Throwable) { } }
+        prejsnjiZavihek = null
         zavihekAplikacije = null
         nastaviVidnostChrome(View.VISIBLE)
         mobileTopBar.translationY = 0f
@@ -850,6 +866,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
     override fun onPause() {
         mainHandler.removeCallbacks(spletStanje)
+        // Vlecenje z daljincem ne sme obviseti v strani, ko aktivnost odide (pregled 30. 10. 2026).
+        try { virtualPointerView.koncajVlecenje(activeWebView(), preklic = true) } catch (_: Throwable) { }
         nacinAplikacije?.let { zapomniMestoAplikacije(it) }
         si.safeer.tv.cast.CastReceiverService.krmilnikVOspredju = false
         si.safeer.tv.cast.HubKrmilnik.naPrijavoZaZaslon = null
@@ -955,17 +973,17 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
      * aplikacija in je Safeer OS namescen, Safeer TV Browser vprasa, kje naj se odpre. Stran se medtem ze
      * nalaga tukaj; izbira Safeer OS jo preda tja in ta zavihek zapre.
      */
-    private fun ponudiVgrajeniBrskalnik(namera: Intent?) {
+    private fun ponudiVgrajeniBrskalnik(namera: Intent?, novZavihek: Boolean) {
         if (BuildConfig.FLAVOR != "brskalnik" || namera?.action != Intent.ACTION_VIEW) return
         val naslov = namera.dataString ?: return
         if (!naslov.startsWith("http://") && !naslov.startsWith("https://")) return
-        val izvor = try { referrer?.host } catch (_: Exception) { null }
+        // Izvor je aplikacija (android-app://paket), ne spletna stran, ki jo lahko nastavi kdorkoli.
+        val izvor = try { referrer?.takeIf { it.scheme == "android-app" }?.host } catch (_: Exception) { null }
         if (!si.safeer.tv.os.OsPravila.ponudiIzbiroBrskalnika(izvor, packageName)) return
         val os = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(naslov))
             .setComponent(android.content.ComponentName("si.safeer.os", "si.safeer.tv.MainActivity"))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         if (packageManager.resolveActivity(os, 0)?.activityInfo?.exported != true) return
-        val zavihek = tabManager.getActiveTab()?.id
         webViewContainer.post {
             if (isFinishing) return@post
             val okno = AlertDialog.Builder(this)
@@ -975,8 +993,15 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                     if (kateri == 1) {
                         try {
                             startActivity(os)
-                            if (zavihek != null && tabManager.getAllTabs().size > 1) tabManager.closeTab(this, zavihek)
-                            else moveTaskToBack(true)
+                            // Zavihek se odloci ob izbiri: nov zavihek povezave se zapre; v obstojecem (povezava je
+                            // zamenjala stran) se vrnemo na prejsnjo stran - uporabnikov zavihek ostane.
+                            val tab = tabManager.getActiveTab()
+                            when {
+                                tab == null -> moveTaskToBack(true)
+                                novZavihek && tabManager.getAllTabs().size > 1 -> tabManager.closeTab(this, tab.id)
+                                !novZavihek && tab.webView?.canGoBack() == true -> { tab.webView?.goBack(); moveTaskToBack(true) }
+                                else -> moveTaskToBack(true)
+                            }
                         } catch (e: Exception) {
                             android.util.Log.w("SafeerBrskalnik", "Safeer OS ni odprl povezave: ${e.message}")
                         }
@@ -1039,8 +1064,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         // Navaden zagon brskalnika po tem, ko je tekla spletna aplikacija: vrni vrstico z naslovom.
         if (nacinAplikacije != null) izklopiNacinAplikacije()
         val url = incomingBrowseUrl(intent)
-        ponudiVgrajeniBrskalnik(intent)
-        if (intent?.getBooleanExtra("exo_smoke", false) == true) {
+        ponudiVgrajeniBrskalnik(intent, novZavihek = false)
+        // Pregled 30. 10. 2026: dejavnost je izvozena - preizkusni dodatek samo v razvojni gradnji.
+        if (BuildConfig.DEBUG && intent?.getBooleanExtra("exo_smoke", false) == true) {
             playback.playClearSmoke()
             return
         }

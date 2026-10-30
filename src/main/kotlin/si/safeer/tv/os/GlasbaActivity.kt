@@ -882,6 +882,8 @@ class GlasbaActivity : OsActivity() {
         vrstica.addView(besedila, LinearLayout.LayoutParams(0, -2, 1f))
         zdajCas = besedilo(14f, osBarva(R.color.os_mint))
         vrstica.addView(zdajCas)
+        // Telefon in tablica: ob treh gumbih ni prostora za cas (pregled 30. 10. 2026; tako je bilo pred zdruzitvijo).
+        if (!Naprava.jeTelevizor(this@GlasbaActivity)) zdajCas.visibility = View.GONE
         val gumbiVrstice = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
         }
@@ -4624,6 +4626,9 @@ class GlasbaActivity : OsActivity() {
         }
         val spletni = if (!prva || zvrst.isNotEmpty()) null else iskanjeDelavec.submit<List<Jamendo.Skladba>> {
             vJeziku(SpletniVir.priljubljeno(this, MedijskiViri.vsi(this).filter { jeVirViden(GLASBA, kljucVira(it)) }))
+                // Pregled 30. 10. 2026: glasba in videospoti sta zdruzena, filmi in video kanali spletnih virov pa ne
+                // sodijo v Glasbo (filter je izpadel z zdruzitvijo).
+                .filter { SpletniVir.vrstaVsebine(it) == SpletniVir.VIDEOSPOT || !it.video }
         }
         izhod += vJeziku(straniDodatkov(m, rokDodatkov(m, prva)))
         var seKaj = m.viri.any { !it.konec || it.vTeku != null }

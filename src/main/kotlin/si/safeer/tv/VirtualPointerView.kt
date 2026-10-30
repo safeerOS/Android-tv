@@ -32,6 +32,10 @@ class VirtualPointerView @JvmOverloads constructor(
      * in strani sporoca premike kot prava miska (lebdenje), da se meniji in namigi vedejo kot na racunalniku.
      */
     var trajen: Boolean = false
+        set(value) {
+            field = value
+            removeCallbacks(hideRunnable)
+        }
 
     /**
      * Vlecenje z daljincem (lastnik 30. 10. 2026: varnostne preverbe »povleci obliko«, drsniki).
@@ -40,11 +44,11 @@ class VirtualPointerView @JvmOverloads constructor(
     var vlecem: Boolean = false
         private set
     var cakaKlik: Boolean = false
+    /** OK je ze naredil svoje (zgrabil ali spustil): ponovitve drzane tipke do spusta nic ne naredijo. */
+    var okPorabljen: Boolean = false
     private var vlecenjeOd: Long = 0L
-        set(value) {
-            field = value
-            removeCallbacks(hideRunnable)
-        }
+    /** Pogled, v katerem se je vlecenje zacelo - spust gre vanj (tudi ce se je medtem zamenjal zavihek). */
+    private var vlecenjePogled: java.lang.ref.WeakReference<WebView>? = null
 
     private val pointerPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.parseColor("#00E5FF")
@@ -166,15 +170,19 @@ class VirtualPointerView @JvmOverloads constructor(
         removeCallbacks(hideRunnable)
         vlecem = true
         cakaKlik = false
+        okPorabljen = true
         vlecenjeOd = SystemClock.uptimeMillis()
+        vlecenjePogled = java.lang.ref.WeakReference(wv)
         dotik(wv, MotionEvent.ACTION_DOWN)
         invalidate()
     }
 
     /** Spusti na mestu kazalca (dotik gor). */
-    fun koncajVlecenje(wv: WebView?) {
+    fun koncajVlecenje(wv: WebView?, preklic: Boolean = false) {
         if (!vlecem) return
-        if (wv != null) dotik(wv, MotionEvent.ACTION_UP)
+        val cilj = vlecenjePogled?.get() ?: wv
+        if (cilj != null) dotik(cilj, if (preklic || cilj !== wv) MotionEvent.ACTION_CANCEL else MotionEvent.ACTION_UP)
+        vlecenjePogled = null
         vlecem = false
         if (!trajen) postDelayed(hideRunnable, 30000)
         invalidate()
