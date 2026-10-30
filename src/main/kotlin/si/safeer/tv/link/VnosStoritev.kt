@@ -173,16 +173,43 @@ class VnosStoritev : AccessibilityService() {
         instanca = this
         Log.i(TAG, "Safeer Vnos je vklopljen.")
         glavnaNit.post { pripraviFokusOverlay() }
+        if (jeTelevizor()) miska = SistemskaMiska(this)
+    }
+
+    /** Daljinec kot miska v aplikacijah, ki niso narejene za TV (lastnik 30. 10. 2026). */
+    private var miska: SistemskaMiska? = null
+    private val miskaPaketi = HashMap<String, Boolean>()
+
+    private val preveriMiskoOpravilo = Runnable { preveriMisko() }
+
+    private fun preveriMisko() {
+        val m = miska ?: return
+        val koren = try { rootInActiveWindow } catch (_: Throwable) { null }
+        val paket = koren?.packageName?.toString().orEmpty()
+        // Tipkovnica in sistemska okna (obvestila, glasnost) ne spremenijo aplikacije v ospredju.
+        if (paket.isEmpty() || paket == "com.android.systemui" || jeTipkovnicaOdprta()) return
+        val vklop = miskaPaketi.getOrPut(paket) {
+            val pm = packageManager
+            val navaden = try { pm.getLaunchIntentForPackage(paket) != null } catch (_: Throwable) { false }
+            val tv = try { pm.getLeanbackLaunchIntentForPackage(paket) != null } catch (_: Throwable) { false }
+            val sistemska = try {
+                (pm.getApplicationInfo(paket, 0).flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
+            } catch (_: Throwable) { true }
+            si.safeer.tv.os.OsPravila.miskaZaPaket(true, paket, navaden, tv, sistemska)
+        }
+        if (vklop) m.vklopi(paket) else m.izklopi()
     }
 
     override fun onUnbind(intent: android.content.Intent?): Boolean {
         instanca = null
+        miska?.izklopi()
         odstraniFokusOverlay()
         return super.onUnbind(intent)
     }
 
     override fun onDestroy() {
         instanca = null
+        miska?.izklopi()
         odstraniFokusOverlay()
         super.onDestroy()
     }
@@ -196,6 +223,12 @@ class VnosStoritev : AccessibilityService() {
             AccessibilityEvent.TYPE_WINDOWS_CHANGED -> {
                 glavnaNit.removeCallbacks(posodobiFokusOpravilo)
                 glavnaNit.postDelayed(posodobiFokusOpravilo, 30)
+                if (event.eventType != AccessibilityEvent.TYPE_VIEW_FOCUSED &&
+                    event.eventType != AccessibilityEvent.TYPE_VIEW_SELECTED
+                ) {
+                    glavnaNit.removeCallbacks(preveriMiskoOpravilo)
+                    glavnaNit.postDelayed(preveriMiskoOpravilo, 150)
+                }
             }
         }
     }
@@ -284,7 +317,7 @@ class VnosStoritev : AccessibilityService() {
             // Aplikacije za TV (Leanback) imajo svoj fokus: nas okvir bi se podvojil in med drsenjem zamikal
             // (lastnik 30. 10. 2026, RTV 365: okvir med dvema plakatoma).
             if (vozlisce == null || !vozlisce.isVisibleToUser || korenPaket == packageName ||
-                korenPaket == "com.aurora.store" || jeTvAplikacija(korenPaket)) {
+                korenPaket == "com.aurora.store" || jeTvAplikacija(korenPaket) || miska?.paket == korenPaket) {
                 skrijFokusOverlay()
                 return
             }
@@ -395,6 +428,8 @@ class VnosStoritev : AccessibilityService() {
     override fun onKeyEvent(event: android.view.KeyEvent): Boolean {
         val k = event.keyCode
         if (!jeTelevizor()) return false
+        // Daljinec kot miska (aplikacije, ki niso za TV); ob odprti tipkovnici tipke ostanejo tipkovnici.
+        if (miska?.paket != null && !jeTipkovnicaOdprta() && miska?.tipka(event) == true) return true
         // Posodobi univerzalni Safeer OS fokus overlay ob premikanju s križcem
         if (event.action == android.view.KeyEvent.ACTION_DOWN) {
             when (k) {

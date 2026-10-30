@@ -521,6 +521,11 @@ def main() -> int:
     preveri("sporocila: vsak kanal ima odstranitev",
             "setOnLongClickListener { urediKanal(k); true }" in sp and "if (splet) setOnLongClickListener" not in sp
             and "private fun urediKanalLinka(" in sp)
+    # Lastnik 30. 10. 2026: daljinec kot miska v aplikacijah, ki niso za TV; vrstica z naslovom na TV ni vedno skrita.
+    preveri("miska: aplikacije brez TV zaganjalnika", "miska?.tipka(event) == true" in vn
+            and (SRC / "link/SistemskaMiska.kt").is_file())
+    ma = (SRC / "MainActivity.kt").read_text(encoding="utf-8")
+    preveri("brskalnik: vrstica z naslovom na TV ni prisilno skrita", "mobileTopBar.visibility = vidnost" in ma)
     # Zaganjalnik (TV, telefon, tablica) mora vedno imeti vecjo mejo pomnilnika.
     for okus in ("os", "telefon", "tablica"):
         man = (KOREN / "okusi" / okus / "AndroidManifest.xml").read_text(encoding="utf-8")

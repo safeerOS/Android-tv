@@ -47,6 +47,8 @@ class PokrajinaActivity : OsActivity() {
     private lateinit var ura: TextView
     private lateinit var datum: TextView
     private lateinit var vreme: TextView
+    /** Tedenska napoved vodoravno v glavi, levo od temperature (lastnik 30. 10. 2026). */
+    private lateinit var teden: LinearLayout
     private lateinit var vrstaAplikacij: LinearLayout
     private lateinit var dok: LinearLayout
     private lateinit var preliv: View
@@ -231,6 +233,10 @@ class PokrajinaActivity : OsActivity() {
     }
 
     override fun dispatchKeyEvent(dogodek: KeyEvent): Boolean {
+        if (dogodek.keyCode == KeyEvent.KEYCODE_BACK && ::teden.isInitialized && teden.visibility == View.VISIBLE) {
+            if (dogodek.action == KeyEvent.ACTION_UP) teden.visibility = View.GONE
+            return true
+        }
         // Mirovanje: prvi pritisk samo zbudi vmesnik (tudi njegov ACTION_UP ne naredi nicesar).
         if (dogodek.action == KeyEvent.ACTION_DOWN) {
             zadnjiVnos = android.os.SystemClock.uptimeMillis()
@@ -366,7 +372,19 @@ class PokrajinaActivity : OsActivity() {
         g.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
         // Vreme: brez izbranega kraja ga ni (ne nadomestka). Lastnik 27. 10. 2026: kraj se izbere v Nastavitvah, ne s klikom
         // na uro (VremeKraj) - ura je samo prikaz.
-        vreme = besedilo("", 26f).apply { visibility = View.GONE }
+        teden = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; visibility = View.GONE
+        }
+        g.addView(teden, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(10) })
+        // Lastnik 30. 10. 2026: klik na temperaturo pokaze tedensko napoved v zgornjem pasu (ne cez vsebino).
+        vreme = besedilo("", 26f).apply {
+            visibility = View.GONE
+            id = View.generateViewId()
+            isFocusable = true; isClickable = true
+            setBackgroundResource(R.drawable.os_meni_postavka)
+            setPadding(dp(12), dp(4), dp(12), dp(4))
+            setOnClickListener { preklopiTeden() }
+        }
         g.addView(vreme, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(22) })
         val cas = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; gravity = Gravity.END
@@ -854,6 +872,45 @@ class PokrajinaActivity : OsActivity() {
         vreme.text = ikona(VremePravila.vrsta(v.koda)) + "  " + VremePravila.napis(v)
         vreme.contentDescription = getString(R.string.pk_vreme_opis, kraj()?.ime.orEmpty(), VremePravila.napis(v))
         vreme.visibility = View.VISIBLE
+        // Daljinec: z iskalnega polja gor na temperaturo, z nje dol nazaj na polje (fokus ostane na vidnih poljih).
+        if (::poljeLupe.isInitialized) {
+            if (poljeLupe.id == View.NO_ID) poljeLupe.id = View.generateViewId()
+            poljeLupe.nextFocusUpId = vreme.id
+            vreme.nextFocusDownId = poljeLupe.id
+        }
+    }
+
+    private fun preklopiTeden() {
+        if (teden.visibility == View.VISIBLE) { teden.visibility = View.GONE; return }
+        val k = kraj() ?: return
+        Thread({
+            val dni = beri(VremePravila.naslovTedna(k))?.let { VremePravila.razcleniTeden(it) }.orEmpty()
+            glavna.post {
+                if (isFinishing || isDestroyed || dni.isEmpty()) return@post
+                narisiTeden(dni)
+            }
+        }, "safeer-vreme-teden").start()
+    }
+
+    private fun narisiTeden(dni: List<VremePravila.Dan>) {
+        teden.removeAllViews()
+        val vhod = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ROOT)
+        val izhod = java.text.SimpleDateFormat("EEE", java.util.Locale.getDefault())
+        for (d in dni) {
+            val dan = try { vhod.parse(d.datum)?.let { izhod.format(it) } } catch (_: Exception) { null } ?: d.datum.takeLast(5)
+            val stolpec = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
+                setPadding(dp(8), 0, dp(8), 0)
+                // Samo prikaz: fokus ostane na temperaturi (ponovni OK ali Nazaj skrije teden).
+                isFocusable = false
+            }
+            stolpec.addView(besedilo(dan, 13f, R.color.os_umirjeno).apply { gravity = Gravity.CENTER })
+            stolpec.addView(besedilo(ikona(VremePravila.vrsta(d.koda)), 18f).apply { gravity = Gravity.CENTER })
+            stolpec.addView(besedilo(VremePravila.napisDneva(d), 13f).apply { gravity = Gravity.CENTER })
+            teden.addView(stolpec)
+        }
+        teden.contentDescription = dni.joinToString(", ") { it.datum + " " + VremePravila.napisDneva(it) }
+        teden.visibility = View.VISIBLE
     }
 
     private fun ikona(vrsta: String): String = when (vrsta) {

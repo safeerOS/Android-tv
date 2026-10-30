@@ -56,6 +56,16 @@ fun main() {
     preveriEnako("neprosojno cez karkoli", 0xFF123456.toInt(), PokrajinaPravila.cez(0xFF123456.toInt(), 0xFFFFFFFF.toInt()))
 
     println("\n== vreme ==")
+    val teden = VremePravila.razcleniTeden(
+        "{\"daily\":{\"time\":[\"2026-10-30\",\"2026-10-31\",\"2026-11-01\"]," +
+            "\"weather_code\":[3,61,0],\"temperature_2m_max\":[6.4,4.6,-1.2],\"temperature_2m_min\":[1.2,-0.6,-5.6]}}"
+    )
+    preveriEnako("teden: trije dnevi", 3, teden.size)
+    preveriEnako("teden: prvi dan", VremePravila.Dan("2026-10-30", 6, 1, 3), teden[0])
+    preveriEnako("teden: napis z minusom", "−1° / −6°", VremePravila.napisDneva(teden[2]))
+    preveriEnako("teden: pokvarjen odgovor", 0, VremePravila.razcleniTeden("{\"daily\":{}}").size)
+    preveriEnako("teden: naslov", true, VremePravila.naslovTedna(VremePravila.Kraj("Ljubljana", "", 46.05, 14.51))
+        .contains("daily=weather_code,temperature_2m_max,temperature_2m_min") )
     preveriEnako("jasno", "jasno", VremePravila.vrsta(0))
     preveriEnako("delno oblacno", "delno", VremePravila.vrsta(2))
     preveriEnako("megla", "megla", VremePravila.vrsta(45))

@@ -1933,4 +1933,21 @@ object OsPravila {
         ponovitve < 10 -> 72f
         else -> 110f
     }
+
+    /**
+     * Daljinec kot miska v aplikaciji (lastnik 30. 10. 2026): na TV za aplikacije z navadnim zaganjalnikom
+     * in brez zaganjalnika za TV (Leanback) - niso narejene za daljinec. Nase aplikacije imajo svoje upravljanje.
+     */
+    fun miskaZaPaket(
+        jeTv: Boolean,
+        paket: String,
+        imaZaganjalnik: Boolean,
+        imaTvZaganjalnik: Boolean,
+        sistemska: Boolean = false
+    ): Boolean {
+        // Sistemske aplikacije televizorja (nastavitve, namestitev naprave, tipkovnica) so za daljinec.
+        if (!jeTv || paket.isBlank() || sistemska) return false
+        if (paket.startsWith("si.safeer.") || paket == "com.aurora.store") return false
+        return imaZaganjalnik && !imaTvZaganjalnik
+    }
 }

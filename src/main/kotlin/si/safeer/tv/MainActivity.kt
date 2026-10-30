@@ -114,13 +114,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     internal fun isTopBarFocused(): Boolean = isChromeFocused()
 
     internal fun nastaviVidnostChrome(vidnost: Int) {
-        val dejanskaVidnost = if (vidnost == View.VISIBLE && isTelevisionDevice() && SpletDomaca.jeSafeerOs(this)) {
-            View.GONE
-        } else {
-            vidnost
-        }
-        mobileTopBar.visibility = dejanskaVidnost
-        mobileBottomBar?.visibility = dejanskaVidnost
+        // Lastnik 30. 10. 2026: vrstica z naslovom na TV ni vedno skrita (skrita le v nacinu spletne aplikacije).
+        mobileTopBar.visibility = vidnost
+        mobileBottomBar?.visibility = vidnost
     }
 
     internal fun isTelevisionDevice(): Boolean {
@@ -1403,10 +1399,6 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
     /** Chrome razdelka Splet: namizni dve zgornji vrstici ali telefonski naslov zgoraj in navigacija spodaj. */
     private fun pripraviSafeerSpletChrome() {
-        if (isTelevisionDevice()) {
-            nastaviVidnostChrome(View.GONE)
-            return
-        }
         spletSirokiChrome = resources.configuration.orientation != Configuration.ORIENTATION_PORTRAIT ||
             resources.configuration.screenWidthDp >= 600
         mobileBottomBar?.let { mainRoot.removeView(it) }

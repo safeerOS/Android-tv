@@ -77,6 +77,38 @@ object VremePravila {
         return Vreme(Math.round(stopinj).toInt(), koda.toInt())
     }
 
+    /** En dan tedenske napovedi (lastnik 30. 10. 2026: klik na temperaturo pokaze teden v zgornjem pasu). */
+    data class Dan(val datum: String, val max: Int, val min: Int, val koda: Int)
+
+    fun naslovTedna(k: Kraj): String =
+        "$NAPOVED?latitude=" + String.format(java.util.Locale.ROOT, "%.2f", k.sirina) +
+            "&longitude=" + String.format(java.util.Locale.ROOT, "%.2f", k.dolzina) +
+            "&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=7"
+
+    fun razcleniTeden(json: String): List<Dan> {
+        val d = JsonLahki.objekt(json)?.objekt("daily") ?: return emptyList()
+        val dnevi = d.nizi("time")
+        fun stevila(kljuc: String): List<Double?> =
+            d.surovo(kljuc)?.let { JsonLahki.elementi(it) }?.map { it.trim().toDoubleOrNull() } ?: emptyList()
+        val najvec = stevila("temperature_2m_max")
+        val najmanj = stevila("temperature_2m_min")
+        val kode = stevila("weather_code")
+        return dnevi.indices.mapNotNull { i ->
+            val a = najvec.getOrNull(i) ?: return@mapNotNull null
+            val b = najmanj.getOrNull(i) ?: return@mapNotNull null
+            val c = kode.getOrNull(i) ?: return@mapNotNull null
+            if (a.isNaN() || b.isNaN() || a < -90 || a > 60 || b < -90 || b > 60) return@mapNotNull null
+            if (!Regex("""\d{4}-\d{2}-\d{2}""").matches(dnevi[i])) return@mapNotNull null
+            Dan(dnevi[i], Math.round(a).toInt(), Math.round(b).toInt(), c.toInt())
+        }.take(7)
+    }
+
+    /** »6° / 1°« z znakom minus. */
+    fun napisDneva(d: Dan): String {
+        fun st(x: Int) = if (x < 0) "−" + (-x) else x.toString()
+        return st(d.max) + "° / " + st(d.min) + "°"
+    }
+
     /** Ali je zapis iz [casMs] se dovolj svez za prikaz. */
     fun svezo(casMs: Long, zdajMs: Long): Boolean = casMs > 0 && zdajMs - casMs in 0 until ZASTARELO_MS
 
