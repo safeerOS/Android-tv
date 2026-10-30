@@ -977,6 +977,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         if (BuildConfig.FLAVOR != "brskalnik" || namera?.action != Intent.ACTION_VIEW) return
         val naslov = namera.dataString ?: return
         if (!naslov.startsWith("http://") && !naslov.startsWith("https://")) return
+        // Prijava (OAuth, Google ...) ostane tu, kjer jo lahko koncamo - brez izbire (lastnik 30. 10. 2026).
+        if (si.safeer.tv.os.OsPravila.jePrijavniNaslov(naslov)) return
         // Izvor je aplikacija (android-app://paket), ne spletna stran, ki jo lahko nastavi kdorkoli.
         val izvor = try { referrer?.takeIf { it.scheme == "android-app" }?.host } catch (_: Exception) { null }
         if (!si.safeer.tv.os.OsPravila.ponudiIzbiroBrskalnika(izvor, packageName)) return

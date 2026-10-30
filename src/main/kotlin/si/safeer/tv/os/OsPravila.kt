@@ -1324,6 +1324,19 @@ object OsPravila {
      * Ali Safeer TV Browser ob povezavi ponudi vgrajeni brskalnik Safeer OS: samo, ce je povezavo odprla druga
      * aplikacija (prijava iz Claude ipd.), ne Safeer sam (brskalnik ali Safeer OS) in ne neznan izvor.
      */
+    /**
+     * Lastnik 30. 10. 2026: prijave ne ponujamo v vgrajenem brskalniku, ce je tam ne more koncati (Googlova prijava v
+     * Safeer OS se je koncala z napako 400, v Safeer TV Browser je uspela). Naslov za prijavo ali OAuth.
+     */
+    fun jePrijavniNaslov(url: String): Boolean {
+        val u = url.lowercase()
+        val gost = u.substringAfter("://").substringBefore('/').substringBefore('?')
+        val pot = u.substringAfter(gost, "")
+        return gost.startsWith("accounts.") || gost.startsWith("login.") || gost.startsWith("auth.") ||
+            gost.startsWith("signin.") || gost.startsWith("appleid.") || gost.startsWith("sso.") ||
+            Regex("(^|[/_.-])(login|signin|sign-in|sign_in|oauth2?|authorize|auth|sso|logon)([/_.?=#-]|$)").containsMatchIn(pot)
+    }
+
     fun ponudiIzbiroBrskalnika(izvor: String?, mojPaket: String): Boolean =
         !izvor.isNullOrBlank() && izvor != mojPaket && izvor != "si.safeer.os" && izvor != "si.safeer.tv" &&
             izvor != "android" && izvor != "com.android.systemui"
