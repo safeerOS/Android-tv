@@ -745,4 +745,7 @@
     <string name="os_pomoc_da">Yes, help</string>
     <string name="os_pomoc_ne">No</string>
     <string name="os_zaganjalnik_edini">Safeer OS is the only launcher on this TV. Turning it off would leave a black screen, so it stays on. First enable another launcher in the TV’s system settings.</string>
+    <string name="os_aplikacije_odstrani_app">Uninstall app</string>
+    <string name="os_aplikacije_dodaj_domov">Put on home screen</string>
+    <string name="os_aplikacije_odstrani_domov">Take off home screen</string>
 </resources>

@@ -737,4 +737,7 @@
     <string name="os_pomoc_da">Sí, ayudar</string>
     <string name="os_pomoc_ne">No</string>
     <string name="os_zaganjalnik_edini">Safeer OS es el único lanzador de este televisor. Si lo desactivas, la pantalla quedaría en negro, así que sigue activado. Primero activa otro lanzador en los ajustes del sistema del televisor.</string>
+    <string name="os_aplikacije_odstrani_app">Desinstalar aplicación</string>
+    <string name="os_aplikacije_dodaj_domov">Añadir a la pantalla de inicio</string>
+    <string name="os_aplikacije_odstrani_domov">Quitar de la pantalla de inicio</string>
 </resources>

@@ -168,7 +168,8 @@ class TvKeyRouter(private val host: MainActivity) {
             when (keyCode) {
                 KeyEvent.KEYCODE_DPAD_UP -> {
                     // V nacinu aplikacije vrstice z naslovom ni: fokus ne sme oditi v skrito polje.
-                    if (host.virtualPointerView.pointerY < 120f && host.nacinAplikacije == null) {
+                    if (host.virtualPointerView.pointerY < 120f && host.nacinAplikacije == null &&
+                        host.mobileTopBar.visibility == View.VISIBLE) {
                         host.editUrl.requestFocus()
                     } else {
                         host.virtualPointerView.movePointer(0f, -korak, activeWv)

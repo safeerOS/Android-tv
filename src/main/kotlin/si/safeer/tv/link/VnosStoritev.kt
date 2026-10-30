@@ -444,9 +444,8 @@ class VnosStoritev : AccessibilityService() {
 
     private fun zapriTipkovnico() {
         try {
-            if (jeTipkovnicaOdprta()) {
-                performGlobalAction(GLOBAL_ACTION_BACK)
-            }
+            // Brez sistemskega Nazaj: ce se tipkovnica ob ENTER zapre sama, bi Nazaj zaprl zaslon aplikacije.
+            if (!jeTipkovnicaOdprta()) return
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 softKeyboardController.showMode = SHOW_MODE_HIDDEN
                 android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
