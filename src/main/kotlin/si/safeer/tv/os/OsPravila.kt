@@ -1253,6 +1253,10 @@ object OsPravila {
      * zadnji strani ni bilo nobenega naslova v izbranem jeziku, jih ne stejemo vec kot vir - gumba ni, ce ga nima tudi
      * seznam jezika.
      */
+    /** Aplikacija, ki jo je namestil uporabnik (ne sistemska; posodobljena sistemska steje kot sistemska). */
+    fun uporabniskaAplikacija(sistemska: Boolean, posodobljenaSistemska: Boolean): Boolean =
+        !sistemska && !posodobljenaSistemska
+
     fun katalogiSeKaj(katalogImaVec: Boolean, jezik: String, vJezikuNaStrani: Int): Boolean =
         katalogImaVec && (jezik.isEmpty() || vJezikuNaStrani > 0)
 

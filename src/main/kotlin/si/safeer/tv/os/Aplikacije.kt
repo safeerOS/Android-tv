@@ -37,13 +37,14 @@ object Aplikacije {
             ?: return null
         val tv = context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
         return zapisi.filter { it.paket != context.packageName }
-            .map { Vnos(it.paket, it.ime, null, zagonskaNamera(ComponentName(it.paket, it.razred), tv)) }
+            .map { Vnos(it.paket, it.ime, null, zagonskaNamera(ComponentName(it.paket, it.razred), tv, brezKategorije = true)) }
             .sortedBy { it.ime.lowercase() }
     }
 
-    private fun zagonskaNamera(c: ComponentName, tv: Boolean): Intent =
-        Intent(Intent.ACTION_MAIN).addCategory(if (tv) Intent.CATEGORY_LEANBACK_LAUNCHER else Intent.CATEGORY_LAUNCHER)
-            .setComponent(c).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    private fun zagonskaNamera(c: ComponentName, tv: Boolean, brezKategorije: Boolean = false): Intent =
+        Intent(Intent.ACTION_MAIN).apply {
+            if (!brezKategorije) addCategory(if (tv) Intent.CATEGORY_LEANBACK_LAUNCHER else Intent.CATEGORY_LAUNCHER)
+        }.setComponent(c).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
     private fun datoteka(c: Context) = File(c.filesDir, "aplikacije_zadnji_seznam.txt")
 
@@ -160,9 +161,22 @@ object Aplikacije {
         val zadetki = ArrayList(try { pm.queryIntentActivities(poizvedba, 0) } catch (_: Throwable) { emptyList() })
         // Tablica (naprava brez leanbacka): aplikacije za televizor ima le redka - Safeer OS Tablet je
         // na zaslonu aplikacij pokazal 7 od 50. Tam stejejo aplikacije obicajnega zaganjalnika.
+        val leanback = zadetki.mapNotNullTo(HashSet()) { it.activityInfo?.packageName }
         if (!pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK)) {
             val obicajne = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
             try { zadetki.addAll(pm.queryIntentActivities(obicajne, 0)) } catch (_: Throwable) { }
+        } else {
+            // Lastnik 30. 10. 2026: Claude, namescen iz Safeer Play Store, ni bil med aplikacijami - na TV smo
+            // steli samo aplikacije za TV. Telefonske aplikacije zdaj tecejo z misko in tablicnim nacinom, zato
+            // pridejo zraven vse, ki jih je namestil uporabnik (sistemske brez TV zaganjalnika ne).
+            val obicajne = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+            val telefonske = try { pm.queryIntentActivities(obicajne, 0) } catch (_: Throwable) { emptyList() }
+            zadetki.addAll(telefonske.filter { r ->
+                val ai = r.activityInfo?.applicationInfo
+                ai != null && r.activityInfo.packageName !in leanback &&
+                    OsPravila.uporabniskaAplikacija(ai.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0,
+                        ai.flags and android.content.pm.ApplicationInfo.FLAG_UPDATED_SYSTEM_APP != 0)
+            })
         }
         val videni = HashSet<String>()
         val vnosi = ArrayList<Vnos>()
@@ -172,7 +186,7 @@ object Aplikacije {
             if (info.packageName == context.packageName || !videni.add(info.packageName)) continue
             // Namero sestavimo iz ze najdene dejavnosti: getLeanbackLaunchIntentForPackage je bil za vsak
             // paket svoja poizvedba (50 aplikacij = 50 klicev paketnemu upravitelju).
-            val namera = zagonskaNamera(ComponentName(info.packageName, info.name), tv)
+            val namera = zagonskaNamera(ComponentName(info.packageName, info.name), tv && info.packageName in leanback)
             // Ikona pred plakatom: plakat (banner) je sirok 320x180 in v majhni kvadratni
             // ploscici na domacem zaslonu postane neberljiv drobiz - prav to se je videlo pri
             // Safeer Browserju in SmartTubu. Kvadratna ikona aplikacije je vedno citljiva.
