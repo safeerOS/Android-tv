@@ -1253,6 +1253,17 @@ object OsPravila {
      * zadnji strani ni bilo nobenega naslova v izbranem jeziku, jih ne stejemo vec kot vir - gumba ni, ce ga nima tudi
      * seznam jezika.
      */
+    /** Malo pomnilnika: manj kot petina prosta ali manj kot 400 MB. */
+    fun maloPomnilnika(prostoMb: Int, skupajMb: Int): Boolean =
+        prostoMb in 0 until 400 || (skupajMb > 0 && prostoMb * 5 < skupajMb)
+
+    /** Ali sme »Sprosti pomnilnik« zapreti paket (v ozadju): ne Safeer, tipkovnica, sistem televizorja, Googlove storitve. */
+    fun smemoZapreti(paket: String, mojPaket: String, tipkovnica: String?, trajen: Boolean): Boolean =
+        !trajen && paket != mojPaket && !paket.startsWith("si.safeer.") && paket != tipkovnica &&
+            !paket.startsWith("com.android.") && !paket.startsWith("org.droidtv.") && paket != "android" &&
+            paket !in setOf("com.google.android.gms", "com.google.android.gsf", "com.google.android.tvlauncher",
+                "com.google.android.inputmethod.latin", "com.google.android.leanbacklauncher")
+
     // Obseg iskanja v Medijskem centru (lastnik 30. 10. 2026: »uporabnik lahko izbere, po katerem viru isce«).
     const val OBSEG_VSE = 0
     const val OBSEG_FILMI = 1

@@ -409,6 +409,8 @@
     <string name="os_vir_racunalnik">Ordinateur</string>
     <string name="os_priljubljen_dodaj">Ajouter à l\'écran d\'accueil</string>
     <string name="os_priljubljen_odstrani">Retirer de l\'écran d\'accueil</string>
+    <string name="os_sprosti_pomnilnik">Libérer la mémoire</string>
+    <string name="os_sproscen_pomnilnik">%1$d Mo libérés · %2$d Mo libres sur %3$d Mo</string>
     <string name="pk_premakni">Déplacer</string>
     <string name="pk_premikanje_namig">Déplacez avec Gauche et Droite de la télécommande, puis appuyez sur OK.</string>
     <string name="os_odsek_priljubljene">Applications favorites</string>

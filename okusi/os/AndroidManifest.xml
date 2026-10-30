@@ -8,6 +8,7 @@
          uporablja samo brskalnik (glasovno iskanje, daljinec); v skupnem manifestu sta zato, ker ga
          obe aplikaciji delita. Uporabnik naj ob namestitvi Safeer OS vidi samo tisto, kar ta res
          potrebuje. -->
+    <uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove" />
     <!-- Enako kot v skupnem delu; ponovljeno, ker Lint ta del preverja posebej. -->
     <uses-feature android:name="android.hardware.microphone" android:required="false" />

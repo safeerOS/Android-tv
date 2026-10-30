@@ -412,6 +412,8 @@
     <string name="os_vir_racunalnik">Računalnik</string>
     <string name="os_priljubljen_dodaj">Na domači zaslon</string>
     <string name="os_priljubljen_odstrani">Odstrani z zaslona</string>
+    <string name="os_sprosti_pomnilnik">Sprosti pomnilnik</string>
+    <string name="os_sproscen_pomnilnik">Sproščeno %1$d MB · prosto %2$d MB od %3$d MB</string>
     <string name="pk_premakni">Premakni</string>
     <string name="pk_premikanje_namig">Premikaj z levo in desno na daljincu, za konec pritisni OK.</string>
     <string name="os_odsek_priljubljene">Priljubljene aplikacije</string>

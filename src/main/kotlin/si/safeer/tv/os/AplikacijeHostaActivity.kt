@@ -130,6 +130,23 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             (layoutParams as LinearLayout.LayoutParams).marginStart = (14 * resources.displayMetrics.density).toInt()
             setOnClickListener { TrgovineAplikacij.pokazi(this@AplikacijeHostaActivity) }
         }, 1)
+        // Lastnik 30. 10. 2026: »Sprosti pomnilnik« - zapre aplikacije v ozadju (ne Safeerja, tipkovnice, sistema TV).
+        findViewById<LinearLayout>(R.id.orodja).addView(gumb(getString(R.string.os_sprosti_pomnilnik), false).apply {
+            (layoutParams as LinearLayout.LayoutParams).marginStart = (14 * resources.displayMetrics.density).toInt()
+            setOnClickListener {
+                val c = applicationContext
+                Thread {
+                    val prej = Pomnilnik.stanje(c)
+                    Pomnilnik.sprosti(c)
+                    Thread.sleep(1_500)
+                    val po = Pomnilnik.stanje(c)
+                    runOnUiThread {
+                        android.widget.Toast.makeText(this@AplikacijeHostaActivity, getString(R.string.os_sproscen_pomnilnik,
+                            (po.prostoMb - prej.prostoMb).coerceAtLeast(0), po.prostoMb, po.skupajMb), android.widget.Toast.LENGTH_LONG).show()
+                    }
+                }.apply { isDaemon = true }.start()
+            }
+        }, 2)
         when (nacin) {
             AppVir.RACUNALNIK.kljuc -> {
                 nadnaslov.text = getString(R.string.os_programi)

@@ -14,6 +14,7 @@
     <!-- Cesar lupina ne potrebuje: mikrofon je brskalnikov (glasovno iskanje). SYSTEM_ALERT_WINDOW
          ostane (iz skupnega manifesta): Safeer Link z druge naprave odpira programe tudi, ko lupina
          ni v ospredju (Android 10+); uporabnik ga vklopi sam, prek obvestila. -->
+    <uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <!-- Safeer Vnos z ENO privolitvijo (lastnik 25. 10. 2026): ko uporabnik napravi v ozjem krogu odpre »Zaslon in

@@ -409,6 +409,8 @@
     <string name="os_vir_racunalnik">Computer</string>
     <string name="os_priljubljen_dodaj">Aggiungi alla schermata Home</string>
     <string name="os_priljubljen_odstrani">Rimuovi dalla schermata Home</string>
+    <string name="os_sprosti_pomnilnik">Libera memoria</string>
+    <string name="os_sproscen_pomnilnik">Liberati %1$d MB · %2$d MB liberi su %3$d MB</string>
     <string name="pk_premakni">Sposta</string>
     <string name="pk_premikanje_namig">Sposta con Sinistra e Destra del telecomando, poi premi OK.</string>
     <string name="os_odsek_priljubljene">App preferite</string>

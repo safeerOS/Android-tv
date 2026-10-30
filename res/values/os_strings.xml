@@ -413,6 +413,8 @@
     <string name="os_vir_racunalnik">Computer</string>
     <string name="os_priljubljen_dodaj">Add to the home screen</string>
     <string name="os_priljubljen_odstrani">Remove from the home screen</string>
+    <string name="os_sprosti_pomnilnik">Free up memory</string>
+    <string name="os_sproscen_pomnilnik">Freed %1$d MB · %2$d MB free of %3$d MB</string>
     <string name="pk_premakni">Move</string>
     <string name="pk_premikanje_namig">Move with Left and Right on the remote, press OK when done.</string>
     <string name="os_odsek_priljubljene">Favourite apps</string>

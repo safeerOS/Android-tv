@@ -234,8 +234,17 @@ class VnosStoritev : AccessibilityService() {
             } catch (_: Throwable) { true }
             si.safeer.tv.os.OsPravila.miskaZaPaket(true, paket, navaden, tv, sistemska)
         }
+        val prej = neprilagojena
         neprilagojena = if (vklop) paket else null
         if (vklop) tablica?.vklopi() else tablica?.izklopi()
+        // Lastnik 30. 10. 2026: telefonska aplikacija (tablicni nacin), iz katere se uporabnik vrne, ostane v ozadju in
+        // zaseda pomnilnik (TV: swap poln). Ce ga je malo, jo cez 3 s zapremo - razen ce se je uporabnik medtem vrnil vanjo.
+        if (prej != null && prej != paket) {
+            val ctx = applicationContext
+            android.os.Handler(mainLooper).postDelayed({
+                if (neprilagojena != prej) Thread { si.safeer.tv.os.Pomnilnik.zapriCeMalo(ctx, prej) }.apply { isDaemon = true }.start()
+            }, 3_000)
+        }
         if (vklop && paket in miskaVklopljena) m.vklopi(paket) else m.izklopi()
     }
 

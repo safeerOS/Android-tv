@@ -6,6 +6,7 @@
     tools:ignore="MissingLeanbackLauncher,UnsupportedTvHardware,UnnecessaryRequiredFeature">
 
     <!-- Navadno dovoljenje: Safeer lahko zahteva cellular Network tudi ob aktivnem Wi-Fi. -->
+    <uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES" />
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
     <!-- Tablica ni aplikacija za televizor: brez vnosa LEANBACK_LAUNCHER in z obveznim zaslonom na dotik
          (vmesnik tablice je narejen za dotik, zato ga zahtevamo namenoma). -->

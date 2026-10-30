@@ -409,6 +409,8 @@
     <string name="os_vir_racunalnik">Computer</string>
     <string name="os_priljubljen_dodaj">Zum Startbildschirm</string>
     <string name="os_priljubljen_odstrani">Vom Startbildschirm entfernen</string>
+    <string name="os_sprosti_pomnilnik">Speicher freigeben</string>
+    <string name="os_sproscen_pomnilnik">%1$d MB freigegeben · %2$d MB von %3$d MB frei</string>
     <string name="pk_premakni">Verschieben</string>
     <string name="pk_premikanje_namig">Mit Links und Rechts auf der Fernbedienung verschieben, zum Abschluss OK drücken.</string>
     <string name="os_odsek_priljubljene">Lieblings-Apps</string>
