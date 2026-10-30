@@ -1248,6 +1248,14 @@ object OsPravila {
      * lastnik 22. 10.: 5000 filmov -> 102 kartici), pri drugih jezikih neznan naslov izpade (Lupin, Tulsa King brez IMDb
      * pri »Slovenščina«, izmerjeno na TV 30. 10. 2026).
      */
+    /**
+     * Lastnik 30. 10. 2026: »Naloži več« pri »Slovenščina« ni dal nicesar. Katalogi dodatkov imajo se strani, a ce na
+     * zadnji strani ni bilo nobenega naslova v izbranem jeziku, jih ne stejemo vec kot vir - gumba ni, ce ga nima tudi
+     * seznam jezika.
+     */
+    fun katalogiSeKaj(katalogImaVec: Boolean, jezik: String, vJezikuNaStrani: Int): Boolean =
+        katalogImaVec && (jezik.isEmpty() || vJezikuNaStrani > 0)
+
     fun ostaneVJeziku(imaImdb: Boolean, poDrzavah: Boolean?, poKatalogu: Boolean?, jezik: String): Boolean =
         poDrzavah ?: poKatalogu ?: (jezik == "en" && !imaImdb)
 

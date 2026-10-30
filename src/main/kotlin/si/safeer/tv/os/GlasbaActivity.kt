@@ -2684,7 +2684,10 @@ class GlasbaActivity : OsActivity() {
                 vsi += sveze
                 o.prazne = if (sveze.isEmpty()) o.prazne + 1 else 0
                 // Filter na nasi strani (zvrst, jezik): stran brez ustreznih naslovov se ni konec - po treh praznih nehamo.
-                o.seKaj = o.jezikSeKaj || (katalogi.zip(strani).any { (k, s) -> OsPravila.katalogImaVec(s.first, k.strani, STRAN_KATALOGA_MIN) } &&
+                val katalogiVec = OsPravila.katalogiSeKaj(
+                    katalogi.zip(strani).any { (k, s) -> OsPravila.katalogImaVec(s.first, k.strani, STRAN_KATALOGA_MIN) },
+                    o.jezik, izKatalogov.size)
+                o.seKaj = o.jezikSeKaj || (katalogiVec &&
                     (sveze.isNotEmpty() || ((zvrst != null || o.jezik.isNotEmpty()) && o.prazne < 3)))
                 // Mreza se narise znova: ostanemo tam, kjer smo bili (ob gumbu Nalozi vec), ne na vrhu.
                 val y = drsnik.scrollY
@@ -2885,7 +2888,9 @@ class GlasbaActivity : OsActivity() {
                 // Seznam jezika: brez odgovora (izpad) ga »Naloži več« vpraša znova od zacetka.
                 o.jezikOdmik = if (izSeznama != null) IzvirniJezik.STRAN_SEZNAMA else 0
                 o.jezikSeKaj = seznamJezika != null && (izSeznama == null || izSeznama.second)
-                val seKaj = katalogi.zip(strani).any { (k, s) -> OsPravila.katalogImaVec(s.first, k.strani, STRAN_KATALOGA_MIN) } || o.jezikSeKaj
+                val seKaj = OsPravila.katalogiSeKaj(
+                    katalogi.zip(strani).any { (k, s) -> OsPravila.katalogImaVec(s.first, k.strani, STRAN_KATALOGA_MIN) },
+                    jezik, vJezikuKatalogov.size) || o.jezikSeKaj
                 // Dokler ne poznamo vseh kartic razdelka (drugi korak), ostane na zaslonu tudi, kar je mreza pokazala iz
                 // predpomnilnika (filmi javne lasti ...): sicer bi izginilo in se cez nekaj sekund spet pojavilo.
                 val nove = if (popolne) {
