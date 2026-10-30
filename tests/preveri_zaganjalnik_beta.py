@@ -508,6 +508,10 @@ def main() -> int:
     preveri("fokus: skrit meni ne dobi fokusa, varovalo na zaslonu", "if (brezVrstice || !drsnik.isShown) { fokusVsebine(); return }" in sv2
             and "if (drsnik.visibility != View.VISIBLE && drsnik.hasFocus()) post { fokusVsebine() }" in sv2
             and "window.decorView.viewTreeObserver.addOnGlobalFocusChangeListener { stari, nov -> varujFokus(stari, nov) }" in gl)
+    # Lastnik 30. 10. 2026: odstranjevanje aplikacij iz Safeer OS potrebuje dovoljenje REQUEST_DELETE_PACKAGES.
+    glavni = (KOREN / "AndroidManifest.xml").read_text(encoding="utf-8")
+    preveri("odstranjevanje aplikacij: REQUEST_DELETE_PACKAGES",
+            'android:name="android.permission.REQUEST_DELETE_PACKAGES"' in glavni)
     # Zaganjalnik (TV, telefon, tablica) mora vedno imeti vecjo mejo pomnilnika.
     for okus in ("os", "telefon", "tablica"):
         man = (KOREN / "okusi" / okus / "AndroidManifest.xml").read_text(encoding="utf-8")

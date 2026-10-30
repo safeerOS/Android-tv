@@ -49,6 +49,9 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Posodobitve in NamestiApk: APK namesti prek seje PackageInstaller ali sistemskega namestitelja (uporabnik potrdi). -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Odstranjevanje aplikacij iz Safeer OS (Aplikacije > Odstrani). Brez dovoljenja sistemsko okno za odstranitev
+         ne odpre nicesar (lastnik 30. 10. 2026: Downloader se ni dal odstraniti; dnevnik: Uid nima REQUEST_DELETE_PACKAGES). -->
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
     <!-- Posodobitev Safeerja prek seje PackageInstaller brez dodatnega okna Androida (uporabnik potrdi »Namesti« v Safeerju);
          Android jo dovoli samo za posodobitev same sebe ali aplikacije, ki jo je namestil Safeer (os/NamestitevSeja). -->
     <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
