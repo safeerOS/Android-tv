@@ -67,11 +67,13 @@
                         if (SPONZ.test(besedilo(naslovi[n]))) skrij(naslovi[n], 'desno');
                     }
                 }
-                // Vir: enote objav.
-                var enote = document.querySelectorAll('[aria-posinset], [data-pagelet^="FeedUnit"], [role="feed"] > div');
+                // Vir: enote posameznih objav (nikoli ne skrijemo korenskih vsebnikov celotnega vira).
+                var enote = document.querySelectorAll('[aria-posinset], [data-pagelet^="FeedUnit_"], [role="feed"] [role="article"]');
                 for (var e = 0; e < enote.length; e++) {
                     var en = enote[e];
                     if (en.hasAttribute('data-safeer-oglas')) continue;
+                    // Ce enota znotraj vsebuje druge objave (npr. zunanji div), je ne obravnavamo kot posamezno objavo.
+                    if (en.querySelector('[aria-posinset], [role="article"]')) continue;
                     if (jeSponzorirano(en)) skrij(en, 'vir');
                 }
                 var zapis = stevec.desno + '/' + stevec.vir;

@@ -150,8 +150,10 @@ class GlasbaActivity : OsActivity() {
     private lateinit var zdajNaslov: TextView
     private lateinit var zdajIzvajalec: TextView
     private lateinit var zdajCas: TextView
-    /** Na dotik: pravi gumb pavza/predvajaj v mali vrstici (znak ▶ se ni dal tapniti). */
+    /** Gumbi v mali vrstici: prejsnja, pavza/predvajaj, naslednja (dostopni z dotikom ali D-padom). */
     private var zdajGumb: FrameLayout? = null
+    private var zdajPrejsnja: FrameLayout? = null
+    private var zdajNaslednja: FrameLayout? = null
     private var razdelek = DOMOV
     private var nalaganje = 0
     /** Zadnje nefiltrirane police; dialog mora ponuditi tudi trenutno izklopljen jezik. */
@@ -880,12 +882,24 @@ class GlasbaActivity : OsActivity() {
         vrstica.addView(besedila, LinearLayout.LayoutParams(0, -2, 1f))
         zdajCas = besedilo(14f, osBarva(R.color.os_mint))
         vrstica.addView(zdajCas)
-        if (!Naprava.jeTelevizor(this@GlasbaActivity)) {
-            zdajCas.visibility = View.GONE
-            zdajGumb = gumb(R.drawable.os_ikona_pavza, 44, "k:mala-pavza") {
-                GlasbaStoritev.preklopi(); osveziZdaj()
-            }.also { g -> g.contentDescription = getString(R.string.os_mediji_predvajaj_pavza); vrstica.addView(g) }
+        val gumbiVrstice = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
         }
+        val prejsnjaGumb = gumb(R.drawable.os_ikona_prejsnja, 38, "k:mala-prejsnja") {
+            GlasbaStoritev.prejsnja()
+        }.also { g -> g.contentDescription = getString(R.string.os_mediji_prejsnja); gumbiVrstice.addView(g) }
+        zdajPrejsnja = prejsnjaGumb
+
+        zdajGumb = gumb(R.drawable.os_ikona_pavza, 44, "k:mala-pavza") {
+            GlasbaStoritev.preklopi(); osveziZdaj()
+        }.also { g -> g.contentDescription = getString(R.string.os_mediji_predvajaj_pavza); gumbiVrstice.addView(g) }
+
+        val naslednjaGumb = gumb(R.drawable.os_ikona_naslednja, 38, "k:mala-naslednja") {
+            GlasbaStoritev.naslednja()
+        }.also { g -> g.contentDescription = getString(R.string.os_mediji_naslednja); gumbiVrstice.addView(g) }
+        zdajNaslednja = naslednjaGumb
+
+        vrstica.addView(gumbiVrstice, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(12) })
         desno.addView(vrstica, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(6) })
 
         // Tipke daljinca samo na televizorju; tablica se upravlja z dotikom.
@@ -4323,7 +4337,10 @@ class GlasbaActivity : OsActivity() {
     }
     private var mrezaVsebine: MrezaVsebine? = null
 
-    private fun glasbaSkupina(): String = getSharedPreferences(NASTAVITVE_POGLEDA, MODE_PRIVATE).getString("glasba_skupina", "").orEmpty()
+    private fun glasbaSkupina(): String {
+        val s = getSharedPreferences(NASTAVITVE_POGLEDA, MODE_PRIVATE).getString("glasba_skupina", "").orEmpty()
+        return if (s == SKUPINA_VIDEOSPOTI) "" else s
+    }
     private fun shraniGlasbaSkupino(s: String) = getSharedPreferences(NASTAVITVE_POGLEDA, MODE_PRIVATE).edit().putString("glasba_skupina", s).apply()
 
     private fun kljucMreze(i: Int) = if (i == RADIO) "r|$radioSkupina|$radioZvrst|${Locale.getDefault().country}"
@@ -4573,7 +4590,6 @@ class GlasbaActivity : OsActivity() {
     }
 
     private fun stranGlasbe(m: MrezaVsebine, prva: Boolean): Pair<List<Jamendo.Skladba>, Boolean> {
-        val videospoti = glasbaSkupina() == SKUPINA_VIDEOSPOTI
         val zvrst = glasbaZvrst
         val jezik = glasbaJezik
         // Naloga 83: vnos dodatka brez oznake jezika (koncert) izbran jezik ne skrije ([OsPravila.jezikGlasbeUstreza]).
@@ -4583,14 +4599,14 @@ class GlasbaActivity : OsActivity() {
         // Naloga 83: ponovni poskus prazne prve strani obdrzi vire - strani v teku (pocasen dodatek, Music Concerts) tecejo
         // naprej. Prej so se viri ob vsakem poskusu zamenjali z novimi in odgovor, ki je prisel po 2,5 s, je bil zavrzen.
         if (prva && (m.poskusov == 0 || m.viri.isEmpty())) {
-            // Katalogi dodatkov: uporabnikova izbira je pred vgrajenimi viri. Ob izbrani zvrsti samo katalogi, ki jo ponujajo.
-            m.viri = glasbeniKatalogi(if (videospoti) true else null).mapNotNull { k ->
+            // Katalogi dodatkov: glasba in videospoti/koncerti skupaj (null)
+            m.viri = glasbeniKatalogi(null).mapNotNull { k ->
                 if (zvrst.isEmpty()) k else k.zvrsti.firstOrNull { it.equals(zvrst, ignoreCase = true) }?.let { Stremio.zMoznostjo(k, it) }
             }.map { VirKanalov(it) }
         }
         // Vgrajeni vir, spletni viri in katalogi dodatkov hkrati; pocasen dodatek prve strani ne zadrzuje ([straniDodatkov]).
         val odmik = m.stran * GLASBA_NA_STRAN
-        val vgrajene = if (videospoti || !jeVirViden(GLASBA, VIR_JAMENDO)) null else iskanjeDelavec.submit<List<Jamendo.Skladba>> {
+        val vgrajene = if (!jeVirViden(GLASBA, VIR_JAMENDO)) null else iskanjeDelavec.submit<List<Jamendo.Skladba>> {
             // Napaka (izjema) steje kot prazen odgovor, da drugi poskus stece tudi takrat.
             fun stran() = try { Jamendo.stran(zvrst, jezik, GLASBA_NA_STRAN, odmik) } catch (_: Exception) { emptyList() }
             // Jamendo obcasno vrne prazen seznam (preverjeno 21. 9. 2026); drugi poskus ga dobi.
@@ -4598,7 +4614,6 @@ class GlasbaActivity : OsActivity() {
         }
         val spletni = if (!prva || zvrst.isNotEmpty()) null else iskanjeDelavec.submit<List<Jamendo.Skladba>> {
             vJeziku(SpletniVir.priljubljeno(this, MedijskiViri.vsi(this).filter { jeVirViden(GLASBA, kljucVira(it)) }))
-                .filter { val spot = SpletniVir.vrstaVsebine(it) == SpletniVir.VIDEOSPOT; if (videospoti) spot else !spot && !it.video }
         }
         izhod += vJeziku(straniDodatkov(m, rokDodatkov(m, prva)))
         var seKaj = m.viri.any { !it.konec || it.vTeku != null }
@@ -4816,19 +4831,12 @@ class GlasbaActivity : OsActivity() {
      */
     private fun glasbaIzbire(): View {
         val skupina = glasbaSkupina()
-        val viri = MedijskiViri.vsi(this)
-        // Videospoti dodatka: samo, dokler ne vemo, da njegova knjiznica tokov ne daje ([ZaupanjeKnjiznic]) - izbira,
-        // ki odpre prazno mrezo, ni izbira.
-        // Naloga 78: skupina je v izbiri samo, ce ima vir - videospoti: spletni vir ali dodatek z glasbenimi posnetki
-        // ([Stremio.imaVideospote], tudi koncerti) in knjiznico, ki tokove daje. Prej je bila »Music videos« ponujena ze ob
-        // glasbenem imenu dodatka in je odprla prazno mrezo. Prazna izbrana skupina je na koncu ([OsPravila.skupineIzbire]).
-        val imaVideospote = viri.any { it.jeSplet } || Stremio.imaVideospote(viri.filter { it.jeStremio && jeVirViden(GLASBA, kljucVira(it)) &&
-            ZaupanjeKnjiznic.stanje(Stremio.osnova(it.naslov)) != false }.map { it.naslov })
         val imaMoje = MedijskiViri.priljubljene(this).any { !it.video && !it.radio } ||
             MedijskiViri.seznami(this).any { sz -> sz.skladbe.isNotEmpty() && OsPravila.seznamZaGlasbo(sz.vir, sz.skladbe.all { it.video }) }
-        val imena = mapOf("" to getString(R.string.os_mediji_glasba), SKUPINA_VIDEOSPOTI to getString(R.string.os_media_videospoti),
+        val imena = mapOf("" to getString(R.string.os_mediji_glasba),
             SKUPINA_MOJE to getString(R.string.os_media_moja_glasba), SKUPINA_NAPRAVA to getString(R.string.os_krajevno_koren))
-        val skupine = OsPravila.skupineIzbire(listOf("" to true, SKUPINA_VIDEOSPOTI to imaVideospote, SKUPINA_MOJE to imaMoje) +
+        // Glasba in videospoti so združeni v eno izbiro (Glasba):
+        val skupine = OsPravila.skupineIzbire(listOf("" to true, SKUPINA_MOJE to imaMoje) +
             // Samostojni Predvajalnik: glasba iz shrambe naprave (prej polica nad spletnimi policami).
             (if (vlc) listOf(SKUPINA_NAPRAVA to true) else emptyList()), skupina).map { it to imena.getValue(it) }
         val polja = ArrayList<PoljeIzbire>()
@@ -5653,6 +5661,14 @@ class GlasbaActivity : OsActivity() {
             }
             return true
         }
+        if (dogodek.action == KeyEvent.ACTION_DOWN && dogodek.keyCode == KeyEvent.KEYCODE_DPAD_DOWN && dogodek.repeatCount >= 1) {
+            val p = zdajGumb ?: if (vrstica.visibility == View.VISIBLE) vrstica else pPredvajaj
+            if (p != null && p.isShown) {
+                p.requestFocus()
+                pogoltniGor = KeyEvent.KEYCODE_DPAD_DOWN
+                return true
+            }
+        }
         if (dogodek.action == KeyEvent.ACTION_UP && dogodek.keyCode == pogoltniGor) { pogoltniGor = -1; return true }
         return super.dispatchKeyEvent(dogodek)
     }
@@ -5665,11 +5681,16 @@ class GlasbaActivity : OsActivity() {
         val pripeti = MedijskiViri.pripeti(this)
         // Lastnik 27. 10. 2026: seznami predvajanja spadajo h glasbi (tam imajo svojo vrsto) - v Mojih virih jih ni vec na vrhu.
         val usenetVpisan = try { UsenetPonudnik.get(this).stanje().vpisan } catch (_: Throwable) { false }
+        val ytPrijavljen = YouTubeUvoz.jePrijavljen(this)
         return listOf(Vrsta("", listOf(
             Kartica(getString(R.string.os_mediji_dodaj), getString(R.string.os_mediji_dodaj_opis), "", { dodajVir() }, ikona = R.drawable.os_ikona_plus),
             // Naloga 125: dolg pritisk vklopi ali izklopi razvojni nacin dodatkov.
             Kartica(getString(R.string.os_mediji_dodatki), getString(R.string.os_mediji_dodatki_opis), "", { dodajDodatke() }, { preklopiRazvoj() }, ikona = R.drawable.os_ikona_plus),
             Kartica(getString(R.string.os_uvoz_naslov), getString(R.string.os_uvoz_opis), "", { uvoziSeznam() }, ikona = R.drawable.os_ikona_plus),
+            // Samodejni uvoz YouTube playlist z računom
+            Kartica(if (ytPrijavljen) "YouTube (račun)" else "Prijava v YouTube",
+                if (ytPrijavljen) "Povezano · sinhronizacija playlist" else "Prijava in samodejni uvoz playlist",
+                "", { YouTubeUvozOkno.pokazi(this) { osveziNaMestu() } }, ikona = if (ytPrijavljen) R.drawable.os_ikona_posodobi else R.drawable.os_ikona_plus),
             // Naloga 119: TorBox - zasebni in hitrejsi torrenti s kljucem uporabnika.
             // Naloga 128: TorBox, Real-Debrid in AllDebrid na enem mestu.
             Kartica(getString(R.string.os_debrid), opisDebrida(), "", { nastavitveDebrida() }, ikona = R.drawable.os_ikona_zaklep),
@@ -10818,7 +10839,7 @@ class GlasbaActivity : OsActivity() {
             KeyEvent.KEYCODE_MEDIA_PREVIOUS -> { GlasbaStoritev.prejsnja(); return true }
             KeyEvent.KEYCODE_MEDIA_STOP -> { GlasbaStoritev.ustavi(this); return true }
             KeyEvent.KEYCODE_SEARCH -> { odpriIskanje(""); return true }
-            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> { event?.startTracking() }
+            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_DPAD_DOWN -> { event?.startTracking() }
             KeyEvent.KEYCODE_MENU, KeyEvent.KEYCODE_BUTTON_X, KeyEvent.KEYCODE_BUTTON_Y -> {
                 val f = currentFocus
                 if (f != null && f.performLongClick()) return true
@@ -10831,6 +10852,13 @@ class GlasbaActivity : OsActivity() {
         if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
             val f = currentFocus
             if (f != null && f.performLongClick()) return true
+        }
+        if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+            val p = zdajGumb ?: if (vrstica.visibility == View.VISIBLE) vrstica else pPredvajaj
+            if (p != null && p.isShown) {
+                p.requestFocus()
+                return true
+            }
         }
         return super.onKeyLongPress(keyCode, event)
     }

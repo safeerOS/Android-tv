@@ -737,4 +737,7 @@
     <string name="os_pomoc_da">Ja, helfen</string>
     <string name="os_pomoc_ne">Nein</string>
     <string name="os_zaganjalnik_edini">Safeer OS ist der einzige Launcher auf diesem Fernseher. Ohne ihn bliebe der Bildschirm schwarz, daher bleibt er aktiv. Aktiviere zuerst einen anderen Launcher in den Systemeinstellungen des Fernsehers.</string>
+    <string name="os_aplikacije_odstrani_app">App deinstallieren</string>
+    <string name="os_aplikacije_dodaj_domov">Zum Startbildschirm hinzufügen</string>
+    <string name="os_aplikacije_odstrani_domov">Vom Startbildschirm entfernen</string>
 </resources>

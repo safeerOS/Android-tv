@@ -52,13 +52,16 @@ object PredvajalnikTovarna {
         return p
     }
 
-    /** Medpomnilnik po profilu; null = privzeti Media3 (glasba, filmi). */
+    /** Medpomnilnik po profilu; null = privzeti Media3 (filmi). */
     fun nadzorNalaganja(profil: Profil): DefaultLoadControl? = when (profil) {
         Profil.TV_V_ZIVO -> DefaultLoadControl.Builder()
             .setBufferDurationsMs(1_500, 12_000, 800, 1_500)
             .setPrioritizeTimeOverSizeThresholds(true)
             .build()
-        Profil.GLASBA, Profil.FILM -> null
+        Profil.GLASBA, Profil.FILM -> DefaultLoadControl.Builder()
+            .setBufferDurationsMs(20_000, 60_000, 2_000, 2_500)
+            .setPrioritizeTimeOverSizeThresholds(true)
+            .build()
     }
 
     @Volatile private var zmogljivostPredpomnjena: Zmogljivost? = null

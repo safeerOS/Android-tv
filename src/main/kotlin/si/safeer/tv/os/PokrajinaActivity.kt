@@ -108,7 +108,11 @@ class PokrajinaActivity : OsActivity() {
         vrstaAplikacij = object : LinearLayout(this) {
             override fun focusSearch(direction: Int): View? {
                 if (direction == View.FOCUS_DOWN) {
-                    dock?.aktivniPogledZaFokus?.let { if (it.isShown && it.isFocusable) return it }
+                    val mini = dock?.aktivniPogledZaFokus
+                    if (mini != null && mini.isShown && mini.isFocusable) return mini
+                    if (::dok.isInitialized) {
+                        najblizjiPogledX(dok, findFocus())?.let { return it }
+                    }
                 }
                 return super.focusSearch(direction)
             }
@@ -142,7 +146,9 @@ class PokrajinaActivity : OsActivity() {
         narisiAplikacije()
         // Po vrnitvi iz aplikacije fokus na njeno plosco (po zgledu tv-simple-home FocusRestore, lastnik 28. 10. 2026):
         // daljinec nadaljuje tam, kjer je uporabnik bil - ne v lupi in ne na prvi plosci.
-        zadnjaPloscica?.let { id -> vrstaAplikacij.findViewWithTag<View>(id)?.let { v -> v.post { v.requestFocus() } } }
+        val izbrana = zadnjaPloscica?.let { vrstaAplikacij.findViewWithTag<View>(it) }
+            ?: if (vrstaAplikacij.childCount > 0) vrstaAplikacij.getChildAt(0) else null
+        izbrana?.let { v -> v.post { v.requestFocus() } }
         zbudi(animiraj = false)
         prikaziVreme()
         osveziVreme()
@@ -242,25 +248,84 @@ class PokrajinaActivity : OsActivity() {
             }
         }
         if (DomacaLupa.tipka(this, dogodek)) return true
+
+        // Tipka Meni / Nastavitve na daljincu (Menu, Settings, rdeči gumb na Philips TV): odpre možnosti nastavitev
+        if (PokrajinaPravila.jeTipkaMenija(dogodek.keyCode)) {
+            if (dogodek.action == KeyEvent.ACTION_DOWN) {
+                odpriNastavitveTv()
+            }
+            return true
+        }
+
         // Možnost 1 (daljinec TV): navigacija med vrstico aplikacij, mini predvajalnikom in spodnjo vrstico
         if (dogodek.action == KeyEvent.ACTION_DOWN) {
-            if (dogodek.keyCode == KeyEvent.KEYCODE_DPAD_DOWN && ::vrstaAplikacij.isInitialized && vrstaAplikacij.hasFocus()) {
-                dock?.aktivniPogledZaFokus?.let { target ->
-                    if (target.isShown && target.isFocusable) {
-                        target.requestFocus()
+            val mini = dock?.aktivniPogledZaFokus?.takeIf { it.isShown && it.isFocusable }
+            val dockImaFokus = dock?.imaFokus == true || (mini != null && mini.hasFocus())
+            if (dogodek.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                if (::vrstaAplikacij.isInitialized && vrstaAplikacij.hasFocus()) {
+                    if (mini != null) {
+                        mini.requestFocus()
                         return true
+                    } else if (::dok.isInitialized) {
+                        val cilj = najblizjiPogledX(dok, vrstaAplikacij.findFocus())
+                        if (cilj != null && cilj.requestFocus()) return true
+                    }
+                } else if (dockImaFokus) {
+                    if (::dok.isInitialized) {
+                        val cilj = najblizjiPogledX(dok, mini ?: currentFocus)
+                        if (cilj != null && cilj.requestFocus()) return true
                     }
                 }
-            } else if (dogodek.keyCode == KeyEvent.KEYCODE_DPAD_UP && ::dok.isInitialized && dok.hasFocus()) {
-                dock?.aktivniPogledZaFokus?.let { target ->
-                    if (target.isShown && target.isFocusable) {
-                        target.requestFocus()
-                        return true
+            } else if (dogodek.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                if (::dok.isInitialized && dok.hasFocus()) {
+                    if (dock != null && (dock?.jeOdprt == true || mini != null)) {
+                        if (dock?.fokusiraj() == true || (mini != null && mini.requestFocus())) return true
+                    }
+                    if (::vrstaAplikacij.isInitialized) {
+                        val cilj = najblizjiPogledX(vrstaAplikacij, dok.findFocus())
+                            ?: (zadnjaPloscica?.let { vrstaAplikacij.findViewWithTag<View>(it) })
+                            ?: vrstaAplikacij.getChildAt(0)
+                        if (cilj != null && cilj.requestFocus()) return true
+                    }
+                } else if (dockImaFokus) {
+                    if (::vrstaAplikacij.isInitialized) {
+                        val cilj = najblizjiPogledX(vrstaAplikacij, mini ?: currentFocus)
+                            ?: (zadnjaPloscica?.let { vrstaAplikacij.findViewWithTag<View>(it) })
+                            ?: vrstaAplikacij.getChildAt(0)
+                        if (cilj != null && cilj.requestFocus()) return true
                     }
                 }
             }
         }
         return super.dispatchKeyEvent(dogodek)
+    }
+
+    /** Poišče otroka v vsebniku, ki je vodoravno (X) najbližje sredini referenčnega pogleda. */
+    private fun najblizjiPogledX(vsebnik: ViewGroup, vir: View?): View? {
+        if (vsebnik.childCount == 0) return null
+        val dejanskiVir = if (vir != null && vir !== vsebnik) (vir.findFocus() ?: vir) else null
+        if (dejanskiVir == null || !dejanskiVir.isShown) {
+            return (0 until vsebnik.childCount).map { vsebnik.getChildAt(it) }.firstOrNull { it.isFocusable && it.isShown }
+        }
+        val virLokacija = IntArray(2).also { dejanskiVir.getLocationOnScreen(it) }
+        val virSredinaX = virLokacija[0] + dejanskiVir.width / 2
+
+        var najboljsi: View? = null
+        var najmanjsaRazdalja = Int.MAX_VALUE
+        val lokacija = IntArray(2)
+
+        for (i in 0 until vsebnik.childCount) {
+            val otrok = vsebnik.getChildAt(i)
+            if (!otrok.isShown || !otrok.isFocusable) continue
+            otrok.getLocationOnScreen(lokacija)
+            val otrokSredinaX = lokacija[0] + otrok.width / 2
+            val razdalja = kotlin.math.abs(virSredinaX - otrokSredinaX)
+            if (razdalja < najmanjsaRazdalja) {
+                najmanjsaRazdalja = razdalja
+                najboljsi = otrok
+            }
+        }
+        return najboljsi ?: (0 until vsebnik.childCount).map { vsebnik.getChildAt(it) }.firstOrNull { it.isFocusable && it.isShown }
     }
 
     // ------------------------------------------------------------------ videz (barve iz teme)
@@ -356,8 +421,8 @@ class PokrajinaActivity : OsActivity() {
                 glavna.postDelayed(iskanjeZamik, 250)
             }
         })
-        // Ista lupa kot na starem domacem zaslonu: »… na TV«, spletni naslov, iskanje v Medijih; mikrofon doda DomacaLupa.
-        DomacaLupa.prevzemi(this, polje, okvir) { }
+        // Ista lupa kot na starem domacem zaslonu: »… na TV«, spletni naslov, iskanje v Medijih; brez mikrofona (lastnik 29. 10. 2026).
+        DomacaLupa.prevzemi(this, polje, okvir, zMikrofonom = false) { }
         return okvir
     }
 
@@ -595,6 +660,8 @@ class PokrajinaActivity : OsActivity() {
             getString(R.string.os_spletne_levo) to { premakniPloscico(id, -1) },
             getString(R.string.os_spletne_desno) to { premakniPloscico(id, 1) },
             getString(R.string.os_priljubljen_odstrani) to { odstraniPloscico(id, splet) },
+            getString(R.string.os_meni_nastavitve) to { odpri(Intent(this, NastavitveActivity::class.java)) },
+            getString(R.string.nast_sk_tv) to { odpriNastavitveTv() },
         )
         val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(ime)
@@ -678,8 +745,14 @@ class PokrajinaActivity : OsActivity() {
             val gumb = object : LinearLayout(this) {
                 override fun focusSearch(direction: Int): View? {
                     if (direction == View.FOCUS_UP) {
-                        // Možnost 1: ko je mini predvajalnik na voljo, fokus iz kateregakoli gumba spodnje vrstice najprej skoči nanj
-                        dock?.aktivniPogledZaFokus?.let { if (it.isShown && it.isFocusable) return it }
+                        val mini = dock?.aktivniPogledZaFokus?.takeIf { it.isShown && it.isFocusable }
+                        if (dock?.jeOdprt == true && mini != null) return mini
+                        if (mini != null) return mini
+                        if (::vrstaAplikacij.isInitialized) {
+                            najblizjiPogledX(vrstaAplikacij, this)?.let { return it }
+                                ?: zadnjaPloscica?.let { vrstaAplikacij.findViewWithTag<View>(it) }?.let { return it }
+                                ?: vrstaAplikacij.getChildAt(0)?.let { return it }
+                        }
                     }
                     return super.focusSearch(direction)
                 }
@@ -733,6 +806,32 @@ class PokrajinaActivity : OsActivity() {
                 if (e is android.content.ActivityNotFoundException) R.string.os_odpri_ni_aplikacije else R.string.os_odpri_ni_dovoljenja)),
                 android.widget.Toast.LENGTH_LONG).show()
         }
+    }
+
+    /**
+     * Tipka Menu na daljincu (ali rdeči gumb / Settings): odpre možnosti nastavitev televizorja.
+     * Na Philips TV odpre »Pogoste nastavitve« (Quick Settings stranski meni); če teh ni, sistemske
+     * nastavitve Androida ali nastavitve Safeer OS.
+     */
+    private fun odpriNastavitveTv() {
+        // 1. Philips Quick Settings (Pogoste nastavitve)
+        try {
+            val quickIntent = Intent().setClassName("org.droidtv.settings", "org.droidtv.settings.quicksettings.QuickSettingsActivity")
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(quickIntent)
+            return
+        } catch (_: Throwable) { }
+
+        // 2. Sistemske nastavitve Android TV
+        try {
+            val sysIntent = Intent(android.provider.Settings.ACTION_SETTINGS)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(sysIntent)
+            return
+        } catch (_: Throwable) { }
+
+        // 3. Nastavitve Safeer OS
+        odpri(Intent(this, NastavitveActivity::class.java))
     }
 
     // ------------------------------------------------------------------ vreme (samo za kraj, ki ga izbere uporabnik)

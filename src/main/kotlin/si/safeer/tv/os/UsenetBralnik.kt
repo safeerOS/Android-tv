@@ -29,17 +29,30 @@ object UsenetBralnik {
     data class Profil(val okno: Long, val zacetno: Long, val lru: Long, val vzporedno: Int)
 
     /**
-     * Lastnik 28. 10. 2026: skladba albuma (zvok, nekaj MB/min) - manjse okno in predpomnilnik kot film; album drzi do
-     * AlbumIzvor.NAJVEC_ODPRTIH skladb hkrati (prej 5 x 32 MiB na TV = OutOfMemoryError po preklopih).
+     * Lastnik 29. 10. 2026: za video in glasbeno vsebino okno vnaprej 60 MiB (zacetno 4 MiB, predpomnilnik 64 MiB),
+     * kar zagotavlja nemoteno gledanje in poslusanje vsebine ter sprotno nalaganje toka.
      */
+    fun profilVidea(p: Profil): Profil =
+        Profil(
+            okno = maxOf(p.okno, 60 * MIB),
+            zacetno = maxOf(p.zacetno, 4 * MIB),
+            lru = maxOf(p.lru, 64 * MIB),
+            vzporedno = maxOf(4, p.vzporedno)
+        )
+
     fun profilAlbuma(p: Profil): Profil =
-        p.copy(okno = minOf(p.okno, 4 * MIB), lru = minOf(p.lru, 12 * MIB), vzporedno = minOf(p.vzporedno, 3))
+        Profil(
+            okno = maxOf(p.okno, 60 * MIB),
+            zacetno = maxOf(p.zacetno, 4 * MIB),
+            lru = maxOf(p.lru, 64 * MIB),
+            vzporedno = maxOf(4, p.vzporedno)
+        )
 
     /** Po profilu naprave (skupni primeri tok_profili; enako na namizju). */
     val PROFILI: Map<String, Profil> = linkedMapOf(
-        "tv" to Profil(8 * MIB, 1 * MIB, 32 * MIB, 4),
-        "telefon" to Profil(8 * MIB, 1 * MIB, 48 * MIB, 6),
-        "namizje" to Profil(16 * MIB, 1 * MIB, 96 * MIB, 8),
+        "tv" to Profil(60 * MIB, 4 * MIB, 64 * MIB, 4),
+        "telefon" to Profil(60 * MIB, 4 * MIB, 64 * MIB, 6),
+        "namizje" to Profil(60 * MIB, 4 * MIB, 96 * MIB, 8),
     )
 
     /** Okno vnaprej: dvakratnik zaporedno prebranega od zadnjega skoka, najmanj [zacetno], najvec [najvec]. */
@@ -103,7 +116,7 @@ object UsenetBralnik {
         private val zaklep = ReentrantLock()
         private val pogoj = zaklep.newCondition()
         /** LRU mora drzati vsaj okno in segment ob njem, sicer bi branje vnaprej izrinilo samo sebe. */
-        val lruMeja: Long = maxOf(profil.lru, 2 * profil.okno + 8 * MIB)
+        val lruMeja: Long = maxOf(profil.lru, profil.okno + 4 * MIB)
         private val lru = LinkedHashMap<Kljuc, ByteArray>(64, 0.75f, true)
         @Volatile var lruBajtov = 0L; private set
         private val vTeku = HashMap<Kljuc, CompletableFuture<ByteArray>>()

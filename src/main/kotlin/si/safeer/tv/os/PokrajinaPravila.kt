@@ -177,4 +177,21 @@ object PokrajinaPravila {
     /** Fokus po vrstici z daljincem: levo/desno ostane v vrstici, na robu se ustavi (ne skoci v drugo vrstico). */
     fun naslednji(indeks: Int, korak: Int, stevilo: Int): Int =
         if (stevilo <= 0) -1 else (indeks + korak).coerceIn(0, stevilo - 1)
+
+    /**
+     * Tipke menija / nastavitev na daljincu ali krmilniku (Menu, Settings, rdeči gumb na Philips TV).
+     * Philips TV daljinec pošilja KEYCODE_MENU (82), KEYCODE_SETTINGS (176), KEYCODE_PROG_RED (183) ali 183.
+     */
+    fun jeTipkaMenija(koda: Int): Boolean = when (koda) {
+        82,                             // KEYCODE_MENU
+        176,                            // KEYCODE_SETTINGS
+        183,                            // KEYCODE_PROG_RED ali TV rdeči gumb (Philips)
+        602,                            // KEYCODE_FAC_FAC (Philips TV daljinec MENU tipka)
+        171,                            // KEYCODE_WINDOW (Quick settings na nekaterih TV)
+        109,                            // KEYCODE_BUTTON_SELECT (gamepad select)
+        99,                             // KEYCODE_BUTTON_X (gamepad X)
+        100                             // KEYCODE_BUTTON_Y (gamepad Y)
+            -> true
+        else -> false
+    }
 }

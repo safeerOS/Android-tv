@@ -321,11 +321,6 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 StranskaVrstica.na(this)?.nastaviImena(novo) ?: shramba.edit().putBoolean(StranskaVrstica.KLJUC_IMENA, novo).apply()
                 narisi()
             },
-            // Iskalna lupa domacega zaslona: kompaktna (privzeto) ali vedno odprta.
-            if (predvajalnik) null
-            else safeer(R.drawable.os_ikona_isci, R.string.nast_lupa, R.string.nast_lupa_opis, vklop(DomacaLupa.vednoOdprta(this))) {
-                DomacaLupa.nastaviVednoOdprta(this, !DomacaLupa.vednoOdprta(this)); narisi()
-            },
             // Zmogljivost ima svojo vrstico z ikono: prej je bila ena dolga vrstica na dnu
             // zaslona, ki je sekala nastavitve nad sabo in se je odrezala sredi podatka.
             safeer(R.drawable.os_ikona_naprava, R.string.os_plosek_preizkus, R.string.os_plosek_preizkus_opis, "") {

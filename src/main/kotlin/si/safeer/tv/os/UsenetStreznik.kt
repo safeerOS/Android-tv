@@ -245,7 +245,7 @@ class UsenetStreznik(
                 odprtih.incrementAndGet()
                 zadnja = System.nanoTime()
                 try {
-                    if (!odgovori(izhod, metoda, glave["range"], i)) return
+                    if (!odgovori(s, izhod, metoda, glave["range"], i)) return
                 } finally {
                     odprtih.decrementAndGet()
                     zadnja = System.nanoTime()
@@ -261,18 +261,28 @@ class UsenetStreznik(
     }
 
     /** Odgovor na veljavno zahtevo; false = povezavo zapri. */
-    private fun odgovori(izhod: OutputStream, metoda: String, range: String?, i: Int): Boolean {
+    private fun odgovori(s: Socket, izhod: OutputStream, metoda: String, range: String?, i: Int): Boolean {
         val prazno = listOf("Content-Length" to "0")
-        // Album: skladba se pripravi ob prvi zahtevi; luknja je trajna (502), drugo prehodno (503) - predvajalnik gre naprej.
-        val bralnik = try { izvor.bralnik(i) } catch (e: UsenetTok.NapakaToka) {
-            val koda = if (e.izid in TRAJNE) 502 else 503
-            pisi(izhod, koda, if (koda == 502) "Bad Gateway" else "Service Unavailable", listOf("Connection" to "close") + prazno)
-            izhod.flush(); return false
-        } catch (_: IOException) {
-            pisi(izhod, 503, "Service Unavailable", listOf("Connection" to "close") + prazno)
-            izhod.flush(); return false
+
+        // Napako lahko posljemo le pred zacetkom odgovora 200/206.
+        fun napaka(koda: Int): Boolean {
+            val glave = arrayListOf("Connection" to "close", "Content-Length" to "0")
+            if (koda == 503) glave += "Retry-After" to "1"
+            pisi(izhod, koda, if (koda == 502) "Bad Gateway" else "Service Unavailable", glave)
+            izhod.flush()
+            return false
+        }
+
+        // Album lahko pri pripravi bralnika potrebuje omrezni dostop.
+        val bralnik = try {
+            izvor.bralnik(i)
+        } catch (e: UsenetTok.NapakaToka) {
+            return napaka(if (e.izid in TRAJNE) 502 else 503)
+        } catch (_: Exception) {
+            return napaka(503)
         }
         val velikost = bralnik.vir.velikost
+        if (velikost < 0) return napaka(502)
         val vrsta = vrsta(i)
         val o = obseg(range, velikost)
         if (o != null && o.first < 0) {
@@ -280,49 +290,89 @@ class UsenetStreznik(
             izhod.flush(); return true
         }
         val (zacetek, konec) = o ?: (0L to velikost - 1)
+        val dolzina = if (konec >= zacetek) konec - zacetek + 1 else 0L
         var prvi = ByteArray(0)
-        if (metoda == "GET" && konec >= zacetek) {
-            try {
-                prvi = bralnik.beri(zacetek, minOf(KOS.toLong(), konec - zacetek + 1).toInt())
+        if (metoda == "GET" && dolzina > 0) {
+            val zahtevano = minOf(KOS.toLong(), dolzina).toInt()
+            prvi = try {
+                bralnik.beri(zacetek, zahtevano)
             } catch (e: UsenetTok.NapakaToka) {
                 val koda = if (e.izid in TRAJNE) 502 else 503
                 dnevnik("zahteva $zacetek-$konec/$velikost: $koda (${e.izid})")
-                pisi(izhod, koda, if (koda == 502) "Bad Gateway" else "Service Unavailable", listOf("Connection" to "close") + prazno)
-                izhod.flush()
-                return false
+                return napaka(koda)
+            } catch (_: Exception) {
+                dnevnik("zahteva $zacetek-$konec/$velikost: napaka pri prvem branju")
+                return napaka(503)
+            }
+            if (prvi.isEmpty()) {
+                dnevnik("zahteva $zacetek-$konec/$velikost: prvi kos ni na voljo")
+                return napaka(503)
+            }
+            // Bralnik ne sme poslati vec bajtov, kot smo jih zahtevali.
+            if (prvi.size > zahtevano) {
+                dnevnik("zahteva $zacetek-$konec/$velikost: prevelik prvi kos")
+                return napaka(502)
             }
         }
         if (metoda == "GET" && diagnostik.incrementAndGet() <= NAJVEC_DIAGNOSTIKE)
             dnevnik("zahteva range=${range ?: "-"} -> ${if (o == null) 200 else 206} $zacetek-$konec/$velikost, prvih=" +
                 prvi.take(8).joinToString("") { "%02X".format(it.toInt() and 0xFF) })
         val g = arrayListOf("Content-Type" to vrsta, "Accept-Ranges" to "bytes", "Cache-Control" to "no-store",
-            "Content-Length" to maxOf(0L, konec - zacetek + 1).toString())
+            "Content-Length" to dolzina.toString())
         if (o != null) g += "Content-Range" to "bytes $zacetek-$konec/$velikost"
-        pisi(izhod, if (o == null) 200 else 206, if (o == null) "OK" else "Partial Content", g)
-        if (metoda == "HEAD") { izhod.flush(); return true }
-        var poz = zacetek
+
+        // HEAD nima telesa; prazna datoteka pri GET prav tako ne potrebuje prvega kosa.
+        if (metoda == "HEAD" || dolzina == 0L) {
+            pisi(izhod, if (o == null) 200 else 206, if (o == null) "OK" else "Partial Content", g)
+            izhod.flush()
+            return true
+        }
+
+        // RST pripravimo pred statusom, tudi za primer, da close() socasno zapre vticnico.
+        // Po uspesnem prenosu nastavitev izklopimo, da je keep-alive spet varen.
         try {
+            s.setSoLinger(true, 0)
+        } catch (_: SocketException) {
+            return napaka(503)
+        }
+        var poz = zacetek
+        if (i > 0 && zacetek >= minOf(velikost / 2L, 64 * 1024L)) {
+            (izvor as? AlbumIzvor)?.pocistiPrejsnje(i)
+        }
+        try {
+            pisi(izhod, if (o == null) 200 else 206, if (o == null) "OK" else "Partial Content", g)
             while (poz <= konec) {
-                val kos = if (prvi.isNotEmpty()) prvi else bralnik.beri(poz, minOf(KOS.toLong(), konec - poz + 1).toInt())
+                val zahtevano = minOf(KOS.toLong(), konec - poz + 1).toInt()
+                val kos = if (prvi.isNotEmpty()) prvi else bralnik.beri(poz, zahtevano)
                 prvi = ByteArray(0)
-                if (kos.isEmpty()) break
+                if (kos.isEmpty() || kos.size > zahtevano) {
+                    dnevnik("tok prekinjen pri $poz od $zacetek-$konec: nevelik kos")
+                    return false // linger ostane vklopljen; strezi v finally zapre vticnico z RST
+                }
                 izhod.write(kos)
                 poz += kos.size
                 zadnja = System.nanoTime()
+                if (i > 0 && poz >= minOf(velikost / 2L, 64 * 1024L)) {
+                    (izvor as? AlbumIzvor)?.pocistiPrejsnje(i)
+                }
             }
             izhod.flush()
-        } catch (e: UsenetTok.NapakaToka) {
-            dnevnik("tok prekinjen pri $poz od $zacetek-$konec: ${e.izid}")
-            return false  // obljubljene dolzine ni bilo: povezavo zapremo, predvajalnik odpre znova
+            s.setSoLinger(false, 0)
+            return true
+        } catch (e: Exception) {
+            // Status je morda ze poslan: novega HTTP odgovora ne smemo vec pisati.
+            dnevnik("tok prekinjen pri $poz od $zacetek-$konec: ${e.javaClass.simpleName}")
+            return false // linger ostane vklopljen; strezi v finally zapre vticnico z RST
         }
-        return poz > konec
     }
 }
 
 /**
  * Lastnik 27. 10. 2026: skladbe albuma z Useneta. Vsaka se pripravi (prvi segment, bralnik z nitmi in predpomnilnikom) sele
  * ob prvi zahtevi predvajalnika; odprtih je najvec [najvecOdprtih] - najdlje neuporabljena se zapre in se ob ponovni
- * zahtevi pripravi znova. Prej so bile pripravljene vse hkrati (do 32 MB in 6 niti na skladbo na TV) in ostale odprte.
+ * zahtevi pripravi znova.
+ * Lastnik 29. 10. 2026: ko se naslednja skladba predvaja (ze na manj kot polovici), se prejsnje skladbe sproti brisejo
+ * iz pomnilnika ([pocistiPrejsnje]), zato sta odprti le se aktivna in naslednja vnaprej ([NAJVEC_ODPRTIH] = 2).
  */
 class AlbumIzvor(
     private val skladbe: List<Pair<String?, () -> UsenetBralnik.Vir>>,
@@ -330,7 +380,7 @@ class AlbumIzvor(
     private val profil: UsenetBralnik.Profil,
     private val najvecOdprtih: Int = NAJVEC_ODPRTIH,
 ) : UsenetStreznik.Izvor {
-    companion object { const val NAJVEC_ODPRTIH = 5 }
+    companion object { const val NAJVEC_ODPRTIH = 1 }
 
     private val viri = arrayOfNulls<UsenetBralnik.Vir>(skladbe.size)
     private val odprti = LinkedHashMap<Int, UsenetBralnik.Bralnik>(8, 0.75f, true)
@@ -359,6 +409,26 @@ class AlbumIzvor(
 
     /** Za preizkus: odprti bralniki. */
     val odprtih: Int @Synchronized get() = odprti.size
+
+    /**
+     * Lastnik 29. 10. 2026: ko se naslednja skladba [i] predvaja (ze na manj kot polovici ali takoj po zacetku),
+     * se prejsnje skladbe (< i) takoj zaprejo in izbrisejo iz pomnilnika (RAM), da je ves prostor na voljo aktivni skladbi.
+     */
+    fun pocistiPrejsnje(i: Int) {
+        val stari = ArrayList<UsenetBralnik.Bralnik>()
+        synchronized(this) {
+            if (zaprt) return
+            val iter = odprti.entries.iterator()
+            while (iter.hasNext()) {
+                val e = iter.next()
+                if (e.key < i) {
+                    stari += e.value
+                    iter.remove()
+                }
+            }
+        }
+        stari.forEach { try { it.close() } catch (_: Exception) { } }
+    }
 
     override fun bralnik(i: Int): UsenetBralnik.Bralnik {
         synchronized(this) { if (zaprt) throw IOException("album zaprt"); odprti[i]?.let { return it } }

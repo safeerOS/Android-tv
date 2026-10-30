@@ -74,6 +74,10 @@ class TvChrome(private val host: MainActivity) {
     private var prisliSmoNaYoutube = false
 
     private fun premakniVrstico(pokazi: Boolean) {
+        if (host.isTelevisionDevice() && SpletDomaca.jeSafeerOs(host)) {
+            host.nastaviVidnostChrome(View.GONE)
+            return
+        }
         val vrstica = host.mobileTopBar
         if (host.nacinAplikacije != null) { host.nastaviVidnostChrome(View.GONE); return }
         vrstica.visibility = View.VISIBLE

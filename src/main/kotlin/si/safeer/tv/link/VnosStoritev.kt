@@ -163,39 +163,255 @@ class VnosStoritev : AccessibilityService() {
         }
     }
 
+    private var fokusPogled: View? = null
+    private var okenskiUpravitelj: android.view.WindowManager? = null
+    private val glavnaNit = android.os.Handler(android.os.Looper.getMainLooper())
+    private var fokusPrikazan = false
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         instanca = this
         Log.i(TAG, "Safeer Vnos je vklopljen.")
+        glavnaNit.post { pripraviFokusOverlay() }
     }
 
     override fun onUnbind(intent: android.content.Intent?): Boolean {
         instanca = null
+        odstraniFokusOverlay()
         return super.onUnbind(intent)
     }
 
     override fun onDestroy() {
         instanca = null
+        odstraniFokusOverlay()
         super.onDestroy()
     }
 
-    // Dogodkov ne beremo: storitev samo izvaja, kar poslje seznanjena naprava.
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (!jeTelevizor()) return
+        when (event?.eventType) {
+            AccessibilityEvent.TYPE_VIEW_FOCUSED,
+            AccessibilityEvent.TYPE_VIEW_SELECTED,
+            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED,
+            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> {
+                glavnaNit.removeCallbacks(posodobiFokusOpravilo)
+                glavnaNit.postDelayed(posodobiFokusOpravilo, 30)
+            }
+        }
+    }
 
     override fun onInterrupt() {}
+
+    private val posodobiFokusOpravilo = Runnable {
+        posodobiFokusOverlay()
+    }
+
+    private fun pripraviFokusOverlay() {
+        if (fokusPogled != null || !jeTelevizor()) return
+        try {
+            okenskiUpravitelj = getSystemService(WINDOW_SERVICE) as? android.view.WindowManager
+            val wm = okenskiUpravitelj ?: return
+            val d = resources.displayMetrics.density
+
+            val v = View(this).apply {
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    cornerRadius = 14 * d
+                    setColor(android.graphics.Color.parseColor("#222DD4BF"))
+                    setStroke((3 * d).toInt(), android.graphics.Color.parseColor("#2DD4BF"))
+                }
+                visibility = View.GONE
+            }
+
+            val tipOkna = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
+                android.view.WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
+            } else {
+                @Suppress("DEPRECATION")
+                android.view.WindowManager.LayoutParams.TYPE_SYSTEM_ALERT
+            }
+
+            val lp = android.view.WindowManager.LayoutParams(
+                0, 0,
+                tipOkna,
+                android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                        android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                        android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                        android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                android.graphics.PixelFormat.TRANSLUCENT
+            ).apply {
+                gravity = android.view.Gravity.TOP or android.view.Gravity.START
+                x = 0
+                y = 0
+            }
+
+            wm.addView(v, lp)
+            fokusPogled = v
+        } catch (e: Throwable) {
+            Log.w(TAG, "Fokus overlay-a ni bilo mogoce dodati: ${e.message}")
+        }
+    }
+
+    private fun posodobiFokusOverlay() {
+        val v = fokusPogled ?: return
+        val wm = okenskiUpravitelj ?: return
+        try {
+            // Poišči fokusirano vozlišče v aktivnem oknu ali kateremkoli drugem interaktivnem oknu
+            var vozlisce: AccessibilityNodeInfo? = null
+            var korenPaket = ""
+
+            val aktivniKoren = rootInActiveWindow
+            if (aktivniKoren != null) {
+                korenPaket = aktivniKoren.packageName?.toString().orEmpty()
+                if (korenPaket != packageName && korenPaket != "com.aurora.store") {
+                    vozlisce = fokusirano(aktivniKoren)
+                }
+            }
+
+            if (vozlisce == null) {
+                for (w in windows) {
+                    if (w.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD) continue
+                    val r = w.root ?: continue
+                    val p = r.packageName?.toString().orEmpty()
+                    if (p == packageName || p == "com.aurora.store") continue
+                    val f = fokusirano(r)
+                    if (f != null && f.isVisibleToUser) {
+                        vozlisce = f
+                        korenPaket = p
+                        break
+                    }
+                }
+            }
+
+            if (vozlisce == null || !vozlisce.isVisibleToUser || korenPaket == packageName || korenPaket == "com.aurora.store") {
+                skrijFokusOverlay()
+                return
+            }
+
+            // Ne prekrivamo tipk na virtualni tipkovnici (IME ima lasten TV fokus, naš overlay ne sme motiti tipkanja)
+            val vozliscePaket = vozlisce.packageName?.toString().orEmpty()
+            if (vozliscePaket.contains("inputmethod") || vozliscePaket.contains("latin") || jeFokusVTipkovnici()) {
+                skrijFokusOverlay()
+                return
+            }
+
+            val r = Rect()
+            vozlisce.getBoundsInScreen(r)
+            var levo = r.left
+            var desno = r.right
+            val zgoraj = r.top
+            val spodaj = r.bottom
+
+            // Preveri smiselne dimenzije (da ne obrobimo celotnega zaslona ali praznih koordinat)
+            val (zaslonSirina, zaslonVisina) = velikost()
+            val celotnaSirina = desno - levo
+            val celotnaVisina = spodaj - zgoraj
+            if (celotnaSirina <= 10 || celotnaVisina <= 10 || (celotnaSirina >= zaslonSirina - 20 && celotnaVisina >= zaslonVisina - 20)) {
+                skrijFokusOverlay()
+                return
+            }
+
+            // Ce je vrstica/naslov cez celoten zaslon (npr. naslov kategorije v Aurora Store kot "Komunikacija >"):
+            // ne obrobi celotne pasice cez vseh 1920 slikovnih pik, temvec le zacetni del z besedilom in ikono
+            val d = resources.displayMetrics.density
+            val radij = if (celotnaVisina <= (32 * d).toInt()) 8 * d else 14 * d
+            (v.background as? android.graphics.drawable.GradientDrawable)?.cornerRadius = radij
+
+            if (celotnaSirina >= zaslonSirina - 100) {
+                // Poisci otroka z besedilom, ce obstaja, da dobimo lepo obrobo okoli napisa
+                var otrokZBesedilom: AccessibilityNodeInfo? = null
+                for (i in 0 until vozlisce.childCount) {
+                    val ot = try { vozlisce.getChild(i) } catch (_: Throwable) { null } ?: continue
+                    if (!ot.text.isNullOrEmpty()) {
+                        otrokZBesedilom = ot
+                        break
+                    }
+                }
+                if (otrokZBesedilom != null) {
+                    val rOt = Rect()
+                    otrokZBesedilom.getBoundsInScreen(rOt)
+                    levo = (rOt.left - (12 * d).toInt()).coerceAtLeast(0)
+                    desno = (rOt.right + (32 * d).toInt()).coerceAtMost(zaslonSirina)
+                } else {
+                    desno = (levo + (320 * d).toInt()).coerceAtMost(zaslonSirina)
+                }
+            }
+
+            val sirina = desno - levo
+            val visina = spodaj - zgoraj
+
+            val lp = v.layoutParams as? android.view.WindowManager.LayoutParams ?: return
+            val odmik = (2 * d).toInt()
+
+            lp.x = (levo - odmik).coerceAtLeast(0)
+            lp.y = (zgoraj - odmik).coerceAtLeast(0)
+            lp.width = sirina + (odmik * 2)
+            lp.height = visina + (odmik * 2)
+
+            wm.updateViewLayout(v, lp)
+            if (v.visibility != View.VISIBLE) {
+                v.visibility = View.VISIBLE
+            }
+            fokusPrikazan = true
+        } catch (_: Throwable) {
+            skrijFokusOverlay()
+        }
+    }
+
+    private fun skrijFokusOverlay() {
+        val v = fokusPogled ?: return
+        if (v.visibility != View.GONE) {
+            v.visibility = View.GONE
+        }
+        fokusPrikazan = false
+    }
+
+    private fun odstraniFokusOverlay() {
+        try {
+            fokusPogled?.let { okenskiUpravitelj?.removeView(it) }
+        } catch (_: Throwable) {}
+        fokusPogled = null
+        okenskiUpravitelj = null
+        fokusPrikazan = false
+    }
 
     /** Tipka, za katero je dolg pritisk ze skocil na vrstico (do spusta ne naredi nicesar vec). */
     private var skocilaTipka = 0
 
     /**
      * Lastnik 27. 10. 2026: dolg pritisk dol/gor na daljincu skoci na spodnjo/zgornjo orodno vrstico aplikacije (npr. Aurora
-     * Store, kamor kratki pritiski ne pridejo). Beremo samo kodo tipke gor/dol in ponovitev - nic drugega, nikoli besedila;
-     * kratek pritisk in vse druge tipke gredo naprej v aplikacijo nespremenjene. Samo televizor.
+     * Store, kamor kratki pritiski ne pridejo).
+     * Nadgradnja 29. 10. 2026: ob iskanju (ENTER/SEARCH ali DOL v vnosnem polju) se virtualna tipkovnica samodejno skrije,
+     * fokus pa se prestavi na rezultate pod iskalnim poljem (povsod, tudi v Aurora Store).
      */
     override fun onKeyEvent(event: android.view.KeyEvent): Boolean {
         val k = event.keyCode
-        if (k != android.view.KeyEvent.KEYCODE_DPAD_DOWN && k != android.view.KeyEvent.KEYCODE_DPAD_UP) return false
         if (!jeTelevizor()) return false
+        // Posodobi univerzalni Safeer OS fokus overlay ob premikanju s križcem
+        if (event.action == android.view.KeyEvent.ACTION_DOWN) {
+            when (k) {
+                android.view.KeyEvent.KEYCODE_DPAD_UP,
+                android.view.KeyEvent.KEYCODE_DPAD_DOWN,
+                android.view.KeyEvent.KEYCODE_DPAD_LEFT,
+                android.view.KeyEvent.KEYCODE_DPAD_RIGHT,
+                android.view.KeyEvent.KEYCODE_TAB -> {
+                    glavnaNit.removeCallbacks(posodobiFokusOpravilo)
+                    glavnaNit.postDelayed(posodobiFokusOpravilo, 20)
+                    glavnaNit.postDelayed(posodobiFokusOpravilo, 70)
+                    glavnaNit.postDelayed(posodobiFokusOpravilo, 150)
+                    glavnaNit.postDelayed(posodobiFokusOpravilo, 250)
+                    glavnaNit.postDelayed(posodobiFokusOpravilo, 380)
+                }
+            }
+        }
+
+        // 1. Ko uporabnik sproži iskanje (ENTER ali SEARCH): zapri tipkovnico
+        if (k == android.view.KeyEvent.KEYCODE_SEARCH || k == android.view.KeyEvent.KEYCODE_ENTER) {
+            if (event.action == android.view.KeyEvent.ACTION_DOWN) {
+                zapriTipkovnico()
+            }
+        }
+
+        // 3. Dolg pritisk dol/gor za skok na orodno vrstico:
+        if (k != android.view.KeyEvent.KEYCODE_DPAD_DOWN && k != android.view.KeyEvent.KEYCODE_DPAD_UP) return false
         if (event.action == android.view.KeyEvent.ACTION_UP) {
             val bila = skocilaTipka == k
             skocilaTipka = 0
@@ -206,6 +422,37 @@ class VnosStoritev : AccessibilityService() {
         if (!skociNaVrstico(k == android.view.KeyEvent.KEYCODE_DPAD_DOWN)) return false   // ni vrstice: navadno pomikanje
         skocilaTipka = k
         return true
+    }
+
+    private fun jeTipkovnicaOdprta(): Boolean {
+        return try {
+            windows.any { it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD }
+        } catch (_: Throwable) { false }
+    }
+
+    private fun jeFokusVTipkovnici(): Boolean {
+        return try {
+            val aktivno = windows.firstOrNull { it.isFocused }
+            if (aktivno != null && aktivno.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD) {
+                return true
+            }
+            val imeOkno = windows.firstOrNull { it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD }
+            val imeKoren = imeOkno?.root
+            imeKoren != null && (imeKoren.findFocus(AccessibilityNodeInfo.FOCUS_INPUT) != null || imeKoren.findFocus(AccessibilityNodeInfo.FOCUS_ACCESSIBILITY) != null)
+        } catch (_: Throwable) { false }
+    }
+
+    private fun zapriTipkovnico() {
+        try {
+            // Brez sistemskega Nazaj: ce se tipkovnica ob ENTER zapre sama, bi Nazaj zaprl zaslon aplikacije.
+            if (!jeTipkovnicaOdprta()) return
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                softKeyboardController.showMode = SHOW_MODE_HIDDEN
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    try { softKeyboardController.showMode = SHOW_MODE_AUTO } catch (_: Throwable) {}
+                }, 400)
+            }
+        } catch (_: Throwable) {}
     }
 
     private fun skociNaVrstico(dol: Boolean): Boolean {

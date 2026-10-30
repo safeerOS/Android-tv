@@ -61,7 +61,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     /** Kaj ta zaslon kaze: "vse", "tv", "splet" ali "racunalnik" (privzeto, kot doslej). */
     private var nacin = AppVir.RACUNALNIK.kljuc
     /** Izbrani vir v nacinu "vse"; null = vsi. */
-    private var izbraniVir: AppVir? = null
+    private var izbraniVir: AppVir? = AppVir.TV
 
     private var krajevni: List<SafeerApp> = emptyList()
     private var oddaljeni: List<SafeerApp> = emptyList()
@@ -285,19 +285,13 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     private fun prikaziKrajevne(tv: List<Aplikacije.Vnos>) {
         val novi = ArrayList<SafeerApp>()
-        if (zVirom(AppVir.TV)) novi.addAll(SafeerAppi.naTelevizorju(this, tv, brezIkon = true))
-        if (zVirom(AppVir.SPLET)) novi.addAll(SafeerAppi.spletne(this))
-        // Na zaslonu vseh aplikacij bi aplikacije televizorja prisle prve, cez trenutek pa bi jih
-        // seznami naprav po abecedi razmetali. Kadar naprave so in njihovih seznamov se nimamo,
-        // pocakamo nanje (najdlje CAKAJ_DRUGE_MS) in narisemo vse naenkrat - kot na zaslonu Programi.
-        if (nacin == "vse" && oddaljeni.isEmpty() && vidni.isEmpty() && napraveSProgrami(this).isNotEmpty()) {
-            krajevni = novi
-            zadrzano = true
-            pokaziSporocilo(getString(R.string.os_programi_nalagam))
-            mreza.removeCallbacks(izprazni)
-            mreza.postDelayed(izprazni, CAKAJ_DRUGE_MS)
-            return
+        if (zVirom(AppVir.TV)) {
+            novi.addAll(SafeerAppi.naTelevizorju(this, tv, brezIkon = true))
+            // Spletne aplikacije ustvarjene na TV sodijo pod televizor (brez ločene naprave):
+            val spletne = SafeerAppi.spletne(this).map { s -> s.copy(vir = AppVir.TV) }
+            novi.addAll(spletne)
         }
+        // Aplikacije televizorja se prikažejo takoj, oddaljene naprave se nalagajo v ozadju
         prerisi { krajevni = novi }
     }
 
@@ -607,17 +601,15 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     /**
-     * Viri na zaslonu vseh aplikacij (Vse, Televizor, Splet, Racunalnik) - v glavi, desno, samo
-     * kadar je virov vec. Vir se zamenja z OK (ne ze s premikom), ker zamenja celo mrezo.
+     * Viri na zaslonu vseh aplikacij: Televizor je privzet in vedno prvi (brez "Vse" in brez ločenega "Splet",
+     * saj so spletne aplikacije dodane k televizorju). Oddaljene naprave se prikažejo ob televizorju, ko so na voljo.
      */
     private fun narisiVire() {
         if (nacin == AppVir.RACUNALNIK.kljuc) { narisiNaprave(); return }
         if (nacin != "vse") return
-        // Vir in naprava v enem: "Racunalnik" je prej zdruzil vse naprave (racunalnik, tablico,
-        // telefon) - uporabnik ni vedel, kaj je kje. Zdaj ima vsaka naprava svoj cip, kot na Programih.
         val izbire = ArrayList<Pair<AppVir?, String?>>()
-        izbire.add(null to null)
-        for (v in listOf(AppVir.TV, AppVir.SPLET)) if (programi.any { it.vir == v }) izbire.add(v to null)
+        // Televizor je vedno prvi in privzet
+        izbire.add(AppVir.TV to null)
         for (id in imenaNaprav.keys) if (oddaljeni.any { it.racunalnik == id }) izbire.add(AppVir.RACUNALNIK to id)
         val vrsta = findViewById<LinearLayout>(R.id.naprave)
         val drsnik = findViewById<View>(R.id.napraveDrsnik)
@@ -626,13 +618,12 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         // Izbrana naprava je za hip izginila: njen cip ostane (0 programov), dokler se ne vrne ali ne potece rok.
         if ((izbraniVir to izbranaNaprava) in izbire) izbraneNiOd = 0L
         else if (izbraniVir == AppVir.RACUNALNIK && pocakajIzbrano()) izbire.add(AppVir.RACUNALNIK to izbranaNaprava)
-        else { izbraniVir = null; izbranaNaprava = null; izbraneNiOd = 0L }
-        if (izbire.size < 3 && izbranaNaprava == null) { drsnik.visibility = View.GONE; vrsta.removeAllViews(); izbraniVir = null; return }
+        else { izbraniVir = AppVir.TV; izbranaNaprava = null; izbraneNiOd = 0L }
         drsnik.visibility = View.VISIBLE
         for ((v, id) in izbire) {
             val n = when {
-                v == null -> programi.size
                 id != null -> oddaljeni.count { it.racunalnik == id }
+                v == AppVir.TV -> krajevni.size
                 else -> programi.count { it.vir == v }
             }
             val ime = if (id != null) imenaNaprav[id].orEmpty() else imeVira(v)
@@ -773,16 +764,41 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) { }
             override fun afterTextChanged(s: Editable?) { osveziSeznam() }
         })
-        // Daljinec: OK na iskalnem polju odpre tipkovnico televizorja, Dol gre na seznam.
+        iskanje.setOnEditorActionListener { _, _, _ ->
+            skrijTipkovnico()
+            if (vidni.isNotEmpty()) {
+                mreza.requestFocus()
+                mreza.setSelection(0)
+            }
+            true
+        }
+        // Daljinec: OK na iskalnem polju odpre tipkovnico televizorja, Dol ali Iskanje skrije tipkovnico in gre na seznam.
         iskanje.setOnKeyListener { _, koda, dogodek ->
-            if (dogodek.action == KeyEvent.ACTION_DOWN &&
-                (koda == KeyEvent.KEYCODE_DPAD_CENTER || koda == KeyEvent.KEYCODE_ENTER)) {
-                odpriTipkovnico(); true
+            if (dogodek.action == KeyEvent.ACTION_DOWN) {
+                when (koda) {
+                    KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                        odpriTipkovnico(); true
+                    }
+                    KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_SEARCH -> {
+                        skrijTipkovnico()
+                        if (vidni.isNotEmpty()) {
+                            mreza.requestFocus()
+                            mreza.setSelection(0)
+                            true
+                        } else false
+                    }
+                    else -> false
+                }
             } else false
         }
         iskanje.setOnClickListener { odpriTipkovnico() }
         // Fokus sam po sebi tipkovnice ne odpre; odpre jo sele OK (ali klik).
         iskanje.showSoftInputOnFocus = false
+    }
+
+    private fun skrijTipkovnico() {
+        val upravitelj = getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager ?: return
+        upravitelj.hideSoftInputFromWindow(iskanje.windowToken, 0)
     }
 
     private fun odpriTipkovnico() {
@@ -881,14 +897,35 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         }
         val dejanja = ArrayList<Pair<String, () -> Unit>>()
         if (p.vir != AppVir.SPLET) dejanja.add(getString(if (na) R.string.os_priljubljen_odstrani else R.string.os_priljubljen_dodaj) to preklopi)
+        if (p.vir == AppVir.TV && p.cilj.isNotBlank() && p.cilj != packageName) {
+            dejanja.add(getString(R.string.os_aplikacije_odstrani_app) to { odstraniAplikacijo(p.cilj) })
+        }
         if (p.vir == AppVir.RACUNALNIK && p.racunalnik !in androidNaprave) dejanja.add(getString(R.string.os_program_zapri) to { zapri(p) })
         if (dejanja.isEmpty()) return
-        if (dejanja.size == 1) { dejanja[0].second(); return }
         android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(p.ime)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
             .setNegativeButton(getString(R.string.os_preklici), null)
             .let { Kontroler.pokazi(it.show()) }
+    }
+
+    private fun odstraniAplikacijo(paket: String) {
+        try {
+            val intent = Intent(Intent.ACTION_UNINSTALL_PACKAGE).apply {
+                data = android.net.Uri.parse("package:$paket")
+                putExtra(Intent.EXTRA_RETURN_RESULT, true)
+            }
+            startActivity(intent)
+        } catch (_: Throwable) {
+            try {
+                val intent = Intent(Intent.ACTION_DELETE).apply {
+                    data = android.net.Uri.parse("package:$paket")
+                }
+                startActivity(intent)
+            } catch (e: Throwable) {
+                Toast.makeText(this, e.message.orEmpty(), Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun zapri(p: SafeerApp) {
@@ -1003,10 +1040,10 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
      * cel seznam, ne ven z zaslona. Drugi Nazaj zapre zaslon kot obicajno.
      */
     override fun onBackPressed() {
-        if (iskanje.text?.isNotEmpty() == true || izbranaSkupina.isNotEmpty() || izbraniVir != null || izbranaNaprava != null) {
+        if (iskanje.text?.isNotEmpty() == true || izbranaSkupina.isNotEmpty() || izbraniVir != AppVir.TV || izbranaNaprava != null) {
             iskanje.setText("")
             izbranaSkupina = ""
-            izbraniVir = null
+            izbraniVir = AppVir.TV
             izbranaNaprava = null
             narisiSkupine()
             osveziSeznam()

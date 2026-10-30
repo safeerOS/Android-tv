@@ -238,6 +238,9 @@
     <string name="os_aplikacije_odstranjena">%1$s is no longer on the home screen.</string>
     <string name="os_aplikacije_odstrani">Take off the home screen</string>
     <string name="os_aplikacije_izberi">Choose apps</string>
+    <string name="os_aplikacije_odstrani_app">Uninstall app</string>
+    <string name="os_aplikacije_dodaj_domov">Put on home screen</string>
+    <string name="os_aplikacije_odstrani_domov">Take off home screen</string>
     <!-- Zaslon racunalnika na televizorju -->
     <string name="os_zaslon">Connected screens</string>
     <string name="os_zaslon_povezujem">Connecting to the computer…</string>

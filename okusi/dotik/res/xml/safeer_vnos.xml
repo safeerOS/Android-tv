@@ -4,10 +4,10 @@
      Filter tipk (lastnik 27. 10. 2026): samo dolg pritisk gor/dol na TV skoci na orodno vrstico. -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/vnos_opis"
-    android:accessibilityEventTypes="typeWindowStateChanged"
+    android:accessibilityEventTypes="typeWindowStateChanged|typeViewFocused|typeViewSelected|typeWindowsChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:notificationTimeout="1000"
     android:canPerformGestures="true"
     android:canRetrieveWindowContent="true"
     android:canRequestFilterKeyEvents="true"
-    android:accessibilityFlags="flagDefault|flagRequestFilterKeyEvents" />
+    android:accessibilityFlags="flagDefault|flagRequestFilterKeyEvents|flagRetrieveInteractiveWindows" />

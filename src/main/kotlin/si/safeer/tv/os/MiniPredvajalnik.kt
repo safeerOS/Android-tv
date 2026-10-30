@@ -183,9 +183,16 @@ class MiniPredvajalnik(
     }
 
     val rocicaPogled: View? get() = if (koren?.visibility == View.VISIBLE && rocica?.visibility == View.VISIBLE) rocica else null
+    val imaFokus: Boolean get() = koren?.hasFocus() == true
     val aktivniPogledZaFokus: View? get() = if (koren?.visibility == View.VISIBLE) {
-        if (odprt) kartica?.findViewWithTag<View>("dock:predvajaj") ?: kartica else rocica
+        if (odprt) gumbPredvajaj ?: kartica?.findViewWithTag<View>("dock:predvajaj") ?: rocica else rocica
     } else null
+
+    fun fokusiraj(): Boolean {
+        if (koren?.visibility != View.VISIBLE) return false
+        val cilj = aktivniPogledZaFokus ?: return false
+        return cilj.requestFocus()
+    }
 
     fun ustavi() { glavna.removeCallbacks(samodejno); glavna.removeCallbacks(casovnik) }
 

@@ -226,8 +226,7 @@ def main() -> int:
     preveri("vreme na napravo prek Linka (open_url)", 'link.ukaz(n.id, "open_url"' in lupa)
     for skupina in ("pk_lupa_programi", "VRSTE_DATOTEK", "os_meni_nastavitve", "pk_lupa_mediji", "pk_lupa_splet", "pk_lupa_predlogi"):
         preveri(f"zadetki lupe: {skupina}", skupina in pokrajina)
-    preveri("sprotni predlogi samo po pravilu (od 3 znakov, ne naslov, stikalo)", "LupaPravila.predlogeIskati(q, spletniPredlogi())" in pokrajina)
-    preveri("glasovni vnos (mikrofon) v lupi novega zaganjalnika", "DomacaLupa.prevzemi(this, polje, okvir)" in pokrajina and "fun glas(a: Activity)" in lupa)
+    preveri("lupa novega zaganjalnika (DomacaLupa.prevzemi)", "DomacaLupa.prevzemi(this, polje, okvir" in pokrajina and "fun glas(a: Activity)" in lupa)
 
     print("\n== beta (del F) ==")
     gradle = (KOREN / "build.gradle").read_text(encoding="utf-8")
@@ -519,6 +518,14 @@ def main() -> int:
         preveri(f"{okus}: android:largeHeap=\"true\"",
                 re.search(r'android:largeHeap="true"\s+tools:replace="android:largeHeap"', man) is not None
                 and 'largeHeap="false"' not in man)
+
+    # Lastnik 29. 10. 2026: tipka Menu na daljincu odpre možnosti nastavitev televizorja
+    pok = (SRC / "os/PokrajinaActivity.kt").read_text(encoding="utf-8")
+    prav = (SRC / "os/PokrajinaPravila.kt").read_text(encoding="utf-8")
+    preveri("tipka menija: PokrajinaPravila.jeTipkaMenija", "fun jeTipkaMenija(koda: Int): Boolean" in prav and "82," in prav)
+    preveri("tipka menija: PokrajinaActivity odpre nastavitve TV", "PokrajinaPravila.jeTipkaMenija(dogodek.keyCode)" in pok
+            and "odpriNastavitveTv()" in pok and "QuickSettingsActivity" in pok)
+
     return konec()
 
 

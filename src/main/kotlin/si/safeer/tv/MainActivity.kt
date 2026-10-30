@@ -103,6 +103,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     internal fun activeUrl(): String = tabManager.getActiveTab()?.url ?: ""
 
     internal fun isChromeFocused(): Boolean {
+        if (::mobileTopBar.isInitialized && mobileTopBar.visibility != View.VISIBLE) return false
         return btnBack.hasFocus() || btnForward?.hasFocus() == true || btnHome.hasFocus() || btnReload.hasFocus() ||
             btnFavorite.hasFocus() || btnPointerToggle.hasFocus() ||
             btnAddTab.hasFocus() || btnTabCount.hasFocus() || btnMenu.hasFocus() ||
@@ -113,8 +114,13 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     internal fun isTopBarFocused(): Boolean = isChromeFocused()
 
     internal fun nastaviVidnostChrome(vidnost: Int) {
-        mobileTopBar.visibility = vidnost
-        mobileBottomBar?.visibility = vidnost
+        val dejanskaVidnost = if (vidnost == View.VISIBLE && isTelevisionDevice() && SpletDomaca.jeSafeerOs(this)) {
+            View.GONE
+        } else {
+            vidnost
+        }
+        mobileTopBar.visibility = dejanskaVidnost
+        mobileBottomBar?.visibility = dejanskaVidnost
     }
 
     internal fun isTelevisionDevice(): Boolean {
@@ -433,24 +439,35 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             // zacetku zapre aplikacijo in ne pripelje na domaco stran brskalnika.
             // Nadaljujemo, kjer je uporabnik koncal (ce je bil tam pred kratkim); sicer zacetna stran.
             val zacetni = try { si.safeer.tv.os.SpletneAplikacije.nadaljevanje(this, naslov) } catch (_: Throwable) { naslov }
+            val siroka = zvokVOzadju || si.safeer.tv.os.OsPravila.sirokaAplikacijaNaTv(
+                si.safeer.tv.os.Naprava.jeTelevizor(this), zacetni)
+            val zeljenaSirina = if (siroka) 1280 else 0
+
+            // Predpomnjenje: ce zavihek za to aplikacijo ze obstaja (v ozadju ali speč),
+            // ga zgolj prebudimo/preklopimo nanj brez ponovnega dolgotrajnega nalaganja.
+            val obstojeci = tabManager.getAllTabs().firstOrNull { t ->
+                val tu = (t.webView?.url ?: t.spalniNaslov.ifBlank { t.url }).trim()
+                si.safeer.tv.os.SpletneAplikacije.gostitelj(tu) == si.safeer.tv.os.SpletneAplikacije.gostitelj(naslov)
+            }
+
             zavihekAplikacije = try {
-                tabManager.createTab(this, zacetni, true).also { t ->
-                    // Vir iz Safeer Media: stran kot na racunalniku (sirina 1280), pomanjsana na zaslon.
-                    // Skripta velja od naslednjega nalaganja, zato prvo nalaganje ponovimo.
-                    // Lastnik 29. 10. 2026 (Facebook kot spletna aplikacija na TV): »stran je prevelika povecava« - pri 960
-                    // tockah televizorja dobi stran postavitev za tablico. Spletna aplikacija na TV zato prav tako dobi
-                    // sirino 1280, razen YouTuba (youtube.com/tv ima svojo postavitev za TV).
-                    val siroka = zvokVOzadju || si.safeer.tv.os.OsPravila.sirokaAplikacijaNaTv(
-                        si.safeer.tv.os.Naprava.jeTelevizor(this), zacetni)
-                    if (siroka) { t.webView?.namiznaSirina = 1280; t.webView?.loadUrl(zacetni) }
-                    // Lastnik 29. 10. 2026: Facebook ni narejen za daljinec - daljinec v njem deluje kot miska.
-                    if (si.safeer.tv.os.OsPravila.miskaZaAplikacijo(si.safeer.tv.os.Naprava.jeTelevizor(this), zacetni)) {
-                        virtualPointerView.trajen = true
-                        virtualPointerView.isPointerVisible = true
+                if (obstojeci != null) {
+                    if (zeljenaSirina > 0) {
+                        obstojeci.namiznaSirina = zeljenaSirina
+                        obstojeci.webView?.namiznaSirina = zeljenaSirina
                     }
-                }.id
+                    tabManager.switchTab(obstojeci.id)
+                    obstojeci.id
+                } else {
+                    tabManager.createTab(this, zacetni, true, zeljenaSirina).id
+                }
             } catch (_: Throwable) { null }
+
             if (zavihekAplikacije == null) odpriVZavihku(zacetni)
+            if (si.safeer.tv.os.OsPravila.miskaZaAplikacijo(si.safeer.tv.os.Naprava.jeTelevizor(this), zacetni)) {
+                virtualPointerView.trajen = true
+                virtualPointerView.isPointerVisible = true
+            }
             activeWebView()?.requestFocus()
         }, 350)
         if (ime.isNotBlank()) Toast.makeText(this, UiText.get(R.string.ui_web_app_odprta, ime), Toast.LENGTH_LONG).show()
@@ -492,10 +509,10 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             virtualPointerView.trajen = false
             virtualPointerView.isPointerVisible = false
         }
-        zavihekAplikacije?.let { id ->
-            zavihekAplikacije = null
-            try { tabManager.closeTab(this, id) } catch (_: Throwable) { }
-        }
+        // Lastnik 29. 10. 2026: Zavihek spletne aplikacije ohranimo v predpomnilniku zavihkov
+        // (tabManager), da se ob ponovnem vstopu v aplikacijo ne nalaga znova iz nicle.
+        // Ce pomnilnik zahteva sprostitev, TabManager po casu ali ob pritisku RAM-a poskrbi za varno zamrznitev.
+        zavihekAplikacije = null
         nastaviVidnostChrome(View.VISIBLE)
         mobileTopBar.translationY = 0f
     }
@@ -1386,6 +1403,10 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
     /** Chrome razdelka Splet: namizni dve zgornji vrstici ali telefonski naslov zgoraj in navigacija spodaj. */
     private fun pripraviSafeerSpletChrome() {
+        if (isTelevisionDevice()) {
+            nastaviVidnostChrome(View.GONE)
+            return
+        }
         spletSirokiChrome = resources.configuration.orientation != Configuration.ORIENTATION_PORTRAIT ||
             resources.configuration.screenWidthDp >= 600
         mobileBottomBar?.let { mainRoot.removeView(it) }

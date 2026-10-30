@@ -237,6 +237,9 @@
     <string name="os_aplikacije_odstranjena">%1$s ni več na domačem zaslonu.</string>
     <string name="os_aplikacije_odstrani">Umakni z domačega zaslona</string>
     <string name="os_aplikacije_izberi">Izberi aplikacije</string>
+    <string name="os_aplikacije_odstrani_app">Odstrani aplikacijo</string>
+    <string name="os_aplikacije_dodaj_domov">Dodaj na začetni zaslon</string>
+    <string name="os_aplikacije_odstrani_domov">Odstrani z začetnega zaslona</string>
     <!-- Zaslon racunalnika na televizorju -->
     <string name="os_zaslon">Povezani zasloni</string>
     <string name="os_zaslon_povezujem">Povezujem se z računalnikom …</string>
