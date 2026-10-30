@@ -395,8 +395,9 @@ class SporocilaActivity : OsActivity() {
                     else if (splet) SpletniKlepetActivity.odpri(this@SporocilaActivity, k.id)
                     else urediKanal(k)
                 }
-                // Spletna storitev: klik odpre, dolg pritisk (tudi OK na daljincu) uredi ali odstrani.
-                if (splet) setOnLongClickListener { urediKanal(k); true }
+                // Vsak dodan kanal se da odstraniti (lastnik 30. 10. 2026): dolg pritisk (tudi dolg OK na daljincu)
+                // odpre moznosti z »Odstrani« - spletna storitev, e-posta, zeton in tudi Safeer Link.
+                setOnLongClickListener { urediKanal(k); true }
             }
             kanaliVrsta.addView(cip, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(8) })
         }
@@ -1391,8 +1392,25 @@ class SporocilaActivity : OsActivity() {
         okno.show()
     }
 
+    /** Safeer Link: odstrani kanal in njegove pogovore (ob novem sporocilu z naprave se kanal doda znova). */
+    private fun urediKanalLinka(k: SporocilaShramba.Kanal) {
+        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            .setTitle(k.ime)
+            .setPositiveButton(R.string.os_spor_pisi_napravi) { _, _ -> pisiNapravi() }
+            .setNeutralButton(R.string.os_spor_odstrani) { _, _ ->
+                shramba.odstraniKanal(k.id)
+                if (izbran?.kanalId == k.id) izbran = null
+                narisiKanale(); pokaziPogovor(null)
+            }
+            .setNegativeButton(R.string.os_preklici, null)
+            .create()
+        Kontroler.pokazi(okno)
+        okno.show()
+    }
+
     private fun urediKanal(k: SporocilaShramba.Kanal) {
         if (k.vrsta == SpletniKlepetiPravila.VRSTA) { urediSpletniKanal(k); return }
+        if (k.vrsta == KlepetLinka.VRSTA) { urediKanalLinka(k); return }
         val stanje = besediloStanja(k.stanje)
         val geslo = polje(if (k.vrsta == "email") R.string.os_spor_geslo else R.string.os_spor_zeton,
             InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)

@@ -516,6 +516,11 @@ def main() -> int:
     vn = (SRC / "link/VnosStoritev.kt").read_text(encoding="utf-8")
     preveri("fokus okvir: ne v aplikacijah za TV (Leanback)",
             "jeTvAplikacija(korenPaket)" in vn and "getLeanbackLaunchIntentForPackage(paket) != null" in vn)
+    # Lastnik 30. 10. 2026: vsak dodan kanal v Sporocilih se da odstraniti (dolg pritisk), tudi Safeer Link.
+    sp = (SRC / "os/SporocilaActivity.kt").read_text(encoding="utf-8")
+    preveri("sporocila: vsak kanal ima odstranitev",
+            "setOnLongClickListener { urediKanal(k); true }" in sp and "if (splet) setOnLongClickListener" not in sp
+            and "private fun urediKanalLinka(" in sp)
     # Zaganjalnik (TV, telefon, tablica) mora vedno imeti vecjo mejo pomnilnika.
     for okus in ("os", "telefon", "tablica"):
         man = (KOREN / "okusi" / okus / "AndroidManifest.xml").read_text(encoding="utf-8")
