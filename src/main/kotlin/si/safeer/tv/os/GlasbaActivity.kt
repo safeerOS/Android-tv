@@ -1191,6 +1191,7 @@ class GlasbaActivity : OsActivity() {
         vsebina.removeAllViews()
         stanje.text = if (glava.isEmpty() && vrste.all { it.kartice.isEmpty() && it.pogled == null }) prazno else opis
         iskalnik?.let { vsebina.addView(it, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) }) }
+        if (iskalnik != null && zasebnoIskanje == null) vsebina.addView(izbiraObsegaIskanja(), LinearLayout.LayoutParams(-2, -2).apply { bottomMargin = dp(10) })
         glava.forEach { vsebina.addView(it) }
         val koraki = ArrayDeque<() -> Unit>()
         for (v0 in vrste) {
@@ -6441,6 +6442,51 @@ class GlasbaActivity : OsActivity() {
     /** Zadetki, ki so zdaj na zaslonu (police in kartice po vrsti): enakih ne risemo znova. */
     private var podpisZadetkov = ""
 
+    private fun obsegIskanja(): Int = try {
+        getSharedPreferences(NASTAVITVE_POGLEDA, MODE_PRIVATE).getInt("iskanje_obseg", OsPravila.OBSEG_VSE)
+    } catch (_: Exception) { OsPravila.OBSEG_VSE }
+
+    /** Izbira »Isci v: ...« pod iskalnim poljem; izbira ostane in iskanje se ponovi v izbranem obsegu. */
+    private fun izbiraObsegaIskanja(): View {
+        val moznosti = listOf(
+            OsPravila.OBSEG_VSE to getString(R.string.os_debrid_izbira_vse),
+            OsPravila.OBSEG_FILMI to getString(R.string.os_iskanje_filmi_serije),
+            OsPravila.OBSEG_POSNETKI to getString(R.string.os_iskanje_posnetki),
+            OsPravila.OBSEG_GLASBA to getString(R.string.os_mediji_glasba),
+            OsPravila.OBSEG_RADIO to getString(R.string.os_iskanje_radio_podkasti),
+            OsPravila.OBSEG_TV to getString(R.string.os_mediji_tv_v_zivo),
+            OsPravila.OBSEG_NAPRAVE to getString(R.string.os_iskanje_naprave),
+        )
+        val izbrana = moznosti.indexOfFirst { it.first == obsegIskanja() }.coerceAtLeast(0)
+        val naslovOkna = getString(R.string.os_iskanje_v)
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            tag = "k:obseg_iskanja"; isFocusable = true; isClickable = true
+            contentDescription = naslovOkna + ": " + moznosti[izbrana].second
+            nextFocusLeftId = meniMediji.id
+            setPadding(dp(14), dp(10), dp(12), dp(10))
+            fun oblika(rob: Int, debelina: Int, polnilo: Int) = GradientDrawable().apply { cornerRadius = dp(14).toFloat(); setColor(polnilo); setStroke(dp(debelina), rob) }
+            background = android.graphics.drawable.StateListDrawable().apply {
+                addState(intArrayOf(android.R.attr.state_focused), oblika(osBarva(R.color.os_mint), 2, (osBarva(R.color.os_mint) and 0x00FFFFFF) or 0x33000000))
+                addState(intArrayOf(android.R.attr.state_pressed), oblika(0x66FFFFFF, 1, 0x26FFFFFF))
+                addState(intArrayOf(), oblika(0x40FFFFFF, 1, 0x14FFFFFF))
+            }
+            addView(besedilo(15f, osBarva(R.color.os_besedilo), true).apply { text = naslovOkna + ": " + moznosti[izbrana].second; maxLines = 1 })
+            addView(besedilo(12f, osBarva(R.color.os_umirjeno)).apply { text = "▾"; setPadding(dp(6), 0, 0, 0) })
+            setOnClickListener {
+                AlertDialog.Builder(this@GlasbaActivity).setTitle(naslovOkna)
+                    .setSingleChoiceItems(moznosti.map { it.second }.toTypedArray(), izbrana) { d, i ->
+                        d.dismiss()
+                        if (i == izbrana) return@setSingleChoiceItems
+                        try { getSharedPreferences(NASTAVITVE_POGLEDA, MODE_PRIVATE).edit().putInt("iskanje_obseg", moznosti[i].first).apply() } catch (_: Exception) { }
+                        val q = iskalnik?.text?.toString()?.trim().orEmpty().ifBlank { zadnjaBeseda }
+                        if (q.length >= 2) isci(q) else narisiIskanje()
+                    }
+                    .setNegativeButton(android.R.string.cancel, null).show()
+            }
+        }
+    }
+
     private fun novIskalnik() = EditText(this).apply {
         id = View.generateViewId()
         hint = zasebnoIskanje?.let { getString(R.string.os_mediji_isci_v_dodatku, Stremio.imeIzPredpomnilnika(it) ?: (android.net.Uri.parse(Stremio.osnova(it)).host ?: "")) }
@@ -6616,7 +6662,8 @@ class GlasbaActivity : OsActivity() {
         val taNaprava = getString(if (jeTv()) R.string.os_media_ta_tv else R.string.os_media_ta_naprava)
         // Preklic starih poizvedb: hitro zaporedno iskanje ne sme pustiti kupa zivih niti.
         synchronized(iskanjeNiti) { iskanjeNiti.forEach { it.cancel(true) }; iskanjeNiti.clear() }
-        val rezultati = arrayOfNulls<Any>(15)
+        val rezultati = arrayOfNulls<Any>(16)
+        val obseg = if (samoDodatek != null) OsPravila.OBSEG_VSE else obsegIskanja()
         val stremioNaslovi = MedijskiViri.vsi(this).filter { it.jeStremio }.map { it.naslov }
         val spletniViri = MedijskiViri.vsi(this).filter { it.jeSplet || it.tip == MedijskiViri.API }
         val imenaSpletnihVirov = spletniViri.map { it.ime }
@@ -6666,9 +6713,15 @@ class GlasbaActivity : OsActivity() {
             // Lastnik 27. 10. 2026: glasba z Useneta (izvajalec ali skladba) pri uporabnikovem indeksatorju - samo z lastnim ponudnikom.
             { if (samoDodatek != null || !Usenet.glasbaNaVoljo(applicationContext)) emptyList<UsenetPravila.Zadetek>()
               else try { Usenet.isciGlasbo(applicationContext, beseda) } catch (_: Exception) { emptyList<UsenetPravila.Zadetek>() } },
+            // Lastnik 30. 10. 2026: filmi in serije po domacem naslovu (»Preboj«, katalogi ga poznajo kot »Breakthrough«).
+            { if (samoDodatek != null || (Stremio.zKatalogom(stremioNaslovi).isEmpty() && !MedijskiViri.VGRAJENI_SPLETNI_VIRI)) emptyList<Jamendo.Skladba>()
+              else try { IzvirniJeziki.poNaslovu(applicationContext, beseda).map { (n, tip) -> Stremio.vnosPoImdb(tip, n.imdb, n.naslov, n.leto) } }
+              catch (_: Exception) { emptyList<Jamendo.Skladba>() } },
         )
         // Iskanje v zasebnem dodatku vprasa samo ta dodatek (opravilo 11); ostali viri ostanejo prazni.
-        val futures = opravila.mapIndexed { i, f -> iskanjeDelavec.submit { rezultati[i] = if (samoDodatek != null && i != 11) emptyList<Any>() else f() } }
+        val futures = opravila.mapIndexed { i, f -> iskanjeDelavec.submit {
+            rezultati[i] = if ((samoDodatek != null && i != 11) || !OsPravila.opraviloVObsegu(obseg, i)) emptyList<Any>() else f()
+        } }
         synchronized(iskanjeNiti) { iskanjeNiti.addAll(futures) }
         /** Narise zadetke, ki so ze prispeli; [koncno] = vsi viri so odgovorili ali je rok potekel. */
         fun prikazi(koncno: Boolean, prvic: Boolean): Boolean {
@@ -6683,7 +6736,20 @@ class GlasbaActivity : OsActivity() {
             @Suppress("UNCHECKED_CAST") val izSpleta = rezultati[8] as? List<Pair<MedijskiViri.Vir, Jamendo.Skladba>> ?: emptyList()
             @Suppress("UNCHECKED_CAST") val javnaLast = rezultati[9] as? List<Jamendo.Skladba> ?: emptyList()
             @Suppress("UNCHECKED_CAST") val tuneInSurovi = rezultati[10] as? List<Jamendo.Skladba> ?: emptyList()
-            @Suppress("UNCHECKED_CAST") val izDodatkovVsi = ((rezultati[11] as? List<Jamendo.Skladba>).orEmpty() + (rezultati[13] as? List<Jamendo.Skladba>).orEmpty()).distinctBy { it.id }
+            @Suppress("UNCHECKED_CAST") val izWikidate = (rezultati[15] as? List<Jamendo.Skladba>).orEmpty()
+            // Isti film iz kataloga (po IMDb) ostane katalogov; Wikidata doda samo, cesar katalogi niso nasli.
+            @Suppress("UNCHECKED_CAST") val izKatalogovIsk = ((rezultati[11] as? List<Jamendo.Skladba>).orEmpty() + (rezultati[13] as? List<Jamendo.Skladba>).orEmpty())
+            val imdbKatalogov = izKatalogovIsk.mapNotNullTo(HashSet()) { it.imdbId.takeIf { i -> i.isNotBlank() } }
+            val razrediObsega = when (obseg) {
+                OsPravila.OBSEG_FILMI -> setOf(Stremio.FILM, Stremio.SERIJA); OsPravila.OBSEG_POSNETKI -> setOf(Stremio.VIDEO)
+                OsPravila.OBSEG_GLASBA -> setOf(Stremio.GLASBA); OsPravila.OBSEG_RADIO -> setOf(Stremio.RADIO)
+                OsPravila.OBSEG_TV -> setOf(Stremio.TV); OsPravila.OBSEG_NAPRAVE -> emptySet(); else -> null
+            }
+            // Katalogov vnos istega filma dobi domaci naslov iz Wikidate (»Preboj« namesto »Breakthrough«).
+            val domaciNaslovi = izWikidate.associate { it.imdbId to it.naslov }
+            val izDodatkovVsi = (izKatalogovIsk.map { k -> domaciNaslovi[k.imdbId]?.let { k.copy(naslov = it) } ?: k } +
+                izWikidate.filter { it.imdbId !in imdbKatalogov }).distinctBy { it.id }
+                .filter { razrediObsega == null || Stremio.razredEnote(it) in razrediObsega }
             zadetkiDodatkov = izDodatkovVsi
             // Cesar noben dodatek ne predvaja, med zadetki ni.
             val izDodatkov = izDodatkovVsi.filterNot { znanoNiNaVoljo(it) || cakaNaKnjiznico(it) }
@@ -6714,8 +6780,11 @@ class GlasbaActivity : OsActivity() {
                 vsi.add(Relevantnost.Zadetek(sk, naslov, izvajalec, taNaprava, 0, n.mapa + " " + n.ime))
             }
             vsi.addAll(vLinku)
-            viri.forEach { v -> MedijskiViri.kotSkladba(v).let { vsi.add(Relevantnost.Zadetek(it, v.ime, "", v.ime, 2, v.naslov)) } }
-            izSeznamov.forEach { (v, s) -> vsi.add(Relevantnost.Zadetek(s, s.naslov, s.izvajalec, v.ime, 2)) }
+            // Viri po imenu in uporabnikovi seznami: samo pri »Vsi viri«.
+            if (obseg == OsPravila.OBSEG_VSE) {
+                viri.forEach { v -> MedijskiViri.kotSkladba(v).let { vsi.add(Relevantnost.Zadetek(it, v.ime, "", v.ime, 2, v.naslov)) } }
+                izSeznamov.forEach { (v, s) -> vsi.add(Relevantnost.Zadetek(s, s.naslov, s.izvajalec, v.ime, 2)) }
+            }
             izSpleta.forEach { (_, s) -> vsi.add(Relevantnost.Zadetek(s, s.naslov, s.izvajalec, getString(R.string.os_media_tvoji_viri), 2)) }
             arhiv.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, "Archive.org", 6)) }
             glasba.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, "Jamendo", 3)) }
@@ -9183,8 +9252,14 @@ class GlasbaActivity : OsActivity() {
         // Diagnostika razvijalca ([Usenet.samoUsenet], samo prek adb, z rokom; lastnik 25. 10. 2026: meritev Useneta samo po
         // samodejni poti): samodejna izbira vzame samo Usenet - brez ⚡ torrentov, neposrednih povezav in Webtorja; ce Usenet
         // ne predvaja, se izbira konca (brez poti mimo). Viden znak kot pri Webtorju.
-        val samoUsenet = !samoWebtor && !rocno && Usenet.samoUsenet(this)
-        if (samoUsenet) {
+        // Lastnik 30. 10. 2026: izbira »⚡ Usenet« v mrezi Video je bila samo prednost - pri »Preboj« (Usenet 0 izdaj) se je
+        // predvajal torrent prek Webtorja. Izbrani samo Usenet (brez debrid storitve) zdaj velja tudi za predvajanje.
+        val izbranSamoUsenet = OsPravila.samoUsenetIzbran(UsenetLastni.naVoljo(this) && UsenetLastni.izbran(this),
+            Debrid.aktivna(this) != null, rocno)
+        val diagnostikaUsenet = !samoWebtor && !rocno && Usenet.samoUsenet(this)
+        val samoUsenet = !samoWebtor && (diagnostikaUsenet || izbranSamoUsenet)
+        if (izbranSamoUsenet) android.util.Log.i("SafeerOsMedia", "tokovi: izbran samo Usenet")
+        if (diagnostikaUsenet) {
             android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Usenet")
             runOnUiThread { Toast.makeText(this, R.string.os_usenet_diagnostika, Toast.LENGTH_LONG).show() }
         }
@@ -9209,9 +9284,10 @@ class GlasbaActivity : OsActivity() {
             .filter { !samoUsenet || it.vrsta == UsenetPravila.VRSTA }
         if (samoUsenet && tokovi.isEmpty()) {
             // Brez izdaj Usenet (indeksator jih nima) se diagnostika konca tu - vsebina ne izgine s seznama.
-            android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Usenet - indeksator ni dal izdaj")
+            android.util.Log.i("SafeerOsMedia", "tokovi: samo Usenet - indeksator ni dal izdaj")
             // Pregled Grok 31, H2: viden konec diagnostike (prej samo dnevnik); klicatelj izve za neuspeh.
-            Toast.makeText(this, R.string.os_usenet_diagnostika_ni_izdaj, Toast.LENGTH_LONG).show()
+            Toast.makeText(this, if (diagnostikaUsenet) R.string.os_usenet_diagnostika_ni_izdaj else R.string.os_usenet_ni_izdaj,
+                Toast.LENGTH_LONG).show()
             obNeuspehu?.invoke()
             return
         }

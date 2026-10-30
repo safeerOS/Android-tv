@@ -775,7 +775,10 @@ object Stremio {
     private fun vnos(m: JSONObject, osnova: String, tipKataloga: String = "", glasbeno: Boolean = false): Jamendo.Skladba? {
         val id = m.optString("id").ifBlank { return null }
         val tip = m.optString("type").ifBlank { tipKataloga.ifBlank { "movie" } }
-        val leto = m.optString("releaseInfo").ifBlank { m.optString("year") }
+        // Lastnik 30. 10. 2026: posnetki YouTube (YouTubio) so imeli leto »1970« - dodatek za posnetek brez datuma da zacetek
+        // stetja casa (1. 1. 1970). Pri vnosu brez IMDb to ni leto izida.
+        val leto = m.optString("releaseInfo").ifBlank { m.optString("year") }.let { l ->
+            if (l.startsWith("1970") && !id.startsWith("tt") && !m.optString("imdb_id").startsWith("tt")) "" else l }
         val r = razred(tip)
         // Glasba in radio: pod naslovom je izvajalec (kdo igra), ne letnica - uporabnik mora vedeti, koga pricakovati
         // (lastnik, 2. 10. 2026). Dodatki ga podajo razlicno, zato po vrsti: artist/author, igralci, reziser, opis.

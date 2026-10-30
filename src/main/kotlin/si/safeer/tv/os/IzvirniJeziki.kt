@@ -147,6 +147,13 @@ object IzvirniJeziki {
         return stran
     }
 
+    /** Filmi in serije z natancno tem naslovom (Wikidata) - za iskanje po domacem naslovu. Klic iz ozadja. */
+    fun poNaslovu(c: Context, beseda: String): List<Pair<IzvirniJezik.Naslov, String>> {
+        val vmesnik = try { c.resources.configuration.locales[0].language } catch (_: Throwable) { "en" }
+        val q = IzvirniJezik.poizvedbaPoNaslovu(beseda, vmesnik) ?: return emptyList()
+        return IzvirniJezik.izNaslovov(vprasaj(q) ?: return emptyList())
+    }
+
     private fun vprasaj(poizvedba: String): String? {
         if (System.currentTimeMillis() < premorDo) return null
         val t0 = android.os.SystemClock.elapsedRealtime()

@@ -141,6 +141,36 @@ object IzvirniJezik {
             "GROUP BY ?imdb ORDER BY DESC(?pov) ?imdb LIMIT ${koliko.coerceIn(1, 200)} OFFSET ${odmik.coerceAtLeast(0)}"
     }
 
+    /**
+     * Lastnik 30. 10. 2026: iskanje »Preboj« ni naslo slovenskega filma - katalogi (Cinemeta) ga poznajo samo kot
+     * »Breakthrough«. Filmi in serije z natancno tem naslovom v jeziku vmesnika ali v anglescini (Wikidata), z IMDb.
+     * Stolpci: imdb, naslov, leto, vrsta (movie/series).
+     */
+    fun poizvedbaPoNaslovu(beseda: String, vmesnik: String = "en"): String? {
+        val b = beseda.trim().take(120)
+        if (b.length < 2) return null
+        fun niz(t: String) = "\"" + t.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+        val jeziki = listOf(vmesnik.takeIf { KODA.matches(it) } ?: "en", "en").distinct()
+        val oblike = listOf(b, b.replaceFirstChar { it.uppercase() }, b.split(' ').joinToString(" ") { w -> w.replaceFirstChar { it.uppercase() } }).distinct()
+        val imena = oblike.flatMap { o -> jeziki.map { j -> niz(o) + "@" + j } }.joinToString(" ")
+        fun vrednosti(q: List<String>) = q.joinToString(" ") { "wd:$it" }
+        return "SELECT ?imdb (SAMPLE(?ime) AS ?naslov) (MIN(YEAR(?d)) AS ?leto) (SAMPLE(?vrsta) AS ?tip) WHERE { " +
+            "VALUES ?ime { $imena } ?f rdfs:label ?ime ; wdt:P345 ?imdb ; wdt:P31 ?razred . " +
+            "VALUES ?razred { ${vrednosti(RAZREDI_FILM + RAZREDI_SERIJA)} } " +
+            "BIND(IF(?razred IN (${RAZREDI_SERIJA.joinToString(", ") { "wd:$it" }}), \"series\", \"movie\") AS ?vrsta) " +
+            "OPTIONAL { ?f wdt:P577 ?d } } GROUP BY ?imdb LIMIT 12"
+    }
+
+    /** Odgovor na [poizvedbaPoNaslovu]: (naslov, vrsta). */
+    fun izNaslovov(tsv: String): List<Pair<Naslov, String>> =
+        vrstice(tsv).mapNotNull { v ->
+            val id = v.getOrNull(0).orEmpty()
+            val naslov = v.getOrNull(1).orEmpty().trim().take(200)
+            val tip = if (v.getOrNull(3).orEmpty() == "series") "series" else "movie"
+            if (!veljavenImdb(id) || naslov.isEmpty()) null
+            else Naslov(id, naslov, v.getOrNull(2)?.toIntOrNull()?.takeIf { it in 1870..2100 } ?: 0) to tip
+        }.distinctBy { it.first.imdb }
+
     // ------------------------------------------------------------------ branje odgovora (TSV)
 
     /** Celica TSV: "niz" (z ubeznimi znaki, lahko z oznako jezika ali vrste), <naslov predmeta> ali gola vrednost. */

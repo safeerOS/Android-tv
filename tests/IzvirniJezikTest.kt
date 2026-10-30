@@ -83,6 +83,13 @@ fun main() {
     // Naslov, ki ga ni v odgovoru: manjka.
     check(jeziki["tt7654321"] == listOf("en") && jeziki["tt7654322"] == emptyList<String>() && "tt9999999" !in jeziki)
     check(jeziki.size == 7)
+    // Iskanje po domacem naslovu (lastnik 30. 10. 2026, »Preboj«): poizvedba in branje odgovora.
+    val pn = j.poizvedbaPoNaslovu("preboj", "sl")!!
+    check(pn.contains("\"preboj\"@sl") && pn.contains("\"Preboj\"@sl") && pn.contains("\"Preboj\"@en") && pn.contains("wdt:P345"))
+    check(j.poizvedbaPoNaslovu("a", "sl") == null)
+    check(!j.poizvedbaPoNaslovu("x\" } DROP", "sl")!!.contains("x\" }"))
+    val nasl = j.izNaslovov("?imdb\t?naslov\t?leto\t?tip\n\"tt11006500\"\t\"Preboj\"@sl\t2019\t\"movie\"")
+    check(nasl.size == 1 && nasl[0].first.imdb == "tt11006500" && nasl[0].first.naslov == "Preboj" && nasl[0].first.leto == 2019 && nasl[0].second == "movie")
     check(j.izPaketa("").isEmpty() && j.izPaketa("?imdb\t?jezik\t?drzava\n").isEmpty())
 
     // Poizvedba za seznam: jezik, njegove domace drzave, razredi filma ali serije, urejeno po prepoznavnosti, stran.

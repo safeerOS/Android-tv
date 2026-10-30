@@ -188,6 +188,7 @@
     <!-- Pregled Grok 31, H2: viden konec diagnostike samo Usenet -->
     <string name="os_usenet_diagnostika_konec">Usenet-only diagnostics: Usenet did not play – the reason is in the log (SafeerOsMedia).</string>
     <string name="os_usenet_diagnostika_ni_izdaj">Usenet-only diagnostics: the indexer returned no releases for this title.</string>
+    <string name="os_usenet_ni_izdaj">This title is not available on Usenet. For other sources choose ⚡ All sources.</string>
     <string name="os_debrid_izbira_vse">All sources</string>
     <string name="os_usenet_predvaja_lastni">Playing via Usenet (your own provider)</string>
     <string name="os_usenet_lastni_kratko" translatable="false">Usenet</string>

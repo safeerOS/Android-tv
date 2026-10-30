@@ -208,6 +208,11 @@
     <string name="os_media_ni_dekoderja_slike">Ta naprava ne zna prikazati slike tega posnetka (%1$s). Predvajaj ga na televizorju ali računalniku.</string>
     <string name="os_media_napacen_posnetek_drug">Posnetek traja %1$s, film %2$s – verjetno ni pravi film. Poskušam drug vir.</string>
     <string name="os_media_napacen_posnetek">Posnetek traja %1$s, film %2$s – verjetno ni pravi film. Drugega vira ni.</string>
+    <string name="os_iskanje_v">Išči v</string>
+    <string name="os_iskanje_filmi_serije">Filmi in serije</string>
+    <string name="os_iskanje_posnetki">Spletni posnetki (YouTube, PeerTube)</string>
+    <string name="os_iskanje_radio_podkasti">Radio in podkasti</string>
+    <string name="os_iskanje_naprave">Moje naprave in datoteke</string>
     <string name="os_media_ni_dekoderja_zvoka">Ta naprava ne zna predvajati zvoka tega posnetka (%1$s).</string>
 
     <!-- Dodatki (Stremio): uporabnik vnese naslove SVOJIH dodatkov; Safeer ne prilaga katalogov. -->

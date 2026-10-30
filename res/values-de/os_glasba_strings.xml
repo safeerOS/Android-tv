@@ -208,6 +208,11 @@
     <string name="os_media_ni_dekoderja_slike">Dieses Gerät kann das Bild dieses Videos nicht anzeigen (%1$s). Spiele es auf einem Fernseher oder Computer ab.</string>
     <string name="os_media_napacen_posnetek_drug">Das Video dauert %1$s, der Film %2$s – vermutlich der falsche Film. Versuche eine andere Quelle.</string>
     <string name="os_media_napacen_posnetek">Das Video dauert %1$s, der Film %2$s – vermutlich der falsche Film. Keine andere Quelle.</string>
+    <string name="os_iskanje_v">Suchen in</string>
+    <string name="os_iskanje_filmi_serije">Filme und Serien</string>
+    <string name="os_iskanje_posnetki">Webvideos (YouTube, PeerTube)</string>
+    <string name="os_iskanje_radio_podkasti">Radio und Podcasts</string>
+    <string name="os_iskanje_naprave">Meine Geräte und Dateien</string>
     <string name="os_media_ni_dekoderja_zvoka">Dieses Gerät kann den Ton dieses Videos nicht abspielen (%1$s).</string>
 
     <!-- Dodatki (Stremio): uporabnik vnese naslove SVOJIH dodatkov; Safeer ne prilaga katalogov. -->

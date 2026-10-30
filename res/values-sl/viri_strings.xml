@@ -188,6 +188,7 @@
     <!-- Pregled Grok 31, H2: viden konec diagnostike samo Usenet -->
     <string name="os_usenet_diagnostika_konec">Diagnostika samo Usenet: Usenet ni predvajal – razlog je v dnevniku (SafeerOsMedia).</string>
     <string name="os_usenet_diagnostika_ni_izdaj">Diagnostika samo Usenet: indeksator za to vsebino ni dal izdaj.</string>
+    <string name="os_usenet_ni_izdaj">Ta naslov ni na voljo prek Useneta. Za druge vire izberi ⚡ Vsi viri.</string>
     <string name="os_debrid_izbira_vse">Vsi viri</string>
     <string name="os_usenet_predvaja_lastni">Predvaja prek Useneta (lasten ponudnik)</string>
     <string name="os_usenet_pripravljam">Pripravljam prek Useneta …</string>
