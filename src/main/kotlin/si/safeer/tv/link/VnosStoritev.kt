@@ -364,7 +364,10 @@ class VnosStoritev : AccessibilityService() {
             // Aplikacije za TV (Leanback) imajo svoj fokus: nas okvir bi se podvojil in med drsenjem zamikal
             // (lastnik 30. 10. 2026, RTV 365: okvir med dvema plakatoma).
             if (vozlisce == null || !vozlisce.isVisibleToUser || korenPaket == packageName ||
-                korenPaket == "com.aurora.store" || jeTvAplikacija(korenPaket) || miska?.paket == korenPaket) {
+                korenPaket == "com.aurora.store" || jeTvAplikacija(korenPaket) || miska?.paket == korenPaket ||
+                jeSistemskaTv(korenPaket) || jeSeznam(vozlisce)) {
+                // Lastnik 30. 10. 2026: v Philipsovih »Pogoste nastavitve« je bil obrobljen cel stolpec.
+                // Sistemski vmesniki TV rišejo svoj fokus, seznama kot celote pa nikoli ne obrobimo.
                 skrijFokusOverlay()
                 return
             }
@@ -440,6 +443,25 @@ class VnosStoritev : AccessibilityService() {
     }
 
     private val tvAplikacije = HashMap<String, Boolean>()
+    private val sistemskeTv = HashMap<String, Boolean>()
+
+    /** Sistemski vmesnik TV (Philips org.droidtv.*, nastavitve, SystemUI): ima svoj fokus. */
+    private fun jeSistemskaTv(paket: String): Boolean = sistemskeTv.getOrPut(paket) {
+        if (paket.startsWith("org.droidtv.") || paket == "com.android.systemui" ||
+            paket.startsWith("com.android.tv.")) return@getOrPut true
+        try {
+            val ai = packageManager.getApplicationInfo(paket, 0)
+            (ai.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0 &&
+                packageManager.getLaunchIntentForPackage(paket) == null
+        } catch (_: Throwable) { false }
+    }
+
+    /** Fokus na celem seznamu (vsebnik, ki se drsi): obroba bi zajela cel stolpec. */
+    private fun jeSeznam(n: AccessibilityNodeInfo): Boolean {
+        val c = n.className?.toString().orEmpty()
+        return n.isScrollable || c.contains("RecyclerView") || c.contains("ListView") ||
+            c.contains("ScrollView") || c.contains("GridView")
+    }
 
     /** Ima paket zaganjalnik za TV (Leanback)? Taka aplikacija sama rise fokus. */
     private fun jeTvAplikacija(paket: String): Boolean = tvAplikacije.getOrPut(paket) {
