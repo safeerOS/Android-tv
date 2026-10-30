@@ -372,7 +372,7 @@ class UsenetStreznik(
  * ob prvi zahtevi predvajalnika; odprtih je najvec [najvecOdprtih] - najdlje neuporabljena se zapre in se ob ponovni
  * zahtevi pripravi znova.
  * Lastnik 29. 10. 2026: ko se naslednja skladba predvaja (ze na manj kot polovici), se prejsnje skladbe sproti brisejo
- * iz pomnilnika ([pocistiPrejsnje]), zato sta odprti le se aktivna in naslednja vnaprej ([NAJVEC_ODPRTIH] = 2).
+ * iz pomnilnika ([pocistiPrejsnje]), zato je odprta le aktivna skladba ([NAJVEC_ODPRTIH] = 1).
  */
 class AlbumIzvor(
     private val skladbe: List<Pair<String?, () -> UsenetBralnik.Vir>>,
