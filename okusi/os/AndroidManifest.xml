@@ -27,6 +27,7 @@
     <!-- Safeer OS mora videti brskalnik: od njega dobi vstop v Safeer Link, Scit in odpiranje spleta. -->
     <queries>
         <package android:name="si.safeer.tv" />
+        <package android:name="com.aurora.store" />
     </queries>
 
     <!-- largeHeap (28. 10. 2026): TV ima 2 GB RAM; s privzeto mejo 192 MB (dalvik.vm.heapgrowthlimit) je ob predpomnjenju
@@ -78,25 +79,17 @@
             </intent-filter>
         </activity-alias>
 
-        <!-- Vgrajeni brskalnik Safeer OS: brez vnosa v zaganjalniku, a sprejme povezave iz drugih aplikacij.
-             Lastnik 30. 10. 2026: prijava iz aplikacije (Claude) je ponudila samo Safeer TV Browser - zdaj
-             Android ob povezavi ponudi izbiro med Safeer TV Browser in vgrajenim brskalnikom Safeer OS. -->
+        <!-- Safeer OS na televizorju nima vgrajenega brskalnika: spletne vsebine preda TV Browserju (si.safeer.tv),
+             da na televizorju (2,7 GB RAM) teče samo en WebView. Aktivnost brskalnika iz skupne kode je zato
+             odstranjena, s tem pa tudi filter za http/https povezave (lastnik 30. 10. 2026). -->
+        <activity android:name="si.safeer.tv.MainActivity" tools:node="remove" />
+
+        <!-- Sporocilo, ce TV Browserja ni: gumb za namestitev iz Safeer Play Store. -->
         <activity
-            android:name="si.safeer.tv.MainActivity"
-            android:exported="true"
-            android:label="@string/os_app_name"
-            android:icon="@mipmap/os_ic_launcher"
-            android:banner="@drawable/os_banner"
-            tools:replace="android:exported,android:label,android:icon,android:banner"
-            tools:ignore="RedundantLabel">
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="http" />
-                <data android:scheme="https" />
-            </intent-filter>
-        </activity>
+            android:name="si.safeer.tv.os.BrskalnikManjkaActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.DeviceDefault.Dialog.NoActionBar"
+            android:excludeFromRecents="true" />
 
         <!-- Zagon ob vklopu televizorja (privzeto nic: prejemnik najprej pogleda nastavitev). -->
         <receiver

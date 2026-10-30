@@ -411,7 +411,7 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val namera = if (paket != null)
             Intent().setComponent(ComponentName(paket, "si.safeer.tv.MainActivity"))
                 .putExtra("iz_safeer_os", packageName)
-        else Intent(this, si.safeer.tv.MainActivity::class.java)
+        else Brskalnik.namera(this)   // Safeer OS na TV: TV Browser; drugje brskalnik te aplikacije
         namera.putExtra("odpri_link", true).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         // Link je del Safeer OS: stran naj ima ozadje sistema in se ob zaprtju vrne sem.
         namera.putExtra("iz_safeer_os", packageName)

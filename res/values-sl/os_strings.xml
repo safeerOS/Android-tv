@@ -747,4 +747,7 @@
     <string name="os_zaganjalnik_edini">Safeer OS je edini zaganjalnik na tem televizorju. Če ga izklopiš, ostane črn zaslon, zato ostane vklopljen. Najprej v sistemskih nastavitvah televizorja omogoči drug zaganjalnik.</string>
     <string name="vnos_miska_vklop">Daljinec: miška (držite OK za fokus)</string>
     <string name="vnos_fokus_vklop">Daljinec: fokus (držite OK za miško)</string>
+    <string name="os_tvb_manjka_naslov">TV Browser ni nameščen</string>
+    <string name="os_tvb_manjka_opis">Safeer OS spletne strani odpira v aplikaciji Safeer TV Browser, da na televizorju teče samo en spletni pogon. Namestite ga iz Safeer Play Store.</string>
+    <string name="os_tvb_manjka_namesti">Odpri Safeer Play Store</string>
 </resources>

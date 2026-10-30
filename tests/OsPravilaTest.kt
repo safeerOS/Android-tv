@@ -1528,4 +1528,11 @@ private fun preizkusPlacljivega120() {
     preveriEnako("144: rezerva en zaslon", 900, OsPravila.rezervaNaslovnic(330, 900, 90))
     preveriEnako("144: rezerva najmanj kot prej", 420, OsPravila.rezervaNaslovnic(330, 0, 90))
     preveriEnako("143: meja 3", listOf("X1", "Y1", "X2"), OsPravila.pravicnoPoDodatkih((1..30).map { "X$it" } + "Y1", { it.take(1) }, 3))
+
+    // Splet v Safeer OS: na televizorju ga odpre TV Browser, drugje aplikacija sama
+    preveriEnako("splet: OS + TV + brskalnik", OsPravila.SpletCilj.TV_BROWSER, OsPravila.spletCilj(true, true, true))
+    preveriEnako("splet: OS + TV brez brskalnika - namestitev, ne vgrajeni WebView", OsPravila.SpletCilj.NAMESTI_TV_BROWSER, OsPravila.spletCilj(true, true, false))
+    preveriEnako("splet: OS na dotik ostane lokalno", OsPravila.SpletCilj.LOKALNO, OsPravila.spletCilj(true, false, true))
+    preveriEnako("splet: Safeer Browser TV ostane lokalno", OsPravila.SpletCilj.LOKALNO, OsPravila.spletCilj(false, true, false))
+    preveriEnako("splet: telefon ostane lokalno", OsPravila.SpletCilj.LOKALNO, OsPravila.spletCilj(false, false, false))
 }

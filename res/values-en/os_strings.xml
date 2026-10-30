@@ -752,4 +752,7 @@
     <string name="os_aplikacije_odstrani_domov">Take off home screen</string>
     <string name="vnos_miska_vklop">Remote: mouse (hold OK for focus)</string>
     <string name="vnos_fokus_vklop">Remote: focus (hold OK for mouse)</string>
+    <string name="os_tvb_manjka_naslov">TV Browser is not installed</string>
+    <string name="os_tvb_manjka_opis">Safeer OS opens web pages in the Safeer TV Browser app, so only one web engine runs on the TV. Install it from Safeer Play Store.</string>
+    <string name="os_tvb_manjka_namesti">Open Safeer Play Store</string>
 </resources>

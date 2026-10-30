@@ -243,6 +243,15 @@ class SpletniKlepetActivity : OsActivity() {
         private const val TAG = "SafeerSporocilaSplet"
 
         fun odpri(a: android.app.Activity, kanalId: String) {
+            // Safeer OS na televizorju: spletni klepet je navadna spletna stran, zato ga odpre TV Browser (en WebView).
+            if (Brskalnik.cilj(a) != OsPravila.SpletCilj.LOKALNO) {
+                val k = SporocilaShramba(a).kanali().firstOrNull { it.id == kanalId && it.vrsta == SpletniKlepetiPravila.VRSTA }
+                val url = try { SpletniKlepetiPravila.preveriNaslov(k?.nastavitve?.optString("url").orEmpty()) } catch (_: SpletniKlepetiPravila.NeveljavenNaslov) { null }
+                if (k != null && url != null) {
+                    a.startActivity(Brskalnik.spletnaAplikacija(a, url, k.ime))
+                    return
+                }
+            }
             a.startActivity(Intent(a, SpletniKlepetActivity::class.java).putExtra(EXTRA_KANAL, kanalId))
         }
 

@@ -2073,4 +2073,26 @@ object OsPravila {
         if (krajsaStranicaPx * 160 / trenutnaDpi >= 600) return 0
         return (krajsaStranicaPx * 160 / 720).coerceAtLeast(120)
     }
+
+    // ------------------------------------------------------------------ splet v Safeer OS na televizorju
+
+    /** Kam gre navadna spletna vsebina (povezava, spletna aplikacija, spletni klepet). */
+    enum class SpletCilj {
+        /** Aplikacija sama (telefon, tablica, Safeer Browser TV). */
+        LOKALNO,
+        /** Safeer OS na televizorju: eksplicitni intent v TV Browser, WebView teče samo tam. */
+        TV_BROWSER,
+        /** Safeer OS na televizorju, TV Browser ni nameščen: sporočilo z gumbom za namestitev. */
+        NAMESTI_TV_BROWSER,
+    }
+
+    /**
+     * Na televizorju Safeer OS spletnih vsebin ne odpira v svojem WebView-ju (na 2,7 GB RAM sta sicer hkrati
+     * dva motorja): preda jih TV Browserju. Vgrajenega brskalnika se ne vklaplja nazaj, če TV Browserja ni.
+     */
+    fun spletCilj(smoOs: Boolean, jeTelevizor: Boolean, tvBrowserNamescen: Boolean): SpletCilj = when {
+        !smoOs || !jeTelevizor -> SpletCilj.LOKALNO
+        tvBrowserNamescen -> SpletCilj.TV_BROWSER
+        else -> SpletCilj.NAMESTI_TV_BROWSER
+    }
 }

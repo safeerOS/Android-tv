@@ -744,4 +744,7 @@
     <string name="os_aplikacije_odstrani_domov">Retirer de l\'écran d\'accueil</string>
     <string name="vnos_miska_vklop">Télécommande : souris (maintenir OK pour le focus)</string>
     <string name="vnos_fokus_vklop">Télécommande : focus (maintenir OK pour la souris)</string>
+    <string name="os_tvb_manjka_naslov">TV Browser n\'est pas installé</string>
+    <string name="os_tvb_manjka_opis">Safeer OS ouvre les pages web dans l\'application Safeer TV Browser, afin qu\'un seul moteur web tourne sur le téléviseur. Installez-le depuis Safeer Play Store.</string>
+    <string name="os_tvb_manjka_namesti">Ouvrir Safeer Play Store</string>
 </resources>

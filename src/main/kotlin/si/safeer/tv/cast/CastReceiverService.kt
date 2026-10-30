@@ -555,8 +555,8 @@ class CastReceiverService : Service() {
         val hub = hubHttpOsnova()
         val mobilna = if (hub.isNotEmpty() && url.startsWith(hub)) null
             else si.safeer.tv.os.Brskalnik.mobilniNaslov(this, url)
-        val namera = mobilna ?: Intent().apply {
-            setClassName(packageName, "si.safeer.tv.MainActivity")
+        val namera = mobilna ?: si.safeer.tv.os.Brskalnik.namera(this).apply {
+            // Safeer OS na TV preda stran TV Browserju (en WebView); drugje je to brskalnik te aplikacije.
             action = ACTION_OPEN_CAST
             putExtra(EXTRA_CAST_URL, url)
             putExtra(EXTRA_CAST_TITLE, title ?: "")

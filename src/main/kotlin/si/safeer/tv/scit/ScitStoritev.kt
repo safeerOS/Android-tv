@@ -12,7 +12,6 @@ import android.net.VpnService
 import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.util.Log
-import si.safeer.tv.MainActivity
 import si.safeer.tv.R
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -128,7 +127,7 @@ class ScitStoritev : VpnService() {
             .setBlocking(true)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) b.setMetered(false)
         try {
-            val namera = Intent(this, MainActivity::class.java)
+            val namera = domovNamera()
             val zastavice = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             b.setConfigureIntent(PendingIntent.getActivity(this, 0, namera, zastavice))
         } catch (_: Throwable) { }
@@ -442,10 +441,16 @@ class ScitStoritev : VpnService() {
             .setOnlyAlertOnce(true)
         try {
             val zastavice = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            g.setContentIntent(PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), zastavice))
+            g.setContentIntent(PendingIntent.getActivity(this, 0, domovNamera(), zastavice))
         } catch (_: Throwable) { }
         return g.build()
     }
+
+    /** Zagonska aplikacija tega paketa (Safeer OS nima brskalnika, Safeer Browser TV je MainActivity). */
+    private fun domovNamera(): Intent =
+        packageManager.getLeanbackLaunchIntentForPackage(packageName)
+            ?: packageManager.getLaunchIntentForPackage(packageName)
+            ?: Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).setPackage(packageName)
 
     companion object {
         private const val TAG = "SafeerScit"

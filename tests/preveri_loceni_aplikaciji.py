@@ -83,6 +83,18 @@ def main() -> int:
         napake.append("Safeer OS nima aliasa domacega zaslona (ZaganjalnikAlias)")
     if "si.safeer.os.spletne" not in mo:
         napake.append("Safeer OS nima ponudnika spletnih aplikacij (si.safeer.os.spletne)")
+    # Safeer OS na televizorju spletne vsebine preda TV Browserju: vgrajenega brskalnika (WebView v procesu OS) ni.
+    if "si.safeer.tv.MainActivity" in mo:
+        napake.append("Safeer OS ima v manifestu vgrajeni brskalnik (si.safeer.tv.MainActivity); splet mora iti v TV Browser")
+    # Filtri intent-filter z navadno shemo http/https BREZ gostitelja (splosne povezave); <queries> (E: intent) in
+    # povezave za safeer.si (z gostiteljem) niso brskalnik.
+    for blok in re.split(r"\n\s*E: intent-filter", mo)[1:]:
+        for podatek in re.split(r"\n\s*E: data", blok)[1:]:
+            podatek = podatek.split("\n          E:")[0]
+            if re.search(r'scheme[^\n]*="https?"', podatek) and ":host(" not in podatek:
+                napake.append("Safeer OS sprejema splosne povezave http/https (filter VIEW): to pocne TV Browser")
+    if "BrskalnikManjkaActivity" not in mo:
+        napake.append("Safeer OS nima sporocila o manjkajocem TV Browserju (BrskalnikManjkaActivity)")
 
     pb, po = podpis(brskalnik), podpis(os_apk)
     if pb and po and pb != po:
