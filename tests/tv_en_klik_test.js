@@ -38,4 +38,8 @@ preveri('brez sinteticnega dogodka click', false, /new MouseEvent\('click'/.test
 preveri('pravi dotik samo, ce je zadetek na elementu', true, /if \(naElementu\(el, zadetek\)\)/.test(klik));
 preveri('miska samo, ce dotik ni sprejet', true, /if \(!tapnjeno\)/.test(klik));
 assert.ok(VIR.indexOf("!jeSirokGumb(el, rect, winH)") > 0, 'isActionable ne uporablja jeSirokGumb');
+// claude.ai prijava (30. 10. 2026): Tailwind »duration-200« ne sme izlociti pravega gumba, povezave ali polja.
+preveri('pravilo za casovne oznake ne velja za prave gumbe', true,
+    /var pravGumb = tag === 'A' \|\| tag === 'BUTTON' \|\| tag === 'INPUT'/.test(VIR) &&
+    /if \(!pravGumb && \(cls\.indexOf\('time'\)/.test(VIR));
 console.log('tv_en_klik_test: OK (' + n + ')');

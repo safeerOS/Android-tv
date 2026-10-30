@@ -959,7 +959,11 @@
                 if (jeNogaAliPiskotki(el)) return false;
                 if (jePotVZivo() && cls.indexOf('channel-container') !== -1 && cls.indexOf('item--event') === -1) return false;
                 if (cls.indexOf('channellists') !== -1 || cls.indexOf('icon-p24_channellist') !== -1) return false;
-                if (cls.indexOf('time') !== -1 || cls.indexOf('duration') !== -1 || cls.indexOf('badge') !== -1 || cls.indexOf('progress') !== -1 || cls.indexOf('subtitle') !== -1) {
+                // Casovne oznake, trajanje, znacke v karticah niso cilji - pravi gumbi, povezave in polja pa so vedno.
+                // Lastnik 30. 10. 2026 (claude.ai prijava): Tailwind razredi »duration-200«, »transition« so izlocili
+                // gumbe »Continue with Google« in polje za e-posto; daljinec je skocil naravnost na Privacy Policy.
+                var pravGumb = tag === 'A' || tag === 'BUTTON' || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+                if (!pravGumb && (cls.indexOf('time') !== -1 || cls.indexOf('duration') !== -1 || cls.indexOf('badge') !== -1 || cls.indexOf('progress') !== -1 || cls.indexOf('subtitle') !== -1)) {
                     if (!el.hasAttribute('onclick') && el.getAttribute('role') !== 'button') {
                         return false;
                     }
