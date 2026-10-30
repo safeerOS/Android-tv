@@ -197,6 +197,9 @@ dependencies {
     telefonImplementation 'org.libtorrent4j:libtorrent4j-android-arm64:2.1.0-39'
     // QR koda v prijavnem oknu Safeer OS (os/PrijavaActivity): samo kodirnik, cista Java, brez Googlovih storitev
     implementation 'com.google.zxing:core:3.5.3'
+    // Lezeci tablicni nacin za neprilagojene aplikacije (TablicniPrikaz): gostota zaslona prek IWindowManager,
+    // ki je na Androidu 11+ skrit vmesnik. HiddenApiBypass (LSPosed, Apache-2.0) doda izjemo samo za IWindowManager.
+    implementation 'org.lsposed.hiddenapibypass:hiddenapibypass:6.1'
     // Ed25519 verification for the signed Safeer Threat Intelligence feed (see libs/README.md)
     implementation files('libs/bcprov-ed25519-1.78.1.jar')
     // WebSocket povezava sprejemnika Safeer Cast (knjiznici sta v libs/, gradnja ne rabi omrezja)

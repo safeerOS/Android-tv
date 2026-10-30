@@ -61,24 +61,32 @@ class TablicniPrikaz(private val c: Context) {
     }
 
     private fun upravitelj(): Any? = try {
+        // Android 11+: skriti vmesnik brez izjeme vrne NoSuchMethodException (izmerjeno na TV 30. 10. 2026).
+        if (android.os.Build.VERSION.SDK_INT >= 28) {
+            org.lsposed.hiddenapibypass.HiddenApiBypass.addHiddenApiExemptions(
+                "Landroid/view/IWindowManager", "Landroid/view/WindowManagerGlobal"
+            )
+        }
         Class.forName("android.view.WindowManagerGlobal").getMethod("getWindowManagerService").invoke(null)
     } catch (e: Throwable) { Log.w(TAG, "IWindowManager: ${e.javaClass.simpleName}"); null }
 
     private fun nastaviGostoto(dpi: Int): Boolean = try {
         val w = upravitelj() ?: throw IllegalStateException("ni upravitelja oken")
-        w.javaClass.getMethod("setForcedDisplayDensityForUser", Int::class.java, Int::class.java, Int::class.java)
-            .invoke(w, 0, dpi, UPORABNIK_TRENUTNI)
+        Class.forName("android.view.IWindowManager")
+            .getMethod("setForcedDisplayDensityForUser", Int::class.java, Int::class.java, Int::class.java)
+            .invoke(w, 0, dpi, uporabnik())
         Log.i(TAG, "gostota zaslona za tablicno postavitev: $dpi")
         true
     } catch (e: Throwable) {
-        Log.w(TAG, "gostote ni bilo mogoce spremeniti: ${e.javaClass.simpleName} ${e.cause?.javaClass?.simpleName}")
+        Log.w(TAG, "gostote ni bilo mogoce spremeniti: ${e.javaClass.simpleName} ${e.cause?.javaClass?.simpleName}: ${e.cause?.message}")
         false
     }
 
     private fun pocistiGostoto(): Boolean = try {
         val w = upravitelj() ?: throw IllegalStateException("ni upravitelja oken")
-        w.javaClass.getMethod("clearForcedDisplayDensityForUser", Int::class.java, Int::class.java)
-            .invoke(w, 0, UPORABNIK_TRENUTNI)
+        Class.forName("android.view.IWindowManager")
+            .getMethod("clearForcedDisplayDensityForUser", Int::class.java, Int::class.java)
+            .invoke(w, 0, uporabnik())
         Log.i(TAG, "gostota zaslona vrnjena")
         true
     } catch (e: Throwable) {
@@ -90,7 +98,7 @@ class TablicniPrikaz(private val c: Context) {
         const val TAG = "SafeerTablica"
         const val NASTAVITVE = "safeer_tablicni_prikaz"
         const val KLJUC = "gostota_vsiljena"
-        /** UserHandle.USER_CURRENT */
-        const val UPORABNIK_TRENUTNI = -2
+        // Pravi ID uporabnika (0): psevdouporabnik -2 (trenutni) na Android 11 zahteva INTERACT_ACROSS_USERS_FULL.
+        fun uporabnik(): Int = android.os.Process.myUid() / 100000
     }
 }
