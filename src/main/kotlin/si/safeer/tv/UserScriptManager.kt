@@ -821,6 +821,8 @@ object UserScriptManager {
     @Volatile
     private var cachedSiteAgentJs: String? = null
     @Volatile
+    private var cachedFacebookJs: String? = null
+    @Volatile
     private var cachedYoutubeZacetekJs: String? = null
 
     /**
@@ -830,6 +832,7 @@ object UserScriptManager {
     fun sprostiPredpomnilnik() {
         cachedTvSpatialJs = null
         cachedSiteAgentJs = null
+        cachedFacebookJs = null
         cachedYoutubeZacetekJs = null
         cachedProtiAdblockJs = null
     }
@@ -864,6 +867,16 @@ object UserScriptManager {
         val js = webView.context.assets.open(name).bufferedReader(Charsets.UTF_8).use { it.readText() }
         store(js)
         return js
+    }
+
+    private fun facebookJs(webView: WebView): String {
+        return assetJs(webView, "site_facebook.js", { cachedFacebookJs }, { cachedFacebookJs = it })
+    }
+
+    fun isFacebookUrl(url: String?): Boolean {
+        if (url.isNullOrEmpty()) return false
+        val host = try { Uri.parse(url).host?.lowercase()?.trim() ?: "" } catch (_: Exception) { "" }
+        return host == "facebook.com" || host.endsWith(".facebook.com")
     }
 
     private fun siteAgentJs(webView: WebView): String {
@@ -1291,6 +1304,11 @@ object UserScriptManager {
         webView.evaluateJavascript(siteAgentJs(webView), null)
         // Navigacija z daljincem samo na televizorju; na dotik bi fokus samo motil.
         if (!((webView as? ChromiumEngineView)?.dotik ?: ChromiumEngineView.naDotik(webView.context))) webView.evaluateJavascript(tvSpatialJs(webView), null)
+        // Facebook na televizorju: brez stalnih namigov in brez sponzoriranih objav (lastnik 29. 10. 2026).
+        if (!home && !bank && isFacebookUrl(target) &&
+            !((webView as? ChromiumEngineView)?.dotik ?: ChromiumEngineView.naDotik(webView.context))) {
+            try { webView.evaluateJavascript(facebookJs(webView), null) } catch (_: Exception) { }
+        }
         if (finished) {
             webView.evaluateJavascript(MOBILE_MEDIA_AUDIO_JS, null)
             webView.evaluateJavascript("try{if(window._safeerSiteAgent)window._safeerSiteAgent.onPageReady()}catch(e){}", null)

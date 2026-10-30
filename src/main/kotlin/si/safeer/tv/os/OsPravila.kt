@@ -1912,4 +1912,25 @@ object OsPravila {
         if (gostitelj.isEmpty()) return false
         return listOf("youtube.com", "youtu.be").none { gostitelj == it || gostitelj.endsWith(".$it") }
     }
+
+    /**
+     * Spletne aplikacije, ki niso narejene za daljinec: na televizorju daljinec v njih deluje kot
+     * racunalniska miska (lastnik 29. 10. 2026, Facebook: »daljinec obnasa kot racunalniska miska«).
+     */
+    private val MISKA_GOSTITELJI = listOf("facebook.com", "messenger.com", "instagram.com")
+
+    fun miskaZaAplikacijo(jeTelevizor: Boolean, naslov: String): Boolean {
+        if (!jeTelevizor) return false
+        val gostitelj = try { java.net.URI(naslov.trim()).host?.lowercase().orEmpty() } catch (_: Exception) { "" }
+        if (gostitelj.isEmpty()) return false
+        return MISKA_GOSTITELJI.any { gostitelj == it || gostitelj.endsWith(".$it") }
+    }
+
+    /** Korak kazalca v tockah zaslona: kratek pritisk je natancen, drzana smerna tipka pospesuje. */
+    fun korakKazalca(ponovitve: Int): Float = when {
+        ponovitve <= 0 -> 24f
+        ponovitve < 4 -> 40f
+        ponovitve < 10 -> 72f
+        else -> 110f
+    }
 }
