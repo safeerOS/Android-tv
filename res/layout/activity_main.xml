@@ -111,7 +111,7 @@
                 android:ellipsize="end"
                 android:hint="@string/url_hint"
                 android:imeOptions="actionGo|flagNoExtractUi"
-                android:inputType="textUri|textWebEditText"
+                android:inputType="textUri|textWebEditText|textNoSuggestions"
                 android:paddingVertical="0dp"
                 android:singleLine="true"
                 android:selectAllOnFocus="true"

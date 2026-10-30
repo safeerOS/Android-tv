@@ -34,6 +34,7 @@ splet = beri("assets", "splet", "splet.js")
 print("Naslovna vrstica na dotik")
 polje = re.search(r"<si\.safeer\.tv\.OmniboxPolje(.*?)/>", postavitev, re.S)
 preveri("dotik vrstice izbere ves naslov (selectAllOnFocus)", bool(polje) and 'android:selectAllOnFocus="true"' in polje.group(1))
+preveri("polje naslova je brez predlogov IME (presledek pred @)", bool(polje) and "textNoSuggestions" in polje.group(1))
 dotik = re.search(r"if \(ChromiumEngineView\.naDotik\(this\)\) \{\s*listOf<View>\((.*?)\)\.forEach \{ it\.isFocusableInTouchMode = false \}", glavna, re.S)
 gumbi = set(re.findall(r"\w+", dotik.group(1))) if dotik else set()
 for gumb in ("btnClearUrl", "btnSearchTrigger", "btnFavorite", "btnBack", "btnHome", "btnReload", "btnTabCount", "btnMenu"):
