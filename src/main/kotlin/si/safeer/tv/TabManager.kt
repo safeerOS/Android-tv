@@ -170,6 +170,20 @@ class TabManager(
         if (nazaj != null && tabs.any { it.id == nazaj }) switchTab(nazaj)
     }
 
+    /** window.close() iz strani: zapre pojavni zavihek s tem pogledom (ali se neprikazano okno). */
+    fun zapriPojavniPoPogledu(context: Context, pogled: ChromiumEngineView): Boolean {
+        val tab = tabs.firstOrNull { it.webView === pogled }
+        if (tab == null) {
+            // Okno, ki se ni postalo zavihek (skrito, 1x1), pospravimo.
+            if (pogled.parent != null && pogled.visibility != android.view.View.VISIBLE) zavrziPojavni(pogled)
+            return false
+        }
+        if (!tab.jePojavni) return false
+        Log.i(TAG, "Pojavno okno se je zaprlo samo (window.close)")
+        zapriPojavni(context, tab)
+        return true
+    }
+
     /** Okno je bilo oglas: pogled zavrzemo, zavihkov se nismo dotaknili. */
     fun zavrziPojavni(pogled: ChromiumEngineView) {
         try { (pogled.parent as? ViewGroup)?.removeView(pogled) } catch (_: Exception) {}

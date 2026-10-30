@@ -224,6 +224,13 @@ class ChromiumEngineView @JvmOverloads constructor(
     var naPojavnoOkno: ((android.os.Message) -> Boolean)? = null
 
     /**
+     * Stran je poklicala window.close(). Lastnik 30. 10. 2026: Googlova prijava (claude.ai) je obstala na
+     * praznem »accounts.google.com/gsi/transform« - okno je odgovor poslalo strani, ki ga je odprla, in se
+     * hotelo zapreti, brskalnik pa zapiranja ni poznal.
+     */
+    var naZapriOkno: ((ChromiumEngineView) -> Unit)? = null
+
+    /**
      * Vratar pojavnega okna. Nastavljen je samo na pogledu, ki ga je dobilo novo okno: pove
      * mu prvi naslov, kamor okno pelje, vratar pa odgovori, ali sme tja. Dokler vratar ne
      * odgovori, se v tem pogledu ne nalozi nic.
@@ -823,6 +830,12 @@ class ChromiumEngineView @JvmOverloads constructor(
                 message: String?,
                 result: android.webkit.JsResult?
             ): Boolean = JsOkna.predZapustitvijo(view, url, message, result)
+
+            override fun onCloseWindow(window: WebView?) {
+                super.onCloseWindow(window)
+                val pogled = (window as? ChromiumEngineView) ?: this@ChromiumEngineView
+                naZapriOkno?.invoke(pogled)
+            }
 
             override fun onCreateWindow(
                 view: WebView?,

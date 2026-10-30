@@ -1863,6 +1863,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         // Pregledovalnik PDF: "prenesi izvirnik" gre kot navaden prenos, "gor" iz orodne vrstice v naslovno vrstico.
         wv.onPdfPrenos = { url, userAgent -> downloadHandler.startDownload(url, userAgent, null, "application/pdf") }
         wv.naPojavnoOkno = { resultMsg -> odpriPojavnoOkno(resultMsg) }
+        // window.close(): pojavni zavihek (prijava) se zapre in vrne na stran, ki ga je odprla. Navaden
+        // zavihek ostane - stran ne sme zapreti uporabnikovega zavihka.
+        wv.naZapriOkno = { pogled -> pogled.post { tabManager.zapriPojavniPoPogledu(this, pogled) } }
         wv.onPdfFokusVen = { smer ->
             if (smer == "gor") {
                 if (nacinAplikacije == null) {
