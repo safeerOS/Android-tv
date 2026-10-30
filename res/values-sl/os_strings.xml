@@ -743,4 +743,6 @@
     <string name="os_pomoc_da">Da, pomagaj</string>
     <string name="os_pomoc_ne">Ne</string>
     <string name="os_zaganjalnik_edini">Safeer OS je edini zaganjalnik na tem televizorju. Če ga izklopiš, ostane črn zaslon, zato ostane vklopljen. Najprej v sistemskih nastavitvah televizorja omogoči drug zaganjalnik.</string>
+    <string name="vnos_miska_vklop">Daljinec: miška (držite OK za fokus)</string>
+    <string name="vnos_fokus_vklop">Daljinec: fokus (držite OK za miško)</string>
 </resources>

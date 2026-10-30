@@ -748,4 +748,6 @@
     <string name="os_aplikacije_odstrani_app">Uninstall app</string>
     <string name="os_aplikacije_dodaj_domov">Put on home screen</string>
     <string name="os_aplikacije_odstrani_domov">Take off home screen</string>
+    <string name="vnos_miska_vklop">Remote: mouse (hold OK for focus)</string>
+    <string name="vnos_fokus_vklop">Remote: focus (hold OK for mouse)</string>
 </resources>

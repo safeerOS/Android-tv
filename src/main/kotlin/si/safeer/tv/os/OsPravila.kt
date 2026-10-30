@@ -1950,4 +1950,14 @@ object OsPravila {
         if (paket.startsWith("si.safeer.") || paket == "com.aurora.store") return false
         return imaZaganjalnik && !imaTvZaganjalnik
     }
+
+    /**
+     * Neprilagojena aplikacija na TV kot na lezeci tablici (lastnik 30. 10. 2026): najvecja gostota, pri kateri je
+     * krajsa stranica vsaj 600 dp; cilj 720 dp (1280 x 720 dp pri 1920 x 1080). 0, ce je zaslon ze tablicni.
+     */
+    fun gostotaTablice(krajsaStranicaPx: Int, trenutnaDpi: Int): Int {
+        if (krajsaStranicaPx <= 0 || trenutnaDpi <= 0) return 0
+        if (krajsaStranicaPx * 160 / trenutnaDpi >= 600) return 0
+        return (krajsaStranicaPx * 160 / 720).coerceAtLeast(120)
+    }
 }

@@ -173,14 +173,51 @@ class VnosStoritev : AccessibilityService() {
         instanca = this
         Log.i(TAG, "Safeer Vnos je vklopljen.")
         glavnaNit.post { pripraviFokusOverlay() }
-        if (jeTelevizor()) miska = SistemskaMiska(this)
+        if (jeTelevizor()) {
+            miska = SistemskaMiska(this)
+            tablica = TablicniPrikaz(this).also { it.obnovi() }
+        }
+        try {
+            val info = serviceInfo ?: android.accessibilityservice.AccessibilityServiceInfo()
+            info.flags = info.flags or
+                android.accessibilityservice.AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS or
+                android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+            serviceInfo = info
+        } catch (e: Throwable) {
+            Log.w(TAG, "Nastavitev serviceInfo ni uspela: ${e.message}")
+        }
     }
+
+    /**
+     * Neprilagojena aplikacija v ospredju (navaden zaganjalnik, brez TV zaganjalnika, ni sistemska); null drugje.
+     * Lastnik 30. 10. 2026 (»oboje s preklopom«): privzeto fokus med gumbi (Gemini), drzan OK preklopi v misko in nazaj.
+     */
+    private var neprilagojena: String? = null
+    /** Lezeca tablicna postavitev za neprilagojene aplikacije (lastnik 30. 10. 2026). */
+    private var tablica: TablicniPrikaz? = null
+    private val miskaVklopljena = HashSet<String>()
+    private var okDolMs = 0L
+    private var okPreklopil = false
 
     /** Daljinec kot miska v aplikacijah, ki niso narejene za TV (lastnik 30. 10. 2026). */
     private var miska: SistemskaMiska? = null
     private val miskaPaketi = HashMap<String, Boolean>()
 
     private val preveriMiskoOpravilo = Runnable { preveriMisko() }
+
+    private fun preklopiMisko(paket: String) {
+        val m = miska ?: return
+        val vklop = paket !in miskaVklopljena
+        if (vklop) { miskaVklopljena.add(paket); m.vklopi(paket); skrijFokusOverlay() }
+        else { miskaVklopljena.remove(paket); m.izklopi() }
+        try {
+            android.widget.Toast.makeText(
+                this,
+                getString(if (vklop) si.safeer.tv.R.string.vnos_miska_vklop else si.safeer.tv.R.string.vnos_fokus_vklop),
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+        } catch (_: Throwable) { }
+    }
 
     private fun preveriMisko() {
         val m = miska ?: return
@@ -197,12 +234,15 @@ class VnosStoritev : AccessibilityService() {
             } catch (_: Throwable) { true }
             si.safeer.tv.os.OsPravila.miskaZaPaket(true, paket, navaden, tv, sistemska)
         }
-        if (vklop) m.vklopi(paket) else m.izklopi()
+        neprilagojena = if (vklop) paket else null
+        if (vklop) tablica?.vklopi() else tablica?.izklopi()
+        if (vklop && paket in miskaVklopljena) m.vklopi(paket) else m.izklopi()
     }
 
     override fun onUnbind(intent: android.content.Intent?): Boolean {
         instanca = null
         miska?.izklopi()
+        tablica?.izklopi()
         odstraniFokusOverlay()
         return super.onUnbind(intent)
     }
@@ -210,6 +250,7 @@ class VnosStoritev : AccessibilityService() {
     override fun onDestroy() {
         instanca = null
         miska?.izklopi()
+        tablica?.izklopi()
         odstraniFokusOverlay()
         super.onDestroy()
     }
@@ -296,6 +337,12 @@ class VnosStoritev : AccessibilityService() {
                 korenPaket = aktivniKoren.packageName?.toString().orEmpty()
                 if (korenPaket != packageName && korenPaket != "com.aurora.store") {
                     vozlisce = fokusirano(aktivniKoren)
+                    if (korenPaket == neprilagojena && miska?.paket == null && jePasivenVsebnik(vozlisce)) {
+                        najdiInteraktivnoVozlisce(aktivniKoren)?.let { n ->
+                            vozlisce = n
+                            try { n.performAction(AccessibilityNodeInfo.ACTION_FOCUS) } catch (_: Throwable) { }
+                        }
+                    }
                 }
             }
 
@@ -399,6 +446,90 @@ class VnosStoritev : AccessibilityService() {
         try { packageManager.getLeanbackLaunchIntentForPackage(paket) != null } catch (_: Throwable) { false }
     }
 
+    private fun jePasivenVsebnik(n: AccessibilityNodeInfo?): Boolean {
+        if (n == null) return true
+        if (n.isClickable) return false
+        val c = n.className?.toString().orEmpty()
+        return n.childCount > 0 || c.contains("RecyclerView") || c.contains("ScrollView") ||
+            c.contains("ViewGroup") || c.contains("Layout") || c.contains("ViewPager")
+    }
+
+    /** Vidni, omogoceni interaktivni elementi aktivnega okna (brez vsebnikov in celozaslonskih pogledov). */
+    private fun zberiInteraktivne(n: AccessibilityNodeInfo, izid: MutableList<AccessibilityNodeInfo>, globina: Int) {
+        if (globina > NAJVEC_GLOBINE || izid.size >= NAJVEC_KANDIDATOV) return
+        val r = Rect()
+        n.getBoundsInScreen(r)
+        val (zaslonW, zaslonH) = velikost()
+        val celozaslonski = zaslonW > 0 && zaslonH > 0 && r.width() >= zaslonW - 30 && r.height() >= zaslonH - 30
+        if ((n.isFocusable || n.isClickable) && n.isVisibleToUser && n.isEnabled && !celozaslonski &&
+            r.width() > 15 && r.height() > 15 && !jePasivenVsebnik(n)
+        ) izid.add(n)
+        for (i in 0 until n.childCount) {
+            val otrok = try { n.getChild(i) } catch (_: Throwable) { null } ?: continue
+            zberiInteraktivne(otrok, izid, globina + 1)
+        }
+    }
+
+    /**
+     * Primarni gumb za zacetni fokus (Naprej, Nadaljuj, V redu ...). Pregled 30. 10. 2026: nikoli samodejno na
+     * soglasja in namestitve (Allow, Accept, Install, Dovoli, Sprejmi, Namesti) - en OK ne sme dati dovoljenja.
+     */
+    private fun poisciPrimarniGumb(kandidati: List<AccessibilityNodeInfo>): AccessibilityNodeInfo? {
+        val kljucne = listOf(
+            "next", "continue", "skip", "done", "finish", "start", "get started", "ok", "got it",
+            "naprej", "nadaljuj", "preskoči", "končaj", "začni", "v redu", "razumem"
+        )
+        for (k in kandidati) {
+            val txt = k.text?.toString()?.trim()?.lowercase().orEmpty()
+            val opis = k.contentDescription?.toString()?.trim()?.lowercase().orEmpty()
+            if (k.isClickable && kljucne.any { b -> txt == b || txt.startsWith("$b ") || opis == b }) return k
+        }
+        return null
+    }
+
+    private fun najdiInteraktivnoVozlisce(koren: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        val kandidati = ArrayList<AccessibilityNodeInfo>()
+        zberiInteraktivne(koren, kandidati, 0)
+        if (kandidati.isEmpty()) return null
+        return poisciPrimarniGumb(kandidati)
+            ?: kandidati.firstOrNull { it.isClickable && it.isVisibleToUser && it.isEnabled }
+            ?: kandidati.firstOrNull { it.isVisibleToUser && it.isEnabled }
+    }
+
+    /** Smerna tipka v neprilagojeni aplikaciji, kjer je fokus obtical na vsebniku: na najblizji interaktivni element. */
+    private fun premakniMedInteraktivnimi(smer: VnosVklopPravila.Smer, od: AccessibilityNodeInfo?): Boolean {
+        val koren = try { rootInActiveWindow } catch (_: Throwable) { null } ?: return false
+        val kandidati = ArrayList<AccessibilityNodeInfo>()
+        zberiInteraktivne(koren, kandidati, 0)
+        if (kandidati.isEmpty()) return false
+        val okvirji = kandidati.map { okvir(it) }
+        val i = if (od != null) VnosVklopPravila.najblizji(okvir(od), okvirji, smer) else VnosVklopPravila.prvi(okvirji)
+        if (i < 0) return false
+        val izbran = kandidati[i]
+        val uspelo = izbran.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+        try { izbran.performAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS) } catch (_: Throwable) { }
+        return uspelo || izbran.isAccessibilityFocused
+    }
+
+    /** OK v neprilagojeni aplikaciji (fokus nacin): ENO dejanje - klik elementa ali najblizjega klikljivega starsa, sicer dotik. */
+    private fun aktivirajFokus() {
+        val koren = try { rootInActiveWindow } catch (_: Throwable) { null } ?: return
+        var vozlisce = fokusirano(koren)
+        if (jePasivenVsebnik(vozlisce)) vozlisce = najdiInteraktivnoVozlisce(koren) ?: vozlisce
+        val n = vozlisce ?: return
+        var cilj: AccessibilityNodeInfo? = n
+        while (cilj != null && !cilj.isClickable) cilj = try { cilj.parent } catch (_: Throwable) { null }
+        if (cilj != null && cilj.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return
+        val r = Rect()
+        n.getBoundsInScreen(r)
+        val (zaslonW, zaslonH) = velikost()
+        if (!r.isEmpty && zaslonW > 0 && zaslonH > 0) {
+            val cx = r.centerX().toDouble() / zaslonW
+            val cy = r.centerY().toDouble() / zaslonH
+            if (cx in 0.0..1.0 && cy in 0.0..1.0) poteza(cx, cy, cx, cy, 60)
+        }
+    }
+
     private fun skrijFokusOverlay() {
         val v = fokusPogled ?: return
         if (v.visibility != View.GONE) {
@@ -428,8 +559,42 @@ class VnosStoritev : AccessibilityService() {
     override fun onKeyEvent(event: android.view.KeyEvent): Boolean {
         val k = event.keyCode
         if (!jeTelevizor()) return false
-        // Daljinec kot miska (aplikacije, ki niso za TV); ob odprti tipkovnici tipke ostanejo tipkovnici.
-        if (miska?.paket != null && !jeTipkovnicaOdprta() && miska?.tipka(event) == true) return true
+        // Neprilagojena aplikacija (ni za TV): OK in smerne tipke. Ob odprti tipkovnici tipke ostanejo tipkovnici.
+        val nep = neprilagojena
+        if (nep != null && !jeTipkovnicaOdprta()) {
+            if (k == android.view.KeyEvent.KEYCODE_DPAD_CENTER || k == android.view.KeyEvent.KEYCODE_ENTER) {
+                if (event.action == android.view.KeyEvent.ACTION_DOWN) {
+                    if (event.repeatCount == 0) { okDolMs = event.eventTime; okPreklopil = false }
+                    else if (!okPreklopil && event.eventTime - okDolMs >= 600) {
+                        okPreklopil = true
+                        preklopiMisko(nep)
+                    }
+                } else if (!okPreklopil) {
+                    val m = miska
+                    if (m?.paket != null) m.klik() else glavnaNit.post { aktivirajFokus() }
+                }
+                return true
+            }
+            if (miska?.paket != null && miska?.tipka(event) == true) return true
+            if (event.action == android.view.KeyEvent.ACTION_DOWN) {
+                val smer = when (k) {
+                    android.view.KeyEvent.KEYCODE_DPAD_UP -> VnosVklopPravila.Smer.GOR
+                    android.view.KeyEvent.KEYCODE_DPAD_DOWN -> VnosVklopPravila.Smer.DOL
+                    android.view.KeyEvent.KEYCODE_DPAD_LEFT -> VnosVklopPravila.Smer.LEVO
+                    android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> VnosVklopPravila.Smer.DESNO
+                    else -> null
+                }
+                if (smer != null) {
+                    val koren = try { rootInActiveWindow } catch (_: Throwable) { null }
+                    val f = fokusirano(koren)
+                    if (jePasivenVsebnik(f) && premakniMedInteraktivnimi(smer, f?.takeIf { it.isClickable })) {
+                        glavnaNit.removeCallbacks(posodobiFokusOpravilo)
+                        glavnaNit.postDelayed(posodobiFokusOpravilo, 40)
+                        return true
+                    }
+                }
+            }
+        }
         // Posodobi univerzalni Safeer OS fokus overlay ob premikanju s križcem
         if (event.action == android.view.KeyEvent.ACTION_DOWN) {
             when (k) {

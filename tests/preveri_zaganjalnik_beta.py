@@ -526,6 +526,14 @@ def main() -> int:
             and (SRC / "link/SistemskaMiska.kt").is_file())
     ma = (SRC / "MainActivity.kt").read_text(encoding="utf-8")
     preveri("brskalnik: vrstica z naslovom na TV ni prisilno skrita", "mobileTopBar.visibility = vidnost" in ma)
+    # Lastnik 30. 10. 2026: neprilagojene aplikacije lezece kot tablica; gostota se ob odhodu (in po padcu) vrne.
+    tp = (SRC / "link/TablicniPrikaz.kt").read_text(encoding="utf-8")
+    preveri("tablica: lezece + gostota, obnova po padcu",
+            "SCREEN_ORIENTATION_LANDSCAPE" in tp and "clearForcedDisplayDensityForUser" in tp
+            and "TablicniPrikaz(this).also { it.obnovi() }" in vn)
+    # Lastnik 30. 10. 2026 (oboje s preklopom): drzan OK preklopi misko/fokus; OK v fokus nacinu sprozi eno dejanje.
+    preveri("neprilagojene: preklop miska/fokus, en klik", "preklopiMisko(nep)" in vn and "private fun aktivirajFokus()" in vn
+            and "poteza(cx, cy, cx, cy, 60)\n                            }\n                            try { vozlisce.performAction" not in vn)
     # Zaganjalnik (TV, telefon, tablica) mora vedno imeti vecjo mejo pomnilnika.
     for okus in ("os", "telefon", "tablica"):
         man = (KOREN / "okusi" / okus / "AndroidManifest.xml").read_text(encoding="utf-8")

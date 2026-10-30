@@ -19,7 +19,7 @@ import si.safeer.tv.os.OsPravila
 /**
  * Daljinec kot miska v aplikacijah, ki niso narejene za televizor (lastnik 30. 10. 2026: »tako naj bo za vse
  * aplikacije, ki niso posebej prirejene za TV«, npr. telefonski TikTok). Kot nacin miske za Facebook v brskalniku:
- * smerne tipke premikajo kazalec (drzana tipka pospesuje), OK je dotik, drzan OK dolg dotik, ob robu zaslona
+ * smerne tipke premikajo kazalec (drzana tipka pospesuje), OK je dotik (drzan OK preklopi nacin), ob robu zaslona
  * se vsebina pomakne. Nazaj in ostale tipke gredo nespremenjene v aplikacijo. Kazalec je prekrivno okno
  * storitve dostopnosti (ne prestreza dotikov); dotik je potezo sistema (dispatchGesture).
  */
@@ -30,7 +30,6 @@ class SistemskaMiska(private val storitev: AccessibilityService) {
     private var kazalec: Kazalec? = null
     private var x = 0f
     private var y = 0f
-    private var okDol = 0L
 
     /** Paket v ospredju, za katerega je miska vklopljena; null = izklopljena. */
     var paket: String? = null
@@ -104,17 +103,13 @@ class SistemskaMiska(private val storitev: AccessibilityService) {
                 if (dol) glavna.post { premakni(e.keyCode, e.repeatCount) }
                 return true
             }
-            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
-                if (dol) {
-                    if (e.repeatCount == 0) okDol = e.eventTime
-                } else {
-                    val dolg = e.eventTime - okDol >= DOLG_MS
-                    glavna.post { dotik(dolg) }
-                }
-                return true
-            }
         }
         return false
+    }
+
+    /** Kratek dotik na mestu kazalca (OK na daljincu). */
+    fun klik() {
+        if (paket != null) glavna.post { dotik(false) }
     }
 
     private fun premakni(koda: Int, ponovitve: Int) {
@@ -159,6 +154,5 @@ class SistemskaMiska(private val storitev: AccessibilityService) {
 
     private companion object {
         const val VELIKOST = 48
-        const val DOLG_MS = 600L
     }
 }

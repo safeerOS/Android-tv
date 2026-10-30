@@ -740,4 +740,6 @@
     <string name="os_aplikacije_odstrani_app">Desinstalar aplicación</string>
     <string name="os_aplikacije_dodaj_domov">Añadir a la pantalla de inicio</string>
     <string name="os_aplikacije_odstrani_domov">Quitar de la pantalla de inicio</string>
+    <string name="vnos_miska_vklop">Mando: ratón (mantén OK para el foco)</string>
+    <string name="vnos_fokus_vklop">Mando: foco (mantén OK para el ratón)</string>
 </resources>

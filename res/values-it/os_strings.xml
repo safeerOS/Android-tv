@@ -740,4 +740,6 @@
     <string name="os_aplikacije_odstrani_app">Disinstalla app</string>
     <string name="os_aplikacije_dodaj_domov">Aggiungi alla schermata Home</string>
     <string name="os_aplikacije_odstrani_domov">Rimuovi dalla schermata Home</string>
+    <string name="vnos_miska_vklop">Telecomando: mouse (tieni premuto OK per il focus)</string>
+    <string name="vnos_fokus_vklop">Telecomando: focus (tieni premuto OK per il mouse)</string>
 </resources>

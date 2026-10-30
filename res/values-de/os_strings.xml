@@ -740,4 +740,6 @@
     <string name="os_aplikacije_odstrani_app">App deinstallieren</string>
     <string name="os_aplikacije_dodaj_domov">Zum Startbildschirm hinzufügen</string>
     <string name="os_aplikacije_odstrani_domov">Vom Startbildschirm entfernen</string>
+    <string name="vnos_miska_vklop">Fernbedienung: Maus (OK halten für Fokus)</string>
+    <string name="vnos_fokus_vklop">Fernbedienung: Fokus (OK halten für Maus)</string>
 </resources>
