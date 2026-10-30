@@ -281,7 +281,10 @@ class VnosStoritev : AccessibilityService() {
                 }
             }
 
-            if (vozlisce == null || !vozlisce.isVisibleToUser || korenPaket == packageName || korenPaket == "com.aurora.store") {
+            // Aplikacije za TV (Leanback) imajo svoj fokus: nas okvir bi se podvojil in med drsenjem zamikal
+            // (lastnik 30. 10. 2026, RTV 365: okvir med dvema plakatoma).
+            if (vozlisce == null || !vozlisce.isVisibleToUser || korenPaket == packageName ||
+                korenPaket == "com.aurora.store" || jeTvAplikacija(korenPaket)) {
                 skrijFokusOverlay()
                 return
             }
@@ -354,6 +357,13 @@ class VnosStoritev : AccessibilityService() {
         } catch (_: Throwable) {
             skrijFokusOverlay()
         }
+    }
+
+    private val tvAplikacije = HashMap<String, Boolean>()
+
+    /** Ima paket zaganjalnik za TV (Leanback)? Taka aplikacija sama rise fokus. */
+    private fun jeTvAplikacija(paket: String): Boolean = tvAplikacije.getOrPut(paket) {
+        try { packageManager.getLeanbackLaunchIntentForPackage(paket) != null } catch (_: Throwable) { false }
     }
 
     private fun skrijFokusOverlay() {

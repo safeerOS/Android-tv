@@ -512,6 +512,10 @@ def main() -> int:
     glavni = (KOREN / "AndroidManifest.xml").read_text(encoding="utf-8")
     preveri("odstranjevanje aplikacij: REQUEST_DELETE_PACKAGES",
             'android:name="android.permission.REQUEST_DELETE_PACKAGES"' in glavni)
+    # Lastnik 30. 10. 2026: aplikacije za TV imajo svoj fokus - univerzalni okvir jih ne prekriva (RTV 365).
+    vn = (SRC / "link/VnosStoritev.kt").read_text(encoding="utf-8")
+    preveri("fokus okvir: ne v aplikacijah za TV (Leanback)",
+            "jeTvAplikacija(korenPaket)" in vn and "getLeanbackLaunchIntentForPackage(paket) != null" in vn)
     # Zaganjalnik (TV, telefon, tablica) mora vedno imeti vecjo mejo pomnilnika.
     for okus in ("os", "telefon", "tablica"):
         man = (KOREN / "okusi" / okus / "AndroidManifest.xml").read_text(encoding="utf-8")
