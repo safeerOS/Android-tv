@@ -25,7 +25,7 @@ object IzvirniJeziki {
      * Razlicica tabele jezikov ([IzvirniJezik.JEZIKI]). Ko tabela dobi nove predmete (razlicice jezika), zapisi
      * »neznan jezik« iz stare tabele niso vec resnicni (veljali bi se do 7 dni); znani ostanejo.
      */
-    private const val TABELA = "2"
+    private const val TABELA = "3"
     private const val VRSTICA_TABELE = "#tabela\t"
     private const val NAJVEC_ZAPISOV = 20_000
     private const val SEZNAM_VELJA_MS = 6L * 3_600_000

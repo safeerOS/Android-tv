@@ -52,7 +52,12 @@ fun main() {
     // Seznam naslovov v jeziku vpraša tudi po razlicicah.
     check(j.poizvedbaSeznam(j.poKodi("pt")!!, "movie").contains("VALUES ?jezik { wd:Q5146 wd:Q750553 }"))
     // Jezik, ki ga izbira ne ponuja, ali brez jezika: ne vemo.
-    check(j.glavni(listOf("Q123456789"), listOf("Q30")).isEmpty() && j.glavni(emptyList(), listOf("Q30")).isEmpty())
+    check(j.glavni(listOf("Q123456789"), listOf("Q30")).isEmpty() && j.glavni(emptyList(), emptyList()).isEmpty())
+    // Brez jezika (P364) odloci drzava izvora: Bolgarija -> bg, Francija -> fr, ZDA -> en (lastnik 30. 10. 2026).
+    check(j.glavni(emptyList(), listOf("Q219")) == listOf("bg"))
+    check(j.glavni(emptyList(), listOf("Q142")) == listOf("fr"))
+    check(j.glavni(emptyList(), listOf("Q30")) == listOf("en"))
+    check("sl" !in j.glavni(emptyList(), listOf("Q219")))
 
     // Poizvedba za paket: samo veljavni id-ji IMDb, brez podvojitev, najvec NAJVEC_V_PAKETU.
     val p = j.poizvedbaPaket(listOf("tt0111161", "tt0111161", "tt1375666", "nm0000001", "tt12\" } DROP", "", "tt123"))
@@ -74,8 +79,9 @@ fun main() {
     val jeziki = j.izPaketa(odgovor)
     check(jeziki["tt1375666"] == listOf("en") && jeziki["tt0361748"] == listOf("en") && jeziki["tt0245429"] == listOf("ja"))
     check(jeziki["tt0111161"] == listOf("en") && jeziki["tt6751668"] == listOf("ko"))
-    // Naslov, ki ga Wikidata pozna, a brez jezika: prazen seznam (ne vemo). Naslov, ki ga ni v odgovoru: manjka.
-    check(jeziki["tt7654321"] == emptyList<String>() && jeziki["tt7654322"] == emptyList<String>() && "tt9999999" !in jeziki)
+    // Naslov brez jezika z drzavo izvora: jezik drzave (ZDA -> en). Brez jezika in drzave: prazen seznam (ne vemo).
+    // Naslov, ki ga ni v odgovoru: manjka.
+    check(jeziki["tt7654321"] == listOf("en") && jeziki["tt7654322"] == emptyList<String>() && "tt9999999" !in jeziki)
     check(jeziki.size == 7)
     check(j.izPaketa("").isEmpty() && j.izPaketa("?imdb\t?jezik\t?drzava\n").isEmpty())
 

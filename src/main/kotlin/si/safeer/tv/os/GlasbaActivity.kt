@@ -2745,8 +2745,11 @@ class GlasbaActivity : OsActivity() {
                 // ustreza, naslov skrije; neznana ali brez drzave ostane viden kot do zdaj.
                 // Drzave naslova so natancnejse od jezika kataloga: Cinemeta »top« velja po naslovih za angleski katalog,
                 // »Hope« (Juzna Koreja) pa je v njem - izmerjeno na TV 23. 10. 2026. Zato najprej drzave, nato katalog.
-                else -> VrsteNaslovov.drzave(s)?.let { OsPravila.jezikPoDrzavah(it, jezik) }
-                    ?: katalogov[s.id]?.let { OsPravila.jezikKatalogaUstreza(it, jezik) } ?: true
+                else -> OsPravila.ostaneVJeziku(
+                    imaImdb = s.imdbId.isNotBlank(),
+                    poDrzavah = VrsteNaslovov.drzave(s)?.let { OsPravila.jezikPoDrzavah(it, jezik) },
+                    poKatalogu = katalogov[s.id]?.let { OsPravila.jezikKatalogaUstreza(it, jezik) },
+                    jezik = jezik)
             }
         }
     }
@@ -2762,7 +2765,7 @@ class GlasbaActivity : OsActivity() {
         val izid = HashMap<String, String>()
         katalogi.zip(strani).forEach { (k, s) ->
             val jezikKataloga = k.oceniJezik(s.second.map { it.naslov })
-            if (jezikKataloga.isNotEmpty()) for (x in s.second) if (x.language.isBlank() && x.imdbId.isBlank()) izid.putIfAbsent(x.id, jezikKataloga)
+            if (jezikKataloga.isNotEmpty()) for (x in s.second) if (x.language.isBlank()) izid.putIfAbsent(x.id, jezikKataloga)
         }
         return izid
     }
@@ -2795,7 +2798,8 @@ class GlasbaActivity : OsActivity() {
         odprtKatalog = o
         odprtKatalogIz = VIDEO
         // Nic cakanja: zadnja znana mreza (pomnilnik, sicer disk) je na zaslonu takoj; sveza vsebina jo zamenja le, ce je drugacna.
-        val kljuc = "brskanje:$tip:$zvrstKljuc:${resources.configuration.locales[0].toLanguageTag()}" + (if (jezik.isEmpty()) "" else ":j$jezik")
+        // »:f2«: strozji filter jezika (30. 10. 2026) - mreza, shranjena po starem filtru, se ne kaze vec (tuji naslovi).
+        val kljuc = "brskanje:$tip:$zvrstKljuc:${resources.configuration.locales[0].toLanguageTag()}" + (if (jezik.isEmpty()) "" else ":j$jezik:f2")
         if (!zasebni) BRSKANJE[kljuc]?.let { o.vsi += it }
         drsnik.scrollTo(0, 0)
         narisiKatalog(naslov)

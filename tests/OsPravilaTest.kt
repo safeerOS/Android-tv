@@ -355,6 +355,13 @@ private fun preizkusJezikaKataloga() {
     preveriEnako("hr/sr/bs katalog ustreza srbscini", true, OsPravila.jezikKatalogaUstreza(OsPravila.JEZIK_HBS, "sr"))
     preveriEnako("pt katalog ne ustreza anglescini", false, OsPravila.jezikKatalogaUstreza("pt", "en"))
     preveriEnako("pt katalog ustreza portugalscini", true, OsPravila.jezikKatalogaUstreza("pt", "pt"))
+    preveriEnako("IMDb brez jezika in podatkov izpade", false, OsPravila.ostaneVJeziku(true, null, null, "sl"))
+    preveriEnako("brez IMDb in podatkov pri slovenscini izpade (Lupin)", false, OsPravila.ostaneVJeziku(false, null, null, "sl"))
+    preveriEnako("brez IMDb in podatkov pri anglescini ostane (m3u)", true, OsPravila.ostaneVJeziku(false, null, null, "en"))
+    preveriEnako("angleski katalog pri slovenscini izpade", false, OsPravila.ostaneVJeziku(true, null, false, "sl"))
+    preveriEnako("angleski katalog pri anglescini ostane", true, OsPravila.ostaneVJeziku(true, null, true, "en"))
+    preveriEnako("brazilski katalog pri portugalscini ostane", true, OsPravila.ostaneVJeziku(false, null, true, "pt"))
+    preveriEnako("drzave odlocijo pred katalogom", false, OsPravila.ostaneVJeziku(true, false, true, "en"))
 }
 
 private fun preizkusVrsteIzMeta() {

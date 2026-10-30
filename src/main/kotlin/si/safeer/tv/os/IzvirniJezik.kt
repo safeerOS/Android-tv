@@ -100,6 +100,9 @@ object IzvirniJezik {
      */
     fun glavni(jeziki: Collection<String>, drzave: Collection<String>): List<String> {
         val vsi = JEZIKI.filter { j -> j.predmeti.any { it in jeziki } }
+        // Lastnik 30. 10. 2026: Wikidata pri nekaterih naslovih nima jezika (P364), drzavo izvora pa ima (bolgarski
+        // »House Arrest«, francoski »Wakfu« med »Slovenščina«). Brez jezika velja jezik, ki je doma v drzavi izvora.
+        if (jeziki.isEmpty()) return JEZIKI.filter { j -> j.drzave.any { it in drzave } }.map { it.koda }.distinct()
         if (vsi.isEmpty()) return emptyList()
         val domaci = vsi.filter { j -> j.drzave.any { it in drzave } }
         val izbrani = when {

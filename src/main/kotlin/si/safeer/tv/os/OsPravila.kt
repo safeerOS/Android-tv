@@ -1241,6 +1241,16 @@ object OsPravila {
     }
 
     /** Ali jezik kataloga ([jezikKataloga]) ustreza izbranemu jeziku (ISO 639-1); [JEZIK_HBS] ustreza hr, sr in bs. */
+    /**
+     * Lastnik 30. 10. 2026: pri »Slovenščina« so bili pod slovenskimi naslovi tuji (Lupin, Tulsa King ...), ker je naslov
+     * z IMDb, za katerega Wikidata ni dala jezika, ostal viden. Brez jezika iz vira odlocajo drzave izvora, nato jezik
+     * kataloga. Ce ne vemo nic: pri anglescini ostane viden naslov brez IMDb (zapisi m3u, katalogi so vecinoma angleski -
+     * lastnik 22. 10.: 5000 filmov -> 102 kartici), pri drugih jezikih neznan naslov izpade (Lupin, Tulsa King brez IMDb
+     * pri »Slovenščina«, izmerjeno na TV 30. 10. 2026).
+     */
+    fun ostaneVJeziku(imaImdb: Boolean, poDrzavah: Boolean?, poKatalogu: Boolean?, jezik: String): Boolean =
+        poDrzavah ?: poKatalogu ?: (jezik == "en" && !imaImdb)
+
     fun jezikKatalogaUstreza(jezikKataloga: String, izbrani: String): Boolean =
         jezikKataloga == izbrani || (jezikKataloga == JEZIK_HBS && izbrani in setOf("hr", "sr", "bs"))
 
