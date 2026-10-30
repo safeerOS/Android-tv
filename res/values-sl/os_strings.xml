@@ -411,7 +411,7 @@
     <string name="os_vir_splet">Splet</string>
     <string name="os_vir_racunalnik">Računalnik</string>
     <string name="os_priljubljen_dodaj">Na domači zaslon</string>
-    <string name="os_priljubljen_odstrani">Z domačega zaslona</string>
+    <string name="os_priljubljen_odstrani">Odstrani z zaslona</string>
     <string name="pk_premakni">Premakni</string>
     <string name="pk_premikanje_namig">Premikaj z levo in desno na daljincu, za konec pritisni OK.</string>
     <string name="os_odsek_priljubljene">Priljubljene aplikacije</string>
