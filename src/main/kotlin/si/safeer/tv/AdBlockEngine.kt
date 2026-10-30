@@ -95,16 +95,9 @@ object AdBlockEngine {
         return try { set.decide(FilterRequest(url, page, type))?.block == true } catch (e: RuntimeException) { false }
     }
 
-    /**
-     * ⚡ L1 CPU Cache za oglasne odločitve po gostitelju (Direct-Mapped):
-     * Izjemno pospeši 95 % omrežnih zahtevkov na odprti strani.
-     */
-    private val L1_AD_CACHE_MASK = 63
-    private val l1AdHostKeys = arrayOfNulls<String>(64)
-    private val l1AdBlockedFlags = BooleanArray(64)
-
-    /** Gostitelj iz naslova z ničelnimi alokacijami (Zero-Allocation). */
-    private fun gostiteljIz(lower: String): String = ThreatBlockEngine.hitriGostitelj(lower)
+    /** Gostitelj iz naslova; ob nerazumljivem naslovu prazen niz. */
+    private fun gostiteljIz(lower: String): String =
+        try { Uri.parse(lower).host?.lowercase()?.trim() ?: "" } catch (_: Exception) { "" }
 
     /** Bela lista, prave banke in strezniki za zascito vsebine veljajo tudi za EasyList.
      *  Gostitelja sprejme ze razclenjenega, da ga ni treba razclenjevati dvakrat. */
@@ -259,17 +252,8 @@ object AdBlockEngine {
             if (host.isNotEmpty()) {
                 // Prave banke in plačilna infrastruktura (katalog BankGuard) delujejo brez posegov
                 if (ThreatBlockEngine.isRealBankHost(host)) return false
-
-                // ⚡ L1 CPU Cache za gostitelja (brez ponovnega sprehoda po Trie):
-                val h = host.hashCode()
-                val l1Idx = (h xor (h ushr 16)) and L1_AD_CACHE_MASK
-                if (l1AdHostKeys[l1Idx] == host) {
-                    if (l1AdBlockedFlags[l1Idx]) return true
-                } else {
-                    val jeBlokiran = blockedTrie.matches(host)
-                    l1AdHostKeys[l1Idx] = host
-                    l1AdBlockedFlags[l1Idx] = jeBlokiran
-                    if (jeBlokiran) return true
+                if (blockedTrie.matches(host)) {
+                    return true
                 }
 
                 if (whitelistTrie.matches(host) || jeDrmStreznik(host)) {

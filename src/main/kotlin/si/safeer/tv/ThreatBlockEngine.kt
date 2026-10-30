@@ -31,45 +31,6 @@ object ThreatBlockEngine {
     @Volatile
     private var threatTrie = DomainSuffixTrie()
 
-    /**
-     * ⚡ L1 CPU Cache za preverjene domene (Direct-Mapped zvezno polje):
-     * Velikost 64 vnosov točno ustreza profilu 95 % zahtevkov na odprti strani.
-     * Ker je neposredno naslovljen (brez zaklepov in brez hashmapov), se v celoti prilega
-     * v 64 KB L1 Data Cache procesorja Cortex-A73 in omogoča odgovor v 1-2 CPE ciklih.
-     */
-    private val L1_CACHE_MASK = 63
-    private val l1HostKeys = arrayOfNulls<String>(64)
-    private val l1MatchResults = arrayOfNulls<DomainSuffixTrie.MatchResult>(64)
-    private val l1SafeFlags = BooleanArray(64)
-
-    /** Izprazni L1 predpomnilnik ob zamenjavi ali posodobitvi baze groženj. */
-    fun pocistiL1Predpomnilnik() {
-        for (i in 0..L1_CACHE_MASK) {
-            l1HostKeys[i] = null
-            l1MatchResults[i] = null
-            l1SafeFlags[i] = false
-        }
-    }
-
-    /**
-     * Hitra izluščitev gostitelja brez klica Uri.parse() za maksimalno prostorsko lokalnost
-     * in ničelno ustvarjanje začasnih objektov za smetarja (Zero-Allocation).
-     */
-    fun hitriGostitelj(url: String): String {
-        val s = url.indexOf("://")
-        val start = if (s >= 0) s + 3 else 0
-        var end = url.indexOf('/', start)
-        if (end < 0) end = url.length
-        val vprasanje = url.indexOf('?', start)
-        if (vprasanje in start until end) end = vprasanje
-        val lojtra = url.indexOf('#', start)
-        if (lojtra in start until end) end = lojtra
-        val dvopicje = url.indexOf(':', start)
-        if (dvopicje in start until end) end = dvopicje
-        val raw = if (start == 0 && end == url.length) url else url.substring(start, end)
-        return raw.trim().lowercase().trimEnd('.')
-    }
-
     // Začasno odobrena spletna mesta (uporabnik je izrecno kliknil 'Nadaljuj na lastno odgovornost' za to sejo)
     private val sessionBypassedDomains = ConcurrentHashMap.newKeySet<String>()
 
@@ -228,7 +189,6 @@ object ThreatBlockEngine {
         // Urejanje in strnitev tukaj (nit posodobitve seznamov), ne ob prvem iskanju na glavni niti (lastnik 27. 10. 2026).
         newTrie.pripravi()
         threatTrie = newTrie
-        pocistiL1Predpomnilnik()
         return added
     }
 
@@ -318,67 +278,28 @@ object ThreatBlockEngine {
         if (!isEnabled || url.isEmpty()) return null
 
         try {
-            val host = hitriGostitelj(url)
+            val uri = Uri.parse(url)
+            val host = uri.host?.lowercase()?.trim() ?: return null
             if (host.isEmpty()) return null
-
-            // ⚡ L1 CPU Cache Lookup (hitri dostop v 1-2 ciklih):
-            val h = host.hashCode()
-            val l1Idx = (h xor (h ushr 16)) and L1_CACHE_MASK
-            if (l1HostKeys[l1Idx] == host) {
-                if (l1SafeFlags[l1Idx]) return null
-                val cached = l1MatchResults[l1Idx]
-                if (cached != null) return cached
-            }
 
             val match = findThreat(url, host)
             if (match == null) {
                 // 🏦 BankGuard: naslov, ki posnema banko (npr. nlb-klik-prijava.com, otpbamka.si)
-                if (sessionBypassedDomains.contains(host)) {
-                    l1HostKeys[l1Idx] = host
-                    l1SafeFlags[l1Idx] = true
-                    l1MatchResults[l1Idx] = null
-                    return null
-                }
-                val verdict = fakeBankHost(host)
-                if (verdict == null) {
-                    l1HostKeys[l1Idx] = host
-                    l1SafeFlags[l1Idx] = true
-                    l1MatchResults[l1Idx] = null
-                    return null
-                }
-                val fakeMatch = fakeBankMatch(host, verdict)
-                l1HostKeys[l1Idx] = host
-                l1SafeFlags[l1Idx] = false
-                l1MatchResults[l1Idx] = fakeMatch
-                return fakeMatch
+                if (sessionBypassedDomains.contains(host)) return null
+                val verdict = fakeBankHost(host) ?: return null
+                return fakeBankMatch(host, verdict)
             }
 
             // 🔒 ZERO-BYPASS: kritične C2 in malware grožnje nikoli nimajo izjeme
-            if (isCriticalThreat(match.category)) {
-                l1HostKeys[l1Idx] = host
-                l1SafeFlags[l1Idx] = false
-                l1MatchResults[l1Idx] = match
-                return match
-            }
+            if (isCriticalThreat(match.category)) return match
 
             // Prave banke nikoli ne dobijo opozorila o ribarjenju ali prevari (seznami se lahko zmotijo)
-            if (isRealBankHost(host)) {
-                l1HostKeys[l1Idx] = host
-                l1SafeFlags[l1Idx] = true
-                l1MatchResults[l1Idx] = null
-                return null
-            }
+            if (isRealBankHost(host)) return null
 
             // Preveri začasne izjeme za to sejo (le za manj nevarne kategorije)
             if (sessionBypassedDomains.contains(host) || sessionBypassedDomains.contains(match.matchedDomain.lowercase())) {
-                l1HostKeys[l1Idx] = host
-                l1SafeFlags[l1Idx] = true
-                l1MatchResults[l1Idx] = null
                 return null
             }
-            l1HostKeys[l1Idx] = host
-            l1SafeFlags[l1Idx] = false
-            l1MatchResults[l1Idx] = match
             return match
         } catch (e: Exception) {
             return null
