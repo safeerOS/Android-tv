@@ -748,4 +748,14 @@
     <string name="os_tvb_manjka_naslov">TV Browser no está instalado</string>
     <string name="os_tvb_manjka_opis">Safeer OS abre las páginas web en la aplicación Safeer TV Browser, para que solo funcione un motor web en el televisor. Instálala desde Safeer Play Store.</string>
     <string name="os_tvb_manjka_namesti">Abrir Safeer Play Store</string>
+
+    <string name="os_komplet_naslov">Paquete Safeer</string>
+    <string name="os_komplet_opis">Safeer OS necesita TV Browser y Safeer Play Store.</string>
+    <string name="os_komplet_namesti">Instalar</string>
+    <string name="os_komplet_pozneje">Más tarde</string>
+    <string name="os_komplet_prenasam">Descargando paquete …</string>
+    <string name="os_komplet_prenasam_paket">Descargando: %1$s</string>
+    <string name="os_komplet_napaka_paket">Descarga fallida: %1$s</string>
+    <string name="os_komplet_namesceno">Instalado</string>
+    <string name="os_komplet_manjka">Falta: %1$s</string>
 </resources>

@@ -233,6 +233,12 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     /** Pred odprtjem sistemskega okna je bil fokus na seznamu (daljinec): ob vrnitvi gre spet tja. */
     private var fokusNaSeznamu = false
 
+    private fun stanjeKompleta(): String {
+        val manjkajo = KompletPravila.manjkajoci(Sosed.jeTelevizor(this), Sosed.smoOs(this), setOf(Sosed.BRSKALNIK, Sosed.TRGOVINA).filter { Sosed.namescen(this, it) }.toSet())
+        if (manjkajo.isEmpty()) return getString(R.string.os_komplet_namesceno)
+        return getString(R.string.os_komplet_manjka, manjkajo.joinToString(", "))
+    }
+
     /** Posodobitve: takoj preveri safeer.si; novo razlicico prenese in preda namescanju, sicer pove, da je najnovejsa. */
     private fun posodobi() {
         Toast.makeText(this, R.string.os_posodobitev_preverjam, Toast.LENGTH_SHORT).show()
@@ -339,6 +345,12 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 startActivity(DovoljenjaActivity.namera(this)) },
             safeer(R.drawable.os_ikona_posodobi, R.string.os_posodobitve, R.string.os_posodobitve_opis, Posodobitve.stanje(this),
                 Posodobitve.besedilo(this, R.string.os_posodobitve_opis)) { posodobi() },
+            if (!Sosed.jeTelevizor(this) || !Sosed.smoOs(this)) null
+            else safeer(R.drawable.os_ikona_posodobi, R.string.os_komplet_naslov, R.string.os_komplet_opis, stanjeKompleta(),
+                getString(R.string.os_komplet_opis)) {
+                val manjkajo = KompletPravila.manjkajoci(Sosed.jeTelevizor(this), Sosed.smoOs(this), setOf(Sosed.BRSKALNIK, Sosed.TRGOVINA).filter { Sosed.namescen(this, it) }.toSet())
+                if (manjkajo.isNotEmpty()) KompletNamestitev.namesti(this, manjkajo) { narisi() }
+            },
             safeer(R.drawable.os_ikona_link, R.string.os_gl_ime, R.string.os_gl_opis,
                 vklop(si.safeer.tv.link.GlobalLink.vklopljen(this))) { nastaviGlobalLink() },
             // Ozji krog zaupanja (kot na racunalniku): samo naprave v njem vidijo vsebine te naprave in samo njihove

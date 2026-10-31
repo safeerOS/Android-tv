@@ -546,6 +546,11 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private val medijiPoslusalec: () -> Unit = { runOnUiThread { GlasbaStoritev.osveziKartico(this); dock?.osvezi() } }
 
     /** Kuverta Sporocil v glavi (znacka neprebranih). */
+    override fun onResume() {
+        super.onResume()
+        KompletNamestitev.ponudiPrvic(this)
+    }
+
     private var kuverta: View? = null
 
     /**

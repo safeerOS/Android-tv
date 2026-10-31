@@ -222,6 +222,7 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         naloziPriljubljene()
         SporocilaZnak.osvezi(this, kuverta)
         NamestiApk.nadaljujCeCaka(this)
+        KompletNamestitev.ponudiPrvic(this)
     }
 
     /** Domaci zaslon ne odide z Nazaj (kot drugi zaganjalniki); kot navadna aplikacija gre v ozadje. */

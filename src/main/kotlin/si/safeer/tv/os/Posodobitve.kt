@@ -163,6 +163,28 @@ object Posodobitve {
         b.show()
     }
 
+    /** Skupna pot za prenos datoteke in preverbo SHA-256. */
+    fun prenesiDatoteko(url: String, sha256: String, velikost: Long, cilj: File, glavna: Handler, prekinjeno: () -> Boolean, naNapredek: (Int) -> Unit) {
+        val c = URL(url).openConnection() as HttpURLConnection
+        c.connectTimeout = 15000; c.readTimeout = 30000; c.instanceFollowRedirects = true
+        if (c.responseCode !in 200..299 || !c.url.protocol.equals("https", ignoreCase = true)) throw IllegalStateException("HTTP ${c.responseCode}")
+        val skupaj = if (velikost > 0) velikost else c.contentLengthLong
+        val najvec = if (velikost > 0) velikost else NamestitevPravila.NAJVEC_APK
+        var zadnji = 0L
+        val vsota = c.inputStream.use { v ->
+            cilj.outputStream().use { o ->
+                NamestitevPravila.prepisi(v, o, prekinjeno, najvec) { prebrano ->
+                    if (skupaj > 0 && prebrano - zadnji > skupaj / 100) {
+                        zadnji = prebrano
+                        val d = (prebrano * 1000 / skupaj).toInt()
+                        glavna.post { naNapredek(d) }
+                    }
+                }
+            }
+        }
+        if (!NamestitevPravila.enakaVsota(vsota, sha256)) { cilj.delete(); throw IllegalStateException("SHA-256 se ne ujema") }
+    }
+
     /** Prenos APK v predpomnilnik (z napredkom), preverba SHA-256, nato namestitev prek seje (rezerva: sistemski namestitelj). */
     fun prenesiInNamesti(a: Activity, nova: Nova) {
         if (Build.VERSION.SDK_INT >= 26 && !a.packageManager.canRequestPackageInstalls()) {
@@ -192,21 +214,7 @@ object Posodobitve {
                 mapa.listFiles()?.forEach { it.delete() }
                 // Ime datoteke iz naslova samo kot varno ime (brez poti, ».«, »..«).
                 val cilj = File(mapa, NamestiApk.varnoIme(nova.url.substringAfterLast('/').ifBlank { "posodobitev.apk" }))
-                val c = URL(nova.url).openConnection() as HttpURLConnection
-                c.connectTimeout = 15000; c.readTimeout = 30000; c.instanceFollowRedirects = true
-                // Grok 8, S3/S4: odgovor 2xx po https; najvec toliko bajtov, kot jih napove os/razlicice.json (sicer meja APK).
-                if (c.responseCode !in 200..299 || !c.url.protocol.equals("https", ignoreCase = true)) throw IllegalStateException("HTTP ${c.responseCode}")
-                val skupaj = if (nova.velikost > 0) nova.velikost else c.contentLengthLong
-                val najvec = if (nova.velikost > 0) nova.velikost else NamestitevPravila.NAJVEC_APK
-                var zadnji = 0L
-                val vsota = c.inputStream.use { v ->
-                    cilj.outputStream().use { o ->
-                        NamestitevPravila.prepisi(v, o, { prekinjeno }, najvec) { prebrano ->
-                            if (skupaj > 0 && prebrano - zadnji > skupaj / 100) { zadnji = prebrano; val d = (prebrano * 1000 / skupaj).toInt(); glavna.post { napredek.progress = d } }
-                        }
-                    }
-                }
-                if (!NamestitevPravila.enakaVsota(vsota, nova.sha256)) { cilj.delete(); throw IllegalStateException("SHA-256 se ne ujema") }
+                prenesiDatoteko(nova.url, nova.sha256, nova.velikost, cilj, glavna, { prekinjeno }) { d -> napredek.progress = d }
                 // Grok 8, S6: APK je ta paket, novejsi od namescenega in napovedana razlicica (koda) iz os/razlicice.json.
                 val apk = a.packageManager.getPackageArchiveInfo(cilj.absolutePath, 0)
                 val namescena = try { a.packageManager.getPackageInfo(a.packageName, 0).longVersionCode } catch (_: Throwable) { 0L }

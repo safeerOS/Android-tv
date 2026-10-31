@@ -751,4 +751,14 @@
     <string name="os_tvb_manjka_naslov">TV Browser ni nameščen</string>
     <string name="os_tvb_manjka_opis">Safeer OS spletne strani odpira v aplikaciji Safeer TV Browser, da na televizorju teče samo en spletni pogon. Namestite ga iz Safeer Play Store.</string>
     <string name="os_tvb_manjka_namesti">Odpri Safeer Play Store</string>
+
+    <string name="os_komplet_naslov">Safeer komplet</string>
+    <string name="os_komplet_opis">Safeer OS potrebuje TV Browser in Safeer Play Store.</string>
+    <string name="os_komplet_namesti">Namesti</string>
+    <string name="os_komplet_pozneje">Pozneje</string>
+    <string name="os_komplet_prenasam">Prenos kompleta …</string>
+    <string name="os_komplet_prenasam_paket">Prenos: %1$s</string>
+    <string name="os_komplet_napaka_paket">Prenos ni uspel: %1$s</string>
+    <string name="os_komplet_namesceno">Nameščeno</string>
+    <string name="os_komplet_manjka">Manjka: %1$s</string>
 </resources>
