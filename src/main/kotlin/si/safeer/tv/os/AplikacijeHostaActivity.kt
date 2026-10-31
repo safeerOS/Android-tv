@@ -916,7 +916,15 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val dejanja = ArrayList<Pair<String, () -> Unit>>()
         if (p.vir != AppVir.SPLET) dejanja.add(getString(if (na) R.string.os_priljubljen_odstrani else R.string.os_priljubljen_dodaj) to preklopi)
         if (p.vir == AppVir.TV && p.cilj.isNotBlank() && p.cilj != packageName) {
-            dejanja.add(getString(R.string.os_aplikacije_odstrani_app) to { odstraniAplikacijo(p.cilj) })
+            val info = try { packageManager.getApplicationInfo(p.cilj, 0) } catch (_: Throwable) { null }
+            val jeSistemska = (info?.flags?.and(android.content.pm.ApplicationInfo.FLAG_SYSTEM) ?: 0) != 0
+            val jePosodobljenaSistemska = (info?.flags?.and(android.content.pm.ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) ?: 0) != 0
+
+            if (AplikacijePravila.dejanjeOdstranitve(jeSistemska, jePosodobljenaSistemska) == AplikacijePravila.DejanjeOdstranitve.ONEMOGOCI) {
+                dejanja.add(getString(R.string.os_aplikacije_onemogoci_app) to { odpriNastavitveAplikacije(p.cilj) })
+            } else {
+                dejanja.add(getString(R.string.os_aplikacije_odstrani_app) to { odstraniAplikacijo(p.cilj) })
+            }
         }
         if (p.vir == AppVir.RACUNALNIK && p.racunalnik !in androidNaprave) dejanja.add(getString(R.string.os_program_zapri) to { zapri(p) })
         if (dejanja.isEmpty()) return
@@ -929,20 +937,23 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     private fun odstraniAplikacijo(paket: String) {
         try {
-            val intent = Intent(Intent.ACTION_UNINSTALL_PACKAGE).apply {
+            val intent = Intent(Intent.ACTION_DELETE).apply {
                 data = android.net.Uri.parse("package:$paket")
-                putExtra(Intent.EXTRA_RETURN_RESULT, true)
             }
             startActivity(intent)
-        } catch (_: Throwable) {
-            try {
-                val intent = Intent(Intent.ACTION_DELETE).apply {
-                    data = android.net.Uri.parse("package:$paket")
-                }
-                startActivity(intent)
-            } catch (e: Throwable) {
-                Toast.makeText(this, e.message.orEmpty(), Toast.LENGTH_SHORT).show()
+        } catch (e: Throwable) {
+            Toast.makeText(this, e.message.orEmpty(), Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun odpriNastavitveAplikacije(paket: String) {
+        try {
+            val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = android.net.Uri.parse("package:$paket")
             }
+            startActivity(intent)
+        } catch (e: Throwable) {
+            Toast.makeText(this, e.message.orEmpty(), Toast.LENGTH_SHORT).show()
         }
     }
 

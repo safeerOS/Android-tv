@@ -740,6 +740,7 @@
     <string name="os_pomoc_ne">Non</string>
     <string name="os_zaganjalnik_edini">Safeer OS est le seul lanceur de ce téléviseur. Le désactiver laisserait un écran noir, il reste donc activé. Active d’abord un autre lanceur dans les paramètres système du téléviseur.</string>
     <string name="os_aplikacije_odstrani_app">Désinstaller l\'application</string>
+    <string name="os_aplikacije_onemogoci_app">Désactiver (système)</string>
     <string name="os_aplikacije_dodaj_domov">Ajouter à l\'écran d\'accueil</string>
     <string name="os_aplikacije_odstrani_domov">Retirer de l\'écran d\'accueil</string>
     <string name="vnos_miska_vklop">Télécommande : souris (maintenir OK pour le focus)</string>

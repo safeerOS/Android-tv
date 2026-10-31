@@ -238,6 +238,7 @@
     <string name="os_aplikacije_odstrani">Umakni z domačega zaslona</string>
     <string name="os_aplikacije_izberi">Izberi aplikacije</string>
     <string name="os_aplikacije_odstrani_app">Odstrani aplikacijo</string>
+    <string name="os_aplikacije_onemogoci_app">Onemogoči (sistemska)</string>
     <string name="os_aplikacije_dodaj_domov">Dodaj na začetni zaslon</string>
     <string name="os_aplikacije_odstrani_domov">Odstrani z začetnega zaslona</string>
     <!-- Zaslon racunalnika na televizorju -->
