@@ -244,8 +244,13 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         SignedThreatIntel.start(this)
         installServiceWorkerThreatShield()
 
-        val targetUrl = incomingBrowseUrl(intent) ?: SpletDomaca.naslov(this)
-        tabManager.createTab(this, targetUrl, true)
+        val targetUrl = incomingBrowseUrl(intent)
+        val restored = tabManager.restoreFromFile(this)
+        if (targetUrl != null) {
+            tabManager.createTab(this, targetUrl, true)
+        } else if (!restored) {
+            tabManager.createTab(this, SpletDomaca.naslov(this), true)
+        }
         // Ob obnovi aktivnosti (vrtenje, smrt procesa) izbire ne pokazemo znova.
         if (savedInstanceState == null) ponudiVgrajeniBrskalnik(intent, novZavihek = true)
 
@@ -906,6 +911,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         silenceBackgroundMedia("onStop")
         naZaslonu = false
         if (::tabManager.isInitialized) {
+            try { tabManager.saveToFile(this) } catch (_: Exception) {}
             try {
                 tabManager.uspavajVOzadju(tudiAktivni = false)
                 mainHandler.removeCallbacks(spanjeAktivnega)

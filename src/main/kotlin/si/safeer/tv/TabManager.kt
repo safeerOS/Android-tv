@@ -558,4 +558,83 @@ class TabManager(
     private fun notifyUpdated() {
         onTabsUpdated(tabs.size, getActiveTab())
     }
+
+    fun saveState(outState: Bundle) {
+        val tabList = ArrayList<Bundle>()
+        for (tab in tabs) {
+            val b = Bundle()
+            b.putString("id", tab.id)
+            b.putString("url", tab.url)
+            b.putString("title", tab.title)
+            b.putBoolean("isDesktop", tab.isDesktop)
+            if (!tab.spi && tab.webView != null) {
+                val stanje = Bundle()
+                try { tab.webView!!.saveState(stanje) } catch (_: Exception) {}
+                if (!stanje.isEmpty) b.putBundle("shranjenoStanje", stanje)
+            } else if (tab.shranjenoStanje != null) {
+                b.putBundle("shranjenoStanje", tab.shranjenoStanje)
+            }
+            b.putString("spalniNaslov", tab.spalniNaslov)
+            b.putInt("spalniOdmik", tab.spalniOdmik)
+            b.putBoolean("jeAplikacija", tab.jeAplikacija)
+            tabList.add(b)
+        }
+        outState.putParcelableArrayList("tabs", tabList)
+        outState.putString("activeTabId", activeTabId)
+    }
+
+    fun restoreState(inState: Bundle) {
+        val tabList = inState.getParcelableArrayList<Bundle>("tabs") ?: return
+        if (tabList.isEmpty()) return
+        tabs.clear()
+        for (b in tabList) {
+            val tab = TabModel(
+                id = b.getString("id") ?: java.util.UUID.randomUUID().toString(),
+                webView = null,
+                url = b.getString("url") ?: "https://www.google.com",
+                title = b.getString("title") ?: "Google",
+                isDesktop = b.getBoolean("isDesktop"),
+                spi = true,
+                pogledSvez = true,
+                shranjenoStanje = b.getBundle("shranjenoStanje"),
+                spalniNaslov = b.getString("spalniNaslov") ?: "",
+                spalniOdmik = b.getInt("spalniOdmik"),
+                jeAplikacija = b.getBoolean("jeAplikacija")
+            )
+            tabs.add(tab)
+        }
+        activeTabId = inState.getString("activeTabId") ?: tabs.firstOrNull()?.id
+        notifyUpdated()
+    }
+
+    fun saveToFile(context: Context) {
+        val b = Bundle()
+        saveState(b)
+        val parcel = android.os.Parcel.obtain()
+        b.writeToParcel(parcel, 0)
+        val bytes = parcel.marshall()
+        parcel.recycle()
+        try {
+            val file = java.io.File(context.filesDir, "tabs_state.bin")
+            java.io.FileOutputStream(file).write(bytes)
+        } catch (_: Exception) {}
+    }
+
+    fun restoreFromFile(context: Context): Boolean {
+        try {
+            val file = java.io.File(context.filesDir, "tabs_state.bin")
+            if (!file.exists()) return false
+            val bytes = file.readBytes()
+            val parcel = android.os.Parcel.obtain()
+            parcel.unmarshall(bytes, 0, bytes.size)
+            parcel.setDataPosition(0)
+            val b = parcel.readBundle(TabManager::class.java.classLoader)
+            parcel.recycle()
+            if (b != null) {
+                restoreState(b)
+                return true
+            }
+        } catch (_: Exception) {}
+        return false
+    }
 }
