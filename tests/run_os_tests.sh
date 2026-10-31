@@ -17,10 +17,12 @@ trap 'rm -rf "$OUT"' EXIT
 
 "$KOTLINC" -J-Xmx1g -cp "$OKHTTP_LIBS" \
     "$TEST_DIR/stubs/BitmapFactory.kt" \
+    "$TEST_DIR/stubs/JSONObject.kt" \
     "$TEST_DIR/stubs/Sosed.kt" \
     "$SRC/si/safeer/tv/os/OsPravila.kt" \
     "$SRC/si/safeer/tv/os/GalerijaPravila.kt" \
     "$SRC/si/safeer/tv/os/AplikacijePravila.kt" \
+    "$SRC/si/safeer/tv/os/KompletPravila.kt" \
     "$SRC/si/safeer/tv/os/JezikiVsebine.kt" \
     "$SRC/si/safeer/tv/os/ZapiskiShramba.kt" \
     "$SRC/si/safeer/tv/os/VarnaSlika.kt" \
@@ -64,6 +66,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/OsPravilaTest.kt" \
     "$TEST_DIR/GalerijaPravilaTest.kt" \
     "$TEST_DIR/AplikacijePravilaTest.kt" \
+    "$TEST_DIR/KompletPravilaTest.kt" \
     "$TEST_DIR/VarnaSlikaTest.kt" \
     "$TEST_DIR/PredajaStraniTest.kt" \
     "$TEST_DIR/JezikiVsebineTest.kt" \
@@ -201,6 +204,7 @@ trap 'rm -rf "$OUT"' EXIT
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.OsPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.GalerijaPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.AplikacijePravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" KompletPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.VarnaSlikaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.PredajaStraniTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.PojavnaOknaMejaTestKt
