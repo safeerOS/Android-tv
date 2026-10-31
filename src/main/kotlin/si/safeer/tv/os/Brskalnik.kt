@@ -30,7 +30,7 @@ object Brskalnik {
 
     /** Kam gre splet te aplikacije (glej [OsPravila.spletCilj]). */
     fun cilj(c: Context): OsPravila.SpletCilj =
-        OsPravila.spletCilj(Sosed.smoOs(c), Sosed.jeTelevizor(c), Sosed.namescen(c, Sosed.BRSKALNIK))
+        OsPravila.spletCilj(Sosed.smoOs(c), Sosed.namescen(c, Sosed.BRSKALNIK))
 
     /**
      * Namera za splet. Safeer OS na televizorju spletnih vsebin ne odpira v svojem WebView-ju, ampak jih z

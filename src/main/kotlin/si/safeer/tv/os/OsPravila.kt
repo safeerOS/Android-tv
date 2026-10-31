@@ -2089,9 +2089,11 @@ object OsPravila {
     /**
      * Na televizorju Safeer OS spletnih vsebin ne odpira v svojem WebView-ju (na 2,7 GB RAM sta sicer hkrati
      * dva motorja): preda jih TV Browserju. Vgrajenega brskalnika se ne vklaplja nazaj, če TV Browserja ni.
+     * Okus os nima aktivnosti brskalnika (manifest, tools:node="remove"), zato ne sme nikoli izbrati LOKALNO -
+     * tudi ne na napravi brez FEATURE_LEANBACK (pregled 31. 10. 2026: prej bi intent sesul aplikacijo).
      */
-    fun spletCilj(smoOs: Boolean, jeTelevizor: Boolean, tvBrowserNamescen: Boolean): SpletCilj = when {
-        !smoOs || !jeTelevizor -> SpletCilj.LOKALNO
+    fun spletCilj(smoOs: Boolean, tvBrowserNamescen: Boolean): SpletCilj = when {
+        !smoOs -> SpletCilj.LOKALNO
         tvBrowserNamescen -> SpletCilj.TV_BROWSER
         else -> SpletCilj.NAMESTI_TV_BROWSER
     }
