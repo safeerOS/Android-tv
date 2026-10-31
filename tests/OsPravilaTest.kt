@@ -1538,3 +1538,17 @@ private fun preizkusPlacljivega120() {
     preveriEnako("splet: Safeer Browser TV ostane lokalno", OsPravila.SpletCilj.LOKALNO, OsPravila.spletCilj(false, false))
     preveriEnako("splet: telefon ostane lokalno", OsPravila.SpletCilj.LOKALNO, OsPravila.spletCilj(false, true))
 }
+
+private fun preizkusZapriObVrnitvi() {
+    println("\n== naloga 44: zapriObVrnitvi ==")
+    val zdaj = 10000L
+    preveriEnako("izklopljeno -> false", false, OsPravila.zapriObVrnitvi("org.test", "moj", null, false, false, false, 0L, zdaj))
+    preveriEnako("predvaja -> false", false, OsPravila.zapriObVrnitvi("org.test", "moj", null, false, true, true, 0L, zdaj))
+    preveriEnako("hitro preklapljanje (< 3s) -> false", false, OsPravila.zapriObVrnitvi("org.test", "moj", null, false, true, false, 8000L, zdaj))
+    preveriEnako("si.safeer.tv SME biti zaprt", true, OsPravila.zapriObVrnitvi("si.safeer.tv", "moj", null, false, true, false, 0L, zdaj))
+    preveriEnako("si.safeer.os NE SME biti zaprt", false, OsPravila.zapriObVrnitvi("si.safeer.os", "moj", null, false, true, false, 0L, zdaj))
+    preveriEnako("sistemske NE (com.android.systemui)", false, OsPravila.zapriObVrnitvi("com.android.systemui", "moj", null, false, true, false, 0L, zdaj))
+    preveriEnako("sistemske NE (com.mediatek.foo)", false, OsPravila.zapriObVrnitvi("com.mediatek.foo", "moj", null, false, true, false, 0L, zdaj))
+    preveriEnako("navadna aplikacija (org.test) DA", true, OsPravila.zapriObVrnitvi("org.test", "moj", null, false, true, false, 0L, zdaj))
+    preveriEnako("trajen NE", false, OsPravila.zapriObVrnitvi("org.test", "moj", null, true, true, false, 0L, zdaj))
+}

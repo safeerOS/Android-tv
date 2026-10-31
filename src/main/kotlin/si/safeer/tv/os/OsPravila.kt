@@ -1264,6 +1264,15 @@ object OsPravila {
             paket !in setOf("com.google.android.gms", "com.google.android.gsf", "com.google.android.tvlauncher",
                 "com.google.android.inputmethod.latin", "com.google.android.leanbacklauncher")
 
+    fun zapriObVrnitvi(paket: String, mojPaket: String, tipkovnica: String?, trajen: Boolean,
+                       vklopljeno: Boolean, predvaja: Boolean, zadnjaUporabaMs: Long, zdajMs: Long): Boolean {
+        if (!vklopljeno || predvaja || zdajMs - zadnjaUporabaMs < 3000) return false
+        if (paket == "si.safeer.tv") return true
+        if (paket.startsWith("si.safeer.")) return false
+        if (paket.startsWith("com.mediatek.") || paket.startsWith("com.android.systemui")) return false
+        return smemoZapreti(paket, mojPaket, tipkovnica, trajen)
+    }
+
     // Obseg iskanja v Medijskem centru (lastnik 30. 10. 2026: »uporabnik lahko izbere, po katerem viru isce«).
     const val OBSEG_VSE = 0
     const val OBSEG_FILMI = 1
