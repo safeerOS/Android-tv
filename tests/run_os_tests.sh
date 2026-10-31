@@ -17,6 +17,7 @@ trap 'rm -rf "$OUT"' EXIT
 
 "$KOTLINC" -J-Xmx1g -cp "$OKHTTP_LIBS" \
     "$TEST_DIR/stubs/BitmapFactory.kt" \
+    "$TEST_DIR/stubs/Sosed.kt" \
     "$SRC/si/safeer/tv/os/OsPravila.kt" \
     "$SRC/si/safeer/tv/os/GalerijaPravila.kt" \
     "$SRC/si/safeer/tv/os/AplikacijePravila.kt" \

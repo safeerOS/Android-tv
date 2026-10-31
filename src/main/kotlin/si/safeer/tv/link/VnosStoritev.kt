@@ -351,7 +351,7 @@ class VnosStoritev : AccessibilityService() {
             val aktivniKoren = rootInActiveWindow
             if (aktivniKoren != null) {
                 korenPaket = aktivniKoren.packageName?.toString().orEmpty()
-                if (korenPaket != packageName && korenPaket != "com.aurora.store") {
+                if (korenPaket != packageName && korenPaket != Sosed.TRGOVINA) {
                     vozlisce = fokusirano(aktivniKoren)
                     if (korenPaket == neprilagojena && miska?.paket == null && jePasivenVsebnik(vozlisce)) {
                         najdiInteraktivnoVozlisce(aktivniKoren)?.let { n ->
@@ -367,7 +367,7 @@ class VnosStoritev : AccessibilityService() {
                     if (w.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD) continue
                     val r = w.root ?: continue
                     val p = r.packageName?.toString().orEmpty()
-                    if (p == packageName || p == "com.aurora.store") continue
+                    if (p == packageName || p == Sosed.TRGOVINA) continue
                     val f = fokusirano(r)
                     if (f != null && f.isVisibleToUser) {
                         vozlisce = f
@@ -380,7 +380,7 @@ class VnosStoritev : AccessibilityService() {
             // Aplikacije za TV (Leanback) imajo svoj fokus: nas okvir bi se podvojil in med drsenjem zamikal
             // (lastnik 30. 10. 2026, RTV 365: okvir med dvema plakatoma).
             if (vozlisce == null || !vozlisce.isVisibleToUser || korenPaket == packageName ||
-                korenPaket == "com.aurora.store" || jeTvAplikacija(korenPaket) || miska?.paket == korenPaket ||
+                korenPaket == Sosed.TRGOVINA || jeTvAplikacija(korenPaket) || miska?.paket == korenPaket ||
                 jeSistemskaTv(korenPaket) || jeSeznam(vozlisce)) {
                 // Lastnik 30. 10. 2026: v Philipsovih »Pogoste nastavitve« je bil obrobljen cel stolpec.
                 // Sistemski vmesniki TV rišejo svoj fokus, seznama kot celote pa nikoli ne obrobimo.

@@ -25,15 +25,10 @@ class BrskalnikManjkaActivity : Activity() {
 
     private fun odpriTrgovino() {
         val namera = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=" + Sosed.BRSKALNIK))
-            .setPackage(TRGOVINA).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            .setPackage(Sosed.TRGOVINA).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         try { startActivity(namera) } catch (_: Throwable) {
-            val zagon = packageManager.getLeanbackLaunchIntentForPackage(TRGOVINA) ?: packageManager.getLaunchIntentForPackage(TRGOVINA)
+            val zagon = packageManager.getLeanbackLaunchIntentForPackage(Sosed.TRGOVINA) ?: packageManager.getLaunchIntentForPackage(Sosed.TRGOVINA)
             try { if (zagon != null) startActivity(zagon) } catch (_: Throwable) { }
         }
-    }
-
-    private companion object {
-        /** Safeer Play Store (Aurora Store). */
-        const val TRGOVINA = "com.aurora.store"
     }
 }

@@ -2060,7 +2060,7 @@ object OsPravila {
     ): Boolean {
         // Sistemske aplikacije televizorja (nastavitve, namestitev naprave, tipkovnica) so za daljinec.
         if (!jeTv || paket.isBlank() || sistemska) return false
-        if (paket.startsWith("si.safeer.") || paket == "com.aurora.store") return false
+        if (paket.startsWith("si.safeer.") || paket == Sosed.TRGOVINA) return false
         return imaZaganjalnik && !imaTvZaganjalnik
     }
 

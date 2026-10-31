@@ -29,6 +29,7 @@ import android.util.Log
  */
 object Sosed {
     const val BRSKALNIK = "si.safeer.tv"
+    const val TRGOVINA = "si.safeer.trgovina"
     const val OS = "si.safeer.os"
     const val TELEFON = "si.safeer.phone"
     const val TABLICA = "si.safeer.tablet"

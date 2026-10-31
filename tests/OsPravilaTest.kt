@@ -1049,6 +1049,8 @@ fun main() {
     preveriEnako("miska: aplikacija za TV ne", false, OsPravila.miskaZaPaket(true, "si.rtvslo.rtv4dandroidtv_ab", true, true))
     preveriEnako("miska: brez zaganjalnika ne (sistem)", false, OsPravila.miskaZaPaket(true, "com.android.systemui", false, false))
     preveriEnako("miska: nasa aplikacija ne", false, OsPravila.miskaZaPaket(true, "si.safeer.os", true, false))
+    preveriEnako("miska: nasa trgovina ne", false, OsPravila.miskaZaPaket(true, si.safeer.tv.os.Sosed.TRGOVINA, true, false))
+    preveriEnako("miska: pristna Aurora Store dobi misko", true, OsPravila.miskaZaPaket(true, "com.aurora.store", true, false))
     preveriEnako("miska: sistemska aplikacija TV ne", false, OsPravila.miskaZaPaket(true, "org.droidtv.devicesetup", true, false, true))
     preveriEnako("miska: telefon ne", false, OsPravila.miskaZaPaket(false, "com.zhiliaoapp.musically", true, false))
     preveriEnako("tablica: TV 1080 pri 320 dpi -> 240 dpi", 240, OsPravila.gostotaTablice(1080, 320))

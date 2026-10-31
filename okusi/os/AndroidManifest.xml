@@ -28,6 +28,7 @@
     <queries>
         <package android:name="si.safeer.tv" />
         <package android:name="com.aurora.store" />
+        <package android:name="si.safeer.trgovina" />
     </queries>
 
     <!-- largeHeap (28. 10. 2026): TV ima 2 GB RAM; s privzeto mejo 192 MB (dalvik.vm.heapgrowthlimit) je ob predpomnjenju
