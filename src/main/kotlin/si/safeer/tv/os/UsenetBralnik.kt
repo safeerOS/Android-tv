@@ -105,7 +105,7 @@ object UsenetBralnik {
     private class Naloga(val prednost: Int, val zap: Long, val kljuc: Kljuc)
 
     /** Branje filma z omejenim oknom vnaprej. Varno za vec niti. [telo] = [UsenetNntp.body]. */
-    class Bralnik(private val telo: (String) -> ByteArray, val vir: Vir, val profil: Profil = PROFILI.getValue("namizje")) : Closeable {
+    class Bralnik(private val telo: (String, Long) -> ByteArray, val vir: Vir, val profil: Profil = PROFILI.getValue("namizje")) : Closeable {
         private val zaklep = ReentrantLock()
         private val pogoj = zaklep.newCondition()
         /** LRU mora drzati vsaj okno in segment ob njem, sicer bi branje vnaprej izrinilo samo sebe. */
@@ -183,7 +183,7 @@ object UsenetBralnik {
         private fun prenesi(k: Kljuc): ByteArray {
             val p = vir.preslikave[k.datoteka]
             val seg = p.segment(k.stevilka)
-            val surovo = try { telo(seg.id) } catch (e: UsenetNntp.NapakaNntp) {
+            val surovo = try { telo(seg.id, seg.bajtov) } catch (e: UsenetNntp.NapakaNntp) {
                 if (e.vrsta == UsenetNntp.Vrsta.NI_CLANKA) throw UsenetTok.NapakaToka(UsenetTok.Izid.LUKNJA)
                 throw e
             }
@@ -422,9 +422,9 @@ object UsenetBralnik {
 
     private class Prvi(val preslikava: UsenetTok.Preslikava, val zacetek: ByteArray, val bajtov: Int)
 
-    private fun prviSegment(telo: (String) -> ByteArray, d: UsenetNzb.Datoteka): Prvi {
+    private fun prviSegment(telo: (String, Long) -> ByteArray, d: UsenetNzb.Datoteka): Prvi {
         val s = d.segmenti[0]
-        val surovo = try { telo(s.id) } catch (e: UsenetNntp.NapakaNntp) {
+        val surovo = try { telo(s.id, s.bajtov) } catch (e: UsenetNntp.NapakaNntp) {
             if (e.vrsta == UsenetNntp.Vrsta.NI_CLANKA) throw UsenetTok.NapakaToka(UsenetTok.Izid.LUKNJA)
             throw e
         }
@@ -442,7 +442,7 @@ object UsenetBralnik {
      * Glave zvezka iz zacetka (prvi segment); ce segajo cez in jih rabimo ([celo] ali ni nobene datoteke), branje naprej
      * prek bralnika brez okna vnaprej z mejo NAJVEC_GLAV_* (T5; prej brez meje). (zvezek, bajti z omrezja).
      */
-    private fun glave(telo: (String) -> ByteArray, p: UsenetTok.Preslikava, zacetek: ByteArray, celo: Boolean,
+    private fun glave(telo: (String, Long) -> ByteArray, p: UsenetTok.Preslikava, zacetek: ByteArray, celo: Boolean,
                       najvecSegmentov: Long = NAJVEC_GLAV_SEGMENTOV, najvecBajtov: Long = NAJVEC_GLAV_BAJTOV): Pair<UsenetRar.Zvezek, Long> {
         val z = if (zacetek.isNotEmpty()) UsenetRar.razcleniZvezek(zacetek, p.velikost) else null
         if (z != null && !(z.nepopolno && (celo || z.vnosi.isEmpty()))) return z to 0L
@@ -467,7 +467,7 @@ object UsenetBralnik {
     }
 
     /** Prvi zvezek: odlocitev store/stisnjen/sifriran na celem seznamu glav, ce prvi segment ne zadosca (T2). */
-    private fun odlociPrvega(telo: (String) -> ByteArray, p: UsenetTok.Preslikava, zacetek: ByteArray): Pair<UsenetRar.Zvezek, Long> {
+    private fun odlociPrvega(telo: (String, Long) -> ByteArray, p: UsenetTok.Preslikava, zacetek: ByteArray): Pair<UsenetRar.Zvezek, Long> {
         var izid = UsenetRar.preveri(zacetek, p.velikost)
         if (izid == UsenetRar.Izid.NEPOPOLNO) {
             val (z, bajtov) = glave(telo, p, zacetek, true)
@@ -485,7 +485,7 @@ object UsenetBralnik {
      * Skupna odlocitev za [preveriIzdajo] in [pripravi] (T13). Zakrito ime s podpisom RAR je RAR z enim zvezkom (vec
      * zvezkov z zakritimi imeni ne znamo urediti: ni_podprto).
      */
-    private fun prvi(nzb: UsenetNzb.Nzb, telo: (String) -> ByteArray): Odlocitev {
+    private fun prvi(nzb: UsenetNzb.Nzb, telo: (String, Long) -> ByteArray): Odlocitev {
         val (vrsta, izbrane) = izberiDatoteke(nzb)
         val p = prviSegment(telo, nzb.datoteke[izbrane[0]])
         if (vrsta == "video" && !jeRar(p.zacetek)) return Odlocitev(vrsta, izbrane, p.preslikava, null, p.bajtov.toLong())
@@ -501,7 +501,7 @@ object UsenetBralnik {
      * PRED ponudbo. Nikoli na glavni niti.
      */
     fun pripravi(
-        nzb: UsenetNzb.Nzb, telo: (String) -> ByteArray, vzporedno: Int = PRIPRAVA_HKRATI, najvecBajtov: Long = NAJVEC_PRIPRAVE_BAJTOV,
+        nzb: UsenetNzb.Nzb, telo: (String, Long) -> ByteArray, vzporedno: Int = PRIPRAVA_HKRATI, najvecBajtov: Long = NAJVEC_PRIPRAVE_BAJTOV,
     ): Pair<Vir, Long> {
         check(Looper.myLooper() != Looper.getMainLooper()) { "Usenet ne sme teci na glavni niti" }
         val o = prvi(nzb, telo)
@@ -556,7 +556,7 @@ object UsenetBralnik {
      * Lastnik 27. 10. 2026 (glasba): ena gola datoteka iz NZB (skladba albuma) kot [Vir] - prvi segment da preslikavo.
      * Album v RAR gre skozi [pripraviAlbum]. Nikoli na glavni niti.
      */
-    fun pripraviDatoteko(d: UsenetNzb.Datoteka, telo: (String) -> ByteArray): Vir {
+    fun pripraviDatoteko(d: UsenetNzb.Datoteka, telo: (String, Long) -> ByteArray): Vir {
         check(Looper.myLooper() != Looper.getMainLooper()) { "Usenet ne sme teci na glavni niti" }
         if (d.segmenti.isEmpty() || d.segmenti[0].stevilka != 1 || d.manjka > 0) throw UsenetTok.NapakaToka(UsenetTok.Izid.LUKNJA)
         val p = prviSegment(telo, d)
@@ -570,7 +570,7 @@ object UsenetBralnik {
      * [Vir] nad istimi zvezki. Prazno = arhiva ni ali v njem ni zvocnih datotek. Stisnjen ali sifriran arhiv =
      * [UsenetRar.NapakaRar] (sproti ga ne moremo brati). Promet najvec [najvecBajtov]. Nikoli na glavni niti.
      */
-    fun pripraviAlbum(nzb: UsenetNzb.Nzb, telo: (String) -> ByteArray, najvecBajtov: Long = NAJVEC_PRIPRAVE_BAJTOV): List<Pair<String?, Vir>> {
+    fun pripraviAlbum(nzb: UsenetNzb.Nzb, telo: (String, Long) -> ByteArray, najvecBajtov: Long = NAJVEC_PRIPRAVE_BAJTOV): List<Pair<String?, Vir>> {
         check(Looper.myLooper() != Looper.getMainLooper()) { "Usenet ne sme teci na glavni niti" }
         val imena = nzb.datoteke.map { it.ime ?: "" }
         val kandidati = imena.indices.filter { jeZvezek(imena[it]) && !jeVzorec(imena[it]) }
@@ -629,7 +629,7 @@ object UsenetBralnik {
      * se nekaj segmentov z mejo - T2/T5). Izid v malih crkah kot v skupnih primerih ("ok", "stisnjen", "sifriran",
      * "ni_podprto", "luknja", "prevec" ...). Izdaja brez segmenta 1 ali z luknjami v NZB ni ponujena (W6).
      */
-    fun preveriIzdajo(nzb: UsenetNzb.Nzb, telo: (String) -> ByteArray): String {
+    fun preveriIzdajo(nzb: UsenetNzb.Nzb, telo: (String, Long) -> ByteArray): String {
         check(Looper.myLooper() != Looper.getMainLooper()) { "Usenet ne sme teci na glavni niti" }
         return try {
             val (_, izbrane) = izberiDatoteke(nzb)

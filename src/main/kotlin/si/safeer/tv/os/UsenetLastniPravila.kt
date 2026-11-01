@@ -100,4 +100,15 @@ object UsenetLastniPravila {
         var bajtov = 0L
         return po.filterIndexed { i, d -> bajtov += d.second; i >= NZB_NAJVEC_DATOTEK || bajtov > NZB_NAJVEC_BAJTOV }.map { it.first }
     }
+
+    /**
+     * Meja telesa iz velikosti segmenta v NZB (naloga GEMINI-45-UT).
+     * @param bajtov Velikost segmenta iz NZB (atribut bytes)
+     * @param najvecTelesa Osnovna meja telesa
+     */
+    fun mejaTelesa(bajtov: Long, najvecTelesa: Int): Int {
+        if (bajtov <= 0) return najvecTelesa
+        val meja = maxOf(najvecTelesa.toLong(), bajtov * 2 + 65536)
+        return minOf(meja, 32L * 1024 * 1024).toInt()
+    }
 }

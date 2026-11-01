@@ -118,7 +118,7 @@ private class Objava(val delBajtov: Int = 700 * 1024, private val predpomni: Boo
     fun ima(id: String) = clanki.containsKey(id) && id !in manjka
 
     /** Telo clanka (CRLF, brez podvojenih pik), kot ga vrne UsenetNntp.body. */
-    fun telo(id: String): ByteArray {
+    fun telo(id: String, bajtov: Long = 0L): ByteArray {
         if (!ima(id)) throw UsenetNntp.NapakaNntp(UsenetNntp.Vrsta.NI_CLANKA, 430)
         poClanku.merge(id, 1, Int::plus)
         if (id in pokvarjeni) return "nesmisel\r\n".toByteArray()
@@ -548,7 +548,7 @@ private fun bralnikPreizkusi() {
     // skok zavrze cakajoca branja vnaprej
     val o5 = Objava().apply { dodaj("Film.mkv", Leno(64 * MIB, 2)) }
     val vir5 = UsenetBralnik.pripravi(UsenetNzb.razcleni(o5.nzb()), o5::telo).first
-    UsenetBralnik.Bralnik({ id -> Thread.sleep(50); o5.telo(id) }, vir5, UsenetBralnik.Profil(16 * MIB, MIB, 64 * MIB, 2)).use { b ->
+    UsenetBralnik.Bralnik({ id, bajtov -> Thread.sleep(50); o5.telo(id, bajtov) }, vir5, UsenetBralnik.Profil(16 * MIB, MIB, 64 * MIB, 2)).use { b ->
         UsenetBralnik.beriVse(b, 0, 8 * MIB.toInt())
         val prej = o5.poslanih.get()
         b.beri(50 * MIB, 1000)
@@ -568,7 +568,7 @@ private fun bralnikPreizkusi() {
     val o7 = Objava().apply { dodaj("Film.mkv", Leno(4 * MIB, 1)) }
     val vir7 = UsenetBralnik.pripravi(UsenetNzb.razcleni(o7.nzb()), o7::telo).first
     val sprosti = java.util.concurrent.CountDownLatch(1)
-    val b7 = UsenetBralnik.Bralnik({ id -> sprosti.await(); o7.telo(id) }, vir7)
+    val b7 = UsenetBralnik.Bralnik({ id, bajtov -> sprosti.await(); o7.telo(id, bajtov) }, vir7)
     val nit = Thread { izid { b7.beri(2 * MIB, 10) } }.apply { start() }
     Thread.sleep(100)
     val t0 = System.nanoTime()
@@ -794,7 +794,7 @@ private fun popravki58() {
     val o1 = Objava().apply { dodaj("Film.mkv", Bajti(film)) }
     t0 = System.nanoTime()
     enako("T1 preveriIzdajo z enim clankom", "neskladno",
-        UsenetBralnik.preveriIzdajo(nzbIz(o1)) { YencKodirnik.kodiraj(film, "Film.mkv", 1, 999_999_999, 0, 100_000_000_000L) })
+        UsenetBralnik.preveriIzdajo(nzbIz(o1)) { _, _ -> YencKodirnik.kodiraj(film, "Film.mkv", 1, 999_999_999, 0, 100_000_000_000L) })
     preveri("T1 preveriIzdajo hitro", (System.nanoTime() - t0) < 500_000_000L)
 
     // T2: store vzorec pred stisnjenim filmom - glava filma ni v prvem segmentu
@@ -836,9 +836,9 @@ private fun popravki58() {
     val o4 = Objava(100 * 1024).apply { Rar.zvezki(5, "Film.mkv", f4, 300 * 1024L).forEachIndexed { i, z -> dodaj("Film.part%02d.rar".format(i + 1), z) } }
     val hkrati = java.util.concurrent.atomic.AtomicInteger()
     val najvec = java.util.concurrent.atomic.AtomicInteger()
-    val vir4 = UsenetBralnik.pripravi(nzbIz(o4), { id ->
+    val vir4 = UsenetBralnik.pripravi(nzbIz(o4), { id, bajtov ->
         najvec.accumulateAndGet(hkrati.incrementAndGet(), ::maxOf)
-        try { Thread.sleep(2); o4.telo(id) } finally { hkrati.decrementAndGet() }
+        try { Thread.sleep(2); o4.telo(id, bajtov) } finally { hkrati.decrementAndGet() }
     }).first
     enako("T4 velikost filma", f4.velikost, vir4.velikost)
     preveri("T4 najvec hkrati", najvec.get() <= UsenetBralnik.PRIPRAVA_HKRATI, "(${najvec.get()})")
@@ -862,7 +862,7 @@ private fun popravki58() {
     val o9 = Objava().apply { dodaj("Film.mkv", Leno(4 * MIB, 1)) }
     val vir9 = UsenetBralnik.pripravi(nzbIz(o9), o9::telo).first
     val sprosti = java.util.concurrent.CountDownLatch(1)
-    val b9 = UsenetBralnik.Bralnik({ id -> sprosti.await(10, java.util.concurrent.TimeUnit.SECONDS); o9.telo(id) }, vir9)
+    val b9 = UsenetBralnik.Bralnik({ id, bajtov -> sprosti.await(10, java.util.concurrent.TimeUnit.SECONDS); o9.telo(id, bajtov) }, vir9)
     var izid9: String? = null
     val t9 = Thread { izid9 = izid { b9.beri(2 * MIB, 10) } }.apply { start() }
     Thread.sleep(100)
@@ -875,7 +875,7 @@ private fun popravki58() {
     // W4: prekinjena nit nalagalnika (Media3) dobi InterruptedIOException, ne splosne napake
     val o4b = Objava().apply { dodaj("Film.mkv", Leno(4 * MIB, 2)) }
     val sprosti4 = java.util.concurrent.CountDownLatch(1)
-    val b4 = UsenetBralnik.Bralnik({ id -> sprosti4.await(10, java.util.concurrent.TimeUnit.SECONDS); o4b.telo(id) },
+    val b4 = UsenetBralnik.Bralnik({ id, bajtov -> sprosti4.await(10, java.util.concurrent.TimeUnit.SECONDS); o4b.telo(id, bajtov) },
         UsenetBralnik.pripravi(nzbIz(o4b), o4b::telo).first)
     var napaka4: Throwable? = null
     val t4 = Thread { try { b4.beri(2 * MIB, 10) } catch (e: Throwable) { napaka4 = e } }.apply { start() }
