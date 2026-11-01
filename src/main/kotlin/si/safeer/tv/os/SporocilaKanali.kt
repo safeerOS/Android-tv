@@ -233,12 +233,16 @@ object SporocilaKanali {
         val url = URL(n.getString("url").trimEnd('/') + "/api/v1/accounts/" + n.getInt("account_id") + pot)
         require(url.protocol == "https")
         val povezava = url.openConnection() as HttpURLConnection
+        povezava.instanceFollowRedirects = false
         povezava.connectTimeout = 15000; povezava.readTimeout = 15000; povezava.requestMethod = metoda
         povezava.setRequestProperty("api_access_token", geslo(c, k))
         povezava.setRequestProperty("Accept", "application/json")
         if (telo != null) {
             povezava.doOutput = true; povezava.setRequestProperty("Content-Type", "application/json")
             povezava.outputStream.use { it.write(telo.toString().toByteArray()) }
+        }
+        if (povezava.responseCode in 300..399) {
+            throw SporocilaShramba.NapakaKanala(k.id, "API je zahteval preusmeritev (${povezava.responseCode}), kar s kljucem ni dovoljeno.")
         }
         if (povezava.responseCode == 401) throw NapakaPrijave()
         val besedilo = povezava.inputStream.bufferedReader().use { it.readText() }

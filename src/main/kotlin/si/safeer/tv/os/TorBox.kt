@@ -62,6 +62,7 @@ object TorBox {
                      datoteka: Pair<String, ByteArray>? = null): Odgovor {
         val p = URL(naslov).openConnection() as HttpURLConnection
         try {
+            if (kljuc != null) p.instanceFollowRedirects = false
             p.requestMethod = metoda
             p.connectTimeout = minOf(10_000, rokMs); p.readTimeout = rokMs
             p.setRequestProperty("Accept", "application/json")
@@ -73,14 +74,17 @@ object TorBox {
                 val sb = StringBuilder()
                 for ((k, v) in obrazec) sb.append("--").append(meja).append("\r\nContent-Disposition: form-data; name=\"").append(k)
                     .append("\"\r\n\r\n").append(v).append("\r\n")
-                p.outputStream.use { izhod ->
-                    izhod.write(sb.toString().toByteArray(Charsets.UTF_8))
-                    if (datoteka != null) {
-                        izhod.write(("--$meja\r\nContent-Disposition: form-data; name=\"file\"; filename=\"${datoteka.first}\"\r\n" +
-                            "Content-Type: application/x-nzb\r\n\r\n").toByteArray(Charsets.UTF_8))
-                        izhod.write(datoteka.second)
-                        izhod.write("\r\n".toByteArray(Charsets.UTF_8))
-                    }
+                if (datoteka != null) sb.append("--").append(meja).append("\r\nContent-Disposition: form-data; name=\"file\"; filename=\"")
+                    .append(datoteka.first).append("\"\r\nContent-Type: application/octet-stream\r\n\r\n")
+                else sb.append("--").append(meja).append("--\r\n")
+                p.outputStream.use { iz ->
+                    iz.write(sb.toString().toByteArray(Charsets.UTF_8))
+                    if (datoteka != null) { iz.write(datoteka.second); iz.write("\r\n--$meja--\r\n".toByteArray(Charsets.UTF_8)) }
+                }
+            }
+            if (kljuc != null && p.responseCode in 300..399) {
+                throw TorBoxNapaka("API je zahteval preusmeritev (${p.responseCode}), kar s kljucem ni dovoljeno.")
+            }
                     izhod.write("--$meja--\r\n".toByteArray(Charsets.UTF_8))
                 }
             }

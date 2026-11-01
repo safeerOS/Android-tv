@@ -919,6 +919,7 @@ object Debrid {
              povezavaMs: Int = 10_000, branjeMs: Int = 20_000): Odgovor {
         val p = URL(naslov).openConnection() as HttpURLConnection
         try {
+            p.instanceFollowRedirects = false
             p.requestMethod = metoda
             p.connectTimeout = povezavaMs; p.readTimeout = branjeMs
             p.setRequestProperty("Accept", "application/json")
@@ -928,6 +929,9 @@ object Debrid {
                 p.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
                 val telo = obrazec.joinToString("&") { (k, v) -> URLEncoder.encode(k, "UTF-8") + "=" + URLEncoder.encode(v, "UTF-8") }
                 p.outputStream.use { it.write(telo.toByteArray(Charsets.UTF_8)) }
+            }
+            if (p.responseCode in 300..399) {
+                throw KlicNapaka.Omrezje("API je zahteval preusmeritev (${p.responseCode}), kar s kljucem ni dovoljeno.", koda = p.responseCode)
             }
             val koda = p.responseCode
             // Pregled Grok 8: odgovor najvec DebridPravila.NAJVEC_ODGOVORA bajtov (prej readBytes() brez meje) - vecji je napaka.
