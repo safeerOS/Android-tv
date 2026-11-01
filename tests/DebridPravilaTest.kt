@@ -478,5 +478,10 @@ fun main() {
         preveriEnako("A3: isti kljuc - seznam nespremenjen", null, DebridPravila.zaporePredPrepisom(mesto, null, o1))
     }
 
+    // Lastnik 1. 11. 2026: izbran Usenet ne predvaja - rezerva TorBox, ce ima uporabnik kljuc (tudi ob »brez debrida").
+    preveriEnako("rezerva po Usenetu: TorBox kljuc", DebridPravila.TORBOX, DebridPravila.rezervaPoUsenetu(setOf(DebridPravila.TORBOX)))
+    preveriEnako("rezerva po Usenetu: brez kljuca", null, DebridPravila.rezervaPoUsenetu(emptySet()))
+    preveriEnako("rezerva po Usenetu: samo drug debrid", null, DebridPravila.rezervaPoUsenetu(setOf("realdebrid")))
+
     if (napak == 0) println("DebridPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

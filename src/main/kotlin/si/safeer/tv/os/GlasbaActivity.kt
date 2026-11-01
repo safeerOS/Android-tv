@@ -9421,6 +9421,13 @@ class GlasbaActivity : OsActivity() {
      * poskusi naslednje. Seznam virov ostane rocna moznost (dolg pritisk na kartico > Izberi vir) in izhod v sili,
      * kadar dodatki ponudijo le zunanje povezave (napovednik ipd.).
      */
+    /**
+     * Lastnik 1. 11. 2026: ce izbrani Usenet filma ne more predvajati, gre rezerva prek TorBoxa, ceprav je uporabnik izbral
+     * Usenet / »brez debrida« ([DebridPravila.rezervaPoUsenetu]). Velja samo za ta film; izbira uporabnika ostane.
+     */
+    private var debridRezerva: String? = null
+    private fun aktivniDebrid(): String? = debridRezerva ?: Debrid.aktivna(this)
+
     private fun izberiTok(sk: Jamendo.Skladba, naslov: String, vsiTokovi: List<Stremio.Tok>, rocno: Boolean = false,
                           /** Naloga 130 + lastnik 25. 10.: kaj je takoj predvajljivo ([predpomnjeniZa]): ⚡ torrenti, pripravljen Usenet. */
                           pripravljeno: Pripravljeno = Pripravljeno(),
@@ -9430,6 +9437,8 @@ class GlasbaActivity : OsActivity() {
                           obNeuspehu: (() -> Unit)? = null) {
         // Pregled A1: nova izbira toka - prejsnje cakanje na debrid/Usenet ne odpre nicesar vec.
         prekiniDebrid()
+        // Nova izbira (ne rezerva po Usenetu): rezerva prejsnjega filma ne velja vec.
+        if (!brezOmejitveUseneta) debridRezerva = null
         // Oznaka kakovosti (lastnik 28. 10. 2026): tokovi zadnjega predvajanja izboljsajo najboljso znano.
         // Serija (epizoda ima id serije): oznaka kartice je kakovost zadnje predvajane epizode.
         Stremio.razstavi(sk)?.third?.let { zabeleziKakovost(it, vsiTokovi, Stremio.jeSerija(sk)) }
@@ -9472,7 +9481,7 @@ class GlasbaActivity : OsActivity() {
         val predpomnjeni = if (samoWebtor || samoUsenet) emptySet<String>() else pripravljeno.predpomnjeni
         // Webtor rezerva (25. 10. 2026): tokovi Webtor [⚡TB] (podvajajo nas TorBox) in [P2P] (posnetek z oglasom za paket)
         // izpadejo takoj ([WebtorPravila.skrij]).
-        val imamoTorBox = Debrid.aktivna(this) != null && DebridPravila.TORBOX in Debrid.zKljucem(this)
+        val imamoTorBox = aktivniDebrid() != null && DebridPravila.TORBOX in Debrid.zKljucem(this)
         val tokovi = vsiTokovi.filterNot { it.vir == WebtorPravila.VIR && WebtorPravila.skrij(WebtorPravila.vrstaIz(it.oznakaVira), imamoTorBox) }
             .filter { !samoWebtor || it.vir == WebtorPravila.VIR || it.vrsta == "torrent" }
             .filter { !samoUsenet || it.vrsta == UsenetPravila.VRSTA }
@@ -9576,7 +9585,7 @@ class GlasbaActivity : OsActivity() {
                         velikost = (TokIzbira.opisi(t.ime + " " + t.opis).gb * 1024.0 * 1024.0 * 1024.0).toLong()) } }
                     fun prekTorrenta() {
                         // Naloga 119: s kljucem TorBox gre torrent prek TorBoxa (zasebnost, hitrejsi tok); brez kljuca obstojeca pot.
-                        if (Debrid.aktivna(this) != null) prekDebrida(t.url, t.datoteka, { cdn -> odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap())) }, brez)
+                        if (aktivniDebrid() != null) prekDebrida(t.url, t.datoteka, { cdn -> odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap())) }, brez)
                         else {
                             // Pregled A5: kljuc je vpisan, a neberljiv (Keystore) - ne tiho na neposredni torrent (naslov IP).
                             // Varovalo racunov: enako, ce kljuc ne velja ali je racun zaklenjen (Safeer ga ne klice).
@@ -9674,7 +9683,7 @@ class GlasbaActivity : OsActivity() {
         // Samodejna izbira brez Useneta (kot pred nalogo 141); true = nekaj se predvaja.
         fun samodejnoBrezUseneta(): Boolean {
             // Naloga 130: z aktivno debrid storitvijo gre najboljsi pripravljen torrent pred neposrednimi povezavami.
-            val k = DebridPravila.samodejniTorrent(Debrid.aktivna(this), hashiTorrentov, predpomnjeni)
+            val k = DebridPravila.samodejniTorrent(aktivniDebrid(), hashiTorrentov, predpomnjeni)
             if (k >= 0) {
                 android.util.Log.i("SafeerOsMedia", "tokovi: pripravljen pri debridu ${predpomnjeni.size} od ${torrentiPoKakovosti.size} torrentov; " +
                     "izbran=${TokIzbira.opisi(opis(torrentiPoKakovosti[k]))}")
@@ -9736,7 +9745,7 @@ class GlasbaActivity : OsActivity() {
                 return
             }
             fun takojBrezWebtorja(): Boolean {
-                val k = DebridPravila.samodejniTorrent(Debrid.aktivna(this), hashiTorrentov, predpomnjeni)
+                val k = DebridPravila.samodejniTorrent(aktivniDebrid(), hashiTorrentov, predpomnjeni)
                 // Meritev 25. 10. 2026 (Webtor rezerva): v dnevniku mora biti, po kateri poti je slo takoj predvajanje.
                 if (k >= 0) {
                     android.util.Log.i("SafeerOsMedia", "tokovi: takoj pripravljen pri debridu ${predpomnjeni.size} od ${torrentiPoKakovosti.size}; " +
@@ -9760,7 +9769,7 @@ class GlasbaActivity : OsActivity() {
                 // Diagnostika samo Webtor (pregled 26, T3): brez TorBoxa s cakanjem in brez torrenta na napravi.
                 if (samoWebtor) { android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Webtor - Webtor ni predvajal"); return }
                 
-                preselNaDebrid = UsenetPravila.prehodNaDebrid(izbranSamoUsenet, true, TorBox.kljuc(this@GlasbaActivity) != null || Debrid.zKljucem(this@GlasbaActivity).isNotEmpty())
+                preselNaDebrid = UsenetPravila.prehodNaDebrid(izbranSamoUsenet, true, DebridPravila.rezervaPoUsenetu(Debrid.zKljucem(this@GlasbaActivity)) != null)
                 
                 if (samoUsenet && !preselNaDebrid) {
                     // Pregled Grok 31, H2: viden konec (prej samo dnevnik) in v dnevniku, koliko izdaj je bilo poskusenih - meritev
@@ -9773,7 +9782,8 @@ class GlasbaActivity : OsActivity() {
                     return
                 }
                 if (preselNaDebrid) {
-                    android.util.Log.i("SafeerOsMedia", "tokovi: Usenet ni uspel - prehod na debrid")
+                    debridRezerva = DebridPravila.rezervaPoUsenetu(Debrid.zKljucem(this@GlasbaActivity))
+                    android.util.Log.i("SafeerOsMedia", "tokovi: Usenet ni uspel - rezerva $debridRezerva")
                     Toast.makeText(this, R.string.os_usenet_prehod_debrid, Toast.LENGTH_SHORT).show()
                     izberiTok(sk, naslov, vsiTokovi, rocno, pripravljeno, brezOmejitveUseneta = true, obNeuspehu = obNeuspehu)
                     return
@@ -9801,10 +9811,13 @@ class GlasbaActivity : OsActivity() {
                 if (usenetZacetek == null) usenetZacetek = android.os.SystemClock.elapsedRealtime()
                 val potekel = izbranSamoUsenet && (android.os.SystemClock.elapsedRealtime() - usenetZacetek!! >= UsenetPravila.ROK_SAMO_USENET_MS)
                 
-                val iNaslednji = UsenetPravila.naslednjiPoskus(i, poskusi.size, potekel, prejsnjaNapaka)
+                // Lastnik 1. 11. 2026 15:04: ce Usenet ne gre, naj TAKOJ predlaga naslednjo najboljso resitev (TorBox) - ob napaki
+                // in TorBox kljucu ne poskusamo vec drugih izdaj Useneta (vsaka je trajala 10+ s).
+                val iNaslednji = if (prejsnjaNapaka != null && DebridPravila.rezervaPoUsenetu(Debrid.zKljucem(this@GlasbaActivity)) != null) poskusi.size
+                    else UsenetPravila.naslednjiPoskus(i, poskusi.size, potekel, prejsnjaNapaka)
                 
                 if (iNaslednji >= poskusi.size) {
-                    val prehod = UsenetPravila.prehodNaDebrid(izbranSamoUsenet, true, TorBox.kljuc(this@GlasbaActivity) != null || Debrid.zKljucem(this@GlasbaActivity).isNotEmpty())
+                    val prehod = UsenetPravila.prehodNaDebrid(izbranSamoUsenet, true, DebridPravila.rezervaPoUsenetu(Debrid.zKljucem(this@GlasbaActivity)) != null)
                     if (iNaslednji > 0 && !potekel && !prehod) Toast.makeText(this, R.string.os_usenet_rezerva, Toast.LENGTH_SHORT).show()
                     poskusiWebtor(false) { naKonec() }
                     return
@@ -9917,7 +9930,7 @@ class GlasbaActivity : OsActivity() {
     /** Webtor rezerva: torrent, ki ga predvaja Webtor, v ozadju v TorBox ([WebtorPravila.dodajVTorBox]) - naslednjic ⚡. */
     private fun webtorVTorBox(magnet: String, predpomnjen: Boolean) {
         val hash = TorBoxPravila.hashIzMagneta(magnet)?.lowercase()
-        if (!WebtorPravila.dodajVTorBox(DebridPravila.TORBOX in Debrid.zKljucem(this), Debrid.aktivna(this) != null, predpomnjen, hash)) return
+        if (!WebtorPravila.dodajVTorBox(DebridPravila.TORBOX in Debrid.zKljucem(this), aktivniDebrid() != null, predpomnjen, hash)) return
         Webtor.vTorBoxVOzadju(applicationContext, magnet)
     }
 
