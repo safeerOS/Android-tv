@@ -13,6 +13,11 @@ fun main() {
     preveri("video, rocno -> ne", !PripravaPravila.odpriTakoj(true, true))
     preveri("zvok, rocno -> ne", !PripravaPravila.odpriTakoj(false, true))
     preveri("video, ni rocno, je serija -> ne", !PripravaPravila.odpriTakoj(true, false, true))
+    // Klik na EPIZODO serije (lastnik 1. 11.): predvajalnik s »Pripravljam« takoj; kartica serije brez epizode ne.
+    preveri("serija brez epizode", PripravaPravila.serijaBrezEpizode("series", 0))
+    preveri("epizoda serije ni serija brez epizode", !PripravaPravila.serijaBrezEpizode("series", 3))
+    preveri("film ni serija", !PripravaPravila.serijaBrezEpizode("movie", 0))
+    preveri("epizoda: odpri takoj", PripravaPravila.odpriTakoj(true, false, PripravaPravila.serijaBrezEpizode("series", 3)))
 
     println("Preizkus pravil ostaniVPripravi in cas")
     preveri("enak zagon, pod 45s -> ostani", PripravaPravila.ostaniVPripravi(5, 5, 10_000L))

@@ -7552,7 +7552,7 @@ class GlasbaActivity : OsActivity() {
         val kljuc = sk.id.ifBlank { sk.povezava.ifBlank { sk.naslov } }
         if (!pripraveVTeKu.add(kljuc)) return null
         prekiniDebrid()     // pregled A1: nova izbira - prejsnje cakanje na debrid ne odpre nicesar vec
-        if (PripravaPravila.odpriTakoj(sk.video, rocno, sk.mediaType == "series")) {
+        if (PripravaPravila.odpriTakoj(sk.video, rocno, PripravaPravila.serijaBrezEpizode(sk.mediaType, sk.episode))) {
             val i = Intent(this, PredvajanjeActivity::class.java)
             i.putExtra(PredvajanjeActivity.PRIPRAVLJAM_NASLOV, naslovPriprave)
             startActivity(i)
