@@ -194,4 +194,5 @@
     <string name="os_usenet_pripravljam">Préparation via Usenet…</string>
     <string name="os_samodejno_naslednja">Lire la piste suivante automatiquement</string>
     <string name="os_samodejno_album">Continuer après la fin de l’album</string>
+    <string name="os_usenet_prehod_debrid">Usenet a échoué - lecture via TorBox</string>
 </resources>

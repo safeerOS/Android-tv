@@ -194,4 +194,5 @@
     <string name="os_usenet_pripravljam">Wird über Usenet vorbereitet …</string>
     <string name="os_samodejno_naslednja">Nächsten Titel automatisch abspielen</string>
     <string name="os_samodejno_album">Nach Albumende automatisch weiter</string>
+    <string name="os_usenet_prehod_debrid">Usenet fehlgeschlagen - Wiedergabe über TorBox</string>
 </resources>

@@ -9702,7 +9702,7 @@ class GlasbaActivity : OsActivity() {
             // (1) Usenet, ki ga ima TorBox ze pripravljenega - prve izdaje preverjene HKRATI s preverbo ⚡ ([predpomnjeniZa],
             // najvec 6 s); (2) takoj: ⚡ torrent, ziva neposredna povezava, [⚡WT]; (3) Usenet s cakanjem na prenos;
             // (4) Webtor [WT]; (5) TorBox s cakanjem in ostalo ([samodejnoBrezUseneta]). Nikoli okno »izberi vir«.
-            val poskusi = UsenetPravila.zaSamodejno(usenet.map { TokIzbira.opisi(opis(it)).gb }).map { usenet[it] }
+            val poskusi = UsenetPravila.zaSamodejno(usenet.map { TokIzbira.opisi(opis(it)).gb }, izbranSamoUsenet).map { usenet[it] }
             pripravljeno.usenet?.takeIf { !samoWebtor }?.let { (t, cdn, ponudnik) ->
                 android.util.Log.i("SafeerOsMedia", "tokovi: ${UsenetLastniPravila.dnevnikPripravljenega(ponudnik)}; izbran=${TokIzbira.opisi(opis(t))}")
                 Toast.makeText(this, napisPredvajaPrek(ponudnik), Toast.LENGTH_SHORT).show()
@@ -9731,19 +9731,31 @@ class GlasbaActivity : OsActivity() {
                 android.util.Log.i("SafeerOsMedia", "tokovi: takoj nic (pripravljenih pri debridu 0 od ${torrentiPoKakovosti.size}, neposrednih 0)")
                 return false
             }
+            var usenetZacetek: Long? = null
+            var usenetPoskusov = 0
+            var preselNaDebrid = false
+
             fun naKonec() {
                 // Diagnostika samo Webtor (pregled 26, T3): brez TorBoxa s cakanjem in brez torrenta na napravi.
                 if (samoWebtor) { android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Webtor - Webtor ni predvajal"); return }
-                if (samoUsenet) {
+                
+                preselNaDebrid = UsenetPravila.prehodNaDebrid(izbranSamoUsenet, true, Debrid.aktivna(this@GlasbaActivity) != null)
+                
+                if (samoUsenet && !preselNaDebrid) {
                     // Pregled Grok 31, H2: viden konec (prej samo dnevnik) in v dnevniku, koliko izdaj je bilo poskusenih - meritev
                     // ne sme pokazati »Usenet ne dela«, ce izdaje do meje samodejne izbire sploh ni bilo.
                     android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Usenet - Usenet ni predvajal (pripravljen pri TorBoxu: ne, " +
-                        "s cakanjem poskusenih ${poskusi.size} od ${usenet.size}" +
+                        "s cakanjem poskusenih $usenetPoskusov od ${usenet.size}" +
                         (if (poskusi.isEmpty()) " - nobena izdaja do ${UsenetPravila.NAJVEC_GB_SAMODEJNO.toInt()} GB" else "") + ")")
                     Toast.makeText(this, R.string.os_usenet_diagnostika_konec, Toast.LENGTH_LONG).show()
                     obNeuspehu?.invoke()
                     return
                 }
+                if (preselNaDebrid) {
+                    android.util.Log.i("SafeerOsMedia", "tokovi: Usenet ni uspel - prehod na debrid")
+                    Toast.makeText(this, R.string.os_usenet_prehod_debrid, Toast.LENGTH_SHORT).show()
+                }
+
                 if (!samodejnoBrezUseneta()) {
                     Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslov), Toast.LENGTH_SHORT).show()
                     PredvajanjeActivity.zapriZNapako()
@@ -9763,11 +9775,16 @@ class GlasbaActivity : OsActivity() {
                 }
             }
             fun poskusiUsenetSCakanjem(i: Int) {
-                if (i >= poskusi.size) {
-                    if (i > 0) Toast.makeText(this, R.string.os_usenet_rezerva, Toast.LENGTH_SHORT).show()
+                if (usenetZacetek == null) usenetZacetek = android.os.SystemClock.elapsedRealtime()
+                val potekel = izbranSamoUsenet && (android.os.SystemClock.elapsedRealtime() - usenetZacetek!! >= UsenetPravila.ROK_SAMO_USENET_MS)
+                
+                if (i >= poskusi.size || potekel) {
+                    val prehod = UsenetPravila.prehodNaDebrid(izbranSamoUsenet, true, Debrid.aktivna(this@GlasbaActivity) != null)
+                    if (i > 0 && !potekel && !prehod) Toast.makeText(this, R.string.os_usenet_rezerva, Toast.LENGTH_SHORT).show()
                     poskusiWebtor(false) { naKonec() }
                     return
                 }
+                usenetPoskusov++
                 val t = poskusi[i]
                 android.util.Log.i("SafeerOsMedia", "tokovi: Usenet s prenosom ${i + 1}/${poskusi.size} od ${usenet.size}; izbran=${TokIzbira.opisi(opis(t))}")
                 prekDebrida(t.url, t.datoteka, { cdn -> odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap())) }, null,

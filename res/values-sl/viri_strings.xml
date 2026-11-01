@@ -194,4 +194,5 @@
     <string name="os_usenet_pripravljam">Pripravljam prek Useneta …</string>
     <string name="os_samodejno_naslednja">Samodejno naslednja skladba</string>
     <string name="os_samodejno_album">Samodejno naprej po koncu albuma</string>
+    <string name="os_usenet_prehod_debrid">Na Usenetu ne gre - predvajam prek TorBoxa</string>
 </resources>

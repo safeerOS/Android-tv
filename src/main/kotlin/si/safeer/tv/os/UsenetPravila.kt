@@ -470,13 +470,26 @@ object UsenetPravila {
      * Samodejna izbira (lastnik, 24. 10. 2026: »automatsko se zažene najboljši vir … v našem primeru usenet«): Usenet gre
      * prvi, z cakanjem na prenos pri TorBoxu. Izmerjeno na TV 24. 10. 2026: 2,2 GB v 36 s - zato najvec [NAJVEC_GB_SAMODEJNO]
      * (nekaj minut); vecje izdaje (4K REMUX 50+ GB) ostanejo za rocno izbiro. Neznana velikost (0) je dovoljena.
-     * [gb] po vrstnem redu kakovosti; vrne indekse za poskuse (najvec [POSKUSOV_SAMODEJNO]).
+     * [gb] po vrstnem redu kakovosti; vrne indekse za poskuse (najvec [POSKUSOV_SAMODEJNO] ali [POSKUSOV_SAMO_USENET]).
      */
-    fun zaSamodejno(gb: List<Double>): List<Int> =
-        gb.indices.filter { gb[it] <= NAJVEC_GB_SAMODEJNO }.take(POSKUSOV_SAMODEJNO)
+    fun zaSamodejno(gb: List<Double>, samoUsenet: Boolean = false): List<Int> =
+        gb.indices.filter { gb[it] <= NAJVEC_GB_SAMODEJNO }.take(if (samoUsenet) POSKUSOV_SAMO_USENET else POSKUSOV_SAMODEJNO)
 
     const val NAJVEC_GB_SAMODEJNO = 15.0
     const val POSKUSOV_SAMODEJNO = 2
+
+    /** Stevilo poskusov za diagnostiko »samo Usenet«. */
+    const val POSKUSOV_SAMO_USENET = 4
+
+    /** Skupni rok za Usenet poskuse pri »samo Usenet« (ms). */
+    const val ROK_SAMO_USENET_MS = 12_000L
+
+    /**
+     * Kdaj pri izbiri »samo Usenet« po neuspehih preidemo na debrid (TorBox): izbran je samo Usenet, 
+     * Usenet se ni zacel predvajati (rok ali konec poskusov) in debrid storitev je nastavljena.
+     */
+    fun prehodNaDebrid(samoUsenet: Boolean, usenetNiUspel: Boolean, debridNastavljen: Boolean): Boolean =
+        samoUsenet && usenetNiUspel && debridNastavljen
 
     /** Ali je odgovor res NZB (XML z elementom `nzb`) - indeksator lahko namesto datoteke vrne napako ali stran HTML. */
     fun jeNzb(zacetek: String): Boolean = zacetek.contains("<nzb", ignoreCase = true) && !zacetek.contains("<!ENTITY", ignoreCase = true)

@@ -162,6 +162,11 @@ fun main(args: Array<String>) {
     preveriEnako("141: natanko 15 GB da", listOf(0), UsenetPravila.zaSamodejno(listOf(15.0)))
     preveriEnako("141: vse prevelike - nic", emptyList<Int>(), UsenetPravila.zaSamodejno(listOf(60.0, 15.1)))
 
+    preveriEnako("prehod na debrid: samo Usenet, neuspeh in debrid nastavljen -> da", true, UsenetPravila.prehodNaDebrid(true, true, true))
+    preveriEnako("prehod na debrid: brez debrida -> ne", false, UsenetPravila.prehodNaDebrid(true, true, false))
+    preveriEnako("prehod na debrid: uspel -> ne", false, UsenetPravila.prehodNaDebrid(true, false, true))
+    preveriEnako("prehod na debrid: vsi viri -> ne", false, UsenetPravila.prehodNaDebrid(false, true, true))
+
     // Prejeto z druge naprave (Link)
     preveriEnako("141: prejet indeksator", "https://x.example" to "0123456789abcdef",
         UsenetPravila.prejetIndeksator("https://x.example/api", "0123456789abcdef"))
