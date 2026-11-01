@@ -66,13 +66,13 @@ object Pomnilnik {
         Log.i(TAG, "telefonska aplikacija zaprta po vrnitvi domov (malo pomnilnika): $paket")
     }
 
-    fun zapriObMenjavi(c: Context, prejsnja: String, nova: String?, casMs: Long) {
+    /** Zvok ob trenutku menjave (pred zamikom): po 3 s ze igra NOVA aplikacija (film) in prejsnja se ne bi nikoli zaprla. */
+    fun zvokAktiven(c: Context): Boolean = try {
+        (c.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager)?.isMusicActive == true
+    } catch (_: Exception) { false }
+
+    fun zapriObMenjavi(c: Context, prejsnja: String, nova: String?, casMs: Long, predvaja: Boolean) {
         val vklopljeno = androidx.preference.PreferenceManager.getDefaultSharedPreferences(c).getBoolean("zapri_neuporabljeno", true)
-        var predvaja = false
-        try {
-            val am = c.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager
-            if (am?.isMusicActive == true) predvaja = true
-        } catch (_: Exception) {}
         val ime = try { android.provider.Settings.Secure.getString(c.contentResolver, "default_input_method")?.substringBefore('/') } catch (_: Throwable) { null }
         val pm = c.packageManager
         val trajen = try { (pm.getApplicationInfo(prejsnja, 0).flags and ApplicationInfo.FLAG_PERSISTENT) != 0 } catch (_: Exception) { false }

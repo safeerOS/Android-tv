@@ -256,9 +256,10 @@ class VnosStoritev : AccessibilityService() {
         }
         if (prejUporabniska != null && prejUporabniska != paket && paket != packageName) {
             val ctx = applicationContext
+            val zvokObMenjavi = si.safeer.tv.os.Pomnilnik.zvokAktiven(ctx)   // pred zamikom: po 3 s igra ze nova aplikacija
             glavnaNit.postDelayed({
                 val zdaj = try { rootInActiveWindow?.packageName?.toString() } catch (_: Throwable) { null }
-                Thread { si.safeer.tv.os.Pomnilnik.zapriObMenjavi(ctx, prejUporabniska, zdaj, 3000L) }.apply { isDaemon = true }.start()
+                Thread { si.safeer.tv.os.Pomnilnik.zapriObMenjavi(ctx, prejUporabniska, zdaj, 3000L, zvokObMenjavi) }.apply { isDaemon = true }.start()
             }, 3_000)
         }
         if (vklop && paket in miskaVklopljena) m.vklopi(paket) else m.izklopi()
