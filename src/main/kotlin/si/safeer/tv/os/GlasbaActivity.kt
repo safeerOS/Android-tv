@@ -8252,53 +8252,198 @@ class GlasbaActivity : OsActivity() {
         }
     }
 
-    private fun izberiSezono(sk: Jamendo.Skladba, ep: List<Stremio.Epizoda>, rocno: Boolean = false) {
-        val sezone = ep.map { it.sezona }.distinct()
-        if (sezone.size == 1) { izberiEpizodo(sk, ep, rocno); return }
-        val imena = sezone.map { z -> val n = ep.count { it.sezona == z }
-            getString(R.string.os_stremio_sezona, z) + " · " + resources.getQuantityString(R.plurals.os_stremio_epizod, n, n) }
-        AlertDialog.Builder(this).setTitle(sk.naslov).setItems(imena.toTypedArray()) { _, k -> izberiEpizodo(sk, ep.filter { it.sezona == sezone[k] }, rocno, edinaSezona = false) }.show()
-    }
-
-    private fun izberiEpizodo(sk: Jamendo.Skladba, vseEpizode: List<Stremio.Epizoda>, rocno: Boolean = false,
-                              /** Serija ima samo to sezono: ce ni nobene epizode, ni serije. */
-                              edinaSezona: Boolean = true) {
+    private fun izberiSezono(sk: Jamendo.Skladba, epIzvorni: List<Stremio.Epizoda>, rocno: Boolean = false) {
         val tip = Stremio.razstavi(sk)?.second ?: "series"
-        // Epizoda serije: S1E2 · ime; skladba albuma ali video kanala brez stevilk: zaporedna stevilka in ime.
-        val imena = vseEpizode.mapIndexed { i, e ->
-            e.id to (if (e.sezona > 0 || e.epizoda > 0) "S${e.sezona}E${e.epizoda}" + (if (e.ime.isNotBlank()) " · " + e.ime else "")
-            else "${i + 1}. " + e.ime.ifBlank { sk.naslov })
-        }.toMap()
-        fun ime(e: Stremio.Epizoda) = imena[e.id].orEmpty()
-        // Epizod, za katere ze vemo, da jih noben dodatek nima, ne kazemo; ce ni nobene, serija izgine s seznama.
-        // Naloga 132: epizoda izgine samo, ce je ni pri id-ju dodatka IN je ni po IMDb (tt...:S:E) - Torrentio pozna samo IMDb.
         val imdbSerije = Stremio.imdbZa(sk)
         fun imdbEpizode(e: Stremio.Epizoda) = SerijePravila.idEpizodePoImdb(imdbSerije, e.id, e.sezona, e.epizoda)
-        val ep = vseEpizode.filter {
+        
+        val ep = epIzvorni.filter {
             val alt = imdbEpizode(it)
             it.tokovi.isNotEmpty() || !SerijePravila.skrijEpizodo(Razpolozljivost.stanje(this, Razpolozljivost.kljuc(tip, it.id)),
                 alt?.let { a -> Razpolozljivost.stanje(this, Razpolozljivost.kljuc(tip, a)) }, alt != null)
         }.toMutableList()
+        
+        val sezone = ep.map { it.sezona }.distinct()
+        val edinaSezona = sezone.size <= 1
+        
         fun nicNiNaVoljo() {
             Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, sk.naslov), Toast.LENGTH_SHORT).show()
             if (edinaSezona && !imaZnanoEpizodo(sk)) oznaciNiNaVoljo(sk)
         }
+        
         if (ep.isEmpty()) { nicNiNaVoljo(); return }
-        val vrstice = android.widget.ArrayAdapter(this, android.R.layout.select_dialog_item, ep.map { ime(it) }.toMutableList())
-        var okno: AlertDialog? = null
-        okno = AlertDialog.Builder(this).setTitle(sk.naslov).setAdapter(vrstice) { _, k ->
-            val seznam = ep.toList()
-            val e = seznam.getOrNull(k) ?: return@setAdapter
+
+        val imena = epIzvorni.mapIndexed { i, e ->
+            e.id to (if (e.sezona > 0 || e.epizoda > 0) "S${e.sezona}E${e.epizoda}" + (if (e.ime.isNotBlank()) " · " + e.ime else "")
+            else "${i + 1}. " + e.ime.ifBlank { sk.naslov })
+        }.toMap()
+        fun ime(e: Stremio.Epizoda) = imena[e.id].orEmpty()
+
+        val dialog = android.app.Dialog(this, android.R.style.Theme_Translucent_NoTitleBar)
+        val root = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.HORIZONTAL
+            setBackgroundColor(androidx.core.graphics.ColorUtils.setAlphaComponent(getColor(R.color.os_kartica_dvignjena), 230))
+        }
+
+        fun ustvariSeznam() = android.widget.ListView(this).apply {
+            divider = null
+            val sd = android.graphics.drawable.StateListDrawable()
+            val focused = android.graphics.drawable.GradientDrawable().apply {
+                setColor(getColor(R.color.os_kartica_steklo_fokus))
+                setStroke((2 * resources.displayMetrics.density).toInt(), getColor(R.color.os_mint))
+            }
+            sd.addState(intArrayOf(android.R.attr.state_focused), focused)
+            sd.addState(intArrayOf(), android.graphics.drawable.ColorDrawable(0))
+            selector = sd
+            setDrawSelectorOnTop(false)
+        }
+
+        val seznamSezon = ustvariSeznam().apply {
+            layoutParams = android.widget.LinearLayout.LayoutParams(0, android.view.ViewGroup.LayoutParams.MATCH_PARENT, 1f)
+        }
+        val seznamEpizod = ustvariSeznam().apply {
+            layoutParams = android.widget.LinearLayout.LayoutParams(0, android.view.ViewGroup.LayoutParams.MATCH_PARENT, 2f)
+        }
+
+        val pokaziLevi = EpizodePravila.pokaziLeviStolpec(sezone)
+        if (pokaziLevi) root.addView(seznamSezon)
+        root.addView(seznamEpizod)
+        dialog.setContentView(root)
+
+        val imenaSezon = sezone.map { z -> 
+            val n = epIzvorni.count { it.sezona == z }
+            getString(R.string.os_stremio_sezona, z) + " · " + resources.getQuantityString(R.plurals.os_stremio_epizod, n, n) 
+        }
+
+        var trenutniIndeksSezone = 0
+
+        val adapterSezon = object : android.widget.ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, imenaSezon) {
+            override fun getView(pos: Int, conv: android.view.View?, par: android.view.ViewGroup): android.view.View {
+                val v = super.getView(pos, conv, par) as android.widget.TextView
+                v.setTextColor(getColor(R.color.os_besedilo))
+                val pad = (16 * resources.displayMetrics.density).toInt()
+                v.setPadding(pad, pad, pad, pad)
+                v.typeface = if (pos == trenutniIndeksSezone) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
+                return v
+            }
+        }
+        seznamSezon.adapter = adapterSezon
+
+        val trenutnaSezonaEpizode = mutableListOf<Stremio.Epizoda>()
+        
+        val adapterEpizod = object : android.widget.BaseAdapter() {
+            override fun getCount() = trenutnaSezonaEpizode.size
+            override fun getItem(p0: Int) = trenutnaSezonaEpizode[p0]
+            override fun getItemId(p0: Int) = p0.toLong()
+            override fun getView(p0: Int, p1: android.view.View?, p2: android.view.ViewGroup?): android.view.View {
+                val view = p1 as? android.widget.LinearLayout ?: android.widget.LinearLayout(this@GlasbaActivity).apply {
+                    orientation = android.widget.LinearLayout.VERTICAL
+                    val pad = (16 * resources.displayMetrics.density).toInt()
+                    setPadding(pad, pad, pad, pad)
+                    addView(android.widget.TextView(this@GlasbaActivity).apply { 
+                        id = android.R.id.text1
+                        setTextColor(getColor(R.color.os_umirjeno))
+                        textSize = 14f
+                    })
+                    addView(android.widget.TextView(this@GlasbaActivity).apply { 
+                        id = android.R.id.text2
+                        setTextColor(getColor(R.color.os_besedilo))
+                        textSize = 18f
+                    })
+                }
+                val e = getItem(p0)
+                val t1 = view.findViewById<android.widget.TextView>(android.R.id.text1)
+                val t2 = view.findViewById<android.widget.TextView>(android.R.id.text2)
+                val oznaka = EpizodePravila.oznakaEpizode(e.sezona, e.epizoda)
+                if (oznaka.isEmpty()) {
+                    t1.visibility = android.view.View.GONE
+                } else {
+                    t1.visibility = android.view.View.VISIBLE
+                    t1.text = oznaka
+                }
+                t2.text = if (e.sezona > 0 || e.epizoda > 0) e.ime.ifBlank { sk.naslov } else {
+                    val posVse = epIzvorni.indexOfFirst { it.id == e.id }
+                    "${posVse + 1}. " + e.ime.ifBlank { sk.naslov }
+                }
+                return view
+            }
+        }
+        seznamEpizod.adapter = adapterEpizod
+
+        fun osveziEpizode(sezonaIndeks: Int) {
+            trenutniIndeksSezone = sezonaIndeks
+            val s = sezone.getOrNull(sezonaIndeks) ?: return
+            trenutnaSezonaEpizode.clear()
+            trenutnaSezonaEpizode.addAll(ep.filter { it.sezona == s })
+            adapterEpizod.notifyDataSetChanged()
+            
+            // Osvezi pisavo vidnih vrstic brez notifyDataSetChanged, da ne prekinemo fokusa
+            for (i in 0 until seznamSezon.childCount) {
+                val v = seznamSezon.getChildAt(i) as? android.widget.TextView
+                if (v != null) {
+                    val pos = seznamSezon.firstVisiblePosition + i
+                    v.typeface = if (pos == trenutniIndeksSezone) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
+                }
+            }
+        }
+
+        if (pokaziLevi) {
+            seznamSezon.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
+                    osveziEpizode(position)
+                }
+                override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+            }
+            seznamSezon.setOnItemClickListener { _, _, position, _ ->
+                osveziEpizode(position)
+                seznamEpizod.requestFocus()
+            }
+        }
+        osveziEpizode(0)
+
+        val tipkaListener = android.view.View.OnKeyListener { v, keyCode, event ->
+            if (event.action == android.view.KeyEvent.ACTION_DOWN) {
+                val jeNaSezonah = v == seznamSezon
+                val jeLevo = keyCode == android.view.KeyEvent.KEYCODE_DPAD_LEFT
+                val jeDesno = keyCode == android.view.KeyEvent.KEYCODE_DPAD_RIGHT
+                
+                if (jeLevo || jeDesno) {
+                    val smer = EpizodePravila.smerFokusa(jeNaSezonah, jeLevo)
+                    if (smer == true && pokaziLevi) {
+                        seznamSezon.requestFocus()
+                        return@OnKeyListener true
+                    } else if (smer == false) {
+                        if (trenutnaSezonaEpizode.isNotEmpty()) {
+                            seznamEpizod.requestFocus()
+                            seznamEpizod.setSelection(0)
+                        }
+                        return@OnKeyListener true
+                    } else if (smer == null) {
+                        return@OnKeyListener true
+                    }
+                }
+                if (keyCode == android.view.KeyEvent.KEYCODE_DPAD_UP || keyCode == android.view.KeyEvent.KEYCODE_DPAD_DOWN) {
+                    val list = v as android.widget.ListView
+                    val pos = list.selectedItemPosition
+                    if (keyCode == android.view.KeyEvent.KEYCODE_DPAD_UP && pos <= 0) return@OnKeyListener true
+                    if (keyCode == android.view.KeyEvent.KEYCODE_DPAD_DOWN && pos == list.adapter.count - 1) return@OnKeyListener true
+                }
+            }
+            false
+        }
+        seznamSezon.setOnKeyListener(tipkaListener)
+        seznamEpizod.setOnKeyListener(tipkaListener)
+
+        seznamEpizod.setOnItemClickListener { _, _, k, _ ->
+            val seznam = trenutnaSezonaEpizode.toList()
+            val e = seznam.getOrNull(k) ?: return@setOnItemClickListener
             Toast.makeText(this, getString(R.string.os_media_pripravljam, ime(e)), Toast.LENGTH_SHORT).show()
             delavec.execute {
-                // Naloga 130: poleg id-ja dodatka se id po IMDb (tt...:S:E) - dodatki s torrenti poznajo samo tega.
                 val imdb = Stremio.imdbZa(sk)
                 fun tokoviZa(x: Stremio.Epizoda) = x.tokovi.ifEmpty {
                     try { tokoviVzporedno(tip, x.id, dodatniId = SerijePravila.idEpizodePoImdb(imdb, x.id, x.sezona, x.epizoda)) } catch (_: Exception) { emptyList() }
                 }
                 if (!sk.video && !rocno) {
-                    // Zvok: tokove izbrane in naslednjih skladb vprasamo hkrati; izbrana se zacne, cim je znana,
-                    // naslednjim damo se najvec 1,2 s (kar do takrat pride, gre v vrsto - album igra naprej sam).
                     val naprej = seznam.drop(k).take(40)
                     val niti = naprej.map { x -> iskanjeDelavec.submit<List<Stremio.Tok>> { tokoviZa(x) } }
                     val opis = { t: Stremio.Tok -> t.ime + " " + t.opis }
@@ -8318,34 +8463,46 @@ class GlasbaActivity : OsActivity() {
                         glavna.post { if (!isFinishing && !isDestroyed) GlasbaStoritev.predvajaj(this, vrsta, 0) }
                         return@execute
                     }
-                    glavna.post { if (!isFinishing && !isDestroyed) izberiTok(sk, "${sk.naslov} · ${ime(e)}", prvi, rocno) { epizodeNi(sk, tip, e, vseEpizode, rocno, edinaSezona) } }
+                    glavna.post { if (!isFinishing && !isDestroyed) izberiTok(sk, "${sk.naslov} · ${ime(e)}", prvi, rocno) { epizodeNi(sk, tip, e, epIzvorni, rocno, edinaSezona) } }
                     return@execute
                 }
                 val t = tokoviZa(e)
                 val pp = predpomnjeniZa(t, sk.copy(season = e.sezona, episode = e.epizoda), rocno)
                 glavna.post {
-                    if (!isFinishing && !isDestroyed) izberiTok(sk.copy(season = e.sezona, episode = e.epizoda), "${sk.naslov} · ${ime(e)}", t, rocno, pp) { epizodeNi(sk, tip, e, vseEpizode, rocno, edinaSezona) }
+                    if (!isFinishing && !isDestroyed) izberiTok(sk.copy(season = e.sezona, episode = e.epizoda), "${sk.naslov} · ${ime(e)}", t, rocno, pp) { epizodeNi(sk, tip, e, epIzvorni, rocno, edinaSezona) }
                 }
             }
-        }.show()
-        // V ozadju preverimo, katere epizode dodatki res imajo: cesar ni, s seznama sproti izgine (in tok izbrane je ze v predpomnilniku).
+        }
+        
+        dialog.setOnDismissListener {
+            seznamSezon.adapter = null
+            seznamEpizod.adapter = null
+            seznamSezon.onItemSelectedListener = null
+            seznamSezon.onItemClickListener = null
+            seznamEpizod.onItemClickListener = null
+            seznamSezon.setOnKeyListener(null)
+            seznamEpizod.setOnKeyListener(null)
+        }
+
+        dialog.show()
+
         preveriEpizode(tip, ep.toList(), { imdbEpizode(it) }) { e ->
-            val d = okno
-            if (isFinishing || d == null || !d.isShowing) return@preveriEpizode
+            if (isFinishing || !dialog.isShowing) return@preveriEpizode
             val i = ep.indexOfFirst { it.id == e.id }
             if (i < 0) return@preveriEpizode
             ep.removeAt(i)
-            vrstice.remove(vrstice.getItem(i))
-            if (ep.isEmpty()) { d.dismiss(); nicNiNaVoljo() }
+            
+            if (sezone.getOrNull(trenutniIndeksSezone) == e.sezona) {
+                osveziEpizode(trenutniIndeksSezone)
+            }
+            if (ep.isEmpty()) { dialog.dismiss(); nicNiNaVoljo() }
         }
     }
 
-    /** Epizode ni v nobenem dodatku: zapomnimo si in pokazemo seznam brez nje (ostale so morda na voljo). */
     private fun epizodeNi(sk: Jamendo.Skladba, tip: String, e: Stremio.Epizoda, vse: List<Stremio.Epizoda>, rocno: Boolean, edinaSezona: Boolean) {
         skrijInPotrdi(Razpolozljivost.kljuc(tip, e.id)) { naslovi, torrent -> Stremio.razpolozljivo(naslovi, tip, e.id, torrent) }
-        izberiEpizodo(sk, vse, rocno, edinaSezona)
+        izberiSezono(sk, vse, rocno)
     }
-
     // ------------------------------------------------------------------ razpolozljivost: prikazemo samo, kar se da predvajati
 
     /**
