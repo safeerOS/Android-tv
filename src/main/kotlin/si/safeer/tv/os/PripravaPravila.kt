@@ -9,8 +9,13 @@ object PripravaPravila {
         return video && !rocno
     }
 
-    fun ostaniVPripravi(zagonovObOdprtju: Int, zagonovZdaj: Int, casVPripraviMs: Long): Boolean {
-        return zagonovZdaj == zagonovObOdprtju && casVPripraviMs < 45_000L
+    /**
+     * TV 1. 11. 2026 18:26 (Gospodar prstanov prek Useneta): zagon se je stel, predvajalnik pa se ni bil nastavljen (null) -
+     * zaslon se je zaprl in film je obstal v mini predvajalniku. V pripravi ostanemo, dokler predvajalnik in skladba nista
+     * na voljo (do roka 45 s).
+     */
+    fun ostaniVPripravi(zagonovObOdprtju: Int, zagonovZdaj: Int, casVPripraviMs: Long, predvajalnikNaVoljo: Boolean = true): Boolean {
+        return casVPripraviMs < 45_000L && (zagonovZdaj == zagonovObOdprtju || !predvajalnikNaVoljo)
     }
 
     fun jePotekelCas(casVPripraviMs: Long): Boolean {

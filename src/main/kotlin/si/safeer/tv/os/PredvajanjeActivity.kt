@@ -908,7 +908,7 @@ class PredvajanjeActivity : OsActivity() {
         val pn = pripravljamNaslov
         if (pn != null) {
             val zdajMs = android.os.SystemClock.uptimeMillis()
-            if (PripravaPravila.ostaniVPripravi(zagonovObOdprtju, GlasbaStoritev.zagonov, zdajMs - casOdprtjaMs)) {
+            if (PripravaPravila.ostaniVPripravi(zagonovObOdprtju, GlasbaStoritev.zagonov, zdajMs - casOdprtjaMs, p != null && sk != null)) {
                 prikaziPripravljamStanje(pn)
                 glavna.postDelayed(osveziPripravoRunnable, 1000)
                 return
@@ -925,6 +925,7 @@ class PredvajanjeActivity : OsActivity() {
             }
         }
         if (p == null || sk == null) {
+            android.util.Log.i("SafeerOsMedia", "zaslon predvajanja: zapiram - predvajalnik=${p != null}, skladba=${sk != null}")
             finish()
             return
         }

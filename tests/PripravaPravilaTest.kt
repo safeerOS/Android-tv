@@ -18,6 +18,10 @@ fun main() {
     preveri("epizoda serije ni serija brez epizode", !PripravaPravila.serijaBrezEpizode("series", 3))
     preveri("film ni serija", !PripravaPravila.serijaBrezEpizode("movie", 0))
     preveri("epizoda: odpri takoj", PripravaPravila.odpriTakoj(true, false, PripravaPravila.serijaBrezEpizode("series", 3)))
+    // TV 1. 11. 2026: zagon stet, predvajalnik se ni nastavljen -> ostani v pripravi (ne zapri zaslona)
+    preveri("zagon brez predvajalnika: ostani", PripravaPravila.ostaniVPripravi(1, 2, 3_000L, false))
+    preveri("zagon s predvajalnikom: predvajaj", !PripravaPravila.ostaniVPripravi(1, 2, 3_000L, true))
+    preveri("rok potekel: ne caka vec", !PripravaPravila.ostaniVPripravi(1, 2, 46_000L, false))
 
     println("Preizkus pravil ostaniVPripravi in cas")
     preveri("enak zagon, pod 45s -> ostani", PripravaPravila.ostaniVPripravi(5, 5, 10_000L))
