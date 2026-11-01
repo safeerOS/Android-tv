@@ -970,6 +970,13 @@
                 }
                 if (skritPodmeni) return false;
 
+                // Lastnik 1. 11. 2026 (rtvslo.si, »Televizija ▾«): povezava in poleg nje gumb s puscico za podmeni
+                // (aria-controls) sta ena postavka - cilj je samo povezava; podmeni ima ista mesta kot stran povezave.
+                if (tag === 'BUTTON' && el.hasAttribute('aria-controls') && el.hasAttribute('aria-expanded')) {
+                    var prej = el.previousElementSibling;
+                    if (prej && prej.tagName && prej.tagName.toUpperCase() === 'A' && prej.getAttribute('href')) return false;
+                }
+
                 var ro = (el.getAttribute('role') || '').toLowerCase();
                 var ti = el.getAttribute('tabindex');
                 if (ro === 'menuitem' || (ti !== null && ti !== '' && ti !== '-1')) {

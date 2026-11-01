@@ -96,4 +96,21 @@ preveri('li z role=menuitem je IZLOCEN, ker ima tocno eno vidno povezavo z istim
     preveri('povezava v seznamu pod robom zaslona JE cilj (premik navzdol)', true, isActionable(clanek));
 })();
 
+// Lastnik 1. 11. 2026: »Televizija« (povezava) + gumb s puscico (aria-controls) sta en cilj.
+(function () {
+    const body = { nodeType: 1, tagName: 'BODY', hasAttribute: () => false, getBoundingClientRect: () => ({width: 1920, height: 1080, right: 1920, left: 0, bottom: 1080, top: 0}) };
+    const li = { nodeType: 1, tagName: 'LI', className: '', getAttribute: () => null, hasAttribute: () => false,
+        getBoundingClientRect: () => ({width: 160, height: 40, right: 360, left: 200, bottom: 40, top: 0}) };
+    const povezava = { nodeType: 1, tagName: 'A', className: '', getAttribute: (k) => k === 'href' ? '/tv' : null, hasAttribute: () => false,
+        getBoundingClientRect: () => ({width: 110, height: 30, right: 310, left: 200, bottom: 35, top: 5}), innerText: 'Televizija', textContent: 'Televizija' };
+    const gumb = { nodeType: 1, tagName: 'BUTTON', className: '', previousElementSibling: povezava,
+        getAttribute: (k) => ({ 'aria-controls': 'tbdropdown-televizija', 'aria-expanded': 'false', type: 'button' })[k] || null,
+        hasAttribute: (k) => k === 'aria-controls' || k === 'aria-expanded' || k === 'type',
+        getBoundingClientRect: () => ({width: 24, height: 24, right: 340, left: 316, bottom: 32, top: 8}), innerText: '', textContent: '' };
+    povezava.parentElement = li; gumb.parentElement = li; li.parentElement = body;
+    window.getComputedStyle = () => ({ display: 'block', visibility: 'visible', opacity: '1' });
+    preveri('povezava »Televizija« je cilj', true, isActionable(povezava));
+    preveri('gumb s puscico za podmeni poleg povezave NI locen cilj', false, isActionable(gumb));
+})();
+
 console.log('tv_meni_test: OK (' + n + ')');
