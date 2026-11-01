@@ -229,14 +229,17 @@ class VnosStoritev : AccessibilityService() {
         val paket = koren?.packageName?.toString().orEmpty()
         // Tipkovnica in sistemska okna (obvestila, glasnost) ne spremenijo aplikacije v ospredju.
         if (paket.isEmpty() || paket == "com.android.systemui" || jeTipkovnicaOdprta()) return
-        val vklop = miskaPaketi.getOrPut(paket) {
+        // Lastnik 1. 11. 2026 (vreme iz Safeer Play Store ni bilo v tablicnem nacinu): negativnega izida ne shranimo -
+        // paket, ki ga ob prvem pogledu se ne vidimo (namescanje v teku, vidnost paketov), sicer ostane brez nacina do
+        // ponovnega zagona storitve.
+        val vklop = miskaPaketi[paket] ?: run {
             val pm = packageManager
             val navaden = try { pm.getLaunchIntentForPackage(paket) != null } catch (_: Throwable) { false }
             val tv = try { pm.getLeanbackLaunchIntentForPackage(paket) != null } catch (_: Throwable) { false }
             val sistemska = try {
                 (pm.getApplicationInfo(paket, 0).flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
             } catch (_: Throwable) { true }
-            si.safeer.tv.os.OsPravila.miskaZaPaket(true, paket, navaden, tv, sistemska)
+            si.safeer.tv.os.OsPravila.miskaZaPaket(true, paket, navaden, tv, sistemska).also { if (navaden || tv) miskaPaketi[paket] = it }
         }
         val prej = neprilagojena
         val prejUporabniska = zadnjaUporabniska
