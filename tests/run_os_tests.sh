@@ -63,6 +63,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/os/VrsticaPravila.kt" \
     "$SRC/si/safeer/tv/os/SeznamZaslonov.kt" \
     "$SRC/si/safeer/tv/link/OzjiKrogPravila.kt" \
+    "$SRC/si/safeer/tv/os/PripravaPravila.kt" \
+    "$TEST_DIR/PripravaPravilaTest.kt" \
     "$TEST_DIR/OsPravilaTest.kt" \
     "$TEST_DIR/GalerijaPravilaTest.kt" \
     "$TEST_DIR/AplikacijePravilaTest.kt" \
@@ -251,6 +253,7 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZaganjalnikPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.VrsticaPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SeznamZaslonovTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.OzjiKrogPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PripravaPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.EpizodePravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.AplikacijePredpomnilnikTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SporocilaPravilaTestKt

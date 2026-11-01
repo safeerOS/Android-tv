@@ -223,6 +223,22 @@ class PredvajanjeActivity : OsActivity() {
         else if (seNalaga()) glavna.postDelayed(skrijRunnable(), 1_000)
     }
 
+    private fun prikaziPripravljamStanje(pn: String) {
+        naslov.text = pn
+        izvajalec.text = getString(R.string.os_media_pripravljam, "").trim()
+        vir.text = ""
+        naslovnica.visibility = View.GONE
+        povrsina.visibility = View.INVISIBLE
+        vrstaGumbov?.visibility = View.GONE
+        cas.visibility = View.GONE
+        potek.visibility = View.GONE
+        namig.visibility = View.GONE
+        predlogi.visibility = View.GONE
+        nalaganje.visibility = View.VISIBLE
+        gumbZvocnik?.visibility = View.GONE
+        gumbOdkleni.visibility = View.GONE
+    }
+
     /** Uporabnik hoce predvajanje (ni pavze), posnetek ni koncan in ni v napaki. */
     private fun videoTece(): Boolean =
         GlasbaStoritev.predvajalnik?.let { it.playWhenReady && it.playbackState != Player.STATE_ENDED && it.playerError == null } == true
@@ -331,8 +347,11 @@ class PredvajanjeActivity : OsActivity() {
         if (krepko) typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
     }
 
+    private var pripravljamNaslov: String? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        pripravljamNaslov = intent.getStringExtra(PRIPRAVLJAM_NASLOV)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         val koren = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
         povrsina = SurfaceView(this)
@@ -735,6 +754,7 @@ class PredvajanjeActivity : OsActivity() {
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        pripravljamNaslov = intent.getStringExtra(PRIPRAVLJAM_NASLOV)
         zatemniIzNamena()
         izberiNapravoIzNamena()
         nadaljujIzNamena()
@@ -802,6 +822,8 @@ class PredvajanjeActivity : OsActivity() {
         const val NADALJUJ = "nadaljuj"
         /** Predvajanje je odprl zaslon Datoteke: Nazaj vrne v mapo, iz katere je uporabnik prisel. */
         const val IZ_DATOTEK = "iz_datotek"
+        /** Samodejno predvajanje videa: takoj odpri v stanju pripravljam, preden je predvajalnik pripravljen. */
+        const val PRIPRAVLJAM_NASLOV = "pripravljam_naslov"
         const val PIP_PREKLOPI = "si.safeer.tv.os.PIP_PREKLOPI"
         /** Koliko zaslonov predvajanja je med onStart in onStop (ob zamenjavi posnetka od drugod sta kratek cas dva). */
         private var zagnanih = 0
@@ -809,7 +831,10 @@ class PredvajanjeActivity : OsActivity() {
         val odprt: Boolean get() = zagnanih > 0
     }
 
-    override fun onDestroy() { odjaviPip(); delavec.shutdownNow(); super.onDestroy() }
+    override fun onDestroy() {
+        if (pripravljamNaslov != null) GlasbaActivity.instanca?.prekliciPriprave()
+        odjaviPip(); delavec.shutdownNow(); super.onDestroy()
+    }
 
     override fun onStop() {
         zagnan = false; zagnanih = (zagnanih - 1).coerceAtLeast(0)
@@ -845,11 +870,26 @@ class PredvajanjeActivity : OsActivity() {
         if (!zagnan) return
         val p = GlasbaStoritev.predvajalnik
         val sk = GlasbaStoritev.trenutna()
-        if (p == null || sk == null) { finish(); return }
+        if (p == null || sk == null) {
+            val pn = intent.getStringExtra(PRIPRAVLJAM_NASLOV)
+            if (pn != null) {
+                prikaziPripravljamStanje(pn)
+                return
+            }
+            finish()
+            return
+        }
         if (pripet !== p) {
+            pripravljamNaslov = null
             pripet?.let { it.clearVideoSurfaceView(povrsina); it.removeListener(velikost); it.removeListener(podnapisi) }
             p.setVideoSurfaceView(povrsina); p.addListener(velikost); p.addListener(podnapisi); pripet = p
             prvaSlika = p.playbackState == Player.STATE_READY && p.videoSize.width > 0
+            
+            // Obnovi vidnost elementov, ce so bili skriti v stanju "pripravljam"
+            vrstaGumbov?.visibility = View.VISIBLE
+            cas.visibility = View.VISIBLE
+            potek.visibility = View.VISIBLE
+            namig.visibility = View.VISIBLE
         }
         if (prvaSlikaZa != sk.id) { prvaSlikaZa = sk.id; prvaSlika = p.playbackState == Player.STATE_READY && p.videoSize.width > 0 }
         posodobiNalaganje()

@@ -195,6 +195,7 @@ class GlasbaActivity : OsActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        instanca = this
         odprtih++
         VrsteNaslovov.pripravi(this)     // naloga 63: znane serije med filmi (v ozadju z diska)
         // Merjenje odzivnosti (samo razvojna gradnja): vsak dostop do diska/omrezja na glavni niti gre v dnevnik
@@ -662,6 +663,7 @@ class GlasbaActivity : OsActivity() {
         debridDelavec.shutdownNow()  // pregled A1
         glavna.removeCallbacks(umiri)
         tvIkone.clear()
+        if (instanca === this) instanca = null
         super.onDestroy()
     }
 
@@ -2211,6 +2213,7 @@ class GlasbaActivity : OsActivity() {
         val filtrirani = podatki.map { it.copy(skladbe = filtrirajJezike(i, it.skladbe)) }
             .filter { it.skladbe.isNotEmpty() }
         if (i == TV_V_ZIVO) tvIkone.clear()
+        if (instanca === this) instanca = null
         val c1 = android.os.SystemClock.uptimeMillis()
         val zg = zgoraj(i); val c2 = android.os.SystemClock.uptimeMillis()
         // Domov: brez podvojenih prikazov - kar je ze v blokih na vrhu (nedavno, priljubljeno), se v blokih s spleta ne
@@ -7547,17 +7550,29 @@ class GlasbaActivity : OsActivity() {
 
     // ------------------------------------------------------------------ predvajanje
 
-    private fun zacniPripravo(sk: Jamendo.Skladba): String? {
+    private fun zacniPripravo(sk: Jamendo.Skladba, rocno: Boolean = false, naslovPriprave: String = sk.naslov): String? {
         val kljuc = sk.id.ifBlank { sk.povezava.ifBlank { sk.naslov } }
         if (!pripraveVTeKu.add(kljuc)) return null
         prekiniDebrid()     // pregled A1: nova izbira - prejsnje cakanje na debrid ne odpre nicesar vec
-        pokaziPripravljam(getString(R.string.os_media_pripravljam, sk.naslov))
+        if (PripravaPravila.odpriTakoj(sk.video, rocno)) {
+            val i = Intent(this, PredvajanjeActivity::class.java)
+            i.putExtra(PredvajanjeActivity.PRIPRAVLJAM_NASLOV, naslovPriprave)
+            startActivity(i)
+        } else {
+            pokaziPripravljam(getString(R.string.os_media_pripravljam, naslovPriprave))
+        }
         return kljuc
     }
 
-    private fun koncajPripravo(kljuc: String) {
-        pripraveVTeKu.remove(kljuc)
+    private fun koncajPripravo(kljuc: String): Boolean {
+        val prisoten = pripraveVTeKu.remove(kljuc)
         if (pripraveVTeKu.isEmpty() && debridDelo == null) skrijPripravljam()
+        return prisoten
+    }
+
+    fun prekliciPriprave() {
+        pripraveVTeKu.clear()
+        skrijPripravljam()
     }
 
     /**
@@ -8055,7 +8070,7 @@ class GlasbaActivity : OsActivity() {
                                /** Naloga 91a: razlicica seznama IPTV, ki igra, ce dodatki kanala v zivo ne dajo predvajljivega toka. */
                                rezerva: Jamendo.Skladba? = null) {
         val (_, tip, id) = Stremio.razstavi(sk) ?: return
-        val priprava = zacniPripravo(sk) ?: return
+        val priprava = zacniPripravo(sk, rocno) ?: return
         // Naloga 74: klik na kanal ima prednost pred preverjanjem mreze v ozadju ([preveriKanal] pocaka).
         if (Stremio.jeVZivo(sk)) prednostKlikaDo = android.os.SystemClock.uptimeMillis() + PREDNOST_KLIKA_MS
         delavec.execute {
@@ -8442,7 +8457,8 @@ class GlasbaActivity : OsActivity() {
             val e = seznam.getOrNull(k) ?: return@setOnItemClickListener
             // Kot prej AlertDialog: izbira zapre pogled (epizodeNi ga odpre znova - sicer dva pogleda drug nad drugim).
             dialog.dismiss()
-            Toast.makeText(this, getString(R.string.os_media_pripravljam, ime(e)), Toast.LENGTH_SHORT).show()
+            val naslovEp = "${sk.naslov} · ${ime(e)}"
+            val pripravaKljuc = zacniPripravo(sk.copy(season = e.sezona, episode = e.epizoda), rocno, naslovEp) ?: return@setOnItemClickListener
             delavec.execute {
                 val imdb = Stremio.imdbZa(sk)
                 fun tokoviZa(x: Stremio.Epizoda) = x.tokovi.ifEmpty {
@@ -11116,6 +11132,7 @@ class GlasbaActivity : OsActivity() {
     }
 
     companion object {
+        var instanca: GlasbaActivity? = null
         private const val NAMEN_OBDELAN = "safeer.namen.obdelan"
         /** Risanje po korakih: casovni proracun enega kosa na glavni niti. */
         private const val PRORACUN_MS = 8L
