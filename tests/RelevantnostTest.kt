@@ -40,6 +40,15 @@ fun main() {
     preveri("obstojeci izvajalec ostane", R.razdeli("Time", "Pink Floyd") == ("Time" to "Pink Floyd"))
     preveri("brez locila ostane naslov", R.razdeli("Imagine.mp3", "") == ("Imagine" to ""))
     preveri("clen The ne odvzame bonusa prve besede", R.ocena("lord", "The Lord of the Rings", "") == R.ocena("lord", "Lord of War", ""))
+
+    val lotr1978 = Jamendo.Skladba("1", "The Lord of the Rings", "", "", "", "", rating = 7.6, imdbVotes = 100000)
+    val lotr2001 = Jamendo.Skladba("2", "The Lord of the Rings: The Fellowship of the Ring", "", "", "", "", rating = 8.9, imdbVotes = 2000000)
+    val resLotr = R.razvrsti("Lord of the Rings", listOf(
+        Relevantnost.Zadetek(lotr1978, lotr1978.naslov, "", "Cinemeta", 10),
+        Relevantnost.Zadetek(lotr2001, lotr2001.naslov, "", "Cinemeta", 10)
+    ))
+    preveri("razvrsti po priljubljenosti pri isti oceni", resLotr[0].first.stvar === lotr2001)
+
     println("Relevantnost: $uspehov passed, $napak failed")
     if (napak > 0) kotlin.system.exitProcess(1)
 }

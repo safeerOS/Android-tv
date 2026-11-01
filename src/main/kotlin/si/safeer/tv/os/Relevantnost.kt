@@ -91,7 +91,12 @@ object Relevantnost {
             val obstojeci = najboljsi[k]
             if (obstojeci == null || p.second > obstojeci.second + 0.3) najboljsi[k] = p
         }
-        return najboljsi.values.sortedWith(compareByDescending<Pair<Zadetek<*>, Double>> { it.second }.thenBy { it.first.prednost })
+        return najboljsi.values.sortedWith(
+            compareByDescending<Pair<Zadetek<*>, Double>> { it.second }
+                .thenByDescending { (it.first.stvar as? Jamendo.Skladba)?.imdbVotes ?: 0 }
+                .thenByDescending { (it.first.stvar as? Jamendo.Skladba)?.rating ?: 0.0 }
+                .thenBy { it.first.prednost }
+        )
     }
 
     /** Ali lastni viri nimajo dovolj dobrih zadetkov - takrat (in samo takrat) ponudimo splet. */

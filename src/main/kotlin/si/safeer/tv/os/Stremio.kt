@@ -805,7 +805,8 @@ object Stremio {
             imdbId = SerijePravila.imdbIzMeta(m.optString("imdb_id"), id).orEmpty(),
             genres = (m.optJSONArray("genres") ?: m.optJSONArray("genre"))?.let { g -> (0 until g.length()).mapNotNull { g.optString(it).takeIf { s -> s.isNotBlank() } } } ?: emptyList(),
             // Ocena (IMDb), kadar jo katalog poda: na kartici kot zvezdica, kot pri drugih virih.
-            rating = m.optString("imdbRating").toDoubleOrNull() ?: 0.0)
+            rating = m.optString("imdbRating").toDoubleOrNull() ?: 0.0,
+            imdbVotes = m.optString("imdbVotes").replace(",", "").toIntOrNull() ?: 0)
     }
 
     /**
@@ -886,7 +887,7 @@ object Stremio {
      * 23. 10. 2026) ~55 s dodeljevanja (GC vsakih 0,6 s).
      */
     private val POLJA_KANALA = setOf("id", "type", "name", "poster", "logo", "background", "thumbnail", "image", "icon",
-        "genres", "genre", "releaseInfo", "year", "description", "imdbRating", "imdb_id", "country")
+        "genres", "genre", "releaseInfo", "year", "description", "imdbRating", "imdbVotes", "imdb_id", "country")
     /** Najvec vnosov s strani kataloga kanalov (dodatek IPTV da lahko vse kanale drzave naenkrat). */
     const val NAJVEC_NA_STRANI_KANALOV = 1000
     /**
