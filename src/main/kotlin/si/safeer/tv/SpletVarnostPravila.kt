@@ -153,4 +153,13 @@ object SpletVarnostPravila {
         val b = a.address
         return a.isLoopbackAddress || a.isLinkLocalAddress || (b[0].toInt() and 0xfe) == 0xfc
     }
+
+    /**
+     * TV 1. 11. 2026: menjava nastavitev WebView (User-Agent) med preusmeritvijo glavnega okvirja je WebView 153 sesula
+     * (Gmail -> accounts.google.com). Preusmeritev na Googlu ali z njega zato prekinemo in naslov nalozimo znova.
+     * Samo http(s), samo glavni okvir, samo preusmeritev; drugod navigacija tece kot doslej.
+     */
+    fun naloziPoPreusmeritvi(glavniOkvir: Boolean, preusmeritev: Boolean, url: String, google: Boolean): Boolean =
+        glavniOkvir && preusmeritev && google &&
+            (url.startsWith("https://", ignoreCase = true) || url.startsWith("http://", ignoreCase = true))
 }

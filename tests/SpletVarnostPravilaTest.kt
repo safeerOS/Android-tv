@@ -106,5 +106,11 @@ fun main() {
     check(P.sslOdlocitev(IDMISMATCH, "nas.local", zeDovoljen = false) == VPRASAJ)
     // Neznana napaka: nikoli nadaljuj, niti z zapomnjeno izjemo.
     check(P.sslOdlocitev(99, "banka.si", zeDovoljen = true) == PREKLICI) { "neznana napaka kljub izjemi" }
+    // Gmail -> accounts.google.com (TV 1. 11. 2026, SIGTRAP): preusmeritev na Googlu gre znova skozi loadUrl
+    check(P.naloziPoPreusmeritvi(true, true, "https://accounts.google.com/ServiceLogin", true)) { "Google preusmeritev" }
+    check(!P.naloziPoPreusmeritvi(true, false, "https://accounts.google.com/", true)) { "ni preusmeritev" }
+    check(!P.naloziPoPreusmeritvi(false, true, "https://accounts.google.com/", true)) { "podokvir" }
+    check(!P.naloziPoPreusmeritvi(true, true, "https://example.com/", false)) { "ni Google" }
+    check(!P.naloziPoPreusmeritvi(true, true, "intent://x", true)) { "ni http" }
     println("SpletVarnostPravilaTest: OK")
 }

@@ -1057,6 +1057,16 @@ class ChromiumEngineView @JvmOverloads constructor(
                 if (request.isForMainFrame) {
                     youtubeSamodejno = UserScriptManager.isYouTubeUrl(urlStr) && UserScriptManager.isYouTubeUrl(view?.url)
                 }
+                // TV 1. 11. 2026 15:09: Gmail »Prijava« (mail.google.com -> preusmeritev na accounts.google.com) je sesul
+                // TV Browser (SIGTRAP v libwebviewchromium, AwSettings iz applyUserAgentForUrl v shouldOverrideUrlLoading).
+                // WebView 153 ne prenese menjave nastavitev med PREUSMERITVIJO glavnega okvirja: preusmeritev prekinemo in
+                // naslov nalozimo znova (loadUrl sam nastavi identiteto, preden zacne).
+                if (SpletVarnostPravila.naloziPoPreusmeritvi(request.isForMainFrame, request.isRedirect, urlStr,
+                        UserScriptManager.isGoogleDomain(urlStr) || UserScriptManager.isGoogleDomain(view?.url))) {
+                    val v = view
+                    post { if (!uniceno) v?.loadUrl(urlStr) }
+                    return true
+                }
                 val uaPrej = settings.userAgentString
                 applyUserAgentForUrl(urlStr)
                 val isMainFrame = request.isForMainFrame
