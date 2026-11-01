@@ -83,10 +83,7 @@ object TorBox {
                 }
             }
             if (kljuc != null && p.responseCode in 300..399) {
-                throw TorBoxNapaka("API je zahteval preusmeritev (${p.responseCode}), kar s kljucem ni dovoljeno.")
-            }
-                    izhod.write("--$meja--\r\n".toByteArray(Charsets.UTF_8))
-                }
+                throw java.io.IOException("API je zahteval preusmeritev (${p.responseCode}), kar s kljucem ni dovoljeno.")
             }
             val koda = p.responseCode
             // Pregled Grok 8: odgovor najvec DebridPravila.NAJVEC_ODGOVORA bajtov (prej readBytes() brez meje) - vecji je napaka.

@@ -242,7 +242,7 @@ object SporocilaKanali {
             povezava.outputStream.use { it.write(telo.toString().toByteArray()) }
         }
         if (povezava.responseCode in 300..399) {
-            throw SporocilaShramba.NapakaKanala(k.id, "API je zahteval preusmeritev (${povezava.responseCode}), kar s kljucem ni dovoljeno.")
+            throw java.io.IOException("API je zahteval preusmeritev (${povezava.responseCode}), kar s kljucem ni dovoljeno.")
         }
         if (povezava.responseCode == 401) throw NapakaPrijave()
         val besedilo = povezava.inputStream.bufferedReader().use { it.readText() }

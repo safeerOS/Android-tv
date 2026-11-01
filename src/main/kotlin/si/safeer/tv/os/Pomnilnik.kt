@@ -67,12 +67,14 @@ object Pomnilnik {
     }
 
     /** Zvok ob trenutku menjave (pred zamikom): po 3 s ze igra NOVA aplikacija (film) in prejsnja se ne bi nikoli zaprla. */
+    private const val PREFS = "safeer_os"
+
     fun zvokAktiven(c: Context): Boolean = try {
         (c.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager)?.isMusicActive == true
     } catch (_: Exception) { false }
 
     fun zapriObMenjavi(c: Context, prejsnja: String, nova: String?, casMs: Long, predvaja: Boolean) {
-        val vklopljeno = androidx.preference.PreferenceManager.getDefaultSharedPreferences(c).getBoolean("zapri_neuporabljeno", true)
+        val vklopljeno = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("zapri_neuporabljeno", true)
         val ime = try { android.provider.Settings.Secure.getString(c.contentResolver, "default_input_method")?.substringBefore('/') } catch (_: Throwable) { null }
         val pm = c.packageManager
         val trajen = try { (pm.getApplicationInfo(prejsnja, 0).flags and ApplicationInfo.FLAG_PERSISTENT) != 0 } catch (_: Exception) { false }
@@ -103,7 +105,7 @@ object Pomnilnik {
             val ime = try { android.provider.Settings.Secure.getString(c.contentResolver, "default_input_method")?.substringBefore('/') } catch (_: Throwable) { null }
             val pm = c.packageManager
             val zdaj = System.currentTimeMillis()
-            val vklopljeno = androidx.preference.PreferenceManager.getDefaultSharedPreferences(c).getBoolean("zapri_neuporabljeno", true)
+            val vklopljeno = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("zapri_neuporabljeno", true)
             val runningAppProcesses = amgr.runningAppProcesses
             val foregroundPackages = runningAppProcesses?.filter { it.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND }?.flatMap { it.pkgList.toList() } ?: emptyList()
             val usm = c.getSystemService(Context.USAGE_STATS_SERVICE) as? android.app.usage.UsageStatsManager

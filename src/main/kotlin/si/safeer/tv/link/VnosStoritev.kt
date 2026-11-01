@@ -11,6 +11,7 @@ import android.util.Log
 import android.view.View
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import si.safeer.tv.os.Sosed
 
 /**
  * Safeer Vnos: miska in tipkovnica z racunalnika (Safeer Control, Safeer OS na racunalniku) na tej

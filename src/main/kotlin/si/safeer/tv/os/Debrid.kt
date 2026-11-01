@@ -931,7 +931,7 @@ object Debrid {
                 p.outputStream.use { it.write(telo.toByteArray(Charsets.UTF_8)) }
             }
             if (p.responseCode in 300..399) {
-                throw KlicNapaka.Omrezje("API je zahteval preusmeritev (${p.responseCode}), kar s kljucem ni dovoljeno.", koda = p.responseCode)
+                throw java.io.IOException("API je zahteval preusmeritev (${p.responseCode}), kar s kljucem ni dovoljeno.")
             }
             val koda = p.responseCode
             // Pregled Grok 8: odgovor najvec DebridPravila.NAJVEC_ODGOVORA bajtov (prej readBytes() brez meje) - vecji je napaka.

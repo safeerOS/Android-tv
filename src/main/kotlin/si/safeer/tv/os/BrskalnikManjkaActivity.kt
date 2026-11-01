@@ -54,7 +54,7 @@ class BrskalnikManjkaActivity : Activity() {
                 runOnUiThread {
                     if (Sosed.namescen(this, Sosed.TRGOVINA)) odpriStaro() 
                     else {
-                        android.widget.Toast.makeText(this, R.string.os_komplet_napaka, android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(this, R.string.os_posodobitev_napaka, android.widget.Toast.LENGTH_SHORT).show()
                         finish()
                     }
                 }

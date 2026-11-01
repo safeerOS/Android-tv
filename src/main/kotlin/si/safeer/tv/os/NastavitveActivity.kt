@@ -330,8 +330,8 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             // Zmogljivost ima svojo vrstico z ikono: prej je bila ena dolga vrstica na dnu
             // zaslona, ki je sekala nastavitve nad sabo in se je odrezala sredi podatka.
             safeer(R.drawable.os_ikona_naprava, R.string.os_zapri_neuporabljeno, R.string.os_zapri_neuporabljeno_opis,
-                vklop(androidx.preference.PreferenceManager.getDefaultSharedPreferences(this).getBoolean("zapri_neuporabljeno", true))) {
-                val p = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
+                vklop(getSharedPreferences("safeer_os", android.content.Context.MODE_PRIVATE).getBoolean("zapri_neuporabljeno", true))) {
+                val p = getSharedPreferences("safeer_os", android.content.Context.MODE_PRIVATE)
                 p.edit().putBoolean("zapri_neuporabljeno", !p.getBoolean("zapri_neuporabljeno", true)).apply()
                 narisi()
             },
