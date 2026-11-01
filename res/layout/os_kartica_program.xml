@@ -5,7 +5,9 @@
      Izbiro z daljincem narise izbirnik mreze (mint okvir), zato ploskev ni potrebna.
      Senca pod imenom ohrani besedilo berljivo tudi na svetlem delu ozadja.
      Ime ima vedno dve vrstici visine (lines=2, lastnik 1. 11. 2026): ime v dveh vrsticah (Mimi Sound Personalization) je
-     naredilo visjo kartico in GridView je ob drsenju iz prve v tretjo vrsto premaknil to kartico. -->
+     naredilo visjo kartico in GridView je ob drsenju iz prve v tretjo vrsto premaknil to kartico.
+     Druga vrstica je kartico povisala za ~14 dp in tretja vrsta ni vec sla na zaslon - ob prehodu vanjo se je premaknila
+     cela mreza (lastnik 1. 11. 2026 09:50). Zato manj odmika in ikona 46 dp (skupaj -12 dp). -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -13,12 +15,12 @@
     android:background="@android:color/transparent"
     android:paddingStart="8dp"
     android:paddingEnd="8dp"
-    android:paddingTop="9dp"
-    android:paddingBottom="7dp">
+    android:paddingTop="6dp"
+    android:paddingBottom="4dp">
     <ImageView
         android:id="@+id/ikona"
         android:layout_width="match_parent"
-        android:layout_height="50dp"
+        android:layout_height="46dp"
         android:scaleType="fitCenter"
         android:contentDescription="@null"/>
     <TextView
@@ -26,7 +28,7 @@
         style="@style/Os.Kartica.Naslov"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
+        android:layout_marginTop="4dp"
         android:gravity="center"
         android:lines="2"
         android:ellipsize="end"
