@@ -149,15 +149,14 @@ object PdfPregledovalnik {
             }
         }
         return try {
-            val povezava = URL(d.url).openConnection() as HttpURLConnection
-            povezava.instanceFollowRedirects = true
-            povezava.connectTimeout = 15000
-            povezava.readTimeout = 60000
-            d.userAgent?.let { povezava.setRequestProperty("User-Agent", it) }
-            povezava.setRequestProperty("Accept", "application/pdf,*/*")
-            try {
-                CookieManager.getInstance().getCookie(d.url)?.takeIf { it.isNotBlank() }?.let { povezava.setRequestProperty("Cookie", it) }
-            } catch (_: Throwable) { }
+            val povezava = PdfPregledovalnikPravila.vzpostaviPovezavo(
+                zacetniUrl = d.url,
+                prvotniUserAgent = d.userAgent,
+                pridobiPiskotek = { url -> 
+                    try { CookieManager.getInstance().getCookie(url) } catch (_: Throwable) { null } 
+                },
+                odpriPovezavo = { url -> URL(url).openConnection() as HttpURLConnection }
+            )
             val koda = povezava.responseCode
             if (koda !in 200..299) {
                 povezava.disconnect()
