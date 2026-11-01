@@ -337,6 +337,12 @@
                 <action android:name="com.android.tv.action.VIEW_INPUTS" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
+            <!-- Philips: tipka Viri na daljincu poslje SOURCE_LIST (GlobalKey, izmerjeno 1. 11. 2026); brez Googlovega
+                 zaganjalnika je nihce ne sprejme - tako Viri dela brez dodatne aplikacije. -->
+            <intent-filter>
+                <action android:name="org.droidtv.intent.action.SOURCE_LIST" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
         </activity-alias>
         <activity android:name="si.safeer.tv.os.PlosekActivity" android:exported="false"
             android:theme="@style/Theme.SafeerOs" android:screenOrientation="landscape" tools:ignore="DiscouragedApi" />
