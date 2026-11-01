@@ -758,4 +758,6 @@
     <string name="os_komplet_napaka_paket">Download fehlgeschlagen: %1$s</string>
     <string name="os_komplet_namesceno">Installiert</string>
     <string name="os_komplet_manjka">Fehlt: %1$s</string>
+    <string name="os_zapri_neuporabljeno">Nicht verwendete Apps schließen</string>
+    <string name="os_zapri_neuporabljeno_opis">Wenn eine App nicht verwendet wird, wird sie geschlossen, um Speicherplatz freizugeben. Apps, die Medien abspielen oder herunterladen, bleiben geöffnet.</string>
 </resources>

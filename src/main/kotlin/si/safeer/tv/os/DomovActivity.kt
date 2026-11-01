@@ -548,6 +548,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     /** Kuverta Sporocil v glavi (znacka neprebranih). */
     override fun onResume() {
         super.onResume()
+        Pomnilnik.pocistiOzadje(this)
         KompletNamestitev.ponudiPrvic(this)
     }
 

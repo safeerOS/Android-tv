@@ -766,4 +766,6 @@
     <string name="os_komplet_napaka_paket">Download failed: %1$s</string>
     <string name="os_komplet_namesceno">Installed</string>
     <string name="os_komplet_manjka">Missing: %1$s</string>
+    <string name="os_zapri_neuporabljeno">Close unused apps</string>
+    <string name="os_zapri_neuporabljeno_opis">When you stop using an app, it is closed to free up memory. Apps that are playing media or downloading remain open.</string>
 </resources>

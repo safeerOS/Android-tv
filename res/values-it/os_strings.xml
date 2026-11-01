@@ -758,4 +758,6 @@
     <string name="os_komplet_napaka_paket">Download non riuscito: %1$s</string>
     <string name="os_komplet_namesceno">Installato</string>
     <string name="os_komplet_manjka">Mancante: %1$s</string>
+    <string name="os_zapri_neuporabljeno">Zapri aplikacije, ki jih ne uporabljam</string>
+    <string name="os_zapri_neuporabljeno_opis">Ko aplikacije nekaj časa ne uporabljate, se zapre, da sprosti pomnilnik. Aplikacije, ki predvajajo ali prenašajo, ostanejo.</string>
 </resources>

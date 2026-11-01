@@ -329,6 +329,12 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             },
             // Zmogljivost ima svojo vrstico z ikono: prej je bila ena dolga vrstica na dnu
             // zaslona, ki je sekala nastavitve nad sabo in se je odrezala sredi podatka.
+            safeer(R.drawable.os_ikona_naprava, R.string.os_zapri_neuporabljeno, R.string.os_zapri_neuporabljeno_opis,
+                vklop(androidx.preference.PreferenceManager.getDefaultSharedPreferences(this).getBoolean("zapri_neuporabljeno", true))) {
+                val p = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
+                p.edit().putBoolean("zapri_neuporabljeno", !p.getBoolean("zapri_neuporabljeno", true)).apply()
+                narisi()
+            },
             safeer(R.drawable.os_ikona_naprava, R.string.os_plosek_preizkus, R.string.os_plosek_preizkus_opis, "") {
                 startActivity(android.content.Intent(this, PlosekActivity::class.java))
             },

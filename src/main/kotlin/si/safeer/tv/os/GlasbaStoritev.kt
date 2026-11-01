@@ -1803,6 +1803,7 @@ class GlasbaStoritev : Service() {
         @Volatile var obOdpovedi: (() -> Unit)? = null
 
         fun predvajaj(ctx: Context, seznam: List<Jamendo.Skladba>, od: Int, streznik: DatotekeActivity.Streznik? = null) {
+        Pomnilnik.pocistiOzadje(ctx)
             if (seznam.isEmpty()) return
             koncajDaljinec()
             if (seznam.size == 1) zapustiVrsto(seznam[0].id) else { spletnaVrsta = emptyList(); zetonVrste++ }

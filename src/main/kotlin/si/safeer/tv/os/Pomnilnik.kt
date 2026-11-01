@@ -65,4 +65,38 @@ object Pomnilnik {
         try { c.getSystemService(ActivityManager::class.java).killBackgroundProcesses(paket) } catch (_: Throwable) { }
         Log.i(TAG, "telefonska aplikacija zaprta po vrnitvi domov (malo pomnilnika): $paket")
     }
+
+    fun pocistiOzadje(c: Context) {
+        Thread {
+            try { Thread.sleep(3000) } catch (_: Exception) {}
+            var predvaja = false
+            try {
+                val am = c.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager
+                if (am?.isMusicActive == true) predvaja = true
+            } catch (_: Exception) {}
+            val amgr = c.getSystemService(ActivityManager::class.java)
+            val pred = stanje(c)
+            val k = kandidati(c).toMutableList()
+            if (!k.contains("si.safeer.tv")) k.add("si.safeer.tv")
+            val ime = try { android.provider.Settings.Secure.getString(c.contentResolver, "default_input_method")?.substringBefore('/') } catch (_: Throwable) { null }
+            val pm = c.packageManager
+            val zdaj = System.currentTimeMillis()
+            val vklopljeno = androidx.preference.PreferenceManager.getDefaultSharedPreferences(c).getBoolean("zapri_neuporabljeno", true)
+            val runningAppProcesses = amgr.runningAppProcesses
+            val foregroundPackages = runningAppProcesses?.filter { it.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND }?.flatMap { it.pkgList.toList() } ?: emptyList()
+            val usm = c.getSystemService(Context.USAGE_STATS_SERVICE) as? android.app.usage.UsageStatsManager
+            val stats = usm?.queryUsageStats(android.app.usage.UsageStatsManager.INTERVAL_DAILY, zdaj - 1000 * 60 * 60 * 24, zdaj)
+            val pocisceno = mutableListOf<String>()
+            for (p in k) {
+                if (foregroundPackages.contains(p)) continue
+                val lastUsed = stats?.find { it.packageName == p }?.lastTimeUsed ?: 0L
+                val trajen = try { (pm.getApplicationInfo(p, 0).flags and ApplicationInfo.FLAG_PERSISTENT) != 0 } catch (_: Exception) { false }
+                if (OsPravila.zapriObVrnitvi(p, c.packageName, ime, trajen, vklopljeno, predvaja, lastUsed, zdaj)) {
+                    try { amgr.killBackgroundProcesses(p); pocisceno.add(p) } catch (_: Throwable) {}
+                }
+            }
+            val po = stanje(c)
+            if (pocisceno.isNotEmpty()) Log.i(TAG, "zaprto v ozadju: ${pocisceno.joinToString(", ")}, RAM pred: ${pred.prostoMb}MB, po: ${po.prostoMb}MB")
+        }.start()
+    }
 }
