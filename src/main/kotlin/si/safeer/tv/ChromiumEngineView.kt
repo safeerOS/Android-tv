@@ -547,9 +547,9 @@ class ChromiumEngineView @JvmOverloads constructor(
             settings.loadWithOverviewMode = true
             settings.setSupportMultipleWindows(true)
             settings.javaScriptCanOpenWindowsAutomatically = true
-            // Lastnik 1. 11. 2026: Google je prijavo zavrnil (v3/signin/rejected). Glava User-Agent je kazala Safari na Macu,
-            // Client Hints (Sec-CH-UA) pa »Android WebView« - neskladje. Za prijavo zdaj namizni Chrome z enakimi Client Hints.
-            settings.userAgentString = if (isGoogleAuth) DESKTOP_USER_AGENT else CHROME_ANDROID_USER_AGENT
+            // Prijava: Safari na Macu (GOOGLE_AUTH_USER_AGENT) + brez glave X-Requested-With (brezGlaveRequestedWith) - tako je
+            // 30. 10. 2026 Googlova prijava (claude.ai) delovala. Poskus z namiznim Chrome 1. 11. je bil zavrnjen in vrnjen.
+            settings.userAgentString = if (isGoogleAuth) GOOGLE_AUTH_USER_AGENT else CHROME_ANDROID_USER_AGENT
             // Lastnik 1. 11. 2026 10:50: setUserAgentMetadata je na TV (Android 11, WebView) sesul TV Browser (SIGTRAP v
             // libwebviewchromium, AwSettings.setUserAgentMetadataFromMap) ob kliku »Prijava« na Gmailu. Client Hints zato
             // ne nastavljamo vec (funkcija odstranjena).
