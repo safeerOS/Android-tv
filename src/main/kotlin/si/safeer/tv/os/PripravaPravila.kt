@@ -2,7 +2,9 @@ package si.safeer.tv.os
 
 object PripravaPravila {
     /** Kartica serije brez izbrane epizode (klik pokaze izbiro epizod); epizoda serije (episode > 0) ni taka. */
-    fun serijaBrezEpizode(tip: String, epizoda: Int): Boolean = tip == "series" && epizoda <= 0
+    // TV 1. 11. 2026 19:17 (»Silo«): kartice serij imajo mediaType »tvseries« (Stremio.kotSkladba), ne »series« - serija se je
+    // odprla kot film. Velja oboje.
+    fun serijaBrezEpizode(tip: String, epizoda: Int): Boolean = (tip == "series" || tip == "tvseries") && epizoda <= 0
 
     fun odpriTakoj(video: Boolean, rocno: Boolean, jeSerija: Boolean = false): Boolean {
         if (jeSerija) return false
