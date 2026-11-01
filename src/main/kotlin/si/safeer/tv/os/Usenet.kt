@@ -528,7 +528,7 @@ object Usenet {
     }
 
     /** NZB za lasten pogon (pravila indeksatorja kot za TorBox): (NZB, null) ali (null, izid napake). */
-    private fun nzbLastni(c: Context, idToka: String): Pair<ByteArray?, TorBox.Izid?> {
+    fun nzbLastni(c: Context, idToka: String): Pair<ByteArray?, TorBox.Izid?> {
         val ix = indeksator(c) ?: return null to TorBox.Izid(napaka = UsenetPravila.NAPAKA_INDEKSATOR, ponudnik = UsenetPravila.PONUDNIK)
         UsenetPravila.oviraPrenosa(true, null, true, stanje(c))?.let { (n, p) ->
             Log.i(TAG, "lasten pogon: indeksator brez klica ($n)")

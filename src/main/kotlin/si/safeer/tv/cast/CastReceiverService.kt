@@ -1045,6 +1045,24 @@ class CastReceiverService : Service() {
                         }
                         return
                     }
+                    if (dejanje.trim().lowercase() == "usenet.check_plan") {
+                        domDelavci.execute {
+                            try {
+                                val k = parametri.optString("kljuc")
+                                val url = parametri.optString("url")
+                                val ime = parametri.optString("ime")
+                                val datoteka = parametri.optInt("datoteka", -1)
+                                si.safeer.tv.os.DomPreverjanje.izvediNntpPreverbo(this@CastReceiverService, k, url, ime, datoteka)
+                                val nacrt = si.safeer.tv.os.UsenetNacrtPravila.preberiNacrt(k)
+                                val izid = si.safeer.tv.link.Daljinec.Izid(true, "Usenet check", 
+                                    org.json.JSONObject().put("predvajljiv", nacrt?.predvajljiv == true).put("razlog", nacrt?.razlog ?: ""))
+                                posljiIzid(posiljatelj, msgId, dejanje, izid)
+                            } catch (e: Throwable) {
+                                posljiIzid(posiljatelj, msgId, dejanje, si.safeer.tv.link.Daljinec.Izid(false, "Napaka"))
+                            }
+                        }
+                        return
+                    }
                     if (dejanje.trim().lowercase() == "files.list") {
                         // Datoteke te naprave: velika galerija (MediaStore, mape) se bere v ozadju, ne na glavni niti.
                         // Ce je vrsta polna, gre ukaz po stari poti (glavna nit) - odgovor pride v vsakem primeru.

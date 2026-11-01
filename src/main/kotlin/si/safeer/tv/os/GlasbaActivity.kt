@@ -6824,6 +6824,14 @@ class GlasbaActivity : OsActivity() {
                 } else true
             }.take(12)
             val splet = Relevantnost.potrebujemSplet(lestvica)
+            
+            // Usenet nacrt (tocka 1): prvi 3 filmi/serije (SpletniVir/Stremio z id).
+            val zaNacrt = najboljsi.filter { jeDeloKataloga(it.first) }.mapNotNull {
+                val s = it.first.stvar as? Jamendo.Skladba ?: return@mapNotNull null
+                if (Stremio.jeEnota(s)) s.id else null
+            }.take(3)
+            if (zaNacrt.isNotEmpty()) UsenetNacrtPravila.pocisti(); DomPreverjanje.pripraviNacrt(this, zaNacrt)
+            
             if (!koncno && lestvica.isEmpty() && izvajalci.isEmpty() && podkasti.isEmpty()) return false
             glavna.post {
                 if (moje != nalaganje || isFinishing) return@post
@@ -9704,6 +9712,17 @@ class GlasbaActivity : OsActivity() {
             // (1) Usenet, ki ga ima TorBox ze pripravljenega - prve izdaje preverjene HKRATI s preverbo ⚡ ([predpomnjeniZa],
             // najvec 6 s); (2) takoj: ⚡ torrent, ziva neposredna povezava, [⚡WT]; (3) Usenet s cakanjem na prenos;
             // (4) Webtor [WT]; (5) TorBox s cakanjem in ostalo ([samodejnoBrezUseneta]). Nikoli okno »izberi vir«.
+            
+            val nacrt = UsenetNacrtPravila.preberiNacrt(sk.id)
+            if (nacrt != null && !nacrt.predvajljiv && TorBox.kljuc(this) != null) {
+                android.util.Log.i("SafeerOsMedia", "nacrt: Usenet ni predvajljiv, takoj pot TorBox")
+                if (!samodejnoBrezUseneta()) {
+                    Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslov), Toast.LENGTH_SHORT).show()
+                    PredvajanjeActivity.zapriZNapako()
+                }
+                return
+            }
+            
             val poskusi = UsenetPravila.zaSamodejno(usenet.map { TokIzbira.opisi(opis(it)).gb }, izbranSamoUsenet).map { usenet[it] }
             pripravljeno.usenet?.takeIf { !samoWebtor }?.let { (t, cdn, ponudnik) ->
                 android.util.Log.i("SafeerOsMedia", "tokovi: ${UsenetLastniPravila.dnevnikPripravljenega(ponudnik)}; izbran=${TokIzbira.opisi(opis(t))}")

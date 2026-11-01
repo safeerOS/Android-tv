@@ -313,6 +313,21 @@ object DomPreverjanje {
         if (dodano) zazeniDelavce(app)
     }
 
+    /** Naloga: poslje vprasanje preverjevalcu doma. */
+    fun pripraviNacrt(ctx: Context, kljuci: List<String>) {
+        val app = ctx.applicationContext
+        val cilj = nadzornik(app)
+        Thread({
+            val p = JSONObject().put("odtis", Razpolozljivost.odtis(app)).put("meja", D.mejaVNiz(mojaMeja))
+                .put("usenet_nacrt", JSONArray(kljuci))
+            if (cilj != null) {
+                vprasaj(app, cilj, p, 10_000L)
+            } else {
+                odgovori(app, p)
+            }
+        }, "safeer-dom-nacrt").apply { isDaemon = true; start() }
+    }
+
     private fun zazeniAnketarja(app: Context) {
         synchronized(cakajoci) {
             if (anketar?.isAlive == true) return
@@ -452,6 +467,12 @@ object DomPreverjanje {
         val rok = zdaj() + p.optLong("cakaj").coerceIn(0L, D.CAKAJ_NAJVEC_MS)
         val manjkajo = okno.filter { Razpolozljivost.zapisZa(app, it, meja) == null }
         val naZalogo = naprej.filter { Razpolozljivost.zapisZa(app, it, meja) == null }
+        val usenetNacrt = p.optJSONArray("usenet_nacrt")?.let { a -> (0 until a.length()).map { a.optString(it) } } ?: emptyList()
+
+        if (usenetNacrt.isNotEmpty()) {
+            Thread({ obdelajNacrt(app, usenetNacrt) }, "safeer-nacrt-obdelava").apply { isDaemon = true; start() }
+        }
+
         if (okno.isNotEmpty() || naprej.isNotEmpty()) dnevnik("vprasanje druge naprave (okno ${okno.size}, od tega neznanih ${manjkajo.size}; na zalogo ${naZalogo.size})", 10_000L)
         if (manjkajo.isNotEmpty() || naZalogo.isNotEmpty()) {
             synchronized(zaklep) {
@@ -478,5 +499,83 @@ object DomPreverjanje {
         val premori = JSONObject()
         try { Stremio.premori().forEach { (osnova, se) -> premori.put(P.odtisNaslova(osnova), se) } } catch (_: Throwable) { }
         return o.put("zapisi", zapisi).put("caka", caka).put("neznano", JSONArray(neznano.filter { !zapisi.has(it) })).put("premori", premori)
+    }
+
+    private fun obdelajNacrt(app: Context, kljuci: List<String>) {
+        if (!Usenet.jeNaVoljo(app)) return
+        val veljavni = kljuci.filter { UsenetPravila.iscemo(D.razstavi(it).second) }
+        if (veljavni.isEmpty()) return
+
+        // 1. Vprasaj indeksator (samo enkrat v domu)
+        val zadetkiZaKljuce = HashMap<String, Stremio.Tok>()
+        for (k in veljavni) {
+            try {
+                val id = D.razstavi(k).second
+                val z = Usenet.isci(app, id, UsenetPravila.ISKANJE_ROK_MS)
+                if (z.isNotEmpty()) {
+                    zadetkiZaKljuce[k] = z.first()
+                } else {
+                    UsenetNacrtPravila.shraniNacrt(k, false, "ni na usenetu")
+                }
+            } catch (e: Exception) {
+                UsenetNacrtPravila.shraniNacrt(k, false, "napaka indeksatorja")
+            }
+        }
+        if (zadetkiZaKljuce.isEmpty()) return
+
+        // 2. Razdeli NNTP preverbe med naprave z mocjo
+        val link = LinkUpravitelj.pridobi(app)
+        val kandidati = link.naprave.filter { "avail" in it.zmoznosti && it.id != Identiteta.id(app) }.toMutableList()
+        val naloge = zadetkiZaKljuce.toList()
+        
+        for ((i, naloga) in naloge.withIndex()) {
+            val (k, zadetek) = naloga
+            val ime = zadetek.opis.substringBefore('\n')
+            val json = JSONObject().put("kljuc", k).put("url", zadetek.url).put("ime", ime).put("datoteka", zadetek.datoteka)
+            if (imaMoc(app) && (kandidati.isEmpty() || i % (kandidati.size + 1) == 0)) {
+                // I check it myself
+                Thread({ izvediNntpPreverbo(app, k, zadetek.url, ime, zadetek.datoteka) }, "safeer-nacrt-nntp").apply { isDaemon = true; start() }
+            } else if (kandidati.isNotEmpty()) {
+                val idx = i % kandidati.size
+                val cilj = kandidati[idx]
+                link.ukaz(cilj.id, "usenet.check_plan", json, 60_000L, LinkOdjemalec.Odgovor { izid, napaka ->
+                    if (napaka != null) {
+                        Log.w(TAG, "Nntp preverba delegacija napaka: \$napaka")
+                    } else if (izid != null) {
+                        val ok = izid.optBoolean("ok")
+                        val data = izid.optJSONObject("data")
+                        if (ok && data != null) {
+                            val p = data.optBoolean("predvajljiv")
+                            val r = data.optString("razlog")
+                            UsenetNacrtPravila.shraniNacrt(k, p, r)
+                        }
+                    }
+                })
+            }
+        }
+    }
+
+    /** Izvede dejansko NNTP preverbo (prenos NZB in STAT/BODY prvega segmenta). */
+    fun izvediNntpPreverbo(app: Context, kljuc: String, url: String, ime: String, datoteka: Int) {
+        if (!imaMoc(app)) {
+            UsenetNacrtPravila.shraniNacrt(kljuc, false, "nima moci")
+            return
+        }
+        try {
+            val (nzb, napakaIzid) = Usenet.nzbLastni(app, url)
+            if (napakaIzid != null && napakaIzid.napaka != null) {
+                UsenetNacrtPravila.shraniNacrt(kljuc, false, napakaIzid.napaka)
+                return
+            }
+            if (nzb == null) {
+                UsenetNacrtPravila.shraniNacrt(kljuc, false, "nzb prenos ni uspel")
+                return
+            }
+            
+            val r = UsenetLastni.preveriNacrtNntp(app, nzb)
+            UsenetNacrtPravila.shraniNacrt(kljuc, r == "ok", r)
+        } catch (e: Throwable) {
+            UsenetNacrtPravila.shraniNacrt(kljuc, false, "napaka nntp preverbe")
+        }
     }
 }
