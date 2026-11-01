@@ -77,6 +77,10 @@ object AdbLokalno {
         val ukazi = paketi.mapNotNull { p -> AdbLokalnoPravila.ukazZapri(p)?.let { p to it } }
         if (ukazi.isEmpty() && !prvic) return emptyList()
         zadnjiIzid = IZID_NAPAKA
+        // Ce razhroscevanje v sistemu ni vklopljeno, na vratih 5555 ni pravega adbd - lahko pa jih zaseda druga aplikacija,
+        // ki bi dobila nas podpis. Takrat se sploh ne povezemo.
+        val adbVklopljen = try { android.provider.Settings.Global.getInt(c.contentResolver, android.provider.Settings.Global.ADB_ENABLED, 0) == 1 } catch (_: Exception) { false }
+        if (!adbVklopljen) { zadnjiIzid = IZID_NI_DOSEGLJIV; return emptyList() }
         val zaprti = ArrayList<String>()
         try {
             Socket().use { s ->
