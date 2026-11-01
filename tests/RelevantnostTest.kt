@@ -40,6 +40,25 @@ fun main() {
     preveri("obstojeci izvajalec ostane", R.razdeli("Time", "Pink Floyd") == ("Time" to "Pink Floyd"))
     preveri("brez locila ostane naslov", R.razdeli("Imagine.mp3", "") == ("Imagine" to ""))
     preveri("clen The ne odvzame bonusa prve besede", R.ocena("lord", "The Lord of the Rings", "") == R.ocena("lord", "Lord of War", ""))
+
+    // Lastnik 1. 11. 2026 (TV): risanka 1978 ima naslov enak poizvedbi (ocena 1,5), Bratovscina prstana 1,2 - prej je bila
+    // risanka prva. Ista stopnja (vse besede v naslovu): odloca priljubljenost.
+    val lotrRes = R.razvrsti("Lord of the Rings", listOf(
+        Relevantnost.Zadetek("1978", "The Lord of the Rings", "", "Cinemeta", 2, glasov = 100_000, ocenaVira = 7.6),
+        Relevantnost.Zadetek("2001", "The Lord of the Rings: The Fellowship of the Ring", "", "Cinemeta", 2, glasov = 2_000_000, ocenaVira = 8.9)
+    ))
+    preveri("Gospodar prstanov: najbolj priljubljen prvi", lotrRes[0].first.stvar == "2001")
+    // Brez podatkov o priljubljenosti ostane vrstni red po ujemanju.
+    val brez = R.razvrsti("Lord of the Rings", listOf(
+        Relevantnost.Zadetek("a", "The Lord of the Rings: The Fellowship of the Ring", "", "x", 2),
+        Relevantnost.Zadetek("b", "The Lord of the Rings", "", "x", 2)))
+    preveri("brez priljubljenosti: natancen naslov prvi", brez[0].first.stvar == "b")
+    // Slabse ujemanje (ne vse besede) ne prehiti dobrega, tudi ce je bolj priljubljeno.
+    val slabse = R.razvrsti("Lord of the Rings", listOf(
+        Relevantnost.Zadetek("dobro", "The Lord of the Rings", "", "x", 2, glasov = 10),
+        Relevantnost.Zadetek("slabo", "Rings", "", "x", 2, glasov = 5_000_000)))
+    preveri("slabse ujemanje ne prehiti", slabse[0].first.stvar == "dobro")
+
     println("Relevantnost: $uspehov passed, $napak failed")
     if (napak > 0) kotlin.system.exitProcess(1)
 }

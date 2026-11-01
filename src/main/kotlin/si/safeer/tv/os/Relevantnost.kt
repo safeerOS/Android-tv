@@ -77,7 +77,14 @@ object Relevantnost {
 
     /** Zadetek iz kateregakoli vira: [prednost] odloca med dvojniki (manjsa = blizje uporabniku). */
     data class Zadetek<T>(val stvar: T, val naslov: String, val izvajalec: String, val izvor: String,
-                          val prednost: Int, val dodatno: String = "")
+                          val prednost: Int, val dodatno: String = "",
+                          /** Priljubljenost iz vira (npr. glasovi IMDb); 0 = neznano. */
+                          val glasov: Long = 0,
+                          /** Ocena vira (npr. IMDb 0-10); 0 = neznano. */
+                          val ocenaVira: Double = 0.0)
+
+    /** Ocena, od katere naprej so zadetki ena stopnja (vse besede poizvedbe v naslovu ali izvajalcu, vec besed: 1,0 + 0,2). */
+    const val STOPNJA_VSE = 1.2
 
     /**
      * Zdruzi, odstrani dvojnike (obdrzi zadetek z najmanjso prednostjo - ta naprava pred racunalnikom,
@@ -91,7 +98,16 @@ object Relevantnost {
             val obstojeci = najboljsi[k]
             if (obstojeci == null || p.second > obstojeci.second + 0.3) najboljsi[k] = p
         }
-        return najboljsi.values.sortedWith(compareByDescending<Pair<Zadetek<*>, Double>> { it.second }.thenBy { it.first.prednost })
+        // Lastnik 1. 11. 2026: »Lord of the Rings« - najbolj priljubljen film (2001) mora biti prvi, ne risanka 1978, ki ima
+        // naslov natancno enak poizvedbi. Zadetki, ki imajo vse besede poizvedbe v naslovu ([STOPNJA_VSE]), so ena stopnja;
+        // znotraj nje odloca priljubljenost (glasovi, nato ocena vira), sele nato ocena ujemanja in prednost vira.
+        return najboljsi.values.sortedWith(
+            compareByDescending<Pair<Zadetek<*>, Double>> { minOf(it.second, STOPNJA_VSE) }
+                .thenByDescending { it.first.glasov }
+                .thenByDescending { it.first.ocenaVira }
+                .thenByDescending { it.second }
+                .thenBy { it.first.prednost }
+        )
     }
 
     /** Ali lastni viri nimajo dovolj dobrih zadetkov - takrat (in samo takrat) ponudimo splet. */
