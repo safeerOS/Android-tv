@@ -947,6 +947,47 @@
                 var href = (el.getAttribute && el.getAttribute('href')) || '';
                 if (href.charAt(0) === '#' || (el.className && ('' + el.className).indexOf('wUrY2b') !== -1)) return false;
                 if (isCarouselArrow(el)) return false;
+
+                var p = el;
+                var skritPodmeni = false;
+                var winW = window.innerWidth || 1920, winH = window.innerHeight || 1080;
+                while (p && p.nodeType === 1 && p !== document.body && p !== document.documentElement) {
+                    var ps = window.getComputedStyle(p);
+                    if (ps.display === 'none' || ps.visibility === 'hidden' || ps.opacity === '0') {
+                        skritPodmeni = true; break;
+                    }
+                    var pr = p.getBoundingClientRect();
+                    var pTag = p.tagName.toLowerCase();
+                    var pCls = (p.className || '').toLowerCase();
+                    var isMenu = pTag === 'ul' || pTag === 'menu' || pTag === 'nav' || pCls.indexOf('menu') !== -1 || pCls.indexOf('subcategories') !== -1 || p.hasAttribute('aria-haspopup');
+                    if (isMenu) {
+                        if (pr.width === 0 || pr.height === 0) { skritPodmeni = true; break; }
+                        if (pr.right <= 0 || pr.left >= winW || pr.bottom <= 0 || pr.top >= winH) { skritPodmeni = true; break; }
+                    }
+                    p = p.parentElement;
+                }
+                if (skritPodmeni) return false;
+
+                var ro = (el.getAttribute('role') || '').toLowerCase();
+                var ti = el.getAttribute('tabindex');
+                if (ro === 'menuitem' || (ti !== null && ti !== '' && ti !== '-1')) {
+                    var inLinks = el.querySelectorAll('a[href]');
+                    var visibleLinks = [];
+                    for (var li = 0; li < inLinks.length; li++) {
+                        var lr = inLinks[li].getBoundingClientRect();
+                        var lps = window.getComputedStyle(inLinks[li]);
+                        if (lr.width > 0 && lr.height > 0 && lps.display !== 'none' && lps.visibility !== 'hidden' && lps.opacity !== '0' && lr.right > 0 && lr.left < winW && lr.bottom > 0 && lr.top < winH) {
+                            visibleLinks.push(inLinks[li]);
+                        }
+                    }
+                    if (visibleLinks.length === 1) {
+                        var tEl = ((el.innerText || el.textContent || '') + '').replace(/\s+/g, ' ').trim().toLowerCase();
+                        var tA = ((visibleLinks[0].innerText || visibleLinks[0].textContent || '') + '').replace(/\s+/g, ' ').trim().toLowerCase();
+                        if (tEl === tA || tEl.indexOf(tA) !== -1) {
+                            return false;
+                        }
+                    }
+                }
                 
                 // Izloči zgolj tekstovne elemente in časovne oznake znotraj kartic (čas je del celotnega polja vsebine)
                 if (tag === 'SPAN' || tag === 'TIME' || tag === 'P' || tag === 'H1' || tag === 'H2' || tag === 'H3' || tag === 'H4' || tag === 'LABEL' || tag === 'SMALL' || tag === 'EM' || tag === 'STRONG') {
