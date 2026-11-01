@@ -258,13 +258,19 @@ class VnosStoritev : AccessibilityService() {
                     Thread { si.safeer.tv.os.Pomnilnik.zapriCeMalo(ctx, prej) }.apply { isDaemon = true }.start()
             }, 3_000)
         }
-        if (prejUporabniska != null && prejUporabniska != paket && paket != packageName) {
+        // Lastnik 1. 11. 2026 (izmerjeno na TV): SmartTube in Claude sta po vrnitvi domov ostala v pomnilniku (88 + 187 MB).
+        // Zapiramo tudi ob vrnitvi na domaci zaslon, ne samo ob menjavi med aplikacijama. Doma prejsnjo pozabimo, da je
+        // vsak dogodek domacega zaslona ne zapira znova (glasba, ki igra v ozadju, ostane - zvok merimo pred zamikom).
+        // Drugi poskus cez 15 s: 3 s po menjavi ima proces lahko se visjo prednost (ustavljanje dejavnosti, vezana
+        // storitev) in ga killBackgroundProcesses ne zapre (si.safeer.tv je ob 09:47 ostal, am kill kasneje je delal).
+        if (prejUporabniska != null && prejUporabniska != paket) {
+            if (paket == packageName) zadnjaUporabniska = null
             val ctx = applicationContext
             val zvokObMenjavi = si.safeer.tv.os.Pomnilnik.zvokAktiven(ctx)   // pred zamikom: po 3 s igra ze nova aplikacija
-            glavnaNit.postDelayed({
+            for (zamik in longArrayOf(3_000L, 15_000L)) glavnaNit.postDelayed({
                 val zdaj = try { rootInActiveWindow?.packageName?.toString() } catch (_: Throwable) { null }
-                Thread { si.safeer.tv.os.Pomnilnik.zapriObMenjavi(ctx, prejUporabniska, zdaj, 3000L, zvokObMenjavi) }.apply { isDaemon = true }.start()
-            }, 3_000)
+                Thread { si.safeer.tv.os.Pomnilnik.zapriObMenjavi(ctx, prejUporabniska, zdaj, zamik, zvokObMenjavi) }.apply { isDaemon = true }.start()
+            }, zamik)
         }
         if (vklop && paket in miskaVklopljena) m.vklopi(paket) else m.izklopi()
     }

@@ -85,7 +85,7 @@ object Pomnilnik {
             val pred = stanje(c)
             try { c.getSystemService(ActivityManager::class.java).killBackgroundProcesses(prejsnja) } catch (_: Throwable) {}
             val po = stanje(c)
-            Log.i(TAG, "zaprta ob menjavi ($prejsnja -> $nova), RAM pred: ${pred.prostoMb}MB, po: ${po.prostoMb}MB")
+            Log.i(TAG, "zapiranje ob menjavi ($prejsnja -> $nova, ${casMs / 1000} s), RAM pred: ${pred.prostoMb}MB, po: ${po.prostoMb}MB")
         }
     }
 
