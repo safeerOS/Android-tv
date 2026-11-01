@@ -159,6 +159,14 @@ object SpletVarnostPravila {
      * (Gmail -> accounts.google.com). Preusmeritev na Googlu ali z njega zato prekinemo in naslov nalozimo znova.
      * Samo http(s), samo glavni okvir, samo preusmeritev; drugod navigacija tece kot doslej.
      */
+    /**
+     * TV 1. 11. 2026 18:23: navigacija glavnega okvirja, pri kateri se User-Agent zamenja (Gmail »Sign in« z Googla na
+     * Googlovo prijavo), se v shouldOverrideUrlLoading ne sme izvesti z menjavo nastavitev - nalozimo jo znova (loadUrl).
+     */
+    fun naloziZNovoIdentiteto(glavniOkvir: Boolean, url: String, identitetaSeZamenja: Boolean): Boolean =
+        glavniOkvir && identitetaSeZamenja &&
+            (url.startsWith("https://", ignoreCase = true) || url.startsWith("http://", ignoreCase = true))
+
     fun naloziPoPreusmeritvi(glavniOkvir: Boolean, preusmeritev: Boolean, url: String, google: Boolean): Boolean =
         glavniOkvir && preusmeritev && google &&
             (url.startsWith("https://", ignoreCase = true) || url.startsWith("http://", ignoreCase = true))

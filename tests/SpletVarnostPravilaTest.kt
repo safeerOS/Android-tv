@@ -112,5 +112,9 @@ fun main() {
     check(!P.naloziPoPreusmeritvi(false, true, "https://accounts.google.com/", true)) { "podokvir" }
     check(!P.naloziPoPreusmeritvi(true, true, "https://example.com/", false)) { "ni Google" }
     check(!P.naloziPoPreusmeritvi(true, true, "intent://x", true)) { "ni http" }
+    check(P.naloziZNovoIdentiteto(true, "https://accounts.google.com/v3/signin/identifier", true)) { "Gmail Sign in: nova identiteta" }
+    check(!P.naloziZNovoIdentiteto(true, "https://accounts.google.com/", false)) { "ista identiteta" }
+    check(!P.naloziZNovoIdentiteto(false, "https://accounts.google.com/", true)) { "podokvir" }
+    check(!P.naloziZNovoIdentiteto(true, "intent://x", true)) { "ni http" }
     println("SpletVarnostPravilaTest: OK")
 }

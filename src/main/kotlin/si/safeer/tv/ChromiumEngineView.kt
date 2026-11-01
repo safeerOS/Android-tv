@@ -517,6 +517,32 @@ class ChromiumEngineView @JvmOverloads constructor(
         super.destroy()
     }
 
+    /**
+     * User-Agent, ki ga dobi [url] - isto pravilo kot v [applyUserAgentForUrl], brez spreminjanja nastavitev. TV 1. 11. 2026:
+     * menjava identitete med navigacijo (Gmail »Sign in«: workspace.google.com -> accounts.google.com) sesuje WebView 153.
+     */
+    private fun uaZaUrl(url: String): String {
+        val host = try { Uri.parse(url).host?.lowercase() ?: "" } catch (_: Exception) { "" }
+        val isGoogle = UserScriptManager.isGoogleDomain(url)
+        if (isGoogle) {
+            val isGoogleAuth = UserScriptManager.isGoogleAuthUrl(url) ||
+                host.contains("accounts.google") || host.contains("accounts.youtube") ||
+                host.contains("myaccount.google") || url.contains("accounts.google.com", ignoreCase = true) ||
+                url.contains("signin/v2", ignoreCase = true) || url.contains("signin/challenge", ignoreCase = true) ||
+                url.contains("v3/signin", ignoreCase = true) || url.contains("signin/identifier", ignoreCase = true)
+            return if (isGoogleAuth) GOOGLE_AUTH_USER_AGENT else CHROME_ANDROID_USER_AGENT
+        }
+        val isYoutubeTv = url.contains("youtube.com/tv", ignoreCase = true) ||
+            host.contains("youtube.com") || host.contains("youtu.be")
+        val skip = host.contains("music.youtube") || host.contains("studio.youtube") || host.contains("accounts.")
+        return when {
+            dotik -> CHROME_ANDROID_USER_AGENT
+            skip -> DESKTOP_USER_AGENT
+            isYoutubeTv -> SMART_TV_USER_AGENT
+            else -> DESKTOP_USER_AGENT
+        }
+    }
+
     private fun applyUserAgentForUrl(url: String) {
         if (uniceno) return
         try {
@@ -1061,7 +1087,10 @@ class ChromiumEngineView @JvmOverloads constructor(
                 // TV Browser (SIGTRAP v libwebviewchromium, AwSettings iz applyUserAgentForUrl v shouldOverrideUrlLoading).
                 // WebView 153 ne prenese menjave nastavitev med PREUSMERITVIJO glavnega okvirja: preusmeritev prekinemo in
                 // naslov nalozimo znova (loadUrl sam nastavi identiteto, preden zacne).
-                if (SpletVarnostPravila.naloziPoPreusmeritvi(request.isForMainFrame, request.isRedirect, urlStr,
+                // TV 1. 11. 2026 18:23: tudi navadna navigacija z menjavo identitete (Gmail »Sign in«) sesuje WebView 153, ce
+                // nastavitve spremenimo v tem klicu - takrat nicesar ne spreminjamo tu, navigacijo prekinemo in nalozimo znova.
+                if (SpletVarnostPravila.naloziZNovoIdentiteto(request.isForMainFrame, urlStr, uaZaUrl(urlStr) != settings.userAgentString) ||
+                    SpletVarnostPravila.naloziPoPreusmeritvi(request.isForMainFrame, request.isRedirect, urlStr,
                         UserScriptManager.isGoogleDomain(urlStr) || UserScriptManager.isGoogleDomain(view?.url))) {
                     val v = view
                     post { if (!uniceno) v?.loadUrl(urlStr) }
