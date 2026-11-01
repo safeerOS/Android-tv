@@ -9741,7 +9741,7 @@ class GlasbaActivity : OsActivity() {
                 // Diagnostika samo Webtor (pregled 26, T3): brez TorBoxa s cakanjem in brez torrenta na napravi.
                 if (samoWebtor) { android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Webtor - Webtor ni predvajal"); return }
                 
-                preselNaDebrid = UsenetPravila.prehodNaDebrid(izbranSamoUsenet, true, Debrid.aktivna(this@GlasbaActivity) != null)
+                preselNaDebrid = UsenetPravila.prehodNaDebrid(izbranSamoUsenet, true, TorBox.kljuc(this@GlasbaActivity) != null || Debrid.zKljucem(this@GlasbaActivity).isNotEmpty())
                 
                 if (samoUsenet && !preselNaDebrid) {
                     // Pregled Grok 31, H2: viden konec (prej samo dnevnik) in v dnevniku, koliko izdaj je bilo poskusenih - meritev
@@ -9778,21 +9778,23 @@ class GlasbaActivity : OsActivity() {
                     poskusiWebtor(samoTakoj, potem)
                 }
             }
-            fun poskusiUsenetSCakanjem(i: Int) {
+            fun poskusiUsenetSCakanjem(i: Int, prejsnjaNapaka: String? = null) {
                 if (usenetZacetek == null) usenetZacetek = android.os.SystemClock.elapsedRealtime()
                 val potekel = izbranSamoUsenet && (android.os.SystemClock.elapsedRealtime() - usenetZacetek!! >= UsenetPravila.ROK_SAMO_USENET_MS)
                 
-                if (i >= poskusi.size || potekel) {
-                    val prehod = UsenetPravila.prehodNaDebrid(izbranSamoUsenet, true, Debrid.aktivna(this@GlasbaActivity) != null)
-                    if (i > 0 && !potekel && !prehod) Toast.makeText(this, R.string.os_usenet_rezerva, Toast.LENGTH_SHORT).show()
+                val iNaslednji = UsenetPravila.naslednjiPoskus(i, poskusi.size, potekel, prejsnjaNapaka)
+                
+                if (iNaslednji >= poskusi.size) {
+                    val prehod = UsenetPravila.prehodNaDebrid(izbranSamoUsenet, true, TorBox.kljuc(this@GlasbaActivity) != null || Debrid.zKljucem(this@GlasbaActivity).isNotEmpty())
+                    if (iNaslednji > 0 && !potekel && !prehod) Toast.makeText(this, R.string.os_usenet_rezerva, Toast.LENGTH_SHORT).show()
                     poskusiWebtor(false) { naKonec() }
                     return
                 }
                 usenetPoskusov++
-                val t = poskusi[i]
-                android.util.Log.i("SafeerOsMedia", "tokovi: Usenet s prenosom ${i + 1}/${poskusi.size} od ${usenet.size}; izbran=${TokIzbira.opisi(opis(t))}")
+                val t = poskusi[iNaslednji]
+                android.util.Log.i("SafeerOsMedia", "tokovi: Usenet s prenosom ${iNaslednji + 1}/${poskusi.size} od ${usenet.size}; izbran=${TokIzbira.opisi(opis(t))}")
                 prekDebrida(t.url, t.datoteka, { cdn -> odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap())) }, null,
-                    samoTakoj = false, usenetIme = t.opis.substringBefore('\n'), obNeuspehu = { poskusiUsenetSCakanjem(i + 1) })
+                    samoTakoj = false, usenetIme = t.opis.substringBefore('\n'), obNeuspehu = { napaka -> poskusiUsenetSCakanjem(iNaslednji + 1, napaka) })
             }
             if (takojBrezWebtorja()) return
             if (poskusi.isNotEmpty() || webtor.isNotEmpty()) {
@@ -9916,7 +9918,7 @@ class GlasbaActivity : OsActivity() {
                             /** Naloga 141: [magnet] je id toka Usenet, to je ime izdaje (za TorBox). */
                             usenetIme: String? = null,
                             /** Naloga 141: samodejna izbira - ob neuspehu brez okna naprej (naslednji vir). */
-                            obNeuspehu: (() -> Unit)? = null) {
+                            obNeuspehu: ((String) -> Unit)? = null) {
         // Pregled 1: Activity, ki je ze unicena (ponovno ustvarjena ob spremembi nastavitev), ne zacne nicesar - njen bazen
         // niti je ustavljen (prej RejectedExecutionException in sesutje).
         if (isFinishing || isDestroyed || debridDelavec.isShutdown) return
@@ -9969,7 +9971,7 @@ class GlasbaActivity : OsActivity() {
                 }
                 if (obNeuspehu != null) {
                     android.util.Log.i("SafeerOsMedia", "tokovi: ${if (usenetIme != null) "Usenet" else "debrid"} ni uspel (${izid.napaka}) - naprej samodejno")
-                    obNeuspehu(); return@obdelaj
+                    obNeuspehu(izid.napaka); return@obdelaj
                 }
                 PredvajanjeActivity.zapriZNapako()
                 // Pregled A4: sporocilo imenuje storitev, ki je res padla (TorBox, Real-Debrid, AllDebrid, indeksator Usenet).
