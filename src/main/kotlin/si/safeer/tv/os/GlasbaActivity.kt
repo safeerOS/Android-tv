@@ -9417,7 +9417,8 @@ class GlasbaActivity : OsActivity() {
                           /** Naloga 130 + lastnik 25. 10.: kaj je takoj predvajljivo ([predpomnjeniZa]): ⚡ torrenti, pripravljen Usenet. */
                           pripravljeno: Pripravljeno = Pripravljeno(),
                           /** Kaj storiti, ce se vsebine ne da predvajati (epizoda: nazaj na seznam epizod); privzeto: kartica izgine. */
-                          obNeuspehu: (() -> Unit)? = null) {
+                          obNeuspehu: (() -> Unit)? = null,
+                          brezOmejitveUseneta: Boolean = false) {
         // Pregled A1: nova izbira toka - prejsnje cakanje na debrid/Usenet ne odpre nicesar vec.
         prekiniDebrid()
         // Oznaka kakovosti (lastnik 28. 10. 2026): tokovi zadnjega predvajanja izboljsajo najboljso znano.
@@ -9439,7 +9440,7 @@ class GlasbaActivity : OsActivity() {
         // Lastnik 30. 10. 2026: izbira »⚡ Usenet« v mrezi Video je bila samo prednost - pri »Preboj« (Usenet 0 izdaj) se je
         // predvajal torrent prek Webtorja. Izbrani samo Usenet (brez debrid storitve) zdaj velja tudi za predvajanje.
         val izbranSamoUsenet = OsPravila.samoUsenetIzbran(UsenetLastni.naVoljo(this) && UsenetLastni.izbran(this),
-            Debrid.aktivna(this) != null, rocno)
+            Debrid.aktivna(this) != null, rocno) && !brezOmejitveUseneta
         val diagnostikaUsenet = !samoWebtor && !rocno && Usenet.samoUsenet(this)
         val samoUsenet = !samoWebtor && (diagnostikaUsenet || izbranSamoUsenet)
         if (izbranSamoUsenet) android.util.Log.i("SafeerOsMedia", "tokovi: izbran samo Usenet")
@@ -9754,6 +9755,8 @@ class GlasbaActivity : OsActivity() {
                 if (preselNaDebrid) {
                     android.util.Log.i("SafeerOsMedia", "tokovi: Usenet ni uspel - prehod na debrid")
                     Toast.makeText(this, R.string.os_usenet_prehod_debrid, Toast.LENGTH_SHORT).show()
+                    izberiTok(sk, naslov, vsiTokovi, rocno, pripravljeno, obNeuspehu, true)
+                    return
                 }
 
                 if (!samodejnoBrezUseneta()) {
