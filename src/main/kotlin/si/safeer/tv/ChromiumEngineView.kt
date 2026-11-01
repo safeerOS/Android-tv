@@ -547,7 +547,10 @@ class ChromiumEngineView @JvmOverloads constructor(
             settings.loadWithOverviewMode = true
             settings.setSupportMultipleWindows(true)
             settings.javaScriptCanOpenWindowsAutomatically = true
-            settings.userAgentString = if (isGoogleAuth) GOOGLE_AUTH_USER_AGENT else CHROME_ANDROID_USER_AGENT
+            // Lastnik 1. 11. 2026: Google je prijavo zavrnil (v3/signin/rejected). Glava User-Agent je kazala Safari na Macu,
+            // Client Hints (Sec-CH-UA) pa »Android WebView« - neskladje. Za prijavo zdaj namizni Chrome z enakimi Client Hints.
+            settings.userAgentString = if (isGoogleAuth) DESKTOP_USER_AGENT else CHROME_ANDROID_USER_AGENT
+            nastaviOznakeBrskalnika(isGoogleAuth)
             return
         } else {
             try {
@@ -582,7 +585,35 @@ class ChromiumEngineView @JvmOverloads constructor(
             else -> DESKTOP_USER_AGENT
         }
         if (dotik && namiznaSirina <= 0) setInitialScale(0)
+        nastaviOznakeBrskalnika(settings.userAgentString == DESKTOP_USER_AGENT)
     }
+
+    /**
+     * Client Hints (Sec-CH-UA, navigator.userAgentData) usklajeni z glavo User-Agent: ob namiznem UA naj tudi oznake
+     * povedo namizni Chrome na Windows, ne »Android WebView« (androidx.webkit USER_AGENT_METADATA). Drugace jih vrnemo
+     * na privzete, da mobilni in TV nacin ostaneta kot prej.
+     */
+    private fun nastaviOznakeBrskalnika(namizni: Boolean) {
+        try {
+            if (!androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.USER_AGENT_METADATA)) return
+            if (!namizni) {
+                if (oznakeNamizne) { androidx.webkit.WebSettingsCompat.setUserAgentMetadata(settings, privzeteOznake ?: return); oznakeNamizne = false }
+                return
+            }
+            if (privzeteOznake == null) privzeteOznake = androidx.webkit.WebSettingsCompat.getUserAgentMetadata(settings)
+            fun znamka(ime: String, glavna: String, polna: String) = androidx.webkit.UserAgentMetadata.BrandVersion.Builder()
+                .setBrand(ime).setMajorVersion(glavna).setFullVersion(polna).build()
+            val oznake = androidx.webkit.UserAgentMetadata.Builder()
+                .setBrandVersionList(listOf(znamka("Not(A:Brand", "99", "99.0.0.0"), znamka("Google Chrome", "133", "133.0.0.0"),
+                    znamka("Chromium", "133", "133.0.0.0")))
+                .setFullVersion("133.0.0.0").setPlatform("Windows").setPlatformVersion("10.0.0")
+                .setArchitecture("x86").setBitness(64).setModel("").setMobile(false).build()
+            androidx.webkit.WebSettingsCompat.setUserAgentMetadata(settings, oznake)
+            oznakeNamizne = true
+        } catch (_: Throwable) { }
+    }
+    private var privzeteOznake: androidx.webkit.UserAgentMetadata? = null
+    private var oznakeNamizne = false
 
     override fun loadUrl(url: String) {
         if (PdfPregledovalnik.jeLokalni(url)) {
