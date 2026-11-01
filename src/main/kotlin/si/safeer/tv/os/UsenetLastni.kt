@@ -208,39 +208,4 @@ object UsenetLastni {
     }
 
     private fun napaka(opis: String) = TorBox.Izid(napaka = UsenetLastniPravila.NAPAKA, opis = opis, ponudnik = UsenetLastniPravila.PONUDNIK)
-
-    /** Preveri prvi in zadnji segment za nacrt. */
-    fun preveriNacrtNntp(c: Context, nzb: ByteArray): String {
-        val shramba = UsenetPonudnik.get(c)
-        val p = shramba.preberi() ?: return "ni_ponudnika"
-        val (geslo, ovira) = shramba.zaBazen(p)
-        if (geslo == null) return ovira ?: "ni_gesla"
-
-        val stara = synchronized(zaklep) { seja }?.takeIf {
-            !it.zaprta.get() && it.ponudnik.kljucRacuna == p.kljucRacuna && it.ponudnik.vrata == p.vrata
-        }
-        val meje = shramba.meje
-        val nntp = stara?.nntp ?: run {
-            if (!meje.zasedi(p)) return "zaseden"
-            UsenetNntp(UsenetNntp.Nastavitve(p.gostitelj, p.uporabnik, geslo.vrednost(), p.vrata, p.najvecPovezav))
-        }
-
-        try {
-            val razclenjen = try { UsenetNzb.razcleni(nzb) } catch (e: Exception) { return "nzb" }
-            if (razclenjen.datoteke.isEmpty() || razclenjen.datoteke[0].segmenti.isEmpty()) return "nzb prazen"
-            val prviSeg = razclenjen.datoteke.first().segmenti.first().id
-            val zadnjiSeg = razclenjen.datoteke.last().segmenti.last().id
-
-            val prviOk = try { nntp.stat(prviSeg) } catch (e: Exception) { false }
-            val zadnjiOk = try { nntp.stat(zadnjiSeg) } catch (e: Exception) { false }
-            return if (prviOk && zadnjiOk) "ok" else "manjka segment"
-        } catch (e: Throwable) {
-            return razlog(e)
-        } finally {
-            if (stara == null) {
-                try { nntp.close() } catch (_: Throwable) { }
-                meje.sprosti(p)
-            }
-        }
-    }
 }
