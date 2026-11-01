@@ -66,6 +66,13 @@ object OsPravila {
     fun novoPredvajanjeObOdhodu(zagonovObOdhodu: Int, zagonovZdaj: Int, drugihZaslonov: Int): Boolean =
         drugihZaslonov > 0 || (zagonovObOdhodu >= 0 && zagonovZdaj != zagonovObOdhodu)
 
+    /**
+     * Ali sme nasa seja medijev prejemati tipke daljinca (Play, Pavza). Lastnik 1. 11. 2026: tipka Play v drugi aplikaciji
+     * (Claude) je nadaljevala ustavljen film iz Safeer Media - zvok brez slike v ozadju. Ustavljen video brez odprtega
+     * zaslona predvajanja zato tipk ne prevzame; glasba, radio in video, ki igra ali ima odprt zaslon, jih.
+     */
+    fun sejaPrejemaTipke(video: Boolean, igra: Boolean, zaslonOdprt: Boolean): Boolean = !video || igra || zaslonOdprt
+
     // ------------------------------------------------------------------ vrstica Nadaljuj
 
     /** Nov vnos gre na vrh; isti (po kljucu) se ne podvoji, ampak premakne; najvec [najvec] vnosov. */

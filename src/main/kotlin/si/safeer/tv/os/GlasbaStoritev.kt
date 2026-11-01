@@ -410,7 +410,8 @@ class GlasbaStoritev : Service() {
             setCallback(object : MediaSession.Callback() {
                 // Tipke gredo predvajalniku, ki igra: nasemu, spletnemu ([SpletniIgralec]) ali zvocniku v omrezju. Pregled C1:
                 // seja kaze stanje te naprave, zato nikoli ne upravlja druge naprave v Linku (to dela okno »Upravljaj napravo«).
-                override fun onPlay() { nadaljujTu() }
+                // Ustavljen video brez zaslona tipke Play ne nadaljuje v ozadju ([OsPravila.sejaPrejemaTipke]).
+                override fun onPlay() { if (OsPravila.sejaPrejemaTipke(trenutna()?.video == true, false, PredvajanjeActivity.odprt)) nadaljujTu() }
                 override fun onPause() { premorTu() }
                 override fun onSkipToNext() { naslednjaTu() }
                 override fun onSkipToPrevious() { prejsnjaTu() }
@@ -1384,6 +1385,9 @@ class GlasbaStoritev : Service() {
             .setState(stanjeSeje(), polozajMs(), if (stanjeSeje() == PlaybackState.STATE_BUFFERING) 0f else hitrostZaSejo())
             .build())
         uskladiGlasnostSeje()
+        // Neaktivna seja tipk daljinca ne prejema - gredo aplikaciji v ospredju (lastnik 1. 11. 2026).
+        val aktivna = OsPravila.sejaPrejemaTipke(s?.video == true, igraZadnje, PredvajanjeActivity.odprt)
+        if (seja?.isActive != aktivna) seja?.isActive = aktivna
         getSystemService(NotificationManager::class.java).notify(ID, obvestilo())
         poslusalci.toList().forEach { it() }
     }

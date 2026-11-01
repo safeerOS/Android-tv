@@ -267,6 +267,10 @@ private fun pasMedVideom() {
         OsPravila.novoPredvajanjeObOdhodu(zagonovObOdhodu = 7, zagonovZdaj = 8, drugihZaslonov = 0))
     preveri("video ze kaze drug zaslon predvajanja: se ne ustavi",
         OsPravila.novoPredvajanjeObOdhodu(zagonovObOdhodu = 7, zagonovZdaj = 7, drugihZaslonov = 1))
+    preveri("ustavljen video brez zaslona ne prevzame tipke Play", !OsPravila.sejaPrejemaTipke(video = true, igra = false, zaslonOdprt = false))
+    preveri("video, ki igra, prejema tipke", OsPravila.sejaPrejemaTipke(video = true, igra = true, zaslonOdprt = false))
+    preveri("video z odprtim zaslonom prejema tipke", OsPravila.sejaPrejemaTipke(video = true, igra = false, zaslonOdprt = true))
+    preveri("ustavljena glasba prejema tipke", OsPravila.sejaPrejemaTipke(video = false, igra = false, zaslonOdprt = false))
     preveri("onPause ni zabelezen: staro vedenje (video se ustavi)",
         !OsPravila.novoPredvajanjeObOdhodu(zagonovObOdhodu = -1, zagonovZdaj = 3, drugihZaslonov = 0))
     preveri("stevec na zacetku (0 zagonov) ne pomeni novega predvajanja",
