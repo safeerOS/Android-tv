@@ -9417,8 +9417,9 @@ class GlasbaActivity : OsActivity() {
                           /** Naloga 130 + lastnik 25. 10.: kaj je takoj predvajljivo ([predpomnjeniZa]): ⚡ torrenti, pripravljen Usenet. */
                           pripravljeno: Pripravljeno = Pripravljeno(),
                           /** Kaj storiti, ce se vsebine ne da predvajati (epizoda: nazaj na seznam epizod); privzeto: kartica izgine. */
-                          obNeuspehu: (() -> Unit)? = null,
-                          brezOmejitveUseneta: Boolean = false) {
+                          /** Prehod z »samo Usenet« na debrid (lastnik 1. 11. 2026): drugi klic brez omejitve na Usenet. */
+                          brezOmejitveUseneta: Boolean = false,
+                          obNeuspehu: (() -> Unit)? = null) {
         // Pregled A1: nova izbira toka - prejsnje cakanje na debrid/Usenet ne odpre nicesar vec.
         prekiniDebrid()
         // Oznaka kakovosti (lastnik 28. 10. 2026): tokovi zadnjega predvajanja izboljsajo najboljso znano.
@@ -9711,7 +9712,7 @@ class GlasbaActivity : OsActivity() {
                 // Ce se Usenet ne zacne (TV 28. 10. 2026: izdaja, ki je predvajalnik ne prebere), gre izbira naprej brez Useneta.
                 val brezUseneta = vsiTokovi.filter { it.vrsta != UsenetPravila.VRSTA }
                 if (brezUseneta.isNotEmpty()) GlasbaStoritev.obOdpovedi = {
-                    if (!isFinishing && !isDestroyed) izberiTok(sk, naslov, brezUseneta, rocno, Pripravljeno(pripravljeno.predpomnjeni), obNeuspehu)
+                    if (!isFinishing && !isDestroyed) izberiTok(sk, naslov, brezUseneta, rocno, Pripravljeno(pripravljeno.predpomnjeni), obNeuspehu = obNeuspehu)
                 }
                 return
             }
@@ -9755,7 +9756,7 @@ class GlasbaActivity : OsActivity() {
                 if (preselNaDebrid) {
                     android.util.Log.i("SafeerOsMedia", "tokovi: Usenet ni uspel - prehod na debrid")
                     Toast.makeText(this, R.string.os_usenet_prehod_debrid, Toast.LENGTH_SHORT).show()
-                    izberiTok(sk, naslov, vsiTokovi, rocno, pripravljeno, obNeuspehu, true)
+                    izberiTok(sk, naslov, vsiTokovi, rocno, pripravljeno, brezOmejitveUseneta = true, obNeuspehu = obNeuspehu)
                     return
                 }
 

@@ -338,7 +338,11 @@ def main() -> int:
     gl4 = (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8")
     zp = gl4.split("private fun zacniPripravo(", 1)[1].split(chr(10) + "    }", 1)[0]
     preveri("priprava: viden pas Pripravljam od klika (ne kratek Toast)",
-            "pokaziPripravljam(getString(R.string.os_media_pripravljam, sk.naslov))" in zp and "Toast" not in zp)
+            "pokaziPripravljam(getString(R.string.os_media_pripravljam, naslovPriprave))" in zp and "Toast" not in zp)
+    # Lastnik 1. 11.: video odpre predvajalnik takoj, v njem pise »Pripravljam«, dokler tok ni pripravljen.
+    preveri("priprava: video odpre predvajalnik takoj s stanjem Pripravljam",
+            "PripravaPravila.odpriTakoj(sk.video, rocno)" in zp
+            and "PredvajanjeActivity.PRIPRAVLJAM_NASLOV" in zp)
     preveri("priprava: lasten Usenet ni »prek debrid storitve«",
             "Toast.makeText(this, R.string.os_debrid_pripravljam" not in gl4 and "R.string.os_usenet_pripravljam" in gl4
             and "skrijPripravljam()      // predvajalnik je odprt" in gl4)
