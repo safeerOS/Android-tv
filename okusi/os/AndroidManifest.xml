@@ -9,6 +9,10 @@
          obe aplikaciji delita. Uporabnik naj ob namestitvi Safeer OS vidi samo tisto, kar ta res
          potrebuje. -->
     <uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES" />
+    <!-- Zapiranje aplikacij, ki jih uporabnik ne uporablja (1. 11. 2026, izmerjeno na TV): killBackgroundProcesses je za
+         org.smarttube.stable vrnil »Invalid packageName« - Android 11 Safeer OS paketa ni pokazal (vidnost paketov), zato
+         proces (185 MB) ni bil zaprt. Zaganjalnik in upravitelj aplikacij mora videti vse namescene aplikacije. -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove" />
     <!-- Enako kot v skupnem delu; ponovljeno, ker Lint ta del preverja posebej. -->
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
