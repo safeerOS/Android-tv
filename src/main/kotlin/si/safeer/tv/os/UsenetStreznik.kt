@@ -376,7 +376,7 @@ class UsenetStreznik(
  */
 class AlbumIzvor(
     private val skladbe: List<Pair<String?, () -> UsenetBralnik.Vir>>,
-    private val telo: (String) -> ByteArray,
+    private val telo: (String, Long) -> ByteArray,
     private val profil: UsenetBralnik.Profil,
     private val najvecOdprtih: Int = NAJVEC_ODPRTIH,
 ) : UsenetStreznik.Izvor {

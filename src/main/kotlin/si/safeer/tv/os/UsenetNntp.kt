@@ -146,8 +146,8 @@ class UsenetNntp(
      * vzroka (Grok 35 Y9: UnknownHostException, ConnectException in SSLHandshakeException nosijo gostitelja, IP in ime
      * iz potrdila) - ostane samo ime njenega razreda v [vzrokVrsta].
      */
-    class NapakaNntp(val vrsta: Vrsta, val koda: Int = 0, vzrok: Throwable? = null) :
-        IOException("NNTP " + vrsta.name + (if (koda > 0) " $koda" else "")) {
+    class NapakaNntp(val vrsta: Vrsta, val koda: Int = 0, vzrok: Throwable? = null, info: String? = null) :
+        IOException("NNTP " + vrsta.name + (if (koda > 0) " $koda" else "") + (if (info != null) " $info" else "")) {
         val vzrokVrsta: String? = vzrok?.javaClass?.simpleName
     }
 
@@ -776,7 +776,7 @@ class UsenetNntp(
             }
         }
 
-        fun body(id: String, rokDo: Long): ByteArray {
+        fun body(id: String, rokDo: Long, bajtov: Long = 0L): ByteArray {
             ukaz("BODY <$id>")
             val v = odgovor()
             val i = izid(Faza.BODY, v)
@@ -784,7 +784,7 @@ class UsenetNntp(
             vrsta(i)?.let { throw NapakaNntp(it, v.take(3).toIntOrNull() ?: 0) }
             // Odgovor za drug clanek (Grok 35 Y7): povezava ni usklajena - napaka protokola, povezava gre stran.
             if (!idOdgovoraUstreza(v, id)) throw NapakaNntp(Vrsta.NAPAKA_PROTOKOLA, if (idOdgovoraUstreza(v.lowercase(), id.lowercase())) DIAG_ID_VELIKOST else 222)
-            return blok(rokDo)
+            return blok(rokDo, bajtov)
         }
 
         fun stat(id: String): Boolean {
@@ -803,11 +803,12 @@ class UsenetNntp(
          * Telo do vrstice ».« (brez nje), brez podvojenih pik ([telo]). Medpomnilnik raste do osnove proracuna, cez njo
          * samo z zetonom rasti (Grok 35 Y3: prej 1 MiB na vsak BODY in do 16 MiB na povezavo brez skupne meje).
          */
-        private fun blok(rokDo: Long): ByteArray {
+        private fun blok(rokDo: Long, bajtov: Long): ByteArray {
+            val meja = UsenetLastniPravila.mejaTelesa(bajtov, NAJVEC_TELESA)
             if (!proracun.zasezi(rokDo)) throw NapakaNntp(Vrsta.ROK)
             var rast = false
             try {
-                var izid = ByteArray(minOf(maxOf(ZACETNI_BLOK, dolz - poz), NAJVEC_TELESA))
+                var izid = ByteArray(minOf(maxOf(ZACETNI_BLOK, dolz - poz), meja))
                 var n = dolz - poz
                 System.arraycopy(buf, poz, izid, 0, n)
                 poz = 0
@@ -824,9 +825,11 @@ class UsenetNntp(
                     od = maxOf(0, n - 2)   // konec je lahko razdeljen med dve branji
                     if (System.nanoTime() - rokDo > 0) throw NapakaNntp(Vrsta.ROK)
                     if (n == izid.size) {
-                        if (izid.size >= NAJVEC_TELESA) throw NapakaNntp(Vrsta.NAPAKA_PROTOKOLA, DIAG_TELO)
+                        if (izid.size >= meja) {
+                            throw NapakaNntp(Vrsta.NAPAKA_PROTOKOLA, DIAG_TELO, info = "velikost=${izid.size} nzb_bajtov=$bajtov")
+                        }
                         val nova = if (izid.size < proracun.osnova) minOf(izid.size * 2, proracun.osnova)
-                            else minOf(izid.size * 2, NAJVEC_TELESA)
+                            else minOf(izid.size * 2, meja)
                         if (nova > proracun.osnova && !rast) {
                             if (!proracun.rasti(rokDo)) throw NapakaNntp(Vrsta.ROK)
                             rast = true
@@ -1061,9 +1064,9 @@ class UsenetNntp(
     }
 
     /** Telo clanka [id] (message-id z < > ali brez) za [UsenetYenc.dekodiraj]. Napaka: [NapakaNntp]; neveljaven id: IllegalArgumentException. */
-    fun body(id: String): ByteArray {
+    fun body(id: String, bajtov: Long = 0L): ByteArray {
         val c = requireNotNull(UsenetNzb.cistId(id)) { "neveljaven message-id" }
-        return zDelom { it.body(c, System.nanoTime() + n.rokClankaMs * 1_000_000L) }
+        return zDelom { it.body(c, System.nanoTime() + n.rokClankaMs * 1_000_000L, bajtov) }
     }
 
     /** Ali clanek [id] obstaja (STAT): true/false; druge napake: [NapakaNntp]. */

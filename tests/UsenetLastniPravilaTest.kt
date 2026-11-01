@@ -63,6 +63,11 @@ fun main() {
     preveriEnako("Usenet z lastnim ponudnikom: svoj napis", true, L.pripravaLastnega(usenet = true, lastniVUporabi = true))
     preveriEnako("Usenet prek TorBoxa: napis debrid", false, L.pripravaLastnega(usenet = true, lastniVUporabi = false))
     preveriEnako("torrent: napis debrid", false, L.pripravaLastnega(usenet = false, lastniVUporabi = true))
+    // GEMINI-45-UT: meja telesa clanka
+    preveriEnako("meja: brez bajtov -> NAJVEC_TELESA", 4 * 1024 * 1024, L.mejaTelesa(0L, 4 * 1024 * 1024))
+    preveriEnako("meja: majhen segment -> NAJVEC_TELESA", 4 * 1024 * 1024, L.mejaTelesa(1024L, 4 * 1024 * 1024))
+    preveriEnako("meja: velik segment -> segment * 2 + 64 KiB", 14 * 1024 * 1024 + 65536, L.mejaTelesa(7L * 1024 * 1024, 4 * 1024 * 1024))
+    preveriEnako("meja: ogromen segment omejen na 32 MiB", 32 * 1024 * 1024, L.mejaTelesa(20L * 1024 * 1024, 4 * 1024 * 1024))
     println(if (napak == 0) "UsenetLastniPravilaTest: OK" else "UsenetLastniPravilaTest: $napak napak")
     if (napak > 0) kotlin.system.exitProcess(1)
 }

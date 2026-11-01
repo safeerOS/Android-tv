@@ -33,16 +33,16 @@ object UsenetUsb {
         java.util.concurrent.ThreadPoolExecutor.DiscardPolicy()
     )
 
-    fun ovij(c: Context, telo: (String) -> ByteArray): (String) -> ByteArray {
+    fun ovij(c: Context, telo: (String, Long) -> ByteArray): (String, Long) -> ByteArray {
         val app = c.applicationContext
-        return { id ->
+        return { id, bajtov ->
             val datoteka = try {
                 UsbPredpomnilnik.mapa(app, PredpomnilnikPravila.USENET)?.let { m ->
                     val ime = PredpomnilnikPravila.imeSegmenta(id)
                     File(File(m, ime.take(2)), ime)
                 }
             } catch (_: Throwable) { null }
-            beri(datoteka) ?: telo(id).also { bajti ->
+            beri(datoteka) ?: telo(id, bajtov).also { bajti ->
                 if (datoteka != null && bajti.isNotEmpty() && bajti.size <= PredpomnilnikPravila.NAJVEC_SEGMENT) {
                     try {
                         pisalec.execute { zapisi(app, datoteka, bajti) }
