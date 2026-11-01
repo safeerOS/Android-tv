@@ -41,13 +41,23 @@ fun main() {
     preveri("brez locila ostane naslov", R.razdeli("Imagine.mp3", "") == ("Imagine" to ""))
     preveri("clen The ne odvzame bonusa prve besede", R.ocena("lord", "The Lord of the Rings", "") == R.ocena("lord", "Lord of War", ""))
 
-    val lotr1978 = Jamendo.Skladba("1", "The Lord of the Rings", "", "", "", "", rating = 7.6, imdbVotes = 100000)
-    val lotr2001 = Jamendo.Skladba("2", "The Lord of the Rings: The Fellowship of the Ring", "", "", "", "", rating = 8.9, imdbVotes = 2000000)
-    val resLotr = R.razvrsti("Lord of the Rings", listOf(
-        Relevantnost.Zadetek(lotr1978, lotr1978.naslov, "", "Cinemeta", 10),
-        Relevantnost.Zadetek(lotr2001, lotr2001.naslov, "", "Cinemeta", 10)
+    // Lastnik 1. 11. 2026 (TV): risanka 1978 ima naslov enak poizvedbi (ocena 1,5), Bratovscina prstana 1,2 - prej je bila
+    // risanka prva. Ista stopnja (vse besede v naslovu): odloca priljubljenost.
+    val lotrRes = R.razvrsti("Lord of the Rings", listOf(
+        Relevantnost.Zadetek("1978", "The Lord of the Rings", "", "Cinemeta", 2, glasov = 100_000, ocenaVira = 7.6),
+        Relevantnost.Zadetek("2001", "The Lord of the Rings: The Fellowship of the Ring", "", "Cinemeta", 2, glasov = 2_000_000, ocenaVira = 8.9)
     ))
-    preveri("razvrsti po priljubljenosti pri isti oceni", resLotr[0].first.stvar === lotr2001)
+    preveri("Gospodar prstanov: najbolj priljubljen prvi", lotrRes[0].first.stvar == "2001")
+    // Brez podatkov o priljubljenosti ostane vrstni red po ujemanju.
+    val brez = R.razvrsti("Lord of the Rings", listOf(
+        Relevantnost.Zadetek("a", "The Lord of the Rings: The Fellowship of the Ring", "", "x", 2),
+        Relevantnost.Zadetek("b", "The Lord of the Rings", "", "x", 2)))
+    preveri("brez priljubljenosti: natancen naslov prvi", brez[0].first.stvar == "b")
+    // Slabse ujemanje (ne vse besede) ne prehiti dobrega, tudi ce je bolj priljubljeno.
+    val slabse = R.razvrsti("Lord of the Rings", listOf(
+        Relevantnost.Zadetek("dobro", "The Lord of the Rings", "", "x", 2, glasov = 10),
+        Relevantnost.Zadetek("slabo", "Rings", "", "x", 2, glasov = 5_000_000)))
+    preveri("slabse ujemanje ne prehiti", slabse[0].first.stvar == "dobro")
 
     println("Relevantnost: $uspehov passed, $napak failed")
     if (napak > 0) kotlin.system.exitProcess(1)
