@@ -60,7 +60,14 @@ object AdbLokalno {
         return zasebni to javni
     }
 
-    private fun preberi(vhod: DataInputStream): Pair<AdbLokalnoPravila.Glava, ByteArray> {
+    /**
+     * Prebere eno sporocilo do [rokDo] (ura naprave, ms). Neodvisni pregled (arena.ai, 1. 11. 2026): rok branja velja za
+     * vsak klic posebej, zato bi lazni streznik s kapljanjem po en bajt drzal nit v nedogled - zato skupni rok faze.
+     */
+    private fun preberi(s: Socket, vhod: DataInputStream, rokDo: Long): Pair<AdbLokalnoPravila.Glava, ByteArray> {
+        val ostane = rokDo - android.os.SystemClock.elapsedRealtime()
+        if (ostane <= 0) throw java.net.SocketTimeoutException("rok faze ADB")
+        s.soTimeout = ostane.toInt().coerceAtLeast(1)
         val g = ByteArray(24); vhod.readFully(g)
         val glava = AdbLokalnoPravila.preberiGlavo(g)
         if (!glava.veljavna) throw java.io.IOException("neveljavna glava ADB")
@@ -93,8 +100,9 @@ object AdbLokalno {
                 val (zasebni, javni) = kljuc()
                 var podpisano = false
                 var povezano = false
+                var rokDo = android.os.SystemClock.elapsedRealtime() + ROK_BRANJA_MS
                 for (krog in 0 until 6) {
-                    val (g, d) = preberi(vhod)
+                    val (g, d) = preberi(s, vhod, rokDo)
                     when (g.ukaz) {
                         AdbLokalnoPravila.A_CNXN -> { povezano = true; break }
                         AdbLokalnoPravila.A_AUTH -> if (g.arg0 == AdbLokalnoPravila.AUTH_ZETON) {
@@ -110,7 +118,7 @@ object AdbLokalno {
                                     Base64.encodeToString(it, Base64.NO_WRAP)
                                 }
                                 izhod.write(AdbLokalnoPravila.sporocilo(AdbLokalnoPravila.A_AUTH, AdbLokalnoPravila.AUTH_JAVNI_KLJUC, 0, jk))
-                                s.soTimeout = ROK_POTRDITVE_MS
+                                rokDo = android.os.SystemClock.elapsedRealtime() + ROK_POTRDITVE_MS
                             }
                         }
                         else -> throw java.io.IOException("nepricakovan odgovor ADB")
@@ -118,15 +126,15 @@ object AdbLokalno {
                 }
                 if (!povezano) { zadnjiIzid = IZID_NI_POTRJENO; return emptyList() }
                 zadnjiIzid = IZID_POVEZANO
-                s.soTimeout = ROK_BRANJA_MS
                 var lokalni = 0
                 for ((paket, ukaz) in ukazi) {
                     lokalni++
                     izhod.write(AdbLokalnoPravila.sporocilo(AdbLokalnoPravila.A_OPEN, lokalni, 0, (ukaz + "\u0000").toByteArray(Charsets.US_ASCII)))
                     var oddaljeni = 0
                     var konec = false
+                    val rokUkaza = android.os.SystemClock.elapsedRealtime() + ROK_BRANJA_MS
                     for (krog in 0 until 50) {
-                        val (g, _) = preberi(vhod)
+                        val (g, _) = preberi(s, vhod, rokUkaza)
                         if (g.arg1 != lokalni) continue
                         when (g.ukaz) {
                             AdbLokalnoPravila.A_OKAY -> oddaljeni = g.arg0

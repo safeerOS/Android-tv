@@ -27,7 +27,8 @@ object AdbLokalnoPravila {
     const val AUTH_JAVNI_KLJUC = 3
 
     /** Najvec bajtov v enem sporocilu, ki ga sprejmemo (zascita pred napacnim ali zlonamernim streznikom na vratih). */
-    const val NAJVEC_SPREJETIH = 1024 * 1024
+    /** adbd na Androidu 11 poslje najvec 256 KiB naenkrat (maxdata); vec ne sprejmemo (pregled arena.ai, 1. 11. 2026). */
+    const val NAJVEC_SPREJETIH = 256 * 1024
 
     /** SHA-1 DigestInfo (PKCS#1 v1.5): adbd preveri podpis zetona z RSA_verify(NID_sha1, ...), zeton je "povzetek". */
     val SHA1_DIGEST_INFO: ByteArray = intArrayOf(0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03, 0x02, 0x1a, 0x05, 0x00, 0x04, 0x14)
