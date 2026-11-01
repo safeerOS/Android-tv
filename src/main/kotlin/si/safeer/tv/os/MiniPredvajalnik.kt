@@ -402,7 +402,11 @@ class MiniPredvajalnik(
         gumbi.addView(gumb(R.drawable.os_ikona_glasneje, a.getString(R.string.zvocnik_glasneje), "dock:glasneje") { glasnost(1) }, LinearLayout.LayoutParams(g, g))
         val gZatemni = gumb(R.drawable.os_ikona_luna, a.getString(R.string.os_media_zatemni), "dock:zatemni") { zatemni() }
         gumbi.addView(gZatemni, LinearLayout.LayoutParams(g, g))
-        gumbi.addView(gumb(R.drawable.os_ikona_zapri, a.getString(R.string.zg_dock_skrij), "dock:skrij") { nastaviOdprt(false, fokus = daljinec) }, LinearLayout.LayoutParams(g, g))
+        // Lastnik 1. 11. 2026: ✕ je samo skril predvajalnik, film je igral naprej - uporabnik pricakuje konec predvajanja.
+        // ✕ zato ustavi predvajanje in skrije dock; samo skrije ga tipka Nazaj (skrijCeOdprt).
+        gumbi.addView(gumb(R.drawable.os_ikona_zapri, a.getString(R.string.os_media_ustavi), "dock:skrij") {
+            GlasbaStoritev.ustavi(a); nastaviOdprt(false, fokus = daljinec)
+        }, LinearLayout.LayoutParams(g, g))
         c.addView(gumbi)
         val lp = if (pokoncen) FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, gravitacija(m))
             else FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, gravitacija(m)).apply {
@@ -455,7 +459,7 @@ class MiniPredvajalnik(
                 else -> R.string.zg_dock_spodaj
             })
         }.toTypedArray()
-        val okno = AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = AlertDialog.Builder(a, si.safeer.tv.R.style.Os_Okno)
             .setTitle(R.string.zg_dock_mesto)
             .setSingleChoiceItems(imena, mesta.indexOf(mesto)) { d, i ->
                 nastavitve.edit().putString(KLJUC_MESTO, mesta[i]).apply()
