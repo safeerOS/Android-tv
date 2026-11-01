@@ -927,6 +927,19 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             }
         }
         if (p.vir == AppVir.RACUNALNIK && p.racunalnik !in androidNaprave) dejanja.add(getString(R.string.os_program_zapri) to { zapri(p) })
+        // Lastnik 1. 11. 2026 (rtvslo): dolg pritisk na spletno aplikacijo v Aplikacijah ni ponudil nicesar - odstranitev
+        // (tudi z domacega zaslona) kot na Domov (DomovActivity.odstraniSpletno), z vprasanjem.
+        if (p.vir == AppVir.SPLET && p.cilj.isNotBlank()) dejanja.add(getString(R.string.os_spletne_odstrani) to {
+            android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle(p.ime)
+                .setMessage(getString(R.string.os_spletne_odstrani_vprasanje))
+                .setPositiveButton(getString(R.string.os_spletne_odstrani)) { _, _ ->
+                    SpletneAplikacije.odstrani(this, p.cilj); DomacaVrsta.osvezi(this); naloziKrajevne()
+                }
+                .setNegativeButton(getString(R.string.os_preklici), null)
+                .let { Kontroler.pokazi(it.show()) }
+            Unit
+        })
         if (dejanja.isEmpty()) return
         android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(p.ime)
