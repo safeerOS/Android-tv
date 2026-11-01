@@ -8437,6 +8437,8 @@ class GlasbaActivity : OsActivity() {
         seznamEpizod.setOnItemClickListener { _, _, k, _ ->
             val seznam = trenutnaSezonaEpizode.toList()
             val e = seznam.getOrNull(k) ?: return@setOnItemClickListener
+            // Kot prej AlertDialog: izbira zapre pogled (epizodeNi ga odpre znova - sicer dva pogleda drug nad drugim).
+            dialog.dismiss()
             Toast.makeText(this, getString(R.string.os_media_pripravljam, ime(e)), Toast.LENGTH_SHORT).show()
             delavec.execute {
                 val imdb = Stremio.imdbZa(sk)
