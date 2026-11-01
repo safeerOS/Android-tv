@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- YouTube uvoz (Moji viri): locena datoteka, da ne spreminjamo obstojecih strings.xml -->
+<resources>
+    <string name="yt_uvoz_naslov">YouTube account and playlists</string>
+    <string name="yt_uvoz_povezan">✓ YouTube account connected</string>
+    <string name="yt_uvoz_ni_povezan">YouTube account not connected</string>
+    <string name="yt_uvoz_opis_povezan">Your account is connected. You can sync your playlists or sign out.</string>
+    <string name="yt_uvoz_opis_ni_povezan">Sign in to your Google/YouTube account and your playlists (including liked videos) will be imported into your player automatically.</string>
+    <string name="yt_uvoz_sinhroniziraj">Sync playlists</string>
+    <string name="yt_uvoz_prijava">Sign in to YouTube</string>
+    <string name="yt_uvoz_odjava">Sign out</string>
+    <string name="yt_uvoz_zapri">Close</string>
+    <string name="yt_uvoz_preklici">Cancel</string>
+    <string name="yt_uvoz_zacenjam">Starting import …</string>
+    <string name="yt_uvoz_odjavljeni">Signed out of your YouTube account</string>
+    <string name="yt_uvoz_prijava_uspesna">Signed in! Syncing playlists …</string>
+    <string name="yt_uvoz_ni_prijave">No valid YouTube sign-in</string>
+    <string name="yt_uvoz_pridobivam">Fetching playlists from your YouTube account …</string>
+    <string name="yt_uvoz_vsecki">Liked videos (YouTube)</string>
+    <string name="yt_uvoz_uvazam">Importing: %1$s …</string>
+    <string name="yt_uvoz_ni_seznamov">No playlists were found on your account.</string>
+    <string name="yt_uvoz_uspeh">Imported YouTube playlists: %1$d (tracks: %2$d).</string>
+    <string name="yt_uvoz_napaka">Import failed. Please try again later.</string>
+    <string name="yt_uvoz_kartica_racun">YouTube (account)</string>
+    <string name="yt_uvoz_kartica_povezano">Connected · playlist sync</string>
+    <string name="yt_uvoz_kartica_opis">Sign in and import playlists automatically</string>
+</resources>

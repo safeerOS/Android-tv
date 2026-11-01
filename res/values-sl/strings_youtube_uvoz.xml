@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- YouTube uvoz (Moji viri): locena datoteka, da ne spreminjamo obstojecih strings.xml -->
+<resources>
+    <string name="yt_uvoz_naslov">YouTube račun in seznami</string>
+    <string name="yt_uvoz_povezan">✓ Povezan YouTube račun</string>
+    <string name="yt_uvoz_ni_povezan">YouTube račun ni povezan</string>
+    <string name="yt_uvoz_opis_povezan">Vaš račun je povezan. Lahko sinhronizirate svoje sezname predvajanja ali se odjavite.</string>
+    <string name="yt_uvoz_opis_ni_povezan">S prijavo v Google/YouTube račun se bodo vaši seznami predvajanja (vključno z všečki) samodejno uvozili v vaš predvajalnik.</string>
+    <string name="yt_uvoz_sinhroniziraj">Sinhroniziraj sezname</string>
+    <string name="yt_uvoz_prijava">Prijava v YouTube</string>
+    <string name="yt_uvoz_odjava">Odjava</string>
+    <string name="yt_uvoz_zapri">Zapri</string>
+    <string name="yt_uvoz_preklici">Prekliči</string>
+    <string name="yt_uvoz_zacenjam">Začenjam uvoz …</string>
+    <string name="yt_uvoz_odjavljeni">Odjavljeni iz YouTube računa</string>
+    <string name="yt_uvoz_prijava_uspesna">Prijava uspešna! Sinhroniziram sezname …</string>
+    <string name="yt_uvoz_ni_prijave">Ni veljavne prijave v YouTube</string>
+    <string name="yt_uvoz_pridobivam">Pridobivam sezname predvajanja z vašega YouTube računa …</string>
+    <string name="yt_uvoz_vsecki">Všečki (YouTube)</string>
+    <string name="yt_uvoz_uvazam">Uvažam: %1$s …</string>
+    <string name="yt_uvoz_ni_seznamov">Na vašem računu ni bilo najdenih seznamov.</string>
+    <string name="yt_uvoz_uspeh">Uspešno uvoženih YouTube seznamov: %1$d (skladb: %2$d).</string>
+    <string name="yt_uvoz_napaka">Uvoz ni uspel. Poskusite znova pozneje.</string>
+    <string name="yt_uvoz_kartica_racun">YouTube (račun)</string>
+    <string name="yt_uvoz_kartica_povezano">Povezano · sinhronizacija seznamov</string>
+    <string name="yt_uvoz_kartica_opis">Prijava in samodejni uvoz seznamov</string>
+</resources>

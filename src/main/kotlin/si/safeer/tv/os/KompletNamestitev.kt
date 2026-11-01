@@ -107,8 +107,9 @@ object KompletNamestitev {
                 }
                 
                 glavna.post {
-                    okno.dismiss()
-                    if (prekinjeno || a.isFinishing) {
+                    // dismiss na unicenem oknu vrze IllegalArgumentException (okno ni vec pripeto)
+                    if (!a.isFinishing && !a.isDestroyed && okno.isShowing) okno.dismiss()
+                    if (prekinjeno || a.isFinishing || a.isDestroyed) {
                         mapa.listFiles()?.forEach { it.delete() }
                         return@post
                     }
@@ -125,7 +126,8 @@ object KompletNamestitev {
                 Posodobitve.log("komplet prenos napaka: $t")
                 mapa.listFiles()?.forEach { it.delete() }
                 glavna.post {
-                    okno.dismiss()
+                    if (a.isFinishing || a.isDestroyed) return@post
+                    if (okno.isShowing) okno.dismiss()
                     if (!prekinjeno) {
                         val msg = if (trenutenPaket.isNotEmpty()) a.getString(R.string.os_komplet_napaka_paket, trenutenPaket) 
                                   else a.getString(R.string.os_posodobitev_napaka)

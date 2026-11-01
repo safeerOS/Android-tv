@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- YouTube uvoz (Moji viri): locena datoteka, da ne spreminjamo obstojecih strings.xml -->
+<resources>
+    <string name="yt_uvoz_naslov">Compte YouTube et playlists</string>
+    <string name="yt_uvoz_povezan">✓ Compte YouTube connecté</string>
+    <string name="yt_uvoz_ni_povezan">Compte YouTube non connecté</string>
+    <string name="yt_uvoz_opis_povezan">Votre compte est connecté. Vous pouvez synchroniser vos playlists ou vous déconnecter.</string>
+    <string name="yt_uvoz_opis_ni_povezan">Connectez-vous à votre compte Google/YouTube et vos playlists (y compris les vidéos J\'aime) seront importées automatiquement dans votre lecteur.</string>
+    <string name="yt_uvoz_sinhroniziraj">Synchroniser les playlists</string>
+    <string name="yt_uvoz_prijava">Se connecter à YouTube</string>
+    <string name="yt_uvoz_odjava">Se déconnecter</string>
+    <string name="yt_uvoz_zapri">Fermer</string>
+    <string name="yt_uvoz_preklici">Annuler</string>
+    <string name="yt_uvoz_zacenjam">Démarrage de l\'importation …</string>
+    <string name="yt_uvoz_odjavljeni">Déconnecté du compte YouTube</string>
+    <string name="yt_uvoz_prijava_uspesna">Connexion réussie ! Synchronisation des playlists …</string>
+    <string name="yt_uvoz_ni_prijave">Aucune connexion YouTube valide</string>
+    <string name="yt_uvoz_pridobivam">Récupération des playlists de votre compte YouTube …</string>
+    <string name="yt_uvoz_vsecki">Vidéos J\'aime (YouTube)</string>
+    <string name="yt_uvoz_uvazam">Importation : %1$s …</string>
+    <string name="yt_uvoz_ni_seznamov">Aucune playlist trouvée sur votre compte.</string>
+    <string name="yt_uvoz_uspeh">Playlists YouTube importées : %1$d (titres : %2$d).</string>
+    <string name="yt_uvoz_napaka">Échec de l\'importation. Réessayez plus tard.</string>
+    <string name="yt_uvoz_kartica_racun">YouTube (compte)</string>
+    <string name="yt_uvoz_kartica_povezano">Connecté · synchronisation des playlists</string>
+    <string name="yt_uvoz_kartica_opis">Connexion et import automatique des playlists</string>
+</resources>

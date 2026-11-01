@@ -5703,8 +5703,8 @@ class GlasbaActivity : OsActivity() {
             Kartica(getString(R.string.os_mediji_dodatki), getString(R.string.os_mediji_dodatki_opis), "", { dodajDodatke() }, { preklopiRazvoj() }, ikona = R.drawable.os_ikona_plus),
             Kartica(getString(R.string.os_uvoz_naslov), getString(R.string.os_uvoz_opis), "", { uvoziSeznam() }, ikona = R.drawable.os_ikona_plus),
             // Samodejni uvoz YouTube playlist z računom
-            Kartica(if (ytPrijavljen) "YouTube (račun)" else "Prijava v YouTube",
-                if (ytPrijavljen) "Povezano · sinhronizacija playlist" else "Prijava in samodejni uvoz playlist",
+            Kartica(getString(if (ytPrijavljen) R.string.yt_uvoz_kartica_racun else R.string.yt_uvoz_prijava),
+                getString(if (ytPrijavljen) R.string.yt_uvoz_kartica_povezano else R.string.yt_uvoz_kartica_opis),
                 "", { YouTubeUvozOkno.pokazi(this) { osveziNaMestu() } }, ikona = if (ytPrijavljen) R.drawable.os_ikona_posodobi else R.drawable.os_ikona_plus),
             // Naloga 119: TorBox - zasebni in hitrejsi torrenti s kljucem uporabnika.
             // Naloga 128: TorBox, Real-Debrid in AllDebrid na enem mestu.

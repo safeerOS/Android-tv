@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- YouTube uvoz (Moji viri): locena datoteka, da ne spreminjamo obstojecih strings.xml -->
+<resources>
+    <string name="yt_uvoz_naslov">Account YouTube e playlist</string>
+    <string name="yt_uvoz_povezan">✓ Account YouTube collegato</string>
+    <string name="yt_uvoz_ni_povezan">Account YouTube non collegato</string>
+    <string name="yt_uvoz_opis_povezan">Il tuo account è collegato. Puoi sincronizzare le playlist o disconnetterti.</string>
+    <string name="yt_uvoz_opis_ni_povezan">Accedi con il tuo account Google/YouTube e le tue playlist (compresi i video piaciuti) verranno importate automaticamente nel lettore.</string>
+    <string name="yt_uvoz_sinhroniziraj">Sincronizza playlist</string>
+    <string name="yt_uvoz_prijava">Accedi a YouTube</string>
+    <string name="yt_uvoz_odjava">Esci</string>
+    <string name="yt_uvoz_zapri">Chiudi</string>
+    <string name="yt_uvoz_preklici">Annulla</string>
+    <string name="yt_uvoz_zacenjam">Avvio dell\'importazione …</string>
+    <string name="yt_uvoz_odjavljeni">Disconnesso dall\'account YouTube</string>
+    <string name="yt_uvoz_prijava_uspesna">Accesso riuscito! Sincronizzazione delle playlist …</string>
+    <string name="yt_uvoz_ni_prijave">Nessun accesso valido a YouTube</string>
+    <string name="yt_uvoz_pridobivam">Recupero delle playlist dal tuo account YouTube …</string>
+    <string name="yt_uvoz_vsecki">Video piaciuti (YouTube)</string>
+    <string name="yt_uvoz_uvazam">Importazione: %1$s …</string>
+    <string name="yt_uvoz_ni_seznamov">Nessuna playlist trovata nel tuo account.</string>
+    <string name="yt_uvoz_uspeh">Playlist YouTube importate: %1$d (brani: %2$d).</string>
+    <string name="yt_uvoz_napaka">Importazione non riuscita. Riprova più tardi.</string>
+    <string name="yt_uvoz_kartica_racun">YouTube (account)</string>
+    <string name="yt_uvoz_kartica_povezano">Collegato · sincronizzazione playlist</string>
+    <string name="yt_uvoz_kartica_opis">Accedi e importa le playlist automaticamente</string>
+</resources>

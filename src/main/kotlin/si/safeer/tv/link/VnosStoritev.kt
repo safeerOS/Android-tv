@@ -571,6 +571,13 @@ class VnosStoritev : AccessibilityService() {
         return uspelo || izbran.isAccessibilityFocused
     }
 
+    private fun jeCelozaslonski(n: AccessibilityNodeInfo): Boolean {
+        val r = Rect()
+        n.getBoundsInScreen(r)
+        val (zaslonW, zaslonH) = velikost()
+        return r.isEmpty || (zaslonW > 0 && zaslonH > 0 && r.width() >= zaslonW - 30 && r.height() >= zaslonH - 30)
+    }
+
     /** OK v neprilagojeni aplikaciji (fokus nacin): ENO dejanje - klik elementa ali najblizjega klikljivega starsa, sicer dotik. */
     private fun aktivirajFokus() {
         val koren = try { rootInActiveWindow } catch (_: Throwable) { null } ?: return
@@ -649,7 +656,9 @@ class VnosStoritev : AccessibilityService() {
                 if (smer != null) {
                     val koren = try { rootInActiveWindow } catch (_: Throwable) { null }
                     val f = fokusirano(koren)
-                    if (jePasivenVsebnik(f) && premakniMedInteraktivnimi(smer, f?.takeIf { it.isClickable })) {
+                    // jePasivenVsebnik(f) pomeni, da f ni klikljiv, zato je bil prej izhodisce vedno null (vedno prvi element);
+                    // izhodisce je zdaj vsebnik sam, razen ce pokriva ves zaslon (takrat smer nima pomena)
+                    if (jePasivenVsebnik(f) && premakniMedInteraktivnimi(smer, f?.takeIf { !jeCelozaslonski(it) })) {
                         glavnaNit.removeCallbacks(posodobiFokusOpravilo)
                         glavnaNit.postDelayed(posodobiFokusOpravilo, 40)
                         return true

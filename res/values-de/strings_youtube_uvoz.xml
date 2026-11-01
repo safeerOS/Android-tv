@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- YouTube uvoz (Moji viri): locena datoteka, da ne spreminjamo obstojecih strings.xml -->
+<resources>
+    <string name="yt_uvoz_naslov">YouTube-Konto und Playlists</string>
+    <string name="yt_uvoz_povezan">✓ YouTube-Konto verbunden</string>
+    <string name="yt_uvoz_ni_povezan">YouTube-Konto nicht verbunden</string>
+    <string name="yt_uvoz_opis_povezan">Ihr Konto ist verbunden. Sie können Ihre Playlists synchronisieren oder sich abmelden.</string>
+    <string name="yt_uvoz_opis_ni_povezan">Melden Sie sich mit Ihrem Google/YouTube-Konto an, und Ihre Playlists (einschließlich „Mag ich“-Videos) werden automatisch in Ihren Player importiert.</string>
+    <string name="yt_uvoz_sinhroniziraj">Playlists synchronisieren</string>
+    <string name="yt_uvoz_prijava">Bei YouTube anmelden</string>
+    <string name="yt_uvoz_odjava">Abmelden</string>
+    <string name="yt_uvoz_zapri">Schließen</string>
+    <string name="yt_uvoz_preklici">Abbrechen</string>
+    <string name="yt_uvoz_zacenjam">Import wird gestartet …</string>
+    <string name="yt_uvoz_odjavljeni">Vom YouTube-Konto abgemeldet</string>
+    <string name="yt_uvoz_prijava_uspesna">Anmeldung erfolgreich! Playlists werden synchronisiert …</string>
+    <string name="yt_uvoz_ni_prijave">Keine gültige YouTube-Anmeldung</string>
+    <string name="yt_uvoz_pridobivam">Playlists werden von Ihrem YouTube-Konto abgerufen …</string>
+    <string name="yt_uvoz_vsecki">Mag ich (YouTube)</string>
+    <string name="yt_uvoz_uvazam">Importiere: %1$s …</string>
+    <string name="yt_uvoz_ni_seznamov">In Ihrem Konto wurden keine Playlists gefunden.</string>
+    <string name="yt_uvoz_uspeh">Importierte YouTube-Playlists: %1$d (Titel: %2$d).</string>
+    <string name="yt_uvoz_napaka">Import fehlgeschlagen. Bitte später erneut versuchen.</string>
+    <string name="yt_uvoz_kartica_racun">YouTube (Konto)</string>
+    <string name="yt_uvoz_kartica_povezano">Verbunden · Playlist-Synchronisierung</string>
+    <string name="yt_uvoz_kartica_opis">Anmelden und Playlists automatisch importieren</string>
+</resources>

@@ -15,6 +15,7 @@ import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import si.safeer.tv.R
 
 /**
  * Pogovorno okno za prijavo v YouTube in samodejni uvoz playlist v Mojih virih.
@@ -32,7 +33,7 @@ object YouTubeUvozOkno {
         }
 
         val naslovStanja = TextView(a).apply {
-            text = if (jePrijavljen) "✓ Povezan YouTube račun" else "YouTube račun ni povezan"
+            text = a.getString(if (jePrijavljen) R.string.yt_uvoz_povezan else R.string.yt_uvoz_ni_povezan)
             textSize = 17f
             setTextColor(if (jePrijavljen) android.graphics.Color.parseColor("#2DD4BF") else android.graphics.Color.WHITE)
             setPadding(0, 0, 0, (12 * d).toInt())
@@ -41,9 +42,9 @@ object YouTubeUvozOkno {
 
         val opis = TextView(a).apply {
             text = if (jePrijavljen) {
-                "Vaš račun je povezan. Lahko sinhronizirate svoje sezname predvajanja ali se odjavite."
+                a.getString(R.string.yt_uvoz_opis_povezan)
             } else {
-                "S prijavo v Google/YouTube račun se bodo vaši seznami predvajanja (vključno z všečki) samodejno uvozili v vaš predvajalnik."
+                a.getString(R.string.yt_uvoz_opis_ni_povezan)
             }
             textSize = 14f
             setTextColor(android.graphics.Color.parseColor("#CCCCCC"))
@@ -70,10 +71,10 @@ object YouTubeUvozOkno {
         vsebina.addView(napredekVrsta)
 
         val okno = AlertDialog.Builder(a, si.safeer.tv.R.style.Os_Okno)
-            .setTitle("YouTube račun in seznami")
+            .setTitle(R.string.yt_uvoz_naslov)
             .setView(ScrollView(a).apply { addView(vsebina) })
-            .setPositiveButton(if (jePrijavljen) "Sinhroniziraj sezname" else "Prijava v YouTube", null)
-            .setNegativeButton(if (jePrijavljen) "Odjava" else "Zapri", null)
+            .setPositiveButton(if (jePrijavljen) R.string.yt_uvoz_sinhroniziraj else R.string.yt_uvoz_prijava, null)
+            .setNegativeButton(if (jePrijavljen) R.string.yt_uvoz_odjava else R.string.yt_uvoz_zapri, null)
             .create()
 
         okno.setOnShowListener {
@@ -89,16 +90,18 @@ object YouTubeUvozOkno {
                 } else {
                     gumbGlavni.isEnabled = false
                     napredekVrsta.visibility = View.VISIBLE
-                    napredekBesedilo.text = "Začenjam uvoz..."
+                    napredekBesedilo.setText(R.string.yt_uvoz_zacenjam)
                     YouTubeUvoz.uvoziVseSezname(
                         a,
                         onNapredek = { sporocilo -> napredekBesedilo.text = sporocilo },
                         onKoncano = { uspeh, sporocilo ->
+                            // uvoz tece v ozadju; dejavnost je morda ze zaprta
+                            if (a.isFinishing || a.isDestroyed) return@uvoziVseSezname
                             napredekVrsta.visibility = View.GONE
                             gumbGlavni.isEnabled = true
                             Toast.makeText(a, sporocilo, Toast.LENGTH_LONG).show()
                             potem()
-                            if (uspeh) okno.dismiss()
+                            if (uspeh && okno.isShowing) okno.dismiss()
                         }
                     )
                 }
@@ -107,7 +110,7 @@ object YouTubeUvozOkno {
             gumbDrugi.setOnClickListener {
                 if (YouTubeUvoz.jePrijavljen(a)) {
                     YouTubeUvoz.odjavi(a)
-                    Toast.makeText(a, "Odjavljeni iz YouTube računa", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(a, R.string.yt_uvoz_odjavljeni, Toast.LENGTH_SHORT).show()
                     okno.dismiss()
                     potem()
                 } else {
@@ -132,10 +135,16 @@ object YouTubeUvozOkno {
 
         var zaprto = false
         val okno = AlertDialog.Builder(a, si.safeer.tv.R.style.Os_Okno)
-            .setTitle("Prijava v YouTube")
+            .setTitle(R.string.yt_uvoz_prijava)
             .setView(webView)
-            .setNegativeButton("Prekliči") { _, _ -> zaprto = true; webView.destroy() }
+            .setNegativeButton(R.string.yt_uvoz_preklici, null)
             .create()
+        // vsako zaprtje (gumb, Nazaj, dotik izven) mora ustaviti WebView, sicer se prijava zgodi po preklicu
+        okno.setOnDismissListener {
+            zaprto = true
+            webView.stopLoading()
+            webView.destroy()
+        }
 
         webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
@@ -147,10 +156,11 @@ object YouTubeUvozOkno {
                 if (cookies.contains("LOGIN_INFO") || cookies.contains("SAPISID") || cookies.contains("SSID")) {
                     zaprto = true
                     YouTubeUvoz.zabeleziPrijavo(a)
-                    Toast.makeText(a, "Prijava uspešna! Sinhroniziram sezname...", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(a, R.string.yt_uvoz_prijava_uspesna, Toast.LENGTH_SHORT).show()
+                    // WebView unici poslusalec ob zaprtju
                     okno.dismiss()
-                    webView.destroy()
                     YouTubeUvoz.uvoziVseSezname(a, onKoncano = { _, sporocilo ->
+                        if (a.isFinishing || a.isDestroyed) return@uvoziVseSezname
                         Toast.makeText(a, sporocilo, Toast.LENGTH_LONG).show()
                         obPrijavi()
                     })
@@ -161,14 +171,15 @@ object YouTubeUvozOkno {
 
         // Prijavna stran za YouTube z Google računom
         webView.loadUrl("https://accounts.google.com/ServiceLogin?service=youtube&continue=https://m.youtube.com")
+        // poslusalec mora biti nastavljen pred show(), sicer se ne sprozi in D-pad nima fokusa
+        okno.setOnShowListener {
+            webView.requestFocus()
+        }
         okno.show()
         okno.window?.apply {
             setLayout((a.resources.displayMetrics.widthPixels * 0.85).toInt(), (a.resources.displayMetrics.heightPixels * 0.88).toInt())
             clearFlags(android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or android.view.WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM)
             setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE or android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE)
-        }
-        okno.setOnShowListener {
-            webView.requestFocus()
         }
     }
 }

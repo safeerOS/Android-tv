@@ -614,10 +614,19 @@ class TabManager(
         b.writeToParcel(parcel, 0)
         val bytes = parcel.marshall()
         parcel.recycle()
+        // Parcel.marshall ostaja: stanje vsebuje gnezdene Bundle (zavihki), pretvorba v JSON ni majhna sprememba
+        val file = java.io.File(context.filesDir, "tabs_state.bin")
+        val zacasna = java.io.File(context.filesDir, "tabs_state.bin.tmp")
         try {
-            val file = java.io.File(context.filesDir, "tabs_state.bin")
-            java.io.FileOutputStream(file).write(bytes)
-        } catch (_: Exception) {}
+            // zapis v zacasno datoteko + rename: ob prekinitvi (onStop, kill) ostane stara datoteka cela
+            java.io.FileOutputStream(zacasna).use { tok ->
+                tok.write(bytes)
+                tok.fd.sync()
+            }
+            if (!zacasna.renameTo(file)) zacasna.delete()
+        } catch (_: Exception) {
+            zacasna.delete()
+        }
     }
 
     fun restoreFromFile(context: Context): Boolean {

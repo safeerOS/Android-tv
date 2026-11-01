@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- YouTube uvoz (Moji viri): locena datoteka, da ne spreminjamo obstojecih strings.xml -->
+<resources>
+    <string name="yt_uvoz_naslov">Cuenta de YouTube y listas</string>
+    <string name="yt_uvoz_povezan">✓ Cuenta de YouTube conectada</string>
+    <string name="yt_uvoz_ni_povezan">Cuenta de YouTube no conectada</string>
+    <string name="yt_uvoz_opis_povezan">Tu cuenta está conectada. Puedes sincronizar tus listas de reproducción o cerrar sesión.</string>
+    <string name="yt_uvoz_opis_ni_povezan">Inicia sesión con tu cuenta de Google/YouTube y tus listas de reproducción (incluidos los vídeos que te gustan) se importarán automáticamente a tu reproductor.</string>
+    <string name="yt_uvoz_sinhroniziraj">Sincronizar listas</string>
+    <string name="yt_uvoz_prijava">Iniciar sesión en YouTube</string>
+    <string name="yt_uvoz_odjava">Cerrar sesión</string>
+    <string name="yt_uvoz_zapri">Cerrar</string>
+    <string name="yt_uvoz_preklici">Cancelar</string>
+    <string name="yt_uvoz_zacenjam">Iniciando importación …</string>
+    <string name="yt_uvoz_odjavljeni">Sesión de YouTube cerrada</string>
+    <string name="yt_uvoz_prijava_uspesna">¡Sesión iniciada! Sincronizando listas …</string>
+    <string name="yt_uvoz_ni_prijave">No hay una sesión válida de YouTube</string>
+    <string name="yt_uvoz_pridobivam">Obteniendo las listas de tu cuenta de YouTube …</string>
+    <string name="yt_uvoz_vsecki">Me gusta (YouTube)</string>
+    <string name="yt_uvoz_uvazam">Importando: %1$s …</string>
+    <string name="yt_uvoz_ni_seznamov">No se encontraron listas en tu cuenta.</string>
+    <string name="yt_uvoz_uspeh">Listas de YouTube importadas: %1$d (pistas: %2$d).</string>
+    <string name="yt_uvoz_napaka">La importación ha fallado. Inténtalo de nuevo más tarde.</string>
+    <string name="yt_uvoz_kartica_racun">YouTube (cuenta)</string>
+    <string name="yt_uvoz_kartica_povezano">Conectada · sincronización de listas</string>
+    <string name="yt_uvoz_kartica_opis">Inicia sesión e importa listas automáticamente</string>
+</resources>
