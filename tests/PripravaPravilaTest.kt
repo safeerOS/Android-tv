@@ -12,6 +12,7 @@ fun main() {
     preveri("zvok, ni rocno -> ne", !PripravaPravila.odpriTakoj(false, false))
     preveri("video, rocno -> ne", !PripravaPravila.odpriTakoj(true, true))
     preveri("zvok, rocno -> ne", !PripravaPravila.odpriTakoj(false, true))
+    preveri("video, ni rocno, je serija -> ne", !PripravaPravila.odpriTakoj(true, false, true))
 
     println("Preizkus pravil ostaniVPripravi in cas")
     preveri("enak zagon, pod 45s -> ostani", PripravaPravila.ostaniVPripravi(5, 5, 10_000L))

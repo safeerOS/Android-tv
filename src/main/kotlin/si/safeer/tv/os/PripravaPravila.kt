@@ -1,7 +1,8 @@
 package si.safeer.tv.os
 
 object PripravaPravila {
-    fun odpriTakoj(video: Boolean, rocno: Boolean): Boolean {
+    fun odpriTakoj(video: Boolean, rocno: Boolean, jeSerija: Boolean = false): Boolean {
+        if (jeSerija) return false
         return video && !rocno
     }
 

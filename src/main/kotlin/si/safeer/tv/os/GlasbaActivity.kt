@@ -7552,7 +7552,7 @@ class GlasbaActivity : OsActivity() {
         val kljuc = sk.id.ifBlank { sk.povezava.ifBlank { sk.naslov } }
         if (!pripraveVTeKu.add(kljuc)) return null
         prekiniDebrid()     // pregled A1: nova izbira - prejsnje cakanje na debrid ne odpre nicesar vec
-        if (PripravaPravila.odpriTakoj(sk.video, rocno)) {
+        if (PripravaPravila.odpriTakoj(sk.video, rocno, sk.mediaType == "series")) {
             val i = Intent(this, PredvajanjeActivity::class.java)
             i.putExtra(PredvajanjeActivity.PRIPRAVLJAM_NASLOV, naslovPriprave)
             startActivity(i)
@@ -8339,6 +8339,12 @@ class GlasbaActivity : OsActivity() {
                 val pad = (16 * resources.displayMetrics.density).toInt()
                 v.setPadding(pad, pad, pad, pad)
                 v.typeface = if (pos == trenutniIndeksSezone) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
+                v.background = if (pos == trenutniIndeksSezone) {
+                    android.graphics.drawable.GradientDrawable().apply {
+                        setColor(getColor(R.color.os_kartica_steklo_fokus))
+                        setStroke((2 * resources.displayMetrics.density).toInt(), getColor(R.color.os_mint))
+                    }
+                } else null
                 return v
             }
         }
@@ -8401,6 +8407,12 @@ class GlasbaActivity : OsActivity() {
                 if (v != null) {
                     val pos = seznamSezon.firstVisiblePosition + i
                     v.typeface = if (pos == trenutniIndeksSezone) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
+                    v.background = if (pos == trenutniIndeksSezone) {
+                        android.graphics.drawable.GradientDrawable().apply {
+                            setColor(getColor(R.color.os_kartica_steklo_fokus))
+                            setStroke((2 * resources.displayMetrics.density).toInt(), getColor(R.color.os_mint))
+                        }
+                    } else null
                 }
             }
         }
