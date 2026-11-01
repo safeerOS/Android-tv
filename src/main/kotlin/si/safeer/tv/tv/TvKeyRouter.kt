@@ -289,6 +289,13 @@ class TvKeyRouter(private val host: MainActivity) {
             return host.channelPad.onDigit(gridDigit, event.repeatCount)
         }
 
+        // Preizkus (lastnik 1. 11. 2026): z `adb shell setprop log.tag.SafeerBrezNasegaFokusa DEBUG` gredo smerne tipke
+        // mimo nasega fokusa naravnost v WebView (vgrajena prostorska navigacija), da izmerimo, kako se TV odzove.
+        // Nastavi lahko samo adb (lupina), ne aplikacija; brez lastnosti se nic ne spremeni.
+        if (dpadMove && android.util.Log.isLoggable("SafeerBrezNasegaFokusa", android.util.Log.DEBUG)) {
+            return host.superDispatchKey(event)
+        }
+
         if (profile.handleKey(event, host)) return true
 
         return host.superDispatchKey(event)
