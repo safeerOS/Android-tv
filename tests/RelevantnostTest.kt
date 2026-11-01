@@ -39,6 +39,7 @@ fun main() {
     preveri("ime datoteke razdeljeno na naslov in izvajalca", R.razdeli("JOHN LENNON - IMAGINE.ogg", "") == ("IMAGINE" to "JOHN LENNON"))
     preveri("obstojeci izvajalec ostane", R.razdeli("Time", "Pink Floyd") == ("Time" to "Pink Floyd"))
     preveri("brez locila ostane naslov", R.razdeli("Imagine.mp3", "") == ("Imagine" to ""))
+    preveri("clen The ne odvzame bonusa prve besede", R.ocena("lord", "The Lord of the Rings", "") == R.ocena("lord", "Lord of War", ""))
     println("Relevantnost: $uspehov passed, $napak failed")
     if (napak > 0) kotlin.system.exitProcess(1)
 }

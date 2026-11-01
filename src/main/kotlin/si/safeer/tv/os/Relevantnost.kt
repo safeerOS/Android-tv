@@ -53,7 +53,9 @@ object Relevantnost {
                 poizvedba("$naslov $izvajalec").joinToString(" ") == cela -> o += 0.5
             vGlavnem == iscem.size && iscem.size > 1 -> o += 0.2
         }
-        if (vsem == iscem.size && iscem.size == 1 && besede(naslov).firstOrNull() == iscem[0]) o += 0.1
+        // Prva beseda naslova brez clenov (»The Lord of the Rings« se zacne z »lord«) - lastnik 1. 11. 2026: pri iskanju
+        // »lord« je bil film vrstico nizje, ker je »The« izgubil bonus pred naslovi, ki se zacnejo z »Lord«.
+        if (vsem == iscem.size && iscem.size == 1 && poizvedba(naslov).firstOrNull() == iscem[0]) o += 0.1
         return o
     }
 
