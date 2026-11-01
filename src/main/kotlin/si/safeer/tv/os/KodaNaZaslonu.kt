@@ -65,7 +65,7 @@ class KodaNaZaslonu(private val a: Activity) {
             })
         }
         val pairId = p.pairId
-        val novo = AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val novo = AlertDialog.Builder(a, si.safeer.tv.R.style.Os_Okno)
             .setTitle(a.getString(si.safeer.tv.R.string.os_seznanitev_naslov))
             .setView(vsebina)
             .setNegativeButton(a.getString(si.safeer.tv.R.string.os_seznanitev_zavrni)) { _, _ -> KodaSeznanitve.zavrni(a, pairId) }

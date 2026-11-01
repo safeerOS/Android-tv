@@ -69,7 +69,7 @@ object YouTubeUvozOkno {
         napredekVrsta.addView(napredekBesedilo)
         vsebina.addView(napredekVrsta)
 
-        val okno = AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = AlertDialog.Builder(a, si.safeer.tv.R.style.Os_Okno)
             .setTitle("YouTube račun in seznami")
             .setView(ScrollView(a).apply { addView(vsebina) })
             .setPositiveButton(if (jePrijavljen) "Sinhroniziraj sezname" else "Prijava v YouTube", null)
@@ -131,7 +131,7 @@ object YouTubeUvozOkno {
         }
 
         var zaprto = false
-        val okno = AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = AlertDialog.Builder(a, si.safeer.tv.R.style.Os_Okno)
             .setTitle("Prijava v YouTube")
             .setView(webView)
             .setNegativeButton("Prekliči") { _, _ -> zaprto = true; webView.destroy() }

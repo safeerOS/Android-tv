@@ -308,4 +308,18 @@
         <item name="android:backgroundDimAmount">0.45</item>
         <item name="android:windowAnimationStyle">@null</item>
     </style>
+
+    <!-- Pogovorna okna (AlertDialog) v barvah Safeer OS. Barve so @color in ne ?attr: okno lahko odpre tudi zaslon
+         brez teme Safeer OS (nerazresen atribut bi okno sesul). Lastnik 1. 11. 2026: sistemsko svetlo sivo okno na TV. -->
+    <style name="Os.Okno" parent="@android:style/Theme.DeviceDefault.Dialog.Alert">
+        <item name="android:windowBackground">@drawable/os_okno_ozadje</item>
+        <item name="android:colorBackground">@color/os_kartica_dvignjena</item>
+        <item name="android:colorBackgroundFloating">@color/os_kartica_dvignjena</item>
+        <item name="android:textColorPrimary">@color/os_besedilo</item>
+        <item name="android:textColorSecondary">@color/os_umirjeno</item>
+        <item name="android:textColorAlertDialogListItem">@color/os_besedilo</item>
+        <item name="android:colorAccent">@color/os_mint</item>
+        <item name="android:colorControlActivated">@color/os_mint</item>
+        <item name="android:backgroundDimAmount">0.7</item>
+    </style>
 </resources>

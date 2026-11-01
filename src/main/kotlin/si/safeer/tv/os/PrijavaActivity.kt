@@ -368,7 +368,7 @@ class PrijavaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             gravity = Gravity.CENTER
             setPadding(40, 30, 40, 30)
         }
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_naprave_vpisi_kodo))
             .setMessage(getString(R.string.os_naprave_vpisi_kodo_opis))
             .setView(vnos)

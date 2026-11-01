@@ -152,7 +152,7 @@ class SporocilaActivity : OsActivity() {
     private fun pisiNapravi() {
         val naprave = napraveZaKlepet()
         if (naprave.isEmpty()) { Toast.makeText(this, R.string.os_spor_ni_naprav, Toast.LENGTH_LONG).show(); return }
-        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(R.string.os_spor_pisi_napravi)
             .setItems(naprave.map { it.ime }.toTypedArray()) { _, i ->
                 val n = naprave[i]
@@ -526,7 +526,7 @@ class SporocilaActivity : OsActivity() {
             addView(TextView(this@SporocilaActivity).apply { text = getString(R.string.os_spor_oseba_identitete) + " " + identitete.joinToString(", "); setTextColor(osBarva(R.color.os_umirjeno)); textSize = 12f; setPadding(0, dp(8), 0, 0) })
         }
         val zdruzena = oseba != kljuc
-        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(R.string.os_spor_oseba)
             .setView(ScrollView(this).apply { addView(polja) })
             .setPositiveButton(R.string.os_spor_shrani) { _, _ -> shramba.preimenujOsebo(oseba, ime.text?.toString().orEmpty()); osveziPrikaz() }
@@ -545,7 +545,7 @@ class SporocilaActivity : OsActivity() {
             .filter { it.second != moj }.distinctBy { it.second }
         if (druge.isEmpty()) { Toast.makeText(this, R.string.os_spor_ni_drugih_oseb, Toast.LENGTH_SHORT).show(); return }
         val imena = druge.map { imeOsebe(it.first, vrste) + "  ·  " + it.first.oseba }.toTypedArray()
-        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(R.string.os_spor_zdruzi_z)
             .setItems(imena) { _, i ->
                 val (drugi, drugaOseba) = druge[i]
@@ -566,7 +566,7 @@ class SporocilaActivity : OsActivity() {
             setOnCheckedChangeListener { _, b -> if (b) { if (!trenutne.contains(o)) trenutne.add(o) } else trenutne.remove(o) }
         })
         val polja = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(8), dp(20), 0); addView(izbire); addView(nova) }
-        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(R.string.os_spor_oznake)
             .setView(ScrollView(this).apply { addView(polja) })
             .setPositiveButton(R.string.os_spor_shrani) { _, _ ->
@@ -582,7 +582,7 @@ class SporocilaActivity : OsActivity() {
         val vnos = polje(R.string.os_spor_isci_osebo_namig)
         val zadetki = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val polja = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(8), dp(20), 0); addView(vnos); addView(zadetki) }
-        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(R.string.os_spor_isci_osebo)
             .setView(ScrollView(this).apply { addView(polja) })
             .setNegativeButton(R.string.os_spor_zapri, null).create()
@@ -893,7 +893,7 @@ class SporocilaActivity : OsActivity() {
                 else -> getString(R.string.os_spor_izbrisi_pri_meni)
             }
         }
-        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setItems(imena.toTypedArray()) { _, i ->
                 when (dejanja[i]) {
                     SporocilaPravila.KOPIRAJ -> Odlozisce.kopiraj(this, besedilo)
@@ -917,7 +917,7 @@ class SporocilaActivity : OsActivity() {
      * Ce sta ta ali ona naprava brez povezave, izbris pocaka do naslednje uskladitve (sporocilo o tem).
      */
     private fun potrdiIzbrisNaVseh(p: SporocilaShramba.Pogovor, s: SporocilaShramba.Sporocilo) {
-        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(R.string.os_spor_izbrisi_na_vseh)
             .setMessage(R.string.os_spor_izbrisi_na_vseh_vprasanje)
             .setPositiveButton(R.string.os_spor_izbrisi) { _, _ ->
@@ -939,7 +939,7 @@ class SporocilaActivity : OsActivity() {
 
     /** Naloga 106: »Izbrisi pri meni« - po potrditvi sporocilo izgine iz pogovora na tej napravi. */
     private fun potrdiIzbrisSporocila(p: SporocilaShramba.Pogovor, s: SporocilaShramba.Sporocilo) {
-        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(R.string.os_spor_izbrisi_pri_meni)
             .setMessage(R.string.os_spor_izbrisi_sporocilo_vprasanje)
             .setPositiveButton(R.string.os_spor_izbrisi) { _, _ ->
@@ -955,7 +955,7 @@ class SporocilaActivity : OsActivity() {
 
     /** Naloga 106: »Izbrisi pogovor« - po potrditvi vsa sporocila pogovora na tej napravi; oznake ostanejo. */
     private fun potrdiIzbrisPogovora(p: SporocilaShramba.Pogovor, vrste: Map<String, String>) {
-        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(R.string.os_spor_izbrisi_pogovor)
             .setMessage(getString(R.string.os_spor_izbrisi_pogovor_vprasanje, imeOsebe(p, vrste)))
             .setPositiveButton(R.string.os_spor_izbrisi) { _, _ ->
@@ -1041,7 +1041,12 @@ class SporocilaActivity : OsActivity() {
         val spletni = gumb(getString(R.string.os_spor_splet))
         // Pet zavihkov: na sirokem zaslonu v eni vrsti, na telefonu 3 + 2 - vsi vidni, brez lomljenja besed.
         val zavihki = listOf(eposta, spletni, chatwoot, aplikacije, lastniApi)
-        zavihki.forEach { it.maxLines = 1; it.isSingleLine = true; it.gravity = Gravity.CENTER }
+        // Lastnik 1. 11. 2026: na TV so bila imena odrezana (»Aplikac«, »Chatwo«) - pisava se zmanjsa, da je ime celo.
+        zavihki.forEach {
+            it.maxLines = 1; it.gravity = Gravity.CENTER
+            it.setPadding(dp(6), it.paddingTop, dp(6), it.paddingBottom)
+            it.setAutoSizeTextTypeUniformWithConfiguration(11, 16, 1, android.util.TypedValue.COMPLEX_UNIT_SP)
+        }
         fun vrstaZavihkov(g: List<TextView>) = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             g.forEachIndexed { i, z -> addView(z, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { if (i < g.size - 1) marginEnd = dp(6); bottomMargin = dp(6) }) }
@@ -1245,7 +1250,7 @@ class SporocilaActivity : OsActivity() {
             orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(8), dp(20), 0)
             addView(izbira); (korak1 + korak2 + cFields + aFields + sFields).forEach { addView(it) }; addView(seznamAplikacij); addView(napaka)
         }
-        okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(R.string.os_spor_dodaj)
             .setView(ScrollView(this).apply { addView(polja) })
             .setPositiveButton(R.string.os_spor_dodaj, null)
@@ -1377,7 +1382,7 @@ class SporocilaActivity : OsActivity() {
     }
 
     private fun urediSpletniKanal(k: SporocilaShramba.Kanal) {
-        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(k.ime)
             .setMessage(SpletniKlepetiPravila.gostitelj(k.nastavitve.optString("url")))
             .setPositiveButton(R.string.os_spor_splet_odpri) { _, _ -> SpletniKlepetActivity.odpri(this, k.id) }
@@ -1394,7 +1399,7 @@ class SporocilaActivity : OsActivity() {
 
     /** Safeer Link: odstrani kanal in njegove pogovore (ob novem sporocilu z naprave se kanal doda znova). */
     private fun urediKanalLinka(k: SporocilaShramba.Kanal) {
-        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(k.ime)
             .setPositiveButton(R.string.os_spor_pisi_napravi) { _, _ -> pisiNapravi() }
             .setNeutralButton(R.string.os_spor_odstrani) { _, _ ->
@@ -1421,7 +1426,7 @@ class SporocilaActivity : OsActivity() {
             })
             addView(geslo)
         }
-        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(k.ime)
             .setView(polja)
             .setPositiveButton(R.string.os_spor_novo_geslo) { _, _ ->

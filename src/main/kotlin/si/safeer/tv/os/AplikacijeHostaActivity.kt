@@ -930,7 +930,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         // Lastnik 1. 11. 2026 (rtvslo): dolg pritisk na spletno aplikacijo v Aplikacijah ni ponudil nicesar - odstranitev
         // (tudi z domacega zaslona) kot na Domov (DomovActivity.odstraniSpletno), z vprasanjem.
         if (p.vir == AppVir.SPLET && p.cilj.isNotBlank()) dejanja.add(getString(R.string.os_spletne_odstrani) to {
-            android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
                 .setTitle(p.ime)
                 .setMessage(getString(R.string.os_spletne_odstrani_vprasanje))
                 .setPositiveButton(getString(R.string.os_spletne_odstrani)) { _, _ ->
@@ -941,7 +941,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             Unit
         })
         if (dejanja.isEmpty()) return
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(p.ime)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
             .setNegativeButton(getString(R.string.os_preklici), null)
@@ -1007,7 +1007,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 is SecurityException -> getString(R.string.os_odpri_ni_dovoljenja)
                 else -> e.message.orEmpty().ifBlank { e.javaClass.simpleName }
             }
-            android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
                 .setTitle(ime)
                 .setMessage(getString(R.string.os_odpri_napaka, razlog))
                 .setPositiveButton(getString(R.string.os_poskusi_znova)) { _, _ -> odpriVarno(namera, ime) }

@@ -161,7 +161,7 @@ class VidezActivity : OsActivity() {
     /** Lastna fotografija: ce je ze shranjena, jo uporabimo; sicer gremo naravnost po novo. */
     private fun lastna() {
         if (!Ozadje.imaLastno(this)) { poisciSliko(); return }
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_ozadje_lastna))
             .setPositiveButton(getString(R.string.os_ozadje_uporabi)) { _, _ ->
                 Ozadje.nastavi(this, Ozadje.VSE.first { it.oznaka == Ozadje.LASTNA })

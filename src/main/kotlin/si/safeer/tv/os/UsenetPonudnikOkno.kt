@@ -85,7 +85,7 @@ object UsenetPonudnikOkno {
             izid.text = t(e.message ?: "NI_VPISAN"); null
         }
 
-        val okno = AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = AlertDialog.Builder(a, si.safeer.tv.R.style.Os_Okno)
             .setTitle(t("NASLOV"))
             .setView(ScrollView(a).apply { addView(vsebina) })
             .setPositiveButton(t("GUMB_SHRANI"), null)
@@ -134,7 +134,7 @@ object UsenetPonudnikOkno {
                 }, "safeer-usenet-ponudnik-preveri").start()
             }
             pozabi.setOnClickListener {
-                val potrdi = AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                val potrdi = AlertDialog.Builder(a, si.safeer.tv.R.style.Os_Okno)
                     .setTitle(t("GUMB_POZABI"))
                     .setPositiveButton(t("GUMB_POZABI")) { _, _ ->
                         UsenetLastni.ustavi(); shramba.pozabi()

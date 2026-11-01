@@ -18,7 +18,7 @@ object ZvocnikIzbira {
         return okno
     }
 
-    private fun gradnik(a: Activity) = AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+    private fun gradnik(a: Activity) = AlertDialog.Builder(a, si.safeer.tv.R.style.Os_Okno)
 
     fun izberi(a: Activity, sk: Jamendo.Skladba, spremenjeno: () -> Unit) {
         val iscem = pokazi(a, gradnik(a).setTitle(R.string.zvocnik_predvajaj_na).setMessage(R.string.zvocnik_iscem)

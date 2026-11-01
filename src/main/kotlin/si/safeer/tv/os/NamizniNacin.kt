@@ -102,7 +102,7 @@ object NamizniNacin {
             a.getString(R.string.nz_vodic_aosp).takeIf { it.isNotBlank() }?.let { besedilo.append("\n").append(it) }
             if (!s.razvijalske) besedilo.append("\n\n").append(a.getString(R.string.nz_vodic_razvijalske))
         }
-        val g = AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val g = AlertDialog.Builder(a, si.safeer.tv.R.style.Os_Okno)
             .setTitle(R.string.nz_nacin)
             .setMessage(besedilo.toString())
             .setNegativeButton(a.getString(R.string.os_preklici), null)

@@ -110,7 +110,7 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     /** Vprasanje pred izklopom Safeer Linka; fokus je na »Preklici«, da nehoten OK nicesar ne izklopi. */
     private fun potrdiIzklopLinka() {
-        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_naprave_link_izklop_naslov))
             .setMessage(getString(R.string.os_naprave_link_izklop_opis))
             .setNegativeButton(getString(R.string.os_preklici), null)
@@ -298,7 +298,7 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             setSelection(text?.length ?: 0)
             setPadding(40, 30, 40, 30)
         }
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_naprave_preimenuj))
             .setMessage(getString(R.string.os_naprave_preimenuj_opis))
             .setView(vnos)
@@ -351,7 +351,7 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 Toast.LENGTH_LONG).show()
         })
         moznosti.add(getString(R.string.os_naprave_preimenuj) to { preimenuj(n.id, n.ime) })
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(DatotekeActivity.lepoIme(n.ime).ifBlank { n.id })
             .setItems(moznosti.map { it.first }.toTypedArray()) { _, i -> moznosti.getOrNull(i)?.second?.invoke() }
             .setNegativeButton(getString(R.string.os_preklici), null)
@@ -370,7 +370,7 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val dano = si.safeer.tv.cast.Dostop.zmoznosti(this, n.id)
         val izbrano = BooleanArray(vse.size) { vse[it] in dano }
         val ime = DatotekeActivity.lepoIme(n.ime).ifBlank { n.id }
-        val graditelj = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val graditelj = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
         graditelj
             // »Zaslon in upravljanje« vkljuci Safeer Vnos (misko in tipkovnico) - privolitev to pove (link/VnosVklop).
             .setCustomTitle(si.safeer.tv.link.VnosVklop.naslovPrivolitve(graditelj.context, getString(R.string.os_dostop_naslov, ime)))

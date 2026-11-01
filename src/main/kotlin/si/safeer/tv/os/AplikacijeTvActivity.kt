@@ -113,7 +113,7 @@ class AplikacijeTvActivity : OsActivity() {
                 is SecurityException -> getString(R.string.os_odpri_ni_dovoljenja)
                 else -> e.message.orEmpty().ifBlank { e.javaClass.simpleName }
             }
-            android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
                 .setTitle(a.ime)
                 .setMessage(getString(R.string.os_odpri_napaka, razlog))
                 .setPositiveButton(getString(R.string.os_poskusi_znova)) { _, _ -> zazeni(a) }
@@ -144,7 +144,7 @@ class AplikacijeTvActivity : OsActivity() {
             })
         }
 
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(a.ime)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
             .setNegativeButton(getString(R.string.os_preklici), null)

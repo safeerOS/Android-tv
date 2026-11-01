@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ozadje pogovornih oken Safeer OS: temna dvignjena kartica namesto svetlo sive sistemske (lastnik 1. 11. 2026: »siv je neprivlacen«). -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android" android:inset="16dp">
+    <shape android:shape="rectangle">
+        <solid android:color="@color/os_kartica_dvignjena"/>
+        <stroke android:width="1dp" android:color="@color/os_kartica_obroba"/>
+        <corners android:radius="20dp"/>
+    </shape>
+</inset>

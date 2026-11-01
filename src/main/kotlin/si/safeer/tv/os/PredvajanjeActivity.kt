@@ -696,7 +696,7 @@ class PredvajanjeActivity : OsActivity() {
         val s = od / 1000
         val napis = if (s >= 3600) String.format(java.util.Locale.ROOT, "%d:%02d:%02d", s / 3600, (s % 3600) / 60, s % 60)
             else String.format(java.util.Locale.ROOT, "%d:%02d", s / 60, s % 60)
-        oknoNadaljevanja = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        oknoNadaljevanja = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(GlasbaStoritev.trenutna()?.naslov.orEmpty())
             .setItems(arrayOf(getString(R.string.os_nadaljuj_od, napis), getString(R.string.os_od_zacetka))) { _, i -> zacni(if (i == 0) od else 0L) }
             // Nazaj: kot doslej - nadaljuje (najpogostejsa izbira, nic se ne izgubi).

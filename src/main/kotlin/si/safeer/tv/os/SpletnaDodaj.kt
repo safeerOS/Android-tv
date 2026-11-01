@@ -19,7 +19,7 @@ object SpletnaDodaj {
         // ki jih ima ze na domaci strani brskalnika.
         val imena = (listOf(a.getString(R.string.os_spletne_vnesi)) +
             proste.map { it.title.ifBlank { SpletneAplikacije.gostitelj(it.url) } }).toTypedArray()
-        android.app.AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(a, si.safeer.tv.R.style.Os_Okno)
             .setTitle(a.getString(R.string.os_spletne_dodaj_naslov))
             .setItems(imena) { _, i ->
                 if (i == 0) vnesiNaslov(a, poDodaji)
@@ -47,7 +47,7 @@ object SpletnaDodaj {
             setPadding(r, r / 2, r, 0)
             addView(polje)
         }
-        android.app.AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(a, si.safeer.tv.R.style.Os_Okno)
             .setTitle(a.getString(R.string.os_spletne_vnesi))
             .setView(okvir)
             .setPositiveButton(a.getString(R.string.os_spletne_dodaj_gumb)) { _, _ ->

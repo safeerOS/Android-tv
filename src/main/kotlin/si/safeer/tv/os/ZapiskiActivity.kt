@@ -166,7 +166,7 @@ class ZapiskiActivity : OsActivity() {
         val polja = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(4), dp(20), 0); addView(naslov); addView(vsebina)
         }
-        val graditelj = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val graditelj = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(if (zapisek == null) R.string.os_zapiski_nov else R.string.os_zapiski_uredi)
             .setView(polja)
             .setPositiveButton(R.string.os_zapiski_shrani) { _, _ ->
@@ -187,7 +187,7 @@ class ZapiskiActivity : OsActivity() {
     }
 
     private fun potrdiBrisanje(zapisek: ZapiskiShramba.Zapisek) {
-        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(R.string.os_zapiski_izbrisi)
             .setMessage(R.string.os_zapiski_izbrisi_vprasanje)
             .setPositiveButton(R.string.os_zapiski_izbrisi) { _, _ -> shramba.izbrisi(zapisek.id); zapisi(); narisi() }

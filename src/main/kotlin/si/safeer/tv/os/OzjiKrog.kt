@@ -66,7 +66,7 @@ object OzjiKrog {
         }
         val prej = seznam.associate { (_, id) -> id to (try { Dostop.zmoznosti(a, id) } catch (_: Throwable) { emptySet() }) }
         val izbrano = BooleanArray(seznam.size) { vKrogu(a, seznam[it].second) }
-        val graditelj = AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val graditelj = AlertDialog.Builder(a, si.safeer.tv.R.style.Os_Okno)
         val okno = graditelj
             // Privolitev pove, kaj krog pomeni: tudi upravljanje z misko in tipkovnico (Safeer Vnos, link/VnosVklop).
             .setCustomTitle(si.safeer.tv.link.VnosVklop.naslovPrivolitve(graditelj.context, a.getString(R.string.os_ozji_krog)))

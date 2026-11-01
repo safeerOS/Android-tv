@@ -677,7 +677,7 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 odpri(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + a.paket)), a.ime, null)
             },
         )
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(a.ime)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
             .setNegativeButton(getString(R.string.os_preklici), null)
@@ -711,7 +711,7 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (!Naprava.jeTelevizor(this)) dejanja.add(getString(R.string.nz_nacin) to { NamizniNacin.pokazi(this) { } })
         if (Zaganjalnik.jePonujen(this) || Zaganjalnik.jeIzbran(this)) dejanja.add(getString(R.string.nz_vrata_vrni) to {
             VarnostnaVrata.vrni(this) })
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
             .setNegativeButton(getString(R.string.os_preklici), null)
             .let { Kontroler.pokazi(it.show()) }
@@ -928,7 +928,7 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 odpri(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + a.paket)), a.ime, null)
             },
         )
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(a.ime)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
             .setNegativeButton(getString(R.string.os_preklici), null)
@@ -941,7 +941,7 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             getString(R.string.os_spletne_desno) to { SpletneAplikacije.premakni(this, s.url, 1); narisiPriljubljene() },
             getString(R.string.os_spletne_odstrani) to { SpletneAplikacije.odstrani(this, s.url); narisiPriljubljene() },
         )
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(s.ime.ifBlank { SpletneAplikacije.gostitelj(s.url) })
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
             .setNegativeButton(getString(R.string.os_preklici), null)
@@ -1021,7 +1021,7 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                         else getString(R.string.os_nadaljuj_ni_vec, n.ime), Toast.LENGTH_LONG).show()
                 }
             }, dolgo = {
-                android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
                     .setTitle(n.ime)
                     .setItems(arrayOf(getString(R.string.os_nadaljuj_odstrani))) { _, _ -> Nadaljuj.odstrani(this, n); narisiDatoteke() }
                     .setNegativeButton(getString(R.string.os_preklici), null)
@@ -1091,7 +1091,7 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             ploscica(ime, ikona, 0, opis = kje, ob = {
                 ZagonPrograma.zazeni(this, link, naprava, program, ime, p?.skupina == "igre" || n?.igra == true)
             }, dolgo = {
-                android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
                     .setTitle(ime)
                     .setItems(arrayOf(getString(R.string.os_priljubljen_odstrani))) { _, _ ->
                         if (p != null) SafeerAppi.odstrani(this, p.kljuc)
@@ -1155,7 +1155,7 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     private fun pokaziVrnjenPoPadcu() {
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(R.string.zg_padec_naslov)
             .setMessage(R.string.nz_padec_opis)
             .setPositiveButton(R.string.zg_padec_znova) { _, _ -> Zaganjalnik.zahtevajVlogo(this) }

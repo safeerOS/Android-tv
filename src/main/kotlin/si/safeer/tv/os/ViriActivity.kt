@@ -206,7 +206,7 @@ class ViriActivity : android.app.Activity() {
             e.apply()
             narisi(v.info.id)
         }
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_viri_preimenuj) + (v.vrata?.let { " ($it)" } ?: ""))
             .setView(okvir)
             .setPositiveButton(R.string.os_viri_shrani) { _, _ -> shrani(polje.text?.toString()) }

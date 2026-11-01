@@ -5619,7 +5619,7 @@ class GlasbaActivity : OsActivity() {
             izberi(DOMOV)
             drsnik.post { vsebina.findViewWithTag<View>(if (sosed != null) "k:v:$sosed" else KLJUC_VSI_VIRI)?.requestFocus() }
         })
-        pokaziBrisanje(AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        pokaziBrisanje(AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(v.ime)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
             .setNegativeButton(getString(R.string.os_preklici), null)
@@ -5728,10 +5728,10 @@ class GlasbaActivity : OsActivity() {
 
     /** Dolg dotik na seznamu v Brskaj: predvajaj ali odstrani (s potrditvijo). */
     private fun meniSeznama(sz: MedijskiViri.Seznam) {
-        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(sz.ime)
+        AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(sz.ime)
             .setItems(arrayOf(getString(R.string.os_mediji_predvajaj), getString(R.string.os_mediji_odstrani_seznam))) { _, k ->
                 if (k == 0) sz.skladbe.first().let { prva -> if (jeVrstaPosnetkov(prva, sz)) predvajajVrstoPosnetkov(sz.skladbe, prva) else predvajaj(sz.skladbe, 0) }
-                else AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(sz.ime)
+                else AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(sz.ime)
                     .setMessage(vprasanjeOdstraniSeznam())
                     // Stran ostane ista (Domov, Moja glasba, Zate, Brskaj ali »Pokazi vse« seznamov) - prej je izbris vrgel v Brskaj.
                     .setPositiveButton(R.string.os_mediji_odstrani_seznam) { _, _ -> MedijskiViri.odstraniSeznam(this, sz.ime); osveziNaMestu() }
@@ -5793,7 +5793,7 @@ class GlasbaActivity : OsActivity() {
                 catch (_: java.util.concurrent.RejectedExecutionException) { }
             }) else emptyList()) +
             listOf(getString(R.string.os_media_izbrisi_vir) to { odstraniVir(dodan, v.ime) })
-        pokaziBrisanje(AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        pokaziBrisanje(AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(v.ime)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
             .setNegativeButton(getString(R.string.os_preklici), null)
@@ -6028,7 +6028,7 @@ class GlasbaActivity : OsActivity() {
             getString(R.string.os_media_odstrani_nadaljuj),
             getString(R.string.os_media_pocisti_nadaljuj)
         )
-        pokaziBrisanje(AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(sk.naslov)
+        pokaziBrisanje(AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(sk.naslov)
             .setItems(moznosti) { _, k ->
                 when (k) {
                     0 -> {
@@ -6043,7 +6043,7 @@ class GlasbaActivity : OsActivity() {
     }
 
     private fun potrdiPocistiNadaljuj() {
-        pokaziBrisanje(AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(R.string.os_media_pocisti_nadaljuj)
+        pokaziBrisanje(AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(R.string.os_media_pocisti_nadaljuj)
             .setMessage(R.string.os_media_pocisti_nadaljuj_potrdi)
             .setPositiveButton(android.R.string.ok) { _, _ ->
                 MediaNapredek.pocisti(this)
@@ -6147,7 +6147,7 @@ class GlasbaActivity : OsActivity() {
         }
         if (seznam != null) dejanja += getString(R.string.os_mediji_odstrani_seznam) to {
             // S potrditvijo: seznam izgine tudi na drugih napravah v Linku (SeznamiSink), zato en dotik ni dovolj.
-            pokaziBrisanje(AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(seznam.ime)
+            pokaziBrisanje(AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(seznam.ime)
                 .setMessage(vprasanjeOdstraniSeznam())
                 .setPositiveButton(R.string.os_mediji_odstrani_seznam) { _, _ -> MedijskiViri.odstraniSeznam(this, seznam.ime); osveziPriljubljene() }
                 .setNegativeButton(android.R.string.cancel, null))
@@ -6197,7 +6197,7 @@ class GlasbaActivity : OsActivity() {
             Unit
         }
         if (!d.potrdi) { izvedi(); return }
-        pokaziBrisanje(AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        pokaziBrisanje(AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(naslov).setMessage(sk.naslov)
             .setPositiveButton(naslov) { _, _ -> izvedi() }
             .setNegativeButton(R.string.os_preklici, null))
@@ -6212,7 +6212,7 @@ class GlasbaActivity : OsActivity() {
             setTextColor(osBarva(R.color.os_besedilo)); setPadding(48, 24, 48, 24)
             text = listOf(sk.izvajalec, getString(R.string.os_dodatek_nalagam)).filter { it.isNotBlank() }.joinToString("\n\n")
         }
-        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(sk.naslov)
+        val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(sk.naslov)
             .setView(android.widget.ScrollView(this).apply { addView(besedilo) })
             .setNegativeButton(R.string.os_preklici, null).create()
         Kontroler.pokazi(okno); okno.show()
@@ -6286,7 +6286,7 @@ class GlasbaActivity : OsActivity() {
                 if (vsebina.elementi.isEmpty()) { Toast.makeText(this, R.string.os_dodatek_mapa_prazna, Toast.LENGTH_SHORT).show(); return@post }
                 val imena = vsebina.elementi.map { (if (it.vrsta == "folder") "📁 " else "") + it.ime } +
                     (if (vsebina.naprej.isNotBlank()) listOf(getString(R.string.os_dodatek_vec)) else emptyList())
-                val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(ime)
+                val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(ime)
                     .setItems(imena.toTypedArray()) { _, i ->
                         val e = vsebina.elementi.getOrNull(i)
                         when {
@@ -6341,7 +6341,7 @@ class GlasbaActivity : OsActivity() {
                 }
             }
         }
-        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_dodatek_nastavitve) + " · " + (Stremio.imeIzPredpomnilnika(naslov) ?: ""))
             .setView(android.widget.ScrollView(this).apply { addView(stolpec) })
             .setPositiveButton(R.string.os_dodatek_shrani) { _, _ ->
@@ -6368,7 +6368,7 @@ class GlasbaActivity : OsActivity() {
             DodatkiRazvoj.nastavi(this, false)
             Toast.makeText(this, R.string.os_razvoj_izklopljen, Toast.LENGTH_SHORT).show(); osveziNaMestu(); return
         }
-        pokaziBrisanje(AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        pokaziBrisanje(AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(R.string.os_razvoj_vklopi).setMessage(R.string.os_razvoj_vklopi_vprasanje)
             .setPositiveButton(R.string.os_razvoj_vklopi) { _, _ ->
                 DodatkiRazvoj.nastavi(this, true)
@@ -6392,7 +6392,7 @@ class GlasbaActivity : OsActivity() {
             },
             getString(R.string.os_razvoj_dnevnik) to { pokaziDnevnikDodatkov() },
             getString(R.string.os_razvoj_izklopi) to { preklopiRazvoj() })
-        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(R.string.os_razvoj_naslov)
+        val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(R.string.os_razvoj_naslov)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
             .setNegativeButton(R.string.os_preklici, null).create()
         Kontroler.pokazi(okno); okno.show()
@@ -6409,7 +6409,7 @@ class GlasbaActivity : OsActivity() {
             setTextColor(osBarva(R.color.os_besedilo)); setPadding(48, 24, 48, 24); typeface = android.graphics.Typeface.MONOSPACE; textSize = 12f
             text = if (vrstice.isEmpty()) getString(R.string.os_razvoj_dnevnik_prazen) else vrstice.joinToString("\n")
         }
-        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(R.string.os_razvoj_dnevnik)
+        val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(R.string.os_razvoj_dnevnik)
             .setView(ScrollView(this).apply { addView(besedilo) }).setNegativeButton(R.string.os_preklici, null).create()
         Kontroler.pokazi(okno); okno.show()
     }
@@ -6418,7 +6418,7 @@ class GlasbaActivity : OsActivity() {
     private fun pokaziSpremembeDodatkov() {
         for (n in stremioNaslovi()) {
             val b = Stremio.spremembeZaPrikaz(this, n) ?: continue
-            val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
                 .setTitle(getString(R.string.os_dodatek_novo, Stremio.imeIzPredpomnilnika(n) ?: ""))
                 .setMessage(b.za(jezikUporabnika())).setPositiveButton(android.R.string.ok, null).create()
             Kontroler.pokazi(okno); okno.show()
@@ -7721,7 +7721,7 @@ class GlasbaActivity : OsActivity() {
     /** Priljubljen album: Preimenuj (ime, ki si ga uporabnik lazje zapomni) ali Odstrani iz priljubljenih. */
     private fun urediUsenetAlbum(a: UsenetAlbumi.Album) {
         val izbire = arrayOf(getString(R.string.os_usenet_album_preimenuj), getString(R.string.os_usenet_album_odstrani))
-        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(a.ime.ifBlank { UsenetGlasbaPravila.lepNaslov(a.naslov) })
             .setItems(izbire) { _, i -> if (i == 0) preimenujUsenetAlbum(a) else preklopiUsenetAlbum(a.naslov, a.velikost) }
             .setNegativeButton(getString(R.string.os_preklici), null)
@@ -7734,7 +7734,7 @@ class GlasbaActivity : OsActivity() {
             setSingleLine(); setText(a.ime); hint = getString(R.string.os_usenet_album_ime_namig)
             filters = arrayOf(android.text.InputFilter.LengthFilter(UsenetAlbumi.NAJDALJSE_IME))
         }
-        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(R.string.os_usenet_album_preimenuj)
             .setMessage(UsenetGlasbaPravila.lepNaslov(a.naslov))
             .setView(polje)
@@ -8553,7 +8553,7 @@ class GlasbaActivity : OsActivity() {
     private fun odkleniPriDodatku(naslov: String) {
         val povezava = Stremio.povezavaOdklepa(naslov) ?: return
         val ime = Stremio.imeIzPredpomnilnika(naslov) ?: MedijskiViri.vsi(this).firstOrNull { Stremio.osnova(it.naslov) == Stremio.osnova(naslov) }?.ime.orEmpty()
-        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_mediji_odkleni))
             .setMessage(getString(R.string.os_mediji_odkleni_opis, ime.ifBlank { android.net.Uri.parse(povezava).host.orEmpty() }))
             .setPositiveButton(R.string.os_mediji_odkleni_odpri) { _, _ -> odpriStran(povezava, ime) }
@@ -8579,7 +8579,7 @@ class GlasbaActivity : OsActivity() {
                 if (isFinishing || isDestroyed) return@post
                 val star = MedijskiViri.vsi(this).firstOrNull { it.jeStremio && Stremio.osnova(it.naslov) in stari } ?: return@post
                 val ime = Stremio.imeIzPredpomnilnika(naslov) ?: star.ime
-                AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(ime)
+                AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(ime)
                     .setMessage(getString(R.string.os_mediji_dvojnik_dodatka, ime))
                     .setPositiveButton(R.string.os_mediji_odstrani) { _, _ ->
                         MedijskiViri.odstrani(this, star)
@@ -8622,14 +8622,14 @@ class GlasbaActivity : OsActivity() {
             getString(R.string.os_predpomnilnik_mesto, imeMesta) to { izberiMestoPredpomnilnika() },
             getString(R.string.os_predpomnilnik_velikost, UsbPredpomnilnik.velikostGb(this)) to {
                 val v = PredpomnilnikPravila.VELIKOSTI_GB
-                AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(R.string.os_predpomnilnik_naslov)
+                AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(R.string.os_predpomnilnik_naslov)
                     .setSingleChoiceItems(v.map { getString(R.string.os_predpomnilnik_gb, it) }.toTypedArray(), v.indexOf(UsbPredpomnilnik.velikostGb(this))) { d, i ->
                         d.dismiss(); UsbPredpomnilnik.nastavi(this, velikostGb = v[i])
                     }.show()
                 Unit
             },
             getString(R.string.os_predpomnilnik_pocisti) to {
-                AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(R.string.os_predpomnilnik_pocisti)
+                AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(R.string.os_predpomnilnik_pocisti)
                     .setMessage(R.string.os_predpomnilnik_pocisti_vprasanje)
                     .setPositiveButton(android.R.string.ok) { _, _ ->
                         UsbPredpomnilnik.pocisti(this) { glavna.post { if (!isFinishing) Toast.makeText(this, R.string.os_predpomnilnik_pociscen, Toast.LENGTH_SHORT).show() } }
@@ -8637,7 +8637,7 @@ class GlasbaActivity : OsActivity() {
                 Unit
             },
         )
-        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(getString(R.string.os_predpomnilnik_naslov) + " · " + opisPredpomnilnika())
+        AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(getString(R.string.os_predpomnilnik_naslov) + " · " + opisPredpomnilnika())
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }.show()
         UsbPredpomnilnik.osveziStanje(this)
     }
@@ -8660,7 +8660,7 @@ class GlasbaActivity : OsActivity() {
                 naprave.map { (id, ime) -> PredpomnilnikPravila.Mesto(PredpomnilnikPravila.Nacin.LINK, id) to (prostih[id]?.let {
                     getString(R.string.os_predpomnilnik_naprava, ime, velikostBesedilo(it)) } ?: getString(R.string.os_predpomnilnik_naprava_ne_odgovori, ime)) }
             val zdaj = UsbPredpomnilnik.mesto(this)
-            AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(R.string.os_predpomnilnik_naslov)
+            AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(R.string.os_predpomnilnik_naslov)
                 .setSingleChoiceItems(moznosti.map { it.second }.toTypedArray(), moznosti.indexOfFirst { it.first == zdaj }) { d, i ->
                     d.dismiss(); UsbPredpomnilnik.nastavi(this, mesto = moznosti[i].first)
                 }.show()
@@ -9767,7 +9767,7 @@ class GlasbaActivity : OsActivity() {
                 val storitev = imeStoritveNapake(izid)
                 val sporocilo = DebridBesedila.sporocilo(this, izid, storitev)
                 val naslovOkna = DebridBesedila.naslov(this, izid, storitev)
-                val g = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                val g = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
                     .setTitle(naslovOkna).setMessage(sporocilo)
                     .setNegativeButton(R.string.os_preklici, null)
                 if (brez != null) g.setPositiveButton(R.string.os_debrid_brez) { _, _ -> brez() }
@@ -9802,7 +9802,7 @@ class GlasbaActivity : OsActivity() {
 
     private fun pokaziOknoDebrida() {
         if (debridOkno != null || !vOspredju || isFinishing || isDestroyed) return
-        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setMessage(besediloDebrida)
             .setNegativeButton(R.string.os_preklici) { _, _ -> prekiniDebrid() }
             .setOnCancelListener { prekiniDebrid() }
@@ -9877,7 +9877,7 @@ class GlasbaActivity : OsActivity() {
         val ustavljen = Debrid.imaKljuc(this, p)
         // Pregled 10: tudi »Odstrani kljuc« - sicer bi se okno pokazalo ob vsakem torrentu. Preklic je tipka Nazaj; privzet
         // (fokus) je varen gumb »Popravi kljuc«, ne »brez zasebnosti«.
-        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_torbox_napaka_naslov, ime))
             .setMessage(if (ustavljen) navodiloRacuna(p, Debrid.stanjeKljuca(this, p)?.first) else getString(R.string.os_debrid_kljuc_neberljiv, ime))
             .setNegativeButton(R.string.os_torbox_popravi) { _, _ -> if (ustavljen) stanjeKljucaOkno(p) else kljucDebrida(p) }
@@ -9967,13 +9967,13 @@ class GlasbaActivity : OsActivity() {
         val red = Debrid.vrstniRed(this)
         if (red.size >= 2) vrstice += getString(R.string.os_debrid_prednostna, DebridPravila.ime(red.first())) to {
             val imena = red.map { DebridPravila.ime(it) }.toTypedArray()
-            val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(R.string.os_debrid_prednostna_naslov)
+            val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(R.string.os_debrid_prednostna_naslov)
                 .setSingleChoiceItems(imena, 0) { d, i -> Debrid.nastaviPrednostno(this, red[i]); d.dismiss(); osveziNaMestu(); nastavitveDebrida() }
                 .setNegativeButton(R.string.os_preklici, null).create()
             Kontroler.pokazi(okno); okno.show()
         }
         // Glava: naslov in kratko pojasnilo (seznam spodaj ostane cel - setMessage bi ga skril).
-        val g = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val g = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
         val glava = LinearLayout(g.context).apply {
             orientation = LinearLayout.VERTICAL; setPadding(dp(24), dp(18), dp(24), dp(6))
             addView(TextView(g.context).apply {
@@ -10015,14 +10015,14 @@ class GlasbaActivity : OsActivity() {
             return
         }
         val imena = cilji.map { DatotekeActivity.lepoIme(it.ime) }
-        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(R.string.os_debrid_poslji)
+        val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(R.string.os_debrid_poslji)
             .setItems(imena.toTypedArray()) { _, i ->
                 val n = cilji[i]; val ime = imena[i]
                 val katere = (Debrid.vrstniRed(this).map { DebridPravila.ime(it) } +
                     listOfNotNull(Usenet.gostitelj(this)?.let { getString(R.string.os_usenet_ime_kratko, it) }) +
                     // Webtor rezerva: dodatki s poverilnico (samo gostitelj, nikoli naslov).
                     MedijskiViri.skrivniDodatki(this).map { getString(R.string.os_skrivni_dodatek_ime, Zasebno.gostitelj(it)) }.distinct()).joinToString(", ")
-                pokaziBrisanje(AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                pokaziBrisanje(AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
                     .setTitle(R.string.os_debrid_poslji)
                     .setMessage(getString(R.string.os_debrid_poslji_vprasanje, katere, ime))
                     .setPositiveButton(R.string.os_debrid_poslji_gumb) { _, _ ->
@@ -10060,7 +10060,7 @@ class GlasbaActivity : OsActivity() {
         fun ime(x: String) = if (x.startsWith(Debrid.PREDPONA_DODATKA)) getString(R.string.os_skrivni_dodatek_ime, x.removePrefix(Debrid.PREDPONA_DODATKA)) else x
         val katere = UskladitevKljucev.opisSpremembe(s).joinToString(", ") { ime(it) }.ifBlank { "–" }
         val naprava = DatotekeActivity.lepoIme(s.ime).ifBlank { s.ime.ifBlank { s.id } }
-        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(R.string.os_sinh_naprave_naslov)
             .setMessage(getString(R.string.os_sinh_spremenjeno, naprava, katere))
             .setPositiveButton(android.R.string.ok) { _, _ -> UskladitevKljucev.potrdiSpremembo(this, s, false) }
@@ -10081,7 +10081,7 @@ class GlasbaActivity : OsActivity() {
         fun ime(x: String) = if (x.startsWith(Debrid.PREDPONA_DODATKA)) getString(R.string.os_skrivni_dodatek_ime, x.removePrefix(Debrid.PREDPONA_DODATKA)) else x
         val katere = UskladitevKljucev.opisZapisov(z).joinToString(", ") { ime(it) }.ifBlank { "–" }
         val naprava = DatotekeActivity.lepoIme(z.ime).ifBlank { z.ime.ifBlank { z.id } }
-        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(R.string.os_sinh_naprave_naslov)
             // Pregled U3: okno pove tudi, da gredo kljuci te naprave na drugo napravo.
             .setMessage(getString(R.string.os_sinh_vprasanje, naprava, katere) + "\n\n" + getString(R.string.os_sinh_tudi_nasi, naprava))
@@ -10113,7 +10113,7 @@ class GlasbaActivity : OsActivity() {
         // Lastnik, 26. 10. 2026: opozorilo »geslo je bilo deljeno« prestrasi uporabnika (pomisli na e-posto, banko) - ne kazemo ga;
         // kljuci in skrivnosti se sinhronizirajo v ozjem krogu uporabnikovih naprav, sifrirano. Ostane samo odlocitev o preklicu.
         val gostitelji = if (OPOZORILO_GESLA_DELJENO) MedijskiViri.opozoriloDeljenja(this) else emptyList()
-        val okno = if (gostitelji.isNotEmpty()) AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = if (gostitelji.isNotEmpty()) AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(R.string.os_iptv_deljeno_naslov)
             .setMessage(getString(R.string.os_iptv_deljeno_sporocilo, gostitelji.joinToString(", ")))
             .setPositiveButton(android.R.string.ok) { _, _ -> MedijskiViri.opozoriloVideno(this) }
@@ -10121,7 +10121,7 @@ class GlasbaActivity : OsActivity() {
         else {
             val p = MedijskiViri.preklic() ?: return
             val naprava = DatotekeActivity.lepoIme(p.ime).ifBlank { p.ime.ifBlank { p.naprava } }
-            AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
                 .setTitle(R.string.os_iptv_preklic_naslov)
                 .setMessage(getString(R.string.os_iptv_preklic_sporocilo, MedijskiViri.opisPreklica(p), naprava))
                 .setPositiveButton(R.string.os_mediji_odstrani) { _, _ -> MedijskiViri.odlociPreklic(this, p, true); poSpremembiVirov(); izberiNaMestu(razdelek) }
@@ -10148,7 +10148,7 @@ class GlasbaActivity : OsActivity() {
                 UskladitevKljucevPravila.Stanje.STARA -> getString(R.string.os_sinh_stanje_stara, ime)
             }
         }
-        val g = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(R.string.os_sinh_naprave_naslov)
+        val g = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(R.string.os_sinh_naprave_naslov)
         if (naprave.isEmpty()) g.setMessage(R.string.os_sinh_naprave_prazno)
         else g.setItems(vrstice.toTypedArray()) { _, i ->
             val n = naprave[i]
@@ -10178,7 +10178,7 @@ class GlasbaActivity : OsActivity() {
         }
         val katere = (p.kljuci.keys + listOfNotNull(p.indeksator?.let { UsenetPravila.VRSTA }) +
             p.dodatki.map { Debrid.PREDPONA_DODATKA + Zasebno.gostitelj(it) }.distinct()).joinToString(", ") { ime(it) }
-        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(R.string.os_debrid)
             .setMessage(getString(R.string.os_debrid_prejeto_vprasanje, DatotekeActivity.lepoIme(p.od), katere))
             .setPositiveButton(R.string.os_torbox_shrani) { _, _ ->
@@ -10225,7 +10225,7 @@ class GlasbaActivity : OsActivity() {
             isSingleLine = true
         }
         val okvir = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(rob, rob / 2, rob, 0); addView(naslov); addView(kljuc) }
-        val g = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val g = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(R.string.os_usenet_naslov)
             .setMessage(R.string.os_usenet_pojasnilo).setView(okvir)
             .setPositiveButton(R.string.os_torbox_shrani) { _, _ ->
@@ -10285,7 +10285,7 @@ class GlasbaActivity : OsActivity() {
             isSingleLine = true
         }
         val okvir = android.widget.FrameLayout(this).apply { setPadding(rob, rob / 2, rob, 0); addView(polje) }
-        val g = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val g = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_debrid_kljuc_naslov, ime))
             .setMessage(getString(R.string.os_debrid_kljuc_pojasnilo, DebridPravila.kjeKljuc(p))).setView(okvir)
             .setPositiveButton(R.string.os_torbox_shrani) { _, _ ->
@@ -10350,7 +10350,7 @@ class GlasbaActivity : OsActivity() {
     private fun stanjeIndeksatorjaOkno(gost: String) {
         val ime = getString(R.string.os_usenet_ime_kratko, gost)
         val zaklenjen = Usenet.stanje(this) == DebridPravila.StanjeKljuca.ZAKLENJEN
-        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(R.string.os_usenet_naslov)
             .setMessage(getString(if (zaklenjen) R.string.os_debrid_zaklenjen else R.string.os_debrid_ne_velja_navodilo, ime))
             .setPositiveButton(R.string.os_debrid_preveri) { _, _ -> preveriIndeksatorRocno(ime) }
@@ -10395,7 +10395,7 @@ class GlasbaActivity : OsActivity() {
      */
     private fun stanjeKljucaOkno(p: String) {
         val ime = DebridPravila.ime(p)
-        val okno = AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_debrid_kljuc_naslov, ime))
             .setMessage(navodiloRacuna(p, Debrid.stanjeKljuca(this, p)?.first))
             .setPositiveButton(R.string.os_debrid_preveri) { _, _ -> preveriKljucRocno(p) }
@@ -10839,7 +10839,7 @@ class GlasbaActivity : OsActivity() {
             dejanja += getString(if (je) R.string.os_prenos_ne_obdrzi else R.string.os_prenos_obdrzi) to { obdrzi(!je) }
         }
         dejanja += getString(R.string.os_prenos_odstrani) to { odstrani() }
-        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(sk.naslov)
+        AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(sk.naslov)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
             .setNegativeButton(android.R.string.cancel, null).show()
     }

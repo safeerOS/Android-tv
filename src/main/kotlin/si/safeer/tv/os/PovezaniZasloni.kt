@@ -88,7 +88,7 @@ object PovezaniZasloni {
     fun pokaziSeznam(a: Activity, link: LinkUpravitelj) {
         if (a.isFinishing) return
         val glavna = Handler(Looper.getMainLooper())
-        val gradnik = AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val gradnik = AlertDialog.Builder(a, si.safeer.tv.R.style.Os_Okno)
         val kontekst = gradnik.context
         val gostota = a.resources.displayMetrics.density
         fun dp(v: Int) = (v * gostota).toInt()

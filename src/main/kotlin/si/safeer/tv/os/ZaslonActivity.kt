@@ -793,7 +793,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         if (drugi.isEmpty()) return false
         ponujeno = true
         pokazi(getString(R.string.os_zaslon_ni_vec))
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_zaslon_ni_vec))
             .setItems(drugi.map { it.ime.ifBlank { it.id } }.toTypedArray()) { _, i ->
                 intent.putExtra(DatotekeActivity.EXTRA_RACUNALNIK, drugi[i].id)
@@ -1045,7 +1045,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             if (!podatkiVidni) meritve.visibility = View.GONE
         })
         dejanja.add(getString(R.string.os_zaslon_meni_koncaj) to { koncaj(zapriPrograme = true); finish() })
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_zaslon))
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
             .setNegativeButton(getString(R.string.os_preklici), null)
@@ -1068,7 +1068,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             getString(R.string.os_bliznjica_podcrtano) to "podcrtano",
             getString(R.string.os_bliznjica_isci) to "isci",
         )
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_zaslon_meni_bliznjice))
             .setItems(bliznjice.map { it.first }.toTypedArray()) { _, i -> posljiTipko(bliznjice[i].second) }
             .setNegativeButton(getString(R.string.os_preklici), null)

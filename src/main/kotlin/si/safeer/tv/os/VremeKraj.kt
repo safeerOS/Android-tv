@@ -32,7 +32,7 @@ object VremeKraj {
         val polje = EditText(a).apply {
             setSingleLine(); setText(ime(a).orEmpty()); hint = a.getString(R.string.pk_vreme_kraj_namig)
         }
-        val okno = android.app.AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = android.app.AlertDialog.Builder(a, si.safeer.tv.R.style.Os_Okno)
             .setTitle(R.string.pk_vreme_kraj)
             .setMessage(R.string.pk_vreme_kraj_opis)
             .setView(polje)

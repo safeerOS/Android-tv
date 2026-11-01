@@ -681,7 +681,7 @@ class PokrajinaActivity : OsActivity() {
             getString(R.string.os_meni_nastavitve) to { odpri(Intent(this, NastavitveActivity::class.java)) },
             getString(R.string.nast_sk_tv) to { odpriNastavitveTv() },
         )
-        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(ime)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
             .setNegativeButton(getString(R.string.os_preklici), null)
@@ -728,7 +728,7 @@ class PokrajinaActivity : OsActivity() {
 
     /** »+ Dodaj«: aplikacija s televizorja (seznam vseh, dolg pritisk doda) ali spletna aplikacija (kot na starem zaslonu). */
     private fun dodajAplikacijo() {
-        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(R.string.pk_dodaj_naslov)
             .setItems(arrayOf(getString(R.string.pk_dodaj_tv), getString(R.string.pk_dodaj_splet))) { _, i ->
                 if (i == 0) {

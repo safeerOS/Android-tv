@@ -382,7 +382,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     private fun pokaziOknoNiPovezano(naslov: String) {
         if (isFinishing) return
-        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(naslov)
             .setMessage(getString(R.string.os_kartica_ni_povezano_opis))
             .setPositiveButton(getString(android.R.string.ok), null)
@@ -418,7 +418,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             odpriVarno(namera, getString(R.string.os_zaslon))
         }
         if (naprave.size < 2) { odpri(naprave.firstOrNull()); return }
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_zaslon))
             .setItems(naprave.map { it.ime.ifBlank { it.id } }.toTypedArray()) { _, i -> odpri(naprave[i]) }
             .setNegativeButton(getString(R.string.os_preklici), null)
@@ -740,7 +740,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (mesto > 0) dejanja.add(getString(R.string.os_spletne_levo) to { premakniZacni(z, red, -1) })
         if (mesto in 0 until red.size - 1) dejanja.add(getString(R.string.os_spletne_desno) to { premakniZacni(z, red, 1) })
         if (dejanja.isEmpty()) return
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(z.naslov)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
             .setNegativeButton(getString(R.string.os_preklici), null)
@@ -771,7 +771,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             startActivity(android.content.Intent(this, PrijavaActivity::class.java).putExtra(PrijavaActivity.EXTRA_PRVI_ZAGON, true))
             return
         } catch (_: Throwable) { }
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_nacin_naslov))
             .setMessage(getString(R.string.os_nacin_opis))
             .setPositiveButton(getString(R.string.os_nacin_link)) { _, _ ->
@@ -853,7 +853,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             s.vklopljen -> getString(R.string.os_scit_prekinjen)
             else -> getString(R.string.os_scit_izklopljen_opis)
         }
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_scit))
             .setMessage(besedilo + "\n\n" + getString(R.string.os_scit_nastavitev_opis))
             .setPositiveButton(getString(
@@ -1136,7 +1136,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     private fun moznostiNadaljuj(n: Nadaljuj.Vnos) {
-        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(n.ime)
             .setPositiveButton(getString(R.string.os_nadaljuj_odstrani)) { _, _ ->
                 Nadaljuj.odstrani(this, n)
@@ -1229,7 +1229,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         // naredi - "ni vec na voljo" bi zvenelo, kot da je program izginil.
         val sporocilo = if (racunalnikaNi) getString(R.string.os_nadaljuj_ni_racunalnika)
             else getString(R.string.os_nadaljuj_ni_vec, n.ime)
-        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(n.ime)
             .setMessage(sporocilo)
             .setPositiveButton(getString(android.R.string.ok), null)
@@ -1309,7 +1309,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 is SecurityException -> getString(R.string.os_odpri_ni_dovoljenja)
                 else -> e.message.orEmpty().ifBlank { e.javaClass.simpleName }
             }
-            android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
                 .setTitle(ime)
                 .setMessage(getString(R.string.os_odpri_napaka, razlog))
                 .setPositiveButton(getString(R.string.os_poskusi_znova)) { _, _ -> odpriVarno(namera, ime) }
@@ -1340,7 +1340,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             Toast.makeText(this, R.string.os_spletne_vir_odstranjen, Toast.LENGTH_SHORT).show()
         })
         dejanja.add(getString(R.string.os_spletne_odstrani) to { odstraniSpletno(a) })
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(a.ime.ifBlank { SpletneAplikacije.gostitelj(a.url) })
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
             .setNegativeButton(getString(R.string.os_preklici), null)
@@ -1354,7 +1354,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     private fun odstraniSpletno(a: SpletneAplikacije.Aplikacija) {
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(a.ime.ifBlank { SpletneAplikacije.gostitelj(a.url) })
             .setMessage(getString(R.string.os_spletne_odstrani_vprasanje))
             .setPositiveButton(getString(R.string.os_spletne_odstrani)) { _, _ ->
@@ -1497,7 +1497,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 }
             }
         }
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(ime)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
             .setNegativeButton(getString(R.string.os_preklici), null)

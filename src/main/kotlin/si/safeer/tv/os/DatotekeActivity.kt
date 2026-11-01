@@ -781,7 +781,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             dejanja.add(getString(R.string.os_ur_izbrisi) to { potrdiBrisanje(v) })
         }
         if (dejanja.isEmpty()) return
-        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(v.ime)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, k -> dejanja.getOrNull(k)?.second?.invoke() }
             .setNegativeButton(getString(R.string.os_preklici), null)
@@ -830,7 +830,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                     if (cilji.isNotEmpty()) dejanja.add(getString(R.string.os_ur_premakni) to { premakniKrajevno(v, uri, cilji) })
                 }
                 dejanja.add(getString(R.string.os_ur_izbrisi) to { potrdiBrisanjeKrajevne(v, uri) })
-                val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                val okno = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
                     .setTitle(v.ime)
                     .setItems(dejanja.map { it.first }.toTypedArray()) { _, k -> dejanja.getOrNull(k)?.second?.invoke() }
                     .setNegativeButton(getString(R.string.os_preklici), null)
@@ -868,7 +868,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             setSingleLine(); inputType = android.text.InputType.TYPE_CLASS_TEXT
             hint = getString(R.string.os_ur_ime_namig); setText(deblo); setSelection(deblo.length); setPadding(40, 30, 40, 30)
         }
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_ur_preimenuj))
             .setMessage(if (koncnica.isEmpty()) null else getString(R.string.os_ur_koncnica_ostane, koncnica))
             .setView(vnos)
@@ -888,7 +888,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     /** Premik v standardno mapo te vrste ([DatotekePravila.ciljiPremika]); izbira je potrditev, Android 11+ potrdi se sam. */
     private fun premakniKrajevno(v: Vnos, uri: android.net.Uri, cilji: List<String>) {
         if (android.os.Build.VERSION.SDK_INT < 29) return
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_ur_kam, v.ime))
             .setItems(cilji.map { it.trimEnd('/') }.toTypedArray()) { _, k ->
                 val cilj = cilji.getOrNull(k) ?: return@setItems
@@ -904,7 +904,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
      * RecoverableSecurityException sistemsko okno), Android 9 izbris (ce Safeer nima dovoljenja, obvestilo).
      */
     private fun potrdiBrisanjeKrajevne(v: Vnos, uri: android.net.Uri) {
-        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_ur_izbrisi_vprasanje, v.ime))
             .setMessage(getString(R.string.os_ur_izbrisi_opis_krajevno))
             .setPositiveButton(getString(R.string.os_ur_izbrisi)) { _, _ -> izbrisiKrajevno(uri) }
@@ -967,7 +967,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             setSelection(deblo.length)
             setPadding(40, 30, 40, 30)
         }
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_ur_preimenuj))
             .setMessage(if (koncnica.isEmpty()) null else getString(R.string.os_ur_koncnica_ostane, koncnica))
             .setView(vnos)
@@ -993,7 +993,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             Toast.makeText(this, getString(R.string.os_ur_napaka, getString(R.string.os_ur_n_ni_dovoljeno)), Toast.LENGTH_SHORT).show()
             return
         }
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_ur_kam, v.ime))
             .setItems(cilji.map { it.first }.toTypedArray()) { _, k ->
                 val cilj = cilji.getOrNull(k)?.second ?: return@setItems
@@ -1008,7 +1008,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     private fun potrdiBrisanje(v: Vnos) {
         val s = streznik ?: return
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_ur_izbrisi_vprasanje, v.ime))
             .setMessage(getString(if (jeNaprava()) R.string.os_ur_izbrisi_opis_naprava else R.string.os_ur_izbrisi_opis))
             .setPositiveButton(getString(R.string.os_ur_izbrisi)) { _, _ ->

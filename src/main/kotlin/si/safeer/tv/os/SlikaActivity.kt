@@ -143,7 +143,7 @@ class SlikaActivity : OsActivity() {
         // Naprave hranijo slike v zbirki (MediaStore), kjer je ime del zapisa: preimenovanja ni.
         if (!naprava) dejanja.add(getString(R.string.os_ur_preimenuj) to { preimenuj() })
         dejanja.add(getString(R.string.os_ur_izbrisi) to { potrdiBrisanje() })
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(imena.getOrNull(i).orEmpty())
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, k -> dejanja.getOrNull(k)?.second?.invoke() }
             .setNegativeButton(getString(R.string.os_preklici), null)
@@ -178,7 +178,7 @@ class SlikaActivity : OsActivity() {
             setSelection(deblo.length)
             setPadding(40, 30, 40, 30)
         }
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_ur_preimenuj))
             .setMessage(if (koncnica.isEmpty()) null else getString(R.string.os_ur_koncnica_ostane, koncnica))
             .setView(vnos)
@@ -207,7 +207,7 @@ class SlikaActivity : OsActivity() {
     private fun potrdiBrisanje() {
         val s = streznik ?: return
         val id = oznake.getOrNull(i) ?: return
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_ur_izbrisi_vprasanje, imena.getOrNull(i).orEmpty()))
             .setMessage(getString(if (naprava) R.string.os_ur_izbrisi_opis_naprava else R.string.os_ur_izbrisi_opis))
             .setPositiveButton(getString(R.string.os_ur_izbrisi)) { _, _ ->

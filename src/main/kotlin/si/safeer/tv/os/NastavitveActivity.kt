@@ -513,7 +513,7 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             osveziHost()
             return
         }
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_moc))
             .setMessage(HostPodatki.podrobnosti(this, p))
             .setPositiveButton(getString(R.string.os_moc_zapri), null)
@@ -531,7 +531,7 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val razlicica = try {
             packageManager.getPackageInfo(packageName, 0).versionName.orEmpty()
         } catch (_: Throwable) { "" }
-        val okno = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        val okno = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_pravno))
             .setMessage(getString(R.string.os_pravno_besedilo, razlicica, packageName))
             .setPositiveButton(getString(R.string.os_moc_zapri), null)
@@ -548,7 +548,7 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val imena = (listOf(getString(R.string.ui_lang_auto)) + jeziki.map { it.second }).toTypedArray()
         val izbran = si.safeer.tv.JezikVmesnika.izbrani(this)
         val kje = oznake.indexOf(izbran).let { if (it < 0) 0 else it }
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.menu_language))
             .setSingleChoiceItems(imena, kje) { okno, i ->
                 si.safeer.tv.JezikVmesnika.nastavi(this, oznake[i])
@@ -570,7 +570,7 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private fun preklopiZaganjalnik(jeVklopljen: Boolean) {
         // Lastnik 27. 10. 2026: brez drugega zaganjalnika bi izklop pustil crn zaslon - ostane vklopljen, povemo zakaj.
         if (jeVklopljen && Zaganjalnik.jePonujen(this) && !Zaganjalnik.smeOpustiti(this)) {
-            android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
                 .setTitle(getString(R.string.os_zaganjalnik))
                 .setMessage(getString(R.string.os_zaganjalnik_edini))
                 .setNegativeButton(getString(R.string.os_preklici), null)
@@ -581,7 +581,7 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         // in ponudimo izklop - brez tega uporabnik misli, da je napaka pri nas.
         if (jeVklopljen && Zaganjalnik.stanje(this) == Zaganjalnik.TELEVIZOR_OBDRZI) {
             val kdo = Zaganjalnik.domaciZaslon(this).orEmpty()
-            android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
                 .setTitle(getString(R.string.os_zaganjalnik))
                 .setMessage(getString(R.string.os_zaganjalnik_televizor_obdrzi_opis, kdo))
                 .setPositiveButton(getString(R.string.os_zaganjalnik_izklopi_kratko)) { _, _ ->
@@ -601,7 +601,7 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             narisi()
             return
         }
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_zaganjalnik))
             .setMessage(getString(R.string.os_zaganjalnik_vprasanje))
             .setPositiveButton(getString(R.string.os_zaganjalnik_vklopi)) { _, _ ->
@@ -665,7 +665,7 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             narisi()
             return
         }
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_zagon))
             .setMessage(getString(R.string.os_zagon_vprasanje))
             .setPositiveButton(getString(R.string.os_vklopi)) { _, _ ->
@@ -692,7 +692,7 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             return
         }
         if (Host.jeOddaljen(this)) {
-            android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
                 .setTitle(getString(R.string.os_host))
                 .setMessage(getString(R.string.os_host_oddaljen_vprasanje, Host.gostitelj(this).orEmpty()))
                 .setPositiveButton(getString(R.string.os_host_domov)) { _, _ ->
@@ -705,7 +705,7 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 .let { Kontroler.pokazi(it.show()) }
             return
         }
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_host))
             .setMessage(getString(R.string.os_host_vprasanje))
             .setPositiveButton(getString(R.string.os_host_vnesi)) { _, _ -> vnesiNaslovHosta() }
@@ -720,7 +720,7 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             hint = getString(R.string.os_host_naslov_namig)
             setPadding(40, 30, 40, 30)
         }
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_host_naslov))
             .setMessage(getString(R.string.os_host_naslov_opis))
             .setView(vnos)
@@ -757,7 +757,7 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             hint = getString(R.string.os_host_koda_namig)
             setPadding(40, 30, 40, 30)
         }
-        android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_host_koda))
             .setMessage(getString(R.string.os_host_koda_opis))
             .setView(vnos)
