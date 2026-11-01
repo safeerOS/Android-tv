@@ -20,8 +20,11 @@ SDK_DIR="${ANDROID_SDK_ROOT:-$DIR/.android-sdk}"
 RELEASE_DIR="$DIR/Release/Artifacts"
 WRAPPER_JAR="$DIR/gradle/wrapper/gradle-wrapper.jar"
 PLATFORM_ZIP_URL="https://dl.google.com/android/repository/platform-34-ext7_r03.zip"
+PLATFORM_ZIP_SHA256="16fdb74c55e59ae3ef52def135aec713508467bd56d7dabcd8c9be31fa8b20f3"
 BUILD_TOOLS_ZIP_URL="https://dl.google.com/android/repository/build-tools_r34-linux.zip"
+BUILD_TOOLS_ZIP_SHA256="e858c4b60069d0431051b225d384413b1643e1289b00a4825aed347f25bd510f"
 WRAPPER_JAR_URL="https://raw.githubusercontent.com/gradle/gradle/v7.6.4/gradle/wrapper/gradle-wrapper.jar"
+WRAPPER_JAR_SHA256="14dfa961b6704bb3decdea06502781edaa796a82e6da41cd2e1962b14fbe21a3"
 
 echo "=========================================================="
 echo "GRADIM TV BROWSER 2 (Media3 / Gradle)"
@@ -29,10 +32,27 @@ echo "=========================================================="
 
 mkdir -p "$RELEASE_DIR" "$DIR/gradle/wrapper"
 
-if [[ ! -f "$WRAPPER_JAR" ]]; then
-    echo "⬇️  gradle-wrapper.jar..."
-    curl -fsSL "$WRAPPER_JAR_URL" -o "$WRAPPER_JAR"
-fi
+preveri_in_prenesi() {
+    local url="$1" cilj="$2" vsota="$3"
+    if [[ ! -f "$cilj" ]]; then
+        echo "⬇️  Prenašam $url ..."
+        local tmp
+        tmp="$(mktemp -d)"
+        local datoteka="$tmp/prenos"
+        curl -fL "$url" -o "$datoteka"
+        local izracunano
+        izracunano="$(sha256sum "$datoteka" | awk '{print $1}')"
+        if [[ "$izracunano" != "$vsota" ]]; then
+            echo "❌ SHA-256 vsota se ne ujema za $url (pricakovano: $vsota, dobljeno: $izracunano)" >&2
+            rm -rf "$tmp"
+            exit 1
+        fi
+        mv "$datoteka" "$cilj"
+        rm -rf "$tmp"
+    fi
+}
+
+preveri_in_prenesi "$WRAPPER_JAR_URL" "$WRAPPER_JAR" "$WRAPPER_JAR_SHA256"
 chmod +x "$DIR/gradlew"
 
 ensure_sdk() {
@@ -41,12 +61,9 @@ ensure_sdk() {
     fi
     echo "⬇️  Android SDK platform 34 + build-tools 34.0.0 (zip, no sdkmanager)..."
     mkdir -p "$SDK_DIR/tmp" "$SDK_DIR/platforms" "$SDK_DIR/build-tools"
-    if [[ ! -f "$SDK_DIR/tmp/platform-34.zip" ]]; then
-        curl -fL "$PLATFORM_ZIP_URL" -o "$SDK_DIR/tmp/platform-34.zip"
-    fi
-    if [[ ! -f "$SDK_DIR/tmp/build-tools-34.zip" ]]; then
-        curl -fL "$BUILD_TOOLS_ZIP_URL" -o "$SDK_DIR/tmp/build-tools-34.zip"
-    fi
+    
+    preveri_in_prenesi "$PLATFORM_ZIP_URL" "$SDK_DIR/tmp/platform-34.zip" "$PLATFORM_ZIP_SHA256"
+    preveri_in_prenesi "$BUILD_TOOLS_ZIP_URL" "$SDK_DIR/tmp/build-tools-34.zip" "$BUILD_TOOLS_ZIP_SHA256"
     local pdir bdir
     pdir="$SDK_DIR/tmp/platform-unpack"
     bdir="$SDK_DIR/tmp/build-tools-unpack"
