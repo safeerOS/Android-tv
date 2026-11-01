@@ -8371,11 +8371,14 @@ class GlasbaActivity : OsActivity() {
         seznamEpizod.adapter = adapterEpizod
 
         fun osveziEpizode(sezonaIndeks: Int) {
+            val novaSezona = sezonaIndeks != trenutniIndeksSezone
             trenutniIndeksSezone = sezonaIndeks
             val s = sezone.getOrNull(sezonaIndeks) ?: return
             trenutnaSezonaEpizode.clear()
             trenutnaSezonaEpizode.addAll(ep.filter { it.sezona == s })
             adapterEpizod.notifyDataSetChanged()
+            // Lastnik 1. 11. 2026: v 2. sezoni je seznam ostal pomaknjen kot v 1. (epizode 7-13) - nova sezona zacne na vrhu.
+            if (novaSezona) seznamEpizod.setSelection(0)
             
             // Osvezi pisavo vidnih vrstic brez notifyDataSetChanged, da ne prekinemo fokusa
             for (i in 0 until seznamSezon.childCount) {
