@@ -68,6 +68,12 @@ fun main() {
     preveri("pokvarjeno kodiranje", SmartOmnibox.poizvedba("https://www.google.com/search?q=%E0%A4%A") == null)
     preveri("navadna stran", SmartOmnibox.poizvedba("https://safeer.si/?q=nekaj") == null)
 
+    println("SmartOmnibox: OK v naslovni vrstici")
+    preveri("nespremenjen naslov odpre tipkovnico", !SmartOmnibox.okOdpre("https://claude.ai/new", "https://claude.ai/new"))
+    preveri("prazno polje odpre tipkovnico", !SmartOmnibox.okOdpre("  ", "https://claude.ai/new"))
+    preveri("nov naslov odpre stran", SmartOmnibox.okOdpre("rtvslo.si", "https://claude.ai/new"))
+    preveri("iskani niz odpre iskanje", SmartOmnibox.okOdpre("vreme ljubljana", "https://www.google.com/"))
+
     println(if (napak == 0) "VSE OK" else "NAPAK: $napak")
     if (napak > 0) kotlin.system.exitProcess(1)
 }

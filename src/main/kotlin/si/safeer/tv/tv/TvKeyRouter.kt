@@ -138,13 +138,14 @@ class TvKeyRouter(private val host: MainActivity) {
             when (keyCode) {
                 KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
                     val q = host.editUrl.text.toString().trim()
-                    if (q.isNotEmpty() && q != "https://www.google.com" && q != "www.google.com") {
+                    if (si.safeer.tv.SmartOmnibox.okOdpre(q, host.activeUrl())) {
                         host.performNavigation(q)
                         host.hideKeyboard()
                         host.editUrl.clearFocus()
                         host.activeWebView()?.requestFocus()
                         return true
                     } else {
+                        host.editUrl.selectAll()
                         host.showKeyboard()
                         return true
                     }

@@ -55,6 +55,16 @@ object SmartOmnibox {
      * Iskani niz, kadar je [url] stran z zadetki enega od iskalnikov (sicer null). Naslovna vrstica ga pokaze
      * namesto dolgega naslova - in namesto praznega polja -, da ga uporabnik vidi in dopolni.
      */
+    /**
+     * Ali OK (daljinec) v naslovni vrstici odpre vneseno. Lastnik 1. 11. 2026: v polju je naslov odprte strani in OK ga
+     * je samo znova nalozil - naslova ni bilo mogoce zamenjati ne iskati. Nespremenjen naslov ali prazno polje odpre
+     * tipkovnico (vsebina izbrana, vnos jo prepise).
+     */
+    fun okOdpre(vnos: String, naslovStrani: String): Boolean {
+        val v = vnos.trim()
+        return v.isNotEmpty() && v != "https://www.google.com" && v != "www.google.com" && v != naslovStrani.trim()
+    }
+
     fun poizvedba(url: String): String? {
         for (i in Iskalnik.values()) {
             val osnova = i.iskanje.substringBefore('?')
