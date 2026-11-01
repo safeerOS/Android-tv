@@ -1971,7 +1971,10 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         editUrl.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) {
                 omniboxContainer.setBackgroundResource(if (SpletDomaca.jeSafeerOs(this)) R.drawable.splet_naslov_fokus else R.drawable.bg_tab_card_active)
-                searchSuggestionsOverlay.visibility = View.VISIBLE
+                // Lastnik 1. 11. 2026: z daljincem je bila plosca z bliznjicami odprta ze ob samem prehodu fokusa cez
+                // naslovno vrstico in je prekrila vrh strani (Googlovo iskanje). Na TV se pokaze sele ob urejanju
+                // (OK odpre tipkovnico - showKeyboard, ali vnos besedila); na dotik takoj kot prej.
+                searchSuggestionsOverlay.visibility = if (ChromiumEngineView.naDotik(this)) View.VISIBLE else View.GONE
                 mobileTopBar.animate().translationY(0f).setDuration(150).start()
                 val currentUrl = tabManager.getActiveTab()?.url ?: ""
                 // Na dotik: na strani z zadetki je v polju iskani niz (izbran), da ga dopolnis ali prepises. Z daljincem
@@ -1995,6 +1998,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 // kot predlog pokazala kar stran, ki je odprta.
                 suggestionRunnable?.let { suggestionHandler.removeCallbacks(it) }
                 suggestionsListContainer.removeAllViews()
+                // setText zgoraj je prek TextWatcher plosco ze pokazal - na TV ostane skrita do urejanja.
+                if (!ChromiumEngineView.naDotik(this)) searchSuggestionsOverlay.visibility = View.GONE
                 chrome.pokaziCipPrilepi(true)
             } else {
                 omniboxContainer.setBackgroundResource(if (SpletDomaca.jeSafeerOs(this)) R.drawable.splet_naslov else R.drawable.bg_mobile_omnibox)
@@ -2022,6 +2027,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 if (editUrl.hasFocus()) {
+                    if (count > 0 || before > 0) searchSuggestionsOverlay.visibility = View.VISIBLE
                     btnClearUrl.visibility = if (!s.isNullOrEmpty()) View.VISIBLE else View.GONE
                     fetchGoogleSuggestions(s?.toString() ?: "")
                 }
@@ -3284,6 +3290,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     }
 
     internal fun showKeyboard() {
+        if (editUrl.hasFocus()) searchSuggestionsOverlay.visibility = View.VISIBLE
         val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
         imm?.showSoftInput(editUrl, InputMethodManager.SHOW_IMPLICIT)
     }
