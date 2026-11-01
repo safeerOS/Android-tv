@@ -211,6 +211,9 @@ class PokrajinaActivity : OsActivity() {
         super.onNewIntent(intent)
         // Tipka Domov na domacem zaslonu (vodja 27. 10. 2026): razprta lupa se zapre in pokaze se domaci zaslon - prej je
         // Domov fokus namenoma vrnil v lupo in lupe z daljincem ni bilo mogoce zapreti.
+        // Lastnik 1. 11. 2026: tipko Domov sistem ne poslje v dispatchKeyEvent, ampak kot namero HOME - tudi ta mora
+        // zbuditi zaslon iz mirovanja (prvi pritisk samo zbudi, kot pri drugih tipkah).
+        if (intent?.hasCategory(Intent.CATEGORY_HOME) == true && mirujem) { zbudi(); return }
         if (intent?.hasCategory(Intent.CATEGORY_HOME) == true) zapriLupo()
     }
 
