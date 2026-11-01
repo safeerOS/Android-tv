@@ -1280,6 +1280,16 @@ object OsPravila {
         return smemoZapreti(paket, mojPaket, tipkovnica, trajen)
     }
 
+    /**
+     * Skupina aplikacije na zaslonu Aplikacije (lastnik 1. 11. 2026): vsi brskalniki in Downloader sodijo pod Splet,
+     * orodja pod Drugo (skupine »Orodja« ni vec).
+     */
+    fun skupinaZaPrikaz(skupina: String, paket: String, jeBrskalnik: Boolean): String = when {
+        jeBrskalnik || "downloader" in paket.lowercase() -> "splet"
+        skupina == "orodja" -> "drugo"
+        else -> skupina
+    }
+
     fun zapriObMenjavi(prejsnja: String, nova: String?, casMs: Long, mojPaket: String, tipkovnica: String?,
                        trajen: Boolean, vklopljeno: Boolean, predvaja: Boolean): Boolean {
         if (prejsnja == nova || casMs < 3000) return false

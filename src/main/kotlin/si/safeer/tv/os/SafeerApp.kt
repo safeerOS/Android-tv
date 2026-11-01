@@ -42,18 +42,28 @@ data class SafeerApp(
 object SafeerAppi {
 
     /** Skupine v vrstnem redu, kot ga uporabnik ze pozna s seznama programov racunalnika. */
-    val SKUPINE = listOf("igre", "pisarna", "splet", "predstavnost", "programiranje", "ucenje", "orodja", "drugo")
+    // Brez »orodja«: lastnik 1. 11. 2026 - orodja spadajo pod Drugo (OsPravila.skupinaZaPrikaz).
+    val SKUPINE = listOf("igre", "pisarna", "splet", "predstavnost", "programiranje", "ucenje", "drugo")
 
     // ------------------------------------------------------------------ viri na tej napravi
 
     /** Aplikacije televizorja; skupino pove sistem sam (kategorija aplikacije, zastavica igre). */
-    fun naTelevizorju(c: Context, vnosi: List<Aplikacije.Vnos> = Aplikacije.seznam(c), brezIkon: Boolean = false): List<SafeerApp> =
-        vnosi.map { v ->
+    fun naTelevizorju(c: Context, vnosi: List<Aplikacije.Vnos> = Aplikacije.seznam(c), brezIkon: Boolean = false): List<SafeerApp> {
+        val brskalniki = brskalniki(c)
+        return vnosi.map { v ->
             // brezIkon: kartica se nariše takoj, z ikono samo, ce je ze v pomnilniku; ostale pridejo lenobno (Aplikacije.ikonaLeno).
-            SafeerApp("tv:" + v.paket, v.ime, "", skupinaAplikacije(c, v.paket),
+            SafeerApp("tv:" + v.paket, v.ime, "", OsPravila.skupinaZaPrikaz(skupinaAplikacije(c, v.paket), v.paket, v.paket in brskalniki),
                 if (brezIkon) Aplikacije.ikonaIzPomnilnika(v.paket) else Aplikacije.ikona(c, v),
                 AppVir.TV, v.paket, namera = v.namera)
         }
+    }
+
+    /** Brskalnik je aplikacija, ki odpre katerikoli spletni naslov (tudi neobstojece domene) - ne le svojega gostitelja. */
+    private fun brskalniki(c: Context): Set<String> = try {
+        val namen = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://primer.invalid/")).addCategory(Intent.CATEGORY_BROWSABLE)
+        c.packageManager.queryIntentActivities(namen, android.content.pm.PackageManager.MATCH_ALL)
+            .mapNotNull { it.activityInfo?.packageName }.toSet()
+    } catch (_: Throwable) { emptySet() }
 
     fun spletne(c: Context): List<SafeerApp> = SpletneAplikacije.seznam(c).map { a ->
         val ime = a.ime.ifBlank { SpletneAplikacije.gostitelj(a.url) }

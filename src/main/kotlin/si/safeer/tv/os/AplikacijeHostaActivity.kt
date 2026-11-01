@@ -126,12 +126,12 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         skupineDrsnik = findViewById(R.id.skupineDrsnik)
         prilagodiSirini()
         // Namescanje aplikacij: uporabnik izbere ponudnika (TrgovineAplikacij) - brez lastne trgovine in brez enega monopola.
-        findViewById<LinearLayout>(R.id.orodja).addView(gumb(getString(R.string.trg_gumb), false).apply {
+        findViewById<LinearLayout>(R.id.dejanja).addView(gumb(getString(R.string.trg_gumb), false).apply {
             (layoutParams as LinearLayout.LayoutParams).marginStart = (14 * resources.displayMetrics.density).toInt()
             setOnClickListener { TrgovineAplikacij.pokazi(this@AplikacijeHostaActivity) }
-        }, 1)
+        })
         // Lastnik 30. 10. 2026: »Sprosti pomnilnik« - zapre aplikacije v ozadju (ne Safeerja, tipkovnice, sistema TV).
-        findViewById<LinearLayout>(R.id.orodja).addView(gumb(getString(R.string.os_sprosti_pomnilnik), false).apply {
+        findViewById<LinearLayout>(R.id.dejanja).addView(gumb(getString(R.string.os_sprosti_pomnilnik), false).apply {
             (layoutParams as LinearLayout.LayoutParams).marginStart = (14 * resources.displayMetrics.density).toInt()
             setOnClickListener {
                 val c = applicationContext
@@ -146,7 +146,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                     }
                 }.apply { isDaemon = true }.start()
             }
-        }, 2)
+        })
         when (nacin) {
             AppVir.RACUNALNIK.kljuc -> {
                 nadnaslov.text = getString(R.string.os_programi)
@@ -461,7 +461,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             // Racunalnik: icon_png (base64); Android: icon (data URL, WebP).
             val png = o.optString("icon_png").ifBlank { o.optString("icon").substringAfter("base64,", "") }
             if (png.isNotBlank()) ikone[kljuc] = png
-            val skupina = o.optString("group").ifBlank { if (s.android) skupinaPaketa(id) else DRUGO }
+            val skupina = OsPravila.skupinaZaPrikaz(o.optString("group").ifBlank { if (s.android) skupinaPaketa(id) else DRUGO }, id, false)
             novi.add(SafeerApp(kljuc, o.optString("name").ifBlank { id }, o.optString("comment"),
                 skupina, ikona(png), AppVir.RACUNALNIK, id, naprava))
         }

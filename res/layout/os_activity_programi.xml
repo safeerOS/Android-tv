@@ -56,19 +56,34 @@
 
     <!-- Naprave (Vse, racunalnik, telefon, tablica ...) v svoji vrsti, ki drsi vodoravno: v glavi so
          dolga imena naprav naslov stisnila v nic in ga raztegnila cez pol zaslona (tablica pokoncno). -->
-    <HorizontalScrollView
-        android:id="@+id/napraveDrsnik"
+    <!-- Lastnik 1. 11. 2026: »Namesti aplikacije« in »Sprosti pomnilnik« v vrsti poleg naprave (Televizor · 19),
+         ne v vrsti z iskanjem in skupinami. -->
+    <LinearLayout
+        android:id="@+id/napraveVrsta"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="14dp"
-        android:scrollbars="none"
-        android:visibility="gone">
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+        <HorizontalScrollView
+            android:id="@+id/napraveDrsnik"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:scrollbars="none"
+            android:visibility="gone">
+            <LinearLayout
+                android:id="@+id/naprave"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"/>
+        </HorizontalScrollView>
         <LinearLayout
-            android:id="@+id/naprave"
+            android:id="@+id/dejanja"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal"/>
-    </HorizontalScrollView>
+    </LinearLayout>
 
     <!-- Iskanje po imenu in skupine: sto programov brez tega ni seznam, ampak iskanje igle. -->
     <LinearLayout

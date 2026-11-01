@@ -267,6 +267,10 @@ private fun pasMedVideom() {
         OsPravila.novoPredvajanjeObOdhodu(zagonovObOdhodu = 7, zagonovZdaj = 8, drugihZaslonov = 0))
     preveri("video ze kaze drug zaslon predvajanja: se ne ustavi",
         OsPravila.novoPredvajanjeObOdhodu(zagonovObOdhodu = 7, zagonovZdaj = 7, drugihZaslonov = 1))
+    preveri("brskalnik je v Spletu", OsPravila.skupinaZaPrikaz("orodja", "org.mozilla.firefox", true) == "splet")
+    preveri("Downloader je v Spletu", OsPravila.skupinaZaPrikaz("orodja", "com.esaba.downloader", false) == "splet")
+    preveri("orodja so pod Drugo", OsPravila.skupinaZaPrikaz("orodja", "com.android.settings", false) == "drugo")
+    preveri("predstavnost ostane", OsPravila.skupinaZaPrikaz("predstavnost", "org.smarttube.stable", false) == "predstavnost")
     preveri("ustavljen video brez zaslona ne prevzame tipke Play", !OsPravila.sejaPrejemaTipke(video = true, igra = false, zaslonOdprt = false))
     preveri("video, ki igra, prejema tipke", OsPravila.sejaPrejemaTipke(video = true, igra = true, zaslonOdprt = false))
     preveri("video z odprtim zaslonom prejema tipke", OsPravila.sejaPrejemaTipke(video = true, igra = false, zaslonOdprt = true))
