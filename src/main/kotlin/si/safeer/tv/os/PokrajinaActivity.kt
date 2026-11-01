@@ -137,6 +137,16 @@ class PokrajinaActivity : OsActivity() {
         if (intent?.categories?.contains(Intent.CATEGORY_HOME) == true) Zaganjalnik.zabeleziZagonDomov(this)
     }
 
+    /**
+     * Lastnik 1. 11. 2026: Claude je ostal v pomnilniku (170 MB), ceprav ga ze ure ni uporabljal - zapiranje ob menjavi
+     * zajame samo aplikacijo, ki jo uporabnik ravnokar zapusti. Ob vrnitvi na domaci zaslon zato pocistimo vse
+     * aplikacije v ozadju (kot DomovActivity); glasba, ki igra, ostane (Pomnilnik.pocistiOzadje meri zvok).
+     */
+    override fun onResume() {
+        super.onResume()
+        Pomnilnik.pocistiOzadje(this)
+    }
+
     override fun onStart() {
         super.onStart()
         Ozadje.uporabi(this, koren)
