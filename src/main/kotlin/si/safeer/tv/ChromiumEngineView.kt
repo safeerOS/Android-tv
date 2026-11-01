@@ -1082,8 +1082,14 @@ class ChromiumEngineView @JvmOverloads constructor(
                 if (request.isForMainFrame) {
                     youtubeSamodejno = UserScriptManager.isYouTubeUrl(urlStr) && UserScriptManager.isYouTubeUrl(view?.url)
                 }
+                val uaPrej = settings.userAgentString; val oznakePrej = oznakeNamizne
                 applyUserAgentForUrl(urlStr)
                 val isMainFrame = request.isForMainFrame
+                // Lastnik 1. 11. 2026: zadetek Gmail (mail.google.com -> preusmeritev na accounts.google.com) je ostal na
+                // strani z zadetki. Menjava User-Agenta ali Client Hints sredi navigacije jo tiho prekine (kot zGoogla) -
+                // ce se je glavnemu okvirju identiteta brskalnika spremenila, navigacijo sprozimo znova z novo.
+                val identitetaSpremenjena = isMainFrame && urlStr.startsWith("http", ignoreCase = true) &&
+                    (settings.userAgentString != uaPrej || oznakeNamizne != oznakePrej)
 
                 // 0.a Naloga 94: gumb "Install" na strani z dodatki Stremio (stremio://, spletni Stremio v novem oknu, .../manifest.json):
                 //     v Safeer OS in Predvajalniku ponudimo vir v Moje vire - brez tipkanja naslova z daljincem. Pred vratarjem
@@ -1197,7 +1203,7 @@ class ChromiumEngineView @JvmOverloads constructor(
                     return true
                 }
 
-                if (zGoogla) {
+                if (zGoogla || identitetaSpremenjena) {
                     view?.loadUrl(urlStr)
                     return true
                 }
