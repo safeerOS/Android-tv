@@ -597,6 +597,9 @@ class GlasbaStoritev : Service() {
         // 25. 10. 2026). Drug posnetek s strani zvocnik ne more: igra ta naprava - zacne sele, ko zvocnik potrdi Stop (ali po
         // kratkem roku), da hip ne igrata oba.
         if (Zvocniki.aktivni != null && (UvozSeznama.jeIskana(sk) || SpletniVir.jeEnota(sk))) {
+            // Lastnik 1. 11. 2026 (S25, JBL, YouTube): ob menjavi skladbe je glasba zapustila zvocnik - meritev, zakaj.
+            android.util.Log.i("SafeerZvocniki", "menjava skladbe: iskana=${UvozSeznama.jeIskana(sk)} zaZvocnik=${zaZvocnik(sk)} " +
+                "youtube=${YoutubeZvok.jeYoutube(sk)} znanoNe=${YoutubeZvok.znanoNe(sk)} video=${sk.video} vrsta=${SpletniVir.vrstaVsebine(sk)}")
             if (UvozSeznama.jeIskana(sk) || zaZvocnik(sk)) { naZvocnikVVrsti(i, sk, moj, preskoceni); return }
             val izbrano = izbir
             Zvocniki.ustavi { if (primerek === this && moj == zetonVrste && izbrano == izbir) zacniElement(i, preskoceni) }
