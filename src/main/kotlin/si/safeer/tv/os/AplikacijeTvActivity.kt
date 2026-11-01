@@ -24,6 +24,10 @@ import android.view.inputmethod.InputMethodManager
  * vse, urejene po abecedi, in tu si uporabnik priljubljene doloci - dolg pritisk doda ali odstrani.
  */
 class AplikacijeTvActivity : OsActivity() {
+    companion object {
+        /** Odprto z »+ Dodaj«: klik doda na domaci zaslon. */
+        const val IZBIRA_ZA_DOMOV = "si.safeer.tv.os.IZBIRA_ZA_DOMOV"
+    }
 
     private lateinit var mreza: GridView
     private lateinit var sporocilo: TextView
@@ -60,7 +64,16 @@ class AplikacijeTvActivity : OsActivity() {
         }
         iskanje.setOnClickListener { odpriTipkovnico() }
         iskanje.showSoftInputOnFocus = false
-        mreza.setOnItemClickListener { _, v, i, _ -> vnosi.getOrNull(i)?.let { zazeni(it, v) } }
+        // Odprto z »+ Dodaj« na domacem zaslonu: klik doda aplikacijo na domaci zaslon in se vrne (ne odpre je).
+        val izbira = intent.getBooleanExtra(IZBIRA_ZA_DOMOV, false)
+        mreza.setOnItemClickListener { _, v, i, _ ->
+            val a = vnosi.getOrNull(i) ?: return@setOnItemClickListener
+            if (izbira) {
+                if (!Priljubljene.je(this, a.paket)) Priljubljene.dodaj(this, a.paket)
+                Toast.makeText(this, getString(R.string.os_aplikacije_dodana, a.ime), Toast.LENGTH_SHORT).show()
+                finish()
+            } else zazeni(a, v)
+        }
         mreza.setOnItemLongClickListener { _, _, i, _ ->
             vnosi.getOrNull(i)?.let { moznosti(it) }; true
         }

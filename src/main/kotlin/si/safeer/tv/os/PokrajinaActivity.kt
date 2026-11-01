@@ -731,10 +731,8 @@ class PokrajinaActivity : OsActivity() {
         val okno = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(R.string.pk_dodaj_naslov)
             .setItems(arrayOf(getString(R.string.pk_dodaj_tv), getString(R.string.pk_dodaj_splet))) { _, i ->
-                if (i == 0) {
-                    android.widget.Toast.makeText(this, R.string.pk_dodaj_tv_namig, android.widget.Toast.LENGTH_LONG).show()
-                    odpri(Intent(this, AplikacijeTvActivity::class.java))
-                } else SpletnaDodaj.izberi(this) { narisiAplikacije() }
+                // Lastnik 1. 11. 2026: klik na aplikacijo jo je odprl namesto dodal - v nacinu izbire jo klik doda.
+                if (i == 0) odpri(Intent(this, AplikacijeTvActivity::class.java).putExtra(AplikacijeTvActivity.IZBIRA_ZA_DOMOV, true)) else SpletnaDodaj.izberi(this) { narisiAplikacije() }
             }
             .setNegativeButton(getString(R.string.os_preklici), null)
             .create()
