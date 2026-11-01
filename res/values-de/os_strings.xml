@@ -760,4 +760,13 @@
     <string name="os_komplet_manjka">Fehlt: %1$s</string>
     <string name="os_zapri_neuporabljeno">Nicht verwendete Apps schließen</string>
     <string name="os_zapri_neuporabljeno_opis">Wenn eine App nicht verwendet wird, wird sie geschlossen, um Speicherplatz freizugeben. Apps, die Medien abspielen oder herunterladen, bleiben geöffnet.</string>
+    <string name="os_adb_zapiranje">Apps zuverlässig schließen (lokales ADB)</string>
+    <string name="os_adb_zapiranje_opis">Auf diesem Fernseher erlaubt Android Apps nicht, andere Apps zu schließen. Mit Ihrer Zustimmung verbindet sich Safeer OS einmal mit der eigenen Debugging-Schnittstelle dieses Geräts und schließt Apps, die Sie nicht mehr nutzen.</string>
+    <string name="os_adb_pogoji_naslov">Safeer OS das Schließen von Apps erlauben?</string>
+    <string name="os_adb_pogoji">Android auf diesem Fernseher erlaubt Safeer OS nicht, nicht mehr genutzte Apps zu schließen, daher belegen sie Speicher.\n\nWenn Sie zustimmen, verbindet sich Safeer OS mit dem Netzwerk-Debugging dieses Fernsehers (nur 127.0.0.1, nie mit einem anderen Gerät) und nutzt es nur für eines: Apps schließen, die Sie nicht mehr nutzen (am force-stop). Startbildschirm, die genutzte App, Tastatur und System-Apps werden nie geschlossen. Der Schlüssel bleibt geschützt auf diesem Fernseher.\n\nDer Fernseher fragt jetzt »Debugging zulassen?« - wählen Sie »Immer zulassen« und bestätigen Sie. Sie können dies hier jederzeit ausschalten. Netzwerk-Debugging muss in den Entwickleroptionen aktiviert sein.</string>
+    <string name="os_adb_sprejmem">Akzeptieren</string>
+    <string name="os_adb_potrdi_na_tv">Wählen Sie am Fernseher »Immer zulassen« und bestätigen Sie.</string>
+    <string name="os_adb_povezano">Fertig - Safeer OS schließt jetzt Apps, die Sie nicht mehr nutzen.</string>
+    <string name="os_adb_ni_dosegljiv">Netzwerk-Debugging ist aus. Schalten Sie es unter Einstellungen &gt; Entwickleroptionen ein und versuchen Sie es erneut.</string>
+    <string name="os_adb_ni_potrjeno">Am Fernseher nicht bestätigt. Versuchen Sie es erneut und wählen Sie »Immer zulassen«.</string>
 </resources>

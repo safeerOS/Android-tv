@@ -760,4 +760,13 @@
     <string name="os_komplet_manjka">Mancante: %1$s</string>
     <string name="os_zapri_neuporabljeno">Zapri aplikacije, ki jih ne uporabljam</string>
     <string name="os_zapri_neuporabljeno_opis">Ko aplikacije nekaj časa ne uporabljate, se zapre, da sprosti pomnilnik. Aplikacije, ki predvajajo ali prenašajo, ostanejo.</string>
+    <string name="os_adb_zapiranje">Chiudi le app in modo affidabile (ADB locale)</string>
+    <string name="os_adb_zapiranje_opis">Su questo televisore Android non consente a un\'app di chiuderne altre. Con il tuo consenso Safeer OS si collega una volta all\'interfaccia di debug di questo dispositivo e chiude le app che non usi più.</string>
+    <string name="os_adb_pogoji_naslov">Consentire a Safeer OS di chiudere le app?</string>
+    <string name="os_adb_pogoji">Android su questo televisore non consente a Safeer OS di chiudere le app che non usi più, quindi occupano memoria.\n\nSe accetti, Safeer OS si collega al debug di rete di questo televisore (solo 127.0.0.1, mai un altro dispositivo) e lo usa per una sola cosa: chiudere le app che non usi più (am force-stop). Non chiude mai la schermata iniziale, l\'app in uso, la tastiera o le app di sistema. La chiave resta protetta su questo televisore.\n\nIl televisore ora chiederà »Consentire il debug?« - scegli »Consenti sempre« e conferma. Puoi disattivarlo qui in qualsiasi momento. Il debug di rete deve essere attivo nelle opzioni sviluppatore.</string>
+    <string name="os_adb_sprejmem">Accetto</string>
+    <string name="os_adb_potrdi_na_tv">Sul televisore scegli »Consenti sempre« e conferma.</string>
+    <string name="os_adb_povezano">Fatto - Safeer OS ora chiude le app che non usi più.</string>
+    <string name="os_adb_ni_dosegljiv">Il debug di rete è disattivato. Attivalo in Impostazioni &gt; Opzioni sviluppatore e riprova.</string>
+    <string name="os_adb_ni_potrjeno">Non confermato sul televisore. Riprova e scegli »Consenti sempre«.</string>
 </resources>

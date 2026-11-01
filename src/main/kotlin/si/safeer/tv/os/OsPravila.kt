@@ -1274,7 +1274,9 @@ object OsPravila {
     fun zapriObVrnitvi(paket: String, mojPaket: String, tipkovnica: String?, trajen: Boolean,
                        vklopljeno: Boolean, predvaja: Boolean, zadnjaUporabaMs: Long, zdajMs: Long): Boolean {
         if (!vklopljeno || predvaja || zdajMs - zadnjaUporabaMs < 3000) return false
-        if (paket == "si.safeer.tv") return true
+        // Lastnik 1. 11. 2026: nase aplikacije se zaprejo kot vse ostale, ko jih ne uporabljamo (iz TV Browserja v Play Store ->
+        // TV Browser se zapre); zaganjalnik (mojPaket) nikoli.
+        if (paket in setOf("si.safeer.tv", "si.safeer.trgovina", "si.safeer.player") && paket != mojPaket) return true
         if (paket.startsWith("si.safeer.")) return false
         if (paket.startsWith("com.mediatek.") || paket.startsWith("com.android.systemui")) return false
         return smemoZapreti(paket, mojPaket, tipkovnica, trajen)

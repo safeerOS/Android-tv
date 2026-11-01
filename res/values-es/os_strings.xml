@@ -760,4 +760,13 @@
     <string name="os_komplet_manjka">Falta: %1$s</string>
     <string name="os_zapri_neuporabljeno">Zapri aplikacije, ki jih ne uporabljam</string>
     <string name="os_zapri_neuporabljeno_opis">Ko aplikacije nekaj časa ne uporabljate, se zapre, da sprosti pomnilnik. Aplikacije, ki predvajajo ali prenašajo, ostanejo.</string>
+    <string name="os_adb_zapiranje">Cerrar apps de forma fiable (ADB local)</string>
+    <string name="os_adb_zapiranje_opis">En este televisor Android no permite que una app cierre otras. Con su consentimiento, Safeer OS se conecta una vez a la interfaz de depuración propia de este dispositivo y cierra las apps que ya no usa.</string>
+    <string name="os_adb_pogoji_naslov">¿Permitir que Safeer OS cierre apps?</string>
+    <string name="os_adb_pogoji">Android en este televisor no permite que Safeer OS cierre las apps que dejó de usar, por eso ocupan memoria.\n\nSi acepta, Safeer OS se conecta a la depuración por red de este televisor (solo 127.0.0.1, nunca a otro dispositivo) y la usa para una sola cosa: cerrar apps que ya no usa (am force-stop). Nunca cierra la pantalla de inicio, la app que está usando, el teclado ni las apps del sistema. La clave queda protegida en este televisor.\n\nEl televisor preguntará ahora »¿Permitir depuración?« - elija »Permitir siempre« y confirme. Puede desactivarlo aquí en cualquier momento. La depuración por red debe estar activada en las opciones de desarrollador.</string>
+    <string name="os_adb_sprejmem">Aceptar</string>
+    <string name="os_adb_potrdi_na_tv">En el televisor elija »Permitir siempre« y confirme.</string>
+    <string name="os_adb_povezano">Listo - Safeer OS ahora cierra las apps que ya no usa.</string>
+    <string name="os_adb_ni_dosegljiv">La depuración por red está desactivada. Actívela en Ajustes &gt; Opciones de desarrollador e inténtelo de nuevo.</string>
+    <string name="os_adb_ni_potrjeno">No se confirmó en el televisor. Inténtelo de nuevo y elija »Permitir siempre«.</string>
 </resources>

@@ -763,4 +763,13 @@
     <string name="os_komplet_manjka">Manjka: %1$s</string>
     <string name="os_zapri_neuporabljeno">Zapri aplikacije, ki jih ne uporabljam</string>
     <string name="os_zapri_neuporabljeno_opis">Ko aplikacije nekaj časa ne uporabljate, se zapre, da sprosti pomnilnik. Aplikacije, ki predvajajo ali prenašajo, ostanejo.</string>
+    <string name="os_adb_zapiranje">Zanesljivo zapiranje aplikacij (lastni ADB)</string>
+    <string name="os_adb_zapiranje_opis">Na tem televizorju Android aplikacijam ne dovoli zapirati drugih aplikacij. Z vašim soglasjem se Safeer OS enkrat poveže na lasten vmesnik za razhroščevanje te naprave in zapira aplikacije, ki jih ne uporabljate več.</string>
+    <string name="os_adb_pogoji_naslov">Dovolite Safeer OS zapirati aplikacije?</string>
+    <string name="os_adb_pogoji">Android na tem televizorju Safeer OS ne dovoli zapreti aplikacij, ki jih ne uporabljate več, zato zasedajo pomnilnik.\n\nČe sprejmete, se Safeer OS poveže na omrežno razhroščevanje tega televizorja (samo 127.0.0.1, nikoli na drugo napravo) in ga uporablja za eno samo stvar: zapiranje aplikacij, ki jih ne uporabljate več (am force-stop). Nikoli ne zapre domačega zaslona, aplikacije, ki jo uporabljate, tipkovnice ali sistemskih aplikacij. Ključ ostane zaščiten na tem televizorju.\n\nTelevizor bo zdaj vprašal »Dovoli razhroščevanje?« - izberite »Vedno dovoli« in potrdite. To lahko tu kadarkoli izklopite. Omrežno razhroščevanje mora biti vklopljeno v možnostih za razvijalce.</string>
+    <string name="os_adb_sprejmem">Sprejmem</string>
+    <string name="os_adb_potrdi_na_tv">Na televizorju izberite »Vedno dovoli« in potrdite.</string>
+    <string name="os_adb_povezano">Urejeno - Safeer OS zdaj zapira aplikacije, ki jih ne uporabljate več.</string>
+    <string name="os_adb_ni_dosegljiv">Omrežno razhroščevanje je izklopljeno. Vklopite ga v Nastavitve &gt; Možnosti za razvijalce in poskusite znova.</string>
+    <string name="os_adb_ni_potrjeno">Na televizorju ni bilo potrjeno. Poskusite znova in izberite »Vedno dovoli«.</string>
 </resources>
