@@ -113,4 +113,15 @@ preveri('li z role=menuitem je IZLOCEN, ker ima tocno eno vidno povezavo z istim
     preveri('gumb s puscico za podmeni poleg povezave NI locen cilj', false, isActionable(gumb));
 })();
 
+// Lastnik 1. 11. 2026: povezava za preskok (rtvslo.si »Pojdite na meni ...«, href javascript:...focus()) ni cilj.
+(function () {
+    const body = { nodeType: 1, tagName: 'BODY', hasAttribute: () => false, getBoundingClientRect: () => ({width: 1920, height: 1080, right: 1920, left: 0, bottom: 1080, top: 0}) };
+    const skok = { nodeType: 1, tagName: 'A', className: '', getAttribute: (k) => k === 'href' ? "javascript:document.getElementById('tbtopmenu').querySelector('a').focus();" : (k === 'tabindex' ? '1' : null),
+        hasAttribute: (k) => k === 'tabindex', getBoundingClientRect: () => ({width: 460, height: 40, right: 480, left: 20, bottom: 110, top: 70}),
+        innerText: 'Pojdite na meni za preklop med portali RTVSLO.si', textContent: 'Pojdite na meni za preklop med portali RTVSLO.si' };
+    skok.parentElement = body;
+    window.getComputedStyle = () => ({ display: 'block', visibility: 'visible', opacity: '1' });
+    preveri('povezava za preskok (javascript:...focus()) NI cilj', false, isActionable(skok));
+})();
+
 console.log('tv_meni_test: OK (' + n + ')');

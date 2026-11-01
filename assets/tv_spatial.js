@@ -946,6 +946,13 @@
                 if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'NOSCRIPT' || tag === 'HTML' || tag === 'BODY' || tag === 'SVG' || tag === 'PATH') return false;
                 var href = (el.getAttribute && el.getAttribute('href')) || '';
                 if (href.charAt(0) === '#' || (el.className && ('' + el.className).indexOf('wUrY2b') !== -1)) return false;
+                // Povezave za preskok (skip links) za tipkovnico: vidne sele ob fokusu, prekrijejo glavo strani in samo
+                // premaknejo fokus drugam (lastnik 1. 11. 2026, rtvslo.si »Pojdite na meni za preklop med portali«).
+                var hrefMalo = href.toLowerCase();
+                if (hrefMalo.indexOf('javascript:') === 0 && hrefMalo.indexOf('.focus(') !== -1) return false;
+                var clsSkok = (el.className || '').toString().toLowerCase();
+                if (clsSkok.indexOf('skip-link') !== -1 || clsSkok.indexOf('skip-to') !== -1 || clsSkok.indexOf('skiplink') !== -1 ||
+                    clsSkok.indexOf('visually-hidden-focusable') !== -1 || clsSkok.indexOf('sr-only-focusable') !== -1) return false;
                 if (isCarouselArrow(el)) return false;
 
                 var p = el;
