@@ -267,6 +267,12 @@ object DebridPravila {
      * Samodejno predvajanje (OK na kartici): z aktivno storitvijo gre najboljsi pripravljen torrent pred neposredne povezave
      * (zasebno, hitro, obicajno boljsa kakovost). Vrne indeks v [hashi] ali -1 = obstojeca izbira (najprej povezave).
      */
+    /**
+     * Rezerva, ko izbrani Usenet filma ne more predvajati (lastnik 1. 11. 2026): TorBox, ce ima uporabnik njegov kljuc - tudi ce
+     * je izbral Usenet ali »brez debrida« (izbira ostane, rezerva velja samo za ta film). Brez kljuca TorBox ni rezerve.
+     */
+    fun rezervaPoUsenetu(zKljucem: Set<String>): String? = if (TORBOX in zKljucem) TORBOX else null
+
     fun samodejniTorrent(aktivna: String?, hashi: List<String?>, predpomnjeni: Set<String>): Int =
         if (aktivna == null) -1 else hashi.indexOfFirst { jePredpomnjen(it, predpomnjeni) }
 

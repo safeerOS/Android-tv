@@ -162,10 +162,17 @@ fun main(args: Array<String>) {
     preveriEnako("141: natanko 15 GB da", listOf(0), UsenetPravila.zaSamodejno(listOf(15.0)))
     preveriEnako("141: vse prevelike - nic", emptyList<Int>(), UsenetPravila.zaSamodejno(listOf(60.0, 15.1)))
 
+    // Prehod na debrid in poskusi (GEMINI-45-UV)
     preveriEnako("prehod na debrid: samo Usenet, neuspeh in debrid nastavljen -> da", true, UsenetPravila.prehodNaDebrid(true, true, true))
     preveriEnako("prehod na debrid: brez debrida -> ne", false, UsenetPravila.prehodNaDebrid(true, true, false))
     preveriEnako("prehod na debrid: uspel -> ne", false, UsenetPravila.prehodNaDebrid(true, false, true))
     preveriEnako("prehod na debrid: vsi viri -> ne", false, UsenetPravila.prehodNaDebrid(false, true, true))
+
+    preveriEnako("naslednjiPoskus: nismo prisli do konca ali roka -> naslednji", 1, UsenetPravila.naslednjiPoskus(1, 4, false, null))
+    preveriEnako("naslednjiPoskus: rok potekel brez napake -> konec", 4, UsenetPravila.naslednjiPoskus(1, 4, true, null))
+    preveriEnako("naslednjiPoskus: prejsnja izdaja imela napako, rok potekel -> naslednji", 1, UsenetPravila.naslednjiPoskus(1, 4, true, "lastni_pogon"))
+    preveriEnako("naslednjiPoskus: dosezen konec seznama -> konec", 4, UsenetPravila.naslednjiPoskus(4, 4, false, null))
+    preveriEnako("naslednjiPoskus: dosezena meja POSKUSOV_SAMO_USENET -> konec", 10, UsenetPravila.naslednjiPoskus(4, 10, false, null))
 
     // Prejeto z druge naprave (Link)
     preveriEnako("141: prejet indeksator", "https://x.example" to "0123456789abcdef",

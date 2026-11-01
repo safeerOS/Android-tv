@@ -485,6 +485,20 @@ object UsenetPravila {
     const val ROK_SAMO_USENET_MS = 12_000L
 
     /**
+     * Odlocitev o naslednjem poskusu (indeksu), ce prejsnji ni uspel.
+     * @param i kateri poskus se je pravkar koncal oz. je na vrsti (od 0)
+     * @param poskusov stevilo vseh moznih poskusov za to vsebino
+     * @param potekelRok ali je potekel rok od zacetka prvega poskusa
+     * @param prejsnjaNapaka vrsta napake, zaradi katere je poskus i prekinjen, ali null pri preverbi roka pred poskusom
+     * @return indeks naslednjega poskusa ali [poskusov], ce smo koncali
+     */
+    fun naslednjiPoskus(i: Int, poskusov: Int, potekelRok: Boolean, prejsnjaNapaka: String?): Int {
+        if (i >= poskusov || i >= POSKUSOV_SAMO_USENET) return poskusov
+        if (potekelRok && prejsnjaNapaka == null) return poskusov
+        return i
+    }
+
+    /**
      * Kdaj pri izbiri »samo Usenet« po neuspehih preidemo na debrid (TorBox): izbran je samo Usenet, 
      * Usenet se ni zacel predvajati (rok ali konec poskusov) in debrid storitev je nastavljena.
      */
