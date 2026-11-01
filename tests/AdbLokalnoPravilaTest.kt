@@ -21,8 +21,16 @@ fun main() {
     preveri("sistem nikoli", !P.smemoZapreti("com.android.systemui", "si.safeer.os", emptySet(), null))
     preveri("android nikoli", !P.smemoZapreti("android", "si.safeer.os", emptySet(), null))
     preveri("Philips sistem nikoli", !P.smemoZapreti("org.droidtv.playtv", "si.safeer.os", emptySet(), null))
+    preveri("Philips viri nikoli", !P.smemoZapreti("com.philips.sourceenabler", "si.safeer.os", emptySet(), null))
+    preveri("Vewd (HbbTV) nikoli", !P.smemoZapreti("com.vewd.core.browserui", "si.safeer.os", emptySet(), null))
     preveri("com.android.* nikoli", !P.smemoZapreti("com.android.vending", "si.safeer.os", emptySet(), null))
     preveri("Play Store Safeer sme", P.smemoZapreti("si.safeer.trgovina", "si.safeer.os", emptySet(), null))
+
+    println("== storitve (dostopnost, obvestila): teh paketov ne zapiramo")
+    preveri("dva paketa iz niza", P.paketiStoritev("com.philips.sourceenabler/com.philips.sourceenabler.SourceService:si.safeer.os/si.safeer.tv.link.VnosStoritev") == setOf("com.philips.sourceenabler", "si.safeer.os"))
+    preveri("kratek zapis razreda", P.paketiStoritev("a.b/.C") == setOf("a.b"))
+    preveri("prazno in null", P.paketiStoritev(null).isEmpty() && P.paketiStoritev("").isEmpty())
+    preveri("brez posevnice ni paket", P.paketiStoritev("nekaj").isEmpty())
 
     println("== ukaz: samo am force-stop z veljavnim imenom")
     preveri("veljaven ukaz", P.ukazZapri("org.smarttube.stable") == "shell:am force-stop org.smarttube.stable")

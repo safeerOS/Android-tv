@@ -48,8 +48,20 @@ object AdbLokalnoPravila {
         IME_PAKETA.matches(paket) && paket.length <= 255 && paket != zaganjalnik && paket !in vOspredju &&
             paket != tipkovnica && paket !in NIKOLI && NIKOLI_PREDPONE.none { paket.startsWith(it) }
 
-    /** Sistem televizorja (Android, Philips TP Vision, MediaTek): nikoli. */
-    private val NIKOLI_PREDPONE = listOf("com.android.", "org.droidtv.", "com.mediatek.", "com.google.android.tvlauncher")
+    /**
+     * Sistem televizorja (Android, Philips TP Vision, MediaTek, Vewd/HbbTV): nikoli. Preizkus na TV 1. 11. 2026 je zaprl
+     * com.philips.sourceenabler (predhodno namescen, brez zastavice SYSTEM) - viri televizorja niso nase.
+     */
+    private val NIKOLI_PREDPONE = listOf("com.android.", "org.droidtv.", "com.mediatek.", "com.google.android.tvlauncher",
+        "com.philips.", "com.tpvision.", "com.vewd.")
+
+    /**
+     * Paketi iz nastavitve s seznamom storitev (»paket/razred:paket2/razred2«, npr. enabled_accessibility_services).
+     * Preizkus na TV 1. 11. 2026: force-stop aplikacije Android odvzame tudi njeno vklopljeno storitev dostopnosti -
+     * Philipsov sourceenabler je tako izgubil SourceService in tipka Viri ni vec delala. Taksnih paketov ne zapiramo.
+     */
+    fun paketiStoritev(niz: String?): Set<String> =
+        (niz ?: "").split(':').mapNotNull { v -> v.trim().substringBefore('/').takeIf { it.isNotEmpty() && it != v.trim() } }.toSet()
 
     /** Edini ukaz, ki gre na adb: »am force-stop <paket>«. Brez veljavnega imena paketa ni ukaza (null). */
     fun ukazZapri(paket: String): String? = if (IME_PAKETA.matches(paket) && paket.length <= 255) "shell:am force-stop $paket" else null

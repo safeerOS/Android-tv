@@ -50,7 +50,16 @@ object Pomnilnik {
     private fun zapriPakete(c: Context, paketi: List<String>, vOspredju: Set<String>, ime: String?): List<String> {
         if (paketi.isEmpty()) return emptyList()
         if (AdbLokalno.soglasje(c)) {
-            val dovoljeni = paketi.filter { AdbLokalnoPravila.smemoZapreti(it, c.packageName, vOspredju, ime) }
+            // Sistemskih aplikacij televizorja ne zapiramo na silo (killBackgroundProcesses jih prej tudi ni).
+            val pm = c.packageManager
+            // Aplikacije z vklopljeno storitvijo (dostopnost, obvestila): force-stop bi jim storitev izklopil.
+            val sStoritvijo = listOf("enabled_accessibility_services", "enabled_notification_listeners").flatMap { k ->
+                AdbLokalnoPravila.paketiStoritev(try { android.provider.Settings.Secure.getString(c.contentResolver, k) } catch (_: Throwable) { null })
+            }.toSet()
+            val dovoljeni = paketi.filter { p ->
+                p !in sStoritvijo && AdbLokalnoPravila.smemoZapreti(p, c.packageName, vOspredju, ime) &&
+                    (try { (pm.getApplicationInfo(p, 0).flags and ApplicationInfo.FLAG_SYSTEM) == 0 } catch (_: Throwable) { false })
+            }
             return AdbLokalno.zapri(c, dovoljeni)
         }
         val am = c.getSystemService(ActivityManager::class.java)
