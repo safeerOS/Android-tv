@@ -58,6 +58,11 @@ fun main() {
         Relevantnost.Zadetek("dobro", "The Lord of the Rings", "", "x", 2, glasov = 10),
         Relevantnost.Zadetek("slabo", "Rings", "", "x", 2, glasov = 5_000_000)))
     preveri("slabse ujemanje ne prehiti", slabse[0].first.stvar == "dobro")
+    // TV 1. 11. 2026 18:25: Cinemeta pri iskanju ne da ocen, odgovor pa je razvrscen po priljubljenosti (2001 prvi, 1978 sesti).
+    val poRangu = R.razvrsti("Lord of the Rings", listOf(
+        Relevantnost.Zadetek("1978", "The Lord of the Rings", "", "Cinemeta", 2, rangVira = 5),
+        Relevantnost.Zadetek("2001", "The Lord of the Rings: The Fellowship of the Ring", "", "Cinemeta", 2, rangVira = 0)))
+    preveri("Cinemeta brez ocen: mesto v odgovoru vira", poRangu[0].first.stvar == "2001")
 
     println("Relevantnost: $uspehov passed, $napak failed")
     if (napak > 0) kotlin.system.exitProcess(1)

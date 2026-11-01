@@ -81,7 +81,9 @@ object Relevantnost {
                           /** Priljubljenost iz vira (npr. glasovi IMDb); 0 = neznano. */
                           val glasov: Long = 0,
                           /** Ocena vira (npr. IMDb 0-10); 0 = neznano. */
-                          val ocenaVira: Double = 0.0)
+                          val ocenaVira: Double = 0.0,
+                          /** Mesto v odgovoru vira, ki sam razvrsca po priljubljenosti (Cinemeta pri iskanju ne da ocen); manjse = bolj priljubljeno. */
+                          val rangVira: Int = Int.MAX_VALUE)
 
     /** Ocena, od katere naprej so zadetki ena stopnja (vse besede poizvedbe v naslovu ali izvajalcu, vec besed: 1,0 + 0,2). */
     const val STOPNJA_VSE = 1.2
@@ -105,6 +107,7 @@ object Relevantnost {
             compareByDescending<Pair<Zadetek<*>, Double>> { minOf(it.second, STOPNJA_VSE) }
                 .thenByDescending { it.first.glasov }
                 .thenByDescending { it.first.ocenaVira }
+                .thenBy { it.first.rangVira }
                 .thenByDescending { it.second }
                 .thenBy { it.first.prednost }
         )

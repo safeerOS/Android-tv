@@ -6798,13 +6798,15 @@ class GlasbaActivity : OsActivity() {
             javnaLast.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, getString(R.string.os_media_javna_last), 4)) }
             postajeBrez.filterNot { TuneIn.jeEnota(it) }.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, getString(R.string.os_glasba_radio), 5)) }
             tuneIn.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, it.izvajalec, "TuneIn", 5)) }
-            izDodatkov.forEach {
+            // Lastnik 1. 11. 2026: Cinemeta pri iskanju ne vrne ocen, odgovor pa je ze razvrscen po priljubljenosti (izmerjeno:
+            // »Lord of the Rings« -> 2001 prvi, risanka 1978 sesta) - mesto v odgovoru je priljubljenost.
+            izDodatkov.forEachIndexed { rang, it ->
                 val vrsta = getString(when (Stremio.razredEnote(it)) {
                     Stremio.SERIJA -> R.string.os_media_serije; Stremio.TV -> R.string.os_mediji_tv_v_zivo
                     Stremio.GLASBA -> R.string.os_mediji_glasba; Stremio.RADIO -> R.string.os_glasba_radio
                     Stremio.FILM -> R.string.os_media_filmi; else -> R.string.os_glasba_video
                 })
-                vsi.add(Relevantnost.Zadetek(it, it.naslov, "", vrsta, 2))
+                vsi.add(Relevantnost.Zadetek(it, it.naslov, "", vrsta, 2, glasov = it.imdbVotes.toLong(), ocenaVira = it.rating, rangVira = rang))
             }
             tvKanali.forEach { vsi.add(Relevantnost.Zadetek(it, it.naslov, "", getString(R.string.os_mediji_tv_v_zivo), 4)) }
             val lestvica = Relevantnost.razvrsti(beseda, vsi)
