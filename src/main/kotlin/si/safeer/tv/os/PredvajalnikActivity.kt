@@ -68,7 +68,7 @@ class PredvajalnikActivity : OsActivity() {
         findViewById<TextView>(R.id.glasbaIme).text = naslov
         glasbaKartica.visibility = if (zvok) View.VISIBLE else View.GONE
         povrsina.visibility = if (zvok) View.GONE else View.VISIBLE
-        Pomnilnik.pocistiOzadje(this)
+        Pomnilnik.pocistiOzadje(this, nasePredvajanje = true)
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 

@@ -1273,6 +1273,12 @@ object OsPravila {
         return smemoZapreti(paket, mojPaket, tipkovnica, trajen)
     }
 
+    fun zapriObMenjavi(prejsnja: String, nova: String?, casMs: Long, mojPaket: String, tipkovnica: String?,
+                       trajen: Boolean, vklopljeno: Boolean, predvaja: Boolean): Boolean {
+        if (prejsnja == nova || casMs < 3000) return false
+        return zapriObVrnitvi(prejsnja, mojPaket, tipkovnica, trajen, vklopljeno, predvaja, 0L, casMs)
+    }
+
     // Obseg iskanja v Medijskem centru (lastnik 30. 10. 2026: »uporabnik lahko izbere, po katerem viru isce«).
     const val OBSEG_VSE = 0
     const val OBSEG_FILMI = 1

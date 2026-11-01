@@ -1121,6 +1121,8 @@ fun main() {
     preizkusSlikSpletnihZadetkov()
     preizkusPodnaslovaSpletnihZadetkov()
     preizkusNajprejDela()
+    preizkusZapriObVrnitvi()
+    preizkusZapriObMenjavi()
     println()
     if (napak == 0) println("Vse v redu.") else { println("Napak: $napak"); System.exit(1) }
 }
@@ -1551,4 +1553,12 @@ private fun preizkusZapriObVrnitvi() {
     preveriEnako("sistemske NE (com.mediatek.foo)", false, OsPravila.zapriObVrnitvi("com.mediatek.foo", "moj", null, false, true, false, 0L, zdaj))
     preveriEnako("navadna aplikacija (org.test) DA", true, OsPravila.zapriObVrnitvi("org.test", "moj", null, false, true, false, 0L, zdaj))
     preveriEnako("trajen NE", false, OsPravila.zapriObVrnitvi("org.test", "moj", null, true, true, false, 0L, zdaj))
+}
+
+private fun preizkusZapriObMenjavi() {
+    println("\n== naloga 44-G2: zapriObMenjavi ==")
+    preveriEnako("zamik pod 3s -> false", false, OsPravila.zapriObMenjavi("org.test", "org.novo", 2000L, "moj", null, false, true, false))
+    preveriEnako("uporabnik se je vrnil -> false", false, OsPravila.zapriObMenjavi("org.test", "org.test", 4000L, "moj", null, false, true, false))
+    preveriEnako("3s minilo in ni ista -> kliče zapriObVrnitvi (true)", true, OsPravila.zapriObMenjavi("org.test", "org.novo", 4000L, "moj", null, false, true, false))
+    preveriEnako("3s minilo, izklopljeno -> false", false, OsPravila.zapriObMenjavi("org.test", "org.novo", 4000L, "moj", null, false, false, false))
 }

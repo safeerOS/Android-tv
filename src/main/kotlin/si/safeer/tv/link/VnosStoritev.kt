@@ -193,6 +193,8 @@ class VnosStoritev : AccessibilityService() {
      * Lastnik 30. 10. 2026 (»oboje s preklopom«): privzeto fokus med gumbi (Gemini), drzan OK preklopi v misko in nazaj.
      */
     private var neprilagojena: String? = null
+    /** Aplikacija v ospredju, za katero se je preverjala miska in ki ni Safeer (zaprta pri menjavi). */
+    private var zadnjaUporabniska: String? = null
     /** Lezeca tablicna postavitev za neprilagojene aplikacije (lastnik 30. 10. 2026). */
     private var tablica: TablicniPrikaz? = null
     private val miskaVklopljena = HashSet<String>()
@@ -236,7 +238,9 @@ class VnosStoritev : AccessibilityService() {
             si.safeer.tv.os.OsPravila.miskaZaPaket(true, paket, navaden, tv, sistemska)
         }
         val prej = neprilagojena
+        val prejUporabniska = zadnjaUporabniska
         neprilagojena = if (vklop) paket else null
+        if (paket != packageName) zadnjaUporabniska = paket
         if (vklop) tablica?.vklopi() else tablica?.izklopi()
         // Lastnik 30. 10. 2026: telefonska aplikacija (tablicni nacin), iz katere se uporabnik vrne, ostane v ozadju in
         // zaseda pomnilnik (TV: swap poln). Ce ga je malo, jo cez 3 s zapremo - razen ce se je uporabnik medtem vrnil vanjo.
@@ -248,6 +252,13 @@ class VnosStoritev : AccessibilityService() {
                 val zdaj = try { rootInActiveWindow?.packageName?.toString() } catch (_: Throwable) { null }
                 if (neprilagojena == null && zdaj == packageName)
                     Thread { si.safeer.tv.os.Pomnilnik.zapriCeMalo(ctx, prej) }.apply { isDaemon = true }.start()
+            }, 3_000)
+        }
+        if (prejUporabniska != null && prejUporabniska != paket && paket != packageName) {
+            val ctx = applicationContext
+            glavnaNit.postDelayed({
+                val zdaj = try { rootInActiveWindow?.packageName?.toString() } catch (_: Throwable) { null }
+                Thread { si.safeer.tv.os.Pomnilnik.zapriObMenjavi(ctx, prejUporabniska, zdaj, 3000L) }.apply { isDaemon = true }.start()
             }, 3_000)
         }
         if (vklop && paket in miskaVklopljena) m.vklopi(paket) else m.izklopi()

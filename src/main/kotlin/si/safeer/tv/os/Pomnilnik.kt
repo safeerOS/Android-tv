@@ -66,14 +66,36 @@ object Pomnilnik {
         Log.i(TAG, "telefonska aplikacija zaprta po vrnitvi domov (malo pomnilnika): $paket")
     }
 
-    fun pocistiOzadje(c: Context) {
+    fun zapriObMenjavi(c: Context, prejsnja: String, nova: String?, casMs: Long) {
+        val vklopljeno = androidx.preference.PreferenceManager.getDefaultSharedPreferences(c).getBoolean("zapri_neuporabljeno", true)
+        var predvaja = false
+        try {
+            val am = c.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager
+            if (am?.isMusicActive == true) predvaja = true
+        } catch (_: Exception) {}
+        val ime = try { android.provider.Settings.Secure.getString(c.contentResolver, "default_input_method")?.substringBefore('/') } catch (_: Throwable) { null }
+        val pm = c.packageManager
+        val trajen = try { (pm.getApplicationInfo(prejsnja, 0).flags and ApplicationInfo.FLAG_PERSISTENT) != 0 } catch (_: Exception) { false }
+        
+        if (OsPravila.zapriObMenjavi(prejsnja, nova, casMs, c.packageName, ime, trajen, vklopljeno, predvaja)) {
+            val pred = stanje(c)
+            try { c.getSystemService(ActivityManager::class.java).killBackgroundProcesses(prejsnja) } catch (_: Throwable) {}
+            val po = stanje(c)
+            Log.i(TAG, "zaprta ob menjavi ($prejsnja -> $nova), RAM pred: ${pred.prostoMb}MB, po: ${po.prostoMb}MB")
+        }
+    }
+
+    /**
+     * [nasePredvajanje]: klic ob zagonu NASEGA predvajanja (film, glasba v Safeer OS). Zvok, ki tece takrat, je nas, zato
+     * ne sme ustaviti zapiranja (pregled 1. 11. 2026: po 3 s je isMusicActive vedno true in se ni zaprlo nic).
+     * Zvok merimo PRED zamikom: ob vrnitvi domov pomeni, da igra ena od aplikacij v ozadju - takrat ne zapremo nicesar.
+     */
+    fun pocistiOzadje(c: Context, nasePredvajanje: Boolean = false) {
+        val predvaja = !nasePredvajanje && try {
+            (c.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager)?.isMusicActive == true
+        } catch (_: Exception) { false }
         Thread {
             try { Thread.sleep(3000) } catch (_: Exception) {}
-            var predvaja = false
-            try {
-                val am = c.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager
-                if (am?.isMusicActive == true) predvaja = true
-            } catch (_: Exception) {}
             val amgr = c.getSystemService(ActivityManager::class.java)
             val pred = stanje(c)
             val k = kandidati(c).toMutableList()
