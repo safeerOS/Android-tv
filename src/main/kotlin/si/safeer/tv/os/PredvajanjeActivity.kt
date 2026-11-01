@@ -224,6 +224,7 @@ class PredvajanjeActivity : OsActivity() {
     }
 
     private fun prikaziPripravljamStanje(pn: String) {
+        prekritje.alpha = 1f
         naslov.text = pn
         izvajalec.text = getString(R.string.os_media_pripravljam, "").trim()
         vir.text = ""
@@ -348,10 +349,18 @@ class PredvajanjeActivity : OsActivity() {
     }
 
     private var pripravljamNaslov: String? = null
+    private var zagonovObOdprtju: Int = 0
+    private var casOdprtjaMs: Long = 0L
+    private var prikazujemNapako: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        instanca = java.lang.ref.WeakReference(this)
         pripravljamNaslov = intent.getStringExtra(PRIPRAVLJAM_NASLOV)
+        if (pripravljamNaslov != null) {
+            zagonovObOdprtju = GlasbaStoritev.zagonov
+            casOdprtjaMs = android.os.SystemClock.uptimeMillis()
+        }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         val koren = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
         povrsina = SurfaceView(this)
@@ -755,6 +764,10 @@ class PredvajanjeActivity : OsActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         pripravljamNaslov = intent.getStringExtra(PRIPRAVLJAM_NASLOV)
+        if (pripravljamNaslov != null) {
+            zagonovObOdprtju = GlasbaStoritev.zagonov
+            casOdprtjaMs = android.os.SystemClock.uptimeMillis()
+        }
         zatemniIzNamena()
         izberiNapravoIzNamena()
         nadaljujIzNamena()
@@ -813,6 +826,24 @@ class PredvajanjeActivity : OsActivity() {
     }
 
     companion object {
+        var instanca: java.lang.ref.WeakReference<PredvajanjeActivity>? = null
+        fun zapriCePripravlja() {
+            instanca?.get()?.let { 
+                if (it.pripravljamNaslov != null) it.finish()
+            }
+        }
+        fun zapriZNapako() {
+            instanca?.get()?.let { 
+                if (it.pripravljamNaslov != null && !it.prikazujemNapako) {
+                    it.prikazujemNapako = true
+                    it.glavna.removeCallbacks(it.osveziPripravoRunnable)
+                    it.prikaziPripravljamStanje(it.pripravljamNaslov!!)
+                    it.izvajalec.text = it.getString(R.string.os_media_ni_na_voljo)
+                    it.nalaganje.visibility = View.GONE
+                    it.glavna.postDelayed({ it.pripravljamNaslov = null; it.finish() }, 2500)
+                }
+            }
+        }
         private const val IZBERI_PODNAPISE = 7421
         /** Razmik med karticami omejene vrste in mreze (dp). */
         private const val RAZMIK_KARTIC = 12
@@ -832,7 +863,7 @@ class PredvajanjeActivity : OsActivity() {
     }
 
     override fun onDestroy() {
-        if (pripravljamNaslov != null) GlasbaActivity.instanca?.prekliciPriprave()
+        if (pripravljamNaslov != null) GlasbaActivity.instanca?.get()?.prekliciPriprave()
         odjaviPip(); delavec.shutdownNow(); super.onDestroy()
     }
 
@@ -866,16 +897,34 @@ class PredvajanjeActivity : OsActivity() {
     /** Posnetek z YouTuba (pogosto glasba) se ob odhodu z zaslona ne ustavi - mini predvajalnik ga ustavi. */
     private fun igraVOzadju() = GlasbaStoritev.trenutna()?.let { YoutubeZvok.jeYoutube(it) } == true
 
+    private val osveziPripravoRunnable = Runnable { osvezi() }
+
     private fun osvezi() {
         if (!zagnan) return
+        glavna.removeCallbacks(osveziPripravoRunnable)
+        if (prikazujemNapako) return
         val p = GlasbaStoritev.predvajalnik
         val sk = GlasbaStoritev.trenutna()
-        if (p == null || sk == null) {
-            val pn = intent.getStringExtra(PRIPRAVLJAM_NASLOV)
-            if (pn != null) {
+        val pn = pripravljamNaslov
+        if (pn != null) {
+            val zdajMs = android.os.SystemClock.uptimeMillis()
+            if (PripravaPravila.ostaniVPripravi(zagonovObOdprtju, GlasbaStoritev.zagonov, zdajMs - casOdprtjaMs)) {
                 prikaziPripravljamStanje(pn)
+                glavna.postDelayed(osveziPripravoRunnable, 1000)
                 return
+            } else if (PripravaPravila.jePotekelCas(zdajMs - casOdprtjaMs) || (p == null && sk == null)) {
+                zapriZNapako()
+                return
+            } else {
+                pripravljamNaslov = null
+                // Obnovi vidnost elementov, ce so bili skriti v stanju "pripravljam"
+                vrstaGumbov?.visibility = View.VISIBLE
+                cas.visibility = View.VISIBLE
+                potek.visibility = View.VISIBLE
+                namig.visibility = View.VISIBLE
             }
+        }
+        if (p == null || sk == null) {
             finish()
             return
         }

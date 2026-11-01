@@ -4,4 +4,12 @@ object PripravaPravila {
     fun odpriTakoj(video: Boolean, rocno: Boolean): Boolean {
         return video && !rocno
     }
+
+    fun ostaniVPripravi(zagonovObOdprtju: Int, zagonovZdaj: Int, casVPripraviMs: Long): Boolean {
+        return zagonovZdaj == zagonovObOdprtju && casVPripraviMs < 45_000L
+    }
+
+    fun jePotekelCas(casVPripraviMs: Long): Boolean {
+        return casVPripraviMs >= 45_000L
+    }
 }

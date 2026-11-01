@@ -195,7 +195,7 @@ class GlasbaActivity : OsActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        instanca = this
+        instanca = java.lang.ref.WeakReference(this)
         odprtih++
         VrsteNaslovov.pripravi(this)     // naloga 63: znane serije med filmi (v ozadju z diska)
         // Merjenje odzivnosti (samo razvojna gradnja): vsak dostop do diska/omrezja na glavni niti gre v dnevnik
@@ -663,7 +663,6 @@ class GlasbaActivity : OsActivity() {
         debridDelavec.shutdownNow()  // pregled A1
         glavna.removeCallbacks(umiri)
         tvIkone.clear()
-        if (instanca === this) instanca = null
         super.onDestroy()
     }
 
@@ -2213,7 +2212,6 @@ class GlasbaActivity : OsActivity() {
         val filtrirani = podatki.map { it.copy(skladbe = filtrirajJezike(i, it.skladbe)) }
             .filter { it.skladbe.isNotEmpty() }
         if (i == TV_V_ZIVO) tvIkone.clear()
-        if (instanca === this) instanca = null
         val c1 = android.os.SystemClock.uptimeMillis()
         val zg = zgoraj(i); val c2 = android.os.SystemClock.uptimeMillis()
         // Domov: brez podvojenih prikazov - kar je ze v blokih na vrhu (nedavno, priljubljeno), se v blokih s spleta ne
@@ -7573,6 +7571,7 @@ class GlasbaActivity : OsActivity() {
     fun prekliciPriprave() {
         pripraveVTeKu.clear()
         skrijPripravljam()
+        PredvajanjeActivity.zapriCePripravlja()
     }
 
     /**
@@ -8283,6 +8282,7 @@ class GlasbaActivity : OsActivity() {
         
         fun nicNiNaVoljo() {
             Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, sk.naslov), Toast.LENGTH_SHORT).show()
+            PredvajanjeActivity.zapriZNapako()
             if (edinaSezona && !imaZnanoEpizodo(sk)) oznaciNiNaVoljo(sk)
         }
         
@@ -8521,6 +8521,7 @@ class GlasbaActivity : OsActivity() {
     }
 
     private fun epizodeNi(sk: Jamendo.Skladba, tip: String, e: Stremio.Epizoda, vse: List<Stremio.Epizoda>, rocno: Boolean, edinaSezona: Boolean) {
+        PredvajanjeActivity.zapriZNapako()
         skrijInPotrdi(Razpolozljivost.kljuc(tip, e.id)) { naslovi, torrent -> Stremio.razpolozljivo(naslovi, tip, e.id, torrent) }
         izberiSezono(sk, vse, rocno)
     }
@@ -9489,6 +9490,7 @@ class GlasbaActivity : OsActivity() {
             // ([razresiStremio]), zato predvajanje naslednje razlicice pride samo; tu so mrtve vse razlicice dodatkov (93: seznama IPTV ne). Placljiv dostop (79) ima svoje sporocilo.
             if (obNeuspehu == null && Stremio.jeVZivo(sk) && !Stremio.samoObvestilaKanala(sk)) {
                 android.util.Log.i("SafeerOsMedia", "kanal ni dosegljiv: tokov=${tokovi.size}, dodatek ni odgovoril=${Stremio.dodatekNiOdgovoril()}")
+                PredvajanjeActivity.zapriZNapako()
                 oznaciMrtveRazliciceDodatka(sk)
                 return
             }
@@ -9502,6 +9504,7 @@ class GlasbaActivity : OsActivity() {
             // Prej: kratko obvestilo, ploscica je ostala in dotik ni naredil nicesar (izmerjeno 5. 10. 2026).
             // Naloga 79: dodatek je dal samo obvestilo (placljiv dostop) - kanal ni mrtev; povemo zakaj, povezave na placilo ne.
             if (obNeuspehu == null && Stremio.jeVZivo(sk) && Stremio.samoObvestilaKanala(sk)) {
+                PredvajanjeActivity.zapriZNapako()
                 // Naloga 79b: isto okno kot »Odkleni pri dodatku« v Mojih virih (ce je dodatek dal povezavo).
                 val osnova = Stremio.razstavi(sk)?.first.orEmpty()
                 if (Stremio.povezavaOdklepa(osnova) != null) odkleniPriDodatku(osnova)
@@ -9511,10 +9514,12 @@ class GlasbaActivity : OsActivity() {
                 return
             }
             if (obNeuspehu == null && (Stremio.jeVZivo(sk) || Stremio.razredEnote(sk) == Stremio.RADIO)) {
+                PredvajanjeActivity.zapriZNapako()
                 oznaciMrtveRazliciceDodatka(sk)
                 return
             }
             Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslov), Toast.LENGTH_SHORT).show()
+            PredvajanjeActivity.zapriZNapako()
             // Dodatek je odgovoril, toka pa nima: steje tudi kot dokaz o njegovi knjiznici ([ZaupanjeKnjiznic]).
             if (obNeuspehu != null) obNeuspehu() else { Stremio.zabeleziKnjiznico(sk, false); oznaciNiNaVoljo(sk) }
             return
@@ -9739,7 +9744,10 @@ class GlasbaActivity : OsActivity() {
                     obNeuspehu?.invoke()
                     return
                 }
-                if (!samodejnoBrezUseneta()) Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslov), Toast.LENGTH_SHORT).show()
+                if (!samodejnoBrezUseneta()) {
+                    Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslov), Toast.LENGTH_SHORT).show()
+                    PredvajanjeActivity.zapriZNapako()
+                }
             }
             // Webtor: [samoTakoj] = korak 2 ([⚡WT]), sicer korak 4 ([WT]); skupaj najvec 2 kroga sond in 15 s ([webtorRok]).
             fun poskusiWebtor(samoTakoj: Boolean, potem: () -> Unit) {
@@ -9795,6 +9803,7 @@ class GlasbaActivity : OsActivity() {
                 setSpan(android.text.style.ForegroundColorSpan(BARVA_OPOZORILA_KAKOVOSTI), z, z + o.napis.length + 2, 0)
             } else napis
         }
+        prekliciPriprave()
         AlertDialog.Builder(this).setTitle(naslov).setItems(imena.toTypedArray<CharSequence>()) { _, k ->
             val t = urejeni[k]
             // Webtor rezerva: rocno izbran tok Webtor - sonda in TorBox v ozadju; ce ne stece, ista izdaja kot torrent.
@@ -9941,6 +9950,7 @@ class GlasbaActivity : OsActivity() {
                     android.util.Log.i("SafeerOsMedia", "tokovi: ${if (usenetIme != null) "Usenet" else "debrid"} ni uspel (${izid.napaka}) - naprej samodejno")
                     obNeuspehu(); return@obdelaj
                 }
+                PredvajanjeActivity.zapriZNapako()
                 // Pregled A4: sporocilo imenuje storitev, ki je res padla (TorBox, Real-Debrid, AllDebrid, indeksator Usenet).
                 val storitev = imeStoritveNapake(izid)
                 val sporocilo = DebridBesedila.sporocilo(this, izid, storitev)
@@ -10745,6 +10755,7 @@ class GlasbaActivity : OsActivity() {
                 "preobremenjen", "malo_pomnilnika", "baterija", "varcevanje", "pregreto", "predvaja", "sorodnik" -> getString(R.string.os_stremio_naprave_zasedene)
                 else -> getString(R.string.os_media_ni_na_voljo, naslov)
             }, Toast.LENGTH_LONG).show()
+            PredvajanjeActivity.zapriZNapako()
         }
         fun prosi(k: Int, zadnja: String, od: Long = android.os.SystemClock.uptimeMillis()) {
             if (isFinishing) return
@@ -11132,7 +11143,7 @@ class GlasbaActivity : OsActivity() {
     }
 
     companion object {
-        var instanca: GlasbaActivity? = null
+        var instanca: java.lang.ref.WeakReference<GlasbaActivity>? = null
         private const val NAMEN_OBDELAN = "safeer.namen.obdelan"
         /** Risanje po korakih: casovni proracun enega kosa na glavni niti. */
         private const val PRORACUN_MS = 8L
