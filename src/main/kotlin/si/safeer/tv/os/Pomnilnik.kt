@@ -73,7 +73,9 @@ object Pomnilnik {
         (c.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager)?.isMusicActive == true
     } catch (_: Exception) { false }
 
+    @android.annotation.SuppressLint("MissingPermission")   // dovoljenje preveri smemo(); brskalnik ga nima
     fun zapriObMenjavi(c: Context, prejsnja: String, nova: String?, casMs: Long, predvaja: Boolean) {
+        if (!smemo(c)) return
         val vklopljeno = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("zapri_neuporabljeno", true)
         val ime = try { android.provider.Settings.Secure.getString(c.contentResolver, "default_input_method")?.substringBefore('/') } catch (_: Throwable) { null }
         val pm = c.packageManager
@@ -92,7 +94,9 @@ object Pomnilnik {
      * ne sme ustaviti zapiranja (pregled 1. 11. 2026: po 3 s je isMusicActive vedno true in se ni zaprlo nic).
      * Zvok merimo PRED zamikom: ob vrnitvi domov pomeni, da igra ena od aplikacij v ozadju - takrat ne zapremo nicesar.
      */
+    @android.annotation.SuppressLint("MissingPermission")   // dovoljenje preveri smemo(); brskalnik ga nima
     fun pocistiOzadje(c: Context, nasePredvajanje: Boolean = false) {
+        if (!smemo(c)) return
         val predvaja = !nasePredvajanje && try {
             (c.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager)?.isMusicActive == true
         } catch (_: Exception) { false }
