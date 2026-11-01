@@ -2075,7 +2075,7 @@ object OsPravila {
     ): Boolean {
         // Sistemske aplikacije televizorja (nastavitve, namestitev naprave, tipkovnica) so za daljinec.
         if (!jeTv || paket.isBlank() || sistemska) return false
-        if (paket.startsWith("si.safeer.") || paket == Sosed.TRGOVINA) return false
+        if (paket.startsWith("si.safeer.")) return false   // tudi Safeer Play Store (si.safeer.trgovina); OsPravila brez Androida (tests/vse.sh)
         return imaZaganjalnik && !imaTvZaganjalnik
     }
 
