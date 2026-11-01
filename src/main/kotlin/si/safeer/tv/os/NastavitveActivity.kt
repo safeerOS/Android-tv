@@ -335,6 +335,10 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 p.edit().putBoolean("zapri_neuporabljeno", !p.getBoolean("zapri_neuporabljeno", true)).apply()
                 narisi()
             },
+            // Lastnik 1. 11. 2026: brez zapiranja tujih aplikacij ni izdaje - na TV (Android 11) samo prek lastnega adb.
+            safeer(R.drawable.os_ikona_naprava, R.string.os_adb_zapiranje, R.string.os_adb_zapiranje_opis, vklop(AdbLokalno.soglasje(this))) {
+                if (AdbLokalno.soglasje(this)) { AdbLokalno.nastaviSoglasje(this, false); narisi() } else pogojiAdb()
+            },
             safeer(R.drawable.os_ikona_naprava, R.string.os_plosek_preizkus, R.string.os_plosek_preizkus_opis, "") {
                 startActivity(android.content.Intent(this, PlosekActivity::class.java))
             },
@@ -864,5 +868,35 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             v.setBackgroundResource(R.drawable.os_izbor_vrstice)
             return v
         }
+    }
+
+    /** Pogoji za lastni adb (lastnik 1. 11. 2026): uporabnik jih sprejme, nato Android sam vprasa »Dovoli razhroscevanje«. */
+    private fun pogojiAdb() {
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
+            .setTitle(R.string.os_adb_pogoji_naslov)
+            .setMessage(R.string.os_adb_pogoji)
+            .setNegativeButton(R.string.os_preklici, null)
+            .setPositiveButton(R.string.os_adb_sprejmem) { _, _ ->
+                AdbLokalno.nastaviSoglasje(this, true)
+                narisi()
+                android.widget.Toast.makeText(this, R.string.os_adb_potrdi_na_tv, android.widget.Toast.LENGTH_LONG).show()
+                val app = applicationContext
+                Thread {
+                    val izid = AdbLokalno.povezi(app)
+                    android.util.Log.i("SafeerAdbLokalno", "prva povezava: $izid")
+                    runOnUiThread {
+                        if (isFinishing || isDestroyed) return@runOnUiThread
+                        val sporocilo = when (izid) {
+                            AdbLokalno.IZID_POVEZANO -> R.string.os_adb_povezano
+                            AdbLokalno.IZID_NI_DOSEGLJIV -> R.string.os_adb_ni_dosegljiv
+                            else -> R.string.os_adb_ni_potrjeno
+                        }
+                        // Brez potrjene povezave soglasje ne ostane vklopljeno (uporabnik vidi pravo stanje).
+                        if (izid != AdbLokalno.IZID_POVEZANO) { AdbLokalno.nastaviSoglasje(app, false); narisi() }
+                        android.widget.Toast.makeText(this, sporocilo, android.widget.Toast.LENGTH_LONG).show()
+                    }
+                }.start()
+            }
+            .show()
     }
 }

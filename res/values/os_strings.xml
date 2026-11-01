@@ -764,4 +764,13 @@
     <string name="os_komplet_manjka">Missing: %1$s</string>
     <string name="os_zapri_neuporabljeno">Zapri aplikacije, ki jih ne uporabljam</string>
     <string name="os_zapri_neuporabljeno_opis">Ko aplikacije nekaj časa ne uporabljate, se zapre, da sprosti pomnilnik. Aplikacije, ki predvajajo ali prenašajo, ostanejo.</string>
+    <string name="os_adb_zapiranje">Close apps reliably (local ADB)</string>
+    <string name="os_adb_zapiranje_opis">On this TV Android does not let apps close other apps. With your consent Safeer OS connects once to this device\'s own debugging interface and closes apps you no longer use.</string>
+    <string name="os_adb_pogoji_naslov">Allow Safeer OS to close apps?</string>
+    <string name="os_adb_pogoji">Android on this TV does not let Safeer OS close apps you stopped using, so they keep using memory.\n\nIf you accept, Safeer OS connects to this TV\'s own network debugging (127.0.0.1 only, never another device) and uses it for one thing only: closing apps you are no longer using (am force-stop). It never closes the home screen, the app you are using, the keyboard or system apps. The key stays protected on this TV.\n\nThe TV will now ask »Allow debugging?« - choose »Always allow« and confirm. You can turn this off here at any time. Network debugging must be enabled in Developer options.</string>
+    <string name="os_adb_sprejmem">Accept</string>
+    <string name="os_adb_potrdi_na_tv">On the TV choose »Always allow« and confirm.</string>
+    <string name="os_adb_povezano">Done - Safeer OS now closes apps you no longer use.</string>
+    <string name="os_adb_ni_dosegljiv">Network debugging is off. Turn it on in Settings &gt; Developer options, then try again.</string>
+    <string name="os_adb_ni_potrjeno">Not confirmed on the TV. Try again and choose »Always allow«.</string>
 </resources>
