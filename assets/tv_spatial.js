@@ -951,7 +951,9 @@
                 var p = el;
                 var skritPodmeni = false;
                 var winW = window.innerWidth || 1920, winH = window.innerHeight || 1080;
-                while (p && p.nodeType === 1 && p !== document.body && p !== document.documentElement) {
+                var globina = 0;
+                // Najvec 8 prednikov: getComputedStyle za vsak kandidat do <body> je na TV (2 GB) predrago ob vsakem pritisku.
+                while (p && p.nodeType === 1 && p !== document.body && p !== document.documentElement && globina++ < 8) {
                     var ps = window.getComputedStyle(p);
                     if (ps.display === 'none' || ps.visibility === 'hidden' || ps.opacity === '0') {
                         skritPodmeni = true; break;
@@ -961,8 +963,8 @@
                     var pCls = (p.className || '').toLowerCase();
                     var isMenu = pTag === 'ul' || pTag === 'menu' || pTag === 'nav' || pCls.indexOf('menu') !== -1 || pCls.indexOf('subcategories') !== -1 || p.hasAttribute('aria-haspopup');
                     if (isMenu) {
+                        // Samo velikost 0: seznam pod robom zaslona ali vrtiljak desno je dosegljiv s premikom (pregled 1. 11. 2026).
                         if (pr.width === 0 || pr.height === 0) { skritPodmeni = true; break; }
-                        if (pr.right <= 0 || pr.left >= winW || pr.bottom <= 0 || pr.top >= winH) { skritPodmeni = true; break; }
                     }
                     p = p.parentElement;
                 }
@@ -976,7 +978,7 @@
                     for (var li = 0; li < inLinks.length; li++) {
                         var lr = inLinks[li].getBoundingClientRect();
                         var lps = window.getComputedStyle(inLinks[li]);
-                        if (lr.width > 0 && lr.height > 0 && lps.display !== 'none' && lps.visibility !== 'hidden' && lps.opacity !== '0' && lr.right > 0 && lr.left < winW && lr.bottom > 0 && lr.top < winH) {
+                        if (lr.width > 0 && lr.height > 0 && lps.display !== 'none' && lps.visibility !== 'hidden' && lps.opacity !== '0') {
                             visibleLinks.push(inLinks[li]);
                         }
                     }

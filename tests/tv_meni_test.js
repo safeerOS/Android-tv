@@ -84,4 +84,16 @@ preveri('skriti element v podmeniju NI cilj', false, isActionable(mocks.a2));
 preveri('povezava a je veljaven cilj', true, isActionable(mocks.a));
 preveri('li z role=menuitem je IZLOCEN, ker ima tocno eno vidno povezavo z istim imenom', false, isActionable(mocks.li));
 
+// Pregled 1. 11. 2026: seznam (<ul>) POD robom zaslona ni skrit - do njega pride daljinec s premikom navzdol.
+(function () {
+    const body = { nodeType: 1, tagName: 'BODY', hasAttribute: () => false, getBoundingClientRect: () => ({width: 1920, height: 1080, right: 1920, left: 0, bottom: 1080, top: 0}) };
+    const ulSpodaj = { nodeType: 1, tagName: 'UL', className: 'clanki', getAttribute: () => null, hasAttribute: () => false,
+        getBoundingClientRect: () => ({width: 1200, height: 600, right: 1300, left: 100, bottom: 2000, top: 1400}) };
+    const clanek = { nodeType: 1, tagName: 'A', className: '', getAttribute: (k) => k === 'href' ? '/clanek' : null, hasAttribute: () => false,
+        getBoundingClientRect: () => ({width: 400, height: 200, right: 500, left: 100, bottom: 1600, top: 1400}), innerText: 'Clanek', textContent: 'Clanek' };
+    clanek.parentElement = ulSpodaj; ulSpodaj.parentElement = body;
+    window.getComputedStyle = () => ({ display: 'block', visibility: 'visible', opacity: '1' });
+    preveri('povezava v seznamu pod robom zaslona JE cilj (premik navzdol)', true, isActionable(clanek));
+})();
+
 console.log('tv_meni_test: OK (' + n + ')');
