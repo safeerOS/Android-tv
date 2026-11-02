@@ -32,6 +32,10 @@ fun main() {
     preveri("prazno in null", P.paketiStoritev(null).isEmpty() && P.paketiStoritev("").isEmpty())
     preveri("brez posevnice ni paket", P.paketiStoritev("nekaj").isEmpty())
 
+    println("== lazen streznik: CNXN brez prijave ne velja")
+    preveri("CNXN brez prijave zavrnjen", !P.cnxnVelja(false))
+    preveri("CNXN po prijavi velja", P.cnxnVelja(true))
+
     println("== ukaz: samo am force-stop z veljavnim imenom")
     preveri("veljaven ukaz", P.ukazZapri("org.smarttube.stable") == "shell:am force-stop org.smarttube.stable")
     preveri("vrivanje ukaza zavrnjeno", P.ukazZapri("a.b; reboot") == null)

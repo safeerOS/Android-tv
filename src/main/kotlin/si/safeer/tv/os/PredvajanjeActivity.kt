@@ -352,6 +352,8 @@ class PredvajanjeActivity : OsActivity() {
     private var zagonovObOdprtju: Int = 0
     private var casOdprtjaMs: Long = 0L
     private var prikazujemNapako: Boolean = false
+    /** Zaprtje 2,5 s po sporocilu o napaki; nov namen (onNewIntent) ga preklice (pregled Grok 2. 11. 2026). */
+    private val zapriPoNapakiRunnable = Runnable { pripravljamNaslov = null; finish() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -763,6 +765,9 @@ class PredvajanjeActivity : OsActivity() {
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        // Nov posnetek v istem zaslonu: prejsnje sporocilo o napaki in njegovo zaprtje ne veljata vec.
+        glavna.removeCallbacks(zapriPoNapakiRunnable)
+        prikazujemNapako = false
         pripravljamNaslov = intent.getStringExtra(PRIPRAVLJAM_NASLOV)
         if (pripravljamNaslov != null) {
             zagonovObOdprtju = GlasbaStoritev.zagonov
@@ -838,9 +843,9 @@ class PredvajanjeActivity : OsActivity() {
                     it.prikazujemNapako = true
                     it.glavna.removeCallbacks(it.osveziPripravoRunnable)
                     it.prikaziPripravljamStanje(it.pripravljamNaslov!!)
-                    it.izvajalec.text = it.getString(R.string.os_media_ni_na_voljo)
+                    it.izvajalec.text = it.getString(R.string.os_media_ni_na_voljo, it.pripravljamNaslov ?: "")
                     it.nalaganje.visibility = View.GONE
-                    it.glavna.postDelayed({ it.pripravljamNaslov = null; it.finish() }, 2500)
+                    it.glavna.postDelayed(it.zapriPoNapakiRunnable, 2500)
                 }
             }
         }

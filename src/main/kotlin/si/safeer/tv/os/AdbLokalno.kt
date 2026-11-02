@@ -104,7 +104,12 @@ object AdbLokalno {
                 for (krog in 0 until 6) {
                     val (g, d) = preberi(s, vhod, rokDo)
                     when (g.ukaz) {
-                        AdbLokalnoPravila.A_CNXN -> { povezano = true; break }
+                        AdbLokalnoPravila.A_CNXN -> {
+                            // Pregled Grok 2. 11. 2026: pravi adbd (ro.adb.secure=1) vedno najprej zahteva prijavo. CNXN
+                            // brez nje pomeni lazen streznik na vratih - ne stejemo ga za povezavo in nic ne posljemo.
+                            if (!AdbLokalnoPravila.cnxnVelja(podpisano)) throw java.io.IOException("CNXN brez prijave")
+                            povezano = true; break
+                        }
                         AdbLokalnoPravila.A_AUTH -> if (g.arg0 == AdbLokalnoPravila.AUTH_ZETON) {
                             if (!podpisano) {
                                 val zaPodpis = AdbLokalnoPravila.zaPodpis(d) ?: throw java.io.IOException("zeton ADB ni 20 bajtov")

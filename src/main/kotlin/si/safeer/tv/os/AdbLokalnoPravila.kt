@@ -63,6 +63,9 @@ object AdbLokalnoPravila {
     fun paketiStoritev(niz: String?): Set<String> =
         (niz ?: "").split(':').mapNotNull { v -> v.trim().substringBefore('/').takeIf { it.isNotEmpty() && it != v.trim() } }.toSet()
 
+    /** Odgovor CNXN velja samo po nasi prijavi (podpis zetona ali javni kljuc): pravi adbd brez prijave ne poveze. */
+    fun cnxnVelja(prijavljen: Boolean): Boolean = prijavljen
+
     /** Edini ukaz, ki gre na adb: »am force-stop <paket>«. Brez veljavnega imena paketa ni ukaza (null). */
     fun ukazZapri(paket: String): String? = if (IME_PAKETA.matches(paket) && paket.length <= 255) "shell:am force-stop $paket" else null
 
