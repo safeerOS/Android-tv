@@ -450,6 +450,26 @@
         </LinearLayout>
     </RelativeLayout>
 
+    <!-- Povratek v aplikacijo, ki je odprla zavihek (TV 2. 11. 2026: prijava v aplikacijo Claude). Del vrstice za
+         daljinec (MainActivity.isChromeFocused/moveChromeFocus): desno od menija. -->
+    <Button
+        android:id="@+id/btnNadaljujVAplikaciji"
+        android:layout_width="wrap_content"
+        android:layout_height="44dp"
+        android:layout_below="@id/mobileTopBar"
+        android:layout_alignParentEnd="true"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="16dp"
+        android:background="@drawable/splet_chrome_gumb"
+        android:paddingHorizontal="16dp"
+        android:textAllCaps="false"
+        android:textColor="?attr/osBesedilo"
+        android:textSize="14sp"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
+        android:elevation="20dp"
+        android:visibility="gone" />
+
     <!-- TV Remote Virtual Pointer Overlay Layer -->
     <si.safeer.tv.VirtualPointerView
         android:id="@+id/virtualPointerView"

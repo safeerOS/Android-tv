@@ -161,4 +161,5 @@
     <string name="ui_emudhra_msg">This site\'s certificate was issued by a certificate authority that has been revoked because of compromised keys. We therefore do not open the site.</string>
     <string name="ui_emudhra_badge">For security reasons this page cannot be opened.</string>
     <string name="ui_emudhra_back">Back to safety</string>
+  <string name="ui_nadaljuj_v_aplikaciji">Continue in the %1$s app</string>
 </resources>

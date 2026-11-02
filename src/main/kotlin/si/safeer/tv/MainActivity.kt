@@ -76,6 +76,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     private lateinit var btnCloseTabsSwitcher: Button
     private lateinit var btnCloseAllTabs: TextView
 
+    /** »Nadaljuj v aplikaciji ...«: povratek v aplikacijo, ki je odprla zavihek (AplikacijaPovezave). */
+    private val btnAplikacija: Button? by lazy { findViewById<Button?>(R.id.btnNadaljujVAplikaciji) }
+
     internal lateinit var findInPageBar: LinearLayout
     private lateinit var editFindText: EditText
     private lateinit var tvFindMatches: TextView
@@ -108,7 +111,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             btnFavorite.hasFocus() || btnPointerToggle.hasFocus() ||
             btnAddTab.hasFocus() || btnTabCount.hasFocus() || btnMenu.hasFocus() ||
             btnClearUrl.hasFocus() || btnSearchTrigger.hasFocus() ||
-            editUrl.hasFocus() || mobileTopBar.hasFocus() || spletZavihki?.hasFocus() == true
+            editUrl.hasFocus() || mobileTopBar.hasFocus() || spletZavihki?.hasFocus() == true ||
+            btnAplikacija?.hasFocus() == true
     }
 
     internal fun isTopBarFocused(): Boolean = isChromeFocused()
@@ -142,7 +146,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     internal fun moveChromeFocus(right: Boolean): Boolean {
         val chain = listOf(
             btnBack, btnForward, btnReload, btnHome, editUrl, btnFavorite, spletScit,
-            btnPointerToggle, btnAddTab, btnTabCount, btnMenu
+            btnPointerToggle, btnAddTab, btnTabCount, btnMenu, btnAplikacija
         ).filterNotNull().filter { it.visibility == View.VISIBLE }
         if (chain.isEmpty()) return false
         val focused = currentFocus
@@ -254,7 +258,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             tabManager.restoreFromFile(this)
         else { try { java.io.File(filesDir, "tabs_state.bin").delete() } catch (_: Exception) {}; false }
         if (targetUrl != null) {
-            tabManager.createTab(this, targetUrl, true)
+            oznaciIzvorZavihka(tabManager.createTab(this, targetUrl, true), intent, novZavihek = true)
         } else if (!restored) {
             tabManager.createTab(this, SpletDomaca.naslov(this), true)
         }
@@ -1029,6 +1033,80 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         }
     }
 
+    /**
+     * TV 2. 11. 2026 18:27: aplikacija Claude je odprla prijavo (VIEW https://claude.ai/...), po prijavi pa ni bilo poti
+     * nazaj v aplikacijo. Zapomnimo si, katera aplikacija je zavihek odprla (Activity.referrer velja samo med onCreate/
+     * onNewIntent te namere); ChromiumEngineView ji vrne glavno navigacijo na naslov, ki ga odpre natanko ona.
+     */
+    private fun oznaciIzvorZavihka(tab: TabModel?, namera: Intent?, novZavihek: Boolean) {
+        val wv = tab?.webView ?: return
+        val ref = try { referrer } catch (_: Exception) { null }
+        val idApl = try { namera?.getStringExtra(AplikacijaPovezave.ID_APLIKACIJE) } catch (_: Exception) { null }
+        val izvor = AplikacijaPovezave.izvor(namera?.action, namera?.dataString, ref?.scheme, ref?.host, idApl, packageName)
+        wv.izvornaAplikacija = izvor
+        wv.izvorNalozenihStrani = 0
+        wv.izvorNovZavihek = izvor != null && novZavihek
+        wv.naPredajAplikaciji = { paket, naslov -> predajAplikaciji(tab, paket, naslov) }
+        if (izvor != null) android.util.Log.i("SafeerBrskalnik", "zavihek je odprla aplikacija $izvor")
+        osveziGumbAplikacije(fokus = false)
+    }
+
+    /** Naslov odpre aplikacija izvora; zavihek, ki je nastal za njeno namero, se zapre (uporabnik je spet v aplikaciji). */
+    private fun predajAplikaciji(tab: TabModel, paket: String, naslov: String): Boolean {
+        if (!AplikacijaPovezaveSistem.odpri(this, paket, naslov)) return false
+        val wv = tab.webView
+        val zapri = wv?.izvorNovZavihek == true
+        wv?.izvornaAplikacija = null
+        android.util.Log.i("SafeerBrskalnik", "povezava vrnjena aplikaciji $paket")
+        // Ne med klicem WebViewClienta: zavihek (in njegov pogled) zapremo po njem.
+        webViewContainer.post {
+            if (isFinishing || isDestroyed) return@post
+            if (zapri && tabManager.getAllTabs().any { it.id == tab.id }) {
+                val edini = tabManager.getAllTabs().size <= 1
+                tabManager.closeTab(this, tab.id)
+                // Brskalnik je nastal samo za prijavo: ne ostane pred aplikacijo (in ne zaseda zaslona).
+                if (edini) moveTaskToBack(true)
+            }
+            osveziGumbAplikacije(fokus = false)
+        }
+        return true
+    }
+
+    /**
+     * Gumb »Nadaljuj v aplikaciji <ime>«: viden, ko aktivni zavihek ima izvor in trenutni naslov odpre natanko ta
+     * aplikacija (npr. naslov je nalozil uporabnik sam, mimo navigacije strani). [fokus]: ob koncu nalaganja strani dobi
+     * fokus, da je na daljincu en pritisk OK - razen na prvi strani, ki jo je poslala aplikacija (tam se uporabnik prijavlja).
+     */
+    private fun osveziGumbAplikacije(fokus: Boolean) {
+        val gumb = btnAplikacija ?: return
+        if (!::tabManager.isInitialized) return
+        val wv = tabManager.getActiveTab()?.webView
+        val paket = if (nacinAplikacije != null || wv == null) null
+            else AplikacijaPovezaveSistem.aplikacijaZa(this, wv.izvornaAplikacija, wv.url)
+        if (paket == null) {
+            if (gumb.visibility != View.GONE) {
+                val imelFokus = gumb.hasFocus()
+                gumb.visibility = View.GONE
+                if (imelFokus) wv?.requestFocus()
+            }
+            gumb.tag = null
+            return
+        }
+        gumb.text = UiText.get(R.string.ui_nadaljuj_v_aplikaciji, AplikacijaPovezaveSistem.ime(this, paket))
+        gumb.contentDescription = gumb.text
+        gumb.tag = paket
+        if (ChromiumEngineView.naDotik(this)) gumb.isFocusableInTouchMode = false
+        gumb.setOnClickListener {
+            val v = tabManager.getActiveTab() ?: return@setOnClickListener
+            val p = it.tag as? String ?: return@setOnClickListener
+            val naslov = v.webView?.url ?: return@setOnClickListener
+            if (!predajAplikaciji(v, p, naslov)) it.visibility = View.GONE
+        }
+        val novo = gumb.visibility != View.VISIBLE
+        gumb.visibility = View.VISIBLE
+        if (fokus && novo && wv!!.izvorNalozenihStrani >= 2 && !ChromiumEngineView.naDotik(this)) gumb.requestFocus()
+    }
+
     private fun incomingBrowseUrl(intent: Intent?): String? {
         val data = intent?.dataString
         if (!data.isNullOrEmpty()) return data
@@ -1091,8 +1169,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             val activeTab = tabManager.getActiveTab()
             if (activeTab != null) {
                 activeTab.webView?.loadUrl(url)
+                oznaciIzvorZavihka(activeTab, intent, novZavihek = false)
             } else {
-                tabManager.createTab(this, url, true)
+                oznaciIzvorZavihka(tabManager.createTab(this, url, true), intent, novZavihek = true)
             }
         } else if (intent?.action == Intent.ACTION_MAIN) {
             // #region agent log
@@ -1753,6 +1832,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 narisiSpletneZavihke()
                 osveziSpletnoStanje()
             }
+            osveziGumbAplikacije(fokus = false)
         }
     }
 
@@ -1873,6 +1953,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 chrome.updateOmniboxDisplay(newUrl, wv.title)
                 chrome.applyUrlChrome(newUrl)
                 updateBookmarkButton(newUrl)
+                osveziGumbAplikacije(fokus = false)
             }
         }
 
@@ -1881,6 +1962,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             tab.title = pageTitle
             if (tabManager.getActiveTab()?.id == tab.id) {
                 updateBookmarkButton(finalUrl)
+                osveziGumbAplikacije(fokus = true)
             }
             if (finalUrl.isNotEmpty() && !finalUrl.startsWith("about:", ignoreCase = true)) {
                 val cleanTitle = if (pageTitle.isNotEmpty()) pageTitle else finalUrl

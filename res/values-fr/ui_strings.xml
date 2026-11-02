@@ -161,4 +161,5 @@
     <string name="ui_emudhra_msg">Le certificat de ce site a été émis par une autorité de certification révoquée en raison de clés compromises. Nous n\'ouvrons donc pas le site.</string>
     <string name="ui_emudhra_badge">Pour des raisons de sécurité, cette page ne peut pas être ouverte.</string>
     <string name="ui_emudhra_back">Retour en sécurité</string>
+  <string name="ui_nadaljuj_v_aplikaciji">Continuer dans l\'application %1$s</string>
 </resources>

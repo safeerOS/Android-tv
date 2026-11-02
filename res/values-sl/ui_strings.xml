@@ -161,4 +161,5 @@
     <string name="ui_emudhra_msg">Potrdilo te strani je izdal overitelj, ki je bil preklican zaradi kompromitiranih ključev. Strani zato ne odpremo.</string>
     <string name="ui_emudhra_badge">Iz varnostnih razlogov te strani ni mogoče odpreti.</string>
     <string name="ui_emudhra_back">Nazaj na varno</string>
+  <string name="ui_nadaljuj_v_aplikaciji">Nadaljuj v aplikaciji %1$s</string>
 </resources>

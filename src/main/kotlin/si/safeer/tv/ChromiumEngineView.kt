@@ -221,6 +221,20 @@ class ChromiumEngineView @JvmOverloads constructor(
     var vratarPojavnega: ((String) -> Boolean)? = null
 
     /**
+     * Paket aplikacije, ki je ta zavihek odprla z VIEW https (AplikacijaPovezave.izvor); null za uporabnikove zavihke.
+     * TV 2. 11. 2026: po prijavi v aplikacijo Claude ni bilo poti nazaj - glavno navigacijo na naslov, ki ga odpre
+     * natanko ta aplikacija, ji predamo (kot Chrome z App Links).
+     */
+    var izvornaAplikacija: String? = null
+    /** Nalozene strani od namere aplikacije. 0: njen naslov in preusmeritve se se nalagajo - tega ne vracamo (zanka). */
+    var izvorNalozenihStrani = 0
+    val izvorZacetek: Boolean get() = izvorNalozenihStrani == 0
+    /** Zavihek je nastal za namero aplikacije: po predaji se zapre. */
+    var izvorNovZavihek = false
+    /** MainActivity: preda naslov aplikaciji (paket, naslov); true, ce jo je aplikacija prevzela. */
+    var naPredajAplikaciji: ((String, String) -> Boolean)? = null
+
+    /**
      * Izrisovalnik strani je umrl. Prvi argument je ta pogled, drugi pove, ali je slo za
      * sesutje strani ali za to, da je sistem sprostil pomnilnik. Nastavi ga TabManager.
      */
@@ -1062,6 +1076,14 @@ class ChromiumEngineView @JvmOverloads constructor(
                     if (view != null && EmudhraRevocations.jeOpozorilnaStran(view.url)) EmudhraOpozorilo.nazajNaVarno(view, context)
                     return true
                 }
+                // App Links (TV 2. 11. 2026, aplikacija Claude): pred vsemi ponovnimi nalaganji (loadUrl ne gre vec skozi to
+                // obravnavo, zato bi povratek zgresili). Samo glavni okvir, samo http(s), samo paket, ki je zavihek odprl.
+                val izvorApl = izvornaAplikacija
+                if (izvorApl != null && request.isForMainFrame && AplikacijaPovezave.jeSplet(urlStr)) {
+                    val cilj = AplikacijaPovezave.predajNavigacijo(izvorApl, AplikacijaPovezaveSistem.razreseni(context, urlStr),
+                        AplikacijaPovezaveSistem.brskalniki(context), true, izvorZacetek, urlStr, context.packageName)
+                    if (cilj != null && naPredajAplikaciji?.invoke(cilj, urlStr) == true) return true
+                }
                 // Odhod z Googla (zadetek iskanja, tudi prek preusmeritve google.com/goto): spodaj
                 // zamenjamo User-Agent in most JS - ta menjava sredi navigacije jo je tiho prekinila in
                 // noben zadetek se ni odprl (21. 9. 2026). Tako navigacijo na koncu sprozimo znova.
@@ -1343,6 +1365,8 @@ class ChromiumEngineView @JvmOverloads constructor(
 
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
+                // Prva stran aplikacije je nalozena: odslej navigacijo na naslov aplikacije vrnemo njej.
+                if (izvornaAplikacija != null && AplikacijaPovezave.jeSplet(url)) izvorNalozenihStrani++
                 if (emudhraBlokirano(view, url)) return
                 url?.let {
                     view?.let { wv -> scheduleFakeBankCheck(wv, it) }

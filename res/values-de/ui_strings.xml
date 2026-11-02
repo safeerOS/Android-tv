@@ -161,4 +161,5 @@
     <string name="ui_emudhra_msg">Das Zertifikat dieser Website wurde von einer Zertifizierungsstelle ausgestellt, die wegen kompromittierter Schlüssel widerrufen wurde. Die Website wird deshalb nicht geöffnet.</string>
     <string name="ui_emudhra_badge">Aus Sicherheitsgründen kann diese Seite nicht geöffnet werden.</string>
     <string name="ui_emudhra_back">Zurück zur Sicherheit</string>
+  <string name="ui_nadaljuj_v_aplikaciji">In der App %1$s fortfahren</string>
 </resources>
