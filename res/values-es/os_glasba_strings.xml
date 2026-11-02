@@ -396,6 +396,7 @@
     <plurals name="os_iptv_kanalov">
         <item quantity="one">%1$d canal</item>
         <item quantity="other">%1$d canales</item>
+        <item quantity="many">%1$d de canales</item>
     </plurals>
     <!-- Naloga 87: predpomnilnik Media Center (ta TV, USB, naprava v Safeer Linku). -->
     <string name="os_predpomnilnik_naslov">Caché</string>
