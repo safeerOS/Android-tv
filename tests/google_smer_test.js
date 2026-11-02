@@ -57,6 +57,7 @@ function stran() {
             getBoundingClientRect() { return this.r; },
             getAttribute() { return null; },
             focus() { doc.activeElement = this; },
+            blur() { if (doc.activeElement === this) doc.activeElement = body; },
             scrollIntoView() {},
         }, lastnosti || {});
         vsi.push(x);
@@ -88,46 +89,74 @@ function googlovaStran() {
     const obrazec = s.el('FORM', ['form', 'form[role="search"]'], [200, 90, 1200, 60], null, '');
     const polje = s.el('TEXTAREA', ['textarea', 'textarea[name="q"]', 'form[role="search"] textarea', 'input,textarea,select'],
         [220, 100, 1100, 40], obrazec, '');
+    const vse = s.el('A', POVEZAVA, [200, 170, 60, 30], null, 'Vse');
+    const slike = s.el('A', POVEZAVA, [280, 170, 80, 30], null, 'Slike');
     const z1 = s.el('A', POVEZAVA, [200, 300, 600, 40], null, 'Prvi zadetek');
     const z2 = s.el('A', POVEZAVA, [200, 420, 600, 40], null, 'Drugi zadetek');
-    return { s, meni, logo, prijava, polje, z1, z2 };
+    return { s, meni, logo, prijava, polje, vse, slike, z1, z2 };
 }
 
 // ---------------------------------------------------------------- glava strani
+// Lastnik 2. 11. 2026 (TV, mobilna postavitev): fokus v iskalnem polju takoj odpre Googlovo prekrivko s predlogi in
+// tipkovnico, zato polje ne sme biti postaja na poti GOR. Iz vrha zadetkov (vrstica zavihkov) gre GOR v glavo; polje je
+// v glavi le en element (samo nas okvir, brez fokusa), do njega LEVO/DESNO; sele OK nanj ga odpre.
 {
     const g = googlovaStran();
-    g.polje.focus();
+    g.z1.focus();
+    g.s.pozeni('UP');
+    preveri('GOR s prvega zadetka: vrstica zavihkov', g.vse, g.s.doc.activeElement);
     let o = g.s.pozeni('UP');
-    preveri('GOR iz iskalnega polja v glavo (prej: rob -> naslovna vrstica)', 'ok', o.slice(0, 2));
-    preveri('GOR iz polja pristane na najblizjem v glavi (logotip nad poljem)', g.logo, g.s.doc.activeElement);
+    preveri('GOR iz zavihkov ni "polje" (0a760199: fokus v polje odpre Googlovo prekrivko)', true, o !== 'polje');
+    preveri('GOR iz zavihkov: element glave (polje samo z okvirjem)', 'ok - glava polje', o);
+    preveri('polje NI fokusirano (prekrivka in tipkovnica se ne odpreta)', true, g.s.doc.activeElement !== g.polje);
+    g.s.pozeni('LEFT');
+    preveri('LEVO s polja v glavi: Prijava', g.prijava, g.s.doc.activeElement);
+    g.s.pozeni('LEFT');
+    preveri('LEVO po glavi: logotip', g.logo, g.s.doc.activeElement);
     g.s.pozeni('LEFT');
     preveri('LEVO po glavi: meni', g.meni, g.s.doc.activeElement);
+    preveri('LEVO na zacetku glave: rob (stranska vrstica)', 'rob', g.s.pozeni('LEFT'));
+    preveri('GOR iz glave: rob (naslovna vrstica brskalnika)', 'rob', g.s.pozeni('UP'));
     g.s.pozeni('RIGHT'); g.s.pozeni('RIGHT');
     preveri('DESNO po glavi: Prijava', g.prijava, g.s.doc.activeElement);
-    preveri('DESNO na koncu glave: rob', 'rob', g.s.pozeni('RIGHT'));
-    preveri('GOR iz glave: rob (naslovna vrstica brskalnika)', 'rob', g.s.pozeni('UP'));
-    preveri('DOL iz glave: nazaj v iskalno polje', 'polje', g.s.pozeni('DOWN'));
-    preveri('fokus je v polju', g.polje, g.s.doc.activeElement);
+    preveri('DESNO s Prijava: polje (brez fokusa)', 'ok - glava polje', g.s.pozeni('RIGHT'));
+    preveri('fokusa ni na polju', true, g.s.doc.activeElement !== g.polje);
+    preveri('OK na polju v glavi: pravi dotik (sele zdaj ga uporabnik odpre)', 'dotik:770,120', g.s.ok());
     g.s.pozeni('DOWN');
-    preveri('DOL iz polja: prvi zadetek (kot prej)', g.z1, g.s.doc.activeElement);
+    preveri('DOL s polja v glavi: vrstica zavihkov', g.vse, g.s.doc.activeElement);
+    g.s.pozeni('UP'); g.s.pozeni('LEFT');
+    g.s.pozeni('DOWN');
+    preveri('DOL s Prijava: vrstica zavihkov (ne polje)', g.vse, g.s.doc.activeElement);
+    g.s.pozeni('DOWN');
+    preveri('DOL z zavihkov: prvi zadetek', g.z1, g.s.doc.activeElement);
     g.s.pozeni('DOWN');
     preveri('DOL med zadetki (kot prej)', g.z2, g.s.doc.activeElement);
-    g.s.pozeni('UP'); g.s.pozeni('UP');
-    preveri('GOR z vrha zadetkov: iskalno polje (kot prej, lastnik 1. 11.)', g.polje, g.s.doc.activeElement);
+    // Uporabnik je polje odprl (pravi fokus): GOR gre na glavo nad njim, DOL na zavihke.
+    g.polje.focus();
+    g.s.pozeni('UP');
+    preveri('GOR iz fokusiranega polja: logotip nad njim', g.logo, g.s.doc.activeElement);
+    g.polje.focus();
+    g.s.pozeni('DOWN');
+    preveri('DOL iz fokusiranega polja: zavihki', g.vse, g.s.doc.activeElement);
+    // Brez izbranega elementa (iz naslovne vrstice brskalnika): DOL na zavihke, GOR v glavo.
+    g.s.doc.activeElement = g.s.doc.body;
+    g.s.pozeni('DOWN');
+    preveri('DOL brez izbire: zavihki', g.vse, g.s.doc.activeElement);
 }
-// Namizna postavitev: Prijava v isti vrsti kot polje (nic ni strogo nad poljem).
+// Namizna postavitev: Prijava v isti vrsti kot polje.
 {
     const s = stran();
     const obrazec = s.el('FORM', ['form', 'form[role="search"]'], [200, 20, 1200, 60], null, '');
     const polje = s.el('TEXTAREA', ['textarea', 'textarea[name="q"]', 'form[role="search"] textarea'], [220, 30, 1100, 40], obrazec, '');
     const prijava = s.el('A', POVEZAVA, [1760, 26, 120, 48], null, 'Prijava');
+    const vse = s.el('A', POVEZAVA, [200, 100, 60, 30], null, 'Vse');
     s.el('A', POVEZAVA, [200, 300, 600, 40], null, 'Zadetek');
-    polje.focus();
-    s.pozeni('UP');
-    preveri('namizna postavitev: GOR iz polja na Prijava v isti vrsti', prijava, s.doc.activeElement);
-    polje.focus();
+    vse.focus();
+    preveri('namizna postavitev: GOR iz zavihkov na polje brez fokusa', 'ok - glava polje', s.pozeni('UP'));
     s.pozeni('RIGHT');
-    preveri('namizna postavitev: DESNO iz polja na Prijava', prijava, s.doc.activeElement);
+    preveri('namizna postavitev: DESNO s polja na Prijava', prijava, s.doc.activeElement);
+    s.pozeni('LEFT');
+    preveri('namizna postavitev: LEVO s Prijava nazaj na polje (brez fokusa)', true, s.doc.activeElement !== polje);
 }
 
 // ---------------------------------------------------------------- pogovorno okno (»Preveri nastavitve«)

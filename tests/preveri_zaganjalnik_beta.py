@@ -354,14 +354,15 @@ def main() -> int:
             and "skrijPripravljam()      // predvajalnik je odprt" in gl4)
     sp = (SRC / "tv/SiteProfile.kt").read_text(encoding="utf-8")
     gs = sp.split('private const val GOOGLE_SMER = """', 1)[1].split('"""', 1)[0]
-    # Lastnik 1. 11. 2026: na Googlovih zadetkih fokusa ni bilo mogoce dati v iskalno polje.
-    preveri("Google: GOR z vrha zadetkov v iskalno polje",
-            "function polje()" in gs and "return {pas:'telo',rob:smer==='UP'?'polje':'rob',crta:!od};" in gs
-            and "if(ix<0)return nacrt.rob==='polje'?polje():nacrt.rob;" in gs and "textarea[name=\"q\"]" in gs)
+    # Lastnik 1. 11. 2026: do iskalnega polja z daljincem; TV 2. 11.: fokus v polju odpre Googlovo prekrivko, zato je
+    # polje v glavi samo z okvirjem (brez fokusa) in ga odpre sele OK (tests/google_smer_test.js).
+    preveri("Google: GOR z vrha zadetkov v glavo, polje brez fokusa",
+            "if(od==='telo')return {pas:'telo',rob:smer==='UP'?'glava':'rob'};" in gs
+            and "if(naj===polje&&document.activeElement!==polje)" in gs and "window.__gnavPolje=polje;" in gs
+            and "textarea[name=\"q\"]" in gs and "function polje()" not in gs)
     # Lastnik 2. 11. 2026: do Prijava v glavi in do gumbov Googlovega okna ni prisel (tests/google_smer_test.js).
-    preveri("Google: glava (GOR iz polja) in odprto pogovorno okno ujame smeri",
-            "return smer==='DOWN'?{pas:'telo',rob:'rob',crta:true}:{pas:'glava',rob:'rob',blizji:smer==='UP'};" in gs
-            and "if(imaOkno)return {pas:'okno',rob:'okno',prvi:od!=='okno'};" in gs and "var okno=najdiOkno();" in gs)
+    preveri("Google: odprto pogovorno okno ujame smeri",
+            "if(imaOkno)return {pas:'okno',rob:'okno',prvi:od!=='okno'};" in gs and "var okno=najdiOkno();" in gs)
     md = (SRC / "os/MiniPredvajalnik.kt").read_text(encoding="utf-8")
     pk2 = (SRC / "os/PokrajinaActivity.kt").read_text(encoding="utf-8")
     preveri("dock: na Pokrajini nad spodnjo vrstico (odmik ob postavitvi vrstice)",
