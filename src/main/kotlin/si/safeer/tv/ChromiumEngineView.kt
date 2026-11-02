@@ -88,7 +88,12 @@ class ChromiumEngineView @JvmOverloads constructor(
         const val DESKTOP_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
         const val CHROME_ANDROID_USER_AGENT = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36"
         const val SMART_TV_USER_AGENT = "Mozilla/5.0 (SMART-TV; LINUX; Tizen 7.0) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/8.2 Chrome/106.0.5249.126 TV Safari/537.36"
-        const val GOOGLE_AUTH_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15"
+        @Volatile private var googleUaPredpomnjen: String? = null
+
+        /** Googlove strani in prijava: privzeti WebView kot Chrome na Androidu (glej [GooglePravila.uaBrezWebView]). */
+        fun googleUa(c: Context): String = googleUaPredpomnjen ?: (try {
+            GooglePravila.uaBrezWebView(android.webkit.WebSettings.getDefaultUserAgent(c))
+        } catch (_: Exception) { CHROME_ANDROID_USER_AGENT }).also { googleUaPredpomnjen = it }
         private val nastavitveniDnevnik = java.util.concurrent.atomic.AtomicInteger(0)
         private val medijskiDnevnik = java.util.concurrent.atomic.AtomicInteger(0)
         private val lastDashChannel = java.util.concurrent.atomic.AtomicReference("")
@@ -506,7 +511,8 @@ class ChromiumEngineView @JvmOverloads constructor(
     private fun uaZaUrl(url: String): String {
         val isGoogle = UserScriptManager.isGoogleDomain(url)
         if (isGoogle) {
-            return if (UserScriptManager.isGoogleAuthUrl(url)) GOOGLE_AUTH_USER_AGENT else CHROME_ANDROID_USER_AGENT
+            // Ista identiteta za vse Googlove strani in prijavo (menjava med navigacijo sesuje WebView 153).
+            return googleUa(context)
         }
         return when {
             dotik -> CHROME_ANDROID_USER_AGENT
@@ -525,7 +531,6 @@ class ChromiumEngineView @JvmOverloads constructor(
         // zastavica, postavljena tu, je veljala tudi za stari dokument in za about:blank (zunanji pregled 8. 10. 2026).
         val host = try { Uri.parse(url).host?.lowercase() ?: "" } catch (_: Exception) { "" }
         val isGoogle = UserScriptManager.isGoogleDomain(url)
-        val isGoogleAuth = isGoogle && UserScriptManager.isGoogleAuthUrl(url)
 
         // Prijava, placilo in pravi bancni strezniki: piskotki tretjih strani in samodejna okna
         // (OAuth, 3-D Secure). Drugod ne - manj sledenja in manj nezelenih oken.
@@ -541,9 +546,11 @@ class ChromiumEngineView @JvmOverloads constructor(
             settings.loadWithOverviewMode = true
             settings.setSupportMultipleWindows(true)
             settings.javaScriptCanOpenWindowsAutomatically = true
-            // Prijava: Safari na Macu (GOOGLE_AUTH_USER_AGENT) + brez glave X-Requested-With (brezGlaveRequestedWith) - tako je
-            // 30. 10. 2026 Googlova prijava (claude.ai) delovala. Poskus z namiznim Chrome 1. 11. je bil zavrnjen in vrnjen.
-            settings.userAgentString = if (isGoogleAuth) GOOGLE_AUTH_USER_AGENT else CHROME_ANDROID_USER_AGENT
+            // Prijava: Chrome na Androidu z resnicno razlicico WebViewa (GooglePravila.uaBrezWebView) + brez glave
+            // X-Requested-With (brezGlaveRequestedWith). 2. 11. 2026 17:19 je Google Safari na Macu zavrnil (»ta brskalnik
+            // morda ni varen«); uvoz YouTuba se na istem TV s Chrome na Androidu prijavi (lastnik 17:20: moznost b).
+            // Zgodovina: Safari je 30. 10. deloval (claude.ai), namizni Chrome 1. 11. zavrnjen.
+            settings.userAgentString = googleUa(context)
             // Lastnik 1. 11. 2026 10:50: setUserAgentMetadata je na TV (Android 11, WebView) sesul TV Browser (SIGTRAP v
             // libwebviewchromium, AwSettings.setUserAgentMetadataFromMap) ob kliku »Prijava« na Gmailu. Client Hints zato
             // ne nastavljamo vec (funkcija odstranjena).

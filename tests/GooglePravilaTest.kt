@@ -62,5 +62,10 @@ fun main() {
     check(G.gostitelj("https://u:p@WWW.Google.com.:8443/x") == "www.google.com")
     check(G.gostitelj("https://zlo.example\\@www.google.com/") == "zlo.example")
     check(G.gostitelj("javascript:alert(1)") == "" && G.gostitelj(null) == "")
+    // Lastnik 2. 11. 2026 (moznost b): prijava kot Chrome na Androidu z resnicno razlicico, brez oznak WebViewa.
+    val wv = "Mozilla/5.0 (Linux; Android 11; 2021/22 Philips UHD Android TV Build/RTT2.211108.001; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/142.0.7444.102 Mobile Safari/537.36"
+    val ua = G.uaBrezWebView(wv)
+    check(!ua.contains("; wv") && !ua.contains("Version/")) { "brez oznak WebViewa: " + ua }
+    check(ua.contains("Chrome/142.0.7444.102 Mobile Safari/537.36") && ua.startsWith("Mozilla/5.0 (Linux; Android 11;")) { "resnicna razlicica: " + ua }
     println("GooglePravilaTest: OK")
 }

@@ -80,6 +80,14 @@ object GooglePravila {
         return PRIJAVNE_POTI.any { p == it || p.startsWith("$it/") }
     }
 
+    /**
+     * User-Agent za Googlove strani in prijavo: privzeti WebView brez oznak »; wv« in »Version/4.0« - Chrome na Androidu z
+     * resnicno razlicico (skladno z navigator.userAgentData). Lastnik 2. 11. 2026 17:20 (moznost b): tako se uvoz YouTuba
+     * (YouTubeUvozOkno) na TV uspesno prijavi; Safari na Macu je Google 2. 11. 17:19 zavrnil (»ta brskalnik morda ni varen«).
+     */
+    fun uaBrezWebView(privzeti: String): String =
+        privzeti.replace("; wv)", ")").replace(Regex(" Version/\\d+(\\.\\d+)*"), "").replace(Regex("\\s+"), " ").trim()
+
     /** YouTube: youtube.com in njegove poddomene ter youtu.be (enako kot UserScriptManager.isYouTubeUrl). */
     fun jeYoutube(url: String?): Boolean {
         val h = gostitelj(url)
