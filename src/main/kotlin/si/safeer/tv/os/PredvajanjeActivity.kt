@@ -220,7 +220,9 @@ class PredvajanjeActivity : OsActivity() {
     private val skrij = Runnable {
         // Dokler se video ne zacne, pas z naslovom ostane: uporabnik vidi, kaj se nalaga.
         if (jeVideo() && OsPravila.pasSeSkrije(dotik, predlogiOdprti(), videoTece(), GlasbaStoritev.predvajalnik?.playerError != null) && !seNalaga()) prekritje.animate().alpha(0f).setDuration(300).start()
-        else if (seNalaga()) glavna.postDelayed(skrijRunnable(), 1_000)
+        // Lastnik 2. 11. 2026 16:57 (Usenet, lasten pogon): priprava traja dlje od 4 s - ob prvem preverjanju posnetka se ni
+        // (trenutna() je null), nobena veja ni ponovila preverbe in naslov je ostal cez film do prve tipke.
+        else if (seNalaga() || GlasbaStoritev.trenutna() == null) glavna.postDelayed(skrijRunnable(), 1_000)
     }
 
     private fun prikaziPripravljamStanje(pn: String) {
@@ -978,7 +980,8 @@ class PredvajanjeActivity : OsActivity() {
             sk.id.startsWith("stremio|") && sk.id.contains("#t") && sk.zvok.startsWith("http://127.0.0.1:") -> getString(R.string.os_stremio_vir_tukaj)
             sk.id.startsWith("stremio|") && sk.id.contains("#tn") -> getString(R.string.os_stremio_vir_naprava)
             (sk.id.startsWith("stremio|") || sk.id.startsWith("pcprenos|")) && sk.id.contains("#t") -> getString(R.string.os_stremio_vir_racunalnik)
-            sk.id.startsWith("stremio|") -> android.net.Uri.parse(sk.zvok).host.orEmpty()
+            // Krajevni streznik te naprave (lasten pogon Usenet, prevzem DASH): »127.0.0.1« uporabniku ne pove nicesar.
+            sk.id.startsWith("stremio|") -> android.net.Uri.parse(sk.zvok).host.orEmpty().takeUnless { it == "127.0.0.1" || it == "localhost" }.orEmpty()
             // Naloga 97: kanal seznama IPTV - naslov toka ima lahko zeton ali geslo ponudnika (».../play/<zeton>«): samo ime seznama.
             IptvSeznami.jeKanal(sk) -> KanaliPravila.imeSeznama(sk.streznik).ifBlank { getString(R.string.os_mediji_tv_v_zivo) }
             sk.zvok.startsWith("https://prod-1.storage.jamendo.com") || sk.povezava.contains("jamen") -> getString(R.string.os_glasba_vir, stran)

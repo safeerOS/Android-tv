@@ -68,8 +68,6 @@ class PokrajinaActivity : OsActivity() {
     /** Tedenska napoved vodoravno v glavi, levo od temperature (lastnik 30. 10. 2026). */
     private lateinit var teden: HorizontalScrollView
     private lateinit var tedenVrsta: LinearLayout
-    private lateinit var vrstaNadaljuj: LinearLayout
-    private lateinit var okvirNadaljuj: View
     private lateinit var vrstaAplikacij: LinearLayout
     private lateinit var dok: LinearLayout
     private lateinit var preliv: View
@@ -133,42 +131,8 @@ class PokrajinaActivity : OsActivity() {
         val okvirVsebine = FrameLayout(this)
         val spodnjiDel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
 
-        // Naloga 49: Nadaljuj vrsta nad aplikacijami
-        okvirNadaljuj = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            visibility = View.GONE
-        }
-        val naslovNadaljuj = naslovSkupine(R.string.pk_nadaljuj).apply {
-            setPadding(dp(14), dp(4), 0, dp(4))
-        }
-        (okvirNadaljuj as LinearLayout).addView(naslovNadaljuj)
-        vrstaNadaljuj = object : LinearLayout(this) {
-            override fun focusSearch(direction: Int): View? {
-                if (direction == View.FOCUS_DOWN) {
-                    if (::vrstaAplikacij.isInitialized && vrstaAplikacij.childCount > 0) {
-                        najblizjiPogledX(vrstaAplikacij, findFocus())?.let { return it }
-                    }
-                }
-                return super.focusSearch(direction)
-            }
-        }.apply { orientation = LinearLayout.HORIZONTAL; setPadding(dp(4), dp(6), dp(4), dp(6)) }
-        val drsnikNadaljuj = object : HorizontalScrollView(this) {
-            override fun requestChildRectangleOnScreen(child: View, rectangle: android.graphics.Rect, immediate: Boolean): Boolean {
-                val rob = dp(48 + 12)
-                rectangle.left -= rob
-                rectangle.right += rob
-                return super.requestChildRectangleOnScreen(child, rectangle, immediate)
-            }
-        }.apply {
-            isHorizontalScrollBarEnabled = false; clipToPadding = false; clipChildren = false
-            isHorizontalFadingEdgeEnabled = true; setFadingEdgeLength(dp(48))
-            addView(vrstaNadaljuj)
-        }
-        (okvirNadaljuj as LinearLayout).addView(drsnikNadaljuj, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        
-        // Vstavimo ga pred vrsto aplikacij (okvirDrsnika)
-        spodnjiDel.addView(okvirNadaljuj, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(4) })
-
+        // Lastnik 2. 11. 2026 16:43 (fotografija TV): vrsta »Nadaljuj« (naloga 49) je spodnjo vrstico stisnila na 18 px
+        // in gumb predvajalnika postavila cez ploscice; dom ostane ENA vrstica (lastnik 27. 10.). Nedavno je v lupi.
         // Lastnik 27. 10. 2026: ENA vrstica - priljubljene spletne in namescene aplikacije in »+ Dodaj«, plosce po zgledu
         // (zaobljene, brez obrobe; obroba samo s fokusom). Vse aplikacije so za gumbom Aplikacije v spodnji vrstici.
         vrstaAplikacij = object : LinearLayout(this) {
@@ -324,7 +288,6 @@ class PokrajinaActivity : OsActivity() {
             intArrayOf(alfa shl 24, 0, 0, alfa shl 24))
         glavna.post(tikUre)
         
-        narisiNadaljuj()
         narisiAplikacije()
         // Naloga 49 D: zadnji fokus (ploscica, spodnji gumb ali lupa), ce pogled se obstaja; sicer ista ploscica po oznaki.
         val f = zadnjiFokusPogled
@@ -1006,74 +969,7 @@ class PokrajinaActivity : OsActivity() {
         vrstaAplikacij.addView(v, LinearLayout.LayoutParams(sirina, dp(visinaPlosceDp)).apply { marginStart = dp(10); marginEnd = dp(10) })
     }
 
-    private fun narisiNadaljuj() {
-        val vnosi = Nadaljuj.seznam(this)
-        vrstaNadaljuj.removeAllViews()
-        if (vnosi.isEmpty()) {
-            okvirNadaljuj.visibility = View.GONE
-            return
-        }
-        okvirNadaljuj.visibility = View.VISIBLE
-        for (n in vnosi) {
-            val v = LayoutInflater.from(this).inflate(R.layout.os_kartica_ikona, vrstaNadaljuj, false)
-            val ikona = v.findViewById<ImageView>(R.id.ikona)
-            val risba = ikonaPrograma(n)
-            if (risba != null) ikona.setImageDrawable(risba) else ikona.setImageResource(ikonaZa(n.vrsta))
-            v.findViewById<TextView>(R.id.ime).text = n.ime
-            v.contentDescription = getString(R.string.pk_nadaljuj) + ": " + n.ime
-            v.setOnClickListener {
-                if (premikam != null) { koncajPremikanje(); return@setOnClickListener }
-                zadnjaPloscica = "nadaljuj:" + n.kljuc()
-                odpriNadaljuj(n)
-            }
-            v.tag = "nadaljuj:" + n.kljuc()
-            poudariFokus(v)
-            vrstaNadaljuj.addView(v, LinearLayout.LayoutParams(sirinaPlosce(), dp(visinaPlosceDp)).apply { marginStart = dp(10); marginEnd = dp(10) })
-        }
-    }
-    
-    private fun odpriNadaljuj(n: Nadaljuj.Vnos) {
-        when (n.vrsta) {
-            Nadaljuj.SPLETNA -> {
-                val a = SpletneAplikacije.seznam(this).firstOrNull { it.url == n.url }
-                if (a != null) {
-                    preveriInOdpri(a.url, Brskalnik.namera(this).putExtra("spletna_aplikacija", a.url).putExtra("aplikacija_ime", a.ime).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                } else {
-                    odpri(Brskalnik.namera(this).setAction(Intent.ACTION_VIEW).setData(android.net.Uri.parse(n.url)))
-                }
-            }
-            Nadaljuj.ZASLON -> odpri(Intent(this, ZaslonActivity::class.java).putExtra(DatotekeActivity.EXTRA_RACUNALNIK, n.racunalnik))
-            // Pregled 2. 11. 2026: PROGRAM je program na drugi napravi v Linku (app:...), ne paket tega televizorja -
-            // ComponentName(program, program) se ni nikoli odprl. Ista pot kot stari domaci zaslon (ozji krog).
-            Nadaljuj.PROGRAM -> {
-                val r = link.naprave.firstOrNull { it.id == n.racunalnik }
-                if (r != null && OzjiKrog.zavrni(this, r.id, r.ime)) return
-                ZagonPrograma.zazeni(this, link, n.racunalnik, n.program, n.ime, n.igra)
-            }
-            else -> NadaljujOdpri.datoteka(this, link, n) { rac ->
-                Toast.makeText(this, if (rac) getString(R.string.os_nadaljuj_ni_racunalnika) else getString(R.string.os_nadaljuj_ni_vec, n.ime),
-                    Toast.LENGTH_LONG).show()
-            }
-        }
-    }
-    
-    private fun ikonaPrograma(n: Nadaljuj.Vnos): android.graphics.drawable.Drawable? {
-        if (n.vrsta == Nadaljuj.SPLETNA) {
-            val a = SpletneAplikacije.seznam(this).firstOrNull { it.url == n.url }
-            if (a != null) return SpletneAplikacije.ikona(this, a)
-        }
-        return Nadaljuj.ikona(this, n)
-    }
 
-    private fun ikonaZa(vrsta: String): Int = when (vrsta) {
-        Nadaljuj.VIDEO -> R.drawable.os_ikona_video
-        Nadaljuj.GLASBA -> R.drawable.os_ikona_glasba
-        Nadaljuj.SLIKA -> R.drawable.os_ikona_slika
-        Nadaljuj.SPLETNA -> R.drawable.os_ikona_splet
-        Nadaljuj.ZASLON -> R.drawable.os_ikona_zaslon
-        Nadaljuj.PROGRAM -> R.drawable.os_ikona_aplikacije
-        else -> R.drawable.os_ikona_datoteka
-    }
 
     private fun narisiAplikacije(): Boolean {
         val vsi = Aplikacije.zadnjiZnani(this) ?: Aplikacije.seznam(this)
