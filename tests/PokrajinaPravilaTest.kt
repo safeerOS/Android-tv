@@ -177,5 +177,8 @@ fun main() {
     preveriEnako("zagon: po 1,5s dovoljen", true, PokrajinaPravila.dovoljenZagon(1000L, 2501L))
     preveriEnako("zagon: prvi vedno dovoljen", true, PokrajinaPravila.dovoljenZagon(0L, 1000L))
 
+    val dvojniki = PokrajinaPravila.deduplicirajSpletne(listOf("com.google.android.youtube.tv", "splet:https://www.youtube.com/tv", "splet:https://ostalo.com"))
+    preveriEnako("dedupliciraj: yt", listOf("com.google.android.youtube.tv", "splet:https://ostalo.com"), dvojniki)
+
     if (napak == 0) println("PokrajinaPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

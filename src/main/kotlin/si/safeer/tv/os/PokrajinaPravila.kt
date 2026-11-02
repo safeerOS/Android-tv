@@ -136,7 +136,7 @@ object PokrajinaPravila {
      */
     fun vrstaPriljubljenih(priljubljene: List<String>, vse: Collection<String>): List<String> {
         val znane = vse.toSet()
-        return priljubljene.distinct().filter { it in znane }
+        return priljubljene.distinct().filter { it in znane || it.startsWith("razdelek:") }
     }
 
     /**
@@ -234,4 +234,19 @@ object PokrajinaPravila {
     /** Dovoljen zagon aplikacije (preprečitev dvojnega klika): mora miniti 1,5 s od zadnjega poskusa. */
     fun dovoljenZagon(zadnjiZagonMs: Long, zdajMs: Long): Boolean =
         zdajMs - zadnjiZagonMs > 1500L
+
+    /**
+     * Odstrani spletno aplikacijo, ce je ze namescena prava aplikacija z istim imenom (YouTube).
+     */
+    fun deduplicirajSpletne(vrsta: List<String>): List<String> {
+        val paketi = vrsta.filter { !it.startsWith("splet:") && !it.startsWith("razdelek:") }
+        return vrsta.filter { id ->
+            if (id.startsWith("splet:")) {
+                val host = id.removePrefix("splet:").substringAfter("://").substringBefore("/").substringBefore(":")
+                val deli = host.split(".")
+                val glavni = if (deli.size >= 2) deli[deli.size - 2].lowercase() else host.lowercase()
+                if (glavni.length > 2 && paketi.any { it.lowercase().contains(glavni) }) false else true
+            } else true
+        }
+    }
 }

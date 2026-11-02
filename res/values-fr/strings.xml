@@ -52,4 +52,6 @@
     <string name="os_media_jeziki_vsebine">Langues du contenu</string>
     <string name="os_media_pripravljam">Préparation de %1$s…</string>
     <string name="os_media_priprava_napaka">Impossible de préparer %1$s.</string>
+    <string name="pk_odpiram">Ouverture…</string>
+    <string name="pk_dodaj_razdelek">Section Safeer OS</string>
 </resources>

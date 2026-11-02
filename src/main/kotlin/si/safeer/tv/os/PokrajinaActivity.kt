@@ -384,6 +384,10 @@ class PokrajinaActivity : OsActivity() {
 
         // Tipka Meni / Nastavitve na daljincu (Menu, Settings, rdeči gumb na Philips TV): odpre možnosti nastavitev
         if (PokrajinaPravila.jeTipkaMenija(dogodek.keyCode)) {
+            val tag = currentFocus?.tag as? String
+            val naPloscici = tag != null && (tag.startsWith("splet:") || tag.startsWith("razdelek:") || tag.startsWith("dok:") || tag.contains("."))
+            if (naPloscici && super.dispatchKeyEvent(dogodek)) return true
+            
             // Pregled Grok 2. 11. 2026: drzana tipka poslje vec ACTION_DOWN - nastavitve odpremo samo enkrat.
             if (dogodek.action == KeyEvent.ACTION_DOWN && dogodek.repeatCount == 0) {
                 odpriNastavitveTv()
@@ -764,8 +768,9 @@ class PokrajinaActivity : OsActivity() {
         val poPaketu = vsi.associateBy { it.paket }
         val spletne = SpletneAplikacije.seznam(this).associateBy { "splet:" + it.url }
         // Lastnik 28. 10. 2026: vrstni red doloci uporabnik (namescene in spletne skupaj); dolg pritisk = moznosti.
-        val vrsta = PokrajinaPravila.vrstaDomov(Priljubljene.redDomov(this), Priljubljene.seznam(this) + spletne.keys,
+        val zacetnaVrsta = PokrajinaPravila.vrstaDomov(Priljubljene.redDomov(this), Priljubljene.seznam(this) + spletne.keys,
             poPaketu.keys + spletne.keys)
+        val vrsta = PokrajinaPravila.deduplicirajSpletne(zacetnaVrsta)
         vrstaDomov = vrsta
         
         val nove = vrsta.filter { it !in stare }
@@ -784,7 +789,39 @@ class PokrajinaActivity : OsActivity() {
                 if (Aplikacije.ikonaIzPomnilnika(a.paket) == null)
                     Aplikacije.ikonaLeno(this, a) { Aplikacije.ikonaIzPomnilnika(a.paket)?.let { v.findViewById<ImageView>(R.id.ikona).setImageDrawable(it) } }
                 v.tag = id
-                v.setOnLongClickListener { moznostiPloscice(id, a.ime, splet = false); true }
+                v.setOnLongClickListener { zacniPremikanje(id); true }
+                v.setOnKeyListener { _, keyCode, event ->
+                    if (event.action == KeyEvent.ACTION_DOWN && (keyCode == 165 || PokrajinaPravila.jeTipkaMenija(keyCode))) {
+                        moznostiPloscice(id, a.ime, splet = false); true
+                    } else false
+                }
+                dodajVVrsto(v)
+                continue
+            }
+            val r = id.removePrefix("razdelek:")
+            if (r != id) {
+                val (ikona, napis) = when (r) {
+                    PokrajinaPravila.MEDIJI -> R.drawable.os_ikona_predvajaj to R.string.pk_mediji
+                    PokrajinaPravila.SPLET -> R.drawable.os_ikona_splet to R.string.os_meni_splet
+                    PokrajinaPravila.LINK -> R.drawable.os_ikona_link to R.string.os_meni_naprave
+                    PokrajinaPravila.SPOROCILA -> R.drawable.os_ikona_sporocila to R.string.os_meni_sporocila
+                    PokrajinaPravila.APLIKACIJE -> R.drawable.os_ikona_aplikacije to R.string.pk_aplikacije
+                    PokrajinaPravila.DATOTEKE -> R.drawable.os_ikona_datoteke to R.string.os_meni_datoteke
+                    else -> R.drawable.os_ikona_nastavitve to R.string.os_meni_nastavitve
+                }
+                val ime = getString(napis)
+                val v = kartica(null, ikona, ime) { _ ->
+                    if (premikam != null) { koncajPremikanje(); return@kartica }
+                    zadnjaPloscica = id
+                    odpriRazdelek(r)
+                }
+                v.tag = id
+                v.setOnLongClickListener { zacniPremikanje(id); true }
+                v.setOnKeyListener { _, keyCode, event ->
+                    if (event.action == KeyEvent.ACTION_DOWN && (keyCode == 165 || PokrajinaPravila.jeTipkaMenija(keyCode))) {
+                        moznostiPloscice(id, ime, splet = false); true
+                    } else false
+                }
                 dodajVVrsto(v)
                 continue
             }
@@ -798,7 +835,12 @@ class PokrajinaActivity : OsActivity() {
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             }
             v.tag = id
-            v.setOnLongClickListener { moznostiPloscice(id, ime, splet = true); true }
+            v.setOnLongClickListener { zacniPremikanje(id); true }
+            v.setOnKeyListener { _, keyCode, event ->
+                if (event.action == KeyEvent.ACTION_DOWN && (keyCode == 165 || PokrajinaPravila.jeTipkaMenija(keyCode))) {
+                    moznostiPloscice(id, ime, splet = true); true
+                } else false
+            }
             dodajVVrsto(v)
         }
         // Zadnja plosca: uporabnik si sam doda aplikacijo s televizorja ali spletno aplikacijo.
@@ -964,9 +1006,37 @@ class PokrajinaActivity : OsActivity() {
     private fun dodajAplikacijo() {
         val okno = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(R.string.pk_dodaj_naslov)
-            .setItems(arrayOf(getString(R.string.pk_dodaj_tv), getString(R.string.pk_dodaj_splet))) { _, i ->
-                // Lastnik 1. 11. 2026: klik na aplikacijo jo je odprl namesto dodal - v nacinu izbire jo klik doda.
-                if (i == 0) odpri(Intent(this, AplikacijeTvActivity::class.java).putExtra(AplikacijeTvActivity.IZBIRA_ZA_DOMOV, true)) else SpletnaDodaj.izberi(this) { narisiAplikacije() }
+            .setItems(arrayOf(getString(R.string.pk_dodaj_tv), getString(R.string.pk_dodaj_splet), getString(R.string.pk_dodaj_razdelek))) { _, i ->
+                when (i) {
+                    0 -> odpri(Intent(this, AplikacijeTvActivity::class.java).putExtra(AplikacijeTvActivity.IZBIRA_ZA_DOMOV, true))
+                    1 -> SpletnaDodaj.izberi(this) { narisiAplikacije() }
+                    2 -> dodajRazdelek()
+                }
+            }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .create()
+        Kontroler.pokazi(okno)
+        okno.show()
+    }
+
+    private fun dodajRazdelek() {
+        val r = PokrajinaPravila.DOK
+        val imena = r.map { getString(when (it) {
+                PokrajinaPravila.MEDIJI -> R.string.pk_mediji
+                PokrajinaPravila.SPLET -> R.string.os_meni_splet
+                PokrajinaPravila.LINK -> R.string.os_meni_naprave
+                PokrajinaPravila.SPOROCILA -> R.string.os_meni_sporocila
+                PokrajinaPravila.APLIKACIJE -> R.string.pk_aplikacije
+                PokrajinaPravila.DATOTEKE -> R.string.os_meni_datoteke
+                else -> R.string.os_meni_nastavitve
+            }) }
+        val okno = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
+            .setTitle(R.string.pk_dodaj_razdelek)
+            .setItems(imena.toTypedArray()) { _, i ->
+                val id = "razdelek:${r[i]}"
+                val red = Priljubljene.redDomov(this).toMutableList()
+                if (id !in red) { red.add(id); Priljubljene.shraniRedDomov(this, red) }
+                narisiAplikacije()
             }
             .setNegativeButton(getString(R.string.os_preklici), null)
             .create()
@@ -1031,7 +1101,12 @@ class PokrajinaActivity : OsActivity() {
                     bes.visibility = if (ima) View.VISIBLE else View.GONE
                 }
                 setOnClickListener { odpriRazdelek(r) }
-                setOnLongClickListener { moznostiDokGumba(r, getString(napis)); true }
+                setOnLongClickListener { zacniPremikanjeDok(r); true }
+                setOnKeyListener { _, keyCode, event ->
+                    if (event.action == KeyEvent.ACTION_DOWN && (keyCode == 165 || PokrajinaPravila.jeTipkaMenija(keyCode))) {
+                        moznostiDokGumba(r, getString(napis)); true
+                    } else false
+                }
                 val ikonaOkvir = FrameLayout(this@PokrajinaActivity)
                 ikonaOkvir.addView(ImageView(this@PokrajinaActivity).apply { setImageResource(ikona); setColorFilter(osBarva(R.color.os_mint)) },
                     FrameLayout.LayoutParams(dp(34), dp(34)))
