@@ -1457,6 +1457,61 @@
 
             setInterval(spremljajCiljObroca, 250);
 
+            /* SAFEER_FOKUS_STRANI_ZACETEK */
+            // Lastnik 2. 11. 2026 19:09 (claude.ai/new na TV): »Search« v stranski vrstici odpre pogovorno okno in stran
+            // sama da fokus njegovemu polju (tipkovnica TV gor). Nas obroc je ostal na starem cilju (stranska vrstica) in
+            // segal cez okno - dva fokusa. Ko stran sama premakne fokus (ne mi), mu sledimo: na polje za vnos obroc skrijemo
+            // (tipkovnica je vidna oznaka, naslednja puscica gre od polja), na tuj okvir prav tako (svoj okvir ima sam),
+            // drugam (gumb v oknu) gre obroc za fokusom. Navigacija ostane v odprtem oknu (najdiPrekrivnoOkno).
+            function jeVnosnoPolje(el) {
+                if (!el || el.nodeType !== 1) return false;
+                var tag = (el.tagName || '').toUpperCase();
+                if (tag === 'TEXTAREA' || el.isContentEditable) return true;
+                var ro = ((el.getAttribute && el.getAttribute('role')) || '').toLowerCase();
+                if (ro === 'textbox' || ro === 'searchbox' || ro === 'combobox') return true;
+                if (tag !== 'INPUT') return false;
+                var ti = ((el.getAttribute && el.getAttribute('type')) || 'text').toLowerCase();
+                return ['button', 'submit', 'reset', 'checkbox', 'radio', 'range', 'color', 'file', 'image', 'hidden'].indexOf(ti) === -1;
+            }
+            // f: nas (fokus je na nasem cilju ali v njem), vnos (polje za vnos), okvir (tuj okvir), cilj (element je
+            // za daljinec cilj - isActionable; vsebnik okna s tabindex=-1 ni, takrat obroc samo umaknemo).
+            function odzivNaFokus(f) {
+                if (f.nas) return 'nic';
+                if (f.vnos || f.okvir || !f.cilj) return 'skrij';
+                return 'sledi';
+            }
+            // Odziv na fokus, ki ga je premaknila stran (p: pocisti = clearActive, oznaci = highlightElement,
+            // jeCilj = isActionable; podani, da je odlocitev preizkusljiva brez brskalnika).
+            function naFokusStrani(t, doc, p) {
+                if (!t || t.nodeType !== 1 || t === doc.body || t === doc.documentElement) return 'nic';
+                var akt = doc.querySelector('.safeer-active-card');
+                var odziv = odzivNaFokus({
+                    nas: !!akt && (akt === t || akt.contains(t)),
+                    vnos: jeVnosnoPolje(t),
+                    okvir: (t.tagName || '').toUpperCase() === 'IFRAME',
+                    cilj: p.jeCilj(t)
+                });
+                if (odziv === 'skrij') p.pocisti();
+                else if (odziv === 'sledi') {
+                    p.oznaci(t);
+                    // highlightElement cilj izven pogleda zavrne: star obroc vseeno ne sme ostati.
+                    var zdaj = doc.querySelector('.safeer-active-card');
+                    if (!zdaj || !(zdaj === t || zdaj.contains(t))) p.pocisti();
+                }
+                return odziv;
+            }
+            /* SAFEER_FOKUS_STRANI_KONEC */
+
+            var sledimFokusu = false;
+            document.addEventListener('focusin', function (ev) {
+                // Nas lastni fokus (highlightElement -> uskladiFokus) med odzivom ne sme sproziti novega odziva.
+                if (sledimFokusu) return;
+                sledimFokusu = true;
+                try {
+                    naFokusStrani(ev.target, document, { pocisti: clearActive, oznaci: highlightElement, jeCilj: isActionable });
+                } catch (_) {} finally { sledimFokusu = false; }
+            }, true);
+
             // Pritrjene vrstice strani (glava, spodnja vrstica z gumbi) pokrijejo del pogleda; scrollIntoView
             // zanje ne ve, zato bi izbrani element obstal pod njimi (npr. 24ur.com). Izmerimo, kaj pri vrhu
             // in dnu pogleda stoji pritrjeno, in element pomaknemo v prosti del med njima.
