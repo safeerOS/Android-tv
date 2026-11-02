@@ -25,4 +25,5 @@
     <string name="pk_lupa_iscem">Suche …</string>
     <string name="pk_lupa_splet_ni">Das Web ist gerade nicht erreichbar</string>
     <string name="pk_lupa_st_zadetkov">Treffer: %1$d</string>
+    <string name="pk_lupa_zgodovina_opis">Suchverlauf, %1$s</string>
 </resources>

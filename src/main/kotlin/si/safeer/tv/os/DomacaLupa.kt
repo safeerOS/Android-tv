@@ -546,13 +546,19 @@ object DomacaLupa {
         return true
     }
 
+    /** Samo pravo iskanje (OK/oddaja); smeti in zacetki istega iskanja se ne shranijo (LupaPravila.dodajVZgodovino). */
     private fun dodajZgodovino(c: Context, q: String) {
         val s = c.getSharedPreferences(PREFS_LUPE, Context.MODE_PRIVATE)
-        val z = (s.getString("zgodovina", "") ?: "").split("\n").filter { it.isNotBlank() && it != q }.toMutableList()
-        z.add(0, q)
-        s.edit().putString("zgodovina", z.take(5).joinToString("\n")).apply()
+        val staro = (s.getString("zgodovina", "") ?: "").split("\n")
+        s.edit().putString("zgodovina", LupaPravila.dodajVZgodovino(staro, q).joinToString("\n")).apply()
     }
 
-    fun beriZgodovino(c: Context): List<String> =
-        (c.getSharedPreferences(PREFS_LUPE, Context.MODE_PRIVATE).getString("zgodovina", "") ?: "").split("\n").filter { it.isNotBlank() }
+    /** Zgodovina brez smeti; ce jih je bilo kaj (zapisi pred 2. 11. 2026), se ociscena zapise nazaj. */
+    fun beriZgodovino(c: Context): List<String> {
+        val s = c.getSharedPreferences(PREFS_LUPE, Context.MODE_PRIVATE)
+        val surovo = (s.getString("zgodovina", "") ?: "").split("\n").filter { it.isNotBlank() }
+        val ciste = LupaPravila.ocistiZgodovino(surovo)
+        if (ciste != surovo) s.edit().putString("zgodovina", ciste.joinToString("\n")).apply()
+        return ciste
+    }
 }

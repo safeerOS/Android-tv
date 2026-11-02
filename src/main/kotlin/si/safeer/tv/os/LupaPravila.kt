@@ -44,6 +44,13 @@ object LupaPravila {
     val SKUPINE_VSE = listOf(OBSEG_APLIKACIJE, SKUPINA_NOVICE, OBSEG_DATOTEKE, OBSEG_NASTAVITVE, SKUPINA_VIDEOTEKE, OBSEG_VIDEO,
         OBSEG_YOUTUBE, OBSEG_SPLET)
 
+    /**
+     * Spodnji rob plosce zadetkov v okvirju visine [visinaOkvirjaPx]: vsaj [razmikPx] nad vrhom spodnje vrstice
+     * ([vrhDockaPx], izmerjen ob postavitvi). Preverba TV 19:31: plosca je segla do y=975, vrstica se zacne pri ~930.
+     */
+    fun spodnjiRobPlosce(visinaOkvirjaPx: Int, vrhDockaPx: Int, razmikPx: Int): Int =
+        maxOf(razmikPx, visinaOkvirjaPx - vrhDockaPx + razmikPx)
+
     /** Veljavna izbira ali Vse (neznana ali prazna vrednost). */
     fun obseg(izbira: String?): String = izbira?.takeIf { it in OBSEGI } ?: OBSEG_VSE
 
@@ -79,6 +86,8 @@ object LupaPravila {
         "com.google.android.youtube.tv", "com.google.android.youtube",
         "com.teamsmart.videomanager.tv", "com.liskovsoft.smarttubetv.beta",
         "org.xbmc.kodi", "com.plexapp.android",
+        // Preverjeno na televizorju 2. 11. 2026 (pm list packages -3).
+        "com.spiintl.tv.filmbox", "si.rtvslo.rtv4dandroidtv_ab",
     )
 
     /** Imena videotek, ki jih je lastnik nastel (paketov ne ugibamo): ime po [kljuc] brez presledkov in znakov. */
@@ -334,11 +343,71 @@ object LupaPravila {
         !q.contains(' ') && (q.startsWith("http://") || q.startsWith("https://") ||
             Regex("^[\\p{L}\\p{N}-]+(\\.[\\p{L}\\p{N}-]+)*\\.[a-z]{2,}(/.*)?$", RegexOption.IGNORE_CASE).matches(q))
 
+    // ------------------------------------------------------------------ zgodovina iskanja
+
+    /** Toliko zadnjih iskanj pokaze zgodovina pod prazno lupo. */
+    const val NAJVEC_ZGODOVINE = 5
+
+    private val SAMO_LOCILA = Regex("^[^\\p{L}\\p{N}&+#@\\-\u2013]+$")
+    private val NAREKOVAJ_V_BESEDI = Regex("[\\p{L}\\p{N}][\u201E\u201C\u201D\u00AB\u00BB\u201A\u2018\"][\\p{L}\\p{N}]")
+    private val VEJICA_MED_CRKAMA = Regex("\\p{L},\\p{L}")
+    private val PONOVLJENA_CRKA = Regex("(\\p{L})\\1{3,}")
+
+    /**
+     * Iskanje, ki gre v zgodovino, ali null (preverba TV 2. 11. 2026 19:43: v zgodovini so ostale vrstice kot
+     * »„ DDV po„llll,l.-e« - napol natipkano z vrstico znakov). Shrani se samo pravo iskanje (OK/oddaja), ocisceno in z vsaj
+     * dvema crkama ali stevkama, ki so vsaj 60 % znakov. Ne: beseda iz samih locil (»„«, »…«; pomisljaj sme), narekovaj ali vejica sredi
+     * besede, ista crka stirikrat zapored. Isto pravilo ocisti staro zgodovino ob branju ([ocistiZgodovino]).
+     */
+    fun zaZgodovino(niz: String): String? {
+        val q = niz.trim().replace(Regex("\\s+"), " ")
+        val znaki = q.filter { !it.isWhitespace() }
+        val crke = znaki.count { it.isLetterOrDigit() }
+        if (crke < 2 || crke * 10 < znaki.length * 6) return null
+        if (q.split(' ').any { SAMO_LOCILA.matches(it) }) return null
+        if (NAREKOVAJ_V_BESEDI.containsMatchIn(q) || VEJICA_MED_CRKAMA.containsMatchIn(q) || PONOVLJENA_CRKA.containsMatchIn(q)) return null
+        return q.take(120)
+    }
+
+    private fun kljucIskanja(q: String): String = besede(q).joinToString(" ") { kljuc(it) }
+
+    /**
+     * Zgodovina (najnovejse prvo) brez smeti ([zaZgodovino]), brez ponovitev in brez zacetkov istega iskanja (»Opp« ob
+     * »Oppenheimer« odpade, ostane daljse); najvec [najvec].
+     */
+    fun ocistiZgodovino(seznam: List<String>, najvec: Int = NAJVEC_ZGODOVINE): List<String> {
+        val ciste = seznam.mapNotNull { zaZgodovino(it) }.distinctBy { kljucIskanja(it) }
+        return ciste.filter { e ->
+            val k = kljucIskanja(e)
+            ciste.none { f -> f !== e && kljucIskanja(f).let { it != k && it.startsWith(k) } }
+        }.take(najvec)
+    }
+
+    /** Novo iskanje na vrh zgodovine; smeti se ne shranijo (zgodovina ostane, kot je bila - ocisti se). */
+    fun dodajVZgodovino(seznam: List<String>, niz: String, najvec: Int = NAJVEC_ZGODOVINE): List<String> =
+        ocistiZgodovino(listOfNotNull(zaZgodovino(niz)) + seznam, najvec)
+
+    /** Kam gre fokus v plosci lupe (preverba TV 19:43: DOL s polja je zgodovino preskocil in pristal na ploscici zadaj). */
+    enum class Fokus { POLJE, FILTER, PRVI, OSTANE }
+
+    /** DOL s polja: na izbrani filter, ce je vrstica filtrov vidna (zadetki), sicer na prvo vrstico (zgodovina). */
+    fun dolSPolja(ploscaOdprta: Boolean, filtriVidni: Boolean, imaVrstico: Boolean): Fokus = when {
+        !ploscaOdprta -> Fokus.OSTANE
+        filtriVidni -> Fokus.FILTER
+        imaVrstico -> Fokus.PRVI
+        else -> Fokus.OSTANE
+    }
+
+    /** GOR iz seznama na vrh (iz prve vrstice): na izbrani filter, brez filtrov (zgodovina) na polje. */
+    fun gorIzSeznama(filtriVidni: Boolean): Fokus = if (filtriVidni) Fokus.FILTER else Fokus.POLJE
+
     // ------------------------------------------------------------------ zadetki lupe
 
     /**
      * Ujemanje imena (program, nastavitev, datoteka) s poizvedbo: 3 = ime se zacne s poizvedbo, 2 = beseda v imenu se
-     * zacne z njo, 1 = vsebuje jo, 0 = ne ujema. Brez naglasov in velikih crk (»nas« najde »Nastavitve«, »cas« »Čas«).
+     * zacne z njo, 1 = ime brez presledkov se zacne s poizvedbo brez presledkov (sele od 4 znakov: »rtvslo« -> »RTV SLO«),
+     * 0 = ne ujema. Brez naglasov in velikih crk (»nas« najde »Nastavitve«, »cas« »Čas«). Preverba TV 2. 11. 2026 19:31:
+     * prej je 1 pomenil »vsebuje kjerkoli« in »rtv« je cez mejo besed nasel »SafeeR TV Browser«.
      */
     fun ujemanje(ime: String, poizvedba: String): Int {
         val q = besede(poizvedba).joinToString(" ") { kljuc(it) }.trim()
@@ -347,7 +416,7 @@ object LupaPravila {
         return when {
             i.startsWith(q) -> 3
             i.split(' ').any { it.startsWith(q) } -> 2
-            i.replace(" ", "").contains(q.replace(" ", "")) -> 1
+            q.replace(" ", "").length >= 4 && i.replace(" ", "").startsWith(q.replace(" ", "")) -> 1
             else -> 0
         }
     }

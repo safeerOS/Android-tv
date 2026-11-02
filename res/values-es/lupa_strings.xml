@@ -25,4 +25,5 @@
     <string name="pk_lupa_iscem">Buscando…</string>
     <string name="pk_lupa_splet_ni">La web no está disponible ahora</string>
     <string name="pk_lupa_st_zadetkov">Resultados: %1$d</string>
+    <string name="pk_lupa_zgodovina_opis">Historial de búsqueda, %1$s</string>
 </resources>

@@ -52,11 +52,19 @@ fun main() {
     println("\n== zadetki lupe ==")
     preveriEnako("zacetek imena", 3, LupaPravila.ujemanje("Nastavitve", "nas"))
     preveriEnako("zacetek besede", 2, LupaPravila.ujemanje("Safeer Link", "lin"))
-    preveriEnako("vsebuje", 1, LupaPravila.ujemanje("YouTube", "tub"))
+    // Preverba TV 19:31: samo zacetek besede ali (od 4 znakov) zacetek imena brez presledkov, nikoli cez mejo besed.
+    preveriEnako("sredina besede ne ujema", 0, LupaPravila.ujemanje("YouTube", "tub"))
+    preveriEnako("rtv -> RTV SLO", 3, LupaPravila.ujemanje("RTV SLO", "rtv"))
+    preveriEnako("rtv -> RTV 365", 3, LupaPravila.ujemanje("RTV 365", "rtv"))
+    preveriEnako("rtv ne najde Safeer TV Browser", 0, LupaPravila.ujemanje("Safeer TV Browser", "rtv"))
+    preveriEnako("rtvslo -> RTV SLO (brez presledkov)", 1, LupaPravila.ujemanje("RTV SLO", "rtvslo"))
+    preveriEnako("kratko brez presledkov ne", 0, LupaPravila.ujemanje("RT V", "rtv"))
+    preveriEnako("rtv med aplikacijami", listOf("RTV 365", "RTV SLO"),
+        LupaPravila.najboljsi(listOf("Safeer TV Browser", "RTV SLO", "RTV 365", "Netflix"), "rtv", 8) { it })
     preveriEnako("brez sumnikov", 3, LupaPravila.ujemanje("Čas in datum", "cas"))
     preveriEnako("ne ujema", 0, LupaPravila.ujemanje("Netflix", "xyz"))
     preveriEnako("prazna poizvedba", 0, LupaPravila.ujemanje("Netflix", " "))
-    preveriEnako("najboljsi po ujemanju in imenu", listOf("Nastavitve", "Safeer Nastavitve", "Ponastavi"),
+    preveriEnako("najboljsi po ujemanju in imenu (Ponastavi ni zacetek besede)", listOf("Nastavitve", "Safeer Nastavitve"),
         LupaPravila.najboljsi(listOf("Ponastavi", "Safeer Nastavitve", "Nastavitve", "Netflix"), "nastav", 5) { it })
     preveriEnako("najvec", 1, LupaPravila.najboljsi(listOf("a1", "a2"), "a", 1) { it }.size)
 
@@ -110,6 +118,31 @@ fun main() {
     preveriEnako("video isce v video", "video", LupaPravila.iskalniObseg("video"))
     preveriEnako("vrstica iskanja samo v eni spletni skupini", listOf(false, true, true, true, false, false, false),
         LupaPravila.OBSEGI.map { LupaPravila.vrsticaIskanja(it) })
+    // Preverba TV 19:43: zgodovina brez smeti (napol natipkano z vrstico znakov), brez ponovitev in zacetkov.
+    preveriEnako("smet z narekovaji ne gre v zgodovino", null, LupaPravila.zaZgodovino("„ DDV po„llll,l.-e"))
+    preveriEnako("zacetek smeti ne", null, LupaPravila.zaZgodovino("„ DDV"))
+    preveriEnako("samo locila ne", null, LupaPravila.zaZgodovino(" .,-„ "))
+    preveriEnako("ena crka ne", null, LupaPravila.zaZgodovino("a"))
+    preveriEnako("pravo iskanje, ocisceno", "Oppenheimer 2023", LupaPravila.zaZgodovino("  Oppenheimer   2023 "))
+    preveriEnako("pomisljaj sme", "vreme - Maribor", LupaPravila.zaZgodovino("vreme - Maribor"))
+    preveriEnako("naslov sme", "safeer.si", LupaPravila.zaZgodovino("safeer.si"))
+    preveriEnako("ob branju ocisceno", listOf("test", "Oppenheimer"),
+        LupaPravila.ocistiZgodovino(listOf("test", "Oppenheimer", "„ DDV po„llll,l.-e", "„ DDV po„llll,l.-", "„ DDV")))
+    preveriEnako("zacetek istega iskanja odpade, ponovitev tudi", listOf("Oppenheimer", "test"),
+        LupaPravila.ocistiZgodovino(listOf("Opp", "Oppenheimer", "test", "TEST")))
+    preveriEnako("novo na vrh, smet se ne shrani", listOf("test"), LupaPravila.dodajVZgodovino(listOf("test"), "„ x,y"))
+    preveriEnako("novo na vrh", listOf("sintel", "test"), LupaPravila.dodajVZgodovino(listOf("test"), "sintel"))
+    preveriEnako("najvec 5", 5, LupaPravila.dodajVZgodovino(listOf("aa", "bb", "cc", "dd", "ee"), "ff").size)
+    // Fokus: polje -> zgodovina -> polje (brez filtrov); z zadetki polje -> filter; zaprta plosca: ostane.
+    preveriEnako("DOL s polja v zgodovino", LupaPravila.Fokus.PRVI, LupaPravila.dolSPolja(true, false, true))
+    preveriEnako("GOR iz zgodovine na polje", LupaPravila.Fokus.POLJE, LupaPravila.gorIzSeznama(false))
+    preveriEnako("DOL s polja na filter (zadetki)", LupaPravila.Fokus.FILTER, LupaPravila.dolSPolja(true, true, true))
+    preveriEnako("GOR iz zadetkov na filter", LupaPravila.Fokus.FILTER, LupaPravila.gorIzSeznama(true))
+    preveriEnako("zaprta plosca: privzeto", LupaPravila.Fokus.OSTANE, LupaPravila.dolSPolja(false, false, false))
+    preveriEnako("prazna zgodovina: privzeto", LupaPravila.Fokus.OSTANE, LupaPravila.dolSPolja(true, false, false))
+    // Preverba TV 19:31: plosca zadetkov vsaj 16 dp nad spodnjo vrstico (izmerjen vrh), nikoli cez njo.
+    preveriEnako("rob nad vrstico", 1080 - 930 + 32, LupaPravila.spodnjiRobPlosce(1080, 930, 32))
+    preveriEnako("vrstica pod okvirjem: samo razmik", 32, LupaPravila.spodnjiRobPlosce(1000, 1200, 32))
     // Stanja seznama (lastnik 19:03): zadetki, Iscem …, prazno; »Isci v Vse« samo pri ozki izbiri.
     preveriEnako("zadetki", LupaPravila.Stanje.ZADETKI, LupaPravila.stanje(2, 1))
     preveriEnako("se iscem", LupaPravila.Stanje.ISCEM, LupaPravila.stanje(0, 1))
@@ -133,6 +166,9 @@ fun main() {
     preveriEnako("kategorija video", "videoteke", LupaPravila.vrstaAplikacije("x.y", "Nekaj", true, false))
     preveriEnako("kategorija novice", "novice", LupaPravila.vrstaAplikacije("x.y", "Nekaj", false, true))
     preveriEnako("Netflix po paketu", "videoteke", LupaPravila.vrstaAplikacije("com.netflix.ninja", "N", false, false))
+    preveriEnako("FILMBOX+ po paketu s televizorja", "videoteke", LupaPravila.vrstaAplikacije("com.spiintl.tv.filmbox", "X", false, false))
+    preveriEnako("RTV 365 po paketu s televizorja (ne novice)", "videoteke",
+        LupaPravila.vrstaAplikacije("si.rtvslo.rtv4dandroidtv_ab", "Y", false, true))
     preveriEnako("RTV 365 je videoteka, ne novice", "videoteke", LupaPravila.vrstaAplikacije("a.b", "RTV 365", false, true))
     preveriEnako("FILMBOX+ po imenu", "videoteke", LupaPravila.vrstaAplikacije("a.b", "FILMBOX+", false, false))
     preveriEnako("RTV SLO po imenu je novice", "novice", LupaPravila.vrstaAplikacije("a.b", "RTV SLO", false, false))

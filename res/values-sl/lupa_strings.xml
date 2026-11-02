@@ -25,4 +25,5 @@
     <string name="pk_lupa_iscem">Iščem …</string>
     <string name="pk_lupa_splet_ni">Splet trenutno ni dosegljiv</string>
     <string name="pk_lupa_st_zadetkov">Zadetkov: %1$d</string>
+    <string name="pk_lupa_zgodovina_opis">Zgodovina iskanja, %1$s</string>
 </resources>

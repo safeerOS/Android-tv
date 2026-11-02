@@ -25,4 +25,5 @@
     <string name="pk_lupa_iscem">Recherche…</string>
     <string name="pk_lupa_splet_ni">Le web n’est pas joignable pour le moment</string>
     <string name="pk_lupa_st_zadetkov">Résultats : %1$d</string>
+    <string name="pk_lupa_zgodovina_opis">Historique de recherche, %1$s</string>
 </resources>
