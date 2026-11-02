@@ -85,4 +85,33 @@ object Priljubljene {
         return true
     }
 
+    fun preveriZagonInZazeni(a: android.app.Activity, paket: String, ime: String, zazeni: () -> Unit) {
+        if (paket == a.packageName || je(a, paket)) { zazeni(); return }
+        val p = prefs(a)
+        val zagonov = p.getInt("zagon_st_$paket", 0) + 1
+        p.edit().putInt("zagon_st_$paket", zagonov).apply()
+        
+        val zeVprasan = p.getBoolean("zagon_vprasan_$paket", false)
+        if (PokrajinaPravila.dodajNaDomDialog(zagonov, zeVprasan, false)) {
+            p.edit().putBoolean("zagon_vprasan_$paket", true).apply()
+            val o = android.app.AlertDialog.Builder(a, si.safeer.tv.R.style.Os_Okno)
+                .setTitle(a.getString(si.safeer.tv.R.string.pk_dodaj_na_dom_naslov))
+                .setMessage(a.getString(si.safeer.tv.R.string.pk_dodaj_na_dom_opis))
+                .setPositiveButton(a.getString(si.safeer.tv.R.string.os_spletne_dodaj_gumb)) { _, _ ->
+                    dodaj(a, paket)
+                    // Na domaci zaslon dodajamo na konec: redDomov.
+                    val red = redDomov(a).toMutableList()
+                    if (paket !in red) red.add(paket)
+                    shraniRedDomov(a, red)
+                    zazeni()
+                }
+                .setNegativeButton(a.getString(si.safeer.tv.R.string.os_preklici)) { _, _ -> zazeni() }
+                .setOnCancelListener { zazeni() }
+                .create()
+            Kontroler.pokazi(o)
+            o.show()
+        } else {
+            zazeni()
+        }
+    }
 }

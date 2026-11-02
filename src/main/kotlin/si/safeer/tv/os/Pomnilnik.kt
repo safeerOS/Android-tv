@@ -153,7 +153,7 @@ object Pomnilnik {
      * Zvok merimo PRED zamikom: ob vrnitvi domov pomeni, da igra ena od aplikacij v ozadju - takrat ne zapremo nicesar.
      */
     @android.annotation.SuppressLint("MissingPermission")   // dovoljenje preveri smemo(); brskalnik ga nima
-    fun pocistiOzadje(c: Context, nasePredvajanje: Boolean = false) {
+    fun pocistiOzadje(c: Context, nasePredvajanje: Boolean = false, cakajMs: Long = 3000L) {
         if (!smemo(c)) return
         spremljajOdhode(c)
         val odhodiObZacetku = odhodi
@@ -162,7 +162,7 @@ object Pomnilnik {
             (c.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager)?.isMusicActive == true
         } catch (_: Exception) { false }
         Thread {
-            try { Thread.sleep(3000) } catch (_: Exception) {}
+            if (cakajMs > 0L) try { Thread.sleep(cakajMs) } catch (_: Exception) {}
             if (!nadaljuj()) { Log.i(TAG, "ciscenje ozadja preskoceno - uporabnik je odprl aplikacijo"); return@Thread }
             val amgr = c.getSystemService(ActivityManager::class.java)
             val pred = stanje(c)

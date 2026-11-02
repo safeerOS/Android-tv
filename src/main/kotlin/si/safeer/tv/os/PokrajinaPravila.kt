@@ -28,6 +28,14 @@ object PokrajinaPravila {
     const val NASTAVITVE = "nastavitve"
     val DOK = listOf(MEDIJI, SPLET, LINK, SPOROCILA, APLIKACIJE, DATOTEKE, NASTAVITVE)
 
+    /** Vrstni red gumbov v spodnji vrstici (shranjen in manjkajoci na koncu). */
+    fun dokVrstniRed(shranjeno: String?): List<String> {
+        val s = shranjeno?.split(",")?.map { it.trim() }?.filter { it in DOK }.orEmpty()
+        val izid = s.toMutableList()
+        for (r in DOK) if (r !in izid) izid.add(r)
+        return izid
+    }
+
     /**
      * Tema za uporabnika, ki je ni izbral sam: z novim zaganjalnikom Pokrajina, s starim prejsnja privzeta. Izbrana tema
      * (tudi Pokrajina pri starem zaganjalniku) ostane - vrnitev na stari zaganjalnik ne spremeni izbire.
@@ -194,4 +202,32 @@ object PokrajinaPravila {
             -> true
         else -> false
     }
+
+    /** Indeks ploscice glede na tipko 1-6 (0..5), ali null. */
+    fun indeksPloscice(koda: Int): Int? = when (koda) {
+        8, 145 -> 0
+        9, 146 -> 1
+        10, 147 -> 2
+        11, 148 -> 3
+        12, 149 -> 4
+        13, 150 -> 5
+        else -> null
+    }
+
+    /** Smer premika za stran (kanal gor/dol), -1 ali 1. */
+    fun smerStran(koda: Int): Int? = when (koda) {
+        166, 92 -> -1
+        167, 93 -> 1
+        else -> null
+    }
+
+    /** Ali tipka pripada predvajalniku (predvajaj/premor/naprej/nazaj)? */
+    fun jeMedijska(koda: Int): Boolean = when (koda) {
+        85, 87, 88, 126, 127 -> true
+        else -> false
+    }
+
+    /** Naloga 45 G: ponudba za dodajanje na domaci zaslon. */
+    fun dodajNaDomDialog(zagonov: Int, zeVprasan: Boolean, naDomu: Boolean): Boolean =
+        zagonov == 3 && !zeVprasan && !naDomu
 }

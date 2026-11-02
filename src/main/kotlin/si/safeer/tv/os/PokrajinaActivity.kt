@@ -119,7 +119,14 @@ class PokrajinaActivity : OsActivity() {
                 return super.focusSearch(direction)
             }
         }.apply { orientation = LinearLayout.HORIZONTAL; setPadding(dp(4), dp(10), dp(4), dp(10)) }
-        val drsnik = HorizontalScrollView(this).apply {
+        val drsnik = object : HorizontalScrollView(this) {
+            override fun requestChildRectangleOnScreen(child: View, rectangle: android.graphics.Rect, immediate: Boolean): Boolean {
+                val rob = dp(48 + 12)
+                rectangle.left -= rob
+                rectangle.right += rob
+                return super.requestChildRectangleOnScreen(child, rectangle, immediate)
+            }
+        }.apply {
             isHorizontalScrollBarEnabled = false; clipToPadding = false; clipChildren = false
             isHorizontalFadingEdgeEnabled = true; setFadingEdgeLength(dp(48))
             addView(vrstaAplikacij)
@@ -144,7 +151,6 @@ class PokrajinaActivity : OsActivity() {
      */
     override fun onResume() {
         super.onResume()
-        Pomnilnik.pocistiOzadje(this)
     }
 
     override fun onStart() {
@@ -215,7 +221,7 @@ class PokrajinaActivity : OsActivity() {
         // zbuditi zaslon iz mirovanja (prvi pritisk samo zbudi, kot pri drugih tipkah).
         setIntent(intent)
         // Pregled Grok 2. 11. 2026: Domov konca tudi premikanje ploscice (prej je levo/desno po Domov se premikalo).
-        if (intent?.hasCategory(Intent.CATEGORY_HOME) == true) koncajPremikanje()
+        if (intent?.hasCategory(Intent.CATEGORY_HOME) == true) { koncajPremikanje(); koncajPremikanjeDok() }
         if (intent?.hasCategory(Intent.CATEGORY_HOME) == true && mirujem) { zbudi(); return }
         if (intent?.hasCategory(Intent.CATEGORY_HOME) == true) zapriLupo()
     }
@@ -270,6 +276,70 @@ class PokrajinaActivity : OsActivity() {
                 return true
             }
         }
+        premikamDok?.let { id ->
+            val t = PokrajinaPravila.tipkaPremikanja(dogodek.keyCode)
+            if (t != null) {
+                if (dogodek.action == KeyEvent.ACTION_DOWN) {
+                    if (t == 0) koncajPremikanjeDok() else premakniDok(id, t)
+                }
+                return true
+            }
+        }
+        
+        val koda = dogodek.keyCode
+        if (PokrajinaPravila.jeMedijska(koda)) {
+            val igra = try { GlasbaStoritev.trenutna() != null || GlasbaStoritev.tece() } catch (_: Throwable) { false }
+            if (igra) {
+                if (dogodek.action == KeyEvent.ACTION_DOWN) {
+                    try {
+                        when (koda) {
+                            KeyEvent.KEYCODE_MEDIA_PLAY -> GlasbaStoritev.nadaljujTu()
+                            KeyEvent.KEYCODE_MEDIA_PAUSE -> GlasbaStoritev.premorTu()
+                            KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> GlasbaStoritev.preklopiTu()
+                            KeyEvent.KEYCODE_MEDIA_NEXT -> GlasbaStoritev.naslednjaTu()
+                            KeyEvent.KEYCODE_MEDIA_PREVIOUS -> GlasbaStoritev.prejsnjaTu()
+                        }
+                    } catch (_: Throwable) {}
+                }
+                return true
+            }
+        }
+        if (koda == KeyEvent.KEYCODE_VOLUME_UP || koda == KeyEvent.KEYCODE_VOLUME_DOWN || koda == KeyEvent.KEYCODE_VOLUME_MUTE) {
+            val naZvocniku = try { GlasbaStoritev.naZvocniku() && GlasbaStoritev.trenutna() != null } catch (_: Throwable) { false }
+            if (naZvocniku) {
+                if (dogodek.action == KeyEvent.ACTION_DOWN) {
+                    val smer = if (koda == KeyEvent.KEYCODE_VOLUME_UP) 1 else if (koda == KeyEvent.KEYCODE_VOLUME_DOWN) -1 else 0
+                    if (smer != 0) try {
+                        si.safeer.tv.os.Zvocniki.glasnostZa(smer * si.safeer.tv.os.ZvocnikPravila.korakGlasnosti(si.safeer.tv.os.Zvocniki.najGlasnost, si.safeer.tv.os.Zvocniki.lestvicaZnana))
+                    } catch (_: Throwable) {}
+                }
+                return true
+            }
+        }
+
+        val tipkovnicaOdprta = ::poljeLupe.isInitialized && poljeLupe.hasFocus() && poljeLupe.showSoftInputOnFocus
+        if (dogodek.action == KeyEvent.ACTION_DOWN && !tipkovnicaOdprta && dogodek.repeatCount == 0) {
+            PokrajinaPravila.indeksPloscice(koda)?.let { i ->
+                var vidne = 0
+                val drsnikX = (vrstaAplikacij.parent as? HorizontalScrollView)?.scrollX ?: 0
+                for (ind in 0 until vrstaAplikacij.childCount) {
+                    val v = vrstaAplikacij.getChildAt(ind)
+                    if (v.right > drsnikX) {
+                        if (vidne == i) { v.performClick(); return true }
+                        vidne++
+                    }
+                }
+                return true
+            }
+            PokrajinaPravila.smerStran(koda)?.let { smer ->
+                (vrstaAplikacij.parent as? HorizontalScrollView)?.let { drsnik ->
+                    val premik = if (smer > 0) drsnik.width else -drsnik.width
+                    drsnik.smoothScrollBy(premik, 0)
+                }
+                return true
+            }
+        }
+
         if (DomacaLupa.tipka(this, dogodek)) return true
 
         // Tipka Meni / Nastavitve na daljincu (Menu, Settings, rdeči gumb na Philips TV): odpre možnosti nastavitev
@@ -539,7 +609,9 @@ class PokrajinaActivity : OsActivity() {
         if (programi.isNotEmpty()) {
             zadetki.addView(naslovSkupine(R.string.pk_lupa_programi))
             for (a in programi) zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_aplikacije, a.ime) {
-                odpri(Intent(a.namera).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                Priljubljene.preveriZagonInZazeni(this, a.paket, a.ime) {
+                    odpri(Intent(a.namera).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                }
             })
         }
         val datoteke = LupaPravila.najboljsi(Nadaljuj.seznam(this).filter { it.vrsta in ZaganjalnikPravila.VRSTE_DATOTEK }, q, 3) { it.ime }
@@ -643,6 +715,7 @@ class PokrajinaActivity : OsActivity() {
     }
 
     private fun narisiAplikacije() {
+        val stare = vrstaDomov.toSet()
         vrstaAplikacij.removeAllViews()
         val vsi = Aplikacije.zadnjiZnani(this) ?: Aplikacije.seznam(this)
         val poPaketu = vsi.associateBy { it.paket }
@@ -651,6 +724,12 @@ class PokrajinaActivity : OsActivity() {
         val vrsta = PokrajinaPravila.vrstaDomov(Priljubljene.redDomov(this), Priljubljene.seznam(this) + spletne.keys,
             poPaketu.keys + spletne.keys)
         vrstaDomov = vrsta
+        
+        val nove = vrsta.filter { it !in stare }
+        if (stare.isNotEmpty() && nove.isNotEmpty()) {
+            zadnjaPloscica = nove.first()
+        }
+
         for (id in vrsta) {
             val a = poPaketu[id]
             if (a != null) {
@@ -693,10 +772,12 @@ class PokrajinaActivity : OsActivity() {
         override fun run() {
             val zdaj = android.os.SystemClock.uptimeMillis()
             val lupa = ::poljeLupe.isInitialized && (poljeLupe.hasFocus() || zadetki.visibility == View.VISIBLE)
-            if (!mirujem && hasWindowFocus() && !lupa && premikam == null && PokrajinaPravila.mirujePo(zadnjiVnos, zdaj)) {
+            if (!mirujem && hasWindowFocus() && !lupa && premikam == null && premikamDok == null && PokrajinaPravila.mirujePo(zadnjiVnos, zdaj)) {
                 mirujem = true
                 for (i in 0 until koren.childCount) koren.getChildAt(i).animate().alpha(0f).setDuration(600).start()
                 dock?.let { glavna.post { it.skrijCeOdprt() } }
+                val predvaja = try { GlasbaStoritev.trenutna() != null || GlasbaStoritev.tece() } catch (_: Throwable) { false }
+                if (!predvaja) Pomnilnik.pocistiOzadje(this@PokrajinaActivity, false, 0L)
             }
             if (!mirujem) glavna.postDelayed(this, PokrajinaPravila.doMirovanja(zadnjiVnos, zdaj))
         }
@@ -737,14 +818,37 @@ class PokrajinaActivity : OsActivity() {
      * jo odstrani.
      */
     private fun moznostiPloscice(id: String, ime: String, splet: Boolean) {
-        val dejanja = listOf(
+        val dejanja = mutableListOf(
             getString(R.string.pk_premakni) to { zacniPremikanje(id) },
             getString(R.string.os_spletne_levo) to { premakniPloscico(id, -1) },
             getString(R.string.os_spletne_desno) to { premakniPloscico(id, 1) },
-            getString(R.string.os_priljubljen_odstrani) to { odstraniPloscico(id, splet) },
-            getString(R.string.os_meni_nastavitve) to { odpri(Intent(this, NastavitveActivity::class.java)) },
-            getString(R.string.nast_sk_tv) to { odpriNastavitveTv() },
+            getString(R.string.os_priljubljen_odstrani) to { odstraniPloscico(id, splet) }
         )
+        if (splet) {
+            val url = id.removePrefix("splet:")
+            val s = SpletneAplikacije.seznam(this).find { it.url == url }
+            if (s != null) {
+                dejanja.add(getString(R.string.pk_uredi_ime) to { SpletnaDodaj.urediIme(this, s) { narisiAplikacije() } })
+            }
+        } else {
+            val vsi = Aplikacije.zadnjiZnani(this) ?: Aplikacije.seznam(this)
+            val a = vsi.find { it.paket == id }
+            if (a != null) {
+                dejanja.add(getString(R.string.zg_podatki_aplikacije) to {
+                    odpri(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).setData(android.net.Uri.parse("package:$id")))
+                })
+                val jeSistemska = (a.info?.applicationInfo?.flags ?: 0) and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0
+                val posodobitevSistemske = (a.info?.applicationInfo?.flags ?: 0) and android.content.pm.ApplicationInfo.FLAG_UPDATED_SYSTEM_APP != 0
+                if (!jeSistemska && !posodobitevSistemske && id != packageName) {
+                    dejanja.add(getString(R.string.pk_odstrani_z_naprave) to {
+                        odpri(Intent(Intent.ACTION_DELETE).setData(android.net.Uri.parse("package:$id")))
+                    })
+                }
+            }
+        }
+        dejanja.add(getString(R.string.os_meni_nastavitve) to { odpri(Intent(this, NastavitveActivity::class.java)) })
+        dejanja.add(getString(R.string.nast_sk_tv) to { odpriNastavitveTv() })
+
         val okno = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(ime)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
@@ -806,13 +910,22 @@ class PokrajinaActivity : OsActivity() {
 
     // ------------------------------------------------------------------ plavajoca vrstica
 
+    private var vrstaDok: List<String> = emptyList()
+
     private fun plavajocaVrstica(): LinearLayout {
         val v = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER
             background = steklo(26, fokusMogoc = false)
             setPadding(dp(10), dp(6), dp(10), dp(6))
         }
-        for (r in PokrajinaPravila.DOK) {
+        narisiDok(v)
+        return v
+    }
+
+    private fun narisiDok(v: LinearLayout) {
+        v.removeAllViews()
+        vrstaDok = PokrajinaPravila.dokVrstniRed(shramba().getString("pk_dok", ""))
+        for (r in vrstaDok) {
             val (ikona, napis) = when (r) {
                 PokrajinaPravila.MEDIJI -> R.drawable.os_ikona_predvajaj to R.string.pk_mediji
                 PokrajinaPravila.SPLET -> R.drawable.os_ikona_splet to R.string.os_meni_splet
@@ -821,6 +934,10 @@ class PokrajinaActivity : OsActivity() {
                 PokrajinaPravila.APLIKACIJE -> R.drawable.os_ikona_aplikacije to R.string.pk_aplikacije
                 PokrajinaPravila.DATOTEKE -> R.drawable.os_ikona_datoteke to R.string.os_meni_datoteke
                 else -> R.drawable.os_ikona_nastavitve to R.string.os_meni_nastavitve
+            }
+            val bes = besedilo(getString(napis), 15f).apply {
+                gravity = Gravity.CENTER; maxLines = 1; ellipsize = TextUtils.TruncateAt.END
+                visibility = View.GONE
             }
             val gumb = object : LinearLayout(this) {
                 override fun focusSearch(direction: Int): View? {
@@ -842,18 +959,58 @@ class PokrajinaActivity : OsActivity() {
                 background = steklo(18).apply { alpha = 0 }
                 setPadding(dp(8), dp(8), dp(8), dp(6))
                 tag = "dok:$r"
-                setOnFocusChangeListener { p, ima -> p.background.alpha = if (ima) 255 else 0 }
+                contentDescription = getString(napis)
+                setOnFocusChangeListener { p, ima ->
+                    p.background.alpha = if (ima) 255 else 0
+                    bes.visibility = if (ima) View.VISIBLE else View.GONE
+                }
                 setOnClickListener { odpriRazdelek(r) }
+                setOnLongClickListener { moznostiDokGumba(r, getString(napis)); true }
                 addView(ImageView(this@PokrajinaActivity).apply { setImageResource(ikona); setColorFilter(osBarva(R.color.os_mint)) },
                     LinearLayout.LayoutParams(dp(34), dp(34)))
-                addView(besedilo(getString(napis), 15f).apply {
-                    gravity = Gravity.CENTER; maxLines = 1; ellipsize = TextUtils.TruncateAt.END
-                }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(4) })
+                addView(bes, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(4) })
             }
             poudariFokus(gumb)
             v.addView(gumb, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(4); marginEnd = dp(4) })
         }
-        return v
+    }
+
+    private fun moznostiDokGumba(id: String, ime: String) {
+        val dejanja = listOf(
+            getString(R.string.pk_premakni) to { zacniPremikanjeDok(id) },
+            getString(R.string.os_spletne_levo) to { premakniDok(id, -1) },
+            getString(R.string.os_spletne_desno) to { premakniDok(id, 1) }
+        )
+        val okno = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
+            .setTitle(ime)
+            .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .create()
+        Kontroler.pokazi(okno)
+        okno.show()
+    }
+
+    private var premikamDok: String? = null
+
+    private fun zacniPremikanjeDok(id: String) {
+        premikamDok = id
+        dok.findViewWithTag<View>("dok:$id")?.requestFocus()
+        android.widget.Toast.makeText(this, R.string.pk_premikanje_namig, android.widget.Toast.LENGTH_LONG).show()
+    }
+
+    private fun koncajPremikanjeDok() {
+        val id = premikamDok ?: return
+        premikamDok = null
+        dok.findViewWithTag<View>("dok:$id")?.requestFocus()
+    }
+
+    private fun premakniDok(id: String, korak: Int): Boolean {
+        val nova = PokrajinaPravila.premakni(vrstaDok, id, korak) ?: return false
+        vrstaDok = nova
+        shramba().edit().putString("pk_dok", nova.joinToString(",")).apply()
+        narisiDok(dok)
+        dok.findViewWithTag<View>("dok:$id")?.requestFocus()
+        return true
     }
 
     private fun odpriAplikacije() =
@@ -926,15 +1083,24 @@ class PokrajinaActivity : OsActivity() {
         return VremePravila.Kraj(ime, "", sirina, dolzina)
     }
 
+    private var vremeNapaka = false
+
     private fun prikaziVreme() {
         val s = shramba()
         val cas = s.getLong(KLJUC_VREME_CAS, 0L)
-        if (kraj() == null || !VremePravila.svezo(cas, System.currentTimeMillis())) { vreme.visibility = View.GONE; return }
+        if (kraj() == null || cas == 0L) { vreme.visibility = View.GONE; return }
         val v = VremePravila.Vreme(s.getInt(KLJUC_VREME_STOPINJ, 0), s.getInt(KLJUC_VREME_KODA, 0))
-        vreme.text = ikona(VremePravila.vrsta(v.koda)) + "  " + VremePravila.napis(v)
+        val osnovno = ikona(VremePravila.vrsta(v.koda)) + "  " + VremePravila.napis(v)
+        val izpis = if (vremeNapaka || !VremePravila.svezo(cas, System.currentTimeMillis())) {
+            val niPov = getString(si.safeer.tv.R.string.pk_ni_povezave)
+            android.text.SpannableString("$osnovno\n$niPov").apply {
+                setSpan(android.text.style.RelativeSizeSpan(0.6f), osnovno.length + 1, length, 0)
+                setSpan(android.text.style.ForegroundColorSpan(osBarva(R.color.os_umirjeno)), osnovno.length + 1, length, 0)
+            }
+        } else osnovno
+        vreme.text = izpis
         vreme.contentDescription = getString(R.string.pk_vreme_opis, kraj()?.ime.orEmpty(), VremePravila.napis(v))
         vreme.visibility = View.VISIBLE
-        // Daljinec: z iskalnega polja gor na temperaturo, z nje dol nazaj na polje (fokus ostane na vidnih poljih).
         if (::poljeLupe.isInitialized) {
             if (poljeLupe.id == View.NO_ID) poljeLupe.id = View.generateViewId()
             poljeLupe.nextFocusUpId = vreme.id
@@ -989,9 +1155,15 @@ class PokrajinaActivity : OsActivity() {
         val k = kraj() ?: return
         if (!prisilno && !VremePravila.osvezi(shramba().getLong(KLJUC_VREME_CAS, 0L), System.currentTimeMillis())) return
         Thread({
-            val v = beri(VremePravila.naslovNapovedi(k))?.let { VremePravila.razcleniVreme(it) } ?: return@Thread
-            shramba().edit().putInt(KLJUC_VREME_STOPINJ, v.stopinj).putInt(KLJUC_VREME_KODA, v.koda)
-                .putLong(KLJUC_VREME_CAS, System.currentTimeMillis()).apply()
+            val json = beri(VremePravila.naslovNapovedi(k))
+            val v = json?.let { VremePravila.razcleniVreme(it) }
+            if (v != null) {
+                shramba().edit().putInt(KLJUC_VREME_STOPINJ, v.stopinj).putInt(KLJUC_VREME_KODA, v.koda)
+                    .putLong(KLJUC_VREME_CAS, System.currentTimeMillis()).apply()
+                vremeNapaka = false
+            } else {
+                vremeNapaka = true
+            }
             glavna.post { if (!isFinishing && !isDestroyed) prikaziVreme() }
         }, "safeer-vreme").start()
     }

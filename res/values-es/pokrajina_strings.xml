@@ -15,4 +15,9 @@
     <string name="pk_dodaj_splet">App web</string>
     <string name="pk_link_povezane">Dispositivos conectados</string>
     <string name="pk_link_osvezi">Actualizar</string>
+    <string name="pk_uredi_ime">Editar nombre</string>
+    <string name="pk_odstrani_z_naprave">Eliminar del dispositivo</string>
+    <string name="pk_ni_povezave">sin conexión</string>
+    <string name="pk_dodaj_na_dom_naslov">¿Añadir al inicio?</string>
+    <string name="pk_dodaj_na_dom_opis">Has abierto esta aplicación por tercera vez.</string>
 </resources>

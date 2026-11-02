@@ -15,4 +15,9 @@
     <string name="pk_dodaj_splet">Web app</string>
     <string name="pk_link_povezane">Connected devices</string>
     <string name="pk_link_osvezi">Refresh</string>
+    <string name="pk_uredi_ime">Edit name</string>
+    <string name="pk_odstrani_z_naprave">Remove from device</string>
+    <string name="pk_ni_povezave">no connection</string>
+    <string name="pk_dodaj_na_dom_naslov">Add to home screen?</string>
+    <string name="pk_dodaj_na_dom_opis">You have opened this app for the third time.</string>
 </resources>

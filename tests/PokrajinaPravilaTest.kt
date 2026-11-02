@@ -35,6 +35,7 @@ fun main() {
     preveriEnako("izbrana Pokrajina ostane pri starem", "pokrajina", PokrajinaPravila.tema("pokrajina", false))
     preveriEnako("prazna izbira = ni izbire", "namizje", PokrajinaPravila.tema(" ", false))
     preveriEnako("vrstica razdelkov po zgledu", listOf("mediji", "splet", "link", "sporocila", "aplikacije", "datoteke", "nastavitve"), PokrajinaPravila.DOK)
+    preveriEnako("spodnja vrstica vrstni red shrani", listOf("nastavitve", "splet", "mediji", "link", "sporocila", "aplikacije", "datoteke"), PokrajinaPravila.dokVrstniRed("nastavitve, splet"))
 
     println("\n== zmanjsano gibanje in fokus ==")
     preveriEnako("navadno", 200L, PokrajinaPravila.trajanje(200, 1f, false))
@@ -157,6 +158,20 @@ fun main() {
     preveriEnako("gamepad select (109)", true, PokrajinaPravila.jeTipkaMenija(109))
     preveriEnako("gamepad X/Y (99, 100)", true, PokrajinaPravila.jeTipkaMenija(99) && PokrajinaPravila.jeTipkaMenija(100))
     preveriEnako("navadna smerna tipka ni meni", false, PokrajinaPravila.jeTipkaMenija(21))
+
+    println("\n== Nove tipke (naloga 45) ==")
+    preveriEnako("tipka 1 -> 0", 0, PokrajinaPravila.indeksPloscice(8))
+    preveriEnako("tipka 6 -> 5", 5, PokrajinaPravila.indeksPloscice(13))
+    preveriEnako("numpad 3 -> 2", 2, PokrajinaPravila.indeksPloscice(147))
+    preveriEnako("kanal gor -> -1", -1, PokrajinaPravila.smerStran(166))
+    preveriEnako("kanal dol -> 1", 1, PokrajinaPravila.smerStran(167))
+    preveriEnako("medijska tipka play", true, PokrajinaPravila.jeMedijska(126))
+    preveriEnako("navadna tipka ni medijska", false, PokrajinaPravila.jeMedijska(21))
+
+    preveriEnako("dodaj na dom: tretji zagon", true, PokrajinaPravila.dodajNaDomDialog(3, false, false))
+    preveriEnako("dodaj na dom: ze na domu", false, PokrajinaPravila.dodajNaDomDialog(3, false, true))
+    preveriEnako("dodaj na dom: ze vprasan", false, PokrajinaPravila.dodajNaDomDialog(3, true, false))
+    preveriEnako("dodaj na dom: prvi zagon", false, PokrajinaPravila.dodajNaDomDialog(1, false, false))
 
     if (napak == 0) println("PokrajinaPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

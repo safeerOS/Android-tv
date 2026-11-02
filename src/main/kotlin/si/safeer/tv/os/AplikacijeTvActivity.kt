@@ -72,7 +72,9 @@ class AplikacijeTvActivity : OsActivity() {
                 if (!Priljubljene.je(this, a.paket)) Priljubljene.dodaj(this, a.paket)
                 Toast.makeText(this, getString(R.string.os_aplikacije_dodana, a.ime), Toast.LENGTH_SHORT).show()
                 finish()
-            } else zazeni(a, v)
+            } else {
+                Priljubljene.preveriZagonInZazeni(this, a.paket, a.ime) { zazeni(a, v) }
+            }
         }
         mreza.setOnItemLongClickListener { _, _, i, _ ->
             vnosi.getOrNull(i)?.let { moznosti(it) }; true

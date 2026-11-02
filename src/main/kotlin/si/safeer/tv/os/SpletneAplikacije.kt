@@ -77,7 +77,7 @@ object SpletneAplikacije {
         } catch (e: Throwable) { Log.w(TAG, "Seznama ni bilo mogoce prebrati: ${e.message}"); emptyList() }
     }
 
-    private fun shrani(c: Context, seznam: List<Aplikacija>) {
+    internal fun shrani(c: Context, seznam: List<Aplikacija>) {
         val polje = JSONArray()
         for (a in seznam.take(NAJVEC)) {
             polje.put(JSONObject().put("url", a.url).put("ime", a.ime).put("ikona", a.ikona).put("barva", a.barva)
