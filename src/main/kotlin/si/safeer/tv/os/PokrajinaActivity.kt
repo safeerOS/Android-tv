@@ -482,14 +482,17 @@ class PokrajinaActivity : OsActivity() {
         g.addView(teden, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(10) })
         // Lastnik 30. 10. 2026: klik na temperaturo pokaze tedensko napoved v zgornjem pasu (ne cez vsebino).
         vreme = besedilo("", 26f).apply {
-            visibility = View.GONE
+            visibility = View.INVISIBLE
             id = View.generateViewId()
             isFocusable = true; isClickable = true
             setBackgroundResource(R.drawable.os_meni_postavka)
             setPadding(dp(12), dp(4), dp(12), dp(4))
+            gravity = Gravity.CENTER
+            maxLines = 2
+            ellipsize = android.text.TextUtils.TruncateAt.END
             setOnClickListener { preklopiTeden() }
         }
-        g.addView(vreme, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(22) })
+        g.addView(vreme, LinearLayout.LayoutParams(dp(140), ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(22) })
         val cas = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; gravity = Gravity.END
             // Zgled lastnika 27. 10. 2026: ura v stekleni tabletki desno zgoraj (fokus doda obrobo iz [steklo]).
@@ -1103,19 +1106,24 @@ class PokrajinaActivity : OsActivity() {
 
     private fun prikaziVreme() {
         val s = shramba()
+        val k = kraj()
         val cas = s.getLong(KLJUC_VREME_CAS, 0L)
-        if (kraj() == null || cas == 0L) { vreme.visibility = View.GONE; return }
+        if (k == null || cas == 0L) { vreme.visibility = View.INVISIBLE; return }
         val v = VremePravila.Vreme(s.getInt(KLJUC_VREME_STOPINJ, 0), s.getInt(KLJUC_VREME_KODA, 0))
         val osnovno = ikona(VremePravila.vrsta(v.koda)) + "  " + VremePravila.napis(v)
-        val izpis = if (vremeNapaka || !VremePravila.svezo(cas, System.currentTimeMillis())) {
-            val niPov = getString(si.safeer.tv.R.string.pk_ni_povezave)
-            android.text.SpannableString("$osnovno\n$niPov").apply {
-                setSpan(android.text.style.RelativeSizeSpan(0.6f), osnovno.length + 1, length, 0)
-                setSpan(android.text.style.ForegroundColorSpan(osBarva(R.color.os_umirjeno)), osnovno.length + 1, length, 0)
-            }
-        } else osnovno
+        
+        val podnaslov = if (vremeNapaka || !VremePravila.svezo(cas, System.currentTimeMillis())) {
+            getString(si.safeer.tv.R.string.pk_ni_povezave)
+        } else {
+            k.ime
+        }
+
+        val izpis = android.text.SpannableString("$osnovno\n$podnaslov").apply {
+            setSpan(android.text.style.RelativeSizeSpan(0.6f), osnovno.length + 1, length, 0)
+            setSpan(android.text.style.ForegroundColorSpan(osBarva(R.color.os_umirjeno)), osnovno.length + 1, length, 0)
+        }
         vreme.text = izpis
-        vreme.contentDescription = getString(R.string.pk_vreme_opis, kraj()?.ime.orEmpty(), VremePravila.napis(v))
+        vreme.contentDescription = getString(R.string.pk_vreme_opis, k.ime, VremePravila.napis(v))
         vreme.visibility = View.VISIBLE
         if (::poljeLupe.isInitialized) {
             if (poljeLupe.id == View.NO_ID) poljeLupe.id = View.generateViewId()
