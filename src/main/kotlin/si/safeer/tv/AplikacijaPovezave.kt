@@ -61,6 +61,13 @@ object AplikacijaPovezave {
     }
 
     /**
+     * Tipka Nazaj (lastnik 2. 11. 2026): ko je gumb »Nadaljuj v aplikaciji« ponujen ([paketGumba]), Nazaj vrne v
+     * aplikacijo - zgodovina zavihka bi peljala le skozi strani prijave. V nacinu spletne aplikacije gumba ni.
+     */
+    fun nazajVAplikacijo(paketGumba: String?, nacinSpletneAplikacije: Boolean): Boolean =
+        !nacinSpletneAplikacije && !paketGumba.isNullOrBlank()
+
+    /**
      * Samodejna predaja navigacije: samo glavni okvir in ne zacetno nalaganje naslova, ki ga je poslala aplikacija (ter
      * njegove preusmeritve) - sicer bi stran, ki jo aplikacija odpre zato, da se prijavimo, takoj vrnili nazaj (zanka).
      */

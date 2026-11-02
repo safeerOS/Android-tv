@@ -77,7 +77,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     private lateinit var btnCloseAllTabs: TextView
 
     /** »Nadaljuj v aplikaciji ...«: povratek v aplikacijo, ki je odprla zavihek (AplikacijaPovezave). */
-    private val btnAplikacija: Button? by lazy { findViewById<Button?>(R.id.btnNadaljujVAplikaciji) }
+    // Poiscemo ga v initViews: v Safeer OS pripraviSafeerSpletChrome izprazni vrstico, preden bi ga lazy poiskal.
+    private var btnAplikacija: Button? = null
 
     internal lateinit var findInPageBar: LinearLayout
     private lateinit var editFindText: EditText
@@ -1102,10 +1103,19 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             val naslov = v.webView?.url ?: return@setOnClickListener
             if (!predajAplikaciji(v, p, naslov)) it.visibility = View.GONE
         }
-        val novo = gumb.visibility != View.VISIBLE
         gumb.visibility = View.VISIBLE
-        if (fokus && novo && wv!!.izvorNalozenihStrani >= 2 && !ChromiumEngineView.naDotik(this)) gumb.requestFocus()
+        // TV 2. 11. 2026: gumb je bil viden ze ob onUrlChanged (pred onPageLoaded), zato pogoj »na novo viden« fokusa ni
+        // dal nikoli. Fokus dobi enkrat za vsak nalozen naslov zavihka (ne vsakic, da uporabnika ne vlece iz strani).
+        val kljuc = "${tabManager.getActiveTab()?.id}|${wv!!.url}"
+        if (fokus && kljuc != fokusGumbaZa && wv.izvorNalozenihStrani >= 2 && !ChromiumEngineView.naDotik(this)) {
+            fokusGumbaZa = kljuc
+            hideKeyboard()
+            gumb.post { if (gumb.visibility == View.VISIBLE) gumb.requestFocus() }
+        }
     }
+
+    /** Zavihek in naslov, za katerega je gumb »Nadaljuj v aplikaciji« ze dobil fokus. */
+    private var fokusGumbaZa: String? = null
 
     private fun incomingBrowseUrl(intent: Intent?): String? {
         val data = intent?.dataString
@@ -1529,6 +1539,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         btnMenu = findViewById(R.id.btnMenu)
         pageProgressBar = findViewById(R.id.pageProgressBar)
         webViewContainer = findViewById(R.id.webViewContainer)
+        btnAplikacija = findViewById(R.id.btnNadaljujVAplikaciji)
         virtualPointerView = findViewById(R.id.virtualPointerView)
 
         searchSuggestionsOverlay = findViewById(R.id.searchSuggestionsOverlay)
@@ -1627,6 +1638,11 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             (v.parent as? ViewGroup)?.removeView(v); v.setBackgroundResource(R.drawable.splet_chrome_gumb)
             v.layoutParams = LinearLayout.LayoutParams(dp(44), dp(44)).apply { marginStart = dp(3) }
             naslovna.addView(v)
+        }
+        // Gumb »Nadaljuj v aplikaciji« ostane v vrstici, desno od menija (vrstico smo zgoraj izpraznili).
+        btnAplikacija?.let { g ->
+            (g.parent as? ViewGroup)?.removeView(g)
+            naslovna.addView(g, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(44)).apply { marginStart = dp(6) })
         }
         // Telefon pokonci: levo je gumb menija Safeer OS (tri crte), zato je meni Spleta tri pike.
         nastaviIkono(btnMenu, if (osStranskaVrstica?.jePredal() == true) R.drawable.ic_splet_vec else R.drawable.ic_splet_menu, R.string.btn_menu)
@@ -3509,6 +3525,15 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             editUrl.clearFocus()
             activeWebView()?.requestFocus()
             return
+        }
+
+        // Lastnik 2. 11. 2026: po prijavi (Claude) je Nazaj pot nazaj v aplikacijo - zgodovina bi peljala le skozi
+        // strani prijave. Samo, ko je gumb »Nadaljuj v aplikaciji« ponujen (AplikacijaPovezave.nazajVAplikacijo).
+        if (AplikacijaPovezave.nazajVAplikacijo(btnAplikacija?.takeIf { it.visibility == View.VISIBLE }?.tag as? String,
+                nacinAplikacije != null)) {
+            val tab = tabManager.getActiveTab()
+            val naslov = tab?.webView?.url
+            if (tab != null && naslov != null && predajAplikaciji(tab, btnAplikacija?.tag as String, naslov)) return
         }
 
         // Spletna aplikacija: nazaj gre po njeni zgodovini, na zacetku pa se aplikacija zapre.

@@ -60,6 +60,16 @@ fun main() {
     preveri("gumb: brez izvora ni gumba", null,
         AplikacijaPovezave.ponudiAplikacijo(null, razreseni, brskalniki, "https://claude.ai/new", mi))
 
+    napak += preveriNazaj()
     if (napak > 0) { println("NAPAK: $napak"); exitProcess(1) }
     println("Vse v redu.")
+}
+
+fun preveriNazaj(): Int {
+    var n = 0
+    fun p(o: String, a: Boolean, b: Boolean) { if (a == b) println("  ok  $o") else { n++; println("  NAPAKA  $o") } }
+    p("Nazaj z gumbom vrne v aplikacijo", true, AplikacijaPovezave.nazajVAplikacijo("com.anthropic.claude", false))
+    p("Nazaj brez gumba gre po zgodovini", false, AplikacijaPovezave.nazajVAplikacijo(null, false))
+    p("Nazaj v spletni aplikaciji ne", false, AplikacijaPovezave.nazajVAplikacijo("com.anthropic.claude", true))
+    return n
 }
