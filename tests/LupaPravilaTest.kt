@@ -71,5 +71,12 @@ fun main() {
     preveriEnako("izklopljeno ne gre", false, LupaPravila.predlogeIskati("sintel", false))
     preveriEnako("sicer da", true, LupaPravila.predlogeIskati("sintel", true))
 
+    // 2. 11. 2026: izbira, kje lupa isce - privzeto Splet, neznana vrednost ne pokvari lupe
+    preveriEnako("privzeto splet", LupaPravila.OBSEG_SPLET, LupaPravila.obseg(null))
+    preveriEnako("neznano -> splet", LupaPravila.OBSEG_SPLET, LupaPravila.obseg("mediji"))
+    preveriEnako("shranjen youtube", LupaPravila.OBSEG_YOUTUBE, LupaPravila.obseg("youtube"))
+    preveriEnako("splet je prvi", LupaPravila.OBSEG_SPLET, LupaPravila.OBSEGI.first())
+    preveriEnako("youtube iskanje kodirano", "https://www.youtube.com/results?search_query=linkin+park+%C5%A1", LupaPravila.youtubeIskanje(" linkin park š "))
+
     if (napak == 0) println("LupaPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

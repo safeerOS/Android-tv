@@ -479,6 +479,37 @@ class PokrajinaActivity : OsActivity() {
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(12) })
     }
 
+    /**
+     * »Isci v: Splet | Video vsebine | YouTube« nad zadetki (lastnik 2. 11. 2026): uporabnik izbere, kje lupa isce ob Enter;
+     * izbira se zapomni na tej napravi. Izbran gumb je poudarjen; OK na gumbu izbere, besedilo ostane.
+     */
+    private fun izbiraObsega(): View {
+        val vrsta = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(dp(4), dp(2), 0, dp(6)) }
+        vrsta.addView(besedilo(getString(R.string.pk_lupa_obseg), 14f, R.color.os_umirjeno))
+        val izbran = DomacaLupa.obseg(this)
+        for (o in LupaPravila.OBSEGI) {
+            val napis = getString(when (o) {
+                LupaPravila.OBSEG_VIDEO -> R.string.pk_lupa_obseg_video
+                LupaPravila.OBSEG_YOUTUBE -> R.string.pk_lupa_obseg_youtube
+                else -> R.string.pk_lupa_obseg_splet
+            })
+            vrsta.addView(besedilo(napis, 15f, if (o == izbran) R.color.os_mint else R.color.os_besedilo, krepko = o == izbran).apply {
+                isFocusable = true; isClickable = true
+                background = steklo(14)
+                setPadding(dp(14), dp(5), dp(14), dp(5))
+                contentDescription = getString(R.string.pk_lupa_obseg) + " " + napis
+                setOnClickListener {
+                    DomacaLupa.nastaviObseg(this@PokrajinaActivity, o)
+                    narisiZadetke(poljeLupe.text?.toString().orEmpty())
+                    // Fokus ostane na izbranem gumbu (daljinec) - po ponovnem izrisu ga poiscemo po oznaki.
+                    zadetki.post { zadetki.findViewWithTag<View>("obseg_$o")?.requestFocus() }
+                }
+                tag = "obseg_$o"
+            }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(10) })
+        }
+        return vrsta
+    }
+
     private fun naslovSkupine(napis: Int) = besedilo(getString(napis), 13f, R.color.os_umirjeno).apply { setPadding(dp(4), dp(6), 0, dp(2)) }
 
     /**
@@ -490,6 +521,7 @@ class PokrajinaActivity : OsActivity() {
         val st = ++iskanjeSt
         zadetki.removeAllViews()
         if (q.isEmpty()) { zadetki.visibility = View.GONE; return }
+        zadetki.addView(izbiraObsega())
         val vsi = Aplikacije.zadnjiZnani(this) ?: emptyList()
         val programi = LupaPravila.najboljsi(vsi, q, 4) { it.ime }
         if (programi.isNotEmpty()) {
@@ -518,12 +550,19 @@ class PokrajinaActivity : OsActivity() {
             zadetki.addView(naslovSkupine(R.string.os_meni_nastavitve))
             for ((ime, namera) in zadetkiNastavitev) zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_nastavitve, ime) { odpri(namera) })
         }
-        zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_predvajaj, getString(R.string.pk_lupa_mediji, q)) {
-            odpri(Intent(this, GlasbaActivity::class.java).putExtra(GlasbaActivity.ISKANJE_BESEDA, q))
-        })
-        zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_splet, getString(R.string.pk_lupa_splet, q)) {
-            odpri(Brskalnik.namera(this).setAction(Intent.ACTION_VIEW).setData(android.net.Uri.parse(si.safeer.tv.SmartOmnibox.iskanje(this, q))))
-        })
+        // Izbrani obseg je prvi (Enter izvede tega), nato ostala dva v stalnem vrstnem redu (Splet, Video, YouTube).
+        val izbran = DomacaLupa.obseg(this)
+        for (o in listOf(izbran) + LupaPravila.OBSEGI.filter { it != izbran }) when (o) {
+            LupaPravila.OBSEG_VIDEO -> zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_predvajaj, getString(R.string.pk_lupa_mediji, q)) {
+                odpri(Intent(this, GlasbaActivity::class.java).putExtra(GlasbaActivity.ISKANJE_BESEDA, q))
+            })
+            LupaPravila.OBSEG_YOUTUBE -> zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_video, getString(R.string.pk_lupa_youtube, q)) {
+                odpri(Brskalnik.namera(this).setAction(Intent.ACTION_VIEW).setData(android.net.Uri.parse(LupaPravila.youtubeIskanje(q))))
+            })
+            else -> zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_splet, getString(R.string.pk_lupa_splet, q)) {
+                odpri(Brskalnik.namera(this).setAction(Intent.ACTION_VIEW).setData(android.net.Uri.parse(si.safeer.tv.SmartOmnibox.iskanje(this, q))))
+            })
+        }
         zadetki.visibility = View.VISIBLE
         // Sprotni zadetki iz spleta: samo od treh znakov, ne za naslov, in samo ce iskalnik predloge ima.
         val predloge = si.safeer.tv.SmartOmnibox.iskalnik(this).predlogi ?: return
@@ -906,7 +945,7 @@ class PokrajinaActivity : OsActivity() {
     private fun narisiTeden(dni: List<VremePravila.Dan>) {
         teden.removeAllViews()
         val vhod = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ROOT)
-        val izhod = java.text.SimpleDateFormat("EEE", java.util.Locale.getDefault())
+        val izhod = java.text.SimpleDateFormat("EEE", jezik())   // jezik vmesnika, kot ura in datum (pravilo 27. 10. 2026)
         for (d in dni) {
             val dan = try { vhod.parse(d.datum)?.let { izhod.format(it) } } catch (_: Exception) { null } ?: d.datum.takeLast(5)
             val stolpec = LinearLayout(this).apply {

@@ -310,6 +310,24 @@ object OsPravila {
      */
     fun glasbaJeVideo(glasbenTip: Boolean, id: String): Boolean = glasbenTip && jeImdb(id)
 
+    // ------------------------------------------------------------------ naloga 41: Filmi | Serije samo filmi in serije
+
+    private val PREDPONE_YOUTUBE = listOf("yt_id:", "yt:", "ytc:", "ytpl:", "youtube:")
+
+    /**
+     * Lastnik 2. 11. 2026: Filmi brez YouTube posnetkov in kanalov v zivo (naloga 41). Posnetek YouTube (id dodatka
+     * yt_id:/yt:, povezava youtube.com) in kanal v zivo nista film ne serija, tudi ce ima naslov letnico ali vnos tip »movie«.
+     */
+    fun niFilmNiSerija(idVnosa: String, povezava: String, kanal: Boolean): Boolean =
+        kanal || PREDPONE_YOUTUBE.any { idVnosa.startsWith(it, ignoreCase = true) } || jeYoutubePovezava(povezava)
+
+    /**
+     * Naloga 41: vnos splosnega video kataloga (tip kataloga ni movie/series) gre v mrezo Filmi | Serije samo, ce se sam
+     * oglasa kot film ali serija ali ima id IMDb/TMDB - letnica v naslovu (»Mix 2026«) ni dokaz, da je film.
+     */
+    fun izSplosnegaKataloga(tipVnosa: String, idVnosa: String): Boolean =
+        tipVnosa.equals("movie", true) || tipVnosa.equals("series", true) || jeImdb(idVnosa) || idVnosa.startsWith("tmdb:")
+
     /**
      * Naloga 77: s katerim tipom vprasamo dodatke po tokovih (pot /stream/{tip}/{id}.json). Ce noben uporabnikov dodatek ne
      * da toka za [tip] ([dodatekZaTip] = false) in je id IMDb, vprasamo kot »movie« (koncert je film); film in serija ostaneta.

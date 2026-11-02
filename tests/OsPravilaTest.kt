@@ -161,6 +161,25 @@ private fun preizkusKoncertovInIskanja() {
     preveriEnako("samo iskanje: katalog z obveznim filtrom brez iskanja", false, OsPravila.samoIskanje(listOf(false to false)))
 }
 
+/** Naloga 41 (lastnik 2. 11. 2026): Filmi | Serije brez YouTube posnetkov in kanalov v zivo. */
+private fun preizkusFilmovBrezYoutube41() {
+    println("\n== naloga 41: Filmi brez YouTube in kanalov ==")
+    preveriEnako("YouTubio yt_id ni film", true, OsPravila.niFilmNiSerija("yt_id:dQw4w9WgXcQ", "https://youtubio.example/meta/YouTube/yt_id%3AdQw4w9WgXcQ.json", false))
+    preveriEnako("yt: ni film", true, OsPravila.niFilmNiSerija("yt:dQw4w9WgXcQ", "", false))
+    preveriEnako("povezava youtube.com ni film", true, OsPravila.niFilmNiSerija("", "https://www.youtube.com/watch?v=dQw4w9WgXcQ", false))
+    preveriEnako("povezava youtu.be ni film", true, OsPravila.niFilmNiSerija("", "https://youtu.be/dQw4w9WgXcQ", false))
+    preveriEnako("kanal v zivo (M3U) ni film", true, OsPravila.niFilmNiSerija("", "http://iptv.example/movie/1.ts", true))
+    preveriEnako("Cinemeta tt ostane film", false, OsPravila.niFilmNiSerija("tt0111161", "https://v3-cinemeta.strem.io/meta/movie/tt0111161.json", false))
+    preveriEnako("film brez IMDb (TorBox) ostane", false, OsPravila.niFilmNiSerija("torbox:123", "https://torbox.example/meta/movie/torbox%3A123.json", false))
+    preveriEnako("ime youtube drugje ni YouTube", false, OsPravila.niFilmNiSerija("", "https://notyoutube.com/movie/1", false))
+    preveriEnako("splosni katalog: tip YouTube brez IMDb ne", false, OsPravila.izSplosnegaKataloga("YouTube", "yt_id:abc"))
+    preveriEnako("splosni katalog: tip channel z letnico ne", false, OsPravila.izSplosnegaKataloga("channel", "abc123"))
+    preveriEnako("splosni katalog: tip movie da", true, OsPravila.izSplosnegaKataloga("movie", "abc123"))
+    preveriEnako("splosni katalog: tip series da", true, OsPravila.izSplosnegaKataloga("series", "kitsu:1"))
+    preveriEnako("splosni katalog: IMDb da", true, OsPravila.izSplosnegaKataloga("other", "tt0111161"))
+    preveriEnako("splosni katalog: TMDB da", true, OsPravila.izSplosnegaKataloga("other", "tmdb:278"))
+}
+
 /** Naloga 75: zanesljivost izida sonde (mrtev ni za vedno), urnik pregleda dodatka, pomnilniski pritisk. */
 private fun preizkusPregledaKanalov() {
     println("\n== naloga 75: pregled kanalov ==")
@@ -1108,6 +1127,7 @@ fun main() {
     preizkusZaklenjenegaDodatka()
     preizkusOdklepa()
     preizkusIskanjaYoutubio()
+    preizkusFilmovBrezYoutube41()
     preizkusGlasbe83()
     preizkusRadia84()
     preizkusPregleda86()

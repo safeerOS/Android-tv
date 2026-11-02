@@ -82,8 +82,8 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private val tikUre = object : Runnable {
         override fun run() {
             val zdaj = Date()
-            ura.text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(zdaj)
-            val dFormat = SimpleDateFormat("EEE, d. MMM", Locale.getDefault())
+            ura.text = SimpleDateFormat("HH:mm", resources.configuration.locales[0] ?: Locale.getDefault()).format(zdaj)
+            val dFormat = SimpleDateFormat("EEE, d. MMM", resources.configuration.locales[0] ?: Locale.getDefault())   // jezik vmesnika (27. 10. 2026)
             datum.text = dFormat.format(zdaj).replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
             glavna.postDelayed(this, 30_000)
         }

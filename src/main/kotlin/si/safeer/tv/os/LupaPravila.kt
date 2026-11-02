@@ -18,6 +18,22 @@ object LupaPravila {
     const val SPLET = "splet"
 
     /**
+     * Kje lupa isce, ko uporabnik pritisne Enter (lastnik 2. 11. 2026: uporabnik oznaci, za kaj naj prikaze zadetke;
+     * prvi in privzeti je Splet, nato Video vsebine in YouTube; izbira se zapomni na napravi).
+     */
+    const val OBSEG_SPLET = "splet"
+    const val OBSEG_VIDEO = "video"
+    const val OBSEG_YOUTUBE = "youtube"
+    val OBSEGI = listOf(OBSEG_SPLET, OBSEG_VIDEO, OBSEG_YOUTUBE)
+
+    /** Shranjena izbira ali privzeti Splet (neznana ali prazna vrednost - npr. iz starejse razlicice). */
+    fun obseg(shranjen: String?): String = shranjen?.takeIf { it in OBSEGI } ?: OBSEG_SPLET
+
+    /** Iskanje na YouTubu (stran z zadetki v brskalniku). */
+    fun youtubeIskanje(q: String): String =
+        "https://www.youtube.com/results?search_query=" + java.net.URLEncoder.encode(q.trim(), "UTF-8")
+
+    /**
      * [naprava] = id naprave v ozjem krogu, izbrane po imenu; [vrsteNaprav] = platforme, ce je cilj vrsta (»na TV«);
      * oboje prazno = ta naprava.
      */

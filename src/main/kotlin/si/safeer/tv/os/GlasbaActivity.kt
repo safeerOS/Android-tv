@@ -2719,8 +2719,11 @@ class GlasbaActivity : OsActivity() {
         val vrsta = if (tip == "movie") SpletniVir.FILM else SpletniVir.SERIJA
         // Katalog prave vrste: izlocimo samo naslove, ki so ZAGOTOVO druge vrste (lastnik 22. 10.: serija Lucifer med Filmi);
         // neznana vrsta ostane. Splosen katalog: samo naslovi prave vrste.
-        if (k.tip == tip) return l.filter { SpletniVir.vrstaVsebine(it).let { v -> v == null || v == vrsta } }
-        return l.filter { SpletniVir.vrstaVsebine(it) == vrsta }
+        // Naloga 41 (lastnik 2. 11. 2026): YouTube posnetek in kanal v zivo nikoli, tudi iz kataloga tipa movie.
+        if (k.tip == tip) return l.filter { !SpletniVir.niFilmNiSerija(it) && SpletniVir.vrstaVsebine(it).let { v -> v == null || v == vrsta } }
+        // Splosen katalog: samo vnos, ki se sam oglasa kot film/serija (ali ima IMDb) - ne ugib po letnici v naslovu.
+        return l.filter { s -> SpletniVir.vrstaVsebine(s) == vrsta &&
+            (s.imdbId.isNotBlank() || Stremio.razstavi(s).let { d -> d == null || OsPravila.izSplosnegaKataloga(d.second, d.third) }) }
     }
 
     private fun straniKataloga(k: Stremio.Katalog, zvrst: Zvrsti.Zvrst?, skip: Int = 0): Pair<Int, List<Jamendo.Skladba>> {

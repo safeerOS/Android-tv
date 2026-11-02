@@ -295,12 +295,17 @@ object SpletniVir {
 
     /** Film, serija ali videospot po standardnih oznakah in naslovu; null = ne vemo. Rezultat se hrani po vsebini. */
     fun vrstaVsebine(s: Jamendo.Skladba): String? {
-        val kljuc = s.povezava + "\u0001" + s.naslov + "\u0001" + s.mediaType + "\u0001" + s.season + "\u0001" + s.episode + "\u0001" + s.streznik + "\u0001" + s.video
+        val kljuc = s.id + "\u0001" + s.povezava + "\u0001" + s.naslov + "\u0001" + s.mediaType + "\u0001" + s.season + "\u0001" + s.episode + "\u0001" + s.streznik + "\u0001" + s.video
         vrsteVsebine.get(kljuc)?.let { return if (it == NEZNANA) null else it }
-        val r = izracunajVrsto(s)
+        // Naloga 41: posnetek YouTube ali kanal v zivo ni film ne serija (videospot ostane videospot).
+        val r = izracunajVrsto(s).let { v -> if ((v == FILM || v == SERIJA) && niFilmNiSerija(s)) null else v }
         vrsteVsebine.put(kljuc, r ?: NEZNANA)
         return r
     }
+
+    /** Naloga 41 (lastnik 2. 11. 2026): YouTube posnetek ali kanal v zivo nikoli v Filmi | Serije. */
+    fun niFilmNiSerija(s: Jamendo.Skladba): Boolean =
+        OsPravila.niFilmNiSerija(if (Stremio.jeEnota(s)) Stremio.razstavi(s)?.third.orEmpty() else "", s.povezava, jeKanal(s))
 
     private fun izracunajVrsto(s: Jamendo.Skladba): String? {
         val u = s.povezava.lowercase()

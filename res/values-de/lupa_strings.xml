@@ -8,4 +8,9 @@
     <string name="pk_vreme_beseda">Wetter</string>
     <string name="pk_lupa_splet_predlogi">Live-Vorschläge aus dem Web in der Suche</string>
     <string name="pk_lupa_splet_predlogi_opis">Ab drei Buchstaben geht das Getippte an deine Suchmaschine (wie im Web).</string>
+    <string name="pk_lupa_obseg">Suchen in</string>
+    <string name="pk_lupa_obseg_splet">Web</string>
+    <string name="pk_lupa_obseg_video">Videos</string>
+    <string name="pk_lupa_obseg_youtube">YouTube</string>
+    <string name="pk_lupa_youtube">Auf YouTube suchen: „%1$s“</string>
 </resources>

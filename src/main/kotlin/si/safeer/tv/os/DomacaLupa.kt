@@ -345,7 +345,24 @@ object DomacaLupa {
             LupaPravila.ISCI_SPLET -> if (u.vsebina.isNotBlank()) { odpriSplet(a, si.safeer.tv.SmartOmnibox.iskanje(a, u.vsebina)); return }
             LupaPravila.SPLET -> if (odpriSplet(a, u.vsebina)) return
         }
+        // Brez ukaza isce tam, kjer je uporabnik izbral (privzeto Splet); ce brskalnika ni, ostane Medijski center.
+        when (obseg(a)) {
+            LupaPravila.OBSEG_YOUTUBE -> if (odpriSplet(a, LupaPravila.youtubeIskanje(q))) return
+            LupaPravila.OBSEG_SPLET -> if (odpriSplet(a, si.safeer.tv.SmartOmnibox.iskanje(a, q))) return
+        }
         a.startActivity(Intent(a, GlasbaActivity::class.java).putExtra(GlasbaActivity.ISKANJE_BESEDA, q))
+    }
+
+    private const val PREFS_LUPE = "safeer_os"
+    private const val KLJUC_OBSEG = "obseg_lupe"
+
+    /** Kje lupa isce (LupaPravila.OBSEGI); izbira velja za to napravo. */
+    fun obseg(c: Context): String = LupaPravila.obseg(try {
+        c.getSharedPreferences(PREFS_LUPE, Context.MODE_PRIVATE).getString(KLJUC_OBSEG, null)
+    } catch (_: Throwable) { null })
+
+    fun nastaviObseg(c: Context, o: String) {
+        try { c.getSharedPreferences(PREFS_LUPE, Context.MODE_PRIVATE).edit().putString(KLJUC_OBSEG, LupaPravila.obseg(o)).apply() } catch (_: Throwable) {}
     }
 
     /** Druge naprave v OZJEM krogu (id, ime) - samo te so lahko cilj ukaza po imenu. */

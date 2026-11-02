@@ -8,4 +8,9 @@
     <string name="pk_vreme_beseda">meteo</string>
     <string name="pk_lupa_splet_predlogi">Suggerimenti dal web nella ricerca</string>
     <string name="pk_lupa_splet_predlogi_opis">Da tre lettere in poi, ciò che scrivi va al tuo motore di ricerca (come in Web).</string>
+    <string name="pk_lupa_obseg">Cerca in</string>
+    <string name="pk_lupa_obseg_splet">Web</string>
+    <string name="pk_lupa_obseg_video">Video</string>
+    <string name="pk_lupa_obseg_youtube">YouTube</string>
+    <string name="pk_lupa_youtube">Cerca su YouTube: «%1$s»</string>
 </resources>
