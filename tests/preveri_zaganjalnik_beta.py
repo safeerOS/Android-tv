@@ -226,8 +226,10 @@ def main() -> int:
     preveri("cilj po imenu samo iz ozjega kroga", re.search(r"fun napraveKroga\(c: Context\).*?OzjiKrog\.vKrogu\(c, it\.id\)", lupa, re.S) is not None)
     preveri("cilj po vrsti samo iz ozjega kroga", "OzjiKrog.vKrogu(ctx, it.id)" in prikazi)
     preveri("vreme na napravo prek Linka (open_url)", 'link.ukaz(n.id, "open_url"' in lupa)
-    # Lastnik 2. 11. 2026: obseg (Splet, Video, YouTube) je ena vrstica pod lupo - ne trije zadetki »Isci v ...«.
-    for skupina in ("pk_lupa_programi", "VRSTE_DATOTEK", "os_meni_nastavitve", "izbiraObsega()", "pk_lupa_predlogi"):
+    # Lastnik 2. 11. 2026 (18:37-19:03): ena vrstica filtrov pod lupo (vrstaFiltrov), skupine po LupaPravila.skupine,
+    # prazno stanje z »Isci v Vse« - ne trije zadetki »Isci v ...«.
+    for skupina in ("pk_lupa_programi", "VRSTE_DATOTEK", "os_meni_nastavitve", "vrstaFiltrov()", "pk_lupa_predlogi",
+                    "LupaPravila.skupine(", "pk_lupa_ni_zadetkov_za", "pk_lupa_isci_v_vse"):
         preveri(f"zadetki lupe: {skupina}", skupina in pokrajina)
     preveri("brez treh vrstic obsega med zadetki", "pk_lupa_mediji" not in pokrajina and "R.string.pk_lupa_splet," not in pokrajina)
     preveri("lupa novega zaganjalnika (DomacaLupa.prevzemi)", "DomacaLupa.prevzemi(this, polje, okvir" in pokrajina and "fun glas(a: Activity)" in lupa)

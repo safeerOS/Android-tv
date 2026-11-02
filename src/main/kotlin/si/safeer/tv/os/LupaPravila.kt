@@ -18,22 +18,215 @@ object LupaPravila {
     const val SPLET = "splet"
 
     /**
-     * Kje lupa isce, ko uporabnik pritisne Enter (lastnik 2. 11. 2026: uporabnik oznaci, za kaj naj prikaze zadetke;
-     * prvi in privzeti je Splet, nato Video vsebine in YouTube; izbira se zapomni na napravi).
+     * Ena vrstica filtrov pod lupo (lastnik 2. 11. 2026, 18:37-19:03): uporabnik izbere, KAJ lupa prikaze - vse ali samo eno
+     * skupino zadetkov - in s tem tudi, kaj naredi OK na polju ([okNaPolju]). Prej (»Isci v: Splet · Video · YouTube«) je
+     * izbira odlocala samo, kje isce Enter, in se je zapomnila na napravi; zdaj vsako novo iskanje zacne na »Vse« ([obsegPo]).
      */
+    const val OBSEG_VSE = "vse"
     const val OBSEG_SPLET = "splet"
     const val OBSEG_VIDEO = "video"
     const val OBSEG_YOUTUBE = "youtube"
-    val OBSEGI = listOf(OBSEG_SPLET, OBSEG_VIDEO, OBSEG_YOUTUBE)
+    const val OBSEG_APLIKACIJE = "aplikacije"
+    const val OBSEG_DATOTEKE = "datoteke"
+    const val OBSEG_NASTAVITVE = "nastavitve"
+    /** Vrstni red gumbov v vrstici (lastnik 18:41). */
+    val OBSEGI = listOf(OBSEG_VSE, OBSEG_SPLET, OBSEG_VIDEO, OBSEG_YOUTUBE, OBSEG_APLIKACIJE, OBSEG_DATOTEKE, OBSEG_NASTAVITVE)
 
-    /** Shranjena izbira ali privzeti Splet (neznana ali prazna vrednost - npr. iz starejse razlicice). */
-    fun obseg(shranjen: String?): String = shranjen?.takeIf { it in OBSEGI } ?: OBSEG_SPLET
+    /** Podskupine brez lastnega gumba (lastnik 18:44, 18:45): videoteke (Netflix, RTV 365 …) in novice (RTV SLO, 24ur …). */
+    const val SKUPINA_VIDEOTEKE = "videoteke"
+    const val SKUPINA_NOVICE = "novice"
 
-    /** OK na polju lupe isce, ce je vpisano vsaj toliko, kot zahteva DomacaLupa.izvedi. */
-    fun okIsce(niz: String, obseg: String = OBSEG_SPLET): Boolean {
-        val l = niz.trim().length
-        return if (obseg == OBSEG_SPLET || obseg == OBSEG_YOUTUBE) l >= 1 else l >= 2
+    /**
+     * Skupine zadetkov pod »Vse« v danasnjem vrstnem redu (Aplikacije, Datoteke, Nastavitve), nove skupine za njimi;
+     * splet ostane zadnji kot do zdaj (lastnik 18:39: »Vse« ostane razdeljeno v skupine). Novice so takoj za aplikacijami,
+     * videoteke pred zadetki Medijskega centra (lastnik 18:44: »nad zadetki filmov in serij«).
+     */
+    val SKUPINE_VSE = listOf(OBSEG_APLIKACIJE, SKUPINA_NOVICE, OBSEG_DATOTEKE, OBSEG_NASTAVITVE, SKUPINA_VIDEOTEKE, OBSEG_VIDEO,
+        OBSEG_YOUTUBE, OBSEG_SPLET)
+
+    /** Veljavna izbira ali Vse (neznana ali prazna vrednost). */
+    fun obseg(izbira: String?): String = izbira?.takeIf { it in OBSEGI } ?: OBSEG_VSE
+
+    /**
+     * Izbira po dogodku: med urejanjem poizvedbe v isti lupi ostane, zaprta lupa (novo iskanje) zacne na Vse - lastnik
+     * 19:03 po neodvisnem pregledu: zapomnjena ozka izbira je naslednje iskanje nepricakovano izpraznila.
+     */
+    fun obsegPo(trenutni: String, lupaZaprta: Boolean): String = if (lupaZaprta) OBSEG_VSE else obseg(trenutni)
+
+    /**
+     * Skupine, ki jih izbira prikaze (po vrsti). »Aplikacije« pokaze VSE ujemajoce se aplikacije uporabnika, tudi videoteke
+     * in novice, v podskupinah (lastnik 18:47: »ce bo uporabnik iskal rtv slo, se mu prikaze pod Aplikacije«); pod »Vse« je
+     * vsaka aplikacija enkrat, v svoji skupini. »Video vsebine«: videoteke nad zadetki Medijskega centra.
+     */
+    fun skupine(obseg: String): List<String> = when (val o = obseg(obseg)) {
+        OBSEG_VSE -> SKUPINE_VSE
+        OBSEG_APLIKACIJE -> listOf(OBSEG_APLIKACIJE, SKUPINA_VIDEOTEKE, SKUPINA_NOVICE)
+        OBSEG_VIDEO -> listOf(SKUPINA_VIDEOTEKE, OBSEG_VIDEO)
+        else -> listOf(o)
     }
+
+    // ------------------------------------------------------------------ vrsta aplikacije (videoteka, novice, drugo)
+
+    /**
+     * Znani paketi videotek kot rezerva, ce aplikacija ne pove kategorije (ApplicationInfo.category). Samo splosno znani
+     * paketi - brez ugibanja (lastnik 18:44).
+     */
+    val PAKETI_VIDEO = setOf(
+        "com.netflix.ninja", "com.netflix.mediaclient",
+        "com.disney.disneyplus",
+        "com.amazon.amazonvideo.livingroom", "com.amazon.avod.thirdpartyclient",
+        "com.wbd.stream", "com.hbo.hbonow",
+        "com.google.android.youtube.tv", "com.google.android.youtube",
+        "com.teamsmart.videomanager.tv", "com.liskovsoft.smarttubetv.beta",
+        "org.xbmc.kodi", "com.plexapp.android",
+    )
+
+    /** Imena videotek, ki jih je lastnik nastel (paketov ne ugibamo): ime po [kljuc] brez presledkov in znakov. */
+    val IMENA_VIDEO = setOf("netflix", "max", "hbomax", "disney", "primevideo", "filmbox", "rtv365", "voyo", "youtube", "smarttube",
+        "skyshowtime", "kodi", "plex")
+
+    /** Novice (lastnik 18:45: »RTV SLO spada pod Novice, tako kot 24ur.com in Zurnal ali Svet24«). */
+    val IMENA_NOVICE = setOf("rtvslo", "24ur", "24urcom", "zurnal24", "zurnal24si", "svet24", "svet24si", "siolnet")
+    val GOSTITELJI_NOVICE = setOf("rtvslo.si", "24ur.com", "zurnal24.si", "svet24.si", "siol.net", "delo.si", "vecer.com", "dnevnik.si")
+
+    private fun imeKljuc(ime: String): String = besede(ime).joinToString("") { kljuc(it) }
+
+    /**
+     * Gostitelj spada pod domeno iz seznama samo kot ista domena ali njena poddomena (»www.24ur.com«, »m.rtvslo.si«),
+     * nikoli po podnizu (»24ur.com.zlo.si« ali »ne24ur.com« ni 24ur.com).
+     */
+    fun podDomeno(gostitelj: String, domene: Set<String>): Boolean {
+        val g = gostitelj.lowercase().trimEnd('.')
+        return domene.any { g == it || g.endsWith(".$it") }
+    }
+
+    fun gostitelj(url: String): String = try { java.net.URI(url.trim()).host.orEmpty() } catch (_: Throwable) { "" }
+
+    /**
+     * Namescena aplikacija: videoteka ([SKUPINA_VIDEOTEKE]), novice ([SKUPINA_NOVICE]) ali navadna ([OBSEG_APLIKACIJE]).
+     * Kategorija, ki jo aplikacija pove sama (ApplicationInfo.CATEGORY_VIDEO / CATEGORY_NEWS, Android 8+), ima prednost;
+     * nato znani paketi in imena. RTV 365 je videoteka (preverjeno pred novicami).
+     */
+    fun vrstaAplikacije(paket: String, ime: String, kategorijaVideo: Boolean, kategorijaNovice: Boolean): String {
+        val k = imeKljuc(ime)
+        return when {
+            kategorijaVideo || paket in PAKETI_VIDEO || k in IMENA_VIDEO -> SKUPINA_VIDEOTEKE
+            kategorijaNovice || k in IMENA_NOVICE -> SKUPINA_NOVICE
+            else -> OBSEG_APLIKACIJE
+        }
+    }
+
+    /**
+     * Zadetki aplikacij po skupinah (aplikacije, videoteke, novice): samo iz [seznam] - aplikacij, ki jih uporabnik IMA
+     * (namescene in njegove spletne aplikacije); znani seznami jih samo razvrstijo (lastnik 18:48). [vrsta] se klice samo za
+     * ujemajoce se (branje kategorije paketa ni za vsako aplikacijo ob vsaki crki). Najvec [najvec] na skupino.
+     */
+    fun <T> aplikacijePoSkupinah(seznam: List<T>, poizvedba: String, najvec: Int, ime: (T) -> String, vrsta: (T) -> String): Map<String, List<T>> =
+        najboljsi(seznam, poizvedba, Int.MAX_VALUE, ime).groupBy(vrsta).mapValues { it.value.take(najvec) }
+
+    /** Spletna aplikacija (plosca z naslovom): novice po domeni ali imenu, sicer navadna aplikacija. */
+    fun vrstaSpletne(url: String, ime: String): String =
+        if (podDomeno(gostitelj(url), GOSTITELJI_NOVICE) || imeKljuc(ime) in IMENA_NOVICE) SKUPINA_NOVICE else OBSEG_APLIKACIJE
+
+    /**
+     * Neposredni zadetki strani v skupini Splet (lastnik 18:47: »rtv slo« odpre rtvslo.si): spletne aplikacije uporabnika
+     * ([viri] = ime, naslov) in znane strani novic. Ujemanje po imenu, po gostitelju in po njegovi prvi oznaki
+     * (»24ur« -> 24ur.com, »rtv slo« -> rtvslo.si). Samo podnizno ujemanje (1) velja sele od 4 znakov, sicer bi »de«
+     * nasel delo.si. Vrne (ime, https naslov), vsaka domena enkrat. Znane strani, ki jih uporabnik nima, so SAMO tu,
+     * nikoli med aplikacijami (lastnik 18:48).
+     */
+    fun strani(poizvedba: String, viri: List<Pair<String, String>>, najvec: Int = 3): List<Pair<String, String>> {
+        val q = poizvedba.trim()
+        val dolzina = besede(q).joinToString("") { kljuc(it) }.length
+        if (dolzina < 2 || jeNaslov(q)) return emptyList()
+        val vsi = viri.filter { gostitelj(it.second).isNotEmpty() } + GOSTITELJI_NOVICE.map { it to "https://$it" }
+        return vsi.map { (ime, url) ->
+            val g = gostitelj(url).lowercase().removePrefix("www.")
+            Triple(ime, url, maxOf(ujemanje(ime, q), ujemanje(g, q), ujemanje(g.substringBefore('.'), q)))
+        }.filter { it.third >= 2 || (it.third == 1 && dolzina >= 4) }
+            .sortedByDescending { it.third }
+            .distinctBy { gostitelj(it.second).lowercase().removePrefix("www.") }
+            .take(najvec).map { it.first to it.second }
+    }
+
+    /** Kje isce izvedi() (OK, ki ga okno ne prevzame, in druga okna z lupo): Video in YouTube po izbiri, drugo v spletu. */
+    fun iskalniObseg(obseg: String): String = when (val o = obseg(obseg)) {
+        OBSEG_VIDEO, OBSEG_YOUTUBE -> o
+        else -> OBSEG_SPLET
+    }
+
+    /**
+     * Vrstica »Isci v spletu / v Video vsebinah / na YouTubu: <q>« je samo v pogledu ene spletne skupine: pod »Vse« bi
+     * bile spet tri dodatne vrstice, ki jih je lastnik 2. 11. 2026 umaknil (00503096) - tam so samo pravi zadetki.
+     */
+    fun vrsticaIskanja(obseg: String): Boolean = obseg(obseg) in setOf(OBSEG_SPLET, OBSEG_VIDEO, OBSEG_YOUTUBE)
+
+    /**
+     * Sprotni zadetki skupine [skupina] iz omrezja. Splet in YouTube gresta iskalniku samo z vklopljenimi sprotnimi zadetki
+     * (zasebnost: natipkano ne gre ven brez privolitve); YouTube pod »Vse« samo, ce je iskalnik uporabnika Google - sicer bi
+     * sli znaki Googlu mimo izbire iskalnika. Video vsebine (dodatki uporabnika, isto kot iskanje v Medijskem centru):
+     * izrecna izbira »Video vsebine« ali »Vse« z vklopljenimi sprotnimi zadetki.
+     */
+    fun zivo(skupina: String, obseg: String, poizvedba: String, vklopljeno: Boolean, iskalnikGoogle: Boolean): Boolean {
+        val o = obseg(obseg)
+        if (skupina !in skupine(o)) return false
+        val q = poizvedba.trim()
+        if (q.length < SPLET_OD_ZNAKOV || jeNaslov(q)) return false
+        return when (skupina) {
+            OBSEG_SPLET -> vklopljeno
+            OBSEG_YOUTUBE -> vklopljeno && (o == OBSEG_YOUTUBE || iskalnikGoogle)
+            OBSEG_VIDEO -> o == OBSEG_VIDEO || vklopljeno
+            else -> false
+        }
+    }
+
+    /** Kaj naredi OK na polju lupe (lastnik 19:03). */
+    enum class OkPolja { FOKUS_NA_PRVI, ODPRI_STRAN, ISCI_SPLET, ISCI_YOUTUBE, ISCI_VIDEO }
+
+    /**
+     * OK na polju: Splet odpre neposredno stran (»rtv slo« -> rtvslo.si), ce jo ima, sicer isce v spletu; YouTube isce na
+     * YouTubu; Video vsebine v Medijskem centru. Vse, Aplikacije, Datoteke, Nastavitve fokus premaknejo na prvi zadetek in
+     * nicesar ne zazenejo (uporabnik vidi, kaj bo odprl). Brez zadetka: krajevna izbira gre na »Isci v Vse« (prva vrstica
+     * praznega stanja), Vse isce v spletu kot do zdaj.
+     */
+    fun okNaPolju(obseg: String, imaZadetek: Boolean, imaStran: Boolean): OkPolja = when (obseg(obseg)) {
+        OBSEG_SPLET -> if (imaStran) OkPolja.ODPRI_STRAN else OkPolja.ISCI_SPLET
+        OBSEG_YOUTUBE -> OkPolja.ISCI_YOUTUBE
+        OBSEG_VIDEO -> OkPolja.ISCI_VIDEO
+        OBSEG_VSE -> if (imaZadetek) OkPolja.FOKUS_NA_PRVI else OkPolja.ISCI_SPLET
+        else -> OkPolja.FOKUS_NA_PRVI
+    }
+
+    /** Stanje seznama: zadetki, »Iscem …« (sprotni se cakajo, nic se ni) ali prazno (»Ni zadetkov za …«). */
+    enum class Stanje { ZADETKI, ISCEM, PRAZNO }
+
+    fun stanje(steviloVrstic: Int, cakam: Int): Stanje = when {
+        steviloVrstic > 0 -> Stanje.ZADETKI
+        cakam > 0 -> Stanje.ISCEM
+        else -> Stanje.PRAZNO
+    }
+
+    /** Prazno stanje ponudi »Isci v Vse« samo pri ozki izbiri (pod Vse ni kam siriti). */
+    fun ponudiVse(obseg: String): Boolean = obseg(obseg) != OBSEG_VSE
+
+    /**
+     * Velikost crk gumbov, pri kateri gre vseh sedem v eno vrstico brez drsenja (lastnik 19:03): [sirinePri15] = sirine
+     * napisov v px pri 15 sp, [dodatekPx] = notranji rob in razmik enega gumba, [prostorPx] = sirina vrstice. Prva velikost
+     * iz [velikosti], ki gre; null = ne gre niti najmanjsa (klicatelj vzame najmanjso in to zapise v dnevnik).
+     */
+    fun velikostGumbov(sirinePri15: List<Float>, dodatekPx: Float, prostorPx: Float,
+                       velikosti: List<Float> = listOf(15f, 14f, 13f, 12f)): Float? =
+        velikosti.firstOrNull { v -> sirinePri15.sumOf { (it * v / 15f + dodatekPx).toDouble() } <= prostorPx }
+
+    /** OK na polju lupe isce, ce je vpisano vsaj toliko, kot zahteva DomacaLupa.izvedi (Video vsebine od dveh znakov). */
+    fun okIsce(niz: String, obseg: String = OBSEG_VSE): Boolean {
+        val l = niz.trim().length
+        return if (obseg(obseg) == OBSEG_VIDEO) l >= 2 else l >= 1
+    }
+
+    /** YouTubovi predlogi (isti odgovor kot client=chrome, [predlogi]). */
+    fun youtubePredlogi(q: String): String =
+        "https://suggestqueries.google.com/complete/search?client=chrome&ds=yt&q=" + java.net.URLEncoder.encode(q.trim(), "UTF-8")
 
     /** Iskanje na YouTubu (stran z zadetki v brskalniku). */
     fun youtubeIskanje(q: String): String =

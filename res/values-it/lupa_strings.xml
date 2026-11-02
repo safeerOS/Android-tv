@@ -10,4 +10,19 @@
     <string name="pk_lupa_obseg_splet">Web</string>
     <string name="pk_lupa_obseg_video">Video</string>
     <string name="pk_lupa_obseg_youtube">YouTube</string>
+    <!-- Lastnik 2. 11. 2026 (18:37-19:03): ena vrstica filtrov lupe; videoteke in novice kot skupini aplikacij. -->
+    <string name="pk_lupa_obseg_vse">Tutto</string>
+    <string name="pk_lupa_videoteke">Videoteche</string>
+    <string name="pk_lupa_novice">Notizie</string>
+    <string name="pk_lupa_isci_splet">Cerca sul web: %1$s</string>
+    <string name="pk_lupa_isci_video">Cerca in Video: %1$s</string>
+    <string name="pk_lupa_isci_youtube">Cerca su YouTube: %1$s</string>
+    <string name="pk_lupa_filter_izbran">%1$s, filtro, selezionato</string>
+    <string name="pk_lupa_filter_ni_izbran">%1$s, filtro, non selezionato</string>
+    <string name="pk_lupa_ni_zadetkov_za">Nessun risultato per «%1$s» in %2$s</string>
+    <string name="pk_lupa_ni_zadetkov_za_vse">Nessun risultato per «%1$s»</string>
+    <string name="pk_lupa_isci_v_vse">Cerca in Tutto</string>
+    <string name="pk_lupa_iscem">Ricerca…</string>
+    <string name="pk_lupa_splet_ni">Il web non è raggiungibile ora</string>
+    <string name="pk_lupa_st_zadetkov">Risultati: %1$d</string>
 </resources>

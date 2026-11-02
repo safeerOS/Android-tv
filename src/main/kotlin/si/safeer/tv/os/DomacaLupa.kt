@@ -343,8 +343,20 @@ object DomacaLupa {
      * Naloga 42 E: ENA razclemba ukazov za lupo in glas ([LupaPravila.razcleni]) - »<kaj> na <napravo>« (naprava po imenu
      * v ozjem krogu ali po vrsti), vreme, »isci v spletu«, spletni naslov, sicer iskanje v Medijih.
      */
+    /**
+     * Okno z zadetki in filtri lupe (domaci zaslon, lastnik 2. 11. 2026 19:03): [obsegLupe] je izbira v tej lupi (ni
+     * shranjena - vsako novo iskanje zacne na Vse); [okNaPolju] prevzame OK (fokus na prvi zadetek, neposredna stran) in
+     * vrne true, sicer izvedi isce po izbiri.
+     */
+    interface IzbiraLupe {
+        fun obsegLupe(): String
+        fun okNaPolju(niz: String): Boolean
+    }
+
     fun izvedi(a: Activity, niz: String) {
         val q = niz.trim()
+        // Vse poti (OK na polju, Enter tipkovnice, »Isci« na zaslonski tipkovnici) gredo sem - zato se prvi zadetek odpre tu.
+        if (a is IzbiraLupe && a.okNaPolju(q)) return
         if (!LupaPravila.okIsce(q, obseg(a))) return
         dodajZgodovino(a, q)
         val u = LupaPravila.razcleni(q, napraveKroga(a))
@@ -354,8 +366,8 @@ object DomacaLupa {
             LupaPravila.ISCI_SPLET -> if (u.vsebina.isNotBlank()) { odpriSplet(a, si.safeer.tv.SmartOmnibox.iskanje(a, u.vsebina)); return }
             LupaPravila.SPLET -> if (odpriSplet(a, u.vsebina)) return
         }
-        // Brez ukaza isce tam, kjer je uporabnik izbral (privzeto Splet); ce brskalnika ni, ostane Medijski center.
-        when (obseg(a)) {
+        // Brez ukaza isce tam, kjer je uporabnik izbral (Vse in druga okna z lupo: splet); brez brskalnika Medijski center.
+        when (LupaPravila.iskalniObseg(obseg(a))) {
             LupaPravila.OBSEG_YOUTUBE -> if (odpriSplet(a, LupaPravila.youtubeIskanje(q))) return
             LupaPravila.OBSEG_SPLET -> if (odpriSplet(a, si.safeer.tv.SmartOmnibox.iskanje(a, q))) return
         }
@@ -363,15 +375,18 @@ object DomacaLupa {
     }
 
     private const val PREFS_LUPE = "safeer_os"
+    /** Do 2. 11. 2026 shranjena izbira (»Isci v«); zdaj ni vec shranjena - [pozabiStaroIzbiro] jo pobrise. */
     private const val KLJUC_OBSEG = "obseg_lupe"
 
-    /** Kje lupa isce (LupaPravila.OBSEGI); izbira velja za to napravo. */
-    fun obseg(c: Context): String = LupaPravila.obseg(try {
-        c.getSharedPreferences(PREFS_LUPE, Context.MODE_PRIVATE).getString(KLJUC_OBSEG, null)
-    } catch (_: Throwable) { null })
+    /** Kaj lupa prikaze in kje isce: izbira odprte lupe ([IzbiraLupe]); drugje Vse. */
+    fun obseg(c: Context): String = LupaPravila.obseg((c as? IzbiraLupe)?.obsegLupe())
 
-    fun nastaviObseg(c: Context, o: String) {
-        try { c.getSharedPreferences(PREFS_LUPE, Context.MODE_PRIVATE).edit().putString(KLJUC_OBSEG, LupaPravila.obseg(o)).apply() } catch (_: Throwable) {}
+    /** Lastnik 19:03: izbira se ne pomni vec - stara shranjena vrednost ne sme ostati v nastavitvah naprave. */
+    fun pozabiStaroIzbiro(c: Context) {
+        try {
+            val p = c.getSharedPreferences(PREFS_LUPE, Context.MODE_PRIVATE)
+            if (p.contains(KLJUC_OBSEG)) p.edit().remove(KLJUC_OBSEG).apply()
+        } catch (_: Throwable) {}
     }
 
     /** Druge naprave v OZJEM krogu (id, ime) - samo te so lahko cilj ukaza po imenu. */
@@ -379,6 +394,13 @@ object DomacaLupa {
         val link = LinkUpravitelj.pridobi(c.applicationContext)
         link.naprave.filter { !link.jeTaNaprava(it) && OzjiKrog.vKrogu(c, it.id) }.map { it.id to DatotekeActivity.lepoIme(it.ime) }
     } catch (_: Throwable) { emptyList() }
+
+    /** Zadetek skupine YouTube: iskanje na YouTubu v brskalniku (isto kot Enter v izbiri YouTube). */
+    fun isciNaYoutubu(a: Activity, q: String) {
+        if (q.isBlank()) return
+        dodajZgodovino(a, q.trim())
+        odpriSplet(a, LupaPravila.youtubeIskanje(q))
+    }
 
     private fun odpriSplet(a: Activity, url: String): Boolean = try {
         a.startActivity(Brskalnik.namera(a).setAction(Intent.ACTION_VIEW).setData(Uri.parse(url))); true
