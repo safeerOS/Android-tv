@@ -66,7 +66,7 @@ object SiteProfileResolver {
  * en pravi dotik na sredini, ce je tam res one ([GoogleTipke.ok]); polje z dotikom odpre tipkovnico. Ce dotik ne
  * doseze potrditvenega polja (skrit vhod pod narisanim okvirjem), ga preklopi Presledek.
  */
-private const val KLIK_FOKUSA = """(function(){var e=document.activeElement,v=window.__gnavPolje;window.__gnavPolje=null;if((!e||e===document.body||e===document.documentElement)&&v&&v.isConnected)e=v;if(!e||e===document.body||e===document.documentElement)return 'enter'; var kontrola='input,textarea,select,button,[role="checkbox"],[role="switch"],[role="radio"],[role="button"],[contenteditable="true"]'; var a=e.matches('a[href]')?e:(e.matches(kontrola)?null:e.querySelector('a[href]')); if(a){try{a.focus({preventScroll:true});}catch(_){} return 'enter';} var pr=e.matches('input[type="checkbox"],input[type="radio"],[role="checkbox"],[role="switch"],[role="radio"]'); var r=e.getBoundingClientRect(); if(r.width>0&&r.height>0&&(r.top<0||r.bottom>innerHeight||r.left<0||r.right>innerWidth)){try{e.scrollIntoView({block:'center',inline:'nearest'});}catch(_){} r=e.getBoundingClientRect();} if(r.width<=0||r.height<=0)return pr?'space':'enter'; var x=r.left+r.width/2,y=r.top+r.height/2,p=document.elementFromPoint(x,y),lab=p&&p.closest?p.closest('label'):null; if(p&&(p===e||e.contains(p)||(lab&&lab.control===e)))return 'dotik:'+Math.round(x)+','+Math.round(y); return pr?'space':'enter';})()"""
+private const val KLIK_FOKUSA = """(function(){var e=document.activeElement,v=window.__gnavPolje;window.__gnavPolje=null;if((!e||e===document.body||e===document.documentElement)&&v&&v.isConnected)e=v;if(!e||e===document.body||e===document.documentElement||e.tagName==='IFRAME')return 'enter'; var kontrola='input,textarea,select,button,[role="checkbox"],[role="switch"],[role="radio"],[role="button"],[contenteditable="true"]'; var a=e.matches('a[href]')?e:(e.matches(kontrola)?null:e.querySelector('a[href]')); if(a){try{a.focus({preventScroll:true});}catch(_){} return 'enter';} var pr=e.matches('input[type="checkbox"],input[type="radio"],[role="checkbox"],[role="switch"],[role="radio"]'); var r=e.getBoundingClientRect(); if(r.width>0&&r.height>0&&(r.top<0||r.bottom>innerHeight||r.left<0||r.right>innerWidth)){try{e.scrollIntoView({block:'center',inline:'nearest'});}catch(_){} r=e.getBoundingClientRect();} if(r.width<=0||r.height<=0)return pr?'space':'enter'; var x=r.left+r.width/2,y=r.top+r.height/2,p=document.elementFromPoint(x,y),lab=p&&p.closest?p.closest('label'):null; if(p&&(p===e||e.contains(p)||(lab&&lab.control===e)))return 'dotik:'+Math.round(x)+','+Math.round(y); return pr?'space':'enter';})()"""
 
 /**
  * Smerne tipke na Googlovih zadetkih (22. 9. 2026, video lastnika): Tab je hodil po vsakem zavihku, meniju
@@ -95,6 +95,7 @@ private const val GOOGLE_SMER = """((function(smer){ var W=innerWidth,H=innerHei
 function gnavPas(r,dno){return dno>0&&r.bottom<=dno+1?'glava':'telo';}
 function gnavNacrt(smer,od,imaOkno){ if(imaOkno)return {pas:'okno',rob:'okno',prvi:od!=='okno'}; if(od==='glava'){if(smer==='DOWN')return {pas:'telo',rob:'rob',crta:true}; return {pas:'glava',rob:'rob',vrsta:smer!=='UP'};} if(od==='telo')return {pas:'telo',rob:smer==='UP'?'glava':'rob'}; return smer==='UP'?{pas:'glava',rob:'rob',crta:true,blizji:true}:{pas:'telo',rob:'rob',crta:true}; }
 function gnavNajblizji(smer,cur,L,blizji){ var vert=(smer==='UP'||smer==='DOWN'),naj=-1,ns=1e9,tol=Math.min(12,cur.height/2); for(var k=0;k<L.length;k++){var q=L[k].r,gap,ov; if(smer==='DOWN'){if(q.top<cur.bottom-tol)continue;gap=q.top-cur.bottom;} else if(smer==='UP'){if(q.bottom>cur.top+tol)continue;gap=cur.top-q.bottom;} else if(smer==='RIGHT'){if(q.left<cur.right-8)continue;gap=q.left-cur.right;} else{if(q.right>cur.left+8)continue;gap=cur.left-q.right;} if(gap<0)gap=0; ov=vert?Math.min(q.right,cur.right)-Math.max(q.left,cur.left):Math.min(q.bottom,cur.bottom)-Math.max(q.top,cur.top); var s=gap+(ov>0?0:-ov)*2+(vert?Math.abs(q.left-cur.left)*0.3:0); if(L[k].ikona)s+=120; if(s<ns){ns=s;naj=k;}} if(naj<0&&blizji){var cx=cur.left+cur.width/2,cy=cur.top+cur.height/2; for(var j=0;j<L.length;j++){var p=L[j].r,d=Math.abs(p.left+p.width/2-cx)+Math.abs(p.top+p.height/2-cy)+(L[j].ikona?120:0);if(d<ns){ns=d;naj=j;}}} return naj; }
+function gnavTuje(f){return !!f.naVrhu&&f.w>=120&&f.h>=120&&f.w*f.h>=f.W*f.H*0.08&&(f.pritrjen||f.nadStranjo||f.vDialogu);}
 function gnavPrvi(L){var naj=-1;for(var k=0;k<L.length;k++){var a=L[k].r,b=naj<0?null:L[naj].r;if(!b||a.top<b.top-8||(Math.abs(a.top-b.top)<=8&&a.left<b.left))naj=k;}return naj;}
 function gnavVrsta(smer,cur,L){ var vsi=L.map(function(a,i){return {r:a.r,i:i};}); vsi.push({r:cur,i:-1}); vsi.sort(function(a,b){var ya=a.r.top+a.r.height/2,yb=b.r.top+b.r.height/2; return Math.abs(ya-yb)>16?ya-yb:a.r.left-b.r.left;}); var t=-1; for(var k=0;k<vsi.length;k++)if(vsi[k].i===-1)t=k; var n=smer==='RIGHT'?t+1:t-1; return n>=0&&n<vsi.length?vsi[n].i:-1; }
 /* GNAV_PRAVILA_KONEC */
@@ -102,8 +103,9 @@ var forms=[].slice.call(document.querySelectorAll('form[role="search"],form[acti
 var polje=document.querySelector('form[role="search"] textarea,form[action="/search"] textarea,textarea[name="q"],input[name="q"]'); if(polje&&polje.getBoundingClientRect().height<=0)polje=null;
 var sel='a[href],button,input:not([type="hidden"]),select,textarea,[role="button"],[role="link"],[role="tab"],[tabindex]:not([tabindex="-1"])';
 function najdiOkno(){var d=[].slice.call(document.querySelectorAll('[aria-modal="true"],[role="dialog"],[role="alertdialog"],dialog[open]')),naj=null; for(var i=0;i<d.length;i++){var x=d[i],r=x.getBoundingClientRect();if(r.width<40||r.height<40)continue; var cs=getComputedStyle(x);if(cs.display==='none'||cs.visibility==='hidden'||+cs.opacity===0)continue; if(x.closest('[aria-hidden="true"],[inert]')||!x.querySelector(sel))continue; var px=Math.min(Math.max(r.left+r.width/2,1),W-1),py=Math.min(Math.max(r.top+r.height/2,1),H-1),p=document.elementFromPoint(px,py); if(p&&(p===x||x.contains(p)))naj=x;} return naj;}
-function tujeOkno(){var p=document.elementFromPoint(W/2,H/2);if(!p||p.tagName!=='IFRAME')return false;for(var f=p;f&&f!==document.body;f=f.parentElement){if(getComputedStyle(f).position==='fixed')return true;}return false;}
-var okno=najdiOkno(); if(!okno&&tujeOkno()){window.__gnavOznacen=null;window.__gnavPos&&window.__gnavPos();return 'tuje';}
+function tujeOkno(){var fr=[].slice.call(document.querySelectorAll('iframe')),naj=null; for(var i=0;i<fr.length;i++){var x=fr[i],r=x.getBoundingClientRect(); if(r.width<=0||r.height<=0)continue; var cs=getComputedStyle(x); if(cs.display==='none'||cs.visibility==='hidden'||+cs.opacity===0)continue; var px=Math.min(Math.max(r.left+r.width/2,1),W-1),py=Math.min(Math.max(r.top+r.height/2,1),H-1),p=document.elementFromPoint(px,py),pr=false,nad=false; for(var f=x;f&&f!==document.body;f=f.parentElement){var fs=getComputedStyle(f);if(fs.position==='fixed')pr=true;if(fs.position==='absolute'&&parseInt(fs.zIndex,10)>0)nad=true;} var dl=!!x.closest('[role="dialog"],[role="menu"],[aria-modal="true"],dialog'); if(gnavTuje({naVrhu:p===x,w:r.width,h:r.height,W:W,H:H,pritrjen:pr,nadStranjo:nad,vDialogu:dl}))naj=x;} return naj;}
+var okno=najdiOkno(),tuj=okno?null:tujeOkno(); if(smer==='TUJE')return tuj?'tuje':'ne';
+if(tuj){window.__gnavOznacen=null;window.__gnavPolje=null;window.__gnavPos&&window.__gnavPos(); if(document.activeElement!==tuj){try{tuj.focus();}catch(_){} return 'tuje+';} return 'tuje';}
 var dno=0; [].slice.call(document.querySelectorAll('input:not([type="hidden"]),textarea,[role="combobox"],[role="search"],form')).forEach(function(z){if(okno&&okno.contains(z))return;var f=z.getBoundingClientRect();if(f.height>0&&f.width>W*0.3&&f.bottom>0&&f.top<H*0.4&&f.bottom<H*0.6&&f.bottom>dno)dno=f.bottom;});
 var e=window.__gnavOd||document.activeElement,od=null,cur=null; window.__gnavOd=null; if(e===document.body||e===document.documentElement)e=null;
 if(!e&&window.__gnavPolje&&window.__gnavPolje===polje)e=polje;
@@ -128,6 +130,8 @@ return (document.activeElement===naj?'ok':'ni')+(naj.matches(':focus-visible')?'
 
 /** Smer na Googlovih zadetkih; [naRobu] se poklice, ce v tej smeri ni nicesar (GOR: naslovna vrstica). */
 internal fun smerNaGooglu(wv: android.webkit.WebView, smer: String, event: KeyEvent, naRobu: () -> Unit) {
+    // TV 2. 11. 2026: po odprtju plosce racuna ni bilo nobene vrstice - vstop zabelezimo, da se vidi, ali tipka sploh pride sem.
+    android.util.Log.d("SafeerGoogleNav", "$smer vstop")
     // Google okvir fokusa vklopi sele, ko vidi tipko Tab (ne programski fokus ne druge tipke - preizkuseno
     // na TV 22. 9.). Zato na strani enkrat posljemo pravi Tab; cilj pa racunamo od elementa, ki je bil
     // izbran PRED njim (__gnavOd), ne od tistega, kamor je Tab skocil.
@@ -136,8 +140,10 @@ internal fun smerNaGooglu(wv: android.webkit.WebView, smer: String, event: KeyEv
         wv.evaluateJavascript("$GOOGLE_SMER('$smer')") { odgovor ->
             android.util.Log.d("SafeerGoogleNav", "$smer -> $odgovor")
             val o = (odgovor ?: "").trim('"')
-            // Okno v tujem okvirju (iframe) nasa skripta ne vidi: tipko dobi stran (Tab), kot drugje na Googlu.
+            // Okno v tujem okvirju (iframe, npr. Googlova plosca racuna) nasa skripta ne vidi: tipko dobi okvir sam
+            // (DOL/DESNO Tab, GOR/LEVO Shift+Tab). tuje+: skript je pravkar dal fokus okvirju, prvi korak je naprej.
             if (o == "tuje") nativnaTipka(wv, event)
+            if (o == "tuje+") nativnaTipka(wv, KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_DOWN))
             if (o == "rob") {
                 if (smer == "DOWN") wv.evaluateJavascript("window.scrollBy(0,Math.round(innerHeight*0.6))", null)
                 else { wv.evaluateJavascript("window.__gnavOznacen=null;window.__gnavPos&&window.__gnavPos();", null); naRobu() }
@@ -515,6 +521,23 @@ object GenericWebSiteProfile : SiteProfile {
     }
 
     override fun handleBack(host: MainActivity): Boolean {
+        val wv = host.activeWebView()
+        // Googlovo iskanje z odprtim oknom v tujem okvirju (plosca racuna): Nazaj ga zapre z Escape, stran ostane.
+        // Samo, ce ima Nazaj kam (canGoBack) - takrat spodnja pot vedno vrne true, zato jo lahko pozenemo kasneje.
+        if (wv != null && jeGoogleIskanje(wv) && wv.canGoBack()) {
+            wv.evaluateJavascript("$GOOGLE_SMER('TUJE')") { o ->
+                android.util.Log.d("SafeerGoogleNav", "BACK -> $o")
+                host.runOnUiThread {
+                    if (GoogleTipke.jeTuje(o)) nativnaTipka(wv, KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BACK), KeyEvent.KEYCODE_ESCAPE)
+                    else nazajPoStrani(host)
+                }
+            }
+            return true
+        }
+        return nazajPoStrani(host)
+    }
+
+    private fun nazajPoStrani(host: MainActivity): Boolean {
         val tab = host.tabManager.getActiveTab()
         // Pojavno okno (prijava): Nazaj ga zapre in nas vrne na stran, ki ga je odprla.
         if (tab != null && tab.jePojavni && tab.webView?.let { !jeSmiselnoNazaj(it) } == true) {

@@ -361,8 +361,10 @@ def main() -> int:
             and "if(naj===polje&&document.activeElement!==polje)" in gs and "window.__gnavPolje=polje;" in gs
             and "textarea[name=\"q\"]" in gs and "function polje()" not in gs)
     # Lastnik 2. 11. 2026: do Prijava v glavi in do gumbov Googlovega okna ni prisel (tests/google_smer_test.js).
-    preveri("Google: odprto pogovorno okno ujame smeri",
-            "if(imaOkno)return {pas:'okno',rob:'okno',prvi:od!=='okno'};" in gs and "var okno=najdiOkno();" in gs)
+    # TV 2. 11.: Googlova plosca racuna je tuj okvir (iframe) pod glavo - tipke gredo vanj, Nazaj ga zapre (Escape).
+    preveri("Google: odprto pogovorno okno in tuj okvir ujameta smeri",
+            "if(imaOkno)return {pas:'okno',rob:'okno',prvi:od!=='okno'};" in gs
+            and "var okno=najdiOkno(),tuj=okno?null:tujeOkno();" in gs and "if(smer==='TUJE')return tuj?'tuje':'ne';" in gs)
     md = (SRC / "os/MiniPredvajalnik.kt").read_text(encoding="utf-8")
     pk2 = (SRC / "os/PokrajinaActivity.kt").read_text(encoding="utf-8")
     preveri("dock: na Pokrajini nad spodnjo vrstico (odmik ob postavitvi vrstice)",

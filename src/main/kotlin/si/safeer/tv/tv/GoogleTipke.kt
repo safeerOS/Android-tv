@@ -44,4 +44,10 @@ object GoogleTipke {
      * Shift+Tab na prejsnji element strani (polje za geslo, e-posta ...).
      */
     fun gorVNaslov(odgovor: String?): Boolean = (odgovor ?: "").trim().trim('"') != "stran"
+
+    /**
+     * Nazaj na Googlovem iskanju: odgovor GOOGLE_SMER('TUJE'). Ce je odprto okno v tujem okvirju (plosca racuna,
+     * TV 2. 11. 2026), ga zapre Escape; sicer navaden Nazaj po zgodovini.
+     */
+    fun jeTuje(odgovor: String?): Boolean = (odgovor ?: "").trim().trim('"') == "tuje"
 }

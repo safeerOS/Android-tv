@@ -27,5 +27,7 @@ fun main() {
     preveri("GOR s fokusom na elementu strani: ostane v strani (Shift+Tab)", !T.gorVNaslov("\"stran\""))
     preveri("GOR brez fokusa na strani: naslovna vrstica", T.gorVNaslov("\"vrh\""))
     preveri("GOR, ce skript ne odgovori: naslovna vrstica (ne obtici)", T.gorVNaslov(null) && T.gorVNaslov("null"))
+    preveri("Nazaj z odprtim tujim oknom: Escape", T.jeTuje("\"tuje\""))
+    preveri("Nazaj brez tujega okna ali brez odgovora: zgodovina", !T.jeTuje("\"ne\"") && !T.jeTuje(null) && !T.jeTuje("null"))
     println("GoogleTipkeTest: OK ($stevilo)")
 }

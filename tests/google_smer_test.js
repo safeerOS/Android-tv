@@ -69,7 +69,7 @@ function stran() {
     function pozeni(smer) {
         const f = new Function('window', 'document', 'innerWidth', 'innerHeight', 'getComputedStyle',
             'return ' + js)(okolje, doc, W, H,
-            (x) => ({ visibility: 'visible', display: 'block', opacity: '1', overflowX: 'visible', position: x.poz || 'static' }));
+            (x) => ({ visibility: 'visible', display: 'block', opacity: '1', overflowX: 'visible', position: x.poz || 'static', zIndex: x.z || 'auto' }));
         return f(smer);
     }
     // OK na Googlu (KLIK_FOKUSA): skript se izvede takoj in vrne odlocitev za Kotlin (GoogleTipke.ok).
@@ -207,9 +207,44 @@ function googlovaStran() {
 {
     const g = googlovaStran();
     const ovoj = g.s.el('DIV', [], [0, 0, 1920, 1080], null, '', { poz: 'fixed' });
-    g.s.el('IFRAME', [], [460, 240, 1000, 600], ovoj, '');
+    g.s.el('IFRAME', ['iframe'], [460, 240, 1000, 600], ovoj, '');
     g.z1.focus();
-    preveri('okno v tujem okvirju: tuje (Kotlin poslje pravo tipko)', 'tuje', g.s.pozeni('DOWN'));
+    preveri('okno v tujem okvirju: fokus v okvir in prvi Tab naprej (tuje+)', 'tuje+', g.s.pozeni('DOWN'));
+    preveri('nato tipke v okvir (tuje)', 'tuje', g.s.pozeni('UP'));
+}
+// TV 2. 11. 2026 (48df9e6b): OK na avatarju odpre Googlovo plosco racuna - tuj okvir (iframe) desno pod glavo, ne cez
+// cel zaslon in ne role=dialog. Nobena tipka ni prisla vanj. Zdaj je to pas »tuje«: smeri so Tab/Shift+Tab v okvir,
+// OK je Enter, Nazaj Escape; ko okvir izgine, spet nasi pasovi.
+{
+    const g = googlovaStran();
+    const avatar = g.s.el('A', POVEZAVA, [1840, 16, 48, 48], null, '');
+    const ovoj = g.s.el('DIV', [], [1080, 160, 800, 780], null, '', { poz: 'absolute', z: '991' });
+    const okvir = g.s.el('IFRAME', ['iframe'], [1080, 160, 800, 780], ovoj, '');
+    avatar.focus();
+    preveri('plosca racuna (iframe, ne cez cel zaslon): DOL -> tuje+ (prej nasi pasovi, nic v okvir)', 'tuje+', g.s.pozeni('DOWN'));
+    preveri('fokus je v okvirju', okvir, g.s.doc.activeElement);
+    preveri('DOL v okvirju: tuje (Tab)', 'tuje', g.s.pozeni('DOWN'));
+    preveri('LEVO v okvirju: tuje (Shift+Tab, ne stranska vrstica)', 'tuje', g.s.pozeni('LEFT'));
+    preveri('UP v okvirju: tuje (ne naslovna vrstica)', 'tuje', g.s.pozeni('UP'));
+    preveri('OK s fokusom v okvirju: Enter (ne dotik na sredini plosce)', 'enter', g.s.ok());
+    preveri('Nazaj: TUJE pove, da je okno odprto (Kotlin poslje Escape)', 'tuje', g.s.pozeni('TUJE'));
+    okvir.r = ovoj.r = { left: 0, top: 0, width: 0, height: 0, right: 0, bottom: 0 };
+    preveri('zaprta plosca: TUJE -> ne (Nazaj po zgodovini)', 'ne', g.s.pozeni('TUJE'));
+    g.z1.focus();
+    g.s.pozeni('DOWN');
+    preveri('zaprta plosca: spet nasi pasovi', g.z2, g.s.doc.activeElement);
+}
+// Okvirji, ki niso okno nad stranjo, ostanejo del strani.
+{
+    const g = googlovaStran();
+    const v = g.s.el('DIV', [], [900, 500, 600, 300], null, '');
+    g.s.el('IFRAME', ['iframe'], [900, 500, 600, 300], v, '');     // vsebina v toku strani (zemljevid)
+    const w = g.s.el('DIV', [], [1500, 300, 100, 100], null, '', { poz: 'absolute', z: '5' });
+    g.s.el('IFRAME', ['iframe'], [1500, 300, 100, 100], w, '');    // majhen pripomocek
+    g.z1.focus();
+    g.s.pozeni('DOWN');
+    preveri('okvir v toku strani in majhen okvir nista tuje okno', g.z2, g.s.doc.activeElement);
+    preveri('TUJE brez okna: ne', 'ne', g.s.pozeni('TUJE'));
 }
 
 // ---------------------------------------------------------------- OK na prijavi (accounts.google.com)
@@ -243,5 +278,8 @@ function googlovaStran() {
 // Kotlin mora 'tuje' predati strani in na 'okno' ne narediti nicesar (ne naslovne vrstice, ne stranske vrstice).
 const smerNaGooglu = vir.split('internal fun smerNaGooglu(', 2)[1].split('\n}\n', 1)[0];
 preveri('Kotlin: tuje -> prava tipka strani', true, /"tuje"\) nativnaTipka\(wv, event\)/.test(smerNaGooglu));
+preveri('Kotlin: tuje+ -> Tab naprej', true, /"tuje\+"\) nativnaTipka\(wv, KeyEvent\(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_DOWN\)\)/.test(smerNaGooglu));
+preveri('Kotlin: Nazaj z odprtim tujim oknom -> Escape', true,
+    /GoogleTipke\.jeTuje\(o\)\) nativnaTipka\(wv, KeyEvent\(KeyEvent\.ACTION_DOWN, KeyEvent\.KEYCODE_BACK\), KeyEvent\.KEYCODE_ESCAPE\)/.test(vir));
 preveri('Kotlin: rob samo pri odgovoru rob', true, /if \(o == "rob"\)/.test(smerNaGooglu));
 console.log('google_smer_test: OK (' + stevilo + ')');
