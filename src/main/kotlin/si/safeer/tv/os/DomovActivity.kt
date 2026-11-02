@@ -82,9 +82,10 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private val tikUre = object : Runnable {
         override fun run() {
             val zdaj = Date()
-            ura.text = SimpleDateFormat("HH:mm", resources.configuration.locales[0] ?: Locale.getDefault()).format(zdaj)
-            val dFormat = SimpleDateFormat("EEE, d. MMM", resources.configuration.locales[0] ?: Locale.getDefault())   // jezik vmesnika (27. 10. 2026)
-            datum.text = dFormat.format(zdaj).replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+            // Jezik vmesnika za uro, datum in veliko zacetnico (27. 10. 2026; pregled Gemini 2. 11.: tudi titlecase).
+            val jezik = resources.configuration.locales[0] ?: Locale.getDefault()
+            ura.text = SimpleDateFormat("HH:mm", jezik).format(zdaj)
+            datum.text = SimpleDateFormat("EEE, d. MMM", jezik).format(zdaj).replaceFirstChar { if (it.isLowerCase()) it.titlecase(jezik) else it.toString() }
             glavna.postDelayed(this, 30_000)
         }
     }
