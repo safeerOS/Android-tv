@@ -213,6 +213,13 @@ object UskladitevKljucev {
         // vec, gre kot grob (odvzem velja na vseh napravah kroga).
         for (j in NapraveKrogaPravila.zaPoslati(si.safeer.tv.link.ZaupanjeZaslona.vsaJedra(c)) { si.safeer.tv.link.ZaupanjeZaslona.jedroVKrogu(c, it) })
             v[P.kljucZaupanja(j)] = "1"
+        // Naloga 46 E: Vrstni red ploscic se prenese na drug Safeer v istem krogu.
+        val redDomov = Priljubljene.redDomov(c)
+        if (redDomov.isNotEmpty()) {
+            v[P.KLJUC_RED_DOMOV] = org.json.JSONArray(redDomov).toString()
+        } else {
+            neznani += P.KLJUC_RED_DOMOV
+        }
         return v to neznani
     }
 
@@ -335,6 +342,10 @@ object UskladitevKljucev {
             z.kljuc == P.KLJUC_USENET_PONUDNIK ->
                 if (z.izbrisan) Pripravljen(z) { UsenetPonudnik.get(c).pozabi(); true }
                 else ponudnikIzVrednosti(z.vrednost)?.let { (pp, g) -> Pripravljen(z) { UsenetPonudnik.get(c).prejetoIzKroga(pp, g) } }
+            // Naloga 46 E: Vrstni red ploscic domacega zaslona
+            z.kljuc == P.KLJUC_RED_DOMOV ->
+                if (z.izbrisan) null
+                else Pripravljen(z) { Priljubljene.shraniRedDomov(c, org.json.JSONArray(z.vrednost).let { a -> (0 until a.length()).map { a.optString(it) } }); true }
             else -> null
         }
     } catch (e: Exception) { Log.w(TAG, "pripravi: ${e.javaClass.simpleName}"); null }

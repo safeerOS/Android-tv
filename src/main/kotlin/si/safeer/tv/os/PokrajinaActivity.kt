@@ -43,6 +43,21 @@ import java.util.TimeZone
  */
 class PokrajinaActivity : OsActivity() {
     private val glavna = Handler(Looper.getMainLooper())
+    private val link by lazy { LinkUpravitelj.pridobi(this) }
+    private val linkPoslusalec = object : LinkOdjemalec.Poslusalec {
+        override fun naStanje(povezan: Boolean, sporocilo: String) { osveziLinkPiko() }
+        override fun naNaprave(naprave: List<LinkOdjemalec.Naprava>) { osveziLinkPiko() }
+        override fun naNaslov(url: String, naslov: String, od: String) {}
+        override fun naBesedilo(besedilo: String, od: String) {}
+        override fun naZavrnitev() {}
+    }
+    private fun osveziLinkPiko() {
+        val pika = dok.findViewWithTag<View>("link_pika") ?: return
+        val vidna = link.povezan && link.naprave.any {
+            !link.jeTaNaprava(it) && (OzjiKrog.vKrogu(this@PokrajinaActivity, it.id) || it.zmoznosti.contains(si.safeer.tv.link.Daljinec.ZMOZNOST_DELI_ZASLON))
+        }
+        pika.visibility = if (vidna) View.VISIBLE else View.GONE
+    }
     private lateinit var koren: FrameLayout
     private lateinit var zatemnitevOzadja: View
     private lateinit var ura: TextView
@@ -161,6 +176,8 @@ class PokrajinaActivity : OsActivity() {
 
     override fun onStart() {
         super.onStart()
+        link.dodaj(linkPoslusalec)
+        osveziLinkPiko()
         Ozadje.uporabi(this, koren)
         // Po zgledu tv-simple-home (Scrim): ura zgoraj in spodnja vrstica ostaneta berljivi tudi na svetli sliki.
         val alfa = PokrajinaPravila.alfaPreliva(Ozadje.zatemnitev(this))
@@ -188,6 +205,7 @@ class PokrajinaActivity : OsActivity() {
     }
 
     override fun onStop() {
+        link.odstrani(linkPoslusalec)
         glavna.removeCallbacks(preveriMirovanje)
         zbudi(animiraj = false)
         glavna.removeCallbacks(preveriMirovanje)
@@ -1014,8 +1032,18 @@ class PokrajinaActivity : OsActivity() {
                 }
                 setOnClickListener { odpriRazdelek(r) }
                 setOnLongClickListener { moznostiDokGumba(r, getString(napis)); true }
-                addView(ImageView(this@PokrajinaActivity).apply { setImageResource(ikona); setColorFilter(osBarva(R.color.os_mint)) },
-                    LinearLayout.LayoutParams(dp(34), dp(34)))
+                val ikonaOkvir = FrameLayout(this@PokrajinaActivity)
+                ikonaOkvir.addView(ImageView(this@PokrajinaActivity).apply { setImageResource(ikona); setColorFilter(osBarva(R.color.os_mint)) },
+                    FrameLayout.LayoutParams(dp(34), dp(34)))
+                if (r == PokrajinaPravila.LINK) {
+                    val pika = View(this@PokrajinaActivity).apply {
+                        setBackgroundResource(R.drawable.os_pika)
+                        visibility = View.GONE
+                        tag = "link_pika"
+                    }
+                    ikonaOkvir.addView(pika, FrameLayout.LayoutParams(dp(8), dp(8)).apply { gravity = Gravity.TOP or Gravity.END; topMargin = dp(2); marginEnd = dp(2) })
+                }
+                addView(ikonaOkvir, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
                 addView(bes, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(4) })
             }
             poudariFokus(gumb)

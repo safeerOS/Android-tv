@@ -55,6 +55,8 @@ object UskladitevKljucevPravila {
      * napravah ozjega kroga - vrednost je "1", izbris (grob) zaupanje odvzame povsod. Pravila: [NapraveKrogaPravila].
      */
     const val PREDPONA_ZAUPANJA = "zaupanje:"
+    /** Vrstni red ploscic domacega zaslona (samo rocni red, samo ozji krog). */
+    const val KLJUC_RED_DOMOV = "red_domov"
     /**
      * Naloga 42 G: ponudnik Usenet (NNTP: streznik, uporabnik, geslo - UsenetPonudnik.zaKrog); vrednost je JSON
      * {"ponudnik": {...}, "geslo": "..."}, preverjen z UsenetPonudnikPravila.izKroga. Zapah in izid preverbe ne gresta.
