@@ -42,7 +42,9 @@ for gumb in ("btnClearUrl", "btnSearchTrigger", "btnFavorite", "btnBack", "btnHo
 # Vsak gumb postavitve, ki je narejen za daljinec, mora biti v tem seznamu (polje naslova samo seveda ostane).
 for ime in re.findall(r'android:id="@\+id/(\w+)"(?:(?!android:id=).)*?android:focusableInTouchMode="true"', postavitev, re.S):
     if ime != "editUrl":
-        preveri("gumb %s iz postavitve je v seznamu za dotik" % ime, ime in gumbi)
+        # btnNadaljujVAplikaciji je v MainActivity spremenljivka btnAplikacija
+        spremenljivka = {"btnNadaljujVAplikaciji": "btnAplikacija"}.get(ime, ime)
+        preveri("gumb %s iz postavitve je v seznamu za dotik" % ime, spremenljivka in gumbi)
 preveri("cipi portalov in predlogi na dotik ne jemljejo fokusa",
         "isFocusableInTouchMode = true" not in chrome and "isFocusableInTouchMode = !ChromiumEngineView.naDotik(context)" in glavna)
 preveri("dotik strani zapre tudi tipkovnico", "if (ChromiumEngineView.naDotik(this)) hideKeyboard()" in glavna)

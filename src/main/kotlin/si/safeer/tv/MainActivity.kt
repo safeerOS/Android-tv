@@ -1563,7 +1563,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         // zaprlo, naslov pa ni bil pobrisan.
         if (ChromiumEngineView.naDotik(this)) {
             listOf<View>(btnBack, btnHome, btnReload, btnClearUrl, btnSearchTrigger, btnFavorite, btnPointerToggle,
-                btnAddTab, btnTabCount, btnMenu).forEach { it.isFocusableInTouchMode = false }
+                btnAddTab, btnTabCount, btnMenu, btnAplikacija).forEach { it.isFocusableInTouchMode = false }
         }
     }
 
