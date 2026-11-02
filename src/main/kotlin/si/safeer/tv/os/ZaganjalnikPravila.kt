@@ -121,6 +121,9 @@ object ZaganjalnikPravila {
     fun smeOpustiti(drugiZaganjalniki: Int): Boolean = drugiZaganjalniki > 0
 
     /** Ali je zaganjalnik pravi (ne sistemski FallbackHome z negativno prednostjo). */
+    /** Ali tipko Domov dobi drug pravi zaganjalnik (ne mi, ne sistemska izbira »android«, ne neznano). */
+    fun drugZaganjalnikImaDomov(kdo: String?, nas: String): Boolean = kdo != null && kdo != "android" && kdo != nas
+
     fun jePraviZaganjalnik(paket: String, razred: String, prednost: Int, nas: String): Boolean =
         paket != nas && prednost >= 0 && !razred.endsWith("FallbackHome")
 

@@ -196,6 +196,12 @@ fun main() {
     // Lastnik 27. 10. 2026: izklop domacega zaslona na TV brez drugega zaganjalnika = crn zaslon
     preveri("izklop brez drugega zaganjalnika zavrnjen", !ZaganjalnikPravila.smeOpustiti(0))
     preveri("izklop z drugim zaganjalnikom dovoljen", ZaganjalnikPravila.smeOpustiti(1))
+    // Pregled Grok 2. 11. 2026: zastarel dokaz »mi smo dom« in FallbackHome
+    preveri("drug zaganjalnik ima Domov", ZaganjalnikPravila.drugZaganjalnikImaDomov("com.google.android.tvlauncher", "si.safeer.os"))
+    preveri("mi imamo Domov", !ZaganjalnikPravila.drugZaganjalnikImaDomov("si.safeer.os", "si.safeer.os"))
+    preveri("sistemska izbira ni drug zaganjalnik", !ZaganjalnikPravila.drugZaganjalnikImaDomov("android", "si.safeer.os"))
+    preveri("neznano ni drug zaganjalnik", !ZaganjalnikPravila.drugZaganjalnikImaDomov(null, "si.safeer.os"))
+    preveri("FallbackHome ni pravi zaganjalnik", !ZaganjalnikPravila.jePraviZaganjalnik("com.android.tv.settings", "com.android.tv.settings.system.FallbackHome", -1000, "si.safeer.os"))
     println(if (napak == 0) "\nVSE OK" else "\nNAPAK: $napak")
     if (napak > 0) kotlin.system.exitProcess(1)
 }

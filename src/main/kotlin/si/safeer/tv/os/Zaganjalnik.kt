@@ -52,8 +52,14 @@ object Zaganjalnik {
         // Tablica, telefon (Android 10+): vloga HOME je zanesljiv odgovor - tudi ko uporabnik v sistemskih
         // nastavitvah izbere drug zaganjalnik. Televizorji vloge pogosto nimajo; tam velja dokaz iz prakse.
         vlogaNaVoljo(context)?.let { return it }
-        if (nasZagonDomov(context)) return true
         val kdo = domaciZaslon(context)
+        // Pregled Grok 2. 11. 2026: ce tipko Domov ze dobi drug zaganjalnik, dokaz iz prakse ne velja vec (prej je Nazaj
+        // iz Pokrajine obstal, nastavitve pa so kazale »izbran«) - dokaz pobrisemo, kot ga ze ignorira nameraDomov.
+        if (ZaganjalnikPravila.drugZaganjalnikImaDomov(kdo, context.packageName)) {
+            context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(KLJUC_DOMOV).apply()
+            return false
+        }
+        if (nasZagonDomov(context)) return true
         return kdo != null && kdo == context.packageName
     }
 
@@ -68,7 +74,7 @@ object Zaganjalnik {
     fun nameraDomov(context: Context): Intent? {
         if (!jePonujen(context) || !jeIzbran(context)) return null
         // Pregled 70: sistem kaze drug zaganjalnik (uporabnik ga je izbral pozneje) - dokaz iz prakse je zastarel.
-        domaciZaslon(context)?.let { kdo -> if (kdo != "android" && kdo != context.packageName) return null }
+        if (ZaganjalnikPravila.drugZaganjalnikImaDomov(domaciZaslon(context), context.packageName)) return null
         val n = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME).setPackage(context.packageName)
         return try { if (context.packageManager.resolveActivity(n, 0) != null) n else null } catch (_: Throwable) { null }
     }
@@ -161,7 +167,8 @@ object Zaganjalnik {
         }
         for (r in najdeni) {
             val info = r.activityInfo ?: continue
-            if (info.packageName == context.packageName) continue
+            // Pregled Grok 2. 11. 2026: sistemski FallbackHome je crn zaslon - kot pri rocnem izklopu ga preskocimo.
+            if (!ZaganjalnikPravila.jePraviZaganjalnik(info.packageName, info.name, r.priority, context.packageName)) continue
             try {
                 context.startActivity(Intent(Intent.ACTION_MAIN)
                     .addCategory(Intent.CATEGORY_HOME)
