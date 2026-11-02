@@ -267,9 +267,14 @@ class VnosStoritev : AccessibilityService() {
             if (paket == packageName) zadnjaUporabniska = null
             val ctx = applicationContext
             val zvokObMenjavi = si.safeer.tv.os.Pomnilnik.zvokAktiven(ctx)   // pred zamikom: po 3 s igra ze nova aplikacija
+            val odhodiObMenjavi = si.safeer.tv.os.Pomnilnik.odhodi            // vsak odhod z doma po tem zapiranje ustavi
             for (zamik in longArrayOf(3_000L, 15_000L)) glavnaNit.postDelayed({
                 val zdaj = try { rootInActiveWindow?.packageName?.toString() } catch (_: Throwable) { null }
-                Thread { si.safeer.tv.os.Pomnilnik.zapriObMenjavi(ctx, prejUporabniska, zdaj, zamik, zvokObMenjavi) }.apply { isDaemon = true }.start()
+                // Meritev TV 2. 11. 2026 11:02: TV Browser, odprt 1 s po Domov, je to zapiranje ubilo (force-stop) - okno nove
+                // aplikacije med nalaganjem se ni bilo »zdaj«. Tik pred ukazom preverimo, ali se je uporabnik vrnil vanjo.
+                val vrnilSe = { zadnjaUporabniska == prejUporabniska ||
+                    (try { rootInActiveWindow?.packageName?.toString() } catch (_: Throwable) { null }) == prejUporabniska }
+                Thread { si.safeer.tv.os.Pomnilnik.zapriObMenjavi(ctx, prejUporabniska, zdaj, zamik, zvokObMenjavi, vrnilSe, odhodiObMenjavi) }.apply { isDaemon = true }.start()
             }, zamik)
         }
         if (vklop && paket in miskaVklopljena) m.vklopi(paket) else m.izklopi()

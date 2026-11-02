@@ -130,17 +130,24 @@ object Pomnilnik {
     } catch (_: Exception) { false }
 
     @android.annotation.SuppressLint("MissingPermission")   // dovoljenje preveri smemo(); brskalnik ga nima
-    fun zapriObMenjavi(c: Context, prejsnja: String, nova: String?, casMs: Long, predvaja: Boolean) {
+    fun zapriObMenjavi(c: Context, prejsnja: String, nova: String?, casMs: Long, predvaja: Boolean,
+                       vrnilSe: () -> Boolean = { false }, odhodiObMenjavi: Long = -1L) {
+        val odhodiOd = if (odhodiObMenjavi >= 0) odhodiObMenjavi else odhodi
         if (!smemo(c)) return
         val vklopljeno = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("zapri_neuporabljeno", true)
         val ime = try { android.provider.Settings.Secure.getString(c.contentResolver, "default_input_method")?.substringBefore('/') } catch (_: Throwable) { null }
         val pm = c.packageManager
         val trajen = try { (pm.getApplicationInfo(prejsnja, 0).flags and ApplicationInfo.FLAG_PERSISTENT) != 0 } catch (_: Exception) { false }
         
-        if (OsPravila.zapriObMenjavi(prejsnja, nova, casMs, c.packageName, ime, trajen, vklopljeno, predvaja)) {
+        if (OsPravila.zapriObMenjavi(prejsnja, nova, casMs, c.packageName, ime, trajen, vklopljeno, predvaja) && !vrnilSe() &&
+            AdbLokalnoPravila.smemoNadaljevati(odhodiOd, odhodi)) {
             Thread {
                 val pred = stanje(c)
-                val zaprti = zapriPakete(c, listOf(prejsnja), setOfNotNull(nova), ime)
+                spremljajOdhode(c)
+                // Ne zapri, ce se je uporabnik vrnil v aplikacijo ali ce je od menjave zapustil dom (odprl karkoli).
+                val zaprti = zapriPakete(c, listOf(prejsnja), setOfNotNull(nova), ime) {
+                    !vrnilSe() && AdbLokalnoPravila.smemoNadaljevati(odhodiOd, odhodi)
+                }
                 val po = stanje(c)
                 Log.i(TAG, "zapiranje ob menjavi ($prejsnja -> $nova, ${casMs / 1000} s, zaprto=${zaprti.isNotEmpty()}), RAM pred: ${pred.prostoMb}MB, po: ${po.prostoMb}MB")
             }.start()
