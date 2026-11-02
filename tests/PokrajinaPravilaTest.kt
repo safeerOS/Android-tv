@@ -16,7 +16,8 @@ fun main() {
     val t = 1_793_071_740_000L
 
     println("\n== ura in datum v jeziku vmesnika ==")
-    preveriEnako("ura", "03:29", PokrajinaPravila.ura(t, Locale("sl"), utc))
+    preveriEnako("ura 24h", "03:29", PokrajinaPravila.ura(t, Locale("sl"), utc, true))
+    preveriEnako("ura 12h", "3:29 AM", PokrajinaPravila.ura(t, Locale("en"), utc, false))
     preveriEnako("datum sl", "Tor., 27. okt.", PokrajinaPravila.datum(t, Locale("sl"), utc))
     preveriEnako("datum en (napaka zgleda: EN vmesnik, SL datum)", "Tue, 27 Oct", PokrajinaPravila.datum(t, Locale("en"), utc))
     preveriEnako("datum de", "Di., 27. Okt.", PokrajinaPravila.datum(t, Locale("de"), utc))

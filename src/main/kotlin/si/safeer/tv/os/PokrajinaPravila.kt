@@ -43,8 +43,10 @@ object PokrajinaPravila {
     fun tema(izbrana: String?, novZaganjalnik: Boolean): String =
         izbrana?.takeIf { it.isNotBlank() } ?: if (novZaganjalnik) TEMA else TEMA_STARA
 
-    fun ura(ms: Long, jezik: Locale, zona: TimeZone): String =
-        SimpleDateFormat("HH:mm", jezik).apply { timeZone = zona }.format(Date(ms))
+    fun ura(ms: Long, jezik: Locale, zona: TimeZone, urniNacin24: Boolean): String {
+        val vzorec = if (urniNacin24) "HH:mm" else "h:mm a"
+        return SimpleDateFormat(vzorec, jezik).apply { timeZone = zona }.format(Date(ms))
+    }
 
     /**
      * Kratek datum v jeziku vmesnika: »Tor., 27. okt.« (sl), »Tue, 27 Oct« (en), »Di., 27. Okt.« (de), »mar, 27 oct« ->

@@ -90,7 +90,7 @@ class PokrajinaActivity : OsActivity() {
     private val tikUre = object : Runnable {
         override fun run() {
             val zdaj = System.currentTimeMillis()
-            ura.text = PokrajinaPravila.ura(zdaj, jezik(), TimeZone.getDefault())
+            ura.text = PokrajinaPravila.ura(zdaj, jezik(), TimeZone.getDefault(), android.text.format.DateFormat.is24HourFormat(this@PokrajinaActivity))
             datum.text = PokrajinaPravila.datum(zdaj, jezik(), TimeZone.getDefault())
             // Lastnik 27. 10. 2026: vreme vsaj priblizno sveze tudi, ko je domaci zaslon ves vecer na TV - prej samo ob
             // odprtju zaslona. Klic gre na splet najvec na VremePravila.OSVEZI_MS (30 min), sicer nic.
@@ -109,7 +109,8 @@ class PokrajinaActivity : OsActivity() {
         koren.addView(zatemnitevOzadja, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         val vsebina = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(40), dp(24), dp(40), dp(18))
+            val rob = shramba().getInt("varen_rob_dp", 40)
+            setPadding(dp(rob), dp(24), dp(rob), dp(18))
         }
         vsebina.addView(glava(), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         vsebina.addView(lupa(), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
@@ -159,8 +160,29 @@ class PokrajinaActivity : OsActivity() {
             isHorizontalFadingEdgeEnabled = true; setFadingEdgeLength(dp(48))
             addView(vrstaAplikacij)
         }
+        val okvirDrsnika = FrameLayout(this).apply { clipChildren = false; clipToPadding = false }
+        okvirDrsnika.addView(drsnik, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        val puscica = TextView(this).apply {
+            text = "›"
+            textSize = 24f
+            setTextColor(osBarva(R.color.os_besedilo))
+            contentDescription = "Več"
+            visibility = View.GONE
+            setPadding(dp(8), dp(8), dp(8), dp(8))
+        }
+        okvirDrsnika.addView(puscica, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER_VERTICAL or Gravity.END))
+        
+        val osveziPuscico = {
+            val vidno = drsnik.width > 0 && drsnik.scrollX < drsnik.getChildAt(0).width - drsnik.width - dp(10)
+            val zadnjaSFokusom = vrstaAplikacij.childCount > 0 && vrstaAplikacij.getChildAt(vrstaAplikacij.childCount - 1).hasFocus()
+            puscica.visibility = if (vidno && !zadnjaSFokusom) View.VISIBLE else View.GONE
+        }
+        drsnik.setOnScrollChangeListener { _, _, _, _, _ -> osveziPuscico() }
+        vrstaAplikacij.viewTreeObserver.addOnGlobalFocusChangeListener { _, _ -> osveziPuscico() }
+        vrstaAplikacij.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> osveziPuscico() }
+
         // Lastnik 28. 10. 2026: vrstica pod iskalno lupo - mini predvajalnik (nad spodnjo vrstico) je ne prekriva vec.
-        vsebina.addView(drsnik, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(18) })
+        vsebina.addView(okvirDrsnika, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(18) })
         vsebina.addView(View(this), LinearLayout.LayoutParams(0, 0, 1f))
         dok = plavajocaVrstica()
         dok.addOnLayoutChangeListener { _, _, t, _, b, _, st, _, sb -> if (t != st || b != sb) { robDocka(); prilagodiVisinoPlosc() } }
@@ -170,6 +192,16 @@ class PokrajinaActivity : OsActivity() {
         koren.addView(vsebina, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         setContentView(koren)
         if (intent?.categories?.contains(Intent.CATEGORY_HOME) == true) Zaganjalnik.zabeleziZagonDomov(this)
+        if (Zaganjalnik.vrnjenPoPadcu(this)) pokaziVrnjenPoPadcu()
+    }
+
+    private fun pokaziVrnjenPoPadcu() {
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
+            .setTitle(R.string.zg_padec_naslov)
+            .setMessage(R.string.nz_padec_opis)
+            .setPositiveButton(R.string.zg_padec_znova) { _, _ -> Zaganjalnik.zahtevajVlogo(this) }
+            .setNegativeButton(android.R.string.ok, null)
+            .let { Kontroler.pokazi(it.show()) }
     }
 
     /**
@@ -181,8 +213,23 @@ class PokrajinaActivity : OsActivity() {
         super.onResume()
     }
 
+    private val usbSprejemnik = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            narisiAplikacije()
+        }
+    }
+
     override fun onStart() {
         super.onStart()
+        val filter = android.content.IntentFilter().apply {
+            addAction(Intent.ACTION_MEDIA_MOUNTED)
+            addAction(Intent.ACTION_MEDIA_UNMOUNTED)
+            addAction(Intent.ACTION_MEDIA_EJECT)
+            addAction(Intent.ACTION_MEDIA_REMOVED)
+            addDataScheme("file")
+        }
+        if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(usbSprejemnik, filter, Context.RECEIVER_NOT_EXPORTED)
+        else @Suppress("UnspecifiedRegisterReceiverFlag") registerReceiver(usbSprejemnik, filter)
         link.dodaj(linkPoslusalec)
         osveziLinkPiko()
         Ozadje.uporabi(this, koren)
@@ -212,6 +259,7 @@ class PokrajinaActivity : OsActivity() {
     }
 
     override fun onStop() {
+        try { unregisterReceiver(usbSprejemnik) } catch (_: Throwable) { }
         link.odstrani(linkPoslusalec)
         glavna.removeCallbacks(preveriMirovanje)
         zbudi(animiraj = false)
@@ -480,8 +528,21 @@ class PokrajinaActivity : OsActivity() {
         fun plosca(obroba: Int, debelina: Int, ozadje: Int) = GradientDrawable().apply {
             setColor(osBarva(ozadje)); cornerRadius = dp(polmerDp).toFloat(); setStroke(dp(debelina), osBarva(obroba))
         }
+        fun ploscaFokus(polmerDp: Int): android.graphics.drawable.Drawable {
+            val spodaj = GradientDrawable().apply {
+                setColor(osBarva(R.color.os_kartica_steklo_fokus))
+                cornerRadius = dp(polmerDp).toFloat()
+                setStroke(dp(5), osBarva(R.color.os_mint))
+            }
+            val zgoraj = GradientDrawable().apply {
+                setColor(android.graphics.Color.TRANSPARENT)
+                cornerRadius = dp(polmerDp).toFloat()
+                setStroke(dp(2), osBarva(R.color.os_ozadje))
+            }
+            return android.graphics.drawable.LayerDrawable(arrayOf(spodaj, zgoraj))
+        }
         return StateListDrawable().apply {
-            if (fokusMogoc) addState(intArrayOf(android.R.attr.state_focused), plosca(R.color.os_mint, 3, R.color.os_kartica_steklo_fokus))
+            if (fokusMogoc) addState(intArrayOf(android.R.attr.state_focused), ploscaFokus(polmerDp))
             addState(intArrayOf(), plosca(R.color.os_kartica_obroba, 1, R.color.os_kartica_steklo))
         }
     }
@@ -748,9 +809,17 @@ class PokrajinaActivity : OsActivity() {
         slika.layoutParams = slika.layoutParams.apply { width = dp(64); height = dp(64) }
         v.findViewById<TextView>(R.id.ime).apply { text = ime; setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f) }
         v.background = StateListDrawable().apply {
-            addState(intArrayOf(android.R.attr.state_focused), GradientDrawable().apply {
-                setColor(osBarva(R.color.os_kartica_steklo_fokus)); cornerRadius = dp(22).toFloat(); setStroke(dp(3), osBarva(R.color.os_mint))
-            })
+            val spodaj = GradientDrawable().apply {
+                setColor(osBarva(R.color.os_kartica_steklo_fokus))
+                cornerRadius = dp(22).toFloat()
+                setStroke(dp(5), osBarva(R.color.os_mint))
+            }
+            val zgoraj = GradientDrawable().apply {
+                setColor(android.graphics.Color.TRANSPARENT)
+                cornerRadius = dp(22).toFloat()
+                setStroke(dp(2), osBarva(R.color.os_ozadje))
+            }
+            addState(intArrayOf(android.R.attr.state_focused), android.graphics.drawable.LayerDrawable(arrayOf(spodaj, zgoraj)))
             addState(intArrayOf(), GradientDrawable().apply { setColor(osBarva(R.color.os_kartica_steklo)); cornerRadius = dp(22).toFloat() })
         }
         v.contentDescription = ime
@@ -869,6 +938,25 @@ class PokrajinaActivity : OsActivity() {
             }
             dodajVVrsto(v)
         }
+        
+        try {
+            val sm = getSystemService(android.os.storage.StorageManager::class.java)
+            val usbs = sm?.storageVolumes?.filter { it.isRemovable && it.state == android.os.Environment.MEDIA_MOUNTED }.orEmpty()
+            for (usb in usbs) {
+                val ime = usb.getDescription(this) ?: "USB"
+                val v = kartica(null, R.drawable.os_ikona_datoteke, ime) { _ ->
+                    if (premikam != null) { koncajPremikanje(); return@kartica }
+                    try {
+                        startActivity(usb.createOpenDocumentTreeIntent())
+                    } catch (e: Exception) {
+                        odpri(Intent(this, DatotekeActivity::class.java).putExtra(DatotekeActivity.EXTRA_KRAJEVNO, true))
+                    }
+                }
+                v.tag = "usb:${usb.uuid}"
+                dodajVVrsto(v)
+            }
+        } catch (_: Throwable) { }
+
         // Zadnja plosca: uporabnik si sam doda aplikacijo s televizorja ali spletno aplikacijo.
         dodajVVrsto(kartica(null, R.drawable.os_ikona_plus, getString(R.string.os_spletne_dodaj)) { dodajAplikacijo() })
     }
@@ -1011,13 +1099,14 @@ class PokrajinaActivity : OsActivity() {
 
     private fun zacniPremikanje(id: String) {
         premikam = id
+        osveziStanjePremikanja(vrstaAplikacij, id, dp(10))
         vrstaAplikacij.findViewWithTag<View>(id)?.requestFocus()
-        android.widget.Toast.makeText(this, R.string.pk_premikanje_namig, android.widget.Toast.LENGTH_LONG).show()
     }
 
     private fun koncajPremikanje() {
         val id = premikam ?: return
         premikam = null
+        osveziStanjePremikanja(vrstaAplikacij, null, dp(10))
         vrstaAplikacij.findViewWithTag<View>(id)?.requestFocus()
     }
 
@@ -1171,14 +1260,37 @@ class PokrajinaActivity : OsActivity() {
 
     private fun zacniPremikanjeDok(id: String) {
         premikamDok = id
+        osveziStanjePremikanja(dok, "dok:$id", dp(4))
         dok.findViewWithTag<View>("dok:$id")?.requestFocus()
-        android.widget.Toast.makeText(this, R.string.pk_premikanje_namig, android.widget.Toast.LENGTH_LONG).show()
     }
 
     private fun koncajPremikanjeDok() {
         val id = premikamDok ?: return
         premikamDok = null
+        osveziStanjePremikanja(dok, null, dp(4))
         dok.findViewWithTag<View>("dok:$id")?.requestFocus()
+    }
+
+    private fun osveziStanjePremikanja(vrsta: LinearLayout, aktivenTag: String?, osnovniRob: Int) {
+        val zmanjsano = zmanjsano()
+        for (i in 0 until vrsta.childCount) {
+            val v = vrsta.getChildAt(i)
+            val params = v.layoutParams as ViewGroup.MarginLayoutParams
+            if (aktivenTag != null && v.tag == aktivenTag) {
+                v.scaleX = if (zmanjsano) 1f else 1.1f
+                v.scaleY = if (zmanjsano) 1f else 1.1f
+                v.elevation = dp(8).toFloat()
+                params.marginStart = osnovniRob + dp(14)
+                params.marginEnd = osnovniRob + dp(14)
+            } else {
+                v.scaleX = 1f
+                v.scaleY = 1f
+                v.elevation = 0f
+                params.marginStart = osnovniRob
+                params.marginEnd = osnovniRob
+            }
+            v.layoutParams = params
+        }
     }
 
     private fun premakniDok(id: String, korak: Int): Boolean {
