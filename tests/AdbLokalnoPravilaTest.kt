@@ -82,5 +82,8 @@ fun main() {
     preveri("podpis = DigestInfo SHA-1 + zeton", dek.contentEquals(P.SHA1_DIGEST_INFO + zeton))
     if (v.algorithm.isEmpty()) napak++
 
+    // 2. 11. 2026: zapiranje se ustavi, ko uporabnik odpre aplikacijo (TV Browser zaprt 1,2 s po zagonu)
+    preveri("brez odhoda zapiranje nadaljuje", P.smemoNadaljevati(4L, 4L))
+    preveri("po odhodu iz nase dejavnosti se zapiranje ustavi", !P.smemoNadaljevati(4L, 5L))
     if (napak == 0) println("AdbLokalnoPravilaTest: OK") else { println("Napak: $napak"); kotlin.system.exitProcess(1) }
 }

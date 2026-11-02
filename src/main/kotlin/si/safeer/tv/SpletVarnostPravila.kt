@@ -172,6 +172,14 @@ object SpletVarnostPravila {
     const val OKNO_ZANKE_MS = 10_000L
 
     /**
+     * TV 2. 11. 2026: Gmail »Sign in« (povezava target=_blank) ni odprl nicesar - novo okno je naslov z drugo identiteto
+     * nalozilo znova se PREDEN je vratar pojavnega okna odlocil; loadUrl vratarja ne poklice, okno je ostalo skrito in je
+     * bilo po 15 s zavrzeno. Vratar zato odloci prvi - razen za dodatek Stremio, ki ga obravnava sam (Install (web)).
+     */
+    fun vratarNajprej(imaVratarja: Boolean, glavniOkvir: Boolean, url: String, jeDodatek: Boolean): Boolean =
+        imaVratarja && glavniOkvir && url.startsWith("http", ignoreCase = true) && !jeDodatek
+
+    /**
      * Pregled Gemini 2. 11. 2026: ponovno nalaganje (loadUrl) vsakic zacne novo navigacijo in s tem obide WebViewovo stetje
      * preusmeritev (ERR_TOO_MANY_REDIRECTS). Zanka A -> B -> A bi tekla v nedogled - po [NAJVEC_PONOVNIH_NALAGANJ] v oknu
      * jo ustavimo. Vrne novo stanje (stevec, zacetek okna) in ali je nalaganje se dovoljeno.

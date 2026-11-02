@@ -1092,6 +1092,13 @@ class ChromiumEngineView @JvmOverloads constructor(
                 // naslov nalozimo znova (loadUrl sam nastavi identiteto, preden zacne).
                 // TV 1. 11. 2026 18:23: tudi navadna navigacija z menjavo identitete (Gmail »Sign in«) sesuje WebView 153, ce
                 // nastavitve spremenimo v tem klicu - takrat nicesar ne spreminjamo tu, navigacijo prekinemo in nalozimo znova.
+                // Novo okno: vratar odloci, preden ga morebitno ponovno nalaganje z novo identiteto obide (SpletVarnostPravila.vratarNajprej).
+                val vratarPrej = vratarPojavnega
+                if (vratarPrej != null && SpletVarnostPravila.vratarNajprej(true, request.isForMainFrame, urlStr,
+                        BuildConfig.FLAVOR != "brskalnik" && si.safeer.tv.os.OsPravila.naslovDodatka(urlStr) != null)) {
+                    vratarPojavnega = null
+                    if (!vratarPrej(urlStr)) return true
+                }
                 if (SpletVarnostPravila.naloziZNovoIdentiteto(request.isForMainFrame, urlStr, uaZaUrl(urlStr) != settings.userAgentString) ||
                     SpletVarnostPravila.naloziPoPreusmeritvi(request.isForMainFrame, request.isRedirect, urlStr,
                         UserScriptManager.isGoogleDomain(urlStr) || UserScriptManager.isGoogleDomain(view?.url))) {

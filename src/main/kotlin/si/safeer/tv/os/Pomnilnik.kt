@@ -14,6 +14,32 @@ import android.util.Log
 object Pomnilnik {
     private const val TAG = "SafeerPomnilnik"
 
+    /**
+     * Stevec odhodov iz nasih dejavnosti (onPause katerekoli). Lastnik 2. 11. 2026: TV Browser, odprt 3 s po vrnitvi
+     * domov, je zaprlo ciscenje ozadja, ki se je ravno izvajalo. Ciscenje se ustavi, ko se stevec spremeni.
+     */
+    @Volatile var odhodi: Long = 0L
+        private set
+    @Volatile private var spremljam = false
+
+    private fun spremljajOdhode(c: Context) {
+        if (spremljam) return
+        val app = c.applicationContext as? android.app.Application ?: return
+        synchronized(this) {
+            if (spremljam) return
+            app.registerActivityLifecycleCallbacks(object : android.app.Application.ActivityLifecycleCallbacks {
+                override fun onActivityPaused(a: android.app.Activity) { odhodi++ }
+                override fun onActivityCreated(a: android.app.Activity, b: android.os.Bundle?) {}
+                override fun onActivityStarted(a: android.app.Activity) {}
+                override fun onActivityResumed(a: android.app.Activity) {}
+                override fun onActivityStopped(a: android.app.Activity) {}
+                override fun onActivitySaveInstanceState(a: android.app.Activity, b: android.os.Bundle) {}
+                override fun onActivityDestroyed(a: android.app.Activity) {}
+            })
+            spremljam = true
+        }
+    }
+
     data class Stanje(val prostoMb: Int, val skupajMb: Int, val malo: Boolean)
 
     fun stanje(c: Context): Stanje {
@@ -47,7 +73,7 @@ object Pomnilnik {
      * Nikoli na glavni niti (omrezje).
      */
     @android.annotation.SuppressLint("MissingPermission")
-    private fun zapriPakete(c: Context, paketi: List<String>, vOspredju: Set<String>, ime: String?): List<String> {
+    private fun zapriPakete(c: Context, paketi: List<String>, vOspredju: Set<String>, ime: String?, nadaljuj: () -> Boolean = { true }): List<String> {
         if (paketi.isEmpty()) return emptyList()
         if (AdbLokalno.soglasje(c)) {
             // Sistemskih aplikacij televizorja ne zapiramo na silo (killBackgroundProcesses jih prej tudi ni).
@@ -60,7 +86,7 @@ object Pomnilnik {
                 p !in sStoritvijo && AdbLokalnoPravila.smemoZapreti(p, c.packageName, vOspredju, ime) &&
                     (try { (pm.getApplicationInfo(p, 0).flags and ApplicationInfo.FLAG_SYSTEM) == 0 } catch (_: Throwable) { false })
             }
-            return AdbLokalno.zapri(c, dovoljeni)
+            return AdbLokalno.zapri(c, dovoljeni, nadaljuj = nadaljuj)
         }
         val am = c.getSystemService(ActivityManager::class.java)
         val zaprti = ArrayList<String>()
@@ -129,11 +155,15 @@ object Pomnilnik {
     @android.annotation.SuppressLint("MissingPermission")   // dovoljenje preveri smemo(); brskalnik ga nima
     fun pocistiOzadje(c: Context, nasePredvajanje: Boolean = false) {
         if (!smemo(c)) return
+        spremljajOdhode(c)
+        val odhodiObZacetku = odhodi
+        val nadaljuj = { AdbLokalnoPravila.smemoNadaljevati(odhodiObZacetku, odhodi) }
         val predvaja = !nasePredvajanje && try {
             (c.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager)?.isMusicActive == true
         } catch (_: Exception) { false }
         Thread {
             try { Thread.sleep(3000) } catch (_: Exception) {}
+            if (!nadaljuj()) { Log.i(TAG, "ciscenje ozadja preskoceno - uporabnik je odprl aplikacijo"); return@Thread }
             val amgr = c.getSystemService(ActivityManager::class.java)
             val pred = stanje(c)
             val k = kandidati(c).toMutableList()
@@ -154,7 +184,7 @@ object Pomnilnik {
                 val trajen = try { (pm.getApplicationInfo(p, 0).flags and ApplicationInfo.FLAG_PERSISTENT) != 0 } catch (_: Exception) { false }
                 if (OsPravila.zapriObVrnitvi(p, c.packageName, ime, trajen, vklopljeno, predvaja, lastUsed, zdaj)) zaZapreti.add(p)
             }
-            val pocisceno = zapriPakete(c, zaZapreti, foregroundPackages.toSet(), ime)
+            val pocisceno = zapriPakete(c, zaZapreti, foregroundPackages.toSet(), ime, nadaljuj)
             val po = stanje(c)
             if (pocisceno.isNotEmpty()) Log.i(TAG, "zaprto v ozadju: ${pocisceno.joinToString(", ")}, RAM pred: ${pred.prostoMb}MB, po: ${po.prostoMb}MB")
         }.start()

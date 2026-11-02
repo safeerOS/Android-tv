@@ -67,6 +67,9 @@ object AdbLokalnoPravila {
     fun cnxnVelja(prijavljen: Boolean): Boolean = prijavljen
 
     /** Edini ukaz, ki gre na adb: »am force-stop <paket>«. Brez veljavnega imena paketa ni ukaza (null). */
+    /** Zapiranje v ozadju sme nadaljevati samo, ce uporabnik od zacetka ni zapustil nase dejavnosti (stevec odhodov). */
+    fun smemoNadaljevati(odhodiObZacetku: Long, odhodiZdaj: Long): Boolean = odhodiZdaj == odhodiObZacetku
+
     fun ukazZapri(paket: String): String? = if (IME_PAKETA.matches(paket) && paket.length <= 255) "shell:am force-stop $paket" else null
 
     /** Glava sporocila ADB (24 bajtov, little-endian) + podatki. */

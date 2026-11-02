@@ -113,6 +113,12 @@ fun main() {
         for (i in 0 until 20) { val (s, o, ok) = P.ponovnoNalaganje(st, od, 1_000L + i * 100L); st = s; od = o; if (ok) dovoljenih++ }
         check(dovoljenih == P.NAJVEC_PONOVNIH_NALAGANJ) { "zanka preusmeritev ustavljena po meji ($dovoljenih)" }
         check(P.ponovnoNalaganje(st, od, 1_000L + 20 * 100L + P.OKNO_ZANKE_MS + 1).third) { "po oknu spet dovoljeno" }
+        // 2. 11. 2026: Gmail Sign in v novem oknu - vratar odloci pred ponovnim nalaganjem z novo identiteto
+        check(P.vratarNajprej(true, true, "https://accounts.google.com/AccountChooser/signinchooser", false)) { "vratar prvi" }
+        check(!P.vratarNajprej(false, true, "https://accounts.google.com/", false)) { "brez vratarja ne" }
+        check(!P.vratarNajprej(true, false, "https://accounts.google.com/", false)) { "podokvir ne" }
+        check(!P.vratarNajprej(true, true, "https://web.stremio.com/#/addons", true)) { "dodatek obravnava sam" }
+        check(!P.vratarNajprej(true, true, "stremio://x/manifest.json", false)) { "ne-http ne" }
     }
     check(!P.naloziPoPreusmeritvi(true, false, "https://accounts.google.com/", true)) { "ni preusmeritev" }
     check(!P.naloziPoPreusmeritvi(false, true, "https://accounts.google.com/", true)) { "podokvir" }

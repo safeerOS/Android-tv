@@ -79,7 +79,7 @@ object AdbLokalno {
      * Zapre [paketi] (ze preverjene s [AdbLokalnoPravila.smemoZapreti]). Vrne seznam zaprtih. Brez soglasja ne naredi nicesar.
      * [prvic]: dovoli daljsi rok, ker Android pokaze okno za potrditev.
      */
-    fun zapri(c: Context, paketi: List<String>, prvic: Boolean = false): List<String> {
+    fun zapri(c: Context, paketi: List<String>, prvic: Boolean = false, nadaljuj: () -> Boolean = { true }): List<String> {
         if (!soglasje(c) || (paketi.isEmpty() && !prvic)) return emptyList()
         val ukazi = paketi.mapNotNull { p -> AdbLokalnoPravila.ukazZapri(p)?.let { p to it } }
         if (ukazi.isEmpty() && !prvic) return emptyList()
@@ -133,6 +133,9 @@ object AdbLokalno {
                 zadnjiIzid = IZID_POVEZANO
                 var lokalni = 0
                 for ((paket, ukaz) in ukazi) {
+                    // Lastnik 2. 11. 2026: TV Browser se je ob zagonu sesul - zapiranje ob vrnitvi domov je teklo se,
+                    // ko ga je uporabnik ze odprl (force-stop 1,2 s po zagonu). Pred vsakim ukazom preverimo znova.
+                    if (!nadaljuj()) { Log.i(TAG, "adb: zapiranje prekinjeno - uporabnik je odprl aplikacijo"); break }
                     lokalni++
                     izhod.write(AdbLokalnoPravila.sporocilo(AdbLokalnoPravila.A_OPEN, lokalni, 0, (ukaz + "\u0000").toByteArray(Charsets.US_ASCII)))
                     var oddaljeni = 0
