@@ -333,7 +333,7 @@ class PokrajinaActivity : OsActivity() {
         GlasbaStoritev.poslusalci.add(medijiPoslusalec)
         OddaljenoPredvajanje.poslusalci.add(medijiPoslusalec)
         ZnackeObvestil.poslusalci.add(posodobiZnacke)
-        osveziDokZnacke()
+        Posodobitve.preveri(this) { _, _ -> if (!isFinishing) osveziDokZnacke() }
         dock?.osvezi()
     }
 
@@ -416,9 +416,9 @@ class PokrajinaActivity : OsActivity() {
     }
 
     override fun dispatchKeyEvent(izvirni: KeyEvent): Boolean {
-        val koda = izvirni.keyCode
-        val dogodek = if (koda == KeyEvent.KEYCODE_BUTTON_A) KeyEvent(izvirni.action, KeyEvent.KEYCODE_DPAD_CENTER)
-            else if (koda == KeyEvent.KEYCODE_BUTTON_B) KeyEvent(izvirni.action, KeyEvent.KEYCODE_BACK)
+        val izvirnaKoda = izvirni.keyCode
+        val dogodek = if (izvirnaKoda == KeyEvent.KEYCODE_BUTTON_A) KeyEvent(izvirni.action, KeyEvent.KEYCODE_DPAD_CENTER)
+            else if (izvirnaKoda == KeyEvent.KEYCODE_BUTTON_B) KeyEvent(izvirni.action, KeyEvent.KEYCODE_BACK)
             else izvirni
         
         // Pregled Grok 2. 11. 2026: v mirovanju prvi Nazaj najprej zbudi zaslon, tedenska napoved se skrije sele z naslednjim.
@@ -1481,6 +1481,15 @@ class PokrajinaActivity : OsActivity() {
                     }
                     ikonaOkvir.addView(znacka, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(18), Gravity.TOP or Gravity.END).apply { topMargin = 0; marginEnd = 0 })
                 }
+                if (r == PokrajinaPravila.NASTAVITVE) {
+                    val pika = View(this@PokrajinaActivity).apply {
+                        setBackgroundResource(R.drawable.os_pika)
+                        backgroundTintList = android.content.res.ColorStateList.valueOf(osBarva(R.color.os_mint))
+                        visibility = View.GONE
+                        tag = "nastavitve_pika"
+                    }
+                    ikonaOkvir.addView(pika, FrameLayout.LayoutParams(dp(8), dp(8)).apply { gravity = Gravity.TOP or Gravity.END; topMargin = dp(2); marginEnd = dp(2) })
+                }
                 addView(ikonaOkvir, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
                 addView(bes, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(4) })
             }
@@ -1498,7 +1507,14 @@ class PokrajinaActivity : OsActivity() {
                 val koliko = ZnackeObvestil.stevci.values.sum()
                 val b = ZaganjalnikPravila.besediloZnacke(koliko)
                 znacka.text = b
-                znacka.visibility = if (b.isEmpty()) View.GONE else View.VISIBLE
+                znacka.visibility = if (b.isNotEmpty()) View.VISIBLE else View.GONE
+            }
+        }
+        val nastavitve = dok.findViewWithTag<View>("dok:" + PokrajinaPravila.NASTAVITVE)
+        if (nastavitve != null) {
+            val pika = nastavitve.findViewWithTag<View>("nastavitve_pika")
+            if (pika != null) {
+                pika.visibility = if (Posodobitve.shranjena(this) != null) View.VISIBLE else View.GONE
             }
         }
     }

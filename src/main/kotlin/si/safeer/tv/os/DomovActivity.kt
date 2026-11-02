@@ -523,7 +523,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         ZagonOb.pospravi(this)      // ce nas je ob vklopu odprlo obvestilo, naj ga uporabnik ne vidi
         narisiNadaljuj()
         narisiAplikacije()
-        Posodobitve.ponudiCeJeCas(this)   // nova razlicica s safeer.si: tiha pasica, najvec enkrat na dan
+        // Posodobitve.ponudiCeJeCas(this)   // Naloga 47 F: Brez pasice in brez okna ob Domov, samo pika v nastavitvah.
         DovoljenjaActivity.ponudiObZagonu(this)   // enkrat, ce manjka pomembno dovoljenje (prikaz cez druge aplikacije)
         narisiSpletne()
         prevzemiSpletne()
