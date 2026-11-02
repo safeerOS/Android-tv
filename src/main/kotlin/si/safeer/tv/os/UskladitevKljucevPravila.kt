@@ -73,8 +73,27 @@ object UskladitevKljucevPravila {
         k.startsWith(PREDPONA_DODATKA) -> RX_ODTIS.matches(k.removePrefix(PREDPONA_DODATKA))
         k.startsWith(PREDPONA_IPTV) -> RX_ODTIS.matches(k.removePrefix(PREDPONA_IPTV))
         k.startsWith(PREDPONA_ZAUPANJA) -> NapraveKrogaPravila.veljavnoJedro(k.removePrefix(PREDPONA_ZAUPANJA))
+        k == KLJUC_RED_DOMOV -> true
         else -> false
     }
+
+    const val NAJVEC_RED_DOMOV = 64
+    private val RX_PAKET = Regex("^[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)+$")
+
+    /**
+     * Prejeti vrstni red ploscic (naloga 46 E, pregled 2. 11. 2026): samo oznake, ki jih domaci zaslon pozna - ime paketa,
+     * »razdelek:« iz [razdelki] ali »splet:http(s)://...« - brez ponovitev, najvec [NAJVEC_RED_DOMOV]. Vrstni red samo
+     * razvrsti, kar je na tej napravi ze namesceno ali dodano (PokrajinaPravila.vrstaDomov); nicesar ne doda in ne odobri.
+     */
+    fun veljavenRedDomov(red: List<String>, razdelki: Collection<String>): Boolean =
+        red.isNotEmpty() && red.size <= NAJVEC_RED_DOMOV && red.size == red.toSet().size && red.all { id ->
+            id.length in 1..512 && id.none { it < ' ' } && when {
+                id.startsWith("razdelek:") -> id.removePrefix("razdelek:") in razdelki
+                id.startsWith("splet:") -> id.removePrefix("splet:").let { u ->
+                    (u.startsWith("https://") || u.startsWith("http://")) && u.length > 8 && u.none { it == ' ' } }
+                else -> RX_PAKET.matches(id) && id.length <= 255
+            }
+        }
 
     /** Stanje kljuca na tej napravi (brez vrednosti). [odtis] = odtis vrednosti, "" pri grobu. */
     data class Meta(val cas: Long, val izvor: String, val izbrisan: Boolean, val odtis: String)

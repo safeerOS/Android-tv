@@ -238,5 +238,21 @@ fun main() {
         preveriEnako("V1: neberljiva po shranitvi - ostane prejeta", prejeto, P.vrednostZaOdtis(prejeto, null))
     }
 
+    // Naloga 46 E (pregled 2. 11. 2026): vrstni red ploscic - samo znane oblike, brez ponovitev, omejena dolzina.
+    run {
+        val dok = listOf("mediji", "splet", "nastavitve")
+        preveriEnako("red domov: kljuc velja", true, P.veljavenKljuc(P.KLJUC_RED_DOMOV, PONUDNIKI))
+        preveriEnako("red domov: paket, razdelek, splet", true,
+            P.veljavenRedDomov(listOf("com.netflix.ninja", "razdelek:mediji", "splet:https://www.youtube.com/tv"), dok))
+        preveriEnako("red domov: prazen ne", false, P.veljavenRedDomov(emptyList(), dok))
+        preveriEnako("red domov: neznan razdelek ne", false, P.veljavenRedDomov(listOf("razdelek:zlonamerno"), dok))
+        preveriEnako("red domov: ponovitev ne", false, P.veljavenRedDomov(listOf("a.b", "a.b"), dok))
+        preveriEnako("red domov: pot ni paket", false, P.veljavenRedDomov(listOf("../../etc"), dok))
+        preveriEnako("red domov: javascript: ne", false, P.veljavenRedDomov(listOf("splet:javascript:alert(1)"), dok))
+        preveriEnako("red domov: kontrolni znak ne", false, P.veljavenRedDomov(listOf("a.b\u0000"), dok))
+        preveriEnako("red domov: najvec 64", false, P.veljavenRedDomov((0..64).map { "p.a$it" }, dok))
+        preveriEnako("red domov: 64 gre", true, P.veljavenRedDomov((0 until 64).map { "p.a$it" }, dok))
+    }
+
     if (napak == 0) println("UskladitevKljucevPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

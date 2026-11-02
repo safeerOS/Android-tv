@@ -255,8 +255,16 @@ object UskladitevKljucev {
         k.startsWith(P.PREDPONA_IPTV) -> prejetRacun(k, v) != null
         k.startsWith(P.PREDPONA_ZAUPANJA) -> v == "1" && NapraveKrogaPravila.veljavnoJedro(k.removePrefix(P.PREDPONA_ZAUPANJA))
         k == P.KLJUC_USENET_PONUDNIK -> ponudnikIzVrednosti(v) != null
+        k == P.KLJUC_RED_DOMOV -> redDomovIzVrednosti(v) != null
         else -> false
     }
+
+    /** Vrstni red ploscic iz prejete vrednosti (JSON seznam nizov), preverjen z [P.veljavenRedDomov]; null = neveljavno. */
+    private fun redDomovIzVrednosti(v: String): List<String>? = try {
+        val a = org.json.JSONArray(v)
+        if (a.length() > P.NAJVEC_RED_DOMOV) null
+        else (0 until a.length()).map { a.get(it) as? String ?: return null }.takeIf { P.veljavenRedDomov(it, PokrajinaPravila.DOK) }
+    } catch (_: Exception) { null }
 
     /** Naloga 42 G: (ponudnik, geslo) iz vrednosti zapisa, preverjena z UsenetPonudnikPravila.izKroga; null = neveljavno. */
     private fun ponudnikIzVrednosti(v: String): Pair<Any?, String?>? = try {
@@ -343,9 +351,10 @@ object UskladitevKljucev {
                 if (z.izbrisan) Pripravljen(z) { UsenetPonudnik.get(c).pozabi(); true }
                 else ponudnikIzVrednosti(z.vrednost)?.let { (pp, g) -> Pripravljen(z) { UsenetPonudnik.get(c).prejetoIzKroga(pp, g) } }
             // Naloga 46 E: Vrstni red ploscic domacega zaslona
+            // Samo razvrsti, kar je na tej napravi ze; izbris vrstnega reda drugje tu nicesar ne pobrise.
             z.kljuc == P.KLJUC_RED_DOMOV ->
                 if (z.izbrisan) null
-                else Pripravljen(z) { Priljubljene.shraniRedDomov(c, org.json.JSONArray(z.vrednost).let { a -> (0 until a.length()).map { a.optString(it) } }); true }
+                else redDomovIzVrednosti(z.vrednost)?.let { red -> Pripravljen(z) { Priljubljene.shraniRedDomov(c, red); true } }
             else -> null
         }
     } catch (e: Exception) { Log.w(TAG, "pripravi: ${e.javaClass.simpleName}"); null }
@@ -639,6 +648,8 @@ object UskladitevKljucev {
         kljuc == P.KLJUC_USENET_PONUDNIK -> "Usenet NNTP" + (vrednost?.let { ponudnikIzVrednosti(it)?.first as? Map<*, *> }
             ?.get("gostitelj")?.toString()?.let { " · $it" }.orEmpty())
         kljuc.startsWith(P.PREDPONA_ZAUPANJA) -> "Safeer Link · " + si.safeer.tv.cast.E2e.zakrij(kljuc.removePrefix(P.PREDPONA_ZAUPANJA))
+        // Vrstni red ploscic domacega zaslona: ime izdelka (brez prevoda), brez vrednosti.
+        kljuc == P.KLJUC_RED_DOMOV -> "Safeer OS"
         else -> Debrid.PREDPONA_DODATKA + P.prikazGostitelja(vrednost.orEmpty(), gostitelj, Zasebno.gostitelj(vrednost.orEmpty()))
     }
 
