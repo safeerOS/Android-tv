@@ -189,7 +189,7 @@ object Stremio {
         val prej = try { android.os.Process.getThreadPriority(android.os.Process.myTid()) } catch (_: Throwable) { null }
         val menjam = prej != null && prej != prednost
         if (menjam) try { android.os.Process.setThreadPriority(prednost) } catch (_: Throwable) { }
-        try { return delo() } finally { if (menjam) try { android.os.Process.setThreadPriority(prej!!) } catch (_: Throwable) { } }
+        try { return delo() } finally { if (menjam) try { android.os.Process.setThreadPriority(prej) } catch (_: Throwable) { } }
     }
 
     /**

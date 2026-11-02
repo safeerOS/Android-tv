@@ -361,7 +361,7 @@ object MagnetMotor {
         // Stanje, shranjeno med preverjanjem, pozna le del kosov: preostanek je treba še preveriti.
         val nedokoncano = shranjeni != null && try { shranjeni.get_have_pieces().size() < ti.numPieces() } catch (_: Throwable) { false }
         var odrezano = 0
-        if (nedokoncano && shranjeni != null) try {
+        if (nedokoncano) try {
             // Rep takega stanja ima lahko luknje (kosi, ki so bili ob shranjevanju še v delu): od prve luknje naprej znova.
             val kosi = shranjeni.get_have_pieces()
             val velja = ObnovaPravila.veljavnihKosov(kosi.size(), ObnovaPravila.repPreverjanja(ti.pieceLength())) { kosi.get_bit(it) }
@@ -383,7 +383,7 @@ object MagnetMotor {
         p.setFlags(z)
         s.swig().async_add_torrent(p)
         Log.i(TAG, "V sejo ${kljuc.take(8)}: " + when {
-            preverba && nedokoncano -> "nadaljevanje postopnega preverjanja od kosa ${shranjeni?.get_have_pieces()?.size()}" + (if (odrezano > 0) " (rep z luknjo: $odrezano kosov znova)" else "")
+            preverba && nedokoncano -> "nadaljevanje postopnega preverjanja od kosa ${shranjeni.get_have_pieces().size()}" + (if (odrezano > 0) " (rep z luknjo: $odrezano kosov znova)" else "")
             shranjeni != null -> "s podatki za nadaljevanje"
             preverba -> "postopno preverjanje"
             else -> "brez podatkov za nadaljevanje"

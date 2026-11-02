@@ -2089,9 +2089,9 @@ class GlasbaActivity : OsActivity() {
             // pozna, in je naslednjic vrniti: sveze police dopolnimo s tistimi z diska, ki jih tokrat ni - dokler je pogled
             // z diska mlajsi od enega dne. Na disk gre samo popoln svez pogled, zato se ta rok ne podaljsuje sam.
             val diskVelja = sCasom != null && System.currentTimeMillis() - sCasom.first in 0 until OsPravila.POLICA_OSTANE_MS
-            val podatki = if (polni && zDiska != null && diskVelja) OsPravila.dopolniPolice(zDiska, sveze!!) { it.naslov } else sveze
+            val podatki = if (polni && zDiska != null && diskVelja) OsPravila.dopolniPolice(zDiska, sveze) { it.naslov } else sveze
             val viriIsti = MedijskiViri.spremenjeni(this) == rodVirov
-            if (polni && podatki === sveze && viriIsti) MedijskiPredpomnilnik.shraniPolice(this, kljucDiska, sveze!!.map { Triple(it.naslov, it.video, it.skladbe) })
+            if (polni && podatki === sveze && viriIsti) MedijskiPredpomnilnik.shraniPolice(this, kljucDiska, sveze.map { Triple(it.naslov, it.video, it.skladbe) })
             glavna.post {
                 if (moje != nalaganje || isFinishing) return@post
                 if (podatki == null) {
@@ -3717,7 +3717,7 @@ class GlasbaActivity : OsActivity() {
         }.also { m.naloge += it }
         // Manifesti vseh dodatkov hkrati (zaporedno je prvo odprtje po zagonu trajalo po sekundo na dodatek).
         // Naloga 86 (M3): skupni rok 20 s po kosih - preklic mreze cakanje konca takoj.
-        val manifesti = dodatki.map { n -> iskanjeDelavec.submit<Unit> { try { Stremio.manifest(n) } catch (_: Exception) { }; Unit } }
+        val manifesti = dodatki.map { n -> iskanjeDelavec.submit<Unit> { try { Stremio.manifest(n) } catch (_: Exception) { } } }
         val rokManifestov = android.os.SystemClock.uptimeMillis() + 20_000
         // Prekinitev niti (onDestroy: shutdownNow) ni napaka - brez ujetja bi podrla proces (nit izvajalnika).
         try { for (f in manifesti) { dokoncan(f, rokManifestov - android.os.SystemClock.uptimeMillis()) { m.preklicana }; if (m.preklicana) return } }
@@ -5893,7 +5893,7 @@ class GlasbaActivity : OsActivity() {
             razlicice?.put(sk.id, urejene)
             // Krajevni posnetki in prenosi z racunalnika imajo v podnaslovu napredek (spreminja se): teh ne pomnimo.
             val stalna = zap != null && !sk.id.startsWith("krajevno:") && !sk.id.startsWith(PREDPONA_PC_PRENOSA)
-            if (stalna) zap!!.kartice[sk.id]?.let { (prej, k) -> if (prej == urejene) { zdaj!![sk.id] = prej to k; zap.ponovljenih++; return@map k } }
+            if (stalna) zap.kartice[sk.id]?.let { (prej, k) -> if (prej == urejene) { zdaj!![sk.id] = prej to k; zap.ponovljenih++; return@map k } }
             val tvId = sk.id.removePrefix("tv:").takeIf { sk.id.startsWith("tv:") }.orEmpty()
             // Kanal v zivo: uradni (tv:) ali iz dodatka Stremio tipa "tv" (stremio|tv|...): oznaka V ZIVO in ikona TV.
             val vZivo = tvId.isNotBlank() || Stremio.jeVZivo(sk) || IptvSeznami.jeKanal(sk)
@@ -5970,8 +5970,8 @@ class GlasbaActivity : OsActivity() {
                 kakovostId = if (Stremio.jeEnota(sk) && !vZivo) Stremio.razstavi(sk)?.third.orEmpty() else "",
                 // Televizor: ko izbira obstane na filmu iz dodatkov, tokove poiscemo vnaprej (predpomnilnik) - OK ga zazene takoj.
                 priprava = if (jeTv() && Stremio.jeEnota(sk) && !Stremio.jeSerija(sk) && !vZivo)
-                    ({ Stremio.razstavi(sk)?.let { (_, tip, id) -> zabeleziKakovost(id, tokoviVzporedno(tip, id)) }; Unit }) else null)
-            if (stalna) { zdaj!![sk.id] = urejene to kartica; zap!!.novih++ }
+                    ({ Stremio.razstavi(sk)?.let { (_, tip, id) -> zabeleziKakovost(id, tokoviVzporedno(tip, id)) }}) else null)
+            if (stalna) { zdaj!![sk.id] = urejene to kartica; zap.novih++ }
             kartica
         }.also { if (zap != null) zap.kartice = zdaj!! }     // samo kartice tega izrisa: izpadli naslovi ne ostanejo v pomnilniku
     }
@@ -6155,7 +6155,6 @@ class GlasbaActivity : OsActivity() {
                 .setMessage(vprasanjeOdstraniSeznam())
                 .setPositiveButton(R.string.os_mediji_odstrani_seznam) { _, _ -> MedijskiViri.odstraniSeznam(this, seznam.ime); osveziPriljubljene() }
                 .setNegativeButton(android.R.string.cancel, null))
-            Unit
         } else if (vrsta.count { MedijskiViri.shranljiva(it) && !it.id.startsWith("tv:") } > 1) dejanja += getString(R.string.os_mediji_shrani_seznam) to {
             val sz = MedijskiViri.shraniSeznam(this, ime.ifBlank { sk.izvajalec.ifBlank { getString(R.string.os_mediji_moja_vrsta) } }, vrsta)
             if (sz != null) Toast.makeText(this, getString(R.string.os_mediji_seznam_shranjen, sz.ime), Toast.LENGTH_SHORT).show()
@@ -8822,7 +8821,6 @@ class GlasbaActivity : OsActivity() {
                     .setSingleChoiceItems(v.map { getString(R.string.os_predpomnilnik_gb, it) }.toTypedArray(), v.indexOf(UsbPredpomnilnik.velikostGb(this))) { d, i ->
                         d.dismiss(); UsbPredpomnilnik.nastavi(this, velikostGb = v[i])
                     }.show()
-                Unit
             },
             getString(R.string.os_predpomnilnik_pocisti) to {
                 AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(R.string.os_predpomnilnik_pocisti)
@@ -8830,7 +8828,6 @@ class GlasbaActivity : OsActivity() {
                     .setPositiveButton(android.R.string.ok) { _, _ ->
                         UsbPredpomnilnik.pocisti(this) { glavna.post { if (!isFinishing) Toast.makeText(this, R.string.os_predpomnilnik_pociscen, Toast.LENGTH_SHORT).show() } }
                     }.setNegativeButton(android.R.string.cancel, null).show()
-                Unit
             },
         )
         AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(getString(R.string.os_predpomnilnik_naslov) + " · " + opisPredpomnilnika())
@@ -9807,7 +9804,7 @@ class GlasbaActivity : OsActivity() {
             }
             fun poskusiUsenetSCakanjem(i: Int, prejsnjaNapaka: String? = null) {
                 if (usenetZacetek == null) usenetZacetek = android.os.SystemClock.elapsedRealtime()
-                val potekel = izbranSamoUsenet && (android.os.SystemClock.elapsedRealtime() - usenetZacetek!! >= UsenetPravila.ROK_SAMO_USENET_MS)
+                val potekel = izbranSamoUsenet && (android.os.SystemClock.elapsedRealtime() - usenetZacetek >= UsenetPravila.ROK_SAMO_USENET_MS)
                 
                 // Lastnik 1. 11. 2026 15:04: ce Usenet ne gre, naj TAKOJ predlaga naslednjo najboljso resitev (TorBox) - ob napaki
                 // in TorBox kljucu ne poskusamo vec drugih izdaj Useneta (vsaka je trajala 10+ s).
@@ -10189,7 +10186,7 @@ class GlasbaActivity : OsActivity() {
         }
         // Pregled Grok 41, Z2: indeksator »ne velja« ali »zaklenjen« - okno z navodilom in »Preveri« (kot kljuc debrid).
         val ustavljenIx = gostIx != null && !DebridPravila.smeKlicati(stanjeIx)
-        vrstice += vrsticaIx to { if (ustavljenIx && gostIx != null) stanjeIndeksatorjaOkno(gostIx) else usenetIndeksator() }
+        vrstice += vrsticaIx to { if (ustavljenIx) stanjeIndeksatorjaOkno(gostIx) else usenetIndeksator() }
         // Naloga 42 G: lasten ponudnik Usenet (NNTP) - okno »Moji viri › Usenet ponudnik« (geslo v Keystore, Preveri na klik).
         vrstice += UsenetPonudnikOkno.vrstica(this) to { UsenetPonudnikOkno.pokazi(this) { osveziNaMestu() } }
         val takoj = Debrid.samoTakoj(this)

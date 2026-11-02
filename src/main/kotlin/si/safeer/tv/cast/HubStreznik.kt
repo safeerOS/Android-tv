@@ -709,7 +709,7 @@ class HubStreznik(
                     }
                     if (vrsta.isNotEmpty()) {
                         naslednji = vrsta.removeFirst()
-                        bajtovVVrsti -= naslednji!!.podatki.size
+                        bajtovVVrsti -= naslednji.podatki.size
                     }
                 }
                 val okvir = naslednji
@@ -758,7 +758,7 @@ class HubStreznik(
                 posljiZakljucek()   // nic ni bilo poslanega: pisca ni, okvir zapisemo sami
             } else if (nit !== Thread.currentThread()) {
                 try {
-                    nit!!.join(ZAPIRALNI_ROK_MS)
+                    nit.join(ZAPIRALNI_ROK_MS)
                 } catch (_: InterruptedException) {
                 }
             }

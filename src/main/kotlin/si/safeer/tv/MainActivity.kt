@@ -363,7 +363,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         val paket = namera?.getStringExtra(EXTRA_IZ_SAFEER_OS)
         if (!paket.isNullOrBlank()) {
             izSafeerOs = paket
-            ohraniMestoVOs = namera?.getBooleanExtra(EXTRA_OS_OHRANI_MESTO, false) == true
+            ohraniMestoVOs = namera.getBooleanExtra(EXTRA_OS_OHRANI_MESTO, false) == true
         }
     }
 
@@ -3350,8 +3350,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     /** Vrstico dobi samo navaden Splet iz Safeer OS; spletne aplikacije in stran Link ostanejo cele. */
     private fun jeNavadenZagonIzOs(namera: Intent?): Boolean =
         !namera?.getStringExtra(EXTRA_IZ_SAFEER_OS).isNullOrBlank() &&
-            namera?.getStringExtra(EXTRA_SPLETNA_APLIKACIJA).isNullOrBlank() &&
-            namera?.getBooleanExtra(EXTRA_ODPRI_LINK, false) != true
+            namera.getStringExtra(EXTRA_SPLETNA_APLIKACIJA).isNullOrBlank() &&
+            namera.getBooleanExtra(EXTRA_ODPRI_LINK, false) != true
 
     /** MainActivity je singleTask: isti zivi pogled po potrebi ovijemo ali spet razpremo. */
     private fun nastaviOsVrstico(namera: Intent?) {

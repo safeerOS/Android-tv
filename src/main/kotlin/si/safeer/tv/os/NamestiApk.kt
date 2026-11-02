@@ -123,10 +123,10 @@ object NamestiApk {
     /** Ime, paket in razlicica iz APK; null, ce datoteka ni aplikacija. */
     private fun podatki(a: Context, f: File): Triple<String, String, String>? = try {
         val pm = a.packageManager
-        val pi = pm.getPackageArchiveInfo(f.absolutePath, 0) ?: null
+        val pi = pm.getPackageArchiveInfo(f.absolutePath, 0)
         pi?.applicationInfo?.let { ai ->
             ai.sourceDir = f.absolutePath; ai.publicSourceDir = f.absolutePath
-            Triple(ai.loadLabel(pm).toString(), pi.packageName ?: "", pi.versionName ?: "")
+            Triple(ai.loadLabel(pm).toString(), pi.packageName.orEmpty(), pi.versionName ?: "")
         }
     } catch (_: Throwable) { null }
 
@@ -139,7 +139,7 @@ object NamestiApk {
         }
         val (ime, paket, razlicica) = p
         val namescena = try { a.packageManager.getPackageInfo(paket, 0).versionName } catch (_: Throwable) { null }
-        val sporocilo = if (namescena != null) a.getString(R.string.apk_vprasanje_posodobi, ime, razlicica.ifBlank { "?" }, namescena ?: "?")
+        val sporocilo = if (namescena != null) a.getString(R.string.apk_vprasanje_posodobi, ime, razlicica.ifBlank { "?" }, namescena)
             else a.getString(R.string.apk_vprasanje, ime, razlicica.ifBlank { "?" })
         // Uporabnik vidi, kaj se namesti (ime, paket, razlicica), od kod in koliko - in da Safeer ne posodablja sam.
         val mb = String.format(java.util.Locale.getDefault(), "%.1f", f.length() / 1048576.0)

@@ -207,7 +207,7 @@ object UsbPredpomnilnik {
         // Naloga 92: z USB manjse meje predpomnilnikov v pomnilniku; brez USB (odklop) spet kot doslej.
         if (prej?.path != nov?.path) prilagodiPomnilnik(nov != null)
         if (prej?.path != nov?.path) android.util.Log.i("SafeerOsMedia", "predpomnilnik: " +
-            (if (nov != null) "USB (meja ${meja / PredpomnilnikPravila.MB} MB, prostih ${(izbran?.prostih ?: 0L) / PredpomnilnikPravila.MB} MB)" else "notranji") +
+            (if (nov != null) "USB (meja ${meja / PredpomnilnikPravila.MB} MB, prostih ${izbran.prostih / PredpomnilnikPravila.MB} MB)" else "notranji") +
             ", mesto=${mesto(app).nacin}, odstranljivih priklopljenih=${kandidati.count { it.odstranljiv && it.priklopljen }}")
     }
 

@@ -390,7 +390,7 @@ class GlasbaStoritev : Service() {
                     Log.i("SafeerOsMedia", "koncna napaka: koda=${error.errorCode}, http=$http, vZivo=$vZivo, zacelo=$zacelo, mrtev=$mrtev$oImeniku")
                     koncnaNapaka = KoncnaNapaka(enota?.id.orEmpty(), error.errorCode, http, besedilo)
                     // Naloga 108: z razlogom in imenom (izbira »Ne delujejo« v Live TV).
-                    if (mrtev && enota != null) MrtviKanali.zapomni(this@GlasbaStoritev, enota.id, when {
+                    if (mrtev) MrtviKanali.zapomni(this@GlasbaStoritev, enota.id, when {
                         brezStreznika -> NedelujocePravila.STREZNIK
                         brezOdziva -> NedelujocePravila.NEODZIVEN
                         http > 0 -> NedelujocePravila.http(http)

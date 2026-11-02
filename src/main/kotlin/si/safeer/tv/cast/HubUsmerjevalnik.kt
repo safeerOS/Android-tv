@@ -1928,7 +1928,7 @@ class HubUsmerjevalnik(
                 val prejemnik = register.povezavaOd(cilj)
                 val vsebina = JsonLahki.objekt(msg) ?: return null
                 val posiljatelj = vsebina.niz("sender").orEmpty()
-                if (tovor?.logicno("relay") == true) {
+                if (tovor.logicno("relay") == true) {
                     // En vmesni skok: samo napravi, ki je NEPOSREDNO pri nasem drugem sosedu, in samo v imenu
                     // naprave, ki je lokalno pri sosedu, ki prosi. Nikoli se enkrat naprej.
                     if (!pomagaVarno()) return null           // uporabnik pomoci drugim napravam ni dovolil

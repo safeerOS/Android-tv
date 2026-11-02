@@ -938,7 +938,6 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 }
                 .setNegativeButton(getString(R.string.os_preklici), null)
                 .let { Kontroler.pokazi(it.show()) }
-            Unit
         })
         if (dejanja.isEmpty()) return
         android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)

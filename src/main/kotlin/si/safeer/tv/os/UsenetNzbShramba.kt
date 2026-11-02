@@ -43,7 +43,6 @@ object UsenetNzbShramba {
 
     fun odstrani(c: Context, naslov: String, velikost: Long): Unit = synchronized(zaklep) {
         try { datoteka(c, naslov, velikost).delete() } catch (_: Exception) { }
-        Unit
     }
 
     private fun neuspeli(c: Context): Map<String, Long> = try {

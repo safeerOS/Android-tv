@@ -394,7 +394,7 @@ object Debrid {
             // Pregled Grok 41, Z5: zapis samo, ce sta kljuc in stanje med preverbo ostala ista - zapora, zapisana med klicem
             // (izid uporabe, druga naprava), ostane (prej jo je samodejna preverba prepisala).
             val zapisano = synchronized(zaklepStanja) {
-                if ((s == prej?.first && paket == prej?.second) || kljuc(c, p) != k || stanjeKljuca(c, p)?.first != prej?.first) false
+                if ((s == prej?.first && paket == prej.second) || kljuc(c, p) != k || stanjeKljuca(c, p)?.first != prej?.first) false
                 else { zapisiStanje(c, p, k, s, paket ?: prej?.second); true }
             }
             if (zapisano) spremenjeno = true

@@ -479,10 +479,10 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                     else if (zadnji != null && zbrani.length() > poslanih && velja()) poslji(zadnji, zadnji.getJSONObject("data"))
                     return@Odgovor
                 }
-                podatki!!.optJSONArray("items")?.let { for (i in 0 until it.length()) zbrani.put(it.opt(i)) }
+                podatki.optJSONArray("items")?.let { for (i in 0 until it.length()) zbrani.put(it.opt(i)) }
                 val naslednji = podatki.optInt("next_offset", 0)
                 val se = naslednji > odmik && st + 1 < najvecDelov
-                if (!se || (st == 0 && !znana)) poslji(izid!!, podatki)
+                if (!se || (st == 0 && !znana)) poslji(izid, podatki)
                 if (se && velja()) del(naslednji, st + 1, izid)
             })
         }

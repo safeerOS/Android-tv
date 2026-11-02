@@ -204,7 +204,7 @@ class DeljenjeZaslonaStoritev : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent == null || intent.action == ACTION_STOP) {
             // Grok 23, R2: konec zaradi dostopa naprave A ne ustavi deljenja, ki se je vmes zacelo napravi B.
-            val pricakovan = if (intent?.action == ACTION_STOP) intent?.getStringExtra(EXTRA_CILJ) else null
+            val pricakovan = if (intent?.action == ACTION_STOP) intent.getStringExtra(EXTRA_CILJ) else null
             if (DeljenjePravila.ustaviZaCilj(pricakovan, cilj, tece, cakaNaOdklep)) koncaj("")
             else Log.i(TAG, "Konec zaradi dostopa ne velja: deljenje zdaj tece drugi napravi.")
             return START_NOT_STICKY

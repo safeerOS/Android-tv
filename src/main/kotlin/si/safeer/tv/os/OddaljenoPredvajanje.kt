@@ -168,7 +168,7 @@ object OddaljenoPredvajanje {
     private fun naOdgovor(moja: Int, st: Int, u: OddaljenoPravila.Ukaz, prej: OddaljenoPravila.Stanje, izid: JSONObject?, napaka: String) {
         if (moja != seja) return
         val ok = izid?.optBoolean("ok") == true
-        val d = if (ok) izid?.optJSONObject("data") else null
+        val d = if (ok) izid.optJSONObject("data") else null
         // Pregled C2: dostop zaprt, deljenje izklopljeno ali cilj ukaza ne pozna - seja se konca takoj (s sporocilom).
         OddaljenoPravila.konecPoOdgovoru(ok, izid?.optString("code").orEmpty().ifBlank { napaka }, d?.optBoolean("shared", true) ?: true)
             ?.let { koncaj(it); return }

@@ -1228,14 +1228,14 @@ class CastReceiverService : Service() {
                 var cela = false
                 for (poskus in 0 until POSKUSOV_PREVZEMA) {
                     if (poskus > 0) Thread.sleep(CAKANJE_PREVZEMA_MS[minOf(poskus - 1, CAKANJE_PREVZEMA_MS.size - 1)])
-                    val (izid, r) = prevzemEnkrat(url, delno!!, pricakovanOdtis)
+                    val (izid, r) = prevzemEnkrat(url, delno, pricakovanOdtis)
                     razlog = r
                     if (izid == "ok") { cela = true; break }
                     if (izid == "koncno") break
                 }
                 if (!cela) throw java.io.IOException(razlog)
                 val cilj = HubTokovi.enolicnaPot(mapa, varno)
-                if (!delno!!.renameTo(cilj)) { delno!!.copyTo(cilj); delno!!.delete() }
+                if (!delno.renameTo(cilj)) { delno.copyTo(cilj); delno.delete() }
                 Log.i(TAG, "Datoteka $ime je prenesena v ${cilj.parent}")
                 mainHandler.post { javiDatoteko(cilj.name, cilj, od) }
             } catch (e: Exception) {
