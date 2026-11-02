@@ -167,6 +167,21 @@ object SpletVarnostPravila {
         glavniOkvir && identitetaSeZamenja &&
             (url.startsWith("https://", ignoreCase = true) || url.startsWith("http://", ignoreCase = true))
 
+    /** Najvec zaporednih ponovnih nalaganj (preusmeritev ali nova identiteta) v [OKNO_ZANKE_MS]. */
+    const val NAJVEC_PONOVNIH_NALAGANJ = 6
+    const val OKNO_ZANKE_MS = 10_000L
+
+    /**
+     * Pregled Gemini 2. 11. 2026: ponovno nalaganje (loadUrl) vsakic zacne novo navigacijo in s tem obide WebViewovo stetje
+     * preusmeritev (ERR_TOO_MANY_REDIRECTS). Zanka A -> B -> A bi tekla v nedogled - po [NAJVEC_PONOVNIH_NALAGANJ] v oknu
+     * jo ustavimo. Vrne novo stanje (stevec, zacetek okna) in ali je nalaganje se dovoljeno.
+     */
+    fun ponovnoNalaganje(stevec: Int, zacetekOkna: Long, zdaj: Long): Triple<Int, Long, Boolean> {
+        val novoOkno = zdaj - zacetekOkna > OKNO_ZANKE_MS || zdaj < zacetekOkna
+        val s = if (novoOkno) 1 else stevec + 1
+        return Triple(s, if (novoOkno) zdaj else zacetekOkna, s <= NAJVEC_PONOVNIH_NALAGANJ)
+    }
+
     fun naloziPoPreusmeritvi(glavniOkvir: Boolean, preusmeritev: Boolean, url: String, google: Boolean): Boolean =
         glavniOkvir && preusmeritev && google &&
             (url.startsWith("https://", ignoreCase = true) || url.startsWith("http://", ignoreCase = true))

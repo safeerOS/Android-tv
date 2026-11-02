@@ -399,6 +399,9 @@ class ChromiumEngineView @JvmOverloads constructor(
      */
     @Volatile
     private var uniceno = false
+    /** Zaporedna ponovna nalaganja ob preusmeritvi ali novi identiteti (zascita pred zanko, SpletVarnostPravila). */
+    private var ponovnihNalaganj = 0
+    private var zacetekOknaNalaganj = 0L
 
     /** Za klicatelje (TabManager.zamrzni): na unicenem pogledu ne klicemo nicesar (dnevnik TV 28. 10.: evaluateJavascript). */
     val jeUniceno: Boolean get() = uniceno
@@ -1092,12 +1095,22 @@ class ChromiumEngineView @JvmOverloads constructor(
                 if (SpletVarnostPravila.naloziZNovoIdentiteto(request.isForMainFrame, urlStr, uaZaUrl(urlStr) != settings.userAgentString) ||
                     SpletVarnostPravila.naloziPoPreusmeritvi(request.isForMainFrame, request.isRedirect, urlStr,
                         UserScriptManager.isGoogleDomain(urlStr) || UserScriptManager.isGoogleDomain(view?.url))) {
+                    val (st, od, dovoljeno) = SpletVarnostPravila.ponovnoNalaganje(ponovnihNalaganj, zacetekOknaNalaganj,
+                        android.os.SystemClock.uptimeMillis())
+                    ponovnihNalaganj = st; zacetekOknaNalaganj = od
+                    if (!dovoljeno) {
+                        android.util.Log.w("SafeerSplet", "zanka preusmeritev ustavljena ($st nalaganj v ${SpletVarnostPravila.OKNO_ZANKE_MS} ms)")
+                        return true
+                    }
                     val v = view
                     post { if (!uniceno) v?.loadUrl(urlStr) }
                     return true
                 }
                 val uaPrej = settings.userAgentString
-                applyUserAgentForUrl(urlStr)
+                // Pregled Gemini 2. 11. 2026: ne-http navigacija (intent:, mailto: ...) ne zamenja identitete sredi navigacije
+                // (WebView 153 to sesuje); stran ostane ista, zato most in UA ostaneta, kakor sta.
+                if (urlStr.startsWith("http://", ignoreCase = true) || urlStr.startsWith("https://", ignoreCase = true)) applyUserAgentForUrl(urlStr)
+                else try { removeJavascriptInterface("SafeerAndroid") } catch (_: Exception) {}   // most nikoli ne-http izvoru
                 val isMainFrame = request.isForMainFrame
                 // Lastnik 1. 11. 2026: zadetek Gmail (mail.google.com -> preusmeritev na accounts.google.com) je ostal na
                 // strani z zadetki. Menjava User-Agenta ali Client Hints sredi navigacije jo tiho prekine (kot zGoogla) -

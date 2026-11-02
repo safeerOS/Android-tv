@@ -108,6 +108,12 @@ fun main() {
     check(P.sslOdlocitev(99, "banka.si", zeDovoljen = true) == PREKLICI) { "neznana napaka kljub izjemi" }
     // Gmail -> accounts.google.com (TV 1. 11. 2026, SIGTRAP): preusmeritev na Googlu gre znova skozi loadUrl
     check(P.naloziPoPreusmeritvi(true, true, "https://accounts.google.com/ServiceLogin", true)) { "Google preusmeritev" }
+    run {
+        var st = 0; var od = 0L; var dovoljenih = 0
+        for (i in 0 until 20) { val (s, o, ok) = P.ponovnoNalaganje(st, od, 1_000L + i * 100L); st = s; od = o; if (ok) dovoljenih++ }
+        check(dovoljenih == P.NAJVEC_PONOVNIH_NALAGANJ) { "zanka preusmeritev ustavljena po meji ($dovoljenih)" }
+        check(P.ponovnoNalaganje(st, od, 1_000L + 20 * 100L + P.OKNO_ZANKE_MS + 1).third) { "po oknu spet dovoljeno" }
+    }
     check(!P.naloziPoPreusmeritvi(true, false, "https://accounts.google.com/", true)) { "ni preusmeritev" }
     check(!P.naloziPoPreusmeritvi(false, true, "https://accounts.google.com/", true)) { "podokvir" }
     check(!P.naloziPoPreusmeritvi(true, true, "https://example.com/", false)) { "ni Google" }
