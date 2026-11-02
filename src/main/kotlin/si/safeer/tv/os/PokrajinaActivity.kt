@@ -213,6 +213,9 @@ class PokrajinaActivity : OsActivity() {
         // Domov fokus namenoma vrnil v lupo in lupe z daljincem ni bilo mogoce zapreti.
         // Lastnik 1. 11. 2026: tipko Domov sistem ne poslje v dispatchKeyEvent, ampak kot namero HOME - tudi ta mora
         // zbuditi zaslon iz mirovanja (prvi pritisk samo zbudi, kot pri drugih tipkah).
+        setIntent(intent)
+        // Pregled Grok 2. 11. 2026: Domov konca tudi premikanje ploscice (prej je levo/desno po Domov se premikalo).
+        if (intent?.hasCategory(Intent.CATEGORY_HOME) == true) koncajPremikanje()
         if (intent?.hasCategory(Intent.CATEGORY_HOME) == true && mirujem) { zbudi(); return }
         if (intent?.hasCategory(Intent.CATEGORY_HOME) == true) zapriLupo()
     }
@@ -246,7 +249,8 @@ class PokrajinaActivity : OsActivity() {
     }
 
     override fun dispatchKeyEvent(dogodek: KeyEvent): Boolean {
-        if (dogodek.keyCode == KeyEvent.KEYCODE_BACK && ::teden.isInitialized && teden.visibility == View.VISIBLE) {
+        // Pregled Grok 2. 11. 2026: v mirovanju prvi Nazaj najprej zbudi zaslon, tedenska napoved se skrije sele z naslednjim.
+        if (!mirujem && dogodek.keyCode == KeyEvent.KEYCODE_BACK && ::teden.isInitialized && teden.visibility == View.VISIBLE) {
             if (dogodek.action == KeyEvent.ACTION_UP) teden.visibility = View.GONE
             return true
         }
@@ -270,7 +274,8 @@ class PokrajinaActivity : OsActivity() {
 
         // Tipka Meni / Nastavitve na daljincu (Menu, Settings, rdeči gumb na Philips TV): odpre možnosti nastavitev
         if (PokrajinaPravila.jeTipkaMenija(dogodek.keyCode)) {
-            if (dogodek.action == KeyEvent.ACTION_DOWN) {
+            // Pregled Grok 2. 11. 2026: drzana tipka poslje vec ACTION_DOWN - nastavitve odpremo samo enkrat.
+            if (dogodek.action == KeyEvent.ACTION_DOWN && dogodek.repeatCount == 0) {
                 odpriNastavitveTv()
             }
             return true
@@ -435,7 +440,14 @@ class PokrajinaActivity : OsActivity() {
             // Daljinec: fokus tipkovnice ne odpre (sicer bi zakrila zaslon ob vsakem prehodu), OK jo odpre.
             showSoftInputOnFocus = false
             setOnKeyListener { v, koda, d ->
-                if (d.action == KeyEvent.ACTION_DOWN && (koda == KeyEvent.KEYCODE_DPAD_CENTER || koda == KeyEvent.KEYCODE_ENTER) && !(v as EditText).showSoftInputOnFocus) {
+                val ok = koda == KeyEvent.KEYCODE_DPAD_CENTER || koda == KeyEvent.KEYCODE_ENTER
+                // Pregled Grok 2. 11. 2026: na TV je OK skoraj vedno DPAD_CENTER - z vpisanim besedilom isce v izbranem obsegu
+                // (prej je OK odprl samo tipkovnico, iskanje pa je sprozil le gumb tipkovnice).
+                val niz = (v as EditText).text?.toString()?.trim().orEmpty()
+                if (d.action == KeyEvent.ACTION_DOWN && d.repeatCount == 0 && ok && LupaPravila.okIsce(niz)) {
+                    DomacaLupa.izvedi(this@PokrajinaActivity, niz)
+                    true
+                } else if (d.action == KeyEvent.ACTION_DOWN && ok && !v.showSoftInputOnFocus) {
                     v.showSoftInputOnFocus = true
                     (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).showSoftInput(v, 0)
                     true

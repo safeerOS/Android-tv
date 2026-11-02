@@ -78,5 +78,7 @@ fun main() {
     preveriEnako("splet je prvi", LupaPravila.OBSEG_SPLET, LupaPravila.OBSEGI.first())
     preveriEnako("youtube iskanje kodirano", "https://www.youtube.com/results?search_query=linkin+park+%C5%A1", LupaPravila.youtubeIskanje(" linkin park š "))
 
+    preveriEnako("OK z besedilom isce", true, LupaPravila.okIsce("sintel"))
+    preveriEnako("OK s praznim ne isce (odpre tipkovnico)", false, LupaPravila.okIsce("  "))
     if (napak == 0) println("LupaPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }
