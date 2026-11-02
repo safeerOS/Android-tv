@@ -180,7 +180,7 @@ class ZapiskiActivity : OsActivity() {
             naslov.requestFocus()
             naslov.setSelection(naslov.text?.length ?: 0)
             naslov.postDelayed({
-                (getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager)?.showSoftInput(naslov, InputMethodManager.SHOW_IMPLICIT)
+                (getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager)?.showSoftInput(naslov, Tipkovnica.NAMIG)
             }, 180)
         }
         okno.show()

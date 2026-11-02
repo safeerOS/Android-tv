@@ -64,7 +64,7 @@ object IskanjeHubov {
         fun razresevalec() = object : NsdManager.ResolveListener {
             override fun onResolveFailed(info: NsdServiceInfo, napaka: Int) { }
             override fun onServiceResolved(info: NsdServiceInfo) {
-                val gostitelj = info.host?.hostAddress?.substringBefore('%') ?: return
+                val gostitelj = si.safeer.tv.cast.naslovStoritve(info)?.hostAddress?.substringBefore('%') ?: return
                 if (gostitelj in lastni) return
                 val a = info.attributes ?: emptyMap<String, ByteArray>()
                 if (a["tls"]?.toString(Charsets.UTF_8) != "1") return      // brez TLS ne

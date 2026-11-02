@@ -61,6 +61,7 @@ object DomPreverjanje {
 
     // ================================================================== vrsta te naprave (preverjevalec)
 
+    @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")  // wait/notify ima samo java.lang.Object
     private val zaklep = Object()
     private val vrsta = D.Vrsta()
     private val zaloga = D.Zaloga()

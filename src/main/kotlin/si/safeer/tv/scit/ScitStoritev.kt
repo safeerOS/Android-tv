@@ -403,7 +403,9 @@ class ScitStoritev : VpnService() {
         val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return
         val najdeni = ArrayList<InetAddress>()
         try {
-            for (net in cm.allNetworks) {
+            // allNetworks: opusceno v API 31, a edini takojsnji seznam; Android 9-11 drugega nima.
+            @Suppress("DEPRECATION") val vsa = cm.allNetworks
+            for (net in vsa) {
                 val zm = cm.getNetworkCapabilities(net) ?: continue
                 if (zm.hasTransport(NetworkCapabilities.TRANSPORT_VPN) || !zm.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) continue
                 for (a in cm.getLinkProperties(net)?.dnsServers.orEmpty()) {

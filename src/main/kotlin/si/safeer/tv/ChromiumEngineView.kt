@@ -293,7 +293,8 @@ class ChromiumEngineView @JvmOverloads constructor(
         settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
-            databaseEnabled = true
+            // WebSQL (opusceno v API 35): stari WebView na Androidu 9-14 ga se podpira, strani ga lahko rabijo.
+            @Suppress("DEPRECATION") setDatabaseEnabled(true)
             // Brskalnik sprejema naslove od drugod (Link, telefon): dostop do datotecnega sistema ostane
             // izklopljen. Nase strani v file:///android_asset delujejo tudi tako (WebSettings.setAllowFileAccess).
             allowFileAccess = false
@@ -565,7 +566,7 @@ class ChromiumEngineView @JvmOverloads constructor(
         setInitialScale(if (namiznaSirina > 0) namiznaPovecava() else 100)
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
-        settings.databaseEnabled = true
+        @Suppress("DEPRECATION") settings.setDatabaseEnabled(true)
         settings.mediaPlaybackRequiresUserGesture = dotik && !mobilniPogled && !youtubeSamodejno
         settings.setNeedInitialFocus(false)
         // Mesane vsebine kot v Chromu: skripte in okvirji po http v strani https so prepovedani,
@@ -766,7 +767,8 @@ class ChromiumEngineView @JvmOverloads constructor(
             val aktivnost = context as? android.app.Activity ?: return false
             aktivnost.runOnUiThread {
                 try {
-                    val scale = webView.scale
+                    // getScale je opuscen od API 17, a edini sinhroni vir povecave; dela na vseh razlicicah.
+                    @Suppress("DEPRECATION") val scale = webView.scale
                     val vx = x * scale
                     val vy = y * scale
                     // Pregled Gemini 2. 11. 2026: dotik samo znotraj vidnega pogleda (tocka izven ni klik na element).

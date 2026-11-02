@@ -97,7 +97,8 @@ object ZaupanjeZaslona {
         val nacin: Int? = try {
             val ao = ctx.getSystemService(android.app.AppOpsManager::class.java)
             if (ao == null) null
-            else if (Build.VERSION.SDK_INT >= 29) ao.unsafeCheckOpNoThrow("android:project_media", android.os.Process.myUid(), ctx.packageName)
+            else if (Build.VERSION.SDK_INT >= 36) ao.checkOpNoThrow("android:project_media", android.os.Process.myUid(), ctx.packageName)
+            else if (Build.VERSION.SDK_INT >= 29) @Suppress("DEPRECATION") ao.unsafeCheckOpNoThrow("android:project_media", android.os.Process.myUid(), ctx.packageName)
             else @Suppress("DEPRECATION") ao.checkOpNoThrow("android:project_media", android.os.Process.myUid(), ctx.packageName)
         } catch (e: IllegalArgumentException) {
             // Grok 15, N14: pod API 29 sistem, ki opa ne pozna, trajnega dovoljenja nima - sistemsko okno pride vedno (ne dve okni).

@@ -1352,7 +1352,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                     window.insetsController?.show(android.view.WindowInsets.Type.ime())
                 }
                 (getSystemService(INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager)
-                    ?.showSoftInput(polje, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+                    ?.showSoftInput(polje, Tipkovnica.NAMIG)
             } catch (e: Throwable) {
                 android.util.Log.w("SafeerZaslon", "tipkovnica: ${e.message}")
             }

@@ -170,13 +170,13 @@ object Pretok {
             // pretvorba vzela privzeto sled vira (npr. sinhronizacijo), cetudi je gledalec izbral izvirnik.
             val izbiraSledi = androidx.media3.exoplayer.trackselection.TrackSelector.Factory { c ->
                 androidx.media3.exoplayer.trackselection.DefaultTrackSelector(c,
-                    androidx.media3.exoplayer.trackselection.DefaultTrackSelector.Parameters.Builder(c)
+                    androidx.media3.exoplayer.trackselection.DefaultTrackSelector.Parameters.Builder()
                         .setForceHighestSupportedBitrate(true)
                         .apply { if (jeziki.isNotEmpty()) setPreferredAudioLanguages(*jeziki.toTypedArray()) }
                         .build())
             }
             val nalagalnik = DefaultAssetLoaderFactory(ctx, DefaultDecoderFactory.Builder(ctx).build(), Clock.DEFAULT,
-                DefaultMediaSourceFactory(vir), DataSourceBitmapLoader(ctx), izbiraSledi)
+                DefaultMediaSourceFactory(vir), DataSourceBitmapLoader.Builder(ctx).build(), izbiraSledi)
             val kodirnik = DefaultEncoderFactory.Builder(ctx).apply {
                 if (bitna > 0) setRequestedVideoEncoderSettings(VideoEncoderSettings.Builder().setBitrate(bitna).build())
             }.build()

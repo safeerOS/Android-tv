@@ -95,7 +95,8 @@ object VnosVklop {
         if (Build.VERSION.SDK_INT < 33) return null
         return try {
             val ao = c.getSystemService(android.app.AppOpsManager::class.java) ?: return null
-            ao.unsafeCheckOpNoThrow("android:access_restricted_settings", android.os.Process.myUid(), c.packageName)
+            if (Build.VERSION.SDK_INT >= 36) ao.checkOpNoThrow("android:access_restricted_settings", android.os.Process.myUid(), c.packageName)
+            else @Suppress("DEPRECATION") ao.unsafeCheckOpNoThrow("android:access_restricted_settings", android.os.Process.myUid(), c.packageName)
         } catch (_: Throwable) { null }
     }
 

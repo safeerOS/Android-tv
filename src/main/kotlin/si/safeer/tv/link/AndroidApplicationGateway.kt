@@ -76,6 +76,7 @@ class AndroidApplicationGateway(
         @Volatile var konecOdjemalca = false     // odjemalec je poslal internet.eof
         @Volatile var konecStreznika = false     // streznik je zaprl svojo smer, internet.eof je poslan
         @Volatile var dejavnost = System.currentTimeMillis()
+        @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")  // wait/notify ima samo java.lang.Object
         val kljucnica = Object()
         fun nedejaven() = System.currentTimeMillis() - dejavnost > InternetProtokol.NEDEJAVNOST_MS
     }

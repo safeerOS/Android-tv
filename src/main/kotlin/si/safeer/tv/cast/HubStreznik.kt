@@ -587,6 +587,7 @@ class HubStreznik(
          * hotela poslati - in z njo vse ostale naprave, ker hub seznam objavi vsem zapored.
          * Zato posiljanje samo doda okvir v vrsto, pise pa ena sama nit te povezave.
          */
+        @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")  // wait/notify ima samo java.lang.Object
         private val kljucnicaVrste = Object()
         private val vrsta = ArrayDeque<Izhod>()
         private var bajtovVVrsti = 0L

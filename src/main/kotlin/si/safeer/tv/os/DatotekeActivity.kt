@@ -294,6 +294,8 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         super.onDestroy()
     }
 
+    // TRIM_MEMORY_RUNNING_* in COMPLETE: opusceni v API 35, Android 9-13 (npr. TV z Androidom 11) jih se posilja.
+    @Suppress("DEPRECATION")
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         if (level >= TRIM_MEMORY_RUNNING_MODERATE) GalerijaSlicice.pocisti()
@@ -1190,7 +1192,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private fun odpriTipkovnico() {
         iskanje.requestFocus()
         (getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager)
-            ?.showSoftInput(iskanje, InputMethodManager.SHOW_IMPLICIT)
+            ?.showSoftInput(iskanje, Tipkovnica.NAMIG)
     }
 
     /** Sumnike poenostavimo, da "dok" najde "Dokumenti" in "cis" "Čiščenje". */

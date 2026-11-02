@@ -1645,7 +1645,8 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 if (!ime.isNullOrEmpty() && naslov != null) {
                     naslov.text = ime
                     naslov.contentDescription = ime
-                    naslov.announceForAccessibility(ime)
+                    // Opusceno v API 36; bralnik zaslona na Androidu 9-15 drugega obvestila tu nima.
+                    @Suppress("DEPRECATION") naslov.announceForAccessibility(ime)
                 }
             } else {
                 v.post {

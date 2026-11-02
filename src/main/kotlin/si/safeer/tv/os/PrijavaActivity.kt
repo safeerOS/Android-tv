@@ -388,7 +388,7 @@ class PrijavaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         vnos.requestFocus()
         vnos.post {
             val imm = getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
-            imm?.showSoftInput(vnos, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+            imm?.showSoftInput(vnos, Tipkovnica.NAMIG)
         }
     }
 

@@ -119,7 +119,7 @@ object Podnapisi {
     private fun jezikNaprave(ctx: Context): String = ctx.resources.configuration.locales[0].language
 
     internal fun imeJezika(ctx: Context, koda: String): String =
-        if (koda.isBlank()) "" else Locale(koda).getDisplayLanguage(ctx.resources.configuration.locales[0])
+        if (koda.isBlank()) "" else (@Suppress("DEPRECATION") Locale(koda)).getDisplayLanguage(ctx.resources.configuration.locales[0])
             .replaceFirstChar { it.titlecase(ctx.resources.configuration.locales[0]) }
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)

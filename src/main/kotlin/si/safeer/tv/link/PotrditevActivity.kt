@@ -36,7 +36,9 @@ class PotrditevActivity : Activity() {
 
     override fun onCreate(shranjeno: Bundle?) {
         super.onCreate(shranjeno)
-        uri = intent?.getParcelableExtra(KLJUC_URI)
+        // Tipizirana razlicica od API 34 (v 33 ima napako); Android 9-13 ostane pri stari.
+        uri = if (Build.VERSION.SDK_INT >= 34) intent?.getParcelableExtra(KLJUC_URI, Uri::class.java)
+            else @Suppress("DEPRECATION") intent?.getParcelableExtra(KLJUC_URI)
         dejanje = intent?.getStringExtra(KLJUC_DEJANJE).orEmpty()
         stopinje = intent?.getIntExtra(KLJUC_STOPINJE, 90) ?: 90
         umakniObvestilo(this)
@@ -73,7 +75,8 @@ class PotrditevActivity : Activity() {
 
     override fun finish() {
         super.finish()
-        overridePendingTransition(0, 0)
+        // overrideActivityTransition (API 34) se mora klicati pred finish(); brez preizkusa ostane stara pot na vseh.
+        @Suppress("DEPRECATION") overridePendingTransition(0, 0)
     }
 
     companion object {

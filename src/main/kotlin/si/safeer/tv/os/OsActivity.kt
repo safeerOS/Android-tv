@@ -23,6 +23,8 @@ open class OsActivity : Activity() {
         super.onCreate(savedInstanceState)
     }
 
+    // TRIM_MEMORY_RUNNING_* in COMPLETE: opusceni v API 35, Android 9-13 (npr. TV z Androidom 11) jih se posilja.
+    @Suppress("DEPRECATION")
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         if (level >= TRIM_MEMORY_RUNNING_MODERATE) {

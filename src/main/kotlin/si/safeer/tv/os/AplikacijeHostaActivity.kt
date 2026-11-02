@@ -822,7 +822,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private fun odpriTipkovnico() {
         iskanje.requestFocus()
         val upravitelj = getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager ?: return
-        upravitelj.showSoftInput(iskanje, InputMethodManager.SHOW_IMPLICIT)
+        upravitelj.showSoftInput(iskanje, Tipkovnica.NAMIG)
     }
 
     private fun pokaziOrodja(vidno: Boolean) {
@@ -1285,12 +1285,15 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             if (spominSpremljam) return
             spominSpremljam = true
             ctx.registerComponentCallbacks(object : android.content.ComponentCallbacks2 {
+                // Ravni RUNNING_* in onLowMemory so opuscene v API 35; Android 9-13 jih se posilja.
+                @Suppress("DEPRECATION")
                 override fun onTrimMemory(raven: Int) {
                     if (raven == android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW ||
                         raven == android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL ||
                         raven >= android.content.ComponentCallbacks2.TRIM_MEMORY_COMPLETE) { shramba.clear(); surovi.clear() }
                 }
                 override fun onConfigurationChanged(c: android.content.res.Configuration) { }
+                @Suppress("OVERRIDE_DEPRECATION")
                 override fun onLowMemory() { shramba.clear(); surovi.clear() }
             })
         }

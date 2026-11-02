@@ -36,7 +36,8 @@ class DownloadHandler(private val context: Context) {
                 } catch (_: Throwable) {
                     setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename)
                 }
-                allowScanningByMediaScanner()
+                // Do Androida 9 prenos v pregled predstavnosti doda ta klic; od 10 (API 29) to naredi sistem sam.
+                if (android.os.Build.VERSION.SDK_INT < 29) @Suppress("DEPRECATION") allowScanningByMediaScanner()
             }
 
             val dm = context.getSystemService(Context.DOWNLOAD_SERVICE) as? DownloadManager

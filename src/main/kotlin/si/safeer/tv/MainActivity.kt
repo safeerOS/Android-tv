@@ -192,8 +192,11 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         setContentView(osStranskaVrstica ?: brskalnikVsebina)
         si.safeer.tv.os.Robovi.uporabi(this)
 
-        window.statusBarColor = osBarva(R.color.os_ozadje)
-        window.navigationBarColor = Color.parseColor("#000000")
+        // Barve vrstic delujejo samo do Androida 14; od 15 (API 35, targetSdk 36) jih sistem ne uposteva.
+        if (Build.VERSION.SDK_INT < 35) {
+            @Suppress("DEPRECATION") window.setStatusBarColor(osBarva(R.color.os_ozadje))
+            @Suppress("DEPRECATION") window.setNavigationBarColor(Color.parseColor("#000000"))
+        }
         applySystemUi()
 
         repository = BrowserRepository(this)
@@ -621,7 +624,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             // Pogled je unicen, a Chromium in nas kup obdrzita svoje predpomnilnike, dokler ju
             // sistem ne opozori. Opozorilo sprozimo sami: WebView (registriran kot
             // ComponentCallbacks2) sprosti V8, slike in graficne vire, mi pa svoje.
-            try { application.onTrimMemory(android.content.ComponentCallbacks2.TRIM_MEMORY_COMPLETE) } catch (_: Throwable) {}
+            try { @Suppress("DEPRECATION") application.onTrimMemory(android.content.ComponentCallbacks2.TRIM_MEMORY_COMPLETE) } catch (_: Throwable) {}
             UserScriptManager.sprostiPredpomnilnik()
             System.gc()
             android.util.Log.i("SafeerPomnilnik", "Brskalnik je dolgo v ozadju; spi ${tabManager.steviloSpecih()} zavihkov, predpomnilniki sprosceni.")
@@ -930,6 +933,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
      * preden nas ubije: zavihki v ozadju gredo spat, stran pa se ob vrnitvi nalozi znova.
      * Aktivnega zavihka in tistega, ki predvaja, se ne dotaknemo.
      */
+    // TRIM_MEMORY_RUNNING_* in COMPLETE: opusceni v API 35, Android 9-13 (npr. TV z Androidom 11) jih se posilja.
+    @Suppress("DEPRECATION")
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         try {
@@ -3292,7 +3297,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     internal fun showKeyboard() {
         if (editUrl.hasFocus()) searchSuggestionsOverlay.visibility = View.VISIBLE
         val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-        imm?.showSoftInput(editUrl, InputMethodManager.SHOW_IMPLICIT)
+        imm?.showSoftInput(editUrl, si.safeer.tv.os.Tipkovnica.NAMIG)
     }
 
     internal fun hideKeyboard() {
@@ -3370,6 +3375,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         si.safeer.tv.os.Robovi.uporabi(this)
     }
 
+    @Suppress("DEPRECATION")
     internal fun handleBrowserBack() {
         val urlBefore = activeUrl()
         // Deljen zaslon druge naprave: "nazaj" ga zapre in vrne vrstico z naslovom.
@@ -3454,6 +3460,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         super.onBackPressed()
     }
 
+    // Gumb Nazaj ostane klasicen (enableOnBackInvokedCallback=false): onBackPressed je prava pot na Androidu 9-16.
+    @Suppress("OVERRIDE_DEPRECATION")
     override fun onBackPressed() {
         handleBrowserBack()
     }

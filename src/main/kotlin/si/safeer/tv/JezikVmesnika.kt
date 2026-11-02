@@ -61,7 +61,8 @@ object JezikVmesnika {
         // Locale.setDefault namenoma NE kliceva: to bi spremenilo jezik celega procesa
         // in bi obvisel tudi potem, ko uporabnik izbiro vrne na samodejno.
         return try {
-            val jezik = Locale(izbran)
+            // Locale.of je sele od Androida 16 (API 36); konstruktor je enak in dela na vseh.
+            @Suppress("DEPRECATION") val jezik = Locale(izbran)
             val nastavitve = android.content.res.Configuration(osnovni.resources.configuration)
             nastavitve.setLocale(jezik)
             osnovni.createConfigurationContext(nastavitve)

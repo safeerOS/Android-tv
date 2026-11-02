@@ -127,9 +127,9 @@ object TvVZivo {
         return KANALI.filter { it.samoZa.isEmpty() || it.samoZa == moja }
             .groupBy { it.drzava }
             .map { (drzava, kanali) ->
-                val ime = Locale("", drzava).getDisplayCountry(jezik).ifBlank { drzava }
+                val ime = (@Suppress("DEPRECATION") Locale("", drzava)).getDisplayCountry(jezik).ifBlank { drzava }
                 ime to kanali.map { k ->
-                    val jezikIme = Locale(k.jezik).getDisplayLanguage(jezik)
+                    val jezikIme = (@Suppress("DEPRECATION") Locale(k.jezik)).getDisplayLanguage(jezik)
                     Jamendo.Skladba("tv:${k.id}", k.ime, "$ime · $jezikIme", "", k.tok, k.stran, video = true,
                         mime = if (k.tok.isNotBlank()) MedijskiViri.MIME_HLS else "")
                 } to drzava

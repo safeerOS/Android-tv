@@ -584,7 +584,8 @@ class TabManager(
     }
 
     fun restoreState(inState: Bundle) {
-        val tabList = inState.getParcelableArrayList<Bundle>("tabs") ?: return
+        val tabList = (if (Build.VERSION.SDK_INT >= 34) inState.getParcelableArrayList("tabs", Bundle::class.java)
+            else @Suppress("DEPRECATION") inState.getParcelableArrayList<Bundle>("tabs")) ?: return
         if (tabList.isEmpty()) return
         tabs.clear()
         for (b in tabList) {

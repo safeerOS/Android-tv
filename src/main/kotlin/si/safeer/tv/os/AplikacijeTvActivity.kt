@@ -90,7 +90,7 @@ class AplikacijeTvActivity : OsActivity() {
     private fun odpriTipkovnico() {
         iskanje.requestFocus()
         (getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager)
-            ?.showSoftInput(iskanje, InputMethodManager.SHOW_IMPLICIT)
+            ?.showSoftInput(iskanje, Tipkovnica.NAMIG)
     }
 
     /** Sumnike poenostavimo, da "cit" najde "Čitalnik". */

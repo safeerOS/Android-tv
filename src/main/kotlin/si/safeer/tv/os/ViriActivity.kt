@@ -241,7 +241,7 @@ class ViriActivity : android.app.Activity() {
             val am = getSystemService(android.app.ActivityManager::class.java)
             val dom = am?.appTasks?.firstOrNull { t ->
                 val info = try { t.taskInfo } catch (_: Throwable) { null }
-                info != null && info.id != taskId && info.baseActivity?.className.let {
+                info != null && (if (android.os.Build.VERSION.SDK_INT >= 29) info.taskId else @Suppress("DEPRECATION") info.id) != taskId && info.baseActivity?.className.let {
                     it == "si.safeer.tv.os.ZaganjalnikAlias" || it == "si.safeer.tv.os.DomovActivity"
                 }
             }

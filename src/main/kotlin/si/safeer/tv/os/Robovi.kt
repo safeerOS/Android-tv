@@ -40,7 +40,8 @@ object Robovi {
      */
     private fun celozaslonsko(dejavnost: Activity) {
         val okno = dejavnost.window
-        if (okno.attributes.flags and WindowManager.LayoutParams.FLAG_FULLSCREEN == 0) return
+        @Suppress("DEPRECATION") val celoZastavica = WindowManager.LayoutParams.FLAG_FULLSCREEN
+        if (okno.attributes.flags and celoZastavica == 0) return
         if (Build.VERSION.SDK_INT >= 30) {
             val upravljalnik = okno.insetsController ?: return
             upravljalnik.hide(WindowInsets.Type.systemBars())

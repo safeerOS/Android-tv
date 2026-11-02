@@ -131,7 +131,7 @@ object Kontroler {
         val fokus: View? = a.currentFocus
         when (koda) {
             KeyEvent.KEYCODE_BUTTON_A -> { fokus?.performClick(); return true }
-            KeyEvent.KEYCODE_BUTTON_B -> { a.onBackPressed(); return true }
+            KeyEvent.KEYCODE_BUTTON_B -> { @Suppress("DEPRECATION") a.onBackPressed(); return true }
             KeyEvent.KEYCODE_BUTTON_X -> { fokus?.performLongClick(); return true }
             KeyEvent.KEYCODE_BUTTON_Y -> { domov(a); return true }
             KeyEvent.KEYCODE_BUTTON_START -> { nastavitve(a); return true }

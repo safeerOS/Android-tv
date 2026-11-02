@@ -6564,7 +6564,7 @@ class GlasbaActivity : OsActivity() {
         polje.requestFocus()
         polje.setSelection(polje.text.length)
         (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager)
-            .showSoftInput(polje, InputMethodManager.SHOW_IMPLICIT)
+            .showSoftInput(polje, Tipkovnica.NAMIG)
     }
 
     private fun skrijTipkovnico(polje: EditText) {

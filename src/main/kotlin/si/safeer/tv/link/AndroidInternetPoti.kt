@@ -21,6 +21,7 @@ import java.util.concurrent.ConcurrentHashMap
 class AndroidInternetPoti(context: Context) : AutoCloseable {
     private val cm = context.applicationContext.getSystemService(ConnectivityManager::class.java)
     private val omrezja = ConcurrentHashMap<Network, InternetPot>()
+    @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN")  // wait/notify ima samo java.lang.Object
     private val kljucnica = Object()
     private var cellularCallback: ConnectivityManager.NetworkCallback? = null
     @Volatile private var zadnjaRabaMobilne = 0L

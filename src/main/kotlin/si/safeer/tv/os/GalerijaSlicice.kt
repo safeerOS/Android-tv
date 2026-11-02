@@ -49,6 +49,8 @@ object GalerijaSlicice {
         return kljuc
     }
 
+    // Thumbnails je opuscen od API 29; spodnja veja tece samo na Androidu 9, kjer loadThumbnail se ni.
+    @Suppress("DEPRECATION")
     private fun lokalna(context: Context, v: DatotekeActivity.Vnos, velikost: Int): Bitmap? {
         val uri = Uri.parse(v.id)
         if (Build.VERSION.SDK_INT >= 29) return context.contentResolver.loadThumbnail(uri, Size(velikost, velikost), null)

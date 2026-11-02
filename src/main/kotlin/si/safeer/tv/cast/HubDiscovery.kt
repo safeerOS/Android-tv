@@ -151,7 +151,7 @@ object HubDiscovery {
             override fun onServiceResolved(info: NsdServiceInfo) {
                 synchronized(cakalna) { razresujem = false }
                 razresi()
-                val gostitelj = info.host?.hostAddress ?: return
+                val gostitelj = naslovStoritve(info)?.hostAddress ?: return
                 val l = info.attributes ?: emptyMap<String, ByteArray>()
                 if (l["tls"]?.toString(Charsets.UTF_8) != "1") return
                 val wsPot = l["ws"]?.toString(Charsets.UTF_8) ?: "/cast/ws"
@@ -271,7 +271,7 @@ object HubDiscovery {
             }
 
             override fun onServiceResolved(info: NsdServiceInfo) {
-                val gostitelj = info.host?.hostAddress
+                val gostitelj = naslovStoritve(info)?.hostAddress
                 if (gostitelj.isNullOrBlank()) {
                     Log.w(TAG, "Razrešen Hub brez naslova.")
                     return
@@ -371,3 +371,8 @@ object HubDiscovery {
         }, timeoutMs)
     }
 }
+
+/** Prvi naslov razresene storitve: od Androida 14 (API 34) hostAddresses, na Androidu 9-13 dosedanji host. */
+internal fun naslovStoritve(info: android.net.nsd.NsdServiceInfo): java.net.InetAddress? =
+    if (android.os.Build.VERSION.SDK_INT >= 34) info.hostAddresses.firstOrNull()
+    else @Suppress("DEPRECATION") info.host

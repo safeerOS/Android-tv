@@ -13,7 +13,7 @@ object JavnaLastPoizvedba {
     /** Imena jezika, kot jih ima Internet Archive v polju `language` (en -> eng, English); prazno = brez pogoja. */
     fun imenaJezika(jezik: String): List<String> {
         if (!Regex("[a-z]{2}").matches(jezik)) return emptyList()
-        val l = Locale(jezik)
+        @Suppress("DEPRECATION") val l = Locale(jezik)  // Locale.of sele od API 36
         val iso3 = try { l.isO3Language } catch (_: Exception) { "" }
         val ime = l.getDisplayLanguage(Locale.ENGLISH)
         return listOf(iso3, ime).filter { it.isNotBlank() && !it.equals(jezik, ignoreCase = true) }.distinct()

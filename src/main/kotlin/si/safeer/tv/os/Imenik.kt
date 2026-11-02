@@ -29,7 +29,7 @@ object Imenik {
         val takoj = Executor { it.run() }
         for ((i, ime) in imena.withIndex()) {
             try {
-                DnsResolver.getInstance().query(null, ime, DnsResolver.FLAG_NO_CACHE_LOOKUP, takoj, preklic,
+                @Suppress("DEPRECATION") DnsResolver.getInstance().query(null, ime, DnsResolver.FLAG_NO_CACHE_LOOKUP, takoj, preklic,
                     object : DnsResolver.Callback<List<InetAddress>> {
                         override fun onAnswer(odgovor: List<InetAddress>, rcode: Int) {
                             izidi[i] = when {
