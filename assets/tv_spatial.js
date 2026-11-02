@@ -1498,6 +1498,33 @@
             }
             window._safeer_odmakni = odmakniOdPritrjenih;
 
+            /* SAFEER_EN_FOKUS_ZACETEK */
+            // Lastnik 2. 11. 2026 19:05 (claude.ai/new na TV, »dvojni focus«): izbran je bil »Recents« (nasa oznaka), DOM
+            // fokus pa je ostal na »Customize«, ki ga nas slog :focus obrobi s cian okvirjem - dva fokusa hkrati. Izbrani
+            // element pogosto ni fokusljiv (DIV ovoj), focus() tiho ne naredi nicesar. Zdaj: fokus na element, sicer na
+            // povezavo ali gumb v njem; ce ga tudi to ne dobi, prejsnjemu fokus vzamemo (blur). Polje (INPUT, TEXTAREA:
+            // tipkovnica TV bi ujela daljinec) in tuj okvir (IFRAME: fokus bi sel v okvir) fokusa ne dobita nikoli.
+            function uskladiFokus(el, doc) {
+                if (!el) return;
+                var tag = (el.tagName || '').toUpperCase();
+                var brezFokusa = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'IFRAME';
+                if (!brezFokusa) {
+                    try { el.focus({ preventScroll: true }); } catch (_) {}
+                    if (doc.activeElement !== el) {
+                        var notri = null;
+                        try { notri = el.querySelector('a[href], button, [role="button"], [role="link"], [tabindex]:not([tabindex="-1"])'); } catch (_) {}
+                        if (notri) { try { notri.focus({ preventScroll: true }); } catch (_) {} }
+                    }
+                }
+                var akt = doc.activeElement;
+                var vElementu = false;
+                try { vElementu = akt === el || (!!el.contains && el.contains(akt)); } catch (_) {}
+                if (akt && akt !== doc.body && akt !== doc.documentElement && (brezFokusa || !vElementu)) {
+                    try { akt.blur(); } catch (_) {}
+                }
+            }
+            /* SAFEER_EN_FOKUS_KONEC */
+
             function highlightElement(el) {
                 window._safeerCandCache = null;
                 if (el && jeZunajPogleda(el)) {
@@ -1540,13 +1567,8 @@
                 el.classList.add('safeer-active-card');
                 try { if (((el.className || '') + '').indexOf('item--event') !== -1) el.tabIndex = 0; } catch (_) {}
                 var tag = (el.tagName || '').toUpperCase();
-                // Never auto-focus INPUT/TEXTAREA — that opens the TV IME and traps the remote.
-                // Tuj okvir (gumb GSI) dobi samo nas obroc: fokus bi sel v okvir, klik je pravi dotik ob OK.
-                if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'IFRAME') {
-                    try { el.focus({ preventScroll: true }); } catch(_) {}
-                } else {
-                    try { el.blur(); } catch(_) {}
-                }
+                // En sam fokus: DOM fokus gre na izbrani element (ali povezavo v njem) ali pa nikamor (SAFEER_EN_FOKUS).
+                uskladiFokus(el, document);
                 var hr = el.getBoundingClientRect();
                 if (hr.width < 800 && hr.height < 500) {
                     try { el.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'nearest' }); } catch (_) {}

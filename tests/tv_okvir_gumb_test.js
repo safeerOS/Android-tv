@@ -38,7 +38,8 @@ preveri('okvirji so med kandidati (iskanje elementov)', true, /\[class\*="icon-p
 const akt = VIR.slice(VIR.indexOf('function isActionable(el)'), VIR.indexOf('function getCandidates()'));
 preveri('isActionable sprejme okvir samo prek jeGumbOkvir', true, /if \(tag === 'IFRAME'\) \{[\s\S]{0,400}return jeGumbOkvir\(/.test(akt));
 preveri('okvir ostane samostojen cilj (ne kartica okoli njega)', true, VIR.indexOf("tag === 'BUTTON' || tag === 'INPUT' || tag === 'IFRAME'") > 0);
-preveri('obroc ne da fokusa okvirju', true, VIR.indexOf("tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'IFRAME'") > 0);
+// Od 2. 11. 2026 19:05 (dvojni fokus) fokus usklajuje uskladiFokus (tests/tv_en_fokus_test.js): okvir ga ne dobi.
+preveri('obroc ne da fokusa okvirju', true, /var brezFokusa = tag === 'INPUT' \|\| tag === 'TEXTAREA' \|\| tag === 'IFRAME';/.test(VIR));
 preveri('OK na okvirju: en pravi dotik (nativeTapElement) in konec', true,
     /toUpperCase\(\) === 'IFRAME'\) \{ nativeTapElement\(target\); return; \}/.test(VIR));
 console.log('tv_okvir_gumb_test: OK (' + stevilo + ')');
