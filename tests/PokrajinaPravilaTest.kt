@@ -181,5 +181,19 @@ fun main() {
     val dvojniki = PokrajinaPravila.deduplicirajSpletne(listOf("com.google.android.youtube.tv", "splet:https://www.youtube.com/tv", "splet:https://ostalo.com"))
     preveriEnako("dedupliciraj: yt", listOf("com.google.android.youtube.tv", "splet:https://ostalo.com"), dvojniki)
 
+    println("\n== pregled 2. 11. 2026 ==")
+    preveriEnako("dedupliciraj: google.com ostane ob aplikaciji com.google.*", listOf("com.google.android.youtube.tv", "splet:https://news.google.com/"),
+        PokrajinaPravila.deduplicirajSpletne(listOf("com.google.android.youtube.tv", "splet:https://news.google.com/")))
+    preveriEnako("dedupliciraj: netflix", listOf("com.netflix.ninja"),
+        PokrajinaPravila.deduplicirajSpletne(listOf("com.netflix.ninja", "splet:https://www.netflix.com/")))
+    preveriEnako("dedupliciraj: podniz ni dovolj (tube v youtube)", listOf("com.google.android.youtube.tv", "splet:https://tube.si/"),
+        PokrajinaPravila.deduplicirajSpletne(listOf("com.google.android.youtube.tv", "splet:https://tube.si/")))
+    preveriEnako("varen rob privzeto 40 kot prej", 40, PokrajinaPravila.VAREN_ROB_DP)
+    preveriEnako("varen rob pod mejo -> 40", 40, PokrajinaPravila.varenRob(0))
+    preveriEnako("varen rob nad mejo -> 96", 96, PokrajinaPravila.varenRob(500))
+    preveriEnako("varen rob vmes", 60, PokrajinaPravila.varenRob(60))
+    preveriEnako("teden najvec 5 dni", 5, PokrajinaPravila.DNI_TEDNA)
+    preveriEnako("plosck X ni meni", false, PokrajinaPravila.jeTipkaMenija(99))
+
     if (napak == 0) println("PokrajinaPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

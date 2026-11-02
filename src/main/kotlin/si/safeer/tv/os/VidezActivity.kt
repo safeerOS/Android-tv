@@ -80,7 +80,7 @@ class VidezActivity : OsActivity() {
         }
         val varenRobNaslov = android.widget.LinearLayout(this).apply { orientation = android.widget.LinearLayout.HORIZONTAL }
         val varenRobBesedilo = TextView(this).apply {
-            text = "Varen rob"
+            text = getString(R.string.pk_varen_rob)
             setTextColor(osBarva(R.color.os_besedilo))
             textSize = 15f
             layoutParams = android.widget.LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
@@ -93,20 +93,21 @@ class VidezActivity : OsActivity() {
         varenRobNaslov.addView(varenRobVrednost)
         val varenRobDrsnik = SeekBar(this).apply {
             isFocusable = true; isFocusableInTouchMode = true
-            max = 56 // 96 - 40
+            max = PokrajinaPravila.VAREN_ROB_NAJVEC_DP - PokrajinaPravila.VAREN_ROB_DP
+            contentDescription = getString(R.string.pk_varen_rob)
         }
         varenRobOkvir.addView(varenRobNaslov)
         varenRobOkvir.addView(varenRobDrsnik, android.widget.LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(2) })
         (zatemnitevOkvir.parent as android.widget.LinearLayout).addView(varenRobOkvir)
 
-        val shranjenoRob = osShramba().getInt("varen_rob_dp", 40)
-        varenRobDrsnik.progress = shranjenoRob - 40
-        varenRobVrednost.text = "${shranjenoRob} dp"
+        val shranjenoRob = PokrajinaPravila.varenRob(osShramba().getInt(PokrajinaPravila.KLJUC_VAREN_ROB, PokrajinaPravila.VAREN_ROB_DP))
+        varenRobDrsnik.progress = shranjenoRob - PokrajinaPravila.VAREN_ROB_DP
+        varenRobVrednost.text = shranjenoRob.toString()
         varenRobDrsnik.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(s: SeekBar?, vrednost: Int, odUporabnika: Boolean) {
-                val v = vrednost + 40
-                varenRobVrednost.text = "$v dp"
-                if (odUporabnika) osShramba().edit().putInt("varen_rob_dp", v).apply()
+                val v = vrednost + PokrajinaPravila.VAREN_ROB_DP
+                varenRobVrednost.text = v.toString()
+                if (odUporabnika) osShramba().edit().putInt(PokrajinaPravila.KLJUC_VAREN_ROB, v).apply()
             }
             override fun onStartTrackingTouch(s: SeekBar?) { }
             override fun onStopTrackingTouch(s: SeekBar?) { }

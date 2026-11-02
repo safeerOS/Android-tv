@@ -299,6 +299,8 @@ object DomacaLupa {
      */
     fun nazaj(a: Activity): Boolean {
         val k = krmilo(a) ?: return false
+        // Nazaj najprej zapre vrstico znakov (fokus nazaj v polje), sele nato lupo.
+        if (zapriTipkovnico(a)) { k.polje.requestFocus(); return true }
         val prazno = k.polje.text.isNullOrBlank()
         if (!k.polje.isInTouchMode) {
             if (prazno) return false
@@ -439,13 +441,19 @@ object DomacaLupa {
         t.post { (t.getChildAt(0) as? ViewGroup)?.getChildAt(0)?.requestFocus() }
     }
 
+    /** Tipk v eni vrsti: pregled 2. 11. 2026 - vse v eni vrsti (40+ tipk) je slo cez rob, vecine ni bilo videti. */
+    private const val TIPK_V_VRSTI = 11
+
     private fun narisiTipkovnico(a: Activity, t: LinearLayout, polje: EditText, stevilke: Boolean) {
         t.removeAllViews()
-        val v = LinearLayout(a).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_HORIZONTAL
+        var v = LinearLayout(a)
+        fun novaVrsta() {
+            v = LinearLayout(a).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_HORIZONTAL }
+            t.addView(v)
         }
-        val jezik = java.util.Locale.getDefault().language
+        novaVrsta()
+        // Jezik vmesnika (JezikVmesnika), ne jezik televizorja.
+        val jezik = (a.resources.configuration.locales[0] ?: java.util.Locale.getDefault()).language
         val sumniki = when (jezik) {
             "sl" -> "čšž"
             "de" -> "äöüß"
@@ -480,9 +488,11 @@ object DomacaLupa {
             v.addView(btn)
         }
 
-        for (z in znaki) {
+        for ((i, z) in znaki.withIndex()) {
+            if (i > 0 && i % TIPK_V_VRSTI == 0) novaVrsta()
             tipka(z.toString(), 34) { polje.append(z.toString()) }
         }
+        novaVrsta()
         tipka(if (stevilke) "ABC" else "123", 50) {
             narisiTipkovnico(a, t, polje, !stevilke)
             t.post { (t.getChildAt(0) as? ViewGroup)?.getChildAt(0)?.requestFocus() }
@@ -493,19 +503,25 @@ object DomacaLupa {
             if (s.isNotEmpty()) polje.setText(s.substring(0, s.length - 1))
             polje.setSelection(polje.text.length)
         }
-        tipka(a.getString(R.string.pk_lupa_splet), 60) {
+        // Prej pk_lupa_splet (»Isci v spletu: »%1$s«« z nadomestkom) - na tipki je bil viden %1$s.
+        tipka(a.getString(R.string.os_glasba_iskanje), 72) {
             val q = polje.text.toString()
             if (q.isNotBlank()) izvedi(a, q)
             zapriTipkovnico(a)
             krmilo(a)?.zapri()
         }
         
-        t.addView(v)
     }
 
-    fun zapriTipkovnico(a: Activity) {
-        val t = a.window.decorView.findViewWithTag<LinearLayout>("lupaTipkovnica")
-        t?.visibility = View.GONE
+    fun tipkovnicaOdprta(a: Activity): Boolean =
+        a.window.decorView.findViewWithTag<LinearLayout>("lupaTipkovnica")?.visibility == View.VISIBLE
+
+    /** Skrije vrstico znakov; true, ce je bila odprta. */
+    fun zapriTipkovnico(a: Activity): Boolean {
+        val t = a.window.decorView.findViewWithTag<LinearLayout>("lupaTipkovnica") ?: return false
+        if (t.visibility != View.VISIBLE) return false
+        t.visibility = View.GONE
+        return true
     }
 
     private fun dodajZgodovino(c: Context, q: String) {

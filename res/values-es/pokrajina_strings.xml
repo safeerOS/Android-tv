@@ -23,4 +23,6 @@
     <string name="pk_dodaj_gledas">Añadir aplicaciones que ves.</string>
     <string name="pk_nadaljuj">Continuar</string>
     <string name="pk_zaganjalnik_opusti">Volver al lanzador anterior</string>
+    <string name="pk_vec">Más</string>
+    <string name="pk_varen_rob">Margen seguro de pantalla</string>
 </resources>

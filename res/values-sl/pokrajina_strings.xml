@@ -23,4 +23,6 @@
     <string name="pk_dodaj_gledas">Dodaj aplikacije, ki jih gledaš.</string>
     <string name="pk_nadaljuj">Nadaljuj</string>
     <string name="pk_zaganjalnik_opusti">Vrnitev prejšnjega zaganjalnika</string>
+    <string name="pk_vec">Več</string>
+    <string name="pk_varen_rob">Varen rob zaslona</string>
 </resources>

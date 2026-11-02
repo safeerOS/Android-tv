@@ -151,7 +151,7 @@ def main() -> int:
     print("\n== beta in nadomestki ==")
     domov = (SRC / "os/DomovActivity.kt").read_text(encoding="utf-8")
     preveri("stari zaslon odpre novega samo z vklopljeno beto",
-            re.search(r"if \(ZaganjalnikBeta\.vklopljen\(this\)\) \{\s*try \{\s*val nov = Intent\(this, PokrajinaActivity::class\.java\)", domov) is not None)
+            re.search(r"val beta = ZaganjalnikBeta\.vklopljen\(this\)", domov) is not None and re.search(r"if \(beta\) \{\s*try \{\s*val nov = Intent\(this, PokrajinaActivity::class\.java\)", domov) is not None)
     manifest = (KOREN / "AndroidManifest.xml").read_text(encoding="utf-8")
     preveri("PokrajinaActivity v manifestu, ni izvozena", re.search(r'android:name="si\.safeer\.tv\.os\.PokrajinaActivity"\s+android:exported="false"', manifest) is not None)
     for d, t in vsebina.items():
@@ -195,7 +195,9 @@ def main() -> int:
             "PokrajinaPravila.vrstaDomov(" in pokrajina and "HorizontalScrollView(this)" in pokrajina and "mrezaAplikacij" not in pokrajina)
     # Lastnik 28. 10. 2026: odstrani iz priljubljenih in vrstni red (namescene in spletne skupaj), dolg pritisk na plosci.
     preveri("dolg pritisk: premakni, levo, desno, odstrani iz priljubljenih",
-            "setOnLongClickListener { moznostiPloscice(id" in pokrajina and "R.string.os_priljubljen_odstrani" in pokrajina
+            # Naloga 45: dolg OK premakne ploscico, Meni/Info odpre moznosti (premakni, levo, desno, odstrani).
+            "setOnLongClickListener { zacniPremikanje(id); true }" in pokrajina and "moznostiPloscice(id, " in pokrajina
+            and "R.string.os_priljubljen_odstrani" in pokrajina
             and "Priljubljene.shraniRedDomov(" in pokrajina and "PokrajinaPravila.tipkaPremikanja(" in pokrajina)
     preveri("po zgledu tv-simple-home: mirovanje in fokus na zadnji aplikaciji",
             "PokrajinaPravila.mirujePo(" in pokrajina and "zadnjaPloscica = id" in pokrajina)
@@ -326,7 +328,9 @@ def main() -> int:
     pk = (SRC / "os/PokrajinaActivity.kt").read_text(encoding="utf-8")
     nazaj = pk.split("override fun onBackPressed() {", 1)[1].split(chr(10) + "    }", 1)[0]
     preveri("lupa: Nazaj jo najprej zapre (prej je DomacaLupa.nazaj brez krmila vrnil false)",
-            nazaj.strip().startswith("if (zapriLupo()) return"))
+            # Pregled 2. 11. 2026: pred lupo se zapre samo se lastna vrstica znakov (plast nad njo).
+            [v.strip() for v in nazaj.strip().splitlines() if v.strip().startswith("if (")][:2]
+            == ["if (DomacaLupa.zapriTipkovnico(this)) { poljeLupe.requestFocus(); return }", "if (zapriLupo()) return"])
     nov = pk.split("override fun onNewIntent(intent: Intent?) {", 1)[1].split(chr(10) + "    }", 1)[0]
     preveri("lupa: Domov jo zapre in ne aktivira znova", "zapriLupo()" in nov and "requestFocus()" not in nov)
     preveri("lupa: odhod z domacega zaslona jo pocisti (onStop)", "zapriLupo()" in pk.split("override fun onStop() {", 1)[1].split(chr(10) + "    }", 1)[0])
@@ -404,7 +408,7 @@ def main() -> int:
             "pripraviVnaprej(i + 1)" in us and "izvor.pripraviVnaprej(0)" in (SRC / "os/UsenetLastni.kt").read_text(encoding="utf-8"))
     pk4 = (SRC / "os/PokrajinaActivity.kt").read_text(encoding="utf-8")
     preveri("domaci zaslon: vrstica aplikacij pod lupo (prostor pod njo, mini predvajalnik je ne prekriva)",
-            pk4.index("vsebina.addView(drsnik,") < pk4.index("vsebina.addView(View(this), LinearLayout.LayoutParams(0, 0, 1f))") < pk4.index("vsebina.addView(dok,"))
+            pk4.index("spodnjiDel.addView(okvirDrsnika,") < pk4.index("spodnjiDel.addView(View(this), LinearLayout.LayoutParams(0, 0, 1f))") < pk4.index("spodnjiDel.addView(dok,"))
     gk = (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8")
     uk = (SRC / "os/Usenet.kt").read_text(encoding="utf-8")
     preveri("kvota: NZB na napravi, neuspeli skriti, druga izdaja samo pri luknji",
@@ -500,7 +504,7 @@ def main() -> int:
             "if (brezVrstice || dotik || spodnja || imaFokus()) return false" in sv and "        if (brezVrstice) return false\n" in sv)
     pk2 = (SRC / "os/PokrajinaActivity.kt").read_text(encoding="utf-8")
     preveri("Domov ne odpre tipkovnice (showSoftInputOnFocus vedno nazaj na false)",
-            "        poljeLupe.showSoftInputOnFocus = false\n        val vLupi" in pk2 and "override fun onWindowFocusChanged(imaFokus: Boolean)" in pk2
+            "        poljeLupe.showSoftInputOnFocus = false\n        val tipkovnica = DomacaLupa.tipkovnicaOdprta(this)\n        val vLupi" in pk2 and "override fun onWindowFocusChanged(imaFokus: Boolean)" in pk2
             and re.search(r'PokrajinaActivity"\s+android:exported="false"\s+android:windowSoftInputMode="stateAlwaysHidden', manifest) is not None)
     # Lastnik 28. 10. 2026: mreza Filmi | Serije pokaze vse naslove takoj (brez cakanja na vljudno preverjanje).
     gl = (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8")

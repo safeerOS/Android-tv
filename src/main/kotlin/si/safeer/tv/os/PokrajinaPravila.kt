@@ -235,18 +235,34 @@ object PokrajinaPravila {
     fun dovoljenZagon(zadnjiZagonMs: Long, zdajMs: Long): Boolean =
         zadnjiZagonMs == 0L || zdajMs - zadnjiZagonMs > 1500L
 
+    /** Splosni deli imen paketov in domen, ki ne povedo, katera storitev je (com.google.android..., google.com). */
+    private val SPLOSNI_DELI = setOf("com", "org", "net", "www", "android", "google", "tv", "app", "apps", "mobile",
+        "leanback", "player", "launcher", "safeer")
+
     /**
-     * Odstrani spletno aplikacijo, ce je ze namescena prava aplikacija z istim imenom (YouTube).
+     * Odstrani spletno aplikacijo, ce je v vrsti ze prava aplikacija iste storitve (YouTube: youtube.com in
+     * com.google.android.youtube.tv). Pregled 2. 11. 2026: prej je zadostoval podniz - news.google.com je izginil ob
+     * katerikoli aplikaciji com.google.*; zdaj se mora glavni del domene ujemati s celim, ne splosnim delom imena paketa.
      */
     fun deduplicirajSpletne(vrsta: List<String>): List<String> {
-        val paketi = vrsta.filter { !it.startsWith("splet:") && !it.startsWith("razdelek:") }
+        val deliPaketov = vrsta.filter { !it.startsWith("splet:") && !it.startsWith("razdelek:") }
+            .flatMap { it.lowercase().split('.') }.filter { it.length > 2 && it !in SPLOSNI_DELI }.toSet()
         return vrsta.filter { id ->
             if (id.startsWith("splet:")) {
                 val host = id.removePrefix("splet:").substringAfter("://").substringBefore("/").substringBefore(":")
                 val deli = host.split(".")
-                val glavni = if (deli.size >= 2) deli[deli.size - 2].lowercase() else host.lowercase()
-                if (glavni.length > 2 && paketi.any { it.lowercase().contains(glavni) }) false else true
+                val glavni = (if (deli.size >= 2) deli[deli.size - 2] else host).lowercase()
+                !(glavni.length > 2 && glavni !in SPLOSNI_DELI && glavni in deliPaketov)
             } else true
         }
     }
+
+    /** Varen rob zaslona (Videz): privzeto 40 dp kot pred drsnikom, drsnik 40-96 dp. */
+    const val KLJUC_VAREN_ROB = "varen_rob_dp"
+    const val VAREN_ROB_DP = 40
+    const val VAREN_ROB_NAJVEC_DP = 96
+    fun varenRob(shranjen: Int): Int = shranjen.coerceIn(VAREN_ROB_DP, VAREN_ROB_NAJVEC_DP)
+
+    /** Tedenska napoved na domacem zaslonu: najvec toliko dni (naloga 49 E). */
+    const val DNI_TEDNA = 5
 }

@@ -74,6 +74,9 @@ class PokrajinaActivity : OsActivity() {
     private lateinit var dok: LinearLayout
     private lateinit var preliv: View
     private lateinit var zadetki: LinearLayout
+    /** Drsnik zadetkov: vidnost lupe je na njem (zadetki sami so vedno vidni v njem). */
+    private lateinit var zadetkiDrsnik: View
+    private lateinit var vsebina: LinearLayout
     private lateinit var poljeLupe: EditText
 
     @Deprecated("Deprecated in Java")
@@ -112,11 +115,8 @@ class PokrajinaActivity : OsActivity() {
             alpha = 0f
         }
         koren.addView(zatemnitevOzadja, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
-        val vsebina = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            val rob = shramba().getInt("varen_rob_dp", 40)
-            setPadding(dp(rob), dp(24), dp(rob), dp(18))
-        }
+        vsebina = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        uporabiVarenRob()
         vsebina.addView(glava(), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         vsebina.addView(lupa(), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
             val rob = (resources.displayMetrics.widthPixels * 0.2f).toInt()
@@ -201,7 +201,8 @@ class PokrajinaActivity : OsActivity() {
             text = "›"
             textSize = 24f
             setTextColor(osBarva(R.color.os_besedilo))
-            contentDescription = "Več"
+            contentDescription = getString(R.string.pk_vec)
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             visibility = View.GONE
             setPadding(dp(8), dp(8), dp(8), dp(8))
         }
@@ -230,7 +231,7 @@ class PokrajinaActivity : OsActivity() {
             background = steklo(20, fokusMogoc = false)
             setPadding(dp(14), dp(8), dp(14), dp(8))
         }
-        val zadetkiDrsnik = android.widget.ScrollView(this).apply { 
+        zadetkiDrsnik = android.widget.ScrollView(this).apply {
             visibility = View.GONE; tag = "zadetkiDrsnik"
             addView(zadetki, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         }
@@ -239,28 +240,36 @@ class PokrajinaActivity : OsActivity() {
             marginStart = rob; marginEnd = rob; topMargin = dp(8); bottomMargin = dp(14) // prostor do spodnje vrstice
         })
         vsebina.addView(okvirVsebine, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
-        koren.setOnLongClickListener {
-            val dejanja = mutableListOf(
-                getString(R.string.os_videz) to { odpri(Intent(this, VidezActivity::class.java)) }
-            )
-            if (Zaganjalnik.smeOpustiti(this)) {
-                dejanja.add(getString(R.string.pk_zaganjalnik_opusti) to { Zaganjalnik.vrniTovarniskega(this) })
-            }
-            val okno = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
-                .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
-                .setNegativeButton(getString(R.string.os_preklici), null)
-                .create()
-            Kontroler.pokazi(okno)
-            okno.show()
-            true
-        }
-        
+        koren.setOnLongClickListener { menijOzadja(); true }
+
         preliv = View(this)
         koren.addView(preliv, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         koren.addView(vsebina, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         setContentView(koren)
         if (intent?.categories?.contains(Intent.CATEGORY_HOME) == true) Zaganjalnik.zabeleziZagonDomov(this)
         if (Zaganjalnik.vrnjenPoPadcu(this)) pokaziVrnjenPoPadcu()
+    }
+
+    /** Naloga 49 I: dolg pritisk na ozadje (miska ali dotik) - Videz in, ce sme, vrnitev prejsnjega zaganjalnika. */
+    private fun menijOzadja() {
+        val dejanja = mutableListOf(
+            getString(R.string.os_videz) to { odpri(Intent(this, VidezActivity::class.java)) }
+        )
+        if (Zaganjalnik.smeOpustiti(this)) {
+            dejanja.add(getString(R.string.pk_zaganjalnik_opusti) to { Zaganjalnik.vrniTovarniskega(this) })
+        }
+        val okno = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
+            .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .create()
+        Kontroler.pokazi(okno)
+        okno.show()
+    }
+
+    /** Varen rob (Videz, privzeto 40 dp kot prej); ob vsakem onStart, da sprememba v Videzu velja brez ponovnega zagona. */
+    private fun uporabiVarenRob() {
+        val rob = PokrajinaPravila.varenRob(shramba().getInt(PokrajinaPravila.KLJUC_VAREN_ROB, PokrajinaPravila.VAREN_ROB_DP))
+        vsebina.setPadding(dp(rob), dp(24), dp(rob), dp(18))
     }
 
     private fun pokaziVrnjenPoPadcu() {
@@ -279,6 +288,9 @@ class PokrajinaActivity : OsActivity() {
      */
     override fun onResume() {
         super.onResume()
+        // Naloga 45 G: ponudba »Dodam na dom?« sele ob vrnitvi domov - zagon aplikacije ni nikoli cakal na okno.
+        // Ponudba se ob prikazu pobrise, zato je najvec enkrat.
+        glavna.post { if (!isFinishing && !isDestroyed) Priljubljene.ponudiCakajoco(this) { narisiAplikacije() } }
     }
 
     private val usbSprejemnik = object : android.content.BroadcastReceiver() {
@@ -304,6 +316,7 @@ class PokrajinaActivity : OsActivity() {
         else @Suppress("UnspecifiedRegisterReceiverFlag") registerReceiver(usbSprejemnik, filter)
         link.dodaj(linkPoslusalec)
         osveziLinkPiko()
+        uporabiVarenRob()
         Ozadje.uporabi(this, koren)
         // Po zgledu tv-simple-home (Scrim): ura zgoraj in spodnja vrstica ostaneta berljivi tudi na svetli sliki.
         val alfa = PokrajinaPravila.alfaPreliva(Ozadje.zatemnitev(this))
@@ -313,12 +326,13 @@ class PokrajinaActivity : OsActivity() {
         
         narisiNadaljuj()
         narisiAplikacije()
+        // Naloga 49 D: zadnji fokus (ploscica, spodnji gumb ali lupa), ce pogled se obstaja; sicer ista ploscica po oznaki.
         val f = zadnjiFokusPogled
-        if (f != null && f.isAttachedToWindow) {
+        if (f != null && f.isAttachedToWindow && f.isShown) {
             f.post { f.requestFocus() }
         } else {
-            val izbrana = zadnjaPloscica?.let { vrstaAplikacij.findViewWithTag<View>(it) }
-                ?: if (vrstaAplikacij.childCount > 0) vrstaAplikacij.getChildAt(0) else null
+            val izbrana = zadnjaPloscica?.let { koren.findViewWithTag<View>(it) }
+                ?: (0 until vrstaAplikacij.childCount).map { vrstaAplikacij.getChildAt(it) }.firstOrNull { it.isFocusable }
             izbrana?.let { v -> v.post { v.requestFocus() } }
         }
         zbudi(animiraj = false)
@@ -393,14 +407,18 @@ class PokrajinaActivity : OsActivity() {
         // Preverba TV 28. 10. 2026 (beta 29): po OK v lupi je ostalo showSoftInputOnFocus = true, tudi ko lupa ni bila odprta -
         // ob tipki Domov je polje dobilo fokus in tipkovnica se je odprla sama. Fokus spet ne odpre tipkovnice, OK jo odpre.
         poljeLupe.showSoftInputOnFocus = false
-        val vLupi = poljeLupe.hasFocus() || zadetki.hasFocus()
-        if (!PokrajinaPravila.zapriLupo(poljeLupe.text, zadetki.visibility == View.VISIBLE, vLupi)) return false
+        val tipkovnica = DomacaLupa.tipkovnicaOdprta(this)
+        val vLupi = poljeLupe.hasFocus() || zadetkiDrsnik.hasFocus() || tipkovnica
+        if (!PokrajinaPravila.zapriLupo(poljeLupe.text, zadetkiDrsnik.visibility == View.VISIBLE || tipkovnica, vLupi)) return false
         (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).hideSoftInputFromWindow(poljeLupe.windowToken, 0)
-        poljeLupe.showSoftInputOnFocus = false
-        glavna.removeCallbacks(iskanjeZamik)
+        DomacaLupa.zapriTipkovnico(this)
+        // Pregled 2. 11. 2026: setText("") sprozi TextWatcher - zamik odstranimo PO njem, sicer se je 250 ms pozneje
+        // zgodovina iskanja spet pokazala cez ploscice.
         poljeLupe.setText("")
+        glavna.removeCallbacks(iskanjeZamik)
         iskanjeSt++
-        zadetki.removeAllViews(); zadetki.visibility = View.GONE
+        iskanjePoizvedba = ""
+        zadetki.removeAllViews(); zadetkiDrsnik.visibility = View.GONE
         if (vLupi) { val dol = poljeLupe.focusSearch(View.FOCUS_DOWN); if (dol != null && dol !== poljeLupe) dol.requestFocus() else poljeLupe.clearFocus() }
         return true
     }
@@ -408,6 +426,8 @@ class PokrajinaActivity : OsActivity() {
     /** Domaci zaslon nima kam nazaj (kot pri zaganjalniku televizorja); razprta lupa se zapre. */
     @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun onBackPressed() {
+        // Nazaj zapira plasti od zgoraj: najprej vrstica znakov (fokus nazaj v polje), nato lupa.
+        if (DomacaLupa.zapriTipkovnico(this)) { poljeLupe.requestFocus(); return }
         if (zapriLupo()) return
         if (DomacaLupa.nazaj(this)) return
         if (dock?.skrijCeOdprt() == true) return
@@ -417,13 +437,17 @@ class PokrajinaActivity : OsActivity() {
 
     override fun dispatchKeyEvent(izvirni: KeyEvent): Boolean {
         val izvirnaKoda = izvirni.keyCode
-        val dogodek = if (izvirnaKoda == KeyEvent.KEYCODE_BUTTON_A) KeyEvent(izvirni.action, KeyEvent.KEYCODE_DPAD_CENTER)
-            else if (izvirnaKoda == KeyEvent.KEYCODE_BUTTON_B) KeyEvent(izvirni.action, KeyEvent.KEYCODE_BACK)
+        // Plosck A/B kot OK/Nazaj; ponovitev in cas ostaneta (dolg pritisk A premakne ploscico kot dolg OK).
+        fun kot(koda: Int) = KeyEvent(izvirni.downTime, izvirni.eventTime, izvirni.action, koda, izvirni.repeatCount,
+            izvirni.metaState, izvirni.deviceId, izvirni.scanCode, izvirni.flags, izvirni.source)
+        val dogodek = if (izvirnaKoda == KeyEvent.KEYCODE_BUTTON_A) kot(KeyEvent.KEYCODE_DPAD_CENTER)
+            else if (izvirnaKoda == KeyEvent.KEYCODE_BUTTON_B) kot(KeyEvent.KEYCODE_BACK)
             else izvirni
         
         // Pregled Grok 2. 11. 2026: v mirovanju prvi Nazaj najprej zbudi zaslon, tedenska napoved se skrije sele z naslednjim.
         if (!mirujem && dogodek.keyCode == KeyEvent.KEYCODE_BACK && ::teden.isInitialized && teden.visibility == View.VISIBLE) {
-            if (dogodek.action == KeyEvent.ACTION_UP) teden.visibility = View.GONE
+            zadnjiVnos = android.os.SystemClock.uptimeMillis()
+            if (dogodek.action == KeyEvent.ACTION_UP) skrijTeden()
             return true
         }
         // Mirovanje: prvi pritisk samo zbudi vmesnik (tudi njegov ACTION_UP ne naredi nicesar).
@@ -436,7 +460,8 @@ class PokrajinaActivity : OsActivity() {
         premikam?.let { id ->
             val t = PokrajinaPravila.tipkaPremikanja(dogodek.keyCode)
             if (t != null) {
-                if (dogodek.action == KeyEvent.ACTION_DOWN) {
+                // Ponovitve drzanega OK (dolg pritisk, ki je premikanje zacel) premikanja ne koncajo.
+                if (dogodek.action == KeyEvent.ACTION_DOWN && !(t == 0 && dogodek.repeatCount > 0)) {
                     if (t == 0) koncajPremikanje() else premakniPloscico(id, t)
                 }
                 return true
@@ -445,7 +470,7 @@ class PokrajinaActivity : OsActivity() {
         premikamDok?.let { id ->
             val t = PokrajinaPravila.tipkaPremikanja(dogodek.keyCode)
             if (t != null) {
-                if (dogodek.action == KeyEvent.ACTION_DOWN) {
+                if (dogodek.action == KeyEvent.ACTION_DOWN && !(t == 0 && dogodek.repeatCount > 0)) {
                     if (t == 0) koncajPremikanjeDok() else premakniDok(id, t)
                 }
                 return true
@@ -494,6 +519,7 @@ class PokrajinaActivity : OsActivity() {
                 val drsnikX = (vrstaAplikacij.parent as? android.widget.HorizontalScrollView)?.scrollX ?: 0
                 for (ind in 0 until vrstaAplikacij.childCount) {
                     val v = vrstaAplikacij.getChildAt(ind)
+                    if (!v.isFocusable || !v.isShown) continue      // besedilo prazne vrstice ni ploscica
                     if (v.right > drsnikX) {
                         if (vidne == indeks) { v.performClick(); return true }
                         vidne++
@@ -662,8 +688,7 @@ class PokrajinaActivity : OsActivity() {
         teden = object : HorizontalScrollView(this) {
             override fun dispatchKeyEvent(event: KeyEvent): Boolean {
                 if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_BACK) {
-                    visibility = View.GONE
-                    vreme.requestFocus()
+                    skrijTeden()
                     return true
                 }
                 return super.dispatchKeyEvent(event)
@@ -756,7 +781,11 @@ class PokrajinaActivity : OsActivity() {
             }
         })
         polje.setOnFocusChangeListener { _, ima ->
-            if (ima && polje.text.isNullOrBlank()) narisiZadetke("")
+            if (ima && polje.text.isNullOrBlank()) narisiZadetke("", vsili = true)
+            // Zgodovina (prazno polje) ne ostane cez ploscice, ko gre fokus z lupe drugam.
+            else if (!ima && polje.text.isNullOrBlank()) polje.post {
+                if (!polje.hasFocus() && !zadetkiDrsnik.hasFocus()) { zadetkiDrsnik.visibility = View.GONE; iskanjeSt++ }
+            }
         }
         // Ista lupa kot na starem domacem zaslonu: »… na TV«, spletni naslov, iskanje v Medijih; brez mikrofona (lastnik 29. 10. 2026).
         DomacaLupa.prevzemi(this, polje, okvir, zMikrofonom = false) { }
@@ -778,7 +807,7 @@ class PokrajinaActivity : OsActivity() {
         background = steklo(12).apply { alpha = 0 }
         setOnFocusChangeListener { v, ima -> v.background.alpha = if (ima) 255 else 0 }
         setPadding(dp(10), dp(7), dp(10), dp(7))
-        setOnClickListener { klik(); poljeLupe.setText("") }
+        setOnClickListener { klik(); zapriLupo() }
         addView(ImageView(this@PokrajinaActivity).apply { setImageResource(ikona); setColorFilter(osBarva(R.color.os_mint)) },
             LinearLayout.LayoutParams(dp(22), dp(22)))
         addView(besedilo(napis, 16f).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END },
@@ -806,7 +835,8 @@ class PokrajinaActivity : OsActivity() {
                 contentDescription = getString(R.string.pk_lupa_obseg) + " " + napis
                 setOnClickListener {
                     DomacaLupa.nastaviObseg(this@PokrajinaActivity, o)
-                    narisiZadetke(poljeLupe.text?.toString().orEmpty())
+                    // Ista poizvedba: brez vsili bi narisiZadetke takoj koncal in izbira obsega ne bi bila vidna.
+                    narisiZadetke(poljeLupe.text?.toString().orEmpty(), vsili = true)
                     // Fokus ostane na izbranem gumbu (daljinec) - po ponovnem izrisu ga poiscemo po oznaki.
                     zadetki.post { zadetki.findViewWithTag<View>("obseg_$o")?.requestFocus() }
                 }
@@ -824,18 +854,27 @@ class PokrajinaActivity : OsActivity() {
      */
     private var iskanjePoizvedba = ""
 
-    private fun narisiZadetke(poizvedba: String) {
+    /** Je [v] ([v] sam ali njegov prednik) v [vsebnik]? */
+    private fun jePotomec(v: View?, vsebnik: View): Boolean {
+        var p: Any? = v
+        while (p is View) { if (p === vsebnik) return true; p = p.parent }
+        return false
+    }
+
+    private fun narisiZadetke(poizvedba: String, vsili: Boolean = false) {
         val q = poizvedba.trim()
-        if (q == iskanjePoizvedba) return
+        // Naloga 49 C: ista poizvedba se ne rise znova (fokus v seznamu ostane).
+        if (!vsili && q == iskanjePoizvedba) return
         iskanjePoizvedba = q
         val st = ++iskanjeSt
-        
+
         val stariFokus = currentFocus
-        val imelFokus = stariFokus?.let { it.parent == zadetki || it == zadetki } == true
+        // Pregled 2. 11. 2026: gumbi obsega so vnuki seznama (vrsta »Isci v«) - prej se fokus z njih ni vrnil.
+        val imelFokus = jePotomec(stariFokus, zadetki)
         val fokusTag = stariFokus?.tag ?: (stariFokus as? TextView)?.text?.toString()
 
         zadetki.removeAllViews()
-        val drsnik = zadetki.parent as View
+        val drsnik = zadetkiDrsnik
         if (q.isEmpty()) { 
             val zgodovina = DomacaLupa.beriZgodovino(this)
             if (zgodovina.isEmpty()) {
@@ -988,6 +1027,7 @@ class PokrajinaActivity : OsActivity() {
             val risba = ikonaPrograma(n)
             if (risba != null) ikona.setImageDrawable(risba) else ikona.setImageResource(ikonaZa(n.vrsta))
             v.findViewById<TextView>(R.id.ime).text = n.ime
+            v.contentDescription = getString(R.string.pk_nadaljuj) + ": " + n.ime
             v.setOnClickListener {
                 if (premikam != null) { koncajPremikanje(); return@setOnClickListener }
                 zadnjaPloscica = "nadaljuj:" + n.kljuc()
@@ -1010,11 +1050,17 @@ class PokrajinaActivity : OsActivity() {
                 }
             }
             Nadaljuj.ZASLON -> odpri(Intent(this, ZaslonActivity::class.java).putExtra(DatotekeActivity.EXTRA_RACUNALNIK, n.racunalnik))
+            // Pregled 2. 11. 2026: PROGRAM je program na drugi napravi v Linku (app:...), ne paket tega televizorja -
+            // ComponentName(program, program) se ni nikoli odprl. Ista pot kot stari domaci zaslon (ozji krog).
             Nadaljuj.PROGRAM -> {
-                val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER).setComponent(ComponentName(n.program, n.program)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                try { startActivity(intent) } catch (_: Throwable) { } 
+                val r = link.naprave.firstOrNull { it.id == n.racunalnik }
+                if (r != null && OzjiKrog.zavrni(this, r.id, r.ime)) return
+                ZagonPrograma.zazeni(this, link, n.racunalnik, n.program, n.ime, n.igra)
             }
-            else -> NadaljujOdpri.datoteka(this, link, n) { rac -> if (rac) Toast.makeText(this, R.string.os_nadaljuj_ni_racunalnika, Toast.LENGTH_LONG).show() }
+            else -> NadaljujOdpri.datoteka(this, link, n) { rac ->
+                Toast.makeText(this, if (rac) getString(R.string.os_nadaljuj_ni_racunalnika) else getString(R.string.os_nadaljuj_ni_vec, n.ime),
+                    Toast.LENGTH_LONG).show()
+            }
         }
     }
     
@@ -1023,10 +1069,7 @@ class PokrajinaActivity : OsActivity() {
             val a = SpletneAplikacije.seznam(this).firstOrNull { it.url == n.url }
             if (a != null) return SpletneAplikacije.ikona(this, a)
         }
-        if (n.vrsta == Nadaljuj.PROGRAM) {
-            return Aplikacije.ikonaIzPomnilnika(n.program) ?: getDrawable(R.drawable.os_ikona_aplikacije)
-        }
-        return null
+        return Nadaljuj.ikona(this, n)
     }
 
     private fun ikonaZa(vrsta: String): Int = when (vrsta) {
@@ -1053,7 +1096,13 @@ class PokrajinaActivity : OsActivity() {
             vrsta = vsi.take(6).map { it.paket }
         }
         
-        if (vrsta == vrstaDomov && vrstaAplikacij.childCount > 0) return false
+        // Naloga 49 D: brez sprememb se vrstica ne rise znova (fokus ostane). Podpis zajame tudi USB, imena in
+        // zatemnitev spletnih - prej priklop USB ali novo ime spletne aplikacije nista bila vidna do spremembe vrste.
+        val usbs = usbNosilci()
+        val podpis = vrsta + usbs.map { "usb:" + (it.uuid ?: it.getDescription(this)) } +
+            spletne.values.map { "s:" + it.url + "|" + it.ime + "|" + it.zadnjaNapaka }
+        if (podpis == podpisVrste && vrstaAplikacij.childCount > 0) return false
+        podpisVrste = podpis
 
         val stare = vrstaDomov.toSet()
         vrstaAplikacij.removeAllViews()
@@ -1142,9 +1191,8 @@ class PokrajinaActivity : OsActivity() {
             dodajVVrsto(v)
         }
         
+        // Naloga 48 E: zacasna ploscica USB - ni v vrstaDomov, zato se ne premika in ne shrani v vrstni red.
         try {
-            val sm = getSystemService(android.os.storage.StorageManager::class.java)
-            val usbs = sm?.storageVolumes?.filter { it.isRemovable && it.state == android.os.Environment.MEDIA_MOUNTED }.orEmpty()
             for (usb in usbs) {
                 val ime = usb.getDescription(this) ?: "USB"
                 val v = kartica(null, R.drawable.os_ikona_datoteke, ime) { _ ->
@@ -1155,7 +1203,7 @@ class PokrajinaActivity : OsActivity() {
                         odpri(Intent(this, DatotekeActivity::class.java).putExtra(DatotekeActivity.EXTRA_KRAJEVNO, true))
                     }
                 }
-                v.tag = "usb:${usb.uuid}"
+                v.tag = "usb:" + (usb.uuid ?: ime)
                 dodajVVrsto(v)
             }
         } catch (_: Throwable) { }
@@ -1167,8 +1215,14 @@ class PokrajinaActivity : OsActivity() {
         return true
     }
 
+    private fun usbNosilci(): List<android.os.storage.StorageVolume> = try {
+        getSystemService(android.os.storage.StorageManager::class.java)?.storageVolumes
+            ?.filter { it.isRemovable && it.state == android.os.Environment.MEDIA_MOUNTED }.orEmpty()
+    } catch (_: Throwable) { emptyList() }
+
     /** Vrstni red, kot je trenutno narisan (za premik in shranjevanje). */
     private var vrstaDomov: List<String> = emptyList()
+    private var podpisVrste: List<String> = emptyList()
     // ------------------------------------------------------------------ mirovanje (po zgledu tv-simple-home)
     private var zadnjiVnos = 0L
     private var mirujem = false
@@ -1177,8 +1231,14 @@ class PokrajinaActivity : OsActivity() {
     private val preveriMirovanje = object : Runnable {
         override fun run() {
             val zdaj = android.os.SystemClock.uptimeMillis()
-            val lupa = ::poljeLupe.isInitialized && (poljeLupe.hasFocus() || zadetki.visibility == View.VISIBLE)
-            val predvaja = try { GlasbaStoritev.trenutna() != null || GlasbaStoritev.tece() } catch (_: Throwable) { false }
+            // Pregled 2. 11. 2026: vidnost je na drsniku - zadetki so bili vedno VISIBLE in zaslon ni nikoli miroval.
+            val lupa = ::poljeLupe.isInitialized && (poljeLupe.hasFocus() || zadetkiDrsnik.visibility == View.VISIBLE ||
+                DomacaLupa.tipkovnicaOdprta(this@PokrajinaActivity))
+            // Mini predvajalnik (tudi predvajanje na drugi napravi): ne ciscenja ozadja ne zatemnitve.
+            val predvaja = try {
+                GlasbaStoritev.trenutna() != null || GlasbaStoritev.tece() ||
+                    (OddaljenoPredvajanje.cilj != null && OddaljenoPredvajanje.stanje.kajIgra)
+            } catch (_: Throwable) { false }
             
             if (!mirujem && hasWindowFocus() && !lupa && premikam == null && premikamDok == null && PokrajinaPravila.mirujePo(zadnjiVnos, zdaj)) {
                 mirujem = true
@@ -1221,25 +1281,39 @@ class PokrajinaActivity : OsActivity() {
         glavna.postDelayed(preveriMirovanje, PokrajinaPravila.MIROVANJE_MS)
     }
 
+    /** Dotik ali klik miske, ki je zbudil zaslon (njegov ACTION_UP ne sme odpreti ploscice). */
+    private var dotikZbudil = false
+    private var dotikZacetek = 0L
+
     override fun dispatchTouchEvent(dogodek: android.view.MotionEvent): Boolean {
-        if (dogodek.actionMasked == android.view.MotionEvent.ACTION_DOWN) {
-            val spal = mirujem
-            zbudi()
-            if (spal) return true        // dotik, ki zbudi, ne odpre ploscice
+        when (dogodek.actionMasked) {
+            android.view.MotionEvent.ACTION_DOWN -> {
+                dotikZbudil = mirujem
+                dotikZacetek = dogodek.eventTime
+                zbudi()
+                return true
+            }
+            android.view.MotionEvent.ACTION_UP -> {
+                // Pregled 2. 11. 2026: prej je ACTION_UP po dotiku, ki je zbudil, vseeno poslal OK (odprl ploscico).
+                if (dotikZbudil) { dotikZbudil = false; return true }
+                // Naloga 49 I: dolg pritisk (miska, dotik) odpre meni ozadja; kratek je OK na fokusu (bcec519e).
+                if (dogodek.eventTime - dotikZacetek >= android.view.ViewConfiguration.getLongPressTimeout()) menijOzadja()
+                else {
+                    dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_CENTER))
+                    dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_CENTER))
+                }
+                return true
+            }
         }
-        if (dogodek.actionMasked == android.view.MotionEvent.ACTION_UP) {
-            dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_CENTER))
-            dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_CENTER))
-            return true
-        }
-        if (dogodek.actionMasked == android.view.MotionEvent.ACTION_DOWN) return true
         return super.dispatchTouchEvent(dogodek)
     }
 
     private var zadnjiXMis = 0f
 
     override fun dispatchGenericMotionEvent(dogodek: android.view.MotionEvent): Boolean {
-        zbudi()                           // premik miske ali kolescek
+        // Premik miske ali kolescek: v mirovanju prvi dogodek samo zbudi (kot prva tipka), ne premakne fokusa.
+        if (mirujem) { zbudi(); zadnjiXMis = dogodek.x; return true }
+        zbudi()
         if (dogodek.action == android.view.MotionEvent.ACTION_SCROLL) {
             val os = dogodek.getAxisValue(android.view.MotionEvent.AXIS_VSCROLL).takeIf { it != 0f }
                 ?: dogodek.getAxisValue(android.view.MotionEvent.AXIS_HSCROLL)
@@ -1696,8 +1770,15 @@ class PokrajinaActivity : OsActivity() {
         }
     }
 
+    /** Skrije tedensko napoved; fokus, ki je bil v njej, se vrne na temperaturo (sicer bi ostal na skritem pogledu). */
+    private fun skrijTeden() {
+        val imel = teden.hasFocus()
+        teden.visibility = View.GONE
+        if (imel) vreme.requestFocus()
+    }
+
     private fun preklopiTeden() {
-        if (teden.visibility == View.VISIBLE) { teden.visibility = View.GONE; return }
+        if (teden.visibility == View.VISIBLE) { skrijTeden(); return }
         val k = kraj() ?: return
         Thread({
             val dni = beri(VremePravila.naslovTedna(k))?.let { VremePravila.razcleniTeden(it) }.orEmpty()
@@ -1708,25 +1789,34 @@ class PokrajinaActivity : OsActivity() {
         }, "safeer-vreme-teden").start()
     }
 
+    /**
+     * Naloga 49 E: najvec [PokrajinaPravila.DNI_TEDNA] dni, vodoravno drsno, prvi dan v fokusu, levo/desno premika, Nazaj
+     * zapre. Pregled 2. 11. 2026: prej so sli stolpci neposredno v HorizontalScrollView, ki sprejme samo enega otroka -
+     * drugi dan je sesul domaci zaslon (IllegalStateException).
+     */
     private fun narisiTeden(dni: List<VremePravila.Dan>) {
-        teden.removeAllViews()
+        tedenVrsta.removeAllViews()
         val vhod = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ROOT)
         val izhod = java.text.SimpleDateFormat("EEE", jezik())   // jezik vmesnika, kot ura in datum (pravilo 27. 10. 2026)
-        for (d in dni) {
+        for (d in dni.take(PokrajinaPravila.DNI_TEDNA)) {
             val dan = try { vhod.parse(d.datum)?.let { izhod.format(it) } } catch (_: Exception) { null } ?: d.datum.takeLast(5)
             val stolpec = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
-                setPadding(dp(8), 0, dp(8), 0)
-                // Samo prikaz: fokus ostane na temperaturi (ponovni OK ali Nazaj skrije teden).
-                isFocusable = false
+                setPadding(dp(8), dp(2), dp(8), dp(2))
+                isFocusable = true
+                background = steklo(12).apply { alpha = 0 }
+                setOnFocusChangeListener { v, ima -> v.background.alpha = if (ima) 255 else 0 }
+                setOnClickListener { skrijTeden() }
             }
             stolpec.addView(besedilo(dan, 13f, R.color.os_umirjeno).apply { gravity = Gravity.CENTER })
             stolpec.addView(besedilo(ikona(VremePravila.vrsta(d.koda)), 18f).apply { gravity = Gravity.CENTER })
             stolpec.addView(besedilo(VremePravila.napisDneva(d), 13f).apply { gravity = Gravity.CENTER })
-            teden.addView(stolpec)
+            stolpec.contentDescription = dan + " " + VremePravila.napisDneva(d)
+            tedenVrsta.addView(stolpec)
         }
-        teden.contentDescription = dni.joinToString(", ") { it.datum + " " + VremePravila.napisDneva(it) }
         teden.visibility = View.VISIBLE
+        teden.scrollTo(0, 0)
+        tedenVrsta.getChildAt(0)?.let { prvi -> prvi.post { prvi.requestFocus() } }
     }
 
     private fun ikona(vrsta: String): String = when (vrsta) {

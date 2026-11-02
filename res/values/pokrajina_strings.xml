@@ -23,4 +23,6 @@
     <string name="pk_dodaj_gledas">Add apps you watch.</string>
     <string name="pk_nadaljuj">Continue</string>
     <string name="pk_zaganjalnik_opusti">Return to previous launcher</string>
+    <string name="pk_vec">More</string>
+    <string name="pk_varen_rob">Safe screen margin</string>
 </resources>

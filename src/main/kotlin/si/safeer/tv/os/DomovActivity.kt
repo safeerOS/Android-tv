@@ -92,12 +92,8 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         si.safeer.tv.os.Predgretje.zazeni(this)
-        // Naloga 49: preprecevanje prebliska, ko je alias nujno na starem zaganjalniku (alias ne more biti pogojen),
-        // beta pa je vklopljena. Theme.NoDisplay prepreci risanje okna, se preden ga startActivity/finish zapreta.
+        // Pregled 2. 11. 2026: Theme.NoDisplay tu ne deluje - OsActivity.onCreate (Tema.uporabi) temo takoj zamenja.
         val beta = ZaganjalnikBeta.vklopljen(this)
-        if (beta) {
-            setTheme(android.R.style.Theme_NoDisplay)
-        }
         super.onCreate(savedInstanceState)
         // Telefon in tablica imata svoj domaci zaslon (DomovTabletActivity; prilagodljivi ZaganjalnikActivity, ce je kdaj
         // vstopna tocka): Nazaj, Domov v stranski vrstici in tipka Y odprejo DomovActivity, zato jih tu preusmerimo, sicer

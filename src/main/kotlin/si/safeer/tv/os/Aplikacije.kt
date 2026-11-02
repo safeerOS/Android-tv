@@ -283,13 +283,20 @@ object Aplikacije {
         val d = if (jeBanner) BitmapDrawable(c.resources, slika) else try { SpletneAplikacije.ikonaIzSlike(c, slika) } catch (_: Throwable) { vir }
         oblikovane.dodaj(v.paket, d)
         
-        try {
-            predpomnilnik.mkdirs()
-            val zacasna = File(datoteka.path + ".tmp")
+        // Pregled 2. 11. 2026: ikona() klice tudi mreza aplikacij na glavni niti - stiskanje PNG gre v nit ikon.
+        if (posodobljena > 0) {
             val zaShranjevanje = if (d is BitmapDrawable && d.bitmap != null) d.bitmap else slika
-            zacasna.outputStream().use { zaShranjevanje.compress(Bitmap.CompressFormat.PNG, 100, it) }
-            if (!zacasna.renameTo(datoteka)) zacasna.delete()
-        } catch (_: Throwable) { }
+            try {
+                niti.execute {
+                    try {
+                        predpomnilnik.mkdirs()
+                        val zacasna = File(datoteka.path + ".tmp")
+                        zacasna.outputStream().use { zaShranjevanje.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                        if (!zacasna.renameTo(datoteka)) zacasna.delete()
+                    } catch (_: Throwable) { }
+                }
+            } catch (_: Throwable) { }
+        }
 
         return d
     }

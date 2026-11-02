@@ -23,4 +23,6 @@
     <string name="pk_dodaj_gledas">Fügen Sie Apps hinzu, die Sie ansehen.</string>
     <string name="pk_nadaljuj">Fortsetzen</string>
     <string name="pk_zaganjalnik_opusti">Zum vorherigen Launcher zurückkehren</string>
+    <string name="pk_vec">Mehr</string>
+    <string name="pk_varen_rob">Sicherer Bildschirmrand</string>
 </resources>
