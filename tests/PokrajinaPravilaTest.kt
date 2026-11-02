@@ -173,5 +173,9 @@ fun main() {
     preveriEnako("dodaj na dom: ze vprasan", false, PokrajinaPravila.dodajNaDomDialog(3, true, false))
     preveriEnako("dodaj na dom: prvi zagon", false, PokrajinaPravila.dodajNaDomDialog(1, false, false))
 
+    preveriEnako("zagon: takoj drugi blokiran", false, PokrajinaPravila.dovoljenZagon(1000L, 1100L))
+    preveriEnako("zagon: po 1,5s dovoljen", true, PokrajinaPravila.dovoljenZagon(1000L, 2501L))
+    preveriEnako("zagon: prvi vedno dovoljen", true, PokrajinaPravila.dovoljenZagon(0L, 1000L))
+
     if (napak == 0) println("PokrajinaPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

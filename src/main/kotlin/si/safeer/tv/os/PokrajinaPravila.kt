@@ -230,4 +230,8 @@ object PokrajinaPravila {
     /** Naloga 45 G: ponudba za dodajanje na domaci zaslon. */
     fun dodajNaDomDialog(zagonov: Int, zeVprasan: Boolean, naDomu: Boolean): Boolean =
         zagonov == 3 && !zeVprasan && !naDomu
+
+    /** Dovoljen zagon aplikacije (preprečitev dvojnega klika): mora miniti 1,5 s od zadnjega poskusa. */
+    fun dovoljenZagon(zadnjiZagonMs: Long, zdajMs: Long): Boolean =
+        zdajMs - zadnjiZagonMs > 1500L
 }

@@ -761,7 +761,7 @@ class PokrajinaActivity : OsActivity() {
                 val v = kartica(Aplikacije.ikonaIzPomnilnika(a.paket), R.drawable.os_ikona_mreza, a.ime) { k ->
                     if (premikam != null) { koncajPremikanje(); return@kartica }
                     zadnjaPloscica = id
-                    odpri(Intent(a.namera).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), izPloscice(k))
+                    preveriInOdpri(id, Intent(a.namera).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), izPloscice(k))
                 }
                 if (Aplikacije.ikonaIzPomnilnika(a.paket) == null)
                     Aplikacije.ikonaLeno(this, a) { Aplikacije.ikonaIzPomnilnika(a.paket)?.let { v.findViewById<ImageView>(R.id.ikona).setImageDrawable(it) } }
@@ -776,7 +776,7 @@ class PokrajinaActivity : OsActivity() {
                 if (premikam != null) { koncajPremikanje(); return@kartica }
                 zadnjaPloscica = id
                 Nadaljuj.zapisi(this, Nadaljuj.Vnos(vrsta = Nadaljuj.SPLETNA, ime = ime, url = s.url))
-                odpri(Brskalnik.namera(this).putExtra("spletna_aplikacija", s.url).putExtra("aplikacija_ime", ime)
+                preveriInOdpri(id, Brskalnik.namera(this).putExtra("spletna_aplikacija", s.url).putExtra("aplikacija_ime", ime)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             }
             v.tag = id
@@ -1083,13 +1083,29 @@ class PokrajinaActivity : OsActivity() {
      */
 
     /** Odpiranje, ki ne utihne: napaka se pokaze (kot na starem domacem zaslonu), ne izgine. */
-    private fun odpri(namera: Intent, moznosti: Bundle? = null) {
-        try { startActivity(namera, moznosti) }
-        catch (e: Throwable) {
+    private fun odpri(namera: Intent, moznosti: Bundle? = null): Boolean {
+        return try {
+            startActivity(namera, moznosti)
+            true
+        } catch (e: Throwable) {
             Log.w(TAG, "Odpiranje ni uspelo: ${e.javaClass.simpleName}")
             android.widget.Toast.makeText(this, getString(R.string.os_odpri_napaka, getString(
                 if (e is android.content.ActivityNotFoundException) R.string.os_odpri_ni_aplikacije else R.string.os_odpri_ni_dovoljenja)),
                 android.widget.Toast.LENGTH_LONG).show()
+            false
+        }
+    }
+
+    private val zadnjiZagoni = mutableMapOf<String, Long>()
+
+    private fun preveriInOdpri(id: String, namera: Intent, moznosti: Bundle? = null) {
+        val zdaj = android.os.SystemClock.uptimeMillis()
+        val zadnji = zadnjiZagoni[id] ?: 0L
+        if (!PokrajinaPravila.dovoljenZagon(zadnji, zdaj)) return
+        
+        if (odpri(namera, moznosti)) {
+            zadnjiZagoni[id] = zdaj
+            android.widget.Toast.makeText(this, R.string.pk_odpiram, android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 
