@@ -29,8 +29,11 @@ object LupaPravila {
     /** Shranjena izbira ali privzeti Splet (neznana ali prazna vrednost - npr. iz starejse razlicice). */
     fun obseg(shranjen: String?): String = shranjen?.takeIf { it in OBSEGI } ?: OBSEG_SPLET
 
-    /** OK na polju lupe isce, ce je vpisano vsaj toliko, kot zahteva DomacaLupa.izvedi (2 znaka). */
-    fun okIsce(niz: String): Boolean = niz.trim().length >= 2
+    /** OK na polju lupe isce, ce je vpisano vsaj toliko, kot zahteva DomacaLupa.izvedi. */
+    fun okIsce(niz: String, obseg: String = OBSEG_SPLET): Boolean {
+        val l = niz.trim().length
+        return if (obseg == OBSEG_SPLET || obseg == OBSEG_YOUTUBE) l >= 1 else l >= 2
+    }
 
     /** Iskanje na YouTubu (stran z zadetki v brskalniku). */
     fun youtubeIskanje(q: String): String =

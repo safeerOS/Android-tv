@@ -343,7 +343,7 @@ object DomacaLupa {
      */
     fun izvedi(a: Activity, niz: String) {
         val q = niz.trim()
-        if (q.length < 2) return
+        if (!LupaPravila.okIsce(q, obseg(a))) return
         dodajZgodovino(a, q)
         val u = LupaPravila.razcleni(q, napraveKroga(a))
         when (u.vrsta) {

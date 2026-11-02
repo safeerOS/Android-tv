@@ -20,4 +20,7 @@
     <string name="pk_ni_povezave">keine Verbindung</string>
     <string name="pk_dodaj_na_dom_naslov">Zum Startbildschirm?</string>
     <string name="pk_dodaj_na_dom_opis">Sie haben diese App zum dritten Mal geöffnet.</string>
+    <string name="pk_dodaj_gledas">Fügen Sie Apps hinzu, die Sie ansehen.</string>
+    <string name="pk_nadaljuj">Fortsetzen</string>
+    <string name="pk_zaganjalnik_opusti">Zum vorherigen Launcher zurückkehren</string>
 </resources>

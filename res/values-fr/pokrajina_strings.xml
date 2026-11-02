@@ -20,4 +20,7 @@
     <string name="pk_ni_povezave">pas de connexion</string>
     <string name="pk_dodaj_na_dom_naslov">Ajouter à l'accueil ?</string>
     <string name="pk_dodaj_na_dom_opis">Vous avez ouvert cette application pour la troisième fois.</string>
+    <string name="pk_dodaj_gledas">Ajouter des applications que vous regardez.</string>
+    <string name="pk_nadaljuj">Continuer</string>
+    <string name="pk_zaganjalnik_opusti">Retour au lanceur précédent</string>
 </resources>
