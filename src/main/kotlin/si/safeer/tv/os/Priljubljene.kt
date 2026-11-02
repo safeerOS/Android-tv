@@ -85,4 +85,47 @@ object Priljubljene {
         return true
     }
 
+    private const val KLJUC_PONUDBA = "ponudba_dom"
+
+    /**
+     * Naloga 45 G: ob tretjem zagonu aplikacije, ki ni na domacem zaslonu, se enkrat ponudi »Dodam na dom?«. Pregled
+     * 2. 11. 2026: aplikacija se zazene TAKOJ; ponudba pocaka do vrnitve na domaci zaslon ([ponudiCakajoco]) - prej je okno
+     * zadrzalo zagon, dokler ga uporabnik ni zaprl.
+     */
+    fun preveriZagonInZazeni(a: android.app.Activity, paket: String, ime: String, zazeni: () -> Unit) {
+        zazeni()
+        if (paket == a.packageName || je(a, paket)) return
+        val p = prefs(a)
+        val zagonov = p.getInt("zagon_st_$paket", 0) + 1
+        val e = p.edit().putInt("zagon_st_$paket", zagonov)
+        if (PokrajinaPravila.dodajNaDomDialog(zagonov, p.getBoolean("zagon_vprasan_$paket", false), false))
+            e.putBoolean("zagon_vprasan_$paket", true).putString(KLJUC_PONUDBA, paket)
+        e.apply()
+    }
+
+    /** Ob vrnitvi na domaci zaslon: cakajoca ponudba (najvec enkrat), ce aplikacija medtem ni ze na domu ali odstranjena. */
+    fun ponudiCakajoco(a: android.app.Activity, poDodaji: () -> Unit) {
+        val p = prefs(a)
+        val paket = p.getString(KLJUC_PONUDBA, null) ?: return
+        p.edit().remove(KLJUC_PONUDBA).apply()
+        if (je(a, paket)) return
+        val ime = try {
+            a.packageManager.getApplicationLabel(a.packageManager.getApplicationInfo(paket, 0)).toString()
+        } catch (_: Throwable) { return }
+        val o = android.app.AlertDialog.Builder(a, si.safeer.tv.R.style.Os_Okno)
+            .setTitle(a.getString(si.safeer.tv.R.string.pk_dodaj_na_dom_naslov))
+            .setMessage(ime + "\n" + a.getString(si.safeer.tv.R.string.pk_dodaj_na_dom_opis))
+            .setPositiveButton(a.getString(si.safeer.tv.R.string.os_spletne_dodaj_gumb)) { _, _ ->
+                dodaj(a, paket)
+                // Na domaci zaslon dodajamo na konec: redDomov.
+                val red = redDomov(a).toMutableList()
+                if (paket !in red) red.add(paket)
+                shraniRedDomov(a, red)
+                poDodaji()
+            }
+            .setNegativeButton(a.getString(si.safeer.tv.R.string.os_preklici), null)
+            .create()
+        Kontroler.pokazi(o)
+        o.show()
+    }
 }

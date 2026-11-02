@@ -52,4 +52,6 @@
     <string name="os_media_jeziki_vsebine">Jeziki vsebine</string>
     <string name="os_media_pripravljam">Pripravljam %1$s …</string>
     <string name="os_media_priprava_napaka">Vsebine %1$s ni bilo mogoče pripraviti.</string>
+    <string name="pk_odpiram">Odpiram …</string>
+    <string name="pk_dodaj_razdelek">Razdelek Safeer OS</string>
 </resources>

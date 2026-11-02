@@ -302,8 +302,8 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             else safeer(R.drawable.os_ikona_domov, R.string.pk_beta, R.string.pk_beta_opis, vklop(ZaganjalnikBeta.vklopljen(this))) { preklopiBeto() },
             if (!ZaganjalnikBeta.vklopljen(this)) null
             else safeer(R.drawable.os_ikona_isci, R.string.pk_lupa_splet_predlogi, R.string.pk_lupa_splet_predlogi_opis,
-                vklop(osShramba().getBoolean(PokrajinaActivity.KLJUC_SPLET_PREDLOGI, true))) {
-                osShramba().edit().putBoolean(PokrajinaActivity.KLJUC_SPLET_PREDLOGI, !osShramba().getBoolean(PokrajinaActivity.KLJUC_SPLET_PREDLOGI, true)).apply()
+                vklop(osShramba().getBoolean(PokrajinaActivity.KLJUC_SPLET_PREDLOGI, false))) {
+                osShramba().edit().putBoolean(PokrajinaActivity.KLJUC_SPLET_PREDLOGI, !osShramba().getBoolean(PokrajinaActivity.KLJUC_SPLET_PREDLOGI, false)).apply()
                 narisi()
             },
             // Lastnik 27. 10. 2026: kraj za vreme na domacem zaslonu se izbere tukaj (prej klik na uro).

@@ -15,4 +15,14 @@
     <string name="pk_dodaj_splet">Application web</string>
     <string name="pk_link_povezane">Appareils connectés</string>
     <string name="pk_link_osvezi">Actualiser</string>
+    <string name="pk_uredi_ime">Modifier le nom</string>
+    <string name="pk_odstrani_z_naprave">Supprimer de l'appareil</string>
+    <string name="pk_ni_povezave">pas de connexion</string>
+    <string name="pk_dodaj_na_dom_naslov">Ajouter à l'accueil ?</string>
+    <string name="pk_dodaj_na_dom_opis">Vous avez ouvert cette application pour la troisième fois.</string>
+    <string name="pk_dodaj_gledas">Ajouter des applications que vous regardez.</string>
+    <string name="pk_nadaljuj">Continuer</string>
+    <string name="pk_zaganjalnik_opusti">Retour au lanceur précédent</string>
+    <string name="pk_vec">Plus</string>
+    <string name="pk_varen_rob">Marge de sécurité de l\'écran</string>
 </resources>

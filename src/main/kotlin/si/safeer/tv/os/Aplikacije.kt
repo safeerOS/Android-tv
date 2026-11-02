@@ -233,14 +233,71 @@ object Aplikacije {
      */
     private val oblikovane = AplikacijePredpomnilnik.MajhenLru<String, Drawable>(64)
 
+    private fun casPosodobitve(c: Context, v: Vnos): Long {
+        val virApk = v.info?.applicationInfo?.sourceDir ?: dejavnost(c, v)?.applicationInfo?.sourceDir
+        return virApk?.let { File(it).lastModified() }?.takeIf { it > 0L }
+            ?: try { c.packageManager.getPackageInfo(v.paket, 0).lastUpdateTime } catch (_: Throwable) { 0L }
+    }
+
+    private fun izvirniBanner(c: Context, v: Vnos): Drawable? {
+        val info = dejavnost(c, v) ?: return null
+        return try { info.loadBanner(c.packageManager) ?: info.applicationInfo?.loadBanner(c.packageManager) } catch (_: Throwable) { null }
+    }
+
     fun ikona(c: Context, v: Vnos): Drawable? {
         oblikovane.daj(v.paket)?.let { return it }
-        // Najprej ostra razlicica iz iste aplikacije; sele ce je ni, tista, ki jo da loadIcon.
-        val ostra = ostraIkona(c, v)
-        val vir = ostra ?: v.ikona ?: izvirnaIkona(c, v) ?: return null
+        val tv = c.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
+        val posodobljena = casPosodobitve(c, v)
+        val predpomnilnik = File(c.cacheDir, "namizje-ikone")
+        val datoteka = File(predpomnilnik, "${v.paket}-ikona-$posodobljena.png")
+
+        if (posodobljena > 0 && datoteka.isFile) {
+            try {
+                android.graphics.BitmapFactory.decodeFile(datoteka.path)?.let {
+                    val d = BitmapDrawable(c.resources, it)
+                    oblikovane.dodaj(v.paket, d)
+                    return d
+                }
+            } catch (_: Throwable) { }
+        }
+
+        // Brisanje starih ikon iste aplikacije
+        try {
+            predpomnilnik.listFiles { _, name -> name.startsWith("${v.paket}-ikona-") && name != datoteka.name }?.forEach { it.delete() }
+        } catch (_: Throwable) { }
+
+        var vir: Drawable? = null
+        var jeBanner = false
+        if (tv) {
+            vir = izvirniBanner(c, v)
+            if (vir != null) jeBanner = true
+        }
+
+        if (vir == null) {
+            // Najprej ostra razlicica iz iste aplikacije; sele ce je ni, tista, ki jo da loadIcon.
+            val ostra = ostraIkona(c, v)
+            vir = ostra ?: v.ikona ?: izvirnaIkona(c, v) ?: return null
+        }
+
         val slika = vBitmap(vir) ?: return v.ikona
-        val d = try { SpletneAplikacije.ikonaIzSlike(c, slika) } catch (_: Throwable) { vir }
+        val d = if (jeBanner) BitmapDrawable(c.resources, slika) else try { SpletneAplikacije.ikonaIzSlike(c, slika) } catch (_: Throwable) { vir }
         oblikovane.dodaj(v.paket, d)
+        
+        // Pregled 2. 11. 2026: ikona() klice tudi mreza aplikacij na glavni niti - stiskanje PNG gre v nit ikon.
+        if (posodobljena > 0) {
+            val zaShranjevanje = if (d is BitmapDrawable && d.bitmap != null) d.bitmap else slika
+            try {
+                niti.execute {
+                    try {
+                        predpomnilnik.mkdirs()
+                        val zacasna = File(datoteka.path + ".tmp")
+                        zacasna.outputStream().use { zaShranjevanje.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                        if (!zacasna.renameTo(datoteka)) zacasna.delete()
+                    } catch (_: Throwable) { }
+                }
+            } catch (_: Throwable) { }
+        }
+
         return d
     }
 

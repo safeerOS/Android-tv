@@ -72,7 +72,9 @@ class AplikacijeTvActivity : OsActivity() {
                 if (!Priljubljene.je(this, a.paket)) Priljubljene.dodaj(this, a.paket)
                 Toast.makeText(this, getString(R.string.os_aplikacije_dodana, a.ime), Toast.LENGTH_SHORT).show()
                 finish()
-            } else zazeni(a, v)
+            } else {
+                Priljubljene.preveriZagonInZazeni(this, a.paket, a.ime) { zazeni(a, v) }
+            }
         }
         mreza.setOnItemLongClickListener { _, _, i, _ ->
             vnosi.getOrNull(i)?.let { moznosti(it) }; true
@@ -205,7 +207,21 @@ class AplikacijeTvActivity : OsActivity() {
             val a = vnosi[i]
             val ikona = v.findViewById<ImageView>(R.id.ikona)
             val risba = Aplikacije.ikona(this@AplikacijeTvActivity, a)
-            if (risba != null) ikona.setImageDrawable(risba) else ikona.setImageResource(R.drawable.os_ikona_mreza)
+            if (risba != null) {
+                ikona.setImageDrawable(risba)
+                val lp = ikona.layoutParams
+                if (risba.intrinsicWidth > risba.intrinsicHeight * 1.2f) {
+                    lp.width = (48 * resources.displayMetrics.density * 1.77f).toInt()
+                } else {
+                    lp.width = (48 * resources.displayMetrics.density).toInt()
+                }
+                ikona.layoutParams = lp
+            } else {
+                ikona.setImageResource(R.drawable.os_ikona_mreza)
+                val lp = ikona.layoutParams
+                lp.width = (48 * resources.displayMetrics.density).toInt()
+                ikona.layoutParams = lp
+            }
             // Zvezdica pove, da je aplikacija na domacem zaslonu; z dveh metrov je vidna takoj.
             v.findViewById<TextView>(R.id.ime).text =
                 if (Priljubljene.je(this@AplikacijeTvActivity, a.paket)) "★ " + a.ime else a.ime

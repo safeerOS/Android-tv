@@ -83,4 +83,32 @@ object SpletnaDodaj {
             poDodaji()
         }
     }
+
+    fun urediIme(a: Activity, spletna: SpletneAplikacije.Aplikacija, poSpremembi: () -> Unit) {
+        val polje = android.widget.EditText(a).apply {
+            setText(spletna.ime)
+            setSingleLine()
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
+            setTextColor(a.osBarva(R.color.os_besedilo))
+        }
+        val okvir = LinearLayout(a).apply {
+            orientation = LinearLayout.VERTICAL
+            val r = (a.resources.displayMetrics.density * 24).toInt()
+            setPadding(r, r / 2, r, 0)
+            addView(polje)
+        }
+        android.app.AlertDialog.Builder(a, si.safeer.tv.R.style.Os_Okno)
+            .setTitle(a.getString(R.string.pk_uredi_ime))
+            .setView(okvir)
+            .setPositiveButton(a.getString(si.safeer.tv.R.string.ui_edit)) { _, _ ->
+                val novo = polje.text.toString().trim()
+                if (novo.isNotEmpty()) {
+                    SpletneAplikacije.shrani(a, SpletneAplikacije.seznam(a).map { if (it.url == spletna.url) it.copy(ime = novo) else it })
+                    poSpremembi()
+                }
+            }
+            .setNegativeButton(a.getString(R.string.os_preklici), null)
+            .let { Kontroler.pokazi(it.show()) }
+        polje.requestFocus()
+    }
 }

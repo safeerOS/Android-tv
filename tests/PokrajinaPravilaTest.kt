@@ -16,7 +16,8 @@ fun main() {
     val t = 1_793_071_740_000L
 
     println("\n== ura in datum v jeziku vmesnika ==")
-    preveriEnako("ura", "03:29", PokrajinaPravila.ura(t, Locale("sl"), utc))
+    preveriEnako("ura 24h", "03:29", PokrajinaPravila.ura(t, Locale("sl"), utc, true))
+    preveriEnako("ura 12h", "3:29 AM", PokrajinaPravila.ura(t, Locale("en"), utc, false))
     preveriEnako("datum sl", "Tor., 27. okt.", PokrajinaPravila.datum(t, Locale("sl"), utc))
     preveriEnako("datum en (napaka zgleda: EN vmesnik, SL datum)", "Tue, 27 Oct", PokrajinaPravila.datum(t, Locale("en"), utc))
     preveriEnako("datum de", "Di., 27. Okt.", PokrajinaPravila.datum(t, Locale("de"), utc))
@@ -35,6 +36,7 @@ fun main() {
     preveriEnako("izbrana Pokrajina ostane pri starem", "pokrajina", PokrajinaPravila.tema("pokrajina", false))
     preveriEnako("prazna izbira = ni izbire", "namizje", PokrajinaPravila.tema(" ", false))
     preveriEnako("vrstica razdelkov po zgledu", listOf("mediji", "splet", "link", "sporocila", "aplikacije", "datoteke", "nastavitve"), PokrajinaPravila.DOK)
+    preveriEnako("spodnja vrstica vrstni red shrani", listOf("nastavitve", "splet", "mediji", "link", "sporocila", "aplikacije", "datoteke"), PokrajinaPravila.dokVrstniRed("nastavitve, splet"))
 
     println("\n== zmanjsano gibanje in fokus ==")
     preveriEnako("navadno", 200L, PokrajinaPravila.trajanje(200, 1f, false))
@@ -155,8 +157,43 @@ fun main() {
     preveriEnako("KEYCODE_FAC_FAC / Philips MENU (602)", true, PokrajinaPravila.jeTipkaMenija(602))
     preveriEnako("KEYCODE_WINDOW (171)", true, PokrajinaPravila.jeTipkaMenija(171))
     preveriEnako("gamepad select (109)", true, PokrajinaPravila.jeTipkaMenija(109))
-    preveriEnako("gamepad X/Y (99, 100)", true, PokrajinaPravila.jeTipkaMenija(99) && PokrajinaPravila.jeTipkaMenija(100))
+    preveriEnako("gamepad X/Y (99, 100)", false, PokrajinaPravila.jeTipkaMenija(99) || PokrajinaPravila.jeTipkaMenija(100))
     preveriEnako("navadna smerna tipka ni meni", false, PokrajinaPravila.jeTipkaMenija(21))
+
+    println("\n== Nove tipke (naloga 45) ==")
+    preveriEnako("tipka 1 -> 0", 0, PokrajinaPravila.indeksPloscice(8))
+    preveriEnako("tipka 6 -> 5", 5, PokrajinaPravila.indeksPloscice(13))
+    preveriEnako("numpad 3 -> 2", 2, PokrajinaPravila.indeksPloscice(147))
+    preveriEnako("kanal gor -> -1", -1, PokrajinaPravila.smerStran(166))
+    preveriEnako("kanal dol -> 1", 1, PokrajinaPravila.smerStran(167))
+    preveriEnako("medijska tipka play", true, PokrajinaPravila.jeMedijska(126))
+    preveriEnako("navadna tipka ni medijska", false, PokrajinaPravila.jeMedijska(21))
+
+    preveriEnako("dodaj na dom: tretji zagon", true, PokrajinaPravila.dodajNaDomDialog(3, false, false))
+    preveriEnako("dodaj na dom: ze na domu", false, PokrajinaPravila.dodajNaDomDialog(3, false, true))
+    preveriEnako("dodaj na dom: ze vprasan", false, PokrajinaPravila.dodajNaDomDialog(3, true, false))
+    preveriEnako("dodaj na dom: prvi zagon", false, PokrajinaPravila.dodajNaDomDialog(1, false, false))
+
+    preveriEnako("zagon: takoj drugi blokiran", false, PokrajinaPravila.dovoljenZagon(1000L, 1100L))
+    preveriEnako("zagon: po 1,5s dovoljen", true, PokrajinaPravila.dovoljenZagon(1000L, 2501L))
+    preveriEnako("zagon: prvi vedno dovoljen", true, PokrajinaPravila.dovoljenZagon(0L, 1000L))
+
+    val dvojniki = PokrajinaPravila.deduplicirajSpletne(listOf("com.google.android.youtube.tv", "splet:https://www.youtube.com/tv", "splet:https://ostalo.com"))
+    preveriEnako("dedupliciraj: yt", listOf("com.google.android.youtube.tv", "splet:https://ostalo.com"), dvojniki)
+
+    println("\n== pregled 2. 11. 2026 ==")
+    preveriEnako("dedupliciraj: google.com ostane ob aplikaciji com.google.*", listOf("com.google.android.youtube.tv", "splet:https://news.google.com/"),
+        PokrajinaPravila.deduplicirajSpletne(listOf("com.google.android.youtube.tv", "splet:https://news.google.com/")))
+    preveriEnako("dedupliciraj: netflix", listOf("com.netflix.ninja"),
+        PokrajinaPravila.deduplicirajSpletne(listOf("com.netflix.ninja", "splet:https://www.netflix.com/")))
+    preveriEnako("dedupliciraj: podniz ni dovolj (tube v youtube)", listOf("com.google.android.youtube.tv", "splet:https://tube.si/"),
+        PokrajinaPravila.deduplicirajSpletne(listOf("com.google.android.youtube.tv", "splet:https://tube.si/")))
+    preveriEnako("varen rob privzeto 40 kot prej", 40, PokrajinaPravila.VAREN_ROB_DP)
+    preveriEnako("varen rob pod mejo -> 40", 40, PokrajinaPravila.varenRob(0))
+    preveriEnako("varen rob nad mejo -> 96", 96, PokrajinaPravila.varenRob(500))
+    preveriEnako("varen rob vmes", 60, PokrajinaPravila.varenRob(60))
+    preveriEnako("teden najvec 5 dni", 5, PokrajinaPravila.DNI_TEDNA)
+    preveriEnako("plosck X ni meni", false, PokrajinaPravila.jeTipkaMenija(99))
 
     if (napak == 0) println("PokrajinaPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

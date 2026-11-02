@@ -54,6 +54,8 @@ object SpletneAplikacije {
         val zadnji: String = "",
         /** Kdaj je bil tam; po [OKNO_MS] se aplikacija spet odpre na svoji zacetni strani. */
         val zadnjiCas: Long = 0L,
+        /** Naloga 49: spletna ploscica, katere naslov se ne odpre (zadnji poskus napaka), zatemnjena. */
+        val zadnjaNapaka: Boolean = false,
     )
 
     /** Koliko casa velja »nadaljuj, kjer si koncal«: pol ure je ravno prav za prekinjen ogled. */
@@ -72,16 +74,16 @@ object SpletneAplikacije {
                 val o = polje.optJSONObject(i) ?: return@mapNotNull null
                 val url = o.optString("url"); if (url.isBlank()) null
                 else Aplikacija(url, o.optString("ime"), o.optString("ikona"), o.optString("barva"),
-                    o.optString("ikona_url"), o.optString("zadnji"), o.optLong("zadnji_cas"))
+                    o.optString("ikona_url"), o.optString("zadnji"), o.optLong("zadnji_cas"), o.optBoolean("zadnja_napaka"))
             }
         } catch (e: Throwable) { Log.w(TAG, "Seznama ni bilo mogoce prebrati: ${e.message}"); emptyList() }
     }
 
-    private fun shrani(c: Context, seznam: List<Aplikacija>) {
+    internal fun shrani(c: Context, seznam: List<Aplikacija>) {
         val polje = JSONArray()
         for (a in seznam.take(NAJVEC)) {
             polje.put(JSONObject().put("url", a.url).put("ime", a.ime).put("ikona", a.ikona).put("barva", a.barva)
-                .put("ikona_url", a.ikonaUrl).put("zadnji", a.zadnji).put("zadnji_cas", a.zadnjiCas))
+                .put("ikona_url", a.ikonaUrl).put("zadnji", a.zadnji).put("zadnji_cas", a.zadnjiCas).put("zadnja_napaka", a.zadnjaNapaka))
         }
         prefs(c).edit().putString(KLJUC, polje.toString()).apply()
     }
@@ -117,8 +119,17 @@ object SpletneAplikacije {
         if (seznam.none { istaStran(it.url, url) }) return
         val cist = if (zadnji.isBlank() || gostitelj(zadnji) != gostitelj(url)) "" else zadnji
         shrani(app, seznam.map {
-            if (istaStran(it.url, url)) it.copy(zadnji = cist, zadnjiCas = if (cist.isBlank()) 0L else System.currentTimeMillis()) else it
+            // Ob uspesnem prikazu strani napako odstranimo (ce obstaja).
+            if (istaStran(it.url, url)) it.copy(zadnji = cist, zadnjiCas = if (cist.isBlank()) 0L else System.currentTimeMillis(), zadnjaNapaka = false) else it
         })
+    }
+    
+    fun zabeleziNapako(c: Context, url: String) {
+        if (url.isBlank()) return
+        val app = c.applicationContext
+        val seznam = seznam(app)
+        if (seznam.none { istaStran(it.url, url) }) return
+        shrani(app, seznam.map { if (istaStran(it.url, url)) it.copy(zadnjaNapaka = true) else it })
     }
 
     /**

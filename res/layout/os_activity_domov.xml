@@ -287,6 +287,16 @@
                 </LinearLayout>
             </LinearLayout>
 
+            <LinearLayout
+                android:tag="lupaTipkovnica"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginStart="24dp"
+                android:layout_marginEnd="@dimen/os_rob"
+                android:layout_marginTop="10dp"
+                android:visibility="gone"/>
+
         <ScrollView
             android:id="@+id/drsnik"
             android:layout_width="match_parent"
@@ -886,10 +896,15 @@
 
                     <TextView
                         android:id="@+id/naslovAplikacije"
-                        style="@style/Os.Nadnaslov"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"/>
+                        android:layout_marginTop="10dp"
+                        android:textSize="26sp"
+                        android:textColor="?attr/osMint"
+                        android:fontFamily="sans-serif-medium"
+                        android:textStyle="bold"
+                        android:maxLines="1"
+                        android:ellipsize="end"/>
                     <HorizontalScrollView
                         android:id="@+id/aplikacijeDrsnik"
                         android:layout_width="match_parent"

@@ -80,5 +80,10 @@ fun main() {
 
     preveriEnako("OK z besedilom isce", true, LupaPravila.okIsce("sintel"))
     preveriEnako("OK s praznim ne isce (odpre tipkovnico)", false, LupaPravila.okIsce("  "))
+    // Naloga 49 C: v obsegu Splet in YouTube isce ze en znak, drugje (Video vsebine) sele dva.
+    preveriEnako("splet: en znak isce", true, LupaPravila.okIsce("a", LupaPravila.OBSEG_SPLET))
+    preveriEnako("youtube: en znak isce", true, LupaPravila.okIsce(" a ", LupaPravila.OBSEG_YOUTUBE))
+    preveriEnako("video: en znak ne isce", false, LupaPravila.okIsce("a", LupaPravila.OBSEG_VIDEO))
+    preveriEnako("video: dva znaka isceta", true, LupaPravila.okIsce("ab", LupaPravila.OBSEG_VIDEO))
     if (napak == 0) println("LupaPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

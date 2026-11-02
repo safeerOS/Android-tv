@@ -15,4 +15,14 @@
     <string name="pk_dodaj_splet">Spletna aplikacija</string>
     <string name="pk_link_povezane">Povezane naprave</string>
     <string name="pk_link_osvezi">Osveži</string>
+    <string name="pk_uredi_ime">Uredi ime</string>
+    <string name="pk_odstrani_z_naprave">Odstrani z naprave</string>
+    <string name="pk_ni_povezave">ni povezave</string>
+    <string name="pk_dodaj_na_dom_naslov">Dodam na dom?</string>
+    <string name="pk_dodaj_na_dom_opis">To aplikacijo ste odprli že tretjič.</string>
+    <string name="pk_dodaj_gledas">Dodaj aplikacije, ki jih gledaš.</string>
+    <string name="pk_nadaljuj">Nadaljuj</string>
+    <string name="pk_zaganjalnik_opusti">Vrnitev prejšnjega zaganjalnika</string>
+    <string name="pk_vec">Več</string>
+    <string name="pk_varen_rob">Varen rob zaslona</string>
 </resources>

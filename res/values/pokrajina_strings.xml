@@ -15,4 +15,14 @@
     <string name="pk_dodaj_splet">Web app</string>
     <string name="pk_link_povezane">Connected devices</string>
     <string name="pk_link_osvezi">Refresh</string>
+    <string name="pk_uredi_ime">Edit name</string>
+    <string name="pk_odstrani_z_naprave">Remove from device</string>
+    <string name="pk_ni_povezave">no connection</string>
+    <string name="pk_dodaj_na_dom_naslov">Add to home screen?</string>
+    <string name="pk_dodaj_na_dom_opis">You have opened this app for the third time.</string>
+    <string name="pk_dodaj_gledas">Add apps you watch.</string>
+    <string name="pk_nadaljuj">Continue</string>
+    <string name="pk_zaganjalnik_opusti">Return to previous launcher</string>
+    <string name="pk_vec">More</string>
+    <string name="pk_varen_rob">Safe screen margin</string>
 </resources>

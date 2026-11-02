@@ -136,7 +136,8 @@ object Zaganjalnik {
             .edit().remove(KLJUC_DOMOV).apply()
     }
 
-    private fun nastavi(context: Context, omogocen: Boolean) {
+    @android.annotation.SuppressLint("ApplySharedPref")
+    private fun nastavi(context: Context, omogocen: Boolean, takoj: Boolean = false) {
         val stanje = if (omogocen) PackageManager.COMPONENT_ENABLED_STATE_ENABLED
         else PackageManager.COMPONENT_ENABLED_STATE_DISABLED
         try {
@@ -150,7 +151,8 @@ object Zaganjalnik {
             context.packageManager.setComponentEnabledSetting(ComponentName(context.packageName, ALIAS_NAMIZJE), stanje, PackageManager.DONT_KILL_APP)
         } catch (_: Throwable) { }
         // Varnostna vrata: padci pred tem trenutkom ne stejejo vec (ob vklopu in ob vrnitvi zacnemo znova).
-        vrata(context).edit().putLong(KLJUC_OD, System.currentTimeMillis()).remove(KLJUC_PADCI).apply()
+        val edit = vrata(context).edit().putLong(KLJUC_OD, System.currentTimeMillis()).remove(KLJUC_PADCI)
+        if (takoj) edit.commit() else edit.apply()
     }
 
     /**
@@ -287,9 +289,8 @@ object Zaganjalnik {
 
     @android.annotation.SuppressLint("ApplySharedPref")   // namenoma commit: lahko se proces takoj konca
     private fun vrniPoPadcih(app: Context) {
-        nastavi(app, false)
+        nastavi(app, false, takoj = true)
         app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(KLJUC_DOMOV).putBoolean(KLJUC_VRNJEN, true).commit()
-        vrata(app).edit().remove(KLJUC_PADCI).putLong(KLJUC_OD, System.currentTimeMillis()).commit()
     }
 
     /**

@@ -41,6 +41,9 @@ class VidezActivity : OsActivity() {
     /** Kar je trenutno na zaslonu: izbira pod kazalcem (predogled) in tista, ki je shranjena. */
     private var predogled: Ozadje.Izbira = Ozadje.VSE[0]
 
+    private fun dp(v: Int): Int = android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), resources.displayMetrics).toInt()
+    private fun osShramba() = getSharedPreferences("safeer_os", android.content.Context.MODE_PRIVATE)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.os_activity_videz)
@@ -63,6 +66,48 @@ class VidezActivity : OsActivity() {
                 val v = vrednost * Ozadje.KORAK_ZATEMNITVE
                 odstotek.text = getString(R.string.os_odstotek, v)
                 if (odUporabnika) { Ozadje.nastaviZatemnitev(this@VidezActivity, v); narisi() }
+            }
+            override fun onStartTrackingTouch(s: SeekBar?) { }
+            override fun onStopTrackingTouch(s: SeekBar?) { }
+        })
+
+        val zatemnitevOkvir = findViewById<TextView>(R.id.pomoc).parent as android.widget.LinearLayout
+        val varenRobOkvir = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            layoutParams = android.widget.LinearLayout.LayoutParams(dp(392), ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10) }
+            background = resources.getDrawable(R.drawable.os_crta_zgoraj, theme)
+            setPadding(0, dp(10), 0, 0)
+        }
+        val varenRobNaslov = android.widget.LinearLayout(this).apply { orientation = android.widget.LinearLayout.HORIZONTAL }
+        val varenRobBesedilo = TextView(this).apply {
+            text = getString(R.string.pk_varen_rob)
+            setTextColor(osBarva(R.color.os_besedilo))
+            textSize = 15f
+            layoutParams = android.widget.LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        val varenRobVrednost = TextView(this).apply {
+            setTextColor(osBarva(R.color.os_mint))
+            textSize = 15f
+        }
+        varenRobNaslov.addView(varenRobBesedilo)
+        varenRobNaslov.addView(varenRobVrednost)
+        val varenRobDrsnik = SeekBar(this).apply {
+            isFocusable = true; isFocusableInTouchMode = true
+            max = PokrajinaPravila.VAREN_ROB_NAJVEC_DP - PokrajinaPravila.VAREN_ROB_DP
+            contentDescription = getString(R.string.pk_varen_rob)
+        }
+        varenRobOkvir.addView(varenRobNaslov)
+        varenRobOkvir.addView(varenRobDrsnik, android.widget.LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(2) })
+        (zatemnitevOkvir.parent as android.widget.LinearLayout).addView(varenRobOkvir)
+
+        val shranjenoRob = PokrajinaPravila.varenRob(osShramba().getInt(PokrajinaPravila.KLJUC_VAREN_ROB, PokrajinaPravila.VAREN_ROB_DP))
+        varenRobDrsnik.progress = shranjenoRob - PokrajinaPravila.VAREN_ROB_DP
+        varenRobVrednost.text = shranjenoRob.toString()
+        varenRobDrsnik.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(s: SeekBar?, vrednost: Int, odUporabnika: Boolean) {
+                val v = vrednost + PokrajinaPravila.VAREN_ROB_DP
+                varenRobVrednost.text = v.toString()
+                if (odUporabnika) osShramba().edit().putInt(PokrajinaPravila.KLJUC_VAREN_ROB, v).apply()
             }
             override fun onStartTrackingTouch(s: SeekBar?) { }
             override fun onStopTrackingTouch(s: SeekBar?) { }

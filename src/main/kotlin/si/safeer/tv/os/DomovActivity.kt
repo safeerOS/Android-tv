@@ -92,6 +92,8 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         si.safeer.tv.os.Predgretje.zazeni(this)
+        // Pregled 2. 11. 2026: Theme.NoDisplay tu ne deluje - OsActivity.onCreate (Tema.uporabi) temo takoj zamenja.
+        val beta = ZaganjalnikBeta.vklopljen(this)
         super.onCreate(savedInstanceState)
         // Telefon in tablica imata svoj domaci zaslon (DomovTabletActivity; prilagodljivi ZaganjalnikActivity, ce je kdaj
         // vstopna tocka): Nazaj, Domov v stranski vrstici in tipka Y odprejo DomovActivity, zato jih tu preusmerimo, sicer
@@ -109,7 +111,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         }
         // Naloga 42: nov TV zaganjalnik (beta). Domov ostane vstopna tocka (tipka Domov, alias), zaslon pa je
         // PokrajinaActivity; dodatki namere (os_vrni ...) gredo zraven. Izklop bete v Nastavitvah vrne ta zaslon.
-        if (ZaganjalnikBeta.vklopljen(this)) {
+        if (beta) {
             try {
                 val nov = Intent(this, PokrajinaActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 intent?.extras?.let { nov.putExtras(it) }
@@ -517,7 +519,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         ZagonOb.pospravi(this)      // ce nas je ob vklopu odprlo obvestilo, naj ga uporabnik ne vidi
         narisiNadaljuj()
         narisiAplikacije()
-        Posodobitve.ponudiCeJeCas(this)   // nova razlicica s safeer.si: tiha pasica, najvec enkrat na dan
+        // Posodobitve.ponudiCeJeCas(this)   // Naloga 47 F: Brez pasice in brez okna ob Domov, samo pika v nastavitvah.
         DovoljenjaActivity.ponudiObZagonu(this)   // enkrat, ce manjka pomembno dovoljenje (prikaz cez druge aplikacije)
         narisiSpletne()
         prevzemiSpletne()
@@ -1396,11 +1398,24 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             val v = LayoutInflater.from(this).inflate(R.layout.os_kartica_ikona, vrstaAplikacije, false)
             val slika = v.findViewById<ImageView>(R.id.ikona)
             val risba = Aplikacije.ikonaIzPomnilnika(a.paket)
-            if (risba != null) slika.setImageDrawable(risba)
+            val prilagodiIkono = { d: android.graphics.drawable.Drawable ->
+                slika.setImageDrawable(d)
+                val lp = slika.layoutParams
+                if (d.intrinsicWidth > d.intrinsicHeight * 1.2f) {
+                    lp.width = (48 * resources.displayMetrics.density * 1.77f).toInt()
+                } else {
+                    lp.width = (48 * resources.displayMetrics.density).toInt()
+                }
+                slika.layoutParams = lp
+            }
+            if (risba != null) prilagodiIkono(risba)
             else {
                 // Ikono nalozi ozadje (nizka prednost); kartica je medtem ze na zaslonu.
                 slika.setImageResource(R.drawable.os_ikona_mreza)
-                Aplikacije.ikonaLeno(this, a) { Aplikacije.ikonaIzPomnilnika(a.paket)?.let { slika.setImageDrawable(it) } }
+                val lp = slika.layoutParams
+                lp.width = (48 * resources.displayMetrics.density).toInt()
+                slika.layoutParams = lp
+                Aplikacije.ikonaLeno(this, a) { Aplikacije.ikonaIzPomnilnika(a.paket)?.let { prilagodiIkono(it) } }
             }
             v.findViewById<TextView>(R.id.ime).text = a.ime
             v.onFocusChangeListener = fokus
@@ -1622,6 +1637,24 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (ima) v.post { pripeljiVrsto(v) }
         if (ima) (v.parent as? ViewGroup)?.let { it.requestChildFocus(v, v) }
         if (ima) v.post { pokaziCeloPlosco(v) }
+
+        if (v.parent === vrstaAplikacije) {
+            val naslov = findViewById<TextView>(R.id.naslovAplikacije)
+            if (ima) {
+                val ime = v.findViewById<TextView>(R.id.ime)?.text?.toString()
+                if (!ime.isNullOrEmpty() && naslov != null) {
+                    naslov.text = ime
+                    naslov.contentDescription = ime
+                    naslov.announceForAccessibility(ime)
+                }
+            } else {
+                v.post {
+                    if (vrstaAplikacije.hasFocus()) return@post
+                    naslov?.setText(R.string.os_odsek_priljubljene)
+                    naslov?.contentDescription = null
+                }
+            }
+        }
     }
 
     /**
