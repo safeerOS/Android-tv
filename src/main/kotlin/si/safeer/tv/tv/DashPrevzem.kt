@@ -83,6 +83,8 @@ object DashPrevzem {
     private val io = Executors.newSingleThreadExecutor()
     private val lock = Any()
     private var mpdUrl: String = ""
+    /** Gostitelj manifesta, ki ga je WebView zahteval po omrezju; "" = noben. */
+    private var omrezniGostitelj: String = ""
     private var mpdHeaders: Map<String, String> = emptyMap()
     private var mpdLaurl: String = ""
     private var pageLicUrl: String = ""
@@ -108,6 +110,7 @@ object DashPrevzem {
     fun reset() {
         synchronized(lock) {
             mpdUrl = ""
+            omrezniGostitelj = ""
             mpdHeaders = emptyMap()
             mpdLaurl = ""
             hintLicUrl = ""
@@ -143,16 +146,9 @@ object DashPrevzem {
      * DASH in Widevine ter po gostitelju, s katerega je prisel manifest - ne po imenu strani.
      */
     fun shouldPassthrough(url: String): Boolean {
-        val u = url.lowercase(Locale.US)
-        if (u.contains(".mpd") || u.contains(".m4s") || u.contains("/dash/") ||
-            u.contains("castlabs") || u.contains("drmtoday") || u.contains("widevine") ||
-            u.contains("expressplay") || u.contains("license-proxy") ||
-            u.contains("/drm/") || u.contains("/license")
-        ) {
-            return true
-        }
-        val medijskiGostitelj = synchronized(lock) { if (mpdUrl.isEmpty()) "" else hostOf(mpdUrl) }
-        return medijskiGostitelj.isNotEmpty() && hostOf(url).equals(medijskiGostitelj, true)
+        val gostitelj = DashPravila.gostitelj(url)
+        val manifest = synchronized(lock) { omrezniGostitelj }
+        return DashPravila.prepusti(url, manifest, AdBlockEngine.jeOglasniGostitelj(gostitelj))
     }
 
     fun observe(url: String, method: String, headers: Map<String, String>) {
@@ -160,7 +156,7 @@ object DashPrevzem {
         val lower = url.lowercase(Locale.US)
         val merged = withCookies(url, headers)
         when {
-            isDashManifest(lower) -> onMpd(url, merged)
+            isDashManifest(lower) -> onMpd(url, merged, izOmrezja = true)
             isLicenseUrl(lower, method) -> onLicenseHint(url, merged, null)
         }
     }
@@ -182,7 +178,8 @@ object DashPrevzem {
         }
     }
 
-    private fun onMpd(url: String, headers: Map<String, String>) {
+    /** [izOmrezja]: manifest je WebView res zahteval (shouldInterceptRequest), ne javila ga je stran po mostu. */
+    private fun onMpd(url: String, headers: Map<String, String>, izOmrezja: Boolean = false) {
         val ch = dashChannelOf(url)
         if (isStaleChannelMpd(ch)) {
             SafeerDbg.log(
@@ -197,6 +194,9 @@ object DashPrevzem {
         var newStream = false
         synchronized(lock) {
             val same = mpdUrl.isNotEmpty() && sameDashStream(mpdUrl, url)
+            // Gostitelj manifesta gre mimo filtra samo, ce je manifest prisel z njega po omrezju (DashPravila.prepusti).
+            if (izOmrezja) omrezniGostitelj = DashPravila.gostitelj(url)
+            else if (!same) omrezniGostitelj = ""
             if (!same) {
                 mpdUrl = url
                 mpdHeaders = headers

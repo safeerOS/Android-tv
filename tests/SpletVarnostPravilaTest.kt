@@ -82,6 +82,14 @@ fun main() {
                      "10.0.0.1.5", "banka.si", ".local", "evil.local.com", "2001:db8::1", "", "0x0a.0.0.1", "010.0.0.1")) {
         check(!P.jeZasebniGostitelj(h)) { "javni $h" }
     }
+    // Zunanji pregled 2. 11. 2026: enako kot WebtorPravila.zasebenNaslov - 0/8, CGNAT 100.64/10, 192.0.0/24, 224+.
+    for (h in listOf("0.0.0.0", "0.1.2.3", "100.64.0.1", "100.127.255.254", "192.0.0.8", "224.0.0.251", "239.255.255.250",
+                     "240.0.0.1", "255.255.255.255", "[::ffff:100.64.0.1]")) {
+        check(P.jeZasebniGostitelj(h)) { "ni javni $h" }
+    }
+    for (h in listOf("100.63.255.255", "100.128.0.1", "192.0.1.1", "192.0.2.1", "223.255.255.255", "1.0.0.1")) {
+        check(!P.jeZasebniGostitelj(h)) { "javni $h" }
+    }
     // Odlocitev velja za gostitelja IN vrata.
     check(P.sslKljuc("https://Primer.si/pot") == "primer.si:443")
     check(P.sslKljuc("https://primer.si:8443/x") == "primer.si:8443")

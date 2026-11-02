@@ -142,8 +142,13 @@ object SpletVarnostPravila {
         return o
     }
 
+    /**
+     * Ni javni naslov (enako kot WebtorPravila.zasebenNaslov, zunanji pregled 2. 11. 2026): 0/8, 10/8, 127/8, 100.64/10
+     * (CGNAT, npr. VPN v domacem krogu), 169.254/16, 172.16/12, 192.0.0/24, 192.168/16 ter vecvrstni in rezervirani (224+).
+     */
     private fun zasebniIpv4(o: IntArray): Boolean =
-        o[0] == 10 || o[0] == 127 || (o[0] == 172 && o[1] in 16..31) || (o[0] == 192 && o[1] == 168) || (o[0] == 169 && o[1] == 254)
+        o[0] == 0 || o[0] == 10 || o[0] == 127 || (o[0] == 100 && o[1] in 64..127) || (o[0] == 169 && o[1] == 254) ||
+            (o[0] == 172 && o[1] in 16..31) || (o[0] == 192 && o[1] == 0 && o[2] == 0) || (o[0] == 192 && o[1] == 168) || o[0] >= 224
 
     private fun zasebniIpv6(h: String): Boolean {
         // Samo zapis naslova (brez imen): getByName tak niz razcleni brez poizvedbe DNS.

@@ -100,30 +100,8 @@ class ChromiumEngineView @JvmOverloads constructor(
          */
         fun naDotik(c: Context): Boolean = !si.safeer.tv.os.Naprava.jeTelevizor(c)
 
-        fun rewriteYoutubeForTv(url: String): String {
-            val lower = url.lowercase()
-            if (!lower.contains("youtube.com") && !lower.contains("youtu.be")) return url
-            if (lower.contains("accounts.google") || lower.contains("accounts.youtube")) return url
-            if (lower.contains("music.youtube.com") || lower.contains("studio.youtube.com")) return url
-            if (lower.contains("youtube.com/tv")) return url
-
-            val shortMatch = Regex("youtu\\.be/([\\w-]{6,})").find(url)
-            if (shortMatch != null) {
-                return "https://www.youtube.com/tv#/watch?v=${shortMatch.groupValues[1]}"
-            }
-
-            val watchMatch = Regex("[?&]v=([\\w-]{6,})").find(url)
-            if (lower.contains("/watch") && watchMatch != null) {
-                return "https://www.youtube.com/tv#/watch?v=${watchMatch.groupValues[1]}"
-            }
-
-            val searchMatch = Regex("[?&](?:search_query|q)=([^&]+)").find(url)
-            if ((lower.contains("/results") || lower.contains("/search")) && searchMatch != null) {
-                return "https://www.youtube.com/tv#/search?q=${searchMatch.groupValues[1]}"
-            }
-
-            return "https://www.youtube.com/tv"
-        }
+        /** Po gostitelju (GooglePravila.youtubeNaTv): notyoutube.com ali youtube.com.zlo.test ni YouTube. */
+        fun rewriteYoutubeForTv(url: String): String = GooglePravila.youtubeNaTv(url)
     }
 
     var isDesktopMode: Boolean = false
@@ -525,23 +503,13 @@ class ChromiumEngineView @JvmOverloads constructor(
      * menjava identitete med navigacijo (Gmail »Sign in«: workspace.google.com -> accounts.google.com) sesuje WebView 153.
      */
     private fun uaZaUrl(url: String): String {
-        val host = try { Uri.parse(url).host?.lowercase() ?: "" } catch (_: Exception) { "" }
         val isGoogle = UserScriptManager.isGoogleDomain(url)
         if (isGoogle) {
-            val isGoogleAuth = UserScriptManager.isGoogleAuthUrl(url) ||
-                host.contains("accounts.google") || host.contains("accounts.youtube") ||
-                host.contains("myaccount.google") || url.contains("accounts.google.com", ignoreCase = true) ||
-                url.contains("signin/v2", ignoreCase = true) || url.contains("signin/challenge", ignoreCase = true) ||
-                url.contains("v3/signin", ignoreCase = true) || url.contains("signin/identifier", ignoreCase = true)
-            return if (isGoogleAuth) GOOGLE_AUTH_USER_AGENT else CHROME_ANDROID_USER_AGENT
+            return if (UserScriptManager.isGoogleAuthUrl(url)) GOOGLE_AUTH_USER_AGENT else CHROME_ANDROID_USER_AGENT
         }
-        val isYoutubeTv = url.contains("youtube.com/tv", ignoreCase = true) ||
-            host.contains("youtube.com") || host.contains("youtu.be")
-        val skip = host.contains("music.youtube") || host.contains("studio.youtube") || host.contains("accounts.")
         return when {
             dotik -> CHROME_ANDROID_USER_AGENT
-            skip -> DESKTOP_USER_AGENT
-            isYoutubeTv -> SMART_TV_USER_AGENT
+            GooglePravila.youtubeZaTv(url) -> SMART_TV_USER_AGENT
             else -> DESKTOP_USER_AGENT
         }
     }
@@ -556,11 +524,7 @@ class ChromiumEngineView @JvmOverloads constructor(
         // zastavica, postavljena tu, je veljala tudi za stari dokument in za about:blank (zunanji pregled 8. 10. 2026).
         val host = try { Uri.parse(url).host?.lowercase() ?: "" } catch (_: Exception) { "" }
         val isGoogle = UserScriptManager.isGoogleDomain(url)
-        val isGoogleAuth = isGoogle && (UserScriptManager.isGoogleAuthUrl(url) ||
-            host.contains("accounts.google") || host.contains("accounts.youtube") ||
-            host.contains("myaccount.google") || url.contains("accounts.google.com", ignoreCase = true) ||
-            url.contains("signin/v2", ignoreCase = true) || url.contains("signin/challenge", ignoreCase = true) ||
-            url.contains("v3/signin", ignoreCase = true) || url.contains("signin/identifier", ignoreCase = true))
+        val isGoogleAuth = isGoogle && UserScriptManager.isGoogleAuthUrl(url)
 
         // Prijava, placilo in pravi bancni strezniki: piskotki tretjih strani in samodejna okna
         // (OAuth, 3-D Secure). Drugod ne - manj sledenja in manj nezelenih oken.
@@ -590,9 +554,8 @@ class ChromiumEngineView @JvmOverloads constructor(
             } catch (_: Exception) {}
         }
 
-        val isYoutubeTv = url.contains("youtube.com/tv", ignoreCase = true) ||
-            host.contains("youtube.com") || host.contains("youtu.be")
-        val skip = host.contains("music.youtube") || host.contains("studio.youtube") || host.contains("accounts.")
+        // Po gostitelju (zunanji pregled 2. 11. 2026): prej je zadoscal niz »youtube.com« kjerkoli v gostitelju ali naslovu.
+        val isYoutubeTv = GooglePravila.youtubeZaTv(url)
         // Televizor: siroka postavitev, namizni pogled in predvajanje brez dotika so pravilni
         // povsod. Prej so te nastavitve dobile samo nastete strani, kar je pomenilo, da je
         // brskalnik delal dobro tam, kjer smo stran poznali - zdaj jih dobi vsaka.
@@ -611,7 +574,6 @@ class ChromiumEngineView @JvmOverloads constructor(
         settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
         settings.userAgentString = when {
             dotik -> CHROME_ANDROID_USER_AGENT
-            skip -> DESKTOP_USER_AGENT
             isYoutubeTv -> SMART_TV_USER_AGENT
             else -> DESKTOP_USER_AGENT
         }
@@ -1173,7 +1135,7 @@ class ChromiumEngineView @JvmOverloads constructor(
                 // 2. Blokiraj le resnične botnet/malware grožnje in znane oglasne domene
                 val host = uri.host?.lowercase()?.trim() ?: ""
 
-                if (isMainFrame && !dotik && (host.contains("youtube.com") || host.contains("youtu.be"))) {
+                if (isMainFrame && !dotik && GooglePravila.jeYoutube(urlStr)) {
                     val rewritten = rewriteYoutubeForTv(urlStr)
                     if (rewritten != urlStr) {
                         view?.loadUrl(rewritten)
@@ -1264,7 +1226,8 @@ class ChromiumEngineView @JvmOverloads constructor(
                 if (threatResponse != null) {
                     return threatResponse
                 }
-                if (UserScriptManager.isGoogleDomain(url) || url.contains("recaptcha") || url.contains("gstatic.com")) {
+                // Po gostitelju: niz »recaptcha« ali »gstatic.com« v poti ali poizvedbi ni vec izjema od filtra oglasov.
+                if (UserScriptManager.isGoogleDomain(url)) {
                     return null
                 }
                 val method = request.method ?: "GET"

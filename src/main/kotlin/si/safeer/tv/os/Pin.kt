@@ -19,14 +19,17 @@ import javax.net.ssl.X509TrustManager
 object Pin {
     // Lastni zaupnik je namen: zaupamo samo pripetemu odtisu sredisca, nobeni verigi izdajateljev.
     @Suppress("CustomX509TrustManager")
-    class Zaupnik(private val odtis: String) : X509TrustManager {
+    class Zaupnik(odtis: String) : X509TrustManager {
+        // Zunanji pregled 2. 11. 2026: odtis normaliziramo tudi tu (kot HubTls) in primerjamo v stalnem casu.
+        private val odtis = normaliziraj(odtis)
+
         override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) =
             throw java.security.cert.CertificateException("Odjemalska potrdila niso v rabi.")
 
         override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {
             val list = chain.firstOrNull() ?: throw java.security.cert.CertificateException("Ni potrdila.")
             val dobljeni = sha256Hex(list.encoded)
-            if (dobljeni != odtis) {
+            if (!odtisaEnaka(dobljeni, odtis)) {
                 throw java.security.cert.CertificateException("Potrdilo sredisca se ne ujema s pripetim odtisom.")
             }
         }
@@ -45,6 +48,13 @@ object Pin {
     val brezImena: HostnameVerifier = HostnameVerifier { _, _ -> true }
 
     fun normaliziraj(odtis: String): String = odtis.trim().lowercase().replace(":", "")
+
+    /** Odtisa po normalizaciji, primerjana v stalnem casu (MessageDigest.isEqual); prazen odtis ni nikoli enak. */
+    fun odtisaEnaka(a: String, b: String): Boolean {
+        val x = normaliziraj(a)
+        val y = normaliziraj(b)
+        return x.isNotEmpty() && y.isNotEmpty() && MessageDigest.isEqual(x.toByteArray(), y.toByteArray())
+    }
 
     fun sha256Hex(b: ByteArray): String =
         MessageDigest.getInstance("SHA-256").digest(b).joinToString("") { "%02x".format(it) }

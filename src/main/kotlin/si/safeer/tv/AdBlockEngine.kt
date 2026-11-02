@@ -222,6 +222,13 @@ object AdBlockEngine {
         "axinom.com", "axprod.net", "axtest.net", "ezdrm.com", "buydrm.com", "irdeto.com", "verimatrix.com"
     )
 
+    /** Gostitelj je na seznamu blokiranih in ni zaupanja vreden (DashPravila.prepusti: tak nikoli mimo filtra). */
+    fun jeOglasniGostitelj(host: String): Boolean {
+        if (!isEnabled) return false
+        val h = host.lowercase().trimEnd('.')
+        return h.isNotEmpty() && blockedTrie.matches(h) && !jeZaupanjaVreden(h)
+    }
+
     /**
      * Preveri, ali URL ustreza oglasu, sledilcu ali blokirani domeni.
      */

@@ -1217,35 +1217,11 @@ object UserScriptManager {
     // katerakoli stran z ».../splet/splet.html« v naslovu izklopila filtriranje oglasov na sebi.
     private fun isBrowserHome(url: String?): Boolean = TvSite.isBrowserHome(url ?: "")
 
-    fun isGoogleAuthUrl(url: String?): Boolean {
-        if (url.isNullOrEmpty()) return false
-        val lower = url.lowercase()
-        return lower.contains("accounts.google") ||
-               lower.contains("accounts.youtube") ||
-               lower.contains("myaccount.google") ||
-               lower.contains("google.com/accounts") ||
-               lower.contains("signin/v2") ||
-               lower.contains("signin/challenge") ||
-               lower.contains("signin/identifier") ||
-               lower.contains("v3/signin")
-    }
+    /** Googlova prijava po gostitelju in poti (GooglePravila.jePrijava), ne po nizu kjerkoli v naslovu. */
+    fun isGoogleAuthUrl(url: String?): Boolean = GooglePravila.jePrijava(url)
 
-    fun isGoogleDomain(url: String?): Boolean {
-        if (url.isNullOrEmpty()) return false
-        val lower = url.lowercase()
-        val host = try { Uri.parse(url).host?.lowercase() ?: "" } catch (_: Exception) { "" }
-        if (host.contains("youtube") || host.contains("googlevideo") || host.contains("ytimg")) return false
-        return host == "google.com" || host.endsWith(".google.com") ||
-               host == "google.si" || host.endsWith(".google.si") ||
-               host.contains(".google.") || host.startsWith("google.") ||
-               host.contains("recaptcha") ||
-               host.contains("gstatic.com") ||
-               host.contains("googleapis.com") ||
-               isGoogleAuthUrl(url) ||
-               lower.contains("google.com/search") ||
-               lower.contains("google.si/search") ||
-               lower.contains("/recaptcha")
-    }
+    /** Googlova stran po gostitelju (GooglePravila.jeGoogle); zunanji pregled 2. 11. 2026: prej niz kjerkoli v naslovu. */
+    fun isGoogleDomain(url: String?): Boolean = GooglePravila.jeGoogle(url)
 
 
     /** Nas slog CSS samo, ce WebView ne temni sam (glej [ChromiumEngineView.isDarkMode]). */

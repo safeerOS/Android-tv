@@ -197,6 +197,27 @@ fun main() {
             preveri("povezano", s != null)
             s?.close(); n.zapri()
         }
+        primer("Pin.Zaupnik: odtis normaliziran, primerjava v stalnem casu (zunanji pregled 2. 11. 2026)") {
+            val shramba = File(mapa, "pin-${System.nanoTime()}.p12")
+            val keytool = File(System.getProperty("java.home"), "bin/keytool").path
+            val p = ProcessBuilder(keytool, "-genkeypair", "-alias", "a", "-keyalg", "RSA", "-keysize", "2048",
+                "-dname", "CN=safeer-preizkus", "-validity", "2", "-storetype", "PKCS12", "-keystore", shramba.path,
+                "-storepass", "preizkus", "-keypass", "preizkus").redirectErrorStream(true).start()
+            p.inputStream.bufferedReader().readText()
+            check(p.waitFor() == 0)
+            val ks = KeyStore.getInstance("PKCS12")
+            shramba.inputStream().use { ks.load(it, "preizkus".toCharArray()) }
+            val potrdilo = ks.getCertificate("a") as java.security.cert.X509Certificate
+            val odtis = Pin.sha256Hex(potrdilo.encoded)
+            fun sprejme(pin: String): Boolean = try {
+                Pin.Zaupnik(pin).checkServerTrusted(arrayOf(potrdilo), "RSA"); true
+            } catch (_: java.security.cert.CertificateException) { false }
+            preveri("pripet odtis", sprejme(odtis))
+            preveri("odtis z dvopicji in velikimi crkami", sprejme(" " + odtis.uppercase().chunked(2).joinToString(":") + " "))
+            preveri("drug odtis zavrnjen", !sprejme(odtis.dropLast(1) + (if (odtis.last() == '0') "1" else "0")))
+            preveri("prazen odtis zavrnjen", !sprejme(""))
+            preveri("odtisaEnaka", Pin.odtisaEnaka("AB:cd", "abcd") && !Pin.odtisaEnaka("abcd", "abce") && !Pin.odtisaEnaka("", ""))
+        }
         primer("prvi naslov mrtev, drugi dela") {
             val n = Naprava("127.0.0.1", mapa)
             val zacetek = System.currentTimeMillis()

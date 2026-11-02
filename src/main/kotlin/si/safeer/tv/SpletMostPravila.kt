@@ -50,30 +50,116 @@ object SpletMostPravila {
         (u.scheme.equals("https", true) || u.scheme.equals("http", true)) && !u.host.isNullOrBlank()
     } catch (_: Exception) { false }
 
-    private fun polje(json: String, ime: String): String? {
-        val zacetek = Regex("\\\"" + Regex.escape(ime) + "\\\"\\s*:\\s*\\\"").find(json)?.range?.last?.plus(1)
-            ?: return null
-        val ven = StringBuilder()
-        var i = zacetek
-        while (i < json.length) {
-            val c = json[i++]
-            if (c == '"') return ven.toString()
-            if (c != '\\') { ven.append(c); continue }
-            if (i >= json.length) return null
-            when (val e = json[i++]) {
-                '"', '\\', '/' -> ven.append(e)
-                'b' -> ven.append('\b')
-                'f' -> ven.append('\u000C')
-                'n' -> ven.append('\n')
-                'r' -> ven.append('\r')
-                't' -> ven.append('\t')
-                'u' -> {
-                    if (i + 4 > json.length) return null
-                    ven.append(json.substring(i, i + 4).toIntOrNull(16)?.toChar() ?: return null); i += 4
-                }
-                else -> return null
+    /** Vrednost niza na vrhnji ravni sporocila; null, ce je ni ali ni niz. */
+    private fun polje(json: String, ime: String): String? = polja(json)?.get(ime) as? String
+
+    /**
+     * Vrhnja polja predmeta JSON (niz kot String, drugo kot Unit). Null, ce sporocilo ni natanko en veljaven predmet ali
+     * ima isti kljuc dvakrat. Zunanji pregled 2. 11. 2026: prej je iskanje »"kljuc":« vzelo tudi kljuc iz gnezdenega
+     * predmeta ali drugo pojavitev; org.json v preizkusih JVM ni na voljo, zato majhen, a popoln razclenjevalnik.
+     */
+    fun polja(json: String): Map<String, Any>? = try {
+        val b = Bralnik(json)
+        val izid = b.predmet(0)
+        b.presledki()
+        if (b.i != json.length) null else izid
+    } catch (_: IllegalArgumentException) {
+        null
+    }
+
+    private class Bralnik(val s: String) {
+        var i = 0
+
+        fun presledki() { while (i < s.length && s[i] in " \t\r\n") i++ }
+
+        private fun znak(c: Char) {
+            presledki()
+            require(i < s.length && s[i] == c)
+            i++
+        }
+
+        fun predmet(globina: Int): Map<String, Any> {
+            require(globina < 32)
+            znak('{')
+            val izid = LinkedHashMap<String, Any>()
+            presledki()
+            if (i < s.length && s[i] == '}') { i++; return izid }
+            while (true) {
+                presledki()
+                val kljuc = niz()
+                znak(':')
+                val v = vrednost(globina)
+                require(izid.put(kljuc, v) == null)
+                presledki()
+                require(i < s.length)
+                if (s[i] == ',') { i++; continue }
+                require(s[i] == '}'); i++
+                return izid
             }
         }
-        return null
+
+        private fun seznam(globina: Int) {
+            require(globina < 32)
+            znak('[')
+            presledki()
+            if (i < s.length && s[i] == ']') { i++; return }
+            while (true) {
+                vrednost(globina)
+                presledki()
+                require(i < s.length)
+                if (s[i] == ',') { i++; continue }
+                require(s[i] == ']'); i++
+                return
+            }
+        }
+
+        private fun vrednost(globina: Int): Any {
+            presledki()
+            require(i < s.length)
+            return when (s[i]) {
+                '"' -> niz()
+                '{' -> { predmet(globina + 1); Unit }
+                '[' -> { seznam(globina + 1); Unit }
+                else -> { beseda(); Unit }
+            }
+        }
+
+        /** Stevilo, true, false ali null. */
+        private fun beseda() {
+            val z = i
+            while (i < s.length && (s[i].isLetterOrDigit() || s[i] in "+-.")) i++
+            val w = s.substring(z, i)
+            require(w == "true" || w == "false" || w == "null" || Regex("-?(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][+-]?[0-9]+)?").matches(w))
+        }
+
+        fun niz(): String {
+            presledki()
+            require(i < s.length && s[i] == '"')
+            i++
+            val ven = StringBuilder()
+            while (true) {
+                require(i < s.length)
+                val c = s[i++]
+                if (c == '"') return ven.toString()
+                require(c >= ' ')
+                if (c != '\\') { ven.append(c); continue }
+                require(i < s.length)
+                when (val e = s[i++]) {
+                    '"', '\\', '/' -> ven.append(e)
+                    'b' -> ven.append('\b')
+                    'f' -> ven.append('\u000C')
+                    'n' -> ven.append('\n')
+                    'r' -> ven.append('\r')
+                    't' -> ven.append('\t')
+                    'u' -> {
+                        require(i + 4 <= s.length)
+                        val k = s.substring(i, i + 4).toIntOrNull(16)
+                        require(k != null)
+                        ven.append(k.toChar()); i += 4
+                    }
+                    else -> throw IllegalArgumentException()
+                }
+            }
+        }
     }
 }

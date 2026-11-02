@@ -28,6 +28,22 @@ fun main() {
     check(SpletMostPravila.kljucBliznjice("http://365.rtvslo.si") == "365.rtvslo.si")
     check(SpletMostPravila.kljucBliznjice("https://mail.google.com/mail/") == "mail.google.com/mail")
 
+    // Zunanji pregled 2. 11. 2026: samo vrhnja polja veljavnega predmeta JSON; gnezden ali podvojen kljuc ne steje.
+    check(SpletMostPravila.razcleni("""{"x":{"action":"navigate","url":"https://zlo.example/"},"action":"query","text":"a"}""") ==
+        SpletMostPravila.Ukaz.Poizvedba("a")) { "gnezden kljuc ni ukaz" }
+    check(SpletMostPravila.razcleni("""{"action":"query","text":"a","action":"navigate","url":"https://zlo.example/"}""") == null) { "podvojen kljuc" }
+    check(SpletMostPravila.razcleni("""{"text":"\"action\":\"navigate\"","action":"query"}""") ==
+        SpletMostPravila.Ukaz.Poizvedba("\"action\":\"navigate\"")) { "kljuc v nizu ni kljuc" }
+    check(SpletMostPravila.razcleni("""{"url":"https://zlo.example/","list":["action","navigate"],"action":"query","text":"b"}""") ==
+        SpletMostPravila.Ukaz.Poizvedba("b")) { "seznam preskocen" }
+    check(SpletMostPravila.razcleni("""{"action":"reset_portals"} {"action":"navigate"}""") == null) { "smeti za predmetom" }
+    check(SpletMostPravila.razcleni("""{"action":"reset_portals",}""") == null) { "vejica pred koncem" }
+    check(SpletMostPravila.razcleni("""{"action":"query","text":"x\u0041","n":-1.5e3,"b":true,"z":null}""") ==
+        SpletMostPravila.Ukaz.Poizvedba("xA")) { "drugi tipi vrednosti" }
+    check(SpletMostPravila.razcleni("""["action","navigate"]""") == null) { "ni predmet" }
+    check(SpletMostPravila.razcleni("""{"action":42}""") == null) { "ni niz" }
+    check(SpletMostPravila.razcleni("{\"a\":" + "[".repeat(100) + "]".repeat(100) + ",\"action\":\"reset_portals\"}") == null) { "pregloboko" }
+
     check(SpletMostPravila.izberiJezik("de", "sl-SI") == "de")
     check(SpletMostPravila.izberiJezik("auto", "sl-SI") == "sl")
     check(SpletMostPravila.izberiJezik(null, "pt-BR") == "en")
