@@ -195,6 +195,6 @@ fun main() {
     var vprasan = false
     check(DeljenjePravila.prekReleja(true, true, false) { vprasan = true; true } && !vprasan) { "zdoma: LAN se ne preverja" }
     check(DeljenjePravila.httpIzWs("wss://127.0.0.1:40123") == "https://127.0.0.1:40123")
-    check(DeljenjePravila.httpIzWs("wss://192.168.0.77:8990/cast/ws") == "https://192.168.0.77:8990")
+    check(DeljenjePravila.httpIzWs("wss://192.168.50.77:8990/cast/ws") == "https://192.168.50.77:8990")
     println("DeljenjePravilaTest: OK")
 }

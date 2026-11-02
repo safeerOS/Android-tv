@@ -29,11 +29,11 @@ fun main() {
     }
 
     // Pregled 28. 10. 2026: naslov sredisca v kodi samo zaseben, opozorilo ob preselitvi iz drugega Safeer Linka.
-    for (n in listOf("192.168.0.77:8443", "10.0.0.5:1", "172.20.1.2:65535")) {
+    for (n in listOf("192.168.50.77:8443", "10.0.0.5:1", "172.20.1.2:65535")) {
         check(QrPravila.zasebniNaslovSredisca(n)) { "zasebni naslov $n" }
     }
-    for (n in listOf("8.8.8.8:8443", "93.184.216.34:443", "192.168.0.77", "192.168.0.77:", "192.168.0.77:0", "192.168.0.77:65536",
-                     "192.168.0.77:08443", "10.evil.com:443", ":443", "", "192.168.0.77:84a3", "192.168.0.77:123456")) {
+    for (n in listOf("8.8.8.8:8443", "93.184.216.34:443", "192.168.50.77", "192.168.50.77:", "192.168.50.77:0", "192.168.50.77:65536",
+                     "192.168.50.77:08443", "10.evil.com:443", ":443", "", "192.168.50.77:84a3", "192.168.50.77:123456")) {
         check(!QrPravila.zasebniNaslovSredisca(n)) { "ni zasebni naslov $n" }
     }
     check(!QrPravila.preselitev(false, o, o.reversed())) { "brez zetona ni preselitve" }

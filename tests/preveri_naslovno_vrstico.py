@@ -64,7 +64,7 @@ if node:
     funkciji = re.search(r"(  function jeIPv4\(g\) \{.*?\n  \}\n\n  function vNaslov\(vnos\) \{.*?\n  \})", splet, re.S)
     preveri("vNaslov je mogoce izlusciti", bool(funkciji))
     if funkciji:
-        primeri = {"192.168.0.1": "http://192.168.0.1", "192.168.0.135:8799/sa.html": "http://192.168.0.135:8799/sa.html",
+        primeri = {"192.168.0.1": "http://192.168.0.1", "192.168.50.135:8799/sa.html": "http://192.168.50.135:8799/sa.html",
                    "localhost:8080/api": "http://localhost:8080/api", "tiskalnik.local": "http://tiskalnik.local",
                    "nas.lan/datoteke": "http://nas.lan/datoteke", "safeer.si": "https://safeer.si",
                    "https://primer.si/a": "https://primer.si/a", "256.1.1.1": "https://256.1.1.1",

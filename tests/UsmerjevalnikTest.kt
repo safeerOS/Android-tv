@@ -418,7 +418,7 @@ private fun preizkusSeznanjanja() {
 private fun preizkusPreklica() {
     println("\n== preklic prijave ==")
     val u = usmerjevalnik()
-    val (pairId, _) = u.zacniSeznanitev("tab1", "Tablica", "192.168.0.108")!!
+    val (pairId, _) = u.zacniSeznanitev("tab1", "Tablica", "192.168.50.108")!!
     preveri("tuja naprava ne more preklicati", !u.prekliciPrijavo(pairId, "tuja"))
     preveriEnako("prijava po tujem preklicu ostane", 1, u.cakajocePrijave().size)
     preveri("izmisljen pair_id ne preklice nicesar", !u.prekliciPrijavo("izmisljen", "tab1"))
