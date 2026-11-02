@@ -512,8 +512,10 @@ class PokrajinaActivity : OsActivity() {
                 contentDescription = getString(R.string.pk_lupa_obseg) + " " + napis
                 setOnClickListener {
                     DomacaLupa.nastaviObseg(this@PokrajinaActivity, o)
+                    // Z daljincem je pot nazaj na polje dolga: OK na obsegu ga izbere in takoj isce v njem (ce je kaj vpisano).
+                    val niz = poljeLupe.text?.toString()?.trim().orEmpty()
+                    if (LupaPravila.okIsce(niz)) { DomacaLupa.izvedi(this@PokrajinaActivity, niz); return@setOnClickListener }
                     narisiZadetke(poljeLupe.text?.toString().orEmpty())
-                    // Fokus ostane na izbranem gumbu (daljinec) - po ponovnem izrisu ga poiscemo po oznaki.
                     zadetki.post { zadetki.findViewWithTag<View>("obseg_$o")?.requestFocus() }
                 }
                 tag = "obseg_$o"
@@ -562,19 +564,8 @@ class PokrajinaActivity : OsActivity() {
             zadetki.addView(naslovSkupine(R.string.os_meni_nastavitve))
             for ((ime, namera) in zadetkiNastavitev) zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_nastavitve, ime) { odpri(namera) })
         }
-        // Izbrani obseg je prvi (Enter izvede tega), nato ostala dva v stalnem vrstnem redu (Splet, Video, YouTube).
-        val izbran = DomacaLupa.obseg(this)
-        for (o in listOf(izbran) + LupaPravila.OBSEGI.filter { it != izbran }) when (o) {
-            LupaPravila.OBSEG_VIDEO -> zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_predvajaj, getString(R.string.pk_lupa_mediji, q)) {
-                odpri(Intent(this, GlasbaActivity::class.java).putExtra(GlasbaActivity.ISKANJE_BESEDA, q))
-            })
-            LupaPravila.OBSEG_YOUTUBE -> zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_video, getString(R.string.pk_lupa_youtube, q)) {
-                odpri(Brskalnik.namera(this).setAction(Intent.ACTION_VIEW).setData(android.net.Uri.parse(LupaPravila.youtubeIskanje(q))))
-            })
-            else -> zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_splet, getString(R.string.pk_lupa_splet, q)) {
-                odpri(Brskalnik.namera(this).setAction(Intent.ACTION_VIEW).setData(android.net.Uri.parse(si.safeer.tv.SmartOmnibox.iskanje(this, q))))
-            })
-        }
+        // Lastnik 2. 11. 2026: obseg (Splet, Video, YouTube) je ena vrstica pod lupo (izbiraObsega na vrhu zadetkov), ne trije
+        // dodatni zadetki; Enter in OK zazeneta samo izbranega.
         zadetki.visibility = View.VISIBLE
         // Sprotni zadetki iz spleta: samo od treh znakov, ne za naslov, in samo ce iskalnik predloge ima.
         val predloge = si.safeer.tv.SmartOmnibox.iskalnik(this).predlogi ?: return

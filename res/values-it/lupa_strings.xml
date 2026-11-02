@@ -2,8 +2,6 @@
 <!-- Naloga 42 E: lupa kot na racunalniku in glasovni ukazi (os/PokrajinaActivity, os/DomacaLupa). -->
 <resources>
     <string name="pk_lupa_programi">App</string>
-    <string name="pk_lupa_mediji">Cerca in Media Center: «%1$s»</string>
-    <string name="pk_lupa_splet">Cerca sul web: «%1$s»</string>
     <string name="pk_lupa_predlogi">Dal web</string>
     <string name="pk_vreme_beseda">meteo</string>
     <string name="pk_lupa_splet_predlogi">Suggerimenti dal web nella ricerca</string>
@@ -12,5 +10,4 @@
     <string name="pk_lupa_obseg_splet">Web</string>
     <string name="pk_lupa_obseg_video">Video</string>
     <string name="pk_lupa_obseg_youtube">YouTube</string>
-    <string name="pk_lupa_youtube">Cerca su YouTube: «%1$s»</string>
 </resources>
