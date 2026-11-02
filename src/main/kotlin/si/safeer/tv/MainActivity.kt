@@ -248,7 +248,11 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         installServiceWorkerThreatShield()
 
         val targetUrl = incomingBrowseUrl(intent)
-        val restored = tabManager.restoreFromFile(this)
+        // Lastnik 2. 11. 2026 18:25: na televizorju se brskalnik zapre BREZ starih zavihkov (ne zasedajo RAM-a). Nov zagon
+        // zacne z domaco stranjo; zavihki se obnovijo samo, ce je sistem aktivnost obnovil (smrt procesa med rabo).
+        val restored = if (BrowserMemoryPolicy.obnoviZavihke(ChromiumEngineView.naDotik(this), savedInstanceState != null))
+            tabManager.restoreFromFile(this)
+        else { try { java.io.File(filesDir, "tabs_state.bin").delete() } catch (_: Exception) {}; false }
         if (targetUrl != null) {
             tabManager.createTab(this, targetUrl, true)
         } else if (!restored) {

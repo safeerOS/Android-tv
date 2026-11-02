@@ -25,6 +25,9 @@ object BrowserMemoryPolicy {
         val prostegaVsaj: Int,
     )
 
+    /** Ali ob zagonu obnovimo zavihke: na dotik vedno, na televizorju samo ob obnovi aktivnosti (lastnik 2. 11. 2026). */
+    fun obnoviZavihke(naDotik: Boolean, obnovaAktivnosti: Boolean): Boolean = naDotik || obnovaAktivnosti
+
     fun za(c: Context): Politika {
         if (!ChromiumEngineView.naDotik(c)) return Politika(najvecZavihkov = 5, budnihVOzadju = 1, predRaster = false, prostegaVsaj = 20)
         val mi = pomnilnik(c)
