@@ -287,6 +287,16 @@
                 </LinearLayout>
             </LinearLayout>
 
+            <LinearLayout
+                android:tag="lupaTipkovnica"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginStart="24dp"
+                android:layout_marginEnd="@dimen/os_rob"
+                android:layout_marginTop="10dp"
+                android:visibility="gone"/>
+
         <ScrollView
             android:id="@+id/drsnik"
             android:layout_width="match_parent"

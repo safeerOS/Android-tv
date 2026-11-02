@@ -19,6 +19,7 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
+import android.widget.TextView
 import android.widget.Toast
 import si.safeer.tv.R
 
@@ -120,6 +121,7 @@ object DomacaLupa {
          */
         fun zapri() {
             (a.getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(polje.windowToken, 0)
+            zapriTipkovnico(a)
             polje.setText("")
             if (polje.isInTouchMode) polje.clearFocus()
             uveljavi()
@@ -169,8 +171,12 @@ object DomacaLupa {
             }
             if (tv) setOnKeyListener { v, koda, dogodek ->
                 if (dogodek.action == KeyEvent.ACTION_DOWN && (koda == KeyEvent.KEYCODE_DPAD_CENTER || koda == KeyEvent.KEYCODE_ENTER)) {
-                    (v as EditText).showSoftInputOnFocus = true
-                    (a.getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager).showSoftInput(v, 0)
+                    if (jeFizicnaTipkovnica(a)) {
+                        (v as EditText).showSoftInputOnFocus = true
+                        (a.getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager).showSoftInput(v, 0)
+                    } else {
+                        odpriTipkovnico(a, v as EditText)
+                    }
                     true
                 } else false
             }
@@ -338,6 +344,7 @@ object DomacaLupa {
     fun izvedi(a: Activity, niz: String) {
         val q = niz.trim()
         if (q.length < 2) return
+        dodajZgodovino(a, q)
         val u = LupaPravila.razcleni(q, napraveKroga(a))
         when (u.vrsta) {
             LupaPravila.PRIKAZI_NA -> if (u.vsebina.isNotBlank()) { prikaziNa(a, u); return }
@@ -414,4 +421,100 @@ object DomacaLupa {
     fun jeNaslov(q: String): Boolean =
         !q.contains(' ') && (q.startsWith("http://") || q.startsWith("https://") ||
             Regex("^[\\p{L}\\p{N}-]+(\\.[\\p{L}\\p{N}-]+)*\\.[a-z]{2,}(/.*)?$", RegexOption.IGNORE_CASE).matches(q))
+
+    fun jeFizicnaTipkovnica(c: Context): Boolean {
+        if (c.resources.configuration.keyboard != android.content.res.Configuration.KEYBOARD_NOKEYS) return true
+        for (id in android.view.InputDevice.getDeviceIds()) {
+            val dev = android.view.InputDevice.getDevice(id)
+            if (dev != null && dev.keyboardType == android.view.InputDevice.KEYBOARD_TYPE_ALPHABETIC) return true
+        }
+        return false
+    }
+
+    fun odpriTipkovnico(a: Activity, polje: EditText) {
+        val t = a.window.decorView.findViewWithTag<LinearLayout>("lupaTipkovnica") ?: return
+        if (t.visibility == View.VISIBLE) return
+        narisiTipkovnico(a, t, polje, stevilke = false)
+        t.visibility = View.VISIBLE
+        t.post { (t.getChildAt(0) as? ViewGroup)?.getChildAt(0)?.requestFocus() }
+    }
+
+    private fun narisiTipkovnico(a: Activity, t: LinearLayout, polje: EditText, stevilke: Boolean) {
+        t.removeAllViews()
+        val v = LinearLayout(a).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_HORIZONTAL
+        }
+        val jezik = java.util.Locale.getDefault().language
+        val sumniki = when (jezik) {
+            "sl" -> "čšž"
+            "de" -> "äöüß"
+            "es" -> "ñ"
+            "fr" -> "éèêëàâùüçœ"
+            "it" -> "àèéìíòóùú"
+            else -> ""
+        }
+        val znaki = if (stevilke) "1234567890!?:;\"'()/@#€%&*+=_~-." else "abcdefghijklmnopqrstuvwxyz$sumniki"
+        
+        fun tipka(napis: String, sirinaDp: Int, ob: () -> Unit) {
+            val btn = TextView(a).apply {
+                text = napis
+                gravity = Gravity.CENTER
+                setTextColor(a.osBarva(R.color.os_besedilo))
+                textSize = if (napis.length > 2) 12f else 17f
+                setBackgroundResource(R.drawable.os_tipka_velika)
+                isFocusable = true
+                isClickable = true
+                setOnClickListener { ob() }
+                setOnKeyListener(View.OnKeyListener { _, koda, e ->
+                    if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount > 0 && 
+                        (koda == KeyEvent.KEYCODE_DPAD_CENTER || koda == KeyEvent.KEYCODE_ENTER || koda == KeyEvent.KEYCODE_NUMPAD_ENTER || koda == KeyEvent.KEYCODE_BUTTON_A)) {
+                        ob(); true
+                    } else false
+                })
+                layoutParams = LinearLayout.LayoutParams((sirinaDp * a.resources.displayMetrics.density).toInt(), (42 * a.resources.displayMetrics.density).toInt()).apply {
+                    val m = (2 * a.resources.displayMetrics.density).toInt()
+                    setMargins(m, m, m, m)
+                }
+            }
+            v.addView(btn)
+        }
+
+        for (z in znaki) {
+            tipka(z.toString(), 34) { polje.append(z.toString()) }
+        }
+        tipka(if (stevilke) "ABC" else "123", 50) {
+            narisiTipkovnico(a, t, polje, !stevilke)
+            t.post { (t.getChildAt(0) as? ViewGroup)?.getChildAt(0)?.requestFocus() }
+        }
+        tipka(a.getString(R.string.os_tipk_presledek), 60) { polje.append(" ") }
+        tipka(a.getString(R.string.os_tipk_vracalka), 60) {
+            val s = polje.text.toString()
+            if (s.isNotEmpty()) polje.setText(s.substring(0, s.length - 1))
+            polje.setSelection(polje.text.length)
+        }
+        tipka(a.getString(R.string.pk_lupa_splet), 60) {
+            val q = polje.text.toString()
+            if (q.isNotBlank()) izvedi(a, q)
+            zapriTipkovnico(a)
+            krmilo(a)?.zapri()
+        }
+        
+        t.addView(v)
+    }
+
+    fun zapriTipkovnico(a: Activity) {
+        val t = a.window.decorView.findViewWithTag<LinearLayout>("lupaTipkovnica")
+        t?.visibility = View.GONE
+    }
+
+    private fun dodajZgodovino(c: Context, q: String) {
+        val s = c.getSharedPreferences(PREFS_LUPE, Context.MODE_PRIVATE)
+        val z = (s.getString("zgodovina", "") ?: "").split("\n").filter { it.isNotBlank() && it != q }.toMutableList()
+        z.add(0, q)
+        s.edit().putString("zgodovina", z.take(5).joinToString("\n")).apply()
+    }
+
+    fun beriZgodovino(c: Context): List<String> =
+        (c.getSharedPreferences(PREFS_LUPE, Context.MODE_PRIVATE).getString("zgodovina", "") ?: "").split("\n").filter { it.isNotBlank() }
 }

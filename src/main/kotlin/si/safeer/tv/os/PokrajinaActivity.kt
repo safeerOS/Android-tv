@@ -116,6 +116,13 @@ class PokrajinaActivity : OsActivity() {
             val rob = (resources.displayMetrics.widthPixels * 0.2f).toInt()
             marginStart = rob; marginEnd = rob; topMargin = dp(10)
         })
+        val tipkovnica = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; visibility = View.GONE; tag = "lupaTipkovnica"
+        }
+        vsebina.addView(tipkovnica, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            val rob = (resources.displayMetrics.widthPixels * 0.2f).toInt()
+            marginStart = rob; marginEnd = rob; topMargin = dp(4)
+        })
         // Naloga 42 E: zadetki lupe kot na racunalniku (programi, datoteke, nastavitve, mediji, splet) - samo med iskanjem.
         zadetki = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; visibility = View.GONE
@@ -565,8 +572,12 @@ class PokrajinaActivity : OsActivity() {
                     DomacaLupa.izvedi(this@PokrajinaActivity, niz)
                     true
                 } else if (d.action == KeyEvent.ACTION_DOWN && ok && !v.showSoftInputOnFocus) {
-                    v.showSoftInputOnFocus = true
-                    (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).showSoftInput(v, 0)
+                    if (DomacaLupa.jeFizicnaTipkovnica(this@PokrajinaActivity)) {
+                        v.showSoftInputOnFocus = true
+                        (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).showSoftInput(v, 0)
+                    } else {
+                        DomacaLupa.odpriTipkovnico(this@PokrajinaActivity, v)
+                    }
                     true
                 } else false
             }
@@ -581,6 +592,9 @@ class PokrajinaActivity : OsActivity() {
                 glavna.postDelayed(iskanjeZamik, 250)
             }
         })
+        polje.setOnFocusChangeListener { _, ima ->
+            if (ima && polje.text.isNullOrBlank()) narisiZadetke("")
+        }
         // Ista lupa kot na starem domacem zaslonu: »… na TV«, spletni naslov, iskanje v Medijih; brez mikrofona (lastnik 29. 10. 2026).
         DomacaLupa.prevzemi(this, polje, okvir, zMikrofonom = false) { }
         return okvir
@@ -593,7 +607,7 @@ class PokrajinaActivity : OsActivity() {
     private var iskanjeSt = 0
 
     /** Sprotni predlogi iz spleta (iskalnik uporabnika, isti kot v brskalniku); izklop v Nastavitvah novega zaganjalnika. */
-    private fun spletniPredlogi(): Boolean = shramba().getBoolean(KLJUC_SPLET_PREDLOGI, true)
+    private fun spletniPredlogi(): Boolean = shramba().getBoolean(KLJUC_SPLET_PREDLOGI, false)
 
     private fun vrsticaZadetka(ikona: Int, napis: String, klik: () -> Unit): View = LinearLayout(this).apply {
         orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
@@ -649,7 +663,19 @@ class PokrajinaActivity : OsActivity() {
         val q = poizvedba.trim()
         val st = ++iskanjeSt
         zadetki.removeAllViews()
-        if (q.isEmpty()) { zadetki.visibility = View.GONE; return }
+        if (q.isEmpty()) { 
+            val zgodovina = DomacaLupa.beriZgodovino(this)
+            if (zgodovina.isEmpty()) {
+                zadetki.visibility = View.GONE
+            } else {
+                zadetki.addView(naslovSkupine(R.string.menu_history))
+                for (z in zgodovina) {
+                    zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_isci, z) { DomacaLupa.izvedi(this, z) })
+                }
+                zadetki.visibility = View.VISIBLE
+            }
+            return 
+        }
         zadetki.addView(izbiraObsega())
         val vsi = Aplikacije.zadnjiZnani(this) ?: emptyList()
         val programi = LupaPravila.najboljsi(vsi, q, 4) { it.ime }
