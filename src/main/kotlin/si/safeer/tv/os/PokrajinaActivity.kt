@@ -44,6 +44,7 @@ import java.util.TimeZone
 class PokrajinaActivity : OsActivity() {
     private val glavna = Handler(Looper.getMainLooper())
     private lateinit var koren: FrameLayout
+    private lateinit var zatemnitevOzadja: View
     private lateinit var ura: TextView
     private lateinit var datum: TextView
     private lateinit var vreme: TextView
@@ -86,6 +87,11 @@ class PokrajinaActivity : OsActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         koren = FrameLayout(this)
+        zatemnitevOzadja = View(this).apply {
+            setBackgroundColor(0xFF000000.toInt())
+            alpha = 0f
+        }
+        koren.addView(zatemnitevOzadja, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         val vsebina = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(40), dp(24), dp(40), dp(18))
@@ -787,18 +793,33 @@ class PokrajinaActivity : OsActivity() {
     private var zadnjiVnos = 0L
     private var mirujem = false
     private val pogoltnjene = HashSet<Int>()
+    private var zaslonZatemnjen = false
     private val preveriMirovanje = object : Runnable {
         override fun run() {
             val zdaj = android.os.SystemClock.uptimeMillis()
             val lupa = ::poljeLupe.isInitialized && (poljeLupe.hasFocus() || zadetki.visibility == View.VISIBLE)
+            val predvaja = try { GlasbaStoritev.trenutna() != null || GlasbaStoritev.tece() } catch (_: Throwable) { false }
+            
             if (!mirujem && hasWindowFocus() && !lupa && premikam == null && premikamDok == null && PokrajinaPravila.mirujePo(zadnjiVnos, zdaj)) {
                 mirujem = true
-                for (i in 0 until koren.childCount) koren.getChildAt(i).animate().alpha(0f).setDuration(600).start()
+                val cas = PokrajinaPravila.trajanje(600, android.provider.Settings.Global.getFloat(contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f), zmanjsano())
+                for (i in 0 until koren.childCount) koren.getChildAt(i).let { 
+                    if (it !== zatemnitevOzadja) {
+                        if (cas == 0L) it.alpha = 0f else it.animate().alpha(0f).setDuration(cas).start() 
+                    }
+                }
                 dock?.let { glavna.post { it.skrijCeOdprt() } }
-                val predvaja = try { GlasbaStoritev.trenutna() != null || GlasbaStoritev.tece() } catch (_: Throwable) { false }
                 if (!predvaja) Pomnilnik.pocistiOzadje(this@PokrajinaActivity, false, 0L)
             }
-            if (!mirujem) glavna.postDelayed(this, PokrajinaPravila.doMirovanja(zadnjiVnos, zdaj))
+            if (mirujem && !zaslonZatemnjen && hasWindowFocus() && !predvaja && PokrajinaPravila.mirujePo(zadnjiVnos, zdaj, PokrajinaPravila.MIROVANJE_MS * 2)) {
+                zaslonZatemnjen = true
+                val cas = PokrajinaPravila.trajanje(1000, android.provider.Settings.Global.getFloat(contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f), zmanjsano())
+                if (cas == 0L) zatemnitevOzadja.alpha = 0.85f else zatemnitevOzadja.animate().alpha(0.85f).setDuration(cas).start()
+            }
+            if (!zaslonZatemnjen) {
+                val meja = if (!mirujem) PokrajinaPravila.MIROVANJE_MS else PokrajinaPravila.MIROVANJE_MS * 2
+                glavna.postDelayed(this, maxOf(1_000L, zadnjiVnos + meja - zdaj))
+            }
         }
     }
 
@@ -806,7 +827,15 @@ class PokrajinaActivity : OsActivity() {
         zadnjiVnos = android.os.SystemClock.uptimeMillis()
         if (mirujem) {
             mirujem = false
-            for (i in 0 until koren.childCount) koren.getChildAt(i).let { if (animiraj) it.animate().alpha(1f).setDuration(300).start() else it.alpha = 1f }
+            zaslonZatemnjen = false
+            for (i in 0 until koren.childCount) koren.getChildAt(i).let { 
+                if (it === zatemnitevOzadja) {
+                    it.animate().cancel()
+                    it.alpha = 0f 
+                } else {
+                    if (animiraj) it.animate().alpha(1f).setDuration(300).start() else it.alpha = 1f 
+                }
+            }
         }
         glavna.removeCallbacks(preveriMirovanje)
         glavna.postDelayed(preveriMirovanje, PokrajinaPravila.MIROVANJE_MS)
