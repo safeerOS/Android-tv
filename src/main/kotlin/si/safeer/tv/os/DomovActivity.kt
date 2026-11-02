@@ -92,6 +92,12 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         si.safeer.tv.os.Predgretje.zazeni(this)
+        // Naloga 49: preprecevanje prebliska, ko je alias nujno na starem zaganjalniku (alias ne more biti pogojen),
+        // beta pa je vklopljena. Theme.NoDisplay prepreci risanje okna, se preden ga startActivity/finish zapreta.
+        val beta = ZaganjalnikBeta.vklopljen(this)
+        if (beta) {
+            setTheme(android.R.style.Theme_NoDisplay)
+        }
         super.onCreate(savedInstanceState)
         // Telefon in tablica imata svoj domaci zaslon (DomovTabletActivity; prilagodljivi ZaganjalnikActivity, ce je kdaj
         // vstopna tocka): Nazaj, Domov v stranski vrstici in tipka Y odprejo DomovActivity, zato jih tu preusmerimo, sicer
@@ -109,7 +115,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         }
         // Naloga 42: nov TV zaganjalnik (beta). Domov ostane vstopna tocka (tipka Domov, alias), zaslon pa je
         // PokrajinaActivity; dodatki namere (os_vrni ...) gredo zraven. Izklop bete v Nastavitvah vrne ta zaslon.
-        if (ZaganjalnikBeta.vklopljen(this)) {
+        if (beta) {
             try {
                 val nov = Intent(this, PokrajinaActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 intent?.extras?.let { nov.putExtras(it) }
@@ -1396,11 +1402,24 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             val v = LayoutInflater.from(this).inflate(R.layout.os_kartica_ikona, vrstaAplikacije, false)
             val slika = v.findViewById<ImageView>(R.id.ikona)
             val risba = Aplikacije.ikonaIzPomnilnika(a.paket)
-            if (risba != null) slika.setImageDrawable(risba)
+            val prilagodiIkono = { d: android.graphics.drawable.Drawable ->
+                slika.setImageDrawable(d)
+                val lp = slika.layoutParams
+                if (d.intrinsicWidth > d.intrinsicHeight * 1.2f) {
+                    lp.width = (48 * resources.displayMetrics.density * 1.77f).toInt()
+                } else {
+                    lp.width = (48 * resources.displayMetrics.density).toInt()
+                }
+                slika.layoutParams = lp
+            }
+            if (risba != null) prilagodiIkono(risba)
             else {
                 // Ikono nalozi ozadje (nizka prednost); kartica je medtem ze na zaslonu.
                 slika.setImageResource(R.drawable.os_ikona_mreza)
-                Aplikacije.ikonaLeno(this, a) { Aplikacije.ikonaIzPomnilnika(a.paket)?.let { slika.setImageDrawable(it) } }
+                val lp = slika.layoutParams
+                lp.width = (48 * resources.displayMetrics.density).toInt()
+                slika.layoutParams = lp
+                Aplikacije.ikonaLeno(this, a) { Aplikacije.ikonaIzPomnilnika(a.paket)?.let { prilagodiIkono(it) } }
             }
             v.findViewById<TextView>(R.id.ime).text = a.ime
             v.onFocusChangeListener = fokus
