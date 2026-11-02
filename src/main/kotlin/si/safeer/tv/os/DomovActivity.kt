@@ -1622,6 +1622,24 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (ima) v.post { pripeljiVrsto(v) }
         if (ima) (v.parent as? ViewGroup)?.let { it.requestChildFocus(v, v) }
         if (ima) v.post { pokaziCeloPlosco(v) }
+
+        if (v.parent === vrstaAplikacije) {
+            val naslov = findViewById<TextView>(R.id.naslovAplikacije)
+            if (ima) {
+                val ime = v.findViewById<TextView>(R.id.ime)?.text?.toString()
+                if (!ime.isNullOrEmpty() && naslov != null) {
+                    naslov.text = ime
+                    naslov.contentDescription = ime
+                    naslov.announceForAccessibility(ime)
+                }
+            } else {
+                v.post {
+                    if (vrstaAplikacije.hasFocus()) return@post
+                    naslov?.setText(R.string.os_odsek_priljubljene)
+                    naslov?.contentDescription = null
+                }
+            }
+        }
     }
 
     /**

@@ -233,7 +233,7 @@ object PokrajinaPravila {
 
     /** Dovoljen zagon aplikacije (preprečitev dvojnega klika): mora miniti 1,5 s od zadnjega poskusa. */
     fun dovoljenZagon(zadnjiZagonMs: Long, zdajMs: Long): Boolean =
-        zdajMs - zadnjiZagonMs > 1500L
+        zadnjiZagonMs == 0L || zdajMs - zadnjiZagonMs > 1500L
 
     /**
      * Odstrani spletno aplikacijo, ce je ze namescena prava aplikacija z istim imenom (YouTube).
