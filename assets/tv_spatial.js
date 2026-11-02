@@ -648,7 +648,7 @@
                 var text = (el.textContent || '').trim().toLowerCase();
 
                 // Gumbi za neposredno dejanje (npr. 'Glej Zdaj', 'Predvajaj', 'Prijava', 'Zapri') naj ostanejo samostojni cilji!
-                if (tag === 'BUTTON' || tag === 'INPUT' || (tag === 'A' && (cls.indexOf('btn') !== -1 || text.indexOf('glej') !== -1 || text.indexOf('predvajaj') !== -1 || text.indexOf('prijava') !== -1))) {
+                if (tag === 'BUTTON' || tag === 'INPUT' || tag === 'IFRAME' || (tag === 'A' && (cls.indexOf('btn') !== -1 || text.indexOf('glej') !== -1 || text.indexOf('predvajaj') !== -1 || text.indexOf('prijava') !== -1))) {
                     return null;
                 }
                 if (isCarouselArrow(el)) {
@@ -940,6 +940,20 @@
             // Oznaka za razhroscevanje: po njej se vidi, ali tece popravljena skripta.
             try { window._safeerFokusFilter = '2026-09-14e'; } catch (_) {}
 
+            /* SAFEER_OKVIR_GUMB_ZACETEK */
+            // Lastnik 2. 11. 2026 (claude.ai prijava na TV): »Nadaljuj z Google« je gumb Google Identity Services v
+            // tujem okvirju (accounts.google.com/gsi/button). Okvirjev nismo steli za cilje, zato ga daljinec ni dosegel.
+            // Majhen viden okvir je zdaj cilj (gumb, ne vsebina): visok najvec 120 px, sirok najvec 60 % zaslona in
+            // najvec 8 % povrsine; oglasni okvirji (google_ads, aswift, doubleclick ...) ne. OK nanj je en pravi dotik
+            // na sredini (nativeTapElement -> triggerNativeTap), ker v tuj okvir skript strani ne more klikniti.
+            function jeGumbOkvir(sirina, visina, winW, winH, ime) {
+                if (!(sirina >= 40 && visina >= 20)) return false;
+                if (visina > 120 || sirina > winW * 0.6 || sirina * visina > winW * winH * 0.08) return false;
+                var i = (ime || '').toLowerCase();
+                return !/google_ads|aswift|doubleclick|googlesyndication|adservice|\bads?\b|banner|sponsor/.test(i);
+            }
+            /* SAFEER_OKVIR_GUMB_KONEC */
+
             function isActionable(el) {
                 if (!el || el.nodeType !== 1) return false;
                 var tag = el.tagName.toUpperCase();
@@ -976,6 +990,12 @@
                     p = p.parentElement;
                 }
                 if (skritPodmeni) return false;
+                if (tag === 'IFRAME') {
+                    var roOkvir = el.getBoundingClientRect(), soOkvir = window.getComputedStyle(el);
+                    if (soOkvir.display === 'none' || soOkvir.visibility === 'hidden' || soOkvir.opacity === '0') return false;
+                    var imeOkvirja = (el.id || '') + ' ' + (el.getAttribute('name') || '') + ' ' + (el.getAttribute('src') || '');
+                    return jeGumbOkvir(roOkvir.width, roOkvir.height, winW, winH, imeOkvirja);
+                }
 
                 // Lastnik 1. 11. 2026 (rtvslo.si, »Televizija ▾«): povezava in poleg nje gumb s puscico za podmeni
                 // (aria-controls) sta ena postavka - cilj je samo povezava; podmeni ima ista mesta kot stran povezave.
@@ -1110,7 +1130,7 @@
                         for (var hi = 0; hi < homeEls.length; hi++) homeOut.push(homeEls[hi]);
                         if (homeOut.length) return homeOut;
                     }
-                var all = document.querySelectorAll('a, button, input, textarea, select, [role="button"], [role="link"], [role="tab"], [tabindex], [data-ved], [onclick], .video-play-button, [class*="card"], [class*="tile"], [class*="item"], [class*="channel"], [class*="poster"], [class*="program"], [class*="epg"], [class*="movie"], [class*="media"], [class*="slick-slide"], article, li.search, .icon-p24_search, [class*="icon-p24_search"]');
+                var all = document.querySelectorAll('a, button, input, textarea, select, [role="button"], [role="link"], [role="tab"], [tabindex], [data-ved], [onclick], .video-play-button, [class*="card"], [class*="tile"], [class*="item"], [class*="channel"], [class*="poster"], [class*="program"], [class*="epg"], [class*="movie"], [class*="media"], [class*="slick-slide"], article, li.search, .icon-p24_search, [class*="icon-p24_search"], iframe');
                 var raw = [];
                 for (var i = 0; i < all.length; i++) {
                     var el = all[i];
@@ -1521,7 +1541,8 @@
                 try { if (((el.className || '') + '').indexOf('item--event') !== -1) el.tabIndex = 0; } catch (_) {}
                 var tag = (el.tagName || '').toUpperCase();
                 // Never auto-focus INPUT/TEXTAREA — that opens the TV IME and traps the remote.
-                if (tag !== 'INPUT' && tag !== 'TEXTAREA') {
+                // Tuj okvir (gumb GSI) dobi samo nas obroc: fokus bi sel v okvir, klik je pravi dotik ob OK.
+                if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'IFRAME') {
                     try { el.focus({ preventScroll: true }); } catch(_) {}
                 } else {
                     try { el.blur(); } catch(_) {}
@@ -2337,6 +2358,8 @@
                         });
                     } catch (_) {}
                     // #endregion
+                    // Tuj okvir (gumb GSI »Nadaljuj z Google«): samo en pravi dotik na sredini (SAFEER_OKVIR_GUMB).
+                    if (target && (target.tagName || '').toUpperCase() === 'IFRAME') { nativeTapElement(target); return; }
                     if (target) {
                         var clickable = target;
                         clickable = target.querySelector('a[href], button, [class*="play"], [class*="watch"], [class*="thumb"], [class*="image"], img, [role="button"]') || target;
