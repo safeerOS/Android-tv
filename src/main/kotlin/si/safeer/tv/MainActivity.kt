@@ -1047,27 +1047,49 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         wv.izvornaAplikacija = izvor
         wv.izvorNalozenihStrani = 0
         wv.izvorNovZavihek = izvor != null && novZavihek
-        wv.naPredajAplikaciji = { paket, naslov -> predajAplikaciji(tab, paket, naslov) }
+        wv.izvorSeja = if (izvor != null) java.util.UUID.randomUUID().toString() else null
+        wv.izvorZadnjiNaslov = null
+        wv.naPredajAplikaciji = { paket, naslov -> predajAplikaciji(wv, paket, naslov) }
         if (izvor != null) android.util.Log.i("SafeerBrskalnik", "zavihek je odprla aplikacija $izvor")
         osveziGumbAplikacije(fokus = false)
     }
 
-    /** Naslov odpre aplikacija izvora; zavihek, ki je nastal za njeno namero, se zapre (uporabnik je spet v aplikaciji). */
-    private fun predajAplikaciji(tab: TabModel, paket: String, naslov: String): Boolean {
+    /**
+     * Pojavno okno (prijava z Google v novem oknu) iz zavihka aplikacije podeduje njen izvor: povratni naslov prijave se
+     * lahko nalozi prav v njem (TV 2. 11. 2026 19:35).
+     */
+    private fun podedujIzvor(otrok: ChromiumEngineView?, stars: ChromiumEngineView?) {
+        if (otrok == null || stars?.izvornaAplikacija == null) return
+        otrok.izvornaAplikacija = stars.izvornaAplikacija
+        otrok.izvorSeja = stars.izvorSeja
+        otrok.izvorNovZavihek = true
+        otrok.izvorNalozenihStrani = 1
+        otrok.naPredajAplikaciji = { paket, naslov -> predajAplikaciji(otrok, paket, naslov) }
+    }
+
+    /**
+     * [naslov] (tak, kot je - s kodo prijave) odpre aplikacija izvora; zavihki in pojavna okna njene namere se zaprejo
+     * (uporabnik je spet v aplikaciji). V dnevnik samo zaDnevnik (brez poizvedbe).
+     */
+    private fun predajAplikaciji(pogled: ChromiumEngineView, paket: String, naslov: String): Boolean {
         if (!AplikacijaPovezaveSistem.odpri(this, paket, naslov)) return false
-        val wv = tab.webView
-        val zapri = wv?.izvorNovZavihek == true
-        wv?.izvornaAplikacija = null
-        android.util.Log.i("SafeerBrskalnik", "povezava vrnjena aplikaciji $paket")
-        // Ne med klicem WebViewClienta: zavihek (in njegov pogled) zapremo po njem.
+        val seja = pogled.izvorSeja
+        android.util.Log.i("SafeerBrskalnik", "povezava vrnjena aplikaciji $paket: ${AplikacijaPovezave.zaDnevnik(naslov)}")
+        val vSeji = { v: ChromiumEngineView? -> v != null && (v === pogled || (seja != null && v.izvorSeja == seja)) }
+        tabManager.getAllTabs().forEach { t -> t.webView?.takeIf(vSeji)?.let { it.izvornaAplikacija = null; it.izvorZadnjiNaslov = null } }
+        pogled.izvornaAplikacija = null
+        // Ne med klicem WebViewClienta: zavihke (in njihove poglede) zapremo po njem.
         webViewContainer.post {
             if (isFinishing || isDestroyed) return@post
-            if (zapri && tabManager.getAllTabs().any { it.id == tab.id }) {
-                val edini = tabManager.getAllTabs().size <= 1
-                tabManager.closeTab(this, tab.id)
-                // Brskalnik je nastal samo za prijavo: ne ostane pred aplikacijo (in ne zaseda zaslona).
-                if (edini) moveTaskToBack(true)
+            val zapri = tabManager.getAllTabs().filter { t -> vSeji(t.webView) && t.webView?.izvorNovZavihek == true }
+            // Se neposvojeno pojavno okno (pogled ni med zavihki): pospravimo ga kot vratar.
+            if (tabManager.getAllTabs().none { it.webView === pogled } && pogled.izvorNovZavihek) {
+                try { tabManager.zavrziPojavni(pogled) } catch (_: Throwable) {}
             }
+            val vsi = tabManager.getAllTabs().size
+            zapri.forEach { t -> try { tabManager.closeTab(this, t.id) } catch (_: Throwable) {} }
+            // Brskalnik je nastal samo za prijavo: ne ostane pred aplikacijo (in ne zaseda zaslona).
+            if (zapri.isNotEmpty() && zapri.size >= vsi) moveTaskToBack(true)
             osveziGumbAplikacije(fokus = false)
         }
         return true
@@ -1082,8 +1104,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         val gumb = btnAplikacija ?: return
         if (!::tabManager.isInitialized) return
         val wv = tabManager.getActiveTab()?.webView
+        // Zadnji naslov aplikacije (ne koren), ki ga ni prevzela, ima prednost pred trenutno stranjo.
         val paket = if (nacinAplikacije != null || wv == null) null
-            else AplikacijaPovezaveSistem.aplikacijaZa(this, wv.izvornaAplikacija, wv.url)
+            else AplikacijaPovezaveSistem.aplikacijaZa(this, wv.izvornaAplikacija, wv.izvorZadnjiNaslov ?: wv.url)
         if (paket == null) {
             if (gumb.visibility != View.GONE) {
                 val imelFokus = gumb.hasFocus()
@@ -1100,8 +1123,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         gumb.setOnClickListener {
             val v = tabManager.getActiveTab() ?: return@setOnClickListener
             val p = it.tag as? String ?: return@setOnClickListener
-            val naslov = v.webView?.url ?: return@setOnClickListener
-            if (!predajAplikaciji(v, p, naslov)) it.visibility = View.GONE
+            val pogled = v.webView ?: return@setOnClickListener
+            val naslov = pogled.izvorZadnjiNaslov ?: pogled.url ?: return@setOnClickListener
+            if (!predajAplikaciji(pogled, p, naslov)) it.visibility = View.GONE
         }
         gumb.visibility = View.VISIBLE
         // TV 2. 11. 2026: gumb je bil viden ze ob onUrlChanged (pred onPageLoaded), zato pogoj »na novo viden« fokusa ni
@@ -1563,7 +1587,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         // zaprlo, naslov pa ni bil pobrisan.
         if (ChromiumEngineView.naDotik(this)) {
             listOf<View>(btnBack, btnHome, btnReload, btnClearUrl, btnSearchTrigger, btnFavorite, btnPointerToggle,
-                btnAddTab, btnTabCount, btnMenu, btnAplikacija).forEach { it.isFocusableInTouchMode = false }
+                btnAddTab, btnTabCount, btnMenu).forEach { it.isFocusableInTouchMode = false }
+            btnAplikacija?.isFocusableInTouchMode = false
         }
     }
 
@@ -1870,6 +1895,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         // premakne in noben uporabnikov zavihek se ne umakne, da bi naredil prostor.
         val pogled = try { tabManager.pripraviPojavni(this) } catch (_: Throwable) { return false }
         val odpiralec = tabManager.getActiveTab()?.id
+        val starsevski = tabManager.getActiveTab()?.webView
+        podedujIzvor(pogled, starsevski)
         var odloceno = false
 
         fun zavrzi(razlog: String, naslov: String) {
@@ -1910,6 +1937,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                                 val nov = tabManager.createTab(this, naslov, true)
                                 nov.jePojavni = true
                                 nov.odpiralec = odpiralec
+                                podedujIzvor(nov.webView, starsevski)
                             } catch (_: Throwable) {}
                         }
                         false
@@ -3531,9 +3559,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         // strani prijave. Samo, ko je gumb »Nadaljuj v aplikaciji« ponujen (AplikacijaPovezave.nazajVAplikacijo).
         if (AplikacijaPovezave.nazajVAplikacijo(btnAplikacija?.takeIf { it.visibility == View.VISIBLE }?.tag as? String,
                 nacinAplikacije != null)) {
-            val tab = tabManager.getActiveTab()
-            val naslov = tab?.webView?.url
-            if (tab != null && naslov != null && predajAplikaciji(tab, btnAplikacija?.tag as String, naslov)) return
+            val pogled = tabManager.getActiveTab()?.webView
+            val naslov = pogled?.izvorZadnjiNaslov ?: pogled?.url
+            if (pogled != null && naslov != null && predajAplikaciji(pogled, btnAplikacija?.tag as String, naslov)) return
         }
 
         // Spletna aplikacija: nazaj gre po njeni zgodovini, na zacetku pa se aplikacija zapre.

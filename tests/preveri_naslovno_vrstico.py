@@ -35,8 +35,11 @@ print("Naslovna vrstica na dotik")
 polje = re.search(r"<si\.safeer\.tv\.OmniboxPolje(.*?)/>", postavitev, re.S)
 preveri("dotik vrstice izbere ves naslov (selectAllOnFocus)", bool(polje) and 'android:selectAllOnFocus="true"' in polje.group(1))
 preveri("polje naslova je brez predlogov IME (presledek pred @)", bool(polje) and "textNoSuggestions" in polje.group(1))
-dotik = re.search(r"if \(ChromiumEngineView\.naDotik\(this\)\) \{\s*listOf<View>\((.*?)\)\.forEach \{ it\.isFocusableInTouchMode = false \}", glavna, re.S)
+dotik = re.search(r"if \(ChromiumEngineView\.naDotik\(this\)\) \{\s*listOf<View>\((.*?)\)\.forEach \{ it\.isFocusableInTouchMode = false \}(.*?)\n        \}", glavna, re.S)
 gumbi = set(re.findall(r"\w+", dotik.group(1))) if dotik else set()
+# Button? (btnAplikacija) je v istem bloku posebej: ime?.isFocusableInTouchMode = false
+if dotik:
+    gumbi |= set(re.findall(r"(\w+)\?\.isFocusableInTouchMode = false", dotik.group(2)))
 for gumb in ("btnClearUrl", "btnSearchTrigger", "btnFavorite", "btnBack", "btnHome", "btnReload", "btnTabCount", "btnMenu"):
     preveri("na dotik %s ne jemlje fokusa" % gumb, gumb in gumbi)
 # Vsak gumb postavitve, ki je narejen za daljinec, mora biti v tem seznamu (polje naslova samo seveda ostane).

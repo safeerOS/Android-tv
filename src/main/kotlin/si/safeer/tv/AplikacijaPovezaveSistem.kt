@@ -6,27 +6,35 @@ import android.content.pm.PackageManager
 import android.net.Uri
 
 /**
- * Vprasanja PackageManagerju za [AplikacijaPovezave]: kdo odpre naslov in kdo je brskalnik. Android 11+ vidi
- * aplikacije za VIEW https zaradi vnosa <queries> v AndroidManifest.xml.
+ * Vprasanja PackageManagerju za [AplikacijaPovezave]. Vedno s setPackage(izvor): cilj izbere samo paket, ki je zavihek
+ * odprl, nikoli vsebina strani. Android 11+ vidi aplikacije za VIEW https zaradi vnosa <queries> v AndroidManifest.xml.
  */
 object AplikacijaPovezaveSistem {
     /** Naslov, ki ga ne odpre nobena aplikacija z App Linkom, samo brskalniki (RFC 2606: .invalid ne obstaja). */
     private const val SPLOSEN_NASLOV = "https://safeer-brskalnik-preizkus.invalid/"
 
-    private fun paketi(ctx: Context, naslov: String): Set<String> = try {
-        val namera = Intent(Intent.ACTION_VIEW, Uri.parse(naslov)).addCategory(Intent.CATEGORY_BROWSABLE)
-        ctx.packageManager.queryIntentActivities(namera, PackageManager.MATCH_DEFAULT_ONLY)
-            .mapNotNull { it.activityInfo?.packageName }.toSet()
-    } catch (_: Exception) { emptySet() }
+    private fun namera(naslov: String, paket: String) =
+        Intent(Intent.ACTION_VIEW, Uri.parse(naslov)).addCategory(Intent.CATEGORY_BROWSABLE).setPackage(paket)
 
-    fun razreseni(ctx: Context, naslov: String): Set<String> = paketi(ctx, naslov)
+    /** Dejavnost paketa [paket] odpre [naslov] (filtri App Links aplikacije). */
+    fun odpre(ctx: Context, paket: String, naslov: String): Boolean = try {
+        ctx.packageManager.queryIntentActivities(namera(naslov, paket), PackageManager.MATCH_DEFAULT_ONLY).isNotEmpty()
+    } catch (_: Exception) { false }
 
-    fun brskalniki(ctx: Context): Set<String> = paketi(ctx, SPLOSEN_NASLOV)
+    /** Paket odpre vsak spletni naslov - je brskalnik. */
+    fun jeBrskalnik(ctx: Context, paket: String): Boolean = odpre(ctx, paket, SPLOSEN_NASLOV)
 
-    /** Paket aplikacije, ki ga odpre [naslov] (glej [AplikacijaPovezave.ponudiAplikacijo]), ali null. */
+    /** Samodejna predaja navigacije glavnega okvirja ([AplikacijaPovezave.predajNavigacijo]). */
+    fun predajNavigacijo(ctx: Context, izvor: String?, glavniOkvir: Boolean, naslov: String): String? {
+        if (izvor == null || !glavniOkvir || !AplikacijaPovezave.jeHttps(naslov) || AplikacijaPovezave.jeKoren(naslov)) return null
+        return AplikacijaPovezave.predajNavigacijo(izvor, odpre(ctx, izvor, naslov), jeBrskalnik(ctx, izvor), glavniOkvir,
+            naslov, ctx.packageName)
+    }
+
+    /** Paket aplikacije za gumb (glej [AplikacijaPovezave.ponudiAplikacijo]), ali null. */
     fun aplikacijaZa(ctx: Context, izvor: String?, naslov: String?): String? {
-        if (izvor == null || !AplikacijaPovezave.jeSplet(naslov)) return null
-        return AplikacijaPovezave.ponudiAplikacijo(izvor, razreseni(ctx, naslov!!), brskalniki(ctx), naslov, ctx.packageName)
+        if (izvor == null || !AplikacijaPovezave.jeHttps(naslov)) return null
+        return AplikacijaPovezave.ponudiAplikacijo(izvor, odpre(ctx, izvor, naslov!!), jeBrskalnik(ctx, izvor), naslov, ctx.packageName)
     }
 
     /** Ime aplikacije za gumb; ce ga ni, paket. */
@@ -35,12 +43,9 @@ object AplikacijaPovezaveSistem {
         pm.getApplicationLabel(pm.getApplicationInfo(paket, 0)).toString()
     } catch (_: Exception) { paket }
 
-    /** Odpre [naslov] v aplikaciji [paket] (samo ta paket, BROWSABLE). */
+    /** Odpre [naslov] (tak, kot je, s poizvedbo) v aplikaciji [paket] - samo ta paket, BROWSABLE. */
     fun odpri(ctx: Context, paket: String, naslov: String): Boolean = try {
-        ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(naslov))
-            .addCategory(Intent.CATEGORY_BROWSABLE)
-            .setPackage(paket)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        ctx.startActivity(namera(naslov, paket).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         true
     } catch (e: Exception) {
         android.util.Log.w("SafeerBrskalnik", "aplikacija ni prevzela povezave: ${e.javaClass.simpleName}")

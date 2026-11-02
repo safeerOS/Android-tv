@@ -44,20 +44,38 @@ object AplikacijaPovezave {
         return paket
     }
 
+    /** Samo https: aplikaciji nikoli ne predamo naslova, ki ga lahko spremeni kdorkoli na poti (lastnik 2. 11. 2026). */
+    fun jeHttps(naslov: String?): Boolean = naslov != null && naslov.startsWith("https://", ignoreCase = true)
+
+    /** Pot naslova je prazna ali »/« (ali naslova ni mogoce razcleniti). */
+    fun jeKoren(naslov: String?): Boolean {
+        val pot = try { java.net.URI(naslov ?: return true).rawPath } catch (_: Exception) { return true }
+        return pot.isNullOrEmpty() || pot == "/"
+    }
+
     /**
-     * Rocni gumb »Nadaljuj v aplikaciji«: [naslov] odpre natanko aplikacija izvora, ki ni brskalnik in ni nasa.
-     * Vrne paket ali null.
+     * Naslov za dnevnik: shema, gostitelj in prvi del poti - nikoli poizvedba ali delcek (tam je enkratna koda prijave).
+     */
+    fun zaDnevnik(naslov: String?): String {
+        val u = try { java.net.URI(naslov ?: return "-") } catch (_: Exception) { return "-" }
+        val prvi = u.rawPath.orEmpty().trimStart('/').substringBefore('/')
+        return "${u.scheme}://${u.host}/" + (if (prvi.isEmpty()) "" else "$prvi/…") + (if (u.rawQuery != null) "?…" else "")
+    }
+
+    /**
+     * Rocni gumb »Nadaljuj v aplikaciji«: [naslov] odpre aplikacija izvora ([izvorOdpre]: VIEW+BROWSABLE+setPackage
+     * izvora najde dejavnost), ki ni brskalnik in ni nasa. Vrne paket ali null.
      */
     fun ponudiAplikacijo(
         izvor: String?,
-        razreseniPaketi: Collection<String>,
-        brskalniki: Collection<String>,
+        izvorOdpre: Boolean,
+        izvorJeBrskalnik: Boolean,
         naslov: String?,
         lastniPaket: String
     ): String? {
-        if (izvor == null || jeNas(izvor, lastniPaket) || !jeSplet(naslov)) return null
-        if (izvor in brskalniki) return null
-        return izvor.takeIf { it in razreseniPaketi }
+        if (izvor == null || jeNas(izvor, lastniPaket) || !jeHttps(naslov)) return null
+        if (izvorJeBrskalnik || !izvorOdpre) return null
+        return izvor
     }
 
     /**
@@ -68,19 +86,21 @@ object AplikacijaPovezave {
         !nacinSpletneAplikacije && !paketGumba.isNullOrBlank()
 
     /**
-     * Samodejna predaja navigacije: samo glavni okvir in ne zacetno nalaganje naslova, ki ga je poslala aplikacija (ter
-     * njegove preusmeritve) - sicer bi stran, ki jo aplikacija odpre zato, da se prijavimo, takoj vrnili nazaj (zanka).
+     * Samodejna predaja (kot Chrome), za vsako navigacijo glavnega okvirja - tudi preusmeritve brez kretnje.
+     * TV 2. 11. 2026 19:35: predali smo trenutno stran (claude.ai/), ko je brskalnik povratni naslov prijave
+     * (/sso-callback/android?...) ze sam nalozil - aplikacija ni dobila kode in je ostala odjavljena. Zato: naslov, ki ga
+     * odpre izvor, se ne nalozi, ampak gre izvoru tak, kot je (s poizvedbo). Koren (»/«) ne: aplikacija ga prijavi, a
+     * stran ga obisce ze pred koncem prijave.
      */
     fun predajNavigacijo(
         izvor: String?,
-        razreseniPaketi: Collection<String>,
-        brskalniki: Collection<String>,
+        izvorOdpre: Boolean,
+        izvorJeBrskalnik: Boolean,
         glavniOkvir: Boolean,
-        zacetnoNalaganje: Boolean,
         naslov: String?,
         lastniPaket: String
     ): String? {
-        if (!glavniOkvir || zacetnoNalaganje) return null
-        return ponudiAplikacijo(izvor, razreseniPaketi, brskalniki, naslov, lastniPaket)
+        if (!glavniOkvir || jeKoren(naslov)) return null
+        return ponudiAplikacijo(izvor, izvorOdpre, izvorJeBrskalnik, naslov, lastniPaket)
     }
 }

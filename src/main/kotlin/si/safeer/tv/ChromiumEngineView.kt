@@ -231,6 +231,10 @@ class ChromiumEngineView @JvmOverloads constructor(
     val izvorZacetek: Boolean get() = izvorNalozenihStrani == 0
     /** Zavihek je nastal za namero aplikacije: po predaji se zapre. */
     var izvorNovZavihek = false
+    /** Namera aplikacije, iz katere je ta pogled (tudi pojavno okno prijave iz njega): po predaji se zaprejo vsi. */
+    var izvorSeja: String? = null
+    /** Zadnji naslov (ne koren), ki ga odpre izvor in ga aplikacija ni prevzela: gumb in Nazaj ga poskusita znova. */
+    var izvorZadnjiNaslov: String? = null
     /** MainActivity: preda naslov aplikaciji (paket, naslov); true, ce jo je aplikacija prevzela. */
     var naPredajAplikaciji: ((String, String) -> Boolean)? = null
 
@@ -1079,10 +1083,16 @@ class ChromiumEngineView @JvmOverloads constructor(
                 // App Links (TV 2. 11. 2026, aplikacija Claude): pred vsemi ponovnimi nalaganji (loadUrl ne gre vec skozi to
                 // obravnavo, zato bi povratek zgresili). Samo glavni okvir, samo http(s), samo paket, ki je zavihek odprl.
                 val izvorApl = izvornaAplikacija
-                if (izvorApl != null && request.isForMainFrame && AplikacijaPovezave.jeSplet(urlStr)) {
-                    val cilj = AplikacijaPovezave.predajNavigacijo(izvorApl, AplikacijaPovezaveSistem.razreseni(context, urlStr),
-                        AplikacijaPovezaveSistem.brskalniki(context), true, izvorZacetek, urlStr, context.packageName)
-                    if (cilj != null && naPredajAplikaciji?.invoke(cilj, urlStr) == true) return true
+                // TV 2. 11. 2026 19:35: tudi preusmeritve brez kretnje in tudi zacetno nalaganje - povratni naslov prijave
+                // (/sso-callback/android?koda) se NE nalozi, ampak gre aplikaciji tak, kot je (enkratna koda).
+                if (izvorApl != null && request.isForMainFrame) {
+                    val cilj = AplikacijaPovezaveSistem.predajNavigacijo(context, izvorApl, true, urlStr)
+                    if (cilj != null) {
+                        android.util.Log.i("SafeerBrskalnik", "naslov za aplikacijo $cilj: ${AplikacijaPovezave.zaDnevnik(urlStr)} " +
+                            "(preusmeritev ${request.isRedirect}, kretnja ${request.hasGesture()})")
+                        if (naPredajAplikaciji?.invoke(cilj, urlStr) == true) return true
+                        izvorZadnjiNaslov = urlStr
+                    }
                 }
                 // Odhod z Googla (zadetek iskanja, tudi prek preusmeritve google.com/goto): spodaj
                 // zamenjamo User-Agent in most JS - ta menjava sredi navigacije jo je tiho prekinila in
