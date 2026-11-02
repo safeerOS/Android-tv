@@ -1190,10 +1190,14 @@ class PokrajinaActivity : OsActivity() {
                 val ime = usb.getDescription(this) ?: "USB"
                 val v = kartica(null, R.drawable.os_ikona_datoteke, ime) { _ ->
                     if (premikam != null) { koncajPremikanje(); return@kartica }
+                    // createOpenDocumentTreeIntent je od Androida 10 (API 29); na Androidu 9 bi bil NoSuchMethodError
+                    // (Error, catch Exception ga ne ujame) - tam in ob napaki odpremo nas brskalnik datotek (Lint NewApi,
+                    // CI 41458435776, 2. 11. 2026).
+                    val namera = if (android.os.Build.VERSION.SDK_INT >= 29) usb.createOpenDocumentTreeIntent() else null
                     try {
-                        startActivity(usb.createOpenDocumentTreeIntent())
+                        if (namera != null) startActivity(namera) else odpriKrajevneDatoteke()
                     } catch (e: Exception) {
-                        odpri(Intent(this, DatotekeActivity::class.java).putExtra(DatotekeActivity.EXTRA_KRAJEVNO, true))
+                        odpriKrajevneDatoteke()
                     }
                 }
                 v.tag = "usb:" + (usb.uuid ?: ime)
@@ -1418,6 +1422,11 @@ class PokrajinaActivity : OsActivity() {
         Priljubljene.shraniRedDomov(this, vrstaDomov.filterNot { it == id })
         narisiAplikacije()
         vrstaAplikacij.getChildAt(0)?.requestFocus()
+    }
+
+    /** Nas brskalnik krajevnih datotek (tudi USB) - deluje na vseh podprtih Androidih. */
+    private fun odpriKrajevneDatoteke() {
+        odpri(Intent(this, DatotekeActivity::class.java).putExtra(DatotekeActivity.EXTRA_KRAJEVNO, true))
     }
 
     /** »+ Dodaj«: aplikacija s televizorja (seznam vseh, dolg pritisk doda) ali spletna aplikacija (kot na starem zaslonu). */
