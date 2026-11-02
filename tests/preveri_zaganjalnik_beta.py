@@ -356,8 +356,12 @@ def main() -> int:
     gs = sp.split('private const val GOOGLE_SMER = """', 1)[1].split('"""', 1)[0]
     # Lastnik 1. 11. 2026: na Googlovih zadetkih fokusa ni bilo mogoce dati v iskalno polje.
     preveri("Google: GOR z vrha zadetkov v iskalno polje",
-            "function polje()" in gs and "if(!cur){if(smer==='UP')return polje();" in gs
-            and "if(!naj)return smer==='UP'?polje():'rob';" in gs and "textarea[name=\"q\"]" in gs)
+            "function polje()" in gs and "return {pas:'telo',rob:smer==='UP'?'polje':'rob',crta:!od};" in gs
+            and "if(ix<0)return nacrt.rob==='polje'?polje():nacrt.rob;" in gs and "textarea[name=\"q\"]" in gs)
+    # Lastnik 2. 11. 2026: do Prijava v glavi in do gumbov Googlovega okna ni prisel (tests/google_smer_test.js).
+    preveri("Google: glava (GOR iz polja) in odprto pogovorno okno ujame smeri",
+            "return smer==='DOWN'?{pas:'telo',rob:'rob',crta:true}:{pas:'glava',rob:'rob',blizji:smer==='UP'};" in gs
+            and "if(imaOkno)return {pas:'okno',rob:'okno',prvi:od!=='okno'};" in gs and "var okno=najdiOkno();" in gs)
     md = (SRC / "os/MiniPredvajalnik.kt").read_text(encoding="utf-8")
     pk2 = (SRC / "os/PokrajinaActivity.kt").read_text(encoding="utf-8")
     preveri("dock: na Pokrajini nad spodnjo vrstico (odmik ob postavitvi vrstice)",

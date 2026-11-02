@@ -13,6 +13,7 @@ trap 'rm -rf "$OUT"' EXIT
 "$KOTLINC" "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/SpletMostPravila.kt" \
   "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/SpletVarnostPravila.kt" \
   "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/GooglePravila.kt" \
+  "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/tv/GoogleTipke.kt" \
   "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/tv/DashPravila.kt" \
   "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/link/QrPravila.kt" \
   "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/SpletIkonePravila.kt" \
@@ -20,11 +21,12 @@ trap 'rm -rf "$OUT"' EXIT
   "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/os/DlnaPravila.kt" \
   "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/os/ZvocnikPravila.kt" \
   "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/PdfPregledovalnikPravila.kt" \
-  "$TEST_DIR/SpletMostPravilaTest.kt" "$TEST_DIR/SpletVarnostPravilaTest.kt" "$TEST_DIR/GooglePravilaTest.kt" "$TEST_DIR/DashPravilaTest.kt" "$TEST_DIR/QrPravilaTest.kt" "$TEST_DIR/SpletIkonePravilaTest.kt" "$TEST_DIR/YoutubeNaDotikTest.kt" "$TEST_DIR/DlnaPravilaTest.kt" "$TEST_DIR/ZvocnikPravilaTest.kt" "$TEST_DIR/PdfPregledovalnikPravilaTest.kt" \
+  "$TEST_DIR/SpletMostPravilaTest.kt" "$TEST_DIR/SpletVarnostPravilaTest.kt" "$TEST_DIR/GooglePravilaTest.kt" "$TEST_DIR/GoogleTipkeTest.kt" "$TEST_DIR/DashPravilaTest.kt" "$TEST_DIR/QrPravilaTest.kt" "$TEST_DIR/SpletIkonePravilaTest.kt" "$TEST_DIR/YoutubeNaDotikTest.kt" "$TEST_DIR/DlnaPravilaTest.kt" "$TEST_DIR/ZvocnikPravilaTest.kt" "$TEST_DIR/PdfPregledovalnikPravilaTest.kt" \
   -include-runtime -d "$OUT/splet.jar"
 java -cp "$OUT/splet.jar" si.safeer.tv.SpletMostPravilaTestKt
 java -cp "$OUT/splet.jar" si.safeer.tv.SpletVarnostPravilaTestKt
 java -cp "$OUT/splet.jar" si.safeer.tv.GooglePravilaTestKt
+java -cp "$OUT/splet.jar" si.safeer.tv.GoogleTipkeTestKt
 java -cp "$OUT/splet.jar" si.safeer.tv.DashPravilaTestKt
 java -cp "$OUT/splet.jar" si.safeer.tv.link.QrPravilaTestKt
 java -cp "$OUT/splet.jar" si.safeer.tv.SpletIkonePravilaTestKt
