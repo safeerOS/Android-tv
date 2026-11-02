@@ -318,21 +318,25 @@ class PokrajinaActivity : OsActivity() {
         }
 
         val tipkovnicaOdprta = ::poljeLupe.isInitialized && poljeLupe.hasFocus() && poljeLupe.showSoftInputOnFocus
+        val lupaImaFokus = ::poljeLupe.isInitialized && poljeLupe.hasFocus()
+        val lupaImaBesedilo = ::poljeLupe.isInitialized && poljeLupe.text?.isNotEmpty() == true
+
         if (dogodek.action == KeyEvent.ACTION_DOWN && !tipkovnicaOdprta && dogodek.repeatCount == 0) {
-            PokrajinaPravila.indeksPloscice(koda)?.let { i ->
+            val indeks = PokrajinaPravila.indeksPloscice(koda)
+            if (indeks != null && !lupaImaBesedilo && !lupaImaFokus) {
                 var vidne = 0
-                val drsnikX = (vrstaAplikacij.parent as? HorizontalScrollView)?.scrollX ?: 0
+                val drsnikX = (vrstaAplikacij.parent as? android.widget.HorizontalScrollView)?.scrollX ?: 0
                 for (ind in 0 until vrstaAplikacij.childCount) {
                     val v = vrstaAplikacij.getChildAt(ind)
                     if (v.right > drsnikX) {
-                        if (vidne == i) { v.performClick(); return true }
+                        if (vidne == indeks) { v.performClick(); return true }
                         vidne++
                     }
                 }
                 return true
             }
             PokrajinaPravila.smerStran(koda)?.let { smer ->
-                (vrstaAplikacij.parent as? HorizontalScrollView)?.let { drsnik ->
+                (vrstaAplikacij.parent as? android.widget.HorizontalScrollView)?.let { drsnik ->
                     val premik = if (smer > 0) drsnik.width else -drsnik.width
                     drsnik.smoothScrollBy(premik, 0)
                 }
@@ -340,7 +344,19 @@ class PokrajinaActivity : OsActivity() {
             }
         }
 
-        if (DomacaLupa.tipka(this, dogodek)) return true
+        if (dogodek.action == KeyEvent.ACTION_DOWN && currentFocus !is android.widget.EditText) {
+            if (DomacaLupa.znakTipke(dogodek) || dogodek.keyCode == KeyEvent.KEYCODE_DEL) {
+                if (::poljeLupe.isInitialized) {
+                    poljeLupe.requestFocus()
+                    if (dogodek.keyCode != KeyEvent.KEYCODE_DEL) {
+                        poljeLupe.append(String(Character.toChars(dogodek.unicodeChar)))
+                    } else if (poljeLupe.text.isNotEmpty()) {
+                        poljeLupe.text.delete(poljeLupe.text.length - 1, poljeLupe.text.length)
+                    }
+                    return true
+                }
+            }
+        }
 
         // Tipka Meni / Nastavitve na daljincu (Menu, Settings, rdeči gumb na Philips TV): odpre možnosti nastavitev
         if (PokrajinaPravila.jeTipkaMenija(dogodek.keyCode)) {
