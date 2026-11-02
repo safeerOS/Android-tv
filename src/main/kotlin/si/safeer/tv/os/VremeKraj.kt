@@ -64,6 +64,9 @@ object VremeKraj {
         }, "safeer-vreme-kraj").start()
     }
 
+    /** Zadnji neuspeh [beri]: true = povezava (DNS, vticnica, rok), false = streznik je odgovoril, a ne z 200. */
+    @Volatile var zadnjaNapakaPovezave = false
+
     /** GET z rokom, brez preusmeritev drugam, najvec 64 KiB; null ob napaki ali odgovoru, ki ni 200. Nikoli na glavni niti. */
     fun beri(naslov: String): String? = try {
         val p = URL(naslov).openConnection() as HttpURLConnection
@@ -72,7 +75,10 @@ object VremeKraj {
         p.setRequestProperty("User-Agent", "Safeer OS (https://safeer.si)")
         p.setRequestProperty("Accept", "application/json")
         try {
-            if (p.responseCode != 200) null
+            val koda = p.responseCode
+            // 2. 11. 2026 16:15: Open-Meteo je vracal 503 »The service is overloaded«, dom pa je pisal »ni povezave«,
+            // ceprav je bil TV povezan - napaka streznika ni napaka povezave.
+            if (koda != 200) { zadnjaNapakaPovezave = false; Log.i(TAG, "Vreme: HTTP $koda"); null }
             else p.inputStream.use { vhod ->
                 val bajti = java.io.ByteArrayOutputStream()
                 val buf = ByteArray(8 * 1024)
@@ -84,5 +90,5 @@ object VremeKraj {
                 if (bajti.size() > 64 * 1024) null else bajti.toString("UTF-8")
             }
         } finally { p.disconnect() }
-    } catch (e: Throwable) { Log.i(TAG, "Vreme: ${e.javaClass.simpleName}"); null }
+    } catch (e: Throwable) { zadnjaNapakaPovezave = true; Log.i(TAG, "Vreme: ${e.javaClass.simpleName}"); null }
 }

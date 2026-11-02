@@ -1743,6 +1743,8 @@ class PokrajinaActivity : OsActivity() {
     }
 
     private var vremeNapaka = false
+    /** Neuspeh zadnjega branja vremena je bil povezava (true) ali streznik vremena (false). */
+    private var vremeBrezPovezave = true
 
     private fun prikaziVreme() {
         val s = shramba()
@@ -1753,7 +1755,8 @@ class PokrajinaActivity : OsActivity() {
         val osnovno = ikona(VremePravila.vrsta(v.koda)) + "  " + VremePravila.napis(v)
         
         val podnaslov = if (vremeNapaka || !VremePravila.svezo(cas, System.currentTimeMillis())) {
-            getString(si.safeer.tv.R.string.pk_ni_povezave)
+            getString(if (vremeNapaka && !vremeBrezPovezave) si.safeer.tv.R.string.pk_vreme_ni_na_voljo
+                      else si.safeer.tv.R.string.pk_ni_povezave)
         } else {
             k.ime
         }
@@ -1842,6 +1845,7 @@ class PokrajinaActivity : OsActivity() {
                     .putLong(KLJUC_VREME_CAS, System.currentTimeMillis()).apply()
                 vremeNapaka = false
             } else {
+                vremeBrezPovezave = VremeKraj.zadnjaNapakaPovezave
                 vremeNapaka = true
             }
             glavna.post { if (!isFinishing && !isDestroyed) prikaziVreme() }

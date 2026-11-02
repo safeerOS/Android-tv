@@ -18,6 +18,7 @@
     <string name="pk_uredi_ime">Modifica nome</string>
     <string name="pk_odstrani_z_naprave">Rimuovi dal dispositivo</string>
     <string name="pk_ni_povezave">nessuna connessione</string>
+    <string name="pk_vreme_ni_na_voljo">meteo non disponibile</string>
     <string name="pk_dodaj_na_dom_naslov">Aggiungi alla home?</string>
     <string name="pk_dodaj_na_dom_opis">Hai aperto questa app per la terza volta.</string>
     <string name="pk_dodaj_gledas">Aggiungi app che guardi.</string>
