@@ -115,6 +115,8 @@ fun main() {
         check(P.ponovnoNalaganje(st, od, 1_000L + 20 * 100L + P.OKNO_ZANKE_MS + 1).third) { "po oknu spet dovoljeno" }
         // 2. 11. 2026: Gmail Sign in v novem oknu - vratar odloci pred ponovnim nalaganjem z novo identiteto
         check(P.vratarNajprej(true, true, "https://accounts.google.com/AccountChooser/signinchooser", false)) { "vratar prvi" }
+        check(P.dotikVPogledu(10f, 10f, 1920, 1080)) { "dotik v pogledu" }
+        check(!P.dotikVPogledu(-5f, 10f, 1920, 1080) && !P.dotikVPogledu(10f, 2000f, 1920, 1080) && !P.dotikVPogledu(Float.NaN, 1f, 10, 10)) { "dotik zunaj" }
         check(!P.vratarNajprej(false, true, "https://accounts.google.com/", false)) { "brez vratarja ne" }
         check(!P.vratarNajprej(true, false, "https://accounts.google.com/", false)) { "podokvir ne" }
         check(!P.vratarNajprej(true, true, "https://web.stremio.com/#/addons", true)) { "dodatek obravnava sam" }

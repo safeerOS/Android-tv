@@ -60,6 +60,12 @@ fun main() {
     preveri("https://example.com/login", true, "lastno prijavno okno strani")
     preveri("https://trgovina.si/auth/callback", true, "lastni auth odsek")
 
+    // Pregled Gemini 2. 11. 2026: gol naslov samo-prijavnega gostitelja je prijava, gola stran storitve ni.
+    preveri("https://accounts.google.com", true, "gol accounts.google.com")
+    preveri("https://login.live.com/", true, "gol login.live.com")
+    preveri("https://facebook.com", false, "gola stran storitve ni prijava")
+    preveri("https://amazon.com/", false, "gola trgovina ni prijava")
+
     println("PrijavnaOkna: ${presteti - padli} passed, $padli failed")
     if (padli > 0) throw IllegalStateException("$padli preizkusov ni uspelo")
 }

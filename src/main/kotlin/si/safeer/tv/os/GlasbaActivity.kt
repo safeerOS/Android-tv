@@ -5505,9 +5505,9 @@ class GlasbaActivity : OsActivity() {
                     // Naloga 80: seznam IPTV pove, koliko kanalov ima, in napredek pregleda mrtvih.
                     // Grok 39, I5: ponudnik je seznam zavrnil ali prenos ni uspel - kaj je in kdaj poskusimo znova (brez gesla na zaslonu).
                     v.jeSeznam && IptvSeznami.napaka(this, v.naslov) != null -> IptvPravila.zaPrikaz(v.naslov) + " · " +
-                        opisNapakeSeznama(IptvSeznami.napaka(this, v.naslov)!!)
+                        (IptvSeznami.napaka(this, v.naslov)?.let { opisNapakeSeznama(it) } ?: "")   // pregled 2. 11.: brez !! (prenos lahko vmes pocisti)
                     v.jeSeznam && (IptvSeznami.podatki(this, v.naslov)?.kanalov ?: 0) > 0 -> IptvPravila.zaPrikaz(v.naslov) +
-                        " · " + resources.getQuantityString(R.plurals.os_iptv_kanalov, IptvSeznami.podatki(this, v.naslov)!!.kanalov, IptvSeznami.podatki(this, v.naslov)!!.kanalov) +
+                        " · " + (IptvSeznami.podatki(this, v.naslov)?.kanalov ?: 0).let { n -> resources.getQuantityString(R.plurals.os_iptv_kanalov, n, n) } +
                         (PregledKanalov.opis(this, v.naslov)?.let { " · $it" } ?: "")
                     // Naloga 89: kje uporabnik besedila najde (predvajalnik), brez naslova streznika.
                     v.jeBesedila -> getString(R.string.os_besedila_vir_opis)

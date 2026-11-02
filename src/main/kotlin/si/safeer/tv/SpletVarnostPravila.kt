@@ -193,4 +193,8 @@ object SpletVarnostPravila {
     fun naloziPoPreusmeritvi(glavniOkvir: Boolean, preusmeritev: Boolean, url: String, google: Boolean): Boolean =
         glavniOkvir && preusmeritev && google &&
             (url.startsWith("https://", ignoreCase = true) || url.startsWith("http://", ignoreCase = true))
+
+    /** Sinteticni dotik (triggerNativeTap) samo znotraj pogleda; NaN ali tocka zunaj se zavrne. */
+    fun dotikVPogledu(x: Float, y: Float, sirina: Int, visina: Int): Boolean =
+        !x.isNaN() && !y.isNaN() && x >= 0f && y >= 0f && x < sirina && y < visina
 }

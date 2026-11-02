@@ -807,6 +807,8 @@ class ChromiumEngineView @JvmOverloads constructor(
                     val scale = webView.scale
                     val vx = x * scale
                     val vy = y * scale
+                    // Pregled Gemini 2. 11. 2026: dotik samo znotraj vidnega pogleda (tocka izven ni klik na element).
+                    if (!SpletVarnostPravila.dotikVPogledu(vx, vy, webView.width, webView.height)) return@runOnUiThread
                     val downTime = SystemClock.uptimeMillis()
                     val down = MotionEvent.obtain(downTime, downTime, MotionEvent.ACTION_DOWN, vx, vy, 0)
                     val up = MotionEvent.obtain(downTime, SystemClock.uptimeMillis(), MotionEvent.ACTION_UP, vx, vy, 0)

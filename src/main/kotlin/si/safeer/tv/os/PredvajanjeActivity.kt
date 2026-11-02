@@ -839,10 +839,11 @@ class PredvajanjeActivity : OsActivity() {
         }
         fun zapriZNapako() {
             instanca?.get()?.let { 
-                if (it.pripravljamNaslov != null && !it.prikazujemNapako) {
+                val naslov = it.pripravljamNaslov
+                if (naslov != null && !it.prikazujemNapako) {
                     it.prikazujemNapako = true
                     it.glavna.removeCallbacks(it.osveziPripravoRunnable)
-                    it.prikaziPripravljamStanje(it.pripravljamNaslov!!)
+                    it.prikaziPripravljamStanje(naslov)
                     it.izvajalec.text = it.getString(R.string.os_media_ni_na_voljo, it.pripravljamNaslov ?: "")
                     it.nalaganje.visibility = View.GONE
                     it.glavna.postDelayed(it.zapriPoNapakiRunnable, 2500)

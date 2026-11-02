@@ -63,9 +63,19 @@ object PrijavnaOkna {
         if (gostitelj.isEmpty()) return false
         val pot = ostanek.substringBefore('?').substringBefore('#').lowercase()
         val odseki = pot.split('/').filter { it.isNotEmpty() }
-        if (odseki.isEmpty()) return false
+        // Pregled Gemini 2. 11. 2026: okno na golem naslovu ponudnika, ki je SAMO za prijavo (accounts.google.com,
+        // login.live.com ...), je prijava; gola domaca stran splosne storitve (facebook.com, amazon.com) pa ne.
+        if (odseki.isEmpty()) return jeSamoPrijavniGostitelj(gostitelj)
         if (odseki.any { it in odsekiOauth }) return true
         return jeZnanPonudnik(gostitelj) && odseki.any { potGovoriOPrijavi(it) }
+    }
+
+    private val predponePrijave = listOf("accounts.", "login.", "appleid.", "idmsa.", "id.", "auth.", "signin.")
+
+    /** Znan ponudnik, katerega gostitelj sluzi samo prijavi (ne splosni strani storitve). */
+    private fun jeSamoPrijavniGostitelj(gostitelj: String): Boolean {
+        val golo = gostitelj.removePrefix("www.")
+        return golo in ponudniki && predponePrijave.any { golo.startsWith(it) }
     }
 
     private fun jeZnanPonudnik(gostitelj: String): Boolean {
