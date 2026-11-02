@@ -1092,7 +1092,8 @@ object DatotekeStreznik {
         val b = android.graphics.ImageDecoder.decodeBitmap(android.graphics.ImageDecoder.createSource(ctx.contentResolver, uri)) { d, info, _ ->
             val w = info.size.width
             val h = info.size.height
-            if (!P.smeDekodirati(info.mimeType ?: mime, w, h)) throw IllegalStateException("prevelika za dekodiranje")
+            // Vrsto pove dekoder (ne MediaStore, ki se lahko zmoti); prazna ali neznana se zavrne.
+            if (!P.smeDekodirati(info.mimeType, w, h)) throw IllegalStateException("prevelika za dekodiranje")
             val m = rob.toFloat() / maxOf(w, h)
             if (m < 1f) d.setTargetSize(maxOf(1, (w * m).toInt()), maxOf(1, (h * m).toInt()))
             d.allocator = android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE

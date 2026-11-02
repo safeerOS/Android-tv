@@ -435,53 +435,53 @@ class PokrajinaActivity : OsActivity() {
         super.onBackPressed()
     }
 
-    override fun dispatchKeyEvent(izvirni: KeyEvent): Boolean {
-        val izvirnaKoda = izvirni.keyCode
+    override fun dispatchKeyEvent(dogodek: KeyEvent): Boolean {
+        val izvirnaKoda = dogodek.keyCode
         // Plosck A/B kot OK/Nazaj; ponovitev in cas ostaneta (dolg pritisk A premakne ploscico kot dolg OK).
-        fun kot(koda: Int) = KeyEvent(izvirni.downTime, izvirni.eventTime, izvirni.action, koda, izvirni.repeatCount,
-            izvirni.metaState, izvirni.deviceId, izvirni.scanCode, izvirni.flags, izvirni.source)
-        val dogodek = if (izvirnaKoda == KeyEvent.KEYCODE_BUTTON_A) kot(KeyEvent.KEYCODE_DPAD_CENTER)
+        fun kot(koda: Int) = KeyEvent(dogodek.downTime, dogodek.eventTime, dogodek.action, koda, dogodek.repeatCount,
+            dogodek.metaState, dogodek.deviceId, dogodek.scanCode, dogodek.flags, dogodek.source)
+        val pretvorjen = if (izvirnaKoda == KeyEvent.KEYCODE_BUTTON_A) kot(KeyEvent.KEYCODE_DPAD_CENTER)
             else if (izvirnaKoda == KeyEvent.KEYCODE_BUTTON_B) kot(KeyEvent.KEYCODE_BACK)
-            else izvirni
+            else dogodek
         
         // Pregled Grok 2. 11. 2026: v mirovanju prvi Nazaj najprej zbudi zaslon, tedenska napoved se skrije sele z naslednjim.
-        if (!mirujem && dogodek.keyCode == KeyEvent.KEYCODE_BACK && ::teden.isInitialized && teden.visibility == View.VISIBLE) {
+        if (!mirujem && pretvorjen.keyCode == KeyEvent.KEYCODE_BACK && ::teden.isInitialized && teden.visibility == View.VISIBLE) {
             zadnjiVnos = android.os.SystemClock.uptimeMillis()
-            if (dogodek.action == KeyEvent.ACTION_UP) skrijTeden()
+            if (pretvorjen.action == KeyEvent.ACTION_UP) skrijTeden()
             return true
         }
         // Mirovanje: prvi pritisk samo zbudi vmesnik (tudi njegov ACTION_UP ne naredi nicesar).
-        if (dogodek.action == KeyEvent.ACTION_DOWN) {
+        if (pretvorjen.action == KeyEvent.ACTION_DOWN) {
             zadnjiVnos = android.os.SystemClock.uptimeMillis()
-            if (mirujem) { zbudi(); pogoltnjene.add(dogodek.keyCode); return true }
-            if (dogodek.repeatCount > 0 && dogodek.keyCode in pogoltnjene) return true
-        } else if (dogodek.action == KeyEvent.ACTION_UP && pogoltnjene.remove(dogodek.keyCode)) return true
+            if (mirujem) { zbudi(); pogoltnjene.add(pretvorjen.keyCode); return true }
+            if (pretvorjen.repeatCount > 0 && pretvorjen.keyCode in pogoltnjene) return true
+        } else if (pretvorjen.action == KeyEvent.ACTION_UP && pogoltnjene.remove(pretvorjen.keyCode)) return true
         // Nacin premikanja plosce (lastnik 28. 10. 2026): levo/desno premika, OK/Nazaj konca.
         premikam?.let { id ->
-            val t = PokrajinaPravila.tipkaPremikanja(dogodek.keyCode)
+            val t = PokrajinaPravila.tipkaPremikanja(pretvorjen.keyCode)
             if (t != null) {
                 // Ponovitve drzanega OK (dolg pritisk, ki je premikanje zacel) premikanja ne koncajo.
-                if (dogodek.action == KeyEvent.ACTION_DOWN && !(t == 0 && dogodek.repeatCount > 0)) {
+                if (pretvorjen.action == KeyEvent.ACTION_DOWN && !(t == 0 && pretvorjen.repeatCount > 0)) {
                     if (t == 0) koncajPremikanje() else premakniPloscico(id, t)
                 }
                 return true
             }
         }
         premikamDok?.let { id ->
-            val t = PokrajinaPravila.tipkaPremikanja(dogodek.keyCode)
+            val t = PokrajinaPravila.tipkaPremikanja(pretvorjen.keyCode)
             if (t != null) {
-                if (dogodek.action == KeyEvent.ACTION_DOWN && !(t == 0 && dogodek.repeatCount > 0)) {
+                if (pretvorjen.action == KeyEvent.ACTION_DOWN && !(t == 0 && pretvorjen.repeatCount > 0)) {
                     if (t == 0) koncajPremikanjeDok() else premakniDok(id, t)
                 }
                 return true
             }
         }
         
-        val koda = dogodek.keyCode
+        val koda = pretvorjen.keyCode
         if (PokrajinaPravila.jeMedijska(koda)) {
             val igra = try { GlasbaStoritev.trenutna() != null || GlasbaStoritev.tece() } catch (_: Throwable) { false }
             if (igra) {
-                if (dogodek.action == KeyEvent.ACTION_DOWN) {
+                if (pretvorjen.action == KeyEvent.ACTION_DOWN) {
                     try {
                         when (koda) {
                             KeyEvent.KEYCODE_MEDIA_PLAY -> GlasbaStoritev.nadaljujTu()
@@ -498,7 +498,7 @@ class PokrajinaActivity : OsActivity() {
         if (koda == KeyEvent.KEYCODE_VOLUME_UP || koda == KeyEvent.KEYCODE_VOLUME_DOWN || koda == KeyEvent.KEYCODE_VOLUME_MUTE) {
             val naZvocniku = try { GlasbaStoritev.naZvocniku() && GlasbaStoritev.trenutna() != null } catch (_: Throwable) { false }
             if (naZvocniku) {
-                if (dogodek.action == KeyEvent.ACTION_DOWN) {
+                if (pretvorjen.action == KeyEvent.ACTION_DOWN) {
                     val smer = if (koda == KeyEvent.KEYCODE_VOLUME_UP) 1 else if (koda == KeyEvent.KEYCODE_VOLUME_DOWN) -1 else 0
                     if (smer != 0) try {
                         si.safeer.tv.os.Zvocniki.glasnostZa(smer * si.safeer.tv.os.ZvocnikPravila.korakGlasnosti(si.safeer.tv.os.Zvocniki.najGlasnost, si.safeer.tv.os.Zvocniki.lestvicaZnana))
@@ -512,7 +512,7 @@ class PokrajinaActivity : OsActivity() {
         val lupaImaFokus = ::poljeLupe.isInitialized && poljeLupe.hasFocus()
         val lupaImaBesedilo = ::poljeLupe.isInitialized && poljeLupe.text?.isNotEmpty() == true
 
-        if (dogodek.action == KeyEvent.ACTION_DOWN && !tipkovnicaOdprta && dogodek.repeatCount == 0) {
+        if (pretvorjen.action == KeyEvent.ACTION_DOWN && !tipkovnicaOdprta && pretvorjen.repeatCount == 0) {
             val indeks = PokrajinaPravila.indeksPloscice(koda)
             if (indeks != null && !lupaImaBesedilo && !lupaImaFokus) {
                 var vidne = 0
@@ -536,12 +536,12 @@ class PokrajinaActivity : OsActivity() {
             }
         }
 
-        if (dogodek.action == KeyEvent.ACTION_DOWN && currentFocus !is android.widget.EditText) {
-            if (DomacaLupa.znakTipke(dogodek) || dogodek.keyCode == KeyEvent.KEYCODE_DEL) {
+        if (pretvorjen.action == KeyEvent.ACTION_DOWN && currentFocus !is android.widget.EditText) {
+            if (DomacaLupa.znakTipke(pretvorjen) || pretvorjen.keyCode == KeyEvent.KEYCODE_DEL) {
                 if (::poljeLupe.isInitialized) {
                     poljeLupe.requestFocus()
-                    if (dogodek.keyCode != KeyEvent.KEYCODE_DEL) {
-                        poljeLupe.append(String(Character.toChars(dogodek.unicodeChar)))
+                    if (pretvorjen.keyCode != KeyEvent.KEYCODE_DEL) {
+                        poljeLupe.append(String(Character.toChars(pretvorjen.unicodeChar)))
                     } else if (poljeLupe.text.isNotEmpty()) {
                         poljeLupe.text.delete(poljeLupe.text.length - 1, poljeLupe.text.length)
                     }
@@ -551,23 +551,23 @@ class PokrajinaActivity : OsActivity() {
         }
 
         // Tipka Meni / Nastavitve na daljincu (Menu, Settings, rdeči gumb na Philips TV): odpre možnosti nastavitev
-        if (PokrajinaPravila.jeTipkaMenija(dogodek.keyCode)) {
+        if (PokrajinaPravila.jeTipkaMenija(pretvorjen.keyCode)) {
             val tag = currentFocus?.tag as? String
             val naPloscici = tag != null && (tag.startsWith("splet:") || tag.startsWith("razdelek:") || tag.startsWith("dok:") || tag.contains("."))
-            if (naPloscici && super.dispatchKeyEvent(dogodek)) return true
+            if (naPloscici && super.dispatchKeyEvent(pretvorjen)) return true
             
             // Pregled Grok 2. 11. 2026: drzana tipka poslje vec ACTION_DOWN - nastavitve odpremo samo enkrat.
-            if (dogodek.action == KeyEvent.ACTION_DOWN && dogodek.repeatCount == 0) {
+            if (pretvorjen.action == KeyEvent.ACTION_DOWN && pretvorjen.repeatCount == 0) {
                 odpriNastavitveTv()
             }
             return true
         }
 
         // Možnost 1 (daljinec TV): navigacija med vrstico aplikacij, mini predvajalnikom in spodnjo vrstico
-        if (dogodek.action == KeyEvent.ACTION_DOWN) {
+        if (pretvorjen.action == KeyEvent.ACTION_DOWN) {
             val mini = dock?.aktivniPogledZaFokus?.takeIf { it.isShown && it.isFocusable }
             val dockImaFokus = dock?.imaFokus == true || (mini != null && mini.hasFocus())
-            if (dogodek.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+            if (pretvorjen.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
                 if (::vrstaAplikacij.isInitialized && vrstaAplikacij.hasFocus()) {
                     if (mini != null) {
                         mini.requestFocus()
@@ -582,7 +582,7 @@ class PokrajinaActivity : OsActivity() {
                         if (cilj != null && cilj.requestFocus()) return true
                     }
                 }
-            } else if (dogodek.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+            } else if (pretvorjen.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
                 if (::dok.isInitialized && dok.hasFocus()) {
                     if (dock != null && (dock?.jeOdprt == true || mini != null)) {
                         if (dock?.fokusiraj() == true || (mini != null && mini.requestFocus())) return true
@@ -603,7 +603,7 @@ class PokrajinaActivity : OsActivity() {
                 }
             }
         }
-        return super.dispatchKeyEvent(dogodek)
+        return super.dispatchKeyEvent(pretvorjen)
     }
 
     /** Poišče otroka v vsebniku, ki je vodoravno (X) najbližje sredini referenčnega pogleda. */

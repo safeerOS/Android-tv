@@ -163,7 +163,7 @@ object SeznamiSink {
         var odgovor: JSONObject? = null
         link.ukaz(naprava, DEJANJE, p, 6_000, LinkOdjemalec.Odgovor { izid, napaka ->
             odgovor = izid?.takeIf { it.optBoolean("ok") }?.optJSONObject("data")
-            if (odgovor == null) Log.i(TAG, "$naprava ne da seznamov: ${napaka ?: izid?.optString("message")}")
+            if (odgovor == null) Log.i(TAG, "$naprava ne da seznamov: ${napaka.ifEmpty { izid?.optString("message").orEmpty() }}")
             zapah.countDown()
         })
         zapah.await(8, TimeUnit.SECONDS)

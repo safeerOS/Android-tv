@@ -1000,7 +1000,7 @@ class SporocilaActivity : OsActivity() {
         izbran?.let { pogovorIme.text = imeOsebe(it, shramba.kanali().associate { k -> k.id to k.vrsta }); narisiSporocila() }
         if (fokus == odgovor) odgovor.requestFocus()
         else if (fokusKljuc != null)
-            (seznam.findViewWithTag<View>(fokusKljuc) ?: kanaliVrsta.findViewWithTag(fokusKljuc))?.requestFocus()
+            (seznam.findViewWithTag<View?>(fokusKljuc) ?: kanaliVrsta.findViewWithTag<View?>(fokusKljuc))?.requestFocus()
     }
 
     private fun poslji() {

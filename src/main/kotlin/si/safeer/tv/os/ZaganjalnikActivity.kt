@@ -881,7 +881,7 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         fun zberi(v: View) {
             if (v.visibility != View.VISIBLE) return
             if (v.isFocusable && v.isEnabled && v !is HorizontalScrollView && v !is ScrollView) {
-                vsi.add(v); if (v !is ViewGroup || v is EditText) return
+                vsi.add(v); if (v !is ViewGroup) return
             }
             (v as? ViewGroup)?.let { g -> for (i in 0 until g.childCount) zberi(g.getChildAt(i)) }
         }

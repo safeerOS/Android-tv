@@ -650,8 +650,8 @@ class PredvajanjeActivity : OsActivity() {
 
     private var velikostKartic = 120
 
-    override fun onConfigurationChanged(novo: android.content.res.Configuration) {
-        super.onConfigurationChanged(novo)
+    override fun onConfigurationChanged(nova: android.content.res.Configuration) {
+        super.onConfigurationChanged(nova)
         prilagodiZaslonu()
     }
 

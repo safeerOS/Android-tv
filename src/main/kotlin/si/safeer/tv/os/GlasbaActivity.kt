@@ -764,12 +764,12 @@ class GlasbaActivity : OsActivity() {
      * (kartice na desni odrezane in nedosegljive ali ozka mreza ob robu), zadetki iskanja pa sploh ne. Stran ostane ista
      * (tudi odprta podstran), narisana od vrha.
      */
-    override fun onConfigurationChanged(novo: android.content.res.Configuration) {
-        super.onConfigurationChanged(novo)
+    override fun onConfigurationChanged(nova: android.content.res.Configuration) {
+        super.onConfigurationChanged(nova)
         prilagodiMeni()
         // Tipkovnica ali daljinec (keyboard, navigation) velikosti ne spremeni: strani ni treba risati znova.
-        if (novo.orientation == znanaUsmeritev && novo.screenWidthDp == znanaSirinaDp) return
-        znanaUsmeritev = novo.orientation; znanaSirinaDp = novo.screenWidthDp
+        if (nova.orientation == znanaUsmeritev && nova.screenWidthDp == znanaSirinaDp) return
+        znanaUsmeritev = nova.orientation; znanaSirinaDp = nova.screenWidthDp
         val moj = ++zasukov
         val prej = vsebina.width
         var narisano = false

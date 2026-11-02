@@ -225,8 +225,8 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     /** Tablica se zasuka brez novega zaslona (configChanges): mrezo in orodja prilagodimo sami. */
-    override fun onConfigurationChanged(novo: android.content.res.Configuration) {
-        super.onConfigurationChanged(novo)
+    override fun onConfigurationChanged(nova: android.content.res.Configuration) {
+        super.onConfigurationChanged(nova)
         prilagodiSirini()
     }
 

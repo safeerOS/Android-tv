@@ -831,6 +831,7 @@ object Stremio {
         fun niz(k: String): String = when (val v = m.opt(k)) {
             is String -> v.trim()
             is org.json.JSONArray -> (0 until minOf(v.length(), 2)).mapNotNull { v.optString(it).trim().takeIf { s -> s.isNotBlank() } }.joinToString(", ")
+            null -> ""
             else -> ""
         }
         listOf("artist", "artists", "author", "cast", "director").forEach { k -> niz(k).takeIf { it.isNotBlank() }?.let { return it.take(60) } }

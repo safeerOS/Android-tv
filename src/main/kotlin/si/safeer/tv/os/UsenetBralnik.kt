@@ -148,11 +148,12 @@ object UsenetBralnik {
                 zaklep.withLock {
                     while (vrsta.isEmpty() && !zaprt) pogoj.await()
                     if (zaprt) return
-                    val n = vrsta.poll()
+                    // vrsta pod zaklepom ni prazna; poll() je za prevajalnik vseeno nullable
+                    val n = vrsta.poll() ?: return@withLock
                     kljuc = n.kljuc
                     f = cakajo.remove(n.kljuc)
                 }
-                val k = kljuc ?: return
+                val k = kljuc ?: continue
                 val ff = f ?: continue  // zavrzeno ob skoku
                 val podatki = try { prenesi(k) } catch (e: Throwable) {
                     zaklep.withLock {

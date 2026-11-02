@@ -561,7 +561,7 @@ def main() -> int:
     pok = (SRC / "os/PokrajinaActivity.kt").read_text(encoding="utf-8")
     prav = (SRC / "os/PokrajinaPravila.kt").read_text(encoding="utf-8")
     preveri("tipka menija: PokrajinaPravila.jeTipkaMenija", "fun jeTipkaMenija(koda: Int): Boolean" in prav and "82," in prav)
-    preveri("tipka menija: PokrajinaActivity odpre nastavitve TV", "PokrajinaPravila.jeTipkaMenija(dogodek.keyCode)" in pok
+    preveri("tipka menija: PokrajinaActivity odpre nastavitve TV", "PokrajinaPravila.jeTipkaMenija(pretvorjen.keyCode)" in pok
             and "odpriNastavitveTv()" in pok and "QuickSettingsActivity" in pok)
 
     return konec()

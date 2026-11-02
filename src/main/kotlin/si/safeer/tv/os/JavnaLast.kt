@@ -44,7 +44,8 @@ object JavnaLast {
         if (ident.isBlank() || naslov.isBlank() || sumljivo.containsMatchIn("$naslov $ident")) return null
         val formati = when (val f = v.opt("format")) {
             is JSONArray -> (0 until f.length()).map { f.optString(it) }
-            else -> listOf(f?.toString().orEmpty())
+            null -> listOf("")
+            else -> listOf(f.toString())
         }
         if (formati.none { it in videoFormati }) return null
         val leto = besedilo(v.opt("year")).take(4).toIntOrNull() ?: 0
