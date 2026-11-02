@@ -157,7 +157,7 @@ fun main() {
     preveriEnako("KEYCODE_FAC_FAC / Philips MENU (602)", true, PokrajinaPravila.jeTipkaMenija(602))
     preveriEnako("KEYCODE_WINDOW (171)", true, PokrajinaPravila.jeTipkaMenija(171))
     preveriEnako("gamepad select (109)", true, PokrajinaPravila.jeTipkaMenija(109))
-    preveriEnako("gamepad X/Y (99, 100)", true, PokrajinaPravila.jeTipkaMenija(99) && PokrajinaPravila.jeTipkaMenija(100))
+    preveriEnako("gamepad X/Y (99, 100)", false, PokrajinaPravila.jeTipkaMenija(99) || PokrajinaPravila.jeTipkaMenija(100))
     preveriEnako("navadna smerna tipka ni meni", false, PokrajinaPravila.jeTipkaMenija(21))
 
     println("\n== Nove tipke (naloga 45) ==")

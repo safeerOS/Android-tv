@@ -1,4 +1,6 @@
 package si.safeer.tv.os
+import android.content.ComponentName
+import android.widget.Toast
 
 import android.content.Context
 import android.content.Intent
@@ -64,7 +66,10 @@ class PokrajinaActivity : OsActivity() {
     private lateinit var datum: TextView
     private lateinit var vreme: TextView
     /** Tedenska napoved vodoravno v glavi, levo od temperature (lastnik 30. 10. 2026). */
-    private lateinit var teden: LinearLayout
+    private lateinit var teden: HorizontalScrollView
+    private lateinit var tedenVrsta: LinearLayout
+    private lateinit var vrstaNadaljuj: LinearLayout
+    private lateinit var okvirNadaljuj: View
     private lateinit var vrstaAplikacij: LinearLayout
     private lateinit var dok: LinearLayout
     private lateinit var preliv: View
@@ -124,16 +129,46 @@ class PokrajinaActivity : OsActivity() {
             val rob = (resources.displayMetrics.widthPixels * 0.2f).toInt()
             marginStart = rob; marginEnd = rob; topMargin = dp(4)
         })
-        // Naloga 42 E: zadetki lupe kot na racunalniku (programi, datoteke, nastavitve, mediji, splet) - samo med iskanjem.
-        zadetki = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; visibility = View.GONE
-            background = steklo(20, fokusMogoc = false)
-            setPadding(dp(14), dp(8), dp(14), dp(8))
+
+        val okvirVsebine = FrameLayout(this)
+        val spodnjiDel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+
+        // Naloga 49: Nadaljuj vrsta nad aplikacijami
+        okvirNadaljuj = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
         }
-        vsebina.addView(zadetki, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-            val rob = (resources.displayMetrics.widthPixels * 0.2f).toInt()
-            marginStart = rob; marginEnd = rob; topMargin = dp(8)
-        })
+        val naslovNadaljuj = naslovSkupine(R.string.pk_nadaljuj).apply {
+            setPadding(dp(14), dp(4), 0, dp(4))
+        }
+        (okvirNadaljuj as LinearLayout).addView(naslovNadaljuj)
+        vrstaNadaljuj = object : LinearLayout(this) {
+            override fun focusSearch(direction: Int): View? {
+                if (direction == View.FOCUS_DOWN) {
+                    if (::vrstaAplikacij.isInitialized && vrstaAplikacij.childCount > 0) {
+                        najblizjiPogledX(vrstaAplikacij, findFocus())?.let { return it }
+                    }
+                }
+                return super.focusSearch(direction)
+            }
+        }.apply { orientation = LinearLayout.HORIZONTAL; setPadding(dp(4), dp(6), dp(4), dp(6)) }
+        val drsnikNadaljuj = object : HorizontalScrollView(this) {
+            override fun requestChildRectangleOnScreen(child: View, rectangle: android.graphics.Rect, immediate: Boolean): Boolean {
+                val rob = dp(48 + 12)
+                rectangle.left -= rob
+                rectangle.right += rob
+                return super.requestChildRectangleOnScreen(child, rectangle, immediate)
+            }
+        }.apply {
+            isHorizontalScrollBarEnabled = false; clipToPadding = false; clipChildren = false
+            isHorizontalFadingEdgeEnabled = true; setFadingEdgeLength(dp(48))
+            addView(vrstaNadaljuj)
+        }
+        (okvirNadaljuj as LinearLayout).addView(drsnikNadaljuj, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        
+        // Vstavimo ga pred vrsto aplikacij (okvirDrsnika)
+        spodnjiDel.addView(okvirNadaljuj, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(4) })
+
         // Lastnik 27. 10. 2026: ENA vrstica - priljubljene spletne in namescene aplikacije in »+ Dodaj«, plosce po zgledu
         // (zaobljene, brez obrobe; obroba samo s fokusom). Vse aplikacije so za gumbom Aplikacije v spodnji vrstici.
         vrstaAplikacij = object : LinearLayout(this) {
@@ -182,11 +217,44 @@ class PokrajinaActivity : OsActivity() {
         vrstaAplikacij.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> osveziPuscico() }
 
         // Lastnik 28. 10. 2026: vrstica pod iskalno lupo - mini predvajalnik (nad spodnjo vrstico) je ne prekriva vec.
-        vsebina.addView(okvirDrsnika, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(18) })
-        vsebina.addView(View(this), LinearLayout.LayoutParams(0, 0, 1f))
+        spodnjiDel.addView(okvirDrsnika, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(18) })
+        spodnjiDel.addView(View(this), LinearLayout.LayoutParams(0, 0, 1f))
         dok = plavajocaVrstica()
         dok.addOnLayoutChangeListener { _, _, t, _, b, _, st, _, sb -> if (t != st || b != sb) { robDocka(); prilagodiVisinoPlosc() } }
-        vsebina.addView(dok, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(14) })
+        spodnjiDel.addView(dok, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(14) })
+        okvirVsebine.addView(spodnjiDel, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+
+        // Naloga 42 E: zadetki lupe kot na racunalniku (programi, datoteke, nastavitve, mediji, splet) - samo med iskanjem.
+        zadetki = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = steklo(20, fokusMogoc = false)
+            setPadding(dp(14), dp(8), dp(14), dp(8))
+        }
+        val zadetkiDrsnik = android.widget.ScrollView(this).apply { 
+            visibility = View.GONE; tag = "zadetkiDrsnik"
+            addView(zadetki, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        }
+        okvirVsebine.addView(zadetkiDrsnik, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT).apply {
+            val rob = (resources.displayMetrics.widthPixels * 0.2f).toInt()
+            marginStart = rob; marginEnd = rob; topMargin = dp(8); bottomMargin = dp(14) // prostor do spodnje vrstice
+        })
+        vsebina.addView(okvirVsebine, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        koren.setOnLongClickListener {
+            val dejanja = mutableListOf(
+                getString(R.string.os_videz) to { odpri(Intent(this, VidezActivity::class.java)) }
+            )
+            if (Zaganjalnik.smeOpustiti(this)) {
+                dejanja.add(getString(R.string.pk_zaganjalnik_opusti) to { Zaganjalnik.vrniTovarniskega(this) })
+            }
+            val okno = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
+                .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
+                .setNegativeButton(getString(R.string.os_preklici), null)
+                .create()
+            Kontroler.pokazi(okno)
+            okno.show()
+            true
+        }
+        
         preliv = View(this)
         koren.addView(preliv, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         koren.addView(vsebina, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
@@ -219,6 +287,10 @@ class PokrajinaActivity : OsActivity() {
         }
     }
 
+
+    private var zadnjiFokusPogled: View? = null
+    private val posodobiZnacke = { osveziDokZnacke() }
+
     override fun onStart() {
         super.onStart()
         val filter = android.content.IntentFilter().apply {
@@ -238,12 +310,17 @@ class PokrajinaActivity : OsActivity() {
         preliv.background = if (alfa == 0) null else GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
             intArrayOf(alfa shl 24, 0, 0, alfa shl 24))
         glavna.post(tikUre)
+        
+        narisiNadaljuj()
         narisiAplikacije()
-        // Po vrnitvi iz aplikacije fokus na njeno plosco (po zgledu tv-simple-home FocusRestore, lastnik 28. 10. 2026):
-        // daljinec nadaljuje tam, kjer je uporabnik bil - ne v lupi in ne na prvi plosci.
-        val izbrana = zadnjaPloscica?.let { vrstaAplikacij.findViewWithTag<View>(it) }
-            ?: if (vrstaAplikacij.childCount > 0) vrstaAplikacij.getChildAt(0) else null
-        izbrana?.let { v -> v.post { v.requestFocus() } }
+        val f = zadnjiFokusPogled
+        if (f != null && f.isAttachedToWindow) {
+            f.post { f.requestFocus() }
+        } else {
+            val izbrana = zadnjaPloscica?.let { vrstaAplikacij.findViewWithTag<View>(it) }
+                ?: if (vrstaAplikacij.childCount > 0) vrstaAplikacij.getChildAt(0) else null
+            izbrana?.let { v -> v.post { v.requestFocus() } }
+        }
         zbudi(animiraj = false)
         prikaziVreme()
         osveziVreme()
@@ -255,10 +332,15 @@ class PokrajinaActivity : OsActivity() {
         dok.post { robDocka() }
         GlasbaStoritev.poslusalci.add(medijiPoslusalec)
         OddaljenoPredvajanje.poslusalci.add(medijiPoslusalec)
+        ZnackeObvestil.poslusalci.add(posodobiZnacke)
+        osveziDokZnacke()
         dock?.osvezi()
     }
 
+
     override fun onStop() {
+        ZnackeObvestil.poslusalci.remove(posodobiZnacke)
+        zadnjiFokusPogled = currentFocus
         try { unregisterReceiver(usbSprejemnik) } catch (_: Throwable) { }
         link.odstrani(linkPoslusalec)
         glavna.removeCallbacks(preveriMirovanje)
@@ -333,7 +415,12 @@ class PokrajinaActivity : OsActivity() {
         super.onBackPressed()
     }
 
-    override fun dispatchKeyEvent(dogodek: KeyEvent): Boolean {
+    override fun dispatchKeyEvent(izvirni: KeyEvent): Boolean {
+        val koda = izvirni.keyCode
+        val dogodek = if (koda == KeyEvent.KEYCODE_BUTTON_A) KeyEvent(izvirni.action, KeyEvent.KEYCODE_DPAD_CENTER)
+            else if (koda == KeyEvent.KEYCODE_BUTTON_B) KeyEvent(izvirni.action, KeyEvent.KEYCODE_BACK)
+            else izvirni
+        
         // Pregled Grok 2. 11. 2026: v mirovanju prvi Nazaj najprej zbudi zaslon, tedenska napoved se skrije sele z naslednjim.
         if (!mirujem && dogodek.keyCode == KeyEvent.KEYCODE_BACK && ::teden.isInitialized && teden.visibility == View.VISIBLE) {
             if (dogodek.action == KeyEvent.ACTION_UP) teden.visibility = View.GONE
@@ -572,10 +659,25 @@ class PokrajinaActivity : OsActivity() {
         g.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
         // Vreme: brez izbranega kraja ga ni (ne nadomestka). Lastnik 27. 10. 2026: kraj se izbere v Nastavitvah, ne s klikom
         // na uro (VremeKraj) - ura je samo prikaz.
-        teden = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; visibility = View.GONE
+        teden = object : HorizontalScrollView(this) {
+            override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+                if (event.action == KeyEvent.ACTION_DOWN && event.keyCode == KeyEvent.KEYCODE_BACK) {
+                    visibility = View.GONE
+                    vreme.requestFocus()
+                    return true
+                }
+                return super.dispatchKeyEvent(event)
+            }
+        }.apply {
+            visibility = View.GONE
+            isHorizontalScrollBarEnabled = false
         }
-        g.addView(teden, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(10) })
+        tedenVrsta = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        teden.addView(tedenVrsta, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        g.addView(teden, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(10) })
         // Lastnik 30. 10. 2026: klik na temperaturo pokaze tedensko napoved v zgornjem pasu (ne cez vsebino).
         vreme = besedilo("", 26f).apply {
             visibility = View.INVISIBLE
@@ -629,7 +731,7 @@ class PokrajinaActivity : OsActivity() {
                 // Pregled Grok 2. 11. 2026: na TV je OK skoraj vedno DPAD_CENTER - z vpisanim besedilom isce v izbranem obsegu
                 // (prej je OK odprl samo tipkovnico, iskanje pa je sprozil le gumb tipkovnice).
                 val niz = (v as EditText).text?.toString()?.trim().orEmpty()
-                if (d.action == KeyEvent.ACTION_DOWN && d.repeatCount == 0 && ok && LupaPravila.okIsce(niz)) {
+                if (d.action == KeyEvent.ACTION_DOWN && d.repeatCount == 0 && ok && LupaPravila.okIsce(niz, DomacaLupa.obseg(this@PokrajinaActivity))) {
                     DomacaLupa.izvedi(this@PokrajinaActivity, niz)
                     true
                 } else if (d.action == KeyEvent.ACTION_DOWN && ok && !v.showSoftInputOnFocus) {
@@ -720,80 +822,96 @@ class PokrajinaActivity : OsActivity() {
      * Zadetki med tipkanjem: programi televizorja, nedavne datoteke, nastavitve, iskanje v Medijih, »Isci v spletu« in
      * sprotni predlogi iskalnika. Enter ali OK na polju izvede ukaz (DomacaLupa.izvedi: »… na TV«, vreme, naslov).
      */
+    private var iskanjePoizvedba = ""
+
     private fun narisiZadetke(poizvedba: String) {
         val q = poizvedba.trim()
+        if (q == iskanjePoizvedba) return
+        iskanjePoizvedba = q
         val st = ++iskanjeSt
+        
+        val stariFokus = currentFocus
+        val imelFokus = stariFokus?.let { it.parent == zadetki || it == zadetki } == true
+        val fokusTag = stariFokus?.tag ?: (stariFokus as? TextView)?.text?.toString()
+
         zadetki.removeAllViews()
+        val drsnik = zadetki.parent as View
         if (q.isEmpty()) { 
             val zgodovina = DomacaLupa.beriZgodovino(this)
             if (zgodovina.isEmpty()) {
-                zadetki.visibility = View.GONE
+                drsnik.visibility = View.GONE
             } else {
                 zadetki.addView(naslovSkupine(R.string.menu_history))
                 for (z in zgodovina) {
-                    zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_isci, z) { DomacaLupa.izvedi(this, z) })
+                    zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_isci, z) { DomacaLupa.izvedi(this, z) }.apply { tag = z })
                 }
-                zadetki.visibility = View.VISIBLE
+                drsnik.visibility = View.VISIBLE
             }
-            return 
-        }
-        zadetki.addView(izbiraObsega())
-        val vsi = Aplikacije.zadnjiZnani(this) ?: emptyList()
-        val programi = LupaPravila.najboljsi(vsi, q, 4) { it.ime }
-        if (programi.isNotEmpty()) {
-            zadetki.addView(naslovSkupine(R.string.pk_lupa_programi))
-            for (a in programi) zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_aplikacije, a.ime) {
-                Priljubljene.preveriZagonInZazeni(this, a.paket, a.ime) {
-                    odpri(Intent(a.namera).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                }
-            })
-        }
-        val datoteke = LupaPravila.najboljsi(Nadaljuj.seznam(this).filter { it.vrsta in ZaganjalnikPravila.VRSTE_DATOTEK }, q, 3) { it.ime }
-        if (datoteke.isNotEmpty()) {
-            zadetki.addView(naslovSkupine(R.string.os_meni_datoteke))
-            val link = LinkUpravitelj.pridobi(this)
-            for (n in datoteke) zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_datoteka, n.ime) {
-                NadaljujOdpri.datoteka(this, link, n) { _ -> android.widget.Toast.makeText(this, getString(R.string.os_nadaljuj_ni_vec, n.ime),
-                    android.widget.Toast.LENGTH_LONG).show() }
-            })
-        }
-        val nastavitve = listOf(
-            getString(R.string.os_meni_nastavitve) to Intent(this, NastavitveActivity::class.java),
-            getString(R.string.os_videz) to Intent(this, VidezActivity::class.java),
-            getString(R.string.dov_naslov) to Intent(this, DovoljenjaActivity::class.java),
-            getString(R.string.os_meni_naprave) to Intent(this, NapraveActivity::class.java),
-        )
-        val zadetkiNastavitev = LupaPravila.najboljsi(nastavitve, q, 3) { it.first }
-        if (zadetkiNastavitev.isNotEmpty()) {
-            zadetki.addView(naslovSkupine(R.string.os_meni_nastavitve))
-            for ((ime, namera) in zadetkiNastavitev) zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_nastavitve, ime) { odpri(namera) })
-        }
-        // Izbrani obseg je prvi (Enter izvede tega), nato ostala dva v stalnem vrstnem redu (Splet, Video, YouTube).
-        val izbran = DomacaLupa.obseg(this)
-        for (o in listOf(izbran) + LupaPravila.OBSEGI.filter { it != izbran }) when (o) {
-            LupaPravila.OBSEG_VIDEO -> zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_predvajaj, getString(R.string.pk_lupa_mediji, q)) {
-                odpri(Intent(this, GlasbaActivity::class.java).putExtra(GlasbaActivity.ISKANJE_BESEDA, q))
-            })
-            LupaPravila.OBSEG_YOUTUBE -> zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_video, getString(R.string.pk_lupa_youtube, q)) {
-                odpri(Brskalnik.namera(this).setAction(Intent.ACTION_VIEW).setData(android.net.Uri.parse(LupaPravila.youtubeIskanje(q))))
-            })
-            else -> zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_splet, getString(R.string.pk_lupa_splet, q)) {
-                odpri(Brskalnik.namera(this).setAction(Intent.ACTION_VIEW).setData(android.net.Uri.parse(si.safeer.tv.SmartOmnibox.iskanje(this, q))))
-            })
-        }
-        zadetki.visibility = View.VISIBLE
-        // Sprotni zadetki iz spleta: samo od treh znakov, ne za naslov, in samo ce iskalnik predloge ima.
-        val predloge = si.safeer.tv.SmartOmnibox.iskalnik(this).predlogi ?: return
-        if (!LupaPravila.predlogeIskati(q, spletniPredlogi())) return
-        Thread({
-            val odgovor = beri(predloge + java.net.URLEncoder.encode(q, "UTF-8"))
-            val seznam = odgovor?.let { LupaPravila.predlogi(it, q) }.orEmpty()
-            glavna.post {
-                if (isFinishing || isDestroyed || st != iskanjeSt || seznam.isEmpty()) return@post
-                zadetki.addView(naslovSkupine(R.string.pk_lupa_predlogi))
-                for (p in seznam) zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_isci, p) { DomacaLupa.izvedi(this, p) })
+        } else {
+            zadetki.addView(izbiraObsega())
+            val vsi = Aplikacije.zadnjiZnani(this) ?: emptyList()
+            val programi = LupaPravila.najboljsi(vsi, q, 4) { it.ime }
+            if (programi.isNotEmpty()) {
+                zadetki.addView(naslovSkupine(R.string.pk_lupa_programi))
+                for (a in programi) zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_aplikacije, a.ime) {
+                    Priljubljene.preveriZagonInZazeni(this, a.paket, a.ime) {
+                        odpri(Intent(a.namera).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    }
+                }.apply { tag = a.ime })
             }
-        }, "safeer-lupa-predlogi").start()
+            val datoteke = LupaPravila.najboljsi(Nadaljuj.seznam(this).filter { it.vrsta in ZaganjalnikPravila.VRSTE_DATOTEK }, q, 3) { it.ime }
+            if (datoteke.isNotEmpty()) {
+                zadetki.addView(naslovSkupine(R.string.os_meni_datoteke))
+                val link = LinkUpravitelj.pridobi(this)
+                for (n in datoteke) zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_datoteka, n.ime) {
+                    NadaljujOdpri.datoteka(this, link, n) { _ -> android.widget.Toast.makeText(this, getString(R.string.os_nadaljuj_ni_vec, n.ime),
+                        android.widget.Toast.LENGTH_LONG).show() }
+                }.apply { tag = n.ime })
+            }
+            val nastavitve = listOf(
+                getString(R.string.os_meni_nastavitve) to Intent(this, NastavitveActivity::class.java),
+                getString(R.string.os_videz) to Intent(this, VidezActivity::class.java),
+                getString(R.string.dov_naslov) to Intent(this, DovoljenjaActivity::class.java),
+                getString(R.string.os_meni_naprave) to Intent(this, NapraveActivity::class.java),
+            )
+            val zadetkiNastavitev = LupaPravila.najboljsi(nastavitve, q, 3) { it.first }
+            if (zadetkiNastavitev.isNotEmpty()) {
+                zadetki.addView(naslovSkupine(R.string.os_meni_nastavitve))
+                for ((ime, namera) in zadetkiNastavitev) zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_nastavitve, ime) { odpri(namera) }.apply { tag = ime })
+            }
+            val izbran = DomacaLupa.obseg(this)
+            for (o in listOf(izbran) + LupaPravila.OBSEGI.filter { it != izbran }) when (o) {
+                LupaPravila.OBSEG_VIDEO -> zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_predvajaj, getString(R.string.pk_lupa_mediji, q)) {
+                    odpri(Intent(this, GlasbaActivity::class.java).putExtra(GlasbaActivity.ISKANJE_BESEDA, q))
+                }.apply { tag = "obseg_vrstica_$o" })
+                LupaPravila.OBSEG_YOUTUBE -> zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_video, getString(R.string.pk_lupa_youtube, q)) {
+                    odpri(Brskalnik.namera(this).setAction(Intent.ACTION_VIEW).setData(android.net.Uri.parse(LupaPravila.youtubeIskanje(q))))
+                }.apply { tag = "obseg_vrstica_$o" })
+                else -> zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_splet, getString(R.string.pk_lupa_splet, q)) {
+                    odpri(Brskalnik.namera(this).setAction(Intent.ACTION_VIEW).setData(android.net.Uri.parse(si.safeer.tv.SmartOmnibox.iskanje(this, q))))
+                }.apply { tag = "obseg_vrstica_$o" })
+            }
+            drsnik.visibility = View.VISIBLE
+            val predloge = si.safeer.tv.SmartOmnibox.iskalnik(this).predlogi
+            if (predloge != null && LupaPravila.predlogeIskati(q, spletniPredlogi())) {
+                Thread({
+                    val odgovor = beri(predloge + java.net.URLEncoder.encode(q, "UTF-8"))
+                    val seznam = odgovor?.let { LupaPravila.predlogi(it, q) }.orEmpty()
+                    glavna.post {
+                        if (isFinishing || isDestroyed || st != iskanjeSt || seznam.isEmpty()) return@post
+                        zadetki.addView(naslovSkupine(R.string.pk_lupa_predlogi))
+                        for (p in seznam) zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_isci, p) { DomacaLupa.izvedi(this, p) }.apply { tag = p })
+                        if (imelFokus) zadetki.post { zadetki.findViewWithTag<View>(fokusTag)?.requestFocus() }
+                    }
+                }, "safeer-lupa-predlogi").start()
+            }
+        }
+        
+        if (imelFokus) {
+            zadetki.post { zadetki.findViewWithTag<View>(fokusTag)?.requestFocus() }
+        } else if (stariFokus != null && stariFokus != poljeLupe) {
+            stariFokus.requestFocus()
+        }
     }
 
     // ------------------------------------------------------------------ priljubljene in spletne aplikacije
@@ -852,25 +970,107 @@ class PokrajinaActivity : OsActivity() {
 
     private fun sirinaPlosce(): Int = ((resources.displayMetrics.widthPixels - dp(88)) / PokrajinaPravila.STOLPCEV - dp(20)).coerceAtLeast(dp(110))
 
-    private fun dodajVVrsto(v: View) {
-        vrstaAplikacij.addView(v, LinearLayout.LayoutParams(sirinaPlosce(), dp(visinaPlosceDp)).apply { marginStart = dp(10); marginEnd = dp(10) })
+    private fun dodajVVrsto(v: View, sirina: Int = sirinaPlosce()) {
+        vrstaAplikacij.addView(v, LinearLayout.LayoutParams(sirina, dp(visinaPlosceDp)).apply { marginStart = dp(10); marginEnd = dp(10) })
     }
 
-    private fun narisiAplikacije() {
-        val stare = vrstaDomov.toSet()
-        vrstaAplikacij.removeAllViews()
+    private fun narisiNadaljuj() {
+        val vnosi = Nadaljuj.seznam(this)
+        vrstaNadaljuj.removeAllViews()
+        if (vnosi.isEmpty()) {
+            okvirNadaljuj.visibility = View.GONE
+            return
+        }
+        okvirNadaljuj.visibility = View.VISIBLE
+        for (n in vnosi) {
+            val v = LayoutInflater.from(this).inflate(R.layout.os_kartica_ikona, vrstaNadaljuj, false)
+            val ikona = v.findViewById<ImageView>(R.id.ikona)
+            val risba = ikonaPrograma(n)
+            if (risba != null) ikona.setImageDrawable(risba) else ikona.setImageResource(ikonaZa(n.vrsta))
+            v.findViewById<TextView>(R.id.ime).text = n.ime
+            v.setOnClickListener {
+                if (premikam != null) { koncajPremikanje(); return@setOnClickListener }
+                zadnjaPloscica = "nadaljuj:" + n.kljuc()
+                odpriNadaljuj(n)
+            }
+            v.tag = "nadaljuj:" + n.kljuc()
+            poudariFokus(v)
+            vrstaNadaljuj.addView(v, LinearLayout.LayoutParams(sirinaPlosce(), dp(visinaPlosceDp)).apply { marginStart = dp(10); marginEnd = dp(10) })
+        }
+    }
+    
+    private fun odpriNadaljuj(n: Nadaljuj.Vnos) {
+        when (n.vrsta) {
+            Nadaljuj.SPLETNA -> {
+                val a = SpletneAplikacije.seznam(this).firstOrNull { it.url == n.url }
+                if (a != null) {
+                    preveriInOdpri(a.url, Brskalnik.namera(this).putExtra("spletna_aplikacija", a.url).putExtra("aplikacija_ime", a.ime).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                } else {
+                    odpri(Brskalnik.namera(this).setAction(Intent.ACTION_VIEW).setData(android.net.Uri.parse(n.url)))
+                }
+            }
+            Nadaljuj.ZASLON -> odpri(Intent(this, ZaslonActivity::class.java).putExtra(DatotekeActivity.EXTRA_RACUNALNIK, n.racunalnik))
+            Nadaljuj.PROGRAM -> {
+                val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER).setComponent(ComponentName(n.program, n.program)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                try { startActivity(intent) } catch (_: Throwable) { } 
+            }
+            else -> NadaljujOdpri.datoteka(this, link, n) { rac -> if (rac) Toast.makeText(this, R.string.os_nadaljuj_ni_racunalnika, Toast.LENGTH_LONG).show() }
+        }
+    }
+    
+    private fun ikonaPrograma(n: Nadaljuj.Vnos): android.graphics.drawable.Drawable? {
+        if (n.vrsta == Nadaljuj.SPLETNA) {
+            val a = SpletneAplikacije.seznam(this).firstOrNull { it.url == n.url }
+            if (a != null) return SpletneAplikacije.ikona(this, a)
+        }
+        if (n.vrsta == Nadaljuj.PROGRAM) {
+            return Aplikacije.ikonaIzPomnilnika(n.program) ?: getDrawable(R.drawable.os_ikona_aplikacije)
+        }
+        return null
+    }
+
+    private fun ikonaZa(vrsta: String): Int = when (vrsta) {
+        Nadaljuj.VIDEO -> R.drawable.os_ikona_video
+        Nadaljuj.GLASBA -> R.drawable.os_ikona_glasba
+        Nadaljuj.SLIKA -> R.drawable.os_ikona_slika
+        Nadaljuj.SPLETNA -> R.drawable.os_ikona_splet
+        Nadaljuj.ZASLON -> R.drawable.os_ikona_zaslon
+        Nadaljuj.PROGRAM -> R.drawable.os_ikona_aplikacije
+        else -> R.drawable.os_ikona_datoteka
+    }
+
+    private fun narisiAplikacije(): Boolean {
         val vsi = Aplikacije.zadnjiZnani(this) ?: Aplikacije.seznam(this)
         val poPaketu = vsi.associateBy { it.paket }
         val spletne = SpletneAplikacije.seznam(this).associateBy { "splet:" + it.url }
-        // Lastnik 28. 10. 2026: vrstni red doloci uporabnik (namescene in spletne skupaj); dolg pritisk = moznosti.
         val zacetnaVrsta = PokrajinaPravila.vrstaDomov(Priljubljene.redDomov(this), Priljubljene.seznam(this) + spletne.keys,
             poPaketu.keys + spletne.keys)
-        val vrsta = PokrajinaPravila.deduplicirajSpletne(zacetnaVrsta)
+        var vrsta = PokrajinaPravila.deduplicirajSpletne(zacetnaVrsta)
+        
+        var nicPripetega = false
+        if (vrsta.isEmpty()) {
+            nicPripetega = true
+            vrsta = vsi.take(6).map { it.paket }
+        }
+        
+        if (vrsta == vrstaDomov && vrstaAplikacij.childCount > 0) return false
+
+        val stare = vrstaDomov.toSet()
+        vrstaAplikacij.removeAllViews()
         vrstaDomov = vrsta
         
         val nove = vrsta.filter { it !in stare }
         if (stare.isNotEmpty() && nove.isNotEmpty()) {
             zadnjaPloscica = nove.first()
+        }
+        
+        if (nicPripetega) {
+            val opozorilo = besedilo(getString(R.string.pk_dodaj_gledas), 16f, R.color.os_umirjeno).apply {
+                setPadding(dp(10), dp(10), dp(10), dp(10))
+            }
+            vrstaAplikacij.addView(opozorilo, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                gravity = Gravity.CENTER_VERTICAL
+            })
         }
 
         for (id in vrsta) {
@@ -929,6 +1129,9 @@ class PokrajinaActivity : OsActivity() {
                 preveriInOdpri(id, Brskalnik.namera(this).putExtra("spletna_aplikacija", s.url).putExtra("aplikacija_ime", ime)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             }
+            if (s.zadnjaNapaka) {
+                v.alpha = 0.5f
+            }
             v.tag = id
             v.setOnLongClickListener { zacniPremikanje(id); true }
             v.setOnKeyListener { _, keyCode, event ->
@@ -958,7 +1161,10 @@ class PokrajinaActivity : OsActivity() {
         } catch (_: Throwable) { }
 
         // Zadnja plosca: uporabnik si sam doda aplikacijo s televizorja ali spletno aplikacijo.
-        dodajVVrsto(kartica(null, R.drawable.os_ikona_plus, getString(R.string.os_spletne_dodaj)) { dodajAplikacijo() })
+        val gumbDodaj = kartica(null, R.drawable.os_ikona_plus, getString(R.string.os_spletne_dodaj)) { dodajAplikacijo() }
+        gumbDodaj.findViewById<TextView>(R.id.ime).visibility = View.GONE
+        dodajVVrsto(gumbDodaj, dp(visinaPlosceDp))
+        return true
     }
 
     /** Vrstni red, kot je trenutno narisan (za premik in shranjevanje). */
@@ -1021,11 +1227,41 @@ class PokrajinaActivity : OsActivity() {
             zbudi()
             if (spal) return true        // dotik, ki zbudi, ne odpre ploscice
         }
+        if (dogodek.actionMasked == android.view.MotionEvent.ACTION_UP) {
+            dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_CENTER))
+            dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_CENTER))
+            return true
+        }
+        if (dogodek.actionMasked == android.view.MotionEvent.ACTION_DOWN) return true
         return super.dispatchTouchEvent(dogodek)
     }
 
+    private var zadnjiXMis = 0f
+
     override fun dispatchGenericMotionEvent(dogodek: android.view.MotionEvent): Boolean {
         zbudi()                           // premik miske ali kolescek
+        if (dogodek.action == android.view.MotionEvent.ACTION_SCROLL) {
+            val os = dogodek.getAxisValue(android.view.MotionEvent.AXIS_VSCROLL).takeIf { it != 0f }
+                ?: dogodek.getAxisValue(android.view.MotionEvent.AXIS_HSCROLL)
+            if (os < 0f) {
+                dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_RIGHT))
+                dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_RIGHT))
+            } else if (os > 0f) {
+                dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_LEFT))
+                dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DPAD_LEFT))
+            }
+            return true
+        }
+        if (dogodek.action == android.view.MotionEvent.ACTION_HOVER_MOVE) {
+            val dx = dogodek.x - zadnjiXMis
+            if (Math.abs(dx) > 40f) {
+                val koda = if (dx > 0) KeyEvent.KEYCODE_DPAD_RIGHT else KeyEvent.KEYCODE_DPAD_LEFT
+                dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, koda))
+                dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_UP, koda))
+                zadnjiXMis = dogodek.x
+            }
+            return true
+        }
         return super.dispatchGenericMotionEvent(dogodek)
     }
 
@@ -1233,11 +1469,37 @@ class PokrajinaActivity : OsActivity() {
                     }
                     ikonaOkvir.addView(pika, FrameLayout.LayoutParams(dp(8), dp(8)).apply { gravity = Gravity.TOP or Gravity.END; topMargin = dp(2); marginEnd = dp(2) })
                 }
+                if (r == PokrajinaPravila.SPOROCILA) {
+                    val znacka = TextView(this@PokrajinaActivity).apply {
+                        gravity = Gravity.CENTER
+                        setTextColor(osBarva(R.color.os_ozadje)); setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
+                        typeface = Typeface.DEFAULT_BOLD
+                        minWidth = dp(18); setPadding(dp(4), 0, dp(4), 0)
+                        background = GradientDrawable().apply { cornerRadius = dp(9).toFloat(); setColor(osBarva(R.color.os_mint)) }
+                        visibility = View.GONE
+                        tag = "znacka_sporocila"
+                    }
+                    ikonaOkvir.addView(znacka, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(18), Gravity.TOP or Gravity.END).apply { topMargin = 0; marginEnd = 0 })
+                }
                 addView(ikonaOkvir, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
                 addView(bes, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(4) })
             }
             poudariFokus(gumb)
             v.addView(gumb, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(4); marginEnd = dp(4) })
+        }
+    }
+
+    private fun osveziDokZnacke() {
+        val gumb = dok.findViewWithTag<View>("dok:" + PokrajinaPravila.SPOROCILA)
+        if (gumb != null) {
+            val znacka = gumb.findViewWithTag<TextView>("znacka_sporocila")
+            if (znacka != null) {
+                // Naloga 49: samo obvestila, ki cakajo na cloveka
+                val koliko = ZnackeObvestil.stevci.values.sum()
+                val b = ZaganjalnikPravila.besediloZnacke(koliko)
+                znacka.text = b
+                znacka.visibility = if (b.isEmpty()) View.GONE else View.VISIBLE
+            }
         }
     }
 
