@@ -256,27 +256,36 @@ object VnosVklopPravila {
      * pred globokimi), veje cisto zunaj zaslona [zaslon] se preskocijo (njihovi otroci niso vidni), meja dela je stevilo
      * OBISKANIH vozlisc [najvecObiskov] (vsak getChild je klic v drug proces) - ne stevilo kandidatov.
      */
+    // Neodvisni pregled 4. 11. 2026: meja steje KLICE getChild (vsak je klic v drug proces), ne obiskov - vozlisce s
+    // tisoc otroki je prej v enem obisku naredilo tisoc klicev. [otroci] dobi najvec, koliko otrok sme prebrati
+    // (preostanek meje in [NAJVEC_OTROK] na vozlisce).
     fun <T> zberiNaZaslonu(
-        koren: T, otroci: (T) -> List<T>, okvir: (T) -> Okvir, sprejmi: (T) -> Boolean,
-        zaslon: Okvir, najvecObiskov: Int
+        koren: T, otroci: (T, Int) -> List<T>, okvir: (T) -> Okvir, sprejmi: (T) -> Boolean,
+        zaslon: Okvir, najvecKlicev: Int
     ): List<T> {
         val izid = ArrayList<T>()
         val vrsta = ArrayDeque<T>()
         vrsta.addLast(koren)
-        var obiskov = 0
-        while (vrsta.isNotEmpty() && obiskov < najvecObiskov) {
+        var klicev = 0
+        while (vrsta.isNotEmpty()) {
             val n = vrsta.removeFirst()
-            obiskov++
             val o = okvir(n)
             // Prazen okvir (vsebnik brez velikosti) ne pove nicesar o otrocih: gremo naprej. Okvir zunaj zaslona: veja odpade.
             if (!o.prazen && !(o.desno > zaslon.levo && o.levo < zaslon.desno && o.spodaj > zaslon.zgoraj && o.zgoraj < zaslon.spodaj)) continue
             if (sprejmi(n)) izid.add(n)
-            for (c in otroci(n)) vrsta.addLast(c)
+            val smem = minOf(NAJVEC_OTROK, najvecKlicev - klicev)
+            if (smem <= 0) continue
+            val ot = otroci(n, smem).take(smem)
+            klicev += ot.size
+            for (c in ot) vrsta.addLast(c)
         }
         return izid
     }
 
-    /** Najvec obiskanih vozlisc pri enem zbiranju (meritev casa ni bila mogoca brez vklopa dostopnosti - glej porocilo). */
+    /** Najvec otrok enega vozlisca (seznam z neomejeno vsebino ne porabi vse meje). */
+    const val NAJVEC_OTROK = 200
+
+    /** Najvec klicev getChild pri enem zbiranju (meritev casa ni bila mogoca brez vklopa dostopnosti - glej porocilo). */
     const val NAJVEC_OBISKOV = 1500
 
     /** Brez fokusa: prvi element zgoraj levo (vrstica, nato stolpec), ali -1. */

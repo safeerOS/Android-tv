@@ -519,8 +519,8 @@ class VnosStoritev : AccessibilityService() {
     }
 
     /** Otroci vozlisca (napaka pri branju enega otroka ne ustavi zbiranja). */
-    private fun otroci(n: AccessibilityNodeInfo): List<AccessibilityNodeInfo> =
-        (0 until n.childCount).mapNotNull { i -> try { n.getChild(i) } catch (_: Throwable) { null } }
+    private fun otroci(n: AccessibilityNodeInfo, najvec: Int): List<AccessibilityNodeInfo> =
+        (0 until minOf(n.childCount, najvec)).mapNotNull { i -> try { n.getChild(i) } catch (_: Throwable) { null } }
 
     /** Okvir celega zaslona za zbiranje (VnosVklopPravila.zberiNaZaslonu). */
     private fun zaslon(): VnosVklopPravila.Okvir {
