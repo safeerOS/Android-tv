@@ -1812,6 +1812,8 @@ object OsPravila {
      * Zunanji pregled Glasbe 3. 11. 2026: klik na skladbo da v vrsto samo kartice z zvokom (prej vse kartice zaslona, tudi
      * vnose dodatkov brez zvoka). Vrne indekse vrste in polozaj kliknjene v njej; kliknjena je vedno v vrsti.
      */
+    // Album dodatka Stremio kot vrsta ni narejen: protokol skladb albuma ne nasteje kot posnetkov (meta.videos) z lastnimi
+    // tokovi - vsako skladbo bi bilo treba vprasati posebej (dodatne zahteve na dodatek), zato klik predvaja en naslov.
     fun vrstaZZvokom(n: Int, klik: Int, zZvokom: (Int) -> Boolean, istiIzvajalec: (Int) -> Boolean = { false }): Pair<List<Int>, Int> {
         // Prednost ima isti izvajalec (kot odIzvajalca): njegove skladbe z zaslona so v vrsti najprej, nato ostale.
         val zZvokomVsi = (0 until n).filter { it == klik || zZvokom(it) }

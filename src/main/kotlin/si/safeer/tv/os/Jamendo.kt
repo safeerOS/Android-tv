@@ -73,6 +73,8 @@ object Jamendo {
      */
     // Zunanji pregled Glasbe 3. 11. 2026: »Najnovejse« vprasa Jamendo po datumu izida (releasedate_desc) - prej je samo
     // preuredil nalozene popularne skladbe.
+    // Dodatki Stremio ostanejo kot doslej: protokol (catalog/{tip}/{id}/{extra}) pozna samo genre, skip in search, razvrstitve
+    // po datumu izida ni - »Najnovejse« jih samo preuredi po letu.
     fun stran(zvrst: String, jezik: String, stevilo: Int, odmik: Int, najnovejse: Boolean = false): List<Skladba> =
         skladbe("order=${OsPravila.redJamenda(najnovejse)}&limit=$stevilo&offset=$odmik" + (if (zvrst.isNotBlank()) "&tags=${kodiraj(zvrst)}" else "") +
             jezikPoizvedbe(jezik)).distinctBy { it.id }
