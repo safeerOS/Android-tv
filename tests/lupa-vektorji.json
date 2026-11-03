@@ -1,0 +1,961 @@
+{
+ "opis": "Preizkusni primeri iskalne lupe - ISTA datoteka v Safeer-linux (tests/lupa-vektorji.json) in Android-tv (tests/lupa-vektorji.json). Preverjata jo assets/os/lupa.js (tests/test_lupa_pravila.py) in LupaPravila.kt (tests/LupaVektorjiTest.kt). Primer zadetki: vnosi = aplikacije (z url = spletna aplikacija), datoteke in nastavitve uporabnika; po_filtrih = vidne skupine in imena po vrsti (prazne skupine se ne pokazejo).",
+ "obsegi": [
+  "vse",
+  "splet",
+  "video",
+  "youtube",
+  "aplikacije",
+  "datoteke",
+  "nastavitve"
+ ],
+ "privzeti_obseg": "vse",
+ "skupine": {
+  "vse": [
+   "aplikacije",
+   "novice",
+   "datoteke",
+   "nastavitve",
+   "videoteke",
+   "video",
+   "youtube",
+   "splet"
+  ],
+  "splet": [
+   "splet"
+  ],
+  "video": [
+   "videoteke",
+   "video"
+  ],
+  "youtube": [
+   "youtube"
+  ],
+  "aplikacije": [
+   "aplikacije",
+   "videoteke",
+   "novice"
+  ],
+  "datoteke": [
+   "datoteke"
+  ],
+  "nastavitve": [
+   "nastavitve"
+  ]
+ },
+ "vrstica_iskanja": {
+  "vse": false,
+  "splet": true,
+  "video": true,
+  "youtube": true,
+  "aplikacije": false,
+  "datoteke": false,
+  "nastavitve": false
+ },
+ "ponudi_vse": {
+  "vse": false,
+  "splet": true,
+  "video": true,
+  "youtube": true,
+  "aplikacije": true,
+  "datoteke": true,
+  "nastavitve": true
+ },
+ "najvec_v_skupini": {
+  "vse": 3,
+  "izbran": 8
+ },
+ "obseg": [
+  {
+   "vhod": "splet",
+   "izhod": "splet"
+  },
+  {
+   "vhod": "nastavitve",
+   "izhod": "nastavitve"
+  },
+  {
+   "vhod": "neznano",
+   "izhod": "vse"
+  },
+  {
+   "vhod": "",
+   "izhod": "vse"
+  },
+  {
+   "vhod": null,
+   "izhod": "vse"
+  }
+ ],
+ "obseg_po": [
+  {
+   "trenutni": "splet",
+   "zaprta": false,
+   "izhod": "splet"
+  },
+  {
+   "trenutni": "splet",
+   "zaprta": true,
+   "izhod": "vse"
+  },
+  {
+   "trenutni": "neznano",
+   "zaprta": false,
+   "izhod": "vse"
+  }
+ ],
+ "ujemanje": [
+  {
+   "ime": "Nastavitve",
+   "q": "nas",
+   "ocena": 3
+  },
+  {
+   "ime": "Nastavitve",
+   "q": "NAS",
+   "ocena": 3
+  },
+  {
+   "ime": "Safeer TV Browser",
+   "q": "rtv",
+   "ocena": 0
+  },
+  {
+   "ime": "RTV SLO",
+   "q": "rtv",
+   "ocena": 3
+  },
+  {
+   "ime": "RTV SLO",
+   "q": "rtv s",
+   "ocena": 3
+  },
+  {
+   "ime": "RTV SLO",
+   "q": "rtvslo",
+   "ocena": 1
+  },
+  {
+   "ime": "RTV SLO",
+   "q": "rtvs",
+   "ocena": 1
+  },
+  {
+   "ime": "Spored RTV",
+   "q": "rtv",
+   "ocena": 2
+  },
+  {
+   "ime": "Čas",
+   "q": "cas",
+   "ocena": 3
+  },
+  {
+   "ime": "Datum in čas",
+   "q": "čas",
+   "ocena": 2
+  },
+  {
+   "ime": "Foot Client",
+   "q": "client",
+   "ocena": 2
+  },
+  {
+   "ime": "Straße",
+   "q": "strasse",
+   "ocena": 3
+  },
+  {
+   "ime": "Đuro",
+   "q": "duro",
+   "ocena": 3
+  },
+  {
+   "ime": "Krvni izvid",
+   "q": "izv",
+   "ocena": 2
+  },
+  {
+   "ime": "Krvni izvid",
+   "q": "nvi",
+   "ocena": 0
+  },
+  {
+   "ime": "Ab Cd",
+   "q": "abc",
+   "ocena": 0
+  },
+  {
+   "ime": "Ab Cde",
+   "q": "abcd",
+   "ocena": 1
+  },
+  {
+   "ime": "Firefox",
+   "q": "",
+   "ocena": 0
+  },
+  {
+   "ime": "Firefox",
+   "q": "  ",
+   "ocena": 0
+  },
+  {
+   "ime": "rtv-spored.pdf",
+   "q": "rtv",
+   "ocena": 3
+  },
+  {
+   "ime": "rtv-spored.pdf",
+   "q": "spored",
+   "ocena": 0
+  }
+ ],
+ "vrsta_aplikacije": [
+  {
+   "ime": "Netflix",
+   "vrsta": "videoteke"
+  },
+  {
+   "ime": "RTV 365",
+   "vrsta": "videoteke"
+  },
+  {
+   "ime": "RTV SLO",
+   "vrsta": "novice"
+  },
+  {
+   "ime": "24ur",
+   "vrsta": "novice"
+  },
+  {
+   "ime": "Kodi",
+   "vrsta": "videoteke"
+  },
+  {
+   "ime": "Firefox",
+   "vrsta": "aplikacije"
+  }
+ ],
+ "vrsta_spletne": [
+  {
+   "url": "https://www.24ur.com/",
+   "ime": "Moje novice",
+   "vrsta": "novice"
+  },
+  {
+   "url": "https://m.rtvslo.si/",
+   "ime": "x",
+   "vrsta": "novice"
+  },
+  {
+   "url": "https://24ur.com.zlo.si/",
+   "ime": "Mojster",
+   "vrsta": "aplikacije"
+  },
+  {
+   "url": "https://ne24ur.com/",
+   "ime": "Ne",
+   "vrsta": "aplikacije"
+  },
+  {
+   "url": "https://primer.si/",
+   "ime": "Svet24",
+   "vrsta": "novice"
+  }
+ ],
+ "zadetki": [
+  {
+   "q": "rtv",
+   "vnosi": [
+    {
+     "ime": "RTV 365",
+     "vrsta": "aplikacija"
+    },
+    {
+     "ime": "RTV SLO",
+     "vrsta": "aplikacija"
+    },
+    {
+     "ime": "Safeer TV Browser",
+     "vrsta": "aplikacija"
+    },
+    {
+     "ime": "Netflix",
+     "vrsta": "aplikacija"
+    },
+    {
+     "ime": "Radio",
+     "vrsta": "aplikacija"
+    },
+    {
+     "ime": "rtv-spored.pdf",
+     "vrsta": "datoteka"
+    },
+    {
+     "ime": "Spored RTV.txt",
+     "vrsta": "datoteka"
+    },
+    {
+     "ime": "Zvok",
+     "vrsta": "nastavitev"
+    }
+   ],
+   "po_filtrih": {
+    "vse": [
+     [
+      "novice",
+      [
+       "RTV SLO"
+      ]
+     ],
+     [
+      "datoteke",
+      [
+       "rtv-spored.pdf",
+       "Spored RTV.txt"
+      ]
+     ],
+     [
+      "videoteke",
+      [
+       "RTV 365"
+      ]
+     ]
+    ],
+    "splet": [],
+    "video": [
+     [
+      "videoteke",
+      [
+       "RTV 365"
+      ]
+     ]
+    ],
+    "youtube": [],
+    "aplikacije": [
+     [
+      "videoteke",
+      [
+       "RTV 365"
+      ]
+     ],
+     [
+      "novice",
+      [
+       "RTV SLO"
+      ]
+     ]
+    ],
+    "datoteke": [
+     [
+      "datoteke",
+      [
+       "rtv-spored.pdf",
+       "Spored RTV.txt"
+      ]
+     ]
+    ],
+    "nastavitve": []
+   }
+  },
+  {
+   "q": "rtvslo",
+   "vnosi": [
+    {
+     "ime": "RTV 365",
+     "vrsta": "aplikacija"
+    },
+    {
+     "ime": "RTV SLO",
+     "vrsta": "aplikacija"
+    },
+    {
+     "ime": "Safeer TV Browser",
+     "vrsta": "aplikacija"
+    },
+    {
+     "ime": "Netflix",
+     "vrsta": "aplikacija"
+    },
+    {
+     "ime": "Radio",
+     "vrsta": "aplikacija"
+    },
+    {
+     "ime": "rtv-spored.pdf",
+     "vrsta": "datoteka"
+    },
+    {
+     "ime": "Spored RTV.txt",
+     "vrsta": "datoteka"
+    },
+    {
+     "ime": "Zvok",
+     "vrsta": "nastavitev"
+    }
+   ],
+   "po_filtrih": {
+    "vse": [
+     [
+      "novice",
+      [
+       "RTV SLO"
+      ]
+     ]
+    ],
+    "splet": [],
+    "video": [],
+    "youtube": [],
+    "aplikacije": [
+     [
+      "novice",
+      [
+       "RTV SLO"
+      ]
+     ]
+    ],
+    "datoteke": [],
+    "nastavitve": []
+   }
+  },
+  {
+   "q": "cas",
+   "vnosi": [
+    {
+     "ime": "Časopis Delo",
+     "vrsta": "aplikacija"
+    },
+    {
+     "ime": "Kalkulator",
+     "vrsta": "aplikacija"
+    },
+    {
+     "ime": "Čas in datum",
+     "vrsta": "nastavitev"
+    },
+    {
+     "ime": "Časovni pas",
+     "vrsta": "nastavitev"
+    },
+    {
+     "ime": "Zaslon",
+     "vrsta": "nastavitev"
+    },
+    {
+     "ime": "Datum in čas",
+     "vrsta": "nastavitev"
+    },
+    {
+     "ime": "Časovni žig",
+     "vrsta": "nastavitev"
+    }
+   ],
+   "po_filtrih": {
+    "vse": [
+     [
+      "aplikacije",
+      [
+       "Časopis Delo"
+      ]
+     ],
+     [
+      "nastavitve",
+      [
+       "Čas in datum",
+       "Časovni pas",
+       "Časovni žig"
+      ]
+     ]
+    ],
+    "splet": [],
+    "video": [],
+    "youtube": [],
+    "aplikacije": [
+     [
+      "aplikacije",
+      [
+       "Časopis Delo"
+      ]
+     ]
+    ],
+    "datoteke": [],
+    "nastavitve": [
+     [
+      "nastavitve",
+      [
+       "Čas in datum",
+       "Časovni pas",
+       "Časovni žig",
+       "Datum in čas"
+      ]
+     ]
+    ]
+   }
+  },
+  {
+   "q": "moj",
+   "vnosi": [
+    {
+     "ime": "Moje novice",
+     "vrsta": "aplikacija",
+     "url": "https://www.24ur.com/"
+    },
+    {
+     "ime": "Moj račun",
+     "vrsta": "aplikacija"
+    },
+    {
+     "ime": "Mojster",
+     "vrsta": "aplikacija",
+     "url": "https://24ur.com.zlo.si/"
+    }
+   ],
+   "po_filtrih": {
+    "vse": [
+     [
+      "aplikacije",
+      [
+       "Moj račun",
+       "Mojster"
+      ]
+     ],
+     [
+      "novice",
+      [
+       "Moje novice"
+      ]
+     ]
+    ],
+    "splet": [],
+    "video": [],
+    "youtube": [],
+    "aplikacije": [
+     [
+      "aplikacije",
+      [
+       "Moj račun",
+       "Mojster"
+      ]
+     ],
+     [
+      "novice",
+      [
+       "Moje novice"
+      ]
+     ]
+    ],
+    "datoteke": [],
+    "nastavitve": []
+   }
+  },
+  {
+   "q": "xyz",
+   "vnosi": [
+    {
+     "ime": "RTV 365",
+     "vrsta": "aplikacija"
+    },
+    {
+     "ime": "RTV SLO",
+     "vrsta": "aplikacija"
+    },
+    {
+     "ime": "Safeer TV Browser",
+     "vrsta": "aplikacija"
+    },
+    {
+     "ime": "Netflix",
+     "vrsta": "aplikacija"
+    },
+    {
+     "ime": "Radio",
+     "vrsta": "aplikacija"
+    },
+    {
+     "ime": "rtv-spored.pdf",
+     "vrsta": "datoteka"
+    },
+    {
+     "ime": "Spored RTV.txt",
+     "vrsta": "datoteka"
+    },
+    {
+     "ime": "Zvok",
+     "vrsta": "nastavitev"
+    }
+   ],
+   "po_filtrih": {
+    "vse": [],
+    "splet": [],
+    "video": [],
+    "youtube": [],
+    "aplikacije": [],
+    "datoteke": [],
+    "nastavitve": []
+   }
+  }
+ ],
+ "za_zgodovino": [
+  {
+   "niz": "  Oppenheimer  ",
+   "izid": "Oppenheimer"
+  },
+  {
+   "niz": "DDV   2026",
+   "izid": "DDV 2026"
+  },
+  {
+   "niz": "„ DDV po„llll,l.-e",
+   "izid": null
+  },
+  {
+   "niz": "a",
+   "izid": null
+  },
+  {
+   "niz": "ab!!!!",
+   "izid": null
+  },
+  {
+   "niz": "abc,def",
+   "izid": null
+  },
+  {
+   "niz": "don“t",
+   "izid": null
+  },
+  {
+   "niz": "Mooooon",
+   "izid": null
+  },
+  {
+   "niz": "Moon",
+   "izid": "Moon"
+  },
+  {
+   "niz": "C++ tutorial",
+   "izid": "C++ tutorial"
+  },
+  {
+   "niz": "rock - pop",
+   "izid": "rock - pop"
+  },
+  {
+   "niz": "… film",
+   "izid": null
+  },
+  {
+   "niz": "abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij",
+   "izid": "abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghij"
+  }
+ ],
+ "ocisti_zgodovino": [
+  {
+   "vhod": [
+    "Oppenheimer",
+    "Opp",
+    "oppenheimer",
+    "Dune",
+    "„",
+    "Barbie"
+   ],
+   "najvec": 5,
+   "izid": [
+    "Oppenheimer",
+    "Dune",
+    "Barbie"
+   ]
+  },
+  {
+   "vhod": [
+    "ena",
+    "dva",
+    "tri",
+    "stiri",
+    "pet",
+    "sest",
+    "sedem"
+   ],
+   "najvec": 5,
+   "izid": [
+    "ena",
+    "dva",
+    "tri",
+    "stiri",
+    "pet"
+   ]
+  },
+  {
+   "vhod": [
+    "Čas",
+    "cas",
+    "ČAS"
+   ],
+   "najvec": 5,
+   "izid": [
+    "Čas"
+   ]
+  }
+ ],
+ "dodaj_v_zgodovino": [
+  {
+   "seznam": [
+    "Dune",
+    "Barbie"
+   ],
+   "niz": "Opp",
+   "izid": [
+    "Opp",
+    "Dune",
+    "Barbie"
+   ]
+  },
+  {
+   "seznam": [
+    "Opp",
+    "Dune"
+   ],
+   "niz": "Oppenheimer",
+   "izid": [
+    "Oppenheimer",
+    "Dune"
+   ]
+  },
+  {
+   "seznam": [
+    "Dune"
+   ],
+   "niz": "„",
+   "izid": [
+    "Dune"
+   ]
+  },
+  {
+   "seznam": [
+    "a1",
+    "b2",
+    "c3",
+    "d4",
+    "e5"
+   ],
+   "niz": "f6",
+   "izid": [
+    "f6",
+    "a1",
+    "b2",
+    "c3",
+    "d4"
+   ]
+  }
+ ],
+ "velikost_gumbov": [
+  {
+   "sirine": [
+    20,
+    30,
+    40
+   ],
+   "dodatek": 10,
+   "prostor": 120,
+   "izid": 15
+  },
+  {
+   "sirine": [
+    20,
+    30,
+    40
+   ],
+   "dodatek": 10,
+   "prostor": 105,
+   "izid": 12
+  },
+  {
+   "sirine": [
+    20,
+    30,
+    40
+   ],
+   "dodatek": 10,
+   "prostor": 100,
+   "izid": null
+  }
+ ],
+ "besedila": {
+  "sl": {
+   "filtri": "Išči v",
+   "vse": "Vse",
+   "splet": "Splet",
+   "video": "Video vsebine",
+   "youtube": "YouTube",
+   "aplikacije": "Aplikacije",
+   "datoteke": "Datoteke",
+   "nastavitve": "Nastavitve",
+   "videoteke": "Videoteke",
+   "novice": "Novice",
+   "isci_splet": "Išči v spletu: {q}",
+   "isci_video": "Išči v Video vsebinah: {q}",
+   "isci_youtube": "Išči na YouTubu: {q}",
+   "filter_izbran": "{ime}, filter, izbran",
+   "filter_ni_izbran": "{ime}, filter, ni izbran",
+   "ni_zadetkov_za": "Ni zadetkov za »{q}« v {obseg}",
+   "ni_zadetkov_za_vse": "Ni zadetkov za »{q}«",
+   "isci_v_vse": "Išči v Vse",
+   "iscem": "Iščem …",
+   "splet_ni": "Splet trenutno ni dosegljiv",
+   "st_zadetkov": "Zadetkov: {n}",
+   "zgodovina": "Zgodovina iskanja",
+   "zgodovina_opis": "Zgodovina iskanja, {q}"
+  },
+  "en": {
+   "filtri": "Search in",
+   "vse": "All",
+   "splet": "Web",
+   "video": "Video",
+   "youtube": "YouTube",
+   "aplikacije": "Apps",
+   "datoteke": "Files",
+   "nastavitve": "Settings",
+   "videoteke": "Video libraries",
+   "novice": "News",
+   "isci_splet": "Search the web: {q}",
+   "isci_video": "Search Video: {q}",
+   "isci_youtube": "Search YouTube: {q}",
+   "filter_izbran": "{ime}, filter, selected",
+   "filter_ni_izbran": "{ime}, filter, not selected",
+   "ni_zadetkov_za": "No results for “{q}” in {obseg}",
+   "ni_zadetkov_za_vse": "No results for “{q}”",
+   "isci_v_vse": "Search in All",
+   "iscem": "Searching…",
+   "splet_ni": "The web is not reachable right now",
+   "st_zadetkov": "Results: {n}",
+   "zgodovina": "Search history",
+   "zgodovina_opis": "Search history, {q}"
+  },
+  "de": {
+   "filtri": "Suchen in",
+   "vse": "Alle",
+   "splet": "Web",
+   "video": "Videos",
+   "youtube": "YouTube",
+   "aplikacije": "Apps",
+   "datoteke": "Dateien",
+   "nastavitve": "Einstellungen",
+   "videoteke": "Videotheken",
+   "novice": "Nachrichten",
+   "isci_splet": "Im Web suchen: {q}",
+   "isci_video": "In Videos suchen: {q}",
+   "isci_youtube": "Auf YouTube suchen: {q}",
+   "filter_izbran": "{ime}, Filter, ausgewählt",
+   "filter_ni_izbran": "{ime}, Filter, nicht ausgewählt",
+   "ni_zadetkov_za": "Keine Treffer für „{q}“ in {obseg}",
+   "ni_zadetkov_za_vse": "Keine Treffer für „{q}“",
+   "isci_v_vse": "In Alle suchen",
+   "iscem": "Suche …",
+   "splet_ni": "Das Web ist gerade nicht erreichbar",
+   "st_zadetkov": "Treffer: {n}",
+   "zgodovina": "Suchverlauf",
+   "zgodovina_opis": "Suchverlauf, {q}"
+  },
+  "es": {
+   "filtri": "Buscar en",
+   "vse": "Todo",
+   "splet": "Web",
+   "video": "Vídeos",
+   "youtube": "YouTube",
+   "aplikacije": "Aplicaciones",
+   "datoteke": "Archivos",
+   "nastavitve": "Ajustes",
+   "videoteke": "Videotecas",
+   "novice": "Noticias",
+   "isci_splet": "Buscar en la web: {q}",
+   "isci_video": "Buscar en Vídeos: {q}",
+   "isci_youtube": "Buscar en YouTube: {q}",
+   "filter_izbran": "{ime}, filtro, seleccionado",
+   "filter_ni_izbran": "{ime}, filtro, no seleccionado",
+   "ni_zadetkov_za": "Sin resultados para «{q}» en {obseg}",
+   "ni_zadetkov_za_vse": "Sin resultados para «{q}»",
+   "isci_v_vse": "Buscar en Todo",
+   "iscem": "Buscando…",
+   "splet_ni": "La web no está disponible ahora",
+   "st_zadetkov": "Resultados: {n}",
+   "zgodovina": "Historial de búsqueda",
+   "zgodovina_opis": "Historial de búsqueda, {q}"
+  },
+  "fr": {
+   "filtri": "Rechercher dans",
+   "vse": "Tout",
+   "splet": "Web",
+   "video": "Vidéos",
+   "youtube": "YouTube",
+   "aplikacije": "Applis",
+   "datoteke": "Fichiers",
+   "nastavitve": "Paramètres",
+   "videoteke": "Vidéothèques",
+   "novice": "Actualités",
+   "isci_splet": "Rechercher sur le web : {q}",
+   "isci_video": "Rechercher dans Vidéos : {q}",
+   "isci_youtube": "Rechercher sur YouTube : {q}",
+   "filter_izbran": "{ime}, filtre, sélectionné",
+   "filter_ni_izbran": "{ime}, filtre, non sélectionné",
+   "ni_zadetkov_za": "Aucun résultat pour « {q} » dans {obseg}",
+   "ni_zadetkov_za_vse": "Aucun résultat pour « {q} »",
+   "isci_v_vse": "Rechercher dans Tout",
+   "iscem": "Recherche…",
+   "splet_ni": "Le web n’est pas joignable pour le moment",
+   "st_zadetkov": "Résultats : {n}",
+   "zgodovina": "Historique de recherche",
+   "zgodovina_opis": "Historique de recherche, {q}"
+  },
+  "it": {
+   "filtri": "Cerca in",
+   "vse": "Tutto",
+   "splet": "Web",
+   "video": "Video",
+   "youtube": "YouTube",
+   "aplikacije": "App",
+   "datoteke": "File",
+   "nastavitve": "Impostazioni",
+   "videoteke": "Videoteche",
+   "novice": "Notizie",
+   "isci_splet": "Cerca sul web: {q}",
+   "isci_video": "Cerca in Video: {q}",
+   "isci_youtube": "Cerca su YouTube: {q}",
+   "filter_izbran": "{ime}, filtro, selezionato",
+   "filter_ni_izbran": "{ime}, filtro, non selezionato",
+   "ni_zadetkov_za": "Nessun risultato per «{q}» in {obseg}",
+   "ni_zadetkov_za_vse": "Nessun risultato per «{q}»",
+   "isci_v_vse": "Cerca in Tutto",
+   "iscem": "Ricerca…",
+   "splet_ni": "Il web non è raggiungibile ora",
+   "st_zadetkov": "Risultati: {n}",
+   "zgodovina": "Cronologia ricerche",
+   "zgodovina_opis": "Cronologia ricerche, {q}"
+  }
+ },
+ "besedila_tv": {
+  "opis": "Preslikava kljucev besedila v vire Android (res/values*/): Kotlin preizkus preveri, da so enaki ({q}/{ime}/{obseg}/{n} = %1$s/%2$s/%1$d).",
+  "filtri": "pk_lupa_obseg",
+  "vse": "pk_lupa_obseg_vse",
+  "splet": "pk_lupa_obseg_splet",
+  "video": "pk_lupa_obseg_video",
+  "youtube": "pk_lupa_obseg_youtube",
+  "aplikacije": "pk_lupa_programi",
+  "datoteke": "os_meni_datoteke",
+  "nastavitve": "os_meni_nastavitve",
+  "videoteke": "pk_lupa_videoteke",
+  "novice": "pk_lupa_novice",
+  "isci_splet": "pk_lupa_isci_splet",
+  "isci_video": "pk_lupa_isci_video",
+  "isci_youtube": "pk_lupa_isci_youtube",
+  "filter_izbran": "pk_lupa_filter_izbran",
+  "filter_ni_izbran": "pk_lupa_filter_ni_izbran",
+  "ni_zadetkov_za": "pk_lupa_ni_zadetkov_za",
+  "ni_zadetkov_za_vse": "pk_lupa_ni_zadetkov_za_vse",
+  "isci_v_vse": "pk_lupa_isci_v_vse",
+  "iscem": "pk_lupa_iscem",
+  "splet_ni": "pk_lupa_splet_ni",
+  "st_zadetkov": "pk_lupa_st_zadetkov",
+  "zgodovina_opis": "pk_lupa_zgodovina_opis"
+ }
+}
