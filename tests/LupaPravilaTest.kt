@@ -149,6 +149,11 @@ fun main() {
     preveriEnako("ni cilja: ostane", null, LupaPravila.ciljVPlosci<String>(null, null, true))
     preveriEnako("GOR s prve vrstice ni drsenje", false, LupaPravila.seznamPorabiGor(false))
     preveriEnako("GOR med vrsticami premakne v seznamu", true, LupaPravila.seznamPorabiGor(true))
+    // Prazno polje (samo zgodovina) ni past: GOR/LEVO/DESNO zapre plosco in gre s polja; z besedilom ostane v plosci.
+    preveriEnako("zaprta plosca: privzeto iz polja", LupaPravila.IzPolja.PRIVZETO, LupaPravila.izPolja(false, true, false))
+    preveriEnako("zgodovina: stran zapre plosco", LupaPravila.IzPolja.ZAPRI_PLOSCO, LupaPravila.izPolja(true, true, false))
+    preveriEnako("zgodovina: DOL ostane v plosci", LupaPravila.IzPolja.V_PLOSCI, LupaPravila.izPolja(true, true, true))
+    preveriEnako("besedilo: stran ostane v plosci", LupaPravila.IzPolja.V_PLOSCI, LupaPravila.izPolja(true, false, false))
     // Preverba TV 19:31: plosca zadetkov vsaj 16 dp nad spodnjo vrstico (izmerjen vrh), nikoli cez njo.
     preveriEnako("rob nad vrstico", 1080 - 930 + 32, LupaPravila.spodnjiRobPlosce(1080, 930, 32))
     preveriEnako("vrstica pod okvirjem: samo razmik", 32, LupaPravila.spodnjiRobPlosce(1000, 1200, 32))

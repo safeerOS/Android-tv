@@ -414,6 +414,20 @@ object LupaPravila {
      */
     fun <T> ciljVPlosci(vDelu: T?, drugje: T?, drugjeVPlosci: Boolean): T? = vDelu ?: drugje?.takeIf { drugjeVPlosci }
 
+    /** Kaj naredi smerna tipka s polja lupe ([izPolja]). */
+    enum class IzPolja { PRIVZETO, ZAPRI_PLOSCO, V_PLOSCI }
+
+    /**
+     * Smerna tipka s polja: zaprta plosca - privzeto. Prazno polje (samo zgodovina, odpre se ze s fokusom): GOR, LEVO in
+     * DESNO gredo s polja kot prej, plosca se zapre PRED iskanjem cilja (ploscice spet fokusne) - sicer bi uporabnik na
+     * domacem zaslonu obtical na polju in rabil Nazaj. Z vpisanim besedilom (zadetki, filtri) fokus ostane v plosci.
+     */
+    fun izPolja(ploscaOdprta: Boolean, poljePrazno: Boolean, dol: Boolean): IzPolja = when {
+        !ploscaOdprta -> IzPolja.PRIVZETO
+        poljePrazno && !dol -> IzPolja.ZAPRI_PLOSCO
+        else -> IzPolja.V_PLOSCI
+    }
+
     /**
      * GOR v seznamu: ScrollView ga porabi samo, ce je nad fokusom se vrstica; s prve vrstice gre fokus na filter ali polje
      * ([gorIzSeznama]). Lovec napak 3. 11. 2026: ko je bil seznam malo podrsan (glava skupine skrita), je ScrollView GOR

@@ -537,6 +537,13 @@ def main() -> int:
     polje = pk2.split("private fun lupa(): View {", 1)[-1].split("}.apply {", 1)[0]
     preveri("lupa: iz polja ob odprti plosci fokus ostane v plosci",
             "override fun focusSearch(focused: View?, direction: Int)" in polje and "LupaPravila.ciljVPlosci(null, n, vPlosci) ?: focused" in polje)
+    zapri = polje.split("LupaPravila.IzPolja.ZAPRI_PLOSCO -> {", 1)[-1].split("LupaPravila.IzPolja.V_PLOSCI", 1)[0]
+    preveri("lupa: prazno polje (zgodovina) ni past - plosca se zapre pred iskanjem cilja",
+            "LupaPravila.izPolja(odprta, poljeLupe.text.isNullOrBlank(), direction == View.FOCUS_DOWN)" in polje
+            and zapri.find("zadetkiDrsnik.visibility = View.GONE") != -1
+            and -1 < zapri.find("zadetkiDrsnik.visibility = View.GONE") < zapri.find("super.focusSearch(focused, direction)"))
+    preveri("lupa: odprta plosca porabi dotik na praznem delu",
+            "override fun dispatchTouchEvent(e: android.view.MotionEvent): Boolean" in plosca and "isClickable = true" not in plosca)
     # Lastnik 28. 10. 2026: mreza Filmi | Serije pokaze vse naslove takoj (brez cakanja na vljudno preverjanje).
     gl = (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8")
     preveri("mreza filmov ni stroga (vsi naslovi takoj)", "private fun strogaMreza(o: OdprtKatalog): Boolean = false" in gl

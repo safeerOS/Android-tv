@@ -239,6 +239,13 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                 if (::ozadjeLupe.isInitialized) ozadjeLupe.descendantFocusability =
                     if (LupaPravila.ozadjeFokusno(v == View.VISIBLE)) ViewGroup.FOCUS_AFTER_DESCENDANTS else ViewGroup.FOCUS_BLOCK_DESCENDANTS
             }
+
+            // Dotik ali miska na praznem delu plosce ne zadene ploscice pod njo: vrstice in filtri dobijo dotik prvi, ostanek
+            // porabi plosca. Ni klikljiva (TalkBack je ne najavi kot gumb), zato ni performClick ne opisa.
+            override fun dispatchTouchEvent(e: android.view.MotionEvent): Boolean {
+                super.dispatchTouchEvent(e)
+                return true
+            }
         }.apply {
             orientation = LinearLayout.VERTICAL; visibility = View.GONE; tag = "zadetkiDrsnik"
             clipChildren = false; clipToPadding = false
@@ -769,14 +776,27 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
 
     private fun lupa(): View {
         val okvir = object : LinearLayout(this) {
-            // Iz polja ob odprti plosci fokus ostane v plosci (filtri, seznam, vrstica znakov) - ne na glavo, mini
-            // predvajalnik ali ploscice (lovec napak 3. 11. 2026: DESNO s polja na RTV SLO za plosco).
+            // Z vpisanim besedilom fokus iz polja ostane v plosci (filtri, seznam, vrstica znakov) - ne na glavo, mini
+            // predvajalnik ali ploscice (lovec napak 3. 11. 2026: DESNO s polja na RTV SLO za plosco). Prazno polje
+            // (samo zgodovina) ni past: plosca se zapre PRED iskanjem, da so ploscice spet fokusne (LupaPravila.izPolja).
             override fun focusSearch(focused: View?, direction: Int): View? {
-                val n = super.focusSearch(focused, direction)
-                if (!::zadetkiDrsnik.isInitialized || zadetkiDrsnik.visibility != View.VISIBLE) return n
-                val tipkovnica = window.decorView.findViewWithTag<View>("lupaTipkovnica")
-                val vPlosci = n != null && (jePotomec(n, this) || jePotomec(n, zadetkiDrsnik) || (tipkovnica != null && jePotomec(n, tipkovnica)))
-                return LupaPravila.ciljVPlosci(null, n, vPlosci) ?: focused
+                val odprta = ::zadetkiDrsnik.isInitialized && zadetkiDrsnik.visibility == View.VISIBLE
+                when (LupaPravila.izPolja(odprta, poljeLupe.text.isNullOrBlank(), direction == View.FOCUS_DOWN)) {
+                    LupaPravila.IzPolja.PRIVZETO -> return super.focusSearch(focused, direction)
+                    LupaPravila.IzPolja.ZAPRI_PLOSCO -> {
+                        zadetkiDrsnik.visibility = View.GONE
+                        val n = super.focusSearch(focused, direction)
+                        // Ni cilja zunaj polja: fokus ostane, zgodovina ostane odprta.
+                        if (n == null || jePotomec(n, this)) zadetkiDrsnik.visibility = View.VISIBLE else iskanjeSt++
+                        return n
+                    }
+                    LupaPravila.IzPolja.V_PLOSCI -> {
+                        val n = super.focusSearch(focused, direction)
+                        val tipkovnica = window.decorView.findViewWithTag<View>("lupaTipkovnica")
+                        val vPlosci = n != null && (jePotomec(n, this) || jePotomec(n, zadetkiDrsnik) || (tipkovnica != null && jePotomec(n, tipkovnica)))
+                        return LupaPravila.ciljVPlosci(null, n, vPlosci) ?: focused
+                    }
+                }
             }
         }.apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
