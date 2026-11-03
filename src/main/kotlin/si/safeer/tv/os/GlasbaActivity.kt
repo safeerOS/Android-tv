@@ -4760,13 +4760,17 @@ class GlasbaActivity : OsActivity() {
         if (podpis == m.podpis) { if (stanje.text.toString() != opis) stanje.text = opis; return }
         m.podpis = podpis
         m.narisani = vsi.map { kljucVMrezi(it) }
-        val kartice = (if (videospoti) videi(vsi) else skladbe(vsi)) + (if (vec) listOf(Kartica(getString(R.string.os_media_nalozi_vec), "", "",
+        // Zunanji pregled Glasbe 3. 11. 2026: videospoti in koncerti kot video vrsta nad zvocno mrezo (kot police v Zate).
+        val (videoVsi, zvocni) = if (radio || videospoti) emptyList<Jamendo.Skladba>() to vsi
+            else vsi.partition { OsPravila.vVideoVrsto(it.video, SpletniVir.vrstaVsebine(it) == SpletniVir.VIDEOSPOT) }
+        val kartice = (if (videospoti) videi(vsi) else skladbe(zvocni)) + (if (vec) listOf(Kartica(getString(R.string.os_media_nalozi_vec), "", "",
             { naloziVecMreze(m) }, ikona = R.drawable.os_ikona_plus)) else emptyList()) + dodaj
         // Naloga 83: seznami predvajanja uporabnika (uvozeni Spotify, YouTube) kot polica na vrhu Music.
         val seznami = if (radio) emptyList() else seznamiZaGlasbo()
         pokaziMrezo(m, Vrsta("", kartice, video = videospoti, mreza = true, kanali = radio, slicice = videospoti, skladbe = !radio && !videospoti), opis,
             "${m.kljuc}|${razvrstitev(m.razdelek)}|${ozekZaslon()}|${seznami.map { it.ime to it.skladbe.size }.hashCode()}") {
-            (if (vlc) emptyList() else listOf(razdelkiVrstica(m.razdelek))) + listOf(if (radio) radioIzbire() else glasbaIzbire()) + listOfNotNull(policaSeznamov(seznami))
+            (if (vlc) emptyList() else listOf(razdelkiVrstica(m.razdelek))) + listOf(if (radio) radioIzbire() else glasbaIzbire()) +
+                listOfNotNull(policaSeznamov(seznami), policaVidea(videoVsi))
         }
     }
 
@@ -4863,6 +4867,24 @@ class GlasbaActivity : OsActivity() {
             val vrstica = LinearLayout(this@GlasbaActivity).apply { orientation = LinearLayout.HORIZONTAL }
             kartice.forEachIndexed { i, k -> val p = karticaMreze(v, k, velikost); oznaciVMrezi(v, p, i, n); vrstica.addView(p) }
             addView(vrstica, LinearLayout.LayoutParams(-1, -2))
+        }
+    }
+
+    /** Zunanji pregled Glasbe 3. 11. 2026: video vrsta Glasbe (videospoti, koncerti) s sliko, vodoravno; null, ce je ni. */
+    private fun policaVidea(v0: List<Jamendo.Skladba>): View? {
+        if (v0.isEmpty()) return null
+        val v = Vrsta(getString(R.string.os_media_videospoti), videi(v0.take(30)), video = true)
+        val (_, velikost) = mereMreze(v)
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(besedilo(18f, osBarva(R.color.os_besedilo), true).apply {
+                text = v.naslov; tag = "polica:${v.naslov}"; contentDescription = NASLOV_VRSTE
+                setPadding(dp(4), dp(14), 0, dp(8))
+            })
+            val vrstica = LinearLayout(this@GlasbaActivity).apply { orientation = LinearLayout.HORIZONTAL }
+            v.kartice.forEachIndexed { i, k -> val p = karticaMreze(v, k, velikost); oznaciVMrezi(v, p, i, v.kartice.size); vrstica.addView(p) }
+            addView(HorizontalScrollView(this@GlasbaActivity).apply { isHorizontalScrollBarEnabled = false; addView(vrstica) },
+                LinearLayout.LayoutParams(-1, -2))
         }
     }
 

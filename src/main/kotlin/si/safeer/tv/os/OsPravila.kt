@@ -1720,6 +1720,12 @@ object OsPravila {
      */
     fun glasbaNaTejNapravi(okus: String): Boolean = okus == "predvajalnik" || okus == "os"
 
+    /**
+     * Zunanji pregled Glasbe 3. 11. 2026: videospoti in koncerti (video, videospot spletnega vira) so v Glasbi svoja video
+     * vrsta s sliko nad zvocno mrezo; zvocna mreza je samo za vnose z zvokom.
+     */
+    fun vVideoVrsto(video: Boolean, videospot: Boolean): Boolean = video || videospot
+
     /** Vrstni red strani Jamenda: »Najnovejse« po datumu izida, sicer po priljubljenosti. */
     fun redJamenda(najnovejse: Boolean): String = if (najnovejse) "releasedate_desc" else "popularity_total"
 

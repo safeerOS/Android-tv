@@ -989,6 +989,8 @@ private fun preizkusGlasbe83() {
     preveriEnako("Glasba: Na tej napravi na TV (lastnik 3. 11.)", true, OsPravila.glasbaNaTejNapravi("os"))
     preveriEnako("Glasba: Na tej napravi v Predvajalniku", true, OsPravila.glasbaNaTejNapravi("predvajalnik"))
     preveriEnako("Glasba: brskalnik ne", false, OsPravila.glasbaNaTejNapravi("brskalnik"))
+    preveriEnako("Glasba: videospot v video vrsto", true, OsPravila.vVideoVrsto(video = false, videospot = true))
+    preveriEnako("Glasba: skladba v zvocno mrezo", false, OsPravila.vVideoVrsto(video = false, videospot = false))
     // Zunanji pregled Video 3. 11. 2026
     preveriEnako("Video: med pritiski daljinca mreza ne preverja", false, OsPravila.smemPreverjatiMrezo(klikNaFilm = false, odZadnjeTipkeMs = 100))
     preveriEnako("Video: drsenje ustavljeno - preverja", true, OsPravila.smemPreverjatiMrezo(klikNaFilm = false, odZadnjeTipkeMs = 700))
