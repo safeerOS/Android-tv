@@ -1699,7 +1699,7 @@ object Stremio {
     fun imaPodnapise(naslovi: List<String>, tip: String, id: String): Boolean =
         naslovi.mapNotNull { manifesti[osnova(it)] }.any { dajePodnapise(it, tip, id) }
 
-    data class PodnapisDodatka(val url: String, val jezik: String, val dodatek: String)
+    data class PodnapisDodatka(val url: String, val jezik: String, val dodatek: String, val osnova: String = "")
 
     /**
      * Naloga 72: podnapisi naslova iz uporabnikovih dodatkov (OpenSubtitles v3 ...): GET {osnova}/subtitles/{tip}/{id}.json,
@@ -1720,7 +1720,7 @@ object Stremio {
             }
             val a = d.optJSONArray("subtitles") ?: return@flatMap emptyList()
             val vnosi = (0 until a.length()).mapNotNull { i -> a.optJSONObject(i)?.let { it.optString("url") to it.optString("lang") } }
-            OsPravila.podnapisiDodatka(vnosi).map { PodnapisDodatka(it.url, it.jezik, m.ime) }
+            OsPravila.podnapisiDodatka(vnosi).map { PodnapisDodatka(it.url, it.jezik, m.ime, m.osnova) }
         }
     }
 

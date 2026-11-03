@@ -989,6 +989,13 @@ private fun preizkusGlasbe83() {
     preveriEnako("Video: po kliku na film ne preverja", false, OsPravila.smemPreverjatiMrezo(klikNaFilm = true, odZadnjeTipkeMs = 9_000))
     preveriEnako("Video: najvec 3 hkrati", 3, OsPravila.MREZA_HKRATI)
     preveriEnako("Video: plakati na TV 2 niti", 2, OsPravila.nitiSlik(televizor = true))
+    // Zunanji pregled podnapisov 3. 11. 2026
+    preveriEnako("podnapisi: ne med zagonom slike", false, OsPravila.podnapisiZdaj(pripravljen = true, pripravljenOdMs = 1_000, zdajMs = 1_400))
+    preveriEnako("podnapisi: po 1 s v READY", true, OsPravila.podnapisiZdaj(pripravljen = true, pripravljenOdMs = 1_000, zdajMs = 2_100))
+    preveriEnako("podnapisi: ne med nalaganjem", false, OsPravila.podnapisiZdaj(pripravljen = false, pripravljenOdMs = 1_000, zdajMs = 9_000))
+    preveriEnako("podnapisi: samo zadnji zadetek", listOf("b"), OsPravila.dodatkiZaPodnapise(listOf("a", "b", "c"), "B") { it.uppercase() })
+    preveriEnako("podnapisi: zadnji odstranjen - vsi", listOf("a", "c"), OsPravila.dodatkiZaPodnapise(listOf("a", "c"), "B") { it.uppercase() })
+    preveriEnako("podnapisi: med predvajanjem pocaka na premor", false, OsPravila.podnapisZdajAliObPremoru(igra = true))
     preveriEnako("83: Jamendo brez jezika ne", false, OsPravila.jezikGlasbeUstreza("", "sl", false))
     preveriEnako("83: drug jezik ne", false, OsPravila.jezikGlasbeUstreza("en", "sl", koncert = true))
     preveriEnako("83: isti jezik da", true, OsPravila.jezikGlasbeUstreza("sl", "sl", false))

@@ -12,4 +12,5 @@
     <string name="podnapisi_ni_najdenih">No subtitles found</string>
     <string name="podnapisi_videa">Subtitles in the video…</string>
     <string name="podnapisi_ne_gre">Subtitles can\'t be added to this stream</string>
+    <string name="podnapisi_ob_premoru">Subtitles will be added at the next pause</string>
 </resources>

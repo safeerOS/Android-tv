@@ -30,5 +30,11 @@ preveri("mreza filmov: ne med tipkami in po kliku", "OsPravila.smemPreverjatiMre
 preveri("klik na film ustavi plakate in preverjanje", re.search(r"private fun razresiStremio\(.*?klikNaFilm = true\s+izprazniVrstoSlik", g, re.S) is not None)
 preveri("plakati: onTrimMemory in OOM izpraznita vrsto", "izprazniVrstoSlik(\"onTrimMemory" in g and "izprazniVrstoSlik(\"OutOfMemoryError\")" in g)
 preveri("plakati: niti po nitiSlik", "OsPravila.nitiSlik(Naprava.jeTelevizor(this))" in g)
+# Zunanji pregled podnapisov 3. 11. 2026
+pa = re.sub(r"(?m)^\s*//.*$", "", re.sub(r"/\*.*?\*/", "", (OS / "PredvajanjeActivity.kt").read_text(encoding="utf-8"), flags=re.S))
+preveri("podnapisi: sele po READY 1 s", "OsPravila.podnapisiZdaj(pripravljen, pripravljenOd, zdaj)" in pa)
+preveri("podnapisi: samo zadnji dodatek", "OsPravila.dodatkiZaPodnapise(" in pa)
+preveri("podnapisi: med predvajanjem ob premoru", "OsPravila.podnapisZdajAliObPremoru(p.isPlaying)" in pa)
+preveri("podnapisi: HLS na gumbu, brez iskanja", "GlasbaStoritev.jeHls()" in pa and "R.string.podnapisi_ne_gre else" in pa)
 print("VSE OK" if napak == 0 else f"NAPAK: {napak}")
 sys.exit(1 if napak else 0)

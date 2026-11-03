@@ -1731,6 +1731,24 @@ object OsPravila {
     /** Niti za plakate: na TV 2 (2 GB, OOM pri vzporednem dekodiranju 28. 10. 2026), drugje 4. */
     fun nitiSlik(televizor: Boolean): Int = if (televizor) 2 else 4
 
+    // ------------------------------------------------------------------ zunanji pregled podnapisov 3. 11. 2026
+
+    /** Toliko ms mora predvajalnik biti v STATE_READY, preden samodejno iscemo podnapise (ne med zagonom slike). */
+    const val PODNAPISI_PO_READY_MS = 1_000L
+
+    fun podnapisiZdaj(pripravljen: Boolean, pripravljenOdMs: Long, zdajMs: Long): Boolean =
+        pripravljen && pripravljenOdMs > 0L && zdajMs - pripravljenOdMs >= PODNAPISI_PO_READY_MS
+
+    /** Samodejno vprasamo samo dodatek, ki je nazadnje zadel (po odtisu osnove); neznan ali odstranjen: vse. */
+    fun dodatkiZaPodnapise(naslovi: List<String>, zadnjiOdtis: String, odtis: (String) -> String): List<String> =
+        naslovi.filter { zadnjiOdtis.isNotEmpty() && odtis(it) == zadnjiOdtis }.ifEmpty { naslovi }
+
+    /**
+     * Podnapis dodamo k toku z novim virom (Media3: SubtitleConfiguration velja samo ob pripravi) - na MediaTeku to za hip
+     * prekine sliko in zvok, zato samodejno samo med premorom; med predvajanjem pocaka na naslednji premor.
+     */
+    fun podnapisZdajAliObPremoru(igra: Boolean): Boolean = !igra
+
     /**
      * Zunanji pregled Glasbe 3. 11. 2026: klik na skladbo da v vrsto samo kartice z zvokom (prej vse kartice zaslona, tudi
      * vnose dodatkov brez zvoka). Vrne indekse vrste in polozaj kliknjene v njej; kliknjena je vedno v vrsti.

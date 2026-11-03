@@ -1790,6 +1790,13 @@ class GlasbaStoritev : Service() {
         /** Naloga 72: podnapisi iz dodatka k posnetku, ki igra (glej [dodajPodnapiseVTok]). Klic z glavne niti. */
         fun dodajPodnapise(novi: List<Podnapisi.Podnapis>): Boolean = primerek?.dodajPodnapiseVTok(novi) ?: false
 
+        /** Zunanji pregled 3. 11. 2026: trenutni tok je HLS - podnapisov iz dodatka mu ne moremo dodati (HlsMediaSource). */
+        fun jeHls(): Boolean = primerek?.let { st ->
+            val p = st.exo ?: return@let false
+            val sk = vrsta.getOrNull(p.currentMediaItemIndex) ?: return@let false
+            androidx.media3.common.util.Util.inferContentTypeForUriAndMimeType(android.net.Uri.parse(sk.zvok), sk.mime.ifBlank { null }) == C.CONTENT_TYPE_HLS
+        } ?: false
+
         /** Ves seznam, ki se predvaja (za "v vrsti" na zaslonu predvajanja). */
         fun vrsta(): List<Jamendo.Skladba> = if (predvajalnik == null) emptyList() else vrsta
 
