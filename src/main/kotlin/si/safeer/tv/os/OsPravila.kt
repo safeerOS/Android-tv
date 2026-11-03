@@ -1714,6 +1714,9 @@ object OsPravila {
      */
     fun zaGlasbo(video: Boolean, radio: Boolean, youtube: Boolean): Boolean = !radio && (!video || youtube)
 
+    /** Vrstni red strani Jamenda: »Najnovejse« po datumu izida, sicer po priljubljenosti. */
+    fun redJamenda(najnovejse: Boolean): String = if (najnovejse) "releasedate_desc" else "popularity_total"
+
     // ------------------------------------------------------------------ zunanji pregled Video 3. 11. 2026 (obremenitev TV)
 
     /** Najvec hkratnih preverjanj mreze filmov (prej 12 - ob odprtju razdelka je bil TV preobremenjen). */

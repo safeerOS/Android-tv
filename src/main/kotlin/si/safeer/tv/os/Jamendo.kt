@@ -71,8 +71,10 @@ object Jamendo {
      * Stran skladb po poslusanosti: [zvrst] (oznaka Jamenda, prazno = vse), [jezik] besedila (ISO 639-1, prazno = vsi),
      * [odmik] = koliko skladb preskociti. Za mrezo Glasbe z izbirama zvrsti in jezika.
      */
-    fun stran(zvrst: String, jezik: String, stevilo: Int, odmik: Int): List<Skladba> =
-        skladbe("order=popularity_total&limit=$stevilo&offset=$odmik" + (if (zvrst.isNotBlank()) "&tags=${kodiraj(zvrst)}" else "") +
+    // Zunanji pregled Glasbe 3. 11. 2026: »Najnovejse« vprasa Jamendo po datumu izida (releasedate_desc) - prej je samo
+    // preuredil nalozene popularne skladbe.
+    fun stran(zvrst: String, jezik: String, stevilo: Int, odmik: Int, najnovejse: Boolean = false): List<Skladba> =
+        skladbe("order=${OsPravila.redJamenda(najnovejse)}&limit=$stevilo&offset=$odmik" + (if (zvrst.isNotBlank()) "&tags=${kodiraj(zvrst)}" else "") +
             jezikPoizvedbe(jezik)).distinctBy { it.id }
 
     /** Popularna glasba po zvrsti. Jamendo tags uporablja kot vsebinski signal; ce zvrst nima rezultatov, vrne prazen seznam. */

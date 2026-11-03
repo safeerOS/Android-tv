@@ -4410,7 +4410,7 @@ class GlasbaActivity : OsActivity() {
     private fun shraniGlasbaSkupino(s: String) = getSharedPreferences(NASTAVITVE_POGLEDA, MODE_PRIVATE).edit().putString("glasba_skupina", s).apply()
 
     private fun kljucMreze(i: Int) = if (i == RADIO) "r|$radioSkupina|$radioZvrst|${Locale.getDefault().country}"
-        else "g|${glasbaSkupina()}|$glasbaZvrst|$glasbaJezik"
+        else "g|${glasbaSkupina()}|$glasbaZvrst|$glasbaJezik" + if (razvrstitev(GLASBA) == RAZVRSTI_NAJNOVEJSE) "|najnovejse" else ""
 
     /** Ista postaja ali skladba iz dveh virov je ena kartica: postaja po naslovu toka, ostalo po id-ju. */
     /** Naloga 71: postaja v mrezi po kljucu imena (ista postaja iz Radio Browserja in TuneIna na dveh straneh mreze), sicer po toku. */
@@ -4672,9 +4672,10 @@ class GlasbaActivity : OsActivity() {
         }
         // Vgrajeni vir, spletni viri in katalogi dodatkov hkrati; pocasen dodatek prve strani ne zadrzuje ([straniDodatkov]).
         val odmik = m.stran * GLASBA_NA_STRAN
+        val najnovejse = razvrstitev(GLASBA) == RAZVRSTI_NAJNOVEJSE
         val vgrajene = if (!jeVirViden(GLASBA, VIR_JAMENDO)) null else iskanjeDelavec.submit<List<Jamendo.Skladba>> {
             // Napaka (izjema) steje kot prazen odgovor, da drugi poskus stece tudi takrat.
-            fun stran() = try { Jamendo.stran(zvrst, jezik, GLASBA_NA_STRAN, odmik) } catch (_: Exception) { emptyList() }
+            fun stran() = try { Jamendo.stran(zvrst, jezik, GLASBA_NA_STRAN, odmik, najnovejse) } catch (_: Exception) { emptyList() }
             // Jamendo obcasno vrne prazen seznam (preverjeno 21. 9. 2026); drugi poskus ga dobi.
             stran().ifEmpty { if (prva) { Thread.sleep(800); stran() } else emptyList() }
         }
@@ -4929,8 +4930,11 @@ class GlasbaActivity : OsActivity() {
                 RAZVRSTI_NAJNOVEJSE to R.string.os_media_razvrsti_najnovejse, RAZVRSTI_IME_AZ to R.string.os_media_razvrsti_ime)
             polja += PoljeIzbire("izb:razvrsti", nacini.map { getString(it.second) }, nacini.indexOfFirst { it.first == razvrstitev(GLASBA) }.coerceAtLeast(0),
                 getString(R.string.os_media_razvrsti)) { i ->
+                // Zunanji pregled Glasbe 3. 11. 2026: »Najnovejse« (ali nazaj) nalozi vir znova; ime samo preuredi.
+                val prej = razvrstitev(GLASBA)
                 razvrstitve[GLASBA] = nacini[i].first
-                mrezaVsebine?.let { it.narisani = emptyList(); narisiMrezo(it) }
+                if ((prej == RAZVRSTI_NAJNOVEJSE) != (nacini[i].first == RAZVRSTI_NAJNOVEJSE)) odpriMrezo(GLASBA)
+                else mrezaVsebine?.let { it.narisani = emptyList(); narisiMrezo(it) }
             }
             val zvrsti = ZVRSTI.filter { it.first.isNotEmpty() }
             polja += PoljeIzbire("izb:zvrst", listOf(getString(R.string.os_zvrst_vse)) + zvrsti.map { getString(it.third) }, zvrsti.indexOfFirst { it.first == glasbaZvrst } + 1, null) { i ->
