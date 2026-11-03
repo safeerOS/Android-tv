@@ -2637,31 +2637,10 @@
                 return false;
             };
 
-            // 5. Samodejno dodajanje tabindex in odstranjevanje GDPR pasic
-            function autoDismissGdpr() {
-                try {
-                    var didomi = document.getElementById('didomi-notice-agree-button');
-                    if (didomi) {
-                        didomi.click();
-                        return;
-                    }
-                    var btns = document.querySelectorAll('button, a, [role="button"]');
-                    for (var i = 0; i < btns.length; i++) {
-                        var t = (btns[i].textContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
-                        if (t === 'sprejmi in zapri' || t.indexOf('sprejmi in zapri') === 0 ||
-                            t === 'sprejmi vse' || t === 'strinjam se' || t === 'v redu' ||
-                            t === 'sprejmem' || t === 'dovolim' || t === 'strinjam se s piškotki' || t === 'sprejmi piškotke' ||
-                            t === 'accept all' || t === 'i agree' || t === 'accept' || t === 'allow all') {
-                            btns[i].click();
-                            break;
-                        }
-                    }
-                } catch(_) {}
-            }
-
+            // 5. Samodejno dodajanje tabindex. Piskotkov ne sprejemamo in ne zavracamo namesto uporabnika
+            // (lastnik, 3. 11. 2026): izbira je vedno njegova, daljinec mora le doseci gumbe okna.
             function makeElementsFocusable() {
                 try {
-                    autoDismissGdpr();
                     vstopiVNovoPlast();
                     var focusables = document.querySelectorAll('a, button, input, select, textarea, [onclick], [role="button"], .card, .media-card, .item--event, .item.item--event, .tab, .seasonHeader, .video-play-button');
                     for (var i = 0; i < focusables.length; i++) {

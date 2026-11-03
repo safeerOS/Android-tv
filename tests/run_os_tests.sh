@@ -387,5 +387,6 @@ node "$TEST_DIR/tv_en_klik_test.js"
 node "$TEST_DIR/tv_izziv_test.js"
 # Okno s piskotki ob strani (claude.ai/login, 3. 11. 2026): vsi gumbi dosegljivi, nic samodejno
 node "$TEST_DIR/tv_plast_izbire_test.js"
+node "$TEST_DIR/tv_brez_samodejnih_piskotkov_test.js"
 # Naloga 42: besedila v sestih jezikih, viri, kontrast teme Pokrajina, beta samo ob vklopu.
 python3 "$TEST_DIR/preveri_zaganjalnik_beta.py"
