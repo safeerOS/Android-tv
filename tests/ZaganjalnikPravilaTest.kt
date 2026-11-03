@@ -56,6 +56,10 @@ private fun postavitve() {
 }
 
 private fun padci() {
+    println("\n== zagon ob vklopu ==")
+    preveri("vklop televizorja odpre dom", ZaganjalnikPravila.odpriDomObOddaji("android.intent.action.BOOT_COMPLETED"))
+    preveri("posodobitev aplikacije ne vzame zaslona", !ZaganjalnikPravila.odpriDomObOddaji("android.intent.action.MY_PACKAGE_REPLACED"))
+
     println("\n== zascita pred padci ==")
     val zdaj = 1_000_000L
     preveri("en padec ne vrne domacega zaslona", !ZaganjalnikPravila.vrniPrejsnjemu(listOf(zdaj - 1000), zdaj, 1))

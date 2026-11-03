@@ -12,14 +12,14 @@
  "privzeti_obseg": "vse",
  "skupine": {
   "vse": [
-   "aplikacije",
-   "novice",
-   "datoteke",
-   "nastavitve",
+   "splet",
    "videoteke",
    "video",
    "youtube",
-   "splet"
+   "aplikacije",
+   "novice",
+   "datoteke",
+   "nastavitve"
   ],
   "splet": [
    "splet"

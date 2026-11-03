@@ -36,13 +36,39 @@ object LupaPravila {
     const val SKUPINA_VIDEOTEKE = "videoteke"
     const val SKUPINA_NOVICE = "novice"
 
+    /** Filtri, ki jih uporabnik sam razvrsti (lastnik 3. 11. 2026 18:02); »Vse« ostane prvi. */
+    val RAZVRSTLJIVI = OBSEGI.drop(1)
+
+    /** Shranjen vrstni red filtrov: neznani in podvojeni odpadejo, manjkajoci (nov filter) gredo na konec; Vse je prvi. */
+    fun vrstniRed(shranjeno: List<String>): List<String> {
+        val znani = shranjeno.filter { it in RAZVRSTLJIVI }.distinct()
+        return listOf(OBSEG_VSE) + znani + RAZVRSTLJIVI.filter { it !in znani }
+    }
+
+    /** Premik filtra za eno mesto levo (-1) ali desno (+1); cez rob ali na mesto »Vse« se ne premakne. */
+    fun premakni(red: List<String>, obseg: String, smer: Int): List<String> {
+        val r = vrstniRed(red).toMutableList()
+        val i = r.indexOf(obseg)
+        val j = i + smer
+        if (i < 1 || j < 1 || j >= r.size) return r
+        r[i] = r[j].also { r[j] = r[i] }
+        return r
+    }
+
     /**
-     * Skupine zadetkov pod »Vse« v danasnjem vrstnem redu (Aplikacije, Datoteke, Nastavitve), nove skupine za njimi;
-     * splet ostane zadnji kot do zdaj (lastnik 18:39: »Vse« ostane razdeljeno v skupine). Novice so takoj za aplikacijami,
-     * videoteke pred zadetki Medijskega centra (lastnik 18:44: »nad zadetki filmov in serij«).
+     * Skupine zadetkov pod »Vse« po vrstnem redu filtrov, ki ga izbere uporabnik (lastnik 3. 11. 2026 18:02); privzeto
+     * najprej splet (lastnik 17:59). Aplikacije prinesejo se novice, Video vsebine videoteke pred zadetki Medijskega
+     * centra (lastnik 18:44: »nad zadetki filmov in serij«).
      */
-    val SKUPINE_VSE = listOf(OBSEG_APLIKACIJE, SKUPINA_NOVICE, OBSEG_DATOTEKE, OBSEG_NASTAVITVE, SKUPINA_VIDEOTEKE, OBSEG_VIDEO,
-        OBSEG_YOUTUBE, OBSEG_SPLET)
+    fun skupineVse(red: List<String>): List<String> = vrstniRed(red).drop(1).flatMap {
+        when (it) {
+            OBSEG_APLIKACIJE -> listOf(OBSEG_APLIKACIJE, SKUPINA_NOVICE)
+            OBSEG_VIDEO -> listOf(SKUPINA_VIDEOTEKE, OBSEG_VIDEO)
+            else -> listOf(it)
+        }
+    }
+
+    val SKUPINE_VSE: List<String> get() = skupineVse(OBSEGI)
 
     /**
      * Spodnji rob plosce zadetkov v okvirju visine [visinaOkvirjaPx]: vsaj [razmikPx] nad vrhom spodnje vrstice
@@ -65,8 +91,8 @@ object LupaPravila {
      * in novice, v podskupinah (lastnik 18:47: »ce bo uporabnik iskal rtv slo, se mu prikaze pod Aplikacije«); pod »Vse« je
      * vsaka aplikacija enkrat, v svoji skupini. »Video vsebine«: videoteke nad zadetki Medijskega centra.
      */
-    fun skupine(obseg: String): List<String> = when (val o = obseg(obseg)) {
-        OBSEG_VSE -> SKUPINE_VSE
+    fun skupine(obseg: String, red: List<String> = OBSEGI): List<String> = when (val o = obseg(obseg)) {
+        OBSEG_VSE -> skupineVse(red)
         OBSEG_APLIKACIJE -> listOf(OBSEG_APLIKACIJE, SKUPINA_VIDEOTEKE, SKUPINA_NOVICE)
         OBSEG_VIDEO -> listOf(SKUPINA_VIDEOTEKE, OBSEG_VIDEO)
         else -> listOf(o)
@@ -377,6 +403,41 @@ object LupaPravila {
      * dvema crkama ali stevkama, ki so vsaj 60 % znakov. Ne: beseda iz samih locil (»„«, »…«; pomisljaj sme), narekovaj ali vejica sredi
      * besede, ista crka stirikrat zapored. Isto pravilo ocisti staro zgodovino ob branju ([ocistiZgodovino]).
      */
+    /** Stetje iskanj (vrstica = »niz<TAB>stevilo«), kot ga hrani DomacaLupa; pokvarjene vrstice odpadejo. */
+    fun stetjeIzBesedila(besedilo: String): Map<String, Int> = besedilo.split("\n").mapNotNull { v ->
+        val i = v.lastIndexOf('\t')
+        val n = if (i > 0) v.substring(i + 1).toIntOrNull() else null
+        if (n == null || n <= 0) null else v.substring(0, i) to n
+    }.toMap()
+
+    fun stetjeVBesedilo(stetje: Map<String, Int>, najvec: Int = NAJVEC_STETIH): String =
+        stetje.entries.sortedByDescending { it.value }.take(najvec).joinToString("\n") { "${it.key}\t${it.value}" }
+
+    /** Eno pravo iskanje vec (isti niz ne glede na velike crke je isto iskanje); smeti se ne stejejo (zaZgodovino). */
+    fun pristej(stetje: Map<String, Int>, niz: String, najvec: Int = NAJVEC_STETIH): Map<String, Int> {
+        val q = zaZgodovino(niz)?.replace('\t', ' ') ?: return stetje
+        val kljuc = stetje.keys.firstOrNull { it.equals(q, ignoreCase = true) } ?: q
+        val novo = stetje + (kljuc to (stetje[kljuc] ?: 0) + 1)
+        return if (novo.size <= najvec) novo else novo.entries.sortedByDescending { it.value }.take(najvec).associate { it.key to it.value }
+    }
+
+    /**
+     * Predlogi pod lupo (lastnik 3. 11. 2026 18:32-18:34): iskanja uporabnika, ki se sproti prilagajajo vpisu, razvrscena
+     * po smiselnosti - najprej kako dobro se ujemajo z vpisom (ujemanje), nato kako pogosto jih isce, nato kako nedavno.
+     * Prazen vpis: najpogostejsa iskanja. Natancno vpisan niz ni predlog.
+     */
+    fun pogosta(stetje: Map<String, Int>, zgodovina: List<String>, vpis: String, najvec: Int): List<String> {
+        val q = vpis.trim()
+        val kandidati = (zgodovina + stetje.keys).distinctBy { it.lowercase() }
+        val izbor = if (q.isEmpty()) kandidati.map { it to 0 }
+            else kandidati.filter { !it.equals(q, ignoreCase = true) }.map { it to ujemanje(it, q) }.filter { it.second > 0 }
+        fun stevilo(n: String) = stetje.entries.firstOrNull { it.key.equals(n, ignoreCase = true) }?.value ?: 0
+        fun nedavno(n: String) = zgodovina.indexOfFirst { it.equals(n, ignoreCase = true) }.let { if (it < 0) Int.MAX_VALUE else it }
+        return izbor.sortedWith(compareByDescending<Pair<String, Int>> { it.second }.thenByDescending { stevilo(it.first) }.thenBy { nedavno(it.first) })
+            .take(najvec).map { it.first }
+    }
+    const val NAJVEC_STETIH = 200
+
     fun zaZgodovino(niz: String): String? {
         val q = niz.trim().replace(Regex("\\s+"), " ")
         val znaki = q.filter { !it.isWhitespace() }

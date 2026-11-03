@@ -319,6 +319,8 @@
     <string name="os_tipk_simboli">!#1</string>
     <string name="os_tipk_presledek">Spazio</string>
     <string name="os_tipk_vracalka">Cancella</string>
+    <string name="os_tipk_kazalec_levo">Cursore a sinistra</string>
+    <string name="os_tipk_kazalec_desno">Cursore a destra</string>
     <string name="os_tipk_vnasalka">Invio</string>
     <string name="os_tipk_shrani">Salva</string>
     <string name="os_tipk_zapri">Chiudi</string>

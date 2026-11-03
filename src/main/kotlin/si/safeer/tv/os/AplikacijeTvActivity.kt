@@ -105,8 +105,20 @@ class AplikacijeTvActivity : OsActivity() {
     }
 
     private fun narisi() {
-        vse = Aplikacije.seznam(this)
+        // Zunanji pregled 3. 11. 2026: Aplikacije.seznam (dvakrat paketni upravitelj + ikona vsake aplikacije) je tekel na
+        // glavni niti ob vsakem onStart. Zdaj zadnji znani seznam takoj, svez v ozadju brez ikon.
+        val znani = Aplikacije.zadnjiZnani(this)
+        vse = znani ?: emptyList()
+        Aplikacije.osveziVOzadju(this, znani, brezIkon = true) { svez ->
+            if (isFinishing || isDestroyed) return@osveziVOzadju
+            vse = svez; filtriraj(); pokaziSporocilo()
+        }
         filtriraj()
+        if (znani == null) { sporocilo.visibility = View.GONE; return }
+        pokaziSporocilo()
+    }
+
+    private fun pokaziSporocilo() {
         if (vnosi.isEmpty()) {
             sporocilo.text = getString(R.string.os_aplikacije_prazno)
             sporocilo.visibility = View.VISIBLE
@@ -120,6 +132,9 @@ class AplikacijeTvActivity : OsActivity() {
     /** Odpiranje, ki ne utihne: ce ne gre, povemo zakaj in ponudimo ponovni poskus. */
     private fun zazeni(a: Aplikacije.Vnos, izvor: android.view.View? = null) {
         val namera = Intent(a.namera).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        // Zunanji pregled 3. 11. 2026: zagnana aplikacija dobi vec prostega pomnilnika - prosti WebView in ikone stran.
+        try { LahkiWebViewPool.sprostiProstega() } catch (_: Throwable) { }
+        maleIkone.clear()
         try {
             startActivity(namera, izPloscice(izvor))
         } catch (e: Throwable) {
@@ -197,6 +212,34 @@ class AplikacijeTvActivity : OsActivity() {
             Toast.LENGTH_SHORT).show()
     }
 
+    private val maleIkone = HashMap<String, android.graphics.drawable.Drawable>()
+    private val cakajoceIkone = HashSet<String>()
+    private val delavecIkon = java.util.concurrent.Executors.newSingleThreadExecutor { r ->
+        Thread(r, "SafeerAplikacijeTvIkone").apply { priority = Thread.MIN_PRIORITY; isDaemon = true }
+    }
+
+    private fun naloziIkono(a: Aplikacije.Vnos) {
+        if (!cakajoceIkone.add(a.paket)) return
+        val app = applicationContext
+        val px = (48 * resources.displayMetrics.density).toInt()
+        try {
+            delavecIkon.execute {
+                val d = try { Aplikacije.ikonaMala(app, a, px) } catch (_: Throwable) { null }
+                runOnUiThread {
+                    cakajoceIkone.remove(a.paket)
+                    if (d == null || isDestroyed) return@runOnUiThread
+                    maleIkone[a.paket] = d
+                    mreza.findViewWithTag<ImageView>(a.paket)?.setImageDrawable(d)
+                }
+            }
+        } catch (_: java.util.concurrent.RejectedExecutionException) { cakajoceIkone.remove(a.paket) }
+    }
+
+    override fun onDestroy() {
+        delavecIkon.shutdownNow()
+        super.onDestroy()
+    }
+
     private inner class Prilagojevalnik : BaseAdapter() {
         override fun getCount(): Int = vnosi.size
         override fun getItem(i: Int): Any = vnosi[i]
@@ -206,21 +249,16 @@ class AplikacijeTvActivity : OsActivity() {
                 .inflate(R.layout.os_kartica_program, roditelj, false)
             val a = vnosi[i]
             val ikona = v.findViewById<ImageView>(R.id.ikona)
-            val risba = Aplikacije.ikona(this@AplikacijeTvActivity, a)
-            if (risba != null) {
-                ikona.setImageDrawable(risba)
-                val lp = ikona.layoutParams
-                if (risba.intrinsicWidth > risba.intrinsicHeight * 1.2f) {
-                    lp.width = (48 * resources.displayMetrics.density * 1.77f).toInt()
-                } else {
-                    lp.width = (48 * resources.displayMetrics.density).toInt()
-                }
-                ikona.layoutParams = lp
-            } else {
+            // Zunanji pregled 3. 11. 2026: na TV je Aplikacije.ikona dekodiral pasico 320x180 (ARGB_8888, do 64 slik) na
+            // glavni niti za vsako ploscico - drsenje je zastajalo. Zdaj majhna kvadratna ikona (ikonaMala) v ozadju.
+            ikona.tag = a.paket
+            val lp = ikona.layoutParams
+            lp.width = (48 * resources.displayMetrics.density).toInt()
+            ikona.layoutParams = lp
+            val risba = maleIkone[a.paket]
+            if (risba != null) ikona.setImageDrawable(risba) else {
                 ikona.setImageResource(R.drawable.os_ikona_mreza)
-                val lp = ikona.layoutParams
-                lp.width = (48 * resources.displayMetrics.density).toInt()
-                ikona.layoutParams = lp
+                naloziIkono(a)
             }
             // Zvezdica pove, da je aplikacija na domacem zaslonu; z dveh metrov je vidna takoj.
             v.findViewById<TextView>(R.id.ime).text =

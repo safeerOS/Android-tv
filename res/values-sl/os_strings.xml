@@ -330,6 +330,8 @@
     <string name="os_tipk_simboli">!#1</string>
     <string name="os_tipk_presledek">Presledek</string>
     <string name="os_tipk_vracalka">Briši</string>
+    <string name="os_tipk_kazalec_levo">Kazalec levo</string>
+    <string name="os_tipk_kazalec_desno">Kazalec desno</string>
     <string name="os_tipk_vnasalka">Vnesi</string>
     <string name="os_tipk_shrani">Shrani</string>
     <string name="os_tipk_zapri">Zapri</string>

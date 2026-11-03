@@ -319,6 +319,8 @@
     <string name="os_tipk_simboli">!#1</string>
     <string name="os_tipk_presledek">Leer</string>
     <string name="os_tipk_vracalka">Löschen</string>
+    <string name="os_tipk_kazalec_levo">Cursor nach links</string>
+    <string name="os_tipk_kazalec_desno">Cursor nach rechts</string>
     <string name="os_tipk_vnasalka">Eingabe</string>
     <string name="os_tipk_shrani">Speichern</string>
     <string name="os_tipk_zapri">Schließen</string>

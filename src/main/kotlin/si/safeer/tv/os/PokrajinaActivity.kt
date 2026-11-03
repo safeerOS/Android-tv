@@ -76,6 +76,20 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     private lateinit var zadetkiDrsnik: View
     /** Ploscice in spodnja vrstica pod plosco lupe: brez fokusa, dokler je plosca odprta (LupaPravila.ozadjeFokusno). */
     private lateinit var ozadjeLupe: ViewGroup
+    private lateinit var glavaPogled: View
+    private lateinit var tipkovnicaLupe: View
+    private var iskalniNacin = false
+
+    /** Iskalni nacin: odprta tipkovnica ali plosca zadetkov - glava (ura, vreme), ploscice in spodnja vrstica so skriti. */
+    private fun osveziIskalniNacin() {
+        if (!::glavaPogled.isInitialized || !::tipkovnicaLupe.isInitialized || !::zadetkiDrsnik.isInitialized) return
+        val da = tipkovnicaLupe.visibility == View.VISIBLE || zadetkiDrsnik.visibility == View.VISIBLE
+        if (da == iskalniNacin) return
+        iskalniNacin = da
+        glavaPogled.visibility = if (da) View.GONE else View.VISIBLE
+        ozadjeLupe.visibility = if (da) View.INVISIBLE else View.VISIBLE
+        if (da) dock?.skrijCeOdprt()
+    }
     private lateinit var vsebina: LinearLayout
     private lateinit var poljeLupe: EditText
 
@@ -123,18 +137,19 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         koren.addView(zatemnitevOzadja, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         vsebina = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         uporabiVarenRob()
-        vsebina.addView(glava(), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        glavaPogled = glava()
+        vsebina.addView(glavaPogled, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         vsebina.addView(lupa(), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
             val rob = (resources.displayMetrics.widthPixels * 0.2f).toInt()
             marginStart = rob; marginEnd = rob; topMargin = dp(10)
         })
-        val tipkovnica = LinearLayout(this).apply {
+        // Lastnik 3. 11. 2026 17:40 + svetovalec arena.ai: iskalni nacin cez ves zaslon - zadetki pod lupo, tipkovnica spodaj; ura, vreme, ploscice in spodnja vrstica so med iskanjem skriti (prej so zadetki prekrili ploscice).
+        val tipkovnica = object : LinearLayout(this) {
+            override fun setVisibility(v: Int) { super.setVisibility(v); glavna.post { osveziIskalniNacin() } }
+        }.apply {
             orientation = LinearLayout.VERTICAL; visibility = View.GONE; tag = "lupaTipkovnica"
         }
-        vsebina.addView(tipkovnica, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-            val rob = (resources.displayMetrics.widthPixels * 0.2f).toInt()
-            marginStart = rob; marginEnd = rob; topMargin = dp(4)
-        })
+        tipkovnicaLupe = tipkovnica
 
         val okvirVsebine = FrameLayout(this)
         val spodnjiDel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -218,6 +233,14 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                     LupaPravila.Fokus.FILTER -> izbranGumb() ?: poljeLupe
                     else -> poljeLupe
                 }
+                // Tipkovnica je pod zadetki (lastnik 17:54): DOL z zadnje vrstice gre na najblizjo tipko pod njo.
+                if (direction == View.FOCUS_DOWN && focused != null && ::tipkovnicaLupe.isInitialized && tipkovnicaLupe.visibility == View.VISIBLE) {
+                    val r = android.graphics.Rect()
+                    focused.getDrawingRect(r)
+                    koren.offsetDescendantRectToMyCoords(focused, r)
+                    koren.offsetRectIntoDescendantCoords(tipkovnicaLupe, r)
+                    android.view.FocusFinder.getInstance().findNextFocusFromRect(tipkovnicaLupe as ViewGroup, r, View.FOCUS_DOWN)?.let { return it }
+                }
                 return focused
             }
 
@@ -232,9 +255,14 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                 return super.executeKeyEvent(e)
             }
         }.apply {
-            clipToPadding = false; clipChildren = false
+            // Lastnik 3. 11. 2026 18:12 (fotografija TV): brez obrezovanja je seznam risal cez tipkovnico pod njim. Seznam
+            // obreze svojo vsebino; rob 6 dp ostane za poudarek fokusa.
+            clipToPadding = true; clipChildren = true
+            setPadding(dp(6), dp(6), dp(6), dp(6))
             addView(zadetki, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> glavna.post { obreziPlosco() } }
         }
+        zadetki.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> glavna.post { obreziPlosco() } }
         vrstaIzbire = vrstaFiltrov()
         // Filtri so ena vrstica nad seznamom, sirsa od seznama (80 % zaslona), da gre vseh sedem brez drsenja (lastnik 19:03).
         zadetkiDrsnik = object : LinearLayout(this) {
@@ -244,6 +272,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                 super.setVisibility(v)
                 if (::ozadjeLupe.isInitialized) ozadjeLupe.descendantFocusability =
                     if (LupaPravila.ozadjeFokusno(v == View.VISIBLE)) ViewGroup.FOCUS_AFTER_DESCENDANTS else ViewGroup.FOCUS_BLOCK_DESCENDANTS
+                glavna.post { osveziIskalniNacin() }
             }
 
             // Dotik ali miska na praznem delu plosce ne zadene ploscice pod njo: vrstice in filtri dobijo dotik prvi, ostanek
@@ -262,15 +291,24 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                 isFocusable = false
                 addView(vrstaIzbire, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(8) })
-            val rob = (resources.displayMetrics.widthPixels * 0.1f).toInt()
-            addView(seznam, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f).apply { marginStart = rob; marginEnd = rob })
+            addView(seznam, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         }
-        okvirVsebine.addView(zadetkiDrsnik, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT).apply {
-            val rob = (resources.displayMetrics.widthPixels * 0.1f).toInt()
-            // Spodnji rob nastavi prilagodiPloscoZadetkov() po izmerjenem vrhu spodnje vrstice (zacetna vrednost do postavitve;
-            // po postavitvi, ne med njo - glavna.post).
-            marginStart = rob; marginEnd = rob; topMargin = dp(8); bottomMargin = dp(14)
+        // Lastnik 3. 11. 2026 17:54: sprotni zadetki takoj pod iskalno lupo (iste sirine kot lupa), tipkovnica nizje na dnu.
+        val telo = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            // Brez zadetkov (prazna lupa brez zgodovine) ostane tipkovnica spodaj, ne skoci pod polje.
+            gravity = Gravity.BOTTOM
+            clipChildren = false; clipToPadding = false
+            setPadding(0, dp(8), 0, dp(14))
+        }
+        val robLupe = (resources.displayMetrics.widthPixels * 0.2f).toInt()
+        telo.addView(zadetkiDrsnik, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f).apply {
+            marginStart = robLupe; marginEnd = robLupe
         })
+        telo.addView(tipkovnica, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            gravity = Gravity.CENTER_HORIZONTAL; topMargin = dp(12)
+        })
+        okvirVsebine.addView(telo, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         okvirVsebine.addOnLayoutChangeListener { _, _, t, _, b, _, st, _, sb -> if (b - t != sb - st) glavna.post { prilagodiPloscoZadetkov() } }
         vsebina.addView(okvirVsebine, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         koren.setOnLongClickListener { menijOzadja(); true }
@@ -322,6 +360,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
      */
     override fun onResume() {
         super.onResume()
+        Zaganjalnik.domNaZaslonu(this, true)
         // Zunanji pregled 3. 11. 2026: komentar zgoraj je to obljubljal, klic pa je bil samo po minuti mirovanja in brez
         // naloženega posnetka (po filmu v pavzi nikoli). Kot DomovActivity: ob vsaki vrnitvi domov, cez 3 s;
         // pocistiOzadje samo preveri, ali zvok res igra (pavza ni zvok v ozadju).
@@ -393,7 +432,15 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     }
 
 
+    override fun onPause() {
+        Zaganjalnik.domNaZaslonu(this, false)
+        super.onPause()
+    }
+
     override fun onStop() {
+        // Zunanji pregled 3. 11. 2026: ob odhodu doma (zagon aplikacije) prost WebView poola stran - zagnana aplikacija
+        // dobi vec pomnilnika.
+        try { LahkiWebViewPool.sprostiProstega() } catch (_: Throwable) { }
         ZnackeObvestil.poslusalci.remove(posodobiZnacke)
         zadnjiFokusPogled = currentFocus
         try { unregisterReceiver(usbSprejemnik) } catch (_: Throwable) { }
@@ -594,25 +641,28 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         val ploscaOdprta = ::zadetkiDrsnik.isInitialized && zadetkiDrsnik.visibility == View.VISIBLE
         if (pretvorjen.action == KeyEvent.ACTION_DOWN && !tipkovnicaOdprta && pretvorjen.repeatCount == 0 &&
             !LupaPravila.tipkaOstaneVLupi(koda, ploscaOdprta)) {
-            val indeks = PokrajinaPravila.indeksPloscice(koda)
-            if (indeks != null && !lupaImaBesedilo && !lupaImaFokus) {
-                var vidne = 0
-                val drsnikX = (vrstaAplikacij.parent as? android.widget.HorizontalScrollView)?.scrollX ?: 0
-                for (ind in 0 until vrstaAplikacij.childCount) {
-                    val v = vrstaAplikacij.getChildAt(ind)
-                    if (!v.isFocusable || !v.isShown) continue      // besedilo prazne vrstice ni ploscica
-                    if (v.right > drsnikX) {
-                        if (vidne == indeks) { v.performClick(); return true }
-                        vidne++
-                    }
-                }
-                return true
+            // Zunanji pregled 3. 11. 2026: stevilke in kanal gor/dol veljajo samo, ko je fokus v vrstici ploscic; stejejo le
+            // ploscice, ki so v celoti v oknu; prvi pritisk da fokus, drugi (na isti ploscici) odpre; brez ploscice tipke ne pojemo.
+            val vVrstici = ::vrstaAplikacij.isInitialized && vrstaAplikacij.hasFocus()
+            val drsnik = if (vVrstici) vrstaAplikacij.parent as? android.widget.HorizontalScrollView else null
+            fun celeVOknu(): List<View> {
+                val x = drsnik?.scrollX ?: 0
+                val w = drsnik?.width ?: 0
+                return (0 until vrstaAplikacij.childCount).map { vrstaAplikacij.getChildAt(it) }
+                    .filter { it.isFocusable && it.isShown && it.left >= x && it.right <= x + w }
             }
-            PokrajinaPravila.smerStran(koda)?.let { smer ->
-                (vrstaAplikacij.parent as? android.widget.HorizontalScrollView)?.let { drsnik ->
-                    val premik = if (smer > 0) drsnik.width else -drsnik.width
-                    drsnik.smoothScrollBy(premik, 0)
+            val indeks = PokrajinaPravila.indeksPloscice(koda)
+            if (indeks != null && vVrstici && !lupaImaBesedilo && !lupaImaFokus) {
+                val v = celeVOknu().getOrNull(indeks)
+                if (v != null) {
+                    if (v.hasFocus()) v.performClick() else v.requestFocus()
+                    return true
                 }
+            }
+            if (drsnik != null) PokrajinaPravila.smerStran(koda)?.let { smer ->
+                drsnik.scrollBy(if (smer > 0) drsnik.width else -drsnik.width, 0)
+                val vidne = celeVOknu()
+                (if (smer > 0) vidne.firstOrNull() else vidne.lastOrNull())?.requestFocus()
                 return true
             }
         }
@@ -648,10 +698,29 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         if (pretvorjen.action == KeyEvent.ACTION_DOWN) {
             val mini = dock?.aktivniPogledZaFokus?.takeIf { it.isShown && it.isFocusable }
             val dockImaFokus = dock?.imaFokus == true || (mini != null && mini.hasFocus())
+            // Zunanji pregled 3. 11. 2026: LEVO na prvi in DESNO na zadnji ploscici ostaneta (prej je fokus padel v prazno);
+            // sicer naslednja ploscica, ki jo vrstica pomakne cisto v okno (tudi s povecavo ob fokusu).
+            if ((pretvorjen.keyCode == KeyEvent.KEYCODE_DPAD_LEFT || pretvorjen.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) &&
+                ::vrstaAplikacij.isInitialized && vrstaAplikacij.hasFocus() && premikam == null) {
+                val ploscice = (0 until vrstaAplikacij.childCount).map { vrstaAplikacij.getChildAt(it) }.filter { it.isFocusable && it.isShown }
+                val zdaj = ploscice.indexOfFirst { it.hasFocus() }
+                if (zdaj >= 0) {
+                    val nasl = zdaj + if (pretvorjen.keyCode == KeyEvent.KEYCODE_DPAD_LEFT) -1 else 1
+                    val cilj = ploscice.getOrNull(nasl) ?: return true
+                    if (cilj.requestFocus()) {
+                        val r = android.graphics.Rect(0, 0, cilj.width, cilj.height)
+                        val rob = dp(16)
+                        r.inset(-rob, 0)
+                        cilj.requestRectangleOnScreen(r, false)
+                        return true
+                    }
+                }
+            }
             if (pretvorjen.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
                 if (::vrstaAplikacij.isInitialized && vrstaAplikacij.hasFocus()) {
-                    // Zunanji pregled 3. 11. 2026: tipko pojemo samo, ce fokus res pride na rocico (sicer obtici).
-                    if (mini != null && mini.requestFocus()) {
+                    // Zunanji pregled 3. 11. 2026: tipko pojemo samo, ce fokus res pride na rocico (sicer obtici); DOL s ploscic
+                    // gre na mini predvajalnik samo, ko je odprt - sicer naravnost na spodnjo vrstico pod isto X.
+                    if (mini != null && dock?.jeOdprt == true && mini.requestFocus()) {
                         return true
                     } else if (::dok.isInitialized) {
                         val cilj = najblizjiPogledX(dok, vrstaAplikacij.findFocus())
@@ -665,7 +734,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                 }
             } else if (pretvorjen.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
                 if (::dok.isInitialized && dok.hasFocus()) {
-                    if (dock != null && (dock?.jeOdprt == true || mini != null)) {
+                    // Gor z doka na mini samo, ce je odprt; sicer naravnost na ploscico (pregled 3. 11. 2026).
+                    if (dock?.jeOdprt == true) {
                         if (dock?.fokusiraj() == true || (mini != null && mini.requestFocus())) return true
                     }
                     if (::vrstaAplikacij.isInitialized) {
@@ -935,6 +1005,52 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(12) })
     }
 
+    /** Predlog iskanja kot cip: ena vrstica, celo besedilo ali tri pike na koncu, nikoli lom sredi besede. */
+    private fun cipIskanja(niz: String, klik: () -> Unit): View = TextView(this).apply {
+        text = niz; tag = "cip_$niz"
+        isSingleLine = true; maxLines = 1; ellipsize = TextUtils.TruncateAt.END
+        isFocusable = true; isClickable = true
+        gravity = Gravity.CENTER
+        minHeight = dp(40); minimumHeight = dp(40)
+        setPadding(dp(16), 0, dp(16), 0)
+        background = ozadjeFiltra()
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
+        setTextColor(osBarva(R.color.os_besedilo))
+        setOnClickListener { klik() }
+    }
+
+    /**
+     * Lastnik 3. 11. 2026 18:30: pod »Vse« ni napol odrezanih vrstic - kar ne gre celo v ploscio, je skrito (filter
+     * pokaze vse). Glava skupine brez vidne vrstice pod njo se skrije. INVISIBLE ne spremeni postavitve, zato brez zank.
+     */
+    private fun obreziPlosco() {
+        val okno = zadetki.parent as? View ?: return
+        val visina = okno.height - okno.paddingTop - okno.paddingBottom
+        if (visina <= 0) return
+        val vrste = ArrayList<Triple<View, Int, Boolean>>()
+        fun zberi(g: ViewGroup, odmik: Int) {
+            for (i in 0 until g.childCount) {
+                val o = g.getChildAt(i)
+                if (o.visibility == View.GONE) continue
+                when {
+                    o is VrsticeCipov -> for (j in 0 until o.childCount) o.getChildAt(j).let { c -> if (c.width > 0) vrste.add(Triple(c, odmik + o.top + c.bottom, false)) }
+                    o is LinearLayout && o.orientation == LinearLayout.VERTICAL && !o.isFocusable && o.tag == null -> zberi(o, odmik + o.top)
+                    else -> vrste.add(Triple(o, odmik + o.bottom, o.isAccessibilityHeading))
+                }
+            }
+        }
+        zberi(zadetki, 0)
+        val vse = izbiraLupe == LupaPravila.OBSEG_VSE
+        for ((v, dno, _) in vrste) v.visibility = if (!vse || dno <= visina) View.VISIBLE else View.INVISIBLE
+        if (!vse) return
+        for (i in vrste.indices) {
+            val (v, _, glava) = vrste[i]
+            if (!glava || v.visibility != View.VISIBLE) continue
+            val naslednja = vrste.getOrNull(i + 1)
+            if (naslednja == null || naslednja.third || naslednja.first.visibility != View.VISIBLE) v.visibility = View.INVISIBLE
+        }
+    }
+
     /** Napis filtra (in ime skupine v praznem stanju). */
     private fun napisObsega(o: String): String = getString(when (o) {
         LupaPravila.OBSEG_VSE -> R.string.pk_lupa_obseg_vse
@@ -957,12 +1073,17 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
 
     /** Prva vrstica seznama, na katero gre fokus (DOL s filtrov, OK na polju). */
     private fun prviVSeznamu(): View? {
-        for (i in 0 until zadetki.childCount) {
-            val v = zadetki.getChildAt(i)
-            if (v.visibility != View.VISIBLE) continue
-            if (v.isFocusable) return v
-            if (v is ViewGroup) for (j in 0 until v.childCount) v.getChildAt(j).takeIf { it.isFocusable && it.visibility == View.VISIBLE }?.let { return it }
+        // Rekurzivno: predlogi so v mrezi znotraj skupine (zadetki -> skupina -> VrsticeCipov -> predlog).
+        fun prvi(g: ViewGroup): View? {
+            for (i in 0 until g.childCount) {
+                val v = g.getChildAt(i)
+                if (v.visibility != View.VISIBLE) continue
+                if (v.isFocusable) return v
+                if (v is ViewGroup) prvi(v)?.let { return it }
+            }
+            return null
         }
+        prvi(zadetki)?.let { return it }
         return null
     }
 
@@ -1012,7 +1133,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
             setPadding(dp(8), dp(6), dp(8), dp(6))
             contentDescription = getString(R.string.pk_lupa_obseg)
         }
-        for (o in LupaPravila.OBSEGI) {
+        for (o in redLupe()) {
             vrsta.addView(TextView(this).apply {
                 text = napisObsega(o)
                 tag = "obseg_$o"
@@ -1025,6 +1146,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                 setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
                 setTextColor(android.content.res.ColorStateList(arrayOf(intArrayOf(android.R.attr.state_selected), intArrayOf()),
                     intArrayOf(osBarva(R.color.os_ozadje), osBarva(R.color.os_besedilo))))
+                // Lastnik 3. 11. 2026 18:02: uporabnik sam razvrsti filtre (in skupine pod Vse) - dolg pritisk OK na filtru.
+                if (o != LupaPravila.OBSEG_VSE) setOnLongClickListener { razvrstiFilter(o); true }
                 setOnClickListener {
                     if (izbiraLupe == o) return@setOnClickListener
                     izbiraLupe = LupaPravila.obsegPo(o, lupaZaprta = false)
@@ -1037,6 +1160,31 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         }
         vrsta.addOnLayoutChangeListener { _, l, _, r, _, sl, _, sr, _ -> if (r - l != sr - sl) prilagodiFiltre() }
         return vrsta
+    }
+
+    /** Vrstni red filtrov, ki ga je izbral uporabnik (LupaPravila.vrstniRed: Vse prvi, nov filter na konec). */
+    private fun redLupe(): List<String> = LupaPravila.vrstniRed(
+        getSharedPreferences("safeer_os", Context.MODE_PRIVATE).getString(KLJUC_RED_LUPE, "").orEmpty().split(",").filter { it.isNotBlank() })
+
+    private fun razvrstiFilter(o: String) {
+        fun premakni(smer: Int) {
+            val red = LupaPravila.premakni(redLupe(), o, smer)
+            getSharedPreferences("safeer_os", Context.MODE_PRIVATE).edit().putString(KLJUC_RED_LUPE, red.joinToString(",")).apply()
+            // Gumbi v novem vrstnem redu; isti pogledi, zato fokus ostane na premaknjenem filtru.
+            val gumbi = red.mapNotNull { vrstaIzbire.findViewWithTag<View>("obseg_$it") }
+            val lp = gumbi.map { it.layoutParams }
+            vrstaIzbire.removeAllViews()
+            gumbi.forEachIndexed { i, g -> vrstaIzbire.addView(g, lp[i]) }
+            vrstaIzbire.findViewWithTag<View>("obseg_$o")?.requestFocus()
+            narisiZadetke(poljeLupe.text?.toString().orEmpty(), vsili = true)
+        }
+        val dejanja = listOf(getString(R.string.os_spletne_levo) to { premakni(-1) }, getString(R.string.os_spletne_desno) to { premakni(1) })
+        val okno = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
+            .setTitle(napisObsega(o))
+            .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .create()
+        Kontroler.pokazi(okno)
     }
 
     /** Izbran filter: poln in krepko; TalkBack: »<ime>, filter, izbran / ni izbran«. */
@@ -1205,29 +1353,29 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         val drsnik = zadetkiDrsnik
         if (q.isEmpty()) {
             vrstaIzbire.visibility = View.GONE
-            val zgodovina = DomacaLupa.beriZgodovino(this)
-            if (zgodovina.isEmpty()) {
+            // Lastnik 3. 11. 2026 18:32-18:34: prazna lupa pokaze 6 najpogostejsih iskanj uporabnika (3 vrste po 2).
+            val pogosta = LupaPravila.pogosta(DomacaLupa.beriStetje(this), DomacaLupa.beriZgodovino(this), "", 6)
+            if (pogosta.isEmpty()) {
                 drsnik.visibility = View.GONE
             } else {
                 zadetki.addView(naslovSkupine(R.string.menu_history))
-                for (z in zgodovina) {
-                    // Preverba TV 19:43: OK na vrstici zgodovine vpise iskanje v polje in pokaze zadetke na »Vse« (lupa ostane
-                    // odprta, fokus na filtru) - prej je odprl brskalnik mimo zadetkov.
-                    zadetki.addView(vrsticaZadetka(R.drawable.os_ikona_isci, z, zapre = false) {
-                        izbiraLupe = LupaPravila.OBSEG_VSE
-                        poljeLupe.setText(z)
-                        poljeLupe.setSelection(poljeLupe.text?.length ?: 0)
-                        narisiZadetke(z, vsili = true)
-                        (izbranGumb() ?: prviVSeznamu())?.requestFocus()
-                    }.apply { tag = "zgodovina_$z"; contentDescription = getString(R.string.pk_lupa_zgodovina_opis, z) })
-                }
+                val mreza = VrsticeCipov(this, dp(8)).apply { setPadding(dp(4), dp(2), dp(4), dp(8)); tag = "lupa_cipi" }
+                for (z in pogosta) mreza.addView(cipIskanja(z) {
+                    // Preverba TV 19:43: OK vpise iskanje v polje in pokaze zadetke na »Vse« (lupa ostane odprta).
+                    izbiraLupe = LupaPravila.OBSEG_VSE
+                    poljeLupe.setText(z)
+                    poljeLupe.setSelection(poljeLupe.text?.length ?: 0)
+                    narisiZadetke(z, vsili = true)
+                    (izbranGumb() ?: prviVSeznamu())?.requestFocus()
+                }.apply { contentDescription = getString(R.string.pk_lupa_zgodovina_opis, z) })
+                zadetki.addView(mreza)
                 drsnik.visibility = View.VISIBLE
             }
         } else {
             vrstaIzbire.visibility = View.VISIBLE
             osveziFiltre()
             val obseg = izbiraLupe
-            val skupine = LupaPravila.skupine(obseg)
+            val skupine = LupaPravila.skupine(obseg, redLupe())
             val ena = obseg != LupaPravila.OBSEG_VSE
             // V pogledu ene skupine je prostora vec (seznam drsi, spodnja vrstica se ne skrci - lastnik 2. 11. 2026).
             val najvec = if (ena) 8 else 4
@@ -1325,6 +1473,10 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                         getString(R.string.os_videz) to Intent(this, VidezActivity::class.java),
                         getString(R.string.dov_naslov) to Intent(this, DovoljenjaActivity::class.java),
                         getString(R.string.os_meni_naprave) to Intent(this, NapraveActivity::class.java),
+                        // Lastnik 3. 11. 2026 18:10 (nasvet): sistemske nastavitve, ki jih na TV iscejo najpogosteje; imeni sta
+                        // enaki v vseh jezikih.
+                        "Wi-Fi" to Intent(Settings.ACTION_WIFI_SETTINGS),
+                        "Bluetooth" to Intent(Settings.ACTION_BLUETOOTH_SETTINGS),
                     )
                     val zadetkiNastavitev = LupaPravila.najboljsi(nastavitve, q, 3) { it.first }
                     if (zadetkiNastavitev.isNotEmpty()) {
@@ -1379,17 +1531,44 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                         odpri(Brskalnik.namera(this).setAction(Intent.ACTION_VIEW)
                             .setData(android.net.Uri.parse(si.safeer.tv.SmartOmnibox.iskanje(this, q))).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                     }.apply { tag = "isci_splet" }, kam)
+                    // Lastnik 3. 11. 2026 18:30/18:32: pod splosnim iskanjem 6 predlogov najpogostejsih iskanj, 3 vrste po 2,
+                    // brez loma besed (VrsticeCipov). Najprej uporabnikova zgodovina (brez omrezja), od
+                    // SPLET_OD_ZNAKOV znakov se predlogi iskalnika (vsaka crka ne gre iskalniku).
+                    val cipi = VrsticeCipov(this, dp(8)).apply { setPadding(dp(4), dp(2), dp(4), dp(8)); tag = "lupa_cipi" }
+                    fun pripniCipe() {
+                        if (cipi.parent != null || cipi.childCount == 0) return
+                        if (kam.childCount == 0) kam.addView(naslovSkupine(R.string.pk_lupa_predlogi))
+                        kam.addView(cipi)
+                    }
+                    val izZgodovine = LupaPravila.pogosta(DomacaLupa.beriStetje(this), DomacaLupa.beriZgodovino(this), q, cipi.najvec)
+                    for (z in izZgodovine) cipi.addView(cipIskanja(z) {
+                        izbiraLupe = LupaPravila.OBSEG_VSE
+                        poljeLupe.setText(z)
+                        poljeLupe.setSelection(poljeLupe.text?.length ?: 0)
+                        narisiZadetke(z, vsili = true)
+                        (izbranGumb() ?: prviVSeznamu())?.requestFocus()
+                    })
+                    stevilo += cipi.childCount
+                    pripniCipe()
                     val predloge = iskalnik.predlogi
                     if (predloge != null && LupaPravila.zivo(skupina, obseg, q, vklopljeno, google)) {
                         cakam++
                         predlogiVOzadju(predloge + java.net.URLEncoder.encode(q, "UTF-8"), q, st) { seznam ->
-                            naMesto(kam, R.string.pk_lupa_predlogi, seznam?.map { p ->
-                                // Zunanji pregled 3. 11. 2026: predlog odpre iskanje tega niza v spletu, ne ukaza (»vreme …«, »… na tv«).
-                                vrsticaZadetka(R.drawable.os_ikona_isci, p) {
-                                    odpri(Brskalnik.namera(this).setAction(Intent.ACTION_VIEW)
-                                        .setData(android.net.Uri.parse(si.safeer.tv.SmartOmnibox.iskanje(this, p))).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                                }.apply { tag = p }
-                            })
+                            if (!isFinishing && !isDestroyed && st == iskanjeSt && seznam != null) {
+                                var novih = 0
+                                for (p in seznam) if (cipi.childCount < cipi.najvec && cipi.findViewWithTag<View>("cip_$p") == null) {
+                                    // Zunanji pregled 3. 11. 2026: predlog odpre iskanje tega niza v spletu, ne ukaza.
+                                    cipi.addView(cipIskanja(p) {
+                                        odpri(Brskalnik.namera(this).setAction(Intent.ACTION_VIEW)
+                                            .setData(android.net.Uri.parse(si.safeer.tv.SmartOmnibox.iskanje(this, p))).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                                        zapriLupo()
+                                    })
+                                    novih++
+                                }
+                                stevilo += novih
+                                pripniCipe()
+                            }
+                            naMesto(kam, R.string.pk_lupa_predlogi, seznam?.let { emptyList() })
                         }
                     }
                 }
@@ -1495,6 +1674,9 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         podpisVrste = podpis
 
         val stare = vrstaDomov.toSet()
+        // Zunanji pregled 3. 11. 2026: ob USB ali novem imenu spletne aplikacije se vrsta nariše znova - fokus ostane na isti ploscici.
+        val fokusTag = vrstaAplikacij.findFocus()?.let { f -> generateSequence(f) { it.parent as? View }.firstOrNull { it.parent === vrstaAplikacij }?.tag }
+        if (fokusTag != null) vrstaAplikacij.post { vrstaAplikacij.findViewWithTag<View>(fokusTag)?.requestFocus() }
         vrstaAplikacij.removeAllViews()
         vrstaDomov = vrsta
         vrstaJePrivzeta = nicPripetega
@@ -1588,15 +1770,9 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                 val ime = usb.getDescription(this) ?: "USB"
                 val v = kartica(null, R.drawable.os_ikona_datoteke, ime) { _ ->
                     if (premikam != null) { koncajPremikanje(); return@kartica }
-                    // createOpenDocumentTreeIntent je od Androida 10 (API 29); na Androidu 9 bi bil NoSuchMethodError
-                    // (Error, catch Exception ga ne ujame) - tam in ob napaki odpremo nas brskalnik datotek (Lint NewApi,
-                    // CI 41458435776, 2. 11. 2026).
-                    val namera = if (android.os.Build.VERSION.SDK_INT >= 29) usb.createOpenDocumentTreeIntent() else null
-                    try {
-                        if (namera != null) startActivity(namera) else odpriKrajevneDatoteke()
-                    } catch (e: Exception) {
-                        odpriKrajevneDatoteke()
-                    }
+                    // Zunanji pregled 3. 11. 2026: sistemski izbirnik (createOpenDocumentTreeIntent) je okno za misko - z
+                    // daljincem se v njem ni dalo premikati. Vedno nas brskalnik datotek (USB je v njem na seznamu nosilcev).
+                    odpriKrajevneDatoteke()
                 }
                 v.tag = "usb:" + (usb.uuid ?: ime)
                 // Lastnik 3. 11. 2026: ploscice USB ni narocil in je ni mogel odstraniti. Dolg pritisk ali tipka menija jo
@@ -2302,6 +2478,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         /** Razmik ob vsakem filtru lupe (levo in desno). */
         private const val RAZMIK_FILTROV_DP = 3
         const val KLJUC_ZMANJSANO = "pokrajina_zmanjsano_gibanje"
+        /** Vrstni red filtrov lupe, ki ga izbere uporabnik (vejica med imeni, LupaPravila.vrstniRed). */
+        const val KLJUC_RED_LUPE = "lupa_vrstni_red"
         const val KLJUC_SPLET_PREDLOGI = "pokrajina_splet_predlogi"
         private const val KLJUC_KRAJ_IME = VremeKraj.KLJUC_IME
         private const val KLJUC_KRAJ_SIRINA = VremeKraj.KLJUC_SIRINA

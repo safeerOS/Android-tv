@@ -89,7 +89,27 @@ fun main() {
     preveriEnako("veljavna youtube", LupaPravila.OBSEG_YOUTUBE, LupaPravila.obseg("youtube"))
     preveriEnako("vrstni red gumbov", listOf("vse", "splet", "video", "youtube", "aplikacije", "datoteke", "nastavitve"), LupaPravila.OBSEGI)
     preveriEnako("vse: danasnje skupine po vrsti, nove za njimi, splet zadnji",
-        listOf("aplikacije", "novice", "datoteke", "nastavitve", "videoteke", "video", "youtube", "splet"), LupaPravila.skupine("vse"))
+        listOf("splet", "videoteke", "video", "youtube", "aplikacije", "novice", "datoteke", "nastavitve"), LupaPravila.skupine("vse"))
+    // Lastnik 3. 11. 2026 18:02: uporabnik sam razvrsti filtre in skupine pod Vse.
+    preveriEnako("razvrstitev: aplikacije prve", listOf("aplikacije", "novice", "splet", "videoteke", "video", "youtube", "datoteke", "nastavitve"),
+        LupaPravila.skupine("vse", listOf("aplikacije")))
+    preveriEnako("vrstni red: neznani in podvojeni odpadejo, Vse prvi", listOf("vse", "youtube", "splet", "video", "aplikacije", "datoteke", "nastavitve"),
+        LupaPravila.vrstniRed(listOf("youtube", "xx", "youtube", "vse")))
+    preveriEnako("premik levo", listOf("vse", "video", "splet", "youtube", "aplikacije", "datoteke", "nastavitve"),
+        LupaPravila.premakni(emptyList(), "video", -1))
+    preveriEnako("prvi filter ne gre pred Vse", LupaPravila.OBSEGI, LupaPravila.premakni(emptyList(), "splet", -1))
+    preveriEnako("zadnji filter ne gre cez rob", LupaPravila.OBSEGI, LupaPravila.premakni(emptyList(), "nastavitve", 1))
+    // Lastnik 3. 11. 2026 18:32-18:34: predlogi po smiselnosti (ujemanje), nato pogostosti, nato nedavnosti.
+    val stetje = LupaPravila.pristej(LupaPravila.pristej(LupaPravila.pristej(emptyMap(), "facebook"), "Facebook"), "fanfiction")
+    preveriEnako("isti niz z velikimi crkami je isto iskanje", mapOf("facebook" to 2, "fanfiction" to 1), stetje)
+    preveriEnako("smeti se ne stejejo", stetje, LupaPravila.pristej(stetje, "a"))
+    preveriEnako("stetje v besedilo in nazaj", stetje, LupaPravila.stetjeIzBesedila(LupaPravila.stetjeVBesedilo(stetje)))
+    preveriEnako("pogostejse prej", listOf("facebook", "fanfiction"), LupaPravila.pogosta(stetje, listOf("fanfiction", "facebook"), "fa", 6))
+    preveriEnako("ujemanje pred pogostostjo", listOf("rtv slo", "novice rtv"),
+        LupaPravila.pogosta(mapOf("novice rtv" to 9, "rtv slo" to 1), emptyList(), "rtv", 6))
+    preveriEnako("vpisan niz ni predlog", emptyList<String>(), LupaPravila.pogosta(stetje, emptyList(), "facebook", 6))
+    preveriEnako("najvec 6", 6, LupaPravila.pogosta(emptyMap(), (1..9).map { "film $it" }, "film", 6).size)
+    preveriEnako("prazen vpis: najpogostejsa", listOf("facebook", "fanfiction"), LupaPravila.pogosta(stetje, emptyList(), "", 6))
     preveriEnako("vse: vsaka skupina enkrat (aplikacija ni dvakrat)", LupaPravila.SKUPINE_VSE.size, LupaPravila.SKUPINE_VSE.toSet().size)
     preveriEnako("aplikacije: vse aplikacije uporabnika, tudi videoteke in novice", listOf("aplikacije", "videoteke", "novice"),
         LupaPravila.skupine("aplikacije"))

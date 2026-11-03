@@ -9,6 +9,13 @@ package si.safeer.tv.os
  * ki ustreza svojemu oknu. Meje so razredi velikosti okna iz Androidovih smernic (600 dp, 840 dp).
  */
 object ZaganjalnikPravila {
+    /**
+     * Ali oddaja ob zagonu sme odpreti Safeer OS (izbira »Ob vklopu«). Samo vklop televizorja; posodobitev aplikacije
+     * (MY_PACKAGE_REPLACED) ne - agent Play Store 3. 11. 2026: posodobitev OS je trgovino vrgla z zaslona.
+     */
+    fun odpriDomObOddaji(akcija: String): Boolean = akcija == "android.intent.action.BOOT_COMPLETED" ||
+        akcija == "android.intent.action.QUICKBOOT_POWERON" || akcija == "com.htc.intent.action.QUICKBOOT_POWERON"
+
 
     /** Razred sirine okna (Android window size classes). */
     enum class Sirina { OZKA, SREDNJA, SIROKA }

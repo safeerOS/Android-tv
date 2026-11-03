@@ -216,8 +216,14 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         super.onStop()
     }
 
+    override fun onPause() {
+        Zaganjalnik.domNaZaslonu(this, false)
+        super.onPause()
+    }
+
     override fun onResume() {
         super.onResume()
+        Zaganjalnik.domNaZaslonu(this, true)
         // Iz Programov se je lahko spremenil seznam priljubljenih: preberemo znova (hitro, iz shrambe).
         naloziPriljubljene()
         SporocilaZnak.osvezi(this, kuverta)

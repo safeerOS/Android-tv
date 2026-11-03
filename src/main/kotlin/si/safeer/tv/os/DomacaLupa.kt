@@ -502,7 +502,7 @@ object DomacaLupa {
                         ob(); true
                     } else false
                 })
-                layoutParams = LinearLayout.LayoutParams((sirinaDp * a.resources.displayMetrics.density).toInt(), (42 * a.resources.displayMetrics.density).toInt()).apply {
+                layoutParams = LinearLayout.LayoutParams((sirinaDp * a.resources.displayMetrics.density).toInt(), (38 * a.resources.displayMetrics.density).toInt()).apply {  // 38 dp: prostor za 3 vrste predlogov nad tipkovnico (lastnik 18:32)
                     val m = (2 * a.resources.displayMetrics.density).toInt()
                     setMargins(m, m, m, m)
                 }
@@ -510,20 +510,35 @@ object DomacaLupa {
             v.addView(btn)
         }
 
+        // Lastnik 3. 11. 2026 18:13: popravek sredi iskanja - znak gre na mesto kazalca, Brisi brise pred kazalcem,
+        // tipki ‹ › premakneta kazalec (prej samo na konec besedila).
+        fun vstavi(niz: String) {
+            val e = polje.text ?: return
+            val z = polje.selectionStart.coerceIn(0, e.length)
+            val k = polje.selectionEnd.coerceIn(z, e.length)
+            e.replace(z, k, niz)
+            polje.setSelection((z + niz.length).coerceAtMost(polje.text?.length ?: 0))
+        }
         for ((i, z) in znaki.withIndex()) {
             if (i > 0 && i % TIPK_V_VRSTI == 0) novaVrsta()
-            tipka(z.toString(), 34) { polje.append(z.toString()) }
+            tipka(z.toString(), 34) { vstavi(z.toString()) }
         }
         novaVrsta()
+        tipka("‹", 42) { polje.setSelection((polje.selectionStart - 1).coerceAtLeast(0)) }.also { v.getChildAt(v.childCount - 1).contentDescription = a.getString(R.string.os_tipk_kazalec_levo) }
+        tipka("›", 42) { polje.setSelection((polje.selectionEnd + 1).coerceAtMost(polje.text?.length ?: 0)) }.also { v.getChildAt(v.childCount - 1).contentDescription = a.getString(R.string.os_tipk_kazalec_desno) }
         tipka(if (stevilke) "ABC" else "123", 50) {
             narisiTipkovnico(a, t, polje, !stevilke)
             t.post { (t.getChildAt(0) as? ViewGroup)?.getChildAt(0)?.requestFocus() }
         }
-        tipka(a.getString(R.string.os_tipk_presledek), 60) { polje.append(" ") }
+        tipka(a.getString(R.string.os_tipk_presledek), 60) { vstavi(" ") }
         tipka(a.getString(R.string.os_tipk_vracalka), 60) {
-            val s = polje.text.toString()
-            if (s.isNotEmpty()) polje.setText(s.substring(0, s.length - 1))
-            polje.setSelection(polje.text.length)
+            val e = polje.text ?: return@tipka
+            val z = polje.selectionStart.coerceIn(0, e.length)
+            val k = polje.selectionEnd.coerceIn(z, e.length)
+            when {
+                k > z -> { e.delete(z, k); polje.setSelection(z) }
+                z > 0 -> { e.delete(z - 1, z); polje.setSelection(z - 1) }
+            }
         }
         // Prej pk_lupa_splet (»Isci v spletu: »%1$s«« z nadomestkom) - na tipki je bil viden %1$s.
         tipka(a.getString(R.string.os_glasba_iskanje), 72) {
@@ -550,8 +565,15 @@ object DomacaLupa {
     private fun dodajZgodovino(c: Context, q: String) {
         val s = c.getSharedPreferences(PREFS_LUPE, Context.MODE_PRIVATE)
         val staro = (s.getString("zgodovina", "") ?: "").split("\n")
-        s.edit().putString("zgodovina", LupaPravila.dodajVZgodovino(staro, q).joinToString("\n")).apply()
+        // Lastnik 3. 11. 2026 18:33: predlogi pod lupo se prilagajajo uporabniku - stejemo, kako pogosto kaj isce.
+        val stetje = LupaPravila.pristej(LupaPravila.stetjeIzBesedila(s.getString("stetje", "") ?: ""), q)
+        s.edit().putString("zgodovina", LupaPravila.dodajVZgodovino(staro, q).joinToString("\n"))
+            .putString("stetje", LupaPravila.stetjeVBesedilo(stetje)).apply()
     }
+
+    /** Kolikokrat je uporabnik kaj iskal (samo prava iskanja, LupaPravila.pristej). */
+    fun beriStetje(c: Context): Map<String, Int> =
+        LupaPravila.stetjeIzBesedila(c.getSharedPreferences(PREFS_LUPE, Context.MODE_PRIVATE).getString("stetje", "") ?: "")
 
     /** Zgodovina brez smeti; ce jih je bilo kaj (zapisi pred 2. 11. 2026), se ociscena zapise nazaj. */
     fun beriZgodovino(c: Context): List<String> {

@@ -266,8 +266,19 @@ object Zaganjalnik {
         }
     }
 
+    /**
+     * Zunanji pregled 3. 11. 2026: dom in mediji so en proces - padec v Videu ali pri naslovnici je stel kot padec doma in
+     * po dveh je Safeer izgubil dom. Steje samo padec, ko je domaci zaslon na zaslonu (zastavica ostane tudi po smrti procesa).
+     */
+    private const val KLJUC_DOM_SPREDAJ = "dom_spredaj"
+    fun domNaZaslonu(c: Context, da: Boolean) {
+        try { vrata(c).edit().putBoolean(KLJUC_DOM_SPREDAJ, da).apply() } catch (_: Throwable) { }
+    }
+    private fun domJeBilSpredaj(c: Context): Boolean = try { vrata(c).getBoolean(KLJUC_DOM_SPREDAJ, true) } catch (_: Throwable) { true }
+
     @android.annotation.SuppressLint("ApplySharedPref")   // namenoma commit: proces se takoj po tem konca
     private fun zabeleziPadec(app: Context) {
+        if (!domJeBilSpredaj(app)) return
         val v = vrata(app)
         val zdaj = System.currentTimeMillis()
         val casi = ZaganjalnikPravila.svezi(lastniPadci(app) + zdaj, zdaj)
@@ -327,8 +338,10 @@ object Zaganjalnik {
         if (!jePonujen(context)) return false
         val zdaj = System.currentTimeMillis()
         val od = try { vrata(context).getLong(KLJUC_OD, 0L) } catch (_: ClassCastException) { 0L }
+        // Sistemski zapis izhodov ne pove, kateri zaslon je padel: steje le, ce je bil ob zadnjem padcu spredaj dom.
+        val sistemski = if (domJeBilSpredaj(context)) sistemskiPadci(context) else emptyList()
         val vsi = ZaganjalnikPravila.padciPo(
-            ZaganjalnikPravila.zdruziPadce(lastniPadci(context), sistemskiPadci(context)), od, zdaj)
+            ZaganjalnikPravila.zdruziPadce(lastniPadci(context), sistemski), od, zdaj)
         if (!ZaganjalnikPravila.vrniPrejsnjemu(vsi, zdaj, drugiZaganjalniki(context).size)) return false
         Log.w(TAG, "Varnostna vrata: ${vsi.size} padcev od vklopa - domaci zaslon gre nazaj prejsnjemu zaganjalniku")
         vrniPoPadcih(context.applicationContext)

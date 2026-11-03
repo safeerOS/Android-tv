@@ -6,8 +6,8 @@ import android.content.Intent
 import android.util.Log
 
 /**
- * Po vklopu televizorja (in po posodobitvi aplikacije) odpre Safeer OS - ce je uporabnik to
- * izbral v nastavitvah. Privzeto ne naredi nicesar.
+ * Po vklopu televizorja odpre Safeer OS - ce je uporabnik to izbral v nastavitvah. Po posodobitvi aplikacije samo
+ * uskladi Safeer Vnos, zaslona ne vzame aplikaciji v ospredju. Privzeto ne naredi nicesar.
  */
 class ZagonPrejemnikOs : BroadcastReceiver() {
 
@@ -22,7 +22,7 @@ class ZagonPrejemnikOs : BroadcastReceiver() {
         // Po posodobitvi in vklopu: Safeer Vnos sledi ozjemu krogu (link/VnosVklop), tudi ce se Safeer OS ne odpre. Samo
         // ob zascitenih sistemskih oddajah - QUICKBOOT_POWERON lahko poslje katerakoli aplikacija (pregled tv-vnos, 4).
         if (si.safeer.tv.link.VnosVklopPravila.uskladiObOddaji(akcija)) si.safeer.tv.link.VnosVklop.uskladi(app, akcija)
-        if (!ZagonOb.jeVklopljen(app)) return
+        if (!ZaganjalnikPravila.odpriDomObOddaji(akcija) || !ZagonOb.jeVklopljen(app)) return
         Log.i("SafeerOsZagon", "Televizor se je prizgal ($akcija): odpiram Safeer OS.")
         try { ZagonOb.pokaziDomov(app) } catch (e: Throwable) {
             Log.w("SafeerOsZagon", "Safeer OS se ni odprl: ${e.message}")
