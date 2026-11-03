@@ -132,13 +132,45 @@ fun main() {
     // Prazni okvirji, izhodisce samo in elementi za hrbtom odpadejo.
     check(p.najblizji(od, listOf(Okvir(200, 0, 200, 100), Okvir(0, 0, 100, 100), Okvir(-200, 0, -100, 100)), Smer.DESNO) == -1)
     check(p.najblizji(od, emptyList(), Smer.DOL) == -1)
-    // Pregled tv-vnos 7: Enter klikne element s fokusom ali prednika z istim okvirjem, ne vecjega vsebnika.
+    // OK pod Androidom 13 (pregled tv-vnos 7 in zunanji pregled fokusa 3. 11. 2026), zaslon 1920 x 1080.
     val gumb = Okvir(100, 100, 300, 160)
-    check(p.ciljEnter(listOf(gumb to true, Okvir(0, 0, 1000, 800) to true)) == 0)
-    check(p.ciljEnter(listOf(gumb to false, Okvir(0, 0, 1000, 800) to true)) == -1)      // prej: klik na vsebnik
-    check(p.ciljEnter(listOf(gumb to false, Okvir(100, 100, 300, 160) to true)) == 1)     // kartica okoli besedila
-    check(p.ciljEnter(listOf(gumb to false, Okvir(100, 100, 300, 160) to false, Okvir(0, 0, 9, 9) to true)) == -1)
-    check(p.ciljEnter(emptyList()) == -1)
+    fun c(o: Okvir, k: Boolean, sez: Boolean = false) = VnosVklopPravila.Clen(o, k, sez)
+    check(p.ciljPotrditve(listOf(c(gumb, true), c(Okvir(0, 0, 1000, 800), true)), 1920, 1080) == 0)
+    check(p.ciljPotrditve(listOf(c(gumb, false), c(Okvir(0, 0, 1000, 800), true)), 1920, 1080) == -1)   // velik vsebnik ne
+    check(p.ciljPotrditve(listOf(c(gumb, false), c(Okvir(100, 100, 300, 160), true)), 1920, 1080) == 1)  // isti okvir
+    // Kartica: fokus na besedilu v njej, klikljiva je cela kartica z vecjim okvirjem (prej -1: OK ni naredil nicesar).
+    check(p.ciljPotrditve(listOf(c(gumb, false), c(Okvir(80, 60, 480, 400), false), c(Okvir(60, 40, 500, 420), true)), 1920, 1080) == 2)
+    // Seznam med elementom in klikljivim prednikom: ne cez seznam (klik bi zadel vsebnik seznama).
+    check(p.ciljPotrditve(listOf(c(gumb, false), c(Okvir(0, 0, 600, 600), false, true), c(Okvir(0, 0, 700, 700), true)), 1920, 1080) == -1)
+    // Cel zaslon (klik ob strani zapre okno) nikoli.
+    check(p.ciljPotrditve(listOf(c(gumb, false), c(Okvir(0, 0, 1920, 1080), true)), 1920, 1080) == -1)
+    // Prednik, ki elementa ne vsebuje (napacni okvirji), ne.
+    check(p.ciljPotrditve(listOf(c(gumb, false), c(Okvir(100, 100, 300, 160), false), c(Okvir(0, 0, 9, 9), true)), 1920, 1080) == -1)
+    check(p.ciljPotrditve(emptyList(), 1920, 1080) == -1)
+
+    // Zbiranje po zaslonu (zunanji pregled fokusa 3. 11. 2026): vozlisce = (okvir, fokusabilen, otroci).
+    class V(val o: Okvir, val f: Boolean, val otroci: List<V> = emptyList())
+    val zaslon = Okvir(0, 0, 1920, 1080)
+    var obiskov = 0
+    fun zberi(k: V, meja: Int = VnosVklopPravila.NAJVEC_OBISKOV) =
+        p.zberiNaZaslonu(k, { obiskov++; it.otroci }, { it.o }, { it.f }, zaslon, meja)
+    // Orodna vrstica s 450 gnezdenimi gumbi na zacetku drevesa, gumb »Shrani« spodaj kot drugi otrok korena.
+    val orodna = V(Okvir(0, 0, 1920, 100), false, (0 until 450).map { V(Okvir(it * 4, 10, it * 4 + 4, 90), true) })
+    val shrani = V(Okvir(800, 950, 1100, 1040), true)
+    val koren = V(zaslon, false, listOf(orodna, shrani))
+    check(zberi(koren).contains(shrani))                     // prej: meja 400 kandidatov porabljena v orodni vrstici
+    // Gumb globlje od 40 ravni (prej meja globine 40).
+    var globok = V(Okvir(100, 500, 300, 560), true)
+    repeat(45) { globok = V(Okvir(0, 0, 1920, 1080), false, listOf(globok)) }
+    check(zberi(globok).size == 1)
+    // Veja cisto zunaj zaslona se ne obisce (njeni otroci niso vidni).
+    val zunaj = V(Okvir(0, 2000, 1920, 3000), false, (0 until 50).map { V(Okvir(0, 2000 + it, 10, 2010 + it), true) })
+    obiskov = 0
+    check(zberi(V(zaslon, false, listOf(zunaj, shrani))).single() === shrani)
+    check(obiskov == 2)                                      // koren in shrani; zunaj odpade brez branja otrok
+    // Meja dela: najvec toliko obiskanih vozlisc, plitvi elementi pred globokimi.
+    check(zberi(koren, 3).contains(shrani))
+
     // Brez fokusa: prvi zgoraj levo.
     check(p.prvi(listOf(pl(1, 1), pl(2, 0), pl(1, 0), Okvir(0, 0, 0, 0))) == 2)
     check(p.prvi(emptyList()) == -1)

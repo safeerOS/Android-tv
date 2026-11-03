@@ -39,7 +39,6 @@ class VnosStoritev : AccessibilityService() {
         private const val NAJVEC_KORAKOV = 8
         /** Meji iskanja fokusabilnih elementov pod Androidom 13 (globina drevesa, stevilo kandidatov). */
         private const val NAJVEC_GLOBINE = 40
-        private const val NAJVEC_KANDIDATOV = 400
 
         @Volatile private var instanca: VnosStoritev? = null
 
@@ -519,20 +518,29 @@ class VnosStoritev : AccessibilityService() {
             c.contains("ViewGroup") || c.contains("Layout") || c.contains("ViewPager")
     }
 
-    /** Vidni, omogoceni interaktivni elementi aktivnega okna (brez vsebnikov in celozaslonskih pogledov). */
-    private fun zberiInteraktivne(n: AccessibilityNodeInfo, izid: MutableList<AccessibilityNodeInfo>, globina: Int) {
-        if (globina > NAJVEC_GLOBINE || izid.size >= NAJVEC_KANDIDATOV) return
-        val r = Rect()
-        n.getBoundsInScreen(r)
+    /** Otroci vozlisca (napaka pri branju enega otroka ne ustavi zbiranja). */
+    private fun otroci(n: AccessibilityNodeInfo): List<AccessibilityNodeInfo> =
+        (0 until n.childCount).mapNotNull { i -> try { n.getChild(i) } catch (_: Throwable) { null } }
+
+    /** Okvir celega zaslona za zbiranje (VnosVklopPravila.zberiNaZaslonu). */
+    private fun zaslon(): VnosVklopPravila.Okvir {
+        val (w, h) = velikost()
+        return VnosVklopPravila.Okvir(0, 0, if (w > 0) w else Int.MAX_VALUE, if (h > 0) h else Int.MAX_VALUE)
+    }
+
+    /**
+     * Vidni, omogoceni interaktivni elementi aktivnega okna (brez vsebnikov in celozaslonskih pogledov). Zunanji pregled
+     * 3. 11. 2026: po vsem zaslonu v sirino (VnosVklopPravila.zberiNaZaslonu), ne vec v globino z mejo 400/40.
+     */
+    private fun zberiInteraktivne(koren: AccessibilityNodeInfo): List<AccessibilityNodeInfo> {
         val (zaslonW, zaslonH) = velikost()
-        val celozaslonski = zaslonW > 0 && zaslonH > 0 && r.width() >= zaslonW - 30 && r.height() >= zaslonH - 30
-        if ((n.isFocusable || n.isClickable) && n.isVisibleToUser && n.isEnabled && !celozaslonski &&
-            r.width() > 15 && r.height() > 15 && !jePasivenVsebnik(n)
-        ) izid.add(n)
-        for (i in 0 until n.childCount) {
-            val otrok = try { n.getChild(i) } catch (_: Throwable) { null } ?: continue
-            zberiInteraktivne(otrok, izid, globina + 1)
-        }
+        return VnosVklopPravila.zberiNaZaslonu(koren, ::otroci, ::okvir, { n ->
+            val r = Rect()
+            n.getBoundsInScreen(r)
+            val celozaslonski = zaslonW > 0 && zaslonH > 0 && r.width() >= zaslonW - 30 && r.height() >= zaslonH - 30
+            (n.isFocusable || n.isClickable) && n.isVisibleToUser && n.isEnabled && !celozaslonski &&
+                r.width() > 15 && r.height() > 15 && !jePasivenVsebnik(n)
+        }, zaslon(), VnosVklopPravila.NAJVEC_OBISKOV)
     }
 
     /**
@@ -553,8 +561,7 @@ class VnosStoritev : AccessibilityService() {
     }
 
     private fun najdiInteraktivnoVozlisce(koren: AccessibilityNodeInfo): AccessibilityNodeInfo? {
-        val kandidati = ArrayList<AccessibilityNodeInfo>()
-        zberiInteraktivne(koren, kandidati, 0)
+        val kandidati = zberiInteraktivne(koren)
         if (kandidati.isEmpty()) return null
         return poisciPrimarniGumb(kandidati)
             ?: kandidati.firstOrNull { it.isClickable && it.isVisibleToUser && it.isEnabled }
@@ -564,8 +571,7 @@ class VnosStoritev : AccessibilityService() {
     /** Smerna tipka v neprilagojeni aplikaciji, kjer je fokus obtical na vsebniku: na najblizji interaktivni element. */
     private fun premakniMedInteraktivnimi(smer: VnosVklopPravila.Smer, od: AccessibilityNodeInfo?): Boolean {
         val koren = try { rootInActiveWindow } catch (_: Throwable) { null } ?: return false
-        val kandidati = ArrayList<AccessibilityNodeInfo>()
-        zberiInteraktivne(koren, kandidati, 0)
+        val kandidati = zberiInteraktivne(koren)
         if (kandidati.isEmpty()) return false
         val okvirji = kandidati.map { okvir(it) }
         val i = if (od != null) VnosVklopPravila.najblizji(okvir(od), okvirji, smer) else VnosVklopPravila.prvi(okvirji)
@@ -589,9 +595,12 @@ class VnosStoritev : AccessibilityService() {
         var vozlisce = fokusirano(koren)
         if (jePasivenVsebnik(vozlisce)) vozlisce = najdiInteraktivnoVozlisce(koren) ?: vozlisce
         val n = vozlisce ?: return
-        var cilj: AccessibilityNodeInfo? = n
-        while (cilj != null && !cilj.isClickable) cilj = try { cilj.parent } catch (_: Throwable) { null }
-        if (cilj != null && cilj.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return
+        // Zunanji pregled 3. 11. 2026: isto pravilo kot potrdi() - klikljiva kartica da, cel zaslon ali seznam ne
+        // (prej katerikoli klikljiv prednik, tudi vsebnik cez ves zaslon); sicer dotik na sredini elementa.
+        val veriga = verigaPrednikov(n)
+        val (sirina, visina) = velikost()
+        val i = VnosVklopPravila.ciljPotrditve(veriga.map { clen(it) }, sirina, visina)
+        if (i >= 0 && veriga[i].performAction(AccessibilityNodeInfo.ACTION_CLICK)) return
         val r = Rect()
         n.getBoundsInScreen(r)
         val (zaslonW, zaslonH) = velikost()
@@ -744,8 +753,7 @@ class VnosStoritev : AccessibilityService() {
 
     private fun skociNaVrstico(dol: Boolean): Boolean {
         val koren = try { rootInActiveWindow } catch (_: Throwable) { null } ?: return false
-        val kandidati = ArrayList<AccessibilityNodeInfo>()
-        zberiFokusabilne(koren, kandidati, 0)
+        val kandidati = zberiFokusabilne(koren)
         val i = VnosVklopPravila.vrstica(kandidati.map { okvir(it) }, dol, velikost().second)
         return i >= 0 && try { kandidati[i].performAction(AccessibilityNodeInfo.ACTION_FOCUS) } catch (_: Throwable) { false }
     }
@@ -841,8 +849,7 @@ class VnosStoritev : AccessibilityService() {
             } catch (_: Throwable) { null }
             if (cilj != null && cilj != od && cilj.isVisibleToUser && cilj.performAction(AccessibilityNodeInfo.ACTION_FOCUS)) return true
         }
-        val kandidati = ArrayList<AccessibilityNodeInfo>()
-        zberiFokusabilne(koren, kandidati, 0)
+        val kandidati = zberiFokusabilne(koren)
         val okvirji = kandidati.map { okvir(it) }
         val i = if (od != null) VnosVklopPravila.najblizji(okvir(od), okvirji, smer) else VnosVklopPravila.prvi(okvirji)
         return i >= 0 && kandidati[i].performAction(AccessibilityNodeInfo.ACTION_FOCUS)
@@ -859,15 +866,13 @@ class VnosStoritev : AccessibilityService() {
         return VnosVklopPravila.Okvir(r.left, r.top, r.right, r.bottom)
     }
 
-    /** Vidni, omogoceni fokusabilni elementi aktivnega okna (meja globine in stevila: veliki seznami ne zavrejo vnosa). */
-    private fun zberiFokusabilne(n: AccessibilityNodeInfo, izid: MutableList<AccessibilityNodeInfo>, globina: Int) {
-        if (globina > NAJVEC_GLOBINE || izid.size >= NAJVEC_KANDIDATOV) return
-        if (n.isFocusable && n.isVisibleToUser && n.isEnabled) izid.add(n)
-        for (i in 0 until n.childCount) {
-            val otrok = try { n.getChild(i) } catch (_: Throwable) { null } ?: continue
-            zberiFokusabilne(otrok, izid, globina + 1)
-        }
-    }
+    /**
+     * Vidni, omogoceni fokusabilni elementi aktivnega okna. Meja dela je stevilo obiskanih vozlisc (veliki seznami ne
+     * zavrejo vnosa), zbiranje pa zajame cel zaslon (zunanji pregled 3. 11. 2026, VnosVklopPravila.zberiNaZaslonu).
+     */
+    private fun zberiFokusabilne(koren: AccessibilityNodeInfo): List<AccessibilityNodeInfo> =
+        VnosVklopPravila.zberiNaZaslonu(koren, ::otroci, ::okvir, { n -> n.isFocusable && n.isVisibleToUser && n.isEnabled },
+            zaslon(), VnosVklopPravila.NAJVEC_OBISKOV)
 
     /** Enter: v besedilnem polju potrdi vnos (iskanje, poslji); drugje klikne, kar ima fokus. */
     private fun potrdi(): Boolean {
@@ -875,14 +880,25 @@ class VnosStoritev : AccessibilityService() {
         if (polje != null && polje.isEditable && Build.VERSION.SDK_INT >= 30 &&
             polje.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_IME_ENTER.id)) return true
         if (Build.VERSION.SDK_INT >= 33) return performGlobalAction(GLOBAL_ACTION_DPAD_CENTER)
-        // Pod Androidom 13 klikne element s fokusom (tudi, ce ni vnosno polje - kartica, gumb na televizorju); prednika
-        // samo z istim okvirjem (VnosVklopPravila.ciljEnter) - ne vecjega vsebnika, ki ga uporabnik ni izbral.
-        val veriga = ArrayList<AccessibilityNodeInfo>()
-        var n = polje ?: fokusirano(try { rootInActiveWindow } catch (_: Throwable) { null })
-        while (n != null && veriga.size < NAJVEC_GLOBINE) { veriga.add(n); n = try { n.parent } catch (_: Throwable) { null } }
-        val i = VnosVklopPravila.ciljEnter(veriga.map { okvir(it) to it.isClickable })
+        // Pod Androidom 13 klikne element s fokusom (tudi, ce ni vnosno polje - kartica, gumb na televizorju) ali
+        // najblizjega klikljivega prednika - kartico, ne seznama in ne vsebnika cez vec kot cetrt zaslona
+        // (VnosVklopPravila.ciljPotrditve).
+        val zacetek = polje ?: fokusirano(try { rootInActiveWindow } catch (_: Throwable) { null }) ?: return false
+        val veriga = verigaPrednikov(zacetek)
+        val (sirina, visina) = velikost()
+        val i = VnosVklopPravila.ciljPotrditve(veriga.map { clen(it) }, sirina, visina)
         return i >= 0 && veriga[i].performAction(AccessibilityNodeInfo.ACTION_CLICK)
     }
+
+    /** Element in njegovi starsi (najvec NAJVEC_GLOBINE). */
+    private fun verigaPrednikov(od: AccessibilityNodeInfo): List<AccessibilityNodeInfo> {
+        val veriga = ArrayList<AccessibilityNodeInfo>()
+        var n: AccessibilityNodeInfo? = od
+        while (n != null && veriga.size < NAJVEC_GLOBINE) { veriga.add(n); n = try { n.parent } catch (_: Throwable) { null } }
+        return veriga
+    }
+
+    private fun clen(n: AccessibilityNodeInfo) = VnosVklopPravila.Clen(okvir(n), n.isClickable, jeSeznam(n))
 
     // ------------------------------------------------------------------ kolesce
 

@@ -221,19 +221,63 @@ object VnosVklopPravila {
         return najboljsi
     }
 
+    /** Clen verige od elementa s fokusom navzgor: okvir, ali je klikljiv in ali je seznam (vsebnik, ki se drsi). */
+    class Clen(val okvir: Okvir, val klikljiv: Boolean, val seznam: Boolean = false)
+
+    /** Najvecji del zaslona, ki ga sme zasesti klikljiv prednik (kartica), da ga OK klikne namesto elementa s fokusom. */
+    const val NAJVEC_DELA_ZASLONA = 0.25
+
     /**
-     * Enter pod Androidom 13 (pregled tv-vnos, tocka 7): klikne element s fokusom, ce je klikljiv; prednika samo, ce
-     * zaseda isti okvir (isti vidni element, npr. kartica okoli besedila) - nikoli vecjega vsebnika. [veriga]: element s
-     * fokusom, nato starsi (okvir, klikljiv). Vrne indeks ali -1.
+     * Kaj klikne OK pod Androidom 13 (VnosStoritev.potrdi in aktivirajFokus). [veriga]: element s fokusom, nato starsi.
+     * Pregled tv-vnos (tocka 7) je dovolil samo prednika z istim okvirjem; zunanji pregled fokusa 3. 11. 2026: fokus je
+     * pogosto na besedilu ali sliki v kartici, klikljiva pa je cela kartica (vecji okvir) - takrat OK ni naredil nicesar.
+     * Zdaj najblizji klikljiv prednik, ki vsebuje element s fokusom, NI seznam in zaseda najvec [NAJVEC_DELA_ZASLONA]
+     * zaslona [sirina] x [visina]; vecji vsebnik (»klik ob strani zapre okno«, cela stran) nikoli. Vrne indeks ali -1.
      */
-    fun ciljEnter(veriga: List<Pair<Okvir, Boolean>>): Int {
-        val prvi = veriga.firstOrNull()?.first ?: return -1
-        for ((i, e) in veriga.withIndex()) {
-            if (i > 0 && !e.first.enak(prvi)) return -1
-            if (e.second) return i
+    fun ciljPotrditve(veriga: List<Clen>, sirina: Int, visina: Int): Int {
+        val prvi = veriga.firstOrNull()?.okvir ?: return -1
+        val meja = if (sirina > 0 && visina > 0) sirina.toDouble() * visina * NAJVEC_DELA_ZASLONA else Double.MAX_VALUE
+        for ((i, c) in veriga.withIndex()) {
+            if (i > 0) {
+                if (c.seznam) return -1
+                val o = c.okvir
+                if (!(o.levo <= prvi.levo && o.zgoraj <= prvi.zgoraj && o.desno >= prvi.desno && o.spodaj >= prvi.spodaj)) return -1
+                if (!o.enak(prvi) && (o.desno - o.levo).toDouble() * (o.spodaj - o.zgoraj) > meja) return -1
+            }
+            if (c.klikljiv) return i
         }
         return -1
     }
+
+    /**
+     * Zbiranje kandidatov za krizec po vsem zaslonu (zunanji pregled fokusa 3. 11. 2026). Prej v globino z mejo 400
+     * kandidatov in globine 40: veje na zacetku drevesa (orodna vrstica, globoko gnezdeni vsebniki) so porabile mejo, gumbi
+     * spodaj so izpadli in krizec je obtical; globlje od 40 ni bilo nicesar. Zdaj v sirino (vsi plitvi elementi zaslona
+     * pred globokimi), veje cisto zunaj zaslona [zaslon] se preskocijo (njihovi otroci niso vidni), meja dela je stevilo
+     * OBISKANIH vozlisc [najvecObiskov] (vsak getChild je klic v drug proces) - ne stevilo kandidatov.
+     */
+    fun <T> zberiNaZaslonu(
+        koren: T, otroci: (T) -> List<T>, okvir: (T) -> Okvir, sprejmi: (T) -> Boolean,
+        zaslon: Okvir, najvecObiskov: Int
+    ): List<T> {
+        val izid = ArrayList<T>()
+        val vrsta = ArrayDeque<T>()
+        vrsta.addLast(koren)
+        var obiskov = 0
+        while (vrsta.isNotEmpty() && obiskov < najvecObiskov) {
+            val n = vrsta.removeFirst()
+            obiskov++
+            val o = okvir(n)
+            // Prazen okvir (vsebnik brez velikosti) ne pove nicesar o otrocih: gremo naprej. Okvir zunaj zaslona: veja odpade.
+            if (!o.prazen && !(o.desno > zaslon.levo && o.levo < zaslon.desno && o.spodaj > zaslon.zgoraj && o.zgoraj < zaslon.spodaj)) continue
+            if (sprejmi(n)) izid.add(n)
+            for (c in otroci(n)) vrsta.addLast(c)
+        }
+        return izid
+    }
+
+    /** Najvec obiskanih vozlisc pri enem zbiranju (meritev casa ni bila mogoca brez vklopa dostopnosti - glej porocilo). */
+    const val NAJVEC_OBISKOV = 1500
 
     /** Brez fokusa: prvi element zgoraj levo (vrstica, nato stolpec), ali -1. */
     fun prvi(kandidati: List<Okvir>): Int {
