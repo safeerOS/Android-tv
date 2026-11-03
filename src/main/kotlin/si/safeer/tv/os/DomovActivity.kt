@@ -123,7 +123,10 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 val nov = Intent(this, PokrajinaActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 intent?.extras?.let { nov.putExtras(it) }
                 if (intent?.hasCategory(Intent.CATEGORY_HOME) == true) nov.addCategory(Intent.CATEGORY_HOME)
+                nov.removeExtra(EXTRA_VRNI)
                 startActivity(nov)
+                // Zunanji pregled 3. 11. 2026: po zaprtju Linka (os_vrni=naprave) nazaj na seznam naprav, kot brez bete.
+                if (intent?.getStringExtra(EXTRA_VRNI) == VRNI_NAPRAVE) try { startActivity(Intent(this, NapraveActivity::class.java)) } catch (_: Throwable) { }
                 finish()
                 @Suppress("DEPRECATION") overridePendingTransition(0, 0)
                 return

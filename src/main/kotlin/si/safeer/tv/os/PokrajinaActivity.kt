@@ -415,7 +415,13 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
 
     private fun robDocka() {
         if (!::koren.isInitialized || dok.height == 0) return
-        dock?.nastaviRob(koren.height - dok.top + dp(8))
+        // Zunanji pregled 3. 11. 2026: dok je otrok spodnjega dela, ne korena - top je glede na starsa. Vrh doka v
+        // koordinatah korena dobimo s sprehodom po starsih (kot prilagodiPloscoZadetkov).
+        var vrh = dok.top
+        var p = dok.parent as? View
+        while (p != null && p !== koren) { vrh += p.top; p = p.parent as? View }
+        if (p == null) return
+        dock?.nastaviRob(koren.height - vrh + dp(8))
     }
     private val medijiPoslusalec: () -> Unit = { runOnUiThread { dock?.osvezi() } }
 
@@ -436,6 +442,15 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         // Lastnik 1. 11. 2026: tipko Domov sistem ne poslje v dispatchKeyEvent, ampak kot namero HOME - tudi ta mora
         // zbuditi zaslon iz mirovanja (prvi pritisk samo zbudi, kot pri drugih tipkah).
         setIntent(intent)
+        // Zunanji pregled 3. 11. 2026: dokaz, da smo domaci zaslon, tudi ob Domov v ze odprti Pokrajini (singleTask) -
+        // sicer je Nazaj po zagonu z ikone zapustil dom (televizorji vrnejo svoj prestreznik Domov).
+        if (intent?.hasCategory(Intent.CATEGORY_HOME) == true) Zaganjalnik.zabeleziZagonDomov(this)
+        // Po zaprtju Linka (os_vrni=naprave, glej DomovActivity.vrniSeKamorJeBil) nazaj na seznam naprav.
+        if (intent?.getStringExtra("os_vrni") == "naprave") {
+            intent.removeExtra("os_vrni")
+            try { startActivity(Intent(this, NapraveActivity::class.java)) } catch (_: Throwable) { }
+            return
+        }
         // Pregled Grok 2. 11. 2026: Domov konca tudi premikanje ploscice (prej je levo/desno po Domov se premikalo).
         if (intent?.hasCategory(Intent.CATEGORY_HOME) == true) { koncajPremikanje(); koncajPremikanjeDok() }
         if (intent?.hasCategory(Intent.CATEGORY_HOME) == true && mirujem) { zbudi(); return }
@@ -1430,7 +1445,11 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
 
 
     private fun narisiAplikacije(): Boolean {
-        val vsi = Aplikacije.zadnjiZnani(this) ?: Aplikacije.seznam(this)
+        // Zunanji pregled 3. 11. 2026: Pokrajina ni nikoli osvezila seznama (namestitev/odstranitev ni bila vidna) in je
+        // brez predpomnilnika brala vse aplikacije z ikonami na glavni niti. Zdaj zadnji znani + osvezitev v ozadju.
+        val znani = Aplikacije.zadnjiZnani(this)
+        Aplikacije.osveziVOzadju(this, znani, brezIkon = true) { if (!isFinishing && !isDestroyed) narisiAplikacije() }
+        val vsi = znani ?: emptyList()
         val poPaketu = vsi.associateBy { it.paket }
         val spletne = SpletneAplikacije.seznam(this).associateBy { "splet:" + it.url }
         val zacetnaVrsta = PokrajinaPravila.vrstaDomov(Priljubljene.redDomov(this), Priljubljene.seznam(this) + spletne.keys,
@@ -1454,6 +1473,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         val stare = vrstaDomov.toSet()
         vrstaAplikacij.removeAllViews()
         vrstaDomov = vrsta
+        vrstaJePrivzeta = nicPripetega
         
         val nove = vrsta.filter { it !in stare }
         if (stare.isNotEmpty() && nove.isNotEmpty()) {
@@ -1573,6 +1593,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
 
     /** Vrstni red, kot je trenutno narisan (za premik in shranjevanje). */
     private var vrstaDomov: List<String> = emptyList()
+    /** Vrsta kaze prvih nekaj aplikacij, ker ni nic pripetega (zunanji pregled 3. 11. 2026: teh ni mogoce premikati ali odstraniti). */
+    private var vrstaJePrivzeta = false
     private var podpisVrste: List<String> = emptyList()
     // ------------------------------------------------------------------ mirovanje (po zgledu tv-simple-home)
     private var zadnjiVnos = 0L
@@ -1701,7 +1723,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
      * jo odstrani.
      */
     private fun moznostiPloscice(id: String, ime: String, splet: Boolean) {
-        val dejanja = mutableListOf(
+        // Privzeta vrsta (nic pripetega): ploscice niso priljubljene - premik in odstranitev bi le izginila ob osvezitvi.
+        val dejanja: MutableList<Pair<String, () -> Unit>> = if (vrstaJePrivzeta && !splet) mutableListOf() else mutableListOf(
             getString(R.string.pk_premakni) to { zacniPremikanje(id) },
             getString(R.string.os_spletne_levo) to { premakniPloscico(id, -1) },
             getString(R.string.os_spletne_desno) to { premakniPloscico(id, 1) },
@@ -1720,8 +1743,11 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                 dejanja.add(getString(R.string.zg_podatki_aplikacije) to {
                     odpri(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).setData(android.net.Uri.parse("package:$id")))
                 })
-                val jeSistemska = (a.info?.applicationInfo?.flags ?: 0) and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0
-                val posodobitevSistemske = (a.info?.applicationInfo?.flags ?: 0) and android.content.pm.ApplicationInfo.FLAG_UPDATED_SYSTEM_APP != 0
+                // Zunanji pregled 3. 11. 2026: zastavice iz PackageManager, ne iz predpomnilnika (tam a.info manjka in
+                // sistemska aplikacija je dobila »Odstrani z naprave«). Neznano = ne ponudimo.
+                val zastavice = try { packageManager.getApplicationInfo(id, 0).flags } catch (_: Throwable) { null }
+                val jeSistemska = zastavice == null || zastavice and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0
+                val posodobitevSistemske = zastavice != null && zastavice and android.content.pm.ApplicationInfo.FLAG_UPDATED_SYSTEM_APP != 0
                 if (!jeSistemska && !posodobitevSistemske && id != packageName) {
                     dejanja.add(getString(R.string.pk_odstrani_z_naprave) to {
                         odpri(Intent(Intent.ACTION_DELETE).setData(android.net.Uri.parse("package:$id")))
@@ -1742,6 +1768,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     }
 
     private fun premakniPloscico(id: String, korak: Int): Boolean {
+        if (vrstaJePrivzeta) return false
         val pogled = vrstaAplikacij.findViewWithTag<View>(id) ?: return false
         val i = vrstaAplikacij.indexOfChild(pogled)
         if (i < 0) return false
@@ -1759,6 +1786,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     }
 
     private fun zacniPremikanje(id: String) {
+        if (vrstaJePrivzeta) return
         premikam = id
         osveziStanjePremikanja(vrstaAplikacij, id, dp(10))
         vrstaAplikacij.findViewWithTag<View>(id)?.requestFocus()

@@ -82,6 +82,16 @@ internal fun HubUsmerjevalnik.odgovoriSeznanitev(zahteva: HubStreznik.Zahteva, p
         if (deviceId == lastnik || !deviceId.startsWith("$lastnik-")) {
             return HubStreznik.Odgovor(403, napakaJson("Ni sorodna naprava.", "ni_sorodnik"))
         }
+        // Zunanji pregled 3. 11. 2026: naprava, seznanjena kot »n«, je zahtevala sorodnika »n-<id zrtve>« in prevzela
+        // zeton tuje naprave. Pripona je samo kratka oznaka programa (os, control, tv ...), nikoli id iz kljuca,
+        // in id, ki ze pripada clanu kroga z drugim kljucem, ni sorodnik.
+        if (!HubUsmerjevalnik.jePriponaSorodnika(deviceId.removePrefix("$lastnik-"))) {
+            return HubStreznik.Odgovor(403, napakaJson("Ni sorodna naprava.", "ni_sorodnik"))
+        }
+        val clanOni = krog.clanZaId(deviceId)
+        if (clanOni != null && clanOni.kljuc != krog.clanZaId(lastnik)?.kljuc) {
+            return HubStreznik.Odgovor(409, napakaJson("Ta id ze pripada drugi napravi.", "id_zaseden"))
+        }
         val zeton = synchronized(kljucnica) {
             val nov = "saf_tv_" + nakljucni(24)
             vpisiZeton(nov, SeznanjenaNaprava(deviceId, ime, ura() / 1000.0))
@@ -237,6 +247,12 @@ internal fun HubUsmerjevalnik.odgovoriDeljenje(zahteva: HubStreznik.Zahteva, pot
             return HubStreznik.Odgovor(401, napakaJson("Naprava ni seznanjena.", "naprava_ni_seznanjena"))
         }
         val id = (JsonLahki.objekt(zahteva.telo)?.niz("id") ?: "").trim()
+        // Zunanji pregled 3. 11. 2026: ustavi samo posiljatelj ali cilj tega deljenja, ne katerakoli seznanjena naprava.
+        val kdo = napravaZeZetona(zahteva.glave["x-safeer-token"]) ?: ""
+        val (posiljateljZ, ciljZ) = synchronized(kljucnica) { deljeniZasloniPosiljatelji[id] to deljeniZasloni[id] }
+        if (posiljateljZ != null && kdo != posiljateljZ && kdo != ciljZ) {
+            return HubStreznik.Odgovor(403, napakaJson("Tega deljenja ne moreš ustaviti.", "ni_tvoje_deljenje"))
+        }
         // koncajZaslon poklice nazaj zaslonKoncan, ki obvesti cilj.
         tokovi?.koncajZaslon(id)
         return HubStreznik.Odgovor(200, JsonLahki.Zapis().logicno("stopped", true).toString())

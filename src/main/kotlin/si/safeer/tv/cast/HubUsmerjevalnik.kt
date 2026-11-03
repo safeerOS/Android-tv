@@ -2605,12 +2605,19 @@ class HubUsmerjevalnik(
             if (naslov.isBlank()) return false
             return try {
                 val ip = java.net.InetAddress.getByName(naslov)
-                ip.isSiteLocalAddress || ip.isLoopbackAddress || ip.isLinkLocalAddress ||
-                    ip.isAnyLocalAddress
+                // Zunanji pregled 3. 11. 2026: isSiteLocalAddress ne pozna IPv6 ULA (fc00::/7), ki ga dajo domaci
+                // usmerjevalniki - seznanitev je takrat vrnila 403. CGNAT (100.64/10) ostane zunaj.
+                val b = ip.address
+                val ula = b.size == 16 && (b[0].toInt() and 0xFE) == 0xFC
+                ip.isSiteLocalAddress || ip.isLoopbackAddress || ip.isLinkLocalAddress || ip.isAnyLocalAddress || ula
             } catch (e: Exception) {
                 false
             }
         }
+
+        /** Pripona sorodne naprave: kratka oznaka programa, nikoli oblika id-ja iz kljuca (16 sestnajstiskih znakov). */
+        fun jePriponaSorodnika(pripona: String): Boolean =
+            Regex("^[a-z][a-z0-9]{0,15}$").matches(pripona) && !Regex("^[0-9a-f]{16}$").matches(pripona)
     }
 }
 

@@ -1250,7 +1250,12 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
          */
         fun domov(c: android.content.Context): Class<out android.app.Activity> = domacaRazred ?: run {
             val k = try { c.packageManager.getLaunchIntentForPackage(c.packageName)?.component?.className } catch (_: Throwable) { null }
-            (if (k == ZaganjalnikActivity::class.java.name) ZaganjalnikActivity::class.java else DomovActivity::class.java)
+            // Zunanji pregled 3. 11. 2026: telefon in tablica imata DomovTabletActivity (samo v okusih na dotik, zato po
+            // imenu) - prej je Nazaj/Domov najprej odprl lezeci TV zaslon.
+            val tablicni = if (k != null && k.endsWith(".DomovTabletActivity")) try {
+                @Suppress("UNCHECKED_CAST") (Class.forName(k) as Class<out android.app.Activity>)
+            } catch (_: Throwable) { null } else null
+            (tablicni ?: if (k == ZaganjalnikActivity::class.java.name) ZaganjalnikActivity::class.java else DomovActivity::class.java)
                 .also { domacaRazred = it }
         }
 

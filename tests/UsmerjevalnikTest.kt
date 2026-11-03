@@ -764,6 +764,10 @@ private fun preizkusDeljenjaPoHttp() {
     preveriEnako("racunalnik pa lahko medtem deli zaslon s telefonom", 200, naTelefon?.koda)
     preveri("seznam naprav pove, da je televizor zaseden", u.povezaniPrejemniki().contains("\"busy_by\":\"tablica\"") &&
         u.povezaniPrejemniki().contains("\"busy_by_name\":\"Naprava tablica\""))
+    // Zunanji pregled 3. 11. 2026: tuje deljenje ustavi samo posiljatelj ali cilj.
+    preveriEnako("racunalnik ne ustavi deljenja tablice (403)", 403,
+        u.odgovori(zahteva("POST", "/cast/share/screen/stop", """{"id":"$idZaslona"}""", glave = glavePc))?.koda)
+    preveri("deljenje tablice tece naprej", tokovi.zaslonTece(idZaslona))
     tv.pocisti()
     preveriEnako("konec deljenja je 200", 200,
         u.odgovori(zahteva("POST", "/cast/share/screen/stop", """{"id":"$idZaslona"}""", glave = glaveTablice))?.koda)
@@ -854,6 +858,17 @@ private fun preizkusSorodnika() {
     preveri("ponovna zahteva zamenja zeton, naprava ostane ena",
         ponovno?.koda == 200 && u.seznanjeneNaprave().count { it.deviceId == "pc-primer-control" } == 1 && !u.jeVeljavenZeton(nov))
     preveriEnako("GET na to pot je 405", 405, u.odgovori(zahteva("GET", "/cast/pair/sibling"))?.koda)
+    // Zunanji pregled 3. 11. 2026: naprava »n« ne sme dobiti zetona za obstojeco »n-<16 hex>«.
+    val zrtev = u.zagotoviLastniZeton("n-abcdef0123456789", "TV zrtev")
+    val napadalec = u.zagotoviLastniZeton("n", "napadalec")
+    val prevzem = sorodnik("""{"device_id":"n-abcdef0123456789","name":"x"}""", mapOf("x-safeer-token" to napadalec))
+    preveriEnako("sorodnik z id-jem iz kljuca je 403", 403, prevzem?.koda)
+    preveri("zeton zrtve ostane veljaven", u.jeVeljavenZeton(zrtev))
+    preveri("pripona os je sorodnik", HubUsmerjevalnik.jePriponaSorodnika("os") && HubUsmerjevalnik.jePriponaSorodnika("control"))
+    preveri("pripona v obliki kljuca ni sorodnik", !HubUsmerjevalnik.jePriponaSorodnika("abcdef0123456789"))
+    preveri("ULA je krajevno omrezje", HubUsmerjevalnik.jeKrajevni("fd00::1") && HubUsmerjevalnik.jeKrajevni("fc00::1"))
+    preveri("javni IPv6 ni krajevni", !HubUsmerjevalnik.jeKrajevni("2001:db8::1"))
+    preveri("CGNAT ni krajevni", !HubUsmerjevalnik.jeKrajevni("100.64.0.1"))
 }
 
 // ------------------------------------------------------------ krog zaupanja
