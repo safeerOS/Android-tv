@@ -303,6 +303,7 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.YoutubeVrstaPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.LahkiPoolPravilaTestKt
 python3 "$TEST_DIR/preveri_youtube_vrsta_pot.py"
 python3 "$TEST_DIR/preveri_placljivi_kanali.py"
+python3 "$TEST_DIR/preveri_glasba_pregled.py"
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SondaHlsPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SondaVerigaTestKt
 # Lastnik, 26. 10. 2026 (nevarnost zaklepa racuna): seznam Xtream s 5000 kanali in seznam z druge naprave - nobene povezave.

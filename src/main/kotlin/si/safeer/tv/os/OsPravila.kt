@@ -1697,8 +1697,31 @@ object OsPravila {
      * Naloga 83: filter jezika mreze Music. [jezikVnosa] = oznaka ([JezikiVsebine.oznaka]) ali prazno. Vnos dodatka brez
      * oznake jezika (koncert iz Music Concerts) ostane - prej ga je izbran jezik vedno skril.
      */
-    fun jezikGlasbeUstreza(jezikVnosa: String, izbran: String, izDodatka: Boolean): Boolean =
-        izbran.isEmpty() || jezikVnosa == izbran || (izDodatka && jezikVnosa.isEmpty())
+    // Zunanji pregled Glasbe 3. 11. 2026: vnos brez oznake jezika se ob izbranem jeziku skrije - izjema je samo kartica
+    // dodatka, ki je res koncert in tako oznacena ([koncert], [jeKoncert]); prej je ostal vsak vnos dodatka brez jezika.
+    fun jezikGlasbeUstreza(jezikVnosa: String, izbran: String, koncert: Boolean): Boolean =
+        izbran.isEmpty() || jezikVnosa == izbran || (koncert && jezikVnosa.isEmpty())
+
+    private val RX_KONCERT = Regex("(?i)\\b(concerts?|koncert\\w*|konzert\\w*|concierto|concerto|live (at|in)|unplugged)\\b")
+
+    /** Kartica je oznacena kot koncert: video dodatka z zvrstjo ali naslovom koncerta. */
+    fun jeKoncert(video: Boolean, izDodatka: Boolean, zvrsti: List<String>, naslov: String): Boolean =
+        video && izDodatka && (zvrsti.any { RX_KONCERT.containsMatchIn(it) } || RX_KONCERT.containsMatchIn(naslov))
+
+    /**
+     * Zunanji pregled Glasbe 3. 11. 2026: ena odlocitev za Glasbo (priljubljene in police seznamov): zvok, ki ni radio, in
+     * posnetki YouTube (video s sliko) - prej so priljubljene zavrgle vsak video, uvozen YouTube seznam samih posnetkov pa je sel v Glasbo.
+     */
+    fun zaGlasbo(video: Boolean, radio: Boolean, youtube: Boolean): Boolean = !radio && (!video || youtube)
+
+    /**
+     * Zunanji pregled Glasbe 3. 11. 2026: klik na skladbo da v vrsto samo kartice z zvokom (prej vse kartice zaslona, tudi
+     * vnose dodatkov brez zvoka). Vrne indekse vrste in polozaj kliknjene v njej; kliknjena je vedno v vrsti.
+     */
+    fun vrstaZZvokom(n: Int, klik: Int, zZvokom: (Int) -> Boolean): Pair<List<Int>, Int> {
+        val izbrani = (0 until n).filter { it == klik || zZvokom(it) }
+        return izbrani to izbrani.indexOf(klik).coerceAtLeast(0)
+    }
 
     // ------------------------------------------------------------------ naloga 84: Radio hitro
 

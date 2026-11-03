@@ -972,9 +972,19 @@ private fun preizkusGlasbe83() {
     preveriEnako("83: lasten seznam samih videov ne", false, OsPravila.seznamZaGlasbo("", true))
     preveriEnako("83: lasten seznam s skladbami da", true, OsPravila.seznamZaGlasbo("", false))
     preveriEnako("83: brez izbire jezika vse", true, OsPravila.jezikGlasbeUstreza("", "", false))
-    preveriEnako("83: koncert brez jezika ostane", true, OsPravila.jezikGlasbeUstreza("", "sl", true))
+    preveriEnako("83: koncert brez jezika ostane", true, OsPravila.jezikGlasbeUstreza("", "sl", koncert = true))
+    // Zunanji pregled Glasbe 3. 11. 2026
+    preveriEnako("Glasba: vnos dodatka brez jezika, ni koncert - skrit", false, OsPravila.jezikGlasbeUstreza("", "sl", koncert = OsPravila.jeKoncert(false, true, emptyList(), "Album")))
+    preveriEnako("Glasba: video dodatka z zvrstjo Concert je koncert", true, OsPravila.jeKoncert(true, true, listOf("Concert"), "Metallica"))
+    preveriEnako("Glasba: videospot ni koncert", false, OsPravila.jeKoncert(true, true, listOf("Music video"), "Song (Official Video)"))
+    preveriEnako("Glasba: YouTube posnetek je v Glasbi", true, OsPravila.zaGlasbo(video = true, radio = false, youtube = true))
+    preveriEnako("Glasba: film ni v Glasbi", false, OsPravila.zaGlasbo(video = true, radio = false, youtube = false))
+    preveriEnako("Glasba: postaja ni v Glasbi", false, OsPravila.zaGlasbo(video = false, radio = true, youtube = false))
+    val zZvokom = listOf(true, false, true, false, true)
+    preveriEnako("Glasba: vrsta samo z zvokom", listOf(0, 2, 4) to 1, OsPravila.vrstaZZvokom(5, 2) { zZvokom[it] })
+    preveriEnako("Glasba: kliknjena je vedno v vrsti", listOf(0, 1, 2, 4) to 1, OsPravila.vrstaZZvokom(5, 1) { zZvokom[it] })
     preveriEnako("83: Jamendo brez jezika ne", false, OsPravila.jezikGlasbeUstreza("", "sl", false))
-    preveriEnako("83: drug jezik ne", false, OsPravila.jezikGlasbeUstreza("en", "sl", true))
+    preveriEnako("83: drug jezik ne", false, OsPravila.jezikGlasbeUstreza("en", "sl", koncert = true))
     preveriEnako("83: isti jezik da", true, OsPravila.jezikGlasbeUstreza("sl", "sl", false))
 }
 

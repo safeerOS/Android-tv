@@ -3169,7 +3169,7 @@ class GlasbaActivity : OsActivity() {
                 Vrsta(getString(R.string.os_mediji_prilj_glasba), skladbe(p.filterNot { it.video }), skladbe = true),
                 Vrsta(getString(R.string.os_mediji_prilj_video), videi(p.filter { it.video }), video = true),
             ) + seznamiBlok(seznami)
-            GLASBA -> listOf(Vrsta(getString(R.string.os_mediji_prilj_glasba), skladbe(p.filterNot { it.video || it.radio }), skladbe = true)) +
+            GLASBA -> listOf(Vrsta(getString(R.string.os_mediji_prilj_glasba), skladbe(p.filter { OsPravila.zaGlasbo(it.video, it.radio, YoutubeZvok.jeYoutube(it)) }), skladbe = true)) +
                 // Lastnik 27. 10. 2026: priljubljeni albumi z Useneta (samo z lastnim ponudnikom - sicer jih ni mogoce predvajati).
                 listOfNotNull(UsenetAlbumi.seznam(this).takeIf { it.isNotEmpty() && UsenetLastni.naVoljo(this) }?.let { albumi ->
                     Vrsta(getString(R.string.os_usenet_albumi), albumi.map { a ->
@@ -4538,7 +4538,7 @@ class GlasbaActivity : OsActivity() {
         if (m.vTeku) try { iskanjeDelavec.execute {
             val jezik = glasbaJezik
             val pozne = (try { straniDodatkov(m, 20_000L, samoVTeku = true) } catch (_: Exception) { emptyList() })
-                .let { s -> if (m.razdelek == RADIO || jezik.isEmpty()) s else s.filter { OsPravila.jezikGlasbeUstreza(JezikiVsebine.oznaka(it.language), jezik, Stremio.jeEnota(it)) } } +
+                .let { s -> if (m.razdelek == RADIO || jezik.isEmpty()) s else s.filter { OsPravila.jezikGlasbeUstreza(JezikiVsebine.oznaka(it.language), jezik, OsPravila.jeKoncert(it.video, Stremio.jeEnota(it), it.genres, it.naslov)) } } +
                 (m.spletniVTeku?.let { f -> m.spletniVTeku = null; try { f.get(25, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { emptyList() } } ?: emptyList()) +
                 (m.vgrajeneVTeku?.let { f -> m.vgrajeneVTeku = null; try { f.get(25, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { emptyList() } } ?: emptyList()) +
                 (m.tuneInVTeku?.let { f -> m.tuneInVTeku = null; try { f.get(20, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { emptyList() } } ?: emptyList())
@@ -4649,7 +4649,7 @@ class GlasbaActivity : OsActivity() {
         val zvrst = glasbaZvrst
         val jezik = glasbaJezik
         // Naloga 83: vnos dodatka brez oznake jezika (koncert) izbran jezik ne skrije ([OsPravila.jezikGlasbeUstreza]).
-        fun vJeziku(s: List<Jamendo.Skladba>) = if (jezik.isEmpty()) s else s.filter { OsPravila.jezikGlasbeUstreza(JezikiVsebine.oznaka(it.language), jezik, Stremio.jeEnota(it)) }
+        fun vJeziku(s: List<Jamendo.Skladba>) = if (jezik.isEmpty()) s else s.filter { OsPravila.jezikGlasbeUstreza(JezikiVsebine.oznaka(it.language), jezik, OsPravila.jeKoncert(it.video, Stremio.jeEnota(it), it.genres, it.naslov)) }
         val izhod = ArrayList<Jamendo.Skladba>()
         if (prva) m.stran = 0
         // Naloga 83: ponovni poskus prazne prve strani obdrzi vire - strani v teku (pocasen dodatek, Music Concerts) tecejo
@@ -4793,10 +4793,15 @@ class GlasbaActivity : OsActivity() {
         val police = ArrayList<Pair<String, List<Jamendo.Skladba>>>()
         if (!radio && !videospoti && zaGlasbo.isNotEmpty())
             police += getString(R.string.os_media_sorodno_koncerti) to prveStrani(Stremio.katalogiRazreda(zaGlasbo, Stremio.GLASBA).filter { Stremio.jeVideoKatalog(it) })
-        if (zaTv.isNotEmpty())
+        // Zunanji pregled Glasbe 3. 11. 2026: prazna Glasba ne kaze radia in TV v zivo (ta ostaneta v svojih zavihkih) -
+        // nadomestek so zadnje predvajane skladbe in skladbe iz uporabnikovih seznamov. Radio kot doslej: glasbeni kanali.
+        if (radio && zaTv.isNotEmpty())
             police += getString(R.string.os_media_sorodno_kanali) to prveStrani(Stremio.katalogiRazreda(zaTv, Stremio.TV).filter { OsPravila.glasbenoIme(it.ime) })
-        if (!radio && jeVirViden(RADIO, VIR_RADIO))
-            police += getString(R.string.os_media_sorodno_postaje) to (try { Radio.stran(Locale.getDefault().country, "", 30, 0) } catch (_: Exception) { emptyList() })
+        if (!radio) {
+            fun glasba(s: List<Jamendo.Skladba>) = s.filter { OsPravila.zaGlasbo(it.video, it.radio, YoutubeZvok.jeYoutube(it)) && !neodklenjena(it) }.distinctBy { it.id }.take(30)
+            police += getString(R.string.os_media_nedavno) to glasba(MedijskiViri.nedavno(this))
+            police += getString(R.string.os_seznami_predvajanja) to glasba(seznamiZaGlasbo().flatMap { it.skladbe })
+        }
         return police
     }
 
@@ -4890,7 +4895,7 @@ class GlasbaActivity : OsActivity() {
      */
     private fun glasbaIzbire(): View {
         val skupina = glasbaSkupina()
-        val imaMoje = MedijskiViri.priljubljene(this).any { !it.video && !it.radio } ||
+        val imaMoje = MedijskiViri.priljubljene(this).any { OsPravila.zaGlasbo(it.video, it.radio, YoutubeZvok.jeYoutube(it)) } ||
             MedijskiViri.seznami(this).any { sz -> sz.skladbe.isNotEmpty() && OsPravila.seznamZaGlasbo(sz.vir, sz.skladbe.all { it.video }) }
         val imena = mapOf("" to getString(R.string.os_mediji_glasba),
             SKUPINA_MOJE to getString(R.string.os_media_moja_glasba), SKUPINA_NAPRAVA to getString(R.string.os_krajevno_koren))
@@ -5179,8 +5184,8 @@ class GlasbaActivity : OsActivity() {
             DOMOV -> MedijskiViri.nedavno(this) + MedijskiViri.priljubljene(this) + MedijskiViri.seznami(this).flatMap { it.skladbe }
             VIDEO -> MedijskiViri.priljubljene(this).filter { it.video } +
                 MedijskiViri.seznami(this).flatMap { it.skladbe }.filter { it.video } + MediaNapredek.seznam(this).map { it.skladba }
-            GLASBA -> MedijskiViri.priljubljene(this).filterNot { it.video || it.radio } +
-                MedijskiViri.seznami(this).flatMap { it.skladbe }.filterNot { it.video || it.radio }
+            GLASBA -> MedijskiViri.priljubljene(this).filter { OsPravila.zaGlasbo(it.video, it.radio, YoutubeZvok.jeYoutube(it)) } +
+                MedijskiViri.seznami(this).flatMap { it.skladbe }.filter { OsPravila.zaGlasbo(it.video, it.radio, YoutubeZvok.jeYoutube(it)) }
             RADIO -> MedijskiViri.priljubljene(this).filter { it.radio }
             else -> emptyList()
         }
@@ -7899,6 +7904,12 @@ class GlasbaActivity : OsActivity() {
             return
         }
         if (sk.id.startsWith(PREDPONA_PC_PRENOSA)) { meniPrenosa(sk); return }
+        if (!sk.video && !sk.radio && sk.zvok.isNotBlank()) {
+            // Zunanji pregled Glasbe 3. 11. 2026: v vrsto samo skladbe z zvokom (ne vnosi dodatkov brez toka, ne video, ne radio).
+            val (red, j) = OsPravila.vrstaZZvokom(seznam.size, i) { k -> seznam[k].let { x -> x.zvok.isNotBlank() && !x.video && !x.radio &&
+                !Stremio.jeEnota(x) && !SpletniVir.jeEnota(x) && !TuneIn.jeEnota(x) && !Arhiv.jeEnota(x) && !JavnaLast.jeEnota(x) } }
+            if (red.size < seznam.size) { GlasbaStoritev.predvajaj(this, red.map { seznam[it] }, j); return }
+        }
         if (!sk.video || sk.zvok.isNotBlank()) {
             GlasbaStoritev.predvajaj(this, seznam, i)
             if (sk.video) nadaljujKoPripravljen(sk)
