@@ -158,6 +158,8 @@ class VirtualPointerView @JvmOverloads constructor(
         try {
             val (x, y) = naPogledu(wv)
             val dogodek = MotionEvent.obtain(vlecenjeOd, SystemClock.uptimeMillis(), dejanje, x, y, 0)
+            // Stran (captcha) mora videti pravi prst na zaslonu na dotik, ne neznanega vira.
+            dogodek.source = InputDevice.SOURCE_TOUCHSCREEN
             wv.dispatchTouchEvent(dogodek)
             dogodek.recycle()
         } catch (_: Throwable) { }
@@ -173,6 +175,9 @@ class VirtualPointerView @JvmOverloads constructor(
         okPorabljen = true
         vlecenjeOd = SystemClock.uptimeMillis()
         vlecenjePogled = java.lang.ref.WeakReference(wv)
+        // TV 3. 11. 2026 (captcha na claude.ai): ploscica se je ob drzanju le oznacila, premika ni bilo - WebView je
+        // drzan prst razumel kot dolg pritisk (izbira). Med vlecenjem dolg pritisk porabimo, da poteza ostane vlecenje.
+        wv.setOnLongClickListener { vlecem }
         dotik(wv, MotionEvent.ACTION_DOWN)
         invalidate()
     }
@@ -182,6 +187,7 @@ class VirtualPointerView @JvmOverloads constructor(
         if (!vlecem) return
         val cilj = vlecenjePogled?.get() ?: wv
         if (cilj != null) dotik(cilj, if (preklic || cilj !== wv) MotionEvent.ACTION_CANCEL else MotionEvent.ACTION_UP)
+        try { cilj?.setOnLongClickListener(null) } catch (_: Throwable) { }
         vlecenjePogled = null
         vlecem = false
         if (!trajen) postDelayed(hideRunnable, 30000)
