@@ -1786,9 +1786,12 @@ object OsPravila {
      */
     fun podnapisZdajAliObPremoru(igra: Boolean): Boolean = !igra
 
+    /** Dodatki, ki jih vprasamo, ce prvi krog ([dodatkiZaPodnapise]) ni nasel podnapisov v jeziku: vsi ostali. */
+    fun ostaliZaPodnapise(vsi: List<String>, vprasani: List<String>): List<String> = vsi.filter { it !in vprasani }
+
     // ------------------------------------------------------------------ zunanji pregled iskalne vrstice 3. 11. 2026
 
-    enum class TipkaIskanja { ISCI, TIPKOVNICA, FOKUS_ZADETKI, ZAPRI_TIPKOVNICO, ZAPUSTI }
+    enum class TipkaIskanja { ISCI, TIPKOVNICA, FOKUS_ZADETKI, ZAPRI_TIPKOVNICO, ZAPUSTI, OSTANI }
 
     /**
      * OK ali Enter v iskalnem polju Medijskega centra: z vsaj dvema crkama isce (IME_ACTION_SEARCH na TV ne pride), sicer
@@ -1797,10 +1800,10 @@ object OsPravila {
     fun okIskanja(besedilo: String): TipkaIskanja = if (besedilo.trim().length >= 2) TipkaIskanja.ISCI else TipkaIskanja.TIPKOVNICA
 
     /** DOL: nova beseda najprej isce (fokus na prvi zadetek, ko pridejo zadetki te besede); ze najdena gre na zadetke. */
-    fun dolIskanja(besedilo: String, zadetkiZa: String?): TipkaIskanja {
-        val q = besedilo.trim()
-        return if (q.length >= 2 && q != zadetkiZa) TipkaIskanja.ISCI else TipkaIskanja.FOKUS_ZADETKI
-    }
+    // Neodvisni pregled 4. 11. 2026: DOL ne sprozi poizvedbe dodatkom (prej je vsak DOL z novo besedo vprasal vse vire).
+    // Iskanje samo z OK ali Enter; DOL gre na zadetke, ce so za isto besedo, sicer ostane v polju.
+    fun dolIskanja(besedilo: String, zadetkiZa: String?): TipkaIskanja =
+        if (zadetkiZa != null && besedilo.trim() == zadetkiZa) TipkaIskanja.FOKUS_ZADETKI else TipkaIskanja.OSTANI
 
     /**
      * Nazaj v iskanju: vidna tipkovnica se zapre, sicer uporabnik zapusti iskanje. [tipkovnicaVidna] iz WindowInsets (ime) -

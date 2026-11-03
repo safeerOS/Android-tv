@@ -55,7 +55,7 @@
 
         <!-- Prilagodljivi zaganjalnik (os/ZaganjalnikActivity, ista koda kot na telefonu in tablici) v nacinu za
              daljinec. Na televizorju je zaenkrat le za preizkus in meritve (adb am start -n); domaci zaslon televizorja
-             ostane DomovActivity (ZaganjalnikAlias spodaj), dokler lastnik ne izbere drugace. -->
+             je PokrajinaActivity (ZaganjalnikAlias spodaj kaze nanjo). -->
         <activity
             android:name="si.safeer.tv.os.ZaganjalnikActivity"
             android:exported="true"

@@ -45,11 +45,12 @@ preveri("klik na film: najprej dodatek, ki je nasel", "OsPravila.najprejEnDodate
 pa = re.sub(r"(?m)^\s*//.*$", "", re.sub(r"/\*.*?\*/", "", (OS / "PredvajanjeActivity.kt").read_text(encoding="utf-8"), flags=re.S))
 preveri("podnapisi: sele po READY 1 s", "OsPravila.podnapisiZdaj(pripravljen, pripravljenOd, zdaj)" in pa)
 preveri("podnapisi: samo zadnji dodatek", "OsPravila.dodatkiZaPodnapise(" in pa)
+preveri("podnapisi: brez zadetka se ostali dodatki (pregled 4. 11.)", "OsPravila.ostaliZaPodnapise(vsi, naslovi)" in pa)
 preveri("podnapisi: med predvajanjem ob premoru", "OsPravila.podnapisZdajAliObPremoru(p.isPlaying)" in pa)
 preveri("podnapisi: HLS na gumbu, brez iskanja", "GlasbaStoritev.jeHls()" in pa and "R.string.podnapisi_ne_gre else" in pa)
 # Zunanji pregled iskalne vrstice 3. 11. 2026
 preveri("iskanje: OK po okIskanja", "OsPravila.okIskanja(q)" in g)
-preveri("iskanje: DOL po dolIskanja", "OsPravila.dolIskanja(q," in g)
+preveri("iskanje: DOL po dolIskanja, brez poizvedbe", "OsPravila.dolIskanja(q," in g and "== OsPravila.TipkaIskanja.ISCI) { if (!prikaziNaDrugi(q)) isci(q) }" not in g)
 preveri("iskanje: Nazaj po vidnosti tipkovnice (WindowInsets)", "OsPravila.nazajIskanja(tipkovnicaVidna(polje))" in g and "WindowInsets.Type.ime()" in g)
 print("VSE OK" if napak == 0 else f"NAPAK: {napak}")
 sys.exit(1 if napak else 0)

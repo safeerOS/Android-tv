@@ -1832,9 +1832,13 @@ class PredvajanjeActivity : OsActivity() {
         // HLS podnapisov iz dodatka ne sprejme: dodatkov ne sprasujemo (gumb podnapisov to pove).
         if (GlasbaStoritev.jeHls()) { android.util.Log.i("SafeerOsMedia", "podnapisi iz dodatkov: tok HLS, ne iscemo"); return }
         val prefs = getSharedPreferences("safeer_mediji", MODE_PRIVATE)
-        val naslovi = OsPravila.dodatkiZaPodnapise(dodatkiStremio(), prefs.getString(K_ZADNJI_PODNAPISI, "").orEmpty()) { SkrivnostiPravila.odtis(Stremio.osnova(it)) }
+        val vsi = dodatkiStremio()
+        val naslovi = OsPravila.dodatkiZaPodnapise(vsi, prefs.getString(K_ZADNJI_PODNAPISI, "").orEmpty()) { SkrivnostiPravila.odtis(Stremio.osnova(it)) }
         delavec.execute {
-            val prvi = (try { Stremio.podnapisi(naslovi, id.first, id.second) } catch (_: Exception) { emptyList() }).firstOrNull { it.jezik == jezik }
+            fun isci(d: List<String>) = (try { Stremio.podnapisi(d, id.first, id.second) } catch (_: Exception) { emptyList() }).firstOrNull { it.jezik == jezik }
+            // Neodvisni pregled 4. 11. 2026: zadnji dodatek, ki je zadel, podnapisov v tem jeziku nima - v istem opravilu
+            // vprasamo se ostale (prej je podnapisiDodatkaZa ponovno iskanje za ta naslov zaprl).
+            val prvi = isci(naslovi) ?: OsPravila.ostaliZaPodnapise(vsi, naslovi).takeIf { it.isNotEmpty() }?.let { isci(it) }
             android.util.Log.i("SafeerOsMedia", "podnapisi iz dodatkov samodejno ($jezik, dodatkov ${naslovi.size}): ${if (prvi != null) "najdeni" else "ni"} za ${id.first}/${id.second}")
             if (prvi != null) runOnUiThread {
                 if (isFinishing || GlasbaStoritev.trenutna()?.id != kljuc) return@runOnUiThread

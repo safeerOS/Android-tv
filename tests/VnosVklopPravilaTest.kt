@@ -152,8 +152,9 @@ fun main() {
     class V(val o: Okvir, val f: Boolean, val otroci: List<V> = emptyList())
     val zaslon = Okvir(0, 0, 1920, 1080)
     var obiskov = 0
+    var klicev = 0
     fun zberi(k: V, meja: Int = VnosVklopPravila.NAJVEC_OBISKOV) =
-        p.zberiNaZaslonu(k, { obiskov++; it.otroci }, { it.o }, { it.f }, zaslon, meja)
+        p.zberiNaZaslonu(k, { v, najvec -> obiskov++; klicev += minOf(v.otroci.size, najvec); v.otroci.take(najvec) }, { it.o }, { it.f }, zaslon, meja)
     // Orodna vrstica s 450 gnezdenimi gumbi na zacetku drevesa, gumb »Shrani« spodaj kot drugi otrok korena.
     val orodna = V(Okvir(0, 0, 1920, 100), false, (0 until 450).map { V(Okvir(it * 4, 10, it * 4 + 4, 90), true) })
     val shrani = V(Okvir(800, 950, 1100, 1040), true)
@@ -168,6 +169,14 @@ fun main() {
     obiskov = 0
     check(zberi(V(zaslon, false, listOf(zunaj, shrani))).single() === shrani)
     check(obiskov == 2)                                      // koren in shrani; zunaj odpade brez branja otrok
+    // Neodvisni pregled 4. 11. 2026: meja steje klice getChild, ne obiskov; vozlisce z 5000 otroki ne prebere vseh.
+    klicev = 0
+    val velik = V(zaslon, false, (0 until 5000).map { V(Okvir(0, 0, 0, 0), false) })
+    zberi(velik)
+    check(klicev <= VnosVklopPravila.NAJVEC_OTROK) { "klicev $klicev" }
+    klicev = 0
+    zberi(koren, 10)
+    check(klicev <= 10) { "meja klicev $klicev" }
     // Meja dela: najvec toliko obiskanih vozlisc, plitvi elementi pred globokimi.
     check(zberi(koren, 3).contains(shrani))
 

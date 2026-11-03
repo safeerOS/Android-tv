@@ -320,6 +320,9 @@ fun main() {
     run {
         val P = KanaliPravila
         preveriEnako("dodatek, se ne vemo: preveri (ni na zaslonu)", KanaliPravila.Prikaz.PREVERI, P.vMrezi(KanaliPravila.VrstaKanala.DODATEK, null, preverjam = true, pokaziZaklenjene = false))
+        // Neodvisni pregled 4. 11. 2026: dodatek s poverilnico ozadje ne sme vprasati - kanal ne sme ostati skrit.
+        preveriEnako("dodatek s poverilnico: prikazi (ne caka na preverbo)", KanaliPravila.Prikaz.PRIKAZI,
+            P.vMrezi(KanaliPravila.VrstaKanala.DODATEK, null, preverjam = true, pokaziZaklenjene = false, preverljiv = false))
         preveriEnako("dodatek s predvajljivim tokom: prikazi", KanaliPravila.Prikaz.PRIKAZI, P.vMrezi(KanaliPravila.VrstaKanala.DODATEK, true, true, false))
         preveriEnako("dodatek mrtev: skrij", KanaliPravila.Prikaz.SKRIJ, P.vMrezi(KanaliPravila.VrstaKanala.DODATEK, false, true, false))
         preveriEnako("dodatek, omejeno omrezje: kot doslej", KanaliPravila.Prikaz.PRIKAZI, P.vMrezi(KanaliPravila.VrstaKanala.DODATEK, null, preverjam = false, pokaziZaklenjene = false))

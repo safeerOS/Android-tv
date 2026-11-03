@@ -92,8 +92,9 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     @android.annotation.SuppressLint("InlinedApi")   // CATEGORY_SECONDARY_HOME je samo niz; Android pred 10 ga ne poslje
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Zunanji pregled 3. 11. 2026: alias Domov na televizorju (ZaganjalnikAlias) kaze sem, nato v Pokrajino - varnostna
-        // vrata in lovilec padcev (kot ZaganjalnikActivity) so zato PRVO dejanje tu, sicer zanka padcev doma nima izhoda.
+        // Alias Domov na televizorju (ZaganjalnikAlias) kaze na PokrajinaActivity, ne vec sem; DomovActivity se odpre samo
+        // z izrecnim namenom (Domov iz druge kode). Varnostna vrata in lovilec padcev so tudi tu PRVO dejanje, sicer zanka
+        // padcev nima izhoda. Neodvisni pregled 4. 11. 2026: komentar je opisoval staro pot aliasa.
         val domovNamera = intent?.let { it.hasCategory(Intent.CATEGORY_HOME) || it.hasCategory(Intent.CATEGORY_SECONDARY_HOME) } == true
         val vrnjen = domovNamera && Zaganjalnik.preveriObZagonu(this)
         Zaganjalnik.namestiZascito(this)

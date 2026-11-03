@@ -4183,7 +4183,8 @@ class GlasbaActivity : OsActivity() {
                     Stremio.jeEnota(sk) -> KanaliPravila.VrstaKanala.DODATEK_KATALOG
                     else -> KanaliPravila.VrstaKanala.VGRAJEN
                 }
-                when (KanaliPravila.vMrezi(vrsta, MrtviKanali.stanje(this, sk.id), preverjam, tvZaklenjeni)) {
+                when (KanaliPravila.vMrezi(vrsta, MrtviKanali.stanje(this, sk.id), preverjam, tvZaklenjeni,
+                        preverljiv = vrsta != KanaliPravila.VrstaKanala.DODATEK || PregledKanalov.preverljivKanal(this, sk))) {
                     KanaliPravila.Prikaz.SKRIJ -> continue
                     KanaliPravila.Prikaz.PREVERI -> {
                         if (!neodklenjena(sk) && sk.id !in narisaniZdaj && sk.id !in razliceNarisanih) { if (kandidati.size < m.okno) kandidati += sk; continue }
@@ -6638,8 +6639,7 @@ class GlasbaActivity : OsActivity() {
                 KeyEvent.KEYCODE_DPAD_DOWN -> {
                     val q = text.toString().trim()
                     skrijTipkovnico(this)
-                    if (OsPravila.dolIskanja(q, if (zadetki != null) zadnjaBeseda else null) == OsPravila.TipkaIskanja.ISCI) { if (!prikaziNaDrugi(q)) isci(q) }
-                    else fokusNaPrvo()
+                    if (OsPravila.dolIskanja(q, if (zadetki != null) zadnjaBeseda else null) == OsPravila.TipkaIskanja.FOKUS_ZADETKI) fokusNaPrvo()
                     true
                 }
                 else -> false
