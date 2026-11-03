@@ -534,7 +534,8 @@ object KanaliPravila {
 
     /**
      * Seznam IPTV: uporabnikov racun (poverilnica v naslovu, Xtream) se pokaze ves in se nikoli ne preverja v ozadju; znani
-     * javni (iptv-org) se pokaze in preverja; seznam, ki ni ne eno ne drugo, ni med brezplacnimi.
+     * javni (iptv-org) se pokaze in preverja. Lastnik 3. 11. 2026: seznam, ki ni ne eno ne drugo, se pokaze in preveri kot
+     * javni (vnosi s prijavo ali HTML izginejo), ne skrije se.
      */
     fun vrstaIptv(racun: Boolean, javni: Boolean): VrstaKanala = when {
         racun -> VrstaKanala.IPTV_RACUN
@@ -551,12 +552,22 @@ object KanaliPravila {
      */
     fun vMrezi(vrsta: VrstaKanala, stanje: Boolean?, preverjam: Boolean, pokaziZaklenjene: Boolean): Prikaz = when {
         stanje == false -> Prikaz.SKRIJ
-        vrsta == VrstaKanala.IPTV_NEZNAN && !pokaziZaklenjene -> Prikaz.SKRIJ
         vrsta == VrstaKanala.DODATEK && stanje == null && preverjam && !pokaziZaklenjene -> Prikaz.PREVERI
         else -> Prikaz.PRIKAZI
     }
 
-    /** JSON tokov dodatka v ozadju: samo brez poverilnice (podana ali naucena) in ne med predvajanjem. */
+    /**
+     * Sonda toka kanala seznama v ozadju: javni seznam in (lastnik 3. 11. 2026) seznam, ki ni ne racun ne znan javni - oba
+     * brez poverilnice v naslovu toka. Racuna nikoli (fail-closed, lastnik 26. 10. 2026: zaklep placljivega racuna).
+     */
+    fun smeSondaSeznama(vrsta: VrstaKanala, tokSPoverilnico: Boolean): Boolean =
+        !tokSPoverilnico && (vrsta == VrstaKanala.IPTV_JAVNI || vrsta == VrstaKanala.IPTV_NEZNAN)
+
+    /**
+     * JSON tokov dodatka v ozadju: samo brez poverilnice (podana ali naucena) in ne med predvajanjem. Odlocitev lastnika
+     * 3. 11. 2026: ozadje sme dodatek vprasati samo po JSON tokov (/stream/...json), toka pri ponudniku ne odpre; dodatka
+     * s poverilnico (debrid, Usenet, nauceno) nikoli, tudi ne med predvajanjem.
+     */
     fun smeVprasatiTokove(sPoverilnico: Boolean, nauceno: Boolean, predvajanje: Boolean): Boolean = !sPoverilnico && !nauceno && !predvajanje
 
     /** Vgrajen kanal v privzetem pogledu (brez izbire) samo, ce je domac in ima tok; tuji in samo uradna stran pod izbiro. */
