@@ -466,6 +466,9 @@ object DomacaLupa {
     /** Tipk v eni vrsti: pregled 2. 11. 2026 - vse v eni vrsti (40+ tipk) je slo cez rob, vecine ni bilo videti. */
     private const val TIPK_V_VRSTI = 11
 
+    /** Razporeditev tipk v lupi: true = kot fizicna tipkovnica (privzeto), false = po abecedi. */
+    private const val KLJUC_FIZICNA = "tipkovnica_fizicna"
+
     private fun narisiTipkovnico(a: Activity, t: LinearLayout, polje: EditText, stevilke: Boolean) {
         t.removeAllViews()
         var v = LinearLayout(a)
@@ -502,7 +505,7 @@ object DomacaLupa {
                         ob(); true
                     } else false
                 })
-                layoutParams = LinearLayout.LayoutParams((sirinaDp * a.resources.displayMetrics.density).toInt(), (38 * a.resources.displayMetrics.density).toInt()).apply {  // 38 dp: prostor za 3 vrste predlogov nad tipkovnico (lastnik 18:32)
+                layoutParams = LinearLayout.LayoutParams((sirinaDp * a.resources.displayMetrics.density).toInt(), (36 * a.resources.displayMetrics.density).toInt()).apply {  // 36 dp: prostor za predloge in naslovnice nad tipkovnico (lastnik 18:32, 19:32)
                     val m = (2 * a.resources.displayMetrics.density).toInt()
                     setMargins(m, m, m, m)
                 }
@@ -519,13 +522,25 @@ object DomacaLupa {
             e.replace(z, k, niz)
             polje.setSelection((z + niz.length).coerceAtMost(polje.text?.length ?: 0))
         }
-        for ((i, z) in znaki.withIndex()) {
+        val fizicna = !stevilke && a.getSharedPreferences(PREFS_LUPE, Context.MODE_PRIVATE).getBoolean(KLJUC_FIZICNA, true)
+        if (fizicna) {
+            for ((i, vrsta) in LupaPravila.vrsteFizicne(jezik).withIndex()) {
+                if (i > 0) novaVrsta()
+                for (z in vrsta) tipka(z.toString(), 34) { vstavi(z.toString()) }
+            }
+        } else for ((i, z) in znaki.withIndex()) {
             if (i > 0 && i % TIPK_V_VRSTI == 0) novaVrsta()
             tipka(z.toString(), 34) { vstavi(z.toString()) }
         }
         novaVrsta()
         tipka("‹", 42) { polje.setSelection((polje.selectionStart - 1).coerceAtLeast(0)) }.also { v.getChildAt(v.childCount - 1).contentDescription = a.getString(R.string.os_tipk_kazalec_levo) }
         tipka("›", 42) { polje.setSelection((polje.selectionEnd + 1).coerceAtMost(polje.text?.length ?: 0)) }.also { v.getChildAt(v.childCount - 1).contentDescription = a.getString(R.string.os_tipk_kazalec_desno) }
+        // Lastnik 19:42: uporabnik izbere razporeditev - po abecedi ali kot fizicna tipkovnica; izbira se shrani.
+        if (!stevilke) tipka(if (fizicna) "ABC" else LupaPravila.imeFizicne(jezik), 64) {
+            a.getSharedPreferences(PREFS_LUPE, Context.MODE_PRIVATE).edit().putBoolean(KLJUC_FIZICNA, !fizicna).apply()
+            narisiTipkovnico(a, t, polje, stevilke = false)
+            t.post { (t.getChildAt(0) as? ViewGroup)?.getChildAt(0)?.requestFocus() }
+        }
         tipka(if (stevilke) "ABC" else "123", 50) {
             narisiTipkovnico(a, t, polje, !stevilke)
             t.post { (t.getChildAt(0) as? ViewGroup)?.getChildAt(0)?.requestFocus() }

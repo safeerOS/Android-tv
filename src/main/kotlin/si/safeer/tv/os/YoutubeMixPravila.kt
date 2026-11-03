@@ -51,4 +51,40 @@ object YoutubeMixPravila {
         hodi(d, 0)
         return izid.values.take(NAJVEC)
     }
+
+    /** Telo zahteve youtubei/v1/search (odjemalec WEB) za zadetke lupe s predogledom (lastnik 3. 11. 2026 19:40). */
+    fun zahtevaIskanja(q: String, razlicica: String = "2.20250101.00.00"): String =
+        JSONObject().put("context", JSONObject().put("client", JSONObject()
+            .put("clientName", "WEB").put("clientVersion", razlicica).put("hl", "en")))
+            .put("query", q).toString()
+
+    private val ID_VIDEA = Regex("[A-Za-z0-9_-]{11}")
+
+    /**
+     * Videi iz odgovora iskanja (videoRenderer): id, naslov in standardna slicica i.ytimg.com. Id se preveri (11 znakov),
+     * zato v naslov slicice ali povezavo ne pride nic drugega; brez podvojenih, najvec [najvec].
+     */
+    fun izIskanja(d: JSONObject, najvec: Int): List<Triple<String, String, String>> {
+        val izid = LinkedHashMap<String, Triple<String, String, String>>()
+        fun hodi(x: Any?, globina: Int) {
+            if (izid.size >= najvec || globina > 40) return
+            when (x) {
+                is JSONObject -> {
+                    val v = x.optJSONObject("videoRenderer")
+                    if (v != null) {
+                        val id = v.optString("videoId")
+                        val naslov = v.optJSONObject("title")?.optJSONArray("runs")?.optJSONObject(0)?.optString("text").orEmpty().trim()
+                        if (ID_VIDEA.matches(id) && naslov.isNotEmpty() && id !in izid)
+                            izid[id] = Triple(id, naslov, "https://i.ytimg.com/vi/$id/mqdefault.jpg")
+                        return
+                    }
+                    val k = x.keys()
+                    while (k.hasNext()) hodi(x.opt(k.next()), globina + 1)
+                }
+                is JSONArray -> for (i in 0 until x.length()) hodi(x.opt(i), globina + 1)
+            }
+        }
+        hodi(d, 0)
+        return izid.values.toList()
+    }
 }

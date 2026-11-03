@@ -438,6 +438,34 @@ object LupaPravila {
     }
     const val NAJVEC_STETIH = 200
 
+    /**
+     * Videi YouTube s predogledom: od SPLET_OD_ZNAKOV znakov, ne za naslov; pod izbranim filtrom YouTube (izrecna izbira
+     * uporabnika) ali ce je uporabnik vklopil spletne predloge (lastnik 3. 11. 2026 19:40).
+     */
+    fun youtubeVideo(obseg: String, poizvedba: String, vklopljeno: Boolean): Boolean {
+        val q = poizvedba.trim()
+        return q.length >= SPLET_OD_ZNAKOV && !jeNaslov(q) && (obseg(obseg) == OBSEG_YOUTUBE || vklopljeno)
+    }
+
+    /**
+     * Vrste crk tipkovnice v lupi kot na fizicni tipkovnici jezika vmesnika (lastnik 3. 11. 2026 19:41: »uporabnik je bolj
+     * vajen«); abecedna razporeditev ostane izbira (19:42). Neznan jezik: QWERTY.
+     */
+    fun vrsteFizicne(jezik: String): List<String> = when (jezik) {
+        "sl" -> listOf("qwertzuiopš", "asdfghjklčž", "yxcvbnm")
+        "de" -> listOf("qwertzuiopü", "asdfghjklöä", "yxcvbnmß")
+        "fr" -> listOf("azertyuiop", "qsdfghjklm", "wxcvbnéèàç")
+        "es" -> listOf("qwertyuiop", "asdfghjklñ", "zxcvbnm")
+        "it" -> listOf("qwertyuiop", "asdfghjklòàù", "zxcvbnmèéì")
+        else -> listOf("qwertyuiop", "asdfghjkl", "zxcvbnm")
+    }
+
+    /** Napis tipke, ki preklopi na fizicno razporeditev: prvih sest crk zgornje vrste (QWERTZ, AZERTY …), enako v vseh jezikih. */
+    fun imeFizicne(jezik: String): String = vrsteFizicne(jezik).first().take(6).uppercase()
+
+    /** Stevilo na filtru: tocno stevilo ali »n+«, ko je vir vrnil polno mero (jih je lahko vec). Nic zadetkov = »0«. */
+    fun napisStevila(n: Int, vec: Boolean): String = if (vec && n > 0) "$n+" else "$n"
+
     fun zaZgodovino(niz: String): String? {
         val q = niz.trim().replace(Regex("\\s+"), " ")
         val znaki = q.filter { !it.isWhitespace() }

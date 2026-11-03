@@ -78,15 +78,30 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     private lateinit var ozadjeLupe: ViewGroup
     private lateinit var glavaPogled: View
     private lateinit var tipkovnicaLupe: View
+    private lateinit var lupaPogled: View
     private var iskalniNacin = false
 
     /** Iskalni nacin: odprta tipkovnica ali plosca zadetkov - glava (ura, vreme), ploscice in spodnja vrstica so skriti. */
+    /** Najblizji zadetek nad pogledom [od] (za GOR s tipkovnice). */
+    private fun najblizjiZadetekNad(od: View?): View? {
+        if (od == null || !::zadetki.isInitialized) return prviVSeznamu()
+        val r = android.graphics.Rect()
+        od.getDrawingRect(r)
+        koren.offsetDescendantRectToMyCoords(od, r)
+        koren.offsetRectIntoDescendantCoords(zadetki, r)
+        return android.view.FocusFinder.getInstance().findNextFocusFromRect(zadetki, r, View.FOCUS_UP) ?: prviVSeznamu()
+    }
+
     private fun osveziIskalniNacin() {
-        if (!::glavaPogled.isInitialized || !::tipkovnicaLupe.isInitialized || !::zadetkiDrsnik.isInitialized) return
+        if (!::glavaPogled.isInitialized || !::tipkovnicaLupe.isInitialized || !::zadetkiDrsnik.isInitialized || !::lupaPogled.isInitialized) return
         val da = tipkovnicaLupe.visibility == View.VISIBLE || zadetkiDrsnik.visibility == View.VISIBLE
         if (da == iskalniNacin) return
         iskalniNacin = da
         glavaPogled.visibility = if (da) View.GONE else View.VISIBLE
+        // Lastnik 19:35: med iskanjem je lupa visje (manj roba zgoraj), zadetki dobijo ta prostor.
+        val rob = PokrajinaPravila.varenRob(shramba().getInt(PokrajinaPravila.KLJUC_VAREN_ROB, PokrajinaPravila.VAREN_ROB_DP))
+        vsebina.setPadding(dp(rob), dp(if (da) 10 else 24), dp(rob), dp(if (da) 6 else 18))
+        (lupaPogled.layoutParams as? LinearLayout.LayoutParams)?.let { it.topMargin = dp(if (da) 0 else 10); lupaPogled.layoutParams = it }
         ozadjeLupe.visibility = if (da) View.INVISIBLE else View.VISIBLE
         if (da) dock?.skrijCeOdprt()
     }
@@ -139,13 +154,22 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         uporabiVarenRob()
         glavaPogled = glava()
         vsebina.addView(glavaPogled, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        vsebina.addView(lupa(), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+        lupaPogled = lupa()
+        vsebina.addView(lupaPogled, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
             val rob = (resources.displayMetrics.widthPixels * 0.2f).toInt()
             marginStart = rob; marginEnd = rob; topMargin = dp(10)
         })
         // Lastnik 3. 11. 2026 17:40 + svetovalec arena.ai: iskalni nacin cez ves zaslon - zadetki pod lupo, tipkovnica spodaj; ura, vreme, ploscice in spodnja vrstica so med iskanjem skriti (prej so zadetki prekrili ploscice).
         val tipkovnica = object : LinearLayout(this) {
             override fun setVisibility(v: Int) { super.setVisibility(v); glavna.post { osveziIskalniNacin() } }
+
+            // GOR z zgornje vrste tipk: na najblizji zadetek nad tipkovnico ali na izbrani filter, ne na geometrijsko
+            // najblizji filter (preverba TV 19:30: GOR je pristal na »Datoteke«).
+            override fun focusSearch(focused: View?, direction: Int): View? {
+                val n = super.focusSearch(focused, direction)
+                if (direction != View.FOCUS_UP || n == null || jePotomec(n, this)) return n
+                return najblizjiZadetekNad(focused) ?: izbranGumb() ?: poljeLupe
+            }
         }.apply {
             orientation = LinearLayout.VERTICAL; visibility = View.GONE; tag = "lupaTipkovnica"
         }
@@ -299,14 +323,16 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
             // Brez zadetkov (prazna lupa brez zgodovine) ostane tipkovnica spodaj, ne skoci pod polje.
             gravity = Gravity.BOTTOM
             clipChildren = false; clipToPadding = false
-            setPadding(0, dp(8), 0, dp(14))
+            // Lastnik 19:32: tipkovnica malo nizje, plosca toliko visja, da so naslovnice cele.
+            setPadding(0, dp(6), 0, dp(2))
         }
-        val robLupe = (resources.displayMetrics.widthPixels * 0.2f).toInt()
+        // Lastnik 19:38: plosca zadetkov sirsa od lupe, da je vseh 8 naslovnic vidnih brez drsenja levo in desno.
+        val robLupe = (resources.displayMetrics.widthPixels * 0.07f).toInt()
         telo.addView(zadetkiDrsnik, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f).apply {
             marginStart = robLupe; marginEnd = robLupe
         })
         telo.addView(tipkovnica, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-            gravity = Gravity.CENTER_HORIZONTAL; topMargin = dp(12)
+            gravity = Gravity.CENTER_HORIZONTAL; topMargin = dp(6)
         })
         okvirVsebine.addView(telo, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         okvirVsebine.addOnLayoutChangeListener { _, _, t, _, b, _, st, _, sb -> if (b - t != sb - st) glavna.post { prilagodiPloscoZadetkov() } }
@@ -989,7 +1015,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     @Volatile private var iskanjeSt = 0
 
     /** Sprotni predlogi iz spleta (iskalnik uporabnika, isti kot v brskalniku); izklop v Nastavitvah novega zaganjalnika. */
-    private fun spletniPredlogi(): Boolean = shramba().getBoolean(KLJUC_SPLET_PREDLOGI, false)
+    private fun spletniPredlogi(): Boolean = shramba().getBoolean(KLJUC_SPLET_PREDLOGI, SPLET_PREDLOGI_PRIVZETO)
 
     private fun vrsticaZadetka(ikona: Int, napis: String, zapre: Boolean = true, klik: () -> Unit): View = LinearLayout(this).apply {
         orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
@@ -1003,6 +1029,113 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
             LinearLayout.LayoutParams(dp(22), dp(22)))
         addView(besedilo(napis, 16f).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END },
             LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(12) })
+    }
+
+    /** Najvec filmov in serij v lupi (vrsta kartic); polna vrsta pomeni »vec« (stevilo s plusom). */
+    private val NAJVEC_VIDEO = 8
+
+    /** Kartice filmov in serij: naslovnica 2:3 in naslov v eni vrstici; vrsta drsi z fokusom. */
+    private fun vrstaKartic(naslovi: List<Pair<String, String>>): View = vrstaKarticSSlikami(
+        naslovi.map { (n, slika) -> Triple("video_$n", n, slika) }, dp(64), dp(96)) { n, _ ->
+        // Isto kot »Prikazi na TV«: film ali serija s tem naslovom se v Medijskem centru odpre sama.
+        startActivity(Intent(this, GlasbaActivity::class.java).putExtra(GlasbaActivity.ISKANJE_BESEDA, n)
+            .putExtra(GlasbaActivity.ISKANJE_NATANCNO, true))
+    }
+
+    /** Videi YouTube s predogledom 16:9 (lastnik 19:40); OK odpre video v aplikaciji za YouTube na TV. */
+    private fun vrstaKarticYoutube(videi: List<Triple<String, String, String>>): View = vrstaKarticSSlikami(
+        videi.map { (id, n, slika) -> Triple("yt_video_$id", n, slika) }, dp(112), dp(63)) { _, oznaka ->
+        val id = oznaka.removePrefix("yt_video_")
+        odpri(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://www.youtube.com/watch?v=$id")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+
+    /** Vodoravna vrsta kartic s sliko in naslovom v eni vrstici; vrsta drsi s fokusom. [kartice] = (oznaka, naslov, slika). */
+    private fun vrstaKarticSSlikami(kartice: List<Triple<String, String, String>>, sirina: Int, visina: Int, klik: (String, String) -> Unit): View {
+        val vrsta = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(dp(2), dp(4), dp(2), dp(4)) }
+        for ((oznaka, n, slika) in kartice) {
+            val kartica = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                isFocusable = true; isClickable = true
+                tag = oznaka; contentDescription = n
+                background = steklo(12).apply { alpha = 0 }
+                setOnFocusChangeListener { v, ima -> v.background.alpha = if (ima) 255 else 0 }
+                setPadding(dp(4), dp(4), dp(4), dp(4))
+                setOnClickListener { klik(n, oznaka); zapriLupo() }
+            }
+            val slikaV = ImageView(this).apply {
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                setBackgroundColor(osBarva(R.color.os_kartica_steklo))
+            }
+            kartica.addView(slikaV, LinearLayout.LayoutParams(sirina, visina))
+            kartica.addView(besedilo(n, 12f).apply { maxLines = 1; isSingleLine = true; ellipsize = TextUtils.TruncateAt.END },
+                LinearLayout.LayoutParams(sirina, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(2) })
+            vrsta.addView(kartica, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(8) })
+            if (slika.isNotBlank()) slikaLupe(slika, slikaV)
+        }
+        return android.widget.HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false; isFocusable = false
+            addView(vrsta)
+        }
+    }
+
+    /** Iskanje YouTube v ozadju: ena nit, zastarelo iskanje se preskoci pred omrezjem. */
+    private val youtubeDelavec by lazy {
+        java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "safeer-lupa-youtube").apply { isDaemon = true } }
+    }
+
+    /** Naslovnice v lupi: majhen predpomnilnik v pomnilniku, ena nit, enaka varna pot kot v Medijskem centru. */
+    private val slikeLupe = android.util.LruCache<String, android.graphics.Bitmap>(16)
+    private val slikeLupeDelavec by lazy {
+        java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "safeer-lupa-slike").apply { isDaemon = true } }
+    }
+
+    private fun slikaLupe(url: String, v: ImageView) {
+        slikeLupe.get(url)?.let { v.setImageBitmap(it); return }
+        val shema = runCatching { android.net.Uri.parse(url).scheme?.lowercase(Locale.ROOT) }.getOrNull()
+        if (shema != "https" && shema != "http") return
+        v.tag = url
+        slikeLupeDelavec.execute {
+            if (isFinishing || isDestroyed || v.tag != url) return@execute
+            val px = MedijskiPredpomnilnik.NASLOVNICA_PX
+            val b = try {
+                (MedijskiPredpomnilnik.naslovnica(this, url) ?: SpletniVir.bajtiSlike(this, url))
+                    ?.let { VarnaSlika.izBajtov(it, px) }?.let { MedijskiPredpomnilnik.zaPomnilnik(MedijskiPredpomnilnik.pomanjsaj(it, px)) }
+            } catch (_: Throwable) { null }
+            if (b != null) glavna.post {
+                slikeLupe.put(url, b)
+                if (!isFinishing && !isDestroyed && v.tag == url) v.setImageBitmap(b)
+            }
+        }
+    }
+
+    /** Nastavitve, ki jih najde lupa (nase zaslone in najpogostejse sistemske). */
+    private fun nastavitveLupe(): List<Pair<String, Intent>> = listOf(
+        getString(R.string.os_meni_nastavitve) to Intent(this, NastavitveActivity::class.java),
+        getString(R.string.os_videz) to Intent(this, VidezActivity::class.java),
+        getString(R.string.dov_naslov) to Intent(this, DovoljenjaActivity::class.java),
+        getString(R.string.os_meni_naprave) to Intent(this, NapraveActivity::class.java),
+        // Lastnik 3. 11. 2026 18:10 (nasvet): sistemske nastavitve, ki jih na TV iscejo najpogosteje; imeni sta
+        // enaki v vseh jezikih.
+        "Wi-Fi" to Intent(Settings.ACTION_WIFI_SETTINGS),
+        "Bluetooth" to Intent(Settings.ACTION_BLUETOOTH_SETTINGS),
+    )
+
+    /** Stevila zadetkov na filtrih (samo tocna; neznano = brez stevila). Na novo za vsako poizvedbo. */
+    private val stevilaFiltrov = HashMap<String, String>()
+
+    /**
+     * Tocna stevila za filtre, ki iscejo samo na napravi (aplikacije, datoteke, nastavitve; videoteke so del »Video
+     * vsebine«). Splet in YouTube nimata stevila (odprt splet), Video vsebine ga dobijo sele z odgovorom Medijskega centra.
+     */
+    private fun prestejKrajevne(q: String) {
+        val vse = (Aplikacije.zadnjiZnani(this) ?: emptyList()).map { ZadetekAplikacije(it.ime, it, null) } +
+            SpletneAplikacije.seznam(this).map { ZadetekAplikacije(it.ime.ifBlank { SpletneAplikacije.gostitelj(it.url) }, null, it) }
+        val poSkupinah = LupaPravila.aplikacijePoSkupinah(vse, q, Int.MAX_VALUE, { it.ime }) { vrstaZadetka(it) }
+        stevilaFiltrov[LupaPravila.OBSEG_APLIKACIJE] = poSkupinah.values.sumOf { it.size }.toString()
+        stevilaFiltrov[LupaPravila.SKUPINA_VIDEOTEKE] = (poSkupinah[LupaPravila.SKUPINA_VIDEOTEKE]?.size ?: 0).toString()
+        stevilaFiltrov[LupaPravila.OBSEG_DATOTEKE] = LupaPravila.najboljsi(
+            Nadaljuj.seznam(this).filter { it.vrsta in ZaganjalnikPravila.VRSTE_DATOTEK }, q, Int.MAX_VALUE) { it.ime }.size.toString()
+        stevilaFiltrov[LupaPravila.OBSEG_NASTAVITVE] = LupaPravila.najboljsi(nastavitveLupe(), q, Int.MAX_VALUE) { it.first }.size.toString()
     }
 
     /** Predlog iskanja kot cip: ena vrstica, celo besedilo ali tri pike na koncu, nikoli lom sredi besede. */
@@ -1193,6 +1326,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         for (o in LupaPravila.OBSEGI) {
             val g = vrstaIzbire.findViewWithTag<TextView>("obseg_$o") ?: continue
             val da = o == izbiraLupe
+            // Lastnik 3. 11. 2026 (slika TV 17:59): stevilo zadetkov ob filtru, ce je znano.
+            g.text = stevilaFiltrov[o]?.let { "${napisObsega(o)} ($it)" } ?: napisObsega(o)
             g.isSelected = da
             g.typeface = if (da) Typeface.create("sans-serif-medium", Typeface.BOLD) else Typeface.DEFAULT
             g.contentDescription = getString(if (da) R.string.pk_lupa_filter_izbran else R.string.pk_lupa_filter_ni_izbran, napisObsega(o))
@@ -1319,7 +1454,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     }
 
     /** Vrne false, ce uporabnik nima dodatkov (iskanja ni - nic se ne caka). */
-    private fun isciVideo(q: String, st: Int, nato: (List<String>) -> Unit): Boolean {
+    private fun isciVideo(q: String, st: Int, nato: (List<Pair<String, String>>) -> Unit): Boolean {
         val naslovi = try { MedijskiViri.vsi(this).filter { it.jeStremio }.map { it.naslov } } catch (_: Throwable) { emptyList() }
         if (naslovi.isEmpty()) return false
         videoDelavec.execute {
@@ -1328,7 +1463,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
             val zadetkiVidea = try {
                 Stremio.isci(Stremio.zKatalogom(naslovi), q, samoIskanje = false)
                     .filter { Stremio.razredEnote(it) == Stremio.FILM || Stremio.razredEnote(it) == Stremio.SERIJA }
-                    .map { it.naslov }.filter { it.isNotBlank() }.distinct().take(5)
+                    .filter { it.naslov.isNotBlank() }.distinctBy { it.naslov }.take(NAJVEC_VIDEO).map { it.naslov to it.slika }
             } catch (_: Throwable) { emptyList() }
             glavna.post { if (!isFinishing && !isDestroyed && st == iskanjeSt) nato(zadetkiVidea) }
         }
@@ -1351,6 +1486,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         zadetki.removeAllViews()
         prvaStran = null
         val drsnik = zadetkiDrsnik
+        stevilaFiltrov.clear()
         if (q.isEmpty()) {
             vrstaIzbire.visibility = View.GONE
             // Lastnik 3. 11. 2026 18:32-18:34: prazna lupa pokaze 6 najpogostejsih iskanj uporabnika (3 vrste po 2).
@@ -1373,6 +1509,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
             }
         } else {
             vrstaIzbire.visibility = View.VISIBLE
+            prestejKrajevne(q)
             osveziFiltre()
             val obseg = izbiraLupe
             val skupine = LupaPravila.skupine(obseg, redLupe())
@@ -1468,16 +1605,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                     }
                 }
                 LupaPravila.OBSEG_NASTAVITVE -> {
-                    val nastavitve = listOf(
-                        getString(R.string.os_meni_nastavitve) to Intent(this, NastavitveActivity::class.java),
-                        getString(R.string.os_videz) to Intent(this, VidezActivity::class.java),
-                        getString(R.string.dov_naslov) to Intent(this, DovoljenjaActivity::class.java),
-                        getString(R.string.os_meni_naprave) to Intent(this, NapraveActivity::class.java),
-                        // Lastnik 3. 11. 2026 18:10 (nasvet): sistemske nastavitve, ki jih na TV iscejo najpogosteje; imeni sta
-                        // enaki v vseh jezikih.
-                        "Wi-Fi" to Intent(Settings.ACTION_WIFI_SETTINGS),
-                        "Bluetooth" to Intent(Settings.ACTION_BLUETOOTH_SETTINGS),
-                    )
+                    val nastavitve = nastavitveLupe()
                     val zadetkiNastavitev = LupaPravila.najboljsi(nastavitve, q, 3) { it.first }
                     if (zadetkiNastavitev.isNotEmpty()) {
                         zadetki.addView(naslovSkupine(R.string.os_meni_nastavitve))
@@ -1493,13 +1621,11 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                         }.apply { tag = "isci_video" }, kam)
                     }
                     if (LupaPravila.zivo(skupina, obseg, q, vklopljeno, google) && isciVideo(q, st) { naslovi ->
-                        naMesto(kam, R.string.pk_lupa_obseg_video, naslovi.map { n ->
-                            vrsticaZadetka(R.drawable.os_ikona_tv, n) {
-                                // Isto kot »Prikazi na TV«: film ali serija s tem naslovom se v Medijskem centru odpre sama.
-                                startActivity(Intent(this, GlasbaActivity::class.java).putExtra(GlasbaActivity.ISKANJE_BESEDA, n)
-                                    .putExtra(GlasbaActivity.ISKANJE_NATANCNO, true))
-                            }.apply { tag = "video_$n" }
-                        })
+                        // Lastnik 3. 11. 2026 (slika TV 17:59): filmi in serije kot kartice z naslovnico v eni vodoravni vrsti.
+                        if (st == iskanjeSt) stevilaFiltrov[LupaPravila.OBSEG_VIDEO] = LupaPravila.napisStevila(
+                            (stevilaFiltrov[LupaPravila.SKUPINA_VIDEOTEKE]?.toIntOrNull() ?: 0) + naslovi.size, naslovi.size >= NAJVEC_VIDEO)
+                        osveziFiltre()
+                        naMesto(kam, R.string.pk_lupa_obseg_video, if (naslovi.isEmpty()) emptyList() else listOf(vrstaKartic(naslovi)))
                     }) cakam++
                 }
                 LupaPravila.OBSEG_YOUTUBE -> {
@@ -1509,6 +1635,22 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                         dodaj(vrsticaZadetka(R.drawable.os_ikona_isci, getString(R.string.pk_lupa_isci_youtube, q)) {
                             DomacaLupa.isciNaYoutubu(this, q)
                         }.apply { tag = "isci_youtube" }, kam)
+                    }
+                    if (LupaPravila.youtubeVideo(obseg, q, vklopljeno)) {
+                        cakam++
+                        youtubeDelavec.execute {
+                            val videi = if (st != iskanjeSt) null else try {
+                                UvozSeznama.iskanjeYoutube(q)?.let { YoutubeMixPravila.izIskanja(org.json.JSONObject(it), NAJVEC_VIDEO) }
+                            } catch (_: Throwable) { null }
+                            glavna.post {
+                                if (isFinishing || isDestroyed || st != iskanjeSt) return@post
+                                if (videi != null) {
+                                    stevilaFiltrov[LupaPravila.OBSEG_YOUTUBE] = LupaPravila.napisStevila(videi.size, videi.size >= NAJVEC_VIDEO)
+                                    osveziFiltre()
+                                }
+                                naMesto(kam, R.string.pk_lupa_obseg_youtube, videi?.let { if (it.isEmpty()) emptyList() else listOf(vrstaKarticYoutube(it)) })
+                            }
+                        }
                     }
                     if (LupaPravila.zivo(skupina, obseg, q, vklopljeno, google)) {
                         cakam++
@@ -1523,11 +1665,13 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                     val kam = mesto()
                     // Neposredne strani (»rtv slo« -> rtvslo.si) nad splosnim iskanjem: spletne aplikacije uporabnika in znane strani.
                     val strani = LupaPravila.strani(q, spletneUporabnika.map { it.ime.ifBlank { SpletneAplikacije.gostitelj(it.url) } to it.url })
-                    if (strani.isNotEmpty() || LupaPravila.vrsticaIskanja(obseg)) kam.addView(naslovSkupine(R.string.pk_lupa_predlogi))
+                    // Lastnik 20:53: pod »Vse« je »Isci v spletu« vedno na voljo (prej je ostalo samo »Ni zadetkov«).
+                    val iskanjeVSpletu = LupaPravila.vrsticaIskanja(obseg) || obseg == LupaPravila.OBSEG_VSE
+                    if (strani.isNotEmpty() || iskanjeVSpletu) kam.addView(naslovSkupine(R.string.pk_lupa_predlogi))
                     for ((ime, url) in strani) dodaj(vrsticaZadetka(R.drawable.os_ikona_splet, ime) {
                         odpri(Brskalnik.namera(this).setAction(Intent.ACTION_VIEW).setData(android.net.Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                     }.apply { tag = "stran_$url"; if (prvaStran == null) prvaStran = this }, kam)
-                    if (LupaPravila.vrsticaIskanja(obseg)) dodaj(vrsticaZadetka(R.drawable.os_ikona_isci, getString(R.string.pk_lupa_isci_splet, q)) {
+                    if (iskanjeVSpletu) dodaj(vrsticaZadetka(R.drawable.os_ikona_isci, getString(R.string.pk_lupa_isci_splet, q)) {
                         odpri(Brskalnik.namera(this).setAction(Intent.ACTION_VIEW)
                             .setData(android.net.Uri.parse(si.safeer.tv.SmartOmnibox.iskanje(this, q))).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                     }.apply { tag = "isci_splet" }, kam)
@@ -2481,6 +2625,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         /** Vrstni red filtrov lupe, ki ga izbere uporabnik (vejica med imeni, LupaPravila.vrstniRed). */
         const val KLJUC_RED_LUPE = "lupa_vrstni_red"
         const val KLJUC_SPLET_PREDLOGI = "pokrajina_splet_predlogi"
+        /** Lastnik 3. 11. 2026 20:54: sprotni predlogi iskalnika so privzeto vklopljeni (od 3 znakov); izklop v Nastavitvah. */
+        const val SPLET_PREDLOGI_PRIVZETO = true
         private const val KLJUC_KRAJ_IME = VremeKraj.KLJUC_IME
         private const val KLJUC_KRAJ_SIRINA = VremeKraj.KLJUC_SIRINA
         private const val KLJUC_KRAJ_DOLZINA = VremeKraj.KLJUC_DOLZINA

@@ -39,6 +39,17 @@ fun main() {
     preveriEnako("naslov iz runs, kanal iz longBylineText", YoutubeMixPravila.Vnos("eeeeeeeee-5", "Peta", "E"), m.last())
     preveriEnako("prazen odgovor: nic", 0, P.izMixa(JSONObject("{}"), "dQw4w9WgXcQ", emptySet()).size)
 
+    // Lupa 3. 11. 2026 19:40: zadetki iskanja s predogledom; neveljaven id ne pride v naslov slicice.
+    val iskanje = JSONObject("""{"contents":{"x":[{"videoRenderer":{"videoId":"aaaaaaaaaa1","title":{"runs":[{"text":"Prvi"}]}}},
+        {"videoRenderer":{"videoId":"../evil.com","title":{"runs":[{"text":"Zlo"}]}}},
+        {"videoRenderer":{"videoId":"aaaaaaaaaa1","title":{"runs":[{"text":"Dvojnik"}]}}},
+        {"videoRenderer":{"videoId":"bbbbbbbbbb2","title":{"runs":[{"text":"Drugi"}]}}}]}}""")
+    val zi = P.izIskanja(iskanje, 8)
+    preveriEnako("iskanje: veljavni id, brez dvojnikov", listOf("aaaaaaaaaa1", "bbbbbbbbbb2"), zi.map { it.first })
+    preveriEnako("iskanje: slicica i.ytimg.com", "https://i.ytimg.com/vi/aaaaaaaaaa1/mqdefault.jpg", zi.first().third)
+    preveriEnako("iskanje: najvec", 1, P.izIskanja(iskanje, 1).size)
+    preveriEnako("iskanje: telo ima poizvedbo", "ava", JSONObject(P.zahtevaIskanja("ava")).getString("query"))
+
     println(if (napak == 0) "VSE OK" else "NAPAK: $napak")
     if (napak > 0) kotlin.system.exitProcess(1)
 }

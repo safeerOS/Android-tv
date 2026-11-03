@@ -257,6 +257,10 @@ object UvozSeznama {
             .minByOrNull { kotlin.math.abs(it.second - sekund) }?.first ?: z.first().first
     }
 
+    /** Iskanje YouTube za lupo (POST youtubei/v1/search, brez piskotkov razen soglasja); null = ni odgovora. */
+    fun iskanjeYoutube(q: String): String? =
+        beri("https://www.youtube.com/youtubei/v1/search?prettyPrint=false", youtube = true, telo = YoutubeMixPravila.zahtevaIskanja(q))
+
     private fun beri(naslov: String, youtube: Boolean = false, telo: String? = null): String? {
         val p = try { URL(naslov).openConnection() as HttpURLConnection } catch (_: Exception) { return null }
         return try {

@@ -1,5 +1,5 @@
 {
- "opis": "Preizkusni primeri iskalne lupe - ISTA datoteka v Safeer-linux (tests/lupa-vektorji.json) in Android-tv (tests/lupa-vektorji.json). Preverjata jo assets/os/lupa.js (tests/test_lupa_pravila.py) in LupaPravila.kt (tests/LupaVektorjiTest.kt). Primer zadetki: vnosi = aplikacije (z url = spletna aplikacija), datoteke in nastavitve uporabnika; po_filtrih = vidne skupine in imena po vrsti (prazne skupine se ne pokazejo).",
+ "opis": "Preizkusni primeri iskalne lupe - ISTA datoteka v Safeer-linux (tests/lupa-vektorji.json) in Android-tv (tests/lupa-vektorji.json). Preverjata jo assets/os/lupa.js (tests/test_lupa_pravila.py) in LupaPravila.kt (tests/LupaVektorjiTest.kt). Primer zadetki: vnosi = aplikacije (z url = spletna aplikacija), datoteke in nastavitve uporabnika; po_filtrih = vidne skupine in imena po vrsti (prazne skupine se ne pokazejo). Stetje iskanj (pogosta, pristej) = seznam parov [niz, stevilo] v vrstnem redu vpisa (kot LinkedHashMap); red = shranjen vrstni red filtrov.",
  "obsegi": [
   "vse",
   "splet",
@@ -304,6 +304,12 @@
    "po_filtrih": {
     "vse": [
      [
+      "videoteke",
+      [
+       "RTV 365"
+      ]
+     ],
+     [
       "novice",
       [
        "RTV SLO"
@@ -314,12 +320,6 @@
       [
        "rtv-spored.pdf",
        "Spored RTV.txt"
-      ]
-     ],
-     [
-      "videoteke",
-      [
-       "RTV 365"
       ]
      ]
     ],
@@ -781,6 +781,476 @@
    "izid": null
   }
  ],
+ "vrstni_red": [
+  {
+   "shranjeno": [],
+   "izid": [
+    "vse",
+    "splet",
+    "video",
+    "youtube",
+    "aplikacije",
+    "datoteke",
+    "nastavitve"
+   ]
+  },
+  {
+   "shranjeno": [
+    "datoteke",
+    "splet"
+   ],
+   "izid": [
+    "vse",
+    "datoteke",
+    "splet",
+    "video",
+    "youtube",
+    "aplikacije",
+    "nastavitve"
+   ]
+  },
+  {
+   "shranjeno": [
+    "vse",
+    "neznan",
+    "video",
+    "video",
+    "splet"
+   ],
+   "izid": [
+    "vse",
+    "video",
+    "splet",
+    "youtube",
+    "aplikacije",
+    "datoteke",
+    "nastavitve"
+   ]
+  }
+ ],
+ "premakni": [
+  {
+   "red": [
+    "vse",
+    "splet",
+    "video",
+    "youtube",
+    "aplikacije",
+    "datoteke",
+    "nastavitve"
+   ],
+   "obseg": "video",
+   "smer": -1,
+   "izid": [
+    "vse",
+    "video",
+    "splet",
+    "youtube",
+    "aplikacije",
+    "datoteke",
+    "nastavitve"
+   ]
+  },
+  {
+   "red": [
+    "vse",
+    "splet",
+    "video",
+    "youtube",
+    "aplikacije",
+    "datoteke",
+    "nastavitve"
+   ],
+   "obseg": "splet",
+   "smer": -1,
+   "izid": [
+    "vse",
+    "splet",
+    "video",
+    "youtube",
+    "aplikacije",
+    "datoteke",
+    "nastavitve"
+   ]
+  },
+  {
+   "red": [
+    "vse",
+    "splet",
+    "video",
+    "youtube",
+    "aplikacije",
+    "datoteke",
+    "nastavitve"
+   ],
+   "obseg": "nastavitve",
+   "smer": 1,
+   "izid": [
+    "vse",
+    "splet",
+    "video",
+    "youtube",
+    "aplikacije",
+    "datoteke",
+    "nastavitve"
+   ]
+  },
+  {
+   "red": [
+    "vse",
+    "splet",
+    "video",
+    "youtube",
+    "aplikacije",
+    "datoteke",
+    "nastavitve"
+   ],
+   "obseg": "vse",
+   "smer": 1,
+   "izid": [
+    "vse",
+    "splet",
+    "video",
+    "youtube",
+    "aplikacije",
+    "datoteke",
+    "nastavitve"
+   ]
+  },
+  {
+   "red": [
+    "vse",
+    "splet",
+    "video",
+    "youtube",
+    "aplikacije",
+    "datoteke",
+    "nastavitve"
+   ],
+   "obseg": "neznan",
+   "smer": 1,
+   "izid": [
+    "vse",
+    "splet",
+    "video",
+    "youtube",
+    "aplikacije",
+    "datoteke",
+    "nastavitve"
+   ]
+  },
+  {
+   "red": [
+    "datoteke"
+   ],
+   "obseg": "splet",
+   "smer": 1,
+   "izid": [
+    "vse",
+    "datoteke",
+    "video",
+    "splet",
+    "youtube",
+    "aplikacije",
+    "nastavitve"
+   ]
+  }
+ ],
+ "skupine_vse": [
+  {
+   "red": [],
+   "izid": [
+    "splet",
+    "videoteke",
+    "video",
+    "youtube",
+    "aplikacije",
+    "novice",
+    "datoteke",
+    "nastavitve"
+   ]
+  },
+  {
+   "red": [
+    "aplikacije",
+    "video"
+   ],
+   "izid": [
+    "aplikacije",
+    "novice",
+    "videoteke",
+    "video",
+    "splet",
+    "youtube",
+    "datoteke",
+    "nastavitve"
+   ]
+  }
+ ],
+ "pogosta": [
+  {
+   "stetje": [
+    [
+     "Dune",
+     3
+    ],
+    [
+     "Oppenheimer",
+     5
+    ],
+    [
+     "vreme",
+     1
+    ]
+   ],
+   "zgodovina": [
+    "vreme",
+    "Dune",
+    "linux mint"
+   ],
+   "vpis": "",
+   "najvec": 6,
+   "izid": [
+    "Oppenheimer",
+    "Dune",
+    "vreme",
+    "linux mint"
+   ]
+  },
+  {
+   "stetje": [
+    [
+     "Dune",
+     3
+    ],
+    [
+     "Dunaj",
+     3
+    ],
+    [
+     "dnevnik",
+     1
+    ],
+    [
+     "Oppenheimer",
+     5
+    ]
+   ],
+   "zgodovina": [
+    "Dunaj",
+    "dnevnik"
+   ],
+   "vpis": "du",
+   "najvec": 6,
+   "izid": [
+    "Dunaj",
+    "Dune"
+   ]
+  },
+  {
+   "stetje": [
+    [
+     "Dune",
+     2
+    ],
+    [
+     "Dune part two",
+     1
+    ]
+   ],
+   "zgodovina": [],
+   "vpis": "DUNE ",
+   "najvec": 6,
+   "izid": [
+    "Dune part two"
+   ]
+  },
+  {
+   "stetje": [
+    [
+     "linux mint",
+     9
+    ],
+    [
+     "Mint tea",
+     1
+    ]
+   ],
+   "zgodovina": [],
+   "vpis": "mint",
+   "najvec": 6,
+   "izid": [
+    "Mint tea",
+    "linux mint"
+   ]
+  },
+  {
+   "stetje": [
+    [
+     "ena",
+     1
+    ],
+    [
+     "dve",
+     2
+    ],
+    [
+     "tri",
+     3
+    ],
+    [
+     "stiri",
+     4
+    ],
+    [
+     "pet",
+     5
+    ],
+    [
+     "sest",
+     6
+    ],
+    [
+     "sedem",
+     7
+    ]
+   ],
+   "zgodovina": [],
+   "vpis": "",
+   "najvec": 6,
+   "izid": [
+    "sedem",
+    "sest",
+    "pet",
+    "stiri",
+    "tri",
+    "dve"
+   ]
+  },
+  {
+   "stetje": [
+    [
+     "dune",
+     4
+    ]
+   ],
+   "zgodovina": [
+    "DUNE"
+   ],
+   "vpis": "",
+   "najvec": 6,
+   "izid": [
+    "DUNE"
+   ]
+  }
+ ],
+ "pristej": [
+  {
+   "stetje": [],
+   "niz": "  Dune  ",
+   "najvec": 200,
+   "izid": [
+    [
+     "Dune",
+     1
+    ]
+   ]
+  },
+  {
+   "stetje": [
+    [
+     "Dune",
+     1
+    ],
+    [
+     "vreme",
+     2
+    ]
+   ],
+   "niz": "dune",
+   "najvec": 200,
+   "izid": [
+    [
+     "Dune",
+     2
+    ],
+    [
+     "vreme",
+     2
+    ]
+   ]
+  },
+  {
+   "stetje": [
+    [
+     "Dune",
+     1
+    ]
+   ],
+   "niz": "„llll",
+   "najvec": 200,
+   "izid": [
+    [
+     "Dune",
+     1
+    ]
+   ]
+  },
+  {
+   "stetje": [
+    [
+     "a b",
+     3
+    ],
+    [
+     "cd",
+     1
+    ],
+    [
+     "ef",
+     2
+    ]
+   ],
+   "niz": "gh",
+   "najvec": 3,
+   "izid": [
+    [
+     "a b",
+     3
+    ],
+    [
+     "ef",
+     2
+    ],
+    [
+     "cd",
+     1
+    ]
+   ]
+  }
+ ],
+ "napis_stevila": [
+  {
+   "n": 0,
+   "vec": false,
+   "izid": "0"
+  },
+  {
+   "n": 5,
+   "vec": false,
+   "izid": "5"
+  },
+  {
+   "n": 8,
+   "vec": true,
+   "izid": "8+"
+  },
+  {
+   "n": 0,
+   "vec": true,
+   "izid": "0"
+  }
+ ],
  "besedila": {
   "sl": {
    "filtri": "Išči v",
@@ -805,7 +1275,9 @@
    "splet_ni": "Splet trenutno ni dosegljiv",
    "st_zadetkov": "Zadetkov: {n}",
    "zgodovina": "Zgodovina iskanja",
-   "zgodovina_opis": "Zgodovina iskanja, {q}"
+   "zgodovina_opis": "Zgodovina iskanja, {q}",
+   "premakni_levo": "Premakni levo",
+   "premakni_desno": "Premakni desno"
   },
   "en": {
    "filtri": "Search in",
@@ -830,7 +1302,9 @@
    "splet_ni": "The web is not reachable right now",
    "st_zadetkov": "Results: {n}",
    "zgodovina": "Search history",
-   "zgodovina_opis": "Search history, {q}"
+   "zgodovina_opis": "Search history, {q}",
+   "premakni_levo": "Move left",
+   "premakni_desno": "Move right"
   },
   "de": {
    "filtri": "Suchen in",
@@ -855,7 +1329,9 @@
    "splet_ni": "Das Web ist gerade nicht erreichbar",
    "st_zadetkov": "Treffer: {n}",
    "zgodovina": "Suchverlauf",
-   "zgodovina_opis": "Suchverlauf, {q}"
+   "zgodovina_opis": "Suchverlauf, {q}",
+   "premakni_levo": "Nach links verschieben",
+   "premakni_desno": "Nach rechts verschieben"
   },
   "es": {
    "filtri": "Buscar en",
@@ -880,7 +1356,9 @@
    "splet_ni": "La web no está disponible ahora",
    "st_zadetkov": "Resultados: {n}",
    "zgodovina": "Historial de búsqueda",
-   "zgodovina_opis": "Historial de búsqueda, {q}"
+   "zgodovina_opis": "Historial de búsqueda, {q}",
+   "premakni_levo": "Mover a la izquierda",
+   "premakni_desno": "Mover a la derecha"
   },
   "fr": {
    "filtri": "Rechercher dans",
@@ -905,7 +1383,9 @@
    "splet_ni": "Le web n’est pas joignable pour le moment",
    "st_zadetkov": "Résultats : {n}",
    "zgodovina": "Historique de recherche",
-   "zgodovina_opis": "Historique de recherche, {q}"
+   "zgodovina_opis": "Historique de recherche, {q}",
+   "premakni_levo": "Déplacer à gauche",
+   "premakni_desno": "Déplacer à droite"
   },
   "it": {
    "filtri": "Cerca in",
@@ -930,7 +1410,9 @@
    "splet_ni": "Il web non è raggiungibile ora",
    "st_zadetkov": "Risultati: {n}",
    "zgodovina": "Cronologia ricerche",
-   "zgodovina_opis": "Cronologia ricerche, {q}"
+   "zgodovina_opis": "Cronologia ricerche, {q}",
+   "premakni_levo": "Sposta a sinistra",
+   "premakni_desno": "Sposta a destra"
   }
  },
  "besedila_tv": {
@@ -956,6 +1438,8 @@
   "iscem": "pk_lupa_iscem",
   "splet_ni": "pk_lupa_splet_ni",
   "st_zadetkov": "pk_lupa_st_zadetkov",
-  "zgodovina_opis": "pk_lupa_zgodovina_opis"
+  "zgodovina_opis": "pk_lupa_zgodovina_opis",
+  "premakni_levo": "os_spletne_levo",
+  "premakni_desno": "os_spletne_desno"
  }
 }
