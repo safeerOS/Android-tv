@@ -71,8 +71,9 @@ object LahkiWebViewPool {
             lastnik = null
             obOdvzemu = null
             glavna.removeCallbacks(unicenje)
-            unicuj(w, "nativno predvajanje")
+            // Neodvisni pregled 4. 11. 2026: najemnik izve za odvzem PRED unicenjem (svoj pogled se ne uporablja vec).
             try { klic?.invoke() } catch (_: Throwable) { }
+            unicuj(w, "nativno predvajanje")
         }
         koncajIzrisovalnik("nativno predvajanje")
     }

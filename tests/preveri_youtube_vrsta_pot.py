@@ -50,5 +50,11 @@ preveri("SpletniIgralec: po unicenju koncaj izrisovalnik", "LahkiWebViewPool.poU
 preveri("SpletniIgralec: vgradni zastoj nalozi polno stran", "YoutubeVrstaPravila.poZastojuPolnaStran(vgradno)" in s)
 preveri("SpletniIgralec: uradni ukaz IFrame API", "event:'command'" in s and "enablejsapi=1" in (OS / "SpletniIgralec.kt").read_text(encoding="utf-8"))
 preveri("SpletniIgralec: straza ozadja", "YoutubeVrstaPravila.ozadjeStoji(" in s)
+# Neodvisni pregled 4. 11. 2026
+sr = (OS / "SpletniIgralec.kt").read_text(encoding="utf-8")
+preveri("SpletniIgralec: ukaz IFrame samo gostitelju YouTube", "new URL(x.src).hostname" in sr and "src*=" not in sr)
+i = pool.find("fun obNativnemPredvajanju")
+blok = pool[i:pool.find("koncajIzrisovalnik(\"nativno predvajanje\")", i)]
+preveri("pool: odvzem pred unicenjem", 0 <= blok.find("klic?.invoke()") < blok.find("unicuj(w, \"nativno predvajanje\")"))
 print("VSE OK" if napak == 0 else f"NAPAK: {napak}")
 sys.exit(1 if napak else 0)

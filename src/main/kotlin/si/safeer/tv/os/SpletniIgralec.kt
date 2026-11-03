@@ -106,9 +106,11 @@ open class SpletniIgralec protected constructor(
     // postMessage vmesnika IFrame (enablejsapi=1), ce posrednik v okvirju ne tece.
     protected fun ukaz(c: String, t: Double = 0.0) =
         pogled.evaluateJavascript("(function(){try{window.postMessage({safeer:'ukaz',c:'$c',t:$t},'*');}catch(e){}" +
-            "try{var f={play:'playVideo',pause:'pauseVideo',seek:'seekTo'}['$c'];if(f){[].forEach.call(document.querySelectorAll(" +
-            "'iframe[src*=\"youtube.com/embed/\"]'),function(x){try{x.contentWindow.postMessage(" +
-            "JSON.stringify({event:'command',func:f,args:f==='seekTo'?[$t,true]:[]}),'*');}catch(e){}});}}catch(e){}})()", null)
+            // Neodvisni pregled 4. 11. 2026: ukaz samo okvirjem, katerih gostitelj JE YouTube (ne iskanje podniza v src, ki ujame tudi
+            // ?u=youtube.com/embed na tujem gostitelju).
+            "try{var f={play:'playVideo',pause:'pauseVideo',seek:'seekTo'}['$c'];if(f){[].forEach.call(document.querySelectorAll('iframe[src]')," +
+            "function(x){try{var h=new URL(x.src).hostname;if(h!=='www.youtube.com'&&h!=='youtube.com'&&h!=='www.youtube-nocookie.com')return;" +
+            "x.contentWindow.postMessage(JSON.stringify({event:'command',func:f,args:f==='seekTo'?[$t,true]:[]}),'https://'+h);}catch(e){}});}}catch(e){}})()", null)
 
     /** Vrhnja stran izreze najvecji iframe/video, vsak notranji okvir pa samo svoj dejanski video. */
     protected fun vklopiKino() {
