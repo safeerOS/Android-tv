@@ -1714,6 +1714,12 @@ object OsPravila {
      */
     fun zaGlasbo(video: Boolean, radio: Boolean, youtube: Boolean): Boolean = !radio && (!video || youtube)
 
+    /**
+     * Lastnik 3. 11. 2026 (»Na tej napravi« v Glasbi: DA): glasba z diska in USB prek KrajevneDatoteke ima samostojni
+     * Predvajalnik in tudi Safeer OS na TV (prej je bil USB samo v Datotekah).
+     */
+    fun glasbaNaTejNapravi(okus: String): Boolean = okus == "predvajalnik" || okus == "os"
+
     /** Vrstni red strani Jamenda: »Najnovejse« po datumu izida, sicer po priljubljenosti. */
     fun redJamenda(najnovejse: Boolean): String = if (najnovejse) "releasedate_desc" else "popularity_total"
 

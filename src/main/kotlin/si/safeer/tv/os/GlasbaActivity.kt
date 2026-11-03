@@ -3126,8 +3126,11 @@ class GlasbaActivity : OsActivity() {
     /** Krajevni videi/glasba za zavihka Video in Glasba (VLC slog); berejo se loceno od spleta. */
     private val krajevno = HashMap<Int, List<Jamendo.Skladba>>()
 
+    /** Lastnik 3. 11. 2026: »Na tej napravi« v Glasbi tudi na TV ([OsPravila.glasbaNaTejNapravi]). */
+    private val glasbaNaNapravi by lazy { OsPravila.glasbaNaTejNapravi(si.safeer.tv.BuildConfig.FLAVOR) }
+
     private fun naloziKrajevno(i: Int) {
-        if (!vlc || (i != VIDEO && i != GLASBA) || i in samoTaNaprava) return
+        if (!(vlc || (i == GLASBA && glasbaNaNapravi)) || (i != VIDEO && i != GLASBA) || i in samoTaNaprava) return
         // Lastna nit: delavec ima v vrsti nalaganje slik in spleta - krajevno mora biti takoj.
         Thread {
             val l = try { krajevnePolice(i).flatMap { it.skladbe } } catch (_: Throwable) { emptyList() }
@@ -4429,7 +4432,7 @@ class GlasbaActivity : OsActivity() {
             return
         }
         // Na tej napravi (samostojni Predvajalnik): glasba iz shrambe naprave kot mreza; brez dovoljenja kartica, ki ga zahteva.
-        if (i == GLASBA && vlc && glasbaSkupina() == SKUPINA_NAPRAVA) {
+        if (i == GLASBA && (vlc || glasbaNaNapravi) && glasbaSkupina() == SKUPINA_NAPRAVA) {
             val lokalne = krajevno[GLASBA]
             val urejene = lokalne.orEmpty().let { if (razvrstitev(GLASBA) == RAZVRSTI_PRIPOROCENO) it else razvrsti(GLASBA, it) }
             val dovoljenje = dovoljenjeKartica(GLASBA)
@@ -4913,7 +4916,7 @@ class GlasbaActivity : OsActivity() {
         // Glasba in videospoti so združeni v eno izbiro (Glasba):
         val skupine = OsPravila.skupineIzbire(listOf("" to true, SKUPINA_MOJE to imaMoje) +
             // Samostojni Predvajalnik: glasba iz shrambe naprave (prej polica nad spletnimi policami).
-            (if (vlc) listOf(SKUPINA_NAPRAVA to true) else emptyList()), skupina).map { it to imena.getValue(it) }
+            (if (vlc || glasbaNaNapravi) listOf(SKUPINA_NAPRAVA to true) else emptyList()), skupina).map { it to imena.getValue(it) }
         val polja = ArrayList<PoljeIzbire>()
         polja += PoljeIzbire("izb:skupina", skupine.map { it.second }, skupine.indexOfFirst { it.first == skupina }.coerceAtLeast(0), null) { i ->
             shraniGlasbaSkupino(skupine[i].first); fokusVVsebino = false; izberi(GLASBA)
