@@ -2120,10 +2120,22 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         }
     }
 
+    /** Urejanje naslovne vrstice tece (polje ali plosca predlogov ima fokus); vneseno besedilo takrat ostane. */
+    private var urejanjePolja = false
+
+    private fun jeVPlosciPredlogov(v: View): Boolean {
+        var p: Any? = v
+        while (p is View) { if (p === searchSuggestionsOverlay) return true; p = p.parent }
+        return false
+    }
+
     private fun setupOmnibox() {
         editUrl.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) {
                 omniboxContainer.setBackgroundResource(if (SpletDomaca.jeSafeerOs(this)) R.drawable.splet_naslov_fokus else R.drawable.bg_tab_card_active)
+                // GOR iz plosce predlogov nazaj v polje: urejanje tece naprej, besedilo in plosca ostaneta (TV 3. 11. 2026).
+                if (urejanjePolja) return@setOnFocusChangeListener
+                urejanjePolja = true
                 // Lastnik 1. 11. 2026: z daljincem je bila plosca z bliznjicami odprta ze ob samem prehodu fokusa cez
                 // naslovno vrstico in je prekrila vrh strani (Googlovo iskanje). Na TV se pokaze sele ob urejanju
                 // (OK odpre tipkovnico - showKeyboard, ali vnos besedila); na dotik takoj kot prej.
@@ -2154,7 +2166,15 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 // setText zgoraj je prek TextWatcher plosco ze pokazal - na TV ostane skrita do urejanja.
                 if (!ChromiumEngineView.naDotik(this)) searchSuggestionsOverlay.visibility = View.GONE
                 chrome.pokaziCipPrilepi(true)
-            } else {
+            }
+        }
+        // Konec urejanja odloci, KAM je sel fokus: TV 3. 11. 2026 je izguba fokusa polja skrila plosco ravno takrat, ko
+        // je fokus prisel na predlog, in naslov strani je prepisal vneseno besedilo.
+        editUrl.viewTreeObserver.addOnGlobalFocusChangeListener { _, novi ->
+            if (!urejanjePolja) return@addOnGlobalFocusChangeListener
+            if (!OmniboxTipke.koncajUrejanje(novi === editUrl, novi != null && jeVPlosciPredlogov(novi))) return@addOnGlobalFocusChangeListener
+            urejanjePolja = false
+            run {
                 omniboxContainer.setBackgroundResource(if (SpletDomaca.jeSafeerOs(this)) R.drawable.splet_naslov else R.drawable.bg_mobile_omnibox)
                 btnClearUrl.visibility = View.GONE
                 searchSuggestionsOverlay.visibility = View.GONE
@@ -2201,22 +2221,6 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             } else {
                 false
             }
-        }
-
-        editUrl.setOnKeyListener { _, keyCode, event ->
-            if (event.action == KeyEvent.ACTION_DOWN) {
-                if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-                    hideKeyboard()
-                    if (portalChipsContainer.childCount > 0) {
-                        portalChipsContainer.getChildAt(0).requestFocus()
-                        return@setOnKeyListener true
-                    } else if (suggestionsListContainer.childCount > 0) {
-                        suggestionsListContainer.getChildAt(0).requestFocus()
-                        return@setOnKeyListener true
-                    }
-                }
-            }
-            false
         }
 
         btnClearUrl.setOnClickListener {

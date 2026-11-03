@@ -151,9 +151,17 @@ class TvKeyRouter(private val host: MainActivity) {
                     }
                 }
                 KeyEvent.KEYCODE_DPAD_DOWN -> {
+                    // TV 3. 11. 2026: DOL je sel vedno na stran, v predloge se ni dalo priti (kot Chrome: DOL v predloge).
                     host.hideKeyboard()
-                    host.editUrl.clearFocus()
-                    host.activeWebView()?.requestFocus()
+                    when (si.safeer.tv.OmniboxTipke.dolIzPolja(host.searchSuggestionsOverlay.visibility == View.VISIBLE,
+                            host.portalChipsContainer.childCount, host.suggestionsListContainer.childCount)) {
+                        si.safeer.tv.OmniboxTipke.Cilj.PRVI_CIP -> host.portalChipsContainer.getChildAt(0).requestFocus()
+                        si.safeer.tv.OmniboxTipke.Cilj.PRVA_VRSTICA -> host.suggestionsListContainer.getChildAt(0).requestFocus()
+                        else -> {
+                            host.editUrl.clearFocus()
+                            host.activeWebView()?.requestFocus()
+                        }
+                    }
                     return true
                 }
                 KeyEvent.KEYCODE_BACK -> {
@@ -171,6 +179,17 @@ class TvKeyRouter(private val host: MainActivity) {
             host.suggestionsListContainer.hasFocus()
 
         if (isSuggestionsOverlayFocused) {
+            // GOR s cipov (ali s prvega predloga brez cipov) nazaj v polje; OK in Nazaj obdela Android oziroma onBackPressed.
+            if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                val fokus = host.currentFocus
+                val seznam = host.suggestionsListContainer
+                val vrstica = (0 until seznam.childCount).indexOfFirst { seznam.getChildAt(it) === fokus }
+                if (si.safeer.tv.OmniboxTipke.gorVPlosci(host.portalChipsContainer.hasFocus(), vrstica,
+                        host.portalChipsContainer.childCount) == si.safeer.tv.OmniboxTipke.Cilj.POLJE) {
+                    host.editUrl.requestFocus()
+                    return true
+                }
+            }
             return host.superDispatchKey(event)
         }
 
@@ -221,19 +240,6 @@ class TvKeyRouter(private val host: MainActivity) {
                     }
                     return true
                 }
-            }
-        }
-
-        if (host.editUrl.hasFocus() && host.searchSuggestionsOverlay.visibility == View.VISIBLE &&
-            keyCode == KeyEvent.KEYCODE_DPAD_DOWN
-        ) {
-            host.hideKeyboard()
-            if (host.portalChipsContainer.childCount > 0) {
-                host.portalChipsContainer.getChildAt(0).requestFocus()
-                return true
-            } else if (host.suggestionsListContainer.childCount > 0) {
-                host.suggestionsListContainer.getChildAt(0).requestFocus()
-                return true
             }
         }
 
