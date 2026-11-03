@@ -4183,7 +4183,8 @@ class GlasbaActivity : OsActivity() {
                     Stremio.jeEnota(sk) -> KanaliPravila.VrstaKanala.DODATEK_KATALOG
                     else -> KanaliPravila.VrstaKanala.VGRAJEN
                 }
-                when (KanaliPravila.vMrezi(vrsta, MrtviKanali.stanje(this, sk.id), preverjam, tvZaklenjeni)) {
+                when (KanaliPravila.vMrezi(vrsta, MrtviKanali.stanje(this, sk.id), preverjam, tvZaklenjeni,
+                        preverljiv = vrsta != KanaliPravila.VrstaKanala.DODATEK || PregledKanalov.preverljivKanal(this, sk))) {
                     KanaliPravila.Prikaz.SKRIJ -> continue
                     KanaliPravila.Prikaz.PREVERI -> {
                         if (!neodklenjena(sk) && sk.id !in narisaniZdaj && sk.id !in razliceNarisanih) { if (kandidati.size < m.okno) kandidati += sk; continue }

@@ -32,5 +32,6 @@ preveri("Stremio: zaklep uposteva placilni zid", "poOdgovoruTokov(prej ?: OsPrav
 preveri("PregledKanalov: samo JSON tokov po smeVprasatiTokove", "KanaliPravila.smeVprasatiTokove(" in p and "Stremio.imaLastenTok(sk, null)" in p)
 preveri("PregledKanalov: dodatek s poverilnico nikoli", "IptvPravila.dodatekSPoverilnico(dodatek)" in p)
 preveri("PregledKanalov: neznan seznam po smeSondaSeznama (lastnik 3. 11.)", "KanaliPravila.smeSondaSeznama(" in p)
+preveri("mreza: PREVERI samo za preverljiv kanal (pregled 4. 11.)", "PregledKanalov.preverljivKanal(this, sk)" in g and "fun preverljivKanal(" in p)
 print("VSE OK" if napak == 0 else f"NAPAK: {napak}")
 sys.exit(1 if napak else 0)

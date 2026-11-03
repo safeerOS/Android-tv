@@ -550,9 +550,11 @@ object KanaliPravila {
      * IPTV in javnemu seznamu (izgine, ko sonda dokaze, da ni medij). [preverjam] false (omejeno omrezje): kot doslej.
      * [pokaziZaklenjene]: uporabnikova izbira »Pokazi zaklenjene«.
      */
-    fun vMrezi(vrsta: VrstaKanala, stanje: Boolean?, preverjam: Boolean, pokaziZaklenjene: Boolean): Prikaz = when {
+    // Neodvisni pregled 4. 11. 2026: kanal dodatka, ki ga v ozadju ne smemo vprasati ([preverljiv] false - dodatek s
+    // poverilnico), bi kot PREVERI ostal skrit za vedno. Tak kanal se pokaze kot doslej (odloci klik).
+    fun vMrezi(vrsta: VrstaKanala, stanje: Boolean?, preverjam: Boolean, pokaziZaklenjene: Boolean, preverljiv: Boolean = true): Prikaz = when {
         stanje == false -> Prikaz.SKRIJ
-        vrsta == VrstaKanala.DODATEK && stanje == null && preverjam && !pokaziZaklenjene -> Prikaz.PREVERI
+        vrsta == VrstaKanala.DODATEK && stanje == null && preverjam && preverljiv && !pokaziZaklenjene -> Prikaz.PREVERI
         else -> Prikaz.PRIKAZI
     }
 

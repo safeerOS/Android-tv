@@ -112,11 +112,18 @@ object PregledKanalov {
      * odpiranje toka pri ponudniku. Nikoli dodatek s poverilnico (kljuc debrida, Usenet, zeton, Xtream v naslovu ali
      * nauceno, da daje tokove z racunom): vsak klic takega dodatka gre na uporabnikov racun.
      */
-    fun smeVprasatiTokove(c: Context, sk: Jamendo.Skladba): Boolean {
+    fun smeVprasatiTokove(c: Context, sk: Jamendo.Skladba, medPredvajanjem: Boolean = GlasbaStoritev.igra()): Boolean {
         if (IptvSeznami.jeKanal(sk) || !Stremio.jeEnota(sk) || !Stremio.dajeLastneTokove(sk)) return false
         val dodatek = Stremio.razstavi(sk)?.first ?: return false
-        return KanaliPravila.smeVprasatiTokove(IptvPravila.dodatekSPoverilnico(dodatek), jeDodatekSPoverilnico(c, dodatek), GlasbaStoritev.igra())
+        return KanaliPravila.smeVprasatiTokove(IptvPravila.dodatekSPoverilnico(dodatek), jeDodatekSPoverilnico(c, dodatek), medPredvajanjem)
     }
+
+    /**
+     * Neodvisni pregled 4. 11. 2026: kanal dodatka sme cakati na preverbo (ni na zaslonu), samo ce ga ozadje kdaj sme
+     * vprasati - javna sonda ali JSON tokov brez poverilnice. Predvajanje tu ne steje: preverba le pocaka, kanal pa ne
+     * izgine (prej med predvajanjem ni prisel noben nov kanal nobenega dodatka).
+     */
+    fun preverljivKanal(c: Context, sk: Jamendo.Skladba): Boolean = smeSonda(c, sk) || smeVprasatiTokove(c, sk, medPredvajanjem = false)
 
     private fun dodatkiSPoverilnico(c: Context): Set<String> = sPoverilnico ?: try {
         c.applicationContext.getSharedPreferences(PREFS_VAROVALO, Context.MODE_PRIVATE).getStringSet(K_DODATKI_S_POVERILNICO, null).orEmpty().toSet()
