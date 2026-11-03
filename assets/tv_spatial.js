@@ -508,21 +508,70 @@
             }
             /* SAFEER_MODALNO_KONEC */
 
+            /* SAFEER_PLAST_IZBIRE_ZACETEK */
+            // Lastnik 3. 11. 2026 02:42 (claude.ai/login na TV, uiautomator): do okna »Cookie settings« desno (Customize /
+            // Reject all / Accept all cookies, povezava »here«) daljinec ni prisel. Gumbi omenjajo piskotke, zato jih je
+            // jeNogaAliPiskotki izlocil; okno ni bilo modalno (ne role=dialog ne cez cel zaslon), izjema ga ni zajela.
+            // Pritrjena plast (fixed ali sticky prednik) ali pogovorno okno je izbira uporabnika: vsi gumbi in povezave
+            // v njej so cilji. Nic ne sprejmemo ali zavrnemo samodejno - izbere uporabnik.
+            var IZBIRNIK_OKNA = '[aria-modal="true"], [role="dialog"], [role="alertdialog"], dialog[open]';
+            function plastIzbire(el, slog) {
+                var p = el, g = 0;
+                while (p && p.nodeType === 1 && g++ < 15) {
+                    var tag = (p.tagName || '').toUpperCase();
+                    if (tag === 'BODY' || tag === 'HTML') return null;
+                    try { if (p.matches && p.matches(IZBIRNIK_OKNA)) return p; } catch (_) {}
+                    var pos = '';
+                    try { pos = slog(p).position; } catch (_) {}
+                    if (pos === 'fixed' || pos === 'sticky') return p;
+                    p = p.parentElement;
+                }
+                return null;
+            }
+            // Prvi cilj v plasti: najprej gumb (ne povezava v besedilu), po vrsti branja. Nevtralno: prvi gumb po legi,
+            // ne »Sprejmi« ali »Zavrni« po besedilu.
+            function prviVPlasti(okno, kandidati) {
+                var gumbi = [], drugi = [];
+                for (var i = 0; i < kandidati.length; i++) {
+                    var k = kandidati[i];
+                    if (!okno.contains(k)) continue;
+                    var tag = (k.tagName || '').toUpperCase();
+                    var ro = ((k.getAttribute && k.getAttribute('role')) || '').toLowerCase();
+                    (tag === 'BUTTON' || ro === 'button' || (tag === 'INPUT' && /^(button|submit)$/i.test(k.getAttribute('type') || ''))
+                        ? gumbi : drugi).push(k);
+                }
+                var sez = gumbi.length ? gumbi : drugi;
+                sez.sort(function (a, b) {
+                    var ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+                    return Math.abs(ra.top - rb.top) > 8 ? ra.top - rb.top : ra.left - rb.left;
+                });
+                return sez[0] || null;
+            }
+            /* SAFEER_PLAST_IZBIRE_KONEC */
+
             function jeNogaAliPiskotki(el) {
                 if (!el) return false;
                 if (jeVModalnemOknu(el)) return false;
                 try {
-                    if (el.closest && el.closest('footer, .footer, [class*="cookie"], [class*="piškot"], [class*="piskot"]')) return true;
+                    if (el.closest && el.closest('footer, .footer')) return true;
+                } catch (_) {}
+                var piskotek = false;
+                try {
+                    piskotek = !!(el.closest && el.closest('[class*="cookie"], [class*="piškot"], [class*="piskot"]'));
                 } catch (_) {}
                 var t = ((el.innerText || el.textContent || '') + '').replace(/\s+/g, ' ').trim().toLowerCase();
-                if (t.indexOf('piškot') !== -1 || t.indexOf('piskot') !== -1 || t.indexOf('cookie') !== -1) return true;
+                if (t.indexOf('piškot') !== -1 || t.indexOf('piskot') !== -1 || t.indexOf('cookie') !== -1) piskotek = true;
                 var href = ((el.getAttribute && el.getAttribute('href')) || '').toLowerCase();
-                if (href.indexOf('cookie') !== -1) return true;
+                if (href.indexOf('cookie') !== -1) piskotek = true;
+                // Izbira o piskotkih v pritrjeni plasti ali oknu je uporabnikova (SAFEER_PLAST_IZBIRE, 3. 11. 2026).
+                if (piskotek) return !plastIzbire(el, window.getComputedStyle);
                 var r;
                 try { r = el.getBoundingClientRect(); } catch (_) { r = null; }
                 // Nizek element cisto spodaj je skoraj vedno pasica s piskotki - razen v pritrjeni spodnji vrstici
-                // za navigacijo (rtvslo.si: MMC / Zame / RTV 365 / Radio / Televizija / mojRTV, 43 px pri dnu).
-                if (r && r.top > ((window.innerHeight || 1080) - 70) && r.height < 48 && !jeSpodnjaNavigacija(el)) return true;
+                // za navigacijo (rtvslo.si: MMC / Zame / RTV 365 / Radio / Televizija / mojRTV, 43 px pri dnu) in v
+                // pritrjeni plasti z izbiro (pasica, ki caka na odlocitev uporabnika).
+                if (r && r.top > ((window.innerHeight || 1080) - 70) && r.height < 48 && !jeSpodnjaNavigacija(el) &&
+                    !plastIzbire(el, window.getComputedStyle)) return true;
                 return false;
             }
 
@@ -1553,6 +1602,8 @@
                     okvir: (t.tagName || '').toUpperCase() === 'IFRAME',
                     cilj: p.jeCilj(t)
                 });
+                // Stran je dala fokus vsebniku okna (ni cilj): izbira gre na prvi gumb v njem (SAFEER_PLAST_IZBIRE).
+                if (odziv === 'skrij' && !jeVnosnoPolje(t) && p.vstopi && p.vstopi(t)) return 'vstopi';
                 if (odziv === 'skrij') p.pocisti();
                 else if (odziv === 'sledi') {
                     p.oznaci(t);
@@ -1564,13 +1615,58 @@
             }
             /* SAFEER_FOKUS_STRANI_KONEC */
 
+            // Ko se pojavi okno ali pasica z izbiro (piskotki), gre izbira enkrat vanjo - kot pri modalnem oknu, da
+            // uporabnik vidi, kje je. Samo oznaka, brez klika. Ne, ce uporabnik tipka v polje.
+            var vstopljenePlasti = [];
+            function najdiPlastPiskotkov() {
+                var sez;
+                // Samo gumbi (pasica caka na odlocitev); povezava »Cookie policy« v pritrjeni glavi ali nogi ni pasica.
+                try { sez = document.querySelectorAll('button, [role="button"]'); } catch (_) { return null; }
+                for (var i = 0; i < sez.length && i < 400; i++) {
+                    var t = ((sez[i].textContent || '') + '').toLowerCase();
+                    if (t.indexOf('cookie') === -1 && t.indexOf('piskot') === -1 && t.indexOf('piškot') === -1) continue;
+                    var pl = plastIzbire(sez[i], window.getComputedStyle);
+                    if (!pl) continue;
+                    try { if (pl.closest('header, nav, footer, [role="banner"], [role="navigation"]')) continue; } catch (_) {}
+                    var r = pl.getBoundingClientRect();
+                    if (r.width >= 120 && r.height >= 40 && !jeZunajPogleda(pl)) return pl;
+                }
+                return null;
+            }
+            function vstopiVPlast(okno) {
+                if (!okno) return false;
+                var akt = document.querySelector('.safeer-active-card');
+                if (akt && okno.contains(akt)) return true;
+                var prvi = prviVPlasti(okno, getCandidates());
+                if (!prvi) return false;
+                highlightElement(prvi);
+                return true;
+            }
+            function vstopiVNovoPlast() {
+                try {
+                    var okno = najdiPrekrivnoOkno() || najdiPlastPiskotkov();
+                    if (!okno || vstopljenePlasti.indexOf(okno) !== -1) return false;
+                    if (jeVnosnoPolje(document.activeElement)) return false;
+                    if (!vstopiVPlast(okno)) return false;
+                    vstopljenePlasti.push(okno);
+                    if (vstopljenePlasti.length > 10) vstopljenePlasti.shift();
+                    return true;
+                } catch (_) { return false; }
+            }
+            window._safeer_vstopi_v_plast = vstopiVNovoPlast;
+
             var sledimFokusu = false;
             document.addEventListener('focusin', function (ev) {
                 // Nas lastni fokus (highlightElement -> uskladiFokus) med odzivom ne sme sproziti novega odziva.
                 if (sledimFokusu) return;
                 sledimFokusu = true;
                 try {
-                    naFokusStrani(ev.target, document, { pocisti: clearActive, oznaci: highlightElement, jeCilj: isActionable });
+                    naFokusStrani(ev.target, document, { pocisti: clearActive, oznaci: highlightElement, jeCilj: isActionable,
+                        vstopi: function (t) {
+                            var tag = (t.tagName || '').toUpperCase();
+                            if (tag === 'IFRAME' || plastIzbire(t, window.getComputedStyle) !== t) return false;
+                            return vstopiVPlast(t);
+                        } });
                 } catch (_) {} finally { sledimFokusu = false; }
             }, true);
 
@@ -2566,6 +2662,7 @@
             function makeElementsFocusable() {
                 try {
                     autoDismissGdpr();
+                    vstopiVNovoPlast();
                     var focusables = document.querySelectorAll('a, button, input, select, textarea, [onclick], [role="button"], .card, .media-card, .item--event, .item.item--event, .tab, .seasonHeader, .video-play-button');
                     for (var i = 0; i < focusables.length; i++) {
                         var el = focusables[i];

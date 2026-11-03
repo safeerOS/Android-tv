@@ -97,6 +97,7 @@ preveri('gumb input ni polje za vnos', false, jeVnosnoPolje(t('INPUT', { type: '
 preveri('gumb ni polje za vnos', false, jeVnosnoPolje(t('BUTTON')));
 
 // Stran mora blok res uporabljati: poslusalec focusin (zajem) z nasimi potmi in zascito pred lastnim fokusom.
-preveri('poslusalec focusin klice naFokusStrani s clearActive/highlightElement/isActionable', true,
-    /addEventListener\('focusin', function \(ev\) \{[\s\S]{0,300}if \(sledimFokusu\) return;[\s\S]{0,200}naFokusStrani\(ev\.target, document, \{ pocisti: clearActive, oznaci: highlightElement, jeCilj: isActionable \}\);[\s\S]{0,120}\}, true\);/.test(VIR));
+// Od 3. 11. 2026 (SAFEER_PLAST_IZBIRE): fokus na vsebniku okna izbiro premakne na prvi gumb v oknu (vstopi).
+preveri('poslusalec focusin klice naFokusStrani s clearActive/highlightElement/isActionable/vstopi', true,
+    /addEventListener\('focusin', function \(ev\) \{[\s\S]{0,300}if \(sledimFokusu\) return;[\s\S]{0,200}naFokusStrani\(ev\.target, document, \{ pocisti: clearActive, oznaci: highlightElement, jeCilj: isActionable,\s*vstopi: function \(t\) \{[\s\S]{0,300}return vstopiVPlast\(t\);\s*\} \}\);[\s\S]{0,120}\}, true\);/.test(VIR));
 console.log('tv_fokus_strani_test: OK (' + stevilo + ')');
