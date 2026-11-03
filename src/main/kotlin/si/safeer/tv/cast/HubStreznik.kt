@@ -709,8 +709,10 @@ class HubStreznik(
                         }
                     }
                     if (vrsta.isNotEmpty()) {
-                        naslednji = vrsta.removeFirst()
-                        bajtovVVrsti -= naslednji.podatki.size
+                        // Lokalni val: kotlinc 1.9 v CI ne dovoli pametne pretvorbe var, ujete v zaprtju.
+                        val izhod = vrsta.removeFirst()
+                        naslednji = izhod
+                        bajtovVVrsti -= izhod.podatki.size
                     }
                 }
                 val okvir = naslednji
@@ -748,12 +750,12 @@ class HubStreznik(
         fun zapri(koda: Int = 1000, razlog: String = "") {
             if (!odprta.getAndSet(false)) return
             sprostiZadrzek()
-            var nit: Thread? = null
-            synchronized(kljucnicaVrste) {
+            // val iz synchronized: kotlinc 1.9 v CI (3. 11. 2026) ne dovoli pametne pretvorbe var, ujete v zaprtju.
+            val nit: Thread? = synchronized(kljucnicaVrste) {
                 zaprtjeKoda = koda
                 zaprtjeRazlog = razlog
-                nit = pisec
                 kljucnicaVrste.notifyAll()
+                pisec
             }
             if (nit == null) {
                 posljiZakljucek()   // nic ni bilo poslanega: pisca ni, okvir zapisemo sami
