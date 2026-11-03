@@ -88,6 +88,18 @@ object GooglePravila {
     fun uaBrezWebView(privzeti: String): String =
         privzeti.replace("; wv)", ")").replace(Regex(" Version/\\d+(\\.\\d+)*"), "").replace(Regex("\\s+"), " ").trim()
 
+    /**
+     * Strani, ki dobijo isto identiteto kot Googlova prijava (Chrome na Androidu, uaBrezWebView). Lastnik 3. 11. 2026:
+     * prijava v claude.ai na TV je obticala pri Cloudflare preverjanju in uganki (namizni UA na televizorju). Cloudflare
+     * dovoljenje veze na UA, zato ga dobi cela stran in njene poddomene, ne glede na nacin (aplikacija ali brskalnik).
+     */
+    private val CHROME_ANDROID_GOSTITELJI = listOf("claude.ai", "anthropic.com", "challenges.cloudflare.com")
+
+    fun chromeAndroidStran(url: String?): Boolean {
+        val h = gostitelj(url)
+        return h.isNotEmpty() && CHROME_ANDROID_GOSTITELJI.any { h == it || h.endsWith(".$it") }
+    }
+
     /** YouTube: youtube.com in njegove poddomene ter youtu.be (enako kot UserScriptManager.isYouTubeUrl). */
     fun jeYoutube(url: String?): Boolean {
         val h = gostitelj(url)

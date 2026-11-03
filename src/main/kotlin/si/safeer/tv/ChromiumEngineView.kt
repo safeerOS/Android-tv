@@ -535,6 +535,7 @@ class ChromiumEngineView @JvmOverloads constructor(
             return googleUa(context)
         }
         return when {
+            GooglePravila.chromeAndroidStran(url) -> googleUa(context)
             dotik -> CHROME_ANDROID_USER_AGENT
             GooglePravila.youtubeZaTv(url) -> SMART_TV_USER_AGENT
             else -> DESKTOP_USER_AGENT
@@ -601,6 +602,9 @@ class ChromiumEngineView @JvmOverloads constructor(
         // NEVER_ALLOW je na televizorju pobral sicer veljavne slike (npr. sličice na YouTube TV).
         settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
         settings.userAgentString = when {
+            // claude.ai, anthropic.com, Cloudflare preverjanje: kot Googlova prijava (GooglePravila.chromeAndroidStran),
+            // brez setUserAgentMetadata (SIGTRAP na TV 1. 11. 2026). X-Requested-With je izklopljen za vse (brezGlaveRequestedWith).
+            GooglePravila.chromeAndroidStran(url) -> googleUa(context)
             dotik -> CHROME_ANDROID_USER_AGENT
             isYoutubeTv -> SMART_TV_USER_AGENT
             else -> DESKTOP_USER_AGENT

@@ -67,5 +67,10 @@ fun main() {
     val ua = G.uaBrezWebView(wv)
     check(!ua.contains("; wv") && !ua.contains("Version/")) { "brez oznak WebViewa: " + ua }
     check(ua.contains("Chrome/142.0.7444.102 Mobile Safari/537.36") && ua.startsWith("Mozilla/5.0 (Linux; Android 11;")) { "resnicna razlicica: " + ua }
+    // Lastnik 3. 11. 2026: claude.ai (in Cloudflare preverjanje) kot Chrome na Androidu, enako kot Googlova prijava.
+    for (u in listOf("https://claude.ai/login", "https://www.claude.ai/x", "https://console.anthropic.com/", "https://anthropic.com",
+            "https://challenges.cloudflare.com/cdn-cgi/challenge-platform/h/g/turnstile/if/ov2/av0/rcv/x")) check(G.chromeAndroidStran(u)) { u }
+    for (u in listOf("https://claude.ai.evil.com/", "https://notclaude.ai/", "https://evil.com/?u=https://claude.ai", "https://cloudflare.com/",
+            "https://evil.com\\@claude.ai/", "javascript:claude.ai", null, "")) check(!G.chromeAndroidStran(u)) { "ne: $u" }
     println("GooglePravilaTest: OK")
 }
