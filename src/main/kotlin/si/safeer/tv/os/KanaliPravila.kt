@@ -524,4 +524,41 @@ object KanaliPravila {
         cakam && odOdprtja < PRAZNA_KONEC_MS -> PraznaMreza.CAKAJ
         else -> PraznaMreza.PRAZNO
     }
+
+    // ------------------------------------------------------------------ zunanji pregled 3. 11. 2026: placljivi kanali
+
+    /** Od kod je kanal v mrezi TV v zivo. */
+    enum class VrstaKanala { VGRAJEN, IPTV_RACUN, IPTV_JAVNI, IPTV_NEZNAN, DODATEK, DODATEK_KATALOG }
+
+    enum class Prikaz { PRIKAZI, PREVERI, SKRIJ }
+
+    /**
+     * Seznam IPTV: uporabnikov racun (poverilnica v naslovu, Xtream) se pokaze ves in se nikoli ne preverja v ozadju; znani
+     * javni (iptv-org) se pokaze in preverja; seznam, ki ni ne eno ne drugo, ni med brezplacnimi.
+     */
+    fun vrstaIptv(racun: Boolean, javni: Boolean): VrstaKanala = when {
+        racun -> VrstaKanala.IPTV_RACUN
+        javni -> VrstaKanala.IPTV_JAVNI
+        else -> VrstaKanala.IPTV_NEZNAN
+    }
+
+    /**
+     * Zunanji pregled 3. 11. 2026 (TV v zivo): kanal DODATKA (z lastnimi tokovi) se ne narise, dokler odgovor dodatka nima
+     * predvajljivega toka - »se ne vemo« ni brezplacno (prej so placljivi kanali stali v mrezi in izginjali po kliku). Do
+     * odgovora je kandidat za preverjanje (samo JSON tokov dodatka). Hitro risanje (naloga 74) ostane vgrajenim, racunu
+     * IPTV in javnemu seznamu (izgine, ko sonda dokaze, da ni medij). [preverjam] false (omejeno omrezje): kot doslej.
+     * [pokaziZaklenjene]: uporabnikova izbira »Pokazi zaklenjene«.
+     */
+    fun vMrezi(vrsta: VrstaKanala, stanje: Boolean?, preverjam: Boolean, pokaziZaklenjene: Boolean): Prikaz = when {
+        stanje == false -> Prikaz.SKRIJ
+        vrsta == VrstaKanala.IPTV_NEZNAN && !pokaziZaklenjene -> Prikaz.SKRIJ
+        vrsta == VrstaKanala.DODATEK && stanje == null && preverjam && !pokaziZaklenjene -> Prikaz.PREVERI
+        else -> Prikaz.PRIKAZI
+    }
+
+    /** JSON tokov dodatka v ozadju: samo brez poverilnice (podana ali naucena) in ne med predvajanjem. */
+    fun smeVprasatiTokove(sPoverilnico: Boolean, nauceno: Boolean, predvajanje: Boolean): Boolean = !sPoverilnico && !nauceno && !predvajanje
+
+    /** Vgrajen kanal v privzetem pogledu (brez izbire) samo, ce je domac in ima tok; tuji in samo uradna stran pod izbiro. */
+    fun vgrajenVPrivzetem(brezIzbire: Boolean, domac: Boolean, jeStran: Boolean): Boolean = !brezIzbire || (domac && !jeStran)
 }

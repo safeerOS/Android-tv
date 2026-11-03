@@ -3337,6 +3337,8 @@ class GlasbaActivity : OsActivity() {
         var okno = OKNO_KANALOV
         var proracun = PRORACUN_KANALOV
         val neznani: MutableSet<String> = java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap<String, Boolean>())
+        /** Zunanji pregled 3. 11. 2026: kanali dodatkov, ki cakajo na odgovor dodatka (JSON tokov) in se niso narisani. */
+        var kandidati: List<Jamendo.Skladba> = emptyList()
         /** Za oknom je se kaj nalozenega. */
         var naprej = false
         var risanjeNaroceno = false
@@ -4038,7 +4040,8 @@ class GlasbaActivity : OsActivity() {
         val nm = narisanaMreza
         if (nm == null || nm.lastnik !== m) {
             // Prvo risanje te mreze se tece (po korakih): pocakamo nanj.
-            if (risemMrezo === m) glavna.postDelayed({ narociPreverjanje(m) }, 300)
+            if (risemMrezo === m) { glavna.postDelayed({ narociPreverjanje(m) }, 300); return }
+            preveriKandidate(m, KANALI_PREVERJAM_HKRATI - kanaliVPreverjanju.size)
             return
         }
         val prostih = KANALI_PREVERJAM_HKRATI - kanaliVPreverjanju.size
@@ -4054,6 +4057,19 @@ class GlasbaActivity : OsActivity() {
         }
         if (izbrani.isNotEmpty()) dnevnikMreze { "kanali: preverjam vidne ${izbrani.size} (vrste ${vrste.first}..${vrste.last}, v teku ${kanaliVPreverjanju.size}, proracun ${m.proracun})" }
         izbrani.forEach { id -> razlicicaZaPreverjanje(m, id).let { sk -> if (sk != null) preveriKanal(m, sk) } }
+        preveriKandidate(m, prostih - izbrani.size)
+    }
+
+    /**
+     * Zunanji pregled 3. 11. 2026: kanali dodatkov, ki se niso na zaslonu ([MrezaKanalov.kandidati]) - vprasamo samo JSON
+     * tokov dodatka ([PregledKanalov.smeVprasatiTokove]); narise se sele kanal s predvajljivim tokom.
+     */
+    private fun preveriKandidate(m: MrezaKanalov, prostih: Int) {
+        if (prostih <= 0 || m.proracun <= 0) return
+        m.kandidati.asSequence().filter { sk ->
+            val kk = OsPravila.kljucKanala(sk.id)
+            kk !in m.neznani && kk !in kanaliVPreverjanju && (PregledKanalov.smeSonda(this, sk) || PregledKanalov.smeVprasatiTokove(this, sk))
+        }.take(prostih).toList().forEach { preveriKanal(m, it) }
     }
 
     /** Priljubljeni kanali v zivo (vgrajeni, seznamov IPTV, dodatkov) po uporabnikovem vrstnem redu ([PriljubljeniKanaliPravila]). */
@@ -4100,7 +4116,10 @@ class GlasbaActivity : OsActivity() {
         val vgrajeni = (if (!jeVirViden(TV_V_ZIVO, VIR_TV)) emptyList() else try { TvVZivo.kanali() } catch (_: Exception) { emptyList() })
             .filter { (m.zvrst.isEmpty() || it.zvrst == m.zvrst) && (m.jezik.isEmpty() || it.jezik == m.jezik) }
         // Priporoceno: priljubljeni, uradni kanali uporabnikove drzave in jezika, kanali dodatkov v njegovem jeziku, ostali uradni, nato vse ostalo.
-        val (doma, drugod) = vgrajeni.partition { it.drzava == krajevno.country.uppercase(Locale.ROOT) || it.jezik == krajevno.language }
+        val (domaVsi, drugodVsi) = vgrajeni.partition { it.drzava == krajevno.country.uppercase(Locale.ROOT) || it.jezik == krajevno.language }
+        // Zunanji pregled 3. 11. 2026: tuji vgrajeni in kanali samo z uradno stranjo (brez toka) so pod izbiro, ne v privzetem pogledu.
+        val doma = domaVsi.filter { KanaliPravila.vgrajenVPrivzetem(brezIzbire, true, TvVZivo.jeStran(it.skladba)) }
+        val drugod = drugodVsi.filter { KanaliPravila.vgrajenVPrivzetem(brezIzbire, false, TvVZivo.jeStran(it.skladba)) }
         // 25. 10. 2026: tudi priljubljeni kanali seznamov IPTV (prej samo vgrajeni in dodatkov) - po uporabnikovem redu.
         val priljubljeni = if (brezIzbire || tvSamoPriljubljeni) priljubljeniKanali() else emptyList()
         var urejeni = (priljubljeni + doma.map { it.skladba } + m.domaci + drugod.map { it.skladba } + m.kanali).distinctBy { it.id }
@@ -4124,7 +4143,25 @@ class GlasbaActivity : OsActivity() {
         // SD/HD brat, kartica pa ne izgine.
         val razliceNarisanih = HashSet<String>()
         for (id in narisaniZdaj) m.razlicice[id]?.forEach { razliceNarisanih += it.id }
+        val kandidati = ArrayList<Jamendo.Skladba>()
         for (sk in urejeni) {
+            // Zunanji pregled 3. 11. 2026 ([KanaliPravila.vMrezi]): kanal dodatka sele s predvajljivim tokom, seznam, ki ni
+            // ne racun ne znani javni, ni med brezplacnimi.
+            if (sk.id !in vednoId) {
+                val vrsta = when {
+                    IptvSeznami.jeKanal(sk) -> KanaliPravila.vrstaIptv(IptvPravila.jeVirSPoverilnico(sk.streznik, seznam = true), IptvPravila.javniBrezplacni(sk.streznik))
+                    Stremio.jeEnota(sk) && Stremio.dajeLastneTokove(sk) -> KanaliPravila.VrstaKanala.DODATEK
+                    Stremio.jeEnota(sk) -> KanaliPravila.VrstaKanala.DODATEK_KATALOG
+                    else -> KanaliPravila.VrstaKanala.VGRAJEN
+                }
+                when (KanaliPravila.vMrezi(vrsta, MrtviKanali.stanje(this, sk.id), preverjam, tvZaklenjeni)) {
+                    KanaliPravila.Prikaz.SKRIJ -> continue
+                    KanaliPravila.Prikaz.PREVERI -> {
+                        if (!neodklenjena(sk) && sk.id !in narisaniZdaj && sk.id !in razliceNarisanih) { if (kandidati.size < m.okno) kandidati += sk; continue }
+                    }
+                    KanaliPravila.Prikaz.PRIKAZI -> { }
+                }
+            }
             // Kanal iz dodatka, ki je samo katalog (tok da drug dodatek), pri njegovem dodatku ni preverljiv: v mrezi je
             // brez preverjanja, kot doslej.
             // Naloga 80: kanal seznama IPTV se preverja enako (sonda toka, brez dodatka).
@@ -4134,7 +4171,8 @@ class GlasbaActivity : OsActivity() {
             // po preverjanju drug za drugim izginili). Isti kanal iz drugega dodatka (po kljucu imena) je njegova kartica.
             // Naloga 79b: v izbiri »Pokazi zaklenjene kanale« (privzeto izklopljeno) ostanejo; klik ponudi odklep pri dodatku.
             // Naloga 82: tudi po izteku sklepa brez zivega toka ([Stremio.zaklenjenKanalZaMrezo]).
-            if (Stremio.jeEnota(sk) && sk.id !in vednoId && neodklenjena(sk)) { brezProstih++; continue }
+            // Zunanji pregled 3. 11. 2026: tudi priljubljeni (razen z izbiro »Pokazi zaklenjene«, ki jo uposteva neodklenjena).
+            if (Stremio.jeEnota(sk) && neodklenjena(sk)) { brezProstih++; continue }
             // Naloga 90d: znan tok z obvestilom namesto programa - brez sporocila ni v mrezi; druga razlicica kartice ostane.
             if (znanNedelujocKanal(sk)) continue
             if (!preverljiv) { if (!MrtviKanali.jeMrtev(this, sk.id)) vsi += sk; continue }
@@ -4160,6 +4198,7 @@ class GlasbaActivity : OsActivity() {
         val prikaz = PriljubljeniKanaliPravila.prikaz(priljubljeni.map { it.id }, vsiPoVrsti.filter { it.id in vednoId }.map { it.id } + ostaliPoVrsti.map { it.id },
             tvSamoPriljubljeni).mapNotNull { poId[it] }
         m.naprej = naprej
+        m.kandidati = kandidati
         // Naloga 80 (53b): meritev - cas od odprtja mreze do prvega izrisa kanalov dodatkov ali seznamov (logcat SafeerOsMedia).
         if (!m.izmerjeno && prikaz.any { Stremio.jeEnota(it) || IptvSeznami.jeKanal(it) }) {
             m.izmerjeno = true
@@ -4171,7 +4210,8 @@ class GlasbaActivity : OsActivity() {
         // Naloga 74: »Nalagam« samo, dokler na zaslonu ni nobenega kanala in se viri se nalagajo; preverjanje v ozadju
         // napisa nima (prej je ostal, ceprav so bili kanali ze na zaslonu).
         val napisCakanja = KanaliPravila.napisCakanja(prikaz.size, m.nalagam, m.zasebniCakajo, stremioNaslovi().isNotEmpty())
-        val cakamDodatke = napisCakanja != KanaliPravila.NapisCakanja.NIC
+        // Kandidati dodatkov se cakajo na odgovor: prazna mreza je se v nalaganju.
+        val cakamDodatke = napisCakanja != KanaliPravila.NapisCakanja.NIC || (prikaz.isEmpty() && m.kandidati.isNotEmpty() && m.proracun > 0)
         // Naloga 73: noben vir ni odgovoril in mreza je prazna - ne »Nalagam ...« za vedno: povemo in sami poskusimo znova,
         // ko premor ali proracun dodatkov to dovoli. Kanali z diska (seme) in vgrajeni ostanejo, ce so.
         val viriTiho = !cakamDodatke && !m.nalagam && prikaz.isEmpty() && m.glavni.isNotEmpty() && m.glavni.all { it.izpad }

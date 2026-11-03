@@ -76,6 +76,9 @@ private fun preizkusTv90b() {
     preveriEnako("zaklenjen pred poskusom", true, OsPravila.jeZaklenjen(z, 1001L))
     preveriEnako("predvajljiv tok pri poskusu takoj pobrise zaklep", false, OsPravila.jeZaklenjen(OsPravila.poOdgovoruTokov(z, 3, 1, 2000L), 2001L))
     preveriEnako("samo obvestilo pri poskusu ne odklene", true, OsPravila.jeZaklenjen(OsPravila.poOdgovoruTokov(z, 1, 0, 2000L), 2001L))
+    // Zunanji pregled 3. 11. 2026: en predvajljiv tok ob placilnem zidu drugih vnosov zaklepa ne pobrise.
+    preveriEnako("predvajljiv tok + placilni zid: zaklep ostane", true, OsPravila.jeZaklenjen(OsPravila.poOdgovoruTokov(z, 4, 1, 2000L, placilnih = 3), 2001L))
+    preveriEnako("predvajljiv tok brez placilnega zidu: odklenjen", false, OsPravila.jeZaklenjen(OsPravila.poOdgovoruTokov(z, 4, 1, 2000L, placilnih = 0), 2001L))
     val postaje = (1..134).toList()
     preveriEnako("na disk gre vseh 134 postaj, ne 60", 134, OsPravila.zapisMreze(postaje).size)
     preveriEnako("zapis ima zgornjo mejo", OsPravila.ZAPIS_MREZE_NAJVEC, OsPravila.zapisMreze((1..1000).toList()).size)

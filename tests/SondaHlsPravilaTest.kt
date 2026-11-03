@@ -113,6 +113,14 @@ fun main() {
     preveriEnako("kos 503", N, P.izidKosa(503))
     preveriEnako("kos 429 ne vemo", X, P.izidKosa(429))
 
+    // Zunanji pregled 3. 11. 2026: 200, ki ni medij.
+    preveriEnako("stran HTML ni medij", true, P.niMedij("text/html; charset=utf-8", "<!doctype html><html>"))
+    preveriEnako("prijava brez vrste ni medij", true, P.niMedij(null, "\n  <html><body>Login"))
+    preveriEnako("JSON ni medij", true, P.niMedij("application/json", "{\"error\":1}"))
+    preveriEnako("MPEG-TS je medij", false, P.niMedij("video/mp2t", "GGGG"))
+    preveriEnako("octet-stream je medij", false, P.niMedij("application/octet-stream", ""))
+    preveriEnako("DASH MPD je medij", false, P.niMedij("application/xml", "<?xml version=\"1.0\"?><MPD xmlns="))
+
     println(if (napak == 0) "Sonda HLS: vse v redu" else "Sonda HLS: $napak napak")
     if (napak > 0) kotlin.system.exitProcess(1)
 }

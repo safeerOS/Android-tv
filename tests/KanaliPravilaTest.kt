@@ -316,5 +316,31 @@ fun main() {
     preveriEnako("121: film z enakim naslovom toka ni kanal - ostane", false, KanaliPravila.skrijNedelujoc(mrtev = false, jeKanalSeznama = false, nedelujocTok = true))
     preveriEnako("121: neznano stanje ostane", false, KanaliPravila.skrijNedelujoc(mrtev = false, jeKanalSeznama = true, nedelujocTok = false))
 
+    // Zunanji pregled 3. 11. 2026: placljivi kanali v mrezi TV v zivo.
+    run {
+        val P = KanaliPravila
+        preveriEnako("dodatek, se ne vemo: preveri (ni na zaslonu)", KanaliPravila.Prikaz.PREVERI, P.vMrezi(KanaliPravila.VrstaKanala.DODATEK, null, preverjam = true, pokaziZaklenjene = false))
+        preveriEnako("dodatek s predvajljivim tokom: prikazi", KanaliPravila.Prikaz.PRIKAZI, P.vMrezi(KanaliPravila.VrstaKanala.DODATEK, true, true, false))
+        preveriEnako("dodatek mrtev: skrij", KanaliPravila.Prikaz.SKRIJ, P.vMrezi(KanaliPravila.VrstaKanala.DODATEK, false, true, false))
+        preveriEnako("dodatek, omejeno omrezje: kot doslej", KanaliPravila.Prikaz.PRIKAZI, P.vMrezi(KanaliPravila.VrstaKanala.DODATEK, null, preverjam = false, pokaziZaklenjene = false))
+        preveriEnako("dodatek, Pokazi zaklenjene: prikazi", KanaliPravila.Prikaz.PRIKAZI, P.vMrezi(KanaliPravila.VrstaKanala.DODATEK, null, true, pokaziZaklenjene = true))
+        preveriEnako("vgrajen: hitro risanje ostane", KanaliPravila.Prikaz.PRIKAZI, P.vMrezi(KanaliPravila.VrstaKanala.VGRAJEN, null, true, false))
+        preveriEnako("racun IPTV: ves, brez cakanja", KanaliPravila.Prikaz.PRIKAZI, P.vMrezi(KanaliPravila.VrstaKanala.IPTV_RACUN, null, true, false))
+        preveriEnako("javni IPTV: hitro risanje ostane", KanaliPravila.Prikaz.PRIKAZI, P.vMrezi(KanaliPravila.VrstaKanala.IPTV_JAVNI, null, true, false))
+        preveriEnako("neznan seznam: ni med brezplacnimi", KanaliPravila.Prikaz.SKRIJ, P.vMrezi(KanaliPravila.VrstaKanala.IPTV_NEZNAN, null, true, false))
+        preveriEnako("neznan seznam s Pokazi zaklenjene", KanaliPravila.Prikaz.PRIKAZI, P.vMrezi(KanaliPravila.VrstaKanala.IPTV_NEZNAN, null, true, true))
+        preveriEnako("seznam s poverilnico: racun", KanaliPravila.VrstaKanala.IPTV_RACUN, P.vrstaIptv(racun = true, javni = false))
+        preveriEnako("iptv-org: javni", KanaliPravila.VrstaKanala.IPTV_JAVNI, P.vrstaIptv(racun = false, javni = true))
+        preveriEnako("drugo: neznan", KanaliPravila.VrstaKanala.IPTV_NEZNAN, P.vrstaIptv(racun = false, javni = false))
+        preveriEnako("JSON tokov: dodatek brez poverilnice", true, P.smeVprasatiTokove(sPoverilnico = false, nauceno = false, predvajanje = false))
+        preveriEnako("JSON tokov: nikoli z debrid/Usenet kljucem", false, P.smeVprasatiTokove(sPoverilnico = true, nauceno = false, predvajanje = false))
+        preveriEnako("JSON tokov: ne, ko je dodatek dal tok z racunom", false, P.smeVprasatiTokove(false, nauceno = true, predvajanje = false))
+        preveriEnako("JSON tokov: ne med predvajanjem", false, P.smeVprasatiTokove(false, false, predvajanje = true))
+        preveriEnako("privzeto: domac s tokom", true, P.vgrajenVPrivzetem(brezIzbire = true, domac = true, jeStran = false))
+        preveriEnako("privzeto: tuj ne", false, P.vgrajenVPrivzetem(true, domac = false, jeStran = false))
+        preveriEnako("privzeto: samo uradna stran ne", false, P.vgrajenVPrivzetem(true, domac = true, jeStran = true))
+        preveriEnako("izbira: tudi tuj in stran", true, P.vgrajenVPrivzetem(brezIzbire = false, domac = false, jeStran = true))
+    }
+
     if (napak == 0) println("KanaliPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

@@ -407,7 +407,10 @@ object OsPravila {
      * Zaklep po odgovoru dodatka za en kanal: [vnosov] vnosov v `streams`, od tega [predvajljivih] predvajljivih. Predvajljiv
      * tok pobrise vse; prazen odgovor (kanal nima toka) ne pove nic o dodatku; samo obvestila stejejo.
      */
-    fun poOdgovoruTokov(z: Zaklep, vnosov: Int, predvajljivih: Int, zdaj: Long): Zaklep = when {
+    // Zunanji pregled 3. 11. 2026: en predvajljiv tok ne pobrise zaklepa, ce so drugi vnosi istega odgovora placilni zid
+    // ([placilnih]) - tak dodatek je se vedno placljiv za vecino kanalov.
+    fun poOdgovoruTokov(z: Zaklep, vnosov: Int, predvajljivih: Int, zdaj: Long, placilnih: Int = 0): Zaklep = when {
+        predvajljivih > 0 && placilnih > 0 -> z
         predvajljivih > 0 -> Zaklep()
         vnosov <= 0 -> z
         else -> {

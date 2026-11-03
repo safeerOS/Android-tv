@@ -1666,7 +1666,11 @@ object Stremio {
         }
         val a = d.optJSONArray("streams")
         val tokovi = if (a == null) emptyList() else (0 until a.length()).mapNotNull { i -> a.optJSONObject(i)?.let { tok(it, m.ime) } }.filter { jePredvajljiv(it) }
-        if (razred(tip) == TV) zabeleziTokove(osnova, a, tokovi.size)
+        val placilnih = placilnihV(a, m.ime)
+        if (razred(tip) == TV) zabeleziTokove(osnova, a, tokovi.size, placilnih)
+        // Zunanji pregled 3. 11. 2026: placilni zid brez toka se zapise takoj (vsebina se skrije povsod, tudi med
+        // priljubljenimi), ne sele po kliku.
+        if (tokovi.isEmpty() && placilnih > 0) zapisiPlacljivo(tip, id, placilnih)
         if (dnevnik() && tokovi.isEmpty()) android.util.Log.d(DNEVNIK, "${oznakaDodatka(osnova)} tok kanala: tokov=${a?.length() ?: -1}, predvajljivih=0, " +
             "polja odgovora=${d.keys().asSequence().toList()}, oblika prvega=${a?.optJSONObject(0)?.let { oblikaToka(it) } ?: "-"}, " +
             "besedilo prvega=${a?.optJSONObject(0)?.let { (it.optString("name") + " | " + it.optString("title").ifBlank { it.optString("description") }).replace('\n', ' ').take(160) } ?: "-"}")
@@ -1776,11 +1780,8 @@ object Stremio {
             }
             val a = d?.optJSONArray("streams") ?: JSONArray()
             // Naloga 120: vnosi, ki niso tok, ampak placilni zid (»Unlock Premium« ...).
-            for (i in 0 until a.length()) a.optJSONObject(i)?.let { o ->
-                val t = tok(o, m.ime)
-                if ((t == null || !jePredvajljiv(t)) && OsPravila.jePlacljivoObvestilo(listOf(o.optString("name"), o.optString("title"),
-                        o.optString("description"), o.optString("externalUrl")).joinToString(" "))) placilnih.incrementAndGet()
-            }
+            val placilnihDodatka = placilnihV(a, m.ime)
+            placilnih.addAndGet(placilnihDodatka)
             if (dnevnik() && !m.zaseben) {
                 android.util.Log.d(DNEVNIK, "${oznakaDodatka(m.osnova)} tokovi $tip: odgovor=${d != null} koda=${zadnjaKoda.get() ?: 0} stevilo=${a.length()}")
                 for (i in 0 until minOf(a.length(), 8)) a.optJSONObject(i)?.let { android.util.Log.d(DNEVNIK, "${oznakaDodatka(m.osnova)}   tok $i: ${oblikaToka(it)}") }
@@ -1791,7 +1792,7 @@ object Stremio {
                 android.util.Log.i("SafeerStremio", "dodatek ${gostitelj(m.osnova)} tok $tip: stevilo=${a.length()}, prvi: ${a.optJSONObject(0)?.let { oblikaToka(it) } ?: "-"}")
             } catch (_: Throwable) { }
             (0 until a.length()).mapNotNull { i -> a.optJSONObject(i)?.let { o -> tok(o, m.ime)?.let { prilagodi(it, o, m.osnova, m.id) } } }
-                .also { t -> if (d != null && razred(tip) == TV) zabeleziTokove(m.osnova, a, t.count { jePredvajljiv(it) }) }
+                .also { t -> if (d != null && razred(tip) == TV) zabeleziTokove(m.osnova, a, t.count { jePredvajljiv(it) }, placilnihDodatka) }
         }
 
     /**
@@ -1799,14 +1800,36 @@ object Stremio {
      * zaporednih kanalov vrne samo obvestila, je »brez prostih tokov« (na disku, [OsPravila.ZAKLENJEN_VELJA_MS]).
      */
     // Naloga 86 (K1): preberi-spremeni-zapisi je nedeljivo - preverjanja mreze (3) in pregled (2) tecejo hkrati.
-    @Synchronized private fun zabeleziTokove(osnova: String, streams: JSONArray?, predvajljivih: Int) {
+    /** Naloga 120: vnosi odgovora, ki niso predvajljiv tok, ampak placilni zid (»Unlock Premium« ...). */
+    private fun placilnihV(a: JSONArray?, ime: String): Int {
+        if (a == null) return 0
+        var n = 0
+        for (i in 0 until a.length()) a.optJSONObject(i)?.let { o ->
+            val t = tok(o, ime)
+            if ((t == null || !jePredvajljiv(t)) && OsPravila.jePlacljivoObvestilo(listOf(o.optString("name"), o.optString("title"),
+                    o.optString("description"), o.optString("externalUrl")).joinToString(" "))) n++
+        }
+        return n
+    }
+
+    /** Placilni zid za eno vsebino (kanal: en dodatek) - [OsPravila.placljivoPoOdgovoru]. */
+    private fun zapisiPlacljivo(tip: String, id: String, placilnih: Int) {
+        val k = "$tip|$id"
+        val prej = placljivo[k]
+        val novo = OsPravila.placljivoPoOdgovoru(prej, placilnih, 0, System.currentTimeMillis()) ?: return
+        if (novo == prej) return
+        placljivo[k] = novo
+        try { shrambaZaklepov?.edit()?.putLong(PREDPONA_PLACLJIVO + k, novo)?.apply() } catch (_: Exception) { }
+    }
+
+    @Synchronized private fun zabeleziTokove(osnova: String, streams: JSONArray?, predvajljivih: Int, placilnih: Int = 0) {
         val vnosov = streams?.length() ?: 0
         // Naloga 79b: povezava za odklep (externalUrl obvestila) - samo varna, samo gostitelj in pot, ne v dnevnik.
         if (predvajljivih == 0 && vnosov > 0) (0 until vnosov).firstNotNullOfOrNull { i -> OsPravila.povezavaOdklepa(streams?.optJSONObject(i)?.optString("externalUrl")) }
             ?.let { p -> if (odklepi[osnova] != p) { odklepi[osnova] = p; try { shrambaZaklepov?.edit()?.putString(PREDPONA_ODKLEPA + osnova, p)?.apply() } catch (_: Exception) { } } }
         val zdaj = System.currentTimeMillis()
         val prej = zaklepi[osnova]
-        val novo = OsPravila.poOdgovoruTokov(prej ?: OsPravila.Zaklep(), vnosov, predvajljivih, zdaj)
+        val novo = OsPravila.poOdgovoruTokov(prej ?: OsPravila.Zaklep(), vnosov, predvajljivih, zdaj, placilnih)
         if (novo == (prej ?: OsPravila.Zaklep())) return
         if (novo == OsPravila.Zaklep()) zaklepi.remove(osnova) else zaklepi[osnova] = novo
         try {
