@@ -13,6 +13,19 @@ object QrPravila {
     /** Odtis potrdila v kodi: vedno cel SHA-256 (64 malih sestnajstiskih znakov). */
     fun veljavenOdtis(odtis: String): Boolean = ODTIS.matches(odtis)
 
+    /**
+     * Zunanji pregled 3. 11. 2026: prijava s QR je zeton naprave (x-safeer-token) poslala na naslov in odtis IZ KODE, se
+     * pred »Dovoli« - napadalec v omrezju s svojo kodo (safeer://link/qr odpre katerakoli stran ali aplikacija) je dobil
+     * zeton. Zeton gre samo Hubu, ki mu ta naprava ze zaupa: odtis iz kode = pripeti odtis (stalni cas) ali potrdilo
+     * nosi kljuc iz kroga zaupanja (to preveri HubTls.Zaupnik, zato zadosca, da kljuc imamo).
+     */
+    fun smePoslatiZeton(odtisKode: String, pripeti: String?, imaKljucKroga: Boolean): Boolean {
+        if (imaKljucKroga) return true
+        if (pripeti == null || !veljavenOdtis(odtisKode)) return false
+        val p = pripeti.lowercase()
+        return veljavenOdtis(p) && java.security.MessageDigest.isEqual(p.toByteArray(Charsets.US_ASCII), odtisKode.toByteArray(Charsets.US_ASCII))
+    }
+
     /** Videni odtis potrdila se mora z odtisom iz kode ujemati v celoti (primerjava v stalnem casu). */
     fun odtisUstreza(videni: String?, izKode: String): Boolean {
         if (videni == null || !veljavenOdtis(izKode)) return false

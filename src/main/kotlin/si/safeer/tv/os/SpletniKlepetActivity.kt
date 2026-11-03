@@ -131,12 +131,22 @@ class SpletniKlepetActivity : OsActivity() {
             override fun shouldOverrideUrlLoading(view: WebView, zahteva: WebResourceRequest): Boolean {
                 val u = zahteva.url?.toString().orEmpty()
                 if (SpletniKlepetiPravila.ostaneVOknu(u)) return false
-                if (SpletniKlepetiPravila.zaSistem(u)) {
+                // Zunanji pregled 3. 11. 2026: enako ciscenje kot v brskalniku (ChromiumEngineView) - brez komponente,
+                // izbirnika, ClipData in tujih zastavic (FLAG_GRANT_READ_URI_PERMISSION bi dal nase datoteke), samo VIEW,
+                // nikoli nas paket ali krajevne sheme, in samo po uporabnikovem dotiku (stran ne odpre namere sama).
+                if (SpletniKlepetiPravila.zaSistem(u) && zahteva.hasGesture()) {
                     try {
-                        val namera = if (u.startsWith("intent:", ignoreCase = true))
-                            Intent.parseUri(u, Intent.URI_INTENT_SCHEME).apply { addCategory(Intent.CATEGORY_BROWSABLE); component = null; selector = null }
-                        else Intent(Intent.ACTION_VIEW, Uri.parse(u))
-                        startActivity(namera)
+                        val jeIntent = u.startsWith("intent:", ignoreCase = true)
+                        val namera = if (jeIntent) Intent.parseUri(u, Intent.URI_INTENT_SCHEME) else Intent(Intent.ACTION_VIEW, Uri.parse(u))
+                        namera.component = null
+                        namera.selector = null
+                        namera.clipData = null
+                        namera.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        namera.addCategory(Intent.CATEGORY_BROWSABLE)
+                        val shema = namera.data?.scheme ?: if (jeIntent) null else Uri.parse(u).scheme
+                        if (si.safeer.tv.SpletVarnostPravila.dovoljenaNamera(namera.action, shema, namera.`package`, packageName)) {
+                            startActivity(namera)
+                        } else Log.w(TAG, "Zavrnjena namera iz klepeta (shema ${shema ?: "-"}).")
                     } catch (_: Throwable) { }
                 }
                 return true

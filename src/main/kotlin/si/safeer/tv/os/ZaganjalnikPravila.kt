@@ -124,6 +124,19 @@ object ZaganjalnikPravila {
     /** Ali tipko Domov dobi drug pravi zaganjalnik (ne mi, ne sistemska izbira »android«, ne neznano). */
     fun drugZaganjalnikImaDomov(kdo: String?, nas: String): Boolean = kdo != null && kdo != "android" && kdo != nas
 
+    /**
+     * Ali je Safeer domaci zaslon, kadar sistem nima vloge HOME. Zunanji pregled 3. 11. 2026: na televizorju
+     * resolveActivity(HOME) pogosto vrne sistemski prestreznik (Philips homeintentresolver, Google TV), zato tam
+     * dokaz iz prakse (zadnji zagon s CATEGORY_HOME je bil nas) velja in se ne brise - prej je Nazaj zaprl dom.
+     * Na telefonu brez vloge drug zaganjalnik, ki ima Domov, dokaz razveljavi (Grok 2. 11.). Vrne par
+     * (izbran, pobrisi dokaz).
+     */
+    fun izbranBrezVloge(kdo: String?, nas: String, nasZagon: Boolean, televizor: Boolean): Pair<Boolean, Boolean> = when {
+        televizor -> Pair(nasZagon || kdo == nas, false)
+        drugZaganjalnikImaDomov(kdo, nas) -> Pair(false, true)
+        else -> Pair(nasZagon || (kdo != null && kdo == nas), false)
+    }
+
     fun jePraviZaganjalnik(paket: String, razred: String, prednost: Int, nas: String): Boolean =
         paket != nas && prednost >= 0 && !razred.endsWith("FallbackHome")
 

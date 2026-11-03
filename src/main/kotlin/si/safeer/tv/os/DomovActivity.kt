@@ -90,7 +90,14 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         }
     }
 
+    @android.annotation.SuppressLint("InlinedApi")   // CATEGORY_SECONDARY_HOME je samo niz; Android pred 10 ga ne poslje
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Zunanji pregled 3. 11. 2026: alias Domov na televizorju (ZaganjalnikAlias) kaze sem, nato v Pokrajino - varnostna
+        // vrata in lovilec padcev (kot ZaganjalnikActivity) so zato PRVO dejanje tu, sicer zanka padcev doma nima izhoda.
+        val domovNamera = intent?.let { it.hasCategory(Intent.CATEGORY_HOME) || it.hasCategory(Intent.CATEGORY_SECONDARY_HOME) } == true
+        val vrnjen = domovNamera && Zaganjalnik.preveriObZagonu(this)
+        Zaganjalnik.namestiZascito(this)
+        if (vrnjen) { super.onCreate(savedInstanceState); finish(); return }
         si.safeer.tv.os.Predgretje.zazeni(this)
         // Pregled 2. 11. 2026: Theme.NoDisplay tu ne deluje - OsActivity.onCreate (Tema.uporabi) temo takoj zamenja.
         val beta = ZaganjalnikBeta.vklopljen(this)

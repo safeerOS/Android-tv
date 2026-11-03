@@ -53,14 +53,11 @@ object Zaganjalnik {
         // nastavitvah izbere drug zaganjalnik. Televizorji vloge pogosto nimajo; tam velja dokaz iz prakse.
         vlogaNaVoljo(context)?.let { return it }
         val kdo = domaciZaslon(context)
-        // Pregled Grok 2. 11. 2026: ce tipko Domov ze dobi drug zaganjalnik, dokaz iz prakse ne velja vec (prej je Nazaj
-        // iz Pokrajine obstal, nastavitve pa so kazale »izbran«) - dokaz pobrisemo, kot ga ze ignorira nameraDomov.
-        if (ZaganjalnikPravila.drugZaganjalnikImaDomov(kdo, context.packageName)) {
-            context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(KLJUC_DOMOV).apply()
-            return false
-        }
-        if (nasZagonDomov(context)) return true
-        return kdo != null && kdo == context.packageName
+        // Pregled Grok 2. 11. 2026 (telefon) in zunanji pregled 3. 11. 2026 (televizor): ZaganjalnikPravila.izbranBrezVloge.
+        val (izbran, pobrisi) = ZaganjalnikPravila.izbranBrezVloge(kdo, context.packageName, nasZagonDomov(context),
+            Naprava.jeTelevizor(context))
+        if (pobrisi) context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(KLJUC_DOMOV).apply()
+        return izbran
     }
 
     /**

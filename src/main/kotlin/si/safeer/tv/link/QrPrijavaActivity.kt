@@ -106,6 +106,8 @@ class QrPrijavaActivity : Activity() {
         val koda = qr
         if (koda == null) { sporocilo(b("neveljavna")); return }
         if (HubPairing.token(this).isNullOrBlank()) { sporocilo(b("niPovezana")); return }
+        // Koda tujega Huba (drug odtis, brez kljuca kroga): ne klicemo ga - zeton bi sel napadalcu (pregled 3. 11. 2026).
+        if (!smeZeton(koda)) { sporocilo(b("drugLink")); return }
         Thread {
             val (odgovor, videni) = klic("/cast/pair/qr/info", koda)
             glavna.post {
@@ -213,17 +215,24 @@ class QrPrijavaActivity : Activity() {
      * kroga (ce gre za izvoljeni hub) dodamo se vedno, ce je na voljo.
      * Vrne (odgovor ali null ob napaki povezave, odtis potrdila, ki smo ga videli).
      */
+    private fun kljucKroga(): String? = try {
+        HubKrmilnik.izvoljeniHub(this)?.let { KrogNaprave.kljucHuba(this, it.id) }
+    } catch (_: Throwable) { null }
+
+    private fun smeZeton(koda: Prijava): Boolean =
+        QrPravila.smePoslatiZeton(koda.odtis, HubTls.pripetiOdtis(this), !kljucKroga().isNullOrBlank())
+
     private fun klic(pot: String, koda: Prijava): Pair<JSONObject?, String?> {
         var videni: String? = null
+        // Druga ograja: brez zaupanja Hubu klic sploh ne gre ven (tudi ce bi ga kdo poklical mimo onCreate).
+        if (!smeZeton(koda)) return null to null
         return try {
             val ciljniNaslov = koda.naslov.ifBlank { naslovHuba() }
             val osnova = HubPairing.httpBase(ciljniNaslov)
             if (osnova.isBlank()) return null to null
             val povezava = URL(osnova + pot).openConnection() as HttpURLConnection
             if (povezava !is HttpsURLConnection) return null to null
-            val kljuc = try {
-                HubKrmilnik.izvoljeniHub(this)?.let { KrogNaprave.kljucHuba(this, it.id) }
-            } catch (_: Throwable) { null }
+            val kljuc = kljucKroga()
             val (tovarna, zaupnik) = HubTls.odjemalec(koda.odtis, kljuc)
             povezava.sslSocketFactory = tovarna
             povezava.hostnameVerifier = javax.net.ssl.HostnameVerifier { _, _ -> true }

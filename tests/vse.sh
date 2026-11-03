@@ -72,7 +72,7 @@ done
 
 # ------------------------------------------------------------------ staticne preverbe (Python)
 echo "== staticne preverbe"
-for p in check_public_package.py preveri_dostop_v_ozadju.py preveri_naslovno_vrstico.py preveri_tv_ikone.py preveri_dnevnik.py; do
+for p in check_public_package.py preveri_dostop_v_ozadju.py preveri_naslovno_vrstico.py preveri_tv_ikone.py preveri_dnevnik.py preveri_mostove.py; do
     [ -f "$TEST_DIR/$p" ] || continue
     if ! command -v python3 >/dev/null 2>&1; then preskoci "$p" "manjka python3"; continue; fi
     pozeni "$p" python3 "$TEST_DIR/$p"

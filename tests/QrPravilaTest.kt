@@ -41,5 +41,11 @@ fun main() {
     check(!QrPravila.preselitev(true, o.uppercase(), o)) { "isti Link ni preselitev" }
     check(QrPravila.preselitev(true, o.reversed(), o)) { "drug odtis je preselitev" }
     check(QrPravila.kratekOdtis(o) == "a1b2 c3d4 e5f6 a7b8")
+    // Pregled 3. 11. 2026: zeton naprave samo Hubu, ki mu ze zaupamo.
+    check(!QrPravila.smePoslatiZeton(o, null, false)) { "brez pripetega odtisa in kljuca ni zetona" }
+    check(!QrPravila.smePoslatiZeton(o, o.reversed(), false)) { "tuj odtis v kodi ne dobi zetona" }
+    check(QrPravila.smePoslatiZeton(o, o.uppercase(), false)) { "pripeti odtis = koda" }
+    check(!QrPravila.smePoslatiZeton(o.take(16), o.take(16), false)) { "skrajsan odtis ne velja" }
+    check(QrPravila.smePoslatiZeton(o.reversed(), o, true)) { "kljuc kroga preveri potrdilo sam (HubTls.Zaupnik)" }
     println("QrPravilaTest: OK")
 }

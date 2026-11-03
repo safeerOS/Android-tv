@@ -715,15 +715,9 @@ class ChromiumEngineView @JvmOverloads constructor(
             }
         }
 
-        @android.webkit.JavascriptInterface
-        fun onMedijskaZahteva(url: String?, method: String?, headersJson: String?, kind: String?) {
-            DashPrevzem.observeJs(
-                url ?: "",
-                method ?: "GET",
-                headersJson ?: "{}",
-                kind ?: ""
-            )
-        }
+        // Zunanji pregled 3. 11. 2026: onMedijskaZahteva in forceAudioOn odstranjena - nasi skripti ju ne klicejo vec,
+        // most pa vidi vsak okvir strani (tuj okvir bi DashPrevzem podtaknil naslov in glave s piskotki tujega gostitelja).
+        // Seznam dovoljenih metod: tests/preveri_mostove.py.
 
         @android.webkit.JavascriptInterface
         fun getUiLanguage(): String {
@@ -781,11 +775,6 @@ class ChromiumEngineView @JvmOverloads constructor(
             webView.post {
                 webView.loadUrl(SpletDomaca.naslov(context))
             }
-        }
-
-        @android.webkit.JavascriptInterface
-        fun forceAudioOn() {
-            // Do not touch AudioManager / HDMI-CEC: JBL BAR 300 treats unmute as mute toggle.
         }
 
         @android.webkit.JavascriptInterface

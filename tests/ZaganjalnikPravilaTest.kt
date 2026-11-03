@@ -200,6 +200,12 @@ fun main() {
     preveri("drug zaganjalnik ima Domov", ZaganjalnikPravila.drugZaganjalnikImaDomov("com.google.android.tvlauncher", "si.safeer.os"))
     preveri("mi imamo Domov", !ZaganjalnikPravila.drugZaganjalnikImaDomov("si.safeer.os", "si.safeer.os"))
     preveri("sistemska izbira ni drug zaganjalnik", !ZaganjalnikPravila.drugZaganjalnikImaDomov("android", "si.safeer.os"))
+    // Zunanji pregled 3. 11. 2026: televizor - prestreznik Domov ne pobrise dokaza, da je Safeer dom.
+    preveri("TV: prestreznik + nas zagon = izbran", ZaganjalnikPravila.izbranBrezVloge("org.droidtv.homeintentresolver", "si.safeer.os", true, true) == Pair(true, false))
+    preveri("TV: brez nasega zagona ni izbran", ZaganjalnikPravila.izbranBrezVloge("org.droidtv.homeintentresolver", "si.safeer.os", false, true) == Pair(false, false))
+    preveri("TV: resolve vrne nas", ZaganjalnikPravila.izbranBrezVloge("si.safeer.os", "si.safeer.os", false, true) == Pair(true, false))
+    preveri("telefon: drug zaganjalnik pobrise dokaz", ZaganjalnikPravila.izbranBrezVloge("com.sec.android.app.launcher", "si.safeer.os", true, false) == Pair(false, true))
+    preveri("telefon: nas zagon brez drugega", ZaganjalnikPravila.izbranBrezVloge("android", "si.safeer.os", true, false) == Pair(true, false))
     preveri("neznano ni drug zaganjalnik", !ZaganjalnikPravila.drugZaganjalnikImaDomov(null, "si.safeer.os"))
     preveri("FallbackHome ni pravi zaganjalnik", !ZaganjalnikPravila.jePraviZaganjalnik("com.android.tv.settings", "com.android.tv.settings.system.FallbackHome", -1000, "si.safeer.os"))
     println(if (napak == 0) "\nVSE OK" else "\nNAPAK: $napak")

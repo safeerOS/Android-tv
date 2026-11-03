@@ -108,6 +108,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Zunanji pregled 3. 11. 2026: lovilec padcev tudi tu (Pokrajina je dom televizorja); vrata preveri DomovActivity.
+        Zaganjalnik.namestiZascito(this)
         super.onCreate(savedInstanceState)
         koren = FrameLayout(this)
         zatemnitevOzadja = View(this).apply {
@@ -176,7 +178,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         okvirDrsnika.addView(puscica, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER_VERTICAL or Gravity.END))
         
         val osveziPuscico = {
-            val vidno = drsnik.width > 0 && drsnik.scrollX < drsnik.getChildAt(0).width - drsnik.width - dp(10)
+            val vidno = drsnik.width > 0 && drsnik.scrollX < (drsnik.getChildAt(0)?.width ?: 0) - drsnik.width - dp(10)
             val zadnjaSFokusom = vrstaAplikacij.childCount > 0 && vrstaAplikacij.getChildAt(vrstaAplikacij.childCount - 1).hasFocus()
             puscica.visibility = if (vidno && !zadnjaSFokusom) View.VISIBLE else View.GONE
         }
