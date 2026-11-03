@@ -22,7 +22,7 @@ class ZagonPrejemnikOs : BroadcastReceiver() {
         // Po posodobitvi in vklopu: Safeer Vnos sledi ozjemu krogu (link/VnosVklop), tudi ce se Safeer OS ne odpre. Samo
         // ob zascitenih sistemskih oddajah - QUICKBOOT_POWERON lahko poslje katerakoli aplikacija (pregled tv-vnos, 4).
         if (si.safeer.tv.link.VnosVklopPravila.uskladiObOddaji(akcija)) si.safeer.tv.link.VnosVklop.uskladi(app, akcija)
-        if (!ZaganjalnikPravila.odpriDomObOddaji(akcija) || !ZagonOb.jeVklopljen(app)) return
+        if (!ZaganjalnikPravila.odpriDomObOddaji(akcija, android.os.SystemClock.elapsedRealtime()) || !ZagonOb.jeVklopljen(app)) return
         Log.i("SafeerOsZagon", "Televizor se je prizgal ($akcija): odpiram Safeer OS.")
         try { ZagonOb.pokaziDomov(app) } catch (e: Throwable) {
             Log.w("SafeerOsZagon", "Safeer OS se ni odprl: ${e.message}")

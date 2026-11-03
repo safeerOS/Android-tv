@@ -586,6 +586,11 @@ object DomacaLupa {
             .putString("stetje", LupaPravila.stetjeVBesedilo(stetje)).apply()
     }
 
+    /** Pocisti zgodovino in stetje iskanj (Nastavitve, neodvisni pregled 3. 11. 2026). */
+    fun pocistiZgodovino(c: Context) {
+        c.getSharedPreferences(PREFS_LUPE, Context.MODE_PRIVATE).edit().remove("zgodovina").remove("stetje").apply()
+    }
+
     /** Kolikokrat je uporabnik kaj iskal (samo prava iskanja, LupaPravila.pristej). */
     fun beriStetje(c: Context): Map<String, Int> =
         LupaPravila.stetjeIzBesedila(c.getSharedPreferences(PREFS_LUPE, Context.MODE_PRIVATE).getString("stetje", "") ?: "")

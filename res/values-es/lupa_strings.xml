@@ -6,6 +6,9 @@
     <string name="pk_vreme_beseda">tiempo</string>
     <string name="pk_lupa_splet_predlogi">Sugerencias de la web al buscar</string>
     <string name="pk_lupa_splet_predlogi_opis">A partir de tres letras, lo que escribes va a tu buscador (como en Web).</string>
+    <string name="pk_lupa_pocisti">Borrar historial de búsqueda</string>
+    <string name="pk_lupa_pocisti_opis">Elimina las búsquedas recientes y frecuentes de la barra de búsqueda.</string>
+    <string name="pk_lupa_pocisceno">Historial de búsqueda borrado</string>
     <string name="pk_lupa_obseg">Buscar en</string>
     <string name="pk_lupa_obseg_splet">Web</string>
     <string name="pk_lupa_obseg_video">Vídeos</string>

@@ -22,6 +22,7 @@ object UvozSeznama {
     /** Id skladbe, ki se nima posnetka: "isci:<dolzina v s>|<izvajalec - naslov>". */
     const val PREDPONA_ISKANJA = "isci:"
     const val NAJVEC = 400
+    private const val NAJVEC_ZNAKOV = 6_000_000
     private const val UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
 
     data class Uvoz(val ime: String, val skladbe: List<Jamendo.Skladba>, val vir: String)
@@ -274,7 +275,12 @@ object UvozSeznama {
                 p.setRequestProperty("Content-Type", "application/json")
                 p.outputStream.use { it.write(telo.toByteArray()) }
             }
-            if (p.responseCode in 200..299) p.inputStream.bufferedReader().use { it.readText().take(6_000_000) } else null
+            // Neodvisni pregled 3. 11. 2026: beremo najvec NAJVEC_ZNAKOV, ne celega telesa in sele nato rezemo.
+            if (p.responseCode in 200..299) p.inputStream.bufferedReader().use { r ->
+                val sb = StringBuilder(); val buf = CharArray(8192)
+                while (sb.length < NAJVEC_ZNAKOV) { val n = r.read(buf); if (n < 0) break; sb.append(buf, 0, n) }
+                sb.take(NAJVEC_ZNAKOV).toString()
+            } else null
         } catch (_: Exception) { null } finally { p.disconnect() }
     }
 }

@@ -13,8 +13,12 @@ object ZaganjalnikPravila {
      * Ali oddaja ob zagonu sme odpreti Safeer OS (izbira »Ob vklopu«). Samo vklop televizorja; posodobitev aplikacije
      * (MY_PACKAGE_REPLACED) ne - agent Play Store 3. 11. 2026: posodobitev OS je trgovino vrgla z zaslona.
      */
-    fun odpriDomObOddaji(akcija: String): Boolean = akcija == "android.intent.action.BOOT_COMPLETED" ||
-        akcija == "android.intent.action.QUICKBOOT_POWERON" || akcija == "com.htc.intent.action.QUICKBOOT_POWERON"
+    fun odpriDomObOddaji(akcija: String, msOdZagona: Long): Boolean = akcija == "android.intent.action.BOOT_COMPLETED" ||
+        // Neodvisni pregled 3. 11. 2026: QUICKBOOT lahko poslje katerakoli aplikacija - velja samo v prvih minutah po zagonu.
+        ((akcija == "android.intent.action.QUICKBOOT_POWERON" || akcija == "com.htc.intent.action.QUICKBOOT_POWERON") &&
+            msOdZagona in 0 until QUICKBOOT_OKNO_MS)
+
+    const val QUICKBOOT_OKNO_MS = 5 * 60_000L
 
 
     /** Razred sirine okna (Android window size classes). */

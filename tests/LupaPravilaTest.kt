@@ -100,9 +100,11 @@ fun main() {
     preveriEnako("prvi filter ne gre pred Vse", LupaPravila.OBSEGI, LupaPravila.premakni(emptyList(), "splet", -1))
     preveriEnako("zadnji filter ne gre cez rob", LupaPravila.OBSEGI, LupaPravila.premakni(emptyList(), "nastavitve", 1))
     // Lastnik 3. 11. 2026 19:40: videi YouTube s predogledom samo pod filtrom YouTube ali z vklopljenimi predlogi.
-    preveriEnako("YouTube filter isce videe", true, LupaPravila.youtubeVideo("youtube", "avatar", false))
-    preveriEnako("pod Vse brez predlogov ne", false, LupaPravila.youtubeVideo("vse", "avatar", false))
-    preveriEnako("kratka poizvedba ne", false, LupaPravila.youtubeVideo("youtube", "av", true))
+    preveriEnako("YouTube filter z vklopljenimi predlogi isce videe", true, LupaPravila.youtubeVideo("youtube", "avatar", true, false))
+    preveriEnako("brez vklopljenih predlogov ne, tudi pod YouTube", false, LupaPravila.youtubeVideo("youtube", "avatar", false, true))
+    preveriEnako("pod Vse z DuckDuckGo ne gre na YouTube", false, LupaPravila.youtubeVideo("vse", "avatar", true, false))
+    preveriEnako("pod Vse z Googlom da", true, LupaPravila.youtubeVideo("vse", "avatar", true, true))
+    preveriEnako("kratka poizvedba ne", false, LupaPravila.youtubeVideo("youtube", "av", true, true))
     // Lastnik 3. 11. 2026 19:41-19:42: fizicna razporeditev tipk po jeziku, abecedna ostane izbira.
     preveriEnako("slovenska QWERTZ s sumniki", listOf("qwertzuiopš", "asdfghjklčž", "yxcvbnm"), LupaPravila.vrsteFizicne("sl"))
     preveriEnako("francoska AZERTY", "AZERTY", LupaPravila.imeFizicne("fr"))

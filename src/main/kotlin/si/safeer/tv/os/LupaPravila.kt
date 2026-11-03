@@ -397,12 +397,6 @@ object LupaPravila {
     private val VEJICA_MED_CRKAMA = Regex("\\p{L},\\p{L}")
     private val PONOVLJENA_CRKA = Regex("(\\p{L})\\1{3,}")
 
-    /**
-     * Iskanje, ki gre v zgodovino, ali null (preverba TV 2. 11. 2026 19:43: v zgodovini so ostale vrstice kot
-     * »„ DDV po„llll,l.-e« - napol natipkano z vrstico znakov). Shrani se samo pravo iskanje (OK/oddaja), ocisceno in z vsaj
-     * dvema crkama ali stevkama, ki so vsaj 60 % znakov. Ne: beseda iz samih locil (»„«, »…«; pomisljaj sme), narekovaj ali vejica sredi
-     * besede, ista crka stirikrat zapored. Isto pravilo ocisti staro zgodovino ob branju ([ocistiZgodovino]).
-     */
     /** Stetje iskanj (vrstica = »niz<TAB>stevilo«), kot ga hrani DomacaLupa; pokvarjene vrstice odpadejo. */
     fun stetjeIzBesedila(besedilo: String): Map<String, Int> = besedilo.split("\n").mapNotNull { v ->
         val i = v.lastIndexOf('\t')
@@ -439,12 +433,13 @@ object LupaPravila {
     const val NAJVEC_STETIH = 200
 
     /**
-     * Videi YouTube s predogledom: od SPLET_OD_ZNAKOV znakov, ne za naslov; pod izbranim filtrom YouTube (izrecna izbira
-     * uporabnika) ali ce je uporabnik vklopil spletne predloge (lastnik 3. 11. 2026 19:40).
+     * Videi YouTube s predogledom (lastnik 3. 11. 2026 19:40): od SPLET_OD_ZNAKOV znakov, ne za naslov, samo z vklopljenimi
+     * sprotnimi predlogi. Pod »Vse« samo pri iskalniku Google - neodvisni pregled 3. 11.: z DuckDuckGo je vsak niz pod Vse
+     * sel na YouTube (Google). Isti pogoj kot zivo() za YouTube.
      */
-    fun youtubeVideo(obseg: String, poizvedba: String, vklopljeno: Boolean): Boolean {
+    fun youtubeVideo(obseg: String, poizvedba: String, vklopljeno: Boolean, iskalnikGoogle: Boolean): Boolean {
         val q = poizvedba.trim()
-        return q.length >= SPLET_OD_ZNAKOV && !jeNaslov(q) && (obseg(obseg) == OBSEG_YOUTUBE || vklopljeno)
+        return q.length >= SPLET_OD_ZNAKOV && !jeNaslov(q) && vklopljeno && (obseg(obseg) == OBSEG_YOUTUBE || iskalnikGoogle)
     }
 
     /**
@@ -466,6 +461,12 @@ object LupaPravila {
     /** Stevilo na filtru: tocno stevilo ali »n+«, ko je vir vrnil polno mero (jih je lahko vec). Nic zadetkov = »0«. */
     fun napisStevila(n: Int, vec: Boolean): String = if (vec && n > 0) "$n+" else "$n"
 
+    /**
+     * Iskanje, ki gre v zgodovino, ali null (preverba TV 2. 11. 2026 19:43: v zgodovini so ostale vrstice kot
+     * »„ DDV po„llll,l.-e« - napol natipkano z vrstico znakov). Shrani se samo pravo iskanje (OK/oddaja), ocisceno in z vsaj
+     * dvema crkama ali stevkama, ki so vsaj 60 % znakov. Ne: beseda iz samih locil (»„«, »…«; pomisljaj sme), narekovaj ali vejica sredi
+     * besede, ista crka stirikrat zapored. Isto pravilo ocisti staro zgodovino ob branju ([ocistiZgodovino]).
+     */
     fun zaZgodovino(niz: String): String? {
         val q = niz.trim().replace(Regex("\\s+"), " ")
         val znaki = q.filter { !it.isWhitespace() }

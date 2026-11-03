@@ -57,8 +57,10 @@ private fun postavitve() {
 
 private fun padci() {
     println("\n== zagon ob vklopu ==")
-    preveri("vklop televizorja odpre dom", ZaganjalnikPravila.odpriDomObOddaji("android.intent.action.BOOT_COMPLETED"))
-    preveri("posodobitev aplikacije ne vzame zaslona", !ZaganjalnikPravila.odpriDomObOddaji("android.intent.action.MY_PACKAGE_REPLACED"))
+    preveri("vklop televizorja odpre dom", ZaganjalnikPravila.odpriDomObOddaji("android.intent.action.BOOT_COMPLETED", 3_600_000L))
+    preveri("posodobitev aplikacije ne vzame zaslona", !ZaganjalnikPravila.odpriDomObOddaji("android.intent.action.MY_PACKAGE_REPLACED", 1_000L))
+    preveri("QUICKBOOT takoj po zagonu odpre dom", ZaganjalnikPravila.odpriDomObOddaji("android.intent.action.QUICKBOOT_POWERON", 30_000L))
+    preveri("QUICKBOOT ure po zagonu (tuja aplikacija) ne", !ZaganjalnikPravila.odpriDomObOddaji("android.intent.action.QUICKBOOT_POWERON", 3_600_000L))
 
     println("\n== zascita pred padci ==")
     val zdaj = 1_000_000L

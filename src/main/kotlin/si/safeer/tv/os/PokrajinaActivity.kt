@@ -82,6 +82,12 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     private var iskalniNacin = false
 
     /** Iskalni nacin: odprta tipkovnica ali plosca zadetkov - glava (ura, vreme), ploscice in spodnja vrstica so skriti. */
+    override fun onDestroy() {
+        // Neodvisni pregled 3. 11. 2026: niti lupe ne ostanejo po dejavnosti.
+        for (d in listOf(youtubeDelavecL, slikeLupeDelavecL, videoDelavecL)) if (d.isInitialized()) try { d.value.shutdownNow() } catch (_: Throwable) { }
+        super.onDestroy()
+    }
+
     /** Najblizji zadetek nad pogledom [od] (za GOR s tipkovnice). */
     private fun najblizjiZadetekNad(od: View?): View? {
         if (od == null || !::zadetki.isInitialized) return prviVSeznamu()
@@ -143,7 +149,12 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         val vrnjen = domovNamera && Zaganjalnik.preveriObZagonu(this)
         Zaganjalnik.namestiZascito(this)
         if (vrnjen) { super.onCreate(savedInstanceState); finish(); return }
+        // Neodvisni pregled 3. 11. 2026: padec doma v onCreate/onStart/onResume se mora steti - zastavica »dom spredaj« se
+        // postavi ob nameri HOME takoj, ne sele v onResume (sicer zanke padcev varnostna vrata ne ujamejo).
+        if (domovNamera) Zaganjalnik.domNaZaslonu(this, true)
         super.onCreate(savedInstanceState)
+        // Pregled 3. 11. 2026: alias Domov kaze sem (ne vec na DomovActivity) - predgretje Medijskega centra kot prej.
+        Predgretje.zazeni(this)
         koren = FrameLayout(this)
         zatemnitevOzadja = View(this).apply {
             setBackgroundColor(0xFF000000.toInt())
@@ -388,7 +399,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         super.onResume()
         Zaganjalnik.domNaZaslonu(this, true)
         // Zunanji pregled 3. 11. 2026: komentar zgoraj je to obljubljal, klic pa je bil samo po minuti mirovanja in brez
-        // naloženega posnetka (po filmu v pavzi nikoli). Kot DomovActivity: ob vsaki vrnitvi domov, cez 3 s;
+        // nalozenega posnetka (po filmu v pavzi nikoli). Kot DomovActivity: ob vsaki vrnitvi domov, cez 3 s;
         // pocistiOzadje samo preveri, ali zvok res igra (pavza ni zvok v ozadju).
         Pomnilnik.pocistiOzadje(this)
         // Naloga 45 G: ponudba »Dodam na dom?« sele ob vrnitvi domov - zagon aplikacije ni nikoli cakal na okno.
@@ -570,7 +581,15 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         izbiraLupe = LupaPravila.obsegPo(izbiraLupe, lupaZaprta = true)
         osveziFiltre()
         zadetki.removeAllViews(); zadetkiDrsnik.visibility = View.GONE
-        if (vLupi) { val dol = poljeLupe.focusSearch(View.FOCUS_DOWN); if (dol != null && dol !== poljeLupe) dol.requestFocus() else poljeLupe.clearFocus() }
+        // Lastnik 3. 11. 2026 (TV): Domov v iskalnem nacinu ni naredil nic - ploscice so bile se skrite (nacin se osvezi
+        // sele z zamikom), fokus je padel nazaj v prazno polje in to je znova pokazalo zgodovino. Nacin osvezimo takoj in
+        // fokus damo prvi ploscici.
+        osveziIskalniNacin()
+        if (vLupi) {
+            val prva = (0 until vrstaAplikacij.childCount).map { vrstaAplikacij.getChildAt(it) }.firstOrNull { it.isFocusable && it.visibility == View.VISIBLE }
+            val dol = prva ?: poljeLupe.focusSearch(View.FOCUS_DOWN)?.takeIf { it !== poljeLupe }
+            if (dol?.requestFocus() != true) { poljeLupe.clearFocus(); koren.requestFocus() }
+        }
         return true
     }
 
@@ -1087,15 +1106,17 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     }
 
     /** Iskanje YouTube v ozadju: ena nit, zastarelo iskanje se preskoci pred omrezjem. */
-    private val youtubeDelavec by lazy {
+    private val youtubeDelavecL = lazy {
         java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "safeer-lupa-youtube").apply { isDaemon = true } }
     }
+    private val youtubeDelavec by youtubeDelavecL
 
     /** Naslovnice v lupi: majhen predpomnilnik v pomnilniku, ena nit, enaka varna pot kot v Medijskem centru. */
     private val slikeLupe = android.util.LruCache<String, android.graphics.Bitmap>(16)
-    private val slikeLupeDelavec by lazy {
+    private val slikeLupeDelavecL = lazy {
         java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "safeer-lupa-slike").apply { isDaemon = true } }
     }
+    private val slikeLupeDelavec by slikeLupeDelavecL
 
     private fun slikaLupe(url: String, v: ImageView) {
         slikeLupe.get(url)?.let { v.setImageBitmap(it); return }
@@ -1326,6 +1347,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
             .setNegativeButton(getString(R.string.os_preklici), null)
             .create()
         Kontroler.pokazi(okno)
+        okno.show()
     }
 
     /** Izbran filter: poln in krepko; TalkBack: »<ime>, filter, izbran / ni izbran«. */
@@ -1457,9 +1479,10 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
      * Video vsebine: filmi in serije iz dodatkov uporabnika (isto iskanje kot v Medijskem centru, Stremio.isci). ENA nit:
      * hitro tipkanje ne nabere kupa poizvedb - zastarelo iskanje se preskoci, preden gre v omrezje.
      */
-    private val videoDelavec by lazy {
+    private val videoDelavecL = lazy {
         java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "safeer-lupa-video").apply { isDaemon = true } }
     }
+    private val videoDelavec by videoDelavecL
 
     /** Vrne false, ce uporabnik nima dodatkov (iskanja ni - nic se ne caka). */
     private fun isciVideo(q: String, st: Int, nato: (List<Pair<String, String>>) -> Unit): Boolean {
@@ -1644,7 +1667,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                             DomacaLupa.isciNaYoutubu(this, q)
                         }.apply { tag = "isci_youtube" }, kam)
                     }
-                    if (LupaPravila.youtubeVideo(obseg, q, vklopljeno)) {
+                    if (LupaPravila.youtubeVideo(obseg, q, vklopljeno, google)) {
                         cakam++
                         youtubeDelavec.execute {
                             val videi = if (st != iskanjeSt) null else try {
@@ -1826,7 +1849,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         podpisVrste = podpis
 
         val stare = vrstaDomov.toSet()
-        // Zunanji pregled 3. 11. 2026: ob USB ali novem imenu spletne aplikacije se vrsta nariše znova - fokus ostane na isti ploscici.
+        // Zunanji pregled 3. 11. 2026: ob USB ali novem imenu spletne aplikacije se vrsta narise znova - fokus ostane na isti ploscici.
         val fokusTag = vrstaAplikacij.findFocus()?.let { f -> generateSequence(f) { it.parent as? View }.firstOrNull { it.parent === vrstaAplikacij }?.tag }
         if (fokusTag != null) vrstaAplikacij.post { vrstaAplikacij.findViewWithTag<View>(fokusTag)?.requestFocus() }
         vrstaAplikacij.removeAllViews()

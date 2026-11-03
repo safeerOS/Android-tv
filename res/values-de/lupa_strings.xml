@@ -6,6 +6,9 @@
     <string name="pk_vreme_beseda">Wetter</string>
     <string name="pk_lupa_splet_predlogi">Live-Vorschläge aus dem Web in der Suche</string>
     <string name="pk_lupa_splet_predlogi_opis">Ab drei Buchstaben geht das Getippte an deine Suchmaschine (wie im Web).</string>
+    <string name="pk_lupa_pocisti">Suchverlauf löschen</string>
+    <string name="pk_lupa_pocisti_opis">Entfernt letzte und häufige Suchen aus der Suchleiste.</string>
+    <string name="pk_lupa_pocisceno">Suchverlauf gelöscht</string>
     <string name="pk_lupa_obseg">Suchen in</string>
     <string name="pk_lupa_obseg_splet">Web</string>
     <string name="pk_lupa_obseg_video">Videos</string>
