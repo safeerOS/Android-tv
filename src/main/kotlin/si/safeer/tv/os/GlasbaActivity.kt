@@ -194,6 +194,8 @@ class GlasbaActivity : OsActivity() {
     private var napredekZapisanOb = -1L
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Zunanji pregled Video 3. 11. 2026: na TV 2 niti za plakate (prej 6).
+        OsPravila.nitiSlik(Naprava.jeTelevizor(this)).let { n -> slikeDelavec.corePoolSize = n; slikeDelavec.maximumPoolSize = n }
         super.onCreate(savedInstanceState)
         instanca = java.lang.ref.WeakReference(this)
         odprtih++
@@ -535,6 +537,12 @@ class GlasbaActivity : OsActivity() {
     /** Lastnik 27. 10. 2026: mini predvajalnik tudi v Medijskem centru (prej samo na domacem zaslonu). */
     private var dock: MiniPredvajalnik? = null
     private val dockPoslusalec: () -> Unit = { runOnUiThread { if (!isFinishing && !isDestroyed) dock?.osvezi() } }
+
+    override fun onResume() {
+        super.onResume()
+        // Vrnitev na mrezo: preverjanje se nadaljuje.
+        if (klikNaFilm) { klikNaFilm = false; odprtKatalog?.let { if (!isFinishing) narociUmiri() } }
+    }
 
     override fun onStart() {
         super.onStart()
@@ -1933,6 +1941,7 @@ class GlasbaActivity : OsActivity() {
                 // Dnevnik TV 28. 10. 2026 (04:56 in 08:07, klik na film): OOM v niti naslovnic je ubil ves proces in TV je
                 // skocil na domaci zaslon. Naslovnica izpade, polovica predpomnilnika slik se sprosti, aplikacija tece naprej.
                 SLIKE.trimToSize(SLIKE.size() / 2)
+                glavna.post { izprazniVrstoSlik("OutOfMemoryError") }
                 android.util.Log.w("SafeerOsMedia", "naslovnica: zmanjkalo pomnilnika, predpomnilnik slik zmanjsan na ${SLIKE.size() / 1024 / 1024} MB")
             } finally {
                 slikeVTeKu.remove(naslov)
@@ -8124,6 +8133,10 @@ class GlasbaActivity : OsActivity() {
                                /** Naloga 91a: razlicica seznama IPTV, ki igra, ce dodatki kanala v zivo ne dajo predvajljivega toka. */
                                rezerva: Jamendo.Skladba? = null) {
         val (_, tip, id) = Stremio.razstavi(sk) ?: return
+        // Zunanji pregled Video 3. 11. 2026: klik na film ustavi preverjanje mreze in plakate v vrsti - omrezje in CPU sta
+        // za tokove, meta, debrid in Usenet tega filma.
+        klikNaFilm = true
+        izprazniVrstoSlik("klik na film")
         val priprava = zacniPripravo(sk, rocno) ?: return
         // Naloga 74: klik na kanal ima prednost pred preverjanjem mreze v ozadju ([preveriKanal] pocaka).
         if (Stremio.jeVZivo(sk)) prednostKlikaDo = android.os.SystemClock.uptimeMillis() + PREDNOST_KLIKA_MS
@@ -8940,6 +8953,28 @@ class GlasbaActivity : OsActivity() {
     private val preverjanjeEpizod = Executors.newFixedThreadPool(4)
     private val vPreverjanju = java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap<String, Boolean>())
     @Volatile private var zadnjiDotik = 0L
+    /** Zunanji pregled Video 3. 11. 2026: uporabnik je kliknil film - preverjanje mreze stoji do vrnitve na zaslon. */
+    @Volatile private var klikNaFilm = false
+
+    /** Plakati, ki se cakajo v vrsti, odpadejo (pomnilnik, klik na film); kartica na zaslonu jih ob prikazu zahteva znova. */
+    private fun izprazniVrstoSlik(razlog: String) {
+        val n = slikeDelavec.queue.size
+        slikeDelavec.queue.clear()
+        slikeVTeKu.clear()
+        cakajoceSlike.clear()
+        if (n > 0) android.util.Log.i("SafeerOsMedia", "naslovnice: vrsta izpraznjena ($n, $razlog)")
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        // Zunanji pregled Video 3. 11. 2026: ob pomanjkanju pomnilnika vrsta plakatov stoji (prej samo razpolovljen predpomnilnik).
+        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) izprazniVrstoSlik("onTrimMemory $level")
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        izprazniVrstoSlik("onLowMemory")
+    }
     private var umiriNarocen = false
     /** Mrezo uredimo najvec enkrat na dobro sekundo, ne glede na to, koliko odgovorov dodatkov pride vmes. */
     private fun narociUmiri() {
@@ -9286,7 +9321,13 @@ class GlasbaActivity : OsActivity() {
         // ampak samo okno (prvih o.zelja kandidatov) in najvec o.proracun naslovov do naslednjega uporabnikovega dejanja.
         // Ce prvih 20 ne da nobene kartice, nehamo (naslednji ne bi bili drugacni); uporabnik lahko nadaljuje z Nalozi vec.
         if (o.preverjenih.get() >= 20 && o.zadetkov.get() == 0) o.proracun = 0
-        var smem = minOf(o.proracun, 12 - o.caka.get() - o.ozadje.get())
+        // Zunanji pregled Video 3. 11. 2026: najvec 3 hkrati, ne med pritiski daljinca in ne po kliku na film.
+        val odTipke = android.os.SystemClock.uptimeMillis() - zadnjiDotik
+        if (!OsPravila.smemPreverjatiMrezo(klikNaFilm, odTipke)) {
+            if (!klikNaFilm) glavna.postDelayed({ if (odprtKatalog === o && !isFinishing) narociUmiri() }, OsPravila.MREZA_MIR_MS - odTipke.coerceAtMost(OsPravila.MREZA_MIR_MS) + 50)
+            return
+        }
+        var smem = minOf(o.proracun, OsPravila.MREZA_HKRATI - o.caka.get() - o.ozadje.get())
         if (smem <= 0) return
         val torrent = mejaZaIzris()
         // Mreza je se odprta in Safeer je na zaslonu. Pogoj gre z vprasanjem do zadnjega koraka pred omrezjem.

@@ -983,6 +983,12 @@ private fun preizkusGlasbe83() {
     val zZvokom = listOf(true, false, true, false, true)
     preveriEnako("Glasba: vrsta samo z zvokom", listOf(0, 2, 4) to 1, OsPravila.vrstaZZvokom(5, 2) { zZvokom[it] })
     preveriEnako("Glasba: kliknjena je vedno v vrsti", listOf(0, 1, 2, 4) to 1, OsPravila.vrstaZZvokom(5, 1) { zZvokom[it] })
+    // Zunanji pregled Video 3. 11. 2026
+    preveriEnako("Video: med pritiski daljinca mreza ne preverja", false, OsPravila.smemPreverjatiMrezo(klikNaFilm = false, odZadnjeTipkeMs = 100))
+    preveriEnako("Video: drsenje ustavljeno - preverja", true, OsPravila.smemPreverjatiMrezo(klikNaFilm = false, odZadnjeTipkeMs = 700))
+    preveriEnako("Video: po kliku na film ne preverja", false, OsPravila.smemPreverjatiMrezo(klikNaFilm = true, odZadnjeTipkeMs = 9_000))
+    preveriEnako("Video: najvec 3 hkrati", 3, OsPravila.MREZA_HKRATI)
+    preveriEnako("Video: plakati na TV 2 niti", 2, OsPravila.nitiSlik(televizor = true))
     preveriEnako("83: Jamendo brez jezika ne", false, OsPravila.jezikGlasbeUstreza("", "sl", false))
     preveriEnako("83: drug jezik ne", false, OsPravila.jezikGlasbeUstreza("en", "sl", koncert = true))
     preveriEnako("83: isti jezik da", true, OsPravila.jezikGlasbeUstreza("sl", "sl", false))

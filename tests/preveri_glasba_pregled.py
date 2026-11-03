@@ -24,5 +24,11 @@ s = s.group(0) if s else ""
 preveri("prazna Glasba: brez radijskih postaj", "os_media_sorodno_postaje" not in s)
 preveri("prazna Glasba: TV kanali samo v Radiu", "if (radio && zaTv.isNotEmpty())" in s)
 preveri("prazna Glasba: nedavne skladbe in seznami", "R.string.os_media_nedavno" in s and "seznamiZaGlasbo()" in s)
+# Zunanji pregled Video 3. 11. 2026
+preveri("mreza filmov: najvec MREZA_HKRATI", "OsPravila.MREZA_HKRATI - o.caka.get()" in g and "minOf(o.proracun, 12 - o.caka.get()" not in g)
+preveri("mreza filmov: ne med tipkami in po kliku", "OsPravila.smemPreverjatiMrezo(klikNaFilm, odTipke)" in g)
+preveri("klik na film ustavi plakate in preverjanje", re.search(r"private fun razresiStremio\(.*?klikNaFilm = true\s+izprazniVrstoSlik", g, re.S) is not None)
+preveri("plakati: onTrimMemory in OOM izpraznita vrsto", "izprazniVrstoSlik(\"onTrimMemory" in g and "izprazniVrstoSlik(\"OutOfMemoryError\")" in g)
+preveri("plakati: niti po nitiSlik", "OsPravila.nitiSlik(Naprava.jeTelevizor(this))" in g)
 print("VSE OK" if napak == 0 else f"NAPAK: {napak}")
 sys.exit(1 if napak else 0)

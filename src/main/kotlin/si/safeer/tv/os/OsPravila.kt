@@ -1714,6 +1714,23 @@ object OsPravila {
      */
     fun zaGlasbo(video: Boolean, radio: Boolean, youtube: Boolean): Boolean = !radio && (!video || youtube)
 
+    // ------------------------------------------------------------------ zunanji pregled Video 3. 11. 2026 (obremenitev TV)
+
+    /** Najvec hkratnih preverjanj mreze filmov (prej 12 - ob odprtju razdelka je bil TV preobremenjen). */
+    const val MREZA_HKRATI = 3
+
+    /** Toliko ms po zadnji tipki daljinca mreza ne preverja (drsenje se se ni ustavilo). */
+    const val MREZA_MIR_MS = 600L
+
+    /**
+     * Preverjanje mreze filmov sme teci: uporabnik ni kliknil filma (takrat razresiStremio sam vprasa tokove, meta, debrid,
+     * Usenet - mreza mu ne jemlje omrezja) in drsenje se je ustavilo.
+     */
+    fun smemPreverjatiMrezo(klikNaFilm: Boolean, odZadnjeTipkeMs: Long): Boolean = !klikNaFilm && odZadnjeTipkeMs >= MREZA_MIR_MS
+
+    /** Niti za plakate: na TV 2 (2 GB, OOM pri vzporednem dekodiranju 28. 10. 2026), drugje 4. */
+    fun nitiSlik(televizor: Boolean): Int = if (televizor) 2 else 4
+
     /**
      * Zunanji pregled Glasbe 3. 11. 2026: klik na skladbo da v vrsto samo kartice z zvokom (prej vse kartice zaslona, tudi
      * vnose dodatkov brez zvoka). Vrne indekse vrste in polozaj kliknjene v njej; kliknjena je vedno v vrsti.
