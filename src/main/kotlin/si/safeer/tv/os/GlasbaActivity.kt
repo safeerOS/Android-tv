@@ -6639,8 +6639,7 @@ class GlasbaActivity : OsActivity() {
                 KeyEvent.KEYCODE_DPAD_DOWN -> {
                     val q = text.toString().trim()
                     skrijTipkovnico(this)
-                    if (OsPravila.dolIskanja(q, if (zadetki != null) zadnjaBeseda else null) == OsPravila.TipkaIskanja.ISCI) { if (!prikaziNaDrugi(q)) isci(q) }
-                    else fokusNaPrvo()
+                    if (OsPravila.dolIskanja(q, if (zadetki != null) zadnjaBeseda else null) == OsPravila.TipkaIskanja.FOKUS_ZADETKI) fokusNaPrvo()
                     true
                 }
                 else -> false

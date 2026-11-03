@@ -1015,7 +1015,8 @@ private fun preizkusGlasbe83() {
     // Zunanji pregled iskalne vrstice 3. 11. 2026
     preveriEnako("iskanje: OK z dvema crkama isce", OsPravila.TipkaIskanja.ISCI, OsPravila.okIskanja("ab"))
     preveriEnako("iskanje: OK na praznem polju odpre tipkovnico", OsPravila.TipkaIskanja.TIPKOVNICA, OsPravila.okIskanja(" "))
-    preveriEnako("iskanje: DOL z novo besedo isce", OsPravila.TipkaIskanja.ISCI, OsPravila.dolIskanja("matrix", "mat"))
+    preveriEnako("iskanje: DOL z novo besedo ne isce, ostane (pregled 4. 11.)", OsPravila.TipkaIskanja.OSTANI, OsPravila.dolIskanja("matrix", "mat"))
+    preveriEnako("iskanje: DOL brez zadetkov ostane", OsPravila.TipkaIskanja.OSTANI, OsPravila.dolIskanja("matrix", null))
     preveriEnako("iskanje: DOL z ze najdeno gre na zadetke", OsPravila.TipkaIskanja.FOKUS_ZADETKI, OsPravila.dolIskanja("matrix", "matrix"))
     preveriEnako("iskanje: Nazaj brez vidne tipkovnice zapusti", OsPravila.TipkaIskanja.ZAPUSTI, OsPravila.nazajIskanja(tipkovnicaVidna = false))
     preveriEnako("iskanje: Nazaj z vidno tipkovnico jo zapre", OsPravila.TipkaIskanja.ZAPRI_TIPKOVNICO, OsPravila.nazajIskanja(tipkovnicaVidna = true))
