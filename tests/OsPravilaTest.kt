@@ -994,6 +994,8 @@ private fun preizkusGlasbe83() {
     preveriEnako("Video: drsenje ustavljeno - preverja", true, OsPravila.smemPreverjatiMrezo(klikNaFilm = false, odZadnjeTipkeMs = 700))
     preveriEnako("Video: po kliku na film ne preverja", false, OsPravila.smemPreverjatiMrezo(klikNaFilm = true, odZadnjeTipkeMs = 9_000))
     preveriEnako("Video: najvec 3 hkrati", 3, OsPravila.MREZA_HKRATI)
+    preveriEnako("Video: Wikidata samo za prvi zaslon", 48, OsPravila.zaWikidata((1..500).map { "tt$it" }).size)
+    preveriEnako("Video: mreza filmov ne vprasa razdelka drugic", false, OsPravila.brskanjeVprasaRazdelek(popolne = false))
     preveriEnako("Video: plakati na TV 2 niti", 2, OsPravila.nitiSlik(televizor = true))
     // Zunanji pregled podnapisov 3. 11. 2026
     preveriEnako("podnapisi: ne med zagonom slike", false, OsPravila.podnapisiZdaj(pripravljen = true, pripravljenOdMs = 1_000, zdajMs = 1_400))

@@ -2752,7 +2752,9 @@ class GlasbaActivity : OsActivity() {
     private fun vJeziku(kartice: List<Jamendo.Skladba>, jezik: String,
                         katalogov: Map<String, String> = emptyMap()): List<Jamendo.Skladba> {
         if (jezik.isEmpty() || kartice.isEmpty()) return kartice
-        val vprasaj = kartice.filter { it.language.isBlank() && it.imdbId.isNotBlank() }.map { it.imdbId }
+        // Zunanji pregled Video 3. 11. 2026: Wikidata samo za prve kartice (zaslon in vrsta rezerve); ostale prvic veljajo po
+        // jeziku in drzavi kataloga, Wikidata jih vprasa »Nalozi vec« - prej klic za vsak IMDb pred polno mrezo.
+        val vprasaj = OsPravila.zaWikidata(kartice.filter { it.language.isBlank() && it.imdbId.isNotBlank() }.map { it.imdbId })
         val znani = if (vprasaj.isEmpty()) emptyMap() else try { IzvirniJeziki.jeziki(applicationContext, vprasaj) } catch (_: Exception) { emptyMap() }
         // Neznan jezik (zapisi m3u ipd. brez jezika in IMDb) ostane viden: filter skrije samo naslove, za katere VEMO, da so v
         // drugem jeziku (lastnik, 22. 10. 2026: katalog s 5000 filmi je zaradi filtra dal 102 kartici). Naslov brez jezika in
@@ -2929,6 +2931,13 @@ class GlasbaActivity : OsActivity() {
                 if (y > 0) drsnik.post { drsnik.scrollTo(0, y) }
             }
             if (popolne) return@execute
+            // Zunanji pregled Video 3. 11. 2026: odprtje mreze filmov ne vprasa razdelka Video drugic (isti katalogi + PeerTube,
+            // javna last, spletni viri v skritem WebView). Mreza je katalogi, izris, konec; ostalo pride, ko uporabnik odpre
+            // Zate (SEZNAMI[VIDEO]) - takrat ga ta mreza ob naslednjem odprtju uporabi.
+            if (!OsPravila.brskanjeVprasaRazdelek(popolne)) {
+                glavna.post { if (!isFinishing && odprtKatalog === o) { o.nalagam = false; o.popolna = true; narociUmiri(); if (o.vsi.isEmpty()) narisiKatalog(naslov) } }
+                return@execute
+            }
             val police = try { podatkiRazdelka(VIDEO).map { it.copy(skladbe = razvrsti(VIDEO, it.skladbe)) } } catch (_: Exception) { emptyList() }
             if (police.isNotEmpty() && police.all { it.skladbe.isNotEmpty() } && MedijskiViri.spremenjeni(this) == rodVirov) SEZNAMI[VIDEO] = police
             val dodatno = osnova(police, VSE_VIDEO)
@@ -4744,7 +4753,10 @@ class GlasbaActivity : OsActivity() {
         if (vsi.isEmpty() && nadomestne != null && nadomestne.any { it.third.isNotEmpty() || !m.nalagam }) { narisiNadomestek(m, nadomestne, opis); return }
         val vec = m.seKaj && !m.nalagam && vsi.isNotEmpty()
         val dodaj = if (vsi.isEmpty() && !m.nalagam) listOf(karticaDodajVir()) else emptyList()
-        val podpis = "${vsi.map { it.id }.hashCode()}|$vec|$opis|${razvrstitev(m.razdelek)}|${vsebina.width}"
+        // Zunanji pregled Video 3. 11. 2026: mreza se narise znova samo ob drugem stevilu stolpcev, ne ob vsaki sirini (prvi
+        // klic ima sirino 0 - stolpci pridejo iz displayMetrics, mereMreze).
+        val stolpci = mereMreze(Vrsta("", emptyList(), video = videospoti, mreza = true, kanali = radio, slicice = videospoti, skladbe = !radio && !videospoti)).first
+        val podpis = "${vsi.map { it.id }.hashCode()}|$vec|$opis|${razvrstitev(m.razdelek)}|$stolpci"
         if (podpis == m.podpis) { if (stanje.text.toString() != opis) stanje.text = opis; return }
         m.podpis = podpis
         m.narisani = vsi.map { kljucVMrezi(it) }

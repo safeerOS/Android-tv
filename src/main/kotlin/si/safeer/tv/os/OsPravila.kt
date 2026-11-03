@@ -1725,6 +1725,18 @@ object OsPravila {
 
     // ------------------------------------------------------------------ zunanji pregled Video 3. 11. 2026 (obremenitev TV)
 
+    /**
+     * Mreza filmov (odpriBrskanje) po katalogih ne vprasa celega razdelka Video drugic (PeerTube, javna last, spletni
+     * viri s skritim WebView) - to je delo zavihka Zate. Vedno false; [popolne] ostane za berljivost klica.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    fun brskanjeVprasaRazdelek(popolne: Boolean): Boolean = false
+
+    /** Toliko IMDb id-jev mreza vprasa Wikidata za jezik ob enem izrisu (zaslon plakatov na TV in vrsta rezerve). */
+    const val WIKIDATA_NAJVEC = 48
+
+    fun zaWikidata(imdb: List<String>, najvec: Int = WIKIDATA_NAJVEC): List<String> = imdb.distinct().take(najvec.coerceAtLeast(0))
+
     /** Najvec hkratnih preverjanj mreze filmov (prej 12 - ob odprtju razdelka je bil TV preobremenjen). */
     const val MREZA_HKRATI = 3
 
