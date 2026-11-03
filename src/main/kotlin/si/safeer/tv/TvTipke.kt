@@ -23,4 +23,11 @@ object TvTipke {
         PROG_YELLOW, BOOKMARK -> Dejanje.ZAZNAMKI
         else -> Dejanje.NIC
     }
+
+    /** Toliko ponovitev drzanega OK (~1 s) vklopi kazalec v nacinu D-pad. */
+    const val PONOVITEV_ZA_KAZALEC = 12
+
+    /** Drzan OK na strani (ne v vrstici zgoraj) v nacinu D-pad vklopi kazalec; v nacinu miske je drzan OK vlecenje. */
+    fun drzanOkVkljuciKazalec(keyCode: Int, ponovitev: Int, kazalecViden: Boolean, vVrstici: Boolean): Boolean =
+        (keyCode == 23 || keyCode == 66) && ponovitev == PONOVITEV_ZA_KAZALEC && !kazalecViden && !vVrstici
 }

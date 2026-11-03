@@ -278,6 +278,18 @@ class TvKeyRouter(private val host: MainActivity) {
             return host.superDispatchKey(event)
         }
 
+        // TV 3. 11. 2026: na strani s captcho lastnik ni mogel vklopiti kazalca (rdeci in zeleni gumb vzame
+        // sistem Philips). Drzan OK na strani v nacinu D-pad zato vedno vklopi kazalec - ne glede na barvne gumbe.
+        if (si.safeer.tv.TvTipke.drzanOkVkljuciKazalec(
+                keyCode, event.repeatCount, host.virtualPointerView.isPointerVisible, isTopBarFocused || host.editUrl.hasFocus()
+            ) && event.action == KeyEvent.ACTION_DOWN
+        ) {
+            host.virtualPointerView.isPointerVisible = true
+            host.virtualPointerView.okPorabljen = true
+            Toast.makeText(host, UiText.get(R.string.ui_pointer_on), Toast.LENGTH_SHORT).show()
+            return true
+        }
+
         val dpadMove = keyCode == KeyEvent.KEYCODE_DPAD_LEFT ||
             keyCode == KeyEvent.KEYCODE_DPAD_RIGHT ||
             keyCode == KeyEvent.KEYCODE_DPAD_UP ||
