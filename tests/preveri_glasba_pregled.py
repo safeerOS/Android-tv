@@ -36,5 +36,9 @@ preveri("podnapisi: sele po READY 1 s", "OsPravila.podnapisiZdaj(pripravljen, pr
 preveri("podnapisi: samo zadnji dodatek", "OsPravila.dodatkiZaPodnapise(" in pa)
 preveri("podnapisi: med predvajanjem ob premoru", "OsPravila.podnapisZdajAliObPremoru(p.isPlaying)" in pa)
 preveri("podnapisi: HLS na gumbu, brez iskanja", "GlasbaStoritev.jeHls()" in pa and "R.string.podnapisi_ne_gre else" in pa)
+# Zunanji pregled iskalne vrstice 3. 11. 2026
+preveri("iskanje: OK po okIskanja", "OsPravila.okIskanja(q)" in g)
+preveri("iskanje: DOL po dolIskanja", "OsPravila.dolIskanja(q," in g)
+preveri("iskanje: Nazaj po vidnosti tipkovnice (WindowInsets)", "OsPravila.nazajIskanja(tipkovnicaVidna(polje))" in g and "WindowInsets.Type.ime()" in g)
 print("VSE OK" if napak == 0 else f"NAPAK: {napak}")
 sys.exit(1 if napak else 0)

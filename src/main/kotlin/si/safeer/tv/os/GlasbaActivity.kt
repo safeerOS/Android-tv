@@ -685,7 +685,8 @@ class GlasbaActivity : OsActivity() {
         // Naloga 90c: iskanje - najprej zapre tipkovnico, nato preklice iskanje in gre na zaslon, iz katerega je bilo odprto.
         if (razdelek == ISKANJE) {
             val polje = iskalnik
-            if (polje != null && (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(polje.windowToken, 0)) {
+            if (polje != null && OsPravila.nazajIskanja(tipkovnicaVidna(polje)) == OsPravila.TipkaIskanja.ZAPRI_TIPKOVNICO) {
+                (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(polje.windowToken, 0)
                 polje.showSoftInputOnFocus = false
                 return
             }
@@ -6578,12 +6579,19 @@ class GlasbaActivity : OsActivity() {
         setOnKeyListener { _, keyCode, event ->
             if (event.action != KeyEvent.ACTION_DOWN) return@setOnKeyListener false
             when (keyCode) {
+                // Zunanji pregled 3. 11. 2026: OK/Enter z vsaj dvema crkama isce, nato skrije tipkovnico; tipkovnico odpre samo
+                // OK na (skoraj) praznem polju. DOL najprej isce, fokus na prvi zadetek pride z zadetki te besede.
                 KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
-                    prikaziTipkovnico(this); true
+                    val q = text.toString().trim()
+                    if (OsPravila.okIskanja(q) == OsPravila.TipkaIskanja.ISCI) { if (!prikaziNaDrugi(q)) isci(q); skrijTipkovnico(this) }
+                    else prikaziTipkovnico(this)
+                    true
                 }
                 KeyEvent.KEYCODE_DPAD_DOWN -> {
+                    val q = text.toString().trim()
                     skrijTipkovnico(this)
-                    fokusNaPrvo()
+                    if (OsPravila.dolIskanja(q, if (zadetki != null) zadnjaBeseda else null) == OsPravila.TipkaIskanja.ISCI) { if (!prikaziNaDrugi(q)) isci(q) }
+                    else fokusNaPrvo()
                     true
                 }
                 else -> false
@@ -6620,6 +6628,14 @@ class GlasbaActivity : OsActivity() {
         (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager)
             .showSoftInput(polje, Tipkovnica.NAMIG)
     }
+
+    /**
+     * Zunanji pregled 3. 11. 2026: ali je tipkovnica res na zaslonu - WindowInsets (ime) od Androida 11; starejsi Android
+     * nima zanesljive preverbe, tam velja dosedanja vrednost hideSoftInputFromWindow.
+     */
+    private fun tipkovnicaVidna(polje: EditText): Boolean =
+        if (android.os.Build.VERSION.SDK_INT >= 30) polje.rootWindowInsets?.isVisible(android.view.WindowInsets.Type.ime()) == true
+        else (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(polje.windowToken, 0)
 
     private fun skrijTipkovnico(polje: EditText) {
         (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager)

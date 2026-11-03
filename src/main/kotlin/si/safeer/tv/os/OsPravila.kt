@@ -1749,6 +1749,28 @@ object OsPravila {
      */
     fun podnapisZdajAliObPremoru(igra: Boolean): Boolean = !igra
 
+    // ------------------------------------------------------------------ zunanji pregled iskalne vrstice 3. 11. 2026
+
+    enum class TipkaIskanja { ISCI, TIPKOVNICA, FOKUS_ZADETKI, ZAPRI_TIPKOVNICO, ZAPUSTI }
+
+    /**
+     * OK ali Enter v iskalnem polju Medijskega centra: z vsaj dvema crkama isce (IME_ACTION_SEARCH na TV ne pride), sicer
+     * odpre tipkovnico. Prej je OK vedno samo odprl tipkovnico.
+     */
+    fun okIskanja(besedilo: String): TipkaIskanja = if (besedilo.trim().length >= 2) TipkaIskanja.ISCI else TipkaIskanja.TIPKOVNICA
+
+    /** DOL: nova beseda najprej isce (fokus na prvi zadetek, ko pridejo zadetki te besede); ze najdena gre na zadetke. */
+    fun dolIskanja(besedilo: String, zadetkiZa: String?): TipkaIskanja {
+        val q = besedilo.trim()
+        return if (q.length >= 2 && q != zadetkiZa) TipkaIskanja.ISCI else TipkaIskanja.FOKUS_ZADETKI
+    }
+
+    /**
+     * Nazaj v iskanju: vidna tipkovnica se zapre, sicer uporabnik zapusti iskanje. [tipkovnicaVidna] iz WindowInsets (ime) -
+     * hideSoftInputFromWindow na TV vrne true tudi brez vidne tipkovnice (prej je Nazaj ostal v iskanju).
+     */
+    fun nazajIskanja(tipkovnicaVidna: Boolean): TipkaIskanja = if (tipkovnicaVidna) TipkaIskanja.ZAPRI_TIPKOVNICO else TipkaIskanja.ZAPUSTI
+
     /**
      * Zunanji pregled Glasbe 3. 11. 2026: klik na skladbo da v vrsto samo kartice z zvokom (prej vse kartice zaslona, tudi
      * vnose dodatkov brez zvoka). Vrne indekse vrste in polozaj kliknjene v njej; kliknjena je vedno v vrsti.

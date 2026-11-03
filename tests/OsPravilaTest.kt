@@ -996,6 +996,13 @@ private fun preizkusGlasbe83() {
     preveriEnako("podnapisi: samo zadnji zadetek", listOf("b"), OsPravila.dodatkiZaPodnapise(listOf("a", "b", "c"), "B") { it.uppercase() })
     preveriEnako("podnapisi: zadnji odstranjen - vsi", listOf("a", "c"), OsPravila.dodatkiZaPodnapise(listOf("a", "c"), "B") { it.uppercase() })
     preveriEnako("podnapisi: med predvajanjem pocaka na premor", false, OsPravila.podnapisZdajAliObPremoru(igra = true))
+    // Zunanji pregled iskalne vrstice 3. 11. 2026
+    preveriEnako("iskanje: OK z dvema crkama isce", OsPravila.TipkaIskanja.ISCI, OsPravila.okIskanja("ab"))
+    preveriEnako("iskanje: OK na praznem polju odpre tipkovnico", OsPravila.TipkaIskanja.TIPKOVNICA, OsPravila.okIskanja(" "))
+    preveriEnako("iskanje: DOL z novo besedo isce", OsPravila.TipkaIskanja.ISCI, OsPravila.dolIskanja("matrix", "mat"))
+    preveriEnako("iskanje: DOL z ze najdeno gre na zadetke", OsPravila.TipkaIskanja.FOKUS_ZADETKI, OsPravila.dolIskanja("matrix", "matrix"))
+    preveriEnako("iskanje: Nazaj brez vidne tipkovnice zapusti", OsPravila.TipkaIskanja.ZAPUSTI, OsPravila.nazajIskanja(tipkovnicaVidna = false))
+    preveriEnako("iskanje: Nazaj z vidno tipkovnico jo zapre", OsPravila.TipkaIskanja.ZAPRI_TIPKOVNICO, OsPravila.nazajIskanja(tipkovnicaVidna = true))
     preveriEnako("83: Jamendo brez jezika ne", false, OsPravila.jezikGlasbeUstreza("", "sl", false))
     preveriEnako("83: drug jezik ne", false, OsPravila.jezikGlasbeUstreza("en", "sl", koncert = true))
     preveriEnako("83: isti jezik da", true, OsPravila.jezikGlasbeUstreza("sl", "sl", false))
