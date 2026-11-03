@@ -429,6 +429,11 @@ def main() -> int:
     tm = (SRC / "TabManager.kt").read_text(encoding="utf-8")
     preveri("Splet: nov zavihek dobi fokus (daljinec ne obtici na orodni vrstici)",
             "if (fokusPrej !is android.widget.EditText) try { ciljniPogled.requestFocus() }" in tm.split("fun switchTab(", 1)[1].split(chr(10) + "    }", 1)[0])
+    # Pregled Gemini 3. 11. 2026: brez zivega zavihka (ni zavihkov ali vsi ze spijo) mora odhod z zaslona sam sprostiti
+    # predpomnilnike in izrisovalnik - prej naVsiSpijo ni poklical nihce.
+    usp = tm.split("fun uspavajVOzadju(", 1)[1].split(chr(10) + "    }", 1)[0]
+    preveri("Splet: odhod z zaslona brez zivega zavihka sprosti izrisovalnik (naVsiSpijo)",
+            re.search(r"for \(tab in tabs\) \{[\s\S]*\}\s*(//[^\n]*\n\s*)*if \(zivihPogledov\(\) == 0\) try \{ naVsiSpijo\?\.invoke\(\) \}", usp) is not None)
     gz = (SRC / "os/GlasbaStoritev.kt").read_text(encoding="utf-8")
     preveri("predvajalnik: pokvarjen zvocni okvir (AC3 pri predaji zvocniku) ne ustavi videa",
             "if (napakaZvocnegaOkvirja(error)) {" in gz and "p.seekTo(p.currentPosition + 1_000); p.prepare(); p.play()" in gz

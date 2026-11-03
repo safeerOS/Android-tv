@@ -292,6 +292,9 @@ class TabManager(
             if (tab.id == activeTabId && tudiAktivni) zamrzni(tab, prisilno = false, dovoliAktivnega = true)
             else nacrtujZamrznitev(tab)
         }
+        // Pregled Gemini 3. 11. 2026: brez zivega zavihka (ni zavihkov ali vsi ze spijo) zamrzniPogled ne tece in
+        // naVsiSpijo ne pride - predpomnilniki in izrisovalnik bi ostali. Sprostitev sama preveri, ali smo res v ozadju.
+        if (zivihPogledov() == 0) try { naVsiSpijo?.invoke() } catch (e: Exception) { Log.w(TAG, "sprostitev po spanju: ${e.message}") }
     }
 
     private fun nacrtujZamrznitev(tab: TabModel, dovoliAktivnega: Boolean = false) {
