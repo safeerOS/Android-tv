@@ -84,5 +84,12 @@ if node:
 else:
     print("  (node ni namescen: preizkus vNaslov preskocen)")
 
+# Lastnik 3. 11. 2026: v nacinu aplikacije je GOR iz strani dal fokus skriti vrstici (ujet na strani z uganko).
+import re as _re
+_sp = beri("src", "main", "kotlin", "si", "safeer", "tv", "tv", "SiteProfile.kt")
+_m = _re.search(r"private fun vNaslovnoVrstico\(host: MainActivity\) \{(.*?)\n    \}", _sp, _re.S)
+preveri("vNaslovnoVrstico pokaze vrstico tudi v nacinu aplikacije",
+        bool(_m) and "nacinAplikacije" not in _m.group(1) and "View.VISIBLE" in _m.group(1))
+
 print("VSE OK" if not napake else "NAPAK: %d" % len(napake))
 sys.exit(1 if napake else 0)

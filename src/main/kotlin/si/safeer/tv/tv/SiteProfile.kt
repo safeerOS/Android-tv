@@ -494,13 +494,15 @@ object GenericWebSiteProfile : SiteProfile {
         }
     }
 
-    /** Fokus v naslovno vrstico (vrstico pokaze, razen v nacinu aplikacije, kjer je ni). */
+    /**
+     * Fokus v naslovno vrstico. Lastnik 3. 11. 2026: v nacinu aplikacije (prijava v Claude) vrstice ni bilo, GOR je
+     * fokus dal skritemu polju in uporabnik je ostal ujet na strani z uganko brez kazalca. Zdaj se vrstica pokaze
+     * vedno, ko uporabnik z GOR zapusti stran.
+     */
     private fun vNaslovnoVrstico(host: MainActivity) {
         host.runOnUiThread {
-            if (host.nacinAplikacije == null) {
-                host.mobileTopBar.visibility = android.view.View.VISIBLE
-                host.mobileTopBar.animate().translationY(0f).setDuration(150).start()
-            }
+            host.mobileTopBar.visibility = android.view.View.VISIBLE
+            host.mobileTopBar.animate().translationY(0f).setDuration(150).start()
             host.editUrl.requestFocus()
         }
     }
