@@ -74,6 +74,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     private lateinit var zadetki: LinearLayout
     /** Drsnik zadetkov: vidnost lupe je na njem (zadetki sami so vedno vidni v njem). */
     private lateinit var zadetkiDrsnik: View
+    /** Ploscice in spodnja vrstica pod plosco lupe: brez fokusa, dokler je plosca odprta (LupaPravila.ozadjeFokusno). */
+    private lateinit var ozadjeLupe: ViewGroup
     private lateinit var vsebina: LinearLayout
     private lateinit var poljeLupe: EditText
 
@@ -130,6 +132,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
 
         val okvirVsebine = FrameLayout(this)
         val spodnjiDel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        ozadjeLupe = spodnjiDel
 
         // Lastnik 2. 11. 2026 16:43 (fotografija TV): vrsta »Nadaljuj« (naloga 49) je spodnjo vrstico stisnila na 18 px
         // in gumb predvajalnika postavila cez ploscice; dom ostane ENA vrstica (lastnik 27. 10.). Nedavno je v lupi.
@@ -199,8 +202,10 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         // 2. 11. 2026: odstranjena vrstica »Nadaljuj« jo je stisnila na 18 px). GOR s prvega zadetka gre na izbrani filter.
         val seznam = object : android.widget.ScrollView(this) {
             override fun focusSearch(focused: View?, direction: Int): View? {
-                val n = super.focusSearch(focused, direction)
-                if (n != null && jePotomec(n, this)) return n
+                // Najprej vrstica v seznamu (iskanje samo v njem): iskanje po celem oknu je izbralo ploscico za plosco in
+                // fokus je obstal, ceprav je bila vrstica tik pod njim (lovec napak 3. 11. 2026).
+                val vSeznamu = android.view.FocusFinder.getInstance().findNextFocus(this, focused, direction)
+                LupaPravila.ciljVPlosci(vSeznamu, null, false)?.let { return it }
                 // Preverba TV 19:43: iz odprte plosce fokus nikoli ne uide na ploscice za njo. GOR s prve vrstice gre na
                 // izbrani filter (zadetki) ali na polje (zgodovina), drugam ostane.
                 if (direction == View.FOCUS_UP) return when (LupaPravila.gorIzSeznama(vrstaIzbire.visibility == View.VISIBLE)) {
@@ -209,13 +214,32 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                 }
                 return focused
             }
+
+            // ScrollView GOR brez vrstice nad fokusom porabi za drsenje (arrowScroll), ce je seznam podrsan - fokus je
+            // obstal na prvi vrstici. Tako GOR gre naprej v focusSearch (filter ali polje); seznam se vrne na vrh (glava).
+            override fun executeKeyEvent(e: KeyEvent): Boolean {
+                if (e.action == KeyEvent.ACTION_DOWN && e.keyCode == KeyEvent.KEYCODE_DPAD_UP && !e.isAltPressed) {
+                    val f = findFocus()?.takeIf { it !== this }
+                    val nad = f != null && android.view.FocusFinder.getInstance().findNextFocus(this, f, View.FOCUS_UP) != null
+                    if (f != null && !LupaPravila.seznamPorabiGor(nad)) { scrollTo(0, 0); return false }
+                }
+                return super.executeKeyEvent(e)
+            }
         }.apply {
             clipToPadding = false; clipChildren = false
             addView(zadetki, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         }
         vrstaIzbire = vrstaFiltrov()
         // Filtri so ena vrstica nad seznamom, sirsa od seznama (80 % zaslona), da gre vseh sedem brez drsenja (lastnik 19:03).
-        zadetkiDrsnik = LinearLayout(this).apply {
+        zadetkiDrsnik = object : LinearLayout(this) {
+            // Odprta plosca je modalna: ploscice in spodnja vrstica za njo so brez fokusa (lovec napak 3. 11. 2026: DESNO s
+            // polja je pristal na ploscici RTV SLO pod plosco). Vse poti, ki plosco odprejo ali zaprejo, gredo cez to.
+            override fun setVisibility(v: Int) {
+                super.setVisibility(v)
+                if (::ozadjeLupe.isInitialized) ozadjeLupe.descendantFocusability =
+                    if (LupaPravila.ozadjeFokusno(v == View.VISIBLE)) ViewGroup.FOCUS_AFTER_DESCENDANTS else ViewGroup.FOCUS_BLOCK_DESCENDANTS
+            }
+        }.apply {
             orientation = LinearLayout.VERTICAL; visibility = View.GONE; tag = "zadetkiDrsnik"
             clipChildren = false; clipToPadding = false
             addView(vrstaIzbire, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(8) })
@@ -744,7 +768,17 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     // ------------------------------------------------------------------ lupa
 
     private fun lupa(): View {
-        val okvir = LinearLayout(this).apply {
+        val okvir = object : LinearLayout(this) {
+            // Iz polja ob odprti plosci fokus ostane v plosci (filtri, seznam, vrstica znakov) - ne na glavo, mini
+            // predvajalnik ali ploscice (lovec napak 3. 11. 2026: DESNO s polja na RTV SLO za plosco).
+            override fun focusSearch(focused: View?, direction: Int): View? {
+                val n = super.focusSearch(focused, direction)
+                if (!::zadetkiDrsnik.isInitialized || zadetkiDrsnik.visibility != View.VISIBLE) return n
+                val tipkovnica = window.decorView.findViewWithTag<View>("lupaTipkovnica")
+                val vPlosci = n != null && (jePotomec(n, this) || jePotomec(n, zadetkiDrsnik) || (tipkovnica != null && jePotomec(n, tipkovnica)))
+                return LupaPravila.ciljVPlosci(null, n, vPlosci) ?: focused
+            }
+        }.apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
             background = steklo(36)
             setAddStatesFromChildren(true)
@@ -896,8 +930,10 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                 return when (direction) {
                     View.FOCUS_DOWN -> prviVSeznamu() ?: focused
                     View.FOCUS_UP -> poljeLupe
-                    // Brez kroga in brez skoka na ploscice pod seznamom: na robu vrstice fokus ostane.
-                    View.FOCUS_LEFT, View.FOCUS_RIGHT -> if (n != null && jePotomec(n, this)) n else focused
+                    // Brez kroga in brez skoka na ploscice pod seznamom: na robu vrstice fokus ostane. Sosed se isce samo v
+                    // vrstici - iskanje po oknu je iz Datotek izbralo ploscico za plosco in Nastavitve niso bile dosegljive.
+                    View.FOCUS_LEFT, View.FOCUS_RIGHT -> LupaPravila.ciljVPlosci(
+                        android.view.FocusFinder.getInstance().findNextFocus(this, focused, direction), n, n != null && jePotomec(n, this)) ?: focused
                     else -> n
                 }
             }

@@ -140,6 +140,15 @@ fun main() {
     preveriEnako("GOR iz zadetkov na filter", LupaPravila.Fokus.FILTER, LupaPravila.gorIzSeznama(true))
     preveriEnako("zaprta plosca: privzeto", LupaPravila.Fokus.OSTANE, LupaPravila.dolSPolja(false, false, false))
     preveriEnako("prazna zgodovina: privzeto", LupaPravila.Fokus.OSTANE, LupaPravila.dolSPolja(true, false, false))
+    // Lovec napak 3. 11. 2026: odprta plosca je modalna - ozadje brez fokusa, cilj samo v plosci, GOR s prve vrstice ne drsi.
+    preveriEnako("odprta plosca: ozadje brez fokusa", false, LupaPravila.ozadjeFokusno(true))
+    preveriEnako("zaprta plosca: ozadje s fokusom", true, LupaPravila.ozadjeFokusno(false))
+    preveriEnako("najprej cilj v istem delu (Nastavitve, ne ploscica)", "Nastavitve", LupaPravila.ciljVPlosci("Nastavitve", "ploscica", false))
+    preveriEnako("cilj za plosco zavrnjen (polje DESNO -> RTV SLO zadaj)", null, LupaPravila.ciljVPlosci<String>(null, "RTV SLO", false))
+    preveriEnako("cilj drugje v plosci sprejet", "Vse", LupaPravila.ciljVPlosci(null, "Vse", true))
+    preveriEnako("ni cilja: ostane", null, LupaPravila.ciljVPlosci<String>(null, null, true))
+    preveriEnako("GOR s prve vrstice ni drsenje", false, LupaPravila.seznamPorabiGor(false))
+    preveriEnako("GOR med vrsticami premakne v seznamu", true, LupaPravila.seznamPorabiGor(true))
     // Preverba TV 19:31: plosca zadetkov vsaj 16 dp nad spodnjo vrstico (izmerjen vrh), nikoli cez njo.
     preveriEnako("rob nad vrstico", 1080 - 930 + 32, LupaPravila.spodnjiRobPlosce(1080, 930, 32))
     preveriEnako("vrstica pod okvirjem: samo razmik", 32, LupaPravila.spodnjiRobPlosce(1000, 1200, 32))

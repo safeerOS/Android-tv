@@ -517,6 +517,26 @@ def main() -> int:
     preveri("Domov ne odpre tipkovnice (showSoftInputOnFocus vedno nazaj na false)",
             "        poljeLupe.showSoftInputOnFocus = false\n        val tipkovnica = DomacaLupa.tipkovnicaOdprta(this)\n        val vLupi" in pk2 and "override fun onWindowFocusChanged(imaFokus: Boolean)" in pk2
             and re.search(r'PokrajinaActivity"\s+android:exported="false"\s+android:windowSoftInputMode="stateAlwaysHidden', manifest) is not None)
+    # Lovec napak TV 3. 11. 2026 (320c1ed8): odprta plosca lupe je modalna. Ozadje (ploscice, spodnja vrstica) brez fokusa,
+    # sosed filtra in vrstice se isce samo v svojem delu, GOR s prve vrstice ScrollView ne porabi za drsenje.
+    plosca = pk2.split("zadetkiDrsnik = object : LinearLayout(this) {", 1)[-1].split("}.apply {", 1)[0]
+    preveri("lupa: odprta plosca blokira fokus ozadja (setVisibility plosce)",
+            "ozadjeLupe = spodnjiDel" in pk2 and "override fun setVisibility(v: Int)" in plosca
+            and "LupaPravila.ozadjeFokusno(v == View.VISIBLE)" in plosca and "ViewGroup.FOCUS_BLOCK_DESCENDANTS" in plosca)
+    seznam = pk2.split("val seznam = object : android.widget.ScrollView(this) {", 1)[-1].split("}.apply {", 1)[0]
+    preveri("lupa: vrstica seznama se isce v seznamu, ne po oknu",
+            "FocusFinder.getInstance().findNextFocus(this, focused, direction)" in seznam
+            and "val n = super.focusSearch(focused, direction)" not in seznam)
+    preveri("lupa: GOR s prve vrstice ne drsi seznama (executeKeyEvent)",
+            "override fun executeKeyEvent(e: KeyEvent)" in seznam and "LupaPravila.seznamPorabiGor(nad)" in seznam
+            and "return false" in seznam)
+    filtri = pk2.split("private fun vrstaFiltrov(): LinearLayout {", 1)[-1].split("}.apply {", 1)[0]
+    preveri("lupa: sosednji filter se isce v vrstici (Nastavitve dosegljive)",
+            "View.FOCUS_LEFT, View.FOCUS_RIGHT -> LupaPravila.ciljVPlosci(" in filtri
+            and "FocusFinder.getInstance().findNextFocus(this, focused, direction)" in filtri)
+    polje = pk2.split("private fun lupa(): View {", 1)[-1].split("}.apply {", 1)[0]
+    preveri("lupa: iz polja ob odprti plosci fokus ostane v plosci",
+            "override fun focusSearch(focused: View?, direction: Int)" in polje and "LupaPravila.ciljVPlosci(null, n, vPlosci) ?: focused" in polje)
     # Lastnik 28. 10. 2026: mreza Filmi | Serije pokaze vse naslove takoj (brez cakanja na vljudno preverjanje).
     gl = (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8")
     preveri("mreza filmov ni stroga (vsi naslovi takoj)", "private fun strogaMreza(o: OdprtKatalog): Boolean = false" in gl

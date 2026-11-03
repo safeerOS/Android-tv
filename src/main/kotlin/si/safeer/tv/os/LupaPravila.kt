@@ -401,6 +401,26 @@ object LupaPravila {
     /** GOR iz seznama na vrh (iz prve vrstice): na izbrani filter, brez filtrov (zgodovina) na polje. */
     fun gorIzSeznama(filtriVidni: Boolean): Fokus = if (filtriVidni) Fokus.FILTER else Fokus.POLJE
 
+    /**
+     * Plosca lupe je modalna (lovec napak TV 3. 11. 2026, 320c1ed8): ko je odprta, ploscice in spodnja vrstica za njo
+     * nimajo fokusa. Prej so ga imele in FocusFinder (isce po celem oknu) je iz polja DESNO izbral ploscico RTV SLO pod
+     * plosco, iz filtra Datoteke pa ploscico namesto filtra Nastavitve - filtri so tak cilj zavrnili in fokus je obstal.
+     */
+    fun ozadjeFokusno(ploscaOdprta: Boolean): Boolean = !ploscaOdprta
+
+    /**
+     * Cilj fokusa iz dela plosce (polje, filtri, seznam): najprej najblizji v istem delu ([vDelu], iskanje samo v njem),
+     * nato cilj iz celega okna ([drugje]) samo, ce je v plosci; sicer null - fokus ostane, nikoli na pogled za plosco.
+     */
+    fun <T> ciljVPlosci(vDelu: T?, drugje: T?, drugjeVPlosci: Boolean): T? = vDelu ?: drugje?.takeIf { drugjeVPlosci }
+
+    /**
+     * GOR v seznamu: ScrollView ga porabi samo, ce je nad fokusom se vrstica; s prve vrstice gre fokus na filter ali polje
+     * ([gorIzSeznama]). Lovec napak 3. 11. 2026: ko je bil seznam malo podrsan (glava skupine skrita), je ScrollView GOR
+     * s prve vrstice porabil za drsenje in fokus je obstal na njej.
+     */
+    fun seznamPorabiGor(vrsticaNad: Boolean): Boolean = vrsticaNad
+
     // ------------------------------------------------------------------ zadetki lupe
 
     /**
