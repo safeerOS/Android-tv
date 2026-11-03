@@ -85,6 +85,17 @@ preveri('zavrnjen cilj: star obroc umaknjen', 0, oznaceni().length);
 zavrni = false;
 preveri('body ali nic: nic', 'nic', naFokusStrani(body, doc, poti));
 
+// Pregled Gemini 3. 11. 2026: daljinec je izbral polje (nas obroc), OK mu da fokus (tipkovnica TV) - obroc se skrije,
+// tudi ce je polje nas cilj (prej: 'nic', obroc je ostal cez polje poleg tipkovnice).
+const posta = el('INPUT', { atributi: { type: 'email' } });
+vsi.forEach((x) => x.razred.delete('safeer-active-card'));
+posta.razred.add('safeer-active-card');
+preveri('fokus na polju, ki je nas cilj: skrij', 'skrij', naFokusStrani(posta, doc, poti));
+preveri('po fokusu nasega polja ni obroca', 0, oznaceni().length);
+const ovojPolja = el('DIV', {}, [el('INPUT', { atributi: { type: 'search' } })]);
+ovojPolja.razred.add('safeer-active-card');
+preveri('fokus na polju v nasem cilju (ovoj): skrij', 'skrij', naFokusStrani(ovojPolja.otroci[0], doc, poti));
+
 // Polje za vnos.
 const t = (tag, a, ce) => el(tag, { atributi: a || {}, isContentEditable: !!ce });
 preveri('input brez vrste je polje', true, jeVnosnoPolje(t('INPUT')));

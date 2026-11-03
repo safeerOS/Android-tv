@@ -1601,8 +1601,11 @@
             // f: nas (fokus je na nasem cilju ali v njem), vnos (polje za vnos), okvir (tuj okvir), cilj (element je
             // za daljinec cilj - isActionable; vsebnik okna s tabindex=-1 ni, takrat obroc samo umaknemo).
             function odzivNaFokus(f) {
+                // Pregled Gemini 3. 11. 2026: polje, ki ga je izbral daljinec in je po OK dobilo fokus (tipkovnica TV), je
+                // bilo »nase« in obroc je ostal cez polje - dva kazalca. Polje za vnos ima zato prednost pred »nas«.
+                if (f.vnos) return 'skrij';
                 if (f.nas) return 'nic';
-                if (f.vnos || f.okvir || !f.cilj) return 'skrij';
+                if (f.okvir || !f.cilj) return 'skrij';
                 return 'sledi';
             }
             // Odziv na fokus, ki ga je premaknila stran (p: pocisti = clearActive, oznaci = highlightElement,
