@@ -117,11 +117,13 @@ class MiniPredvajalnik(
     }
 
     private fun odpriPredvajalnik() {
-        try { GlasbaStoritev.nadaljujTu() } catch (_: Throwable) { }
+        // Zunanji pregled 3. 11. 2026 (Philips, Android 11, MediaTek): play() pred odprtjem zaslona je zagnal dekoder brez
+        // povrsine - zvok brez slike. Predvaja sele PredvajanjeActivity, ko je povrsina pripeta (NADALJUJ v onStart).
         try {
             a.startActivity(android.content.Intent(a, PredvajanjeActivity::class.java)
                 .putExtra(PredvajanjeActivity.NADALJUJ, true)
-                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP))
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                    android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
         } catch (_: Throwable) { GlasbaStoritev.preklopi() }
     }
 

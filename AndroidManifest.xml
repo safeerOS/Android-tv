@@ -280,7 +280,7 @@
             android:screenOrientation="landscape" tools:ignore="DiscouragedApi"
             android:configChanges="orientation|screenSize|keyboard|keyboardHidden|navigation" />
 
-        <!-- Naloga 42: nov TV zaganjalnik (beta, tema Pokrajina). Ni domaci zaslon sam: DomovActivity ga odpre, kadar je
+        <!-- Naloga 42: nov TV zaganjalnik (tema Pokrajina). Od 3. 11. 2026 nanj kaze alias Domov (okus os); DomovActivity ga odpre, kadar je
              beta vklopljena (ZaganjalnikBeta), zato stari domaci zaslon ostane vstopna tocka in pot nazaj. -->
         <activity
             android:name="si.safeer.tv.os.PokrajinaActivity"

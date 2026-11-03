@@ -66,12 +66,14 @@
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation|density|uiMode"
             tools:ignore="DiscouragedApi" />
 
-        <!-- Safeer OS kot domaci zaslon televizorja. Privzeto ONEMOGOCEN: dokler ga uporabnik
+        <!-- Zunanji pregled 3. 11. 2026: alias kaze naravnost na PokrajinaActivity (dom TV); prej DomovActivity, ki je
+             ob vsaki tipki Domov za hip pokazal stari zaslon. DomovActivity ostane za izrecne namere (preusmeri).
+             Safeer OS kot domaci zaslon televizorja. Privzeto ONEMOGOCEN: dokler ga uporabnik
              sam ne vklopi, Android sploh ne ve, da bi Safeer OS lahko bil zaganjalnik, in tipka
              Domov dela kot prej. Vklop in izklop sta v nastavitvah (os/Zaganjalnik.kt). -->
         <activity-alias
             android:name="si.safeer.tv.os.ZaganjalnikAlias"
-            android:targetActivity="si.safeer.tv.os.DomovActivity"
+            android:targetActivity="si.safeer.tv.os.PokrajinaActivity"
             android:exported="true"
             android:enabled="false"
             android:label="@string/os_app_name"

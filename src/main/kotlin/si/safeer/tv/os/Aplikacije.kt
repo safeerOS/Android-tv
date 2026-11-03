@@ -99,6 +99,9 @@ object Aplikacije {
 
     private var sprejemnikPrijavljen = false
 
+    /** Odprti zasloni, ki zelijo vedeti za namestitev/odstranitev (klic na glavni niti, iz sprejemnika). */
+    val obSpremembiPaketov = java.util.concurrent.CopyOnWriteArraySet<() -> Unit>()
+
     /** Namestitev ali odstranitev aplikacije razveljavi ikono (in pri odstranitvi vnos) predpomnilnika. */
     @Synchronized private fun prijaviSprejemnik(app: Context) {
         if (sprejemnikPrijavljen) return
@@ -120,6 +123,8 @@ object Aplikacije {
                     } catch (_: Throwable) { }
                 } } catch (_: java.util.concurrent.RejectedExecutionException) { }
                 zadnjeOsvezevanje = 0L      // naslednje odprtje takoj prebere svez seznam
+                // Zunanji pregled 3. 11. 2026: odprt domaci zaslon (Pokrajina) novo aplikacijo pokaze takoj, ne sele po odhodu.
+                for (f in obSpremembiPaketov) try { f() } catch (_: Throwable) { }
             }
         }
         try {

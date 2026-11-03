@@ -107,9 +107,13 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         }
     }
 
+    @android.annotation.SuppressLint("InlinedApi")   // CATEGORY_SECONDARY_HOME je samo niz
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Zunanji pregled 3. 11. 2026: lovilec padcev tudi tu (Pokrajina je dom televizorja); vrata preveri DomovActivity.
+        // Zunanji pregled 3. 11. 2026: alias Domov kaze naravnost sem - varnostna vrata in lovilec padcev sta PRVO dejanje.
+        val domovNamera = intent?.let { it.hasCategory(Intent.CATEGORY_HOME) || it.hasCategory(Intent.CATEGORY_SECONDARY_HOME) } == true
+        val vrnjen = domovNamera && Zaganjalnik.preveriObZagonu(this)
         Zaganjalnik.namestiZascito(this)
+        if (vrnjen) { super.onCreate(savedInstanceState); finish(); return }
         super.onCreate(savedInstanceState)
         koren = FrameLayout(this)
         zatemnitevOzadja = View(this).apply {
@@ -312,6 +316,10 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
      */
     override fun onResume() {
         super.onResume()
+        // Zunanji pregled 3. 11. 2026: komentar zgoraj je to obljubljal, klic pa je bil samo po minuti mirovanja in brez
+        // naloženega posnetka (po filmu v pavzi nikoli). Kot DomovActivity: ob vsaki vrnitvi domov, cez 3 s;
+        // pocistiOzadje samo preveri, ali zvok res igra (pavza ni zvok v ozadju).
+        Pomnilnik.pocistiOzadje(this)
         // Naloga 45 G: ponudba »Dodam na dom?« sele ob vrnitvi domov - zagon aplikacije ni nikoli cakal na okno.
         // Ponudba se ob prikazu pobrise, zato je najvec enkrat.
         glavna.post { if (!isFinishing && !isDestroyed) Priljubljene.ponudiCakajoco(this) { narisiAplikacije() } }
@@ -327,6 +335,9 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     private var zadnjiFokusPogled: View? = null
     private val posodobiZnacke = { osveziDokZnacke() }
 
+    /** Namestitev ali odstranitev aplikacije, medtem ko je dom odprt: vrstica se takoj nariše znova. */
+    private val obSpremembiPaketov: () -> Unit = { glavna.post { if (!isFinishing && !isDestroyed) narisiAplikacije() } }
+
     override fun onStart() {
         super.onStart()
         val filter = android.content.IntentFilter().apply {
@@ -339,6 +350,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(usbSprejemnik, filter, Context.RECEIVER_NOT_EXPORTED)
         else @Suppress("UnspecifiedRegisterReceiverFlag") registerReceiver(usbSprejemnik, filter)
         link.dodaj(linkPoslusalec)
+        Aplikacije.obSpremembiPaketov.add(obSpremembiPaketov)
         osveziLinkPiko()
         uporabiVarenRob()
         Ozadje.uporabi(this, koren)
@@ -380,6 +392,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         zadnjiFokusPogled = currentFocus
         try { unregisterReceiver(usbSprejemnik) } catch (_: Throwable) { }
         link.odstrani(linkPoslusalec)
+        Aplikacije.obSpremembiPaketov.remove(obSpremembiPaketov)
         glavna.removeCallbacks(preveriMirovanje)
         zbudi(animiraj = false)
         glavna.removeCallbacks(preveriMirovanje)
@@ -628,8 +641,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
             val dockImaFokus = dock?.imaFokus == true || (mini != null && mini.hasFocus())
             if (pretvorjen.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
                 if (::vrstaAplikacij.isInitialized && vrstaAplikacij.hasFocus()) {
-                    if (mini != null) {
-                        mini.requestFocus()
+                    // Zunanji pregled 3. 11. 2026: tipko pojemo samo, ce fokus res pride na rocico (sicer obtici).
+                    if (mini != null && mini.requestFocus()) {
                         return true
                     } else if (::dok.isInitialized) {
                         val cilj = najblizjiPogledX(dok, vrstaAplikacij.findFocus())
@@ -859,7 +872,10 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                 } else if (d.action == KeyEvent.ACTION_DOWN && d.repeatCount == 0 && ok && LupaPravila.okIsce(niz, DomacaLupa.obseg(this@PokrajinaActivity))) {
                     DomacaLupa.izvedi(this@PokrajinaActivity, niz)
                     true
-                } else if (d.action == KeyEvent.ACTION_DOWN && ok && !v.showSoftInputOnFocus) {
+                } else if (d.action == KeyEvent.ACTION_DOWN && ok &&
+                    // Lastnik 3. 11. 2026: lupa -> Nazaj -> lupa, tipkovnica se ni vec pokazala. Sistemsko tipkovnico zapre
+                    // Nazaj sam (dogodka ne vidimo), zastavica pa je ostala true - OK je nato ni odprl znova.
+                    (!v.showSoftInputOnFocus || DomacaLupa.jeFizicnaTipkovnica(this@PokrajinaActivity))) {
                     if (DomacaLupa.jeFizicnaTipkovnica(this@PokrajinaActivity)) {
                         v.showSoftInputOnFocus = true
                         (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).showSoftInput(v, 0)
@@ -1575,6 +1591,22 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                     }
                 }
                 v.tag = "usb:" + (usb.uuid ?: ime)
+                // Lastnik 3. 11. 2026: ploscice USB ni narocil in je ni mogel odstraniti. Dolg pritisk ali tipka menija jo
+                // odstrani z domacega zaslona (zapomnjeno za ta kljuc); kljuc ostane dosegljiv v Datotekah.
+                val kljucUsb = usb.uuid ?: ime
+                fun ponudiOdstranitev() {
+                    val okno = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
+                        .setTitle(ime)
+                        .setItems(arrayOf(getString(R.string.os_priljubljen_odstrani))) { _, _ -> skrijUsb(kljucUsb) }
+                        .setNegativeButton(getString(R.string.os_preklici), null)
+                        .create()
+                    Kontroler.pokazi(okno)
+                    okno.show()
+                }
+                v.setOnLongClickListener { ponudiOdstranitev(); true }
+                v.setOnKeyListener { _, keyCode, event ->
+                    if (event.action == KeyEvent.ACTION_DOWN && (keyCode == 165 || PokrajinaPravila.jeTipkaMenija(keyCode))) { ponudiOdstranitev(); true } else false
+                }
                 dodajVVrsto(v)
             }
         } catch (_: Throwable) { }
@@ -1586,9 +1618,23 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         return true
     }
 
+    private fun skriteUsb(): Set<String> = try {
+        getSharedPreferences("safeer_pokrajina", Context.MODE_PRIVATE).getStringSet("usb_skriti", emptySet()).orEmpty()
+    } catch (_: Throwable) { emptySet() }
+
+    private fun skrijUsb(kljuc: String) {
+        try {
+            val p = getSharedPreferences("safeer_pokrajina", Context.MODE_PRIVATE)
+            p.edit().putStringSet("usb_skriti", skriteUsb() + kljuc).apply()
+        } catch (_: Throwable) { }
+        narisiAplikacije()
+        vrstaAplikacij.getChildAt(0)?.requestFocus()
+    }
+
     private fun usbNosilci(): List<android.os.storage.StorageVolume> = try {
+        val skriti = skriteUsb()
         getSystemService(android.os.storage.StorageManager::class.java)?.storageVolumes
-            ?.filter { it.isRemovable && it.state == android.os.Environment.MEDIA_MOUNTED }.orEmpty()
+            ?.filter { it.isRemovable && it.state == android.os.Environment.MEDIA_MOUNTED && (it.uuid ?: it.getDescription(this)) !in skriti }.orEmpty()
     } catch (_: Throwable) { emptyList() }
 
     /** Vrstni red, kot je trenutno narisan (za premik in shranjevanje). */
@@ -1773,7 +1819,13 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         val i = vrstaAplikacij.indexOfChild(pogled)
         if (i < 0) return false
         val nova = PokrajinaPravila.premakni(vrstaDomov, id, korak) ?: return false
-        val j = nova.indexOf(id)
+        // Zunanji pregled 3. 11. 2026: indeks pogleda iz ploscic z oznako (tag), ne iz seznama - preskocena spletna
+        // ploscica ali dodatni pogledi (USB, + Dodaj) sicer razdruzijo zaslon in shrambo.
+        val ploscice = (0 until vrstaAplikacij.childCount).map { vrstaAplikacij.getChildAt(it) }.filter { (it.tag as? String) in vrstaDomov }
+        // Prva naslednja ploscica v novem redu, ki ima pogled: pred njo vstavimo premaknjeno.
+        val sosed = nova.drop(nova.indexOf(id) + 1).firstNotNullOfOrNull { sid -> ploscice.firstOrNull { it.tag == sid } }
+        val j0 = if (sosed != null) vrstaAplikacij.indexOfChild(sosed) else (ploscice.lastOrNull()?.let { vrstaAplikacij.indexOfChild(it) + 1 } ?: -1)
+        val j = if (j0 > i) j0 - 1 else j0
         if (j < 0 || j == i) return false
 
         vrstaDomov = nova

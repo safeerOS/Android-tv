@@ -61,7 +61,7 @@ def main():
         "src/main/kotlin/si/safeer/tv/os/SpletniKlepetActivity.kt": ["clipData = null", "replaceExtras(null", "dovoljenaNamera(", "hasGesture()", "component = null", "selector = null"],
         "src/main/kotlin/si/safeer/tv/ChromiumEngineView.kt": ["clipData = null", "replaceExtras(null", "dovoljenaNamera(", "hasGesture()"],
         "src/main/kotlin/si/safeer/tv/os/DomovActivity.kt": ["Zaganjalnik.preveriObZagonu(this)", "Zaganjalnik.namestiZascito(this)"],
-        "src/main/kotlin/si/safeer/tv/os/PokrajinaActivity.kt": ["Zaganjalnik.namestiZascito(this)"],
+        "src/main/kotlin/si/safeer/tv/os/PokrajinaActivity.kt": ["Zaganjalnik.namestiZascito(this)", "Zaganjalnik.preveriObZagonu(this)"],
     }
     for rel, nizi in obvezno.items():
         with open(os.path.join(KOREN, rel), encoding="utf-8") as f:

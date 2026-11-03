@@ -681,8 +681,10 @@ class PredvajanjeActivity : OsActivity() {
         if (dotik) glavna.post { if (!isFinishing && !predlogiOdprti()) odpriPredloge() }
         zatemniIzNamena()
         izberiNapravoIzNamena()
+        // osvezi() zgoraj je povrsino ze pripel; sele zdaj play() (pregled 3. 11. 2026, MediaTek).
+        nadaljevanjeIzNamena = false
         nadaljujIzNamena()
-        glavna.postDelayed({ ponudiNadaljevanje() }, 150)
+        if (!nadaljevanjeIzNamena) glavna.postDelayed({ ponudiNadaljevanje() }, 150)
     }
 
     private var oknoNadaljevanja: android.app.AlertDialog? = null
@@ -777,13 +779,19 @@ class PredvajanjeActivity : OsActivity() {
         }
         zatemniIzNamena()
         izberiNapravoIzNamena()
-        nadaljujIzNamena()
+        // Zunanji pregled 3. 11. 2026: ob vrnitvi na obstojec zaslon pride onNewIntent PRED onStart (povrsina se ni pripeta);
+        // NADALJUJ zato porabi onStart. Ce je zaslon ze zagnan (povrsina pripeta), nadaljujemo takoj.
+        if (zagnan) nadaljujIzNamena()
     }
+
+    /** Ta zagon je nadaljevanje iz mini predvajalnika ali obvestila: ponudba »Nadaljuj od …« ga ne sme ustaviti. */
+    private var nadaljevanjeIzNamena = false
 
     /** Obvestilo »Predvajaj« pri filmu (lastnik 27. 10. 2026): predvajalnik se odpre na istem mestu in nadaljuje. */
     private fun nadaljujIzNamena() {
         if (!intent.getBooleanExtra(NADALJUJ, false)) return
         intent.removeExtra(NADALJUJ)
+        nadaljevanjeIzNamena = true
         try { GlasbaStoritev.nadaljujTu() } catch (_: Throwable) { }
     }
 
