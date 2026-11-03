@@ -30,4 +30,18 @@ object TvTipke {
     /** Drzan OK na strani (ne v vrstici zgoraj) v nacinu D-pad vklopi kazalec; v nacinu miske je drzan OK vlecenje. */
     fun drzanOkVkljuciKazalec(keyCode: Int, ponovitev: Int, kazalecViden: Boolean, vVrstici: Boolean): Boolean =
         (keyCode == 23 || keyCode == 66) && ponovitev == PONOVITEV_ZA_KAZALEC && !kazalecViden && !vVrstici
+
+    /**
+     * Ali GOR s strani gre v naslovno vrstico. [odgovor]: kar vrne window._safeer_navigate_spatial('UP') (»-1« = v strani
+     * ni cilja visje in stran je na vrhu; »null« ali prazno = skripta daljinca v dokumentu se ni). Zunanji pregled fokusa
+     * 3. 11. 2026: v nacinu aplikacije se skripta vstavi sele pri 35 % nalaganja (onProgressChanged) - prvi GOR v se
+     * praznem dokumentu je zapustil aplikacijo. Med nalaganjem ([napredek] < 100) GOR v nacinu aplikacije zato ne odide;
+     * ko je stran nalozena in skripte ni (stran brez nase navigacije), GOR vrstico pokaze kot prej - uporabnik ni ujet.
+     */
+    fun gorVNaslovnoVrstico(odgovor: String?, nacinAplikacije: Boolean, napredek: Int): Boolean {
+        val o = (odgovor ?: "").trim().trim('"')
+        if (o == "-1") return true
+        if (o.isEmpty() || o == "null") return !(nacinAplikacije && napredek < 100)
+        return false
+    }
 }

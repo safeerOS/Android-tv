@@ -17,5 +17,13 @@ fun main() {
     check(!TvTipke.drzanOkVkljuciKazalec(23, TvTipke.PONOVITEV_ZA_KAZALEC, kazalecViden = true, vVrstici = false))
     check(!TvTipke.drzanOkVkljuciKazalec(23, TvTipke.PONOVITEV_ZA_KAZALEC, kazalecViden = false, vVrstici = true))
     check(!TvTipke.drzanOkVkljuciKazalec(19, TvTipke.PONOVITEV_ZA_KAZALEC, kazalecViden = false, vVrstici = false))
+    // GOR v naslovno vrstico (zunanji pregled fokusa 3. 11. 2026): v nacinu aplikacije med nalaganjem ne.
+    check(TvTipke.gorVNaslovnoVrstico("-1", nacinAplikacije = true, napredek = 100))
+    check(!TvTipke.gorVNaslovnoVrstico("1", nacinAplikacije = true, napredek = 100))
+    check(!TvTipke.gorVNaslovnoVrstico("0", nacinAplikacije = false, napredek = 100))
+    check(!TvTipke.gorVNaslovnoVrstico("null", nacinAplikacije = true, napredek = 20))    // prej: aplikacija zapuscena
+    check(!TvTipke.gorVNaslovnoVrstico(null, nacinAplikacije = true, napredek = 99))
+    check(TvTipke.gorVNaslovnoVrstico("null", nacinAplikacije = true, napredek = 100))    // stran brez skripte: ni ujet
+    check(TvTipke.gorVNaslovnoVrstico("null", nacinAplikacije = false, napredek = 20))    // brskalnik: vrstica kot prej
     println("TvTipkeTest: OK")
 }

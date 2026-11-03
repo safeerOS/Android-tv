@@ -448,7 +448,8 @@ object GenericWebSiteProfile : SiteProfile {
                     return true
                 }
                 wv.evaluateJavascript("window._safeer_navigate_spatial('UP');") { result ->
-                    if (result == "-1" || result == "null" || result == null) vNaslovnoVrstico(host)
+                    // Nacin aplikacije: prvi GOR v se praznem dokumentu ne zapusti aplikacije (TvTipke.gorVNaslovnoVrstico).
+                    if (si.safeer.tv.TvTipke.gorVNaslovnoVrstico(result, host.nacinAplikacije != null, wv.progress)) vNaslovnoVrstico(host)
                 }
                 return true
             }
