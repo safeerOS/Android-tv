@@ -954,6 +954,58 @@
             }
             /* SAFEER_OKVIR_GUMB_KONEC */
 
+            /* SAFEER_IZZIV_ZACETEK */
+            // Lastnik 3. 11. 2026 (prijava na TV): do Cloudflare »Verify you are human« (Turnstile) daljinec ni prisel.
+            // Izmerjeno 3. 11. 2026 (Chrome, preizkusni kljuc 3x...FF): okvir challenges.cloudflare.com je v ZAPRTEM shadow
+            // DOM, querySelectorAll('iframe') vrne 0. Vidna sta le gostitelj (DIV, sirok kot vsebnik, 880 px) in skrito polje
+            // cf-turnstile-response. Okvir je 300 x 65 ob levem robu gostitelja, potrditveno polje 22 px od levega roba na
+            // sredini visine. Cilj je zato gostitelj, obroc je na okvirju, OK je en pravi dotik na potrditveno polje.
+            // Izziva ne resujemo: dotik sprozi samo uporabnikov OK (triggerNativeTap brez tipke daljinca zavrne).
+            var IZZIV_IZBIRNIK = 'input[name="cf-turnstile-response"], .cf-turnstile, [id^="cf-chl-widget-"]';
+            var izzivi = [];
+            function gostiteljIzziva(el) {
+                var p = el, g = 0;
+                while (p && p.nodeType === 1 && g++ < 6) {
+                    var r = p.getBoundingClientRect();
+                    if (r.width >= 40 && r.height >= 20) return p;
+                    p = p.parentElement;
+                }
+                return null;
+            }
+            function najdiIzzive(doc) {
+                var out = [], sez;
+                try { sez = doc.querySelectorAll(IZZIV_IZBIRNIK); } catch (_) { return out; }
+                for (var i = 0; i < sez.length; i++) {
+                    var g = gostiteljIzziva(sez[i]);
+                    if (!g || g === doc.body || g === doc.documentElement) continue;
+                    if (g.getBoundingClientRect().height > 200) continue;
+                    // Gnezdeni vsebniki istega preverjanja: ostane najbolj notranji.
+                    var dodaj = true;
+                    for (var j = out.length - 1; j >= 0; j--) {
+                        if (out[j] === g || g.contains(out[j])) { dodaj = false; break; }
+                        if (out[j].contains(g)) out.splice(j, 1);
+                    }
+                    if (dodaj) out.push(g);
+                }
+                return out;
+            }
+            // Vidni okvir v gostitelju: normal 300 x 65 (izmerjeno), compact 150 x 140 (po dokumentaciji, ni izmerjeno).
+            function okvirIzziva(r) {
+                var w = Math.min(r.width, r.height > 100 ? 150 : 300);
+                return { left: r.left, top: r.top, width: w, height: r.height, right: r.left + w, bottom: r.bottom };
+            }
+            function tockaIzziva(r) {
+                var o = okvirIzziva(r);
+                if (o.height > 100) return { x: o.left + o.width / 2, y: o.top + o.height / 2 };
+                return { x: o.left + Math.min(22, o.width / 2), y: o.top + o.height / 2 };
+            }
+            function jeIzziv(el) { return !!el && izzivi.indexOf(el) !== -1; }
+            function okvirCilja(el) {
+                var r = el.getBoundingClientRect();
+                return jeIzziv(el) ? okvirIzziva(r) : r;
+            }
+            /* SAFEER_IZZIV_KONEC */
+
             function isActionable(el) {
                 if (!el || el.nodeType !== 1) return false;
                 var tag = el.tagName.toUpperCase();
@@ -1192,6 +1244,16 @@
                         candidates.push(item);
                     }
                 }
+                // Preverjanje v zaprtem shadow DOM (SAFEER_IZZIV): cilj je gostitelj, tudi ce ga isActionable ne pozna.
+                izzivi = najdiIzzive(document);
+                for (var iz = 0; iz < izzivi.length; iz++) {
+                    var vsebuje = -1;
+                    for (var c = 0; c < candidates.length; c++) {
+                        if (candidates[c] === izzivi[iz] || candidates[c].contains(izzivi[iz]) || izzivi[iz].contains(candidates[c])) { vsebuje = c; break; }
+                    }
+                    if (vsebuje === -1) candidates.push(izzivi[iz]);
+                    else candidates[vsebuje] = izzivi[iz];
+                }
                 return candidates;
             }
 
@@ -1398,7 +1460,7 @@
                         ring.classList.remove('active');
                         return;
                     }
-                    var r = el.getBoundingClientRect();
+                    var r = okvirCilja(el);
                     if (r.width === 0 && r.height === 0) {
                         ring.classList.remove('active');
                         return;
@@ -1959,23 +2021,23 @@
                     if (candidates.length === 0) {
                         // Nicesar ne vidimo (to se zgodi pri oknih, ki tecejo v svojem okvirju).
                         // Najprej poskusimo podrsati vsebino, sicer povemo, da nimamo kam -
-                        // takrat tipko dobi stran sama.
+                        // takrat tipko dobi stran sama (GOR: naslovna vrstica). Tipko porabi samo drsenje, ki se je
+                        // res premaknilo (lastnik 3. 11. 2026: na strani izziva sta GOR in DOL samo »drsela«, ujet).
                         if (direction === 'DOWN') {
                             if (drsajNotranjiVsebnik(null, 1)) return 1;
-                            if (oknoLahkoDrsi(1)) { window.scrollBy({ top: 120, behavior: scrollEase }); return 1; }
+                            if (oknoLahkoDrsi(1) && podrsajOkno(0, 120)) return 1;
                             return -1;
                         }
                         if (direction === 'UP') {
                             if (drsajNotranjiVsebnik(null, -1)) return 1;
                             if (scrollY <= 20) return -1;
-                            window.scrollBy({ top: -120, behavior: scrollEase });
-                            return 1;
+                            return podrsajOkno(0, -120) ? 1 : -1;
                         }
                         if (direction === 'LEFT') {
                             if (leviRob(robVrstice, false, window.scrollX || 0) === 'meni') return -2;
-                            window.scrollBy({ left: -140, behavior: scrollEase }); return 1;
+                            return podrsajOkno(-140, 0) ? 1 : -1;
                         }
-                        if (direction === 'RIGHT') { window.scrollBy({ left: 140, behavior: scrollEase }); return 1; }
+                        if (direction === 'RIGHT') return podrsajOkno(140, 0) ? 1 : -1;
                         return -1;
                     }
 
@@ -2016,7 +2078,7 @@
                         }
                     }
 
-                    var cRect = current.getBoundingClientRect();
+                    var cRect = okvirCilja(current);
                     var cCenterX = cRect.left + cRect.width / 2;
                     var cCenterY = cRect.top + cRect.height / 2;
 
@@ -2140,7 +2202,7 @@
                         var el = candidates[j];
                         if (el === current || current.contains(el)) continue;
 
-                        var r = el.getBoundingClientRect();
+                        var r = okvirCilja(el);
                         if (r.width < 12 || r.height < 12) continue;
                         var eCls = ((el.className || '') + '').toLowerCase();
                         if (jeNogaAliPiskotki(el)) continue;
@@ -2246,16 +2308,15 @@
                             // Vsebnik pod prstom ima lahko svoj drsnik (okno s piskotki,
                             // seznam v pogovornem oknu); tega podrsamo, ne cele strani.
                             if (drsajNotranjiVsebnik(current, 1)) return 1;
-                            if (!oknoLahkoDrsi(1)) return -1;
-                            window.scrollBy({ top: 120, behavior: scrollEase });
+                            if (!oknoLahkoDrsi(1) || !podrsajOkno(0, 120)) return -1;
                         }
                         else if (direction === 'UP') {
                             if (drsajNotranjiVsebnik(current, -1)) return 1;
-                            if (scrollY <= 20) {
+                            // Drsenje, ki se ne premakne (SAFEER_IZZIV, 3. 11. 2026), ne sme ujeti: naslovna vrstica.
+                            if (scrollY <= 20 || !podrsajOkno(0, -120)) {
                                 clearActive();
                                 return -1;
                             }
-                            window.scrollBy({ top: -120, behavior: scrollEase });
                         }
                         else if (direction === 'LEFT') window.scrollBy({ left: -140, behavior: scrollEase });
                         else if (direction === 'RIGHT') window.scrollBy({ left: 140, behavior: scrollEase });
@@ -2269,16 +2330,18 @@
              * Podrsa vsebnik, v katerem smo (npr. okno s piskotki), in ne cele strani.
              * smer: 1 navzdol, -1 navzgor. Vrne true, ce se je kaj premaknilo.
              */
+            function drsajVsebnik(el, dy) {
+                var prej = el.scrollTop;
+                try { el.scrollTop += dy; } catch (_) { return false; }
+                return Math.abs(el.scrollTop - prej) >= 1;
+            }
             function drsajNotranjiVsebnik(zacetek, smer) {
                 var nazaj = smer < 0;
                 var korak = Math.round((window.innerHeight || 1080) * 0.35);
                 var el = zacetek;
                 var globina = 0;
                 while (el && el.nodeType === 1 && globina < 30) {
-                    if (lahkoDrsi(el, false, nazaj)) {
-                        try { el.scrollTop += smer * korak; } catch (_) {}
-                        return true;
-                    }
+                    if (lahkoDrsi(el, false, nazaj) && drsajVsebnik(el, smer * korak)) return true;
                     el = el.parentElement;
                     globina++;
                 }
@@ -2286,19 +2349,22 @@
                 // uporabnik gleda, in prav ta mora iti navzdol.
                 var okno = najdiPrekrivnoOkno();
                 if (!okno) return false;
-                if (lahkoDrsi(okno, false, nazaj)) {
-                    try { okno.scrollTop += smer * korak; } catch (_) {}
-                    return true;
-                }
+                if (lahkoDrsi(okno, false, nazaj) && drsajVsebnik(okno, smer * korak)) return true;
                 var notranji;
                 try { notranji = okno.querySelectorAll('div, section, main, ul, form'); } catch (_) { return false; }
                 for (var i = 0; i < notranji.length && i < 400; i++) {
-                    if (lahkoDrsi(notranji[i], false, nazaj)) {
-                        try { notranji[i].scrollTop += smer * korak; } catch (_) {}
-                        return true;
-                    }
+                    if (lahkoDrsi(notranji[i], false, nazaj) && drsajVsebnik(notranji[i], smer * korak)) return true;
                 }
                 return false;
+            }
+
+            // Podrsa okno in pove, ali se je res premaknilo (overflow: hidden, zaklenjeno ozadje okna ...).
+            function podrsajOkno(dx, dy) {
+                var d = document.documentElement;
+                var x0 = window.scrollX || d.scrollLeft || 0, y0 = window.scrollY || d.scrollTop || 0;
+                try { window.scrollBy({ left: dx, top: dy, behavior: 'auto' }); } catch (_) { return false; }
+                var x1 = window.scrollX || d.scrollLeft || 0, y1 = window.scrollY || d.scrollTop || 0;
+                return Math.abs(x1 - x0) >= 1 || Math.abs(y1 - y0) >= 1;
             }
 
             /** Ali se da drsati celo stran v dani smeri? */
@@ -2435,6 +2501,13 @@
                         });
                     } catch (_) {}
                     // #endregion
+                    // Preverjanje Cloudflare (SAFEER_IZZIV): en pravi dotik na potrditveno polje. Sinteticni klik na
+                    // gostitelja ne doseze okvirja, zato ga ni.
+                    if (target && jeIzziv(target)) {
+                        var tIz = tockaIzziva(target.getBoundingClientRect());
+                        try { if (window.SafeerBridge && window.SafeerBridge.triggerNativeTap) window.SafeerBridge.triggerNativeTap(tIz.x, tIz.y); } catch (_) {}
+                        return true;
+                    }
                     // Tuj okvir (gumb GSI »Nadaljuj z Google«): samo en pravi dotik na sredini (SAFEER_OKVIR_GUMB).
                     if (target && (target.tagName || '').toUpperCase() === 'IFRAME') { nativeTapElement(target); return; }
                     if (target) {
