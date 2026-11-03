@@ -1068,7 +1068,12 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         wv.izvorSeja = if (izvor != null) java.util.UUID.randomUUID().toString() else null
         wv.izvorZadnjiNaslov = null
         wv.naPredajAplikaciji = { paket, naslov -> predajAplikaciji(wv, paket, naslov) }
-        if (izvor != null) android.util.Log.i("SafeerBrskalnik", "zavihek je odprla aplikacija $izvor")
+        // Lastnik 3. 11. 2026 (prijava v Claude na TV): da vemo, ali aplikacija odpre prijavo za aplikacijo ali le spletno stran,
+        // zapisemo shemo, gostitelja, prvi del poti in imena parametrov - nikoli vrednosti (koda za prijavo).
+        if (izvor != null) android.util.Log.i("SafeerBrskalnik", "zavihek je odprla aplikacija $izvor: " +
+            AplikacijaPovezave.zaDnevnik(namera?.dataString) + " imena=" + try {
+                namera?.data?.queryParameterNames?.sorted()?.joinToString(",").orEmpty()
+            } catch (_: Exception) { "" })
         osveziGumbAplikacije(fokus = false)
     }
 
