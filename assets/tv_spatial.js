@@ -972,8 +972,40 @@
                 return false;
             }
 
+            /* SAFEER_ZAPRTA_STRAN_ZACETEK */
+            // Lastnik 3. 11. 2026 05:23-05:26 (claude.ai/login na TV): uganka v tujem okvirju (Premakni / Preskoci) je pokrila
+            // stran. Okno ima samo okvir, brez gumbov v nasem dokumentu, zato ga najdiPrekrivnoOkno ni stelo; vsi cilji strani so
+            // bili prekriti in navigacija je skakala po njih ZA uganko - stran je samo drsela, do vrstice ni prisel. Pritrjena
+            // plast s tujim okvirjem na sredini zaslona zdaj pomeni: v strani ni cilja (-1), GOR gre v vrstico brskalnika.
+            var stranZaprta = false;
+            function najdiZaprtoPlast() {
+                var w = window.innerWidth || 1920, h = window.innerHeight || 1080;
+                var e = document.elementFromPoint(w / 2, h / 2);
+                if (!e || jeNasObroc(e)) return null;
+                var p = e, g = 0;
+                while (p && p.nodeType === 1 && g++ < 20) {
+                    var tag = (p.tagName || '').toUpperCase();
+                    if (tag === 'BODY' || tag === 'HTML') return null;
+                    var st;
+                    try { st = window.getComputedStyle(p); } catch (_) { return null; }
+                    if (st.position === 'fixed') {
+                        var r = p.getBoundingClientRect();
+                        if (r.width * r.height < w * h * 0.3) return null;
+                        var okvir = (e.tagName || '').toUpperCase() === 'IFRAME' || !!p.querySelector('iframe');
+                        return okvir ? p : null;
+                    }
+                    p = p.parentElement;
+                }
+                return null;
+            }
+            /* SAFEER_ZAPRTA_STRAN_KONEC */
+
             function odstraniNedosegljive(seznam) {
-                if (!seznam || !seznam.length) return seznam;
+                stranZaprta = false;
+                if (!seznam || !seznam.length) {
+                    if (najdiZaprtoPlast()) stranZaprta = true;
+                    return seznam;
+                }
                 var okno = najdiPrekrivnoOkno();
                 var vOknu = [];
                 for (var i = 0; i < seznam.length; i++) {
@@ -995,7 +1027,11 @@
                 for (var j = 0; j < vOknu.length; j++) {
                     if (!jePrekrit(vOknu[j])) ostane.push(vOknu[j]);
                 }
-                if (!ostane.length) return vOknu.length ? vOknu : seznam;
+                if (!ostane.length) {
+                    // Vse prekriva plast s tujim okvirjem (uganka, preverjanje): za njo ni cilja (SAFEER_ZAPRTA_STRAN).
+                    if (najdiZaprtoPlast()) { stranZaprta = true; pocistiObroc([]); return []; }
+                    return vOknu.length ? vOknu : seznam;
+                }
                 pocistiObroc(ostane);
                 return ostane;
             }
@@ -1659,12 +1695,22 @@
                 highlightElement(prvi);
                 return true;
             }
+            // Lastnik 3. 11. 2026 05:26: »okno se vsiljuje« - izbira je znova in znova skakala v plast (stran jo je na novo
+            // izrisala, za nas nova plast) in vsakic podrsala stran. Zdaj najvec enkrat na naslov strani, nikoli v plast s
+            // tujim okvirjem (uganka) in nikoli na gumb, ki ga kaj prekriva.
+            var vstopNaNaslovu = '';
             function vstopiVNovoPlast() {
                 try {
+                    if (vstopNaNaslovu === (location.href || '')) return false;
                     var okno = najdiPrekrivnoOkno() || najdiPlastPiskotkov();
                     if (!okno || vstopljenePlasti.indexOf(okno) !== -1) return false;
                     if (jeVnosnoPolje(document.activeElement)) return false;
+                    if (okno.querySelector && okno.querySelector('iframe')) return false;
+                    if (najdiZaprtoPlast()) return false;
+                    var prvi = prviVPlasti(okno, getCandidates());
+                    if (!prvi || jePrekrit(prvi)) return false;
                     if (!vstopiVPlast(okno)) return false;
+                    vstopNaNaslovu = location.href || '';
                     vstopljenePlasti.push(okno);
                     if (vstopljenePlasti.length > 10) vstopljenePlasti.shift();
                     return true;
@@ -2131,6 +2177,13 @@
                     }
                     var candidates = getCandidates();
 
+                    if (candidates.length === 0 && stranZaprta) {
+                        // Stran zaprta s plastjo v tujem okvirju: nic ne drsamo za njo. GOR -> vrstica brskalnika (kazalec),
+                        // LEVO na robu -> stranska vrstica, drugo dobi stran sama (Tab v okvir).
+                        clearActive();
+                        if (direction === 'LEFT' && leviRob(robVrstice, false, window.scrollX || 0) === 'meni') return -2;
+                        return -1;
+                    }
                     if (candidates.length === 0) {
                         // Nicesar ne vidimo (to se zgodi pri oknih, ki tecejo v svojem okvirju).
                         // Najprej poskusimo podrsati vsebino, sicer povemo, da nimamo kam -
