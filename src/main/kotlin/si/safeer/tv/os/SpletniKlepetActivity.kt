@@ -141,6 +141,7 @@ class SpletniKlepetActivity : OsActivity() {
                         namera.component = null
                         namera.selector = null
                         namera.clipData = null
+                        namera.replaceExtras(null as android.os.Bundle?)   // pregled 3. 11. 2026: dodatki strani ne gredo naprej
                         namera.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                         namera.addCategory(Intent.CATEGORY_BROWSABLE)
                         val shema = namera.data?.scheme ?: if (jeIntent) null else Uri.parse(u).scheme

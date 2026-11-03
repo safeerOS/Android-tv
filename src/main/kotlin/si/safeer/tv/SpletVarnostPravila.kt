@@ -28,8 +28,24 @@ object SpletVarnostPravila {
     fun dovoljenaNamera(akcija: String?, shemaPodatkov: String?, paket: String?, nasPaket: String): Boolean {
         if ((akcija ?: VIEW) != VIEW) return false
         if (paket != null && paket == nasPaket) return false
-        val shema = shemaPodatkov?.lowercase() ?: return true
+        // Zunanji pregled 3. 11. 2026: intent: brez podatkov (samo paket in dodatki) ni povezava, ampak ukaz aplikaciji.
+        val shema = shemaPodatkov?.lowercase()?.takeIf { it.isNotBlank() } ?: return false
         return shema !in PREPOVEDANE_SHEME
+    }
+
+    /**
+     * Zunanji pregled 3. 11. 2026 (MobileFileProvider): ponudnik je sprejel ../ iz predpomnilnika (shared_prefs z zetoni),
+     * mapo tri ravni nad zunanjo mapo aplikacije in zapisovanje. Edina raba je namestitev APK iz cache_files/<mapa>/<ime>:
+     * vrne datoteko znotraj [koren] po kanonicni poti ali null (nikoli korena samega).
+     */
+    fun datotekaPonudnika(koren: java.io.File, pot: String?): java.io.File? {
+        val rel = pot?.removePrefix("/")?.takeIf { it.startsWith("cache_files/") }?.removePrefix("cache_files/") ?: return null
+        if (rel.isEmpty() || '\u0000' in rel) return null
+        return try {
+            val k = koren.canonicalFile
+            val f = java.io.File(k, rel).canonicalFile
+            if (f.path.startsWith(k.path + java.io.File.separator)) f else null
+        } catch (_: Exception) { null }
     }
 
     /** browser_fallback_url iz namere: samo spletni naslov http(s) z gostiteljem (nikoli javascript:, file:, content:). */
@@ -111,6 +127,16 @@ object SpletVarnostPravila {
     }
 
     /** Kljuc odlocitve o potrdilu: gostitelj in vrata (ne samo ime). Prazen niz, ce naslov ni veljaven. */
+    /**
+     * Zunanji pregled 3. 11. 2026: izjema za slabo potrdilo je veljala za gostitelja in vrata - drugo (napadalcevo) potrdilo
+     * na istem naslovu je bilo nato sprejeto tiho. Kljuc izjeme zdaj vsebuje SHA-256 potrdila; brez potrdila izjeme ni.
+     */
+    fun sslKljucSPotrdilom(kljucNaslova: String, potrdilo: ByteArray?): String? {
+        if (kljucNaslova.isEmpty() || potrdilo == null || potrdilo.isEmpty()) return null
+        val d = java.security.MessageDigest.getInstance("SHA-256").digest(potrdilo)
+        return kljucNaslova + "#" + d.joinToString("") { "%02x".format(it) }
+    }
+
     fun sslKljuc(url: String?): String = try {
         val u = java.net.URI(url ?: "")
         val shema = u.scheme?.lowercase()

@@ -884,13 +884,12 @@ object UserScriptManager {
     }
 
     private fun tvSpatialJs(webView: WebView): String {
-        // Zeton dotika (SpletVarnostPravila.zetonVelja) gre samo v besedilo skripta glavnega okvirja.
-        cachedTvSpatialJs?.let { return it }
-        val js = SpletVarnostPravila.vstaviZeton(
-            webView.context.assets.open("tv_spatial.js").bufferedReader(Charsets.UTF_8).use { it.readText() },
-            ChromiumEngineView.ZETON_DOTIKA)
-        cachedTvSpatialJs = js
-        return js
+        // Zeton dotika (SpletVarnostPravila.zetonVelja) gre samo v besedilo skripta glavnega okvirja. V predpomnilniku je
+        // predloga BREZ zetona; zeton pogleda za trenutno stran se vstavi ob vsakem vbrizgu (pregled 3. 11. 2026).
+        val predloga = cachedTvSpatialJs
+            ?: webView.context.assets.open("tv_spatial.js").bufferedReader(Charsets.UTF_8).use { it.readText() }.also { cachedTvSpatialJs = it }
+        val zeton = (webView as? ChromiumEngineView)?.zetonDotika ?: return predloga
+        return SpletVarnostPravila.vstaviZeton(predloga, zeton)
     }
 
     private const val YOUTUBE_TV_LEANBACK_JS = """

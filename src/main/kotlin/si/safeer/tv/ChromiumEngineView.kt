@@ -48,8 +48,13 @@ class ChromiumEngineView @JvmOverloads constructor(
          * dotike (npr. na gumb v tujem iframu). Dovolimo en dotik kratko po tipki.
          */
         @Volatile private var zadnjaTipka = 0L
-        /** Zeton dotika za nas skript glavnega okvirja (SpletVarnostPravila.zetonVelja); en na proces. */
-        internal val ZETON_DOTIKA: String = SpletVarnostPravila.novZeton()
+        /**
+         * Zunanji pregled 3. 11. 2026: stran je lahko pred nasim skriptom zamenjala window.SafeerBridge in tako prejela zeton.
+         * Ob zacetku dokumenta (pred skriptami strani) zato most v glavnem okvirju zaklenemo: lastnost postane nespremenljiva
+         * in objekt zamrznjen. Zeton je zdaj na pogled in se zamenja ob vsaki novi strani ([zetonDotika]).
+         */
+        internal const val ZAKLEP_MOSTU_JS = """(function(){try{if(window.top!==window)return;var b=window.SafeerBridge;if(!b)return;
+try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{value:b,writable:false,configurable:false});}catch(e){}})();"""
         private const val DOTIK_PO_TIPKI_MS = 1500L
 
         fun oznaciTipko() {
@@ -248,6 +253,9 @@ class ChromiumEngineView @JvmOverloads constructor(
 
     private var customView: View? = null
     private var customViewCallback: WebChromeClient.CustomViewCallback? = null
+    /** Zeton dotika tega pogleda za trenutno stran (nov ob vsaki strani glavnega okvirja); samo v besedilu nasega skripta. */
+    @Volatile internal var zetonDotika: String = SpletVarnostPravila.novZeton()
+        private set
     private val jsBridge = SafeerWebAppInterface(context, this)
     private val spletMost = object {
         @JavascriptInterface
@@ -366,6 +374,8 @@ class ChromiumEngineView @JvmOverloads constructor(
                         "https://*.googlevideo.com"
                     )
                 )
+                // Most dotika zaklenjen pred skriptami strani (ZAKLEP_MOSTU_JS, pregled 3. 11. 2026).
+                androidx.webkit.WebViewCompat.addDocumentStartJavaScript(this, ZAKLEP_MOSTU_JS, setOf("*"))
                 // Stran ne sme zaznati blokatorja oglasov: splosna skripta pred skriptami strani (assets/protiadblock.js).
                 UserScriptManager.protiAdblockJs(context).takeIf { it.isNotEmpty() }?.let { js ->
                     androidx.webkit.WebViewCompat.addDocumentStartJavaScript(this, js, setOf("*"))
@@ -781,7 +791,8 @@ class ChromiumEngineView @JvmOverloads constructor(
         fun triggerNativeTap(x: Float, y: Float, zeton: String?): Boolean {
             // Vrne, ali je dotik sprejet: ce ne, stran klikne sama (natanko en klik, tv_spatial.js SAFEER_EN_KLIK).
             // Najprej zeton (3. 11. 2026): klic tujega okvirja brez njega ne sme porabiti dovoljenja tipke OK.
-            if (!SpletVarnostPravila.zetonVelja(zeton, ZETON_DOTIKA)) {
+            val pricakovan = (webView as? ChromiumEngineView)?.zetonDotika ?: ""
+            if (!SpletVarnostPravila.zetonVelja(zeton, pricakovan)) {
                 android.util.Log.w("SafeerBridge", "Zavrnjen triggerNativeTap brez zetona (tuj okvir ali skript strani).")
                 return false
             }
@@ -1239,6 +1250,7 @@ class ChromiumEngineView @JvmOverloads constructor(
                     namera.component = null
                     namera.selector = null
                     namera.clipData = null
+                    namera.replaceExtras(null as android.os.Bundle?)   // pregled 3. 11. 2026: dodatki strani ne gredo naprej
                     namera.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                     namera.addCategory(Intent.CATEGORY_BROWSABLE)
                     val shemaPodatkov = namera.data?.scheme ?: if (jeIntent) null else scheme
@@ -1331,6 +1343,8 @@ class ChromiumEngineView @JvmOverloads constructor(
 
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                 super.onPageStarted(view, url, favicon)
+                // Nov zeton dotika za vsako stran: ukraden zeton prejsnje strani ne velja vec (pregled 3. 11. 2026).
+                zetonDotika = SpletVarnostPravila.novZeton()
                 if (!EmudhraRevocations.jeOpozorilnaStran(url)) emudhraZastavica.novaNavigacija()
                 if (emudhraBlokirano(view, url)) return
                 url?.let { interceptPageUrl = it }
@@ -1419,7 +1433,13 @@ class ChromiumEngineView @JvmOverloads constructor(
                 // NAS) odloci uporabnik; fokus je na »Preklici« (OK na daljincu ne sme sprejeti napadalca), odlocitev velja za
                 // gostitelja IN vrata do konca seje.
                 val gostitelj = (if (sslHost.isNotEmpty()) sslHost else pageHost).lowercase()
-                val kljuc = SpletVarnostPravila.sslKljuc(error?.url).ifEmpty { SpletVarnostPravila.sslKljuc(view?.url) }.ifEmpty { gostitelj }
+                val naslovKljuc = SpletVarnostPravila.sslKljuc(error?.url).ifEmpty { SpletVarnostPravila.sslKljuc(view?.url) }.ifEmpty { gostitelj }
+                // Izjema velja samo za TO potrdilo (pregled 3. 11. 2026); ce potrdila ne moremo prebrati, izjeme ni.
+                val potrdilo = try {
+                    error?.certificate?.let { android.net.http.SslCertificate.saveState(it)?.getByteArray("x509-certificate") }
+                } catch (_: Throwable) { null }
+                val kljuc = SpletVarnostPravila.sslKljucSPotrdilom(naslovKljuc, potrdilo)
+                if (kljuc == null) { handler?.cancel(); return }
                 when (SpletVarnostPravila.sslOdlocitev(error?.primaryError ?: -1, gostitelj, kljuc in dovoljeniSsl)) {
                     SpletVarnostPravila.SslOdlocitev.PREKLICI -> {
                         handler?.cancel()

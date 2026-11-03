@@ -15,6 +15,20 @@ fun main() {
     check(!P.dovoljenaNamera("android.intent.action.VIEW", "https", nas, nas)) { "lasten paket" }
     check(!P.dovoljenaNamera("android.intent.action.VIEW", "https", "si.safeer.tv", "si.safeer.tv"))
     check(!P.dovoljenaNamera("android.intent.action.MAIN", "market", null, nas)) { "samo VIEW" }
+    check(!P.dovoljenaNamera("android.intent.action.VIEW", null, "com.example", nas)) { "intent: brez podatkov ni povezava (pregled 3. 11.)" }
+    check(!P.dovoljenaNamera(null, "", null, nas)) { "prazna shema" }
+    // Pregled 3. 11. 2026: MobileFileProvider samo znotraj predpomnilnika.
+    val koren = java.nio.file.Files.createTempDirectory("ponudnik").toFile()
+    try {
+        java.io.File(koren, "posodobitve").mkdirs(); java.io.File(koren, "posodobitve/a.apk").writeText("x")
+        check(P.datotekaPonudnika(koren, "/cache_files/posodobitve/a.apk")?.name == "a.apk")
+        check(P.datotekaPonudnika(koren, "/cache_files/../shared_prefs/x.xml") == null) { "../ iz predpomnilnika" }
+        check(P.datotekaPonudnika(koren, "/cache_files/posodobitve/../../x") == null)
+        check(P.datotekaPonudnika(koren, "/external_files/Android/x") == null) { "zunanja mapa ni vec dovoljena" }
+        check(P.datotekaPonudnika(koren, "/shared_prefs/x.xml") == null)
+        check(P.datotekaPonudnika(koren, "/cache_files/") == null) { "koren sam" }
+        check(P.datotekaPonudnika(koren, null) == null)
+    } finally { koren.deleteRecursively() }
     check(!P.dovoljenaNamera("android.intent.action.SEND", null, null, nas))
     check(!P.dovoljenaNamera("android.intent.action.CALL", "tel", null, nas))
     for (s in listOf("content", "file", "javascript", "data", "blob", "about", "intent", "android-app", "CONTENT", "File")) {
@@ -91,6 +105,13 @@ fun main() {
         check(!P.jeZasebniGostitelj(h)) { "javni $h" }
     }
     // Odlocitev velja za gostitelja IN vrata.
+    run {
+        val a = P.sslKljucSPotrdilom("nas.lan:443", byteArrayOf(1, 2, 3))
+        val b = P.sslKljucSPotrdilom("nas.lan:443", byteArrayOf(9, 9, 9))
+        check(a != null && b != null && a != b) { "drugo potrdilo na istem naslovu = druga izjema (pregled 3. 11.)" }
+        check(P.sslKljucSPotrdilom("nas.lan:443", null) == null) { "brez potrdila ni izjeme" }
+        check(P.sslKljucSPotrdilom("", byteArrayOf(1)) == null)
+    }
     check(P.sslKljuc("https://Primer.si/pot") == "primer.si:443")
     check(P.sslKljuc("https://primer.si:8443/x") == "primer.si:8443")
     check(P.sslKljuc("https://[fd12::1]:8443/") == "[fd12::1]:8443")

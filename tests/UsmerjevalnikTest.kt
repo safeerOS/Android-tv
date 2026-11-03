@@ -511,6 +511,12 @@ private fun preizkusHttp() {
     preveriEnako("stari claim je 410", 410,
         u.odgovori(zahteva("POST", "/cast/pair/claim", """{"pair_id":"$pairId"}"""))?.koda)
     preveri("po starih poteh prijava ostane nedotaknjena", u.cakajocePrijave().any { it.pairId == pairId })
+    // Zunanji pregled 3. 11. 2026: preimenovani stari poti sta se vedno dajali zeton (claim brez kode).
+    for (stara in listOf("/cast/pair/verify-staro-onemogoceno", "/cast/pair/claim-staro-onemogoceno", "/cast/pair/neznana")) {
+        val o = u.odgovori(zahteva("POST", stara, """{"pair_id":"$pairId","pin":"$pin"}"""))
+        preveri("stare poti ne dajo zetona: $stara", o == null || !(o.telo.contains("saf_tv_") || polje(o.telo, "token").isNotEmpty()))
+    }
+    preveri("stari claim ne oznaci naprave za Potrdi", u.cakajocePrijave().none { it.pairId == pairId && it.potrebujePotrditev })
 
     // ---- SPAKE2: koda ostane na obeh zaslonih, po omrezju gredo tocke ----
     fun seznaniSpake(pair: String, naprava: String, koda: String, odtis: String = u.lastniOdtis): Pair<Int, String> {

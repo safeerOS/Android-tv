@@ -49,10 +49,28 @@ const most = fs.readFileSync(path.join(KOREN, 'src/main/kotlin/si/safeer/tv/Chro
 const f = most.slice(most.indexOf('fun triggerNativeTap('), most.indexOf('fun triggerNativeTap(') + 900);
 preveri('triggerNativeTap zahteva zeton', true, /fun triggerNativeTap\(x: Float, y: Float, zeton: String\?\)/.test(f));
 preveri('zeton se preveri pred porabiDotik (klic brez zetona dovoljenja ne porabi)', true,
-    f.indexOf('zetonVelja(zeton, ZETON_DOTIKA)') > 0 && f.indexOf('zetonVelja(zeton, ZETON_DOTIKA)') < f.indexOf('porabiDotik()'));
+    f.indexOf('zetonVelja(zeton, pricakovan)') > 0 && f.indexOf('zetonVelja(zeton, pricakovan)') < f.indexOf('porabiDotik()'));
 const pravila = fs.readFileSync(path.join(KOREN, 'src/main/kotlin/si/safeer/tv/SpletVarnostPravila.kt'), 'utf8');
 preveri('primerjava v konstantnem casu (MessageDigest.isEqual)', true, /fun zetonVelja[\s\S]{0,300}MessageDigest\.isEqual/.test(pravila));
 const usm = fs.readFileSync(path.join(KOREN, 'src/main/kotlin/si/safeer/tv/UserScriptManager.kt'), 'utf8');
-preveri('UserScriptManager vstavi zeton v tv_spatial.js', true,
-    /vstaviZeton\(\s*webView\.context\.assets\.open\("tv_spatial\.js"\)[\s\S]{0,120}ChromiumEngineView\.ZETON_DOTIKA\)/.test(usm));
+preveri('UserScriptManager vstavi zeton pogleda v tv_spatial.js ob vsakem vbrizgu', true,
+    /vstaviZeton\(predloga, zeton\)/.test(usm) && /zetonDotika/.test(usm));
+// Zunanji pregled 3. 11. 2026: stran je pred nasim skriptom zamenjala SafeerBridge; zeton je bil en na proces.
+preveri('skript ne bere window.SafeerBridge znova pozneje', false, /if \(!mostDotika\) mostDotika/.test(VIR));
+preveri('most zaklenjen ob zacetku dokumenta', true,
+    /ZAKLEP_MOSTU_JS[\s\S]{0,400}configurable:false/.test(most) && /addDocumentStartJavaScript\(this, ZAKLEP_MOSTU_JS/.test(most));
+preveri('nov zeton ob vsaki strani', true, /onPageStarted[\s\S]{0,300}zetonDotika = SpletVarnostPravila\.novZeton\(\)/.test(most));
+preveri('ni vec enega zetona na proces', false, /val ZETON_DOTIKA: String/.test(most));
+// Zaklep v pravem pomenu: stran po zaklepu mostu ne more zamenjati.
+{
+    const ctx = { window: {} };
+    ctx.window.top = ctx.window;
+    const pravi = { triggerNativeTap: function () { return 'pravi'; } };
+    ctx.window.SafeerBridge = pravi;
+    const zaklep = most.match(/ZAKLEP_MOSTU_JS = """([\s\S]*?)"""/)[1];
+    new Function('window', zaklep)(ctx.window);
+    try { ctx.window.SafeerBridge = { triggerNativeTap: function () { return 'ponaredek'; } }; } catch (_) {}
+    try { ctx.window.SafeerBridge.triggerNativeTap = function () { return 'ponaredek'; }; } catch (_) {}
+    preveri('po zaklepu stran mostu ne zamenja', 'pravi', ctx.window.SafeerBridge.triggerNativeTap());
+}
 console.log('tv_zeton_dotika_test: OK (' + stevilo + ')');

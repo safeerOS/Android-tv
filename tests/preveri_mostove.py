@@ -58,8 +58,8 @@ def main():
         napake.append("ni najdenih metod mostu - je pot napacna?")
     # Zunanji pregled 3. 11. 2026: namere iz Sporocil enako ociscene kot v brskalniku; varnostna vrata na domu TV.
     obvezno = {
-        "src/main/kotlin/si/safeer/tv/os/SpletniKlepetActivity.kt": ["clipData = null", "dovoljenaNamera(", "hasGesture()", "component = null", "selector = null"],
-        "src/main/kotlin/si/safeer/tv/ChromiumEngineView.kt": ["clipData = null", "dovoljenaNamera(", "hasGesture()"],
+        "src/main/kotlin/si/safeer/tv/os/SpletniKlepetActivity.kt": ["clipData = null", "replaceExtras(null", "dovoljenaNamera(", "hasGesture()", "component = null", "selector = null"],
+        "src/main/kotlin/si/safeer/tv/ChromiumEngineView.kt": ["clipData = null", "replaceExtras(null", "dovoljenaNamera(", "hasGesture()"],
         "src/main/kotlin/si/safeer/tv/os/DomovActivity.kt": ["Zaganjalnik.preveriObZagonu(this)", "Zaganjalnik.namestiZascito(this)"],
         "src/main/kotlin/si/safeer/tv/os/PokrajinaActivity.kt": ["Zaganjalnik.namestiZascito(this)"],
     }

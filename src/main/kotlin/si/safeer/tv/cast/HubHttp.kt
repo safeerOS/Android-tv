@@ -157,48 +157,9 @@ internal fun HubUsmerjevalnik.odgovoriSeznanitev(zahteva: HubStreznik.Zahteva, p
         return HubStreznik.Odgovor(410, napakaJson("Posodobi Safeer: seznanjanje zdaj poteka po varnejšem postopku.", "posodobi_aplikacijo"))
     }
 
-    if (pot == "/cast/pair/verify-staro-onemogoceno" && zahteva.metoda == "POST") {
-        if (!krajevni) return HubStreznik.Odgovor(403, napakaJson("Seznanjanje je mogoče samo v krajevnem omrežju.", "samo_krajevno"))
-        val telo = JsonLahki.objekt(zahteva.telo)
-        val pairId = (telo?.niz("pair_id") ?: "").trim()
-        val koda = (telo?.niz("pin") ?: "").trim().take(16)
-        if (pairId.isEmpty() || koda.isEmpty()) {
-            return HubStreznik.Odgovor(400, napakaJson("Manjka pair_id ali koda.", "manjka_koda"))
-        }
-        val izid = potrdiSKodo(pairId, koda)
-        val zeton = izid.zeton
-        if (zeton == null) {
-            val (koda_http, sporocilo) = when (izid.napaka) {
-                "napacna_koda" -> 401 to "Koda ni pravilna."
-                "seznanitev_zaprta" -> 429 to HubUsmerjevalnik.BESEDILO_KODA_ZAPRTA
-                "prevec_poskusov" -> 429 to "Preveč poskusov. Začnite znova."
-                "prijava_ne_obstaja" -> 404 to "Prijava je potekla. Začnite znova."
-                else -> 409 to "Seznanitev ni mogoča."
-            }
-            return HubStreznik.Odgovor(
-                koda_http,
-                napakaJson(sporocilo, izid.napaka ?: "seznanitev_ni_mogoca")
-            )
-        }
-        return HubStreznik.Odgovor(
-            200,
-            JsonLahki.Zapis().logicno("approved", true).niz("token", zeton).toString()
-        )
-    }
-
-    if (pot == "/cast/pair/claim-staro-onemogoceno" && zahteva.metoda == "POST") {
-        if (!krajevni) return HubStreznik.Odgovor(403, napakaJson("Samo v krajevnem omrežju.", "samo_krajevno"))
-        val telo = JsonLahki.objekt(zahteva.telo)
-        // Kdor povprasuje po tej poti, govori po starem: kodo kaze pri sebi in caka
-        // na potrditev tu. Samo taki napravi vmesnik ponudi gumb Potrdi.
-        oznaciStaroNapravo(telo?.niz("pair_id") ?: "")
-        val zeton = prevzemiZeton(telo?.niz("pair_id") ?: "")
-            ?: return HubStreznik.Odgovor(200, JsonLahki.Zapis().logicno("approved", false).toString())
-        return HubStreznik.Odgovor(
-            200,
-            JsonLahki.Zapis().logicno("approved", true).niz("token", zeton).toString()
-        )
-    }
+    // Zunanji pregled 3. 11. 2026: poti »verify-staro-onemogoceno« in »claim-staro-onemogoceno« sta bili le preimenovani in
+    // sta se vedno izdali zeton (claim brez kode, po pritisku Potrdi na gostitelju). Izbrisani; zeton daje samo SPAKE2
+    // (/cast/pair/finish) ali QR. Preizkus: UsmerjevalnikTest »stare poti ne dajo zetona«.
 
     if (pot.startsWith("/cast/pair/qr/") && zahteva.metoda == "POST") {
         if (!krajevni) return HubStreznik.Odgovor(403, napakaJson("Seznanjanje je mogoče samo v krajevnem omrežju.", "samo_krajevno"))

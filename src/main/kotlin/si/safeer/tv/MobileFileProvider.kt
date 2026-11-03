@@ -57,36 +57,21 @@ class MobileFileProvider : ContentProvider() {
         }
     }
 
+    /** Samo branje (namestitelj APK prebere datoteko); pisanje ni nikoli dovoljeno. */
     override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor {
+        if (mode != "r") throw FileNotFoundException("Samo branje")
         val file = getFileForUri(uri)
-        val fileMode = when (mode) {
-            "r" -> ParcelFileDescriptor.MODE_READ_ONLY
-            "w", "wa" -> ParcelFileDescriptor.MODE_WRITE_ONLY or ParcelFileDescriptor.MODE_CREATE
-            "rw" -> ParcelFileDescriptor.MODE_READ_WRITE or ParcelFileDescriptor.MODE_CREATE
-            else -> ParcelFileDescriptor.MODE_READ_ONLY
-        }
-        return ParcelFileDescriptor.open(file, fileMode)
+        if (!file.isFile) throw FileNotFoundException("Ni datoteke")
+        return ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
     }
 
     override fun insert(uri: Uri, values: ContentValues?): Uri? = null
     override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?): Int = 0
     override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<out String>?): Int = 0
 
+    /** Samo cache_files/ v predpomnilniku, po kanonicni poti (SpletVarnostPravila.datotekaPonudnika); nic ne ustvari. */
     private fun getFileForUri(uri: Uri): File {
-        val path = uri.path ?: throw FileNotFoundException("Prazen URI")
         val ctx = context ?: throw FileNotFoundException("Context ni na voljo")
-        
-        val file = if (path.startsWith("/external_files/")) {
-            File(ctx.getExternalFilesDir(null)?.parentFile?.parentFile?.parentFile, path.removePrefix("/external_files/"))
-        } else if (path.startsWith("/cache_files/")) {
-            File(ctx.cacheDir, path.removePrefix("/cache_files/"))
-        } else {
-            File(ctx.filesDir, path)
-        }
-        
-        if (!file.exists()) {
-            file.parentFile?.mkdirs()
-        }
-        return file
+        return SpletVarnostPravila.datotekaPonudnika(ctx.cacheDir, uri.path) ?: throw FileNotFoundException("Pot ni dovoljena")
     }
 }

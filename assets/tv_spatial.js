@@ -7,12 +7,12 @@
             /* SAFEER_ZETON_DOTIKA_ZACETEK */
             // Pregled Gemini 3. 11. 2026: SafeerBridge vidi vsak okvir strani; pravi dotik zato zahteva zeton, ki ga ima samo
             // ta skript glavnega okvirja (aplikacija ga vstavi namesto mesta spodaj). Zeton je samo v zaprtju, nikoli na window.
-            // Most vzamemo ob zagonu, da ga stran pozneje ne podtakne.
+            // Most vzamemo ob zagonu, da ga stran pozneje ne podtakne; ob zacetku dokumenta ga aplikacija zaklene
+            // (ChromiumEngineView.ZAKLEP_MOSTU_JS). Pregled 3. 11. 2026: brez poznega ponovnega branja window.SafeerBridge.
             var ZETON_DOTIKA = '__SAFEER_ZETON_DOTIKA__';
             var mostDotika = window.SafeerBridge || null;
             function pravDotik(x, y) {
                 try {
-                    if (!mostDotika) mostDotika = window.SafeerBridge || null;
                     return !!(mostDotika && mostDotika.triggerNativeTap) && mostDotika.triggerNativeTap(x, y, ZETON_DOTIKA) === true;
                 } catch (_) { return false; }
             }
