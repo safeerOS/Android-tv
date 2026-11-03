@@ -981,8 +981,9 @@ private fun preizkusGlasbe83() {
     preveriEnako("Glasba: film ni v Glasbi", false, OsPravila.zaGlasbo(video = true, radio = false, youtube = false))
     preveriEnako("Glasba: postaja ni v Glasbi", false, OsPravila.zaGlasbo(video = false, radio = true, youtube = false))
     val zZvokom = listOf(true, false, true, false, true)
-    preveriEnako("Glasba: vrsta samo z zvokom", listOf(0, 2, 4) to 1, OsPravila.vrstaZZvokom(5, 2) { zZvokom[it] })
-    preveriEnako("Glasba: kliknjena je vedno v vrsti", listOf(0, 1, 2, 4) to 1, OsPravila.vrstaZZvokom(5, 1) { zZvokom[it] })
+    preveriEnako("Glasba: vrsta samo z zvokom", listOf(0, 2, 4) to 1, OsPravila.vrstaZZvokom(5, 2, { zZvokom[it] }))
+    preveriEnako("Glasba: najprej isti izvajalec", listOf(2, 4, 0) to 0, OsPravila.vrstaZZvokom(5, 2, { zZvokom[it] }) { it == 4 })
+    preveriEnako("Glasba: kliknjena je vedno v vrsti", listOf(0, 1, 2, 4) to 1, OsPravila.vrstaZZvokom(5, 1, { zZvokom[it] }))
     preveriEnako("Glasba: Najnovejse po datumu izida", "releasedate_desc", OsPravila.redJamenda(najnovejse = true))
     preveriEnako("Glasba: privzeto po priljubljenosti", "popularity_total", OsPravila.redJamenda(najnovejse = false))
     // Zunanji pregled Video 3. 11. 2026

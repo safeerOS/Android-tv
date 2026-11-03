@@ -7935,9 +7935,10 @@ class GlasbaActivity : OsActivity() {
         if (sk.id.startsWith(PREDPONA_PC_PRENOSA)) { meniPrenosa(sk); return }
         if (!sk.video && !sk.radio && sk.zvok.isNotBlank()) {
             // Zunanji pregled Glasbe 3. 11. 2026: v vrsto samo skladbe z zvokom (ne vnosi dodatkov brez toka, ne video, ne radio).
-            val (red, j) = OsPravila.vrstaZZvokom(seznam.size, i) { k -> seznam[k].let { x -> x.zvok.isNotBlank() && !x.video && !x.radio &&
-                !Stremio.jeEnota(x) && !SpletniVir.jeEnota(x) && !TuneIn.jeEnota(x) && !Arhiv.jeEnota(x) && !JavnaLast.jeEnota(x) } }
-            if (red.size < seznam.size) { GlasbaStoritev.predvajaj(this, red.map { seznam[it] }, j); return }
+            val (red, j) = OsPravila.vrstaZZvokom(seznam.size, i, { k -> seznam[k].let { x -> x.zvok.isNotBlank() && !x.video && !x.radio &&
+                !Stremio.jeEnota(x) && !SpletniVir.jeEnota(x) && !TuneIn.jeEnota(x) && !Arhiv.jeEnota(x) && !JavnaLast.jeEnota(x) } },
+                { k -> sk.izvajalec.isNotBlank() && seznam[k].izvajalec.equals(sk.izvajalec, ignoreCase = true) })
+            if (red != seznam.indices.toList()) { GlasbaStoritev.predvajaj(this, red.map { seznam[it] }, j); return }
         }
         if (!sk.video || sk.zvok.isNotBlank()) {
             GlasbaStoritev.predvajaj(this, seznam, i)

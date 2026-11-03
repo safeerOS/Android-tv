@@ -1778,8 +1778,9 @@ object OsPravila {
      * Zunanji pregled Glasbe 3. 11. 2026: klik na skladbo da v vrsto samo kartice z zvokom (prej vse kartice zaslona, tudi
      * vnose dodatkov brez zvoka). Vrne indekse vrste in polozaj kliknjene v njej; kliknjena je vedno v vrsti.
      */
-    fun vrstaZZvokom(n: Int, klik: Int, zZvokom: (Int) -> Boolean): Pair<List<Int>, Int> {
-        val izbrani = (0 until n).filter { it == klik || zZvokom(it) }
+    fun vrstaZZvokom(n: Int, klik: Int, zZvokom: (Int) -> Boolean, istiIzvajalec: (Int) -> Boolean = { false }): Pair<List<Int>, Int> {
+        // Prednost ima isti izvajalec (kot odIzvajalca): njegove skladbe z zaslona so v vrsti najprej, nato ostale.
+        val izbrani = (0 until n).filter { it == klik || zZvokom(it) }.let { s -> s.filter { it == klik || istiIzvajalec(it) } + s.filterNot { it == klik || istiIzvajalec(it) } }
         return izbrani to izbrani.indexOf(klik).coerceAtLeast(0)
     }
 
