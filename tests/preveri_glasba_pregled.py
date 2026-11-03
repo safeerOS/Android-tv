@@ -28,6 +28,7 @@ preveri("prazna Glasba: nedavne skladbe in seznami", "R.string.os_media_nedavno"
 preveri("Najnovejse: Jamendo po redJamenda", "order=${OsPravila.redJamenda(najnovejse)}" in (OS / "Jamendo.kt").read_text(encoding="utf-8"))
 preveri("Najnovejse: sprememba nalozi vir znova", "!= (nacini[i].first == RAZVRSTI_NAJNOVEJSE)) odpriMrezo(GLASBA)" in g)
 preveri("Na tej napravi: skupina tudi na TV", "(if (vlc || glasbaNaNapravi) listOf(SKUPINA_NAPRAVA to true)" in g and "OsPravila.glasbaNaTejNapravi(" in g)
+preveri("oznaka video iz besedil (6 jezikov), ne trdo napisana", "\"▶ Video\"" not in g and "R.string.os_media_oznaka_video" in g)
 # Zunanji pregled Video 3. 11. 2026
 preveri("mreza filmov: najvec MREZA_HKRATI", "OsPravila.MREZA_HKRATI - o.caka.get()" in g and "minOf(o.proracun, 12 - o.caka.get()" not in g)
 preveri("mreza filmov: ne med tipkami in po kliku", "OsPravila.smemPreverjatiMrezo(klikNaFilm, odTipke)" in g)

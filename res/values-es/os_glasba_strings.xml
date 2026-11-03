@@ -452,4 +452,5 @@
     <string name="os_nedel_preveri_znova">Comprobar de nuevo</string>
     <string name="os_nedel_ni_drugega">No se encontró otro vídeo</string>
     <string name="os_nedel_nov_posnetek">Se encontró otro vídeo</string>
+    <string name="os_media_oznaka_video">▶ Vídeo</string>
 </resources>

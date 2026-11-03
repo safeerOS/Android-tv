@@ -5907,7 +5907,7 @@ class GlasbaActivity : OsActivity() {
         .filterNot { MrtviKanali.skrij(this, it) || znanoNiNaVoljo(it) || cakaNaKnjiznico(it) || neodklenjena(it) }.map { sk ->
         if (sk.mime == MedijskiViri.STRAN) Kartica(sk.naslov, sk.izvajalec, "", { odpriStran(sk.zvok, sk.naslov) }, { meni(sk, s, vrsta, seznam) }, ikona = R.drawable.os_ikona_splet)
         else {
-            val oznaka = if (sk.video || SpletniVir.vrstaVsebine(sk) == SpletniVir.VIDEOSPOT) "▶ Video" else ""
+            val oznaka = if (sk.video || SpletniVir.vrstaVsebine(sk) == SpletniVir.VIDEOSPOT) getString(R.string.os_media_oznaka_video) else ""
             val ikona = when {
                 sk.id.startsWith("tv:") -> R.drawable.os_ikona_tv
                 sk.radio -> R.drawable.os_ikona_radio
