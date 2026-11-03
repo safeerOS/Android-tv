@@ -573,7 +573,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
      * Pomnilnik v ozadju: televizor ima 2-3 GB pomnilnika in Safeer je z odprtimi stranmi
      * njegov najvecji porabnik tudi takrat, ko uporabnik gleda kaj drugega. Ko brskalnik
      * zapusti zaslon, zavihki v ozadju zaspijo takoj; aktivni zavihek zaspi, ce se brskalnik
-     * v SPANJE_AKTIVNEGA_MS ne vrne. Ob vrnitvi se stran nalozi znova. Zavihek, ki predvaja,
+     * v casu iz SpanjePravila.zamikAktivnega ne vrne. Ob vrnitvi se stran nalozi znova. Zavihek, ki predvaja,
      * ne zaspi nikoli; Safeer Link (sredisce) in daljinec delujeta ves cas.
      */
     /** Dodatek namere, s katerim Safeer OS odpre stran Safeer Link. */
@@ -614,9 +614,6 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     private val EXTRA_SPLETNA_APLIKACIJA = "spletna_aplikacija"
     private val EXTRA_ZVOK_V_OZADJU = "zvok_v_ozadju"
     private val EXTRA_APLIKACIJA_IME = "aplikacija_ime"
-    private val SPANJE_AKTIVNEGA_MS = 10 * 60 * 1000L
-    /** Ko drug program potrebuje pomnilnik (malo prostega RAM-a), brskalnik zaspi ze po tem casu. */
-    private val SPANJE_ZARADI_RAMA_MS = 20 * 1000L
 
     /** Prosti pomnilnik je pod mejo, pri kateri drug program (npr. video) zacne zatikati. */
     private fun malo_rama(): Boolean = try {
@@ -629,15 +626,26 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     private val spanjeAktivnega = Runnable {
         if (naZaslonu || !::tabManager.isInitialized) return@Runnable
         try {
+            // Pogled se unici sele po odgovoru strani (predvaja, obrazec); sprostitev zato tece v naVsiSpijo.
             tabManager.uspavajVOzadju(tudiAktivni = true)
-            // Pogled je unicen, a Chromium in nas kup obdrzita svoje predpomnilnike, dokler ju
-            // sistem ne opozori. Opozorilo sprozimo sami: WebView (registriran kot
-            // ComponentCallbacks2) sprosti V8, slike in graficne vire, mi pa svoje.
-            try { @Suppress("DEPRECATION") application.onTrimMemory(android.content.ComponentCallbacks2.TRIM_MEMORY_COMPLETE) } catch (_: Throwable) {}
-            UserScriptManager.sprostiPredpomnilnik()
-            System.gc()
-            android.util.Log.i("SafeerPomnilnik", "Brskalnik je dolgo v ozadju; spi ${tabManager.steviloSpecih()} zavihkov, predpomnilniki sprosceni.")
+            android.util.Log.i("SafeerPomnilnik", "Brskalnik je v ozadju; aktivni zavihek gre spat.")
         } catch (_: Exception) {}
+    }
+
+    /**
+     * Vsi zavihki spijo ali je brskalnik zaprt: vrnemo predpomnilnike in koncamo izrisovalnik. TV 3. 11. 2026: prej je
+     * spanje klicalo samo application.onTrimMemory (ta ne pride do onTrimMemory aktivnosti in LahkiWebViewPool), in to
+     * pred unicenjem pogleda - izrisovalnik (65 MB) je ostal do konca procesa.
+     */
+    private fun sprostiPoSpanju(razlog: String) {
+        if (!::tabManager.isInitialized || !SpanjePravila.koncajIzrisovalnik(naZaslonu, tabManager.zivihPogledov())) return
+        // WebView (registriran kot ComponentCallbacks2) sprosti V8, slike in graficne vire, mi pa svoje.
+        try { @Suppress("DEPRECATION") application.onTrimMemory(android.content.ComponentCallbacks2.TRIM_MEMORY_COMPLETE) } catch (_: Throwable) {}
+        try { UserScriptManager.sprostiPredpomnilnik() } catch (_: Throwable) {}
+        // Izrisovalnik konca samo, ce ga noben drug WebView procesa (okno Linka, lahki predvajalnik) ne rabi.
+        try { si.safeer.tv.os.LahkiWebViewPool.sprostiProstega() } catch (_: Throwable) {}
+        System.gc()
+        android.util.Log.i("SafeerPomnilnik", "Brskalnik ni na zaslonu ($razlog); spi ${tabManager.steviloSpecih()} zavihkov, izrisovalnik in predpomnilniki sprosceni.")
     }
 
     private val hideGlobalOsdRunnable = Runnable {
@@ -925,13 +933,13 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         if (::tabManager.isInitialized) {
             try { tabManager.saveToFile(this) } catch (_: Exception) {}
             try {
+                tabManager.naVsiSpijo = { sprostiPoSpanju("vsi zavihki spijo") }
                 tabManager.uspavajVOzadju(tudiAktivni = false)
                 mainHandler.removeCallbacks(spanjeAktivnega)
-                // Stran, ki igra v ozadju, ne sme zaspati.
-                if (!zvokVOzadju) mainHandler.postDelayed(
-                    spanjeAktivnega,
-                    if (malo_rama()) SPANJE_ZARADI_RAMA_MS else SPANJE_AKTIVNEGA_MS
-                )
+                // TV 3. 11. 2026: po Domov je aktivni zavihek spal sele po 10 min (270 MB + 65 MB izrisovalnika);
+                // zdaj na TV po 30 s. Stran, ki igra v ozadju (vir iz Medijev), ne zaspi.
+                SpanjePravila.zamikAktivnega(ChromiumEngineView.naDotik(this), malo_rama(), zvokVOzadju)
+                    ?.let { mainHandler.postDelayed(spanjeAktivnega, it) }
             } catch (_: Exception) {}
         }
         super.onStop()
@@ -976,10 +984,20 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         // Huba tu NE ustavljamo: od 2.1.89 zivi v HubStoritev, da je televizor dosegljiv
         // tudi, ko brskalnik ni odprt. Ugasne ga uporabnik v Safeer Linku.
         if (::tabManager.isInitialized) {
+            tabManager.pospravi()
             for (tab in tabManager.getAllTabs()) {
                 try { tab.webView?.destroy() } catch (_: Exception) {}
             }
         }
+        // TV 3. 11. 2026: po izhodu je proces ostal (prazen, v predpomnilniku) z 200 MB in izrisovalnikom 60 MB; v kopici
+        // je ostala unicena aktivnost z zavihki (Activities: 1, WebViews: 1). Drzala sta jo staticna kazalca spodaj in
+        // cakajoce spanje na glavni niti.
+        mainHandler.removeCallbacksAndMessages(null)
+        if (si.safeer.tv.cast.CastReceiverService.mediaController === this) si.safeer.tv.cast.CastReceiverService.mediaController = null
+        DashPrevzem.onNeedPageLicense = null
+        si.safeer.tv.cast.HubKrmilnik.naPrijavoZaZaslon = null
+        naZaslonu = false
+        sprostiPoSpanju("brskalnik zaprt")
         try { debugJsReceiver?.let { unregisterReceiver(it) } } catch (_: Exception) {}
         try { playback.release() } catch (_: Exception) {}
         DashPrevzem.listener = null

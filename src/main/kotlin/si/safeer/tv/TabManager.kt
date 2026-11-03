@@ -46,7 +46,9 @@ data class TabModel(
     /** Prilagojena namizna sirina (npr. 1280 za spletne aplikacije na TV). 0 = privzeto. */
     var namiznaSirina: Int = 0,
     /** Zavihek spletne aplikacije (nacin aplikacije): ob ponovnem vstopu se prevzame samo tak, ne uporabnikov zavihek. */
-    var jeAplikacija: Boolean = false
+    var jeAplikacija: Boolean = false,
+    /** Od kdaj neoddan obrazec odlaga spanje (0 = ne odlaga); rok da SpanjePravila.zaspi. */
+    var odlozenoOd: Long = 0L
 )
 
 /**
@@ -284,6 +286,7 @@ class TabManager(
      * Stran se ob vrnitvi nalozi znova; Safeer Link in daljinec med tem delujeta naprej.
      */
     fun uspavajVOzadju(tudiAktivni: Boolean) {
+        vOzadju = true
         for (tab in tabs) {
             if (tab.id == activeTabId && !tudiAktivni) continue
             if (tab.id == activeTabId && tudiAktivni) zamrzni(tab, prisilno = false, dovoliAktivnega = true)
@@ -298,10 +301,30 @@ class TabManager(
         glavna.postDelayed(opravilo, casZamrznitve())
     }
 
-    private fun casZamrznitve(): Long {
+    private fun jeTv(): Boolean {
         val ui = container.context.getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager
-        val jeTv = ui?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
-        return if (jeTv) ZAMRZNI_TV_MS else ZAMRZNI_DRUGO_MS
+        return ui?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
+    }
+
+    private fun casZamrznitve(): Long = if (jeTv()) ZAMRZNI_TV_MS else ZAMRZNI_DRUGO_MS
+
+    /**
+     * Klic, ko zaspi zadnji zivi zavihek. TV 3. 11. 2026: po spanju je izrisovalnik (65 MB) ostal, ker ga ni koncal
+     * nihce - MainActivity ga zdaj konca prek LahkiWebViewPool.
+     */
+    var naVsiSpijo: (() -> Unit)? = null
+
+    /** Brskalnik ni na zaslonu (od uspavajVOzadju do zbudiAktivnega): samo takrat sme zaspati aktivni zavihek. */
+    private var vOzadju = false
+
+    /** Zavihki z zivim (neunicenim) pogledom. */
+    fun zivihPogledov(): Int = tabs.count { t -> t.webView?.let { !it.jeUniceno } == true }
+
+    /** Aktivnost odhaja: cakajoca spanja ne smejo drzati unicene aktivnosti (TV 3. 11. 2026). */
+    fun pospravi() {
+        for (opravilo in roki.values) glavna.removeCallbacks(opravilo)
+        roki.clear()
+        naVsiSpijo = null
     }
 
     /** Takojsnja varcna nastavitev neaktivnega pogleda brez globalnega pauseTimers. */
@@ -329,8 +352,14 @@ class TabManager(
                 val deli = odgovor.orEmpty().replace("\"", "").split('|')
                 tab.predvaja = deli.firstOrNull() == "1"
                 tab.umazanObrazec = deli.getOrNull(1) == "1"
-                if (tab.predvaja || tab.umazanObrazec) nacrtujZamrznitev(tab, dovoliAktivnega)
-                else zamrzniPogled(tab, w, dovoliAktivnega)
+                // Prej je neoddan obrazec (tudi iskalno polje) odlagal spanje v nedogled; zdaj najvec do roka.
+                val zdaj = android.os.SystemClock.uptimeMillis()
+                val odlozeno = if (tab.odlozenoOd == 0L) 0L else zdaj - tab.odlozenoOd
+                if (SpanjePravila.zaspi(tab.predvaja, tab.umazanObrazec, odlozeno, !jeTv())) zamrzniPogled(tab, w, dovoliAktivnega)
+                else {
+                    if (tab.umazanObrazec && tab.odlozenoOd == 0L) tab.odlozenoOd = zdaj
+                    nacrtujZamrznitev(tab, dovoliAktivnega)
+                }
             }
         } else {
             zamrzniPogled(tab, w, dovoliAktivnega)
@@ -338,7 +367,8 @@ class TabManager(
     }
 
     private fun zamrzniPogled(tab: TabModel, w: ChromiumEngineView, dovoliAktivnega: Boolean = false) {
-        if (tab.webView !== w || (tab.id == activeTabId && !dovoliAktivnega)) return
+        // Zakasnjeno spanje (odgovor strani, odlozen obrazec) aktivnega zavihka ne velja vec, ko je brskalnik spet na zaslonu.
+        if (tab.webView !== w || (tab.id == activeTabId && (!dovoliAktivnega || !vOzadju))) return
         val naslov = (w.url ?: tab.url).trim().ifBlank { tab.url }
         tab.spalniNaslov = naslov
         tab.spalniOdmik = try { w.scrollY } catch (_: Exception) { 0 }
@@ -359,10 +389,14 @@ class TabManager(
         }
         Log.i(TAG, "zamrznjen zavihek: ${naslov.take(60)}")
         Log.i(TAG, "unicen WebView: zamrznjen zavihek")
+        if (zivihPogledov() == 0) try { naVsiSpijo?.invoke() } catch (e: Exception) { Log.w(TAG, "sprostitev po spanju: ${e.message}") }
     }
 
     /** Ob vrnitvi na zaslon: aktivni zavihek, ki je zaspal v ozadju, se nalozi znova. */
     fun zbudiAktivnega() {
+        vOzadju = false
+        for (t in tabs) t.odlozenoOd = 0L   // uporabnik je spet tu: rok obrazca velja od naslednjega odhoda
+        activeTabId?.let { id -> roki.remove(id)?.let(glavna::removeCallbacks) }
         val tab = tabs.find { it.id == activeTabId } ?: return
         if (!tab.spi) return
         val w = zbudi(tab)

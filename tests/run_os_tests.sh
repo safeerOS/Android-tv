@@ -43,6 +43,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/tv/PredajaStrani.kt" \
     "$SRC/si/safeer/tv/cast/ObvestiloZaslona.kt" \
     "$SRC/si/safeer/tv/cast/PoDeljenju.kt" \
+    "$SRC/si/safeer/tv/SpanjePravila.kt" \
     "$SRC/si/safeer/tv/link/PretokKonec.kt" \
     "$SRC/si/safeer/tv/link/DeljenjePravila.kt" \
     "$SRC/si/safeer/tv/link/OmejenoNastavitvePravila.kt" \
@@ -91,6 +92,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/JavnaLastPoizvedbaTest.kt" \
     "$TEST_DIR/ObvestiloZaslonaTest.kt" \
     "$TEST_DIR/PoDeljenjuTest.kt" \
+    "$TEST_DIR/SpanjePravilaTest.kt" \
     "$TEST_DIR/PretokKonecTest.kt" \
     "$TEST_DIR/DeljenjePravilaTest.kt" \
     "$TEST_DIR/DeljenjeVnosNaDaljavoTest.kt" \
@@ -232,6 +234,8 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.IzvirniJezikTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.JavnaLastPoizvedbaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.cast.ObvestiloZaslonaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.cast.PoDeljenjuTestKt
+# Brskalnik po Domov ali izhodu vrne pomnilnik (TV 3. 11. 2026: 270 MB + 65 MB izrisovalnika je ostalo).
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.SpanjePravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.PretokKonecTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.DeljenjePravilaTestKt
 # Pregled 100, N1 in N2 (26. 10. 2026): »Vedno dovoli« ne po vnosu z daljave; znak pred koncem cakanja na odklep.
