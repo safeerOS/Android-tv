@@ -841,6 +841,8 @@ class PredvajanjeActivity : OsActivity() {
     }
 
     companion object {
+        /** Odtis osnove dodatka, ki je nazadnje dal podnapise (samodejno iscemo najprej pri njem). */
+        private const val K_ZADNJI_PODNAPISI = "podnapisi_zadnji_dodatek"
         var instanca: java.lang.ref.WeakReference<PredvajanjeActivity>? = null
         fun zapriCePripravlja() {
             instanca?.get()?.let { 
@@ -1800,23 +1802,56 @@ class PredvajanjeActivity : OsActivity() {
     }
 
     /** Zapomnjen jezik (uporabnik ga je enkrat izbral): ob novem filmu z dodatkom podnapise poiscemo in vklopimo sami. */
+    /** Zunanji pregled 3. 11. 2026: od kdaj je predvajalnik za [pripravljenZa] v STATE_READY (0 = ni). */
+    private var pripravljenOd = 0L
+    private var pripravljenZa = ""
+    /** Najdeni podnapis, ki caka na naslednji premor ([OsPravila.podnapisZdajAliObPremoru]). */
+    private var podnapisObPremoru: Pair<String, Stremio.PodnapisDodatka>? = null
+
     private fun samodejniPodnapisi() {
-        val jezik = Podnapisi.jezikDodatka(this).ifEmpty { return }
         val kljuc = GlasbaStoritev.trenutna()?.id ?: return
+        val p0 = GlasbaStoritev.predvajalnik ?: return
+        // Najden podnapis caka na premor: med predvajanjem nova priprava vira za hip prekine sliko in zvok (MediaTek).
+        podnapisObPremoru?.let { (k, prvi) ->
+            if (k != kljuc) podnapisObPremoru = null
+            else if (OsPravila.podnapisZdajAliObPremoru(p0.isPlaying)) { podnapisObPremoru = null; dodajSamodejno(prvi) }
+        }
+        val jezik = Podnapisi.jezikDodatka(this).ifEmpty { return }
         if (kljuc == podnapisiDodatkaZa) return
+        // Iscemo sele, ko slika tece (STATE_READY vsaj 1 s) - ne med zagonom slike.
+        val zdaj = android.os.SystemClock.uptimeMillis()
+        val pripravljen = p0.playbackState == androidx.media3.common.Player.STATE_READY
+        if (pripravljenZa != kljuc || !pripravljen) { pripravljenZa = kljuc; pripravljenOd = if (pripravljen) zdaj else 0L }
+        if (!OsPravila.podnapisiZdaj(pripravljen, pripravljenOd, zdaj)) {
+            if (pripravljen) glavna.postDelayed({ if (!isFinishing) samodejniPodnapisi() }, OsPravila.PODNAPISI_PO_READY_MS + 50)
+            return
+        }
         val id = idPodnapisov() ?: return
         if (!imaDodatekPodnapisov()) return
         podnapisiDodatkaZa = kljuc
-        val naslovi = dodatkiStremio()
+        // HLS podnapisov iz dodatka ne sprejme: dodatkov ne sprasujemo (gumb podnapisov to pove).
+        if (GlasbaStoritev.jeHls()) { android.util.Log.i("SafeerOsMedia", "podnapisi iz dodatkov: tok HLS, ne iscemo"); return }
+        val prefs = getSharedPreferences("safeer_mediji", MODE_PRIVATE)
+        val naslovi = OsPravila.dodatkiZaPodnapise(dodatkiStremio(), prefs.getString(K_ZADNJI_PODNAPISI, "").orEmpty()) { SkrivnostiPravila.odtis(Stremio.osnova(it)) }
         delavec.execute {
             val prvi = (try { Stremio.podnapisi(naslovi, id.first, id.second) } catch (_: Exception) { emptyList() }).firstOrNull { it.jezik == jezik }
-            android.util.Log.i("SafeerOsMedia", "podnapisi iz dodatkov samodejno ($jezik): ${if (prvi != null) "najdeni" else "ni"} za ${id.first}/${id.second}")
+            android.util.Log.i("SafeerOsMedia", "podnapisi iz dodatkov samodejno ($jezik, dodatkov ${naslovi.size}): ${if (prvi != null) "najdeni" else "ni"} za ${id.first}/${id.second}")
             if (prvi != null) runOnUiThread {
                 if (isFinishing || GlasbaStoritev.trenutna()?.id != kljuc) return@runOnUiThread
+                if (prvi.osnova.isNotEmpty()) prefs.edit().putString(K_ZADNJI_PODNAPISI, SkrivnostiPravila.odtis(prvi.osnova)).apply()
                 val p = GlasbaStoritev.predvajalnik ?: return@runOnUiThread
-                if (GlasbaStoritev.dodajPodnapise(listOf(Podnapisi.izDodatka(this, prvi)))) Podnapisi.vklopiJezik(this, p, jezik)
+                if (OsPravila.podnapisZdajAliObPremoru(p.isPlaying)) dodajSamodejno(prvi)
+                else {
+                    podnapisObPremoru = kljuc to prvi
+                    android.widget.Toast.makeText(this, R.string.podnapisi_ob_premoru, android.widget.Toast.LENGTH_SHORT).show()
+                }
             }
         }
+    }
+
+    private fun dodajSamodejno(prvi: Stremio.PodnapisDodatka) {
+        val p = GlasbaStoritev.predvajalnik ?: return
+        if (GlasbaStoritev.dodajPodnapise(listOf(Podnapisi.izDodatka(this, prvi)))) Podnapisi.vklopiJezik(this, p, prvi.jezik)
     }
 
     // ------------------------------------------------------------------ besedilo pesmi (naloga 89)
@@ -1957,6 +1992,8 @@ class PredvajanjeActivity : OsActivity() {
         val ima = jeVideo() && (Podnapisi.imaPodnapise(GlasbaStoritev.predvajalnik) || imaDodatekPodnapisov())
         GlasbaStoritev.predvajalnik?.let { p -> android.util.Log.d("SafeerPodnapisi", "Posnetki: " + Podnapisi.posnetki(p).joinToString { (g, i) -> "${g.getTrackFormat(i).sampleMimeType}/${g.getTrackFormat(i).language}/${g.isTrackSelected(i)}" }) }
         gumbPodnapisi?.visibility = if (ima) View.VISIBLE else View.GONE
+        // Zunanji pregled 3. 11. 2026: pri toku HLS gumb pove, da podnapisov iz dodatka ni mogoce dodati (prej tiho).
+        gumbPodnapisi?.contentDescription = getString(if (GlasbaStoritev.jeHls() && imaDodatekPodnapisov()) R.string.podnapisi_ne_gre else R.string.podnapisi_naslov)
         gumbZvok?.visibility = if (ZvocneSledi.imaIzbiro(GlasbaStoritev.predvajalnik)) View.VISIBLE else View.GONE
         gumbPip?.visibility = if (jeVideo() && pipMogoc()) View.VISIBLE else View.GONE
         gumbZaklep?.visibility = if (jeVideo()) View.VISIBLE else View.GONE

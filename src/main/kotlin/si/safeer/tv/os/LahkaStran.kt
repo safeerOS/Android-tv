@@ -216,6 +216,8 @@ class LahkaStran private constructor(
                 mediaPlaybackRequiresUserGesture = false
                 userAgentString = ChromiumEngineView.MOBILE_USER_AGENT
                 if (Build.VERSION.SDK_INT >= 23) offscreenPreRaster = false
+                // Pregled 3. 11. 2026: nevidno branje ne nalaga slik (pool pogled ob ponovni rabi nastavitev dobi znova).
+                blockNetworkImage = neviden
             }
             view.isFocusable = !neviden
             if (neviden) {

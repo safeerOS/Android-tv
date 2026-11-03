@@ -83,6 +83,9 @@ fun main() {
             pot.startsWith("/glave/k") -> odgovori(x, 206, "x".repeat(2048))
             pot == "/drm.m3u8" -> odgovori(x, 200, "#EXTM3U\n#EXT-X-KEY:METHOD=SAMPLE-AES-CTR,URI=\"data:text/plain;base64,AA\",KEYFORMAT=\"urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed\"\n#EXTINF:6,\na.mp4\n")
             pot == "/stran" -> odgovori(x, 200, "<html><body>prijava</body></html>")
+            pot == "/prijava" -> odgovori(x, 200, "<!DOCTYPE html><html><body>Login to continue</body></html>", mapOf("Content-Type" to "text/html; charset=utf-8"))
+            pot == "/json" -> odgovori(x, 200, "{\"error\":\"subscription required\"}", mapOf("Content-Type" to "application/json"))
+            pot == "/ts" -> odgovori(x, 200, String(CharArray(376) { 0x47.toChar() }), mapOf("Content-Type" to "video/mp2t"))
             else -> odgovori(x, 404, "")
         }
     }
@@ -117,7 +120,11 @@ fun main() {
     preveriEnako("N4: glave za vsako zahtevo - ziv", Z, sonda("/glave/index.m3u8", glave = mapOf("X-Preizkus" to "1")).first)
     preveriEnako("N4: brez glave - mrtev (403)", M, sonda("/glave/index.m3u8").first)
     preveriEnako("DRM - mrtev", M, sonda("/drm.m3u8").first)
-    preveriEnako("2xx, ni seznam (stran) - ziv kot doslej", Z, sonda("/stran").first)
+    // Zunanji pregled 3. 11. 2026: 200 s stranjo ali JSON ni medij (prej »ziv«).
+    preveriEnako("2xx, stran HTML brez vrste - ni medij", M, sonda("/stran").first)
+    preveriEnako("2xx, prijava text/html - ni medij", M, sonda("/prijava").first)
+    preveriEnako("2xx, JSON narocnine - ni medij", M, sonda("/json").first)
+    preveriEnako("2xx, MPEG-TS - ziv", Z, sonda("/ts").first)
     preveriEnako("404 prvega naslova - mrtev", M, sonda("/ni-ga").first)
     preveriEnako("ni http - ne vemo", X, SondaVeriga.preveri("rtmp://a/b", { emptyMap() }, izIzjeme).first)
 

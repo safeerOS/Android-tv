@@ -99,9 +99,23 @@ object PregledKanalov {
      * Ostali ostanejo vidni - o njih odloci pravo predvajanje.
      */
     fun smeSonda(c: Context, sk: Jamendo.Skladba): Boolean {
-        if (IptvSeznami.jeKanal(sk)) return IptvPravila.preverbaDovoljena(sk.streznik, sk.zvok)
+        // Lastnik 3. 11. 2026: tudi seznam, ki ni ne racun ne znan javni, se preveri (racun nikoli).
+        if (IptvSeznami.jeKanal(sk)) return IptvPravila.preverbaDovoljena(sk.streznik, sk.zvok) || KanaliPravila.smeSondaSeznama(
+            KanaliPravila.vrstaIptv(IptvPravila.jeVirSPoverilnico(sk.streznik, seznam = true), IptvPravila.javniBrezplacni(sk.streznik)),
+            IptvPravila.jeVirSPoverilnico(sk.zvok, seznam = false))
         val dodatek = Stremio.razstavi(sk)?.first ?: return false
         return IptvPravila.javniDodatek(dodatek) && !jeDodatekSPoverilnico(c, dodatek)
+    }
+
+    /**
+     * Zunanji pregled 3. 11. 2026: mreza TV v zivo sme v ozadju vprasati samo JSON tokov dodatka (/stream/...json) - to ni
+     * odpiranje toka pri ponudniku. Nikoli dodatek s poverilnico (kljuc debrida, Usenet, zeton, Xtream v naslovu ali
+     * nauceno, da daje tokove z racunom): vsak klic takega dodatka gre na uporabnikov racun.
+     */
+    fun smeVprasatiTokove(c: Context, sk: Jamendo.Skladba): Boolean {
+        if (IptvSeznami.jeKanal(sk) || !Stremio.jeEnota(sk) || !Stremio.dajeLastneTokove(sk)) return false
+        val dodatek = Stremio.razstavi(sk)?.first ?: return false
+        return KanaliPravila.smeVprasatiTokove(IptvPravila.dodatekSPoverilnico(dodatek), jeDodatekSPoverilnico(c, dodatek), GlasbaStoritev.igra())
     }
 
     private fun dodatkiSPoverilnico(c: Context): Set<String> = sPoverilnico ?: try {
@@ -178,7 +192,17 @@ object PregledKanalov {
     fun preveri(c: Context, sk: Jamendo.Skladba): Pair<Boolean?, Boolean> {
         val app = c.applicationContext
         // Lastnik, 26. 10. 2026: tok vira z racunom se v ozadju ne odpre nikoli ([smeSonda]); kanal ostane viden.
-        if (!smeSonda(app, sk)) return null to true
+        // Zunanji pregled 3. 11. 2026: dodatek brez poverilnice smemo vprasati za JSON tokov (brez odpiranja toka).
+        if (!smeSonda(app, sk)) {
+            if (!smeVprasatiTokove(app, sk)) return null to true
+            val izid = try { Stremio.imaLastenTok(sk, null) } catch (_: Exception) { null }
+            when (izid) {
+                true -> MrtviKanali.zapomniZivega(app, sk.id)
+                false -> MrtviKanali.zapomni(app, sk.id, NedelujocePravila.NI_TOKA, sk.naslov)
+                null -> { }
+            }
+            return izid to (izid != null)
+        }
         // Lastnik, 26. 10. 2026: med predvajanjem preverba stoji (racun z 1-2 povezavama, omrezje je za predvajanje).
         if (GlasbaStoritev.igra()) return null to true
         // Naloga 80: kanal seznama IPTV nima dodatka - vprasamo samo streznik toka (skozi vrata gostitelja).

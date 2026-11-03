@@ -25,6 +25,19 @@ object SondaHlsPravila {
     /** Ali je besedilo seznam HLS (#EXTM3U na zacetku; oznaka BOM in presledki ne motijo). */
     fun jeSeznam(besedilo: String): Boolean = besedilo.trimStart('\uFEFF', ' ', '\r', '\n', '\t').startsWith("#EXTM3U")
 
+    /**
+     * Zunanji pregled 3. 11. 2026 (placljivi kanali): odgovor 200, ki ni medij - stran HTML (prijava, preusmeritev na
+     * narocnino) ali JSON - ni ziv tok. Po vrsti vsebine (Content-Type) in prvih bajtih; seznam DASH (<MPD) je medij.
+     */
+    fun niMedij(vrstaVsebine: String?, zacetek: String): Boolean {
+        val v = vrstaVsebine.orEmpty().lowercase(java.util.Locale.ROOT).substringBefore(';').trim()
+        val z = zacetek.trimStart('\uFEFF', ' ', '\r', '\n', '\t').take(256).lowercase(java.util.Locale.ROOT)
+        if ("<mpd" in z) return false
+        if (v == "text/html" || v == "application/xhtml+xml" || v == "application/json" || v == "text/json") return true
+        return z.startsWith("<!doctype html") || z.startsWith("<html") || z.startsWith("<head") || z.startsWith("<body") ||
+            (z.startsWith("<?xml") && "<html" in z)
+    }
+
     /** Glavni seznam (nasteva razlicice) - ne seznam kosov. */
     fun jeGlavni(besedilo: String): Boolean = vrstice(besedilo, false).any { it.startsWith("#EXT-X-STREAM-INF") }
 

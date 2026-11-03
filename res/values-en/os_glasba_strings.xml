@@ -450,4 +450,5 @@
     <string name="os_nedel_preveri_znova">Check again</string>
     <string name="os_nedel_ni_drugega">No other video found</string>
     <string name="os_nedel_nov_posnetek">Another video found</string>
+    <string name="os_media_oznaka_video">▶ Video</string>
 </resources>

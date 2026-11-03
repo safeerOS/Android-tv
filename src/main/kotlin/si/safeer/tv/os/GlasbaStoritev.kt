@@ -239,7 +239,8 @@ class GlasbaStoritev : Service() {
                 if (isPlaying) PregledKanalov.ustavi("predvajanje")
                 // Naloga 64: nas predvajalnik igra - WebView-ji, ki so iskali tok, in njihov izrisovalnik (~178 MB) niso vec
                 // potrebni. Spletno predvajanje (stopnja 2/3) obdrzi svojega.
-                if (isPlaying) LahkiWebViewPool.obNativnemPredvajanju(spletni != null)
+                // Zunanji pregled 3. 11. 2026: pogled poola ostane samo, ce v njem igra stran (LahkaStran); polni pogon ima svoj.
+                if (isPlaying) LahkiWebViewPool.obNativnemPredvajanju(spletni is LahkaStran)
                 // Merjenje cakanja pred zacetkom (torrent prek pomocnika): od dotika do prve slike.
                 if (isPlaying && merimOd != 0L) { Log.i("SafeerTorrentCas", "predvajanje tece po ${android.os.SystemClock.uptimeMillis() - merimOd} ms"); merimOd = 0L }
                 osvezi()
@@ -306,7 +307,7 @@ class GlasbaStoritev : Service() {
                 // Lastnik 27. 10. 2026 13:48: YouTube je zavrnil tok (403) - skladba gre na spletno stran, ne naslednja.
                 val vVrsti = spletnaVrsta.getOrNull(spletniIndeks)
                 if (vVrsti != null && enota?.id == vVrsti.id &&
-                    YoutubeVrstaPravila.tokZavrnjen(httpKoda(error), YoutubeZvok.jeYoutube(vVrsti), vVrsti.video)) {
+                    YoutubeVrstaPravila.tokZavrnjen(httpKoda(error), YoutubeZvok.jeYoutube(vVrsti))) {
                     Log.i("SafeerOsMedia", "youtube: tok zavrnjen (http=${httpKoda(error)}), spletna stran")
                     YoutubeZvok.tokZavrnjen(vVrsti)
                     zacniSplet(vVrsti.copy(zvok = "", mime = ""), true)
@@ -644,7 +645,7 @@ class GlasbaStoritev : Service() {
      */
     private fun zacniEnoto(sk: Jamendo.Skladba, moj: Int) {
         val spletna = sk.copy(zvok = "", mime = "")
-        if (YoutubeVrstaPravila.pot(YoutubeZvok.jeYoutube(sk), Zvocniki.aktivni != null, YoutubeZvok.znanoNe(sk)) != YoutubeVrstaPravila.Pot.MEDIA3_ZVOK ||
+        if (YoutubeVrstaPravila.pot(YoutubeZvok.jeYoutube(sk), sk.video, Zvocniki.aktivni != null, YoutubeZvok.znanoNe(sk)) != YoutubeVrstaPravila.Pot.MEDIA3_ZVOK ||
             // Cela skladba na USB (naloga 89) ima prednost - zacniSplet jo igra brez omrezja.
             (!sk.video && !sk.radio && PredpomnilnikZvoka.celota(spletna) != null)) {
             zacniSplet(spletna, true); return
@@ -1206,6 +1207,9 @@ class GlasbaStoritev : Service() {
     }
 
     private fun zacniPolniSplet(sk: Jamendo.Skladba, zapomni: Boolean = false) {
+        // Zunanji pregled 3. 11. 2026: v procesu najvec en WebView - prost pogled poola (npr. pravkar vrnjen iz LahkaStran)
+        // unicimo takoj, ne sele cez 5 s, preden nastane ChromiumEngineView.
+        LahkiWebViewPool.predPolnimPogonom()
         val s = SpletniIgralec(this, sk) {
             android.util.Log.i("SafeerOsMedia", "stopnja=3 uspeh=ChromiumEngineView")
             if (zapomni) zapomniPolniPogon(sk)
@@ -1237,6 +1241,8 @@ class GlasbaStoritev : Service() {
             override fun onPlaybackStateChanged(playbackState: Int) { if (playbackState == Player.STATE_ENDED) poKoncu() else osvezi() }
         })
         spletni = s
+        // Med predvajanjem strani v polnem pogonu nevidno branje ne najema drugega WebView-ja (pregled 3. 11. 2026).
+        LahkiWebViewPool.polniPogonIgra = s !is LahkaStran
         spletniId = sk.id
         s.vVrsti = spletnaVrsta.size > 1
         SpletniIgralec.zadnja?.get()?.let { s.gostuj(it) }
@@ -1266,7 +1272,7 @@ class GlasbaStoritev : Service() {
         }
     }
 
-    private fun koncajSplet() { spletni?.release(); spletni = null }
+    private fun koncajSplet() { spletni?.release(); spletni = null; LahkiWebViewPool.polniPogonIgra = false }
 
     /**
      * Naloga 72: podnapisi iz dodatka k posnetku, ki ze igra - isti tok (z istimi glavami) z dodanimi podnapisi na istem
@@ -1783,6 +1789,13 @@ class GlasbaStoritev : Service() {
 
         /** Naloga 72: podnapisi iz dodatka k posnetku, ki igra (glej [dodajPodnapiseVTok]). Klic z glavne niti. */
         fun dodajPodnapise(novi: List<Podnapisi.Podnapis>): Boolean = primerek?.dodajPodnapiseVTok(novi) ?: false
+
+        /** Zunanji pregled 3. 11. 2026: trenutni tok je HLS - podnapisov iz dodatka mu ne moremo dodati (HlsMediaSource). */
+        fun jeHls(): Boolean = primerek?.let { st ->
+            val p = st.exo ?: return@let false
+            val sk = vrsta.getOrNull(p.currentMediaItemIndex) ?: return@let false
+            androidx.media3.common.util.Util.inferContentTypeForUriAndMimeType(android.net.Uri.parse(sk.zvok), sk.mime.ifBlank { null }) == C.CONTENT_TYPE_HLS
+        } ?: false
 
         /** Ves seznam, ki se predvaja (za "v vrsti" na zaslonu predvajanja). */
         fun vrsta(): List<Jamendo.Skladba> = if (predvajalnik == null) emptyList() else vrsta

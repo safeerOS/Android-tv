@@ -407,7 +407,10 @@ object OsPravila {
      * Zaklep po odgovoru dodatka za en kanal: [vnosov] vnosov v `streams`, od tega [predvajljivih] predvajljivih. Predvajljiv
      * tok pobrise vse; prazen odgovor (kanal nima toka) ne pove nic o dodatku; samo obvestila stejejo.
      */
-    fun poOdgovoruTokov(z: Zaklep, vnosov: Int, predvajljivih: Int, zdaj: Long): Zaklep = when {
+    // Zunanji pregled 3. 11. 2026: en predvajljiv tok ne pobrise zaklepa, ce so drugi vnosi istega odgovora placilni zid
+    // ([placilnih]) - tak dodatek je se vedno placljiv za vecino kanalov.
+    fun poOdgovoruTokov(z: Zaklep, vnosov: Int, predvajljivih: Int, zdaj: Long, placilnih: Int = 0): Zaklep = when {
+        predvajljivih > 0 && placilnih > 0 -> z
         predvajljivih > 0 -> Zaklep()
         vnosov <= 0 -> z
         else -> {
@@ -1694,8 +1697,131 @@ object OsPravila {
      * Naloga 83: filter jezika mreze Music. [jezikVnosa] = oznaka ([JezikiVsebine.oznaka]) ali prazno. Vnos dodatka brez
      * oznake jezika (koncert iz Music Concerts) ostane - prej ga je izbran jezik vedno skril.
      */
-    fun jezikGlasbeUstreza(jezikVnosa: String, izbran: String, izDodatka: Boolean): Boolean =
-        izbran.isEmpty() || jezikVnosa == izbran || (izDodatka && jezikVnosa.isEmpty())
+    // Zunanji pregled Glasbe 3. 11. 2026: vnos brez oznake jezika se ob izbranem jeziku skrije - izjema je samo kartica
+    // dodatka, ki je res koncert in tako oznacena ([koncert], [jeKoncert]); prej je ostal vsak vnos dodatka brez jezika.
+    fun jezikGlasbeUstreza(jezikVnosa: String, izbran: String, koncert: Boolean): Boolean =
+        izbran.isEmpty() || jezikVnosa == izbran || (koncert && jezikVnosa.isEmpty())
+
+    private val RX_KONCERT = Regex("(?i)\\b(concerts?|koncert\\w*|konzert\\w*|concierto|concerto|live (at|in)|unplugged)\\b")
+
+    /** Kartica je oznacena kot koncert: video dodatka z zvrstjo ali naslovom koncerta. */
+    fun jeKoncert(video: Boolean, izDodatka: Boolean, zvrsti: List<String>, naslov: String): Boolean =
+        video && izDodatka && (zvrsti.any { RX_KONCERT.containsMatchIn(it) } || RX_KONCERT.containsMatchIn(naslov))
+
+    /**
+     * Zunanji pregled Glasbe 3. 11. 2026: ena odlocitev za Glasbo (priljubljene in police seznamov): zvok, ki ni radio, in
+     * posnetki YouTube (video s sliko) - prej so priljubljene zavrgle vsak video, uvozen YouTube seznam samih posnetkov pa je sel v Glasbo.
+     */
+    fun zaGlasbo(video: Boolean, radio: Boolean, youtube: Boolean): Boolean = !radio && (!video || youtube)
+
+    /**
+     * Lastnik 3. 11. 2026 (»Na tej napravi« v Glasbi: DA): glasba z diska in USB prek KrajevneDatoteke ima samostojni
+     * Predvajalnik in tudi Safeer OS na TV (prej je bil USB samo v Datotekah).
+     */
+    fun glasbaNaTejNapravi(okus: String): Boolean = okus == "predvajalnik" || okus == "os"
+
+    /**
+     * Zunanji pregled Glasbe 3. 11. 2026: videospoti in koncerti (video, videospot spletnega vira) so v Glasbi svoja video
+     * vrsta s sliko nad zvocno mrezo; zvocna mreza je samo za vnose z zvokom.
+     */
+    fun vVideoVrsto(video: Boolean, videospot: Boolean): Boolean = video || videospot
+
+    /** Vrstni red strani Jamenda: »Najnovejse« po datumu izida, sicer po priljubljenosti. */
+    fun redJamenda(najnovejse: Boolean): String = if (najnovejse) "releasedate_desc" else "popularity_total"
+
+    // ------------------------------------------------------------------ zunanji pregled Video 3. 11. 2026 (obremenitev TV)
+
+    /**
+     * Mreza filmov (odpriBrskanje) po katalogih ne vprasa celega razdelka Video drugic (PeerTube, javna last, spletni
+     * viri s skritim WebView) - to je delo zavihka Zate. Vedno false; [popolne] ostane za berljivost klica.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    fun brskanjeVprasaRazdelek(popolne: Boolean): Boolean = false
+
+    /** Toliko IMDb id-jev mreza vprasa Wikidata za jezik ob enem izrisu (zaslon plakatov na TV in vrsta rezerve). */
+    const val WIKIDATA_NAJVEC = 48
+
+    fun zaWikidata(imdb: List<String>, najvec: Int = WIKIDATA_NAJVEC): List<String> = imdb.distinct().take(najvec.coerceAtLeast(0))
+
+    /** Prvi izris mreze filmov z diska: najvec [enZaslon] kartic (zaslon plakatov in vrsta rezerve). */
+    fun prviIzrisZDiska(zDiska: Int, enZaslon: Int): Int = minOf(zDiska, enZaslon.coerceAtLeast(1))
+
+    /**
+     * Zunanji pregled Video 3. 11. 2026: klik na film iz dodatka najprej vprasa samo dodatek, ki ga je nasel; ostale
+     * sele, ce ta ne vrne predvajljivega toka. Z Usenetom ali debridom ostane vzporedno vprasanje vseh (najboljsi tok
+     * izmed vseh, pregled A8 »Usenet prvi«) - meje za racune ostanejo, kot so.
+     */
+    fun najprejEnDodatek(znanDodatek: Boolean, usenet: Boolean, debrid: Boolean): Boolean = znanDodatek && !usenet && !debrid
+
+    /** Najvec hkratnih preverjanj mreze filmov (prej 12 - ob odprtju razdelka je bil TV preobremenjen). */
+    const val MREZA_HKRATI = 3
+
+    /** Toliko ms po zadnji tipki daljinca mreza ne preverja (drsenje se se ni ustavilo). */
+    const val MREZA_MIR_MS = 600L
+
+    /**
+     * Preverjanje mreze filmov sme teci: uporabnik ni kliknil filma (takrat razresiStremio sam vprasa tokove, meta, debrid,
+     * Usenet - mreza mu ne jemlje omrezja) in drsenje se je ustavilo.
+     */
+    fun smemPreverjatiMrezo(klikNaFilm: Boolean, odZadnjeTipkeMs: Long): Boolean = !klikNaFilm && odZadnjeTipkeMs >= MREZA_MIR_MS
+
+    /** Niti za plakate: na TV 2 (2 GB, OOM pri vzporednem dekodiranju 28. 10. 2026), drugje 4. */
+    fun nitiSlik(televizor: Boolean): Int = if (televizor) 2 else 4
+
+    // ------------------------------------------------------------------ zunanji pregled podnapisov 3. 11. 2026
+
+    /** Toliko ms mora predvajalnik biti v STATE_READY, preden samodejno iscemo podnapise (ne med zagonom slike). */
+    const val PODNAPISI_PO_READY_MS = 1_000L
+
+    fun podnapisiZdaj(pripravljen: Boolean, pripravljenOdMs: Long, zdajMs: Long): Boolean =
+        pripravljen && pripravljenOdMs > 0L && zdajMs - pripravljenOdMs >= PODNAPISI_PO_READY_MS
+
+    /** Samodejno vprasamo samo dodatek, ki je nazadnje zadel (po odtisu osnove); neznan ali odstranjen: vse. */
+    fun dodatkiZaPodnapise(naslovi: List<String>, zadnjiOdtis: String, odtis: (String) -> String): List<String> =
+        naslovi.filter { zadnjiOdtis.isNotEmpty() && odtis(it) == zadnjiOdtis }.ifEmpty { naslovi }
+
+    /**
+     * Podnapis dodamo k toku z novim virom (Media3: SubtitleConfiguration velja samo ob pripravi) - na MediaTeku to za hip
+     * prekine sliko in zvok, zato samodejno samo med premorom; med predvajanjem pocaka na naslednji premor.
+     */
+    fun podnapisZdajAliObPremoru(igra: Boolean): Boolean = !igra
+
+    // ------------------------------------------------------------------ zunanji pregled iskalne vrstice 3. 11. 2026
+
+    enum class TipkaIskanja { ISCI, TIPKOVNICA, FOKUS_ZADETKI, ZAPRI_TIPKOVNICO, ZAPUSTI }
+
+    /**
+     * OK ali Enter v iskalnem polju Medijskega centra: z vsaj dvema crkama isce (IME_ACTION_SEARCH na TV ne pride), sicer
+     * odpre tipkovnico. Prej je OK vedno samo odprl tipkovnico.
+     */
+    fun okIskanja(besedilo: String): TipkaIskanja = if (besedilo.trim().length >= 2) TipkaIskanja.ISCI else TipkaIskanja.TIPKOVNICA
+
+    /** DOL: nova beseda najprej isce (fokus na prvi zadetek, ko pridejo zadetki te besede); ze najdena gre na zadetke. */
+    fun dolIskanja(besedilo: String, zadetkiZa: String?): TipkaIskanja {
+        val q = besedilo.trim()
+        return if (q.length >= 2 && q != zadetkiZa) TipkaIskanja.ISCI else TipkaIskanja.FOKUS_ZADETKI
+    }
+
+    /**
+     * Nazaj v iskanju: vidna tipkovnica se zapre, sicer uporabnik zapusti iskanje. [tipkovnicaVidna] iz WindowInsets (ime) -
+     * hideSoftInputFromWindow na TV vrne true tudi brez vidne tipkovnice (prej je Nazaj ostal v iskanju).
+     */
+    fun nazajIskanja(tipkovnicaVidna: Boolean): TipkaIskanja = if (tipkovnicaVidna) TipkaIskanja.ZAPRI_TIPKOVNICO else TipkaIskanja.ZAPUSTI
+
+    /**
+     * Zunanji pregled Glasbe 3. 11. 2026: klik na skladbo da v vrsto samo kartice z zvokom (prej vse kartice zaslona, tudi
+     * vnose dodatkov brez zvoka). Vrne indekse vrste in polozaj kliknjene v njej; kliknjena je vedno v vrsti.
+     */
+    // Album dodatka Stremio kot vrsta ni narejen: protokol skladb albuma ne nasteje kot posnetkov (meta.videos) z lastnimi
+    // tokovi - vsako skladbo bi bilo treba vprasati posebej (dodatne zahteve na dodatek), zato klik predvaja en naslov.
+    fun vrstaZZvokom(n: Int, klik: Int, zZvokom: (Int) -> Boolean, istiIzvajalec: (Int) -> Boolean = { false }): Pair<List<Int>, Int> {
+        // Prednost ima isti izvajalec (kot odIzvajalca): njegove skladbe z zaslona so v vrsti najprej, nato ostale.
+        val zZvokomVsi = (0 until n).filter { it == klik || zZvokom(it) }
+        // Brez drugih skladb istega izvajalca ostane vrstni red zaslona.
+        val izbrani = if (zZvokomVsi.none { it != klik && istiIzvajalec(it) }) zZvokomVsi
+            else zZvokomVsi.filter { it == klik || istiIzvajalec(it) } + zZvokomVsi.filterNot { it == klik || istiIzvajalec(it) }
+        return izbrani to izbrani.indexOf(klik).coerceAtLeast(0)
+    }
 
     // ------------------------------------------------------------------ naloga 84: Radio hitro
 

@@ -52,7 +52,8 @@ object SondaVeriga {
 
     private enum class Nacin { PRVI, SEZNAM, KOS }
 
-    private class Odgovor(val koda: Int, val naslov: String, val telo: String?, val prirezano: Boolean, val preusmeritev: Int) {
+    private class Odgovor(val koda: Int, val naslov: String, val telo: String?, val prirezano: Boolean, val preusmeritev: Int,
+                          val niMedij: Boolean = false) {
         val izid: OsPravila.IzidSonde get() = if (koda <= 0) OsPravila.IzidSonde.NEZNANO else OsPravila.izidPoOdgovoru(koda)
         val opis: String get() = when (koda) { -1 -> "preusmeritev brez cilja"; -2 -> "prevec preusmeritev"; else -> "HTTP $koda" }
     }
@@ -68,6 +69,8 @@ object SondaVeriga {
         val rokDo = n.ura() + n.rokMs
         var zadnji = ""
         var korak = ""
+        /** Prvi bajti zadnjega odgovora, ki ni seznam HLS (preverba »ni medij«). */
+        var zacetek = ""
         fun preostanek() = rokDo - n.ura()
         private val naslovi = ConcurrentHashMap<String, List<InetAddress>>()
 
@@ -156,6 +159,8 @@ object SondaVeriga {
         try {
             val prvi = zahteva(s, naslov, Nacin.PRVI)
             if (prvi.koda !in 200..299) return prvi.izid to "${prvi.opis} po ${prvi.preusmeritev} preusmeritvah"
+            // Zunanji pregled 3. 11. 2026: 200 s stranjo HTML (prijava, narocnina) ali JSON ni ziv tok.
+            if (prvi.niMedij) return OsPravila.IzidSonde.MRTEV to "${prvi.opis}, ni medij (stran ali JSON)"
             // Ni seznam HLS (surov tok, MPEG-TS, MP4) ali telo ni prislo v roku (S2): odgovor 2xx je dovolj, kot doslej.
             val telo = prvi.telo ?: return OsPravila.IzidSonde.ZIV to "${prvi.opis} po ${prvi.preusmeritev} preusmeritvah"
             if (!SondaHlsPravila.jeGlavni(telo)) return seznamKosov(s, telo, prvi.naslov, prvi.prirezano).let { it.izid to it.razlog }
@@ -247,13 +252,16 @@ object SondaVeriga {
                     val koda = o.code
                     if (koda !in 300..399) {
                         if (nacin == Nacin.KOS || koda !in 200..299) return Odgovor(koda, url, null, false, korak)
-                        val vhod = o.body?.byteStream() ?: return Odgovor(koda, url, null, false, korak)
+                        val vrsta = o.header("Content-Type")
+                        val vhod = o.body?.byteStream() ?: return Odgovor(koda, url, null, false, korak, nacin == Nacin.PRVI && SondaHlsPravila.niMedij(vrsta, ""))
+                        s.zacetek = ""
                         val telo = try { beriSeznam(s, vhod) }
                         // Seznam HLS se je zacel in prekinil (kapljanje, S3): rok = ne vemo, napaka povezave po klicatelju.
                         catch (e: PrekinjenSeznam) { throw e.vzrok }
                         // S2: prvi odgovor 2xx je ziv tudi, ce telo pocasi ali sploh ne pride (surov tok); pri razlicici ne.
                         catch (e: IOException) { if (nacin == Nacin.PRVI) null else throw e }
-                        return Odgovor(koda, url, telo?.first, telo?.second == true, korak)
+                        return Odgovor(koda, url, telo?.first, telo?.second == true, korak,
+                            nacin == Nacin.PRVI && telo == null && SondaHlsPravila.niMedij(vrsta, s.zacetek))
                     }
                     val naprej = o.header("Location").orEmpty()
                     if (naprej.isBlank()) return Odgovor(-1, url, null, false, korak)
@@ -289,10 +297,11 @@ object SondaVeriga {
                 zacetekPreverjen = true
                 val zacetek = String(buf.toByteArray(), 0, minOf(buf.size(), 64), Charsets.UTF_8)
                 // Surov tok (MPEG-TS, MP4, zvok) ne bere naprej: dovolj je, da streznik odgovori.
-                if (!SondaHlsPravila.jeSeznam(zacetek)) return null
+                if (!SondaHlsPravila.jeSeznam(zacetek)) { s.zacetek = zacetek; return null }
             }
         }
         val besedilo = buf.toString("UTF-8")
+        if (!SondaHlsPravila.jeSeznam(besedilo)) s.zacetek = besedilo.take(64)
         return if (SondaHlsPravila.jeSeznam(besedilo)) besedilo to prirezano else null
     }
 }
