@@ -95,6 +95,24 @@ object MiniPredvajalnikPravila {
     /** Klik na naslov v docku: video v celozaslonski predvajalnik, glasba v Medijski center. */
     fun klikNaslova(video: Boolean): String = if (video) ODPRI_PREDVAJALNIK else ODPRI_MEDIJE
 
+    const val TIPKA_PLAY = "play"
+    const val TIPKA_PREKLOPI = "preklopi"
+
+    /**
+     * Zunanji pregled 3. 11. 2026 (Philips, Android 11, MediaTek): tipka Predvajaj (ali Predvajaj/Pavza na pavzi) na
+     * domacem zaslonu je video te naprave zagnala brez zaslona predvajanja - dekoder brez povrsine, zvok brez slike. Video
+     * na pavzi zato odpre celozaslonski predvajalnik, ki predvaja sele po pripeti povrsini; vse drugo kot doslej.
+     */
+    fun tipkaNaDomu(tipka: String, video: Boolean, igra: Boolean, naZvocniku: Boolean, zaslonOdprt: Boolean): String =
+        if (video && !igra && !naZvocniku && !zaslonOdprt && (tipka == TIPKA_PLAY || tipka == TIPKA_PREKLOPI)) ODPRI_PREDVAJALNIK
+        else PREKLOPI_ZVOK
+
+    /**
+     * Zunanji pregled 3. 11. 2026: onStop domacega zaslona ustavi casovnik samodejnega skrivanja, onResume ga ni zagnal -
+     * odprt dock po vrnitvi na dom ni nikoli vec izginil. Odprt in viden dock brez casovnika ga dobi znova.
+     */
+    fun znovaSkrivanje(odprt: Boolean, viden: Boolean, casovnikTece: Boolean): Boolean = odprt && viden && !casovnikTece
+
     /**
      * Vodja 27. 10. 2026 (TV beta 14): na zaslonu z lastno vrstico ob robu (Pokrajina: spodnja vrstica) dock ne sme lezati
      * cez njo - dodaten odmik na strani, kjer je dock. Zgoraj nic (tam sta ura in lupa, dock ZGORAJ izbere uporabnik).

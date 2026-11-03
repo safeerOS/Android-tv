@@ -118,6 +118,20 @@ fun main() {
     preveriEnako("druga naprava ima prednost pred zvocnikom", MiniPredvajalnikPravila.GLASNOST_DRUGA, MiniPredvajalnikPravila.ciljGlasnosti(true, true))
     preveriEnako("korak druge naprave", 5, MiniPredvajalnikPravila.KORAK_DRUGA)
 
+    // Zunanji pregled 3. 11. 2026: tipka Predvajaj na domu pri videu odpre cel zaslon; dock se po vrnitvi spet skrije.
+    run {
+        val P = MiniPredvajalnikPravila
+        check(P.tipkaNaDomu(P.TIPKA_PLAY, video = true, igra = false, naZvocniku = false, zaslonOdprt = false) == P.ODPRI_PREDVAJALNIK) { "play pri filmu na pavzi" }
+        check(P.tipkaNaDomu(P.TIPKA_PREKLOPI, video = true, igra = false, naZvocniku = false, zaslonOdprt = false) == P.ODPRI_PREDVAJALNIK) { "play/pavza pri filmu na pavzi" }
+        check(P.tipkaNaDomu(P.TIPKA_PREKLOPI, video = true, igra = true, naZvocniku = false, zaslonOdprt = false) == P.PREKLOPI_ZVOK) { "film igra: pavza" }
+        check(P.tipkaNaDomu(P.TIPKA_PLAY, video = false, igra = false, naZvocniku = false, zaslonOdprt = false) == P.PREKLOPI_ZVOK) { "glasba kot doslej" }
+        check(P.tipkaNaDomu(P.TIPKA_PLAY, video = true, igra = false, naZvocniku = false, zaslonOdprt = true) == P.PREKLOPI_ZVOK) { "zaslon ze odprt" }
+        check(P.znovaSkrivanje(odprt = true, viden = true, casovnikTece = false)) { "po vrnitvi na dom" }
+        check(!P.znovaSkrivanje(odprt = true, viden = true, casovnikTece = true)) { "casovnik ze tece" }
+        check(!P.znovaSkrivanje(odprt = false, viden = true, casovnikTece = false)) { "skrit dock" }
+        println("  ok  tipka Predvajaj na domu in samodejno skrivanje po vrnitvi")
+    }
+
     // Lastnik 28. 10. 2026: gumb »Zatemni zaslon« samo za zvok na tej napravi
     check(MiniPredvajalnikPravila.gumbZatemni(true, false, false))
     check(!MiniPredvajalnikPravila.gumbZatemni(true, true, false)) { "video" }

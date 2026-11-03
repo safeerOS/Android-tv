@@ -58,6 +58,20 @@ class MiniPredvajalnik(
         }
         /** Odprt ali skrit ostane cez prerisbo zaslona (zasuk, razdeljen zaslon). */
         private var odprt = false
+
+        /**
+         * Celozaslonski predvajalnik na istem mestu. Zunanji pregled 3. 11. 2026 (Philips, Android 11, MediaTek): play()
+         * pred odprtjem zaslona je zagnal dekoder brez povrsine - zvok brez slike. Predvaja sele PredvajanjeActivity, ko
+         * je povrsina pripeta (NADALJUJ v onStart). Tudi tipka Predvajaj na domacem zaslonu (PokrajinaActivity).
+         */
+        fun odpriCelZaslon(a: Activity) {
+            try {
+                a.startActivity(android.content.Intent(a, PredvajanjeActivity::class.java)
+                    .putExtra(PredvajanjeActivity.NADALJUJ, true)
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                        android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
+            } catch (_: Throwable) { GlasbaStoritev.preklopi() }
+        }
     }
 
     private val glavna = Handler(Looper.getMainLooper())
@@ -116,16 +130,7 @@ class MiniPredvajalnik(
         } catch (_: Throwable) { }
     }
 
-    private fun odpriPredvajalnik() {
-        // Zunanji pregled 3. 11. 2026 (Philips, Android 11, MediaTek): play() pred odprtjem zaslona je zagnal dekoder brez
-        // povrsine - zvok brez slike. Predvaja sele PredvajanjeActivity, ko je povrsina pripeta (NADALJUJ v onStart).
-        try {
-            a.startActivity(android.content.Intent(a, PredvajanjeActivity::class.java)
-                .putExtra(PredvajanjeActivity.NADALJUJ, true)
-                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                    android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
-        } catch (_: Throwable) { GlasbaStoritev.preklopi() }
-    }
+    private fun odpriPredvajalnik() = odpriCelZaslon(a)
 
     val mesto: String get() = MiniPredvajalnikPravila.mesto(nastavitve.getString(KLJUC_MESTO, null))
         .let { if (!dovoliSeznam && it == MiniPredvajalnikPravila.V_SEZNAMU) MiniPredvajalnikPravila.PRIVZETO else it }
@@ -153,6 +158,13 @@ class MiniPredvajalnik(
         else {
             k.visibility = View.VISIBLE
             prikazi(naslov, izvajalec, igra, radio)
+            // Zunanji pregled 3. 11. 2026: po vrnitvi na dom (onStop je casovnik ustavil) se odprt dock spet sam skrije.
+            if (MiniPredvajalnikPravila.znovaSkrivanje(odprt, true, skrivanjeTece)) {
+                zadnjiDotik = SystemClock.uptimeMillis()
+                skrivanjeTece = true
+                glavna.postDelayed(samodejno, 1_000L)
+                osveziCas(radio)
+            }
         }
     }
 
@@ -196,7 +208,10 @@ class MiniPredvajalnik(
         return cilj.requestFocus()
     }
 
-    fun ustavi() { glavna.removeCallbacks(samodejno); glavna.removeCallbacks(casovnik) }
+    fun ustavi() { skrivanjeTece = false; glavna.removeCallbacks(samodejno); glavna.removeCallbacks(casovnik) }
+
+    /** Casovnik samodejnega skrivanja je nastavljen (ustavi() ga ustavi ob onStop domacega zaslona). */
+    private var skrivanjeTece = false
 
     private fun oddaljeno(): Boolean = try { GlasbaStoritev.naDrugiNapravi() } catch (_: Throwable) { false }
 
@@ -236,6 +251,7 @@ class MiniPredvajalnik(
             val fokus = k.findFocus() != null
             if (MiniPredvajalnikPravila.samodejnoSkrij(odprt, fokus, zadnjiDotik, SystemClock.uptimeMillis())) nastaviOdprt(false)
             else if (odprt) glavna.postDelayed(this, 1_000L)
+            else skrivanjeTece = false
         }
     }
 
@@ -250,6 +266,7 @@ class MiniPredvajalnik(
         rocica?.visibility = if (da) View.GONE else View.VISIBLE
         kartica?.visibility = if (da) View.VISIBLE else View.GONE
         glavna.removeCallbacks(samodejno)
+        skrivanjeTece = da
         if (da) {
             glavna.postDelayed(samodejno, 1_000L)
             osveziCas(radioIkona)
@@ -334,25 +351,34 @@ class MiniPredvajalnik(
             setOnLongClickListener { izberiMesto(); true }
         }
         potegi(c, m)
+        // Zunanji pregled 3. 11. 2026: besedila (z drsnikom v sebi) so bila en cilj fokusa - daljinec drsnika ni dosegel.
+        // Klik ostane na naslovu (svoj cilj s poudarkom fokusa), drsnik pod njim je svoj cilj (LEVO/DESNO previja).
         val besedila = LinearLayout(a).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(8), 0, dp(8), 0)
+            isFocusable = false
+        }
+        val naslovni = LinearLayout(a).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(8), dp(2), dp(8), dp(2))
+            tag = "dock:naslov"
             isFocusable = true
+            setBackgroundResource(R.drawable.os_meni_postavka)
             setOnClickListener { if (MiniPredvajalnikPravila.klikNaslova(videoTu()) == MiniPredvajalnikPravila.ODPRI_PREDVAJALNIK) odpriPredvajalnik() else odpriMedije() }
         }
+        besedila.addView(naslovni, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         val nPogled = TextView(a).apply {
             text = naslov; maxLines = if (pokoncen) 2 else 1; ellipsize = TextUtils.TruncateAt.END
             setTextColor(barva(R.color.os_besedilo)); setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         }
-        besedila.addView(nPogled)
+        naslovni.addView(nPogled)
         // Izvajalec je vedno v docku (skrit, ce ga ni) - osvezitev ga le pokaze ali skrije.
         val iPogled = TextView(a).apply {
             text = izvajalec; maxLines = 1; ellipsize = TextUtils.TruncateAt.END
             setTextColor(barva(R.color.os_umirjeno)); setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             visibility = if (izvajalec.isNotBlank()) View.VISIBLE else View.GONE
         }
-        besedila.addView(iPogled)
+        naslovni.addView(iPogled)
         // Drsnik casa: premik naprej ali nazaj po skladbi (tudi na zvocniku - GlasbaStoritev.skoci).
         val d = SeekBar(a).apply {
             max = MiniPredvajalnikPravila.DRSNIK_KORAKOV
@@ -360,7 +386,8 @@ class MiniPredvajalnik(
             contentDescription = a.getString(R.string.zg_dock_cas)
             progressTintList = ColorStateList.valueOf(barva(R.color.os_mint))
             thumbTintList = ColorStateList.valueOf(barva(R.color.os_mint))
-            setPadding(0, dp(4), 0, dp(2))
+            setPadding(dp(8), dp(4), dp(8), dp(2))
+            isFocusable = true
             visibility = View.GONE
             setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(s: SeekBar, korak: Int, odUporabnika: Boolean) {

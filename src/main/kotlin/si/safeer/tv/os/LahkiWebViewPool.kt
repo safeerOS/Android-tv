@@ -61,16 +61,18 @@ object LahkiWebViewPool {
             glavna.post { obNativnemPredvajanju(spletnoPredvajanje) }
             return
         }
-        if (spletnoPredvajanje) return
-        // Pregled 70: najet pogled (nevidno branje spletnega vira, iskanje toka) pustimo - sicer bi vsaka nova skladba
-        // ali nadaljevanje po pavzi prekinila branje vira. Ob vrnitvi ga poberejo PROST_MS / onTrimMemory.
-        if (lastnik != null) { izrisovalnikPoPredvajanju = true; return }
+        if (LahkiPoolPravila.obdrziObNativnem(spletnoPredvajanje)) return
+        // Zunanji pregled 3. 11. 2026 (vodja 17:06): ko Media3 igra, je iskanje toka koncano - tudi najet pogled unicimo
+        // takoj (izmerjeno ~90 MB izrisovalnika cez cel film, ker je najet pogled cakal na vrnitev). Najemnik dobi odvzem.
         val w = pogled
         if (w != null) {
+            val klic = if (lastnik != null) obOdvzemu else null
             pogled = null
+            lastnik = null
             obOdvzemu = null
             glavna.removeCallbacks(unicenje)
             unicuj(w, "nativno predvajanje")
+            try { klic?.invoke() } catch (_: Throwable) { }
         }
         koncajIzrisovalnik("nativno predvajanje")
     }
@@ -80,8 +82,11 @@ object LahkiWebViewPool {
      * WebViewRenderProcess): tam izrisovalnik ostane kot doslej.
      */
     private fun koncajIzrisovalnik(razlog: String) {
+        if (!LahkiPoolPravila.koncajIzrisovalnik(zivi.size, Build.VERSION.SDK_INT)) {
+            if (zivi.isNotEmpty()) Log.i(TAG, "izrisovalnik WebView ostane: zivih WebView ${zivi.size} ($razlog)")
+            return
+        }
         if (Build.VERSION.SDK_INT < 29) return
-        if (zivi.isNotEmpty()) { Log.i(TAG, "izrisovalnik WebView ostane: zivih WebView ${zivi.size} ($razlog)"); return }
         val r = izrisovalnik as? android.webkit.WebViewRenderProcess ?: return
         izrisovalnik = null
         val koncan = try { r.terminate() } catch (_: Throwable) { false }
@@ -157,10 +162,36 @@ object LahkiWebViewPool {
         return w
     }
 
+    /** Stran igra v polnem pogonu (SpletniIgralec s ChromiumEngineView) - nastavi GlasbaStoritev. */
+    @Volatile var polniPogonIgra = false
+
+    /**
+     * Zunanji pregled 3. 11. 2026: preden nastane polni pogon (ChromiumEngineView), prost pogled poola unicimo takoj -
+     * v procesu naj bo en WebView. Najetega (nevidno branje, ki se tece) ne podremo.
+     */
+    fun predPolnimPogonom() {
+        if (Looper.myLooper() != Looper.getMainLooper()) { glavna.post(::predPolnimPogonom); return }
+        val w = pogled ?: return
+        if (lastnik != null) return
+        pogled = null
+        glavna.removeCallbacks(unicenje)
+        unicuj(w, "pred polnim pogonom")
+    }
+
+    /**
+     * Zadnji WebView (polni pogon) je unicen: izrisovalnik koncamo, ce cez PROST_MS se vedno ni nobenega zivega
+     * WebView-ja - naslednja skladba na strani ga v tem casu prevzame brez novega zagona.
+     */
+    fun poUnicenju(razlog: String) {
+        if (Looper.myLooper() != Looper.getMainLooper()) { glavna.post { poUnicenju(razlog) }; return }
+        glavna.postDelayed({ if (pogled == null) koncajIzrisovalnik(razlog) }, PROST_MS)
+    }
+
     /** Nevidno opravilo pocaka/odstopi, kadar lahki predvajalnik ze uporablja edini pogled. */
     fun poskusiPridobiti(context: Context, noviLastnik: Any, odvzemiStaremu: () -> Unit): WebView? {
         check(Looper.myLooper() == Looper.getMainLooper()) { "WebView pool mora teci na glavni niti" }
-        if (lastnik != null && lastnik !== noviLastnik) return null
+        // Pregled 3. 11. 2026: med predvajanjem strani v polnem pogonu ne najemamo drugega WebView-ja.
+        if (lastnik !== noviLastnik && !LahkiPoolPravila.smeNajeti(lastnik != null, polniPogonIgra)) return null
         return pridobi(context, noviLastnik, odvzemiStaremu)
     }
 

@@ -556,9 +556,17 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                 if (pretvorjen.action == KeyEvent.ACTION_DOWN) {
                     try {
                         when (koda) {
-                            KeyEvent.KEYCODE_MEDIA_PLAY -> GlasbaStoritev.nadaljujTu()
+                            KeyEvent.KEYCODE_MEDIA_PLAY, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
+                                // Zunanji pregled 3. 11. 2026: video na pavzi ne zacne brez zaslona (zvok brez slike) - odpre
+                                // celozaslonski predvajalnik, ki predvaja po pripeti povrsini.
+                                val tipka = if (koda == KeyEvent.KEYCODE_MEDIA_PLAY) MiniPredvajalnikPravila.TIPKA_PLAY else MiniPredvajalnikPravila.TIPKA_PREKLOPI
+                                if (MiniPredvajalnikPravila.tipkaNaDomu(tipka, GlasbaStoritev.trenutna()?.video == true, GlasbaStoritev.igra(),
+                                        GlasbaStoritev.naZvocniku(), PredvajanjeActivity.odprt) == MiniPredvajalnikPravila.ODPRI_PREDVAJALNIK)
+                                    MiniPredvajalnik.odpriCelZaslon(this)
+                                else if (koda == KeyEvent.KEYCODE_MEDIA_PLAY) GlasbaStoritev.nadaljujTu()
+                                else GlasbaStoritev.preklopiTu()
+                            }
                             KeyEvent.KEYCODE_MEDIA_PAUSE -> GlasbaStoritev.premorTu()
-                            KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> GlasbaStoritev.preklopiTu()
                             KeyEvent.KEYCODE_MEDIA_NEXT -> GlasbaStoritev.naslednjaTu()
                             KeyEvent.KEYCODE_MEDIA_PREVIOUS -> GlasbaStoritev.prejsnjaTu()
                         }

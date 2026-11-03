@@ -102,8 +102,13 @@ open class SpletniIgralec protected constructor(
      */
     var vVrsti = false
 
+    // Zunanji pregled 3. 11. 2026: pavza je prijela samo ovoj - okvir youtube.com/embed dobi ukaz se po uradnem
+    // postMessage vmesnika IFrame (enablejsapi=1), ce posrednik v okvirju ne tece.
     protected fun ukaz(c: String, t: Double = 0.0) =
-        pogled.evaluateJavascript("(function(){try{window.postMessage({safeer:'ukaz',c:'$c',t:$t},'*');}catch(e){}})()", null)
+        pogled.evaluateJavascript("(function(){try{window.postMessage({safeer:'ukaz',c:'$c',t:$t},'*');}catch(e){}" +
+            "try{var f={play:'playVideo',pause:'pauseVideo',seek:'seekTo'}['$c'];if(f){[].forEach.call(document.querySelectorAll(" +
+            "'iframe[src*=\"youtube.com/embed/\"]'),function(x){try{x.contentWindow.postMessage(" +
+            "JSON.stringify({event:'command',func:f,args:f==='seekTo'?[$t,true]:[]}),'*');}catch(e){}});}}catch(e){}})()", null)
 
     /** Vrhnja stran izreze najvecji iframe/video, vsak notranji okvir pa samo svoj dejanski video. */
     protected fun vklopiKino() {
@@ -145,6 +150,14 @@ open class SpletniIgralec protected constructor(
     private fun preveriZastoj() {
         if (zastojJavljen || obZastoju == null || nalozenoOd == 0L) return
         if (!YoutubeVrstaPravila.zastoj(SystemClock.uptimeMillis() - nalozenoOd, polozaj, pripravljeno, zelja)) return
+        if (YoutubeVrstaPravila.poZastojuPolnaStran(vgradno)) {
+            // Pregled 3. 11. 2026: okvir v roku ni dal polozaja - polna stran watch?v= v isti pogled (nov rok).
+            vgradno = false
+            nalozenoOd = SystemClock.uptimeMillis()
+            Log.i("SafeerOsMedia", "vgradni predvajalnik brez polozaja v ${YoutubeVrstaPravila.ROK_ZASTOJA_MS / 1000} s, polna stran")
+            pogled.loadUrl(sk.povezava)
+            return
+        }
         zastojJavljen = true
         Log.i("SafeerOsMedia", "spletni igralec: stran ne zacne igrati v ${YoutubeVrstaPravila.ROK_ZASTOJA_MS / 1000} s - zastoj")
         obZastoju?.invoke()
@@ -261,6 +274,8 @@ open class SpletniIgralec protected constructor(
         try { (pogled.parent as? ViewGroup)?.removeView(pogled) } catch (_: Exception) { }
         try { pogled.stopLoading(); pogled.loadUrl("about:blank"); pogled.destroy() } catch (_: Exception) { }
         Log.i("SafeerRam", "unicen WebView: polni ChromiumEngineView stopnje 3")
+        // Pregled 3. 11. 2026: brez zivih WebView-jev se izrisovalnik konca (prej je ostal do konca procesa).
+        LahkiWebViewPool.poUnicenju("polni pogon sproscen")
         return Futures.immediateVoidFuture()
     }
 
@@ -272,14 +287,32 @@ open class SpletniIgralec protected constructor(
         pogled.alpha = 0f
         pogled.setBackgroundColor(android.graphics.Color.BLACK)
         if (Build.VERSION.SDK_INT >= 26) pogled.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_BOUND, false)
+        odhodOd = 0L; ura.removeCallbacks(straza)
         (pogled.parent as? ViewGroup)?.removeView(pogled)
         stars.addView(pogled, stars.indexOfChild(nad) + 1, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         kino = true
         vklopiKino()
     }
 
-    /** Zaslon predvajanja je zaprt: pogled odpnemo, zvok igra naprej. */
+    /** Cas odhoda z zaslona predvajanja (0 = na zaslonu ali ze obravnavano) in stanje ob odhodu - [straza]. */
+    private var odhodOd = 0L
+    private var polozajObOdhodu = 0L
+    private var igralObOdhodu = false
+
+    private val straza = Runnable {
+        if (sproscen || kino || odhodOd == 0L) return@Runnable
+        if (YoutubeVrstaPravila.ozadjeStoji(zelja, igralObOdhodu, polozajObOdhodu, polozaj, SystemClock.uptimeMillis() - odhodOd)) {
+            Log.i("SafeerOsMedia", "spletni igralec: stran v ozadju stoji (polozaj $polozaj ms) - premor, nadaljuje cel zaslon")
+            igra = false; zelja = false
+            ukaz("pause")
+            invalidateState()
+        }
+        odhodOd = 0L
+    }
+
+    /** Zaslon predvajanja je zaprt: pogled odpnemo, zvok igra naprej (ce stran v ozadju stoji, [straza] da premor). */
     fun skrij() {
+        val bilKino = kino
         kino = false
         pogled.alpha = 0f
         if (Build.VERSION.SDK_INT >= 26) pogled.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_WAIVED, true)
@@ -287,6 +320,10 @@ open class SpletniIgralec protected constructor(
         if (sproscen) return                 // ob sprostitvi pogleda ne pripenjamo znova
         zadnja?.get()?.let { gostuj(it) }
         if (zelja) ura.postDelayed({ ukaz("play") }, 400)
+        if (bilKino) {
+            odhodOd = SystemClock.uptimeMillis(); polozajObOdhodu = polozaj; igralObOdhodu = igra && polozaj > 0L
+            ura.removeCallbacks(straza); ura.postDelayed(straza, YoutubeVrstaPravila.ROK_OZADJA_MS + 1_500L)
+        }
     }
 
     /**
@@ -327,7 +364,7 @@ open class SpletniIgralec protected constructor(
             return "<!doctype html><html><head><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">" +
                 "<meta name=\"referrer\" content=\"strict-origin-when-cross-origin\"></head>" +
                 "<body style=\"margin:0;background:#000;overflow:hidden\">" +
-                "<iframe src=\"https://www.youtube.com/embed/$id?autoplay=1&playsinline=1&rel=0\" " +
+                "<iframe src=\"https://www.youtube.com/embed/$id?autoplay=1&playsinline=1&rel=0&enablejsapi=1&origin=https%3A%2F%2Fsafeer.si\" " +
                 "allow=\"autoplay; encrypted-media; fullscreen\" referrerpolicy=\"strict-origin-when-cross-origin\" " +
                 "style=\"position:fixed;inset:0;width:100vw;height:100vh;border:0\"></iframe></body></html>"
         }

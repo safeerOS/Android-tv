@@ -23,8 +23,10 @@ object YoutubeVrstaPravila {
      * ([GlasbaStoritev.naZvocnikVVrsti]); posnetek, za katerega YouTube nedavno ni dal toka (DRM, ni na voljo), gre
      * naravnost na spletno stran - ne cakamo se enkrat na isti »ne«.
      */
-    fun pot(jeYoutube: Boolean, naZvocniku: Boolean, znanoNe: Boolean): Pot =
-        if (jeYoutube && !naZvocniku && !znanoNe) Pot.MEDIA3_ZVOK else Pot.SPLETNA_STRAN
+    fun pot(jeYoutube: Boolean, video: Boolean, naZvocniku: Boolean, znanoNe: Boolean): Pot =
+        // Zunanji pregled 3. 11. 2026: film iz vrste je sel v Media3 kot itag 140/251 (zvok brez slike) - video gre
+        // naravnost na stran (kot kotVrsta).
+        if (jeYoutube && !video && !naZvocniku && !znanoNe) Pot.MEDIA3_ZVOK else Pot.SPLETNA_STRAN
 
     /**
      * Stran obvisi: od nalaganja je minil rok, predvajanje ni nikoli steklo (polozaj 0, medij ni pripravljen), uporabnik
@@ -42,7 +44,28 @@ object YoutubeVrstaPravila {
      * predvajalnik pa je vsake ~4 s skocil na naslednjo, brez zvoka in brez konca (»ko zelim prekiniti, tudi ne gre«).
      * Zavrnjen tok (403/410) glasbe z YouTuba: skladba gre na spletno stran (rezerva, kot prej), ne na naslednjo.
      */
-    fun tokZavrnjen(http: Int, jeYoutube: Boolean, video: Boolean): Boolean = jeYoutube && !video && (http == 403 || http == 410)
+    // Zunanji pregled 3. 11. 2026: 403 od googlevideo pri zvoku odpre stran vedno - tudi pri posnetku, ki je video
+    // (prej je sel tak na naslednjo skladbo ali obstal).
+    fun tokZavrnjen(http: Int, jeYoutube: Boolean): Boolean = jeYoutube && (http == 403 || http == 410)
+
+    /**
+     * Zunanji pregled 3. 11. 2026: vgradni predvajalnik (okvir youtube.com/embed) v roku ni dal polozaja - nalozimo polno
+     * stran watch?v= v isti pogled (en dokument, en predvajalnik), ne istega okvirja znova in ne naslednje skladbe.
+     * Zastoj polne strani gre naprej kot doslej ([zastoj], [naprejPoZastoju]).
+     */
+    fun poZastojuPolnaStran(vgradno: Boolean): Boolean = vgradno
+
+    /** Toliko casa po odhodu z zaslona predvajanja mora polozaj strani narasti, sicer stran v ozadju stoji. */
+    const val ROK_OZADJA_MS = 5_000L
+
+    /**
+     * Zunanji pregled 3. 11. 2026 (Philips, Android 11): stran, odpeta z zaslona predvajanja (pogled 1x1,
+     * RENDERER_PRIORITY_WAIVED), WebView na nekaterih napravah ustavi, stanje pa je kazalo, da igra. Ce je ob odhodu igrala,
+     * uporabnik zeli igrati, polozaj pa v [ROK_OZADJA_MS] ni narasel: posten premor (gumb Predvajaj v docku odpre cel zaslon
+     * in sele tam play). Kjer stran v ozadju igra (zvok), igra naprej - lastnik 28. 10. 2026: YouTube igra v ozadju.
+     */
+    fun ozadjeStoji(zelja: Boolean, igralObOdhodu: Boolean, polozajObOdhodu: Long, polozajZdaj: Long, odOdhodaMs: Long): Boolean =
+        zelja && igralObOdhodu && odOdhodaMs >= ROK_OZADJA_MS && polozajZdaj <= polozajObOdhodu
 
     /** Ko YouTube tok zavrne, gredo tudi naslednje skladbe toliko casa naravnost na stran (vsaka bi sicer izgubila ~4 s). */
     const val ZAVRNJEN_VELJA_MS = 30 * 60_000L
