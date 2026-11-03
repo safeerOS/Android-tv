@@ -1743,6 +1743,16 @@ object OsPravila {
 
     fun zaWikidata(imdb: List<String>, najvec: Int = WIKIDATA_NAJVEC): List<String> = imdb.distinct().take(najvec.coerceAtLeast(0))
 
+    /** Prvi izris mreze filmov z diska: najvec [enZaslon] kartic (zaslon plakatov in vrsta rezerve). */
+    fun prviIzrisZDiska(zDiska: Int, enZaslon: Int): Int = minOf(zDiska, enZaslon.coerceAtLeast(1))
+
+    /**
+     * Zunanji pregled Video 3. 11. 2026: klik na film iz dodatka najprej vprasa samo dodatek, ki ga je nasel; ostale
+     * sele, ce ta ne vrne predvajljivega toka. Z Usenetom ali debridom ostane vzporedno vprasanje vseh (najboljsi tok
+     * izmed vseh, pregled A8 »Usenet prvi«) - meje za racune ostanejo, kot so.
+     */
+    fun najprejEnDodatek(znanDodatek: Boolean, usenet: Boolean, debrid: Boolean): Boolean = znanDodatek && !usenet && !debrid
+
     /** Najvec hkratnih preverjanj mreze filmov (prej 12 - ob odprtju razdelka je bil TV preobremenjen). */
     const val MREZA_HKRATI = 3
 

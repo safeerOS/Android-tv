@@ -39,6 +39,8 @@ preveri("plakati: niti po nitiSlik", "OsPravila.nitiSlik(Naprava.jeTelevizor(thi
 preveri("mreza filmov: brez drugega podatkiRazdelka", "if (!OsPravila.brskanjeVprasaRazdelek(popolne))" in g)
 preveri("mreza: ponovno risanje samo ob drugem stevilu stolpcev", "|${razvrstitev(m.razdelek)}|$stolpci\"" in g)
 preveri("Wikidata samo za prve kartice", "val vprasaj = OsPravila.zaWikidata(" in g)
+preveri("mreza filmov: prvi izris z diska en zaslon", "OsPravila.prviIzrisZDiska(" in g)
+preveri("klik na film: najprej dodatek, ki je nasel", "OsPravila.najprejEnDodatek(" in g and "najprej = Stremio.razstavi(sk)?.first" in g)
 # Zunanji pregled podnapisov 3. 11. 2026
 pa = re.sub(r"(?m)^\s*//.*$", "", re.sub(r"/\*.*?\*/", "", (OS / "PredvajanjeActivity.kt").read_text(encoding="utf-8"), flags=re.S))
 preveri("podnapisi: sele po READY 1 s", "OsPravila.podnapisiZdaj(pripravljen, pripravljenOd, zdaj)" in pa)

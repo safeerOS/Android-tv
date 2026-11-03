@@ -2837,7 +2837,14 @@ class GlasbaActivity : OsActivity() {
             if (o.vsi.isEmpty()) {
                 val zDiska = try { MedijskiPredpomnilnik.beriPoliceSCasom(this, kljuc)?.takeIf { it.first >= rodVirov }?.second?.firstOrNull()?.third } catch (_: Exception) { null }
                 if (!zDiska.isNullOrEmpty()) glavna.post {
-                    if (!isFinishing && odprtKatalog === o && o.vsi.isEmpty()) { o.vsi += zDiska; narisiKatalog(naslov) }
+                    // Zunanji pregled Video 3. 11. 2026 (3,6 s na glavni niti v narisiKatalog): prvi izris z diska je en zaslon
+                    // plakatov in vrsta rezerve; ostale kartice z diska pridejo v naslednjem koraku glavne niti (umiri).
+                    if (!isFinishing && odprtKatalog === o && o.vsi.isEmpty()) {
+                        val prvih = OsPravila.prviIzrisZDiska(zDiska.size, PRVI_ZASLON + mereMreze(Vrsta("", emptyList(), video = true, mreza = true)).first)
+                        o.vsi += zDiska.take(prvih); narisiKatalog(naslov)
+                        if (prvih < zDiska.size) glavna.post { if (!isFinishing && odprtKatalog === o) {
+                            val imajo = o.vsi.mapTo(HashSet()) { it.id }; o.vsi += zDiska.drop(prvih).filter { it.id !in imajo }; narociUmiri() } }
+                    }
                 }
             }
             // 1) Katalogi dodatkov te vrste (hitro, vsi hkrati); ob izbrani zvrsti brez katalogov, ki zvrsti ne poznajo in zahtevajo kaj drugega (npr. leto).
@@ -8098,10 +8105,21 @@ class GlasbaActivity : OsActivity() {
      */
     private fun tokoviVzporedno(tip0: String, id: String, rokMs: Long = OsPravila.rokTokovMs(false),
                                 /** Naloga 130: se en id iste vsebine (epizoda po IMDb), vprasan hkrati pri vseh dodatkih. */
-                                dodatniId: String? = null): List<Stremio.Tok> {
+                                dodatniId: String? = null,
+                                /** Zunanji pregled 3. 11. 2026: osnova dodatka, ki je naslov nasel - vprasan je najprej sam. */
+                                najprej: String? = null): List<Stremio.Tok> {
         // Naloga 77: vnos tipa »music« z id-jem IMDb (koncert) vprasamo kot »movie«, ce noben dodatek ne da tokov za »music«.
         val tip = Stremio.tipToka(stremioNaslovi(), tip0, id)
         if (tip != tip0) android.util.Log.i("SafeerOsMedia", "tokovi: tip $tip0 -> $tip (noben dodatek ne da tokov za $tip0)")
+        val prviDodatki = najprej?.let { o -> stremioNaslovi().filter { Stremio.osnova(it) == o } }.orEmpty()
+        if (dodatniId == null && OsPravila.najprejEnDodatek(prviDodatki.isNotEmpty(),
+                tip in setOf("movie", "series") && Usenet.jeNaVoljo(applicationContext), Debrid.aktivna(applicationContext) != null)) {
+            val prvi = try { Stremio.tokoviZOdzivom(prviDodatki, tip, id).tokovi } catch (_: Exception) { emptyList() }
+            if (prvi.any { Stremio.jePredvajljiv(it) }) {
+                android.util.Log.i("SafeerOsMedia", "tokovi: dodatek, ki je naslov nasel, je dal ${prvi.size} tokov - ostalih ne sprasujemo")
+                return prvi
+            }
+        }
         val idji = listOfNotNull(id, dodatniId)
         // Pregled B1: vsak dodatek svoja nit, placljivo pa se odloci enkrat po vseh (spodaj) - ne po zadnjem odgovoru.
         val dodatki = stremioNaslovi().flatMap { n -> idji.map { i -> i to iskanjeDelavec.submit<Stremio.OdgovorTokov> {
@@ -8247,7 +8265,7 @@ class GlasbaActivity : OsActivity() {
                 val vZivo = razred == Stremio.TV
                 val rokT = OsPravila.rokTokovMs(vZivo)
                 val konecT = android.os.SystemClock.uptimeMillis() + rokT + 500
-                val t = if (enote.size == 1) (try { tokoviVzporedno(tip, id, rokT) } catch (_: Exception) { emptyList() })
+                val t = if (enote.size == 1) (try { tokoviVzporedno(tip, id, rokT, najprej = Stremio.razstavi(sk)?.first) } catch (_: Exception) { emptyList() })
                     else enote.map { (t1, i1) -> iskanjeDelavec.submit<List<Stremio.Tok>> { try { tokoviVzporedno(t1, i1, rokT) } catch (_: Exception) { emptyList() } } }
                         .flatMap { f -> try { f.get((konecT - android.os.SystemClock.uptimeMillis()).coerceAtLeast(1), java.util.concurrent.TimeUnit.MILLISECONDS) } catch (_: Exception) { emptyList() } }.distinctBy { it.url }
                 // Metapodatki so medtem navadno ze prisli: serija z epizodami se odpre kot serija (ne kot film).
