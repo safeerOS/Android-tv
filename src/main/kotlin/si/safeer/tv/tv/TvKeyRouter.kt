@@ -31,7 +31,7 @@ class TvKeyRouter(private val host: MainActivity) {
                 host.handleBrowserBack()
                 return true
             }
-            if (keyCode == KeyEvent.KEYCODE_PROG_RED || keyCode == KeyEvent.KEYCODE_MENU || keyCode == 183) {
+            if (si.safeer.tv.TvTipke.dejanje(keyCode) == si.safeer.tv.TvTipke.Dejanje.HITRE_STRANI) {
                 host.chrome.showPortals()
                 return true
             }
@@ -96,7 +96,7 @@ class TvKeyRouter(private val host: MainActivity) {
             return host.superDispatchKey(event)
         }
 
-        if (keyCode == KeyEvent.KEYCODE_PROG_RED || keyCode == KeyEvent.KEYCODE_MENU || keyCode == 183) {
+        if (si.safeer.tv.TvTipke.dejanje(keyCode) == si.safeer.tv.TvTipke.Dejanje.HITRE_STRANI) {
             host.chrome.showPortals()
             Toast.makeText(host, UiText.get(R.string.ui_quick_sites), Toast.LENGTH_SHORT).show()
             return true
@@ -108,7 +108,7 @@ class TvKeyRouter(private val host: MainActivity) {
             return true
         }
 
-        if (keyCode == KeyEvent.KEYCODE_PROG_GREEN || keyCode == KeyEvent.KEYCODE_INFO || keyCode == 184) {
+        if (si.safeer.tv.TvTipke.dejanje(keyCode) == si.safeer.tv.TvTipke.Dejanje.KAZALEC) {
             host.virtualPointerView.isPointerVisible = !host.virtualPointerView.isPointerVisible
             Toast.makeText(
                 host,
