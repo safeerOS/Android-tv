@@ -1798,7 +1798,10 @@ object OsPravila {
      */
     fun vrstaZZvokom(n: Int, klik: Int, zZvokom: (Int) -> Boolean, istiIzvajalec: (Int) -> Boolean = { false }): Pair<List<Int>, Int> {
         // Prednost ima isti izvajalec (kot odIzvajalca): njegove skladbe z zaslona so v vrsti najprej, nato ostale.
-        val izbrani = (0 until n).filter { it == klik || zZvokom(it) }.let { s -> s.filter { it == klik || istiIzvajalec(it) } + s.filterNot { it == klik || istiIzvajalec(it) } }
+        val zZvokomVsi = (0 until n).filter { it == klik || zZvokom(it) }
+        // Brez drugih skladb istega izvajalca ostane vrstni red zaslona.
+        val izbrani = if (zZvokomVsi.none { it != klik && istiIzvajalec(it) }) zZvokomVsi
+            else zZvokomVsi.filter { it == klik || istiIzvajalec(it) } + zZvokomVsi.filterNot { it == klik || istiIzvajalec(it) }
         return izbrani to izbrani.indexOf(klik).coerceAtLeast(0)
     }
 
