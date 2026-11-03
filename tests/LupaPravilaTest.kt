@@ -217,6 +217,14 @@ fun main() {
     preveriEnako("splet: en znak isce", true, LupaPravila.okIsce("a", LupaPravila.OBSEG_SPLET))
     preveriEnako("youtube: en znak isce", true, LupaPravila.okIsce(" a ", LupaPravila.OBSEG_YOUTUBE))
     preveriEnako("video: en znak ne isce", false, LupaPravila.okIsce("a", LupaPravila.OBSEG_VIDEO))
+    // Zunanji pregled 3. 11. 2026: OK daljinca z zaprto vrstico jo vedno odpre (tudi z besedilom), Enter tipkovnice isce.
+    preveriEnako("OK z besedilom in zaprto vrstico odpre vrstico", LupaPravila.OkTipka.ODPRI_VRSTICO, LupaPravila.okTipkaNaPolju(23, "sintel", LupaPravila.OBSEG_VSE, false))
+    preveriEnako("OK s praznim odpre vrstico", LupaPravila.OkTipka.ODPRI_VRSTICO, LupaPravila.okTipkaNaPolju(23, "", LupaPravila.OBSEG_VSE, false))
+    preveriEnako("Enter tipkovnice isce", LupaPravila.OkTipka.ISCI, LupaPravila.okTipkaNaPolju(66, "sintel", LupaPravila.OBSEG_VSE, false))
+    preveriEnako("Enter s praznim odpre vrstico", LupaPravila.OkTipka.ODPRI_VRSTICO, LupaPravila.okTipkaNaPolju(66, "", LupaPravila.OBSEG_VSE, false))
+    preveriEnako("stevilka ostane v lupi ob odprti plosci", true, LupaPravila.tipkaOstaneVLupi(9, true))
+    preveriEnako("kanal gor ostane v lupi ob odprti plosci", true, LupaPravila.tipkaOstaneVLupi(166, true))
+    preveriEnako("brez plosce stevilka zazene ploscico", false, LupaPravila.tipkaOstaneVLupi(9, false))
     preveriEnako("video: dva znaka isceta", true, LupaPravila.okIsce("ab", LupaPravila.OBSEG_VIDEO))
     if (napak == 0) println("LupaPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

@@ -227,6 +227,24 @@ object LupaPravila {
                        velikosti: List<Float> = listOf(15f, 14f, 13f, 12f)): Float? =
         velikosti.firstOrNull { v -> sirinePri15.sumOf { (it * v / 15f + dodatekPx).toDouble() } <= prostorPx }
 
+    enum class OkTipka { ODPRI_VRSTICO, ISCI, NIC }
+
+    /**
+     * Zunanji pregled 3. 11. 2026 (Philips, Android 11): zaslon ima stateAlwaysHidden in daljinec se javi kot tipkovnica -
+     * sistemska tipkovnica se ni odprla, OK z besedilom pa je iskal, zato crke ni bilo mogoce dodati. Zdaj: OK daljinca
+     * (DPAD_CENTER, 23) z zaprto vrstico znakov jo VEDNO odpre; isce gumb Isci v vrstici ali Enter prave tipkovnice (66).
+     */
+    fun okTipkaNaPolju(koda: Int, niz: String, obseg: String, vrsticaOdprta: Boolean): OkTipka = when {
+        koda == 66 -> if (okIsce(niz, obseg)) OkTipka.ISCI else if (vrsticaOdprta) OkTipka.NIC else OkTipka.ODPRI_VRSTICO
+        koda == 23 && !vrsticaOdprta -> OkTipka.ODPRI_VRSTICO
+        koda == 23 && okIsce(niz, obseg) -> OkTipka.ISCI
+        else -> OkTipka.NIC
+    }
+
+    /** Zunanji pregled 3. 11. 2026: dokler je plosca zadetkov odprta, stevilke 1-6 in kanal gor/dol ostanejo v lupi. */
+    fun tipkaOstaneVLupi(koda: Int, ploscaOdprta: Boolean): Boolean =
+        ploscaOdprta && (koda in 8..13 || koda in 145..150 || koda == 166 || koda == 167 || koda == 92 || koda == 93)
+
     /** OK na polju lupe isce, ce je vpisano vsaj toliko, kot zahteva DomacaLupa.izvedi (Video vsebine od dveh znakov). */
     fun okIsce(niz: String, obseg: String = OBSEG_VSE): Boolean {
         val l = niz.trim().length

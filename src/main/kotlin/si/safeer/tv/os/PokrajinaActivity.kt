@@ -255,7 +255,13 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         }.apply {
             orientation = LinearLayout.VERTICAL; visibility = View.GONE; tag = "zadetkiDrsnik"
             clipChildren = false; clipToPadding = false
-            addView(vrstaIzbire, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(8) })
+            // Zunanji pregled 3. 11. 2026: na ozkem zaslonu (ali vecji pisavi) sedem filtrov ne gre v vrstico - Nastavitve so
+            // padle z zaslona. Vrstica zdaj drsi, gumb s fokusom se sam premakne v pogled (HorizontalScrollView).
+            addView(android.widget.HorizontalScrollView(this@PokrajinaActivity).apply {
+                isHorizontalScrollBarEnabled = false; isFillViewport = true; clipChildren = false; clipToPadding = false
+                isFocusable = false
+                addView(vrstaIzbire, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+            }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(8) })
             val rob = (resources.displayMetrics.widthPixels * 0.1f).toInt()
             addView(seznam, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f).apply { marginStart = rob; marginEnd = rob })
         }
@@ -584,7 +590,10 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         val lupaImaFokus = ::poljeLupe.isInitialized && poljeLupe.hasFocus()
         val lupaImaBesedilo = ::poljeLupe.isInitialized && poljeLupe.text?.isNotEmpty() == true
 
-        if (pretvorjen.action == KeyEvent.ACTION_DOWN && !tipkovnicaOdprta && pretvorjen.repeatCount == 0) {
+        // Zunanji pregled 3. 11. 2026: dokler je plosca zadetkov odprta, stevilke in kanal gor/dol ostanejo v lupi.
+        val ploscaOdprta = ::zadetkiDrsnik.isInitialized && zadetkiDrsnik.visibility == View.VISIBLE
+        if (pretvorjen.action == KeyEvent.ACTION_DOWN && !tipkovnicaOdprta && pretvorjen.repeatCount == 0 &&
+            !LupaPravila.tipkaOstaneVLupi(koda, ploscaOdprta)) {
             val indeks = PokrajinaPravila.indeksPloscice(koda)
             if (indeks != null && !lupaImaBesedilo && !lupaImaFokus) {
                 var vidne = 0
@@ -869,18 +878,13 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                     if (n != null && n !== v && !jePotomec(n, zadetkiDrsnik) && n.requestFocus()) iskanjeSt++
                     else zadetkiDrsnik.visibility = View.VISIBLE
                     true
-                } else if (d.action == KeyEvent.ACTION_DOWN && d.repeatCount == 0 && ok && LupaPravila.okIsce(niz, DomacaLupa.obseg(this@PokrajinaActivity))) {
-                    DomacaLupa.izvedi(this@PokrajinaActivity, niz)
-                    true
-                } else if (d.action == KeyEvent.ACTION_DOWN && ok &&
-                    // Lastnik 3. 11. 2026: lupa -> Nazaj -> lupa, tipkovnica se ni vec pokazala. Sistemsko tipkovnico zapre
-                    // Nazaj sam (dogodka ne vidimo), zastavica pa je ostala true - OK je nato ni odprl znova.
-                    (!v.showSoftInputOnFocus || DomacaLupa.jeFizicnaTipkovnica(this@PokrajinaActivity))) {
-                    if (DomacaLupa.jeFizicnaTipkovnica(this@PokrajinaActivity)) {
-                        v.showSoftInputOnFocus = true
-                        (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).showSoftInput(v, 0)
-                    } else {
-                        DomacaLupa.odpriTipkovnico(this@PokrajinaActivity, v)
+                } else if (d.action == KeyEvent.ACTION_DOWN && d.repeatCount == 0 && ok) {
+                    // Zunanji pregled 3. 11. 2026: vedno nasa vrstica znakov (sistemske zaslon ne pokaze - stateAlwaysHidden,
+                    // daljinec Philips se javi kot tipkovnica); iskanje na tipki Isci v vrstici ali Enter prave tipkovnice.
+                    when (LupaPravila.okTipkaNaPolju(koda, niz, DomacaLupa.obseg(this@PokrajinaActivity), DomacaLupa.tipkovnicaOdprta(this@PokrajinaActivity))) {
+                        LupaPravila.OkTipka.ODPRI_VRSTICO -> DomacaLupa.odpriTipkovnico(this@PokrajinaActivity, v)
+                        LupaPravila.OkTipka.ISCI -> DomacaLupa.izvedi(this@PokrajinaActivity, niz)
+                        LupaPravila.OkTipka.NIC -> Unit
                     }
                     true
                 } else false
@@ -1380,7 +1384,11 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                         cakam++
                         predlogiVOzadju(predloge + java.net.URLEncoder.encode(q, "UTF-8"), q, st) { seznam ->
                             naMesto(kam, R.string.pk_lupa_predlogi, seznam?.map { p ->
-                                vrsticaZadetka(R.drawable.os_ikona_isci, p) { DomacaLupa.izvedi(this, p) }.apply { tag = p }
+                                // Zunanji pregled 3. 11. 2026: predlog odpre iskanje tega niza v spletu, ne ukaza (»vreme …«, »… na tv«).
+                                vrsticaZadetka(R.drawable.os_ikona_isci, p) {
+                                    odpri(Brskalnik.namera(this).setAction(Intent.ACTION_VIEW)
+                                        .setData(android.net.Uri.parse(si.safeer.tv.SmartOmnibox.iskanje(this, p))).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                                }.apply { tag = p }
                             })
                         }
                     }
