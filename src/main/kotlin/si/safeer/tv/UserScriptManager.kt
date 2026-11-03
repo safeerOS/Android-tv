@@ -884,7 +884,13 @@ object UserScriptManager {
     }
 
     private fun tvSpatialJs(webView: WebView): String {
-        return assetJs(webView, "tv_spatial.js", { cachedTvSpatialJs }, { cachedTvSpatialJs = it })
+        // Zeton dotika (SpletVarnostPravila.zetonVelja) gre samo v besedilo skripta glavnega okvirja.
+        cachedTvSpatialJs?.let { return it }
+        val js = SpletVarnostPravila.vstaviZeton(
+            webView.context.assets.open("tv_spatial.js").bufferedReader(Charsets.UTF_8).use { it.readText() },
+            ChromiumEngineView.ZETON_DOTIKA)
+        cachedTvSpatialJs = js
+        return js
     }
 
     private const val YOUTUBE_TV_LEANBACK_JS = """

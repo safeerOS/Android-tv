@@ -56,7 +56,8 @@ function ujema(el, izbirnik) {
 function ustvari(nastavitve) {
     const n = Object.assign({ sirina: 1920, visina: 1080, scrollY: 0, drsenjeZaklenjeno: false, visinaStrani: 1080 }, nastavitve || {});
     const poslusalci = {};
-    const dotiki = [], kliki = [], drsenja = [];
+    const dotiki = [], kliki = [], drsenja = [], zetoni = [];
+    const zeton = n.zeton || 'z'.repeat(48);
     let stevec = 0;
     class Seznam {
         constructor(el) { this.el = el; }
@@ -167,7 +168,8 @@ function ustvari(nastavitve) {
         sessionStorage: { getItem: () => null, setItem() {}, removeItem() {} },
         localStorage: { getItem: () => null, setItem() {}, removeItem() {} },
         console: { log() {}, warn() {}, error() {} },
-        SafeerBridge: { triggerNativeTap(x, y) { dotiki.push([x, y]); return true; }, onScrollChanged() {} },
+        // Kot ChromiumEngineView: dotik velja samo z zetonom skripta (n.zeton = vstavljen zeton, kot UserScriptManager).
+        SafeerBridge: { triggerNativeTap(x, y, z) { zetoni.push(z); if (z !== zeton) return false; dotiki.push([x, y]); return true; }, onScrollChanged() {} },
         document: doc,
     };
     html.scrollTop = n.scrollY;
@@ -176,7 +178,9 @@ function ustvari(nastavitve) {
     return {
         window: win, document: doc, body, El, dotiki, kliki, drsenja,
         el: (tag, o) => new El(tag, o),
-        nalozi(vir) { vm.runInContext(vir, ctx); },
+        zetoni, zeton,
+        // Kot UserScriptManager.tvSpatialJs: zeton namesto mesta v besedilu skripta.
+        nalozi(vir) { vm.runInContext(vir.split('__SAFEER_ZETON_DOTIKA__').join(zeton), ctx); },
     };
 }
 module.exports = { ustvari };

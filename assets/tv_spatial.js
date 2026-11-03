@@ -4,6 +4,20 @@
             if (window._safeer_tv_remote_installed) return;
             if (!window._safeer_tv_remote_installed) window._safeer_tv_remote_installed = true;
 
+            /* SAFEER_ZETON_DOTIKA_ZACETEK */
+            // Pregled Gemini 3. 11. 2026: SafeerBridge vidi vsak okvir strani; pravi dotik zato zahteva zeton, ki ga ima samo
+            // ta skript glavnega okvirja (aplikacija ga vstavi namesto mesta spodaj). Zeton je samo v zaprtju, nikoli na window.
+            // Most vzamemo ob zagonu, da ga stran pozneje ne podtakne.
+            var ZETON_DOTIKA = '__SAFEER_ZETON_DOTIKA__';
+            var mostDotika = window.SafeerBridge || null;
+            function pravDotik(x, y) {
+                try {
+                    if (!mostDotika) mostDotika = window.SafeerBridge || null;
+                    return !!(mostDotika && mostDotika.triggerNativeTap) && mostDotika.triggerNativeTap(x, y, ZETON_DOTIKA) === true;
+                } catch (_) { return false; }
+            }
+            /* SAFEER_ZETON_DOTIKA_KONEC */
+
             // #region agent log
             window._safeerDbg = function(h, loc, msg, podatki) {
                 try {
@@ -2554,11 +2568,7 @@
                     try { zadetek = document.elementFromPoint(cx, cy); } catch(_) {}
                     var tapnjeno = false;
                     if (naElementu(el, zadetek)) {
-                        try {
-                            if (window.SafeerBridge && window.SafeerBridge.triggerNativeTap) {
-                                tapnjeno = window.SafeerBridge.triggerNativeTap(cx, cy) === true;
-                            }
-                        } catch(_) {}
+                        tapnjeno = pravDotik(cx, cy);
                     }
                     if (!tapnjeno) {
                         var mouseOpts = { bubbles: true, cancelable: true, view: window, clientX: cx, clientY: cy, screenX: cx, screenY: cy };
@@ -2601,7 +2611,7 @@
                     // gostitelja ne doseze okvirja, zato ga ni.
                     if (target && jeIzziv(target)) {
                         var tIz = tockaIzziva(target.getBoundingClientRect());
-                        try { if (window.SafeerBridge && window.SafeerBridge.triggerNativeTap) window.SafeerBridge.triggerNativeTap(tIz.x, tIz.y); } catch (_) {}
+                        pravDotik(tIz.x, tIz.y);
                         return true;
                     }
                     // Tuj okvir (gumb GSI »Nadaljuj z Google«): samo en pravi dotik na sredini (SAFEER_OKVIR_GUMB).

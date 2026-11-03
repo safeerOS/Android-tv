@@ -48,6 +48,8 @@ class ChromiumEngineView @JvmOverloads constructor(
          * dotike (npr. na gumb v tujem iframu). Dovolimo en dotik kratko po tipki.
          */
         @Volatile private var zadnjaTipka = 0L
+        /** Zeton dotika za nas skript glavnega okvirja (SpletVarnostPravila.zetonVelja); en na proces. */
+        internal val ZETON_DOTIKA: String = SpletVarnostPravila.novZeton()
         private const val DOTIK_PO_TIPKI_MS = 1500L
 
         fun oznaciTipko() {
@@ -783,8 +785,13 @@ class ChromiumEngineView @JvmOverloads constructor(
         }
 
         @android.webkit.JavascriptInterface
-        fun triggerNativeTap(x: Float, y: Float): Boolean {
+        fun triggerNativeTap(x: Float, y: Float, zeton: String?): Boolean {
             // Vrne, ali je dotik sprejet: ce ne, stran klikne sama (natanko en klik, tv_spatial.js SAFEER_EN_KLIK).
+            // Najprej zeton (3. 11. 2026): klic tujega okvirja brez njega ne sme porabiti dovoljenja tipke OK.
+            if (!SpletVarnostPravila.zetonVelja(zeton, ZETON_DOTIKA)) {
+                android.util.Log.w("SafeerBridge", "Zavrnjen triggerNativeTap brez zetona (tuj okvir ali skript strani).")
+                return false
+            }
             if (!porabiDotik()) {
                 android.util.Log.w("SafeerBridge", "Zavrnjen triggerNativeTap brez tipke daljinca.")
                 return false

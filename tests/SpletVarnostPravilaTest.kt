@@ -138,5 +138,13 @@ fun main() {
     check(!P.naloziZNovoIdentiteto(true, "https://accounts.google.com/", false)) { "ista identiteta" }
     check(!P.naloziZNovoIdentiteto(false, "https://accounts.google.com/", true)) { "podokvir" }
     check(!P.naloziZNovoIdentiteto(true, "intent://x", true)) { "ni http" }
+    // Pregled Gemini 3. 11. 2026: dotik mostu samo z zetonom skripta glavnega okvirja (tuj okvir ga nima).
+    val z = P.novZeton()
+    check(z.length == 48 && z != P.novZeton()) { "zeton nakljucen, 24 bajtov" }
+    check(P.zetonVelja(z, z)) { "pravi zeton velja" }
+    check(!P.zetonVelja(null, z) && !P.zetonVelja("", z) && !P.zetonVelja(z.dropLast(1), z) && !P.zetonVelja(z + "0", z)) { "tuj okvir brez zetona" }
+    check(!P.zetonVelja(P.ZETON_DOTIKA_MESTO, P.ZETON_DOTIKA_MESTO)) { "nevstavljeno mesto ni zeton" }
+    check(!P.zetonVelja("", "")) { "prazen ni zeton" }
+    check(P.vstaviZeton("var Z = '${P.ZETON_DOTIKA_MESTO}';", z) == "var Z = '$z';") { "vstavljen v skript" }
     println("SpletVarnostPravilaTest: OK")
 }

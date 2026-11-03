@@ -199,6 +199,27 @@ object SpletVarnostPravila {
         glavniOkvir && preusmeritev && google &&
             (url.startsWith("https://", ignoreCase = true) || url.startsWith("http://", ignoreCase = true))
 
+    /**
+     * Pregled Gemini 3. 11. 2026: SafeerBridge (addJavascriptInterface) vidi VSAK okvir strani. Okvir, ki 1,5 s po OK
+     * poklice triggerNativeTap pred nasim skriptom, je porabil dovoljenje in sam izbral tocko dotika. Zato dotik velja
+     * samo z zetonom, ki ga dobi le nas skript glavnega okvirja (evaluateJavascript, zaprtje skripta), primerjan v
+     * konstantnem casu (AGENTS.md: ZETON_MOSTU).
+     */
+    const val ZETON_DOTIKA_MESTO = "__SAFEER_ZETON_DOTIKA__"
+
+    fun novZeton(): String {
+        val b = ByteArray(24)
+        java.security.SecureRandom().nextBytes(b)
+        return b.joinToString("") { "%02x".format(it) }
+    }
+
+    fun zetonVelja(dan: String?, pricakovan: String): Boolean =
+        dan != null && pricakovan.length >= 32 && pricakovan != ZETON_DOTIKA_MESTO &&
+            java.security.MessageDigest.isEqual(dan.toByteArray(Charsets.UTF_8), pricakovan.toByteArray(Charsets.UTF_8))
+
+    /** Zeton gre samo v besedilo nasega skripta (tv_spatial.js), nikoli na window ali v dnevnik. */
+    fun vstaviZeton(js: String, zeton: String): String = js.replace(ZETON_DOTIKA_MESTO, zeton)
+
     /** Sinteticni dotik (triggerNativeTap) samo znotraj pogleda; NaN ali tocka zunaj se zavrne. */
     fun dotikVPogledu(x: Float, y: Float, sirina: Int, visina: Int): Boolean =
         !x.isNaN() && !y.isNaN() && x >= 0f && y >= 0f && x < sirina && y < visina
