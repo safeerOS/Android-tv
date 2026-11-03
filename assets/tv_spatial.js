@@ -704,6 +704,40 @@
                 return null;
             }
 
+            /* SAFEER_PRAVI_CILJ_ZACETEK */
+            // Zunanji pregled 3. 11. 2026: ovitek kartice (razred card/tile/item/media ...) je zamenjal gumb ali povezavo v
+            // sebi - obroc na celi kartici, gumb »Predvajaj« ali »Vec« ni bil dosegljiv. Pravi cilj je element, ki ga
+            // brskalnik sam pozna kot dejanje; ovitek po razredu je cilj samo, ce v njem ni drugega pravega cilja.
+            // Znane ploscice (item--event, content-carousel__item: RTV 365, Pro Plus) ostanejo cele kot prej.
+            function jePravCilj(el) {
+                if (!el || el.nodeType !== 1) return false;
+                var t = (el.tagName || '').toUpperCase();
+                if (t === 'BUTTON' || t === 'INPUT' || t === 'TEXTAREA' || t === 'SELECT') return true;
+                if (t === 'A' && el.hasAttribute('href')) return true;
+                var ro = (el.getAttribute('role') || '').toLowerCase();
+                return ro === 'button' || ro === 'link' || ro === 'tab';
+            }
+            function jeZnanaPloscica(el) {
+                var c = ((el && el.className) || '').toString().toLowerCase();
+                return c.indexOf('item--event') !== -1 || c.indexOf('content-carousel__item') !== -1;
+            }
+            function jeOvitekPoRazredu(el) {
+                if (!el || jePravCilj(el) || jeZnanaPloscica(el)) return false;
+                if (el.hasAttribute('onclick') || el.hasAttribute('data-ved')) return false;
+                var ti = el.getAttribute('tabindex');
+                return !(ti !== null && ti.trim() !== '' && ti.trim() !== '-1');
+            }
+            function pravihCiljevV(el) {
+                var n = 0, vsi;
+                try { vsi = el.querySelectorAll('a[href], button, [role="button"], [role="link"], [role="tab"], input, select, textarea'); } catch (_) { return 0; }
+                for (var i = 0; i < vsi.length && n < 2; i++) {
+                    var r = vsi[i].getBoundingClientRect();
+                    if (r.width > 0 && r.height > 0) n++;
+                }
+                return n;
+            }
+            /* SAFEER_PRAVI_CILJ_KONEC */
+
             function findCardContainer(el) {
                 if (!el || el === document.body || el === document.documentElement) return null;
                 var tag = el.tagName.toUpperCase();
@@ -751,6 +785,8 @@
                     }
                     curr = curr.parentElement;
                 }
+                // Pravi cilj v kartici z vec dejanji ostane sam (SAFEER_PRAVI_CILJ): kartica ga ne zamenja.
+                if (highestCard && jePravCilj(el) && !jeZnanaPloscica(highestCard) && pravihCiljevV(highestCard) > 1) return null;
                 return highestCard;
             }
 
@@ -776,15 +812,19 @@
                     var t = Math.max(r.top, 0), b = Math.min(r.bottom, winH);
                     // Element zunaj zaslona: o njem ne sodimo, za to skrbijo drugi filtri.
                     if (d - l < 2 || b - t < 2) return false;
-                    var y = (t + b) / 2;
                     var sredina = l + (d - l) * 0.5;
-                    if (!jeNaTocki(el, sredina, y)) {
-                        // Videti je prekrit. Preden ga odpisemo, poskusimo se levo in desno -
-                        // lepljiva glava ali drsnik lahko prekriva le sredino.
-                        var levo = l + (d - l) * 0.15;
-                        var desno = l + (d - l) * 0.85;
-                        if (jeNaTocki(el, levo, y)) return false;
-                        if (jeNaTocki(el, desno, y)) return false;
+                    if (!jeNaTocki(el, sredina, (t + b) / 2)) {
+                        // Videti je prekrit. Preden ga odpisemo, poskusimo se levo in desno ter nad in pod sredino -
+                        // lepljiva glava ali drsnik lahko prekriva le del (zunanji pregled 3. 11. 2026: glava cez
+                        // zgornjo polovico gumba ga je izlocila, cetudi je bil spodnji del viden in klikljiv).
+                        var vrste = [0.5, 0.8, 0.2], stolpci = [0.5, 0.15, 0.85];
+                        for (var vi = 0; vi < vrste.length; vi++) {
+                            var y = t + (b - t) * vrste[vi];
+                            for (var si = 0; si < stolpci.length; si++) {
+                                if (vi === 0 && si === 0) continue;
+                                if (jeNaTocki(el, l + (d - l) * stolpci[si], y)) return false;
+                            }
+                        }
                         return true;
                     }
                 } catch (_) {}
@@ -1304,6 +1344,8 @@
                     for (var k = 0; k < raw.length; k++) {
                         if (j === k) continue;
                         if (raw[k].contains(item)) {
+                            // Pravi cilj v ovitku po razredu ostane, odpade ovitek (SAFEER_PRAVI_CILJ).
+                            if (jePravCilj(item) && jeOvitekPoRazredu(raw[k])) continue;
                             var pcls = ((raw[k].className || '') + '').toLowerCase();
                             if (itemCls.indexOf('item--event') !== -1 && pcls.indexOf('livetv-griditem') !== -1) {
                                 continue;
@@ -1315,6 +1357,7 @@
                             break;
                         }
                         if (item.contains(raw[k])) {
+                            if (jeOvitekPoRazredu(item) && jePravCilj(raw[k])) { dropWrapper = true; break; }
                             var cclsK = ((raw[k].className || '') + '').toLowerCase();
                             if (itemCls.indexOf('livetv-griditem') !== -1 && itemCls.indexOf('item--event') === -1 && cclsK.indexOf('item--event') !== -1) {
                                 dropWrapper = true;
@@ -2345,10 +2388,9 @@
                         }
                     }
 
-                    if (direction === 'UP' && cRect.top <= 80 && scrollY <= 20) {
-                        clearActive();
-                        return -1; // Izstop v iskalno vrstico (omnibox)
-                    }
+                    // Zunanji pregled 3. 11. 2026: tu je bil izstop v naslovno vrstico, ce je bil izbrani element v zgornjih
+                    // 80 px - tudi, ce je bil nad njim se cilj strani (v nacinu aplikacije je prvi GOR zapustil aplikacijo).
+                    // Izstop (-1) je zdaj samo spodaj: v smeri GOR ni cilja in stran je na vrhu (SAFEER_GOR_NA_VRHU).
 
                     var bestTarget = null;
                     var bestScore = Infinity;
