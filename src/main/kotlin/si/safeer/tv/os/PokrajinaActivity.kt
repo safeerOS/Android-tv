@@ -777,19 +777,14 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     private fun lupa(): View {
         val okvir = object : LinearLayout(this) {
             // Z vpisanim besedilom fokus iz polja ostane v plosci (filtri, seznam, vrstica znakov) - ne na glavo, mini
-            // predvajalnik ali ploscice (lovec napak 3. 11. 2026: DESNO s polja na RTV SLO za plosco). Prazno polje
-            // (samo zgodovina) ni past: plosca se zapre PRED iskanjem, da so ploscice spet fokusne (LupaPravila.izPolja).
+            // predvajalnik ali ploscice (lovec napak 3. 11. 2026: DESNO s polja na RTV SLO za plosco). Brez stranskih
+            // ucinkov: TextView ob vezavi tipkovnice (onCreateInputConnection) klice focusSearch(GOR/DOL) samo za oznake -
+            // ce bi tu zaprli plosco, se zgodovina ob fokusu na praznem polju sploh ne bi pokazala (TV 3. 11. 2026, 04:13).
+            // Zapiranje plosce s praznega polja je v tipki polja (setOnKeyListener).
             override fun focusSearch(focused: View?, direction: Int): View? {
                 val odprta = ::zadetkiDrsnik.isInitialized && zadetkiDrsnik.visibility == View.VISIBLE
                 when (LupaPravila.izPolja(odprta, poljeLupe.text.isNullOrBlank(), direction == View.FOCUS_DOWN)) {
-                    LupaPravila.IzPolja.PRIVZETO -> return super.focusSearch(focused, direction)
-                    LupaPravila.IzPolja.ZAPRI_PLOSCO -> {
-                        zadetkiDrsnik.visibility = View.GONE
-                        val n = super.focusSearch(focused, direction)
-                        // Ni cilja zunaj polja: fokus ostane, zgodovina ostane odprta.
-                        if (n == null || jePotomec(n, this)) zadetkiDrsnik.visibility = View.VISIBLE else iskanjeSt++
-                        return n
-                    }
+                    LupaPravila.IzPolja.PRIVZETO, LupaPravila.IzPolja.ZAPRI_PLOSCO -> return super.focusSearch(focused, direction)
                     LupaPravila.IzPolja.V_PLOSCI -> {
                         val n = super.focusSearch(focused, direction)
                         val tipkovnica = window.decorView.findViewWithTag<View>("lupaTipkovnica")
@@ -826,8 +821,23 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                 val dol = if (koda == KeyEvent.KEYCODE_DPAD_DOWN && d.action == KeyEvent.ACTION_DOWN)
                     LupaPravila.dolSPolja(zadetkiDrsnik.visibility == View.VISIBLE, vrstaIzbire.visibility == View.VISIBLE, prviVSeznamu() != null)
                 else LupaPravila.Fokus.OSTANE
+                val stran = when (koda) {
+                    KeyEvent.KEYCODE_DPAD_UP -> View.FOCUS_UP
+                    KeyEvent.KEYCODE_DPAD_LEFT -> View.FOCUS_LEFT
+                    KeyEvent.KEYCODE_DPAD_RIGHT -> View.FOCUS_RIGHT
+                    else -> null
+                }
                 if (dol == LupaPravila.Fokus.FILTER || dol == LupaPravila.Fokus.PRVI) {
                     (if (dol == LupaPravila.Fokus.FILTER) izbranGumb() else prviVSeznamu())?.requestFocus()
+                    true
+                } else if (stran != null && d.action == KeyEvent.ACTION_DOWN && LupaPravila.izPolja(zadetkiDrsnik.visibility == View.VISIBLE,
+                        niz.isEmpty(), false) == LupaPravila.IzPolja.ZAPRI_PLOSCO) {
+                    // Prazno polje (samo zgodovina) ni past: plosca se zapre PRED iskanjem cilja (ploscice spet fokusne),
+                    // fokus gre s polja kot pred 320c1ed8. Brez cilja zunaj polja zgodovina ostane odprta.
+                    zadetkiDrsnik.visibility = View.GONE
+                    val n = v.focusSearch(stran)
+                    if (n != null && n !== v && !jePotomec(n, zadetkiDrsnik) && n.requestFocus()) iskanjeSt++
+                    else zadetkiDrsnik.visibility = View.VISIBLE
                     true
                 } else if (d.action == KeyEvent.ACTION_DOWN && d.repeatCount == 0 && ok && LupaPravila.okIsce(niz, DomacaLupa.obseg(this@PokrajinaActivity))) {
                     DomacaLupa.izvedi(this@PokrajinaActivity, niz)

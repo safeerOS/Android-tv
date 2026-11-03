@@ -537,11 +537,15 @@ def main() -> int:
     polje = pk2.split("private fun lupa(): View {", 1)[-1].split("}.apply {", 1)[0]
     preveri("lupa: iz polja ob odprti plosci fokus ostane v plosci",
             "override fun focusSearch(focused: View?, direction: Int)" in polje and "LupaPravila.ciljVPlosci(null, n, vPlosci) ?: focused" in polje)
-    zapri = polje.split("LupaPravila.IzPolja.ZAPRI_PLOSCO -> {", 1)[-1].split("LupaPravila.IzPolja.V_PLOSCI", 1)[0]
-    preveri("lupa: prazno polje (zgodovina) ni past - plosca se zapre pred iskanjem cilja",
-            "LupaPravila.izPolja(odprta, poljeLupe.text.isNullOrBlank(), direction == View.FOCUS_DOWN)" in polje
-            and zapri.find("zadetkiDrsnik.visibility = View.GONE") != -1
-            and -1 < zapri.find("zadetkiDrsnik.visibility = View.GONE") < zapri.find("super.focusSearch(focused, direction)"))
+    # TV 3. 11. 2026 04:13 (1a66010e): focusSearch je zapiral plosco, TextView pa ga klice ob vezavi tipkovnice
+    # (onCreateInputConnection) - zgodovina se ob fokusu na praznem polju ni pokazala. focusSearch polja brez ucinkov.
+    preveri("lupa: focusSearch polja ne spreminja plosce (klice ga tudi tipkovnica)",
+            "visibility = View." not in polje and "iskanjeSt" not in polje)
+    tipka = pk2.split("private fun lupa(): View {", 1)[-1].split("polje.addTextChangedListener", 1)[0].split("setOnKeyListener { v, koda, d ->", 1)[-1]
+    zapri = tipka.split("LupaPravila.IzPolja.ZAPRI_PLOSCO) {", 1)[-1]
+    preveri("lupa: prazno polje (zgodovina) ni past - tipka zapre plosco pred iskanjem cilja",
+            "LupaPravila.IzPolja.ZAPRI_PLOSCO) {" in tipka
+            and -1 < zapri.find("zadetkiDrsnik.visibility = View.GONE") < zapri.find("v.focusSearch(stran)"))
     preveri("lupa: odprta plosca porabi dotik na praznem delu",
             "override fun dispatchTouchEvent(e: android.view.MotionEvent): Boolean" in plosca and "isClickable = true" not in plosca)
     # Lastnik 28. 10. 2026: mreza Filmi | Serije pokaze vse naslove takoj (brez cakanja na vljudno preverjanje).
