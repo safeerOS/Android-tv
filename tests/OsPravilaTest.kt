@@ -1008,6 +1008,8 @@ private fun preizkusGlasbe83() {
     preveriEnako("podnapisi: po 1 s v READY", true, OsPravila.podnapisiZdaj(pripravljen = true, pripravljenOdMs = 1_000, zdajMs = 2_100))
     preveriEnako("podnapisi: ne med nalaganjem", false, OsPravila.podnapisiZdaj(pripravljen = false, pripravljenOdMs = 1_000, zdajMs = 9_000))
     preveriEnako("podnapisi: samo zadnji zadetek", listOf("b"), OsPravila.dodatkiZaPodnapise(listOf("a", "b", "c"), "B") { it.uppercase() })
+    preveriEnako("podnapisi: brez zadetka pri zadnjem - ostali", listOf("a", "c"), OsPravila.ostaliZaPodnapise(listOf("a", "b", "c"), listOf("b")))
+    preveriEnako("podnapisi: vsi ze vprasani - nic", emptyList<String>(), OsPravila.ostaliZaPodnapise(listOf("a"), listOf("a")))
     preveriEnako("podnapisi: zadnji odstranjen - vsi", listOf("a", "c"), OsPravila.dodatkiZaPodnapise(listOf("a", "c"), "B") { it.uppercase() })
     preveriEnako("podnapisi: med predvajanjem pocaka na premor", false, OsPravila.podnapisZdajAliObPremoru(igra = true))
     // Zunanji pregled iskalne vrstice 3. 11. 2026

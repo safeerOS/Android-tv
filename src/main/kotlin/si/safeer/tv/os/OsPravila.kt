@@ -1786,6 +1786,9 @@ object OsPravila {
      */
     fun podnapisZdajAliObPremoru(igra: Boolean): Boolean = !igra
 
+    /** Dodatki, ki jih vprasamo, ce prvi krog ([dodatkiZaPodnapise]) ni nasel podnapisov v jeziku: vsi ostali. */
+    fun ostaliZaPodnapise(vsi: List<String>, vprasani: List<String>): List<String> = vsi.filter { it !in vprasani }
+
     // ------------------------------------------------------------------ zunanji pregled iskalne vrstice 3. 11. 2026
 
     enum class TipkaIskanja { ISCI, TIPKOVNICA, FOKUS_ZADETKI, ZAPRI_TIPKOVNICO, ZAPUSTI }
