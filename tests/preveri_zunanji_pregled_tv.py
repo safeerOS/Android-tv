@@ -73,6 +73,10 @@ preveri("Zavihki: aktivni zavihek brez zelenega okvirja (zelen samo fokus)", 'st
 preveri("Brskalnik: zagon z zaganjalnika pusti en zavihek", ma.count("pustiEnZavihekObZagonu()") >= 3)
 preveri("Brskalnik: zavihek spletne aplikacije se ob izhodu unici", "tabManager.closeTab(this, aplikacija.id)" in ma and "ZavihkiPravila.unici(zvokVOzadju" in ma)
 
+preveri("Zavihki: stran pod seznamom brez fokusa, fokus na aktivni kartici", "FOCUS_BLOCK_DESCENDANTS" in ma and "ZavihkiPravila.zacetnaKartica(" in ma and ma.count("tabSwitcherOverlay.visibility = View.GONE") == 1)
+for p in ("res/drawable/bg_tab_card.xml", "res/drawable/bg_tab_card_active.xml"):
+    preveri("Zavihki: izbrana kartica v GridView poudarjena (%s)" % p, 'state_selected="true"' in beri(p))
+
 if napake:
     print("NAPAKA zunanji pregled TV:", len(napake)); sys.exit(1)
 print("zunanji pregled TV OK")

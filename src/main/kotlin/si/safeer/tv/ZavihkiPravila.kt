@@ -22,6 +22,17 @@ object ZavihkiPravila {
      * ponoven vstop nadaljuje tam. Ostane samo, ce igra zvok v ozadju, ce caka izbira datotek (sistemski izbirnik je
      * druga dejavnost) ali ob menjavi nastavitev (zasuk).
      */
+    /**
+     * Lastnik 4. 11. 2026 23:47 (uiautomator): v »Odprti zavihki« smerne tipke niso premaknile nicesar - fokus sta imela
+     * GridView in vozlisce v WebViewu pod seznamom. Ob odprtju dobi fokus aktivna kartica (sicer prva); brez zavihkov -1
+     * (fokus na »+ Nov zavihek«).
+     */
+    fun zacetnaKartica(aktivni: Int, stevilo: Int): Int = when {
+        stevilo <= 0 -> -1
+        aktivni in 0 until stevilo -> aktivni
+        else -> 0
+    }
+
     fun unici(zvokVOzadju: Boolean, cakaIzbiroDatotek: Boolean, menjavaNastavitev: Boolean): Boolean =
         !zvokVOzadju && !cakaIzbiroDatotek && !menjavaNastavitev
 }

@@ -2648,17 +2648,17 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
         // Tab switcher buttons
         btnNewTabInSwitcher.setOnClickListener {
-            tabSwitcherOverlay.visibility = View.GONE
+            zapriSeznamZavihkov()
             tabManager.createTab(this, SpletDomaca.naslov(this), true)
         }
 
         btnCloseTabsSwitcher.setOnClickListener {
-            tabSwitcherOverlay.visibility = View.GONE
+            zapriSeznamZavihkov()
         }
 
         btnCloseAllTabs.setOnClickListener {
             tabManager.closeAllTabs(this)
-            tabSwitcherOverlay.visibility = View.GONE
+            zapriSeznamZavihkov()
         }
     }
 
@@ -2760,12 +2760,25 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
     private fun toggleTabSwitcher() {
         if (tabSwitcherOverlay.visibility == View.VISIBLE) {
-            tabSwitcherOverlay.visibility = View.GONE
+            zapriSeznamZavihkov()
         } else {
             renderTabsGrid()
+            // Lastnik 4. 11. 2026 23:47: smerne tipke niso premaknile nicesar - fokus je skakal med GridView in vozliscem v
+            // WebViewu pod seznamom. Stran pod seznamom fokusa ne dobi, dokler je seznam odprt; fokus na aktivni kartici.
+            webViewContainer.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+            try { activeWebView()?.clearFocus() } catch (_: Throwable) { }
             tabSwitcherOverlay.visibility = View.VISIBLE
-            btnNewTabInSwitcher.requestFocus()
+            val vsi = tabManager.getAllTabs()
+            val i = ZavihkiPravila.zacetnaKartica(vsi.indexOfFirst { it.id == tabManager.getActiveTab()?.id }, vsi.size)
+            if (i < 0) btnNewTabInSwitcher.requestFocus()
+            else tabsGridView.post { tabsGridView.requestFocus(); tabsGridView.setSelection(i) }
         }
+    }
+
+    /** Zapre seznam zavihkov in strani pod njim vrne fokus (glej toggleTabSwitcher). */
+    private fun zapriSeznamZavihkov() {
+        tabSwitcherOverlay.visibility = View.GONE
+        webViewContainer.descendantFocusability = ViewGroup.FOCUS_AFTER_DESCENDANTS
     }
 
     private fun renderTabsGrid() {
@@ -2800,7 +2813,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
                 view.setOnClickListener {
                     tabManager.switchTab(tab.id)
-                    tabSwitcherOverlay.visibility = View.GONE
+                    zapriSeznamZavihkov()
                 }
 
                 btnClose.setOnClickListener {
@@ -3814,7 +3827,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         }
 
         if (tabSwitcherOverlay.visibility == View.VISIBLE) {
-            tabSwitcherOverlay.visibility = View.GONE
+            zapriSeznamZavihkov()
             btnTabCount.requestFocus()
             return
         }

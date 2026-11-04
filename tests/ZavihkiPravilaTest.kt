@@ -16,5 +16,10 @@ fun main() {
     check(!p.unici(zvokVOzadju = true, cakaIzbiroDatotek = false, menjavaNastavitev = false))
     check(!p.unici(zvokVOzadju = false, cakaIzbiroDatotek = true, menjavaNastavitev = false))
     check(!p.unici(zvokVOzadju = false, cakaIzbiroDatotek = false, menjavaNastavitev = true))
+    // Lastnik 23:47: fokus ob odprtju seznama na aktivni kartici (ne na GridView ali gumbu).
+    check(p.zacetnaKartica(aktivni = 1, stevilo = 3) == 1)
+    check(p.zacetnaKartica(aktivni = -1, stevilo = 3) == 0)
+    check(p.zacetnaKartica(aktivni = 5, stevilo = 3) == 0)
+    check(p.zacetnaKartica(aktivni = 0, stevilo = 0) == -1)
     println("ZavihkiPravilaTest: OK")
 }

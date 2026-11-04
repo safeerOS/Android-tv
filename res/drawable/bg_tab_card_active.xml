@@ -3,6 +3,13 @@
      ni vedel, kje je fokus. Zelen okvir ima samo fokus (enako kot bg_tab_card); aktivni zavihek oznaci znacka AKTIVEN in
      nevtralen rob (osCrta) na dvignjeni kartici. -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
+  <item android:state_selected="true">
+    <shape android:shape="rectangle">
+      <solid android:color="?attr/osMeniIzbranOzadje" />
+      <stroke android:width="3dp" android:color="?attr/osMint" />
+      <corners android:radius="14dp" />
+    </shape>
+  </item>
   <item android:state_focused="true">
     <shape android:shape="rectangle">
       <solid android:color="?attr/osMeniIzbranOzadje" />

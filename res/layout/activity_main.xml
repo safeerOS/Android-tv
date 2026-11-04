@@ -442,6 +442,8 @@
             android:layout_below="@id/tabSwitcherHeader"
             android:layout_above="@+id/tabSwitcherFooter"
             android:numColumns="2"
+            android:listSelector="@android:color/transparent"
+            android:drawSelectorOnTop="false"
             android:horizontalSpacing="12dp"
             android:verticalSpacing="12dp"
             android:padding="14dp"
