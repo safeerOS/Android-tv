@@ -14,7 +14,9 @@ trap 'rm -rf "$OUT"' EXIT
 
 "$KOTLINC" -J-Xmx2g \
     "$SRC/si/safeer/tv/DomainSuffixTrie.kt" \
-    "$TEST_DIR/DomenTest.kt" \
+    "$SRC/com/safeer/threatfeed/SortedStringTable.kt" \
+    "$TEST_DIR/DomenTest.kt" "$TEST_DIR/DrevoKazaloTest.kt" \
     -include-runtime -d "$OUT/domene.jar"
 
 java -Xmx1g -cp "$OUT/domene.jar" si.safeer.tv.DomenTestKt
+java -Xmx1g -cp "$OUT/domene.jar" si.safeer.tv.DrevoKazaloTestKt

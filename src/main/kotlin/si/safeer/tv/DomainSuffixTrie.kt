@@ -127,17 +127,6 @@ class DomainSuffixTrie {
 
     // ------------------------------------------------------------------ notranjost
 
-    /** Normalizacija je ista kot prej: male crke, brez praznih delov, komentarji odpadejo. */
-    private fun normaliziraj(vhod: String): String? {
-        val clean = vhod.trim().lowercase()
-        if (clean.isEmpty() || clean.startsWith("#")) return null
-        val deli = clean.split('.').filter { it.isNotEmpty() }
-        if (deli.isEmpty()) return null
-        val zdruzeno = deli.joinToString(".")
-        // Dolzino hranimo v dveh bajtih; daljse od tega ni prava domena.
-        return if (zdruzeno.length > NAJDALJSA) null else zdruzeno
-    }
-
     private fun indeksBesede(beseda: String?): Short {
         besedeIndeks[beseda]?.let { return it.toShort() }
         if (besede.size >= Short.MAX_VALUE) return 0   // toliko razlicnih virov ne pricakujemo
@@ -172,10 +161,9 @@ class DomainSuffixTrie {
             return
         }
 
-        val vrstniRed = (0 until stevilo).sortedWith(Comparator { a, b ->
-            val c = primerjajVnosa(a, b)
-            if (c != 0) c else a - b          // ob enakem nizu naj bo prvi vstavljeni prvi
-        })
+        // Urejanje indeksov v IntArray (prej sortedWith na List<Int>: en Integer na vnos, pri 300 000 domenah ~5 MB kopice
+        // prehodno). Ob enakem nizu je prvi vstavljeni prvi, zato je vrstni red popoln in rezultat enak kot prej.
+        val vrstniRed = urediIndekse()
 
         val novBazen = StringBuilder(bazen.length)
         val novZacetki = IntArray(stevilo)
@@ -206,6 +194,31 @@ class DomainSuffixTrie {
         viri = novViri.copyOf(novih)
         stevilo = novih
         urejeno = true
+    }
+
+    /** Stabilno urejanje z zlivanjem nad IntArray brez zapakiranih Integerjev (primerjava ima se indeks kot drugi kljuc). */
+    private fun urediIndekse(): IntArray {
+        var a = IntArray(stevilo) { it }
+        var b = IntArray(stevilo)
+        var sirina = 1
+        while (sirina < stevilo) {
+            var levo = 0
+            while (levo < stevilo) {
+                val sredina = minOf(levo + sirina, stevilo)
+                val desno = minOf(levo + 2 * sirina, stevilo)
+                var i = levo; var j = sredina; var k = levo
+                while (i < sredina && j < desno) {
+                    val c = primerjajVnosa(a[i], a[j])
+                    if (c < 0 || (c == 0 && a[i] < a[j])) b[k++] = a[i++] else b[k++] = a[j++]
+                }
+                while (i < sredina) b[k++] = a[i++]
+                while (j < desno) b[k++] = a[j++]
+                levo = desno
+            }
+            val t = a; a = b; b = t
+            sirina *= 2
+        }
+        return a
     }
 
     private fun primerjajVnosa(a: Int, b: Int): Int {
@@ -268,8 +281,88 @@ class DomainSuffixTrie {
         return d - dolzinaKljuca
     }
 
+    /**
+     * Zapise urejen seznam v datoteko za [DomenskoKazalo] (4. 11. 2026: drevo grozenj ob zagonu iz mmap namesto gradnje v
+     * kopici). [kljuc] pove, iz cesa je seznam zgrajen; klicatelj ga izracuna iz SHA-256 preverjenih seznamov.
+     */
+    @Synchronized
+    fun zapisiKazalo(datoteka: java.io.File, kljuc: ByteArray) {
+        strni()
+        val b = bazen
+        val z = zacetki
+        val d = dolzine
+        val k = kategorije
+        val v = viri
+        val tabela = com.safeer.threatfeed.SortedStringTable.Table(
+            stevilo,
+            { i -> Odsek(b, z[i], d[i].toInt()) },
+            { i -> (k[i].toInt() shl 16) or v[i].toInt() },
+        )
+        com.safeer.threatfeed.SortedStringTable.write(datoteka, kljuc, ArrayList(besede), listOf(tabela))
+    }
+
+    /** Pogled na del bazena brez kopije niza (zapis kazala). */
+    private class Odsek(private val s: String, private val od: Int, override val length: Int) : CharSequence {
+        override fun get(index: Int): Char = s[od + index]
+        override fun subSequence(startIndex: Int, endIndex: Int): CharSequence = s.substring(od + startIndex, od + endIndex)
+        override fun toString(): String = s.substring(od, od + length)
+    }
+
     companion object {
         /** Domena, daljsa od tega, ni prava domena; dolzino hranimo v dveh bajtih. */
         private const val NAJDALJSA = 255
+
+        /** Normalizacija je ista kot prej: male crke, brez praznih delov, komentarji odpadejo. */
+        internal fun normaliziraj(vhod: String): String? {
+            val clean = vhod.trim().lowercase()
+            if (clean.isEmpty() || clean.startsWith("#")) return null
+            val deli = clean.split('.').filter { it.isNotEmpty() }
+            if (deli.isEmpty()) return null
+            val zdruzeno = deli.joinToString(".")
+            // Dolzino hranimo v dveh bajtih; daljse od tega ni prava domena.
+            return if (zdruzeno.length > NAJDALJSA) null else zdruzeno
+        }
+    }
+}
+
+/**
+ * Isti seznam kot [DomainSuffixTrie], odprt iz datoteke (FileChannel.map): ni v kopici in ga ni treba graditi ob zagonu.
+ * Iskanje je natanko isto - najkrajsa shranjena pripona gostitelja obvelja, kategorija in vir iz istih besed.
+ */
+class DomenskoKazalo private constructor(private val tabela: com.safeer.threatfeed.SortedStringTable) {
+    val size: Int get() = tabela.size(0)
+    val bajtov: Long get() = tabela.bytes
+
+    fun matches(host: String): Boolean = findMatch(host) != null
+
+    fun findMatch(host: String): DomainSuffixTrie.MatchResult? {
+        val clean = DomainSuffixTrie.normaliziraj(host) ?: return null
+        if (tabela.size(0) == 0) return null
+        var odmik = clean.length
+        while (true) {
+            odmik = clean.lastIndexOf('.', odmik - 1)
+            val zacetekPripone = if (odmik < 0) 0 else odmik + 1
+            val v = tabela.find(0, clean, zacetekPripone)
+            if (v >= 0) {
+                return DomainSuffixTrie.MatchResult(
+                    isMatched = true,
+                    matchedDomain = clean.substring(zacetekPripone),
+                    category = tabela.words.getOrNull(v ushr 16),
+                    sourceFeed = tabela.words.getOrNull(v and 0xffff)
+                )
+            }
+            if (odmik <= 0) return null
+        }
+    }
+
+    /** Celotna datoteka je neposkodovana (CRC32); klici v ozadju, ne na glavni niti. */
+    fun neposkodovano(): Boolean = tabela.bodyIntact()
+
+    companion object {
+        /** Odpre kazalo, ce je datoteka cela in zgrajena iz [kljuc]; sicer null. Bere samo glavo (ms). */
+        fun odpri(datoteka: java.io.File, kljuc: ByteArray): DomenskoKazalo? {
+            val t = com.safeer.threatfeed.SortedStringTable.open(datoteka, kljuc) ?: return null
+            return if (t.tableCount == 1) DomenskoKazalo(t) else null
+        }
     }
 }
