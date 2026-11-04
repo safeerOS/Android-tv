@@ -246,6 +246,18 @@ class SpletniKlepetActivity : OsActivity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (requestCode == IZBIRA_DATOTEKE) {
+            // Izbirnik, ki se zapre sam (nadomestek), ni preklic: naslednji po vrsti (IzbirnikDatotekTv.poOdgovoru).
+            when (si.safeer.tv.IzbirnikDatotekTv.poOdgovoru(this, IZBIRA_DATOTEKE, resultCode, izbiraTipi, izbiraVec)) {
+                si.safeer.tv.IzbirnikDatotekTv.PoOdgovoru.NOV_IZBIRNIK -> return
+                si.safeer.tv.IzbirnikDatotekTv.PoOdgovoru.LASTEN -> {
+                    if (!KrajevneDatoteke.imamoDovoljenje(this)) {
+                        try { requestPermissions(KrajevneDatoteke.dovoljenja(), DOVOLJENJE_IZBIRA); return } catch (_: Throwable) { }
+                    }
+                    odpriLastenIzbirnik()
+                    return
+                }
+                si.safeer.tv.IzbirnikDatotekTv.PoOdgovoru.KONEC -> { }
+            }
             // Strani samo content:// iz izbirnika, nikoli file:// ali nas ponudnik (si.safeer.*): IzbiraDatotek.sprejmi.
             val surovi = mutableListOf<String?>()
             if (resultCode == RESULT_OK && data != null) {

@@ -64,6 +64,28 @@ fun main(args: Array<String>) {
     preveri(IzbiraDatotek.skritaMapa("/android/obb/"), true, "Android/obb skrita")
     preveri(IzbiraDatotek.skritaMapa("Download/"), false, "Download vidna")
 
+    // TV 4. 11. 2026 20:06 (Philips): OPEN_DOCUMENT je imel samo Googlov nadomestek, ki se takoj zapre.
+    preveri(IzbiraDatotek.jeNadomestek("com.google.android.tv.frameworkpackagestubs"), true, "Googlov TV nadomestek")
+    preveri(IzbiraDatotek.jeNadomestek("com.android.frameworkpackagestubs"), true, "drug nadomestek *.frameworkpackagestubs")
+    preveri(IzbiraDatotek.jeNadomestek("com.android.documentsui"), false, "DocumentsUI je pravi izbirnik")
+    preveri(IzbiraDatotek.jeNadomestek("com.google.android.documentsui"), false, "Googlov DocumentsUI je pravi")
+    preveri(IzbiraDatotek.jeNadomestek("com.x.frameworkpackagestubsplus"), false, "samo konec imena")
+    preveri(IzbiraDatotek.jeNadomestek(null), false, "brez paketa ni nadomestek")
+    preveri(IzbiraDatotek.pravi(listOf("com.google.android.tv.frameworkpackagestubs")), emptyList<Int>(), "samo nadomestek: preskoci")
+    preveri(IzbiraDatotek.pravi(listOf("com.google.android.tv.frameworkpackagestubs", "com.ghisler.android.TotalCommander")), listOf(1), "nadomestek in upravitelj: upravitelj")
+    preveri(IzbiraDatotek.pravi(listOf(null, "")), emptyList<Int>(), "prazni paketi niso izbirnik")
+    preveri(IzbiraDatotek.poHitremPreklicu(IzbiraDatotek.Izbirnik.OPEN_DOCUMENT, false, 120), IzbiraDatotek.Izbirnik.GET_CONTENT, "zaprl se je sam: GET_CONTENT")
+    preveri(IzbiraDatotek.poHitremPreklicu(IzbiraDatotek.Izbirnik.GET_CONTENT, false, 300), IzbiraDatotek.Izbirnik.LASTEN, "GET_CONTENT se je zaprl sam: lasten seznam")
+    preveri(IzbiraDatotek.poHitremPreklicu(IzbiraDatotek.Izbirnik.OPEN_DOCUMENT, false, 4000), null, "uporabnik je preklical: velja")
+    preveri(IzbiraDatotek.poHitremPreklicu(IzbiraDatotek.Izbirnik.OPEN_DOCUMENT, true, 120), null, "izbira velja tudi hitro")
+    preveri(IzbiraDatotek.poHitremPreklicu(IzbiraDatotek.Izbirnik.OPEN_DOCUMENT, false, -5), null, "neveljaven cas: velja")
+    preveri(IzbiraDatotek.poHitremPreklicu(null, false, 100), null, "brez zagnanega izbirnika: velja")
+    // Obe aktivnosti preverita odgovor izbirnika (nadomestek, ki ga nismo prepoznali, ni uporabnikov preklic).
+    for (pot in listOf("si/safeer/tv/MainActivity.kt", "si/safeer/tv/os/SpletniKlepetActivity.kt")) {
+        val k = java.io.File(args.getOrNull(0) ?: error("pot do src/main/kotlin"), pot).readText()
+        preveri(k.contains("IzbirnikDatotekTv.poOdgovoru("), true, "$pot: hiter samodejni preklic gre na naslednji izbirnik")
+    }
+
     // Staticno: brskalnik in spletni klepeti ne vrnejo vec false, ko SAF ni (prej tihi propad), ampak gredo po vrsti.
     val src = java.io.File(args.getOrNull(0) ?: error("pot do src/main/kotlin"))
     for (pot in listOf("si/safeer/tv/MainActivity.kt", "si/safeer/tv/os/SpletniKlepetActivity.kt")) {

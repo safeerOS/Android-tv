@@ -47,6 +47,31 @@ object IzbiraDatotek {
         Izbirnik.LASTEN, Izbirnik.SPOROCILO -> Izbirnik.SPOROCILO
     }
 
+    /**
+     * Prazen nadomestek namesto pravega izbirnika. TV 4. 11. 2026 20:06 (Philips, logcat ActivityTaskManager):
+     * OPEN_DOCUMENT je sel na com.google.android.tv.frameworkpackagestubs (Stubs DocumentsStub), ki se takoj zapre -
+     * prejemnik je bil, izbirnika ne, rezerva (GET_CONTENT, lasten seznam) se ni sprozila. Tak prejemnik steje kot »ni ga«.
+     */
+    fun jeNadomestek(paket: String?): Boolean {
+        val p = paket?.trim()?.lowercase().orEmpty()
+        return p == "frameworkpackagestubs" || p.endsWith(".frameworkpackagestubs")
+    }
+
+    /** Prejemniki namere, ki so pravi izbirniki (indeksi v [paketi]); prazno = ta izbirnik preskoci. */
+    fun pravi(paketi: List<String?>): List<Int> = paketi.indices.filter { !paketi[it].isNullOrBlank() && !jeNadomestek(paketi[it]) }
+
+    /** Preklic prej kot v tem casu po zagonu ni uporabnikov: izbirnik se je zaprl sam (nadomestek, ki ga nismo prepoznali). */
+    const val HITER_PREKLIC_MS = 1000L
+
+    /**
+     * Odgovor sistemskega izbirnika: ce se je [izbirnik] zaprl brez izbire takoj po zagonu ([trajanjeMs] < [HITER_PREKLIC_MS]),
+     * vrne naslednji izbirnik po vrsti (tudi LASTEN); sicer null - odgovor velja (izbira ali uporabnikov preklic).
+     */
+    fun poHitremPreklicu(izbirnik: Izbirnik?, izbrano: Boolean, trajanjeMs: Long): Izbirnik? {
+        if (izbrano || trajanjeMs < 0 || trajanjeMs >= HITER_PREKLIC_MS) return null
+        return if (izbirnik == Izbirnik.OPEN_DOCUMENT || izbirnik == Izbirnik.GET_CONTENT) naslednji(izbirnik) else null
+    }
+
     /** Lasten izbirnik se pokaze samo, ce ima kaj ponuditi; prazen seznam = okno »ni izbirnika«. */
     fun poSeznamu(steviloDatotek: Int): Izbirnik = if (steviloDatotek > 0) Izbirnik.LASTEN else Izbirnik.SPOROCILO
 

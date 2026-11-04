@@ -114,6 +114,16 @@
         <!-- Sosednje Safeer aplikacije na isti napravi (Sosed.kt): brez izrecnega vnosa jih Android 11+
              skrije pred getPackageInfo(), tudi ce so namescene - vsaka bi mislila, da je edina in bi
              sama poskusila voditi Safeer Link (dvoje sredisc, ki se "volita" med sabo na isti napravi). -->
+        <!-- Izbira datotek (IzbirnikDatotekTv): brez tega Android 11+ prejemnikov ne pokaze in nadomestka
+             (frameworkpackagestubs, TV 4. 11. 2026) ne loci od pravega izbirnika. -->
+        <intent>
+            <action android:name="android.intent.action.OPEN_DOCUMENT" />
+            <data android:mimeType="*/*" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.GET_CONTENT" />
+            <data android:mimeType="*/*" />
+        </intent>
         <package android:name="si.safeer.tv" />
         <package android:name="si.safeer.os" />
         <package android:name="si.safeer.phone" />

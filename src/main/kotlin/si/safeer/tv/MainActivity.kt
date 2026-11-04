@@ -2895,6 +2895,19 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: android.content.Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == ZAHTEVA_IZBIRA_DATOTEK) {
+            // Izbirnik, ki se zapre sam (nadomestek), ni preklic: naslednji po vrsti (IzbirnikDatotekTv.poOdgovoru).
+            when (IzbirnikDatotekTv.poOdgovoru(this, ZAHTEVA_IZBIRA_DATOTEK, resultCode, izbiraTipi, izbiraVec)) {
+                IzbirnikDatotekTv.PoOdgovoru.NOV_IZBIRNIK -> return
+                IzbirnikDatotekTv.PoOdgovoru.LASTEN -> {
+                    if (!si.safeer.tv.os.KrajevneDatoteke.imamoDovoljenje(this)) {
+                        try { requestPermissions(si.safeer.tv.os.KrajevneDatoteke.dovoljenja(), ZAHTEVA_DOVOLJENJE_IZBIRA); return }
+                        catch (_: Exception) { }
+                    }
+                    odpriLastenIzbirnik()
+                    return
+                }
+                IzbirnikDatotekTv.PoOdgovoru.KONEC -> { }
+            }
             // Strani gre samo, kar je vrnil sistemski izbirnik (content:// tuje avtoritete), nikoli nas ponudnik.
             val surovi = mutableListOf<String?>()
             if (resultCode == android.app.Activity.RESULT_OK && data != null) {

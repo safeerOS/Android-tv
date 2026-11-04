@@ -43,14 +43,27 @@ object IzbirnikDatotekTv {
      * (odgovor pride v onActivityResult z [koda]); false, ce naprava nima nobenega - takrat [pokazi].
      */
     @Suppress("DEPRECATION")
-    fun zazeniSistemski(activity: Activity, koda: Int, tipi: List<String>, vec: Boolean): Boolean {
-        var izbirnik: IzbiraDatotek.Izbirnik? = null
+    fun zazeniSistemski(activity: Activity, koda: Int, tipi: List<String>, vec: Boolean, po: IzbiraDatotek.Izbirnik? = null): Boolean {
+        var izbirnik: IzbiraDatotek.Izbirnik? = po
         while (true) {
             izbirnik = IzbiraDatotek.naslednji(izbirnik)
             val n = namera(izbirnik, tipi, vec) ?: return false
+            // TV 4. 11. 2026 20:06: prejemnik je bil samo Googlov nadomestek (frameworkpackagestubs), ki se takoj zapre.
+            val prejemniki = try {
+                activity.packageManager.queryIntentActivities(n, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
+            } catch (_: Exception) { emptyList() }
+            val pravi = IzbiraDatotek.pravi(prejemniki.map { it.activityInfo?.packageName })
+            if (prejemniki.isNotEmpty() && pravi.isEmpty()) {
+                Log.i(TAG, "Izbirnik datotek $izbirnik: samo nadomestek ${prejemniki.firstOrNull()?.activityInfo?.packageName}")
+                continue
+            }
+            // Ob nadomestku in enem pravem izbirniku gre namera naravnost k pravemu (brez izbire med njima).
+            if (pravi.size == 1 && prejemniki.size > 1) prejemniki[pravi[0]].activityInfo?.let { n.setClassName(it.packageName, it.name) }
             try {
                 activity.startActivityForResult(n, koda)
                 Log.i(TAG, "Izbirnik datotek: $izbirnik")
+                zadnji = izbirnik
+                zagnanMs = android.os.SystemClock.elapsedRealtime()
                 return true
             } catch (_: ActivityNotFoundException) {
                 Log.i(TAG, "Izbirnik datotek $izbirnik ni na voljo")
@@ -58,6 +71,26 @@ object IzbirnikDatotekTv {
                 Log.w(TAG, "Izbirnik datotek $izbirnik: ${e.javaClass.simpleName}")
             }
         }
+    }
+
+    /** Zadnji zagnani sistemski izbirnik in cas zagona ([poOdgovoru]). */
+    @Volatile private var zadnji: IzbiraDatotek.Izbirnik? = null
+    @Volatile private var zagnanMs = 0L
+
+    enum class PoOdgovoru { NOV_IZBIRNIK, LASTEN, KONEC }
+
+    /**
+     * Klic na zacetku onActivityResult izbire datotek. Ce se je sistemski izbirnik zaprl sam takoj po zagonu
+     * (IzbiraDatotek.poHitremPreklicu), odpre naslednjega (NOV_IZBIRNIK) ali sporoci, naj klicatelj pokaze lasten
+     * seznam (LASTEN); sicer KONEC - odgovor velja kot doslej.
+     */
+    fun poOdgovoru(activity: Activity, koda: Int, resultCode: Int, tipi: List<String>, vec: Boolean): PoOdgovoru {
+        val prej = zadnji ?: return PoOdgovoru.KONEC
+        zadnji = null
+        val trajanje = android.os.SystemClock.elapsedRealtime() - zagnanMs
+        val naslednji = IzbiraDatotek.poHitremPreklicu(prej, resultCode == Activity.RESULT_OK, trajanje) ?: return PoOdgovoru.KONEC
+        Log.i(TAG, "Izbirnik datotek $prej se je zaprl sam ($trajanje ms), naslednji: $naslednji")
+        return if (zazeniSistemski(activity, koda, tipi, vec, po = prej)) PoOdgovoru.NOV_IZBIRNIK else PoOdgovoru.LASTEN
     }
 
     private class Datoteka(val uri: Uri, val ime: String, val opis: String)
