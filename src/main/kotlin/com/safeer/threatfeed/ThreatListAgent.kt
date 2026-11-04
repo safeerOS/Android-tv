@@ -200,6 +200,11 @@ class ThreatListAgent(
     private val onPartialLists: (List<PlainList>) -> Unit = {},
     /** Thread priority of the first load (it decides how long a cold start runs without the lists); later work runs at MIN. */
     private val firstLoadPriority: Int = Thread.MIN_PRIORITY,
+    /**
+     * Name of the throttle state file in [directory]. A second agent over a subset of the same lists (Safeer Scit in its own
+     * process, 4. 11. 2026) uses its own name, so its check does not hold back the browser's check of the other lists.
+     */
+    private val stateName: String = "agent.state",
     /** Receives every list in use: once after loading the saved lists and after every change. */
     private val onLists: (List<PlainList>) -> Unit,
 ) {
@@ -224,7 +229,7 @@ class ThreatListAgent(
 
     private fun listFile(id: String) = File(directory, "$id.list")
     private fun metaFile(id: String) = File(directory, "$id.meta")
-    private val stateFile get() = File(directory, "agent.state")
+    private val stateFile get() = File(directory, stateName)
 
     /**
      * Starts the agent on a background thread and returns immediately. With [firstLoadOnly] the first load reads and

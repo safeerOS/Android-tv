@@ -21,11 +21,14 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/scit/ScitPregled.kt" \
     "$SRC/si/safeer/tv/scit/ScitOdlocitev.kt" \
     "$SRC/si/safeer/tv/cast/JsonLahki.kt" \
+    "$SRC/si/safeer/tv/scit/ScitViri.kt" \
+    "$SRC/com/safeer/threatfeed/ThreatListAgent.kt" \
     "$TEST_DIR/ScitTest.kt" \
     "$TEST_DIR/ScitPregledTest.kt" \
     "$TEST_DIR/TcpDnsTest.kt" \
     "$TEST_DIR/ScitSkupniPrimeriTest.kt" \
     "$TEST_DIR/DomenskiNaborVirTest.kt" \
+    "$TEST_DIR/ScitViriTest.kt" \
     -include-runtime -d "$OUT/scit.jar"
 
 java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.ScitTestKt
@@ -35,3 +38,5 @@ java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.ScitPregledTestKt
 java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.ScitSkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/scit-pravila.json"
 # Nabor se gradi samo ob spremembi seznamov (4. 11. 2026): kljuc vira, pretocni zapis, isti format.
 java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.DomenskiNaborVirTestKt
+# Proces :scit gradi samo nabor Scita (4. 11. 2026): brez EasyList, drevesa grozenj in kazala brskalnika.
+java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.ScitViriTestKt "$SRC"

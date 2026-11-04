@@ -60,6 +60,10 @@ object ThreatFeedsUpdater {
     @Volatile
     private var agent: ThreatListAgent? = null
 
+    /** Agent samo za nabor Scita (proces :scit, [startSamoScit]); v glavnem procesu ostane null. */
+    @Volatile
+    private var agentScit: ThreatListAgent? = null
+
     @Volatile
     var ruleCount: Int = 0
         private set
@@ -88,6 +92,9 @@ object ThreatFeedsUpdater {
     @Synchronized
     fun start(context: Context) {
         if (agent != null) return
+        // Celoten agent gradi tudi nabor Scita: dveh agentov nad isto mapo v enem procesu ne zelimo.
+        agentScit?.stop()
+        agentScit = null
         // Od tu zahteve v shouldInterceptRequest omejeno pocakajo na prvo nalaganje (ZascitaZagona, 4. 11. 2026).
         ZascitaZagona.zacni()
         val app = context.applicationContext
@@ -145,6 +152,30 @@ object ThreatFeedsUpdater {
         }
         // Ce sta kazalo in nabor Scita zgrajena iz istih seznamov, ob zagonu beremo samo EasyList (raw).
         listAgent.start(if (odprto && scit) SOURCES.filter { it.raw }.map { it.id }.toSet() else null)
+    }
+
+    /**
+     * Samo za proces :scit (ScitStoritev, ko grozne.bin se ni): agent nad domenskimi seznami ([si.safeer.tv.scit.ScitViri]),
+     * ki zgradi in posodablja samo nabor Scita (domene.bin, grozne.bin). Brez EasyList, drevesa grozenj, kazala,
+     * ZascitaZagona in podpisanega vira: te rabi samo brskalnik, Scit kot filter DNS ne (4. 11. 2026; prej je :scit zagnal
+     * [start] in v svojem procesu zgradil vse). Ista mapa in isti viri kot v brskalniku (isti kljuc vira, isti format nabora),
+     * isti razpored preverjanja (12 s po zagonu, nato vsakih 6 h); svoja datoteka stanja, da ne zadrzi preverbe brskalnika.
+     */
+    @Synchronized
+    fun startSamoScit(context: Context) {
+        if (agent != null || agentScit != null) return
+        val app = context.applicationContext
+        val listAgent = ThreatListAgent(File(app.filesDir, "threat-lists"), si.safeer.tv.scit.ScitViri.viri(SOURCES),
+            stateName = "agent-scit.state") { lists ->
+            try { si.safeer.tv.scit.Scit.osveziNabor(app, lists) } catch (e: Throwable) {
+                android.util.Log.w("SafeerScit", "Nabora za Scit ni bilo mogoce zgraditi: ${e.message}")
+            }
+        }
+        agentScit = listAgent
+        // Nabor ze zgrajen iz shranjenih seznamov: ob zagonu ne beremo nicesar (kot v [start]); sicer jih preberemo in zgradimo.
+        val shranjeni = try { listAgent.savedInfo() } catch (_: Exception) { emptyList() }
+        val veljaven = shranjeni.isNotEmpty() && try { si.safeer.tv.scit.Scit.naborVeljaven(app, shranjeni) } catch (_: Throwable) { false }
+        listAgent.start(if (veljaven) emptySet() else null)
     }
 
     /** Del zascite je pripravljen: dnevnik s casom tega dela (in skupnim, ko je pripravljeno vse). */

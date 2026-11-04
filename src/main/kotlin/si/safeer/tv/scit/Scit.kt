@@ -157,17 +157,17 @@ object Scit {
      * brez branja seznamov). Ce da, ob zagonu brskalnika domenskih seznamov ni treba brati (4. 11. 2026).
      */
     fun naborVeljaven(context: Context, seznami: List<com.safeer.threatfeed.PlainListInfo>): Boolean {
-        val dns = seznami.filter { !it.source.raw && !it.source.ipv4 }
+        val dns = seznami.filter { ScitViri.zaNabor(it.source) }
         if (dns.isEmpty()) return true
-        val grozenj = dns.filter { !it.source.dnsOnly }
+        val grozenj = dns.filter { ScitViri.zaGrozne(it.source) }
         return DomenskiNabor.jeZgrajenIz(naborDatoteka(context), DomenskiNabor.kljucVira(dns.map { it.source.id to it.sha256 })) &&
             DomenskiNabor.jeZgrajenIz(grozneDatoteka(context), DomenskiNabor.kljucVira(grozenj.map { it.source.id to it.sha256 }))
     }
 
     fun osveziNabor(context: Context, seznami: List<PlainList>): Int {
-        val dns = seznami.filter { !it.source.raw && !it.source.ipv4 }
+        val dns = seznami.filter { ScitViri.zaNabor(it.source) }
         if (dns.isEmpty()) return 0
-        val grozenj = dns.filter { !it.source.dnsOnly }
+        val grozenj = dns.filter { ScitViri.zaGrozne(it.source) }
         val cilj = naborDatoteka(context)
         val n = try {
             DomenskiNabor.zapisiCeSpremenjeno(cilj, DomenskiNabor.kljucVira(dns.map { it.source.id to it.sha256 }),

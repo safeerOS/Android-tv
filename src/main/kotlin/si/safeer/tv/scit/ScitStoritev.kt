@@ -397,10 +397,11 @@ class ScitStoritev : VpnService() {
             val g = grozne
             if (n == null || datoteka.lastModified() != n.spremenjena || (gd.isFile && (g == null || gd.lastModified() != g.spremenjena))) naloziNabor()
             // Grok 15, N8: nabor domen je, nabora grozenj pa se ni (prvi zagon po nadgradnji) - seznami naj se zgradijo zdaj, ne
-            // sele ob odprtju brskalnika (ThreatFeedsUpdater.start je enkraten na proces).
+            // sele ob odprtju brskalnika. 4. 11. 2026: samo agent za nabor Scita (startSamoScit), ne celoten agent brskalnika -
+            // filter DNS ne rabi EasyList, drevesa grozenj, kazala ne podpisanega vira (to je prej teklo v procesu :scit).
             if (n != null && !gd.isFile && !zahtevaniSeznami) {
                 zahtevaniSeznami = true
-                try { si.safeer.tv.ThreatFeedsUpdater.start(applicationContext) } catch (e: Throwable) { Log.w(TAG, "Seznami: ${e.javaClass.simpleName}") }
+                try { si.safeer.tv.ThreatFeedsUpdater.startSamoScit(applicationContext) } catch (e: Throwable) { Log.w(TAG, "Seznami: ${e.javaClass.simpleName}") }
             }
             osveziUpstream()
             shraniStatistiko("tece")
