@@ -1,10 +1,16 @@
 package si.safeer.tv.scit
 
+import java.io.BufferedOutputStream
+import java.io.DataOutputStream
 import java.io.File
+import java.io.FileOutputStream
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.channels.FileChannel
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
 
 /**
  * Nabor blokiranih domen za Safeer Scit (filter DNS za ves televizor).
@@ -16,6 +22,8 @@ import java.nio.channels.FileChannel
  * `ads.example.com` pokrije tudi `x.ads.example.com`).
  *
  * Datoteka: "SCIT1" (5 bajtov) + stevilo (int32 BE) + n * int64 BE.
+ * Ob njej `<ime>.vir`: kljuc vhodnih seznamov ([kljucVira]), iz katerih je zgrajena. Gradnja se je prej izvedla ob vsakem
+ * zagonu brskalnika (~15-20 MB prehodno in ~8 MB zapisa na flash, raziskava 4. 11. 2026), zdaj samo ob spremembi seznamov.
  */
 object DomenskiNabor {
     private val MAGIC = "SCIT1".toByteArray(Charsets.US_ASCII)
@@ -43,31 +51,95 @@ object DomenskiNabor {
         s.length in 1..253 && '.' in s && s.all { it in 'a'..'z' || it in '0'..'9' || it == '-' || it == '.' || it == '_' } &&
             !s.contains("..")
 
-    /** Zapise nabor iz vec seznamov (vsak seznam je zaporedje domen). Vrne stevilo razlicnih domen. */
-    fun zapisi(cilj: File, seznami: Sequence<Sequence<String>>): Int {
-        val zgoscenke = LongArrayRast()
+    /**
+     * Zapise nabor iz vec seznamov (vsak seznam je zaporedje domen). Vrne stevilo razlicnih domen. [priblizno]: pricakovano
+     * stevilo domen (vsota seznamov), da polje ne raste s kopiranjem. Zapis je pretocen (brez medpomnilnika n * 8 bajtov)
+     * v lastno zacasno datoteko in nato atomarna zamenjava - brskalnik in proces :scit lahko gradita hkrati.
+     */
+    fun zapisi(cilj: File, seznami: Sequence<Sequence<String>>, priblizno: Int = 4096): Int {
+        val zgoscenke = LongArrayRast(priblizno)
         for (seznam in seznami) for (vrstica in seznam) {
             val d = normaliziraj(vrstica)
             if (jeVeljavnaDomena(d)) zgoscenke.dodaj(zgoscenka(d))
         }
-        val polje = zgoscenke.polje()
-        polje.sort()
+        val polje = zgoscenke.surovo()
+        val m = zgoscenke.stevilo
+        java.util.Arrays.sort(polje, 0, m)
         var n = 0
-        for (i in polje.indices) {
+        for (i in 0 until m) {
             if (i == 0 || polje[i] != polje[i - 1]) polje[n++] = polje[i]
         }
-        val zacasna = File(cilj.parentFile, cilj.name + ".tmp")
-        cilj.parentFile?.mkdirs()
-        RandomAccessFile(zacasna, "rw").use { d ->
-            d.setLength(0)
-            val b = ByteBuffer.allocate(GLAVA + n * 8).order(ByteOrder.BIG_ENDIAN)
-            b.put(MAGIC).putInt(n)
-            for (i in 0 until n) b.putLong(polje[i])
-            d.write(b.array(), 0, b.position())
+        val mapa = cilj.absoluteFile.parentFile
+        mapa.mkdirs()
+        val zacasna = File.createTempFile(cilj.name + ".", ".tmp", mapa)
+        try {
+            FileOutputStream(zacasna).use { fos ->
+                val izhod = DataOutputStream(BufferedOutputStream(fos, 64 * 1024))
+                izhod.write(MAGIC)
+                izhod.writeInt(n)   // DataOutputStream pise big-endian, kot bere Poizvedba
+                for (i in 0 until n) izhod.writeLong(polje[i])
+                izhod.flush()
+                fos.fd.sync()
+            }
+            Files.move(zacasna.toPath(), cilj.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+        } finally {
+            if (zacasna.exists()) zacasna.delete()
         }
-        if (!zacasna.renameTo(cilj)) {
-            cilj.delete()
-            if (!zacasna.renameTo(cilj)) throw java.io.IOException("nabora ni bilo mogoce zapisati")
+        return n
+    }
+
+    private fun virDatoteka(cilj: File) = File(cilj.absoluteFile.parentFile, cilj.name + ".vir")
+
+    /**
+     * Kljuc vhoda: SHA-256 nad oznako oblike nabora in pari (id seznama, SHA-256 seznama) v danem vrstnem redu.
+     * null, ce kateri seznam nima vsote - takrat se gradi vedno (raje odvecna gradnja kot zastarel nabor).
+     */
+    fun kljucVira(seznami: List<Pair<String, String>>): String? {
+        if (seznami.isEmpty() || seznami.any { it.second.isEmpty() }) return null
+        val md = MessageDigest.getInstance("SHA-256")
+        md.update(MAGIC)
+        for ((id, sha) in seznami) md.update("\n$id=$sha".toByteArray(Charsets.UTF_8))
+        return md.digest().joinToString("") { "%02x".format(it) }
+    }
+
+    /** Glava je nasa in dolzina datoteke se ujema s stevilom zgoscenk (prekinjen zapis ne velja). */
+    fun steviloVGlavi(datoteka: File): Int? = try {
+        if (!datoteka.isFile || datoteka.length() < GLAVA) null
+        else RandomAccessFile(datoteka, "r").use { d ->
+            val g = ByteArray(GLAVA)
+            d.readFully(g)
+            val b = ByteBuffer.wrap(g).order(ByteOrder.BIG_ENDIAN)
+            val m = ByteArray(MAGIC.size); b.get(m)
+            val n = b.getInt()
+            if (!m.contentEquals(MAGIC) || n < 0 || GLAVA + n.toLong() * 8 != datoteka.length()) null else n
+        }
+    } catch (_: Exception) { null }
+
+    /** [cilj] je veljaven nabor, zgrajen iz vhoda s kljucem [kljuc]. */
+    fun jeZgrajenIz(cilj: File, kljuc: String?): Boolean {
+        if (kljuc == null) return false
+        val zapisan = try { virDatoteka(cilj).takeIf { it.isFile && it.length() < 256 }?.readText(Charsets.US_ASCII)?.trim() } catch (_: Exception) { null }
+        return zapisan == kljuc && steviloVGlavi(cilj) != null
+    }
+
+    /**
+     * Zgradi nabor samo, ce se je vhod spremenil ([kljuc] se razlikuje od zapisanega ob zadnji gradnji) ali datoteka ni
+     * veljavna. Vrne stevilo domen ali -1, ce gradnje ni bilo (seznami se takrat sploh ne preberejo).
+     */
+    fun zapisiCeSpremenjeno(cilj: File, kljuc: String?, seznami: Sequence<Sequence<String>>, priblizno: Int = 4096): Int {
+        if (jeZgrajenIz(cilj, kljuc)) return -1
+        // Najprej stran star kljuc: ce se zapis prekine, naslednji zagon gradi znova.
+        try { virDatoteka(cilj).delete() } catch (_: Exception) { }
+        val n = zapisi(cilj, seznami, priblizno)
+        if (kljuc != null) {
+            val vir = virDatoteka(cilj)
+            val zacasna = File.createTempFile(vir.name + ".", ".tmp", vir.parentFile)
+            try {
+                zacasna.writeText(kljuc + "\n", Charsets.US_ASCII)
+                Files.move(zacasna.toPath(), vir.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+            } finally {
+                if (zacasna.exists()) zacasna.delete()
+            }
         }
         return n
     }
@@ -116,13 +188,15 @@ object DomenskiNabor {
     }
 
     /** Rastoce polje long brez skatlanja. */
-    private class LongArrayRast {
-        private var a = LongArray(4096)
-        private var n = 0
+    private class LongArrayRast(zacetna: Int) {
+        private var a = LongArray(zacetna.coerceIn(16, 4_000_000))
+        var stevilo = 0
+            private set
         fun dodaj(v: Long) {
-            if (n == a.size) a = a.copyOf(a.size * 2)
-            a[n++] = v
+            if (stevilo == a.size) a = a.copyOf(a.size * 2)
+            a[stevilo++] = v
         }
-        fun polje(): LongArray = a.copyOf(n)
+        /** Notranje polje (veljavnih je prvih [stevilo]), brez kopije. */
+        fun surovo(): LongArray = a
     }
 }

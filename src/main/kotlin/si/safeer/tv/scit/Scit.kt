@@ -147,22 +147,35 @@ object Scit {
         if (jeVklopljen(context) && jePripravljen(context)) ScitStoritev.zazeni(context)
     }
 
-    /** Iz seznamov brskalnika zgradi nabor domen (v ozadju klicatelja) in storitvi naroci, naj ga znova nalozi. */
+    /**
+     * Iz seznamov brskalnika zgradi nabor domen (v ozadju klicatelja) in storitvi naroci, naj ga znova nalozi.
+     * Gradi samo, ko se vhodni seznami (SHA-256) razlikujejo od zadnje gradnje: prej ob vsakem zagonu brskalnika,
+     * ~15-20 MB prehodno in ~8 MB zapisa na flash (raziskava 4. 11. 2026).
+     */
     fun osveziNabor(context: Context, seznami: List<PlainList>): Int {
         val dns = seznami.filter { !it.source.raw && !it.source.ipv4 }
         if (dns.isEmpty()) return 0
+        val grozenj = dns.filter { !it.source.dnsOnly }
         val cilj = naborDatoteka(context)
         val n = try {
-            DomenskiNabor.zapisi(cilj, dns.asSequence().map { it.entries.asSequence() })
+            DomenskiNabor.zapisiCeSpremenjeno(cilj, DomenskiNabor.kljucVira(dns.map { it.source.id to it.sha256 }),
+                dns.asSequence().map { it.entries.asSequence() }, dns.sumOf { it.entries.size })
         } catch (e: Throwable) {
             Log.w(TAG, "Nabora ni bilo mogoce zgraditi: ${e.message}"); return 0
         }
         // Pregled V1: seznami grozenj (ne oglasov) posebej - izjema Scita jih nikoli ne umakne.
-        try { DomenskiNabor.zapisi(grozneDatoteka(context), dns.asSequence().filter { !it.source.dnsOnly }.map { it.entries.asSequence() }) }
-        catch (e: Throwable) { Log.w(TAG, "Nabora grozenj ni bilo mogoce zgraditi: ${e.javaClass.simpleName}") }
-        Log.i(TAG, "Nabor domen: $n domen iz ${dns.size} seznamov (${cilj.length() / 1024} KiB)")
+        val g = try {
+            DomenskiNabor.zapisiCeSpremenjeno(grozneDatoteka(context), DomenskiNabor.kljucVira(grozenj.map { it.source.id to it.sha256 }),
+                grozenj.asSequence().map { it.entries.asSequence() }, grozenj.sumOf { it.entries.size })
+        } catch (e: Throwable) { Log.w(TAG, "Nabora grozenj ni bilo mogoce zgraditi: ${e.javaClass.simpleName}"); 0 }
+        if (n < 0 && g < 0) {
+            Log.i(TAG, "Nabor domen nespremenjen (seznami enaki kot ob zadnji gradnji): brez gradnje")
+            return DomenskiNabor.steviloVGlavi(cilj) ?: 0
+        }
+        Log.i(TAG, "Nabor domen: ${if (n < 0) "nespremenjen" else "$n domen"} iz ${dns.size} seznamov (${cilj.length() / 1024} KiB)" +
+            if (g < 0) ", grozenj nespremenjen" else ", grozenj $g")
         if (jeVklopljen(context) && jePripravljen(context)) ScitStoritev.osvezi(context)
-        return n
+        return if (n < 0) DomenskiNabor.steviloVGlavi(cilj) ?: 0 else n
     }
 
     class Statistika(val blokiranih: Long, val poizvedb: Long, val dan: String, val stanje: String, val domen: Int,

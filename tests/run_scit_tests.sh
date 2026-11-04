@@ -25,6 +25,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/ScitPregledTest.kt" \
     "$TEST_DIR/TcpDnsTest.kt" \
     "$TEST_DIR/ScitSkupniPrimeriTest.kt" \
+    "$TEST_DIR/DomenskiNaborVirTest.kt" \
     -include-runtime -d "$OUT/scit.jar"
 
 java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.ScitTestKt
@@ -32,3 +33,5 @@ java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.ScitTestKt
 java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.ScitPregledTestKt
 # Skupni primeri z Linuxom (4. 11. 2026, en Scit za vse OS): ista datoteka v Safeer-linux (tests/test_scit_skupni_primeri.py).
 java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.ScitSkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/scit-pravila.json"
+# Nabor se gradi samo ob spremembi seznamov (4. 11. 2026): kljuc vira, pretocni zapis, isti format.
+java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.DomenskiNaborVirTestKt
