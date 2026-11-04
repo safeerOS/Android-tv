@@ -1,0 +1,56 @@
+{
+  "opis": "Skupni primeri odlocanja Safeer Scita (filter DNS) - ISTA datoteka v Android-tv (tests/ScitSkupniPrimeriTest.kt, tests/run_scit_tests.sh) in Safeer-linux (tests/test_scit_skupni_primeri.py). Samo cista logika odlocanja; prestrezanje DNS je po OS razlicno in ni tu. Ime se zapise v poizvedbo DNS kot jo poslje aplikacija: oznake med pikami (prazne izpuscene), bajti UTF-8. Seznami: oglasi in groznje (seznami grozenj imajo prednost pred vsako izjemo). izid: ustavljeno (NXDOMAIN) ali spuscen (gre naprej). Izjeme: uporabnik spusti ime, ki je bilo pravkar ustavljeno; dan = dni po dodajanju. Primer z \"neujemanje\" je razlika med platformama (lastnik 4. 11. 2026: en Scit za vse OS): platforma iz \"razlicno_na\" ga preskoci z izpisom, druge ga preverijo; ce se razlika odpravi, preizkus pade, da se oznaka umakne. Pricakovani izid je danasnje vedenje Androida (lastnikov pregled Scita 3. in 4. 11. 2026).",
+  "verzija": 1,
+  "seznami": {
+    "oglasi": ["ads.example", "Track.Example.", "xn--bcher-kva.example", "printer.lan", "github.com", "cloudflare.com", "cosmic-crab.buzz", "webtor.io"],
+    "groznje": ["zlo.example", "api.webtor.io"]
+  },
+  "ustavljeno": [
+    {"opis": "tocno ime s seznama oglasov", "ime": "ads.example", "izid": "ustavljeno"},
+    {"opis": "poddomena imena s seznama", "ime": "x.y.ads.example", "izid": "ustavljeno"},
+    {"opis": "ime, ki se samo konca enako, ni poddomena", "ime": "notads.example", "izid": "spuscen"},
+    {"opis": "nadrejena domena imena s seznama ni ustavljena", "ime": "example", "izid": "spuscen"},
+    {"opis": "velike crke v poizvedbi (DNS 0x20)", "ime": "ADS.EXAMPLE", "izid": "ustavljeno"},
+    {"opis": "mesane crke in koncna pika", "ime": "Ads.Example.", "izid": "ustavljeno"},
+    {"opis": "vnos seznama z velikimi crkami in koncno piko", "ime": "track.example", "izid": "ustavljeno"},
+    {"opis": "IDN: punycode s seznama", "ime": "xn--bcher-kva.example", "izid": "ustavljeno"},
+    {"opis": "IDN: punycode z velikimi crkami", "ime": "XN--BCHER-KVA.EXAMPLE", "izid": "ustavljeno"},
+    {"opis": "IDN: Unicode na zici ni veljavno ime DNS; Scit ga ne pretvarja v punycode in ga ne ustavi (razresevalnik naprej ga zavrne)", "ime": "bücher.example", "izid": "spuscen"},
+    {"opis": "prazno ime (vprasanje za koren)", "ime": "", "izid": "spuscen"},
+    {"opis": "ime s seznama grozenj", "ime": "zlo.example", "izid": "ustavljeno"},
+    {"opis": "poddomena imena s seznama grozenj", "ime": "a.zlo.example", "izid": "ustavljeno"},
+    {"opis": "Webtor: stalna izjema (gostitelj toka) na seznamu oglasov", "ime": "abra--abc123.api.cosmic-crab.buzz", "izid": "spuscen"},
+    {"opis": "Webtor: druga poddomena iste domene ni izjema", "ime": "x.cosmic-crab.buzz", "izid": "ustavljeno"},
+    {"opis": "Webtor: stalna izjema na seznamu oglasov", "ime": "webtor.io", "izid": "spuscen"},
+    {"opis": "Webtor: stalna izjema na seznamu GROZENJ ostane ustavljena", "ime": "api.webtor.io", "izid": "ustavljeno"},
+    {"opis": "domace omrezje (.lan) na seznamu", "ime": "printer.lan", "izid": "ustavljeno",
+     "neujemanje": "Linux imen localhost, safeer.si in koncnic .local/.lan/.home/.arpa/.internal nikoli ne ustavi (os_scit.NIKOLI); Android jih ustavi, ce so na seznamu", "razlicno_na": ["linux"]},
+    {"opis": "pot do posodobitev (github.com) na seznamu", "ime": "github.com", "izid": "ustavljeno",
+     "neujemanje": "Linux posodobitev sistema in Safeerja nikoli ne ustavi (os_scit.POSODOBITVE, s poddomenami); Android nima take izjeme", "razlicno_na": ["linux"]},
+    {"opis": "preverjanje cloveka (Cloudflare Turnstile) na seznamu", "ime": "challenges.cloudflare.com", "izid": "ustavljeno",
+     "neujemanje": "Linux strani s preverjanjem (cloudflare.com, hcaptcha.com, recaptcha.net, www.google.com, www.gstatic.com) nikoli ne ustavi (os_scit.PREVERJANJE); Android nima take izjeme", "razlicno_na": ["linux"]},
+    {"opis": "kanarcek Firefoxa za DoH ni na nobenem seznamu", "ime": "use-application-dns.net", "izid": "spuscen",
+     "neujemanje": "Linux ga vedno odgovori z NXDOMAIN (os_scit.KANAREK_DOH), da Firefox ne vklopi DoH mimo Scita; Android ga poslje naprej", "razlicno_na": ["linux"]}
+  ],
+  "izjeme": [
+    {"opis": "uporabnik spusti ime s seznama oglasov", "izjema": "ads.example", "poizvedba": "ads.example", "dan": 1, "sprejeta": true, "izid": "spuscen"},
+    {"opis": "izjema velja se 29. dan", "izjema": "ads.example", "poizvedba": "ads.example", "dan": 29, "sprejeta": true, "izid": "spuscen"},
+    {"opis": "izjema potece po 30 dneh", "izjema": "ads.example", "poizvedba": "ads.example", "dan": 30, "sprejeta": true, "izid": "ustavljeno",
+     "neujemanje": "Linux izjema ne potece (os_scit.Scit.dovoli, shramba scit_izjeme brez casa)", "razlicno_na": ["linux"]},
+    {"opis": "izjema velja NATANKO za to ime, ne za poddomene", "izjema": "ads.example", "poizvedba": "sub.ads.example", "dan": 1, "sprejeta": true, "izid": "ustavljeno",
+     "neujemanje": "Linux izjema velja tudi za poddomene (os_scit.Scit._kategorija)", "razlicno_na": ["linux"]},
+    {"opis": "izjema za poddomeno ne spusti nadrejene domene", "izjema": "x.ads.example", "poizvedba": "ads.example", "dan": 1, "sprejeta": true, "izid": "ustavljeno"},
+    {"opis": "izjema za poddomeno spusti to poddomeno", "izjema": "x.ads.example", "poizvedba": "x.ads.example", "dan": 1, "sprejeta": true, "izid": "spuscen"},
+    {"opis": "ime s seznama grozenj se ne sme spustiti (Nevarno)", "izjema": "zlo.example", "poizvedba": "zlo.example", "dan": 1, "sprejeta": false, "izid": "ustavljeno",
+     "neujemanje": "Linux sprejme izjemo tudi za ime s seznama grozenj in ga potem spusti (os_scit.Scit.dovoli ne preveri groznje, _kategorija vrne None pred seznami) - varnostna razlika", "razlicno_na": ["linux"]},
+    {"opis": "izjema z velikimi crkami in koncno piko velja za cisto ime", "izjema": "Ads.Example.", "poizvedba": "ads.example", "dan": 1, "sprejeta": true, "izid": "spuscen"},
+    {"opis": "Unicode ime ni veljavna izjema", "izjema": "bücher.example", "poizvedba": "xn--bcher-kva.example", "dan": 1, "sprejeta": false, "izid": "ustavljeno"},
+    {"opis": "prazno ime ni izjema", "izjema": "", "poizvedba": "ads.example", "dan": 1, "sprejeta": false, "izid": "ustavljeno"}
+  ],
+  "razresevalci_naprej": [
+    {"opis": "ni krajevnega DNS: odgovor SERVFAIL, nikoli tuj razresevalnik (1.1.1.1, 9.9.9.9)", "krajevni": [], "izid": "servfail",
+     "neujemanje": "Linux privzeto posreduje k Cloudflare prek DoH (os_scit.PRIVZETI_NAPREJ = cloudflare; uporabnik lahko izbere Quad9, Google, AdGuard, OpenDNS, svoj ali DNS usmerjevalnika). Z izbiro DNS usmerjevalnika in brez krajevnega DNS Linux ne odgovori (cas potece), ne SERVFAIL", "razlicno_na": ["linux"]},
+    {"opis": "krajevni DNS iz omrezja: samo ta, brez tujega", "krajevni": ["192.0.2.53", "2001:db8::53"], "izid": "krajevni",
+     "neujemanje": "Linux privzeto posreduje k Cloudflare prek DoH; krajevni DNS (usmerjevalnik) je samo rezerva ob odpovedi DoH ali uporabnikova izbira", "razlicno_na": ["linux"]}
+  ]
+}
