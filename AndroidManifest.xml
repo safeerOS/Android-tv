@@ -256,6 +256,17 @@
             android:exported="false"
             android:foregroundServiceType="connectedDevice" />
 
+        <!-- Lastnik 4. 11. 2026: kljuci (debrid, Usenet, dodatki s poverilnico) med Safeer OS in Predvajalnikom na isti
+             napravi - samo aplikacije z istim podpisom (UskladitevKljucev, KljuciSorodnikStoritev). -->
+        <service
+            android:name="si.safeer.tv.os.KljuciSorodnikStoritev"
+            android:exported="true"
+            android:permission="si.safeer.tv.permission.LINK">
+            <intent-filter>
+                <action android:name="si.safeer.tv.KLJUCI_SORODNIK" />
+            </intent-filter>
+        </service>
+
         <!-- Safeer OS in druge sorodne aplikacije: vstop v Safeer Link brez kode (isti podpis) -->
         <service
             android:name="si.safeer.tv.cast.LinkSorodnikStoritev"

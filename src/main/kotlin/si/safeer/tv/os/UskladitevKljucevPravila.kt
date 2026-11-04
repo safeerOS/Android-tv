@@ -214,6 +214,27 @@ object UskladitevKljucevPravila {
      * Stanje te naprave za posiljanje: samo LASTNI zapisi (izvor [jaz]; pregled U2 - prejetih tujih ne posiljamo naprej, sicer
      * bi prisli do naprav, ki jih izvorna naprava nima v krogu) z vrednostmi iz [vrednosti]; brez vrednosti izpadejo.
      */
+    /**
+     * Lastnik 4. 11. 2026 (05:10): »Ce ga vnesem v Safeer OS, velja tudi za predvajalnik.« Sorodna aplikacija Safeer na ISTI
+     * napravi (Safeer OS, Safeer Predvajalnik) ni druga naprava v Linku ([LinkUpravitelj.jeTaNaprava]), zato kljuci med
+     * njima prej niso sli. Sorodnik dobi vse znane zapise te aplikacije (tudi prejete z drugih naprav kroga) - ista naprava,
+     * isti uporabnik; naprej v Link jih sorodnik ne poslje (njegov [zaPoslati] vzame samo lastne).
+     */
+    fun zaSorodnika(meta: Map<String, Meta>, vrednosti: Map<String, String>): List<Zapis> = meta.mapNotNull { (k, m) ->
+        if (m.izbrisan) Zapis(k, m.cas, m.izvor, true, "")
+        else vrednosti[k]?.let { Zapis(k, m.cas, m.izvor, false, it) }
+    }.take(NAJVEC_ZAPISOV)
+
+    /** Sorodne aplikacije Safeer, ki si delijo kljuce na isti napravi (isti podpis se preveri posebej). */
+    val SORODNIKI = listOf("si.safeer.os", "si.safeer.phone", "si.safeer.tablet", "si.safeer.player")
+
+    /**
+     * Klicatelj ali prejemnik je sorodnik: paket je na seznamu [SORODNIKI], ni ta aplikacija in ima ISTI podpis (paket z
+     * istim imenom, a drugim podpisom - npr. ponaredek, ko prave aplikacije ni - nikoli).
+     */
+    fun jeSorodnik(paket: String?, jaz: String, podpisEnak: Boolean): Boolean =
+        paket != null && paket != jaz && paket in SORODNIKI && podpisEnak
+
     fun zaPoslati(meta: Map<String, Meta>, vrednosti: Map<String, String>, jaz: String): List<Zapis> = meta.mapNotNull { (k, m) ->
         if (m.izvor != jaz || jaz.isBlank()) null
         else if (m.izbrisan) Zapis(k, m.cas, m.izvor, true, "")

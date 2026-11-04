@@ -254,5 +254,22 @@ fun main() {
         preveriEnako("red domov: 64 gre", true, P.veljavenRedDomov((0 until 64).map { "p.a$it" }, dok))
     }
 
+    // Lastnik 4. 11. 2026 (05:10): kljuc iz Safeer OS velja tudi v Predvajalniku na isti napravi.
+    run {
+        val P = UskladitevKljucevPravila
+        val meta = mapOf("debrid:torbox" to P.Meta(10, "n-tv", false, "x"), "usenet" to P.Meta(20, "n-telefon", true, ""),
+            "debrid:rd" to P.Meta(30, "n-tv", false, "y"))
+        val vr = mapOf("debrid:torbox" to "K1", "debrid:rd" to "K2")
+        val z = P.zaSorodnika(meta, vr)
+        preveriEnako("sorodnik dobi tudi prejete z drugih naprav", setOf("debrid:torbox", "usenet", "debrid:rd"), z.map { it.kljuc }.toSet())
+        preveriEnako("sorodnik dobi izbris", true, z.first { it.kljuc == "usenet" }.izbrisan)
+        preveriEnako("v Link gredo se vedno samo lastni", setOf("debrid:torbox", "debrid:rd"), P.zaPoslati(meta, vr, "n-tv").map { it.kljuc }.toSet())
+        preveriEnako("sorodnik: Predvajalnik z istim podpisom", true, P.jeSorodnik("si.safeer.player", "si.safeer.os", podpisEnak = true))
+        preveriEnako("sorodnik: drug podpis nikoli", false, P.jeSorodnik("si.safeer.player", "si.safeer.os", podpisEnak = false))
+        preveriEnako("sorodnik: tuja aplikacija nikoli", false, P.jeSorodnik("com.tuj.app", "si.safeer.os", podpisEnak = true))
+        preveriEnako("sorodnik: ne sam sebi", false, P.jeSorodnik("si.safeer.os", "si.safeer.os", podpisEnak = true))
+        preveriEnako("sorodnik: brez paketa nikoli", false, P.jeSorodnik(null, "si.safeer.os", podpisEnak = true))
+    }
+
     if (napak == 0) println("UskladitevKljucevPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }
