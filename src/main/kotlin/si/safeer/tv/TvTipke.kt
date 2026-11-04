@@ -38,6 +38,14 @@ object TvTipke {
      * praznem dokumentu je zapustil aplikacijo. Med nalaganjem ([napredek] < 100) GOR v nacinu aplikacije zato ne odide;
      * ko je stran nalozena in skripte ni (stran brez nase navigacije), GOR vrstico pokaze kot prej - uporabnik ni ujet.
      */
+    /**
+     * OK na polju za datoteko: [odgovor] je, kar vrne window._safeer_click_focused_card() (tv_spatial.js SAFEER_OK_DATOTEKA).
+     * TV 4. 11. 2026 (w3schools tryhtml5_input_type_file): klik iz skripta nima uporabnikove aktivacije, Chromium izbirnika
+     * datotek ne odpre in onShowFileChooser se ne poklice. Pri "datoteka" ima polje fokus in aplikacija WebView poslje
+     * pravo tipko Enter. Vse drugo (true, false, null, stari odgovori) ostane navaden klik skripta.
+     */
+    fun okNaDatoteki(odgovor: String?): Boolean = (odgovor ?: "").trim().trim('"') == "datoteka"
+
     fun gorVNaslovnoVrstico(odgovor: String?, nacinAplikacije: Boolean, napredek: Int): Boolean {
         val o = (odgovor ?: "").trim().trim('"')
         if (o == "-1") return true

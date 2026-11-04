@@ -66,7 +66,7 @@ object SiteProfileResolver {
  * en pravi dotik na sredini, ce je tam res one ([GoogleTipke.ok]); polje z dotikom odpre tipkovnico. Ce dotik ne
  * doseze potrditvenega polja (skrit vhod pod narisanim okvirjem), ga preklopi Presledek.
  */
-private const val KLIK_FOKUSA = """(function(){var e=document.activeElement,v=window.__gnavPolje;window.__gnavPolje=null;if((!e||e===document.body||e===document.documentElement)&&v&&v.isConnected)e=v;if(!e||e===document.body||e===document.documentElement||e.tagName==='IFRAME')return 'enter'; var kontrola='input,textarea,select,button,[role="checkbox"],[role="switch"],[role="radio"],[role="button"],[contenteditable="true"]'; var a=e.matches('a[href]')?e:(e.matches(kontrola)?null:e.querySelector('a[href]')); if(a){try{a.focus({preventScroll:true});}catch(_){} return 'enter';} var pr=e.matches('input[type="checkbox"],input[type="radio"],[role="checkbox"],[role="switch"],[role="radio"]'); var r=e.getBoundingClientRect(); if(r.width>0&&r.height>0&&(r.top<0||r.bottom>innerHeight||r.left<0||r.right>innerWidth)){try{e.scrollIntoView({block:'center',inline:'nearest'});}catch(_){} r=e.getBoundingClientRect();} if(r.width<=0||r.height<=0)return pr?'space':'enter'; var x=r.left+r.width/2,y=r.top+r.height/2,p=document.elementFromPoint(x,y),lab=p&&p.closest?p.closest('label'):null; if(p&&(p===e||e.contains(p)||(lab&&lab.control===e)))return 'dotik:'+Math.round(x)+','+Math.round(y); return pr?'space':'enter';})()"""
+private const val KLIK_FOKUSA = """(function(){var e=document.activeElement,v=window.__gnavPolje;window.__gnavPolje=null;if((!e||e===document.body||e===document.documentElement)&&v&&v.isConnected)e=v;if(!e||e===document.body||e===document.documentElement||e.tagName==='IFRAME')return 'enter'; if(e.matches('input[type="file"]'))return 'enter'; var kontrola='input,textarea,select,button,[role="checkbox"],[role="switch"],[role="radio"],[role="button"],[contenteditable="true"]'; var a=e.matches('a[href]')?e:(e.matches(kontrola)?null:e.querySelector('a[href]')); if(a){try{a.focus({preventScroll:true});}catch(_){} return 'enter';} var pr=e.matches('input[type="checkbox"],input[type="radio"],[role="checkbox"],[role="switch"],[role="radio"]'); var r=e.getBoundingClientRect(); if(r.width>0&&r.height>0&&(r.top<0||r.bottom>innerHeight||r.left<0||r.right>innerWidth)){try{e.scrollIntoView({block:'center',inline:'nearest'});}catch(_){} r=e.getBoundingClientRect();} if(r.width<=0||r.height<=0)return pr?'space':'enter'; var x=r.left+r.width/2,y=r.top+r.height/2,p=document.elementFromPoint(x,y),lab=p&&p.closest?p.closest('label'):null; if(p&&(p===e||e.contains(p)||(lab&&lab.control===e)))return 'dotik:'+Math.round(x)+','+Math.round(y); return pr?'space':'enter';})()"""
 
 /**
  * Smerne tipke na Googlovih zadetkih (22. 9. 2026, video lastnika): Tab je hodil po vsakem zavihku, meniju
@@ -476,7 +476,11 @@ object GenericWebSiteProfile : SiteProfile {
                     }
                     return true
                 }
-                wv.evaluateJavascript("window._safeer_click_focused_card();", null)
+                // Polje za datoteko: skript mu da fokus in vrne "datoteka"; izbirnik odpre samo prava tipka (uporabnikova
+                // aktivacija), klik iz skripta ne (TV 4. 11. 2026, w3schools: onShowFileChooser se ni poklical).
+                wv.evaluateJavascript("window._safeer_click_focused_card();") { o ->
+                    if (si.safeer.tv.TvTipke.okNaDatoteki(o)) nativnaTipka(wv, event, KeyEvent.KEYCODE_ENTER)
+                }
                 return true
             }
             KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_MEDIA_PLAY, KeyEvent.KEYCODE_MEDIA_PAUSE -> {

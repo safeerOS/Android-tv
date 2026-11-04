@@ -2680,6 +2680,31 @@
                 } catch(_) {}
             }
 
+            /* SAFEER_OK_DATOTEKA_ZACETEK */
+            // TV 4. 11. 2026 (w3schools tryhtml5_input_type_file): OK na »Izberite datoteko« ni naredil nicesar,
+            // onShowFileChooser se ni poklical. Chromium izbirnik datotek odpre samo ob uporabnikovi aktivaciji; klik iz
+            // evaluateJavascript (el.click(), sinteticna miska) je nima. Zato polje za datoteko (ali oznaka, ki kaze nanj)
+            // dobi fokus in aplikacija WebView poslje pravo tipko Enter - kot tipkovnica na racunalniku (TvTipke.okNaDatoteki).
+            function vhodDatoteke(el) {
+                if (!el || el.nodeType !== 1) return null;
+                var tag = (el.tagName || '').toUpperCase();
+                if (tag === 'INPUT') {
+                    var tip = ((el.getAttribute && el.getAttribute('type')) || '').toLowerCase();
+                    return tip === 'file' ? el : null;
+                }
+                if (tag === 'LABEL') {
+                    var c = null;
+                    try { c = el.control; } catch (_) {}
+                    return (c && c !== el && vhodDatoteke(c) === c) ? c : null;
+                }
+                return null;
+            }
+            // 'datoteka' = aplikacija poslje Enter; '' = obicajen klik (npr. skrito polje v oznaki: pravi dotik na oznako).
+            function okNaDatoteki(vhod, aktiven) {
+                return (!!vhod && !vhod.disabled && aktiven === vhod) ? 'datoteka' : '';
+            }
+            /* SAFEER_OK_DATOTEKA_KONEC */
+
             window._safeer_click_focused_card = function() {
                 try {
                     var path = (location.pathname || '').toLowerCase();
@@ -2711,6 +2736,13 @@
                         var tIz = tockaIzziva(target.getBoundingClientRect());
                         pravDotik(tIz.x, tIz.y);
                         return true;
+                    }
+                    // Polje za datoteko: fokus nanj in Enter iz aplikacije (SAFEER_OK_DATOTEKA).
+                    var vhodD = vhodDatoteke(target);
+                    if (!vhodD && target && target.closest) { try { vhodD = vhodDatoteke(target.closest('label')); } catch (_) {} }
+                    if (vhodD && !vhodD.disabled) {
+                        try { vhodD.focus({ preventScroll: true }); } catch (_) {}
+                        if (okNaDatoteki(vhodD, document.activeElement) === 'datoteka') return 'datoteka';
                     }
                     // Tuj okvir (gumb GSI »Nadaljuj z Google«): samo en pravi dotik na sredini (SAFEER_OKVIR_GUMB).
                     if (target && (target.tagName || '').toUpperCase() === 'IFRAME') { nativeTapElement(target); return; }

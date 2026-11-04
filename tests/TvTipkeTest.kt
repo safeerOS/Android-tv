@@ -25,5 +25,11 @@ fun main() {
     check(!TvTipke.gorVNaslovnoVrstico(null, nacinAplikacije = true, napredek = 99))
     check(TvTipke.gorVNaslovnoVrstico("null", nacinAplikacije = true, napredek = 100))    // stran brez skripte: ni ujet
     check(TvTipke.gorVNaslovnoVrstico("null", nacinAplikacije = false, napredek = 20))    // brskalnik: vrstica kot prej
+    // OK na polju za datoteko (TV 4. 11. 2026): Enter iz aplikacije samo na odgovor "datoteka".
+    check(TvTipke.okNaDatoteki("\"datoteka\""))      // evaluateJavascript vrne niz v narekovajih
+    check(TvTipke.okNaDatoteki("datoteka"))
+    check(!TvTipke.okNaDatoteki("true") && !TvTipke.okNaDatoteki("false"))   // gumb, povezava: klik skripta kot prej
+    check(!TvTipke.okNaDatoteki(null) && !TvTipke.okNaDatoteki("null") && !TvTipke.okNaDatoteki(""))
+    check(!TvTipke.okNaDatoteki("\"datoteka2\"") && !TvTipke.okNaDatoteki("\"\""))
     println("TvTipkeTest: OK")
 }
