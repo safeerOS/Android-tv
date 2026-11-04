@@ -13,6 +13,9 @@
     <string name="scit_z_danes">Danes ustavljenih: %1$d</string>
     <string name="scit_z_zadnja">Nazadnje ustavljeno</string>
     <string name="scit_z_zadnja_prazno">Še nič ustavljenega.</string>
+    <!-- Preverba TV 4. 11. 2026: stevec danes ostane, imena se ob izklopu zbrisejo; izklop z zaslona s potrditvijo. -->
+    <string name="scit_z_zadnja_po_izklopu">Imena, ustavljena pred izklopom, so izbrisana. Nova se pokažejo tu.</string>
+    <string name="scit_z_izklopi_vprasanje">Izklopim Safeer Ščit? Oglasi, sledilci in nevarne strani ne bodo več ustavljeni v nobeni aplikaciji.</string>
     <string name="scit_z_spusti">OK: spusti za 30 dni</string>
     <string name="scit_z_ze_spusceno">Spuščeno</string>
     <string name="scit_z_groznja">Nevarno – ni mogoče spustiti</string>

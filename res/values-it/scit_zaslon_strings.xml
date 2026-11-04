@@ -13,6 +13,9 @@
     <string name="scit_z_danes">Fermati oggi: %1$d</string>
     <string name="scit_z_zadnja">Fermati di recente</string>
     <string name="scit_z_zadnja_prazno">Ancora niente di fermato.</string>
+    <!-- Preverba TV 4. 11. 2026: stevec danes ostane, imena se ob izklopu zbrisejo; izklop z zaslona s potrditvijo. -->
+    <string name="scit_z_zadnja_po_izklopu">I nomi fermati prima della disattivazione sono stati cancellati. I nuovi compaiono qui.</string>
+    <string name="scit_z_izklopi_vprasanje">Disattivare Scudo Safeer? Pubblicità, tracker e siti pericolosi non verranno più fermati in nessuna app.</string>
     <string name="scit_z_spusti">OK: consenti per 30 giorni</string>
     <string name="scit_z_ze_spusceno">Consentito</string>
     <string name="scit_z_groznja">Pericoloso – non si può consentire</string>

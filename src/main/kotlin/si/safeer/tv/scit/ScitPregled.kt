@@ -9,6 +9,18 @@ package si.safeer.tv.scit
  *  - brez krajevnega DNS ne izberemo tujega razresevalca (prej 1.1.1.1 in 9.9.9.9: »nic ne zapusti televizorja« ni drzalo).
  */
 object ScitPregled {
+    /**
+     * Preverba TV 4. 11. 2026 (zaslon Scita): »Danes ustavljenih: 20« in hkrati »Se nic ustavljenega«. Ob izklopu se imena
+     * zbrisejo, dnevni stevec ostane - prazen seznam ob stevcu > 0 pove, da so bila imena izbrisana.
+     */
+    fun imenaIzbrisana(steviloZadnjih: Int, blokiranihDanes: Long): Boolean = steviloZadnjih == 0 && blokiranihDanes > 0
+
+    /**
+     * Preverba TV 4. 11. 2026: privzeti fokus zaslona je na »Izklopi« in en OK je takoj izklopil zascito. Izklop z
+     * zaslona zdaj vedno vprasa (privzeto Preklici); vklop ne.
+     */
+    fun izklopZPotrditvijo(vklopljen: Boolean): Boolean = vklopljen
+
     const val NAJVEC_ZADNJIH = 20
     const val NAJVEC_IZJEM = 50
     const val IZJEMA_MS = 30L * 24 * 3600 * 1000

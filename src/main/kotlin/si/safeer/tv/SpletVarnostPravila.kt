@@ -174,6 +174,31 @@ object SpletVarnostPravila {
         fun msOd(zdaj: Long): Long = if (cas == 0L || cas <= porabljeno) Long.MAX_VALUE else zdaj - cas
     }
 
+    /**
+     * Neodvisni pregled 4. 11. 2026 (TV): navigate() z domace strani je naslov podal WebViewu brez trim() in brez zavrnitve
+     * praznega - telefon (ChromiumEngineView) ga od 4. 11. reze in prazen zavrne. Vrne obrezan cilj ali null.
+     */
+    fun ciljNavigacije(url: String?): String? = url?.trim()?.takeIf { it.isNotEmpty() }
+
+    /**
+     * Neodvisni pregled 4. 11. 2026 (HubTls.jeNaslovHuba): pripeti odtis Huba ni veljal, ce je bil naslov zapisan z vrati
+     * ali brez njih (https://hub/ proti https://hub:443/: -1 proti 443) ali z velikimi crkami gostitelja. Isti izvor =
+     * ista shema in gostitelj (brez razlike v velikosti crk) in ista vrata (privzeta vrata sheme, ce niso zapisana).
+     */
+    fun istiIzvor(url: String, zaupan: String): Boolean {
+        if (zaupan.isBlank()) return false
+        return try {
+            val a = java.net.URL(url)
+            val b = java.net.URL(zaupan)
+            fun vrata(u: java.net.URL) = if (u.port != -1) u.port else u.defaultPort
+            val va = vrata(a)
+            a.protocol.equals(b.protocol, ignoreCase = true) && a.host.isNotEmpty() &&
+                a.host.equals(b.host, ignoreCase = true) && va != -1 && va == vrata(b)
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     /** Natanko domaca stran brskalnika (poizvedba in sidro smeta biti); about:blank, prazen naslov in drugo ne. */
     fun jeDomacaBrskalnika(url: String?): Boolean {
         val cist = url?.substringBefore('#')?.substringBefore('?') ?: return false

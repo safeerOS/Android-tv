@@ -241,6 +241,8 @@
     <string name="os_glasba_napaka_dekodirnik">Questo dispositivo non può riprodurre questo formato video e nessun dispositivo in Safeer Link può convertirlo al momento.</string>
     <string name="os_predaja_naslov">Continua da un altro dispositivo</string>
     <string name="os_predaja_opis">Ciò che è in riproduzione o è stato visto per ultimo su un altro dispositivo</string>
+    <!-- Kartica vrstice »Nadaljuj z druge naprave« (preverba TV 4. 11. 2026: ne ponavlja naslova vrstice). -->
+    <string name="os_predaja_kartica">Vedi cosa è in riproduzione</string>
     <string name="os_predaja_vprasam">Chiedo ai dispositivi…</string>
     <string name="os_predaja_nic">Nessun dispositivo in Safeer Link sta riproducendo nulla al momento.</string>
     <string name="os_predaja_igra">in riproduzione</string>

@@ -19,14 +19,21 @@ import si.safeer.tv.R
  * priljubljene je bil grd - zdaj temno okno Safeer OS z imenom kanala in velikimi ploscicami z ikono in napisom.
  * Daljinec: puscice med ploscicami, OK izvede, Nazaj zapre. Najvec [STOLPCEV] ploscic v vrsti, nato nova vrsta (brez
  * vodoravnega drsenja). Katera dejanja so, odloci klicatelj ([PriljubljeniKanaliPravila.meniKanala]).
+ * Preverba TV 4. 11. 2026: isti meni velja za VSO vsebino (Radio, Glasba, Video, Nadaljuj gledanje, Nadaljuj z druge
+ * naprave) - prej je bila tam se sivi sistemski seznam. Ploscica ima lahko [Dejanje.podnapis] (naprava, cas).
  */
 object MeniKanala {
     const val STOLPCEV = 4
 
-    /** Ploscica: napis, ikona (crtna, ic_m_*), [poudarjeno] = ikona v barvi poudarka (npr. kanal je ze priljubljen). */
-    class Dejanje(val napis: String, val ikona: Int, val poudarjeno: Boolean = false, val izvedi: () -> Unit)
+    /**
+     * Ploscica: napis, ikona (crtna, ic_m_*), [poudarjeno] = ikona v barvi poudarka (npr. kanal je ze priljubljen),
+     * [podnapis] = druga, umirjena vrstica (npr. kaj igra na drugi napravi).
+     */
+    class Dejanje(val napis: String, val ikona: Int, val poudarjeno: Boolean = false, val podnapis: String = "", val izvedi: () -> Unit)
 
-    fun pokazi(a: Activity, naslov: String, podnaslov: String, dejanja: List<Dejanje>): AlertDialog? {
+    /** [sirinaDp] in [stolpcev]: siroke ploscice za daljsa besedila (Nadaljuj z druge naprave). */
+    fun pokazi(a: Activity, naslov: String, podnaslov: String, dejanja: List<Dejanje>, sirinaDp: Int = 150,
+               stolpcev: Int = STOLPCEV): AlertDialog? {
         if (dejanja.isEmpty()) return null
         fun dp(v: Int) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), a.resources.displayMetrics).toInt()
         fun barva(atr: Int): Int = TypedValue().also { a.theme.resolveAttribute(atr, it, true) }.data
@@ -40,13 +47,13 @@ object MeniKanala {
             isAccessibilityHeading = true
         })
         if (podnaslov.isNotBlank()) koren.addView(TextView(a).apply {
-            text = podnaslov; textSize = 15f; setTextColor(barva(R.attr.osUmirjeno)); maxLines = 1; ellipsize = TextUtils.TruncateAt.END
+            text = podnaslov; textSize = 15f; setTextColor(barva(R.attr.osUmirjeno)); maxLines = 2; ellipsize = TextUtils.TruncateAt.END
         }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(2) })
         var okno: AlertDialog? = null
         val ploscice = ArrayList<View>()
         var vrsta: LinearLayout? = null
         dejanja.forEachIndexed { i, d ->
-            if (i % STOLPCEV == 0) vrsta = LinearLayout(a).apply { orientation = LinearLayout.HORIZONTAL }.also {
+            if (i % stolpcev == 0) vrsta = LinearLayout(a).apply { orientation = LinearLayout.HORIZONTAL }.also {
                 koren.addView(it, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
                     .apply { topMargin = dp(if (i == 0) 22 else 12) })
             }
@@ -66,9 +73,16 @@ object MeniKanala {
                     ellipsize = TextUtils.TruncateAt.END; setTextColor(barva(R.attr.osBesedilo))
                     importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                 }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(8) })
+                if (d.podnapis.isNotBlank()) addView(TextView(a).apply {
+                    text = d.podnapis; textSize = 13f; gravity = Gravity.CENTER; maxLines = 2
+                    ellipsize = TextUtils.TruncateAt.END; setTextColor(barva(R.attr.osUmirjeno))
+                    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(2) })
+                if (d.podnapis.isNotBlank()) contentDescription = d.napis + ", " + d.podnapis
+                minimumHeight = dp(116)
                 setOnClickListener { okno?.dismiss(); d.izvedi() }
             }
-            vrsta!!.addView(p, LinearLayout.LayoutParams(dp(150), dp(116)).apply { if (i % STOLPCEV != 0) marginStart = dp(12) })
+            vrsta!!.addView(p, LinearLayout.LayoutParams(dp(sirinaDp), ViewGroup.LayoutParams.WRAP_CONTENT).apply { if (i % stolpcev != 0) marginStart = dp(12) })
             ploscice += p
         }
         val o = AlertDialog.Builder(a, R.style.Os_Okno).setView(koren).create()

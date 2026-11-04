@@ -73,5 +73,9 @@ fun main() {
         "klik krmili Scit v Safeer OS (ne drugega VPN v brskalniku)")
     preveri(P.klik(false, null) == ScitPregled.Klik.ZASLON_SOSEDA && P.klik(true, null) == ScitPregled.Klik.LOKALNO, "brez stanja: zaslon Scita v Safeer OS")
 
+    // Preverba TV 4. 11. 2026: imena izbrisana ob izklopu (stevec ostane) in izklop z zaslona samo s potrditvijo.
+    preveri(P.imenaIzbrisana(0, 20) && !P.imenaIzbrisana(0, 0) && !P.imenaIzbrisana(3, 20), "prazna imena ob stevcu: izbrisana ob izklopu")
+    preveri(P.izklopZPotrditvijo(true) && !P.izklopZPotrditvijo(false), "izklop vprasa, vklop ne")
+
     println("SCIT PREGLED: OK")
 }

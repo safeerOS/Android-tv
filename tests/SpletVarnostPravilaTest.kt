@@ -222,5 +222,18 @@ fun main() {
         check(P.skriptniNaslov(u)) { "skripta: $u" }
     for (u in listOf(null, "https://a.si/javascript:x", "about:blank", SpletMostPravila.DOMACA, "http://127.0.0.1:1/pdfjs/web/viewer.html"))
         check(!P.skriptniNaslov(u)) { "ni skripta: $u" }
+    // Neodvisni pregled 4. 11. 2026: navigate() z domace strani - obrezan cilj, prazen zavrnjen (kot telefon).
+    check(P.ciljNavigacije("  https://a.si/ \n") == "https://a.si/") { "navigate: trim" }
+    check(P.ciljNavigacije("   ") == null && P.ciljNavigacije("") == null && P.ciljNavigacije(null) == null) { "navigate: prazen cilj zavrnjen" }
+    // Neodvisni pregled 4. 11. 2026: pripeti odtis Huba velja za isti izvor ne glede na zapis privzetih vrat in velike crke.
+    val hub = "https://192.168.1.20/"
+    check(P.istiIzvor("https://192.168.1.20:443/cast/x", hub)) { "privzeta vrata zapisana / nezapisana" }
+    check(P.istiIzvor("https://192.168.1.20/cast/x", "https://192.168.1.20:443/")) { "zaupan z vrati, naslov brez" }
+    check(P.istiIzvor("https://Hub.Local/x", "https://hub.local/")) { "gostitelj brez razlike v velikosti crk" }
+    check(!P.istiIzvor("https://192.168.1.21/", hub)) { "drug gostitelj ne" }
+    check(!P.istiIzvor("https://192.168.1.20:8443/", hub)) { "druga vrata ne" }
+    check(!P.istiIzvor("http://192.168.1.20:443/", hub)) { "druga shema ne" }
+    check(!P.istiIzvor("https://192.168.1.20/", "")) { "brez zaupanega naslova ne" }
+    check(!P.istiIzvor("ni naslov", hub)) { "neveljaven naslov ne" }
     println("SpletVarnostPravilaTest: OK")
 }

@@ -90,10 +90,29 @@ class ScitActivity : OsActivity() {
 
     private fun preklopi() {
         napaka = null
-        if (Scit.jeVklopljen(this)) Scit.izklopi(this) else vklopi()
+        // Preverba TV 4. 11. 2026: en OK na privzetem fokusu (Izklopi) je takoj izklopil zascito - izklop zdaj vprasa.
+        if (ScitPregled.izklopZPotrditvijo(Scit.jeVklopljen(this))) { potrdiIzklop(); return }
+        vklopi()
         zadnjiOdtis = ""
         // Storitev se zazene ali ustavi v drugem procesu trenutek kasneje; osvezevanje vsaki 2 s pokaze novo stanje.
         narisi(true, fokus = OZNAKA_PREKLOP)
+    }
+
+    /** Okno »Izklopim Safeer Scit?«: privzeto Preklici, izklop samo z izrecno izbiro. */
+    private fun potrdiIzklop() {
+        val okno = android.app.AlertDialog.Builder(this, R.style.Os_Okno)
+            .setTitle(R.string.scit_ime)
+            .setMessage(R.string.scit_z_izklopi_vprasanje)
+            .setPositiveButton(R.string.scit_z_izklopi) { _, _ ->
+                Scit.izklopi(this)
+                zadnjiOdtis = ""
+                narisi(true, fokus = OZNAKA_PREKLOP)
+            }
+            .setNegativeButton(R.string.os_preklici, null)
+            .create()
+        okno.setOnShowListener { okno.getButton(android.app.AlertDialog.BUTTON_NEGATIVE)?.requestFocus() }
+        okno.show()
+        si.safeer.tv.os.Kontroler.pokazi(okno)
     }
 
     // ------------------------------------------------------------------ stanje
@@ -177,7 +196,10 @@ class ScitActivity : OsActivity() {
 
         if (p.vklopljen) {
             vsebina.addView(naslov(getString(R.string.scit_z_zadnja)))
-            if (p.zadnja.isEmpty()) vsebina.addView(besedilo(getString(R.string.scit_z_zadnja_prazno), 14f, R.attr.osUmirjeno))
+            // Preverba TV 4. 11. 2026: ob dnevnem stevcu > 0 in praznem seznamu povemo, da so se imena ob izklopu izbrisala.
+            if (p.zadnja.isEmpty()) vsebina.addView(besedilo(getString(
+                if (ScitPregled.imenaIzbrisana(0, p.blokiranih)) R.string.scit_z_zadnja_po_izklopu else R.string.scit_z_zadnja_prazno),
+                14f, R.attr.osUmirjeno))
             val ura = android.text.format.DateFormat.getTimeFormat(this)
             val zdaj = System.currentTimeMillis()
             for (z in p.zadnja) {

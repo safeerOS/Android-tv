@@ -241,6 +241,8 @@
     <string name="os_glasba_napaka_dekodirnik">Cet appareil ne peut pas lire ce format vidéo et aucun appareil de Safeer Link ne peut le convertir pour le moment.</string>
     <string name="os_predaja_naslov">Continuer depuis un autre appareil</string>
     <string name="os_predaja_opis">Ce qui est lu ou a été regardé en dernier sur un autre appareil</string>
+    <!-- Kartica vrstice »Nadaljuj z druge naprave« (preverba TV 4. 11. 2026: ne ponavlja naslova vrstice). -->
+    <string name="os_predaja_kartica">Voir ce qui est lu</string>
     <string name="os_predaja_vprasam">Interrogation des appareils…</string>
     <string name="os_predaja_nic">Aucun appareil du Safeer Link ne lit quoi que ce soit en ce moment.</string>
     <string name="os_predaja_igra">en lecture</string>

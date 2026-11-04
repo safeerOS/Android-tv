@@ -13,6 +13,9 @@
     <string name="scit_z_danes">Stopped today: %1$d</string>
     <string name="scit_z_zadnja">Recently stopped</string>
     <string name="scit_z_zadnja_prazno">Nothing stopped yet.</string>
+    <!-- Preverba TV 4. 11. 2026: stevec danes ostane, imena se ob izklopu zbrisejo; izklop z zaslona s potrditvijo. -->
+    <string name="scit_z_zadnja_po_izklopu">Names stopped before turning off were cleared. New ones appear here.</string>
+    <string name="scit_z_izklopi_vprasanje">Turn off Safeer Shield? Ads, trackers and dangerous sites will no longer be stopped in any app.</string>
     <string name="scit_z_spusti">OK: allow for 30 days</string>
     <string name="scit_z_ze_spusceno">Allowed</string>
     <string name="scit_z_groznja">Dangerous – cannot be allowed</string>

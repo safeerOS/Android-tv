@@ -16,6 +16,12 @@ fun main() {
     preveriEnako("kanal brez shranljivega toka: priljubljene", true, P.ponudiPriljubljene(kanal = true, shranljiva = false))
     preveriEnako("skladba s shranljivim tokom: priljubljene", true, P.ponudiPriljubljene(kanal = false, shranljiva = true))
     preveriEnako("ni kanal ne shranljiva: brez priljubljenih", false, P.ponudiPriljubljene(kanal = false, shranljiva = false))
+    // Preverba TV 4. 11. 2026: serija iz dodatka (The Flash) brez shranljivega toka - kartica dodatka gre med priljubljene.
+    preveriEnako("kartica dodatka: priljubljene", true, P.ponudiPriljubljene(kanal = false, shranljiva = false, enotaDodatka = true))
+    // Preverba TV 4. 11. 2026: priljubljena postaja ima na kartici zvezdico, druge ne; brez podvajanja.
+    preveriEnako("priljubljena postaja: zvezdica", "★ Radio Ena", P.naslovKartice("Radio Ena", true))
+    preveriEnako("ni priljubljena: brez zvezdice", "Radio Ena", P.naslovKartice("Radio Ena", false))
+    preveriEnako("zvezdica samo enkrat", "★ Radio Ena", P.naslovKartice("★ Radio Ena", true))
     preveriEnako("kanal: brez seznama predvajanja", false, P.ponudiSeznamPredvajanja(kanal = true))
     preveriEnako("skladba: seznam predvajanja", true, P.ponudiSeznamPredvajanja(kanal = false))
     preveriEnako("skladba ni kanal", false, P.jeKanal("jamendo:123"))

@@ -293,17 +293,11 @@ object HubTls {
         u.protocol == "https" && si.safeer.tv.link.GlobalLink.jeRele(u.host, u.port)
     } catch (_: Exception) { false }
 
-    /** Ali je naslov (https://gostitelj:vrata/...) naslov Huba, ki mu zaupamo. */
-    fun jeNaslovHuba(url: String, hubHttp: String): Boolean {
-        if (hubHttp.isBlank()) return false
-        return try {
-            val a = java.net.URL(url)
-            val b = java.net.URL(hubHttp)
-            a.protocol == b.protocol && a.host == b.host && a.port == b.port
-        } catch (e: Exception) {
-            false
-        }
-    }
+    /**
+     * Ali je naslov (https://gostitelj:vrata/...) naslov Huba, ki mu zaupamo. Neodvisni pregled 4. 11. 2026: privzeta vrata
+     * (zapisana ali ne) in velike crke gostitelja ne smejo vplivati - pravilo in preizkus sta v SpletVarnostPravila.istiIzvor.
+     */
+    fun jeNaslovHuba(url: String, hubHttp: String): Boolean = si.safeer.tv.SpletVarnostPravila.istiIzvor(url, hubHttp)
 
     fun sha256Hex(b: ByteArray): String =
         MessageDigest.getInstance("SHA-256").digest(b).joinToString("") { "%02x".format(it.toInt() and 0xff) }

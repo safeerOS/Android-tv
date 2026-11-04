@@ -855,7 +855,18 @@ class GlasbaActivity : OsActivity() {
         vsebina = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(4), 0, dp(8)) }
         Stremio.mapaPredpomnilnika = java.io.File(cacheDir, "stremio")
         Stremio.pripravi(this)
-        drsnik = ScrollView(this).apply { addView(vsebina); isFillViewport = true; isVerticalScrollBarEnabled = false }
+        // Preverba TV 4. 11. 2026 (TV v zivo in mreze): ob drsenju je bila prva vrstica kartic zgoraj odrezana pod glavo.
+        // Na televizorju drsnik zdaj obstane na zacetku vrste ali njenega naslova ([DrsenjePravila.poravnajNaVrsto]).
+        val drsnikNaTv = Naprava.jeTelevizor(this)
+        drsnik = object : ScrollView(this) {
+            override fun computeScrollDeltaToGetChildRectOnScreen(rect: android.graphics.Rect): Int {
+                val delta = super.computeScrollDeltaToGetChildRectOnScreen(rect)
+                if (delta == 0 || !drsnikNaTv) return delta
+                val visina = height - paddingTop - paddingBottom
+                val najvec = ((getChildAt(0)?.height ?: 0) - visina).coerceAtLeast(0)
+                return DrsenjePravila.poravnajNaVrsto(vrhoviVrst(), scrollY + delta, rect.top, rect.bottom, visina, najvec) - scrollY
+            }
+        }.apply { addView(vsebina); isFillViewport = true; isVerticalScrollBarEnabled = false }
         // Odprta mreza (Filmi | Serije, katalog): naslednja stran se nalozi sama, ko se uporabnik priblizuje koncu.
         // Kartice se premaknejo tudi brez drsenja (mreza se dopolni na mestu, kartica izgine): slike uskladimo po postavitvi.
         vsebina.viewTreeObserver.addOnGlobalLayoutListener { narociUskladiSlike() }
@@ -1745,6 +1756,19 @@ class GlasbaActivity : OsActivity() {
         } else if (fokusVVsebino && fokusNaPrvo()) fokusVVsebino = false
         // Na prvem zaslonu ni odrezane vrste (kot po polnem risanju).
         if (drsnik.scrollY == 0) brezOdrezanihVrst()
+    }
+
+    /** Vrh vsake vrste kartic in njenega naslova v [vsebina] (px od vrha vsebine) - za [DrsenjePravila.poravnajNaVrsto]. */
+    private fun vrhoviVrst(): List<Int> {
+        if (!::vsebina.isInitialized) return emptyList()
+        val izhod = ArrayList<Int>(vsebina.childCount)
+        for (i in 0 until vsebina.childCount) {
+            val v = vsebina.getChildAt(i)
+            if (v.visibility != View.VISIBLE) continue
+            if (v is HorizontalScrollView || v.tag == MREZA_VRSTA || v.tag == POLICA_KARTIC || v.contentDescription == NASLOV_VRSTE)
+                izhod += vsebina.top + v.top
+        }
+        return izhod
     }
 
     /** Za koliko px je drsnik zdaj krajsi ([skrajsajDrsnik]). */
@@ -5946,7 +5970,11 @@ class GlasbaActivity : OsActivity() {
 
     private fun skladbe(s: List<Jamendo.Skladba>, vrsta: String = "", seznam: MedijskiViri.Seznam? = null,
                         celota: List<Jamendo.Skladba> = s) = s.also { vzorciKnjiznice(it) }
-        .filterNot { MrtviKanali.skrij(this, it) || znanoNiNaVoljo(it) || cakaNaKnjiznico(it) || neodklenjena(it) }.map { sk ->
+        .filterNot { MrtviKanali.skrij(this, it) || znanoNiNaVoljo(it) || cakaNaKnjiznico(it) || neodklenjena(it) }.let { izbrane ->
+        // Preverba TV 4. 11. 2026: priljubljena radijska postaja na kartici ni imela oznake - zdaj zvezdica pred imenom
+        // (kot v Aplikacijah). Priljubljene preberemo enkrat za vso vrsto, ne za vsako kartico.
+        val priljubljeni = if (izbrane.isEmpty()) emptySet() else MedijskiViri.priljubljene(this).mapTo(HashSet()) { it.id }
+        izbrane.map { sk ->
         if (sk.mime == MedijskiViri.STRAN) Kartica(sk.naslov, sk.izvajalec, "", { odpriStran(sk.zvok, sk.naslov) }, { meni(sk, s, vrsta, seznam) }, ikona = R.drawable.os_ikona_splet)
         else {
             val oznaka = if (sk.video || SpletniVir.vrstaVsebine(sk) == SpletniVir.VIDEOSPOT) getString(R.string.os_media_oznaka_video) else ""
@@ -5957,7 +5985,9 @@ class GlasbaActivity : OsActivity() {
                 else -> R.drawable.os_ikona_glasba
             }
             // Lastnik 4. 11. 2026: skrit kanal (viden z »Pokazi skrite kanale«) je oznacen - tudi za TalkBack (naslov kartice).
-            val naslovKartice = if (MrtviKanali.pokaziSkrite && MrtviKanali.jeSkrit(this, sk.id)) getString(R.string.os_tv_kanal_skrit, sk.naslov) else sk.naslov
+            val naslovKartice = PriljubljeniKanaliPravila.naslovKartice(
+                if (MrtviKanali.pokaziSkrite && MrtviKanali.jeSkrit(this, sk.id)) getString(R.string.os_tv_kanal_skrit, sk.naslov) else sk.naslov,
+                sk.id in priljubljeni)
             Kartica(naslovKartice, sk.izvajalec, sk.slika, {
                 zadnjiIzbran = sk.id
                 if (jeVrstaPosnetkov(sk, seznam) || YoutubeVrstaPravila.kotVrsta(YoutubeZvok.jeYoutube(sk), sk.video)) predvajajVrstoPosnetkov(celota, sk)
@@ -5966,7 +5996,7 @@ class GlasbaActivity : OsActivity() {
             }, { meni(sk, celota, vrsta, seznam) }, ikona = ikona, oznaka = oznaka, id = sk.id,
                 tvId = sk.id.removePrefix("tv:").takeIf { sk.id.startsWith("tv:") }.orEmpty())
         }
-    }
+    } }
 
     /** Spletno stran odpre brskalnik Safeer (predvaja vse); nasa glasba se ustavi, zvok strani ob Domov igra naprej. */
     private fun odpriStran(url: String, ime: String) {
@@ -6156,23 +6186,16 @@ class GlasbaActivity : OsActivity() {
             }.setNegativeButton(android.R.string.cancel, null))
     }
 
+    /** Meni kartice »Nadaljuj gledanje«: isti meni s ploscicami kot ostala vsebina (preverba TV 4. 11. 2026). */
     private fun meniNadaljuj(sk: Jamendo.Skladba) {
-        val moznosti = arrayOf(
-            getString(R.string.os_media_odstrani_nadaljuj),
-            getString(R.string.os_media_pocisti_nadaljuj)
-        )
-        pokaziBrisanje(AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(sk.naslov)
-            .setItems(moznosti) { _, k ->
-                when (k) {
-                    0 -> {
-                        MediaNapredek.odstrani(this, sk)
-                        Toast.makeText(this, R.string.os_media_odstranjeno_nadaljuj, Toast.LENGTH_SHORT).show()
-                        SEZNAMI.remove(VIDEO)
-                        if (razdelek == VIDEO) osvezi(VIDEO)
-                    }
-                    1 -> potrdiPocistiNadaljuj()
-                }
-            }.setNegativeButton(android.R.string.cancel, null))
+        MeniKanala.pokazi(this, sk.naslov, sk.izvajalec, listOf(
+            MeniKanala.Dejanje(getString(R.string.os_media_odstrani_nadaljuj), R.drawable.ic_m_history) {
+                MediaNapredek.odstrani(this, sk)
+                Toast.makeText(this, R.string.os_media_odstranjeno_nadaljuj, Toast.LENGTH_SHORT).show()
+                SEZNAMI.remove(VIDEO)
+                if (razdelek == VIDEO) osvezi(VIDEO)
+            },
+            MeniKanala.Dejanje(getString(R.string.os_media_pocisti_nadaljuj), R.drawable.ic_m_odstrani) { potrdiPocistiNadaljuj() }))
     }
 
     private fun potrdiPocistiNadaljuj() {
@@ -6256,7 +6279,9 @@ class GlasbaActivity : OsActivity() {
                 if (razdelek == VIDEO) osvezi(VIDEO)
             }
         }
-        if (PriljubljeniKanaliPravila.ponudiPriljubljene(kanal, MedijskiViri.shranljiva(sk))) {
+        // Preverba TV 4. 11. 2026: serija iz dodatka (The Flash) je imela v meniju samo »Izberi vir« - kartica dodatka
+        // nima shranljivega toka, a se shrani kot kartica (tok se razresi ob predvajanju).
+        if (PriljubljeniKanaliPravila.ponudiPriljubljene(kanal, MedijskiViri.shranljiva(sk), Stremio.jeEnota(sk))) {
             val je = MedijskiViri.jePriljubljena(this, sk)
             val napisPrilj = getString(if (je) R.string.os_mediji_odstrani_prilj else R.string.os_mediji_dodaj_prilj)
             ikone[napisPrilj] = if (je) R.drawable.ic_m_star_filled else R.drawable.ic_m_star
@@ -6334,15 +6359,19 @@ class GlasbaActivity : OsActivity() {
         if (Stremio.ponujaDopolnitev(sk)) dejanja += getString(R.string.os_dodatek_o_vsebini) to { pokaziDopolnitev(sk) }
         if (dejanja.isEmpty()) return
         ikone[getString(R.string.os_media_izberi_tok)] = R.drawable.ic_m_vir
-        if (kanal) {
-            MeniKanala.pokazi(this, sk.naslov, sk.izvajalec, dejanja.map { (napis, izvedi) ->
-                MeniKanala.Dejanje(napis, ikone[napis] ?: R.drawable.ic_m_popup, napis in poudarjena) { izvedi() }
-            })
-            return
-        }
-        pokaziBrisanje(AlertDialog.Builder(this).setTitle(sk.naslov)
-            .setItems(dejanja.map { it.first }.toTypedArray()) { _, k -> dejanja[k].second() }
-            .setNegativeButton(android.R.string.cancel, null))
+        ikone[getString(R.string.os_media_odstrani_nadaljuj)] = R.drawable.ic_m_history
+        ikone[getString(R.string.os_seznam_dodaj)] = R.drawable.ic_m_dodaj
+        ikone[getString(R.string.os_nedel_poisci_drug)] = R.drawable.ic_m_skip
+        ikone[getString(R.string.os_nedel_preveri_znova)] = R.drawable.ic_m_reload
+        ikone[getString(R.string.os_seznam_odstrani_skladbo)] = R.drawable.ic_m_odstrani
+        ikone[getString(R.string.os_mediji_odstrani_seznam)] = R.drawable.ic_m_odstrani
+        ikone[getString(R.string.os_mediji_shrani_seznam)] = R.drawable.ic_m_bookmarks
+        ikone[getString(R.string.os_dodatek_o_vsebini)] = R.drawable.ic_m_info
+        // Preverba TV 4. 11. 2026: meni s ploscicami (MeniKanala) za vso vsebino - Radio, Glasba, Video - ne samo za kanale;
+        // prej je bil tu sivi sistemski seznam.
+        MeniKanala.pokazi(this, sk.naslov, sk.izvajalec, dejanja.map { (napis, izvedi) ->
+            MeniKanala.Dejanje(napis, ikone[napis] ?: R.drawable.ic_m_popup, napis in poudarjena) { izvedi() }
+        })
     }
 
     // ------------------------------------------------------------------ naloga 124: razsiritve dodatkov (protokol v1)
@@ -7805,7 +7834,8 @@ class GlasbaActivity : OsActivity() {
     private fun predajaVrsta(): List<Vrsta> {
         val link = LinkUpravitelj.pridobi(this)
         if (link.jeKrajevni() || link.naprave.none { !link.jeTaNaprava(it) && "remote" in it.zmoznosti }) return emptyList()
-        val kartica = Kartica(getString(R.string.os_predaja_naslov), getString(R.string.os_predaja_opis), "", { nadaljujZDrugeNaprave() }, ikona = R.drawable.os_ikona_link)
+        // Preverba TV 4. 11. 2026: kartica je ponavljala naslov vrstice nad njo in bila odrezana - zdaj kratko dejanje.
+        val kartica = Kartica(getString(R.string.os_predaja_kartica), getString(R.string.os_predaja_opis), "", { nadaljujZDrugeNaprave() }, ikona = R.drawable.os_ikona_link)
         return listOf(Vrsta(getString(R.string.os_predaja_naslov), listOf(kartica), video = true, mala = true))
     }
 
@@ -7816,24 +7846,25 @@ class GlasbaActivity : OsActivity() {
             if (isFinishing) return@poizvedi
             stanje.text = if (razdelek == ISKANJE && zadetki != null) opisZadetkov else opis(razdelek)
             if (ponudbe.isEmpty()) { Toast.makeText(this, getString(R.string.os_predaja_nic), Toast.LENGTH_LONG).show(); return@poizvedi }
-            val imena = ponudbe.map { p ->
+            // Preverba TV 4. 11. 2026: prej star sivi AlertDialog brez sloga Os_Okno - zdaj meni s ploscicami (MeniKanala).
+            MeniKanala.pokazi(this, getString(R.string.os_predaja_naslov), "", ponudbe.map { p ->
                 val kje = cas(p.polozajMs) + (if (p.trajanjeMs > 0) " / " + cas(p.trajanjeMs) else "")
-                "${DatotekeActivity.lepoIme(p.naprava.ime)} · ${p.skladba.naslov}\n$kje · ${getString(if (p.igra) R.string.os_predaja_igra else R.string.os_predaja_nazadnje)}"
-            }
-            AlertDialog.Builder(this).setTitle(R.string.os_predaja_naslov)
-                .setItems(imena.toTypedArray()) { _, i -> izberiPrevzem(ponudbe[i]) }
-                .setNegativeButton(android.R.string.cancel, null).show()
+                MeniKanala.Dejanje(DatotekeActivity.lepoIme(p.naprava.ime), R.drawable.ic_m_link, poudarjeno = p.igra,
+                    podnapis = "${p.skladba.naslov}\n$kje · ${getString(if (p.igra) R.string.os_predaja_igra else R.string.os_predaja_nazadnje)}") {
+                    izberiPrevzem(p)
+                }
+            }, sirinaDp = 230, stolpcev = 3)
         }
     }
 
     private fun izberiPrevzem(p: Predaja.Ponudba) {
         if (!p.igra) { prevzemi(p, false); return }
         // Izvor ne ustavi sam: uporabnik izbere, ali tam tece naprej (druga oseba gleda) ali se ustavi.
-        AlertDialog.Builder(this).setTitle(p.skladba.naslov)
-            .setMessage(getString(R.string.os_predaja_vprasanje, DatotekeActivity.lepoIme(p.naprava.ime), cas(p.polozajMs)))
-            .setPositiveButton(R.string.os_predaja_tukaj) { _, _ -> prevzemi(p, false) }
-            .setNeutralButton(R.string.os_predaja_tukaj_ustavi) { _, _ -> prevzemi(p, true) }
-            .setNegativeButton(android.R.string.cancel, null).show()
+        MeniKanala.pokazi(this, p.skladba.naslov,
+            getString(R.string.os_predaja_vprasanje, DatotekeActivity.lepoIme(p.naprava.ime), cas(p.polozajMs)), listOf(
+                MeniKanala.Dejanje(getString(R.string.os_predaja_tukaj), R.drawable.ic_m_forward) { prevzemi(p, false) },
+                MeniKanala.Dejanje(getString(R.string.os_predaja_tukaj_ustavi), R.drawable.ic_m_skip) { prevzemi(p, true) }),
+            sirinaDp = 230, stolpcev = 3)
     }
 
     private fun prevzemi(p: Predaja.Ponudba, ustaviTam: Boolean) {

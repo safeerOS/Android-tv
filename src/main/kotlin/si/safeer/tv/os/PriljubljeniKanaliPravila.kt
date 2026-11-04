@@ -14,7 +14,17 @@ object PriljubljeniKanaliPravila {
      * Meni kanala (lastnik 4. 11. 2026 05:15): kanal v zivo je vedno mogoce dati med priljubljene - tudi kanal IPTV s
      * tokom http in kanal dodatka, ki ju [MedijskiViri.shranljiva] zavrne (na TV »Asian Drama SD« ni imel izbire).
      */
-    fun ponudiPriljubljene(kanal: Boolean, shranljiva: Boolean): Boolean = kanal || shranljiva
+    fun ponudiPriljubljene(kanal: Boolean, shranljiva: Boolean, enotaDodatka: Boolean = false): Boolean =
+        kanal || shranljiva || enotaDodatka
+
+    /**
+     * Preverba TV 4. 11. 2026: priljubljena postaja (Radio) na kartici ni imela oznake. Zvezdica pred imenom, kot v
+     * Aplikacijah; ze oznacenega naslova ne oznacimo dvakrat.
+     */
+    fun naslovKartice(naslov: String, priljubljena: Boolean): String =
+        if (priljubljena && !naslov.startsWith(ZVEZDICA)) ZVEZDICA + naslov else naslov
+
+    const val ZVEZDICA = "★ "
 
     /** »Shrani kot seznam predvajanja« je za skladbe in videe; kanali so v priljubljenih (meni kanala ga nima). */
     fun ponudiSeznamPredvajanja(kanal: Boolean): Boolean = !kanal

@@ -240,6 +240,8 @@
     <string name="os_glasba_napaka_dekodirnik">This device cannot play this video format and no device in Safeer Link can convert it right now.</string>
     <string name="os_predaja_naslov">Continue from another device</string>
     <string name="os_predaja_opis">What is playing or was last watched on another device</string>
+    <!-- Kartica vrstice »Nadaljuj z druge naprave« (preverba TV 4. 11. 2026: ne ponavlja naslova vrstice). -->
+    <string name="os_predaja_kartica">See what is playing</string>
     <string name="os_predaja_vprasam">Asking devices…</string>
     <string name="os_predaja_nic">No device in Safeer Link is playing anything right now.</string>
     <string name="os_predaja_igra">playing</string>

@@ -254,9 +254,9 @@
 <div class="edit-chip" onclick="editTiles()" role="button" tabindex="0"><span data-home-text="edit">Edit</span></div>
 </div>
 <div class="hero-row" id="heroRow"></div>
-<div class="section-head">
+<!-- Preverba TV 4. 11. 2026: »Dodaj« je bil dvakrat (gumb v glavi in ploscica »+«) - zdaj samo ploscica »+ Dodaj«, en sam. -->
+<div class="section-head" id="moreHead">
 <div class="section-title"><span data-home-text="more_sites">More websites</span></div>
-<div class="edit-chip" onclick="addTile()" role="button" tabindex="0"><span data-home-text="add">Add</span></div>
 </div>
 <div class="more-row" id="favoritesGrid"></div>
 <footer class="remote-help"><span><b>OK</b><span data-home-text="open">Open</span></span><span><b><span data-home-text="back">Back</span></b><span data-home-text="return">Go back</span></span><span><i class="remote-red"></i><span data-home-text="sites">Quick sites</span></span><span><i class="remote-green"></i><span data-home-text="pointer">Pointer</span></span></footer>
@@ -361,7 +361,8 @@
         }
 
         for (var i = 0; i < heroes.length; i++) addHero(heroes[i], i, false);
-        if (heroes.length < 4) addHero({ title: homeText('add'), url: '' }, 0, true);
+        var dodaj = kjeDodaj(tiles.length);
+        if (dodaj === 'hero') addHero({ title: homeText('add'), url: '' }, 0, true);
 
         function addMini(tile, isAdd) {
             var el = document.createElement('div');
@@ -386,8 +387,16 @@
         }
 
         for (var j = 0; j < rest.length; j++) addMini(rest[j], false);
-        addMini({ title: homeText('add'), url: '' }, true);
+        if (dodaj === 'mini') addMini({ title: homeText('add'), url: '' }, true);
+        // Brez dodatnih strani je razdelek »Vec strani« prazen: ne kazemo ga.
+        var vecVidno = miniRow.children.length > 0;
+        miniRow.style.display = vecVidno ? '' : 'none';
+        var glava = document.getElementById('moreHead');
+        if (glava) glava.style.display = vecVidno ? '' : 'none';
     }
+
+    // Ena sama ploscica »+ Dodaj« (preverba TV 4. 11. 2026): v prvi vrsti, dokler ima prostor (4), sicer na koncu »Vec strani«.
+    function kjeDodaj(steviloStrani) { return steviloStrani < 4 ? 'hero' : 'mini'; }
 
     function editTiles() {
         if (window.SafeerBridge && window.SafeerBridge.openHomeTilesEditor) window.SafeerBridge.openHomeTilesEditor();

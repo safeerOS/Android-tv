@@ -13,6 +13,9 @@
     <string name="scit_z_danes">Heute gestoppt: %1$d</string>
     <string name="scit_z_zadnja">Zuletzt gestoppt</string>
     <string name="scit_z_zadnja_prazno">Noch nichts gestoppt.</string>
+    <!-- Preverba TV 4. 11. 2026: stevec danes ostane, imena se ob izklopu zbrisejo; izklop z zaslona s potrditvijo. -->
+    <string name="scit_z_zadnja_po_izklopu">Vor dem Ausschalten gestoppte Namen wurden gelöscht. Neue erscheinen hier.</string>
+    <string name="scit_z_izklopi_vprasanje">Safeer Schild ausschalten? Werbung, Tracker und gefährliche Seiten werden in keiner App mehr gestoppt.</string>
     <string name="scit_z_spusti">OK: 30 Tage zulassen</string>
     <string name="scit_z_ze_spusceno">Zugelassen</string>
     <string name="scit_z_groznja">Gefährlich – kann nicht zugelassen werden</string>

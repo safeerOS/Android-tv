@@ -240,6 +240,8 @@
     <string name="os_glasba_napaka_dekodirnik">Te oblike videa ta naprava ne zna predvajati in nobena naprava v Safeer Linku je ta trenutek ne more pretvoriti.</string>
     <string name="os_predaja_naslov">Nadaljuj z druge naprave</string>
     <string name="os_predaja_opis">Kar igra ali si nazadnje gledal na drugi napravi</string>
+    <!-- Kartica vrstice »Nadaljuj z druge naprave« (preverba TV 4. 11. 2026: ne ponavlja naslova vrstice). -->
+    <string name="os_predaja_kartica">Poglej, kaj igra</string>
     <string name="os_predaja_vprasam">Vprašam naprave …</string>
     <string name="os_predaja_nic">Nobena naprava v Safeer Linku trenutno ne predvaja ničesar.</string>
     <string name="os_predaja_igra">igra</string>

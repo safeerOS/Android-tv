@@ -26,13 +26,15 @@ class MobileFileProvider : ContentProvider() {
         authority = info.authority
     }
 
+    // Neodvisni pregled 4. 11. 2026: query() in getType() po pogodbi ContentProviderja ne smeta vreci (napacna pot je
+    // vrgla FileNotFoundException v proces klicatelja) - ob napaki vrneta null, kot na telefonu. openFile sme vreci.
     override fun query(
         uri: Uri,
         projection: Array<out String>?,
         selection: String?,
         selectionArgs: Array<out String>?,
         sortOrder: String?
-    ): Cursor {
+    ): Cursor? = try {
         val file = getFileForUri(uri)
         val proj = projection ?: arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE)
         val cursor = MatrixCursor(proj, 1)
@@ -44,17 +46,20 @@ class MobileFileProvider : ContentProvider() {
                 else -> row.add(null)
             }
         }
-        return cursor
+        cursor
+    } catch (_: Exception) {
+        null
     }
 
-    override fun getType(uri: Uri): String? {
-        val file = getFileForUri(uri)
-        val ext = file.extension
-        return if (ext.isNotEmpty()) {
+    override fun getType(uri: Uri): String? = try {
+        val ext = getFileForUri(uri).extension
+        if (ext.isNotEmpty()) {
             MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext.lowercase()) ?: "application/octet-stream"
         } else {
             "application/octet-stream"
         }
+    } catch (_: Exception) {
+        null
     }
 
     /** Samo branje (namestitelj APK prebere datoteko); pisanje ni nikoli dovoljeno. */

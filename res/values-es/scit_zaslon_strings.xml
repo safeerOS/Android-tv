@@ -13,6 +13,9 @@
     <string name="scit_z_danes">Detenidos hoy: %1$d</string>
     <string name="scit_z_zadnja">Detenidos recientemente</string>
     <string name="scit_z_zadnja_prazno">Aún no se ha detenido nada.</string>
+    <!-- Preverba TV 4. 11. 2026: stevec danes ostane, imena se ob izklopu zbrisejo; izklop z zaslona s potrditvijo. -->
+    <string name="scit_z_zadnja_po_izklopu">Los nombres detenidos antes de desactivar se borraron. Los nuevos aparecen aquí.</string>
+    <string name="scit_z_izklopi_vprasanje">¿Desactivar Escudo Safeer? Los anuncios, rastreadores y sitios peligrosos dejarán de detenerse en todas las apps.</string>
     <string name="scit_z_spusti">OK: permitir 30 días</string>
     <string name="scit_z_ze_spusceno">Permitido</string>
     <string name="scit_z_groznja">Peligroso: no se puede permitir</string>

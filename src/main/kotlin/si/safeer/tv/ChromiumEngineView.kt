@@ -740,9 +740,11 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
             return UiText.language
         }
 
+        // Neodvisni pregled 4. 11. 2026: kot telefon - cilj obrezan, prazen (ali null iz strani) zavrnjen.
         @android.webkit.JavascriptInterface
-        fun navigate(url: String) {
-            naDomaciNaGlavni("navigate") { webView.loadUrl(url) }
+        fun navigate(url: String?) {
+            val cilj = SpletVarnostPravila.ciljNavigacije(url) ?: return
+            naDomaciNaGlavni("navigate") { webView.loadUrl(cilj) }
         }
 
         /** Polje na domaci strani: isti razresevalnik kot vrstica z naslovom (naslov ali iskanje). */

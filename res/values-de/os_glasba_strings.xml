@@ -241,6 +241,8 @@
     <string name="os_glasba_napaka_dekodirnik">Dieses Gerät kann dieses Videoformat nicht wiedergeben, und kein Gerät in Safeer Link kann es gerade umwandeln.</string>
     <string name="os_predaja_naslov">Auf anderem Gerät fortsetzen</string>
     <string name="os_predaja_opis">Was auf einem anderen Gerät läuft oder zuletzt lief</string>
+    <!-- Kartica vrstice »Nadaljuj z druge naprave« (preverba TV 4. 11. 2026: ne ponavlja naslova vrstice). -->
+    <string name="os_predaja_kartica">Sehen, was läuft</string>
     <string name="os_predaja_vprasam">Geräte werden gefragt …</string>
     <string name="os_predaja_nic">Kein Gerät im Safeer Link spielt gerade etwas ab.</string>
     <string name="os_predaja_igra">läuft</string>
