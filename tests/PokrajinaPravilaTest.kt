@@ -9,7 +9,16 @@ private fun preveriEnako(opis: String, pricakovano: Any?, dobljeno: Any?) =
     if (pricakovano == dobljeno) println("  ok  $opis") else { napak++; println("  NAPAKA  $opis: pricakovano $pricakovano, dobljeno $dobljeno") }
 
 /** Naloga 42 A: tema Pokrajina novega TV zaganjalnika ([PokrajinaPravila]) in vreme ([VremePravila]). */
+private fun preveriSirinoDoka() {
+    // Lastnik 4. 11. 2026 23:39: gumb s fokusom je sirok vsaj kot napis v eni vrstici; brez fokusa enak delez.
+    check(PokrajinaPravila.sirinaGumbaDoka(delez = 240, sirinaNapisa = 300, robovi = 24, fokus = true) == 324)
+    check(PokrajinaPravila.sirinaGumbaDoka(delez = 240, sirinaNapisa = 120, robovi = 24, fokus = true) == 240)
+    check(PokrajinaPravila.sirinaGumbaDoka(delez = 240, sirinaNapisa = 300, robovi = 24, fokus = false) == 240)
+    println("  ok  sirina gumba spodnje vrstice")
+}
+
 fun main() {
+    preveriSirinoDoka()
     println("Preizkus zaganjalnika Pokrajina")
     val utc = TimeZone.getTimeZone("UTC")
     // torek, 27. 10. 2026, 03:29 UTC

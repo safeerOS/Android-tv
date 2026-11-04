@@ -2367,10 +2367,11 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                 PokrajinaPravila.DATOTEKE -> R.drawable.os_ikona_datoteke to R.string.os_meni_datoteke
                 else -> R.drawable.os_ikona_nastavitve to R.string.os_meni_nastavitve
             }
-            // Napis sme v dve vrstici (»Medijski / center«, »Centro / multimediale«): gumbi so enako siroki (7 v vrsti).
+            // Lastnik 4. 11. 2026 23:39: napis vedno v eni vrstici, mesto zanj vedno rezervirano (INVISIBLE, ne GONE) - vrstica
+            // ob fokusu ne poskoci; gumb s fokusom se razsiri, da napis ni odrezan (PokrajinaPravila.sirinaGumbaDoka).
             val bes = besedilo(getString(napis), 15f).apply {
-                gravity = Gravity.CENTER; maxLines = 2; ellipsize = TextUtils.TruncateAt.END
-                visibility = View.GONE
+                gravity = Gravity.CENTER; maxLines = 1; isSingleLine = true; ellipsize = null
+                visibility = View.INVISIBLE
             }
             val gumb = object : LinearLayout(this) {
                 override fun focusSearch(direction: Int): View? {
@@ -2395,7 +2396,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                 contentDescription = getString(napis)
                 setOnFocusChangeListener { p, ima ->
                     p.background.alpha = if (ima) 255 else 0
-                    bes.visibility = if (ima) View.VISIBLE else View.GONE
+                    bes.visibility = if (ima) View.VISIBLE else View.INVISIBLE
+                    sirinaGumbaDoka(v, p, bes, ima)
                 }
                 setOnClickListener { odpriRazdelek(r) }
                 setOnLongClickListener { zacniPremikanjeDok(r); true }
@@ -2442,6 +2444,19 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
             poudariFokus(gumb)
             v.addView(gumb, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(4); marginEnd = dp(4) })
         }
+    }
+
+    /** Sirina gumba spodnje vrstice ob fokusu (PokrajinaPravila.sirinaGumbaDoka): napis v eni vrstici ni odrezan. */
+    private fun sirinaGumbaDoka(vrstica: LinearLayout, gumb: View, bes: TextView, fokus: Boolean) {
+        val lp = gumb.layoutParams as? LinearLayout.LayoutParams ?: return
+        val n = vrstica.childCount.coerceAtLeast(1)
+        val delez = (vrstica.width - vrstica.paddingLeft - vrstica.paddingRight) / n - lp.marginStart - lp.marginEnd
+        if (delez <= 0) return
+        val napis = Math.ceil(bes.paint.measureText(bes.text.toString()).toDouble()).toInt()
+        val sirina = PokrajinaPravila.sirinaGumbaDoka(delez, napis, gumb.paddingLeft + gumb.paddingRight + dp(4), fokus)
+        val siroko = sirina > delez
+        if (siroko) { lp.width = sirina; lp.weight = 0f } else { lp.width = 0; lp.weight = 1f }
+        gumb.layoutParams = lp
     }
 
     private fun osveziDokZnacke() {

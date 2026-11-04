@@ -28,6 +28,15 @@ object PokrajinaPravila {
     const val NASTAVITVE = "nastavitve"
     val DOK = listOf(MEDIJI, SPLET, LINK, SPOROCILA, APLIKACIJE, DATOTEKE, NASTAVITVE)
 
+    /**
+     * Lastnik 4. 11. 2026 23:39 (video): napis pod ikono se je pokazal sele ob fokusu in »Medijski center« je sel v dve
+     * vrstici - gumb je zrasel, cela spodnja vrstica in cip z glasbo nad njo sta poskocila. Zdaj je napis vedno v eni
+     * vrstici in mesto zanj je vedno rezervirano (visina se ne spremeni); gumb s fokusom je sirok vsaj toliko, da napis ni
+     * odrezan ([delez] = enak delez vrstice, [sirinaNapisa] + [robovi] v px), brez fokusa enak delez kot ostali.
+     */
+    fun sirinaGumbaDoka(delez: Int, sirinaNapisa: Int, robovi: Int, fokus: Boolean): Int =
+        if (fokus) maxOf(delez, sirinaNapisa + robovi) else delez
+
     /** Vrstni red gumbov v spodnji vrstici (shranjen in manjkajoci na koncu). */
     /**
      * Preverba TV 4. 11. 2026: Nazaj iz Aplikacije/Datoteke (odprto z gumbom spodnje vrstice) je fokus dal zadnji ploscici
