@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Preizkus install_safeer.sh brez omrezja in brez telefona (NALOGE-install): sintaksa, preverba SHA-256 s ponarejenimi
 # SHA256SUMS, ustavitev brez SHA256SUMS ali ob napaki prenosa, pravi paket za zagon. curl in adb sta nadomestka.
+# Nadomestki curl/adb in TEMP_* v podlupinah klice glavno() iz install_safeer.sh (source) - shellcheck tega ne vidi
+# (SC2317 nedosegljivo, SC2034 neuporabljeno sta tu lazna).
+# shellcheck disable=SC2317,SC2034
 set -uo pipefail
 TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 SKRIPTA="$(dirname "$TEST_DIR")/install_safeer.sh"
@@ -8,6 +11,9 @@ D="$(mktemp -d)"
 trap 'rm -rf "$D"' EXIT
 napak=0
 preveri() { if [ "$2" = "$3" ]; then echo "  OK   $1"; else echo "  NAPAKA $1: pricakovano $2, dobljeno $3"; napak=$((napak + 1)); fi; }
+# Izid pogoja kot 0/1 (tedenski pregled 4. 11. 2026, shellcheck SC2319): »[ ... ]; preveri ... $?« je bral izid pogoja
+# po nakljucju vrstnega reda; ena dodana vrstica vmes bi tiho preverila drug ukaz.
+pogoj() { if "$@"; then echo 0; else echo 1; fi; }
 
 bash -n "$SKRIPTA"; preveri "bash -n" 0 $?
 
@@ -51,13 +57,13 @@ grep -q "nima APK z imenom safeer-browser-android" "$D/izpis"; preveri "tuj gost
 ( curl() { return 22; }; TEMP_APK="$D/n.apk"; TEMP_SHA="$D/ns"; glavno ) > "$D/izpis" 2>&1
 preveri "brez odgovora GitHuba -> 1" 1 $?
 grep -q "GitHub ni odgovoril" "$D/izpis"; preveri "brez odgovora: sporocilo" 0 $?
-[ ! -e "$D/t.apk" ]; preveri "tuj gostitelj: APK se ne prenese" 0 $?
+preveri "tuj gostitelj: APK se ne prenese" 0 "$(pogoj [ ! -e "$D/t.apk" ])"
 
 # glavno() z nadomestnim curl: izdaja brez SHA256SUMS -> ustavi pred prenosom APK.
 ( curl() { printf '{"browser_download_url": "%s/%s"}' "$GH" "$IME"; }; TEMP_APK="$D/a.apk"; TEMP_SHA="$D/s"; glavno ) > "$D/izpis" 2>&1
 preveri "izdaja brez SHA256SUMS -> 1" 1 $?
 grep -q "nima datoteke SHA256SUMS" "$D/izpis"; preveri "brez SHA256SUMS: sporocilo" 0 $?
-[ ! -e "$D/a.apk" ]; preveri "brez SHA256SUMS: APK se ne prenese" 0 $?
+preveri "brez SHA256SUMS: APK se ne prenese" 0 "$(pogoj [ ! -e "$D/a.apk" ])"
 
 # Napaka prenosa SHA256SUMS (curl -f vrne napako) -> ustavi, adb se ne poklice.
 ( curl() {
@@ -112,10 +118,10 @@ grep -q "appops set si.safeer.os ACCESS_RESTRICTED_SETTINGS default" "$D/izpis";
 # Pregled tv-vnos 6: ukazna injekcija prek adb shell, regex v grep, paket s tujim podpisom.
 ( LAZNI_SDK=34; LAZNI_VNOS=1; adb() { lazni_adb "$@"; }; : > "$D/klici"; omogoci_upravljanje 10.0.0.2:5555 'si.safeer.os;settings put global adb_enabled 1' ) > "$D/izpis" 2>&1
 preveri "paket z ukazom -> 1" 1 $?
-[ ! -s "$D/klici" ]; preveri "paket z ukazom: adb se ne poklice" 0 $?
+preveri "paket z ukazom: adb se ne poklice" 0 "$(pogoj [ ! -s "$D/klici" ])"
 ( LAZNI_SDK=34; LAZNI_VNOS=1; adb() { lazni_adb "$@"; }; : > "$D/klici"; omogoci_upravljanje '10.0.0.2:5555 shell reboot' si.safeer.os ) > "$D/izpis" 2>&1
 preveri "naprava s presledkom -> 1" 1 $?
-[ ! -s "$D/klici" ]; preveri "naprava s presledkom: adb se ne poklice" 0 $?
+preveri "naprava s presledkom: adb se ne poklice" 0 "$(pogoj [ ! -s "$D/klici" ])"
 ( LAZNI_SDK=34; adb() { echo "adb $*" >> "$D/klici"; case "$*" in *dumpsys*) echo "siXsafeerXos/siXsafeerXtvXlinkXVnosStoritev" ;; esac; return 0; }
   : > "$D/klici"; omogoci_upravljanje 10.0.0.2:5555 si.safeer.os ) > "$D/izpis" 2>&1
 ! grep -q "pm grant" "$D/klici"; preveri "ime storitve dobesedno (pika ni poljuben znak)" 0 $?

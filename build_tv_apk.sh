@@ -263,7 +263,9 @@ python3 "$DIR/tests/preveri_loceni_aplikaciji.py" "$DIR/TV-Browser-2.apk" "$DIR/
 # ostajal iz stare izdaje in je za nove APK-je navajal napacno vsoto - to uporabniku sporoca, da je
 # paket spremenjen ali pokvarjen, kar ni bilo res.
 echo "🔎 Zapisujem kontrolne vsote (SHA256SUMS)..."
-( cd "$DIR" && sha256sum TV-Browser-2.apk Safeer-Browser.apk Safeer-OS.apk $(ls Safeer-OS-Tablet.apk Safeer-OS-Mobile.apk Safeer-Predvajalnik.apk 2>/dev/null) > SHA256SUMS )
+# Neobvezni APK-ji samo, ce obstajajo (shellcheck SC2046: brez ls in brez deljenja besed).
+( cd "$DIR" && neobvezni=() && for a in Safeer-OS-Tablet.apk Safeer-OS-Mobile.apk Safeer-Predvajalnik.apk; do if [ -f "$a" ]; then neobvezni+=("$a"); fi; done
+  sha256sum TV-Browser-2.apk Safeer-Browser.apk Safeer-OS.apk "${neobvezni[@]}" > SHA256SUMS )
 ( cd "$DIR" && sha256sum -c --quiet SHA256SUMS )
 echo "OK: SHA256SUMS ustreza zgrajenim APK-jem."
 
