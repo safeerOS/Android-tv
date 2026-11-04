@@ -184,6 +184,15 @@ preveri "neuspel pm grant -> 1" 1 $?
 
 # Neodvisni pregled 4. 11. 2026 09:10: podpisnika bere samo apksigner z absolutne poti (ne keytool, ki vidi le v1).
 echo "== podpisnik (locen proces, lazna orodja)"
+# preveri_podpis (kot na telefonu, 4. 11. 2026): tuj podpisnik, neberljiv podpis in pravi podpisnik.
+D_P="$(mktemp -d)"; printf 'apk' > "$D_P/a.apk"
+( odtis_apk() { printf '%s' "AAAA"; }; preveri_podpis "$D_P/a.apk" ) > "$D_P/izpis" 2>&1; preveri "preveri_podpis: tuj podpisnik -> 1" 1 $?
+grep -q "ni podpisan s ključem Safeer" "$D_P/izpis"; preveri "preveri_podpis: tuj podpisnik, razlog" 0 $?
+( odtis_apk() { :; }; najdi_apksigner() { return 1; }; preveri_podpis "$D_P/a.apk" ) > "$D_P/izpis" 2>&1; preveri "preveri_podpis: brez apksignerja -> 1" 1 $?
+grep -q "apksigner" "$D_P/izpis"; preveri "preveri_podpis: brez apksignerja, razlog" 0 $?
+( odtis_apk() { printf '%s' "$MOBILNI_ODTIS"; }; preveri_podpis "$D_P/a.apk" ) > "$D_P/izpis" 2>&1; preveri "preveri_podpis: podpisnik Safeer -> 0" 0 $?
+rm -rf "$D_P"
+
 # shellcheck source=tests/lazna_namestitev.sh
 source "$TEST_DIR/lazna_namestitev.sh"
 preizkusi_podpisnika "$SKRIPTA" '{"browser_download_url": "'"$GH"'/'"$IME"'", "browser_download_url": "'"$GH"'/SHA256SUMS"}' "$IME" "$MOBILNI_ODTIS"

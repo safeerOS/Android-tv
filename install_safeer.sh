@@ -105,6 +105,24 @@ odtis_apk() {
 
 # Naprava za namestitev (S3): izbrana ($1) ali edina povezana. Vec naprav brez izbire -> prazno in sporocilo (nikoli
 # prva v seznamu - lahko je tuja naprava ali TV namesto telefona).
+# Vrne 0 samo, ce je APK podpisan z mobilnim kljucem Safeer; sicer izpise razlog in vrne 1. Enako kot install_safeer.sh
+# na telefonu (Mobile-android, 4. 11. 2026): ena funkcija za vsako pot namestitve (adb in rocna kopija).
+preveri_podpis() {
+    local odtis
+    odtis="$(odtis_apk "$1")"
+    if [ -z "$odtis" ]; then
+        if najdi_apksigner >/dev/null; then echo "❌ Podpisa APK ni mogoče preveriti (apksigner ga ne potrdi)."; else echo "❌ $NI_APKSIGNERJA"; fi
+        echo "👉 Ali prenesi APK s https://safeer.si/browser/android/"
+        return 1
+    fi
+    if [ "$odtis" != "$MOBILNI_ODTIS" ]; then
+        echo "❌ APK ni podpisan s ključem Safeer (odtis: $odtis)."
+        echo "🚨 Prekinjam namestitev."
+        return 1
+    fi
+    echo "🔏 Podpisnik Safeer potrjen"
+}
+
 izberi_napravo() {
     local izbrana="$1" naprave stevilo
     naprave="$(adb devices | awk 'NR > 1 && $2 == "device" { print $1 }')"
@@ -211,13 +229,8 @@ glavno() {
         exit 1
     fi
     preveri_sha256 "$TEMP_APK" "$TEMP_SHA" "${APK_URL##*/}" || exit 1
-    ODTIS="$(odtis_apk "$TEMP_APK")"
-    if [ "$ODTIS" != "$MOBILNI_ODTIS" ]; then
-        echo "❌ APK ni podpisan s ključem Safeer (odtis: ${ODTIS:-ni ga bilo mogoče prebrati})."
-        echo "🚨 Prekinjam namestitev."
-        exit 1
-    fi
-    echo "🔏 Podpisnik Safeer potrjen"
+    # Podpisnik pred obema potema (adb in rocna kopija): SHA256SUMS je iz iste izdaje in ponaredka ne loci.
+    preveri_podpis "$TEMP_APK" || exit 1
 
     # Preveri prisotnost ADB
     if command -v adb >/dev/null 2>&1; then
