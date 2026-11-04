@@ -206,7 +206,7 @@ fun main() {
         a.start()
         check(delivered.await(5, TimeUnit.SECONDS)) { "saved lists not loaded" }
         check(server.downloads.get() + server.notModified.get() == requestsBefore) { "network used before the delay" }
-        check(a.lists.size == 2 && a.lists[0].entries.size == 32)
+        check(a.lists.size == 2 && a.lists[0].count == 32 && a.lists[0].sha256.length == 64)
         a.stop()
         val b = agent(dir, server)
         b.loadSaved()
@@ -230,6 +230,11 @@ fun main() {
         a.loadSaved()
         check(a.refresh() == 1) { a.lastError }
         check(got.size == 2 && got[0].entries.contains("new-threat.example") && !got[0].entries.contains("evil-two.example"))
+        // The unchanged list is no longer kept in memory: it is read back from disk for the listener.
+        check(got[1].source.id == "phishing-army" && got[1].entries.size == 25) { got.map { it.entries.size }.toString() }
+        check(a.lists.map { it.count } == got.map { it.entries.size } && got[0].sha256 == a.lists[0].sha256 && got[0].sha256.length == 64) {
+            a.lists.map { it.count }.toString()
+        }
         val reloaded = agent(dir, server).loadSaved()
         check(reloaded[0].entries.contains("new-threat.example"))
     }
@@ -239,7 +244,8 @@ fun main() {
         val a = agent(dir, server)
         a.loadSaved()
         check(a.refresh() == 0)
-        check(a.lastError.contains("urlhaus") && a.lists[0].entries.contains("new-threat.example")) { a.lastError }
+        check(a.lastError.contains("urlhaus") && a.lists.size == 2) { a.lastError }
+        check(agent(dir, server).loadSaved()[0].entries.contains("new-threat.example"))
         server.brokenHosts = false
     }
     test("damaged saved list is ignored and downloaded in full") {
@@ -249,15 +255,35 @@ fun main() {
         val loaded = a.loadSaved()
         check(loaded.size == 1 && loaded[0].source.id == "phishing-army") { loaded.map { it.source.id }.toString() }
         val conditionalBefore = server.conditional.get()
-        check(a.refresh() == 1) { a.lastError }
+        var got: List<PlainList> = emptyList()
+        val b = agent(dir, server) { got = it }
+        b.loadSaved()
+        check(b.refresh() == 1) { b.lastError }
         check(server.conditional.get() == conditionalBefore + 1) { "sent a validator for the damaged list" }
-        check(a.lists.size == 2 && !a.lists[0].entries.contains("injected.example"))
+        check(b.lists.size == 2 && got.size == 2 && !got[0].entries.contains("injected.example"))
     }
     test("server offline keeps every list") {
         server.stop()
         val a = agent(dir, server)
         a.loadSaved()
         check(a.refresh() == 0 && a.lists.size == 2 && a.lastError.isNotEmpty())
+    }
+    test("entries are not kept after the listener returns (RAM, 4. 11. 2026)") {
+        val delivered = CountDownLatch(1)
+        var weak: java.lang.ref.WeakReference<List<String>>? = null
+        val a = agent(dir, server, delayMs = 60_000) { weak = java.lang.ref.WeakReference(it[0].entries); delivered.countDown() }
+        a.start()
+        check(delivered.await(5, TimeUnit.SECONDS))
+        Thread.sleep(100)
+        var cleared = false
+        for (i in 0 until 20) {
+            System.gc()
+            if (weak?.get() == null) { cleared = true; break }
+            Thread.sleep(50)
+        }
+        check(cleared) { "the agent still holds the list entries" }
+        check(a.lists.size == 2 && a.lists[0].count > 0)
+        a.stop()
     }
     test("listener errors do not stop the agent") {
         val a = agent(dir, server, delayMs = 60_000) { throw IllegalStateException("boom") }

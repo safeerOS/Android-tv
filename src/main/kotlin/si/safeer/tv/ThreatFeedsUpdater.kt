@@ -105,7 +105,7 @@ object ThreatFeedsUpdater {
     fun statusLine(): String {
         val lists = agent?.lists.orEmpty()
         if (lists.isEmpty()) return UiText.get(R.string.ui_lists_first_download)
-        return UiText.get(R.string.ui_lists_status, lists.filter { !it.source.raw && !it.source.dnsOnly }.sumOf { it.entries.size }, lists.size, SOURCES.size) +
+        return UiText.get(R.string.ui_lists_status, lists.filter { !it.source.raw && !it.source.dnsOnly }.sumOf { it.count }, lists.size, SOURCES.size) +
             " · EasyList: $filterRuleCount (+${AdBlockEngine.cosmeticRuleCount})"
     }
 }

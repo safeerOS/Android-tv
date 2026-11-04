@@ -65,7 +65,15 @@ data class PlainListSource(
     }
 }
 
-class PlainList(val source: PlainListSource, val entries: List<String>, val fetchedAtEpochSeconds: Long)
+/**
+ * One list with all its entries. The agent hands these to [ThreatListAgent.onLists] only for the duration of that call
+ * and does not keep them: the entries (hundreds of thousands of strings, ~20 MB on the TV, measured 4. 11. 2026) are
+ * needed only to build the engines. [sha256] is the SHA-256 of the saved list file ("" when unknown).
+ */
+class PlainList(val source: PlainListSource, val entries: List<String>, val fetchedAtEpochSeconds: Long, val sha256: String = "")
+
+/** What the agent keeps in memory about a list in use: no entries, only their number and checksum. */
+class PlainListInfo(val source: PlainListSource, val count: Int, val sha256: String, val fetchedAtEpochSeconds: Long)
 
 class ListRejectedException(message: String) : IOException(message)
 
@@ -197,7 +205,8 @@ class ThreatListAgent(
     private var scheduled: ScheduledFuture<*>? = null
     private val random = java.security.SecureRandom()
 
-    @Volatile var lists: List<PlainList> = emptyList()
+    /** Lists in use (metadata only; the entries were delivered to [onLists] and dropped). */
+    @Volatile var lists: List<PlainListInfo> = emptyList()
         private set
     @Volatile var lastError: String = ""
         private set
@@ -223,7 +232,8 @@ class ThreatListAgent(
         executor = service
         service.execute {
             try {
-                if (loadSaved().isNotEmpty()) notifyLists()
+                val loaded = loadSaved()
+                if (loaded.isNotEmpty()) notifyLists(loaded)
             } finally {
                 try { onFirstLoad() } catch (e: Exception) { /* a listener must not stop the agent */ }
             }
@@ -251,37 +261,51 @@ class ThreatListAgent(
         return true
     }
 
-    /** Loads the lists saved by an earlier run; damaged files are ignored (and downloaded again). */
+    /**
+     * Loads the lists saved by an earlier run; damaged files are ignored (and downloaded again). The caller gets the
+     * entries; the agent keeps only [lists] (metadata).
+     */
     fun loadSaved(): List<PlainList> = synchronized(lock) {
         val loaded = ArrayList<PlainList>()
         for (source in sources) {
             val meta = readMeta(source.id) ?: continue
-            try {
-                val bytes = listFile(source.id).readBytes()
-                if (sha256(bytes) != meta.sha256) throw IOException("checksum mismatch")
-                val entries = if (bytes.isEmpty()) emptyList() else String(bytes, Charsets.UTF_8).split('\n')
-                if (entries.size != meta.count) throw IOException("entry count mismatch")
-                loaded.add(PlainList(source, entries, meta.fetchedAt))
+            val list = readSaved(source, meta)
+            if (list != null) {
+                loaded.add(list)
                 validators[source.id] = meta
-            } catch (e: Exception) {
-                validators.remove(source.id)
-            } catch (e: OutOfMemoryError) {
+            } else {
                 validators.remove(source.id)
             }
         }
-        lists = loaded
+        lists = loaded.map { it.info() }
         loaded
     }
+
+    /** One saved list with its entries, checked against [meta]; null when the file is missing or damaged. */
+    private fun readSaved(source: PlainListSource, meta: Meta): PlainList? = try {
+        val bytes = listFile(source.id).readBytes()
+        if (sha256(bytes) != meta.sha256) throw IOException("checksum mismatch")
+        val entries = if (bytes.isEmpty()) emptyList() else String(bytes, Charsets.UTF_8).split('\n')
+        if (entries.size != meta.count) throw IOException("entry count mismatch")
+        PlainList(source, entries, meta.fetchedAt, meta.sha256)
+    } catch (e: Exception) {
+        null
+    } catch (e: OutOfMemoryError) {
+        null
+    }
+
+    private fun PlainList.info() = PlainListInfo(source, entries.size, sha256, fetchedAtEpochSeconds)
 
     /** Checks every list; returns how many changed. Skipped within the restart throttle unless forced. */
     fun refresh(force: Boolean = false): Int = synchronized(lock) {
         val now = clock()
         if (!force && now - lastCheck() in 0 until minCheckIntervalSeconds && lists.size == sources.size) return 0
-        val current = lists.associateBy { it.source.id }.toMutableMap()
+        val inUse = lists.associateBy { it.source.id }
+        val fresh = HashMap<String, PlainList>()
         val errors = ArrayList<String>()
         var changed = 0
         for (source in sources) {
-            val known = validators[source.id]?.takeIf { current.containsKey(source.id) }
+            val known = validators[source.id]?.takeIf { inUse.containsKey(source.id) }
             try {
                 val response = fetcher.fetch(source.url, source.maxBytes, known?.etag, known?.lastModified)
                 if (response.notModified) {
@@ -300,7 +324,7 @@ class ThreatListAgent(
                 atomicWrite(listFile(source.id), bytes)
                 writeMeta(source.id, meta)
                 validators[source.id] = meta
-                current[source.id] = PlainList(source, entries, now)
+                fresh[source.id] = PlainList(source, entries, now, meta.sha256)
                 changed++
             } catch (e: Exception) {
                 errors.add("${source.id}: ${e.javaClass.simpleName}: ${e.message}")
@@ -314,8 +338,17 @@ class ThreatListAgent(
             atomicWrite(stateFile, "lastCheck=$now\n".toByteArray(Charsets.US_ASCII))
         } catch (e: IOException) { /* throttle is best effort */ }
         if (changed > 0) {
-            lists = sources.mapNotNull { current[it.id] }
-            notifyLists()
+            // The listener rebuilds the engines from every list, so the unchanged ones are read back from disk (checked
+            // with SHA-256) instead of being kept in memory between updates.
+            val all = sources.mapNotNull { source ->
+                fresh[source.id] ?: inUse[source.id]?.let { info ->
+                    validators[source.id]?.takeIf { it.sha256 == info.sha256 }?.let { readSaved(source, it) }
+                        ?: run { validators.remove(source.id); errors.add("${source.id}: saved list unreadable"); null }
+                }
+            }
+            lastError = errors.joinToString("; ")
+            lists = all.map { it.info() }
+            notifyLists(all)
         }
         changed
     }
@@ -326,8 +359,8 @@ class ThreatListAgent(
         0L
     }
 
-    private fun notifyLists() {
-        try { onLists(lists) } catch (e: Exception) { /* a listener must not stop the agent */ }
+    private fun notifyLists(all: List<PlainList>) {
+        try { onLists(all) } catch (e: Exception) { /* a listener must not stop the agent */ }
     }
 
     @Synchronized
