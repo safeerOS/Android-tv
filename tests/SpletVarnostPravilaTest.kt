@@ -167,5 +167,40 @@ fun main() {
     check(!P.zetonVelja(P.ZETON_DOTIKA_MESTO, P.ZETON_DOTIKA_MESTO)) { "nevstavljeno mesto ni zeton" }
     check(!P.zetonVelja("", "")) { "prazen ni zeton" }
     check(P.vstaviZeton("var Z = '${P.ZETON_DOTIKA_MESTO}';", z) == "var Z = '$z';") { "vstavljen v skript" }
+    // Tedenski pregled 4. 11. 2026 (UXSS): naslov od zunaj (namera, Safeer Link) samo http(s), krajevni PDF ali domaca.
+    val N = P.Vhod.NAMERA; val L = P.Vhod.LINK; val S = P.Vhod.SPLET
+    for (v in listOf(N, L, S)) {
+        check(P.vhodniNaslov("https://primer.si/pot?x=1#a", v)) { "https $v" }
+        check(P.vhodniNaslov("HTTP://primer.si", v)) { "shema z velikimi $v" }
+        check(P.vhodniNaslov("http://192.168.1.5:8443/cast/screen/abc", v)) { "Hub $v" }
+        check(P.vhodniNaslov("https://www.youtube.com/watch?v=x&t=1", v))
+        for (u in listOf(null, "", "javascript:alert(document.cookie)", "JavaScript:alert(1)", " javascript:alert(1)",
+            "java\tscript:alert(1)", "java\nscript:alert(1)", "javascript:/*https://a.si*/alert(1)",
+            "data:text/html,<script>alert(1)</script>", "blob:https://a.si/x", "intent://x#Intent;scheme=https;end",
+            "about:blank", "chrome://settings", "android-app://com.x", "https:", "https://", "https:///pot", "https://:80/",
+            "https:primer.si", "https://a.si/\u0000", "https://a.si/ x", "file:///sdcard/x.html", "file:///android_asset/link/index.html",
+            "https://" + "a".repeat(P.NAJDALJSI_VHODNI))) {
+            check(!P.vhodniNaslov(u, v)) { "zavrnjen $v: $u" }
+        }
+    }
+    // Namera: krajevni PDF gre v nas pregledovalnik (ne v WebView); file: samo PDF, nikoli assets.
+    check(P.vhodniNaslov("content://com.android.providers.downloads.documents/document/12", N))
+    check(P.vhodniNaslov("file:///storage/emulated/0/Download/racun.pdf", N))
+    check(!P.vhodniNaslov("file:///storage/emulated/0/Download/stran.html", N)) { "file: ni PDF" }
+    check(!P.vhodniNaslov("file:///android_asset/x.pdf", N)) { "assets niso dokument" }
+    check(!P.vhodniNaslov("file:///sdcard/../data/x.pdf", N)) { "../" }
+    check(!P.vhodniNaslov("content://", N))
+    check(!P.vhodniNaslov("content://x/y", L) && !P.vhodniNaslov("content://x/y", S)) { "content: iz Linka ni dovoljen" }
+    check(!P.vhodniNaslov("file:///storage/x.pdf", L)) { "file: iz Linka" }
+    // Link: nasa domaca stran (Daljinec open_url »home«), natanko.
+    check(P.vhodniNaslov(SpletMostPravila.DOMACA + "?barve=1,2&tv=1", L))
+    check(P.vhodniNaslov(P.DOMACA_BRSKALNIKA, L))
+    check(!P.vhodniNaslov(SpletMostPravila.DOMACA, N) && !P.vhodniNaslov(SpletMostPravila.DOMACA, S)) { "domaca ni za namero" }
+    check(!P.vhodniNaslov("file:///android_asset/splet/drugo.html", L))
+    // Zadnja vrata v loadUrl: skripta in data: nikoli, tudi z zamaskirano shemo.
+    for (u in listOf("javascript:alert(1)", "JAVASCRIPT:x", " \u0001javascript:x", "java\tscript:x", "jav\na\rscript:x", "data:text/html,x", "vbscript:x"))
+        check(P.skriptniNaslov(u)) { "skripta: $u" }
+    for (u in listOf(null, "https://a.si/javascript:x", "about:blank", SpletMostPravila.DOMACA, "http://127.0.0.1:1/pdfjs/web/viewer.html"))
+        check(!P.skriptniNaslov(u)) { "ni skripta: $u" }
     println("SpletVarnostPravilaTest: OK")
 }

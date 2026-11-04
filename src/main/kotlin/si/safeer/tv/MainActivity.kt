@@ -279,7 +279,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                         playback.playClearSmoke()
                     }
                     "si.safeer.tv.ACTION_OPEN_URL" -> {
-                        val url = intent.getStringExtra("url") ?: return
+                        val url = varenVhod(intent.getStringExtra("url"), SpletVarnostPravila.Vhod.NAMERA) ?: return
                         val newTab = intent.getBooleanExtra("new_tab", false)
                         val activeTab = tabManager.getActiveTab()
                         if (newTab || activeTab == null) {
@@ -445,6 +445,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
      * zacetku pa zapre aplikacijo in vrne Safeer OS.
      */
     internal fun vklopiNacinAplikacije(naslov: String, ime: String) {
+        // Dodatek spletna_aplikacija iz namere (izvozena dejavnost): samo http(s), tedenski pregled 4. 11. 2026.
+        if (varenVhod(naslov, SpletVarnostPravila.Vhod.SPLET) == null) return
         nacinAplikacije = naslov
         nastaviVidnostChrome(View.GONE)
         // Ob zagonu brskalnika se domaca stran nalozi z zamikom; aplikacijo nalozimo za njo,
@@ -1164,13 +1166,22 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     /** Zavihek in naslov, za katerega je gumb »Nadaljuj v aplikaciji« ze dobil fokus. */
     private var fokusGumbaZa: String? = null
 
+    /** Tedenski pregled 4. 11. 2026 (UXSS): naslov iz namere druge aplikacije samo, ce ga dovoli SpletVarnostPravila. */
     private fun incomingBrowseUrl(intent: Intent?): String? {
         val data = intent?.dataString
-        if (!data.isNullOrEmpty()) return data
+        if (!data.isNullOrEmpty()) return varenVhod(data, SpletVarnostPravila.Vhod.NAMERA)
         val q = intent?.getStringExtra(SearchManager.QUERY) ?: intent?.getStringExtra("query")
         if (!q.isNullOrBlank()) {
-            return SmartOmnibox.razresi(this, q)?.url
+            return varenVhod(SmartOmnibox.razresi(this, q)?.url, SpletVarnostPravila.Vhod.NAMERA)
         }
+        return null
+    }
+
+    /** Naslov od zunaj (namera, Safeer Link) ali null; zavrnjen se ne nalozi (javascript:, data:, intent: ...). */
+    private fun varenVhod(url: String?, vhod: SpletVarnostPravila.Vhod): String? {
+        if (url == null) return null
+        if (SpletVarnostPravila.vhodniNaslov(url, vhod)) return url
+        android.util.Log.w("SafeerBrskalnik", "Zavrnjen naslov od zunaj ($vhod): " + url.substringBefore(':').take(16))
         return null
     }
 
@@ -1182,6 +1193,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         val url = namera?.getStringExtra(si.safeer.tv.cast.CastReceiverService.EXTRA_CAST_URL)
         if (url.isNullOrEmpty()) return false
         namera.removeExtra(si.safeer.tv.cast.CastReceiverService.EXTRA_CAST_URL)
+        // Dejavnost je izvozena: dodatek cast_url lahko poslje katerakoli aplikacija (tedenski pregled 4. 11. 2026).
+        if (varenVhod(url, SpletVarnostPravila.Vhod.LINK) == null) return true
         // Vsebina se odpira: obvestilo, ki bi jo odprlo, ni vec potrebno (ostalo je, kadar je zagon uspel neposredno).
         si.safeer.tv.cast.CastReceiverService.pospraviObvestiloPrebujanja(this)
         deljenjeOdprloBrskalnik = url.contains("/cast/screen/")
@@ -1368,6 +1381,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
     /** Naslov s telefona: odpremo ga v dejavnem zavihku in povemo, da smo ga sprejeli. */
     override fun onCastUrlReceived(url: String, title: String?, startPosition: Double) {
+        // cast.url in handoff iz Safeer Linka: shema naslova je od druge naprave (tedenski pregled 4. 11. 2026).
+        if (varenVhod(url, SpletVarnostPravila.Vhod.LINK) == null) return
         runOnUiThread {
             try {
                 // Ce je nad brskalnikom se celozaslonski predvajalnik (npr. YouTube), ga umaknemo,
@@ -1433,6 +1448,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
     /** Zaslon druge naprave: odpremo stran gledalca (slika ohrani razmerje, crno ozadje). */
     override fun onShareScreenStarted(url: String, od: String) {
+        if (varenVhod(url, SpletVarnostPravila.Vhod.LINK) == null) return
         runOnUiThread {
             try {
                 try { if (playback.isActive()) playback.exit() } catch (_: Exception) { }

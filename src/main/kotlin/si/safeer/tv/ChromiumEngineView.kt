@@ -626,6 +626,8 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
 
 
     override fun loadUrl(url: String) {
+        // Tedenski pregled 4. 11. 2026 (UXSS): javascript:/data: z loadUrl bi tekel v izvoru odprte strani.
+        if (SpletVarnostPravila.skriptniNaslov(url)) return
         if (PdfPregledovalnik.jeLokalni(url)) {
             // PDF z naprave: ne nalaga ga WebView (content:// mu ni dovoljen), ampak nas pregledovalnik.
             PdfPregledovalnik.odpriLokalno(context, this, Uri.parse(url), null)
@@ -640,6 +642,7 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
     }
 
     override fun loadUrl(url: String, additionalHttpHeaders: Map<String, String>) {
+        if (SpletVarnostPravila.skriptniNaslov(url)) return
         if (PdfPregledovalnik.jeLokalni(url)) {
             // PDF z naprave: ne nalaga ga WebView (content:// mu ni dovoljen), ampak nas pregledovalnik.
             PdfPregledovalnik.odpriLokalno(context, this, Uri.parse(url), null)

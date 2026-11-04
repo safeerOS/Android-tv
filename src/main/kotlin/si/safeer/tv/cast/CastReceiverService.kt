@@ -550,6 +550,8 @@ class CastReceiverService : Service() {
      */
     private fun odpriVBrskalniku(url: String, title: String?, startPos: Double,
                                  deljenjeZaslona: String? = null, besediloObvestila: String? = null) {
+        // Naslov je od druge naprave (cast.url, share.screen, handoff, open_url): samo http(s) ali nasa domaca stran.
+        if (!si.safeer.tv.SpletVarnostPravila.vhodniNaslov(url, si.safeer.tv.SpletVarnostPravila.Vhod.LINK)) return
         // Tablica: poslana stran gre v mobilni Safeer. Deljen zaslon (stran s Huba) ostane v vgrajenem,
         // ki zaupa potrdilu Huba.
         val hub = hubHttpOsnova()
@@ -957,6 +959,10 @@ class CastReceiverService : Service() {
                     val url = payload.getString("url")
                     val title = payload.optString("title", "")
                     val startPos = payload.optDouble("start_position", 0.0)
+                    // Tedenski pregled 4. 11. 2026: shema od druge naprave (javascript: bi tekel v odprti strani).
+                    if (!si.safeer.tv.SpletVarnostPravila.vhodniNaslov(url, si.safeer.tv.SpletVarnostPravila.Vhod.LINK)) {
+                        sendAck(ws, msgId, "error", "neveljaven_naslov"); return
+                    }
 
                     Log.i(TAG, "Prejet cast.url: ${si.safeer.tv.os.Zasebno.zaDnevnik(url)} ($title)")
                     mainHandler.post {
@@ -1125,7 +1131,7 @@ class CastReceiverService : Service() {
                     if (dejanje == "start") {
                         val pot = payload.optString("path", "")
                         val url = if (pot.startsWith("/")) hubHttpOsnova() + pot else payload.optString("url", "")
-                        if (url.isNotBlank()) {
+                        if (si.safeer.tv.SpletVarnostPravila.vhodniNaslov(url, si.safeer.tv.SpletVarnostPravila.Vhod.LINK)) {
                             Log.i(TAG, "Deljenje zaslona od $od: ${si.safeer.tv.os.Zasebno.zaDnevnik(url)}")
                             mainHandler.post {
                                 val krmilnik = mediaController

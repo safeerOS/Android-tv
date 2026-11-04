@@ -59,6 +59,61 @@ object SpletVarnostPravila {
         }
     }
 
+    /** Od kod je prisel naslov, ki ga brskalnik nalozi v zavihek (namera druge aplikacije ali sporocilo druge naprave). */
+    enum class Vhod { NAMERA, LINK, SPLET }
+
+    /**
+     * Tedenski pregled 4. 11. 2026 (UXSS): MainActivity je izvozena; tuja aplikacija je z namero VIEW (ali dodatkom
+     * cast_url) podtaknila javascript: in loadUrl ga je izvedel v izvoru odprte strani. Enako cast.url in share.screen iz
+     * Safeer Linka (sporocilo druge naprave). Vsak zunanji naslov gre zato skozi to eno preverbo:
+     * - vedno: http(s) z gostiteljem;
+     * - NAMERA: se krajevni PDF (content:// ali file://...pdf izven assets), ki ga ChromiumEngineView.loadUrl preda
+     *   nasemu pregledovalniku (PdfPregledovalnik.jeLokalni - ista pravila), nikoli WebViewu;
+     * - LINK: se nasa domaca stran (Daljinec open_url »home«), samo natanko DOMACA ali DOMACA_BRSKALNIKA;
+     * - SPLET (spletna aplikacija iz dodatka namere): samo http(s).
+     * Nikoli javascript:, data:, blob:, intent:, about:, file: (razen PDF), content: iz Linka. Kontrolni znaki in presledki
+     * kjerkoli v naslovu so zavrnjeni: Chromium iz naslova odstrani tabulator in novo vrstico (»java\tscript:«).
+     */
+    fun vhodniNaslov(url: String?, vhod: Vhod): Boolean {
+        if (url.isNullOrEmpty() || url.length > NAJDALJSI_VHODNI) return false
+        if (url.any { it <= ' ' || it == '\u007f' }) return false
+        val shema = url.substringBefore(':', "").lowercase()
+        if ((shema == "http" || shema == "https") && url.length > shema.length + 3) {
+            val ostanek = url.substring(shema.length + 1).replace('\\', '/')
+            if (!ostanek.startsWith("//")) return false
+            val gostitelj = ostanek.substring(2).substringBefore('/').substringBefore('?').substringBefore('#').substringAfterLast('@')
+            return gostitelj.isNotEmpty() && !gostitelj.startsWith(":")
+        }
+        return when (vhod) {
+            Vhod.NAMERA -> jeKrajevniPdf(url)
+            Vhod.LINK -> jeDomacaBrskalnika(url) || SpletMostPravila.jeDovoljenIzvor(url)
+            Vhod.SPLET -> false
+        }
+    }
+
+    /**
+     * Zadnja vrata v ChromiumEngineView.loadUrl (tedenski pregled 4. 11. 2026): nasa koda nikoli ne nalozi skripte ali
+     * dokumenta data: z loadUrl (preverjeno z grep), zato je tak naslov vedno podtaknjen - zavrnemo ga ne glede na vhod.
+     * Shemo beremo kot Chromium: brez vodilnih presledkov/kontrolnih znakov ter brez tabulatorjev in novih vrstic.
+     */
+    fun skriptniNaslov(url: String?): Boolean {
+        if (url == null) return false
+        val cist = url.trimStart { it <= ' ' }.filterNot { it == '\t' || it == '\n' || it == '\r' }
+        val shema = cist.substringBefore(':', "").lowercase()
+        return shema == "javascript" || shema == "vbscript" || shema == "data"
+    }
+
+    /** Najdaljsi naslov od zunaj (WebView ga sicer sprejme do 2 MB; tako dolg naslov ni povezava). */
+    const val NAJDALJSI_VHODNI = 8192
+
+    /** Enako kot PdfPregledovalnik.jeLokalni: content:// ali file://...pdf, a nikoli nase strani v assets. */
+    private fun jeKrajevniPdf(url: String): Boolean {
+        if (url.startsWith("content://")) return url.length > "content://".length
+        if (!url.startsWith("file://") || url.startsWith("file:///android_asset/")) return false
+        if ("/../" in url || url.endsWith("/..")) return false
+        return url.substringBefore('?').substringBefore('#').lowercase().endsWith(".pdf")
+    }
+
     /** Oglas ob nalaganju strani ne sme sam odpreti druge aplikacije: potrebna je kretnja ali nedavno dejanje. */
     fun dovoljenZunanjiZagon(kretnja: Boolean, msOdDejanja: Long): Boolean =
         kretnja || msOdDejanja in 0..ZAGON_PO_DEJANJU_MS
