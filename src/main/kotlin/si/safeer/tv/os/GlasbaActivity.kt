@@ -8747,6 +8747,9 @@ class GlasbaActivity : OsActivity() {
             dialog.dismiss()
             val naslovEp = "${sk.naslov} · ${ime(e)}"
             val pripravaKljuc = zacniPripravo(sk.copy(season = e.sezona, episode = e.epizoda), rocno, naslovEp) ?: return@setOnItemClickListener
+            // Lastnik 4. 11. 2026 23:35 (TV): po predvajanju epizode OK na drugi epizodi (ali seriji) ni odprl nicesar. Ta pot
+            // priprave ni koncala - kljuc serije je ostal v pripraveVTeKu, zacniPripravo je za vsako epizodo iste serije vrnil
+            // null, pas »Pripravljam« pa ni izginil. Vsak izid spodaj pripravo konca (kot vse druge poti).
             delavec.execute {
                 val imdb = Stremio.imdbZa(sk)
                 fun tokoviZa(x: Stremio.Epizoda) = x.tokovi.ifEmpty {
@@ -8769,15 +8772,16 @@ class GlasbaActivity : OsActivity() {
                             SpletniVir.zapomniGlaveToka(tok.url, tok.glave)
                             vrsta += sk.copy(id = sk.id + "#" + tok.url.hashCode(), naslov = "${sk.naslov} · ${ime(naprej[j])}", zvok = tok.url, povezava = tok.url, video = false)
                         }
-                        glavna.post { if (!isFinishing && !isDestroyed) GlasbaStoritev.predvajaj(this, vrsta, 0) }
+                        glavna.post { koncajPripravo(pripravaKljuc); if (!isFinishing && !isDestroyed) GlasbaStoritev.predvajaj(this, vrsta, 0) }
                         return@execute
                     }
-                    glavna.post { if (!isFinishing && !isDestroyed) izberiTok(sk, "${sk.naslov} · ${ime(e)}", prvi, rocno) { epizodeNi(sk, tip, e, epIzvorni, rocno, edinaSezona) } }
+                    glavna.post { koncajPripravo(pripravaKljuc); if (!isFinishing && !isDestroyed) izberiTok(sk, "${sk.naslov} · ${ime(e)}", prvi, rocno) { epizodeNi(sk, tip, e, epIzvorni, rocno, edinaSezona) } }
                     return@execute
                 }
                 val t = tokoviZa(e)
                 val pp = predpomnjeniZa(t, sk.copy(season = e.sezona, episode = e.epizoda), rocno)
                 glavna.post {
+                    koncajPripravo(pripravaKljuc)
                     if (!isFinishing && !isDestroyed) izberiTok(sk.copy(season = e.sezona, episode = e.epizoda), "${sk.naslov} · ${ime(e)}", t, rocno, pp) { epizodeNi(sk, tip, e, epIzvorni, rocno, edinaSezona) }
                 }
             }
