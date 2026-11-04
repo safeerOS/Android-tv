@@ -563,7 +563,7 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     /** Ime brskalnika, ki ga odpre Splet (izbrani tuj ali Safeer TV Browser). */
     private fun imeBrskalnikaZaSplet(): String {
         val tuj = Brskalnik.izbrani(this) ?: return getString(R.string.os_splet_brskalnik_privzeto)
-        return try { packageManager.getApplicationLabel(packageManager.getApplicationInfo(tuj, 0)).toString() } catch (_: Throwable) { tuj }
+        return Brskalnik.ime(this, tuj)
     }
 
     /** Izbira brskalnika za Splet: prvi je Safeer TV Browser (privzeto), nato namesceni tuji brskalniki. */

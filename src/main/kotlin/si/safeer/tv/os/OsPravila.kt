@@ -2305,6 +2305,14 @@ object OsPravila {
             .sortedWith(compareBy({ it.second.lowercase() }, { it.first }))
 
     /**
+     * Ime brskalnika v Nastavitvah (izbirno okno in vrstica iz istega vira): ime zagonske aktivnosti (tako ga uporabnik
+     * vidi med aplikacijami), nato ime aplikacije, nazadnje paket. Preverba TV 4. 11. 2026: okno je kazalo »TV Bro«,
+     * vrstica »TV Bro: TV Web Browser«.
+     */
+    fun imeBrskalnika(zagonsko: String?, aplikacija: String?, paket: String): String =
+        zagonsko?.trim()?.takeIf { it.isNotEmpty() } ?: aplikacija?.trim()?.takeIf { it.isNotEmpty() } ?: paket
+
+    /**
      * Vstop v Splet pokaze domaco stran, ne zadnjega brskanja (lastnik 4. 11. 2026); zavihki ostanejo. Vrne indeks
      * zavihka z domaco stranjo, na katerega preklopimo (najprej aktivni, nato zadnji tak), ali -1 = nov zavihek.
      */

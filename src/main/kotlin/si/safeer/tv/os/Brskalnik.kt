@@ -88,10 +88,18 @@ object Brskalnik {
             val paket = r.activityInfo?.packageName ?: return@mapNotNull null
             // Samo aplikacija, ki jo lahko zazenemo (domaca stran brskalnika), ne npr. prestreznik povezav.
             if (zagon(c, paket) == null) return@mapNotNull null
-            paket to (r.loadLabel(pm)?.toString().orEmpty().ifBlank { paket })
+            paket to ime(c, paket)
         }
         OsPravila.brskalnikiZaIzbiro(kandidati)
     } catch (_: Throwable) { emptyList() }
+
+    /** Ime brskalnika za izbirno okno in vrstico v Nastavitvah - na obeh mestih enako ([OsPravila.imeBrskalnika]). */
+    fun ime(c: Context, paket: String): String {
+        val pm = c.packageManager
+        val zagonsko = try { zagon(c, paket)?.let { pm.resolveActivity(it, 0) }?.loadLabel(pm)?.toString() } catch (_: Throwable) { null }
+        val aplikacija = try { pm.getApplicationLabel(pm.getApplicationInfo(paket, 0)).toString() } catch (_: Throwable) { null }
+        return OsPravila.imeBrskalnika(zagonsko, aplikacija, paket)
+    }
 
     /** Zagonska namera paketa (najprej TV, nato predal). */
     private fun zagon(c: Context, paket: String): Intent? = try {

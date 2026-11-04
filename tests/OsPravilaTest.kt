@@ -1631,6 +1631,11 @@ private fun preizkusPlacljivega120() {
         OsPravila.brskalnikiZaIzbiro(listOf("si.safeer.tv" to "Safeer TV Browser", "com.opera.browser" to "opera",
             "org.mozilla.firefox" to "Firefox", "si.safeer.os" to "Safeer OS", "org.mozilla.firefox" to "Firefox (2)", "" to "x")))
     preveriEnako("brskalniki: prazno", emptyList<Pair<String, String>>(), OsPravila.brskalnikiZaIzbiro(emptyList()))
+    // Preverba TV 4. 11. 2026: okno »TV Bro«, vrstica »TV Bro: TV Web Browser« - zdaj eno ime iz istega vira.
+    preveriEnako("ime brskalnika: zagonska aktivnost pred imenom aplikacije", "TV Bro",
+        OsPravila.imeBrskalnika("TV Bro", "TV Bro: TV Web Browser", "com.phlox.tvwebbrowser"))
+    preveriEnako("ime brskalnika: brez zagonske ime aplikacije", "Opera", OsPravila.imeBrskalnika("  ", "Opera", "com.opera.browser"))
+    preveriEnako("ime brskalnika: brez imen paket", "com.opera.browser", OsPravila.imeBrskalnika(null, null, "com.opera.browser"))
     val domaca = { u: String -> u.contains("splet.html") }
     preveriEnako("domaca: aktivni je domaca", 1, OsPravila.zavihekDomace(listOf("a", "file:///splet.html", "file:///splet.html"), 1, domaca))
     preveriEnako("domaca: aktivni je zadnje brskanje - preklop na domaco", 0, OsPravila.zavihekDomace(listOf("file:///splet.html", "https://x.si"), 1, domaca))
