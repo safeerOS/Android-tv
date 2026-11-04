@@ -1153,7 +1153,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         val data = intent?.dataString
         // Neodvisni pregled 4. 11. 2026 09:10: nas ponudnik content:// samo s podeljenim dovoljenjem branja.
         if (!data.isNullOrEmpty()) {
-            val branje = intent.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0
+            val branje = ((intent?.flags ?: 0) and Intent.FLAG_GRANT_READ_URI_PERMISSION) != 0
             return varenVhod(data, SpletVarnostPravila.Vhod.NAMERA, branje)
         }
         val q = intent?.getStringExtra(SearchManager.QUERY) ?: intent?.getStringExtra("query")
