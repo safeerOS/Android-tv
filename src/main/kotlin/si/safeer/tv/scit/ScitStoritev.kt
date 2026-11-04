@@ -204,12 +204,16 @@ class ScitStoritev : VpnService() {
             val q = DnsPaket.razcleni(buf, n)
             if (q == null) { tcp.naPaket(buf, n); continue }   // ni UDP: morda DNS prek TCP
             poizvedb.incrementAndGet()
-            val nab = nabor
-            if (q.ime.isNotEmpty() && nab != null && blokirana(nab, q.ime)) {
-                blokiranih.incrementAndGet()
-                zabeleziUstavljeno(q.ime)
-                zapisi(DnsPaket.zavijOdgovor(q, DnsPaket.odgovorBlokirano(q)))
-                continue
+            when (odlocitev(q.ime)) {
+                ScitOdlocitev.Izid.USTAVI -> {
+                    blokiranih.incrementAndGet()
+                    zabeleziUstavljeno(q.ime)
+                    zapisi(DnsPaket.zavijOdgovor(q, DnsPaket.odgovorBlokirano(q)))
+                    continue
+                }
+                // Kanarcek DoH: NXDOMAIN, a ne steje kot ustavljeno (ni oglas) in ne gre med zadnja imena.
+                ScitOdlocitev.Izid.KANAREK -> { zapisi(DnsPaket.zavijOdgovor(q, DnsPaket.odgovorBlokirano(q))); continue }
+                ScitOdlocitev.Izid.NAPREJ -> Unit
             }
             posreduj(q)
         }
@@ -240,12 +244,15 @@ class ScitStoritev : VpnService() {
         poizvedb.incrementAndGet()
         val ime = DnsPaket.vprasanje(vprasanje)?.ime.orEmpty()
         Log.i(TAG, "DNS po TCP")   // redko; dokaz, da ta pot tece. Brez imena: imena ne gredo v logcat (pregled Scita, tocka 5).
-        val nab = nabor
-        if (ime.isNotEmpty() && nab != null && blokirana(nab, ime)) {
-            blokiranih.incrementAndGet()
-            zabeleziUstavljeno(ime)
-            odgovor(DnsPaket.odgovorBlokiranoZa(vprasanje))
-            return
+        when (odlocitev(ime)) {
+            ScitOdlocitev.Izid.USTAVI -> {
+                blokiranih.incrementAndGet()
+                zabeleziUstavljeno(ime)
+                odgovor(DnsPaket.odgovorBlokiranoZa(vprasanje))
+                return
+            }
+            ScitOdlocitev.Izid.KANAREK -> { odgovor(DnsPaket.odgovorBlokiranoZa(vprasanje)); return }
+            ScitOdlocitev.Izid.NAPREJ -> Unit
         }
         if (upstream.isEmpty()) osveziUpstreamRedko()
         val strezniki = upstream
@@ -421,18 +428,16 @@ class ScitStoritev : VpnService() {
     }
 
     /**
-     * Webtor rezerva (pregled V1/N5): domena je blokirana, ce je na seznamu grozenj (izjema tega nikoli ne umakne) ali na
-     * seznamu in ni izjema (stalna ali naucena, se veljavna OB PREVERBI). Brez nabora grozenj (pred prvo osvezitvijo seznamov
-     * po nadgradnji) veljajo samo stalne izjeme.
+     * Odlocitev za ime ([ScitOdlocitev.odloci], isto pravilo kot Safeer-linux; skupni primeri scit-pravila.json): seznami
+     * grozenj imajo prednost pred izjemami (Webtorjeva naucena, uporabnikova - veljavni OB PREVERBI) in pred zascitenimi
+     * gostitelji; krajevna imena gredo vedno naprej; kanarcek DoH dobi NXDOMAIN. Brez nabora (se ni zgrajen) gre ime naprej.
      */
-    private fun blokirana(nab: DomenskiNabor.Poizvedba, ime: String): Boolean {
-        if (!nab.jeBlokirana(ime)) return false
+    private fun odlocitev(ime: String): ScitOdlocitev.Izid {
+        val nab = nabor
         val g = grozne
         val zdaj = System.currentTimeMillis()
-        // Uporabnikova izjema (zaslon Scita) velja kot Webtorjeva: samo z nalozenim naborom grozenj in nikoli za groznjo.
-        return ScitIzjeme.blokirana(true, g != null, g?.jeBlokirana(ime) == true,
-            g != null && (ScitIzjeme.dovoljena(ime, izjeme, zdaj) || ScitPregled.uporabniskaVelja(ime, uporabniske, zdaj)),
-            ScitIzjeme.jeStalna(ime))
+        return ScitOdlocitev.odloci(ime, { nab?.jeBlokirana(it) == true }, g != null, { g?.jeBlokirana(it) == true },
+            { ScitIzjeme.dovoljena(it, izjeme, zdaj) || ScitPregled.uporabniskaVelja(it, uporabniske, zdaj) })
     }
 
     /** Ustavljeno ime na vrh seznama zadnjih (zapis v datoteko najvec enkrat na sekundo, v urniku). Brez logcat. */

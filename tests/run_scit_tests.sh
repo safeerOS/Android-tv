@@ -19,11 +19,16 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/scit/TcpDns.kt" \
     "$SRC/si/safeer/tv/scit/ScitIzjeme.kt" \
     "$SRC/si/safeer/tv/scit/ScitPregled.kt" \
+    "$SRC/si/safeer/tv/scit/ScitOdlocitev.kt" \
+    "$SRC/si/safeer/tv/cast/JsonLahki.kt" \
     "$TEST_DIR/ScitTest.kt" \
     "$TEST_DIR/ScitPregledTest.kt" \
     "$TEST_DIR/TcpDnsTest.kt" \
+    "$TEST_DIR/ScitSkupniPrimeriTest.kt" \
     -include-runtime -d "$OUT/scit.jar"
 
 java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.ScitTestKt
 # Lastnikov pregled Scita (3. in 4. 11. 2026): vrata 53, brez tuje rezerve, zasebni DNS, zadnja imena, izjeme, privzeti vklop, meni brskalnika.
 java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.ScitPregledTestKt
+# Skupni primeri z Linuxom (4. 11. 2026, en Scit za vse OS): ista datoteka v Safeer-linux (tests/test_scit_skupni_primeri.py).
+java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.ScitSkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/scit-pravila.json"
