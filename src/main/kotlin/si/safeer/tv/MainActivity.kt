@@ -210,6 +210,11 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         // Aplikacijski kontekst v izbranem jeziku: nizi in glava Accept-Language
         // tako sledijo izbiri uporabnika, ne da bi zadrzali Activity v pomnilniku.
         UiText.init(JezikVmesnika.vKontekstu(applicationContext))
+        // Agent za sezname groženj (Feodo, URLhaus, Phishing Army ...) in podpisani vir Safeer Threat Intelligence: zacneta
+        // cim prej (le zagon niti), da se shranjeni seznami nalagajo v ozadju med izrisom. Prve zahteve v shouldInterceptRequest
+        // omejeno pocakajo na to nalaganje (ZascitaZagona, 4. 11. 2026); glavna nit ne caka nikoli.
+        ThreatFeedsUpdater.start(this)
+        SignedThreatIntel.start(this)
         val brskalnikVsebina = layoutInflater.inflate(R.layout.activity_main, null, false)
         if (jeNavadenZagonIzOs(intent)) {
             osStranskaVrstica = si.safeer.tv.os.StranskaVrstica.ovij(this, brskalnikVsebina,
@@ -259,19 +264,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         setupTouchGestures()
         setupFindInPage()
 
-        // Safeer Cast: sprejemnik povezav s telefona in računalnika (vozlišče v domačem omrežju).
-        startCastReceiver()
-
-        // Safeer Hub v tem brskalniku. Ne zažene se sam od sebe: steče le, če ga je uporabnik
-        // v Safeer Linku že prižgal. Takrat je televizor vozlišče za telefone v hiši tudi
-        // brez računalnika.
-        try { si.safeer.tv.cast.HubStoritev.zagotovi(this) } catch (_: Exception) {}
-
-        // Agent za sezname groženj (Feodo, URLhaus, Phishing Army): shranjeni seznami takoj v ozadju,
-        // preverjanje novih ~12 s po zagonu. Zagona in nalaganja strani ne upočasni.
-        ThreatFeedsUpdater.start(this)
-        // Dodatna plast: preverjen, podpisan seznam Safeer Threat Intelligence (izklopljen brez ključa)
-        SignedThreatIntel.start(this)
+        // Safeer Cast in Hub po prvem izrisu (View.post pred pripetjem okna tece po prvem prehodu izrisa): za prvi izris
+        // in zascito nista potrebna (TV 4. 11. 2026: zagon 930 ms proti 305 ms pri TV Bro).
+        window.decorView.post { poPrvemIzrisu() }
         installServiceWorkerThreatShield()
 
         val targetUrl = incomingBrowseUrl(intent)
@@ -1279,6 +1274,17 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     private var castPosition: Double = 0.0
     private var castDuration: Double = 0.0
     private var castPollRunning = false
+
+    /** Kar ni potrebno ne za prvi izris ne za zascito; nic od tega ne varuje vhoda (preverbe namer ostanejo v onCreate). */
+    private fun poPrvemIzrisu() {
+        if (isFinishing || isDestroyed) return
+        // Safeer Cast: sprejemnik povezav s telefona in računalnika (vozlišče v domačem omrežju).
+        startCastReceiver()
+        // Safeer Hub v tem brskalniku. Ne zažene se sam od sebe: steče le, če ga je uporabnik
+        // v Safeer Linku že prižgal. Takrat je televizor vozlišče za telefone v hiši tudi
+        // brez računalnika.
+        try { si.safeer.tv.cast.HubStoritev.zagotovi(this) } catch (_: Exception) {}
+    }
 
     private fun startCastReceiver() {
         try {
