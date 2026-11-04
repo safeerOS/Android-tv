@@ -2159,8 +2159,16 @@ class HubUsmerjevalnik(
                         .stevilo("version", shranjeno.razlicica)
                         .stevilo("timestamp", shranjeno.cas)
                         .surovo("data", shranjeno.podatkiSurovo)
-                    val odgovor = ovojnica("sync.data", cilj = posiljatelj)
+                    // Agent telefon 4. 11. 2026: ovojnica() ze vpise "sender":null, dodani sender je dal JSON s podvojenim
+                    // kljucem (prejemnik lahko vzame null). Posiljatelj shranjenega stanja je naprava, ki ga je poslala (vir) -
+                    // sestavimo brez ovojnice, kot telefon (Mobile-android 39f1a73).
+                    val odgovor = JsonLahki.Zapis()
+                        .niz("id", UUID.randomUUID().toString())
+                        .niz("type", "sync.data")
+                        .stevilo("timestamp", ura() / 1000.0)
                         .niz("sender", shranjeno.vir.orEmpty())
+                        .niz("sender_name", imeNaprave(shranjeno.vir.orEmpty()))
+                        .niz("target", posiljatelj)
                         .surovo("payload", tovorNazaj.toString())
                     posljiVarno(od, odgovor.toString())
                 }

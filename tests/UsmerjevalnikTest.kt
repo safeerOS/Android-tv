@@ -297,6 +297,8 @@ private fun preizkusSinhronizacije() {
     preveri("stanje vsebuje podatke", c.zadnje().contains("https://safeer.si/"))
     preveriEnako("stanje je naslovljeno nanj", "fonC", polje(c.zadnje(), "target"))
     preveriEnako("shranjeno stanje pove, kdo ga je oddal", "fonA", polje(c.zadnje(), "sender"))
+    // Agent telefon 4. 11. 2026: sender natanko enkrat (prej ovojnica "sender":null + vir = podvojen kljuc).
+    preveriEnako("sender je v odgovoru natanko enkrat", 1, Regex("\"sender\"\\s*:").findAll(c.zadnje()).count())
 
     c.pocisti()
     preveriEnako("ce ze ima novejso razlicico, ne posiljamo", "accepted",
