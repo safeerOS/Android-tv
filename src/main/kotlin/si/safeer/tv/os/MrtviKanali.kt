@@ -142,7 +142,7 @@ object MrtviKanali {
         pokazaniOdtis.clear(); pokazaniOdtis.putAll(novo.pokazani); novo.pokazani.forEach { (k, v) -> ep.putLong(k, v) }
         es.apply(); ep.apply()
         // Krajevno skriti, ki so bili drugje pokazani: tudi tu niso vec skriti.
-        val ven = skriti.filter { KanaliPravila.odtisKanala(it) !in skritiOdtis }
+        val ven = skriti.filter { !skritiOdtis.containsKey(KanaliPravila.odtisKanala(it)) }
         if (ven.isNotEmpty()) {
             skriti.removeAll(ven.toSet())
             c.applicationContext.getSharedPreferences(PREFS_SKRITI, Context.MODE_PRIVATE).edit().apply { ven.forEach { remove(it) } }.apply()
@@ -200,14 +200,13 @@ object MrtviKanali {
     }
 
     /** Skrit tu ali na napravi ozjega kroga (odtis). */
-    private fun jeSkritKljuc(k: String): Boolean = k in skriti || (skritiOdtis.isNotEmpty() && odtis(k) in skritiOdtis)
+    private fun jeSkritKljuc(k: String): Boolean = k in skriti || (skritiOdtis.isNotEmpty() && skritiOdtis.containsKey(odtis(k)))
 
     /** Odtis kljuca enkrat na kljuc (mreza vprasa za vsak kanal ob vsakem risanju). */
     private val odtisi = object : LinkedHashMap<String, String>(256, 0.75f, true) {
         override fun removeEldestEntry(e: MutableMap.MutableEntry<String, String>?) = size > 20_000
     }
     private fun odtis(k: String): String = synchronized(odtisi) { odtisi.getOrPut(k) { KanaliPravila.odtisKanala(k) } }
-    }
 
     /** Uporabnik je ta kanal skril sam (kljuc kartice, stalen med osvezitvami seznama). */
     fun jeSkrit(c: Context, id: String): Boolean { nalozi(c); return jeSkritKljuc(OsPravila.kljucKanala(id)) }
