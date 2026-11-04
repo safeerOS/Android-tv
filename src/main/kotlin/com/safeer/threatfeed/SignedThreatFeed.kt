@@ -920,6 +920,8 @@ class SignedFeedService(
     private val intervalSeconds: Long = 6 * 3600L,
     private val retrySeconds: Long = 3600L,
     private val firstDelaySeconds: Long = 12L,
+    /** Called once after the first load of the stored bundle has finished (also when there is none). */
+    private val onFirstLoad: (() -> Unit)? = null,
     private val onChange: ((SignedFeedStore) -> Unit)? = null,
 ) {
     private var executor: ScheduledExecutorService? = null
@@ -940,7 +942,13 @@ class SignedFeedService(
         }
         executor = service
         service.execute {
-            if (store.load()) notifyChange()
+            try {
+                if (store.load()) notifyChange()
+            } catch (e: Exception) {
+                /* the stored bundle is unusable; the update below replaces it */
+            } finally {
+                try { onFirstLoad?.invoke() } catch (e: Exception) { /* listeners must not stop updates */ }
+            }
         }
         schedule(firstDelaySeconds)
         return true

@@ -456,6 +456,17 @@ fun main(args: Array<String>) {
         check(!service.requestUpdate())
     }
 
+    test("service reports the first load also without a stored bundle (cold start gate, 4. 11. 2026)") {
+        val store = SignedFeedStore(tempDir(), "threats", trusted, listOf("https://intel.test"), FakeServer()) { now }
+        val first = java.util.concurrent.CountDownLatch(1)
+        val changes = java.util.concurrent.atomic.AtomicInteger()
+        val service = SignedFeedService(store, firstDelaySeconds = 3600, onFirstLoad = { first.countDown() }) { changes.incrementAndGet() }
+        check(service.start())
+        check(first.await(2, java.util.concurrent.TimeUnit.SECONDS)) { "first load not reported" }
+        check(store.bundle == null && changes.get() == 0)
+        service.stop()
+    }
+
     test("large bundle: 250000 rules verify and index within limits") {
         val rules = ArrayList<List<Any>>(250_000)
         for (i in 0 until 250_000) {

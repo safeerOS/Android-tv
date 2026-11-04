@@ -73,9 +73,17 @@ object ThreatFeedsUpdater {
     @Synchronized
     fun start(context: Context) {
         if (agent != null) return
-        val listAgent = ThreatListAgent(File(context.applicationContext.filesDir, "threat-lists"), SOURCES) { lists ->
+        // Od tu zahteve v shouldInterceptRequest omejeno pocakajo na prvo nalaganje (ZascitaZagona, 4. 11. 2026).
+        ZascitaZagona.zacni()
+        val listAgent = ThreatListAgent(File(context.applicationContext.filesDir, "threat-lists"), SOURCES, onFirstLoad = {
+            ZascitaZagona.seznamiKoncani()
+            android.util.Log.i("SafeerSecurity", "Zascita ob zagonu: seznami nalozeni, pripravljena=${ZascitaZagona.pripravljeno}" +
+                " po ${ZascitaZagona.pripravljenoPoMs} ms")
+        }) { lists ->
             ruleCount = ThreatBlockEngine.rebuildFromLists(lists.filter { !it.source.raw && !it.source.dnsOnly })
             filterRuleCount = AdBlockEngine.installFilterLists(lists.filter { it.source.raw })
+            // Drevo grozenj in EasyList sta v uporabi: zahteve ne cakajo vec na nabor Scita (pisanje na disk, 1-2 s).
+            ZascitaZagona.seznamiKoncani()
             // Safeer Scit (filter DNS za ves televizor) dobi vse domenske sezname, tudi hagezi PRO.
             try { si.safeer.tv.scit.Scit.osveziNabor(context.applicationContext, lists) } catch (e: Throwable) {
                 android.util.Log.w("SafeerScit", "Nabora za Scit ni bilo mogoce zgraditi: ${e.message}")

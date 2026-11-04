@@ -10,12 +10,14 @@ BC_JAR="$PROJECT_DIR/libs/bcprov-ed25519-1.78.1.jar"
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 "$KOTLINC" -cp "$BC_JAR" "$TEST_DIR"/stubs/*.kt "$SRC/si/safeer/tv/DomainSuffixTrie.kt" \
-    "$SRC/si/safeer/tv/ThreatBlockEngine.kt" "$SRC/si/safeer/tv/AdBlockEngine.kt" "$SRC/si/safeer/tv/SignedThreatIntel.kt" \
+    "$SRC/si/safeer/tv/ThreatBlockEngine.kt" "$SRC/si/safeer/tv/ZascitaZagona.kt" "$SRC/si/safeer/tv/AdBlockEngine.kt" "$SRC/si/safeer/tv/SignedThreatIntel.kt" \
     "$SRC/com/safeer/threatfeed/FilterListEngine.kt" \
     "$SRC/com/safeer/threatfeed/SignedThreatFeed.kt" "$SRC/com/safeer/threatfeed/BankGuard.kt" \
     "$SRC/com/safeer/threatfeed/BankGuardData.kt" "$SRC/com/safeer/threatfeed/ThreatListAgent.kt" \
-    "$TEST_DIR/ThreatPolicyTest.kt" -include-runtime -d "$OUT/threat.jar"
+    "$TEST_DIR/ThreatPolicyTest.kt" "$TEST_DIR/ZascitaZagonaTest.kt" -include-runtime -d "$OUT/threat.jar"
 java -cp "$OUT/threat.jar:$BC_JAR" si.safeer.tv.ThreatPolicyTestKt
+# Zascita od prve zahteve hladnega zagona (4. 11. 2026): svoj JVM, ker je stanje zapaha enkratno na proces.
+java -cp "$OUT/threat.jar:$BC_JAR" si.safeer.tv.ZascitaZagonaTestKt
 "$KOTLINC" "$SRC/com/safeer/threatfeed/BankGuard.kt" "$SRC/com/safeer/threatfeed/BankGuardData.kt" "$TEST_DIR/BankGuardTest.kt" \
     -include-runtime -d "$OUT/bank-guard.jar"
 java -cp "$OUT/bank-guard.jar" com.safeer.threatfeed.BankGuardTestKt "$TEST_DIR/bank-guard-cases.json"

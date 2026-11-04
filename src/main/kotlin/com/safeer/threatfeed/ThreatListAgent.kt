@@ -180,6 +180,11 @@ class ThreatListAgent(
     private val intervalSeconds: Long = 6 * 3600L,
     private val retrySeconds: Long = 3600L,
     private val clock: () -> Long = { System.currentTimeMillis() / 1000 },
+    /**
+     * Called once after the first load of the saved lists has finished (after [onLists], also when nothing was saved),
+     * so that a caller can hold back the first requests of a cold start until the protection is complete.
+     */
+    private val onFirstLoad: () -> Unit = {},
     /** Receives every list in use: once after loading the saved lists and after every change. */
     private val onLists: (List<PlainList>) -> Unit,
 ) {
@@ -216,7 +221,13 @@ class ThreatListAgent(
             }
         }
         executor = service
-        service.execute { if (loadSaved().isNotEmpty()) notifyLists() }
+        service.execute {
+            try {
+                if (loadSaved().isNotEmpty()) notifyLists()
+            } finally {
+                try { onFirstLoad() } catch (e: Exception) { /* a listener must not stop the agent */ }
+            }
+        }
         schedule(startDelayMs, periodic = false)
         return true
     }

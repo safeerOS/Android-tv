@@ -522,10 +522,27 @@ object ThreatBlockEngine {
         """.trimIndent()
     }
 
+    private val nepripravljenihPorocil = java.util.concurrent.atomic.AtomicInteger(0)
+
+    /** Omejeno cakanje na prvo nalaganje seznamov ([ZascitaZagona]); dnevnik pove, ali je bila prva zahteva filtrirana. */
+    private fun pocakajNaZascito() {
+        val glavna = android.os.Looper.myLooper() == android.os.Looper.getMainLooper()
+        val izid = ZascitaZagona.pocakaj(glavna) ?: return
+        if (izid.prva) {
+            android.util.Log.i("SafeerSecurity", "Zascita ob zagonu: prva zahteva cakala ${izid.cakalaMs} ms, seznami pripravljeni=${izid.pripravljeno}" +
+                ", ${izid.odZacetkaMs} ms od zacetka nalaganja, glavna nit=$glavna")
+        } else if (!izid.pripravljeno && nepripravljenihPorocil.incrementAndGet() <= 5) {
+            android.util.Log.w("SafeerSecurity", "Zascita ob zagonu: zahteva brez seznamov po ${izid.cakalaMs} ms cakanja (${izid.odZacetkaMs} ms od zacetka)")
+        }
+    }
+
     /**
      * Vrne WebResourceResponse z varnostnim opozorilom za glavno okno ali prazen odgovor za podvire.
      */
     fun handleThreatIntercept(url: String, isMainFrame: Boolean): WebResourceResponse? {
+        // Hladni zagon (raziskava 4. 11. 2026): prve zahteve so sle mimo seznamov, ker so se ti nalagali v ozadju. Ta klic
+        // tece v nitnem bazenu WebView (shouldInterceptRequest) in tu omejeno pocaka na prvo nalaganje; glavna nit nikoli.
+        pocakajNaZascito()
         val match = checkThreat(url) ?: return null
         recordBlock(match)
         onThreatBlocked?.invoke(match.matchedDomain, kategorijaVJeziku(match.category), match.sourceFeed ?: "Safeer Shield", isMainFrame)

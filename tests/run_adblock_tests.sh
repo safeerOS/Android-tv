@@ -16,6 +16,7 @@ trap 'rm -rf "$OUT"' EXIT
 "$KOTLINC" -J-Xmx3g -cp "$BC" "$TEST_DIR"/stubs/*.kt \
     "$SRC/si/safeer/tv/DomainSuffixTrie.kt" \
     "$SRC/si/safeer/tv/ThreatBlockEngine.kt" \
+    "$SRC/si/safeer/tv/ZascitaZagona.kt" \
     "$SRC/si/safeer/tv/AdBlockEngine.kt" \
     "$SRC/si/safeer/tv/CosmeticFilterEngine.kt" \
     "$SRC/si/safeer/tv/SignedThreatIntel.kt" \

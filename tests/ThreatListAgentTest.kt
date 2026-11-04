@@ -170,6 +170,18 @@ fun main() {
             check(e.message == "only HTTPS is allowed")
         }
     }
+    test("first load is reported also when nothing is saved (first start after install: no endless wait)") {
+        val empty = Files.createTempDirectory("safeer-lists-empty").toFile()
+        val done = CountDownLatch(1)
+        var listsCalls = 0
+        val a = ThreatListAgent(empty, sources(server), HttpsListFetcher(allowPlainHttpForTests = true), startDelayMs = 60_000,
+            onFirstLoad = { done.countDown() }) { listsCalls++ }
+        a.start()
+        check(done.await(2, TimeUnit.SECONDS)) { "first load not reported" }
+        check(listsCalls == 0) { "no saved lists, no listener call" }
+        a.stop()
+        empty.deleteRecursively()
+    }
     test("first start: returns at once, downloads after the delay and saves the lists") {
         server.delayMs = 1500
         val delivered = CountDownLatch(1)

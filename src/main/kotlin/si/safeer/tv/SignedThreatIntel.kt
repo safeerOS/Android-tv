@@ -37,17 +37,23 @@ object SignedThreatIntel {
 
     @Synchronized
     fun start(context: Context) {
-        if (service != null || !isEnabled) return
+        // Brez kljuca te plasti ni: prvo nalaganje zascite nanjo ne caka.
+        if (!isEnabled) { ZascitaZagona.podpisaniKoncan(); return }
+        if (service != null) return
         val feedStore = SignedFeedStore(
             File(context.applicationContext.filesDir, "threat-intel"), "threats", TRUSTED_KEYS, BASE_URLS,
         )
-        val feedService = SignedFeedService(feedStore) { updated ->
+        val feedService = SignedFeedService(feedStore, onChange = { updated ->
             val bundle = updated.bundle
             Log.i(TAG, "Preverjen seznam groženj v${bundle?.manifest?.version}: ${bundle?.ruleCount} pravil")
-        }
+        }, onFirstLoad = {
+            ZascitaZagona.podpisaniKoncan()
+            Log.i("SafeerSecurity", "Zascita ob zagonu: podpisani vir nalozen, pripravljena=${ZascitaZagona.pripravljeno}" +
+                " po ${ZascitaZagona.pripravljenoPoMs} ms")
+        })
         store = feedStore
         ThreatBlockEngine.signedFeedMatcher = { url, host -> toMatchResult(feedStore.matchUrl(url) ?: feedStore.matchHost(host)) }
-        if (feedService.start()) service = feedService
+        if (feedService.start()) service = feedService else ZascitaZagona.podpisaniKoncan()
     }
 
     /** Takojšnje preverjanje novega seznama (gumb "Posodobi sezname"). */
