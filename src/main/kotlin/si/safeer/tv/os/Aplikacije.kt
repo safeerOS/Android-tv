@@ -254,8 +254,9 @@ object Aplikacije {
         val tv = c.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
         val posodobljena = casPosodobitve(c, v)
         val predpomnilnik = File(c.cacheDir, "namizje-ikone")
-        // »-2-«: preverba TV 4. 11. 2026 - stara shranjena pasica (F-Droid) je bila obrezana; stare datoteke spodaj izbrisemo.
-        val datoteka = File(predpomnilnik, "${v.paket}-ikona-2-$posodobljena.png")
+        // »-3-«: preverba TV 4. 11. 2026 - shranjena pasica (F-Droid) je bila obrezana (tudi v »-2-«, prilagodljiva pasica);
+        // stare datoteke spodaj izbrisemo.
+        val datoteka = File(predpomnilnik, "${v.paket}-ikona-3-$posodobljena.png")
 
         if (posodobljena > 0 && datoteka.isFile) {
             try {
@@ -285,7 +286,7 @@ object Aplikacije {
             vir = ostra ?: v.ikona ?: izvirnaIkona(c, v) ?: return null
         }
 
-        val slika = vBitmap(vir) ?: return v.ikona
+        val slika = (if (jeBanner) prilagodljivaPasica(vir) else null) ?: vBitmap(vir) ?: return v.ikona
         val d = if (jeBanner) BitmapDrawable(c.resources, slika) else try { SpletneAplikacije.ikonaIzSlike(c, slika) } catch (_: Throwable) { vir }
         oblikovane.dodaj(v.paket, d)
         
@@ -339,6 +340,30 @@ object Aplikacije {
      * (F-Droid, »F-Droi«) se je obrezala ali sploscila. Zdaj sorazmerno pomanjsamo ([AplikacijePravila.meraSlike]) in
      * risbo narisemo v njeni naravni velikosti na pomanjsano platno.
      */
+    /**
+     * Pasica kot prilagodljiva ikona (F-Droid: bela podlaga + siroko vektorsko ospredje): kot celota je kvadrat z masko in
+     * napis se odreze. Narisemo podlago in ospredje v meri ospredja ([AplikacijePravila.meraPrilagodljivePasice]); null =
+     * ni taka pasica. Preverba TV 4. 11. 2026.
+     */
+    private fun prilagodljivaPasica(d: Drawable): Bitmap? {
+        if (android.os.Build.VERSION.SDK_INT < 26 || d !is android.graphics.drawable.AdaptiveIconDrawable) return null
+        val ospredje = d.foreground ?: return null
+        val sirina = ospredje.intrinsicWidth
+        val visina = ospredje.intrinsicHeight
+        val (s, v) = AplikacijePravila.meraPrilagodljivePasice(sirina, visina, 512) ?: return null
+        return try {
+            val b = Bitmap.createBitmap(s, v, Bitmap.Config.ARGB_8888)
+            val platno = Canvas(b)
+            d.background?.let { it.setBounds(0, 0, s, v); it.draw(platno) }
+            platno.save()
+            platno.scale(s.toFloat() / sirina, v.toFloat() / visina)
+            ospredje.setBounds(0, 0, sirina, visina)
+            ospredje.draw(platno)
+            platno.restore()
+            b
+        } catch (_: Throwable) { null }
+    }
+
     private fun vBitmap(d: Drawable): Bitmap? {
         if (d is BitmapDrawable) d.bitmap?.let { return it }
         val sirina = d.intrinsicWidth.takeIf { it > 0 } ?: 192

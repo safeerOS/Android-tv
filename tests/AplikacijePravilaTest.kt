@@ -16,5 +16,9 @@ fun main() {
     preveriAplikacije("pokoncna 300x900 na 171x512", AplikacijePravila.meraSlike(300, 900, 512) == (171 to 512))
     preveriAplikacije("majhna ikona ostane", AplikacijePravila.meraSlike(192, 192, 512) == (192 to 192))
     preveriAplikacije("nikoli 0 px", AplikacijePravila.meraSlike(5000, 1, 512).second >= 1)
+    // Preverba TV 4. 11. 2026 (drugic): F-Droid ima pasico kot prilagodljivo ikono z ospredjem 320x180 dp (xhdpi 640x360).
+    preveriAplikacije("prilagodljiva pasica v meri ospredja", AplikacijePravila.meraPrilagodljivePasice(640, 360, 512) == (512 to 288))
+    preveriAplikacije("kvadratno ospredje: obicajna pot", AplikacijePravila.meraPrilagodljivePasice(432, 432, 512) == null)
+    preveriAplikacije("brez mere: obicajna pot", AplikacijePravila.meraPrilagodljivePasice(-1, -1, 512) == null)
     if (napakAplikacij > 0) { println("NAPAKE: $napakAplikacij"); kotlin.system.exitProcess(1) }
 }

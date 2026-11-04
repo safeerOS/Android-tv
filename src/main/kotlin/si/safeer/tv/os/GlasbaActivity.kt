@@ -5988,7 +5988,7 @@ class GlasbaActivity : OsActivity() {
             val naslovKartice = PriljubljeniKanaliPravila.naslovKartice(
                 if (MrtviKanali.pokaziSkrite && MrtviKanali.jeSkrit(this, sk.id)) getString(R.string.os_tv_kanal_skrit, sk.naslov) else sk.naslov,
                 sk.id in priljubljeni)
-            Kartica(naslovKartice, sk.izvajalec, sk.slika, {
+            Kartica(naslovKartice, opisVsebine(sk), sk.slika, {
                 zadnjiIzbran = sk.id
                 if (jeVrstaPosnetkov(sk, seznam) || YoutubeVrstaPravila.kotVrsta(YoutubeZvok.jeYoutube(sk), sk.video)) predvajajVrstoPosnetkov(celota, sk)
                 else if (SpletniVir.jeEnota(sk)) razresiSplet(sk)
@@ -6369,12 +6369,24 @@ class GlasbaActivity : OsActivity() {
         ikone[getString(R.string.os_dodatek_o_vsebini)] = R.drawable.ic_m_info
         // Preverba TV 4. 11. 2026: meni s ploscicami (MeniKanala) za vso vsebino - Radio, Glasba, Video - ne samo za kanale;
         // prej je bil tu sivi sistemski seznam.
-        // Prvo ploscico dobi fokus: odstranjevanje gre na konec, da OK ob odprtju menija nicesar ne izbrise.
-        val odstrani = setOf(R.drawable.ic_m_odstrani, R.drawable.ic_m_history)
-        MeniKanala.pokazi(this, sk.naslov, sk.izvajalec, dejanja.sortedBy { ikone[it.first] in odstrani }.map { (napis, izvedi) ->
-            MeniKanala.Dejanje(napis, ikone[napis] ?: R.drawable.ic_m_popup, napis in poudarjena) { izvedi() }
-        })
+        // Prvo ploscico dobi fokus: odstranjevanje (tudi »Odstrani iz priljubljenih« in »Skrij kanal«) gre na konec, da OK
+        // ob odprtju menija nicesar ne odstrani (preverba TV 4. 11. 2026, drugic).
+        val odstranjevalna = setOf(getString(R.string.os_mediji_odstrani_prilj), getString(R.string.os_media_odstrani_nadaljuj),
+            getString(R.string.os_seznam_odstrani_skladbo), getString(R.string.os_mediji_odstrani_seznam), getString(R.string.os_tv_skrij_kanal))
+        MeniKanala.pokazi(this, sk.naslov, opisVsebine(sk),
+            PriljubljeniKanaliPravila.odstranjevanjeNaKonec(dejanja) { it.first in odstranjevalna }.map { (napis, izvedi) ->
+                MeniKanala.Dejanje(napis, ikone[napis] ?: R.drawable.ic_m_popup, napis in poudarjena) { izvedi() }
+            })
     }
+
+    /**
+     * Opis kartice in menija: pri radijski postaji drzava in zvrst iz Radio Browserja v jeziku vmesnika (preverba TV
+     * 4. 11. 2026: »Slovenia · rock«). Velja tudi za ze shranjene priljubljene (prevod ob prikazu, ne ob shranjevanju).
+     */
+    private fun opisVsebine(sk: Jamendo.Skladba): String = if (!sk.radio) sk.izvajalec else
+        RadioOpisPravila.prevediOpis(sk.izvajalec, resources.configuration.locales[0]) { oznaka ->
+            ZVRSTI.firstOrNull { it.second.equals(oznaka, ignoreCase = true) }?.let { getString(it.third) }
+        }
 
     // ------------------------------------------------------------------ naloga 124: razsiritve dodatkov (protokol v1)
 

@@ -26,6 +26,16 @@ object PriljubljeniKanaliPravila {
 
     const val ZVEZDICA = "★ "
 
+    /**
+     * Preverba TV 4. 11. 2026 (drugic): v meniju ze priljubljene postaje je bila prva ploscica (s fokusom) »Odstrani iz
+     * priljubljenih« - en OK jo je odstranil. Dejanja, ki kaj odstranijo ali skrijejo, gredo za ostala (vrstni red znotraj
+     * obeh skupin ostane).
+     */
+    fun <T> odstranjevanjeNaKonec(dejanja: List<T>, odstrani: (T) -> Boolean): List<T> {
+        val (konec, spredaj) = dejanja.partition(odstrani)
+        return spredaj + konec
+    }
+
     /** »Shrani kot seznam predvajanja« je za skladbe in videe; kanali so v priljubljenih (meni kanala ga nima). */
     fun ponudiSeznamPredvajanja(kanal: Boolean): Boolean = !kanal
 

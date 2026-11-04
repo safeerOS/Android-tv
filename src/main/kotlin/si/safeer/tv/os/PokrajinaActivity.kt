@@ -2319,7 +2319,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         vrstaDok = PokrajinaPravila.dokVrstniRed(shramba().getString("pk_dok", ""))
         for (r in vrstaDok) {
             val (ikona, napis) = when (r) {
-                PokrajinaPravila.MEDIJI -> R.drawable.os_ikona_predvajaj to R.string.pk_mediji
+                // Preverba TV 4. 11. 2026: »Safeer Media Center« je bil v gumbu spodnje vrstice odrezan - kratko »Medijski center«.
+                PokrajinaPravila.MEDIJI -> R.drawable.os_ikona_predvajaj to R.string.os_mediji_kartica
                 PokrajinaPravila.SPLET -> R.drawable.os_ikona_splet to R.string.os_meni_splet
                 PokrajinaPravila.LINK -> R.drawable.os_ikona_link to R.string.os_meni_naprave
                 PokrajinaPravila.SPOROCILA -> R.drawable.os_ikona_sporocila to R.string.os_meni_sporocila
@@ -2327,8 +2328,9 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                 PokrajinaPravila.DATOTEKE -> R.drawable.os_ikona_datoteke to R.string.os_meni_datoteke
                 else -> R.drawable.os_ikona_nastavitve to R.string.os_meni_nastavitve
             }
+            // Napis sme v dve vrstici (»Medijski / center«, »Centro / multimediale«): gumbi so enako siroki (7 v vrsti).
             val bes = besedilo(getString(napis), 15f).apply {
-                gravity = Gravity.CENTER; maxLines = 1; ellipsize = TextUtils.TruncateAt.END
+                gravity = Gravity.CENTER; maxLines = 2; ellipsize = TextUtils.TruncateAt.END
                 visibility = View.GONE
             }
             val gumb = object : LinearLayout(this) {

@@ -167,6 +167,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/DodatkiProtokolTest.kt" \
     "$SRC/si/safeer/tv/os/DatotekePravila.kt" \
     "$SRC/si/safeer/tv/os/DrsenjePravila.kt" \
+    "$SRC/si/safeer/tv/os/RadioOpisPravila.kt" \
+    "$TEST_DIR/RadioOpisPravilaTest.kt" \
     "$TEST_DIR/DrsenjePravilaTest.kt" \
     "$TEST_DIR/DatotekePravilaTest.kt" \
     "$SRC/si/safeer/tv/os/NedelujocePravila.kt" \
@@ -300,6 +302,7 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_D
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.DodatkiProtokolTestKt "$PROJECT_DIR/docs/DODATKI-PROTOKOL.md"
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.DatotekePravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.DrsenjePravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.RadioOpisPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.NedelujocePravilaTestKt
 # Naloga 113: seznam YouTube - Media3 pred spletno stranjo, rok za stran, ki ne zacne igrati.
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.YoutubeVrstaPravilaTestKt

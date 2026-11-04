@@ -22,6 +22,10 @@ fun main() {
     preveriEnako("priljubljena postaja: zvezdica", "★ Radio Ena", P.naslovKartice("Radio Ena", true))
     preveriEnako("ni priljubljena: brez zvezdice", "Radio Ena", P.naslovKartice("Radio Ena", false))
     preveriEnako("zvezdica samo enkrat", "★ Radio Ena", P.naslovKartice("★ Radio Ena", true))
+    // Preverba TV 4. 11. 2026 (drugic): ze priljubljena postaja - »Odstrani iz priljubljenih« ni prva (fokus).
+    preveriEnako("odstranjevanje za ostalimi", listOf("seznam", "vir", "odstrani-prilj", "skrij"),
+        P.odstranjevanjeNaKonec(listOf("odstrani-prilj", "seznam", "skrij", "vir")) { it == "odstrani-prilj" || it == "skrij" })
+    preveriEnako("samo odstranjevanje ostane", listOf("odstrani-prilj"), P.odstranjevanjeNaKonec(listOf("odstrani-prilj")) { true })
     preveriEnako("kanal: brez seznama predvajanja", false, P.ponudiSeznamPredvajanja(kanal = true))
     preveriEnako("skladba: seznam predvajanja", true, P.ponudiSeznamPredvajanja(kanal = false))
     preveriEnako("skladba ni kanal", false, P.jeKanal("jamendo:123"))
