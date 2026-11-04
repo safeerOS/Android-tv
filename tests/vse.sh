@@ -70,9 +70,23 @@ for skripta in "$TEST_DIR"/run_*.sh; do
     pozeni "$ime" bash "$skripta"
 done
 
+# ------------------------------------------------------------------ Link Core (Android-tv = vir, Mobile-android = kopija)
+# Tedenski pregled 4. 11. 2026: preverba se je v run_usmerjevalnik_tests.sh tiho preskocila, ce ni bilo ../safeer-browser.
+# Zdaj je v povzetku vedno: OK, PADLO ali PRESKOCENO z razlogom (STROGO=1 preskok ustavi). CI jo poganja v svoji nalogi
+# link-core (klon Mobile-android) in tu nastavi LINK_CORE_V_CI=1.
+echo "== Link Core"
+MOBILE_DIR="${SAFEER_MOBILE_DIR:-$PROJECT_DIR/../safeer-browser}"
+if [ "${LINK_CORE_V_CI:-0}" = "1" ]; then
+    zabelezi "LOCENO" "link-core-sync --preveri" "v CI svoja naloga link-core"
+elif [ -d "$MOBILE_DIR/src/main/kotlin/com/safeer/mobile/browser/cast" ]; then
+    pozeni "link-core-sync" bash "$PROJECT_DIR/tools/link-core-sync.sh" --preveri "$MOBILE_DIR"
+else
+    preskoci "link-core-sync" "ni klona Mobile-android (SAFEER_MOBILE_DIR=pot ali ../safeer-browser)"
+fi
+
 # ------------------------------------------------------------------ staticne preverbe (Python)
 echo "== staticne preverbe"
-for p in check_public_package.py preveri_dostop_v_ozadju.py preveri_naslovno_vrstico.py preveri_tv_ikone.py preveri_dnevnik.py preveri_mostove.py; do
+for p in check_public_package.py preveri_dostop_v_ozadju.py preveri_naslovno_vrstico.py preveri_tv_ikone.py preveri_dnevnik.py preveri_mostove.py preveri_vhode_brskalnika.py; do
     [ -f "$TEST_DIR/$p" ] || continue
     if ! command -v python3 >/dev/null 2>&1; then preskoci "$p" "manjka python3"; continue; fi
     pozeni "$p" python3 "$TEST_DIR/$p"

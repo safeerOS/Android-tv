@@ -60,6 +60,15 @@
             </intent-filter>
         </activity>
 
+        <!-- Tedenski pregled 4. 11. 2026 (S1): dodatek spletna_aplikacija (cez cel zaslon, brez naslovne vrstice) velja
+             samo, ce pride po tem vhodu - odprt je le aplikacijam z istim podpisom (dovoljenje LINK) - ali za naslov s
+             seznama spletnih aplikacij. Tuja aplikacija lahko odpre samo navaden zavihek z naslovno vrstico. -->
+        <activity-alias
+            android:name="si.safeer.tv.SafeerVhod"
+            android:targetActivity="si.safeer.tv.MainActivity"
+            android:exported="true"
+            android:permission="si.safeer.tv.permission.LINK" />
+
         <!-- Vrata za Safeer OS: ob prvi namestitvi prevzame spletne aplikacije, ki jih je
              uporabnik dodal, dokler sta bila brskalnik in Safeer OS ena aplikacija. -->
         <provider

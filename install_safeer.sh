@@ -57,6 +57,10 @@ VNOS_RAZRED="si.safeer.tv.link.VnosStoritev"
 # oznako naprave preverimo z vzorcem (brez ; | $ presledkov ...), ime storitve iscemo dobesedno (grep -F), pravice pa
 # dobi samo paket, podpisan s kljucem Safeer (javni odtis SHA-256 potrdila, keystore/safeer-tv-release.jks).
 SAFEER_ODTIS="E7808780C6F492ADC60036BE680667CF74BDE44164B5C63179E1D0F7BDFD7E16"
+# Tedenski pregled 4. 11. 2026 (S5): odtis podpisnika Safeer Browserja za telefon (apksigner verify --print-certs na
+# safeer-browser-android-1.0.37.apk z Mobile-android, 4. 11. 2026). Vsota SHA-256 je iz iste izdaje kot APK in podtaknjene
+# izdaje ne odkrije - podpisnik jo.
+MOBILNI_ODTIS="442B4A455551887DDB7BB2F2F62CC1574EE3EF0EEBB56246A2E425C9E9D9CC55"
 VZOREC_PAKETA='^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z0-9_]+)+$'
 VZOREC_NAPRAVE='^[A-Za-z0-9.:_-]+$'
 
@@ -69,6 +73,33 @@ odtis_paketa() {
         keytool -printcert -jarfile "$d/base.apk" 2>/dev/null | awk '/SHA256:/ { gsub(":", "", $2); print toupper($2); exit }'
     fi
     rm -rf "$d"
+}
+
+# Odtis SHA-256 podpisnika APK na disku (velike crke brez dvopicij); prazno, ce ga ni mogoce prebrati.
+odtis_apk() {
+    if command -v apksigner >/dev/null 2>&1; then
+        apksigner verify --print-certs "$1" 2>/dev/null | awk '/Signer #1 certificate SHA-256 digest:/ { print toupper($NF); exit }'
+    elif command -v keytool >/dev/null 2>&1; then
+        keytool -printcert -jarfile "$1" 2>/dev/null | awk '/SHA256:/ { gsub(":", "", $2); print toupper($2); exit }'
+    fi
+}
+
+# Naprava za namestitev (S3): izbrana ($1) ali edina povezana. Vec naprav brez izbire -> prazno in sporocilo (nikoli
+# prva v seznamu - lahko je tuja naprava ali TV namesto telefona).
+izberi_napravo() {
+    local izbrana="$1" naprave stevilo
+    naprave="$(adb devices | awk 'NR > 1 && $2 == "device" { print $1 }')"
+    if [ -n "$izbrana" ]; then
+        if printf '%s\n' "$naprave" | grep -qxF "$izbrana"; then echo "$izbrana"; else echo "❌ Naprava $izbrana ni povezana prek ADB." >&2; fi
+        return 0
+    fi
+    stevilo="$(printf '%s\n' "$naprave" | grep -c . || true)"
+    if [ "$stevilo" -gt 1 ]; then
+        echo "❌ Povezanih je več naprav ADB - izberi telefon: install_safeer.sh <serijska ali IP:vrata>" >&2
+        printf '%s\n' "$naprave" | sed 's/^/   /' >&2
+        return 0
+    fi
+    printf '%s' "$naprave"
 }
 
 omogoci_upravljanje() {
@@ -110,14 +141,14 @@ omogoci_upravljanje() {
 }
 
 glavno() {
-    # Zacasne datoteke v svoji mapi (mktemp -d), ne na predvidljivi poti v /tmp: drug uporabnik bi jo lahko vnaprej
-    # pripravil ali zamenjal med prenosom in namestitvijo. Mapa izgine ob izhodu. (Preizkus poda svoje poti.)
-    if [ -z "${TEMP_APK:-}" ]; then
-        D="$(mktemp -d)"
-        trap 'rm -rf "$D"' EXIT
-        TEMP_APK="$D/Safeer-Browser.apk"
-        TEMP_SHA="$D/Safeer-Browser.SHA256SUMS"
-    fi
+    local izbrana="${1:-}"
+    # Zacasne datoteke vedno v svoji mapi (mktemp -d), ne na predvidljivi poti v /tmp ali poti iz okolja (N10, 4. 11. 2026:
+    # prej je TEMP_APK iz okolja dolocil, kam se APK prenese): drug uporabnik bi jo lahko vnaprej pripravil ali zamenjal
+    # med prenosom in namestitvijo. Mapa izgine ob izhodu.
+    MAPA_NAMESTITVE="$(mktemp -d)"
+    trap 'rm -rf "$MAPA_NAMESTITVE"' EXIT
+    TEMP_APK="$MAPA_NAMESTITVE/Safeer-Browser.apk"
+    TEMP_SHA="$MAPA_NAMESTITVE/Safeer-Browser.SHA256SUMS"
 
     IZDAJA_JSON="$(curl "${CURL_VARNO[@]}" -fsL "$IZDAJA_API" || true)"
     APK_URL="$(naslov_iz_izdaje "$IZDAJA_JSON" "$VZOREC_APK")"
@@ -155,10 +186,21 @@ glavno() {
         exit 1
     fi
     preveri_sha256 "$TEMP_APK" "$TEMP_SHA" "${APK_URL##*/}" || exit 1
+    ODTIS="$(odtis_apk "$TEMP_APK")"
+    if [ "$ODTIS" != "$MOBILNI_ODTIS" ]; then
+        echo "❌ APK ni podpisan s ključem Safeer (odtis: ${ODTIS:-ni ga bilo mogoče prebrati - potreben je apksigner ali keytool})."
+        echo "🚨 Prekinjam namestitev."
+        exit 1
+    fi
+    echo "🔏 Podpisnik Safeer potrjen"
 
     # Preveri prisotnost ADB
     if command -v adb >/dev/null 2>&1; then
-        DEVICE=$(adb devices | grep -v "List" | grep "device$" | head -n 1 | awk '{print $1}')
+        DEVICE="$(izberi_napravo "$izbrana")"
+        if [ -z "$DEVICE" ] && [ -n "$izbrana$(adb devices | awk 'NR > 1 && $2 == "device"')" ]; then
+            # Izbrane ni ali jih je vec brez izbire: ne namestimo na nakljucno napravo.
+            exit 1
+        fi
         if [ -n "$DEVICE" ]; then
             echo "📱 Zaznana ADB naprava: $DEVICE"
             echo "📲 Nameščam Safeer Browser..."
@@ -179,7 +221,7 @@ glavno() {
     echo "👉 Lahko ga ročno pošljete ali namestite na svoj telefon."
 }
 
-# Ob »source« (preizkus tests/preveri_install.sh) se namestitev ne zazene - samo funkcije.
+# Ob »source« (preizkus tests/run_install_tests.sh) se namestitev ne zazene - samo funkcije.
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
     if [ "${1:-}" = "--upravljanje" ]; then
         omogoci_upravljanje "${2:?naprava, npr. 192.168.0.10:5555}" "${3:?paket, npr. si.safeer.os}"

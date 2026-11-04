@@ -11,7 +11,7 @@ KOTLINC="${KOTLINC:-$TOOLS_DIR/kotlinc/bin/kotlinc}"
 command -v "$KOTLINC" >/dev/null 2>&1 || KOTLINC="kotlinc"
 
 # HubTokovi uporablja org.json (na Androidu vgrajen); na JVM ga dodamo iz predpomnilnika Gradla.
-JSON_JAR="${JSON_JAR:-$( { ls "$HOME"/.gradle/caches/modules-2/files-2.1/org.json/json/*/*/json-*.jar 2>/dev/null | grep -v sources | head -1 || true; } )}"
+JSON_JAR="${JSON_JAR:-$(for f in "$HOME"/.gradle/caches/modules-2/files-2.1/org.json/json/*/*/json-*.jar; do case "$f" in *sources*) ;; *) [ -f "$f" ] && { echo "$f"; break; } ;; esac; done)}"
 [ -n "$JSON_JAR" ] || { echo "Manjka org.json: nastavi JSON_JAR (json-*.jar) ali zgradi projekt z Gradlom (predpomnilnik). Glej tests/vse.sh." >&2; exit 2; }
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
@@ -103,7 +103,5 @@ java -cp "$OUT/spake2.jar" si.safeer.tv.cast.Spake2TestKt
     -include-runtime -d "$OUT/izvolitev.jar"
 java -cp "$OUT/izvolitev.jar" si.safeer.tv.cast.IzvolitevTestKt
 
-# Link Core: kopija na telefonu mora biti enaka viru (ce je telefon na tem racunalniku).
-if [[ -d "$PROJECT_DIR/../safeer-browser" ]]; then
-    bash "$PROJECT_DIR/tools/link-core-sync.sh" --preveri "$PROJECT_DIR/../safeer-browser"
-fi
+# Link Core (kopija na telefonu = vir) je svoj korak v tests/vse.sh in svoja naloga v CI (tedenski pregled 4. 11. 2026:
+# tu se je brez ../safeer-browser tiho preskocila).

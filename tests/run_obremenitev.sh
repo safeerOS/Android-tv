@@ -9,7 +9,7 @@ KOTLINC="${KOTLINC:-$TOOLS_DIR/kotlinc/bin/kotlinc}"
 command -v "$KOTLINC" >/dev/null 2>&1 || KOTLINC="kotlinc"
 
 # HubTokovi in KrogZaupanja uporabljata org.json (na Androidu vgrajen); na JVM ga dodamo iz predpomnilnika Gradla.
-JSON_JAR="${JSON_JAR:-$( { ls "$HOME"/.gradle/caches/modules-2/files-2.1/org.json/json/*/*/json-*.jar 2>/dev/null | grep -v sources | head -1 || true; } )}"
+JSON_JAR="${JSON_JAR:-$(for f in "$HOME"/.gradle/caches/modules-2/files-2.1/org.json/json/*/*/json-*.jar; do case "$f" in *sources*) ;; *) [ -f "$f" ] && { echo "$f"; break; } ;; esac; done)}"
 [ -n "$JSON_JAR" ] || { echo "Manjka org.json: nastavi JSON_JAR (json-*.jar) ali zgradi projekt z Gradlom (predpomnilnik). Glej tests/vse.sh." >&2; exit 2; }
 OUT="${OBREMENITEV_OUT:-$(mktemp -d)}"
 mkdir -p "$OUT"

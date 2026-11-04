@@ -14,13 +14,17 @@ object KompletPravila {
     }
 
     /**
-     * null, ce kateremu paketu manjka veljaven vnos -> takrat NE namescamo nic (komplet je cel ali nic).
-     * Pravilo dela z navadnimi nizi in lastnim preverjanjem (https, sha256 dolzine 64), brez odvisnosti od Androida.
+     * Vnosi za pakete, ki jih razlicice.json ponuja. Oblika je gnezdena kot v Posodobitve.preveri:
+     * {"android": {"si.safeer.tv": {url, sha256, ...}}}. Tedenski pregled 4. 11. 2026 (S2): prej je pravilo iskalo ploski
+     * kljuc "android.si.safeer.tv", ki ga ni, in komplet se ni namestil nikoli; preizkus je tekel na izmisljeni obliki.
+     * Paketa, ki ga v razlicice.json ni (si.safeer.trgovina 4. 11. 2026), ne ponudimo. null, ce je kateri ponujeni vnos
+     * pokvarjen (ne https, sha256 ni 64 znakov) -> takrat NE namescamo nic.
      */
     fun vnosi(manifest: JSONObject, paketi: List<String>): Map<String, Vnos>? {
         val rezultat = mutableMapOf<String, Vnos>()
+        val android = manifest.optJSONObject("android") ?: return emptyMap()
         for (paket in paketi) {
-            val vnosJson = manifest.optJSONObject("android.$paket") ?: return null
+            val vnosJson = android.optJSONObject(paket) ?: continue
             val u = vnosJson.optString("url")
             val s = vnosJson.optString("sha256")
             if (!u.startsWith("https://") || s.length != 64) return null

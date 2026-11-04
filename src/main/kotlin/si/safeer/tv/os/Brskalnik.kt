@@ -28,6 +28,18 @@ object Brskalnik {
     /** Komponenta TV Browserja (si.safeer.tv), edinega WebView-ja na televizorju s Safeer OS. */
     private const val TV_BROWSER_AKTIVNOST = "si.safeer.tv.MainActivity"
 
+    /**
+     * Zasciteni vhod TV Browserja (okusi/brskalnik: activity-alias z dovoljenjem LINK): samo po njem sme Safeer OS odpreti
+     * spletno aplikacijo cez cel zaslon (tedenski pregled 4. 11. 2026, S1). Starejsi TV Browser ga nima - takrat MainActivity.
+     */
+    const val VARNI_VHOD = "si.safeer.tv.SafeerVhod"
+
+    private fun tvBrowser(c: Context): ComponentName {
+        val vhod = ComponentName(Sosed.BRSKALNIK, VARNI_VHOD)
+        val ima = try { c.packageManager.resolveActivity(Intent().setComponent(vhod), 0) != null } catch (_: Throwable) { false }
+        return if (ima) vhod else ComponentName(Sosed.BRSKALNIK, TV_BROWSER_AKTIVNOST)
+    }
+
     /** Kam gre splet te aplikacije (glej [OsPravila.spletCilj]). */
     fun cilj(c: Context): OsPravila.SpletCilj =
         OsPravila.spletCilj(Sosed.smoOs(c), Sosed.namescen(c, Sosed.BRSKALNIK))
@@ -40,7 +52,7 @@ object Brskalnik {
     fun namera(c: Context): Intent = when (cilj(c)) {
         OsPravila.SpletCilj.TV_BROWSER ->
             // Brskalnik naj ve, od kod je prisel: ob izhodu se vrne v Safeer OS, ne na Android.
-            Intent().setComponent(ComponentName(Sosed.BRSKALNIK, TV_BROWSER_AKTIVNOST))
+            Intent().setComponent(tvBrowser(c))
         OsPravila.SpletCilj.NAMESTI_TV_BROWSER -> Intent(c, BrskalnikManjkaActivity::class.java)
         OsPravila.SpletCilj.LOKALNO -> Intent(c, si.safeer.tv.MainActivity::class.java)
     }.putExtra("iz_safeer_os", c.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

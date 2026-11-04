@@ -594,7 +594,9 @@ class LinkOdjemalec(private val context: Context) {
                 val url = telo.optString("url"); val naslov = telo.optString("title")
                 val od = json.optString("sender_name").ifBlank { json.optString("sender") }
                 potrdi(json)
-                if (url.isNotBlank()) glavna.post { poslusalec?.naNaslov(url, naslov, od) }
+                // Tedenski pregled 4. 11. 2026: shema od druge naprave - samo http(s) ali nasa domaca stran.
+                if (si.safeer.tv.SpletVarnostPravila.vhodniNaslov(url, si.safeer.tv.SpletVarnostPravila.Vhod.LINK))
+                    glavna.post { poslusalec?.naNaslov(url, naslov, od) }
             }
             "chat.send" -> {
                 potrdi(json)
