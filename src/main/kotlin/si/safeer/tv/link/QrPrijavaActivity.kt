@@ -166,7 +166,8 @@ class QrPrijavaActivity : Activity() {
     private fun vprasaj(ime: String) {
         AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
             .setTitle(b("naslov"))
-            .setMessage(b("vprasanje").replace("{ime}", ime))
+            // Tedenski pregled 4. 11. 2026 (S11): safeer://link/qr lahko odpre tudi spletna stran (BROWSABLE) - opozorilo.
+            .setMessage(b("vprasanje").replace("{ime}", ime) + "\n\n" + opozoriloKoda())
             .setPositiveButton(b("dovoli")) { _, _ -> dovoli(ime) }
             .setNegativeButton(b("ne")) { _, _ -> finish() }
             .setOnCancelListener { finish() }
@@ -259,6 +260,23 @@ class QrPrijavaActivity : Activity() {
         }
     }
 
+    /**
+     * Tedenski pregled 4. 11. 2026 (S11): povezavo safeer://link/qr lahko sprozi spletna stran ali druga aplikacija, ne samo
+     * kamera. Opozorilo v vseh jezikih vmesnika (sl, en, de, es, fr, it). Lastnega skenerja kod ta aplikacija nima (koda se
+     * skenira s kamero naprave), zato ga ne ponudimo.
+     */
+    private fun opozoriloKoda(): String = OPOZORILO_KODA[try { resources.configuration.locales[0].language } catch (_: Throwable) { "en" }]
+        ?.replace("{ne}", b("ne")) ?: OPOZORILO_KODA.getValue("en").replace("{ne}", b("ne"))
+
+    private val OPOZORILO_KODA = mapOf(
+        "sl" to "⚠️ Nadaljuj samo, če si to kodo pravkar poskeniral s svojo kamero. Če se je to okno odprlo samo od sebe (na spletni strani ali v drugi aplikaciji), izberi »{ne}«.",
+        "en" to "⚠️ Only continue if you just scanned this code with your own camera. If this window opened by itself (on a web page or in another app), choose “{ne}”.",
+        "de" to "⚠️ Fahre nur fort, wenn du diesen Code gerade mit deiner eigenen Kamera gescannt hast. Wenn sich dieses Fenster von selbst geöffnet hat (auf einer Webseite oder in einer anderen App), wähle „{ne}“.",
+        "es" to "⚠️ Continúa solo si acabas de escanear este código con tu propia cámara. Si esta ventana se abrió sola (en una página web o en otra aplicación), elige «{ne}».",
+        "fr" to "⚠️ Continue uniquement si tu viens de scanner ce code avec ta propre caméra. Si cette fenêtre s’est ouverte toute seule (sur une page web ou dans une autre application), choisis « {ne} ».",
+        "it" to "⚠️ Continua solo se hai appena scansionato questo codice con la tua fotocamera. Se questa finestra si è aperta da sola (su una pagina web o in un’altra app), scegli «{ne}».",
+    )
+
     /** Besedila v jeziku naprave (slovenscina ali anglescina). */
     private fun b(kljuc: String): String {
         val sl = try { resources.configuration.locales[0].language == "sl" } catch (_: Throwable) { false }
@@ -270,8 +288,8 @@ class QrPrijavaActivity : Activity() {
             "ne" -> if (sl) "Ne" else "No"
             "uspeh" -> if (sl) "Računalnik »{ime}« je prijavljen." else "The computer “{ime}” is signed in."
             "naslovPridruzi" -> if (sl) "Safeer Link" else "Safeer Link"
-            "vprasajPridruzi" -> if (sl) "Povežem to napravo s Safeer Linkom na {naslov}?\nOdtis: {odtis}\n\nPoveži jo samo, če si to kodo pravkar poskeniral na svoji napravi."
-                else "Connect this device to the Safeer Link at {naslov}?\nFingerprint: {odtis}\n\nOnly connect if you just scanned this code on your own device."
+            "vprasajPridruzi" -> (if (sl) "Povežem to napravo s Safeer Linkom na {naslov}?\nOdtis: {odtis}"
+                else "Connect this device to the Safeer Link at {naslov}?\nFingerprint: {odtis}") + "\n\n" + opozoriloKoda()
             "preselitev" -> if (sl) "Pozor: ta naprava je že v drugem Safeer Linku. Če nadaljuješ, ga zapusti."
                 else "Warning: this device is already in another Safeer Link. Continuing will leave it."
             "pridruzi" -> if (sl) "Poveži" else "Connect"

@@ -63,6 +63,13 @@ def main() -> int:
         napake.append("okusi/brskalnik: zasciteni vhod SafeerVhod brez dovoljenja LINK")
     if re.search(r"if \(!data\.isNullOrEmpty\(\)\) return data\b", main_kt):
         napake.append("MainActivity.kt: incomingBrowseUrl vrne dataString brez preverbe")
+    # S11: obe okni prijave s QR (BROWSABLE safeer://link/qr) opozorita, da mora kodo poskenirati uporabnik sam - 6 jezikov.
+    qr = (TV / "link/QrPrijavaActivity.kt").read_text(encoding="utf-8")
+    if qr.count("opozoriloKoda()") < 3:
+        napake.append("QrPrijavaActivity.kt: okno prijave ali pridruzitve brez opozorila o kodi")
+    for jezik in ("sl", "en", "de", "es", "fr", "it"):
+        if f'"{jezik}" to "' not in qr:
+            napake.append(f"QrPrijavaActivity.kt: opozorilo o kodi brez jezika {jezik}")
     for n in napake:
         print("NAPAKA:", n)
     if napake:
