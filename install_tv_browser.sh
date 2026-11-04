@@ -15,8 +15,12 @@ VZOREC_APK="$PRENOSI_IZDAJE/safeer-browser-tv-[0-9]+(\.[0-9]+)*\.apk"
 TV_ODTIS="E7808780C6F492ADC60036BE680667CF74BDE44164B5C63179E1D0F7BDFD7E16"
 
 # Prvi naslov po vzorcu ($2) iz JSON seznama izdaj ($1); GitHub vrne izdaje od najnovejse naprej.
+# CodeRabbit 4. 11. 2026: brez zadetka grep vrne 1 in pod set -euo pipefail je prirejanje koncalo skripto pred
+# razlago (»Download it by hand«, »Could not find SHA256SUMS«). Brez zadetka je izid prazen niz.
 naslov_iz_izdaj() {
-    printf '%s' "$1" | grep -oE "\"browser_download_url\": *\"$2\"" | head -n 1 | cut -d'"' -f4
+    local zadetek
+    zadetek="$(printf '%s' "$1" | grep -oE "\"browser_download_url\": *\"$2\"" | head -n 1)" || true
+    printf '%s' "$zadetek" | cut -d'"' -f4
 }
 
 # Neodvisni pregled 4. 11. 2026 09:10: podpisnika bere SAMO apksigner (sheme v1-v3.1). Prejsnji nadomestek

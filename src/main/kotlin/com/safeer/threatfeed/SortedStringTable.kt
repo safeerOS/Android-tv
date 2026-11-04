@@ -211,7 +211,9 @@ class SortedStringTable private constructor(
                         if (w + 4 > wordsEnd) return null
                         val n = map.getInt(w); w += 4
                         if (n == -1) { words.add(null); continue }
-                        if (n < 0 || w + n > wordsEnd) return null
+                        // CodeRabbit 4. 11. 2026: w + n v Int se je pri pokvarjeni dolzini prelil, ByteArray(n) ~2 GB = OOM
+                        // (Error, catch ga ne ujame) ob vsakem zagonu brskalnika. Meja v Long.
+                        if (n < 0 || w.toLong() + n > wordsEnd) return null
                         val bytes = ByteArray(n)
                         for (k in 0 until n) bytes[k] = map.get(w + k)
                         words.add(String(bytes, Charsets.UTF_8)); w += n

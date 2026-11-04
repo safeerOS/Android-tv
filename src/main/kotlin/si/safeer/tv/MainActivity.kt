@@ -3309,7 +3309,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                         // Prvi vklop v Safeer OS potrebuje sistemsko okno: odpre ga Safeer OS (njegov zaslon Scita).
                         if (b?.getBoolean("potrebuje_okno") == true) { zaslonScitaOs(true); return@poslji }
                         if (dialog.isShowing) izOdgovora(b)
-                        if (b == null) zaslonScitaOs(false)
+                        // CodeRabbit 4. 11. 2026: odgovor pride do 6 s po kliku - zaprt meni ne odpre zaslona sam od sebe.
+                        if (b == null) { if (dialog.isShowing) zaslonScitaOs(false) }
                         else Toast.makeText(this, getString(if (b.getBoolean("vklopljen")) R.string.scit_vklopljen else R.string.scit_izklopljen), Toast.LENGTH_SHORT).show()
                     }
                     return@setOnClickListener

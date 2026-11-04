@@ -170,6 +170,13 @@ if [ -z "${RELEASE_KEY_PASS:-}" ]; then
     exit 1
 fi
 if [ ! -f "$RELEASE_KEYSTORE" ]; then
+    # CodeRabbit 4. 11. 2026: shramba je nastala z geslom kljuca, apksigner pa jo odpre z RELEASE_STORE_PASS - ob
+    # razlicnih geslih je prvi podpis padel. keytool ustvari PKCS12, ki ima eno geslo za shrambo in kljuc: ob
+    # razlicnih geslih novo shrambo zavrnemo z jasnim sporocilom.
+    if [ "$RELEASE_STORE_PASS" != "$RELEASE_KEY_PASS" ]; then
+        echo "❌ Nova shramba (PKCS12) potrebuje enako geslo shrambe in kljuca (RELEASE_STORE_PASS = RELEASE_KEY_PASS)." >&2
+        exit 1
+    fi
     echo "🔑 Ustvarjam produkcijski keystore za TV ($RELEASE_KEYSTORE) – shrani varnostno kopijo na USB!"
     mkdir -p "$KEYSTORE_DIR"
     keytool -genkeypair -v \
@@ -178,7 +185,7 @@ if [ ! -f "$RELEASE_KEYSTORE" ]; then
         -keyalg RSA \
         -keysize 4096 \
         -validity 10000 \
-        -storepass:env RELEASE_KEY_PASS \
+        -storepass:env RELEASE_STORE_PASS \
         -keypass:env RELEASE_KEY_PASS \
         -dname "CN=Safeer Browser for Android TV, OU=Safeer Security, O=Safeer, L=Ljubljana, ST=Slovenia, C=SI"
 fi

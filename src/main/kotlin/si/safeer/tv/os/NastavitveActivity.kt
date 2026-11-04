@@ -357,7 +357,12 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             safeer(R.drawable.os_ikona_scit, R.string.os_scit, R.string.os_scit_nastavitev_opis, vklop(Scit.jeVklopljen(this))) {
                 // Preverba TV 4. 11. 2026 06:38: en OK na vrstici je zascito takoj izklopil (brez potrditve, tudi po nesreci).
                 // Vrstica odpre zaslon Scita (vklop/izklop, zadnja imena, izjeme); preklop samo, ce zaslona ni.
-                if (!Scit.odpriZaslon(this)) preklopiScit()
+                // CodeRabbit 4. 11. 2026: ko Scit vodi sosednji brskalnik, je odpriZaslon vrnil false in preklopiScit() ga je
+                // izklopil brez potrditve. Zdaj odpre zaslon Scita v sosedu; brez zaslona samo vklop, nikoli tih izklop.
+                if (!Scit.odpriZaslon(this)) {
+                    if (!Scit.vodimo(this)) Scit.odpriVklop(this)
+                    else if (!Scit.jeVklopljen(this)) preklopiScit()
+                }
             },
             // Obvestila (telefon, tablica): brez njih "Poslji na napravo" in sporocila z drugih naprav v ozadju niso vidni;
             // dovoljenje, ki ga je uporabnik enkrat zavrnil, sistem ne ponudi vec - zato pot do nastavitev aplikacije tu.

@@ -28,6 +28,8 @@ IZDAJE='[{"tag_name": "predvajalnik-v1.2", "assets": [{"browser_download_url": "
 preveri "izdaja: prvi APK brskalnika (ne predvajalnik)" "$GH/v2.1.232/$IME" "$(naslov_iz_izdaj "$IZDAJE" "$VZOREC_APK")"
 preveri "izdaja: tuj gostitelj ne" "" "$(naslov_iz_izdaj '{"browser_download_url": "https://x.test/v2/'"$IME"'"}' "$VZOREC_APK")"
 preveri "izdaja: oznaka brez v<stevilka> ne" "" "$(naslov_iz_izdaj '{"browser_download_url": "'"$GH"'/beta/'"$IME"'"}' "$VZOREC_APK")"
+# CodeRabbit 4. 11. 2026: brez zadetka pod set -euo pipefail (kot v skripti) prazen izid, ne izhod pred razlago.
+preveri "izdaja brez APK pod pipefail: prazno, skripta tece" "[]" "$( (set -euo pipefail; u="$(naslov_iz_izdaj '[]' "$VZOREC_APK")"; printf '[%s]' "$u") 2>/dev/null)"
 
 lazni_curl() {
     case "$*" in

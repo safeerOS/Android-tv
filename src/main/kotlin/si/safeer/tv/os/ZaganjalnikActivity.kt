@@ -114,6 +114,9 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         // Grok 8, Z1: tudi namizje na zunanjem zaslonu (SECONDARY_HOME, DeX) gre skozi vrata.
         val domov = intent?.let { it.hasCategory(Intent.CATEGORY_HOME) || it.hasCategory(Intent.CATEGORY_SECONDARY_HOME) } == true
         val vrnjen = domov && Zaganjalnik.preveriObZagonu(this)
+        // CodeRabbit 4. 11. 2026: zastavico je postavil samo onResume - padec v zgradi() pred onResume se ni stel in
+        // vrata zanke padcev doma niso prekinila. Po vratih (stari zapisi izhodov drugih zaslonov ne stejejo), pred delom.
+        if (domov && !vrnjen) Zaganjalnik.domNaZaslonu(this, true)
         Zaganjalnik.namestiZascito(this)
         if (intent?.hasCategory(Intent.CATEGORY_HOME) == true && !vrnjen) Zaganjalnik.zabeleziZagonDomov(this)
         if (!vrnjen) Predgretje.zazeni(this)
