@@ -1947,7 +1947,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
      * (window.opener) prijava z Google, Facebook ali X ne more vrniti odgovora in se konca
      * v praznem oknu.
      */
-    private fun odpriPojavnoOkno(resultMsg: android.os.Message): Boolean {
+    private fun odpriPojavnoOkno(resultMsg: android.os.Message, kretnja: Boolean, povezava: String?): Boolean {
         val transport = resultMsg.obj as? android.webkit.WebView.WebViewTransport ?: return false
         // Pogled se ni zavihek: dokler ne vemo, kam okno pelje, se stevec zavihkov ne
         // premakne in noben uporabnikov zavihek se ne umakne, da bi naredil prostor.
@@ -1964,17 +1964,48 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             pogled.post { tabManager.zavrziPojavni(pogled) }
         }
 
+        val izvorStrani = starsevski?.url
+        val vAplikaciji = nacinAplikacije != null
         pogled.vratarPojavnega = vratar@{ naslov ->
             if (odloceno) return@vratar false
             odloceno = true
             val zdaj = android.os.SystemClock.elapsedRealtime()
             val podvojeno = naslov == zadnjePojavno.first && zdaj - zadnjePojavno.second < 2_000L
+            // Lastnik 4. 11. 2026 (rtvslo.si -> 365.rtvslo.si): povezava, ki jo uporabnik klikne, se odpre; prijava ostane, kot je.
+            val odlocitev = if (PrijavnaOkna.jePrijava(naslov)) null
+                else SpletVarnostPravila.pojavnoOkno(kretnja, naslov, izvorStrani, povezava, vAplikaciji)
             when {
                 podvojeno -> {
                     zavrzi("Podvojeno okno zaprto", naslov)
                     false
                 }
-                !PrijavnaOkna.jePrijava(naslov) -> {
+                odlocitev == SpletVarnostPravila.PojavnoOkno.ISTI_ZAVIHEK -> {
+                    zadnjePojavno = naslov to zdaj
+                    android.util.Log.i("SafeerPojavno", "Povezava v istem zavihku: ${naslov.take(90)}")
+                    pogled.post {
+                        tabManager.zavrziPojavni(pogled)
+                        try { starsevski?.loadUrl(naslov) } catch (_: Throwable) {}
+                    }
+                    false
+                }
+                odlocitev == SpletVarnostPravila.PojavnoOkno.NOV_ZAVIHEK -> {
+                    zadnjePojavno = naslov to zdaj
+                    android.util.Log.i("SafeerPojavno", "Povezava v novem zavihku: ${naslov.take(90)}")
+                    pogled.post {
+                        tabManager.zavrziPojavni(pogled)
+                        // Tuja domena iz spletne aplikacije: navaden zavihek brskalnika z naslovno vrstico.
+                        if (nacinAplikacije != null) izklopiNacinAplikacije()
+                        try {
+                            // Nazaj zapre zavihek in vrne na stran, ki ga je odprla (kot pri prijavnem oknu).
+                            val nov = tabManager.createTab(this, naslov, true)
+                            nov.jePojavni = true
+                            nov.odpiralec = odpiralec
+                            podedujIzvor(nov.webView, starsevski)
+                        } catch (_: Throwable) {}
+                    }
+                    false
+                }
+                odlocitev != null -> {
                     zavrzi("Pojavno okno preprečeno", naslov)
                     false
                 }
@@ -2129,7 +2160,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         }
         // Pregledovalnik PDF: "prenesi izvirnik" gre kot navaden prenos, "gor" iz orodne vrstice v naslovno vrstico.
         wv.onPdfPrenos = { url, userAgent -> downloadHandler.startDownload(url, userAgent, null, "application/pdf") }
-        wv.naPojavnoOkno = { resultMsg -> odpriPojavnoOkno(resultMsg) }
+        wv.naPojavnoOkno = { resultMsg, kretnja, povezava -> odpriPojavnoOkno(resultMsg, kretnja, povezava) }
         // window.close(): pojavni zavihek (prijava) se zapre in vrne na stran, ki ga je odprla. Navaden
         // zavihek ostane - stran ne sme zapreti uporabnikovega zavihka.
         wv.naZapriOkno = { pogled -> pogled.post { tabManager.zapriPojavniPoPogledu(this, pogled) } }

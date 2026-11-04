@@ -211,7 +211,8 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
      * Stran je zahtevala novo okno. MainActivity zanj pripravi skrit zavihek in vrne true,
      * kadar je okno prevzel. Naslova se ne poznamo - zato okno dobi vratarja spodaj.
      */
-    var naPojavnoOkno: ((android.os.Message) -> Boolean)? = null
+    /** Novo okno strani: sporocilo, ali je bila uporabnikova kretnja, in href povezave pod fokusom/dotikom (ali null). */
+    var naPojavnoOkno: ((android.os.Message, Boolean, String?) -> Boolean)? = null
 
     /**
      * Stran je poklicala window.close(). Lastnik 30. 10. 2026: Googlova prijava (claude.ai) je obstala na
@@ -900,7 +901,12 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
                     resultMsg.sendToTarget()
                     return true
                 }
-                return naPojavnoOkno?.invoke(resultMsg) ?: false
+                // Lastnik 4. 11. 2026: povezava, ki jo je uporabnik kliknil (href pod fokusom ali dotikom), loci kliknjeno
+                // povezavo target=_blank od window.open oglasa ob kliku na predvajalnik (SpletVarnostPravila.pojavnoOkno).
+                val povezava = try {
+                    view?.hitTestResult?.takeIf { it.type == WebView.HitTestResult.SRC_ANCHOR_TYPE }?.extra
+                } catch (_: Exception) { null }
+                return naPojavnoOkno?.invoke(resultMsg, isUserGesture, povezava) ?: false
             }
 
             override fun onProgressChanged(view: WebView?, newProgress: Int) {
