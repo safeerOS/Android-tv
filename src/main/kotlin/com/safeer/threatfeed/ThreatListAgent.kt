@@ -307,6 +307,7 @@ class ThreatListAgent(
      * as saved (refresh() reads and verifies them when it needs their entries).
      */
     fun loadSaved(only: Set<String>? = null): List<PlainList> = synchronized(lock) {
+        removeStaleTemp()
         val loaded = ArrayList<PlainList>()
         val infos = ArrayList<PlainListInfo>()
         for (source in sources) {
@@ -446,15 +447,37 @@ class ThreatListAgent(
         if (!directory.isDirectory && !directory.mkdirs()) throw IOException("cannot create ${directory.name}")
     }
 
-    private fun atomicWrite(target: File, data: ByteArray) {
-        val temp = File(target.parentFile, "${target.name}.tmp")
+    private fun atomicWrite(target: File, data: ByteArray) = atomicReplace(target, data)
+
+    /** Temporary files of a write that was cut off (process killed); fresh ones may belong to a write in progress. */
+    private fun removeStaleTemp() {
+        val limit = System.currentTimeMillis() - STALE_TEMP_MS
+        try {
+            directory.listFiles { f -> f.isFile && f.name.endsWith(".tmp") && f.lastModified() < limit }?.forEach { it.delete() }
+        } catch (e: Exception) { /* best effort */ }
+    }
+
+    private fun sha256(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
+}
+
+private const val STALE_TEMP_MS = 3_600_000L
+
+/**
+ * Replaces [target] atomically through a temporary file with a unique name in the same directory. The browser and Safeer
+ * Scit (its own process) may write the same list at the same time; with the fixed name "<name>.tmp" one process truncated
+ * or moved away the other's half-written file (4. 11. 2026). On failure the temporary file is removed.
+ */
+internal fun atomicReplace(target: File, data: ByteArray) {
+    val temp = File.createTempFile("${target.name}.", ".tmp", target.parentFile)
+    try {
         FileOutputStream(temp).use { out ->
             out.write(data)
             out.flush()
             out.fd.sync()
         }
         Files.move(temp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+    } catch (e: Throwable) {
+        temp.delete()
+        throw e
     }
-
-    private fun sha256(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
 }

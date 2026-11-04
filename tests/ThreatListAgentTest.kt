@@ -328,6 +328,39 @@ fun main() {
         a.stop()
     }
 
+    test("concurrent writes of the same file: no exception, whole content, no temporary files (two processes, 4. 11. 2026)") {
+        val mapa = Files.createTempDirectory("safeer-atomic").toFile()
+        try {
+            val cilj = File(mapa, "hagezi-pro.list")
+            val vsebine = (0 until 2).map { n -> ByteArray(256 * 1024) { (n + 'a'.code).toByte() } }
+            val napake = java.util.concurrent.ConcurrentLinkedQueue<Throwable>()
+            val zacni = CountDownLatch(1)
+            val niti = vsebine.map { v ->
+                Thread {
+                    zacni.await()
+                    repeat(200) { try { atomicReplace(cilj, v) } catch (e: Throwable) { napake.add(e) } }
+                }.apply { start() }
+            }
+            zacni.countDown()
+            niti.forEach { it.join(60_000) }
+            check(napake.isEmpty()) { "${napake.size} errors, first: ${napake.peek()}" }
+            val koncna = cilj.readBytes()
+            check(vsebine.any { it.contentEquals(koncna) }) { "torn content (${koncna.size} bytes)" }
+            val ostanki = mapa.list().orEmpty().filter { it != cilj.name }
+            check(ostanki.isEmpty()) { "left over: $ostanki" }
+        } finally { mapa.deleteRecursively() }
+    }
+    test("stale temporary files are removed on load, fresh ones and lists are kept") {
+        val mapa = Files.createTempDirectory("safeer-stale").toFile()
+        try {
+            val star = File(mapa, "urlhaus.list.123.tmp").apply { writeText("x"); setLastModified(System.currentTimeMillis() - 2 * 3600_000L) }
+            val svez = File(mapa, "urlhaus.list.456.tmp").apply { writeText("y") }
+            val seznam = File(mapa, "urlhaus.list").apply { writeText("a.example"); setLastModified(System.currentTimeMillis() - 2 * 3600_000L) }
+            ThreatListAgent(mapa, listOf(HOSTS)) { }.loadSaved()
+            check(!star.exists() && svez.exists() && seznam.exists()) { mapa.list().orEmpty().toList().toString() }
+        } finally { mapa.deleteRecursively() }
+    }
+
     dir.deleteRecursively()
     println("ThreatListAgent: $passed passed, $failed failed")
     exitProcess(if (failed == 0) 0 else 1)
