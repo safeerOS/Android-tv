@@ -129,6 +129,12 @@ fun main() {
     preveriEnako("ni v vrstici", null, PokrajinaPravila.premakni(listOf("a"), "x", 1))
     preveriEnako("tipke: levo, desno, OK, Nazaj, drugo", listOf(-1, 1, 0, 0, null),
         listOf(21, 22, 23, 4, 19).map { PokrajinaPravila.tipkaPremikanja(it) })
+    preveriEnako("med premikom GOR/DOL pogoltneta, levo/desno/OK ne", listOf(true, true, false, false, false),
+        listOf(19, 20, 21, 22, 23).map { PokrajinaPravila.pogoltneMedPremikanjem(it) })
+    preveriEnako("napis pod vrstico ploscic", 110, PokrajinaPravila.vrhNamigaPremika(20, 100, 40, 10, false, 600))
+    preveriEnako("napis nad spodnjo vrstico", 450, PokrajinaPravila.vrhNamigaPremika(500, 560, 40, 10, true, 600))
+    preveriEnako("napis ostane v okvirju (zgoraj)", 0, PokrajinaPravila.vrhNamigaPremika(20, 60, 40, 10, true, 600))
+    preveriEnako("napis ostane v okvirju (spodaj)", 560, PokrajinaPravila.vrhNamigaPremika(500, 590, 40, 10, false, 600))
 
     println("\n== mirovanje (po zgledu tv-simple-home) ==")
     preveriEnako("pred mejo ne miruje", false, PokrajinaPravila.mirujePo(0, PokrajinaPravila.MIROVANJE_MS - 1))

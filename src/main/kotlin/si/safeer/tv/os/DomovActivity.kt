@@ -1591,7 +1591,11 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     private fun zacniPremik(oznaka: String) {
         premikam = oznaka
-        vrstaAplikacije.post { oznaciPremik() }
+        vrstaAplikacije.post {
+            oznaciPremik()
+            // Bralnik zaslona: enako kot napis na zaslonu (preverba TV 4. 11. 2026, isti vir kot na domu Pokrajina).
+            if (premikam != null) @Suppress("DEPRECATION") opombaSpodaj.announceForAccessibility(opombaSpodaj.text)
+        }
     }
 
     private fun oznaciPremik() {

@@ -195,6 +195,18 @@ object PokrajinaPravila {
         else -> null
     }
 
+    /** GOR/DOL med premikanjem: pogoltneta se, da fokus ne zapusti vrstice, medtem ko je premik se vklopljen. */
+    fun pogoltneMedPremikanjem(koda: Int): Boolean = koda == 19 || koda == 20   // KEYCODE_DPAD_UP, KEYCODE_DPAD_DOWN
+
+    /**
+     * Zgornji rob napisa med premikom (v koordinatah okvirja): pod vrstico ali nad njo, z robom [rob], vedno cel v okvirju.
+     * Preverba TV 4. 11. 2026: premik se je zacel brez vidnega napisa.
+     */
+    fun vrhNamigaPremika(vrhVrste: Int, dnoVrste: Int, visinaNamiga: Int, rob: Int, nadVrsto: Boolean, visinaOkvirja: Int): Int {
+        val y = if (nadVrsto) vrhVrste - rob - visinaNamiga else dnoVrste + rob
+        return y.coerceIn(0, maxOf(0, visinaOkvirja - visinaNamiga))
+    }
+
     /** Fokus po vrstici z daljincem: levo/desno ostane v vrstici, na robu se ustavi (ne skoci v drugo vrstico). */
     fun naslednji(indeks: Int, korak: Int, stevilo: Int): Int =
         if (stevilo <= 0) -1 else (indeks + korak).coerceIn(0, stevilo - 1)

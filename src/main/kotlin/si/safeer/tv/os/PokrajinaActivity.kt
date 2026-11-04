@@ -70,6 +70,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     private lateinit var tedenVrsta: LinearLayout
     private lateinit var vrstaAplikacij: LinearLayout
     private lateinit var dok: LinearLayout
+    /** Napis med premikanjem plosce ali gumba spodnje vrstice (preverba TV 4. 11. 2026: brez njega uporabnik ni vedel, da premika). */
+    private lateinit var namigPremika: TextView
     private lateinit var preliv: View
     private lateinit var zadetki: LinearLayout
     /** Drsnik zadetkov: vidnost lupe je na njem (zadetki sami so vedno vidni v njem). */
@@ -363,6 +365,20 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
             gravity = Gravity.CENTER_HORIZONTAL; topMargin = dp(6)
         })
         okvirVsebine.addView(telo, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        // Preverba TV 4. 11. 2026: dolg pritisk OK je zacel premik brez napisa, levo/desno je nato nehote premaknil Splet na
+        // konec vrstice. Isto besedilo kot premik priljubljenih (DomovActivity), lebdi nad vsebino in ne premakne vrstic.
+        namigPremika = TextView(this).apply {
+            text = getString(R.string.os_premakni_namig)
+            textSize = 18f
+            setTextColor(osBarva(R.color.os_opozorilo))
+            background = steklo(14, fokusMogoc = false)
+            setPadding(dp(18), dp(8), dp(18), dp(8))
+            visibility = View.GONE
+            // Bralnik zaslona dobi napis z najavo ob zacetku premika (pokaziNamigPremika), ne se enkrat ob fokusu.
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }
+        okvirVsebine.addView(namigPremika, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+            Gravity.TOP or Gravity.CENTER_HORIZONTAL))
         okvirVsebine.addOnLayoutChangeListener { _, _, t, _, b, _, st, _, sb -> if (b - t != sb - st) glavna.post { prilagodiPloscoZadetkov() } }
         vsebina.addView(okvirVsebine, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         koren.setOnLongClickListener { menijOzadja(); true }
@@ -671,6 +687,9 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                 }
                 return true
             }
+            // GOR/DOL med premikom ne odneseta fokusa iz vrstice (prej je premik ostal vklopljen in je kasnejsi levo/desno
+            // premaknil plosco, ki ni bila vec v fokusu). Enako kot premik priljubljenih v DomovActivity.
+            if (PokrajinaPravila.pogoltneMedPremikanjem(pretvorjen.keyCode)) return true
         }
         premikamDok?.let { id ->
             val t = PokrajinaPravila.tipkaPremikanja(pretvorjen.keyCode)
@@ -680,6 +699,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                 }
                 return true
             }
+            if (PokrajinaPravila.pogoltneMedPremikanjem(pretvorjen.keyCode)) return true
         }
         
         val koda = pretvorjen.keyCode
@@ -2234,9 +2254,11 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
 
     private fun zacniPremikanje(id: String) {
         if (vrstaJePrivzeta) return
+        koncajPremikanjeDok()
         premikam = id
         osveziStanjePremikanja(vrstaAplikacij, id, dp(10))
         vrstaAplikacij.findViewWithTag<View>(id)?.requestFocus()
+        pokaziNamigPremika(vrstaAplikacij, nadVrsto = false)
     }
 
     private fun koncajPremikanje() {
@@ -2244,6 +2266,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         premikam = null
         osveziStanjePremikanja(vrstaAplikacij, null, dp(10))
         vrstaAplikacij.findViewWithTag<View>(id)?.requestFocus()
+        skrijNamigPremika()
     }
 
     private fun odstraniPloscico(id: String, splet: Boolean) {
@@ -2444,9 +2467,11 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     private var premikamDok: String? = null
 
     private fun zacniPremikanjeDok(id: String) {
+        koncajPremikanje()
         premikamDok = id
         osveziStanjePremikanja(dok, "dok:$id", dp(4))
         dok.findViewWithTag<View>("dok:$id")?.requestFocus()
+        pokaziNamigPremika(dok, nadVrsto = true)
     }
 
     private fun koncajPremikanjeDok() {
@@ -2454,6 +2479,26 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         premikamDok = null
         osveziStanjePremikanja(dok, null, dp(4))
         dok.findViewWithTag<View>("dok:$id")?.requestFocus()
+        skrijNamigPremika()
+    }
+
+    /** Napis med vrsticama: pod ploscicami ali nad spodnjo vrstico, da ne prekrije gumba, ki ga uporabnik premika. */
+    private fun pokaziNamigPremika(vrsta: View, nadVrsto: Boolean) {
+        if (!::namigPremika.isInitialized) return
+        val n = namigPremika
+        n.visibility = View.VISIBLE
+        @Suppress("DEPRECATION") n.announceForAccessibility(n.text)
+        n.post {
+            val okvir = n.parent as? ViewGroup ?: return@post
+            if (!vrsta.isAttachedToWindow || n.visibility != View.VISIBLE) return@post
+            val r = android.graphics.Rect(0, 0, vrsta.width, vrsta.height)
+            okvir.offsetDescendantRectToMyCoords(vrsta, r)
+            n.translationY = PokrajinaPravila.vrhNamigaPremika(r.top, r.bottom, n.height, dp(6), nadVrsto, okvir.height).toFloat()
+        }
+    }
+
+    private fun skrijNamigPremika() {
+        if (::namigPremika.isInitialized && premikam == null && premikamDok == null) namigPremika.visibility = View.GONE
     }
 
     private fun osveziStanjePremikanja(vrsta: LinearLayout, aktivenTag: String?, osnovniRob: Int) {
