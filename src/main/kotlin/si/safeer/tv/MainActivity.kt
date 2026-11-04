@@ -263,8 +263,6 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         } else if (!restored) {
             tabManager.createTab(this, SpletDomaca.naslov(this), true)
         }
-        // Ob obnovi aktivnosti (vrtenje, smrt procesa) izbire ne pokazemo znova.
-        if (savedInstanceState == null) ponudiVgrajeniBrskalnik(intent, novZavihek = true)
 
         if (BuildConfig.DEBUG) {
         debugJsReceiver = object : android.content.BroadcastReceiver() {
@@ -1008,52 +1006,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         super.onDestroy()
     }
 
-    /**
-     * Lastnik 30. 10. 2026: prijava iz aplikacije (Claude) je odprla samo Safeer TV Browser, ki je privzeti
-     * brskalnik sistema - vgrajenega brskalnika Safeer OS Android sploh ne ponudi. Ko povezavo odpre druga
-     * aplikacija in je Safeer OS namescen, Safeer TV Browser vprasa, kje naj se odpre. Stran se medtem ze
-     * nalaga tukaj; izbira Safeer OS jo preda tja in ta zavihek zapre.
-     */
-    private fun ponudiVgrajeniBrskalnik(namera: Intent?, novZavihek: Boolean) {
-        if (BuildConfig.FLAVOR != "brskalnik" || namera?.action != Intent.ACTION_VIEW) return
-        val naslov = namera.dataString ?: return
-        if (!naslov.startsWith("http://") && !naslov.startsWith("https://")) return
-        // Prijava (OAuth, Google ...) ostane tu, kjer jo lahko koncamo - brez izbire (lastnik 30. 10. 2026).
-        if (si.safeer.tv.os.OsPravila.jePrijavniNaslov(naslov)) return
-        // Izvor je aplikacija (android-app://paket), ne spletna stran, ki jo lahko nastavi kdorkoli.
-        val izvor = try { referrer?.takeIf { it.scheme == "android-app" }?.host } catch (_: Exception) { null }
-        if (!si.safeer.tv.os.OsPravila.ponudiIzbiroBrskalnika(izvor, packageName)) return
-        val os = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(naslov))
-            .setComponent(android.content.ComponentName("si.safeer.os", "si.safeer.tv.MainActivity"))
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        if (packageManager.resolveActivity(os, 0)?.activityInfo?.exported != true) return
-        webViewContainer.post {
-            if (isFinishing) return@post
-            val okno = AlertDialog.Builder(this)
-                .setTitle(UiText.get(R.string.ui_odpri_povezavo_v))
-                .setItems(arrayOf("Safeer TV Browser", UiText.get(R.string.ui_vgrajeni_brskalnik_os))) { d, kateri ->
-                    d.dismiss()
-                    if (kateri == 1) {
-                        try {
-                            startActivity(os)
-                            // Zavihek se odloci ob izbiri: nov zavihek povezave se zapre; v obstojecem (povezava je
-                            // zamenjala stran) se vrnemo na prejsnjo stran - uporabnikov zavihek ostane.
-                            val tab = tabManager.getActiveTab()
-                            when {
-                                tab == null -> moveTaskToBack(true)
-                                novZavihek && tabManager.getAllTabs().size > 1 -> tabManager.closeTab(this, tab.id)
-                                !novZavihek && tab.webView?.canGoBack() == true -> { tab.webView?.goBack(); moveTaskToBack(true) }
-                                else -> moveTaskToBack(true)
-                            }
-                        } catch (e: Exception) {
-                            android.util.Log.w("SafeerBrskalnik", "Safeer OS ni odprl povezave: ${e.message}")
-                        }
-                    }
-                }
-                .create()
-            try { okno.show() } catch (_: Exception) { }
-        }
-    }
+    // Tedenski pregled 4. 11. 2026 (N15): umaknjena izbira »Odpri povezavo v Safeer OS (vgrajeni brskalnik)« (lastnik
+    // 30. 10. 2026). Cilj si.safeer.os/si.safeer.tv.MainActivity ne obstaja (okusi/os ga odstrani; na TV splet odpira TV
+    // Browser, na tablici in telefonu MainActivity ni izvozena), zato se okno ni pokazalo nikoli.
 
     /**
      * TV 2. 11. 2026 18:27: aplikacija Claude je odprla prijavo (VIEW https://claude.ai/...), po prijavi pa ni bilo poti
@@ -1253,7 +1208,6 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         // Navaden zagon brskalnika po tem, ko je tekla spletna aplikacija: vrni vrstico z naslovom.
         if (nacinAplikacije != null) izklopiNacinAplikacije()
         val url = incomingBrowseUrl(intent)
-        ponudiVgrajeniBrskalnik(intent, novZavihek = false)
         // Pregled 30. 10. 2026: dejavnost je izvozena - preizkusni dodatek samo v razvojni gradnji.
         if (BuildConfig.DEBUG && intent?.getBooleanExtra("exo_smoke", false) == true) {
             playback.playClearSmoke()
