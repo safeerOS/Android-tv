@@ -290,6 +290,12 @@ object KanaliPravila {
     /** Najvec vnosov, ki jih sprejmemo od ene naprave (sporocila Linka so omejena). */
     const val SKRITI_NAJVEC = 2000
 
+    /** Najvec skritih in pokazanih skupaj, ki jih ta naprava hrani od drugih (neodvisni pregled 4. 11. 2026 09:10). */
+    const val SKRITI_SKUPAJ = 2000
+
+    /** Za toliko je smel biti cas druge naprave pred nasim (razlika ur); vec je laz in se poreze na zdaj. */
+    const val SKRITI_PREDNOST_MS = 10 * 60 * 1000L
+
     /** Odtis kljuca kanala za Link: SHA-256 (hex) - iz njega ni mogoce dobiti naslova toka. */
     fun odtisKanala(kljuc: String): String = java.security.MessageDigest.getInstance("SHA-256")
         .digest(kljuc.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
@@ -302,19 +308,26 @@ object KanaliPravila {
      * sporocilo ne daje: spremeni lahko samo, kateri kanali so tu skriti. Skrit tam, tu ne (ali tu pokazan prej): skrit.
      * Pokazan tam pozneje, kot je bil tu skrit: pokazan.
      */
-    fun prevzemiSkrite(moje: SkritiKanali, tuje: SkritiKanali, ozji: Boolean): SkritiKanali {
+    fun prevzemiSkrite(moje: SkritiKanali, tuje: SkritiKanali, ozji: Boolean, zdaj: Long = System.currentTimeMillis()): SkritiKanali {
         if (!ozji) return moje
         val skriti = HashMap(moje.skriti)
         val pokazani = HashMap(moje.pokazani)
-        for ((k, cas) in tuje.skriti.entries.take(SKRITI_NAJVEC)) {
-            if (!veljavenOdtis(k, cas)) continue
-            if (SeznamiPravila.virPrevzamemo(k in skriti, pokazani[k], cas)) { skriti[k] = cas; pokazani.remove(k) }
+        // Neodvisni pregled 4. 11. 2026 09:10: cas pride z druge naprave. Cas v prihodnosti (vec kot SKRITI_PREDNOST_MS)
+        // bi za vedno premagal vsako nadaljnjo spremembo na tej napravi - porezemo ga na zdaj. Skupno stevilo vnosov je
+        // omejeno (SKRITI_SKUPAJ): vsako sporocilo bi sicer dodalo 2000 novih odtisov v nastavitve.
+        fun cas(c: Long) = if (c > zdaj + SKRITI_PREDNOST_MS) zdaj else c
+        fun prostor(k: String) = k in skriti || k in pokazani || skriti.size + pokazani.size < SKRITI_SKUPAJ
+        for ((k, c) in tuje.skriti.entries.take(SKRITI_NAJVEC)) {
+            if (!veljavenOdtis(k, c)) continue
+            val cas = cas(c)
+            if (SeznamiPravila.virPrevzamemo(k in skriti, pokazani[k], cas) && prostor(k)) { skriti[k] = cas; pokazani.remove(k) }
         }
-        for ((k, cas) in tuje.pokazani.entries.take(SKRITI_NAJVEC)) {
-            if (!veljavenOdtis(k, cas)) continue
+        for ((k, c) in tuje.pokazani.entries.take(SKRITI_NAJVEC)) {
+            if (!veljavenOdtis(k, c)) continue
+            val cas = cas(c)
             val moj = skriti[k]
             if (moj != null && SeznamiPravila.izbrisViraVelja(moj, cas)) { skriti.remove(k); pokazani[k] = cas }
-            else if (moj == null && cas > (pokazani[k] ?: 0L)) pokazani[k] = cas
+            else if (moj == null && cas > (pokazani[k] ?: 0L) && prostor(k)) pokazani[k] = cas
         }
         return SkritiKanali(skriti, pokazani)
     }

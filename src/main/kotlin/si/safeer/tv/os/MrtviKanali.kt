@@ -134,7 +134,7 @@ object MrtviKanali {
     @Synchronized fun prevzemiSkrite(c: Context, tuje: KanaliPravila.SkritiKanali, ozji: Boolean): Boolean {
         nalozi(c)
         val prej = KanaliPravila.SkritiKanali(HashMap(skritiOdtis), HashMap(pokazaniOdtis))
-        val novo = KanaliPravila.prevzemiSkrite(prej, tuje, ozji)
+        val novo = KanaliPravila.prevzemiSkrite(prej, tuje, ozji, System.currentTimeMillis())
         if (novo == prej) return false
         val es = c.applicationContext.getSharedPreferences(PREFS_SKRITI_ODTIS, Context.MODE_PRIVATE).edit().clear()
         val ep = c.applicationContext.getSharedPreferences(PREFS_POKAZANI_ODTIS, Context.MODE_PRIVATE).edit().clear()

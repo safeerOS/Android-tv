@@ -354,6 +354,25 @@ fun main() {
             P.prevzemiSkrite(KanaliPravila.SkritiKanali(mapOf(a to 1L), emptyMap()), KanaliPravila.SkritiKanali(mapOf(b to 2L), emptyMap()), true).skriti.keys)
         preveriEnako("neveljaven kljuc (naslov) se zavrne", emptySet<String>(),
             P.prevzemiSkrite(prazno, KanaliPravila.SkritiKanali(mapOf("iptv:http://u:g@x/live" to 5L), emptyMap()), true).skriti.keys)
+        // Neodvisni pregled 4. 11. 2026 09:10: cas iz prihodnosti se poreze, stevilo vnosov je omejeno.
+        val zdaj = 1_000_000_000L
+        val prihodnost = P.prevzemiSkrite(prazno, KanaliPravila.SkritiKanali(mapOf(a to Long.MAX_VALUE), emptyMap()), true, zdaj)
+        preveriEnako("cas iz prihodnosti: porezan na zdaj", zdaj, prihodnost.skriti[a])
+        preveriEnako("cas iz prihodnosti: poznejsi prikaz tu ga premaga", emptySet<String>(),
+            P.prevzemiSkrite(prihodnost, KanaliPravila.SkritiKanali(emptyMap(), mapOf(a to zdaj + 1)), true, zdaj + 1).skriti.keys)
+        preveriEnako("razlika ur do 10 min velja", zdaj + 5 * 60_000L,
+            P.prevzemiSkrite(prazno, KanaliPravila.SkritiKanali(mapOf(a to zdaj + 5 * 60_000L), emptyMap()), true, zdaj).skriti[a])
+        preveriEnako("pokazan iz prihodnosti: porezan", zdaj,
+            P.prevzemiSkrite(prazno, KanaliPravila.SkritiKanali(emptyMap(), mapOf(b to Long.MAX_VALUE / 2)), true, zdaj).pokazani[b])
+        val mnogo = KanaliPravila.SkritiKanali((0 until 1500).associate { P.odtisKanala("s$it") to 10L }, (0 until 1500).associate { P.odtisKanala("p$it") to 10L })
+        var stanje = P.prevzemiSkrite(prazno, mnogo, true, zdaj)
+        preveriEnako("skupaj najvec SKRITI_SKUPAJ", KanaliPravila.SKRITI_SKUPAJ, stanje.skriti.size + stanje.pokazani.size)
+        for (krog in 0 until 3) stanje = P.prevzemiSkrite(stanje, KanaliPravila.SkritiKanali((0 until 2000).associate { P.odtisKanala("n$krog-$it") to 10L }, emptyMap()), true, zdaj)
+        preveriEnako("vec sporocil ne preseze meje", KanaliPravila.SKRITI_SKUPAJ, stanje.skriti.size + stanje.pokazani.size)
+        val polno = P.prevzemiSkrite(prazno, mnogo, true, zdaj)
+        val znan = polno.skriti.keys.first()
+        preveriEnako("pri polni meji: znan kanal se se vedno pokaze", true,
+            P.prevzemiSkrite(polno, KanaliPravila.SkritiKanali(emptyMap(), mapOf(znan to 20L)), true, zdaj).pokazani.containsKey(znan))
         preveriEnako("izvoz samo v ozji krog", null, P.izvozSkritih(prazno, ozji = false))
         // Lastnik 4. 11. 2026: izbira vec kanalov.
         preveriEnako("izbira: OK oznaci", setOf("a", "b"), P.preklopiIzbiro(setOf("a"), "b"))
