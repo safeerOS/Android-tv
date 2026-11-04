@@ -6369,7 +6369,9 @@ class GlasbaActivity : OsActivity() {
         ikone[getString(R.string.os_dodatek_o_vsebini)] = R.drawable.ic_m_info
         // Preverba TV 4. 11. 2026: meni s ploscicami (MeniKanala) za vso vsebino - Radio, Glasba, Video - ne samo za kanale;
         // prej je bil tu sivi sistemski seznam.
-        MeniKanala.pokazi(this, sk.naslov, sk.izvajalec, dejanja.map { (napis, izvedi) ->
+        // Prvo ploscico dobi fokus: odstranjevanje gre na konec, da OK ob odprtju menija nicesar ne izbrise.
+        val odstrani = setOf(R.drawable.ic_m_odstrani, R.drawable.ic_m_history)
+        MeniKanala.pokazi(this, sk.naslov, sk.izvajalec, dejanja.sortedBy { ikone[it.first] in odstrani }.map { (napis, izvedi) ->
             MeniKanala.Dejanje(napis, ikone[napis] ?: R.drawable.ic_m_popup, napis in poudarjena) { izvedi() }
         })
     }
