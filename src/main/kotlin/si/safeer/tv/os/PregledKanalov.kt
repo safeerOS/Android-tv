@@ -99,8 +99,8 @@ object PregledKanalov {
      * Ostali ostanejo vidni - o njih odloci pravo predvajanje.
      */
     fun smeSonda(c: Context, sk: Jamendo.Skladba): Boolean {
-        // Lastnik 3. 11. 2026: tudi seznam, ki ni ne racun ne znan javni, se preveri (racun nikoli).
-        if (IptvSeznami.jeKanal(sk)) return IptvPravila.preverbaDovoljena(sk.streznik, sk.zvok) || KanaliPravila.smeSondaSeznama(
+        // Odlocitev lastnika 4. 11. 2026 (preklice 3. 11.): samo znani javni seznam; neznanega in racuna nikoli.
+        if (IptvSeznami.jeKanal(sk)) return IptvPravila.preverbaDovoljena(sk.streznik, sk.zvok) && KanaliPravila.smeSondaSeznama(
             KanaliPravila.vrstaIptv(IptvPravila.jeVirSPoverilnico(sk.streznik, seznam = true), IptvPravila.javniBrezplacni(sk.streznik)),
             IptvPravila.jeVirSPoverilnico(sk.zvok, seznam = false))
         val dodatek = Stremio.razstavi(sk)?.first ?: return false

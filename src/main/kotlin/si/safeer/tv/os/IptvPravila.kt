@@ -342,7 +342,8 @@ object IptvPravila {
     /**
      * Zakaj se kanali vira [naslov] ne pregledajo ("" = smejo): seznam, ki ni javni brezplacni, in dodatek, ki ni pozitivno
      * znan javen ([javniDodatek]), nikoli - tudi z rocnim »Preveri kanale zdaj« ne (seznam Xtream s 5000 kanali je 5000
-     * odprtij racuna; dodatek z racunom na strezniku je ena povezava na sondo).
+     * odprtij racuna; dodatek z racunom na strezniku je ena povezava na sondo). Odlocitev lastnika 4. 11. 2026: tudi neznan
+     * seznam (brez poverilnice v naslovu, ni znani javni) se ne pregleda - lahko je placljiv racun, vezan na IP.
      */
     fun zakajNePregleda(jeSeznam: Boolean, naslov: String): String = when {
         jeSeznam && jeVirSPoverilnico(naslov, seznam = true) -> "seznam s poverilnico"

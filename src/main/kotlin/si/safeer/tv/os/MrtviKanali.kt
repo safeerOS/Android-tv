@@ -132,15 +132,27 @@ object MrtviKanali {
     fun skrij(c: Context, s: Jamendo.Skladba): Boolean = KanaliPravila.skrijNedelujoc(jeMrtev(c, s.id), IptvSeznami.jeKanal(s),
         KanaliPravila.znanNedelujocTok(s.zvok) || KanaliPravila.znanNedelujocTok(s.povezava))
 
+    /** Lastnik 4. 11. 2026: izbira »Pokazi skrite kanale« v TV v zivo - kanali, ki jih je skril uporabnik, so vidni. */
+    @Volatile var pokaziSkrite = false
+
     fun jeMrtev(c: Context, id: String): Boolean {
         nalozi(c)
         if (doKdaj.isEmpty() && skriti.isEmpty()) return false
         val k = OsPravila.kljucKanala(id)
-        if (k in skriti) return true
-        val t = doKdaj[k] ?: return false
-        if (t > System.currentTimeMillis()) return true
-        doKdaj.remove(k)
-        return false
+        val t = doKdaj[k]
+        if (t != null && t <= System.currentTimeMillis()) doKdaj.remove(k)
+        return KanaliPravila.mrtevZaMrezo(k in skriti, pokaziSkrite, t, System.currentTimeMillis())
+    }
+
+    /** Uporabnik je ta kanal skril sam (kljuc kartice, stalen med osvezitvami seznama). */
+    fun jeSkrit(c: Context, id: String): Boolean { nalozi(c); return OsPravila.kljucKanala(id) in skriti }
+
+    /** Lastnik 4. 11. 2026: »Pokazi kanal« - en skrit kanal (vse razlicice kartice) spet v mrezi. */
+    fun pokazi(c: Context, kljuci: List<String>) {
+        nalozi(c)
+        val e = c.applicationContext.getSharedPreferences(PREFS_SKRITI, Context.MODE_PRIVATE).edit()
+        for (k in kljuci) { skriti -= k; e.remove(k) }
+        e.apply()
     }
 
     /**

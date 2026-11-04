@@ -262,6 +262,20 @@ object KanaliPravila {
     }
 
     /** Kljuci ([OsPravila.kljucKanala]) kartice [id] in vseh njenih razlicic [razlicice], brez dvojnikov. */
+    /**
+     * Lastnik 4. 11. 2026: kanal, ki ga je uporabnik sam skril ([skrit]), ni v mrezi; z izbiro »Pokazi skrite kanale«
+     * ([pokaziSkrite]) je viden (oznacen) in ga je mogoce vrniti. Kanal, ki ne deluje ([mrtevDo] v prihodnosti), ostane skrit.
+     */
+    fun mrtevZaMrezo(skrit: Boolean, pokaziSkrite: Boolean, mrtevDo: Long?, zdaj: Long): Boolean =
+        (skrit && !pokaziSkrite) || (mrtevDo != null && mrtevDo > zdaj)
+
+    /** Fokus po skritju kartice na mestu [i] od [n]: naslednja (po umiku ima isto mesto), zadnja pa prejsnja; -1 = nic. */
+    fun fokusPoSkritju(i: Int, n: Int): Int = when {
+        n <= 1 || i < 0 -> -1
+        i < n - 1 -> i
+        else -> n - 2
+    }
+
     fun kljuciKartice(id: String, razlicice: List<String>): List<String> = (razlicice + id).map { OsPravila.kljucKanala(it) }.distinct()
 
     fun filtri(katalogi: List<Katalog>): Filtri {
@@ -534,8 +548,9 @@ object KanaliPravila {
 
     /**
      * Seznam IPTV: uporabnikov racun (poverilnica v naslovu, Xtream) se pokaze ves in se nikoli ne preverja v ozadju; znani
-     * javni (iptv-org) se pokaze in preverja. Lastnik 3. 11. 2026: seznam, ki ni ne eno ne drugo, se pokaze in preveri kot
-     * javni (vnosi s prijavo ali HTML izginejo), ne skrije se.
+     * javni (iptv-org) se pokaze in preverja. Odlocitev lastnika 4. 11. 2026 (preklice 3. 11.): seznam, ki ni ne eno ne
+     * drugo, je privzeto skrit (pokaze ga samo »Pokazi skrite kanale«) in se nikoli ne preverja v ozadju - lahko je
+     * placljiv racun, vezan na IP, ki bi ga sonda kanal za kanalom zaklenila.
      */
     fun vrstaIptv(racun: Boolean, javni: Boolean): VrstaKanala = when {
         racun -> VrstaKanala.IPTV_RACUN
@@ -554,16 +569,19 @@ object KanaliPravila {
     // poverilnico), bi kot PREVERI ostal skrit za vedno. Tak kanal se pokaze kot doslej (odloci klik).
     fun vMrezi(vrsta: VrstaKanala, stanje: Boolean?, preverjam: Boolean, pokaziZaklenjene: Boolean, preverljiv: Boolean = true): Prikaz = when {
         stanje == false -> Prikaz.SKRIJ
+        // Odlocitev lastnika 4. 11. 2026: neznan seznam samo z »Pokazi skrite kanale«.
+        vrsta == VrstaKanala.IPTV_NEZNAN && !pokaziZaklenjene -> Prikaz.SKRIJ
         vrsta == VrstaKanala.DODATEK && stanje == null && preverjam && preverljiv && !pokaziZaklenjene -> Prikaz.PREVERI
         else -> Prikaz.PRIKAZI
     }
 
     /**
-     * Sonda toka kanala seznama v ozadju: javni seznam in (lastnik 3. 11. 2026) seznam, ki ni ne racun ne znan javni - oba
-     * brez poverilnice v naslovu toka. Racuna nikoli (fail-closed, lastnik 26. 10. 2026: zaklep placljivega racuna).
+     * Sonda toka kanala seznama v ozadju: samo znani javni seznam brez poverilnice v naslovu toka. Racuna nikoli (fail-closed,
+     * lastnik 26. 10. 2026) in neznanega seznama nikoli - ne ob prikazu in ne po »Pokazi skrite kanale« (odlocitev lastnika
+     * 4. 11. 2026: placljiv racun, vezan na IP, nima poverilnice v naslovu).
      */
     fun smeSondaSeznama(vrsta: VrstaKanala, tokSPoverilnico: Boolean): Boolean =
-        !tokSPoverilnico && (vrsta == VrstaKanala.IPTV_JAVNI || vrsta == VrstaKanala.IPTV_NEZNAN)
+        !tokSPoverilnico && vrsta == VrstaKanala.IPTV_JAVNI
 
     /**
      * JSON tokov dodatka v ozadju: samo brez poverilnice (podana ali naucena) in ne med predvajanjem. Odlocitev lastnika

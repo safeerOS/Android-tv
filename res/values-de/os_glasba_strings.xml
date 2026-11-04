@@ -305,7 +305,6 @@
     <string name="os_media_kanal_mrtev">„%1$s“ funktioniert nicht – Stream nicht lesbar. Bis morgen ausgeblendet.</string>
     <!-- Naloga 73: noben vir kanalov ni odgovoril (mreza poskusi znova sama). -->
     <string name="os_tv_viri_ne_odgovarjajo">Die Kanalquellen antworten nicht. Neuer Versuch in %1$d Min.</string>
-    <string name="os_tv_kanal_ne_deluje_skrij">Sender funktioniert nicht – ausblenden</string>
     <string name="os_tv_ni_kanalov">Keine Sender in dieser Auswahl.</string>
     <string name="os_tv_nadomestek_vsi">In dieser Auswahl noch keine Sender – alle Sender werden angezeigt.</string>
     <string name="os_kanali_novice">Nachrichten</string>
@@ -389,8 +388,8 @@
     <string name="os_mediji_odkleni">Beim Add-on freischalten</string>
     <string name="os_mediji_odkleni_opis">Die Zahlung ist eine Sache zwischen dir und dem Add-on %1$s. Nach dem Abo gibt das Add-on meist eine neue Adresse (mit deinem Code) – füge sie statt der alten zu Meinen Quellen hinzu.</string>
     <string name="os_mediji_odkleni_odpri">Öffnen</string>
-    <string name="os_tv_brez_zaklenjenih">Gesperrte Sender ausblenden</string>
-    <string name="os_tv_pokazi_zaklenjene">Gesperrte Sender anzeigen</string>
+    <string name="os_tv_brez_zaklenjenih">Ausgeblendete Sender verbergen</string>
+    <string name="os_tv_pokazi_zaklenjene">Ausgeblendete Sender anzeigen</string>
     <string name="os_mediji_dvojnik_dodatka">%1$s ist doppelt hinzugefügt (alte und neue Adresse). Alte Adresse entfernen?</string>
     <!-- Naloga 80: seznam IPTV v Mojih virih. -->
     <plurals name="os_iptv_kanalov">
@@ -429,7 +428,7 @@
     <string name="os_besedila_ni_vira">Füge unter „Quelle hinzufügen“ die Songtext-Quelle (lrclib.net) hinzu, um Songtexte zu sehen.</string>
     <string name="os_besedila_napaka">Der Songtext kann gerade nicht geladen werden.</string>
     <string name="os_besedila_instrumentalno">Instrumental – kein Songtext.</string>
-    <string name="os_tv_vrni_skrite">Ausgeblendete Sender anzeigen (%1$d)</string>
+    <string name="os_tv_vrni_skrite">Alle ausgeblendeten Sender wiederherstellen (%1$d)</string>
     <string name="os_tv_vsi_kanali">Alle Sender</string>
     <string name="os_tv_priljubljeni_n">Favoriten (%1$d)</string>
     <string name="os_premakni_na_zacetek">An den Anfang</string>
@@ -452,4 +451,7 @@
     <string name="os_nedel_ni_drugega">Kein anderes Video gefunden</string>
     <string name="os_nedel_nov_posnetek">Anderes Video gefunden</string>
     <string name="os_media_oznaka_video">▶ Video</string>
+    <string name="os_tv_skrij_kanal">Sender ausblenden</string>
+    <string name="os_tv_pokazi_kanal">Sender anzeigen</string>
+    <string name="os_tv_kanal_skrit">%1$s · ausgeblendet</string>
 </resources>

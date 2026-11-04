@@ -4375,11 +4375,13 @@ class GlasbaActivity : OsActivity() {
             val skritih = MrtviKanali.steviloSkritih(this)
             // Naloga 122 (lastnik): izbire »Ne delujejo (N)« (108) ni vec - nedelujocih kanalov uporabnik ne vidi nikjer;
             // oznaka mrtvega kanala potece sama in pregled kanalov (75) jih preverja v ozadju.
-            val zaklenjeni = tvZaklenjeni || stremioNaslovi().any { Stremio.zaklenjenZaMrezo(it) }
+            // Lastnik 4. 11. 2026: izbira tudi, ko so viri z neznanim seznamom IPTV (privzeto skriti).
+            val zaklenjeni = tvZaklenjeni || stremioNaslovi().any { Stremio.zaklenjenZaMrezo(it) } ||
+                MedijskiViri.vsi(this).any { it.jeSeznam && !IptvPravila.jeVirSPoverilnico(it.naslov, seznam = true) && !IptvPravila.javniBrezplacni(it.naslov) }
             if (!zaklenjeni && skritih == 0) emptyList() else {
                 val moznosti = ArrayList<Pair<String, () -> Unit>>()
-                moznosti += getString(R.string.os_tv_brez_zaklenjenih) to { tvZaklenjeni = false; odpriKanale(m.zvrst, m.jezik, m.uporabnik) }
-                moznosti += getString(R.string.os_tv_pokazi_zaklenjene) to { tvZaklenjeni = true; odpriKanale(m.zvrst, m.jezik, m.uporabnik) }
+                moznosti += getString(R.string.os_tv_brez_zaklenjenih) to { tvZaklenjeni = false; MrtviKanali.pokaziSkrite = false; odpriKanale(m.zvrst, m.jezik, m.uporabnik) }
+                moznosti += getString(R.string.os_tv_pokazi_zaklenjene) to { tvZaklenjeni = true; MrtviKanali.pokaziSkrite = true; odpriKanale(m.zvrst, m.jezik, m.uporabnik) }
                 if (skritih > 0) moznosti += getString(R.string.os_tv_vrni_skrite, skritih) to { MrtviKanali.vrniSkrite(this); odpriKanale(m.zvrst, m.jezik, m.uporabnik) }
                 listOf(PoljeIzbire("izb:zaklenjeni", moznosti.map { it.first }, if (tvZaklenjeni) 1 else 0, null) { i -> moznosti.getOrNull(i)?.second?.invoke() })
             }
@@ -5944,7 +5946,9 @@ class GlasbaActivity : OsActivity() {
                 sk.video || SpletniVir.vrstaVsebine(sk) == SpletniVir.VIDEOSPOT -> R.drawable.os_ikona_video
                 else -> R.drawable.os_ikona_glasba
             }
-            Kartica(sk.naslov, sk.izvajalec, sk.slika, {
+            // Lastnik 4. 11. 2026: skrit kanal (viden z »Pokazi skrite kanale«) je oznacen - tudi za TalkBack (naslov kartice).
+            val naslovKartice = if (MrtviKanali.pokaziSkrite && MrtviKanali.jeSkrit(this, sk.id)) getString(R.string.os_tv_kanal_skrit, sk.naslov) else sk.naslov
+            Kartica(naslovKartice, sk.izvajalec, sk.slika, {
                 zadnjiIzbran = sk.id
                 if (jeVrstaPosnetkov(sk, seznam) || YoutubeVrstaPravila.kotVrsta(YoutubeZvok.jeYoutube(sk), sk.video)) predvajajVrstoPosnetkov(celota, sk)
                 else if (SpletniVir.jeEnota(sk)) razresiSplet(sk)
@@ -6264,12 +6268,25 @@ class GlasbaActivity : OsActivity() {
             if (sz != null) Toast.makeText(this, getString(R.string.os_mediji_seznam_shranjen, sz.ime), Toast.LENGTH_SHORT).show()
             osveziPriljubljene()
         }
-        // Naloga 90d: kanal v zivo, ki namesto programa kaze obvestilo (strezniki odgovarjajo): uporabnik ga skrije sam, trajno.
-        // Skrijejo se vse razlicice kartice, kot jih pozna zadnje risanje mreze; kartica izgine takoj, brez ponovnega nalaganja.
-        if (Stremio.jeVZivo(sk) || IptvSeznami.jeKanal(sk)) dejanja += getString(R.string.os_tv_kanal_ne_deluje_skrij) to {
+        // Naloga 90d, lastnik 4. 11. 2026: »Skrij kanal« - uporabnik skrije kanal sam, trajno, na tej napravi (vse razlicice
+        // kartice po kljucu kanala). Z »Pokazi skrite kanale« je viden in ga »Pokazi kanal« vrne. Fokus gre na sosednjo kartico.
+        if (sk.id.startsWith("tv:") || Stremio.jeVZivo(sk) || IptvSeznami.jeKanal(sk)) {
             val razlicice = mrezaKanalov?.razlicice?.get(sk.id).orEmpty().map { it.id }
-            zadnjiIzbran = sk.id
-            MrtviKanali.skrij(this, KanaliPravila.kljuciKartice(sk.id, razlicice))
+            val kljuci = KanaliPravila.kljuciKartice(sk.id, razlicice)
+            val fokus = kljucFokusa()
+            if (MrtviKanali.jeSkrit(this, sk.id)) dejanja += getString(R.string.os_tv_pokazi_kanal) to {
+                MrtviKanali.pokazi(this, kljuci); mrezaKanalov?.let { narisiKanale(it) }
+            } else dejanja += getString(R.string.os_tv_skrij_kanal) to {
+                val n = mrezaKanalov?.vidnih ?: 0
+                val i = fokus?.substringAfterLast('#')?.toIntOrNull() ?: -1
+                KanaliPravila.fokusPoSkritju(i, n).takeIf { it >= 0 && fokus != null }?.let { j ->
+                    vrniKljuc = fokus!!.substringBeforeLast('#') + "#" + j; vrniKljucDo = android.os.SystemClock.uptimeMillis() + 3_000
+                }
+                zadnjiIzbran = sk.id
+                MrtviKanali.skrij(this, kljuci)
+                // Z »Pokazi skrite« kartica ostane (oznacena): mrezo narisemo na mestu.
+                if (MrtviKanali.pokaziSkrite) mrezaKanalov?.let { narisiKanale(it) }
+            }
         }
         // Film ali serija iz dodatkov: predvajanje samo izbere najboljsi tok; tu ga uporabnik lahko izbere sam.
         if (Stremio.jeEnota(sk)) dejanja += getString(R.string.os_media_izberi_tok) to { razresiStremio(sk, rocno = true) }

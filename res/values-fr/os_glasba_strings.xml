@@ -305,7 +305,6 @@
     <string name="os_media_kanal_mrtev">« %1$s » ne fonctionne pas : flux illisible. Masqué jusqu\'à demain.</string>
     <!-- Naloga 73: noben vir kanalov ni odgovoril (mreza poskusi znova sama). -->
     <string name="os_tv_viri_ne_odgovarjajo">Les sources de chaînes ne répondent pas. Nouvel essai dans %1$d min.</string>
-    <string name="os_tv_kanal_ne_deluje_skrij">La chaîne ne fonctionne pas – masquer</string>
     <string name="os_tv_ni_kanalov">Aucune chaîne dans cette sélection.</string>
     <string name="os_tv_nadomestek_vsi">Aucune chaîne dans cette sélection pour l’instant – toutes les chaînes sont affichées.</string>
     <string name="os_kanali_novice">Actualités</string>
@@ -389,8 +388,8 @@
     <string name="os_mediji_odkleni">Débloquer auprès de l’extension</string>
     <string name="os_mediji_odkleni_opis">Le paiement est entre vous et l’extension %1$s. Après l’abonnement, l’extension fournit généralement une nouvelle adresse (avec votre code) – ajoutez-la à Mes sources à la place de l’ancienne.</string>
     <string name="os_mediji_odkleni_odpri">Ouvrir</string>
-    <string name="os_tv_brez_zaklenjenih">Masquer les chaînes verrouillées</string>
-    <string name="os_tv_pokazi_zaklenjene">Afficher les chaînes verrouillées</string>
+    <string name="os_tv_brez_zaklenjenih">Sans chaînes masquées</string>
+    <string name="os_tv_pokazi_zaklenjene">Afficher les chaînes masquées</string>
     <string name="os_mediji_dvojnik_dodatka">%1$s est ajoutée deux fois (ancienne et nouvelle adresse). Supprimer l’ancienne adresse ?</string>
     <!-- Naloga 80: seznam IPTV v Mojih virih. -->
     <plurals name="os_iptv_kanalov">
@@ -430,7 +429,7 @@
     <string name="os_besedila_ni_vira">Ajoutez la source de paroles (lrclib.net) sous Ajouter une source pour voir les paroles.</string>
     <string name="os_besedila_napaka">Impossible de charger les paroles pour le moment.</string>
     <string name="os_besedila_instrumentalno">Instrumental – sans paroles.</string>
-    <string name="os_tv_vrni_skrite">Afficher les chaînes masquées (%1$d)</string>
+    <string name="os_tv_vrni_skrite">Rétablir toutes les chaînes masquées (%1$d)</string>
     <string name="os_tv_vsi_kanali">Toutes les chaînes</string>
     <string name="os_tv_priljubljeni_n">Favoris (%1$d)</string>
     <string name="os_premakni_na_zacetek">Déplacer au début</string>
@@ -453,4 +452,7 @@
     <string name="os_nedel_ni_drugega">Aucune autre vidéo trouvée</string>
     <string name="os_nedel_nov_posnetek">Autre vidéo trouvée</string>
     <string name="os_media_oznaka_video">▶ Vidéo</string>
+    <string name="os_tv_skrij_kanal">Masquer la chaîne</string>
+    <string name="os_tv_pokazi_kanal">Afficher la chaîne</string>
+    <string name="os_tv_kanal_skrit">%1$s · masquée</string>
 </resources>

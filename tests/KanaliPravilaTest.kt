@@ -330,10 +330,18 @@ fun main() {
         preveriEnako("vgrajen: hitro risanje ostane", KanaliPravila.Prikaz.PRIKAZI, P.vMrezi(KanaliPravila.VrstaKanala.VGRAJEN, null, true, false))
         preveriEnako("racun IPTV: ves, brez cakanja", KanaliPravila.Prikaz.PRIKAZI, P.vMrezi(KanaliPravila.VrstaKanala.IPTV_RACUN, null, true, false))
         preveriEnako("javni IPTV: hitro risanje ostane", KanaliPravila.Prikaz.PRIKAZI, P.vMrezi(KanaliPravila.VrstaKanala.IPTV_JAVNI, null, true, false))
-        // Lastnik 3. 11. 2026: neznan seznam se pokaze in preveri.
-        preveriEnako("neznan seznam: pokazi", KanaliPravila.Prikaz.PRIKAZI, P.vMrezi(KanaliPravila.VrstaKanala.IPTV_NEZNAN, null, true, false))
+        // Lastnik 4. 11. 2026: kanal, ki ga je skril uporabnik.
+        preveriEnako("skrit kanal: ni v mrezi", true, P.mrtevZaMrezo(skrit = true, pokaziSkrite = false, mrtevDo = null, zdaj = 1000))
+        preveriEnako("skrit kanal: s Pokazi skrite viden", false, P.mrtevZaMrezo(skrit = true, pokaziSkrite = true, mrtevDo = null, zdaj = 1000))
+        preveriEnako("skrit in ne deluje: s Pokazi skrite ostane skrit", true, P.mrtevZaMrezo(skrit = true, pokaziSkrite = true, mrtevDo = 5000, zdaj = 1000))
+        preveriEnako("oznaka mrtvega potekla", false, P.mrtevZaMrezo(skrit = false, pokaziSkrite = false, mrtevDo = 500, zdaj = 1000))
+        preveriEnako("fokus po skritju: naslednja", 3, P.fokusPoSkritju(3, 10))
+        preveriEnako("fokus po skritju zadnje: prejsnja", 8, P.fokusPoSkritju(9, 10))
+        preveriEnako("fokus po skritju edine: nic", -1, P.fokusPoSkritju(0, 1))
+        // Odlocitev lastnika 4. 11. 2026: neznan seznam skrit in nikoli preverjen.
+        preveriEnako("neznan seznam: privzeto skrit", KanaliPravila.Prikaz.SKRIJ, P.vMrezi(KanaliPravila.VrstaKanala.IPTV_NEZNAN, null, true, false))
         preveriEnako("neznan seznam: dokazano ni medij - skrij", KanaliPravila.Prikaz.SKRIJ, P.vMrezi(KanaliPravila.VrstaKanala.IPTV_NEZNAN, false, true, false))
-        preveriEnako("sonda: neznan seznam da", true, P.smeSondaSeznama(KanaliPravila.VrstaKanala.IPTV_NEZNAN, tokSPoverilnico = false))
+        preveriEnako("sonda: neznan seznam nikoli", false, P.smeSondaSeznama(KanaliPravila.VrstaKanala.IPTV_NEZNAN, tokSPoverilnico = false))
         preveriEnako("sonda: javni da", true, P.smeSondaSeznama(KanaliPravila.VrstaKanala.IPTV_JAVNI, tokSPoverilnico = false))
         preveriEnako("sonda: racun nikoli", false, P.smeSondaSeznama(KanaliPravila.VrstaKanala.IPTV_RACUN, tokSPoverilnico = false))
         preveriEnako("sonda: tok z geslom nikoli", false, P.smeSondaSeznama(KanaliPravila.VrstaKanala.IPTV_NEZNAN, tokSPoverilnico = true))
