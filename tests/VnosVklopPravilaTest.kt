@@ -224,5 +224,19 @@ fun main() {
     // zberiNaZaslonu ostane enak (Leanback in nase aplikacije ga ne zamenjajo): brez oznake.
     check(p.zberiNaZaslonu(scroll, { v, n -> v.otroci.take(n) }, { it.o }, { it.f }, zaslon, 1500) == listOf(webview, trailer, kartica) + spletnaVozlisca)
 
+    // MovieFlix 4. 11. 2026 (posnetek lastnika): okvir v skritem WebViewu in dvojni okvir med premikanjem.
+    check(p.skrijOkvirVSpletnem(vSpletnem = true, imaDomace = true))      // GOR v skriti WebView: brez okvirja
+    check(!p.skrijOkvirVSpletnem(vSpletnem = true, imaDomace = false))    // aplikacija je samo WebView: okvir kot prej
+    check(!p.skrijOkvirVSpletnem(vSpletnem = false, imaDomace = true))    // domac gumb: okvir
+    val gumbA = Okvir(83, 701, 1837, 797)
+    val gumbB = Okvir(83, 850, 400, 1080)
+    val D = VnosVklopPravila.DejanjeOkvirja
+    check(p.okvirPoMeritvi(null, null, gumbA, 0) == D.POCAKAJ)              // prva meritev: se ne risemo
+    check(p.okvirPoMeritvi(null, gumbA, gumbA, 1) == D.RISI)                // umirjeno: narisemo enkrat
+    check(p.okvirPoMeritvi(gumbA, gumbA, Okvir(85, 702, 1838, 799), 0) == D.PUSTI)   // isti okvir (zamik do 4 px)
+    check(p.okvirPoMeritvi(gumbA, gumbA, gumbB, 0) == D.SKRIJ_POCAKAJ)      // premik: star okvir takoj izgine
+    check(p.okvirPoMeritvi(null, gumbB, Okvir(83, 820, 400, 1050), 1) == D.POCAKAJ)  // se drsi: se ne risemo
+    check(p.okvirPoMeritvi(null, Okvir(83, 820, 400, 1050), Okvir(83, 790, 400, 1020), VnosVklopPravila.NAJVEC_CAKANJ_OKVIRJA) == D.RISI)
+
     println("VnosVklopPravilaTest: OK")
 }

@@ -403,6 +403,15 @@ class VnosStoritev : AccessibilityService() {
                 }
             }
 
+            // MovieFlix 4. 11. 2026: fokus, ki ga je aplikacija sama dala vozliscu v (skritem) WebViewu, ne dobi okvirja,
+            // ce ima aplikacija domac interaktiven element (VnosVklopPravila.skrijOkvirVSpletnem); fokus ostane aplikaciji.
+            val vz = vozlisce
+            if (vz != null && aktivniKoren != null && korenPaket == neprilagojena && miska?.paket == null &&
+                VnosVklopPravila.skrijOkvirVSpletnem(jeVSpletnem(vz), zberiInteraktivneZOznako(aktivniKoren).any { !it.second })) {
+                skrijFokusOverlay()
+                return
+            }
+
             // Aplikacije za TV (Leanback) imajo svoj fokus: nas okvir bi se podvojil in med drsenjem zamikal
             // (lastnik 30. 10. 2026, RTV 365: okvir med dvema plakatoma).
             if (vozlisce == null || !vozlisce.isVisibleToUser || korenPaket == packageName ||
@@ -466,6 +475,21 @@ class VnosStoritev : AccessibilityService() {
             val sirina = desno - levo
             val visina = spodaj - zgoraj
 
+            // Lastnik 4. 11. 2026: en okvir po umiritvi mej, star na drugem mestu takoj izgine (VnosVklopPravila.okvirPoMeritvi).
+            val zdajOkvir = VnosVklopPravila.Okvir(levo, zgoraj, desno, spodaj)
+            val dejanje = VnosVklopPravila.okvirPoMeritvi(if (fokusPrikazan) narisanOkvir else null, zadnjaMeritevOkvirja, zdajOkvir, cakanjOkvirja)
+            zadnjaMeritevOkvirja = zdajOkvir
+            when (dejanje) {
+                VnosVklopPravila.DejanjeOkvirja.PUSTI -> { cakanjOkvirja = 0; return }
+                VnosVklopPravila.DejanjeOkvirja.RISI -> cakanjOkvirja = 0
+                VnosVklopPravila.DejanjeOkvirja.SKRIJ_POCAKAJ, VnosVklopPravila.DejanjeOkvirja.POCAKAJ -> {
+                    if (dejanje == VnosVklopPravila.DejanjeOkvirja.SKRIJ_POCAKAJ) skrijFokusOverlay()
+                    cakanjOkvirja++
+                    glavnaNit.postDelayed(posodobiFokusOpravilo, VnosVklopPravila.MERITEV_OKVIRJA_MS)
+                    return
+                }
+            }
+
             val lp = v.layoutParams as? android.view.WindowManager.LayoutParams ?: return
             val odmik = (2 * d).toInt()
 
@@ -479,6 +503,7 @@ class VnosStoritev : AccessibilityService() {
                 v.visibility = View.VISIBLE
             }
             fokusPrikazan = true
+            narisanOkvir = zdajOkvir
         } catch (_: Throwable) {
             skrijFokusOverlay()
         }
@@ -630,7 +655,16 @@ class VnosStoritev : AccessibilityService() {
             v.visibility = View.GONE
         }
         fokusPrikazan = false
+        narisanOkvir = null
     }
+
+    /** Okvir, ki je narisan, zadnja meritev mej in stevilo zaporednih cakanj (VnosVklopPravila.okvirPoMeritvi). */
+    private var narisanOkvir: VnosVklopPravila.Okvir? = null
+    private var zadnjaMeritevOkvirja: VnosVklopPravila.Okvir? = null
+    private var cakanjOkvirja = 0
+
+    /** Vozlisce je WebView ali v njem (vozlisca strani imajo razrede View, Button - spozna se po predniku). */
+    private fun jeVSpletnem(n: AccessibilityNodeInfo): Boolean = verigaPrednikov(n).any { jeWebView(it) }
 
     private fun odstraniFokusOverlay() {
         try {

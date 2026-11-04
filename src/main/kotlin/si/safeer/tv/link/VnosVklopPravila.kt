@@ -293,6 +293,38 @@ object VnosVklopPravila {
         return izid
     }
 
+    /**
+     * Lastnik 4. 11. 2026 (MovieFlix, posnetek): ko aplikacija sama (GOR, focusSearch) da fokus vozliscu v skritem WebViewu,
+     * je okvir risal nevidna vozlisca. Z istim pravilom kot [brezSpletnih]: v WebViewu okvirja ne risemo, ce ima aplikacija
+     * vsaj en domac interaktiven element - fokus ostane aplikaciji, okvir se skrije.
+     */
+    fun skrijOkvirVSpletnem(vSpletnem: Boolean, imaDomace: Boolean): Boolean = vSpletnem && imaDomace
+
+    enum class DejanjeOkvirja { RISI, PUSTI, SKRIJ_POCAKAJ, POCAKAJ }
+    /** Toliko px razlike je isti okvir (zaokrozevanje, drsenje za piko). */
+    const val ZAMIK_OKVIRJA = 4
+    /** Po toliko zaporednih razlicnih meritvah okvir vseeno narisemo (element, ki se ves cas premika). */
+    const val NAJVEC_CAKANJ_OKVIRJA = 6
+    /** Ponovna meritev, dokler se meje ne umirijo (ms). */
+    const val MERITEV_OKVIRJA_MS = 60L
+
+    private fun blizu(a: Okvir, b: Okvir): Boolean = Math.abs(a.levo - b.levo) <= ZAMIK_OKVIRJA &&
+        Math.abs(a.zgoraj - b.zgoraj) <= ZAMIK_OKVIRJA && Math.abs(a.desno - b.desno) <= ZAMIK_OKVIRJA &&
+        Math.abs(a.spodaj - b.spodaj) <= ZAMIK_OKVIRJA
+
+    /**
+     * Lastnik 4. 11. 2026 (posnetek): med premikanjem dvojni in zamaknjen okvir - star je ostal, nov se je risal sproti ob
+     * vsakem od zakasnjenih klicev (20-380 ms), medtem ko se je seznam se drsal. Zdaj: [narisan] na istem mestu ostane;
+     * nove meje se narisejo sele, ko sta dve zaporedni meritvi ([prejsnja], [zdaj]) enaki (umirjeno) ali po
+     * [NAJVEC_CAKANJ_OKVIRJA]; star okvir na drugem mestu se takoj skrije.
+     */
+    fun okvirPoMeritvi(narisan: Okvir?, prejsnja: Okvir?, zdaj: Okvir, cakanj: Int): DejanjeOkvirja = when {
+        narisan != null && blizu(narisan, zdaj) -> DejanjeOkvirja.PUSTI
+        (prejsnja != null && blizu(prejsnja, zdaj)) || cakanj >= NAJVEC_CAKANJ_OKVIRJA -> DejanjeOkvirja.RISI
+        narisan != null -> DejanjeOkvirja.SKRIJ_POCAKAJ
+        else -> DejanjeOkvirja.POCAKAJ
+    }
+
     /** Kandidat za samodejni fokus v neprilagojeni aplikaciji: v WebViewu, z besedilom, klikljiv. */
     class Kandidat(val spletni: Boolean, val zBesedilom: Boolean, val klikljiv: Boolean)
 
