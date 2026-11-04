@@ -1688,7 +1688,8 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     /** Odpre splet (brskalnik sosede ali vgrajenega), po zelji z naslovom. */
     private fun odpriVBrskalniku(url: String?) {
-        val namera = brskalnikNamera()
+        // Brez naslova je to razdelek Splet: domaca stran izbranega brskalnika (lastnik 4. 11. 2026).
+        val namera = if (url == null) Brskalnik.splet(this) else brskalnikNamera()
         if (url != null) { namera.action = Intent.ACTION_VIEW; namera.data = Uri.parse(url) }
         odpriVarno(namera, getString(R.string.os_splet))
     }

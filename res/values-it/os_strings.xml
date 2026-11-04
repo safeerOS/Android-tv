@@ -761,6 +761,10 @@
     <string name="os_komplet_namesceno">Installato</string>
     <string name="os_komplet_manjka">Mancante: %1$s</string>
     <string name="os_zapri_neuporabljeno">Zapri aplikacije, ki jih ne uporabljam</string>
+    <string name="os_splet_brskalnik">Browser per Web</string>
+    <string name="os_splet_brskalnik_opis">Quale browser aprono Web e le ricerche web</string>
+    <string name="os_splet_brskalnik_privzeto">Safeer TV Browser (predefinito)</string>
+    <string name="os_splet_brskalnik_ni">Nessun altro browser su questo dispositivo.</string>
     <string name="os_zapri_neuporabljeno_opis">Ko aplikacije nekaj časa ne uporabljate, se zapre, da sprosti pomnilnik. Aplikacije, ki predvajajo ali prenašajo, ostanejo.</string>
     <string name="os_adb_zapiranje">Chiudi le app in modo affidabile (ADB locale)</string>
     <string name="os_adb_zapiranje_opis">Su questo televisore Android non consente a un\'app di chiuderne altre. Con il tuo consenso Safeer OS si collega una volta all\'interfaccia di debug di questo dispositivo e chiude le app che non usi più.</string>

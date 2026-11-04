@@ -402,8 +402,9 @@ object DomacaLupa {
         odpriSplet(a, LupaPravila.youtubeIskanje(q))
     }
 
+    /** Iskanje in naslov iz Lupe: v brskalnik, ki ga je uporabnik izbral za Splet, sicer v Safeer (lastnik 4. 11. 2026). */
     private fun odpriSplet(a: Activity, url: String): Boolean = try {
-        a.startActivity(Brskalnik.namera(a).setAction(Intent.ACTION_VIEW).setData(Uri.parse(url))); true
+        a.startActivity(Brskalnik.iskanje(a, url)); true
     } catch (_: Throwable) { false }
 
     private fun prikaziNa(a: Activity, u: LupaPravila.Ukaz) {

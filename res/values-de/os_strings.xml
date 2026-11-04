@@ -761,6 +761,10 @@
     <string name="os_komplet_namesceno">Installiert</string>
     <string name="os_komplet_manjka">Fehlt: %1$s</string>
     <string name="os_zapri_neuporabljeno">Nicht verwendete Apps schließen</string>
+    <string name="os_splet_brskalnik">Browser für Web</string>
+    <string name="os_splet_brskalnik_opis">Welchen Browser Web und Websuchen öffnen</string>
+    <string name="os_splet_brskalnik_privzeto">Safeer TV Browser (Standard)</string>
+    <string name="os_splet_brskalnik_ni">Auf diesem Gerät ist kein anderer Browser installiert.</string>
     <string name="os_zapri_neuporabljeno_opis">Wenn eine App nicht verwendet wird, wird sie geschlossen, um Speicherplatz freizugeben. Apps, die Medien abspielen oder herunterladen, bleiben geöffnet.</string>
     <string name="os_adb_zapiranje">Apps zuverlässig schließen (lokales ADB)</string>
     <string name="os_adb_zapiranje_opis">Auf diesem Fernseher erlaubt Android Apps nicht, andere Apps zu schließen. Mit Ihrer Zustimmung verbindet sich Safeer OS einmal mit der eigenen Debugging-Schnittstelle dieses Geräts und schließt Apps, die Sie nicht mehr nutzen.</string>

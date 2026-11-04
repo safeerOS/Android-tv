@@ -2278,4 +2278,38 @@ object OsPravila {
         tvBrowserNamescen -> SpletCilj.TV_BROWSER
         else -> SpletCilj.NAMESTI_TV_BROWSER
     }
+
+    // ------------------------------------------------------------------ brskalnik za Splet (lastnik 4. 11. 2026)
+
+    /** Paketi Safeer, ki v seznamu izbire niso tuj brskalnik: Safeer TV Browser je vedno prva, privzeta izbira. */
+    val SAFEER_BRSKALNIKI = setOf("si.safeer.tv", "si.safeer.os")
+
+    /**
+     * Tuj brskalnik, ki ga je uporabnik izbral za Splet in Lupo, ali null = Safeer TV Browser (lastnik 4. 11. 2026:
+     * »Safeer nic ne vsiljuje«). Izbira velja samo v Safeer OS; prazna izbira, paket Safeer ali brskalnik, ki ga
+     * ni vec na napravi, pade nazaj na Safeer brez napake.
+     */
+    fun spletBrskalnik(shranjen: String?, smoOs: Boolean, namescen: Boolean): String? {
+        val p = shranjen?.trim().orEmpty()
+        if (!smoOs || p.isEmpty() || p in SAFEER_BRSKALNIKI || !namescen) return null
+        return p
+    }
+
+    /**
+     * Seznam tujih brskalnikov za izbiro (paket -> ime): brez paketov Safeer in brez podvojitev (isti paket ima lahko
+     * vec aktivnosti za https), urejen po imenu, da je vrstni red na vsakem zagonu enak.
+     */
+    fun brskalnikiZaIzbiro(kandidati: List<Pair<String, String>>): List<Pair<String, String>> =
+        kandidati.filter { it.first.isNotBlank() && it.first !in SAFEER_BRSKALNIKI }
+            .distinctBy { it.first }
+            .sortedWith(compareBy({ it.second.lowercase() }, { it.first }))
+
+    /**
+     * Vstop v Splet pokaze domaco stran, ne zadnjega brskanja (lastnik 4. 11. 2026); zavihki ostanejo. Vrne indeks
+     * zavihka z domaco stranjo, na katerega preklopimo (najprej aktivni, nato zadnji tak), ali -1 = nov zavihek.
+     */
+    fun zavihekDomace(naslovi: List<String>, aktivni: Int, jeDomaca: (String) -> Boolean): Int {
+        if (aktivni in naslovi.indices && jeDomaca(naslovi[aktivni])) return aktivni
+        return naslovi.indexOfLast(jeDomaca)
+    }
 }

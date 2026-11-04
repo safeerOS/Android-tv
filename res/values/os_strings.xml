@@ -765,6 +765,10 @@
     <string name="os_komplet_namesceno">Installed</string>
     <string name="os_komplet_manjka">Missing: %1$s</string>
     <string name="os_zapri_neuporabljeno">Zapri aplikacije, ki jih ne uporabljam</string>
+    <string name="os_splet_brskalnik">Brskalnik za Splet</string>
+    <string name="os_splet_brskalnik_opis">Kateri brskalnik odprejo Splet in iskanja v spletu</string>
+    <string name="os_splet_brskalnik_privzeto">Safeer TV Browser (privzeto)</string>
+    <string name="os_splet_brskalnik_ni">Na napravi ni drugega brskalnika.</string>
     <string name="os_zapri_neuporabljeno_opis">Ko aplikacije nekaj časa ne uporabljate, se zapre, da sprosti pomnilnik. Aplikacije, ki predvajajo ali prenašajo, ostanejo.</string>
     <string name="os_adb_zapiranje">Close apps reliably (local ADB)</string>
     <string name="os_adb_zapiranje_opis">On this TV Android does not let apps close other apps. With your consent Safeer OS connects once to this device\'s own debugging interface and closes apps you no longer use.</string>

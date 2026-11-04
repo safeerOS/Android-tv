@@ -737,7 +737,7 @@ class StranskaVrstica private constructor(
             Razdelek.PROGRAMI -> Intent(dejavnost, AplikacijeHostaActivity::class.java)
                 .putExtra(AplikacijeHostaActivity.EXTRA_VIR, "vse")
             Razdelek.DATOTEKE -> Intent(dejavnost, DatotekeActivity::class.java)
-            Razdelek.SPLET -> Brskalnik.namera(dejavnost)
+            Razdelek.SPLET -> Brskalnik.splet(dejavnost)
             Razdelek.ZAPISKI -> Intent(dejavnost, ZapiskiActivity::class.java)
             Razdelek.NASTAVITVE -> Intent(dejavnost, NastavitveActivity::class.java)
         }.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT).also {

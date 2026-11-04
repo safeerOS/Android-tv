@@ -262,7 +262,11 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             oznaciIzvorZavihka(tabManager.createTab(this, targetUrl, true), intent, novZavihek = true)
         } else if (!restored) {
             tabManager.createTab(this, SpletDomaca.naslov(this), true)
+        } else if (intent?.getBooleanExtra(si.safeer.tv.os.Brskalnik.EXTRA_ODPRI_DOMACO, false) == true) {
+            // Splet iz Safeer OS po obnovi aktivnosti: domaca stran, obnovljeni zavihki ostanejo (lastnik 4. 11. 2026).
+            pokaziDomacoZavihek()
         }
+        intent?.removeExtra(si.safeer.tv.os.Brskalnik.EXTRA_ODPRI_DOMACO)
         // Ob obnovi aktivnosti (vrtenje, smrt procesa) izbire ne pokazemo znova.
         if (savedInstanceState == null) ponudiVgrajeniBrskalnik(intent, novZavihek = true)
 
@@ -1215,6 +1219,12 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         }
         // Navaden zagon brskalnika po tem, ko je tekla spletna aplikacija: vrni vrstico z naslovom.
         if (nacinAplikacije != null) izklopiNacinAplikacije()
+        // Lastnik 4. 11. 2026: Splet iz Safeer OS vedno pokaze domaco stran, ne zadnjega brskanja; zavihki ostanejo.
+        if (intent?.getBooleanExtra(si.safeer.tv.os.Brskalnik.EXTRA_ODPRI_DOMACO, false) == true) {
+            intent.removeExtra(si.safeer.tv.os.Brskalnik.EXTRA_ODPRI_DOMACO)
+            webViewContainer.post { if (!isFinishing) pokaziDomacoZavihek() }
+            return
+        }
         val url = incomingBrowseUrl(intent)
         ponudiVgrajeniBrskalnik(intent, novZavihek = false)
         // Pregled 30. 10. 2026: dejavnost je izvozena - preizkusni dodatek samo v razvojni gradnji.
@@ -1540,6 +1550,31 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 castPosition, castDuration
             )
         } catch (_: Exception) {}
+    }
+
+    /**
+     * Vstop v Splet iz Safeer OS (lastnik 4. 11. 2026): preklop na zavihek z domaco stranjo ali nov tak zavihek.
+     * Za razliko od tipke Domov ([showBrowserStartPage]) zadnje brskanje ostane v svojem zavihku.
+     */
+    private fun pokaziDomacoZavihek() {
+        if (nacinAplikacije != null) izklopiNacinAplikacije()
+        try { if (playback.isActive()) playback.exit() } catch (_: Exception) { }
+        try { customVideoCallback?.onCustomViewHidden() } catch (_: Exception) {}
+        try { customVideoView?.let { mainRoot.removeView(it) } } catch (_: Exception) {}
+        customVideoView = null
+        customVideoCallback = null
+        webViewContainer.visibility = View.VISIBLE
+        nastaviVidnostChrome(View.VISIBLE)
+        mobileTopBar.translationY = 0f
+        val zavihki = tabManager.getAllTabs()
+        val aktivni = tabManager.getActiveTab()
+        val i = si.safeer.tv.os.OsPravila.zavihekDomace(zavihki.map { it.url.ifBlank { it.spalniNaslov } },
+            zavihki.indexOfFirst { it.id == aktivni?.id }) { TvSite.isBrowserHome(it) }
+        if (i >= 0) {
+            if (zavihki[i].id != aktivni?.id) tabManager.switchTab(zavihki[i].id)
+        } else {
+            tabManager.createTab(this, SpletDomaca.naslov(this), true)
+        }
     }
 
     private fun showBrowserStartPage() {

@@ -1233,7 +1233,8 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     // ------------------------------------------------------------------ odpiranje
 
-    private fun odpriSplet() = odpri(Brskalnik.namera(this), getString(R.string.os_splet), null)
+    /** Splet: domaca stran izbranega brskalnika, ne zadnje brskanje (lastnik 4. 11. 2026). */
+    private fun odpriSplet() = odpri(Brskalnik.splet(this), getString(R.string.os_splet), null)
 
     /** [okno]: tuja aplikacija - na namizju z okni se odpre v oknu ([NamizniNacin.moznosti]). */
     private fun odpri(namera: Intent, ime: String, izvor: View?, okno: Boolean = false) {
