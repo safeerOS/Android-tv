@@ -25,8 +25,12 @@ def main() -> int:
             napake.append(f"{ime}: FileChooserParams.parseResult brez filtra - uporabi IzbiraDatotek.sprejmi")
         if "IzbiraDatotek.sprejmi(" not in besedilo:
             napake.append(f"{ime}: odgovor izbirnika ne gre skozi IzbiraDatotek.sprejmi")
-        if "ACTION_OPEN_DOCUMENT" not in besedilo:
-            napake.append(f"{ime}: izbirnik ni ACTION_OPEN_DOCUMENT (SAF)")
+        # Od 4. 11. 2026 (TV brez DocumentsUI) namero sestavi IzbirnikDatotekTv: SAF, nato GET_CONTENT, nato lasten seznam.
+        if "IzbirnikDatotekTv.zazeniSistemski(" not in besedilo or "IzbirnikDatotekTv.pokazi(" not in besedilo:
+            napake.append(f"{ime}: izbirnik ne gre po vrsti IzbirnikDatotekTv (SAF -> GET_CONTENT -> lasten)")
+    izbirnik = (TV / "IzbirnikDatotekTv.kt").read_text(encoding="utf-8")
+    if "Intent.ACTION_OPEN_DOCUMENT" not in izbirnik or "Intent.ACTION_GET_CONTENT" not in izbirnik:
+        napake.append("IzbirnikDatotekTv: ni namer ACTION_OPEN_DOCUMENT (SAF) in ACTION_GET_CONTENT")
     if "w.cakaIzbiroDatotek)" not in tabi:
         napake.append("TabManager: spanje ne uposteva odprtega izbirnika (cakaIzbiroDatotek)")
     for n in napake:
