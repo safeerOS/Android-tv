@@ -6278,7 +6278,8 @@ class GlasbaActivity : OsActivity() {
         }
         // Svoj seznam predvajanja: skladbo dodas na obstojecega ali novega (ne samo "shrani vso vrsto").
         // Kanal v zivo ni skladba za seznam predvajanja: zanj so priljubljeni (zgoraj).
-        if (SeznamOkno.mozno(sk) && !sk.id.startsWith("tv:")) dejanja += getString(R.string.os_seznam_dodaj) to { dodajNaSeznam(sk) }
+        // Preverba TV 4. 11. 2026 06:27: kanal IPTV (»iptv:«) je ponujal »Dodaj na seznam predvajanja« - za vse kanale ne.
+        if (SeznamOkno.mozno(sk) && PriljubljeniKanaliPravila.ponudiSeznamPredvajanja(kanal)) dejanja += getString(R.string.os_seznam_dodaj) to { dodajNaSeznam(sk) }
         // Naloga 109: skladba seznama, ki ne deluje - drug posnetek iste skladbe ali preverba znova.
         val razlogSkladbe = if (seznam != null) NedelujoceSkladbe.razlog(this, sk.id) else null
         if (seznam != null && razlogSkladbe != null) {
