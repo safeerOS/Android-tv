@@ -28,17 +28,33 @@ object KompletNamestitev {
         val manjkajo = KompletPravila.manjkajoci(Sosed.jeTelevizor(a), Sosed.smoOs(a), 
             setOf(Sosed.BRSKALNIK, Sosed.TRGOVINA).filter { Sosed.namescen(a, it) }.toSet())
         if (manjkajo.isEmpty()) return
+        val glavna = Handler(Looper.getMainLooper())
+        // S2 (4. 11. 2026): ponudimo samo, kar razlicice.json res ima - sicer bi okno obljubilo paket, ki ga ni.
+        Thread({
+            val ponudba = try { KompletPravila.vnosi(JSONObject(preberiManifest(a)), manjkajo)?.keys?.toList() } catch (t: Throwable) {
+                Posodobitve.log("komplet: razlicice.json ni dosegljiv: $t"); null
+            }.orEmpty().let { k -> manjkajo.filter { it in k } }
+            if (ponudba.isEmpty()) return@Thread
+            glavna.post {
+                if (a.isFinishing || a.isDestroyed) return@post
+                p.edit().putLong("ponujeno", System.currentTimeMillis()).apply()
+                val dialog = AlertDialog.Builder(a)
+                    .setTitle(R.string.os_komplet_naslov)
+                    .setMessage(R.string.os_komplet_opis)
+                    .setPositiveButton(R.string.os_komplet_namesti) { _, _ -> namesti(a, ponudba) }
+                    .setNegativeButton(R.string.os_komplet_pozneje, null)
+                    .show()
+                dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.requestFocus()
+            }
+        }, "safeer-komplet-ponudba").start()
+    }
 
-        p.edit().putLong("ponujeno", System.currentTimeMillis()).apply()
-        
-        val dialog = AlertDialog.Builder(a)
-            .setTitle(R.string.os_komplet_naslov)
-            .setMessage(R.string.os_komplet_opis)
-            .setPositiveButton(R.string.os_komplet_namesti) { _, _ -> namesti(a, manjkajo) }
-            .setNegativeButton(R.string.os_komplet_pozneje, null)
-            .show()
-            
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.requestFocus()
+    private fun preberiManifest(a: Activity): String {
+        val c = URL(Posodobitve.MANIFEST).openConnection() as HttpURLConnection
+        c.connectTimeout = 8000; c.readTimeout = 8000
+        c.setRequestProperty("User-Agent", "SafeerOS/${BuildConfig.VERSION_NAME} (${a.packageName})")
+        c.setRequestProperty("Cache-Control", "no-cache")
+        return try { c.inputStream.bufferedReader().use { it.readText() } } finally { c.disconnect() }
     }
 
     fun namesti(a: Activity, paketi: List<String>, obKoncu: () -> Unit = {}) {
@@ -75,20 +91,14 @@ object KompletNamestitev {
             try {
                 mapa.listFiles()?.forEach { it.delete() }
                 
-                val c = URL(Posodobitve.MANIFEST).openConnection() as HttpURLConnection
-                c.connectTimeout = 8000; c.readTimeout = 8000
-                c.setRequestProperty("User-Agent", "SafeerOS/${BuildConfig.VERSION_NAME} (${a.packageName})")
-                c.setRequestProperty("Cache-Control", "no-cache")
-                val besedilo = c.inputStream.bufferedReader().use { it.readText() }
-                c.disconnect()
-                
-                val vnosi = KompletPravila.vnosi(JSONObject(besedilo), paketi)
-                if (vnosi == null) {
-                    throw IllegalStateException("ni veljavnega vnosa za vse pakete")
-                }
+                val vnosi = KompletPravila.vnosi(JSONObject(preberiManifest(a)), paketi)
+                    ?: throw IllegalStateException("pokvarjen vnos v razlicice.json")
+                // Paketa, ki ga razlicice.json nima, ne namescamo (S2); ce ni nobenega, je to napaka, ne tiha praznina.
+                val naVoljo = paketi.filter { it in vnosi }
+                if (naVoljo.isEmpty()) throw IllegalStateException("razlicice.json nima nobenega od $paketi")
 
                 val prenesene = mutableListOf<Pair<String, File>>()
-                for (paket in paketi) {
+                for (paket in naVoljo) {
                     if (prekinjeno) break
                     trenutenPaket = paket
                     val vnos = vnosi[paket] ?: throw IllegalStateException("ni vnosa za $paket")
