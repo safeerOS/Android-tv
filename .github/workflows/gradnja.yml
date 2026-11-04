@@ -60,7 +60,41 @@ jobs:
           KOTLINC: ${{ runner.temp }}/orodja/kotlinc/bin/kotlinc
           JSON_JAR: ${{ runner.temp }}/orodja/json-20240303.jar
           STROGO: '1'
+          LINK_CORE_V_CI: '1'
         run: bash tests/vse.sh
+
+  # Tedenski pregled 4. 11. 2026: Link Core (vir tu, kopija v Mobile-android) se je tiho preskocil. Svoja naloga: razlika
+  # jo obarva rdece (APK ni blokiran - apk potrebuje samo testi); nedosegljiv Mobile-android je opozorilo v povzetku,
+  # ne padec Android-tv.
+  link-core:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Klon Mobile-android (javni, samo branje)
+        id: mobile
+        continue-on-error: true
+        uses: actions/checkout@v7
+        with:
+          repository: safeerOS/Mobile-android
+          path: _mobile-android
+
+      - name: link-core-sync --preveri
+        env:
+          KLON: ${{ steps.mobile.outcome }}
+        run: |
+          if [ "$KLON" != "success" ] || [ ! -d _mobile-android/src/main/kotlin/com/safeer/mobile/browser/cast ]; then
+            echo "::warning title=Link Core::Mobile-android ni dosegljiv - preverba Link Core NI tekla"
+            echo "### Link Core: NI PREVERJENO (Mobile-android ni dosegljiv)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if bash tools/link-core-sync.sh --preveri _mobile-android > izid.txt 2>&1; then
+            echo "### Link Core: kopija v Mobile-android je enaka viru" >> "$GITHUB_STEP_SUMMARY"
+          else
+            cat izid.txt
+            { echo "### Link Core: Mobile-android se RAZLIKUJE od vira"; echo '```'; cat izid.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
 
   apk:
     # APK samo, ce so preizkusi uspeli.

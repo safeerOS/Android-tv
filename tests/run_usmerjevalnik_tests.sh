@@ -103,7 +103,5 @@ java -cp "$OUT/spake2.jar" si.safeer.tv.cast.Spake2TestKt
     -include-runtime -d "$OUT/izvolitev.jar"
 java -cp "$OUT/izvolitev.jar" si.safeer.tv.cast.IzvolitevTestKt
 
-# Link Core: kopija na telefonu mora biti enaka viru (ce je telefon na tem racunalniku).
-if [[ -d "$PROJECT_DIR/../safeer-browser" ]]; then
-    bash "$PROJECT_DIR/tools/link-core-sync.sh" --preveri "$PROJECT_DIR/../safeer-browser"
-fi
+# Link Core (kopija na telefonu = vir) je svoj korak v tests/vse.sh in svoja naloga v CI (tedenski pregled 4. 11. 2026:
+# tu se je brez ../safeer-browser tiho preskocila).
