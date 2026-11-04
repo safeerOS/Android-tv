@@ -282,6 +282,12 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
             // ScrollView GOR brez vrstice nad fokusom porabi za drsenje (arrowScroll), ce je seznam podrsan - fokus je
             // obstal na prvi vrstici. Tako GOR gre naprej v focusSearch (filter ali polje); seznam se vrne na vrh (glava).
             override fun executeKeyEvent(e: KeyEvent): Boolean {
+                // Lastnik 4. 11. 2026 05:18: pod »Vse« seznam ne drsi (LupaPravila.seznamDrsi). Tipke gredo v focusSearch
+                // zgoraj (tipkovnica, filter, polje), ScrollView jih ne porabi za drsenje v skrite vrstice.
+                if (!LupaPravila.seznamDrsi(izbiraLupe) && e.action == KeyEvent.ACTION_DOWN && e.keyCode in TIPKE_DRSENJA) {
+                    if (scrollY != 0) scrollTo(0, 0)
+                    return false
+                }
                 if (e.action == KeyEvent.ACTION_DOWN && e.keyCode == KeyEvent.KEYCODE_DPAD_UP && !e.isAltPressed) {
                     val f = findFocus()?.takeIf { it !== this }
                     val nad = f != null && android.view.FocusFinder.getInstance().findNextFocus(this, f, View.FOCUS_UP) != null
@@ -289,6 +295,17 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                 }
                 return super.executeKeyEvent(e)
             }
+
+            // Fokus na vrstici ne podrsa seznama pod »Vse« (vse vidne vrstice so ze cele v plosci), podrsan se vrne na vrh.
+            override fun computeScrollDeltaToGetChildRectOnScreen(r: android.graphics.Rect): Int =
+                if (LupaPravila.seznamDrsi(izbiraLupe)) super.computeScrollDeltaToGetChildRectOnScreen(r) else -scrollY
+
+            // Miska (kolesce) in dotik pod »Vse« ne drsita v prazen prostor; klik na vrstico ostane.
+            override fun onGenericMotionEvent(e: android.view.MotionEvent): Boolean =
+                if (LupaPravila.seznamDrsi(izbiraLupe)) super.onGenericMotionEvent(e) else false
+
+            override fun onInterceptTouchEvent(e: android.view.MotionEvent): Boolean =
+                if (LupaPravila.seznamDrsi(izbiraLupe)) super.onInterceptTouchEvent(e) else false
         }.apply {
             // Lastnik 3. 11. 2026 18:12 (fotografija TV): brez obrezovanja je seznam risal cez tipkovnico pod njim. Seznam
             // obreze svojo vsebino; rob 6 dp ostane za poudarek fokusa.
@@ -1203,6 +1220,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         }
         zberi(zadetki, 0)
         val vse = izbiraLupe == LupaPravila.OBSEG_VSE
+        // Lastnik 4. 11. 2026 05:18: pod »Vse« seznam vedno zacne na vrhu (ne ostane podrsan od prejsnjega iskanja).
+        if (!LupaPravila.seznamDrsi(izbiraLupe) && okno.scrollY != 0) okno.scrollTo(0, 0)
         for ((v, dno, _) in vrste) v.visibility = if (!vse || dno <= visina) View.VISIBLE else View.INVISIBLE
         if (!vse) return
         for (i in vrste.indices) {
@@ -2649,6 +2668,9 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     private fun beri(naslov: String): String? = VremeKraj.beri(naslov)
 
     companion object {
+        /** Tipke, s katerimi ScrollView drsi (arrowScroll, pageScroll, fullScroll). */
+        private val TIPKE_DRSENJA = setOf(KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_PAGE_DOWN,
+            KeyEvent.KEYCODE_PAGE_UP, KeyEvent.KEYCODE_MOVE_HOME, KeyEvent.KEYCODE_MOVE_END, KeyEvent.KEYCODE_SPACE)
         private const val TAG = "SafeerPokrajina"
         /** Razmik ob vsakem filtru lupe (levo in desno). */
         private const val RAZMIK_FILTROV_DP = 3

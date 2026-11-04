@@ -180,6 +180,10 @@ fun main() {
     preveriEnako("ni cilja: ostane", null, LupaPravila.ciljVPlosci<String>(null, null, true))
     preveriEnako("GOR s prve vrstice ni drsenje", false, LupaPravila.seznamPorabiGor(false))
     preveriEnako("GOR med vrsticami premakne v seznamu", true, LupaPravila.seznamPorabiGor(true))
+    // Lastnik 4. 11. 2026 05:18: pod »Vse« (omejeno stevilo, skrite vrstice) seznam ne drsi v prazen prostor.
+    preveriEnako("Vse: seznam ne drsi", false, LupaPravila.seznamDrsi(LupaPravila.OBSEG_VSE))
+    preveriEnako("ena skupina: seznam drsi", true, LupaPravila.seznamDrsi(LupaPravila.OBSEG_YOUTUBE))
+    preveriEnako("neznan obseg je Vse: ne drsi", false, LupaPravila.seznamDrsi("neznano"))
     // Prazno polje (samo zgodovina) ni past: GOR/LEVO/DESNO zapre plosco in gre s polja; z besedilom ostane v plosci.
     preveriEnako("zaprta plosca: privzeto iz polja", LupaPravila.IzPolja.PRIVZETO, LupaPravila.izPolja(false, true, false))
     preveriEnako("zgodovina: stran zapre plosco", LupaPravila.IzPolja.ZAPRI_PLOSCO, LupaPravila.izPolja(true, true, false))

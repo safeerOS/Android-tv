@@ -543,6 +543,13 @@ object LupaPravila {
      */
     fun seznamPorabiGor(vrsticaNad: Boolean): Boolean = vrsticaNad
 
+    /**
+     * Ali seznam zadetkov sme drseti. Pod »Vse« je stevilo zadetkov omejeno in kar ne gre celo v plosco, je skrito
+     * (obreziPlosco), zato drsenja ni: lastnik 4. 11. 2026 05:18 (fotografija TV) - DOL z zadnje vidne vrstice je seznam
+     * podrsal v prazen prostor skritih vrstic, predlogi so bili zgoraj odrezani. Pogled ene skupine drsi kot doslej.
+     */
+    fun seznamDrsi(obseg: String): Boolean = obseg(obseg) != OBSEG_VSE
+
     // ------------------------------------------------------------------ zadetki lupe
 
     /**
