@@ -39,6 +39,9 @@ object DnsPaket {
             izvor = p.copyOfRange(8, 24); cilj = p.copyOfRange(24, 40); udp = 40
         } else return null
         val izvornaVrata = u16(p, udp); val ciljnaVrata = u16(p, udp + 2)
+        // Pregled Scita 4. 11. 2026: samo vrata 53. Kar gre v tunel na druga vrata (npr. QUIC 443), ni poizvedba DNS in je
+        // ne smemo posredovati razresevalcu kot DNS.
+        if (ciljnaVrata != 53) return null
         val udpDolzina = u16(p, udp + 4)
         if (udpDolzina < 8 || udp + udpDolzina > dolzina) return null
         val dns = p.copyOfRange(udp + 8, udp + udpDolzina)
@@ -112,14 +115,23 @@ object DnsPaket {
     }
 
     /** Odgovor NXDOMAIN na surovo sporocilo DNS (ista pot za UDP in TCP). */
-    fun odgovorBlokiranoZa(dns: ByteArray): ByteArray {
+    fun odgovorBlokiranoZa(dns: ByteArray): ByteArray = odgovorZ(dns, 3)
+
+    /**
+     * Odgovor SERVFAIL (pregled Scita 4. 11. 2026): ni krajevnega razresevalca. Takoj, ne molk: razresevalnik Androida po
+     * molku caka (privzeto 5 s na streznik, dva streznika, ponovitve) in aplikacije visijo; SERVFAIL sprejme v trenutku,
+     * ga ne shrani (negativno shrani samo NXDOMAIN/NODATA s SOA) in ze naslednja poizvedba gre skozi, ko omrezje javi DNS.
+     */
+    fun odgovorNapakaZa(dns: ByteArray): ByteArray = odgovorZ(dns, 2)
+
+    private fun odgovorZ(dns: ByteArray, rcode: Int): ByteArray {
         val vprasanjeKonec = (preberiIme(dns, 12)?.second ?: 12) + 4
         val n = minOf(vprasanjeKonec, dns.size)
         val o = ByteArray(n)
         System.arraycopy(dns, 0, o, 0, n)
         val rd = if (n > 2) (dns[2].toInt() and 0x01) else 0
         o[2] = (0x80 or rd).toByte()          // QR=1, opcode 0, AA=0, TC=0, RD kot v poizvedbi
-        o[3] = (0x80 or 3).toByte()           // RA=1, RCODE=3 (NXDOMAIN)
+        o[3] = (0x80 or rcode).toByte()       // RA=1, RCODE (3 NXDOMAIN, 2 SERVFAIL)
         o[4] = 0; o[5] = if (n >= 16) 1 else 0 // QDCOUNT
         o[6] = 0; o[7] = 0; o[8] = 0; o[9] = 0; o[10] = 0; o[11] = 0
         return o

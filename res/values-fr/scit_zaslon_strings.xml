@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Zaslon Safeer Scita (lastnikov pregled 3. 11. 2026): stanje, zadnja ustavljena imena, izjeme, zasebni DNS. -->
+<resources>
+    <string name="scit_z_stanje_tece">Activé : toutes les applis de ce téléviseur sont protégées</string>
+    <string name="scit_z_stanje_prazen">En marche, mais la liste de blocage est vide – elle est créée à la mise à jour des listes</string>
+    <string name="scit_z_stanje_prekinjen">Interrompu (un autre VPN ou le système l’a arrêté)</string>
+    <string name="scit_z_stanje_izklopljen">Désactivé</string>
+    <string name="scit_z_ni_dns">Pas de DNS local : le réseau n’a indiqué aucun serveur DNS. le Bouclier n’en choisit pas un étranger ; les noms seront résolus dès que le routeur répond.</string>
+    <string name="scit_z_zasebni_dns">Le DNS privé est activé dans les paramètres système. Les applis résolvent alors les noms par celui-ci et contournent le Bouclier.</string>
+    <string name="scit_z_zasebni_dns_gumb">Ouvrir les paramètres réseau</string>
+    <string name="scit_z_vklopi">Activer</string>
+    <string name="scit_z_izklopi">Désactiver</string>
+    <string name="scit_z_danes">Arrêtés aujourd’hui : %1$d</string>
+    <string name="scit_z_zadnja">Arrêtés récemment</string>
+    <string name="scit_z_zadnja_prazno">Rien n’a encore été arrêté.</string>
+    <string name="scit_z_spusti">OK : autoriser 30 jours</string>
+    <string name="scit_z_ze_spusceno">Autorisé</string>
+    <string name="scit_z_groznja">Dangereux – impossible d’autoriser</string>
+    <string name="scit_z_izjeme">Exceptions</string>
+    <string name="scit_z_izjema_do">jusqu’au %1$s · OK : révoquer</string>
+    <string name="scit_z_izjema_webtor">Webtor · jusqu’au %1$s · OK : révoquer</string>
+    <string name="scit_z_izjema_stalna">Webtor · permanente</string>
+    <string name="scit_z_ni_spusceno">Ce nom ne peut pas être autorisé.</string>
+    <string name="scit_z_zasebnost">Les noms restent uniquement sur ce téléviseur (20 au plus), ne sont envoyés nulle part et sont effacés quand le Bouclier est désactivé.</string>
+    <string name="scit_z_ponudba">Bouclier Safeer bloque les publicités, les traqueurs et les sites dangereux dans toutes les applis de ce téléviseur. Le DNS reste sur votre réseau – rien ne part vers un serveur étranger. Android demandera une fois l’autorisation pour le filtre (VPN).</string>
+    <string name="scit_z_ne_zdaj">Pas maintenant</string>
+</resources>

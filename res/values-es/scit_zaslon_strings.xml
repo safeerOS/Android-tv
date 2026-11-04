@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Zaslon Safeer Scita (lastnikov pregled 3. 11. 2026): stanje, zadnja ustavljena imena, izjeme, zasebni DNS. -->
+<resources>
+    <string name="scit_z_stanje_tece">Activado: todas las apps de este televisor están protegidas</string>
+    <string name="scit_z_stanje_prazen">En marcha, pero la lista de bloqueo está vacía: se crea al actualizar las listas</string>
+    <string name="scit_z_stanje_prekinjen">Interrumpido (otra VPN o el sistema lo detuvo)</string>
+    <string name="scit_z_stanje_izklopljen">Desactivado</string>
+    <string name="scit_z_ni_dns">Sin DNS local: la red no ha indicado ningún servidor DNS. el Escudo no elige uno ajeno; los nombres se resolverán en cuanto responda el router.</string>
+    <string name="scit_z_zasebni_dns">El DNS privado está activado en los ajustes del sistema. Las apps resuelven entonces los nombres a través de él y evitan el Escudo.</string>
+    <string name="scit_z_zasebni_dns_gumb">Abrir ajustes de red</string>
+    <string name="scit_z_vklopi">Activar</string>
+    <string name="scit_z_izklopi">Desactivar</string>
+    <string name="scit_z_danes">Detenidos hoy: %1$d</string>
+    <string name="scit_z_zadnja">Detenidos recientemente</string>
+    <string name="scit_z_zadnja_prazno">Aún no se ha detenido nada.</string>
+    <string name="scit_z_spusti">OK: permitir 30 días</string>
+    <string name="scit_z_ze_spusceno">Permitido</string>
+    <string name="scit_z_groznja">Peligroso: no se puede permitir</string>
+    <string name="scit_z_izjeme">Excepciones</string>
+    <string name="scit_z_izjema_do">hasta %1$s · OK: revocar</string>
+    <string name="scit_z_izjema_webtor">Webtor · hasta %1$s · OK: revocar</string>
+    <string name="scit_z_izjema_stalna">Webtor · permanente</string>
+    <string name="scit_z_ni_spusceno">Este nombre no se puede permitir.</string>
+    <string name="scit_z_zasebnost">Los nombres se guardan solo en este televisor (20 como máximo), no se envían a ningún sitio y se borran al desactivar el Escudo.</string>
+    <string name="scit_z_ponudba">Escudo Safeer bloquea anuncios, rastreadores y sitios peligrosos en todas las apps de este televisor. El DNS se queda en tu red: nada va a un servidor ajeno. Android pedirá una vez permiso para el filtro (VPN).</string>
+    <string name="scit_z_ne_zdaj">Ahora no</string>
+</resources>

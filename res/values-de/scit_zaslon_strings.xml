@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Zaslon Safeer Scita (lastnikov pregled 3. 11. 2026): stanje, zadnja ustavljena imena, izjeme, zasebni DNS. -->
+<resources>
+    <string name="scit_z_stanje_tece">An: Alle Apps auf diesem Fernseher sind geschützt</string>
+    <string name="scit_z_stanje_prazen">Läuft, aber die Sperrliste ist leer – sie wird beim Aktualisieren der Listen erstellt</string>
+    <string name="scit_z_stanje_prekinjen">Unterbrochen (ein anderes VPN oder das System hat ihn gestoppt)</string>
+    <string name="scit_z_stanje_izklopljen">Aus</string>
+    <string name="scit_z_ni_dns">Kein lokales DNS: Das Netzwerk hat keinen DNS-Server gemeldet. Schild wählt keinen fremden; Namen werden wieder aufgelöst, sobald der Router antwortet.</string>
+    <string name="scit_z_zasebni_dns">Privates DNS ist in den Systemeinstellungen aktiv. Apps lösen Namen dann darüber auf und umgehen Schild.</string>
+    <string name="scit_z_zasebni_dns_gumb">Netzwerkeinstellungen öffnen</string>
+    <string name="scit_z_vklopi">Einschalten</string>
+    <string name="scit_z_izklopi">Ausschalten</string>
+    <string name="scit_z_danes">Heute gestoppt: %1$d</string>
+    <string name="scit_z_zadnja">Zuletzt gestoppt</string>
+    <string name="scit_z_zadnja_prazno">Noch nichts gestoppt.</string>
+    <string name="scit_z_spusti">OK: 30 Tage zulassen</string>
+    <string name="scit_z_ze_spusceno">Zugelassen</string>
+    <string name="scit_z_groznja">Gefährlich – kann nicht zugelassen werden</string>
+    <string name="scit_z_izjeme">Ausnahmen</string>
+    <string name="scit_z_izjema_do">bis %1$s · OK: widerrufen</string>
+    <string name="scit_z_izjema_webtor">Webtor · bis %1$s · OK: widerrufen</string>
+    <string name="scit_z_izjema_stalna">Webtor · dauerhaft</string>
+    <string name="scit_z_ni_spusceno">Dieser Name kann nicht zugelassen werden.</string>
+    <string name="scit_z_zasebnost">Namen bleiben nur auf diesem Fernseher (höchstens 20), werden nirgendwohin gesendet und beim Ausschalten von Schild gelöscht.</string>
+    <string name="scit_z_ponudba">Safeer Schild blockiert Werbung, Tracker und gefährliche Seiten in allen Apps auf diesem Fernseher. DNS bleibt in Ihrem Netzwerk – nichts geht an einen fremden Server. Android fragt einmal nach der Erlaubnis für den Filter (VPN).</string>
+    <string name="scit_z_ne_zdaj">Nicht jetzt</string>
+</resources>

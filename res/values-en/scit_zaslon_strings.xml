@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Zaslon Safeer Scita (lastnikov pregled 3. 11. 2026): stanje, zadnja ustavljena imena, izjeme, zasebni DNS. -->
+<resources>
+    <string name="scit_z_stanje_tece">On: every app on this TV is protected</string>
+    <string name="scit_z_stanje_prazen">Running, but the block list is empty – it is built when the lists update</string>
+    <string name="scit_z_stanje_prekinjen">Interrupted (another VPN or the system stopped it)</string>
+    <string name="scit_z_stanje_izklopljen">Off</string>
+    <string name="scit_z_ni_dns">No local DNS: the network has not reported a DNS server. Shield does not pick a foreign one; names resolve again as soon as the router answers.</string>
+    <string name="scit_z_zasebni_dns">Private DNS is on in the system settings. Apps then resolve names over it and bypass Shield.</string>
+    <string name="scit_z_zasebni_dns_gumb">Open network settings</string>
+    <string name="scit_z_vklopi">Turn on</string>
+    <string name="scit_z_izklopi">Turn off</string>
+    <string name="scit_z_danes">Stopped today: %1$d</string>
+    <string name="scit_z_zadnja">Recently stopped</string>
+    <string name="scit_z_zadnja_prazno">Nothing stopped yet.</string>
+    <string name="scit_z_spusti">OK: allow for 30 days</string>
+    <string name="scit_z_ze_spusceno">Allowed</string>
+    <string name="scit_z_groznja">Dangerous – cannot be allowed</string>
+    <string name="scit_z_izjeme">Exceptions</string>
+    <string name="scit_z_izjema_do">until %1$s · OK: revoke</string>
+    <string name="scit_z_izjema_webtor">Webtor · until %1$s · OK: revoke</string>
+    <string name="scit_z_izjema_stalna">Webtor · permanent</string>
+    <string name="scit_z_ni_spusceno">This name cannot be allowed.</string>
+    <string name="scit_z_zasebnost">Names are kept only on this TV (at most 20), never sent anywhere, and erased when Shield is turned off.</string>
+    <string name="scit_z_ponudba">Safeer Shield blocks ads, trackers and dangerous sites in every app on this TV. DNS stays on your network – nothing goes to a foreign server. Android will ask once for permission to set up the filter (VPN).</string>
+    <string name="scit_z_ne_zdaj">Not now</string>
+</resources>

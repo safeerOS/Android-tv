@@ -180,6 +180,27 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         super.attachBaseContext(JezikVmesnika.vKontekstu(newBase))
     }
 
+    /**
+     * Lastnik 4. 11. 2026: Scit privzeto vklopljen. Brskalnik ga ponudi ENKRAT ob prvem zagonu samo, ce ga vodi sam
+     * (na napravi ni Safeer OS); sistemsko potrditev za VPN da uporabnik v ScitActivity, mi je ne obidemo.
+     */
+    private fun ponudiScitObZagonu() {
+        try {
+            if (isFinishing || !hasWindowFocus()) return
+            val S = si.safeer.tv.scit.Scit
+            if (!si.safeer.tv.scit.ScitPregled.ponudiObZagonu(si.safeer.tv.os.Sosed.vodimLink(this), S.ponujeno(this), S.jeVklopljen(this), S.prejUporabljen(this))) return
+            S.oznaciPonujeno(this)
+            android.app.AlertDialog.Builder(this)
+                .setTitle(getString(R.string.scit_ime))
+                .setMessage(getString(R.string.scit_z_ponudba))
+                .setPositiveButton(getString(R.string.scit_z_vklopi)) { _, _ ->
+                    try { startActivity(Intent(this, si.safeer.tv.scit.ScitActivity::class.java)) } catch (_: Throwable) { }
+                }
+                .setNegativeButton(getString(R.string.scit_z_ne_zdaj), null)
+                .show()
+        } catch (_: Throwable) { }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // Safeer OS: brskalnik ima isto temo kot domaci zaslon (lastnik, 11. 10. 2026: »zdaj je videti kot 2 razlicni
         // temi«). Barve brskalnika so atributi teme (?attr/osX); Safeer Browser ostane v svoji zeleni AppTheme.
@@ -196,6 +217,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         }
         setContentView(osStranskaVrstica ?: brskalnikVsebina)
         si.safeer.tv.os.Robovi.uporabi(this)
+        if (savedInstanceState == null && BuildConfig.FLAVOR == "brskalnik") window.decorView.postDelayed({ ponudiScitObZagonu() }, 2_500)
 
         // Barve vrstic delujejo samo do Androida 14; od 15 (API 35, targetSdk 36) jih sistem ne uposteva.
         if (Build.VERSION.SDK_INT < 35) {
@@ -3079,22 +3101,58 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         }
 
         // 🛡 Safeer Scit: filter DNS za ves televizor (vse aplikacije). Vklop odpre sistemsko okno z dovoljenjem (prvic).
+        // Lastnik 4. 11. 2026: Scit je na napravi en sam. Kadar ga vodi Safeer OS (TV z namescenim Safeer OS), kljukica
+        // kaze NJEGOVO stanje (ScitSorodnikStoritev, dovoljenje LINK istega podpisa) in klik ga krmili tam - brez
+        // drugega VPN-ja v brskalniku in brez skoka na domaci zaslon (prej: brskalnik je izginil, videti kot sesutje).
         val cbScit = dialog.findViewById<CheckBox>(R.id.cbScit)
-        val scitVklopljen = si.safeer.tv.scit.Scit.jeVklopljen(this)
-        cbScit.isChecked = scitVklopljen
-        dialog.findViewById<android.widget.TextView>(R.id.txtMenuScit).text = if (scitVklopljen) {
-            UiText.get(R.string.menu_scit) + " · " + UiText.get(R.string.scit_blokiranih_danes, si.safeer.tv.scit.Scit.statistika(this).blokiranih)
-        } else UiText.get(R.string.menu_scit)
+        val txtScit = dialog.findViewById<android.widget.TextView>(R.id.txtMenuScit)
+        val scitVodimo = si.safeer.tv.os.Sosed.vodimLink(this)
+        var scitSosed: Boolean? = null
+        fun narisiScit(vklopljen: Boolean, blokiranih: Long?) {
+            cbScit.isChecked = vklopljen
+            txtScit.text = if (vklopljen && blokiranih != null)
+                UiText.get(R.string.menu_scit) + " · " + UiText.get(R.string.scit_blokiranih_danes, blokiranih)
+            else UiText.get(R.string.menu_scit)
+        }
+        fun izOdgovora(b: android.os.Bundle?) {
+            scitSosed = b?.takeIf { it.containsKey("vklopljen") }?.getBoolean("vklopljen")
+            narisiScit(si.safeer.tv.scit.ScitPregled.kljukica(false, false, scitSosed), b?.getLong("blokiranih"))
+        }
+        if (scitVodimo) {
+            val v = si.safeer.tv.scit.Scit.jeVklopljen(this)
+            narisiScit(v, si.safeer.tv.scit.Scit.statistika(this).blokiranih)
+        } else {
+            narisiScit(false, null)
+            si.safeer.tv.os.Sosed.poslji(this, si.safeer.tv.os.Sosed.OS, si.safeer.tv.scit.ScitSorodnikStoritev.DEJANJE,
+                si.safeer.tv.scit.ScitSorodnikStoritev.STANJE, si.safeer.tv.scit.ScitSorodnikStoritev.ODGOVOR, potekMs = 4000) { b ->
+                if (dialog.isShowing) izOdgovora(b)
+            }
+        }
+        fun zaslonScitaOs(vklop: Boolean) {
+            try {
+                val namera = Intent().setComponent(android.content.ComponentName(si.safeer.tv.os.Sosed.OS, "si.safeer.tv.scit.ScitActivity"))
+                if (!vklop) namera.putExtra(si.safeer.tv.scit.ScitActivity.EXTRA_POKAZI, true)
+                startActivity(namera)
+                dialog.dismiss()
+            } catch (_: Throwable) { Toast.makeText(this, getString(R.string.scit_napaka_dovoljenje), Toast.LENGTH_LONG).show() }
+        }
         dialog.findViewById<LinearLayout>(R.id.rowMenuScit).setOnClickListener {
-            // Scit vodi Safeer OS (kot Safeer Link): tam se tudi vklopi in izklopi.
-            if (!si.safeer.tv.os.Sosed.vodimLink(this)) {
-                try {
-                    dialog.dismiss()
-                    startActivity(android.content.Intent().setComponent(android.content.ComponentName(
-                        si.safeer.tv.os.Sosed.OS, "si.safeer.tv.os.DomovActivity"))
-                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+            when (si.safeer.tv.scit.ScitPregled.klik(scitVodimo, scitSosed)) {
+                si.safeer.tv.scit.ScitPregled.Klik.ZASLON_SOSEDA -> { zaslonScitaOs(false); return@setOnClickListener }
+                si.safeer.tv.scit.ScitPregled.Klik.PREK_SOSEDA_VKLOPI, si.safeer.tv.scit.ScitPregled.Klik.PREK_SOSEDA_IZKLOPI -> {
+                    val vklopi = scitSosed != true
+                    si.safeer.tv.os.Sosed.poslji(this, si.safeer.tv.os.Sosed.OS, si.safeer.tv.scit.ScitSorodnikStoritev.DEJANJE,
+                        if (vklopi) si.safeer.tv.scit.ScitSorodnikStoritev.VKLOPI else si.safeer.tv.scit.ScitSorodnikStoritev.IZKLOPI,
+                        si.safeer.tv.scit.ScitSorodnikStoritev.ODGOVOR, potekMs = 6000) { b ->
+                        // Prvi vklop v Safeer OS potrebuje sistemsko okno: odpre ga Safeer OS (njegov zaslon Scita).
+                        if (b?.getBoolean("potrebuje_okno") == true) { zaslonScitaOs(true); return@poslji }
+                        if (dialog.isShowing) izOdgovora(b)
+                        if (b == null) zaslonScitaOs(false)
+                        else Toast.makeText(this, getString(if (b.getBoolean("vklopljen")) R.string.scit_vklopljen else R.string.scit_izklopljen), Toast.LENGTH_SHORT).show()
+                    }
                     return@setOnClickListener
-                } catch (_: Throwable) { }
+                }
+                si.safeer.tv.scit.ScitPregled.Klik.LOKALNO -> { }
             }
             val zeVklopljen = si.safeer.tv.scit.Scit.jeVklopljen(this)
             // Izklop ne potrebuje sistemskega dovoljenja, vklop pa samo ob prvi vzpostavitvi VPN-ja -
@@ -3113,10 +3171,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                     zdajVklopljen = ok
                     sporociloId = if (ok) R.string.scit_vklopljen else R.string.scit_napaka_dovoljenje
                 }
-                cbScit.isChecked = zdajVklopljen
-                dialog.findViewById<android.widget.TextView>(R.id.txtMenuScit).text = if (zdajVklopljen) {
-                    UiText.get(R.string.menu_scit) + " · " + UiText.get(R.string.scit_blokiranih_danes, si.safeer.tv.scit.Scit.statistika(this).blokiranih)
-                } else UiText.get(R.string.menu_scit)
+                narisiScit(zdajVklopljen, si.safeer.tv.scit.Scit.statistika(this).blokiranih)
                 Toast.makeText(this, getString(sporociloId), Toast.LENGTH_SHORT).show()
             } else {
                 val namera = Intent(this, si.safeer.tv.scit.ScitActivity::class.java)

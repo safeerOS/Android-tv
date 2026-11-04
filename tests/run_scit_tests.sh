@@ -17,8 +17,13 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/scit/DnsPaket.kt" \
     "$SRC/si/safeer/tv/scit/TcpPaket.kt" \
     "$SRC/si/safeer/tv/scit/TcpDns.kt" \
+    "$SRC/si/safeer/tv/scit/ScitIzjeme.kt" \
+    "$SRC/si/safeer/tv/scit/ScitPregled.kt" \
     "$TEST_DIR/ScitTest.kt" \
+    "$TEST_DIR/ScitPregledTest.kt" \
     "$TEST_DIR/TcpDnsTest.kt" \
     -include-runtime -d "$OUT/scit.jar"
 
 java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.ScitTestKt
+# Lastnikov pregled Scita (3. in 4. 11. 2026): vrata 53, brez tuje rezerve, zasebni DNS, zadnja imena, izjeme, privzeti vklop, meni brskalnika.
+java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.ScitPregledTestKt

@@ -7,7 +7,10 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
+import android.net.LinkProperties
+import android.net.Network
 import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.VpnService
 import android.os.Build
 import android.os.ParcelFileDescriptor
@@ -56,6 +59,16 @@ class ScitStoritev : VpnService() {
     /** Grok 15, N8: gradnja seznamov (in nabora grozenj) je ze zahtevana v tem procesu. */
     @Volatile private var zahtevaniSeznami = false
     @Volatile private var upstream: List<InetAddress> = emptyList()
+    /** Pregled Scita 4. 11. 2026: omrezje ne javi DNS - ne izberemo tujega, poizvedbe dobijo SERVFAIL (zaslon: »ni krajevnega DNS«). */
+    @Volatile private var brezKrajevnega = false
+    @Volatile private var zadnjaOsvezitev = 0L
+    private var povratekOmrezja: ConnectivityManager.NetworkCallback? = null
+    /** Uporabnikove izjeme z zaslona Scita (scit/izjeme_uporabnika.txt; [ScitPregled]): natanko ime, 30 dni, nikoli groznje. */
+    @Volatile private var uporabniske: Map<String, Long> = emptyMap()
+    /** Zadnja ustavljena imena (najvec 20) - samo v pomnilniku tega procesa in v zasebni datoteki scit/zadnja.txt. */
+    private val zadnjeKljuc = Any()
+    private var zadnje: List<ScitPregled.Zadnje> = emptyList()
+    @Volatile private var zadnjeSpremenjena = false
     private var vticnica4: DatagramSocket? = null
     private var vticnica6: DatagramSocket? = null
     private val cakajoce = ConcurrentHashMap<Int, Cakajoca>()
@@ -114,6 +127,7 @@ class ScitStoritev : VpnService() {
         naloziNabor()
         val s = Scit.statistika(this)
         if (s.dan == dan) { blokiranih.set(s.blokiranih); poizvedb.set(s.poizvedb) }
+        zadnje = Scit.zadnja(this)
         osveziUpstream()
         val b = Builder()
             .setSession(getString(R.string.scit_ime))
@@ -145,16 +159,21 @@ class ScitStoritev : VpnService() {
         val u = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "safeer-scit-urnik").also { it.isDaemon = true } }
         u.scheduleWithFixedDelay({ vzdrzuj() }, 30, 30, TimeUnit.SECONDS)
         u.scheduleWithFixedDelay({
-            try { ponoviNeodgovorjene(); tcp.pocisti() } catch (e: Throwable) { Log.w(TAG, "Ponovitev: ${e.message}") }
+            try { ponoviNeodgovorjene(); tcp.pocisti(); shraniZadnje() } catch (e: Throwable) { Log.w(TAG, "Ponovitev: ${e.message}") }
         }, 1, 1, TimeUnit.SECONDS)
         urnik = u
+        spremljajOmrezje()
         shraniStatistiko("tece")
-        Log.i(TAG, "Safeer Scit tece; DNS naprej: $upstream; domen: ${nabor?.stevilo ?: 0}")
+        Log.i(TAG, "Safeer Scit tece; krajevnih DNS: ${upstream.size}; domen: ${nabor?.stevilo ?: 0}")
         return true
     }
 
     private fun ustaviVse(stanje: String) {
         tece = false
+        povratekOmrezja?.let { cb ->
+            try { (getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager)?.unregisterNetworkCallback(cb) } catch (_: Throwable) { }
+        }
+        povratekOmrezja = null
         try { urnik?.shutdownNow() } catch (_: Throwable) { }
         try { tcpIzvajalec?.shutdownNow() } catch (_: Throwable) { }
         tcpIzvajalec = null
@@ -166,6 +185,10 @@ class ScitStoritev : VpnService() {
         vticnica4 = null; vticnica6 = null
         izhod = null
         cakajoce.clear()
+        // Pregled Scita (tocka 5): zadnja imena so osebni podatki - ob izklopu (uporabnik) jih pocistimo; ob prekinitvi
+        // (drug VPN, sistem) ostanejo, ker Scit ni bil izklopljen.
+        if (stanje == "ustavljen") { synchronized(zadnjeKljuc) { zadnje = emptyList(); zadnjeSpremenjena = false }; Scit.pocistiZadnja(this) }
+        else shraniZadnje()
         shraniStatistiko(stanje)
         try {
             stopForeground(STOP_FOREGROUND_REMOVE)
@@ -184,6 +207,7 @@ class ScitStoritev : VpnService() {
             val nab = nabor
             if (q.ime.isNotEmpty() && nab != null && blokirana(nab, q.ime)) {
                 blokiranih.incrementAndGet()
+                zabeleziUstavljeno(q.ime)
                 zapisi(DnsPaket.zavijOdgovor(q, DnsPaket.odgovorBlokirano(q)))
                 continue
             }
@@ -192,8 +216,14 @@ class ScitStoritev : VpnService() {
     }
 
     private fun posreduj(q: DnsPaket.Poizvedba) {
-        val strezniki = upstream.filter { vticnicaZa(it) != null }
-        if (strezniki.isEmpty()) return
+        var strezniki = upstream.filter { vticnicaZa(it) != null }
+        if (strezniki.isEmpty()) {
+            // Pregled Scita 4. 11. 2026: brez krajevnega DNS ne izberemo tujega. Morda se je omrezje pravkar javilo
+            // (povratni klic se ni prisel): enkrat na sekundo preverimo; sicer takoj SERVFAIL, da aplikacija ne caka.
+            osveziUpstreamRedko()
+            strezniki = upstream.filter { vticnicaZa(it) != null }
+            if (strezniki.isEmpty()) { zapisi(DnsPaket.zavijOdgovor(q, DnsPaket.odgovorNapakaZa(q.dns))); return }
+        }
         // Navzgor gre NAS ID, ne ID aplikacije: aplikacije si ID-je izbirajo same in se ponovijo,
         // dva hkratna vprasanja z istim ID-jem pa bi se povozila in odgovor bi dobil napacni.
         val nasId = dodeliId(q, strezniki) ?: return
@@ -209,16 +239,19 @@ class ScitStoritev : VpnService() {
     private fun razresiZaTcp(vprasanje: ByteArray, odgovor: (ByteArray?) -> Unit) {
         poizvedb.incrementAndGet()
         val ime = DnsPaket.vprasanje(vprasanje)?.ime.orEmpty()
-        Log.i(TAG, "DNS po TCP: $ime")   // redko; v dnevniku je dokaz, da ta pot res tece
+        Log.i(TAG, "DNS po TCP")   // redko; dokaz, da ta pot tece. Brez imena: imena ne gredo v logcat (pregled Scita, tocka 5).
         val nab = nabor
         if (ime.isNotEmpty() && nab != null && blokirana(nab, ime)) {
             blokiranih.incrementAndGet()
+            zabeleziUstavljeno(ime)
             odgovor(DnsPaket.odgovorBlokiranoZa(vprasanje))
             return
         }
+        if (upstream.isEmpty()) osveziUpstreamRedko()
         val strezniki = upstream
         val izvajalec = tcpIzvajalec
-        if (strezniki.isEmpty() || izvajalec == null) { odgovor(null); return }
+        if (izvajalec == null) { odgovor(null); return }
+        if (strezniki.isEmpty()) { odgovor(DnsPaket.odgovorNapakaZa(vprasanje)); return }   // ni krajevnega DNS: SERVFAIL, ne tuj
         izvajalec.execute {
             var rezultat: ByteArray? = null
             for (streznik in strezniki) {
@@ -384,6 +417,7 @@ class ScitStoritev : VpnService() {
         izjeme = try {
             Scit.izjemeDatoteka(this).takeIf { it.isFile }?.readText()?.let { ScitIzjeme.preberi(it, System.currentTimeMillis()) } ?: emptyMap()
         } catch (_: Throwable) { emptyMap() }
+        uporabniske = Scit.izjemeUporabnika(this)
     }
 
     /**
@@ -394,8 +428,56 @@ class ScitStoritev : VpnService() {
     private fun blokirana(nab: DomenskiNabor.Poizvedba, ime: String): Boolean {
         if (!nab.jeBlokirana(ime)) return false
         val g = grozne
+        val zdaj = System.currentTimeMillis()
+        // Uporabnikova izjema (zaslon Scita) velja kot Webtorjeva: samo z nalozenim naborom grozenj in nikoli za groznjo.
         return ScitIzjeme.blokirana(true, g != null, g?.jeBlokirana(ime) == true,
-            g != null && ScitIzjeme.dovoljena(ime, izjeme, System.currentTimeMillis()), ScitIzjeme.jeStalna(ime))
+            g != null && (ScitIzjeme.dovoljena(ime, izjeme, zdaj) || ScitPregled.uporabniskaVelja(ime, uporabniske, zdaj)),
+            ScitIzjeme.jeStalna(ime))
+    }
+
+    /** Ustavljeno ime na vrh seznama zadnjih (zapis v datoteko najvec enkrat na sekundo, v urniku). Brez logcat. */
+    private fun zabeleziUstavljeno(ime: String) {
+        val ura = System.currentTimeMillis()
+        synchronized(zadnjeKljuc) { zadnje = ScitPregled.dodajZadnje(zadnje, ime, ura); zadnjeSpremenjena = true }
+    }
+
+    private fun shraniZadnje() {
+        // Izklopljen Scit (zastavico je pobrisal vmesnik) imen ne zapise vec - zakasnel zapis bi jih po izklopu obnovil.
+        if (!Scit.jeVklopljen(this)) return
+        val kopija = synchronized(zadnjeKljuc) { if (!zadnjeSpremenjena) return; zadnjeSpremenjena = false; zadnje }
+        Scit.zapisiZadnja(this, kopija)
+    }
+
+    /**
+     * Pregled Scita 4. 11. 2026: ko se omrezje (usmerjevalnik) javi ali spremeni DNS, razresevalce osvezimo takoj - prej
+     * sele v vzdrzevanju na 30 s. Privzeta zahteva izkljuci VPN (NOT_VPN), zato nas tunel ne pride sem.
+     */
+    private fun spremljajOmrezje() {
+        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return
+        val cb = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) = obSpremembi()
+            override fun onLinkPropertiesChanged(network: Network, lp: LinkProperties) = obSpremembi()
+            override fun onLost(network: Network) = obSpremembi()
+        }
+        try {
+            cm.registerNetworkCallback(NetworkRequest.Builder().addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET).build(), cb)
+            povratekOmrezja = cb
+        } catch (e: Throwable) { Log.w(TAG, "Spremljanje omrezja: ${e.javaClass.simpleName}") }
+    }
+
+    private fun obSpremembi() {
+        if (!tece) return
+        try { val prej = brezKrajevnega; osveziUpstream(); if (prej != brezKrajevnega) shraniStatistiko("tece") } catch (_: Throwable) { }
+    }
+
+    /** Osvezitev razresevalcev iz poti poizvedbe: najvec enkrat na sekundo (allNetworks je klic v sistem). */
+    private fun osveziUpstreamRedko() {
+        val zdaj = System.currentTimeMillis()
+        if (zdaj - zadnjaOsvezitev < 1_000L) return
+        zadnjaOsvezitev = zdaj
+        val prej = brezKrajevnega
+        osveziUpstream()
+        if (prej != brezKrajevnega) shraniStatistiko("tece")
     }
 
     /** Pravi strezniki DNS omrezja (ne nasi): iz vseh omrezij, ki niso VPN in imajo internet. */
@@ -414,16 +496,17 @@ class ScitStoritev : VpnService() {
                 }
             }
         } catch (e: Throwable) { Log.w(TAG, "Omrezja: ${e.message}") }
-        if (najdeni.isEmpty()) {
-            for (n in REZERVNI) try { najdeni.add(InetAddress.getByName(n)) } catch (_: Throwable) { }
-        }
+        // Pregled Scita 4. 11. 2026: prej rezerva 1.1.1.1 in 9.9.9.9 - vse dovoljene poizvedbe so sle k Cloudflare/Quad9.
+        // Zdaj samo krajevni; brez njih SERVFAIL, dokler se usmerjevalnik ne javi ([spremljajOmrezje]).
+        val izbrani = ArrayList(ScitPregled.naprej(najdeni))
+        brezKrajevnega = izbrani.isEmpty()
         // IPv4 najprej: tudi poizvedbe, ki pridejo po IPv6, gredo naprej po IPv4, ce je na voljo.
-        najdeni.sortBy { if (it is Inet4Address) 0 else 1 }
-        if (najdeni != upstream) { upstream = najdeni; Log.i(TAG, "DNS naprej: $najdeni") }
+        izbrani.sortBy { if (it is Inet4Address) 0 else 1 }
+        if (izbrani != upstream) { upstream = izbrani; Log.i(TAG, if (izbrani.isEmpty()) "DNS naprej: ni krajevnega" else "DNS naprej: ${izbrani.size} krajevnih") }
     }
 
     private fun shraniStatistiko(stanje: String) {
-        Scit.zapisiStatistiko(this, Scit.Statistika(blokiranih.get(), poizvedb.get(), dan, stanje, nabor?.stevilo ?: 0))
+        Scit.zapisiStatistiko(this, Scit.Statistika(blokiranih.get(), poizvedb.get(), dan, stanje, nabor?.stevilo ?: 0, brezKrajevnega))
     }
 
     private fun danes(): String = SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(Date())
@@ -461,7 +544,6 @@ class ScitStoritev : VpnService() {
         const val DEJANJE_ZAZENI = "si.safeer.tv.scit.ZAZENI"
         const val DEJANJE_USTAVI = "si.safeer.tv.scit.USTAVI"
         const val DEJANJE_OSVEZI = "si.safeer.tv.scit.OSVEZI"
-        private val REZERVNI = listOf("1.1.1.1", "9.9.9.9")
         /** Koliko cakamo na odgovor, preden vprasamo naslednji streznik, in kdaj odnehamo. */
         private const val PONOVITEV_MS = 1_200L
         private const val POTEK_MS = 8_000L

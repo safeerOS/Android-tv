@@ -532,6 +532,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         narisiAplikacije()
         // Posodobitve.ponudiCeJeCas(this)   // Naloga 47 F: Brez pasice in brez okna ob Domov, samo pika v nastavitvah.
         DovoljenjaActivity.ponudiObZagonu(this)   // enkrat, ce manjka pomembno dovoljenje (prikaz cez druge aplikacije)
+        ponudiScitObZagonu()
         narisiSpletne()
         prevzemiSpletne()
         // Ikone, shranjene s prejsnjo razlicico, so bile premajhne in zato zamegljene; enkrat jih
@@ -859,6 +860,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     /** Celotna razlaga Scita; na kartici je ni, ker je predolga. */
     private fun podrobnostiScita() {
+        if (Scit.odpriZaslon(this)) return   // pregled Scita 4. 11. 2026: pravi zaslon (zadnja imena, izjeme)
         val s = scitStanje
         val besedilo = when {
             s == null -> getString(R.string.os_scit_preverjam)
@@ -874,6 +876,31 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 if (s?.vklopljen == true) R.string.os_zaganjalnik_izklopi_kratko else R.string.os_vklopi)) { _, _ -> preklopiScit() }
             .setNegativeButton(getString(R.string.os_preklici), null)
             .let { Kontroler.pokazi(it.show()) }
+    }
+
+    /**
+     * Lastnik 4. 11. 2026: Scit privzeto vklopljen. Sistemsko potrditev za VPN ponudimo ENKRAT ob prvem zagonu z
+     * razlago; ce uporabnik zavrne ali Scit pozneje izklopi, ostane izklopljen ([si.safeer.tv.scit.ScitPregled.ponudiObZagonu]).
+     * Za oknom dovoljenj (900 ms): ce je ono odprto, nimamo fokusa okna in ponudimo ob naslednjem zagonu.
+     */
+    private fun ponudiScitObZagonu() {
+        glavna.postDelayed({
+            try {
+                if (isFinishing || !hasWindowFocus()) return@postDelayed
+                val S = si.safeer.tv.scit.Scit
+                if (!si.safeer.tv.scit.ScitPregled.ponudiObZagonu(Scit.vodimo(this), S.ponujeno(this), S.jeVklopljen(this), S.prejUporabljen(this))) return@postDelayed
+                S.oznaciPonujeno(this)
+                android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
+                    .setTitle(getString(R.string.scit_ime))
+                    .setMessage(getString(R.string.scit_z_ponudba))
+                    .setPositiveButton(getString(R.string.scit_z_vklopi)) { _, _ ->
+                        Scit.vklopi(this) { nov -> if (nov.potrebujeOkno || (!nov.vklopljen && nov.naVoljo)) Scit.odpriVklop(this) else pokaziScit(nov) }
+                        glavna.postDelayed({ osveziScit() }, 2_500)
+                    }
+                    .setNegativeButton(getString(R.string.scit_z_ne_zdaj), null)
+                    .let { Kontroler.pokazi(it.show()) }
+            } catch (_: Throwable) { }
+        }, 1_600)
     }
 
     private fun preklopiScit() {

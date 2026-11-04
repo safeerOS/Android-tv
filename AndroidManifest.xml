@@ -435,9 +435,8 @@
             android:name="si.safeer.tv.scit.ScitActivity"
             android:exported="true"
             android:permission="si.safeer.tv.permission.LINK"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar"
-            android:excludeFromRecents="true"
-            android:noHistory="true" />
+            android:theme="@style/Theme.SafeerOs"
+            android:excludeFromRecents="true" />
         <service
             android:name="si.safeer.tv.scit.ScitSorodnikStoritev"
             android:exported="true"
