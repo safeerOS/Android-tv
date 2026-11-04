@@ -23,6 +23,9 @@ import java.util.Properties
  *  - statistika.properties  blokiranih/poizvedb danes, dan, stanje storitve
  *  - izjeme.txt       Webtor rezerva: gostitelji tokov, ki jih Scit ne blokira ([ScitIzjeme]; stalne izjeme so v kodi)
  *  - grozne.bin       samo seznami grozenj (ne oglasov): izjema jih nikoli ne umakne (pregled V1)
+ *  - zadnja.txt       zadnjih najvec 20 ustavljenih imen z uro (pregled Scita 4. 11. 2026); osebni podatek: samo tu, brez
+ *                     sinhronizacije in varnostne kopije (res/xml), ob izklopu pobrisano
+ *  - izjeme_uporabnika.txt  imena, ki jih je uporabnik na zaslonu Scita spustil (30 dni, nikoli groznje; [ScitPregled])
  */
 object Scit {
     private const val TAG = "SafeerScit"
@@ -57,7 +60,7 @@ object Scit {
             zacasna.writeText(ScitIzjeme.zapis(novo))
             if (!zacasna.renameTo(f)) { f.delete(); if (!zacasna.renameTo(f)) return false }
         } catch (e: Throwable) { Log.w(TAG, "izjeme: ${e.javaClass.simpleName}"); return false }
-        Log.i(TAG, "izjema Scita za gostitelja toka Webtor ($gostitelj), izjem ${novo.size}")
+        Log.i(TAG, "izjema Scita za gostitelja toka Webtor, izjem ${novo.size}")   // brez imena: imena ne gredo v logcat
         if (jeVklopljen(context) && jePripravljen(context)) ScitStoritev.osvezi(context)
         return true
     }
@@ -70,15 +73,74 @@ object Scit {
     /** Vklop (dovoljenje mora biti ze dano) - zapise zastavico in zazene storitev. */
     fun vklopi(context: Context): Boolean {
         if (!jePripravljen(context)) return false
+        oznaciPonujeno(context)
         try { zastavica(context).writeText("1") } catch (e: Throwable) { Log.w(TAG, "Zastavice ni mogoce zapisati: ${e.message}") }
         ScitStoritev.zazeni(context)
         return true
     }
 
     fun izklopi(context: Context) {
+        oznaciPonujeno(context)   // uporabnikova izbira: ob zagonu ga ne ponudimo znova
         zastavica(context).delete()
+        pocistiZadnja(context)   // tudi ce storitev ze ne tece (proces :scit jih pocisti ob ustavitvi se enkrat)
         ScitStoritev.ustavi(context)
     }
+
+    // ------------------------------------------------------------------ zaslon Scita (pregled 4. 11. 2026)
+
+    /** Privzeto vklopljen (4. 11. 2026): ponudba ob prvem zagonu je bila ze pokazana (ali je uporabnik sam odlocil). */
+    fun ponujeno(context: Context): Boolean = File(mapa(context), "ponujeno").exists()
+    fun oznaciPonujeno(context: Context) { try { File(mapa(context), "ponujeno").writeText("1") } catch (_: Throwable) { } }
+    /** Scit je na tej napravi ze kdaj tekel (statistika obstaja): izklopljen je po uporabnikovi izbiri. */
+    fun prejUporabljen(context: Context): Boolean = statistikaDatoteka(context).isFile
+
+    fun zadnjaDatoteka(context: Context): File = File(mapa(context), "zadnja.txt")
+    fun izjemeUporabnikaDatoteka(context: Context): File = File(mapa(context), "izjeme_uporabnika.txt")
+
+    fun zadnja(context: Context): List<ScitPregled.Zadnje> =
+        try { zadnjaDatoteka(context).takeIf { it.isFile }?.readText()?.let { ScitPregled.preberiZadnje(it) } ?: emptyList() } catch (_: Throwable) { emptyList() }
+
+    fun zapisiZadnja(context: Context, seznam: List<ScitPregled.Zadnje>) = zapisiAtomsko(zadnjaDatoteka(context), ScitPregled.zapisZadnjih(seznam))
+
+    fun pocistiZadnja(context: Context) { try { zadnjaDatoteka(context).delete() } catch (_: Throwable) { } }
+
+    fun izjemeUporabnika(context: Context): Map<String, Long> =
+        try { ScitPregled.preberiIzjeme(izjemeUporabnikaDatoteka(context).takeIf { it.isFile }?.readText(), System.currentTimeMillis()) } catch (_: Throwable) { emptyMap() }
+
+    /** Webtorjeve naucene izjeme (za prikaz in preklic na zaslonu Scita). */
+    fun izjemeWebtor(context: Context): Map<String, Long> =
+        try { ScitIzjeme.preberi(izjemeDatoteka(context).takeIf { it.isFile }?.readText(), System.currentTimeMillis()) } catch (_: Throwable) { emptyMap() }
+
+    /** Ime je na seznamu grozenj (grozne.bin); null = seznama grozenj se ni (gumba za izjemo takrat ni). */
+    fun jeGroznja(context: Context, ime: String): Boolean? {
+        val g = try { DomenskiNabor.Poizvedba.odpri(grozneDatoteka(context)) } catch (_: Throwable) { null } ?: return null
+        return g.jeBlokirana(ime)
+    }
+
+    /** OK na ustavljenem imenu: spusti ga 30 dni (ne, ce je groznja). Vrne true, ce je izjema dodana. Z delovne niti. */
+    @Synchronized fun spusti(context: Context, ime: String): Boolean {
+        val g = try { DomenskiNabor.Poizvedba.odpri(grozneDatoteka(context)) } catch (_: Throwable) { null }
+        val novo = ScitPregled.dodajIzjemo(izjemeUporabnika(context), ime, System.currentTimeMillis(), g != null) { g?.jeBlokirana(it) ?: true }
+            ?: return false
+        if (!zapisiAtomsko(izjemeUporabnikaDatoteka(context), ScitPregled.zapisIzjem(novo))) return false
+        if (jeVklopljen(context) && jePripravljen(context)) ScitStoritev.osvezi(context)
+        return true
+    }
+
+    /** Preklic izjeme (uporabnikove ali Webtorjeve naucene); stalnih Webtorjevih ni mogoce preklicati. */
+    @Synchronized fun preklici(context: Context, ime: String) {
+        zapisiAtomsko(izjemeUporabnikaDatoteka(context), ScitPregled.zapisIzjem(ScitPregled.prekliciIzjemo(izjemeUporabnika(context), ime)))
+        val w = izjemeWebtor(context)
+        val d = ScitIzjeme.normaliziraj(ime)
+        if (d in w) zapisiAtomsko(izjemeDatoteka(context), ScitIzjeme.zapis(LinkedHashMap(w).apply { remove(d) }))
+        if (jeVklopljen(context) && jePripravljen(context)) ScitStoritev.osvezi(context)
+    }
+
+    private fun zapisiAtomsko(f: File, besedilo: String): Boolean = try {
+        val zacasna = File(f.parentFile, f.name + ".tmp")
+        zacasna.writeText(besedilo)
+        if (!zacasna.renameTo(f)) { f.delete(); zacasna.renameTo(f) } else true
+    } catch (e: Throwable) { Log.w(TAG, "${f.name}: ${e.javaClass.simpleName}"); false }
 
     /** Po vklopu televizorja / posodobitvi: ce je bil Scit vklopljen in ima dovoljenje, ga zazene. */
     fun zagotovi(context: Context) {
@@ -103,7 +165,9 @@ object Scit {
         return n
     }
 
-    class Statistika(val blokiranih: Long, val poizvedb: Long, val dan: String, val stanje: String, val domen: Int)
+    class Statistika(val blokiranih: Long, val poizvedb: Long, val dan: String, val stanje: String, val domen: Int,
+                     /** Pregled Scita 4. 11. 2026: omrezje ne javi DNS (poizvedbe dobijo SERVFAIL, tujega ne izberemo). */
+                     val brezKrajevnegaDns: Boolean = false)
 
     fun statistika(context: Context): Statistika {
         val p = Properties()
@@ -114,6 +178,7 @@ object Scit {
             p.getProperty("dan", ""),
             p.getProperty("stanje", "ustavljen"),
             p.getProperty("domen", "0").toIntOrNull() ?: 0,
+            p.getProperty("brez_dns", "0") == "1",
         )
     }
 
@@ -122,6 +187,7 @@ object Scit {
             val p = Properties()
             p.setProperty("blokiranih", s.blokiranih.toString()); p.setProperty("poizvedb", s.poizvedb.toString())
             p.setProperty("dan", s.dan); p.setProperty("stanje", s.stanje); p.setProperty("domen", s.domen.toString())
+            p.setProperty("brez_dns", if (s.brezKrajevnegaDns) "1" else "0")
             val cilj = statistikaDatoteka(context)
             val zacasna = File(cilj.parentFile, cilj.name + ".tmp")
             zacasna.outputStream().use { p.store(it, null) }

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Zaslon Safeer Scita (lastnikov pregled 3. 11. 2026): stanje, zadnja ustavljena imena, izjeme, zasebni DNS. -->
+<resources>
+    <string name="scit_z_stanje_tece">Vklopljen: vse aplikacije na tem televizorju so zaščitene</string>
+    <string name="scit_z_stanje_prazen">Teče, a seznam je prazen – zgradi se ob osvežitvi seznamov</string>
+    <string name="scit_z_stanje_prekinjen">Prekinjen (drug VPN ali sistem ga je ustavil)</string>
+    <string name="scit_z_stanje_izklopljen">Izklopljen</string>
+    <string name="scit_z_ni_dns">Ni krajevnega DNS: omrežje ni javilo strežnika DNS. Ščit ne izbere tujega; imena se spet razrešijo, ko se usmerjevalnik oglasi.</string>
+    <string name="scit_z_zasebni_dns">V sistemskih nastavitvah je vklopljen zasebni DNS. Aplikacije takrat imena razrešujejo prek njega in Ščit obidejo.</string>
+    <string name="scit_z_zasebni_dns_gumb">Odpri nastavitve omrežja</string>
+    <string name="scit_z_vklopi">Vklopi</string>
+    <string name="scit_z_izklopi">Izklopi</string>
+    <string name="scit_z_danes">Danes ustavljenih: %1$d</string>
+    <string name="scit_z_zadnja">Nazadnje ustavljeno</string>
+    <string name="scit_z_zadnja_prazno">Še nič ustavljenega.</string>
+    <string name="scit_z_spusti">OK: spusti za 30 dni</string>
+    <string name="scit_z_ze_spusceno">Spuščeno</string>
+    <string name="scit_z_groznja">Nevarno – ni mogoče spustiti</string>
+    <string name="scit_z_izjeme">Izjeme</string>
+    <string name="scit_z_izjema_do">do %1$s · OK: prekliči</string>
+    <string name="scit_z_izjema_webtor">Webtor · do %1$s · OK: prekliči</string>
+    <string name="scit_z_izjema_stalna">Webtor · stalna</string>
+    <string name="scit_z_ni_spusceno">Tega imena ni mogoče spustiti.</string>
+    <string name="scit_z_zasebnost">Imena so samo na tem televizorju (največ 20), nikamor se ne pošiljajo in ob izklopu Ščita se izbrišejo.</string>
+    <string name="scit_z_ponudba">Safeer Ščit ustavi oglase, sledilce in nevarne strani v vseh aplikacijah na tem televizorju. DNS ostane v vašem omrežju – nič ne gre k tujemu strežniku. Android bo enkrat vprašal za dovoljenje za filter (VPN).</string>
+    <string name="scit_z_ne_zdaj">Ne zdaj</string>
+</resources>

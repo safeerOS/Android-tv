@@ -60,6 +60,18 @@ object Scit {
         catch (e: Throwable) { Log.w(TAG, "Okna za vklop ni mogoce odpreti: ${e.message}") }
     }
 
+    /** Zaslon Scita (zadnja imena, izjeme) - samo, kadar Scit vodimo mi; sicer false (klicatelj pokaze kratko razlago). */
+    fun odpriZaslon(context: Context): Boolean {
+        if (sosed(context) != null) return false
+        return try {
+            context.startActivity(Intent(context, ScitActivity::class.java).putExtra(ScitActivity.EXTRA_POKAZI, true)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); true
+        } catch (e: Throwable) { Log.w(TAG, "Zaslona Scita ni mogoce odpreti: ${e.javaClass.simpleName}"); false }
+    }
+
+    /** Scit vodimo mi (ne soseda) - za ponudbo ob prvem zagonu. */
+    fun vodimo(context: Context): Boolean = sosed(context) == null
+
     /** Ali Scit tece v sosednji aplikaciji (takrat ga ne kaze vklapljati se pri nas). */
     fun jeVklopljen(context: Context): Boolean =
         if (sosed(context) != null) zadnjeVklopljeno
