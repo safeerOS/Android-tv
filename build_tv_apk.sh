@@ -6,7 +6,6 @@
 set -euo pipefail
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TOOLS_DIR="${SAFEER_TOOLS_DIR:-$DIR/.tools}"
 
 # 🧪 Testni podpisni ključ Safeer Threat Intelligence se ne sme znajti v objavljeni različici
 if grep -rqs '"safeer-test-' "$DIR/src/main/kotlin" --include=SignedThreatIntel.kt && [ "${SAFEER_ALLOW_TEST_KEY:-}" != "1" ]; then
@@ -162,6 +161,9 @@ if [ -z "${RELEASE_STORE_PASS:-}" ] && [ -f "$KEYSTORE_DIR/.store_pass" ]; then
     RELEASE_STORE_PASS="$(cat "$KEYSTORE_DIR/.store_pass")"
 fi
 RELEASE_STORE_PASS="${RELEASE_STORE_PASS:-${RELEASE_KEY_PASS:-}}"
+# Tedenski pregled 4. 11. 2026 (S6): gesla gredo orodjem prek okolja (keytool -storepass:env, apksigner env:), ne v ukazni
+# vrstici - ta je vidna vsem procesom (ps, /proc/<pid>/cmdline).
+export RELEASE_KEY_PASS RELEASE_STORE_PASS
 if [ -z "${RELEASE_KEY_PASS:-}" ]; then
     echo "❌ Geslo produkcijskega ključa (RELEASE_KEY_PASS) ni nastavljeno." >&2
     echo "👉 export RELEASE_KEY_PASS=\"...\"  ali geslo shrani v $KEYSTORE_DIR/.release_pass (v .gitignore)" >&2
@@ -176,8 +178,8 @@ if [ ! -f "$RELEASE_KEYSTORE" ]; then
         -keyalg RSA \
         -keysize 4096 \
         -validity 10000 \
-        -storepass "$RELEASE_KEY_PASS" \
-        -keypass "$RELEASE_KEY_PASS" \
+        -storepass:env RELEASE_KEY_PASS \
+        -keypass:env RELEASE_KEY_PASS \
         -dname "CN=Safeer Browser for Android TV, OU=Safeer Security, O=Safeer, L=Ljubljana, ST=Slovenia, C=SI"
 fi
 
@@ -191,20 +193,19 @@ podpisi() {   # podpisi <okus> <cilj.apk>
     fi
     rm -rf "$DIR/build/signed/$okus"
     mkdir -p "$DIR/build/signed/$okus"
-    java -jar "$TOOLS_DIR/uber-apk-signer.jar" \
-        --apks "$nepodpisan" \
-        --out "$DIR/build/signed/$okus" \
+    # S6 (4. 11. 2026): namesto uber-apk-signer.jar (brez pripete vsote, gesla v ukazni vrstici) apksigner iz build-tools
+    # 34.0.0, ki jih ta skripta prenese s pripeto SHA-256. Gradle APK ze poravna; zipalign -c to preveri pred podpisom.
+    # v1 ostane vklopljen (kot pri uber-apk-signer): keytool -printcert v namestitvenih skriptah bere podpis v1.
+    local bt="$SDK_DIR/build-tools/34.0.0" podpisan="$DIR/build/signed/$okus/$okus-release.apk"
+    "$bt/zipalign" -c -p 4 "$nepodpisan" || { echo "APK okusa $okus ni poravnan (zipalign)." >&2; exit 1; }
+    "$bt/apksigner" sign \
         --ks "$RELEASE_KEYSTORE" \
-        --ksAlias "$RELEASE_KEY_ALIAS" \
-        --ksPass "$RELEASE_STORE_PASS" \
-        --ksKeyPass "$RELEASE_KEY_PASS" \
-        --allowResign
-    local podpisan
-    podpisan="$(find "$DIR/build/signed/$okus" -name '*.apk' | head -n 1)"
-    if [[ -z "$podpisan" ]]; then
-        echo "Podpisani APK okusa $okus manjka." >&2
-        exit 1
-    fi
+        --ks-key-alias "$RELEASE_KEY_ALIAS" \
+        --ks-pass env:RELEASE_STORE_PASS \
+        --key-pass env:RELEASE_KEY_PASS \
+        --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true \
+        --out "$podpisan" "$nepodpisan"
+    "$bt/apksigner" verify "$podpisan" || { echo "Podpis APK okusa $okus ni veljaven." >&2; exit 1; }
     cp "$podpisan" "$cilj"
 }
 
