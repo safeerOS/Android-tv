@@ -217,6 +217,19 @@ private fun preizkusPregledaKanalov() {
     preveriEnako("pomnilnik: COMPLETE", true, OsPravila.pritiskPomnilnika(80))
 }
 
+/** Pregled 4. 11. 2026: ozadje 16:9 na pokoncnem zaslonu z obrezom na sredini, ne raztegnjeno; televizor nespremenjen. */
+private fun preizkusObrezaOzadja() {
+    println("\n== ozadje: obrez pokrij ==")
+    preveriEnako("TV 1080p: cel zaslon", listOf(0, 0, 1920, 1080), OsPravila.pokrij(1920, 1080, 1920, 1080).toList())
+    preveriEnako("TV 720p: cel zaslon", listOf(0, 0, 1280, 720), OsPravila.pokrij(1920, 1080, 1280, 720).toList())
+    preveriEnako("pokoncno 1080x2400: visina zaslona, sredina", listOf(-1593, 0, 2674, 2400), OsPravila.pokrij(1920, 1080, 1080, 2400).toList())
+    preveriEnako("tablica 16:10 1920x1200: sirsa slika", listOf(-106, 0, 2027, 1200), OsPravila.pokrij(1920, 1080, 1920, 1200).toList())
+    preveriEnako("sirok zaslon 21:9 2560x1080: zgoraj in spodaj cez", listOf(0, -180, 2560, 1260), OsPravila.pokrij(1920, 1080, 2560, 1080).toList())
+    val r = OsPravila.pokrij(960, 540, 1080, 2400)
+    preveri("razmerje ohranjeno (${r.toList()})", kotlin.math.abs((r[2] - r[0]).toDouble() / (r[3] - r[1]) - 16.0 / 9) < 0.01)
+    preveriEnako("neznane mere: cel zaslon", listOf(0, 0, 1080, 2400), OsPravila.pokrij(0, 0, 1080, 2400).toList())
+}
+
 private fun preizkusMer() {
     println("\n== mere ikon ==")
     preveriEnako("majhna ikona ostane cela", 1, OsPravila.vzorec(128, 128, 512))
@@ -1167,6 +1180,7 @@ fun main() {
     preizkusVrsteIzMeta()
     preizkusJezikaKataloga()
     preizkusMer()
+    preizkusObrezaOzadja()
     preizkusNadaljuj()
     preizkusIkon()
     preizkusZaslona()

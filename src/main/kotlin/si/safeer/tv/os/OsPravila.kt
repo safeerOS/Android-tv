@@ -299,6 +299,25 @@ object OsPravila {
      */
     fun pritiskPomnilnika(raven: Int): Boolean = raven == 10 || raven == 15 || raven >= 60
 
+    // ------------------------------------------------------------------ ozadje (Ozadje.kt)
+
+    /**
+     * Obrez »pokrij« (center crop): pravokotnik [levo, zgoraj, desno, spodaj], v katerega narisemo sliko [sw]x[sh], da
+     * brez popacenja pokrije zaslon [w]x[h]; kar gleda cez rob, odreze platno. Pregled 4. 11. 2026: fotografija 16:9 je
+     * bila na pokoncnem zaslonu (tablica, telefon) raztegnjena. Enako razmerje (televizor 16:9) ali neznane mere: cel
+     * zaslon, kot prej.
+     */
+    fun pokrij(sw: Int, sh: Int, w: Int, h: Int): IntArray {
+        if (sw <= 0 || sh <= 0 || w <= 0 || h <= 0) return intArrayOf(0, 0, w, h)
+        val nw: Int
+        val nh: Int
+        if (sw.toLong() * h > w.toLong() * sh) { nh = h; nw = ((sw.toLong() * h + sh / 2) / sh).toInt() }   // sirsa: levo in desno cez
+        else { nw = w; nh = ((sh.toLong() * w + sw / 2) / sw).toInt() }                                     // visja: zgoraj in spodaj cez
+        val l = (w - nw) / 2
+        val t = (h - nh) / 2
+        return intArrayOf(l, t, l + nw, t + nh)
+    }
+
     // ------------------------------------------------------------------ naloga 77: glasba z id-ji IMDb (koncerti)
 
     /** Id IMDb: »tt« in samo stevke. */

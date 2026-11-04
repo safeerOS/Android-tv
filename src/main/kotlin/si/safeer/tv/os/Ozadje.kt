@@ -201,7 +201,15 @@ object Ozadje {
             sestavljena?.let { if (kljuc == sestavljenaKljuc && !it.isRecycled) return BitmapDrawable(c.resources, it) }
             return try {
                 val b = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).also { it.setHasAlpha(false) }   // neprosojno (brez pasov v temnih prelivih)
-                plasti.setBounds(0, 0, w, h); plasti.draw(android.graphics.Canvas(b))
+                // Fotografija (privzete gore, lastna) z obrezom na sredini, ne raztegnjena (pokoncna tablica, telefon); na
+                // televizorju 16:9 je obrez cel zaslon kot prej. Risbe (vektor) in zavesa gredo cez cel zaslon: vektor bi pri
+                // obrezu narisal predpomnilnik do 2048x2048 (16 MiB) namesto 1080x2048.
+                val platno = android.graphics.Canvas(b)
+                for (i in 0 until plasti.numberOfLayers) {
+                    val d = plasti.getDrawable(i)
+                    val r = if (d is BitmapDrawable) OsPravila.pokrij(d.intrinsicWidth, d.intrinsicHeight, w, h) else intArrayOf(0, 0, w, h)
+                    d.setBounds(r[0], r[1], r[2], r[3]); d.draw(platno)
+                }
                 sestavljena = b; sestavljenaKljuc = kljuc
                 BitmapDrawable(c.resources, b)
             } catch (_: Throwable) { plasti }   // brez pomnilnika: stare plasti
