@@ -194,6 +194,10 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
     var onPdfPrenos: ((String, String?) -> Unit)? = null
     /** Pregledovalnik PDF preda fokus brskalniku ("gor" = naslovna vrstica). */
     var onPdfFokusVen: ((String) -> Unit)? = null
+    /** Stran odpira izbiro datotek (<input type=file>); MainActivity zazene sistemski izbirnik (4. 11. 2026). */
+    var onIzbiraDatotek: ((ValueCallback<Array<Uri>>, WebChromeClient.FileChooserParams) -> Boolean)? = null
+    /** Sistemski izbirnik je odprt: zavihek ne sme zaspati (SpanjePravila.zaspi), sicer se datoteka nima kam vrniti. */
+    @Volatile var cakaIzbiroDatotek: Boolean = false
     /**
      * En sam primerek mostu: applyUserAgentForUrl ga ob vsaki navigaciji znova doda (tudi v
      * onPageStarted), Chromium pa ob istem predmetu ne naredi nic - nov primerek bi staro vezavo
@@ -844,6 +848,16 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
             // se pokaze ob vsakem prehodu na naslednji video v mesanici. Vrnemo prazno
             // (prosojno) sliko, da ostane vidno ozadje strani.
             override fun getDefaultVideoPoster(): android.graphics.Bitmap? = prazenPlakat
+
+            // Brez tega WebView izbiro datotek tiho preklice in nalaganje na strani ne dela (do 4. 11. 2026, kot telefon).
+            override fun onShowFileChooser(
+                webView: WebView?,
+                filePathCallback: ValueCallback<Array<Uri>>?,
+                fileChooserParams: FileChooserParams?
+            ): Boolean {
+                if (filePathCallback == null || fileChooserParams == null) return false
+                return try { onIzbiraDatotek?.invoke(filePathCallback, fileChooserParams) ?: false } catch (_: Exception) { false }
+            }
 
             // Okna JavaScripta: privzeti WebChromeClient jih tiho preklice, zato jih
             // narisemo sami -- sicer prijave in potrditve na straneh ne delujejo.

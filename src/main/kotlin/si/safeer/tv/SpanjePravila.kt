@@ -26,9 +26,13 @@ object SpanjePravila {
         else -> if (maloRama) TV_MALO_RAMA_MS else TV_MS
     }
 
-    /** Ali zavihek zdaj zaspi: ki predvaja, nikoli; neoddan obrazec spanje odlozi, a najvec do roka. */
-    fun zaspi(predvaja: Boolean, umazanObrazec: Boolean, odlozenoMs: Long, naDotik: Boolean): Boolean =
-        !predvaja && (!umazanObrazec || odlozenoMs >= if (naDotik) OBRAZEC_DOTIK_MS else OBRAZEC_TV_MS)
+    /**
+     * Ali zavihek zdaj zaspi: ki predvaja, nikoli; neoddan obrazec spanje odlozi, a najvec do roka. Med odprtim
+     * izbirnikom datotek (<input type=file>, 4. 11. 2026) nikoli: brskalnik je takrat v ozadju, izbrana datoteka pa
+     * se mora vrniti na isto stran.
+     */
+    fun zaspi(predvaja: Boolean, umazanObrazec: Boolean, odlozenoMs: Long, naDotik: Boolean, cakaIzbiro: Boolean = false): Boolean =
+        !predvaja && !cakaIzbiro && (!umazanObrazec || odlozenoMs >= if (naDotik) OBRAZEC_DOTIK_MS else OBRAZEC_TV_MS)
 
     /**
      * Izrisovalnik koncamo, ko brskalnika ni na zaslonu (ali je zaprt) in nima nobenega zivega zavihka. Ali ga rabi se

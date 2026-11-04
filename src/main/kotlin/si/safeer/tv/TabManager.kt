@@ -358,7 +358,7 @@ class TabManager(
                 // Prej je neoddan obrazec (tudi iskalno polje) odlagal spanje v nedogled; zdaj najvec do roka.
                 val zdaj = android.os.SystemClock.uptimeMillis()
                 val odlozeno = if (tab.odlozenoOd == 0L) 0L else zdaj - tab.odlozenoOd
-                if (SpanjePravila.zaspi(tab.predvaja, tab.umazanObrazec, odlozeno, !jeTv())) zamrzniPogled(tab, w, dovoliAktivnega)
+                if (SpanjePravila.zaspi(tab.predvaja, tab.umazanObrazec, odlozeno, !jeTv(), w.cakaIzbiroDatotek)) zamrzniPogled(tab, w, dovoliAktivnega)
                 else {
                     if (tab.umazanObrazec && tab.odlozenoOd == 0L) tab.odlozenoOd = zdaj
                     nacrtujZamrznitev(tab, dovoliAktivnega)

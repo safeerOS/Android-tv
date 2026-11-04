@@ -51,6 +51,7 @@ class SpletniKlepetActivity : OsActivity() {
     private var mobilniUa = ""
     private var zadnjeNeprebrano = -1
     private var izbirnik: ValueCallback<Array<Uri>>? = null
+    private var izbiraVec = false
 
     private fun dp(v: Int) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), resources.displayMetrics).toInt()
 
@@ -165,8 +166,23 @@ class SpletniKlepetActivity : OsActivity() {
             override fun onPermissionRequest(zahteva: PermissionRequest) { zahteva.deny() }
             override fun onShowFileChooser(view: WebView, povratek: ValueCallback<Array<Uri>>, parametri: FileChooserParams): Boolean {
                 izbirnik?.onReceiveValue(null)
+                izbirnik = null
+                // Kot glavni brskalnik (4. 11. 2026): SAF ACTION_OPEN_DOCUMENT z vec datotekami in tipi iz accept;
+                // prej createIntent() (GET_CONTENT, ena datoteka) in parseResult brez filtra content://.
+                val odpriVec = FileChooserParams.MODE_OPEN_MULTIPLE
+                if (parametri.mode != FileChooserParams.MODE_OPEN && parametri.mode != odpriVec) return false
+                izbiraVec = parametri.mode == odpriVec
+                val tipi = si.safeer.tv.IzbiraDatotek.mimeTipi(parametri.acceptTypes) { k ->
+                    android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(k)
+                }
+                val namera = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = tipi.singleOrNull() ?: si.safeer.tv.IzbiraDatotek.VSE
+                    if (tipi.size > 1) putExtra(Intent.EXTRA_MIME_TYPES, tipi.toTypedArray())
+                    if (izbiraVec) putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                }
                 izbirnik = povratek
-                return try { startActivityForResult(parametri.createIntent(), IZBIRA_DATOTEKE); true }
+                return try { startActivityForResult(namera, IZBIRA_DATOTEKE); true }
                 catch (_: Throwable) { izbirnik = null; false }
             }
         }
@@ -212,8 +228,17 @@ class SpletniKlepetActivity : OsActivity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (requestCode == IZBIRA_DATOTEKE) {
-            izbirnik?.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(resultCode, data))
+            // Strani samo content:// iz izbirnika, nikoli file:// ali nas ponudnik (si.safeer.*): IzbiraDatotek.sprejmi.
+            val surovi = mutableListOf<String?>()
+            if (resultCode == RESULT_OK && data != null) {
+                data.clipData?.let { c -> for (i in 0 until c.itemCount) surovi += c.getItemAt(i).uri?.toString() }
+                surovi += data.data?.toString()
+            }
+            val sprejeti = si.safeer.tv.IzbiraDatotek.sprejmi(surovi, si.safeer.tv.IzbiraDatotek.LASTNA_DRUZINA, izbiraVec)
+                .map { Uri.parse(it) }
+            val povratek = izbirnik
             izbirnik = null
+            try { povratek?.onReceiveValue(if (sprejeti.isEmpty()) null else sprejeti.toTypedArray()) } catch (_: Throwable) { }
             return
         }
         super.onActivityResult(requestCode, resultCode, data)

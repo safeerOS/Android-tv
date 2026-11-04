@@ -630,6 +630,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     private var linkMost: si.safeer.tv.link.LinkMost? = null
     /** Koda zahteve za sistemsko okno »Zacni zajem zaslona«. */
     private val ZAHTEVA_ZAJEM_ZASLONA = 4711
+    private val ZAHTEVA_IZBIRA_DATOTEK = 4712
     /** Kam v Safeer OS se vrnemo po zaprtju strani Link (npr. "naprave"); prazno = domaci zaslon. */
     private var linkOsVrni: String? = null
     /** Dodatka, s katerima Safeer OS odpre spletno aplikacijo cez ves zaslon. */
@@ -1002,6 +1003,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     }
 
     override fun onDestroy() {
+        koncajIzbiroDatotek(null)
         silenceBackgroundMedia("onDestroy")
         // Huba tu NE ustavljamo: od 2.1.89 zivi v HubStoritev, da je televizor dosegljiv
         // tudi, ko brskalnik ni odprt. Ugasne ga uporabnik v Safeer Linku.
@@ -2086,8 +2088,65 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         return true
     }
 
+    private var izbiraDatotek: android.webkit.ValueCallback<Array<android.net.Uri>>? = null
+    private var izbiraPogled: ChromiumEngineView? = null
+    private var izbiraVec = false
+
+    /**
+     * <input type=file> (4. 11. 2026, prenos s telefona bf12168): sistemski izbirnik (SAF), brez dovoljenja za shrambo.
+     * Ce ga televizor nima (DocumentsUI na nekaterih TV manjka), vrnemo false: WebView izbor zapre sam, brez sesutja.
+     */
+    @Suppress("DEPRECATION")
+    private fun odpriIzbiroDatotek(
+        pogled: ChromiumEngineView,
+        povratek: android.webkit.ValueCallback<Array<android.net.Uri>>,
+        parametri: android.webkit.WebChromeClient.FileChooserParams
+    ): Boolean {
+        // Nedokoncan prejsnji izbor zapremo s praznim odgovorom, sicer WebView naslednjega ne odpre.
+        koncajIzbiroDatotek(null)
+        val nacin = parametri.mode
+        val odpri = android.webkit.WebChromeClient.FileChooserParams.MODE_OPEN
+        val odpriVec = android.webkit.WebChromeClient.FileChooserParams.MODE_OPEN_MULTIPLE
+        // MODE_SAVE brskalnik ne podpira: false, da WebView izbor zapre sam.
+        if (nacin != odpri && nacin != odpriVec) return false
+        val vec = nacin == odpriVec
+        val tipi = IzbiraDatotek.mimeTipi(parametri.acceptTypes) { k ->
+            android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(k)
+        }
+        val namera = android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(android.content.Intent.CATEGORY_OPENABLE)
+            type = tipi.singleOrNull() ?: IzbiraDatotek.VSE
+            if (tipi.size > 1) putExtra(android.content.Intent.EXTRA_MIME_TYPES, tipi.toTypedArray())
+            if (vec) putExtra(android.content.Intent.EXTRA_ALLOW_MULTIPLE, true)
+        }
+        izbiraDatotek = povratek
+        izbiraVec = vec
+        izbiraPogled = pogled
+        pogled.cakaIzbiroDatotek = true
+        return try {
+            startActivityForResult(namera, ZAHTEVA_IZBIRA_DATOTEK)
+            true
+        } catch (_: Exception) {
+            // Ni izbirnika (ActivityNotFoundException): false, WebView izbor zapre sam (povratka po false ne klicemo).
+            izbiraDatotek = null
+            izbiraPogled = null
+            pogled.cakaIzbiroDatotek = false
+            false
+        }
+    }
+
+    /** Odgovor strani: izbrane datoteke ali null ob preklicu - vedno natanko enkrat. */
+    private fun koncajIzbiroDatotek(uriji: Array<android.net.Uri>?) {
+        val povratek = izbiraDatotek ?: return
+        izbiraDatotek = null
+        izbiraPogled?.cakaIzbiroDatotek = false
+        izbiraPogled = null
+        try { povratek.onReceiveValue(uriji) } catch (_: Exception) { }
+    }
+
     private fun attachTabListeners(tab: TabModel) {
         val wv = tab.webView ?: return
+        wv.onIzbiraDatotek = { povratek, parametri -> odpriIzbiroDatotek(wv, povratek, parametri) }
         try {
             wv.setOnScrollChanged { direction, scrollY -> handlePageScroll(direction, scrollY) }
             wv.setOnChromeHidden { hidden ->
@@ -2828,6 +2887,17 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     @Suppress("DEPRECATION")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: android.content.Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == ZAHTEVA_IZBIRA_DATOTEK) {
+            // Strani gre samo, kar je vrnil sistemski izbirnik (content:// tuje avtoritete), nikoli nas ponudnik.
+            val surovi = mutableListOf<String?>()
+            if (resultCode == android.app.Activity.RESULT_OK && data != null) {
+                data.clipData?.let { c -> for (i in 0 until c.itemCount) surovi += c.getItemAt(i).uri?.toString() }
+                surovi += data.data?.toString()
+            }
+            val sprejeti = IzbiraDatotek.sprejmi(surovi, IzbiraDatotek.LASTNA_DRUZINA, izbiraVec).map { android.net.Uri.parse(it) }
+            koncajIzbiroDatotek(if (sprejeti.isEmpty()) null else sprejeti.toTypedArray())
+            return
+        }
         if (requestCode != ZAHTEVA_ZAJEM_ZASLONA) return
         val cilj = linkZaslonCilj
         val ime = linkZaslonIme
