@@ -240,7 +240,7 @@ class TabManager(
             (ciljniPogled.parent as? ViewGroup)?.removeView(ciljniPogled)
         }
         container.addView(ciljniPogled)
-        strojniSloj(ciljniPogled, true)
+        brezSloja(ciljniPogled)
         // Lastnik 28. 10. 2026: po novem zavihku daljinec ni premikal (fokus je ostal na gumbu orodne vrstice brez cilja
         // pod njim) - stran dobi fokus kot v zbudiAktivnega; vpis v polje (naslovna vrstica) ostane.
         if (fokusPrej !is android.widget.EditText) try { ciljniPogled.requestFocus() } catch (_: Exception) {}
@@ -335,7 +335,7 @@ class TabManager(
         if (w.jeUniceno) return
         w.onPause()
         w.settings.mediaPlaybackRequiresUserGesture = true
-        strojniSloj(w, false)
+        brezSloja(w)
         if (Build.VERSION.SDK_INT >= 26) w.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_WAIVED, true)
         w.evaluateJavascript(STANJE_ZAMRZNITVE_JS) { odgovor ->
             val deli = odgovor.orEmpty().replace("\"", "").split('|')
@@ -404,7 +404,7 @@ class TabManager(
         if (!tab.spi) return
         val w = zbudi(tab)
         if (w.parent == null) container.addView(w)
-        strojniSloj(w, true)
+        brezSloja(w)
         // Nov pogled se ni imel fokusa: brez tega bi daljinec po vrnitvi krmilil orodno vrstico.
         try { w.requestFocus() } catch (_: Exception) {}
         notifyUpdated()
@@ -447,12 +447,15 @@ class TabManager(
      * Strojni sloj je hiter, a stane cel zaslon grafike. Ima ga naj samo zavihek, ki je na
      * zaslonu; drugim ga vzamemo in ga ob vrnitvi vrnemo.
      */
-    private fun strojniSloj(pogled: ChromiumEngineView, vklopljen: Boolean) {
+    /**
+     * Brez lastnega sloja tudi za vidni zavihek (4. 11. 2026, 2 GB TV: Graphics 67 MB v glavnem procesu). WebView rise
+     * prek funktorja v RenderThread neposredno; LAYER_TYPE_HARDWARE doda zunanji medpomnilnik velikosti pogleda (1080p
+     * RGBA ~8 MB) in eno kopijo vec na sliko. Sloj ni bil namenski: preizkus DRM 21. 10. 2026 je pokazal, da nanj ne vpliva
+     * (zapisnik). Klice se ob vsaki menjavi zavihka (ce je sloj kdo vklopil, ga izklopi).
+     */
+    private fun brezSloja(pogled: ChromiumEngineView) {
         try {
-            pogled.setLayerType(
-                if (vklopljen) android.view.View.LAYER_TYPE_HARDWARE else android.view.View.LAYER_TYPE_NONE,
-                null
-            )
+            if (pogled.layerType != android.view.View.LAYER_TYPE_NONE) pogled.setLayerType(android.view.View.LAYER_TYPE_NONE, null)
         } catch (e: Exception) {
             Log.w(TAG, "Sloja ni bilo mogoce spremeniti: ${e.message}")
         }

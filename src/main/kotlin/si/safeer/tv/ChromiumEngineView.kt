@@ -307,7 +307,7 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
 
     private fun setupSettings() {
         // Pregled 3. 11. 2026 (2 GB TV): strojna plast je zunanji medpomnilnik velikosti pogleda (1080p ~8 MB) tudi za
-        // nevidne poglede - privzeto brez nje; TabManager.strojniSloj jo vklopi samo vidnemu zavihku.
+        // nevidne poglede - brez nje; od 4. 11. 2026 tudi vidni zavihek (TabManager.brezSloja), WebView rise prek funktorja.
         setLayerType(View.LAYER_TYPE_NONE, null)
         overScrollMode = View.OVER_SCROLL_NEVER
         isHapticFeedbackEnabled = false
