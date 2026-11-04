@@ -354,7 +354,11 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             },
             safeer(R.drawable.os_ikona_moc, R.string.os_moc, R.string.os_moc_opis,
                 moc?.ime.orEmpty().ifBlank { getString(R.string.os_moc_berem) }) { pokaziMoc() },
-            safeer(R.drawable.os_ikona_scit, R.string.os_scit, R.string.os_scit_nastavitev_opis, vklop(Scit.jeVklopljen(this))) { preklopiScit() },
+            safeer(R.drawable.os_ikona_scit, R.string.os_scit, R.string.os_scit_nastavitev_opis, vklop(Scit.jeVklopljen(this))) {
+                // Preverba TV 4. 11. 2026 06:38: en OK na vrstici je zascito takoj izklopil (brez potrditve, tudi po nesreci).
+                // Vrstica odpre zaslon Scita (vklop/izklop, zadnja imena, izjeme); preklop samo, ce zaslona ni.
+                if (!Scit.odpriZaslon(this)) preklopiScit()
+            },
             // Obvestila (telefon, tablica): brez njih "Poslji na napravo" in sporocila z drugih naprav v ozadju niso vidni;
             // dovoljenje, ki ga je uporabnik enkrat zavrnil, sistem ne ponudi vec - zato pot do nastavitev aplikacije tu.
             safeer(R.drawable.os_ikona_zvonec, R.string.os_obvestila, R.string.os_obvestila_opis,
