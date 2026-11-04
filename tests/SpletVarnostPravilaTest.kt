@@ -198,12 +198,11 @@ fun main() {
     check(!P.vhodniNaslov(SpletMostPravila.DOMACA, N) && !P.vhodniNaslov(SpletMostPravila.DOMACA, S)) { "domaca ni za namero" }
     check(!P.vhodniNaslov("file:///android_asset/splet/drugo.html", L))
     // S1: spletna aplikacija cez cel zaslon samo od Safeerja ali s seznama; tuja aplikacija dobi navaden zavihek.
-    val A = P.SpletnaAplikacija
-    check(P.spletnaAplikacija("https://banka.si/prijava", odSafeerja = false) { false } == A.ZAVIHEK) { "tuja aplikacija: zavihek z vrstico" }
-    check(P.spletnaAplikacija("https://youtube.com/", odSafeerja = false) { true } == A.CEZ_ZASLON) { "naslov s seznama" }
-    check(P.spletnaAplikacija("https://a.si/", odSafeerja = true) { false } == A.CEZ_ZASLON) { "od Safeerja" }
+    check(P.spletnaAplikacija("https://banka.si/prijava", odSafeerja = false) { false } == P.SpletnaAplikacija.ZAVIHEK) { "tuja aplikacija: zavihek z vrstico" }
+    check(P.spletnaAplikacija("https://youtube.com/", odSafeerja = false) { true } == P.SpletnaAplikacija.CEZ_ZASLON) { "naslov s seznama" }
+    check(P.spletnaAplikacija("https://a.si/", odSafeerja = true) { false } == P.SpletnaAplikacija.CEZ_ZASLON) { "od Safeerja" }
     for (u in listOf("javascript:alert(1)", "file:///sdcard/x.pdf", "content://x/y", SpletMostPravila.DOMACA, null))
-        check(P.spletnaAplikacija(u, odSafeerja = true) { true } == A.ZAVRNI) { "spletna aplikacija ne: $u" }
+        check(P.spletnaAplikacija(u, odSafeerja = true) { true } == P.SpletnaAplikacija.ZAVRNI) { "spletna aplikacija ne: $u" }
     // Zadnja vrata v loadUrl: skripta in data: nikoli, tudi z zamaskirano shemo.
     for (u in listOf("javascript:alert(1)", "JAVASCRIPT:x", " \u0001javascript:x", "java\tscript:x", "jav\na\rscript:x", "data:text/html,x", "vbscript:x"))
         check(P.skriptniNaslov(u)) { "skripta: $u" }
