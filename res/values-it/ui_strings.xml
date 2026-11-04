@@ -153,6 +153,15 @@
     <string name="ui_link_zagon_pretok">Condividi lo schermo e apri %1$s sul computer</string>
     <string name="ui_link_zagon_tapni">Safeer Link · tocca per continuare</string>
     <string name="ui_ssl_vprasanje">Il certificato di %1$s non è valido, quindi la connessione potrebbe non essere privata. Safeer ti protegge comunque dalle minacce note. Aprire comunque?</string>
+    <string name="ui_ssl_stran_naslov">La connessione non è sicura</string>
+    <string name="ui_ssl_stran_sporocilo">Il certificato di %1$s non è valido, quindi Safeer non ha aperto la pagina. Qualcuno nella rete potrebbe intercettare o modificare ciò che invii o ricevi (password, messaggi, file).</string>
+    <string name="ui_ssl_stran_nazaj">Indietro</string>
+    <string name="ui_ssl_razlog_se_ni_veljavno">Motivo: il certificato non è ancora valido. Se l\'ora del televisore è sbagliata, correggila e riprova.</string>
+    <string name="ui_ssl_razlog_poteklo">Motivo: il certificato è scaduto. Se l\'ora del televisore è sbagliata, correggila e riprova.</string>
+    <string name="ui_ssl_razlog_ime">Motivo: il certificato è stato emesso per un altro indirizzo, non per questa pagina.</string>
+    <string name="ui_ssl_razlog_izdajatelj">Motivo: il certificato non è stato emesso da un\'autorità attendibile (o il server non invia la catena completa dei certificati).</string>
+    <string name="ui_ssl_razlog_datum">Motivo: la data del certificato non è valida. Se l\'ora del televisore è sbagliata, correggila e riprova.</string>
+    <string name="ui_ssl_razlog_neveljavno">Motivo: il certificato è danneggiato o non valido.</string>
     <string name="ui_ssl_odpri">Apri comunque</string>
     <string name="ui_share_screen_notice">%1$s condivide lo schermo: apri per vederlo</string>
     <string name="ui_emudhra_title">Avviso di sicurezza: CA compromessa (eMudhra)</string>

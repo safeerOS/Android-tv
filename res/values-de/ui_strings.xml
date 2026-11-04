@@ -153,6 +153,15 @@
     <string name="ui_link_zagon_pretok">Bildschirm teilen und %1$s am Computer öffnen</string>
     <string name="ui_link_zagon_tapni">Safeer Link · zum Fortfahren tippen</string>
     <string name="ui_ssl_vprasanje">Das Zertifikat von %1$s ist ungültig, die Verbindung ist daher möglicherweise nicht privat. Safeer schützt Sie weiterhin vor bekannten Bedrohungen. Trotzdem öffnen?</string>
+    <string name="ui_ssl_stran_naslov">Verbindung ist nicht sicher</string>
+    <string name="ui_ssl_stran_sporocilo">Das Zertifikat von %1$s ist ungültig, daher hat Safeer die Seite nicht geöffnet. Jemand im Netzwerk könnte abfangen oder verändern, was Sie senden oder empfangen (Passwörter, Nachrichten, Dateien).</string>
+    <string name="ui_ssl_stran_nazaj">Zurück</string>
+    <string name="ui_ssl_razlog_se_ni_veljavno">Grund: Das Zertifikat ist noch nicht gültig. Wenn die Uhr des Fernsehers falsch geht, korrigieren Sie sie und versuchen Sie es erneut.</string>
+    <string name="ui_ssl_razlog_poteklo">Grund: Das Zertifikat ist abgelaufen. Wenn die Uhr des Fernsehers falsch geht, korrigieren Sie sie und versuchen Sie es erneut.</string>
+    <string name="ui_ssl_razlog_ime">Grund: Das Zertifikat wurde für eine andere Adresse ausgestellt, nicht für diese Seite.</string>
+    <string name="ui_ssl_razlog_izdajatelj">Grund: Das Zertifikat wurde nicht von einer vertrauenswürdigen Stelle ausgestellt (oder der Server sendet nicht die vollständige Zertifikatskette).</string>
+    <string name="ui_ssl_razlog_datum">Grund: Das Datum des Zertifikats ist ungültig. Wenn die Uhr des Fernsehers falsch geht, korrigieren Sie sie und versuchen Sie es erneut.</string>
+    <string name="ui_ssl_razlog_neveljavno">Grund: Das Zertifikat ist beschädigt oder ungültig.</string>
     <string name="ui_ssl_odpri">Trotzdem öffnen</string>
     <string name="ui_share_screen_notice">%1$s teilt den Bildschirm – zum Anzeigen öffnen</string>
     <string name="ui_emudhra_title">Sicherheitswarnung: Kompromittierte Zertifizierungsstelle (eMudhra)</string>

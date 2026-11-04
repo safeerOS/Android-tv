@@ -153,6 +153,15 @@
     <string name="ui_link_zagon_pretok">Compartir pantalla y abrir %1$s en el ordenador</string>
     <string name="ui_link_zagon_tapni">Safeer Link · toca para continuar</string>
     <string name="ui_ssl_vprasanje">El certificado de %1$s no es válido, por lo que la conexión puede no ser privada. Safeer te sigue protegiendo de amenazas conocidas. ¿Abrir de todos modos?</string>
+    <string name="ui_ssl_stran_naslov">La conexión no es segura</string>
+    <string name="ui_ssl_stran_sporocilo">El certificado de %1$s no es válido, por eso Safeer no abrió la página. Alguien en la red podría interceptar o modificar lo que envías o recibes (contraseñas, mensajes, archivos).</string>
+    <string name="ui_ssl_stran_nazaj">Atrás</string>
+    <string name="ui_ssl_razlog_se_ni_veljavno">Motivo: el certificado aún no es válido. Si la hora del televisor es incorrecta, corrígela y vuelve a intentarlo.</string>
+    <string name="ui_ssl_razlog_poteklo">Motivo: el certificado ha caducado. Si la hora del televisor es incorrecta, corrígela y vuelve a intentarlo.</string>
+    <string name="ui_ssl_razlog_ime">Motivo: el certificado se emitió para otra dirección, no para esta página.</string>
+    <string name="ui_ssl_razlog_izdajatelj">Motivo: el certificado no lo emitió una autoridad de confianza (o el servidor no envía la cadena de certificados completa).</string>
+    <string name="ui_ssl_razlog_datum">Motivo: la fecha del certificado no es válida. Si la hora del televisor es incorrecta, corrígela y vuelve a intentarlo.</string>
+    <string name="ui_ssl_razlog_neveljavno">Motivo: el certificado está dañado o no es válido.</string>
     <string name="ui_ssl_odpri">Abrir de todos modos</string>
     <string name="ui_share_screen_notice">%1$s comparte la pantalla: ábrelo para verla</string>
     <string name="ui_emudhra_title">Aviso de seguridad: CA comprometida (eMudhra)</string>

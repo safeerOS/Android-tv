@@ -153,6 +153,15 @@
     <string name="ui_link_zagon_pretok">Deli zaslon in odpri %1$s na računalniku</string>
     <string name="ui_link_zagon_tapni">Safeer Link · tapni za nadaljevanje</string>
     <string name="ui_ssl_vprasanje">Potrdilo za %1$s ni veljavno, zato povezava morda ni zasebna. Safeer vas še vedno varuje pred znanimi grožnjami. Vseeno odprem?</string>
+    <string name="ui_ssl_stran_naslov">Povezava ni varna</string>
+    <string name="ui_ssl_stran_sporocilo">Potrdilo strani %1$s ni veljavno, zato Safeer strani ni odprl. Kdo v omrežju bi lahko prestregel ali spremenil, kar pošljete ali prejmete (gesla, sporočila, datoteke).</string>
+    <string name="ui_ssl_stran_nazaj">Nazaj</string>
+    <string name="ui_ssl_razlog_se_ni_veljavno">Razlog: potrdilo še ni veljavno. Če ura televizorja ni pravilna, jo popravite in poskusite znova.</string>
+    <string name="ui_ssl_razlog_poteklo">Razlog: potrdilo je poteklo. Če ura televizorja ni pravilna, jo popravite in poskusite znova.</string>
+    <string name="ui_ssl_razlog_ime">Razlog: potrdilo je izdano za drug naslov, ne za to stran.</string>
+    <string name="ui_ssl_razlog_izdajatelj">Razlog: potrdila ni izdal zaupanja vreden overitelj (ali strežnik ne pošlje celotne verige potrdil).</string>
+    <string name="ui_ssl_razlog_datum">Razlog: datum potrdila ni veljaven. Če ura televizorja ni pravilna, jo popravite in poskusite znova.</string>
+    <string name="ui_ssl_razlog_neveljavno">Razlog: potrdilo je poškodovano ali neveljavno.</string>
     <string name="ui_ssl_odpri">Vseeno odpri</string>
     <string name="ui_share_screen_notice">%1$s deli zaslon – odpri za prikaz</string>
     <string name="ui_emudhra_title">Varnostno opozorilo: kompromitiran overitelj (eMudhra)</string>

@@ -1113,6 +1113,15 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
             private fun obravnavajNavigacijo(view: WebView?, request: WebResourceRequest?): Boolean {
                 val uri = request?.url ?: return false
                 val urlStr = uri.toString()
+                if (request.isForMainFrame) glavnaZahteva = urlStr
+                if (urlStr.equals(SslNapaka.NAZAJ_URL, ignoreCase = true)) {
+                    // Gumb Nazaj na strani napake potrdila (enako kot history.back(), ki ga lahko naredi vsaka stran).
+                    if (request.isForMainFrame) view?.let { nazajZNapakePotrdila(it) }
+                    return true
+                }
+                // Stran napake potrdila nalozimo samo sami (loadDataWithBaseURL); stran je ne more odpreti in z njo
+                // podtakniti naslova v naslovno vrstico.
+                if (SslNapaka.jeStran(urlStr)) return true
                 if (urlStr.equals(EmudhraRevocations.NAZAJ_NA_VARNO_URL, ignoreCase = true)) {
                     // Gumb na opozorilni strani; veljaven le z nje
                     if (view != null && EmudhraRevocations.jeOpozorilnaStran(view.url)) EmudhraOpozorilo.nazajNaVarno(view, context)
@@ -1313,6 +1322,8 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
                     return PdfPregledovalnik.odgovor(context, url)
                 }
                 val isMainFrame = request.isForMainFrame
+                // Za onReceivedSslError: napaka glavnega dokumenta dobi stran napake, napaka slike ali skripte ne.
+                if (isMainFrame) glavnaZahteva = url
                 // Threat Shield pred vsemi izjemami: besedilo v URL-ju (npr. ".mpd", "recaptcha") ne sme obiti preverjanja.
                 val threatResponse = ThreatBlockEngine.handleThreatIntercept(url, isMainFrame)
                 if (threatResponse != null) {
@@ -1392,7 +1403,7 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
                 url?.let {
                     if (!UserScriptManager.isYouTubeUrl(it)) youtubeSamodejno = false
                     applyUserAgentForUrl(it)
-                    onUrlChanged?.invoke(PdfPregledovalnik.javniNaslov(it))
+                    onUrlChanged?.invoke(javniNaslov(it))
                     onSecurityChanged?.invoke(it.startsWith("https://", ignoreCase = true))
                 }
             }
@@ -1406,7 +1417,7 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
                 if (emudhraBlokirano(view, url)) return
                 val naslov = url ?: return
                 if (isReload || !naslov.startsWith("http", ignoreCase = true)) return
-                onUrlChanged?.invoke(PdfPregledovalnik.javniNaslov(naslov))
+                onUrlChanged?.invoke(javniNaslov(naslov))
             }
 
             override fun onPageCommitVisible(view: WebView?, url: String?) {
@@ -1421,10 +1432,11 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
                 if (emudhraBlokirano(view, url)) return
                 url?.let {
                     view?.let { wv -> scheduleFakeBankCheck(wv, it) }
-                    onUrlChanged?.invoke(PdfPregledovalnik.javniNaslov(it))
+                    onUrlChanged?.invoke(javniNaslov(it))
                     onSecurityChanged?.invoke(it.startsWith("https://", ignoreCase = true))
                     val pageTitle = title ?: ""
-                    onPageLoaded?.invoke(PdfPregledovalnik.javniNaslov(it), pageTitle)
+                    // Stran napake potrdila ne gre v zgodovino in med obiskane kot blokirana stran.
+                    if (!SslNapaka.jeStran(it)) onPageLoaded?.invoke(javniNaslov(it), pageTitle)
                     if (finishedScriptNavGen != scriptNavGen) {
                         finishedScriptNavGen = scriptNavGen
                         // Vgrajeni PDF pregledovalnik ima svoj videz in svoje tipke; skript brskalnika ne dobi.
@@ -1453,6 +1465,7 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
                 if ((sslHost.isNotEmpty() && ThreatBlockEngine.isRealBankHost(sslHost)) ||
                     (pageHost.isNotEmpty() && ThreatBlockEngine.isRealBankHost(pageHost))) {
                     handler?.cancel()
+                    prikaziNapakoPotrdila(view, error, sslHost.ifEmpty { pageHost })
                     return
                 }
                 // Neveljavno potrdilo (zunanji pregled kode 8. 10. 2026): tuj izdajatelj ali napacno ime pri javnem naslovu je
@@ -1466,10 +1479,11 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
                     error?.certificate?.let { android.net.http.SslCertificate.saveState(it)?.getByteArray("x509-certificate") }
                 } catch (_: Throwable) { null }
                 val kljuc = SpletVarnostPravila.sslKljucSPotrdilom(naslovKljuc, potrdilo)
-                if (kljuc == null) { handler?.cancel(); return }
+                if (kljuc == null) { handler?.cancel(); prikaziNapakoPotrdila(view, error, gostitelj); return }
                 when (SpletVarnostPravila.sslOdlocitev(error?.primaryError ?: -1, gostitelj, kljuc in dovoljeniSsl)) {
                     SpletVarnostPravila.SslOdlocitev.PREKLICI -> {
                         handler?.cancel()
+                        if (prikaziNapakoPotrdila(view, error, gostitelj)) return
                         if (obvescenSsl.add(kljuc)) {
                             try {
                                 android.widget.Toast.makeText(context, context.getString(R.string.ui_ssl_blocked, gostitelj), android.widget.Toast.LENGTH_LONG).show()
@@ -1488,6 +1502,8 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
                 fun odloci(da: Boolean) {
                     if (da) dovoljeniSsl.add(kljuc)
                     cakajociSsl.remove(kljuc)?.forEach { if (da) it.proceed() else it.cancel() }
+                    // Naprava v domacem omrezju, uporabnik je izbral Preklici: zavihek pove, zakaj se stran ni odprla.
+                    if (!da) prikaziNapakoPotrdila(view, error, gostitelj)
                 }
                 try {
                     android.app.AlertDialog.Builder(context)
@@ -1518,7 +1534,60 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
     private val emudhraZastavica = EmudhraRevocations.ZastavicaOpozorila()
 
     /** Naslov za naslovno vrstico: med eMudhra opozorilom naslov blokirane strani, sicer [url]. */
-    fun prikazniNaslov(url: String): String = EmudhraRevocations.prikazniNaslov(url, emudhraZastavica)
+    fun prikazniNaslov(url: String): String =
+        if (SslNapaka.jeStran(url)) SslNapaka.javniNaslov(url) else EmudhraRevocations.prikazniNaslov(url, emudhraZastavica)
+
+    /** Naslov za zavihek in naslovno vrstico: PDF pregledovalnik in stran napake potrdila pokazeta pravi naslov. */
+    private fun javniNaslov(url: String): String = SslNapaka.javniNaslov(PdfPregledovalnik.javniNaslov(url))
+
+    /** Zadnja zahteva glavnega okvirja (shouldInterceptRequest tece na drugi niti). */
+    @Volatile
+    private var glavnaZahteva: String = ""
+
+    /**
+     * Neveljavno potrdilo glavnega dokumenta (TV 4. 11. 2026): po handler.cancel() je na zaslonu ostala prejsnja stran brez
+     * obvestila. Zdaj zavihek pokaze stran napake (SslNapaka) z razlogom in gumbom Nazaj, brez »vseeno odpri«. Vrne false,
+     * ce napaka ni v glavnem dokumentu (slika, skripta) - takrat ostane obvestilo Toast.
+     */
+    private fun prikaziNapakoPotrdila(view: WebView?, error: SslError?, gostitelj: String): Boolean {
+        val wv = view ?: return false
+        val url = error?.url ?: return false
+        if (!SslNapaka.jeGlavniOkvir(url, glavnaZahteva, wv.url)) return false
+        val naslov = SslNapaka.naslovStrani(url) ?: return false
+        val razlog = SslNapaka.razlog(error.primaryError)
+        val razlogId = when (razlog) {
+            SslNapaka.Razlog.SE_NI_VELJAVNO -> R.string.ui_ssl_razlog_se_ni_veljavno
+            SslNapaka.Razlog.POTEKLO -> R.string.ui_ssl_razlog_poteklo
+            SslNapaka.Razlog.NAPACNO_IME -> R.string.ui_ssl_razlog_ime
+            SslNapaka.Razlog.NEZAUPAN_IZDAJATELJ -> R.string.ui_ssl_razlog_izdajatelj
+            SslNapaka.Razlog.NEVELJAVEN_DATUM -> R.string.ui_ssl_razlog_datum
+            SslNapaka.Razlog.NEVELJAVNO -> R.string.ui_ssl_razlog_neveljavno
+        }
+        fun barva(id: Int) = try { "#%06X".format(context.getColor(id) and 0xFFFFFF) } catch (_: Exception) { "" }
+        val html = try {
+            SslNapaka.html(
+                UiText.get(R.string.ui_ssl_stran_naslov), UiText.get(R.string.ui_ssl_stran_sporocilo, gostitelj),
+                UiText.get(razlogId), UiText.get(R.string.ui_ssl_stran_nazaj), gostitelj, url, UiText.language,
+                SslNapaka.Barve(barva(R.color.os_ozadje), barva(R.color.os_kartica), barva(R.color.os_besedilo),
+                    barva(R.color.os_umirjeno), barva(R.color.os_opozorilo), barva(R.color.os_crta),
+                    barva(R.color.os_mint), barva(R.color.os_mint_temna))
+            )
+        } catch (_: Exception) { return false }
+        onSecurityChanged?.invoke(false)
+        // Po cancel() WebView navigacijo se zakljucuje; stran napake nalozimo takoj za tem.
+        wv.post {
+            try {
+                wv.loadDataWithBaseURL(naslov, html, "text/html", "UTF-8", naslov)
+                wv.requestFocus()
+            } catch (_: Exception) { }
+        }
+        return true
+    }
+
+    /** Gumb Nazaj na strani napake potrdila: prejsnja stran, sicer domaca stran brskalnika. */
+    private fun nazajZNapakePotrdila(wv: WebView) {
+        if (wv.canGoBack()) wv.goBack() else wv.loadUrl(SpletDomaca.naslov(context))
+    }
 
     private fun emudhraBlokirano(view: WebView?, url: String?): Boolean {
         if (view == null || !EmudhraOpozorilo.obravnavajKompromitiranCa(view, url, emudhraZastavica)) return false
