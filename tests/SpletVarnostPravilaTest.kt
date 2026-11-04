@@ -203,6 +203,24 @@ fun main() {
     check(!P.vhodniNaslov("file:///storage/emulated/0/Download/stran.html", N)) { "file: ni PDF" }
     check(!P.vhodniNaslov("file:///android_asset/x.pdf", N)) { "assets niso dokument" }
     check(!P.vhodniNaslov("file:///sdcard/../data/x.pdf", N)) { "../" }
+    // Pregled 4. 11. 2026 (prenos s telefona 371c011): od zunaj file:// nikoli v zasebne mape, /proc/ ali skozi skrito pot.
+    for (u in listOf("file:////data/data/si.safeer.tv/files/x.pdf", "file:///data/data/si.safeer.tv/x.pdf",
+        "file:///DATA/data/si.safeer.tv/x.pdf", "file:///data_mirror/data_ce/null/0/si.safeer.tv/x.pdf",
+        "file:///mnt/expand/1234/user/0/si.safeer.tv/x.pdf", "file:///proc/self/root/data/data/si.safeer.tv/x.pdf",
+        "file:///proc/self/fd/3.pdf", "file:///sys/x.pdf", "file:///sdcard/./x.pdf", "file:///sdcard/.", "file:///sdcard/..",
+        "file:///sdcard/%2e%2e/data/data/si.safeer.tv/x.pdf", "file:///sdcard/%2E%2E/data/x.pdf", "file:///sdcard%2f..%2fdata/x.pdf",
+        "file:///sdcard/..%5cdata/x.pdf", "file:///sdcard/..\\data/x.pdf", "file:///%64ata/data/si.safeer.tv/x.pdf",
+        "file:///sdcard/%252e%252e/data/x.pdf", "file:///sdcard/%zz.pdf", "file:///sdcard/%2", "file:///sdcard/%-1.pdf", "file:///sdcard/x%00.pdf",
+        "file://localhost/data/data/si.safeer.tv/x.pdf", "file://localhost/sdcard/x.pdf", "file:/sdcard/x.pdf",
+        "file:///android_asset//x.pdf", "file:////android_asset/x.pdf", "file:///%61ndroid_asset/x.pdf",
+        "file:///storage/emulated/0/x.pdf.html", "file:///storage/emulated/0/x%2epdf%3f.html")) {
+        check(!P.vhodniNaslov(u, N)) { "file: od zunaj zavrnjen: $u" }
+    }
+    for (u in listOf("file:///sdcard/Download/racun.pdf", "file:///storage/1234-ABCD/Dokumenti/Ra%C4%8Dun%20maj.pdf",
+        "file:///mnt/media_rw/1234-ABCD/x.PDF", "file:///storage/emulated/0//Download/x.pdf", "file:///sdcard/a..b.pdf")) {
+        check(P.vhodniNaslov(u, N)) { "PDF v skupni shrambi: $u" }
+    }
+    check(P.odkodirajPot("/a%20b%C4%8D") == "/a b\u010d" && P.odkodirajPot("/%C4") == null && P.odkodirajPot("/%") == null) { "odkodiranje" }
     check(!P.vhodniNaslov("content://", N))
     // Neodvisni pregled 4. 11. 2026 09:10: tuja namera ne odpre NASEGA ponudnika (nase pravice, nase datoteke).
     for (u in listOf("content://si.safeer.tv.fileprovider/cache_files/x.pdf", "content://si.safeer.os.spletne/1",

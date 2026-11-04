@@ -165,12 +165,54 @@ object SpletVarnostPravila {
         return a == "si.safeer" || a.startsWith("si.safeer.") || '%' in a
     }
 
-    /** Enako kot PdfPregledovalnik.jeLokalni: content:// ali file://...pdf, a nikoli nase strani v assets. */
+    /**
+     * Mape, iz katerih tuja namera sme odpreti file://...pdf: skupna shramba in USB (pregled 4. 11. 2026, prenos s
+     * telefona 371c011 in strozje). Zasebne mape (/data/, /data_mirror/, /mnt/expand/), /proc/, /sys/ in assets nikoli -
+     * zato seznam dovoljenih, ne prepovedanih. Android od 7.0 file:// med aplikacijami sicer ne dovoli (FileUriExposed).
+     */
+    private val DOVOLJENE_PDF_MAPE = listOf("/storage/", "/sdcard/", "/mnt/sdcard/", "/mnt/media_rw/")
+
+    /**
+     * Enako kot PdfPregledovalnik.jeLokalni (content:// ali file://...pdf), od zunaj pa file:// samo v DOVOLJENE_PDF_MAPE.
+     * ContentResolver.openInputStream bere ODKODIRANO pot (Uri.getPath), zato preverjamo odkodirano: %64ata, %2e%2e,
+     * %2f, file:////data, file://localhost/data, /./ in \ so zavrnjeni; ostanek % po odkodiranju (dvojno kodiranje) tudi.
+     */
     private fun jeKrajevniPdf(url: String): Boolean {
         if (url.startsWith("content://")) return url.length > "content://".length
         if (!url.startsWith("file://") || url.startsWith("file:///android_asset/")) return false
-        if ("/../" in url || url.endsWith("/..")) return false
-        return url.substringBefore('?').substringBefore('#').lowercase().endsWith(".pdf")
+        // Brez gostitelja: file://localhost/... ali file://naprava/... ni nasa pot.
+        val surova = url.removePrefix("file://").substringBefore('?').substringBefore('#')
+        if (!surova.startsWith("/")) return false
+        val odkodirana = odkodirajPot(surova) ?: return false
+        if ('%' in odkodirana || '\\' in odkodirana || odkodirana.any { it < ' ' || it == '\u007f' }) return false
+        // Vec posevnic (file:////data/...) je ista pot kot ena.
+        val pot = odkodirana.replace(Regex("/{2,}"), "/")
+        if (pot.split('/').any { it == "." || it == ".." }) return false
+        val mala = pot.lowercase()
+        if (DOVOLJENE_PDF_MAPE.none { mala.startsWith(it) }) return false
+        return mala.endsWith(".pdf")
+    }
+
+    /** %XX v UTF-8 (kot Uri.decode); napacno kodiranje vrne null. Brez android.net, da je pravilo preizkusljivo brez Androida. */
+    internal fun odkodirajPot(s: String): String? {
+        if ('%' !in s) return s
+        val izhod = java.io.ByteArrayOutputStream()
+        var i = 0
+        while (i < s.length) {
+            val c = s[i]
+            if (c == '%') {
+                if (i + 2 >= s.length) return null
+                val hex = s.substring(i + 1, i + 3)
+                if (!hex.all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' }) return null
+                val h = hex.toInt(16)
+                izhod.write(h); i += 3
+            } else {
+                izhod.write(c.toString().toByteArray(Charsets.UTF_8)); i++
+            }
+        }
+        val b = izhod.toByteArray()
+        val dek = Charsets.UTF_8.newDecoder()
+        return try { dek.decode(java.nio.ByteBuffer.wrap(b)).toString() } catch (_: java.nio.charset.CharacterCodingException) { null }
     }
 
     /** Oglas ob nalaganju strani ne sme sam odpreti druge aplikacije: potrebna je kretnja ali nedavno dejanje. */
