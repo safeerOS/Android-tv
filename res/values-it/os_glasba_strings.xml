@@ -305,7 +305,6 @@
     <string name="os_media_kanal_mrtev">«%1$s» non funziona: flusso non leggibile. Nascosto fino a domani.</string>
     <!-- Naloga 73: noben vir kanalov ni odgovoril (mreza poskusi znova sama). -->
     <string name="os_tv_viri_ne_odgovarjajo">Le fonti dei canali non rispondono. Riprovo tra %1$d min.</string>
-    <string name="os_tv_kanal_ne_deluje_skrij">Il canale non funziona – nascondi</string>
     <string name="os_tv_ni_kanalov">Nessun canale in questa selezione.</string>
     <string name="os_tv_nadomestek_vsi">Ancora nessun canale in questa selezione: vengono mostrati tutti i canali.</string>
     <string name="os_kanali_novice">Notizie</string>
@@ -389,8 +388,8 @@
     <string name="os_mediji_odkleni">Sblocca presso il componente</string>
     <string name="os_mediji_odkleni_opis">Il pagamento è tra te e il componente %1$s. Dopo l’abbonamento il componente di solito fornisce un nuovo indirizzo (con il tuo codice) – aggiungilo alle Mie fonti al posto di quello vecchio.</string>
     <string name="os_mediji_odkleni_odpri">Apri</string>
-    <string name="os_tv_brez_zaklenjenih">Nascondi i canali bloccati</string>
-    <string name="os_tv_pokazi_zaklenjene">Mostra i canali bloccati</string>
+    <string name="os_tv_brez_zaklenjenih">Senza canali nascosti</string>
+    <string name="os_tv_pokazi_zaklenjene">Mostra canali nascosti</string>
     <string name="os_mediji_dvojnik_dodatka">%1$s è aggiunto due volte (indirizzo vecchio e nuovo). Rimuovere l’indirizzo vecchio?</string>
     <!-- Naloga 80: seznam IPTV v Mojih virih. -->
     <plurals name="os_iptv_kanalov">
@@ -430,7 +429,7 @@
     <string name="os_besedila_ni_vira">Aggiungi la fonte dei testi (lrclib.net) in Aggiungi fonte per vedere i testi.</string>
     <string name="os_besedila_napaka">Il testo non è disponibile al momento.</string>
     <string name="os_besedila_instrumentalno">Strumentale – senza testo.</string>
-    <string name="os_tv_vrni_skrite">Mostra canali nascosti (%1$d)</string>
+    <string name="os_tv_vrni_skrite">Ripristina tutti i canali nascosti (%1$d)</string>
     <string name="os_tv_vsi_kanali">Tutti i canali</string>
     <string name="os_tv_priljubljeni_n">Preferiti (%1$d)</string>
     <string name="os_premakni_na_zacetek">Sposta all\'inizio</string>
@@ -453,4 +452,13 @@
     <string name="os_nedel_ni_drugega">Nessun altro video trovato</string>
     <string name="os_nedel_nov_posnetek">Trovato un altro video</string>
     <string name="os_media_oznaka_video">▶ Video</string>
+    <string name="os_tv_skrij_kanal">Nascondi canale</string>
+    <string name="os_tv_pokazi_kanal">Mostra canale</string>
+    <string name="os_tv_kanal_skrit">%1$s · nascosto</string>
+    <string name="os_tv_izberi_vec">Seleziona più canali</string>
+    <string name="os_tv_izbranih">Selezionati: %1$d</string>
+    <string name="os_tv_skrij_izbrane">Nascondi selezionati</string>
+    <string name="os_tv_pokazi_izbrane">Mostra selezionati</string>
+    <string name="os_tv_izbran">%1$s, selezionato</string>
+    <string name="os_tv_ni_izbran">%1$s, non selezionato</string>
 </resources>
