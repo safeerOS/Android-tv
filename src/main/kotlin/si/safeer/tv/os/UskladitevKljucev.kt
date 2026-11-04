@@ -515,6 +515,8 @@ object UskladitevKljucev {
 
     private fun uskladiZdaj(c: Context) {
         if (!vklopljeno(c)) return
+        // Lastnik 4. 11. 2026: sorodna aplikacija na isti napravi (Safeer OS <-> Predvajalnik) - tudi brez Linka.
+        try { posljiSorodnikom(c) } catch (e: Exception) { Log.w(TAG, "sorodnik: ${e.javaClass.simpleName}") }
         val link = try { LinkUpravitelj.pridobi(c) } catch (_: Throwable) { return }
         if (link.jeKrajevni() || !link.povezan) return
         pocistiZunajKroga(c)
@@ -628,6 +630,90 @@ object UskladitevKljucev {
                 JSONObject().put("accepted", true).put("items", vJson(zGostitelji(P.zaPoslati(meta, vr, jaz(a)))))
                     .apply { try { put("racuni", Debrid.stanjaZaKrog(a)) } catch (_: Exception) { } }
             }
+        }
+    }
+
+    // ------------------------------------------------------------------ sorodna aplikacija na isti napravi (lastnik 4. 11. 2026)
+
+    /** Paket ima isti podpis kot ta aplikacija (PackageManager.checkSignatures). */
+    internal fun podpisEnak(c: Context, paket: String): Boolean = try {
+        c.packageManager.checkSignatures(c.packageName, paket) == android.content.pm.PackageManager.SIGNATURE_MATCH
+    } catch (_: Throwable) { false }
+
+    /** Zapisi te aplikacije za sorodnika (vrednosti samo v Binder sporocilu storitve z dovoljenjem podpisa - nikoli v dnevnik). */
+    internal fun zaSorodnika(c: Context): String {
+        val (meta, vr) = posodobi(c)
+        return vJson(zGostitelji(P.zaSorodnika(meta, vr))).toString()
+    }
+
+    /** Zapisi sorodnika [paket] (ze preverjenega): novejsi veljajo tu (prejmiZapise - zadnja sprememba po casu). */
+    internal fun prejmiOdSorodnika(c: Context, paket: String, zapisi: String): Int {
+        val a = c.applicationContext
+        val z = try { izJson(JSONArray(zapisi)) } catch (_: Exception) { return 0 }
+        return prejmiZapiseSorodnika(a, paket, z)
+    }
+
+    /** Kot [prejmiZapise], a od sorodne aplikacije: sprejme zapise vseh izvorov razen te aplikacije same (ista naprava). */
+    private fun prejmiZapiseSorodnika(c: Context, paket: String, zapisi: List<UskladitevKljucevPravila.Zapis>): Int {
+        val jaz = jaz(c)
+        val kandidati = synchronized(zaklep) {
+            posodobi(c)
+            P.zaUporabo(beriMeta(c), zapisi, System.currentTimeMillis(), DebridPravila.VSI.toSet(), ::veljavnaVrednost) { izvor -> izvor != jaz }
+        }
+        if (kandidati.isEmpty()) return 0
+        val pripravljeni = kandidati.mapNotNull { pripravi(c, it) }.associateBy { it.z }
+        if (pripravljeni.isEmpty()) return 0
+        val n = synchronized(zaklep) {
+            posodobi(c)
+            val meta = beriMeta(c)
+            val (_, neberljivi) = trenutne(c)
+            val zaUporabo = P.brezNeberljivih(P.seVednoNovejsi(meta, pripravljeni.keys.toList()), neberljivi)
+            val shranjeni = zaUporabo.filter { z -> try { pripravljeni.getValue(z).shrani() } catch (e: Exception) { Log.w(TAG, "shrani: ${e.javaClass.simpleName}"); false } }
+            if (shranjeni.isNotEmpty()) {
+                val poShranitvi = if (shranjeni.any { !it.izbrisan }) trenutne(c).first else emptyMap()
+                for (z in shranjeni) meta[z.kljuc] = UskladitevKljucevPravila.Meta(z.cas, z.izvor, z.izbrisan,
+                    if (z.izbrisan) "" else odtisVrednosti(c, P.vrednostZaOdtis(z.vrednost, poShranitvi[z.kljuc])))
+                pisiMeta(c, meta)
+            }
+            shranjeni.size
+        }
+        if (n > 0) { Log.i(TAG, "od sorodne aplikacije ($paket): sprememb $n"); obvestiZaslone() }
+        return n
+    }
+
+    /**
+     * Izmenjava s sorodnimi aplikacijami na tej napravi: storitev [KljuciSorodnikStoritev] (dovoljenje istega podpisa
+     * si.safeer.tv.permission.LINK), pred tem preverba podpisa paketa. Odgovor nosi zapise sorodnika - v obe smeri.
+     */
+    private fun posljiSorodnikom(c: Context) {
+        val a = c.applicationContext
+        for (paket in P.SORODNIKI) {
+            if (!P.jeSorodnik(paket, a.packageName, podpisEnak(a, paket))) continue
+            val moji = zaSorodnika(a)
+            val nit = android.os.HandlerThread("safeer-kljuci-sorodnik").apply { start() }
+            val namen = android.content.Intent(KljuciSorodnikStoritev.DEJANJE).setPackage(paket)
+            val zapah = java.util.concurrent.CountDownLatch(1)
+            val povezava = object : android.content.ServiceConnection {
+                override fun onServiceConnected(ime: android.content.ComponentName?, binder: android.os.IBinder?) {
+                    if (binder == null) { zapah.countDown(); return }
+                    val odgovor = android.os.Messenger(Handler(nit.looper) { m ->
+                        val prejeto = m.data?.getString(KljuciSorodnikStoritev.ZAPISI)
+                        if (prejeto != null) try { delavec.execute { try { prejmiOdSorodnika(a, paket, prejeto) } catch (_: Throwable) { } } }
+                            catch (_: java.util.concurrent.RejectedExecutionException) { }
+                        zapah.countDown(); true
+                    })
+                    try {
+                        android.os.Messenger(binder).send(android.os.Message.obtain(null, KljuciSorodnikStoritev.IZMENJAJ).apply {
+                            data = android.os.Bundle().apply { putString(KljuciSorodnikStoritev.ZAPISI, moji) }
+                            replyTo = odgovor
+                        })
+                    } catch (_: Throwable) { zapah.countDown() }
+                }
+                override fun onServiceDisconnected(ime: android.content.ComponentName?) { zapah.countDown() }
+            }
+            val vezan = try { a.bindService(namen, povezava, Context.BIND_AUTO_CREATE) } catch (_: SecurityException) { false }
+            if (vezan) { zapah.await(8, TimeUnit.SECONDS); try { a.unbindService(povezava) } catch (_: Throwable) { } }
+            nit.quitSafely()
         }
     }
 

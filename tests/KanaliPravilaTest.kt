@@ -338,6 +338,23 @@ fun main() {
         preveriEnako("fokus po skritju: naslednja", 3, P.fokusPoSkritju(3, 10))
         preveriEnako("fokus po skritju zadnje: prejsnja", 8, P.fokusPoSkritju(9, 10))
         preveriEnako("fokus po skritju edine: nic", -1, P.fokusPoSkritju(0, 1))
+        // Lastnik 4. 11. 2026 (05:08): skriti kanali v ozjem krogu.
+        val a = P.odtisKanala("iptv:http://x/a"); val b = P.odtisKanala("iptv:http://x/b")
+        val prazno = KanaliPravila.SkritiKanali(emptyMap(), emptyMap())
+        preveriEnako("odtis brez naslova toka", false, a.contains("http"))
+        preveriEnako("uskladitev: skrit tam - skrit tu", setOf(a), P.prevzemiSkrite(prazno, KanaliPravila.SkritiKanali(mapOf(a to 100L), emptyMap()), ozji = true).skriti.keys)
+        preveriEnako("uskladitev: zunaj ozjega kroga nic", prazno, P.prevzemiSkrite(prazno, KanaliPravila.SkritiKanali(mapOf(a to 100L), emptyMap()), ozji = false))
+        preveriEnako("umik: pokazan tam pozneje - pokazan tu", emptySet<String>(),
+            P.prevzemiSkrite(KanaliPravila.SkritiKanali(mapOf(a to 100L), emptyMap()), KanaliPravila.SkritiKanali(emptyMap(), mapOf(a to 200L)), true).skriti.keys)
+        preveriEnako("umik: pokazan tam prej - ostane skrit", setOf(a),
+            P.prevzemiSkrite(KanaliPravila.SkritiKanali(mapOf(a to 300L), emptyMap()), KanaliPravila.SkritiKanali(emptyMap(), mapOf(a to 200L)), true).skriti.keys)
+        preveriEnako("tu pokazan pozneje: ne skrijemo znova", emptySet<String>(),
+            P.prevzemiSkrite(KanaliPravila.SkritiKanali(emptyMap(), mapOf(a to 500L)), KanaliPravila.SkritiKanali(mapOf(a to 400L), emptyMap()), true).skriti.keys)
+        preveriEnako("zdruzevanje obeh", setOf(a, b),
+            P.prevzemiSkrite(KanaliPravila.SkritiKanali(mapOf(a to 1L), emptyMap()), KanaliPravila.SkritiKanali(mapOf(b to 2L), emptyMap()), true).skriti.keys)
+        preveriEnako("neveljaven kljuc (naslov) se zavrne", emptySet<String>(),
+            P.prevzemiSkrite(prazno, KanaliPravila.SkritiKanali(mapOf("iptv:http://u:g@x/live" to 5L), emptyMap()), true).skriti.keys)
+        preveriEnako("izvoz samo v ozji krog", null, P.izvozSkritih(prazno, ozji = false))
         // Lastnik 4. 11. 2026: izbira vec kanalov.
         preveriEnako("izbira: OK oznaci", setOf("a", "b"), P.preklopiIzbiro(setOf("a"), "b"))
         preveriEnako("izbira: OK znova odznaci", setOf("a"), P.preklopiIzbiro(setOf("a", "b"), "b"))
