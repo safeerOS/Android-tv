@@ -193,6 +193,13 @@ class ThreatListAgent(
      * so that a caller can hold back the first requests of a cold start until the protection is complete.
      */
     private val onFirstLoad: () -> Unit = {},
+    /**
+     * Receives the lists read by a partial first load (start(firstLoadOnly)): only those ids, the other saved lists stay
+     * on disk. The caller already serves them from its own index (for example a mapped file built from the same SHA-256).
+     */
+    private val onPartialLists: (List<PlainList>) -> Unit = {},
+    /** Thread priority of the first load (it decides how long a cold start runs without the lists); later work runs at MIN. */
+    private val firstLoadPriority: Int = Thread.MIN_PRIORITY,
     /** Receives every list in use: once after loading the saved lists and after every change. */
     private val onLists: (List<PlainList>) -> Unit,
 ) {
@@ -219,9 +226,13 @@ class ThreatListAgent(
     private fun metaFile(id: String) = File(directory, "$id.meta")
     private val stateFile get() = File(directory, "agent.state")
 
-    /** Starts the agent on a background thread and returns immediately. */
+    /**
+     * Starts the agent on a background thread and returns immediately. With [firstLoadOnly] the first load reads and
+     * verifies only those lists (to [onPartialLists]); the others are taken over from their metadata (count, SHA-256,
+     * validators) without reading their entries, so updates and rebuilds work as after a full load.
+     */
     @Synchronized
-    fun start(): Boolean {
+    fun start(firstLoadOnly: Set<String>? = null): Boolean {
         if (executor != null) return false
         val service = Executors.newSingleThreadScheduledExecutor { runnable ->
             Thread(runnable, "safeer-threat-lists").apply {
@@ -231,10 +242,18 @@ class ThreatListAgent(
         }
         executor = service
         service.execute {
+            val thread = Thread.currentThread()
             try {
-                val loaded = loadSaved()
-                if (loaded.isNotEmpty()) notifyLists(loaded)
+                thread.priority = firstLoadPriority
+                if (firstLoadOnly == null) {
+                    val loaded = loadSaved()
+                    if (loaded.isNotEmpty()) notifyLists(loaded)
+                } else {
+                    val loaded = loadSaved(firstLoadOnly)
+                    try { onPartialLists(loaded) } catch (e: Exception) { /* a listener must not stop the agent */ }
+                }
             } finally {
+                thread.priority = Thread.MIN_PRIORITY
                 try { onFirstLoad() } catch (e: Exception) { /* a listener must not stop the agent */ }
             }
         }
@@ -261,23 +280,47 @@ class ThreatListAgent(
         return true
     }
 
+    /** Reads and delivers every saved list to [onLists] again on the agent thread (for example when a caller's index is damaged). */
+    @Synchronized
+    fun reloadSaved(): Boolean {
+        val service = executor ?: return false
+        service.execute {
+            val loaded = try { loadSaved() } catch (e: Exception) { emptyList() }
+            if (loaded.isNotEmpty()) notifyLists(loaded)
+        }
+        return true
+    }
+
+    /** Metadata of the saved lists (count, SHA-256) in source order, without reading the lists: a few small files. */
+    fun savedInfo(): List<PlainListInfo> = sources.mapNotNull { source ->
+        readMeta(source.id)?.let { PlainListInfo(source, it.count, it.sha256, it.fetchedAt) }
+    }
+
     /**
      * Loads the lists saved by an earlier run; damaged files are ignored (and downloaded again). The caller gets the
-     * entries; the agent keeps only [lists] (metadata).
+     * entries; the agent keeps only [lists] (metadata). With [only], lists outside it are not read: their metadata is used
+     * as saved (refresh() reads and verifies them when it needs their entries).
      */
-    fun loadSaved(): List<PlainList> = synchronized(lock) {
+    fun loadSaved(only: Set<String>? = null): List<PlainList> = synchronized(lock) {
         val loaded = ArrayList<PlainList>()
+        val infos = ArrayList<PlainListInfo>()
         for (source in sources) {
             val meta = readMeta(source.id) ?: continue
+            if (only != null && source.id !in only) {
+                validators[source.id] = meta
+                infos.add(PlainListInfo(source, meta.count, meta.sha256, meta.fetchedAt))
+                continue
+            }
             val list = readSaved(source, meta)
             if (list != null) {
                 loaded.add(list)
+                infos.add(list.info())
                 validators[source.id] = meta
             } else {
                 validators.remove(source.id)
             }
         }
-        lists = loaded.map { it.info() }
+        lists = infos
         loaded
     }
 

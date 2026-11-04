@@ -31,6 +31,54 @@ object ThreatBlockEngine {
     @Volatile
     private var threatTrie = DomainSuffixTrie()
 
+    /**
+     * Drevo grozenj iz datoteke (mmap, 4. 11. 2026): seme in vsi seznami agenta, zgrajeni ob zadnji spremembi seznamov.
+     * Ko je odprto, je [threatTrie] samo seme; iskanje gre najprej sem. TV: prej se je drevo ob vsakem zagonu gradilo
+     * v kopici iz shranjenih seznamov (6,2 s do zascite), zdaj se odpre sinhrono pred prvim zavihkom.
+     */
+    @Volatile
+    private var threatKazalo: DomenskoKazalo? = null
+
+    /** Vgrajeno drevo grozenj (najprej kazalo, sicer drevo v kopici). */
+    private fun lokalno(host: String): DomainSuffixTrie.MatchResult? =
+        threatKazalo?.findMatch(host) ?: threatTrie.findMatch(host)
+
+    /** Stevilo domen v vgrajenem drevesu (za dnevnik). */
+    val steviloDomen: Int get() = threatKazalo?.size ?: threatTrie.size
+
+    /**
+     * Kljuc kazala: oblika, [razlicica] (koda aplikacije: seme in BankGuard se spremenita samo z novo razlicico), seme in
+     * pari (id seznama, SHA-256 seznama) v vrstnem redu agenta. null, ce kak seznam nima vsote ali seznamov ni - takrat
+     * kazala ni (raje drevo v kopici kot kazalo iz neznanega vira).
+     */
+    fun kljucKazala(seznami: List<Pair<String, String>>, razlicica: String): ByteArray? {
+        if (seznami.isEmpty() || seznami.any { it.second.isEmpty() }) return null
+        val deli = ArrayList<String>()
+        deli.add("safeer-drevo-grozenj-1"); deli.add(razlicica)
+        for ((domene, kategorija, vir) in SEME) { deli.add(kategorija); deli.add(vir); deli.addAll(domene) }
+        for ((id, sha) in seznami) { deli.add(id); deli.add(sha) }
+        return com.safeer.threatfeed.SortedStringTable.keyOf(deli)
+    }
+
+    /** Odpre kazalo, ce je zgrajeno iz [kljuc]; vrne true, ce je v uporabi. Bere samo glavo datoteke. */
+    fun odpriKazalo(datoteka: java.io.File, kljuc: ByteArray?): Boolean {
+        val k = kljuc ?: return false
+        val kazalo = DomenskoKazalo.odpri(datoteka, k) ?: return false
+        threatKazalo = kazalo
+        return true
+    }
+
+    /**
+     * Preveri CRC kazala v uporabi (v ozadju). Ce je poskodovano, ga umakne (velja seme, dokler drevo ni zgrajeno znova)
+     * in vrne false - klicatelj takrat zgradi drevo iz seznamov.
+     */
+    fun preveriKazalo(): Boolean {
+        val kazalo = threatKazalo ?: return true
+        if (kazalo.neposkodovano()) return true
+        threatKazalo = null
+        return false
+    }
+
     // Začasno odobrena spletna mesta (uporabnik je izrecno kliknil 'Nadaljuj na lastno odgovornost' za to sejo)
     private val sessionBypassedDomains = ConcurrentHashMap.newKeySet<String>()
 
@@ -57,7 +105,7 @@ object ThreatBlockEngine {
 
     /** Vgrajeni seznam in podpisani vir; kritična kategorija (C2/malware) ima vedno prednost. */
     private fun findThreat(url: String, host: String): DomainSuffixTrie.MatchResult? {
-        val local = threatTrie.findMatch(host)
+        val local = lokalno(host)
         if (local != null && isCriticalThreat(local.category)) return local
         val signed = signedMatch(url, host) ?: return local
         return if (local == null || isCriticalThreat(signed.category)) signed else local
@@ -89,6 +137,44 @@ object ThreatBlockEngine {
 
     // Dogodek ob blokadi
     var onThreatBlocked: ((domain: String, category: String, source: String, isMainFrame: Boolean) -> Unit)? = null
+
+    /**
+     * Vnaprej naložena semenska baza znanih nevarnih C2, malware in phishing domen (domene, kategorija, vir).
+     * Je tudi del kljuca kazala: sprememba semena zgradi kazalo znova.
+     * POZOR: razglasitev mora stati PRED blokom init (ta seme ze uporabi).
+     */
+    private val SEME: List<Triple<List<String>, String, String>> = listOf(
+        // 1. abuse.ch Feodo Tracker (Botnet C2 strežniki - Dridex, Emotet, QakBot, TrickBot)
+        Triple(listOf(
+            "c2-tracker.net", "botnet-master.org", "dridex-panel.cc",
+            "dridex-c2-botnet.ru", "emotet-feed.com", "emotet-loader.biz", "qakbot-gate.biz",
+            "qakbot-drop.cc", "trickbot-c2.top", "icedid-network.cc", "icedid-c2-network.net",
+            "bazarloader-c2.net", "cobaltstrike-beacon.info", "cobaltstrike-beacon.xyz", "lokibot-panel.ru",
+            "redline-stealer.cc", "redline-stealer-gate.org", "vidar-c2.top", "vidar-c2-gate.net",
+            "raccoon-gate.com", "raccoon-stealer.biz", "asyncrat-host.duckdns.org", "njrat-beacon.biz",
+            "njrat-server.com", "remcos-c2.org", "remcos-panel.net", "agenttesla-gate.net",
+            "agenttesla-c2.net", "formbook-panel.cc", "xworm-controller.top", "lumma-stealer.top",
+            "meduza-stealer.cc"), "Botnet C2 Server", "abuse.ch Feodo Tracker"),
+        // 2. abuse.ch URLhaus & ThreatFox (Zlonamerna koda / Malware distribution & IOC)
+        Triple(listOf(
+            "malware-drop.com", "payload-delivery.cc",
+            "evil-apk-download.net", "stealer-gate.org", "cryptominer-pool.top", "ransomware-host.xyz",
+            "dropper-server.ru", "trojan-source.cc", "apk-injector.top", "malicious-script.biz",
+            "23vlcfp.cfd", "2lizguk.buzz", "x91kza.monster", "dl-android-update.top",
+            "system-patch-android.click", "security-alert-center.top", "device-scan-security.cc",
+            "update-system-firmware.top", "cleaner-update-android.xyz"), "Zlonamerna koda (Malware)", "abuse.ch URLhaus / ThreatFox"),
+        // 3. Phishing Army & Lažno predstavljanje (Kraja gesel in bančnih podatkov)
+        Triple(listOf(
+            "login-bank-verification.com", "secure-account-update.net",
+            "verify-paypal-center.com", "apple-id-suspended.info", "google-account-recovery.top",
+            "microsoft-auth-verify.cc", "nlb-klik-prijava.com", "nkbm-varnostni-pregled.net",
+            "posta-slovenije-paket.top", "dhl-slovenia-slednje.cc", "si-pass-prijava.info"), "Spletno ribarjenje (Phishing)", "Phishing Army"),
+        // 4. StevenBlack Malware & Agresivna stavniška omrežja z nevarno kodo
+        Triple(listOf(
+            "20bet.top", "20bet-aff.com", "1xbet.mobi", "1xbet-partner.com", "vulkanvegas-play.top",
+            "parimatch-aff.com", "monetag-loader.com", "richpush-ads.co", "onclickalgo.com",
+            "syndication.exoclick.com"), "Nevarno oglasno/stavno omrežje", "StevenBlack Unified"),
+    )
 
     init {
         loadSeedThreatDatabase(threatTrie)
@@ -172,7 +258,17 @@ object ThreatBlockEngine {
      * Zgradi novo drevo iz vgrajenega seznama in seznamov agenta ter ga atomsko zamenja.
      * Domene pravih bank se iz zunanjih seznamov prevzamejo samo kot potrjen C2/malware, nikoli kot ribarjenje.
      */
-    fun rebuildFromLists(lists: List<PlainList>): Int {
+    fun rebuildFromLists(lists: List<PlainList>, kazalo: java.io.File? = null, razlicica: String = ""): Int {
+        val kljuc = if (kazalo != null) kljucKazala(lists.filter { !it.source.raw }.map { it.source.id to it.sha256 }, razlicica) else null
+        // Kazalo iz istih seznamov ze obstaja (npr. poln prvi nalog zaradi Scita): brez gradnje v kopici.
+        if (kazalo != null && kljuc != null) {
+            val obstojece = DomenskoKazalo.odpri(kazalo, kljuc)
+            if (obstojece != null && obstojece.neposkodovano()) {
+                threatKazalo = obstojece
+                threatTrie = DomainSuffixTrie().also { loadSeedThreatDatabase(it); it.pripravi() }
+                return lists.filter { !it.source.raw }.sumOf { it.entries.size }
+            }
+        }
         val newTrie = DomainSuffixTrie()
         loadSeedThreatDatabase(newTrie)
         var added = 0
@@ -188,55 +284,29 @@ object ThreatBlockEngine {
         }
         // Urejanje in strnitev tukaj (nit posodobitve seznamov), ne ob prvem iskanju na glavni niti (lastnik 27. 10. 2026).
         newTrie.pripravi()
+        // Kazalo: seznami so preverjeni (SHA-256 agenta), zato jih zapisemo v datoteko in drevo iz kopice spustimo.
+        if (kazalo != null && kljuc != null) {
+            val odprto = try {
+                newTrie.zapisiKazalo(kazalo, kljuc)
+                DomenskoKazalo.odpri(kazalo, kljuc)
+            } catch (e: Exception) {
+                null
+            } catch (e: OutOfMemoryError) {
+                null
+            }
+            if (odprto != null) {
+                threatKazalo = odprto
+                threatTrie = DomainSuffixTrie().also { loadSeedThreatDatabase(it); it.pripravi() }
+                return added
+            }
+        }
         threatTrie = newTrie
+        threatKazalo = null
         return added
     }
 
-    /**
-     * Vnaprej naložena semenska baza znanih nevarnih C2, malware in phishing domen.
-     */
     private fun loadSeedThreatDatabase(threatTrie: DomainSuffixTrie) {
-        // 1. abuse.ch Feodo Tracker (Botnet C2 strežniki - Dridex, Emotet, QakBot, TrickBot)
-        val feodoC2 = listOf(
-            "c2-tracker.net", "botnet-master.org", "dridex-panel.cc",
-            "dridex-c2-botnet.ru", "emotet-feed.com", "emotet-loader.biz", "qakbot-gate.biz",
-            "qakbot-drop.cc", "trickbot-c2.top", "icedid-network.cc", "icedid-c2-network.net",
-            "bazarloader-c2.net", "cobaltstrike-beacon.info", "cobaltstrike-beacon.xyz", "lokibot-panel.ru",
-            "redline-stealer.cc", "redline-stealer-gate.org", "vidar-c2.top", "vidar-c2-gate.net",
-            "raccoon-gate.com", "raccoon-stealer.biz", "asyncrat-host.duckdns.org", "njrat-beacon.biz",
-            "njrat-server.com", "remcos-c2.org", "remcos-panel.net", "agenttesla-gate.net",
-            "agenttesla-c2.net", "formbook-panel.cc", "xworm-controller.top", "lumma-stealer.top",
-            "meduza-stealer.cc"
-        )
-        for (d in feodoC2) threatTrie.insert(d, category = "Botnet C2 Server", sourceFeed = "abuse.ch Feodo Tracker")
-
-        // 2. abuse.ch URLhaus & ThreatFox (Zlonamerna koda / Malware distribution & IOC)
-        val urlhausMalware = listOf(
-            "malware-drop.com", "payload-delivery.cc",
-            "evil-apk-download.net", "stealer-gate.org", "cryptominer-pool.top", "ransomware-host.xyz",
-            "dropper-server.ru", "trojan-source.cc", "apk-injector.top", "malicious-script.biz",
-            "23vlcfp.cfd", "2lizguk.buzz", "x91kza.monster", "dl-android-update.top",
-            "system-patch-android.click", "security-alert-center.top", "device-scan-security.cc",
-            "update-system-firmware.top", "cleaner-update-android.xyz"
-        )
-        for (d in urlhausMalware) threatTrie.insert(d, category = "Zlonamerna koda (Malware)", sourceFeed = "abuse.ch URLhaus / ThreatFox")
-
-        // 3. Phishing Army & Lažno predstavljanje (Kraja gesel in bančnih podatkov)
-        val phishingDomains = listOf(
-            "login-bank-verification.com", "secure-account-update.net",
-            "verify-paypal-center.com", "apple-id-suspended.info", "google-account-recovery.top",
-            "microsoft-auth-verify.cc", "nlb-klik-prijava.com", "nkbm-varnostni-pregled.net",
-            "posta-slovenije-paket.top", "dhl-slovenia-slednje.cc", "si-pass-prijava.info"
-        )
-        for (d in phishingDomains) threatTrie.insert(d, category = "Spletno ribarjenje (Phishing)", sourceFeed = "Phishing Army")
-
-        // 4. StevenBlack Malware & Agresivna stavniška omrežja z nevarno kodo
-        val stevenBlackMalware = listOf(
-            "20bet.top", "20bet-aff.com", "1xbet.mobi", "1xbet-partner.com", "vulkanvegas-play.top",
-            "parimatch-aff.com", "monetag-loader.com", "richpush-ads.co", "onclickalgo.com",
-            "syndication.exoclick.com"
-        )
-        for (d in stevenBlackMalware) threatTrie.insert(d, category = "Nevarno oglasno/stavno omrežje", sourceFeed = "StevenBlack Unified")
+        for ((domene, kategorija, vir) in SEME) for (d in domene) threatTrie.insert(d, category = kategorija, sourceFeed = vir)
     }
 
     /**
@@ -323,7 +393,7 @@ object ThreatBlockEngine {
         } else {
             clean
         }
-        val local = threatTrie.findMatch(host)
+        val local = lokalno(host)
         val signed = signedMatch(if (isUrl) clean else "https://$clean/", host)
         if (listOfNotNull(local, signed).any { isCriticalThreat(it.category) }) {
             android.util.Log.w("SafeerSecurity", "Zero-Bypass: zavrnjen obvoz za kritično grožnjo '$clean'")
@@ -524,15 +594,19 @@ object ThreatBlockEngine {
 
     private val nepripravljenihPorocil = java.util.concurrent.atomic.AtomicInteger(0)
 
-    /** Omejeno cakanje na prvo nalaganje seznamov ([ZascitaZagona]); dnevnik pove, ali je bila prva zahteva filtrirana. */
-    private fun pocakajNaZascito() {
+    /**
+     * Omejeno cakanje na prvo nalaganje zascite ([ZascitaZagona]): vse zahteve na drevo grozenj in podpisani vir, podviri
+     * tudi na EasyList. Dnevnik pove, ali je bila prva zahteva filtrirana.
+     */
+    private fun pocakajNaZascito(isMainFrame: Boolean) {
         val glavna = android.os.Looper.myLooper() == android.os.Looper.getMainLooper()
-        val izid = ZascitaZagona.pocakaj(glavna) ?: return
+        val izid = ZascitaZagona.pocakaj(glavna, isMainFrame) ?: return
         if (izid.prva) {
-            android.util.Log.i("SafeerSecurity", "Zascita ob zagonu: prva zahteva cakala ${izid.cakalaMs} ms, seznami pripravljeni=${izid.pripravljeno}" +
-                ", ${izid.odZacetkaMs} ms od zacetka nalaganja, glavna nit=$glavna")
+            android.util.Log.i("SafeerSecurity", "Zascita ob zagonu: prva zahteva cakala ${izid.cakalaMs} ms, pripravljeno=${izid.pripravljeno}" +
+                ", ${izid.odZacetkaMs} ms od zacetka, glavni okvir=$isMainFrame, glavna nit=$glavna (${ZascitaZagona.porocilo()})")
         } else if (!izid.pripravljeno && nepripravljenihPorocil.incrementAndGet() <= 5) {
-            android.util.Log.w("SafeerSecurity", "Zascita ob zagonu: zahteva brez seznamov po ${izid.cakalaMs} ms cakanja (${izid.odZacetkaMs} ms od zacetka)")
+            android.util.Log.w("SafeerSecurity", "Zascita ob zagonu: zahteva brez seznamov po ${izid.cakalaMs} ms cakanja (${izid.odZacetkaMs} ms od zacetka" +
+                ", glavni okvir=$isMainFrame; ${ZascitaZagona.porocilo()})")
         }
     }
 
@@ -542,7 +616,8 @@ object ThreatBlockEngine {
     fun handleThreatIntercept(url: String, isMainFrame: Boolean): WebResourceResponse? {
         // Hladni zagon (raziskava 4. 11. 2026): prve zahteve so sle mimo seznamov, ker so se ti nalagali v ozadju. Ta klic
         // tece v nitnem bazenu WebView (shouldInterceptRequest) in tu omejeno pocaka na prvo nalaganje; glavna nit nikoli.
-        pocakajNaZascito()
+        // Podvir caka tudi na EasyList (AdBlockEngine.filterListBlocks za njim), glavni okvir ne.
+        pocakajNaZascito(isMainFrame)
         val match = checkThreat(url) ?: return null
         recordBlock(match)
         onThreatBlocked?.invoke(match.matchedDomain, kategorijaVJeziku(match.category), match.sourceFeed ?: "Safeer Shield", isMainFrame)

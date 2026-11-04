@@ -152,6 +152,18 @@ object Scit {
      * Gradi samo, ko se vhodni seznami (SHA-256) razlikujejo od zadnje gradnje: prej ob vsakem zagonu brskalnika,
      * ~15-20 MB prehodno in ~8 MB zapisa na flash (raziskava 4. 11. 2026).
      */
+    /**
+     * Nabor domen in nabor grozenj sta zgrajena iz teh seznamov (isti kljuc kot v [osveziNabor], iz metapodatkov agenta,
+     * brez branja seznamov). Ce da, ob zagonu brskalnika domenskih seznamov ni treba brati (4. 11. 2026).
+     */
+    fun naborVeljaven(context: Context, seznami: List<com.safeer.threatfeed.PlainListInfo>): Boolean {
+        val dns = seznami.filter { !it.source.raw && !it.source.ipv4 }
+        if (dns.isEmpty()) return true
+        val grozenj = dns.filter { !it.source.dnsOnly }
+        return DomenskiNabor.jeZgrajenIz(naborDatoteka(context), DomenskiNabor.kljucVira(dns.map { it.source.id to it.sha256 })) &&
+            DomenskiNabor.jeZgrajenIz(grozneDatoteka(context), DomenskiNabor.kljucVira(grozenj.map { it.source.id to it.sha256 }))
+    }
+
     fun osveziNabor(context: Context, seznami: List<PlainList>): Int {
         val dns = seznami.filter { !it.source.raw && !it.source.ipv4 }
         if (dns.isEmpty()) return 0

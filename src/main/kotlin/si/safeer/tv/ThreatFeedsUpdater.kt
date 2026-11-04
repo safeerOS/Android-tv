@@ -69,30 +69,94 @@ object ThreatFeedsUpdater {
     var filterRuleCount: Int = 0
         private set
 
-    /** Zažene agenta (enkrat na proces). Vrne takoj; vse delo poteka v ozadju. */
+    /** Drevo grozenj v datoteki (mmap): seme in seznami grozenj, zgrajeno ob spremembi seznamov. */
+    private fun kazaloDatoteka(context: Context) = File(File(context.applicationContext.filesDir, "threat-index"), "drevo-grozenj.bin")
+
+    /** Seme in BankGuard se spremenita samo z novo razlicico aplikacije; ta je del kljuca kazala. */
+    private val razlicica: String get() = "${BuildConfig.APPLICATION_ID}:${BuildConfig.VERSION_CODE}"
+
+    private fun jeGrozenj(s: PlainListSource) = !s.raw && !s.dnsOnly
+
+    /**
+     * Zažene agenta (enkrat na proces). Vrne v nekaj ms; vse delo z vsebino seznamov poteka v ozadju.
+     *
+     * 4. 11. 2026 (TV: zascita pripravljena sele 6,2 s po zagonu): drevo grozenj se odpre SINHRONO iz kazala (mmap), ce
+     * je zgrajeno iz istih seznamov (kljuc iz SHA-256 v metapodatkih agenta). Takrat agent ob zagonu prebere in prevede
+     * samo EasyList; ostali seznami ostanejo na disku. Brez kazala (prvi zagon, nova razlicica, nov seznam) se vse zgradi v
+     * ozadju kot prej in kazalo se zapise.
+     */
     @Synchronized
     fun start(context: Context) {
         if (agent != null) return
         // Od tu zahteve v shouldInterceptRequest omejeno pocakajo na prvo nalaganje (ZascitaZagona, 4. 11. 2026).
         ZascitaZagona.zacni()
-        val listAgent = ThreatListAgent(File(context.applicationContext.filesDir, "threat-lists"), SOURCES, onFirstLoad = {
-            ZascitaZagona.seznamiKoncani()
-            android.util.Log.i("SafeerSecurity", "Zascita ob zagonu: seznami nalozeni, pripravljena=${ZascitaZagona.pripravljeno}" +
-                " po ${ZascitaZagona.pripravljenoPoMs} ms")
-        }) { lists ->
-            ruleCount = ThreatBlockEngine.rebuildFromLists(lists.filter { !it.source.raw && !it.source.dnsOnly })
+        val app = context.applicationContext
+        val kazalo = kazaloDatoteka(app)
+        val listAgent = ThreatListAgent(File(app.filesDir, "threat-lists"), SOURCES,
+            firstLoadPriority = Thread.NORM_PRIORITY,
+            onFirstLoad = {
+                // Tudi ce seznamov ni ali je kaj padlo: zahteve ne cakajo do roka.
+                koncaj(ZascitaZagona.Del.DREVO, "seznamov ni ali niso berljivi")
+                koncaj(ZascitaZagona.Del.EASYLIST, "seznamov ni ali niso berljivi")
+            },
+            onPartialLists = { lists ->
+                val t = System.nanoTime()
+                filterRuleCount = AdBlockEngine.installFilterLists(lists.filter { it.source.raw })
+                koncaj(ZascitaZagona.Del.EASYLIST, "$filterRuleCount pravil, prevod ${(System.nanoTime() - t) / 1_000_000} ms")
+                // Kazalo je bilo odprto brez branja vsebine; tu (v ozadju) se preverimo CRC celotne datoteke.
+                if (!ThreatBlockEngine.preveriKazalo()) {
+                    android.util.Log.w("SafeerSecurity", "Kazalo grozenj poskodovano: gradim znova iz seznamov")
+                    try { kazalo.delete() } catch (_: Exception) { }
+                    agent?.reloadSaved()
+                }
+            },
+        ) { lists ->
+            val t = System.nanoTime()
+            val grozenj = lists.filter { jeGrozenj(it.source) }
+            ruleCount = ThreatBlockEngine.rebuildFromLists(grozenj, kazalo, razlicica)
+            koncaj(ZascitaZagona.Del.DREVO, "zgrajeno iz ${grozenj.size} seznamov, ${ThreatBlockEngine.steviloDomen} domen, " +
+                "${(System.nanoTime() - t) / 1_000_000} ms")
+            val te = System.nanoTime()
             filterRuleCount = AdBlockEngine.installFilterLists(lists.filter { it.source.raw })
-            // Drevo grozenj in EasyList sta v uporabi: zahteve ne cakajo vec na nabor Scita (pisanje na disk, 1-2 s).
-            ZascitaZagona.seznamiKoncani()
+            koncaj(ZascitaZagona.Del.EASYLIST, "$filterRuleCount pravil, prevod ${(System.nanoTime() - te) / 1_000_000} ms")
             // Safeer Scit (filter DNS za ves televizor) dobi vse domenske sezname, tudi hagezi PRO.
-            try { si.safeer.tv.scit.Scit.osveziNabor(context.applicationContext, lists) } catch (e: Throwable) {
+            try { si.safeer.tv.scit.Scit.osveziNabor(app, lists) } catch (e: Throwable) {
                 android.util.Log.w("SafeerScit", "Nabora za Scit ni bilo mogoce zgraditi: ${e.message}")
             }
             android.util.Log.i("SafeerSecurity", "Seznami v uporabi: ${lists.joinToString { "${it.source.name} (${it.entries.size})" }}" +
                 "; pravila EasyList: $filterRuleCount; pravila za skrivanje: ${AdBlockEngine.cosmeticRuleCount}")
         }
         agent = listAgent
-        listAgent.start()
+
+        // Sinhrono: metapodatki (nekaj majhnih datotek) in glava kazala. Izmerjeno v JVM na 300 000 domenah: glej DomenTest.
+        val t = System.nanoTime()
+        val shranjeni = try { listAgent.savedInfo() } catch (_: Exception) { emptyList() }
+        val grozenj = shranjeni.filter { jeGrozenj(it.source) }
+        val kljuc = ThreatBlockEngine.kljucKazala(grozenj.map { it.source.id to it.sha256 }, razlicica)
+        val odprto = ThreatBlockEngine.odpriKazalo(kazalo, kljuc)
+        val scit = odprto && try { si.safeer.tv.scit.Scit.naborVeljaven(app, shranjeni) } catch (_: Throwable) { false }
+        val ms = (System.nanoTime() - t) / 100_000 / 10.0
+        if (odprto) {
+            ruleCount = grozenj.sumOf { it.count }
+            koncaj(ZascitaZagona.Del.DREVO, "kazalo mmap, ${ThreatBlockEngine.steviloDomen} domen, odprtje $ms ms")
+        } else {
+            android.util.Log.i("SafeerSecurity", "Kazalo grozenj ni v uporabi (${if (kljuc == null) "ni shranjenih seznamov" else "zgrajeno iz drugih seznamov ali ga ni"}): " +
+                "drevo se gradi v ozadju (preverba $ms ms)")
+        }
+        // Ce sta kazalo in nabor Scita zgrajena iz istih seznamov, ob zagonu beremo samo EasyList (raw).
+        listAgent.start(if (odprto && scit) SOURCES.filter { it.raw }.map { it.id }.toSet() else null)
+    }
+
+    /** Del zascite je pripravljen: dnevnik s casom tega dela (in skupnim, ko je pripravljeno vse). */
+    private fun koncaj(del: ZascitaZagona.Del, opis: String) {
+        val cas = ZascitaZagona.koncan(del) ?: return
+        val ime = when (del) {
+            ZascitaZagona.Del.DREVO -> "drevo grozenj pripravljeno"
+            ZascitaZagona.Del.PODPISANI -> "podpisani vir pripravljen"
+            ZascitaZagona.Del.EASYLIST -> "EasyList pripravljen"
+        }
+        android.util.Log.i("SafeerSecurity", "Zascita ob zagonu: $ime po $cas ms ($opis)" +
+            if (ZascitaZagona.pripravljeno) "; vse pripravljeno po ${ZascitaZagona.pripravljenoPoMs} ms" else "")
     }
 
     /** Takojšnje preverjanje (gumb "Posodobi sezname"); [onComplete] dobi število pravil v uporabi. */

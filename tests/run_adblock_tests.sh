@@ -22,6 +22,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/SignedThreatIntel.kt" \
     "$SRC/com/safeer/threatfeed/FilterListEngine.kt" \
     "$SRC/com/safeer/threatfeed/SignedThreatFeed.kt" \
+    "$SRC/com/safeer/threatfeed/SortedStringTable.kt" \
     "$SRC/com/safeer/threatfeed/BankGuard.kt" \
     "$SRC/com/safeer/threatfeed/BankGuardData.kt" \
     "$SRC/com/safeer/threatfeed/ThreatListAgent.kt" \

@@ -123,6 +123,52 @@ fun main() {
     check(ThreatBlockEngine.isThreat("https://payload-delivery.cc/")) { "built-in list kept" }
     println("PASS: BankGuard hosts and pages, real banks untouched, agent lists")
 
+    // Drevo grozenj iz kazala (mmap, 4. 11. 2026): isti seznami prek datoteke dajo natanko iste odlocitve kot drevo v kopici
+    // (seme, banke samo kot C2/malware, Zero-Bypass, IPv4), kazalo pa se ob zagonu odpre samo z istim kljucem.
+    run {
+        val mapa = java.nio.file.Files.createTempDirectory("safeer-drevo").toFile()
+        try {
+            val phishing = PlainListSource("phishing-army", "Phishing Army", "https://phishing.army/", "Spletno ribarjenje (Phishing)", "phishing")
+            val seznami = listOf(
+                PlainList(urlhaus, listOf("evil-from-list.example", "compromised.posta.si", "Mixed.Case.Example.", "payload-delivery.cc"), 0, "a".repeat(64)),
+                PlainList(feodo, listOf("192.0.2.44"), 0, "b".repeat(64)),
+                PlainList(phishing, listOf("www.nlb.si", "paypal.com", "phish-from-list.example", "evil-from-list.example"), 0, "c".repeat(64)),
+            )
+            val sonde = listOf("https://evil-from-list.example/", "https://a.b.evil-from-list.example/x", "https://compromised.posta.si/x.apk",
+                "http://192.0.2.44:8080/gate", "https://www.nlb.si/", "https://www.paypal.com/", "https://phish-from-list.example/",
+                "https://x.mixed.case.example/", "https://payload-delivery.cc/", "https://emotet-feed.com/", "https://www.example.org/",
+                "https://nlb-klik-prijava.com/", "https://otpbamka.si/", "https://case.example/", "https://example/")
+            ThreatBlockEngine.rebuildFromLists(seznami)
+            val izKopice = sonde.map { ThreatBlockEngine.checkThreat(it) }
+            check(izKopice.count { it != null } >= 7) { "sonde morajo zadeti: $izKopice" }
+            val datoteka = java.io.File(mapa, "drevo-grozenj.bin")
+            ThreatBlockEngine.rebuildFromLists(seznami, datoteka, "preizkus:1")
+            check(datoteka.isFile) { "kazalo zapisano" }
+            check(sonde.map { ThreatBlockEngine.checkThreat(it) } == izKopice) { "kazalo po gradnji odloca drugace" }
+            // Zagon: drevo v kopici je samo seme, kazalo odpre sinhrono isti kljuc.
+            ThreatBlockEngine.rebuildFromLists(emptyList())
+            check(!ThreatBlockEngine.isThreat("https://evil-from-list.example/"))
+            val kljuc = ThreatBlockEngine.kljucKazala(seznami.map { it.source.id to it.sha256 }, "preizkus:1")
+            check(ThreatBlockEngine.odpriKazalo(datoteka, kljuc)) { "kazalo z istim kljucem" }
+            check(sonde.map { ThreatBlockEngine.checkThreat(it) } == izKopice) { "kazalo ob zagonu odloca drugace" }
+            ThreatBlockEngine.allowForSession("emotet-feed.com")
+            check(ThreatBlockEngine.isThreat("https://emotet-feed.com/")) { "Zero-Bypass tudi iz kazala" }
+            check(ThreatBlockEngine.preveriKazalo()) { "cela datoteka" }
+            check(!ThreatBlockEngine.odpriKazalo(datoteka, ThreatBlockEngine.kljucKazala(seznami.map { it.source.id to it.sha256 }, "preizkus:2"))) {
+                "nova razlicica aplikacije (seme, BankGuard) zgradi kazalo znova"
+            }
+            check(!ThreatBlockEngine.odpriKazalo(datoteka, ThreatBlockEngine.kljucKazala(listOf("urlhaus" to "d".repeat(64)), "preizkus:1"))) { "drug seznam" }
+            check(ThreatBlockEngine.kljucKazala(listOf("urlhaus" to ""), "x") == null && ThreatBlockEngine.kljucKazala(emptyList(), "x") == null)
+            // Seznam brez SHA-256: kazala ni, drevo ostane v kopici in deluje.
+            ThreatBlockEngine.rebuildFromLists(listOf(PlainList(urlhaus, listOf("evil-from-list.example"), 0)), java.io.File(mapa, "brez.bin"), "preizkus:1")
+            check(!java.io.File(mapa, "brez.bin").exists() && ThreatBlockEngine.isThreat("https://evil-from-list.example/"))
+        } finally {
+            mapa.deleteRecursively()
+            ThreatBlockEngine.rebuildFromLists(emptyList())
+        }
+    }
+    println("PASS: kazalo drevesa grozenj odloca enako kot drevo v kopici")
+
     // EasyList rules: raw lists go to the ad blocker, never into the threat tree; real banks and the allowlist stay untouched
     val easylist = PlainListSource("easylist", "EasyList", "https://easylist.to/easylist/easylist.txt", "Oglasi (EasyList)", "easylist", minEntries = 1, raw = true)
     val rules = listOf("||adnetwork.example^", "/ads/banners/*\$image", "@@||adnetwork.example/ok.js\$script", "@@||allowed-site.example^\$document", "||nlb.si/ads/")

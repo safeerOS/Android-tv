@@ -387,7 +387,9 @@ def main() -> int:
     te = (SRC / "ThreatBlockEngine.kt").read_text(encoding="utf-8")
     ce = (SRC / "ChromiumEngineView.kt").read_text(encoding="utf-8")
     preveri("OOM: seznam groznj se uredi v niti posodobitve, ne ob prvem iskanju",
-            "newTrie.pripravi()" + chr(10) + "        threatTrie = newTrie" in te)
+            # 4. 11. 2026: med pripravi() in objavo drevesa je se zapis kazala (mmap); objava ostane za pripravi().
+            "newTrie.pripravi()" in te and "threatTrie = newTrie" in te and
+            te.index("newTrie.pripravi()") < te.index("threatTrie = newTrie"))
     preveri("OOM: zanka pojavnih oken ne ustvarja pogledov (PojavnaOknaMeja)",
             ce.index("PojavnaOknaMeja.dovoli(pojavnaOknaCasi") < ce.index("return naPojavnoOkno?.invoke(resultMsg"))
     gl5 = (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8")
