@@ -230,6 +230,14 @@ private fun preizkusObrezaOzadja() {
     preveriEnako("neznane mere: cel zaslon", listOf(0, 0, 1080, 2400), OsPravila.pokrij(0, 0, 1080, 2400).toList())
 }
 
+/** Pregled 4. 11. 2026: podlaga se izpusti samo, ko je vmesnik skrit IN je proces v ozadju pod pritiskom. */
+private fun preizkusSprostitvePodlage() {
+    println("\n== ozadje: sprostitev podlage ==")
+    for (r in listOf(5, 10, 15)) preveriEnako("RUNNING $r (na zaslonu): ne", false, OsPravila.sprostiPodlago(r))
+    preveriEnako("UI_HIDDEN (vsak odhod v aplikacijo): ne", false, OsPravila.sprostiPodlago(20))
+    for (r in listOf(40, 60, 80)) preveriEnako("v ozadju $r: da", true, OsPravila.sprostiPodlago(r))
+}
+
 private fun preizkusMer() {
     println("\n== mere ikon ==")
     preveriEnako("majhna ikona ostane cela", 1, OsPravila.vzorec(128, 128, 512))
@@ -1181,6 +1189,7 @@ fun main() {
     preizkusJezikaKataloga()
     preizkusMer()
     preizkusObrezaOzadja()
+    preizkusSprostitvePodlage()
     preizkusNadaljuj()
     preizkusIkon()
     preizkusZaslona()

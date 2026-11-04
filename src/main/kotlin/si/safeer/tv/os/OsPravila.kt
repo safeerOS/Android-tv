@@ -302,6 +302,14 @@ object OsPravila {
     // ------------------------------------------------------------------ ozadje (Ozadje.kt)
 
     /**
+     * Ali Ozadje ob tej ravni onTrimMemory izpusti sestavljeno podlago (1920x1080 ARGB_8888 = 7,9 MiB): samo, ko je ves
+     * vmesnik skrit in sistem proces ze steje med tiste v ozadju (BACKGROUND 40, MODERATE 60, COMPLETE 80; od Androida 14
+     * pride le se 40). UI_HIDDEN (20) pride ob vsakem odhodu v drugo aplikacijo - takrat ne, sicer bi vsaka vrnitev na
+     * Domov podlago risala znova. RUNNING_* (5-15) pridejo, ko je podlaga na zaslonu.
+     */
+    fun sprostiPodlago(raven: Int): Boolean = raven >= 40
+
+    /**
      * Obrez »pokrij« (center crop): pravokotnik [levo, zgoraj, desno, spodaj], v katerega narisemo sliko [sw]x[sh], da
      * brez popacenja pokrije zaslon [w]x[h]; kar gleda cez rob, odreze platno. Pregled 4. 11. 2026: fotografija 16:9 je
      * bila na pokoncnem zaslonu (tablica, telefon) raztegnjena. Enako razmerje (televizor 16:9) ali neznane mere: cel

@@ -219,5 +219,54 @@ object Ozadje {
     /** Ozadje zaslona po izbiri uporabnika; "Enobarvno" pusti mirno temno ploskev. */
     fun uporabi(a: Activity, koren: View) {
         koren.background = sestavi(a, izbrana(a), zatemnitev(a))
+        zapomni(a, koren)
+    }
+
+    // ------------------------------------------------------------------ pomnilnik
+
+    /** Koreni zaslonov s podlago (samo glavna nit). Sibko: zaprt zaslon ne ostane v pomnilniku (tudi dejavnost sibko). */
+    private val koreni = java.util.WeakHashMap<View, java.lang.ref.WeakReference<Activity>>()
+    private var poslusa = false
+
+    private fun zapomni(a: Activity, koren: View) {
+        koreni[koren] = java.lang.ref.WeakReference(a)
+        if (poslusa) return
+        poslusa = true
+        try {
+            a.applicationContext.registerComponentCallbacks(object : android.content.ComponentCallbacks2 {
+                override fun onTrimMemory(raven: Int) { if (OsPravila.sprostiPodlago(raven)) sprosti() }
+                override fun onConfigurationChanged(nova: android.content.res.Configuration) {}
+                @Deprecated("Deprecated in Java") override fun onLowMemory() {}
+            })
+        } catch (_: Throwable) { poslusa = false }
+    }
+
+    /**
+     * Pregled 4. 11. 2026: sestavljena podlaga (7,9 MiB pri 1920x1080, z lastno fotografijo se 2 MiB predogleda) je ostala
+     * do konca procesa, tudi ko je televizor ze dolgo predvajal drugo aplikacijo. Drzijo jo singleton IN ozadja vseh zivih
+     * zaslonov, zato jim ozadje zamenjamo z barvo. Zaslon podlago sestavi znova tik pred prvim naslednjim izrisom
+     * (onPreDraw), zato uporabnik ob vrnitvi ne vidi prazne ploskve. Pomnilnik se dejansko vrne, ko sistem zavrze se
+     * izrisne sezname okna (COMPLETE; na sibki grafiki ze MODERATE) - meritev: am send-trim-memory in dumpsys meminfo.
+     */
+    private fun sprosti() {
+        val zivi = koreni.entries.mapNotNull { (k, ref) -> ref.get()?.let { k to it } }
+        synchronized(this) { sestavljena = null; sestavljenaKljuc = "" }
+        lastnaSlika = null
+        for ((koren, a) in zivi) {
+            if (a.isFinishing || a.isDestroyed) continue
+            try {
+                koren.background = ColorDrawable(a.osBarva(R.color.os_ozadje))
+                val opazovalec = koren.viewTreeObserver
+                opazovalec.addOnPreDrawListener(object : android.view.ViewTreeObserver.OnPreDrawListener {
+                    override fun onPreDraw(): Boolean {
+                        if (opazovalec.isAlive) opazovalec.removeOnPreDrawListener(this)
+                        koren.viewTreeObserver.let { if (it !== opazovalec && it.isAlive) it.removeOnPreDrawListener(this) }
+                        if (!a.isDestroyed) try { uporabi(a, koren) } catch (_: Throwable) { }
+                        return true
+                    }
+                })
+            } catch (_: Throwable) { }
+        }
+        android.util.Log.i("SafeerOsPomnilnik", "Ozadje: podlaga sproscena (zaslonov: ${zivi.size}).")
     }
 }
