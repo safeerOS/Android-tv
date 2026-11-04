@@ -19,6 +19,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/scit/TcpDns.kt" \
     "$SRC/si/safeer/tv/scit/ScitIzjeme.kt" \
     "$SRC/si/safeer/tv/scit/ScitPregled.kt" \
+    "$SRC/si/safeer/tv/scit/ScitOdlocitev.kt" \
     "$SRC/si/safeer/tv/cast/JsonLahki.kt" \
     "$TEST_DIR/ScitTest.kt" \
     "$TEST_DIR/ScitPregledTest.kt" \
