@@ -27,4 +27,7 @@
     <string name="scit_z_zasebnost">Names are kept only on this TV (at most 20), never sent anywhere, and erased when Shield is turned off.</string>
     <string name="scit_z_ponudba">Safeer Shield blocks ads, trackers and dangerous sites in every app on this TV. DNS stays on your network – nothing goes to a foreign server. Android will ask once for permission to set up the filter (VPN).</string>
     <string name="scit_z_ne_zdaj">Not now</string>
+    <string name="scit_z_spusti_vprasanje">Allow %1$s for 30 days? Ads and trackers from this name will no longer be stopped.</string>
+    <string name="scit_z_spusti_da">Yes, allow</string>
+    <string name="scit_z_spusti_ne">No</string>
 </resources>

@@ -27,4 +27,7 @@
     <string name="scit_z_zasebnost">Les noms restent uniquement sur ce téléviseur (20 au plus), ne sont envoyés nulle part et sont effacés quand le Bouclier est désactivé.</string>
     <string name="scit_z_ponudba">Bouclier Safeer bloque les publicités, les traqueurs et les sites dangereux dans toutes les applis de ce téléviseur. Le DNS reste sur votre réseau – rien ne part vers un serveur étranger. Android demandera une fois l’autorisation pour le filtre (VPN).</string>
     <string name="scit_z_ne_zdaj">Pas maintenant</string>
+    <string name="scit_z_spusti_vprasanje">Autoriser %1$s pendant 30 jours ? Les publicités et traqueurs de ce nom ne seront plus arrêtés.</string>
+    <string name="scit_z_spusti_da">Oui, autoriser</string>
+    <string name="scit_z_spusti_ne">Non</string>
 </resources>

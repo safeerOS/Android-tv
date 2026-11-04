@@ -27,4 +27,7 @@
     <string name="scit_z_zasebnost">Namen bleiben nur auf diesem Fernseher (höchstens 20), werden nirgendwohin gesendet und beim Ausschalten von Schild gelöscht.</string>
     <string name="scit_z_ponudba">Safeer Schild blockiert Werbung, Tracker und gefährliche Seiten in allen Apps auf diesem Fernseher. DNS bleibt in Ihrem Netzwerk – nichts geht an einen fremden Server. Android fragt einmal nach der Erlaubnis für den Filter (VPN).</string>
     <string name="scit_z_ne_zdaj">Nicht jetzt</string>
+    <string name="scit_z_spusti_vprasanje">%1$s für 30 Tage zulassen? Werbung und Tracker von diesem Namen werden nicht mehr gestoppt.</string>
+    <string name="scit_z_spusti_da">Ja, zulassen</string>
+    <string name="scit_z_spusti_ne">Nein</string>
 </resources>

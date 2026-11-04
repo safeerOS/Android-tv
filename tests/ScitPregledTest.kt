@@ -4,7 +4,16 @@ package si.safeer.tv.scit
  * Lastnikov pregled Scita (3. 11. 2026) in dodatek (4. 11. 2026): ciste odlocitve ([ScitPregled]) in paketi ([DnsPaket]).
  * Vsak preizkus pade brez svojega popravka (preverjeno z zacasnim umikom popravka, 4. 11. 2026).
  */
+private fun preveriSpust() {
+    // TV 4. 11. 2026 23:18: OK na ustavljenem imenu samo vprasa, privzeto Ne.
+    check(ScitPregled.okNaImenu(true) == ScitPregled.OkNaImenu.VPRASAJ) { "OK na imenu, ki ga lahko spustimo, mora vprasati" }
+    check(ScitPregled.okNaImenu(false) == ScitPregled.OkNaImenu.NIC) { "groznja ali ze spusceno: nic" }
+    check(!ScitPregled.PRIVZETO_SPUSTI) { "privzeti gumb vprasanja mora biti Ne" }
+    println("  ok  spust samo s potrditvijo, privzeto Ne")
+}
+
 fun main() {
+    preveriSpust()
     val P = ScitPregled
     val nas = byteArrayOf(10, 111, (222).toByte(), 1)
     val navidezni = byteArrayOf(10, 111, (222).toByte(), 2)

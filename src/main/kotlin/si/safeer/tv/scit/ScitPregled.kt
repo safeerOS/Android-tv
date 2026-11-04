@@ -104,6 +104,16 @@ object ScitPregled {
         return (m[d] ?: 0L) > zdaj
     }
 
+    /**
+     * OK na ustavljenem imenu (lastnik in vodja, TV 4. 11. 2026 23:18): prvi fokus zaslona je na prvi vrstici »Nazadnje
+     * ustavljeno« (npr. static.doubleclick.net) in en OK po nesreci je oglasni streznik spustil za 30 dni. OK zato samo
+     * odpre vprasanje; spust je izrecna izbira »Da«, privzeti gumb je »Ne«.
+     */
+    enum class OkNaImenu { VPRASAJ, NIC }
+    fun okNaImenu(lahkoSpusti: Boolean): OkNaImenu = if (lahkoSpusti) OkNaImenu.VPRASAJ else OkNaImenu.NIC
+    /** V vprasanju o spustu ima ob odprtju fokus »Ne« (OK po nesreci nicesar ne spusti). */
+    const val PRIVZETO_SPUSTI = false
+
     /** Gumb »Spusti« ima samo ime, ki ni s seznama grozenj (in seznam grozenj je nalozen). */
     fun lahkoSpusti(grozneNalozene: Boolean, naGroznih: Boolean): Boolean = grozneNalozene && !naGroznih
 

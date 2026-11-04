@@ -212,7 +212,8 @@ class ScitActivity : OsActivity() {
                     lahko -> getString(R.string.scit_z_spusti)
                     else -> ""
                 }
-                val ob: (() -> Unit)? = if (lahko) ({ spusti(z.ime) }) else null
+                // TV 4. 11. 2026 23:18: OK samo vprasa (ScitPregled.okNaImenu), spust je izrecni »Da«.
+                val ob: (() -> Unit)? = if (ScitPregled.okNaImenu(lahko) == ScitPregled.OkNaImenu.VPRASAJ) ({ potrdiSpust(z.ime) }) else null
                 vsebina.addView(vrstica(ura.format(java.util.Date(z.ura)) + "   " + z.ime, opis,
                     if (groznja) R.attr.osOpozorilo else R.attr.osUmirjeno, OZNAKA_IME + z.ime, ob))
             }
@@ -236,6 +237,21 @@ class ScitActivity : OsActivity() {
 
         val cilj = izbrana?.let { vsebina.findViewWithTag<View>(it) } ?: vsebina.findViewWithTag<View>(OZNAKA_PREKLOP)
         cilj?.post { cilj.requestFocus() }
+    }
+
+    /** Okno »Spustim <ime> za 30 dni?«: privzeto Ne (ScitPregled.PRIVZETO_SPUSTI), spust samo z izrecno izbiro. */
+    private fun potrdiSpust(ime: String) {
+        val okno = android.app.AlertDialog.Builder(this, R.style.Os_Okno)
+            .setTitle(R.string.scit_ime)
+            .setMessage(getString(R.string.scit_z_spusti_vprasanje, ime))
+            .setPositiveButton(R.string.scit_z_spusti_da) { _, _ -> spusti(ime) }
+            .setNegativeButton(R.string.scit_z_spusti_ne, null)
+            .create()
+        okno.setOnShowListener {
+            okno.getButton(if (ScitPregled.PRIVZETO_SPUSTI) android.app.AlertDialog.BUTTON_POSITIVE else android.app.AlertDialog.BUTTON_NEGATIVE)?.requestFocus()
+        }
+        okno.show()
+        si.safeer.tv.os.Kontroler.pokazi(okno)
     }
 
     private fun spusti(ime: String) {
