@@ -8,6 +8,20 @@ import si.safeer.tv.SpletVarnostPravila as P
  */
 fun main() {
     val nas = "si.safeer.tv"
+    // Lastnik 4. 11. 2026: kartica filma na rtvslo.si (target=_blank na 365.rtvslo.si) ni naredila nic.
+    val rtv = "https://www.rtvslo.si/"
+    val film = "https://365.rtvslo.si/arhiv/resnica/175137656"
+    check(P.pojavnoOkno(true, film, rtv, null, true) == P.PojavnoOkno.ISTI_ZAVIHEK) { "ista eTLD+1 v aplikaciji: isti zavihek" }
+    check(P.pojavnoOkno(true, film, rtv, null, false) == P.PojavnoOkno.NOV_ZAVIHEK) { "ista eTLD+1 v brskanju: nov zavihek" }
+    check(P.pojavnoOkno(false, film, rtv, film, true) == P.PojavnoOkno.ZAVRNI) { "brez kretnje: zavrni" }
+    check(P.pojavnoOkno(true, "https://oglas.example/x", rtv, null, true) == P.PojavnoOkno.ZAVRNI) { "tuja domena brez povezave (window.open)" }
+    check(P.pojavnoOkno(true, "https://oglas.example/x", rtv, "https://drugo.example/", false) == P.PojavnoOkno.ZAVRNI) { "povezava drugam" }
+    check(P.pojavnoOkno(true, "https://www.youtube.com/watch?v=1", rtv, "  https://www.youtube.com/watch?v=1\n ", true) == P.PojavnoOkno.NOV_ZAVIHEK) { "kliknjena tuja povezava: nov zavihek" }
+    check(P.pojavnoOkno(true, "javascript:alert(1)", rtv, "javascript:alert(1)", true) == P.PojavnoOkno.ZAVRNI) { "samo http(s)" }
+    check(P.pojavnoOkno(true, "file:///sdcard/a.html", "file:///sdcard/b.html", null, true) == P.PojavnoOkno.ZAVRNI) { "file ni dovoljen" }
+    check(P.pojavnoOkno(true, "https://a.rtvslo.si.zlo.example/", rtv, null, true) == P.PojavnoOkno.ZAVRNI) { "podobna domena ni ista eTLD+1" }
+    check(P.pojavnoOkno(true, "https://news.bbc.co.uk/x", "https://www.bbc.co.uk/", null, true) == P.PojavnoOkno.ISTI_ZAVIHEK) { "dvodelna pripona" }
+    check(P.pojavnoOkno(true, "https://evil.co.uk/x", "https://www.bbc.co.uk/", null, true) == P.PojavnoOkno.ZAVRNI) { "co.uk ni registrirana domena" }
     // 1. Namera iz strani: samo VIEW, nikoli nas paket, nikoli lokalne ali skriptne sheme.
     check(P.dovoljenaNamera("android.intent.action.VIEW", "market", null, nas))
     check(P.dovoljenaNamera("android.intent.action.VIEW", "mailto", "com.example.posta", nas))

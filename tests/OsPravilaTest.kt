@@ -1617,6 +1617,26 @@ private fun preizkusPlacljivega120() {
     preveriEnako("splet: OS brez leanback ne gre v odstranjeno aktivnost brskalnika", OsPravila.SpletCilj.TV_BROWSER, OsPravila.spletCilj(true, true))
     preveriEnako("splet: Safeer Browser TV ostane lokalno", OsPravila.SpletCilj.LOKALNO, OsPravila.spletCilj(false, false))
     preveriEnako("splet: telefon ostane lokalno", OsPravila.SpletCilj.LOKALNO, OsPravila.spletCilj(false, true))
+
+    // Lastnik 4. 11. 2026: brskalnik za Splet izbere uporabnik; Safeer nic ne vsiljuje, a tudi ne pade
+    preveriEnako("brskalnik: brez izbire Safeer", null, OsPravila.spletBrskalnik(null, true, false))
+    preveriEnako("brskalnik: prazna izbira Safeer", null, OsPravila.spletBrskalnik("  ", true, true))
+    preveriEnako("brskalnik: izbran tuj in namescen", "org.mozilla.firefox", OsPravila.spletBrskalnik("org.mozilla.firefox", true, true))
+    preveriEnako("brskalnik: izbranega ni vec - Safeer", null, OsPravila.spletBrskalnik("org.mozilla.firefox", true, false))
+    preveriEnako("brskalnik: izbran Safeer TV Browser", null, OsPravila.spletBrskalnik("si.safeer.tv", true, true))
+    preveriEnako("brskalnik: Safeer OS sam ni tuj brskalnik", null, OsPravila.spletBrskalnik("si.safeer.os", true, true))
+    preveriEnako("brskalnik: izbira velja samo v Safeer OS", null, OsPravila.spletBrskalnik("org.mozilla.firefox", false, true))
+    preveriEnako("brskalniki: brez Safeer, brez podvojitev, po imenu",
+        listOf("org.mozilla.firefox" to "Firefox", "com.opera.browser" to "opera"),
+        OsPravila.brskalnikiZaIzbiro(listOf("si.safeer.tv" to "Safeer TV Browser", "com.opera.browser" to "opera",
+            "org.mozilla.firefox" to "Firefox", "si.safeer.os" to "Safeer OS", "org.mozilla.firefox" to "Firefox (2)", "" to "x")))
+    preveriEnako("brskalniki: prazno", emptyList<Pair<String, String>>(), OsPravila.brskalnikiZaIzbiro(emptyList()))
+    val domaca = { u: String -> u.contains("splet.html") }
+    preveriEnako("domaca: aktivni je domaca", 1, OsPravila.zavihekDomace(listOf("a", "file:///splet.html", "file:///splet.html"), 1, domaca))
+    preveriEnako("domaca: aktivni je zadnje brskanje - preklop na domaco", 0, OsPravila.zavihekDomace(listOf("file:///splet.html", "https://x.si"), 1, domaca))
+    preveriEnako("domaca: zadnja domaca, ce jih je vec", 2, OsPravila.zavihekDomace(listOf("file:///splet.html", "b", "file:///splet.html", "c"), 3, domaca))
+    preveriEnako("domaca: ni domace - nov zavihek", -1, OsPravila.zavihekDomace(listOf("https://x.si", "https://y.si"), 0, domaca))
+    preveriEnako("domaca: brez zavihkov - nov zavihek", -1, OsPravila.zavihekDomace(emptyList(), -1, domaca))
 }
 
 private fun preizkusZapriObVrnitvi() {

@@ -284,7 +284,11 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             oznaciIzvorZavihka(tabManager.createTab(this, targetUrl, true), intent, novZavihek = true)
         } else if (!restored) {
             tabManager.createTab(this, SpletDomaca.naslov(this), true)
+        } else if (intent?.getBooleanExtra(si.safeer.tv.os.Brskalnik.EXTRA_ODPRI_DOMACO, false) == true) {
+            // Splet iz Safeer OS po obnovi aktivnosti: domaca stran, obnovljeni zavihki ostanejo (lastnik 4. 11. 2026).
+            pokaziDomacoZavihek()
         }
+        intent?.removeExtra(si.safeer.tv.os.Brskalnik.EXTRA_ODPRI_DOMACO)
         // Ob obnovi aktivnosti (vrtenje, smrt procesa) izbire ne pokazemo znova.
         if (savedInstanceState == null) ponudiVgrajeniBrskalnik(intent, novZavihek = true)
 
@@ -1237,6 +1241,12 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         }
         // Navaden zagon brskalnika po tem, ko je tekla spletna aplikacija: vrni vrstico z naslovom.
         if (nacinAplikacije != null) izklopiNacinAplikacije()
+        // Lastnik 4. 11. 2026: Splet iz Safeer OS vedno pokaze domaco stran, ne zadnjega brskanja; zavihki ostanejo.
+        if (intent?.getBooleanExtra(si.safeer.tv.os.Brskalnik.EXTRA_ODPRI_DOMACO, false) == true) {
+            intent.removeExtra(si.safeer.tv.os.Brskalnik.EXTRA_ODPRI_DOMACO)
+            webViewContainer.post { if (!isFinishing) pokaziDomacoZavihek() }
+            return
+        }
         val url = incomingBrowseUrl(intent)
         ponudiVgrajeniBrskalnik(intent, novZavihek = false)
         // Pregled 30. 10. 2026: dejavnost je izvozena - preizkusni dodatek samo v razvojni gradnji.
@@ -1562,6 +1572,31 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 castPosition, castDuration
             )
         } catch (_: Exception) {}
+    }
+
+    /**
+     * Vstop v Splet iz Safeer OS (lastnik 4. 11. 2026): preklop na zavihek z domaco stranjo ali nov tak zavihek.
+     * Za razliko od tipke Domov ([showBrowserStartPage]) zadnje brskanje ostane v svojem zavihku.
+     */
+    private fun pokaziDomacoZavihek() {
+        if (nacinAplikacije != null) izklopiNacinAplikacije()
+        try { if (playback.isActive()) playback.exit() } catch (_: Exception) { }
+        try { customVideoCallback?.onCustomViewHidden() } catch (_: Exception) {}
+        try { customVideoView?.let { mainRoot.removeView(it) } } catch (_: Exception) {}
+        customVideoView = null
+        customVideoCallback = null
+        webViewContainer.visibility = View.VISIBLE
+        nastaviVidnostChrome(View.VISIBLE)
+        mobileTopBar.translationY = 0f
+        val zavihki = tabManager.getAllTabs()
+        val aktivni = tabManager.getActiveTab()
+        val i = si.safeer.tv.os.OsPravila.zavihekDomace(zavihki.map { it.url.ifBlank { it.spalniNaslov } },
+            zavihki.indexOfFirst { it.id == aktivni?.id }) { TvSite.isBrowserHome(it) }
+        if (i >= 0) {
+            if (zavihki[i].id != aktivni?.id) tabManager.switchTab(zavihki[i].id)
+        } else {
+            tabManager.createTab(this, SpletDomaca.naslov(this), true)
+        }
     }
 
     private fun showBrowserStartPage() {
@@ -1934,7 +1969,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
      * (window.opener) prijava z Google, Facebook ali X ne more vrniti odgovora in se konca
      * v praznem oknu.
      */
-    private fun odpriPojavnoOkno(resultMsg: android.os.Message): Boolean {
+    private fun odpriPojavnoOkno(resultMsg: android.os.Message, kretnja: Boolean, povezava: String?): Boolean {
         val transport = resultMsg.obj as? android.webkit.WebView.WebViewTransport ?: return false
         // Pogled se ni zavihek: dokler ne vemo, kam okno pelje, se stevec zavihkov ne
         // premakne in noben uporabnikov zavihek se ne umakne, da bi naredil prostor.
@@ -1951,17 +1986,48 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             pogled.post { tabManager.zavrziPojavni(pogled) }
         }
 
+        val izvorStrani = starsevski?.url
+        val vAplikaciji = nacinAplikacije != null
         pogled.vratarPojavnega = vratar@{ naslov ->
             if (odloceno) return@vratar false
             odloceno = true
             val zdaj = android.os.SystemClock.elapsedRealtime()
             val podvojeno = naslov == zadnjePojavno.first && zdaj - zadnjePojavno.second < 2_000L
+            // Lastnik 4. 11. 2026 (rtvslo.si -> 365.rtvslo.si): povezava, ki jo uporabnik klikne, se odpre; prijava ostane, kot je.
+            val odlocitev = if (PrijavnaOkna.jePrijava(naslov)) null
+                else SpletVarnostPravila.pojavnoOkno(kretnja, naslov, izvorStrani, povezava, vAplikaciji)
             when {
                 podvojeno -> {
                     zavrzi("Podvojeno okno zaprto", naslov)
                     false
                 }
-                !PrijavnaOkna.jePrijava(naslov) -> {
+                odlocitev == SpletVarnostPravila.PojavnoOkno.ISTI_ZAVIHEK -> {
+                    zadnjePojavno = naslov to zdaj
+                    android.util.Log.i("SafeerPojavno", "Povezava v istem zavihku: ${naslov.take(90)}")
+                    pogled.post {
+                        tabManager.zavrziPojavni(pogled)
+                        try { starsevski?.loadUrl(naslov) } catch (_: Throwable) {}
+                    }
+                    false
+                }
+                odlocitev == SpletVarnostPravila.PojavnoOkno.NOV_ZAVIHEK -> {
+                    zadnjePojavno = naslov to zdaj
+                    android.util.Log.i("SafeerPojavno", "Povezava v novem zavihku: ${naslov.take(90)}")
+                    pogled.post {
+                        tabManager.zavrziPojavni(pogled)
+                        // Tuja domena iz spletne aplikacije: navaden zavihek brskalnika z naslovno vrstico.
+                        if (nacinAplikacije != null) izklopiNacinAplikacije()
+                        try {
+                            // Nazaj zapre zavihek in vrne na stran, ki ga je odprla (kot pri prijavnem oknu).
+                            val nov = tabManager.createTab(this, naslov, true)
+                            nov.jePojavni = true
+                            nov.odpiralec = odpiralec
+                            podedujIzvor(nov.webView, starsevski)
+                        } catch (_: Throwable) {}
+                    }
+                    false
+                }
+                odlocitev != null -> {
                     zavrzi("Pojavno okno preprečeno", naslov)
                     false
                 }
@@ -2116,7 +2182,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         }
         // Pregledovalnik PDF: "prenesi izvirnik" gre kot navaden prenos, "gor" iz orodne vrstice v naslovno vrstico.
         wv.onPdfPrenos = { url, userAgent -> downloadHandler.startDownload(url, userAgent, null, "application/pdf") }
-        wv.naPojavnoOkno = { resultMsg -> odpriPojavnoOkno(resultMsg) }
+        wv.naPojavnoOkno = { resultMsg, kretnja, povezava -> odpriPojavnoOkno(resultMsg, kretnja, povezava) }
         // window.close(): pojavni zavihek (prijava) se zapre in vrne na stran, ki ga je odprla. Navaden
         // zavihek ostane - stran ne sme zapreti uporabnikovega zavihka.
         wv.naZapriOkno = { pogled -> pogled.post { tabManager.zapriPojavniPoPogledu(this, pogled) } }

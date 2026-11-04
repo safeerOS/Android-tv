@@ -296,6 +296,10 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             safeer(R.drawable.os_ikona_racunalnik, R.string.os_host, R.string.os_host_opis,
                 if (Host.jeOddaljen(this)) Host.gostitelj(this).orEmpty() else getString(R.string.os_host_doma)) { preklopiHost() },
             safeer(R.drawable.os_ikona_slika, R.string.os_videz, R.string.os_videz_opis, Ozadje.ime(this)) { odpriVidez() },
+            // Lastnik 4. 11. 2026: »Safeer nic ne vsiljuje« - uporabnik izbere brskalnik, ki ga odpreta Splet in Lupa.
+            if (!Sosed.smoOs(this)) null
+            else safeer(R.drawable.os_ikona_splet, R.string.os_splet_brskalnik, R.string.os_splet_brskalnik_opis,
+                imeBrskalnikaZaSplet()) { izberiBrskalnikZaSplet() },
             // Naloga 42 F: nov TV zaganjalnik (beta) - stikalo in izbire, ki veljajo samo zanj. Vrnitev na starega spremeni
             // samo stikalo (ZaganjalnikBetaPravila.poPreklopu); vse druge nastavitve ostanejo.
             if (!ZaganjalnikBetaPravila.stikaloVidno(tv, si.safeer.tv.BuildConfig.BETA, ZaganjalnikBeta.vklopljen(this))) null
@@ -552,6 +556,30 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
      * Jezik vmesnika: isti seznam kot v brskalniku. Izbira velja takoj - zaslon narisemo znova,
      * da uporabnik vidi ucinek brez ponovnega zagona aplikacije.
      */
+    /** Ime brskalnika, ki ga odpre Splet (izbrani tuj ali Safeer TV Browser). */
+    private fun imeBrskalnikaZaSplet(): String {
+        val tuj = Brskalnik.izbrani(this) ?: return getString(R.string.os_splet_brskalnik_privzeto)
+        return try { packageManager.getApplicationLabel(packageManager.getApplicationInfo(tuj, 0)).toString() } catch (_: Throwable) { tuj }
+    }
+
+    /** Izbira brskalnika za Splet: prvi je Safeer TV Browser (privzeto), nato namesceni tuji brskalniki. */
+    private fun izberiBrskalnikZaSplet() {
+        val tuji = Brskalnik.namesceni(this)
+        val paketi = listOf<String?>(null) + tuji.map { it.first }
+        val imena = (listOf(getString(R.string.os_splet_brskalnik_privzeto)) + tuji.map { it.second }).toTypedArray()
+        val kje = paketi.indexOf(Brskalnik.izbrani(this)).let { if (it < 0) 0 else it }
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
+            .setTitle(getString(R.string.os_splet_brskalnik))
+            .apply { if (tuji.isEmpty()) setMessage(getString(R.string.os_splet_brskalnik_ni)) }
+            .setSingleChoiceItems(imena, kje) { okno, i ->
+                Brskalnik.shraniIzbiro(this, paketi[i])
+                okno.dismiss()
+                narisi()
+            }
+            .setNegativeButton(getString(R.string.os_preklici), null)
+            .let { Kontroler.pokazi(it.show()) }
+    }
+
     private fun izberiJezik() {
         val jeziki = si.safeer.tv.JezikVmesnika.JEZIKI
         val oznake = listOf(si.safeer.tv.JezikVmesnika.SAMODEJNO) + jeziki.map { it.first }

@@ -45,6 +45,72 @@ object Brskalnik {
         OsPravila.SpletCilj.LOKALNO -> Intent(c, si.safeer.tv.MainActivity::class.java)
     }.putExtra("iz_safeer_os", c.packageName).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
+    /** Dodatek namere: Splet iz Safeer OS - brskalnik pokaze domaco stran, ne zadnjega brskanja (lastnik 4. 11. 2026). */
+    const val EXTRA_ODPRI_DOMACO = "odpri_domaco"
+
+    /** Shramba in kljuc izbire brskalnika za Splet (prazno = Safeer TV Browser). */
+    const val SHRAMBA = "safeer_os"
+    const val KLJUC_SPLET_BRSKALNIK = "splet_brskalnik"
+
+    /** Tuj brskalnik, ki ga je izbral uporabnik in je se namescen, ali null = Safeer ([OsPravila.spletBrskalnik]). */
+    fun izbrani(c: Context): String? {
+        val shranjen = try {
+            c.getSharedPreferences(SHRAMBA, Context.MODE_PRIVATE).getString(KLJUC_SPLET_BRSKALNIK, null)
+        } catch (_: Throwable) { null }
+        return OsPravila.spletBrskalnik(shranjen, Sosed.smoOs(c), !shranjen.isNullOrBlank() && Sosed.namescen(c, shranjen.trim()))
+    }
+
+    fun shraniIzbiro(c: Context, paket: String?) {
+        c.getSharedPreferences(SHRAMBA, Context.MODE_PRIVATE).edit().apply {
+            if (paket.isNullOrBlank() || paket in OsPravila.SAFEER_BRSKALNIKI) remove(KLJUC_SPLET_BRSKALNIK)
+            else putString(KLJUC_SPLET_BRSKALNIK, paket)
+        }.apply()
+    }
+
+    /** Nameščeni tuji brskalniki (paket -> ime): aplikacije, ki odprejo https iz povezave in imajo zagon na TV ali v predalu. */
+    fun namesceni(c: Context): List<Pair<String, String>> = try {
+        val pm = c.packageManager
+        val splet = Intent(Intent.ACTION_VIEW, Uri.parse("https://safeer.si")).addCategory(Intent.CATEGORY_BROWSABLE)
+        @Suppress("DEPRECATION")
+        val kandidati = pm.queryIntentActivities(splet, 0).mapNotNull { r ->
+            val paket = r.activityInfo?.packageName ?: return@mapNotNull null
+            // Samo aplikacija, ki jo lahko zazenemo (domaca stran brskalnika), ne npr. prestreznik povezav.
+            if (zagon(c, paket) == null) return@mapNotNull null
+            paket to (r.loadLabel(pm)?.toString().orEmpty().ifBlank { paket })
+        }
+        OsPravila.brskalnikiZaIzbiro(kandidati)
+    } catch (_: Throwable) { emptyList() }
+
+    /** Zagonska namera paketa (najprej TV, nato predal). */
+    private fun zagon(c: Context, paket: String): Intent? = try {
+        c.packageManager.getLeanbackLaunchIntentForPackage(paket) ?: c.packageManager.getLaunchIntentForPackage(paket)
+    } catch (_: Throwable) { null }
+
+    /**
+     * Razdelek Splet: domaca stran izbranega brskalnika. Tuj brskalnik dobi svojo zagonsko namero (njegova domaca
+     * stran); Safeer TV Browser dodatek [EXTRA_ODPRI_DOMACO]. Ce izbranega ni vec, Safeer brez napake.
+     */
+    fun splet(c: Context): Intent =
+        izbrani(c)?.let { zagon(c, it) }?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            ?: namera(c).putExtra(EXTRA_ODPRI_DOMACO, true)
+
+    /**
+     * Iskanje v spletu ali predlog iz Lupe: naslov v izbranem brskalniku (ACTION_VIEW s paketom), sicer v Safeerju
+     * kot doslej. Odpre samo http(s); ce tuj brskalnik naslova ne sprejme, gre v Safeer.
+     */
+    fun iskanje(c: Context, url: String): Intent {
+        val uri = Uri.parse(url)
+        val shema = uri.scheme?.lowercase()
+        val tuj = izbrani(c)
+        if (tuj != null && (shema == "https" || shema == "http")) {
+            val i = Intent(Intent.ACTION_VIEW, uri).setPackage(tuj).addCategory(Intent.CATEGORY_BROWSABLE)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            val sprejme = try { c.packageManager.resolveActivity(i, 0) != null } catch (_: Throwable) { false }
+            if (sprejme) return i
+        }
+        return namera(c).setAction(Intent.ACTION_VIEW).setData(uri)
+    }
+
     /** Spletna aplikacija se odpre v istem razdelku Splet; lupina Safeer OS ostane vidna. */
     fun spletnaAplikacija(c: Context, url: String, ime: String): Intent =
         mobilniNaslov(c, url) ?: namera(c).apply {

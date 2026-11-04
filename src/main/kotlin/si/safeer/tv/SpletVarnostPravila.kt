@@ -59,6 +59,40 @@ object SpletVarnostPravila {
         }
     }
 
+    /** Kaj naredimo z novim oknom (target=_blank, window.open), ki ni prijava. */
+    enum class PojavnoOkno { ZAVRNI, ISTI_ZAVIHEK, NOV_ZAVIHEK }
+
+    /**
+     * Lastnik 4. 11. 2026 (TV, rtvslo.si): kartica filma je <a target="_blank" href="https://365.rtvslo.si/..."> in klik ni
+     * naredil nic - vratar je prepustil samo prijavna okna. Zdaj:
+     *  - brez uporabnikove kretnje ostane okno zavrnjeno (samodejni oglasi, zanke oken);
+     *  - samo http(s) z gostiteljem ([varenRezervniNaslov]);
+     *  - ista registrirana domena (eTLD+1) kot stran, ki je okno odprla: v spletni aplikaciji v istem zavihku (aplikacija
+     *    ostane), v navadnem brskanju nov zavihek (obicajno vedenje _blank);
+     *  - tuja domena samo, ce je uporabnik kliknil prav povezavo na ta naslov ([povezava] = href pod fokusom ali dotikom):
+     *    nov navaden zavihek. Strani s filmi ob kliku na predvajalnik odprejo oglas z window.open - ta ni povezava pod
+     *    kliki in ostane zavrnjen, kot doslej.
+     */
+    fun pojavnoOkno(kretnja: Boolean, naslov: String, izvor: String?, povezava: String?, nacinAplikacije: Boolean): PojavnoOkno {
+        if (!kretnja || !varenRezervniNaslov(naslov)) return PojavnoOkno.ZAVRNI
+        val cilj = gostitelj(naslov) ?: return PojavnoOkno.ZAVRNI
+        val od = izvor?.let { gostitelj(it) }
+        if (od != null && com.safeer.threatfeed.FilterListEngine.registrable(cilj) == com.safeer.threatfeed.FilterListEngine.registrable(od))
+            return if (nacinAplikacije) PojavnoOkno.ISTI_ZAVIHEK else PojavnoOkno.NOV_ZAVIHEK
+        if (povezava != null && istiNaslov(povezava, naslov)) return PojavnoOkno.NOV_ZAVIHEK
+        return PojavnoOkno.ZAVRNI
+    }
+
+    /** Gostitelj spletnega naslova (malo, brez pike na koncu) ali null. */
+    private fun gostitelj(url: String): String? = try {
+        val u = java.net.URI(url.trim())
+        if (!u.scheme.equals("https", true) && !u.scheme.equals("http", true)) null
+        else u.host?.lowercase()?.trimEnd('.')?.takeIf { it.isNotEmpty() }
+    } catch (_: Exception) { null }
+
+    /** Isti naslov ne glede na presledke okoli in koncno posevnico (href pred normalizacijo brskalnika). */
+    private fun istiNaslov(a: String, b: String): Boolean = a.trim().trimEnd('/') == b.trim().trimEnd('/')
+
     /** Oglas ob nalaganju strani ne sme sam odpreti druge aplikacije: potrebna je kretnja ali nedavno dejanje. */
     fun dovoljenZunanjiZagon(kretnja: Boolean, msOdDejanja: Long): Boolean =
         kretnja || msOdDejanja in 0..ZAGON_PO_DEJANJU_MS

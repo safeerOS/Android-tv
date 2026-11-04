@@ -12,6 +12,7 @@ OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 "$KOTLINC" "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/SpletMostPravila.kt" \
   "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/SpletVarnostPravila.kt" \
+  "$PROJECT_DIR/src/main/kotlin/com/safeer/threatfeed/FilterListEngine.kt" \
   "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/GooglePravila.kt" \
   "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/tv/GoogleTipke.kt" \
   "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/tv/DashPravila.kt" \

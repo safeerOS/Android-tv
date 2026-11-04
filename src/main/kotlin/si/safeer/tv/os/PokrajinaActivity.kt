@@ -1719,11 +1719,11 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                     val iskanjeVSpletu = LupaPravila.vrsticaIskanja(obseg) || obseg == LupaPravila.OBSEG_VSE
                     if (strani.isNotEmpty() || iskanjeVSpletu) kam.addView(naslovSkupine(R.string.pk_lupa_predlogi))
                     for ((ime, url) in strani) dodaj(vrsticaZadetka(R.drawable.os_ikona_splet, ime) {
-                        odpri(Brskalnik.namera(this).setAction(Intent.ACTION_VIEW).setData(android.net.Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                        odpri(Brskalnik.iskanje(this, url).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                     }.apply { tag = "stran_$url"; if (prvaStran == null) prvaStran = this }, kam)
                     if (iskanjeVSpletu) dodaj(vrsticaZadetka(R.drawable.os_ikona_isci, getString(R.string.pk_lupa_isci_splet, q)) {
-                        odpri(Brskalnik.namera(this).setAction(Intent.ACTION_VIEW)
-                            .setData(android.net.Uri.parse(si.safeer.tv.SmartOmnibox.iskanje(this, q))).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                        // Iskanje gre v brskalnik, ki ga je uporabnik izbral za Splet (lastnik 4. 11. 2026).
+                        odpri(Brskalnik.iskanje(this, si.safeer.tv.SmartOmnibox.iskanje(this, q)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                     }.apply { tag = "isci_splet" }, kam)
                     // Lastnik 3. 11. 2026 18:30/18:32: pod splosnim iskanjem 6 predlogov najpogostejsih iskanj, 3 vrste po 2,
                     // brez loma besed (VrsticeCipov). Najprej uporabnikova zgodovina (brez omrezja), od
@@ -1753,8 +1753,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                                 for (p in seznam) if (cipi.childCount < cipi.najvec && cipi.findViewWithTag<View>("cip_$p") == null) {
                                     // Zunanji pregled 3. 11. 2026: predlog odpre iskanje tega niza v spletu, ne ukaza.
                                     cipi.addView(cipIskanja(p) {
-                                        odpri(Brskalnik.namera(this).setAction(Intent.ACTION_VIEW)
-                                            .setData(android.net.Uri.parse(si.safeer.tv.SmartOmnibox.iskanje(this, p))).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                                        odpri(Brskalnik.iskanje(this, si.safeer.tv.SmartOmnibox.iskanje(this, p)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                                         zapriLupo()
                                     })
                                     novih++
@@ -2474,7 +2473,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     private fun odpriRazdelek(r: String) {
         when (r) {
             PokrajinaPravila.MEDIJI -> odpri(Intent(this, GlasbaActivity::class.java))
-            PokrajinaPravila.SPLET -> odpri(Brskalnik.namera(this).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            // Lastnik 4. 11. 2026: Splet = domaca stran izbranega brskalnika, ne zadnje brskanje.
+            PokrajinaPravila.SPLET -> odpri(Brskalnik.splet(this).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             PokrajinaPravila.LINK -> odpri(Intent(this, NapraveActivity::class.java))
             PokrajinaPravila.SPOROCILA -> odpri(Intent(this, SporocilaActivity::class.java))
             PokrajinaPravila.APLIKACIJE -> odpriAplikacije()
