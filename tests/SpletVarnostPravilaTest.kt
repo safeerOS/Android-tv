@@ -204,6 +204,15 @@ fun main() {
     check(!P.vhodniNaslov("file:///android_asset/x.pdf", N)) { "assets niso dokument" }
     check(!P.vhodniNaslov("file:///sdcard/../data/x.pdf", N)) { "../" }
     check(!P.vhodniNaslov("content://", N))
+    // Neodvisni pregled 4. 11. 2026 09:10: tuja namera ne odpre NASEGA ponudnika (nase pravice, nase datoteke).
+    for (u in listOf("content://si.safeer.tv.fileprovider/cache_files/x.pdf", "content://si.safeer.os.spletne/1",
+        "content://SI.Safeer.tv.fileprovider/x", "content://0@si.safeer.tv.fileprovider/x", "content://si.safeer.tv.fileprovider:1/x",
+        "content://si%2Esafeer.tv.fileprovider/x", "content://si.safeer")) {
+        check(!P.vhodniNaslov(u, N)) { "lasten ponudnik brez dovoljenja: $u" }
+    }
+    check(P.vhodniNaslov("content://si.safeer.os.fileprovider/cache_files/x.pdf", N, dovoljenjeBranja = true)) { "podeljeno branje" }
+    check(P.vhodniNaslov("content://si.safeerx.ponudnik/x", N)) { "samo si.safeer.*, ne podobno ime" }
+    check(!P.vhodniNaslov("content://si.safeer.tv.fileprovider/x", L, dovoljenjeBranja = true)) { "Link nikoli content:" }
     check(!P.vhodniNaslov("content://x/y", L) && !P.vhodniNaslov("content://x/y", S)) { "content: iz Linka ni dovoljen" }
     check(!P.vhodniNaslov("file:///storage/x.pdf", L)) { "file: iz Linka" }
     // Link: nasa domaca stran (Daljinec open_url »home«), natanko.

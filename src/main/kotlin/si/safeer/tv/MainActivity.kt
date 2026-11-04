@@ -1151,7 +1151,11 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     /** Tedenski pregled 4. 11. 2026 (UXSS): naslov iz namere druge aplikacije samo, ce ga dovoli SpletVarnostPravila. */
     private fun incomingBrowseUrl(intent: Intent?): String? {
         val data = intent?.dataString
-        if (!data.isNullOrEmpty()) return varenVhod(data, SpletVarnostPravila.Vhod.NAMERA)
+        // Neodvisni pregled 4. 11. 2026 09:10: nas ponudnik content:// samo s podeljenim dovoljenjem branja.
+        if (!data.isNullOrEmpty()) {
+            val branje = intent.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0
+            return varenVhod(data, SpletVarnostPravila.Vhod.NAMERA, branje)
+        }
         val q = intent?.getStringExtra(SearchManager.QUERY) ?: intent?.getStringExtra("query")
         if (!q.isNullOrBlank()) {
             return varenVhod(SmartOmnibox.razresi(this, q)?.url, SpletVarnostPravila.Vhod.NAMERA)
@@ -1182,9 +1186,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     }
 
     /** Naslov od zunaj (namera, Safeer Link) ali null; zavrnjen se ne nalozi (javascript:, data:, intent: ...). */
-    private fun varenVhod(url: String?, vhod: SpletVarnostPravila.Vhod): String? {
+    private fun varenVhod(url: String?, vhod: SpletVarnostPravila.Vhod, dovoljenjeBranja: Boolean = false): String? {
         if (url == null) return null
-        if (SpletVarnostPravila.vhodniNaslov(url, vhod)) return url
+        if (SpletVarnostPravila.vhodniNaslov(url, vhod, dovoljenjeBranja)) return url
         android.util.Log.w("SafeerBrskalnik", "Zavrnjen naslov od zunaj ($vhod): " + url.substringBefore(':').take(16))
         return null
     }

@@ -108,7 +108,7 @@ object SpletVarnostPravila {
      * Nikoli javascript:, data:, blob:, intent:, about:, file: (razen PDF), content: iz Linka. Kontrolni znaki in presledki
      * kjerkoli v naslovu so zavrnjeni: Chromium iz naslova odstrani tabulator in novo vrstico (»java\tscript:«).
      */
-    fun vhodniNaslov(url: String?, vhod: Vhod): Boolean {
+    fun vhodniNaslov(url: String?, vhod: Vhod, dovoljenjeBranja: Boolean = false): Boolean {
         if (url.isNullOrEmpty() || url.length > NAJDALJSI_VHODNI) return false
         if (url.any { it <= ' ' || it == '\u007f' }) return false
         val shema = url.substringBefore(':', "").lowercase()
@@ -119,7 +119,7 @@ object SpletVarnostPravila {
             return gostitelj.isNotEmpty() && !gostitelj.startsWith(":")
         }
         return when (vhod) {
-            Vhod.NAMERA -> jeKrajevniPdf(url)
+            Vhod.NAMERA -> jeKrajevniPdf(url) && (!url.startsWith("content://") || dovoljenjeBranja || !lastnaAvtoriteta(url))
             Vhod.LINK -> jeDomacaBrskalnika(url) || SpletMostPravila.jeDovoljenIzvor(url)
             Vhod.SPLET -> false
         }
@@ -152,6 +152,18 @@ object SpletVarnostPravila {
 
     /** Najdaljsi naslov od zunaj (WebView ga sicer sprejme do 2 MB; tako dolg naslov ni povezava). */
     const val NAJDALJSI_VHODNI = 8192
+
+    /**
+     * Neodvisni pregled 4. 11. 2026 09:10: content:// iz namere tuje aplikacije bi odprl NAS ponudnik (fileprovider,
+     * spletne ...) z nasimi pravicami - tuja aplikacija bi nam podtaknila nase zasebne datoteke. Avtoriteta paketa
+     * si.safeer.* velja samo, ce namera nosi FLAG_GRANT_READ_URI_PERMISSION (dovoljenjeBranja): tega Android ne dovoli
+     * aplikaciji, ki do ponudnika nima dostopa. Avtoriteta brez »uporabnik@« in vrat; %-kodirana se steje za naso.
+     */
+    internal fun lastnaAvtoriteta(url: String): Boolean {
+        val a = url.removePrefix("content://").substringBefore('/').substringBefore('?').substringBefore('#')
+            .substringAfterLast('@').substringBefore(':').lowercase()
+        return a == "si.safeer" || a.startsWith("si.safeer.") || '%' in a
+    }
 
     /** Enako kot PdfPregledovalnik.jeLokalni: content:// ali file://...pdf, a nikoli nase strani v assets. */
     private fun jeKrajevniPdf(url: String): Boolean {
