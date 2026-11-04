@@ -70,18 +70,37 @@ odtis_paketa() {
     d="$(mktemp -d)" || return 0
     pot="$(adb -s "$naprava" shell pm path "$paket" 2>/dev/null | tr -d '\r' | grep -m1 -E '^package:/.*/base\.apk$' | cut -d: -f2-)"
     if [ -n "$pot" ] && adb -s "$naprava" pull "$pot" "$d/base.apk" >/dev/null 2>&1; then
-        keytool -printcert -jarfile "$d/base.apk" 2>/dev/null | awk '/SHA256:/ { gsub(":", "", $2); print toupper($2); exit }'
+        odtis_apk "$d/base.apk"
     fi
     rm -rf "$d"
 }
 
-# Odtis SHA-256 podpisnika APK na disku (velike crke brez dvopicij); prazno, ce ga ni mogoce prebrati.
+# Neodvisni pregled 4. 11. 2026 09:10: podpisnika bere SAMO apksigner (sheme v1-v3.1). Prejsnji nadomestek
+# keytool -printcert -jarfile vidi le podpis v1 (JAR): APK z ohranjenim Safeer v1 in tujim v2/v3 je sel skozi, Android
+# pa ga preveri in namesti po v2/v3. Brez apksignerja namestitev zavrnemo. Pot je absolutna (pripeta build-tools v
+# Android SDK ali sistemski paket apksigner), ne iz PATH.
+APKSIGNER_RAZLICICE="36.0.0 35.0.0 34.0.0"
+najdi_apksigner() {
+    local koren r
+    for koren in "${ANDROID_HOME:-}" "${ANDROID_SDK_ROOT:-}" "${HOME:-}/Android/Sdk"; do
+        case "$koren" in /*) ;; *) continue ;; esac
+        for r in $APKSIGNER_RAZLICICE; do
+            if [ -x "$koren/build-tools/$r/apksigner" ]; then printf '%s' "$koren/build-tools/$r/apksigner"; return 0; fi
+        done
+    done
+    if [ -x /usr/bin/apksigner ]; then printf '%s' /usr/bin/apksigner; return 0; fi
+    return 1
+}
+NI_APKSIGNERJA="Za preverbo podpisa je potreben apksigner (Android SDK build-tools ali paket: sudo apt install apksigner)."
+
+# Odtis SHA-256 podpisnika APK (velike crke brez dvopicij); prazno, ce apksignerja ni, APK ne preveri ali ima vec
+# podpisnikov (tudi dodaten podpisnik v3.1 za novejse Androide - ta bi na takem Androidu odlocal).
 odtis_apk() {
-    if command -v apksigner >/dev/null 2>&1; then
-        apksigner verify --print-certs "$1" 2>/dev/null | awk '/Signer #1 certificate SHA-256 digest:/ { print toupper($NF); exit }'
-    elif command -v keytool >/dev/null 2>&1; then
-        keytool -printcert -jarfile "$1" 2>/dev/null | awk '/SHA256:/ { gsub(":", "", $2); print toupper($2); exit }'
-    fi
+    local apksigner izpis
+    apksigner="$(najdi_apksigner)" || return 0
+    izpis="$("$apksigner" verify --print-certs "$1" 2>/dev/null)" || return 0
+    [ "$(printf '%s\n' "$izpis" | grep -c 'certificate SHA-256 digest:')" = 1 ] || return 0
+    printf '%s\n' "$izpis" | awk '/^Signer #1 certificate SHA-256 digest:/ { print toupper($NF); exit }'
 }
 
 # Naprava za namestitev (S3): izbrana ($1) ali edina povezana. Vec naprav brez izbire -> prazno in sporocilo (nikoli
@@ -119,6 +138,7 @@ omogoci_upravljanje() {
     odtis="$(odtis_paketa "$naprava" "$paket")"
     if [ "$odtis" != "$SAFEER_ODTIS" ]; then
         echo "❌ $paket ni podpisan s ključem Safeer (odtis: ${odtis:-ni ga bilo mogoče prebrati}) – pravic ne podelim."
+        [ -n "$odtis" ] || najdi_apksigner >/dev/null || echo "   $NI_APKSIGNERJA"
         return 1
     fi
     if ! adb -s "$naprava" shell pm grant "$paket" android.permission.WRITE_SECURE_SETTINGS; then
@@ -149,6 +169,11 @@ glavno() {
     trap 'rm -rf "$MAPA_NAMESTITVE"' EXIT
     TEMP_APK="$MAPA_NAMESTITVE/Safeer-Browser.apk"
     TEMP_SHA="$MAPA_NAMESTITVE/Safeer-Browser.SHA256SUMS"
+    # Brez apksignerja podpisnika ni mogoce preveriti - povemo pred prenosom, ne po njem.
+    if ! najdi_apksigner >/dev/null; then
+        echo "❌ $NI_APKSIGNERJA Prekinjam namestitev."
+        exit 1
+    fi
 
     IZDAJA_JSON="$(curl "${CURL_VARNO[@]}" -fsL "$IZDAJA_API" || true)"
     APK_URL="$(naslov_iz_izdaje "$IZDAJA_JSON" "$VZOREC_APK")"
@@ -188,7 +213,7 @@ glavno() {
     preveri_sha256 "$TEMP_APK" "$TEMP_SHA" "${APK_URL##*/}" || exit 1
     ODTIS="$(odtis_apk "$TEMP_APK")"
     if [ "$ODTIS" != "$MOBILNI_ODTIS" ]; then
-        echo "❌ APK ni podpisan s ključem Safeer (odtis: ${ODTIS:-ni ga bilo mogoče prebrati - potreben je apksigner ali keytool})."
+        echo "❌ APK ni podpisan s ključem Safeer (odtis: ${ODTIS:-ni ga bilo mogoče prebrati})."
         echo "🚨 Prekinjam namestitev."
         exit 1
     fi

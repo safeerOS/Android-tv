@@ -19,13 +19,32 @@ naslov_iz_izdaj() {
     printf '%s' "$1" | grep -oE "\"browser_download_url\": *\"$2\"" | head -n 1 | cut -d'"' -f4
 }
 
-# Odtis SHA-256 podpisnika APK (velike crke brez dvopicij); prazno, ce ga ni mogoce prebrati.
+# Neodvisni pregled 4. 11. 2026 09:10: podpisnika bere SAMO apksigner (sheme v1-v3.1). Prejsnji nadomestek
+# keytool -printcert -jarfile vidi le podpis v1 (JAR): APK z ohranjenim Safeer v1 in tujim v2/v3 je sel skozi, Android
+# pa ga preveri in namesti po v2/v3. Brez apksignerja namestitev zavrnemo. Pot je absolutna (pripeta build-tools v
+# Android SDK ali sistemski paket apksigner), ne iz PATH.
+APKSIGNER_RAZLICICE="36.0.0 35.0.0 34.0.0"
+najdi_apksigner() {
+    local koren r
+    for koren in "${ANDROID_HOME:-}" "${ANDROID_SDK_ROOT:-}" "${HOME:-}/Android/Sdk"; do
+        case "$koren" in /*) ;; *) continue ;; esac
+        for r in $APKSIGNER_RAZLICICE; do
+            if [ -x "$koren/build-tools/$r/apksigner" ]; then printf '%s' "$koren/build-tools/$r/apksigner"; return 0; fi
+        done
+    done
+    if [ -x /usr/bin/apksigner ]; then printf '%s' /usr/bin/apksigner; return 0; fi
+    return 1
+}
+NI_APKSIGNERJA="Za preverbo podpisa je potreben apksigner (Android SDK build-tools ali paket: sudo apt install apksigner)."
+
+# Odtis SHA-256 podpisnika APK (velike crke brez dvopicij); prazno, ce apksignerja ni, APK ne preveri ali ima vec
+# podpisnikov (tudi dodaten podpisnik v3.1 za novejse Androide - ta bi na takem Androidu odlocal).
 odtis_apk() {
-    if command -v apksigner >/dev/null 2>&1; then
-        apksigner verify --print-certs "$1" 2>/dev/null | awk '/Signer #1 certificate SHA-256 digest:/ { print toupper($NF); exit }'
-    elif command -v keytool >/dev/null 2>&1; then
-        keytool -printcert -jarfile "$1" 2>/dev/null | awk '/SHA256:/ { gsub(":", "", $2); print toupper($2); exit }'
-    fi
+    local apksigner izpis
+    apksigner="$(najdi_apksigner)" || return 0
+    izpis="$("$apksigner" verify --print-certs "$1" 2>/dev/null)" || return 0
+    [ "$(printf '%s\n' "$izpis" | grep -c 'certificate SHA-256 digest:')" = 1 ] || return 0
+    printf '%s\n' "$izpis" | awk '/^Signer #1 certificate SHA-256 digest:/ { print toupper($NF); exit }'
 }
 
 # Naprava za namestitev: izbrana ($1) ali edina povezana; vec naprav brez izbire -> prazno in sporocilo (nikoli prva).
@@ -50,6 +69,11 @@ glavno() {
     TMP_DIR="$(mktemp -d)"
     trap 'rm -rf "$TMP_DIR"' EXIT
     local apk="$TMP_DIR/safeer-browser-tv.apk" sha="$TMP_DIR/SHA256SUMS"
+    # Brez apksignerja podpisnika ni mogoce preveriti - povemo pred prenosom, ne po njem.
+    if ! najdi_apksigner >/dev/null; then
+        echo "❌ $NI_APKSIGNERJA Prekinjam namestitev."
+        exit 1
+    fi
 
     echo "=========================================================="
     echo "Safeer TV Browser - download and install"
@@ -98,7 +122,7 @@ glavno() {
     # Vsota in APK sta iz iste izdaje: ce bi bila izdaja podtaknjena, vsota ne pomaga - podpisnik pa mora biti Safeer.
     odtis="$(odtis_apk "$apk")"
     if [[ "$odtis" != "$TV_ODTIS" ]]; then
-        echo "❌ APK ni podpisan s ključem Safeer (odtis: ${odtis:-ni ga bilo mogoče prebrati - potreben je apksigner ali keytool})."
+        echo "❌ APK ni podpisan s ključem Safeer (odtis: ${odtis:-ni ga bilo mogoče prebrati})."
         echo "🚨 Prekinjam namestitev."
         exit 1
     fi

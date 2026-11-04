@@ -21,6 +21,8 @@ bash -n "$SKRIPTA"; preveri "bash -n" 0 $?
 source "$SKRIPTA"
 # Skripta sama vklopi »set -e«; preizkus pricakovane neuspehe preveri sam.
 set +e
+# Primeri spodaj nadomestijo odtis_apk; apksigner (absolutna pot) preizkusi preizkusi_podpisnika na koncu.
+najdi_apksigner() { printf '%s' /lazni/apksigner; }
 IME="safeer-browser-android-1.0.37.apk"
 GH="https://github.com/safeerOS/Mobile-android/releases/download/v1.0.37"
 printf 'ponarejen apk' > "$D/$IME"
@@ -179,5 +181,11 @@ preveri "paket brez Safeer Vnosa -> 0" 0 $?
 ( adb() { case "$*" in *dumpsys*) echo "si.safeer.os/si.safeer.tv.link.VnosStoritev" ;; *"pm grant"*) return 1 ;; esac; }
   omogoci_upravljanje 10.0.0.2:5555 si.safeer.os ) > "$D/izpis" 2>&1
 preveri "neuspel pm grant -> 1" 1 $?
+
+# Neodvisni pregled 4. 11. 2026 09:10: podpisnika bere samo apksigner z absolutne poti (ne keytool, ki vidi le v1).
+echo "== podpisnik (locen proces, lazna orodja)"
+# shellcheck source=tests/lazna_namestitev.sh
+source "$TEST_DIR/lazna_namestitev.sh"
+preizkusi_podpisnika "$SKRIPTA" '{"browser_download_url": "'"$GH"'/'"$IME"'", "browser_download_url": "'"$GH"'/SHA256SUMS"}' "$IME" "$MOBILNI_ODTIS"
 
 if [ "$napak" -eq 0 ]; then echo "INSTALL TESTI: OK"; else echo "INSTALL TESTI: $napak napak"; exit 1; fi

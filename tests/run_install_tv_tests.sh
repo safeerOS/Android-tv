@@ -16,6 +16,7 @@ bash -n "$SKRIPTA"; preveri "bash -n" 0 $?
 # shellcheck source=/dev/null
 source "$SKRIPTA"
 set +e
+najdi_apksigner() { printf '%s' /lazni/apksigner; }   # primeri nadomestijo odtis_apk; apksigner spodaj
 GH="https://github.com/safeerOS/Android-tv/releases/download"
 IME="safeer-browser-tv-2.1.232.apk"
 printf 'ponarejen apk' > "$D/apk"
@@ -65,5 +66,11 @@ preveri "tuj podpisnik: APK ne ostane v mapi uporabnika" 0 "$(pogoj [ ! -e "$D/$
 zazeni "" "TV"; preveri "odtisa ni mogoce prebrati -> 1" 1 $?
 LAZNA_VSOTA="$(printf '%064d' 0)" zazeni "$TV_ODTIS" "TV"; preveri "napacna vsota -> 1" 1 $?
 ! grep -q " install " "$D/izpis"; preveri "napacna vsota: ni namestitve" 0 $?
+
+# Neodvisni pregled 4. 11. 2026 09:10: podpisnika bere samo apksigner z absolutne poti (ne keytool, ki vidi le v1).
+echo "== podpisnik (locen proces, lazna orodja)"
+# shellcheck source=tests/lazna_namestitev.sh
+source "$TEST_DIR/lazna_namestitev.sh"
+preizkusi_podpisnika "$SKRIPTA" "$IZDAJE" "$IME" "$TV_ODTIS"
 
 if [ "$napak" -eq 0 ]; then echo "INSTALL TV TESTI: OK"; else echo "INSTALL TV TESTI: $napak napak"; exit 1; fi
