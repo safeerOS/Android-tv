@@ -532,16 +532,28 @@ class VnosStoritev : AccessibilityService() {
      * Vidni, omogoceni interaktivni elementi aktivnega okna (brez vsebnikov in celozaslonskih pogledov). Zunanji pregled
      * 3. 11. 2026: po vsem zaslonu v sirino (VnosVklopPravila.zberiNaZaslonu), ne vec v globino z mejo 400/40.
      */
-    private fun zberiInteraktivne(koren: AccessibilityNodeInfo): List<AccessibilityNodeInfo> {
+    private fun zberiInteraktivne(koren: AccessibilityNodeInfo): List<AccessibilityNodeInfo> =
+        zberiInteraktivneZOznako(koren).map { it.first }
+
+    /** Kot [zberiInteraktivne], z oznako »v WebViewu« za vsakega (samo WebView, ce domacih ni). */
+    private fun zberiInteraktivneZOznako(koren: AccessibilityNodeInfo): List<Pair<AccessibilityNodeInfo, Boolean>> {
         val (zaslonW, zaslonH) = velikost()
-        return VnosVklopPravila.zberiNaZaslonu(koren, ::otroci, ::okvir, { n ->
+        val vsi = VnosVklopPravila.zberiZOznako(koren, ::otroci, ::okvir, { n ->
             val r = Rect()
             n.getBoundsInScreen(r)
             val celozaslonski = zaslonW > 0 && zaslonH > 0 && r.width() >= zaslonW - 30 && r.height() >= zaslonH - 30
             (n.isFocusable || n.isClickable) && n.isVisibleToUser && n.isEnabled && !celozaslonski &&
                 r.width() > 15 && r.height() > 15 && !jePasivenVsebnik(n)
-        }, zaslon(), VnosVklopPravila.NAJVEC_OBISKOV)
+        }, ::jeWebView, zaslon(), VnosVklopPravila.NAJVEC_OBISKOV)
+        // MovieFlix 4. 11. 2026: WebView (in vozlisca v njem) ni kandidat, ce je na zaslonu domac element (VnosVklopPravila.brezSpletnih).
+        val kandidati = vsi.map { (n, spletni) -> kandidat(n, spletni) }
+        return VnosVklopPravila.brezSpletnih(kandidati).map { vsi[it] }
     }
+
+    private fun jeWebView(n: AccessibilityNodeInfo): Boolean = n.className?.toString().orEmpty().contains("WebView")
+
+    private fun kandidat(n: AccessibilityNodeInfo, spletni: Boolean) =
+        VnosVklopPravila.Kandidat(spletni, !n.text?.toString()?.trim().isNullOrEmpty(), n.isClickable)
 
     /**
      * Primarni gumb za zacetni fokus (Naprej, Nadaljuj, V redu ...). Pregled 30. 10. 2026: nikoli samodejno na
@@ -561,11 +573,12 @@ class VnosStoritev : AccessibilityService() {
     }
 
     private fun najdiInteraktivnoVozlisce(koren: AccessibilityNodeInfo): AccessibilityNodeInfo? {
-        val kandidati = zberiInteraktivne(koren)
+        val oznaceni = zberiInteraktivneZOznako(koren)
+        val kandidati = oznaceni.map { it.first }
         if (kandidati.isEmpty()) return null
+        // Kandidati so ze brez WebViewa, ce je na zaslonu domac element; prvi je element z besedilom (VnosVklopPravila.zacetni).
         return poisciPrimarniGumb(kandidati)
-            ?: kandidati.firstOrNull { it.isClickable && it.isVisibleToUser && it.isEnabled }
-            ?: kandidati.firstOrNull { it.isVisibleToUser && it.isEnabled }
+            ?: kandidati.getOrNull(VnosVklopPravila.zacetni(oznaceni.map { (n, spletni) -> kandidat(n, spletni) }))
     }
 
     /** Smerna tipka v neprilagojeni aplikaciji, kjer je fokus obtical na vsebniku: na najblizji interaktivni element. */

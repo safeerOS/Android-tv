@@ -196,5 +196,33 @@ fun main() {
     check(p.vrstica(vse, true, 0) == -1)
     check(p.vrstica(listOf(VnosVklopPravila.Okvir(0, 1000, 0, 1050)), true, 1080) == -1)   // prazen okvir ni kandidat
 
+    // MovieFlix na TV (lastnik 4. 11. 2026 19:25, uiautomator 19:27): ScrollView > klikljiv WebView [0,150][1920,654]
+    // (skrit predvajalnik pod plakatom) z vozlisci strani, nato Button »Play The Trailer« in kartice brez besedila.
+    // Prej: samodejni fokus na prvi klikljiv = WebView, okvir na praznem mestu cez plakat.
+    class S(val o: Okvir, val f: Boolean, val razred: String, val otroci: List<S> = emptyList())
+    val spletnaVozlisca = listOf(S(Okvir(40, 200, 400, 260), true, "android.widget.Button"), S(Okvir(40, 300, 900, 600), true, "android.view.View"))
+    val webview = S(Okvir(0, 150, 1920, 654), true, "android.webkit.WebView", spletnaVozlisca)
+    val trailer = S(Okvir(83, 701, 1837, 797), true, "android.widget.Button")
+    val kartica = S(Okvir(83, 850, 400, 1080), true, "androidx.cardview.widget.CardView")
+    val scroll = S(Okvir(0, 150, 1920, 1080), false, "android.widget.ScrollView", listOf(webview, trailer, kartica))
+    val oznaceni = p.zberiZOznako(scroll, { v, n -> v.otroci.take(n) }, { it.o }, { it.f }, { it.razred.contains("WebView") }, zaslon, 1500)
+    check(oznaceni.map { it.first } == listOf(webview, trailer, kartica) + spletnaVozlisca)
+    check(oznaceni.map { it.second } == listOf(true, false, false, true, true))   // vozlisca strani podedujejo oznako WebViewa
+    fun k(spl: Boolean, bes: Boolean, klik: Boolean = true) = VnosVklopPravila.Kandidat(spl, bes, klik)
+    val movieflix = listOf(k(true, false), k(false, true), k(false, false), k(true, true), k(true, false))
+    check(p.brezSpletnih(movieflix) == listOf(1, 2))
+    check(p.zacetni(movieflix) == 1)                                       // »Play The Trailer«, ne WebView (prej 0)
+    check(p.zacetni(listOf(k(true, false), k(false, false), k(false, true))) == 2)   // z besedilom pred kartico brez
+    check(p.zacetni(listOf(k(true, false), k(false, false))) == 1)        // domac brez besedila pred WebViewom
+    // Aplikacija, ki je samo WebView: vse ostane kot prej (prvi klikljiv, tudi brez besedila).
+    val samoSplet = listOf(k(true, false), k(true, true))
+    check(p.brezSpletnih(samoSplet) == listOf(0, 1))
+    check(p.zacetni(samoSplet) == 0)
+    check(p.zacetni(listOf(k(false, true, klik = false), k(false, false))) == 1)   // klikljiv pred neklikljivim z besedilom
+    check(p.zacetni(listOf(k(false, false, klik = false))) == 0)
+    check(p.zacetni(emptyList()) == -1 && p.brezSpletnih(emptyList()).isEmpty())
+    // zberiNaZaslonu ostane enak (Leanback in nase aplikacije ga ne zamenjajo): brez oznake.
+    check(p.zberiNaZaslonu(scroll, { v, n -> v.otroci.take(n) }, { it.o }, { it.f }, zaslon, 1500) == listOf(webview, trailer, kartica) + spletnaVozlisca)
+
     println("VnosVklopPravilaTest: OK")
 }

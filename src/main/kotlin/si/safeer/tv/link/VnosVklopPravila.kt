@@ -262,24 +262,63 @@ object VnosVklopPravila {
     fun <T> zberiNaZaslonu(
         koren: T, otroci: (T, Int) -> List<T>, okvir: (T) -> Okvir, sprejmi: (T) -> Boolean,
         zaslon: Okvir, najvecKlicev: Int
-    ): List<T> {
-        val izid = ArrayList<T>()
-        val vrsta = ArrayDeque<T>()
-        vrsta.addLast(koren)
+    ): List<T> = zberiZOznako(koren, otroci, okvir, sprejmi, { false }, zaslon, najvecKlicev).map { it.first }
+
+    /**
+     * Kot [zberiNaZaslonu], vsak kandidat pa dobi se oznako, ki jo podeduje od prednika: [oznaka] velja zanj ali za
+     * katerega od starsev (npr. »v WebViewu«: vozlisca strani imajo razrede android.view.View, android.widget.Button,
+     * zato se WebView spozna samo po predniku). Brez dodatnih klicev getParent v drug proces.
+     */
+    fun <T> zberiZOznako(
+        koren: T, otroci: (T, Int) -> List<T>, okvir: (T) -> Okvir, sprejmi: (T) -> Boolean, oznaka: (T) -> Boolean,
+        zaslon: Okvir, najvecKlicev: Int
+    ): List<Pair<T, Boolean>> {
+        val izid = ArrayList<Pair<T, Boolean>>()
+        val vrsta = ArrayDeque<Pair<T, Boolean>>()
+        vrsta.addLast(koren to false)
         var klicev = 0
         while (vrsta.isNotEmpty()) {
-            val n = vrsta.removeFirst()
+            val (n, podedovana) = vrsta.removeFirst()
             val o = okvir(n)
             // Prazen okvir (vsebnik brez velikosti) ne pove nicesar o otrocih: gremo naprej. Okvir zunaj zaslona: veja odpade.
             if (!o.prazen && !(o.desno > zaslon.levo && o.levo < zaslon.desno && o.spodaj > zaslon.zgoraj && o.zgoraj < zaslon.spodaj)) continue
-            if (sprejmi(n)) izid.add(n)
+            val oz = podedovana || oznaka(n)
+            if (sprejmi(n)) izid.add(n to oz)
             val smem = minOf(NAJVEC_OTROK, najvecKlicev - klicev)
             if (smem <= 0) continue
             val ot = otroci(n, smem).take(smem)
             klicev += ot.size
-            for (c in ot) vrsta.addLast(c)
+            for (c in ot) vrsta.addLast(c to oz)
         }
         return izid
+    }
+
+    /** Kandidat za samodejni fokus v neprilagojeni aplikaciji: v WebViewu, z besedilom, klikljiv. */
+    class Kandidat(val spletni: Boolean, val zBesedilom: Boolean, val klikljiv: Boolean)
+
+    /**
+     * Lastnik 4. 11. 2026 19:25 (MovieFlix na TV, telefonska aplikacija): okvir Safeer Vnos je risal prazno mesto cez
+     * plakat. Izmerjeno (uiautomator 19:27): fokus na pasivnem ScrollView, v njem klikljiv WebView [0,150][1920,654]
+     * (skrit predvajalnik napovednika pod plakatom), nato Button »Play The Trailer« in kartice. Samodejni fokus je dobil
+     * WebView (prvi klikljiv), smerne tipke pa so tavale po nevidnih vozliscih v njem. Zdaj: ce je med kandidati vsaj
+     * en domac (ne v WebViewu), so kandidati samo domaci; aplikacija, ki je samo WebView, ostane kot prej.
+     * Vrne indekse kandidatov, med katerimi iscemo fokus in premik.
+     */
+    fun brezSpletnih(kandidati: List<Kandidat>): List<Int> {
+        val domaci = kandidati.indices.filter { !kandidati[it].spletni }
+        return if (domaci.isEmpty()) kandidati.indices.toList() else domaci
+    }
+
+    /**
+     * Zacetni fokus med [brezSpletnih]: med domacimi prvi klikljiv z besedilom (MovieFlix: »Play The Trailer«, ne plakat
+     * brez besedila), sicer prvi klikljiv, sicer prvi; -1 = nic. Aplikacija, ki je samo WebView: prvi klikljiv, kot prej.
+     */
+    fun zacetni(kandidati: List<Kandidat>): Int {
+        val dovoljeni = brezSpletnih(kandidati)
+        val domaci = dovoljeni.any { !kandidati[it].spletni }
+        return (if (domaci) dovoljeni.firstOrNull { kandidati[it].klikljiv && kandidati[it].zBesedilom } else null)
+            ?: dovoljeni.firstOrNull { kandidati[it].klikljiv }
+            ?: dovoljeni.firstOrNull() ?: -1
     }
 
     /** Najvec otrok enega vozlisca (seznam z neomejeno vsebino ne porabi vse meje). */
