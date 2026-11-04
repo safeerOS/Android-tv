@@ -15,6 +15,12 @@ object ScitViri {
     /** Seznam gre tudi v grozne.bin (ne oglasi: izjema Scita ga nikoli ne umakne). */
     fun zaGrozne(s: PlainListSource): Boolean = zaNabor(s) && !s.dnsOnly
 
+    /**
+     * Seznam bere glavni proces brskalnika. Seznami samo za DNS (dnsOnly, HaGeZi PRO) ne: brskalnik jih ne uporablja, branje
+     * 247 757 domen ob vsaki osvezitvi pa je na TV dvignilo kopico na 98/122 MB (4. 11. 2026). Bere jih samo proces :scit.
+     */
+    fun zaBrskalnik(s: PlainListSource): Boolean = !s.dnsOnly
+
     /** Viri za agenta seznamov v procesu :scit, v istem vrstnem redu kot v brskalniku (enak kljuc vira nabora). */
     fun viri(vsi: List<PlainListSource>): List<PlainListSource> = vsi.filter(::zaNabor)
 }

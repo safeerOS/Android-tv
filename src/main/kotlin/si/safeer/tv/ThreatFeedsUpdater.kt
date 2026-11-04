@@ -82,6 +82,13 @@ object ThreatFeedsUpdater {
     private fun jeGrozenj(s: PlainListSource) = !s.raw && !s.dnsOnly
 
     /**
+     * Viri agenta brskalnika: brez seznamov samo za Scit (dnsOnly, HaGeZi PRO 247 757 domen). TV 4. 11. 2026: ob osvezitvi
+     * je glavni proces bral tudi PRO (logcat »Seznami v uporabi: ... HaGeZi Multi PRO«, GC 98/122 MB), ceprav ga brskalnik
+     * ne uporablja. Nabor Scita gradi samo proces :scit tiste aplikacije, ki Scit vodi ([startSamoScit]).
+     */
+    private val BRSKALNIK_VIRI = SOURCES.filter(si.safeer.tv.scit.ScitViri::zaBrskalnik)
+
+    /**
      * Zažene agenta (enkrat na proces). Vrne v nekaj ms; vse delo z vsebino seznamov poteka v ozadju.
      *
      * 4. 11. 2026 (TV: zascita pripravljena sele 6,2 s po zagonu): drevo grozenj se odpre SINHRONO iz kazala (mmap), ce
@@ -99,7 +106,7 @@ object ThreatFeedsUpdater {
         ZascitaZagona.zacni()
         val app = context.applicationContext
         val kazalo = kazaloDatoteka(app)
-        val listAgent = ThreatListAgent(File(app.filesDir, "threat-lists"), SOURCES,
+        val listAgent = ThreatListAgent(File(app.filesDir, "threat-lists"), BRSKALNIK_VIRI,
             firstLoadPriority = Thread.NORM_PRIORITY,
             onFirstLoad = {
                 // Tudi ce seznamov ni ali je kaj padlo: zahteve ne cakajo do roka.
@@ -126,10 +133,7 @@ object ThreatFeedsUpdater {
             val te = System.nanoTime()
             filterRuleCount = AdBlockEngine.installFilterLists(lists.filter { it.source.raw })
             koncaj(ZascitaZagona.Del.EASYLIST, "$filterRuleCount pravil, prevod ${(System.nanoTime() - te) / 1_000_000} ms")
-            // Safeer Scit (filter DNS za ves televizor) dobi vse domenske sezname, tudi hagezi PRO.
-            try { si.safeer.tv.scit.Scit.osveziNabor(app, lists) } catch (e: Throwable) {
-                android.util.Log.w("SafeerScit", "Nabora za Scit ni bilo mogoce zgraditi: ${e.message}")
-            }
+            // Nabora Scita brskalnik ne gradi vec (4. 11. 2026): to dela proces :scit (startSamoScit), ki ima tudi HaGeZi PRO.
             android.util.Log.i("SafeerSecurity", "Seznami v uporabi: ${lists.joinToString { "${it.source.name} (${it.entries.size})" }}" +
                 "; pravila EasyList: $filterRuleCount; pravila za skrivanje: ${AdBlockEngine.cosmeticRuleCount}")
         }
@@ -141,7 +145,6 @@ object ThreatFeedsUpdater {
         val grozenj = shranjeni.filter { jeGrozenj(it.source) }
         val kljuc = ThreatBlockEngine.kljucKazala(grozenj.map { it.source.id to it.sha256 }, razlicica)
         val odprto = ThreatBlockEngine.odpriKazalo(kazalo, kljuc)
-        val scit = odprto && try { si.safeer.tv.scit.Scit.naborVeljaven(app, shranjeni) } catch (_: Throwable) { false }
         val ms = (System.nanoTime() - t) / 100_000 / 10.0
         if (odprto) {
             ruleCount = grozenj.sumOf { it.count }
@@ -150,12 +153,12 @@ object ThreatFeedsUpdater {
             android.util.Log.i("SafeerSecurity", "Kazalo grozenj ni v uporabi (${if (kljuc == null) "ni shranjenih seznamov" else "zgrajeno iz drugih seznamov ali ga ni"}): " +
                 "drevo se gradi v ozadju (preverba $ms ms)")
         }
-        // Ce sta kazalo in nabor Scita zgrajena iz istih seznamov, ob zagonu beremo samo EasyList (raw).
-        listAgent.start(if (odprto && scit) SOURCES.filter { it.raw }.map { it.id }.toSet() else null)
+        // Ce je kazalo zgrajeno iz istih seznamov, ob zagonu beremo samo EasyList (raw).
+        listAgent.start(if (odprto) BRSKALNIK_VIRI.filter { it.raw }.map { it.id }.toSet() else null)
     }
 
     /**
-     * Samo za proces :scit (ScitStoritev, ko grozne.bin se ni): agent nad domenskimi seznami ([si.safeer.tv.scit.ScitViri]),
+     * Samo za proces :scit (ScitStoritev, ob vsakem zagonu Scita): agent nad domenskimi seznami ([si.safeer.tv.scit.ScitViri]),
      * ki zgradi in posodablja samo nabor Scita (domene.bin, grozne.bin). Brez EasyList, drevesa grozenj, kazala,
      * ZascitaZagona in podpisanega vira: te rabi samo brskalnik, Scit kot filter DNS ne (4. 11. 2026; prej je :scit zagnal
      * [start] in v svojem procesu zgradil vse). Ista mapa in isti viri kot v brskalniku (isti kljuc vira, isti format nabora),
@@ -200,7 +203,7 @@ object ThreatFeedsUpdater {
     fun statusLine(): String {
         val lists = agent?.lists.orEmpty()
         if (lists.isEmpty()) return UiText.get(R.string.ui_lists_first_download)
-        return UiText.get(R.string.ui_lists_status, lists.filter { !it.source.raw && !it.source.dnsOnly }.sumOf { it.count }, lists.size, SOURCES.size) +
+        return UiText.get(R.string.ui_lists_status, lists.filter { !it.source.raw && !it.source.dnsOnly }.sumOf { it.count }, lists.size, BRSKALNIK_VIRI.size) +
             " · EasyList: $filterRuleCount (+${AdBlockEngine.cosmeticRuleCount})"
     }
 }

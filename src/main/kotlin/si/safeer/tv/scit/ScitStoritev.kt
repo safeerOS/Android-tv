@@ -396,10 +396,12 @@ class ScitStoritev : VpnService() {
             val gd = Scit.grozneDatoteka(this)
             val g = grozne
             if (n == null || datoteka.lastModified() != n.spremenjena || (gd.isFile && (g == null || gd.lastModified() != g.spremenjena))) naloziNabor()
-            // Grok 15, N8: nabor domen je, nabora grozenj pa se ni (prvi zagon po nadgradnji) - seznami naj se zgradijo zdaj, ne
-            // sele ob odprtju brskalnika. 4. 11. 2026: samo agent za nabor Scita (startSamoScit), ne celoten agent brskalnika -
-            // filter DNS ne rabi EasyList, drevesa grozenj, kazala ne podpisanega vira (to je prej teklo v procesu :scit).
-            if (n != null && !gd.isFile && !zahtevaniSeznami) {
+            // Nabor Scita gradi in posodablja samo ta proces (4. 11. 2026): agent za nabor (startSamoScit), ne celoten agent
+            // brskalnika - filter DNS ne rabi EasyList, drevesa grozenj, kazala ne podpisanega vira. Brskalnik seznamov samo za
+            // DNS (HaGeZi PRO) ne bere vec, zato agent tece ob vsakem zagonu Scita (prej samo, ko je bil domene.bin brez
+            // grozne.bin; v Safeer OS, kjer brskalnika ni, se nabor sicer nikoli ne bi zgradil ne posodobil). Ce je nabor ze
+            // zgrajen iz shranjenih seznamov, agent ob zagonu ne bere nicesar.
+            if (!zahtevaniSeznami) {
                 zahtevaniSeznami = true
                 try { si.safeer.tv.ThreatFeedsUpdater.startSamoScit(applicationContext) } catch (e: Throwable) { Log.w(TAG, "Seznami: ${e.javaClass.simpleName}") }
             }
