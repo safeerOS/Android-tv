@@ -3,6 +3,11 @@
 //    WebView ne zna prenesti blob: naslova;
 //  - tiskanje in "odpri datoteko" nista na voljo (ni tiskalnika v WebViewu, ni izbirnika).
 (function () {
+  // Skripte v dokumentu PDF so izklopljene (4. 11. 2026): pdf.sandbox.mjs namerno ni v paketu,
+  // JavaScript v tujem PDF je povrsina napada, za branje ga ne potrebujemo.
+  document.addEventListener("webviewerloaded", () => {
+    try { window.PDFViewerApplicationOptions.set("enableScripting", false); } catch (e) { console.warn("SafeerPdf skripte:", e); }
+  });
   const most = window.SafeerPdf;
   const zeton = (() => { try { return new URLSearchParams(location.search).get("z") || ""; } catch (e) { return ""; } })();
 

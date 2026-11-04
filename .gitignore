@@ -50,3 +50,6 @@ Release/
 # Tedenski pregled 4. 11. 2026 (N11): SHA256SUMS v korenu zapise build_tv_apk.sh ob vsaki gradnji (lokalna imena APK);
 # vsote izdaje so v izdaji na GitHubu. libs/SHA256SUMS ostane v repozitoriju.
 /SHA256SUMS
+
+# PDF.js 5.4.149 (uradni pdfjs-5.4.149-dist.zip, sha256 a0f6139f...e541): pregledovalnik brez build/ ne dela
+!assets/pdfjs/build/
