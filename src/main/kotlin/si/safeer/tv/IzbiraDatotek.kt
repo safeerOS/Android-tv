@@ -33,6 +33,35 @@ object IzbiraDatotek {
     }
 
     /**
+     * Vrstni red izbirnikov (TV 4. 11. 2026: Philips nima DocumentsUI, OPEN_DOCUMENT nima prejemnika in OK na gumbu ni
+     * naredil nicesar): sistemski SAF, nato upravitelj datotek (GET_CONTENT), nato lasten seznam iz MediaStore, nazadnje
+     * okno, da izbirnika ni. SPOROCILO vedno vrne stran null (WebView sicer naslednjega izbora ne odpre).
+     */
+    enum class Izbirnik { OPEN_DOCUMENT, GET_CONTENT, LASTEN, SPOROCILO }
+
+    /** Naslednji izbirnik, ko [prejsnji] na napravi ni na voljo (null = zacetek). */
+    fun naslednji(prejsnji: Izbirnik?): Izbirnik = when (prejsnji) {
+        null -> Izbirnik.OPEN_DOCUMENT
+        Izbirnik.OPEN_DOCUMENT -> Izbirnik.GET_CONTENT
+        Izbirnik.GET_CONTENT -> Izbirnik.LASTEN
+        Izbirnik.LASTEN, Izbirnik.SPOROCILO -> Izbirnik.SPOROCILO
+    }
+
+    /** Lasten izbirnik se pokaze samo, ce ima kaj ponuditi; prazen seznam = okno »ni izbirnika«. */
+    fun poSeznamu(steviloDatotek: Int): Izbirnik = if (steviloDatotek > 0) Izbirnik.LASTEN else Izbirnik.SPOROCILO
+
+    /** Ali datoteka z MIME [mime] ustreza tipom strani ([mimeTipi]): vse datoteke ([VSE]), skupina (image/...) ali tocen tip. */
+    fun ustreza(mime: String?, tipi: List<String>): Boolean {
+        if (VSE in tipi) return true
+        val m = mime?.trim()?.lowercase().orEmpty()
+        if (!MIME.matches(m) || m.endsWith("/*")) return false
+        return tipi.any { t -> if (t.endsWith("/*")) m.startsWith(t.dropLast(1)) else m == t }
+    }
+
+    /** Mape, ki jih lasten izbirnik ne kaze: Android/ (data, obb, media drugih aplikacij) - kot DatotekePravila.smeUrejati. */
+    fun skritaMapa(mapa: String): Boolean = mapa.trim().trimStart('/').startsWith("Android/", ignoreCase = true)
+
+    /**
      * Kar gre strani: samo content:// URI-ji, ki jih je vrnil sistemski izbirnik - nikoli file:// in nikoli nas
      * lastni ponudnik (lastnaOznaka in vse pod njo), ki bi stran lahko spustil do zasebnih datotek brskalnika.
      * %-kodirana avtoriteta se steje za naso (kot SpletVarnostPravila.lastnaAvtoriteta).

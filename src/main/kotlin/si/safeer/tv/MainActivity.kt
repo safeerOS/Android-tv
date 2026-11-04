@@ -631,6 +631,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     /** Koda zahteve za sistemsko okno »Zacni zajem zaslona«. */
     private val ZAHTEVA_ZAJEM_ZASLONA = 4711
     private val ZAHTEVA_IZBIRA_DATOTEK = 4712
+    private val ZAHTEVA_DOVOLJENJE_IZBIRA = 4713
     /** Kam v Safeer OS se vrnemo po zaprtju strani Link (npr. "naprave"); prazno = domaci zaslon. */
     private var linkOsVrni: String? = null
     /** Dodatka, s katerima Safeer OS odpre spletno aplikacijo cez ves zaslon. */
@@ -2091,6 +2092,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     private var izbiraDatotek: android.webkit.ValueCallback<Array<android.net.Uri>>? = null
     private var izbiraPogled: ChromiumEngineView? = null
     private var izbiraVec = false
+    private var izbiraTipi: List<String> = listOf(IzbiraDatotek.VSE)
 
     /**
      * <input type=file> (4. 11. 2026, prenos s telefona bf12168): sistemski izbirnik (SAF), brez dovoljenja za shrambo.
@@ -2113,25 +2115,30 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         val tipi = IzbiraDatotek.mimeTipi(parametri.acceptTypes) { k ->
             android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(k)
         }
-        val namera = android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT).apply {
-            addCategory(android.content.Intent.CATEGORY_OPENABLE)
-            type = tipi.singleOrNull() ?: IzbiraDatotek.VSE
-            if (tipi.size > 1) putExtra(android.content.Intent.EXTRA_MIME_TYPES, tipi.toTypedArray())
-            if (vec) putExtra(android.content.Intent.EXTRA_ALLOW_MULTIPLE, true)
-        }
         izbiraDatotek = povratek
         izbiraVec = vec
+        izbiraTipi = tipi
         izbiraPogled = pogled
         pogled.cakaIzbiroDatotek = true
-        return try {
-            startActivityForResult(namera, ZAHTEVA_IZBIRA_DATOTEK)
-            true
-        } catch (_: Exception) {
-            // Ni izbirnika (ActivityNotFoundException): false, WebView izbor zapre sam (povratka po false ne klicemo).
-            izbiraDatotek = null
-            izbiraPogled = null
-            pogled.cakaIzbiroDatotek = false
-            false
+        // OPEN_DOCUMENT, sicer GET_CONTENT (IzbiraDatotek.naslednji).
+        if (IzbirnikDatotekTv.zazeniSistemski(this, ZAHTEVA_IZBIRA_DATOTEK, tipi, vec)) return true
+        // TV 4. 11. 2026: televizor brez DocumentsUI in brez upravitelja datotek - prej je OK na gumbu tiho propadel.
+        // Dovoljenje za branje medijev je v manifestu (Datoteke Safeer OS); brez njega so na seznamu samo nase datoteke.
+        if (!si.safeer.tv.os.KrajevneDatoteke.imamoDovoljenje(this)) {
+            try { requestPermissions(si.safeer.tv.os.KrajevneDatoteke.dovoljenja(), ZAHTEVA_DOVOLJENJE_IZBIRA); return true }
+            catch (_: Exception) { }
+        }
+        odpriLastenIzbirnik()
+        return true
+    }
+
+    /** Lasten izbirnik (seznam iz MediaStore); stran dobi samo, kar prestane IzbiraDatotek.sprejmi. */
+    private fun odpriLastenIzbirnik() {
+        if (izbiraDatotek == null) return
+        IzbirnikDatotekTv.pokazi(this, izbiraTipi, izbiraVec) { uriji ->
+            val sprejeti = IzbiraDatotek.sprejmi(uriji.orEmpty().map { it.toString() }, IzbiraDatotek.LASTNA_DRUZINA, izbiraVec)
+                .map { android.net.Uri.parse(it) }
+            koncajIzbiroDatotek(if (sprejeti.isEmpty()) null else sprejeti.toTypedArray())
         }
     }
 
@@ -2914,6 +2921,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        // Lasten izbirnik datotek: z dovoljenjem ali brez (takrat samo nase datoteke) - stran vedno dobi odgovor.
+        if (requestCode == ZAHTEVA_DOVOLJENJE_IZBIRA) { odpriLastenIzbirnik(); return }
         // Stran Linka je vprasala za dovoljenje za medije; naj se izrise s pravim stanjem.
         linkMost?.naDovoljenje(requestCode)
     }

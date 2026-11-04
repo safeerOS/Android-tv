@@ -162,6 +162,11 @@
     <string name="ui_ssl_razlog_izdajatelj">Motivo: il certificato non è stato emesso da un\'autorità attendibile (o il server non invia la catena completa dei certificati).</string>
     <string name="ui_ssl_razlog_datum">Motivo: la data del certificato non è valida. Se l\'ora del televisore è sbagliata, correggila e riprova.</string>
     <string name="ui_ssl_razlog_neveljavno">Motivo: il certificato è danneggiato o non valido.</string>
+    <string name="izbira_datotek_naslov">Scegli un file</string>
+    <string name="izbira_datotek_naslov_vec">Scegli i file</string>
+    <string name="izbira_datotek_izberi">Scegli</string>
+    <string name="izbira_datotek_ni_naslov">Nessun selettore di file</string>
+    <string name="izbira_datotek_ni">Questo televisore non ha un selettore di file e nella sua memoria non ci sono file che la pagina possa ricevere. Metti prima il file sul televisore (download nel browser o Safeer Link) e riprova.</string>
     <string name="ui_ssl_odpri">Apri comunque</string>
     <string name="ui_share_screen_notice">%1$s condivide lo schermo: apri per vederlo</string>
     <string name="ui_emudhra_title">Avviso di sicurezza: CA compromessa (eMudhra)</string>

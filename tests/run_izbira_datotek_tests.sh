@@ -11,4 +11,4 @@ OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 "$KOTLINC" "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/IzbiraDatotek.kt" "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/SpanjePravila.kt" \
   "$TEST_DIR/IzbiraDatotekTest.kt" -include-runtime -d "$OUT/izbira.jar"
-java -cp "$OUT/izbira.jar" si.safeer.tv.IzbiraDatotekTestKt
+java -cp "$OUT/izbira.jar" si.safeer.tv.IzbiraDatotekTestKt "${1:-$PROJECT_DIR/src/main/kotlin}"

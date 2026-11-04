@@ -52,6 +52,7 @@ class SpletniKlepetActivity : OsActivity() {
     private var zadnjeNeprebrano = -1
     private var izbirnik: ValueCallback<Array<Uri>>? = null
     private var izbiraVec = false
+    private var izbiraTipi: List<String> = listOf(si.safeer.tv.IzbiraDatotek.VSE)
 
     private fun dp(v: Int) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), resources.displayMetrics).toInt()
 
@@ -175,15 +176,15 @@ class SpletniKlepetActivity : OsActivity() {
                 val tipi = si.safeer.tv.IzbiraDatotek.mimeTipi(parametri.acceptTypes) { k ->
                     android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(k)
                 }
-                val namera = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                    addCategory(Intent.CATEGORY_OPENABLE)
-                    type = tipi.singleOrNull() ?: si.safeer.tv.IzbiraDatotek.VSE
-                    if (tipi.size > 1) putExtra(Intent.EXTRA_MIME_TYPES, tipi.toTypedArray())
-                    if (izbiraVec) putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
-                }
                 izbirnik = povratek
-                return try { startActivityForResult(namera, IZBIRA_DATOTEKE); true }
-                catch (_: Throwable) { izbirnik = null; false }
+                izbiraTipi = tipi
+                // OPEN_DOCUMENT, sicer GET_CONTENT; TV brez obeh (4. 11. 2026, Philips brez DocumentsUI): lasten izbirnik.
+                if (si.safeer.tv.IzbirnikDatotekTv.zazeniSistemski(this@SpletniKlepetActivity, IZBIRA_DATOTEKE, tipi, izbiraVec)) return true
+                if (!KrajevneDatoteke.imamoDovoljenje(this@SpletniKlepetActivity)) {
+                    try { requestPermissions(KrajevneDatoteke.dovoljenja(), DOVOLJENJE_IZBIRA); return true } catch (_: Throwable) { }
+                }
+                odpriLastenIzbirnik()
+                return true
             }
         }
         w.setDownloadListener { url, _, _, _, _ ->
@@ -224,6 +225,23 @@ class SpletniKlepetActivity : OsActivity() {
             val st = shramba.stanjeKanala(k.id)
             if (st.optInt("neprebrano", -1) != n) shramba.shraniStanjeKanala(k.id, st.put("neprebrano", n))
         } catch (_: Throwable) { }
+    }
+
+    /** Lasten izbirnik (seznam iz MediaStore); stran dobi samo, kar prestane IzbiraDatotek.sprejmi. */
+    private fun odpriLastenIzbirnik() {
+        if (izbirnik == null) return
+        si.safeer.tv.IzbirnikDatotekTv.pokazi(this, izbiraTipi, izbiraVec) { uriji ->
+            val sprejeti = si.safeer.tv.IzbiraDatotek.sprejmi(uriji.orEmpty().map { it.toString() },
+                si.safeer.tv.IzbiraDatotek.LASTNA_DRUZINA, izbiraVec).map { Uri.parse(it) }
+            val povratek = izbirnik
+            izbirnik = null
+            try { povratek?.onReceiveValue(if (sprejeti.isEmpty()) null else sprejeti.toTypedArray()) } catch (_: Throwable) { }
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == DOVOLJENJE_IZBIRA) odpriLastenIzbirnik()
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -276,6 +294,7 @@ class SpletniKlepetActivity : OsActivity() {
     companion object {
         const val EXTRA_KANAL = "kanal"
         private const val IZBIRA_DATOTEKE = 4711
+        private const val DOVOLJENJE_IZBIRA = 4712
         private const val TAG = "SafeerSporocilaSplet"
 
         fun odpri(a: android.app.Activity, kanalId: String) {

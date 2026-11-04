@@ -16,7 +16,7 @@ private fun preveri(dobljeno: Any?, pricakovano: Any?, opis: String) {
 private val koncnice = mapOf("pdf" to "application/pdf", "jpg" to "image/jpeg", "png" to "image/png")
 private fun tipi(vararg a: String) = IzbiraDatotek.mimeTipi(arrayOf(*a)) { koncnice[it] }
 
-fun main() {
+fun main(args: Array<String>) {
     preveri(IzbiraDatotek.mimeTipi(null) { null }, listOf("*/*"), "brez accept")
     preveri(tipi(""), listOf("*/*"), "prazen niz")
     preveri(tipi("image/*"), listOf("image/*"), "image/*")
@@ -44,6 +44,33 @@ fun main() {
     // Med odprtim izbirnikom zavihek ne zaspi (sicer se izbrana datoteka nima kam vrniti).
     preveri(SpanjePravila.zaspi(predvaja = false, umazanObrazec = false, odlozenoMs = 0L, naDotik = false, cakaIzbiro = true), false, "izbirnik: ne zaspi")
     preveri(SpanjePravila.zaspi(predvaja = false, umazanObrazec = false, odlozenoMs = 0L, naDotik = false, cakaIzbiro = false), true, "brez izbirnika zaspi")
+
+    // TV 4. 11. 2026 (Philips brez DocumentsUI): OPEN_DOCUMENT -> GET_CONTENT -> lasten seznam -> okno »ni izbirnika«.
+    val I = IzbiraDatotek.Izbirnik.values().associateBy { it.name }
+    preveri(IzbiraDatotek.naslednji(null), I["OPEN_DOCUMENT"], "najprej sistemski SAF")
+    preveri(IzbiraDatotek.naslednji(I["OPEN_DOCUMENT"]), I["GET_CONTENT"], "brez SAF: upravitelj datotek")
+    preveri(IzbiraDatotek.naslednji(I["GET_CONTENT"]), I["LASTEN"], "brez obeh: lasten izbirnik")
+    preveri(IzbiraDatotek.naslednji(I["LASTEN"]), I["SPOROCILO"], "nazadnje sporocilo")
+    preveri(IzbiraDatotek.naslednji(I["SPOROCILO"]), I["SPOROCILO"], "sporocilo ostane")
+    preveri(IzbiraDatotek.poSeznamu(3), I["LASTEN"], "lasten seznam z datotekami")
+    preveri(IzbiraDatotek.poSeznamu(0), I["SPOROCILO"], "prazen seznam: okno, da izbirnika ni")
+    preveri(IzbiraDatotek.ustreza("image/png", listOf("image/*")), true, "image/* sprejme png")
+    preveri(IzbiraDatotek.ustreza("IMAGE/PNG", listOf("image/png")), true, "tocen tip, velike crke")
+    preveri(IzbiraDatotek.ustreza("application/pdf", listOf("image/*", "video/*")), false, "pdf ni slika")
+    preveri(IzbiraDatotek.ustreza("imagex/png", listOf("image/*")), false, "imagex ni image")
+    preveri(IzbiraDatotek.ustreza(null, listOf("image/*")), false, "brez tipa ne ustreza tocnim tipom")
+    preveri(IzbiraDatotek.ustreza(null, listOf("*/*")), true, "*/* sprejme vse")
+    preveri(IzbiraDatotek.skritaMapa("Android/data/com.x/"), true, "Android/data skrita")
+    preveri(IzbiraDatotek.skritaMapa("/android/obb/"), true, "Android/obb skrita")
+    preveri(IzbiraDatotek.skritaMapa("Download/"), false, "Download vidna")
+
+    // Staticno: brskalnik in spletni klepeti ne vrnejo vec false, ko SAF ni (prej tihi propad), ampak gredo po vrsti.
+    val src = java.io.File(args.getOrNull(0) ?: error("pot do src/main/kotlin"))
+    for (pot in listOf("si/safeer/tv/MainActivity.kt", "si/safeer/tv/os/SpletniKlepetActivity.kt")) {
+        val k = java.io.File(src, pot).readText()
+        preveri(k.contains("IzbirnikDatotekTv.zazeniSistemski(") && k.contains("IzbirnikDatotekTv.pokazi("), true, "$pot: sistemski, nato lasten izbirnik")
+        preveri(k.contains("Intent.ACTION_OPEN_DOCUMENT)"), false, "$pot: brez lastne namere OPEN_DOCUMENT mimo vrstnega reda")
+    }
 
     if (padli > 0) {
         println("IzbiraDatotekTest: $padli od $presteti padlo")
