@@ -221,7 +221,8 @@ def main() -> int:
     lupa = vsebina.get("os/DomacaLupa.kt", "")
     prikazi = vsebina.get("os/PrikaziNa.kt", "")
     preveri("lupa in glas: ena razclemba (LupaPravila.razcleni z napravami kroga)",
-            "LupaPravila.razcleni(q, napraveKroga(a))" in lupa)
+            "val naprave = napraveKroga(a)" in lupa and "LupaPravila.razcleni(q, naprave)" in lupa
+            and "a.okNaPolju(q, naprave)" in lupa)
     preveri("PrikaziNa nima vec svoje razclembe (VZORCI) - uporabi LupaPravila", "VZORCI" not in prikazi and "LupaPravila.razcleni(niz)" in prikazi)
     preveri("cilj po imenu samo iz ozjega kroga", re.search(r"fun napraveKroga\(c: Context\).*?OzjiKrog\.vKrogu\(c, it\.id\)", lupa, re.S) is not None)
     preveri("cilj po vrsti samo iz ozjega kroga", "OzjiKrog.vKrogu(ctx, it.id)" in prikazi)

@@ -1306,6 +1306,20 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         return null
     }
 
+    /** V seznamu je vsaj ena vidna vrstica za fokus, ki ni »Isci v spletu« (tag isci_splet). */
+    private fun imaPravZadetek(): Boolean {
+        fun ima(g: ViewGroup): Boolean {
+            for (i in 0 until g.childCount) {
+                val v = g.getChildAt(i)
+                if (v.visibility != View.VISIBLE) continue
+                if (v.isFocusable) { if (v.tag != "isci_splet") return true else continue }
+                if (v is ViewGroup && ima(v)) return true
+            }
+            return false
+        }
+        return ima(zadetki)
+    }
+
     /**
      * Ozadje filtra (lastnik 19:03): izbran = poln, z mint barvo in krepko; fokus = obroba v barvi besedila (tudi okrog
      * izbranega). Razlika ni samo v barvi (poln/obroba, krepko). Brez povecave ob fokusu.
@@ -1444,15 +1458,17 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
      * zadetek (nic se ne zazene), Splet odpre neposredno stran, ce je; drugo isce izvedi(). Zadetki se risejo 250 ms po
      * zadnji crki: ce je OK prisel prej, se najprej narisejo za vpisano besedilo.
      */
-    override fun okNaPolju(niz: String): Boolean {
+    override fun okNaPolju(niz: String, naprave: List<Pair<String, String>>): Boolean {
         if (!::poljeLupe.isInitialized || niz.isBlank()) return false
         // Zgodovina in predlogi (drug niz kot v polju) niso zadetek tega seznama - gredo v iskanje.
         if (niz.trim() != poljeLupe.text?.toString()?.trim()) return false
         if (niz.trim() != iskanjePoizvedba || zadetkiDrsnik.visibility != View.VISIBLE) narisiZadetke(niz, vsili = true)
         val prvi = prviVSeznamu()
-        return when (LupaPravila.okNaPolju(izbiraLupe, prvi != null, prvaStran != null)) {
-            LupaPravila.OkPolja.FOKUS_NA_PRVI -> { DomacaLupa.zapriTipkovnico(this); prvi?.requestFocus(); true }
-            LupaPravila.OkPolja.ODPRI_STRAN -> { prvaStran?.performClick(); true }
+        // Pod Vse je vrstica »Isci v spletu« vedno tu - ni zadetek; z njo samo OK isce v spletu (preverba TV 4. 11. 15:17).
+        val imaZadetek = if (LupaPravila.obseg(izbiraLupe) == LupaPravila.OBSEG_VSE) imaPravZadetek() else prvi != null
+        return when (LupaPravila.okNaPolju(izbiraLupe, niz, imaZadetek, prvaStran != null, naprave)) {
+            LupaPravila.OkPolja.FOKUS_NA_PRVI -> if (prvi == null) false else { DomacaLupa.zapriTipkovnico(this); prvi.requestFocus(); true }
+            LupaPravila.OkPolja.ODPRI_STRAN -> prvaStran?.let { it.performClick(); true } ?: false
             else -> false
         }
     }

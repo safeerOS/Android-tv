@@ -215,21 +215,29 @@ object LupaPravila {
         }
     }
 
-    /** Kaj naredi OK na polju lupe (lastnik 19:03). */
-    enum class OkPolja { FOKUS_NA_PRVI, ODPRI_STRAN, ISCI_SPLET, ISCI_YOUTUBE, ISCI_VIDEO }
+    /** Kaj naredi OK na polju lupe (lastnik 19:03); [IZVEDI_UKAZ] = polje OK ne prevzame, DomacaLupa.izvedi izvede ukaz. */
+    enum class OkPolja { FOKUS_NA_PRVI, ODPRI_STRAN, ISCI_SPLET, ISCI_YOUTUBE, ISCI_VIDEO, IZVEDI_UKAZ }
 
     /**
      * OK na polju: Splet odpre neposredno stran (»rtv slo« -> rtvslo.si), ce jo ima, sicer isce v spletu; YouTube isce na
      * YouTubu; Video vsebine v Medijskem centru. Vse, Aplikacije, Datoteke, Nastavitve fokus premaknejo na prvi zadetek in
-     * nicesar ne zazenejo (uporabnik vidi, kaj bo odprl). Brez zadetka: krajevna izbira gre na »Isci v Vse« (prva vrstica
-     * praznega stanja), Vse isce v spletu kot do zdaj.
+     * nicesar ne zazenejo (uporabnik vidi, kaj bo odprl). Pod Vse brez pravega zadetka (samo vrstica »Isci v spletu«) isce v
+     * spletu; v drugih oknih brez zadetka izvede iskanje (fokus ni kam premakniti).
+     *
+     * Preverba TV 4. 11. 2026 15:17: pod Vse je vrstica »Isci v spletu« vedno v seznamu, zato je OK na »safeer.si« samo
+     * premaknil fokus nanjo - naslov, vreme in »… na TV« se niso nikoli izvedli. Zdaj ukaz (naslov, vreme, prikazi na
+     * napravi, izrecno »isci v spletu«) ima prednost: [niz] gre skozi [razcleni] in samo navadno iskanje ostane tu.
      */
-    fun okNaPolju(obseg: String, imaZadetek: Boolean, imaStran: Boolean): OkPolja = when (obseg(obseg)) {
-        OBSEG_SPLET -> if (imaStran) OkPolja.ODPRI_STRAN else OkPolja.ISCI_SPLET
-        OBSEG_YOUTUBE -> OkPolja.ISCI_YOUTUBE
-        OBSEG_VIDEO -> OkPolja.ISCI_VIDEO
-        OBSEG_VSE -> if (imaZadetek) OkPolja.FOKUS_NA_PRVI else OkPolja.ISCI_SPLET
-        else -> OkPolja.FOKUS_NA_PRVI
+    fun okNaPolju(obseg: String, niz: String, imaZadetek: Boolean, imaStran: Boolean,
+                  naprave: List<Pair<String, String>> = emptyList()): OkPolja {
+        if (niz.isBlank() || razcleni(niz, naprave).vrsta != ISCI) return OkPolja.IZVEDI_UKAZ
+        return when (obseg(obseg)) {
+            OBSEG_SPLET -> if (imaStran) OkPolja.ODPRI_STRAN else OkPolja.ISCI_SPLET
+            OBSEG_YOUTUBE -> OkPolja.ISCI_YOUTUBE
+            OBSEG_VIDEO -> OkPolja.ISCI_VIDEO
+            OBSEG_VSE -> if (imaZadetek) OkPolja.FOKUS_NA_PRVI else OkPolja.ISCI_SPLET
+            else -> if (imaZadetek) OkPolja.FOKUS_NA_PRVI else OkPolja.IZVEDI_UKAZ
+        }
     }
 
     /** Stanje seznama: zadetki, »Iscem …« (sprotni se cakajo, nic se ni) ali prazno (»Ni zadetkov za …«). */

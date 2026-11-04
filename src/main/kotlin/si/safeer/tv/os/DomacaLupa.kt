@@ -346,20 +346,21 @@ object DomacaLupa {
     /**
      * Okno z zadetki in filtri lupe (domaci zaslon, lastnik 2. 11. 2026 19:03): [obsegLupe] je izbira v tej lupi (ni
      * shranjena - vsako novo iskanje zacne na Vse); [okNaPolju] prevzame OK (fokus na prvi zadetek, neposredna stran) in
-     * vrne true, sicer izvedi isce po izbiri.
+     * vrne true, sicer izvedi isce po izbiri. [naprave] = ozji krog (za »… na <napravo>«), da ukaz ne ostane pri fokusu.
      */
     interface IzbiraLupe {
         fun obsegLupe(): String
-        fun okNaPolju(niz: String): Boolean
+        fun okNaPolju(niz: String, naprave: List<Pair<String, String>>): Boolean
     }
 
     fun izvedi(a: Activity, niz: String) {
         val q = niz.trim()
         // Vse poti (OK na polju, Enter tipkovnice, »Isci« na zaslonski tipkovnici) gredo sem - zato se prvi zadetek odpre tu.
-        if (a is IzbiraLupe && a.okNaPolju(q)) return
+        val naprave = napraveKroga(a)
+        if (a is IzbiraLupe && a.okNaPolju(q, naprave)) return
         if (!LupaPravila.okIsce(q, obseg(a))) return
         dodajZgodovino(a, q)
-        val u = LupaPravila.razcleni(q, napraveKroga(a))
+        val u = LupaPravila.razcleni(q, naprave)
         when (u.vrsta) {
             LupaPravila.PRIKAZI_NA -> if (u.vsebina.isNotBlank()) { prikaziNa(a, u); return }
             LupaPravila.VREME -> { vreme(a, u); return }
