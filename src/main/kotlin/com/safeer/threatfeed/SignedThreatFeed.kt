@@ -396,27 +396,73 @@ internal object Ipv6 {
 // Matching
 // ------------------------------------------------------------------------------------------------
 
-/** Immutable lookup structure: hash lookups for exact hosts, IPs and URLs, suffix walk for domains. */
+/**
+ * Rule storage behind a [ThreatIndex]: packed value ((category index shl 16) or source index) of an exact key, or -1.
+ * Two implementations with identical answers: hash maps (built while a bundle is verified) and a mapped file
+ * ([SortedStringTable], written right after verification and opened in milliseconds at the next start).
+ */
+internal interface RuleLookup {
+    val domainCount: Int
+    val hostCount: Int
+    val urlCount: Int
+    fun domain(key: String): Int
+    fun host(key: String): Int
+    fun url(key: String): Int
+}
+
+internal class MapRuleLookup(
+    val domains: HashMap<String, Int>,
+    val hosts: HashMap<String, Int>,
+    val urls: HashMap<String, Int>,
+) : RuleLookup {
+    override val domainCount get() = domains.size
+    override val hostCount get() = hosts.size
+    override val urlCount get() = urls.size
+    override fun domain(key: String) = domains[key] ?: -1
+    override fun host(key: String) = hosts[key] ?: -1
+    override fun url(key: String) = urls[key] ?: -1
+}
+
+/** Tables 0, 1, 2 = domains, hosts, urls. Values that do not decode (damaged file) count as "no rule". */
+internal class TableRuleLookup(val table: SortedStringTable, private val sourceCount: Int) : RuleLookup {
+    override val domainCount get() = table.size(0)
+    override val hostCount get() = table.size(1)
+    override val urlCount get() = table.size(2)
+    private fun checked(v: Int) = if (v < 0 || (v ushr 16) >= SignedFeedFormat.CATEGORIES.size || (v and 0xffff) >= sourceCount) -1 else v
+    override fun domain(key: String) = checked(table.find(0, key))
+    override fun host(key: String) = checked(table.find(1, key))
+    override fun url(key: String) = checked(table.find(2, key))
+}
+
+/** Immutable lookup structure: exact lookups for hosts, IPs and URLs, suffix walk for domains. */
 class ThreatIndex internal constructor(
-    private val domains: HashMap<String, Int>,
-    private val hosts: HashMap<String, Int>,
-    private val urls: HashMap<String, Int>,
+    internal val rules: RuleLookup,
     private val sources: List<FeedSource>,
 ) {
-    val size: Int get() = domains.size + hosts.size + urls.size
+    internal constructor(
+        domains: HashMap<String, Int>,
+        hosts: HashMap<String, Int>,
+        urls: HashMap<String, Int>,
+        sources: List<FeedSource>,
+    ) : this(MapRuleLookup(domains, hosts, urls), sources)
+
+    val size: Int get() = rules.domainCount + rules.hostCount + rules.urlCount
+
+    /** True when the rules are served from the mapped index file (not from the Java heap). */
+    val mapped: Boolean get() = rules is TableRuleLookup
 
     /** Every rule that covers the host is considered; the most severe category wins. */
     fun matchHost(rawHost: String?): FeedMatch? {
         val host = normalizeHost(rawHost) ?: return null
-        var best: FeedMatch? = hosts[host]?.let {
+        var best: FeedMatch? = rules.host(host).takeIf { it >= 0 }?.let {
             match(host, if (host.contains(':')) "ipv6" else if (isIpv4(host)) "ipv4" else "hostname", it)
         }
-        if (domains.isEmpty()) return best
+        if (rules.domainCount == 0) return best
         var index = host.length
         while (index > 0) {
             val dot = host.lastIndexOf('.', index - 1)
             val candidate = host.substring(dot + 1)
-            domains[candidate]?.let { best = moreSevere(best, match(candidate, "domain", it)) }
+            rules.domain(candidate).takeIf { it >= 0 }?.let { best = moreSevere(best, match(candidate, "domain", it)) }
             if (dot < 0) break
             index = dot
         }
@@ -428,9 +474,9 @@ class ThreatIndex internal constructor(
         if (url.isNullOrEmpty()) return null
         val parts = UrlParts.parse(url) ?: return null
         val hostMatch = matchHost(parts.host)
-        if (urls.isEmpty()) return hostMatch
+        if (rules.urlCount == 0) return hostMatch
         val key = parts.normalized() ?: return hostMatch
-        return moreSevere(hostMatch, urls[key]?.let { match(key, "url", it) })
+        return moreSevere(hostMatch, rules.url(key).takeIf { it >= 0 }?.let { match(key, "url", it) })
     }
 
     private fun moreSevere(current: FeedMatch?, candidate: FeedMatch?): FeedMatch? = when {
@@ -445,6 +491,30 @@ class ThreatIndex internal constructor(
 
     companion object {
         val EMPTY = ThreatIndex(HashMap(), HashMap(), HashMap(), emptyList())
+
+        /**
+         * Writes the rules of a verified bundle to [file] for [openMapped]. [key] binds the file to the exact manifest
+         * bytes (SHA-256), so a file from another version or feed is never used.
+         */
+        internal fun writeMapped(file: java.io.File, key: ByteArray, maps: MapRuleLookup, sources: List<FeedSource>) {
+            val words = ArrayList<String?>(sources.size * 4)
+            for (s in sources) { words.add(s.id); words.add(s.license); words.add(s.name); words.add(s.url) }
+            val tables = listOf(maps.domains, maps.hosts, maps.urls).map { m ->
+                val keys = m.keys.toTypedArray()
+                java.util.Arrays.sort(keys)
+                SortedStringTable.Table(keys.size, { keys[it] }, { m[keys[it]]!! })
+            }
+            SortedStringTable.write(file, key, words, tables)
+        }
+
+        /** Opens an index written by [writeMapped]; null when it is missing, incomplete or built from other bytes. */
+        internal fun openMapped(file: java.io.File, key: ByteArray): Pair<ThreatIndex, List<FeedSource>>? {
+            val table = SortedStringTable.open(file, key) ?: return null
+            val w = table.words
+            if (table.tableCount != 3 || w.isEmpty() || w.size % 4 != 0 || w.any { it == null }) return null
+            val sources = (0 until w.size / 4).map { FeedSource(w[it * 4]!!, w[it * 4 + 1]!!, w[it * 4 + 2]!!, w[it * 4 + 3]!!) }
+            return ThreatIndex(TableRuleLookup(table, sources.size), sources) to sources
+        }
 
         private fun isIpv4(host: String) = host.isNotEmpty() && host.all { it == '.' || it in '0'..'9' }
 
@@ -573,6 +643,21 @@ object SignedFeedVerifier {
         installedVersion: Long = 0,
         nowEpochSeconds: Long = System.currentTimeMillis() / 1000,
         checkExpiry: Boolean = true,
+    ): FeedManifest = readManifest(envelopeBytes, trustedKeys, feedType, installedVersion, nowEpochSeconds, checkExpiry, checkSignature = true)
+
+    /**
+     * Same as [verifyManifest]; [checkSignature] false only for a stored manifest whose exact bytes (SHA-256) are the key
+     * of a mapped index that was written right after this manifest passed [verifyManifest] (SignedFeedStore.loadFast).
+     * The signature is checked again in the background (SignedFeedStore.recheck).
+     */
+    internal fun readManifest(
+        envelopeBytes: ByteArray,
+        trustedKeys: Map<String, String>,
+        feedType: String,
+        installedVersion: Long,
+        nowEpochSeconds: Long,
+        checkExpiry: Boolean,
+        checkSignature: Boolean,
     ): FeedManifest {
         if (envelopeBytes.size > SignedFeedFormat.MAX_MANIFEST_BYTES) throw FeedVerificationException("manifest too large")
         val envelopeCursor = JsonCursor(envelopeBytes, allowWhitespace = true)
@@ -585,7 +670,7 @@ object SignedFeedVerifier {
         val signed = FeedText.base64(signedText)
         val signatures = envelope["signatures"] as? List<*> ?: throw FeedVerificationException("invalid signature list")
         if (signatures.isEmpty() || signatures.size > 4) throw FeedVerificationException("invalid signature list")
-        val accepted = signatures.any { entry ->
+        val accepted = !checkSignature || signatures.any { entry ->
             if (entry !is Map<*, *> || entry.keys != setOf("alg", "key_id", "sig")) return@any false
             val alg = entry["alg"] as? String ?: return@any false
             val keyId = entry["key_id"] as? String ?: return@any false
@@ -807,6 +892,8 @@ class SignedFeedStore(
 
     private fun manifestFile(version: Long) = File(directory, "$feedType-$version-manifest.json")
     private fun bundleFile(version: Long) = File(directory, "$feedType-$version-bundle.json")
+    /** Rules of the verified bundle as a mapped sorted table (SortedStringTable): opened at start without the heap. */
+    private fun indexFile(version: Long) = File(directory, "$feedType-$version-index.bin")
     private val stateFile get() = File(directory, "$feedType-state.json")
 
     fun installedVersion(): Long {
@@ -838,7 +925,8 @@ class SignedFeedStore(
             )
             if (manifest.version != version) throw FeedVerificationException("stored manifest does not match the recorded version")
             if (bundleFile(version).length() != manifest.bundleSize.toLong()) throw FeedVerificationException("stored bundle size mismatch")
-            bundle = SignedFeedVerifier.verifyBundle(bundleFile(version).readBytes(), manifest, trustedKeys)
+            val verified = SignedFeedVerifier.verifyBundle(bundleFile(version).readBytes(), manifest, trustedKeys)
+            bundle = mapped(verified, manifestFile(version).readBytes(), version) ?: verified
             true
         } catch (e: Exception) {
             lastError = "stored feed unavailable: ${e.javaClass.simpleName}: ${e.message}"
@@ -867,7 +955,7 @@ class SignedFeedStore(
                 val bundleBytes = fetcher.fetch("$base/v1/$feedType/${manifest.bundlePath}", manifest.bundleSize)
                 val verified = SignedFeedVerifier.verifyBundle(bundleBytes, manifest, trustedKeys)
                 install(manifest, manifestBytes, bundleBytes)
-                bundle = verified
+                bundle = mapped(verified, manifestBytes, manifest.version) ?: verified
                 lastError = ""
                 return true
             } catch (e: Exception) {
@@ -889,7 +977,8 @@ class SignedFeedStore(
         directory.listFiles()?.forEach { file ->
             val parts = file.name.split('-')
             if (file.name.startsWith("$feedType-") && parts.size == 3 &&
-                (parts[2] == "manifest.json" || parts[2] == "bundle.json" || parts[2].startsWith("manifest.json.") || parts[2].startsWith("bundle.json."))
+                (parts[2] == "manifest.json" || parts[2] == "bundle.json" || parts[2] == "index.bin" ||
+                    parts[2].startsWith("manifest.json.") || parts[2].startsWith("bundle.json.") || parts[2].startsWith("index.bin."))
             ) {
                 val version = parts[1].toLongOrNull()
                 if (version != null && version < manifest.version) file.delete()
@@ -905,6 +994,90 @@ class SignedFeedStore(
             out.fd.sync()
         }
         Files.move(temp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+    }
+
+    /**
+     * Writes the rules of a just verified bundle to the index file and returns the same bundle served from the mapped file
+     * (the hash maps become garbage), or null when the index cannot be written (the caller keeps the heap index).
+     */
+    private fun mapped(verified: VerifiedBundle, manifestBytes: ByteArray, version: Long): VerifiedBundle? {
+        val maps = verified.index.rules as? MapRuleLookup ?: return null
+        return try {
+            val key = FeedText.sha256(manifestBytes)
+            val file = indexFile(version)
+            ThreatIndex.writeMapped(file, key, maps, verified.sources)
+            val (index, sources) = ThreatIndex.openMapped(file, key) ?: return null
+            VerifiedBundle(verified.manifest, sources, verified.ruleCount, index)
+        } catch (e: Exception) {
+            null
+        } catch (e: OutOfMemoryError) {
+            null
+        }
+    }
+
+    /**
+     * Fast start (main thread, milliseconds): opens the mapped index of the installed version when it was written for the
+     * exact stored manifest bytes. Reads the state file, the manifest (at most 64 KiB) and the index header; no bundle,
+     * no hash maps. The Ed25519 signature and the bundle SHA-256 are checked again by [recheck] in the background.
+     */
+    fun loadFast(): Boolean = synchronized(updateLock) {
+        if (!enabled) return false
+        if (bundle != null) return true
+        try {
+            val version = installedVersion()
+            if (version < 1) return false
+            val file = manifestFile(version)
+            if (!file.isFile || file.length() > SignedFeedFormat.MAX_MANIFEST_BYTES) return false
+            val manifestBytes = file.readBytes()
+            val (index, sources) = ThreatIndex.openMapped(indexFile(version), FeedText.sha256(manifestBytes)) ?: return false
+            val manifest = SignedFeedVerifier.readManifest(manifestBytes, trustedKeys, feedType, 0, 0, checkExpiry = false, checkSignature = false)
+            if (manifest.version != version || manifest.ruleCount.toInt().toLong() != manifest.ruleCount ||
+                index.size.toLong() > manifest.ruleCount) return false
+            bundle = VerifiedBundle(manifest, sources, manifest.ruleCount.toInt(), index)
+            true
+        } catch (e: Exception) {
+            false
+        } catch (e: OutOfMemoryError) {
+            false
+        }
+    }
+
+    /**
+     * Background check of a bundle opened by [loadFast]: manifest signature (trusted key), stored bundle size and SHA-256
+     * (streamed, not read into memory) and the CRC32 of the index file. These bind the index to a verified bundle exactly
+     * as the full load did. When anything fails, the fast bundle is dropped and [load] verifies and rebuilds from disk.
+     */
+    fun recheck(): Boolean = synchronized(updateLock) {
+        val current = bundle ?: return load()
+        val table = (current.index.rules as? TableRuleLookup)?.table ?: return true
+        val version = current.manifest.version
+        val ok = try {
+            val manifestBytes = manifestFile(version).readBytes()
+            val manifest = SignedFeedVerifier.verifyManifest(manifestBytes, trustedKeys, feedType, checkExpiry = false)
+            val bundlePath = bundleFile(version)
+            manifest == current.manifest && bundlePath.length() == manifest.bundleSize.toLong() &&
+                streamSha256(bundlePath) == manifest.bundleSha256 && table.bodyIntact()
+        } catch (e: Exception) {
+            false
+        }
+        if (ok) return true
+        lastError = "stored index did not pass the check; rebuilding"
+        bundle = null
+        try { indexFile(version).delete() } catch (e: Exception) { /* load() writes it again */ }
+        load()
+    }
+
+    private fun streamSha256(file: File): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        java.io.FileInputStream(file).use { input ->
+            val buffer = ByteArray(64 * 1024)
+            while (true) {
+                val r = input.read(buffer)
+                if (r < 0) break
+                digest.update(buffer, 0, r)
+            }
+        }
+        return FeedText.hex(digest.digest())
     }
 
     fun matchUrl(url: String?): FeedMatch? = bundle?.index?.matchUrl(url)
@@ -943,7 +1116,8 @@ class SignedFeedService(
         executor = service
         service.execute {
             try {
-                if (store.load()) notifyChange()
+                // After SignedFeedStore.loadFast() the rules are already in use; here only the background check.
+                if (store.bundle != null) store.recheck() else if (store.load()) notifyChange()
             } catch (e: Exception) {
                 /* the stored bundle is unusable; the update below replaces it */
             } finally {

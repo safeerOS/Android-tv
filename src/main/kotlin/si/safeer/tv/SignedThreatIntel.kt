@@ -38,7 +38,7 @@ object SignedThreatIntel {
     @Synchronized
     fun start(context: Context) {
         // Brez kljuca te plasti ni: prvo nalaganje zascite nanjo ne caka.
-        if (!isEnabled) { ZascitaZagona.podpisaniKoncan(); return }
+        if (!isEnabled) { koncaj("ni kljuca"); return }
         if (service != null) return
         val feedStore = SignedFeedStore(
             File(context.applicationContext.filesDir, "threat-intel"), "threats", TRUSTED_KEYS, BASE_URLS,
@@ -47,13 +47,24 @@ object SignedThreatIntel {
             val bundle = updated.bundle
             Log.i(TAG, "Preverjen seznam groženj v${bundle?.manifest?.version}: ${bundle?.ruleCount} pravil")
         }, onFirstLoad = {
-            ZascitaZagona.podpisaniKoncan()
-            Log.i("SafeerSecurity", "Zascita ob zagonu: podpisani vir nalozen, pripravljena=${ZascitaZagona.pripravljeno}" +
-                " po ${ZascitaZagona.pripravljenoPoMs} ms")
+            val b = feedStore.bundle
+            koncaj(if (b == null) "ni shranjenega vira" else "${b.ruleCount} pravil, ${if (b.index.mapped) "kazalo mmap" else "v kopici"}")
         })
         store = feedStore
         ThreatBlockEngine.signedFeedMatcher = { url, host -> toMatchResult(feedStore.matchUrl(url) ?: feedStore.matchHost(host)) }
-        if (feedService.start()) service = feedService else ZascitaZagona.podpisaniKoncan()
+        // 4. 11. 2026: shranjeni vir iz kazala (mmap) SINHRONO, pred prvim zavihkom - prej preverba in gradnja HashMap v
+        // ozadju (TV: zascita ob zagonu sele po 6,2 s). Podpis in SHA-256 se preverita znova v ozadju (SignedFeedStore.recheck).
+        val t = System.nanoTime()
+        if (feedStore.loadFast()) {
+            koncaj("kazalo mmap, ${feedStore.bundle?.ruleCount} pravil, odprtje ${(System.nanoTime() - t) / 100_000 / 10.0} ms")
+        }
+        if (feedService.start()) service = feedService else koncaj("storitev ni zagnana")
+    }
+
+    private fun koncaj(opis: String) {
+        val cas = ZascitaZagona.podpisaniKoncan() ?: return
+        Log.i("SafeerSecurity", "Zascita ob zagonu: podpisani vir pripravljen po $cas ms ($opis)" +
+            if (ZascitaZagona.pripravljeno) "; vse pripravljeno po ${ZascitaZagona.pripravljenoPoMs} ms" else "")
     }
 
     /** Takojšnje preverjanje novega seznama (gumb "Posodobi sezname"). */

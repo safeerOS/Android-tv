@@ -376,7 +376,9 @@ fun main(args: Array<String>) {
         check(store.update()) { store.lastError }
         check(store.matchUrl("https://malware.example/") == null && store.matchUrl("https://newbad.example/") != null)
         val remaining = dir.list()!!.sorted()
-        check(remaining == listOf("threats-101-bundle.json", "threats-101-manifest.json", "threats-state.json")) { "old files removed: $remaining" }
+        check(remaining == listOf("threats-101-bundle.json", "threats-101-index.bin", "threats-101-manifest.json", "threats-state.json")) {
+            "old files removed (index of the new version stays): $remaining"
+        }
 
         val restarted = SignedFeedStore(dir, "threats", trusted, listOf("https://intel.test"), FakeServer().apply { offline = true }) { now }
         check(restarted.load()) { restarted.lastError }
@@ -491,6 +493,118 @@ fun main(args: Array<String>) {
         val lookups = System.nanoTime()
         repeat(100_000) { bundle.index.matchUrl("https://www.news$it.example/article/$it?ref=home") }
         println("     100000 URL lookups in ${(System.nanoTime() - lookups) / 1_000_000} ms")
+    }
+
+    test("mapped index (mmap) answers exactly like the heap index; fast start, background recheck, cleanup") {
+        // 4. 11. 2026: TV main process kept the signed feed as HashMap<String, Int> (~151 000 rules) and rebuilt it on
+        // every start. The mapped index must give identical answers (0 differences), open in milliseconds and be replaced
+        // when anything about it does not match the verified bundle.
+        val r = java.util.Random(4112026)
+        val cats = listOf("botnet_c2", "malware", "phishing", "scam")
+        val rules = ArrayList<List<Any>>(BASE_RULES)
+        for (i in 0 until 150_000) {
+            val base = "d${r.nextInt(40_000)}.ex${r.nextInt(60)}.example"
+            val kind = when (i % 10) { 0 -> "hostname"; 1 -> "url"; 2 -> "ipv4"; else -> "domain" }
+            val value = when (kind) {
+                "url" -> "https://$base/p${i % 97}" + if (i % 3 == 0) "?q=${i % 5}" else ""
+                "ipv4" -> "10.${(i shr 16) and 255}.${(i shr 8) and 255}.${i and 255}"
+                "hostname" -> "h${i % 300}.$base"
+                else -> if (i % 7 == 0) base.substringAfter('.') else base
+            }
+            rules.add(listOf(value, kind, cats[r.nextInt(cats.size)], r.nextInt(2)))
+        }
+        val twoSources = "[{\"id\":\"fixture\",\"license\":\"CC0-1.0\",\"name\":\"Safeer test fixture\",\"url\":\"https://safeer.si/\"}," +
+            "{\"id\":\"second\",\"license\":\"CC-BY-4.0\",\"name\":\"Second fixture\",\"url\":\"https://safeer.si/2\"}]"
+        val feed = buildFeed(key, 200, rules, sources = twoSources)
+        val manifest = SignedFeedVerifier.verifyManifest(feed.envelope, trusted, "threats", 0, now)
+        System.gc(); val before = Runtime.getRuntime().let { it.totalMemory() - it.freeMemory() }
+        val heap = SignedFeedVerifier.verifyBundle(feed.bundle, manifest, trusted)
+        System.gc(); val after = Runtime.getRuntime().let { it.totalMemory() - it.freeMemory() }
+        check(!heap.index.mapped)
+        println("     heap index: ${heap.index.size} rules, ~${(after - before) / 1024 / 1024} MB of Java heap")
+
+        val dir = tempDir()
+        val server = FakeServer()
+        server.publish(feed)
+        val store = SignedFeedStore(dir, "threats", trusted, listOf("https://intel.test"), server) { now }
+        check(store.update()) { store.lastError }
+        val index = File(dir, "threats-200-index.bin")
+        check(store.bundle!!.index.mapped && index.isFile) { "after update the rules are served from the mapped index" }
+        println("     index file ${index.length() / 1024} KiB")
+
+        val probes = ArrayList<String>()
+        for (rule in rules) {
+            val v = rule[0] as String
+            when (rule[1]) {
+                "url" -> { probes.add(v); probes.add("$v&x=1"); probes.add(v.replace("https://", "http://")); probes.add(v + "#frag") }
+                "ipv4" -> { probes.add("http://$v/"); probes.add("https://$v:8443/a") }
+                "ipv6" -> probes.add("https://[$v]/")
+                else -> { probes.add("https://$v/"); probes.add("https://www.$v/x"); probes.add("https://A.B.${v.uppercase()}./"); probes.add("https://${v.substringAfter('.')}/") }
+            }
+        }
+        repeat(20_000) { probes.add("https://n${r.nextInt(1_000_000)}.ex${r.nextInt(70)}.example/") }
+        probes.addAll(listOf("https://[::ffff:10.0.1.2]/", "https://[::ffff:93.184.216.34]/", "not a url", "", "https://example/", "https://.example./"))
+        fun differences(a: ThreatIndex, b: ThreatIndex): Int {
+            var d = 0
+            for (u in probes) {
+                if (a.matchUrl(u) != b.matchUrl(u)) d++
+                val host = UrlParts.parse(u)?.host
+                if (a.matchHost(host) != b.matchHost(host)) d++
+            }
+            return d
+        }
+        val hits = probes.count { heap.index.matchUrl(it) != null }
+        check(hits > 300_000) { "probes must hit rules ($hits)" }
+        val d1 = differences(heap.index, store.bundle!!.index)
+        check(d1 == 0) { "$d1 differences between the heap index and the mapped index" }
+
+        // Fast start: no network, no bundle parsing, no hash maps.
+        val restarted = SignedFeedStore(dir, "threats", trusted, listOf("https://intel.test"), FakeServer().apply { offline = true }) { now }
+        val t0 = System.nanoTime()
+        check(restarted.loadFast()) { "fast start with the stored index" }
+        val fastMs = (System.nanoTime() - t0) / 1e6
+        val times = (1..5).map {
+            val again = SignedFeedStore(dir, "threats", trusted, listOf("https://intel.test"), FakeServer().apply { offline = true }) { now }
+            val t = System.nanoTime(); check(again.loadFast()); (System.nanoTime() - t) / 1e6
+        }
+        println("     loadFast: first ${"%.2f".format(fastMs)} ms, then ${times.joinToString { "%.2f".format(it) }} ms")
+        check(fastMs < 100) { "loadFast took $fastMs ms" }
+        check(restarted.bundle!!.index.mapped && restarted.bundle!!.ruleCount == heap.ruleCount && restarted.bundle!!.manifest == manifest)
+        val d2 = differences(heap.index, restarted.bundle!!.index)
+        check(d2 == 0) { "$d2 differences after fast start" }
+        check(restarted.recheck() && restarted.bundle!!.index.mapped) { "background recheck accepts the intact files" }
+
+        // Damaged index body: header still opens, the background recheck finds it and rebuilds from the verified bundle.
+        java.io.RandomAccessFile(index, "rw").use { f -> f.seek(f.length() / 2); f.write(f.read() xor 0x55) }
+        val damaged = SignedFeedStore(dir, "threats", trusted, listOf("https://intel.test"), FakeServer().apply { offline = true }) { now }
+        check(damaged.loadFast())
+        check(damaged.recheck()) { damaged.lastError }
+        check(damaged.bundle!!.index.mapped) { "rebuilt index in use" }
+        val d3 = differences(heap.index, damaged.bundle!!.index)
+        check(d3 == 0) { "$d3 differences after the rebuild" }
+
+        // Changed bundle on disk: recheck refuses it (SHA-256), load() refuses it as before.
+        val bundleFile = File(dir, "threats-200-bundle.json")
+        val good = bundleFile.readBytes()
+        bundleFile.writeBytes(good.copyOf().also { it[it.size / 2] = (it[it.size / 2].toInt() xor 1).toByte() })
+        val badBundle = SignedFeedStore(dir, "threats", trusted, listOf("https://intel.test"), FakeServer().apply { offline = true }) { now }
+        check(badBundle.loadFast())
+        check(!badBundle.recheck() && badBundle.bundle == null) { "tampered bundle must not stay in use" }
+        bundleFile.writeBytes(good)
+
+        // Changed manifest: the index key (SHA-256 of the manifest bytes) no longer matches.
+        val manifestFile = File(dir, "threats-200-manifest.json")
+        val goodManifest = manifestFile.readBytes()
+        manifestFile.writeBytes(goodManifest + byteArrayOf(' '.code.toByte()))
+        val other = SignedFeedStore(dir, "threats", trusted, listOf("https://intel.test"), FakeServer().apply { offline = true }) { now }
+        check(!other.loadFast()) { "index of other manifest bytes is not used" }
+        manifestFile.writeBytes(goodManifest)
+
+        // A newer version replaces the old index file.
+        server.publish(buildFeed(key, 201, BASE_RULES))
+        check(store.update()) { store.lastError }
+        check(!index.exists() && File(dir, "threats-201-index.bin").isFile) { "old index removed with the old version" }
+        check(store.matchUrl("https://malware.example/")?.category == "malware")
     }
 
     println("\n$passed passed, $failed failed")
