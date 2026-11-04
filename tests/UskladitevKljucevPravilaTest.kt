@@ -257,8 +257,8 @@ fun main() {
     // Lastnik 4. 11. 2026 (05:10): kljuc iz Safeer OS velja tudi v Predvajalniku na isti napravi.
     run {
         val P = UskladitevKljucevPravila
-        val meta = mapOf("debrid:torbox" to P.Meta(10, "n-tv", false, "x"), "usenet" to P.Meta(20, "n-telefon", true, ""),
-            "debrid:rd" to P.Meta(30, "n-tv", false, "y"))
+        val meta = mapOf("debrid:torbox" to Meta(10, "n-tv", false, "x"), "usenet" to Meta(20, "n-telefon", true, ""),
+            "debrid:rd" to Meta(30, "n-tv", false, "y"))
         val vr = mapOf("debrid:torbox" to "K1", "debrid:rd" to "K2")
         val z = P.zaSorodnika(meta, vr)
         preveriEnako("sorodnik dobi tudi prejete z drugih naprav", setOf("debrid:torbox", "usenet", "debrid:rd"), z.map { it.kljuc }.toSet())
