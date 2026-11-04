@@ -254,7 +254,8 @@ object Aplikacije {
         val tv = c.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
         val posodobljena = casPosodobitve(c, v)
         val predpomnilnik = File(c.cacheDir, "namizje-ikone")
-        val datoteka = File(predpomnilnik, "${v.paket}-ikona-$posodobljena.png")
+        // »-2-«: preverba TV 4. 11. 2026 - stara shranjena pasica (F-Droid) je bila obrezana; stare datoteke spodaj izbrisemo.
+        val datoteka = File(predpomnilnik, "${v.paket}-ikona-2-$posodobljena.png")
 
         if (posodobljena > 0 && datoteka.isFile) {
             try {
@@ -332,15 +333,22 @@ object Aplikacije {
         } catch (_: Throwable) { null }
     }
 
-    /** Risba (tudi prilagodljiva ikona) v sliko, v velikosti, ki jo risba sama ponudi. */
+    /**
+     * Risba (tudi prilagodljiva ikona) v sliko, v velikosti, ki jo risba sama ponudi. Preverba TV 4. 11. 2026: sirina in
+     * visina sta bili omejeni vsaka zase (pasica 640x360 -> 512x360), risba pa narisana v te meje - pasica z bitno sliko
+     * (F-Droid, »F-Droi«) se je obrezala ali sploscila. Zdaj sorazmerno pomanjsamo ([AplikacijePravila.meraSlike]) in
+     * risbo narisemo v njeni naravni velikosti na pomanjsano platno.
+     */
     private fun vBitmap(d: Drawable): Bitmap? {
         if (d is BitmapDrawable) d.bitmap?.let { return it }
         val sirina = d.intrinsicWidth.takeIf { it > 0 } ?: 192
         val visina = d.intrinsicHeight.takeIf { it > 0 } ?: 192
+        val (s, v) = AplikacijePravila.meraSlike(sirina, visina, 512)
         return try {
-            val b = Bitmap.createBitmap(sirina.coerceAtMost(512), visina.coerceAtMost(512), Bitmap.Config.ARGB_8888)
+            val b = Bitmap.createBitmap(s, v, Bitmap.Config.ARGB_8888)
             val platno = Canvas(b)
-            d.setBounds(0, 0, platno.width, platno.height)
+            platno.scale(s.toFloat() / sirina, v.toFloat() / visina)
+            d.setBounds(0, 0, sirina, visina)
             d.draw(platno)
             b
         } catch (_: Throwable) { null }

@@ -60,5 +60,10 @@ fun main() {
     preveriEnako("Grok 5: velike crke DOCX", "Porocilo.DOCX", P.zdruziIme("Porocilo.DOCX", ".pdf"))
     preveriEnako("Grok 5: stevilka ni koncnica", "verzija 1.2.txt", P.zdruziIme("verzija 1.2", ".txt"))
 
+    // Preverba TV 4. 11. 2026: prazna mapa (Videi, 0 datotek) nima iskalnega polja; mapa z vnosi ali tekoce iskanje ga ima.
+    preveriEnako("prazna mapa: brez iskanja", false, P.pokaziIskanje(0, ""))
+    preveriEnako("mapa z vnosi: iskanje", true, P.pokaziIskanje(3, ""))
+    preveriEnako("iskanje brez zadetkov ostane", true, P.pokaziIskanje(0, "film"))
+
     if (napak == 0) println("DatotekePravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

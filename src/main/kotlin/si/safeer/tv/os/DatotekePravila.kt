@@ -6,6 +6,12 @@ package si.safeer.tv.os
  * Nikoli sistemske mape in podatki drugih aplikacij (Android/data, Android/obb, Android/media drugih paketov).
  */
 object DatotekePravila {
+    /**
+     * Preverba TV 4. 11. 2026 (Datoteke > Ta televizor > Videi, 0 datotek): polje »Isci po imenu« je bilo prikazano in je
+     * dobilo fokus, ceprav ni bilo cesa iskati. Polje je samo, kadar je v mapi kaj ([vsehVnosov]) ali ce uporabnik ze isce.
+     */
+    fun pokaziIskanje(vsehVnosov: Int, iskano: String): Boolean = vsehVnosov > 0 || iskano.isNotEmpty()
+
     /** Razlogi, zakaj ime ni veljavno ([napakaImena]). */
     const val PRAZNO = "prazno"
     const val ZNAKI = "znaki"

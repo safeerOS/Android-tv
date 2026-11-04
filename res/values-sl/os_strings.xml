@@ -128,10 +128,10 @@
     <string name="os_izhod_opis">Pokaži domači zaslon televizorja; Safeer OS ostane nameščen</string>
     <string name="os_izhod_ni">Domačega zaslona televizorja ni bilo mogoče odpreti</string>
     <string name="os_naprej">Naprej</string>
-    <string name="os_host">Host (kje je računalniška moč)</string>
+    <string name="os_host">Gostitelj (kje je računalniška moč)</string>
     <string name="os_host_opis">Domače omrežje ali tvoj strežnik zunaj hiše</string>
     <string name="os_host_doma">Domače omrežje</string>
-    <string name="os_host_vprasanje">Privzeto je host doma: Safeer Link teče na tej napravi, datoteke pa pridejo z računalnika v isti hiši - nič ne zapusti tvojega omrežja.\n\nLahko pa uporabiš svoj strežnik zunaj hiše (najet ali v oblaku). Takrat se naprava poveže nanj prek interneta: seznanitev je enaka kot doma (koda, potrdilo je pripeto), promet - tudi tvoje datoteke - pa zapusti domače omrežje in gre do tistega strežnika. Uporabi samo strežnik, ki je tvoj.</string>
+    <string name="os_host_vprasanje">Privzeto je gostitelj doma: Safeer Link teče na tej napravi, datoteke pa pridejo z računalnika v isti hiši - nič ne zapusti tvojega omrežja.\n\nLahko pa uporabiš svoj strežnik zunaj hiše (najet ali v oblaku). Takrat se naprava poveže nanj prek interneta: seznanitev je enaka kot doma (koda, potrdilo je pripeto), promet - tudi tvoje datoteke - pa zapusti domače omrežje in gre do tistega strežnika. Uporabi samo strežnik, ki je tvoj.</string>
     <string name="os_host_vnesi">Vnesi naslov</string>
     <string name="os_host_naslov">Naslov tvojega strežnika</string>
     <string name="os_host_naslov_opis">Ime ali naslov IP, z vrati, če niso običajna. Primer: moj-streznik.si ali 203.0.113.7:8990</string>
@@ -146,9 +146,9 @@
     <string name="os_host_napacna_koda">Napačna koda ali pa je vmes kdo drug. Poskusi znova.</string>
     <string name="os_host_prevec_poskusov">Preveč poskusov. Na strežniku začni seznanitev znova.</string>
     <string name="os_host_ni_odgovora">Strežnik se ni oglasil. Preveri naslov, da na njem teče Safeer Link in da so vrata odprta.</string>
-    <string name="os_host_oddaljen_vprasanje">Host je %1$s, zunaj domačega omrežja. Se vrnem na domače omrežje? Žeton za tisti strežnik pozabimo; seznaniš se lahko kadarkoli znova.</string>
+    <string name="os_host_oddaljen_vprasanje">Gostitelj je %1$s, zunaj domačega omrežja. Se vrnem na domače omrežje? Žeton za tisti strežnik pozabimo; seznaniš se lahko kadarkoli znova.</string>
     <string name="os_host_domov">Nazaj na domače omrežje</string>
-    <string name="os_host_spet_doma">Host je spet domače omrežje.</string>
+    <string name="os_host_spet_doma">Gostitelj je spet domače omrežje.</string>
     <string name="os_zaganjalnik_televizor_obdrzi">Televizor obdrži svojega</string>
     <string name="os_zaganjalnik_televizor_obdrzi_opis">Safeer OS je vklopljen kot domači zaslon, a ta televizor tipke Domov ne da naprej: proizvajalec jo vedno pelje na svoj domači zaslon (%1$s). To je odločitev televizorja, ne napaka Safeer OS, in brez posega v sistem televizorja tega ni mogoče obiti.\n\nSafeer OS še vedno odpreš iz zaganjalnika, iz vrstice aplikacij in z daljincem Safeer Linka. Lahko pustiš vklopljeno (nič ne stane) ali izklopiš.</string>
     <string name="os_zaganjalnik_izklopi_kratko">Izklopi</string>
@@ -161,7 +161,7 @@
     <string name="os_vklopi">Vklopi</string>
     <!-- Spodnja vrstica v nastavitvah: koliko moci ima host -->
     <string name="os_host_ta_televizor">Ta televizor: %1$s</string>
-    <string name="os_host_racunalnik">Host: %1$s</string>
+    <string name="os_host_racunalnik">Gostitelj: %1$s</string>
     <string name="os_host_jedra">jedra: %1$d</string>
     <string name="os_host_obremenitev">obremenitev: %1$.2f</string>
     <string name="os_host_ram">pomnilnik: %1$s</string>
@@ -304,7 +304,7 @@
     <string name="os_izberi_sliko">Izberi sliko za ozadje</string>
     <string name="os_scit_ploscica_vklopljen">Vklopljeno · %1$d</string>
     <string name="os_moc">Zmogljivost</string>
-    <string name="os_moc_opis">Procesor, pomnilnik in prostor — na hostu ali na tem televizorju</string>
+    <string name="os_moc_opis">Procesor, pomnilnik in prostor — na gostitelju ali na tem televizorju</string>
     <string name="os_moc_osvezi">Osveži</string>
     <string name="os_moc_zapri">Zapri</string>
     <string name="os_moc_ime">Ime</string>
@@ -368,7 +368,7 @@
     <string name="os_tipk_pomoc_plosek">A vtipka · B ⌫ · X presledek · Y VELIKE · L1/R1 kazalec · Start shrani</string>
     <string name="os_pomoc_plosek">A Odpri · B Nazaj · X Uredi · Y Domov · Start Nastavitve</string>
     <string name="os_moc_kje">Kje</string>
-    <string name="os_host_racunalnik_kratko">Računalnik (host)</string>
+    <string name="os_host_racunalnik_kratko">Računalnik (gostitelj)</string>
     <string name="os_moc_gpu">Grafika</string>
     <string name="os_moc_gpu_strojno">strojno kodiranje slike</string>
     <string name="os_moc_gpu_brez">brez strojnega kodiranja</string>
@@ -768,14 +768,14 @@
     <string name="os_splet_brskalnik_opis">Kateri brskalnik odprejo Splet in iskanja v spletu</string>
     <string name="os_splet_brskalnik_privzeto">Safeer TV Browser (privzeto)</string>
     <string name="os_splet_brskalnik_ni">Na napravi ni drugega brskalnika.</string>
-    <string name="os_zapri_neuporabljeno_opis">Ko aplikacije nekaj časa ne uporabljate, se zapre, da sprosti pomnilnik. Aplikacije, ki predvajajo ali prenašajo, ostanejo.</string>
+    <string name="os_zapri_neuporabljeno_opis">Ko aplikacije nekaj časa ne uporabljaš, se zapre, da sprosti pomnilnik. Aplikacije, ki predvajajo ali prenašajo, ostanejo.</string>
     <string name="os_adb_zapiranje">Zanesljivo zapiranje aplikacij (lastni ADB)</string>
-    <string name="os_adb_zapiranje_opis">Na tem televizorju Android aplikacijam ne dovoli zapirati drugih aplikacij. Z vašim soglasjem se Safeer OS enkrat poveže na lasten vmesnik za razhroščevanje te naprave in zapira aplikacije, ki jih ne uporabljate več.</string>
-    <string name="os_adb_pogoji_naslov">Dovolite Safeer OS zapirati aplikacije?</string>
-    <string name="os_adb_pogoji">Android na tem televizorju Safeer OS ne dovoli zapreti aplikacij, ki jih ne uporabljate več, zato zasedajo pomnilnik.\n\nČe sprejmete, se Safeer OS poveže na omrežno razhroščevanje tega televizorja (samo 127.0.0.1, nikoli na drugo napravo) in ga uporablja za eno samo stvar: zapiranje aplikacij, ki jih ne uporabljate več (am force-stop). Nikoli ne zapre domačega zaslona, aplikacije, ki jo uporabljate, tipkovnice ali sistemskih aplikacij. Ključ ostane zaščiten na tem televizorju.\n\nTelevizor bo zdaj vprašal »Dovoli razhroščevanje?« - izberite »Vedno dovoli« in potrdite. To lahko tu kadarkoli izklopite. Omrežno razhroščevanje mora biti vklopljeno v možnostih za razvijalce.\n\nOmrežno razhroščevanje je dosegljivo tudi iz domačega omrežja. Če televizor kdaj vpraša »Dovoli razhroščevanje?«, ne da bi to sprožili tukaj, izberite Zavrni.</string>
+    <string name="os_adb_zapiranje_opis">Na tem televizorju Android aplikacijam ne dovoli zapirati drugih aplikacij. S tvojim soglasjem se Safeer OS enkrat poveže na lasten vmesnik za razhroščevanje te naprave in zapira aplikacije, ki jih ne uporabljaš več.</string>
+    <string name="os_adb_pogoji_naslov">Dovoliš Safeer OS zapirati aplikacije?</string>
+    <string name="os_adb_pogoji">Android na tem televizorju Safeer OS ne dovoli zapreti aplikacij, ki jih ne uporabljaš več, zato zasedajo pomnilnik.\n\nČe sprejmeš, se Safeer OS poveže na omrežno razhroščevanje tega televizorja (samo 127.0.0.1, nikoli na drugo napravo) in ga uporablja za eno samo stvar: zapiranje aplikacij, ki jih ne uporabljaš več (am force-stop). Nikoli ne zapre domačega zaslona, aplikacije, ki jo uporabljaš, tipkovnice ali sistemskih aplikacij. Ključ ostane zaščiten na tem televizorju.\n\nTelevizor bo zdaj vprašal »Dovoli razhroščevanje?« - izberi »Vedno dovoli« in potrdi. To lahko tu kadarkoli izklopiš. Omrežno razhroščevanje mora biti vklopljeno v možnostih za razvijalce.\n\nOmrežno razhroščevanje je dosegljivo tudi iz domačega omrežja. Če televizor kdaj vpraša »Dovoli razhroščevanje?«, ne da bi to sprožil tukaj, izberi Zavrni.</string>
     <string name="os_adb_sprejmem">Sprejmem</string>
-    <string name="os_adb_potrdi_na_tv">Na televizorju izberite »Vedno dovoli« in potrdite.</string>
-    <string name="os_adb_povezano">Urejeno - Safeer OS zdaj zapira aplikacije, ki jih ne uporabljate več.</string>
-    <string name="os_adb_ni_dosegljiv">Omrežno razhroščevanje je izklopljeno. Vklopite ga v Nastavitve &gt; Možnosti za razvijalce in poskusite znova.</string>
-    <string name="os_adb_ni_potrjeno">Na televizorju ni bilo potrjeno. Poskusite znova in izberite »Vedno dovoli«.</string>
+    <string name="os_adb_potrdi_na_tv">Na televizorju izberi »Vedno dovoli« in potrdi.</string>
+    <string name="os_adb_povezano">Urejeno - Safeer OS zdaj zapira aplikacije, ki jih ne uporabljaš več.</string>
+    <string name="os_adb_ni_dosegljiv">Omrežno razhroščevanje je izklopljeno. Vklopi ga v Nastavitve &gt; Možnosti za razvijalce in poskusi znova.</string>
+    <string name="os_adb_ni_potrjeno">Na televizorju ni bilo potrjeno. Poskusi znova in izberi »Vedno dovoli«.</string>
 </resources>

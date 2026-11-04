@@ -115,11 +115,14 @@
             android:scrollbars="none"
             android:clipToPadding="false"/>
 
+        <!-- Preverba TV 4. 11. 2026: besedilo praznega stanja sredinsko (prej levo poravnano). -->
         <TextView
             android:id="@+id/sporocilo"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="center_vertical"
+            android:layout_gravity="center"
+            android:gravity="center_horizontal"
+            android:textAlignment="center"
             android:textColor="?attr/osUmirjeno"
             android:textSize="15sp"
             android:lineSpacingExtra="4dp"

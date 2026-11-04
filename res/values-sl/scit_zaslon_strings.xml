@@ -22,6 +22,6 @@
     <string name="scit_z_izjema_stalna">Webtor · stalna</string>
     <string name="scit_z_ni_spusceno">Tega imena ni mogoče spustiti.</string>
     <string name="scit_z_zasebnost">Imena so samo na tem televizorju (največ 20), nikamor se ne pošiljajo in ob izklopu Ščita se izbrišejo.</string>
-    <string name="scit_z_ponudba">Safeer Ščit ustavi oglase, sledilce in nevarne strani v vseh aplikacijah na tem televizorju. DNS ostane v vašem omrežju – nič ne gre k tujemu strežniku. Android bo enkrat vprašal za dovoljenje za filter (VPN).</string>
+    <string name="scit_z_ponudba">Safeer Ščit ustavi oglase, sledilce in nevarne strani v vseh aplikacijah na tem televizorju. DNS ostane v tvojem omrežju – nič ne gre k tujemu strežniku. Android bo enkrat vprašal za dovoljenje za filter (VPN).</string>
     <string name="scit_z_ne_zdaj">Ne zdaj</string>
 </resources>

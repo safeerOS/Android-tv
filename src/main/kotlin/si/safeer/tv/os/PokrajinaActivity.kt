@@ -422,6 +422,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         // Naloga 45 G: ponudba »Dodam na dom?« sele ob vrnitvi domov - zagon aplikacije ni nikoli cakal na okno.
         // Ponudba se ob prikazu pobrise, zato je najvec enkrat.
         glavna.post { if (!isFinishing && !isDestroyed) Priljubljene.ponudiCakajoco(this) { narisiAplikacije() } }
+        if (vrniFokus) koren.post { postaviVrnjeniFokus(false) }
     }
 
     private val usbSprejemnik = object : android.content.BroadcastReceiver() {
@@ -432,6 +433,20 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
 
 
     private var zadnjiFokusPogled: View? = null
+    /** Oznaka pogleda, ki je imel fokus ob odhodu (gumb spodnje vrstice »dok:...« ali ploscica); preverba TV 4. 11. 2026. */
+    private var oznakaFokusa: String? = null
+    /** Fokus po vrnitvi se postavi enkrat - tudi po tem, ko okno spet dobi fokus (sistem ga sicer da drugam). */
+    private var vrniFokus = false
+
+    private fun postaviVrnjeniFokus(koncno: Boolean) {
+        if (!vrniFokus || isFinishing) return
+        if (koncno) vrniFokus = false
+        val oznaka = PokrajinaPravila.oznakaFokusaPoVrnitvi(oznakaFokusa,
+            { koren.findViewWithTag<View>(it)?.let { v -> v.isShown && v.isFocusable } == true }, zadnjaPloscica)
+        val v = oznaka?.let { koren.findViewWithTag<View>(it) }
+            ?: (0 until vrstaAplikacij.childCount).map { vrstaAplikacij.getChildAt(it) }.firstOrNull { it.isFocusable }
+        if (v != null && !v.isFocused) v.requestFocus()
+    }
     private val posodobiZnacke = { osveziDokZnacke() }
 
     /** Namestitev ali odstranitev aplikacije, medtem ko je dom odprt: vrstica se takoj nariše znova. */
@@ -461,13 +476,14 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         
         narisiAplikacije()
         // Naloga 49 D: zadnji fokus (ploscica, spodnji gumb ali lupa), ce pogled se obstaja; sicer ista ploscica po oznaki.
+        // Preverba TV 4. 11. 2026: gumb spodnje vrstice po oznaki (PokrajinaPravila.oznakaFokusaPoVrnitvi), znova tudi
+        // po onResume in ko okno dobi fokus - prej je fokus pristal na zadnji ploscici.
         val f = zadnjiFokusPogled
-        if (f != null && f.isAttachedToWindow && f.isShown) {
+        if (f != null && f.isAttachedToWindow && f.isShown && oznakaFokusa == null) {
             f.post { f.requestFocus() }
         } else {
-            val izbrana = zadnjaPloscica?.let { koren.findViewWithTag<View>(it) }
-                ?: (0 until vrstaAplikacij.childCount).map { vrstaAplikacij.getChildAt(it) }.firstOrNull { it.isFocusable }
-            izbrana?.let { v -> v.post { v.requestFocus() } }
+            vrniFokus = true
+            koren.post { postaviVrnjeniFokus(false) }
         }
         zbudi(animiraj = false)
         prikaziVreme()
@@ -497,6 +513,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         try { LahkiWebViewPool.sprostiProstega() } catch (_: Throwable) { }
         ZnackeObvestil.poslusalci.remove(posodobiZnacke)
         zadnjiFokusPogled = currentFocus
+        oznakaFokusa = currentFocus?.let { f -> generateSequence(f) { it.parent as? View }.firstOrNull { it.tag is String }?.tag as? String }
         try { unregisterReceiver(usbSprejemnik) } catch (_: Throwable) { }
         link.odstrani(linkPoslusalec)
         Aplikacije.obSpremembiPaketov.remove(obSpremembiPaketov)
@@ -551,6 +568,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
      */
     override fun onWindowFocusChanged(imaFokus: Boolean) {
         super.onWindowFocusChanged(imaFokus)
+        if (imaFokus && vrniFokus) koren.post { postaviVrnjeniFokus(true) }
         if (imaFokus && ::poljeLupe.isInitialized && !poljeLupe.showSoftInputOnFocus)
             (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).hideSoftInputFromWindow(window.decorView.windowToken, 0)
     }

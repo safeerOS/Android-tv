@@ -11,7 +11,7 @@
     <string name="os_prijava_koda_naslov">6-mestna koda</string>
     <string name="os_prijava_koda_opis">Na napravi, ki se pridružuje, odpri Safeer → Povezane naprave → Pridruži se. Koda se pokaže tukaj – prepiši jo tja.</string>
     <string name="os_prijava_koda_za">Koda za %1$s</string>
-    <string name="os_prijava_koda_velja">Velja 5 minut · vnesite na novi napravi</string>
+    <string name="os_prijava_koda_velja">Velja 5 minut · vnesi na novi napravi</string>
     <string name="os_prijava_brez">Nadaljuj brez povezave naprav</string>
     <string name="os_prijava_zapri">Zapri</string>
     <string name="os_prijava_povezano">✓ %1$s je povezan.</string>
@@ -30,7 +30,7 @@
     <string name="os_naprave_koda_napacna_dolzina">Koda mora imeti 6 številk.</string>
     <string name="os_naprave_iskanje_naprave">Iščem napravo v domačem omrežju …</string>
     <string name="os_naprave_uspesno_povezano">Uspešno povezano z napravo %1$s.</string>
-    <string name="os_naprave_naprava_ni_najdena">Naprave ni bilo mogoče najti. Preverite, ali sta obe napravi v istem Wi-Fi omrežju.</string>
+    <string name="os_naprave_naprava_ni_najdena">Naprave ni bilo mogoče najti. Preveri, ali sta obe napravi v istem Wi-Fi omrežju.</string>
     <string name="os_prijava_vpisi_gumb">Vpiši kodo z druge naprave</string>
     <string name="os_naprave_link_izklop_naslov">Izklopim Safeer Link?</string>
     <string name="os_naprave_link_izklop_opis">Ta naprava ne bo več povezana z drugimi: njihove datoteke, pošiljanje in daljinec ne bodo na voljo, dokler Safeer Linka ne vklopiš znova.</string>

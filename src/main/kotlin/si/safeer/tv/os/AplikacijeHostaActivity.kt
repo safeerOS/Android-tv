@@ -249,7 +249,8 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         skupineDrsnik.layoutParams = LinearLayout.LayoutParams(if (ozko) -1 else 0, -2, if (ozko) 0f else 1f).apply {
             if (ozko) topMargin = dp(10) else marginStart = dp(14)
         }
-        naslov.maxLines = if (ozko) 2 else 1
+        // Preverba TV 4. 11. 2026: naslov ob gumbih glave sme v dve vrstici tudi na sirokem zaslonu (prej odrezan »Vse, ...«).
+        naslov.maxLines = 2
     }
 
     override fun onStart() {
@@ -729,6 +730,8 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         t.setPadding(vodoravno, navpicno, vodoravno, navpicno)
         t.isFocusable = true
         t.isActivated = aktiven
+        // Gumb (cip) je vedno v eni vrstici: v glavi ga je stisnjen naslov prej prelomil in odrezal (preverba TV 4. 11. 2026).
+        t.maxLines = 1
         val mere = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT,
             LinearLayout.LayoutParams.WRAP_CONTENT)
         mere.marginEnd = (8 * resources.displayMetrics.density).toInt()

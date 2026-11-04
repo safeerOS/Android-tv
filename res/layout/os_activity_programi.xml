@@ -22,9 +22,12 @@
             android:layout_height="28dp"
             android:src="@drawable/os_ikona_racunalnik"
             android:contentDescription="@null"/>
+        <!-- Preverba TV 4. 11. 2026: naslov in gumba so se v glavi stiskali (»Vse, ...«, »Namesti aplikacije ...« odrezana).
+             Naslov dobi preostanek sirine (tezo 1) in sme v dve vrstici; gumba sta izmerjena prva in sta vedno cela. -->
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:layout_marginStart="14dp"
             android:orientation="vertical">
             <TextView
@@ -37,7 +40,7 @@
                 style="@style/Os.Naslov"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:maxLines="1"
+                android:maxLines="2"
                 android:ellipsize="end"/>
         </LinearLayout>
         <!-- Lastnik 3. 11. 2026: »Namesti aplikacije« in »Sprosti pomnilnik« levo zgoraj v prvi vrstici, kjer je prostor. -->
@@ -46,10 +49,6 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:orientation="horizontal"/>
-        <View
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:layout_weight="1"/>
         <TextView
             android:id="@+id/racunalnik"
             android:layout_width="wrap_content"

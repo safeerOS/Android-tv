@@ -116,7 +116,16 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             vsi = v
             if (iskano.isNotEmpty() && ::iskanje.isInitialized) { iskano = ""; iskanje.setText("") }
             vidni = filtrirano()
+            osveziIskanje()
         }
+
+    /** Preverba TV 4. 11. 2026: iskalno polje samo, kadar je kaj iskati ([DatotekePravila.pokaziIskanje]). */
+    private fun osveziIskanje() {
+        if (!::iskanje.isInitialized) return
+        val pokazi = DatotekePravila.pokaziIskanje(vsi.size, iskano)
+        if (!pokazi && iskanje.hasFocus()) iskanje.clearFocus()
+        iskanje.visibility = if (pokazi) View.VISIBLE else View.GONE
+    }
     private var nalagam = false
     private var izbiramRacunalnik = false
     /** Krajevni vir: datoteke tega televizorja (MediaStore), brez Safeer Linka. */
@@ -630,6 +639,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                     val kje = polozaj()
                     vsi = nov
                     vidni = filtrirano()
+                    osveziIskanje()
                     osveziPrikaz()
                     if (nov.isEmpty()) pokaziSporocilo(getString(R.string.os_datoteke_prazna_mapa)) else {
                         skrijSporocilo()

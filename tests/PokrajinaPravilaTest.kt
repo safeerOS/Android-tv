@@ -194,6 +194,14 @@ fun main() {
     preveriEnako("varen rob vmes", 60, PokrajinaPravila.varenRob(60))
     preveriEnako("teden najvec 5 dni", 5, PokrajinaPravila.DNI_TEDNA)
     preveriEnako("plosck X ni meni", false, PokrajinaPravila.jeTipkaMenija(99))
+    // Preverba TV 4. 11. 2026: Nazaj iz Aplikacij (gumb spodnje vrstice) - fokus na gumb, ne na zadnjo ploscico.
+    val naZaslonu = setOf("dok:aplikacije", "splet:https://facebook.com")
+    preveriEnako("vrnitev na gumb spodnje vrstice", "dok:aplikacije",
+        PokrajinaPravila.oznakaFokusaPoVrnitvi("dok:aplikacije", { it in naZaslonu }, "splet:https://facebook.com"))
+    preveriEnako("gumba ni vec: zadnja ploscica", "splet:https://facebook.com",
+        PokrajinaPravila.oznakaFokusaPoVrnitvi("dok:link", { it in naZaslonu }, "splet:https://facebook.com"))
+    preveriEnako("nic znanega: prva ploscica (null)", null,
+        PokrajinaPravila.oznakaFokusaPoVrnitvi(null, { it in naZaslonu }, "com.izbrisana"))
 
     if (napak == 0) println("PokrajinaPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

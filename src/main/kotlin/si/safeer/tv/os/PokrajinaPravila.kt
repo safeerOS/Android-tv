@@ -29,6 +29,17 @@ object PokrajinaPravila {
     val DOK = listOf(MEDIJI, SPLET, LINK, SPOROCILA, APLIKACIJE, DATOTEKE, NASTAVITVE)
 
     /** Vrstni red gumbov v spodnji vrstici (shranjen in manjkajoci na koncu). */
+    /**
+     * Preverba TV 4. 11. 2026: Nazaj iz Aplikacije/Datoteke (odprto z gumbom spodnje vrstice) je fokus dal zadnji ploscici
+     * (facebook.com), ne gumbu, s katerega je uporabnik prisel. Fokus se vrne na pogled z oznako [oznaka] (gumb spodnje
+     * vrstice »dok:...« ali ploscica), ce je se na zaslonu; sicer na [zadnjaPloscica]; sicer null (prva ploscica).
+     */
+    fun oznakaFokusaPoVrnitvi(oznaka: String?, naZaslonu: (String) -> Boolean, zadnjaPloscica: String?): String? = when {
+        !oznaka.isNullOrEmpty() && naZaslonu(oznaka) -> oznaka
+        !zadnjaPloscica.isNullOrEmpty() && naZaslonu(zadnjaPloscica) -> zadnjaPloscica
+        else -> null
+    }
+
     fun dokVrstniRed(shranjeno: String?): List<String> {
         val s = shranjeno?.split(",")?.map { it.trim() }?.filter { it in DOK }.orEmpty()
         val izid = s.toMutableList()
