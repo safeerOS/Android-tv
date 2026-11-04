@@ -454,4 +454,10 @@
     <string name="os_tv_skrij_kanal">Sender ausblenden</string>
     <string name="os_tv_pokazi_kanal">Sender anzeigen</string>
     <string name="os_tv_kanal_skrit">%1$s · ausgeblendet</string>
+    <string name="os_tv_izberi_vec">Mehrere auswählen</string>
+    <string name="os_tv_izbranih">Ausgewählt: %1$d</string>
+    <string name="os_tv_skrij_izbrane">Ausgewählte ausblenden</string>
+    <string name="os_tv_pokazi_izbrane">Ausgewählte anzeigen</string>
+    <string name="os_tv_izbran">%1$s, ausgewählt</string>
+    <string name="os_tv_ni_izbran">%1$s, nicht ausgewählt</string>
 </resources>

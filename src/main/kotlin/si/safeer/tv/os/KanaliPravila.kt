@@ -276,6 +276,26 @@ object KanaliPravila {
         else -> n - 2
     }
 
+    /** Lastnik 4. 11. 2026: izbira vec kanalov - OK na kanalu ga oznaci ali odznaci. */
+    fun preklopiIzbiro(izbrani: Set<String>, id: String): Set<String> = if (id in izbrani) izbrani - id else izbrani + id
+
+    /** »Skrij izbrane«: vsi kljuci izbranih kanalov (vse razlicice kartice) gredo med skrite. */
+    fun skrijVec(skriti: Set<String>, kljuciIzbranih: Collection<String>): Set<String> = skriti + kljuciIzbranih
+
+    /** »Pokazi izbrane« (pri prikazu skritih): kljuci izbranih kanalov niso vec skriti. */
+    fun pokaziVec(skriti: Set<String>, kljuciIzbranih: Collection<String>): Set<String> = skriti - kljuciIzbranih.toSet()
+
+    /**
+     * Fokus po skritju vec kartic: najblizja kartica, ki ostane, glede na fokus [i] med [n] karticami (desno ima prednost);
+     * vrne njeno novo mesto v mrezi brez [skrite], ali -1, ce ne ostane nobena.
+     */
+    fun fokusPoSkritjuVec(i: Int, n: Int, skrite: Set<Int>): Int {
+        val ostanejo = (0 until n).filter { it !in skrite }
+        if (ostanejo.isEmpty()) return -1
+        val cilj = ostanejo.minWith(compareBy<Int> { kotlin.math.abs(it - i) }.thenBy { if (it >= i) 0 else 1 })
+        return ostanejo.indexOf(cilj)
+    }
+
     fun kljuciKartice(id: String, razlicice: List<String>): List<String> = (razlicice + id).map { OsPravila.kljucKanala(it) }.distinct()
 
     fun filtri(katalogi: List<Katalog>): Filtri {

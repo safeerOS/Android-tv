@@ -97,6 +97,8 @@ class GlasbaActivity : OsActivity() {
                                val priprava: (() -> Unit)? = null,
                                /** Stalen kljuc kartice (id vsebine): po njem mreza ob spremembi ve, kateri pogled je kateri ([NarisanaMreza]). */
                                val id: String = "",
+                               /** Lastnik 4. 11. 2026: izbira vec kanalov - null = ni nacina izbire, true/false = izbran ali ne. */
+                               val izbrana: Boolean? = null,
                                /** Kartica dejanja na koncu bloka (»Pocisti«, »Pokazi vse«): ob krajsanju bloka ostane ([blokMreze]). */
                                val dejanje: Boolean = false,
                                /** Dejanje odpre vso vsebino bloka: blok ne dobi se ene kartice »Pokazi vse«. */
@@ -677,6 +679,8 @@ class GlasbaActivity : OsActivity() {
     /** Nazaj iz razdelka vrne na nadzorno plosco; s plosce zapusti Safeer Media. */
     @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun onBackPressed() {
+        // Lastnik 4. 11. 2026: Nazaj zapusti nacin izbire kanalov brez spremembe.
+        if (izbiraKanalov != null) { koncajIzbiroKanalov(); return }
         // Odprt mini predvajalnik se najprej skrije (kot na domacem zaslonu).
         if (dock?.skrijCeOdprt() == true) return
         // Podstran (»Pokazi vse« bloka, seznam predvajanja, epizode, izvajalec): nazaj na stran, s katere je bila odprta,
@@ -1052,6 +1056,12 @@ class GlasbaActivity : OsActivity() {
             tag = kljuc
             if (mala) setPadding(dp(3), dp(3), dp(3), dp(3)) else setPadding(dp(6), dp(6), dp(6), dp(8))
             setBackgroundResource(R.drawable.os_ploscica_app)
+            // Lastnik 4. 11. 2026: izbran kanal ima obrobo; TalkBack pove »izbran« ali »ni izbran«.
+            k.izbrana?.let { izb ->
+                if (izb) background = android.graphics.drawable.LayerDrawable(arrayOf(background, GradientDrawable().apply {
+                    cornerRadius = dp(12).toFloat(); setColor(0); setStroke(dp(3), osBarva(R.color.os_mint)) }))
+                contentDescription = getString(if (izb) R.string.os_tv_izbran else R.string.os_tv_ni_izbran, k.naslov.removePrefix("✓ "))
+            }
             isFocusable = true; isClickable = true
             setOnClickListener { zadnjaKartica = java.lang.ref.WeakReference(it); zapomniMestoKlika(); k.klik(it) }
             k.dolgo?.let { d ->
@@ -4287,7 +4297,7 @@ class GlasbaActivity : OsActivity() {
         val vec = !tvSamoPriljubljeni && (m.seKaj || m.naprej) && !m.nalagam && !samNalagam && prikaz.isNotEmpty()
         val napisi = napisiIzbirKanalov(m)
         val kazemNadomestek = prazna == KanaliPravila.PraznaMreza.NADOMESTEK
-        val podpis = "${prikaz.map { it.id }.hashCode()}|$vec|$opis|$napisi|${razvrstitev(TV_V_ZIVO)}|${vsebina.width}|" +
+        val podpis = "${prikaz.map { it.id }.hashCode()}|$vec|$opis|$napisi|${razvrstitev(TV_V_ZIVO)}|${vsebina.width}|${izbiraKanalov?.hashCode()}|" +
             (if (kazemNadomestek) nadomestni.map { it.id }.hashCode() else 0) + "|$prazna"
         if (podpis == m.podpis) { if (stanje.text.toString() != opis) stanje.text = opis; narociPreverjanje(m); return }
         m.podpis = podpis
@@ -4304,8 +4314,8 @@ class GlasbaActivity : OsActivity() {
             (if (kazemNadomestek) videi(nadomestni, razlicice = m.razlicice) else emptyList()) +
             (if (prikaz.isEmpty() && (prazna == KanaliPravila.PraznaMreza.PRAZNO || !cakamDodatke && !m.nalagam)) listOf(karticaDodajVir()) else emptyList())
         pokaziMrezo(m, Vrsta("", kartice, video = true, mreza = true, kanali = true), opis,
-            "${m.zvrst}|${m.jezik}|${razvrstitev(TV_V_ZIVO)}|$napisi|${ozekZaslon()}") {
-            (if (vlc) emptyList() else listOf(razdelkiVrstica(TV_V_ZIVO))) + listOf(kanaliIzbire(m))
+            "${m.zvrst}|${m.jezik}|${razvrstitev(TV_V_ZIVO)}|$napisi|${ozekZaslon()}|${izbiraKanalov?.let { "izbira:${it.size}" }}") {
+            (if (vlc) emptyList() else listOf(razdelkiVrstica(TV_V_ZIVO))) + listOf(kanaliIzbire(m)) + listOfNotNull(vrsticaIzbireKanalov())
         }
         osveziIkoneVgrajenih()
         narociPreverjanje(m)
@@ -6031,7 +6041,17 @@ class GlasbaActivity : OsActivity() {
                 sk.quality >= 720 || RX_KAKOVOST_720.containsMatchIn(signal) -> KakovostPravila.Oznaka.HD.napis
                 else -> ""
             }
-            val kartica = Kartica(sk.naslov, podnaslov, sk.slika, {
+            // Lastnik 4. 11. 2026: v nacinu izbire OK na kanalu ga oznaci ali odznaci (kljukica, obroba, opis za TalkBack).
+            val izbira = izbiraKanalov?.takeIf { vZivo && razlicice != null }
+            val skritOznacen = vZivo && MrtviKanali.pokaziSkrite && MrtviKanali.jeSkrit(this, sk.id)
+            val naslovKartice = (if (izbira != null && sk.id in izbira) "✓ " else "") +
+                (if (skritOznacen) getString(R.string.os_tv_kanal_skrit, sk.naslov) else sk.naslov)
+            val kartica = Kartica(naslovKartice, podnaslov, sk.slika, klik@{
+                izbiraKanalov?.takeIf { vZivo }?.let { izb ->
+                    izbiraKanalov = KanaliPravila.preklopiIzbiro(izb, sk.id)
+                    mrezaKanalov?.let { narisiKanale(it) }
+                    return@klik
+                }
                 zadnjiIzbran = sk.id
                 // Uporabnik vidi eno kartico. V ozadju ostanejo vse razlicice, urejene od najboljse; v mrezi, ki se
                 // dopolnjuje na mestu, so to razlicice zadnjega risanja (pogled kartice je se od prvega).
@@ -6074,7 +6094,8 @@ class GlasbaActivity : OsActivity() {
             }, { meni(sk, celotaZdaj(), vrsta, seznam) }, oznaka = tip, kakovost = kakovost,
                 ocena = sk.rating.takeIf { it > 0.0 }?.let { String.format(Locale.ROOT, "%.1f", it) }.orEmpty(),
                 ikona = if (vZivo) R.drawable.os_ikona_tv else if (sk.radio) R.drawable.os_ikona_radio else R.drawable.os_ikona_video,
-                tvId = tvId, id = sk.id,
+                tvId = tvId, id = if (izbira != null) "${sk.id}|izbira:${sk.id in izbira}" else if (skritOznacen) "${sk.id}|skrit" else sk.id,
+                izbrana = izbira?.let { sk.id in it },
                 kakovostId = if (Stremio.jeEnota(sk) && !vZivo) Stremio.razstavi(sk)?.third.orEmpty() else "",
                 // Televizor: ko izbira obstane na filmu iz dodatkov, tokove poiscemo vnaprej (predpomnilnik) - OK ga zazene takoj.
                 priprava = if (jeTv() && Stremio.jeEnota(sk) && !Stremio.jeSerija(sk) && !vZivo)
@@ -6274,6 +6295,9 @@ class GlasbaActivity : OsActivity() {
             val razlicice = mrezaKanalov?.razlicice?.get(sk.id).orEmpty().map { it.id }
             val kljuci = KanaliPravila.kljuciKartice(sk.id, razlicice)
             val fokus = kljucFokusa()
+            if (razdelek == TV_V_ZIVO && mrezaKanalov != null) dejanja += getString(R.string.os_tv_izberi_vec) to {
+                izbiraKanalov = setOf(sk.id); mrezaKanalov?.let { narisiKanale(it) }
+            }
             if (MrtviKanali.jeSkrit(this, sk.id)) dejanja += getString(R.string.os_tv_pokazi_kanal) to {
                 MrtviKanali.pokazi(this, kljuci); mrezaKanalov?.let { narisiKanale(it) }
             } else dejanja += getString(R.string.os_tv_skrij_kanal) to {
@@ -9046,6 +9070,55 @@ class GlasbaActivity : OsActivity() {
     private val preverjanjeEpizod = Executors.newFixedThreadPool(4)
     private val vPreverjanju = java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap<String, Boolean>())
     @Volatile private var zadnjiDotik = 0L
+
+    /** Lastnik 4. 11. 2026: nacin izbire vec kanalov v TV v zivo (id glave kartice); null = ni nacina izbire. */
+    private var izbiraKanalov: Set<String>? = null
+
+    private fun koncajIzbiroKanalov(osvezi: Boolean = true) {
+        if (izbiraKanalov == null) return
+        izbiraKanalov = null
+        if (osvezi) mrezaKanalov?.let { it.podpis = ""; narisiKanale(it) }
+    }
+
+    /** »Skrij izbrane« ([skrij] true) ali »Pokazi izbrane«; fokus na najblizjo kartico, ki ostane. */
+    private fun skrijIzbrane(skrij: Boolean) {
+        val m = mrezaKanalov ?: return
+        val izbrani = izbiraKanalov.orEmpty()
+        val kljuci = izbrani.flatMap { id -> KanaliPravila.kljuciKartice(id, m.razlicice[id].orEmpty().map { it.id }) }
+        if (skrij) {
+            val mesta = m.narisani.withIndex().filter { it.value in izbrani }.map { it.index }.toSet()
+            val fokus = kljucFokusa()
+            val i = fokus?.substringAfterLast('#')?.toIntOrNull() ?: mesta.minOrNull() ?: 0
+            val j = if (MrtviKanali.pokaziSkrite) i else KanaliPravila.fokusPoSkritjuVec(i, m.narisani.size, mesta)
+            if (j >= 0) { vrniKljuc = "k:#$j"; vrniKljucDo = android.os.SystemClock.uptimeMillis() + 3_000 }
+            MrtviKanali.skrij(this, kljuci)
+        } else MrtviKanali.pokazi(this, kljuci)
+        android.util.Log.i("SafeerOsMedia", "kanali: ${if (skrij) "skritih" else "pokazanih"} ${izbrani.size} izbranih")
+        koncajIzbiroKanalov()
+    }
+
+    /** Vrstica nacina izbire nad mrezo: »Izbranih: N«, »Skrij izbrane«, pri prikazu skritih »Pokazi izbrane«, »Preklici«. */
+    private fun vrsticaIzbireKanalov(): View? {
+        val izbrani = izbiraKanalov ?: return null
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(4), dp(6), dp(4), dp(6))
+            addView(besedilo(15f, osBarva(R.color.os_mint), true).apply {
+                text = getString(R.string.os_tv_izbranih, izbrani.size); setPadding(dp(4), 0, dp(14), 0)
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+                accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+            })
+            fun gumb(besedilo: Int, oznaka: String, omogocen: Boolean, dejanje: () -> Unit) = addView(gumbIzbire(
+                PoljeIzbire("izbira:$oznaka", listOf(getString(besedilo)), 0, null) { }, prva = false, ozek = ozekZaslon()).apply {
+                    isEnabled = omogocen; alpha = if (omogocen) 1f else 0.5f
+                    setOnClickListener { dejanje() }
+                    (this as? android.view.ViewGroup)?.getChildAt(1)?.visibility = View.GONE
+                }, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(8) })
+            gumb(R.string.os_tv_skrij_izbrane, "skrij", izbrani.isNotEmpty()) { skrijIzbrane(true) }
+            if (MrtviKanali.pokaziSkrite) gumb(R.string.os_tv_pokazi_izbrane, "pokazi", izbrani.isNotEmpty()) { skrijIzbrane(false) }
+            gumb(R.string.os_preklici, "preklici", true) { koncajIzbiroKanalov() }
+        }
+    }
     /** Zunanji pregled Video 3. 11. 2026: uporabnik je kliknil film - preverjanje mreze stoji do vrnitve na zaslon. */
     @Volatile private var klikNaFilm = false
 

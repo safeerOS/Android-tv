@@ -455,4 +455,10 @@
     <string name="os_tv_skrij_kanal">Masquer la chaîne</string>
     <string name="os_tv_pokazi_kanal">Afficher la chaîne</string>
     <string name="os_tv_kanal_skrit">%1$s · masquée</string>
+    <string name="os_tv_izberi_vec">Sélectionner plusieurs</string>
+    <string name="os_tv_izbranih">Sélectionnées : %1$d</string>
+    <string name="os_tv_skrij_izbrane">Masquer la sélection</string>
+    <string name="os_tv_pokazi_izbrane">Afficher la sélection</string>
+    <string name="os_tv_izbran">%1$s, sélectionnée</string>
+    <string name="os_tv_ni_izbran">%1$s, non sélectionnée</string>
 </resources>

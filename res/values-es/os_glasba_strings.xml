@@ -455,4 +455,10 @@
     <string name="os_tv_skrij_kanal">Ocultar canal</string>
     <string name="os_tv_pokazi_kanal">Mostrar canal</string>
     <string name="os_tv_kanal_skrit">%1$s · oculto</string>
+    <string name="os_tv_izberi_vec">Seleccionar varios</string>
+    <string name="os_tv_izbranih">Seleccionados: %1$d</string>
+    <string name="os_tv_skrij_izbrane">Ocultar seleccionados</string>
+    <string name="os_tv_pokazi_izbrane">Mostrar seleccionados</string>
+    <string name="os_tv_izbran">%1$s, seleccionado</string>
+    <string name="os_tv_ni_izbran">%1$s, no seleccionado</string>
 </resources>

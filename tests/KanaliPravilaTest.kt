@@ -338,6 +338,15 @@ fun main() {
         preveriEnako("fokus po skritju: naslednja", 3, P.fokusPoSkritju(3, 10))
         preveriEnako("fokus po skritju zadnje: prejsnja", 8, P.fokusPoSkritju(9, 10))
         preveriEnako("fokus po skritju edine: nic", -1, P.fokusPoSkritju(0, 1))
+        // Lastnik 4. 11. 2026: izbira vec kanalov.
+        preveriEnako("izbira: OK oznaci", setOf("a", "b"), P.preklopiIzbiro(setOf("a"), "b"))
+        preveriEnako("izbira: OK znova odznaci", setOf("a"), P.preklopiIzbiro(setOf("a", "b"), "b"))
+        preveriEnako("skrij vec", setOf("x", "a", "b"), P.skrijVec(setOf("x"), listOf("a", "b")))
+        preveriEnako("pokazi vec", setOf("x"), P.pokaziVec(setOf("x", "a", "b"), listOf("a", "b")))
+        preveriEnako("fokus po skritju vec: najblizja (levo blizje)", 1, P.fokusPoSkritjuVec(2, 6, setOf(2, 3)))
+        preveriEnako("fokus po skritju vec: enako dalec - desno", 2, P.fokusPoSkritjuVec(2, 6, setOf(2)))
+        preveriEnako("fokus po skritju vec: na koncu levo", 1, P.fokusPoSkritjuVec(5, 6, setOf(2, 3, 4, 5)))
+        preveriEnako("fokus po skritju vseh: nic", -1, P.fokusPoSkritjuVec(0, 2, setOf(0, 1)))
         // Odlocitev lastnika 4. 11. 2026: neznan seznam skrit in nikoli preverjen.
         preveriEnako("neznan seznam: privzeto skrit", KanaliPravila.Prikaz.SKRIJ, P.vMrezi(KanaliPravila.VrstaKanala.IPTV_NEZNAN, null, true, false))
         preveriEnako("neznan seznam: dokazano ni medij - skrij", KanaliPravila.Prikaz.SKRIJ, P.vMrezi(KanaliPravila.VrstaKanala.IPTV_NEZNAN, false, true, false))
