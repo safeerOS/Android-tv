@@ -113,14 +113,21 @@ object VrsticaPravila {
 
     /**
      * Ali vnos ustreza poizvedbi: vsaka beseda poizvedbe je zacetek kake besede v enem od besedil (ime in opis v vseh
-     * jezikih aplikacije), daljsa beseda (3+ znake) pa sme biti tudi sredi besede (»tooth« najde »Bluetooth«).
+     * jezikih aplikacije), daljsa beseda ([NAJMANJ_SREDI_BESEDE]+ znakov) pa sme biti tudi sredi besede (»tooth« najde
+     * »Bluetooth«, »ausgang« najde »Audioausgang«).
      */
     fun ujema(poizvedba: String, besedila: Collection<String>): Boolean {
         val besede = normaliziraj(poizvedba).split(' ').filter { it.isNotEmpty() }
         if (besede.isEmpty()) return true
         val vse = besedila.map { normaliziraj(it) }
-        return besede.all { b -> vse.any { t -> t.split(' ').any { it.startsWith(b) } || (b.length >= 3 && t.contains(b)) } }
+        return besede.all { b -> vse.any { t -> t.split(' ').any { it.startsWith(b) } || (b.length >= NAJMANJ_SREDI_BESEDE && t.contains(b)) } }
     }
+
+    /**
+     * Preverba TV 4. 11. 2026: pri 3 znakih je »scit« (Ščit) nasel tudi »Izhod zvoka«, ker italijansko ime »Uscita audio«
+     * vsebuje »scit«. Kratke poizvedbe se ujemajo samo z zacetkom besede; sredi besede sele od 5 znakov naprej.
+     */
+    const val NAJMANJ_SREDI_BESEDE = 5
 
     /**
      * Sistemske dejavnosti, ki jih proizvajalec ali Google na televizorju prestreze in ne naredijo nicesar (Philips

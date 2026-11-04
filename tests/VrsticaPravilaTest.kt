@@ -81,6 +81,14 @@ private fun iskanje() {
     preveri("besede iz razlicnih jezikov skupaj", VrsticaPravila.ujema("povezane devices", bt))
     preveri("prazna poizvedba pokaze vse", VrsticaPravila.ujema("  ", bt))
     preveri("ena crka sredi besede ne najde", !VrsticaPravila.ujema("o", listOf("Zvok")))
+    // Preverba TV 4. 11. 2026: iskanje »scit« je pokazalo »Izhod zvoka« (italijansko »Uscita audio« vsebuje »scit«).
+    val izhodZvoka = listOf("Izhod zvoka", "Zvočniki televizorja, soundbar ali slušalke", "Audio output", "Audioausgang",
+        "Salida de audio", "Sortie audio", "Uscita audio", "Altoparlanti del televisore, soundbar o cuffie")
+    val scit = listOf("Ščit", "DNS filter za ves televizor", "Shield", "Schild", "Escudo", "Bouclier", "Scudo")
+    preveri("»scit« ne najde Izhoda zvoka (Uscita)", !VrsticaPravila.ujema("scit", izhodZvoka))
+    preveri("»scit« brez sumnikov najde Ščit", VrsticaPravila.ujema("scit", scit))
+    preveri("»ščit« najde Ščit", VrsticaPravila.ujema("ščit", scit))
+    preveri("»ausgang« sredi besede najde Audioausgang", VrsticaPravila.ujema("ausgang", izhodZvoka))
 }
 
 private fun nadomestki() {
