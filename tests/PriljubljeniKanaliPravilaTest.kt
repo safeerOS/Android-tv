@@ -12,6 +12,12 @@ fun main() {
     val jeK: (String) -> Boolean = { P.jeKanal(it) }
     preveriEnako("vgrajeni je kanal", true, P.jeKanal("tv:rtv1"))
     preveriEnako("IPTV je kanal", true, P.jeKanal("iptv:https://a.b/c.m3u8"))
+    // Lastnik 4. 11. 2026 05:15: kanal gre med priljubljene tudi, ce ga shranljiva zavrne; seznama predvajanja kanal nima.
+    preveriEnako("kanal brez shranljivega toka: priljubljene", true, P.ponudiPriljubljene(kanal = true, shranljiva = false))
+    preveriEnako("skladba s shranljivim tokom: priljubljene", true, P.ponudiPriljubljene(kanal = false, shranljiva = true))
+    preveriEnako("ni kanal ne shranljiva: brez priljubljenih", false, P.ponudiPriljubljene(kanal = false, shranljiva = false))
+    preveriEnako("kanal: brez seznama predvajanja", false, P.ponudiSeznamPredvajanja(kanal = true))
+    preveriEnako("skladba: seznam predvajanja", true, P.ponudiSeznamPredvajanja(kanal = false))
     preveriEnako("skladba ni kanal", false, P.jeKanal("jamendo:123"))
     preveriEnako("kanal dodatka po klicatelju", true, P.jeKanal("tt123", dodatekVZivo = true))
 

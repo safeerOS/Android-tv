@@ -6244,6 +6244,10 @@ class GlasbaActivity : OsActivity() {
 
     private fun meni(sk: Jamendo.Skladba, vrsta: List<Jamendo.Skladba>, ime: String, seznam: MedijskiViri.Seznam?) {
         val dejanja = mutableListOf<Pair<String, () -> Unit>>()
+        // Lastnik 4. 11. 2026 05:15: kanal v zivo dobi meni s ploscicami (MeniKanala) - ikona po napisu dejanja.
+        val kanal = PriljubljeniKanaliPravila.jeKanal(sk.id, Stremio.jeVZivo(sk)) || IptvSeznami.jeKanal(sk)
+        val ikone = HashMap<String, Int>()
+        val poudarjena = HashSet<String>()
         if (MediaNapredek.polozaj(this, sk) > 0) {
             dejanja += getString(R.string.os_media_odstrani_nadaljuj) to {
                 MediaNapredek.odstrani(this, sk)
@@ -6252,9 +6256,12 @@ class GlasbaActivity : OsActivity() {
                 if (razdelek == VIDEO) osvezi(VIDEO)
             }
         }
-        if (MedijskiViri.shranljiva(sk)) {
+        if (PriljubljeniKanaliPravila.ponudiPriljubljene(kanal, MedijskiViri.shranljiva(sk))) {
             val je = MedijskiViri.jePriljubljena(this, sk)
-            dejanja += getString(if (je) R.string.os_mediji_odstrani_prilj else R.string.os_mediji_dodaj_prilj) to {
+            val napisPrilj = getString(if (je) R.string.os_mediji_odstrani_prilj else R.string.os_mediji_dodaj_prilj)
+            ikone[napisPrilj] = if (je) R.drawable.ic_m_star_filled else R.drawable.ic_m_star
+            if (je) poudarjena += napisPrilj
+            dejanja += napisPrilj to {
                 val zdaj = MedijskiViri.preklopiPriljubljeno(this, sk)
                 // Pregled N9: »Dodano« samo, ce je res shranjeno (meja priljubljenih).
                 Toast.makeText(this, when { zdaj -> R.string.os_mediji_dodano_prilj; je -> R.string.os_mediji_odstranjeno_prilj; else -> R.string.prilj_polno },
@@ -6265,6 +6272,9 @@ class GlasbaActivity : OsActivity() {
             }
             // 25. 10. 2026 (lastnik): priljubljeni kanal se z daljincem premakne levo, desno ali na zacetek mreze TV v zivo.
             if (je) dejanja += moznostiPremikaKanala(sk)
+            ikone[getString(R.string.os_spletne_levo)] = R.drawable.ic_m_back
+            ikone[getString(R.string.os_spletne_desno)] = R.drawable.ic_m_forward
+            ikone[getString(R.string.os_premakni_na_zacetek)] = R.drawable.ic_m_na_zacetek
         }
         // Svoj seznam predvajanja: skladbo dodas na obstojecega ali novega (ne samo "shrani vso vrsto").
         // Kanal v zivo ni skladba za seznam predvajanja: zanj so priljubljeni (zgoraj).
@@ -6284,7 +6294,8 @@ class GlasbaActivity : OsActivity() {
                 .setMessage(vprasanjeOdstraniSeznam())
                 .setPositiveButton(R.string.os_mediji_odstrani_seznam) { _, _ -> MedijskiViri.odstraniSeznam(this, seznam.ime); osveziPriljubljene() }
                 .setNegativeButton(android.R.string.cancel, null))
-        } else if (vrsta.count { MedijskiViri.shranljiva(it) && !it.id.startsWith("tv:") } > 1) dejanja += getString(R.string.os_mediji_shrani_seznam) to {
+        } else if (PriljubljeniKanaliPravila.ponudiSeznamPredvajanja(kanal) &&
+            vrsta.count { MedijskiViri.shranljiva(it) && !it.id.startsWith("tv:") } > 1) dejanja += getString(R.string.os_mediji_shrani_seznam) to {
             val sz = MedijskiViri.shraniSeznam(this, ime.ifBlank { sk.izvajalec.ifBlank { getString(R.string.os_mediji_moja_vrsta) } }, vrsta)
             if (sz != null) Toast.makeText(this, getString(R.string.os_mediji_seznam_shranjen, sz.ime), Toast.LENGTH_SHORT).show()
             osveziPriljubljene()
@@ -6295,6 +6306,9 @@ class GlasbaActivity : OsActivity() {
             val razlicice = mrezaKanalov?.razlicice?.get(sk.id).orEmpty().map { it.id }
             val kljuci = KanaliPravila.kljuciKartice(sk.id, razlicice)
             val fokus = kljucFokusa()
+            ikone[getString(R.string.os_tv_izberi_vec)] = R.drawable.ic_m_izbira
+            ikone[getString(R.string.os_tv_pokazi_kanal)] = R.drawable.ic_m_oko
+            ikone[getString(R.string.os_tv_skrij_kanal)] = R.drawable.ic_m_oko_skrito
             if (razdelek == TV_V_ZIVO && mrezaKanalov != null) dejanja += getString(R.string.os_tv_izberi_vec) to {
                 izbiraKanalov = setOf(sk.id); mrezaKanalov?.let { narisiKanale(it) }
             }
@@ -6318,6 +6332,13 @@ class GlasbaActivity : OsActivity() {
         for (d in Stremio.dejanjaZa(sk)) dejanja += d.naslov.za(jezikUporabnika()) to { izvediDejanjeDodatka(sk, d) }
         if (Stremio.ponujaDopolnitev(sk)) dejanja += getString(R.string.os_dodatek_o_vsebini) to { pokaziDopolnitev(sk) }
         if (dejanja.isEmpty()) return
+        ikone[getString(R.string.os_media_izberi_tok)] = R.drawable.ic_m_vir
+        if (kanal) {
+            MeniKanala.pokazi(this, sk.naslov, sk.izvajalec, dejanja.map { (napis, izvedi) ->
+                MeniKanala.Dejanje(napis, ikone[napis] ?: R.drawable.ic_m_popup, napis in poudarjena) { izvedi() }
+            })
+            return
+        }
         pokaziBrisanje(AlertDialog.Builder(this).setTitle(sk.naslov)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, k -> dejanja[k].second() }
             .setNegativeButton(android.R.string.cancel, null))

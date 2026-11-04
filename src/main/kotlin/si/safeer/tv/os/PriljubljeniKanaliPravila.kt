@@ -11,6 +11,15 @@ object PriljubljeniKanaliPravila {
     fun jeKanal(id: String, dodatekVZivo: Boolean = false): Boolean = id.startsWith("tv:") || id.startsWith("iptv:") || dodatekVZivo
 
     /**
+     * Meni kanala (lastnik 4. 11. 2026 05:15): kanal v zivo je vedno mogoce dati med priljubljene - tudi kanal IPTV s
+     * tokom http in kanal dodatka, ki ju [MedijskiViri.shranljiva] zavrne (na TV »Asian Drama SD« ni imel izbire).
+     */
+    fun ponudiPriljubljene(kanal: Boolean, shranljiva: Boolean): Boolean = kanal || shranljiva
+
+    /** »Shrani kot seznam predvajanja« je za skladbe in videe; kanali so v priljubljenih (meni kanala ga nima). */
+    fun ponudiSeznamPredvajanja(kanal: Boolean): Boolean = !kanal
+
+    /**
      * Mreza: najprej priljubljeni ([priljubljeni], po uporabnikovem vrstnem redu - samo tisti, ki so v mrezi), nato ostali
      * v danem redu. [samoPriljubljeni]: samo priljubljeni.
      */
