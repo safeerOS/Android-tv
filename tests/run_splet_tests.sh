@@ -25,9 +25,11 @@ trap 'rm -rf "$OUT"' EXIT
   "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/AplikacijaPovezave.kt" \
   "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/OmniboxTipke.kt" \
   "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/TvTipke.kt" \
+  "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/ZavihkiPravila.kt" "$TEST_DIR/ZavihkiPravilaTest.kt" \
   "$TEST_DIR/SpletMostPravilaTest.kt" "$TEST_DIR/SpletVarnostPravilaTest.kt" "$TEST_DIR/GooglePravilaTest.kt" "$TEST_DIR/GoogleTipkeTest.kt" "$TEST_DIR/DashPravilaTest.kt" "$TEST_DIR/QrPravilaTest.kt" "$TEST_DIR/SpletIkonePravilaTest.kt" "$TEST_DIR/YoutubeNaDotikTest.kt" "$TEST_DIR/DlnaPravilaTest.kt" "$TEST_DIR/ZvocnikPravilaTest.kt" "$TEST_DIR/PdfPregledovalnikPravilaTest.kt" "$TEST_DIR/AplikacijaPovezaveTest.kt" "$TEST_DIR/OmniboxTipkeTest.kt" "$TEST_DIR/TvTipkeTest.kt" \
   -include-runtime -d "$OUT/splet.jar"
 java -cp "$OUT/splet.jar" si.safeer.tv.SpletMostPravilaTestKt
+java -cp "$OUT/splet.jar" si.safeer.tv.ZavihkiPravilaTestKt
 java -cp "$OUT/splet.jar" si.safeer.tv.SpletVarnostPravilaTestKt
 java -cp "$OUT/splet.jar" si.safeer.tv.GooglePravilaTestKt
 java -cp "$OUT/splet.jar" si.safeer.tv.GoogleTipkeTestKt

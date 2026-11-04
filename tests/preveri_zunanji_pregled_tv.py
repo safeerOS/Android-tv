@@ -44,6 +44,35 @@ preveri("Brskalnik: potek odgovora Scita odpre zaslon samo z odprtim menijem", "
 pr = beri("src/main/kotlin/si/safeer/tv/os/PredvajanjeActivity.kt")
 preveri("Predvajanje: casovnik podnapisov iz OsPravila.pripravljenOd", "OsPravila.pripravljenOd(pripravljenZa, pripravljenOd, kljuc, pripravljen, zdaj)" in pr)
 
+sc = beri("src/main/kotlin/si/safeer/tv/scit/ScitActivity.kt")
+preveri("Scit: OK na ustavljenem imenu vprasa, ne spusti takoj", "({ spusti(z.ime) })" not in sc and "potrdiSpust(z.ime)" in sc and "R.style.Os_Okno" in sc[sc.find("fun potrdiSpust"):])
+for jez in ("", "-sl", "-en", "-de", "-es", "-fr", "-it"):
+    s = beri("res/values%s/scit_zaslon_strings.xml" % jez)
+    preveri("Scit: vprasanje o spustu v values%s" % jez, all('name="%s"' % k in s for k in ("scit_z_spusti_vprasanje", "scit_z_spusti_da", "scit_z_spusti_ne")))
+
+vn = beri("src/main/kotlin/si/safeer/tv/link/VnosStoritev.kt")
+preveri("Vnos: okvir v WebViewu skrit, ce so domaci elementi", "VnosVklopPravila.skrijOkvirVSpletnem(jeVSpletnem(vz)" in vn)
+preveri("Vnos: okvir po umiritvi mej", "VnosVklopPravila.okvirPoMeritvi(" in vn and "narisanOkvir = zdajOkvir" in vn)
+
+# Lastnik 4. 11. 2026 23:35: vsaka priprava (zacniPripravo) se mora na svoji poti tudi koncati (koncajPripravo z istim
+# kljucem) - sicer kljuc ostane v pripraveVTeKu in naslednji klik na isto vsebino ne naredi nicesar.
+for m in re.finditer(r"val (\w+) = (?:\w+ \?: )?zacniPripravo\(", g):
+    ime = m.group(1)
+    konec = min([i for i in (g.find("\n    private fun ", m.end()), g.find("\n    fun ", m.end())) if i > 0] or [len(g)])
+    vrstica = g.count("\n", 0, m.start()) + 1
+    preveri("Media: priprava '%s' (vrstica %d) se konca na svoji poti" % (ime, vrstica), ("koncajPripravo(%s)" % ime) in g[m.end():konec])
+
+pk = beri("src/main/kotlin/si/safeer/tv/os/PokrajinaActivity.kt")
+dok = pk[pk.find("private fun narisiDok"):pk.find("private fun osveziDokZnacke")]
+preveri("Dom: napis spodnje vrstice v eni vrstici, mesto rezervirano (brez skoka)", "maxLines = 1" in dok and "View.GONE\n                }" not in dok and "bes.visibility = if (ima) View.VISIBLE else View.INVISIBLE" in dok)
+
+akt = beri("res/drawable/bg_tab_card_active.xml")
+privzeto_akt = akt[akt.rfind("<item>"):]
+preveri("Zavihki: aktivni zavihek brez zelenega okvirja (zelen samo fokus)", 'state_focused="true"' in akt and "osMint" not in privzeto_akt)
+
+preveri("Brskalnik: zagon z zaganjalnika pusti en zavihek", ma.count("pustiEnZavihekObZagonu()") >= 3)
+preveri("Brskalnik: zavihek spletne aplikacije se ob izhodu unici", "tabManager.closeTab(this, aplikacija.id)" in ma and "ZavihkiPravila.unici(zvokVOzadju" in ma)
+
 if napake:
     print("NAPAKA zunanji pregled TV:", len(napake)); sys.exit(1)
 print("zunanji pregled TV OK")

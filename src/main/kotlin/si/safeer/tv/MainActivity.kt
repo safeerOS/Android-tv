@@ -544,6 +544,20 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         try { si.safeer.tv.os.SpletneAplikacije.zapomniMesto(this, kljuc, activeUrl()) } catch (_: Throwable) { }
     }
 
+    /** Brskalnik je bil ustavljen (onStop) in se se ni vrnil na zaslon (onResume) - za ZavihkiPravila.zapriOstale. */
+    private var bilVOzadju = false
+
+    /**
+     * Lastnik 4. 11. 2026 23:43: zagon z zaganjalnika ali iz Safeer OS, ko je bil brskalnik v ozadju - ostane en zavihek
+     * (aktivni, domaca stran), ostali se unicijo (WebView destroy, RAM). Zavihek, ki predvaja, ostane.
+     */
+    private fun pustiEnZavihekObZagonu() {
+        if (!ZavihkiPravila.zapriOstale(ZavihkiPravila.Namera.ZAGANJALNIK, tabManager.count, bilVOzadju)) return
+        val aktivni = tabManager.getActiveTab()?.id ?: return
+        tabManager.getAllTabs().filter { it.id != aktivni && !it.predvaja }.map { it.id }
+            .forEach { try { tabManager.closeTab(this, it) } catch (_: Throwable) { } }
+    }
+
     internal fun izklopiNacinAplikacije() {
         val bila = nacinAplikacije ?: return
         zapomniMestoAplikacije(bila)
@@ -563,6 +577,10 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         if (aplikacija != null && !bilZvokVOzadju) try { aplikacija.webView?.onPause() } catch (_: Throwable) { }
         prejsnjiZavihek?.takeIf { id -> id != zavihekAplikacije && tabManager.getAllTabs().any { it.id == id } }
             ?.let { try { tabManager.switchTab(it) } catch (_: Throwable) { } }
+        // Vodja 4. 11. 2026 23:43 (RAM, pravilo lastnika 2. 11.): zavihek aplikacije ne ostane med odprtimi zavihki - mesto je
+        // zapomnjeno zgoraj, ponoven vstop nadaljuje tam (ZavihkiPravila.unici). Zvok v ozadju in izbira datotek ostaneta.
+        if (aplikacija != null && ZavihkiPravila.unici(bilZvokVOzadju, aplikacija.webView?.cakaIzbiroDatotek == true, isChangingConfigurations))
+            try { tabManager.closeTab(this, aplikacija.id) } catch (_: Throwable) { }
         prejsnjiZavihek = null
         zavihekAplikacije = null
         nastaviVidnostChrome(View.VISIBLE)
@@ -926,6 +944,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
     override fun onResume() {
         super.onResume()
+        // onNewIntent pride pred onResume: do tu velja, da je bil brskalnik v ozadju (ZavihkiPravila.zapriOstale).
+        mainHandler.post { bilVOzadju = false }
         si.safeer.tv.os.NamestiApk.nadaljujCeCaka(this)
         if (SpletDomaca.jeSafeerOs(this)) {
             mainHandler.removeCallbacks(spletStanje)
@@ -952,6 +972,11 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     }
 
     override fun onStop() {
+        // Vodja 4. 11. 2026 23:43: Domov ali druga aplikacija med spletno aplikacijo - zavihek aplikacije se unici (mesto
+        // je zapomnjeno), razen zvoka v ozadju in izbire datotek (ZavihkiPravila.unici).
+        if (nacinAplikacije != null && ZavihkiPravila.unici(zvokVOzadju, activeWebView()?.cakaIzbiroDatotek == true, isChangingConfigurations))
+            try { izklopiNacinAplikacije() } catch (_: Throwable) { }
+        bilVOzadju = true
         silenceBackgroundMedia("onStop")
         naZaslonu = false
         if (::tabManager.isInitialized) {
@@ -1238,7 +1263,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         // Lastnik 4. 11. 2026: Splet iz Safeer OS vedno pokaze domaco stran, ne zadnjega brskanja; zavihki ostanejo.
         if (intent?.getBooleanExtra(si.safeer.tv.os.Brskalnik.EXTRA_ODPRI_DOMACO, false) == true) {
             intent.removeExtra(si.safeer.tv.os.Brskalnik.EXTRA_ODPRI_DOMACO)
-            webViewContainer.post { if (!isFinishing) pokaziDomacoZavihek() }
+            webViewContainer.post { if (!isFinishing) { pokaziDomacoZavihek(); pustiEnZavihekObZagonu() } }
             return
         }
         val url = incomingBrowseUrl(intent)
@@ -1265,6 +1290,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             )
             // #endregion
             showBrowserStartPage()
+            pustiEnZavihekObZagonu()
         }
     }
 
