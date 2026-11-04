@@ -389,7 +389,7 @@ def main() -> int:
     preveri("OOM: seznam groznj se uredi v niti posodobitve, ne ob prvem iskanju",
             "newTrie.pripravi()" + chr(10) + "        threatTrie = newTrie" in te)
     preveri("OOM: zanka pojavnih oken ne ustvarja pogledov (PojavnaOknaMeja)",
-            ce.index("PojavnaOknaMeja.dovoli(pojavnaOknaCasi") < ce.index("return naPojavnoOkno?.invoke(resultMsg)"))
+            ce.index("PojavnaOknaMeja.dovoli(pojavnaOknaCasi") < ce.index("return naPojavnoOkno?.invoke(resultMsg"))
     gl5 = (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8")
     preveri("mini predvajalnik tudi v Medijskem centru (zivljenjski cikel in Nazaj)",
             "dock = MiniPredvajalnik.naOknu(this)" in gl5 and "GlasbaStoritev.poslusalci.remove(dockPoslusalec)" in gl5
