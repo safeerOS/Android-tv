@@ -360,8 +360,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         intent?.getStringExtra(EXTRA_SPLETNA_APLIKACIJA)?.let { naslov ->
             val ime = intent.getStringExtra(EXTRA_APLIKACIJA_IME).orEmpty()
             val ozadje = intent.getBooleanExtra(EXTRA_ZVOK_V_OZADJU, false)
+            val odlocitev = spletnaIzNamere(intent, naslov)
             intent.removeExtra(EXTRA_SPLETNA_APLIKACIJA)
-            webViewContainer.post { zvokVOzadju = ozadje; vklopiNacinAplikacije(naslov, ime) }
+            webViewContainer.post { odpriSpletnoIzNamere(odlocitev, naslov, ime, ozadje) }
         }
         zapomniIzvor(intent)
     }
@@ -1177,6 +1178,28 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         return null
     }
 
+    /**
+     * Tedenski pregled 4. 11. 2026 (S1): od Safeerja je namera po zascitenem vhodu (dovoljenje LINK) ali v okusu, kjer
+     * MainActivity ni izvozena (tablica, telefon, predvajalnik - samo nasa koda). Sicer cez cel zaslon samo naslov s seznama.
+     */
+    private fun spletnaIzNamere(namera: Intent, naslov: String): SpletVarnostPravila.SpletnaAplikacija {
+        val odSafeerja = namera.component?.className == si.safeer.tv.os.Brskalnik.VARNI_VHOD || try {
+            !packageManager.getActivityInfo(android.content.ComponentName(this, MainActivity::class.java), 0).exported
+        } catch (_: Exception) { false }
+        return SpletVarnostPravila.spletnaAplikacija(naslov, odSafeerja) {
+            try { si.safeer.tv.os.SpletneAplikacije.jeDodana(this, naslov) } catch (_: Throwable) { false }
+        }
+    }
+
+    private fun odpriSpletnoIzNamere(odlocitev: SpletVarnostPravila.SpletnaAplikacija, naslov: String, ime: String, ozadje: Boolean) {
+        when (odlocitev) {
+            SpletVarnostPravila.SpletnaAplikacija.CEZ_ZASLON -> { zvokVOzadju = ozadje; vklopiNacinAplikacije(naslov, ime) }
+            // Tuja aplikacija: stran se odpre, a z naslovno vrstico - uporabnik vidi, kje je.
+            SpletVarnostPravila.SpletnaAplikacija.ZAVIHEK -> { if (nacinAplikacije != null) izklopiNacinAplikacije(); odpriVZavihku(naslov) }
+            SpletVarnostPravila.SpletnaAplikacija.ZAVRNI -> varenVhod(naslov, SpletVarnostPravila.Vhod.SPLET)
+        }
+    }
+
     /** Naslov od zunaj (namera, Safeer Link) ali null; zavrnjen se ne nalozi (javascript:, data:, intent: ...). */
     private fun varenVhod(url: String?, vhod: SpletVarnostPravila.Vhod): String? {
         if (url == null) return null
@@ -1222,8 +1245,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         if (spletna != null) {
             val ime = intent.getStringExtra(EXTRA_APLIKACIJA_IME).orEmpty()
             val ozadje = intent.getBooleanExtra(EXTRA_ZVOK_V_OZADJU, false)
+            val odlocitev = spletnaIzNamere(intent, spletna)
             intent.removeExtra(EXTRA_SPLETNA_APLIKACIJA)
-            webViewContainer.post { zvokVOzadju = ozadje; vklopiNacinAplikacije(spletna, ime) }
+            webViewContainer.post { odpriSpletnoIzNamere(odlocitev, spletna, ime, ozadje) }
             return
         }
         // Navaden zagon brskalnika po tem, ko je tekla spletna aplikacija: vrni vrstico z naslovom.

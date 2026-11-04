@@ -103,6 +103,19 @@ object SpletVarnostPravila {
         return shema == "javascript" || shema == "vbscript" || shema == "data"
     }
 
+    /**
+     * Spletna aplikacija cez cel zaslon (brez naslovne vrstice) iz dodatka namere (tedenski pregled 4. 11. 2026, S1): tuja
+     * aplikacija bi sicer pokazala lazno prijavno stran, ki je ni mogoce lociti od prave. Samo http(s) in samo, ce je namera
+     * prisla od Safeerja (zasciteni vhod ali neizvozena dejavnost) ali je naslov na uporabnikovem seznamu spletnih aplikacij.
+     */
+    enum class SpletnaAplikacija { CEZ_ZASLON, ZAVIHEK, ZAVRNI }
+
+    fun spletnaAplikacija(url: String?, odSafeerja: Boolean, naSeznamu: () -> Boolean): SpletnaAplikacija = when {
+        !vhodniNaslov(url, Vhod.SPLET) -> SpletnaAplikacija.ZAVRNI
+        odSafeerja || naSeznamu() -> SpletnaAplikacija.CEZ_ZASLON
+        else -> SpletnaAplikacija.ZAVIHEK
+    }
+
     /** Najdaljsi naslov od zunaj (WebView ga sicer sprejme do 2 MB; tako dolg naslov ni povezava). */
     const val NAJDALJSI_VHODNI = 8192
 

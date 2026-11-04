@@ -52,6 +52,15 @@ def main() -> int:
         elif pred and pred in del_ and del_.find(pred) < m.start():
             napake.append(f"{datoteka}: '{glava}' preveri naslov sele po '{pred}'")
     main_kt = (TV / "MainActivity.kt").read_text(encoding="utf-8")
+    # S1: dodatek spletna_aplikacija gre vedno skozi spletnaIzNamere (oba vhoda), zasciteni vhod ima dovoljenje LINK.
+    if main_kt.count("spletnaIzNamere(intent,") != 2:
+        napake.append("MainActivity.kt: spletna_aplikacija iz namere brez spletnaIzNamere (onCreate in onNewIntent)")
+    if re.search(r"webViewContainer\.post \{ zvokVOzadju = ozadje; vklopiNacinAplikacije\(", main_kt):
+        napake.append("MainActivity.kt: spletna_aplikacija odpre cez cel zaslon brez odlocitve")
+    man = (KOREN / "okusi/brskalnik/AndroidManifest.xml").read_text(encoding="utf-8")
+    m = re.search(r"<activity-alias[^>]*si\.safeer\.tv\.SafeerVhod[^>]*>", man, re.S)
+    if not m or 'android:permission="si.safeer.tv.permission.LINK"' not in m.group(0):
+        napake.append("okusi/brskalnik: zasciteni vhod SafeerVhod brez dovoljenja LINK")
     if re.search(r"if \(!data\.isNullOrEmpty\(\)\) return data\b", main_kt):
         napake.append("MainActivity.kt: incomingBrowseUrl vrne dataString brez preverbe")
     for n in napake:
