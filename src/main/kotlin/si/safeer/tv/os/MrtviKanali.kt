@@ -24,6 +24,11 @@ object MrtviKanali {
     private const val PREFS_NEGOTOVI = "safeer_negotovi_kanali"
     /** Naloga 90d: kanali, ki jih je uporabnik sam oznacil kot nedelujoce - trajno, brez poteka (kljuc kartice). */
     private const val PREFS_SKRITI = "safeer_skriti_kanali"
+    /** Lastnik 4. 11. 2026: rocno skriti in pokazani kanali po odtisu s casom - usklajevanje v ozjem krogu ([SeznamiSink]). */
+    private const val PREFS_SKRITI_ODTIS = "safeer_skriti_kanali_odtis"
+    private const val PREFS_POKAZANI_ODTIS = "safeer_pokazani_kanali_odtis"
+    private val skritiOdtis = ConcurrentHashMap<String, Long>()
+    private val pokazaniOdtis = ConcurrentHashMap<String, Long>()
     /** Naloga 108: razlog in ime oznacenega kanala (»razlog\tIme«, [NedelujocePravila.vZapis]) - za izbiro »Ne delujejo«. */
     private const val PREFS_OPIS = "safeer_mrtvi_kanali_opis"
     private val opisi = ConcurrentHashMap<String, String>()
@@ -60,6 +65,10 @@ object MrtviKanali {
             }
             if (stari.isNotEmpty()) pn.edit().apply { stari.forEach { remove(it) } }.apply()
             skriti.addAll(c.applicationContext.getSharedPreferences(PREFS_SKRITI, Context.MODE_PRIVATE).all.keys)
+            for ((ime, cilj) in listOf(PREFS_SKRITI_ODTIS to skritiOdtis, PREFS_POKAZANI_ODTIS to pokazaniOdtis))
+                for ((k, v) in c.applicationContext.getSharedPreferences(ime, Context.MODE_PRIVATE).all) (v as? Long)?.let { cilj[k] = it }
+            // Skriti pred usklajevanjem (brez odtisa): odtis s casom 0 - pokazan na drugi napravi ga pokaze tudi tu.
+            for (k in skriti) skritiOdtis.putIfAbsent(KanaliPravila.odtisKanala(k), 0L)
             // Naloga 108: opis samo za kanale, ki so se oznaceni (ostale pocistimo).
             val po = c.applicationContext.getSharedPreferences(PREFS_OPIS, Context.MODE_PRIVATE)
             val brezOznake = ArrayList<String>()
@@ -93,13 +102,52 @@ object MrtviKanali {
      * trajno skrita, dokler je uporabnik ne vrne. Poslusalci jo umaknejo takoj.
      */
     /** Naloga 90d: koliko kartic je uporabnik skril sam. */
-    fun steviloSkritih(c: Context): Int { nalozi(c); return skriti.size }
+    fun steviloSkritih(c: Context): Int { nalozi(c); return maxOf(skriti.size, skritiOdtis.size) }
 
     /** Naloga 90d: vrne vse kanale, ki jih je uporabnik skril (izbira v mrezi TV v zivo). */
     fun vrniSkrite(c: Context) {
         nalozi(c)
+        val vsi = skriti.toList()
         skriti.clear()
         c.applicationContext.getSharedPreferences(PREFS_SKRITI, Context.MODE_PRIVATE).edit().clear().apply()
+        // Lastnik 4. 11. 2026: »Vrni vse skrite« velja v ozjem krogu (tudi za kanale, skrite na drugi napravi).
+        zapisiPokazane(c, vsi.map { KanaliPravila.odtisKanala(it) } + skritiOdtis.keys)
+    }
+
+    private fun zdaj(odtisi: Collection<String>): Long =
+        odtisi.fold(System.currentTimeMillis()) { m, k -> SeznamiPravila.novCas(m, maxOf(skritiOdtis[k] ?: 0L, pokazaniOdtis[k] ?: 0L), 0L) }
+
+    private fun zapisiPokazane(c: Context, odtisi: Collection<String>) {
+        val cas = zdaj(odtisi)
+        val es = c.applicationContext.getSharedPreferences(PREFS_SKRITI_ODTIS, Context.MODE_PRIVATE).edit()
+        val ep = c.applicationContext.getSharedPreferences(PREFS_POKAZANI_ODTIS, Context.MODE_PRIVATE).edit()
+        for (o in odtisi.toSet()) { skritiOdtis.remove(o); es.remove(o); pokazaniOdtis[o] = cas; ep.putLong(o, cas) }
+        es.apply(); ep.apply()
+    }
+
+    /** Lastnik 4. 11. 2026: stanje rocno skritih kanalov za ozji krog (samo odtisi in casi). */
+    fun skritiZaUskladitev(c: Context): KanaliPravila.SkritiKanali {
+        nalozi(c); return KanaliPravila.SkritiKanali(HashMap(skritiOdtis), HashMap(pokazaniOdtis))
+    }
+
+    /** Lastnik 4. 11. 2026: prevzem stanja naprave ozjega kroga ([KanaliPravila.prevzemiSkrite]). Vrne true ob spremembi. */
+    @Synchronized fun prevzemiSkrite(c: Context, tuje: KanaliPravila.SkritiKanali, ozji: Boolean): Boolean {
+        nalozi(c)
+        val prej = KanaliPravila.SkritiKanali(HashMap(skritiOdtis), HashMap(pokazaniOdtis))
+        val novo = KanaliPravila.prevzemiSkrite(prej, tuje, ozji)
+        if (novo == prej) return false
+        val es = c.applicationContext.getSharedPreferences(PREFS_SKRITI_ODTIS, Context.MODE_PRIVATE).edit().clear()
+        val ep = c.applicationContext.getSharedPreferences(PREFS_POKAZANI_ODTIS, Context.MODE_PRIVATE).edit().clear()
+        skritiOdtis.clear(); skritiOdtis.putAll(novo.skriti); novo.skriti.forEach { (k, v) -> es.putLong(k, v) }
+        pokazaniOdtis.clear(); pokazaniOdtis.putAll(novo.pokazani); novo.pokazani.forEach { (k, v) -> ep.putLong(k, v) }
+        es.apply(); ep.apply()
+        // Krajevno skriti, ki so bili drugje pokazani: tudi tu niso vec skriti.
+        val ven = skriti.filter { KanaliPravila.odtisKanala(it) !in skritiOdtis }
+        if (ven.isNotEmpty()) {
+            skriti.removeAll(ven.toSet())
+            c.applicationContext.getSharedPreferences(PREFS_SKRITI, Context.MODE_PRIVATE).edit().apply { ven.forEach { remove(it) } }.apply()
+        }
+        return true
     }
 
     fun skrij(c: Context, kljuci: List<String>) {
@@ -107,6 +155,13 @@ object MrtviKanali {
         val e = c.applicationContext.getSharedPreferences(PREFS_SKRITI, Context.MODE_PRIVATE).edit()
         for (k in kljuci) { skriti += k; zivDo.remove(k); e.putBoolean(k, true) }
         e.apply()
+        // Lastnik 4. 11. 2026: odtis s casom za ozji krog.
+        val odtisi = kljuci.map { KanaliPravila.odtisKanala(it) }
+        val cas = zdaj(odtisi)
+        val es = c.applicationContext.getSharedPreferences(PREFS_SKRITI_ODTIS, Context.MODE_PRIVATE).edit()
+        val ep = c.applicationContext.getSharedPreferences(PREFS_POKAZANI_ODTIS, Context.MODE_PRIVATE).edit()
+        for (o in odtisi) { skritiOdtis[o] = cas; es.putLong(o, cas); pokazaniOdtis.remove(o); ep.remove(o) }
+        es.apply(); ep.apply()
         for (k in kljuci) for (p in poslusalci) try { p(k) } catch (_: Throwable) { }
     }
 
@@ -137,15 +192,25 @@ object MrtviKanali {
 
     fun jeMrtev(c: Context, id: String): Boolean {
         nalozi(c)
-        if (doKdaj.isEmpty() && skriti.isEmpty()) return false
+        if (doKdaj.isEmpty() && skriti.isEmpty() && skritiOdtis.isEmpty()) return false
         val k = OsPravila.kljucKanala(id)
         val t = doKdaj[k]
         if (t != null && t <= System.currentTimeMillis()) doKdaj.remove(k)
-        return KanaliPravila.mrtevZaMrezo(k in skriti, pokaziSkrite, t, System.currentTimeMillis())
+        return KanaliPravila.mrtevZaMrezo(jeSkritKljuc(k), pokaziSkrite, t, System.currentTimeMillis())
+    }
+
+    /** Skrit tu ali na napravi ozjega kroga (odtis). */
+    private fun jeSkritKljuc(k: String): Boolean = k in skriti || (skritiOdtis.isNotEmpty() && odtis(k) in skritiOdtis)
+
+    /** Odtis kljuca enkrat na kljuc (mreza vprasa za vsak kanal ob vsakem risanju). */
+    private val odtisi = object : LinkedHashMap<String, String>(256, 0.75f, true) {
+        override fun removeEldestEntry(e: MutableMap.MutableEntry<String, String>?) = size > 20_000
+    }
+    private fun odtis(k: String): String = synchronized(odtisi) { odtisi.getOrPut(k) { KanaliPravila.odtisKanala(k) } }
     }
 
     /** Uporabnik je ta kanal skril sam (kljuc kartice, stalen med osvezitvami seznama). */
-    fun jeSkrit(c: Context, id: String): Boolean { nalozi(c); return OsPravila.kljucKanala(id) in skriti }
+    fun jeSkrit(c: Context, id: String): Boolean { nalozi(c); return jeSkritKljuc(OsPravila.kljucKanala(id)) }
 
     /** Lastnik 4. 11. 2026: »Pokazi kanal« - en skrit kanal (vse razlicice kartice) spet v mrezi. */
     fun pokazi(c: Context, kljuci: List<String>) {
@@ -153,6 +218,7 @@ object MrtviKanali {
         val e = c.applicationContext.getSharedPreferences(PREFS_SKRITI, Context.MODE_PRIVATE).edit()
         for (k in kljuci) { skriti -= k; e.remove(k) }
         e.apply()
+        zapisiPokazane(c, kljuci.map { KanaliPravila.odtisKanala(it) })
     }
 
     /**

@@ -105,6 +105,13 @@ object SeznamiSink {
             // »ozji«: ali je vprasujoca naprava v ozjem krogu TE naprave (kot Linux; prejemnik brez kljuca vzame samo javno).
             return JSONObject().put("lists", a).put("deleted", izbrisani).put("sources", viri).put("sources_deleted", izbrisaniViri)
                 .put("ozji", ozji).put("razpolozljivost", Razpolozljivost.povzetek(ctx)).put("premori", premori).apply {
+                    // Lastnik 4. 11. 2026: rocno skriti kanali samo napravi v ozjem krogu - samo odtisi in casi.
+                    try {
+                        KanaliPravila.izvozSkritih(MrtviKanali.skritiZaUskladitev(ctx), ozji)?.let { s ->
+                            put("hidden_channels", JSONObject(s.skriti.mapValues { it.value }))
+                            put("hidden_channels_shown", JSONObject(s.pokazani.mapValues { it.value }))
+                        }
+                    } catch (_: Throwable) { }
                     // Grok 46, Ö3: napravi zunaj ozjega kroga preklic virov z racunom, ki jih je starejsa razlicica dala vsem.
                     if (!ozji) try { MedijskiViri.preklicZunajKroga(ctx)?.let { put("sources_revoked", it) } } catch (e: Exception) {
                         Log.w(TAG, "preklic: ${e.javaClass.simpleName}") }
@@ -212,6 +219,15 @@ object SeznamiSink {
                 }
             }
         } catch (e: Exception) { Log.w(TAG, "premori od $naprava: ${e.message}") }
+        // Lastnik 4. 11. 2026: rocno skriti kanali od naprave v ozjem krogu (samo odtisi; odloci ta naprava - ozji).
+        try {
+            fun casi(o: JSONObject?): Map<String, Long> = o?.keys()?.asSequence()?.take(KanaliPravila.SKRITI_NAJVEC)
+                ?.associateWith { o.optLong(it) }.orEmpty()
+            if (kazalo.has("hidden_channels") || kazalo.has("hidden_channels_shown")) {
+                val tuje = KanaliPravila.SkritiKanali(casi(kazalo.optJSONObject("hidden_channels")), casi(kazalo.optJSONObject("hidden_channels_shown")))
+                if (MrtviKanali.prevzemiSkrite(app, tuje, ozji)) { spremenjeno = true; Log.i(TAG, "skriti kanali usklajeni (od $naprava)") }
+            }
+        } catch (e: Exception) { Log.w(TAG, "skriti kanali od $naprava: ${e.javaClass.simpleName}") }
         // 0) Moji viri: izbrisi, nato dodani viri.
         try {
             var viri = false

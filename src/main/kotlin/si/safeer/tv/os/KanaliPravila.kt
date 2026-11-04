@@ -276,6 +276,52 @@ object KanaliPravila {
         else -> n - 2
     }
 
+    // ------------------------------------------------------------------ lastnik 4. 11. 2026 (05:08): skriti kanali v ozjem krogu
+
+    /**
+     * Rocno skriti kanali, usklajeni med napravami ozjega kroga (»kar sprejmem na eni napravi, velja za vse«). Kanal je
+     * dolocen z odtisom kljuca kartice ([odtisKanala]) - id kanala nosi naslov toka (IPTV, lahko z racunom) ali dodatka,
+     * zato med napravami gre samo odtis, nikoli naslov ali poverilnica. [skriti] in [pokazani] = odtis -> cas spremembe
+     * (ms); velja zadnja sprememba (ista pravila kot Moji viri: [SeznamiPravila.virPrevzamemo], [SeznamiPravila.izbrisViraVelja]).
+     * Kanali, ki so skriti samodejno, ker ne delujejo ([mrtevZaMrezo]), se ne usklajujejo (vsaka naprava zase).
+     */
+    data class SkritiKanali(val skriti: Map<String, Long>, val pokazani: Map<String, Long>)
+
+    /** Najvec vnosov, ki jih sprejmemo od ene naprave (sporocila Linka so omejena). */
+    const val SKRITI_NAJVEC = 2000
+
+    /** Odtis kljuca kanala za Link: SHA-256 (hex) - iz njega ni mogoce dobiti naslova toka. */
+    fun odtisKanala(kljuc: String): String = java.security.MessageDigest.getInstance("SHA-256")
+        .digest(kljuc.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
+
+    /** Iz dohodnega sporocila sprejmemo samo odtis (64 hex) s smiselnim casom - nic drugega. */
+    fun veljavenOdtis(k: String, cas: Long): Boolean = k.length == 64 && k.all { it in '0'..'9' || it in 'a'..'f' } && cas > 0
+
+    /**
+     * Stanje druge naprave [tuje] prevzamemo samo od naprave v ozjem krogu te naprave ([ozji]); sicer ostane [moje]. Dostopa
+     * sporocilo ne daje: spremeni lahko samo, kateri kanali so tu skriti. Skrit tam, tu ne (ali tu pokazan prej): skrit.
+     * Pokazan tam pozneje, kot je bil tu skrit: pokazan.
+     */
+    fun prevzemiSkrite(moje: SkritiKanali, tuje: SkritiKanali, ozji: Boolean): SkritiKanali {
+        if (!ozji) return moje
+        val skriti = HashMap(moje.skriti)
+        val pokazani = HashMap(moje.pokazani)
+        for ((k, cas) in tuje.skriti.entries.take(SKRITI_NAJVEC)) {
+            if (!veljavenOdtis(k, cas)) continue
+            if (SeznamiPravila.virPrevzamemo(k in skriti, pokazani[k], cas)) { skriti[k] = cas; pokazani.remove(k) }
+        }
+        for ((k, cas) in tuje.pokazani.entries.take(SKRITI_NAJVEC)) {
+            if (!veljavenOdtis(k, cas)) continue
+            val moj = skriti[k]
+            if (moj != null && SeznamiPravila.izbrisViraVelja(moj, cas)) { skriti.remove(k); pokazani[k] = cas }
+            else if (moj == null && cas > (pokazani[k] ?: 0L)) pokazani[k] = cas
+        }
+        return SkritiKanali(skriti, pokazani)
+    }
+
+    /** Kaj ta naprava poslje: samo napravi v ozjem krogu, sicer nic. */
+    fun izvozSkritih(moje: SkritiKanali, ozji: Boolean): SkritiKanali? = if (ozji) moje else null
+
     /** Lastnik 4. 11. 2026: izbira vec kanalov - OK na kanalu ga oznaci ali odznaci. */
     fun preklopiIzbiro(izbrani: Set<String>, id: String): Set<String> = if (id in izbrani) izbrani - id else izbrani + id
 
