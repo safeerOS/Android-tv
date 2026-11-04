@@ -420,7 +420,11 @@ object LupaPravila {
         val q = zaZgodovino(niz)?.replace('\t', ' ') ?: return stetje
         val kljuc = stetje.keys.firstOrNull { it.equals(q, ignoreCase = true) } ?: q
         val novo = stetje + (kljuc to (stetje[kljuc] ?: 0) + 1)
-        return if (novo.size <= najvec) novo else novo.entries.sortedByDescending { it.value }.take(najvec).associate { it.key to it.value }
+        if (novo.size <= najvec) return novo
+        // CodeRabbit 4. 11. 2026: stabilno razvrscanje je novo iskanje (1x, zadnje) vedno odrezalo - po 200 razlicnih
+        // iskanjih ni prislo novo nobeno vec. Novo ostane, izpade najredkejse od ostalih.
+        val ostali = novo.entries.filter { it.key != kljuc }.sortedByDescending { it.value }.take((najvec - 1).coerceAtLeast(0))
+        return ostali.associate { it.key to it.value } + (kljuc to novo.getValue(kljuc))
     }
 
     /**

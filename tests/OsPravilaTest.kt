@@ -1028,6 +1028,23 @@ private fun preizkusGlasbe83() {
     preveriEnako("podnapisi: ne med zagonom slike", false, OsPravila.podnapisiZdaj(pripravljen = true, pripravljenOdMs = 1_000, zdajMs = 1_400))
     preveriEnako("podnapisi: po 1 s v READY", true, OsPravila.podnapisiZdaj(pripravljen = true, pripravljenOdMs = 1_000, zdajMs = 2_100))
     preveriEnako("podnapisi: ne med nalaganjem", false, OsPravila.podnapisiZdaj(pripravljen = false, pripravljenOdMs = 1_000, zdajMs = 9_000))
+    // CodeRabbit 4. 11. 2026: prvi klic med nalaganjem, nato READY - casovnik mora steci (prej je ostal 0).
+    run {
+        var za = ""; var od = 0L
+        od = OsPravila.pripravljenOd(za, od, "film", pripravljen = false, zdajMs = 500); za = "film"
+        preveriEnako("podnapisi: med nalaganjem 0", 0L, od)
+        od = OsPravila.pripravljenOd(za, od, "film", pripravljen = true, zdajMs = 2_000); za = "film"
+        preveriEnako("podnapisi: prvi READY zacne casovnik", 2_000L, od)
+        od = OsPravila.pripravljenOd(za, od, "film", pripravljen = true, zdajMs = 3_100)
+        preveriEnako("podnapisi: casovnik ostane", 2_000L, od)
+        preveriEnako("podnapisi: po 1 s v READY iscemo", true, OsPravila.podnapisiZdaj(true, od, 3_100))
+        preveriEnako("podnapisi: nov posnetek zacne znova", 4_000L, OsPravila.pripravljenOd("film", 2_000, "drug", true, 4_000))
+        preveriEnako("podnapisi: izhod iz READY ponastavi", 0L, OsPravila.pripravljenOd("film", 2_000, "film", false, 4_000))
+    }
+    preveriEnako("klik na film: konec priprave, zaslon viden", true, OsPravila.koncajKlikNaFilm(true, 0, true))
+    preveriEnako("klik na film: predvajalnik cez zaslon", false, OsPravila.koncajKlikNaFilm(true, 0, false))
+    preveriEnako("klik na film: priprava se tece", false, OsPravila.koncajKlikNaFilm(true, 1, true))
+    preveriEnako("klik na film: ni klika", false, OsPravila.koncajKlikNaFilm(false, 0, true))
     preveriEnako("podnapisi: samo zadnji zadetek", listOf("b"), OsPravila.dodatkiZaPodnapise(listOf("a", "b", "c"), "B") { it.uppercase() })
     preveriEnako("podnapisi: brez zadetka pri zadnjem - ostali", listOf("a", "c"), OsPravila.ostaliZaPodnapise(listOf("a", "b", "c"), listOf("b")))
     preveriEnako("podnapisi: vsi ze vprasani - nic", emptyList<String>(), OsPravila.ostaliZaPodnapise(listOf("a"), listOf("a")))

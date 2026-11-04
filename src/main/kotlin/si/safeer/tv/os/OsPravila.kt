@@ -1803,6 +1803,19 @@ object OsPravila {
     fun podnapisiZdaj(pripravljen: Boolean, pripravljenOdMs: Long, zdajMs: Long): Boolean =
         pripravljen && pripravljenOdMs > 0L && zdajMs - pripravljenOdMs >= PODNAPISI_PO_READY_MS
 
+    /**
+     * Od kdaj je predvajalnik za [kljuc] v STATE_READY: 0 med nalaganjem, ob prvem klicu v READY [zdajMs], nato ostane.
+     * CodeRabbit 4. 11. 2026: prej je po prvem klicu med nalaganjem ostala 0 in podnapisiZdaj ni bil nikoli true.
+     */
+    fun pripravljenOd(prejKljuc: String, prejOdMs: Long, kljuc: String, pripravljen: Boolean, zdajMs: Long): Long = when {
+        !pripravljen -> 0L
+        prejKljuc != kljuc || prejOdMs <= 0L -> zdajMs
+        else -> prejOdMs
+    }
+
+    /** Klik na film je koncan (ni priprave, zaslon je viden): preverjanje mreze se sme nadaljevati. */
+    fun koncajKlikNaFilm(klikNaFilm: Boolean, pripravVTeku: Int, viden: Boolean): Boolean = klikNaFilm && pripravVTeku == 0 && viden
+
     /** Samodejno vprasamo samo dodatek, ki je nazadnje zadel (po odtisu osnove); neznan ali odstranjen: vse. */
     fun dodatkiZaPodnapise(naslovi: List<String>, zadnjiOdtis: String, odtis: (String) -> String): List<String> =
         naslovi.filter { zadnjiOdtis.isNotEmpty() && odtis(it) == zadnjiOdtis }.ifEmpty { naslovi }

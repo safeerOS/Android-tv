@@ -1821,7 +1821,10 @@ class PredvajanjeActivity : OsActivity() {
         // Iscemo sele, ko slika tece (STATE_READY vsaj 1 s) - ne med zagonom slike.
         val zdaj = android.os.SystemClock.uptimeMillis()
         val pripravljen = p0.playbackState == androidx.media3.common.Player.STATE_READY
-        if (pripravljenZa != kljuc || !pripravljen) { pripravljenZa = kljuc; pripravljenOd = if (pripravljen) zdaj else 0L }
+        // CodeRabbit 4. 11. 2026: prvi klic med nalaganjem je postavil 0, naslednji v STATE_READY ga ni vec nastavil -
+        // samodejni podnapisi se niso iskali (OsPravila.pripravljenOd).
+        pripravljenOd = OsPravila.pripravljenOd(pripravljenZa, pripravljenOd, kljuc, pripravljen, zdaj)
+        pripravljenZa = kljuc
         if (!OsPravila.podnapisiZdaj(pripravljen, pripravljenOd, zdaj)) {
             if (pripravljen) glavna.postDelayed({ if (!isFinishing) samodejniPodnapisi() }, OsPravila.PODNAPISI_PO_READY_MS + 50)
             return

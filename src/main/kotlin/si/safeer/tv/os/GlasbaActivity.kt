@@ -544,10 +544,12 @@ class GlasbaActivity : OsActivity() {
         super.onResume()
         // Vrnitev na mrezo: preverjanje se nadaljuje.
         if (klikNaFilm) { klikNaFilm = false; odprtKatalog?.let { if (!isFinishing) narociUmiri() } }
+        narociUskladiSlike()
     }
 
     override fun onStart() {
         super.onStart()
+        viden = true
         // Samostojni Predvajalnik: to je njegov domaci zaslon - nova razlicica s safeer.si se ponudi tu (tiha pasica).
         if (si.safeer.tv.BuildConfig.FLAVOR == "predvajalnik") Posodobitve.ponudiCeJeCas(this)
         Ozadje.uporabi(this, koren)
@@ -627,6 +629,7 @@ class GlasbaActivity : OsActivity() {
     }
 
     override fun onStop() {
+        viden = false
         skrijPripravljam()      // predvajalnik je odprt ali uporabnik je odsel: pas ne ostane za vrnitev
         Debrid.poslusalciPrejetih.remove(obPrejetihKljucih)
         UskladitevKljucev.poslusalci.remove(obUskladitvi)
@@ -2077,6 +2080,8 @@ class GlasbaActivity : OsActivity() {
         // Iskanje v zasebnem dodatku velja, dokler je odprto iskanje; iskane besede si ne zapomnimo.
         if (i != ISKANJE && zasebnoIskanje != null) { zasebnoIskanje = null; zadnjaBeseda = "" }
         if (i != izBlokaDomov?.first) izBlokaDomov = null
+        // CodeRabbit 4. 11. 2026: nacin izbire kanalov je ostal ob odhodu iz TV v zivo; prvi Nazaj drugje ga je tiho porabil.
+        if (i != TV_V_ZIVO) izbiraKanalov = null
         razdelek = i
         odprtSeznam = ""
         podstrani.pocisti()
@@ -4812,7 +4817,8 @@ class GlasbaActivity : OsActivity() {
         // Naloga 83: seznami predvajanja uporabnika (uvozeni Spotify, YouTube) kot polica na vrhu Music.
         val seznami = if (radio) emptyList() else seznamiZaGlasbo()
         pokaziMrezo(m, Vrsta("", kartice, video = videospoti, mreza = true, kanali = radio, slicice = videospoti, skladbe = !radio && !videospoti), opis,
-            "${m.kljuc}|${razvrstitev(m.razdelek)}|${ozekZaslon()}|${seznami.map { it.ime to it.skladbe.size }.hashCode()}") {
+            // CodeRabbit 4. 11. 2026: pozni videospoti (Music Concerts) niso spremenili glave - video vrsta se ni pokazala.
+            "${m.kljuc}|${razvrstitev(m.razdelek)}|${ozekZaslon()}|${seznami.map { it.ime to it.skladbe.size }.hashCode()}|${videoVsi.map { it.id }.hashCode()}") {
             (if (vlc) emptyList() else listOf(razdelkiVrstica(m.razdelek))) + listOf(if (radio) radioIzbire() else glasbaIzbire()) +
                 listOfNotNull(policaSeznamov(seznami), policaVidea(videoVsi))
         }
@@ -7793,13 +7799,31 @@ class GlasbaActivity : OsActivity() {
     private fun koncajPripravo(kljuc: String): Boolean {
         val prisoten = pripraveVTeKu.remove(kljuc)
         if (pripraveVTeKu.isEmpty() && debridDelo == null) skrijPripravljam()
+        koncajKlikNaFilm()
         return prisoten
     }
 
     fun prekliciPriprave() {
         pripraveVTeKu.clear()
         skrijPripravljam()
+        koncajKlikNaFilm()
         PredvajanjeActivity.zapriCePripravlja()
+    }
+
+    /**
+     * CodeRabbit 4. 11. 2026: klik na film, ki ne odpre predvajalnika (sezone, izbira toka, »ni na voljo«), je pustil
+     * klikNaFilm in preverjanje mreze je stalo do ponovnega odprtja. Po koncu priprave se nadaljuje - samo, ce je zaslon
+     * se viden (odprt predvajalnik: onStop, nadaljuje onResume ob vrnitvi). Pocakamo, da predvajalnik, odprt takoj za
+     * koncem priprave, zaslon prekrije.
+     */
+    private fun koncajKlikNaFilm() {
+        if (!klikNaFilm) return
+        glavna.postDelayed({
+            if (OsPravila.koncajKlikNaFilm(klikNaFilm, pripraveVTeKu.size, viden) && !isFinishing) {
+                klikNaFilm = false
+                odprtKatalog?.let { narociUmiri() }
+            }
+        }, KLIK_NA_FILM_KONEC_MS)
     }
 
     /**
@@ -9188,12 +9212,17 @@ class GlasbaActivity : OsActivity() {
     }
     /** Zunanji pregled Video 3. 11. 2026: uporabnik je kliknil film - preverjanje mreze stoji do vrnitve na zaslon. */
     @Volatile private var klikNaFilm = false
+    /** Med onStart in onStop (predvajalnik cez zaslon = onStop). */
+    @Volatile private var viden = false
 
     /** Plakati, ki se cakajo v vrsti, odpadejo (pomnilnik, klik na film); kartica na zaslonu jih ob prikazu zahteva znova. */
     private fun izprazniVrstoSlik(razlog: String) {
         val n = slikeDelavec.queue.size
         slikeDelavec.queue.clear()
         slikeVTeKu.clear()
+        // CodeRabbit 4. 11. 2026: cakajoci pogled ima ze oznako naslova, uskladiSlike ga zato ni zahteval znova - vidna
+        // kartica je ostala prazna. Oznako cakajocim brez slike pobrisemo; znova jih zahteva uskladiSlike (onResume).
+        cakajoceSlike.values.forEach { l -> synchronized(l) { l.forEach { r -> r.get()?.takeIf { it.drawable == null }?.tag = null } } }
         cakajoceSlike.clear()
         if (n > 0) android.util.Log.i("SafeerOsMedia", "naslovnice: vrsta izpraznjena ($n, $razlog)")
     }
@@ -11577,7 +11606,7 @@ class GlasbaActivity : OsActivity() {
         /** Imetnik prenosa na polici »Preneseno«, kadar film hrani ta naprava sama. */
         private const val TA_NAPRAVA = "tukaj"
         private const val PREFS_PC_PRENOSI = "safeer_pc_prenosi"
-        private const val VIDEO = 4; private const val VIRI = 6; private const val ISKANJE = 7; private const val TV_V_ZIVO = 8
+        private const val VIDEO = 4; private const val VIRI = 6; private const val ISKANJE = 7; private const val TV_V_ZIVO = 8; private const val KLIK_NA_FILM_KONEC_MS = 800L
         private const val RAZVRSTI_PRIPOROCENO = 0
         private const val RAZVRSTI_NAJNOVEJSE = 1
         private const val RAZVRSTI_NAJSTAREJSE = 2

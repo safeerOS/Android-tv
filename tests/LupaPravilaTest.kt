@@ -114,6 +114,13 @@ fun main() {
     val stetje = LupaPravila.pristej(LupaPravila.pristej(LupaPravila.pristej(emptyMap(), "facebook"), "Facebook"), "fanfiction")
     preveriEnako("isti niz z velikimi crkami je isto iskanje", mapOf("facebook" to 2, "fanfiction" to 1), stetje)
     preveriEnako("smeti se ne stejejo", stetje, LupaPravila.pristej(stetje, "a"))
+    // CodeRabbit 4. 11. 2026: polno stetje - novo iskanje ostane, izpade najredkejse od ostalih.
+    val polno = mapOf("alfa" to 5, "beta" to 1, "gama" to 1)
+    val zNovim = LupaPravila.pristej(polno, "delta", najvec = 3)
+    preveriEnako("polno stetje: novo iskanje ostane", 1, zNovim["delta"])
+    preveriEnako("polno stetje: velikost ostane", 3, zNovim.size)
+    preveriEnako("polno stetje: pogosto ostane", 5, zNovim["alfa"])
+    preveriEnako("polno stetje: obstojece se poveca", 2, LupaPravila.pristej(polno, "beta", najvec = 3)["beta"])
     preveriEnako("stetje v besedilo in nazaj", stetje, LupaPravila.stetjeIzBesedila(LupaPravila.stetjeVBesedilo(stetje)))
     preveriEnako("pogostejse prej", listOf("facebook", "fanfiction"), LupaPravila.pogosta(stetje, listOf("fanfiction", "facebook"), "fa", 6))
     preveriEnako("ujemanje pred pogostostjo", listOf("rtv slo", "novice rtv"),
