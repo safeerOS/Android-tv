@@ -230,13 +230,12 @@ fun main() {
     check(!p.skrijOkvirVSpletnem(vSpletnem = false, imaDomace = true))    // domac gumb: okvir
     val gumbA = Okvir(83, 701, 1837, 797)
     val gumbB = Okvir(83, 850, 400, 1080)
-    val D = VnosVklopPravila.DejanjeOkvirja
-    check(p.okvirPoMeritvi(null, null, gumbA, 0) == D.POCAKAJ)              // prva meritev: se ne risemo
-    check(p.okvirPoMeritvi(null, gumbA, gumbA, 1) == D.RISI)                // umirjeno: narisemo enkrat
-    check(p.okvirPoMeritvi(gumbA, gumbA, Okvir(85, 702, 1838, 799), 0) == D.PUSTI)   // isti okvir (zamik do 4 px)
-    check(p.okvirPoMeritvi(gumbA, gumbA, gumbB, 0) == D.SKRIJ_POCAKAJ)      // premik: star okvir takoj izgine
-    check(p.okvirPoMeritvi(null, gumbB, Okvir(83, 820, 400, 1050), 1) == D.POCAKAJ)  // se drsi: se ne risemo
-    check(p.okvirPoMeritvi(null, Okvir(83, 820, 400, 1050), Okvir(83, 790, 400, 1020), VnosVklopPravila.NAJVEC_CAKANJ_OKVIRJA) == D.RISI)
+    check(p.okvirPoMeritvi(null, null, gumbA, 0) == VnosVklopPravila.DejanjeOkvirja.POCAKAJ)              // prva meritev: se ne risemo
+    check(p.okvirPoMeritvi(null, gumbA, gumbA, 1) == VnosVklopPravila.DejanjeOkvirja.RISI)                // umirjeno: narisemo enkrat
+    check(p.okvirPoMeritvi(gumbA, gumbA, Okvir(85, 702, 1838, 799), 0) == VnosVklopPravila.DejanjeOkvirja.PUSTI)   // isti okvir (zamik do 4 px)
+    check(p.okvirPoMeritvi(gumbA, gumbA, gumbB, 0) == VnosVklopPravila.DejanjeOkvirja.SKRIJ_POCAKAJ)      // premik: star okvir takoj izgine
+    check(p.okvirPoMeritvi(null, gumbB, Okvir(83, 820, 400, 1050), 1) == VnosVklopPravila.DejanjeOkvirja.POCAKAJ)  // se drsi: se ne risemo
+    check(p.okvirPoMeritvi(null, Okvir(83, 820, 400, 1050), Okvir(83, 790, 400, 1020), VnosVklopPravila.NAJVEC_CAKANJ_OKVIRJA) == VnosVklopPravila.DejanjeOkvirja.RISI)
 
     println("VnosVklopPravilaTest: OK")
 }
