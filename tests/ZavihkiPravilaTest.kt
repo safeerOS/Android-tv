@@ -3,6 +3,7 @@ package si.safeer.tv
 import si.safeer.tv.ZavihkiPravila.Domov
 import si.safeer.tv.ZavihkiPravila.Namera
 import si.safeer.tv.ZavihkiPravila.Okvir
+import si.safeer.tv.ZavihkiPravila.VstopAplikacije
 
 /** Zavihki in RAM na TV (lastnik 2. in 4. 11. 2026): en zavihek po zagonu z zaganjalnika, zavihek aplikacije ne ostane. */
 fun main() {
@@ -59,5 +60,21 @@ fun main() {
     check(!p.castBranjeNaprej("playing", 1))                      // medij je izginil s strani
     check(p.castBranjeNaprej("buffering", 5))                     // stran se se nalaga
     check(!p.castBranjeNaprej("buffering", 6))
+    // Vodja 5. 11. 2026: spletna aplikacija iz Safeer OS - lupina ostane (lastnik 28. 9., 3a65e877), zivljenjski cikel
+    // aplikacije pa velja (svoj zavihek, unicen ob izhodu). Prej: navaden VIEW (prepisal aktivni zavihek) oziroma
+    // 18460c9c: cez cel zaslon brez stranske vrstice.
+    val n = p.spletnaAplikacijaIzOs("https://rtv.si/", "RTV SLO")
+    check(n.pogled && n.naslov == "https://rtv.si/")                  // VIEW: hladen zagon = en zavihek (njen)
+    val celZaslon = n.dodatki.containsKey(p.DODATEK_CEZ_ZASLON)
+    val vLupini = n.dodatki[p.DODATEK_V_LUPINI] == true
+    check(p.stranskaVrstica(izOs = true, celZaslon = celZaslon, odpriLink = false))      // lupina Safeer OS ostane
+    check(p.vstopAplikacije(celZaslon, vLupini, dovoljeno = true) == VstopAplikacije.V_LUPINI)
+    check(n.dodatki[p.DODATEK_IME] == "RTV SLO")
+    check(p.vstopAplikacije(celZaslon = false, vLupini = true, dovoljeno = false) == VstopAplikacije.NAVADEN)   // tuja namera
+    check(p.vstopAplikacije(celZaslon = true, vLupini = false, dovoljeno = true) == VstopAplikacije.CEZ_ZASLON) // Medij
+    check(p.vstopAplikacije(celZaslon = false, vLupini = false, dovoljeno = true) == VstopAplikacije.NAVADEN)
+    check(!p.stranskaVrstica(izOs = true, celZaslon = true, odpriLink = false))
+    check(!p.stranskaVrstica(izOs = true, celZaslon = false, odpriLink = true))
+    check(!p.stranskaVrstica(izOs = false, celZaslon = false, odpriLink = false))
     println("ZavihkiPravilaTest: OK")
 }

@@ -65,6 +65,41 @@ object ZavihkiPravila {
         return vrstica.getOrNull(mesto + if (desno) 1 else -1) ?: -1
     }
 
+    /** Dodatki namere za spletno aplikacijo (MainActivity, os/Brskalnik). */
+    const val DODATEK_CEZ_ZASLON = "spletna_aplikacija"
+    const val DODATEK_V_LUPINI = "aplikacija_v_lupini"
+    const val DODATEK_IME = "aplikacija_ime"
+
+    /** Namera brez Androida: ACTION_VIEW z naslovom ([pogled]) in dodatki. */
+    data class NameraAplikacije(val pogled: Boolean, val naslov: String?, val dodatki: Map<String, Any>)
+
+    /**
+     * Spletna aplikacija iz Safeer OS (Brskalnik.spletnaAplikacija). Odlocitev lastnika 28. 9. 2026 (3a65e877): odpre se
+     * v razdelku Splet, lupina Safeer OS (stranska vrstica, vrstica z naslovom) ostane vidna - zato VIEW in ne
+     * [DODATEK_CEZ_ZASLON]. Pregled lupine 5. 11. 2026: [DODATEK_V_LUPINI] ji da zivljenjski cikel aplikacije (svoj zavihek,
+     * unicen ob izhodu) - prej je bil navaden VIEW, ki je prepisal aktivni zavihek in ostal odprt (RTV SLO).
+     */
+    fun spletnaAplikacijaIzOs(url: String, ime: String): NameraAplikacije =
+        NameraAplikacije(pogled = true, naslov = url, dodatki = mapOf(DODATEK_IME to ime, DODATEK_V_LUPINI to true))
+
+    /** Kako tece spletna stran, ki pride z namero. */
+    enum class VstopAplikacije { NAVADEN, V_LUPINI, CEZ_ZASLON }
+
+    /**
+     * Zivljenjski cikel aplikacije je neodvisen od videza: [DODATEK_CEZ_ZASLON] (Medij, zvok v ozadju) = cez cel zaslon
+     * brez lupine, [DODATEK_V_LUPINI] = v lupini. Oboje samo, ce namero dovoli SpletVarnostPravila (od Safeerja ali naslov
+     * s seznama) - sicer navaden zavihek.
+     */
+    fun vstopAplikacije(celZaslon: Boolean, vLupini: Boolean, dovoljeno: Boolean): VstopAplikacije = when {
+        !dovoljeno -> VstopAplikacije.NAVADEN
+        celZaslon -> VstopAplikacije.CEZ_ZASLON
+        vLupini -> VstopAplikacije.V_LUPINI
+        else -> VstopAplikacije.NAVADEN
+    }
+
+    /** Stranska vrstica Safeer OS: vstop iz Safeer OS, ki ni cez cel zaslon in ni stran Link (ta ima svoj videz). */
+    fun stranskaVrstica(izOs: Boolean, celZaslon: Boolean, odpriLink: Boolean): Boolean = izOs && !celZaslon && !odpriLink
+
     /** Kaj naredi tipka Domov z daljinca Safeer Control, ko je brskalnik spredaj. */
     enum class Domov { SISTEM, DOMACA_STRAN, NI_MOGOCE }
 

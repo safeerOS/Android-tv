@@ -132,14 +132,15 @@ object Brskalnik {
     }
 
     /**
-     * Spletna aplikacija v nacinu aplikacije brskalnika (dodatek spletna_aplikacija, kot [medijskaStran]). Pregled lupine
-     * 5. 11. 2026: VIEW z naslovom nacina aplikacije ni vklopil - zavihek aplikacije se ob izhodu ni unicil (RTV SLO je
-     * ostal odprt in prepisal aktivni zavihek). Brez ACTION_VIEW, sicer bi ob hladnem zagonu nastala dva zavihka.
+     * Spletna aplikacija se odpre v istem razdelku Splet; lupina Safeer OS ostane vidna (lastnik 28. 9. 2026). Zivljenjski
+     * cikel aplikacije (svoj zavihek, unicen ob izhodu) da dodatek aplikacija_v_lupini - ZavihkiPravila.spletnaAplikacijaIzOs.
      */
     fun spletnaAplikacija(c: Context, url: String, ime: String): Intent =
-        mobilniNaslov(c, url) ?: namera(c)
-            .putExtra("spletna_aplikacija", url)
-            .putExtra("aplikacija_ime", ime)
+        mobilniNaslov(c, url) ?: namera(c).apply {
+            val n = si.safeer.tv.ZavihkiPravila.spletnaAplikacijaIzOs(url, ime)
+            if (n.pogled) { action = Intent.ACTION_VIEW; data = Uri.parse(n.naslov) }
+            n.dodatki.forEach { (k, v) -> if (v is Boolean) putExtra(k, v) else putExtra(k, v.toString()) }
+        }
 
     /** Uporabnikov vir glasbe ali videa: kot spletna aplikacija, zvok pa ob tipki Domov igra naprej. */
     fun medijskaStran(c: Context, url: String, ime: String): Intent =

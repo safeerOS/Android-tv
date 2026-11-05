@@ -282,7 +282,10 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             tabManager.restoreFromFile(this)
         else { try { java.io.File(filesDir, "tabs_state.bin").delete() } catch (_: Exception) {}; false }
         if (targetUrl != null) {
-            oznaciIzvorZavihka(tabManager.createTab(this, targetUrl, true), intent, novZavihek = true)
+            // Hladen zagon spletne aplikacije v lupini: en zavihek (njen), ob izhodu se unici (zapriAplikacijoVLupini).
+            val tab = if (jeAplikacijaVLupini(intent, targetUrl)) odpriAplikacijoVLupini(targetUrl, intent)
+                else tabManager.createTab(this, targetUrl, true)
+            oznaciIzvorZavihka(tab, intent, novZavihek = true)
         } else if (!restored) {
             tabManager.createTab(this, SpletDomaca.naslov(this), true)
         } else if (intent?.getBooleanExtra(si.safeer.tv.os.Brskalnik.EXTRA_ODPRI_DOMACO, false) == true) {
@@ -551,6 +554,58 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     /** Kje je uporabnik v tej aplikaciji ostal; ob vrnitvi v pol ure ga postavimo nazaj tja. */
     private fun zapomniMestoAplikacije(kljuc: String) {
         try { si.safeer.tv.os.SpletneAplikacije.zapomniMesto(this, kljuc, activeUrl()) } catch (_: Throwable) { }
+    }
+
+    // ------------------------------------------------------------------ spletna aplikacija v lupini Safeer OS
+
+    /**
+     * Pregled lupine 5. 11. 2026: spletna aplikacija iz Safeer OS ostane v lupini (stranska vrstica in vrstica z naslovom,
+     * odlocitev lastnika 3a65e877), ima pa zivljenjski cikel aplikacije - svoj zavihek (aktivni se ne prepise), en zavihek
+     * (RAM), ob Domov, drugem razdelku ali drugem vstopu se unici, mesto ostane zapomnjeno (SpletneAplikacije).
+     */
+    private var zavihekVLupini: String? = null
+    private var prejsnjiVLupini: String? = null
+    private var kljucVLupini: String? = null
+    private var zvokVLupini = false
+
+    private fun jeAplikacijaVLupini(namera: Intent?, naslov: String): Boolean {
+        if (namera == null) return false
+        val vstop = ZavihkiPravila.vstopAplikacije(
+            celZaslon = !namera.getStringExtra(EXTRA_SPLETNA_APLIKACIJA).isNullOrBlank(),
+            vLupini = namera.getBooleanExtra(ZavihkiPravila.DODATEK_V_LUPINI, false),
+            dovoljeno = spletnaIzNamere(namera, naslov) == SpletVarnostPravila.SpletnaAplikacija.CEZ_ZASLON)
+        return vstop == ZavihkiPravila.VstopAplikacije.V_LUPINI
+    }
+
+    private fun odpriAplikacijoVLupini(naslov: String, namera: Intent?): TabModel {
+        zapriAplikacijoVLupini()
+        pustiEnZavihek(ZavihkiPravila.Namera.APLIKACIJA)
+        // Nadaljevanje je zapomnjen naslov iste aplikacije; tudi ta gre skozi preverbo vhoda.
+        val zacetni = (try { si.safeer.tv.os.SpletneAplikacije.nadaljevanje(this, naslov) } catch (_: Throwable) { naslov })
+            .let { varenVhod(it, SpletVarnostPravila.Vhod.SPLET) } ?: naslov
+        prejsnjiVLupini = tabManager.getActiveTab()?.id
+        val tab = tabManager.createTab(this, zacetni, true).also { it.jeAplikacija = true }
+        zavihekVLupini = tab.id
+        kljucVLupini = naslov
+        zvokVLupini = namera?.getBooleanExtra(EXTRA_ZVOK_V_OZADJU, false) == true
+        return tab
+    }
+
+    private fun zapriAplikacijoVLupini() {
+        val id = zavihekVLupini ?: return
+        val tab = tabManager.getAllTabs().firstOrNull { it.id == id }
+        if (tab != null && !ZavihkiPravila.unici(zvokVLupini, tab.webView?.cakaIzbiroDatotek == true, isChangingConfigurations)) return
+        zavihekVLupini = null
+        val prejsnji = prejsnjiVLupini
+        prejsnjiVLupini = null
+        val kljuc = kljucVLupini
+        kljucVLupini = null
+        zvokVLupini = false
+        if (tab == null) return
+        if (kljuc != null) try { si.safeer.tv.os.SpletneAplikacije.zapomniMesto(this, kljuc, tab.webView?.url ?: tab.url) } catch (_: Throwable) { }
+        prejsnji?.takeIf { p -> p != id && tabManager.getAllTabs().any { it.id == p } }
+            ?.let { try { tabManager.switchTab(it) } catch (_: Throwable) { } }
+        try { tabManager.closeTab(this, id) } catch (_: Throwable) { }
     }
 
     /** Brskalnik je bil ustavljen (onStop) in se se ni vrnil na zaslon (onResume) - za ZavihkiPravila.zapriOstale. */
@@ -990,6 +1045,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         // je zapomnjeno), razen zvoka v ozadju in izbire datotek (ZavihkiPravila.unici).
         if (nacinAplikacije != null && ZavihkiPravila.unici(zvokVOzadju, activeWebView()?.cakaIzbiroDatotek == true, isChangingConfigurations))
             try { izklopiNacinAplikacije() } catch (_: Throwable) { }
+        // Spletna aplikacija v lupini: Domov ali drug razdelek Safeer OS - zavihek se unici (izjeme: ZavihkiPravila.unici).
+        try { zapriAplikacijoVLupini() } catch (_: Throwable) { }
         bilVOzadju = true
         ustaviCastBranje()
         silenceBackgroundMedia("onStop")
@@ -1272,6 +1329,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         }
         val spletna = intent?.getStringExtra(EXTRA_SPLETNA_APLIKACIJA)
         if (spletna != null) {
+            zapriAplikacijoVLupini()
             val ime = intent.getStringExtra(EXTRA_APLIKACIJA_IME).orEmpty()
             val ozadje = intent.getBooleanExtra(EXTRA_ZVOK_V_OZADJU, false)
             val odlocitev = spletnaIzNamere(intent, spletna)
@@ -1281,6 +1339,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         }
         // Navaden zagon brskalnika po tem, ko je tekla spletna aplikacija: vrni vrstico z naslovom.
         if (nacinAplikacije != null) izklopiNacinAplikacije()
+        // Vsak drug vstop zapre spletno aplikacijo v lupini (Splet, zaganjalnik, druga aplikacija, nov naslov).
+        zapriAplikacijoVLupini()
         // Lastnik 4. 11. 2026: Splet iz Safeer OS vedno pokaze domaco stran, ne zadnjega brskanja; zavihki ostanejo.
         if (intent?.getBooleanExtra(si.safeer.tv.os.Brskalnik.EXTRA_ODPRI_DOMACO, false) == true) {
             intent.removeExtra(si.safeer.tv.os.Brskalnik.EXTRA_ODPRI_DOMACO)
@@ -1294,6 +1354,10 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             return
         }
         if (!url.isNullOrEmpty()) {
+            if (jeAplikacijaVLupini(intent, url)) {
+                oznaciIzvorZavihka(odpriAplikacijoVLupini(url, intent), intent, novZavihek = true)
+                return
+            }
             val activeTab = tabManager.getActiveTab()
             if (activeTab != null) {
                 activeTab.webView?.loadUrl(url)
@@ -3875,10 +3939,10 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     }
 
     /** Vrstico dobi samo navaden Splet iz Safeer OS; spletne aplikacije in stran Link ostanejo cele. */
-    private fun jeNavadenZagonIzOs(namera: Intent?): Boolean =
-        !namera?.getStringExtra(EXTRA_IZ_SAFEER_OS).isNullOrBlank() &&
-            namera.getStringExtra(EXTRA_SPLETNA_APLIKACIJA).isNullOrBlank() &&
-            namera.getBooleanExtra(EXTRA_ODPRI_LINK, false) != true
+    private fun jeNavadenZagonIzOs(namera: Intent?): Boolean = ZavihkiPravila.stranskaVrstica(
+        izOs = !namera?.getStringExtra(EXTRA_IZ_SAFEER_OS).isNullOrBlank(),
+        celZaslon = !namera?.getStringExtra(EXTRA_SPLETNA_APLIKACIJA).isNullOrBlank(),
+        odpriLink = namera?.getBooleanExtra(EXTRA_ODPRI_LINK, false) == true)
 
     /** MainActivity je singleTask: isti zivi pogled po potrebi ovijemo ali spet razpremo. */
     private fun nastaviOsVrstico(namera: Intent?) {
