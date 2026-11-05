@@ -3132,10 +3132,39 @@
                 for (var i = 0; i < oz.length; i++) { if (oz[i] === '-') return true; }
                 return false;
             }
+            function koncaZ(v, k, p) {
+                if (typeof v !== 'string' || k < p.length || k > v.length) return false;
+                for (var i = 0; i < p.length; i++) { if (v[k - p.length + i] !== p[i]) return false; }
+                return true;
+            }
+            // Lastnik 5. 11. 2026 19:12: tudi »Nisem robot« (reCAPTCHA, hCaptcha) - samo okvir s potrditvenim poljem, ne izziv
+            // s slikami. Izvori preverjeni 5. 11. 2026: reCAPTCHA vrne stran potrditvenega polja na api2/anchor in
+            // enterprise/anchor (www.google.com in www.recaptcha.net), izziv je bframe. hCaptcha (js.hcaptcha.com/1/api.js):
+            // assetUrl https://newassets.hcaptcha.com/captcha/v1/<razlicica>/static, okvir polja '/hcaptcha.html#frame=checkbox&',
+            // izziv '#frame=challenge', nevidni '#frame=checkbox-invisible'. Vir je iz izvirnega getterja src (razresen URL).
+            var IZVORI_POLJA = ['https://www.google.com/recaptcha/api2/anchor?', 'https://www.google.com/recaptcha/enterprise/anchor?',
+                'https://www.recaptcha.net/recaptcha/api2/anchor?', 'https://www.recaptcha.net/recaptcha/enterprise/anchor?'];
+            function jePoljeRecaptcha(v) {
+                for (var i = 0; i < IZVORI_POLJA.length; i++) { if (zacneZ(v, IZVORI_POLJA[i])) return true; }
+                return false;
+            }
+            function jeOkvirPotrditve(v) {
+                if (typeof v !== 'string') return false;
+                if (zacneZ(v, 'https://accounts.google.com/gsi/') || jePoljeRecaptcha(v)) return true;
+                if (!zacneZ(v, 'https://newassets.hcaptcha.com/captcha/')) return false;
+                var h = -1;
+                for (var j = 0; j < v.length; j++) {
+                    if (v[j] === '?') return false;
+                    if (v[j] === '#') { h = j; break; }
+                }
+                if (h < 0 || !koncaZ(v, h, '/hcaptcha.html')) return false;
+                return koncaZ(v, h + 16, '#frame=checkbox&');
+            }
             function smePraviDotik(o) {
                 if (!o || !o.izvirniki || !o.omrezni || !o.potrjena) return false;
                 if (o.namen === 'google') {
-                    return o.oznakaCilja === 'IFRAME' && o.zadetekJeCilj === true && zacneZ(o.virCilja, 'https://accounts.google.com/gsi/');
+                    // Namen 'google': okvir prijave Google (GSI) ali potrditveno polje reCAPTCHA/hCaptcha; zadetek je tocno ta okvir.
+                    return o.oznakaCilja === 'IFRAME' && o.zadetekJeCilj === true && jeOkvirPotrditve(o.virCilja);
                 }
                 if (o.namen === 'izziv') {
                     if (!o.zadetekVCilju) return false;
@@ -3157,11 +3186,15 @@
                 var r = okvirIz(el);
                 if (!r) return null;
                 var t = namen === 'izziv' ? tockaIzziva(r) : { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+                var oc = oznakaIz(el), vc = oc === 'IFRAME' ? virOkvirjaIz(el) : '';
+                // reCAPTCHA (styles__ltr.css 5. 11. 2026): okvir 304 x 78, polje 28 px z robom 1 + 12 + 4 px - sredina polja
+                // 31 px od levega roba (sredina okvirja je na besedilu). Stran okvir pogosto pomanjsa (transform), zato v razmerju.
+                if (namen === 'google' && jePoljeRecaptcha(vc)) t.x = r.left + r.width * 31 / 304;
                 var z = zadetekIz(t.x, t.y);
-                var oz = z ? oznakaIz(z) : '', oc = oznakaIz(el);
+                var oz = z ? oznakaIz(z) : '';
                 return smePraviDotik({
                     izvirniki: true, omrezni: omrezniDokument, potrjena: true, namen: namen,
-                    oznakaCilja: oc, virCilja: oc === 'IFRAME' ? virOkvirjaIz(el) : '',
+                    oznakaCilja: oc, virCilja: vc,
                     zadetekJeCilj: z === el, zadetekVCilju: !!z && vsebujeIz(el, z), oznakaZadetka: oz,
                     virZadetka: oz === 'IFRAME' ? virOkvirjaIz(z) : '',
                     vhodDatoteke: namen === 'datoteka' && jeVhodDatotekeIz(el)
@@ -3350,7 +3383,8 @@
                             if (tD && pravDotik(tD.x, tD.y)) return true;
                         }
                     }
-                    // Tuj okvir: pravi dotik samo na gumb Google (GSI, SAFEER_OKVIR_GUMB), ki ga je izbral daljinec in je viden.
+                    // Tuj okvir: pravi dotik samo na gumb Google (GSI, SAFEER_OKVIR_GUMB) ali potrditveno polje reCAPTCHA/hCaptcha
+                    // (jeOkvirPotrditve), ki ga je izbral daljinec in je viden.
                     // Drug tuj okvir (oglas, placilo ...) OK ne doseze - sinteticni klik vanj ne pride (odlocitev B).
                     if (target && (target.tagName || '').toUpperCase() === 'IFRAME') {
                         if (!jeVidenOkvir(target)) return false;
