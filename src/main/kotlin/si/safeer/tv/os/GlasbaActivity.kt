@@ -10317,7 +10317,7 @@ class GlasbaActivity : OsActivity() {
                 android.util.Log.i("SafeerOsMedia", "tokovi: Usenet s prenosom ${iNaslednji + 1}/${poskusi.size} od ${usenet.size}; izbran=${TokIzbira.opisi(opis(t))}")
                 prekDebrida(t.url, t.datoteka, { cdn -> odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap())) }, null,
                     samoTakoj = false, usenetIme = t.opis.substringBefore('\n'), obNeuspehu = { napaka ->
-                        DiagnostikaPredvajanja.poskus(this@GlasbaActivity, "usenet", t.url, napaka ?: "ni uspel")
+                        DiagnostikaPredvajanja.poskus(this@GlasbaActivity, "usenet", t.url, napaka.ifBlank { "ni uspel" })
                         poskusiUsenetSCakanjem(iNaslednji + 1, napaka)
                     })
             }
