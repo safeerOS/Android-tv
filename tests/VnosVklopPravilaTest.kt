@@ -237,5 +237,12 @@ fun main() {
     check(p.okvirPoMeritvi(null, gumbB, Okvir(83, 820, 400, 1050), 1) == VnosVklopPravila.DejanjeOkvirja.POCAKAJ)  // se drsi: se ne risemo
     check(p.okvirPoMeritvi(null, Okvir(83, 820, 400, 1050), Okvir(83, 790, 400, 1020), VnosVklopPravila.NAJVEC_CAKANJ_OKVIRJA) == VnosVklopPravila.DejanjeOkvirja.RISI)
 
+    // Lastnik 5. 11. 2026 04:38 (MovieFlix, uiautomator): DOL iz pasivne zgornje vrstice (HorizontalScrollView) gre na
+    // polje »Search…« pod njo - ne na zavihke v isti vrstici.
+    val vrsticaZgoraj = Okvir(0, 0, 1920, 128)
+    val movieflixDol = listOf(Okvir(598, 16, 778, 112), Okvir(780, 16, 960, 112), Okvir(962, 16, 1142, 112), Okvir(1144, 16, 1322, 112),
+        Okvir(4, 128, 1916, 234), Okvir(1810, 161, 1850, 201), Okvir(1750, 734, 1862, 846), Okvir(286, 912, 600, 1072))
+    check(p.najblizji(vrsticaZgoraj, movieflixDol, Smer.DOL) == 4)
+
     println("VnosVklopPravilaTest: OK")
 }

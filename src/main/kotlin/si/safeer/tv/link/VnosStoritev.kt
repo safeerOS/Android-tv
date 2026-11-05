@@ -186,6 +186,10 @@ class VnosStoritev : AccessibilityService() {
         } catch (e: Throwable) {
             Log.w(TAG, "Nastavitev serviceInfo ni uspela: ${e.message}")
         }
+        // Lastnik 5. 11. 2026 04:38 (MovieFlix): po ponovni vezavi storitve (namestitev nove razlicice ob odprti aplikaciji,
+        // logcat »Safeer Vnos je vklopljen.«) neprilagojena ni bila znana, dokler se okno ne zamenja - smerne tipke so sle
+        // aplikaciji in DOL iz pasivne vrstice (HorizontalScrollView) ni premaknil nicesar. Aplikacijo v ospredju preverimo takoj.
+        glavnaNit.postDelayed(preveriMiskoOpravilo, 300)
     }
 
     /**
