@@ -346,6 +346,8 @@ class GlasbaStoritev : Service() {
                         val mesto = maxOf(p.currentPosition, zacetekPoskusa)
                         if (mesto > 5_000) zacetnoMesto = naslednji.first.id to mesto
                         Log.i("SafeerOsMedia", "tok odpovedal: koda=${error.errorCode}, po $trajalo ms, mesto=$mesto, rezerv=${ostale.size}")
+                        DiagnostikaPredvajanja.poskus(this@GlasbaStoritev, "tok", enota?.zvok,
+                            "${error.errorCodeName}${httpKoda(error).takeIf { it > 0 }?.let { ", HTTP $it" } ?: ""}, po $trajalo ms")
                         // Mrtva povezava odpove v trenutku ([hitraNapaka]): preklop je neopazen, zato brez obvestila. Povemo
                         // le, kadar je uporabnik ze cakal ali gledal (sicer bi ob vsakem filmu bral, da "vir ne dela").
                         if (trajalo > 2_500) obvesti(getString(R.string.os_media_drug_vir))
@@ -390,6 +392,10 @@ class GlasbaStoritev : Service() {
                     val oImeniku = if (kljucImenika.isEmpty()) "" else ", imenik: ime=${imenik?.obstaja}, kontrola=${imenik?.kontrola}, neodziven=$neodziven"
                     Log.i("SafeerOsMedia", "koncna napaka: koda=${error.errorCode}, http=$http, vZivo=$vZivo, zacelo=$zacelo, mrtev=$mrtev$oImeniku")
                     koncnaNapaka = KoncnaNapaka(enota?.id.orEmpty(), error.errorCode, http, besedilo)
+                    // Diagnostika predvajanja (samo vklopljena): zadnji tok in koncni razlog, brez naslova toka (samo gostitelj).
+                    DiagnostikaPredvajanja.poskus(this@GlasbaStoritev, "tok", enota?.zvok, "${error.errorCodeName}${if (http > 0) ", HTTP $http" else ""}")
+                    DiagnostikaPredvajanja.neuspeh(this@GlasbaStoritev, enota?.naslov, DiagnostikaPredvajanja.vrsta(enota),
+                        "koncna napaka predvajalnika${if (mrtev) ", kanal mrtev" else ""}, zacelo=$zacelo")
                     // Naloga 108: z razlogom in imenom (izbira »Ne delujejo« v Live TV).
                     if (mrtev) MrtviKanali.zapomni(this@GlasbaStoritev, enota.id, when {
                         brezStreznika -> NedelujocePravila.STREZNIK
