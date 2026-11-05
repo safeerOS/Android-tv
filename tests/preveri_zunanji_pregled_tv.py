@@ -80,6 +80,8 @@ for p in ("res/drawable/bg_tab_card.xml", "res/drawable/bg_tab_card_active.xml")
 sc_on = vn[vn.find("override fun onServiceConnected"):vn.find("private var neprilagojena")]
 preveri("Vnos: po ponovni vezavi storitve takoj preveri aplikacijo v ospredju", "preveriMiskoOpravilo" in sc_on)
 
+preveri("Vnos: urejevalno polje cel okvir brez polnila", "VnosVklopPravila.skrajsajSirokOkvir(urejevalno" in vn and "VnosVklopPravila.polniloOkvirja(urejevalno)" in vn)
+
 if napake:
     print("NAPAKA zunanji pregled TV:", len(napake)); sys.exit(1)
 print("zunanji pregled TV OK")

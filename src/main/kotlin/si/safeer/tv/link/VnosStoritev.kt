@@ -456,7 +456,11 @@ class VnosStoritev : AccessibilityService() {
             val radij = if (celotnaVisina <= (32 * d).toInt()) 8 * d else 14 * d
             (v.background as? android.graphics.drawable.GradientDrawable)?.cornerRadius = radij
 
-            if (celotnaSirina >= zaslonSirina - 100) {
+            // Urejevalno polje (MovieFlix »Search…«, 5. 11. 2026): okvir cez celo polje, brez polnila cez vneseno besedilo.
+            val urejevalno = vozlisce.isEditable || vozlisce.className?.toString().orEmpty().contains("EditText")
+            (v.background as? android.graphics.drawable.GradientDrawable)?.setColor(
+                if (VnosVklopPravila.polniloOkvirja(urejevalno)) android.graphics.Color.parseColor("#222DD4BF") else android.graphics.Color.TRANSPARENT)
+            if (VnosVklopPravila.skrajsajSirokOkvir(urejevalno, celotnaSirina, zaslonSirina)) {
                 // Poisci otroka z besedilom, ce obstaja, da dobimo lepo obrobo okoli napisa
                 var otrokZBesedilom: AccessibilityNodeInfo? = null
                 for (i in 0 until vozlisce.childCount) {

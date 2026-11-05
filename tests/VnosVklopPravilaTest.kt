@@ -244,5 +244,11 @@ fun main() {
         Okvir(4, 128, 1916, 234), Okvir(1810, 161, 1850, 201), Okvir(1750, 734, 1862, 846), Okvir(286, 912, 600, 1072))
     check(p.najblizji(vrsticaZgoraj, movieflixDol, Smer.DOL) == 4)
 
+    // Lastnik 5. 11. 2026 04:46: polje »Search…« [4,128][1916,234] - okvir cez celo polje, brez polnila.
+    check(!p.skrajsajSirokOkvir(urejevalno = true, sirina = 1912, zaslonSirina = 1920))
+    check(p.skrajsajSirokOkvir(urejevalno = false, sirina = 1912, zaslonSirina = 1920))     // naslov kategorije: kot prej
+    check(!p.skrajsajSirokOkvir(urejevalno = false, sirina = 600, zaslonSirina = 1920))
+    check(!p.polniloOkvirja(urejevalno = true) && p.polniloOkvirja(urejevalno = false))
+
     println("VnosVklopPravilaTest: OK")
 }

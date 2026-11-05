@@ -300,6 +300,14 @@ object VnosVklopPravila {
      */
     fun skrijOkvirVSpletnem(vSpletnem: Boolean, imaDomace: Boolean): Boolean = vSpletnem && imaDomace
 
+    /**
+     * Lastnik 5. 11. 2026 04:46 (MovieFlix, fotografija): okvir na polju »Search…« je obrobil samo levo tretjino (pravilo
+     * »vrstica cez cel zaslon -> samo zacetni del z besedilom«), polprosojno polnilo pa je prekrilo vneseno besedilo.
+     * Urejevalno polje: okvir cez celo polje in brez polnila (samo rob) - polnilo nikoli cez besedilo vnosa.
+     */
+    fun skrajsajSirokOkvir(urejevalno: Boolean, sirina: Int, zaslonSirina: Int): Boolean = !urejevalno && sirina >= zaslonSirina - 100
+    fun polniloOkvirja(urejevalno: Boolean): Boolean = !urejevalno
+
     enum class DejanjeOkvirja { RISI, PUSTI, SKRIJ_POCAKAJ, POCAKAJ }
     /** Toliko px razlike je isti okvir (zaokrozevanje, drsenje za piko). */
     const val ZAMIK_OKVIRJA = 4
