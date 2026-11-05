@@ -74,6 +74,11 @@ object Pretok {
         val ime = p.optString("name").substringAfterLast('/').trim().take(120).ifBlank { "video" }
         if (!url.startsWith("https://") && !url.startsWith("http://")) return Daljinec.Izid(false, "Nepopolna zahteva", koda = "napacna_zahteva")
         if (odtis.isNotBlank() && odtis.length != 64) return Daljinec.Izid(false, "Nepopolna zahteva", koda = "napacna_zahteva")
+        // Vodja 5. 11. 2026 (kot Linux link_sprotno.dovoljeni_naslovi): vir na tej napravi (127.0.0.1, localhost) ali
+        // povezavno-lokalen (169.254.169.254) ni dovoljen - prek pomocnika bi naprava v Linku brala storitve, ki poslusajo
+        // samo tu. Zapis naslova preverimo takoj, razresena imena v ozadju pred pretvorbo (DNS ni za glavno nit).
+        val gostVira = try { java.net.URI(url).host.orEmpty() } catch (_: Exception) { "" }
+        if (PretokPravila.gostiteljPrepovedan(gostVira)) return Daljinec.Izid(false, "Vir ni dovoljen", koda = "nedovoljen_cilj")
         val mime = p.optString("mime"); val w = p.optInt("width"); val h = p.optInt("height")
         val glave = glaveZahteve(p.optJSONObject("headers"))
         // Jezik zvocne sledi, ki ga gledalec zeli (lastnik, 11. 10. 2026: pretvorba je vzela privzeto, ne angleske).
@@ -104,6 +109,12 @@ object Pretok {
         val app = context.applicationContext
         // Velikost izvirnika (za bitno hitrost izhoda) poizvemo v ozadju, ce je odjemalec ne pozna; ukaz tece na glavni niti.
         Thread({
+            val razreseni = try { java.net.InetAddress.getAllByName(gostVira).map { it.address } } catch (_: Exception) { emptyList() }
+            if (!PretokPravila.razreseniDovoljeni(razreseni)) {
+                Log.i(TAG, "Tok $ime: vir ni dovoljen (nedovoljen_cilj)")
+                t.napaka = "nedovoljen_cilj"; t.koncano = true
+                return@Thread
+            }
             val vel = if (velikost > 0 || trajanjeMs <= 0) velikost else poizvediVelikost(url, odtis, zeton, glave)
             val bitna = Pretvorba.bitnaHitrost(vel, trajanjeMs, w, h)
             Log.i(TAG, "Tok $ime: izvirnik $vel B, ${trajanjeMs} ms, ${w}x$h -> bitna hitrost $bitna b/s")
