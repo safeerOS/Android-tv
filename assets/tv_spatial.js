@@ -132,25 +132,10 @@
             // Pregled fokusa 5. 11. 2026: zastavica namestitve je nespremenljiva lastnost z znakom, izpeljanim iz zetona strani
             // (zeton sam ne pride na window). Pregled Groka 5. 11. 2026 (najdba 2): znak je prej racunal z.charCodeAt(i) in
             // Math.imul na samem zetonu - prepis teh funkcij v strani je videl zeton. Zeton je sestnajstiski
-            // (SpletVarnostPravila.novZeton): znake beremo z indeksom niza in tabelo, mnozimo z operatorji (FNV-1a, 32 bitov,
-            // isti kot TvTipke.odtisZetona) - nobena funkcija, ki jo doseze stran, zetona ne vidi.
+            // (SpletVarnostPravila.novZeton): znake beremo z indeksom niza in tabelo, racunamo z operatorji (HMAC-SHA256
+            // v SAFEER_HMAC, isti kot TvTipke.odtisHex) - nobena funkcija, ki jo doseze stran, zetona ne vidi.
             // Neodvisni pregled 5. 11. 2026 (najdba 8): tabela brez prototipa - lastnost na Object.prototype ne doda znaka.
             var KODE_ZNAKOV = { __proto__: null, '0': 48, '1': 49, '2': 50, '3': 51, '4': 52, '5': 53, '6': 54, '7': 55, '8': 56, '9': 57, 'a': 97, 'b': 98, 'c': 99, 'd': 100, 'e': 101, 'f': 102, 'g': 103, 'h': 104, 'i': 105, 'j': 106, 'k': 107, 'l': 108, 'm': 109, 'n': 110, 'o': 111, 'p': 112, 'q': 113, 'r': 114, 's': 115, 't': 116, 'u': 117, 'v': 118, 'w': 119, 'x': 120, 'y': 121, 'z': 122, '|': 124 };
-            function fnvNiz(h, v) {
-                for (var i = 0; i < v.length; i++) {
-                    var c = KODE_ZNAKOV[v[i]];
-                    if (typeof c !== 'number') return -1;
-                    h = (h ^ c) >>> 0;
-                    h = ((h * 403) % 4294967296 + (h & 255) * 16777216) % 4294967296;
-                }
-                return h;
-            }
-            var BAZA36 = '0123456789abcdefghijklmnopqrstuvwxyz';
-            function vBazo36(h) {
-                var v = '';
-                do { var d = h % 36; v = BAZA36[d] + v; h = (h - d) / 36; } while (h > 0);
-                return v;
-            }
             // Neodvisni pregled 5. 11. 2026 (najdba 6): stran je vnaprej zasedla _safeer_tv_remote_installed in
             // _safeer_navigate_spatial - daljinec se ni namestil. Imena izvozov in zastavice imajo nakljucni del dokumenta
             // (ChromiumEngineView.nonceIzvozov, nov ob vsaki strani), ki ga stran pred nasim skriptom ne pozna. Zastavica ne
@@ -199,17 +184,103 @@
                 }
                 return true;
             }
-            function odtisStevilo(zeton, niz) {
-                var h = fnvNiz(2166136261, zeton);
-                if (h >= 0) h = fnvNiz(h, '|');
-                if (h >= 0) h = fnvNiz(h, niz);
-                if (h >= 0) h = fnvNiz(h, '|');
-                if (h >= 0) h = fnvNiz(h, zeton);
-                return h;
+            /* SAFEER_HMAC_ZACETEK */
+            // Cetrti slepi pregled 5. 11. 2026 (N-B, N-D; odlocitev vodje 3): dokaz je HMAC-SHA256 z zetonom strani kot kljucem
+            // (TvTipke.odtisHex, javax.crypto) namesto 32-bitnega FNV-1a, ki ni MAC (stran je odtise zbirala kot orakelj).
+            // Lastna izvedba SHA-256 (FIPS 180-4) in HMAC (RFC 2104): samo operatorji, nizi z indeksom in tabele brez
+            // prototipa ali z vsemi indeksi ze ob nastanku - nobena metoda ali nastavljalec, ki ga lahko prepise stran
+            // (push, charCodeAt, Math.imul, toString, Array.prototype[i]). Znaki samo iz KODE_ZNAKOV (zeton, izziv, stevec in
+            // nasi nizi so iz 0-9, a-z, '|'); drug znak: ''. Vektorji: tests/tv_hmac_test.js in tests/TvTipkeTest.kt.
+            var K_SHA256 = [0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+                0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+                0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+                0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+                0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+                0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+                0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+                0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2];
+            var HEKS = '0123456789abcdef';
+            // SHA-256 bajtov B[0..n-1] (objekt brez prototipa); vrne 32 bajtov v objektu brez prototipa.
+            function sha256Bajti(B, n) {
+                'use strict';
+                var H = { __proto__: null, 0: 0x6a09e667, 1: 0xbb67ae85, 2: 0x3c6ef372, 3: 0xa54ff53a, 4: 0x510e527f, 5: 0x9b05688c, 6: 0x1f83d9ab, 7: 0x5be0cd19 };
+                var W = { __proto__: null };
+                var vse = n + 9, bloki = (vse + 63 - (vse + 63) % 64) / 64, skupaj = bloki * 64, bitov = n * 8;
+                for (var k = 0; k < bloki; k++) {
+                    for (var t = 0; t < 16; t++) {
+                        var w = 0;
+                        for (var j = 0; j < 4; j++) {
+                            var i = k * 64 + t * 4 + j, x = 0;
+                            if (i < n) x = B[i];
+                            else if (i === n) x = 0x80;
+                            else if (i >= skupaj - 4) x = (bitov >>> (8 * (skupaj - 1 - i))) & 255;
+                            w = ((w << 8) | x) | 0;
+                        }
+                        W[t] = w;
+                    }
+                    for (t = 16; t < 64; t++) {
+                        var p15 = W[t - 15], p2 = W[t - 2];
+                        var s0 = ((p15 >>> 7) | (p15 << 25)) ^ ((p15 >>> 18) | (p15 << 14)) ^ (p15 >>> 3);
+                        var s1 = ((p2 >>> 17) | (p2 << 15)) ^ ((p2 >>> 19) | (p2 << 13)) ^ (p2 >>> 10);
+                        W[t] = (W[t - 16] + s0 + W[t - 7] + s1) | 0;
+                    }
+                    var a = H[0], b = H[1], c = H[2], d = H[3], e = H[4], f = H[5], g = H[6], h = H[7];
+                    for (t = 0; t < 64; t++) {
+                        var S1 = ((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7));
+                        var ch = (e & f) ^ (~e & g);
+                        var t1 = (h + S1 + ch + K_SHA256[t] + W[t]) | 0;
+                        var S0 = ((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10));
+                        var mj = (a & b) ^ (a & c) ^ (b & c);
+                        var t2 = (S0 + mj) | 0;
+                        h = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
+                    }
+                    H[0] = (H[0] + a) | 0; H[1] = (H[1] + b) | 0; H[2] = (H[2] + c) | 0; H[3] = (H[3] + d) | 0;
+                    H[4] = (H[4] + e) | 0; H[5] = (H[5] + f) | 0; H[6] = (H[6] + g) | 0; H[7] = (H[7] + h) | 0;
+                }
+                var D = { __proto__: null };
+                for (var q = 0; q < 8; q++) {
+                    D[q * 4] = (H[q] >>> 24) & 255; D[q * 4 + 1] = (H[q] >>> 16) & 255;
+                    D[q * 4 + 2] = (H[q] >>> 8) & 255; D[q * 4 + 3] = H[q] & 255;
+                }
+                return D;
             }
+            // HMAC-SHA256 (RFC 2104); kljuc najvec 64 bajtov (nas zeton jih ima 48), sicer null.
+            function hmacBajti(K, kn, M, mn) {
+                'use strict';
+                if (kn > 64) return null;
+                var N = { __proto__: null }, Z = { __proto__: null }, i;
+                for (i = 0; i < 64; i++) { var kb = i < kn ? K[i] : 0; N[i] = kb ^ 0x36; Z[i] = kb ^ 0x5c; }
+                for (i = 0; i < mn; i++) N[64 + i] = M[i];
+                var notr = sha256Bajti(N, 64 + mn);
+                for (i = 0; i < 32; i++) Z[64 + i] = notr[i];
+                return sha256Bajti(Z, 96);
+            }
+            function bajtiNiza(v, O) {
+                'use strict';
+                if (typeof v !== 'string') return -1;
+                for (var i = 0; i < v.length; i++) {
+                    var c = KODE_ZNAKOV[v[i]];
+                    if (typeof c !== 'number') return -1;
+                    O[i] = c;
+                }
+                return v.length;
+            }
+            // 64 sestnajstiskih znakov ali '' (kljuc krajsi od 32 znakov ali znak zunaj KODE_ZNAKOV).
+            function odtisHex(zeton, niz) {
+                'use strict';
+                var K = { __proto__: null }, M = { __proto__: null };
+                var kn = bajtiNiza(zeton, K), mn = bajtiNiza(niz, M);
+                if (kn < 32 || kn > 64 || mn < 0) return '';
+                var D = hmacBajti(K, kn, M, mn);
+                if (!D) return '';
+                var v = '';
+                for (var i = 0; i < 32; i++) v = v + HEKS[D[i] >>> 4] + HEKS[D[i] & 15];
+                return v;
+            }
+            /* SAFEER_HMAC_KONEC */
             function odtisZetona(zeton, niz) {
-                var h = odtisStevilo(zeton, niz);
-                return h < 0 ? '' : 'safeer-' + vBazo36(h);
+                var h = odtisHex(zeton, niz);
+                return h === '' ? '' : 'safeer-' + h;
             }
             function dokazDatoteke(zeton, izziv) {
                 if (!jeVeljavenIzziv(izziv)) return '';
@@ -274,13 +345,15 @@
             // Tretji neodvisni pregled 5. 11. 2026 (N7): ime izvoza vidi stran (Object.getOwnPropertyNames) - 5 klicev brez
             // argumentov je izklopilo prava dejanja. Napaka steje samo pri klicu z veljavnim izzivom, narascajocim stevcem in
             // stevilom za dokaz (samo tak klic je ugibanje dokaza); drugi klici so zavrnjeni brez stetja.
+            // Cetrti slepi pregled 5. 11. 2026: dokaz je niz HMAC (64 znakov, TvTipke.odtisHex); primerjava nizov z operatorjem.
             function sprejmiTipko(izziv, stevec, dokaz) {
-                if (!jeVeljavenIzziv(izziv) || !jeStevecTipke(stevec) || stevec <= zadnjiStevecTipke || typeof dokaz !== 'number') {
+                if (!jeVeljavenIzziv(izziv) || !jeStevecTipke(stevec) || stevec <= zadnjiStevecTipke || typeof dokaz !== 'string' ||
+                    dokaz.length !== 64) {
                     return false;
                 }
                 // Stevilo v niz z operatorjem (notranji ToString), ne z Number.prototype.toString strani.
-                var h = odtisStevilo(ZETON_DOTIKA, 'tipka|' + stevec + '|' + izziv);
-                if (h < 0 || dokaz !== h) { napakeDokaza++; return false; }
+                var h = odtisHex(ZETON_DOTIKA, 'tipka|' + stevec + '|' + izziv);
+                if (h === '' || dokaz !== h) { napakeDokaza++; return false; }
                 zadnjiStevecTipke = stevec;
                 tipkaNaVoljo = true;
                 zadnjaTipkaMs = casZdaj();
@@ -295,6 +368,14 @@
             }
             /* SAFEER_TIPKA_KONEC */
             izvoziZaAplikacijo('_safeer_tipka', sprejmiTipko);
+            // Cetrti slepi pregled 5. 11. 2026 (N-B): aplikacija zivo kopijo s prejsnjim nonce sprejme samo, ce ta na nakljucen
+            // izziv vrne 'ziv:' + odtis SVOJEGA zetona (TvTipke.zivaKopijaVelja) - zastavico z znanim imenom lahko postavi nova
+            // stran, zetona prejsnje strani pa ne pozna. Odgovor je samo za ta niz ('ziv|' + izziv), ne za druge dokaze.
+            izvoziZaAplikacijo('_safeer_ziv', function (izziv) {
+                if (!jeVeljavenIzziv(izziv)) return '';
+                var o = odtisZetona(ZETON_DOTIKA, 'ziv|' + izziv);
+                return o ? 'ziv:' + o : '';
+            });
             // Pregled fokusa 5. 11. 2026: stran je razred safeer-active-card lahko dala svojemu (tudi nevidnemu) okvirju in OK je
             // nanj sprozil pravi dotik. Izbrani element je zdaj samo tisti, ki ga je izbral daljinec (zaprtje); razred je le slog.
             var izbraniEl = null;
@@ -3157,8 +3238,8 @@
             // https://accounts.google.com/gsi/), izziv Cloudflare (challenges.cloudflare.com) in polje za datoteko, ki ne dobi
             // fokusa (skrito v oznaki). Vse drugo je sinteticni klik - z njim stran ne doseze tujega okvirja.
             // Najdba 3: elementFromPoint vrne gostitelja (zaprtega ali deklarativnega) shadow DOM, ne okvirja v njem. Shadow
-            // DOM ima lahko samo element s spodnjega seznama ali element po meri (ime z '-', HTML standard attachShadow) -
-            // zadetek na takem elementu ni dokaz, da pod tocko ni tujega okvirja.
+            // DOM ima lahko samo element s seznama HTML attachShadow (DIV, SPAN, P, SECTION ...) ali element po meri (ime z '-') -
+            // zadetek na takem elementu ni dokaz, da pod tocko ni tujega okvirja (zato ZADETEK_BREZ_OKVIRJA spodaj).
             // Tretji neodvisni pregled 5. 11. 2026 (N1-N4): preverba izvora iz glavnega sveta strani ni zanesljiva - atribut src
             // ne pove dejanske vsebine okvirja (srcdoc z notranjim tujim okvirjem, otrok, ki ga stars navigira prek
             // contentWindow.location), gostitelj shadow DOM lahko skriva katerikoli okvir, med preverbo in dotikom stran
@@ -3167,20 +3248,24 @@
             // cilja uporabnik sam. Seznam ostane za ponovni vklop s potrditvijo na strani prejemnika (skript zacetka
             // dokumenta v okvirju dovoljenega izvora, porocanje prek addWebMessageListener - SAFEER-ZNANJE.md).
             var PRAVI_DOTIK_V_OKVIR = false;
-            var OKVIRNE_OZNAKE = { __proto__: null, IFRAME: 1, FRAME: 1, OBJECT: 1, EMBED: 1 };
-            var SENCNI_GOSTITELJI = { __proto__: null, ARTICLE: 1, ASIDE: 1, BLOCKQUOTE: 1, BODY: 1, DIV: 1, FOOTER: 1, H1: 1, H2: 1,
-                H3: 1, H4: 1, H5: 1, H6: 1, HEADER: 1, MAIN: 1, NAV: 1, P: 1, SECTION: 1, SPAN: 1 };
+            // Cetrti slepi pregled 5. 11. 2026 (N-C): tudi FENCEDFRAME in PORTAL (vsebina drugega izvora).
+            var OKVIRNE_OZNAKE = { __proto__: null, IFRAME: 1, FRAME: 1, OBJECT: 1, EMBED: 1, FENCEDFRAME: 1, PORTAL: 1 };
             // Brez metod niza (indexOf, startsWith lahko prepise stran): primerjava po znakih.
             function zacneZ(v, p) {
                 if (typeof v !== 'string' || v.length < p.length) return false;
                 for (var i = 0; i < p.length; i++) { if (v[i] !== p[i]) return false; }
                 return true;
             }
+            // Cetrti slepi pregled 5. 11. 2026 (N-C, odlocitev vodje 4): prej seznam prepovedanih (vsaka nova vrsta okvirja, npr.
+            // FENCEDFRAME, je bila »varna«). Zdaj seznam dovoljenih oznak zadetka pri oznaki s skritim poljem za datoteko:
+            // besedilni elementi, ki ne morejo biti gostitelj shadow DOM (HTML attachShadow) in ne nosijo tuje vsebine.
+            // SPAN NI na seznamu: lahko je gostitelj (zaprte) sence s tujim okvirjem - zadetek na SPAN v oznaki ostane brez
+            // pravega dotika (sinteticni klik), razen ce je zadetek oznaka sama (zadetekJeCilj).
+            var ZADETEK_BREZ_OKVIRJA = { __proto__: null, LABEL: 1, B: 1, I: 1, EM: 1, STRONG: 1, SMALL: 1, U: 1, S: 1, MARK: 1,
+                ABBR: 1, CODE: 1, KBD: 1, SUB: 1, SUP: 1, BR: 1, IMG: 1, INPUT: 1 };
             function lahkoSkrivaOkvir(oz) {
                 if (typeof oz !== 'string' || oz === '') return true;
-                if (OKVIRNE_OZNAKE[oz] === 1 || SENCNI_GOSTITELJI[oz] === 1) return true;
-                for (var i = 0; i < oz.length; i++) { if (oz[i] === '-') return true; }
-                return false;
+                return ZADETEK_BREZ_OKVIRJA[oz] !== 1;
             }
             function koncaZ(v, k, p) {
                 if (typeof v !== 'string' || k < p.length || k > v.length) return false;

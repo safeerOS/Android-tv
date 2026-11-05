@@ -19,12 +19,15 @@ object GoogleTipke {
         object Presledek : Ok()
         /** Pravi dotik na sredini elementa (CSS px): polje odpre tipkovnico, gumb in potrditveno polje kliknejo enkrat. */
         data class Dotik(val x: Float, val y: Float) : Ok()
+        /** Cetrti slepi pregled 5. 11. 2026 (N-A): cilj je okvir - brez prave tipke in dotika, samo namig za kazalec. */
+        object Kazalec : Ok()
     }
 
-    /** Odgovor skripta KLIK_FOKUSA: "enter", "space" ali "dotik:x,y". Karkoli drugega je Enter (kot prej). */
+    /** Odgovor skripta KLIK_FOKUSA: "enter", "space", "kazalec" ali "dotik:x,y". Karkoli drugega je Enter (kot prej). */
     fun ok(odgovor: String?): Ok {
         val o = (odgovor ?: "").trim().trim('"')
         if (o == "space") return Ok.Presledek
+        if (o == "kazalec") return Ok.Kazalec
         if (o.startsWith("dotik:")) {
             val d = o.removePrefix("dotik:").split(',')
             if (d.size == 2) {
@@ -35,6 +38,15 @@ object GoogleTipke {
         }
         return Ok.Enter
     }
+
+    private val NONCE = Regex("[0-9a-f]{16,64}")
+
+    /**
+     * KLIK_FOKUSA z imenom izvirnikov tega pogleda (ChromiumEngineView.nonceIzvirnikov, samo sestnajstiski). Brez veljavnega
+     * dela (ali izvirniki niso registrirani: null) ime, ki ga ni - skript nima izvirnikov in ne vrne pravega dotika.
+     */
+    fun zIzvirniki(js: String, nonce: String?): String =
+        js.replace("__SAFEER_NONCE_IZVIRNIKOV__", if (nonce != null && NONCE.matches(nonce)) nonce else "brez")
 
     /** Skript: ali fokus na strani ni na nobenem elementu (vrh strani) - takrat gre GOR v naslovno vrstico. */
     const val JE_NA_VRHU = "(function(){var e=document.activeElement;return (!e||e===document.body||e===document.documentElement)?'vrh':'stran';})()"

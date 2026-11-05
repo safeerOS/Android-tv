@@ -295,9 +295,21 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
     @Volatile internal var nonceIzvozovPrej: String = ""
         private set
     @Volatile private var zetonDotikaPrej: String = ""
-    /** Isti dokument ima zivo kopijo skripta s prejsnjim nonce (UserScriptManager.injectOnPageFinished): nazaj na njen par. */
-    internal fun vrniPrejsnjoStran(nonce: String): Boolean {
-        if (!SpletVarnostPravila.jeNonce(nonce) || nonce != nonceIzvozovPrej || zetonDotikaPrej.length < 32) return false
+    /**
+     * Isti dokument ima zivo kopijo skripta s prejsnjim nonce (UserScriptManager.injectOnPageFinished): nazaj na njen par.
+     * Cetrti slepi pregled 5. 11. 2026 (N-B): nova stran je nonce prejsnje prebrala (Object.getOwnPropertyNames) in sama
+     * postavila zastavico s tem imenom - aplikacija ji je vrnila prejsnji zeton (orakelj) in daljinca ni namestila. Zdaj samo,
+     * ce kopija na nakljucen [izziv] vrne odtis PREJSNJEGA zetona ([odgovor], TvTipke.zivaKopijaVelja); sicer prejsnji par
+     * pozabimo (skript se namesti z novim parom, brez preverbe prejsnjega nonce).
+     */
+    internal fun vrniPrejsnjoStran(nonce: String, odgovor: String?, izziv: String): Boolean {
+        val velja = SpletVarnostPravila.jeNonce(nonce) && nonce == nonceIzvozovPrej && zetonDotikaPrej.length >= 32 &&
+            TvTipke.zivaKopijaVelja(odgovor, zetonDotikaPrej, izziv)
+        if (!velja) {
+            nonceIzvozovPrej = ""
+            zetonDotikaPrej = ""
+            return false
+        }
         zetonDotika = zetonDotikaPrej
         nonceIzvozov = nonceIzvozovPrej
         return true
@@ -601,8 +613,10 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
      * menjava identitete med navigacijo (Gmail »Sign in«: workspace.google.com -> accounts.google.com) sesuje WebView 153.
      */
     private fun uaZaUrl(url: String): String {
-        val isGoogle = UserScriptManager.isGoogleDomain(url)
-        if (isGoogle) {
+        // Cetrti slepi pregled 5. 11. 2026 (N-A): identiteta po sirokem pravilu (GooglePravila.googleIdentiteta), Google nacin
+        // (brez zascite) samo za izrecne gostitelje (GooglePravila.jeGoogle) - obe pravili morata biti enaki tukaj in v
+        // applyUserAgentForUrl, sicer naloziZNovoIdentiteto nalaga v zanki.
+        if (GooglePravila.googleIdentiteta(url)) {
             // Ista identiteta za vse Googlove strani in prijavo (menjava med navigacijo sesuje WebView 153).
             return googleUa(context)
         }
@@ -674,6 +688,8 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
         // NEVER_ALLOW je na televizorju pobral sicer veljavne slike (npr. sličice na YouTube TV).
         settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
         settings.userAgentString = when {
+            // Googlova stran zunaj Google nacina (Gmail, Drive, storage.googleapis.com ...): ista identiteta kot prej, zascita ostane.
+            GooglePravila.googleIdentiteta(url) -> googleUa(context)
             // claude.ai, anthropic.com, Cloudflare preverjanje: kot Googlova prijava (GooglePravila.chromeAndroidStran),
             // brez setUserAgentMetadata (SIGTRAP na TV 1. 11. 2026). X-Requested-With je izklopljen za vse (brezGlaveRequestedWith).
             GooglePravila.chromeAndroidStran(url) -> googleUa(context)
@@ -1409,7 +1425,8 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
                     return threatResponse
                 }
                 // Po gostitelju: niz »recaptcha« ali »gstatic.com« v poti ali poizvedbi ni vec izjema od filtra oglasov.
-                if (UserScriptManager.isGoogleDomain(url)) {
+                // Cetrti slepi pregled 5. 11. 2026 (N-A): brez *.googleapis.com z uporabnisko vsebino (GooglePravila.jeGoogleVir).
+                if (GooglePravila.jeGoogleVir(url)) {
                     return null
                 }
                 val method = request.method ?: "GET"

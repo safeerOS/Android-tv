@@ -475,6 +475,15 @@ object SpletVarnostPravila {
             "var d=I.apply(I.gopd,null,[window,'_safeer_tv_remote_installed_$prej']);return !!d&&d.value===true&&d.configurable===false;})()"
     }
 
+    /**
+     * Odgovor pinga UserScriptManager.injectOnPageFinished (evaluateJavascript vrne niz JSON v narekovajih): brez narekovajev in
+     * presledkov. Cetrti slepi pregled 5. 11. 2026: odlocitev po natancni vrednosti ("ok", "need", "prej:..."), ne po contains.
+     */
+    fun odgovorPinga(rezultat: String?): String {
+        val o = (rezultat ?: "").trim()
+        return if (o.length >= 2 && o.startsWith("\"") && o.endsWith("\"")) o.substring(1, o.length - 1) else o
+    }
+
     /** Najdba 2: pravi dotik velja samo, ce ga nit UI izvede kmalu po klicu in na isti strani (isti zeton). */
     const val DOTIK_ROK_MS = 50L
 

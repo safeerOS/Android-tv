@@ -1336,6 +1336,10 @@ object UserScriptManager {
         val prej = cev?.nonceIzvozovPrej.orEmpty()
         val prejPogoj = if (cev != null && SpletVarnostPravila.jeNonce(prej) && prej != nonce && SpletVarnostPravila.jeNonce(cev.nonceIzvirnikov))
             SpletVarnostPravila.zivaKopijaJs(cev.nonceIzvirnikov, prej) else "false"
+        // Cetrti slepi pregled 5. 11. 2026 (N-B): zastavica s prejsnjim nonce ni dokaz - kopija odgovori na nakljucen izziv z
+        // odtisom svojega zetona (tv_spatial.js _safeer_ziv); preveri ga ChromiumEngineView.vrniPrejsnjoStran.
+        val izzivZiv = TvTipke.novIzziv()
+        val zivKlic = if (SpletVarnostPravila.jeNonce(prej)) "var f=window._safeer_ziv_$prej;return 'prej:'+(typeof f==='function'?f('$izzivZiv'):'');" else "return 'need';"
         val ping = """
             (function(){
                 try {
@@ -1343,17 +1347,24 @@ object UserScriptManager {
                         try { if (window._safeerSiteAgent) window._safeerSiteAgent.onPageReady(); } catch (e) {}
                         return 'ok';
                     }
-                    if ($prejPogoj) return 'prej';
+                    if ($prejPogoj) { $zivKlic }
                 } catch (e2) {}
                 return 'need';
             })();
         """.trimIndent()
         webView.evaluateJavascript(ping) { result ->
-            if (result != null && result.contains("prej") && cev != null && cev.vrniPrejsnjoStran(prej)) {
-                try { webView.evaluateJavascript("try{if(window._safeerSiteAgent)window._safeerSiteAgent.onPageReady()}catch(e){}", null) } catch (_: Exception) {}
+            // Natancna primerjava (prej: contains - odgovor strani 'prej:ok' je veljal za 'ok' in skripta ni bilo).
+            val odg = SpletVarnostPravila.odgovorPinga(result)
+            if (odg.startsWith("prej:") && cev != null) {
+                if (cev.vrniPrejsnjoStran(prej, odg.removePrefix("prej:"), izzivZiv)) {
+                    try { webView.evaluateJavascript("try{if(window._safeerSiteAgent)window._safeerSiteAgent.onPageReady()}catch(e){}", null) } catch (_: Exception) {}
+                    return@evaluateJavascript
+                }
+                android.util.Log.w("SafeerSplet", "lazna ziva kopija prejsnje strani: nov zeton in nov skript")
+                injectSiteScripts(webView, pageUrl, isDarkMode, finished = true)
                 return@evaluateJavascript
             }
-            if (result != null && result.contains("ok")) {
+            if (odg == "ok") {
                 webView.evaluateJavascript(MOBILE_MEDIA_AUDIO_JS, null)
                 if (!temniCss(webView, isDarkMode)) removeCss(webView, "safeer-dark-mode-style")
                 else webView.evaluateJavascript(SAM_TEMEN_JS, null)
