@@ -202,6 +202,8 @@ object HubTls {
         if (povezava !is HttpsURLConnection) throw java.io.IOException("Safeer Link: Hub brez TLS - posodobi Safeer na gostitelju")
         val odtis = pripetiOdtis(context)
             ?: throw java.io.IOException("Safeer Link: naprava s tem Hubom se ni seznanjena (ni odtisa potrdila)")
+        // Zeton je v poti ali glavi: preusmeritev bi ga odnesla drugam (S6, 5. 11. 2026); 3xx je za klicatelja napaka.
+        povezava.instanceFollowRedirects = false
         pripravi(povezava, odtis)
     }
 
@@ -212,6 +214,8 @@ object HubTls {
      */
     fun okhttp(graditelj: okhttp3.OkHttpClient.Builder, pripeti: String?, pripetiKljuc: String? = null): Pair<okhttp3.OkHttpClient.Builder, Zaupnik> {
         val (tovarna, z) = odjemalec(pripeti, pripetiKljuc)
+        // Zeton Huba ne sme slediti preusmeritvi na drug naslov (S6, 5. 11. 2026).
+        HubPreusmeritve.brez(graditelj)
         graditelj.sslSocketFactory(tovarna, z)
         graditelj.hostnameVerifier { _, _ -> true }
         graditelj.socketFactory(BrezZamika)

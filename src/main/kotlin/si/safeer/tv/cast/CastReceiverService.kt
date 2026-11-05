@@ -1229,7 +1229,8 @@ class CastReceiverService : Service() {
             try {
                 val mapa = HubTokovi.podmapaVarno(HubKrmilnik.mapaZaPrejete(applicationContext), podmapa)
                 val varno = HubTokovi.varnoIme(ime)
-                delno = HubTokovi.enolicnaPot(mapa, "$varno.safeer-delno")
+                // A8 (5. 11. 2026): ».safeer-delno« in koncno ime zasedena atomarno, brez simbolnih povezav, v mapi.
+                delno = HubTokovi.zasediIme(mapa.canonicalFile, "$varno.safeer-delno")
                 var razlog = ""
                 var cela = false
                 for (poskus in 0 until POSKUSOV_PREVZEMA) {
@@ -1240,8 +1241,7 @@ class CastReceiverService : Service() {
                     if (izid == "koncno") break
                 }
                 if (!cela) throw java.io.IOException(razlog)
-                val cilj = HubTokovi.enolicnaPot(mapa, varno)
-                if (!delno.renameTo(cilj)) { delno.copyTo(cilj); delno.delete() }
+                val cilj = HubTokovi.vKoncnoIme(delno, mapa, varno)
                 Log.i(TAG, "Datoteka $ime je prenesena v ${cilj.parent}")
                 mainHandler.post { javiDatoteko(cilj.name, cilj, od) }
             } catch (e: Exception) {

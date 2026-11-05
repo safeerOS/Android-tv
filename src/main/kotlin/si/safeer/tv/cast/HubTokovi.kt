@@ -437,7 +437,8 @@ class HubTokovi(
         val d0 = delna ?: run {
             // Za gostitelja v mapo prenosov (z mapo posiljatelja), sicer zacasno; do konca z ».safeer-delno«.
             val ciljnaMapa = if (zaGostitelja) podmapaVarno(mapa, podmapa) else mapa
-            val pot = enolicnaPot(ciljnaMapa, if (zaGostitelja) "$ime.safeer-delno" else nakljucno(6) + "-" + ime)
+            // A8 (5. 11. 2026): ime zasedeno atomarno (createNewFile), brez simbolnih povezav, ostane v mapi.
+            val pot = zasediIme(ciljnaMapa.canonicalFile, if (zaGostitelja) "$ime.safeer-delno" else nakljucno(6) + "-" + ime)
             Delna(pot, ime, podmapa, zaGostitelja, ciljnaMapa).also {
                 it.vTeku = true; it.cas = ura()
                 if (kljucD != null) delne[kljucD] = it
@@ -486,7 +487,12 @@ class HubTokovi(
             return
         }
         // Za gostitelja dobi datoteka koncno ime sele zdaj (nepopolne uporabnik v Prenosih ne vidi).
-        val koncna = if (d0.zaGostitelja) enolicnaPot(d0.ciljnaMapa, d0.ime).also { if (!d0.pot.renameTo(it)) d0.pot.copyTo(it); if (d0.pot.exists()) d0.pot.delete() } else d0.pot
+        // Koncno ime zasedemo atomarno in preimenujemo (A8, 5. 11. 2026); prej enolicnaPot (exists) in copyTo cez cilj.
+        val koncna = if (d0.zaGostitelja) try { vKoncnoIme(d0.pot, d0.ciljnaMapa, d0.ime) } catch (e: IOException) {
+            try { d0.pot.delete() } catch (_: Exception) { }
+            odgovori(izhod, 500, "{\"napaka\":\"datoteke ni mogoce shraniti\"}")
+            return
+        } else d0.pot
         val id = nakljucno(8)
         val kljuc = nakljucno(16)
         // Zacasna datoteka ima nakljucno predpono (vec hkratnih prenosov z istim imenom); prejemnik pa
@@ -646,6 +652,62 @@ class HubTokovi(
             if (deli.size != 2 || deli[1].isNotBlank()) return 0L
             val n = deli[0].trim().toLongOrNull() ?: return 0L
             return if (n in 1 until velikost) n else 0L
+        }
+
+        /**
+         * Pregled 5. 11. 2026 (A8): prejeto datoteko zapisemo v zacasno ».part«, ustvarjeno z createNewFile (nikoli cez
+         * obstojeco datoteko ali simbolno povezavo), in jo sele cela preimenujemo v koncno ime, ki ga prav tako
+         * zasedemo s createNewFile (dve hkratni ne dobita istega imena; enolicnaPot je med exists() in pisanjem
+         * dopuscala oboje). Ime je samo varnoIme, realpath cilja mora ostati v mapi. Ce [pisi] vrze (prekinjen prenos,
+         * napacen odtis), ne ostane nic. Vrne koncno datoteko. (Telefon: PrevzemDatoteke.)
+         */
+        fun shraniVMapo(mapa: File, zelenoIme: String, pisi: (OutputStream) -> Unit): File {
+            val koren = mapa.canonicalFile
+            val ime = varnoIme(zelenoIme)
+            val zacasna = File(koren, ".safeer-" + nakljucno(8) + ".part")
+            if (!vMapi(koren, zacasna) || !zacasna.createNewFile()) throw IOException("zacasne datoteke ni mogoce ustvariti")
+            var cilj: File? = null
+            try {
+                FileOutputStream(zacasna).use { pisi(it) }
+                cilj = zasediIme(koren, ime)
+                if (!zacasna.renameTo(cilj)) throw IOException("datoteke ni mogoce preimenovati")
+                return cilj
+            } catch (e: Throwable) {
+                try { zacasna.delete() } catch (_: Exception) { }
+                // Zasedeno (prazno) koncno ime sprostimo, ce preimenovanje ni uspelo.
+                try { if (cilj != null && cilj.length() == 0L) cilj.delete() } catch (_: Exception) { }
+                throw e
+            }
+        }
+
+        /**
+         * Cela prejeta datoteka [delna] (odtis je ze preverjen) dobi koncno [zelenoIme] v [mapa]: ime zasedeno atomarno,
+         * brez simbolne povezave, v mapi; ob neuspehu se zasedeno prazno ime sprosti in [delna] ostane (klicatelj jo pobrise).
+         */
+        fun vKoncnoIme(delna: File, mapa: File, zelenoIme: String): File {
+            val koren = mapa.canonicalFile
+            val cilj = zasediIme(koren, varnoIme(zelenoIme))
+            if (!delna.renameTo(cilj)) {
+                try { if (cilj.length() == 0L) cilj.delete() } catch (_: Exception) { }
+                throw IOException("datoteke ni mogoce preimenovati")
+            }
+            return cilj
+        }
+
+        private fun vMapi(koren: File, f: File): Boolean = f.canonicalFile.parentFile == koren
+
+        /** Kot enolicnaPot (ime (1).ext), a ime zasede atomarno (createNewFile); simbolne povezave se izogne. */
+        fun zasediIme(koren: File, ime: String): File {
+            val pika = ime.lastIndexOf('.')
+            val osnova = if (pika > 0) ime.substring(0, pika) else ime
+            val koncnica = if (pika > 0) ime.substring(pika) else ""
+            for (i in 0..9999) {
+                val kandidat = File(koren, if (i == 0) ime else "$osnova ($i)$koncnica")
+                if (java.nio.file.Files.isSymbolicLink(kandidat.toPath())) continue
+                if (!vMapi(koren, kandidat)) throw IOException("ime ni v mapi")
+                if (kandidat.createNewFile()) return kandidat
+            }
+            throw IOException("ni prostega imena")
         }
 
         fun enolicnaPot(mapa: File, ime: String): File {

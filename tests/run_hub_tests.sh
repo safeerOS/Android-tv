@@ -59,3 +59,8 @@ java -cp "$OUT/dostop.jar" si.safeer.tv.cast.DostopPravilaTestKt
     -include-runtime -d "$OUT/e2e.jar"
 
 java -cp "$OUT/e2e.jar" si.safeer.tv.cast.E2eTestKt
+
+# Zeton Huba ne sledi preusmeritvam (S6, pregled 5. 11. 2026, kot na telefonu): pravi OkHttp proti krajevnima streznikoma.
+OKHTTP_CP="$PROJECT_DIR/libs/okhttp-4.12.0.jar:$PROJECT_DIR/libs/okio-jvm-3.6.0.jar"
+"$KOTLINC" -J-Xmx2g -cp "$OKHTTP_CP" "$SRC/si/safeer/tv/cast/HubPreusmeritve.kt" "$TEST_DIR/HubPreusmeritveTest.kt" -include-runtime -d "$OUT/hub-preusmeritve.jar"
+java -cp "$OUT/hub-preusmeritve.jar:$OKHTTP_CP" si.safeer.tv.cast.HubPreusmeritveTestKt

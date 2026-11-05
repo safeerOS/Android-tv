@@ -33,6 +33,9 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/cast/RegisterNaprav.kt" \
     "$SRC/si/safeer/tv/cast/KrogZaupanja.kt" \
     "$TEST_DIR/TokoviTest.kt" \
+    "$TEST_DIR/ShraniVMapoTest.kt" \
     -include-runtime -d "$OUT/tokovi.jar"
 
 java -cp "$OUT/tokovi.jar${JSON_JAR:+:$JSON_JAR}" si.safeer.tv.cast.TokoviTestKt
+# Varno shranjevanje prejete datoteke (.part, createNewFile, ime v mapi; A8 5. 11. 2026, kot na telefonu).
+java -cp "$OUT/tokovi.jar${JSON_JAR:+:$JSON_JAR}" si.safeer.tv.cast.ShraniVMapoTestKt

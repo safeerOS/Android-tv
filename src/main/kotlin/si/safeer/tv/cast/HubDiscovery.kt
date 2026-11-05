@@ -57,7 +57,7 @@ object HubDiscovery {
                     }
 
                     override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
-                        val koda = response.code
+                        val koda = HubPreusmeritve.kodaPreverbe(response.code)
                         response.close()
                         odgovor(koda)
                     }
