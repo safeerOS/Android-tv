@@ -438,7 +438,16 @@ class HubTokovi(
             // Za gostitelja v mapo prenosov (z mapo posiljatelja), sicer zacasno; do konca z ».safeer-delno«.
             val ciljnaMapa = if (zaGostitelja) podmapaVarno(mapa, podmapa) else mapa
             // A8 (5. 11. 2026): ime zasedeno atomarno (createNewFile), brez simbolnih povezav, ostane v mapi.
-            val pot = zasediIme(ciljnaMapa.canonicalFile, if (zaGostitelja) "$ime.safeer-delno" else nakljucno(6) + "-" + ime)
+            // CodeRabbit 5. 11. 2026: zasediIme lahko vrze (ime ni v mapi, disk poln, mapa ni mapa) - cilj, zaseden zgoraj, mora biti
+            // sproscen tudi takrat, sicer naprava ostane zasedena do ponovnega zagona.
+            val pot = try {
+                zasediIme(ciljnaMapa.canonicalFile, if (zaGostitelja) "$ime.safeer-delno" else nakljucno(6) + "-" + ime)
+            } catch (_: Exception) {
+                // Tudi SecurityException (ne le IOException) bi pustila cilj zaseden.
+                sprostiCilj?.invoke(cilj, posiljatelj)
+                odgovori(izhod, 500, "{\"napaka\":\"datoteke ni mogoce shraniti\",\"koda\":\"shranjevanje\"}")
+                return
+            }
             Delna(pot, ime, podmapa, zaGostitelja, ciljnaMapa).also {
                 it.vTeku = true; it.cas = ura()
                 if (kljucD != null) delne[kljucD] = it

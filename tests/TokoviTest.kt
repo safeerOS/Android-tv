@@ -239,6 +239,29 @@ fun main() {
     gledalec.close()
 
     streznik.ustavi()
+
+    // CodeRabbit 5. 11. 2026: ko zasediIme vrze (tu je "zacasna mapa" navadna datoteka, createNewFile -> IOException),
+    // mora biti cilj, zaseden pred tem, sproscen in odgovor 500 - prej je naprava ostala zasedena do ponovnega zagona.
+    println("\n== cilj sproscen, ko imena ni mogoce zasesti ==")
+    val niMapa = Files.createTempFile("safeer-ni-mapa", ".bin").toFile()
+    val zasedeni = java.util.Collections.synchronizedSet(HashSet<String>())
+    val tokoviNapaka = HubTokovi(mapaPrenosov = { mapaPrenosov }, mapaZacasna = { niMapa },
+        jeVeljavenZeton = { it == "pravi" }, lastniId = { "tv-gostitelj" })
+    tokoviNapaka.zasediCilj = { cilj, kdo -> if (zasedeni.add(cilj)) null else kdo }
+    tokoviNapaka.sprostiCilj = { cilj, _ -> zasedeni.remove(cilj) }
+    val streznikNapaka = HubStreznik(zeljenaVrata = 0, naZahtevo = { null }, preveriVstopnico = { "ni" }, naPovezavo = { },
+        naTok = { z, vhod, izhod, vt -> tokoviNapaka.obdelaj(z, vhod, izhod, vt) })
+    preveri("streznik (napaka imena) tece", streznikNapaka.zazeni())
+    val odg = try {
+        zahteva(streznikNapaka.vrata, "PUT", "/cast/file?name=z.txt&target=fon2&from=fon1", mapOf("x-safeer-token" to "pravi"), "abc".toByteArray()).first
+    } catch (e: Exception) { "izjema: ${e.message}" }
+    preveri("ime ni zasedeno -> 500 (dobljeno: $odg)", odg.contains("500"))
+    var cakano = 0
+    while (zasedeni.isNotEmpty() && cakano < 2000) { Thread.sleep(50); cakano += 50 }
+    preveri("cilj je po neuspehu sproscen", zasedeni.isEmpty())
+    streznikNapaka.ustavi()
+    niMapa.delete()
+
     mapaPrenosov.deleteRecursively(); mapaZacasna.deleteRecursively()
     println(if (napak == 0) "\nVSE V REDU" else "\nNapak: $napak")
     if (napak > 0) System.exit(1)
