@@ -157,6 +157,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         super.onCreate(savedInstanceState)
         // Pregled 3. 11. 2026: alias Domov kaze sem (ne vec na DomovActivity) - predgretje Medijskega centra kot prej.
         Predgretje.zazeni(this)
+        // Pregled doma 5. 11. 2026 (10): shranjene ploscice »razdelek:« enkrat iz shrambe (prej jih je skrival samo filter).
+        Priljubljene.pocistiRazdelke(this)
         koren = FrameLayout(this)
         zatemnitevOzadja = View(this).apply {
             setBackgroundColor(0xFF000000.toInt())
@@ -532,6 +534,9 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         // dobi vec pomnilnika.
         try { LahkiWebViewPool.sprostiProstega() } catch (_: Throwable) { }
         ZnackeObvestil.poslusalci.remove(posodobiZnacke)
+        // Pregled doma 5. 11. 2026 (5): odhod z doma (zagon aplikacije, okno druge aplikacije) konca premik ploscice ali
+        // gumba - prej je po vrnitvi levo/desno se premikalo, napis premika pa je izginil sele s tipko.
+        koncajPremikanje(); koncajPremikanjeDok()
         // Pregled lupe 5. 11. 2026 (11): lupa se spodaj zapre (zadetki izginejo) - fokus v lupi se zapomni kot zadnja
         // ploscica, sicer je po vrnitvi pristal na lupi.
         val f = currentFocus
@@ -543,9 +548,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         try { unregisterReceiver(usbSprejemnik) } catch (_: Throwable) { }
         link.odstrani(linkPoslusalec)
         Aplikacije.obSpremembiPaketov.remove(obSpremembiPaketov)
-        glavna.removeCallbacks(preveriMirovanje)
         zbudi(animiraj = false)
-        glavna.removeCallbacks(preveriMirovanje)
+        ustaviPreverboMirovanja()
         GlasbaStoritev.poslusalci.remove(medijiPoslusalec)
         OddaljenoPredvajanje.poslusalci.remove(medijiPoslusalec)
         dock?.ustavi()
@@ -595,6 +599,14 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     override fun onWindowFocusChanged(imaFokus: Boolean) {
         super.onWindowFocusChanged(imaFokus)
         if (imaFokus && vrniFokus) koren.post { postaviVrnjeniFokus(true) }
+        // Pregled doma 5. 11. 2026 (4, 12): tipke v oknu (meni, potrditev) gredo oknu, ne dispatchKeyEvent - zadnjiVnos je
+        // ostal star in zaslon je takoj po zaprtju okna zbledel (naslednja tipka pozrta). Vrnitev fokusa je vnos in znova
+        // nastavi preverbo, ki med oknom ne tece. Ce zaslon miruje (fokus je vzelo sistemsko obvestilo), ga ne zbudimo.
+        if (imaFokus && ::koren.isInitialized) {
+            if (!mirujem) zbudi(animiraj = false)
+            else if (!zaslonZatemnjen) nastaviPreverboMirovanja(PokrajinaPravila.zamikPreverbeMirovanja(zadnjiVnos,
+                android.os.SystemClock.uptimeMillis(), PokrajinaPravila.MIROVANJE_MS * 2, false) ?: PokrajinaPravila.MIROVANJE_MS)
+        }
         if (imaFokus && ::poljeLupe.isInitialized && !poljeLupe.showSoftInputOnFocus)
             (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager).hideSoftInputFromWindow(window.decorView.windowToken, 0)
     }
@@ -609,12 +621,10 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         // Zunanji pregled 3. 11. 2026: dokaz, da smo domaci zaslon, tudi ob Domov v ze odprti Pokrajini (singleTask) -
         // sicer je Nazaj po zagonu z ikone zapustil dom (televizorji vrnejo svoj prestreznik Domov).
         if (intent?.hasCategory(Intent.CATEGORY_HOME) == true) Zaganjalnik.zabeleziZagonDomov(this)
-        // Po zaprtju Linka (os_vrni=naprave, glej DomovActivity.vrniSeKamorJeBil) nazaj na seznam naprav.
-        if (intent?.getStringExtra("os_vrni") == "naprave") {
-            intent.removeExtra("os_vrni")
-            try { startActivity(Intent(this, NapraveActivity::class.java)) } catch (_: Throwable) { }
-            return
-        }
+        // Pregled doma 5. 11. 2026 (11): dodatek os_vrni=naprave je prek izvozenega aliasa doma lahko poslala katerakoli
+        // aplikacija in odprla neizvozeno NapraveActivity. Nasa pot (brskalnik po zaprtju Linka -> DomovActivity) seznam
+        // naprav odpre sama in dodatka domu ne preda (DomovActivity.EXTRA_VRNI) - tu se dodatek samo zavrze.
+        intent?.removeExtra("os_vrni")
         // Pregled Grok 2. 11. 2026: Domov konca tudi premikanje ploscice (prej je levo/desno po Domov se premikalo).
         if (intent?.hasCategory(Intent.CATEGORY_HOME) == true) { koncajPremikanje(); koncajPremikanjeDok() }
         if (intent?.hasCategory(Intent.CATEGORY_HOME) == true && mirujem) { zbudi(); return }
@@ -678,13 +688,13 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         
         // Pregled Grok 2. 11. 2026: v mirovanju prvi Nazaj najprej zbudi zaslon, tedenska napoved se skrije sele z naslednjim.
         if (!mirujem && pretvorjen.keyCode == KeyEvent.KEYCODE_BACK && ::teden.isInitialized && teden.visibility == View.VISIBLE) {
-            zadnjiVnos = android.os.SystemClock.uptimeMillis()
+            zabeleziVnos()
             if (pretvorjen.action == KeyEvent.ACTION_UP) skrijTeden()
             return true
         }
         // Mirovanje: prvi pritisk samo zbudi vmesnik (tudi njegov ACTION_UP ne naredi nicesar).
         if (pretvorjen.action == KeyEvent.ACTION_DOWN) {
-            zadnjiVnos = android.os.SystemClock.uptimeMillis()
+            zabeleziVnos()
             if (mirujem) { zbudi(); pogoltnjene.add(pretvorjen.keyCode); return true }
             if (pretvorjen.repeatCount > 0 && pretvorjen.keyCode in pogoltnjene) return true
         } else if (pretvorjen.action == KeyEvent.ACTION_UP && pogoltnjene.remove(pretvorjen.keyCode)) return true
@@ -803,7 +813,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         // Tipka Meni / Nastavitve na daljincu (Menu, Settings, rdeči gumb na Philips TV): odpre možnosti nastavitev
         if (PokrajinaPravila.jeTipkaMenija(pretvorjen.keyCode)) {
             val tag = currentFocus?.tag as? String
-            val naPloscici = tag != null && (tag.startsWith("splet:") || tag.startsWith("razdelek:") || tag.startsWith("dok:") || tag.contains("."))
+            val naPloscici = tag != null && (tag.startsWith("splet:") || tag.startsWith("dok:") || tag.contains("."))
             if (naPloscici && super.dispatchKeyEvent(pretvorjen)) return true
             
             // Pregled Grok 2. 11. 2026: drzana tipka poslje vec ACTION_DOWN - nastavitve odpremo samo enkrat.
@@ -1863,8 +1873,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         val v = LayoutInflater.from(this).inflate(R.layout.os_kartica_ikona, vrstaAplikacij, false)
         val slika = v.findViewById<ImageView>(R.id.ikona)
         if (ikona != null) slika.setImageDrawable(ikona) else slika.setImageResource(ikonaRes)
-        slika.layoutParams = slika.layoutParams.apply { width = dp(64); height = dp(64) }
         v.findViewById<TextView>(R.id.ime).apply { text = ime; setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f) }
+        nastaviIkonoPloscice(v)
         v.background = StateListDrawable().apply {
             val spodaj = GradientDrawable().apply {
                 setColor(osBarva(R.color.os_kartica_steklo_fokus))
@@ -1883,6 +1893,20 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         v.setOnClickListener { klik(v) }
         poudariFokus(v)
         return v
+    }
+
+    /**
+     * Pregled doma 5. 11. 2026 (15): ikona je bila vedno 64 dp - na nizji plosci (72-118 dp: telefon lezece, vecja pisava)
+     * je odrinila ime cez spodnji rob. Velikost iz visine plosce in izmerjene visine imena (PokrajinaPravila.velikostIkonePloscice).
+     */
+    private fun nastaviIkonoPloscice(v: View) {
+        val slika = v.findViewById<ImageView>(R.id.ikona) ?: return
+        val ime = v.findViewById<TextView>(R.id.ime)
+        val imePx = if (ime == null || ime.visibility == View.GONE) 0 else ime.paint.fontMetricsInt.let { it.descent - it.ascent }
+        val imeDp = Math.ceil(imePx / resources.displayMetrics.density.toDouble()).toInt()
+        val s = dp(PokrajinaPravila.velikostIkonePloscice(visinaPlosceDp, imeDp))
+        val lp = slika.layoutParams
+        if (lp.width != s || lp.height != s) { lp.width = s; lp.height = s; slika.layoutParams = lp }
     }
 
     /** Sirina plosce: sest v vrsti cez vsebino zaslona; vec plosc je za drsenjem desno. */
@@ -1904,6 +1928,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         for (i in 0 until vrstaAplikacij.childCount) {
             val v = vrstaAplikacij.getChildAt(i)
             (v.layoutParams as? LinearLayout.LayoutParams)?.let { it.height = dp(nova); v.layoutParams = it }
+            nastaviIkonoPloscice(v)
         }
     }
 
@@ -1984,33 +2009,6 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                 dodajVVrsto(v)
                 continue
             }
-            val r = id.removePrefix("razdelek:")
-            if (r != id) {
-                val (ikona, napis) = when (r) {
-                    PokrajinaPravila.MEDIJI -> R.drawable.os_ikona_predvajaj to R.string.pk_mediji
-                    PokrajinaPravila.SPLET -> R.drawable.os_ikona_splet to R.string.os_meni_splet
-                    PokrajinaPravila.LINK -> R.drawable.os_ikona_link to R.string.os_meni_naprave
-                    PokrajinaPravila.SPOROCILA -> R.drawable.os_ikona_sporocila to R.string.os_meni_sporocila
-                    PokrajinaPravila.APLIKACIJE -> R.drawable.os_ikona_aplikacije to R.string.pk_aplikacije
-                    PokrajinaPravila.DATOTEKE -> R.drawable.os_ikona_datoteke to R.string.os_meni_datoteke
-                    else -> R.drawable.os_ikona_nastavitve to R.string.os_meni_nastavitve
-                }
-                val ime = getString(napis)
-                val v = kartica(null, ikona, ime) { _ ->
-                    if (premikam != null) { koncajPremikanje(); return@kartica }
-                    zadnjaPloscica = id
-                    odpriRazdelek(r)
-                }
-                v.tag = id
-                v.setOnLongClickListener { zacniPremikanje(id); true }
-                v.setOnKeyListener { _, keyCode, event ->
-                    if (event.action == KeyEvent.ACTION_DOWN && (keyCode == 165 || PokrajinaPravila.jeTipkaMenija(keyCode))) {
-                        moznostiPloscice(id, ime, splet = false); true
-                    } else false
-                }
-                dodajVVrsto(v)
-                continue
-            }
             val s = spletne[id] ?: continue
             val ime = s.ime.ifBlank { SpletneAplikacije.gostitelj(s.url) }
             val v = kartica(SpletneAplikacije.ikona(this, s), R.drawable.os_ikona_splet, ime) { _ ->
@@ -2067,6 +2065,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         // Zadnja plosca: uporabnik si sam doda aplikacijo s televizorja ali spletno aplikacijo.
         val gumbDodaj = kartica(null, R.drawable.os_ikona_plus, getString(R.string.os_spletne_dodaj)) { dodajAplikacijo() }
         gumbDodaj.findViewById<TextView>(R.id.ime).visibility = View.GONE
+        nastaviIkonoPloscice(gumbDodaj)
         dodajVVrsto(gumbDodaj, dp(visinaPlosceDp))
         if (fokusTag != null) vrstaAplikacij.findViewWithTag<View>(fokusTag)?.requestFocus()
         return true
@@ -2082,7 +2081,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
             p.edit().putStringSet("usb_skriti", skriteUsb() + kljuc).apply()
         } catch (_: Throwable) { }
         narisiAplikacije()
-        vrstaAplikacij.getChildAt(0)?.requestFocus()
+        prvaZaFokus()?.requestFocus()
     }
 
     private fun usbNosilci(): List<android.os.storage.StorageVolume> = try {
@@ -2101,8 +2100,32 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     private var mirujem = false
     private val pogoltnjene = HashSet<Int>()
     private var zaslonZatemnjen = false
+    /** Preverba mirovanja je nastavljena (Handler.hasCallbacks je sele od API 29). */
+    private var preverbaMirovanjaCaka = false
+
+    private fun nastaviPreverboMirovanja(zamikMs: Long) {
+        glavna.removeCallbacks(preveriMirovanje)
+        glavna.postDelayed(preveriMirovanje, zamikMs)
+        preverbaMirovanjaCaka = true
+    }
+
+    private fun ustaviPreverboMirovanja() {
+        glavna.removeCallbacks(preveriMirovanje)
+        preverbaMirovanjaCaka = false
+    }
+
+    /** Tipka daljinca: cas zadnjega vnosa; preverba, ki med oknom/lupo/premikom ni tekla, se znova nastavi. */
+    private fun zabeleziVnos() {
+        zadnjiVnos = android.os.SystemClock.uptimeMillis()
+        if (!preverbaMirovanjaCaka && !mirujem) nastaviPreverboMirovanja(PokrajinaPravila.MIROVANJE_MS)
+    }
+
+    private fun lestvicaAnimacij(): Float =
+        android.provider.Settings.Global.getFloat(contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+
     private val preveriMirovanje = object : Runnable {
         override fun run() {
+            preverbaMirovanjaCaka = false
             val zdaj = android.os.SystemClock.uptimeMillis()
             // Pregled 2. 11. 2026: vidnost je na drsniku - zadetki so bili vedno VISIBLE in zaslon ni nikoli miroval.
             val lupa = ::poljeLupe.isInitialized && (poljeLupe.hasFocus() || zadetkiDrsnik.visibility == View.VISIBLE ||
@@ -2112,26 +2135,31 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                 GlasbaStoritev.trenutna() != null || GlasbaStoritev.tece() ||
                     (OddaljenoPredvajanje.cilj != null && OddaljenoPredvajanje.stanje.kajIgra)
             } catch (_: Throwable) { false }
-            
-            if (!mirujem && hasWindowFocus() && !lupa && premikam == null && premikamDok == null && PokrajinaPravila.mirujePo(zadnjiVnos, zdaj)) {
+            // Pregled doma 5. 11. 2026 (12): okno, lupa ali premik zadrzijo mirovanje - preverba se ne ponavlja vsako sekundo,
+            // znova jo nastavijo vrnitev fokusa (onWindowFocusChanged) ali naslednja tipka (zabeleziVnos).
+            val zadrzano = !hasWindowFocus() || lupa || premikam != null || premikamDok != null
+
+            if (!mirujem && !zadrzano && PokrajinaPravila.mirujePo(zadnjiVnos, zdaj)) {
                 mirujem = true
-                val cas = PokrajinaPravila.trajanje(600, android.provider.Settings.Global.getFloat(contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f), zmanjsano())
-                for (i in 0 until koren.childCount) koren.getChildAt(i).let { 
+                val cas = PokrajinaPravila.trajanje(600, lestvicaAnimacij(), zmanjsano())
+                for (i in 0 until koren.childCount) koren.getChildAt(i).let {
                     if (it !== zatemnitevOzadja) {
-                        if (cas == 0L) it.alpha = 0f else it.animate().alpha(0f).setDuration(cas).start() 
+                        if (cas == 0L) it.alpha = 0f else it.animate().alpha(0f).setDuration(cas).start()
                     }
                 }
+                // Pregled doma 5. 11. 2026 (9): tudi rocica mini predvajalnika (dock je na korenu okna, ne v vsebini).
+                dock?.nastaviProsojnost(0f, cas)
                 dock?.let { glavna.post { it.skrijCeOdprt() } }
                 if (!predvaja) Pomnilnik.pocistiOzadje(this@PokrajinaActivity, false, 0L)
             }
             if (mirujem && !zaslonZatemnjen && hasWindowFocus() && !predvaja && PokrajinaPravila.mirujePo(zadnjiVnos, zdaj, PokrajinaPravila.MIROVANJE_MS * 2)) {
                 zaslonZatemnjen = true
-                val cas = PokrajinaPravila.trajanje(1000, android.provider.Settings.Global.getFloat(contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f), zmanjsano())
+                val cas = PokrajinaPravila.trajanje(1000, lestvicaAnimacij(), zmanjsano())
                 if (cas == 0L) zatemnitevOzadja.alpha = 0.85f else zatemnitevOzadja.animate().alpha(0.85f).setDuration(cas).start()
             }
             if (!zaslonZatemnjen) {
                 val meja = if (!mirujem) PokrajinaPravila.MIROVANJE_MS else PokrajinaPravila.MIROVANJE_MS * 2
-                glavna.postDelayed(this, maxOf(1_000L, zadnjiVnos + meja - zdaj))
+                PokrajinaPravila.zamikPreverbeMirovanja(zadnjiVnos, zdaj, meja, zadrzano)?.let { nastaviPreverboMirovanja(it) }
             }
         }
     }
@@ -2141,17 +2169,16 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         if (mirujem) {
             mirujem = false
             zaslonZatemnjen = false
-            for (i in 0 until koren.childCount) koren.getChildAt(i).let { 
-                if (it === zatemnitevOzadja) {
-                    it.animate().cancel()
-                    it.alpha = 0f 
-                } else {
-                    if (animiraj) it.animate().alpha(1f).setDuration(300).start() else it.alpha = 1f 
-                }
+            // Zmanjsano gibanje velja tudi za prebujenje; tekoce bledenje se prekine (sicer bi pogled za prebujenjem zbledel).
+            val cas = if (animiraj) PokrajinaPravila.trajanje(300, lestvicaAnimacij(), zmanjsano()) else 0L
+            for (i in 0 until koren.childCount) koren.getChildAt(i).let {
+                it.animate().cancel()
+                if (it === zatemnitevOzadja) it.alpha = 0f
+                else if (cas == 0L) it.alpha = 1f else it.animate().alpha(1f).setDuration(cas).start()
             }
+            dock?.nastaviProsojnost(1f, cas)
         }
-        glavna.removeCallbacks(preveriMirovanje)
-        glavna.postDelayed(preveriMirovanje, PokrajinaPravila.MIROVANJE_MS)
+        nastaviPreverboMirovanja(PokrajinaPravila.MIROVANJE_MS)
     }
 
     /** Dotik ali klik miske, ki je zbudil zaslon (njegov ACTION_UP ne sme odpreti ploscice). */
@@ -2312,7 +2339,14 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         if (splet) SpletneAplikacije.odstrani(this, id.removePrefix("splet:")) else Priljubljene.odstrani(this, id)
         Priljubljene.shraniRedDomov(this, vrstaDomov.filterNot { it == id })
         narisiAplikacije()
-        vrstaAplikacij.getChildAt(0)?.requestFocus()
+        // Pregled doma 5. 11. 2026 (7): po zadnji ploscici je prvi otrok napis (ne sprejme fokusa) - fokus na »+ Dodaj«.
+        prvaZaFokus()?.requestFocus()
+    }
+
+    /** Prvi pogled vrstice, ki sprejme fokus in je viden (PokrajinaPravila.prviZaFokus), ali null. */
+    private fun prvaZaFokus(): View? {
+        val otroci = (0 until vrstaAplikacij.childCount).map { vrstaAplikacij.getChildAt(it) }
+        return otroci.getOrNull(PokrajinaPravila.prviZaFokus(otroci.map { it.isFocusable && it.isShown }))
     }
 
     /** Nas brskalnik krajevnih datotek (tudi USB) - deluje na vseh podprtih Androidih. */
@@ -2358,7 +2392,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         for (r in vrstaDok) {
             val (ikona, napis) = when (r) {
                 // Preverba TV 4. 11. 2026: »Safeer Media Center« je bil v gumbu spodnje vrstice odrezan - kratko »Medijski center«.
-                PokrajinaPravila.MEDIJI -> R.drawable.os_ikona_predvajaj to R.string.os_mediji_kartica
+                PokrajinaPravila.MEDIJI -> StranskaVrstica.IKONA_MEDIJSKEGA_CENTRA to R.string.os_mediji_kartica
                 PokrajinaPravila.SPLET -> R.drawable.os_ikona_splet to R.string.os_meni_splet
                 PokrajinaPravila.LINK -> R.drawable.os_ikona_link to R.string.os_meni_naprave
                 PokrajinaPravila.SPOROCILA -> R.drawable.os_ikona_sporocila to R.string.os_meni_sporocila
@@ -2376,13 +2410,14 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
             val gumb = object : LinearLayout(this) {
                 override fun focusSearch(direction: Int): View? {
                     if (direction == View.FOCUS_UP) {
+                        // Pregled doma 5. 11. 2026 (8): GOR na mini predvajalnik samo, ko je odprt (kot dispatchKeyEvent) - prej je
+                        // vrnil rocico tudi pri zaprtem docku. Brez ploscic (napis) prvi pogled, ki sprejme fokus.
                         val mini = dock?.aktivniPogledZaFokus?.takeIf { it.isShown && it.isFocusable }
-                        if (dock?.jeOdprt == true && mini != null) return mini
-                        if (mini != null) return mini
+                        if (mini != null && PokrajinaPravila.dolNaMini(dock?.jeOdprt == true, true)) return mini
                         if (::vrstaAplikacij.isInitialized) {
                             najblizjiPogledX(vrstaAplikacij, this)?.let { return it }
-                                ?: zadnjaPloscica?.let { vrstaAplikacij.findViewWithTag<View>(it) }?.let { return it }
-                                ?: vrstaAplikacij.getChildAt(0)?.let { return it }
+                            zadnjaPloscica?.let { vrstaAplikacij.findViewWithTag<View>(it) }?.takeIf { it.isFocusable && it.isShown }?.let { return it }
+                            prvaZaFokus()?.let { return it }
                         }
                     }
                     return super.focusSearch(direction)
@@ -2558,6 +2593,11 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         vrstaDok = nova
         shramba().edit().putString("pk_dok", nova.joinToString(",")).apply()
         narisiDok(dok)
+        // Pregled doma 5. 11. 2026 (6): narisiDok zgradi gumbe znova - povecava premikanega gumba, znacka Sporocil, pika
+        // posodobitve in pika Linka so se izgubile do naslednje osvezitve.
+        osveziStanjePremikanja(dok, premikamDok?.let { "dok:$it" }, dp(4))
+        osveziDokZnacke()
+        osveziLinkPiko()
         dok.findViewWithTag<View>("dok:$id")?.requestFocus()
         return true
     }

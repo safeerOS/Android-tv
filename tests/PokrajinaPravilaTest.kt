@@ -237,5 +237,28 @@ fun main() {
     preveriEnako("(10) DOL na mini samo, ko je odprt", false, PokrajinaPravila.dolNaMini(false, true))
     preveriEnako("(10) odprt in viden mini", true, PokrajinaPravila.dolNaMini(true, true))
 
+    // Pregled doma 5. 11. 2026.
+    preveriEnako("dom (5) Meni, Nastavitve, rdeca, INFO koncajo premik", listOf(0, 0, 0, 0),
+        listOf(82, 176, 183, 165).map { PokrajinaPravila.tipkaPremikanja(it) })
+    preveriEnako("dom (5) GOR ostane brez premika (pogoltne se posebej)", null, PokrajinaPravila.tipkaPremikanja(19))
+    val m = PokrajinaPravila.MIROVANJE_MS
+    preveriEnako("dom (12) okno/lupa/premik: preverba se ne ponavlja", null,
+        PokrajinaPravila.zamikPreverbeMirovanja(0L, 5 * m, m, zadrzano = true))
+    preveriEnako("dom (12) rok mimo (predvajanje zadrzi zatemnitev): cez minuto, ne vsako sekundo", m,
+        PokrajinaPravila.zamikPreverbeMirovanja(0L, 5 * m, m, zadrzano = false))
+    preveriEnako("dom (12) do roka", 20_000L, PokrajinaPravila.zamikPreverbeMirovanja(0L, 40_000L, m, zadrzano = false))
+    preveriEnako("dom (12) vsaj 1 s", 1_000L, PokrajinaPravila.zamikPreverbeMirovanja(0L, m - 10L, m, zadrzano = false))
+    preveriEnako("dom (10) razdelki iz shrambe", listOf("com.netflix.ninja", "splet:https://rtvslo.si"),
+        PokrajinaPravila.brezRazdelkov(listOf("razdelek:mediji", "com.netflix.ninja", "razdelek:link", "splet:https://rtvslo.si")))
+    preveriEnako("dom (7) prvi, ki sprejme fokus (napis preskoci)", 1, PokrajinaPravila.prviZaFokus(listOf(false, true, true)))
+    preveriEnako("dom (7) nobenega", -1, PokrajinaPravila.prviZaFokus(listOf(false)))
+    preveriEnako("dom (15) polna plosca: ikona 64 dp kot prej", 64, PokrajinaPravila.velikostIkonePloscice(118, 18))
+    // Ime (13 sp, 1,3x pisava ~ 23 dp) mora na vsaki visini plosce (72-118 dp) ostati cele v plosci.
+    for (imeDp in listOf(18, 23)) for (h in PokrajinaPravila.NAJNIZJA_PLOSCA_DP..PokrajinaPravila.VISINA_PLOSCE_DP) {
+        val ikona = PokrajinaPravila.velikostIkonePloscice(h, imeDp)
+        if (ikona + 26 + imeDp > h) preveriEnako("dom (15) ime ni obrezano pri $h dp (ime $imeDp dp)", true, false)
+    }
+    println("  ok  dom (15) ime cele na vseh visinah plosce")
+
     if (napak == 0) println("PokrajinaPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

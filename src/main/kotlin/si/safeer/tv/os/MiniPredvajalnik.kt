@@ -210,6 +210,20 @@ class MiniPredvajalnik(
 
     fun ustavi() { skrivanjeTece = false; glavna.removeCallbacks(samodejno); glavna.removeCallbacks(casovnik) }
 
+    /** Prosojnost docka (rocica in kartica), ki jo doloci domaci zaslon; velja tudi za dock, zgrajen pozneje. */
+    private var prosojnost = 1f
+
+    /**
+     * Pregled doma 5. 11. 2026 (9): mirovanje Pokrajine je zbledilo vsebino, rocica ob robu pa je ostala svetla (dock je
+     * na korenu okna, ne v vsebini doma). [casMs] 0 = brez animacije (zmanjsano gibanje).
+     */
+    fun nastaviProsojnost(alfa: Float, casMs: Long) {
+        prosojnost = alfa
+        val k = koren ?: return
+        k.animate().cancel()
+        if (casMs <= 0L) k.alpha = alfa else k.animate().alpha(alfa).setDuration(casMs).start()
+    }
+
     /** Casovnik samodejnega skrivanja je nastavljen (ustavi() ga ustavi ob onStop domacega zaslona). */
     private var skrivanjeTece = false
 
@@ -449,6 +463,7 @@ class MiniPredvajalnik(
         // Prazen del docka ne lovi dotikov - pod njim je domaci zaslon.
         k.isClickable = false
         koren = k; rocica = r; kartica = c
+        k.alpha = prosojnost
         zgrajenoMesto = m; naslovPogled = nPogled; izvajalecPogled = iPogled; gumbPredvajaj = gPredvajaj; radioIkona = radio
         drsnik = d; gumbZvocnik = gZvocnik; gumbZatemni = gZatemni
         // Nov dock (prvic ali novo mesto): odprt dock dobi poln cas do samodejnega skrivanja, osvezitve pa ga ne podaljsajo.

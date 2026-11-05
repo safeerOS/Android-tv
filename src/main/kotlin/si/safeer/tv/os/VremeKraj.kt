@@ -31,6 +31,8 @@ object VremeKraj {
     fun izberi(a: Activity, potem: () -> Unit) {
         val polje = EditText(a).apply {
             setSingleLine(); setText(ime(a).orEmpty()); hint = a.getString(R.string.pk_vreme_kraj_namig)
+            // Pregled doma 5. 11. 2026 (16): barvi besedila in namiga iz zetonov (prej privzeti sistemski, slabo berljivo).
+            setTextColor(a.osBarva(R.color.os_besedilo)); setHintTextColor(a.osBarva(R.color.os_umirjeno))
         }
         val okno = android.app.AlertDialog.Builder(a, si.safeer.tv.R.style.Os_Okno)
             .setTitle(R.string.pk_vreme_kraj)

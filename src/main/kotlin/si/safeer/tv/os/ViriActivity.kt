@@ -189,11 +189,37 @@ class ViriActivity : android.app.Activity() {
 
     /** Uporabnik da vhodu svoje ime; prazno ali »Privzeto« vrne sistemsko. */
     private fun preimenuj(v: Vhod) {
-        val polje = android.widget.EditText(this).apply {
+        // Pregled doma 5. 11. 2026 (1, 2): okno odpre dolg OK - polje je dobilo fokus in spust istega OK je sam odprl
+        // tipkovnico. Zdaj fokus ne odpre tipkovnice (odpre jo sele OK na polju), prvi fokus je na »Shrani«, prvi spust OK
+        // po odprtju se pozre. Polje v slogu okna (Os_Okno) z barvami iz zetonov - prej stara tema brez barv.
+        val okKoda = { k: Int -> k == android.view.KeyEvent.KEYCODE_DPAD_CENTER || k == android.view.KeyEvent.KEYCODE_ENTER ||
+            k == android.view.KeyEvent.KEYCODE_NUMPAD_ENTER || k == android.view.KeyEvent.KEYCODE_BUTTON_A }
+        var pozriSpust = true
+        /** Spust OK, ki je okno odprl (dolg pritisk), in njegove ponovitve se pozrejo; nov pritisk velja. */
+        fun pozri(koda: Int, e: android.view.KeyEvent): Boolean {
+            if (!okKoda(koda)) { if (e.action == android.view.KeyEvent.ACTION_DOWN) pozriSpust = false; return false }
+            if (e.action == android.view.KeyEvent.ACTION_DOWN && e.repeatCount == 0) { pozriSpust = false; return false }
+            return pozriSpust
+        }
+        val polje = android.widget.EditText(android.view.ContextThemeWrapper(this, R.style.Os_Okno)).apply {
             setText(imena.getString(v.info.id, "") ?: "")
             hint = v.ime
             setSingleLine()
             selectAll()
+            setTextColor(barva(R.color.os_besedilo))
+            setHintTextColor(barva(R.color.os_umirjeno))
+            backgroundTintList = android.content.res.ColorStateList.valueOf(barva(R.color.os_mint))
+            showSoftInputOnFocus = false
+            setOnKeyListener { p, koda, e ->
+                if (pozri(koda, e)) return@setOnKeyListener true
+                if (!okKoda(koda)) return@setOnKeyListener false
+                if (e.action == android.view.KeyEvent.ACTION_UP) {
+                    showSoftInputOnFocus = true
+                    (getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager)
+                        .showSoftInput(p, 0)
+                }
+                true
+            }
         }
         val okvir = android.widget.FrameLayout(this).apply {
             val r = (24 * resources.displayMetrics.density).toInt()
@@ -206,14 +232,22 @@ class ViriActivity : android.app.Activity() {
             e.apply()
             narisi(v.info.id)
         }
-        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
+        val okno = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_viri_preimenuj) + (v.vrata?.let { " ($it)" } ?: ""))
             .setView(okvir)
             .setPositiveButton(R.string.os_viri_shrani) { _, _ -> shrani(polje.text?.toString()) }
             .setNeutralButton(R.string.os_viri_privzeto) { _, _ -> shrani(null) }
             .setNegativeButton(android.R.string.cancel, null)
-            .show()
-        polje.requestFocus()
+            .create()
+        // Pregled doma 5. 11. 2026 (3): B na plosku zapre okno kot drugje (Kontroler.pokazi).
+        Kontroler.pokazi(okno)
+        okno.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
+        okno.show()
+        for (g in listOf(android.content.DialogInterface.BUTTON_POSITIVE, android.content.DialogInterface.BUTTON_NEUTRAL,
+                android.content.DialogInterface.BUTTON_NEGATIVE)) {
+            okno.getButton(g)?.setOnKeyListener { _, koda, e -> pozri(koda, e) }
+        }
+        okno.getButton(android.content.DialogInterface.BUTTON_POSITIVE)?.requestFocus()
     }
 
     @Deprecated("Deprecated in Java")

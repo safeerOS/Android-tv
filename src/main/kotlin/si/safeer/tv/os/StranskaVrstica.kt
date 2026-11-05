@@ -633,7 +633,7 @@ class StranskaVrstica private constructor(
         // (datoteke z racunalnikov prek Safeer Linka), datoteke in nastavitve; ostalo je Safeer OS.
         val samoPredvajalnik = si.safeer.tv.BuildConfig.FLAVOR == "predvajalnik"
         if (!samoPredvajalnik) dodaj(Razdelek.DOMOV, R.drawable.os_ikona_domov, R.string.os_meni_domov)
-        dodaj(Razdelek.MEDIJI, R.drawable.os_ikona_glasba, R.string.os_mediji_kartica)
+        dodaj(Razdelek.MEDIJI, IKONA_MEDIJSKEGA_CENTRA, R.string.os_mediji_kartica)
         dodaj(Razdelek.NAPRAVE, R.drawable.os_ikona_link, R.string.os_meni_naprave)
         // Sporocila: postavka vrstice IN kuverta v glavi (lastnik, 22. 10. 2026; od 12. 10. je bila le kuverta).
         if (!samoPredvajalnik && si.safeer.tv.BuildConfig.FLAVOR != "brskalnik") {
@@ -700,6 +700,9 @@ class StranskaVrstica private constructor(
             addView(ikona(slika, 22, R.color.os_mint))
             addView(besedilo(14f, R.color.os_besedilo, true).apply {
                 text = dejavnost.getString(niz); maxLines = 1; setPadding(dp(12), 0, 0, 0)
+                // Pregled doma 5. 11. 2026 (M10): dolgo ime (de, fr) se je prelomilo cez rob postavke - ena vrstica s
+                // tremi pikami; samodejna velikost (11-14 sp) ostane in pik ne pokaze, dokler ime gre.
+                isSingleLine = true; ellipsize = android.text.TextUtils.TruncateAt.END
                 setAutoSizeTextTypeUniformWithConfiguration(11, 14, 1, TypedValue.COMPLEX_UNIT_SP)
                 besedila.add(this)
             }, LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
@@ -789,6 +792,14 @@ class StranskaVrstica private constructor(
     }
 
     companion object {
+        /**
+         * Pregled doma 5. 11. 2026 (M9): ena ikona Medijskega centra za vse zaslone (stranski meni, stari dom, spodnja
+         * vrstica Pokrajine). Glasba (nota) je ikona, ki jo lastnik vidi v stranskem meniju in na starem domu; trikotnik
+         * »predvajaj« je v Medijskem centru ze razdelek Predvajalnik in v mini predvajalniku gumb Predvajaj - kot ikona
+         * razdelka bi zavajal (videti je kot gumb za predvajanje).
+         */
+        @JvmField val IKONA_MEDIJSKEGA_CENTRA = R.drawable.os_ikona_glasba
+
         /** Oznaka dnevnika za meritve prikaza (polna risanja, dopolnjevanja mreze, stranska vrstica) - samo na zahtevo (setprop). */
         const val DNEVNIK_MREZE = "SafeerOsMreza"
 

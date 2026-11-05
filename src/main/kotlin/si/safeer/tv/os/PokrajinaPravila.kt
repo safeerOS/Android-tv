@@ -161,6 +161,17 @@ object PokrajinaPravila {
 
     fun visinaPlosce(prostorDp: Int): Int = prostorDp.coerceIn(NAJNIZJA_PLOSCA_DP, VISINA_PLOSCE_DP)
 
+    /** Najvecja ikona ploscice (pri polni visini 118 dp, kot prej); najmanjsa, da je se prepoznavna. */
+    const val NAJVECJA_IKONA_DP = 64
+    const val NAJMANJSA_IKONA_DP = 20
+
+    /**
+     * Pregled doma 5. 11. 2026 (15): ikona ploscice iz visine plosce, da ime ni obrezano - plosca (os_kartica_ikona.xml)
+     * ima 2 x 10 dp roba in 6 dp med ikono in imenom; [visinaImenaDp] je izmerjena vrstica imena (0, ce imena ni).
+     */
+    fun velikostIkonePloscice(visinaPlosceDp: Int, visinaImenaDp: Int): Int =
+        (visinaPlosceDp - 20 - 6 - visinaImenaDp).coerceIn(NAJMANJSA_IKONA_DP, NAJVECJA_IKONA_DP)
+
     /**
      * Zatemnitev za berljivost (po zgledu tv-simple-home Scrim): prelivi zgoraj (ura, vreme, lupa) in spodaj (spodnja
      * vrstica) - alfa 0-255. Ce je uporabnik ozadje ze zatemnil ([zatemnitev] 0-100), preliv doda samo, kar manjka do
@@ -179,9 +190,21 @@ object PokrajinaPravila {
     fun vrstaPriljubljenih(priljubljene: List<String>, vse: Collection<String>): List<String> {
         val znane = vse.toSet()
         // Lastnik 5. 11. 2026 05:24: ploscic »razdelek:« (Safeer OS razdelek, 1c828bcc) ni vec - vsi razdelki so v spodnji
-        // vrstici; shranjene se ne pokazejo (odstranijo se ob naslednjem shranjevanju reda).
-        return priljubljene.distinct().filter { it in znane && !it.startsWith("razdelek:") }
+        // vrstici. Shranjene enkrat pocisti Priljubljene.pocistiRazdelke; filter ostane za red, ki pride z drugih naprav.
+        return brezRazdelkov(priljubljene.distinct()).filter { it in znane }
     }
+
+    /** Predpona odstranjenih ploscic razdelkov Safeer OS (pregled doma 5. 11. 2026, 10). */
+    const val PREDPONA_RAZDELKA = "razdelek:"
+
+    /** Seznam brez ploscic »razdelek:...« (vrstni red ostane). */
+    fun brezRazdelkov(seznam: List<String>): List<String> = seznam.filterNot { it.startsWith(PREDPONA_RAZDELKA) }
+
+    /**
+     * Pregled doma 5. 11. 2026 (7): po odstranitvi zadnje ploscice je prvi otrok vrstice napis »Dodaj, kar gledas« (ne
+     * sprejme fokusa) - fokus je ostal nikjer. Indeks prvega pogleda, ki sprejme fokus in je viden, ali -1.
+     */
+    fun prviZaFokus(fokusabilenInViden: List<Boolean>): Int = fokusabilenInViden.indexOfFirst { it }
 
     /**
      * Lastnik 28. 10. 2026: vrstni red vrstice doloci uporabnik - za namescene IN spletne aplikacije skupaj. [red] = shranjen
@@ -218,11 +241,27 @@ object PokrajinaPravila {
     /** Do naslednje preverbe mirovanja (vsaj 1 s). */
     fun doMirovanja(zadnjiVnosMs: Long, zdajMs: Long, mejaMs: Long = MIROVANJE_MS): Long = maxOf(1_000L, zadnjiVnosMs + mejaMs - zdajMs)
 
-    /** Tipka v nacinu premikanja: -1/+1 premik, 0 konec (OK, Nazaj, Domov), null = tipka ni za premikanje. */
-    fun tipkaPremikanja(koda: Int): Int? = when (koda) {
-        21 -> -1                        // KEYCODE_DPAD_LEFT
-        22 -> 1                         // KEYCODE_DPAD_RIGHT
-        23, 66, 160, 4, 111 -> 0        // DPAD_CENTER, ENTER, NUMPAD_ENTER, BACK, ESCAPE
+    /**
+     * Pregled doma 5. 11. 2026 (12): med oknom, lupo ali premikom mirovanje ne sme nastopiti - prej se je preverba zato
+     * ponavljala vsako sekundo (rok je bil ze mimo). [zadrzano] = okno/lupa/premik: null (ne ponavljaj; nova preverba ob
+     * vrnitvi fokusa ali naslednji tipki). Sicer cas do roka (vsaj 1 s); ce je rok mimo (zatemnitev zadrzi predvajanje),
+     * znova sele cez [MIROVANJE_MS].
+     */
+    fun zamikPreverbeMirovanja(zadnjiVnosMs: Long, zdajMs: Long, mejaMs: Long, zadrzano: Boolean): Long? {
+        if (zadrzano) return null
+        val d = zadnjiVnosMs + mejaMs - zdajMs
+        return if (d > 0) maxOf(1_000L, d) else MIROVANJE_MS
+    }
+
+    /**
+     * Tipka v nacinu premikanja: -1/+1 premik, 0 konec (OK, Nazaj, Domov, Meni), null = tipka ni za premikanje.
+     * Pregled doma 5. 11. 2026 (5): Meni med premikom je odprl moznosti, premik pa je ostal vklopljen.
+     */
+    fun tipkaPremikanja(koda: Int): Int? = when {
+        koda == 21 -> -1                         // KEYCODE_DPAD_LEFT
+        koda == 22 -> 1                          // KEYCODE_DPAD_RIGHT
+        koda == 23 || koda == 66 || koda == 160 || koda == 4 || koda == 111 -> 0   // DPAD_CENTER, ENTER, NUMPAD_ENTER, BACK, ESCAPE
+        jeTipkaMenija(koda) || koda == 165 -> 0  // Meni, Nastavitve, rdeca, INFO (165) - kot moznosti ploscice
         else -> null
     }
 
@@ -299,7 +338,7 @@ object PokrajinaPravila {
      * katerikoli aplikaciji com.google.*; zdaj se mora glavni del domene ujemati s celim, ne splosnim delom imena paketa.
      */
     fun deduplicirajSpletne(vrsta: List<String>): List<String> {
-        val deliPaketov = vrsta.filter { !it.startsWith("splet:") && !it.startsWith("razdelek:") }
+        val deliPaketov = vrsta.filter { !it.startsWith("splet:") }
             .flatMap { it.lowercase().split('.') }.filter { it.length > 2 && it !in SPLOSNI_DELI }.toSet()
         return vrsta.filter { id ->
             if (id.startsWith("splet:")) {

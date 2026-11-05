@@ -19,6 +19,7 @@ object Priljubljene {
     private const val KLJUC_PRVIC = "priljubljene_zacetne"
     private const val KLJUC_OCISCENO = "priljubljene_prazne"
     private const val KLJUC_RED_DOMOV = "domov_vrstni_red"
+    private const val KLJUC_BREZ_RAZDELKOV = "razdelki_pocisceni"
 
     private fun prefs(c: Context) = c.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -48,6 +49,22 @@ object Priljubljene {
         if (p.getBoolean(KLJUC_OCISCENO, false)) return
         p.edit().putBoolean(KLJUC_OCISCENO, true).apply()
         if (p.getBoolean(KLJUC_PRVIC, false)) shrani(c, emptyList())
+    }
+
+    /**
+     * Pregled doma 5. 11. 2026 (10): ploscic »razdelek:« (nenarocen »Razdelek Safeer OS«) ni vec - shranjene se enkrat
+     * odstranijo iz priljubljenih in iz vrstnega reda doma (prej so ostale v shrambi in samo filter jih je skril).
+     */
+    fun pocistiRazdelke(c: Context) {
+        val p = prefs(c)
+        if (p.getBoolean(KLJUC_BREZ_RAZDELKOV, false)) return
+        val s = seznam(c)
+        val sBrez = PokrajinaPravila.brezRazdelkov(s)
+        if (sBrez.size != s.size) shrani(c, sBrez)
+        val red = redDomov(c)
+        val redBrez = PokrajinaPravila.brezRazdelkov(red)
+        if (redBrez.size != red.size) shraniRedDomov(c, redBrez)
+        p.edit().putBoolean(KLJUC_BREZ_RAZDELKOV, true).apply()
     }
 
     fun dodaj(c: Context, paket: String) {

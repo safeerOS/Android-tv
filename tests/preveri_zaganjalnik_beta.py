@@ -614,6 +614,38 @@ def main() -> int:
     preveri("tipka menija: PokrajinaActivity odpre nastavitve TV", "PokrajinaPravila.jeTipkaMenija(pretvorjen.keyCode)" in pok
             and "odpriNastavitveTv()" in pok and "QuickSettingsActivity" in pok)
 
+    # Pregled doma 5. 11. 2026 (Pokrajina, Viri, mini predvajalnik).
+    domov = (SRC / "os/DomovActivity.kt").read_text(encoding="utf-8")
+    mini_akt = (SRC / "os/MiniPredvajalnik.kt").read_text(encoding="utf-8")
+    viri_akt = (SRC / "os/ViriActivity.kt").read_text(encoding="utf-8")
+    stranska = (SRC / "os/StranskaVrstica.kt").read_text(encoding="utf-8")
+    # (11) varnost: izvozen alias doma (PokrajinaActivity) ne odpre neizvozene NapraveActivity po dodatku iz tuje namere;
+    # nasa pot (DomovActivity) dodatek odstrani, preden namero preda domu, in seznam naprav odpre sama.
+    preveri("dom (11) Pokrajina ne odpre Naprav po dodatku os_vrni", 'getStringExtra("os_vrni")' not in pok
+            and 'intent?.removeExtra("os_vrni")' in pok)
+    preveri("dom (11) DomovActivity dodatka os_vrni ne preda domu",
+            re.search(r"intent\?\.extras\?\.let \{ dom\.putExtras\(it\) \}\s*(//[^\n]*\n\s*)*dom\.removeExtra\(EXTRA_VRNI\)", domov) is not None
+            and domov.count("nov.removeExtra(EXTRA_VRNI)") == 1)
+    preveri("dom (10) brez mrtvih ploscic razdelek: in enkratno ciscenje", '"razdelek:' not in pok and "Priljubljene.pocistiRazdelke(this)" in pok)
+    preveri("dom (4) vrnitev fokusa okna zbudi zaslon", re.search(r"if \(imaFokus && ::koren\.isInitialized\) \{\s*if \(!mirujem\) zbudi\(animiraj = false\)", pok) is not None)
+    preveri("dom (5) onStop konca premik", re.search(r"override fun onStop\(\) \{(?:(?!override fun).)*koncajPremikanje\(\); koncajPremikanjeDok\(\)", pok, re.S) is not None)
+    preveri("dom (6) premik gumba ohrani stanje in znacke", re.search(r"narisiDok\(dok\)\s*(//[^\n]*\n\s*)*osveziStanjePremikanja\(dok, premikamDok", pok) is not None
+            and re.search(r"osveziStanjePremikanja\(dok, premikamDok\?\.let \{ \"dok:\$it\" \}, dp\(4\)\)\s*osveziDokZnacke\(\)\s*osveziLinkPiko\(\)", pok) is not None)
+    preveri("dom (8) GOR z gumba na mini samo, ko je odprt", "if (mini != null) return mini" not in pok)
+    preveri("dom (9) mirovanje zbledi tudi rocico", "dock?.nastaviProsojnost(0f, cas)" in pok and "dock?.nastaviProsojnost(1f, cas)" in pok
+            and "k.alpha = prosojnost" in mini_akt)
+    preveri("dom (12) preverba mirovanja ne tece vsako sekundo", "PokrajinaPravila.zamikPreverbeMirovanja(" in pok and "maxOf(1_000L, zadnjiVnos + meja - zdaj)" not in pok)
+    preveri("dom (15) ikona ploscice iz visine", "width = dp(64); height = dp(64)" not in pok and "PokrajinaPravila.velikostIkonePloscice(visinaPlosceDp" in pok)
+    preveri("dom (1-3) Preimenuj vhod: tipkovnica sele na OK, okno prek Kontroler.pokazi", "showSoftInputOnFocus = false" in viri_akt
+            and "Kontroler.pokazi(okno)" in viri_akt and "ContextThemeWrapper(this, R.style.Os_Okno)" in viri_akt
+            and "BUTTON_POSITIVE)?.requestFocus()" in viri_akt)
+    layout = (RES / "layout/os_activity_domov.xml").read_text(encoding="utf-8")
+    m_ik = re.search(r'android:id="@\+id/meniGlasba".*?android:src="@drawable/(\w+)"', layout, re.S)
+    preveri("dom (M9) ena ikona Medijskega centra", "IKONA_MEDIJSKEGA_CENTRA = R.drawable.os_ikona_glasba" in stranska
+            and "PokrajinaPravila.MEDIJI -> StranskaVrstica.IKONA_MEDIJSKEGA_CENTRA" in pok
+            and "Razdelek.MEDIJI, IKONA_MEDIJSKEGA_CENTRA" in stranska and m_ik is not None and m_ik.group(1) == "os_ikona_glasba")
+    preveri("dom (M10) ime vrstice v eni vrstici", "isSingleLine = true; ellipsize = android.text.TextUtils.TruncateAt.END" in stranska)
+
     return konec()
 
 

@@ -90,6 +90,8 @@ object SpletnaDodaj {
             setSingleLine()
             inputType = android.text.InputType.TYPE_CLASS_TEXT
             setTextColor(a.osBarva(R.color.os_besedilo))
+            // Pregled doma 5. 11. 2026 (16): tudi namig iz zetonov (kot pri vnosu naslova zgoraj).
+            setHintTextColor(a.osBarva(R.color.os_umirjeno))
         }
         val okvir = LinearLayout(a).apply {
             orientation = LinearLayout.VERTICAL

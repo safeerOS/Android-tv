@@ -141,7 +141,11 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (intent?.hasCategory(Intent.CATEGORY_HOME) != true) Zaganjalnik.nameraDomov(this)?.let { dom ->
             try {
                 intent?.extras?.let { dom.putExtras(it) }
+                // Pregled doma 5. 11. 2026 (11): dom (alias -> PokrajinaActivity) dodatka os_vrni ne sprejme vec, ker ga prek
+                // izvozenega aliasa lahko poslje vsakdo. Seznam naprav po zaprtju Linka odpremo tu, kot v veji bete zgoraj.
+                dom.removeExtra(EXTRA_VRNI)
                 startActivity(dom.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                if (intent?.getStringExtra(EXTRA_VRNI) == VRNI_NAPRAVE) try { startActivity(Intent(this, NapraveActivity::class.java)) } catch (_: Throwable) { }
                 finish()
                 @Suppress("DEPRECATION") overridePendingTransition(0, 0)
                 return
