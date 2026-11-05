@@ -889,7 +889,9 @@ object UserScriptManager {
         val predloga = cachedTvSpatialJs
             ?: webView.context.assets.open("tv_spatial.js").bufferedReader(Charsets.UTF_8).use { it.readText() }.also { cachedTvSpatialJs = it }
         val zeton = (webView as? ChromiumEngineView)?.zetonDotika ?: return predloga
-        return SpletVarnostPravila.vstaviZeton(predloga, zeton)
+        // webView je tu ze ChromiumEngineView (pametna pretvorba po vrstici zgoraj).
+        val izvirniki = webView.izvirnikiRegistrirani
+        return SpletVarnostPravila.vstaviIzvirnike(SpletVarnostPravila.vstaviZeton(predloga, zeton), izvirniki)
     }
 
     private const val YOUTUBE_TV_LEANBACK_JS = """
@@ -1318,10 +1320,14 @@ object UserScriptManager {
     fun injectOnPageFinished(webView: WebView, isDarkMode: Boolean, pageUrl: String? = null) {
         val target = pageUrl ?: webView.url ?: ""
         if (isGoogleDomain(target)) return
+        // Pregled Groka 5. 11. 2026 (najdba 5): tocen znak namestitve za zeton te strani - zastavico 'safeer-x' lahko zaklene
+        // stran; pri neujemanju skript vbrizgamo, ta se namesti, ce izvozov se ni (tv_spatial.js izvozZaklenjen).
+        val znak = (webView as? ChromiumEngineView)?.zetonDotika?.let { TvTipke.znakNamestitve(it) }
+        val pogoj = if (znak != null) "window._safeer_tv_remote_installed === '$znak'" else "window._safeer_tv_remote_installed"
         val ping = """
             (function(){
                 try {
-                    if (window._safeer_tv_remote_installed) {
+                    if ($pogoj) {
                         try { if (window._safeerSiteAgent) window._safeerSiteAgent.onPageReady(); } catch (e) {}
                         return 'ok';
                     }

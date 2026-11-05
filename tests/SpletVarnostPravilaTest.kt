@@ -181,6 +181,9 @@ fun main() {
     check(!P.zetonVelja(P.ZETON_DOTIKA_MESTO, P.ZETON_DOTIKA_MESTO)) { "nevstavljeno mesto ni zeton" }
     check(!P.zetonVelja("", "")) { "prazen ni zeton" }
     check(P.vstaviZeton("var Z = '${P.ZETON_DOTIKA_MESTO}';", z) == "var Z = '$z';") { "vstavljen v skript" }
+    // Pregled Groka 5. 11. 2026: izvirnikom metod skript zaupa samo, ce je aplikacija IZVIRNIKI_JS registrirala.
+    check(P.vstaviIzvirnike("var X = '${P.IZVIRNIKI_MESTO}' === 'da';", true) == "var X = 'da' === 'da';") { "izvirniki registrirani" }
+    check(P.vstaviIzvirnike("'${P.IZVIRNIKI_MESTO}'", false) == "'ne'") { "izvirniki niso registrirani" }
     // Tedenski pregled 4. 11. 2026 (UXSS): naslov od zunaj (namera, Safeer Link) samo http(s), krajevni PDF ali domaca.
     val N = P.Vhod.NAMERA; val L = P.Vhod.LINK; val S = P.Vhod.SPLET
     for (v in listOf(N, L, S)) {

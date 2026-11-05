@@ -133,7 +133,8 @@ function ustvari(nastavitve) {
                 if (!e.okvir) return;
                 const s = slog(e);
                 if (s.display === 'none' || s.visibility === 'hidden' || s.pointerEvents === 'none') return;
-                const r = e.getBoundingClientRect();
+                // Brskalnik zadetka ne racuna z metodami strani: izvirni okvir (stran lahko prepise getBoundingClientRect).
+                const r = El.prototype.getBoundingClientRect.call(e);
                 if (x < r.left || x >= r.right || y < r.top || y >= r.bottom) return;
                 let z = 0, p = e;
                 while (p && p.nodeType === 1) { const sp = slog(p); if (sp.position === 'fixed' || sp.position === 'absolute') { const zz = parseInt(sp.zIndex, 10); if (zz > z) z = zz; } p = p.parentElement; }
@@ -176,6 +177,33 @@ function ustvari(nastavitve) {
     win.window = win; win.self = win; win.top = win;
     const ctx = vm.createContext(win);
     let odtis = null;
+    // Ura izvirnikov (performance.now ob zacetku dokumenta, ChromiumEngineView.IZVIRNIKI_JS): vsaka tipka jo premakne za 100 ms.
+    const ura = { t: 1000 };
+    // Kot ChromiumEngineView.IZVIRNIKI_JS: izvirniki metod, shranjeni pred skriptami strani (nespremenljiva lastnost).
+    if (n.izvirniki !== false) {
+        Object.defineProperty(win, '__safeer_izvirniki', { writable: false, configurable: false, enumerable: false, value: Object.freeze({
+            apply: Reflect.apply, gbcr: El.prototype.getBoundingClientRect, efp: doc.elementFromPoint, contains: El.prototype.contains,
+            tag: function () { return this.tagName; },
+            src: function () { if (this.tagName !== 'IFRAME') throw new TypeError('ni okvir'); return this.getAttribute('src') || ''; },
+            rl: function () { return this.left; }, rt: function () { return this.top; },
+            rw: function () { return this.width; }, rh: function () { return this.height; },
+            now: function () { return ura.t; }, perf: null }) });
+    }
+    // Kot TvTipke.odtisStevilo (FNV-1a, 32 bitov) - neodvisna izvedba za preizkus (charCodeAt, Math.imul).
+    function odtisStevilo(z, niz) {
+        let h = 2166136261;
+        const v = z + '|' + niz + '|' + z;
+        for (let i = 0; i < v.length; i++) { h = (h ^ v.charCodeAt(i)) >>> 0; h = Math.imul(h, 16777619) >>> 0; }
+        return h;
+    }
+    let stIzziva = 0;
+    // Kot TvTipke.ukazTipke: aplikacija pred klicem ob tipki daljinca poslje izziv in dokaz.
+    function tipka() {
+        ura.t += 100;
+        if (typeof win._safeer_tipka !== 'function') return false;
+        const iz = (++stIzziva).toString(16).padStart(32, '0');
+        return win._safeer_tipka(iz, odtisStevilo(zeton, 'tipka|' + iz));
+    }
     return {
         window: win, document: doc, body, El, dotiki, kliki, drsenja,
         el: (tag, o) => new El(tag, o),
@@ -186,11 +214,22 @@ function ustvari(nastavitve) {
             const blok = (ime) => { const i = vir.indexOf('/* ' + ime + '_ZACETEK'), j = vir.indexOf('/* ' + ime + '_KONEC */'); return i >= 0 && j > i ? vir.slice(i, j) : ''; };
             const b = blok('SAFEER_ZNAK_NAMESTITVE') + blok('SAFEER_DOKAZ');
             if (b.indexOf('function odtisZetona') !== -1) odtis = new Function(b + '\nreturn odtisZetona;')();
-            vm.runInContext(vir.split('__SAFEER_ZETON_DOTIKA__').join(zeton), ctx);
+            const izv = n.izvirniki === false ? 'ne' : 'da';
+            vm.runInContext(vir.split('__SAFEER_ZETON_DOTIKA__').join(zeton).split('__SAFEER_IZVIRNIKI__').join(izv), ctx);
         },
-        // Izbira, kot jo naredi daljinec (aplikacija z zetonom): _safeer_highlight(el, dokaz). Brez SAFEER_DOKAZ (stara
+        ura, tipka, odtisStevilo,
+        // Koda strani v istem svetu (npr. prepis vgrajenih metod pred nasim skriptom).
+        izvedi(koda) { return vm.runInContext(koda, ctx); },
+        // Klici aplikacije ob tipki daljinca (SiteProfile): dokaz tipke, nato smer ali OK.
+        smer(...a) { tipka(); return win._safeer_navigate_spatial(...a); },
+        ok(...a) { tipka(); return win._safeer_click_focused_card(...a); },
+        // Izbira, kot jo naredi daljinec: dokaz tipke in _safeer_highlight(el) (stara razlicica: staticni dokaz). Brez SAFEER_DOKAZ (stara
         // razlicica skripta) brez dokaza.
-        izberi(el) { return odtis ? win._safeer_highlight(el, odtis(zeton, 'izbira')) : win._safeer_highlight(el); },
+        izberi(el) {
+            // Izbira je nastala s tipko pred casom (5 s): preizkusi brez tipke po izbiri ostanejo brez tipke.
+            if (typeof win._safeer_tipka === 'function') { tipka(); const r = win._safeer_highlight(el); ura.t += 5000; return r; }
+            return odtis ? win._safeer_highlight(el, odtis(zeton, 'izbira')) : win._safeer_highlight(el);
+        },
         dokazIzbire() { return odtis ? odtis(zeton, 'izbira') : undefined; },
     };
 }

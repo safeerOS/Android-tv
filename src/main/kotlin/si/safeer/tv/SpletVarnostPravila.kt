@@ -427,6 +427,14 @@ object SpletVarnostPravila {
     /** Zeton gre samo v besedilo nasega skripta (tv_spatial.js), nikoli na window ali v dnevnik. */
     fun vstaviZeton(js: String, zeton: String): String = js.replace(ZETON_DOTIKA_MESTO, zeton)
 
+    const val IZVIRNIKI_MESTO = "__SAFEER_IZVIRNIKI__"
+
+    /**
+     * Pregled Groka 5. 11. 2026: tv_spatial.js zaupa izvirnikom metod (__safeer_izvirniki) samo z 'da', ki ga aplikacija
+     * vstavi, ce je ChromiumEngineView.IZVIRNIKI_JS registriral - sicer bi lastnost pred nasim skriptom ponaredila stran.
+     */
+    fun vstaviIzvirnike(js: String, registrirani: Boolean): String = js.replace(IZVIRNIKI_MESTO, if (registrirani) "da" else "ne")
+
     /** Sinteticni dotik (triggerNativeTap) samo znotraj pogleda; NaN ali tocka zunaj se zavrne. */
     fun dotikVPogledu(x: Float, y: Float, sirina: Int, visina: Int): Boolean =
         !x.isNaN() && !y.isNaN() && x >= 0f && y >= 0f && x < sirina && y < visina

@@ -35,11 +35,11 @@ const ime = (el) => (el ? el.tagName + ':' + el.innerText.trim().split(' ')[0] :
     s.body.dodaj(zgoraj, kartica);
     s.nalozi(VIR);
     s.izberi(zgoraj);
-    s.window._safeer_navigate_spatial('DOWN');
+    s.smer('DOWN');
     preveri('kartica z vec dejanji: DOL izbere naslov (povezavo), ne cele kartice', 'A:Naslov', ime(izbran(s)));
-    s.window._safeer_navigate_spatial('DOWN');
+    s.smer('DOWN');
     preveri('kartica z vec dejanji: DOL nato »Predvajaj«', 'BUTTON:Predvajaj', ime(izbran(s)));
-    s.window._safeer_navigate_spatial('RIGHT');
+    s.smer('RIGHT');
     preveri('kartica z vec dejanji: DESNO »Vec«', 'BUTTON:Vec', ime(izbran(s)));
 }
 // 2) Kartica z eno samo povezavo ostane en cilj (cela kartica, kot prej).
@@ -51,7 +51,7 @@ const ime = (el) => (el ? el.tagName + ':' + el.innerText.trim().split(' ')[0] :
     s.body.dodaj(zgoraj, kartica);
     s.nalozi(VIR);
     s.izberi(zgoraj);
-    s.window._safeer_navigate_spatial('DOWN');
+    s.smer('DOWN');
     preveri('kartica z eno povezavo: cilj je kartica', 'DIV:Edina', ime(izbran(s)));
 }
 // 3) Lepljiva glava prekrije zgornjo polovico gumba: spodnji del je viden, gumb ostane cilj.
@@ -64,7 +64,7 @@ const ime = (el) => (el ? el.tagName + ':' + el.innerText.trim().split(' ')[0] :
     s.body.dodaj(glava, delno, spodaj);
     s.nalozi(VIR);
     s.izberi(spodaj);
-    s.window._safeer_navigate_spatial('UP');
+    s.smer('UP');
     preveri('glava cez zgornjo polovico: GOR izbere delno prekriti gumb', 'BUTTON:Delno', ime(izbran(s)));
 }
 // 4) GOR z elementa v zgornjih 80 px: najprej cilj nad njim, sele nato izstop (-1, naslovna vrstica).
@@ -75,8 +75,8 @@ const ime = (el) => (el ? el.tagName + ':' + el.innerText.trim().split(' ')[0] :
     s.body.dodaj(vrh, tik, s.el('button', { okvir: [100, 400, 200, 40], besedilo: 'Dol' }));
     s.nalozi(VIR);
     s.izberi(tik);
-    preveri('GOR iz zgornjih 80 px s ciljem visje: ostane na strani', 1, s.window._safeer_navigate_spatial('UP'));
+    preveri('GOR iz zgornjih 80 px s ciljem visje: ostane na strani', 1, s.smer('UP'));
     preveri('GOR iz zgornjih 80 px: izbran cilj nad njim', 'BUTTON:Vrh', ime(izbran(s)));
-    preveri('drugi GOR na vrhu strani brez cilja visje: izstop', -1, s.window._safeer_navigate_spatial('UP'));
+    preveri('drugi GOR na vrhu strani brez cilja visje: izstop', -1, s.smer('UP'));
 }
 console.log('tv_pravi_cilj_test: OK (' + stevilo + ')');

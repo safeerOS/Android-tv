@@ -55,6 +55,13 @@ class ChromiumEngineView @JvmOverloads constructor(
          */
         internal const val ZAKLEP_MOSTU_JS = """(function(){try{if(window.top!==window)return;var b=window.SafeerBridge;if(!b)return;
 try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{value:b,writable:false,configurable:false});}catch(e){}})();"""
+        /**
+         * Pregled Groka 5. 11. 2026 (najdbi 1 in 10): tv_spatial.js tece v svetu strani (evaluateJavascript) in sele pri 35 %
+         * nalaganja - stran je pred njim lahko prepisala getBoundingClientRect, elementFromPoint, contains ali Date.now in
+         * izbrala tocko pravega dotika. Ob zacetku dokumenta glavnega okvirja (pred skriptami strani) izvirnike shranimo v
+         * zamrznjen objekt v nespremenljivi lastnosti. Ime je zasedeno tudi, ce kaj manjka (null), da ga stran ne ponaredi.
+         */
+        internal const val IZVIRNIKI_JS = """(function(){try{if(window.top!==window)return;}catch(e){return;}var I=null;try{var R=Reflect.apply,gd=Object.getOwnPropertyDescriptor;var g=function(o,k){var d=gd(o,k);return d&&d.get;};var r=DOMRectReadOnly.prototype;I=Object.freeze({apply:R,gbcr:Element.prototype.getBoundingClientRect,efp:Document.prototype.elementFromPoint,contains:Node.prototype.contains,tag:g(Element.prototype,'tagName'),src:g(HTMLIFrameElement.prototype,'src'),rl:g(r,'left'),rt:g(r,'top'),rw:g(r,'width'),rh:g(r,'height'),now:Performance.prototype.now,perf:performance});}catch(e){I=null;}try{Object.defineProperty(window,'__safeer_izvirniki',{value:I,writable:false,configurable:false,enumerable:false});}catch(e){}})();"""
         private const val DOTIK_PO_TIPKI_MS = 1500L
 
         fun oznaciTipko() {
@@ -261,6 +268,9 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
     /** Zeton dotika tega pogleda za trenutno stran (nov ob vsaki strani glavnega okvirja); samo v besedilu nasega skripta. */
     @Volatile internal var zetonDotika: String = SpletVarnostPravila.novZeton()
         private set
+    /** IZVIRNIKI_JS je registriran ob zacetku dokumenta: samo tedaj tv_spatial.js zaupa lastnosti __safeer_izvirniki. */
+    @Volatile internal var izvirnikiRegistrirani = false
+        private set
     private val jsBridge = SafeerWebAppInterface(context, this)
     private val spletMost = object {
         @JavascriptInterface
@@ -367,6 +377,9 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
 
         try {
             if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT)) {
+                // Izvirniki metod za tv_spatial.js pred vsemi drugimi skripti (IZVIRNIKI_JS, pregled Groka 5. 11. 2026).
+                androidx.webkit.WebViewCompat.addDocumentStartJavaScript(this, IZVIRNIKI_JS, setOf("*"))
+                izvirnikiRegistrirani = true
                 androidx.webkit.WebViewCompat.addDocumentStartJavaScript(
                     this,
                     UserScriptManager.GPC_AND_DNT_JS,

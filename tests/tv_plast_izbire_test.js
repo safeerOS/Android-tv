@@ -58,7 +58,7 @@ function dosegljivi(s, zacetek) {
         const od = vrsta.shift();
         for (const smer of ['UP', 'DOWN', 'LEFT', 'RIGHT']) {
             s.izberi(od);
-            s.window._safeer_navigate_spatial(smer);
+            s.smer(smer);
             const zdaj = s.izbran();
             if (zdaj && videni.indexOf(zdaj) === -1) { videni.push(zdaj); vrsta.push(zdaj); }
         }
@@ -78,7 +78,7 @@ for (const vloga of ['', 'dialog']) {
 
     // OK na izbranem gumbu okna: en pravi dotik na njegovi sredini (na vrhu je on, okno je pritrjeno nad stranjo).
     s.izberi(s.e.reject);
-    s.window._safeer_click_focused_card();
+    s.ok();
     preveri(opis + ': OK na »Reject all cookies« je en dotik na njegovi sredini', [[1338, 1000]], s.dotiki);
 
     // Pregled fokusa 5. 11. 2026: vstop tece iz casovnika in opazovalca DOM (brez tipke). Izbire, ki ze obstaja, ne vzame.
@@ -94,7 +94,7 @@ for (const vloga of ['', 'dialog']) {
     // Pojav okna: izbira gre vanj, na prvi gumb po legi (Customize), brez klika. Pritrjena plast samo kratko po tipki
     // (GOR nad »Try Claude« nima cilja: izbira pocisti, tipka zabelezena).
     s = stran(vloga);
-    if (!vloga) { s.izberi(s.e.try); s.window._safeer_navigate_spatial('UP'); }
+    if (!vloga) { s.izberi(s.e.try); s.smer('UP'); }
     preveri(opis + ': ob pojavu okna izbira skoci vanj', true, s.window._safeer_vstopi_v_plast());
     preveri(opis + ': izbran je prvi gumb okna (Customize), ne Sprejmi/Zavrni', 'customize', ime(s, s.izbran()));
     preveri(opis + ': nic ni sprejeto ali zavrnjeno samo', [0, 0], [s.kliki.length, s.dotiki.length]);
@@ -120,7 +120,7 @@ for (const vloga of ['', 'dialog']) {
     s.body.dodaj(gumb, pasica);
     s.nalozi(VIR);
     s.izberi(gumb);
-    s.window._safeer_navigate_spatial('DOWN');
+    s.smer('DOWN');
     preveri('pasica v toku strani (ni pritrjena): ni cilj', 'BUTTON:Prijava',
         s.document.querySelector('.safeer-active-card').tagName + ':' + s.document.querySelector('.safeer-active-card').innerText.trim());
 }

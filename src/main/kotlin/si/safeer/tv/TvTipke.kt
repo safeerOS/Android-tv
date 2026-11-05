@@ -72,6 +72,31 @@ object TvTipke {
         return "safeer-" + (h.toLong() and 0xffffffffL).toString(36)
     }
 
+    /** Odtis kot stevilo (0..2^32-1): tv_spatial.js dokaz tipke primerja kot stevilo, brez toString, ki ga prepise stran. */
+    fun odtisStevilo(zeton: String, niz: String): Long {
+        var h = -2128831035
+        for (c in "$zeton|$niz|$zeton") { h = h xor c.code; h *= 16777619 }
+        return h.toLong() and 0xffffffffL
+    }
+
+    /** Znak namestitve skripta (tv_spatial.js znakNamestitve): odtis samega zetona; ping ga primerja tocno. */
+    fun znakNamestitve(zeton: String): String {
+        var h = -2128831035
+        for (c in zeton) { h = h xor c.code; h *= 16777619 }
+        return "safeer-" + (h.toLong() and 0xffffffffL).toString(36)
+    }
+
+    /**
+     * Pregled Groka 5. 11. 2026 (najdbe 3, 7, 10): _safeer_navigate_spatial, _safeer_click_focused_card in _safeer_highlight
+     * doseze tudi stran - z njimi je premikala izbiro. Pred vsakim klicem ob tipki daljinca aplikacija v istem skriptu poslje
+     * nakljucen izziv in odtis zetona strani (en dokaz = en klic, tv_spatial.js SAFEER_TIPKA). Brez zetona prazno.
+     */
+    fun ukazTipke(zeton: String?): String {
+        if (zeton == null || zeton.length < 32) return ""
+        val izziv = novIzziv()
+        return "window._safeer_tipka&&window._safeer_tipka('$izziv',${odtisStevilo(zeton, "tipka|$izziv")});"
+    }
+
     fun gorVNaslovnoVrstico(odgovor: String?, nacinAplikacije: Boolean, napredek: Int): Boolean {
         val o = (odgovor ?: "").trim().trim('"')
         if (o == "-1") return true

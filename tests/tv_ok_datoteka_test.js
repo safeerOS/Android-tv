@@ -52,7 +52,7 @@ preveri('brez polja: navaden klik', '', okNaDatoteki(null, null));
 
 // Vezava: OK v _safeer_click_focused_card vrne 'datoteka' pred dotikom, aplikacija na to poslje Enter.
 const klik = VIR.slice(VIR.indexOf('var klikIzbrane = function'));
-const iDat = klik.indexOf("return dokazDatoteke(ZETON_DOTIKA, izziv) || 'datoteka'"), iDotik = klik.indexOf('nativeTapElement(');
+const iDat = klik.indexOf('return dokazDatoteke(ZETON_DOTIKA, izziv);'), iDotik = klik.indexOf('nativeTapElement(');
 preveri('OK na datoteki vrne pred dotikom in el.click()', true, iDat > 0 && iDat < iDotik);
 preveri('fokus pred odlocitvijo', true, /vhodD\.focus\(\{ preventScroll: true \}\)/.test(klik));
 preveri('aplikacija na "datoteka" poslje KEYCODE_ENTER', true,

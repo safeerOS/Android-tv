@@ -26,7 +26,7 @@ const gumb = s.el('button', { okvir: [100, 100, 300, 60], besedilo: 'Prijava' })
 s.body.dodaj(gumb);
 s.nalozi(VIR);
 s.izberi(gumb);
-s.window._safeer_click_focused_card();
+s.ok();
 preveri('OK: nas skript poslje zeton, ki ga je vstavila aplikacija', [ZETON], s.zetoni);
 preveri('OK: dotik sprejet (en, na sredini gumba)', [[250, 130]], s.dotiki);
 preveri('ni dodatnega sinteticnega klika', 0, s.kliki.length);

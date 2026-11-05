@@ -40,6 +40,13 @@ fun main() {
     check(!TvTipke.okNaDatoteki("datoteka:safeer-cg41mu", z.take(31), izziv))                           // prekratek zeton
     check(!TvTipke.okNaDatoteki("true", z, izziv) && !TvTipke.okNaDatoteki("false", z, izziv))   // gumb, povezava: klik skripta
     check(!TvTipke.okNaDatoteki(null, z, izziv) && !TvTipke.okNaDatoteki("null", z, izziv) && !TvTipke.okNaDatoteki("", z, izziv))
+    // Pregled Groka 5. 11. 2026: dokaz tipke in znak namestitve - iste vrednosti kot tv_spatial.js (tests/tv_pregled_groka_test.js).
+    check(TvTipke.odtisStevilo(z, "tipka|$izziv") == 2855865788L) { "odtis tipke ni enak kot v tv_spatial.js" }
+    check(TvTipke.znakNamestitve(z) == "safeer-pjd3yd") { "znak namestitve ni enak kot v tv_spatial.js" }
+    val ukaz = TvTipke.ukazTipke(z)
+    val um = Regex("window\\._safeer_tipka&&window\\._safeer_tipka\\('([0-9a-f]{32})',(\\d+)\\);").matchEntire(ukaz)
+    check(um != null && um.groupValues[2].toLong() == TvTipke.odtisStevilo(z, "tipka|" + um.groupValues[1])) { "ukaz tipke: $ukaz" }
+    check(TvTipke.ukazTipke(null) == "" && TvTipke.ukazTipke(z.take(31)) == "") { "brez zetona ni dokaza" }
     val i1 = TvTipke.novIzziv(); val i2 = TvTipke.novIzziv()
     check(i1.length == 32 && i1 != i2 && i1.all { it in "0123456789abcdef" })
     println("TvTipkeTest: OK")
