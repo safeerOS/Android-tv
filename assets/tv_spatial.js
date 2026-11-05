@@ -37,17 +37,44 @@
                     return true;
                 } catch (_) { return false; }
             }
+            // Drugi krog pregleda 5. 11. 2026: zastavico je ze zapisal nas skript z drugim zetonom (drug vbrizg v isti dokument).
+            // Prej je skript tekel naprej - dvojni poslusalci in izvozi z zastarelim zetonom. Tujo vrednost brez znaka
+            // (npr. true) pa stran lahko spremeni in je ne upostevamo.
+            function jeNasaZastavica(w) {
+                var d = null;
+                try { d = Object.getOwnPropertyDescriptor(w, '_safeer_tv_remote_installed'); } catch (_) {}
+                return !!d && typeof d.value === 'string' && d.value.indexOf('safeer-') === 0 && d.configurable === false;
+            }
             /* SAFEER_ZNAK_NAMESTITVE_KONEC */
+            /* SAFEER_DOKAZ_ZACETEK */
+            // Drugi krog pregleda 5. 11. 2026: odgovor 'datoteka' sprozi pravo tipko Enter (uporabnikova aktivacija). Ce je stran
+            // _safeer_click_focused_card zasedla pred nami, bi ga dala sama. Aplikacija zato ob vsakem OK poslje nakljucen izziv
+            // in sprejme samo 'datoteka:' + odtis zetona in izziva (TvTipke.okNaDatoteki). Zeton je na obeh koncih: javni znak
+            // namestitve (odtis samega zetona) zato ni zacetno stanje, iz katerega bi stran odtis podaljsala.
+            function odtisZetona(zeton, niz) {
+                return znakNamestitve(zeton + '|' + niz + '|' + zeton);
+            }
+            function dokazDatoteke(zeton, izziv) {
+                return (typeof izziv === 'string' && /^[0-9a-f]{16,64}$/.test(izziv)) ? 'datoteka:' + odtisZetona(zeton, 'datoteka|' + izziv) : '';
+            }
+            /* SAFEER_DOKAZ_KONEC */
             var ZNAK_NAMESTITVE = znakNamestitve(ZETON_DOTIKA);
             if (jeNamescen(window, ZNAK_NAMESTITVE)) return;
-            oznaciNamescen(window, ZNAK_NAMESTITVE);
+            if (!oznaciNamescen(window, ZNAK_NAMESTITVE) && jeNasaZastavica(window)) return;
 
             // Pregled fokusa 5. 11. 2026: stran je lahko prepisala window._safeer_click_focused_card ali _safeer_highlight
             // (aplikacija ju klice ob OK) - npr. odgovor 'datoteka' je sprozil pravo tipko Enter. Funkcije za aplikacijo
             // so nespremenljive lastnosti.
             function izvoziZaAplikacijo(ime, fn) {
-                try { Object.defineProperty(window, ime, { value: fn, writable: false, configurable: false, enumerable: false }); }
-                catch (_) { try { window[ime] = fn; } catch (_) {} }
+                try {
+                    Object.defineProperty(window, ime, { value: fn, writable: false, configurable: false, enumerable: false });
+                    return true;
+                } catch (_) {}
+                // Drugi krog pregleda 5. 11. 2026: stran je ime zasedla pred nami - aplikacija bo klicala njeno funkcijo.
+                // Zapis v dnevnik (brez podatkov strani); odgovoru za pravo tipko aplikacija brez dokaza ne zaupa (SAFEER_DOKAZ).
+                try { console.log('H55 tv_spatial.js:izvoz izvoz ni uspel {"ime":"' + ime + '"}'); } catch (_) {}
+                try { window[ime] = fn; } catch (_) {}
+                return false;
             }
 
             /* SAFEER_SAMODEJNO_ZACETEK */
@@ -65,6 +92,8 @@
             // Pregled fokusa 5. 11. 2026: stran je razred safeer-active-card lahko dala svojemu (tudi nevidnemu) okvirju in OK je
             // nanj sprozil pravi dotik. Izbrani element je zdaj samo tisti, ki ga je izbral daljinec (zaprtje); razred je le slog.
             var izbraniEl = null;
+            // Zadnja ploscica v zivo, ki jo je izbral ta skript (site_agent.js jo vrne po zaprtju predvajalnika).
+            var zadnjaPloscica = null;
             function izbrani() {
                 var e = izbraniEl;
                 try { if (e && e.isConnected && e.classList.contains('safeer-active-card')) return e; } catch (_) {}
@@ -166,7 +195,9 @@
                 window._safeer_medij_zap_idx = idx;
                 try { sessionStorage.removeItem('safeer_medij_autoplay'); } catch (_) {}
                 window._safeer_medij_want_play = true;
-                try { if (typeof highlightElement === 'function') highlightElement(tile); } catch (_) {}
+                // Drugi krog pregleda 5. 11. 2026: funkcija je na window - ploscico lahko poda stran. Izbira (cilj pravega
+                // dotika ob OK) samo na vidni ploscici, kot pri daljincu (jeUporaben).
+                try { if (jeUporaben(tile, true)) { zadnjaPloscica = tile; highlightElement(tile); } } catch (_) {}
                 try { tile.click(); } catch (_) {}
                 return window._safeer_medij_tile_label(tile) || 1;
             };
@@ -2100,7 +2131,42 @@
 
             // Pregled fokusa 5. 11. 2026: true = izbran; false = cilj zavrnjen (tudi po drsenju zunaj pogleda) - klicatelj
             // poskusi naslednjega, sicer pove aplikaciji, da se ni premaknilo.
-            izvoziZaAplikacijo('_safeer_highlight', highlightElement);
+            // Drugi krog pregleda 5. 11. 2026: izvoz doseze tudi stran - z njim je izbrala svoj element (tudi okvir) in OK je
+            // nanj sprozil pravi dotik (zaobide 60c2282d). Izvoz sprejme null (pocisti) ali element, ki ga lahko izbere tudi
+            // daljinec (isActionable, jeUporaben), in samo z dokazom zetona. Cas zadnje tipke ni dokaz: stran lahko sama
+            // poklice _safeer_navigate_spatial. Notranji klici skripta gredo mimo izvoza (highlightElement).
+            function izbiraZaAplikacijo(el, dokaz) {
+                if (el === null || el === undefined) return highlightElement(null);
+                if (typeof dokaz !== 'string' || dokaz !== odtisZetona(ZETON_DOTIKA, 'izbira')) return false;
+                // Okno cez stran tu ne zavrne: OK na izbiri za oknom zavrne klikIzbrane (getActiveElement).
+                if (!isActionable(el) || !jeUporaben(el, true)) return false;
+                return highlightElement(el);
+            }
+            izvoziZaAplikacijo('_safeer_highlight', izbiraZaAplikacijo);
+            // site_agent.js po zaprtju predvajalnika: izbira nazaj na zadnjo ploscico, ki jo je izbral ta skript (zaprtje) -
+            // ne na element iz window._safeer_medij_last_tile, ki ga lahko nastavi stran.
+            izvoziZaAplikacijo('_safeer_izberi_zadnjo_ploscico', function () {
+                var t = zadnjaPloscica;
+                if (!t || !t.isConnected || !jeUporaben(t, true)) return false;
+                return highlightElement(t);
+            });
+            // MainActivity.poveziObrisStrani: fokus gre iz strani v vrstico z naslovom - obris skrijemo, ob vrnitvi ga vrnemo na
+            // isti element. Element hrani zaprtje (prej window._safeerObrisZunaj in querySelector('.safeer-active-card'),
+            // oboje lahko nastavi stran - drugi krog pregleda 5. 11. 2026).
+            var skritaIzbira = null;
+            izvoziZaAplikacijo('_safeer_skrij_obris', function () {
+                var a = izbrani();
+                if (!a) return false;
+                skritaIzbira = a;
+                highlightElement(null);
+                return true;
+            });
+            izvoziZaAplikacijo('_safeer_vrni_obris', function () {
+                var a = skritaIzbira;
+                skritaIzbira = null;
+                if (!a || !a.isConnected || izbrani() || !jeUporaben(a)) return false;
+                return highlightElement(a);
+            });
 
             window.addEventListener('scroll', function() {
                 if (window._safeerRingRaf) return;
@@ -2437,8 +2503,12 @@
                         }
                         vidni.sort(function (a, b) { return a.d - b.d || a.i - b.i; });
                         var vrstaPrvih = vidni.map(function (x) { return x.el; }).concat(ostali);
+                        // Drugi krog pregleda 5. 11. 2026: zavrnjen cilj je stran ze podrsal (scrollIntoView) - polozaj
+                        // vrnemo, da naslednji poskus in neuspeh ne pustita podrsane strani brez izbire.
+                        var polPrvih = polozajOkna();
                         for (var k = 0; k < vrstaPrvih.length && k < 8; k++) {
                             if (highlightElement(vrstaPrvih[k])) return 1;
+                            povrniOkno(polPrvih);
                         }
                         return -1;
                     }
@@ -2552,7 +2622,14 @@
                     // vrnila 1 in smer je ostala trajno mrtva. Zavrnjenega izlocimo in poskusimo naslednjega; ce ga ni, gre
                     // naprej kot brez cilja (drsenje ali -1: aplikacija tipko da strani).
                     var zavrnjeni = [];
+                    var polPrej = polozajOkna();
                     for (var poskus = 0; poskus < 6; poskus++) {
+                        // CodeRabbit 5. 11. 2026: zavrnjen cilj je lahko podrsal vsebnik - izhodisce merimo znova.
+                        if (poskus > 0) {
+                            cRect = okvirCilja(current);
+                            cCenterX = cRect.left + cRect.width / 2;
+                            cCenterY = cRect.top + cRect.height / 2;
+                        }
                         var bestTarget = null;
                         var bestScore = Infinity;
                         var bestAxis = null;
@@ -2673,6 +2750,7 @@
                         if (!bestTarget || highlightElement(bestTarget)) break;
                         zavrnjeni.push(bestTarget);
                         bestTarget = null;
+                        povrniOkno(polPrej);   // naslednji poskus brez drsenja zavrnjenega (drugi krog pregleda 5. 11. 2026)
                     }
 
                     if (bestTarget) {
@@ -2735,12 +2813,23 @@
             }
 
             // Podrsa okno in pove, ali se je res premaknilo (overflow: hidden, zaklenjeno ozadje okna ...).
+            // Drugi krog pregleda 5. 11. 2026: 'instant', ne 'auto' - pri scroll-behavior:smooth strani se 'auto' premakne
+            // sele kasneje, meritev takoj je rekla »ni premika« (-1) in aplikacija je tipko dala se strani (dvojni premik).
             function podrsajOkno(dx, dy) {
                 var d = document.documentElement;
                 var x0 = window.scrollX || d.scrollLeft || 0, y0 = window.scrollY || d.scrollTop || 0;
-                try { window.scrollBy({ left: dx, top: dy, behavior: 'auto' }); } catch (_) { return false; }
+                try { window.scrollBy({ left: dx, top: dy, behavior: 'instant' }); } catch (_) { return false; }
                 var x1 = window.scrollX || d.scrollLeft || 0, y1 = window.scrollY || d.scrollTop || 0;
                 return Math.abs(x1 - x0) >= 1 || Math.abs(y1 - y0) >= 1;
+            }
+            function polozajOkna() {
+                var d = document.documentElement;
+                return [window.scrollX || d.scrollLeft || 0, window.scrollY || d.scrollTop || 0];
+            }
+            function povrniOkno(p) {
+                var z = polozajOkna();
+                if (Math.abs(z[0] - p[0]) < 1 && Math.abs(z[1] - p[1]) < 1) return;
+                try { window.scrollTo({ left: p[0], top: p[1], behavior: 'instant' }); } catch (_) {}
             }
 
             /** Ali se da drsati celo stran v dani smeri? */
@@ -2775,6 +2864,7 @@
                         if (overlayOnTap && framedTap) return;
                         try { if (window._safeerSiteAgent) window._safeerSiteAgent.markWantPlay(); } catch (_) {}
                         try { window._safeer_medij_last_tile = tile; } catch (_) {}
+                        zadnjaPloscica = tile;
                         window._safeer_medij_player_el = null;
                         window._safeer_medij_video_boosted = false;
                         window._safeer_medij_fs_clicked = false;
@@ -2880,7 +2970,7 @@
                 return r.width >= 40 && r.height >= 20;
             }
 
-            var klikIzbrane = function() {
+            var klikIzbrane = function(izziv) {
                 zadnjaTipkaMs = Date.now();
                 try {
                     var path = (location.pathname || '').toLowerCase();
@@ -2918,7 +3008,8 @@
                     if (!vhodD && target && target.closest) { try { vhodD = vhodDatoteke(target.closest('label')); } catch (_) {} }
                     if (vhodD && !vhodD.disabled) {
                         try { vhodD.focus({ preventScroll: true }); } catch (_) {}
-                        if (okNaDatoteki(vhodD, document.activeElement) === 'datoteka') return 'datoteka';
+                        // 'datoteka:' + odtis: aplikacija preveri, da odgovor res da ta skript (SAFEER_DOKAZ, TvTipke.okNaDatoteki).
+                        if (okNaDatoteki(vhodD, document.activeElement) === 'datoteka') return dokazDatoteke(ZETON_DOTIKA, izziv) || 'datoteka';
                     }
                     // Tuj okvir (gumb GSI »Nadaljuj z Google«): samo en pravi dotik na sredini (SAFEER_OKVIR_GUMB).
                     // Pregled fokusa 5. 11. 2026: stran je lahko razred ali fokus dala svojemu nevidnemu okvirju in OK je sprozil

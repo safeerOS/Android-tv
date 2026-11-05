@@ -35,7 +35,7 @@ function modalno(s) {
     const a = gumb(s, 'A', [100, 100, 300, 60]), b = gumb(s, 'B', [100, 400, 300, 60]);
     s.body.dodaj(a, b);
     s.nalozi(VIR);
-    s.window._safeer_highlight(a);
+    s.izberi(a);
     preveri('1: ob izbiri html.safeer-izbira (obris :focus strani se ne rise)', true, s.document.documentElement.classList.contains('safeer-izbira'));
     b.focus();                                             // stran sama, brez tipke
     preveri('1: fokus strani brez tipke -> fokus nazaj na izbrani kartici', a, s.document.activeElement);
@@ -52,7 +52,7 @@ function modalno(s) {
     const a = gumb(s, 'A', [100, 100, 300, 60]);
     s.body.dodaj(a);
     s.nalozi(VIR);
-    s.window._safeer_highlight(a);
+    s.izberi(a);
     const okno = modalno(s);
     s.body.dodaj(okno);
     const vRedu = okno.children[0];
@@ -69,9 +69,9 @@ function modalno(s) {
     const c = gumb(s, 'C', [900, 500, 300, 60]);           // vidni, posevno spodaj
     s.body.dodaj(a, b, c);
     s.nalozi(VIR);
-    s.window._safeer_highlight(a);
-    preveri('2: _safeer_highlight vrne false za cilj zunaj pogleda', false, s.window._safeer_highlight(b));
-    s.window._safeer_highlight(a);
+    s.izberi(a);
+    preveri('2: _safeer_highlight vrne false za cilj zunaj pogleda', false, s.izberi(b));
+    s.izberi(a);
     preveri('2: DOL: zavrnjen B izlocen, izbran naslednji (C), vrne 1', [1, ['C']], [s.window._safeer_navigate_spatial('DOWN'), izbrani(s)]);
 }
 {
@@ -79,7 +79,7 @@ function modalno(s) {
     const a = gumb(s, 'A', [100, 100, 300, 60]), b = gumb(s, 'B', [100, 1200, 300, 60]);
     s.body.dodaj(a, b);
     s.nalozi(VIR);
-    s.window._safeer_highlight(a);
+    s.izberi(a);
     preveri('2: DOL, edini cilj zavrnjen in stran se ne premakne: -1 (tipka strani), izbira ostane', [-1, ['A']],
         [s.window._safeer_navigate_spatial('DOWN'), izbrani(s)]);
 }
@@ -102,7 +102,7 @@ function modalno(s) {
     const a = gumb(s, 'A', [100, 100, 300, 60]);
     s.body.dodaj(a);
     s.nalozi(VIR);
-    s.window._safeer_highlight(a);
+    s.izberi(a);
     s.body.dodaj(modalno(s));
     preveri('3: izbira obstaja, brez tipke: okno je ne vzame', [false, ['A']], [s.window._safeer_vstopi_v_plast(), izbrani(s)]);
 }
@@ -166,11 +166,11 @@ function modalno(s) {
     const okvir = s.el('iframe', { attrs: { src: 'https://tuj.test/' }, okvir: [700, 400, 300, 80], slog: { opacity: '0' } });
     s.body.dodaj(gumb(s, 'A', [100, 100, 300, 60]), okvir);
     s.nalozi(VIR);
-    s.window._safeer_highlight(okvir);
+    s.izberi(okvir);
     s.window._safeer_click_focused_card();
     preveri('6: izbran okvir z opacity 0: ni dotika', [], s.dotiki);
     okvir.slog.opacity = '1';
-    s.window._safeer_highlight(okvir);
+    s.izberi(okvir);
     s.window._safeer_click_focused_card();
     preveri('6: viden okvir, ki ga je izbral daljinec: en dotik na sredini', [[850, 440]], s.dotiki);
 }
@@ -201,11 +201,11 @@ function modalno(s) {
     const a = gumb(s, 'A', [100, 100, 300, 60]), b = gumb(s, 'B', [100, 300, 300, 60]), c = gumb(s, 'C', [100, 500, 300, 60]);
     s.body.dodaj(a, b, c);
     s.nalozi(VIR);
-    s.window._safeer_highlight(b);
+    s.izberi(b);
     b.slog.opacity = '0';
     preveri('8: izbran element z opacity 0: DOL zacne pri vidnem (prvi zgoraj), ne pri skritem', [1, ['A']],
         [s.window._safeer_navigate_spatial('DOWN'), izbrani(s)]);
-    s.window._safeer_highlight(c);
+    s.izberi(c);
     c.slog.opacity = '0';
     const sledi = intervali.filter((x) => x[1] === 250).map((x) => x[0]);
     sledi.forEach((f) => f());
@@ -218,7 +218,7 @@ function modalno(s) {
     ovoj.dodaj(b);
     s.body.dodaj(ovoj, gumb(s, 'C', [100, 500, 300, 60]));
     s.nalozi(VIR);
-    s.window._safeer_highlight(b);
+    s.izberi(b);
     ovoj.setAttribute('aria-hidden', 'true');
     s.window._safeer_click_focused_card();
     preveri('8: izbran element pod aria-hidden: OK ne sprozi dotika', [[], []], [s.dotiki, s.kliki]);
@@ -228,7 +228,7 @@ function modalno(s) {
     const a = gumb(s, 'A', [100, 100, 300, 60]);
     s.body.dodaj(a);
     s.nalozi(VIR);
-    s.window._safeer_highlight(a);
+    s.izberi(a);
     s.body.dodaj(modalno(s));
     s.window._safeer_click_focused_card();
     preveri('8: izbran element za modalnim oknom: OK ne sprozi dotika', [[], []], [s.dotiki, s.kliki]);
@@ -240,7 +240,7 @@ function modalno(s) {
     const a = gumb(s, 'A', [100, 100, 300, 60]);
     s.body.dodaj(a);
     s.nalozi(VIR);
-    s.window._safeer_highlight(a);
+    s.izberi(a);
     preveri('10: DESNO brez cilja, stran se ne premakne: -1', -1, s.window._safeer_navigate_spatial('RIGHT'));
     s.window.scrollX = 140;
     preveri('10: LEVO na robu (podrsaj), stran se ne premakne: -1', -1, s.window._safeer_navigate_spatial('LEFT', true));
@@ -250,7 +250,7 @@ function modalno(s) {
     const a = gumb(s, 'A', [100, 100, 300, 60]);
     s.body.dodaj(a);
     s.nalozi(VIR);
-    s.window._safeer_highlight(a);
+    s.izberi(a);
     preveri('10: DESNO brez cilja, stran se premakne: 0 (kot prej)', 0, s.window._safeer_navigate_spatial('RIGHT'));
 }
 
@@ -265,6 +265,140 @@ function modalno(s) {
         { querySelector: () => el }, () => el, () => {}, (x) => klici.push(x));
     fn([]);
     preveri('11: pocistiObroc: razred odstranjen in obroc umaknjen (updateFocusRing(null))', [false, [null]], [el.razred, klici]);
+}
+
+// 12. Drugi krog pregleda 5. 11. 2026: izvozi, ki jih doseze tudi stran.
+// 12a. Stran sama poklice _safeer_highlight(svoj element) -> pravi OK ne naredi dotika.
+{
+    const s = ustvari();
+    const a = gumb(s, 'A', [100, 100, 300, 60]);
+    const okvir = s.el('iframe', { attrs: { src: 'https://tuj.test/' }, okvir: [700, 400, 300, 80] });
+    s.body.dodaj(a, okvir);
+    s.nalozi(VIR);
+    s.window._safeer_navigate_spatial('DOWN');               // stran lahko »pritisne tipko« - cas tipke ni dokaz
+    s.window._safeer_highlight(null);
+    s.document.activeElement = s.body;
+    preveri('12a: stran izbere svoj viden okvir brez dokaza: zavrnjeno', false, s.window._safeer_highlight(okvir));
+    preveri('12a: ... tudi z izmisljenim dokazom', false, s.window._safeer_highlight(okvir, 'safeer-abc'));
+    s.window._safeer_click_focused_card();
+    preveri('12a: pravi OK po izbiri strani: ni dotika na okvir strani', [], s.dotiki);
+    const tile = s.el('div', { razred: 'item--event', okvir: [700, 700, 300, 80], slog: { opacity: '0' } });
+    s.body.dodaj(tile);
+    s.window._safeer_medij_click_live_tile(tile, 0);
+    preveri('12a: _safeer_medij_click_live_tile s skrito ploscico strani: ni izbire', [], izbrani(s));
+    preveri('12a: _safeer_izberi_zadnjo_ploscico ne vzame window._safeer_medij_last_tile strani', false,
+        (s.window._safeer_medij_last_tile = okvir, s.window._safeer_izberi_zadnjo_ploscico()));
+    preveri('12a: izbira, kot jo naredi daljinec (aplikacija z dokazom), deluje', true, s.izberi(a));
+    preveri('12a: null (pocisti) brez dokaza deluje', [false, []], [s.window._safeer_highlight(null), izbrani(s)]);
+}
+// 12b. Drugi vbrizg v isti dokument z drugim zetonom -> ni dvojnih poslusalcev, izvozi ostanejo prvi.
+{
+    const s = ustvari();
+    s.body.dodaj(gumb(s, 'A', [100, 100, 300, 60]));
+    s.nalozi(VIR);
+    const prej = s.window._safeer_click_focused_card;
+    let poslusalci = 0;
+    const dodaj = s.document.addEventListener;
+    s.document.addEventListener = function () { poslusalci++; return dodaj.apply(this, arguments); };
+    s.nalozi(VIR.split('__SAFEER_ZETON_DOTIKA__').join('y'.repeat(48)));
+    preveri('12b: drugi vbrizg z drugim zetonom se ne namesti znova (poslusalci)', 0, poslusalci);
+    preveri('12b: izvozi ostanejo od prvega vbrizga', prej, s.window._safeer_click_focused_card);
+}
+{
+    const s = ustvari();
+    s.body.dodaj(gumb(s, 'A', [100, 100, 300, 60]));
+    Object.defineProperty(s.window, '_safeer_tv_remote_installed', { value: true, writable: false, configurable: false });
+    s.nalozi(VIR);
+    preveri('12b: tuja nespremenljiva zastavica brez znaka (true) ne prepreci namestitve', 'function', typeof s.window._safeer_navigate_spatial);
+}
+// 12c. Vnaprej definiran izvoz: aplikacija ne dobi zaupanja vrednega odgovora; nas izvoz da dokaz.
+{
+    const od = VIR.indexOf('/* SAFEER_ZNAK_NAMESTITVE_ZACETEK'), doK = VIR.indexOf('/* SAFEER_ZNAK_NAMESTITVE_KONEC */');
+    const od2 = VIR.indexOf('/* SAFEER_DOKAZ_ZACETEK'), doK2 = VIR.indexOf('/* SAFEER_DOKAZ_KONEC */');
+    assert.ok(od2 > 0 && doK2 > od2, 'bloka SAFEER_DOKAZ ni');
+    const { dokazDatoteke } = new Function(VIR.slice(od, doK) + VIR.slice(od2, doK2) + '\nreturn { dokazDatoteke };')();
+    const IZZIV = '0123456789abcdef0123456789abcdef';
+    // Isti primer kot tests/TvTipkeTest.kt (TvTipke.odtisZetona v Kotlinu).
+    preveri('12c: odtis kot v Kotlinu (TvTipkeTest)', 'datoteka:safeer-cg41mu', dokazDatoteke('z'.repeat(48), IZZIV));
+    preveri('12c: brez veljavnega izziva ni dokaza', ['', ''], [dokazDatoteke('z'.repeat(48), undefined), dokazDatoteke('z'.repeat(48), 'x')]);
+    // Stran je _safeer_click_focused_card zasedla pred nami.
+    const s = ustvari();
+    const vhod = s.el('input', { attrs: { type: 'file' }, okvir: [100, 100, 300, 60] });
+    s.body.dodaj(vhod);
+    const zapisi = [];
+    s.window.console = { log: (x) => zapisi.push(String(x)), warn() {}, error() {} };
+    Object.defineProperty(s.window, '_safeer_click_focused_card', { value: () => 'datoteka', writable: false, configurable: false });
+    s.nalozi(VIR);
+    const odg = s.window._safeer_click_focused_card(IZZIV);
+    preveri('12c: zaseden izvoz: odgovor strani ni dokaz, ki ga sprejme aplikacija', true, odg !== dokazDatoteke(s.zeton, IZZIV));
+    preveri('12c: neuspel izvoz je zapisan v dnevnik (H55)', true, zapisi.some((x) => x.indexOf('H55') === 0 && x.indexOf('_safeer_click_focused_card') !== -1));
+    // Nas izvoz: polje za datoteko dobi fokus, odgovor je dokaz za ta izziv.
+    const s2 = ustvari();
+    const vhod2 = s2.el('input', { attrs: { type: 'file' }, okvir: [100, 100, 300, 60] });
+    s2.body.dodaj(vhod2);
+    s2.nalozi(VIR);
+    s2.izberi(vhod2);
+    preveri('12c: nas izvoz: OK na polju za datoteko vrne dokaz za izziv', dokazDatoteke(s2.zeton, IZZIV), s2.window._safeer_click_focused_card(IZZIV));
+}
+// 12d. Skrij/vrni obris (MainActivity): element iz zaprtja, ne iz window._safeerObrisZunaj ali razreda strani.
+{
+    const s = ustvari();
+    const a = gumb(s, 'A', [100, 100, 300, 60]), b = gumb(s, 'B', [100, 400, 300, 60]);
+    s.body.dodaj(a, b);
+    s.nalozi(VIR);
+    s.izberi(a);
+    preveri('12d: skrij obris: izbire ni', [true, []], [s.window._safeer_skrij_obris(), izbrani(s)]);
+    s.window._safeerObrisZunaj = b;                           // stran podtakne svoj element
+    preveri('12d: vrni obris: nazaj na A (ne na element strani)', [true, ['A']], [s.window._safeer_vrni_obris(), izbrani(s)]);
+    b.classList.add('safeer-active-card');                    // stran da razred svojemu elementu
+    s.window._safeer_skrij_obris();
+    preveri('12d: razred strani ni izbira (skrij vzame A)', [true, ['A']], [s.window._safeer_vrni_obris(), izbrani(s).filter((x) => x === 'A')]);
+    const kt = fs.readFileSync(path.join(__dirname, '..', 'src', 'main', 'kotlin', 'si', 'safeer', 'tv', 'MainActivity.kt'), 'utf8');
+    preveri('12d: MainActivity klice izvoza skripta (ne _safeer_highlight)', true,
+        kt.indexOf('window._safeer_skrij_obris()') !== -1 && kt.indexOf('window._safeer_vrni_obris()') !== -1 && kt.indexOf('_safeerObrisZunaj=') === -1);
+}
+// 12e. podrsajOkno: stran s scroll-behavior:smooth se ob 'auto' premakne sele kasneje - meritev je rekla -1 (dvojni premik).
+{
+    const s = ustvari();
+    const a = gumb(s, 'A', [100, 100, 300, 60]);
+    s.body.dodaj(a);
+    s.nalozi(VIR);
+    s.izberi(a);
+    const prvotni = s.window.scrollBy;
+    s.window.scrollBy = function (o) { if (o && o.behavior === 'instant') return prvotni.call(this, o); s.drsenja.push(['gladko']); };
+    preveri('12e: DESNO brez cilja na gladki strani: stran se premakne takoj (0, ne -1)', [0, 140], [s.window._safeer_navigate_spatial('RIGHT'), s.window.scrollX]);
+}
+// 12f. Zavrnjen cilj je podrsal stran: polozaj se vrne (brez izbire ne ostane podrsana stran).
+{
+    const s = ustvari({ visinaStrani: 3000, drsenjeZaklenjeno: true });
+    const a = gumb(s, 'A', [100, 100, 300, 60]), b = gumb(s, 'B', [100, 1200, 300, 60]);
+    s.body.dodaj(a, b);
+    s.window.scrollTo = (o) => { s.window.scrollX = o.left; s.window.scrollY = o.top; };
+    b.scrollIntoView = () => { s.window.scrollY += 300; };    // podrsa, B pa ostane zunaj pogleda
+    s.nalozi(VIR);
+    s.izberi(a);
+    preveri('12f: DOL, edini cilj zavrnjen: -1 in stran nazaj na 0', [-1, 0, ['A']], [s.window._safeer_navigate_spatial('DOWN'), s.window.scrollY, izbrani(s)]);
+}
+{
+    const s = ustvari({ visinaStrani: 3000, drsenjeZaklenjeno: true });
+    const b = gumb(s, 'B', [100, 1200, 300, 60]);
+    s.body.dodaj(b);
+    s.window.scrollTo = (o) => { s.window.scrollX = o.left; s.window.scrollY = o.top; };
+    b.scrollIntoView = () => { s.window.scrollY += 300; };
+    s.nalozi(VIR);
+    preveri('12f: brez izbire (prvi cilji), zavrnjen: -1 in stran nazaj na 0', [-1, 0], [s.window._safeer_navigate_spatial('DOWN'), s.window.scrollY]);
+}
+// 12g (CodeRabbit). Zavrnjen cilj je podrsal vsebnik z izbranim elementom: naslednji poskus meri od nove lege.
+{
+    const s = ustvari({ visinaStrani: 3000 });
+    const a = gumb(s, 'A', [100, 500, 300, 60]);
+    const b = gumb(s, 'B', [100, 1078, 300, 60]);             // tik pod robom: najblizji, a zunaj pogleda
+    const c = gumb(s, 'C', [100, 300, 300, 60]);
+    s.body.dodaj(a, b, c);
+    b.scrollIntoView = () => { a.okvir = [100, 100, 300, 60]; };   // vsebnik se je premaknil, A je zdaj nad C
+    s.nalozi(VIR);
+    s.izberi(a);
+    preveri('12g: DOL po zavrnjenem B: C (pod novo lego A)', [1, ['C']], [s.window._safeer_navigate_spatial('DOWN'), izbrani(s)]);
 }
 
 // Meritev zbiranja kandidatov (brez spremembe vedenja): dnevnik H54 s trajanjem.

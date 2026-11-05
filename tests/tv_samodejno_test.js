@@ -21,5 +21,5 @@ const fokus = VIR.slice(VIR.indexOf("document.addEventListener('focusin'"));
 preveri('fokus strani gre skozi vrata (izjema: vsebnik okna)', true, /if \(!samodejnoDovoljeno\('fokus strani'\) && plastIzbire\(ev\.target, window\.getComputedStyle\) !== ev\.target\) \{[\s\S]{0,600}?return;\s*\}/.test(fokus) && fokus.indexOf("samodejnoDovoljeno('fokus strani')") < fokus.indexOf('naFokusStrani('));
 preveri('vstop v okno ostane omejen na enkrat na naslov', true, /if \(vstopNaNaslovu === kljucNaslova\(\)\) return false;/.test(VIR));
 preveri('tipka (smer) zabelezi cas', true, /var navigirajProstorsko = function\(direction, robVrstice\) \{\s*zadnjaTipkaMs = Date\.now\(\);/.test(VIR));
-preveri('tipka (OK) zabelezi cas', true, /var klikIzbrane = function\(\) \{\s*zadnjaTipkaMs = Date\.now\(\);/.test(VIR));
+preveri('tipka (OK) zabelezi cas', true, /var klikIzbrane = function\(izziv\) \{\s*zadnjaTipkaMs = Date\.now\(\);/.test(VIR));
 console.log('tv_samodejno_test: OK (' + n + ')');

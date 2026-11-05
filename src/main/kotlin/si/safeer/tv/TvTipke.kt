@@ -39,12 +39,38 @@ object TvTipke {
      * ko je stran nalozena in skripte ni (stran brez nase navigacije), GOR vrstico pokaze kot prej - uporabnik ni ujet.
      */
     /**
-     * OK na polju za datoteko: [odgovor] je, kar vrne window._safeer_click_focused_card() (tv_spatial.js SAFEER_OK_DATOTEKA).
-     * TV 4. 11. 2026 (w3schools tryhtml5_input_type_file): klik iz skripta nima uporabnikove aktivacije, Chromium izbirnika
-     * datotek ne odpre in onShowFileChooser se ne poklice. Pri "datoteka" ima polje fokus in aplikacija WebView poslje
-     * pravo tipko Enter. Vse drugo (true, false, null, stari odgovori) ostane navaden klik skripta.
+     * OK na polju za datoteko: [odgovor] je, kar vrne window._safeer_click_focused_card('[izziv]') (tv_spatial.js
+     * SAFEER_OK_DATOTEKA). TV 4. 11. 2026 (w3schools tryhtml5_input_type_file): klik iz skripta nima uporabnikove
+     * aktivacije, Chromium izbirnika datotek ne odpre. Pri polju za datoteko ima polje fokus in aplikacija poslje pravo
+     * tipko Enter. Drugi krog pregleda 5. 11. 2026: stran je funkcijo lahko zasedla pred nasim skriptom in sama vrnila
+     * "datoteka" - velja samo "datoteka:" + [odtisZetona] zetona strani ([zeton], pozna ga samo nas skript) in izziva tega
+     * OK (tv_spatial.js SAFEER_DOKAZ). Vse drugo (golo "datoteka", true, false, null) ostane navaden klik skripta.
      */
-    fun okNaDatoteki(odgovor: String?): Boolean = (odgovor ?: "").trim().trim('"') == "datoteka"
+    fun okNaDatoteki(odgovor: String?, zeton: String, izziv: String): Boolean {
+        if (zeton.length < 32 || !IZZIV.matches(izziv)) return false
+        val o = (odgovor ?: "").trim().trim('"')
+        val pricakovan = "datoteka:" + odtisZetona(zeton, "datoteka|$izziv")
+        return java.security.MessageDigest.isEqual(o.toByteArray(Charsets.UTF_8), pricakovan.toByteArray(Charsets.UTF_8))
+    }
+
+    private val IZZIV = Regex("[0-9a-f]{16,64}")
+
+    /** Nakljucen izziv za en OK (32 sestnajstiskih znakov). */
+    fun novIzziv(): String {
+        val b = ByteArray(16)
+        java.security.SecureRandom().nextBytes(b)
+        return b.joinToString("") { "%02x".format(it) }
+    }
+
+    /**
+     * Isti odtis kot tv_spatial.js odtisZetona (FNV-1a, 32 bitov, po znakih UTF-16, base36): zeton na obeh koncih, da javni
+     * znak namestitve (odtis samega zetona) ni zacetno stanje za podaljsanje. Zeton ima 192 bitov, izziv je vsakic nov.
+     */
+    fun odtisZetona(zeton: String, niz: String): String {
+        var h = -2128831035   // 2166136261 kot Int
+        for (c in "$zeton|$niz|$zeton") { h = h xor c.code; h *= 16777619 }
+        return "safeer-" + (h.toLong() and 0xffffffffL).toString(36)
+    }
 
     fun gorVNaslovnoVrstico(odgovor: String?, nacinAplikacije: Boolean, napredek: Int): Boolean {
         val o = (odgovor ?: "").trim().trim('"')

@@ -664,10 +664,10 @@
                         try { document.documentElement.classList.remove('safeer-medij-playing', 'safeer-medij-waitplay'); } catch (_) {}
                         try {
                             if (!isFramed(v)) {
-                                var lastT = window._safeer_medij_last_tile;
-                                // Pregled fokusa 5. 11. 2026: razred sam ni izbira (tv_spatial.js hrani izbrani element v zaprtju) -
-                                // rocni razred je dal okvir brez izbire in brez fokusa; highlight nastavi oboje in obroc.
-                                if (lastT && lastT.isConnected && typeof window._safeer_highlight === 'function') window._safeer_highlight(lastT);
+                                // Pregled fokusa 5. 11. 2026: razred sam ni izbira (tv_spatial.js hrani izbrani element v zaprtju).
+                                // Drugi krog 5. 11. 2026: _safeer_highlight strani ne sprejme elementa; zadnjo ploscico izbere
+                                // tv_spatial.js iz zaprtja (window._safeer_medij_last_tile lahko nastavi stran).
+                                if (typeof window._safeer_izberi_zadnjo_ploscico === 'function') window._safeer_izberi_zadnjo_ploscico();
                             }
                         } catch (_) {}
                         reopenTile('class');

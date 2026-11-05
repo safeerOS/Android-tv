@@ -478,8 +478,12 @@ object GenericWebSiteProfile : SiteProfile {
                 }
                 // Polje za datoteko: skript mu da fokus in vrne "datoteka"; izbirnik odpre samo prava tipka (uporabnikova
                 // aktivacija), klik iz skripta ne (TV 4. 11. 2026, w3schools: onShowFileChooser se ni poklical).
-                wv.evaluateJavascript("window._safeer_click_focused_card();") { o ->
-                    if (si.safeer.tv.TvTipke.okNaDatoteki(o)) nativnaTipka(wv, event, KeyEvent.KEYCODE_ENTER)
+                // Drugi krog pregleda 5. 11. 2026: stran je funkcijo lahko zasedla pred nasim skriptom in sama vrnila "datoteka"
+                // (prava tipka Enter na njen element). Enter samo z odtisom zetona strani in nakljucnega izziva tega OK.
+                val izziv = si.safeer.tv.TvTipke.novIzziv()
+                val zeton = wv.zetonDotika
+                wv.evaluateJavascript("window._safeer_click_focused_card('$izziv');") { o ->
+                    if (si.safeer.tv.TvTipke.okNaDatoteki(o, zeton, izziv)) nativnaTipka(wv, event, KeyEvent.KEYCODE_ENTER)
                 }
                 return true
             }

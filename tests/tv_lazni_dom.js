@@ -175,12 +175,23 @@ function ustvari(nastavitve) {
     html.scrollTop = n.scrollY;
     win.window = win; win.self = win; win.top = win;
     const ctx = vm.createContext(win);
+    let odtis = null;
     return {
         window: win, document: doc, body, El, dotiki, kliki, drsenja,
         el: (tag, o) => new El(tag, o),
         zetoni, zeton,
         // Kot UserScriptManager.tvSpatialJs: zeton namesto mesta v besedilu skripta.
-        nalozi(vir) { vm.runInContext(vir.split('__SAFEER_ZETON_DOTIKA__').join(zeton), ctx); },
+        nalozi(vir) {
+            // Odtis zetona iz istega skripta (SAFEER_DOKAZ), kot ga bi izracunala aplikacija.
+            const blok = (ime) => { const i = vir.indexOf('/* ' + ime + '_ZACETEK'), j = vir.indexOf('/* ' + ime + '_KONEC */'); return i >= 0 && j > i ? vir.slice(i, j) : ''; };
+            const b = blok('SAFEER_ZNAK_NAMESTITVE') + blok('SAFEER_DOKAZ');
+            if (b.indexOf('function odtisZetona') !== -1) odtis = new Function(b + '\nreturn odtisZetona;')();
+            vm.runInContext(vir.split('__SAFEER_ZETON_DOTIKA__').join(zeton), ctx);
+        },
+        // Izbira, kot jo naredi daljinec (aplikacija z zetonom): _safeer_highlight(el, dokaz). Brez SAFEER_DOKAZ (stara
+        // razlicica skripta) brez dokaza.
+        izberi(el) { return odtis ? win._safeer_highlight(el, odtis(zeton, 'izbira')) : win._safeer_highlight(el); },
+        dokazIzbire() { return odtis ? odtis(zeton, 'izbira') : undefined; },
     };
 }
 module.exports = { ustvari };

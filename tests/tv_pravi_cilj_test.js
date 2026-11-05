@@ -34,7 +34,7 @@ const ime = (el) => (el ? el.tagName + ':' + el.innerText.trim().split(' ')[0] :
     kartica.dodaj(naslov, predvajaj, vec);
     s.body.dodaj(zgoraj, kartica);
     s.nalozi(VIR);
-    s.window._safeer_highlight(zgoraj);
+    s.izberi(zgoraj);
     s.window._safeer_navigate_spatial('DOWN');
     preveri('kartica z vec dejanji: DOL izbere naslov (povezavo), ne cele kartice', 'A:Naslov', ime(izbran(s)));
     s.window._safeer_navigate_spatial('DOWN');
@@ -50,7 +50,7 @@ const ime = (el) => (el ? el.tagName + ':' + el.innerText.trim().split(' ')[0] :
     kartica.dodaj(s.el('a', { attrs: { href: '/x' }, okvir: [110, 250, 280, 40], besedilo: 'Edina' }));
     s.body.dodaj(zgoraj, kartica);
     s.nalozi(VIR);
-    s.window._safeer_highlight(zgoraj);
+    s.izberi(zgoraj);
     s.window._safeer_navigate_spatial('DOWN');
     preveri('kartica z eno povezavo: cilj je kartica', 'DIV:Edina', ime(izbran(s)));
 }
@@ -63,7 +63,7 @@ const ime = (el) => (el ? el.tagName + ':' + el.innerText.trim().split(' ')[0] :
     const spodaj = s.el('button', { okvir: [100, 400, 300, 60], besedilo: 'Spodaj' });
     s.body.dodaj(glava, delno, spodaj);
     s.nalozi(VIR);
-    s.window._safeer_highlight(spodaj);
+    s.izberi(spodaj);
     s.window._safeer_navigate_spatial('UP');
     preveri('glava cez zgornjo polovico: GOR izbere delno prekriti gumb', 'BUTTON:Delno', ime(izbran(s)));
 }
@@ -74,7 +74,7 @@ const ime = (el) => (el ? el.tagName + ':' + el.innerText.trim().split(' ')[0] :
     const tik = s.el('button', { okvir: [100, 60, 200, 40], besedilo: 'Tik' });
     s.body.dodaj(vrh, tik, s.el('button', { okvir: [100, 400, 200, 40], besedilo: 'Dol' }));
     s.nalozi(VIR);
-    s.window._safeer_highlight(tik);
+    s.izberi(tik);
     preveri('GOR iz zgornjih 80 px s ciljem visje: ostane na strani', 1, s.window._safeer_navigate_spatial('UP'));
     preveri('GOR iz zgornjih 80 px: izbran cilj nad njim', 'BUTTON:Vrh', ime(izbran(s)));
     preveri('drugi GOR na vrhu strani brez cilja visje: izstop', -1, s.window._safeer_navigate_spatial('UP'));

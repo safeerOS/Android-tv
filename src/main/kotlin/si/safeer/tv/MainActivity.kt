@@ -2431,8 +2431,10 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
     /**
      * Pregled lupine 5. 11. 2026: ko je fokus z GOR sel iz strani v vrstico z naslovom, je na strani ostal obris izbire
-     * (.safeer-active-card) - na zaslonu dva okvirja. Ob odhodu fokusa iz WebViewa ga skrijemo z javnim vmesnikom skripta
-     * daljinca (window._safeer_highlight(null) = clearActive), ob vrnitvi ga vrnemo na isti element, ce je se v pogledu.
+     * (.safeer-active-card) - na zaslonu dva okvirja. Ob odhodu fokusa iz WebViewa ga skrijemo, ob vrnitvi ga vrnemo na
+     * isti element, ce je se v pogledu. Drugi krog pregleda 5. 11. 2026: element hrani skript daljinca v zaprtju
+     * (tv_spatial.js _safeer_skrij_obris / _safeer_vrni_obris) - prej window._safeerObrisZunaj in razred, ki ju lahko
+     * nastavi stran, in _safeer_highlight, ki elementa strani ne sprejme vec.
      */
     private fun poveziObrisStrani() {
         fun webViewOd(v: View?): android.webkit.WebView? {
@@ -2449,12 +2451,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         }
     }
 
-    private val JS_SKRIJ_OBRIS = "(function(){try{var a=document.querySelector('.safeer-active-card');" +
-        "if(!a||typeof window._safeer_highlight!=='function')return;window._safeerObrisZunaj=a;window._safeer_highlight(null);}catch(_){}})()"
-    private val JS_VRNI_OBRIS = "(function(){try{var a=window._safeerObrisZunaj;window._safeerObrisZunaj=null;" +
-        "if(!a||!a.isConnected||typeof window._safeer_highlight!=='function'||document.querySelector('.safeer-active-card'))return;" +
-        "var r=a.getBoundingClientRect();if(r.bottom<=0||r.right<=0||r.top>=innerHeight||r.left>=innerWidth)return;" +
-        "window._safeer_highlight(a);}catch(_){}})()"
+    private val JS_SKRIJ_OBRIS = "(function(){try{if(typeof window._safeer_skrij_obris==='function')window._safeer_skrij_obris();}catch(_){}})()"
+    private val JS_VRNI_OBRIS = "(function(){try{if(typeof window._safeer_vrni_obris==='function')window._safeer_vrni_obris();}catch(_){}})()"
 
     /** Urejanje naslovne vrstice tece (polje ali plosca predlogov ima fokus); vneseno besedilo takrat ostane. */
     private var urejanjePolja = false
