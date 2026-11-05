@@ -82,6 +82,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/SeznamiPravilaTest.kt" \
     "$TEST_DIR/ZacasniPravilaTest.kt" \
     "$TEST_DIR/DiagnostikaPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/DiagnostikaPredvajanjaPravila.kt" \
+    "$TEST_DIR/DiagnostikaPredvajanjaPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/SejaPredvajanjaPravila.kt" \
     "$TEST_DIR/SejaPredvajanjaPravilaTest.kt" \
     "$TEST_DIR/ZasebniDodatkiTest.kt" \
@@ -242,6 +244,8 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ObvestilaTokovTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SeznamiPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZacasniPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.DiagnostikaPravilaTestKt
+# Diagnostika predvajanja (lastnik 5. 11. 2026): privzeto izklopljena, vnos brez kljucev in celih URL-jev.
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.DiagnostikaPredvajanjaPravilaTestKt
 # Seja predvajanja samo ob pravi spremembi (TV 5. 11. 2026: 6 stanj v 54 ms).
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SejaPredvajanjaPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZasebniDodatkiTestKt
