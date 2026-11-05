@@ -191,16 +191,10 @@ class ViriActivity : android.app.Activity() {
     private fun preimenuj(v: Vhod) {
         // Pregled doma 5. 11. 2026 (1, 2): okno odpre dolg OK - polje je dobilo fokus in spust istega OK je sam odprl
         // tipkovnico. Zdaj fokus ne odpre tipkovnice (odpre jo sele OK na polju), prvi fokus je na »Shrani«, prvi spust OK
-        // po odprtju se pozre. Polje v slogu okna (Os_Okno) z barvami iz zetonov - prej stara tema brez barv.
+        // po odprtju se pozre (Kontroler.pokazi s pozriDolgiOk, skupno z menijem ploscic doma - preverba TV 5. 11. 2026, N1).
+        // Polje v slogu okna (Os_Okno) z barvami iz zetonov - prej stara tema brez barv.
         val okKoda = { k: Int -> k == android.view.KeyEvent.KEYCODE_DPAD_CENTER || k == android.view.KeyEvent.KEYCODE_ENTER ||
             k == android.view.KeyEvent.KEYCODE_NUMPAD_ENTER || k == android.view.KeyEvent.KEYCODE_BUTTON_A }
-        var pozriSpust = true
-        /** Spust OK, ki je okno odprl (dolg pritisk), in njegove ponovitve se pozrejo; nov pritisk velja. */
-        fun pozri(koda: Int, e: android.view.KeyEvent): Boolean {
-            if (!okKoda(koda)) { if (e.action == android.view.KeyEvent.ACTION_DOWN) pozriSpust = false; return false }
-            if (e.action == android.view.KeyEvent.ACTION_DOWN && e.repeatCount == 0) { pozriSpust = false; return false }
-            return pozriSpust
-        }
         val polje = android.widget.EditText(android.view.ContextThemeWrapper(this, R.style.Os_Okno)).apply {
             setText(imena.getString(v.info.id, "") ?: "")
             hint = v.ime
@@ -211,7 +205,6 @@ class ViriActivity : android.app.Activity() {
             backgroundTintList = android.content.res.ColorStateList.valueOf(barva(R.color.os_mint))
             showSoftInputOnFocus = false
             setOnKeyListener { p, koda, e ->
-                if (pozri(koda, e)) return@setOnKeyListener true
                 if (!okKoda(koda)) return@setOnKeyListener false
                 if (e.action == android.view.KeyEvent.ACTION_UP) {
                     showSoftInputOnFocus = true
@@ -240,13 +233,9 @@ class ViriActivity : android.app.Activity() {
             .setNegativeButton(android.R.string.cancel, null)
             .create()
         // Pregled doma 5. 11. 2026 (3): B na plosku zapre okno kot drugje (Kontroler.pokazi).
-        Kontroler.pokazi(okno)
+        Kontroler.pokazi(okno, pozriDolgiOk = true)
         okno.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
         okno.show()
-        for (g in listOf(android.content.DialogInterface.BUTTON_POSITIVE, android.content.DialogInterface.BUTTON_NEUTRAL,
-                android.content.DialogInterface.BUTTON_NEGATIVE)) {
-            okno.getButton(g)?.setOnKeyListener { _, koda, e -> pozri(koda, e) }
-        }
         okno.getButton(android.content.DialogInterface.BUTTON_POSITIVE)?.requestFocus()
     }
 

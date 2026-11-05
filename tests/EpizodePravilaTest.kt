@@ -46,5 +46,10 @@ fun main() {
     // (12): stevilo epizod iz prikazanih
     preveri("2 prikazani v sezoni 1", EpizodePravila.steviloVSezoni(ep.map { it.first }, 1) == 2)
 
+    // Preverba TV 5. 11. 2026 (N9): z zapisom zadnje epizode fokus nanjo, ne na »Sezona 1«.
+    preveri("N9 zadnja S2E3 prikazana -> fokus na epizodi", EpizodePravila.fokusNaEpizodi(ep, 2 to 3))
+    preveri("N9 brez zapisa -> fokus ostane", !EpizodePravila.fokusNaEpizodi(ep, null))
+    preveri("N9 zadnja ni prikazana -> fokus ostane", !EpizodePravila.fokusNaEpizodi(ep, 3 to 1))
+
     if (napakEpizod != 0) { println("Napak epizod: $napakEpizod"); kotlin.system.exitProcess(1) }
 }

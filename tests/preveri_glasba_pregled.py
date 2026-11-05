@@ -52,5 +52,21 @@ preveri("podnapisi: HLS na gumbu, brez iskanja", "GlasbaStoritev.jeHls()" in pa 
 preveri("iskanje: OK po okIskanja", "OsPravila.okIskanja(q)" in g)
 preveri("iskanje: DOL po dolIskanja, brez poizvedbe", "OsPravila.dolIskanja(q," in g and "== OsPravila.TipkaIskanja.ISCI) { if (!prikaziNaDrugi(q)) isci(q) }" not in g)
 preveri("iskanje: Nazaj po vidnosti tipkovnice (WindowInsets)", "OsPravila.nazajIskanja(tipkovnicaVidna(polje))" in g and "WindowInsets.Type.ime()" in g)
+# Preverba TV 5. 11. 2026 (t0511b)
+ss = re.search(r"private fun izberiSezono\(.*?\n    \}\n", g, re.S)
+ss = ss.group(0) if ss else ""
+preveri("N2 izbrana sezona: robni pas, ne okvir fokusa", ss.count("znakIzbraneSezone()") == 2 and ss.count("setStroke(") == 1
+        and "setLayerWidth(0, " in g and "getColor(R.color.os_mint)" in g)
+preveri("N9 fokus na zadnji epizodi ob ponovnem odprtju", "EpizodePravila.fokusNaEpizodi(" in ss and "seznamEpizod.requestFocus()" in ss)
+pl = re.search(r"private fun osveziPlosco\(.*?\n    \}\n", g, re.S)
+pl = pl.group(0) if pl else ""
+zd = re.search(r"private fun osveziZdaj\(.*?\n    \}\n", g, re.S)
+zd = zd.group(0) if zd else ""
+preveri("N12 tik ne nastavlja istega besedila (dogodek dostopnosti vsako sekundo)", pl != "" and zd != ""
+        and re.search(r"\?\.text = ", pl) is None and re.search(r"\b(zdajNaslov|zdajIzvajalec|zdajCas)\.text = ", zd) is None
+        and "OsPravila.drugoBesedilo(v.text, b)" in g)
+pr = (OS.parent / "link/Pretok.kt").read_text(encoding="utf-8")
+preveri("P1 velikost toka: zeton samo pripeti napravi, brez preusmeritev", "HubPreusmeritve.zahtevaVelikosti(url, odtis, zeton, glave)" in pr
+        and "HubPreusmeritve.brez(si.safeer.tv.os.PripetiVir.odjemalecZaStreznik(odtis).newBuilder())" in pr and "\"X-Safeer-Token\", zeton" not in pr)
 print("VSE OK" if napak == 0 else f"NAPAK: {napak}")
 sys.exit(1 if napak else 0)

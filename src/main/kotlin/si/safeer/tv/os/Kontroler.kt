@@ -202,9 +202,15 @@ object Kontroler {
     /**
      * Plosek tudi v pogovornih oknih. Okno ima svoje okno in dogodkov ne dobi zaslon, zato gumba
      * prevedemo tu: A je OK, B zapre okno. Brez tega bi moral uporabnik sredi izbire vzeti daljinec.
+     * [pozriDolgiOk]: okno odpre dolg OK (preverba TV 5. 11. 2026, N1) - ponovitve in spust tega pritiska se pozrejo
+     * (PokrajinaPravila.DolgiOk), sicer bi izbrali postavko, ki jo uporabnik ni izbral. Pred prevodom A, ki ponovitev izgubi.
      */
-    fun pokazi(okno: android.app.AlertDialog): android.app.AlertDialog {
+    fun pokazi(okno: android.app.AlertDialog, pozriDolgiOk: Boolean = false): android.app.AlertDialog {
+        val dolgi = if (pozriDolgiOk) PokrajinaPravila.DolgiOk() else null
         okno.setOnKeyListener { d, koda, e ->
+            val jeOk = koda == KeyEvent.KEYCODE_DPAD_CENTER || koda == KeyEvent.KEYCODE_ENTER ||
+                koda == KeyEvent.KEYCODE_NUMPAD_ENTER || koda == KeyEvent.KEYCODE_BUTTON_A
+            if (dolgi != null && dolgi.pozre(jeOk, e.action == KeyEvent.ACTION_DOWN, e.repeatCount)) return@setOnKeyListener true
             when (koda) {
                 KeyEvent.KEYCODE_BUTTON_A -> {
                     // A je za okno isto kot OK: dogodek posljemo naprej pod drugo oznako.

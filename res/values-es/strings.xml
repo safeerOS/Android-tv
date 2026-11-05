@@ -21,6 +21,7 @@
     
     <!-- Tab Switcher -->
     <string name="tabs_title">Pestañas abiertas</string>
+    <string name="btn_tab_count">Pestañas: %d</string>
     <string name="tabs_close_all">Cerrar todas las pestañas</string>
     <string name="tabs_new_tab">+ Nueva pestaña</string>
     

@@ -22,6 +22,7 @@
     
     <!-- Tab Switcher -->
     <string name="tabs_title">Open Tabs</string>
+    <string name="btn_tab_count">Tabs: %d</string>
     <string name="tabs_close_all">Close All Tabs</string>
     <string name="tabs_new_tab">+ New Tab</string>
     

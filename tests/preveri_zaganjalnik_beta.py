@@ -195,8 +195,8 @@ def main() -> int:
             "PokrajinaPravila.vrstaDomov(" in pokrajina and "HorizontalScrollView(this)" in pokrajina and "mrezaAplikacij" not in pokrajina)
     # Lastnik 28. 10. 2026: odstrani iz priljubljenih in vrstni red (namescene in spletne skupaj), dolg pritisk na plosci.
     preveri("dolg pritisk: premakni, levo, desno, odstrani iz priljubljenih",
-            # Naloga 45: dolg OK premakne ploscico, Meni/Info odpre moznosti (premakni, levo, desno, odstrani).
-            "setOnLongClickListener { zacniPremikanje(id); true }" in pokrajina and "moznostiPloscice(id, " in pokrajina
+            # Preverba TV 5. 11. 2026 (N1): dolg OK odpre meni ploscice (kot lastnik 28. 10.), ne premika brez besede.
+            "setOnLongClickListener { zacniPremikanje(id); true }" not in pokrajina and "moznostiPloscice(id, " in pokrajina
             and "R.string.os_priljubljen_odstrani" in pokrajina
             and "Priljubljene.shraniRedDomov(" in pokrajina and "PokrajinaPravila.tipkaPremikanja(" in pokrajina)
     preveri("po zgledu tv-simple-home: mirovanje in fokus na zadnji aplikaciji",
@@ -637,7 +637,7 @@ def main() -> int:
     preveri("dom (12) preverba mirovanja ne tece vsako sekundo", "PokrajinaPravila.zamikPreverbeMirovanja(" in pok and "maxOf(1_000L, zadnjiVnos + meja - zdaj)" not in pok)
     preveri("dom (15) ikona ploscice iz visine", "width = dp(64); height = dp(64)" not in pok and "PokrajinaPravila.velikostIkonePloscice(visinaPlosceDp" in pok)
     preveri("dom (1-3) Preimenuj vhod: tipkovnica sele na OK, okno prek Kontroler.pokazi", "showSoftInputOnFocus = false" in viri_akt
-            and "Kontroler.pokazi(okno)" in viri_akt and "ContextThemeWrapper(this, R.style.Os_Okno)" in viri_akt
+            and "Kontroler.pokazi(okno, pozriDolgiOk = true)" in viri_akt and "ContextThemeWrapper(this, R.style.Os_Okno)" in viri_akt
             and "BUTTON_POSITIVE)?.requestFocus()" in viri_akt)
     layout = (RES / "layout/os_activity_domov.xml").read_text(encoding="utf-8")
     m_ik = re.search(r'android:id="@\+id/meniGlasba".*?android:src="@drawable/(\w+)"', layout, re.S)
@@ -645,6 +645,27 @@ def main() -> int:
             and "PokrajinaPravila.MEDIJI -> StranskaVrstica.IKONA_MEDIJSKEGA_CENTRA" in pok
             and "Razdelek.MEDIJI, IKONA_MEDIJSKEGA_CENTRA" in stranska and m_ik is not None and m_ik.group(1) == "os_ikona_glasba")
     preveri("dom (M10) ime vrstice v eni vrstici", "isSingleLine = true; ellipsize = android.text.TextUtils.TruncateAt.END" in stranska)
+
+    print("\n== preverba TV 5. 11. 2026 (t0511b) ==")
+    kontroler = (SRC / "os/Kontroler.kt").read_text(encoding="utf-8")
+    lupa_kt = (SRC / "os/DomacaLupa.kt").read_text(encoding="utf-8")
+    apl = (SRC / "os/AplikacijeHostaActivity.kt").read_text(encoding="utf-8")
+    glavni = (SRC / "MainActivity.kt").read_text(encoding="utf-8")
+    preveri("N1 dolg OK na ploscici in gumbu odpre meni", pok.count("setOnLongClickListener { moznostiPloscice(id, ") == 2
+            and "setOnLongClickListener { moznostiDokGumba(r, getString(napis)); true }" in pok
+            and "setOnLongClickListener { zacniPremikanje" not in pok)
+    preveri("N1 meniji prek pokaziMeni (pozre dolgi OK, prvi fokus ni Odstrani)", "Kontroler.pokazi(okno, pozriDolgiOk = true)" in pok
+            and "PokrajinaPravila.prviFokusMenija(" in pok and pok.count("pokaziMeni(") >= 4
+            and "nevarne = setOf(getString(R.string.os_priljubljen_odstrani), getString(R.string.pk_odstrani_z_naprave))" in pok
+            and "nevarne = setOf(odstrani)" in pok)
+    preveri("N1 Kontroler pozre pred prevodom A", re.search(r"dolgi\.pozre\(jeOk, e\.action == KeyEvent\.ACTION_DOWN, e\.repeatCount\)\) return@setOnKeyListener true\s*when \(koda\)", kontroler) is not None)
+    preveri("N4 DOL iz lupe na izvorno ploscico", "PokrajinaPravila.dolIzLupe(ploscicaPredLupo)" in pok and "ploscicaPredLupo = focused?.tag as? String" in pok)
+    preveri("N5 robovi vrstic tipk lupe", "PokrajinaPravila.sosedaDoka(i, n)" in lupa_kt and "nextFocusRightId = vrsta.getChildAt(desno).id" in lupa_kt)
+    preveri("N11 opisi: kartica Aplikacije, vrstica zadetka, gumb zavihkov", "v.contentDescription = p.ime" in apl
+            and re.search(r"private fun vrsticaZadetka\(.*?contentDescription = napis", pok, re.S) is not None
+            and "btnTabCount.contentDescription = getString(R.string.btn_tab_count, count)" in glavni)
+    for m in JEZIKI:
+        preveri(f"N11 btn_tab_count v {m}", "btn_tab_count" in besedila(m))
 
     return konec()
 

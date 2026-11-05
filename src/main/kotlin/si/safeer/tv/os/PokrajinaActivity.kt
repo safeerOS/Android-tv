@@ -202,6 +202,12 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
             // Pregled lupe 5. 11. 2026 (10): starsu Android klice focusSearch(focused, direction) - prepis
             // focusSearch(direction) se ni nikoli izvedel. DOL na mini samo, ko je odprt (kot dispatchKeyEvent).
             override fun focusSearch(focused: View?, direction: Int): View? {
+                if (direction == View.FOCUS_UP) {
+                    // Preverba TV 5. 11. 2026 (N4): ploscica, s katere gre fokus GOR v lupo - DOL iz lupe se vrne nanjo.
+                    val n = super.focusSearch(focused, direction)
+                    if (n != null && ::lupaPogled.isInitialized && jePotomec(n, lupaPogled)) ploscicaPredLupo = focused?.tag as? String
+                    return n
+                }
                 if (direction == View.FOCUS_DOWN) {
                     val mini = dock?.aktivniPogledZaFokus
                     if (mini != null && PokrajinaPravila.dolNaMini(dock?.jeOdprt == true, mini.isShown && mini.isFocusable)) return mini
@@ -679,7 +685,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     override fun dispatchKeyEvent(dogodek: KeyEvent): Boolean {
         val izvirnaKoda = dogodek.keyCode
         if (dogodek.action == KeyEvent.ACTION_DOWN) tipkaPoVrnitvi = true
-        // Plosck A/B kot OK/Nazaj; ponovitev in cas ostaneta (dolg pritisk A premakne ploscico kot dolg OK).
+        // Plosck A/B kot OK/Nazaj; ponovitev in cas ostaneta (dolg pritisk A odpre meni ploscice kot dolg OK).
         fun kot(koda: Int) = KeyEvent(dogodek.downTime, dogodek.eventTime, dogodek.action, koda, dogodek.repeatCount,
             dogodek.metaState, dogodek.deviceId, dogodek.scanCode, dogodek.flags, dogodek.source)
         val pretvorjen = if (izvirnaKoda == KeyEvent.KEYCODE_BUTTON_A) kot(KeyEvent.KEYCODE_DPAD_CENTER)
@@ -1022,7 +1028,15 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
             override fun focusSearch(focused: View?, direction: Int): View? {
                 val odprta = ::zadetkiDrsnik.isInitialized && zadetkiDrsnik.visibility == View.VISIBLE
                 when (LupaPravila.izPolja(odprta, poljeLupe.text.isNullOrBlank(), direction == View.FOCUS_DOWN)) {
-                    LupaPravila.IzPolja.PRIVZETO, LupaPravila.IzPolja.ZAPRI_PLOSCO -> return super.focusSearch(focused, direction)
+                    LupaPravila.IzPolja.PRIVZETO, LupaPravila.IzPolja.ZAPRI_PLOSCO -> {
+                        // Preverba TV 5. 11. 2026 (N4): DOL na ploscico, s katere je uporabnik prisel GOR (prej najblizja SmartTube).
+                        if (direction == View.FOCUS_DOWN && ::vrstaAplikacij.isInitialized) {
+                            PokrajinaPravila.dolIzLupe(ploscicaPredLupo) { o ->
+                                vrstaAplikacij.findViewWithTag<View>(o)?.let { it.isShown && it.isFocusable } == true
+                            }?.let { o -> return vrstaAplikacij.findViewWithTag(o) }
+                        }
+                        return super.focusSearch(focused, direction)
+                    }
                     LupaPravila.IzPolja.V_PLOSCI -> {
                         val n = super.focusSearch(focused, direction)
                         val tipkovnica = window.decorView.findViewWithTag<View>("lupaTipkovnica")
@@ -1137,6 +1151,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         setPadding(dp(10), dp(7), dp(10), dp(7))
         minimumHeight = dp(48)
         setOnClickListener { klik(); if (zapre) zapriLupo() }
+        // Preverba TV 5. 11. 2026 (N11): opis na vozliscu s fokusom (prej samo besedilo v otroku, npr. »Isci v spletu: ...«).
+        contentDescription = napis
         addView(ImageView(this@PokrajinaActivity).apply { setImageResource(ikona); setColorFilter(osBarva(R.color.os_mint)) },
             LinearLayout.LayoutParams(dp(22), dp(22)))
         addView(besedilo(napis, 16f).apply { maxLines = 1; ellipsize = TextUtils.TruncateAt.END },
@@ -2000,7 +2016,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                 if (Aplikacije.ikonaIzPomnilnika(a.paket) == null)
                     Aplikacije.ikonaLeno(this, a) { Aplikacije.ikonaIzPomnilnika(a.paket)?.let { v.findViewById<ImageView>(R.id.ikona).setImageDrawable(it) } }
                 v.tag = id
-                v.setOnLongClickListener { zacniPremikanje(id); true }
+                // Preverba TV 5. 11. 2026 (N1): dolg OK odpre meni ploscice (Premakni, ...), ne zacne premika brez besede.
+                v.setOnLongClickListener { moznostiPloscice(id, a.ime, splet = false); true }
                 v.setOnKeyListener { _, keyCode, event ->
                     if (event.action == KeyEvent.ACTION_DOWN && (keyCode == 165 || PokrajinaPravila.jeTipkaMenija(keyCode))) {
                         moznostiPloscice(id, a.ime, splet = false); true
@@ -2022,7 +2039,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                 v.alpha = 0.5f
             }
             v.tag = id
-            v.setOnLongClickListener { zacniPremikanje(id); true }
+            v.setOnLongClickListener { moznostiPloscice(id, ime, splet = true); true }
             v.setOnKeyListener { _, keyCode, event ->
                 if (event.action == KeyEvent.ACTION_DOWN && (keyCode == 165 || PokrajinaPravila.jeTipkaMenija(keyCode))) {
                     moznostiPloscice(id, ime, splet = true); true
@@ -2046,13 +2063,9 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                 // odstrani z domacega zaslona (zapomnjeno za ta kljuc); kljuc ostane dosegljiv v Datotekah.
                 val kljucUsb = usb.uuid ?: ime
                 fun ponudiOdstranitev() {
-                    val okno = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
-                        .setTitle(ime)
-                        .setItems(arrayOf(getString(R.string.os_priljubljen_odstrani))) { _, _ -> skrijUsb(kljucUsb) }
-                        .setNegativeButton(getString(R.string.os_preklici), null)
-                        .create()
-                    Kontroler.pokazi(okno)
-                    okno.show()
+                    // N1: edina postavka je Odstrani - prvi fokus na Preklici, dolg OK, ki je okno odprl, se pozre.
+                    val odstrani = getString(R.string.os_priljubljen_odstrani)
+                    pokaziMeni(ime, listOf(odstrani to { skrijUsb(kljucUsb) }), nevarne = setOf(odstrani))
                 }
                 v.setOnLongClickListener { ponudiOdstranitev(); true }
                 v.setOnKeyListener { _, keyCode, event ->
@@ -2244,6 +2257,9 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     /** Plosca, ki jo uporabnik premika z levo/desno (OK, Nazaj ali Domov konca); null = ne premika. */
     private var premikam: String? = null
 
+    /** Preverba TV 5. 11. 2026 (N4): ploscica (oznaka), s katere je fokus sel GOR v lupo. */
+    private var ploscicaPredLupo: String? = null
+
     /**
      * Lastnik 28. 10. 2026: dolg pritisk (OK na daljincu, desni klik ali dolg dotik) na plosci - premakni (levo/desno z
      * daljincem), premik za eno mesto, odstrani iz priljubljenih. Spletna aplikacija je samo v tej vrstici: odstranitev
@@ -2284,14 +2300,26 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         }
         dejanja.add(getString(R.string.os_meni_nastavitve) to { odpri(Intent(this, NastavitveActivity::class.java)) })
         dejanja.add(getString(R.string.nast_sk_tv) to { odpriNastavitveTv() })
+        pokaziMeni(ime, dejanja, nevarne = setOf(getString(R.string.os_priljubljen_odstrani), getString(R.string.pk_odstrani_z_naprave)))
+    }
 
+    /**
+     * Preverba TV 5. 11. 2026 (N1): meni ploscice ali gumba (dolg OK, Meni, Info). Ponovitve in spust dolgega OK, ki je
+     * okno odprl, se pozrejo (Kontroler.pokazi); prvi fokus na prvi neskodljivi postavki, nikoli na [nevarne] (Odstrani) -
+     * ce so vse nevarne, na Preklici.
+     */
+    private fun pokaziMeni(ime: String, dejanja: List<Pair<String, () -> Unit>>, nevarne: Set<String> = emptySet()) {
         val okno = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(ime)
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
             .setNegativeButton(getString(R.string.os_preklici), null)
             .create()
-        Kontroler.pokazi(okno)
+        Kontroler.pokazi(okno, pozriDolgiOk = true)
         okno.show()
+        val prvi = PokrajinaPravila.prviFokusMenija(dejanja.map { it.first in nevarne })
+        val seznam = okno.listView
+        if (prvi >= 0 && seznam != null) { seznam.requestFocus(); seznam.setSelection(prvi) }
+        else okno.getButton(android.content.DialogInterface.BUTTON_NEGATIVE)?.requestFocus()
     }
 
     private fun premakniPloscico(id: String, korak: Int): Boolean {
@@ -2434,7 +2462,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                     bes.visibility = if (ima) View.VISIBLE else View.INVISIBLE
                 }
                 setOnClickListener { odpriRazdelek(r) }
-                setOnLongClickListener { zacniPremikanjeDok(r); true }
+                setOnLongClickListener { moznostiDokGumba(r, getString(napis)); true }
                 setOnKeyListener { _, keyCode, event ->
                     if (event.action == KeyEvent.ACTION_DOWN && (keyCode == 165 || PokrajinaPravila.jeTipkaMenija(keyCode))) {
                         moznostiDokGumba(r, getString(napis)); true
@@ -2515,18 +2543,12 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     }
 
     private fun moznostiDokGumba(id: String, ime: String) {
-        val dejanja = listOf(
+        val dejanja: List<Pair<String, () -> Unit>> = listOf(
             getString(R.string.pk_premakni) to { zacniPremikanjeDok(id) },
             getString(R.string.os_spletne_levo) to { premakniDok(id, -1) },
             getString(R.string.os_spletne_desno) to { premakniDok(id, 1) }
         )
-        val okno = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
-            .setTitle(ime)
-            .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }
-            .setNegativeButton(getString(R.string.os_preklici), null)
-            .create()
-        Kontroler.pokazi(okno)
-        okno.show()
+        pokaziMeni(ime, dejanja)
     }
 
     private var premikamDok: String? = null

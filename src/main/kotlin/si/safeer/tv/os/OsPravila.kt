@@ -2360,4 +2360,10 @@ object OsPravila {
         if (aktivni in naslovi.indices && jeDomaca(naslovi[aktivni])) return aktivni
         return naslovi.indexOfLast(jeDomaca)
     }
+
+    /**
+     * Preverba TV 5. 11. 2026 (N12): ali je novo besedilo drugacno od prikazanega. Enak setText poslje dogodek dostopnosti
+     * (sprememba vsebine); tik Medijskega centra ga je posiljal vsako sekundo in zaslon za bralnik nikoli ni miroval.
+     */
+    fun drugoBesedilo(prikazano: CharSequence?, novo: CharSequence?): Boolean = prikazano?.toString().orEmpty() != novo?.toString().orEmpty()
 }

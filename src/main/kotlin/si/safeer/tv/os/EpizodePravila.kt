@@ -72,4 +72,10 @@ object EpizodePravila {
 
     /** Pregled Medijskega centra 5. 11. 2026 (12): stevilo epizod sezone iz prikazanih (skrite niso na voljo), ne iz vseh. */
     fun steviloVSezoni(sezoneEpizod: List<Int>, sezona: Int): Int = sezoneEpizod.count { it == sezona }
+
+    /**
+     * Preverba TV 5. 11. 2026 (N9): ob ponovnem odprtju serije fokus na zadnji izbrani ali gledani epizodi ([zadnja] =
+     * sezona to epizoda), ce je med prikazanimi ([epizode]); sicer ostane prvi fokus (seznam sezon).
+     */
+    fun fokusNaEpizodi(epizode: List<Pair<Int, Int>>, zadnja: Pair<Int, Int>?): Boolean = zadnja != null && zadnja in epizode
 }

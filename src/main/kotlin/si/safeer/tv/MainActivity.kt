@@ -2100,6 +2100,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     private fun setupTabManager() {
         tabManager = TabManager(webViewContainer) { count, activeTab ->
             btnTabCount.text = String.format(java.util.Locale.getDefault(), "%d", count)
+            // Preverba TV 5. 11. 2026 (N11): gumb s samo stevilko - bralnik zaslona pove, da so to zavihki.
+            btnTabCount.contentDescription = getString(R.string.btn_tab_count, count)
             if (activeTab != null) {
                 activeTab.webView?.let { wv ->
                     wv.isDarkMode = isDarkModeActive

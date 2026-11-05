@@ -16,7 +16,7 @@ private fun preveriSirinoDoka() {
     val pot = mutableListOf(i)
     repeat(n + 2) { i = PokrajinaPravila.sosedaDoka(i, n).second; pot += i }
     check(pot == listOf(0, 1, 2, 3, 4, 5, 6, 6, 6, 6)) { "DESNO: $pot" }          // zadnji ostane na sebi
-    check(PokrajinaPravila.sosedaDoka(0, n).first == -1)                        // prvi LEVO: privzeto (stranski meni)
+    check(PokrajinaPravila.sosedaDoka(0, n).first == 0)                         // N3 (TV 5. 11.): prvi LEVO ostane na sebi
     check((1 until n).all { PokrajinaPravila.sosedaDoka(it, n).first == it - 1 })
     println("  ok  pot po spodnji vrstici")
 }
@@ -259,6 +259,23 @@ fun main() {
         if (ikona + 26 + imeDp > h) preveriEnako("dom (15) ime ni obrezano pri $h dp (ime $imeDp dp)", true, false)
     }
     println("  ok  dom (15) ime cele na vseh visinah plosce")
+
+    // Preverba TV 5. 11. 2026 (N1): okno po dolgem OK pozre ponovitve in spust; nov pritisk ali druga tipka velja.
+    val dolgi = PokrajinaPravila.DolgiOk()
+    preveriEnako("N1 ponovitev drzanega OK se pozre", true, dolgi.pozre(jeOk = true, dol = true, ponovitev = 3))
+    preveriEnako("N1 spust drzanega OK se pozre", true, dolgi.pozre(jeOk = true, dol = false, ponovitev = 0))
+    preveriEnako("N1 nov pritisk OK velja", false, dolgi.pozre(jeOk = true, dol = true, ponovitev = 0))
+    preveriEnako("N1 spust novega pritiska velja", false, dolgi.pozre(jeOk = true, dol = false, ponovitev = 0))
+    val dolgi2 = PokrajinaPravila.DolgiOk()
+    preveriEnako("N1 smerna tipka velja", false, dolgi2.pozre(jeOk = false, dol = true, ponovitev = 0))
+    preveriEnako("N1 po drugi tipki OK spet velja", false, dolgi2.pozre(jeOk = true, dol = false, ponovitev = 0))
+    preveriEnako("N1 prvi fokus: Premakni (neskodljiva)", 0, PokrajinaPravila.prviFokusMenija(listOf(false, false, true)))
+    preveriEnako("N1 prvi fokus: preskoci Odstrani", 1, PokrajinaPravila.prviFokusMenija(listOf(true, false)))
+    preveriEnako("N1 samo Odstrani (USB): fokus na Preklici", -1, PokrajinaPravila.prviFokusMenija(listOf(true)))
+    // N4: DOL iz lupe na izvorno ploscico, ce je se vidna.
+    preveriEnako("N4 DOL na izvorno ploscico", "com.netflix.ninja", PokrajinaPravila.dolIzLupe("com.netflix.ninja") { true })
+    preveriEnako("N4 izvorna ni vec vidna", null, PokrajinaPravila.dolIzLupe("com.netflix.ninja") { false })
+    preveriEnako("N4 brez izvorne", null, PokrajinaPravila.dolIzLupe(null) { true })
 
     if (napak == 0) println("PokrajinaPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

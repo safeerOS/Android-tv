@@ -21,6 +21,7 @@
     
     <!-- Tab Switcher -->
     <string name="tabs_title">Schede aperte</string>
+    <string name="btn_tab_count">Schede: %d</string>
     <string name="tabs_close_all">Chiudi tutte le schede</string>
     <string name="tabs_new_tab">+ Nuova scheda</string>
     

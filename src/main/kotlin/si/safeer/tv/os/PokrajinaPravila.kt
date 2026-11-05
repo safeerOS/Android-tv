@@ -32,11 +32,35 @@ object PokrajinaPravila {
      * Fokus-straza 5. 11. 2026 05:03 (ecb290b6): DESNO v spodnji vrstici je preskakoval gumbe (Medijski center -> Safeer
      * Link, Sporocila -> Datoteke) in z zadnjega pobegnil k vremenu zgoraj - gumb s fokusom se je razsiril, sosedi so se med
      * iskanjem fokusa premaknili. Zdaj sirina gumbov ostane enaka (napis sme cez rob gumba, brez vpliva na postavitev) in
-     * pot je izrecna: [indeks] -> (levo, desno) po vrstnem redu; zadnji DESNO ostane na sebi, prvi LEVO -1 (privzeto:
-     * stranski meni ali rob). [stevilo] gumbov v vrsti.
+     * pot je izrecna: [indeks] -> (levo, desno) po vrstnem redu; zadnji DESNO in prvi LEVO ostaneta na sebi.
+     * Preverba TV 5. 11. 2026 (N3): prvi LEVO je bil -1 (privzeto) in je pobegnil GOR na ploscico - stranskega menija na
+     * domu ni. [stevilo] gumbov v vrsti.
      */
     fun sosedaDoka(indeks: Int, stevilo: Int): Pair<Int, Int> =
-        (if (indeks > 0) indeks - 1 else -1) to (if (indeks < stevilo - 1) indeks + 1 else indeks)
+        (if (indeks > 0) indeks - 1 else indeks) to (if (indeks < stevilo - 1) indeks + 1 else indeks)
+
+    /**
+     * Preverba TV 5. 11. 2026 (N4): DOL iz lupe se vrne na ploscico [zapomnjena], s katere je uporabnik prisel GOR, ce je
+     * se vidna in sprejme fokus ([vidna]); sicer null (privzeto iskanje fokusa - prej geometrijsko najblizja SmartTube).
+     */
+    fun dolIzLupe(zapomnjena: String?, vidna: (String) -> Boolean): String? = zapomnjena?.takeIf { it.isNotEmpty() && vidna(it) }
+
+    /**
+     * Preverba TV 5. 11. 2026 (N1): okno, ki ga odpre dolg OK, dobi ponovitve in spust istega pritiska. Ti se pozrejo;
+     * velja sele nov pritisk OK (ACTION_DOWN brez ponovitve) ali katerakoli druga tipka. [dol] = ACTION_DOWN.
+     */
+    class DolgiOk {
+        private var pozri = true
+        fun pozre(jeOk: Boolean, dol: Boolean, ponovitev: Int): Boolean {
+            if (!pozri) return false
+            if (!jeOk) { if (dol) pozri = false; return false }
+            if (dol && ponovitev == 0) { pozri = false; return false }
+            return true
+        }
+    }
+
+    /** Preverba TV 5. 11. 2026 (N1): prvi fokus menija na prvi neskodljivi postavki; -1 = na »Preklici« (vse so nevarne). */
+    fun prviFokusMenija(nevarne: List<Boolean>): Int = nevarne.indexOfFirst { !it }
 
     /** Vrstni red gumbov v spodnji vrstici (shranjen in manjkajoci na koncu). */
     /**

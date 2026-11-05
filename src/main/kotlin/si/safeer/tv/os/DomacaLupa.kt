@@ -584,7 +584,18 @@ object DomacaLupa {
             zapriTipkovnico(a)
             krmilo(a)?.zapri()
         }
-        
+        // Preverba TV 5. 11. 2026 (N5): na robu vrstice tipk fokus ostane (DESNO na »Iskanje« je skocil na filter zgoraj) -
+        // ista izrecna pot kot v spodnji vrstici doma (PokrajinaPravila.sosedaDoka).
+        for (r in 0 until t.childCount) {
+            val vrsta = t.getChildAt(r) as? ViewGroup ?: continue
+            val n = vrsta.childCount
+            for (i in 0 until n) vrsta.getChildAt(i).let { if (it.id == View.NO_ID) it.id = View.generateViewId() }
+            for (i in 0 until n) {
+                val (levo, desno) = PokrajinaPravila.sosedaDoka(i, n)
+                vrsta.getChildAt(i).nextFocusLeftId = vrsta.getChildAt(levo).id
+                vrsta.getChildAt(i).nextFocusRightId = vrsta.getChildAt(desno).id
+            }
+        }
     }
 
     fun tipkovnicaOdprta(a: Activity): Boolean =

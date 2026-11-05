@@ -1682,6 +1682,11 @@ private fun preizkusPlacljivega120() {
     preveriEnako("domaca: zadnja domaca, ce jih je vec", 2, OsPravila.zavihekDomace(listOf("file:///splet.html", "b", "file:///splet.html", "c"), 3, domaca))
     preveriEnako("domaca: ni domace - nov zavihek", -1, OsPravila.zavihekDomace(listOf("https://x.si", "https://y.si"), 0, domaca))
     preveriEnako("domaca: brez zavihkov - nov zavihek", -1, OsPravila.zavihekDomace(emptyList(), -1, domaca))
+    // Preverba TV 5. 11. 2026 (N12): enako besedilo se ne nastavi znova (dogodek dostopnosti vsako sekundo).
+    preveriEnako("N12 enako besedilo: brez setText", false, OsPravila.drugoBesedilo("Sintel", "Sintel"))
+    preveriEnako("N12 enako iz drugega CharSequence", false, OsPravila.drugoBesedilo(StringBuilder("0:05 / 1:00"), "0:05 / 1:00"))
+    preveriEnako("N12 drugacno besedilo", true, OsPravila.drugoBesedilo("0:05", "0:06"))
+    preveriEnako("N12 prazno in null sta enaka", false, OsPravila.drugoBesedilo(null, ""))
 }
 
 private fun preizkusZapriObVrnitvi() {

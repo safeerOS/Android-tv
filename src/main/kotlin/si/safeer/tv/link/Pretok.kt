@@ -136,11 +136,12 @@ object Pretok {
 
     /** Velikost izvirnika z enim bajtom (Range 0-0 -> Content-Range: bytes 0-0/skupaj); 0, ce streznik ne pove. */
     private fun poizvediVelikost(url: String, odtis: String, zeton: String, glave: Map<String, String> = emptyMap()): Long = try {
-        val odjemalec = if (odtis.isNotBlank()) si.safeer.tv.os.PripetiVir.odjemalecZaStreznik(odtis)
+        // Preverba TV 5. 11. 2026 (P1): zeton samo napravi s pripetim odtisom, brez preusmeritev; zunanji vir brez zetona.
+        val odjemalec = if (odtis.isNotBlank())
+                si.safeer.tv.cast.HubPreusmeritve.brez(si.safeer.tv.os.PripetiVir.odjemalecZaStreznik(odtis).newBuilder()).build()
             else okhttp3.OkHttpClient.Builder().connectTimeout(4, java.util.concurrent.TimeUnit.SECONDS)
                 .readTimeout(4, java.util.concurrent.TimeUnit.SECONDS).build()
-        val z = okhttp3.Request.Builder().url(url).apply { glave.forEach { (k, v) -> header(k, v) } }
-            .header("Range", "bytes=0-0").apply { if (zeton.isNotBlank()) header("X-Safeer-Token", zeton) }.build()
+        val z = si.safeer.tv.cast.HubPreusmeritve.zahtevaVelikosti(url, odtis, zeton, glave)
         odjemalec.newCall(z).execute().use { r ->
             val obseg = r.header("Content-Range").orEmpty().substringAfter('/', "").trim()
             obseg.toLongOrNull() ?: if (r.code == 200) r.header("Content-Length")?.toLongOrNull() ?: 0L else 0L

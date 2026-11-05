@@ -1171,6 +1171,8 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             // Zvezdica pove, da je na domacem zaslonu; z dveh metrov je vidna takoj.
             v.findViewById<TextView>(R.id.ime).text =
                 if (p.vir != AppVir.SPLET && jePriljubljena(p)) "★ " + p.ime else p.ime
+            // Preverba TV 5. 11. 2026 (N11): kartica mreze brez opisa - bralnik zaslona je dobil samo »LinearLayout«.
+            v.contentDescription = p.ime
             return v
         }
     }

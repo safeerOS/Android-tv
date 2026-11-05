@@ -5541,9 +5541,12 @@ class GlasbaActivity : OsActivity() {
     private fun osveziPlosco(zadnja: Jamendo.Skladba? = null) {
         val sk = GlasbaStoritev.trenutna() ?: zadnja ?: MedijskiViri.nedavno(this).firstOrNull() ?: return
         val p = GlasbaStoritev.predvajalnik
-        pNaslov?.text = sk.naslov
-        pIzvajalec?.text = if (SpletniVir.jeEnota(sk)) "" else sk.izvajalec
-        pVir?.text = when {
+        // Preverba TV 5. 11. 2026 (N12): tik vsako sekundo je isto besedilo nastavil znova - vsak setText poslje dogodek
+        // dostopnosti (TYPE_WINDOW_CONTENT_CHANGED), zato zaslon nikoli ni miroval (uiautomator: »could not get idle state«,
+        // bralnik zaslona dobiva spremembe brez spremembe). Besedilo se nastavi samo, ce je drugacno (nastaviBesedilo).
+        nastaviBesedilo(pNaslov, sk.naslov)
+        nastaviBesedilo(pIzvajalec, if (SpletniVir.jeEnota(sk)) "" else sk.izvajalec)
+        nastaviBesedilo(pVir, when {
             GlasbaStoritev.naZvocniku() -> Zvocniki.napis(this).orEmpty()
             sk.radio -> getString(R.string.os_media_v_zivo)
             // Naloga 96: kanal seznama IPTV ima v [Jamendo.Skladba.streznik] seznam, iz katerega je - ni PeerTube.
@@ -5551,7 +5554,7 @@ class GlasbaActivity : OsActivity() {
             sk.video && sk.streznik.isNotBlank() -> "PeerTube · ${sk.streznik}"
             sk.povezava.contains("jamen") -> getString(R.string.os_glasba_vir, sk.povezava.removePrefix("https://").removePrefix("http://"))
             else -> ""
-        }
+        })
         val slika = pSlika
         // Vgrajeni kanal nima slike v podatkih: njegov logotip je shranjen posebej ([TvVZivo.ikona], brez omrezja).
         val vgrajenBrezSlike = sk.id.startsWith("tv:") && sk.slika.isBlank()
@@ -5576,16 +5579,19 @@ class GlasbaActivity : OsActivity() {
         val trajanje = if (naZvocniku) GlasbaStoritev.trajanjeMs() else if (tokPomocnika != null) tokPomocnika.trajanjeMs.coerceAtLeast(0L) else p.duration.takeIf { it > 0 } ?: 0L
         val polozaj = if (naZvocniku) GlasbaStoritev.polozajMs() else (tokPomocnika?.zamikMs ?: 0L) + p.currentPosition.coerceAtLeast(0)
         pPotek?.progress = if (trajanje > 0) (polozaj * 1000 / trajanje).toInt() else 0
-        pCas?.text = if (trajanje > 0) "${cas(polozaj)} / ${cas(trajanje)}" else cas(polozaj)
+        nastaviBesedilo(pCas, if (trajanje > 0) "${cas(polozaj)} / ${cas(trajanje)}" else cas(polozaj))
         pPredvajaj?.setImageResource(if (GlasbaStoritev.igra()) R.drawable.os_ikona_pavza else R.drawable.os_ikona_predvajaj)
         val mint = osBarva(R.color.os_mint); val beli = osBarva(R.color.os_besedilo)
         pNakljucno?.imageTintList = ColorStateList.valueOf(if (p.shuffleModeEnabled) mint else beli)
         pPonavljaj?.imageTintList = ColorStateList.valueOf(if (p.repeatMode != Player.REPEAT_MODE_OFF) mint else beli)
         pSrce?.imageTintList = ColorStateList.valueOf(if (MedijskiViri.jePriljubljena(this, sk)) 0xFFFF6B7A.toInt() else beli)
-        hHitrost?.text = getString(R.string.os_media_hitrost, String.format(Locale.ROOT, "%s×", p.playbackParameters.speed.toString().removeSuffix(".0")))
-        hCasovnik?.text = getString(R.string.os_media_casovnik,
-            GlasbaStoritev.casovnikMinut().let { if (it > 0) getString(R.string.os_media_min, it) else getString(R.string.os_media_izklopljen) })
+        nastaviBesedilo(hHitrost, getString(R.string.os_media_hitrost, String.format(Locale.ROOT, "%s×", p.playbackParameters.speed.toString().removeSuffix(".0"))))
+        nastaviBesedilo(hCasovnik, getString(R.string.os_media_casovnik,
+            GlasbaStoritev.casovnikMinut().let { if (it > 0) getString(R.string.os_media_min, it) else getString(R.string.os_media_izklopljen) }))
     }
+
+    /** N12 (TV 5. 11. 2026): besedilo samo, ce je drugacno - enak setText poslje dogodek dostopnosti (OsPravila.drugoBesedilo). */
+    private fun nastaviBesedilo(v: TextView?, b: CharSequence) { if (v != null && OsPravila.drugoBesedilo(v.text, b)) v.text = b }
 
     private fun cas(ms: Long): String {
         val s = ms / 1000
@@ -8562,6 +8568,16 @@ class GlasbaActivity : OsActivity() {
         }
     }
 
+    /**
+     * Preverba TV 5. 11. 2026 (N2): izbrana sezona je imela enak turkizni okvir kot fokusirana epizoda (dva enaka okvirja).
+     * Zdaj robni pas na levi (barva iz zetonov, brez okvirja) - okvir ima samo fokus (izbirnik seznama pod vrstico).
+     */
+    private fun znakIzbraneSezone(): android.graphics.drawable.Drawable =
+        android.graphics.drawable.LayerDrawable(arrayOf(android.graphics.drawable.ColorDrawable(getColor(R.color.os_mint)))).apply {
+            setLayerGravity(0, android.view.Gravity.START or android.view.Gravity.FILL_VERTICAL)
+            setLayerWidth(0, (4 * resources.displayMetrics.density).toInt())
+        }
+
     private fun izberiSezono(sk: Jamendo.Skladba, epIzvorni: List<Stremio.Epizoda>, rocno: Boolean = false) {
         val tip = Stremio.razstavi(sk)?.second ?: "series"
         val imdbSerije = Stremio.imdbZa(sk)
@@ -8639,12 +8655,7 @@ class GlasbaActivity : OsActivity() {
                 val pad = (16 * resources.displayMetrics.density).toInt()
                 v.setPadding(pad, pad, pad, pad)
                 v.typeface = if (pos == trenutniIndeksSezone) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
-                v.background = if (pos == trenutniIndeksSezone) {
-                    android.graphics.drawable.GradientDrawable().apply {
-                        setColor(getColor(R.color.os_kartica_steklo_fokus))
-                        setStroke((2 * resources.displayMetrics.density).toInt(), getColor(R.color.os_mint))
-                    }
-                } else null
+                v.background = if (pos == trenutniIndeksSezone) znakIzbraneSezone() else null
                 return v
             }
         }
@@ -8707,12 +8718,7 @@ class GlasbaActivity : OsActivity() {
                 if (v != null) {
                     val pos = seznamSezon.firstVisiblePosition + i
                     v.typeface = if (pos == trenutniIndeksSezone) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
-                    v.background = if (pos == trenutniIndeksSezone) {
-                        android.graphics.drawable.GradientDrawable().apply {
-                            setColor(getColor(R.color.os_kartica_steklo_fokus))
-                            setStroke((2 * resources.displayMetrics.density).toInt(), getColor(R.color.os_mint))
-                        }
-                    } else null
+                    v.background = if (pos == trenutniIndeksSezone) znakIzbraneSezone() else null
                 }
             }
         }
@@ -8730,7 +8736,8 @@ class GlasbaActivity : OsActivity() {
             }
         }
         // Pregled Medijskega centra 5. 11. 2026 (7): okno se odpre pri zadnji izbrani (ta zagon) ali gledani epizodi, ne vedno S1E1.
-        val (zacSezona, zacEpizoda) = EpizodePravila.zacetnaIzbira(ep.map { it.sezona to it.epizoda }, sezone, zadnjaEpizoda(sk))
+        val zadnja = zadnjaEpizoda(sk)
+        val (zacSezona, zacEpizoda) = EpizodePravila.zacetnaIzbira(ep.map { it.sezona to it.epizoda }, sezone, zadnja)
         osveziEpizode(zacSezona)
         izborEpizode = zacEpizoda
         if (pokaziLevi) seznamSezon.setSelection(zacSezona)
@@ -8833,6 +8840,13 @@ class GlasbaActivity : OsActivity() {
         }
 
         dialog.show()
+        // Preverba TV 5. 11. 2026 (N9): ob ponovnem odprtju serije je bil seznam pri zadnji epizodi, fokus pa na »Sezona 1« -
+        // z zapisom zadnje epizode gre fokus nanjo (EpizodePravila.fokusNaEpizodi).
+        if (pokaziLevi && EpizodePravila.fokusNaEpizodi(ep.map { it.sezona to it.epizoda }, zadnja)) seznamEpizod.post {
+            if (!dialog.isShowing || trenutnaSezonaEpizode.isEmpty()) return@post
+            seznamEpizod.requestFocus()
+            seznamEpizod.setSelection(EpizodePravila.izborObVrnitvi(izborEpizode, trenutnaSezonaEpizode.size))
+        }
 
         preveriEpizode(tip, ep.toList(), { imdbEpizode(it) }) { e ->
             if (isFinishing || !dialog.isShowing) return@preveriEpizode
@@ -11578,13 +11592,13 @@ class GlasbaActivity : OsActivity() {
             if (tokPomocnika != null) { if (tokPomocnika.izvirnik.video) MediaNapredek.zapisi(this, tokPomocnika.izvirnik, tokPomocnika.zamikMs + p.currentPosition.coerceAtLeast(0), tokPomocnika.trajanjeMs, tokPomocnika.streznikIzvirnika?.naprava.orEmpty()) }
             else if (sk.video) MediaNapredek.zapisi(this, sk, p.currentPosition.coerceAtLeast(0), p.duration.coerceAtLeast(0), GlasbaStoritev.streznikTrenutni?.naprava.orEmpty())
         }
-        zdajNaslov.text = sk.naslov
+        nastaviBesedilo(zdajNaslov, sk.naslov)
         // Mala vrstica pove tudi, da glasba igra na zvocniku (ali da se zvocnik ne odziva) - sicer se ne vidi, da gumb upravlja zvocnik.
         // Napis zvocnika je prvi: vrstica je ena in dolgo ime izvajalca (radio javlja »izvajalec - skladba«) bi ga sicer odrezalo.
-        zdajIzvajalec.text = listOf(if (GlasbaStoritev.naZvocniku()) Zvocniki.napis(this).orEmpty() else "", if (SpletniVir.jeEnota(sk)) "" else sk.izvajalec)
-            .filter { it.isNotBlank() }.joinToString(" · ")
+        nastaviBesedilo(zdajIzvajalec, listOf(if (GlasbaStoritev.naZvocniku()) Zvocniki.napis(this).orEmpty() else "", if (SpletniVir.jeEnota(sk)) "" else sk.izvajalec)
+            .filter { it.isNotBlank() }.joinToString(" · "))
         val igra = GlasbaStoritev.igra()
-        zdajCas.text = if (igra) "▶" else "❚❚"
+        nastaviBesedilo(zdajCas, if (igra) "▶" else "❚❚")
         (zdajGumb?.getChildAt(0) as? ImageView)?.setImageResource(if (igra) R.drawable.os_ikona_pavza else R.drawable.os_ikona_predvajaj)
     }
 

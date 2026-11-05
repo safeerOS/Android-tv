@@ -23,6 +23,7 @@
     
     <!-- Tab Switcher -->
     <string name="tabs_title">Odprti zavihki</string>
+    <string name="btn_tab_count">Zavihki: %d</string>
     <string name="tabs_close_all">Zapri vse zavihke</string>
     <string name="tabs_new_tab">+ Nov zavihek</string>
     
