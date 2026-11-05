@@ -23,6 +23,8 @@ private fun preveriSirinoDoka() {
 
 fun main() {
     preveriSirinoDoka()
+    // Lastnik 5. 11. 2026 05:24: shranjen »razdelek:« se ne pokaze vec (podvojen v spodnji vrstici).
+    check(PokrajinaPravila.vrstaPriljubljenih(listOf("razdelek:mediji", "com.netflix.ninja"), listOf("com.netflix.ninja")) == listOf("com.netflix.ninja"))
     println("Preizkus zaganjalnika Pokrajina")
     val utc = TimeZone.getTimeZone("UTC")
     // torek, 27. 10. 2026, 03:29 UTC

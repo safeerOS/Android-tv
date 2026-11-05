@@ -86,6 +86,8 @@ preveri("Dom: sirina gumbov ostane, izrecna pot LEVO/DESNO", "sirinaGumbaDoka" n
 
 preveri("Dom: fokus na lupi ne odpre iskalnega nacina", "LupaPravila.odpriPlosco(LupaPravila.DogodekLupe.FOKUS)" in pk and "LupaPravila.odpriPlosco(LupaPravila.DogodekLupe.OK)" in pk)
 
+preveri("Dom: okno Dodaj brez »Razdelek Safeer OS«", "pk_dodaj_razdelek" not in pk and "fun dodajRazdelek" not in pk)
+
 if napake:
     print("NAPAKA zunanji pregled TV:", len(napake)); sys.exit(1)
 print("zunanji pregled TV OK")

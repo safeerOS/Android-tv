@@ -159,7 +159,9 @@ object PokrajinaPravila {
      */
     fun vrstaPriljubljenih(priljubljene: List<String>, vse: Collection<String>): List<String> {
         val znane = vse.toSet()
-        return priljubljene.distinct().filter { it in znane || it.startsWith("razdelek:") }
+        // Lastnik 5. 11. 2026 05:24: ploscic »razdelek:« (Safeer OS razdelek, 1c828bcc) ni vec - vsi razdelki so v spodnji
+        // vrstici; shranjene se ne pokazejo (odstranijo se ob naslednjem shranjevanju reda).
+        return priljubljene.distinct().filter { it in znane && !it.startsWith("razdelek:") }
     }
 
     /**

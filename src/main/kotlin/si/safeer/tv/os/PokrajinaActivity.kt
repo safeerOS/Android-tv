@@ -2306,37 +2306,13 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     private fun dodajAplikacijo() {
         val okno = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(R.string.pk_dodaj_naslov)
-            .setItems(arrayOf(getString(R.string.pk_dodaj_tv), getString(R.string.pk_dodaj_splet), getString(R.string.pk_dodaj_razdelek))) { _, i ->
+            // Lastnik 5. 11. 2026 05:24: »Razdelek Safeer OS« odstranjen (ni ga narocil, vsi razdelki so v spodnji vrstici,
+            // izbira ni dodala ploscice). Okno je AlertDialog v slogu Os_Okno: Nazaj ga zapre (Kontroler.pokazi BACK ne porabi).
+            .setItems(arrayOf(getString(R.string.pk_dodaj_tv), getString(R.string.pk_dodaj_splet))) { _, i ->
                 when (i) {
                     0 -> odpri(Intent(this, AplikacijeTvActivity::class.java).putExtra(AplikacijeTvActivity.IZBIRA_ZA_DOMOV, true))
                     1 -> SpletnaDodaj.izberi(this) { narisiAplikacije() }
-                    2 -> dodajRazdelek()
                 }
-            }
-            .setNegativeButton(getString(R.string.os_preklici), null)
-            .create()
-        Kontroler.pokazi(okno)
-        okno.show()
-    }
-
-    private fun dodajRazdelek() {
-        val r = PokrajinaPravila.DOK
-        val imena = r.map { getString(when (it) {
-                PokrajinaPravila.MEDIJI -> R.string.pk_mediji
-                PokrajinaPravila.SPLET -> R.string.os_meni_splet
-                PokrajinaPravila.LINK -> R.string.os_meni_naprave
-                PokrajinaPravila.SPOROCILA -> R.string.os_meni_sporocila
-                PokrajinaPravila.APLIKACIJE -> R.string.pk_aplikacije
-                PokrajinaPravila.DATOTEKE -> R.string.os_meni_datoteke
-                else -> R.string.os_meni_nastavitve
-            }) }
-        val okno = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
-            .setTitle(R.string.pk_dodaj_razdelek)
-            .setItems(imena.toTypedArray()) { _, i ->
-                val id = "razdelek:${r[i]}"
-                val red = Priljubljene.redDomov(this).toMutableList()
-                if (id !in red) { red.add(id); Priljubljene.shraniRedDomov(this, red) }
-                narisiAplikacije()
             }
             .setNegativeButton(getString(R.string.os_preklici), null)
             .create()
