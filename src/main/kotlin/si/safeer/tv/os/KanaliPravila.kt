@@ -169,7 +169,11 @@ object KanaliPravila {
      * (izmerjeno 23. 10. 2026: TV SLO 1/2 iz iptv-org si.m3u; Arena Sport 1 Premium iz si.m3u, telekomsrbije.com/play - vsakih 5 s
      * slika »Domaci TV - Zabranjen vam je pristup«). Sonda toka ga steje za zivega, zato ga poznamo po naslovu.
      */
-    private val NEDELUJOCI_TOKOVI = Regex("^https?://(?:[^/@]*@)?(?:dash2\\.antik\\.sk(?::\\d+)?/live/test_|streamer03\\.xploretv\\.si(?::\\d+)?(?:/|$)|telekomsrbije\\.com(?::\\d+)?/play/)")
+    // Peti slepi pregled 5. 11. 2026 (odlocitev vodje, javni paket brez prilagoditev za dolocene strani): vnos za streznik
+    // slovenskega ponudnika je odstranjen. Tok, ki odpove (napaka, brez streznika, neodziven), si TV ze sproti zapomni kot
+    // nedelujoc za MRTEV_KANAL_MS (24 h, GlasbaStoritev -> MrtviKanali.zapomni), sonda kanalov enako (PregledKanalov);
+    // tok, ki igra samo sliko obvestila, uporabnik skrije z »Kanal ne deluje - skrij« (trajno, MrtviKanali.skriti).
+    private val NEDELUJOCI_TOKOVI = Regex("^https?://(?:[^/@]*@)?(?:dash2\\.antik\\.sk(?::\\d+)?/live/test_|telekomsrbije\\.com(?::\\d+)?/play/)")
 
     fun znanNedelujocTok(url: String): Boolean = NEDELUJOCI_TOKOVI.containsMatchIn(url.trim().lowercase(java.util.Locale.ROOT))
 

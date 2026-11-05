@@ -2632,18 +2632,34 @@
                 return pick;
             }
 
-            /* SAFEER_TV_PONUDNIK_ZACETEK */
-            // Pregled Groka 5. 11. 2026 (najdba 11): skok GOR na »Glej zdaj« ali na meni glave je hevristika za dva ponudnika
-            // TV v zivo (gostitelja v seznamu spodaj); na drugih straneh (novice) je GOR preskocil vrstice vmes. Samo na teh gostiteljih.
-            function jeGostiteljTvPonudnika(host) {
-                host = (host || '').toLowerCase();
-                var gs = ['xploretv.si', 'rtvslo.si'];
-                for (var i = 0; i < gs.length; i++) {
-                    if (host === gs[i] || (host.length > gs[i].length && host.slice(-(gs[i].length + 1)) === '.' + gs[i])) return true;
+            /* SAFEER_GLAVA_GOR_ZACETEK */
+            // Peti slepi pregled 5. 11. 2026 (odlocitev vodje): prej je GOR z gumba predvajanja ali z zgornjih vrstic skocil na
+            // meni glave samo na dveh izbranih gostiteljih in po razredih ter besedilih teh strani (prilagoditev za doloceno
+            // stran; brez omejitve je na novicah preskakoval vrstice - pregled Groka, najdba 11). Zdaj splosno: na glavo strani
+            // (header, nav, role=banner/navigation) samo, ce prostorska navigacija GOR ne najde nobenega cilja IN je stran na
+            // vrhu - nad trenutnim elementom torej ni nobene vrstice, ki bi jo skok preskocil.
+            var GLAVA_IZBIRNIK = 'header a[href], header button, nav a[href], nav button, [role="banner"] a[href], [role="banner"] button, ' +
+                '[role="navigation"] a[href], [role="navigation"] button';
+            function ciljVGlavi(current) {
+                var cr = null;
+                try { cr = current ? current.getBoundingClientRect() : null; } catch (_) { cr = null; }
+                var vrhTrenutnega = cr ? cr.top : (window.innerHeight || 0);
+                var cx = cr ? cr.left + cr.width / 2 : 0;
+                var nodes = [];
+                try { nodes = document.querySelectorAll(GLAVA_IZBIRNIK); } catch (_) { nodes = []; }
+                var best = null, bestD = Infinity;
+                for (var i = 0; i < nodes.length; i++) {
+                    var el = nodes[i];
+                    if (!el || el === current || (current && current.contains && current.contains(el))) continue;
+                    if (!isActionable(el) || !jeUporaben(el, true)) continue;
+                    var r = el.getBoundingClientRect();
+                    if (!(r.width > 0 && r.height > 0) || r.top < 0 || r.bottom > vrhTrenutnega + 1) continue;
+                    var d = Math.abs(r.left + r.width / 2 - cx);
+                    if (d < bestD) { bestD = d; best = el; }
                 }
-                return false;
+                return best;
             }
-            /* SAFEER_TV_PONUDNIK_KONEC */
+            /* SAFEER_GLAVA_GOR_KONEC */
 
             function jeMenijskaOznaka(t) {
                 t = (t || '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -2935,51 +2951,6 @@
                         if (poMeniju) return 1;
                     }
 
-                    if (direction === 'UP') {
-                        var curTxt = ((current.innerText || current.textContent || '') + '').replace(/\s+/g, ' ').trim().toLowerCase();
-                        var curCls = ((current.className || '') + '').toLowerCase();
-                        var onPlayBtn = curCls.indexOf('promo-carousel__button') !== -1 || curCls.indexOf('action-list') !== -1 ||
-                            curTxt === 'glej zdaj' || curTxt.indexOf('glej zdaj') === 0 ||
-                            curTxt.indexOf('predvajaj v živo') !== -1 || curTxt.indexOf('predvajaj v zivo') !== -1;
-                        var naTvPonudniku = jeGostiteljTvPonudnika(location.hostname);
-                        if (onPlayBtn && naTvPonudniku) {
-                            var menuFromPlay = izberiMenijskoPovezavo(false, current);
-                            if (menuFromPlay) {
-                                highlightElement(menuFromPlay);
-                                // #region agent log
-                                try { window._safeerDbg('H40', 'tv_remote_nav.js:up', 'snap menu from play', { t: ((menuFromPlay.innerText || '') + '').replace(/\s+/g, ' ').trim().slice(0, 40) }); } catch (_) {}
-                                // #endregion
-                                return 1;
-                            }
-                        }
-                        if (current && jeMenijskaPovezava(current)) {
-                            /* stay in menu; spatial LEFT/RIGHT above */
-                        } else {
-                            var playHit = naTvPonudniku ? izberiGumbPredvajanja() : null;
-                            if (playHit && playHit !== current) {
-                                var playTop = playHit.getBoundingClientRect().top;
-                                if (playTop < cRect.top - 8) {
-                                    highlightElement(playHit);
-                                    // #region agent log
-                                    try { window._safeerDbg('H253', 'tv_remote_nav.js:up', 'snap play', { t: ((playHit.innerText || '') + '').replace(/\s+/g, ' ').trim().slice(0, 40) }); } catch (_) {}
-                                    // #endregion
-                                    return 1;
-                                }
-                            }
-                            var menuHit = naTvPonudniku ? izberiMenijskoPovezavo(!!jePotVZivo(), current) : null;
-                            if (menuHit && menuHit !== current) {
-                                var onTopRow = cRect.top < 320;
-                                if (onTopRow) {
-                                    highlightElement(menuHit);
-                                    // #region agent log
-                                    try { window._safeerDbg('H40', 'tv_remote_nav.js:up', 'snap menu', { t: ((menuHit.innerText || '') + '').replace(/\s+/g, ' ').trim().slice(0, 40), href: ((menuHit.getAttribute('href') || '') + '').slice(0, 40), n: poberiMenijskePovezave().length }); } catch (_) {}
-                                    // #endregion
-                                    return 1;
-                                }
-                            }
-                        }
-                    }
-
                     if (direction === 'DOWN' && current && jeMenijskaPovezava(current)) {
                         var mHref = ((current.getAttribute && current.getAttribute('href')) || '').toLowerCase();
                         var mTxt = ((current.innerText || current.textContent || '') + '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -3161,6 +3132,11 @@
                         }
                         else if (direction === 'UP') {
                             if (drsajNotranjiVsebnik(current, -1)) return 1;
+                            // Peti slepi pregled (odlocitev vodje): brez cilja GOR in stran na vrhu - glava strani, ce jo ima.
+                            if ((window.scrollY || 0) <= 20) {
+                                var vGlavo = ciljVGlavi(current);
+                                if (vGlavo && highlightElement(vGlavo)) return 1;
+                            }
                             // Drsenje, ki se ne premakne (SAFEER_IZZIV, 3. 11. 2026), ne sme ujeti: naslovna vrstica.
                             if (scrollY <= 20 || !podrsajOkno(0, -120)) {
                                 clearActive();
