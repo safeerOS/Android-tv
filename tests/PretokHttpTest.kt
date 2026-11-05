@@ -34,29 +34,39 @@ private class LazniStreznik(naslov: String, val odgovor: (Int) -> String) {
 
 private fun preusmeri(kam: String) = "HTTP/1.1 302 Found\r\nLocation: $kam\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
 private const val V_REDU = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
+private fun seznam(telo: String) =
+    "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.apple.mpegurl\r\nContent-Length: ${telo.length}\r\nConnection: close\r\n\r\n$telo"
 
-/** Preizkus dovoli samo 127.0.0.2 in 127.0.0.3 (lazna »javna« vira); vse drugo po pravem pravilu, tudi 127.0.0.1. */
-private fun prepovedanPreizkus(b: ByteArray): Boolean {
-    val lazniJavni = b.size == 4 && b[0].toInt() == 127 && b[1].toInt() == 0 && b[2].toInt() == 0 &&
-        (b[3].toInt() == 2 || b[3].toInt() == 3)
-    return !lazniJavni && PretokPravila.prepovedan(b)
-}
+private fun zadnji(b: ByteArray, vrednosti: List<Int>) =
+    b.size == 4 && b[0].toInt() == 127 && b[1].toInt() == 0 && b[2].toInt() == 0 && b[3].toInt() in vrednosti
 
-/** Koda napake iz PretokHttp.odpri ali "" (ni napake); [glave] gredo kot glave toka. */
-private fun odpri(url: String, glave: Map<String, String> = emptyMap()): String {
-    val n = PretokHttp.Nastavitve(
-        razresi = { ime -> if (ime == "zanka.preizkus") listOf(InetAddress.getByName("127.0.0.1")) else InetAddress.getAllByName(ime).toList() },
-        prepovedan = { prepovedanPreizkus(it) })
-    val klient = PretokHttp.klient(n, 3, 3)
+/** Preizkus: 127.0.0.2 in 127.0.0.3 sta lazna javna vira, 127.0.0.4 lazno domace omrezje; drugo po pravih pravilih. */
+private val NASTAVITVE = PretokHttp.Nastavitve(
+    razresi = { ime ->
+        when (ime) {
+            "zanka.preizkus" -> listOf(InetAddress.getByName("127.0.0.1"))
+            "lan.preizkus" -> listOf(InetAddress.getByName("127.0.0.4"))
+            else -> InetAddress.getAllByName(ime).toList()
+        }
+    },
+    prepovedan = { b -> !zadnji(b, listOf(2, 3, 4)) && PretokPravila.prepovedan(b) },
+    zaseben = { b -> zadnji(b, listOf(4)) || (!zadnji(b, listOf(2, 3)) && si.safeer.tv.os.SondaVeriga.zasebenCilj(b)) })
+
+/** Koda napake iz PretokHttp.odpri ali "" (ni napake); [vir] nosi glave toka in stanje zaupanja. */
+private fun odpri(vir: PretokHttp.Vir, url: String = vir.prvi): String {
+    val klient = PretokHttp.klient(NASTAVITVE, 3, 3)
     return try {
-        PretokHttp.odpri(klient, url, url, glave, null, n = n).odgovor.close(); ""
+        PretokHttp.odpri(klient, vir, url, null).odgovor.close(); ""
     } catch (e: PretokHttp.NedovoljenCilj) { e.koda } catch (e: Exception) { "izjema " + e.javaClass.simpleName }
-    finally { klient.connectionPool.evictAll(); klient.dispatcher.executorService.shutdown() }
+    finally { klient.zapri() }
 }
+
+private fun odpri(url: String, glave: Map<String, String> = emptyMap()) = odpri(PretokHttp.Vir(url, glave))
 
 /**
  * Vodja 5. 11. 2026: Media3 DefaultHttpDataSource je v Pretok preusmeritvam sledil sam - 302 na 127.0.0.1 ali
  * povezavno-lokalen naslov je obsel PretokPravila. Vsak skok preveri PretokHttp (kot Linux core/link_sprotno._odpri).
+ * Dopolnitev: domace omrezje samo z varnimi glavami (v_domace_omrezje), tuj seznam HLS odvzame zaupanje (_Vir.izpeljan).
  */
 fun main() {
     println("Preizkus skokov preusmeritve sprotne pretvorbe")
@@ -97,7 +107,7 @@ fun main() {
     preveriEnako("B ni dobil zahteve po imenu", 0, b.zahteve.size)
     a2.zapri(); b.zapri()
 
-    // Drug izvor: glave toka (Authorization) samo A, C (127.0.0.3) dobi samo privzeti UA.
+    // Drug izvor: glave toka samo A, C (127.0.0.3) dobi samo privzeti UA.
     val c = LazniStreznik("127.0.0.3") { V_REDU }
     val a3 = LazniStreznik("127.0.0.2") { preusmeri("http://127.0.0.3:${c.vrata}/kos") }
     preveriEnako("preusmeritev na dovoljen drug izvor", "", odpri("http://127.0.0.2:${a3.vrata}/film.mkv", toka))
@@ -118,6 +128,92 @@ fun main() {
     preveriEnako("zahtev v verigi", PretokHttp.NAJVEC_SKOKOV + 1, a4.zahteve.size)
     a4.zapri()
 
+    domaceOmrezje(toka)
+    tujSeznam()
+
     if (napak > 0) { println("NAPAK: $napak"); kotlin.system.exitProcess(1) }
     println("Vse v redu.")
+}
+
+/** Vodja 5. 11. 2026 (Linux v_domace_omrezje, VARNE_GLAVE): v domace omrezje samo tok z varnimi glavami. */
+private fun domaceOmrezje(toka: Map<String, String>) {
+    println("Domace omrezje")
+    val varne = mapOf("User-Agent" to "Igralec/1", "Referer" to "https://stran.example/", "Origin" to "https://stran.example",
+        "Accept" to "*/*", "Accept-Language" to "sl")
+    preveriEnako("varne glave (seznam kot Linux)", true, PretokHttp.vDomaceOmrezje(varne))
+    preveriEnako("brez glav", true, PretokHttp.vDomaceOmrezje(emptyMap()))
+    for (k in listOf("Authorization", "Cookie", "X-Api-Key", "X-Safeer-Token", "Proxy-Authorization", "X-Emby-Token"))
+        preveriEnako("ni varna: $k", false, PretokHttp.vDomaceOmrezje(varne + (k to "x")))
+    val pravo = PretokHttp.Nastavitve()
+    val lan = byteArrayOf(192.toByte(), 168.toByte(), 1, 20)
+    preveriEnako("LAN brez varnih glav ne", false, PretokHttp.nasloviDovoljeni(listOf(lan), false, pravo))
+    preveriEnako("LAN z varnimi glavami da", true, PretokHttp.nasloviDovoljeni(listOf(lan), true, pravo))
+    preveriEnako("javni brez varnih glav da", true, PretokHttp.nasloviDovoljeni(listOf(byteArrayOf(8, 8, 8, 8)), false, pravo))
+    preveriEnako("en LAN med javnimi -> nobeden", false,
+        PretokHttp.nasloviDovoljeni(listOf(byteArrayOf(8, 8, 8, 8), byteArrayOf(10, 0, 0, 5)), false, pravo))
+    preveriEnako("zanka tudi z varnimi ne", false, PretokHttp.nasloviDovoljeni(listOf(byteArrayOf(127, 0, 0, 1)), true, pravo))
+    preveriEnako("zapis LAN, poverilnice", true, PretokHttp.ciljNedovoljen("192.168.1.20", false, pravo))
+    preveriEnako("zapis LAN, varne glave", false, PretokHttp.ciljNedovoljen("192.168.1.20", true, pravo))
+    preveriEnako("zapis ULA, poverilnice", true, PretokHttp.ciljNedovoljen("fd00::1", false, pravo))
+
+    // D (127.0.0.4) je lazni NAS v domacem omrezju.
+    val d = LazniStreznik("127.0.0.4") { V_REDU }
+    preveriEnako("LAN z Authorization zavrnjen", "nedovoljen_cilj", odpri("http://127.0.0.4:${d.vrata}/film.mkv", toka))
+    preveriEnako("LAN po imenu z Authorization zavrnjen", "nedovoljen_cilj", odpri("http://lan.preizkus:${d.vrata}/film.mkv", toka))
+    preveriEnako("D ni dobil zahteve s poverilnicami", 0, d.zahteve.size)
+    preveriEnako("LAN z varnimi glavami", "", odpri("http://127.0.0.4:${d.vrata}/film.mkv", mapOf("Referer" to "https://stran.example/")))
+    preveriEnako("D je dobil Referer", true, d.zahteve.firstOrNull()?.contains("Referer: https://stran.example/") == true)
+    // Javni vir drugega izvora ne sme poslati v domace omrezje (Linux: izpeljan vir drugega izvora zasebni=False).
+    val a = LazniStreznik("127.0.0.2") { preusmeri("http://127.0.0.4:${d.vrata}/nas") }
+    preveriEnako("javni 302 v LAN zavrnjen", "nedovoljen_cilj", odpri("http://127.0.0.2:${a.vrata}/film.mkv"))
+    preveriEnako("D ni dobil preusmerjene zahteve", 1, d.zahteve.size)
+    a.zapri(); d.zapri()
+}
+
+/** Vodja 5. 11. 2026 (Linux _Vir.izpeljan): kos, ki ga navede seznam z drugega izvora, ne dobi glav toka. */
+private fun tujSeznam() {
+    println("Seznam predvajanja z drugega izvora")
+    preveriEnako("HLS je seznam", true, PretokHttp.jeSeznam("#EXTM3U\n#EXTINF:4,\nkos.ts".toByteArray()))
+    preveriEnako("HLS z BOM", true, PretokHttp.jeSeznam(byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()) + "#EXTM3U".toByteArray()))
+    preveriEnako("DASH je seznam", true, PretokHttp.jeSeznam("<?xml version=\"1.0\"?>\n<MPD xmlns=\"urn:mpeg:dash\">".toByteArray()))
+    preveriEnako("video ni seznam", false, PretokHttp.jeSeznam(byteArrayOf(0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70)))
+    val izvor = "https://izvor.example/film/master.m3u8"
+    val tuj = "https://cdn.example/v/tuj.m3u8"
+    preveriEnako("absoluten kos na izvoru", true, PretokHttp.seznamNavajaIzvor("#EXTM3U\n#EXTINF:4,\nhttps://izvor.example/k1.ts\n", tuj, izvor))
+    preveriEnako("relativni kosi na tujem", false, PretokHttp.seznamNavajaIzvor("#EXTM3U\n#EXTINF:4,\nk1.ts\n/k2.ts\n", tuj, izvor))
+    preveriEnako("kljuc URI na izvoru", true, PretokHttp.seznamNavajaIzvor(
+        "#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI=\"https://%69zvor.example/kljuc\"\n#EXTINF:4,\nk1.ts\n", tuj, izvor))
+    preveriEnako("ime izvora v odstotnem zapisu", true, PretokHttp.seznamNavajaIzvor(
+        "#EXTM3U\nhttps://%69zvor.example/k.ts\n", tuj, izvor))
+    preveriEnako("DASH BaseURL z imenom izvora", true, PretokHttp.seznamNavajaIzvor(
+        "<MPD><BaseURL>https://IZVOR.example/</BaseURL></MPD>", tuj, izvor))
+    preveriEnako("vrstica z \\r", true, PretokHttp.seznamNavajaIzvor("#EXTM3U\rhttps://izvor.example/k.ts", tuj, izvor))
+
+    // A (127.0.0.2) je izvor: master -> 302 na C (127.0.0.3), ki vrne seznam z absolutnim kosom na A.
+    var vrataA = 0
+    val c = LazniStreznik("127.0.0.3") { seznam("#EXTM3U\n#EXT-X-TARGETDURATION:4\n#EXTINF:4,\nhttp://127.0.0.2:$vrataA/kos.ts\n") }
+    val a = LazniStreznik("127.0.0.2") { i -> if (i == 1) preusmeri("http://127.0.0.3:${c.vrata}/tuj.m3u8") else V_REDU }
+    vrataA = a.vrata
+    val glave = mapOf("X-Api-Key" to "kljuc-vira", "Authorization" to "Bearer skrivno")
+    val vir = PretokHttp.Vir("http://127.0.0.2:${a.vrata}/master.m3u8", glave)
+    val klient = PretokHttp.klient(NASTAVITVE, 3, 3)
+    val o = PretokHttp.odpri(klient, vir, vir.prvi, null)
+    o.odgovor.close()
+    preveriEnako("tuj seznam prebran", true, o.telo?.let { String(it).contains("kos.ts") } == true)
+    preveriEnako("tuj seznam odvzame zaupanje", true, vir.zaupanjeIzgubljeno)
+    preveriEnako("kos na izvoru po tujem seznamu", "", odpri(vir, "http://127.0.0.2:${a.vrata}/kos.ts"))
+    preveriEnako("A je dobil 2 zahtevi", 2, a.zahteve.size)
+    preveriEnako("master je dobil kljuc", true, a.zahteve.firstOrNull()?.contains("X-Api-Key: kljuc-vira") == true)
+    preveriEnako("kos ni dobil kljuca", false, a.zahteve.getOrNull(1)?.contains("X-Api-Key") == true)
+    preveriEnako("kos ni dobil Authorization", false, a.zahteve.getOrNull(1)?.contains("Authorization") == true)
+    klient.zapri(); a.zapri(); c.zapri()
+
+    // Seznam na izvoru, ki navaja svoj kos: zaupanje ostane, kos dobi glave toka.
+    val a2 = LazniStreznik("127.0.0.2") { i -> if (i == 1) seznam("#EXTM3U\n#EXTINF:4,\nkos.ts\n") else V_REDU }
+    val vir2 = PretokHttp.Vir("http://127.0.0.2:${a2.vrata}/master.m3u8", glave)
+    preveriEnako("lasten seznam", "", odpri(vir2))
+    preveriEnako("lasten seznam zaupanje obdrzi", false, vir2.zaupanjeIzgubljeno)
+    preveriEnako("kos lastnega seznama", "", odpri(vir2, "http://127.0.0.2:${a2.vrata}/kos.ts"))
+    preveriEnako("kos lastnega seznama dobi kljuc", true, a2.zahteve.getOrNull(1)?.contains("X-Api-Key: kljuc-vira") == true)
+    a2.zapri()
 }

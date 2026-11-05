@@ -109,7 +109,11 @@ object Pretok {
         // Velikost izvirnika (za bitno hitrost izhoda) poizvemo v ozadju, ce je odjemalec ne pozna; ukaz tece na glavni niti.
         Thread({
             val razreseni = try { java.net.InetAddress.getAllByName(gostVira).map { it.address } } catch (_: Exception) { emptyList() }
-            if (!PretokPravila.razreseniDovoljeni(razreseni)) {
+            // Vodja 5. 11. 2026 (kot Linux v_domace_omrezje): zunanji vir s poverilnicami v glavah ne sme v domace omrezje.
+            // Pripeti vir glav toka ne dobi (PripetiVir poslje samo zeton s pripetim odtisom), zanj velja samo prepoved.
+            val dovoljen = if (odtis.isNotBlank()) PretokPravila.razreseniDovoljeni(razreseni)
+                else PretokHttp.nasloviDovoljeni(razreseni, PretokHttp.vDomaceOmrezje(glave))
+            if (!dovoljen) {
                 Log.i(TAG, "Tok $ime: vir ni dovoljen (nedovoljen_cilj)")
                 t.napaka = "nedovoljen_cilj"; t.koncano = true
                 return@Thread
@@ -151,7 +155,9 @@ object Pretok {
         val odziv = if (odtis.isNotBlank())
                 si.safeer.tv.cast.HubPreusmeritve.brez(si.safeer.tv.os.PripetiVir.odjemalecZaStreznik(odtis).newBuilder()).build()
                     .newCall(si.safeer.tv.cast.HubPreusmeritve.zahtevaVelikosti(url, odtis, zeton, glave)).execute()
-            else PretokHttp.odpri(PretokHttp.klient(povezavaS = 4, branjeS = 4), url, url, glave, "bytes=0-0").odgovor
+            else PretokHttp.klient(povezavaS = 4, branjeS = 4).let { k ->
+                try { PretokHttp.odpri(k, PretokHttp.Vir(url, glave), url, "bytes=0-0").odgovor } finally { k.zapri() }
+            }
         odziv.use { r ->
             val obseg = r.header("Content-Range").orEmpty().substringAfter('/', "").trim()
             obseg.toLongOrNull() ?: if (r.code == 200) r.header("Content-Length")?.toLongOrNull() ?: 0L else 0L
