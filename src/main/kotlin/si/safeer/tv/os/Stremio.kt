@@ -1756,13 +1756,26 @@ object Stremio {
 
     /**
      * Ali poizvedba tokov dodatek za to vsebino res vprasa (ista pravila kot [tokoviDodatkov]): naprava pozna njegovo
-     * skrivnost, manifest je dosegljiv (pomnilnik, disk ali omrezje, kot v poizvedbi) in [ZdravjeDodatkov.dajeTokove] za vsaj en id iz [idji].
+     * skrivnost in [ZdravjeDodatkov.dajeTokove] za vsaj en id iz [idji] po manifestu v pomnilniku (brez njega: vprasan).
      * Za [ZdravjeDodatkov.nacini]: »vsi v premoru« steje samo med temi dodatki.
      */
     fun vprasanZaTokove(naslov: String, tip: String, idji: List<String>): Boolean {
-        if (!SkrivniDodatki.pozna(aplikacija, naslov)) return false
-        val m = try { manifest(naslov) } catch (_: Exception) { null } ?: return false
-        return idji.any { ZdravjeDodatkov.dajeTokove(m.viri, m.tipi, m.predpone, tip, it) }
+        // CodeRabbit 5. krog (5. 11. 2026): na kriticni poti izbire toka brez omrezja - samo manifest iz pomnilnika
+        // ([ZdravjeDodatkov.vprasan]); manjkajocega nalozimo v ozadju za naslednjo poizvedbo.
+        val pozna = SkrivniDodatki.pozna(aplikacija, naslov)
+        val m = manifesti[osnova(naslov)]
+        if (pozna && m == null) naloziManifestVOzadju(naslov)
+        return ZdravjeDodatkov.vprasan(pozna, m?.viri, m?.tipi, m?.predpone, tip, idji)
+    }
+
+    /** Manifesti, ki se ta hip nalagajo v ozadju za [vprasanZaTokove] (vsak najvec enkrat hkrati). */
+    private val nalagamManifest = java.util.Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
+
+    private fun naloziManifestVOzadju(naslov: String) {
+        val o = osnova(naslov)
+        if (!nalagamManifest.add(o)) return
+        try { bazen.execute { try { manifest(naslov) } catch (_: Exception) { } finally { nalagamManifest.remove(o) } } }
+        catch (_: java.util.concurrent.RejectedExecutionException) { nalagamManifest.remove(o) }
     }
 
     /** Dodatek nosi uporabnikov kljuc (debrid, racun v naslovu ...): v premoru ga ne sprasujemo, da racun ne bo zaklenjen. */

@@ -69,6 +69,19 @@ object ZdravjeDodatkov {
     fun dajeTokove(viri: Collection<String>, tipi: Collection<String>, predpone: Collection<String>, tip: String, id: String): Boolean =
         "stream" in viri && (tipi.isEmpty() || tip in tipi) && (predpone.isEmpty() || predpone.any { id.startsWith(it) })
 
+    /**
+     * Ali poizvedba tokov dodatek vprasa - brez omrezja (CodeRabbit 5. krog, 5. 11. 2026): prej je preverba ob manjkajocem
+     * manifestu tega zaporedno nalagala po omrezju PRED oddajo zahtev za tokove, pocasen nov dodatek je zadrzal predvajanje
+     * (rok izbire se je zacel sele potem). Zdaj samo manifest iz pomnilnika; brez njega ([viri] null) dodatek steje kot
+     * vprasan (kot pred to preverbo), manifest pa se nalozi v ozadju za naslednjic ([Stremio.vprasanZaTokove]).
+     */
+    fun vprasan(pozna: Boolean, viri: Collection<String>?, tipi: Collection<String>?, predpone: Collection<String>?,
+                tip: String, idji: List<String>): Boolean {
+        if (!pozna) return false
+        if (viri == null) return true
+        return idji.any { dajeTokove(viri, tipi.orEmpty(), predpone.orEmpty(), tip, it) }
+    }
+
     fun nacini(vPremoru: List<Boolean>, sKljucem: List<Boolean>, vprasan: List<Boolean> = vPremoru.map { true }): List<Nacin> {
         if (vPremoru.indices.filter { vprasan.getOrElse(it) { true } }.all { vPremoru[it] }) return vPremoru.map { Nacin.CAKAJ }
         return vPremoru.indices.map { i ->

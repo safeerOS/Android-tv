@@ -56,5 +56,11 @@ fun main() {
     check(!ZdravjeDodatkov.dajeTokove(setOf("stream"), setOf("series"), emptyList(), "movie", "tt1")) { "tip" }
     check(!ZdravjeDodatkov.dajeTokove(setOf("stream"), setOf("movie"), listOf("kitsu:"), "movie", "tt1")) { "predpona" }
     check(ZdravjeDodatkov.dajeTokove(setOf("stream"), setOf("movie"), listOf("kitsu:", "tt"), "movie", "tt1"))
+    // CodeRabbit 5. krog (5. 11. 2026): preverba brez omrezja - manjkajoc manifest (null) steje kot vprasan, ne caka nanj.
+    check(ZdravjeDodatkov.vprasan(true, null, null, null, "movie", listOf("tt1"))) { "manjkajoc manifest: vprasan" }
+    check(!ZdravjeDodatkov.vprasan(false, null, null, null, "movie", listOf("tt1"))) { "neznana skrivnost: ne vprasa" }
+    check(!ZdravjeDodatkov.vprasan(true, setOf("catalog"), emptySet(), emptyList(), "movie", listOf("tt1"))) { "katalog brez tokov" }
+    check(ZdravjeDodatkov.vprasan(true, setOf("stream"), setOf("movie"), listOf("kitsu:", "tt"), "movie", listOf("kitsu:1", "tt1")))
+    check(!ZdravjeDodatkov.vprasan(true, setOf("stream"), setOf("movie"), listOf("kitsu:"), "movie", emptyList())) { "brez id-jev" }
     println("ZdravjeDodatkovTest: OK")
 }
