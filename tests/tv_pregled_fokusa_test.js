@@ -333,7 +333,7 @@ function modalno(s) {
     const { dokazDatoteke } = new Function(VIR.slice(od, doK) + VIR.slice(od2, doK2) + '\nreturn { dokazDatoteke };')();
     const IZZIV = '0123456789abcdef0123456789abcdef';
     // Isti primer kot tests/TvTipkeTest.kt (TvTipke.odtisZetona v Kotlinu).
-    preveri('12c: odtis kot v Kotlinu (TvTipkeTest)', 'datoteka:safeer-cg41mu', dokazDatoteke('z'.repeat(48), IZZIV));
+    preveri('12c: odtis kot v Kotlinu (TvTipkeTest)', 'datoteka:safeer-e47329582e82b715def9698cf9bf11cdaac8957ca113435c6f5a6aa2e4a53c99', dokazDatoteke('z'.repeat(48), IZZIV));
     preveri('12c: brez veljavnega izziva ni dokaza', ['', ''], [dokazDatoteke('z'.repeat(48), undefined), dokazDatoteke('z'.repeat(48), 'x')]);
     // Stran je _safeer_click_focused_card zasedla pred nami.
     const s = ustvari();

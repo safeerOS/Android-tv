@@ -238,7 +238,8 @@ primer('8', () => {
     s.body.dodaj(gumb(s, 'A', [100, 300, 300, 60]), g);
     s.nalozi(VIR);
     const t = s.izvoz('_safeer_tipka');
-    for (let i = 0; i < 6; i++) t('0123456789abcdef0123456789abcdef', 1000 + i, i);     // stran ugiba
+    // Cetrti slepi pregled 5. 11. 2026: dokaz je niz HMAC (64 sestnajstiskih znakov) - stran ugiba v tej obliki.
+    for (let i = 0; i < 6; i++) t('0123456789abcdef0123456789abcdef', 1000 + i, '0'.repeat(63) + i);     // stran ugiba
     s.izberi(g);
     s.ok('0123456789abcdef0123456789abcdef');
     preveri('8: po vec napacnih dokazih ni vec pravega dotika v tem dokumentu', [], s.dotiki);

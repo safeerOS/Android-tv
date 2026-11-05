@@ -295,5 +295,9 @@ fun main() {
     val izraz = P.zivaKopijaJs(n1, n2)
     check(izraz.contains("__safeer_izvirniki_$n1") && izraz.contains("_safeer_tv_remote_installed_$n2") && izraz.contains("I.apply(I.gopd")) { "ziva kopija z izvirniki" }
     check(runCatching { P.zivaKopijaJs(n1, "x');alert(1);//") }.isFailure) { "neveljaven nonce ne gre v izraz" }
+    // Cetrti slepi pregled 5. 11. 2026 (N-B): odgovor pinga po natancni vrednosti - prej contains("ok") je sprejel 'prej:ok' strani.
+    check(P.odgovorPinga("\"ok\"") == "ok" && P.odgovorPinga(" \"need\" ") == "need")
+    check(P.odgovorPinga("\"prej:ok\"") != "ok" && P.odgovorPinga("\"look\"") != "ok")
+    check(P.odgovorPinga(null) == "" && P.odgovorPinga("\"") == "\"")
     println("SpletVarnostPravilaTest: OK")
 }

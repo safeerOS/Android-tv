@@ -8,15 +8,36 @@ import si.safeer.tv.GooglePravila as G
  * piskotki tretjih strani, samodejna okna), notyoutube.com pa preusmeritev na youtube.com/tv.
  */
 fun main() {
-    // Pravi Googlovi gostitelji ostanejo Google (prijava mora delati - pravilo lastnika).
+    // Google nacin (brez zascite) samo za iskanje in prijavo - cetrti slepi pregled 5. 11. 2026 (N-A).
     for (u in listOf("https://www.google.com/search?q=x", "https://google.com/", "https://www.google.si/", "https://google.de/",
-            "https://www.google.co.uk/search?q=a", "https://www.google.com.br/", "https://mail.google.com/mail/u/0/",
-            "https://accounts.google.com/v3/signin/identifier", "https://ACCOUNTS.Google.COM./x", "https://www.gstatic.com/recaptcha/x.js",
-            "https://fonts.googleapis.com/css", "https://www.recaptcha.net/recaptcha/api.js", "https://accounts.youtube.com/accounts/SetSID",
-            "https://www.google.com/recaptcha/api2/anchor", "https://user@www.google.com:443/x")) {
+            "https://www.google.co.uk/search?q=a", "https://www.google.com.br/", "https://accounts.google.com/v3/signin/identifier",
+            "https://ACCOUNTS.Google.COM./x", "https://accounts.google.si/", "https://myaccount.google.com/",
+            "https://accounts.youtube.com/accounts/SetSID", "https://www.google.com/recaptcha/api2/anchor", "https://user@www.google.com:443/x")) {
         check(G.jeGoogle(u)) { "Google: $u" }
+        check(G.jeGoogleVir(u) && G.googleIdentiteta(u)) { "Google vir in identiteta: $u" }
     }
-    // Tuji gostitelji z Googlovimi nizi v poti, poizvedbi ali gostitelju niso Google.
+    // N-A: Googlovi gostitelji z uporabnisko vsebino (kdorkoli objavi HTML z JS ali obrazec) in Googlove storitve zunaj
+    // prijave NISO Google nacin - tam velja zascita (filter oglasov, nasa navigacija, brez piskotkov tretjih strani).
+    val uporabniska = listOf("https://storage.googleapis.com/vedro/napad.html", "https://firebasestorage.googleapis.com/v0/b/x/o/a.html",
+        "https://STORAGE.googleapis.com./x.html", "https://lh3.googleusercontent.com/x", "https://x-dot-y.appspot.com/",
+        "https://sites.google.com/view/napad", "https://docs.google.com/forms/d/e/x/viewform", "https://script.google.com/macros/s/x/exec",
+        "https://accounts.sites.google.com/", "https://accounts.storage.googleapis.com/", "https://www.storage.googleapis.com/")
+    for (u in uporabniska + listOf("https://mail.google.com/mail/u/0/", "https://drive.google.com/", "https://www.gstatic.com/recaptcha/x.js",
+            "https://fonts.googleapis.com/css", "https://www.recaptcha.net/recaptcha/api.js", "https://workspace.google.com/")) {
+        check(!G.jeGoogle(u)) { "ni Google nacin: $u" }
+    }
+    for (u in uporabniska) check(!G.jeGoogleVir(u)) { "uporabniska vsebina gre skozi filter oglasov: $u" }
+    // Viri prijave in reCAPTCHA brez uporabniske vsebine: filter oglasov jih spusti (kot prej).
+    for (u in listOf("https://www.gstatic.com/recaptcha/x.js", "https://ssl.gstatic.com/x.png", "https://fonts.googleapis.com/css",
+            "https://www.googleapis.com/x", "https://apis.google.com/js/api.js", "https://www.recaptcha.net/recaptcha/api.js")) {
+        check(G.jeGoogleVir(u) && !G.jeGoogle(u)) { "Googlov vir (ne nacin): $u" }
+    }
+    // Identiteta (samo User-Agent) ostane siroka: menjava med navigacijo sesuje WebView 153 (TV 1. 11. 2026).
+    for (u in listOf("https://mail.google.com/mail/u/0/", "https://workspace.google.com/", "https://storage.googleapis.com/x",
+            "https://www.gstatic.com/x")) {
+        check(G.googleIdentiteta(u)) { "Googlova identiteta: $u" }
+    }
+    // Tuji gostitelji z Googlovimi nizi v poti, poizvedbi ali gostitelju niso Google (nobeno od treh pravil).
     for (u in listOf("https://zlo.example/signin/v2", "https://zlo.example/v3/signin/identifier", "https://google.zlo.example/",
             "https://www.google.zlo.example/", "https://zlo.example/?u=accounts.google.com", "https://zlo.example/google.com/search?q=x",
             "https://recaptcha.zlo.example/", "https://zlo.example/recaptcha/api.js", "https://gstatic.com.zlo.example/",
@@ -24,7 +45,7 @@ fun main() {
             "https://accounts.google.zlo.example/", "https://www.google.com@zlo.example/", "https://zlo.example\\@www.google.com/",
             "https://notgoogle.com/", "https://www.youtube.com/watch?v=abcdefgh", "https://rr1.googlevideo.com/videoplayback",
             "https://i.ytimg.com/vi/x.jpg", "", "about:blank", "file:///android_asset/brave_home.html")) {
-        check(!G.jeGoogle(u)) { "ni Google: $u" }
+        check(!G.jeGoogle(u) && !G.jeGoogleVir(u) && !G.googleIdentiteta(u)) { "ni Google: $u" }
     }
     // Prijava: Googlov prijavni gostitelj ali Googlov gostitelj s prijavno potjo; nikoli samo pot.
     for (u in listOf("https://accounts.google.com/ServiceLogin", "https://accounts.google.si/", "https://myaccount.google.com/",

@@ -29,5 +29,13 @@ fun main() {
     preveri("GOR, ce skript ne odgovori: naslovna vrstica (ne obtici)", T.gorVNaslov(null) && T.gorVNaslov("null"))
     preveri("Nazaj z odprtim tujim oknom: Escape", T.jeTuje("\"tuje\""))
     preveri("Nazaj brez tujega okna ali brez odgovora: zgodovina", !T.jeTuje("\"ne\"") && !T.jeTuje(null) && !T.jeTuje("null"))
+    // Cetrti slepi pregled 5. 11. 2026 (N-A): okvir v fokusu ali na tocki - samo namig kazalca.
+    preveri("okvir: kazalec (ne Enter, ne dotik)", T.ok("\"kazalec\"") == T.Ok.Kazalec && T.ok("kazalec") == T.Ok.Kazalec)
+    preveri("kazalec z dodatki ni kazalec (Enter kot prej)", T.ok("kazalec:1") == T.Ok.Enter)
+    val js = "x=window['__safeer_izvirniki_'+'__SAFEER_NONCE_IZVIRNIKOV__']"
+    preveri("izvirniki: veljaven nakljucni del pogleda", T.zIzvirniki(js, "8796a5b4c3d2e1f0") == "x=window['__safeer_izvirniki_'+'8796a5b4c3d2e1f0']")
+    preveri("izvirniki: brez registracije ali neveljaven del - ime, ki ga ni (ni vrivanja v skript)",
+        T.zIzvirniki(js, null).endsWith("'brez']") && T.zIzvirniki(js, "x'];alert(1);//").endsWith("'brez']") &&
+            T.zIzvirniki(js, "ABCDEF0123456789").endsWith("'brez']"))
     println("GoogleTipkeTest: OK ($stevilo)")
 }

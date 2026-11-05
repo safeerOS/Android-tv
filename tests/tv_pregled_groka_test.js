@@ -288,15 +288,15 @@ primer('ciste', () => {
         [f.smemVrnitiFokus(st, 100), f.smemVrnitiFokus(st, 200), f.smemVrnitiFokus(st, 300), f.smemVrnitiFokus(st, 1500)]);
     preveri('cisto: gostitelji TV ponudnikov', [true, true, true, false, false],
         ['www.xploretv.si', 'xploretv.si', '365.rtvslo.si', 'lazniexploretv.si', 'rtvslo.si.tuj.test'].map(f.jeGostiteljTvPonudnika));
-    // Isti odtis kot Kotlin (TvTipkeTest: odtisStevilo, znakNamestitve) in neodvisna izvedba v tv_lazni_dom.js.
-    const d = new Function(blok('SAFEER_ZNAK_NAMESTITVE') + blok('SAFEER_DOKAZ') + '\nreturn { odtisStevilo, dokazDatoteke };')();
+    // Isti odtis kot Kotlin (TvTipkeTest: odtisHex, HMAC-SHA256 od cetrtega slepega pregleda) in node:crypto v tv_lazni_dom.js.
+    const d = new Function(blok('SAFEER_ZNAK_NAMESTITVE') + blok('SAFEER_DOKAZ') + '\nreturn { odtisHex, dokazDatoteke };')();
     const IZ = '0123456789abcdef0123456789abcdef';
     const s = ustvari();
-    preveri('cisto: odtis tipke kot neodvisna izvedba', s.odtisStevilo('z'.repeat(48), 'tipka|' + IZ), d.odtisStevilo('z'.repeat(48), 'tipka|' + IZ));
-    preveri('cisto: odtis tipke kot Kotlin (TvTipkeTest)', 2855865788, d.odtisStevilo('z'.repeat(48), 'tipka|' + IZ));
+    preveri('cisto: odtis tipke kot neodvisna izvedba (node:crypto)', require('crypto').createHmac('sha256', 'z'.repeat(48)).update('tipka|' + IZ).digest('hex'), d.odtisHex('z'.repeat(48), 'tipka|' + IZ));
+    preveri('cisto: odtis tipke kot Kotlin (TvTipkeTest)', '710f676402b818003612cb7ba435ae24f42c858306bc301f7b81594fd4d38d68', d.odtisHex('z'.repeat(48), 'tipka|' + IZ));
     // Neodvisni pregled 5. 11. 2026 (najdba 5): dokaz tipke pokrije stevec (TvTipkeTest: isti primer).
-    preveri('cisto: odtis tipke s stevcem kot neodvisna izvedba', s.odtisStevilo('z'.repeat(48), 'tipka|7|' + IZ), d.odtisStevilo('z'.repeat(48), 'tipka|7|' + IZ));
-    preveri('cisto: dokaz datoteke kot Kotlin (TvTipkeTest)', 'datoteka:safeer-cg41mu', d.dokazDatoteke('z'.repeat(48), IZ));
+    preveri('cisto: odtis tipke s stevcem kot neodvisna izvedba', require('crypto').createHmac('sha256', 'z'.repeat(48)).update('tipka|7|' + IZ).digest('hex'), d.odtisHex('z'.repeat(48), 'tipka|7|' + IZ));
+    preveri('cisto: dokaz datoteke kot Kotlin (TvTipkeTest)', 'datoteka:safeer-e47329582e82b715def9698cf9bf11cdaac8957ca113435c6f5a6aa2e4a53c99', d.dokazDatoteke('z'.repeat(48), IZ));
 });
 
 // 13. NIZKA: klicatelj prviFokusMenija ob -1 da fokus »Preklici« (Kotlin, PokrajinaActivity.pokaziMeni).

@@ -206,13 +206,17 @@ function ustvari(nastavitve) {
             // Kot IZVIRNIKI_JS (tretji neodvisni pregled 5. 11. 2026, N5): most in metoda ob zacetku dokumenta.
             most: mostZacetka, tap: mostZacetka ? mostZacetka.triggerNativeTap : null }) });
     }
-    // Kot TvTipke.odtisStevilo (FNV-1a, 32 bitov) - neodvisna izvedba za preizkus (charCodeAt, Math.imul).
+    // Stari dokaz (FNV-1a, 32 bitov) - samo za preizkus starega skripta brez popravka (SAFEER_VSE_NAPAKE=1).
     function odtisStevilo(z, niz) {
         let h = 2166136261;
         const v = z + '|' + niz + '|' + z;
         for (let i = 0; i < v.length; i++) { h = (h ^ v.charCodeAt(i)) >>> 0; h = Math.imul(h, 16777619) >>> 0; }
         return h;
     }
+    // Cetrti slepi pregled 5. 11. 2026: dokaz je HMAC-SHA256 (TvTipke.odtisHex) - neodvisna izvedba node:crypto, ne koda skripta.
+    let hmacSkript = false;
+    const hmacHex = (z, niz) => require('crypto').createHmac('sha256', z).update(niz).digest('hex');
+    const odtisTipke = (z, niz) => (hmacSkript ? hmacHex(z, niz) : odtisStevilo(z, niz));
     let stIzziva = 0;
     // Ime z nakljucnim delom; brez njega staro ime (preizkus starega skripta brez popravka, SAFEER_VSE_NAPAKE=1).
     const izvoz = (ime) => (typeof win[ime + '_' + nonce] === 'function' ? win[ime + '_' + nonce] : win[ime]);
@@ -220,7 +224,7 @@ function ustvari(nastavitve) {
     // Argumenti klica _safeer_tipka za stevec st (kot TvTipke.ukazTipke); stari skript: (izziv, dokaz).
     function dokazTipke(st) {
         const iz = st.toString(16).padStart(32, '0');
-        return noviDokaz() ? [iz, st, odtisStevilo(zeton, 'tipka|' + st + '|' + iz)] : [iz, odtisStevilo(zeton, 'tipka|' + iz)];
+        return noviDokaz() ? [iz, st, odtisTipke(zeton, 'tipka|' + st + '|' + iz)] : [iz, odtisTipke(zeton, 'tipka|' + iz)];
     }
     // Kot TvTipke.ukazTipke: aplikacija pred klicem ob tipki daljinca poslje izziv, strogo narascajoc stevec in dokaz.
     function tipka() {
@@ -238,6 +242,8 @@ function ustvari(nastavitve) {
             const blok = (ime) => { const i = vir.indexOf('/* ' + ime + '_ZACETEK'), j = vir.indexOf('/* ' + ime + '_KONEC */'); return i >= 0 && j > i ? vir.slice(i, j) : ''; };
             const b = blok('SAFEER_ZNAK_NAMESTITVE') + blok('SAFEER_DOKAZ');
             if (b.indexOf('function odtisZetona') !== -1) odtis = new Function(b + '\nreturn odtisZetona;')();
+            hmacSkript = b.indexOf('SAFEER_HMAC_ZACETEK') !== -1;
+            if (hmacSkript) odtis = (z, niz) => 'safeer-' + hmacHex(z, niz);
             const izv = n.izvirniki === false ? 'ne' : 'da';
             // Samo preizkus: kljuka v zaprtju skripta (izbira kot iz smeri daljinca, samodejni vstop v okno). V aplikaciji je ni;
             // stran teh funkcij ne doseze (neodvisni pregled 5. 11. 2026: _safeer_highlight in _safeer_vstopi_v_plast nista vec izvoza).
@@ -254,7 +260,7 @@ function ustvari(nastavitve) {
                 .split('__SAFEER_NONCE_IZVIRNIKOV__').join(nonceIzvirnikov).split('__SAFEER_NONCE__').join(nonce)
                 .split('__SAFEER_PREJ_NONCE__').join(n.prejNonce || ''), ctx);
         },
-        ura, tipka, odtisStevilo, dokazTipke, stevecTipk: () => stIzziva,
+        ura, tipka, odtisStevilo: (z, niz) => odtisTipke(z, niz), dokazTipke, stevecTipk: () => stIzziva,
         // Koda strani v istem svetu (npr. prepis vgrajenih metod pred nasim skriptom).
         izvedi(koda) { return vm.runInContext(koda, ctx); },
         // Klici aplikacije ob tipki daljinca (SiteProfile): dokaz tipke, nato smer ali OK.
