@@ -82,6 +82,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/SeznamiPravilaTest.kt" \
     "$TEST_DIR/ZacasniPravilaTest.kt" \
     "$TEST_DIR/DiagnostikaPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/SejaPredvajanjaPravila.kt" \
+    "$TEST_DIR/SejaPredvajanjaPravilaTest.kt" \
     "$TEST_DIR/ZasebniDodatkiTest.kt" \
     "$TEST_DIR/KnjiznicaKrogaTest.kt" \
     "$TEST_DIR/RazpolozljivostPravilaTest.kt" \
@@ -240,6 +242,8 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ObvestilaTokovTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SeznamiPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZacasniPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.DiagnostikaPravilaTestKt
+# Seja predvajanja samo ob pravi spremembi (TV 5. 11. 2026: 6 stanj v 54 ms).
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SejaPredvajanjaPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZasebniDodatkiTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.KnjiznicaKrogaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.RazpolozljivostPravilaTestKt
