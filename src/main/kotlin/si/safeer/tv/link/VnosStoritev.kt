@@ -410,8 +410,10 @@ class VnosStoritev : AccessibilityService() {
             // MovieFlix 4. 11. 2026: fokus, ki ga je aplikacija sama dala vozliscu v (skritem) WebViewu, ne dobi okvirja,
             // ce ima aplikacija domac interaktiven element (VnosVklopPravila.skrijOkvirVSpletnem); fokus ostane aplikaciji.
             val vz = vozlisce
-            if (vz != null && aktivniKoren != null && korenPaket == neprilagojena && miska?.paket == null &&
-                VnosVklopPravila.skrijOkvirVSpletnem(jeVSpletnem(vz), zberiInteraktivneZOznako(aktivniKoren).any { !it.second })) {
+            // CodeRabbit 5. 11. 2026: drago zbiranje drevesa (do 1500 vozlisc na glavni niti ob vsaki tipki) samo, ko je fokus res
+            // v WebViewu - za domac fokus izid ne more biti »skrij«.
+            if (vz != null && aktivniKoren != null && korenPaket == neprilagojena && miska?.paket == null && jeVSpletnem(vz) &&
+                VnosVklopPravila.skrijOkvirVSpletnem(true, zberiInteraktivneZOznako(aktivniKoren).any { !it.second })) {
                 skrijFokusOverlay()
                 return
             }

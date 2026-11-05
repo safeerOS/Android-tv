@@ -1788,7 +1788,12 @@
 
             var sledimFokusu = false;
             document.addEventListener('focusin', function (ev) {
-                if (!samodejnoDovoljeno('fokus strani') && plastIzbire(ev.target, window.getComputedStyle) !== ev.target) return;
+                if (!samodejnoDovoljeno('fokus strani') && plastIzbire(ev.target, window.getComputedStyle) !== ev.target) {
+                    // CodeRabbit 5. 11. 2026: ce stran sama da fokus polju za vnos, stara kartica ne sme ostati izbrana (smerne
+                    // tipke bi zacele pri njej) - izbiro samo pocistimo, nove kartice pa samodejno ne izberemo.
+                    if (jeVnosnoPolje(ev.target)) { try { clearActive(); } catch (_) {} }
+                    return;
+                }
                 // Nas lastni fokus (highlightElement -> uskladiFokus) med odzivom ne sme sproziti novega odziva.
                 if (sledimFokusu) return;
                 sledimFokusu = true;

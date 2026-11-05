@@ -51,7 +51,7 @@ for jez in ("", "-sl", "-en", "-de", "-es", "-fr", "-it"):
     preveri("Scit: vprasanje o spustu v values%s" % jez, all('name="%s"' % k in s for k in ("scit_z_spusti_vprasanje", "scit_z_spusti_da", "scit_z_spusti_ne")))
 
 vn = beri("src/main/kotlin/si/safeer/tv/link/VnosStoritev.kt")
-preveri("Vnos: okvir v WebViewu skrit, ce so domaci elementi", "VnosVklopPravila.skrijOkvirVSpletnem(jeVSpletnem(vz)" in vn)
+preveri("Vnos: okvir v WebViewu skrit, ce so domaci elementi", "jeVSpletnem(vz) &&" in vn and "VnosVklopPravila.skrijOkvirVSpletnem(true," in vn)
 preveri("Vnos: okvir po umiritvi mej", "VnosVklopPravila.okvirPoMeritvi(" in vn and "narisanOkvir = zdajOkvir" in vn)
 
 # Lastnik 4. 11. 2026 23:35: vsaka priprava (zacniPripravo) se mora na svoji poti tudi koncati (koncajPripravo z istim
@@ -87,6 +87,11 @@ preveri("Dom: sirina gumbov ostane, izrecna pot LEVO/DESNO", "sirinaGumbaDoka" n
 preveri("Dom: fokus na lupi ne odpre iskalnega nacina", "LupaPravila.odpriPlosco(LupaPravila.DogodekLupe.FOKUS)" in pk and "LupaPravila.odpriPlosco(LupaPravila.DogodekLupe.OK)" in pk)
 
 preveri("Dom: okno Dodaj brez »Razdelek Safeer OS«", "pk_dodaj_razdelek" not in pk and "fun dodajRazdelek" not in pk)
+
+preveri("Vnos: zbiranje drevesa samo za fokus v WebViewu (CodeRabbit 5. 11.)", "miska?.paket == null && jeVSpletnem(vz) &&" in vn and "skrijOkvirVSpletnem(true," in vn)
+_ts = beri("assets/tv_spatial.js")
+_fi = _ts[_ts.find("if (!samodejnoDovoljeno('fokus strani')"):]
+preveri("Splet TV: fokus strani v polju vnosa pocisti staro izbiro (CodeRabbit 5. 11.)", "jeVnosnoPolje(ev.target)) { try { clearActive(); }" in _fi[:600])
 
 if napake:
     print("NAPAKA zunanji pregled TV:", len(napake)); sys.exit(1)

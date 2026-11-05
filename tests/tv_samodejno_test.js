@@ -18,7 +18,7 @@ preveri('z izbiro, kratko po tipki: sme (stran premakne fokus po OK)', true, sme
 preveri('z izbiro, brez tipke: ne zamenja', false, smeSamodejno(true, 8000));
 preveri('z izbiro, nikoli tipke (zacetek): ne zamenja', false, smeSamodejno(true, Date.now()));
 const fokus = VIR.slice(VIR.indexOf("document.addEventListener('focusin'"));
-preveri('fokus strani gre skozi vrata (izjema: vsebnik okna)', true, /if \(!samodejnoDovoljeno\('fokus strani'\) && plastIzbire\(ev\.target, window\.getComputedStyle\) !== ev\.target\) return;/.test(fokus) && fokus.indexOf("samodejnoDovoljeno('fokus strani')") < fokus.indexOf('naFokusStrani('));
+preveri('fokus strani gre skozi vrata (izjema: vsebnik okna)', true, /if \(!samodejnoDovoljeno\('fokus strani'\) && plastIzbire\(ev\.target, window\.getComputedStyle\) !== ev\.target\) \{[\s\S]{0,600}?return;\s*\}/.test(fokus) && fokus.indexOf("samodejnoDovoljeno('fokus strani')") < fokus.indexOf('naFokusStrani('));
 preveri('vstop v okno ostane omejen na enkrat na naslov', true, /if \(vstopNaNaslovu === \(location\.href \|\| ''\)\) return false;/.test(VIR));
 preveri('tipka (smer) zabelezi cas', true, /_safeer_navigate_spatial = function\(direction, robVrstice\) \{\s*zadnjaTipkaMs = Date\.now\(\);/.test(VIR));
 preveri('tipka (OK) zabelezi cas', true, /_safeer_click_focused_card = function\(\) \{\s*zadnjaTipkaMs = Date\.now\(\);/.test(VIR));
