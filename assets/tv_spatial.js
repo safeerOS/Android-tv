@@ -18,6 +18,29 @@
             }
             /* SAFEER_ZETON_DOTIKA_KONEC */
 
+            /* SAFEER_SAMODEJNO_ZACETEK */
+            // Lastnik 5. 11. 2026 04:52 (video, f-droid.org): stran se je sama pomikala in izbira je skakala med povezavami,
+            // daljinec pa je v 80 s poslal 2 tipki. Izbrani element se brez uporabnikove tipke ne zamenja: fokus, ki ga premakne
+            // stran, izbiro zamenja samo, ce je se ni, ali kratko po tipki (izjema: fokus na vsebniku odprtega okna - vstop v
+            // okno, vedno isti cilj). Vstop v novo okno (pasica piskotkov) ostane - najvec
+            // enkrat na naslov strani (vstopNaNaslovu), zato ne more skakati.
+            var SAMODEJNO_PO_TIPKI_MS = 3000;
+            function smeSamodejno(imaIzbiro, odTipkeMs) {
+                return !imaIzbiro || (odTipkeMs >= 0 && odTipkeMs < SAMODEJNO_PO_TIPKI_MS);
+            }
+            /* SAFEER_SAMODEJNO_KONEC */
+            var zadnjaTipkaMs = 0;
+            function samodejnoDovoljeno(vir) {
+                var ima = !!document.querySelector('.safeer-active-card');
+                var od = Date.now() - zadnjaTipkaMs;
+                if (smeSamodejno(ima, od)) return true;
+                try {
+                    window._safeerDbgSamN = (window._safeerDbgSamN || 0) + 1;
+                    if (window._safeerDbgSamN <= 20) window._safeerDbg('H53', 'tv_spatial.js:samodejno', 'brez tipke prezrto', { vir: vir, od: od });
+                } catch (_) {}
+                return false;
+            }
+
             // #region agent log
             window._safeerDbg = function(h, loc, msg, podatki) {
                 try {
@@ -1765,6 +1788,7 @@
 
             var sledimFokusu = false;
             document.addEventListener('focusin', function (ev) {
+                if (!samodejnoDovoljeno('fokus strani') && plastIzbire(ev.target, window.getComputedStyle) !== ev.target) return;
                 // Nas lastni fokus (highlightElement -> uskladiFokus) med odzivom ne sme sproziti novega odziva.
                 if (sledimFokusu) return;
                 sledimFokusu = true;
@@ -1926,7 +1950,7 @@
                 // #region agent log
                 try {
                     window._safeerDbgHlN = (window._safeerDbgHlN || 0) + 1;
-                    if (window._safeerDbgHlN <= 8) {
+                    if (window._safeerDbgHlN <= 30) {
                         window._safeerDbg('H50', 'tv_remote_nav.js:hl', 'highlight', {
                             tag: tag,
                             cls: ((el.className || '') + '').toString().slice(0, 70),
@@ -2196,6 +2220,7 @@
             /* SAFEER_LEVI_ROB_KONEC */
 
             window._safeer_navigate_spatial = function(direction, robVrstice) {
+                zadnjaTipkaMs = Date.now();
                 try {
                     var scrollY = window.scrollY || document.documentElement.scrollTop || 0;
                     var winH = window.innerHeight || 1080;
@@ -2708,6 +2733,7 @@
             /* SAFEER_OK_DATOTEKA_KONEC */
 
             window._safeer_click_focused_card = function() {
+                zadnjaTipkaMs = Date.now();
                 try {
                     var path = (location.pathname || '').toLowerCase();
                     var onEvent = path.indexOf('/events/') !== -1 || path.indexOf('/event/') !== -1;
