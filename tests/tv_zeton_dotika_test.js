@@ -91,7 +91,7 @@ preveri('UserScriptManager vstavi zeton pogleda v tv_spatial.js ob vsakem vbrizg
 // Zunanji pregled 3. 11. 2026: stran je pred nasim skriptom zamenjala SafeerBridge; zeton je bil en na proces.
 preveri('skript ne bere window.SafeerBridge znova pozneje', false, /if \(!mostDotika\) mostDotika/.test(VIR));
 preveri('most zaklenjen ob zacetku dokumenta', true,
-    /ZAKLEP_MOSTU_JS[\s\S]{0,400}configurable:false/.test(most) && /addDocumentStartJavaScript\(this, ZAKLEP_MOSTU_JS/.test(most));
+    /ZAKLEP_MOSTU_JS[\s\S]{0,400}configurable:false/.test(most) && /(addDocumentStartJavaScript\(this, |dodajSkriptZacetka\()ZAKLEP_MOSTU_JS/.test(most));   // peti slepi pregled (N5): prek dodajSkriptZacetka
 preveri('nov zeton ob vsaki strani', true, /onPageStarted[\s\S]{0,300}zetonDotika = SpletVarnostPravila\.novZeton\(\)/.test(most));
 preveri('ni vec enega zetona na proces', false, /val ZETON_DOTIKA: String/.test(most));
 // Zaklep v pravem pomenu: stran po zaklepu mostu ne more zamenjati.

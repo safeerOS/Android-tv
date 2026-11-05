@@ -2633,8 +2633,8 @@
             }
 
             /* SAFEER_TV_PONUDNIK_ZACETEK */
-            // Pregled Groka 5. 11. 2026 (najdba 11): skok GOR na »Glej zdaj« ali na meni glave je hevristika za Xplore TV in
-            // RTV 365; na drugih straneh (novice) je GOR preskocil vrstice vmes. Samo na teh gostiteljih.
+            // Pregled Groka 5. 11. 2026 (najdba 11): skok GOR na »Glej zdaj« ali na meni glave je hevristika za dva ponudnika
+            // TV v zivo (gostitelja v seznamu spodaj); na drugih straneh (novice) je GOR preskocil vrstice vmes. Samo na teh gostiteljih.
             function jeGostiteljTvPonudnika(host) {
                 host = (host || '').toLowerCase();
                 var gs = ['xploretv.si', 'rtvslo.si'];

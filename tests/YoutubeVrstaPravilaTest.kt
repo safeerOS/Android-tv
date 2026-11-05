@@ -27,12 +27,20 @@ fun main() {
     // Cetrti slepi pregled 5. 11. 2026 (N-E): predvajalnik v okvirju drugega izvora (CDN) igra, a ne javi polozaja.
     val zdaj = 1_000_000L
     preveriEnako("N-E: okvir drugega izvora igra (pred 1 s): ni zastoja", false,
-        P.zastoj(60_000L, 0L, pripravljeno = false, zelja = true, nepreverjenoIgra = P.nepreverjenoIgra(zdaj - 1_000L, zdaj)))
+        P.zastoj(40_000L, 0L, pripravljeno = false, zelja = true, nepreverjenoIgra = P.nepreverjenoIgra(zdaj - 1_000L, zdaj)))
     preveriEnako("N-E: znak okvirja zastarel (3 s): pravi zastoj", true,
         P.zastoj(60_000L, 0L, pripravljeno = false, zelja = true, nepreverjenoIgra = P.nepreverjenoIgra(zdaj - 3_000L, zdaj)))
     preveriEnako("N-E: nic ne igra (znaka ni bilo): pravi zastoj", true,
         P.zastoj(60_000L, 0L, pripravljeno = false, zelja = true, nepreverjenoIgra = P.nepreverjenoIgra(0L, zdaj)))
     preveriEnako("N-E: znak iz prihodnosti (ura) ne velja", false, P.nepreverjenoIgra(zdaj + 10L, zdaj))
+    // Peti slepi pregled 5. 11. 2026 (N4): oglas v okvirju igra 2 min (znak vsako sekundo), skladba ne zacne - po meji zastoj.
+    val prviZastoj = (0L..120_000L step 1_000L).firstOrNull {
+        P.zastoj(it, 0L, pripravljeno = false, zelja = true, nepreverjenoIgra = P.nepreverjenoIgra(zdaj - 500L, zdaj))
+    }
+    preveriEnako("N4: oglas igra 2 min: zastoj ob ROK_ZASTOJA_MS + NEPREVERJENO_PODALJSEK_MS (45 s), ne nikoli",
+        YoutubeVrstaPravila.ROK_ZASTOJA_MS + YoutubeVrstaPravila.NEPREVERJENO_PODALJSEK_MS, prviZastoj)
+    preveriEnako("N4: znak pred mejo (30 s) se preklice zastoj", false,
+        P.zastoj(30_000L, 0L, pripravljeno = false, zelja = true, nepreverjenoIgra = true))
     // Pravi zastoj se vedno preskoci z mejo (brez zanke): najvec NAJVEC_ZAPOREDNIH_ZASTOJEV zapored.
     preveriEnako("N-E: pravi zastoji: naprej 3-krat, nato obstane", listOf(true, true, true, false),
         (0..3).map { P.naprejPoZastoju(it, imaNaslednjo = true) })

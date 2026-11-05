@@ -29,8 +29,23 @@ fun main() {
     for (u in uporabniska) check(!G.jeGoogleVir(u)) { "uporabniska vsebina gre skozi filter oglasov: $u" }
     // Viri prijave in reCAPTCHA brez uporabniske vsebine: filter oglasov jih spusti (kot prej).
     for (u in listOf("https://www.gstatic.com/recaptcha/x.js", "https://ssl.gstatic.com/x.png", "https://fonts.googleapis.com/css",
-            "https://www.googleapis.com/x", "https://apis.google.com/js/api.js", "https://www.recaptcha.net/recaptcha/api.js")) {
+            "https://apis.google.com/js/api.js", "https://www.recaptcha.net/recaptcha/api.js")) {
         check(G.jeGoogleVir(u) && !G.jeGoogle(u)) { "Googlov vir (ne nacin): $u" }
+    }
+    // Peti slepi pregled 5. 11. 2026 (N2): Google Cloud Storage prek www.googleapis.com (vsebina kogarkoli) gre skozi filter.
+    for (u in listOf("https://www.googleapis.com/download/storage/v1/b/vedro/o/napad.js?alt=media",
+            "https://www.googleapis.com/storage/v1/b/vedro/o/x", "https://www.googleapis.com/upload/storage/v1/b/v/o",
+            "https://WWW.googleapis.com./download/x")) {
+        check(!G.jeGoogleVir(u) && !G.jeGoogle(u)) { "GCS prek www.googleapis.com ni Googlov vir: $u" }
+    }
+    // N3: samo Googlove domene s supported_domains (prej vsaka dvocrkovna pripona ter co.xx in com.xx).
+    for (u in listOf("https://www.google.zz/", "https://accounts.google.zz/", "https://google.co.xx/", "https://www.google.com.xx/",
+            "https://accounts.google.co.qq/", "https://www.google.xy/search?q=a")) {
+        check(!G.jeGoogle(u) && !G.jeGoogleVir(u) && !G.googleIdentiteta(u) && !G.jePrijava(u)) { "ni Googlova domena: $u" }
+    }
+    for (u in listOf("https://www.google.cat/", "https://www.google.co.za/", "https://www.google.com.tw/", "https://google.rs/",
+            "https://accounts.google.co.jp/")) {
+        check(G.jeGoogle(u)) { "Googlova domena s seznama: $u" }
     }
     // Identiteta (samo User-Agent) ostane siroka: menjava med navigacijo sesuje WebView 153 (TV 1. 11. 2026).
     for (u in listOf("https://mail.google.com/mail/u/0/", "https://workspace.google.com/", "https://storage.googleapis.com/x",

@@ -311,7 +311,8 @@ primer('aplikacija', () => {
     const vm = require('vm');
     const beri = (f) => fs.readFileSync(path.join(KOREN, f), 'utf8');
     const cev = beri('src/main/kotlin/si/safeer/tv/ChromiumEngineView.kt');
-    const iIzv = cev.indexOf('addDocumentStartJavaScript(this, izvirnikiJs(nonceIzvirnikov), setOf("*"))'), iGpc = cev.indexOf('UserScriptManager.GPC_AND_DNT_JS,');
+    // Peti slepi pregled (N5): prva registracija izvirnikov (registrirajIzvirnike) je pred drugimi skripti zacetka dokumenta.
+    const iIzv = cev.indexOf('if (registrirajIzvirnike()) {'), iGpc = cev.indexOf('UserScriptManager.GPC_AND_DNT_JS,');
     preveri('aplikacija: IZVIRNIKI_JS registriran pred drugimi skripti zacetka dokumenta', true, iIzv > 0 && iIzv < iGpc);
     const m = cev.match(/IZVIRNIKI_JS = """([\s\S]*?)"""/);
     preveri('aplikacija: IZVIRNIKI_JS obstaja', true, !!m);

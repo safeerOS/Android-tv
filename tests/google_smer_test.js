@@ -329,19 +329,36 @@ function googlovaStran() {
     preveri('N-A: lazni getBoundingClientRect strani: dotik na dejanski sredini polja', 'dotik:950,328', s.ok());
     preveri('N-A: brez izvirnikov ni pravega dotika (samo Enter)', 'enter', s.ok(false));
 }
+// Peti slepi pregled 5. 11. 2026 (N1): gostitelj ZAPRTE sence (shadowRoot null) s tujim okvirjem v senci ima fokus - prej
+// 'enter' (pravi Enter je sel v okvir v senci). Prazen fokus in izjema v skriptu: 'nic' (prej Enter v Kotlinu).
+{
+    const s = stran();
+    const gost = s.el('DIV', ['[tabindex]:not([tabindex="-1"])'], [400, 400, 300, 80], null, '', { shadowRoot: null });
+    gost.focus();
+    preveri('N1: gostitelj zaprte sence v fokusu: kazalec (ne pravi Enter)', 'kazalec', s.ok());
+    const sp = s.el('SPAN', [], [400, 600, 300, 80], null, '', { shadowRoot: null });
+    sp.focus();
+    preveri('N1: SPAN (gostitelj sence) v fokusu: kazalec', 'kazalec', s.ok());
+    s.doc.activeElement = s.doc.body;
+    preveri('N1: brez fokusa: nic (prej Enter)', 'nic', s.ok());
+    const polje = s.el('INPUT', ['input'], [700, 300, 500, 56], null, '');
+    polje.focus();
+    polje.matches = () => { throw new Error('stran'); };
+    preveri('N1: izjema v skriptu (stran prepise matches): nic, ne Enter', 'nic', s.ok());
+}
 // Gostitelj sence (DIV, SPAN, element po meri) na tocki: pravi dotik bi lahko sel v okvir v zaprti senci - samo Enter/Presledek.
 {
     const s = stran();
     const gumb = s.el('DIV', ['[role="button"]'], [300, 300, 200, 60], null, 'Gumb');
     gumb.focus();
-    preveri('N-A: zadetek je DIV (lahko gostitelj sence): Enter, ne dotik', 'enter', s.ok());
+    preveri('N-A/N1: fokus na DIV (lahko gostitelj sence): kazalec, ne Enter ne dotik', 'kazalec', s.ok());
     const cb = s.el('DIV', ['[role="checkbox"]'], [300, 400, 30, 30], null, '');
     cb.focus();
-    preveri('N-A: potrditveno polje kot DIV: Presledek, ne dotik', 'space', s.ok());
+    preveri('N-A/N1: potrditveno polje kot DIV: kazalec (Presledek bi sel v senco)', 'kazalec', s.ok());
     const ovoj = s.el('DIV', ['[role="button"]'], [300, 500, 200, 60], null, '');
     s.el('SAFEER-X', [], [300, 500, 200, 60], ovoj, '');
     ovoj.focus();
-    preveri('N-A: element po meri na tocki: Enter, ne dotik', 'enter', s.ok());
+    preveri('N-A/N1: element po meri na tocki: kazalec, ne dotik', 'kazalec', s.ok());
 }
 
 // Kotlin mora 'tuje' predati strani in na 'okno' ne narediti nicesar (ne naslovne vrstice, ne stranske vrstice).

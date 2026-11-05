@@ -271,9 +271,13 @@ function ustvari(nastavitve) {
         preveriCilj(izziv) { tipka(); const f = izvoz('_safeer_preveri_cilj'); return typeof f === 'function' ? f(izziv) : undefined; },
         odtisZetona: (niz) => (odtis ? odtis(zeton, niz) : ''),
         // Novo nalaganje istega skripta v isti dokument (onPageStarted brez novega dokumenta): nov nonce, nov zeton.
-        naloziZNonce(vir, novNonce, novZeton, prejNonce) {
+        // Peti slepi pregled (N5): novIz = ime izvirnikov, ki ga aplikacija zdaj pricakuje (novo ob vsaki strani), izPrej = ime
+        // prejsnjega dokumenta (ziva kopija v istem dokumentu).
+        naloziZNonce(vir, novNonce, novZeton, prejNonce, novIz, izPrej) {
+            hmacSkript = vir.indexOf('SAFEER_HMAC_ZACETEK') !== -1;
             vm.runInContext(vir.split('__SAFEER_ZETON_DOTIKA__').join(novZeton).split('__SAFEER_IZVIRNIKI__').join(n.izvirniki === false ? 'ne' : 'da')
-                .split('__SAFEER_NONCE_IZVIRNIKOV__').join(nonceIzvirnikov).split('__SAFEER_NONCE__').join(novNonce)
+                .split('__SAFEER_NONCE_IZ_PREJ__').join(izPrej || '')
+                .split('__SAFEER_NONCE_IZVIRNIKOV__').join(novIz || nonceIzvirnikov).split('__SAFEER_NONCE__').join(novNonce)
                 .split('__SAFEER_PREJ_NONCE__').join(prejNonce || ''), ctx);
         },
         vstopi() { return win.__preizkus.vstopi ? win.__preizkus.vstopi() : win._safeer_vstopi_v_plast(); },
