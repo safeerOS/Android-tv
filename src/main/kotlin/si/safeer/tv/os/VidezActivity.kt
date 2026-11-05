@@ -52,6 +52,8 @@ class VidezActivity : OsActivity() {
         drsnik = findViewById(R.id.drsnik)
         odstotek = findViewById(R.id.odstotek)
         narisiTeme(findViewById(R.id.teme))
+        // Pregled 5. 11. 2026: sistemski selektor seznama ni bil v barvah teme - izbor je okvir Safeer (en sam).
+        seznam.selector = resources.getDrawable(R.drawable.os_izbor_vrstice, theme)
         seznam.adapter = prilagojevalnik
         seznam.setOnItemClickListener { _, _, i, _ -> izberi(i) }
         seznam.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
@@ -162,7 +164,11 @@ class VidezActivity : OsActivity() {
                     addState(intArrayOf(android.R.attr.state_pressed), okvir(true))
                     addState(intArrayOf(), okvir(false))
                 }
-                setOnFocusChangeListener { v, f -> v.animate().scaleX(if (f) 1.06f else 1f).scaleY(if (f) 1.06f else 1f).setDuration(120).start() }
+                // Zmanjsano gibanje (pregled 5. 11. 2026): brez povecave, fokus pokaze obroba.
+                setOnFocusChangeListener { v, f ->
+                    val cilj = if (f && !zmanjsano()) 1.06f else 1f
+                    if (zmanjsano()) { v.scaleX = cilj; v.scaleY = cilj } else v.animate().scaleX(cilj).scaleY(cilj).setDuration(120).start()
+                }
                 addView(android.widget.LinearLayout(this@VidezActivity).apply {
                     orientation = android.widget.LinearLayout.HORIZONTAL
                     for (attr in listOf(R.attr.osOzadje, R.attr.osKarticaDvignjena, R.attr.osMint, R.attr.osBesedilo))
@@ -178,6 +184,11 @@ class VidezActivity : OsActivity() {
             vrsta.addView(kartica, android.widget.LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(10) })
         }
     }
+
+    /** Zmanjsano gibanje: Android brez animacij ali izbira v Nastavitvah (isto kot PokrajinaActivity.zmanjsano). */
+    private fun zmanjsano(): Boolean =
+        osShramba().getBoolean(PokrajinaActivity.KLJUC_ZMANJSANO, false) ||
+            android.provider.Settings.Global.getFloat(contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) <= 0f
 
     /** Predogled: ozadje zaslona se zamenja, izbira se se ne shrani. */
     private fun pokazi(izbira: Ozadje.Izbira) {
@@ -237,13 +248,20 @@ class VidezActivity : OsActivity() {
         val streznik = DatotekeActivity.Streznik.iz(podatki.extras)
         Toast.makeText(this, getString(R.string.os_ozadje_shranjujem), Toast.LENGTH_SHORT).show()
         ozadjeNit.execute {
+            // Pregled 5. 11. 2026: najvec NastavitvePravila.MEJA_SLIKE_OZADJA bajtov, steto sproti (prej readBytes/bytes
+            // brez meje - velika ali neskoncna datoteka je napolnila pomnilnik TV). Dekodiranje z inSampleSize je v Ozadje.
+            val meja = NastavitvePravila.MEJA_SLIKE_OZADJA
             val bajti: ByteArray? = try {
-                if (lokalno) contentResolver.openInputStream(Uri.parse(url))?.use { it.readBytes() }
+                if (lokalno) contentResolver.openInputStream(Uri.parse(url))?.use { NastavitvePravila.beriZMejo(it, meja) }
                 else {
                     val s = streznik ?: return@execute
                     val k = PripetiVir.odjemalecZaNapravo(s.odtis, this, s.naprava)
                     k.newCall(Request.Builder().url(url).header("X-Safeer-Token", s.zeton).build())
-                        .execute().use { o -> if (o.isSuccessful) o.body?.bytes() else null }
+                        .execute().use { o ->
+                            val telo = o.body
+                            if (!o.isSuccessful || telo == null || telo.contentLength() > meja) null
+                            else telo.byteStream().use { NastavitvePravila.beriZMejo(it, meja) }
+                        }
                 }
             } catch (_: Throwable) { null }
             val uspeh = bajti != null && Ozadje.shraniLastno(this, bajti)

@@ -335,14 +335,20 @@ class ScitStoritev : VpnService() {
      * Poizvedbe, na katere ni odgovora: po [PONOVITEV_MS] jih ponovimo pri naslednjem strezniku,
      * po [POTEK_MS] pa jih opustimo. Brez tega je dovolj, da prvi razreševalec utihne, in splet
      * na televizorju obstoji, ceprav je drugi strežnik dosegljiv.
+     * Pregled 5. 11. 2026: ko so vsi vprasani in molcijo ([ScitStanjePravila.neodgovorjena]), aplikacija dobi SERVFAIL
+     * (prej tiho opusceno - aplikacija je cakala 5 s na svoj rok). Odstranitev iz [cakajoce] je atomarna (remove(id, c)):
+     * pravi odgovor, ki je prisel prej, je poizvedbo ze vzel in SERVFAIL se ne poslje.
      */
     private fun ponoviNeodgovorjene() {
         if (cakajoce.isEmpty()) return
         val zdaj = System.currentTimeMillis()
         for ((id, c) in cakajoce) {
-            if (zdaj - c.cas > POTEK_MS) { cakajoce.remove(id, c); continue }
-            if (zdaj - c.zadnji >= PONOVITEV_MS && c.naslednji < c.strezniki.size) {
-                if (posljiNaslednjemu(id)) Log.i(TAG, "DNS brez odgovora, poskus pri naslednjem strezniku")
+            when (ScitStanjePravila.neodgovorjena(zdaj, c.cas, c.zadnji, c.naslednji, c.strezniki.size, PONOVITEV_MS, POTEK_MS)) {
+                ScitStanjePravila.Neodgovorjena.SERVFAIL ->
+                    if (cakajoce.remove(id, c)) zapisi(DnsPaket.zavijOdgovor(c.q, DnsPaket.odgovorNapakaZa(c.q.dns)))
+                ScitStanjePravila.Neodgovorjena.PONOVI ->
+                    if (posljiNaslednjemu(id)) Log.i(TAG, "DNS brez odgovora, poskus pri naslednjem strezniku")
+                ScitStanjePravila.Neodgovorjena.CAKAJ -> Unit
             }
         }
     }

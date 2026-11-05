@@ -204,38 +204,27 @@ class DovoljenjaActivity : OsActivity() {
             Dejanje.STRAN_OBVESTILA -> odpri(v, Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, packageName))
             Dejanje.STRAN_CELOZASLONSKA -> odpri(v, if (Build.VERSION.SDK_INT >= 34)
                 Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.parse("package:$packageName")) else podatkiOAplikaciji())
-            Dejanje.STRAN_DOSTOPNOST -> {
-                if (si.safeer.tv.link.VnosVklop.smePisati(this)) {
-                    val cr = contentResolver
-                    val nasa = komponentaVnosa(this).flattenToString()
-                    val prej = Settings.Secure.getString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
-                    if (s != Stanje.DA) {
-                        try {
-                            Settings.Secure.putString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, si.safeer.tv.link.VnosVklopPravila.dodaj(prej, nasa))
-                            Settings.Secure.putInt(cr, Settings.Secure.ACCESSIBILITY_ENABLED, 1)
-                            Toast.makeText(this, R.string.dov_da, Toast.LENGTH_SHORT).show()
-                        } catch (e: Throwable) {
-                            android.util.Log.w("SafeerOs", "Napaka pri vklopu vnosa: ${e.message}")
-                        }
-                    } else {
-                        try {
-                            Settings.Secure.putString(cr, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, si.safeer.tv.link.VnosVklopPravila.odstrani(prej, nasa))
-                        } catch (e: Throwable) {
-                            android.util.Log.w("SafeerOs", "Napaka pri izklopu vnosa: ${e.message}")
-                        }
-                    }
-                    narisi()
-                    return
+            // Pregled 5. 11. 2026: napis = dejanje. Dovoljen Vnos (»Odpri nastavitve«) samo odpre stran; vklop gre samo prek
+            // VnosVklop.vklopi (ena nit, ozji krog), nikoli neposredno pisanje v Settings.Secure iz tega zaslona.
+            Dejanje.STRAN_DOSTOPNOST -> when (DovoljenjaPravila.dejanjeVnosa(s, si.safeer.tv.link.VnosVklop.smePisati(this))) {
+                DovoljenjaPravila.DejanjeVnosa.VKLOPI_PREK_VNOSVKLOP -> si.safeer.tv.link.VnosVklop.vklopi(this) { izid ->
+                    if (isFinishing || isDestroyed) return@vklopi
+                    if (izid.aktivna) { Toast.makeText(this, R.string.dov_da, Toast.LENGTH_SHORT).show(); narisi() }
+                    else odpriStranVnosa(v)   // krog Vnosa ne zahteva ali se ni vezal: uporabnik odloci na sistemski strani
                 }
-                // Kot Safeer Link (input.enable): nastavitve dostopnosti z oznacenim Safeer Vnosom, kjer sistem to zna.
-                val komponenta = komponentaVnosa(this).flattenToString()
-                odpri(v, Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                    .putExtra(":settings:fragment_args_key", komponenta)
-                    .putExtra(":settings:show_fragment_args", Bundle().apply { putString(":settings:fragment_args_key", komponenta) }))
+                DovoljenjaPravila.DejanjeVnosa.ODPRI_STRAN -> odpriStranVnosa(v)
             }
             Dejanje.STRAN_NAMESCANJE -> odpri(v, Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))
             Dejanje.STRAN_APLIKACIJA -> odpri(v, podatkiOAplikaciji())
         }
+    }
+
+    /** Kot Safeer Link (input.enable): nastavitve dostopnosti z oznacenim Safeer Vnosom, kjer sistem to zna. */
+    private fun odpriStranVnosa(v: Vrsta) {
+        val komponenta = komponentaVnosa(this).flattenToString()
+        odpri(v, Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+            .putExtra(":settings:fragment_args_key", komponenta)
+            .putExtra(":settings:show_fragment_args", Bundle().apply { putString(":settings:fragment_args_key", komponenta) }))
     }
 
     private fun podatkiOAplikaciji() = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))

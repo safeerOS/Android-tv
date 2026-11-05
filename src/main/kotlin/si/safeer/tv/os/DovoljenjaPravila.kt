@@ -99,6 +99,17 @@ object DovoljenjaPravila {
         Vrsta.SLIKE_VIDEI, Vrsta.GLASBA -> if (stanje != Stanje.DA && sistemVprasa) Dejanje.VPRASAJ else Dejanje.STRAN_APLIKACIJA
     }
 
+    enum class DejanjeVnosa { ODPRI_STRAN, VKLOPI_PREK_VNOSVKLOP }
+
+    /**
+     * OK na vrstici Safeer Vnos (pregled 5. 11. 2026): dovoljen Vnos ima gumb »Odpri nastavitve« in OK odpre samo sistemsko
+     * stran - prej je z WRITE_SECURE_SETTINGS brez vprasanja izklopil Vnos (in drugic vklopil, mimo VnosVklop.vrsta).
+     * Nedovoljen (»Dovoli«): z WRITE_SECURE_SETTINGS vklop prek VnosVklop.vklopi (ozji krog, ena nit), sicer stran.
+     * Izklopa iz te strani ni: Vnos izklopi uporabnik na sistemski strani.
+     */
+    fun dejanjeVnosa(stanje: Stanje, smePisati: Boolean): DejanjeVnosa =
+        if (stanje != Stanje.DA && smePisati) DejanjeVnosa.VKLOPI_PREK_VNOSVKLOP else DejanjeVnosa.ODPRI_STRAN
+
     /**
      * Android 13+ »omejene nastavitve«: za aplikacijo, namesceno mimo trgovine, je stikalo sivo, dokler uporabnik v
      * Podatkih o aplikaciji (⋮) ne izbere »Dovoli omejene nastavitve«. Velja za dostopnost od Androida 13, za prikaz cez

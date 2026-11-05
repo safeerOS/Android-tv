@@ -27,7 +27,8 @@ import si.safeer.tv.os.OsActivity
  *
  * Prvic Android zahteva potrditev v sistemskem oknu (VPN); brez dodatka [EXTRA_POKAZI] zaslon to okno odpre sam (stari
  * klicatelji: meni brskalnika, Safeer OS). Dodatek [EXTRA_IZKLOPI] = izklop brez zaslona. Seznam zadnjih imen pise proces
- * Scita v zasebno datoteko (scit/zadnja.txt); zaslon jo bere vsaki 2 s, dokler je viden.
+ * Scita v zasebno datoteko (scit/zadnja.txt); zaslon jo bere vsaki 2 s, dokler je viden - na delovni niti (pregled 5. 11.
+ * 2026: prej mmap grozne.bin, branje datotek in poizvedbe omrezij na glavni niti), zasebni DNS samo ob onResume.
  */
 class ScitActivity : OsActivity() {
 
@@ -39,6 +40,12 @@ class ScitActivity : OsActivity() {
     private val osvezevanje = object : Runnable {
         override fun run() { narisi(false); glavna.postDelayed(this, 2_000) }
     }
+    /** Branje stanja (datoteke, nabor grozenj, omrezja) - ena delovna nit, da se branja ne prehitevajo. */
+    private val delavec = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "safeer-scit-zaslon").apply { isDaemon = true } }
+    /** Nabor grozenj, odprt enkrat; znova samo, ko se grozne.bin spremeni (lastModified). Samo na [delavec]. */
+    private var grozneNabor: DomenskiNabor.Poizvedba? = null
+    /** Zasebni DNS obide Scit - prebrano ob onResume (nastavitev se spremeni samo v sistemskih nastavitvah). */
+    @Volatile private var zasebniDns = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -64,7 +71,20 @@ class ScitActivity : OsActivity() {
         if (!::vsebina.isInitialized) return
         zadnjiOdtis = ""
         glavna.removeCallbacks(osvezevanje)
+        // Zasebni DNS najprej (vrnitev iz sistemskih nastavitev omrezja), nato prvo branje; obe na isti delovni niti.
+        vOzadju { zasebniDns = zasebniDnsObide() }
         glavna.post(osvezevanje)
+    }
+
+    override fun onDestroy() {
+        glavna.removeCallbacks(osvezevanje)
+        delavec.shutdownNow()
+        super.onDestroy()
+    }
+
+    private fun vOzadju(delo: () -> Unit) {
+        try { delavec.execute { try { delo() } catch (e: Throwable) { Log.w(TAG, "Zaslon: ${e.javaClass.simpleName}") } } }
+        catch (_: java.util.concurrent.RejectedExecutionException) { }
     }
 
     override fun onPause() {
@@ -98,6 +118,17 @@ class ScitActivity : OsActivity() {
         narisi(true, fokus = OZNAKA_PREKLOP)
     }
 
+    /**
+     * Prekinjen (drug VPN je prevzel tunel, zastavica je ostala): ponovni vklop z isto potjo kot prvi - ce ima tunel drug
+     * VPN, Android znova pokaze sistemsko okno (startActivityForResult, onActivityResult), sicer storitev zazenemo takoj.
+     */
+    private fun vklopiZnova() {
+        napaka = null
+        vklopi()
+        zadnjiOdtis = ""
+        narisi(true, fokus = OZNAKA_PREKLOP)
+    }
+
     /** Okno »Izklopim Safeer Scit?«: privzeto Preklici, izklop samo z izrecno izbiro. */
     private fun potrdiIzklop() {
         val okno = android.app.AlertDialog.Builder(this, R.style.Os_Okno)
@@ -126,14 +157,16 @@ class ScitActivity : OsActivity() {
             zadnja.joinToString { it.ime + it.ura }, uporabniske, webtor).joinToString("|")
     }
 
+    /** Samo na [delavec]. */
     private fun preberi(): Pogled {
         val s = Scit.statistika(this)
         val vklopljen = Scit.jeVklopljen(this)
         val zadnja = if (vklopljen) Scit.zadnja(this) else emptyList()
-        val g = try { DomenskiNabor.Poizvedba.odpri(Scit.grozneDatoteka(this)) } catch (_: Throwable) { null }
+        val g = try { DomenskiNabor.Poizvedba.odpriCeSpremenjeno(Scit.grozneDatoteka(this), grozneNabor) } catch (_: Throwable) { null }
+        grozneNabor = g
         val groznje = zadnja.filter { g?.jeBlokirana(it.ime) == true }.map { it.ime }.toSet()
         return Pogled(vklopljen, s.stanje, if (s.dan == danes()) s.blokiranih else 0L, s.domen, s.brezKrajevnegaDns,
-            zasebniDnsObide(), zadnja, g != null, groznje, Scit.izjemeUporabnika(this), Scit.izjemeWebtor(this))
+            zasebniDns, zadnja, g != null, groznje, Scit.izjemeUporabnika(this), Scit.izjemeWebtor(this))
     }
 
     private fun danes(): String = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ROOT).format(java.util.Date())
@@ -161,8 +194,15 @@ class ScitActivity : OsActivity() {
 
     // ------------------------------------------------------------------ risanje
 
+    /** Prebere stanje na [delavec] in ga izrise na glavni niti. */
     private fun narisi(prisilno: Boolean, fokus: String? = null) {
-        val p = try { preberi() } catch (e: Throwable) { Log.w(TAG, "Zaslon: ${e.javaClass.simpleName}"); return }
+        vOzadju {
+            val p = preberi()
+            runOnUiThread { if (!isFinishing && !isDestroyed) izrisi(p, prisilno, fokus) }
+        }
+    }
+
+    private fun izrisi(p: Pogled, prisilno: Boolean, fokus: String?) {
         val odtis = p.odtis() + "|" + napaka
         if (!prisilno && odtis == zadnjiOdtis) return
         zadnjiOdtis = odtis
@@ -171,9 +211,10 @@ class ScitActivity : OsActivity() {
         vsebina.removeAllViews()
 
         vsebina.addView(besedilo(getString(R.string.scit_ime), 26f, R.attr.osBesedilo, krepko = true))
+        val stanje = ScitStanjePravila.stanje(p.vklopljen, p.stanje == "tece")
         val (stanjeBesedilo, stanjeBarva) = when {
-            !p.vklopljen -> getString(R.string.scit_z_stanje_izklopljen) to R.attr.osUmirjeno
-            p.stanje != "tece" -> getString(R.string.scit_z_stanje_prekinjen) to R.attr.osOpozorilo
+            stanje == ScitStanjePravila.Stanje.IZKLOPLJEN -> getString(R.string.scit_z_stanje_izklopljen) to R.attr.osUmirjeno
+            stanje == ScitStanjePravila.Stanje.PREKINJEN -> getString(R.string.scit_z_stanje_prekinjen) to R.attr.osOpozorilo
             p.domen <= 0 -> getString(R.string.scit_z_stanje_prazen) to R.attr.osOpozorilo
             else -> getString(R.string.scit_z_stanje_tece) to R.attr.osMint
         }
@@ -185,7 +226,15 @@ class ScitActivity : OsActivity() {
             vsebina.addView(besedilo(getString(R.string.scit_z_danes, p.blokiranih), 15f, R.attr.osUmirjeno).apply { setPadding(0, dp(2), 0, dp(8)) })
 
         val vrstaGumbov = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(8), 0, dp(12)) }
-        vrstaGumbov.addView(gumb(getString(if (p.vklopljen) R.string.scit_z_izklopi else R.string.scit_z_vklopi), OZNAKA_PREKLOP) { preklopi() })
+        // Pregled 5. 11. 2026: prekinjen (drug VPN) ponudi ponovni vklop (prvi, fokus), izklop ostane.
+        for ((i, g) in ScitStanjePravila.gumbi(stanje).withIndex()) {
+            val lp = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { if (i > 0) marginStart = dp(12) }
+            vrstaGumbov.addView(when (g) {
+                ScitStanjePravila.Gumb.VKLOPI -> gumb(getString(R.string.scit_z_vklopi), OZNAKA_PREKLOP) { preklopi() }
+                ScitStanjePravila.Gumb.IZKLOPI -> gumb(getString(R.string.scit_z_izklopi), if (i == 0) OZNAKA_PREKLOP else OZNAKA_IZKLOP) { preklopi() }
+                ScitStanjePravila.Gumb.VKLOPI_ZNOVA -> gumb(getString(R.string.scit_z_vklopi), OZNAKA_PREKLOP) { vklopiZnova() }
+            }, lp)
+        }
         vsebina.addView(vrstaGumbov)
 
         if (p.zasebniDns) {
@@ -342,6 +391,7 @@ class ScitActivity : OsActivity() {
         const val EXTRA_POKAZI = "pokazi"
         private const val ZAHTEVA = 7312
         private const val OZNAKA_PREKLOP = "scit:preklop"
+        private const val OZNAKA_IZKLOP = "scit:izklop"
         private const val OZNAKA_NASTAVITVE = "scit:nastavitve"
         private const val OZNAKA_IME = "scit:ime:"
         private const val OZNAKA_IZJEMA = "scit:izjema:"

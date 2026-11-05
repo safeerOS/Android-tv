@@ -188,6 +188,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/PriljubljeniKanaliPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/DovoljenjaPravila.kt" \
     "$TEST_DIR/DovoljenjaPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/NastavitvePravila.kt" \
+    "$TEST_DIR/NastavitvePravilaTest.kt" \
     "$SRC/si/safeer/tv/os/Zasebno.kt" \
     "$TEST_DIR/ZasebnoTest.kt" \
     "$SRC/si/safeer/tv/os/SkrivnostiPravila.kt" \
@@ -320,6 +322,8 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.IptvRacunTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.IptvPrijavaRacunaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PriljubljeniKanaliPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.DovoljenjaPravilaTestKt
+# Pregled Nastavitev in Scita (5. 11. 2026): meje branja, skoki preusmeritev, fokus, diagnostika, Safeer Vnos.
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.NastavitvePravilaTestKt "$SRC"
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZasebnoTestKt
 # Webtor rezerva (25. 10. 2026): skrivni naslovi dodatkov, pravila Webtor, izjeme Scita.
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SkrivnostiPravilaTestKt

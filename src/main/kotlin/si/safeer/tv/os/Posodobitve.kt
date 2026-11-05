@@ -100,12 +100,7 @@ object Posodobitve {
             var napaka: String? = null
             var nova: Nova? = null
             try {
-                val c = URL(MANIFEST).openConnection() as HttpURLConnection
-                c.connectTimeout = 8000; c.readTimeout = 8000
-                c.setRequestProperty("User-Agent", "SafeerOS/${BuildConfig.VERSION_NAME} (${app.packageName})")
-                c.setRequestProperty("Cache-Control", "no-cache")
-                val besedilo = c.inputStream.bufferedReader().use { it.readText() }
-                c.disconnect()
+                val besedilo = preberiManifest(app)
                 val vnos = JSONObject(besedilo).optJSONObject("android")?.optJSONObject(app.packageName)
                 nova = Nova.iz(vnos)?.takeIf { it.koda > BuildConfig.VERSION_CODE }
                 zadnjaPreverba = System.currentTimeMillis()
@@ -163,11 +158,57 @@ object Posodobitve {
         b.show()
     }
 
+    /**
+     * os/razlicice.json (Posodobitve in KompletNamestitev): samo odgovor 200 brez preusmeritve in najvec
+     * [NastavitvePravila.MEJA_MANIFESTA] bajtov (pregled 5. 11. 2026: prej telo napake ali neskoncen tok do konca).
+     */
+    fun preberiManifest(ctx: Context): String {
+        val c = URL(MANIFEST).openConnection() as HttpURLConnection
+        try {
+            c.connectTimeout = 8000; c.readTimeout = 8000; c.instanceFollowRedirects = false
+            c.setRequestProperty("User-Agent", "SafeerOS/${BuildConfig.VERSION_NAME} (${ctx.packageName})")
+            c.setRequestProperty("Cache-Control", "no-cache")
+            if (c.responseCode != 200) throw IllegalStateException("manifest HTTP ${c.responseCode}")
+            if (c.contentLengthLong > NastavitvePravila.MEJA_MANIFESTA) throw IllegalStateException("manifest prevelik")
+            val bajti = c.inputStream.use { NastavitvePravila.beriZMejo(it, NastavitvePravila.MEJA_MANIFESTA) }
+                ?: throw IllegalStateException("manifest prevelik")
+            return String(bajti, Charsets.UTF_8)
+        } finally { c.disconnect() }
+    }
+
+    /**
+     * Povezava do [url] s preusmeritvami, ki jim sledimo sami (pregled 5. 11. 2026): vsak skok mora biti https
+     * ([NastavitvePravila.naslednjiSkok]), najvec [NastavitvePravila.NAJVEC_SKOKOV]. Prej je sledil HttpURLConnection in
+     * preverjen je bil samo zadnji naslov. Vrne odprto povezavo z odgovorom 2xx.
+     */
+    private fun odpriPrenos(url: String): HttpURLConnection {
+        var naslov = url
+        var skokov = 0
+        while (true) {
+            val u = URL(naslov)
+            if (!u.protocol.equals("https", ignoreCase = true)) throw IllegalStateException("ni https")
+            val c = u.openConnection() as HttpURLConnection
+            c.connectTimeout = 15000; c.readTimeout = 30000; c.instanceFollowRedirects = false
+            val koda = try { c.responseCode } catch (t: Throwable) { c.disconnect(); throw t }
+            if (NastavitvePravila.jePreusmeritev(koda)) {
+                val naprej = NastavitvePravila.naslednjiSkok(naslov, c.getHeaderField("Location"))
+                c.disconnect()
+                if (naprej == null || ++skokov > NastavitvePravila.NAJVEC_SKOKOV) throw IllegalStateException("preusmeritev zavrnjena (HTTP $koda)")
+                naslov = naprej
+                continue
+            }
+            if (koda !in 200..299) { c.disconnect(); throw IllegalStateException("HTTP $koda") }
+            return c
+        }
+    }
+
     /** Skupna pot za prenos datoteke in preverbo SHA-256. */
     fun prenesiDatoteko(url: String, sha256: String, velikost: Long, cilj: File, glavna: Handler, prekinjeno: () -> Boolean, naNapredek: (Int) -> Unit) {
-        val c = URL(url).openConnection() as HttpURLConnection
-        c.connectTimeout = 15000; c.readTimeout = 30000; c.instanceFollowRedirects = true
-        if (c.responseCode !in 200..299 || !c.url.protocol.equals("https", ignoreCase = true)) throw IllegalStateException("HTTP ${c.responseCode}")
+        val c = odpriPrenos(url)
+        try { prenesi(c, sha256, velikost, cilj, glavna, prekinjeno, naNapredek) } finally { c.disconnect() }
+    }
+
+    private fun prenesi(c: HttpURLConnection, sha256: String, velikost: Long, cilj: File, glavna: Handler, prekinjeno: () -> Boolean, naNapredek: (Int) -> Unit) {
         val skupaj = if (velikost > 0) velikost else c.contentLengthLong
         val najvec = if (velikost > 0) velikost else NamestitevPravila.NAJVEC_APK
         var zadnji = 0L

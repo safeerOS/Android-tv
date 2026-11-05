@@ -104,12 +104,18 @@ class PripetiVir(private val odjemalec: OkHttpClient, private val zeton: String,
     }
 
     companion object {
-        /** OkHttp s pripetim potrdilom streznika datotek (odtis SHA-256 iz odgovora `files.list`). */
+        /**
+         * OkHttp s pripetim potrdilom streznika datotek (odtis SHA-256 iz odgovora `files.list`). Brez sledenja
+         * preusmeritvam (pregled 5. 11. 2026): zahteve nosijo X-Safeer-Token, OkHttp pa bi ga ob preusmeritvi poslal
+         * tudi drugemu cilju (AGENTS.md: zahteve s kljucem ne sledijo preusmeritvam). Pot zdoma gre prek poPoti.
+         */
         fun odjemalecZaStreznik(odtis: String): OkHttpClient {
             val (tovarna, zaupnik) = Pin.tovarna(odtis)
             return OkHttpClient.Builder()
                 .sslSocketFactory(tovarna, zaupnik)
                 .hostnameVerifier(Pin.brezImena)
+                .followRedirects(false)
+                .followSslRedirects(false)
                 .connectTimeout(6, TimeUnit.SECONDS)
                 .readTimeout(20, TimeUnit.SECONDS)
                 .build()

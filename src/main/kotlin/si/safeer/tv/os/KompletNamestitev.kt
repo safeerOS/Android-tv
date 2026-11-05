@@ -12,11 +12,8 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import org.json.JSONObject
-import si.safeer.tv.BuildConfig
 import si.safeer.tv.R
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
 
 object KompletNamestitev {
     private const val PREFS = "safeer_komplet"
@@ -49,13 +46,8 @@ object KompletNamestitev {
         }, "safeer-komplet-ponudba").start()
     }
 
-    private fun preberiManifest(a: Activity): String {
-        val c = URL(Posodobitve.MANIFEST).openConnection() as HttpURLConnection
-        c.connectTimeout = 8000; c.readTimeout = 8000
-        c.setRequestProperty("User-Agent", "SafeerOS/${BuildConfig.VERSION_NAME} (${a.packageName})")
-        c.setRequestProperty("Cache-Control", "no-cache")
-        return try { c.inputStream.bufferedReader().use { it.readText() } } finally { c.disconnect() }
-    }
+    /** Ista pot kot Posodobitve (samo 200, brez preusmeritve, meja 256 kB - pregled 5. 11. 2026). */
+    private fun preberiManifest(a: Activity): String = Posodobitve.preberiManifest(a)
 
     fun namesti(a: Activity, paketi: List<String>, obKoncu: () -> Unit = {}) {
         if (paketi.isEmpty()) { obKoncu(); return }

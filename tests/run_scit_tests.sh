@@ -19,6 +19,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/scit/TcpDns.kt" \
     "$SRC/si/safeer/tv/scit/ScitIzjeme.kt" \
     "$SRC/si/safeer/tv/scit/ScitPregled.kt" \
+    "$SRC/si/safeer/tv/scit/ScitStanjePravila.kt" \
+    "$TEST_DIR/ScitStanjePravilaTest.kt" \
     "$SRC/si/safeer/tv/scit/ScitOdlocitev.kt" \
     "$SRC/si/safeer/tv/cast/JsonLahki.kt" \
     "$SRC/si/safeer/tv/scit/ScitViri.kt" \
@@ -40,3 +42,5 @@ java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.ScitSkupniPrimeriTestKt "$TE
 java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.DomenskiNaborVirTestKt
 # Proces :scit gradi samo nabor Scita (4. 11. 2026): brez EasyList, drevesa grozenj in kazala brskalnika.
 java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.ScitViriTestKt "$SRC"
+# Pregled Nastavitev in Scita (5. 11. 2026): prekinjen ni »Vklopljeno«, ponovni vklop, SERVFAIL brez odgovora, nabor enkrat.
+java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.ScitStanjePravilaTestKt "$SRC"

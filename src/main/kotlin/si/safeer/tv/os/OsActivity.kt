@@ -17,7 +17,10 @@ open class OsActivity : Activity() {
     /** Uporabnikova tema (Nastavitve › Videz) - nastavljena pred izrisom; celozaslonski zasloni dobijo crno razlicico. */
     @android.annotation.SuppressLint("SourceLockedOrientationActivity")   // samo preizkusna gradnja »TV nacin«
     override fun onCreate(savedInstanceState: Bundle?) {
-        Tema.uporabi(this, predvajalnik = this is PredvajanjeActivity || this is PredvajalnikActivity || this is SlikaActivity)
+        val celozaslonski = this is PredvajanjeActivity || this is PredvajalnikActivity || this is SlikaActivity
+        Tema.uporabi(this, predvajalnik = celozaslonski)
+        // Predvajalnik ima crno razlicico in se ne narise znova (ustavil bi predvajanje).
+        temaOb = if (celozaslonski) null else Tema.izbrana(this).id
         // Preizkusna gradnja »TV nacin« (glej [Naprava]): lezeci zaslon kot na televizorju. V izdajah se to ne izvede.
         if (si.safeer.tv.BuildConfig.TV_NACIN_PREIZKUS) requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         super.onCreate(savedInstanceState)
@@ -57,6 +60,12 @@ open class OsActivity : Activity() {
      * njimi (domaci zaslon) ob vrnitvi narisejo znova - prej so ostali v starem jeziku.
      */
     private var jezikOb: String? = null
+
+    /**
+     * Tema, s katero je zaslon narisan. Pregled 5. 11. 2026: izbira v Videzu se je uveljavila samo na zaslonu Videz -
+     * Nastavitve in domaci zaslon za njim so ostali v stari temi do ponovnega zagona.
+     */
+    private var temaOb: String? = null
 
     private val palica by lazy { Kontroler.Palica(this) }
 
@@ -133,6 +142,7 @@ open class OsActivity : Activity() {
     override fun onResume() {
         super.onResume()
         if (jezikOb != null && si.safeer.tv.JezikVmesnika.izbrani(this) != jezikOb) { recreate(); return }
+        if (temaOb != null && Tema.izbrana(this).id != temaOb) { recreate(); return }
         viden = SystemClock.uptimeMillis()
         pritisnjene.clear()
         koda.zacni()

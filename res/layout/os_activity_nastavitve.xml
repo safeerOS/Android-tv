@@ -85,6 +85,7 @@
             android:visibility="gone"/>
     </LinearLayout>
 
+    <!-- Izbor narise vrstica sama (os_izbor_vrstice); sistemski selektor seznama bi dodal drug okvir (pregled 5. 11. 2026). -->
     <ListView
         android:id="@+id/seznam"
         android:layout_width="match_parent"
@@ -93,6 +94,7 @@
         android:layout_marginTop="8dp"
         android:divider="@null"
         android:dividerHeight="0dp"
+        android:listSelector="@android:color/transparent"
         android:scrollbars="none"/>
 
 </LinearLayout>

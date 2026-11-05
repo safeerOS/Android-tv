@@ -69,7 +69,7 @@ object DomenskiNabor {
         for (i in 0 until m) {
             if (i == 0 || polje[i] != polje[i - 1]) polje[n++] = polje[i]
         }
-        val mapa = cilj.absoluteFile.parentFile
+        val mapa = cilj.absoluteFile.parentFile ?: throw java.io.IOException("nabor brez mape")
         mapa.mkdirs()
         val zacasna = File.createTempFile(cilj.name + ".", ".tmp", mapa)
         try {
@@ -157,6 +157,15 @@ object DomenskiNabor {
                     if (n < 0 || GLAVA + n.toLong() * 8 > datoteka.length()) return null
                     return Poizvedba(map, n, datoteka, datoteka.lastModified())
                 }
+            }
+
+            /**
+             * [prej], ce je datoteka ista (ista lastModified), sicer znova odprta (null, ce je ni). Zaslon Scita je prej vsaki
+             * 2 s na novo mapiral grozne.bin (pregled 5. 11. 2026).
+             */
+            fun odpriCeSpremenjeno(datoteka: File, prej: Poizvedba?): Poizvedba? {
+                if (prej != null && prej.datoteka == datoteka && datoteka.isFile && datoteka.lastModified() == prej.spremenjena) return prej
+                return odpri(datoteka)
             }
         }
 

@@ -68,6 +68,10 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private var mocOdprta = false
     private val prilagojevalnik = Prilagojevalnik()
     private val tv by lazy { Naprava.jeTelevizor(this) }
+    /** Zadnje stanje Scita (Scit.stanje): vrstica kaze dejansko stanje, tudi prekinjenega (drug VPN). Null = se beremo. */
+    private var scitStanje: Scit.Stanje? = null
+    /** Seznam se ni bil izrisan: prvi izris mu da fokus, poznejsi asinhroni ne ([NastavitvePravila.seznamVzameFokus]). */
+    private var prviIzris = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -182,7 +186,8 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (fokusNaSeznamu) { fokusNaSeznamu = false; seznam.requestFocus() }
         narisi()
         // Scit je lahko v sosednji aplikaciji: stanje preberemo prek mostu in vrstico osvezimo.
-        Scit.stanje(this) { narisi() }
+        // Pregled 5. 11. 2026: odgovor soseda pride do 6 s pozneje - zaslon je lahko ze zaprt.
+        Scit.stanje(this) { s -> if (isFinishing || isDestroyed) return@stanje; scitStanje = s; narisi() }
         // Posodobitve: tiha preverba (najvec na 6 h), vrstica se osvezi.
         if (!Posodobitve.nadaljujCeCaka(this)) Posodobitve.preveri(this) { _, _ -> if (!isFinishing) narisi() }
         osveziHost()
@@ -354,7 +359,7 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             },
             safeer(R.drawable.os_ikona_moc, R.string.os_moc, R.string.os_moc_opis,
                 moc?.ime.orEmpty().ifBlank { getString(R.string.os_moc_berem) }) { pokaziMoc() },
-            safeer(R.drawable.os_ikona_scit, R.string.os_scit, R.string.os_scit_nastavitev_opis, vklop(Scit.jeVklopljen(this))) {
+            safeer(R.drawable.os_ikona_scit, R.string.os_scit, R.string.os_scit_nastavitev_opis, stanjeScita()) {
                 // Preverba TV 4. 11. 2026 06:38: en OK na vrstici je zascito takoj izklopil (brez potrditve, tudi po nesreci).
                 // Vrstica odpre zaslon Scita (vklop/izklop, zadnja imena, izjeme); preklop samo, ce zaslona ni.
                 // CodeRabbit 4. 11. 2026: ko Scit vodi sosednji brskalnik, je odpriZaslon vrnil false in preklopiScit() ga je
@@ -415,6 +420,20 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         filtriraj()
     }
 
+    /**
+     * Vrstica Scita: dejansko stanje iz statistike (pregled 5. 11. 2026). Drug VPN prevzame tunel, zastavica »vklopljen«
+     * ostane - prej je vrstica kazala »Vklopljeno«, uporabnik pa ni bil zascien.
+     */
+    private fun stanjeScita(): String {
+        val s = scitStanje ?: return getString(R.string.os_scit_preverjam)
+        if (!s.naVoljo) return getString(R.string.os_scit_kratko_ni)
+        return getString(when (si.safeer.tv.scit.ScitStanjePravila.stanje(s.vklopljen, s.tece)) {
+            si.safeer.tv.scit.ScitStanjePravila.Stanje.TECE -> R.string.os_vklopljeno
+            si.safeer.tv.scit.ScitStanjePravila.Stanje.PREKINJEN -> R.string.os_scit_kratko_prekinjen
+            si.safeer.tv.scit.ScitStanjePravila.Stanje.IZKLOPLJEN -> R.string.os_izklopljeno
+        })
+    }
+
     /** Seznam po skupinah z naslovi; ob iskanju samo ustrezne nastavitve (ime ali opis v kateremkoli jeziku). */
     private fun filtriraj() {
         val poizvedba = if (::iskanje.isInitialized) iskanje.text.toString() else ""
@@ -429,11 +448,31 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (nov.isEmpty()) nov += Vrstica(0, getString(R.string.nast_ni_zadetkov), "", "", Skupina.SAFEER)
         prikaz = nov
         prilagojevalnik.notifyDataSetChanged()
-        if (seznam.selectedItemPosition < 0 && !iskanje.hasFocus()) seznam.requestFocus()
+        // Pregled 5. 11. 2026: asinhroni izrisi (Scit, posodobitve, Link) fokusa ne jemljejo stranski vrstici ali iskanju.
+        if (NastavitvePravila.seznamVzameFokus(prviIzris, currentFocus != null, iskanje.hasFocus())) seznam.requestFocus()
+        prviIzris = false
+    }
+
+    private fun dp(v: Int) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), resources.displayMetrics).toInt()
+
+    /**
+     * Vnosno polje v oknu na televizorju (pregled 5. 11. 2026, kot iskalno polje): fokus ne odpre tipkovnice (pokrila bi
+     * okno in gumbe), odpre jo OK. Na dotik ostane kot prej.
+     */
+    private fun poljeZaTv(polje: EditText) {
+        if (!tv) return
+        polje.showSoftInputOnFocus = false
+        polje.setOnKeyListener { v, koda, d ->
+            if (d.action == KeyEvent.ACTION_DOWN && (koda == KeyEvent.KEYCODE_DPAD_CENTER || koda == KeyEvent.KEYCODE_ENTER)) {
+                (v as EditText).showSoftInputOnFocus = true
+                (getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager).showSoftInput(v, 0)
+                true
+            } else false
+        }
     }
 
     private fun nastaviGlobalLink() {
-        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(48, 16, 48, 8) }
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(24), dp(8), dp(24), dp(4)) }
         val vklop = CheckBox(this).apply { text = getString(R.string.os_gl_vklop); isChecked = si.safeer.tv.link.GlobalLink.vklopljen(this@NastavitveActivity) }
         val preizkus = CheckBox(this).apply { text = getString(R.string.os_gl_preizkus); isChecked = si.safeer.tv.link.GlobalLink.samoRele(this@NastavitveActivity) }
         box.addView(vklop); box.addView(preizkus)
@@ -447,19 +486,19 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             "$ime: $pot" + (p.second?.let { " · $it ms" } ?: "")
         }
         box.addView(TextView(this).apply {
-            setPadding(0, 24, 0, 0)
+            setPadding(0, dp(12), 0, 0)
             text = if (si.safeer.tv.link.GlobalLink.zdoma || vrstice.isNotEmpty())
                 (listOf(getString(R.string.os_gl_pot_zdoma)) + vrstice.ifEmpty { listOf(getString(R.string.os_gl_rele)) }).joinToString("\n")
             else getString(R.string.os_gl_pot_lokalno)
         })
-        android.app.AlertDialog.Builder(this).setTitle(getString(R.string.os_gl_ime)).setView(box)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(getString(R.string.os_gl_ime)).setView(box)
             .setPositiveButton(getString(R.string.os_ig_shrani)) { _, _ ->
                 si.safeer.tv.link.GlobalLink.nastavi(this, vklop.isChecked, preizkus.isChecked)
                 si.safeer.tv.link.GlobalLink.izklopi()
                 val i = Intent(this, si.safeer.tv.cast.CastReceiverService::class.java).apply { action = si.safeer.tv.cast.CastReceiverService.ACTION_GATEWAY_CHANGED }
                 try { startService(i) } catch (_: Throwable) { }
                 narisi()
-            }.setNegativeButton(android.R.string.cancel, null).show()
+            }.setNegativeButton(android.R.string.cancel, null).let { Kontroler.pokazi(it.show()) }
     }
 
     /**
@@ -490,6 +529,7 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             filters = arrayOf(android.text.InputFilter.LengthFilter(7))
             setText((meja / 1024 / 1024).toString())
         }
+        poljeZaTv(limit)
         box.addView(gateway); box.addView(mobile); box.addView(roaming)
         box.addView(vrstica(getString(R.string.os_ig_omejitev))); box.addView(limit)
         val (danes, mesec) = si.safeer.tv.link.AndroidApplicationGateway.poraba(this)
@@ -506,7 +546,7 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         }
         if (vnosi.isEmpty()) box.addView(vrstica(getString(R.string.os_ig_ni_naprav))) else izbire.forEach { box.addView(it) }
         val drsnik = android.widget.ScrollView(this).apply { addView(box) }
-        android.app.AlertDialog.Builder(this).setTitle(getString(R.string.os_ig_naslov)).setView(drsnik)
+        android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(getString(R.string.os_ig_naslov)).setView(drsnik)
             .setPositiveButton(getString(R.string.os_ig_shrani)) { _, _ ->
                 val mb = limit.text.toString().toLongOrNull()?.coerceAtLeast(0) ?: 0L
                 p.edit().putBoolean("gateway_enabled", gateway.isChecked).putBoolean("allow_cellular", mobile.isChecked)
@@ -523,7 +563,7 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 val i = Intent(this, si.safeer.tv.cast.CastReceiverService::class.java).apply { action = si.safeer.tv.cast.CastReceiverService.ACTION_GATEWAY_PERMISSION }
                 try { startService(i) } catch (_: Throwable) { }
                 narisi()
-            }.setNegativeButton(android.R.string.cancel, null).show()
+            }.setNegativeButton(android.R.string.cancel, null).let { Kontroler.pokazi(it.show()) }
     }
 
     /** Podrobnosti o moci: svoje okno, vsak podatek v svoji vrstici. */
@@ -765,8 +805,9 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             setSingleLine()
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI
             hint = getString(R.string.os_host_naslov_namig)
-            setPadding(40, 30, 40, 30)
+            setPadding(dp(20), dp(14), dp(20), dp(14))
         }
+        poljeZaTv(vnos)
         android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_host_naslov))
             .setMessage(getString(R.string.os_host_naslov_opis))
@@ -802,8 +843,9 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             setSingleLine()
             inputType = android.text.InputType.TYPE_CLASS_TEXT
             hint = getString(R.string.os_host_koda_namig)
-            setPadding(40, 30, 40, 30)
+            setPadding(dp(20), dp(14), dp(20), dp(14))
         }
+        poljeZaTv(vnos)
         android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_host_koda))
             .setMessage(getString(R.string.os_host_koda_opis))
@@ -940,6 +982,6 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                     }
                 }.start()
             }
-            .show()
+            .let { Kontroler.pokazi(it.show()) }
     }
 }
