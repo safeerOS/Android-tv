@@ -9077,10 +9077,13 @@ class GlasbaActivity : OsActivity() {
     }
 
     private fun praznoUsenet(o: OdprtKatalog, vir: FilterUsenet): String {
-        val neOdgovarja = !vir.racun || UsenetFilter.vPremoru()
+        val ustavljeno = !vir.racun || UsenetFilter.vPremoru()
         val iscemo = UsenetFilter.vTeku() > 0 || usenetMreza !== o ||
             (usenetProracun > 0 && usenetKandidati.any { sk -> kljucUsenet(sk, vir.odtis)?.let { UsenetFilter.seIscemo(this, it) } == true })
-        return when (FilterViraPravila.prazno(iscemo && !neOdgovarja, neOdgovarja)) {
+        // Po zadnji ponovitvi »ne vemo« (napaka, rok) ne trdimo, da naslovov ni: indeksator ni odgovoril.
+        val neOdgovarja = ustavljeno || usenetKandidati.any { sk ->
+            kljucUsenet(sk, vir.odtis)?.let { UsenetFilter.zapis(this, it)?.izid == FilterViraPravila.Izid.NE_VEMO } == true }
+        return when (FilterViraPravila.prazno(iscemo && !ustavljeno, neOdgovarja)) {
             FilterViraPravila.Prazno.ISCEM -> getString(R.string.os_usenet_filter_iscem)
             FilterViraPravila.Prazno.NE_ODGOVARJA -> getString(R.string.os_usenet_filter_ne_odgovarja)
             FilterViraPravila.Prazno.NI_NASLOVOV -> getString(R.string.os_usenet_filter_prazno, getString(R.string.os_debrid_izbira_vse))
