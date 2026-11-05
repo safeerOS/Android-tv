@@ -417,6 +417,8 @@ node "$TEST_DIR/tv_zeton_dotika_test.js"
 node "$TEST_DIR/tv_pregled_groka_test.js"
 # Neodvisni slepi varnostni pregled 5. 11. 2026: strogi nacin, pravi dotik samo za namene, nakljucna imena izvozov
 node "$TEST_DIR/tv_neodvisni_pregled_test.js"
+# Posrednik predvajalnika v okvirjih (SpletniIgralec.POSREDNIK_JS): zastavica, posiljatelj ukaza, kljuc stanja
+node "$TEST_DIR/igralec_posrednik_test.js"
 # En fokus na kartici clanka (lastnik 5. 11. 2026 17:49, rtvslo.si: rubrika in naslov)
 node "$TEST_DIR/tv_ena_kartica_test.js"
 node "$TEST_DIR/tv_brez_samodejnih_piskotkov_test.js"

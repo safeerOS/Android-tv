@@ -45,6 +45,13 @@ open class SpletniIgralec protected constructor(
     constructor(ctx: Context, sk: Jamendo.Skladba, obNalozeni: (() -> Unit)? = null) :
         this(sk, ChromiumEngineView(ctx), true, obNalozeni)
 
+    /**
+     * Neodvisni pregled 5. 11. 2026: posrednik tece v glavnem svetu vsakega okvirja. Zastavica ima nakljucni del imena
+     * (stran je ne more vnaprej nastaviti), stanje okvirja velja samo s kljucem, ki je le v zaprtju posrednika (na pogled -
+     * vsak predvajalnik ima svoj pogled).
+     */
+    private val posrednik = posrednikJs(si.safeer.tv.SpletVarnostPravila.novNonce(), si.safeer.tv.SpletVarnostPravila.novZeton())
+
     init {
         if (samodejnoNalozi) (pogled as ChromiumEngineView).apply {
             mobilniPogled = true
@@ -54,7 +61,7 @@ open class SpletniIgralec protected constructor(
             layout(0, 0, d.widthPixels, d.heightPixels)
             try {
                 if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT))
-                    WebViewCompat.addDocumentStartJavaScript(this, POSREDNIK_JS, setOf("*"))
+                    WebViewCompat.addDocumentStartJavaScript(this, posrednik, setOf("*"))
             } catch (_: Exception) { }
             onPageLoaded = nalozeno@ { _, _ ->
                 if (sproscen) return@nalozeno
@@ -70,7 +77,7 @@ open class SpletniIgralec protected constructor(
             nalozenoSporoceno = true
             obNalozeni?.invoke()
         }
-        pogled.evaluateJavascript(POSREDNIK_JS, null)
+        pogled.evaluateJavascript(posrednik, null)
         pogled.evaluateJavascript(SpletniVir.SOGLASJE_JS, null)
         ukaz("play")
         ura.postDelayed({ if (!sproscen) ukaz("play") }, 3_000)
@@ -379,8 +386,14 @@ open class SpletniIgralec protected constructor(
          * ga nima: najvecji gumb »play«) in ga poda svojim okvirjem - nasa pavza drzi _safeer_app_bg, da je
          * zascita predvajanja v ozadju ne zazene znova, »play« jo sprosti; okvir z medijem vsako sekundo
          * sporoci stanje vrhnji strani ({safeer:'stanje'}).
+         * Neodvisni pregled 5. 11. 2026: stran je window.__safeerAgent lahko nastavila vnaprej (posrednik se ni namestil,
+         * upravljanje predvajanja izklopljeno), poslusalec 'message' pa ni preveril posiljatelja - vsak okvir (oglas) je lahko
+         * poslal ukaz ali lazno stanje/napako, ki ju Kotlin uposteva (igra, konec, ponovno nalaganje). Zdaj: strogi nacin,
+         * zastavica z nakljucnim imenom ([posrednikJs]), ukaz samo od tega okna (Kotlin) ali starsa (posrednik visje),
+         * stanje in napaka samo s kljucem iz zaprtja posrednika.
          */
-        internal const val POSREDNIK_JS = """(function(){if(window.__safeerAgent)return;window.__safeerAgent=1;
+        internal const val POSREDNIK_JS = """(function(){'use strict';var Z='__safeerAgent_'+'__SAFEER_NONCE_AGENTA__',K='__SAFEER_KLJUC_AGENTA__';
+          try{if(Object.getOwnPropertyDescriptor(window,Z))return;Object.defineProperty(window,Z,{__proto__:null,value:1,writable:false,configurable:false,enumerable:false});}catch(x){return;}
           try{var origPlay=HTMLMediaElement.prototype.play;HTMLMediaElement.prototype.play=function(){this.muted=false;this.volume=1.0;return origPlay.apply(this,arguments);};}catch(x){}
           function odtisni(el){if(!el)return;try{el.muted=false;el.volume=1.0;}catch(x){}
             var ub=[].slice.call(document.querySelectorAll('button,[role=button],.ytp-mute-button')).filter(function(b){
@@ -393,7 +406,7 @@ open class SpletniIgralec protected constructor(
             return /\bplay\b|predvajaj/i.test(n)&&r.width>0&&r.height>0;});
             g.sort(function(x,y){var a=x.getBoundingClientRect(),b=y.getBoundingClientRect();return b.width*b.height-a.width*a.height;});
             if(g[0])g[0].click();}
-          window.addEventListener('message',function(e){var d=e.data;if(!d||d.safeer!=='ukaz')return;var m=glavni();
+          window.addEventListener('message',function(e){var d=e.data;if(!d||d.safeer!=='ukaz')return;if(e.source!==window&&e.source!==window.parent)return;var m=glavni();
             if(d.c==='play'){window._safeer_app_bg=false;if(m){odtisni(m);if(m.paused){try{m.play();}catch(x){}}}else if(document.querySelector('button,[role=button]'))gumb();}
             else if(d.c==='pause'&&m){window._safeer_app_bg=true;try{m.pause();}catch(x){}}
             else if(d.c==='seek'&&m){try{m.currentTime=d.t;}catch(x){}}
@@ -405,14 +418,21 @@ open class SpletniIgralec protected constructor(
             }
             for(var i=0;i<window.frames.length;i++){try{window.frames[i].postMessage(d,'*');}catch(x){}}});
           if(window.top!==window){setInterval(function(){
-            var er=document.querySelector('.ytp-error');if(er&&er.offsetWidth>0){try{window.top.postMessage({safeer:'napaka'},'*');}catch(x){}}
-            var m=glavni();if(m){try{window.top.postMessage({safeer:'stanje',
+            var er=document.querySelector('.ytp-error');if(er&&er.offsetWidth>0){try{window.top.postMessage({safeer:'napaka',k:K},'*');}catch(x){}}
+            var m=glavni();if(m){try{window.top.postMessage({safeer:'stanje',k:K,
             p:!m.paused,t:m.currentTime||0,d:m.duration||0,r:m.readyState,e:!!m.ended},'*');}catch(x){}}},1000);}
-          else{window.addEventListener('message',function(e){var d=e.data;if(d&&d.safeer==='stanje'){window.__safeerOkvir=d;window.__safeerOkvirCas=Date.now();}
-            if(d&&d.safeer==='napaka'){window.__safeerNapaka=Date.now();}});
+          else{window.addEventListener('message',function(e){var d=e.data;if(!d||e.source===window||d.k!==K)return;
+            if(d.safeer==='stanje'){window.__safeerOkvir={p:d.p,t:d.t,d:d.d,r:d.r,e:d.e};window.__safeerOkvirCas=Date.now();}
+            if(d.safeer==='napaka'){window.__safeerNapaka=Date.now();}});
             setInterval(function(){var er=document.querySelector('.ytp-error,yt-playability-error-supported-renderers,ytm-player-error-message-renderer,.player-error-message-container');
               if(er&&er.offsetWidth>0){var t=(er.innerText||'').trim().slice(0,300);if(t){window.__safeerNapakaStrani=t;}}},1000);}
         })()"""
+
+        /** POSREDNIK_JS z nakljucnim delom imena zastavice in kljucem stanja tega predvajalnika (samo sestnajstiski znaki). */
+        internal fun posrednikJs(nonce: String, kljuc: String): String {
+            require(si.safeer.tv.SpletVarnostPravila.jeNonce(nonce) && Regex("[0-9a-f]{32,64}").matches(kljuc))
+            return POSREDNIK_JS.replace("__SAFEER_NONCE_AGENTA__", nonce).replace("__SAFEER_KLJUC_AGENTA__", kljuc)
+        }
 
         /** Stanje: medij vrhnje strani, sicer zadnje stanje okvirja z medijem; naslov iz MediaSession strani. */
         private const val STANJE_JS = """(function(){var m=[].slice.call(document.querySelectorAll('video,audio'));
