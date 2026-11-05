@@ -2648,10 +2648,16 @@
                 var nodes = [];
                 try { nodes = document.querySelectorAll(GLAVA_IZBIRNIK); } catch (_) { nodes = []; }
                 var best = null, bestD = Infinity;
+                // CodeRabbit 5. 11. 2026: isto kot odstraniNedosegljive - odprto prekrivno okno (pasica, modalno okno) zapre
+                // vse zunaj njega, zato GOR ne skoci na meni pod oknom; prekrit element (jePrekrit) tudi ni cilj.
+                var okno = null;
+                try { okno = najdiPrekrivnoOkno(); } catch (_) { okno = null; }
                 for (var i = 0; i < nodes.length; i++) {
                     var el = nodes[i];
                     if (!el || el === current || (current && current.contains && current.contains(el))) continue;
                     if (!isActionable(el) || !jeUporaben(el, true)) continue;
+                    if (jeSkritZaFokus(el) || jeIzvenDosega(el)) continue;
+                    if (okno ? !okno.contains(el) : jePrekrit(el)) continue;
                     var r = el.getBoundingClientRect();
                     if (!(r.width > 0 && r.height > 0) || r.top < 0 || r.bottom > vrhTrenutnega + 1) continue;
                     var d = Math.abs(r.left + r.width / 2 - cx);

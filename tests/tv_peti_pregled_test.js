@@ -114,6 +114,22 @@ primer('glava GOR', () => {
         [po1, (n.document.querySelector('.safeer-active-card') || {}).innerText]);
 });
 
+// CodeRabbit 5. 11. 2026: odprto modalno okno - GOR z zgornjega gumba v oknu ne sme skociti na meni glave pod oknom.
+primer('glava pod oknom', () => {
+    const s = ustvari({ zeton: ZETON });
+    const glava = s.el('header', { okvir: [0, 0, 1920, 60] });
+    glava.dodaj(s.el('a', { attrs: { href: '/meni' }, okvir: [200, 10, 120, 40], besedilo: 'Meni' }));
+    const okno = s.el('div', { attrs: { role: 'dialog', 'aria-modal': 'true' }, okvir: [100, 100, 1700, 800], slog: { position: 'fixed', zIndex: '100' } });
+    const g = s.el('button', { okvir: [200, 300, 300, 60], besedilo: 'Sprejmi' });
+    okno.dodaj(g);
+    s.body.dodaj(glava, okno);
+    s.nalozi(VIR);
+    s.izberi(g);
+    s.smer('UP');
+    preveri('modalno okno: GOR ne izbere menija pod oknom', false,
+        ((s.document.querySelector('.safeer-active-card') || {}).innerText || '').trim() === 'Meni');
+});
+
 // Odlocitev vodje 5. 11. 2026: brez seznama nedelujocih tokov po naslovu (sprotna zaznava MrtviKanali 24 h ga pokrije).
 primer('brez seznama tokov', () => {
     const viri = ['os/KanaliPravila.kt', 'os/MrtviKanali.kt', 'os/GlasbaActivity.kt', 'os/MedijskiViri.kt']

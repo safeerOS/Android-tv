@@ -19,6 +19,8 @@ def ujame(besedilo):
 PRIMERI = [
     ("var gs = ['xploretv.si', 'rtvslo.si'];", True),            # seznam gostiteljev v tv_spatial.js (2c0a3715)
     ('Regex("streamer03\\\\.xploretv\\\\.si(?::\\\\d+)?")', True),     # ubezana pika v nizu Kotlina
+    ('Regex("""xploretv\\.si""")', True),                          # surovi niz Kotlina: ena posevnica (CodeRabbit)
+    ('var r = /xploretv\\.si/;', True),                            # regex v JS: ena posevnica
     ('hevristika za Xplore TV in RTV 365', True),                # ime samo (kot prej)
     ('https://www.XPLORETV.si/livetv', True),
     ('"explorer", "files"', False),                              # navadna beseda
