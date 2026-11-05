@@ -90,9 +90,14 @@ object VrsticaPravila {
 
     // ------------------------------------------------------------------ iskalna lupa
 
-    /** Lupa je razsirjena, kadar uporabnik z njo dela (fokus, besedilo) ali jo je izbral za vedno odprto. */
-    fun lupaRazsirjena(fokus: Boolean, besedilo: CharSequence, vednoOdprta: Boolean): Boolean =
-        vednoOdprta || fokus || besedilo.isNotBlank()
+    /**
+     * Lupa je razsirjena, kadar uporabnik z njo dela ali jo je izbral za vedno odprto. Pregled lupe 5. 11. 2026 (3): fokus
+     * daljinca sam lupe ne razpre (prehod cez glavo je razprl lupo in skril stanje Linka) - samo OK ali tipkanje
+     * ([rocno], velja dokler je fokus v lupi), besedilo ali dotik (v nacinu dotika je fokus namen uporabnika).
+     */
+    fun lupaRazsirjena(fokus: Boolean, besedilo: CharSequence, vednoOdprta: Boolean,
+                       rocno: Boolean = false, dotik: Boolean = false): Boolean =
+        vednoOdprta || besedilo.isNotBlank() || (fokus && (rocno || dotik))
 
     /**
      * Natipkan znak (tipkovnica daljinca ali telefona) zacne iskanje v lupi; puscice, OK, presledek in sistemske tipke ne.

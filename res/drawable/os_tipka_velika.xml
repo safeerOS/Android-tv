@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Tipka navidezne tipkovnice: mirna temna ploscica, ob fokusu mint obroba - z dveh metrov
-     mora biti takoj jasno, katera tipka je izbrana. -->
+     mora biti takoj jasno, katera tipka je izbrana. Pregled lupe 5. 11. 2026 (5): obroba fokusa 4 dp
+     (prej 2 dp), vse barve iz teme (prej trdo kodirano ozadje #CC101821). -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_focused="true">
         <shape android:shape="rectangle">
             <solid android:color="?attr/osKarticaDvignjena"/>
-            <stroke android:width="2dp" android:color="?attr/osMint"/>
+            <stroke android:width="4dp" android:color="?attr/osMint"/>
             <corners android:radius="8dp"/>
         </shape>
     </item>
@@ -18,7 +19,7 @@
     </item>
     <item>
         <shape android:shape="rectangle">
-            <solid android:color="#CC101821"/>
+            <solid android:color="?attr/osKartica"/>
             <stroke android:width="1dp" android:color="?attr/osCrta"/>
             <corners android:radius="8dp"/>
         </shape>

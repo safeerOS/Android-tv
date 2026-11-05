@@ -288,5 +288,37 @@ fun main() {
     preveriEnako("kanal gor ostane v lupi ob odprti plosci", true, LupaPravila.tipkaOstaneVLupi(166, true))
     preveriEnako("brez plosce stevilka zazene ploscico", false, LupaPravila.tipkaOstaneVLupi(9, false))
     preveriEnako("video: dva znaka isceta", true, LupaPravila.okIsce("ab", LupaPravila.OBSEG_VIDEO))
+
+    println("\n== pregled lupe 5. 11. 2026 ==")
+    val okp = LupaPravila.OkPolja.values().associateBy { it.name }
+    // (4) Tipka »Iskanje« vrstice znakov vedno isce; OK na polju ostane fokus na prvi zadetek.
+    preveriEnako("tipka Isci pod Vse z zadetkom isce v spletu", okp["ISCI_SPLET"], LupaPravila.okNaPolju("vse", "sintel", true, false, tipkaIsci = true))
+    preveriEnako("tipka Isci pod Aplikacije z zadetkom izvede iskanje", okp["IZVEDI_UKAZ"], LupaPravila.okNaPolju("aplikacije", "sintel", true, false, tipkaIsci = true))
+    preveriEnako("tipka Isci pod Splet s stranjo odpre stran", okp["ODPRI_STRAN"], LupaPravila.okNaPolju("splet", "rtv slo", true, true, tipkaIsci = true))
+    preveriEnako("OK na polju pod Vse ostane fokus na prvi", okp["FOKUS_NA_PRVI"], LupaPravila.okNaPolju("vse", "sintel", true, false, tipkaIsci = false))
+    // (7) Enter stevilcnice je OK tipka in isce kot Enter.
+    preveriEnako("NUMPAD_ENTER je OK tipka", true, LupaPravila.jeOkTipka(160))
+    preveriEnako("DOL ni OK tipka", false, LupaPravila.jeOkTipka(20))
+    preveriEnako("NUMPAD_ENTER z besedilom isce", LupaPravila.OkTipka.ISCI, LupaPravila.okTipkaNaPolju(160, "sintel", LupaPravila.OBSEG_VSE, true))
+    preveriEnako("NUMPAD_ENTER s praznim odpre vrstico", LupaPravila.OkTipka.ODPRI_VRSTICO, LupaPravila.okTipkaNaPolju(160, "", LupaPravila.OBSEG_VSE, false))
+    // (1, 6) Stari dom: z besedilom isce, brez odpre vrstico znakov; urejevalnik odda ob ACTION_DOWN, GO in NUMPAD_ENTER.
+    preveriEnako("stara lupa: besedilo isce", LupaPravila.OkTipka.ISCI, LupaPravila.okNaStariLupi("sintel"))
+    preveriEnako("stara lupa: prazno odpre vrstico", LupaPravila.OkTipka.ODPRI_VRSTICO, LupaPravila.okNaStariLupi("  "))
+    preveriEnako("urejevalnik: Enter ob pritisku odda", LupaPravila.Oddaja.ODDAJ, LupaPravila.oddajaUrejevalnika(0, 66, 0))
+    preveriEnako("urejevalnik: Enter ob spustu pogoltne", LupaPravila.Oddaja.POGOLTNI, LupaPravila.oddajaUrejevalnika(0, 66, 1))
+    preveriEnako("urejevalnik: NUMPAD_ENTER odda", LupaPravila.Oddaja.ODDAJ, LupaPravila.oddajaUrejevalnika(0, 160, 0))
+    preveriEnako("urejevalnik: IME_ACTION_GO odda", LupaPravila.Oddaja.ODDAJ, LupaPravila.oddajaUrejevalnika(2, null, null))
+    preveriEnako("urejevalnik: IME_ACTION_SEARCH odda", LupaPravila.Oddaja.ODDAJ, LupaPravila.oddajaUrejevalnika(3, null, null))
+    preveriEnako("urejevalnik: NEXT ne odda", LupaPravila.Oddaja.NIC, LupaPravila.oddajaUrejevalnika(5, null, null))
+    // (14) Drzan OK ponavlja samo znake in Brisi.
+    preveriEnako("drzan OK na crki ponavlja", true, LupaPravila.ponoviDrzanOk(23, 3, ponavljajoca = true))
+    preveriEnako("drzan OK na Isci ne ponavlja", false, LupaPravila.ponoviDrzanOk(23, 3, ponavljajoca = false))
+    preveriEnako("prvi pritisk ni ponovitev", false, LupaPravila.ponoviDrzanOk(23, 0, ponavljajoca = true))
+    preveriEnako("drzan A na crki ponavlja", true, LupaPravila.ponoviDrzanOk(96, 2, ponavljajoca = true))
+    preveriEnako("drzan DESNO ni OK", false, LupaPravila.ponoviDrzanOk(22, 2, ponavljajoca = true))
+    // (5) Daljsi napisi 14 sp, ce gredo v tipko; sicer manjsi do 12 sp.
+    preveriEnako("napis gre pri 14 sp", 14f, LupaPravila.velikostNapisaTipke(100f, 120f))
+    preveriEnako("napis gre sele pri 13 sp", 13f, LupaPravila.velikostNapisaTipke(140f, 130f))
+    preveriEnako("predolg napis: 12 sp", 12f, LupaPravila.velikostNapisaTipke(300f, 100f))
     if (napak == 0) println("LupaPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

@@ -224,5 +224,18 @@ fun main() {
     preveriEnako("nic znanega: prva ploscica (null)", null,
         PokrajinaPravila.oznakaFokusaPoVrnitvi(null, { it in naZaslonu }, "com.izbrisana"))
 
+    // Pregled lupe 5. 11. 2026.
+    preveriEnako("(11) fokus v lupi ob odhodu: zadnja ploscica", "splet:https://facebook.com",
+        PokrajinaPravila.oznakaObOdhodu("stran_https://rtvslo.si", true, "splet:https://facebook.com"))
+    preveriEnako("(11) fokus v lupi brez zadnje ploscice: prva (null)", null,
+        PokrajinaPravila.oznakaObOdhodu("cip_sintel", true, null))
+    preveriEnako("(11) fokus na gumbu spodnje vrstice ostane", "dok:aplikacije",
+        PokrajinaPravila.oznakaObOdhodu("dok:aplikacije", false, "splet:https://facebook.com"))
+    preveriEnako("(9) brez tipke se fokus obnovi", true, PokrajinaPravila.obnoviFokus(true, false))
+    preveriEnako("(9) po tipki uporabnika se fokus ne premakne", false, PokrajinaPravila.obnoviFokus(true, true))
+    preveriEnako("(9) obnova ze koncana", false, PokrajinaPravila.obnoviFokus(false, false))
+    preveriEnako("(10) DOL na mini samo, ko je odprt", false, PokrajinaPravila.dolNaMini(false, true))
+    preveriEnako("(10) odprt in viden mini", true, PokrajinaPravila.dolNaMini(true, true))
+
     if (napak == 0) println("PokrajinaPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

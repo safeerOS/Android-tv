@@ -229,14 +229,17 @@ object LupaPravila {
      * napravi, izrecno »isci v spletu«) ima prednost: [niz] gre skozi [razcleni] in samo navadno iskanje ostane tu.
      */
     fun okNaPolju(obseg: String, niz: String, imaZadetek: Boolean, imaStran: Boolean,
-                  naprave: List<Pair<String, String>> = emptyList()): OkPolja {
+                  naprave: List<Pair<String, String>> = emptyList(), tipkaIsci: Boolean = false): OkPolja {
         if (niz.isBlank() || razcleni(niz, naprave).vrsta != ISCI) return OkPolja.IZVEDI_UKAZ
+        // Pregled lupe 5. 11. 2026 (4): tipka »Iskanje« v nasi vrstici znakov vedno isce - fokus na prvi zadetek je samo
+        // za OK na polju (prej je pod Vse z zadetkom samo zaprla vrstico in premaknila fokus).
+        val fokus = imaZadetek && !tipkaIsci
         return when (obseg(obseg)) {
             OBSEG_SPLET -> if (imaStran) OkPolja.ODPRI_STRAN else OkPolja.ISCI_SPLET
             OBSEG_YOUTUBE -> OkPolja.ISCI_YOUTUBE
             OBSEG_VIDEO -> OkPolja.ISCI_VIDEO
-            OBSEG_VSE -> if (imaZadetek) OkPolja.FOKUS_NA_PRVI else OkPolja.ISCI_SPLET
-            else -> if (imaZadetek) OkPolja.FOKUS_NA_PRVI else OkPolja.IZVEDI_UKAZ
+            OBSEG_VSE -> if (fokus) OkPolja.FOKUS_NA_PRVI else OkPolja.ISCI_SPLET
+            else -> if (fokus) OkPolja.FOKUS_NA_PRVI else OkPolja.IZVEDI_UKAZ
         }
     }
 
@@ -269,11 +272,50 @@ object LupaPravila {
      * (DPAD_CENTER, 23) z zaprto vrstico znakov jo VEDNO odpre; isce gumb Isci v vrstici ali Enter prave tipkovnice (66).
      */
     fun okTipkaNaPolju(koda: Int, niz: String, obseg: String, vrsticaOdprta: Boolean): OkTipka = when {
-        koda == 66 -> if (okIsce(niz, obseg)) OkTipka.ISCI else if (vrsticaOdprta) OkTipka.NIC else OkTipka.ODPRI_VRSTICO
+        // Pregled lupe 5. 11. 2026 (7): Enter stevilcnice (NUMPAD_ENTER, 160) je isti Enter kot 66.
+        koda == 66 || koda == 160 -> if (okIsce(niz, obseg)) OkTipka.ISCI else if (vrsticaOdprta) OkTipka.NIC else OkTipka.ODPRI_VRSTICO
         koda == 23 && !vrsticaOdprta -> OkTipka.ODPRI_VRSTICO
         koda == 23 && okIsce(niz, obseg) -> OkTipka.ISCI
         else -> OkTipka.NIC
     }
+
+    /** OK na polju lupe: OK daljinca (DPAD_CENTER 23), Enter (66) in Enter stevilcnice (160) - pregled lupe 5. 11. 2026 (7). */
+    fun jeOkTipka(koda: Int): Boolean = koda == 23 || koda == 66 || koda == 160
+
+    /**
+     * Stari domaci zaslon (DomovActivity, beta izklopljena), pregled lupe 5. 11. 2026 (1, 6): OK ali Enter na polju z
+     * besedilom isce, brez besedila odpre naso vrstico znakov - nikoli sistemske tipkovnice (daljinec Philips se javi kot
+     * tipkovnica, zaslon ima stateAlwaysHidden, zato se ni odprlo nic).
+     */
+    fun okNaStariLupi(niz: String, obseg: String = OBSEG_VSE): OkTipka =
+        if (okIsce(niz, obseg)) OkTipka.ISCI else OkTipka.ODPRI_VRSTICO
+
+    enum class Oddaja { ODDAJ, POGOLTNI, NIC }
+
+    /**
+     * Dejanje urejevalnika na polju lupe (pregled lupe 5. 11. 2026, 6): Isci/Pojdi/Koncano zaslonske tipkovnice odda;
+     * Enter in Enter stevilcnice oddata ob ACTION_DOWN (0) in pogoltneta ACTION_UP - sicer bi TextView ob spustu sam
+     * premaknil fokus navzdol (focusSearch DOWN). Prej je Enter oddal sele ob spustu, GO in NUMPAD_ENTER pa nic.
+     */
+    fun oddajaUrejevalnika(akcija: Int, koda: Int?, dejanje: Int?): Oddaja = when {
+        koda == 66 || koda == 160 -> if (dejanje == 0) Oddaja.ODDAJ else Oddaja.POGOLTNI
+        akcija == 2 || akcija == 3 || akcija == 6 -> Oddaja.ODDAJ
+        else -> Oddaja.NIC
+    }
+
+    /**
+     * Drzan OK na tipki vrstice znakov (pregled lupe 5. 11. 2026, 14): ponavlja samo znakovne tipke (tudi presledek) in
+     * Brisi; Isci, ABC/123 in menjava razporeditve se ne ponovijo (prej je drzan OK iskal ali preklapljal veckrat).
+     */
+    fun ponoviDrzanOk(koda: Int, ponovitev: Int, ponavljajoca: Boolean): Boolean =
+        ponavljajoca && ponovitev > 0 && (jeOkTipka(koda) || koda == 96)
+
+    /**
+     * Velikost napisa daljse tipke vrstice znakov (pregled lupe 5. 11. 2026, 5): vsaj 14 sp, ce gre napis v sirino
+     * tipke ([prostorPx]; [sirinaPri14Px] = izmerjen napis pri 14 sp), sicer najvecja manjsa, ki gre; najmanj 12 sp (prej).
+     */
+    fun velikostNapisaTipke(sirinaPri14Px: Float, prostorPx: Float, velikosti: List<Float> = listOf(14f, 13f, 12f)): Float =
+        velikosti.firstOrNull { sirinaPri14Px * it / 14f <= prostorPx } ?: velikosti.last()
 
     /** Zunanji pregled 3. 11. 2026: dokler je plosca zadetkov odprta, stevilke 1-6 in kanal gor/dol ostanejo v lupi. */
     fun tipkaOstaneVLupi(koda: Int, ploscaOdprta: Boolean): Boolean =

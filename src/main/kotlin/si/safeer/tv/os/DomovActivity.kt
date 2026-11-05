@@ -182,9 +182,11 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         pripraviVelikeKartice()
         // GOR s Spletnega brskalnika gre v iskalno polje lupe (ne na mikrofon ob njem), DOL iz polja nazaj nanj: iskanje
         // fokusa je iz polja (pravokotnik kazalca) izbralo meni na levi, ne kartice pod lupo (TV, 19. 10. 2026).
+        // Pregled lupe 5. 11. 2026 (8): GOR z VSEH kartic vrstice gre na lupo (prej samo s Spletnega brskalnika - z Zaslona
+        // in Programov je iskanje fokusa izbralo mikrofon ali meni).
         lupa?.let {
             if (it.id == View.NO_ID) it.id = View.generateViewId()
-            karticaBrskalnik.nextFocusUpId = it.id
+            for (k in listOf(karticaBrskalnik, karticaZaslon, karticaProgrami)) k.nextFocusUpId = it.id
             it.nextFocusDownId = karticaBrskalnik.id
         }
         ploscaNaprave = findViewById(R.id.ploscaNaprave)

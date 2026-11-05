@@ -197,15 +197,17 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         // Lastnik 27. 10. 2026: ENA vrstica - priljubljene spletne in namescene aplikacije in »+ Dodaj«, plosce po zgledu
         // (zaobljene, brez obrobe; obroba samo s fokusom). Vse aplikacije so za gumbom Aplikacije v spodnji vrstici.
         vrstaAplikacij = object : LinearLayout(this) {
-            override fun focusSearch(direction: Int): View? {
+            // Pregled lupe 5. 11. 2026 (10): starsu Android klice focusSearch(focused, direction) - prepis
+            // focusSearch(direction) se ni nikoli izvedel. DOL na mini samo, ko je odprt (kot dispatchKeyEvent).
+            override fun focusSearch(focused: View?, direction: Int): View? {
                 if (direction == View.FOCUS_DOWN) {
                     val mini = dock?.aktivniPogledZaFokus
-                    if (mini != null && mini.isShown && mini.isFocusable) return mini
+                    if (mini != null && PokrajinaPravila.dolNaMini(dock?.jeOdprt == true, mini.isShown && mini.isFocusable)) return mini
                     if (::dok.isInitialized) {
-                        najblizjiPogledX(dok, findFocus())?.let { return it }
+                        najblizjiPogledX(dok, focused ?: findFocus())?.let { return it }
                     }
                 }
-                return super.focusSearch(direction)
+                return super.focusSearch(focused, direction)
             }
         }.apply { orientation = LinearLayout.HORIZONTAL; setPadding(dp(4), dp(10), dp(4), dp(10)) }
         val drsnik = object : HorizontalScrollView(this) {
@@ -453,13 +455,18 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     private var oznakaFokusa: String? = null
     /** Fokus po vrnitvi se postavi enkrat - tudi po tem, ko okno spet dobi fokus (sistem ga sicer da drugam). */
     private var vrniFokus = false
+    /** Pregled lupe 5. 11. 2026 (9): od onStart je prisla tipka - fokus je uporabnikov, vrnitev ga ne premakne vec. */
+    private var tipkaPoVrnitvi = false
 
     private fun postaviVrnjeniFokus(koncno: Boolean) {
-        if (!vrniFokus || isFinishing) return
+        if (isFinishing) return
+        if (!PokrajinaPravila.obnoviFokus(vrniFokus, tipkaPoVrnitvi)) { vrniFokus = false; return }
         if (koncno) vrniFokus = false
+        // Zadnji pogled s fokusom (ce je se na zaslonu in ni bil po oznaki), sicer pogled po oznaki ali prva ploscica.
+        val f = zadnjiFokusPogled?.takeIf { oznakaFokusa == null && it.isAttachedToWindow && it.isShown }
         val oznaka = PokrajinaPravila.oznakaFokusaPoVrnitvi(oznakaFokusa,
             { koren.findViewWithTag<View>(it)?.let { v -> v.isShown && v.isFocusable } == true }, zadnjaPloscica)
-        val v = oznaka?.let { koren.findViewWithTag<View>(it) }
+        val v = f ?: oznaka?.let { koren.findViewWithTag<View>(it) }
             ?: (0 until vrstaAplikacij.childCount).map { vrstaAplikacij.getChildAt(it) }.firstOrNull { it.isFocusable }
         if (v != null && !v.isFocused) v.requestFocus()
     }
@@ -490,17 +497,14 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
             intArrayOf(alfa shl 24, 0, 0, alfa shl 24))
         glavna.post(tikUre)
         
+        tipkaPoVrnitvi = false
         narisiAplikacije()
-        // Naloga 49 D: zadnji fokus (ploscica, spodnji gumb ali lupa), ce pogled se obstaja; sicer ista ploscica po oznaki.
+        // Naloga 49 D: zadnji fokus (ploscica, spodnji gumb), ce pogled se obstaja; sicer ista ploscica po oznaki.
         // Preverba TV 4. 11. 2026: gumb spodnje vrstice po oznaki (PokrajinaPravila.oznakaFokusaPoVrnitvi), znova tudi
-        // po onResume in ko okno dobi fokus - prej je fokus pristal na zadnji ploscici.
-        val f = zadnjiFokusPogled
-        if (f != null && f.isAttachedToWindow && f.isShown && oznakaFokusa == null) {
-            f.post { f.requestFocus() }
-        } else {
-            vrniFokus = true
-            koren.post { postaviVrnjeniFokus(false) }
-        }
+        // po onResume in ko okno dobi fokus - prej je fokus pristal na zadnji ploscici. Pregled lupe 5. 11. 2026 (9): vse
+        // tri poti gredo skozi postaviVrnjeniFokus in nobena ne premakne fokusa po prvi tipki uporabnika.
+        vrniFokus = true
+        koren.post { postaviVrnjeniFokus(false) }
         zbudi(animiraj = false)
         prikaziVreme()
         osveziVreme()
@@ -528,8 +532,14 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         // dobi vec pomnilnika.
         try { LahkiWebViewPool.sprostiProstega() } catch (_: Throwable) { }
         ZnackeObvestil.poslusalci.remove(posodobiZnacke)
-        zadnjiFokusPogled = currentFocus
-        oznakaFokusa = currentFocus?.let { f -> generateSequence(f) { it.parent as? View }.firstOrNull { it.tag is String }?.tag as? String }
+        // Pregled lupe 5. 11. 2026 (11): lupa se spodaj zapre (zadetki izginejo) - fokus v lupi se zapomni kot zadnja
+        // ploscica, sicer je po vrnitvi pristal na lupi.
+        val f = currentFocus
+        val vLupi = f != null && ((::lupaPogled.isInitialized && jePotomec(f, lupaPogled)) ||
+            (::zadetkiDrsnik.isInitialized && jePotomec(f, zadetkiDrsnik)) || (::tipkovnicaLupe.isInitialized && jePotomec(f, tipkovnicaLupe)))
+        zadnjiFokusPogled = if (vLupi) null else f
+        oznakaFokusa = PokrajinaPravila.oznakaObOdhodu(
+            f?.let { v -> generateSequence(v) { it.parent as? View }.firstOrNull { it.tag is String }?.tag as? String }, vLupi, zadnjaPloscica)
         try { unregisterReceiver(usbSprejemnik) } catch (_: Throwable) { }
         link.odstrani(linkPoslusalec)
         Aplikacije.obSpremembiPaketov.remove(obSpremembiPaketov)
@@ -658,6 +668,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
 
     override fun dispatchKeyEvent(dogodek: KeyEvent): Boolean {
         val izvirnaKoda = dogodek.keyCode
+        if (dogodek.action == KeyEvent.ACTION_DOWN) tipkaPoVrnitvi = true
         // Plosck A/B kot OK/Nazaj; ponovitev in cas ostaneta (dolg pritisk A premakne ploscico kot dolg OK).
         fun kot(koda: Int) = KeyEvent(dogodek.downTime, dogodek.eventTime, dogodek.action, koda, dogodek.repeatCount,
             dogodek.metaState, dogodek.deviceId, dogodek.scanCode, dogodek.flags, dogodek.source)
@@ -828,7 +839,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                 if (::vrstaAplikacij.isInitialized && vrstaAplikacij.hasFocus()) {
                     // Zunanji pregled 3. 11. 2026: tipko pojemo samo, ce fokus res pride na rocico (sicer obtici); DOL s ploscic
                     // gre na mini predvajalnik samo, ko je odprt - sicer naravnost na spodnjo vrstico pod isto X.
-                    if (mini != null && dock?.jeOdprt == true && mini.requestFocus()) {
+                    if (mini != null && PokrajinaPravila.dolNaMini(dock?.jeOdprt == true, true) && mini.requestFocus()) {
                         return true
                     } else if (::dok.isInitialized) {
                         val cilj = najblizjiPogledX(dok, vrstaAplikacij.findFocus())
@@ -1029,7 +1040,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
             // Daljinec: fokus tipkovnice ne odpre (sicer bi zakrila zaslon ob vsakem prehodu), OK jo odpre.
             showSoftInputOnFocus = false
             setOnKeyListener { v, koda, d ->
-                val ok = koda == KeyEvent.KEYCODE_DPAD_CENTER || koda == KeyEvent.KEYCODE_ENTER
+                // Pregled lupe 5. 11. 2026 (7): tudi Enter stevilcnice (sicer TextView naredi focusSearch DOL).
+                val ok = LupaPravila.jeOkTipka(koda)
                 // Pregled Grok 2. 11. 2026: na TV je OK skoraj vedno DPAD_CENTER - z vpisanim besedilom isce v izbranem obsegu
                 // (prej je OK odprl samo tipkovnico, iskanje pa je sprozil le gumb tipkovnice).
                 val niz = (v as EditText).text?.toString()?.trim().orEmpty()
@@ -1068,6 +1080,9 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                         LupaPravila.OkTipka.ISCI -> DomacaLupa.izvedi(this@PokrajinaActivity, niz)
                         LupaPravila.OkTipka.NIC -> Unit
                     }
+                    true
+                } else if (ok && d.action == KeyEvent.ACTION_UP) {
+                    // Spust OK/Enter ostane tu: TextView bi ob spustu Enter sam premaknil fokus navzdol (pregled lupe 5. 11. 2026, 7).
                     true
                 } else false
             }
@@ -1463,7 +1478,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
      * zadetek (nic se ne zazene), Splet odpre neposredno stran, ce je; drugo isce izvedi(). Zadetki se risejo 250 ms po
      * zadnji crki: ce je OK prisel prej, se najprej narisejo za vpisano besedilo.
      */
-    override fun okNaPolju(niz: String, naprave: List<Pair<String, String>>): Boolean {
+    override fun okNaPolju(niz: String, naprave: List<Pair<String, String>>, tipkaIsci: Boolean): Boolean {
         if (!::poljeLupe.isInitialized || niz.isBlank()) return false
         // Zgodovina in predlogi (drug niz kot v polju) niso zadetek tega seznama - gredo v iskanje.
         if (niz.trim() != poljeLupe.text?.toString()?.trim()) return false
@@ -1471,7 +1486,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         val prvi = prviVSeznamu()
         // Pod Vse je vrstica »Isci v spletu« vedno tu - ni zadetek; z njo samo OK isce v spletu (preverba TV 4. 11. 15:17).
         val imaZadetek = if (LupaPravila.obseg(izbiraLupe) == LupaPravila.OBSEG_VSE) imaPravZadetek() else prvi != null
-        return when (LupaPravila.okNaPolju(izbiraLupe, niz, imaZadetek, prvaStran != null, naprave)) {
+        // Pregled lupe 5. 11. 2026 (4): s tipke »Iskanje« vrstice znakov vedno iskanje, nikoli samo premik fokusa.
+        return when (LupaPravila.okNaPolju(izbiraLupe, niz, imaZadetek, prvaStran != null, naprave, tipkaIsci)) {
             LupaPravila.OkPolja.FOKUS_NA_PRVI -> if (prvi == null) false else { DomacaLupa.zapriTipkovnico(this); prvi.requestFocus(); true }
             LupaPravila.OkPolja.ODPRI_STRAN -> prvaStran?.let { it.performClick(); true } ?: false
             else -> false
@@ -1927,8 +1943,9 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
 
         val stare = vrstaDomov.toSet()
         // Zunanji pregled 3. 11. 2026: ob USB ali novem imenu spletne aplikacije se vrsta narise znova - fokus ostane na isti ploscici.
+        // Pregled lupe 5. 11. 2026 (9): fokus se na isto ploscico vrne takoj na koncu risanja (spodaj), ne s postom -
+        // poznejsi post je uporabnika, ki je medtem pritisnil GOR ali DESNO, vrnil na staro ploscico.
         val fokusTag = vrstaAplikacij.findFocus()?.let { f -> generateSequence(f) { it.parent as? View }.firstOrNull { it.parent === vrstaAplikacij }?.tag }
-        if (fokusTag != null) vrstaAplikacij.post { vrstaAplikacij.findViewWithTag<View>(fokusTag)?.requestFocus() }
         vrstaAplikacij.removeAllViews()
         vrstaDomov = vrsta
         vrstaJePrivzeta = nicPripetega
@@ -2051,6 +2068,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         val gumbDodaj = kartica(null, R.drawable.os_ikona_plus, getString(R.string.os_spletne_dodaj)) { dodajAplikacijo() }
         gumbDodaj.findViewById<TextView>(R.id.ime).visibility = View.GONE
         dodajVVrsto(gumbDodaj, dp(visinaPlosceDp))
+        if (fokusTag != null) vrstaAplikacij.findViewWithTag<View>(fokusTag)?.requestFocus()
         return true
     }
 

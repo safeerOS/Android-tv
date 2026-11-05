@@ -50,6 +50,25 @@ object PokrajinaPravila {
         else -> null
     }
 
+    /**
+     * Pregled lupe 5. 11. 2026 (11): ob odhodu z doma s fokusom v lupi (polje, zadetek, filter, vrstica znakov) se zapomni
+     * zadnja ploscica - lupa se ob odhodu zapre in zadetki izginejo, zato je fokus po vrnitvi pristal v lupi.
+     */
+    fun oznakaObOdhodu(oznaka: String?, vLupi: Boolean, zadnjaPloscica: String?): String? =
+        if (vLupi) zadnjaPloscica else oznaka
+
+    /**
+     * Pregled lupe 5. 11. 2026 (9): fokus po vrnitvi na dom se obnovi samo, dokler uporabnik od onStart ni pritisnil
+     * nobene tipke - prej so trije poznejsi posti (onStart, onResume, okno dobi fokus) fokus vrnili za uporabnikom.
+     */
+    fun obnoviFokus(cakaVrnitev: Boolean, tipkaPoVrnitvi: Boolean): Boolean = cakaVrnitev && !tipkaPoVrnitvi
+
+    /**
+     * DOL s ploscice na mini predvajalnik samo, ko je odprt (isto kot dispatchKeyEvent, pregled 3. 11. 2026); sicer na
+     * spodnjo vrstico pod isto X. Pregled lupe 5. 11. 2026 (10): prepis iskanja fokusa vrste se prej sploh ni izvedel.
+     */
+    fun dolNaMini(miniOdprt: Boolean, miniViden: Boolean): Boolean = miniOdprt && miniViden
+
     fun dokVrstniRed(shranjeno: String?): List<String> {
         val s = shranjeno?.split(",")?.map { it.trim() }?.filter { it in DOK }.orEmpty()
         val izid = s.toMutableList()

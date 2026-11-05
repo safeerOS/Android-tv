@@ -74,6 +74,8 @@ object DomacaLupa {
         val umakni: List<View>,
     ) {
         private var razprta: Boolean? = null
+        /** Lupo je razprl OK ali tipkanje ([razpri]); velja, dokler je fokus v lupi ali v vrstici znakov. */
+        private var rocno = false
 
         /** Izbira »lupa vedno odprta« v Nastavitvah velja takoj, ko se uporabnik vrne na domaci zaslon. */
         private val naFokusOkna = android.view.ViewTreeObserver.OnWindowFocusChangeListener { ima -> if (ima) uveljavi() }
@@ -90,7 +92,10 @@ object DomacaLupa {
         }
 
         fun uveljavi() {
-            val zdaj = VrsticaPravila.lupaRazsirjena(okvir.hasFocus(), polje.text, vednoOdprta(a))
+            // Pregled lupe 5. 11. 2026 (3): fokus daljinca lupe ne razpre, samo OK, tipkanje, besedilo ali dotik.
+            val fokus = okvir.hasFocus() || tipkovnicaOdprta(a)
+            if (!fokus) rocno = false
+            val zdaj = VrsticaPravila.lupaRazsirjena(fokus, polje.text, vednoOdprta(a), rocno, polje.isInTouchMode)
             if (zdaj == razprta) return
             val prvic = razprta == null
             razprta = zdaj
@@ -107,6 +112,7 @@ object DomacaLupa {
 
         /** Razpre lupo in postavi fokus v polje; [tipkovnica] jo odpre (dotik), daljinec jo odpre z OK. */
         fun razpri(tipkovnica: Boolean) {
+            rocno = true
             polje.visibility = View.VISIBLE
             polje.requestFocus()
             uveljavi()
@@ -122,6 +128,7 @@ object DomacaLupa {
         fun zapri() {
             (a.getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(polje.windowToken, 0)
             zapriTipkovnico(a)
+            rocno = false
             polje.setText("")
             if (polje.isInTouchMode) polje.clearFocus()
             uveljavi()
@@ -159,26 +166,33 @@ object DomacaLupa {
             setTextSize(TypedValue.COMPLEX_UNIT_SP, if (tv) 18f else 16f)
             setPadding(dp(a, 14), dp(a, 10), dp(a, 8), dp(a, 10))
             isFocusable = true; isFocusableInTouchMode = true
-            // TV: fokus z daljincem polja ne odpre; OK/Enter odpre tipkovnico (kot iskanje v Safeer Media).
+            // TV: fokus z daljincem polja ne odpre; OK/Enter odpre naso vrstico znakov (kot Pokrajina). Pregled lupe 5. 11.
+            // 2026 (2): showSoftInputOnFocus ostane false - prej ga je OK s »fizicno tipkovnico« (daljinec Philips se javi
+            // kot tipkovnica) za vedno nastavil na true in sistemska tipkovnica se je odpirala ob vsakem fokusu.
             if (tv) showSoftInputOnFocus = false
             setOnEditorActionListener { v, akcija, dogodek ->
-                val enter = dogodek?.keyCode == KeyEvent.KEYCODE_ENTER && dogodek.action == KeyEvent.ACTION_UP
-                if (akcija == EditorInfo.IME_ACTION_SEARCH || akcija == EditorInfo.IME_ACTION_DONE || enter) {
-                    val niz = text.toString()
-                    if (niz.isNotBlank()) { izvedi(a, niz); krmiloPolja(v)?.zapri() }
-                    true
-                } else false
-            }
-            if (tv) setOnKeyListener { v, koda, dogodek ->
-                if (dogodek.action == KeyEvent.ACTION_DOWN && (koda == KeyEvent.KEYCODE_DPAD_CENTER || koda == KeyEvent.KEYCODE_ENTER)) {
-                    if (jeFizicnaTipkovnica(a)) {
-                        (v as EditText).showSoftInputOnFocus = true
-                        (a.getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager).showSoftInput(v, 0)
-                    } else {
-                        odpriTipkovnico(a, v as EditText)
+                when (LupaPravila.oddajaUrejevalnika(akcija, dogodek?.keyCode, dogodek?.action)) {
+                    LupaPravila.Oddaja.ODDAJ -> {
+                        val niz = text.toString()
+                        if (niz.isNotBlank()) { izvedi(a, niz); krmiloPolja(v)?.zapri() }
+                        true
                     }
-                    true
-                } else false
+                    LupaPravila.Oddaja.POGOLTNI -> true
+                    LupaPravila.Oddaja.NIC -> false
+                }
+            }
+            // Pregled lupe 5. 11. 2026 (1, 6): z besedilom OK isce, brez besedila odpre vrstico znakov; spust tipke se
+            // pogoltne (TextView bi ob spustu Enter sam premaknil fokus navzdol).
+            if (tv) setOnKeyListener { v, koda, dogodek ->
+                if (!LupaPravila.jeOkTipka(koda)) return@setOnKeyListener false
+                if (dogodek.action == KeyEvent.ACTION_DOWN && dogodek.repeatCount == 0) {
+                    val niz = (v as EditText).text?.toString().orEmpty()
+                    when (LupaPravila.okNaStariLupi(niz, obseg(a))) {
+                        LupaPravila.OkTipka.ISCI -> { izvedi(a, niz); krmiloPolja(v)?.zapri() }
+                        else -> { krmiloPolja(v)?.razpri(tipkovnica = false); odpriTipkovnico(a, v) }
+                    }
+                }
+                true
             }
         }
         val mikrofon = ImageButton(a).apply {
@@ -350,14 +364,15 @@ object DomacaLupa {
      */
     interface IzbiraLupe {
         fun obsegLupe(): String
-        fun okNaPolju(niz: String, naprave: List<Pair<String, String>>): Boolean
+        fun okNaPolju(niz: String, naprave: List<Pair<String, String>>, tipkaIsci: Boolean = false): Boolean
     }
 
-    fun izvedi(a: Activity, niz: String) {
+    /** [tipkaIsci]: klic s tipke »Iskanje« nase vrstice znakov - ta vedno isce (pregled lupe 5. 11. 2026, 4). */
+    fun izvedi(a: Activity, niz: String, tipkaIsci: Boolean = false) {
         val q = niz.trim()
         // Vse poti (OK na polju, Enter tipkovnice, »Isci« na zaslonski tipkovnici) gredo sem - zato se prvi zadetek odpre tu.
         val naprave = napraveKroga(a)
-        if (a is IzbiraLupe && a.okNaPolju(q, naprave)) return
+        if (a is IzbiraLupe && (if (tipkaIsci) a.okNaPolju(q, naprave, tipkaIsci = true) else a.okNaPolju(q, naprave))) return
         if (!LupaPravila.okIsce(q, obseg(a))) return
         dodajZgodovino(a, q)
         val u = LupaPravila.razcleni(q, naprave)
@@ -491,19 +506,24 @@ object DomacaLupa {
         }
         val znaki = if (stevilke) "1234567890!?:;\"'()/@#€%&*+=_~-." else "abcdefghijklmnopqrstuvwxyz$sumniki"
         
-        fun tipka(napis: String, sirinaDp: Int, ob: () -> Unit) {
+        // [ponavljaj]: drzan OK ponavlja (znaki, presledek, Brisi) - pregled lupe 5. 11. 2026 (14).
+        fun tipka(napis: String, sirinaDp: Int, ponavljaj: Boolean = false, ob: () -> Unit) {
             val btn = TextView(a).apply {
                 text = napis
                 gravity = Gravity.CENTER
                 setTextColor(a.osBarva(R.color.os_besedilo))
-                textSize = if (napis.length > 2) 12f else 17f
+                // Pregled lupe 5. 11. 2026 (5): daljsi napisi vsaj 14 sp, ce gredo v sirino tipke (prej vedno 12 sp).
+                if (napis.length > 2) {
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+                    val prostor = (sirinaDp - 8) * a.resources.displayMetrics.density
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, LupaPravila.velikostNapisaTipke(paint.measureText(napis), prostor))
+                } else textSize = 17f
                 setBackgroundResource(R.drawable.os_tipka_velika)
                 isFocusable = true
                 isClickable = true
                 setOnClickListener { ob() }
                 setOnKeyListener(View.OnKeyListener { _, koda, e ->
-                    if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount > 0 && 
-                        (koda == KeyEvent.KEYCODE_DPAD_CENTER || koda == KeyEvent.KEYCODE_ENTER || koda == KeyEvent.KEYCODE_NUMPAD_ENTER || koda == KeyEvent.KEYCODE_BUTTON_A)) {
+                    if (e.action == KeyEvent.ACTION_DOWN && LupaPravila.ponoviDrzanOk(koda, e.repeatCount, ponavljaj)) {
                         ob(); true
                     } else false
                 })
@@ -528,11 +548,11 @@ object DomacaLupa {
         if (fizicna) {
             for ((i, vrsta) in LupaPravila.vrsteFizicne(jezik).withIndex()) {
                 if (i > 0) novaVrsta()
-                for (z in vrsta) tipka(z.toString(), 34) { vstavi(z.toString()) }
+                for (z in vrsta) tipka(z.toString(), 34, ponavljaj = true) { vstavi(z.toString()) }
             }
         } else for ((i, z) in znaki.withIndex()) {
             if (i > 0 && i % TIPK_V_VRSTI == 0) novaVrsta()
-            tipka(z.toString(), 34) { vstavi(z.toString()) }
+            tipka(z.toString(), 34, ponavljaj = true) { vstavi(z.toString()) }
         }
         novaVrsta()
         tipka("‹", 42) { polje.setSelection((polje.selectionStart - 1).coerceAtLeast(0)) }.also { v.getChildAt(v.childCount - 1).contentDescription = a.getString(R.string.os_tipk_kazalec_levo) }
@@ -547,8 +567,8 @@ object DomacaLupa {
             narisiTipkovnico(a, t, polje, !stevilke)
             t.post { (t.getChildAt(0) as? ViewGroup)?.getChildAt(0)?.requestFocus() }
         }
-        tipka(a.getString(R.string.os_tipk_presledek), 60) { vstavi(" ") }
-        tipka(a.getString(R.string.os_tipk_vracalka), 60) {
+        tipka(a.getString(R.string.os_tipk_presledek), 60, ponavljaj = true) { vstavi(" ") }
+        tipka(a.getString(R.string.os_tipk_vracalka), 60, ponavljaj = true) {
             val e = polje.text ?: return@tipka
             val z = polje.selectionStart.coerceIn(0, e.length)
             val k = polje.selectionEnd.coerceIn(z, e.length)
@@ -560,7 +580,7 @@ object DomacaLupa {
         // Prej pk_lupa_splet (»Isci v spletu: »%1$s«« z nadomestkom) - na tipki je bil viden %1$s.
         tipka(a.getString(R.string.os_glasba_iskanje), 72) {
             val q = polje.text.toString()
-            if (q.isNotBlank()) izvedi(a, q)
+            if (q.isNotBlank()) izvedi(a, q, tipkaIsci = true)
             zapriTipkovnico(a)
             krmilo(a)?.zapri()
         }

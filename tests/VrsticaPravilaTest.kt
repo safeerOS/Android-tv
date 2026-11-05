@@ -54,7 +54,11 @@ private fun potegi() {
 private fun lupa() {
     println("\n== iskalna lupa ==")
     preveri("prazna lupa brez fokusa je kompaktna", !VrsticaPravila.lupaRazsirjena(false, "", false))
-    preveri("fokus razsiri", VrsticaPravila.lupaRazsirjena(true, "", false))
+    // Pregled lupe 5. 11. 2026 (3): fokus daljinca sam lupe ne razpre; OK/tipkanje (rocno) ali dotik jo.
+    preveri("fokus daljinca ne razsiri", !VrsticaPravila.lupaRazsirjena(true, "", false))
+    preveri("OK ali tipkanje razsiri", VrsticaPravila.lupaRazsirjena(true, "", false, rocno = true))
+    preveri("rocno odprta brez fokusa se zapre", !VrsticaPravila.lupaRazsirjena(false, "", false, rocno = true))
+    preveri("dotik s fokusom razsiri", VrsticaPravila.lupaRazsirjena(true, "", false, dotik = true))
     preveri("besedilo ostane razsirjeno", VrsticaPravila.lupaRazsirjena(false, "Sintel na TV", false))
     preveri("samo presledki ne drzijo lupe odprte", !VrsticaPravila.lupaRazsirjena(false, "   ", false))
     preveri("izbira »vedno odprta«", VrsticaPravila.lupaRazsirjena(false, "", true))
