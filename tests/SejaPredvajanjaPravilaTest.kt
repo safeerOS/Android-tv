@@ -4,7 +4,7 @@ package si.safeer.tv.os
 fun main() {
     val P = SejaPredvajanjaPravila
     fun st(stanje: Int, polozaj: Long, cas: Long, hitrost: Float = 1f, posebne: List<String> = listOf("na_napravi")) =
-        P.Stanje(stanje, hitrost, 823L, posebne, polozaj, cas)
+        SejaPredvajanjaPravila.Stanje(stanje, hitrost, 823L, posebne, polozaj, cas)
     check(P.bistvenoSpremenjeno(null, st(2, 0, 0))) { "prvo stanje gre vedno" }
     // Izmerjeni izbruh: state=2, polozaj 0, trikrat v 20 ms - samo prvo.
     val premor = st(2, 0, 1_000)
