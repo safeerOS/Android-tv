@@ -77,6 +77,6 @@ preveri('isti element znova: fokus ostane', customize, doc.activeElement);
 // highlightElement mora uskladiFokus res klicati, takoj po oznaki (blok ne sme ostati mrtev).
 const hl = VIR.slice(VIR.indexOf('function highlightElement(el)')).slice(0, 4000);
 preveri('highlightElement: clearActive, oznaka, uskladiFokus', true,
-    /clearActive\(\);[\s\S]{0,200}el\.classList\.add\('safeer-active-card'\);[\s\S]{0,400}uskladiFokus\(el, document\);/.test(hl));
+    /clearActive\(\);[\s\S]{0,200}el\.classList\.add\('safeer-active-card'\);[\s\S]{0,400}uskladiFokus\(el, document, istaPlast\);/.test(hl));
 preveri('highlightElement: brez starega neposrednega el.focus', true, !/tag !== 'INPUT' && tag !== 'TEXTAREA'/.test(hl));
 console.log('tv_en_fokus_test: OK (' + stevilo + ')');

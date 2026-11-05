@@ -44,7 +44,8 @@ preveri('lupina, levo ni nicesar: stranska vrstica', 'meni', leviRob(true, false
 preveri('lupina, stran podrsana v desno: najprej nazaj na levi rob', 'podrsaj', leviRob(true, false, 140));
 
 // Navigacija ju mora res uporabljati (da blok ne ostane mrtev po prihodnjih popravkih).
-assert.ok(/_safeer_navigate_spatial = function\(direction, robVrstice\)/.test(VIR), 'navigacija ne sprejme robVrstice');
+assert.ok(/var navigirajProstorsko = function\(direction, robVrstice\)/.test(VIR) &&
+    /izvoziZaAplikacijo\('_safeer_navigate_spatial', navigirajProstorsko\);/.test(VIR), 'navigacija ne sprejme robVrstice');
 assert.ok((VIR.match(/return -2;/g) || []).length >= 4, 'navigacija levega roba ne javi na vseh stirih mestih');
 assert.ok(VIR.indexOf('jeLeviSosed(cRect, r)') > doKonca, 'zanka kandidatov ne preveri levega soseda');
 console.log('tv_levi_rob_test: OK (' + stevilo + ')');

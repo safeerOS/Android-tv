@@ -81,9 +81,20 @@ for (const vloga of ['', 'dialog']) {
     s.window._safeer_click_focused_card();
     preveri(opis + ': OK na »Reject all cookies« je en dotik na njegovi sredini', [[1338, 1000]], s.dotiki);
 
-    // Pojav okna: izbira gre vanj, na prvi gumb po legi (Customize), brez klika.
+    // Pregled fokusa 5. 11. 2026: vstop tece iz casovnika in opazovalca DOM (brez tipke). Izbire, ki ze obstaja, ne vzame.
     s = stran(vloga);
     s.window._safeer_highlight(s.e.try);
+    preveri(opis + ': brez tipke izbire na strani okno ne vzame', false, s.window._safeer_vstopi_v_plast());
+    preveri(opis + ': izbira ostane na »Try Claude«', 'try', ime(s, s.izbran()));
+    // Brez izbire in brez tipke: samo pravo modalno okno, ne vsaka pritrjena plast z besedo cookie.
+    s = stran(vloga);
+    preveri(opis + (vloga ? ': brez izbire vstop v modalno okno' : ': brez tipke ni vstopa v pritrjeno plast'), !!vloga,
+        s.window._safeer_vstopi_v_plast());
+
+    // Pojav okna: izbira gre vanj, na prvi gumb po legi (Customize), brez klika. Pritrjena plast samo kratko po tipki
+    // (GOR nad »Try Claude« nima cilja: izbira pocisti, tipka zabelezena).
+    s = stran(vloga);
+    if (!vloga) { s.window._safeer_highlight(s.e.try); s.window._safeer_navigate_spatial('UP'); }
     preveri(opis + ': ob pojavu okna izbira skoci vanj', true, s.window._safeer_vstopi_v_plast());
     preveri(opis + ': izbran je prvi gumb okna (Customize), ne Sprejmi/Zavrni', 'customize', ime(s, s.izbran()));
     preveri(opis + ': nic ni sprejeto ali zavrnjeno samo', [0, 0], [s.kliki.length, s.dotiki.length]);

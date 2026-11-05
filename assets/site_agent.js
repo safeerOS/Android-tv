@@ -665,7 +665,9 @@
                         try {
                             if (!isFramed(v)) {
                                 var lastT = window._safeer_medij_last_tile;
-                                if (lastT && lastT.isConnected) lastT.classList.add('safeer-active-card');
+                                // Pregled fokusa 5. 11. 2026: razred sam ni izbira (tv_spatial.js hrani izbrani element v zaprtju) -
+                                // rocni razred je dal okvir brez izbire in brez fokusa; highlight nastavi oboje in obroc.
+                                if (lastT && lastT.isConnected && typeof window._safeer_highlight === 'function') window._safeer_highlight(lastT);
                             }
                         } catch (_) {}
                         reopenTile('class');

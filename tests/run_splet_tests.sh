@@ -44,3 +44,5 @@ java -cp "$OUT/splet.jar" si.safeer.tv.AplikacijaPovezaveTestKt
 # Daljinec v plosci predlogov (TV 3. 11. 2026: predloga ni bilo mogoce izbrati).
 java -cp "$OUT/splet.jar" si.safeer.tv.OmniboxTipkeTestKt
 java -cp "$OUT/splet.jar" si.safeer.tv.TvTipkeTestKt
+# Fokus na spletni strani v TV brskalniku (pregled fokusa 5. 11. 2026): en fokus, zavrnjen cilj, vstop v plast, varnost OK.
+node "$TEST_DIR/tv_pregled_fokusa_test.js"

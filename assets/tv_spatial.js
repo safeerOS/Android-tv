@@ -1,8 +1,6 @@
         /* 📺 Safeer TV Remote D-Pad Navigation & Cinema OSD Engine */
         (function() {
             if ((location.href || '').indexOf('youtube.com/tv') !== -1) return;
-            if (window._safeer_tv_remote_installed) return;
-            if (!window._safeer_tv_remote_installed) window._safeer_tv_remote_installed = true;
 
             /* SAFEER_ZETON_DOTIKA_ZACETEK */
             // Pregled Gemini 3. 11. 2026: SafeerBridge vidi vsak okvir strani; pravi dotik zato zahteva zeton, ki ga ima samo
@@ -18,6 +16,40 @@
             }
             /* SAFEER_ZETON_DOTIKA_KONEC */
 
+            /* SAFEER_ZNAK_NAMESTITVE_ZACETEK */
+            // Pregled fokusa 5. 11. 2026: stran (ali element z id="_safeer_tv_remote_installed") je lahko vnaprej nastavila
+            // zastavico in nas skript se ni namestil - daljinec na strani mrtev. Zastavica je zdaj nespremenljiva lastnost z
+            // znakom, izpeljanim iz zetona strani (zeton sam ne pride na window); stran zetona pred nami ne pozna, zato tuja
+            // vrednost ne velja. Ping aplikacije (UserScriptManager.injectOnPageFinished) preveri samo, da je resnicna.
+            function znakNamestitve(z) {
+                var h = 2166136261 >>> 0;
+                for (var i = 0; i < z.length; i++) { h ^= z.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+                return 'safeer-' + h.toString(36);
+            }
+            function jeNamescen(w, znak) {
+                var d = null;
+                try { d = Object.getOwnPropertyDescriptor(w, '_safeer_tv_remote_installed'); } catch (_) {}
+                return !!d && d.value === znak && d.writable === false && d.configurable === false;
+            }
+            function oznaciNamescen(w, znak) {
+                try {
+                    Object.defineProperty(w, '_safeer_tv_remote_installed', { value: znak, writable: false, configurable: false, enumerable: false });
+                    return true;
+                } catch (_) { return false; }
+            }
+            /* SAFEER_ZNAK_NAMESTITVE_KONEC */
+            var ZNAK_NAMESTITVE = znakNamestitve(ZETON_DOTIKA);
+            if (jeNamescen(window, ZNAK_NAMESTITVE)) return;
+            oznaciNamescen(window, ZNAK_NAMESTITVE);
+
+            // Pregled fokusa 5. 11. 2026: stran je lahko prepisala window._safeer_click_focused_card ali _safeer_highlight
+            // (aplikacija ju klice ob OK) - npr. odgovor 'datoteka' je sprozil pravo tipko Enter. Funkcije za aplikacijo
+            // so nespremenljive lastnosti.
+            function izvoziZaAplikacijo(ime, fn) {
+                try { Object.defineProperty(window, ime, { value: fn, writable: false, configurable: false, enumerable: false }); }
+                catch (_) { try { window[ime] = fn; } catch (_) {} }
+            }
+
             /* SAFEER_SAMODEJNO_ZACETEK */
             // Lastnik 5. 11. 2026 04:52 (video, f-droid.org): stran se je sama pomikala in izbira je skakala med povezavami,
             // daljinec pa je v 80 s poslal 2 tipki. Izbrani element se brez uporabnikove tipke ne zamenja: fokus, ki ga premakne
@@ -30,8 +62,21 @@
             }
             /* SAFEER_SAMODEJNO_KONEC */
             var zadnjaTipkaMs = 0;
+            // Pregled fokusa 5. 11. 2026: stran je razred safeer-active-card lahko dala svojemu (tudi nevidnemu) okvirju in OK je
+            // nanj sprozil pravi dotik. Izbrani element je zdaj samo tisti, ki ga je izbral daljinec (zaprtje); razred je le slog.
+            var izbraniEl = null;
+            function izbrani() {
+                var e = izbraniEl;
+                try { if (e && e.isConnected && e.classList.contains('safeer-active-card')) return e; } catch (_) {}
+                return null;
+            }
+            function nastaviIzbrani(el) {
+                izbraniEl = el || null;
+                // Obris :focus strani rise samo, ko daljinec nima izbire - sicer bi bila dva okvirja (pregled fokusa 5. 11. 2026).
+                try { document.documentElement.classList[el ? 'add' : 'remove']('safeer-izbira'); } catch (_) {}
+            }
             function samodejnoDovoljeno(vir) {
-                var ima = !!document.querySelector('.safeer-active-card');
+                var ima = !!izbrani();
                 var od = Date.now() - zadnjaTipkaMs;
                 if (smeSamodejno(ima, od)) return true;
                 try {
@@ -217,8 +262,8 @@
                        ki ga vsebnik strani ne more odrezati. Obroba na elementu in se obroba strani
                        ob njem sta dajali dvojni okvir (21. 9. 2026, rtvslo.si). Obroba ostane samo
                        elementu s fokusom, ki ni izbran z daljincem (npr. polje za vnos). */
-                    :focus:not(.safeer-active-card):not(.safeer-active-card *),
-                    :focus-visible:not(.safeer-active-card):not(.safeer-active-card *), .tv-remote-focused {
+                    html:not(.safeer-izbira) :focus:not(.safeer-active-card):not(.safeer-active-card *),
+                    html:not(.safeer-izbira) :focus-visible:not(.safeer-active-card):not(.safeer-active-card *), .tv-remote-focused {
                         outline: 4px solid #00e5ff !important;
                         outline-offset: 4px !important;
                         border-radius: 10px !important;
@@ -299,6 +344,12 @@
                         transform: translateX(-50%) translateY(0);
                     }
                 `;
+                // Pregled fokusa 5. 11. 2026: senca :focus strani na izbranem elementu je bila drugi okvir ob nasem obrocu. Samo
+                // na spletnih straneh - domaca stran (file:) ima okvir fokusa v svojem slogu (safeer-home.css, brave_home.html).
+                if (location.protocol !== 'file:') {
+                    style.textContent += '.safeer-active-card:focus,.safeer-active-card:focus-visible,' +
+                        '.safeer-active-card :focus,.safeer-active-card :focus-visible{box-shadow:none!important}';
+                }
                 (document.head || document.documentElement).appendChild(style);
 
             } catch(e) {}
@@ -937,9 +988,12 @@
 
             function pocistiObroc(dovoljeni) {
                 try {
-                    var aktiven = document.querySelector('.safeer-active-card');
+                    var aktiven = izbrani();
                     if (aktiven && dovoljeni.indexOf(aktiven) === -1) {
                         aktiven.classList.remove('safeer-active-card');
+                        // Pregled fokusa 5. 11. 2026: obroc je ostal na mestu cilja brez izbire (prazen okvir).
+                        nastaviIzbrani(null);
+                        updateFocusRing(null);
                     }
                 } catch (_) {}
             }
@@ -1332,7 +1386,19 @@
                 if (window._safeerCandCache && (nowMs - (window._safeerCandAt || 0)) < 80) {
                     return window._safeerCandCache;
                 }
+                var t0 = 0;
+                try { t0 = performance.now(); } catch (_) {}
                 var found = odstraniNedosegljive(getCandidatesFresh());
+                // #region agent log
+                // Pregled fokusa 5. 11. 2026: zbiranje ob vsaki tipki je mozno ozko grlo - najprej merimo (brez spremembe vedenja).
+                try {
+                    window._safeerDbgKandN = (window._safeerDbgKandN || 0) + 1;
+                    if (window._safeerDbgKandN <= 20) {
+                        window._safeerDbg('H54', 'tv_spatial.js:kandidati', 'trajanje', {
+                            n: found.length, ms: Math.round((performance.now() - t0) * 10) / 10 });
+                    }
+                } catch (_) {}
+                // #endregion
                 window._safeerCandCache = found;
                 window._safeerCandAt = nowMs;
                 return found;
@@ -1422,24 +1488,48 @@
                 return candidates;
             }
 
-            function getActiveElement() {
-                var current = document.querySelector('.safeer-active-card');
-                if (current && current.isConnected) {
-                    try {
-                        var hr = current.getBoundingClientRect();
-                        if (hr.width >= 8 && hr.height >= 8) return current;
-                    } catch (_) {
-                        return current;
-                    }
+            /* SAFEER_UPORABEN_CILJ_ZACETEK */
+            // Pregled fokusa 5. 11. 2026: izbira ali fokus strani na elementu z opacity 0, aria-hidden, inert, zunaj pogleda
+            // ali za modalnim oknom je bila izhodisce puscic in cilj OK (neviden element). Tak element ni izhodisce: zacnemo z
+            // vidnim. lahko: brez iskanja modalnega okna (drsenje, sprememba velikosti - samo obroc).
+            function jeProsojen(el) {
+                var p = el, g = 0;
+                while (p && p.nodeType === 1 && g++ < 30) {
+                    var st;
+                    try { st = window.getComputedStyle(p); } catch (_) { return false; }
+                    var o = parseFloat(st.opacity);
+                    if (!isNaN(o) && o <= 0.01) return true;
+                    if (st.display === 'none' || (p === el && st.visibility === 'hidden')) return true;
+                    p = p.parentElement;
                 }
+                return false;
+            }
+            function jeUporaben(el, lahko) {
+                if (!el || el.isConnected === false) return false;
+                try {
+                    var r = el.getBoundingClientRect();
+                    if (r.width < 8 || r.height < 8) return false;
+                } catch (_) { return false; }
+                if (jeSkritZaFokus(el) || jeProsojen(el) || jeZunajPogleda(el)) return false;
+                if (!lahko) {
+                    var okno = najdiPrekrivnoOkno();
+                    if (okno && !okno.contains(el)) return false;
+                }
+                return true;
+            }
+            /* SAFEER_UPORABEN_CILJ_KONEC */
+
+            function getActiveElement(lahko) {
+                var current = izbrani();
+                if (current && jeUporaben(current, lahko)) return current;
                 var act = document.activeElement;
-                if (act && act !== document.body && act !== document.documentElement && isActionable(act)) return act;
+                if (act && act !== document.body && act !== document.documentElement && isActionable(act) && jeUporaben(act, lahko)) return act;
                 return null;
             }
 
             window._safeer_medij_ensure_focus = function() {
                 try {
-                    var cur = document.querySelector('.safeer-active-card') || getActiveElement();
+                    var cur = izbrani() || getActiveElement();
                     function jeMenijskiElement(el) {
                         if (!el) return false;
                         var cls = ((el.className || '') + '').toLowerCase();
@@ -1646,6 +1736,7 @@
                 for (var i = 0; i < prevs.length; i++) {
                     prevs[i].classList.remove('safeer-active-card');
                 }
+                nastaviIzbrani(null);
                 updateFocusRing(null);
             }
 
@@ -1658,8 +1749,8 @@
 
             function spremljajCiljObroca() {
                 try {
-                    var el = document.querySelector('.safeer-active-card');
-                    if (!el || !el.isConnected) {
+                    var el = izbrani();
+                    if (!el) {
                         if (zadnjiOkvirObroca !== null) {
                             zadnjiOkvirObroca = null;
                             updateFocusRing(null);
@@ -1668,9 +1759,11 @@
                     }
                     var r = el.getBoundingClientRect();
                     var st = window.getComputedStyle(el);
+                    // Pregled fokusa 5. 11. 2026: tudi prosojen (opacity 0), aria-hidden ali inert cilj ni vec izbran.
                     if (st.display === 'none' || st.visibility === 'hidden' ||
-                        (r.width < 2 && r.height < 2)) {
+                        (r.width < 2 && r.height < 2) || jeSkritZaFokus(el) || jeProsojen(el)) {
                         el.classList.remove('safeer-active-card');
+                        nastaviIzbrani(null);
                         zadnjiOkvirObroca = null;
                         updateFocusRing(null);
                         return;
@@ -1756,7 +1849,7 @@
             }
             function vstopiVPlast(okno) {
                 if (!okno) return false;
-                var akt = document.querySelector('.safeer-active-card');
+                var akt = izbrani();
                 if (akt && okno.contains(akt)) return true;
                 var prvi = prviVPlasti(okno, getCandidates());
                 if (!prvi) return false;
@@ -1766,11 +1859,21 @@
             // Lastnik 3. 11. 2026 05:26: »okno se vsiljuje« - izbira je znova in znova skakala v plast (stran jo je na novo
             // izrisala, za nas nova plast) in vsakic podrsala stran. Zdaj najvec enkrat na naslov strani, nikoli v plast s
             // tujim okvirjem (uganka) in nikoli na gumb, ki ga kaj prekriva.
+            // Pregled fokusa 5. 11. 2026: klic tece iz casovnika (4,5 s) in opazovalca DOM, torej brez tipke. Kljuc je bil cel
+            // naslov (sprememba # ali ?q ga je odklenila) in vsaka lepljiva plast z besedo cookie je vzela izbiro. Zdaj: kljuc je
+            // izvor + pot; brez nedavne tipke samo pravo modalno okno (najdiPrekrivnoOkno) in nikoli, ce izbira ze obstaja.
+            function kljucNaslova() {
+                try { return (location.protocol || '') + '//' + (location.host || location.hostname || '') + (location.pathname || ''); }
+                catch (_) { return ''; }
+            }
             var vstopNaNaslovu = '';
             function vstopiVNovoPlast() {
                 try {
-                    if (vstopNaNaslovu === (location.href || '')) return false;
-                    var okno = najdiPrekrivnoOkno() || najdiPlastPiskotkov();
+                    if (vstopNaNaslovu === kljucNaslova()) return false;
+                    var odTipke = Date.now() - zadnjaTipkaMs;
+                    var poTipki = zadnjaTipkaMs > 0 && odTipke >= 0 && odTipke < SAMODEJNO_PO_TIPKI_MS;
+                    if (!poTipki && izbrani()) return false;
+                    var okno = najdiPrekrivnoOkno() || (poTipki ? najdiPlastPiskotkov() : null);
                     if (!okno || vstopljenePlasti.indexOf(okno) !== -1) return false;
                     if (jeVnosnoPolje(document.activeElement)) return false;
                     if (okno.querySelector && okno.querySelector('iframe')) return false;
@@ -1778,7 +1881,7 @@
                     var prvi = prviVPlasti(okno, getCandidates());
                     if (!prvi || jePrekrit(prvi)) return false;
                     if (!vstopiVPlast(okno)) return false;
-                    vstopNaNaslovu = location.href || '';
+                    vstopNaNaslovu = kljucNaslova();
                     vstopljenePlasti.push(okno);
                     if (vstopljenePlasti.length > 10) vstopljenePlasti.shift();
                     return true;
@@ -1788,14 +1891,26 @@
 
             var sledimFokusu = false;
             document.addEventListener('focusin', function (ev) {
+                // Nas lastni fokus (highlightElement -> uskladiFokus) med odzivom ne sme sproziti novega odziva.
+                if (sledimFokusu) return;
                 if (!samodejnoDovoljeno('fokus strani') && plastIzbire(ev.target, window.getComputedStyle) !== ev.target) {
                     // CodeRabbit 5. 11. 2026: ce stran sama da fokus polju za vnos, stara kartica ne sme ostati izbrana (smerne
                     // tipke bi zacele pri njej) - izbiro samo pocistimo, nove kartice pa samodejno ne izberemo.
-                    if (jeVnosnoPolje(ev.target)) { try { clearActive(); } catch (_) {} }
+                    if (jeVnosnoPolje(ev.target)) { try { clearActive(); } catch (_) {} return; }
+                    // Pregled fokusa 5. 11. 2026: fokus strani je ostal drugje (cian obris), nas obroc na izbrani kartici in OK
+                    // je sel na kartico - dva okvirja. En sam fokus: izbrani kartici ga vrnemo (nove kartice ne izberemo).
+                    var izb = izbrani();
+                    if (izb && izb !== ev.target && !(izb.contains && izb.contains(ev.target))) {
+                        // Stran je odprla modalno okno in mu dala fokus: kartica za oknom ni dosegljiva - izbiro pocistimo,
+                        // fokus ostane v oknu (njegov obris je edini okvir), fokusa mu ne vzamemo.
+                        var oknoF = null;
+                        try { oknoF = najdiPrekrivnoOkno(); } catch (_) {}
+                        if (oknoF && oknoF.contains(ev.target) && !oknoF.contains(izb)) { try { clearActive(); } catch (_) {} return; }
+                        sledimFokusu = true;
+                        try { uskladiFokus(izb, document, istaPlast); } catch (_) {} finally { sledimFokusu = false; }
+                    }
                     return;
                 }
-                // Nas lastni fokus (highlightElement -> uskladiFokus) med odzivom ne sme sproziti novega odziva.
-                if (sledimFokusu) return;
                 sledimFokusu = true;
                 try {
                     naFokusStrani(ev.target, document, { pocisti: clearActive, oznaci: highlightElement, jeCilj: isActionable,
@@ -1854,7 +1969,8 @@
             // element pogosto ni fokusljiv (DIV ovoj), focus() tiho ne naredi nicesar. Zdaj: fokus na element, sicer na
             // povezavo ali gumb v njem; ce ga tudi to ne dobi, prejsnjemu fokus vzamemo (blur). Polje (INPUT, TEXTAREA:
             // tipkovnica TV bi ujela daljinec) in tuj okvir (IFRAME: fokus bi sel v okvir) fokusa ne dobita nikoli.
-            function uskladiFokus(el, doc) {
+            // istaPlast(a, b): ali sta a in b v isti plasti izbire ali oknu (neobvezno; pregled fokusa 5. 11. 2026).
+            function uskladiFokus(el, doc, istaPlast) {
                 if (!el) return;
                 var tag = (el.tagName || '').toUpperCase();
                 var brezFokusa = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'IFRAME';
@@ -1870,10 +1986,21 @@
                 var vElementu = false;
                 try { vElementu = akt === el || (!!el.contains && el.contains(akt)); } catch (_) {}
                 if (akt && akt !== doc.body && akt !== doc.documentElement && (brezFokusa || !vElementu)) {
-                    try { akt.blur(); } catch (_) {}
+                    // Pregled fokusa 5. 11. 2026: blur v odprtem oknu je fokus vrgel na body - okno se je zaprlo ali past fokusa
+                    // ga je vrnila na zacetek. V isti plasti fokus ostane (obris strani se ob izbiri ne rise, html.safeer-izbira);
+                    // polje za vnos ga izgubi vedno (tipkovnica TV bi ujela daljinec).
+                    var aktTag = (akt.tagName || '').toUpperCase();
+                    var aktPolje = aktTag === 'INPUT' || aktTag === 'TEXTAREA' || !!akt.isContentEditable;
+                    var vIstiPlasti = false;
+                    if (!aktPolje && istaPlast) { try { vIstiPlasti = !!istaPlast(akt, el); } catch (_) {} }
+                    if (!vIstiPlasti) { try { akt.blur(); } catch (_) {} }
                 }
             }
             /* SAFEER_EN_FOKUS_KONEC */
+            function istaPlast(a, b) {
+                var pa = plastIzbire(a, window.getComputedStyle);
+                return !!pa && pa === plastIzbire(b, window.getComputedStyle);
+            }
 
             function highlightElement(el) {
                 window._safeerCandCache = null;
@@ -1908,17 +2035,18 @@
                             }
                         } catch (_) {}
                         // #endregion
-                        return;
+                        return false;
                     }
                 }
                 clearActive();
-                if (!el) return;
+                if (!el) return false;
                 window._safeer_medij_did_focus = true;
                 el.classList.add('safeer-active-card');
+                nastaviIzbrani(el);
                 try { if (((el.className || '') + '').indexOf('item--event') !== -1) el.tabIndex = 0; } catch (_) {}
                 var tag = (el.tagName || '').toUpperCase();
                 // En sam fokus: DOM fokus gre na izbrani element (ali povezavo v njem) ali pa nikamor (SAFEER_EN_FOKUS).
-                uskladiFokus(el, document);
+                uskladiFokus(el, document, istaPlast);
                 var hr = el.getBoundingClientRect();
                 if (hr.width < 800 && hr.height < 500) {
                     try { el.scrollIntoView({ behavior: 'auto', block: 'nearest', inline: 'nearest' }); } catch (_) {}
@@ -1967,21 +2095,24 @@
                     }
                 } catch (_) {}
                 // #endregion
+                return true;
             }
 
-            window._safeer_highlight = highlightElement;
+            // Pregled fokusa 5. 11. 2026: true = izbran; false = cilj zavrnjen (tudi po drsenju zunaj pogleda) - klicatelj
+            // poskusi naslednjega, sicer pove aplikaciji, da se ni premaknilo.
+            izvoziZaAplikacijo('_safeer_highlight', highlightElement);
 
             window.addEventListener('scroll', function() {
                 if (window._safeerRingRaf) return;
                 window._safeerRingRaf = requestAnimationFrame(function () {
                     window._safeerRingRaf = 0;
-                    var curr = getActiveElement();
+                    var curr = izbrani() || getActiveElement(true);
                     if (curr) updateFocusRing(curr);
                 });
             }, { passive: true });
 
             window.addEventListener('resize', function() {
-                var curr = getActiveElement();
+                var curr = izbrani() || getActiveElement(true);
                 if (curr) updateFocusRing(curr);
             }, { passive: true });
 
@@ -2224,7 +2355,7 @@
             }
             /* SAFEER_LEVI_ROB_KONEC */
 
-            window._safeer_navigate_spatial = function(direction, robVrstice) {
+            var navigirajProstorsko = function(direction, robVrstice) {
                 zadnjaTipkaMs = Date.now();
                 try {
                     var scrollY = window.scrollY || document.documentElement.scrollTop || 0;
@@ -2285,9 +2416,9 @@
                     if (!current) {
                         // V strani ni izbranega nicesar: LEVO gre v stransko vrstico (Safeer OS), ne na prvi element strani.
                         if (direction === 'LEFT' && leviRob(robVrstice, false, window.scrollX || 0) === 'meni') return -2;
-                        if (!current) {
-                        var best = null;
-                        var bestDist = Infinity;
+                        // Najprej vidni po legi (zgoraj levo), nato ostali po vrsti. Pregled fokusa 5. 11. 2026: zavrnjen cilj
+                        // (highlightElement -> false) je prej vseeno vrnil 1 in smer je ostala mrtva - zdaj naslednji.
+                        var vidni = [], ostali = [];
                         for (var i = 0; i < candidates.length; i++) {
                             var cand = candidates[i];
                             var candTag = (cand.tagName || '').toUpperCase();
@@ -2299,24 +2430,17 @@
                                 if (cls.indexOf('engine-chip') !== -1 || cls.indexOf('favorite-tile') !== -1 || cls.indexOf('tile') !== -1) {
                                     dist -= 80;
                                 }
-                                if (dist < bestDist) {
-                                    bestDist = dist;
-                                    best = cand;
-                                }
+                                vidni.push({ el: cand, d: dist, i: i });
+                            } else {
+                                ostali.push(cand);
                             }
                         }
-                        if (!best) {
-                            for (var z = 0; z < candidates.length; z++) {
-                                var zt = (candidates[z].tagName || '').toUpperCase();
-                                if (zt !== 'INPUT' && zt !== 'TEXTAREA') { best = candidates[z]; break; }
-                            }
-                        }
-                        if (best) {
-                            highlightElement(best);
-                            return 1;
+                        vidni.sort(function (a, b) { return a.d - b.d || a.i - b.i; });
+                        var vrstaPrvih = vidni.map(function (x) { return x.el; }).concat(ostali);
+                        for (var k = 0; k < vrstaPrvih.length && k < 8; k++) {
+                            if (highlightElement(vrstaPrvih[k])) return 1;
                         }
                         return -1;
-                        }
                     }
 
                     var cRect = okvirCilja(current);
@@ -2424,124 +2548,134 @@
                     // 80 px - tudi, ce je bil nad njim se cilj strani (v nacinu aplikacije je prvi GOR zapustil aplikacijo).
                     // Izstop (-1) je zdaj samo spodaj: v smeri GOR ni cilja in stran je na vrhu (SAFEER_GOR_NA_VRHU).
 
-                    var bestTarget = null;
-                    var bestScore = Infinity;
-                    var bestAxis = null;
-                    var bestAxisScore = Infinity;
-                    var wrapTarget = null;
-                    var wrapY = 1e9;
-                    var wrapX = 1e9;
-                    var leviSosed = false;
-                    // Spodnja vrstica strani (rtvslo.si: MMC / Zame / RTV 365 ...) je svoje obmocje: navzdol pridemo
-                    // vanjo sele, ko je naslednja vsebina skrita pod njo; iz nje navzdol nadaljujemo z vsebino pod njo.
-                    var vrsticaSp = najdiSpodnjoVrstico();
-                    var vVrstici = !!(vrsticaSp && vrsticaSp.el.contains(current));
-                    var bestVrstica = null, bestVrsticaScore = Infinity, podVrstico = null, podScore = Infinity;
+                    // Pregled fokusa 5. 11. 2026: highlightElement zavrne cilj, ki ostane zunaj pogleda; prej je navigacija vseeno
+                    // vrnila 1 in smer je ostala trajno mrtva. Zavrnjenega izlocimo in poskusimo naslednjega; ce ga ni, gre
+                    // naprej kot brez cilja (drsenje ali -1: aplikacija tipko da strani).
+                    var zavrnjeni = [];
+                    for (var poskus = 0; poskus < 6; poskus++) {
+                        var bestTarget = null;
+                        var bestScore = Infinity;
+                        var bestAxis = null;
+                        var bestAxisScore = Infinity;
+                        var wrapTarget = null;
+                        var wrapY = 1e9;
+                        var wrapX = 1e9;
+                        var leviSosed = false;
+                        // Spodnja vrstica strani (rtvslo.si: MMC / Zame / RTV 365 ...) je svoje obmocje: navzdol pridemo
+                        // vanjo sele, ko je naslednja vsebina skrita pod njo; iz nje navzdol nadaljujemo z vsebino pod njo.
+                        var vrsticaSp = najdiSpodnjoVrstico();
+                        var vVrstici = !!(vrsticaSp && vrsticaSp.el.contains(current));
+                        var bestVrstica = null, bestVrsticaScore = Infinity, podVrstico = null, podScore = Infinity;
 
-                    for (var j = 0; j < candidates.length; j++) {
-                        var el = candidates[j];
-                        if (el === current || current.contains(el)) continue;
+                        for (var j = 0; j < candidates.length; j++) {
+                            var el = candidates[j];
+                            if (el === current || current.contains(el)) continue;
+                            if (zavrnjeni.indexOf(el) !== -1) continue;
 
-                        var r = okvirCilja(el);
-                        if (r.width < 12 || r.height < 12) continue;
-                        var eCls = ((el.className || '') + '').toLowerCase();
-                        if (jeNogaAliPiskotki(el)) continue;
-                        if (jePotVZivo() && eCls.indexOf('channel-container') !== -1 && eCls.indexOf('item--event') === -1) continue;
+                            var r = okvirCilja(el);
+                            if (r.width < 12 || r.height < 12) continue;
+                            var eCls = ((el.className || '') + '').toLowerCase();
+                            if (jeNogaAliPiskotki(el)) continue;
+                            if (jePotVZivo() && eCls.indexOf('channel-container') !== -1 && eCls.indexOf('item--event') === -1) continue;
 
-                        var eCenterX = r.left + r.width / 2;
-                        var eCenterY = r.top + r.height / 2;
-                        if (vrsticaSp) {
-                            var elVVrstici = vrsticaSp.el.contains(el);
-                            if (vVrstici) {
-                                if ((direction === 'LEFT' || direction === 'RIGHT') && !elVVrstici) continue;
-                                if (direction === 'UP' && elVVrstici) continue;
-                                if (direction === 'DOWN') {
-                                    if (!elVVrstici && r.bottom > vrsticaSp.top + 4) {
-                                        var ps = r.top + Math.abs(eCenterX - cCenterX) * 0.3;
-                                        if (ps < podScore) { podScore = ps; podVrstico = el; }
+                            var eCenterX = r.left + r.width / 2;
+                            var eCenterY = r.top + r.height / 2;
+                            if (vrsticaSp) {
+                                var elVVrstici = vrsticaSp.el.contains(el);
+                                if (vVrstici) {
+                                    if ((direction === 'LEFT' || direction === 'RIGHT') && !elVVrstici) continue;
+                                    if (direction === 'UP' && elVVrstici) continue;
+                                    if (direction === 'DOWN') {
+                                        if (!elVVrstici && r.bottom > vrsticaSp.top + 4) {
+                                            var ps = r.top + Math.abs(eCenterX - cCenterX) * 0.3;
+                                            if (ps < podScore) { podScore = ps; podVrstico = el; }
+                                        }
+                                        continue;
+                                    }
+                                } else if (elVVrstici) {
+                                    if (direction === 'DOWN') {
+                                        var vs = Math.abs(eCenterX - cCenterX);
+                                        if (vs < bestVrsticaScore) { bestVrsticaScore = vs; bestVrstica = el; }
                                     }
                                     continue;
                                 }
-                            } else if (elVVrstici) {
-                                if (direction === 'DOWN') {
-                                    var vs = Math.abs(eCenterX - cCenterX);
-                                    if (vs < bestVrsticaScore) { bestVrsticaScore = vs; bestVrstica = el; }
-                                }
-                                continue;
                             }
-                        }
-                        var dx = eCenterX - cCenterX;
-                        var dy = eCenterY - cCenterY;
-                        var valid = false;
-                        var mainDist = 0;
-                        var crossDist = 0;
+                            var dx = eCenterX - cCenterX;
+                            var dy = eCenterY - cCenterY;
+                            var valid = false;
+                            var mainDist = 0;
+                            var crossDist = 0;
 
-                        if (direction === 'DOWN') {
-                            if (dy > 12) { valid = true; mainDist = dy; crossDist = Math.abs(dx); }
-                        } else if (direction === 'UP') {
-                            if (dy < -12) { valid = true; mainDist = -dy; crossDist = Math.abs(dx); }
-                        } else if (direction === 'RIGHT') {
-                            if (dx > 12) { valid = true; mainDist = dx; crossDist = Math.abs(dy); }
-                            if (r.top > cRect.bottom - 10) {
-                                var wy = r.top;
-                                var wx = r.left;
-                                if (wy < wrapY - 10 || (Math.abs(wy - wrapY) < 10 && wx < wrapX)) {
-                                    wrapY = wy;
-                                    wrapX = wx;
-                                    wrapTarget = el;
+                            if (direction === 'DOWN') {
+                                if (dy > 12) { valid = true; mainDist = dy; crossDist = Math.abs(dx); }
+                            } else if (direction === 'UP') {
+                                if (dy < -12) { valid = true; mainDist = -dy; crossDist = Math.abs(dx); }
+                            } else if (direction === 'RIGHT') {
+                                if (dx > 12) { valid = true; mainDist = dx; crossDist = Math.abs(dy); }
+                                if (r.top > cRect.bottom - 10) {
+                                    var wy = r.top;
+                                    var wx = r.left;
+                                    if (wy < wrapY - 10 || (Math.abs(wy - wrapY) < 10 && wx < wrapX)) {
+                                        wrapY = wy;
+                                        wrapX = wx;
+                                        wrapTarget = el;
+                                    }
                                 }
-                            }
-                        } else if (direction === 'LEFT') {
-                            if (dx < -12) { valid = true; mainDist = -dx; crossDist = Math.abs(dy); }
-                            if (r.bottom < cRect.top + 10) {
-                                var wy2 = -r.top;
-                                var wx2 = -r.right;
-                                if (wy2 < wrapY - 10 || (Math.abs(wy2 - wrapY) < 10 && wx2 < wrapX)) {
-                                    wrapY = wy2;
-                                    wrapX = wx2;
-                                    wrapTarget = el;
+                            } else if (direction === 'LEFT') {
+                                if (dx < -12) { valid = true; mainDist = -dx; crossDist = Math.abs(dy); }
+                                if (r.bottom < cRect.top + 10) {
+                                    var wy2 = -r.top;
+                                    var wx2 = -r.right;
+                                    if (wy2 < wrapY - 10 || (Math.abs(wy2 - wrapY) < 10 && wx2 < wrapX)) {
+                                        wrapY = wy2;
+                                        wrapX = wx2;
+                                        wrapTarget = el;
+                                    }
                                 }
                             }
-                        }
 
-                        if (direction === 'LEFT' && !leviSosed && jeLeviSosed(cRect, r)) leviSosed = true;
+                            if (direction === 'LEFT' && !leviSosed && jeLeviSosed(cRect, r)) leviSosed = true;
 
-                        if (valid) {
-                            var rowTol = jePotVZivo() ? 88 : 72;
-                            var colTol = jePotVZivo() ? 150 : 130;
-                            var sameAxis = (direction === 'LEFT' || direction === 'RIGHT') ? (crossDist < rowTol) : (crossDist < colTol);
-                            var score = mainDist + crossDist * (sameAxis ? 0.12 : 1.45);
-                            if (jeVsebinskaPloscica(el) && jeVsebinskaPloscica(current) && sameAxis) score -= 80;
-                            if (jeGumbDejanja(el) && jeGumbDejanja(current) && sameAxis) score -= 60;
-                            if (sameAxis && score < bestAxisScore) {
-                                bestAxisScore = score;
-                                bestAxis = el;
-                            }
-                            if (score < bestScore) {
-                                bestScore = score;
-                                bestTarget = el;
+                            if (valid) {
+                                var rowTol = jePotVZivo() ? 88 : 72;
+                                var colTol = jePotVZivo() ? 150 : 130;
+                                var sameAxis = (direction === 'LEFT' || direction === 'RIGHT') ? (crossDist < rowTol) : (crossDist < colTol);
+                                var score = mainDist + crossDist * (sameAxis ? 0.12 : 1.45);
+                                if (jeVsebinskaPloscica(el) && jeVsebinskaPloscica(current) && sameAxis) score -= 80;
+                                if (jeGumbDejanja(el) && jeGumbDejanja(current) && sameAxis) score -= 60;
+                                if (sameAxis && score < bestAxisScore) {
+                                    bestAxisScore = score;
+                                    bestAxis = el;
+                                }
+                                if (score < bestScore) {
+                                    bestScore = score;
+                                    bestTarget = el;
+                                }
                             }
                         }
-                    }
-                    // Safeer OS: v isti vrsti levo ni nicesar -> stranska vrstica (ne skok na konec vrste nad nami).
-                    if (direction === 'LEFT') {
-                        var rob = leviRob(robVrstice, leviSosed, window.scrollX || 0);
-                        if (rob === 'meni') return -2;
-                        if (rob === 'podrsaj') { window.scrollBy({ left: -140, behavior: scrollEase }); return 0; }
-                    }
-                    if (bestAxis) bestTarget = bestAxis;
-                    else if (!bestTarget && wrapTarget) bestTarget = wrapTarget;
-                    if (vrsticaSp && direction === 'DOWN') {
-                        if (vVrstici) bestTarget = podVrstico;
-                        else if (bestVrstica) {
-                            var tr = bestTarget ? bestTarget.getBoundingClientRect() : null;
-                            // Od naslednje vsebine se nad vrstico vidi le rob (ali je ni): najprej vrstica.
-                            if (!tr || (vrsticaSp.top - tr.top) < Math.min(tr.height * 0.5, 60)) bestTarget = bestVrstica;
+                        // Safeer OS: v isti vrsti levo ni nicesar -> stranska vrstica (ne skok na konec vrste nad nami).
+                        if (direction === 'LEFT') {
+                            var rob = leviRob(robVrstice, leviSosed, window.scrollX || 0);
+                            if (rob === 'meni') return -2;
+                            // Pregled fokusa 5. 11. 2026: drsenje, ki se ni premaknilo, tipke ne porabi (-1: tipka gre strani).
+                            if (rob === 'podrsaj') return podrsajOkno(-140, 0) ? 0 : -1;
                         }
+                        if (bestAxis) bestTarget = bestAxis;
+                        else if (!bestTarget && wrapTarget) bestTarget = wrapTarget;
+                        if (vrsticaSp && direction === 'DOWN') {
+                            if (vVrstici) bestTarget = podVrstico;
+                            else if (bestVrstica) {
+                                var tr = bestTarget ? bestTarget.getBoundingClientRect() : null;
+                                // Od naslednje vsebine se nad vrstico vidi le rob (ali je ni): najprej vrstica.
+                                if (!tr || (vrsticaSp.top - tr.top) < Math.min(tr.height * 0.5, 60)) bestTarget = bestVrstica;
+                            }
+                        }
+                        if (!bestTarget || highlightElement(bestTarget)) break;
+                        zavrnjeni.push(bestTarget);
+                        bestTarget = null;
                     }
 
                     if (bestTarget) {
-                        highlightElement(bestTarget);
                         return 1;
                     } else {
                         if (direction === 'DOWN') {
@@ -2558,13 +2692,15 @@
                                 return -1;
                             }
                         }
-                        else if (direction === 'LEFT') window.scrollBy({ left: -140, behavior: scrollEase });
-                        else if (direction === 'RIGHT') window.scrollBy({ left: 140, behavior: scrollEase });
+                        // Pregled fokusa 5. 11. 2026: LEVO/DESNO brez cilja - ce se stran ni premaknila, tipka gre strani (-1).
+                        else if (direction === 'LEFT') { if (!podrsajOkno(-140, 0)) return -1; }
+                        else if (direction === 'RIGHT') { if (!podrsajOkno(140, 0)) return -1; }
                         return 0;
                     }
                 } catch(_) {}
                 return -1;
             };
+            izvoziZaAplikacijo('_safeer_navigate_spatial', navigirajProstorsko);
 
             /**
              * Podrsa vsebnik, v katerem smo (npr. okno s piskotki), in ne cele strani.
@@ -2737,7 +2873,14 @@
             }
             /* SAFEER_OK_DATOTEKA_KONEC */
 
-            window._safeer_click_focused_card = function() {
+            // Okvir, na katerega gre pravi dotik: izbral ga je daljinec (zaprtje) in je viden (pregled fokusa 5. 11. 2026).
+            function jeVidenOkvir(el) {
+                if (!el || el !== izbrani() || !jeUporaben(el, true)) return false;
+                var r = el.getBoundingClientRect();
+                return r.width >= 40 && r.height >= 20;
+            }
+
+            var klikIzbrane = function() {
                 zadnjaTipkaMs = Date.now();
                 try {
                     var path = (location.pathname || '').toLowerCase();
@@ -2778,7 +2921,13 @@
                         if (okNaDatoteki(vhodD, document.activeElement) === 'datoteka') return 'datoteka';
                     }
                     // Tuj okvir (gumb GSI »Nadaljuj z Google«): samo en pravi dotik na sredini (SAFEER_OKVIR_GUMB).
-                    if (target && (target.tagName || '').toUpperCase() === 'IFRAME') { nativeTapElement(target); return; }
+                    // Pregled fokusa 5. 11. 2026: stran je lahko razred ali fokus dala svojemu nevidnemu okvirju in OK je sprozil
+                    // pravi dotik na mestu, ki ga je izbrala ona. Dotik samo na okvir, ki ga je izbral daljinec in je viden.
+                    if (target && (target.tagName || '').toUpperCase() === 'IFRAME') {
+                        if (!jeVidenOkvir(target)) return false;
+                        nativeTapElement(target);
+                        return;
+                    }
                     if (target) {
                         var clickable = target;
                         clickable = target.querySelector('a[href], button, [class*="play"], [class*="watch"], [class*="thumb"], [class*="image"], img, [role="button"]') || target;
@@ -2809,6 +2958,7 @@
                 } catch(_) {}
                 return false;
             };
+            izvoziZaAplikacijo('_safeer_click_focused_card', klikIzbrane);
 
             // 5. Samodejno dodajanje tabindex. Piskotkov ne sprejemamo in ne zavracamo namesto uporabnika
             // (lastnik, 3. 11. 2026): izbira je vedno njegova, daljinec mora le doseci gumbe okna.

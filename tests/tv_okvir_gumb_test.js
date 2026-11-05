@@ -41,5 +41,5 @@ preveri('okvir ostane samostojen cilj (ne kartica okoli njega)', true, VIR.index
 // Od 2. 11. 2026 19:05 (dvojni fokus) fokus usklajuje uskladiFokus (tests/tv_en_fokus_test.js): okvir ga ne dobi.
 preveri('obroc ne da fokusa okvirju', true, /var brezFokusa = tag === 'INPUT' \|\| tag === 'TEXTAREA' \|\| tag === 'IFRAME';/.test(VIR));
 preveri('OK na okvirju: en pravi dotik (nativeTapElement) in konec', true,
-    /toUpperCase\(\) === 'IFRAME'\) \{ nativeTapElement\(target\); return; \}/.test(VIR));
+    /toUpperCase\(\) === 'IFRAME'\) \{\s*if \(!jeVidenOkvir\(target\)\) return false;\s*nativeTapElement\(target\);\s*return;\s*\}/.test(VIR));
 console.log('tv_okvir_gumb_test: OK (' + stevilo + ')');

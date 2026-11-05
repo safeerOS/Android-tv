@@ -93,6 +93,12 @@ _ts = beri("assets/tv_spatial.js")
 _fi = _ts[_ts.find("if (!samodejnoDovoljeno('fokus strani')"):]
 preveri("Splet TV: fokus strani v polju vnosa pocisti staro izbiro (CodeRabbit 5. 11.)", "jeVnosnoPolje(ev.target)) { try { clearActive(); }" in _fi[:600])
 
+# Pregled fokusa 5. 11. 2026 (najdba 9): tv_spatial.js hrani izbrani element v zaprtju; rocni razred ni izbira.
+_sa = beri("assets/site_agent.js")
+_pz = _sa[_sa.find("if (low.indexOf('player-closed') !== -1)"):]
+preveri("Splet TV: po zaprtju predvajalnika izbira prek _safeer_highlight, ne rocni razred (pregled fokusa 5. 11.)",
+        "window._safeer_highlight(lastT)" in _pz[:900] and "lastT.classList.add('safeer-active-card')" not in _sa)
+
 if napake:
     print("NAPAKA zunanji pregled TV:", len(napake)); sys.exit(1)
 print("zunanji pregled TV OK")

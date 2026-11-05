@@ -51,7 +51,7 @@ preveri('onemogoceno polje: nic posebnega', '', okNaDatoteki(onemogoceno, onemog
 preveri('brez polja: navaden klik', '', okNaDatoteki(null, null));
 
 // Vezava: OK v _safeer_click_focused_card vrne 'datoteka' pred dotikom, aplikacija na to poslje Enter.
-const klik = VIR.slice(VIR.indexOf('window._safeer_click_focused_card = function'));
+const klik = VIR.slice(VIR.indexOf('var klikIzbrane = function'));
 const iDat = klik.indexOf("return 'datoteka'"), iDotik = klik.indexOf('nativeTapElement(');
 preveri('OK na datoteki vrne pred dotikom in el.click()', true, iDat > 0 && iDat < iDotik);
 preveri('fokus pred odlocitvijo', true, /vhodD\.focus\(\{ preventScroll: true \}\)/.test(klik));
