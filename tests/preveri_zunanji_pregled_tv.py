@@ -84,6 +84,8 @@ preveri("Vnos: urejevalno polje cel okvir brez polnila", "VnosVklopPravila.skraj
 
 preveri("Dom: sirina gumbov ostane, izrecna pot LEVO/DESNO", "sirinaGumbaDoka" not in dok and "PokrajinaPravila.sosedaDoka(i, n)" in pk and "nextFocusRightId" in dok)
 
+preveri("Dom: fokus na lupi ne odpre iskalnega nacina", "LupaPravila.odpriPlosco(LupaPravila.DogodekLupe.FOKUS)" in pk and "LupaPravila.odpriPlosco(LupaPravila.DogodekLupe.OK)" in pk)
+
 if napake:
     print("NAPAKA zunanji pregled TV:", len(napake)); sys.exit(1)
 print("zunanji pregled TV OK")

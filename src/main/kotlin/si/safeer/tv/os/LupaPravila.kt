@@ -405,6 +405,16 @@ object LupaPravila {
     private val VEJICA_MED_CRKAMA = Regex("\\p{L},\\p{L}")
     private val PONOVLJENA_CRKA = Regex("(\\p{L})\\1{3,}")
 
+    /** Kaj se je zgodilo na polju lupe. */
+    enum class DogodekLupe { FOKUS, OK, TIPKANJE }
+
+    /**
+     * Lastnik 5. 11. 2026 05:04 (GOR s ploscice na lupo): ze fokus je odprl celozaslonski iskalni nacin (zgodovina pod
+     * lupo), preden je uporabnik pritisnil OK - zelel je samo mimo ali na lupo. Plosca pod lupo (in s tem iskalni nacin)
+     * se odpre samo ob OK ali tipkanju; fokus dobi samo okvir.
+     */
+    fun odpriPlosco(dogodek: DogodekLupe): Boolean = dogodek != DogodekLupe.FOKUS
+
     /** Stetje iskanj (vrstica = »niz<TAB>stevilo«), kot ga hrani DomacaLupa; pokvarjene vrstice odpadejo. */
     fun stetjeIzBesedila(besedilo: String): Map<String, Int> = besedilo.split("\n").mapNotNull { v ->
         val i = v.lastIndexOf('\t')

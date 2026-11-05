@@ -114,6 +114,10 @@ fun main() {
     val stetje = LupaPravila.pristej(LupaPravila.pristej(LupaPravila.pristej(emptyMap(), "facebook"), "Facebook"), "fanfiction")
     preveriEnako("isti niz z velikimi crkami je isto iskanje", mapOf("facebook" to 2, "fanfiction" to 1), stetje)
     preveriEnako("smeti se ne stejejo", stetje, LupaPravila.pristej(stetje, "a"))
+    // Lastnik 5. 11. 2026 05:04: fokus na lupi iskalnega nacina ne odpre, OK in tipkanje ga.
+    preveriEnako("fokus na lupi ne odpre plosce", false, LupaPravila.odpriPlosco(LupaPravila.DogodekLupe.FOKUS))
+    preveriEnako("OK na lupi odpre plosco", true, LupaPravila.odpriPlosco(LupaPravila.DogodekLupe.OK))
+    preveriEnako("tipkanje odpre plosco", true, LupaPravila.odpriPlosco(LupaPravila.DogodekLupe.TIPKANJE))
     // CodeRabbit 4. 11. 2026: polno stetje - novo iskanje ostane, izpade najredkejse od ostalih.
     val polno = mapOf("alfa" to 5, "beta" to 1, "gama" to 1)
     val zNovim = LupaPravila.pristej(polno, "delta", najvec = 3)

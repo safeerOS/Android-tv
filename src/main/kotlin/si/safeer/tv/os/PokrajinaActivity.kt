@@ -1060,7 +1060,11 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                     // Zunanji pregled 3. 11. 2026: vedno nasa vrstica znakov (sistemske zaslon ne pokaze - stateAlwaysHidden,
                     // daljinec Philips se javi kot tipkovnica); iskanje na tipki Isci v vrstici ali Enter prave tipkovnice.
                     when (LupaPravila.okTipkaNaPolju(koda, niz, DomacaLupa.obseg(this@PokrajinaActivity), DomacaLupa.tipkovnicaOdprta(this@PokrajinaActivity))) {
-                        LupaPravila.OkTipka.ODPRI_VRSTICO -> DomacaLupa.odpriTipkovnico(this@PokrajinaActivity, v)
+                        LupaPravila.OkTipka.ODPRI_VRSTICO -> {
+                            DomacaLupa.odpriTipkovnico(this@PokrajinaActivity, v)
+                            // Zgodovina pod prazno lupo sele ob OK (prej ob fokusu, lastnik 5. 11. 2026 05:04).
+                            if (niz.isEmpty() && LupaPravila.odpriPlosco(LupaPravila.DogodekLupe.OK)) narisiZadetke("", vsili = true)
+                        }
                         LupaPravila.OkTipka.ISCI -> DomacaLupa.izvedi(this@PokrajinaActivity, niz)
                         LupaPravila.OkTipka.NIC -> Unit
                     }
@@ -1079,7 +1083,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
             }
         })
         polje.setOnFocusChangeListener { _, ima ->
-            if (ima && polje.text.isNullOrBlank()) narisiZadetke("", vsili = true)
+            // Lastnik 5. 11. 2026 05:04: fokus sam iskalnega nacina ne odpre (LupaPravila.odpriPlosco), samo OK ali tipkanje.
+            if (ima && polje.text.isNullOrBlank() && LupaPravila.odpriPlosco(LupaPravila.DogodekLupe.FOKUS)) narisiZadetke("", vsili = true)
             // Zgodovina (prazno polje) ne ostane cez ploscice, ko gre fokus z lupe drugam.
             else if (!ima && polje.text.isNullOrBlank()) polje.post {
                 if (!polje.hasFocus() && !zadetkiDrsnik.hasFocus()) { zadetkiDrsnik.visibility = View.GONE; iskanjeSt++ }
