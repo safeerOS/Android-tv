@@ -6048,6 +6048,10 @@ class GlasbaActivity : OsActivity() {
             if (zap.vrsta != vrsta) { zap.kartice.clear(); zap.vrsta = vrsta }
             zap.celota = celota
         }
+        // Filter vira Usenet (lastnik 5. 11. 2026): znacka opisuje Usenet; ob preklopu filtra zapomnjene kartice ne veljajo.
+        val odtisVira = if (seznam == null) filterUsenet()?.odtis else null
+        if (zap != null && odtisKartic != odtisVira) zap.kartice.clear()
+        odtisKartic = odtisVira
         val celotaZdaj: () -> List<Jamendo.Skladba> = if (zap != null) ({ zap.celota }) else ({ celota })
         val zdaj = if (zap != null) HashMap<String, Pair<List<Jamendo.Skladba>, Kartica>>(skupine.size * 2) else null
         return skupine.map { urejene ->
@@ -6078,8 +6082,11 @@ class GlasbaActivity : OsActivity() {
             }
             val signal = (sk.naslov + " " + sk.povezava).lowercase(Locale.ROOT)
             // Lastnik 28. 10. 2026: najboljsa znana kakovost iz tokov (»★ 4K«, »⚠ CAM«), sicer iz metapodatkov kataloga.
-            val znana = if (Stremio.jeEnota(sk)) Stremio.razstavi(sk)?.third?.let { KakovostZnane.oznaka(this, it) } else null
-            val kakovost = znana?.let { KakovostPravila.napisKartice(it) } ?: when {
+            // V filtru vira Usenet: najboljsa ustrezna izdaja Useneta (FilterViraPravila.oznaka), ne torrentov ali kataloga.
+            val kljucVira = odtisVira?.let { kljucUsenet(sk, it) }
+            val znana = if (kljucVira != null) UsenetFilter.oznaka(this, kljucVira)
+                else if (Stremio.jeEnota(sk)) Stremio.razstavi(sk)?.third?.let { KakovostZnane.oznaka(this, it) } else null
+            val kakovost = znana?.let { KakovostPravila.napisKartice(it) } ?: if (kljucVira != null) "" else when {
                 sk.quality >= 2160 || RX_KAKOVOST_4K.containsMatchIn(signal) -> KakovostPravila.Oznaka.UHD.napis
                 sk.quality >= 1080 || RX_KAKOVOST_1080.containsMatchIn(signal) -> KakovostPravila.Oznaka.FULL_HD.napis
                 sk.quality >= 720 || RX_KAKOVOST_720.containsMatchIn(signal) -> KakovostPravila.Oznaka.HD.napis
@@ -8240,6 +8247,8 @@ class GlasbaActivity : OsActivity() {
         val nova = KakovostZnane.zabelezi(applicationContext, id, tokovi.map { it.ime + " " + it.opis }, serija) ?: return
         runOnUiThread {
             if (isFinishing || isDestroyed) return@runOnUiThread
+            // V filtru vira Usenet znacke na mestu ne prepisemo s kakovostjo drugih virov (lastnik 5. 11. 2026).
+            if (filterUsenet() != null) return@runOnUiThread
             val napis = KakovostPravila.napisKartice(nova)
             fun obisci(v: View) {
                 if (v is TextView && v.tag == OZNAKA_KAKOVOSTI + id) nastaviZnackoKakovosti(v, napis, barvaKakovosti(napis))
@@ -9000,6 +9009,84 @@ class GlasbaActivity : OsActivity() {
         odprtKatalog?.let { o -> o.neznani.clear(); o.vec(0); osveziMrezo(o) }
     }
 
+    // ------------------------------------------------------------------ filter vira Usenet (lastnik 5. 11. 2026)
+
+    /** [odtis]: odtis indeksatorja za kljuc ("" brez njega); [racun]: indeksator in ponudnik sta nastavljena in ju smemo klicati. */
+    private class FilterUsenet(val odtis: String, val racun: Boolean)
+    /** Branje skrivnosti (indeksator, ponudnik) je pocasno: odgovor velja 3 s (izris klice veckrat). */
+    private var filterUsenetPrej: Pair<Long, FilterUsenet?>? = null
+
+    /**
+     * Mreza Filmi/Serije z izbiro samo »⚡ Usenet« (brez debrid storitve - enako kot pri predvajanju, OsPravila.samoUsenetIzbran)
+     * je filter vira Usenet: v njej so samo naslovi, za katere je Usenet potrjeno na voljo. null = filtra ni.
+     */
+    private fun filterUsenet(): FilterUsenet? {
+        if (odprtKatalog == null) return null
+        val zdaj = android.os.SystemClock.uptimeMillis()
+        filterUsenetPrej?.let { (cas, f) -> if (zdaj - cas in 0 until 3_000L) return f }
+        val f = if (!OsPravila.samoUsenetIzbran(UsenetLastni.naVoljo(this) && UsenetLastni.izbran(this), Debrid.aktivna(this) != null, false)) null
+            else FilterUsenet(Usenet.odtisRacuna(this) ?: "", Usenet.jeNaVoljo(this))
+        filterUsenetPrej = zdaj to f
+        return f
+    }
+
+    private fun kljucUsenet(sk: Jamendo.Skladba, odtis: String): String? =
+        kljucRazpolozljivosti(sk)?.let { FilterViraPravila.kljuc(FilterViraPravila.VIR_USENET, odtis, it) }
+
+    private var usenetKandidati: List<Jamendo.Skladba> = emptyList()
+    /** Odtis filtra, s katerim so bile zgrajene zapomnjene kartice (null = brez filtra). */
+    private var odtisKartic: String? = null
+    private var usenetMreza: OdprtKatalog? = null
+    private var usenetProracun = 0
+    private var usenetZelja = 0
+    private var usenetNarocen = false
+
+    /**
+     * Preverbe filtra Usenet v ozadju: kandidati v vrstnem redu mreze (vidni plakati najprej), najvec
+     * [FilterViraPravila.HKRATI] hkrati in [FilterViraPravila.PRORACUN_MREZE] novih vprasanj na mrezo do Nalozi vec.
+     */
+    private fun preveriUsenet(o: OdprtKatalog) {
+        val vir = filterUsenet() ?: return
+        if (!vOspredju || isFinishing || odprtKatalog !== o) return
+        if (usenetMreza !== o || o.zelja > usenetZelja) { usenetMreza = o; usenetZelja = o.zelja; usenetProracun = FilterViraPravila.PRORACUN_MREZE }
+        if (!vir.racun) return
+        val z = zmoznostiNaprave
+        val seVelja = { odprtKatalog === o && !isFinishing && vOspredju }
+        var pozneje = false
+        for (sk in usenetKandidati) {
+            if (usenetProracun <= 0 || UsenetFilter.vTeku() >= FilterViraPravila.HKRATI) break
+            val k = kljucUsenet(sk, vir.odtis) ?: continue
+            if (!UsenetFilter.vprasati(this, k)) { if (UsenetFilter.seIscemo(this, k)) pozneje = true; continue }
+            val r = Stremio.razstavi(sk) ?: continue
+            val epizoda = { if (r.second == "series") FilterViraPravila.epizodaZaPreverbo(null, prvaEpizoda(sk)) else r.third }
+            if (UsenetFilter.preveri(this, k, epizoda, z, seVelja) { glavna.post { poUsenetu(o) } }) usenetProracun--
+            else { pozneje = true; break }
+        }
+        // Kvota ali zamik po »ne vemo«: en sam ponoven poskus cez 30 s (stevilo poskusov omeji FilterViraPravila.vprasati).
+        if (pozneje && !usenetNarocen && usenetProracun > 0) {
+            usenetNarocen = true
+            glavna.postDelayed({ usenetNarocen = false; poUsenetu(o) }, 30_000L)
+        }
+    }
+
+    /** Izid preverbe: nadaljuj in osvezi mrezo; prazna se narise znova, da napis (Iscem / ni naslovov) ne obstane. */
+    private fun poUsenetu(o: OdprtKatalog) {
+        if (odprtKatalog !== o || isFinishing) return
+        preveriUsenet(o)
+        if (o.narisani.isEmpty()) osveziMrezo(o) else narociUmiri()
+    }
+
+    private fun praznoUsenet(o: OdprtKatalog, vir: FilterUsenet): String {
+        val neOdgovarja = !vir.racun || UsenetFilter.vPremoru()
+        val iscemo = UsenetFilter.vTeku() > 0 || usenetMreza !== o ||
+            (usenetProracun > 0 && usenetKandidati.any { sk -> kljucUsenet(sk, vir.odtis)?.let { UsenetFilter.seIscemo(this, it) } == true })
+        return when (FilterViraPravila.prazno(iscemo && !neOdgovarja, neOdgovarja)) {
+            FilterViraPravila.Prazno.ISCEM -> getString(R.string.os_usenet_filter_iscem)
+            FilterViraPravila.Prazno.NE_ODGOVARJA -> getString(R.string.os_usenet_filter_ne_odgovarja)
+            FilterViraPravila.Prazno.NI_NASLOVOV -> getString(R.string.os_usenet_filter_prazno, getString(R.string.os_debrid_izbira_vse))
+        }
+    }
+
     private fun kljucRazpolozljivosti(sk: Jamendo.Skladba): String? {
         val (_, tip, id) = Stremio.razstavi(sk) ?: return null
         return if (tip == "movie" || tip == "series") Razpolozljivost.kljuc(tip, id) else null
@@ -9482,7 +9569,11 @@ class GlasbaActivity : OsActivity() {
             (if (strogo) oknoMreze(o, kandidati).naslovi.filterIndexed { i, sk -> OsPravila.vOknuViden(i, o.strogoDo, sk.id in naZaslonu, nepreverjen(sk)) }
                 else kandidati.filterNot { cakaNaKnjiznico(it) })
             .distinctBy { it.slika.ifBlank { "id:" + it.id } } }
-        return kandidati to obdrziIzbrano(o, vidni)
+        // Lastnik 5. 11. 2026: filter vira »⚡ Usenet« - samo naslovi, za katere je Usenet potrjeno na voljo (FilterViraPravila).
+        usenetKandidati = kandidati
+        val vir = filterUsenet()
+        val vidniVira = if (vir == null) vidni else vidni.filter { sk -> kljucUsenet(sk, vir.odtis)?.let { UsenetFilter.pokazi(this, it) } == true }
+        return kandidati to obdrziIzbrano(o, vidniVira)
     }
 
     /**
@@ -9579,7 +9670,7 @@ class GlasbaActivity : OsActivity() {
     }
 
     /** Besedilo prazne mreze: katalog ima naslove, a nobenega ne predvaja noben dodatek - povemo, kaj manjka. */
-    private fun praznaMreza(o: OdprtKatalog) = getString(when {
+    private fun praznaMreza(o: OdprtKatalog): String = filterUsenet()?.let { praznoUsenet(o, it) } ?: getString(when {
         o.vsi.isEmpty() && brezSpletnihVirov() -> R.string.os_media_brez_virov
         o.vsi.any { znanoNiNaVoljo(it) } -> R.string.os_media_ni_predvajljivih
         o.jezik.isNotEmpty() -> R.string.os_jezik_ni_vsebine
@@ -9696,6 +9787,7 @@ class GlasbaActivity : OsActivity() {
 
     private fun preveriMrezo(o: OdprtKatalog, vsi: List<Jamendo.Skladba>) {
         if (!vOspredju) return
+        preveriUsenet(o)
         // Lastne knjiznice dodatkov: vzorec (najvec tri poizvedbe na dodatek) - iz naslovov, ki jih je izris pregledal (tudi
         // skritih), ne iz vseh nalozenih (naloga 55: 66-329 ms pri 5143 naslovih). Knjiznica dalje v seznamu pride na vrsto,
         // ko se okno pomakne do nje - prej je tako ali tako ne bi pokazali.
@@ -9972,6 +10064,9 @@ class GlasbaActivity : OsActivity() {
         if (samoUsenet && tokovi.isEmpty()) {
             // Brez izdaj Usenet (indeksator jih nima) se diagnostika konca tu - vsebina ne izgine s seznama.
             android.util.Log.i("SafeerOsMedia", "tokovi: samo Usenet - indeksator ni dal izdaj")
+            // Filter vira: zapis o naslovu ne velja vec - kartica izgine, preverba v ozadju pove NI (ure) ali NE_VEMO (ponovitev).
+            if (izbranSamoUsenet) filterUsenet()?.let { v -> kljucUsenet(sk, v.odtis)?.let { k ->
+                UsenetFilter.pozabi(this, k); odprtKatalog?.let { o -> glavna.post { osveziMrezo(o) } } } }
             // Pregled Grok 31, H2: viden konec diagnostike (prej samo dnevnik); klicatelj izve za neuspeh.
             Toast.makeText(this, if (diagnostikaUsenet) R.string.os_usenet_diagnostika_ni_izdaj else R.string.os_usenet_ni_izdaj,
                 Toast.LENGTH_LONG).show()

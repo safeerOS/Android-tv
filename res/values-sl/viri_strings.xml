@@ -195,4 +195,8 @@
     <string name="os_samodejno_naslednja">Samodejno naslednja skladba</string>
     <string name="os_samodejno_album">Samodejno naprej po koncu albuma</string>
     <string name="os_usenet_prehod_debrid">Na Usenetu ne gre - predvajam prek TorBoxa</string>
+    <!-- Filter vira Usenet (lastnik 5. 11. 2026): prazna mreza - iscemo, indeksator ne odgovarja, ni naslovov -->
+    <string name="os_usenet_filter_iscem">Iščem na Usenetu …</string>
+    <string name="os_usenet_filter_ne_odgovarja">Indeksator Usenet ni nastavljen ali trenutno ne odgovarja. Preverite ga v »Moji viri« – Safeer čez nekaj minut poskusi znova.</string>
+    <string name="os_usenet_filter_prazno">Za ta filter ni naslovov: Usenet zanje nima izdaje, ki bi jo lahko predvajali. Za druge vire izberite ⚡ %1$s.</string>
 </resources>

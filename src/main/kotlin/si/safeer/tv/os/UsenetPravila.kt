@@ -239,7 +239,11 @@ object UsenetPravila {
         }
     }
 
-    data class Zadetek(val naslov: String, val povezava: String, val velikost: Long)
+    /**
+     * [geslo]: atribut Newznab »password« (0 = ne, 1 = arhiv z geslom, 2 = arhiv v arhivu - ni za pretok); null = indeksator
+     * tega ne pove (filter vira, lastnik 5. 11. 2026).
+     */
+    data class Zadetek(val naslov: String, val povezava: String, val velikost: Long, val geslo: Boolean? = null)
 
     /**
      * Pregled Grok 3: vrsta napake, ko indeksator ni vrnil NZB - iz napake Newznab v odgovoru, sicer iz kode HTTP (401/403
@@ -292,16 +296,18 @@ object UsenetPravila {
             val naslov = besedilo("title").replace(Regex("\\s+"), " ").take(200)
             if (naslov.isBlank() || !dovoljenaPovezava(povezava, gostIndeksatorja) || !videne.add(povezava)) continue
             var velikost = 0L
+            var geslo: Boolean? = null
             val atributi = el.getElementsByTagName("newznab:attr")
             for (j in 0 until atributi.length) {
                 val a = atributi.item(j) as? org.w3c.dom.Element ?: continue
                 if (a.getAttribute("name") == "size") velikost = a.getAttribute("value").toLongOrNull() ?: 0L
+                if (a.getAttribute("name") == "password") geslo = when (a.getAttribute("value").trim()) { "0" -> false; "1", "2" -> true; else -> null }
             }
             if (velikost <= 0) velikost = (el.getElementsByTagName("enclosure").item(0) as? org.w3c.dom.Element)
                 ?.getAttribute("length")?.toLongOrNull() ?: 0L
             // Indeksator isto izdajo pogosto vrne veckrat (izmerjeno 24. 10. 2026): enak naslov in velikost = enkrat.
             if (!videne.add(naslov + "|" + velikost)) continue
-            izid += Zadetek(naslov, povezava, velikost.coerceAtLeast(0))
+            izid += Zadetek(naslov, povezava, velikost.coerceAtLeast(0), geslo)
             if (izid.size >= NAJVEC_ZADETKOV) break
         }
         return izid

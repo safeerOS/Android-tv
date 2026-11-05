@@ -195,4 +195,8 @@
     <string name="os_samodejno_naslednja">Lire la piste suivante automatiquement</string>
     <string name="os_samodejno_album">Continuer après la fin de l’album</string>
     <string name="os_usenet_prehod_debrid">Usenet a échoué - lecture via TorBox</string>
+    <!-- Filter vira Usenet (lastnik 5. 11. 2026): prazna mreza - iscemo, indeksator ne odgovarja, ni naslovov -->
+    <string name="os_usenet_filter_iscem">Recherche sur Usenet …</string>
+    <string name="os_usenet_filter_ne_odgovarja">L’indexeur Usenet n’est pas configuré ou ne répond pas pour le moment. Vérifiez-le dans Mes sources – Safeer réessaie dans quelques minutes.</string>
+    <string name="os_usenet_filter_prazno">Aucun titre pour ce filtre : Usenet n’a aucune version lisible. Pour d’autres sources, choisissez ⚡ %1$s.</string>
 </resources>

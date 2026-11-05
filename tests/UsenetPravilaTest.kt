@@ -121,6 +121,11 @@ fun main(args: Array<String>) {
     preveriEnako("141: XXE zavrnjen", emptyList<UsenetPravila.Zadetek>(),
         UsenetPravila.zadetki("""<?xml version="1.0"?><!DOCTYPE r [<!ENTITY x SYSTEM "file:///etc/passwd">]><rss><channel><item><title>&x;</title><enclosure url="https://x.example/a"/></item></channel></rss>""", o))
     preveriEnako("141: pokvarjen XML", emptyList<UsenetPravila.Zadetek>(), UsenetPravila.zadetki("<rss><item>", o))
+    // Filter vira (lastnik 5. 11. 2026): atribut Newznab »password« - 1 in 2 (arhiv v arhivu) nista za pretok, 0 je cisto.
+    preveriEnako("filter: geslo 1 / 0 / ni atributa", listOf(true, false, null), UsenetPravila.zadetki("""<rss xmlns:newznab="http://www.newznab.com/DTD/2010/feeds/attributes/"><channel>
+<item><title>A</title><link>https://x.example/a</link><newznab:attr name="password" value="1"/></item>
+<item><title>B</title><link>https://x.example/b</link><newznab:attr name="password" value="0"/></item>
+<item><title>C</title><link>https://x.example/c</link></item></channel></rss>""", o).map { it.geslo })
     preveriEnako("141: http v domacem omrezju z istega gostitelja",
         listOf(UsenetPravila.Zadetek("Film", "http://192.168.1.20:5076/getnzb/x", 0L)),
         UsenetPravila.zadetki("""<rss><channel><item><title>Film</title><link>http://192.168.1.20:5076/getnzb/x</link></item></channel></rss>""", "http://192.168.1.20:5076"))

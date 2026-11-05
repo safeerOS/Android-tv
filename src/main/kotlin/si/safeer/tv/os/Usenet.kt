@@ -367,6 +367,31 @@ object Usenet {
         }
     }
 
+    /**
+     * Filter vira (lastnik 5. 11. 2026): izid iskanja za preverbo v ozadju. [izdaje] == null = indeksator ni odgovoril
+     * (napaka, rok, HTTP, ni indeksatorja) - to ni »ni izdaj«; [meja] = indeksator omejuje (429, Newznab 500/501).
+     */
+    class IzidIskanja(val izdaje: List<UsenetPravila.Zadetek>?, val meja: Boolean)
+
+    /** Kot [isci], a loci »0 izdaj« od »ni odgovora«; povezav NZB ne hrani (preverba ne predvaja). Delovna nit. */
+    fun iskanje(c: Context, id: String, rokMs: Int): IzidIskanja {
+        val ix = zaUporabo(c) ?: return IzidIskanja(null, false)
+        val naslov = UsenetPravila.naslovIskanja(ix.osnova, ix.kljuc, id) ?: return IzidIskanja(null, false)
+        return try {
+            val (koda, telo) = beri(naslov, rokMs, 4 * 1024 * 1024) ?: return IzidIskanja(null, false)
+            try { obOdgovoru(c, ix, UsenetPravila.preverbaIndeksatorja(koda, telo)) } catch (_: Exception) { }
+            if (koda == 429) return IzidIskanja(null, true)
+            if (koda !in 200..299) return IzidIskanja(null, false)
+            UsenetPravila.napaka(telo)?.let { return IzidIskanja(null, it == TorBoxPravila.NAPAKA_MEJA) }
+            IzidIskanja(UsenetPravila.zadetki(telo, ix.osnova), false)
+        } catch (e: Exception) {
+            Log.w(TAG, "filter: ${e.javaClass.simpleName}"); IzidIskanja(null, false)
+        }
+    }
+
+    /** Kratek odtis indeksatorja za kljuc filtra (zamenjan indeksator ali kljuc = nove preverbe); null = ga ni. */
+    fun odtisRacuna(c: Context): String? = zaUporabo(c)?.let { odtis(it.osnova, it.kljuc).take(12) }
+
     /** NZB s [povezava] (iz [UsenetPravila.Povezave.zaPrenos]): vsebina ali napaka (NAPAKA_INDEKSATOR, kljuc, meja). Delovna nit. */
     private fun nzb(povezava: String): Pair<ByteArray?, String> {
         // Pregled Grok 36, D5 (namizje ca50504 - isto vedenje): preusmeritvam ne sledi HttpURLConnection sam - vsak skok

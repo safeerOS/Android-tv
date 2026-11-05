@@ -159,6 +159,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/NapredekKljucTest.kt" \
     "$SRC/si/safeer/tv/os/KakovostPravila.kt" \
     "$TEST_DIR/KakovostPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/FilterViraPravila.kt" \
+    "$TEST_DIR/FilterViraPravilaTest.kt" \
     "$TEST_DIR/SkupniPrimeriTest.kt" \
     "$SRC/si/safeer/tv/os/PreizkusPravila.kt" \
     "$TEST_DIR/PreizkusPravilaTest.kt" \
@@ -300,6 +302,8 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.UsenetGlasbaPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SerijePravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.NapredekKljucTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.KakovostPravilaTestKt
+# Filter vira Usenet (lastnik 5. 11. 2026): naslov v filtru samo, ce so izpolnjeni vsi pogoji za ogled
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.FilterViraPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PreizkusPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/debrid-serije.json"
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/webtor-rezerva.json"

@@ -195,4 +195,8 @@
     <string name="os_samodejno_naslednja">Nächsten Titel automatisch abspielen</string>
     <string name="os_samodejno_album">Nach Albumende automatisch weiter</string>
     <string name="os_usenet_prehod_debrid">Usenet fehlgeschlagen - Wiedergabe über TorBox</string>
+    <!-- Filter vira Usenet (lastnik 5. 11. 2026): prazna mreza - iscemo, indeksator ne odgovarja, ni naslovov -->
+    <string name="os_usenet_filter_iscem">Suche im Usenet …</string>
+    <string name="os_usenet_filter_ne_odgovarja">Der Usenet-Indexer ist nicht eingerichtet oder antwortet gerade nicht. Prüfe ihn unter Meine Quellen – Safeer versucht es in einigen Minuten erneut.</string>
+    <string name="os_usenet_filter_prazno">Keine Titel für diesen Filter: Usenet hat für sie keine abspielbare Veröffentlichung. Für andere Quellen wähle ⚡ %1$s.</string>
 </resources>
