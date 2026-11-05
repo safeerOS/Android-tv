@@ -14,7 +14,6 @@ import androidx.media3.common.util.Clock
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSourceBitmapLoader
-import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.effect.Presentation
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.transformer.Composition
@@ -148,12 +147,12 @@ object Pretok {
     /** Velikost izvirnika z enim bajtom (Range 0-0 -> Content-Range: bytes 0-0/skupaj); 0, ce streznik ne pove. */
     private fun poizvediVelikost(url: String, odtis: String, zeton: String, glave: Map<String, String> = emptyMap()): Long = try {
         // Preverba TV 5. 11. 2026 (P1): zeton samo napravi s pripetim odtisom, brez preusmeritev; zunanji vir brez zetona.
-        val odjemalec = if (odtis.isNotBlank())
+        // Vodja 5. 11. 2026: zunanji vir prek PretokHttp - navaden OkHttp je preusmeritvi sledil tudi na 127.0.0.1.
+        val odziv = if (odtis.isNotBlank())
                 si.safeer.tv.cast.HubPreusmeritve.brez(si.safeer.tv.os.PripetiVir.odjemalecZaStreznik(odtis).newBuilder()).build()
-            else okhttp3.OkHttpClient.Builder().connectTimeout(4, java.util.concurrent.TimeUnit.SECONDS)
-                .readTimeout(4, java.util.concurrent.TimeUnit.SECONDS).build()
-        val z = si.safeer.tv.cast.HubPreusmeritve.zahtevaVelikosti(url, odtis, zeton, glave)
-        odjemalec.newCall(z).execute().use { r ->
+                    .newCall(si.safeer.tv.cast.HubPreusmeritve.zahtevaVelikosti(url, odtis, zeton, glave)).execute()
+            else PretokHttp.odpri(PretokHttp.klient(povezavaS = 4, branjeS = 4), url, url, glave, "bytes=0-0").odgovor
+        odziv.use { r ->
             val obseg = r.header("Content-Range").orEmpty().substringAfter('/', "").trim()
             obseg.toLongOrNull() ?: if (r.code == 200) r.header("Content-Length")?.toLongOrNull() ?: 0L else 0L
         }
@@ -173,11 +172,10 @@ object Pretok {
     private fun pretvarjaj(ctx: Context, t: Tok, url: String, odtis: String, zeton: String, glave: Map<String, String>,
                            seekMs: Long, bitna: Int, visinaVira: Int, jeziki: List<String> = emptyList()) {
         try {
-            // UA gre v tovarno (DefaultHttpDataSource z njim prepise glave zahteve), ostale glave toka na vsako zahtevo.
+            // Vodja 5. 11. 2026: DefaultHttpDataSource je preusmeritvam sledil sam (302 na 127.0.0.1 je obsel PretokPravila).
+            // PretokVir vsak skok preveri, poveze se na preverjene naslove, glave toka samo izvoru naslova vira.
             val vir: DataSource.Factory = if (odtis.isNotBlank()) si.safeer.tv.os.PripetiVir.Tovarna(odtis, zeton, ctx)
-                else DefaultHttpDataSource.Factory().setUserAgent(glave.entries.firstOrNull { it.key.equals("User-Agent", true) }?.value ?: "Safeer OS")
-                    .setDefaultRequestProperties(glave.filterKeys { !it.equals("User-Agent", true) })
-                    .setAllowCrossProtocolRedirects(true)
+                else PretokVir.Tovarna(url, glave)
             // Izbira sledi kot privzeto v Transformerju (najvisja bitna hitrost), z zelenim jezikom zvoka - sicer bi
             // pretvorba vzela privzeto sled vira (npr. sinhronizacijo), cetudi je gledalec izbral izvirnik.
             val izbiraSledi = androidx.media3.exoplayer.trackselection.TrackSelector.Factory { c ->

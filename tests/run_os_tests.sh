@@ -167,6 +167,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/SprotnaPomocPravilaTest.kt" \
     "$SRC/si/safeer/tv/link/PretokPravila.kt" \
     "$TEST_DIR/PretokPravilaTest.kt" \
+    "$SRC/si/safeer/tv/link/PretokHttp.kt" \
+    "$TEST_DIR/PretokHttpTest.kt" \
     "$TEST_DIR/SkupniPrimeriTest.kt" \
     "$SRC/si/safeer/tv/os/PreizkusPravila.kt" \
     "$TEST_DIR/PreizkusPravilaTest.kt" \
@@ -316,6 +318,8 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.UsenetPomocPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SprotnaPomocPravilaTestKt
 # Vodja 5. 11. 2026: pomocnik Android ne bere zanke in povezavno-lokalnih naslovov (kot Linux link_sprotno)
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.PretokPravilaTestKt
+# Vodja 5. 11. 2026: vsak skok preusmeritve vira Pretok preverjen (302 na 127.0.0.1, DNS rebinding, glave samo izvoru)
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.PretokHttpTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PreizkusPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/debrid-serije.json"
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/webtor-rezerva.json"
