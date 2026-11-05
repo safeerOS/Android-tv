@@ -21,11 +21,14 @@ object GoogleTipke {
         data class Dotik(val x: Float, val y: Float) : Ok()
         /** Cetrti slepi pregled 5. 11. 2026 (N-A): cilj je okvir - brez prave tipke in dotika, samo namig za kazalec. */
         object Kazalec : Ok()
+        /** Peti slepi pregled 5. 11. 2026 (N1): brez odgovora, izjema ali neznan odgovor - nic (prej pravi Enter). */
+        object Nic : Ok()
     }
 
-    /** Odgovor skripta KLIK_FOKUSA: "enter", "space", "kazalec" ali "dotik:x,y". Karkoli drugega je Enter (kot prej). */
+    /** Odgovor skripta KLIK_FOKUSA: "enter", "space", "kazalec" ali "dotik:x,y". Karkoli drugega je [Ok.Nic], nikoli Enter. */
     fun ok(odgovor: String?): Ok {
         val o = (odgovor ?: "").trim().trim('"')
+        if (o == "enter") return Ok.Enter
         if (o == "space") return Ok.Presledek
         if (o == "kazalec") return Ok.Kazalec
         if (o.startsWith("dotik:")) {
@@ -36,8 +39,16 @@ object GoogleTipke {
                 if (x != null && y != null && x.isFinite() && y.isFinite() && x >= 0f && y >= 0f) return Ok.Dotik(x, y)
             }
         }
-        return Ok.Enter
+        return Ok.Nic
     }
+
+    /**
+     * Peti slepi pregled 5. 11. 2026 (N1): odgovor KLIK_FOKUSA velja samo za stran, za katero je bil poslan (isti zeton
+     * dotika - nov ob vsaki strani) in ki je se vedno v Google nacinu. Prej je to preverjala samo veja Kazalec.
+     */
+    fun istaStran(zetonOk: String, zetonZdaj: String, seNaGooglu: Boolean): Boolean =
+        seNaGooglu && zetonOk.length >= 32 &&
+            java.security.MessageDigest.isEqual(zetonOk.toByteArray(Charsets.UTF_8), zetonZdaj.toByteArray(Charsets.UTF_8))
 
     private val NONCE = Regex("[0-9a-f]{16,64}")
 

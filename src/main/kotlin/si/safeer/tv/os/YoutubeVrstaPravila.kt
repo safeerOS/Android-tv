@@ -33,7 +33,16 @@ object YoutubeVrstaPravila {
      * pa zeli, da igra (pavza ni zastoj). Prej je tak posnetek ostal v BUFFERING za vedno, brez sporocila.
      */
     fun zastoj(odNalaganjaMs: Long, polozajMs: Long, pripravljeno: Boolean, zelja: Boolean, nepreverjenoIgra: Boolean = false): Boolean =
-        zelja && !pripravljeno && polozajMs <= 0L && odNalaganjaMs >= ROK_ZASTOJA_MS && !nepreverjenoIgra
+        zelja && !pripravljeno && polozajMs <= 0L && odNalaganjaMs >= ROK_ZASTOJA_MS &&
+            !(nepreverjenoIgra && odNalaganjaMs < ROK_ZASTOJA_MS + NEPREVERJENO_PODALJSEK_MS)
+
+    /**
+     * Peti slepi pregled 5. 11. 2026 (N4): okvir oglasa ima tudi nas posrednik s kljucem in vsako sekundo javi »igra« - zastoj
+     * je bil preklican brez meje. Nepreverjen znak rok zastoja podaljsa najvec za toliko (na nalaganje strani), potem velja
+     * pravi zastoj (preskok, NI_TOKA). Cena: pravi predvajalnik na CDN brez preverjenega stanja je preskocen po
+     * ROK_ZASTOJA_MS + tem podaljsku (45 s).
+     */
+    const val NEPREVERJENO_PODALJSEK_MS = 30_000L
 
     /** Rok svezine znaka »okvir drugega izvora igra« (POSREDNIK_JS posilja vsako sekundo; STANJE_JS ga vrne do 3 s). */
     const val NEPREVERJENO_ROK_MS = 3_000L

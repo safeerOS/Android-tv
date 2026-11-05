@@ -158,7 +158,8 @@ open class SpletniIgralec protected constructor(
     /**
      * Cetrti slepi pregled 5. 11. 2026 (N-E, odlocitev vodje): zadnji cas (uptime), ko je okvir DRUGEGA izvora (ni na
      * [IZVORI_PREDVAJALNIKA], npr. predvajalnik na CDN) s kljucem posrednika javil, da igra. Tako stanje ni preverjeno
-     * (lahko je oglas), zato sme SAMO preklicati zastoj - nikoli polozaja, konca, preskoka ali oznake NI_TOKA.
+     * (lahko je oglas), zato sme SAMO odloziti zastoj, najvec za YoutubeVrstaPravila.NEPREVERJENO_PODALJSEK_MS (peti slepi
+     * pregled, N4) - nikoli polozaja, konca, preskoka ali oznake NI_TOKA.
      */
     private var nepreverjenoIgraOd = 0L
 

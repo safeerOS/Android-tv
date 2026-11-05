@@ -463,7 +463,12 @@ object SpletVarnostPravila {
      */
     const val PREJ_NONCE_MESTO = "__SAFEER_PREJ_NONCE__"
 
-    fun vstaviPrejsnjiNonce(js: String, prej: String): String = js.replace(PREJ_NONCE_MESTO, if (jeNonce(prej)) prej else "")
+    /** Peti slepi pregled 5. 11. 2026 (N5): ime izvirnikov prejsnjega dokumenta (samo za preverbo zive kopije). */
+    const val PREJ_IZVIRNIKI_MESTO = "__SAFEER_NONCE_IZ_PREJ__"
+
+    fun vstaviPrejsnjiNonce(js: String, prej: String, izvirnikiPrej: String = ""): String =
+        js.replace(PREJ_NONCE_MESTO, if (jeNonce(prej)) prej else "")
+            .replace(PREJ_IZVIRNIKI_MESTO, if (jeNonce(prej) && jeNonce(izvirnikiPrej)) izvirnikiPrej else "")
 
     /**
      * Izraz JS: v dokumentu je nasa zastavica s prejsnjim nonce strani (nespremenljiva, vrednost true), prebrana z izvirnim

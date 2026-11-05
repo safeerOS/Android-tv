@@ -36,22 +36,41 @@ object GooglePravila {
 
     private fun jeVDomeni(h: String, domena: String): Boolean = h == domena || h.endsWith(".$domena")
 
-    /** Pripona za »google.«: com ali drzavna domena (si, de, co.uk, com.br). Druge domene niso Googlove. */
-    private val GOOGLE_PRIPONA = Regex("^(com|[a-z]{2}|co\\.[a-z]{2}|com\\.[a-z]{2})$")
+    /**
+     * Pripone za »google.« - izrecen seznam Googlovih domen (peti slepi pregled 5. 11. 2026, N3: prej regex, ki je sprejel vsako
+     * dvocrkovno pripono ter co.xx in com.xx, npr. google.zz ali google.co.xx, ki ju lahko registrira kdorkoli).
+     * Vir: https://www.google.com/supported_domains, prenos 5. 11. 2026 (187 domen, SHA-256 zacetek ba827017007f54b6).
+     */
+    private val GOOGLE_PRIPONE: Set<String> = setOf(
+        "com", "ad", "ae", "com.af", "com.ag", "al", "am", "co.ao", "com.ar", "as", "at", "com.au", "az", "ba",
+        "com.bd", "be", "bf", "bg", "com.bh", "bi", "bj", "com.bn", "com.bo", "com.br", "bs", "bt", "co.bw", "by",
+        "com.bz", "ca", "cd", "cf", "cg", "ch", "ci", "co.ck", "cl", "cm", "cn", "com.co", "co.cr", "com.cu", "cv",
+        "com.cy", "cz", "de", "dj", "dk", "dm", "com.do", "dz", "com.ec", "ee", "com.eg", "es", "com.et", "fi",
+        "com.fj", "fm", "fr", "ga", "ge", "gg", "com.gh", "com.gi", "gl", "gm", "gr", "com.gt", "gy", "com.hk", "hn",
+        "hr", "ht", "hu", "co.id", "ie", "co.il", "im", "co.in", "iq", "is", "it", "je", "com.jm", "jo", "co.jp",
+        "co.ke", "com.kh", "ki", "kg", "co.kr", "com.kw", "kz", "la", "com.lb", "li", "lk", "co.ls", "lt", "lu",
+        "lv", "com.ly", "co.ma", "md", "me", "mg", "mk", "ml", "com.mm", "mn", "com.mt", "mu", "mv", "mw", "com.mx",
+        "com.my", "co.mz", "com.na", "com.ng", "com.ni", "ne", "nl", "no", "com.np", "nr", "nu", "co.nz", "com.om",
+        "com.pa", "com.pe", "com.pg", "com.ph", "com.pk", "pl", "pn", "com.pr", "ps", "pt", "com.py", "com.qa", "ro",
+        "ru", "rw", "com.sa", "com.sb", "sc", "se", "com.sg", "sh", "si", "sk", "com.sl", "sn", "so", "sm", "sr",
+        "st", "com.sv", "td", "tg", "co.th", "com.tj", "tl", "tm", "tn", "to", "com.tr", "tt", "com.tw", "co.tz",
+        "com.ua", "co.ug", "co.uk", "com.uy", "co.uz", "com.vc", "co.ve", "co.vi", "com.vn", "vu", "ws", "rs",
+        "co.za", "co.zm", "co.zw", "cat"
+    )
 
     /** google.com, google.si, www.google.co.uk, mail.google.com ... - oznaka »google« pred Googlovo pripono. */
     fun jeGoogleGostitelj(h: String): Boolean {
         val deli = h.split('.')
         for (i in deli.indices) {
             if (deli[i] != "google" || i == deli.size - 1) continue
-            if (GOOGLE_PRIPONA.matches(deli.subList(i + 1, deli.size).joinToString("."))) return true
+            if (deli.subList(i + 1, deli.size).joinToString(".") in GOOGLE_PRIPONE) return true
         }
         return false
     }
 
     /** google.com, google.si, google.co.uk ... (samo »google.« + Googlova pripona, brez poddomene). */
     private fun jeGoogleKoren(h: String): Boolean =
-        h.startsWith("google.") && GOOGLE_PRIPONA.matches(h.removePrefix("google."))
+        h.startsWith("google.") && h.removePrefix("google.") in GOOGLE_PRIPONE
 
     /** Gostitelji Googlove prijave (tudi YouTubova, ki je del iste prijave): accounts. ali myaccount. tik pred google.<pripona>. */
     private fun jePrijavniGostitelj(h: String): Boolean {
@@ -79,12 +98,18 @@ object GooglePravila {
         return jeGoogleKoren(h) || (h.startsWith("www.") && jeGoogleKoren(h.removePrefix("www.")))
     }
 
-    /** Googlovi viri brez uporabniske vsebine, ki jih prijava in reCAPTCHA nalozita (skripte, pisave, slike). */
-    private val GOOGLE_VIRI = setOf("apis.google.com", "www.googleapis.com", "fonts.googleapis.com")
+    /**
+     * Googlovi viri brez uporabniske vsebine, ki jih prijava in reCAPTCHA nalozita (skripte, pisave, slike).
+     * Peti slepi pregled 5. 11. 2026 (N2): www.googleapis.com ni vec na seznamu - streze tudi Google Cloud Storage
+     * (/download/storage/v1/b/<vedro>/o/<objekt>?alt=media, /storage/, /upload/), tj. vsebino kogarkoli. Poti, ki bi jo
+     * prijava na www.googleapis.com res rabila, nismo mogli zanesljivo dolociti (prijava gre prek accounts.google.com,
+     * gstatic in apis.google.com), zato izjeme ni; filter oglasov tak vir le preveri, ne blokira ga sam po sebi.
+     */
+    private val GOOGLE_VIRI = setOf("apis.google.com", "fonts.googleapis.com")
 
     /**
      * Podzahteva, ki jo filter oglasov spusti (ChromiumEngineView.shouldInterceptRequest; Scit groženj velja vedno):
-     * [jeGoogle], gstatic.com (Googlova staticna vsebina), recaptcha.net in [GOOGLE_VIRI]. Ne: storage.googleapis.com,
+     * [jeGoogle], gstatic.com (Googlova staticna vsebina), recaptcha.net in [GOOGLE_VIRI]. Ne: www.googleapis.com, storage.googleapis.com,
      * firebasestorage.googleapis.com, *.googleusercontent.com, sites.google.com (uporabniska vsebina).
      */
     fun jeGoogleVir(url: String?): Boolean {

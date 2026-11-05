@@ -896,7 +896,7 @@ object UserScriptManager {
         return SpletVarnostPravila.vstaviPrejsnjiNonce(SpletVarnostPravila.vstaviNonce(
             SpletVarnostPravila.vstaviIzvirnike(SpletVarnostPravila.vstaviZeton(predloga, zeton), izvirniki),
             webView.nonceIzvirnikov, webView.nonceIzvozov
-        ), webView.nonceIzvozovPrej)
+        ), webView.nonceIzvozovPrej, webView.nonceIzvirnikovPrej.ifEmpty { webView.nonceIzvirnikov })
     }
 
     private const val YOUTUBE_TV_LEANBACK_JS = """
@@ -1334,8 +1334,10 @@ object UserScriptManager {
         // nonce. Zastavico preverimo z izvirnim getOwnPropertyDescriptor (IZVIRNIKI_JS; stran ga ne prepise) in se vrnemo na
         // par te kopije, namesto da bi vbrizgali drugo.
         val prej = cev?.nonceIzvozovPrej.orEmpty()
-        val prejPogoj = if (cev != null && SpletVarnostPravila.jeNonce(prej) && prej != nonce && SpletVarnostPravila.jeNonce(cev.nonceIzvirnikov))
-            SpletVarnostPravila.zivaKopijaJs(cev.nonceIzvirnikov, prej) else "false"
+        // Peti slepi pregled (N5): ziva kopija v istem dokumentu ima izvirnike pod imenom prejsnje strani.
+        val izPrej = cev?.nonceIzvirnikovPrej.orEmpty().ifEmpty { cev?.nonceIzvirnikov.orEmpty() }
+        val prejPogoj = if (cev != null && SpletVarnostPravila.jeNonce(prej) && prej != nonce && SpletVarnostPravila.jeNonce(izPrej))
+            SpletVarnostPravila.zivaKopijaJs(izPrej, prej) else "false"
         // Cetrti slepi pregled 5. 11. 2026 (N-B): zastavica s prejsnjim nonce ni dokaz - kopija odgovori na nakljucen izziv z
         // odtisom svojega zetona (tv_spatial.js _safeer_ziv); preveri ga ChromiumEngineView.vrniPrejsnjoStran.
         val izzivZiv = TvTipke.novIzziv()

@@ -185,7 +185,7 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
             val js = namiznaJs(v)
             try {
                 if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT))
-                    androidx.webkit.WebViewCompat.addDocumentStartJavaScript(this, js, setOf("*"))
+                    dodajSkriptZacetka(js, setOf("*"))
             } catch (_: Exception) {}
         }
     private var namiznaSkripta = false
@@ -279,8 +279,58 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
     /** IZVIRNIKI_JS je registriran ob zacetku dokumenta: samo tedaj tv_spatial.js zaupa lastnosti __safeer_izvirniki_*. */
     @Volatile internal var izvirnikiRegistrirani = false
         private set
-    /** Nakljucni del imena izvirnikov (na pogled - skript zacetka dokumenta je registriran enkrat), neodvisni pregled 5. 11. 2026. */
-    internal val nonceIzvirnikov: String = SpletVarnostPravila.novNonce()
+    /**
+     * Nakljucni del imena izvirnikov (__safeer_izvirniki_<n>) TRENUTNEGA dokumenta glavnega okvirja.
+     * Peti slepi pregled 5. 11. 2026 (N5): prej enak za ves pogled - stran ga je prebrala (Object.getOwnPropertyNames) in ga
+     * poznala v vseh poznejsih dokumentih. Zdaj ga ob vsaki navigaciji glavnega okvirja zamenjamo (nova registracija
+     * skripta zacetka dokumenta, stara odstranjena - [registrirajIzvirnike]); aplikacija zaupa samo imenu dokumenta, ki je
+     * nastal po zadnji registraciji. Ce dokument kljub temu dobi drugo ime (navigacija se je zacela pred registracijo),
+     * izvirnikov ni in pravih dejanj ni (varna napaka).
+     */
+    @Volatile internal var nonceIzvirnikov: String = ""
+        private set
+    /** Ime izvirnikov prejsnjega dokumenta - samo za preverbo zive kopije v istem dokumentu (N8, [vrniPrejsnjoStran]). */
+    @Volatile internal var nonceIzvirnikovPrej: String = ""
+        private set
+    /** Ime, ki ga dobi naslednji dokument (zadnja registracija). */
+    private var nonceIzvirnikovNaslednji: String = ""
+    private var izvirnikiRocaj: androidx.webkit.ScriptHandler? = null
+    /**
+     * Drugi skripti zacetka dokumenta v vrstnem redu registracije (izvor, rocaj). Izvirniki morajo teci PRED njimi:
+     * protiadblock.js ovije Element.prototype.getBoundingClientRect (ovoj klice Function.prototype.apply, ki ga lahko prepise
+     * stran) - izvirniki, zajeti za njim, bi bili ponarejeni (peti slepi pregled, N5; preizkus tv_peti_pregled_test.js).
+     * Ob novi registraciji izvirnikov zato znova registriramo tudi te, v istem vrstnem redu.
+     */
+    private class SkriptZacetka(val js: String, val izvori: Set<String>, var rocaj: androidx.webkit.ScriptHandler?)
+    private val skriptiZacetka = ArrayList<SkriptZacetka>()
+
+    /** Skript zacetka dokumenta za izvirniki (vrstni red ostane tudi ob menjavi imena izvirnikov). */
+    private fun dodajSkriptZacetka(js: String, izvori: Set<String>) {
+        val h = androidx.webkit.WebViewCompat.addDocumentStartJavaScript(this, js, izvori)
+        skriptiZacetka += SkriptZacetka(js, izvori, h)
+    }
+
+    /**
+     * Nova registracija IZVIRNIKI_JS z novim imenom (peti slepi pregled, N5): odstrani vse skripte zacetka dokumenta,
+     * registrira izvirnike in nato ostale v prejsnjem vrstnem redu. Dokumenti, ki ze tecejo, obdrzijo svoje.
+     */
+    private fun registrirajIzvirnike(): Boolean {
+        val n = SpletVarnostPravila.novNonce()
+        return try {
+            try { izvirnikiRocaj?.remove() } catch (_: Exception) {}
+            for (sk in skriptiZacetka) { try { sk.rocaj?.remove() } catch (_: Exception) {}; sk.rocaj = null }
+            izvirnikiRocaj = androidx.webkit.WebViewCompat.addDocumentStartJavaScript(this, izvirnikiJs(n), setOf("*"))
+            nonceIzvirnikovNaslednji = n
+            for (sk in skriptiZacetka) {
+                try { sk.rocaj = androidx.webkit.WebViewCompat.addDocumentStartJavaScript(this, sk.js, sk.izvori) }
+                catch (e: Exception) { android.util.Log.w("SafeerSplet", "skript zacetka: ponovna registracija ni uspela (${e.javaClass.simpleName})") }
+            }
+            true
+        } catch (e: Exception) {
+            android.util.Log.w("SafeerSplet", "izvirniki: registracija ni uspela (${e.javaClass.simpleName})")
+            false
+        }
+    }
     /**
      * Nakljucni del imen izvozov tv_spatial.js za trenutno stran (nov ob vsaki strani, kot [zetonDotika]): stran imen pred
      * nasim skriptom ne pozna in jih ne more zasesti (neodvisni pregled 5. 11. 2026, najdba 6).
@@ -308,10 +358,13 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
         if (!velja) {
             nonceIzvozovPrej = ""
             zetonDotikaPrej = ""
+            nonceIzvirnikovPrej = ""
             return false
         }
         zetonDotika = zetonDotikaPrej
         nonceIzvozov = nonceIzvozovPrej
+        // Isti dokument: izvirniki so pod imenom prejsnje strani (N5).
+        if (SpletVarnostPravila.jeNonce(nonceIzvirnikovPrej)) nonceIzvirnikov = nonceIzvirnikovPrej
         return true
     }
     /** Pogled je ze pokazal namig za kazalec na tej strani (zeton strani) - namig najvec enkrat na stran. */
@@ -426,16 +479,15 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
         try {
             if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT)) {
                 // Izvirniki metod za tv_spatial.js pred vsemi drugimi skripti (IZVIRNIKI_JS, pregled Groka 5. 11. 2026).
-                androidx.webkit.WebViewCompat.addDocumentStartJavaScript(this, izvirnikiJs(nonceIzvirnikov), setOf("*"))
-                izvirnikiRegistrirani = true
-                androidx.webkit.WebViewCompat.addDocumentStartJavaScript(
-                    this,
-                    UserScriptManager.GPC_AND_DNT_JS,
+                // Peti slepi pregled (N5): ime izvirnikov se menja ob vsaki strani (registrirajIzvirnike v onPageStarted).
+                if (registrirajIzvirnike()) {
+                    nonceIzvirnikov = nonceIzvirnikovNaslednji
+                    izvirnikiRegistrirani = true
+                }
+                dodajSkriptZacetka(UserScriptManager.GPC_AND_DNT_JS,
                     setOf("*")
                 )
-                androidx.webkit.WebViewCompat.addDocumentStartJavaScript(
-                    this,
-                    UserScriptManager.FORCE_UNMUTE_JS,
+                dodajSkriptZacetka(UserScriptManager.FORCE_UNMUTE_JS,
                     setOf(
                         "https://*.youtube.com",
                         "https://youtube.com",
@@ -449,16 +501,14 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
                     }
                 }
                 // Most dotika zaklenjen pred skriptami strani (ZAKLEP_MOSTU_JS, pregled 3. 11. 2026).
-                androidx.webkit.WebViewCompat.addDocumentStartJavaScript(this, ZAKLEP_MOSTU_JS, setOf("*"))
+                dodajSkriptZacetka(ZAKLEP_MOSTU_JS, setOf("*"))
                 // Stran ne sme zaznati blokatorja oglasov: splosna skripta pred skriptami strani (assets/protiadblock.js).
                 UserScriptManager.protiAdblockJs(context).takeIf { it.isNotEmpty() }?.let { js ->
-                    androidx.webkit.WebViewCompat.addDocumentStartJavaScript(this, js, setOf("*"))
+                    dodajSkriptZacetka(js, setOf("*"))
                 }
                 // YouTube brez cakanja na oglas: mora teci pred skriptami strani (assets/youtube_zacetek.js).
                 UserScriptManager.youtubeZacetekJs(context).takeIf { it.isNotEmpty() }?.let { js ->
-                    androidx.webkit.WebViewCompat.addDocumentStartJavaScript(
-                        this,
-                        js,
+                    dodajSkriptZacetka(js,
                         setOf(
                             "https://*.youtube.com",
                             "https://youtube.com",
@@ -1482,6 +1532,13 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
                 nonceIzvozovPrej = nonceIzvozov
                 zetonDotika = SpletVarnostPravila.novZeton()
                 nonceIzvozov = SpletVarnostPravila.novNonce()
+                // Peti slepi pregled (N5): ta dokument je nastal po zadnji registraciji izvirnikov - njegovo ime; za
+                // naslednji dokument novo ime (po tem klicu, da se nastavitve ne menjajo sredi povratnega klica).
+                if (izvirnikiRegistrirani) {
+                    nonceIzvirnikovPrej = nonceIzvirnikov
+                    nonceIzvirnikov = nonceIzvirnikovNaslednji
+                    post { if (!uniceno) registrirajIzvirnike() }
+                }
                 if (!EmudhraRevocations.jeOpozorilnaStran(url)) emudhraZastavica.novaNavigacija()
                 if (emudhraBlokirano(view, url)) return
                 url?.let { interceptPageUrl = it }

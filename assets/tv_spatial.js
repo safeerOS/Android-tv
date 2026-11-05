@@ -162,9 +162,23 @@
                 }
                 return true;
             }
+            // Peti slepi pregled 5. 11. 2026 (N5): ime izvirnikov se menja ob vsaki strani - ziva kopija v ISTEM dokumentu (onPageStarted
+            // brez novega dokumenta) ima izvirnike pod imenom prejsnje strani. Samo za to preverbo; nikoli za prava dejanja.
+            // Lazna zastavica z laznimi izvirniki prejsnjega imena v novem dokumentu se namestitev le zadrzi, aplikacija pa kopijo
+            // preveri z izzivom (_safeer_ziv, HMAC) in skript namesti znova brez prejsnjega imena.
+            var NONCE_IZ_PREJ = '__SAFEER_NONCE_IZ_PREJ__';
+            var IZ_PREJ = null;
+            try {
+                var kIzP = jeNonceNiz(NONCE_IZ_PREJ) ? window['__safeer_izvirniki_' + NONCE_IZ_PREJ] : null;
+                if (kIzP && typeof kIzP.apply === 'function' && typeof kIzP.gopd === 'function') IZ_PREJ = kIzP;
+            } catch (_) {}
             function zivaPrejsnjaKopija(w) {
-                if (!IZ || !jeNonceNiz(NONCE_PREJ) || NONCE_PREJ === NONCE_IZVOZOV) return false;
-                return jeNamescen(w, '_safeer_tv_remote_installed_' + NONCE_PREJ);
+                if (!jeNonceNiz(NONCE_PREJ) || NONCE_PREJ === NONCE_IZVOZOV) return false;
+                var I2 = IZ_PREJ || IZ;
+                if (!I2) return false;
+                var d = null;
+                try { d = I2.apply(I2.gopd, null, [w, '_safeer_tv_remote_installed_' + NONCE_PREJ]); } catch (_) {}
+                return !!d && d.value === true && d.configurable === false;
             }
             function oznaciNamescen(w) {
                 try {
