@@ -355,7 +355,9 @@ class PredvajanjeActivity : OsActivity() {
     private var casOdprtjaMs: Long = 0L
     private var prikazujemNapako: Boolean = false
     /** Zaprtje 2,5 s po sporocilu o napaki; nov namen (onNewIntent) ga preklice (pregled Grok 2. 11. 2026). */
-    private val zapriPoNapakiRunnable = Runnable { pripravljamNaslov = null; finish() }
+    private val zapriPoNapakiRunnable = Runnable { pripravljamNaslov = null; zaprtoSamodejno = true; finish() }
+    /** Zaslon z napako se je zaprl sam (zapriPoNapakiRunnable), ne z Nazaj ali Domov ([ZasloniOsPravila.poZaprtjuNapake]). */
+    private var zaprtoSamodejno = false
     /** Pregled Medijskega centra 5. 11. 2026 (8): kar se pokaze sele, ko se ta zaslon zapre (okno epizod po napaki). */
     private var poZaprtju: (() -> Unit)? = null
 
@@ -896,7 +898,10 @@ class PredvajanjeActivity : OsActivity() {
 
     override fun onDestroy() {
         if (pripravljamNaslov != null) GlasbaActivity.instanca?.get()?.prekliciPriprave()
-        poZaprtju?.let { p -> poZaprtju = null; android.os.Handler(android.os.Looper.getMainLooper()).post(p) }
+        // Drugi krog pregleda 5. 11. 2026: uporabnik je zaprl z Nazaj (ali odsel) med sporocilom o napaki - okno epizod ne.
+        val potem = poZaprtju
+        poZaprtju = null
+        if (potem != null && ZasloniOsPravila.poZaprtjuNapake(zaprtoSamodejno)) android.os.Handler(android.os.Looper.getMainLooper()).post(potem)
         odjaviPip(); delavec.shutdownNow(); super.onDestroy()
     }
 

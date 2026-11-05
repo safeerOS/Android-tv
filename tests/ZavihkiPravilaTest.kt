@@ -6,7 +6,7 @@ import si.safeer.tv.ZavihkiPravila.Okvir
 import si.safeer.tv.ZavihkiPravila.VstopAplikacije
 
 /** Zavihki in RAM na TV (lastnik 2. in 4. 11. 2026): en zavihek po zagonu z zaganjalnika, zavihek aplikacije ne ostane. */
-fun main() {
+fun main(args: Array<String>) {
     val p = ZavihkiPravila
     // Lastnik 23:43: proces ziv, 3 zavihki, zagon z zaganjalnika -> en zavihek.
     check(p.zapriOstale(Namera.ZAGANJALNIK, zavihkov = 3, bilVOzadju = true))
@@ -47,6 +47,19 @@ fun main() {
     check(p.sosedVVrstici(dve, trenutni = 9, desno = true) == -1)
 
     // Pregled lupine 5. 11. 2026: »home« z daljinca ne javi uspeha, ce ni naredil nicesar.
+    // Drugi krog pregleda 5. 11. 2026: OBNOVA ne ob vstopu v lupino (prejsnji zavihek ostane za izhod iz aplikacije).
+    check(p.obnovaPustiEnega(obnovljeno = true, vstopVLupino = false))
+    check(!p.obnovaPustiEnega(obnovljeno = true, vstopVLupino = true))
+    check(!p.obnovaPustiEnega(obnovljeno = false, vstopVLupino = false))
+    // Zavihek aplikacije v lupini, ki predvaja, se ob izhodu ne unici (kot pustiEnZavihek).
+    check(!p.unici(zvokVOzadju = false, cakaIzbiroDatotek = false, menjavaNastavitev = false, predvaja = true))
+    check(p.unici(zvokVOzadju = false, cakaIzbiroDatotek = false, menjavaNastavitev = false, predvaja = false))
+    args.getOrNull(0)?.let { src ->
+        val ma = java.io.File(src, "si/safeer/tv/MainActivity.kt").readText()
+        check("ZavihkiPravila.obnovaPustiEnega(restored, vstopVLupino)" in ma) { "MainActivity: OBNOVA tudi ob vstopu v lupino" }
+        check(ma.indexOf("vstopVLupino = jeAplikacijaVLupini(") in 1 until ma.indexOf("ZavihkiPravila.obnovaPustiEnega(")) { "MainActivity: vrstni red vstopa" }
+        check("predvaja = tab.predvaja)) return" in ma) { "MainActivity: zapriAplikacijoVLupini unici zavihek, ki predvaja" }
+    } ?: error("pot do src/main/kotlin")
     check(p.domovDaljinca(sistemskiUspel = true, nacinAplikacije = true) == Domov.SISTEM)
     check(p.domovDaljinca(sistemskiUspel = true, nacinAplikacije = false) == Domov.SISTEM)
     check(p.domovDaljinca(sistemskiUspel = false, nacinAplikacije = false) == Domov.DOMACA_STRAN)
@@ -57,7 +70,10 @@ fun main() {
     check(!p.castBranjeNaprej("stopped", 0))
     check(p.castBranjeNaprej("playing", 0))
     check(p.castBranjeNaprej("paused", 0))
-    check(!p.castBranjeNaprej("playing", 1))                      // medij je izginil s strani
+    // Drugi krog pregleda 5. 11. 2026: prvo prazno branje po »play« branja ne ustavi; drugo zapored ga.
+    check(p.castBranjeNaprej("playing", 1))
+    check(!p.castBranjeNaprej("playing", 2))                      // medij je izginil s strani
+    check(!p.castBranjeNaprej("paused", 1))
     check(p.castBranjeNaprej("buffering", 5))                     // stran se se nalaga
     check(!p.castBranjeNaprej("buffering", 6))
     // Vodja 5. 11. 2026: spletna aplikacija iz Safeer OS - lupina ostane (lastnik 28. 9., 3a65e877), zivljenjski cikel

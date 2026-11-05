@@ -299,7 +299,7 @@ class ScitStoritev : VpnService() {
         // Naloga 65: najvec NAJVEC_CAKAJOCIH hkrati (prej do 65536 - vsaka s kopijo paketa, ~0,5-1 kB). Ko strezniki
         // molcijo ali aplikacija poplavi z vprasanji, bi se jih v POTEK_MS nabralo na desetine MB.
         if (cakajoce.size >= NAJVEC_CAKAJOCIH) {
-            cakajoce.entries.removeIf { zdaj - it.value.cas > POTEK_MS }
+            opustiPotekle(zdaj)
             if (cakajoce.size >= NAJVEC_CAKAJOCIH) {
                 if (zdaj - zadnjaPolna > 10_000L) { zadnjaPolna = zdaj; Log.w(TAG, "Hkratnih poizvedb DNS je ${cakajoce.size}; nove izpuscam") }
                 return null
@@ -353,6 +353,13 @@ class ScitStoritev : VpnService() {
         }
     }
 
+    /** Potekle poizvedbe dobijo SERVFAIL ([ScitStanjePravila.opustiPotekle]; pravi odgovor, ki pride prej, zmaga). */
+    private fun opustiPotekle(zdaj: Long) {
+        ScitStanjePravila.opustiPotekle(cakajoce, zdaj, POTEK_MS, { it.cas }) { c ->
+            zapisi(DnsPaket.zavijOdgovor(c.q, DnsPaket.odgovorNapakaZa(c.q.dns)))
+        }
+    }
+
     private fun zankaOdgovorov() {
         val v4 = vticnica4 ?: return
         val buf = ByteArray(4096)
@@ -394,7 +401,7 @@ class ScitStoritev : VpnService() {
     private fun vzdrzuj() {
         try {
             val zdaj = System.currentTimeMillis()
-            cakajoce.entries.removeIf { zdaj - it.value.cas > POTEK_MS }
+            opustiPotekle(zdaj)
             val d = danes()
             if (d != dan) { dan = d; blokiranih.set(0); poizvedb.set(0) }
             val datoteka = Scit.naborDatoteka(this)

@@ -189,6 +189,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/os/DovoljenjaPravila.kt" \
     "$TEST_DIR/DovoljenjaPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/NastavitvePravila.kt" \
+    "$SRC/si/safeer/tv/os/Preusmeritve.kt" \
+    "$SRC/si/safeer/tv/os/NamestiApkPravila.kt" \
     "$TEST_DIR/NastavitvePravilaTest.kt" \
     "$SRC/si/safeer/tv/os/Zasebno.kt" \
     "$TEST_DIR/ZasebnoTest.kt" \

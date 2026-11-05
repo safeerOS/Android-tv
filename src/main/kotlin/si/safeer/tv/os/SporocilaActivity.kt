@@ -908,7 +908,8 @@ class SporocilaActivity : OsActivity() {
         val fokus = currentFocus
         val fokusOznaka = if (fokus != null && jePotomec(sporocilaSeznam, fokus)) fokus.tag as? String else null
         val prej = ArrayList<String>()
-        for (i in 0 until sporocilaSeznam.childCount) ((sporocilaSeznam.getChildAt(i) as? ViewGroup)?.getChildAt(0)?.tag as? String)?.let { prej.add(it) }
+        for (i in 0 until sporocilaSeznam.childCount) (sporocilaSeznam.getChildAt(i) as? ViewGroup)
+            ?.let { v -> ZasloniOsPravila.oznakaSporocila((0 until v.childCount).map { v.getChildAt(it).tag }) }?.let { prej.add(it) }
         val prejY = sporocilaDrsnik.scrollY
         sporocilaSeznam.removeAllViews()
         var obrobljena: View? = null

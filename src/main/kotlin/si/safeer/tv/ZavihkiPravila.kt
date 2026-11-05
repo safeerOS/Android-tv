@@ -29,8 +29,15 @@ object ZavihkiPravila {
      * ponoven vstop nadaljuje tam. Ostane samo, ce igra zvok v ozadju, ce caka izbira datotek (sistemski izbirnik je
      * druga dejavnost) ali ob menjavi nastavitev (zasuk).
      */
-    fun unici(zvokVOzadju: Boolean, cakaIzbiroDatotek: Boolean, menjavaNastavitev: Boolean): Boolean =
-        !zvokVOzadju && !cakaIzbiroDatotek && !menjavaNastavitev
+    fun unici(zvokVOzadju: Boolean, cakaIzbiroDatotek: Boolean, menjavaNastavitev: Boolean, predvaja: Boolean = false): Boolean =
+        !zvokVOzadju && !cakaIzbiroDatotek && !menjavaNastavitev && !predvaja
+
+    /**
+     * Drugi krog pregleda 5. 11. 2026: OBNOVA (en zavihek po obnovi aktivnosti) samo, ce zagon ni vstop v spletno
+     * aplikacijo v lupini - tam je odpriAplikacijoVLupini ze pustil en zavihek in si zapomnil prejsnjega, OBNOVA pa ga
+     * je zaprla (ob izhodu iz aplikacije se je v ozadju naredil nov WebView).
+     */
+    fun obnovaPustiEnega(obnovljeno: Boolean, vstopVLupino: Boolean): Boolean = obnovljeno && !vstopVLupino
 
     /**
      * Lastnik 4. 11. 2026 23:47 (uiautomator): v »Odprti zavihki« smerne tipke niso premaknile nicesar - fokus sta imela
@@ -119,10 +126,13 @@ object ZavihkiPravila {
      * Pregled lupine 5. 11. 2026: branje stanja predvajanja za Safeer Cast (vsakih 5 s) se ni nikoli ustavilo - tudi brez
      * predvajanja in po koncu je drzalo aktivnost. Naprej samo, dokler kaj predvaja: ob idle/stopped konec; medij, ki se
      * nalaga, dobi 6 praznih branj (30 s), medij, ki je izginil s strani, nobenega.
+     * Drugi krog pregleda 5. 11. 2026: »playing« dobi 2 prazni branji (10 s) - takoj po »play« medij na strani pogosto se
+     * ni prebran (zamenjava elementa video) in prvo prazno branje je branje ustavilo.
      */
     fun castBranjeNaprej(stanje: String, praznihZapored: Int): Boolean = when (stanje) {
         "idle", "stopped" -> false
         "buffering" -> praznihZapored < 6
+        "playing" -> praznihZapored < 2
         else -> praznihZapored < 1
     }
 }

@@ -52,6 +52,34 @@ fun main(args: Array<String>) {
         preveriStanje(DomenskiNabor.Poizvedba.odpriCeSpremenjeno(f, drugi) == null, "izbrisana datoteka: ni nabora")
     } finally { mapa.deleteRecursively() }
 
+    // Drugi krog pregleda 5. 11. 2026: potekle poizvedbe (polna vrsta, vzdrzevanje) dobijo SERVFAIL; pravi odgovor zmaga.
+    run {
+        val vrsta = java.util.concurrent.ConcurrentHashMap<Int, Long>()
+        vrsta[1] = 0L; vrsta[2] = 5_000L; vrsta[3] = 100L
+        val servfail = ArrayList<Long>()
+        val n = P.opustiPotekle(vrsta, 9_000L, 8_000L, { it }) { servfail.add(it) }
+        preveriStanje(n == 2 && servfail.sorted() == listOf(0L, 100L) && vrsta.keys == setOf(2), "potekle: SERVFAIL za vsako, sveza ostane")
+        // Pravi odgovor je poizvedbo vzel med pregledom (remove(id, c) ne uspe): SERVFAIL se ne poslje.
+        val tekma = object : java.util.concurrent.ConcurrentHashMap<Int, Long>() {
+            override fun remove(key: Int, value: Long): Boolean { super.remove(key); return false }
+        }
+        tekma[7] = 0L
+        val poslano = ArrayList<Long>()
+        P.opustiPotekle(tekma, 9_000L, 8_000L, { it }) { poslano.add(it) }
+        preveriStanje(poslano.isEmpty(), "potekla, a pravi odgovor jo je vzel prej: brez SERVFAIL")
+    }
+    // Drugi krog pregleda 5. 11. 2026: osvezevanje zaslona Scita - najvec eno branje, nujna zahteva se ponovi enkrat.
+    run {
+        val b = ScitStanjePravila.EnoBranje()
+        preveriStanje(b.zacni(false), "prvo branje se zacne")
+        preveriStanje(!b.zacni(false) && !b.zacni(false), "osvezitev med branjem se ne doda v vrsto")
+        preveriStanje(!b.konec(), "konec brez nujne zahteve: nic vec")
+        preveriStanje(b.zacni(false), "po koncu se novo branje zacne")
+        preveriStanje(!b.zacni(true), "nujna zahteva med branjem se ne zacne vzporedno")
+        preveriStanje(b.konec(), "... a se izvede po koncu")
+        preveriStanje(!b.konec() && b.zacni(true), "enkrat; potem prosto")
+    }
+
     // Staticne preverbe izvorne kode (padejo pred popravkom 5. 11. 2026).
     val src = File(args.getOrNull(0) ?: error("pot do src/main/kotlin"))
     val storitev = File(src, "si/safeer/tv/scit/ScitStoritev.kt").readText()
@@ -63,8 +91,16 @@ fun main(args: Array<String>) {
     preveriStanje("Poizvedba.odpri(" !in preberi && "zasebniDnsObide()" !in preberi, "ScitActivity.preberi: brez mapiranja ob vsakem branju in brez poizvedb omrezij")
     val narisi = zaslon.substringAfter("private fun narisi(prisilno: Boolean").substringBefore("private fun izrisi(")
     preveriStanje("vOzadju" in narisi, "ScitActivity.narisi: branje na delovni niti")
+    preveriStanje("branje.zacni(prisilno)" in narisi && "branje.konec()" in narisi, "ScitActivity.narisi: najvec eno branje hkrati (drugi krog)")
+    preveriStanje("removeIf" !in storitev && storitev.split("opustiPotekle(zdaj)").size == 3, "ScitStoritev: potekle ob polni vrsti in v vzdrzevanju dobijo SERVFAIL (drugi krog)")
     val nastavitve = File(src, "si/safeer/tv/os/NastavitveActivity.kt").readText()
     preveriStanje("vklop(Scit.jeVklopljen(this))" !in nastavitve && "ScitStanjePravila.stanje(" in nastavitve, "Nastavitve: vrstica Scita kaze dejansko stanje")
+    // CodeRabbit 5. 11. 2026: po preklopu se stanje Scita prebere znova (prej narisi() s starim scitStanje).
+    val preklop = nastavitve.substringAfter("private fun preklopiScit()").substringBefore("private fun izhod()")
+    preveriStanje("Scit.izklopi(this) { osveziScit() }" in preklop && "else osveziScit()" in preklop && "narisi()" !in preklop,
+        "Nastavitve.preklopiScit: po izklopu in vklopu novo stanje Scita")
+    preveriStanje(nastavitve.contains("private fun osveziScit()") && nastavitve.substringAfter("override fun onResume()").substringBefore("override fun ").contains("osveziScit()"),
+        "Nastavitve.onResume: stanje Scita prek osveziScit")
 
     if (padloStanje > 0) { println("ScitStanjePravila: $padloStanje padlo"); exitProcess(1) }
     println("ScitStanjePravila: vse v redu")

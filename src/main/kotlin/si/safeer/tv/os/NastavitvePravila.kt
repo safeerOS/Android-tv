@@ -41,14 +41,9 @@ object NastavitvePravila {
      * Naslednji skok preusmeritve ([lokacija] iz glave Location, lahko relativna) od [trenutni]: samo https z imenom
      * gostitelja, sicer null (prenos se ustavi). Prej je HttpURLConnection sledil sam in preverjen je bil samo zadnji naslov.
      */
-    fun naslednjiSkok(trenutni: String, lokacija: String?): String? {
-        if (lokacija.isNullOrBlank()) return null
-        return try {
-            val cilj = java.net.URI(trenutni).resolve(lokacija.trim())
-            if (!"https".equals(cilj.scheme, ignoreCase = true) || cilj.host.isNullOrBlank() || cilj.rawUserInfo != null) null
-            else cilj.toString()
-        } catch (_: Exception) { null }
-    }
+    fun naslednjiSkok(trenutni: String, lokacija: String?): String? =
+        // Ista preverba kot prenos APK (drugi krog pregleda 5. 11. 2026, os/Preusmeritve) - prej lastna izvedba z URI.
+        (Preusmeritve.naslednji(trenutni, lokacija) as? Preusmeritve.Skok.Naprej)?.url
 
     /**
      * Seznam Nastavitev vzame fokus samo ob prvem izrisu ali ce ga nima nihce - prej ga je vsak asinhroni izris (stanje

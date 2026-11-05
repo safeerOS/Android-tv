@@ -32,6 +32,38 @@ object ScitStanjePravila {
     enum class Neodgovorjena { CAKAJ, PONOVI, SERVFAIL }
 
     /**
+     * Drugi krog pregleda 5. 11. 2026: poizvedbe, starejse od [potekMs], ob polni vrsti (dodeliId) in v vzdrzevanju niso
+     * vec tiho izginile - aplikacija dobi [servfail] (prej je cakala 5 s na svoj rok). Odstranitev je atomarna
+     * (remove(id, c)): pravi odgovor, ki je poizvedbo vzel prej, vedno zmaga in SERVFAIL se ne poslje. Vrne stevilo opuscenih.
+     */
+    fun <T> opustiPotekle(cakajoce: java.util.concurrent.ConcurrentMap<Int, T>, zdaj: Long, potekMs: Long,
+                          poslana: (T) -> Long, servfail: (T) -> Unit): Int {
+        var n = 0
+        for ((id, c) in cakajoce) {
+            if (zdaj - poslana(c) > potekMs && cakajoce.remove(id, c)) { servfail(c); n++ }
+        }
+        return n
+    }
+
+    /**
+     * Drugi krog pregleda 5. 11. 2026 (ScitActivity): osvezevanje vsaki 2 s je dodalo novo branje, tudi ce prejsnje se ni
+     * koncalo - pri pocasnem branju so se naloge kopicile. Hkrati tece najvec eno; nujna zahteva (dejanje uporabnika) med
+     * branjem se izvede enkrat po njem, navadna osvezitev se izpusti.
+     */
+    class EnoBranje {
+        private val tece = java.util.concurrent.atomic.AtomicBoolean(false)
+        private val znova = java.util.concurrent.atomic.AtomicBoolean(false)
+        /** true = zacni branje; false = branje ze tece (ce [nujno], se po njem ponovi). */
+        fun zacni(nujno: Boolean): Boolean {
+            if (tece.compareAndSet(false, true)) return true
+            if (nujno) znova.set(true)
+            return false
+        }
+        /** Konec branja; true = med branjem je prisla nujna zahteva, beri se enkrat. */
+        fun konec(): Boolean { tece.set(false); return znova.getAndSet(false) }
+    }
+
+    /**
      * Koliko po zadnjem vprasanem strezniku se caka na odgovor, preden aplikacija dobi SERVFAIL. Vec od pocasnega pravega
      * odgovora usmerjevalnika (1-2 s), manj od 5 s, ki jih razresevalnik Androida caka na molk (AGENTS.md, Scit DNS).
      */

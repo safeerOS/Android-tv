@@ -11,7 +11,7 @@ KOTLINC="${KOTLINC:-$TOOLS_DIR/kotlinc/bin/kotlinc}"
 command -v "$KOTLINC" >/dev/null 2>&1 || KOTLINC="kotlinc"
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
-"$KOTLINC" "$OS/NamestiApkPravila.kt" "$OS/ZasloniOsPravila.kt" \
+"$KOTLINC" "$OS/NamestiApkPravila.kt" "$OS/Preusmeritve.kt" "$OS/ZasloniOsPravila.kt" \
   "$TEST_DIR/NamestiApkPravilaTest.kt" "$TEST_DIR/ZasloniOsPravilaTest.kt" -include-runtime -d "$OUT/zasloni.jar"
 java -cp "$OUT/zasloni.jar" si.safeer.tv.os.NamestiApkPravilaTestKt "$OS/NamestiApk.kt" "$OS/TrgovineAplikacij.kt"
 java -cp "$OUT/zasloni.jar" si.safeer.tv.os.ZasloniOsPravilaTestKt "$OS"

@@ -61,6 +61,9 @@ fun main(args: Array<String>) {
         check(!namesti.contains("instanceFollowRedirects = true")) { "NamestiApk: samodejne preusmeritve" }
         check(namesti.contains("instanceFollowRedirects = false")) { "NamestiApk: preusmeritvam ne sledi sam" }
         check(namesti.contains("NamestiApkPravila.naslednji(")) { "NamestiApk: skok brez pravil" }
+        // Drugi krog pregleda 5. 11. 2026: povezava se zapre tudi ob napaki omrezja pri responseCode.
+        check(namesti.contains("val koda = try { c.responseCode } catch (t: Throwable) { c.disconnect(); throw t }") &&
+            !namesti.contains("naslednji(naslov, c.responseCode")) { "NamestiApk: povezava ostane odprta ob IOException" }
         check(namesti.contains("getCookie(naslov)")) { "NamestiApk: piskotki niso za naslov skoka" }
         check(namesti.contains("NamestiApkPravila.pravPaket(")) { "NamestiApk: paket ponudnika ni preverjen" }
         check(!namesti.contains("velikostZadnjega")) { "NamestiApk: velikost v skupnem polju" }

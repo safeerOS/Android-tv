@@ -187,7 +187,7 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         narisi()
         // Scit je lahko v sosednji aplikaciji: stanje preberemo prek mostu in vrstico osvezimo.
         // Pregled 5. 11. 2026: odgovor soseda pride do 6 s pozneje - zaslon je lahko ze zaprt.
-        Scit.stanje(this) { s -> if (isFinishing || isDestroyed) return@stanje; scitStanje = s; narisi() }
+        osveziScit()
         // Posodobitve: tiha preverba (najvec na 6 h), vrstica se osvezi.
         if (!Posodobitve.nadaljujCeCaka(this)) Posodobitve.preveri(this) { _, _ -> if (!isFinishing) narisi() }
         osveziHost()
@@ -881,13 +881,22 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
      * Scit je na televizorju eden sam. Kadar je Safeer Browser namescen, je njegov in tu ga samo
      * preklopimo prek mostu; sistemsko okno z dovoljenjem za VPN sme odpreti samo lastnik.
      */
+    /**
+     * Stanje Scita prek mostu (Scit je lahko v sosednji aplikaciji) in osvezitev vrstice. Pregled 5. 11. 2026: odgovor
+     * soseda pride do 6 s pozneje - zaslon je lahko ze zaprt. CodeRabbit 5. 11. 2026: tudi po preklopu (prej narisi() s
+     * stanjem iz onResume - vrstica je kazala staro stanje).
+     */
+    private fun osveziScit() {
+        Scit.stanje(this) { s -> if (isFinishing || isDestroyed) return@stanje; scitStanje = s; narisi() }
+    }
+
     private fun preklopiScit() {
         if (Scit.jeVklopljen(this)) {
-            Scit.izklopi(this) { narisi() }
+            Scit.izklopi(this) { osveziScit() }
             return
         }
         Scit.vklopi(this) { s ->
-            if (s.potrebujeOkno) sistemskoOkno { Scit.odpriVklop(this) } else narisi()
+            if (s.potrebujeOkno) sistemskoOkno { Scit.odpriVklop(this) } else osveziScit()
         }
     }
 

@@ -41,4 +41,17 @@ object ZasloniOsPravila {
 
     /** Zbirka z vec datotekami, kot jih pokazemo: koliko jih pokazemo; null = pokazemo vse. */
     fun prikazanih(vseh: Int, najvec: Int): Int? = if (vseh > najvec) najvec else null
+
+    /**
+     * Drugi krog pregleda 5. 11. 2026 (Sporocila): oznaka sporocila (»spor|id«) je na kateremkoli otroku vrstice (oblacek,
+     * cas ...), ne nujno na prvem - prej getChildAt(0), ki bi ob spremembi vrstice izgubil fokus po izrisu.
+     */
+    fun oznakaSporocila(oznakeOtrok: List<Any?>): String? =
+        oznakeOtrok.firstOrNull { it is String && it.startsWith("spor|") } as String?
+
+    /**
+     * Drugi krog pregleda 5. 11. 2026 (Predvajanje): okno epizod po napaki se odpre samo, ce se je zaslon z napako zaprl
+     * sam (po 2,5 s). Uporabnik, ki ga je zaprl z Nazaj (ali odsel z Domov), okna ne dobi cez to, kamor je sel.
+     */
+    fun poZaprtjuNapake(zaprtoSamodejno: Boolean): Boolean = zaprtoSamodejno
 }

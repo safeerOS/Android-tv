@@ -41,6 +41,12 @@ fun main(args: Array<String>) {
     preveriNast(P.naslednjiSkok("https://safeer.si/a", "https://uporabnik:geslo@x.example/a") == null, "uporabnik v naslovu: zavrnjeno")
     preveriNast(P.naslednjiSkok("https://safeer.si/a", null) == null && P.naslednjiSkok("https://safeer.si/a", " ") == null, "brez Location: konec")
     preveriNast(P.naslednjiSkok("https://safeer.si/a", "https://") == null, "brez gostitelja: zavrnjeno")
+    // Drugi krog pregleda 5. 11. 2026: posodobitve in prenos APK imata isto preverbo skoka (os/Preusmeritve) - prej sta se
+    // razlikovali (presledek v Location: APK je sledil, posodobitev ne).
+    for (l in listOf("/os/b.apk", "//m.example/a b.apk", "a b.apk", "http://x.example/", "https://u:g@x.example/", "file:///x", "javascript:x", " ", "https://")) {
+        val apk = (NamestiApkPravila.naslednji("https://safeer.si/os/a.apk", 302, l, 0) as? NamestiApkPravila.Skok.Naprej)?.url
+        preveriNast(apk == P.naslednjiSkok("https://safeer.si/os/a.apk", l), "isti skok za APK in posodobitve: '$l'")
+    }
     preveriNast(listOf(301, 302, 303, 307, 308).all { P.jePreusmeritev(it) } && !P.jePreusmeritev(200) && !P.jePreusmeritev(304), "kode preusmeritev")
 
     // 11: fokus seznama Nastavitev.

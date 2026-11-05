@@ -33,13 +33,11 @@ object NamestiApkPravila {
         if (koda in 200..299) return if (jeHttps(trenutni)) Skok.Koncaj else Skok.Napaka("ni_https")
         if (koda !in PREUSMERITVE) return Skok.Napaka("HTTP $koda")
         if (skokov >= NAJVEC_SKOKOV) return Skok.Napaka("prevec_preusmeritev")
-        val l = lokacija?.trim().orEmpty()
-        if (l.isEmpty()) return Skok.Napaka("brez_lokacije")
-        val cilj = try { URL(URL(trenutni), l) } catch (_: Exception) { return Skok.Napaka("neveljavna_lokacija") }
-        if (!cilj.protocol.equals("https", ignoreCase = true) || cilj.host.isNullOrBlank()) return Skok.Napaka("ni_https")
-        // Uporabnik in geslo v naslovu (https://a:b@...) nista del prenosa aplikacije.
-        if (cilj.userInfo != null) return Skok.Napaka("neveljavna_lokacija")
-        return Skok.Naprej(cilj.toString())
+        // Skupna preverba skoka s posodobitvami (drugi krog pregleda 5. 11. 2026, os/Preusmeritve).
+        return when (val s = Preusmeritve.naslednji(trenutni, lokacija)) {
+            is Preusmeritve.Skok.Naprej -> Skok.Naprej(s.url)
+            is Preusmeritve.Skok.Zavrnjeno -> Skok.Napaka(s.razlog)
+        }
     }
 
     fun jeHttps(url: String): Boolean = try {

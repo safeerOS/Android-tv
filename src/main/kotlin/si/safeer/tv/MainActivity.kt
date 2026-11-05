@@ -281,9 +281,11 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         val restored = if (BrowserMemoryPolicy.obnoviZavihke(ChromiumEngineView.naDotik(this), savedInstanceState != null))
             tabManager.restoreFromFile(this)
         else { try { java.io.File(filesDir, "tabs_state.bin").delete() } catch (_: Exception) {}; false }
+        var vstopVLupino = false
         if (targetUrl != null) {
             // Hladen zagon spletne aplikacije v lupini: en zavihek (njen), ob izhodu se unici (zapriAplikacijoVLupini).
-            val tab = if (jeAplikacijaVLupini(intent, targetUrl)) odpriAplikacijoVLupini(targetUrl, intent)
+            vstopVLupino = jeAplikacijaVLupini(intent, targetUrl)
+            val tab = if (vstopVLupino) odpriAplikacijoVLupini(targetUrl, intent)
                 else tabManager.createTab(this, targetUrl, true)
             oznaciIzvorZavihka(tab, intent, novZavihek = true)
         } else if (!restored) {
@@ -294,8 +296,10 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         }
         intent?.removeExtra(si.safeer.tv.os.Brskalnik.EXTRA_ODPRI_DOMACO)
         // Pregled lupine 5. 11. 2026: obnova je vrnila vse zavihke in prej aktivnega (npr. 3.) - pravilo lastnika (RAM):
-        // ostane samo aktivni zavihek (ZavihkiPravila.zapriOstale, OBNOVA).
-        if (restored) pustiEnZavihek(ZavihkiPravila.Namera.OBNOVA)
+        // ostane samo aktivni zavihek (ZavihkiPravila.zapriOstale, OBNOVA). Drugi krog pregleda 5. 11. 2026: ne ob vstopu v
+        // lupino - odpriAplikacijoVLupini je ze pustil en zavihek (APLIKACIJA) in si zapomnil prejsnjega; OBNOVA bi tega
+        // zaprla in ob izhodu iz aplikacije bi TabManager v ozadju naredil nov WebView.
+        if (ZavihkiPravila.obnovaPustiEnega(restored, vstopVLupino)) pustiEnZavihek(ZavihkiPravila.Namera.OBNOVA)
 
         if (BuildConfig.DEBUG) {
         debugJsReceiver = object : android.content.BroadcastReceiver() {
@@ -594,7 +598,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     private fun zapriAplikacijoVLupini() {
         val id = zavihekVLupini ?: return
         val tab = tabManager.getAllTabs().firstOrNull { it.id == id }
-        if (tab != null && !ZavihkiPravila.unici(zvokVLupini, tab.webView?.cakaIzbiroDatotek == true, isChangingConfigurations)) return
+        // Drugi krog pregleda 5. 11. 2026: zavihek, ki predvaja, ostane - enako kot pri pustiEnZavihek.
+        if (tab != null && !ZavihkiPravila.unici(zvokVLupini, tab.webView?.cakaIzbiroDatotek == true, isChangingConfigurations,
+                predvaja = tab.predvaja)) return
         zavihekVLupini = null
         val prejsnji = prejsnjiVLupini
         prejsnjiVLupini = null

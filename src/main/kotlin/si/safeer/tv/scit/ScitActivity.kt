@@ -40,6 +40,10 @@ class ScitActivity : OsActivity() {
     private val osvezevanje = object : Runnable {
         override fun run() { narisi(false); glavna.postDelayed(this, 2_000) }
     }
+    /** Najvec eno branje hkrati (drugi krog pregleda 5. 11. 2026: osvezitve vsaki 2 s so se kopicile). */
+    private val branje = ScitStanjePravila.EnoBranje()
+    /** Fokus nujne zahteve, ki je prisla med branjem (izvede se po njem). Samo glavna nit. */
+    private var fokusPoBranju: String? = null
     /** Branje stanja (datoteke, nabor grozenj, omrezja) - ena delovna nit, da se branja ne prehitevajo. */
     private val delavec = java.util.concurrent.Executors.newSingleThreadExecutor { r -> Thread(r, "safeer-scit-zaslon").apply { isDaemon = true } }
     /** Nabor grozenj, odprt enkrat; znova samo, ko se grozne.bin spremeni (lastModified). Samo na [delavec]. */
@@ -82,9 +86,9 @@ class ScitActivity : OsActivity() {
         super.onDestroy()
     }
 
-    private fun vOzadju(delo: () -> Unit) {
-        try { delavec.execute { try { delo() } catch (e: Throwable) { Log.w(TAG, "Zaslon: ${e.javaClass.simpleName}") } } }
-        catch (_: java.util.concurrent.RejectedExecutionException) { }
+    private fun vOzadju(delo: () -> Unit): Boolean {
+        try { delavec.execute { try { delo() } catch (e: Throwable) { Log.w(TAG, "Zaslon: ${e.javaClass.simpleName}") } }; return true }
+        catch (_: java.util.concurrent.RejectedExecutionException) { return false }
     }
 
     override fun onPause() {
@@ -196,10 +200,18 @@ class ScitActivity : OsActivity() {
 
     /** Prebere stanje na [delavec] in ga izrise na glavni niti. */
     private fun narisi(prisilno: Boolean, fokus: String? = null) {
-        vOzadju {
-            val p = preberi()
-            runOnUiThread { if (!isFinishing && !isDestroyed) izrisi(p, prisilno, fokus) }
+        if (!branje.zacni(prisilno)) { if (prisilno && fokus != null) fokusPoBranju = fokus; return }
+        val zacet = vOzadju {
+            try {
+                val p = preberi()
+                runOnUiThread { if (!isFinishing && !isDestroyed) izrisi(p, prisilno, fokus) }
+            } finally {
+                if (branje.konec()) runOnUiThread {
+                    if (!isFinishing && !isDestroyed) { val f = fokusPoBranju; fokusPoBranju = null; narisi(true, f) }
+                }
+            }
         }
+        if (!zacet) branje.konec()
     }
 
     private fun izrisi(p: Pogled, prisilno: Boolean, fokus: String?) {

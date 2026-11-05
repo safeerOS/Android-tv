@@ -79,8 +79,11 @@ object NamestiApk {
             c.connectTimeout = 15000; c.readTimeout = 30000; c.instanceFollowRedirects = false
             if (!userAgent.isNullOrBlank()) c.setRequestProperty("User-Agent", userAgent)
             try { android.webkit.CookieManager.getInstance().getCookie(naslov)?.let { c.setRequestProperty("Cookie", it) } } catch (_: Throwable) { }
-            when (val s = NamestiApkPravila.naslednji(naslov, c.responseCode, c.getHeaderField("Location"), skokov)) {
-                is NamestiApkPravila.Skok.Koncaj -> return Prenos(c.inputStream, c.contentLengthLong)
+            // Drugi krog pregleda 5. 11. 2026: napaka omrezja (IOException) pri responseCode ali inputStream - povezavo zapremo.
+            val koda = try { c.responseCode } catch (t: Throwable) { c.disconnect(); throw t }
+            when (val s = NamestiApkPravila.naslednji(naslov, koda, c.getHeaderField("Location"), skokov)) {
+                is NamestiApkPravila.Skok.Koncaj ->
+                    return try { Prenos(c.inputStream, c.contentLengthLong) } catch (t: Throwable) { c.disconnect(); throw t }
                 is NamestiApkPravila.Skok.Naprej -> { c.disconnect(); naslov = s.url }
                 is NamestiApkPravila.Skok.Napaka -> { c.disconnect(); throw IllegalStateException(s.razlog) }
             }

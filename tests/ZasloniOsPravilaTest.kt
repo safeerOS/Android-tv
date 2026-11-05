@@ -54,6 +54,16 @@ fun main(args: Array<String>) {
     check(zapiski.contains("iskanje.showSoftInputOnFocus = false")) { "Zapiski: tipkovnica ob fokusu iskanja" }
     check(vir("NapraveActivity.kt").contains("ZasloniOsPravila.napravaVrstice(")) { "Naprave: preimenovanje vrstice zaslona" }
     check(vir("KrajevneDatoteke.kt").contains("ZasloniOsPravila.prikazanih(")) { "Krajevne: ni povedano, koliko je prikazanih" }
+    // Drugi krog pregleda 5. 11. 2026: oznaka sporocila na kateremkoli otroku vrstice; okno epizod samo po samodejnem zaprtju.
+    check(ZasloniOsPravila.oznakaSporocila(listOf(null, "spor|7")) == "spor|7")
+    check(ZasloniOsPravila.oznakaSporocila(listOf("spor|1", "spor|2")) == "spor|1")
+    check(ZasloniOsPravila.oznakaSporocila(listOf(null, 3, "drugo")) == null && ZasloniOsPravila.oznakaSporocila(emptyList()) == null)
+    check(ZasloniOsPravila.poZaprtjuNapake(zaprtoSamodejno = true) && !ZasloniOsPravila.poZaprtjuNapake(zaprtoSamodejno = false))
+    check(vir("SporocilaActivity.kt").let { "ZasloniOsPravila.oznakaSporocila(" in it && "?.getChildAt(0)?.tag" !in it }) { "Sporocila: oznaka samo s prvega otroka" }
+    vir("PredvajanjeActivity.kt").let { v ->
+        check("ZasloniOsPravila.poZaprtjuNapake(zaprtoSamodejno)" in v && "zaprtoSamodejno = true; finish()" in v) { "Predvajanje: okno epizod tudi po Nazaj" }
+    }
+
     for (ime in listOf("AplikacijeTvActivity.kt", "AplikacijeHostaActivity.kt")) {
         val v = vir(ime)
         check(v.contains("Aplikacije.obSpremembiPaketov.add(obSpremembiPaketov)") && v.contains("Aplikacije.obSpremembiPaketov.remove(obSpremembiPaketov)")) { "$ime: brez prijave na spremembe paketov" }
