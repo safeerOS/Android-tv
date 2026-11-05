@@ -78,5 +78,41 @@ primer('N5 vrstni red', () => {
         (KT_POGLED.match(/dodajSkriptZacetka\(/g) || []).length - 1);
 });
 
+// Odlocitev vodje 5. 11. 2026: GOR na glavo strani splosno, brez imen gostiteljev, razredov in besedil dolocenih strani.
+primer('glava GOR', () => {
+    preveri('brez seznama gostiteljev in posebnosti strani v bloku GOR', [-1, -1, -1],
+        ['jeGostiteljTvPonudnika', 'naTvPonudniku', 'snap menu from play'].map((x) => VIR.indexOf(x)));
+    const blokGlave = VIR.slice(VIR.indexOf('/* SAFEER_GLAVA_GOR_ZACETEK'), VIR.indexOf('/* SAFEER_GLAVA_GOR_KONEC */'));
+    preveri('pravilo glave: samo header, nav, role=banner/navigation', true,
+        /GLAVA_IZBIRNIK = 'header a\[href\], header button, nav a\[href\], nav button, \[role="banner"\]/.test(blokGlave));
+    preveri('skok na glavo samo brez cilja GOR in na vrhu strani', true,
+        /else if \(direction === 'UP'\) \{\s*if \(drsajNotranjiVsebnik\(current, -1\)\) return 1;[\s\S]{0,200}if \(\(window\.scrollY \|\| 0\) <= 20\) \{\s*var vGlavo = ciljVGlavi\(current\);/.test(VIR));
+    // Hero z gumbom, nad njim samo glava: GOR na meni.
+    const h = ustvari({ zeton: ZETON });
+    const glava = h.el('header', { okvir: [0, 0, 1920, 60] });
+    glava.dodaj(h.el('a', { attrs: { href: '/meni' }, okvir: [1600, 10, 120, 40], besedilo: 'Meni' }));
+    const gumb = h.el('button', { okvir: [100, 500, 300, 60], besedilo: 'Predvajaj' });
+    h.body.dodaj(glava, gumb);
+    h.nalozi(VIR);
+    h.izberi(gumb);
+    h.smer('UP');
+    preveri('hero: GOR z gumba gre na meni glave', 'Meni', (h.document.querySelector('.safeer-active-card') || {}).innerText);
+    // Novice: vrstice med trenutnim elementom in glavo - GOR na naslednjo vrstico, ne na meni (najdba 11).
+    const n = ustvari({ zeton: ZETON });
+    const g2 = n.el('nav', { okvir: [0, 0, 1920, 60] });
+    g2.dodaj(n.el('a', { attrs: { href: '/m' }, okvir: [100, 10, 120, 40], besedilo: 'Meni' }));
+    const v1 = n.el('a', { attrs: { href: '/n1' }, okvir: [100, 200, 600, 60], besedilo: 'Novica 1' });
+    const v2 = n.el('a', { attrs: { href: '/n2' }, okvir: [100, 400, 600, 60], besedilo: 'Novica 2' });
+    const v3 = n.el('a', { attrs: { href: '/n3' }, okvir: [100, 600, 600, 60], besedilo: 'Novica 3' });
+    n.body.dodaj(g2, v1, v2, v3);
+    n.nalozi(VIR);
+    n.izberi(v3);
+    n.smer('UP');
+    const po1 = (n.document.querySelector('.safeer-active-card') || {}).innerText;
+    n.smer('UP');
+    preveri('novice: GOR gre vrstico za vrstico (Novica 2, Novica 1), ne na meni', ['Novica 2', 'Novica 1'],
+        [po1, (n.document.querySelector('.safeer-active-card') || {}).innerText]);
+});
+
 if (padle) { console.log('tv_peti_pregled_test: PADLO ' + padle + ' (uspelo ' + stevilo + ')'); process.exit(1); }
 console.log('tv_peti_pregled_test: OK (' + stevilo + ')');

@@ -233,10 +233,10 @@ fun main() {
     preveri("90d: velike crke in http", KanaliPravila.znanNedelujocTok("HTTP://Dash2.Antik.SK/live/test_x/index.m3u8"))
     preveri("Arena Sport si.m3u: telekomsrbije play", KanaliPravila.znanNedelujocTok("http://telekomsrbije.com:2095/play/abcDEF_123"))
     preveri("telekomsrbije brez /play ni na seznamu", !KanaliPravila.znanNedelujocTok("https://telekomsrbije.com/"))
-    preveri("90d: streamer03.xploretv.si", KanaliPravila.znanNedelujocTok("https://streamer03.xploretv.si:8443/tvslo1/index.m3u8"))
-    preveri("90d: streamer03.xploretv.si brez poti", KanaliPravila.znanNedelujocTok("https://streamer03.xploretv.si"))
+    // Peti slepi pregled 5. 11. 2026: brez vnosa za dolocenega ponudnika - nedelujoc tok si TV zapomni sproti (24 h).
+    preveri("brez imena ponudnika: streamer03 ni vec na seznamu", !KanaliPravila.znanNedelujocTok("https://streamer03.xploretv.si:8443/tvslo1/index.m3u8"))
+    preveri("sproten zaznavalnik: kanal z napako je mrtev 24 h", OsPravila.MRTEV_KANAL_MS == 24 * 3_600_000L)
     preveri("90d: dash2.antik.sk/live brez test_ je v redu", !KanaliPravila.znanNedelujocTok("https://dash2.antik.sk/live/slo1/playlist.m3u8"))
-    preveri("90d: drug streznik xploretv je v redu", !KanaliPravila.znanNedelujocTok("https://streamer03.xploretv.si.example.org/a.m3u8"))
     preveri("90d: vzorec v poti drugega streznika je v redu", !KanaliPravila.znanNedelujocTok("https://example.org/dash2.antik.sk/live/test_a.m3u8"))
     preveri("90d: prazen naslov", !KanaliPravila.znanNedelujocTok(""))
     preveriEnako("90d: kljuci kartice z razlicicami", listOf("iptv:a", "iptv:b"), KanaliPravila.kljuciKartice("iptv:a", listOf("iptv:a", "iptv:b#2", "iptv:b")))

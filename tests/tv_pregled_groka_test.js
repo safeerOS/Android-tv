@@ -232,7 +232,8 @@ primer('10', () => {
 
 // 11. NIZKA: GOR skoci na »Glej zdaj« / meni na vsaki strani.
 primer('11', () => {
-    for (const [host, pric] of [['novice.test', 'Vmes'], ['www.xploretv.si', 'Glej zdaj']]) {
+    // Peti slepi pregled 5. 11. 2026 (odlocitev vodje): brez izjeme za gostitelje - GOR povsod na naslednjo vrstico.
+    for (const [host, pric] of [['novice.test', 'Vmes'], ['tv-v-zivo.test', 'Vmes']]) {
         const s = ustvari({ zeton: ZETON });
         s.window.location.hostname = host;
         const glej = gumb(s, 'Glej zdaj', [100, 100, 300, 60]);
@@ -260,8 +261,8 @@ primer('12', () => {
 
 // Ciste odlocitve.
 primer('ciste', () => {
-    const f = new Function(blok('SAFEER_PRAVI_DOTIK', VIR_OKVIR) + blok('SAFEER_PREPIR_FOKUSA') + blok('SAFEER_TV_PONUDNIK') +
-        '\nreturn { smePraviDotik, smemVrnitiFokus, jeGostiteljTvPonudnika };')();
+    const f = new Function(blok('SAFEER_PRAVI_DOTIK', VIR_OKVIR) + blok('SAFEER_PREPIR_FOKUSA') +
+        '\nreturn { smePraviDotik, smemVrnitiFokus };')();
     const g = { izvirniki: true, omrezni: true, potrjena: true, namen: 'google', oznakaCilja: 'IFRAME',
         virCilja: 'https://accounts.google.com/gsi/button', zadetekJeCilj: true, zadetekVCilju: true, oznakaZadetka: 'IFRAME' };
     const z = (o, d) => f.smePraviDotik(Object.assign({}, o, d));
@@ -286,8 +287,8 @@ primer('ciste', () => {
     const st = { zac: 0, n: 0 };
     preveri('cisto: vrnitev fokusa 1, 2 da, 3 ne, po 1 s spet da', [true, true, false, true],
         [f.smemVrnitiFokus(st, 100), f.smemVrnitiFokus(st, 200), f.smemVrnitiFokus(st, 300), f.smemVrnitiFokus(st, 1500)]);
-    preveri('cisto: gostitelji TV ponudnikov', [true, true, true, false, false],
-        ['www.xploretv.si', 'xploretv.si', '365.rtvslo.si', 'lazniexploretv.si', 'rtvslo.si.tuj.test'].map(f.jeGostiteljTvPonudnika));
+    // Peti slepi pregled 5. 11. 2026 (odlocitev vodje): brez seznama gostiteljev - splosno pravilo (tests/tv_peti_pregled_test.js).
+    preveri('cisto: brez seznama gostiteljev TV ponudnikov', [-1, -1], [VIR.indexOf('jeGostiteljTvPonudnika'), VIR.indexOf('naTvPonudniku')]);
     // Isti odtis kot Kotlin (TvTipkeTest: odtisHex, HMAC-SHA256 od cetrtega slepega pregleda) in node:crypto v tv_lazni_dom.js.
     const d = new Function(blok('SAFEER_ZNAK_NAMESTITVE') + blok('SAFEER_DOKAZ') + '\nreturn { odtisHex, dokazDatoteke };')();
     const IZ = '0123456789abcdef0123456789abcdef';
