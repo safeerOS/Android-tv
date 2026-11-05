@@ -22,6 +22,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/scit/ScitStanjePravila.kt" \
     "$TEST_DIR/ScitStanjePravilaTest.kt" \
     "$SRC/si/safeer/tv/scit/ScitOdlocitev.kt" \
+    "$SRC/si/safeer/tv/ScitGostitelji.kt" \
+    "$SRC/si/safeer/tv/GooglePravila.kt" \
     "$SRC/si/safeer/tv/cast/JsonLahki.kt" \
     "$SRC/si/safeer/tv/scit/ScitViri.kt" \
     "$SRC/com/safeer/threatfeed/ThreatListAgent.kt" \

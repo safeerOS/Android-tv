@@ -1,5 +1,5 @@
 {
-  "opis": "Skupni primeri odlocanja Safeer Scita (filter DNS) - ISTA datoteka v Android-tv (tests/ScitSkupniPrimeriTest.kt, tests/run_scit_tests.sh; koda ScitOdlocitev.kt) in Safeer-linux (tests/test_scit_skupni_primeri.py; koda core/os_scit.py). Lastnik 4. 11. 2026: en Scit za vse OS. Samo cista logika odlocanja; prestrezanje DNS je po OS razlicno in ni tu. Ime se zapise v poizvedbo DNS, kot jo poslje aplikacija: oznake med pikami (prazne izpuscene), bajti UTF-8. Seznami: oglasi in groznje; seznam grozenj ima prednost pred vsako izjemo in pred zascitenimi gostitelji, krajevna imena se ne ustavijo nikoli. izid: ustavljeno (NXDOMAIN) ali spuscen (gre naprej). Izjeme: uporabnik spusti ime, ki je bilo pravkar ustavljeno; dan = dni po dodajanju. Primer z \"neujemanje\" je znana razlika: platforma iz \"razlicno_na\" ga preskoci z izpisom; ce se razlika odpravi, preizkus pade, da se oznaka umakne.",
+  "opis": "Skupni primeri odlocanja Safeer Scita (filter DNS) - ISTA datoteka v Android-tv (tests/ScitSkupniPrimeriTest.kt, tests/run_scit_tests.sh; koda ScitOdlocitev.kt) in Safeer-linux (tests/test_scit_skupni_primeri.py; koda core/os_scit.py). Lastnik 4. 11. 2026: en Scit za vse OS. Samo cista logika odlocanja; prestrezanje DNS je po OS razlicno in ni tu. Ime se zapise v poizvedbo DNS, kot jo poslje aplikacija: oznake med pikami (prazne izpuscene), bajti UTF-8. Seznami: oglasi in groznje; seznam grozenj ima prednost pred vsako izjemo in pred zascitenimi gostitelji, krajevna imena se ne ustavijo nikoli. izid: ustavljeno (NXDOMAIN) ali spuscen (gre naprej). Izjeme: uporabnik spusti ime, ki je bilo pravkar ustavljeno; dan = dni po dodajanju. Primer z \"neujemanje\" je znana razlika: platforma iz \"razlicno_na\" ga preskoci z izpisom; ce se razlika odpravi, preizkus pade, da se oznaka umakne. Googlovi gostitelji (5. 11. 2026; Safeer-linux core/scit_gostitelji.py, Android-tv ScitGostitelji.kt): koren (iskanje, prijava) se ne ustavi nikoli, na skupnem gostitelju z uporabnisko vsebino ne velja noben vnos grozenj, vnos celotne domene (google.com, web.app) ne velja za gostitelje pod njo, izrecen oglasni gostitelj pod skupno infrastrukturo ostane ustavljen.",
   "verzija": 2,
   "krajevna": ["localhost"],
   "krajevne_koncnice": [".localhost", ".local", ".lan", ".home", ".internal", ".arpa"],
@@ -7,8 +7,8 @@
   "zasciteni": ["archive.ubuntu.com", "security.ubuntu.com", "ports.ubuntu.com", "ppa.launchpadcontent.net", "packages.linuxmint.com", "deb.debian.org", "security.debian.org", "flathub.org", "github.com", "api.github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com", "cloudflare.com", "hcaptcha.com", "recaptcha.net", "www.google.com", "www.gstatic.com", "safeer.si"],
   "izjema_dni": 30,
   "seznami": {
-    "oglasi": ["ads.example", "Track.Example.", "xn--bcher-kva.example", "printer.lan", "localhost", "github.com", "cloudflare.com", "safeer.si", "cosmic-crab.buzz", "webtor.io"],
-    "groznje": ["zlo.example", "api.webtor.io", "nas.local", "objects.githubusercontent.com", "zlo.safeer.si"]
+    "oglasi": ["ads.example", "Track.Example.", "xn--bcher-kva.example", "printer.lan", "localhost", "github.com", "cloudflare.com", "safeer.si", "cosmic-crab.buzz", "webtor.io", "afs.googleusercontent.com", "googleusercontent.com"],
+    "groznje": ["zlo.example", "api.webtor.io", "nas.local", "objects.githubusercontent.com", "zlo.safeer.si", "google.com", "sites.google.com", "web.app", "zlo.web.app", "google.co.zz"]
   },
   "ustavljeno": [
     {"opis": "tocno ime s seznama oglasov", "ime": "ads.example", "izid": "ustavljeno"},
@@ -39,7 +39,18 @@
     {"opis": "zasciten gostitelj na seznamu GROZENJ se ustavi", "ime": "objects.githubusercontent.com", "izid": "ustavljeno"},
     {"opis": "preverjanje cloveka (Cloudflare Turnstile) na seznamu oglasov se ne ustavi", "ime": "challenges.cloudflare.com", "izid": "spuscen"},
     {"opis": "Safeer na seznamu oglasov se ne ustavi", "ime": "safeer.si", "izid": "spuscen"},
-    {"opis": "poddomena Safeerja na seznamu GROZENJ se ustavi", "ime": "zlo.safeer.si", "izid": "ustavljeno"}
+    {"opis": "poddomena Safeerja na seznamu GROZENJ se ustavi", "ime": "zlo.safeer.si", "izid": "ustavljeno"},
+    {"opis": "Google: koren (iskanje) se ne ustavi, ceprav je google.com na seznamu GROZENJ", "ime": "www.google.com", "izid": "spuscen"},
+    {"opis": "Google: prijava se ne ustavi, ceprav je google.com na seznamu GROZENJ", "ime": "accounts.google.com", "izid": "spuscen"},
+    {"opis": "Google: google.com sam na seznamu GROZENJ se ne ustavi (koren)", "ime": "google.com", "izid": "spuscen"},
+    {"opis": "Google: vnos celotne domene google.com ne velja za gostitelje pod njo", "ime": "mail.google.com", "izid": "spuscen"},
+    {"opis": "Google: skupni gostitelj z uporabnisko vsebino na seznamu GROZENJ se ne ustavi (DNS ne pozna poti)", "ime": "sites.google.com", "izid": "spuscen"},
+    {"opis": "Google: projekt na seznamu GROZENJ se ustavi", "ime": "zlo.web.app", "izid": "ustavljeno"},
+    {"opis": "Google: vnos celotne platforme web.app ne velja za druge projekte", "ime": "druga.web.app", "izid": "spuscen"},
+    {"opis": "Google: izrecen oglasni gostitelj pod skupno infrastrukturo ostane ustavljen", "ime": "afs.googleusercontent.com", "izid": "ustavljeno"},
+    {"opis": "Google: vnos celotne domene googleusercontent.com (oglasi) ne velja za skupne gostitelje", "ime": "lh3.googleusercontent.com", "izid": "spuscen"},
+    {"opis": "Google: google.co.zz ni Googlova domena (ni na supported_domains) in se ustavi", "ime": "google.co.zz", "izid": "ustavljeno"},
+    {"opis": "Google: www.google.co.zz ni Googlov koren in se ustavi", "ime": "www.google.co.zz", "izid": "ustavljeno"}
   ],
   "izjeme": [
     {"opis": "uporabnik spusti ime s seznama oglasov", "izjema": "ads.example", "poizvedba": "ads.example", "dan": 1, "sprejeta": true, "izid": "spuscen"},

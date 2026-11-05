@@ -53,7 +53,7 @@ private class Okolje(seznami: JsonLahki.Pogled, mapa: File) {
     /** Kot ScitStoritev.odlocitev z nalozenim naborom grozenj; KANAREK je NXDOMAIN, torej ustavljeno. */
     fun ustavljeno(ime: String, uporabniske: Map<String, Long>, zdaj: Long): String {
         val q = DnsPaket.vprasanje(poizvedba(ime))?.ime.orEmpty()
-        val izid = ScitOdlocitev.odloci(q, { nabor.jeBlokirana(it) }, true, { grozne.jeBlokirana(it) },
+        val izid = ScitOdlocitev.odloci(q, { d, sme -> nabor.najblizja(d, sme) }, true, { d, sme -> grozne.najblizja(d, sme) },
             { ScitIzjeme.dovoljena(it, emptyMap(), zdaj) || ScitPregled.uporabniskaVelja(it, uporabniske, zdaj) })
         return if (izid == ScitOdlocitev.Izid.NAPREJ) "spuscen" else "ustavljeno"
     }

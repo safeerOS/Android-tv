@@ -1,5 +1,7 @@
 package si.safeer.tv.scit
 
+import si.safeer.tv.ScitGostitelji
+
 /**
  * En Scit za vse OS (lastnik 4. 11. 2026): odlocitev za eno ime DNS, ista kot v Safeer-linux (core/os_scit.py).
  * Skupni primeri: tests/skupni-primeri/scit-pravila.json (tests/ScitSkupniPrimeriTest.kt preveri tudi sezname spodaj).
@@ -31,17 +33,33 @@ object ScitOdlocitev {
     fun jeZascitena(d: String): Boolean = ZASCITENI.any { d == it || d.endsWith(".$it") }
 
     /**
-     * [naSeznamu]: ime ali nadrejena domena je v naboru (vsi seznami); [naGroznih]: v naboru grozenj (samo ce je
-     * [grozneNalozene]); [izjema]: Webtorjeva naucena ali uporabnikova izjema, ki ob tej uri se velja. Dokler nabor grozenj
-     * ni nalozen, veljajo samo stalne izjeme Webtor - »ne vem« ni »da« (tudi za zascitene gostitelje).
+     * [naSeznamu]: najblizja domena imena (ime ali nadrejena) v naboru vseh seznamov med domenami, za katere vrne drugi
+     * argument true (null, ce je ni); [naGroznih]: enako v naboru grozenj (samo ce je [grozneNalozene]); [izjema]:
+     * Webtorjeva naucena ali uporabnikova izjema, ki ob tej uri se velja. Dokler nabor grozenj ni nalozen, veljajo samo
+     * stalne izjeme Webtor - »ne vem« ni »da« (tudi za zascitene gostitelje).
+     *
+     * Googlovi gostitelji (5. 11. 2026, kot core/os_scit.py): DNS pozna samo ime, ne poti. Koren (iskanje, prijava) se ne
+     * ustavi nikoli; na skupnem gostitelju z uporabnisko vsebino (sites.google.com, storage.googleapis.com) ne velja noben
+     * vnos GROZNJE; vnos celotne domene (google.com, web.app) ne velja za gostitelje pod njo. Izrecen gostitelj OGLASOV
+     * pod skupno infrastrukturo (afs.googleusercontent.com) ostane ustavljen.
      */
-    fun odloci(ime: String, naSeznamu: (String) -> Boolean, grozneNalozene: Boolean, naGroznih: (String) -> Boolean,
-               izjema: (String) -> Boolean): Izid {
+    fun odloci(ime: String, naSeznamu: (String, (String) -> Boolean) -> String?, grozneNalozene: Boolean,
+               naGroznih: (String, (String) -> Boolean) -> String?, izjema: (String) -> Boolean): Izid {
         val d = DomenskiNabor.normaliziraj(ime)
         if (d.isEmpty()) return Izid.NAPREJ
         if (d == KANAREK_DOH) return Izid.KANAREK
-        if (jeKrajevno(d) || !naSeznamu(d)) return Izid.NAPREJ
-        val groznja = grozneNalozene && naGroznih(d)
+        if (jeKrajevno(d)) return Izid.NAPREJ
+        val vrsta = ScitGostitelji.vrsta(d)
+        if (vrsta == ScitGostitelji.Vrsta.KOREN) return Izid.NAPREJ
+        val sme: (String) -> Boolean = ScitGostitelji::smeGostitelj
+        var zadetek = naSeznamu(d, sme)
+        if (zadetek == null && vrsta == ScitGostitelji.Vrsta.VSEBINA && grozneNalozene) {
+            // Najblizji vnos pod skupno infrastrukturo velja samo, ce ni na seznamu grozenj (torej je oglas).
+            val z = naSeznamu(d, ScitGostitelji::smeOglas)
+            if (z != null && naGroznih(d) { it == z } == null) zadetek = z
+        }
+        if (zadetek == null) return Izid.NAPREJ
+        val groznja = grozneNalozene && naGroznih(d, sme) != null
         val dovoljena = grozneNalozene && (izjema(d) || jeZascitena(d))
         return if (ScitIzjeme.blokirana(true, grozneNalozene, groznja, dovoljena, ScitIzjeme.jeStalna(d))) Izid.USTAVI else Izid.NAPREJ
     }
