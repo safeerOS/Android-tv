@@ -415,6 +415,8 @@ node "$TEST_DIR/tv_plast_izbire_test.js"
 node "$TEST_DIR/tv_zeton_dotika_test.js"
 # Neodvisni pregled Groka 5. 11. 2026: izvirniki metod, dokaz tipke, en dotik, tuj okvir, zastavica, predpomnilnik
 node "$TEST_DIR/tv_pregled_groka_test.js"
+# En fokus na kartici clanka (lastnik 5. 11. 2026 17:49, rtvslo.si: rubrika in naslov)
+node "$TEST_DIR/tv_ena_kartica_test.js"
 node "$TEST_DIR/tv_brez_samodejnih_piskotkov_test.js"
 # Naloga 42: besedila v sestih jezikih, viri, kontrast teme Pokrajina, beta samo ob vklopu.
 python3 "$TEST_DIR/preveri_zaganjalnik_beta.py"

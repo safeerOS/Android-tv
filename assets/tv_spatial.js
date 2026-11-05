@@ -1549,6 +1549,60 @@
                 kandCas = nowMs;
                 return found;
             }
+            /* SAFEER_STOLPEC_ZACETEK */
+            function prekrivaStolpec(a, b) {
+                var p = Math.min(a.right, b.right) - Math.max(a.left, b.left), ozja = Math.min(a.width, b.width);
+                return ozja > 0 && p >= ozja * 0.5;
+            }
+            /* SAFEER_STOLPEC_KONEC */
+            /* SAFEER_PODREJENA_POVEZAVA_ZACETEK */
+            // Lastnik 5. 11. 2026 17:49 (TV, rtvslo.si, kartica novice »Mikrodrama / Moja dva fanta ...«): oznaka rubrike je
+            // svoja povezava in je bila samostojen korak pred naslovom clanka - dva fokusa na eni kartici, uporabnik ni vedel,
+            // kateri odpre vsebino. Kratka povezava ob vecji povezavi na drug naslov v isti kartici (naslov h1-h6, article, li,
+            // card, teaser) ni samostojen cilj daljinca; cilj je naslov clanka. Meniji in seznami povezav (nav, menu, tablist,
+            // podmeni v drugem li) ostanejo nespremenjeni.
+            var KARTICA_POVEZAV = 'h1, h2, h3, h4, h5, h6, article, li, [class*="card"], [class*="teaser"]';
+            function jePodrejenaPovezava(mala, velika) {
+                var tm = mala.besedilo.length, tv = velika.besedilo.length;
+                return !!mala.href && !!velika.href && mala.href !== velika.href && tm > 0 && tm <= 40 && tv >= 15 && tv >= 2 * tm;
+            }
+            /* SAFEER_PODREJENA_POVEZAVA_KONEC */
+            function opisPovezave(el) {
+                if (!el || (el.tagName || '').toUpperCase() !== 'A') return null;
+                var h = ((el.getAttribute && el.getAttribute('href')) || '') + '';
+                if (!h || h.charAt(0) === '#' || /^javascript:/i.test(h)) return null;
+                return { href: h, besedilo: ((el.innerText || el.textContent || '') + '').replace(/\s+/g, ' ').trim() };
+            }
+            function istaKarticaPovezav(velika, kartica) {
+                var kv = null;
+                try { kv = velika.closest(KARTICA_POVEZAV); } catch (_) {}
+                if (kv === kartica) return true;
+                // Rubrika nad naslovom (v article ali li), naslov v h1-h6 iste kartice.
+                return !!kv && /^H[1-6]$/.test((kv.tagName || '').toUpperCase()) && kartica.contains(kv);
+            }
+            function brezPodrejenihPovezav(seznam) {
+                var out = [];
+                for (var i = 0; i < seznam.length; i++) {
+                    var el = seznam[i], om = opisPovezave(el), izpusti = false;
+                    if (om) {
+                        var kartica = null, vMeniju = false;
+                        try {
+                            kartica = el.closest(KARTICA_POVEZAV);
+                            vMeniju = !!el.closest('nav, [role="navigation"], [role="menu"], [role="menubar"], [role="tablist"]');
+                        } catch (_) {}
+                        if (kartica && !vMeniju) {
+                            for (var j = 0; j < seznam.length && !izpusti; j++) {
+                                if (j === i || !kartica.contains(seznam[j])) continue;
+                                var ov = opisPovezave(seznam[j]);
+                                if (ov && jePodrejenaPovezava(om, ov) && istaKarticaPovezav(seznam[j], kartica)) izpusti = true;
+                            }
+                        }
+                    }
+                    if (!izpusti) out.push(el);
+                }
+                return out;
+            }
+
             function getCandidatesFresh() {
                     if ((location.href || '').indexOf('brave_home') !== -1) {
                         var homeEls = document.querySelectorAll('.hero-card, .engine-chip, .favorite-tile, .edit-chip, .search-input, .search-btn');
@@ -1621,6 +1675,8 @@
                         candidates.push(item);
                     }
                 }
+                // En fokus na kartici clanka: rubrika ob naslovu ni samostojen cilj (SAFEER_PODREJENA_POVEZAVA).
+                candidates = brezPodrejenihPovezav(candidates);
                 // Preverjanje v zaprtem shadow DOM (SAFEER_IZZIV): cilj je gostitelj, tudi ce ga isActionable ne pozna.
                 izzivi = najdiIzzive(document);
                 for (var iz = 0; iz < izzivi.length; iz++) {
@@ -2869,7 +2925,9 @@
                             if (valid) {
                                 var rowTol = jePotVZivo() ? 88 : 72;
                                 var colTol = jePotVZivo() ? 150 : 130;
-                                var sameAxis = (direction === 'LEFT' || direction === 'RIGHT') ? (crossDist < rowTol) : (crossDist < colTol);
+                                // Lastnik 5. 11. 2026 17:49 (rtvslo.si): sirok naslov clanka (sredisce dalec desno) ni bil »v stolpcu«, DOL ga
+                                // je preskocil na ozek gumb nizje. V stolpcu je tudi element, ki vodoravno pokrije vsaj pol ozjega (SAFEER_STOLPEC).
+                                var sameAxis = (direction === 'LEFT' || direction === 'RIGHT') ? (crossDist < rowTol) : (crossDist < colTol || prekrivaStolpec(cRect, r));
                                 var score = mainDist + crossDist * (sameAxis ? 0.12 : 1.45);
                                 if (jeVsebinskaPloscica(el) && jeVsebinskaPloscica(current) && sameAxis) score -= 80;
                                 if (jeGumbDejanja(el) && jeGumbDejanja(current) && sameAxis) score -= 60;
