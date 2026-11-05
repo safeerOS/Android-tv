@@ -40,6 +40,6 @@ preveri('isActionable sprejme okvir samo prek jeGumbOkvir', true, /if \(tag === 
 preveri('okvir ostane samostojen cilj (ne kartica okoli njega)', true, VIR.indexOf("tag === 'BUTTON' || tag === 'INPUT' || tag === 'IFRAME'") > 0);
 // Od 2. 11. 2026 19:05 (dvojni fokus) fokus usklajuje uskladiFokus (tests/tv_en_fokus_test.js): okvir ga ne dobi.
 preveri('obroc ne da fokusa okvirju', true, /var brezFokusa = tag === 'INPUT' \|\| tag === 'TEXTAREA' \|\| tag === 'IFRAME';/.test(VIR));
-preveri('OK na okvirju: en pravi dotik (nativeTapElement) in konec', true,
-    /toUpperCase\(\) === 'IFRAME'\) \{\s*if \(!jeVidenOkvir\(target\)\) return false;\s*if \(!potrjena\) return true;\s*nativeTapElement\(target, true\);\s*return;\s*\}/.test(VIR));
+preveri('OK na okvirju: pravi dotik samo za namen Google (tockaNamena) in konec', true,
+    /toUpperCase\(\) === 'IFRAME'\) \{\s*if \(!jeVidenOkvir\(target\)\) return false;\s*if \(!potrjena\) return true;\s*var tG = tockaNamena\(target, 'google'\);\s*if \(tG\) pravDotik\(tG\.x, tG\.y\);\s*return true;\s*\}/.test(VIR));
 console.log('tv_okvir_gumb_test: OK (' + stevilo + ')');

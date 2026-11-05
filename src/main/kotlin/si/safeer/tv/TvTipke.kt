@@ -79,23 +79,25 @@ object TvTipke {
         return h.toLong() and 0xffffffffL
     }
 
-    /** Znak namestitve skripta (tv_spatial.js znakNamestitve): odtis samega zetona; ping ga primerja tocno. */
-    fun znakNamestitve(zeton: String): String {
-        var h = -2128831035
-        for (c in zeton) { h = h xor c.code; h *= 16777619 }
-        return "safeer-" + (h.toLong() and 0xffffffffL).toString(36)
-    }
-
     /**
      * Pregled Groka 5. 11. 2026 (najdbe 3, 7, 10): _safeer_navigate_spatial, _safeer_click_focused_card in _safeer_highlight
      * doseze tudi stran - z njimi je premikala izbiro. Pred vsakim klicem ob tipki daljinca aplikacija v istem skriptu poslje
      * nakljucen izziv in odtis zetona strani (en dokaz = en klic, tv_spatial.js SAFEER_TIPKA). Brez zetona prazno.
+     * Neodvisni pregled 5. 11. 2026 (najdbi 5 in 6): dokaz pokrije strogo narascajoc [stevec] pogleda (starejsi ujeti par ne
+     * velja vec), ime izvoza ima nakljucni del strani [nonce] (stran ga ne more vnaprej zasesti).
      */
-    fun ukazTipke(zeton: String?): String {
-        if (zeton == null || zeton.length < 32) return ""
+    fun ukazTipke(zeton: String?, nonce: String?, stevec: Long): String {
+        if (zeton == null || zeton.length < 32 || !jeNonce(nonce) || stevec <= 0L) return ""
         val izziv = novIzziv()
-        return "window._safeer_tipka&&window._safeer_tipka('$izziv',${odtisStevilo(zeton, "tipka|$izziv")});"
+        val f = izvoz(nonce, "_safeer_tipka")
+        return "$f&&$f('$izziv',$stevec,${odtisStevilo(zeton, "tipka|$stevec|$izziv")});"
     }
+
+    private val NONCE = Regex("[0-9a-f]{16,64}")
+    private fun jeNonce(n: String?): Boolean = n != null && NONCE.matches(n)
+
+    /** Ime izvoza tv_spatial.js na window z nakljucnim delom strani; brez veljavnega dela staro ime (ga ni - klic ne naredi nic). */
+    fun izvoz(nonce: String?, ime: String): String = if (jeNonce(nonce)) "window.${ime}_$nonce" else "window.$ime"
 
     fun gorVNaslovnoVrstico(odgovor: String?, nacinAplikacije: Boolean, napredek: Int): Boolean {
         val o = (odgovor ?: "").trim().trim('"')

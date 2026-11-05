@@ -27,9 +27,16 @@ s.body.dodaj(gumb);
 s.nalozi(VIR);
 s.izberi(gumb);
 s.ok();
-preveri('OK: nas skript poslje zeton, ki ga je vstavila aplikacija', [ZETON], s.zetoni);
-preveri('OK: dotik sprejet (en, na sredini gumba)', [[250, 130]], s.dotiki);
-preveri('ni dodatnega sinteticnega klika', 0, s.kliki.length);
+// Neodvisni pregled 5. 11. 2026 (odlocitev B): navaden gumb dobi sinteticni klik - most dotika (in zeton) se ne uporabi.
+preveri('OK na gumbu: brez klica mostu (zeton ne gre nikamor)', [[], [], 1], [s.zetoni, s.dotiki, s.kliki.length]);
+// Gumb Google (GSI v tujem okvirju): pravi dotik z zetonom, ki ga je vstavila aplikacija.
+const gsi = s.el('iframe', { attrs: { src: 'https://accounts.google.com/gsi/button?x=1' }, okvir: [100, 300, 300, 60] });
+s.body.dodaj(gsi);
+s.izberi(gsi);
+s.ok();
+preveri('OK na GSI: nas skript poslje zeton, ki ga je vstavila aplikacija', [ZETON], s.zetoni);
+preveri('OK na GSI: dotik sprejet (en, na sredini okvirja)', [[250, 330]], s.dotiki);
+preveri('ni dodatnega sinteticnega klika', 1, s.kliki.length);
 
 // Tuj okvir (ali skript strani) klice most brez zetona ali z ugibanim: dotik zavrnjen.
 s.dotiki.length = 0;

@@ -184,6 +184,15 @@ fun main() {
     // Pregled Groka 5. 11. 2026: izvirnikom metod skript zaupa samo, ce je aplikacija IZVIRNIKI_JS registrirala.
     check(P.vstaviIzvirnike("var X = '${P.IZVIRNIKI_MESTO}' === 'da';", true) == "var X = 'da' === 'da';") { "izvirniki registrirani" }
     check(P.vstaviIzvirnike("'${P.IZVIRNIKI_MESTO}'", false) == "'ne'") { "izvirniki niso registrirani" }
+    // Neodvisni pregled 5. 11. 2026: nakljucni del imen (izvirniki na pogled, izvozi na stran) in rok pravega dotika.
+    val n1 = P.novNonce(); val n2 = P.novNonce()
+    check(n1.length == 16 && n1 != n2 && P.jeNonce(n1) && !P.jeNonce("x') ; //") && !P.jeNonce(null)) { "nonce" }
+    check(P.vstaviNonce("'${P.NONCE_IZVIRNIKOV_MESTO}' '${P.NONCE_IZVOZOV_MESTO}'", n1, n2) == "'$n1' '$n2'") { "vstavi nonce" }
+    check(P.vstaviNonce("'${P.NONCE_IZVOZOV_MESTO}'", n1, "') ; alert(1)//") == "'${P.NONCE_IZVOZOV_MESTO}'") { "neveljaven nonce se ne vstavi" }
+    val zt = "a1".repeat(24)
+    check(P.dotikSeVelja(0, zt, zt) && P.dotikSeVelja(49, zt, zt)) { "dotik v roku" }
+    check(!P.dotikSeVelja(50, zt, zt) && !P.dotikSeVelja(-1, zt, zt)) { "dotik prepozen" }
+    check(!P.dotikSeVelja(5, zt, "b2".repeat(24)) && !P.dotikSeVelja(5, "", "")) { "dotik na drugi strani (nov zeton)" }
     // Tedenski pregled 4. 11. 2026 (UXSS): naslov od zunaj (namera, Safeer Link) samo http(s), krajevni PDF ali domaca.
     val N = P.Vhod.NAMERA; val L = P.Vhod.LINK; val S = P.Vhod.SPLET
     for (v in listOf(N, L, S)) {

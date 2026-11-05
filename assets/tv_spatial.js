@@ -1,5 +1,10 @@
         /* 📺 Safeer TV Remote D-Pad Navigation & Cinema OSD Engine */
+'use strict';
         (function() {
+            'use strict';
+            // Neodvisni pregled 5. 11. 2026 (najdba 1): v ohlapnem nacinu je stran prek f.caller.caller (ali
+            // Error.prepareStackTrace + CallSite.getFunction) iz prepisane metode (npr. String.prototype.indexOf spodaj)
+            // dobila to funkcijo in z izvirnim toString vir z zetonom. Strogi nacin skrije klicatelje in funkcije okvirjev.
             if ((location.href || '').indexOf('youtube.com/tv') !== -1) return;
 
             /* SAFEER_ZETON_DOTIKA_ZACETEK */
@@ -9,11 +14,19 @@
             // (ChromiumEngineView.ZAKLEP_MOSTU_JS). Pregled 3. 11. 2026: brez poznega ponovnega branja window.SafeerBridge.
             var ZETON_DOTIKA = '__SAFEER_ZETON_DOTIKA__';
             var mostDotika = window.SafeerBridge || null;
+            // Neodvisni pregled 5. 11. 2026 (najdba 8): dokaz tipke je 32-bitni odtis - stran bi ga lahko ugibala brez meje.
+            // Po NAJVEC_NAPAK napacnih dokazih v tem dokumentu ni vec pravih dejanj (dotik, Enter); smer in OK ostaneta.
+            var napakeDokaza = 0, NAJVEC_NAPAK = 5;
+            // Prava dejanja (zaupanja vreden dotik ali tipka Enter) samo z izvirniki z zacetka dokumenta, v dokumentu z omrezja
+            // in dokler stran ni zasedla nasega izvoza ali ugibala dokaza.
+            function pravaDejanjaDovoljena() {
+                return !!IZ && omrezniDokument && !izvozZaseden && napakeDokaza < NAJVEC_NAPAK;
+            }
             function pravDotik(x, y) {
                 try {
                     // Pregled Groka 5. 11. 2026: brez izvirnikov (IZ) tocke ne moremo preveriti; ce je stran zasedla nas izvoz, je
-                    // sovrazna - pravega dotika ni (sinteticni klik ostane).
-                    if (!IZ || izvozZaseden) return false;
+                    // sovrazna - pravega dotika ni. Po klicu (dotik tece asinhrono na niti UI) klicatelj ne klice vec kode strani.
+                    if (!pravaDejanjaDovoljena()) return false;
                     return !!(mostDotika && mostDotika.triggerNativeTap) && mostDotika.triggerNativeTap(x, y, ZETON_DOTIKA) === true;
                 } catch (_) { return false; }
             }
@@ -26,14 +39,33 @@
             // zacetku dokumenta (pred skriptami strani) v nespremenljivo lastnost; aplikacija vstavi 'da' samo, ce je ta skript
             // registrirala (sicer bi lastnost lahko ponaredila stran). Brez izvirnikov ni pravega dotika, ostane sinteticni klik.
             var IZVIRNIKI_ZAGOTOVLJENI = '__SAFEER_IZVIRNIKI__' === 'da';
+            // Neodvisni pregled 5. 11. 2026 (najdba 7): ime lastnosti ima nakljucni del pogleda (ChromiumEngineView), zato ga
+            // stran ne more vnaprej zasesti. Izvirniki veljajo samo v dokumentu z omrezja (https/http): v about:blank, data:
+            // in blob: skript zacetka dokumenta ni zagotovljen, ime pa bi stran lahko poznala iz prejsnjega dokumenta pogleda.
+            // location.protocol je nespremenljiv ([LegacyUnforgeable]), stran ga ne prepise.
+            var IME_IZVIRNIKOV = '__safeer_izvirniki_' + '__SAFEER_NONCE_IZVIRNIKOV__';
+            var protokolDokumenta = '';
+            try { protokolDokumenta = location.protocol; } catch (_) {}
+            var omrezniDokument = protokolDokumenta === 'https:' || protokolDokumenta === 'http:';
             var IZ = null;
             try {
-                var kIz = window.__safeer_izvirniki;
-                if (IZVIRNIKI_ZAGOTOVLJENI && kIz && typeof kIz.apply === 'function' && typeof kIz.gbcr === 'function' &&
+                var kIz = window[IME_IZVIRNIKOV];
+                if (IZVIRNIKI_ZAGOTOVLJENI && omrezniDokument && kIz && typeof kIz.apply === 'function' && typeof kIz.gbcr === 'function' &&
                     typeof kIz.efp === 'function' && typeof kIz.contains === 'function' && typeof kIz.tag === 'function' &&
                     typeof kIz.rl === 'function' && typeof kIz.rt === 'function' && typeof kIz.rw === 'function' &&
-                    typeof kIz.rh === 'function') IZ = kIz;
+                    typeof kIz.rh === 'function' && typeof kIz.dp === 'function' && typeof kIz.gopd === 'function') IZ = kIz;
             } catch (_) {}
+            // Najdba 5: izvoze in zastavico smo definirali z Object.defineProperty strani - stran ga je prepisala in namesto
+            // nase funkcije zapisala ovoj, ki je belezil izzive in dokaze. Izvirnika z zacetka dokumenta; opisnik brez
+            // prototipa (lastnost get/set na Object.prototype ga ne spremeni).
+            function definiraj(o, k, opis) {
+                if (IZ) return IZ.apply(IZ.dp, null, [o, k, opis]);
+                return Object.defineProperty(o, k, opis);
+            }
+            function opisLastnosti(o, k) {
+                if (IZ) return IZ.apply(IZ.gopd, null, [o, k]);
+                return Object.getOwnPropertyDescriptor(o, k);
+            }
             var datumZdaj = Date.now;
             function casZdaj() {
                 if (IZ && typeof IZ.now === 'function') { try { return IZ.apply(IZ.now, IZ.perf, []); } catch (_) {} }
@@ -59,11 +91,24 @@
                 try { var v = (IZ && typeof IZ.src === 'function') ? IZ.apply(IZ.src, el, []) : ''; return typeof v === 'string' ? v : ''; }
                 catch (_) { return ''; }
             }
-            // Brez metod niza (indexOf, startsWith lahko prepise stran): primerjava po znakih.
-            function zacneZ(v, p) {
-                if (typeof v !== 'string' || v.length < p.length) return false;
-                for (var i = 0; i < p.length; i++) { if (v[i] !== p[i]) return false; }
-                return true;
+            // Polje za datoteko z izvirniki (najdba 5 in odlocitev B): oznaka in vrsta polja iz getterjev z zacetka dokumenta.
+            function jeVhodDatotekeIz(el) {
+                if (!IZ || !el || typeof IZ.typ !== 'function') return false;
+                var oz = oznakaIz(el), v = el;
+                if (oz === 'LABEL') {
+                    if (typeof IZ.ctl !== 'function') return false;
+                    try { v = IZ.apply(IZ.ctl, el, []); } catch (_) { return false; }
+                    if (!v || v === el) return false;
+                    oz = oznakaIz(v);
+                }
+                if (oz !== 'INPUT') return false;
+                try { return IZ.apply(IZ.typ, v, []) === 'file'; } catch (_) { return false; }
+            }
+            function fokusIz(el) {
+                try { if (IZ && typeof IZ.fokus === 'function') IZ.apply(IZ.fokus, el, [{ __proto__: null, preventScroll: true }]); } catch (_) {}
+            }
+            function aktivenIz() {
+                try { return (IZ && typeof IZ.akt === 'function') ? IZ.apply(IZ.akt, document, []) : null; } catch (_) { return null; }
             }
             /* SAFEER_IZVIRNIKI_KONEC */
 
@@ -73,7 +118,8 @@
             // Math.imul na samem zetonu - prepis teh funkcij v strani je videl zeton. Zeton je sestnajstiski
             // (SpletVarnostPravila.novZeton): znake beremo z indeksom niza in tabelo, mnozimo z operatorji (FNV-1a, 32 bitov,
             // isti kot TvTipke.odtisZetona) - nobena funkcija, ki jo doseze stran, zetona ne vidi.
-            var KODE_ZNAKOV = { '0': 48, '1': 49, '2': 50, '3': 51, '4': 52, '5': 53, '6': 54, '7': 55, '8': 56, '9': 57, 'a': 97, 'b': 98, 'c': 99, 'd': 100, 'e': 101, 'f': 102, 'g': 103, 'h': 104, 'i': 105, 'j': 106, 'k': 107, 'l': 108, 'm': 109, 'n': 110, 'o': 111, 'p': 112, 'q': 113, 'r': 114, 's': 115, 't': 116, 'u': 117, 'v': 118, 'w': 119, 'x': 120, 'y': 121, 'z': 122, '|': 124 };
+            // Neodvisni pregled 5. 11. 2026 (najdba 8): tabela brez prototipa - lastnost na Object.prototype ne doda znaka.
+            var KODE_ZNAKOV = { __proto__: null, '0': 48, '1': 49, '2': 50, '3': 51, '4': 52, '5': 53, '6': 54, '7': 55, '8': 56, '9': 57, 'a': 97, 'b': 98, 'c': 99, 'd': 100, 'e': 101, 'f': 102, 'g': 103, 'h': 104, 'i': 105, 'j': 106, 'k': 107, 'l': 108, 'm': 109, 'n': 110, 'o': 111, 'p': 112, 'q': 113, 'r': 114, 's': 115, 't': 116, 'u': 117, 'v': 118, 'w': 119, 'x': 120, 'y': 121, 'z': 122, '|': 124 };
             function fnvNiz(h, v) {
                 for (var i = 0; i < v.length; i++) {
                     var c = KODE_ZNAKOV[v[i]];
@@ -89,28 +135,23 @@
                 do { var d = h % 36; v = BAZA36[d] + v; h = (h - d) / 36; } while (h > 0);
                 return v;
             }
-            function znakNamestitve(z) {
-                var h = fnvNiz(2166136261, z);
-                return h < 0 ? 'safeer-' : 'safeer-' + vBazo36(h);
-            }
-            function jeNamescen(w, znak) {
+            // Neodvisni pregled 5. 11. 2026 (najdba 6): stran je vnaprej zasedla _safeer_tv_remote_installed in
+            // _safeer_navigate_spatial - daljinec se ni namestil. Imena izvozov in zastavice imajo nakljucni del dokumenta
+            // (ChromiumEngineView.nonceIzvozov, nov ob vsaki strani), ki ga stran pred nasim skriptom ne pozna. Zastavica ne
+            // nosi vec odtisa zetona (prej znak namestitve na window).
+            var NONCE_IZVOZOV = '__SAFEER_NONCE__';
+            function imeIzvoza(ime) { return ime + '_' + NONCE_IZVOZOV; }
+            var IME_ZASTAVICE = imeIzvoza('_safeer_tv_remote_installed');
+            function jeNamescen(w) {
                 var d = null;
-                try { d = Object.getOwnPropertyDescriptor(w, '_safeer_tv_remote_installed'); } catch (_) {}
-                return !!d && d.value === znak && d.writable === false && d.configurable === false;
+                try { d = opisLastnosti(w, IME_ZASTAVICE); } catch (_) {}
+                return !!d && d.value === true && d.configurable === false;
             }
-            function oznaciNamescen(w, znak) {
+            function oznaciNamescen(w) {
                 try {
-                    Object.defineProperty(w, '_safeer_tv_remote_installed', { value: znak, writable: false, configurable: false, enumerable: false });
+                    definiraj(w, IME_ZASTAVICE, { __proto__: null, value: true, writable: false, configurable: false, enumerable: false });
                     return true;
                 } catch (_) { return false; }
-            }
-            // Pregled Groka 5. 11. 2026 (najdba 5): stran je zastavico zaklenila z 'safeer-x' in skript se ni namestil (daljinec
-            // mrtev). Zastavica ni dokaz: konec samo, ce je izvoz za aplikacijo ze zaklenjen (nas prejsnji vbrizg v isti
-            // dokument z drugim zetonom); sicer se namestimo brez zastavice. Ping aplikacije primerja tocen znak.
-            function izvozZaklenjen(w, ime) {
-                var d = null;
-                try { d = Object.getOwnPropertyDescriptor(w, ime); } catch (_) {}
-                return !!d && d.configurable === false;
             }
             /* SAFEER_ZNAK_NAMESTITVE_KONEC */
             /* SAFEER_DOKAZ_ZACETEK */
@@ -142,24 +183,34 @@
                 return o ? 'datoteka:' + o : '';
             }
             /* SAFEER_DOKAZ_KONEC */
-            var ZNAK_NAMESTITVE = znakNamestitve(ZETON_DOTIKA);
-            if (jeNamescen(window, ZNAK_NAMESTITVE)) return;
-            if (!oznaciNamescen(window, ZNAK_NAMESTITVE) && izvozZaklenjen(window, '_safeer_navigate_spatial')) return;
+            if (jeNamescen(window)) return;
+            // Ime zastavice pozna samo ta skript: ce ga izvirni defineProperty ne more zasesti, je skript ze namescen.
+            if (!oznaciNamescen(window) && IZ) return;
 
             // Pregled fokusa 5. 11. 2026: stran je lahko prepisala window._safeer_click_focused_card ali _safeer_highlight
             // (aplikacija ju klice ob OK) - npr. odgovor 'datoteka' je sprozil pravo tipko Enter. Funkcije za aplikacijo
             // so nespremenljive lastnosti.
             var izvozZaseden = false;
-            function izvoziZaAplikacijo(ime, fn) {
+            // javno = ime brez nakljucnega dela (klice ga site_agent.js); tak izvoz ne doseze pravih dejanj.
+            function izvoziZaAplikacijo(ime, fn, javno) {
+                var polno = javno ? ime : imeIzvoza(ime);
+                // Neodvisni pregled 5. 11. 2026 (najdbi 4 in 9): stran izvoz doseze tudi med nasim odzivom na tipko (ponovni
+                // vstop iz prepisane metode ali iz poslusalca klika). Izbira, ki jo naredi tak klic, ni potrjena; izvozi s
+                // tipko (smer, OK) jo potrdijo sami, sele po dokazu tipke. Brez apply/call, ki ju lahko prepise stran.
+                var ovoj = function (a, b, c) {
+                    var bilo = vTipki;
+                    vTipki = false;
+                    try { return fn(a, b, c); } finally { vTipki = bilo; }
+                };
                 try {
-                    Object.defineProperty(window, ime, { value: fn, writable: false, configurable: false, enumerable: false });
+                    definiraj(window, polno, { __proto__: null, value: ovoj, writable: false, configurable: false, enumerable: false });
                     return true;
                 } catch (_) {}
                 // Drugi krog pregleda 5. 11. 2026: stran je ime zasedla pred nami - aplikacija bo klicala njeno funkcijo.
                 // Zapis v dnevnik (brez podatkov strani); odgovoru za pravo tipko aplikacija brez dokaza ne zaupa (SAFEER_DOKAZ).
                 try { console.log('H55 tv_spatial.js:izvoz izvoz ni uspel {"ime":"' + ime + '"}'); } catch (_) {}
-                izvozZaseden = true;
-                try { window[ime] = fn; } catch (_) {}
+                if (!javno) izvozZaseden = true;
+                try { window[polno] = ovoj; } catch (_) {}
                 return false;
             }
 
@@ -181,12 +232,19 @@
             // Aplikacija ob vsaki tipki daljinca v istem skriptu poslje nakljucen izziv in odtis zetona (TvTipke.ukazTipke);
             // brez veljavnega dokaza smer, OK in izbira ne naredijo nicesar. En dokaz = en klic. Primerjava stevil (brez
             // toString), zato prepis metod v strani dokaza ne vidi.
-            var tipkaNaVoljo = false, zadnjiIzzivTipke = '', vTipki = false, izbiraPotrjena = false;
-            function sprejmiTipko(izziv, dokaz) {
-                if (!jeVeljavenIzziv(izziv) || izziv === zadnjiIzzivTipke || typeof dokaz !== 'number') return false;
-                var h = odtisStevilo(ZETON_DOTIKA, 'tipka|' + izziv);
-                if (h < 0 || dokaz !== h) return false;
-                zadnjiIzzivTipke = izziv;
+            // Neodvisni pregled 5. 11. 2026 (najdba 5): prej je veljal vsak par razen zadnjega - starejsi ujeti par je spet
+            // dal tipko. Zdaj dokaz pokrije strogo narascajoc stevec aplikacije (ChromiumEngineView.naslednjaTipka).
+            var tipkaNaVoljo = false, zadnjiStevecTipke = 0, vTipki = false, izbiraPotrjena = false;
+            function jeStevecTipke(n) { return typeof n === 'number' && n > 0 && n <= 9007199254740991 && n % 1 === 0; }
+            function sprejmiTipko(izziv, stevec, dokaz) {
+                if (!jeVeljavenIzziv(izziv) || !jeStevecTipke(stevec) || stevec <= zadnjiStevecTipke || typeof dokaz !== 'number') {
+                    napakeDokaza++;
+                    return false;
+                }
+                // Stevilo v niz z operatorjem (notranji ToString), ne z Number.prototype.toString strani.
+                var h = odtisStevilo(ZETON_DOTIKA, 'tipka|' + stevec + '|' + izziv);
+                if (h < 0 || dokaz !== h) { napakeDokaza++; return false; }
+                zadnjiStevecTipke = stevec;
                 tipkaNaVoljo = true;
                 zadnjaTipkaMs = casZdaj();
                 return true;
@@ -1304,8 +1362,9 @@
             // Lastnik 2. 11. 2026 (claude.ai prijava na TV): »Nadaljuj z Google« je gumb Google Identity Services v
             // tujem okvirju (accounts.google.com/gsi/button). Okvirjev nismo steli za cilje, zato ga daljinec ni dosegel.
             // Majhen viden okvir je zdaj cilj (gumb, ne vsebina): visok najvec 120 px, sirok najvec 60 % zaslona in
-            // najvec 8 % povrsine; oglasni okvirji (google_ads, aswift, doubleclick ...) ne. OK nanj je en pravi dotik
-            // na sredini (nativeTapElement -> triggerNativeTap), ker v tuj okvir skript strani ne more klikniti.
+            // najvec 8 % povrsine; oglasni okvirji (google_ads, aswift, doubleclick ...) ne. OK je en pravi dotik na sredini
+            // samo na okvir https://accounts.google.com/gsi/ (tockaNamena 'google', neodvisni pregled 5. 11. 2026); drug
+            // okvir daljinec izbere, OK vanj ne seze (kazalec - rdeci gumb - ostane uporabnikov pravi dotik).
             function jeGumbOkvir(sirina, visina, winW, winH, ime) {
                 if (!(sirina >= 40 && visina >= 20)) return false;
                 if (visina > 120 || sirina > winW * 0.6 || sirina * visina > winW * winH * 0.08) return false;
@@ -1350,14 +1409,16 @@
                 return out;
             }
             // Vidni okvir v gostitelju: normal 300 x 65 (izmerjeno), compact 150 x 140 (po dokumentaciji, ni izmerjeno).
+            // Brez Math.min (lahko ga prepise stran in izbere tocko pravega dotika): primerjava z operatorji.
             function okvirIzziva(r) {
-                var w = Math.min(r.width, r.height > 100 ? 150 : 300);
-                return { left: r.left, top: r.top, width: w, height: r.height, right: r.left + w, bottom: r.bottom };
+                var meja = r.height > 100 ? 150 : 300, w = r.width < meja ? r.width : meja;
+                return { left: r.left, top: r.top, width: w, height: r.height, right: r.left + w, bottom: r.top + r.height };
             }
             function tockaIzziva(r) {
                 var o = okvirIzziva(r);
                 if (o.height > 100) return { x: o.left + o.width / 2, y: o.top + o.height / 2 };
-                return { x: o.left + Math.min(22, o.width / 2), y: o.top + o.height / 2 };
+                var pol = o.width / 2;
+                return { x: o.left + (22 < pol ? 22 : pol), y: o.top + o.height / 2 };
             }
             function jeIzziv(el) { return !!el && izzivi.indexOf(el) !== -1; }
             function okvirCilja(el) {
@@ -2056,7 +2117,8 @@
                 if (akt && okno.contains(akt)) return true;
                 var prvi = prviVPlasti(okno, getCandidates());
                 if (!prvi) return false;
-                highlightElement(prvi);
+                // Neodvisni pregled 5. 11. 2026 (najdba 9): samodejni vstop v okno ni izbira daljinca - nikoli potrjena.
+                oznaciBrezPotrditve(prvi);
                 return true;
             }
             // Lastnik 3. 11. 2026 05:26: »okno se vsiljuje« - izbira je znova in znova skakala v plast (stran jo je na novo
@@ -2090,7 +2152,8 @@
                     return true;
                 } catch (_) { return false; }
             }
-            window._safeer_vstopi_v_plast = vstopiVNovoPlast;
+            // Najdba 9: vstopiVNovoPlast ni vec na window - nihce zunaj skripta je ne klice, stran pa je z njo med nasim
+            // odzivom na tipko nastavila potrjeno izbiro.
 
             var sledimFokusu = false;
             /* SAFEER_PREPIR_FOKUSA_ZACETEK */
@@ -2319,30 +2382,16 @@
                 return true;
             }
 
-            // Pregled fokusa 5. 11. 2026: true = izbran; false = cilj zavrnjen (tudi po drsenju zunaj pogleda) - klicatelj
-            // poskusi naslednjega, sicer pove aplikaciji, da se ni premaknilo.
-            // Drugi krog pregleda 5. 11. 2026: izvoz doseze tudi stran - z njim je izbrala svoj element (tudi okvir) in OK je
-            // nanj sprozil pravi dotik (zaobide 60c2282d). Izvoz sprejme null (pocisti) ali element, ki ga lahko izbere tudi
-            // daljinec (isActionable, jeUporaben), in samo z dokazom zetona. Cas zadnje tipke ni dokaz: stran lahko sama
-            // poklice _safeer_navigate_spatial. Notranji klici skripta gredo mimo izvoza (highlightElement).
-            function izbiraZaAplikacijo(el) {
-                if (el === null || el === undefined) return highlightElement(null);
-                // Pregled Groka 5. 11. 2026 (najdba 9): staticni dokaz 'izbira' je bil vedno enak (ponovljiv), aplikacija ga ni
-                // nikoli poslala. Zdaj velja dokaz tipke (_safeer_tipka) - en dokaz, ena izbira.
-                if (!porabiTipko()) return false;
-                // Okno cez stran tu ne zavrne: OK na izbiri za oknom zavrne klikIzbrane.
-                if (!isActionable(el) || !jeUporaben(el, true)) return false;
-                vTipki = true;
-                try { return highlightElement(el); } finally { vTipki = false; }
-            }
-            izvoziZaAplikacijo('_safeer_highlight', izbiraZaAplikacijo);
+            // Neodvisni pregled 5. 11. 2026 (najdba 4): _safeer_highlight ni vec izvoz - aplikacija ga ne klice (MainActivity in
+            // site_agent.js uporabljata _safeer_skrij_obris, _safeer_vrni_obris in _safeer_izberi_zadnjo_ploscico), stran pa je z
+            // njim brez dokaza pocistila izbiro. Izbira je samo iz smeri daljinca (navigirajProstorsko) ali brez potrditve.
             // site_agent.js po zaprtju predvajalnika: izbira nazaj na zadnjo ploscico, ki jo je izbral ta skript (zaprtje) -
             // ne na element iz window._safeer_medij_last_tile, ki ga lahko nastavi stran.
             izvoziZaAplikacijo('_safeer_izberi_zadnjo_ploscico', function () {
                 var t = zadnjaPloscica;
                 if (!t || !t.isConnected || !jeUporaben(t, true)) return false;
                 return oznaciBrezPotrditve(t);
-            });
+            }, true);
             // MainActivity.poveziObrisStrani: fokus gre iz strani v vrstico z naslovom - obris skrijemo, ob vrnitvi ga vrnemo na
             // isti element. Element hrani zaprtje (prej window._safeerObrisZunaj in querySelector('.safeer-active-card'),
             // oboje lahko nastavi stran - drugi krog pregleda 5. 11. 2026).
@@ -3061,28 +3110,65 @@
             }
 
             /* SAFEER_PRAVI_DOTIK_ZACETEK */
-            // Pregled Groka 5. 11. 2026 (najdbi 1 in 3): pravi dotik (zaupanja vreden dogodek, tudi v tuj okvir) samo, ko je izbiro
-            // potrdil daljinec, izvirniki so na voljo, na tocki je izbrani element ali njegov potomec in ta ni tuj okvir v
-            // vsebniku (stran je fokusirala svoj div s placilnim okvirjem). Izjema: okvir Cloudflare v izbranem preverjanju.
-            var OKVIRNE_OZNAKE = { IFRAME: 1, FRAME: 1, OBJECT: 1, EMBED: 1 };
-            function smePraviDotik(o) {
-                if (!o || !o.izvirniki || !o.potrjena || !o.vCilju) return false;
-                if (o.zadetekJeOkvir && !o.zadetekJeCilj && !o.okvirDovoljen) return false;
+            // Odlocitev vodje po neodvisnem pregledu 5. 11. 2026: skript tece v glavnem svetu strani in ne more biti zaupanja
+            // vreden. Pravi (nativni) dotik je zato samo za namene, zaradi katerih obstaja: gumb Google (GSI, okvir
+            // https://accounts.google.com/gsi/), izziv Cloudflare (challenges.cloudflare.com) in polje za datoteko, ki ne dobi
+            // fokusa (skrito v oznaki). Vse drugo je sinteticni klik - z njim stran ne doseze tujega okvirja.
+            // Najdba 3: elementFromPoint vrne gostitelja (zaprtega ali deklarativnega) shadow DOM, ne okvirja v njem. Shadow
+            // DOM ima lahko samo element s spodnjega seznama ali element po meri (ime z '-', HTML standard attachShadow) -
+            // zadetek na takem elementu ni dokaz, da pod tocko ni tujega okvirja.
+            var OKVIRNE_OZNAKE = { __proto__: null, IFRAME: 1, FRAME: 1, OBJECT: 1, EMBED: 1 };
+            var SENCNI_GOSTITELJI = { __proto__: null, ARTICLE: 1, ASIDE: 1, BLOCKQUOTE: 1, BODY: 1, DIV: 1, FOOTER: 1, H1: 1, H2: 1,
+                H3: 1, H4: 1, H5: 1, H6: 1, HEADER: 1, MAIN: 1, NAV: 1, P: 1, SECTION: 1, SPAN: 1 };
+            // Brez metod niza (indexOf, startsWith lahko prepise stran): primerjava po znakih.
+            function zacneZ(v, p) {
+                if (typeof v !== 'string' || v.length < p.length) return false;
+                for (var i = 0; i < p.length; i++) { if (v[i] !== p[i]) return false; }
                 return true;
             }
+            function lahkoSkrivaOkvir(oz) {
+                if (typeof oz !== 'string' || oz === '') return true;
+                if (OKVIRNE_OZNAKE[oz] === 1 || SENCNI_GOSTITELJI[oz] === 1) return true;
+                for (var i = 0; i < oz.length; i++) { if (oz[i] === '-') return true; }
+                return false;
+            }
+            function smePraviDotik(o) {
+                if (!o || !o.izvirniki || !o.omrezni || !o.potrjena) return false;
+                if (o.namen === 'google') {
+                    return o.oznakaCilja === 'IFRAME' && o.zadetekJeCilj === true && zacneZ(o.virCilja, 'https://accounts.google.com/gsi/');
+                }
+                if (o.namen === 'izziv') {
+                    if (!o.zadetekVCilju) return false;
+                    if (o.oznakaZadetka === 'IFRAME') return zacneZ(o.virZadetka, 'https://challenges.cloudflare.com/');
+                    // Pravi izziv je v ZAPRTEM shadow DOM (izmerjeno 3. 11. 2026): gostitelja moramo sprejeti (preostalo tveganje).
+                    return OKVIRNE_OZNAKE[o.oznakaZadetka] !== 1;
+                }
+                if (o.namen === 'datoteka') {
+                    if (!o.vhodDatoteke || !o.zadetekVCilju) return false;
+                    return o.zadetekJeCilj === true || !lahkoSkrivaOkvir(o.oznakaZadetka);
+                }
+                return false;
+            }
             /* SAFEER_PRAVI_DOTIK_KONEC */
-            function smeTapnitiNa(el, x, y, izzivCf) {
-                if (!IZ || !el) return false;
-                var z = zadetekIz(x, y);
-                var oz = z ? oznakaIz(z) : '';
+            // Tocka pravega dotika za namen ali null. Vse z izvirniki (IZ); po tej preverbi klicatelj takoj poklice pravDotik in
+            // konca OK brez kode strani (najdba 2: dotik tece asinhrono, stran je vmes premaknila tuj okvir pod tocko).
+            function tockaNamena(el, namen) {
+                if (!IZ || !el) return null;
+                var r = okvirIz(el);
+                if (!r) return null;
+                var t = namen === 'izziv' ? tockaIzziva(r) : { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+                var z = zadetekIz(t.x, t.y);
+                var oz = z ? oznakaIz(z) : '', oc = oznakaIz(el);
                 return smePraviDotik({
-                    izvirniki: true, potrjena: true, vCilju: !!z && vsebujeIz(el, z), zadetekJeCilj: z === el,
-                    zadetekJeOkvir: OKVIRNE_OZNAKE[oz] === 1,
-                    okvirDovoljen: !!izzivCf && oz === 'IFRAME' && zacneZ(virOkvirjaIz(z), 'https://challenges.cloudflare.com/')
-                });
+                    izvirniki: true, omrezni: omrezniDokument, potrjena: true, namen: namen,
+                    oznakaCilja: oc, virCilja: oc === 'IFRAME' ? virOkvirjaIz(el) : '',
+                    zadetekJeCilj: z === el, zadetekVCilju: !!z && vsebujeIz(el, z), oznakaZadetka: oz,
+                    virZadetka: oz === 'IFRAME' ? virOkvirjaIz(z) : '',
+                    vhodDatoteke: namen === 'datoteka' && jeVhodDatotekeIz(el)
+                }) ? t : null;
             }
 
-            function nativeTapElement(el, potrjena) {
+            function klikniElement(el) {
                 if (!el) return;
                 try {
                     var host = (location.hostname || '').toLowerCase();
@@ -3150,28 +3236,20 @@
                         fireTileClick();
                         return;
                     }
-                    // Pregled Groka 5. 11. 2026 (najdba 1): okvir in zadetek z izvirniki (IZ), ne z metodami, ki jih prepise stran.
-                    var okvirP = okvirIz(el);
-                    var rect = okvirP || el.getBoundingClientRect();
+                    // Pregled Groka 5. 11. 2026 (najdba 1): okvir z izvirniki (IZ), ne z metodami, ki jih prepise stran.
+                    var rect = okvirIz(el) || el.getBoundingClientRect();
                     var cx = rect.left + rect.width / 2;
                     var cy = rect.top + rect.height / 2;
                     /* SAFEER_EN_KLIK_ZACETEK */
-                    // Lastnik 28. 10. 2026 (Facebook na TV): OK je sprozil TRI klike - sinteticni 'click', el.click() in
-                    // pravi dotik (triggerNativeTap). Preklopna gumba (»Pokazi geslo«) sta se zato prestavila dvakrat ali
-                    // trikrat. Zdaj natanko en klik: pravi dotik, ce je na sredini elementa res on (stran dobi zaupanja
-                    // vreden dogodek), sicer zaporedje dogodkov miske z enim samim el.click().
-                    var tapnjeno = false;
-                    if (okvirP && potrjena === true && smeTapnitiNa(el, cx, cy, false)) {
-                        tapnjeno = pravDotik(cx, cy);
-                    }
-                    if (!tapnjeno) {
-                        var mouseOpts = { bubbles: true, cancelable: true, view: window, clientX: cx, clientY: cy, screenX: cx, screenY: cy };
-                        try { el.dispatchEvent(new PointerEvent('pointerdown', mouseOpts)); } catch(_) {}
-                        try { el.dispatchEvent(new MouseEvent('mousedown', mouseOpts)); } catch(_) {}
-                        try { el.dispatchEvent(new PointerEvent('pointerup', mouseOpts)); } catch(_) {}
-                        try { el.dispatchEvent(new MouseEvent('mouseup', mouseOpts)); } catch(_) {}
-                        try { el.click(); } catch(_) {}
-                    }
+                    // Lastnik 28. 10. 2026 (Facebook na TV): OK je sprozil TRI klike - preklopna gumba (»Pokazi geslo«) sta se
+                    // prestavila dvakrat ali trikrat. Natanko en klik: zaporedje dogodkov miske z enim samim el.click().
+                    // Neodvisni pregled 5. 11. 2026 (odlocitev B): tu nikoli pravi dotik - samo za namene v klikIzbrane.
+                    var mouseOpts = { bubbles: true, cancelable: true, view: window, clientX: cx, clientY: cy, screenX: cx, screenY: cy };
+                    try { el.dispatchEvent(new PointerEvent('pointerdown', mouseOpts)); } catch(_) {}
+                    try { el.dispatchEvent(new MouseEvent('mousedown', mouseOpts)); } catch(_) {}
+                    try { el.dispatchEvent(new PointerEvent('pointerup', mouseOpts)); } catch(_) {}
+                    try { el.dispatchEvent(new MouseEvent('mouseup', mouseOpts)); } catch(_) {}
+                    try { el.click(); } catch(_) {}
                     /* SAFEER_EN_KLIK_KONEC */
                 } catch(_) {}
             }
@@ -3217,12 +3295,13 @@
                     var target = izbrani();
                     if (!target || !jeUporaben(target)) {
                         var akt = getActiveElement();
-                        if (akt) { highlightElement(akt); return true; }
+                        // Neodvisni pregled 5. 11. 2026 (najdba 4): fokus je lahko dala stran - izbira brez potrditve.
+                        if (akt) { oznaciBrezPotrditve(akt); return true; }
                         return false;
                     }
+                    // Najdba 4: OK izbire ne potrdi (prej je drugi OK na fokusu strani sprozil pravi dotik); potrdi jo samo smerna
+                    // tipka z dokazom (navigirajProstorsko).
                     var potrjena = izbiraPotrjena;
-                    // OK potrdi izbiro, ki jo uporabnik vidi: naslednji OK na isti izbiri sme sproziti pravi dotik.
-                    izbiraPotrjena = true;
                     var goingEvent = onEvent;
                     try {
                         if (target && !goingEvent) {
@@ -3248,11 +3327,10 @@
                     if (target && jeIzziv(target)) {
                         // Pregled Groka 5. 11. 2026 (najdba 4): lazni .cf-turnstile (prosojen, pointer-events: none) cez tuj okvir ali s
                         // tujim okvirjem v sebi. Dotik samo na potrjeni izbiri in ce je na tocki gostitelj (zaprt shadow DOM) ali
-                        // okvir challenges.cloudflare.com v njem.
-                        var oIz = okvirIz(target);
-                        if (!potrjena || !oIz) return true;
-                        var tIz = tockaIzziva(oIz);
-                        if (smeTapnitiNa(target, tIz.x, tIz.y, true)) pravDotik(tIz.x, tIz.y);
+                        // okvir challenges.cloudflare.com v njem. Po pravDotik do konca OK ni kode strani (najdba 2).
+                        if (!potrjena) return true;
+                        var tIz = tockaNamena(target, 'izziv');
+                        if (tIz) pravDotik(tIz.x, tIz.y);
                         return true;
                     }
                     // Polje za datoteko: fokus nanj in Enter iz aplikacije (SAFEER_OK_DATOTEKA).
@@ -3261,18 +3339,25 @@
                     if (vhodD && !vhodD.disabled) {
                         // Prava tipka Enter (uporabnikova aktivacija) samo na izbiri, ki jo je potrdil daljinec.
                         if (!potrjena) return true;
-                        try { vhodD.focus({ preventScroll: true }); } catch (_) {}
-                        // 'datoteka:' + odtis: aplikacija preveri, da odgovor res da ta skript (SAFEER_DOKAZ, TvTipke.okNaDatoteki).
-                        if (okNaDatoteki(vhodD, document.activeElement) === 'datoteka') return dokazDatoteke(ZETON_DOTIKA, izziv);
+                        // Neodvisni pregled 5. 11. 2026: polje, fokus in aktivni element z izvirniki (stran je s prepisanim focus ali
+                        // activeElement lahko usmerila pravi Enter v tuj okvir).
+                        if (pravaDejanjaDovoljena() && jeVhodDatotekeIz(vhodD)) {
+                            fokusIz(vhodD);
+                            // 'datoteka:' + odtis: aplikacija preveri, da odgovor res da ta skript (SAFEER_DOKAZ, TvTipke.okNaDatoteki).
+                            if (okNaDatoteki(vhodD, aktivenIz()) === 'datoteka') return dokazDatoteke(ZETON_DOTIKA, izziv);
+                            // Skrito polje v oznaki (fokusa ne dobi): en pravi dotik na oznako.
+                            var tD = tockaNamena(target, 'datoteka');
+                            if (tD && pravDotik(tD.x, tD.y)) return true;
+                        }
                     }
-                    // Tuj okvir (gumb GSI »Nadaljuj z Google«): samo en pravi dotik na sredini (SAFEER_OKVIR_GUMB).
-                    // Pregled fokusa 5. 11. 2026: stran je lahko razred ali fokus dala svojemu nevidnemu okvirju in OK je sprozil
-                    // pravi dotik na mestu, ki ga je izbrala ona. Dotik samo na okvir, ki ga je izbral daljinec in je viden.
+                    // Tuj okvir: pravi dotik samo na gumb Google (GSI, SAFEER_OKVIR_GUMB), ki ga je izbral daljinec in je viden.
+                    // Drug tuj okvir (oglas, placilo ...) OK ne doseze - sinteticni klik vanj ne pride (odlocitev B).
                     if (target && (target.tagName || '').toUpperCase() === 'IFRAME') {
                         if (!jeVidenOkvir(target)) return false;
                         if (!potrjena) return true;
-                        nativeTapElement(target, true);
-                        return;
+                        var tG = tockaNamena(target, 'google');
+                        if (tG) pravDotik(tG.x, tG.y);
+                        return true;
                     }
                     if (target) {
                         var clickable = target;
@@ -3283,7 +3368,7 @@
                             var rc = okvirIz(clickable) || clickable.getBoundingClientRect();
                             if (!(rc.width >= 1 && rc.height >= 1)) clickable = target;
                         }
-                        nativeTapElement(clickable, potrjena);
+                        klikniElement(clickable);
                         if (!goingEvent && path.indexOf('/livetv') === -1) {
                             try { if (window._safeerSiteAgent && window._safeerSiteAgent.allowBoost()) window._safeer_medij_boost(); } catch (_) {}
                         }

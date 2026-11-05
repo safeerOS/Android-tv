@@ -435,6 +435,35 @@ object SpletVarnostPravila {
      */
     fun vstaviIzvirnike(js: String, registrirani: Boolean): String = js.replace(IZVIRNIKI_MESTO, if (registrirani) "da" else "ne")
 
+    const val NONCE_IZVIRNIKOV_MESTO = "__SAFEER_NONCE_IZVIRNIKOV__"
+    const val NONCE_IZVOZOV_MESTO = "__SAFEER_NONCE__"
+    private val NONCE = Regex("[0-9a-f]{16,64}")
+
+    /** Nakljucni del imen na window (16 sestnajstiskih znakov, 64 bitov): stran ga pred nasim skriptom ne more uganiti. */
+    fun novNonce(): String {
+        val b = ByteArray(8)
+        java.security.SecureRandom().nextBytes(b)
+        return b.joinToString("") { "%02x".format(it) }
+    }
+
+    fun jeNonce(n: String?): Boolean = n != null && NONCE.matches(n)
+
+    /**
+     * Neodvisni pregled 5. 11. 2026 (najdbi 6 in 7): imena izvozov tv_spatial.js in izvirnikov imajo nakljucni del. Najprej
+     * daljse mesto (__SAFEER_NONCE__ je predpona __SAFEER_NONCE_IZVIRNIKOV__). Neveljaven nonce: besedilo ostane brez zamenjave.
+     */
+    fun vstaviNonce(js: String, izvirniki: String, izvozi: String): String {
+        if (!jeNonce(izvirniki) || !jeNonce(izvozi)) return js
+        return js.replace(NONCE_IZVIRNIKOV_MESTO, izvirniki).replace(NONCE_IZVOZOV_MESTO, izvozi)
+    }
+
+    /** Najdba 2: pravi dotik velja samo, ce ga nit UI izvede kmalu po klicu in na isti strani (isti zeton). */
+    const val DOTIK_ROK_MS = 50L
+
+    fun dotikSeVelja(odKlicaMs: Long, zetonKlica: String, zetonZdaj: String): Boolean =
+        odKlicaMs in 0 until DOTIK_ROK_MS && zetonKlica.length >= 32 &&
+            java.security.MessageDigest.isEqual(zetonKlica.toByteArray(Charsets.UTF_8), zetonZdaj.toByteArray(Charsets.UTF_8))
+
     /** Sinteticni dotik (triggerNativeTap) samo znotraj pogleda; NaN ali tocka zunaj se zavrne. */
     fun dotikVPogledu(x: Float, y: Float, sirina: Int, visina: Int): Boolean =
         !x.isNaN() && !y.isNaN() && x >= 0f && y >= 0f && x < sirina && y < visina

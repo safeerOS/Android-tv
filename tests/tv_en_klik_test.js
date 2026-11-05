@@ -35,8 +35,9 @@ preveri('sirok div brez vloge ni gumb', false, jeSirokGumb(e({}), { height: 40 }
 const klik = blok('SAFEER_EN_KLIK').koda.split('\n').filter((v) => !/^\s*\/\//.test(v)).join('\n');
 preveri('en el.click()', 1, (klik.match(/el\.click\(\)/g) || []).length);
 preveri('brez sinteticnega dogodka click', false, /new MouseEvent\('click'/.test(klik));
-preveri('pravi dotik samo, ce je zadetek na elementu', true, /if \(okvirP && potrjena === true && smeTapnitiNa\(el, cx, cy, false\)\)/.test(klik));
-preveri('miska samo, ce dotik ni sprejet', true, /if \(!tapnjeno\)/.test(klik));
+// Neodvisni pregled 5. 11. 2026 (odlocitev B): navaden OK je samo sinteticni klik, pravi dotik le za namene (tockaNamena).
+preveri('navaden klik nikoli ne klice pravega dotika', false, /pravDotik\(|triggerNativeTap/.test(klik));
+preveri('zaporedje miske je vedno (brez pogoja dotika)', false, /tapnjeno/.test(klik));
 assert.ok(VIR.indexOf("!jeSirokGumb(el, rect, winH)") > 0, 'isActionable ne uporablja jeSirokGumb');
 // claude.ai prijava (30. 10. 2026): Tailwind »duration-200« ne sme izlociti pravega gumba, povezave ali polja.
 preveri('pravilo za casovne oznake ne velja za prave gumbe', true,

@@ -76,30 +76,31 @@ for (const vloga of ['', 'dialog']) {
     preveri(opis + (vloga ? ': izbira ostane v oknu' : ': gumbi prijave ostanejo dosegljivi'), !vloga, dos.indexOf('google') !== -1);
     preveri(opis + ': puscice nicesar ne kliknejo', [0, 0], [s.kliki.length, s.dotiki.length]);
 
-    // OK na izbranem gumbu okna: en pravi dotik na njegovi sredini (na vrhu je on, okno je pritrjeno nad stranjo).
+    // OK na izbranem gumbu okna: en klik nanj (neodvisni pregled 5. 11. 2026: sinteticni klik, pravi dotik samo za namene).
     s.izberi(s.e.reject);
     s.ok();
-    preveri(opis + ': OK na »Reject all cookies« je en dotik na njegovi sredini', [[1338, 1000]], s.dotiki);
+    preveri(opis + ': OK na »Reject all cookies« je en klik nanj, brez pravega dotika', [[s.e.reject], []], [s.kliki.filter((k) => k === s.e.reject).slice(0, 1), s.dotiki]);
+    preveri(opis + ': ... natanko en klik', 1, s.kliki.length);
 
     // Pregled fokusa 5. 11. 2026: vstop tece iz casovnika in opazovalca DOM (brez tipke). Izbire, ki ze obstaja, ne vzame.
     s = stran(vloga);
     s.izberi(s.e.try);
-    preveri(opis + ': brez tipke izbire na strani okno ne vzame', false, s.window._safeer_vstopi_v_plast());
+    preveri(opis + ': brez tipke izbire na strani okno ne vzame', false, s.vstopi());
     preveri(opis + ': izbira ostane na »Try Claude«', 'try', ime(s, s.izbran()));
     // Brez izbire in brez tipke: samo pravo modalno okno, ne vsaka pritrjena plast z besedo cookie.
     s = stran(vloga);
     preveri(opis + (vloga ? ': brez izbire vstop v modalno okno' : ': brez tipke ni vstopa v pritrjeno plast'), !!vloga,
-        s.window._safeer_vstopi_v_plast());
+        s.vstopi());
 
     // Pojav okna: izbira gre vanj, na prvi gumb po legi (Customize), brez klika. Pritrjena plast samo kratko po tipki
     // (GOR nad »Try Claude« nima cilja: izbira pocisti, tipka zabelezena).
     s = stran(vloga);
     if (!vloga) { s.izberi(s.e.try); s.smer('UP'); }
-    preveri(opis + ': ob pojavu okna izbira skoci vanj', true, s.window._safeer_vstopi_v_plast());
+    preveri(opis + ': ob pojavu okna izbira skoci vanj', true, s.vstopi());
     preveri(opis + ': izbran je prvi gumb okna (Customize), ne Sprejmi/Zavrni', 'customize', ime(s, s.izbran()));
     preveri(opis + ': nic ni sprejeto ali zavrnjeno samo', [0, 0], [s.kliki.length, s.dotiki.length]);
     preveri(opis + ': v isto okno ne skoci znova (uporabnik lahko odide)', false,
-        (s.izberi(s.e.google), s.window._safeer_vstopi_v_plast()));
+        (s.izberi(s.e.google), s.vstopi()));
 
     // Stran da fokus vsebniku okna (tabindex=-1, ni cilj): obroc ne izgine, izbira gre na prvi gumb v oknu.
     s = stran(vloga);
@@ -131,6 +132,6 @@ for (const vloga of ['', 'dialog']) {
     glava.dodaj(s.el('button', { okvir: [10, 10, 200, 50], besedilo: 'Meni' }), s.el('button', { okvir: [300, 10, 300, 50], besedilo: 'Cookie settings' }));
     s.body.dodaj(glava, s.el('button', { okvir: [100, 300, 300, 60], besedilo: 'Vsebina' }));
     s.nalozi(VIR);
-    preveri('pritrjena glava z »Cookie settings«: brez samodejnega vstopa', false, s.window._safeer_vstopi_v_plast());
+    preveri('pritrjena glava z »Cookie settings«: brez samodejnega vstopa', false, s.vstopi());
 }
 console.log('tv_plast_izbire_test: OK (' + stevilo + ')');

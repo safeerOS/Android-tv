@@ -2442,7 +2442,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
      * (.safeer-active-card) - na zaslonu dva okvirja. Ob odhodu fokusa iz WebViewa ga skrijemo, ob vrnitvi ga vrnemo na
      * isti element, ce je se v pogledu. Drugi krog pregleda 5. 11. 2026: element hrani skript daljinca v zaprtju
      * (tv_spatial.js _safeer_skrij_obris / _safeer_vrni_obris) - prej window._safeerObrisZunaj in razred, ki ju lahko
-     * nastavi stran, in _safeer_highlight, ki elementa strani ne sprejme vec.
+     * nastavi stran, in _safeer_highlight, ki od neodvisnega pregleda 5. 11. 2026 ni vec izvoz. Imena imajo nakljucni del strani.
      */
     private fun poveziObrisStrani() {
         fun webViewOd(v: View?): android.webkit.WebView? {
@@ -2454,13 +2454,16 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             val od = webViewOd(stari)
             val v = webViewOd(novi)
             if (od === v) return@addOnGlobalFocusChangeListener
-            try { od?.evaluateJavascript(JS_SKRIJ_OBRIS, null) } catch (_: Throwable) { }
-            try { v?.evaluateJavascript(JS_VRNI_OBRIS, null) } catch (_: Throwable) { }
+            try { od?.evaluateJavascript(jsObrisa(od, "_safeer_skrij_obris"), null) } catch (_: Throwable) { }
+            try { v?.evaluateJavascript(jsObrisa(v, "_safeer_vrni_obris"), null) } catch (_: Throwable) { }
         }
     }
 
-    private val JS_SKRIJ_OBRIS = "(function(){try{if(typeof window._safeer_skrij_obris==='function')window._safeer_skrij_obris();}catch(_){}})()"
-    private val JS_VRNI_OBRIS = "(function(){try{if(typeof window._safeer_vrni_obris==='function')window._safeer_vrni_obris();}catch(_){}})()"
+    /** Klic izvoza skripta daljinca z nakljucnim delom imena strani (neodvisni pregled 5. 11. 2026, najdba 6). */
+    private fun jsObrisa(wv: android.webkit.WebView, ime: String): String {
+        val f = TvTipke.izvoz((wv as? ChromiumEngineView)?.nonceIzvozov, ime)
+        return "(function(){try{if(typeof $f==='function')$f();}catch(_){}})()"
+    }
 
     /** Urejanje naslovne vrstice tece (polje ali plosca predlogov ima fokus); vneseno besedilo takrat ostane. */
     private var urejanjePolja = false

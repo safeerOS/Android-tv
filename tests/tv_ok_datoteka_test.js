@@ -52,9 +52,10 @@ preveri('brez polja: navaden klik', '', okNaDatoteki(null, null));
 
 // Vezava: OK v _safeer_click_focused_card vrne 'datoteka' pred dotikom, aplikacija na to poslje Enter.
 const klik = VIR.slice(VIR.indexOf('var klikIzbrane = function'));
-const iDat = klik.indexOf('return dokazDatoteke(ZETON_DOTIKA, izziv);'), iDotik = klik.indexOf('nativeTapElement(');
+const iDat = klik.indexOf('return dokazDatoteke(ZETON_DOTIKA, izziv);'), iDotik = klik.indexOf('klikniElement(');
 preveri('OK na datoteki vrne pred dotikom in el.click()', true, iDat > 0 && iDat < iDotik);
-preveri('fokus pred odlocitvijo', true, /vhodD\.focus\(\{ preventScroll: true \}\)/.test(klik));
+// Neodvisni pregled 5. 11. 2026: fokus in aktivni element z izvirniki z zacetka dokumenta (fokusIz, aktivenIz).
+preveri('fokus pred odlocitvijo (izvirnik)', true, /fokusIz\(vhodD\);\s*[^\n]*\n\s*if \(okNaDatoteki\(vhodD, aktivenIz\(\)\) === 'datoteka'\)/.test(klik));
 preveri('aplikacija na "datoteka" poslje KEYCODE_ENTER', true,
     /TvTipke\.okNaDatoteki\(o, zeton, izziv\)\) nativnaTipka\(wv, event, KeyEvent\.KEYCODE_ENTER\)/.test(KT));
 preveri('Google: polje za datoteko dobi Enter, ne dotik', true, /if\(e\.matches\('input\[type="file"\]'\)\)return 'enter';/.test(KT));

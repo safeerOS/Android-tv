@@ -891,7 +891,11 @@ object UserScriptManager {
         val zeton = (webView as? ChromiumEngineView)?.zetonDotika ?: return predloga
         // webView je tu ze ChromiumEngineView (pametna pretvorba po vrstici zgoraj).
         val izvirniki = webView.izvirnikiRegistrirani
-        return SpletVarnostPravila.vstaviIzvirnike(SpletVarnostPravila.vstaviZeton(predloga, zeton), izvirniki)
+        // Neodvisni pregled 5. 11. 2026: nakljucni del imen izvirnikov (pogled) in izvozov (stran).
+        return SpletVarnostPravila.vstaviNonce(
+            SpletVarnostPravila.vstaviIzvirnike(SpletVarnostPravila.vstaviZeton(predloga, zeton), izvirniki),
+            webView.nonceIzvirnikov, webView.nonceIzvozov
+        )
     }
 
     private const val YOUTUBE_TV_LEANBACK_JS = """
@@ -1320,10 +1324,10 @@ object UserScriptManager {
     fun injectOnPageFinished(webView: WebView, isDarkMode: Boolean, pageUrl: String? = null) {
         val target = pageUrl ?: webView.url ?: ""
         if (isGoogleDomain(target)) return
-        // Pregled Groka 5. 11. 2026 (najdba 5): tocen znak namestitve za zeton te strani - zastavico 'safeer-x' lahko zaklene
-        // stran; pri neujemanju skript vbrizgamo, ta se namesti, ce izvozov se ni (tv_spatial.js izvozZaklenjen).
-        val znak = (webView as? ChromiumEngineView)?.zetonDotika?.let { TvTipke.znakNamestitve(it) }
-        val pogoj = if (znak != null) "window._safeer_tv_remote_installed === '$znak'" else "window._safeer_tv_remote_installed"
+        // Neodvisni pregled 5. 11. 2026 (najdba 6): zastavica ima nakljucni del imena te strani (nonceIzvozov) - stran je pred
+        // nasim skriptom ne more zasesti. Brez nasega pogleda: staro ime (skript se v tak pogled ne vbrizga z zetonom).
+        val nonce = (webView as? ChromiumEngineView)?.nonceIzvozov
+        val pogoj = if (nonce != null && SpletVarnostPravila.jeNonce(nonce)) "window._safeer_tv_remote_installed_$nonce === true" else "window._safeer_tv_remote_installed"
         val ping = """
             (function(){
                 try {

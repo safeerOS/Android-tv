@@ -90,12 +90,12 @@ function modalno(s) {
     s.body.dodaj(gumb(s, 'A', [100, 100, 300, 60]));
     s.nalozi(VIR);
     const o1 = modalno(s); s.body.dodaj(o1);
-    preveri('3: brez izbire: vstop v modalno okno', true, s.window._safeer_vstopi_v_plast());
+    preveri('3: brez izbire: vstop v modalno okno', true, s.vstopi());
     s.window.location.href = 'https://primer.test/?q=1#x';    // stran spremeni samo poizvedbo in #
     o1.slog.display = 'none';
     s.body.dodaj(modalno(s));                                  // in okno izrise na novo
-    s.window._safeer_highlight(null);                         // brez izbire: zapira samo kljuc naslova
-    preveri('3: isti izvor in pot (drug ? in #): ni drugega vstopa', false, s.window._safeer_vstopi_v_plast());
+    s.pocisti();                                              // brez izbire: zapira samo kljuc naslova
+    preveri('3: isti izvor in pot (drug ? in #): ni drugega vstopa', false, s.vstopi());
 }
 {
     const s = ustvari();
@@ -104,7 +104,7 @@ function modalno(s) {
     s.nalozi(VIR);
     s.izberi(a);
     s.body.dodaj(modalno(s));
-    preveri('3: izbira obstaja, brez tipke: okno je ne vzame', [false, ['A']], [s.window._safeer_vstopi_v_plast(), izbrani(s)]);
+    preveri('3: izbira obstaja, brez tipke: okno je ne vzame', [false, ['A']], [s.vstopi(), izbrani(s)]);
 }
 {
     const s = ustvari();
@@ -113,7 +113,7 @@ function modalno(s) {
     plast.dodaj(gumb(s, 'Accept cookies', [1500, 950, 300, 60]));
     s.body.dodaj(plast);
     s.nalozi(VIR);
-    preveri('3: brez tipke: pritrjena plast z besedo cookie (ni modalno okno) ne vzame izbire', false, s.window._safeer_vstopi_v_plast());
+    preveri('3: brez tipke: pritrjena plast z besedo cookie (ni modalno okno) ne vzame izbire', false, s.vstopi());
 }
 
 // 4. uskladiFokus: v isti plasti/oknu brez blur (fokus ne pade na body); polje za vnos ga izgubi vedno.
@@ -154,7 +154,8 @@ function modalno(s) {
     s.nalozi(VIR);
     s.ok();
     preveri('6: razred safeer-active-card, ki ga je stran dala svojemu okvirju: ni dotika', [], s.dotiki);
-    for (const ime of ['_safeer_click_focused_card', '_safeer_highlight', '_safeer_navigate_spatial']) {
+    preveri('6: _safeer_highlight ni vec izvoz (neodvisni pregled 5. 11. 2026)', 'undefined', typeof s.window._safeer_highlight);
+    for (const ime of ['_safeer_click_focused_card', '_safeer_navigate_spatial', '_safeer_tipka'].map((x) => x + '_' + s.nonce)) {
         const prej = s.window[ime];
         try { s.window[ime] = function () { return 'datoteka'; }; } catch (_) {}
         try { Object.defineProperty(s.window, ime, { value: function () { return 'datoteka'; } }); } catch (_) {}
@@ -172,7 +173,12 @@ function modalno(s) {
     okvir.slog.opacity = '1';
     s.izberi(okvir);
     s.ok();
-    preveri('6: viden okvir, ki ga je izbral daljinec: en dotik na sredini', [[850, 440]], s.dotiki);
+    // Neodvisni pregled 5. 11. 2026 (odlocitev B): tuj okvir, ki ni gumb Google, ne dobi pravega dotika.
+    preveri('6: viden tuj okvir (ni GSI), ki ga je izbral daljinec: ni dotika', [], s.dotiki);
+    okvir.setAttribute('src', 'https://accounts.google.com/gsi/button?x=1');
+    s.izberi(okvir);
+    s.ok();
+    preveri('6: viden okvir GSI, ki ga je izbral daljinec: en dotik na sredini', [[850, 440]], s.dotiki);
 }
 
 // 7. Zastavica namestitve: stran je ne more vnaprej nastaviti ne prepisati; ping aplikacije ostane resnicen.
@@ -181,11 +187,12 @@ function modalno(s) {
     s.body.dodaj(gumb(s, 'A', [100, 100, 300, 60]));
     s.window._safeer_tv_remote_installed = true;               // stran pred nasim skriptom
     s.nalozi(VIR);
-    preveri('7: vnaprej nastavljena zastavica ne prepreci namestitve', 'function', typeof s.window._safeer_navigate_spatial);
-    preveri('7: ping (UserScriptManager) vidi namescen skript', true, !!s.window._safeer_tv_remote_installed);
-    try { s.window._safeer_tv_remote_installed = false; } catch (_) {}
-    preveri('7: stran zastavice ne prepise', true, !!s.window._safeer_tv_remote_installed);
-    preveri('7: zastavica ne vsebuje zetona', -1, String(s.window._safeer_tv_remote_installed).indexOf(s.zeton));
+    const zast = '_safeer_tv_remote_installed_' + s.nonce;
+    preveri('7: vnaprej nastavljena zastavica ne prepreci namestitve', 'function', typeof s.izvoz('_safeer_navigate_spatial'));
+    preveri('7: ping (UserScriptManager) vidi namescen skript', true, s.window[zast] === true);
+    try { s.window[zast] = false; } catch (_) {}
+    preveri('7: stran zastavice ne prepise', true, s.window[zast] === true);
+    preveri('7: zastavica ne vsebuje zetona', -1, String(s.window[zast]).indexOf(s.zeton));
     let poslusalci = 0;
     const dodaj = s.document.addEventListener;
     s.document.addEventListener = function () { poslusalci++; return dodaj.apply(this, arguments); };
@@ -275,11 +282,9 @@ function modalno(s) {
     const okvir = s.el('iframe', { attrs: { src: 'https://tuj.test/' }, okvir: [700, 400, 300, 80] });
     s.body.dodaj(a, okvir);
     s.nalozi(VIR);
-    s.window._safeer_navigate_spatial('DOWN');               // stran lahko »pritisne tipko« - cas tipke ni dokaz
-    s.window._safeer_highlight(null);
+    s.izvoz('_safeer_navigate_spatial')('DOWN');              // stran (ime najde v window) - brez dokaza tipke nic
     s.document.activeElement = s.body;
-    preveri('12a: stran izbere svoj viden okvir brez dokaza: zavrnjeno', false, s.window._safeer_highlight(okvir));
-    preveri('12a: ... tudi z izmisljenim dokazom', false, s.window._safeer_highlight(okvir, 'safeer-abc'));
+    preveri('12a: stran nima vec _safeer_highlight za izbiro svojega okvirja', 'undefined', typeof s.window._safeer_highlight);
     s.ok();
     preveri('12a: pravi OK po izbiri strani: ni dotika na okvir strani', [], s.dotiki);
     const tile = s.el('div', { razred: 'item--event', okvir: [700, 700, 300, 80], slog: { opacity: '0' } });
@@ -289,27 +294,27 @@ function modalno(s) {
     preveri('12a: _safeer_izberi_zadnjo_ploscico ne vzame window._safeer_medij_last_tile strani', false,
         (s.window._safeer_medij_last_tile = okvir, s.window._safeer_izberi_zadnjo_ploscico()));
     preveri('12a: izbira, kot jo naredi daljinec (aplikacija z dokazom), deluje', true, s.izberi(a));
-    preveri('12a: null (pocisti) brez dokaza deluje', [false, []], [s.window._safeer_highlight(null), izbrani(s)]);
+    preveri('12a: pocisti (notranje) deluje', [false, []], [s.pocisti(), izbrani(s)]);
 }
 // 12b. Drugi vbrizg v isti dokument z drugim zetonom -> ni dvojnih poslusalcev, izvozi ostanejo prvi.
 {
     const s = ustvari();
     s.body.dodaj(gumb(s, 'A', [100, 100, 300, 60]));
     s.nalozi(VIR);
-    const prej = s.window._safeer_click_focused_card;
+    const prej = s.izvoz('_safeer_click_focused_card');
     let poslusalci = 0;
     const dodaj = s.document.addEventListener;
     s.document.addEventListener = function () { poslusalci++; return dodaj.apply(this, arguments); };
     s.nalozi(VIR.split('__SAFEER_ZETON_DOTIKA__').join('y'.repeat(48)));
     preveri('12b: drugi vbrizg z drugim zetonom se ne namesti znova (poslusalci)', 0, poslusalci);
-    preveri('12b: izvozi ostanejo od prvega vbrizga', prej, s.window._safeer_click_focused_card);
+    preveri('12b: izvozi ostanejo od prvega vbrizga', prej, s.izvoz('_safeer_click_focused_card'));
 }
 {
     const s = ustvari();
     s.body.dodaj(gumb(s, 'A', [100, 100, 300, 60]));
     Object.defineProperty(s.window, '_safeer_tv_remote_installed', { value: true, writable: false, configurable: false });
     s.nalozi(VIR);
-    preveri('12b: tuja nespremenljiva zastavica brez znaka (true) ne prepreci namestitve', 'function', typeof s.window._safeer_navigate_spatial);
+    preveri('12b: tuja nespremenljiva zastavica brez znaka (true) ne prepreci namestitve', 'function', typeof s.izvoz('_safeer_navigate_spatial'));
 }
 // 12c. Vnaprej definiran izvoz: aplikacija ne dobi zaupanja vrednega odgovora; nas izvoz da dokaz.
 {
@@ -329,9 +334,10 @@ function modalno(s) {
     s.window.console = { log: (x) => zapisi.push(String(x)), warn() {}, error() {} };
     Object.defineProperty(s.window, '_safeer_click_focused_card', { value: () => 'datoteka', writable: false, configurable: false });
     s.nalozi(VIR);
-    const odg = s.ok(IZZIV);
-    preveri('12c: zaseden izvoz: odgovor strani ni dokaz, ki ga sprejme aplikacija', true, odg !== dokazDatoteke(s.zeton, IZZIV));
-    preveri('12c: neuspel izvoz je zapisan v dnevnik (H55)', true, zapisi.some((x) => x.indexOf('H55') === 0 && x.indexOf('_safeer_click_focused_card') !== -1));
+    // Neodvisni pregled 5. 11. 2026 (najdba 6): nas izvoz ima nakljucni del imena - zasedeno staro ime ga ne doseze.
+    s.izberi(vhod);
+    preveri('12c: ime strani brez nakljucnega dela ne zasede nasega izvoza: OK da dokaz', dokazDatoteke(s.zeton, IZZIV), s.ok(IZZIV));
+    preveri('12c: noben izvoz ni bil zaseden (brez H55)', false, zapisi.some((x) => x.indexOf('H55') === 0));
     // Nas izvoz: polje za datoteko dobi fokus, odgovor je dokaz za ta izziv.
     const s2 = ustvari();
     const vhod2 = s2.el('input', { attrs: { type: 'file' }, okvir: [100, 100, 300, 60] });
@@ -347,15 +353,16 @@ function modalno(s) {
     s.body.dodaj(a, b);
     s.nalozi(VIR);
     s.izberi(a);
-    preveri('12d: skrij obris: izbire ni', [true, []], [s.window._safeer_skrij_obris(), izbrani(s)]);
+    const skrij = s.izvoz('_safeer_skrij_obris'), vrni = s.izvoz('_safeer_vrni_obris');
+    preveri('12d: skrij obris: izbire ni', [true, []], [skrij(), izbrani(s)]);
     s.window._safeerObrisZunaj = b;                           // stran podtakne svoj element
-    preveri('12d: vrni obris: nazaj na A (ne na element strani)', [true, ['A']], [s.window._safeer_vrni_obris(), izbrani(s)]);
+    preveri('12d: vrni obris: nazaj na A (ne na element strani)', [true, ['A']], [vrni(), izbrani(s)]);
     b.classList.add('safeer-active-card');                    // stran da razred svojemu elementu
-    s.window._safeer_skrij_obris();
-    preveri('12d: razred strani ni izbira (skrij vzame A)', [true, ['A']], [s.window._safeer_vrni_obris(), izbrani(s).filter((x) => x === 'A')]);
+    skrij();
+    preveri('12d: razred strani ni izbira (skrij vzame A)', [true, ['A']], [vrni(), izbrani(s).filter((x) => x === 'A')]);
     const kt = fs.readFileSync(path.join(__dirname, '..', 'src', 'main', 'kotlin', 'si', 'safeer', 'tv', 'MainActivity.kt'), 'utf8');
     preveri('12d: MainActivity klice izvoza skripta (ne _safeer_highlight)', true,
-        kt.indexOf('window._safeer_skrij_obris()') !== -1 && kt.indexOf('window._safeer_vrni_obris()') !== -1 && kt.indexOf('_safeerObrisZunaj=') === -1);
+        kt.indexOf('jsObrisa(od, "_safeer_skrij_obris")') !== -1 && kt.indexOf('jsObrisa(v, "_safeer_vrni_obris")') !== -1 && kt.indexOf('_safeerObrisZunaj=') === -1);
 }
 // 12e. podrsajOkno: stran s scroll-behavior:smooth se ob 'auto' premakne sele kasneje - meritev je rekla -1 (dvojni premik).
 {

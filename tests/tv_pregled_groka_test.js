@@ -45,7 +45,8 @@ const ZETON = '0123456789abcdef'.repeat(3);
 // 1. VISOKA: stran prepise getBoundingClientRect / elementFromPoint -> pravi dotik na njeni tocki.
 primer('1', () => {
     const s = ustvari({ zeton: ZETON });
-    const a = gumb(s, 'A', [100, 100, 300, 60]);
+    // Neodvisni pregled 5. 11. 2026 (odlocitev B): pravi dotik samo se na namene - tu gumb Google (GSI) v okvirju.
+    const a = s.el('iframe', { attrs: { src: 'https://accounts.google.com/gsi/button' }, okvir: [100, 100, 300, 60] });
     const tuj = s.el('iframe', { attrs: { src: 'https://tuj.test/dovoli' }, okvir: [1000, 600, 200, 100] });
     s.body.dodaj(a, tuj);
     s.nalozi(VIR);
@@ -54,7 +55,7 @@ primer('1', () => {
     a.getBoundingClientRect = () => ({ left: 1000, top: 600, width: 200, height: 100, right: 1200, bottom: 700 });
     s.document.elementFromPoint = () => a;
     s.ok();
-    preveri('1: prepisan getBoundingClientRect/elementFromPoint: dotik na pravi sredini gumba', [[250, 130]], s.dotiki);
+    preveri('1: prepisan getBoundingClientRect/elementFromPoint: dotik na pravi sredini okvirja GSI', [[250, 130]], s.dotiki);
     const s2 = ustvari({ zeton: ZETON, izvirniki: false });
     const b = gumb(s2, 'B', [100, 100, 300, 60]);
     s2.body.dodaj(b);
@@ -87,9 +88,11 @@ primer('2', () => {
     // Stran iz ujetih stevil sestavi staticni dokaz izbire in z njim izbere svoj okvir (najdba 9).
     const okvir = s.el('iframe', { attrs: { src: 'https://tuj.test/' }, okvir: [700, 500, 300, 80] });
     s.body.dodaj(okvir);
-    s.window._safeer_highlight(okvir, 'x');
-    const ponaredki = s.window.__ujeto.stevila.map((n) => 'safeer-' + ts.call(n, 36));
-    preveri('9: ujeta stevila ne dajo dokaza za izbiro okvirja strani', false, ponaredki.some((d) => s.window._safeer_highlight(okvir, d) === true));
+    const ponaredki = s.window.__ujeto.stevila;
+    const st = s.stevecTipk() + 1, iz = st.toString(16).padStart(32, '0');
+    preveri('9: ujeta stevila niso dokaz tipke', false, ponaredki.some((d) => s.izvoz('_safeer_tipka')(iz, st, d) === true));
+    preveri('9: _safeer_highlight ni vec izvoz (stran z njim ne izbere okvirja)', 'undefined', typeof s.window._safeer_highlight);
+    void okvir; void ts;
     preveri('9: brez dokaza ni gole vrednosti "datoteka"', false, /\|\| 'datoteka'/.test(VIR));
 });
 
@@ -113,7 +116,8 @@ primer('3', () => {
     s2.ok();
     preveri('3: brez izbire prvi OK samo izbere (brez dotika in klika)', [['B'], [], 0], [izbrani(s2), s2.dotiki, s2.kliki.length]);
     s2.ok();
-    preveri('3: drugi OK na zdaj potrjeni izbiri: en pravi dotik', [[250, 130]], s2.dotiki);
+    // Neodvisni pregled 5. 11. 2026 (najdba 4, odlocitev B, C): OK izbire ne potrdi, navaden gumb dobi sinteticni klik.
+    preveri('3: drugi OK na fokusu strani: en sinteticni klik, brez pravega dotika', [[], 1], [s2.dotiki, s2.kliki.length]);
 });
 
 // 4. SREDNJA: lazni .cf-turnstile s tujim okvirjem v sebi.
@@ -146,7 +150,7 @@ primer('5', () => {
     s.body.dodaj(gumb(s, 'A', [100, 100, 300, 60]));
     Object.defineProperty(s.window, '_safeer_tv_remote_installed', { value: 'safeer-x', writable: false, configurable: false });
     s.nalozi(VIR);
-    preveri('5: tuja zastavica s predpono safeer- ne prepreci namestitve', 'function', typeof s.window._safeer_navigate_spatial);
+    preveri('5: tuja zastavica s predpono safeer- ne prepreci namestitve', 'function', typeof s.window['_safeer_navigate_spatial_' + s.nonce]);
 });
 
 // 6. SREDNJA: predpomnilnik kandidatov na window.
@@ -172,12 +176,12 @@ primer('7', () => {
     s.body.dodaj(a, b);
     s.nalozi(VIR);
     s.izberi(a);
-    s.window._safeer_navigate_spatial('DOWN');                // stran, brez dokaza tipke
+    s.izvoz('_safeer_navigate_spatial')('DOWN');               // stran, brez dokaza tipke
     preveri('7: _safeer_navigate_spatial brez tipke ne premakne izbire', ['A'], izbrani(s));
-    s.window._safeer_click_focused_card();
+    s.izvoz('_safeer_click_focused_card')();
     preveri('7: _safeer_click_focused_card brez tipke ne klikne', [[], 0], [s.dotiki, s.kliki.length]);
     preveri('7: _safeer_medij_ensure_focus ni vec na window', 'undefined', typeof s.window._safeer_medij_ensure_focus);
-    preveri('7: rocno izmisljen dokaz tipke ne velja', false, s.window._safeer_tipka('0123456789abcdef0123456789abcdef', 12345));
+    preveri('7: rocno izmisljen dokaz tipke ne velja', false, s.izvoz('_safeer_tipka')('0123456789abcdef0123456789abcdef', 999, 12345));
     s.window._safeer_medij_click_live_tile(b, 0);             // stran poda svoj element
     s.kliki.length = 0;
     s.ok();
@@ -193,7 +197,7 @@ primer('8', () => {
     s.nalozi(VIR);
     s.izberi(kartica);
     s.ok();
-    preveri('8: en OK = en pravi dotik', 1, s.dotiki.length);
+    preveri('8: en OK = en klik (sinteticni, odlocitev B), brez pravega dotika', [0, 1], [s.dotiki.length, s.kliki.length]);
 });
 
 // 10. NIZKA: Date.now iz strani obide pravilo »brez tipke se izbira ne premakne«.
@@ -244,25 +248,40 @@ primer('12', () => {
 primer('ciste', () => {
     const f = new Function(blok('SAFEER_PRAVI_DOTIK') + blok('SAFEER_PREPIR_FOKUSA') + blok('SAFEER_TV_PONUDNIK') +
         '\nreturn { smePraviDotik, smemVrnitiFokus, jeGostiteljTvPonudnika };')();
-    const o = { izvirniki: true, potrjena: true, vCilju: true, zadetekJeCilj: false, zadetekJeOkvir: false, okvirDovoljen: false };
-    preveri('cisto: vse izpolnjeno', true, f.smePraviDotik(o));
-    preveri('cisto: brez izvirnikov ne', false, f.smePraviDotik(Object.assign({}, o, { izvirniki: false })));
-    preveri('cisto: nepotrjena izbira ne', false, f.smePraviDotik(Object.assign({}, o, { potrjena: false })));
-    preveri('cisto: zadetek izven cilja ne', false, f.smePraviDotik(Object.assign({}, o, { vCilju: false })));
-    preveri('cisto: tuj okvir v cilju ne', false, f.smePraviDotik(Object.assign({}, o, { zadetekJeOkvir: true })));
-    preveri('cisto: izbran okvir sam da', true, f.smePraviDotik(Object.assign({}, o, { zadetekJeOkvir: true, zadetekJeCilj: true })));
+    const g = { izvirniki: true, omrezni: true, potrjena: true, namen: 'google', oznakaCilja: 'IFRAME',
+        virCilja: 'https://accounts.google.com/gsi/button', zadetekJeCilj: true, zadetekVCilju: true, oznakaZadetka: 'IFRAME' };
+    const z = (o, d) => f.smePraviDotik(Object.assign({}, o, d));
+    preveri('cisto: GSI vse izpolnjeno', true, z(g, {}));
+    preveri('cisto: brez izvirnikov ne', false, z(g, { izvirniki: false }));
+    preveri('cisto: dokument ni z omrezja (about:, data:) ne', false, z(g, { omrezni: false }));
+    preveri('cisto: nepotrjena izbira ne', false, z(g, { potrjena: false }));
+    preveri('cisto: okvir drugega izvora ne', false, z(g, { virCilja: 'https://accounts.google.com.tuj.test/gsi/' }));
+    preveri('cisto: na tocki ni okvir GSI sam ne', false, z(g, { zadetekJeCilj: false }));
+    preveri('cisto: navaden element (brez namena) ne', false, z(g, { namen: '' }));
+    const c = { izvirniki: true, omrezni: true, potrjena: true, namen: 'izziv', zadetekVCilju: true, oznakaZadetka: 'DIV' };
+    preveri('cisto: izziv: gostitelj zaprtega shadow DOM da', true, z(c, {}));
+    preveri('cisto: izziv: okvir Cloudflare da, tuj okvir ne', [true, false],
+        [z(c, { oznakaZadetka: 'IFRAME', virZadetka: 'https://challenges.cloudflare.com/x' }), z(c, { oznakaZadetka: 'IFRAME', virZadetka: 'https://tuj.test/' })]);
+    preveri('cisto: izziv: zadetek zunaj cilja ne', false, z(c, { zadetekVCilju: false }));
+    const d0 = { izvirniki: true, omrezni: true, potrjena: true, namen: 'datoteka', vhodDatoteke: true, zadetekVCilju: true, zadetekJeCilj: false };
+    preveri('cisto: datoteka: oznaka sama da', true, z(d0, { zadetekJeCilj: true, oznakaZadetka: 'LABEL' }));
+    preveri('cisto: datoteka: potomec, ki ne more imeti shadow DOM (B, IMG) da', [true, true], [z(d0, { oznakaZadetka: 'B' }), z(d0, { oznakaZadetka: 'IMG' })]);
+    preveri('cisto: datoteka: mozni gostitelj shadow DOM (DIV, SPAN, element po meri) ali okvir ne', [false, false, false, false],
+        [z(d0, { oznakaZadetka: 'DIV' }), z(d0, { oznakaZadetka: 'SPAN' }), z(d0, { oznakaZadetka: 'X-GUMB' }), z(d0, { oznakaZadetka: 'IFRAME' })]);
+    preveri('cisto: datoteka: brez pravega polja za datoteko ne', false, z(d0, { zadetekJeCilj: true, vhodDatoteke: false }));
     const st = { zac: 0, n: 0 };
     preveri('cisto: vrnitev fokusa 1, 2 da, 3 ne, po 1 s spet da', [true, true, false, true],
         [f.smemVrnitiFokus(st, 100), f.smemVrnitiFokus(st, 200), f.smemVrnitiFokus(st, 300), f.smemVrnitiFokus(st, 1500)]);
     preveri('cisto: gostitelji TV ponudnikov', [true, true, true, false, false],
         ['www.xploretv.si', 'xploretv.si', '365.rtvslo.si', 'lazniexploretv.si', 'rtvslo.si.tuj.test'].map(f.jeGostiteljTvPonudnika));
     // Isti odtis kot Kotlin (TvTipkeTest: odtisStevilo, znakNamestitve) in neodvisna izvedba v tv_lazni_dom.js.
-    const d = new Function(blok('SAFEER_ZNAK_NAMESTITVE') + blok('SAFEER_DOKAZ') + '\nreturn { odtisStevilo, znakNamestitve, dokazDatoteke };')();
+    const d = new Function(blok('SAFEER_ZNAK_NAMESTITVE') + blok('SAFEER_DOKAZ') + '\nreturn { odtisStevilo, dokazDatoteke };')();
     const IZ = '0123456789abcdef0123456789abcdef';
     const s = ustvari();
     preveri('cisto: odtis tipke kot neodvisna izvedba', s.odtisStevilo('z'.repeat(48), 'tipka|' + IZ), d.odtisStevilo('z'.repeat(48), 'tipka|' + IZ));
     preveri('cisto: odtis tipke kot Kotlin (TvTipkeTest)', 2855865788, d.odtisStevilo('z'.repeat(48), 'tipka|' + IZ));
-    preveri('cisto: znak namestitve kot Kotlin (TvTipkeTest)', 'safeer-pjd3yd', d.znakNamestitve('z'.repeat(48)));
+    // Neodvisni pregled 5. 11. 2026 (najdba 5): dokaz tipke pokrije stevec (TvTipkeTest: isti primer).
+    preveri('cisto: odtis tipke s stevcem kot neodvisna izvedba', s.odtisStevilo('z'.repeat(48), 'tipka|7|' + IZ), d.odtisStevilo('z'.repeat(48), 'tipka|7|' + IZ));
     preveri('cisto: dokaz datoteke kot Kotlin (TvTipkeTest)', 'datoteka:safeer-cg41mu', d.dokazDatoteke('z'.repeat(48), IZ));
 });
 
@@ -278,7 +297,7 @@ primer('aplikacija', () => {
     const vm = require('vm');
     const beri = (f) => fs.readFileSync(path.join(KOREN, f), 'utf8');
     const cev = beri('src/main/kotlin/si/safeer/tv/ChromiumEngineView.kt');
-    const iIzv = cev.indexOf('addDocumentStartJavaScript(this, IZVIRNIKI_JS, setOf("*"))'), iGpc = cev.indexOf('UserScriptManager.GPC_AND_DNT_JS,');
+    const iIzv = cev.indexOf('addDocumentStartJavaScript(this, izvirnikiJs(nonceIzvirnikov), setOf("*"))'), iGpc = cev.indexOf('UserScriptManager.GPC_AND_DNT_JS,');
     preveri('aplikacija: IZVIRNIKI_JS registriran pred drugimi skripti zacetka dokumenta', true, iIzv > 0 && iIzv < iGpc);
     const m = cev.match(/IZVIRNIKI_JS = """([\s\S]*?)"""/);
     preveri('aplikacija: IZVIRNIKI_JS obstaja', true, !!m);
@@ -289,20 +308,34 @@ primer('aplikacija', () => {
         "function Document() {} Document.prototype.elementFromPoint = function () {}; function Node() {} Node.prototype.contains = function () {};" +
         "function HTMLIFrameElement() {} Object.defineProperty(HTMLIFrameElement.prototype, 'src', { get: function () { return ''; } });" +
         "function DOMRectReadOnly() {} ['left', 'top', 'width', 'height'].forEach(function (k) { Object.defineProperty(DOMRectReadOnly.prototype, k, { get: function () { return 1; } }); });" +
-        "function Performance() {} Performance.prototype.now = function () { return 7; }; var performance = new Performance();", ctx);
-    vm.runInContext(m[1], ctx);
+        "function Performance() {} Performance.prototype.now = function () { return 7; }; var performance = new Performance();" +
+        "function HTMLLabelElement() {} Object.defineProperty(HTMLLabelElement.prototype, 'control', { get: function () { return null; } });" +
+        "function HTMLInputElement() {} Object.defineProperty(HTMLInputElement.prototype, 'type', { get: function () { return 'file'; } });" +
+        "function HTMLElement() {} HTMLElement.prototype.focus = function () {};" +
+        "Object.defineProperty(Document.prototype, 'activeElement', { get: function () { return null; } });", ctx);
+    const N = '8796a5b4c3d2e1f0', IME = '__safeer_izvirniki_' + N;
+    preveri('IZVIRNIKI_JS: mesto nakljucnega dela imena', true, m[1].indexOf("'__safeer_izvirniki_'+'__SAFEER_NONCE_IZVIRNIKOV__'") !== -1 && /'use strict'/.test(m[1]));
+    vm.runInContext(m[1].split('__SAFEER_NONCE_IZVIRNIKOV__').join(N), ctx);
     vm.runInContext("Element.prototype.getBoundingClientRect = function () { return 'stran'; };" +
-        "try { window.__safeer_izvirniki = null; } catch (e) {} try { Object.defineProperty(window, '__safeer_izvirniki', { value: {} }); } catch (e) {}" +
-        "try { window.__safeer_izvirniki.gbcr = function () { return 'stran'; }; } catch (e) {}", ctx);
-    preveri('IZVIRNIKI_JS: stran po zacetku dokumenta izvirnikov ne zamenja', 'izvirnik', vm.runInContext('Reflect.apply(window.__safeer_izvirniki.gbcr, {}, [])', ctx));
-    preveri('IZVIRNIKI_JS: vsi izvirniki, ki jih rabi tv_spatial.js', 'function,function,function,function,function,function,function,function,function',
-        vm.runInContext("['apply','gbcr','efp','contains','tag','rl','rt','rw','rh'].map(function (k) { return typeof window.__safeer_izvirniki[k]; }).join()", ctx));
+        "try { window['" + IME + "'] = null; } catch (e) {} try { Object.defineProperty(window, '" + IME + "', { value: {} }); } catch (e) {}" +
+        "try { window['" + IME + "'].gbcr = function () { return 'stran'; }; } catch (e) {}", ctx);
+    preveri('IZVIRNIKI_JS: stran po zacetku dokumenta izvirnikov ne zamenja', 'izvirnik', vm.runInContext("Reflect.apply(window['" + IME + "'].gbcr, {}, [])", ctx));
+    preveri('IZVIRNIKI_JS: vsi izvirniki, ki jih rabi tv_spatial.js', 'function,function,function,function,function,function,function,function,function,function,function,function,function,function,function',
+        vm.runInContext("['apply','gbcr','efp','contains','tag','rl','rt','rw','rh','dp','gopd','ctl','typ','fokus','akt'].map(function (k) { return typeof window['" + IME + "'][k]; }).join()", ctx));
+    preveri('IZVIRNIKI_JS: brez starega imena brez nakljucnega dela', 'undefined', vm.runInContext('typeof window.__safeer_izvirniki', ctx));
     const sp = beri('src/main/kotlin/si/safeer/tv/tv/SiteProfile.kt');
-    preveri('SiteProfile: vsak klic smeri in OK z dokazom tipke', 4, (sp.match(/ukazTipke\(wv\) \+ "window\._safeer_(navigate_spatial|click_focused_card)\(/g) || []).length);
-    preveri('SiteProfile: noben klic brez dokaza', 0, (sp.match(/evaluateJavascript\("window\._safeer_(navigate_spatial|click_focused_card)\(/g) || []).length);
+    preveri('SiteProfile: vsak klic smeri in OK z dokazom tipke in imenom z nakljucnim delom', 4,
+        (sp.match(/ukazTipke\(wv\) \+ izvoz\(wv, "_safeer_(navigate_spatial|click_focused_card)"\)/g) || []).length);
+    preveri('SiteProfile: noben klic s starim imenom', 0, (sp.match(/window\._safeer_(navigate_spatial|click_focused_card)\(/g) || []).length);
+    preveri('SiteProfile: dokaz s stevcem pogleda', true, /TvTipke\.ukazTipke\(c\.zetonDotika, c\.nonceIzvozov, c\.naslednjaTipka\(\)\)/.test(sp));
     const usm = beri('src/main/kotlin/si/safeer/tv/UserScriptManager.kt');
-    preveri('UserScriptManager: ping primerja tocen znak, izvirniki vstavljeni', true,
-        /window\._safeer_tv_remote_installed === '\$znak'/.test(usm) && /vstaviIzvirnike\(SpletVarnostPravila\.vstaviZeton\(predloga, zeton\), izvirniki\)/.test(usm));
+    preveri('UserScriptManager: ping z imenom zastavice strani, izvirniki in nakljucni deli vstavljeni', true,
+        /window\._safeer_tv_remote_installed_\$nonce === true/.test(usm) && /vstaviIzvirnike\(SpletVarnostPravila\.vstaviZeton\(predloga, zeton\), izvirniki\)/.test(usm) &&
+        /webView\.nonceIzvirnikov, webView\.nonceIzvozov/.test(usm));
+    preveri('ChromiumEngineView: nov nakljucni del izvozov ob vsaki strani (z zetonom)', true,
+        /zetonDotika = SpletVarnostPravila\.novZeton\(\)\s*nonceIzvozov = SpletVarnostPravila\.novNonce\(\)/.test(cev));
+    preveri('ChromiumEngineView: pozen dotik ali nova stran zavrnjena (najdba 2)', true,
+        /if \(!SpletVarnostPravila\.dotikSeVelja\(odKlica, zetonKlica, zetonZdaj\)\)/.test(cev) && cev.indexOf('dotikSeVelja') < cev.indexOf('webView.dispatchTouchEvent(down)'));
 });
 
 if (padle) { console.log('tv_pregled_groka_test: PADLO ' + padle + ' (uspelo ' + stevilo + ')'); process.exit(1); }

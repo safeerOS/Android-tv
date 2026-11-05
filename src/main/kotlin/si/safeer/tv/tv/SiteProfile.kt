@@ -158,8 +158,14 @@ internal fun smerNaGooglu(wv: android.webkit.WebView, smer: String, event: KeyEv
  * skripta sploh ne vidi - na primer do "Zavrni vse" v Googlovem oknu o piskotkih.
  */
 /** Dokaz tipke daljinca za klic skripta strani (TvTipke.ukazTipke, pregled Groka 5. 11. 2026). */
-private fun ukazTipke(wv: android.webkit.WebView): String =
-    si.safeer.tv.TvTipke.ukazTipke((wv as? si.safeer.tv.ChromiumEngineView)?.zetonDotika)
+private fun ukazTipke(wv: android.webkit.WebView): String {
+    val c = wv as? si.safeer.tv.ChromiumEngineView ?: return ""
+    return si.safeer.tv.TvTipke.ukazTipke(c.zetonDotika, c.nonceIzvozov, c.naslednjaTipka())
+}
+
+/** Izvoz tv_spatial.js z nakljucnim delom imena te strani (neodvisni pregled 5. 11. 2026, najdba 6). */
+private fun izvoz(wv: android.webkit.WebView, ime: String): String =
+    si.safeer.tv.TvTipke.izvoz((wv as? si.safeer.tv.ChromiumEngineView)?.nonceIzvozov, ime)
 
 private fun posljiSmer(wv: android.webkit.WebView, smer: String, event: KeyEvent, host: MainActivity? = null) {
     // Safeer OS: LEVO na levem robu strani odpre stransko vrstico. Ali je levo se kaj, pove stran sama (-2 = rob).
@@ -174,7 +180,7 @@ private fun posljiSmer(wv: android.webkit.WebView, smer: String, event: KeyEvent
         return
     }
     try {
-        wv.evaluateJavascript(ukazTipke(wv) + "window._safeer_navigate_spatial('$smer'${if (vMeni != null) ", true" else ""});") { odgovor ->
+        wv.evaluateJavascript(ukazTipke(wv) + izvoz(wv, "_safeer_navigate_spatial") + "('$smer'${if (vMeni != null) ", true" else ""});") { odgovor ->
             val ocisceno = (odgovor ?: "").trim().trim('"')
             if (ocisceno == "-2" && vMeni != null) {
                 vMeni()
@@ -424,7 +430,7 @@ object GenericWebSiteProfile : SiteProfile {
                 if (jeGoogleIskanje(wv)) wv.evaluateJavascript("document.activeElement&&document.activeElement.blur()") { smerNaGooglu(wv, "DOWN", event) {} }
                 // Druge Googlove strani (prijava): _safeer_navigate_spatial tam ne obstaja, DOL ni naredil nicesar - Tab strani.
                 else if (si.safeer.tv.UserScriptManager.isGoogleDomain(wv.url)) nativnaTipka(wv, event)
-                else wv.evaluateJavascript(ukazTipke(wv) + "window._safeer_navigate_spatial('DOWN');", null)
+                else wv.evaluateJavascript(ukazTipke(wv) + izvoz(wv, "_safeer_navigate_spatial") + "('DOWN');", null)
                 return true
             }
             return false
@@ -451,7 +457,7 @@ object GenericWebSiteProfile : SiteProfile {
                     }
                     return true
                 }
-                wv.evaluateJavascript(ukazTipke(wv) + "window._safeer_navigate_spatial('UP');") { result ->
+                wv.evaluateJavascript(ukazTipke(wv) + izvoz(wv, "_safeer_navigate_spatial") + "('UP');") { result ->
                     // Nacin aplikacije: prvi GOR v se praznem dokumentu ne zapusti aplikacije (TvTipke.gorVNaslovnoVrstico).
                     if (si.safeer.tv.TvTipke.gorVNaslovnoVrstico(result, host.nacinAplikacije != null, wv.progress)) vNaslovnoVrstico(host)
                 }
@@ -486,7 +492,7 @@ object GenericWebSiteProfile : SiteProfile {
                 // (prava tipka Enter na njen element). Enter samo z odtisom zetona strani in nakljucnega izziva tega OK.
                 val izziv = si.safeer.tv.TvTipke.novIzziv()
                 val zeton = wv.zetonDotika
-                wv.evaluateJavascript(ukazTipke(wv) + "window._safeer_click_focused_card('$izziv');") { o ->
+                wv.evaluateJavascript(ukazTipke(wv) + izvoz(wv, "_safeer_click_focused_card") + "('$izziv');") { o ->
                     if (si.safeer.tv.TvTipke.okNaDatoteki(o, zeton, izziv)) nativnaTipka(wv, event, KeyEvent.KEYCODE_ENTER)
                 }
                 return true
