@@ -59,7 +59,12 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         // Dolg pritisk (OK na daljincu, prst na tablici): preimenuj napravo v vrstici.
         seznam.setOnItemLongClickListener { _, _, i, _ ->
             val v = vrstice.getOrNull(i)
-            if (v != null && v.id.isNotBlank()) { preimenuj(v.id, v.ime); true } else false
+            // Pregled zaslonov 5. 11. 2026: vrstica »<id>#zaslon« je zaslon naprave - preimenuje se naprava (z njenim
+            // imenom), ne neobstojeca naprava »<id>#zaslon« z imenom »Zaslon«.
+            val naprava = v?.id?.let { ZasloniOsPravila.napravaVrstice(it) }.orEmpty()
+            if (v != null && naprava.isNotBlank()) {
+                preimenuj(naprava, vrstice.firstOrNull { it.id == naprava }?.ime ?: v.opis); true
+            } else false
         }
     }
 

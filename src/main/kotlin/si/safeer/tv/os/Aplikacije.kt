@@ -58,11 +58,27 @@ object Aplikacije {
         try {
             val stari = AplikacijePredpomnilnik.razcleni(try { datoteka(c).readText() } catch (_: Throwable) { null })
             if (stari != null && AplikacijePredpomnilnik.enako(stari, novi)) return
-            val cilj = datoteka(c)
-            val zacasna = File(cilj.path + ".tmp")
-            zacasna.writeText(AplikacijePredpomnilnik.kodiraj(novi))
-            if (!zacasna.renameTo(cilj)) { cilj.delete(); zacasna.renameTo(cilj) }
+            zapisiDatoteko(c, novi)
         } catch (e: Throwable) { android.util.Log.w("SafeerAplikacije", "Seznama ni mogoce shraniti: ${e.message}") }
+    }
+
+    /** Zapis seznama vedno prek zacasne datoteke in preimenovanja (ne pol zapisan seznam ob prekinitvi). */
+    private fun zapisiDatoteko(c: Context, zapisi: List<AplikacijePredpomnilnik.Zapis>) {
+        val cilj = datoteka(c)
+        val zacasna = File(cilj.path + ".tmp")
+        zacasna.writeText(AplikacijePredpomnilnik.kodiraj(zapisi))
+        if (!zacasna.renameTo(cilj)) { cilj.delete(); zacasna.renameTo(cilj) }
+    }
+
+    /**
+     * Pregled zaslonov 5. 11. 2026: odstranjena aplikacija iz shranjenega seznama - pod isto kljucavnico kot [shrani]
+     * (prej je sprejemnik pisal datoteko neposredno in hkratno shranjevanje svezega seznama jo je lahko prepisalo).
+     */
+    @Synchronized private fun odstraniIzShranjenega(c: Context, paket: String) {
+        try {
+            val stari = AplikacijePredpomnilnik.razcleni(try { datoteka(c).readText() } catch (_: Throwable) { null }) ?: return
+            zapisiDatoteko(c, AplikacijePredpomnilnik.brez(stari, paket))
+        } catch (e: Throwable) { android.util.Log.w("SafeerAplikacije", "Seznama ni mogoce posodobiti: ${e.message}") }
     }
 
     @Volatile private var osvezujem = false
@@ -116,12 +132,9 @@ object Aplikacije {
                 val paket = i.data?.schemeSpecificPart
                 if (paket == null) oblikovane.pocisti() else oblikovane.odstrani(paket)
                 // Naloga 99 (pregled 231, N1): datoteka seznama se bere in pise na niti ikon, ne v onReceive na glavni niti.
-                if (i.action == Intent.ACTION_PACKAGE_REMOVED && paket != null && !i.getBooleanExtra(Intent.EXTRA_REPLACING, false)) try { niti.execute {
-                    val stari = AplikacijePredpomnilnik.razcleni(try { datoteka(app).readText() } catch (_: Throwable) { null })
-                    if (stari != null) try {
-                        datoteka(app).writeText(AplikacijePredpomnilnik.kodiraj(AplikacijePredpomnilnik.brez(stari, paket)))
-                    } catch (_: Throwable) { }
-                } } catch (_: java.util.concurrent.RejectedExecutionException) { }
+                if (i.action == Intent.ACTION_PACKAGE_REMOVED && paket != null && !i.getBooleanExtra(Intent.EXTRA_REPLACING, false)) try {
+                    niti.execute { odstraniIzShranjenega(app, paket) }
+                } catch (_: java.util.concurrent.RejectedExecutionException) { }
                 zadnjeOsvezevanje = 0L      // naslednje odprtje takoj prebere svez seznam
                 // Zunanji pregled 3. 11. 2026: odprt domaci zaslon (Pokrajina) novo aplikacijo pokaze takoj, ne sele po odhodu.
                 for (f in obSpremembiPaketov) try { f() } catch (_: Throwable) { }

@@ -81,10 +81,24 @@ class AplikacijeTvActivity : OsActivity() {
         }
     }
 
+    /**
+     * Pregled zaslonov 5. 11. 2026: odstranjena (ali na novo namescena) aplikacija je ostala v mrezi, dokler zaslon ni bil
+     * znova odprt. Kot domaci zaslon (PokrajinaActivity): prijava v onStart, odjava v onStop.
+     */
+    private val obSpremembiPaketov: () -> Unit = {
+        android.os.Handler(android.os.Looper.getMainLooper()).post { if (!isFinishing && !isDestroyed) narisi() }
+    }
+
     override fun onStart() {
         super.onStart()
         Ozadje.uporabi(this, findViewById(R.id.koren))
+        Aplikacije.obSpremembiPaketov.add(obSpremembiPaketov)
         narisi()
+    }
+
+    override fun onStop() {
+        Aplikacije.obSpremembiPaketov.remove(obSpremembiPaketov)
+        super.onStop()
     }
 
     private fun odpriTipkovnico() {

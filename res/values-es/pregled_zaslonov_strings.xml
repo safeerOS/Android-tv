@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pregled zaslonov Aplikacije, Datoteke, Naprave, Sporocila, Zapiski (5. 11. 2026). -->
+<resources>
+    <string name="apk_napacen_paket">El archivo descargado no es la aplicación esperada (se esperaba %1$s, se recibió %2$s), por lo que no se instaló.</string>
+    <string name="os_zapiski_zavrzi_vprasanje">¿Descartar los cambios?</string>
+    <string name="os_zapiski_zavrzi">Descartar</string>
+    <string name="os_zapiski_nadaljuj_urejanje">Seguir editando</string>
+    <string name="os_krajevno_prikazanih">Archivos: se muestran %1$d de %2$d (los más recientes)</string>
+</resources>

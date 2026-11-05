@@ -69,21 +69,26 @@ object TrgovineAplikacij {
             }
             p.ime + stanje + "\n" + a.getString(p.opis)
         }.toTypedArray()
-        AlertDialog.Builder(a).setTitle(R.string.trg_naslov)
+        pokazi(graditelj(a).setTitle(R.string.trg_naslov)
             .setItems(vrstice) { _, i -> izberi(a, vidni[i]) }
-            .setNegativeButton(android.R.string.cancel, null).show()
+            .setNegativeButton(android.R.string.cancel, null))
     }
+
+    // Pregled zaslonov 5. 11. 2026: okna v slogu Safeer OS (Os_Okno) in s tipkami ploska (Kontroler), kot drugi zasloni.
+    private fun graditelj(a: Activity) = AlertDialog.Builder(a, R.style.Os_Okno)
+
+    private fun pokazi(b: AlertDialog.Builder): AlertDialog = Kontroler.pokazi(b.create()).also { it.show() }
 
     private fun izberi(a: Activity, p: Ponudnik) {
         if (izklopljen(a, p.paket)) {
             // Vklopi ga uporabnik sam v sistemskih podatkih aplikacije (gumb »Omogoci«); Safeer ga ne vklaplja.
-            AlertDialog.Builder(a).setTitle(p.ime).setMessage(a.getString(R.string.trg_izklopljen_opis, p.ime))
+            pokazi(graditelj(a).setTitle(p.ime).setMessage(a.getString(R.string.trg_izklopljen_opis, p.ime))
                 .setPositiveButton(R.string.trg_odpri_nastavitve) { _, _ ->
                     try {
                         a.startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                             android.net.Uri.parse("package:" + p.paket)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                     } catch (_: Throwable) { }
-                }.setNegativeButton(android.R.string.cancel, null).show()
+                }.setNegativeButton(android.R.string.cancel, null))
             return
         }
         if (namescen(a, p.paket)) {
@@ -93,8 +98,8 @@ object TrgovineAplikacij {
             return
         }
         if (p.vir is Vir.SamoOdpri) {
-            AlertDialog.Builder(a).setTitle(p.ime).setMessage(a.getString(R.string.trg_ni_uradnega, p.ime))
-                .setPositiveButton(android.R.string.ok, null).show()
+            pokazi(graditelj(a).setTitle(p.ime).setMessage(a.getString(R.string.trg_ni_uradnega, p.ime))
+                .setPositiveButton(android.R.string.ok, null))
             return
         }
         Toast.makeText(a, a.getString(R.string.trg_iscem, p.ime), Toast.LENGTH_SHORT).show()
@@ -104,7 +109,8 @@ object TrgovineAplikacij {
             glavna.post {
                 if (a.isFinishing) return@post
                 if (url == null) Toast.makeText(a, a.getString(R.string.trg_ni_vira, p.ime), Toast.LENGTH_LONG).show()
-                else NamestiApk.izSpleta(a, url, null, p.ime + ".apk")
+                // Pregled zaslonov 5. 11. 2026: namestimo samo APK s paketom tega ponudnika (NamestiApk preveri po prenosu).
+                else NamestiApk.izSpleta(a, url, null, p.ime + ".apk", p.paket)
             }
         }, "safeer-trgovine").start()
     }
@@ -125,8 +131,10 @@ object TrgovineAplikacij {
             val koda = JSONObject(json("https://f-droid.org/api/v1/packages/" + v.paket)).getLong("suggestedVersionCode")
             "https://f-droid.org/repo/" + v.paket + "_" + koda + ".apk"
         }
+        // Pregled zaslonov 5. 11. 2026: naslov APK iz odgovora vmesnika samo na domenah Aptoide (https).
         is Vir.Aptoide -> JSONObject(json("https://ws75.aptoide.com/api/7/app/getMeta/package_name=" + v.paket))
-            .getJSONObject("data").getJSONObject("file").getString("path").takeIf { it.startsWith("https://") }
+            .getJSONObject("data").getJSONObject("file").getString("path")
+            .takeIf { NamestiApkPravila.naDomeni(it, NamestiApkPravila.DOMENE_APTOIDE) }
         is Vir.GitHub -> {
             val sredstva = JSONObject(json("https://api.github.com/repos/" + v.repo + "/releases/latest")).getJSONArray("assets")
             val apk = (0 until sredstva.length()).map { sredstva.getJSONObject(it) }

@@ -57,7 +57,9 @@ object KrajevneDatoteke {
 
     private fun zbirka(context: Context, oznaka: String, ime: String): DatotekeActivity.Vnos {
         val n = stevilo(context, oznaka)
-        val pod = context.getString(si.safeer.tv.R.string.os_krajevno_stevilo, n)
+        // Pregled zaslonov 5. 11. 2026: v zbirki pokazemo najvec NAJVEC najnovejsih - uporabnik mora vedeti, da jih je vec.
+        val pod = ZasloniOsPravila.prikazanih(n, NAJVEC)?.let { context.getString(si.safeer.tv.R.string.os_krajevno_prikazanih, it, n) }
+            ?: context.getString(si.safeer.tv.R.string.os_krajevno_stevilo, n)
         return DatotekeActivity.Vnos(oznaka, ime, "folder", -1, "", pod)
     }
 

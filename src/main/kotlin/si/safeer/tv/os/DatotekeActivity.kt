@@ -5,7 +5,6 @@ import si.safeer.tv.R
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -1084,7 +1083,10 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (zahteva == ZAHTEVA_UREJANJE) { poPotrditviSistema(izid == RESULT_OK); return }
         if (zahteva != ZAHTEVA_ISO || izid != RESULT_OK) return
         val uri = podatki?.data ?: return
-        try { contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (_: Throwable) { }
+        // Pregled zaslonov 5. 11. 2026: brez trajnega dovoljenja za sliko ISO. DVD gre v predvajanje takoj in ne v
+        // nedavno predvajane (MedijskiViri.shranljiva: safeer-dvd:content:// ni https) ne v Nadaljuj, zato se iz zgodovine
+        // ne odpre znova; dovoljenje izbirnika velja do ponovnega zagona naprave. Prej se je vsak izbran ISO dodal med
+        // trajna dovoljenja (omejeno stevilo na aplikacijo) in tam ostal.
         val ime = try {
             contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
                 if (it.moveToFirst()) it.getString(0) else null
@@ -1468,10 +1470,11 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             isFocusable = true; isClickable = true
             addView(ImageView(this@DatotekeActivity).apply {
                 id = android.R.id.icon; scaleType = ImageView.ScaleType.CENTER_CROP
-                setBackgroundColor(Color.rgb(16, 24, 33)); isFocusable = false
+                // Pregled zaslonov 5. 11. 2026: barve iz teme (prej trdo #101821 = os_kartica in bela).
+                setBackgroundColor(osBarva(R.color.os_kartica)); isFocusable = false
             }, FrameLayout.LayoutParams(-1, -1))
             addView(TextView(this@DatotekeActivity).apply {
-                id = android.R.id.text1; setTextColor(Color.WHITE); setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+                id = android.R.id.text1; setTextColor(osBarva(R.color.os_besedilo)); setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
                 setBackgroundResource(R.drawable.os_galerija_znacka); gravity = Gravity.CENTER
                 isFocusable = false
             }, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.START).apply {

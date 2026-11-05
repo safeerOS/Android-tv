@@ -167,10 +167,12 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         // odvzame stanje: navaden GradientDrawable stanja ne pozna, zato je okvir ostal na ploscici, ko je bil fokus ze
         // na cipu ali v meniju (dve oznaki hkrati), po razsiritvi menija pa celo med dvema ploscicama na stari legi
         // (lastnik, 18. 10. 2026). Zdaj je okvir viden samo s fokusom (ali ob pritisku na dotik), sicer je prozoren.
+        // Pregled zaslonov 5. 11. 2026: barva okvirja iz teme (os_mint), ne trdo kodirana; polnilo je ista barva pri 13 %.
+        val mint = osBarva(R.color.os_mint)
         fun okvir() = android.graphics.drawable.GradientDrawable().apply {
             cornerRadius = 14 * d
-            setColor(android.graphics.Color.parseColor("#222DD4BF"))
-            setStroke((3 * d).toInt(), android.graphics.Color.parseColor("#2DD4BF"))
+            setColor((mint and 0x00FFFFFF) or 0x22000000)
+            setStroke((3 * d).toInt(), mint)
         }
         mreza.selector = android.graphics.drawable.StateListDrawable().apply {
             addState(intArrayOf(android.R.attr.state_focused), okvir())
@@ -253,9 +255,18 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         naslov.maxLines = 2
     }
 
+    /**
+     * Pregled zaslonov 5. 11. 2026: odstranjena (ali na novo namescena) aplikacija televizorja je ostala v mrezi, dokler
+     * zaslon ni bil znova odprt. Kot domaci zaslon (PokrajinaActivity): prijava v onStart, odjava v onStop.
+     */
+    private val obSpremembiPaketov: () -> Unit = {
+        android.os.Handler(android.os.Looper.getMainLooper()).post { if (!isFinishing && !isDestroyed) naloziKrajevne() }
+    }
+
     override fun onStart() {
         super.onStart()
         Ozadje.uporabi(this, findViewById(R.id.koren))
+        Aplikacije.obSpremembiPaketov.add(obSpremembiPaketov)
         link.dodaj(this)
         if (zVirom(AppVir.RACUNALNIK)) izShrambe()
         naloziKrajevne()
@@ -268,6 +279,7 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     override fun onStop() {
+        Aplikacije.obSpremembiPaketov.remove(obSpremembiPaketov)
         link.odstrani(this)
         // Na potrditev dostopa ne cakamo v ozadju; ob vrnitvi (onStart -> nalozi) se seznam zahteva znova.
         napravaDostopa?.let { nalozene.remove(it) }
@@ -679,7 +691,11 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (izbrana == null || izbrana in prisotne) izbraneNiOd = 0L
         else if (pocakajIzbrano()) prisotne = prisotne + izbrana
         else { izbranaNaprava = null; izbraneNiOd = 0L }
-        if (prisotne.size < 2 && izbranaNaprava == null) { drsnik.visibility = View.GONE; vrsta.removeAllViews(); return }
+        if (prisotne.size < 2 && izbranaNaprava == null) {
+            // Pregled zaslonov 5. 11. 2026: fokus na cipu, ki izgine, prestavi na mrezo (ne pade na nakljucen pogled).
+            if (vrsta.findFocus() != null) mreza.requestFocus()
+            drsnik.visibility = View.GONE; vrsta.removeAllViews(); return
+        }
         znacka.visibility = View.GONE
         drsnik.visibility = View.VISIBLE
         for (id in listOf<String?>(null) + prisotne) {

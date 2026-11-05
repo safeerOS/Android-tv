@@ -53,6 +53,15 @@ class SporocilaActivity : OsActivity() {
     private lateinit var posljiGumb: View
 
     private val delavec = Executors.newSingleThreadExecutor()
+    /**
+     * Pregled zaslonov 5. 11. 2026: seznam pogovorov se bere na tej niti, ne na glavni ob vsakem znaku iskanja. Locena od
+     * [delavec], ker ta sinhronizira kanale prek omrezja in bi iskanje cakalo nanj.
+     */
+    private val bralec = Executors.newSingleThreadExecutor()
+    /** Vsak izris seznama ima svoj rod: odgovor starejsega branja (prejsnji znak iskanja) se zavrze. */
+    private var rodSeznama = 0
+    private var prviIzris = true
+    private val iskanjeZamik = Runnable { if (!unicena) narisiSeznam() }
     private val glavna = Handler(Looper.getMainLooper())
     private var siroko = false
     private var izbran: SporocilaShramba.Pogovor? = null
@@ -80,8 +89,7 @@ class SporocilaActivity : OsActivity() {
             checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
             try { requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 71) } catch (_: Throwable) { }
         }
-        // Z daljincem zacnemo v vsebini: prvi pogovor ali, ce jih se ni, Dodaj kanal.
-        koren.post { (if (seznam.childCount > 0) seznam.getChildAt(0) else dodajGumb).requestFocus() }
+        // Z daljincem zacnemo v vsebini: prvi pogovor ali, ce jih se ni, Dodaj kanal - po prvem izrisu seznama (izrisiSeznam).
     }
 
     override fun onStart() {
@@ -166,7 +174,9 @@ class SporocilaActivity : OsActivity() {
 
     override fun onDestroy() {
         unicena = true
+        glavna.removeCallbacks(iskanjeZamik)
         delavec.shutdownNow()
+        bralec.shutdownNow()
         super.onDestroy()
     }
 
@@ -226,7 +236,10 @@ class SporocilaActivity : OsActivity() {
             addTextChangedListener(object : android.text.TextWatcher {
                 override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
                 override fun onTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {}
-                override fun afterTextChanged(p0: android.text.Editable?) { narisiSeznam() }
+                override fun afterTextChanged(p0: android.text.Editable?) {
+                    // Pregled zaslonov 5. 11. 2026: iskanje sele po premoru v tipkanju, ne ob vsakem znaku.
+                    glavna.removeCallbacks(iskanjeZamik); glavna.postDelayed(iskanjeZamik, ZasloniOsPravila.ZAMIK_ISKANJA_MS)
+                }
             })
         }
         tipkovnicaSeleNaOk(iskanje)
@@ -439,33 +452,76 @@ class SporocilaActivity : OsActivity() {
         }
     }
 
+    /** Prebrano za seznam pogovorov (nit [bralec]): kanali, ustrezni pogovori, njihove oznake in imena oseb. */
+    private class PodatkiSeznama(val kanali: List<SporocilaShramba.Kanal>, val pogovori: List<SporocilaShramba.Pogovor>,
+                                 val oznake: Map<String, List<String>>, val imena: Map<String, String>, val niz: String, val filter: String)
+
+    private fun kljucPogovora(p: SporocilaShramba.Pogovor) = p.kanalId + "|" + p.id
+
+    /** Seznam pogovorov: branje baze v ozadju, izris na glavni niti; ob vec zaporednih klicih velja zadnji. */
     private fun narisiSeznam() {
+        glavna.removeCallbacks(iskanjeZamik)
+        val niz = iskanje.text?.toString().orEmpty().trim().lowercase()
+        val f = filter
+        val rod = ++rodSeznama
+        try {
+            bralec.execute {
+                val podatki = try { preberiSeznam(niz, f) } catch (_: Throwable) { null }
+                glavna.post {
+                    if (unicena || rod != rodSeznama) return@post
+                    if (podatki != null) izrisiSeznam(podatki)
+                    // Prvi izris: z daljincem v vsebino (prvi pogovor ali Dodaj kanal), razen ce je namera ze odprla pogovor.
+                    if (prviIzris) {
+                        prviIzris = false
+                        if (izbran == null) (if (seznam.childCount > 0) seznam.getChildAt(0) else dodajGumb).requestFocus()
+                    }
+                }
+            }
+        } catch (_: java.util.concurrent.RejectedExecutionException) { }
+    }
+
+    private fun preberiSeznam(niz: String, izbranFilter: String): PodatkiSeznama {
         val kanali = shramba.kanali()
         val vrste = kanali.associate { it.id to it.vrsta }
-        val niz = iskanje.text?.toString().orEmpty().trim().lowercase()
+        val vseOznake = HashMap<String, List<String>>()
+        val imena = HashMap<String, String>()
         val pogovori = shramba.pogovori().filter { p ->
             val oznake = shramba.oznake(p.kanalId, p.id)
+            val ime = imeOsebe(p, vrste)
+            vseOznake[kljucPogovora(p)] = oznake; imena[kljucPogovora(p)] = ime
             val ustrezaFilter = when {
-                filter == "vse" -> true
-                filter == "neprebrano" -> p.neprebrano > 0
-                filter == "email" -> vrste[p.kanalId] == "email"
-                filter == "klepet" -> jeKlepet(vrste[p.kanalId].orEmpty())
-                filter.startsWith("oznaka:") -> oznake.contains(filter.removePrefix("oznaka:"))
+                izbranFilter == "vse" -> true
+                izbranFilter == "neprebrano" -> p.neprebrano > 0
+                izbranFilter == "email" -> vrste[p.kanalId] == "email"
+                izbranFilter == "klepet" -> jeKlepet(vrste[p.kanalId].orEmpty())
+                izbranFilter.startsWith("oznaka:") -> oznake.contains(izbranFilter.removePrefix("oznaka:"))
                 else -> true
             }
-            ustrezaFilter && (niz.isEmpty() || (imeOsebe(p, vrste) + " " + p.ime + " " + p.oseba + " " + p.zadeva + " " + p.zadnje + " " + oznake.joinToString(" ")).lowercase().contains(niz))
+            ustrezaFilter && (niz.isEmpty() || (ime + " " + p.ime + " " + p.oseba + " " + p.zadeva + " " + p.zadnje + " " + oznake.joinToString(" ")).lowercase().contains(niz))
         }
+        return PodatkiSeznama(kanali, pogovori, vseOznake, imena, niz, izbranFilter)
+    }
+
+    private fun izrisiSeznam(d: PodatkiSeznama) {
+        val kanali = d.kanali
+        val vrste = kanali.associate { it.id to it.vrsta }
+        val pogovori = d.pogovori
+        // Pregled zaslonov 5. 11. 2026: fokus v seznamu ostane na istem pogovoru (ali sosednjem, ce ga ni vec).
+        val fokus = currentFocus
+        val fokusOznaka = if (fokus != null && jePotomec(seznam, fokus)) fokus.tag as? String else null
+        val prej = (0 until seznam.childCount).mapNotNull { seznam.getChildAt(it).tag as? String }
         seznam.removeAllViews()
-        prazno.text = getString(if (kanali.isEmpty()) R.string.os_spor_prazno else if (niz.isNotEmpty() || filter != "vse") R.string.os_spor_ni_zadetkov else R.string.os_spor_ni_pogovorov)
+        prazno.text = getString(if (kanali.isEmpty()) R.string.os_spor_prazno else if (d.niz.isNotEmpty() || d.filter != "vse") R.string.os_spor_ni_zadetkov else R.string.os_spor_ni_pogovorov)
         prazno.visibility = if (pogovori.isEmpty()) View.VISIBLE else View.GONE
         val imena = kanali.associate { it.id to it.ime }
         var prejsnji: View? = null
         for (p in pogovori) {
             val oznacen = izbran?.id == p.id && izbran?.kanalId == p.kanalId
-            val oznake = shramba.oznake(p.kanalId, p.id)
+            val oznake = d.oznake[kljucPogovora(p)].orEmpty()
+            val prikaznoIme = d.imena[kljucPogovora(p)].orEmpty()
             val kartica = LinearLayout(this).apply {
                 id = View.generateViewId(); orientation = LinearLayout.VERTICAL
-                tag = p.kanalId + "|" + p.id
+                tag = kljucPogovora(p)
                 isFocusable = true; isClickable = true; setBackgroundResource(R.drawable.os_ploscica_app)
                 isSelected = oznacen
                 setPadding(dp(16), dp(12), dp(16), dp(12)); setOnClickListener { pokaziPogovor(p) }
@@ -473,7 +529,7 @@ class SporocilaActivity : OsActivity() {
                 setOnLongClickListener { potrdiIzbrisPogovora(p, vrste); true }
                 val vrh = LinearLayout(this@SporocilaActivity).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
                 vrh.addView(TextView(this@SporocilaActivity).apply {
-                    text = imeOsebe(p, vrste)
+                    text = prikaznoIme
                     setTextColor(osBarva(R.color.os_besedilo)); textSize = 16f; maxLines = 1
                     isSingleLine = true; ellipsize = android.text.TextUtils.TruncateAt.END
                     typeface = Typeface.create("sans-serif-medium", if (p.neprebrano > 0) Typeface.BOLD else Typeface.NORMAL)
@@ -503,6 +559,16 @@ class SporocilaActivity : OsActivity() {
             prejsnji = kartica
         }
         prejsnji?.let { it.nextFocusDownId = it.id }
+        if (fokusOznaka != null) {
+            val cilj = ZasloniOsPravila.fokusPoOznaki(prej, fokusOznaka, pogovori.map { kljucPogovora(it) })
+            (cilj?.let { seznam.findViewWithTag<View?>(it) } ?: iskanje).requestFocus()
+        }
+    }
+
+    private fun jePotomec(skupina: View, v: View): Boolean {
+        var p: android.view.ViewParent? = v.parent
+        while (p != null) { if (p === skupina) return true; p = p.parent }
+        return false
     }
 
     // ------------------------------------------------------------------ osebe, oznake, iskanje pri osebi
@@ -837,8 +903,16 @@ class SporocilaActivity : OsActivity() {
     private fun narisiSporocila() {
         val p = izbran ?: return
         if (pisanjeTece) osveziOblacke()   // novo ali poslano sporocilo med pisanjem
+        // Pregled zaslonov 5. 11. 2026: osvezitev (sinhronizacija, Link) je fokus z oblacka vrgla na dno pogovora - zdaj
+        // ostane na istem sporocilu (oznaka = id), dokler je uporabnik v seznamu sporocil.
+        val fokus = currentFocus
+        val fokusOznaka = if (fokus != null && jePotomec(sporocilaSeznam, fokus)) fokus.tag as? String else null
+        val prej = ArrayList<String>()
+        for (i in 0 until sporocilaSeznam.childCount) ((sporocilaSeznam.getChildAt(i) as? ViewGroup)?.getChildAt(0)?.tag as? String)?.let { prej.add(it) }
+        val prejY = sporocilaDrsnik.scrollY
         sporocilaSeznam.removeAllViews()
         var obrobljena: View? = null
+        val zdaj = ArrayList<String>()
         for (s in shramba.sporocila(p.kanalId, p.id)) {
             val ven = s.smer == "ven"
             val zadetek = s.id == oznaciSporocilo
@@ -847,6 +921,7 @@ class SporocilaActivity : OsActivity() {
             }
             if (zadetek) obrobljena = vrstica
             vrstica.addView(TextView(this).apply {
+                tag = "spor|" + s.id; zdaj.add("spor|" + s.id)
                 text = s.besedilo.trim(); textSize = 15f; setTextIsSelectable(false)
                 // Dolg pritisk (TV: zadrzan OK na sporocilu): kopiraj, odpri povezavo, »Izbrisi pri meni« (naloga 106).
                 setOnLongClickListener { dejanjaSporocila(p, s); true }
@@ -869,8 +944,19 @@ class SporocilaActivity : OsActivity() {
             sporocilaSeznam.addView(vrstica, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(8) })
         }
         val cilj = obrobljena
-        if (cilj != null) { oznaciSporocilo = null; sporocilaDrsnik.post { sporocilaDrsnik.smoothScrollTo(0, maxOf(0, cilj.top - dp(40))) } }
-        else sporocilaDrsnik.post { sporocilaDrsnik.fullScroll(View.FOCUS_DOWN) }
+        when (ZasloniOsPravila.poIzrisuSporocil(cilj != null, fokusOznaka != null)) {
+            ZasloniOsPravila.Drsenje.ZADETEK -> { oznaciSporocilo = null; sporocilaDrsnik.post { sporocilaDrsnik.smoothScrollTo(0, maxOf(0, (cilj ?: return@post).top - dp(40))) } }
+            ZasloniOsPravila.Drsenje.OHRANI -> {
+                val oznaka = ZasloniOsPravila.fokusPoOznaki(prej, fokusOznaka, zdaj)
+                val nov = oznaka?.let { sporocilaSeznam.findViewWithTag<View?>(it) }
+                sporocilaDrsnik.post {
+                    sporocilaDrsnik.scrollTo(0, prejY)
+                    (nov ?: sporocilaDrsnik).requestFocus()
+                }
+            }
+            // fullScroll premakne tudi fokus na zadnje sporocilo: samo, kadar uporabnik ni v seznamu sporocil.
+            ZasloniOsPravila.Drsenje.DNO -> sporocilaDrsnik.post { sporocilaDrsnik.fullScroll(View.FOCUS_DOWN) }
+        }
     }
 
     /**
@@ -998,9 +1084,9 @@ class SporocilaActivity : OsActivity() {
         narisiFiltre()
         narisiSeznam()
         izbran?.let { pogovorIme.text = imeOsebe(it, shramba.kanali().associate { k -> k.id to k.vrsta }); narisiSporocila() }
+        // Fokus v seznamu pogovorov obnovi izrisiSeznam (po branju v ozadju), v sporocilih narisiSporocila.
         if (fokus == odgovor) odgovor.requestFocus()
-        else if (fokusKljuc != null)
-            (seznam.findViewWithTag<View?>(fokusKljuc) ?: kanaliVrsta.findViewWithTag<View?>(fokusKljuc))?.requestFocus()
+        else if (fokusKljuc != null) kanaliVrsta.findViewWithTag<View?>(fokusKljuc)?.requestFocus()
     }
 
     private fun poslji() {

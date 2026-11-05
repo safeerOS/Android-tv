@@ -18,6 +18,7 @@ import java.io.File
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Namestitev aplikacije iz datoteke APK - brez Google Play (lastnik, 11. 10. 2026).
@@ -47,29 +48,52 @@ object NamestiApk {
         return if (z.lowercase().endsWith(".apk")) z else "$z.apk"
     }
 
+    /** Tok APK in napovedana velikost (-1 = ne vemo) - lokalno za vsak klic (pregled zaslonov 5. 11. 2026). */
+    private class Prenos(val tok: InputStream, val velikost: Long)
+
     /** Datoteka na napravi (content:// ali file://). */
     fun izDatoteke(a: Activity, uri: Uri, ime: String) =
-        pripravi(a, ime, -1L, a.getString(R.string.apk_vir_naprava), Izvor.DATOTEKA) { a.contentResolver.openInputStream(uri) ?: throw IllegalStateException("ni datoteke") }
-
-    /** Prenos iz brskalnika: APK prenesemo sami (z napredkom), nato ga ponudimo v namestitev. */
-    fun izSpleta(a: Activity, url: String, userAgent: String?, ime: String) =
-        pripravi(a, ime, 0L, try { Uri.parse(url).host ?: url } catch (_: Throwable) { url }, Izvor.SPLET) {
-            // Grok 8, S4: APK samo prek https (http poskusimo kot https); preusmeritvi na http HttpURLConnection ne sledi,
-            // koncni naslov preverimo vseeno.
-            val varen = NamestitevPravila.httpsNaslov(url) ?: throw IllegalStateException("ni_https")
-            val c = URL(varen).openConnection() as HttpURLConnection
-            c.connectTimeout = 15000; c.readTimeout = 30000; c.instanceFollowRedirects = true
-            if (!userAgent.isNullOrBlank()) c.setRequestProperty("User-Agent", userAgent)
-            try { android.webkit.CookieManager.getInstance().getCookie(varen)?.let { c.setRequestProperty("Cookie", it) } } catch (_: Throwable) { }
-            if (c.responseCode !in 200..299) throw IllegalStateException("HTTP ${c.responseCode}")
-            if (!c.url.protocol.equals("https", ignoreCase = true)) throw IllegalStateException("ni_https")
-            velikostZadnjega = c.contentLengthLong
-            c.inputStream
+        pripravi(a, ime, a.getString(R.string.apk_vir_naprava), Izvor.DATOTEKA, null) {
+            Prenos(a.contentResolver.openInputStream(uri) ?: throw IllegalStateException("ni datoteke"), -1L)
         }
 
-    @Volatile private var velikostZadnjega = -1L
+    /**
+     * Prenos iz brskalnika ali od ponudnika aplikacij: APK prenesemo sami (z napredkom), nato ga ponudimo v namestitev.
+     * [paket]: paket, ki ga pricakuje ponudnik (TrgovineAplikacij) - APK z drugim paketom se ne namesti.
+     */
+    fun izSpleta(a: Activity, url: String, userAgent: String?, ime: String, paket: String? = null) =
+        pripravi(a, ime, try { Uri.parse(url).host ?: url } catch (_: Throwable) { url }, Izvor.SPLET, paket) {
+            // Grok 8, S4: APK samo prek https (http poskusimo kot https).
+            odpriSplet(NamestitevPravila.httpsNaslov(url) ?: throw IllegalStateException("ni_https"), userAgent)
+        }
 
-    private fun pripravi(a: Activity, ime: String, znanaVelikost: Long, vir: String, izvor: Izvor, odpri: () -> InputStream) {
+    /**
+     * Pregled zaslonov 5. 11. 2026: preusmeritvam sledimo sami (najvec NamestiApkPravila.NAJVEC_SKOKOV), vsak skok samo
+     * https in piskotki samo za naslov tega skoka. Prej je samodejna preusmeritev nesla rocno glavo Cookie prvega
+     * naslova na drug streznik.
+     */
+    private fun odpriSplet(zacetni: String, userAgent: String?): Prenos {
+        var naslov = zacetni
+        for (skokov in 0..NamestiApkPravila.NAJVEC_SKOKOV) {
+            val c = URL(naslov).openConnection() as HttpURLConnection
+            c.connectTimeout = 15000; c.readTimeout = 30000; c.instanceFollowRedirects = false
+            if (!userAgent.isNullOrBlank()) c.setRequestProperty("User-Agent", userAgent)
+            try { android.webkit.CookieManager.getInstance().getCookie(naslov)?.let { c.setRequestProperty("Cookie", it) } } catch (_: Throwable) { }
+            when (val s = NamestiApkPravila.naslednji(naslov, c.responseCode, c.getHeaderField("Location"), skokov)) {
+                is NamestiApkPravila.Skok.Koncaj -> return Prenos(c.inputStream, c.contentLengthLong)
+                is NamestiApkPravila.Skok.Naprej -> { c.disconnect(); naslov = s.url }
+                is NamestiApkPravila.Skok.Napaka -> { c.disconnect(); throw IllegalStateException(s.razlog) }
+            }
+        }
+        throw IllegalStateException("prevec_preusmeritev")
+    }
+
+    private fun graditelj(a: Activity) = AlertDialog.Builder(a, R.style.Os_Okno)
+
+    /** Okno z Os_Okno in tipkami ploska (Kontroler): A je OK, B zapre. */
+    private fun pokazi(b: AlertDialog.Builder): AlertDialog = Kontroler.pokazi(b.create()).also { it.show() }
+
+    private fun pripravi(a: Activity, ime: String, vir: String, izvor: Izvor, pricakovanPaket: String?, odpri: () -> Prenos) {
         val dp = { v: Int -> (v * a.resources.displayMetrics.density).toInt() }
         val napredek = ProgressBar(a, null, android.R.attr.progressBarStyleHorizontal).apply { max = 1000; isIndeterminate = true }
         val opis = TextView(a).apply { text = a.getString(R.string.apk_pripravljam, ime) }
@@ -77,19 +101,20 @@ object NamestiApk {
             orientation = LinearLayout.VERTICAL; setPadding(dp(24), dp(16), dp(24), dp(8))
             addView(opis); addView(napredek, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12) })
         }
-        var prekinjeno = false
-        val okno = AlertDialog.Builder(a).setTitle(R.string.apk_naslov).setView(vsebina).setCancelable(true)
-            .setNegativeButton(android.R.string.cancel) { _, _ -> prekinjeno = true }.setOnCancelListener { prekinjeno = true }.show()
+        // Preklic z glavne niti mora videti nit prenosa (pregled zaslonov 5. 11. 2026: prej navadna lokalna spremenljivka).
+        val prekinjeno = AtomicBoolean(false)
+        val okno = pokazi(graditelj(a).setTitle(R.string.apk_naslov).setView(vsebina).setCancelable(true)
+            .setNegativeButton(android.R.string.cancel) { _, _ -> prekinjeno.set(true) }.setOnCancelListener { prekinjeno.set(true) })
         val glavna = Handler(Looper.getMainLooper())
-        velikostZadnjega = znanaVelikost
         Thread({
             val mapa = File(a.cacheDir, MAPA).apply { mkdirs() }
             mapa.listFiles()?.forEach { it.delete() }
             val cilj = File(mapa, varnoIme(ime))
             try {
                 // Vsota SHA-256 na istih bajtih, ki gredo v datoteko: v sejo gre kasneje samo, ce se ujema (TOCTOU).
-                val vsota = odpri().use { v ->
-                    val skupaj = velikostZadnjega
+                val prenos = odpri()
+                val vsota = prenos.tok.use { v ->
+                    val skupaj = prenos.velikost
                     // Grok 8, S3: meja velikosti in prostor na disku, preden pisemo (neskoncen tok ne napolni naprave).
                     if (skupaj > NamestitevPravila.NAJVEC_APK || (skupaj > 0 && mapa.usableSpace < skupaj + NamestitevPravila.REZERVA_PROSTORA))
                         throw IllegalStateException("prevelik")
@@ -97,7 +122,7 @@ object NamestiApk {
                     var zadnji = 0L
                     var vse = 0L
                     val h = cilj.outputStream().use { o ->
-                        NamestitevPravila.prepisi(v, o, { prekinjeno }, NamestitevPravila.NAJVEC_APK) { prebrano ->
+                        NamestitevPravila.prepisi(v, o, { prekinjeno.get() }, NamestitevPravila.NAJVEC_APK) { prebrano ->
                             vse = prebrano
                             if (skupaj > 0 && prebrano - zadnji > skupaj / 100) { zadnji = prebrano; val d = (prebrano * 1000 / skupaj).toInt(); glavna.post { napredek.progress = d } }
                         }
@@ -108,13 +133,13 @@ object NamestiApk {
                 }
                 glavna.post {
                     try { okno.dismiss() } catch (_: Throwable) { }
-                    if (!prekinjeno && !a.isFinishing) vprasaj(a, cilj, vir, vsota, izvor)
+                    if (!prekinjeno.get() && !a.isFinishing) vprasaj(a, cilj, vir, vsota, izvor, pricakovanPaket)
                 }
             } catch (t: Throwable) {
                 cilj.delete()
                 glavna.post {
                     try { okno.dismiss() } catch (_: Throwable) { }
-                    if (!prekinjeno) Toast.makeText(a, a.getString(R.string.apk_napaka), Toast.LENGTH_LONG).show()
+                    if (!prekinjeno.get()) Toast.makeText(a, a.getString(R.string.apk_napaka), Toast.LENGTH_LONG).show()
                 }
             }
         }, "safeer-namesti-apk").start()
@@ -130,29 +155,37 @@ object NamestiApk {
         }
     } catch (_: Throwable) { null }
 
-    private fun vprasaj(a: Activity, f: File, vir: String, vsota: String, izvor: Izvor) {
+    private fun vprasaj(a: Activity, f: File, vir: String, vsota: String, izvor: Izvor, pricakovanPaket: String?) {
         val p = podatki(a, f)
         if (p == null) {
             f.delete()
-            AlertDialog.Builder(a).setTitle(R.string.apk_naslov).setMessage(R.string.apk_ni_veljavna).setPositiveButton(android.R.string.ok, null).show()
+            pokazi(graditelj(a).setTitle(R.string.apk_naslov).setMessage(R.string.apk_ni_veljavna).setPositiveButton(android.R.string.ok, null))
             return
         }
         val (ime, paket, razlicica) = p
+        // Pregled zaslonov 5. 11. 2026: ponudnik aplikacij mora dati natanko svoj paket (ne poljubnega APK z istim imenom).
+        if (!NamestiApkPravila.pravPaket(pricakovanPaket, paket)) {
+            f.delete()
+            pokazi(graditelj(a).setTitle(R.string.apk_naslov)
+                .setMessage(a.getString(R.string.apk_napacen_paket, pricakovanPaket.orEmpty(), paket.ifBlank { "?" }))
+                .setPositiveButton(android.R.string.ok, null))
+            return
+        }
         val namescena = try { a.packageManager.getPackageInfo(paket, 0).versionName } catch (_: Throwable) { null }
         val sporocilo = if (namescena != null) a.getString(R.string.apk_vprasanje_posodobi, ime, razlicica.ifBlank { "?" }, namescena)
             else a.getString(R.string.apk_vprasanje, ime, razlicica.ifBlank { "?" })
         // Uporabnik vidi, kaj se namesti (ime, paket, razlicica), od kod in koliko - in da Safeer ne posodablja sam.
         val mb = String.format(java.util.Locale.getDefault(), "%.1f", f.length() / 1048576.0)
         val podrobno = a.getString(R.string.apk_podrobno, paket, vir, mb)
-        AlertDialog.Builder(a).setTitle(R.string.apk_naslov)
+        pokazi(graditelj(a).setTitle(R.string.apk_naslov)
             .setMessage(sporocilo + "\n\n" + podrobno + "\n\n" + a.getString(R.string.apk_opozorilo) + " " + a.getString(R.string.apk_posodobitve))
             .setPositiveButton(R.string.apk_namesti) { _, _ -> namesti(a, f, vsota, paket, ime, izvor) }
-            .setNegativeButton(android.R.string.cancel) { _, _ -> f.delete() }.show()
+            .setNegativeButton(android.R.string.cancel) { _, _ -> f.delete() })
     }
 
     private fun namesti(a: Activity, f: File, vsota: String, paket: String, ime: String, izvor: Izvor) {
         if (Build.VERSION.SDK_INT >= 26 && !a.packageManager.canRequestPackageInstalls()) {
-            AlertDialog.Builder(a).setTitle(R.string.apk_naslov).setMessage(R.string.apk_dovoljenje)
+            pokazi(graditelj(a).setTitle(R.string.apk_naslov).setMessage(R.string.apk_dovoljenje)
                 .setPositiveButton(R.string.os_posodobitev_dovoli) { _, _ ->
                     // Vsota, paket in ime, ki ju je uporabnik potrdil: po vrnitvi namestimo prav to (ne znova prebrane datoteke).
                     prefs(a).edit().putString("caka", f.absolutePath).putLong("caka_cas", System.currentTimeMillis())
@@ -160,7 +193,7 @@ object NamestiApk {
                         .putString("caka_izvor", izvor.name).apply()
                     try { a.startActivity(Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + a.packageName))) }
                     catch (_: Throwable) { try { a.startActivity(Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)) } catch (_: Throwable) { } }
-                }.setNegativeButton(android.R.string.cancel, null).show()
+                }.setNegativeButton(android.R.string.cancel, null))
             return
         }
         NamestitevSeja.namesti(a, f, vsota, paket, ime, izvor) { d ->

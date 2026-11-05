@@ -10,6 +10,7 @@ import android.text.InputType
 import android.text.TextWatcher
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
@@ -92,6 +93,17 @@ class ZapiskiActivity : OsActivity() {
                 override fun afterTextChanged(s: Editable?) = Unit
             })
         }
+        // Pregled zaslonov 5. 11. 2026: na TV fokus iskalnega polja ne odpre tipkovnice cez pol zaslona; odpre jo OK
+        // (kot iskanje v Sporocilih in Aplikacijah). Na telefonu in tablici ostane, kot je bilo.
+        if (packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_LEANBACK)) {
+            iskanje.showSoftInputOnFocus = false
+            iskanje.setOnKeyListener { _, koda, d ->
+                if (d.action == KeyEvent.ACTION_DOWN && (koda == KeyEvent.KEYCODE_DPAD_CENTER || koda == KeyEvent.KEYCODE_ENTER)) {
+                    odpriTipkovnico(iskanje); true
+                } else false
+            }
+            iskanje.setOnClickListener { odpriTipkovnico(iskanje) }
+        }
         root.addView(iskanje, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
             topMargin = dp(20); bottomMargin = dp(14)
         })
@@ -117,15 +129,31 @@ class ZapiskiActivity : OsActivity() {
         setPadding(dp(18), dp(11), dp(18), dp(11)); setBackgroundResource(R.drawable.os_meni_postavka)
     }
 
+    private fun odpriTipkovnico(e: EditText) {
+        e.requestFocus()
+        (getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager)?.showSoftInput(e, Tipkovnica.NAMIG)
+    }
+
+    private fun jePotomec(skupina: View, v: View): Boolean {
+        var p: android.view.ViewParent? = v.parent
+        while (p != null) { if (p === skupina) return true; p = p.parent }
+        return false
+    }
+
     private fun narisi() {
         if (!::seznam.isInitialized || !::shramba.isInitialized) return
         val zapiski = shramba.seznam(if (::iskanje.isInitialized) iskanje.text?.toString().orEmpty() else "")
+        // Pregled zaslonov 5. 11. 2026: po shranjevanju ali brisanju fokus ostane na istem zapisku (oznaka = id) ali na
+        // sosednjem, ne skoci na vrh zaslona.
+        val fokus = currentFocus
+        val fokusOznaka = if (fokus != null && jePotomec(seznam, fokus)) fokus.tag as? String else null
+        val prej = (0 until seznam.childCount).mapNotNull { seznam.getChildAt(it).tag as? String }
         seznam.removeAllViews()
         prazno.visibility = if (zapiski.isEmpty()) View.VISIBLE else View.GONE
         var prejsnji: View? = null
         for (z in zapiski) {
             val kartica = LinearLayout(this).apply {
-                id = View.generateViewId(); orientation = LinearLayout.VERTICAL
+                id = View.generateViewId(); orientation = LinearLayout.VERTICAL; tag = z.id.toString()
                 isFocusable = true; isClickable = true; setBackgroundResource(R.drawable.os_ploscica_app)
                 setPadding(dp(18), dp(14), dp(18), dp(14)); setOnClickListener { uredi(z) }
                 addView(TextView(this@ZapiskiActivity).apply {
@@ -151,6 +179,10 @@ class ZapiskiActivity : OsActivity() {
         }
         prejsnji?.let { it.nextFocusDownId = it.id }
         if (prejsnji == null) iskanje.nextFocusDownId = iskanje.id
+        if (fokusOznaka != null) {
+            val cilj = ZasloniOsPravila.fokusPoOznaki(prej, fokusOznaka, zapiski.map { it.id.toString() })
+            (cilj?.let { seznam.findViewWithTag<View?>(it) } ?: iskanje).requestFocus()
+        }
     }
 
     private fun uredi(zapisek: ZapiskiShramba.Zapisek?) {
@@ -176,6 +208,26 @@ class ZapiskiActivity : OsActivity() {
             .setNegativeButton(R.string.os_preklici, null)
         if (zapisek != null) graditelj.setNeutralButton(R.string.os_zapiski_izbrisi) { _, _ -> potrdiBrisanje(zapisek) }
         val okno = Kontroler.pokazi(graditelj.create())
+        // Pregled zaslonov 5. 11. 2026: Nazaj (ali B na plosku) je okno zaprl in zapisek je bil izgubljen. S spremembami
+        // zdaj vprasamo »Zavrzem spremembe?« (privzeto ne); dotik ob oknu ga ne zapre. A ostane OK, kot v Kontroler.pokazi.
+        okno.setCanceledOnTouchOutside(false)
+        okno.setOnKeyListener { d, koda, e ->
+            when (koda) {
+                KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_BUTTON_B -> {
+                    if (e.action == KeyEvent.ACTION_UP && !e.isCanceled) {
+                        if (ZasloniOsPravila.zapisekSpremenjen(zapisek?.naslov.orEmpty(), zapisek?.vsebina.orEmpty(),
+                                naslov.text?.toString().orEmpty(), vsebina.text?.toString().orEmpty())) vprasajZavrzi(okno)
+                        else d.cancel()
+                    }
+                    true
+                }
+                KeyEvent.KEYCODE_BUTTON_A -> {
+                    okno.window?.decorView?.dispatchKeyEvent(KeyEvent(e.action, KeyEvent.KEYCODE_DPAD_CENTER))
+                    true
+                }
+                else -> false
+            }
+        }
         okno.setOnShowListener {
             naslov.requestFocus()
             naslov.setSelection(naslov.text?.length ?: 0)
@@ -183,6 +235,18 @@ class ZapiskiActivity : OsActivity() {
                 (getSystemService(INPUT_METHOD_SERVICE) as? InputMethodManager)?.showSoftInput(naslov, Tipkovnica.NAMIG)
             }, 180)
         }
+        okno.show()
+    }
+
+    /** Okno urejanja ima neshranjene spremembe: zavrzi jih samo na izrecno potrditev (privzeti gumb je »Nadaljuj«). */
+    private fun vprasajZavrzi(urejanje: AlertDialog) {
+        val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
+            .setTitle(R.string.os_zapiski_zavrzi_vprasanje)
+            .setPositiveButton(R.string.os_zapiski_zavrzi) { _, _ -> urejanje.dismiss() }
+            .setNegativeButton(R.string.os_zapiski_nadaljuj_urejanje, null)
+            .create()
+        okno.setOnShowListener { okno.getButton(AlertDialog.BUTTON_NEGATIVE)?.requestFocus() }
+        Kontroler.pokazi(okno)
         okno.show()
     }
 
