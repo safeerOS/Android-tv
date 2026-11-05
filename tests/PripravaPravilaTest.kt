@@ -32,6 +32,25 @@ fun main() {
     preveri("potekel cas -> da", PripravaPravila.jePotekelCas(45_000L))
     preveri("ni potekel cas -> ne", !PripravaPravila.jePotekelCas(44_999L))
 
+    // Pregled Medijskega centra 5. 11. 2026 (2): kljuc epizode ni kljuc serije
+    preveri("E1 in E2 imata razlicen kljuc", PripravaPravila.kljucPriprave("tt1", "", "X", 1, 1) != PripravaPravila.kljucPriprave("tt1", "", "X", 1, 2))
+    preveri("serija brez epizode in epizoda razlicna", PripravaPravila.kljucPriprave("tt1", "", "X", 0, 0) != PripravaPravila.kljucPriprave("tt1", "", "X", 1, 1))
+    preveri("film: kljuc je id", PripravaPravila.kljucPriprave("tt2", "u", "X", 0, 0) == "tt2")
+    preveri("brez id: povezava", PripravaPravila.kljucPriprave("", "u", "X", 0, 0) == "u")
+    // (1, 2): zeton priprave - preklic in nova priprava iste vsebine
+    val pr = PripravaPravila.Priprave()
+    val z1 = pr.zacni("a") ?: ""
+    preveri("prva priprava se zacne", z1.isNotEmpty())
+    preveri("isti klik med pripravo -> nic", pr.zacni("a") == null)
+    pr.preklici()
+    preveri("po preklicu stara priprava ni aktivna", !pr.aktivna(z1))
+    val z2 = pr.zacni("a") ?: ""
+    preveri("po preklicu nova priprava iste vsebine", z2.isNotEmpty())
+    preveri("stara priprava po preklicu ne konca nove", !pr.koncaj(z1))
+    preveri("nova priprava je se v teku", pr.isNotEmpty() && pr.aktivna(z2))
+    preveri("nova priprava se konca", pr.koncaj(z2) && pr.isEmpty())
+    preveri("drugic ne konca", !pr.koncaj(z2))
+
     if (napak > 0) kotlin.system.exitProcess(1)
     println("PripravaPravilaTest: OK")
 }

@@ -27,5 +27,24 @@ fun main() {
     preveri("LEVO na epizodah -> gre na sezone", EpizodePravila.smerFokusa(false, true) == true)
     preveri("DESNO na epizodah -> nič", EpizodePravila.smerFokusa(false, false) == null)
 
+    // Pregled Medijskega centra 5. 11. 2026 (7): okno se odpre pri zadnji epizodi
+    val ep = listOf(1 to 1, 1 to 2, 2 to 1, 2 to 2, 2 to 3)
+    preveri("brez zapisa -> S1E1", EpizodePravila.zacetnaIzbira(ep, listOf(1, 2), null) == (0 to 0))
+    preveri("zadnja S2E3 -> sezona 1, epizoda 2", EpizodePravila.zacetnaIzbira(ep, listOf(1, 2), 2 to 3) == (1 to 2))
+    preveri("zadnja ni prikazana -> prva", EpizodePravila.zacetnaIzbira(ep, listOf(1, 2), 3 to 1) == (0 to 0))
+    // (6): odstranjena epizoda pred izbrano - izbira ostane na isti epizodi
+    preveri("izbrana c ostane c", EpizodePravila.izborPoOdstranitvi(listOf("a", "b", "c"), listOf("b", "c"), 2) == 1)
+    preveri("odstranjena izbrana -> ista vrstica", EpizodePravila.izborPoOdstranitvi(listOf("a", "b", "c"), listOf("a", "c"), 1) == 1)
+    preveri("odstranjena zadnja izbrana -> zadnja", EpizodePravila.izborPoOdstranitvi(listOf("a", "b"), listOf("a"), 1) == 0)
+    preveri("prazno -> -1", EpizodePravila.izborPoOdstranitvi(listOf("a"), emptyList(), 0) == -1)
+    preveri("prazna sezona izpade, trenutna ostane", EpizodePravila.sezonePoOdstranitvi(listOf(1, 2, 3), listOf(1, 3), 2) == (listOf(1, 3) to 1))
+    preveri("trenutna izpade -> sosednja", EpizodePravila.sezonePoOdstranitvi(listOf(1, 2, 3), listOf(1, 3), 1) == (listOf(1, 3) to 1))
+    preveri("ni sezon -> -1", EpizodePravila.sezonePoOdstranitvi(listOf(1), emptyList(), 0).second == -1)
+    // (13): DESNO vrne na zadnjo izbrano epizodo
+    preveri("vrnitev na 4. epizodo", EpizodePravila.izborObVrnitvi(3, 10) == 3)
+    preveri("vrnitev omejena na seznam", EpizodePravila.izborObVrnitvi(7, 5) == 4)
+    // (12): stevilo epizod iz prikazanih
+    preveri("2 prikazani v sezoni 1", EpizodePravila.steviloVSezoni(ep.map { it.first }, 1) == 2)
+
     if (napakEpizod != 0) { println("Napak epizod: $napakEpizod"); kotlin.system.exitProcess(1) }
 }

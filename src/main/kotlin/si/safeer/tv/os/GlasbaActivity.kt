@@ -161,7 +161,9 @@ class GlasbaActivity : OsActivity() {
     /** Zadnje nefiltrirane police; dialog mora ponuditi tudi trenutno izklopljen jezik. */
     private val prikazanePolice = HashMap<Int, List<Podatki>>()
     /** Isti klik med omrezno pripravo ne sme zagnati se enega razresevanja. */
-    private val pripraveVTeKu = ConcurrentHashMap.newKeySet<String>()
+    private val pripraveVTeKu = PripravaPravila.Priprave()
+    /** Pregled Medijskega centra 5. 11. 2026 (7): zadnja izbrana epizoda serije v tem zagonu (id serije -> sezona, epizoda). */
+    private val zadnjaEpizodaSerije = HashMap<String, Pair<Int, Int>>()
     private var iskalnik: EditText? = null
     /** Po izbiri kartice razdelka gre fokus na prvo kartico vsebine, ko se narise. */
     private var fokusVVsebino = false
@@ -7356,7 +7358,7 @@ class GlasbaActivity : OsActivity() {
         val priprava = obstojecaPriprava ?: zacniPripravo(sk) ?: return
         stanje.text = getString(R.string.os_glasba_nalagam)
         SpletniVir.razresi(this, sk) { r ->
-            if (isFinishing) { koncajPripravo(priprava); return@razresi }
+            if (isFinishing || !pripraveVTeKu.aktivna(priprava)) { koncajPripravo(priprava); return@razresi }
             stanje.text = if (razdelek == ISKANJE && zadetki != null) opisZadetkov else opis(razdelek)
             if (r == null) {
                 // Ce primarni vir ne uspe ponuditi neposrednega toka, kaskadno poskusimo naslednje razpolozljivo ogledalo.
@@ -7365,13 +7367,13 @@ class GlasbaActivity : OsActivity() {
                     razresiSplet(naslednji, rezervni.filterNot { it.povezava == naslednji.povezava }, priprava)
                     return@razresi
                 }
-                koncajPripravo(priprava)
+                if (!koncajPripravo(priprava)) return@razresi
                 SpletniIgralec.zadnja = java.lang.ref.WeakReference(this)
                 GlasbaStoritev.predvajajSplet(this, sk)
                 if (sk.video) startActivity(Intent(this, PredvajanjeActivity::class.java))
                 return@razresi
             }
-            koncajPripravo(priprava)
+            if (!koncajPripravo(priprava)) return@razresi
             GlasbaStoritev.predvajaj(this, listOf(r), 0)
             if (r.video) nadaljujKoPripravljen(sk)
             if (r.video) startActivity(Intent(this, PredvajanjeActivity::class.java))
@@ -7783,8 +7785,8 @@ class GlasbaActivity : OsActivity() {
     // ------------------------------------------------------------------ predvajanje
 
     private fun zacniPripravo(sk: Jamendo.Skladba, rocno: Boolean = false, naslovPriprave: String = sk.naslov): String? {
-        val kljuc = sk.id.ifBlank { sk.povezava.ifBlank { sk.naslov } }
-        if (!pripraveVTeKu.add(kljuc)) return null
+        // Pregled Medijskega centra 5. 11. 2026 (2): kljuc s sezono in epizodo, vrnemo zeton te priprave (ne id vsebine).
+        val zeton = pripraveVTeKu.zacni(PripravaPravila.kljucPriprave(sk.id, sk.povezava, sk.naslov, sk.season, sk.episode)) ?: return null
         prekiniDebrid()     // pregled A1: nova izbira - prejsnje cakanje na debrid ne odpre nicesar vec
         if (PripravaPravila.odpriTakoj(sk.video, rocno, PripravaPravila.serijaBrezEpizode(sk.mediaType, sk.episode))) {
             val i = Intent(this, PredvajanjeActivity::class.java)
@@ -7793,18 +7795,20 @@ class GlasbaActivity : OsActivity() {
         } else {
             pokaziPripravljam(getString(R.string.os_media_pripravljam, naslovPriprave))
         }
-        return kljuc
+        return zeton
     }
 
     private fun koncajPripravo(kljuc: String): Boolean {
-        val prisoten = pripraveVTeKu.remove(kljuc)
+        val prisoten = pripraveVTeKu.koncaj(kljuc)
         if (pripraveVTeKu.isEmpty() && debridDelo == null) skrijPripravljam()
         koncajKlikNaFilm()
         return prisoten
     }
 
     fun prekliciPriprave() {
-        pripraveVTeKu.clear()
+        pripraveVTeKu.preklici()
+        // Pregled Medijskega centra 5. 11. 2026 (3): tudi cakanje na debrid/Usenet - sicer ga onStart odpre po preklicu.
+        prekiniDebrid()
         skrijPripravljam()
         koncajKlikNaFilm()
         PredvajanjeActivity.zapriCePripravlja()
@@ -7858,9 +7862,26 @@ class GlasbaActivity : OsActivity() {
     private fun skrijPripravljam() { pripravljamPas?.visibility = View.GONE }
 
     private fun pripravaNiUspela(kljuc: String, sk: Jamendo.Skladba) {
-        koncajPripravo(kljuc)
+        // Pregled Medijskega centra 5. 11. 2026 (1): preklicana priprava ne pokaze nicesar.
+        if (!koncajPripravo(kljuc)) return
         stanje.text = getString(R.string.os_glasba_napaka)
         Toast.makeText(this, getString(R.string.os_media_priprava_napaka, sk.naslov), Toast.LENGTH_LONG).show()
+        PredvajanjeActivity.zapriZNapako()
+    }
+
+    /**
+     * Pregled Medijskega centra 5. 11. 2026 (5): delo priprave na [delavec]. Izjema (dodatek, razclenjevanje) je prej podrla
+     * nit delavca in z njo aplikacijo; zdaj se priprava konca s sporocilom napake.
+     */
+    private fun naDelavcu(priprava: String, sk: Jamendo.Skladba, delo: () -> Unit) {
+        val obNapaki = { e: Throwable ->
+            android.util.Log.w("SafeerOsMedia", "priprava: napaka ${e.javaClass.simpleName}")
+            glavna.post { if (!isFinishing && !isDestroyed) pripravaNiUspela(priprava, sk) else koncajPripravo(priprava) }
+            Unit
+        }
+        try {
+            delavec.execute { try { delo() } catch (e: Exception) { obNapaki(e) } }
+        } catch (e: java.util.concurrent.RejectedExecutionException) { obNapaki(e) }
     }
 
     // ------------------------------------------------------------------ nadaljuj z druge naprave (Predaja)
@@ -8129,7 +8150,7 @@ class GlasbaActivity : OsActivity() {
             glavna.post {
                 if (isFinishing) { koncajPripravo(priprava); return@post }
                 if (r == null) { pripravaNiUspela(priprava, sk); return@post }
-                koncajPripravo(priprava)
+                if (!koncajPripravo(priprava)) return@post
                 stanje.text = if (razdelek == ISKANJE && zadetki != null) opisZadetkov else opis(razdelek)
                 GlasbaStoritev.predvajaj(this, listOf(r), 0)
                 nadaljujKoPripravljen(sk)
@@ -8343,12 +8364,13 @@ class GlasbaActivity : OsActivity() {
         val (_, tip, id) = Stremio.razstavi(sk) ?: return
         // Zunanji pregled Video 3. 11. 2026: klik na film ustavi preverjanje mreze in plakate v vrsti - omrezje in CPU sta
         // za tokove, meta, debrid in Usenet tega filma.
+        // Pregled Medijskega centra 5. 11. 2026 (11): najprej priprava - podvojen klik (null) mreze ne ustavi brez konca.
+        val priprava = zacniPripravo(sk, rocno) ?: return
         klikNaFilm = true
         izprazniVrstoSlik("klik na film")
-        val priprava = zacniPripravo(sk, rocno) ?: return
         // Naloga 74: klik na kanal ima prednost pred preverjanjem mreze v ozadju ([preveriKanal] pocaka).
         if (Stremio.jeVZivo(sk)) prednostKlikaDo = android.os.SystemClock.uptimeMillis() + PREDNOST_KLIKA_MS
-        delavec.execute {
+        naDelavcu(priprava, sk) {
             // Naloga 63 (lastnik: »preverimo, ce kliknemo na plakat in ce ima sezone in epizode«): film iz dodatka je morda
             // serija, ki jo je dodatek navedel kot film. Metapodatke (en odgovor, 1 h v predpomnilniku; to je uporabnikov
             // klik, ne preverjanje v ozadju) vprasamo hkrati s tokovi; z epizodami po sezonah se odpre kot serija in to si
@@ -8363,14 +8385,13 @@ class GlasbaActivity : OsActivity() {
                 VrsteNaslovov.zapomni(sk, VrsteNaslovov.SERIJA)
                 val serija = Stremio.kotSerija(sk)
                 glavna.post {
-                    koncajPripravo(priprava)
-                    if (isFinishing || isDestroyed) return@post
+                    if (!koncajPripravo(priprava) || isFinishing || isDestroyed) return@post
                     izberiSezono(serija, ep, rocno)
                     if (odprtKatalog != null) narociUmiri()      // mreza Filmi: kartica tiho izpade (drugaVrsta)
                 }
                 return true
             }
-            if (znanaSerija && odpriKotSerijo(15)) return@execute
+            if (znanaSerija && odpriKotSerijo(15)) return@naDelavcu
             val razred = Stremio.razred(tip)
             // Album, seznam, podkast ali kanal z videi ima posnetke kot serija epizode; film, TV kanal in postaja imajo tok naravnost.
             val posnetkiDodatka = if (tip == "series" || razred == Stremio.GLASBA || razred == Stremio.VIDEO)
@@ -8381,8 +8402,7 @@ class GlasbaActivity : OsActivity() {
                     .orEmpty().also { if (it.isNotEmpty()) android.util.Log.i("SafeerOsMedia", "serija: epizode iz drugega dodatka po IMDb (${it.size})") }
             if (tip == "series" || posnetki.size > 1) {
                 glavna.post {
-                    koncajPripravo(priprava)
-                    if (isFinishing || isDestroyed) return@post
+                    if (!koncajPripravo(priprava) || isFinishing || isDestroyed) return@post
                     if (posnetki.isEmpty()) { Toast.makeText(this, R.string.os_stremio_ni_epizod, Toast.LENGTH_LONG).show(); return@post }
                     izberiSezono(sk, posnetki, rocno)
                 }
@@ -8390,7 +8410,7 @@ class GlasbaActivity : OsActivity() {
                 val e = posnetki.first()
                 val t = e.tokovi.ifEmpty { try { tokoviVzporedno(tip, e.id) } catch (_: Exception) { emptyList() } }
                 val pp = predpomnjeniZa(t, sk, rocno)
-                glavna.post { koncajPripravo(priprava); if (!isFinishing && !isDestroyed) izberiTok(sk, sk.naslov, t, rocno, pp) }
+                glavna.post { if (!koncajPripravo(priprava)) return@post; if (!isFinishing && !isDestroyed) izberiTok(sk, sk.naslov, t, rocno, pp) }
             } else {
                 val enote = (listOf(tip to id) + razlicice.filter { Stremio.jeEnota(it) }.mapNotNull { r -> Stremio.razstavi(r)?.let { it.second to it.third } }).distinct().take(5)
                 // Naloga 88: kanal v zivo - najvec [OsPravila.rokTokovMs] (7 s) za vse dodatke, da je odgovor uporabniku v 8 s.
@@ -8401,16 +8421,16 @@ class GlasbaActivity : OsActivity() {
                     else enote.map { (t1, i1) -> iskanjeDelavec.submit<List<Stremio.Tok>> { try { tokoviVzporedno(t1, i1, rokT) } catch (_: Exception) { emptyList() } } }
                         .flatMap { f -> try { f.get((konecT - android.os.SystemClock.uptimeMillis()).coerceAtLeast(1), java.util.concurrent.TimeUnit.MILLISECONDS) } catch (_: Exception) { emptyList() } }.distinctBy { it.url }
                 // Metapodatki so medtem navadno ze prisli: serija z epizodami se odpre kot serija (ne kot film).
-                if (!vZivo && odpriKotSerijo(if (t.isEmpty()) 5 else 2)) return@execute
+                if (!vZivo && odpriKotSerijo(if (t.isEmpty()) 5 else 2)) return@naDelavcu
                 if (vZivo) android.util.Log.i("SafeerOsMedia", "kanal dodatka: enot=${enote.size}, tokov=${t.size}, predvajljivih=${t.count { Stremio.jePredvajljiv(it) }}, " +
                     "vrste=${t.map { it.vrsta }.distinct()}, dodatek ni odgovoril=${Stremio.dodatekNiOdgovoril()}, rezerva=${rezerva != null}, rocno=$rocno")
                 if (vZivo && !rocno && rezerva != null && t.none { Stremio.jePredvajljiv(it) }) {
                     android.util.Log.i("SafeerOsMedia", "kanal dodatka: ni toka - predvajam rezervo iz seznama IPTV")
-                    glavna.post { koncajPripravo(priprava); if (!isFinishing && !isDestroyed) predvajaj(listOf(rezerva), 0) }
-                    return@execute
+                    glavna.post { if (!koncajPripravo(priprava)) return@post; if (!isFinishing && !isDestroyed) predvajaj(listOf(rezerva), 0) }
+                    return@naDelavcu
                 }
                 val pp = if (vZivo) Pripravljeno() else predpomnjeniZa(t, sk, rocno)
-                glavna.post { koncajPripravo(priprava); if (!isFinishing && !isDestroyed) izberiTok(sk, sk.naslov, t, rocno, pp) }
+                glavna.post { if (!koncajPripravo(priprava)) return@post; if (!isFinishing && !isDestroyed) izberiTok(sk, sk.naslov, t, rocno, pp) }
             }
         }
     }
@@ -8513,7 +8533,7 @@ class GlasbaActivity : OsActivity() {
             season = 0, episode = 0)
         val tip = Stremio.razstavi(serija)?.second ?: return
         val priprava = zacniPripravo(sk) ?: return
-        delavec.execute {
+        naDelavcu(priprava, sk) {
             val vse = try { Stremio.epizode(serija) } catch (_: Exception) { emptyList() }
             val zadnja = vse.firstOrNull { it.sezona == sezona && it.epizoda == epizoda }
             // Pregled B-S1: odgledana epizoda (>= 95 % - MediaNapredek mesta takrat ne hrani vec) se ne zacne znova od zacetka:
@@ -8523,8 +8543,8 @@ class GlasbaActivity : OsActivity() {
             val e = if (!odgledana) zadnja else OsPravila.naslednjaEpizoda(vse.map { it.sezona to it.epizoda }, sezona, epizoda)
                 ?.let { (s, k) -> vse.firstOrNull { it.sezona == s && it.epizoda == k } }
             if (e == null) {
-                glavna.post { koncajPripravo(priprava); if (!isFinishing && !isDestroyed) razresiStremio(serija) }
-                return@execute
+                glavna.post { if (!koncajPripravo(priprava)) return@post; if (!isFinishing && !isDestroyed) razresiStremio(serija) }
+                return@naDelavcu
             }
             val naslovEp = if (!odgledana) sk.naslov else OsPravila.naslovBrezEpizode(sk.naslov) + " · S${e.sezona}E${e.epizoda}" +
                 (if (e.ime.isNotBlank()) " · " + e.ime else "")
@@ -8533,7 +8553,7 @@ class GlasbaActivity : OsActivity() {
             val t = e.tokovi.ifEmpty { try { tokoviVzporedno(tip, e.id, dodatniId = dodatni) } catch (_: Exception) { emptyList() } }
             val pp = predpomnjeniZa(t, serija.copy(season = e.sezona, episode = e.epizoda), false)
             glavna.post {
-                koncajPripravo(priprava)
+                if (!koncajPripravo(priprava)) return@post
                 // Brez toka: samo obvestilo - kartica serije zaradi ene epizode ne izgine.
                 if (!isFinishing && !isDestroyed) izberiTok(serija.copy(season = e.sezona, episode = e.epizoda), naslovEp, t, false, pp) {
                     Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslovEp), Toast.LENGTH_SHORT).show()
@@ -8553,7 +8573,7 @@ class GlasbaActivity : OsActivity() {
                 alt?.let { a -> Razpolozljivost.stanje(this, Razpolozljivost.kljuc(tip, a)) }, alt != null)
         }.toMutableList()
         
-        val sezone = ep.map { it.sezona }.distinct()
+        val sezone = ep.map { it.sezona }.distinct().toMutableList()
         val edinaSezona = sezone.size <= 1
         
         fun nicNiNaVoljo() {
@@ -8601,12 +8621,16 @@ class GlasbaActivity : OsActivity() {
         root.addView(seznamEpizod)
         dialog.setContentView(root)
 
-        val imenaSezon = sezone.map { z -> 
-            val n = epIzvorni.count { it.sezona == z }
-            getString(R.string.os_stremio_sezona, z) + " · " + resources.getQuantityString(R.plurals.os_stremio_epizod, n, n) 
+        // Pregled Medijskega centra 5. 11. 2026 (12): stevilo iz prikazanih epizod (skrite niso na voljo), ne iz vseh.
+        fun imeSezone(z: Int): String {
+            val n = EpizodePravila.steviloVSezoni(ep.map { it.sezona }, z)
+            return getString(R.string.os_stremio_sezona, z) + " · " + resources.getQuantityString(R.plurals.os_stremio_epizod, n, n)
         }
+        val imenaSezon = sezone.map { imeSezone(it) }.toMutableList()
 
         var trenutniIndeksSezone = 0
+        /** Pregled Medijskega centra 5. 11. 2026 (13): zadnja izbrana epizoda v trenutni sezoni (DESNO s sezon vrne nanjo). */
+        var izborEpizode = 0
 
         val adapterSezon = object : android.widget.ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, imenaSezon) {
             override fun getView(pos: Int, conv: android.view.View?, par: android.view.ViewGroup): android.view.View {
@@ -8675,7 +8699,7 @@ class GlasbaActivity : OsActivity() {
             trenutnaSezonaEpizode.addAll(ep.filter { it.sezona == s })
             adapterEpizod.notifyDataSetChanged()
             // Lastnik 1. 11. 2026: v 2. sezoni je seznam ostal pomaknjen kot v 1. (epizode 7-13) - nova sezona zacne na vrhu.
-            if (novaSezona) seznamEpizod.setSelection(0)
+            if (novaSezona) { seznamEpizod.setSelection(0); izborEpizode = 0 }
             
             // Osvezi pisavo vidnih vrstic brez notifyDataSetChanged, da ne prekinemo fokusa
             for (i in 0 until seznamSezon.childCount) {
@@ -8705,7 +8729,16 @@ class GlasbaActivity : OsActivity() {
                 seznamEpizod.requestFocus()
             }
         }
-        osveziEpizode(0)
+        // Pregled Medijskega centra 5. 11. 2026 (7): okno se odpre pri zadnji izbrani (ta zagon) ali gledani epizodi, ne vedno S1E1.
+        val (zacSezona, zacEpizoda) = EpizodePravila.zacetnaIzbira(ep.map { it.sezona to it.epizoda }, sezone, zadnjaEpizoda(sk))
+        osveziEpizode(zacSezona)
+        izborEpizode = zacEpizoda
+        if (pokaziLevi) seznamSezon.setSelection(zacSezona)
+        seznamEpizod.setSelection(zacEpizoda)
+        seznamEpizod.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) { izborEpizode = position }
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+        }
 
         val tipkaListener = android.view.View.OnKeyListener { v, keyCode, event ->
             if (event.action == android.view.KeyEvent.ACTION_DOWN) {
@@ -8721,7 +8754,7 @@ class GlasbaActivity : OsActivity() {
                     } else if (smer == false) {
                         if (trenutnaSezonaEpizode.isNotEmpty()) {
                             seznamEpizod.requestFocus()
-                            seznamEpizod.setSelection(0)
+                            seznamEpizod.setSelection(EpizodePravila.izborObVrnitvi(izborEpizode, trenutnaSezonaEpizode.size))
                         }
                         return@OnKeyListener true
                     } else if (smer == null) {
@@ -8744,13 +8777,14 @@ class GlasbaActivity : OsActivity() {
             val seznam = trenutnaSezonaEpizode.toList()
             val e = seznam.getOrNull(k) ?: return@setOnItemClickListener
             // Kot prej AlertDialog: izbira zapre pogled (epizodeNi ga odpre znova - sicer dva pogleda drug nad drugim).
+            zadnjaEpizodaSerije[sk.id.substringBefore('#')] = e.sezona to e.epizoda
             dialog.dismiss()
             val naslovEp = "${sk.naslov} · ${ime(e)}"
             val pripravaKljuc = zacniPripravo(sk.copy(season = e.sezona, episode = e.epizoda), rocno, naslovEp) ?: return@setOnItemClickListener
             // Lastnik 4. 11. 2026 23:35 (TV): po predvajanju epizode OK na drugi epizodi (ali seriji) ni odprl nicesar. Ta pot
             // priprave ni koncala - kljuc serije je ostal v pripraveVTeKu, zacniPripravo je za vsako epizodo iste serije vrnil
             // null, pas »Pripravljam« pa ni izginil. Vsak izid spodaj pripravo konca (kot vse druge poti).
-            delavec.execute {
+            naDelavcu(pripravaKljuc, sk) {
                 val imdb = Stremio.imdbZa(sk)
                 fun tokoviZa(x: Stremio.Epizoda) = x.tokovi.ifEmpty {
                     try { tokoviVzporedno(tip, x.id, dodatniId = SerijePravila.idEpizodePoImdb(imdb, x.id, x.sezona, x.epizoda)) } catch (_: Exception) { emptyList() }
@@ -8772,16 +8806,16 @@ class GlasbaActivity : OsActivity() {
                             SpletniVir.zapomniGlaveToka(tok.url, tok.glave)
                             vrsta += sk.copy(id = sk.id + "#" + tok.url.hashCode(), naslov = "${sk.naslov} · ${ime(naprej[j])}", zvok = tok.url, povezava = tok.url, video = false)
                         }
-                        glavna.post { koncajPripravo(pripravaKljuc); if (!isFinishing && !isDestroyed) GlasbaStoritev.predvajaj(this, vrsta, 0) }
-                        return@execute
+                        glavna.post { if (!koncajPripravo(pripravaKljuc)) return@post; if (!isFinishing && !isDestroyed) GlasbaStoritev.predvajaj(this, vrsta, 0) }
+                        return@naDelavcu
                     }
-                    glavna.post { koncajPripravo(pripravaKljuc); if (!isFinishing && !isDestroyed) izberiTok(sk, "${sk.naslov} · ${ime(e)}", prvi, rocno) { epizodeNi(sk, tip, e, epIzvorni, rocno, edinaSezona) } }
-                    return@execute
+                    glavna.post { if (!koncajPripravo(pripravaKljuc)) return@post; if (!isFinishing && !isDestroyed) izberiTok(sk, "${sk.naslov} · ${ime(e)}", prvi, rocno) { epizodeNi(sk, tip, e, epIzvorni, rocno, edinaSezona) } }
+                    return@naDelavcu
                 }
                 val t = tokoviZa(e)
                 val pp = predpomnjeniZa(t, sk.copy(season = e.sezona, episode = e.epizoda), rocno)
                 glavna.post {
-                    koncajPripravo(pripravaKljuc)
+                    if (!koncajPripravo(pripravaKljuc)) return@post
                     if (!isFinishing && !isDestroyed) izberiTok(sk.copy(season = e.sezona, episode = e.epizoda), "${sk.naslov} · ${ime(e)}", t, rocno, pp) { epizodeNi(sk, tip, e, epIzvorni, rocno, edinaSezona) }
                 }
             }
@@ -8793,6 +8827,7 @@ class GlasbaActivity : OsActivity() {
             seznamSezon.onItemSelectedListener = null
             seznamSezon.onItemClickListener = null
             seznamEpizod.onItemClickListener = null
+            seznamEpizod.onItemSelectedListener = null
             seznamSezon.setOnKeyListener(null)
             seznamEpizod.setOnKeyListener(null)
         }
@@ -8804,18 +8839,50 @@ class GlasbaActivity : OsActivity() {
             val i = ep.indexOfFirst { it.id == e.id }
             if (i < 0) return@preveriEpizode
             ep.removeAt(i)
-            
-            if (sezone.getOrNull(trenutniIndeksSezone) == e.sezona) {
-                osveziEpizode(trenutniIndeksSezone)
+            if (ep.isEmpty()) { dialog.dismiss(); nicNiNaVoljo(); return@preveriEpizode }
+            // Pregled Medijskega centra 5. 11. 2026 (6): prazna sezona izpade (fokus na seznam sezon), izbira ostane na isti
+            // epizodi po id - prej je ostala na istem mestu in OK je izbral drugo epizodo.
+            val (ostale, novaTrenutna) = EpizodePravila.sezonePoOdstranitvi(sezone, ep.map { it.sezona }, trenutniIndeksSezone)
+            if (ostale.size != sezone.size) {
+                val trenutnaIzpadla = sezone.getOrNull(trenutniIndeksSezone) == e.sezona
+                sezone.clear(); sezone.addAll(ostale)
+                imenaSezon.clear(); imenaSezon.addAll(sezone.map { imeSezone(it) })
+                if (trenutnaIzpadla) { trenutniIndeksSezone = -1; osveziEpizode(novaTrenutna) } else trenutniIndeksSezone = novaTrenutna
+                adapterSezon.notifyDataSetChanged()
+                if (pokaziLevi) {
+                    seznamSezon.setSelection(trenutniIndeksSezone)
+                    if (trenutnaIzpadla) seznamSezon.requestFocus()
+                }
+                return@preveriEpizode
             }
-            if (ep.isEmpty()) { dialog.dismiss(); nicNiNaVoljo() }
+            val iz = sezone.indexOf(e.sezona)
+            if (iz >= 0) {
+                imenaSezon[iz] = imeSezone(e.sezona)
+                // Brez notifyDataSetChanged (fokus): samo besedilo vidne vrstice.
+                (seznamSezon.getChildAt(iz - seznamSezon.firstVisiblePosition) as? android.widget.TextView)?.text = imenaSezon[iz]
+            }
+            if (sezone.getOrNull(trenutniIndeksSezone) == e.sezona) {
+                val prej = trenutnaSezonaEpizode.map { it.id }
+                osveziEpizode(trenutniIndeksSezone)
+                val nov = EpizodePravila.izborPoOdstranitvi(prej, trenutnaSezonaEpizode.map { it.id }, izborEpizode)
+                if (nov >= 0) { izborEpizode = nov; seznamEpizod.setSelection(nov) }
+            }
         }
     }
 
     private fun epizodeNi(sk: Jamendo.Skladba, tip: String, e: Stremio.Epizoda, vse: List<Stremio.Epizoda>, rocno: Boolean, edinaSezona: Boolean) {
-        PredvajanjeActivity.zapriZNapako()
         skrijInPotrdi(Razpolozljivost.kljuc(tip, e.id)) { naslovi, torrent -> Stremio.razpolozljivo(naslovi, tip, e.id, torrent) }
-        izberiSezono(sk, vse, rocno)
+        // Pregled Medijskega centra 5. 11. 2026 (8): okno epizod sele, ko se predvajalnik z napako zapre - ne dve okni hkrati.
+        PredvajanjeActivity.zapriZNapako { if (!isFinishing && !isDestroyed) izberiSezono(sk, vse, rocno) }
+    }
+
+    /** Pregled Medijskega centra 5. 11. 2026 (7): zadnja izbrana epizoda serije v tem zagonu, sicer zadnja gledana (MediaNapredek). */
+    private fun zadnjaEpizoda(sk: Jamendo.Skladba): Pair<Int, Int>? {
+        val serija = sk.id.substringBefore('#')
+        if (serija.isBlank()) return null
+        zadnjaEpizodaSerije[serija]?.let { return it }
+        return MediaNapredek.seznam(this).firstOrNull { it.skladba.id.substringBefore('#') == serija && it.skladba.season > 0 }
+            ?.let { it.skladba.season to it.skladba.episode }
     }
     // ------------------------------------------------------------------ razpolozljivost: prikazemo samo, kar se da predvajati
 
@@ -10211,8 +10278,12 @@ class GlasbaActivity : OsActivity() {
                 setSpan(android.text.style.ForegroundColorSpan(BARVA_OPOZORILA_KAKOVOSTI), z, z + o.napis.length + 2, 0)
             } else napis
         }
-        prekliciPriprave()
-        AlertDialog.Builder(this).setTitle(naslov).setItems(imena.toTypedArray<CharSequence>()) { _, k ->
+        // Pregled Medijskega centra 5. 11. 2026 (4): priprava tega klika je ze koncana (klicatelj); druge priprave tecejo
+        // naprej. Zapre se samo zaslon »Pripravljam«, brez preklica vseh priprav (prej prekliciPriprave()).
+        PredvajanjeActivity.zapriCePripravlja(prekliciPriprave = false)
+        if (pripraveVTeKu.isEmpty() && debridDelo == null) skrijPripravljam()
+        // (14): okno v slogu Safeer OS kot MeniKanala.
+        AlertDialog.Builder(this, R.style.Os_Okno).setTitle(naslov).setItems(imena.toTypedArray<CharSequence>()) { _, k ->
             val t = urejeni[k]
             // Webtor rezerva: rocno izbran tok Webtor - sonda in TorBox v ozadju; ce ne stece, ista izdaja kot torrent.
             if (t.vir == WebtorPravila.VIR) {
@@ -11449,7 +11520,7 @@ class GlasbaActivity : OsActivity() {
             glavna.post {
                 if (isFinishing) { koncajPripravo(priprava); return@post }
                 if (r == null) { pripravaNiUspela(priprava, sk); return@post }
-                koncajPripravo(priprava)
+                if (!koncajPripravo(priprava)) return@post
                 stanje.text = if (razdelek == ISKANJE && zadetki != null) opisZadetkov else opis(razdelek)
                 GlasbaStoritev.predvajaj(this, listOf(r), 0)
                 nadaljujKoPripravljen(sk)
@@ -11467,7 +11538,7 @@ class GlasbaActivity : OsActivity() {
             glavna.post {
                 if (isFinishing) { koncajPripravo(priprava); return@post }
                 if (r == null) { pripravaNiUspela(priprava, sk); return@post }
-                koncajPripravo(priprava)
+                if (!koncajPripravo(priprava)) return@post
                 stanje.text = if (razdelek == ISKANJE && zadetki != null) opisZadetkov else opis(razdelek)
                 GlasbaStoritev.predvajaj(this, listOf(r), 0)
             }

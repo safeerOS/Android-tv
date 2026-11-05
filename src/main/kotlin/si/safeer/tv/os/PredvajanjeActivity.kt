@@ -356,6 +356,8 @@ class PredvajanjeActivity : OsActivity() {
     private var prikazujemNapako: Boolean = false
     /** Zaprtje 2,5 s po sporocilu o napaki; nov namen (onNewIntent) ga preklice (pregled Grok 2. 11. 2026). */
     private val zapriPoNapakiRunnable = Runnable { pripravljamNaslov = null; finish() }
+    /** Pregled Medijskega centra 5. 11. 2026 (8): kar se pokaze sele, ko se ta zaslon zapre (okno epizod po napaki). */
+    private var poZaprtju: (() -> Unit)? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -772,6 +774,7 @@ class PredvajanjeActivity : OsActivity() {
         // Nov posnetek v istem zaslonu: prejsnje sporocilo o napaki in njegovo zaprtje ne veljata vec.
         glavna.removeCallbacks(zapriPoNapakiRunnable)
         prikazujemNapako = false
+        poZaprtju = null      // pregled 5. 11. 2026 (8): okno epizod prejsnje napake se ne odpre vec
         pripravljamNaslov = intent.getStringExtra(PRIPRAVLJAM_NASLOV)
         if (pripravljamNaslov != null) {
             zagonovObOdprtju = GlasbaStoritev.zagonov
@@ -844,13 +847,24 @@ class PredvajanjeActivity : OsActivity() {
         /** Odtis osnove dodatka, ki je nazadnje dal podnapise (samodejno iscemo najprej pri njem). */
         private const val K_ZADNJI_PODNAPISI = "podnapisi_zadnji_dodatek"
         var instanca: java.lang.ref.WeakReference<PredvajanjeActivity>? = null
-        fun zapriCePripravlja() {
+        /**
+         * [prekliciPriprave] = false (pregled Medijskega centra 5. 11. 2026, 4): zaslon se zapre, priprave v GlasbaActivity
+         * tecejo naprej (rocna izbira vira) - sicer onDestroy preklice vse.
+         */
+        fun zapriCePripravlja(prekliciPriprave: Boolean = true) {
             instanca?.get()?.let { 
-                if (it.pripravljamNaslov != null) it.finish()
+                if (it.pripravljamNaslov != null) {
+                    if (!prekliciPriprave) it.pripravljamNaslov = null
+                    it.finish()
+                }
             }
         }
-        fun zapriZNapako() {
-            instanca?.get()?.let { 
+        /** [potem]: izvede se, ko se zaslon z napako zapre; brez zaslona v pripravi takoj (pregled 5. 11. 2026, 8). */
+        fun zapriZNapako(potem: (() -> Unit)? = null) {
+            val z = instanca?.get()
+            if (z == null || z.pripravljamNaslov == null || z.isDestroyed) { potem?.invoke(); return }
+            if (potem != null) z.poZaprtju = potem
+            z.let { 
                 val naslov = it.pripravljamNaslov
                 if (naslov != null && !it.prikazujemNapako) {
                     it.prikazujemNapako = true
@@ -882,6 +896,7 @@ class PredvajanjeActivity : OsActivity() {
 
     override fun onDestroy() {
         if (pripravljamNaslov != null) GlasbaActivity.instanca?.get()?.prekliciPriprave()
+        poZaprtju?.let { p -> poZaprtju = null; android.os.Handler(android.os.Looper.getMainLooper()).post(p) }
         odjaviPip(); delavec.shutdownNow(); super.onDestroy()
     }
 
