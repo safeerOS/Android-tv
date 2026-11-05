@@ -10,11 +10,15 @@ private fun preveriEnako(opis: String, pricakovano: Any?, dobljeno: Any?) =
 
 /** Naloga 42 A: tema Pokrajina novega TV zaganjalnika ([PokrajinaPravila]) in vreme ([VremePravila]). */
 private fun preveriSirinoDoka() {
-    // Lastnik 4. 11. 2026 23:39: gumb s fokusom je sirok vsaj kot napis v eni vrstici; brez fokusa enak delez.
-    check(PokrajinaPravila.sirinaGumbaDoka(delez = 240, sirinaNapisa = 300, robovi = 24, fokus = true) == 324)
-    check(PokrajinaPravila.sirinaGumbaDoka(delez = 240, sirinaNapisa = 120, robovi = 24, fokus = true) == 240)
-    check(PokrajinaPravila.sirinaGumbaDoka(delez = 240, sirinaNapisa = 300, robovi = 24, fokus = false) == 240)
-    println("  ok  sirina gumba spodnje vrstice")
+    // Fokus-straza 5. 11. 2026 05:03: DESNO po spodnji vrstici (7 gumbov) gre na naslednjega, nobenega ne preskoci.
+    val n = 7
+    var i = 0
+    val pot = mutableListOf(i)
+    repeat(n + 2) { i = PokrajinaPravila.sosedaDoka(i, n).second; pot += i }
+    check(pot == listOf(0, 1, 2, 3, 4, 5, 6, 6, 6, 6)) { "DESNO: $pot" }          // zadnji ostane na sebi
+    check(PokrajinaPravila.sosedaDoka(0, n).first == -1)                        // prvi LEVO: privzeto (stranski meni)
+    check((1 until n).all { PokrajinaPravila.sosedaDoka(it, n).first == it - 1 })
+    println("  ok  pot po spodnji vrstici")
 }
 
 fun main() {

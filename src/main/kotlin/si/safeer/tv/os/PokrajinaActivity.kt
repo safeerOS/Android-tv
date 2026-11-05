@@ -2368,7 +2368,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                 else -> R.drawable.os_ikona_nastavitve to R.string.os_meni_nastavitve
             }
             // Lastnik 4. 11. 2026 23:39: napis vedno v eni vrstici, mesto zanj vedno rezervirano (INVISIBLE, ne GONE) - vrstica
-            // ob fokusu ne poskoci; gumb s fokusom se razsiri, da napis ni odrezan (PokrajinaPravila.sirinaGumbaDoka).
+            // ob fokusu ne poskoci. Fokus-straza 5. 11. 05:03: sirina gumba se ne spremeni (sicer DESNO preskakuje gumbe);
+            // napis je sirok kot besedilo in sme cez rob gumba (clipChildren=false), zato ni odrezan.
             val bes = besedilo(getString(napis), 15f).apply {
                 gravity = Gravity.CENTER; maxLines = 1; isSingleLine = true; ellipsize = null
                 visibility = View.INVISIBLE
@@ -2397,7 +2398,6 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                 setOnFocusChangeListener { p, ima ->
                     p.background.alpha = if (ima) 255 else 0
                     bes.visibility = if (ima) View.VISIBLE else View.INVISIBLE
-                    sirinaGumbaDoka(v, p, bes, ima)
                 }
                 setOnClickListener { odpriRazdelek(r) }
                 setOnLongClickListener { zacniPremikanjeDok(r); true }
@@ -2439,24 +2439,24 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                     ikonaOkvir.addView(pika, FrameLayout.LayoutParams(dp(8), dp(8)).apply { gravity = Gravity.TOP or Gravity.END; topMargin = dp(2); marginEnd = dp(2) })
                 }
                 addView(ikonaOkvir, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-                addView(bes, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(4) })
+                clipChildren = false
+                val sirinaNapisa = Math.ceil(bes.paint.measureText(bes.text.toString()).toDouble()).toInt() + dp(4)
+                addView(bes, LinearLayout.LayoutParams(sirinaNapisa, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(4) })
             }
             poudariFokus(gumb)
+            gumb.id = View.generateViewId()
             v.addView(gumb, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(4); marginEnd = dp(4) })
         }
-    }
-
-    /** Sirina gumba spodnje vrstice ob fokusu (PokrajinaPravila.sirinaGumbaDoka): napis v eni vrstici ni odrezan. */
-    private fun sirinaGumbaDoka(vrstica: LinearLayout, gumb: View, bes: TextView, fokus: Boolean) {
-        val lp = gumb.layoutParams as? LinearLayout.LayoutParams ?: return
-        val n = vrstica.childCount.coerceAtLeast(1)
-        val delez = (vrstica.width - vrstica.paddingLeft - vrstica.paddingRight) / n - lp.marginStart - lp.marginEnd
-        if (delez <= 0) return
-        val napis = Math.ceil(bes.paint.measureText(bes.text.toString()).toDouble()).toInt()
-        val sirina = PokrajinaPravila.sirinaGumbaDoka(delez, napis, gumb.paddingLeft + gumb.paddingRight + dp(4), fokus)
-        val siroko = sirina > delez
-        if (siroko) { lp.width = sirina; lp.weight = 0f } else { lp.width = 0; lp.weight = 1f }
-        gumb.layoutParams = lp
+        v.clipChildren = false
+        v.clipToPadding = false
+        // Izrecna pot LEVO/DESNO po vrstnem redu (PokrajinaPravila.sosedaDoka): brez preskakovanja, zadnji ne pobegne v drugo vrsto.
+        val n = v.childCount
+        for (i in 0 until n) {
+            val (levo, desno) = PokrajinaPravila.sosedaDoka(i, n)
+            val g = v.getChildAt(i)
+            g.nextFocusRightId = v.getChildAt(desno).id
+            if (levo >= 0) g.nextFocusLeftId = v.getChildAt(levo).id
+        }
     }
 
     private fun osveziDokZnacke() {

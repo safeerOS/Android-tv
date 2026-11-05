@@ -82,6 +82,8 @@ preveri("Vnos: po ponovni vezavi storitve takoj preveri aplikacijo v ospredju", 
 
 preveri("Vnos: urejevalno polje cel okvir brez polnila", "VnosVklopPravila.skrajsajSirokOkvir(urejevalno" in vn and "VnosVklopPravila.polniloOkvirja(urejevalno)" in vn)
 
+preveri("Dom: sirina gumbov ostane, izrecna pot LEVO/DESNO", "sirinaGumbaDoka" not in dok and "PokrajinaPravila.sosedaDoka(i, n)" in pk and "nextFocusRightId" in dok)
+
 if napake:
     print("NAPAKA zunanji pregled TV:", len(napake)); sys.exit(1)
 print("zunanji pregled TV OK")

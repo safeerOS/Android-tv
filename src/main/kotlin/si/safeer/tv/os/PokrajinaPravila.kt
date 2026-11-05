@@ -29,13 +29,14 @@ object PokrajinaPravila {
     val DOK = listOf(MEDIJI, SPLET, LINK, SPOROCILA, APLIKACIJE, DATOTEKE, NASTAVITVE)
 
     /**
-     * Lastnik 4. 11. 2026 23:39 (video): napis pod ikono se je pokazal sele ob fokusu in »Medijski center« je sel v dve
-     * vrstici - gumb je zrasel, cela spodnja vrstica in cip z glasbo nad njo sta poskocila. Zdaj je napis vedno v eni
-     * vrstici in mesto zanj je vedno rezervirano (visina se ne spremeni); gumb s fokusom je sirok vsaj toliko, da napis ni
-     * odrezan ([delez] = enak delez vrstice, [sirinaNapisa] + [robovi] v px), brez fokusa enak delez kot ostali.
+     * Fokus-straza 5. 11. 2026 05:03 (ecb290b6): DESNO v spodnji vrstici je preskakoval gumbe (Medijski center -> Safeer
+     * Link, Sporocila -> Datoteke) in z zadnjega pobegnil k vremenu zgoraj - gumb s fokusom se je razsiril, sosedi so se med
+     * iskanjem fokusa premaknili. Zdaj sirina gumbov ostane enaka (napis sme cez rob gumba, brez vpliva na postavitev) in
+     * pot je izrecna: [indeks] -> (levo, desno) po vrstnem redu; zadnji DESNO ostane na sebi, prvi LEVO -1 (privzeto:
+     * stranski meni ali rob). [stevilo] gumbov v vrsti.
      */
-    fun sirinaGumbaDoka(delez: Int, sirinaNapisa: Int, robovi: Int, fokus: Boolean): Int =
-        if (fokus) maxOf(delez, sirinaNapisa + robovi) else delez
+    fun sosedaDoka(indeks: Int, stevilo: Int): Pair<Int, Int> =
+        (if (indeks > 0) indeks - 1 else -1) to (if (indeks < stevilo - 1) indeks + 1 else indeks)
 
     /** Vrstni red gumbov v spodnji vrstici (shranjen in manjkajoci na koncu). */
     /**
