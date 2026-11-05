@@ -158,11 +158,21 @@ function stanjeVrha(v) {
     okvirZ(v, 'https://cdn.predvajalnik.test', false);           // CDN igra (t=12), polozaja vrhnja stran ne preveri
     preveri('5 (N-E): CDN okvir: stanje ni preverjeno (ni polozaja, konca)', undefined, vm.runInContext('window.__safeerOkvir', v));
     const st = stanjeVrha(v);
-    preveri('5 (N-E): STANJE_JS vrne samo znak u (Kotlin preklice zastoj, skladbe ne preskoci)', { u: 1 }, st);
+    // Odlocitev vodje 5. 11. 2026 (N4): poleg znaka se stevila t, trajanje d in cas prejema (dolg posnetek, ki tece, se ne preskoci).
+    preveri('5 (N-E/N4): STANJE_JS vrne znak u ter samo stevila t, d in cas prejema', ['u', 'ut', 'ud', 'uc', 1, 12, 100, 'number'],
+        [...Object.keys(st), st.u, st.ut, st.ud, typeof st.uc]);
     preveri('5 (N-E): Kotlin znak uporabi SAMO za zastoj', true,
-        /if \(o\.optInt\("u"\) == 1\) nepreverjenoIgraOd = SystemClock\.uptimeMillis\(\)/.test(KT) &&
-        /YoutubeVrstaPravila\.zastoj\(zdaj - nalozenoOd, polozaj, pripravljeno, zelja, nepreverjeno\)/.test(KT) &&
-        (KT.match(/nepreverjenoIgraOd/g) || []).length === 4);
+        /if \(o\.optInt\("u"\) == 1\) nepreverjeno\.znak\(o\.optDouble\("ut", -1\.0\), o\.optDouble\("ud", 0\.0\), o\.optDouble\("uc", -1\.0\),/.test(KT) &&
+        /YoutubeVrstaPravila\.zastoj\(zdaj - nalozenoOd, polozaj, pripravljeno, zelja, nepreverjeno\.igra\(zdaj\),\s*nepreverjeno\.dolgIgra\(zdaj\)\)/.test(KT) &&
+        (KT.match(/nepreverjeno\./g) || []).length === 3);
+    // Okvir poslje necislo trajanje ali niz: v stanje gre samo stevilo.
+    const v4 = okno(null, 'https://glasba.primer.test');
+    v4.document.querySelectorAll = () => [];
+    vm.runInContext(JS, v4);
+    const o4 = okvirZ(v4, 'https://cdn.predvajalnik.test', false);
+    posljiOd(v4, o4, { safeer: 'stanje', k: KLJUC, p: true, t: 5, d: 'x<script>', r: 4, e: false });
+    const st4 = stanjeVrha(v4);
+    preveri('5 (N4): trajanje, ki ni stevilo, je 0', [5, 0], [st4.ut, st4.ud]);
     // CDN okvir, ki ne igra (pavza ali konec), znaka ne da - pravi zastoj ostane.
     const v2 = okno(null, 'https://glasba.primer.test');
     v2.document.querySelectorAll = () => [];

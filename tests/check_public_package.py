@@ -41,8 +41,11 @@ TEXT_SUFFIXES = ('.js', '.html', '.css', '.json', '.md', '.kt')
 # a voice shortcut. Anywhere else it would mean the browser carries a recipe for that one
 # site instead of a generic rule - which is the thing this guard exists to prevent.
 SITE_NAMES = ['xplore']
+# The name on its own ("Xplore TV") or glued to letters that form a hostname ("xploretv.si", also an escaped dot in a
+# Kotlin regex string, "xploretv\\.si"). The earlier pattern needed a non-letter right after the name and so missed
+# a host list such as ['xploretv.si', ...] (peti slepi pregled, 5. 11. 2026). "explorer" stays allowed (letter before).
 SITE_NAME_PATTERNS = [
-    (name, re.compile(r'(?<![0-9a-z])' + re.escape(name) + r'(?![0-9a-z])', re.I))
+    (name, re.compile(r'(?<![0-9a-z])' + re.escape(name) + r'(?:(?![0-9a-z])|[0-9a-z-]*(?:\\\\)*\.[a-z]{2,})', re.I))
     for name in SITE_NAMES
 ]
 BOOKMARK_FILES = {
