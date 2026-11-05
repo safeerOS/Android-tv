@@ -89,4 +89,10 @@
     <string name="os_od_zacetka">From the beginning</string>
     <string name="os_nadaljevanje_ni_mogoce">This source can\'t jump to the saved position – playing from the beginning.</string>
     <string name="os_nadaljevanje_drug_vir">This source can\'t jump there – trying another source …</string>
+    <string name="os_naslednja_epizoda">Next episode: %1$s</string>
+    <string name="os_naslednja_cez">in %1$d s</string>
+    <string name="os_naslednja_zdaj">Play now</string>
+    <string name="os_naslednja_preklici">Cancel</string>
+    <string name="os_naslednja_se_gledate">Still watching?</string>
+    <string name="os_naslednja_ni">Next episode is not available</string>
 </resources>

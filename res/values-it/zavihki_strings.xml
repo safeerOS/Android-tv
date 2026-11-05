@@ -91,4 +91,10 @@
     <string name="os_od_zacetka">Dall\'inizio</string>
     <string name="os_nadaljevanje_ni_mogoce">Questa fonte non consente di saltare alla posizione salvata: riproduco dall\'inizio.</string>
     <string name="os_nadaljevanje_drug_vir">Questa fonte non consente il salto: provo un\'altra …</string>
+    <string name="os_naslednja_epizoda">Prossimo episodio: %1$s</string>
+    <string name="os_naslednja_cez">tra %1$d s</string>
+    <string name="os_naslednja_zdaj">Riproduci ora</string>
+    <string name="os_naslednja_preklici">Annulla</string>
+    <string name="os_naslednja_se_gledate">Stai ancora guardando?</string>
+    <string name="os_naslednja_ni">Prossimo episodio non disponibile</string>
 </resources>

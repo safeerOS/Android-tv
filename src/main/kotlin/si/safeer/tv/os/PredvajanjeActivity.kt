@@ -152,6 +152,7 @@ class PredvajanjeActivity : OsActivity() {
         osveziCas()
         // Napredek videa sproti (prej samo, ko je bil odprt Medijski center - med gledanjem se ni zapisal).
         if (++tikov % 5 == 0) zapisiNapredek()
+        preveriNaslednjo(odstej = true)
         glavna.postDelayed(this, 1_000)
     } }
 
@@ -219,7 +220,11 @@ class PredvajanjeActivity : OsActivity() {
     }
     private val skrij = Runnable {
         // Dokler se video ne zacne, pas z naslovom ostane: uporabnik vidi, kaj se nalaga.
-        if (jeVideo() && OsPravila.pasSeSkrije(dotik, predlogiOdprti(), videoTece(), GlasbaStoritev.predvajalnik?.playerError != null) && !seNalaga()) prekritje.animate().alpha(0f).setDuration(300).start()
+        // Lastnik 5. 11. 2026: ime ostane 3 s od zacetka predvajanja - pas se pred tem ne skrije (prej ga je preverba med
+        // nalaganjem, vsako sekundo, skrila takoj po prvi sliki).
+        val doImena = if (jeVideo() && videoTece()) OsPravila.preostaloImena(imeOd, android.os.SystemClock.uptimeMillis()) else 0L
+        if (doImena > 0L && !seNalaga()) glavna.postDelayed(skrijRunnable(), doImena)
+        else if (jeVideo() && OsPravila.pasSeSkrije(dotik, predlogiOdprti(), videoTece(), GlasbaStoritev.predvajalnik?.playerError != null) && !seNalaga()) prekritje.animate().alpha(0f).setDuration(300).start()
         // Lastnik 2. 11. 2026 16:57 (Usenet, lasten pogon): priprava traja dlje od 4 s - ob prvem preverjanju posnetka se ni
         // (trenutna() je null), nobena veja ni ponovila preverbe in naslov je ostal cez film do prve tipke.
         else if (seNalaga() || GlasbaStoritev.trenutna() == null) glavna.postDelayed(skrijRunnable(), 1_000)
@@ -228,6 +233,7 @@ class PredvajanjeActivity : OsActivity() {
     private fun prikaziPripravljamStanje(pn: String) {
         prekritje.alpha = 1f
         naslov.text = pn
+        posodobiIme()
         izvajalec.text = getString(R.string.os_media_pripravljam, "").trim()
         vir.text = ""
         naslovnica.visibility = View.GONE
@@ -254,13 +260,17 @@ class PredvajanjeActivity : OsActivity() {
     private var zadnjaVelikost: VideoSize? = null
     private val velikost = object : Player.Listener {
         override fun onVideoSizeChanged(videoSize: VideoSize) = prilagodi(videoSize)
-        override fun onRenderedFirstFrame() { prvaSlika = true; posodobiNalaganje() }
+        override fun onRenderedFirstFrame() { prvaSlika = true; zacetekImena(); posodobiNalaganje() }
         override fun onPlaybackStateChanged(playbackState: Int) {
             posodobiNalaganje()
+            // Lastnik 5. 11. 2026: konec epizode - kartica naslednje epizode (zaslon ostane, ceprav se storitev ustavi).
+            if (playbackState == Player.STATE_ENDED) preveriNaslednjo(odstej = false)
             // Konec posnetka na dotik: pas s predlogi se vrne (med predvajanjem je bil skrit).
             if (playbackState == Player.STATE_ENDED && dotik && jeVideo() && !zaklenjeno && !isInPictureInPictureMode) zbudi()
         }
         override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+            // Lastnik 5. 11. 2026 22:42: pavza skrije ime (pas s casom ostane), nadaljevanje ga ne pokaze znova.
+            imeOd = OsPravila.imeOdObPavzi(imeOd, playWhenReady); posodobiIme()
             if (!dotik || !jeVideo()) return
             // Pavza (tudi s slusalk, iz obvestila ali z druge naprave): pas se pokaze in ostane. Nadaljevanje: pas se
             // kmalu skrije, tudi kadar je odprta vrsta kartic.
@@ -427,6 +437,7 @@ class PredvajanjeActivity : OsActivity() {
         koren.addView(tema, FrameLayout.LayoutParams(-1, -1))
         nalaganje = ProgressBar(this).apply { isIndeterminate = true; visibility = View.GONE }
         koren.addView(nalaganje, FrameLayout.LayoutParams(dp(64), dp(64), Gravity.CENTER))
+        korenPogled = koren
         setContentView(koren)
         if (dotik) pripraviDotik(koren)
     }
@@ -889,6 +900,8 @@ class PredvajanjeActivity : OsActivity() {
         const val IZ_DATOTEK = "iz_datotek"
         /** Samodejno predvajanje videa: takoj odpri v stanju pripravljam, preden je predvajalnik pripravljen. */
         const val PRIPRAVLJAM_NASLOV = "pripravljam_naslov"
+        /** Lastnik 5. 11. 2026: samodejne epizode zapored brez tipke daljinca ([NaslednjaEpizodaPravila.NAJVEC_ZAPOREDNIH]). */
+        @Volatile var zaporednihSamodejno = 0
         const val PIP_PREKLOPI = "si.safeer.tv.os.PIP_PREKLOPI"
         /** Koliko zaslonov predvajanja je med onStart in onStop (ob zamenjavi posnetka od drugod sta kratek cas dva). */
         private var zagnanih = 0
@@ -922,7 +935,7 @@ class PredvajanjeActivity : OsActivity() {
         if (jeVideo() && !igraVOzadju() && !isChangingConfigurations && !novoPredvajanje) GlasbaStoritev.predvajalnik?.pause()
         GlasbaStoritev.poslusalci.remove(poslusalec)
         LinkUpravitelj.pridobi(this).odstrani(linkPoslusalec)
-        glavna.removeCallbacks(tik); glavna.removeCallbacks(skrij); glavna.removeCallbacks(zatemni)
+        glavna.removeCallbacks(tik); glavna.removeCallbacks(skrij); glavna.removeCallbacks(zatemni); glavna.removeCallbacks(skrijIme)
         // Sliko odpnemo, zvok igra naprej (predvajanje v ozadju).
         pripet?.let { it.clearVideoSurfaceView(povrsina); it.removeListener(velikost); it.removeListener(podnapisi) }
         (pripet as? SpletniIgralec)?.skrij()
@@ -963,6 +976,8 @@ class PredvajanjeActivity : OsActivity() {
             }
         }
         if (p == null || sk == null) {
+            // Lastnik 5. 11. 2026: po koncu epizode je storitev ze ustavljena - zaslon ostane za kartico naslednje epizode.
+            if (naslednjaDrzi()) return
             android.util.Log.i("SafeerOsMedia", "zaslon predvajanja: zapiram - predvajalnik=${p != null}, skladba=${sk != null}")
             finish()
             return
@@ -998,6 +1013,7 @@ class PredvajanjeActivity : OsActivity() {
         osveziZvocnik()
         osveziGumbZvocnika(sk)
         naslov.text = sk.naslov
+        posodobiIme()
         val skritiVir = SpletniVir.jeEnota(sk)
         // Koncna napaka tega posnetka ostane napisana (osvezitev je ne sme prepisati z imenom izvajalca).
         izvajalec.text = GlasbaStoritev.koncnaNapaka?.takeIf { it.id == sk.id }?.besedilo ?: if (skritiVir) "" else sk.izvajalec
@@ -2039,9 +2055,243 @@ class PredvajanjeActivity : OsActivity() {
         if (da) { prekritje.animate().cancel(); prekritje.alpha = 1f }
     }
 
+    // ------------------------------------------------------------------ ime posnetka in naslednja epizoda (lastnik 5. 11. 2026)
+
+    /** Od kdaj se kaze ime (uptime; -1 = ne kaze) in za kateri posnetek se je ze pokazalo ob prvi sliki. */
+    private var imeOd = -1L
+    private var imeZa: String? = null
+    private val skrijIme = Runnable { posodobiIme() }
+
+    private fun kljucPosnetka(sk: Jamendo.Skladba) = sk.id + "|" + sk.season + "|" + sk.episode
+
+    /** Vrstica z imenom (naslov) se skrije sama; vrstica pod njo ostane, ker kaze tudi stanje (nalagam, napaka, pomocnik). */
+    private fun posodobiIme() {
+        if (!::naslov.isInitialized) return
+        val zdaj = android.os.SystemClock.uptimeMillis()
+        val vednoVidno = !prvaSlika || pripravljamNaslov != null || GlasbaStoritev.predvajalnik?.playerError != null
+        val vidno = OsPravila.imeVidno(jeVideo(), vednoVidno, videoTece(), imeOd, zdaj)
+        val v = if (vidno) View.VISIBLE else View.GONE
+        if (naslov.visibility != v) naslov.visibility = v
+        glavna.removeCallbacks(skrijIme)
+        val ostane = OsPravila.preostaloImena(imeOd, zdaj)
+        if (vidno && ostane > 0L) glavna.postDelayed(skrijIme, ostane)
+    }
+
+    /** Prva slika NOVEGA posnetka (film, epizoda, Nadaljuj, samodejna naslednja): ime za 3 s. */
+    private fun zacetekImena() {
+        val k = GlasbaStoritev.trenutna()?.let { kljucPosnetka(it) }
+        if (!OsPravila.imeObPrviSliki(k, imeZa)) return
+        imeZa = k
+        imeOd = android.os.SystemClock.uptimeMillis()
+        if (!zaklenjeno && !isInPictureInPictureMode) zbudi() else posodobiIme()
+    }
+
+    /** Stanje za epizodo [naslednjaZa] (kljuc posnetka); ob drugem posnetku se ponastavi. */
+    private var naslednjaZa: String? = null
+    private var naslednjaSk: Jamendo.Skladba? = null
+    private var naslednjaEp: Stremio.Epizoda? = null
+    private var naslednjaIscem = false
+    private var naslednjaNi = false
+    private var konecEpizode = false
+    private var karticaPreklicana = false
+    private var karticaVrsta = NaslednjaEpizodaPravila.NIC
+    private var odstetoMs = 0L
+    private var korenPogled: FrameLayout? = null
+    private var kartica: LinearLayout? = null
+    private var karticaNaslov: TextView? = null
+    private var karticaBesedilo: TextView? = null
+    private var gumbZdaj: TextView? = null
+    /** Po koncu epizode zaslon na seznam epizod caka najvec [NaslednjaEpizodaPravila.CAKAJ_SEZNAM_MS], nato se zapre kot prej. */
+    private val naslednjaRok = Runnable {
+        if (naslednjaIscem && konecEpizode && GlasbaStoritev.predvajalnik == null) { naslednjaIscem = false; naslednjaNi = true; finish() }
+    }
+
+    private fun karticaOdprta() = kartica?.visibility == View.VISIBLE
+
+    /** Storitev je po koncu epizode ustavljena, zaslon pa caka na seznam epizod ali na izbiro na kartici. */
+    private fun naslednjaDrzi(): Boolean = konecEpizode && !karticaPreklicana && (naslednjaIscem || karticaOdprta())
+
+    private fun ponastaviNaslednjo(kljuc: String) {
+        naslednjaZa = kljuc; naslednjaSk = null; naslednjaEp = null; naslednjaIscem = false; naslednjaNi = false
+        konecEpizode = false; karticaPreklicana = false; karticaVrsta = NaslednjaEpizodaPravila.NIC; odstetoMs = 0L
+        glavna.removeCallbacks(naslednjaRok)
+        kartica?.visibility = View.GONE
+    }
+
+    /** Vsako sekundo (tik) in ob koncu posnetka: poisci naslednjo epizodo, pokazi kartico, odstevaj. */
+    private fun preveriNaslednjo(odstej: Boolean) {
+        if (isFinishing || isDestroyed) return
+        val p = GlasbaStoritev.predvajalnik
+        val sk = GlasbaStoritev.trenutna()
+        if (p != null && sk != null) {
+            val kljuc = kljucPosnetka(sk)
+            if (kljuc != naslednjaZa) ponastaviNaslednjo(kljuc)
+            if (pripravljamNaslov != null) return
+            val ep = SerijePravila.epizodaZaNadaljevanje(Stremio.razstavi(sk)?.second, sk.season, sk.episode, sk.naslov)
+            val vZivo = p.isCurrentMediaItemLive || Stremio.jeVZivo(sk)
+            if (ep == null || !NaslednjaEpizodaPravila.jeEpizoda(sk.video, vZivo, ep.second) || PreizkusPravila.jePreizkus(sk.id)) return
+            val (polozaj, trajanje) = polozajInTrajanje(p)
+            val koncano = p.playbackState == Player.STATE_ENDED
+            if (koncano && !konecEpizode) {
+                konecEpizode = true
+                glavna.removeCallbacks(naslednjaRok); glavna.postDelayed(naslednjaRok, NaslednjaEpizodaPravila.CAKAJ_SEZNAM_MS)
+            }
+            if (!naslednjaIscem && naslednjaEp == null && !naslednjaNi && (koncano || NaslednjaEpizodaPravila.iskati(trajanje, polozaj)))
+                isciNaslednjo(sk, ep.first, ep.second, kljuc)
+            val zdajPokazi = NaslednjaEpizodaPravila.pokazi(trajanje, polozaj, koncano)
+            // Uporabnik je previl nazaj (dotik, drsnik): kartica gre stran, odstevanje znova, ko pride spet do konca.
+            if (karticaOdprta() && !zdajPokazi) { kartica?.visibility = View.GONE; karticaVrsta = NaslednjaEpizodaPravila.NIC; odstetoMs = 0L }
+            if (naslednjaEp != null && !karticaPreklicana && !karticaOdprta() && zdajPokazi) pokaziKartico()
+        } else if (konecEpizode && naslednjaEp != null && !karticaPreklicana && !karticaOdprta()) pokaziKartico()
+        if (odstej && karticaOdprta()) odstevaj(p)
+    }
+
+    private fun isciNaslednjo(sk: Jamendo.Skladba, sezona: Int, epizoda: Int, kljuc: String) {
+        val g = GlasbaActivity.instanca?.get()
+        if (g == null || g.isFinishing || g.isDestroyed) { naslednjaNi = true; return }
+        naslednjaIscem = true
+        naslednjaSk = sk
+        g.poisciNaslednjoEpizodo(sk, sezona, epizoda) { e ->
+            if (isFinishing || isDestroyed || naslednjaZa != kljuc) return@poisciNaslednjoEpizodo
+            naslednjaIscem = false
+            glavna.removeCallbacks(naslednjaRok)
+            if (e == null) {
+                naslednjaNi = true
+                android.util.Log.i("SafeerOsMedia", "naslednja epizoda: za S${sezona}E$epizoda je ni")
+                if (konecEpizode && GlasbaStoritev.predvajalnik == null) finish()
+                return@poisciNaslednjoEpizodo
+            }
+            naslednjaEp = e
+            preveriNaslednjo(odstej = false)
+        }
+    }
+
+    private fun odstevaj(p: Player?) {
+        if (karticaVrsta != NaslednjaEpizodaPravila.ODSTEVAJ) return
+        // Pavza med odstevanjem ga ustavi: uporabnik bere ali je odsel po pijaco.
+        val pavza = p != null && !p.playWhenReady && p.playbackState != Player.STATE_ENDED
+        odstetoMs = NaslednjaEpizodaPravila.odsteto(odstetoMs, 1_000L, pavza)
+        if (NaslednjaEpizodaPravila.zacniZdaj(odstetoMs)) zacniNaslednjo(samodejno = true) else osveziKartico()
+    }
+
+    private fun pokaziKartico() {
+        if (naslednjaEp == null || zaklenjeno || isInPictureInPictureMode) return
+        val k = kartica ?: ustvariKartico() ?: return
+        karticaVrsta = NaslednjaEpizodaPravila.vrsta(zaporednihSamodejno, true)
+        odstetoMs = 0L
+        k.visibility = View.VISIBLE
+        osveziKartico()
+        gumbZdaj?.requestFocus()
+        android.util.Log.i("SafeerOsMedia", "naslednja epizoda: kartica (vrsta $karticaVrsta, zapored $zaporednihSamodejno)")
+    }
+
+    private fun gumbKartice(besedilo: Int, klik: () -> Unit) = TextView(this).apply {
+        id = View.generateViewId()
+        text = getString(besedilo)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+        isFocusable = true; isClickable = true
+        setPadding(dp(20), dp(10), dp(20), dp(10))
+        val ozadje = GradientDrawable().apply { cornerRadius = dp(22).toFloat() }
+        background = ozadje
+        // Fokus: polna barva poudarka in temno besedilo (kontrast); brez animacije (zmanjsano gibanje velja samo od sebe).
+        val barve = { f: Boolean ->
+            ozadje.setColor(osBarva(if (f) R.color.os_mint else R.color.os_kartica))
+            ozadje.setStroke(dp(1), osBarva(if (f) R.color.os_mint else R.color.os_kartica_obroba))
+            setTextColor(osBarva(if (f) R.color.os_ozadje else R.color.os_besedilo))
+        }
+        barve(false)
+        setOnFocusChangeListener { _, f -> barve(f) }
+        setOnClickListener { klik() }
+    }
+
+    private fun ustvariKartico(): LinearLayout? {
+        val koren = korenPogled ?: return null
+        val k = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(22), dp(18), dp(22), dp(18))
+            background = GradientDrawable().apply {
+                cornerRadius = dp(16).toFloat(); setColor(osBarva(R.color.os_kartica_dvignjena)); setStroke(dp(1), osBarva(R.color.os_kartica_obroba))
+            }
+            isClickable = true      // dotik na prazen del kartice ne gre videu pod njo
+            visibility = View.GONE
+        }
+        val nas = besedilo(18f, osBarva(R.color.os_besedilo), true).apply { maxWidth = dp(460) }
+        val bes = besedilo(15f, osBarva(R.color.os_umirjeno)).apply { maxWidth = dp(460) }
+        k.addView(nas); k.addView(bes, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(4) })
+        val zdaj = gumbKartice(R.string.os_naslednja_zdaj) { zacniNaslednjo(samodejno = false) }
+        val preklici = gumbKartice(R.string.os_naslednja_preklici) { preklicKartice() }
+        // Fokus ostane na kartici: levo od prvega in desno od zadnjega gumba ni nicesar.
+        zdaj.nextFocusRightId = preklici.id; zdaj.nextFocusLeftId = zdaj.id
+        preklici.nextFocusLeftId = zdaj.id; preklici.nextFocusRightId = preklici.id
+        zdaj.nextFocusUpId = zdaj.id; zdaj.nextFocusDownId = zdaj.id; preklici.nextFocusUpId = preklici.id; preklici.nextFocusDownId = preklici.id
+        val vrsta = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        vrsta.addView(zdaj); vrsta.addView(preklici, LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(12) })
+        k.addView(vrsta, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(14) })
+        // Zgoraj desno: pas z imenom in casom je spodaj, kartica ga ne prekrije.
+        koren.addView(k, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.END).apply { topMargin = dp(40); rightMargin = dp(48); leftMargin = dp(16) })
+        kartica = k; karticaNaslov = nas; karticaBesedilo = bes; gumbZdaj = zdaj
+        return k
+    }
+
+    private fun osveziKartico() {
+        val e = naslednjaEp ?: return
+        val ime = getString(R.string.os_naslednja_epizoda, NaslednjaEpizodaPravila.oznaka(e.sezona, e.epizoda, e.ime))
+        if (karticaVrsta == NaslednjaEpizodaPravila.VPRASAJ) {
+            karticaNaslov?.text = getString(R.string.os_naslednja_se_gledate)
+            karticaBesedilo?.text = ime
+            karticaBesedilo?.visibility = View.VISIBLE
+        } else {
+            karticaNaslov?.text = ime + " · " + getString(R.string.os_naslednja_cez, NaslednjaEpizodaPravila.preostaloSekund(odstetoMs))
+            karticaBesedilo?.visibility = View.GONE
+        }
+    }
+
+    private fun preklicKartice() {
+        karticaPreklicana = true; karticaVrsta = NaslednjaEpizodaPravila.NIC
+        kartica?.visibility = View.GONE
+        if (konecEpizode && GlasbaStoritev.predvajalnik == null) finish()
+    }
+
+    /**
+     * Naslednja epizoda z isto potjo kot »Nadaljuj« v Medijskem centru (ista pravila in filter izbire toka). Zaslon do
+     * novega posnetka kaze »Pripravljam« z imenom nove epizode.
+     */
+    private fun zacniNaslednjo(samodejno: Boolean) {
+        val sk = naslednjaSk ?: return
+        val e = naslednjaEp ?: return
+        kartica?.visibility = View.GONE
+        karticaVrsta = NaslednjaEpizodaPravila.NIC
+        karticaPreklicana = true        // ta epizoda je obdelana: kartica se ne vrne
+        zaporednihSamodejno = NaslednjaEpizodaPravila.zaporednihPo(zaporednihSamodejno, samodejno)
+        val g = GlasbaActivity.instanca?.get()
+        if (g == null || g.isFinishing || g.isDestroyed) {
+            android.widget.Toast.makeText(this, R.string.os_naslednja_ni, android.widget.Toast.LENGTH_LONG).show()
+            if (GlasbaStoritev.predvajalnik == null) finish()
+            return
+        }
+        val naslovNovi = NaslednjaEpizodaPravila.naslovEpizode(sk.naslov, e.sezona, e.epizoda, e.ime)
+        android.util.Log.i("SafeerOsMedia", "naslednja epizoda: S${e.sezona}E${e.epizoda} (${if (samodejno) "samodejno" else "rocno"}, zapored $zaporednihSamodejno)")
+        // Mesto te epizode se zapise (odgledano za Nadaljuj), predvajanje pred koncem se ustavi.
+        zapisiNapredek()
+        GlasbaStoritev.predvajalnik?.let { if (it.playbackState != Player.STATE_ENDED) GlasbaStoritev.premorTu() }
+        pripravljamNaslov = naslovNovi
+        zagonovObOdprtju = GlasbaStoritev.zagonov
+        casOdprtjaMs = android.os.SystemClock.uptimeMillis()
+        g.predvajajNaslednjoEpizodo(sk, e.sezona, e.epizoda, naslovNovi)
+        osvezi()
+    }
+
+    /** Za naslednjo epizodo ni toka po uporabnikovih pravilih (GlasbaActivity): zaslon ne caka 45 s. */
+    fun koncajCakanjeNaslednje() {
+        if (isFinishing || isDestroyed || pripravljamNaslov == null) return
+        pripravljamNaslov = null
+        finish()
+    }
+
     private fun zbudi() {
         tema.visibility = View.GONE
         prekritje.animate().cancel(); prekritje.alpha = 1f
+        posodobiIme()
         glavna.removeCallbacks(skrij); glavna.postDelayed(skrij, OsPravila.PAS_SKRIJ_MS)
         glavna.removeCallbacks(zatemni); glavna.postDelayed(zatemni, 30_000)
     }
@@ -2248,6 +2498,15 @@ class PredvajanjeActivity : OsActivity() {
             if (dogodek.actionMasked == MotionEvent.ACTION_UP) pokaziOdkleni()
             return true
         }
+        if (dogodek.actionMasked == MotionEvent.ACTION_DOWN) {
+            zaporednihSamodejno = 0
+            imeOd = OsPravila.imeOdPoTipki(imeOd, android.os.SystemClock.uptimeMillis(), videoTece())
+        }
+        // Kartica naslednje epizode: dotik nanjo gre njenim gumbom.
+        if (karticaOdprta()) {
+            val r = android.graphics.Rect(); kartica?.getGlobalVisibleRect(r)
+            if (r.contains(dogodek.rawX.toInt(), dogodek.rawY.toInt())) return super.dispatchTouchEvent(dogodek)
+        }
         if (mrezaOdprta()) {
             // Mreza vrste je svoja stran: dotiki gredo njej (drsenje, izbira), ne kretnjam za svetlost in glasnost.
             // Zatemnjen zaslon prvi dotik samo zbudi.
@@ -2273,6 +2532,12 @@ class PredvajanjeActivity : OsActivity() {
     }
 
     override fun dispatchKeyEvent(dogodek: KeyEvent): Boolean {
+        // Lastnik 5. 11. 2026: tipka pomeni, da kdo gleda - stevec samodejnih epizod gre na nic. Tipka med predvajanjem
+        // pokaze tudi ime (izgine 3 s po zadnji tipki), med pavzo ne (pavza -> play brez imena).
+        if (dogodek.action == KeyEvent.ACTION_DOWN) {
+            zaporednihSamodejno = 0
+            imeOd = OsPravila.imeOdPoTipki(imeOd, android.os.SystemClock.uptimeMillis(), videoTece())
+        }
         // Glasba igra na zvocniku: tipki za glasnost nastavljata zvocnik (tudi med premorom, ko sistem tega ne naredi sam).
         if ((dogodek.keyCode == KeyEvent.KEYCODE_VOLUME_UP || dogodek.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) && GlasbaStoritev.naZvocniku()) {
             if (dogodek.action == KeyEvent.ACTION_DOWN) glasnostZvocnika(dogodek.keyCode == KeyEvent.KEYCODE_VOLUME_UP)
@@ -2301,6 +2566,15 @@ class PredvajanjeActivity : OsActivity() {
             OsPravila.TEMNO_ZBUDI -> { zbudilaTipka = dogodek.keyCode; return true }
             OsPravila.TEMNO_POGOLTNI -> { zbudilaTipka = null; return true }
             else -> {}
+        }
+        if (karticaOdprta()) when (dogodek.keyCode) {
+            // Kartica naslednje epizode: Nazaj jo preklice; levo, desno in OK so za njena gumba (ne previjanje in pavza pod njo).
+            KeyEvent.KEYCODE_BACK -> { if (dogodek.action == KeyEvent.ACTION_UP) preklicKartice(); return true }
+            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> return true
+            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                if (kartica?.findFocus() == null) gumbZdaj?.requestFocus()
+                return window.superDispatchKeyEvent(dogodek)
+            }
         }
         if (mrezaOdprta()) when (dogodek.keyCode) {
             // Mreza vrste: Nazaj jo zapre (pred vrsto pod njo); smerne tipke in OK gredo mrezi, ne previjanju pod njo.

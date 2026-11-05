@@ -93,4 +93,10 @@
     <string name="os_od_zacetka">Od začetka</string>
     <string name="os_nadaljevanje_ni_mogoce">Ta vir ne omogoča skoka na shranjeno mesto – predvajam od začetka.</string>
     <string name="os_nadaljevanje_drug_vir">Ta vir ne omogoča skoka – poskušam drug vir …</string>
+    <string name="os_naslednja_epizoda">Naslednja epizoda: %1$s</string>
+    <string name="os_naslednja_cez">čez %1$d s</string>
+    <string name="os_naslednja_zdaj">Predvajaj zdaj</string>
+    <string name="os_naslednja_preklici">Prekliči</string>
+    <string name="os_naslednja_se_gledate">Še gledaš?</string>
+    <string name="os_naslednja_ni">Naslednja epizoda ni na voljo</string>
 </resources>

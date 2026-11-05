@@ -48,13 +48,38 @@ object OsPravila {
         if (dotik) tece else !vrstaOdprta && !napaka
 
     /** Po koliko ms brez dotika ali tipke se pas skrije. */
-    const val PAS_SKRIJ_MS = 4_000L
+    const val PAS_SKRIJ_MS = 3_000L
 
     /** Po nadaljevanju iz pavze se skrije prej: uporabnik hoce gledati, ne gumbov. */
     const val PAS_SKRIJ_PO_PAVZI_MS = 1_500L
 
     /** Zamik skrivanja ob zacetku predvajanja oziroma nadaljevanju ([poPavzi]). */
     fun pasZamik(poPavzi: Boolean): Long = if (poPavzi) PAS_SKRIJ_PO_PAVZI_MS else PAS_SKRIJ_MS
+
+    /** Lastnik 5. 11. 2026: ime filma ali epizode izgine 3 s po zacetku predvajanja oziroma po zadnji tipki med predvajanjem. */
+    const val IME_SKRIJ_MS = 3_000L
+
+    /**
+     * Ali je ime posnetka (vrstica naslova v pasu) vidno. Glasba: vedno. Video: med nalaganjem in napako ([vednoVidno]),
+     * sicer samo med predvajanjem ([tece]) in najvec [IME_SKRIJ_MS] od [odMs] (prva slika novega posnetka ali tipka med
+     * predvajanjem; -1 = ne kaze). Lastnik 5. 11. 2026 22:42: med pavzo in po nadaljevanju iz pavze imena ni - pas s casom
+     * in gumbi ostane, ime je locena vrstica.
+     */
+    fun imeVidno(video: Boolean, vednoVidno: Boolean, tece: Boolean, odMs: Long, zdajMs: Long): Boolean =
+        !video || vednoVidno || (tece && odMs >= 0 && zdajMs - odMs in 0 until IME_SKRIJ_MS)
+
+    /** Koliko ms se ime se kaze (0 = nic vec): pas se pred tem ne skrije. */
+    fun preostaloImena(odMs: Long, zdajMs: Long): Long =
+        if (odMs < 0) 0L else (IME_SKRIJ_MS - (zdajMs - odMs)).coerceIn(0L, IME_SKRIJ_MS)
+
+    /** Prva slika pokaze ime samo za nov posnetek ([kljuc]); ista epizoda po previjanju ali pavzi ga ne. */
+    fun imeObPrviSliki(kljuc: String?, prejsnji: String?): Boolean = kljuc != null && kljuc != prejsnji
+
+    /** Pavza ime skrije (-1), nadaljevanje ga ne vrne. */
+    fun imeOdObPavzi(odMs: Long, igra: Boolean): Long = if (igra) odMs else -1L
+
+    /** Tipka ali dotik med predvajanjem pokaze ime za [IME_SKRIJ_MS]; med pavzo ne (pavza -> play brez imena). */
+    fun imeOdPoTipki(odMs: Long, zdajMs: Long, tece: Boolean): Long = if (tece) zdajMs else odMs
 
     /**
      * Zaslon predvajanja odhaja (onStop). Video sicer ustavimo ("video brez slike nima smisla"), razen kadar odhod NI

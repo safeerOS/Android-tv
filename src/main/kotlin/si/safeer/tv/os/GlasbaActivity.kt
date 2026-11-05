@@ -8615,13 +8615,47 @@ class GlasbaActivity : OsActivity() {
     }
 
     /**
+     * Lastnik 5. 11. 2026: epizoda za kartico »Naslednja epizoda« ([PredvajanjeActivity]) - seznam epizod iz dodatka na
+     * delavcu, rezultat na glavni niti; null: zadnja epizoda ali dodatek seznama ne da.
+     */
+    fun poisciNaslednjoEpizodo(sk: Jamendo.Skladba, sezona: Int, epizoda: Int, rezultat: (Stremio.Epizoda?) -> Unit) {
+        val serija = sk.copy(id = sk.id.substringBefore('#') + (if (PreizkusPravila.jePreizkus(sk.id)) PreizkusPravila.OZNAKA else ""),
+            season = 0, episode = 0)
+        if (!Stremio.jeSerija(serija)) { rezultat(null); return }
+        try {
+            delavec.execute {
+                val vse = try { Stremio.epizode(serija) } catch (_: Exception) { emptyList() }
+                val e = OsPravila.naslednjaEpizoda(vse.map { it.sezona to it.epizoda }, sezona, epizoda)
+                    ?.let { (s, k) -> vse.firstOrNull { it.sezona == s && it.epizoda == k } }
+                glavna.post { rezultat(e) }
+            }
+        } catch (_: java.util.concurrent.RejectedExecutionException) { rezultat(null) }
+    }
+
+    /**
+     * Lastnik 5. 11. 2026: naslednja epizoda po ISTI poti kot »Nadaljuj« ([nadaljujEpizodo] -> [izberiTok], samodejna izbira):
+     * veljajo uporabnikova pravila (samo Usenet, debrid, kakovost in jezik za to napravo). Brez toka obvestilo, nic drugega.
+     */
+    fun predvajajNaslednjoEpizodo(sk: Jamendo.Skladba, sezona: Int, epizoda: Int, naslov: String) {
+        val niNaVoljo = {
+            Toast.makeText(this, R.string.os_naslednja_ni, Toast.LENGTH_LONG).show()
+            PredvajanjeActivity.instanca?.get()?.koncajCakanjeNaslednje()
+            Unit
+        }
+        if (isFinishing || isDestroyed) { niNaVoljo(); return }
+        nadaljujEpizodo(sk.copy(season = sezona, episode = epizoda, naslov = naslov), sezona, epizoda, obNeuspehu = niNaVoljo)
+    }
+
+    /**
      * Naloga 140: epizoda [sezona]/[epizoda] serije iz zapisa [sk] (nazadnje predvajano) - tokove vprasamo znova (povezava
      * debrid velja le nekaj ur), naslov ostane isti, zato predvajalnik nadaljuje pri shranjenem mestu (MediaNapredek).
      * Epizode serija ne navaja vec: seznam sezon kot prej.
      */
     private fun nadaljujEpizodo(sk: Jamendo.Skladba, sezona: Int, epizoda: Int,
                                 /** Pregled B-S1: iz Nedavno - epizoda brez shranjenega mesta je odgledana, odpre se naslednja. */
-                                naprejCeOgledano: Boolean = false) {
+                                naprejCeOgledano: Boolean = false,
+                                /** Lastnik 5. 11. 2026: samodejna naslednja epizoda - brez toka samo to (seznam sezon se ne odpre). */
+                                obNeuspehu: (() -> Unit)? = null) {
         // Oznaka preizkusa (naloga 135) ostane - sicer bi preizkusni ogled sel v zgodovino.
         val serija = sk.copy(id = sk.id.substringBefore('#') + (if (PreizkusPravila.jePreizkus(sk.id)) PreizkusPravila.OZNAKA else ""),
             season = 0, episode = 0)
@@ -8637,7 +8671,7 @@ class GlasbaActivity : OsActivity() {
             val e = if (!odgledana) zadnja else OsPravila.naslednjaEpizoda(vse.map { it.sezona to it.epizoda }, sezona, epizoda)
                 ?.let { (s, k) -> vse.firstOrNull { it.sezona == s && it.epizoda == k } }
             if (e == null) {
-                glavna.post { if (!koncajPripravo(priprava)) return@post; if (!isFinishing && !isDestroyed) razresiStremio(serija) }
+                glavna.post { if (!koncajPripravo(priprava)) return@post; if (obNeuspehu != null) obNeuspehu() else if (!isFinishing && !isDestroyed) razresiStremio(serija) }
                 return@naDelavcu
             }
             val naslovEp = if (!odgledana) sk.naslov else OsPravila.naslovBrezEpizode(sk.naslov) + " · S${e.sezona}E${e.epizoda}" +
@@ -8650,7 +8684,8 @@ class GlasbaActivity : OsActivity() {
                 if (!koncajPripravo(priprava)) return@post
                 // Brez toka: samo obvestilo - kartica serije zaradi ene epizode ne izgine.
                 if (!isFinishing && !isDestroyed) izberiTok(serija.copy(season = e.sezona, episode = e.epizoda), naslovEp, t, false, pp) {
-                    Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslovEp), Toast.LENGTH_SHORT).show()
+                    if (obNeuspehu != null) obNeuspehu()
+                    else Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslovEp), Toast.LENGTH_SHORT).show()
                 }
             }
         }
