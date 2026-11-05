@@ -187,6 +187,7 @@ function ustvari(nastavitve) {
     // Kot ChromiumEngineView.IZVIRNIKI_JS: izvirniki metod, shranjeni pred skriptami strani (nespremenljiva lastnost).
     // Izvirniki so iz zunanjega sveta preizkusa: stran (koda v vm) jih ne more prepisati, kot v brskalniku.
     const fokusIzvirnik = El.prototype.focus;
+    const mostZacetka = win.SafeerBridge;
     if (n.izvirniki !== false) {
         const imena = ['__safeer_izvirniki_' + nonceIzvirnikov, '__safeer_izvirniki'];
         for (const ime of imena) Object.defineProperty(win, ime, { writable: false, configurable: false, enumerable: false, value: Object.freeze({
@@ -200,7 +201,10 @@ function ustvari(nastavitve) {
             ctl: function () { if (this.tagName !== 'LABEL') throw new TypeError('ni oznaka'); return this.control || null; },
             typ: function () { if (this.tagName !== 'INPUT') throw new TypeError('ni polje'); return (El.prototype.getAttribute.call(this, 'type') || 'text').toLowerCase(); },
             fokus: function (o) { return fokusIzvirnik.call(this, o); },
-            akt: function () { return doc.activeElement; } }) });
+            akt: function () { return doc.activeElement; },
+            dis: function () { if (this.tagName !== 'INPUT') throw new TypeError('ni polje'); return this.disabled === true; },
+            // Kot IZVIRNIKI_JS (tretji neodvisni pregled 5. 11. 2026, N5): most in metoda ob zacetku dokumenta.
+            most: mostZacetka, tap: mostZacetka ? mostZacetka.triggerNativeTap : null }) });
     }
     // Kot TvTipke.odtisStevilo (FNV-1a, 32 bitov) - neodvisna izvedba za preizkus (charCodeAt, Math.imul).
     function odtisStevilo(z, niz) {
@@ -247,7 +251,8 @@ function ustvari(nastavitve) {
             const konec = vir.lastIndexOf('})();');
             const s2 = konec > 0 && vir.indexOf('function highlightElement') !== -1 ? vir.slice(0, konec) + kljuka + vir.slice(konec) : vir;
             vm.runInContext(s2.split('__SAFEER_ZETON_DOTIKA__').join(zeton).split('__SAFEER_IZVIRNIKI__').join(izv)
-                .split('__SAFEER_NONCE_IZVIRNIKOV__').join(nonceIzvirnikov).split('__SAFEER_NONCE__').join(nonce), ctx);
+                .split('__SAFEER_NONCE_IZVIRNIKOV__').join(nonceIzvirnikov).split('__SAFEER_NONCE__').join(nonce)
+                .split('__SAFEER_PREJ_NONCE__').join(n.prejNonce || ''), ctx);
         },
         ura, tipka, odtisStevilo, dokazTipke, stevecTipk: () => stIzziva,
         // Koda strani v istem svetu (npr. prepis vgrajenih metod pred nasim skriptom).
@@ -255,6 +260,16 @@ function ustvari(nastavitve) {
         // Klici aplikacije ob tipki daljinca (SiteProfile): dokaz tipke, nato smer ali OK.
         smer(...a) { tipka(); return izvoz('_safeer_navigate_spatial')(...a); },
         ok(...a) { tipka(); return izvoz('_safeer_click_focused_card')(...a); },
+        // Kot aplikacija tik pred pravim dejanjem (SiteProfile Enter, ChromiumEngineView.triggerNativeTap): dokaz tipke, nato
+        // druga preverba cilja z izzivom; vrne odgovor skripta.
+        preveriCilj(izziv) { tipka(); const f = izvoz('_safeer_preveri_cilj'); return typeof f === 'function' ? f(izziv) : undefined; },
+        odtisZetona: (niz) => (odtis ? odtis(zeton, niz) : ''),
+        // Novo nalaganje istega skripta v isti dokument (onPageStarted brez novega dokumenta): nov nonce, nov zeton.
+        naloziZNonce(vir, novNonce, novZeton, prejNonce) {
+            vm.runInContext(vir.split('__SAFEER_ZETON_DOTIKA__').join(novZeton).split('__SAFEER_IZVIRNIKI__').join(n.izvirniki === false ? 'ne' : 'da')
+                .split('__SAFEER_NONCE_IZVIRNIKOV__').join(nonceIzvirnikov).split('__SAFEER_NONCE__').join(novNonce)
+                .split('__SAFEER_PREJ_NONCE__').join(prejNonce || ''), ctx);
+        },
         vstopi() { return win.__preizkus.vstopi ? win.__preizkus.vstopi() : win._safeer_vstopi_v_plast(); },
         pocisti() { return win.__preizkus.pocisti(); },
         potrjena() { return win.__preizkus.potrjena(); },

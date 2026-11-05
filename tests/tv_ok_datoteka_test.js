@@ -55,8 +55,11 @@ const klik = VIR.slice(VIR.indexOf('var klikIzbrane = function'));
 const iDat = klik.indexOf('return dokazDatoteke(ZETON_DOTIKA, izziv);'), iDotik = klik.indexOf('klikniElement(');
 preveri('OK na datoteki vrne pred dotikom in el.click()', true, iDat > 0 && iDat < iDotik);
 // Neodvisni pregled 5. 11. 2026: fokus in aktivni element z izvirniki z zacetka dokumenta (fokusIz, aktivenIz).
-preveri('fokus pred odlocitvijo (izvirnik)', true, /fokusIz\(vhodD\);\s*[^\n]*\n\s*if \(okNaDatoteki\(vhodD, aktivenIz\(\)\) === 'datoteka'\)/.test(klik));
-preveri('aplikacija na "datoteka" poslje KEYCODE_ENTER', true,
-    /TvTipke\.okNaDatoteki\(o, zeton, izziv\)\) nativnaTipka\(wv, event, KeyEvent\.KEYCODE_ENTER\)/.test(KT));
+preveri('fokus pred odlocitvijo (izvirnik)', true, /fokusIz\(vhodD\);(?:\s*\/\/[^\n]*)*\s*if \(okNaDatoteki\(vhodD, aktivenIz\(\)\) === 'datoteka'\)/.test(klik));
+// Tretji neodvisni pregled 5. 11. 2026 (N3): Enter sele po drugi preverbi cilja (_safeer_preveri_cilj, TvTipke.ciljVelja 'enter').
+preveri('aplikacija na "datoteka" poslje KEYCODE_ENTER sele po drugi preverbi cilja', true,
+    /TvTipke\.okNaDatoteki\(o, zeton, izziv\)\)[\s\S]{0,900}_safeer_preveri_cilj[\s\S]{0,300}TvTipke\.ciljVelja\(o2, zeton, izziv2, "enter"\) && wv\.zetonDotika == zeton\) \{\s*nativnaTipka\(wv, event, KeyEvent\.KEYCODE_ENTER\)/.test(KT));
+preveri('brez druge preverbe ni Enter (ni neposrednega klica po okNaDatoteki)', false,
+    /TvTipke\.okNaDatoteki\(o, zeton, izziv\)\) nativnaTipka/.test(KT));
 preveri('Google: polje za datoteko dobi Enter, ne dotik', true, /if\(e\.matches\('input\[type="file"\]'\)\)return 'enter';/.test(KT));
 console.log('tv_ok_datoteka_test: OK (' + n + ')');

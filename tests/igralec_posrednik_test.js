@@ -13,7 +13,11 @@ const KT = fs.readFileSync(process.argv[2] || path.join(__dirname, '..', 'src', 
 const m = KT.match(/internal const val POSREDNIK_JS = """([\s\S]*?)"""/);
 assert.ok(m, 'POSREDNIK_JS ni v SpletniIgralec.kt');
 const NONCE = '0f1e2d3c4b5a6978', KLJUC = 'a1b2c3d4'.repeat(6);
-const JS = m[1].split('__SAFEER_NONCE_AGENTA__').join(NONCE).split('__SAFEER_KLJUC_AGENTA__').join(KLJUC);
+// Kot posrednikJs: izvori vgradnih predvajalnikov iz IZVORI_PREDVAJALNIKA (tretji neodvisni pregled 5. 11. 2026, N6).
+const mi = KT.match(/internal val IZVORI_PREDVAJALNIKA = listOf\(([\s\S]*?)\)/);
+const IZVORI = mi ? (mi[1].match(/"[^"]+"/g) || []).map((x) => x.slice(1, -1)) : [];
+const JS = m[1].split('__SAFEER_NONCE_AGENTA__').join(NONCE).split('__SAFEER_KLJUC_AGENTA__').join(KLJUC)
+    .split('__SAFEER_IZVORI_AGENTA__').join(IZVORI.map((o) => "O['" + o + "']=1;").join(''));
 const VSE = process.env.SAFEER_VSE_NAPAKE === '1';
 let stevilo = 0, padle = 0;
 function preveri(opis, pric, dob) {
@@ -22,7 +26,7 @@ function preveri(opis, pric, dob) {
 }
 
 // Okno (vrhnje ali okvir) z enim medijem; postMessage dostavi sporocilo s pravim posiljateljem (e.source).
-function okno(vrh) {
+function okno(vrh, izvor) {
     const poslusalci = [], intervali = [], dnevnik = [];
     const medij = { paused: false, currentTime: 12, duration: 100, readyState: 4, ended: false, clientWidth: 640, clientHeight: 360,
         pause() { dnevnik.push('pause'); this.paused = true; }, play() { dnevnik.push('play'); this.paused = false; }, setAttribute() {},
@@ -32,14 +36,16 @@ function okno(vrh) {
         addEventListener(t, f) { if (t === 'message') poslusalci.push(f); },
         setInterval(f) { intervali.push(f); return intervali.length; },
         HTMLMediaElement: function () {},
+        location: { origin: izvor || 'https://primer.test' },
         document: { querySelectorAll: (s) => (/video|audio/.test(s) ? [medij] : []), querySelector: () => null, getElementById: () => null,
             createElement: () => ({}), head: { appendChild() {} }, documentElement: {} },
         poslusalci,
     };
     w.postMessage = function (data, _o, posiljatelj) {
         const src = posiljatelj ? posiljatelj.__g : w.__g;
+        const izv = posiljatelj ? posiljatelj.location.origin : w.location.origin;   // brskalnik: izvor posiljatelja
         const kopija = JSON.parse(JSON.stringify(data));        // strukturirana kopija
-        poslusalci.slice().forEach((f) => { try { f({ data: kopija, source: src }); } catch (_) {} });
+        poslusalci.slice().forEach((f) => { try { f({ data: kopija, source: src, origin: izv }); } catch (_) {} });
     };
     vm.createContext(w);
     // Kot v brskalniku: window, top, parent in e.source so isti objekt (globalni objekt sveta).
@@ -104,6 +110,37 @@ function posljiOd(cilj, od, data) { cilj.postMessage(data, '*', od); }
     const st = vm.runInContext('window.__safeerOkvir', v);
     preveri('3: stanje nasega posrednika v okvirju velja (kot prej)', [true, 12, 100], st ? [st.p, st.t, st.d] : null);
     preveri('3: kljuc ni v stanju, ki ga bere aplikacija', undefined, st ? st.k : 'ni stanja');
+}
+
+// 4. Tretji neodvisni pregled 5. 11. 2026 (N6): oglas v okvirju ima nas posrednik in kljuc; stran oglasa prepise getterje
+// medija, nas posrednik poslje lazno stanje ali napako (preskok skladbe). Vrhnja stran sprejme stanje samo z izvora same sebe
+// ali vgradnega predvajalnika.
+function okvirZ(v, izvor, ponaredi) {
+    const o = okno(v, izvor);
+    vm.runInContext(JS, o);
+    if (ponaredi) { o.medij.ended = true; o.medij.currentTime = 99; o.medij.duration = 100; }
+    vm.runInContext('window.top = { postMessage: function (d, o) { window.__vrh(d, o); } };', o);
+    o.__vrh = (d) => posljiOd(v, o, d);
+    o.document.querySelector = (s) => (ponaredi && /ytp-error/.test(s) ? { offsetWidth: 10 } : null);
+    o.intervali.forEach((f) => f());
+    return o;
+}
+{
+    const v = okno(null, 'https://safeer.si');
+    vm.runInContext(JS, v);
+    okvirZ(v, 'https://oglas.napadalec.test', true);
+    preveri('4: oglas z nasim posrednikom (lazno stanje, konec, napaka): vrhnja stran zavrne', [undefined, undefined],
+        [vm.runInContext('window.__safeerOkvir', v), vm.runInContext('window.__safeerNapaka', v)]);
+    preveri('4: seznam izvorov predvajalnika je v posredniku (YouTube embed)', true, IZVORI.indexOf('https://www.youtube.com') !== -1 &&
+        JS.indexOf("O['https://www.youtube.com']=1;") !== -1);
+    okvirZ(v, 'https://www.youtube.com', false);
+    const st = vm.runInContext('window.__safeerOkvir', v);
+    preveri('4: stanje vgradnega predvajalnika YouTube velja', [true, 12, false], st ? [st.p, st.t, st.e] : null);
+    const v2 = okno(null, 'https://primer.test');
+    vm.runInContext(JS, v2);
+    okvirZ(v2, 'https://primer.test', false);
+    const st2 = vm.runInContext('window.__safeerOkvir', v2);
+    preveri('4: stanje okvirja istega izvora kot vrhnja stran velja', [true, 12], st2 ? [st2.p, st2.t] : null);
 }
 
 if (padle) { console.log('igralec_posrednik_test: PADLO ' + padle + ' (uspelo ' + stevilo + ')'); process.exit(1); }

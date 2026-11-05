@@ -34,9 +34,13 @@ function primer(ime, fn) {
         if (!VSE) process.exit(1);
     }
 }
-function blok(ime) {
-    const i = VIR.indexOf('/* ' + ime + '_ZACETEK'), j = VIR.indexOf('/* ' + ime + '_KONEC */');
-    return i >= 0 && j > i ? VIR.slice(i, j) : '';
+// Tretji neodvisni pregled 5. 11. 2026: pravi dotik v tuj okvir je izklopljen (PRAVI_DOTIK_V_OKVIR). Preverbe tocke in
+// izvora za GSI in Cloudflare ostanejo za ponovni vklop - tecejo z vklopljeno zastavico (VIR_OKVIR).
+const VIR_OKVIR = VIR.split('var PRAVI_DOTIK_V_OKVIR = false;').join('var PRAVI_DOTIK_V_OKVIR = true;');
+function blok(ime, vir) {
+    vir = vir || VIR;
+    const i = vir.indexOf('/* ' + ime + '_ZACETEK'), j = vir.indexOf('/* ' + ime + '_KONEC */');
+    return i >= 0 && j > i ? vir.slice(i, j) : '';
 }
 const gumb = (s, t, o, ex) => s.el('button', Object.assign({ okvir: o, besedilo: t }, ex || {}));
 const izbrani = (s) => s.document.querySelectorAll('.safeer-active-card').map((e) => e.innerText.trim() || e.tagName);
@@ -49,7 +53,7 @@ primer('1', () => {
     const a = s.el('iframe', { attrs: { src: 'https://accounts.google.com/gsi/button' }, okvir: [100, 100, 300, 60] });
     const tuj = s.el('iframe', { attrs: { src: 'https://tuj.test/dovoli' }, okvir: [1000, 600, 200, 100] });
     s.body.dodaj(a, tuj);
-    s.nalozi(VIR);
+    s.nalozi(VIR_OKVIR);
     s.izberi(a);
     // Stran po nalaganju: lazni okvir gumba nad tujim okvirjem, elementFromPoint vedno vrne gumb.
     a.getBoundingClientRect = () => ({ left: 1000, top: 600, width: 200, height: 100, right: 1200, bottom: 700 });
@@ -137,11 +141,21 @@ primer('4', () => {
     const pravi = s2.el('div', { razred: 'cf-turnstile', okvir: [100, 100, 300, 65] });
     pravi.dodaj(s2.el('iframe', { attrs: { src: 'https://challenges.cloudflare.com/cdn-cgi/challenge-platform/x' }, okvir: [100, 100, 300, 65] }));
     s2.body.dodaj(z2, pravi);
-    s2.nalozi(VIR);
+    s2.nalozi(VIR_OKVIR);
     s2.izberi(z2);
     s2.smer('DOWN');
     s2.ok();
-    preveri('4: okvir challenges.cloudflare.com v izzivu: en dotik na potrditveno polje', [[122, 132.5]], s2.dotiki);
+    preveri('4: okvir challenges.cloudflare.com v izzivu (vklopljena zastavica): en dotik na potrditveno polje', [[122, 132.5]], s2.dotiki);
+    const s3 = ustvari({ zeton: ZETON });
+    const z3 = gumb(s3, 'Zgoraj', [100, 20, 300, 50]);
+    const p3 = s3.el('div', { razred: 'cf-turnstile', okvir: [100, 100, 300, 65] });
+    p3.dodaj(s3.el('iframe', { attrs: { src: 'https://challenges.cloudflare.com/cdn-cgi/challenge-platform/x' }, okvir: [100, 100, 300, 65] }));
+    s3.body.dodaj(z3, p3);
+    s3.nalozi(VIR);
+    s3.izberi(z3);
+    s3.smer('DOWN');
+    s3.ok();
+    preveri('4: proizvodnja: okvir challenges.cloudflare.com: ni pravega dotika', [], s3.dotiki);
 });
 
 // 5. SREDNJA: stran zaklene zastavico 'safeer-x' -> daljinec mrtev.
@@ -246,7 +260,7 @@ primer('12', () => {
 
 // Ciste odlocitve.
 primer('ciste', () => {
-    const f = new Function(blok('SAFEER_PRAVI_DOTIK') + blok('SAFEER_PREPIR_FOKUSA') + blok('SAFEER_TV_PONUDNIK') +
+    const f = new Function(blok('SAFEER_PRAVI_DOTIK', VIR_OKVIR) + blok('SAFEER_PREPIR_FOKUSA') + blok('SAFEER_TV_PONUDNIK') +
         '\nreturn { smePraviDotik, smemVrnitiFokus, jeGostiteljTvPonudnika };')();
     const g = { izvirniki: true, omrezni: true, potrjena: true, namen: 'google', oznakaCilja: 'IFRAME',
         virCilja: 'https://accounts.google.com/gsi/button', zadetekJeCilj: true, zadetekVCilju: true, oznakaZadetka: 'IFRAME' };

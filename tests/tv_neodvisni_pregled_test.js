@@ -34,6 +34,10 @@ function blok(ime) {
     return i >= 0 && j > i ? VIR.slice(i, j) : '';
 }
 const ZETON = '0123456789abcdef'.repeat(3);
+// Tretji neodvisni pregled 5. 11. 2026: pravi dotik v tuj okvir je izklopljen (PRAVI_DOTIK_V_OKVIR). Splosne mehanizme
+// (potrditev izbire, ponovni vstop) preverjamo na izklopljeni poti z vklopljeno zastavico (ponovni vklop v naslednjem krogu)
+// in na proizvodni razlicici, kjer v okvir ni nobenega pravega dotika.
+const VIR_OKVIR = VIR.split('var PRAVI_DOTIK_V_OKVIR = false;').join('var PRAVI_DOTIK_V_OKVIR = true;');
 const GSI = 'https://accounts.google.com/gsi/button?x=1';
 const gumb = (s, t, o) => s.el('button', { okvir: o, besedilo: t });
 const gsi = (s, o) => s.el('iframe', { attrs: { src: GSI }, okvir: o });
@@ -69,32 +73,43 @@ primer('1', () => {
 
 // 2. VISOKA: TOCTOU - po pravem dotiku nas skript do konca OK ne klice kode strani.
 primer('2', () => {
-    for (const vrsta of ['gumb', 'gsi']) {
+    // Pravi dotik gre od tretjega pregleda samo se na oznako skritega polja za datoteko (isti dokument); GSI preverimo na
+    // izklopljeni poti (VIR_OKVIR). Dnevnik zabelezi, koliko dotikov je bilo, ko je tekla koda strani.
+    for (const vrsta of ['gumb', 'oznaka', 'gsi']) {
         const s = ustvari({ zeton: ZETON });
-        const cilj = vrsta === 'gumb' ? gumb(s, 'A', [100, 100, 300, 60]) : gsi(s, [100, 100, 300, 60]);
+        let cilj;
+        if (vrsta === 'gumb') cilj = gumb(s, 'A', [100, 100, 300, 60]);
+        else if (vrsta === 'gsi') cilj = gsi(s, [100, 100, 300, 60]);
+        else {
+            const vhod = s.el('input', { attrs: { type: 'file' }, okvir: [0, 0, 0, 0], slog: { display: 'none' } });
+            cilj = s.el('label', { attrs: { tabindex: '0', role: 'button' }, okvir: [100, 100, 300, 60], besedilo: 'Nalozi' });
+            cilj.control = vhod;
+            cilj.dodaj(vhod);
+        }
         s.body.dodaj(cilj);
-        s.nalozi(VIR);
+        s.nalozi(vrsta === 'gsi' ? VIR_OKVIR : VIR);
         s.izberi(cilj);
         const dnevnik = [];
-        const most = s.window.SafeerBridge, prej = most.triggerNativeTap;
-        most.triggerNativeTap = function (x, y, z) { dnevnik.push('dotik'); return prej.call(this, x, y, z); };
         // Stran: vse, kar lahko nas skript poklice po dotiku (agent strani, casovnik, metode niza in elementov).
         s.window.__dn = dnevnik;
-        s.izvedi(`window._safeerSiteAgent = { allowBoost: function () { window.__dn.push('stran'); return false; },
-                acceptOk: function () { window.__dn.push('stran'); return true; }, markWantPlay: function () { window.__dn.push('stran'); } };
-            (function () { var st = window.setTimeout; window.setTimeout = function (f, ms) { window.__dn.push('stran'); return st(f, ms); }; })();
-            (function () { var io = String.prototype.indexOf; String.prototype.indexOf = function (a, b) { window.__dn.push('stran'); return io.call(this, a, b); }; })();`);
-        s.ok();
-        const i = dnevnik.indexOf('dotik');
-        preveri('2 (' + vrsta + '): po pravem dotiku ni kode strani', [], i < 0 ? [] : dnevnik.slice(i + 1).filter((x) => x === 'stran'));
+        s.window.__st = () => s.dotiki.length;
+        s.izvedi(`window._safeerSiteAgent = { allowBoost: function () { window.__dn.push(window.__st()); return false; },
+                acceptOk: function () { window.__dn.push(window.__st()); return true; }, markWantPlay: function () { window.__dn.push(window.__st()); } };
+            (function () { var st = window.setTimeout; window.setTimeout = function (f, ms) { window.__dn.push(window.__st()); return st(f, ms); }; })();
+            (function () { var io = String.prototype.indexOf; String.prototype.indexOf = function (a, b) { window.__dn.push(window.__st()); return io.call(this, a, b); }; })();`);
+        s.ok('0123456789abcdef0123456789abcdef');
+        preveri('2 (' + vrsta + '): po pravem dotiku ni kode strani', [], dnevnik.filter((n) => n > 0));
+        if (vrsta !== 'gumb') preveri('2 (' + vrsta + '): pravi dotik je bil (preizkus je veljaven)', 1, s.dotiki.length);
     }
     const s = ustvari({ zeton: ZETON });
     const g = gsi(s, [100, 100, 300, 60]);
     s.body.dodaj(g);
     s.nalozi(VIR);
     s.izberi(g);
-    s.ok();
-    preveri('2: OK na gumbu Google ostane en pravi dotik na sredini', [[250, 130]], s.dotiki);
+    const izziv = '0123456789abcdef0123456789abcdef';
+    const odg = s.ok(izziv);
+    preveri('2: OK na gumbu Google (tuj okvir): ni pravega dotika in ni klica mostu', [[], []], [s.dotiki, s.zetoni]);
+    preveri('2: ... namesto tega namig za kazalec z odtisom zetona', 'kazalec:' + s.odtisZetona('kazalec|' + izziv), odg);
 });
 
 // 3. VISOKA: tuj okvir v (zaprtem) shadow DOM - elementFromPoint vrne gostitelja (DIV), DOM okvirja ne vidi.
@@ -137,7 +152,7 @@ primer('4', () => {
     const g = gsi(s, [700, 400, 300, 60]);
     g.setAttribute('tabindex', '0');
     s.body.dodaj(gumb(s, 'A', [100, 100, 300, 60]), g);
-    s.nalozi(VIR);
+    s.nalozi(VIR_OKVIR);                                       // potrditev izbire na izklopljeni poti (ponovni vklop)
     s.document.activeElement = g;                              // stran ob nalaganju, brez dogodka in brez tipke
     s.ok();
     s.ok();
@@ -215,13 +230,17 @@ primer('7', () => {
 // 8. NIZKA: ugibanje dokaza brez meje; tabela znakov z Object.prototype.
 primer('8', () => {
     const s = ustvari({ zeton: ZETON });
-    const g = gsi(s, [100, 100, 300, 60]);
+    // Oznaka skritega polja za datoteko: edini preostali pravi dotik (tretji neodvisni pregled 5. 11. 2026).
+    const vhod = s.el('input', { attrs: { type: 'file' }, okvir: [0, 0, 0, 0], slog: { display: 'none' } });
+    const g = s.el('label', { attrs: { tabindex: '0', role: 'button' }, okvir: [100, 100, 300, 60], besedilo: 'Nalozi' });
+    g.control = vhod;
+    g.dodaj(vhod);
     s.body.dodaj(gumb(s, 'A', [100, 300, 300, 60]), g);
     s.nalozi(VIR);
     const t = s.izvoz('_safeer_tipka');
     for (let i = 0; i < 6; i++) t('0123456789abcdef0123456789abcdef', 1000 + i, i);     // stran ugiba
     s.izberi(g);
-    s.ok();
+    s.ok('0123456789abcdef0123456789abcdef');
     preveri('8: po vec napacnih dokazih ni vec pravega dotika v tem dokumentu', [], s.dotiki);
     s.smer('DOWN');
     preveri('8: smer po ugibanju strani se dela (uporabnik ni ujet)', true, s.document.querySelectorAll('.safeer-active-card').length === 1);
@@ -240,7 +259,7 @@ primer('9', () => {
     const g = gsi(s, [700, 400, 300, 60]);
     okno.dodaj(g);
     s.body.dodaj(a);
-    s.nalozi(VIR);
+    s.nalozi(VIR_OKVIR);                                       // potrditev na izklopljeni poti (ponovni vklop)
     s.izberi(a);
     a.click = function () {                                    // poslusalec klika strani med nasim OK
         s.body.dodaj(okno);

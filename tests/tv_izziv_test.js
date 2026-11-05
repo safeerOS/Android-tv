@@ -13,7 +13,10 @@ const fs = require('fs');
 const path = require('path');
 const { ustvari } = require('./tv_lazni_dom');
 
-const VIR = fs.readFileSync(process.argv[2] || path.join(__dirname, '..', 'assets', 'tv_spatial.js'), 'utf8');
+const VIR_PROIZVODNJA = fs.readFileSync(process.argv[2] || path.join(__dirname, '..', 'assets', 'tv_spatial.js'), 'utf8');
+// Tretji neodvisni pregled 5. 11. 2026: pravi dotik v tuj okvir (tudi Cloudflare) je izklopljen - OK pokaze namig za
+// kazalec. Iskanje cilja in tocka dotika ostaneta za ponovni vklop: preverjamo ju z vklopljeno zastavico (VIR).
+const VIR = VIR_PROIZVODNJA.split('var PRAVI_DOTIK_V_OKVIR = false;').join('var PRAVI_DOTIK_V_OKVIR = true;');
 let stevilo = 0;
 function preveri(opis, pricakovano, dobljeno) {
     assert.deepStrictEqual(dobljeno, pricakovano, opis);
@@ -84,4 +87,24 @@ preveri('stran samo s tujim okvirjem: DOL ga doseze (1)', 1, s.smer('DOWN'));
 s.ok();
 preveri('OK na okvirju: en pravi dotik', 1, s.dotiki.length);
 preveri('GOR od okvirja: naslovna vrstica (-1)', -1, s.smer('UP'));
+// 5) Proizvodnja: OK na preverjanju (gostitelj in tuj okvir) ne naredi pravega dotika, vrne namig za kazalec.
+{
+    const IZ = '0123456789abcdef0123456789abcdef';
+    const sp = ustvari();
+    const v = sp.el('div', { okvir: [200, 300, 880, 69] });
+    const g = sp.el('div', { okvir: [200, 300, 880, 69] });
+    v.dodaj(g, sp.el('input', { attrs: { type: 'hidden', name: 'cf-turnstile-response' }, slog: { display: 'none' } }));
+    sp.body.dodaj(v);
+    sp.nalozi(VIR_PROIZVODNJA);
+    preveri('proizvodnja: DOL doseze preverjanje', 1, sp.smer('DOWN'));
+    const odg = sp.ok(IZ);
+    preveri('proizvodnja: OK na preverjanju: ni pravega dotika in ni klika', [[], 0], [sp.dotiki, sp.kliki.length]);
+    preveri('proizvodnja: OK vrne namig za kazalec', 'kazalec:' + sp.odtisZetona('kazalec|' + IZ), odg);
+    const so = ustvari();
+    so.body.dodaj(so.el('iframe', { attrs: { src: 'https://challenges.cloudflare.com/cdn-cgi/challenge-platform/x/normal' }, okvir: [810, 500, 300, 65] }));
+    so.nalozi(VIR_PROIZVODNJA);
+    so.smer('DOWN');
+    so.ok(IZ);
+    preveri('proizvodnja: OK na okvirju challenges.cloudflare.com: ni pravega dotika', 0, so.dotiki.length);
+}
 console.log('tv_izziv_test: OK (' + stevilo + ')');

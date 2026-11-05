@@ -56,5 +56,17 @@ fun main() {
     check(TvTipke.izvoz("x');alert(1);//", "_safeer_navigate_spatial") == "window._safeer_navigate_spatial") { "neveljaven del ne gre v skript" }
     val i1 = TvTipke.novIzziv(); val i2 = TvTipke.novIzziv()
     check(i1.length == 32 && i1 != i2 && i1.all { it in "0123456789abcdef" })
+    // Tretji neodvisni pregled 5. 11. 2026: druga preverba cilja (N3) in namig za kazalec - vrednosti je izracunal tv_spatial.js
+    // (odtisZetona, isti zeton in izziv kot zgoraj).
+    check(TvTipke.ciljVelja("\"cilj:safeer-6gxksv\"", z, izziv, "enter")) { "cilj enter" }
+    check(TvTipke.ciljVelja("cilj:safeer-16gyfwi", z, izziv, "dotik")) { "cilj dotik" }
+    check(!TvTipke.ciljVelja("cilj:safeer-6gxksv", z, izziv, "dotik")) { "odgovor za Enter ne velja za dotik" }
+    check(!TvTipke.ciljVelja("cilj:safeer-6gxksv", z, izziv, "drugo")) { "neznan nacin" }
+    check(!TvTipke.ciljVelja("cilj", z, izziv, "enter") && !TvTipke.ciljVelja("true", z, izziv, "enter") && !TvTipke.ciljVelja(null, z, izziv, "enter"))
+    check(!TvTipke.ciljVelja("cilj:safeer-6gxksv", "y".repeat(48), izziv, "enter")) { "drug zeton (nova stran)" }
+    check(!TvTipke.ciljVelja("cilj:safeer-6gxksv", z, "ffffffffffffffffffffffffffffffff", "enter")) { "drug izziv" }
+    check(TvTipke.namigKazalca("\"kazalec:safeer-vxyury\"", z, izziv)) { "namig" }
+    check(!TvTipke.namigKazalca("kazalec", z, izziv) && !TvTipke.namigKazalca("true", z, izziv)) { "namig brez odtisa" }
+    check(!TvTipke.namigKazalca("kazalec:safeer-vxyury", z.take(31), izziv)) { "namig s prekratkim zetonom" }
     println("TvTipkeTest: OK")
 }

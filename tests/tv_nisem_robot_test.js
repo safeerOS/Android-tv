@@ -56,8 +56,21 @@ const LAZNI = {
     'http:// hCaptcha': 'http://newassets.hcaptcha.com/captcha/v1/x/static/hcaptcha.html#frame=checkbox&id=1',
 };
 
-// Ciste odlocitve (SAFEER_PRAVI_DOTIK).
-const f = new Function(blok('SAFEER_PRAVI_DOTIK') + '\nreturn { smePraviDotik };')();
+// Tretji neodvisni pregled 5. 11. 2026 (odlocitev vodje): pravi dotik v tuj okvir je izklopljen (PRAVI_DOTIK_V_OKVIR =
+// false). Seznam izvorov ostane za ponovni vklop s potrditvijo na strani prejemnika - preverjamo ga z vklopljeno zastavico.
+const VIR_PROIZVODNJA = VIR;
+const VIR_OKVIR = VIR.split('var PRAVI_DOTIK_V_OKVIR = false;').join('var PRAVI_DOTIK_V_OKVIR = true;');
+{
+    const fp = new Function(VIR_PROIZVODNJA.slice(VIR_PROIZVODNJA.indexOf('/* SAFEER_PRAVI_DOTIK_ZACETEK'), VIR_PROIZVODNJA.indexOf('/* SAFEER_PRAVI_DOTIK_KONEC */')) + '\nreturn { smePraviDotik };')();
+    const zp = (d) => fp.smePraviDotik(Object.assign({ izvirniki: true, omrezni: true, potrjena: true, namen: 'google', oznakaCilja: 'IFRAME',
+        zadetekJeCilj: true, zadetekVCilju: true, oznakaZadetka: 'IFRAME' }, d));
+    for (const [ime, v] of Object.entries(PRAVI)) preveri('proizvodnja: ' + ime + ': brez pravega dotika (izklopljeno)', false, zp({ virCilja: v }));
+    preveri('proizvodnja: izziv Cloudflare: brez pravega dotika', false, zp({ namen: 'izziv', oznakaZadetka: 'IFRAME',
+        virZadetka: 'https://challenges.cloudflare.com/cdn-cgi/x' }));
+    preveri('proizvodnja: zastavica je izklopljena', true, VIR_PROIZVODNJA.indexOf('var PRAVI_DOTIK_V_OKVIR = false;') !== -1);
+}
+// Ciste odlocitve (SAFEER_PRAVI_DOTIK) z vklopljeno zastavico.
+const f = new Function(VIR_OKVIR.slice(VIR_OKVIR.indexOf('/* SAFEER_PRAVI_DOTIK_ZACETEK'), VIR_OKVIR.indexOf('/* SAFEER_PRAVI_DOTIK_KONEC */')) + '\nreturn { smePraviDotik };')();
 const osnova = { izvirniki: true, omrezni: true, potrjena: true, namen: 'google', oznakaCilja: 'IFRAME', zadetekJeCilj: true,
     zadetekVCilju: true, oznakaZadetka: 'IFRAME' };
 const z = (d) => f.smePraviDotik(Object.assign({}, osnova, d));
@@ -71,16 +84,17 @@ preveri('cisto: reCAPTCHA brez izvirnikov / nepotrjena / ne z omrezja: ne', [fal
 preveri('cisto: vir ni niz: ne', false, z({ virCilja: { toString: () => PRAVI['reCAPTCHA api2'] } }));
 
 // Celoten OK v laznem DOM (izvirni getter src, elementFromPoint, most triggerNativeTap).
-function ok(src, prekrij) {
+function ok(src, prekrij, vir) {
     const s = ustvari({ zeton: ZETON });
     const o = s.el('iframe', { attrs: { src: src, title: 'reCAPTCHA' }, okvir: [100, 100, 304, 78] });
     s.body.dodaj(o);
     if (prekrij) s.body.dodaj(s.el('div', { okvir: [100, 100, 304, 78] }));   // gostitelj shadow DOM cez okvir
-    s.nalozi(VIR);
+    s.nalozi(vir || VIR_OKVIR);
     s.izberi(o);
     s.ok();
     return s.dotiki;
 }
+for (const ime of Object.keys(PRAVI)) preveri('OK proizvodnja: ' + ime + ': ni pravega dotika', [], ok(PRAVI[ime], false, VIR_PROIZVODNJA));
 for (const ime of ['reCAPTCHA api2', 'reCAPTCHA enterprise', 'recaptcha.net api2']) {
     preveri('OK: ' + ime + ': en pravi dotik na potrditveno polje (31 px od levega roba, sredina visine)', [[131, 139]], ok(PRAVI[ime]));
 }
