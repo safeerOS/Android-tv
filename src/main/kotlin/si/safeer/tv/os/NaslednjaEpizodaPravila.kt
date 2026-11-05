@@ -41,9 +41,31 @@ object NaslednjaEpizodaPravila {
     fun pokazi(trajanjeMs: Long, polozajMs: Long, koncano: Boolean): Boolean =
         koncano || (trajanjeMs >= NAJMANJ_TRAJANJA_MS && trajanjeMs - polozajMs <= ODSTEVANJE_MS)
 
-    /** Odstevanje ali vprasanje »Se gledas?« po [NAJVEC_ZAPOREDNIH] samodejnih epizodah; brez naslednje epizode nic. */
-    fun vrsta(zaporednih: Int, imaNaslednjo: Boolean): Int = when {
-        !imaNaslednjo -> NIC
+    /** Predpriprava naslednje epizode (seznam, tokovi, izbira in preverba toka) ima toliko casa; pozen izid ne velja. */
+    const val PRIPRAVA_ROK_MS = 20_000L
+
+    fun vRoku(zacetekMs: Long, zdajMs: Long): Boolean = zdajMs - zacetekMs in 0..PRIPRAVA_ROK_MS
+
+    /**
+     * Vodja 6. 11. 2026 (brez odprtih virov): sme predpriprava Usenet tudi odpreti? TorBox (pripravljeno pri TorBoxu, CDN) in
+     * pomocnik kroga ne drzita nicesar na tej napravi. Lasten pogon odpre sejo (streznik 127.0.0.1, bazen NNTP, mesto v meji
+     * racuna) in UsenetLastni.predvajaj pred tem zapre sejo, ki se igra - zato ga predpriprava nikoli ne odpre: ni seje, ki
+     * bi jo bilo treba zapreti ob preklicu, Nazaj, previjanju, poznem izidu ali drugem filmu. Sejo odpre sele zagon.
+     */
+    fun usenetOdpriVPredpripravi(lastniPogon: Boolean): Boolean = !lastniPogon
+
+    /**
+     * Vodja 6. 11. 2026 (lastnik: pokazemo samo, kar si uporabnik res lahko ogleda): tok naslednje epizode je potrjen, ce je
+     * pripravljen Usenet ([usenetPripravljen], po filtru in pomocniku kroga) ali - kadar uporabnik ni izbral samo Useneta -
+     * torrent, ki ga ima debrid ze pripravljenega (⚡), ali neposredna povezava. Torrent, ki bi ga debrid sele prenasal, ali
+     * roj nista potrjena.
+     */
+    fun tokPotrjen(usenetPripravljen: Boolean, samoUsenet: Boolean, torrentovPripravljenih: Int, neposrednih: Int): Boolean =
+        usenetPripravljen || (!samoUsenet && (torrentovPripravljenih > 0 || neposrednih > 0))
+
+    /** Odstevanje ali vprasanje »Se gledas?« po [NAJVEC_ZAPOREDNIH] samodejnih epizodah; brez potrjenega toka kartice ni. */
+    fun vrsta(zaporednih: Int, tokPotrjen: Boolean): Int = when {
+        !tokPotrjen -> NIC
         zaporednih >= NAJVEC_ZAPOREDNIH -> VPRASAJ
         else -> ODSTEVAJ
     }

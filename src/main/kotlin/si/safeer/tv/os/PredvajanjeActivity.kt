@@ -2088,8 +2088,9 @@ class PredvajanjeActivity : OsActivity() {
 
     /** Stanje za epizodo [naslednjaZa] (kljuc posnetka); ob drugem posnetku se ponastavi. */
     private var naslednjaZa: String? = null
-    private var naslednjaSk: Jamendo.Skladba? = null
     private var naslednjaEp: Stremio.Epizoda? = null
+    /** Naslednja epizoda s potrjenim tokom (GlasbaActivity.pripraviNaslednjoEpizodo); brez nje kartice ni. */
+    private var naslednjaPrip: GlasbaActivity.NaslednjaPripravljena? = null
     private var naslednjaIscem = false
     private var naslednjaNi = false
     private var konecEpizode = false
@@ -2112,7 +2113,7 @@ class PredvajanjeActivity : OsActivity() {
     private fun naslednjaDrzi(): Boolean = konecEpizode && !karticaPreklicana && (naslednjaIscem || karticaOdprta())
 
     private fun ponastaviNaslednjo(kljuc: String) {
-        naslednjaZa = kljuc; naslednjaSk = null; naslednjaEp = null; naslednjaIscem = false; naslednjaNi = false
+        naslednjaZa = kljuc; naslednjaEp = null; naslednjaPrip = null; naslednjaIscem = false; naslednjaNi = false
         konecEpizode = false; karticaPreklicana = false; karticaVrsta = NaslednjaEpizodaPravila.NIC; odstetoMs = 0L
         glavna.removeCallbacks(naslednjaRok)
         kartica?.visibility = View.GONE
@@ -2150,18 +2151,19 @@ class PredvajanjeActivity : OsActivity() {
         val g = GlasbaActivity.instanca?.get()
         if (g == null || g.isFinishing || g.isDestroyed) { naslednjaNi = true; return }
         naslednjaIscem = true
-        naslednjaSk = sk
-        g.poisciNaslednjoEpizodo(sk, sezona, epizoda) { e ->
-            if (isFinishing || isDestroyed || naslednjaZa != kljuc) return@poisciNaslednjoEpizodo
+        g.pripraviNaslednjoEpizodo(sk, sezona, epizoda) { n ->
+            if (isFinishing || isDestroyed || naslednjaZa != kljuc) return@pripraviNaslednjoEpizodo
             naslednjaIscem = false
             glavna.removeCallbacks(naslednjaRok)
-            if (e == null) {
+            // Brez naslednje epizode ali brez potrjenega toka: kartice ni, epizoda se konca kot prej (brez »ni na voljo«).
+            if (n == null) {
                 naslednjaNi = true
-                android.util.Log.i("SafeerOsMedia", "naslednja epizoda: za S${sezona}E$epizoda je ni")
+                android.util.Log.i("SafeerOsMedia", "naslednja epizoda: za S${sezona}E$epizoda ni potrjenega toka - brez kartice")
                 if (konecEpizode && GlasbaStoritev.predvajalnik == null) finish()
-                return@poisciNaslednjoEpizodo
+                return@pripraviNaslednjoEpizodo
             }
-            naslednjaEp = e
+            naslednjaPrip = n
+            naslednjaEp = n.epizoda
             preveriNaslednjo(odstej = false)
         }
     }
@@ -2176,8 +2178,10 @@ class PredvajanjeActivity : OsActivity() {
 
     private fun pokaziKartico() {
         if (naslednjaEp == null || zaklenjeno || isInPictureInPictureMode) return
+        val vrsta = NaslednjaEpizodaPravila.vrsta(zaporednihSamodejno, tokPotrjen = naslednjaPrip != null)
+        if (vrsta == NaslednjaEpizodaPravila.NIC) return
         val k = kartica ?: ustvariKartico() ?: return
-        karticaVrsta = NaslednjaEpizodaPravila.vrsta(zaporednihSamodejno, true)
+        karticaVrsta = vrsta
         odstetoMs = 0L
         k.visibility = View.VISIBLE
         osveziKartico()
@@ -2241,7 +2245,7 @@ class PredvajanjeActivity : OsActivity() {
             karticaBesedilo?.text = ime
             karticaBesedilo?.visibility = View.VISIBLE
         } else {
-            karticaNaslov?.text = ime + " · " + getString(R.string.os_naslednja_cez, NaslednjaEpizodaPravila.preostaloSekund(odstetoMs))
+            karticaNaslov?.text = getString(R.string.os_naslednja_cez, ime, NaslednjaEpizodaPravila.preostaloSekund(odstetoMs))
             karticaBesedilo?.visibility = View.GONE
         }
     }
@@ -2257,8 +2261,8 @@ class PredvajanjeActivity : OsActivity() {
      * novega posnetka kaze »Pripravljam« z imenom nove epizode.
      */
     private fun zacniNaslednjo(samodejno: Boolean) {
-        val sk = naslednjaSk ?: return
-        val e = naslednjaEp ?: return
+        val n = naslednjaPrip ?: return
+        val e = n.epizoda
         kartica?.visibility = View.GONE
         karticaVrsta = NaslednjaEpizodaPravila.NIC
         karticaPreklicana = true        // ta epizoda je obdelana: kartica se ne vrne
@@ -2269,7 +2273,7 @@ class PredvajanjeActivity : OsActivity() {
             if (GlasbaStoritev.predvajalnik == null) finish()
             return
         }
-        val naslovNovi = NaslednjaEpizodaPravila.naslovEpizode(sk.naslov, e.sezona, e.epizoda, e.ime)
+        val naslovNovi = n.naslov
         android.util.Log.i("SafeerOsMedia", "naslednja epizoda: S${e.sezona}E${e.epizoda} (${if (samodejno) "samodejno" else "rocno"}, zapored $zaporednihSamodejno)")
         // Mesto te epizode se zapise (odgledano za Nadaljuj), predvajanje pred koncem se ustavi.
         zapisiNapredek()
@@ -2277,11 +2281,11 @@ class PredvajanjeActivity : OsActivity() {
         pripravljamNaslov = naslovNovi
         zagonovObOdprtju = GlasbaStoritev.zagonov
         casOdprtjaMs = android.os.SystemClock.uptimeMillis()
-        g.predvajajNaslednjoEpizodo(sk, e.sezona, e.epizoda, naslovNovi)
+        g.predvajajNaslednjoEpizodo(n)
         osvezi()
     }
 
-    /** Za naslednjo epizodo ni toka po uporabnikovih pravilih (GlasbaActivity): zaslon ne caka 45 s. */
+    /** Pripravljeni tok naslednje epizode je odpovedal tudi z rezervami (GlasbaActivity): zaslon ne caka 45 s. */
     fun koncajCakanjeNaslednje() {
         if (isFinishing || isDestroyed || pripravljamNaslov == null) return
         pripravljamNaslov = null

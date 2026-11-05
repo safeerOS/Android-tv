@@ -90,7 +90,7 @@
     <string name="os_nadaljevanje_ni_mogoce">Diese Quelle kann nicht zur gespeicherten Stelle springen – Wiedergabe von Anfang an.</string>
     <string name="os_nadaljevanje_drug_vir">Diese Quelle kann nicht springen – versuche eine andere …</string>
     <string name="os_naslednja_epizoda">Nächste Folge: %1$s</string>
-    <string name="os_naslednja_cez">in %1$d s</string>
+    <string name="os_naslednja_cez">%1$s · in %2$d s</string>
     <string name="os_naslednja_zdaj">Jetzt abspielen</string>
     <string name="os_naslednja_preklici">Abbrechen</string>
     <string name="os_naslednja_se_gledate">Schaust du noch?</string>

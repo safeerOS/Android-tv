@@ -32,10 +32,25 @@ fun main() {
     enako("kartica: kratek posnetek pred koncem ne", false, NaslednjaEpizodaPravila.pokazi(120_000, 115_000, koncano = false))
 
     // Meja: 3 samodejne zapored, nato »Se gledas?«.
-    enako("prva: odstevanje", NaslednjaEpizodaPravila.ODSTEVAJ, NaslednjaEpizodaPravila.vrsta(0, true))
-    enako("po dveh samodejnih: odstevanje", NaslednjaEpizodaPravila.ODSTEVAJ, NaslednjaEpizodaPravila.vrsta(2, true))
-    enako("po treh samodejnih: vprasaj", NaslednjaEpizodaPravila.VPRASAJ, NaslednjaEpizodaPravila.vrsta(3, true))
-    enako("brez naslednje: nic", NaslednjaEpizodaPravila.NIC, NaslednjaEpizodaPravila.vrsta(0, false))
+    enako("prva: odstevanje", NaslednjaEpizodaPravila.ODSTEVAJ, NaslednjaEpizodaPravila.vrsta(0, tokPotrjen = true))
+    enako("po dveh samodejnih: odstevanje", NaslednjaEpizodaPravila.ODSTEVAJ, NaslednjaEpizodaPravila.vrsta(2, tokPotrjen = true))
+    enako("po treh samodejnih: vprasaj", NaslednjaEpizodaPravila.VPRASAJ, NaslednjaEpizodaPravila.vrsta(3, tokPotrjen = true))
+    enako("brez potrjenega toka: kartice ni", NaslednjaEpizodaPravila.NIC, NaslednjaEpizodaPravila.vrsta(0, tokPotrjen = false))
+    enako("brez potrjenega toka tudi po treh: kartice ni", NaslednjaEpizodaPravila.NIC, NaslednjaEpizodaPravila.vrsta(3, tokPotrjen = false))
+    enako("s potrjenim tokom: kartica", NaslednjaEpizodaPravila.ODSTEVAJ, NaslednjaEpizodaPravila.vrsta(0, tokPotrjen = true))
+
+    // Potrjen tok (vodja 6. 11. 2026): pokazemo samo, kar si uporabnik res lahko ogleda.
+    enako("nic pripravljenega: ni potrjen", false, NaslednjaEpizodaPravila.tokPotrjen(false, samoUsenet = false, torrentovPripravljenih = 0, neposrednih = 0))
+    enako("pripravljen Usenet: potrjen", true, NaslednjaEpizodaPravila.tokPotrjen(true, samoUsenet = true, torrentovPripravljenih = 0, neposrednih = 0))
+    enako("samo Usenet, Usenet ni pripravljen, torrent je: ni potrjen", false,
+        NaslednjaEpizodaPravila.tokPotrjen(false, samoUsenet = true, torrentovPripravljenih = 2, neposrednih = 1))
+    enako("⚡ torrent pri debridu: potrjen", true, NaslednjaEpizodaPravila.tokPotrjen(false, samoUsenet = false, torrentovPripravljenih = 1, neposrednih = 0))
+    enako("neposredna povezava: potrjen", true, NaslednjaEpizodaPravila.tokPotrjen(false, samoUsenet = false, torrentovPripravljenih = 0, neposrednih = 1))
+    enako("predpriprava v roku 20 s", true, NaslednjaEpizodaPravila.vRoku(1_000, 21_000))
+    enako("predpriprava po roku ne velja", false, NaslednjaEpizodaPravila.vRoku(1_000, 21_001))
+    // Brez odprtih virov (vodja 6. 11. 2026): lasten pogon se v predpripravi ne odpre - nic za zapreti.
+    enako("lasten pogon: predpriprava ne odpre seje", false, NaslednjaEpizodaPravila.usenetOdpriVPredpripravi(lastniPogon = true))
+    enako("TorBox in pomocnik: predpriprava sme preveriti (brez virov na napravi)", true, NaslednjaEpizodaPravila.usenetOdpriVPredpripravi(lastniPogon = false))
     var zap = 0
     zap = NaslednjaEpizodaPravila.zaporednihPo(zap, samodejno = true)
     zap = NaslednjaEpizodaPravila.zaporednihPo(zap, samodejno = true)

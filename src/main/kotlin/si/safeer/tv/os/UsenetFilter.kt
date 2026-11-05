@@ -65,6 +65,9 @@ object UsenetFilter {
     fun seIscemo(c: Context, k: String): Boolean = k in vTeku || F.seIscemo(zapis(c, k), zdaj())
     fun vprasati(c: Context, k: String): Boolean = k !in vTeku && F.vprasati(zapis(c, k), zdaj())
     fun vTeku(): Int = vTeku.size
+
+    /** Vodja 6. 11. 2026: predpriprava naslednje epizode vprasa indeksator - steje v isto kvoto kot preverba filtra. */
+    fun smemPredpripravo(): Boolean = omejevalnik.smem(zdaj()).also { if (it) porabljeno.incrementAndGet() }
     fun vPremoru(): Boolean = omejevalnik.vPremoru(zdaj())
 
     /** Predvajanje samo Usenet ni naslo izdaje: zapis pozabimo, naslov izgine in se preveri znova (NI ali NE_VEMO). */

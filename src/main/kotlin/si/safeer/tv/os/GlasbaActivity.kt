@@ -8494,11 +8494,13 @@ class GlasbaActivity : OsActivity() {
      * Naloga 130/136: kateri torrenti so pri debrid storitvi ze pripravljeni (oznaka ⚡, samodejna izbira). Z delovne niti;
      * TorBox en klic do 4 s, Real-Debrid in AllDebrid iz zapomnjenih (brez klica); brez aktivne storitve prazno.
      */
-    private fun predpomnjeniZa(tokovi: List<Stremio.Tok>, sk: Jamendo.Skladba? = null, rocno: Boolean = true): Pripravljeno {
+    private fun predpomnjeniZa(tokovi: List<Stremio.Tok>, sk: Jamendo.Skladba? = null, rocno: Boolean = true,
+                               /** Vodja 6. 11. 2026: predpriprava naslednje epizode - lastnega pogona Usenet ne odpremo. */
+                               brezLastnega: Boolean = false): Pripravljeno {
         // Lastnik 25. 10. 2026 07:25: Usenet, ki ga ima TorBox ze pripravljenega, je prvi - preverimo ga HKRATI s ⚡ (samo pri
         // samodejni izbiri; prve izdaje vzporedno, najvec 6 s), da se zacetek ne podaljsa.
         val usenet = if (!rocno && sk != null && tokovi.any { it.vrsta == UsenetPravila.VRSTA } && Usenet.jeNaVoljo(applicationContext))
-            zacniUsenetPripravljen(usenetKandidati(sk, tokovi)) else null
+            zacniUsenetPripravljen(usenetKandidati(sk, tokovi), brezLastnega) else null
         val hashi = tokovi.filter { it.vrsta == "torrent" }.mapNotNull { TorBoxPravila.hashIzMagneta(it.url) }
         val pp = if (hashi.isEmpty()) emptySet() else Debrid.predpomnjeni(applicationContext, hashi)
         return Pripravljeno(pp, usenet?.invoke())
@@ -8520,11 +8522,14 @@ class GlasbaActivity : OsActivity() {
      * nic se ne prenasa). Vrne cakalnik: najboljsa pripravljena izdaja in njena povezava ([WebtorPravila.izberiUsenet]) ali
      * null; skupni rok [WebtorPravila.USENET_ROK_MS] od zacetka (preverba ⚡ tece medtem).
      */
-    private fun zacniUsenetPripravljen(kandidati: List<Stremio.Tok>): (() -> Triple<Stremio.Tok, String, String>?)? {
+    private fun zacniUsenetPripravljen(kandidati: List<Stremio.Tok>, brezLastnega: Boolean = false): (() -> Triple<Stremio.Tok, String, String>?)? {
         val app = applicationContext
         // Lastnik 27. 10. 2026: z lastnim ponudnikom NNTP je vsaka izdaja takoj predvajljiva (pretakamo neposredno) - Usenet
         // se izbere sam, brez okna »Izberi vir«; zaporedno (en film naenkrat, en bazen racuna), najboljsa nato naslednja.
         if (UsenetLastni.vUporabi(app)) {
+            // Vodja 6. 11. 2026: UsenetLastni.predvajaj najprej zapre trenutno sejo (en film naenkrat) - predpriprava med
+            // gledanjem bi ustavila epizodo, ki se igra, in drzala bazen NNTP. Sejo odpre sele zagon.
+            if (brezLastnega) return null
             val zapored = kandidati.take(UsenetLastniPravila.NAJVEC_POSKUSOV)
             if (zapored.isEmpty()) return null
             // Lastnik 27. 10. 2026: priprava lastnega pogona traja nekaj sekund - uporabnik vidi, da se nekaj dogaja.
@@ -8614,36 +8619,100 @@ class GlasbaActivity : OsActivity() {
         return UsenetPravila.zaSamodejno(poHitrosti.map { TokIzbira.opisi(opis(it)).gb }).map { poHitrosti[it] }
     }
 
+    /** Naslednja epizoda s ze izbranimi in preverjenimi tokovi ([pripraviNaslednjoEpizodo]). */
+    class NaslednjaPripravljena(val epizoda: Stremio.Epizoda, val serija: Jamendo.Skladba, val naslov: String,
+                                val tokovi: List<Stremio.Tok>, val pripravljeno: Pripravljeno,
+                                /** Lasten pogon Usenet: tok je potrjen po pogojih filtra, sejo odpre zagon ([predvajajNaslednjoEpizodo]). */
+                                val usenetObZagonu: Boolean = false)
+
     /**
-     * Lastnik 5. 11. 2026: epizoda za kartico »Naslednja epizoda« ([PredvajanjeActivity]) - seznam epizod iz dodatka na
-     * delavcu, rezultat na glavni niti; null: zadnja epizoda ali dodatek seznama ne da.
+     * Lastnik 5. 11. 2026 in vodja 6. 11. 2026 (pokazemo samo, kar si uporabnik res lahko ogleda): minuto pred koncem epizode
+     * poiscemo naslednjo epizodo, njene tokove in izberemo ter preverimo tok po ISTIH pravilih kot samodejna izbira
+     * ([predpomnjeniZa]: ⚡ pri debridu, pripravljen Usenet po filtru, kakovosti, jeziku in pomocniku kroga) - brez predvajanja.
+     * Rezultat (glavna nit) je null, ce epizode ali potrjenega toka ni ali je priprava presegla rok: kartice takrat ni.
+     * Ena predpriprava na epizodo (klicatelj), Usenet steje v kvoto indeksatorja kot preverba filtra.
      */
-    fun poisciNaslednjoEpizodo(sk: Jamendo.Skladba, sezona: Int, epizoda: Int, rezultat: (Stremio.Epizoda?) -> Unit) {
+    fun pripraviNaslednjoEpizodo(sk: Jamendo.Skladba, sezona: Int, epizoda: Int, rezultat: (NaslednjaPripravljena?) -> Unit) {
         val serija = sk.copy(id = sk.id.substringBefore('#') + (if (PreizkusPravila.jePreizkus(sk.id)) PreizkusPravila.OZNAKA else ""),
             season = 0, episode = 0)
-        if (!Stremio.jeSerija(serija)) { rezultat(null); return }
+        val tip = Stremio.razstavi(serija)?.second ?: run { rezultat(null); return }
+        // Diagnostiki razvijalca (samo Webtor, samo P2P) imata svojo pot brez potrditve vnaprej: kartice ni.
+        if (tip != "series" || Webtor.samoWebtor(this) || Diagnostika.samoP2p(this)) { rezultat(null); return }
+        // Isti pogoj kot izberiTok (samodejno): izbran samo Usenet ali diagnostika samo Usenet.
+        val samoUsenet = OsPravila.samoUsenetIzbran(UsenetLastni.naVoljo(this) && UsenetLastni.izbran(this), Debrid.aktivna(this) != null, false) ||
+            Usenet.samoUsenet(this)
+        // Iskanje tokov vprasa tudi indeksator: steje v isto kvoto kot preverba filtra (FilterViraPravila.NA_MINUTO).
+        if ((Usenet.jeNaVoljo(this) || UsenetLastni.naVoljo(this)) && !UsenetFilter.smemPredpripravo()) {
+            android.util.Log.i("SafeerOsMedia", "naslednja epizoda: kvota indeksatorja - brez predpriprave"); rezultat(null); return
+        }
+        val zacetek = android.os.SystemClock.elapsedRealtime()
+        val imaDebrid = aktivniDebrid() != null
+        val lastni = UsenetLastni.vUporabi(this)
+        val odpreUsenet = NaslednjaEpizodaPravila.usenetOdpriVPredpripravi(lastni)
         try {
             delavec.execute {
-                val vse = try { Stremio.epizode(serija) } catch (_: Exception) { emptyList() }
-                val e = OsPravila.naslednjaEpizoda(vse.map { it.sezona to it.epizoda }, sezona, epizoda)
-                    ?.let { (s, k) -> vse.firstOrNull { it.sezona == s && it.epizoda == k } }
-                glavna.post { rezultat(e) }
+                var izid: NaslednjaPripravljena? = null
+                try {
+                    val vse = try { Stremio.epizode(serija) } catch (_: Exception) { emptyList() }
+                    val e = OsPravila.naslednjaEpizoda(vse.map { it.sezona to it.epizoda }, sezona, epizoda)
+                        ?.let { (s, k) -> vse.firstOrNull { it.sezona == s && it.epizoda == k } }
+                    if (e != null) {
+                        val dodatni = SerijePravila.idEpizodePoImdb(Stremio.imdbZa(serija), e.id, e.sezona, e.epizoda)
+                        val t = e.tokovi.ifEmpty { try { tokoviVzporedno(tip, e.id, dodatniId = dodatni) } catch (_: Exception) { emptyList() } }
+                        val skEp = serija.copy(season = e.sezona, episode = e.epizoda)
+                        val pp = predpomnjeniZa(t, skEp, false, brezLastnega = !odpreUsenet)
+                        // Lasten pogon: brez seje - izdaja je potrjena po istih pogojih kot filter »⚡ Usenet« (velikost, kodek na
+                        // TV ali pomocnik kroga, ki je zdaj prisoten); prvi segment preveri zagon, ob napaki gre izbira naprej.
+                        val lastnihUstreznih = if (odpreUsenet) 0 else usenetKandidati(skEp, t).take(UsenetLastniPravila.NAJVEC_POSKUSOV).count { u ->
+                            when (FilterViraPravila.pot(FilterViraPravila.Izdaja(u.opis.substringBefore('\n'), TokIzbira.opisi(u.ime + " " + u.opis).gb), zmoznostiNaprave)) {
+                                FilterViraPravila.Pot.TV -> true
+                                FilterViraPravila.Pot.POMOCNIK -> UsenetPomocniki.zdaj(this)
+                                else -> false
+                            }
+                        }
+                        val torrentov = if (!imaDebrid) 0 else t.count { it.vrsta == "torrent" && TorBoxPravila.hashIzMagneta(it.url)?.lowercase() in pp.predpomnjeni }
+                        // Neposredna povezava (ne Webtor, ki rabi sondo, ne napovednik).
+                        val neposrednih = t.count { it.vrsta == "url" && it.vir != WebtorPravila.VIR && Stremio.jePredvajljiv(it) }
+                        val potrjen = NaslednjaEpizodaPravila.tokPotrjen(pp.usenet != null || lastnihUstreznih > 0, samoUsenet, torrentov, neposrednih)
+                        val vRoku = NaslednjaEpizodaPravila.vRoku(zacetek, android.os.SystemClock.elapsedRealtime())
+                        android.util.Log.i("SafeerOsMedia", "naslednja epizoda: S${e.sezona}E${e.epizoda} tokov=${t.size} usenet=${pp.usenet != null} lastnih=$lastnihUstreznih " +
+                            "torrentov=$torrentov neposrednih=$neposrednih samoUsenet=$samoUsenet potrjen=$potrjen vRoku=$vRoku")
+                        if (potrjen && vRoku) izid = NaslednjaPripravljena(e, serija, NaslednjaEpizodaPravila.naslovEpizode(sk.naslov, e.sezona, e.epizoda, e.ime), t, pp,
+                            usenetObZagonu = !odpreUsenet)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("SafeerOsMedia", "naslednja epizoda: predpriprava ${e.javaClass.simpleName}")
+                }
+                val koncni = izid
+                glavna.post { rezultat(koncni) }
             }
         } catch (_: java.util.concurrent.RejectedExecutionException) { rezultat(null) }
     }
 
     /**
-     * Lastnik 5. 11. 2026: naslednja epizoda po ISTI poti kot »Nadaljuj« ([nadaljujEpizodo] -> [izberiTok], samodejna izbira):
-     * veljajo uporabnikova pravila (samo Usenet, debrid, kakovost in jezik za to napravo). Brez toka obvestilo, nic drugega.
+     * Zagon pripravljene naslednje epizode: ze izbrani tokovi in priprava ([NaslednjaPripravljena]) gredo v [izberiTok] brez
+     * nove poizvedbe; ce izbrani tok medtem odpove, velja obstojeca rezerva (naslednji tok) v izberiTok.
      */
-    fun predvajajNaslednjoEpizodo(sk: Jamendo.Skladba, sezona: Int, epizoda: Int, naslov: String) {
-        val niNaVoljo = {
-            Toast.makeText(this, R.string.os_naslednja_ni, Toast.LENGTH_LONG).show()
-            PredvajanjeActivity.instanca?.get()?.koncajCakanjeNaslednje()
-            Unit
+    fun predvajajNaslednjoEpizodo(n: NaslednjaPripravljena) {
+        val konec = { PredvajanjeActivity.instanca?.get()?.koncajCakanjeNaslednje(); Unit }
+        if (isFinishing || isDestroyed) { konec(); return }
+        val sk = n.serija.copy(season = n.epizoda.sezona, episode = n.epizoda.epizoda)
+        val priprava = zacniPripravo(sk.copy(naslov = n.naslov)) ?: run { konec(); return }
+        if (n.usenetObZagonu) {
+            // Lasten pogon: sejo (127.0.0.1, bazen NNTP) odpre sele zagon, ko se prejsnja epizoda ne igra vec - kot »Nadaljuj«.
+            naDelavcu(priprava, sk) {
+                val pp = predpomnjeniZa(n.tokovi, sk, false)
+                glavna.post {
+                    if (!koncajPripravo(priprava)) return@post
+                    if (isFinishing || isDestroyed) { konec(); return@post }
+                    izberiTok(sk, n.naslov, n.tokovi, false, pp) { konec() }
+                }
+            }
+            return
         }
-        if (isFinishing || isDestroyed) { niNaVoljo(); return }
-        nadaljujEpizodo(sk.copy(season = sezona, episode = epizoda, naslov = naslov), sezona, epizoda, obNeuspehu = niNaVoljo)
+        if (!koncajPripravo(priprava)) { konec(); return }
+        // izberiTok ob neuspehu sam pove, da vsebina ni na voljo, in zapre zaslon priprave.
+        izberiTok(sk, n.naslov, n.tokovi, false, n.pripravljeno) { konec() }
     }
 
     /**
@@ -8653,9 +8722,7 @@ class GlasbaActivity : OsActivity() {
      */
     private fun nadaljujEpizodo(sk: Jamendo.Skladba, sezona: Int, epizoda: Int,
                                 /** Pregled B-S1: iz Nedavno - epizoda brez shranjenega mesta je odgledana, odpre se naslednja. */
-                                naprejCeOgledano: Boolean = false,
-                                /** Lastnik 5. 11. 2026: samodejna naslednja epizoda - brez toka samo to (seznam sezon se ne odpre). */
-                                obNeuspehu: (() -> Unit)? = null) {
+                                naprejCeOgledano: Boolean = false) {
         // Oznaka preizkusa (naloga 135) ostane - sicer bi preizkusni ogled sel v zgodovino.
         val serija = sk.copy(id = sk.id.substringBefore('#') + (if (PreizkusPravila.jePreizkus(sk.id)) PreizkusPravila.OZNAKA else ""),
             season = 0, episode = 0)
@@ -8671,7 +8738,7 @@ class GlasbaActivity : OsActivity() {
             val e = if (!odgledana) zadnja else OsPravila.naslednjaEpizoda(vse.map { it.sezona to it.epizoda }, sezona, epizoda)
                 ?.let { (s, k) -> vse.firstOrNull { it.sezona == s && it.epizoda == k } }
             if (e == null) {
-                glavna.post { if (!koncajPripravo(priprava)) return@post; if (obNeuspehu != null) obNeuspehu() else if (!isFinishing && !isDestroyed) razresiStremio(serija) }
+                glavna.post { if (!koncajPripravo(priprava)) return@post; if (!isFinishing && !isDestroyed) razresiStremio(serija) }
                 return@naDelavcu
             }
             val naslovEp = if (!odgledana) sk.naslov else OsPravila.naslovBrezEpizode(sk.naslov) + " · S${e.sezona}E${e.epizoda}" +
@@ -8684,8 +8751,7 @@ class GlasbaActivity : OsActivity() {
                 if (!koncajPripravo(priprava)) return@post
                 // Brez toka: samo obvestilo - kartica serije zaradi ene epizode ne izgine.
                 if (!isFinishing && !isDestroyed) izberiTok(serija.copy(season = e.sezona, episode = e.epizoda), naslovEp, t, false, pp) {
-                    if (obNeuspehu != null) obNeuspehu()
-                    else Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslovEp), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslovEp), Toast.LENGTH_SHORT).show()
                 }
             }
         }
