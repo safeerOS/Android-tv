@@ -70,7 +70,7 @@ fun main() {
         val script = SponsorBlock.applyScript(VIDEO, SponsorBlock.parse(BODY, VIDEO))
         check(script == "window.__safeerSb && window.__safeerSb.set(\"$VIDEO\", [[5.0,20.0,\"sponsor\"],[30.5,60.25,\"selfpromo\"]]);") { script }
         try { SponsorBlock.applyScript("bad\");alert(1);//", emptyList()); throw AssertionError("accepted") } catch (e: IllegalArgumentException) { /* expected */ }
-        check(SponsorBlock.RUNTIME_JS.contains("SafeerBridge.sponsorSegments") && SponsorBlock.RUNTIME_JS.contains("__safeerSb"))
+        check(SponsorBlock.RUNTIME_JS.contains("SafeerSporocila.postMessage(\"sponzor:\"") && !SponsorBlock.RUNTIME_JS.contains("SafeerBridge") && SponsorBlock.RUNTIME_JS.contains("__safeerSb"))
     }
     test("HTTPS only by default") {
         try { HttpsSponsorFetcher().fetch("http://example.com/x"); throw AssertionError("accepted http") } catch (e: java.io.IOException) { check(e.message == "only HTTPS is allowed") }

@@ -13,7 +13,6 @@ POT = os.path.join(KOREN, "src/main/kotlin/si/safeer/tv/ChromiumEngineView.kt")
 # ime -> zahtevana zascita v telesu (None = varno brez zascite, razlog v komentarju)
 DOVOLJENE = {
     "sporocilo": "jeDovoljenIzvor",          # SafeerAndroid: samo splet.html, preverba na glavni niti
-    "sponsorSegments": None,                 # samo prebere javne odseke SponsorBlock za videoId
     "onScrollChanged": None,                 # samo smer drsenja za skrivanje vrstice
     "getUiLanguage": None,                   # jezik vmesnika, ni zaseben
     "navigate": "naDomaciNaGlavni",
@@ -51,9 +50,12 @@ def main():
         if zascita and zascita not in telo:
             napake.append(f"{ime}() nima zascite {zascita}")
     imena = {i for i, _ in najdene}
-    for ime in ("onMedijskaZahteva", "forceAudioOn"):
+    for ime in ("onMedijskaZahteva", "forceAudioOn", "sponsorSegments"):
         if ime in imena:
-            napake.append(f"{ime}() je spet v mostu (odstranjen 3. 11. 2026)")
+            napake.append(f"{ime}() je spet v mostu (odstranjen 3. 11. 2026 oziroma sponsorSegments 5. 11. 2026)")
+    # Neodvisni pregled 5. 11. 2026: SponsorBlock samo po SafeerSporocila iz glavnega okvirja YouTuba.
+    if "SpletVarnostPravila.sponzorZahteva(sporocilo.data, glavniOkvir, izvor.toString())" not in besedilo:
+        napake.append("SafeerSporocila: zahteva SponsorBlock brez preverbe glavnega okvirja in izvora (sponzorZahteva)")
     if not najdene:
         napake.append("ni najdenih metod mostu - je pot napacna?")
     # Zunanji pregled 3. 11. 2026: namere iz Sporocil enako ociscene kot v brskalniku; varnostna vrata na domu TV.

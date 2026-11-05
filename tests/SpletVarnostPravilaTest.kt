@@ -184,6 +184,19 @@ fun main() {
     // Pregled Groka 5. 11. 2026: izvirnikom metod skript zaupa samo, ce je aplikacija IZVIRNIKI_JS registrirala.
     check(P.vstaviIzvirnike("var X = '${P.IZVIRNIKI_MESTO}' === 'da';", true) == "var X = 'da' === 'da';") { "izvirniki registrirani" }
     check(P.vstaviIzvirnike("'${P.IZVIRNIKI_MESTO}'", false) == "'ne'") { "izvirniki niso registrirani" }
+    // Neodvisni pregled 5. 11. 2026 (kot telefon d6cd2ec): SponsorBlock samo glavni okvir z izvorom YouTuba po HTTPS.
+    val vid = "dQw4w9WgXcQ"
+    for (o in listOf("https://www.youtube.com", "https://m.youtube.com", "https://youtube.com", "https://music.youtube.com:443")) {
+        check(P.sponzorZahteva("sponzor:$vid", true, o) == vid) { "YouTube $o" }
+    }
+    check(P.sponzorZahteva("sponzor:$vid", false, "https://www.youtube.com") == null) { "okvir na YouTubu" }
+    for (o in listOf("https://googleads.g.doubleclick.net", "https://youtube.com.napadalec.example", "https://napadalec-youtube.com",
+                     "http://www.youtube.com", "https://www.youtube.com:8443", "https://x@www.youtube.com", "null", "", null)) {
+        check(P.sponzorZahteva("sponzor:$vid", true, o) == null) { "tuj izvor $o" }
+    }
+    for (m in listOf(null, "", "sponzor:", "sponzor:kratek", "sponzor:$vid" + "x", "sponzor:$vid/", "SPONZOR:$vid", "zvok:1")) {
+        check(P.sponzorZahteva(m, true, "https://www.youtube.com") == null) { "napacna zahteva $m" }
+    }
     // Neodvisni pregled 5. 11. 2026: nakljucni del imen (izvirniki na pogled, izvozi na stran) in rok pravega dotika.
     val n1 = P.novNonce(); val n2 = P.novNonce()
     check(n1.length == 16 && n1 != n2 && P.jeNonce(n1) && !P.jeNonce("x') ; //") && !P.jeNonce(null)) { "nonce" }

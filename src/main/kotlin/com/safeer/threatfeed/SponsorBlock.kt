@@ -143,7 +143,7 @@ object SponsorBlock {
 
     /**
      * Page runtime: watches the address for the current video, asks the app for its segments through
-     * SafeerBridge.sponsorSegments(id) and jumps over every segment while the video plays. Idempotent.
+     * SafeerSporocila.postMessage("sponzor:" + id) (main frame only) and jumps over every segment while the video plays. Idempotent.
      */
     const val RUNTIME_JS: String = """
 (function () {
@@ -206,7 +206,7 @@ object SponsorBlock {
   function ask() {
     if (!state.id || state.answered || state.asked >= 3) return;
     state.asked++;
-    try { if (window.SafeerBridge && window.SafeerBridge.sponsorSegments) window.SafeerBridge.sponsorSegments(state.id); } catch (e) {}
+    try { if (window.SafeerSporocila) window.SafeerSporocila.postMessage("sponzor:" + state.id); } catch (e) {}
   }
   var ticks = 0;
   function tick() {

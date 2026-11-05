@@ -411,6 +411,12 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
                         "https://*.googlevideo.com"
                     )
                 )
+                // SponsorBlock: zahteva samo iz glavnega okvirja YouTuba (SpletVarnostPravila.sponzorZahteva, pregled 5. 11. 2026).
+                if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.WEB_MESSAGE_LISTENER)) {
+                    androidx.webkit.WebViewCompat.addWebMessageListener(this, "SafeerSporocila", setOf("https://youtube.com", "https://*.youtube.com")) { _, sporocilo, izvor, glavniOkvir, _ ->
+                        SpletVarnostPravila.sponzorZahteva(sporocilo.data, glavniOkvir, izvor.toString())?.let { poisciSponzorje(it) }
+                    }
+                }
                 // Most dotika zaklenjen pred skriptami strani (ZAKLEP_MOSTU_JS, pregled 3. 11. 2026).
                 androidx.webkit.WebViewCompat.addDocumentStartJavaScript(this, ZAKLEP_MOSTU_JS, setOf("*"))
                 // Stran ne sme zaznati blokatorja oglasov: splosna skripta pred skriptami strani (assets/protiadblock.js).
@@ -726,28 +732,9 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
             }
         }
 
-        /**
-         * ⏭ SponsorBlock: stran YouTube sporoči ID videa, aplikacija v ozadju poišče sponzorske odseke (po
-         * predponi zgoščene vrednosti, brez ID-ja) in jih vrne strani. Deluje samo za stran YouTube v tem zavihku.
-         */
-        @android.webkit.JavascriptInterface
-        fun sponsorSegments(videoId: String) {
-            if (!SponsorBlockSettings.isEnabled(context)) return
-            val id = videoId.trim()
-            if (!Regex("[A-Za-z0-9_-]{11}").matches(id)) return
-            webView.post {
-                if (!UserScriptManager.isYouTubeUrl(webView.url)) return@post
-                com.safeer.threatfeed.SponsorBlock.fetchAsync(id) { segments ->
-                    val error = com.safeer.threatfeed.SponsorBlock.lastError
-                    android.util.Log.i("SafeerSponsorBlock", "video $id: ${segments.size} odsekov za preskok" + if (error.isEmpty()) "" else " ($error)")
-                    webView.post {
-                        if (UserScriptManager.isYouTubeUrl(webView.url)) {
-                            webView.evaluateJavascript(com.safeer.threatfeed.SponsorBlock.applyScript(id, segments), null)
-                        }
-                    }
-                }
-            }
-        }
+        // Neodvisni pregled 5. 11. 2026 (kot telefon d6cd2ec): sponsorSegments ni vec na SafeerBridge - vidi ga vsak okvir
+        // strani YouTube (tudi okvir oglasa) in je sprozal poljubno poizvedb SponsorBlock. Zahteva gre po SafeerSporocila
+        // (addWebMessageListener) samo iz glavnega okvirja z izvorom YouTuba ([poisciSponzorje]).
 
         /** Skript daljinca (tv_spatial.js) sporoci drsenje; vrstico skrije/pokaze samo kratko po uporabnikovem vnosu (oglas ne). */
         @android.webkit.JavascriptInterface
@@ -871,6 +858,24 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
                 } catch (_: Exception) {}
             }
             return true
+        }
+    }
+
+    /**
+     * ⏭ SponsorBlock: stran YouTube sporoci ID videa po SafeerSporocila (samo glavni okvir), aplikacija v ozadju poisce
+     * sponzorske odseke (po predponi zgoscene vrednosti, brez ID-ja) in jih vrne strani. Glavna nit.
+     */
+    private fun poisciSponzorje(id: String) {
+        if (!SponsorBlockSettings.isEnabled(context)) return
+        if (!UserScriptManager.isYouTubeUrl(url)) return
+        com.safeer.threatfeed.SponsorBlock.fetchAsync(id) { segments ->
+            val error = com.safeer.threatfeed.SponsorBlock.lastError
+            android.util.Log.i("SafeerSponsorBlock", "video $id: ${segments.size} odsekov za preskok" + if (error.isEmpty()) "" else " ($error)")
+            post {
+                if (UserScriptManager.isYouTubeUrl(url)) {
+                    evaluateJavascript(com.safeer.threatfeed.SponsorBlock.applyScript(id, segments), null)
+                }
+            }
         }
     }
 

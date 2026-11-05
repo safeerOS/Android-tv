@@ -464,6 +464,29 @@ object SpletVarnostPravila {
         odKlicaMs in 0 until DOTIK_ROK_MS && zetonKlica.length >= 32 &&
             java.security.MessageDigest.isEqual(zetonKlica.toByteArray(Charsets.UTF_8), zetonZdaj.toByteArray(Charsets.UTF_8))
 
+    /**
+     * Neodvisni pregled 5. 11. 2026 (kot telefon d6cd2ec): SponsorBlock je bil na SafeerBridge, ki ga vidi vsak okvir strani
+     * YouTube (okvir oglasa je lahko sprozal poljubno poizvedb). Zahteva pride samo po SafeerSporocila iz glavnega okvirja
+     * z izvorom YouTuba; vrne ID videa ali null.
+     */
+    fun sponzorZahteva(podatki: String?, glavniOkvir: Boolean, izvor: String?): String? {
+        if (!glavniOkvir || podatki == null || !podatki.startsWith(SPONZOR)) return null
+        val id = podatki.removePrefix(SPONZOR)
+        if (!Regex("[A-Za-z0-9_-]{11}").matches(id)) return null
+        return if (jeIzvorYouTuba(izvor)) id else null
+    }
+
+    private const val SPONZOR = "sponzor:"
+
+    /** Izvor (shema://gostitelj[:vrata]) strani YouTube po HTTPS, brez uporabnika v naslovu. */
+    fun jeIzvorYouTuba(izvor: String?): Boolean {
+        val u = try { java.net.URI(izvor ?: return false) } catch (_: Exception) { return false }
+        if (!"https".equals(u.scheme, ignoreCase = true) || u.rawUserInfo != null) return false
+        if (u.port != -1 && u.port != 443) return false
+        val h = (u.host ?: return false).lowercase().trimEnd('.')
+        return h == "youtube.com" || h.endsWith(".youtube.com")
+    }
+
     /** Sinteticni dotik (triggerNativeTap) samo znotraj pogleda; NaN ali tocka zunaj se zavrne. */
     fun dotikVPogledu(x: Float, y: Float, sirina: Int, visina: Int): Boolean =
         !x.isNaN() && !y.isNaN() && x >= 0f && y >= 0f && x < sirina && y < visina
