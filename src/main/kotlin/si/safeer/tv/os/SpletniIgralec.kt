@@ -155,10 +155,18 @@ open class SpletniIgralec protected constructor(
     private var zastojJavljen = false
     /** Cas nalaganja strani (0 = stran nalaga nekdo drug, npr. LahkaStran, ki ima svoj rok). */
     private var nalozenoOd = 0L
+    /**
+     * Cetrti slepi pregled 5. 11. 2026 (N-E, odlocitev vodje): zadnji cas (uptime), ko je okvir DRUGEGA izvora (ni na
+     * [IZVORI_PREDVAJALNIKA], npr. predvajalnik na CDN) s kljucem posrednika javil, da igra. Tako stanje ni preverjeno
+     * (lahko je oglas), zato sme SAMO preklicati zastoj - nikoli polozaja, konca, preskoka ali oznake NI_TOKA.
+     */
+    private var nepreverjenoIgraOd = 0L
 
     private fun preveriZastoj() {
         if (zastojJavljen || obZastoju == null || nalozenoOd == 0L) return
-        if (!YoutubeVrstaPravila.zastoj(SystemClock.uptimeMillis() - nalozenoOd, polozaj, pripravljeno, zelja)) return
+        val zdaj = SystemClock.uptimeMillis()
+        val nepreverjeno = YoutubeVrstaPravila.nepreverjenoIgra(nepreverjenoIgraOd, zdaj)
+        if (!YoutubeVrstaPravila.zastoj(zdaj - nalozenoOd, polozaj, pripravljeno, zelja, nepreverjeno)) return
         if (YoutubeVrstaPravila.poZastojuPolnaStran(vgradno)) {
             // Pregled 3. 11. 2026: okvir v roku ni dal polozaja - polna stran watch?v= v isti pogled (nov rok).
             vgradno = false
@@ -184,6 +192,8 @@ open class SpletniIgralec protected constructor(
             pogled.evaluateJavascript(STANJE_JS) { r ->
                 if (sproscen) return@evaluateJavascript
                 val o = try { JSONObject(r ?: "{}") } catch (_: Exception) { JSONObject() }
+                // N-E: samo znak, da okvir drugega izvora igra (brez vrednosti) - preklice zastoj, nic drugega.
+                if (o.optInt("u") == 1) nepreverjenoIgraOd = SystemClock.uptimeMillis()
                 if (o.has("t")) {
                     pripravljeno = o.optInt("r") >= 2
                     polozaj = (o.optDouble("t", 0.0) * 1000).toLong()
@@ -394,6 +404,8 @@ open class SpletniIgralec protected constructor(
          * Tretji neodvisni pregled 5. 11. 2026 (N6): kljuc ima posrednik v VSAKEM okvirju (tudi oglasa) - stran v okvirju je
          * prepisala getterje medija in nas posrednik je poslal lazno stanje ali napako (preskok skladbe). Vrhnja stran zato
          * sprejme stanje in napako samo z izvora same sebe ali vgradnega predvajalnika ([IZVORI_PREDVAJALNIKA]).
+         * Cetrti slepi pregled 5. 11. 2026 (N-E): okvir drugega izvora (predvajalnik na CDN), ki igra, postavi samo cas
+         * __safeerOkvirNepreverjenCas (brez vrednosti) - Kotlin z njim le preklice zastoj ([nepreverjenoIgraOd]).
          */
         internal const val POSREDNIK_JS = """(function(){'use strict';var Z='__safeerAgent_'+'__SAFEER_NONCE_AGENTA__',K='__SAFEER_KLJUC_AGENTA__';
           try{if(Object.getOwnPropertyDescriptor(window,Z))return;Object.defineProperty(window,Z,{__proto__:null,value:1,writable:false,configurable:false,enumerable:false});}catch(x){return;}
@@ -425,7 +437,7 @@ open class SpletniIgralec protected constructor(
             var m=glavni();if(m){try{window.top.postMessage({safeer:'stanje',k:K,
             p:!m.paused,t:m.currentTime||0,d:m.duration||0,r:m.readyState,e:!!m.ended},'*');}catch(x){}}},1000);}
           else{var O={__proto__:null};try{var lo=location.origin;if(typeof lo==='string'&&lo!=='null')O[lo]=1;}catch(x){}__SAFEER_IZVORI_AGENTA__
-            window.addEventListener('message',function(e){var d=e.data;if(!d||e.source===window||d.k!==K)return;if(O[e.origin]!==1)return;
+            window.addEventListener('message',function(e){var d=e.data;if(!d||e.source===window||d.k!==K)return;if(O[e.origin]!==1){if(d.safeer==='stanje'&&d.p===true&&typeof d.t==='number'&&d.t>0)window.__safeerOkvirNepreverjenCas=Date.now();return;}
             if(d.safeer==='stanje'){window.__safeerOkvir={p:d.p,t:d.t,d:d.d,r:d.r,e:d.e};window.__safeerOkvirCas=Date.now();}
             if(d.safeer==='napaka'){window.__safeerNapaka=Date.now();}});
             setInterval(function(){var er=document.querySelector('.ytp-error,yt-playability-error-supported-renderers,ytm-player-error-message-renderer,.player-error-message-container');
@@ -459,6 +471,7 @@ open class SpletniIgralec protected constructor(
           var md=navigator.mediaSession&&navigator.mediaSession.metadata;var n=(md&&md.title)||'',a=(md&&md.artist)||'';
           if(m)return {p:!m.paused,t:m.currentTime||0,d:m.duration||0,r:m.readyState,e:!!m.ended,n:n,a:a};
           var o=window.__safeerOkvir;if(o&&Date.now()-window.__safeerOkvirCas<3000)return {p:o.p,t:o.t,d:o.d,r:o.r,e:o.e,n:n,a:a};
+          var u=window.__safeerOkvirNepreverjenCas;if(typeof u==='number'&&Date.now()-u<3000)return {u:1};
           return {};})()"""
 
         /**

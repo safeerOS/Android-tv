@@ -29,13 +29,13 @@
             // Tretji neodvisni pregled 5. 11. 2026 (N5): Object.freeze na mostu Java (ZAKLEP_MOSTU_JS) ni dokazan - prej smo
             // triggerNativeTap prebrali ob vsakem klicu iz window.SafeerBridge in stran ga je lahko ovila (zeton v njen ovoj).
             // Most in metodo ujame ChromiumEngineView.IZVIRNIKI_JS ob zacetku dokumenta (IZ.most, IZ.tap); klic z Reflect.apply.
-            // Neodvisni pregled 5. 11. 2026 (najdba 8): dokaz tipke je 32-bitni odtis - stran bi ga lahko ugibala brez meje.
-            // Po NAJVEC_NAPAK napacnih dokazih v tem dokumentu ni vec pravih dejanj (dotik, Enter); smer in OK ostaneta.
-            var napakeDokaza = 0, NAJVEC_NAPAK = 5;
+            // Neodvisni pregled 5. 11. 2026 (najdba 8) je uvedel mejo 5 napacnih dokazov (32-bitni odtis bi stran ugibala).
+            // Cetrti slepi pregled 5. 11. 2026 (N-D, odlocitev vodje): dokaz je HMAC-SHA256 (256 bitov), ugibanje ni mogoce -
+            // meja je bila le se samo-DoS strani (5 laznih klicev je izklopilo prave dotike in Enter). Meja odstranjena.
             // Prava dejanja (zaupanja vreden dotik ali tipka Enter) samo z izvirniki z zacetka dokumenta, v dokumentu z omrezja
-            // in dokler stran ni zasedla nasega izvoza ali ugibala dokaza.
+            // in dokler stran ni zasedla nasega izvoza.
             function pravaDejanjaDovoljena() {
-                return !!IZ && omrezniDokument && !izvozZaseden && napakeDokaza < NAJVEC_NAPAK;
+                return !!IZ && omrezniDokument && !izvozZaseden;
             }
             function pravDotik(x, y) {
                 try {
@@ -353,7 +353,7 @@
                 }
                 // Stevilo v niz z operatorjem (notranji ToString), ne z Number.prototype.toString strani.
                 var h = odtisHex(ZETON_DOTIKA, 'tipka|' + stevec + '|' + izziv);
-                if (h === '' || dokaz !== h) { napakeDokaza++; return false; }
+                if (h === '' || dokaz !== h) return false;
                 zadnjiStevecTipke = stevec;
                 tipkaNaVoljo = true;
                 zadnjaTipkaMs = casZdaj();

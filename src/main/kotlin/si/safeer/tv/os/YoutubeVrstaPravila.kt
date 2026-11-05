@@ -32,8 +32,18 @@ object YoutubeVrstaPravila {
      * Stran obvisi: od nalaganja je minil rok, predvajanje ni nikoli steklo (polozaj 0, medij ni pripravljen), uporabnik
      * pa zeli, da igra (pavza ni zastoj). Prej je tak posnetek ostal v BUFFERING za vedno, brez sporocila.
      */
-    fun zastoj(odNalaganjaMs: Long, polozajMs: Long, pripravljeno: Boolean, zelja: Boolean): Boolean =
-        zelja && !pripravljeno && polozajMs <= 0L && odNalaganjaMs >= ROK_ZASTOJA_MS
+    fun zastoj(odNalaganjaMs: Long, polozajMs: Long, pripravljeno: Boolean, zelja: Boolean, nepreverjenoIgra: Boolean = false): Boolean =
+        zelja && !pripravljeno && polozajMs <= 0L && odNalaganjaMs >= ROK_ZASTOJA_MS && !nepreverjenoIgra
+
+    /** Rok svezine znaka »okvir drugega izvora igra« (POSREDNIK_JS posilja vsako sekundo; STANJE_JS ga vrne do 3 s). */
+    const val NEPREVERJENO_ROK_MS = 3_000L
+
+    /**
+     * Cetrti slepi pregled 5. 11. 2026 (N-E): okvir drugega izvora (predvajalnik na CDN, ni na IZVORI_PREDVAJALNIKA) je v
+     * zadnjih [NEPREVERJENO_ROK_MS] javil, da igra. Uporablja se SAMO za preklic zastoja (skladba, ki igra v okvirju, ni vec
+     * oznacena NI_TOKA in preskocena); nikoli za polozaj, konec ali preskok. [od] 0 = nikoli.
+     */
+    fun nepreverjenoIgra(od: Long, zdaj: Long): Boolean = od > 0L && zdaj >= od && zdaj - od < NEPREVERJENO_ROK_MS
 
     /** Po zastoju: naslednja skladba, ce obstaja in nismo ze [NAJVEC_ZAPOREDNIH_ZASTOJEV]-krat zapored obstali. */
     fun naprejPoZastoju(zaporedniZastoji: Int, imaNaslednjo: Boolean): Boolean =
