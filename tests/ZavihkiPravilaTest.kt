@@ -45,6 +45,14 @@ fun main(args: Array<String>) {
     check(p.sosedVVrstici(dve, trenutni = 0, desno = true) == 3)
     check(p.sosedVVrstici(dve, trenutni = 1, desno = false) == -1)
     check(p.sosedVVrstici(dve, trenutni = 9, desno = true) == -1)
+    // Pregled fokusa Gemini 5. 11. 2026 (9): visji sosed (polje 120 px ob gumbu 44 px, poravnano zgoraj) je sosed v obe smeri.
+    val visji = listOf(Okvir(0, 0, 44, 44), Okvir(60, 0, 400, 120))
+    check(p.sosedVVrstici(visji, trenutni = 0, desno = true) == 1) { "visji sosed preskocen" }
+    check(p.sosedVVrstici(visji, trenutni = 1, desno = false) == 0)
+    // Vrstici, ki se prekrivata samo za rob (4 px), nista ena vrstica.
+    val tesni = listOf(Okvir(0, 0, 44, 44), Okvir(60, 40, 44, 44))
+    check(p.sosedVVrstici(tesni, trenutni = 0, desno = true) == -1)
+    check(p.sosedVVrstici(tesni, trenutni = 1, desno = false) == -1)
 
     // Pregled lupine 5. 11. 2026: »home« z daljinca ne javi uspeha, ce ni naredil nicesar.
     // Drugi krog pregleda 5. 11. 2026: OBNOVA ne ob vstopu v lupino (prejsnji zavihek ostane za izhod iz aplikacije).

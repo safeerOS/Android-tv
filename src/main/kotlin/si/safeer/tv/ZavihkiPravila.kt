@@ -57,15 +57,18 @@ object ZavihkiPravila {
      * Pregled lupine 5. 11. 2026: LEVO/DESNO v vrstici z naslovom je sel po stalnem seznamu (Nazaj, Naprej, Osvezi,
      * Domov ...), na zaslonu pa je bil vrstni red drug (TV: Nazaj, Domov, Osvezi; Safeer OS pokonci spodaj: Nazaj, Naprej,
      * Domov, Osvezi) - fokus je preskakoval in OK je osvezil namesto Domov. Sosed je zdaj, kar je na zaslonu desno (levo)
-     * v isti vrstici: sredina sosedovega okvirja je navpicno znotraj okvirja trenutnega gumba. Vrne indeks v [okvirji]
-     * ali -1, ce v tisti smeri v vrstici ni nicesar.
+     * v isti vrstici: okvirja se navpicno prekrivata vsaj za pol nizjega od obeh. Vrne indeks v [okvirji] ali -1, ce v
+     * tisti smeri v vrstici ni nicesar.
      */
     fun sosedVVrstici(okvirji: List<Okvir>, trenutni: Int, desno: Boolean): Int {
         val t = okvirji.getOrNull(trenutni) ?: return -1
         val vrstica = okvirji.indices.filter { i ->
             val o = okvirji[i]
-            val sredina = o.y + o.h / 2
-            o.w > 0 && o.h > 0 && sredina >= t.y && sredina <= t.y + t.h
+            // Pregled fokusa Gemini 5. 11. 2026 (9): prej je morala biti sredina soseda znotraj trenutnega gumba - z nizkega
+            // gumba visjega soseda (polje, poravnano zgoraj) ni bilo, z njega nazaj pa je bil. Prekrivanje je simetricno;
+            // vrstici, ki se le dotikata (ali prekrivata za rob), nista ena vrstica.
+            val prekrivanje = minOf(o.y + o.h, t.y + t.h) - maxOf(o.y, t.y)
+            o.w > 0 && o.h > 0 && prekrivanje * 2 >= minOf(o.h, t.h)
         }.sortedWith(compareBy<Int>({ okvirji[it].x + okvirji[it].w / 2 }, { it }))
         val mesto = vrstica.indexOf(trenutni)
         if (mesto < 0) return -1

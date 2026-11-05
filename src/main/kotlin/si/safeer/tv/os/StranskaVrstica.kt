@@ -273,6 +273,9 @@ class StranskaVrstica private constructor(
         drsnik.animate().translationX(0f).setDuration(TRAJANJE_MS).start()
         zastor.alpha = 0f
         zastor.animate().alpha(1f).setDuration(TRAJANJE_MS).start()
+        // Pregled fokusa Gemini 5. 11. 2026 (7): predal, odprt s tipkovnico (OK na gumbu menija), je fokus pustil v vsebini pod
+        // zastorom - bralnik je rekel »meni«, DOL pa je sel po zakriti vsebini. Brez dotika gre fokus na aktivno postavko.
+        if (!isInTouchMode) aktivnaPostavka.requestFocus()
         // Bralnik zaslona: povemo, da je meni odprt, in ga postavimo na trenutni razdelek.
         aktivnaPostavka.post { aktivnaPostavka.sendAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_VIEW_FOCUSED) }
         gumbVsebine.contentDescription = dejavnost.getString(R.string.os_vrstica_skrij)
@@ -397,6 +400,11 @@ class StranskaVrstica private constructor(
             }
         }
         drsnik.layoutParams = lp
+        // Pregled fokusa Gemini 5. 11. 2026 (3): skrit meni ne sprejme fokusa. requestFocus (GlasbaActivity meniMediji,
+        // nextFocusLeftId) je uspel tudi na skritem pogledu (Android ne gleda vidnosti prednikov), vracanje prek post pa je
+        // pustilo OK oziroma ENTER na nevidni postavki. Fokus, ki je ze v meniju, vrne post spodaj.
+        drsnik.descendantFocusability = if (drsnik.visibility == View.VISIBLE) ViewGroup.FOCUS_AFTER_DESCENDANTS
+            else ViewGroup.FOCUS_BLOCK_DESCENDANTS
         // TV 29. 10. 2026 (03:46, dumpsys activity top): fokus je ostal na postavki menija v skritem drsniku (GONE, 0x0) -
         // na zaslonu ni bilo nic oznaceno. Android fokusa ob skritju prednika ne premakne vedno; tu ga vrnemo v vsebino.
         if (drsnik.visibility != View.VISIBLE && drsnik.hasFocus()) post { fokusVsebine() }

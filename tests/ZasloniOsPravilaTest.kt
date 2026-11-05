@@ -77,5 +77,14 @@ fun main(args: Array<String>) {
     check(vir("SpletniKlepetActivity.kt").contains("SporocilaShramba(a).use")) { "SpletniKlepet: shramba ni zaprta" }
     val aplikacije = vir("Aplikacije.kt")
     check(aplikacije.contains("@Synchronized private fun odstraniIzShranjenega(") && !aplikacije.contains("datoteka(app).writeText(")) { "Aplikacije: pisanje mimo kljucavnice" }
+    // Pregled fokusa Gemini 5. 11. 2026 (3, 7): skrit meni ne sprejme fokusa; predal, odprt brez dotika, prevzame fokus.
+    val stranska = vir("StranskaVrstica.kt")
+    check(stranska.substringAfter("fun prilagodiSirino()").substringBefore("izvzemiRobOdKretenj()").let {
+        "drsnik.descendantFocusability = if (drsnik.visibility == View.VISIBLE) ViewGroup.FOCUS_AFTER_DESCENDANTS" in it &&
+            "else ViewGroup.FOCUS_BLOCK_DESCENDANTS" in it
+    }) { "StranskaVrstica: skrit meni sprejme fokus" }
+    check("if (!isInTouchMode) aktivnaPostavka.requestFocus()" in stranska.substringAfter("fun odpriPredal()").substringBefore("fun zapriPredal(")) {
+        "StranskaVrstica: predal s tipkovnico pusti fokus pod zastorom"
+    }
     println("ZasloniOsPravilaTest: OK")
 }
