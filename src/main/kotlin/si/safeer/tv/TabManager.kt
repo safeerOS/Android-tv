@@ -542,7 +542,9 @@ class TabManager(
 
         val tabToClose = tabs[idx]
         roki.remove(tabId)?.let(glavna::removeCallbacks)
-        tabToClose.webView?.destroy()
+        // Pregled lupine 5. 11. 2026: WebView najprej iz drevesa pogledov, nato destroy (Android: unicen pogled ne sme
+        // ostati pripet - aktivni zavihek je bil se v vsebniku).
+        tabToClose.webView?.let { wv -> (wv.parent as? ViewGroup)?.removeView(wv); wv.destroy() }
         Log.i(TAG, "zavrzen zavihek: ${tabToClose.url.take(60)}")
         tabs.removeAt(idx)
         nedavni.remove(tabId)
@@ -559,9 +561,10 @@ class TabManager(
     }
 
     fun closeAllTabs(context: Context) {
+        container.removeAllViews()
         for (tab in tabs) {
             roki.remove(tab.id)?.let(glavna::removeCallbacks)
-            tab.webView?.destroy()
+            tab.webView?.let { wv -> (wv.parent as? ViewGroup)?.removeView(wv); wv.destroy() }
             Log.i(TAG, "zavrzen zavihek: ${tab.url.take(60)}")
         }
         tabs.clear()

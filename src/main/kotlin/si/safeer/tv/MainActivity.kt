@@ -145,10 +145,13 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
     /** D-Pad strip on the omnibox row. Skip tiny 🔍/✕ inside the URL field — they trap focus into the WebView. */
     internal fun moveChromeFocus(right: Boolean): Boolean {
+        // Pregled lupine 5. 11. 2026: sosed je, kar je na zaslonu desno (levo) v isti vrstici - postavitve TV (Nazaj, Domov,
+        // Osvezi) in Safeer OS se razlikujejo, stalni seznam je preskakoval. Samo gumbi, ki so res na zaslonu (isShown:
+        // btnAddTab je v Safeer OS lahko brez starsa in VISIBLE).
         val chain = listOf(
             btnBack, btnForward, btnReload, btnHome, editUrl, btnFavorite, spletScit,
             btnPointerToggle, btnAddTab, btnTabCount, btnMenu, btnAplikacija
-        ).filterNotNull().filter { it.visibility == View.VISIBLE }
+        ).filterNotNull().filter { it.isShown }
         if (chain.isEmpty()) return false
         val focused = currentFocus
         val idx = when {
@@ -157,8 +160,10 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             else -> chain.indexOfFirst { it === focused }
         }
         if (idx < 0) return false
-        val next = idx + if (right) 1 else -1
-        if (next !in chain.indices) return true
+        val xy = IntArray(2)
+        val okvirji = chain.map { v -> v.getLocationOnScreen(xy); ZavihkiPravila.Okvir(xy[0], xy[1], v.width, v.height) }
+        val next = ZavihkiPravila.sosedVVrstici(okvirji, idx, right)
+        if (next < 0) return true
         val target = chain[next]
         if (target !== editUrl) hideKeyboard()
         target.requestFocus()
@@ -255,6 +260,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         }
         chrome = TvChrome(this)
         chrome.poveziFokus()
+        poveziObrisStrani()
         channelPad = ChannelDigitPad(this)
         keyRouter = TvKeyRouter(this)
         setupTabManager()
@@ -284,6 +290,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             pokaziDomacoZavihek()
         }
         intent?.removeExtra(si.safeer.tv.os.Brskalnik.EXTRA_ODPRI_DOMACO)
+        // Pregled lupine 5. 11. 2026: obnova je vrnila vse zavihke in prej aktivnega (npr. 3.) - pravilo lastnika (RAM):
+        // ostane samo aktivni zavihek (ZavihkiPravila.zapriOstale, OBNOVA).
+        if (restored) pustiEnZavihek(ZavihkiPravila.Namera.OBNOVA)
 
         if (BuildConfig.DEBUG) {
         debugJsReceiver = object : android.content.BroadcastReceiver() {
@@ -551,8 +560,11 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
      * Lastnik 4. 11. 2026 23:43: zagon z zaganjalnika ali iz Safeer OS, ko je bil brskalnik v ozadju - ostane en zavihek
      * (aktivni, domaca stran), ostali se unicijo (WebView destroy, RAM). Zavihek, ki predvaja, ostane.
      */
-    private fun pustiEnZavihekObZagonu() {
-        if (!ZavihkiPravila.zapriOstale(ZavihkiPravila.Namera.ZAGANJALNIK, tabManager.count, bilVOzadju)) return
+    private fun pustiEnZavihekObZagonu() = pustiEnZavihek(ZavihkiPravila.Namera.ZAGANJALNIK)
+
+    /** Pregled lupine 5. 11. 2026: isto pravilo za vsak vstop od zunaj ([ZavihkiPravila.zapriOstale] s pravo vrsto namere). */
+    private fun pustiEnZavihek(namera: ZavihkiPravila.Namera) {
+        if (!ZavihkiPravila.zapriOstale(namera, tabManager.count, bilVOzadju)) return
         val aktivni = tabManager.getActiveTab()?.id ?: return
         tabManager.getAllTabs().filter { it.id != aktivni && !it.predvaja }.map { it.id }
             .forEach { try { tabManager.closeTab(this, it) } catch (_: Throwable) { } }
@@ -969,6 +981,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         if (::tabManager.isInitialized) {
             try { tabManager.zbudiAktivnega() } catch (_: Exception) {}
         }
+        // Branje stanja Cast se v onStop ustavi; ob vrnitvi naprej, ce je predvajanje se tece.
+        if (castState == "playing" || castState == "paused" || castState == "buffering") startCastStatusPolling()
     }
 
     override fun onStop() {
@@ -977,6 +991,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         if (nacinAplikacije != null && ZavihkiPravila.unici(zvokVOzadju, activeWebView()?.cakaIzbiroDatotek == true, isChangingConfigurations))
             try { izklopiNacinAplikacije() } catch (_: Throwable) { }
         bilVOzadju = true
+        ustaviCastBranje()
         silenceBackgroundMedia("onStop")
         naZaslonu = false
         if (::tabManager.isInitialized) {
@@ -1043,6 +1058,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         // je ostala unicena aktivnost z zavihki (Activities: 1, WebViews: 1). Drzala sta jo staticna kazalca spodaj in
         // cakajoce spanje na glavni niti.
         mainHandler.removeCallbacksAndMessages(null)
+        castPollRunning = false
         if (si.safeer.tv.cast.CastReceiverService.mediaController === this) si.safeer.tv.cast.CastReceiverService.mediaController = null
         DashPrevzem.onNeedPageLicense = null
         si.safeer.tv.cast.HubKrmilnik.naPrijavoZaZaslon = null
@@ -1201,9 +1217,14 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
     private fun odpriSpletnoIzNamere(odlocitev: SpletVarnostPravila.SpletnaAplikacija, naslov: String, ime: String, ozadje: Boolean) {
         when (odlocitev) {
-            SpletVarnostPravila.SpletnaAplikacija.CEZ_ZASLON -> { zvokVOzadju = ozadje; vklopiNacinAplikacije(naslov, ime) }
+            // Pregled lupine 5. 11. 2026: pred spletno aplikacijo en zavihek (RAM); zavrnjena namera ne zapre nicesar.
+            SpletVarnostPravila.SpletnaAplikacija.CEZ_ZASLON -> {
+                zvokVOzadju = ozadje; pustiEnZavihek(ZavihkiPravila.Namera.APLIKACIJA); vklopiNacinAplikacije(naslov, ime)
+            }
             // Tuja aplikacija: stran se odpre, a z naslovno vrstico - uporabnik vidi, kje je.
-            SpletVarnostPravila.SpletnaAplikacija.ZAVIHEK -> { if (nacinAplikacije != null) izklopiNacinAplikacije(); odpriVZavihku(naslov) }
+            SpletVarnostPravila.SpletnaAplikacija.ZAVIHEK -> {
+                if (nacinAplikacije != null) izklopiNacinAplikacije(); odpriVZavihku(naslov); pustiEnZavihek(ZavihkiPravila.Namera.POGLED)
+            }
             SpletVarnostPravila.SpletnaAplikacija.ZAVRNI -> varenVhod(naslov, SpletVarnostPravila.Vhod.SPLET)
         }
     }
@@ -1280,6 +1301,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             } else {
                 oznaciIzvorZavihka(tabManager.createTab(this, url, true), intent, novZavihek = true)
             }
+            // Pregled lupine 5. 11. 2026: zunanji naslov (VIEW) - ostali zavihki se zaprejo (RAM, en zavihek).
+            pustiEnZavihek(ZavihkiPravila.Namera.POGLED)
         } else if (intent?.action == Intent.ACTION_MAIN) {
             // #region agent log
             SafeerDbg.log(
@@ -1303,6 +1326,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     private var castPosition: Double = 0.0
     private var castDuration: Double = 0.0
     private var castPollRunning = false
+    /** Zaporedna branja brez medija na strani (ZavihkiPravila.castBranjeNaprej). */
+    private var castPraznih = 0
 
     /** Kar ni potrebno ne za prvi izris ne za zascito; nic od tega ne varuje vhoda (preverbe namer ostanejo v onCreate). */
     private fun poPrvemIzrisu() {
@@ -1351,9 +1376,18 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             "key" -> {
                 val ime = parametri.optString("key", "").trim().lowercase()
                 if (ime == "home") {
+                    // Pregled lupine 5. 11. 2026: kot pravi daljinec sistemski Domov (Safeer Vnos); uspeh samo, ce se je kaj zgodilo.
                     try { if (playback.isActive()) playback.exit() } catch (_: Exception) { }
-                    showBrowserStartPage()
-                    return si.safeer.tv.link.Daljinec.Izid(true, "Domov")
+                    val sistemski = try { si.safeer.tv.link.VnosStoritev.tipka("home") } catch (_: Throwable) { false }
+                    return when (ZavihkiPravila.domovDaljinca(sistemski, nacinAplikacije != null)) {
+                        ZavihkiPravila.Domov.SISTEM -> si.safeer.tv.link.Daljinec.Izid(true, "Domov")
+                        ZavihkiPravila.Domov.DOMACA_STRAN -> {
+                            showBrowserStartPage()
+                            si.safeer.tv.link.Daljinec.Izid(true, "Zacetna stran brskalnika")
+                        }
+                        ZavihkiPravila.Domov.NI_MOGOCE -> si.safeer.tv.link.Daljinec.Izid(false,
+                            "Na tej napravi vklopi Safeer Vnos (Nastavitve → Ožji krog zaupanja).", koda = "vnos_ni_vklopljen")
+                    }
                 }
                 val meni = meniDaljinca?.takeIf { it.isShowing }
                 if (ime == "menu") {
@@ -1550,9 +1584,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     /** Ukazi predvajalnika s telefona. */
     override fun onCastControl(action: String, position: Double?, volume: Double?) {
         when (action) {
-            "play" -> { castJs("v.play();"); castState = "playing" }
+            "play" -> { castJs("v.play();"); castState = "playing"; startCastStatusPolling() }
             "pause" -> { castJs("v.pause();"); castState = "paused" }
-            "stop" -> { castJs("v.pause();v.currentTime=0;"); castState = "stopped" }
+            "stop" -> { castJs("v.pause();v.currentTime=0;"); castState = "stopped"; ustaviCastBranje() }
             "seek" -> position?.let { castJs("v.currentTime=" + it + ";"); castPosition = it }
             "volume" -> volume?.let { castJs("v.volume=" + it + ";v.muted=false;") }
             "mute" -> castJs("v.muted=true;")
@@ -1571,31 +1605,53 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         "duration" to castDuration
     )
 
-    /** Vsakih pet sekund preberemo, kje je predvajanje, in to javimo pošiljatelju. */
-    private fun startCastStatusPolling() {
-        if (castPollRunning) return
-        castPollRunning = true
-        val handler = android.os.Handler(android.os.Looper.getMainLooper())
-        val naloga = object : Runnable {
-            override fun run() {
-                try {
-                    val js = "(function(){var v=document.querySelector('video,audio');" +
-                        "if(!v)return '';return (v.paused?'paused':'playing')+'|'+v.currentTime+'|'+(v.duration||0);})()"
-                    activeWebView()?.evaluateJavascript(js) { odgovor ->
-                        val ocisceno = odgovor?.trim('"') ?: ""
-                        val deli = ocisceno.split("|")
-                        if (deli.size == 3) {
-                            castState = deli[0]
-                            castPosition = deli[1].toDoubleOrNull() ?: castPosition
-                            castDuration = deli[2].toDoubleOrNull() ?: castDuration
+    /**
+     * Vsakih pet sekund preberemo, kje je predvajanje, in to javimo pošiljatelju. Pregled lupine 5. 11. 2026: branje se
+     * prej ni nikoli ustavilo (lasten Handler, brez konca) in je drzalo aktivnost po onDestroy. Zdaj mainHandler (onDestroy
+     * ga izprazni), konec ob idle/stopped, v onStop in ko medija ni vec (ZavihkiPravila.castBranjeNaprej).
+     */
+    private val castBranje = object : Runnable {
+        override fun run() {
+            if (!castPollRunning || isFinishing || isDestroyed) return
+            if (!ZavihkiPravila.castBranjeNaprej(castState, castPraznih)) { ustaviCastBranje(); return }
+            try {
+                val js = "(function(){var v=document.querySelector('video,audio');" +
+                    "if(!v)return '';return (v.paused?'paused':'playing')+'|'+v.currentTime+'|'+(v.duration||0);})()"
+                activeWebView()?.evaluateJavascript(js) { odgovor ->
+                    if (!castPollRunning) return@evaluateJavascript
+                    val ocisceno = odgovor?.trim('"') ?: ""
+                    val deli = ocisceno.split("|")
+                    if (deli.size == 3) {
+                        castPraznih = 0
+                        castState = deli[0]
+                        castPosition = deli[1].toDoubleOrNull() ?: castPosition
+                        castDuration = deli[2].toDoubleOrNull() ?: castDuration
+                        sendCastStatus()
+                    } else {
+                        castPraznih++
+                        if (!ZavihkiPravila.castBranjeNaprej(castState, castPraznih)) {
+                            castState = "idle"
                             sendCastStatus()
+                            ustaviCastBranje()
                         }
                     }
-                } catch (_: Exception) {}
-                if (castPollRunning) handler.postDelayed(this, 5000)
-            }
+                }
+            } catch (_: Exception) {}
+            if (castPollRunning) mainHandler.postDelayed(this, 5000)
         }
-        handler.postDelayed(naloga, 5000)
+    }
+
+    private fun startCastStatusPolling() {
+        castPraznih = 0
+        if (castPollRunning) return
+        castPollRunning = true
+        mainHandler.removeCallbacks(castBranje)
+        mainHandler.postDelayed(castBranje, 5000)
+    }
+
+    private fun ustaviCastBranje() {
+        castPollRunning = false
+        mainHandler.removeCallbacks(castBranje)
     }
 
     private fun sendCastStatus() {
@@ -2309,6 +2365,33 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         }
     }
 
+    /**
+     * Pregled lupine 5. 11. 2026: ko je fokus z GOR sel iz strani v vrstico z naslovom, je na strani ostal obris izbire
+     * (.safeer-active-card) - na zaslonu dva okvirja. Ob odhodu fokusa iz WebViewa ga skrijemo z javnim vmesnikom skripta
+     * daljinca (window._safeer_highlight(null) = clearActive), ob vrnitvi ga vrnemo na isti element, ce je se v pogledu.
+     */
+    private fun poveziObrisStrani() {
+        fun webViewOd(v: View?): android.webkit.WebView? {
+            var p: Any? = v
+            while (p is View) { if (p is android.webkit.WebView) return p; p = p.parent }
+            return null
+        }
+        window.decorView.viewTreeObserver.addOnGlobalFocusChangeListener { stari, novi ->
+            val od = webViewOd(stari)
+            val v = webViewOd(novi)
+            if (od === v) return@addOnGlobalFocusChangeListener
+            try { od?.evaluateJavascript(JS_SKRIJ_OBRIS, null) } catch (_: Throwable) { }
+            try { v?.evaluateJavascript(JS_VRNI_OBRIS, null) } catch (_: Throwable) { }
+        }
+    }
+
+    private val JS_SKRIJ_OBRIS = "(function(){try{var a=document.querySelector('.safeer-active-card');" +
+        "if(!a||typeof window._safeer_highlight!=='function')return;window._safeerObrisZunaj=a;window._safeer_highlight(null);}catch(_){}})()"
+    private val JS_VRNI_OBRIS = "(function(){try{var a=window._safeerObrisZunaj;window._safeerObrisZunaj=null;" +
+        "if(!a||!a.isConnected||typeof window._safeer_highlight!=='function'||document.querySelector('.safeer-active-card'))return;" +
+        "var r=a.getBoundingClientRect();if(r.bottom<=0||r.right<=0||r.top>=innerHeight||r.left>=innerWidth)return;" +
+        "window._safeer_highlight(a);}catch(_){}})()"
+
     /** Urejanje naslovne vrstice tece (polje ali plosca predlogov ima fokus); vneseno besedilo takrat ostane. */
     private var urejanjePolja = false
 
@@ -2321,7 +2404,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     private fun setupOmnibox() {
         editUrl.setOnFocusChangeListener { _, hasFocus ->
             if (hasFocus) {
-                omniboxContainer.setBackgroundResource(if (SpletDomaca.jeSafeerOs(this)) R.drawable.splet_naslov_fokus else R.drawable.bg_tab_card_active)
+                omniboxContainer.setBackgroundResource(if (SpletDomaca.jeSafeerOs(this)) R.drawable.splet_naslov_fokus else R.drawable.bg_omnibox_urejanje)
                 // GOR iz plosce predlogov nazaj v polje: urejanje tece naprej, besedilo in plosca ostaneta (TV 3. 11. 2026).
                 if (urejanjePolja) return@setOnFocusChangeListener
                 urejanjePolja = true
@@ -2647,18 +2730,22 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         }
 
         // Tab switcher buttons
+        // Pregled lupine 5. 11. 2026: najprej se seznam zapre (vrne fokus strani), nato dejanje, fokus na aktivni zavihek.
         btnNewTabInSwitcher.setOnClickListener {
             zapriSeznamZavihkov()
             tabManager.createTab(this, SpletDomaca.naslov(this), true)
+            fokusNaStran()
         }
 
         btnCloseTabsSwitcher.setOnClickListener {
             zapriSeznamZavihkov()
+            fokusNaStran()
         }
 
         btnCloseAllTabs.setOnClickListener {
-            tabManager.closeAllTabs(this)
             zapriSeznamZavihkov()
+            tabManager.closeAllTabs(this)
+            fokusNaStran()
         }
     }
 
@@ -2811,19 +2898,40 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 cardRoot.setBackgroundResource(if (isActive) R.drawable.bg_tab_card_active else R.drawable.bg_tab_card)
                 tvActiveBadge.visibility = if (isActive) View.VISIBLE else View.GONE
 
-                view.setOnClickListener {
-                    tabManager.switchTab(tab.id)
-                    zapriSeznamZavihkov()
-                }
+                view.setOnClickListener { izberiZavihekIzSeznama(tab.id) }
 
-                btnClose.setOnClickListener {
-                    tabManager.closeTab(this@MainActivity, tab.id)
-                    renderTabsGrid()
-                }
+                btnClose.setOnClickListener { zapriZavihekIzSeznama(tab.id, position) }
 
                 return view
             }
         }
+        // Pregled lupine 5. 11. 2026: z daljincem ima fokus GridView, ne kartica - brez teh poslusalcev OK ni naredil
+        // nicesar, krizec na kartici pa ni fokusabilen. OK preklopi, dolg OK zapre zavihek (isto kot krizec).
+        tabsGridView.setOnItemClickListener { _, _, pozicija, _ -> allTabs.getOrNull(pozicija)?.let { izberiZavihekIzSeznama(it.id) } }
+        tabsGridView.setOnItemLongClickListener { _, _, pozicija, _ ->
+            allTabs.getOrNull(pozicija)?.let { zapriZavihekIzSeznama(it.id, pozicija) }
+            true
+        }
+    }
+
+    /** Pregled lupine 5. 11. 2026: najprej zapri seznam (vrne fokus strani pod njim), nato preklopi in fokus na stran. */
+    private fun izberiZavihekIzSeznama(id: String) {
+        zapriSeznamZavihkov()
+        tabManager.switchTab(id)
+        fokusNaStran()
+    }
+
+    /** Zapre zavihek s seznama; fokus ostane na seznamu, na kartici na istem mestu (ali zadnji). */
+    private fun zapriZavihekIzSeznama(id: String, pozicija: Int) {
+        tabManager.closeTab(this, id)
+        renderTabsGrid()
+        val i = pozicija.coerceAtMost(tabManager.count - 1).coerceAtLeast(0)
+        tabsGridView.post { tabsGridView.requestFocus(); tabsGridView.setSelection(i) }
+    }
+
+    /** Fokus na aktivni zavihek, ko se je postavitev uredila. */
+    private fun fokusNaStran() {
+        webViewContainer.post { if (!isFinishing) activeWebView()?.requestFocus() }
     }
 
     // ------------------------------------------------------------------
@@ -3787,6 +3895,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             setContentView(mainRoot)
         } else return
         si.safeer.tv.os.Robovi.uporabi(this)
+        // Pregled lupine 5. 11. 2026: setContentView odstrani fokus (pogled se premakne v drug koren) - nazaj na stran.
+        fokusNaStran()
     }
 
     @Suppress("DEPRECATION")

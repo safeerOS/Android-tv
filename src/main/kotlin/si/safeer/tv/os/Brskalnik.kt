@@ -131,13 +131,15 @@ object Brskalnik {
         return namera(c).setAction(Intent.ACTION_VIEW).setData(uri)
     }
 
-    /** Spletna aplikacija se odpre v istem razdelku Splet; lupina Safeer OS ostane vidna. */
+    /**
+     * Spletna aplikacija v nacinu aplikacije brskalnika (dodatek spletna_aplikacija, kot [medijskaStran]). Pregled lupine
+     * 5. 11. 2026: VIEW z naslovom nacina aplikacije ni vklopil - zavihek aplikacije se ob izhodu ni unicil (RTV SLO je
+     * ostal odprt in prepisal aktivni zavihek). Brez ACTION_VIEW, sicer bi ob hladnem zagonu nastala dva zavihka.
+     */
     fun spletnaAplikacija(c: Context, url: String, ime: String): Intent =
-        mobilniNaslov(c, url) ?: namera(c).apply {
-            action = Intent.ACTION_VIEW
-            data = Uri.parse(url)
-            putExtra("aplikacija_ime", ime)
-        }
+        mobilniNaslov(c, url) ?: namera(c)
+            .putExtra("spletna_aplikacija", url)
+            .putExtra("aplikacija_ime", ime)
 
     /** Uporabnikov vir glasbe ali videa: kot spletna aplikacija, zvok pa ob tipki Domov igra naprej. */
     fun medijskaStran(c: Context, url: String, ime: String): Intent =

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pregled lupine 5. 11. 2026: polje z naslovom med urejanjem (fokus ima editUrl, ne vsebnik) je po spremembi
+     bg_tab_card_active (izbirnik: zelen okvir samo s fokusom ali izbiro) ostalo brez vidnega okvirja. Stalen zelen rob. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="?attr/osKarticaDvignjena" />
+    <stroke android:width="3dp" android:color="?attr/osMint" />
+    <corners android:radius="24dp" />
+</shape>

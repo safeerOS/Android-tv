@@ -6,15 +6,22 @@ package si.safeer.tv
  */
 object ZavihkiPravila {
     /** Vrsta namere, s katero pride uporabnik v brskalnik. */
-    enum class Namera { ZAGANJALNIK, POGLED, APLIKACIJA, DRUGO }
+    enum class Namera { ZAGANJALNIK, POGLED, APLIKACIJA, OBNOVA, DRUGO }
 
     /**
      * Lastnik 4. 11. 2026 23:43: brskalnik, odprt z zaganjalnika, je bil na 3. zavihku (proces je ostal ziv, vmes sta
      * zunanji nameri odprli strani). Zagon z zaganjalnika ali iz Safeer OS (Splet, domaca stran), ko je bil brskalnik v
      * ozadju: ostane en zavihek (domaca stran), ostali se unicijo. Zavihek, ki predvaja, ostane.
+     *
+     * Pregled lupine 5. 11. 2026: pravilo lastnika je zaradi RAM vedno en zavihek. Zunanji naslov (POGLED), spletna
+     * aplikacija (APLIKACIJA) in obnova aktivnosti po smrti procesa (OBNOVA) zato prav tako pustijo samo enega - prej se
+     * je ob vsaki zunanji nameri in ob obnovi spet nabralo vec zavihkov (obnova je vrnila tudi 3. zavihek kot aktivnega).
      */
-    fun zapriOstale(namera: Namera, zavihkov: Int, bilVOzadju: Boolean): Boolean =
-        namera == Namera.ZAGANJALNIK && bilVOzadju && zavihkov > 1
+    fun zapriOstale(namera: Namera, zavihkov: Int, bilVOzadju: Boolean): Boolean = zavihkov > 1 && when (namera) {
+        Namera.ZAGANJALNIK -> bilVOzadju
+        Namera.POGLED, Namera.APLIKACIJA, Namera.OBNOVA -> true
+        Namera.DRUGO -> false
+    }
 
     /**
      * Vodja 4. 11. 2026 23:43 (TV: RTV SLO je ostal med odprtimi zavihki): ob izhodu iz spletne aplikacije (Nazaj na
@@ -22,6 +29,9 @@ object ZavihkiPravila {
      * ponoven vstop nadaljuje tam. Ostane samo, ce igra zvok v ozadju, ce caka izbira datotek (sistemski izbirnik je
      * druga dejavnost) ali ob menjavi nastavitev (zasuk).
      */
+    fun unici(zvokVOzadju: Boolean, cakaIzbiroDatotek: Boolean, menjavaNastavitev: Boolean): Boolean =
+        !zvokVOzadju && !cakaIzbiroDatotek && !menjavaNastavitev
+
     /**
      * Lastnik 4. 11. 2026 23:47 (uiautomator): v »Odprti zavihki« smerne tipke niso premaknile nicesar - fokus sta imela
      * GridView in vozlisce v WebViewu pod seznamom. Ob odprtju dobi fokus aktivna kartica (sicer prva); brez zavihkov -1
@@ -33,6 +43,51 @@ object ZavihkiPravila {
         else -> 0
     }
 
-    fun unici(zvokVOzadju: Boolean, cakaIzbiroDatotek: Boolean, menjavaNastavitev: Boolean): Boolean =
-        !zvokVOzadju && !cakaIzbiroDatotek && !menjavaNastavitev
+    /** Okvir gumba na zaslonu (px): levo, zgoraj, sirina, visina. */
+    data class Okvir(val x: Int, val y: Int, val w: Int, val h: Int)
+
+    /**
+     * Pregled lupine 5. 11. 2026: LEVO/DESNO v vrstici z naslovom je sel po stalnem seznamu (Nazaj, Naprej, Osvezi,
+     * Domov ...), na zaslonu pa je bil vrstni red drug (TV: Nazaj, Domov, Osvezi; Safeer OS pokonci spodaj: Nazaj, Naprej,
+     * Domov, Osvezi) - fokus je preskakoval in OK je osvezil namesto Domov. Sosed je zdaj, kar je na zaslonu desno (levo)
+     * v isti vrstici: sredina sosedovega okvirja je navpicno znotraj okvirja trenutnega gumba. Vrne indeks v [okvirji]
+     * ali -1, ce v tisti smeri v vrstici ni nicesar.
+     */
+    fun sosedVVrstici(okvirji: List<Okvir>, trenutni: Int, desno: Boolean): Int {
+        val t = okvirji.getOrNull(trenutni) ?: return -1
+        val vrstica = okvirji.indices.filter { i ->
+            val o = okvirji[i]
+            val sredina = o.y + o.h / 2
+            o.w > 0 && o.h > 0 && sredina >= t.y && sredina <= t.y + t.h
+        }.sortedWith(compareBy<Int>({ okvirji[it].x + okvirji[it].w / 2 }, { it }))
+        val mesto = vrstica.indexOf(trenutni)
+        if (mesto < 0) return -1
+        return vrstica.getOrNull(mesto + if (desno) 1 else -1) ?: -1
+    }
+
+    /** Kaj naredi tipka Domov z daljinca Safeer Control, ko je brskalnik spredaj. */
+    enum class Domov { SISTEM, DOMACA_STRAN, NI_MOGOCE }
+
+    /**
+     * Pregled lupine 5. 11. 2026: »home« je nalozil zacetno stran brskalnika in vedno javil uspeh, v nacinu spletne
+     * aplikacije pa ni naredil nicesar (showBrowserStartPage se tam vrne takoj). Domov je kot na pravem daljincu
+     * sistemski Domov (Safeer Vnos, GLOBAL_ACTION_HOME); brez Vnosa zacetna stran brskalnika, v spletni aplikaciji pa
+     * neuspeh - uspeh se javi samo, ce se je res kaj zgodilo.
+     */
+    fun domovDaljinca(sistemskiUspel: Boolean, nacinAplikacije: Boolean): Domov = when {
+        sistemskiUspel -> Domov.SISTEM
+        !nacinAplikacije -> Domov.DOMACA_STRAN
+        else -> Domov.NI_MOGOCE
+    }
+
+    /**
+     * Pregled lupine 5. 11. 2026: branje stanja predvajanja za Safeer Cast (vsakih 5 s) se ni nikoli ustavilo - tudi brez
+     * predvajanja in po koncu je drzalo aktivnost. Naprej samo, dokler kaj predvaja: ob idle/stopped konec; medij, ki se
+     * nalaga, dobi 6 praznih branj (30 s), medij, ki je izginil s strani, nobenega.
+     */
+    fun castBranjeNaprej(stanje: String, praznihZapored: Int): Boolean = when (stanje) {
+        "idle", "stopped" -> false
+        "buffering" -> praznihZapored < 6
+        else -> praznihZapored < 1
+    }
 }
