@@ -114,6 +114,40 @@ fun main() {
     preveriEnako("pokvarjen niz", null, FilterViraPravila.izNiza("NA_VOLJO;x;;0"))
     preveriEnako("kljuc: vir + racun + naslov", "usenet|ab12|series|tt1", FilterViraPravila.kljuc("usenet", "ab12", "series|tt1"))
 
+    // Zakon solidarnosti (lastnik 5. 11. 2026): kodek zna TV SAM ALI naprava v Linku, ki tok pretvori.
+    val samoPomoc = Izidi(racun, Odgovor(listOf(hevc10)))
+    val brezMain10 = z.copy(hevc10 = false)
+    preveriEnako("POMOC: TV kodeka ne zna, pomocnika ni -> skrit", false, FilterViraPravila.lahkoGleda(p, samoPomoc, brezMain10))
+    preveriEnako("POMOC: TV kodeka ne zna, pomocnik v Linku -> v filtru", true,
+        FilterViraPravila.lahkoGleda(p, samoPomoc, brezMain10, pomocnik = true))
+    preveriEnako("POMOC: TrueHD prek pomocnika", true, FilterViraPravila.lahkoGleda(p,
+        Izidi(racun, Odgovor(listOf(Izdaja("Film.2020.1080p.BluRay.TrueHD.7.1.x264", 9.0)))), z, pomocnik = true))
+    preveriEnako("POMOC: slike diska ne pretvori nihce", false, FilterViraPravila.lahkoGleda(p,
+        Izidi(racun, Odgovor(listOf(Izdaja("Film.2020.COMPLETE.BLURAY-GRP", 40.0)))), z, pomocnik = true))
+    preveriEnako("POMOC: pomocnik ne odpravi drugih pogojev (geslo)", false, FilterViraPravila.lahkoGleda(p,
+        Izidi(racun, Odgovor(listOf(hevc10.copy(geslo = true)))), brezMain10, pomocnik = true))
+    preveriEnako("POMOC: pot TV / POMOCNIK / NE", listOf(FilterViraPravila.Pot.TV, FilterViraPravila.Pot.POMOCNIK, FilterViraPravila.Pot.NE),
+        listOf(dobra, hevc10, Izdaja("Film.BDMV", 1.0)).map { FilterViraPravila.pot(it, brezMain10) })
+    val pv = FilterViraPravila.preverba(samoPomoc, p, brezMain10)
+    preveriEnako("POMOC: preverba - TV sam NI, s pomocnikom da, znacka 4K", Triple(Izid.NI, true, KakovostPravila.Oznaka.UHD),
+        Triple(pv.izid, pv.pomoc, pv.oznaka))
+    preveriEnako("POMOC: preverba brez izdaj - ni pomoci", false, FilterViraPravila.preverba(Izidi(racun, Odgovor(emptyList())), p, z).pomoc)
+    preveriEnako("POMOC: preverba - TV sam zna, pomoc ni potrebna", Izid.NA_VOLJO to false,
+        FilterViraPravila.preverba(Izidi(racun, Odgovor(listOf(dobra, hevc10))), p, brezMain10).let { it.izid to it.pomoc })
+    preveriEnako("POMOC: napaka indeksatorja ostane NE_VEMO", Izid.NE_VEMO to false,
+        FilterViraPravila.preverba(Izidi(racun, Odgovor(null)), p, brezMain10).let { it.izid to it.pomoc })
+    val zp = FilterViraPravila.zapisi(null, pv.izid, pv.oznaka, t0, pv.pomoc)
+    preveriEnako("POMOC: zapis brez pomocnika skrit", false, FilterViraPravila.pokazi(zp, t0 + min, pomocnik = false))
+    preveriEnako("POMOC: zapis s pomocnikom prikazan (brez nove zahteve indeksatorju)", true, FilterViraPravila.pokazi(zp, t0 + min, pomocnik = true))
+    preveriEnako("POMOC: pomocnik odide -> takoj skrit", false, FilterViraPravila.pokazi(zp, t0 + 2 * min, pomocnik = false))
+    preveriEnako("POMOC: navaden NI s pomocnikom ostane skrit", false, FilterViraPravila.pokazi(ni, t0 + min, pomocnik = true))
+    preveriEnako("POMOC: zapis po 6 h ni svez tudi s pomocnikom", false, FilterViraPravila.pokazi(zp, t0 + 6 * 60 * min + 1, pomocnik = true))
+    preveriEnako("POMOC: zapis v niz in nazaj", zp, FilterViraPravila.izNiza(FilterViraPravila.vNiz(zp)))
+    preveriEnako("POMOC: zapis prejsnje razlicice (4 polja) brez pomoci", FilterViraPravila.Zapis(Izid.NI, 5L, null, 0, false),
+        FilterViraPravila.izNiza("NI;5;;0"))
+    preveriEnako("POMOC: neveljavna oznaka pomoci", null, FilterViraPravila.izNiza("NI;5;;0;x"))
+    preveriEnako("POMOC: pomoc pri NA_VOLJO ni zapisana", false, FilterViraPravila.izNiza("NA_VOLJO;5;;0;1")?.pomoc)
+
     // Kvota indeksatorja.
     val om = FilterViraPravila.Omejevalnik(3, premorMs = 10 * min)
     preveriEnako("omejevalnik: 3 na minuto", listOf(true, true, true, false), (0 until 4).map { om.smem(t0 + it) })

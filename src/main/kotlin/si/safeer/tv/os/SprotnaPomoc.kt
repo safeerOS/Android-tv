@@ -103,7 +103,9 @@ object SprotnaPomoc {
      * [zamikMs] izvirnika naprej, zato je polozaj za uporabnika zamik + polozaj v toku, trajanje pa trajanje izvirnika.
      */
     class Tok(val izvirnik: Jamendo.Skladba, val streznikIzvirnika: DatotekeActivity.Streznik?, val oblika: JSONObject,
-              val pomocnik: String, val imePomocnika: String, val id: String, val zamikMs: Long, val trajanjeMs: Long)
+              val pomocnik: String, val imePomocnika: String, val id: String, val zamikMs: Long, val trajanjeMs: Long,
+              /** Izdaja Usenet, ki jo pomocnik bere sam ({guid, name, ix}); null = pomocnik bere [izvirnik].zvok. */
+              val usenet: JSONObject? = null)
 
     @Volatile var tok: Tok? = null
         private set
@@ -138,13 +140,18 @@ object SprotnaPomoc {
             }
             naStanje(app.getString(R.string.os_sprotno_pretvarja, t.imePomocnika))
             link.ukaz(n.id, "video.stream_stop", JSONObject().put("id", t.id), 5_000, LinkOdjemalec.Odgovor { _, _ ->
-                prosi(app, link, listOf(n), 0, t.izvirnik, t.streznikIzvirnika, t.oblika, cilj, t.trajanjeMs, naStanje) { uspeh ->
+                prosi(app, link, listOf(n), 0, t.izvirnik, t.streznikIzvirnika, t.oblika, cilj, t.trajanjeMs, naStanje, usenet = t.usenet) { uspeh ->
                     if (uspeh) naKonec(true)
                     else poskusi(app, t.izvirnik, t.streznikIzvirnika, t.oblika, cilj, t.trajanjeMs, naStanje, naKonec)
                 }
             })
         }
     }
+
+    /** Ali je naprava [id] v ozjem krogu TE naprave (DostopPravila.OZJI_KROG); napaka = ne. */
+    private fun vOzjemKrogu(app: Context, id: String): Boolean = try {
+        si.safeer.tv.cast.Dostop.zmoznosti(app, id).containsAll(si.safeer.tv.cast.DostopPravila.OZJI_KROG)
+    } catch (_: Throwable) { false }
 
     /** Poklice [nato] takoj, ko je Link povezan in pozna naprave, najpozneje pa po [najvecMs] (tudi brez povezave). */
     private fun koPovezan(link: LinkUpravitelj, najvecMs: Long, nato: () -> Unit) {
@@ -199,6 +206,13 @@ object SprotnaPomoc {
                 pozicijaMs: Long, trajanjeMs: Long, naStanje: (String) -> Unit, naKonec: (Boolean) -> Unit) {
         val app = ctx.applicationContext
         val link = LinkUpravitelj.pridobi(app)
+        // Lastnik 5. 11. 2026: Usenet (krajevni streznik lastnega pogona ali izdaja, ki je TV sploh ne bere) - pomocnik
+        // ne dobi naslova 127.0.0.1, ampak identiteto izdaje in jo prebere sam s svojim racunom.
+        val usenet = UsenetPomocniki.identitetaVira(sk.zvok)
+        if (usenet != null && !link.jeKrajevni() && !jeSprotniTok(sk)) {
+            koPovezan(link, 4_000) { poskusiPovezan(app, link, sk, null, oblika, pozicijaMs, trajanjeMs, naStanje, naKonec, usenet) }
+            return
+        }
         if (link.jeKrajevni() || jeSprotniTok(sk) || !(sk.zvok.startsWith("http://") || sk.zvok.startsWith("https://"))
             || jeKrajevniVir(sk.zvok)) {
             Log.i(TAG, "Pomocnika ne iscem: krajevni=${link.jeKrajevni()} sprotni=${jeSprotniTok(sk)} vir=${Zasebno.zaDnevnik(sk.zvok)}")
@@ -209,11 +223,15 @@ object SprotnaPomoc {
     }
 
     private fun poskusiPovezan(app: Context, link: LinkUpravitelj, sk: Jamendo.Skladba, streznik: DatotekeActivity.Streznik?, oblika: JSONObject,
-                               pozicijaMs: Long, trajanjeMs: Long, naStanje: (String) -> Unit, naKonec: (Boolean) -> Unit) {
+                               pozicijaMs: Long, trajanjeMs: Long, naStanje: (String) -> Unit, naKonec: (Boolean) -> Unit,
+                               usenet: JSONObject? = null) {
         if (!link.povezan) { Log.i(TAG, "Pomocnika ne iscem: Link ni povezan"); naKonec(false); return }
         // Tudi racunalnik (Safeer Control s ffmpeg) je pomocnik: host.info pove gpu.kodirniki, sicer ocena 0.
         val ze = neuspesni[sk.id].orEmpty()
-        val kandidati = link.naprave.filter { n -> !link.jeTaNaprava(n) && "files" in n.zmoznosti && n.id !in ze }
+        // Vodja 5. 11. 2026: vir z zetonom (nadomestek SkrivniDodatki, glave toka) in Usenet (racun lastnika) samo ozjemu krogu.
+        val skrivnost = usenet != null || SprotnaPomocPravila.nosiSkrivnost(sk.zvok, SpletniVir.glaveToka(sk.zvok).isNotEmpty())
+        val kandidati = link.naprave.filter { n -> !link.jeTaNaprava(n) && "files" in n.zmoznosti && n.id !in ze &&
+            SprotnaPomocPravila.sme(skrivnost, vOzjemKrogu(app, n.id)) }
         if (kandidati.isEmpty()) { Log.i(TAG, "Pomocnika ni: nobene naprave z datotekami (ze odpovedali: $ze)"); naKonec(false); return }
         naStanje(app.getString(R.string.os_sprotno_iscem))
         val ocene = ConcurrentHashMap<String, Long>()
@@ -222,11 +240,15 @@ object SprotnaPomoc {
         fun izberi() {
             val vrsta = kandidati.filter { (ocene[it.id] ?: 0L) > 0 }.sortedByDescending { ocene[it.id] }
             if (vrsta.isEmpty()) { Log.i(TAG, "Nobena naprava ne more pomagati: $ocene"); naKonec(false); return }
-            prosi(app, link, vrsta, 0, sk, streznik, oblika, pozicijaMs, trajanjeMs, naStanje, naKonec)
+            prosi(app, link, vrsta, 0, sk, streznik, oblika, pozicijaMs, trajanjeMs, naStanje, usenet, naKonec)
         }
         for (n in kandidati) {
             link.ukaz(n.id, "host.info", JSONObject(), 2_500, LinkOdjemalec.Odgovor { izid, _ ->
-                izid?.optJSONObject("data")?.let { ocene[n.id] = ocena(it, oblika) }
+                izid?.optJSONObject("data")?.let { info ->
+                    val o = ocena(info, oblika)
+                    // Usenet: samo pomocnik s svojim Usenetom pri istem indeksatorju (guid velja samo tam).
+                    ocene[n.id] = if (usenet == null || UsenetPomocniki.ustreza(info, o, usenet.optString("ix"))) o else 0L
+                }
                 glavna.post { if (--cakam == 0) izberi() }
             })
         }
@@ -234,33 +256,42 @@ object SprotnaPomoc {
 
     private fun prosi(app: Context, link: LinkUpravitelj, vrsta: List<LinkOdjemalec.Naprava>, k: Int, sk: Jamendo.Skladba,
                       streznik: DatotekeActivity.Streznik?, oblika: JSONObject, pozicijaMs: Long, trajanjeMs: Long,
-                      naStanje: (String) -> Unit, naKonec: (Boolean) -> Unit) {
+                      naStanje: (String) -> Unit, usenet: JSONObject? = null, naKonec: (Boolean) -> Unit) {
         if (k >= vrsta.size) { naKonec(false); return }
         val n = vrsta[k]
         val ime = DatotekeActivity.lepoIme(n.ime).ifBlank { n.id }
+        val ozji = vOzjemKrogu(app, n.id)
+        // Vodja 5. 11. 2026: pravi naslov vira z zetonom (ne nadomestek SkrivniDodatki) samo napravi v ozjem krogu; naslov
+        // ne gre v dnevnik. Usenet: brez naslova - pomocnik izdajo prenese sam (polje usenet).
+        val naslov = if (usenet != null) null else SprotnaPomocPravila.naslov(sk.zvok, ozji) { SkrivniDodatki.dejanski(app, it) }
+        if (usenet == null && naslov == null) {
+            Log.i(TAG, "${n.id}: vir z zetonom samo ozjemu krogu - naslednji")
+            prosi(app, link, vrsta, k + 1, sk, streznik, oblika, pozicijaMs, trajanjeMs, naStanje, usenet, naKonec); return
+        }
         naStanje(app.getString(R.string.os_sprotno_pretvarja, ime))
-        val p = JSONObject().put("url", sk.zvok).put("name", sk.naslov.ifBlank { "video" }).put("seek_ms", pozicijaMs)
+        val p = JSONObject().put("name", sk.naslov.ifBlank { "video" }).put("seek_ms", pozicijaMs)
+        if (usenet != null) p.put("usenet", usenet) else p.put("url", naslov)
         // Trajanje pove pomocniku, koliko prostora bo tok vzel in s kaksno bitno hitrostjo naj kodira.
         if (trajanjeMs > 0) p.put("duration_ms", trajanjeMs)
         // Zeleni jezik zvoka (film v anglescini, slovenski v slovenscini): pomocnik izbere to sled, ne privzete vira.
         if (sk.video) p.put("audio_langs", org.json.JSONArray(TokIzbira.jezikiSledi(sk.language)))
-        if (streznik != null) p.put("fp", streznik.odtis).put("token", streznik.zeton)
-        // Glave toka (Stremio proxyHeaders): brez njih pomocnik izvirnika ne bi dobil (403).
-        SpletniVir.glaveToka(sk.zvok).takeIf { it.isNotEmpty() }?.let { p.put("headers", JSONObject(it)) }
+        if (streznik != null && usenet == null) p.put("fp", streznik.odtis).put("token", streznik.zeton)
+        // Glave toka (Stremio proxyHeaders): brez njih pomocnik izvirnika ne bi dobil (403) - samo ozjemu krogu.
+        if (usenet == null) SprotnaPomocPravila.glave(SpletniVir.glaveToka(sk.zvok), ozji).takeIf { it.isNotEmpty() }?.let { p.put("headers", JSONObject(it)) }
         for (kljuc in oblika.keys()) p.put(kljuc, oblika.get(kljuc))
         link.ukaz(n.id, "video.stream", p, 30_000, LinkOdjemalec.Odgovor { izid, napaka ->
             val d = izid?.takeIf { it.optBoolean("ok") }?.optJSONObject("data")
             val url = d?.optString("url").orEmpty()
             if (d == null || !url.startsWith("https://")) {
                 Log.i(TAG, "${n.id} ne more: ${izid?.optString("code") ?: napaka}")
-                prosi(app, link, vrsta, k + 1, sk, streznik, oblika, pozicijaMs, trajanjeMs, naStanje, naKonec)
+                prosi(app, link, vrsta, k + 1, sk, streznik, oblika, pozicijaMs, trajanjeMs, naStanje, usenet, naKonec)
                 return@Odgovor
             }
             val s = DatotekeActivity.Streznik(url.substringBeforeLast("/live/"), d.optString("fp"), d.optString("token"), n.id)
             val zivi = sk.copy(id = sk.id + PRIPONA, zvok = url, povezava = url, mime = "video/mp4", video = true,
                 izvajalec = app.getString(R.string.os_sprotno_vir, ime))
             Log.i(TAG, "Sprotni tok z ${n.id} od ${pozicijaMs} ms: ${Zasebno.zaDnevnik(url)}")
-            tok = Tok(sk, streznik, oblika, n.id, ime, d.optString("id"), pozicijaMs, trajanjeMs)
+            tok = Tok(sk, streznik, oblika, n.id, ime, d.optString("id"), pozicijaMs, trajanjeMs, usenet)
             GlasbaStoritev.predvajaj(app, listOf(zivi), 0, s)
             naKonec(true)
         })

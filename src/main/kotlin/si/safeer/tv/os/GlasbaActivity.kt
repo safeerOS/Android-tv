@@ -557,6 +557,9 @@ class GlasbaActivity : OsActivity() {
         Ozadje.uporabi(this, koren)
         if (!link.jeKrajevni()) link.dodaj(linkPoslusalec)
         vOspredju = true
+        // Lastnik 5. 11. 2026: pomocnik za Usenet pride ali odide - mreza filtra »⚡ Usenet« se osvezi (izdaje, ki jih zna
+        // samo pomocnik, se pokazejo ali skrijejo brez nove zahteve indeksatorju).
+        UsenetPomocniki.obSpremembi = { odprtKatalog?.let { o -> if (!isFinishing && filterUsenet() != null) osveziMrezo(o) } }
         nadaljujDebridObVrnitvi()     // pregled 2
         torrentSeJeSpremenil()
         Razpolozljivost.obSpremembi = obRazpolozljivosti
@@ -632,6 +635,7 @@ class GlasbaActivity : OsActivity() {
 
     override fun onStop() {
         viden = false
+        UsenetPomocniki.obSpremembi = null
         skrijPripravljam()      // predvajalnik je odprt ali uporabnik je odsel: pas ne ostane za vrnitev
         Debrid.poslusalciPrejetih.remove(obPrejetihKljucih)
         UskladitevKljucev.poslusalci.remove(obUskladitvi)
@@ -6084,7 +6088,7 @@ class GlasbaActivity : OsActivity() {
             // Lastnik 28. 10. 2026: najboljsa znana kakovost iz tokov (»★ 4K«, »⚠ CAM«), sicer iz metapodatkov kataloga.
             // V filtru vira Usenet: najboljsa ustrezna izdaja Useneta (FilterViraPravila.oznaka), ne torrentov ali kataloga.
             val kljucVira = odtisVira?.let { kljucUsenet(sk, it) }
-            val znana = if (kljucVira != null) UsenetFilter.oznaka(this, kljucVira)
+            val znana = if (kljucVira != null) UsenetFilter.oznaka(this, kljucVira, UsenetPomocniki.zdaj(this))
                 else if (Stremio.jeEnota(sk)) Stremio.razstavi(sk)?.third?.let { KakovostZnane.oznaka(this, it) } else null
             val kakovost = znana?.let { KakovostPravila.napisKartice(it) } ?: if (kljucVira != null) "" else when {
                 sk.quality >= 2160 || RX_KAKOVOST_4K.containsMatchIn(signal) -> KakovostPravila.Oznaka.UHD.napis
@@ -8525,10 +8529,18 @@ class GlasbaActivity : OsActivity() {
             if (zapored.isEmpty()) return null
             // Lastnik 27. 10. 2026: priprava lastnega pogona traja nekaj sekund - uporabnik vidi, da se nekaj dogaja.
             glavna.post { if (!isFinishing && !isDestroyed && pripraveVTeKu.isNotEmpty()) pokaziPripravljam(getString(R.string.os_usenet_pripravljam)) }
+            val z = zmoznostiNaprave
             return {
                 var izbran: Triple<Stremio.Tok, String, String>? = null
                 for (t in zapored) {
                     if (izbran != null || Thread.currentThread().isInterrupted) break
+                    // Lastnik 5. 11. 2026 (zakon solidarnosti): izdaje, katere kodeka TV ne zna, ne odpremo tu (TV bi bral
+                    // Usenet in nato odpovedal) - takoj jo prebere in pretvori pomocnik v Linku, ce je.
+                    val izdaja = FilterViraPravila.Izdaja(t.opis.substringBefore('\n'), TokIzbira.opisi(t.ime + " " + t.opis).gb)
+                    if (FilterViraPravila.pot(izdaja, z) == FilterViraPravila.Pot.POMOCNIK && UsenetPomocniki.zdaj(app)
+                        && Usenet.identiteta(app, t.url) != null) {
+                        izbran = Triple(t, UsenetPomocPravila.PREDPONA + t.url, UsenetPomocPravila.PONUDNIK); break
+                    }
                     val izid = try { Usenet.tok(app, t.url, t.opis.substringBefore('\n'), t.datoteka, false, {}, lastni = true) } catch (_: Exception) { null }
                     // Vodja 27. 10. 2026: ponudnik gre zraven (prej samo tok in naslov - obvestilo je reklo TorBox).
                     izid?.url?.let { izbran = Triple(t, it, izid.ponudnik.ifBlank { UsenetLastniPravila.PONUDNIK }) }
@@ -8558,6 +8570,36 @@ class GlasbaActivity : OsActivity() {
                 "${android.os.SystemClock.elapsedRealtime() - zacetek} ms): ${if (izbran != null) "da" else "ne"}")
             izbran
         }
+    }
+
+    /**
+     * Lastnik 5. 11. 2026 (zakon solidarnosti): izdajo, katere kodeka TV ne zna, prebere in sproti pretvori pomocnik v Linku
+     * s svojim Usenetom ([SprotnaPomoc.poskusi] z identiteto izdaje). Ce nihce ne more, izbira gre naprej brez Useneta.
+     */
+    private fun usenetPrekPomocnika(sk: Jamendo.Skladba, naslov: String, izvirnik: Jamendo.Skladba, t: Stremio.Tok,
+                                    brezUseneta: List<Stremio.Tok>, rocno: Boolean, pripravljeno: Pripravljeno,
+                                    obNeuspehu: (() -> Unit)?) {
+        val identiteta = Usenet.identiteta(this, t.url)
+        if (identiteta == null) { naprejBrezPomocnika(sk, naslov, brezUseneta, rocno, pripravljeno, obNeuspehu); return }
+        UsenetPomocniki.zapomniVir(izvirnik.zvok, identiteta)
+        android.util.Log.i("SafeerOsMedia", "tokovi: Usenet prek pomocnika v Linku; izbran=${TokIzbira.opisi(t.ime + " " + t.opis)}")
+        val od = MediaNapredek.polozaj(this, izvirnik).coerceAtLeast(0L)
+        SprotnaPomoc.poskusi(this, izvirnik, null, org.json.JSONObject(), od, 0L,
+            naStanje = { b -> runOnUiThread { if (!isFinishing && !isDestroyed) pokaziPripravljam(b) } },
+            naKonec = { uspeh -> runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                skrijPripravljam()
+                if (uspeh) { if (izvirnik.video) startActivity(Intent(this, PredvajanjeActivity::class.java)) }
+                else naprejBrezPomocnika(sk, naslov, brezUseneta, rocno, pripravljeno, obNeuspehu)
+            } })
+    }
+
+    private fun naprejBrezPomocnika(sk: Jamendo.Skladba, naslov: String, brezUseneta: List<Stremio.Tok>, rocno: Boolean,
+                                    pripravljeno: Pripravljeno, obNeuspehu: (() -> Unit)?) {
+        if (brezUseneta.isEmpty()) {
+            Toast.makeText(this, R.string.os_usenet_ni_izdaj, Toast.LENGTH_LONG).show(); obNeuspehu?.invoke(); return
+        }
+        izberiTok(sk, naslov, brezUseneta, rocno, Pripravljeno(pripravljeno.predpomnjeni), obNeuspehu = obNeuspehu)
     }
 
     /** Izdaje Usenet v vrstnem redu samodejne izbire (kakovost za to napravo, hitrost povezave, [UsenetPravila.zaSamodejno]). */
@@ -9575,7 +9617,9 @@ class GlasbaActivity : OsActivity() {
         // Lastnik 5. 11. 2026: filter vira »⚡ Usenet« - samo naslovi, za katere je Usenet potrjeno na voljo (FilterViraPravila).
         usenetKandidati = kandidati
         val vir = filterUsenet()
-        val vidniVira = if (vir == null) vidni else vidni.filter { sk -> kljucUsenet(sk, vir.odtis)?.let { UsenetFilter.pokazi(this, it) } == true }
+        // Zakon solidarnosti: izdaja, katere kodeka TV ne zna, sodi v filter, dokler je v Linku pomocnik za Usenet.
+        val pomocnik = vir != null && UsenetPomocniki.zdaj(this)
+        val vidniVira = if (vir == null) vidni else vidni.filter { sk -> kljucUsenet(sk, vir.odtis)?.let { UsenetFilter.pokazi(this, it, pomocnik) } == true }
         return kandidati to obdrziIzbrano(o, vidniVira)
     }
 
@@ -10308,6 +10352,11 @@ class GlasbaActivity : OsActivity() {
             // najvec 6 s); (2) takoj: ⚡ torrent, ziva neposredna povezava, [⚡WT]; (3) Usenet s cakanjem na prenos;
             // (4) Webtor [WT]; (5) TorBox s cakanjem in ostalo ([samodejnoBrezUseneta]). Nikoli okno »izberi vir«.
             val poskusi = UsenetPravila.zaSamodejno(usenet.map { TokIzbira.opisi(opis(it)).gb }, izbranSamoUsenet).map { usenet[it] }
+            pripravljeno.usenet?.takeIf { !samoWebtor && it.third == UsenetPomocPravila.PONUDNIK }?.let { (t, _, _) ->
+                usenetPrekPomocnika(sk, naslov, skladbaToka(t), t, vsiTokovi.filter { it.vrsta != UsenetPravila.VRSTA }, rocno,
+                    pripravljeno, obNeuspehu)
+                return
+            }
             pripravljeno.usenet?.takeIf { !samoWebtor }?.let { (t, cdn, ponudnik) ->
                 android.util.Log.i("SafeerOsMedia", "tokovi: ${UsenetLastniPravila.dnevnikPripravljenega(ponudnik)}; izbran=${TokIzbira.opisi(opis(t))}")
                 Toast.makeText(this, napisPredvajaPrek(ponudnik), Toast.LENGTH_SHORT).show()

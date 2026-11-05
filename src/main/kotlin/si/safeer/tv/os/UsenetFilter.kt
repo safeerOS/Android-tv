@@ -58,8 +58,10 @@ object UsenetFilter {
     }
 
     fun zapis(c: Context, k: String): F.Zapis? { nalozi(c); return zapisi[k] }
-    fun pokazi(c: Context, k: String): Boolean = F.pokazi(zapis(c, k), zdaj())
-    fun oznaka(c: Context, k: String): KakovostPravila.Oznaka? = zapis(c, k)?.takeIf { F.pokazi(it, zdaj()) }?.oznaka
+    /** [pomocnik]: v Linku je zdaj pomocnik za Usenet (UsenetPomocniki.zdaj) - izdaje, ki jih zna samo on, se pokazejo. */
+    fun pokazi(c: Context, k: String, pomocnik: Boolean = false): Boolean = F.pokazi(zapis(c, k), zdaj(), pomocnik)
+    fun oznaka(c: Context, k: String, pomocnik: Boolean = false): KakovostPravila.Oznaka? =
+        zapis(c, k)?.takeIf { F.pokazi(it, zdaj(), pomocnik) }?.oznaka
     fun seIscemo(c: Context, k: String): Boolean = k in vTeku || F.seIscemo(zapis(c, k), zdaj())
     fun vprasati(c: Context, k: String): Boolean = k !in vTeku && F.vprasati(zapis(c, k), zdaj())
     fun vTeku(): Int = vTeku.size
@@ -94,11 +96,11 @@ object UsenetFilter {
                         if (r.meja) omejevalnik.meja(zdaj())
                         izdaje = r.izdaje?.map { F.Izdaja(it.naslov, it.velikost / 1_073_741_824.0, it.geslo) }
                     }
-                    val p = pogoji()
-                    val izid = F.izid(F.Izidi(racun, F.Odgovor(izdaje)), p, z)
-                    val oznaka = izdaje?.let { F.oznaka(it, p, z) }
-                    shrani(app, k, F.zapisi(zapisi[k], izid, oznaka, zdaj()))
-                    Log.i(TAG, "preverba: izdaj=${izdaje?.size ?: -1}, izid=$izid, zahtev od zagona=${porabljeno.get()}")
+                    // Lastnik 5. 11. 2026 (zakon solidarnosti): zapis pove tudi, ali izdajo predvaja pomocnik v Linku -
+                    // prisotnost pomocnika se presodi ob prikazu, ne tu (ne zapisemo »NI za 6 h« zaradi trenutka brez njega).
+                    val pv = F.preverba(F.Izidi(racun, F.Odgovor(izdaje)), pogoji(), z)
+                    shrani(app, k, F.zapisi(zapisi[k], pv.izid, pv.oznaka, zdaj(), pv.pomoc))
+                    Log.i(TAG, "preverba: izdaj=${izdaje?.size ?: -1}, izid=${pv.izid}, pomoc=${pv.pomoc}, zahtev od zagona=${porabljeno.get()}")
                 } finally {
                     vTeku.remove(k)
                     obKoncu()

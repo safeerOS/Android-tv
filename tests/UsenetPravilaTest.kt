@@ -342,5 +342,23 @@ fun main(args: Array<String>) {
             "DebridPravila.zaporePredPrepisom(" in usenet && "DebridPravila.zaporePredPrepisom(" in debrid)
     } else { napak++; println("  NAPAKA  A2/A3: brez poti do Usenet.kt in Debrid.kt") }
 
+    // Pomoc naprave v Linku (lastnik 5. 11. 2026): identiteta izdaje brez kljuca - skupni primeri z namizjem
+    // (core/usenet_pravila.odtis_izdaj / guid, tests/test_usenet_pomoc.py).
+    preveriEnako("pomoc: odtis indeksatorja", "55b27847b81bca8a", UsenetPravila.odtisIzdaj("https://nzbfinder.ws"))
+    preveriEnako("pomoc: odtis poenoten (WWW, pika, privzeta vrata)", listOf("55b27847b81bca8a", "55b27847b81bca8a"),
+        listOf(UsenetPravila.odtisIzdaj("https://WWW.NZBfinder.ws."), UsenetPravila.odtisIzdaj("https://nzbfinder.ws:443")))
+    preveriEnako("pomoc: odtis z vrati", "46297557973e633c", UsenetPravila.odtisIzdaj("https://api.example.org:8443"))
+    preveriEnako("pomoc: odtis lokalnega indeksatorja", "45537dd7dc7925fa", UsenetPravila.odtisIzdaj("http://192.168.1.5:5076"))
+    preveriEnako("pomoc: odtis brez sheme ni", null, UsenetPravila.odtisIzdaj("ftp://x.example"))
+    preveriEnako("pomoc: guid", "abc123def456", UsenetPravila.guid("abc123def456"))
+    preveriEnako("pomoc: guid iz povezave details", "0123456789abcdef0123456789abcdef",
+        UsenetPravila.guid("https://nzbfinder.ws/details/0123456789abcdef0123456789abcdef"))
+    preveriEnako("pomoc: guid z znaki poizvedbe ni", null, UsenetPravila.guid("a&b=c123"))
+    preveriEnako("pomoc: prekratek guid ni", null, UsenetPravila.guid("abc"))
+    preveriEnako("pomoc: guid iz atributa pred elementom", listOf("atribut0123", "element0123", null), UsenetPravila.zadetki("""<rss xmlns:newznab="http://www.newznab.com/DTD/2010/feeds/attributes/"><channel>
+<item><title>A</title><guid>https://x.example/details/element9999</guid><link>https://x.example/a</link><newznab:attr name="guid" value="atribut0123"/></item>
+<item><title>B</title><guid isPermaLink="true">https://x.example/details/element0123</guid><link>https://x.example/b</link></item>
+<item><title>C</title><guid>a b&amp;c</guid><link>https://x.example/c</link></item></channel></rss>""", o).map { it.guid })
+
     if (napak == 0) println("UsenetPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

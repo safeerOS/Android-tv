@@ -243,7 +243,39 @@ object UsenetPravila {
      * [geslo]: atribut Newznab »password« (0 = ne, 1 = arhiv z geslom, 2 = arhiv v arhivu - ni za pretok); null = indeksator
      * tega ne pove (filter vira, lastnik 5. 11. 2026).
      */
-    data class Zadetek(val naslov: String, val povezava: String, val velikost: Long, val geslo: Boolean? = null)
+    data class Zadetek(val naslov: String, val povezava: String, val velikost: Long, val geslo: Boolean? = null,
+                       /** Guid izdaje pri indeksatorju ([guid]) - identiteta za pomocnika v Linku; null = ga ni. */
+                       val guid: String? = null)
+
+    // ------------------------------------------------------------------ pomoc naprave v Linku (zakon solidarnosti)
+    // Lastnik 5. 11. 2026: izdajo, katere kodeka TV ne zna, sme TV pokazati, ce jo pretvori naprava v Linku. Najsibkejsa
+    // naprava dela najmanj: pomocnik Usenet bere SAM s svojim racunom, TV mu pove samo guid izdaje, ime in odtis
+    // indeksatorja ([odtisIzdaj]) - nikoli kljuca ali povezave NZB. Isto kot namizje core/usenet_pravila.guid/odtis_izdaj.
+
+    private val GUID = Regex("[A-Za-z0-9_-]{6,64}")
+
+    /** Guid izdaje (atribut »guid« ali element <guid>, lahko povezava .../details/<guid>): zadnji del poti ali null. */
+    fun guid(vnos: String?): String? {
+        val zadnji = vnos.orEmpty().trim().substringBefore('#').substringBefore('?').trimEnd('/').substringAfterLast('/')
+        return zadnji.takeIf { GUID.matches(it) }
+    }
+
+    /**
+     * Odtis indeksatorja za identiteto izdaje: shema + gostitelj (male crke, brez »www.« in koncne pike) + neprivzeta vrata,
+     * SHA-256 s predpono, prvih 16 heks. Brez kljuca: guid velja za indeksator, pomocnik izdajo prenese s svojim kljucem.
+     */
+    fun odtisIzdaj(osnova: String?): String? {
+        val u = try { URI(osnova.orEmpty()) } catch (_: Exception) { return null }
+        val shema = u.scheme?.lowercase() ?: return null
+        if (shema != "https" && shema != "http") return null
+        var gost = u.host?.lowercase()?.trimEnd('.').orEmpty()
+        if (gost.isEmpty()) return null
+        if (gost.startsWith("www.")) gost = gost.substring(4)
+        val privzeta = if (shema == "https") 443 else 80
+        val vrata = if (u.port == -1 || u.port == privzeta) "" else ":" + u.port
+        val d = java.security.MessageDigest.getInstance("SHA-256").digest("safeer-usenet-izdaje|$shema://$gost$vrata".toByteArray(Charsets.UTF_8))
+        return d.joinToString("") { "%02x".format(it) }.take(16)
+    }
 
     /**
      * Pregled Grok 3: vrsta napake, ko indeksator ni vrnil NZB - iz napake Newznab v odgovoru, sicer iz kode HTTP (401/403
@@ -297,17 +329,20 @@ object UsenetPravila {
             if (naslov.isBlank() || !dovoljenaPovezava(povezava, gostIndeksatorja) || !videne.add(povezava)) continue
             var velikost = 0L
             var geslo: Boolean? = null
+            var idIzdaje: String? = null
             val atributi = el.getElementsByTagName("newznab:attr")
             for (j in 0 until atributi.length) {
                 val a = atributi.item(j) as? org.w3c.dom.Element ?: continue
                 if (a.getAttribute("name") == "size") velikost = a.getAttribute("value").toLongOrNull() ?: 0L
                 if (a.getAttribute("name") == "password") geslo = when (a.getAttribute("value").trim()) { "0" -> false; "1", "2" -> true; else -> null }
+                if (a.getAttribute("name") == "guid" && idIzdaje == null) idIzdaje = guid(a.getAttribute("value"))
             }
+            if (idIzdaje == null) idIzdaje = guid(besedilo("guid"))
             if (velikost <= 0) velikost = (el.getElementsByTagName("enclosure").item(0) as? org.w3c.dom.Element)
                 ?.getAttribute("length")?.toLongOrNull() ?: 0L
             // Indeksator isto izdajo pogosto vrne veckrat (izmerjeno 24. 10. 2026): enak naslov in velikost = enkrat.
             if (!videne.add(naslov + "|" + velikost)) continue
-            izid += Zadetek(naslov, povezava, velikost.coerceAtLeast(0), geslo)
+            izid += Zadetek(naslov, povezava, velikost.coerceAtLeast(0), geslo, idIzdaje)
             if (izid.size >= NAJVEC_ZADETKOV) break
         }
         return izid

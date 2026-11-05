@@ -13,6 +13,12 @@ package si.safeer.tv.os
  * Izid preverbe ima dve vrsti »nicesar« (lastnik 19:44): [Izid.NI] - vir je odgovoril in nima ustreznega toka
  * (negativno v predpomnilnik za ure); [Izid.NE_VEMO] - napaka, rok, ni povezave, meja indeksatorja: naslov se ne
  * pokaze, a se NE zapise kot negativen - ponovna preverba z omejenim stevilom poskusov in narascajocim zamikom.
+ *
+ * Kodek (lastnik 5. 11. 2026, zakon solidarnosti): pogoj se glasi »kodek zna predvajati TV SAM ALI katerakoli naprava v
+ * Safeer Linku, ki tok pretvori in ga poslje TV«. Kaj ima indeksator, je podatek za ure; ali je pomocnik ZDAJ v Linku, pa
+ * ne. Zato zapis hrani oboje loceno: [Zapis.izid] za TV samo in [Zapis.pomoc] (izdaja ustreza, ce jo pretvori pomocnik),
+ * prisotnost pomocnika pa se uposteva sele ob prikazu ([pokazi]) - ko pomocnik pride ali odide, se mreza osvezi brez nove
+ * zahteve indeksatorju in brez zapisa »NI za 6 h«, ki bi naslov skril tudi, ko pomocnik je.
  */
 object FilterViraPravila {
     enum class Izid { NA_VOLJO, NI, NE_VEMO }
@@ -47,21 +53,34 @@ object FilterViraPravila {
 
     const val VIR_USENET = "usenet"
 
+    /** Kdo izdajo predvaja: TV sam, samo pomocnik v Linku (pretvori v H.264/AAC) ali nihce (slika diska). */
+    enum class Pot { TV, POMOCNIK, NE }
+
+    /**
+     * Kodek in zvok iz imena izdaje (TokIzbira.opisi, isto pravilo kot izbira toka ob predvajanju): ime brez oznake kodeka
+     * je H.264/AAC, ki ga predvaja vsaka naprava. Slike diska (ISO, BDMV) ne predvaja nihce - tudi pomocnik je ne pretvori.
+     */
+    fun pot(r: Izdaja, z: TokIzbira.Zmoznosti): Pot {
+        if (SLIKA_DISKA.containsMatchIn(r.naslov.lowercase())) return Pot.NE
+        val o = TokIzbira.opisi(r.naslov)
+        val video = !(o.hevc && !z.hevc) && !(o.desetbitni && !z.hevc10) && !(o.av1 && !z.av1)
+        val zvok = when (o.zvok) { "truehd" -> z.truehd; "dts" -> z.dts; "eac3" -> z.eac3; "ac3" -> z.ac3; else -> true }
+        return if (video && zvok) Pot.TV else Pot.POMOCNIK
+    }
+
     /**
      * Pogoji ene izdaje (vsak posebej, za preizkuse in dnevnik). Kodek in zvok sta prebrana iz imena izdaje (TokIzbira.opisi,
      * isto pravilo kot izbira toka ob predvajanju): ime brez oznake kodeka je H.264/AAC, ki ga predvaja vsaka naprava.
      * Slika diska (ISO, BDMV, celoten Blu-ray) ni datoteka za predvajalnik.
      */
-    fun pogojiIzdaje(r: Izdaja, p: Pogoji, z: TokIzbira.Zmoznosti): Map<Pogoj, Izid> {
+    fun pogojiIzdaje(r: Izdaja, p: Pogoji, z: TokIzbira.Zmoznosti, pomoc: Boolean = false): Map<Pogoj, Izid> {
         val o = TokIzbira.opisi(r.naslov)
         val t = r.naslov.lowercase()
         val m = LinkedHashMap<Pogoj, Izid>()
         m[Pogoj.GESLO] = if (r.geslo == true) Izid.NI else Izid.NA_VOLJO
         m[Pogoj.MANJKA] = if (r.manjka == true) Izid.NI else Izid.NA_VOLJO
-        val slika = SLIKA_DISKA.containsMatchIn(t)
-        val video = !(o.hevc && !z.hevc) && !(o.desetbitni && !z.hevc10) && !(o.av1 && !z.av1)
-        val zvok = when (o.zvok) { "truehd" -> z.truehd; "dts" -> z.dts; "eac3" -> z.eac3; "ac3" -> z.ac3; else -> true }
-        m[Pogoj.PREDVAJALNIK] = if (!slika && video && zvok) Izid.NA_VOLJO else Izid.NI
+        // [pomoc]: stejemo, da je v Linku pomocnik, ki izdajo pretvori (TV kodeka ne zna) - glej [pokazi].
+        m[Pogoj.PREDVAJALNIK] = when (pot(r, z)) { Pot.TV -> Izid.NA_VOLJO; Pot.POMOCNIK -> if (pomoc) Izid.NA_VOLJO else Izid.NI; Pot.NE -> Izid.NI }
         p.jezikZvoka?.let { j ->
             val jezik = TokIzbira.jezikZvoka(r.naslov)
             // »vec«, »izvirnik«, »sinhronizacija« ali neoznaceno: jezika ne vemo.
@@ -77,31 +96,50 @@ object FilterViraPravila {
     }
 
     /** Izdaje, ki izpolnijo VSE pogoje (vrstni red indeksatorja ostane). */
-    fun ustrezne(izdaje: List<Izdaja>, p: Pogoji, z: TokIzbira.Zmoznosti): List<Izdaja> =
-        izdaje.filter { r -> pogojiIzdaje(r, p, z).values.all { it == Izid.NA_VOLJO } }
+    fun ustrezne(izdaje: List<Izdaja>, p: Pogoji, z: TokIzbira.Zmoznosti, pomoc: Boolean = false): List<Izdaja> =
+        izdaje.filter { r -> pogojiIzdaje(r, p, z, pomoc).values.all { it == Izid.NA_VOLJO } }
 
     /**
      * Izid preverbe vira za naslov: [Izid.NA_VOLJO] - vsaj ena izdaja izpolni vse pogoje; [Izid.NI] - vir je odgovoril
      * in nima take izdaje (tudi 0 zadetkov); [Izid.NE_VEMO] - vir ni odgovoril ali racun ni potrjen.
      */
-    fun izid(izidi: Izidi, p: Pogoji, z: TokIzbira.Zmoznosti): Izid {
+    fun izid(izidi: Izidi, p: Pogoji, z: TokIzbira.Zmoznosti, pomoc: Boolean = false): Izid {
         if (izidi.racun != Izid.NA_VOLJO) return Izid.NE_VEMO
         val izdaje = izidi.odgovor?.izdaje ?: return Izid.NE_VEMO
-        return if (ustrezne(izdaje, p, z).isNotEmpty()) Izid.NA_VOLJO else Izid.NI
+        return if (ustrezne(izdaje, p, z, pomoc).isNotEmpty()) Izid.NA_VOLJO else Izid.NI
     }
 
-    /** Ali naslov sodi v filter: samo, ce je pot do predvajanja s tem virom izpolnjena v celoti (AND vseh pogojev). */
-    fun lahkoGleda(p: Pogoji, izidi: Izidi, z: TokIzbira.Zmoznosti): Boolean = izid(izidi, p, z) == Izid.NA_VOLJO
+    /**
+     * Ali naslov sodi v filter: samo, ce je pot do predvajanja s tem virom izpolnjena v celoti (AND vseh pogojev).
+     * [pomocnik]: v Linku je ZDAJ naprava, ki sme pomagati in ima Usenet z istim indeksatorjem (UsenetPomocniki).
+     */
+    fun lahkoGleda(p: Pogoji, izidi: Izidi, z: TokIzbira.Zmoznosti, pomocnik: Boolean = false): Boolean =
+        izid(izidi, p, z, pomocnik) == Izid.NA_VOLJO
 
-    /** Prikaz v mrezi iz zapisa v predpomnilniku: neznan ali zastarel naslov se ne pokaze, dokler ni potrjen. */
-    fun pokazi(zapis: Zapis?, zdaj: Long): Boolean = zapis != null && zapis.izid == Izid.NA_VOLJO && svez(zapis, zdaj)
+    /** Izid ene preverbe za zapis: TV sam, ali ustreza s pomocnikom (samo ce TV sam ne), znacka vidne mnozice. */
+    data class Preverba(val izid: Izid, val pomoc: Boolean, val oznaka: KakovostPravila.Oznaka?)
+
+    fun preverba(izidi: Izidi, p: Pogoji, z: TokIzbira.Zmoznosti): Preverba {
+        val sam = izid(izidi, p, z)
+        val izdaje = izidi.odgovor?.izdaje.orEmpty()
+        if (sam == Izid.NA_VOLJO) return Preverba(sam, false, oznaka(izdaje, p, z))
+        val pomoc = sam == Izid.NI && izid(izidi, p, z, pomoc = true) == Izid.NA_VOLJO
+        return Preverba(sam, pomoc, if (pomoc) oznaka(izdaje, p, z, pomoc = true) else null)
+    }
+
+    /**
+     * Prikaz v mrezi iz zapisa v predpomnilniku: neznan ali zastarel naslov se ne pokaze, dokler ni potrjen. Izdaja, ki jo
+     * predvaja samo pomocnik ([Zapis.pomoc]), se pokaze le, dokler je [pomocnik] v Linku - odide, naslov izgine takoj.
+     */
+    fun pokazi(zapis: Zapis?, zdaj: Long, pomocnik: Boolean = false): Boolean = zapis != null && svez(zapis, zdaj) &&
+        (zapis.izid == Izid.NA_VOLJO || (zapis.izid == Izid.NI && zapis.pomoc && pomocnik))
 
     /**
      * Znacka kartice v filtru vira: najboljsa kakovost ustreznih izdaj tega vira, nikoli iz drugih virov ali kataloga
      * (prej »★ Full HD« iz torrentov pod filtrom Usenet). null = brez znacke.
      */
-    fun oznaka(izdaje: List<Izdaja>, p: Pogoji, z: TokIzbira.Zmoznosti): KakovostPravila.Oznaka? =
-        KakovostPravila.najboljsa(ustrezne(izdaje, p, z).map { it.naslov })
+    fun oznaka(izdaje: List<Izdaja>, p: Pogoji, z: TokIzbira.Zmoznosti, pomoc: Boolean = false): KakovostPravila.Oznaka? =
+        KakovostPravila.najboljsa(ustrezne(izdaje, p, z, pomoc).map { it.naslov })
 
     /**
      * Katero epizodo serije vprasamo: naslednjo za gledanje (Nadaljuj), sicer prvo (S1E1) - kartica v mrezi odpre seznam
@@ -120,8 +158,12 @@ object FilterViraPravila {
     const val NAJVEC_PONOVITEV = 3
     const val PRVI_ZAMIK_MS = 2 * MINUTA
 
-    /** Zapis: [izid] NA_VOLJO/NI s casom [cas]; NE_VEMO hrani samo stevilo neuspehov ([poskusov]) in cas zadnjega. */
-    data class Zapis(val izid: Izid, val cas: Long, val oznaka: KakovostPravila.Oznaka? = null, val poskusov: Int = 0)
+    /**
+     * Zapis: [izid] NA_VOLJO/NI s casom [cas]; NE_VEMO hrani samo stevilo neuspehov ([poskusov]) in cas zadnjega.
+     * [pomoc]: pri NI - ustrezna izdaja obstaja, a jo predvaja samo pomocnik v Linku ([oznaka] je tedaj njena znacka).
+     */
+    data class Zapis(val izid: Izid, val cas: Long, val oznaka: KakovostPravila.Oznaka? = null, val poskusov: Int = 0,
+                     val pomoc: Boolean = false)
 
     fun kljuc(vir: String, odtisRacuna: String, kljucNaslova: String): String = "$vir|$odtisRacuna|$kljucNaslova"
 
@@ -132,8 +174,9 @@ object FilterViraPravila {
     }
 
     /** Nov izid preverbe v zapis. Pravi odgovor (NA_VOLJO, NI) nadomesti vse; »ne vemo« ne povozi svezega odgovora. */
-    fun zapisi(prej: Zapis?, izid: Izid, oznaka: KakovostPravila.Oznaka?, zdaj: Long): Zapis = when (izid) {
-        Izid.NA_VOLJO, Izid.NI -> Zapis(izid, zdaj, if (izid == Izid.NA_VOLJO) oznaka else null)
+    fun zapisi(prej: Zapis?, izid: Izid, oznaka: KakovostPravila.Oznaka?, zdaj: Long, pomoc: Boolean = false): Zapis = when (izid) {
+        Izid.NA_VOLJO -> Zapis(izid, zdaj, oznaka)
+        Izid.NI -> Zapis(izid, zdaj, if (pomoc) oznaka else null, 0, pomoc)
         Izid.NE_VEMO -> if (prej != null && prej.izid != Izid.NE_VEMO && svez(prej, zdaj)) prej
             else Zapis(Izid.NE_VEMO, zdaj, null, ((prej?.takeIf { it.izid == Izid.NE_VEMO }?.poskusov) ?: 0) + 1)
     }
@@ -158,17 +201,19 @@ object FilterViraPravila {
         else -> z.poskusov < NAJVEC_PONOVITEV
     }
 
-    /** »izid;cas;oznaka;poskusov« za shrambo (oznaka = KakovostPravila.Oznaka.napis ali prazno). */
-    fun vNiz(z: Zapis): String = z.izid.name + ";" + z.cas + ";" + (z.oznaka?.napis ?: "") + ";" + z.poskusov
+    /** »izid;cas;oznaka;poskusov;pomoc« za shrambo (oznaka = KakovostPravila.Oznaka.napis ali prazno; pomoc 1/0). */
+    fun vNiz(z: Zapis): String = z.izid.name + ";" + z.cas + ";" + (z.oznaka?.napis ?: "") + ";" + z.poskusov + ";" + (if (z.pomoc) "1" else "0")
 
+    /** Tudi zapis prejsnje razlicice (stiri polja, brez [Zapis.pomoc]). */
     fun izNiza(s: String?): Zapis? {
         val d = s?.split(';') ?: return null
-        if (d.size != 4) return null
+        if (d.size != 4 && d.size != 5) return null
+        val pomoc = when (d.getOrNull(4)) { null, "0" -> false; "1" -> true; else -> return null }
         val izid = Izid.values().firstOrNull { it.name == d[0] } ?: return null
         val cas = d[1].toLongOrNull()?.takeIf { it >= 0L } ?: return null
         val poskusov = d[3].toIntOrNull()?.takeIf { it in 0..100 } ?: return null
         val oznaka = if (d[2].isEmpty()) null else KakovostPravila.Oznaka.izNapisa(d[2]) ?: return null
-        return Zapis(izid, cas, oznaka, poskusov)
+        return Zapis(izid, cas, oznaka, poskusov, pomoc && izid == Izid.NI)
     }
 
     // ------------------------------------------------------------------ kvota indeksatorja

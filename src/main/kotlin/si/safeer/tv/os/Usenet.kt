@@ -360,6 +360,7 @@ object Usenet {
             zadetki.map { z ->
                 val idToka = UsenetPravila.idToka(z.povezava)
                 povezave.dodaj(idToka, z.povezava, odtisIskanja)
+                z.guid?.let { g -> synchronized(izdaje) { izdaje[idToka] = g to z.naslov } }
                 Stremio.Tok(UsenetPravila.VRSTA, idToka, "", UsenetPravila.opis(z), UsenetPravila.VRSTA)
             }
         } catch (e: Exception) {
@@ -387,6 +388,24 @@ object Usenet {
         } catch (e: Exception) {
             Log.w(TAG, "filter: ${e.javaClass.simpleName}"); IzidIskanja(null, false)
         }
+    }
+
+    /**
+     * Pomoc naprave v Linku (lastnik 5. 11. 2026): guid in ime izdaje po id-ju toka - BREZ kljuca, zato sme k pomocniku.
+     * Samo v pomnilniku, najvec [NAJVEC_POVEZAV].
+     */
+    private val izdaje = object : LinkedHashMap<String, Pair<String, String>>(64, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Pair<String, String>>?) = size > NAJVEC_POVEZAV
+    }
+
+    /** Odtis indeksatorja za identiteto izdaje (UsenetPravila.odtisIzdaj, brez kljuca); null = indeksatorja ne smemo klicati. */
+    fun odtisIzdaj(c: Context): String? = zaUporabo(c)?.let { UsenetPravila.odtisIzdaj(it.osnova) }
+
+    /** Identiteta izdaje toka [idToka] za `video.stream` {guid, name, ix}; null = guida ni (pomocnik ne more pomagati). */
+    fun identiteta(c: Context, idToka: String): JSONObject? {
+        val (g, ime) = synchronized(izdaje) { izdaje[idToka] } ?: return null
+        val (guid, naslov, ix) = UsenetPomocPravila.identiteta(g, ime, odtisIzdaj(c)) ?: return null
+        return JSONObject().put("guid", guid).put("name", naslov).put("ix", ix)
     }
 
     /** Kratek odtis indeksatorja za kljuc filtra (zamenjan indeksator ali kljuc = nove preverbe); null = ga ni. */
@@ -495,7 +514,11 @@ object Usenet {
     private fun tokLastni(c: Context, idToka: String, ime: String): TorBox.Izid {
         val (nzb, napaka) = nzbLastni(c, idToka)
         return if (nzb == null) napaka ?: TorBox.Izid(napaka = UsenetPravila.NAPAKA_INDEKSATOR, ponudnik = UsenetPravila.PONUDNIK)
-        else UsenetLastni.predvajaj(c, nzb, ime)
+        else UsenetLastni.predvajaj(c, nzb, ime).also { izid ->
+            // Lastnik 5. 11. 2026: ce TV izdaje ne zna dekodirati, jo pomocnik v Linku prebere sam (SprotnaPomoc) -
+            // krajevnega naslova 127.0.0.1 ne doseze, zato si zapomnimo identiteto izdaje za ta naslov.
+            izid.url?.let { u -> identiteta(c, idToka)?.let { UsenetPomocniki.zapomniVir(u, it) } }
+        }
     }
 
     /** Glasba z Useneta: indeksator in lasten ponudnik (pretakanje samo prek lastnega pogona, ne TorBoxa). */
