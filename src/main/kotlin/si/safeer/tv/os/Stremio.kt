@@ -1050,7 +1050,7 @@ object Stremio {
     fun tipToka(naslovi: List<String>, tip: String, id: String): String {
         if (!OsPravila.jeImdb(id) || tip == "movie" || tip == "series") return tip
         val zaTip = naslovi.mapNotNull { try { manifest(it) } catch (_: Exception) { null } }
-            .any { m -> "stream" in m.viri && (m.tipi.isEmpty() || tip in m.tipi) && (m.predpone.isEmpty() || m.predpone.any { id.startsWith(it) }) }
+            .any { m -> ZdravjeDodatkov.dajeTokove(m.viri, m.tipi, m.predpone, tip, id) }
         return OsPravila.tipToka(tip, id, zaTip)
     }
 
@@ -1754,6 +1754,17 @@ object Stremio {
     /** Dodatek je ta cas v premoru po zaporednih neuspehih: izbira toka ga ne caka (javni) ali ga ne vprasa (s kljucem). */
     fun vPremoruTokov(naslov: String, zdajMs: Long = System.currentTimeMillis()): Boolean = ZdravjeDodatkov.vPremoru(zdravje[osnova(naslov)], zdajMs)
 
+    /**
+     * Ali poizvedba tokov dodatek za to vsebino res vprasa (ista pravila kot [tokoviDodatkov]): naprava pozna njegovo
+     * skrivnost, manifest je dosegljiv (pomnilnik, disk ali omrezje, kot v poizvedbi) in [ZdravjeDodatkov.dajeTokove] za vsaj en id iz [idji].
+     * Za [ZdravjeDodatkov.nacini]: »vsi v premoru« steje samo med temi dodatki.
+     */
+    fun vprasanZaTokove(naslov: String, tip: String, idji: List<String>): Boolean {
+        if (!SkrivniDodatki.pozna(aplikacija, naslov)) return false
+        val m = try { manifest(naslov) } catch (_: Exception) { null } ?: return false
+        return idji.any { ZdravjeDodatkov.dajeTokove(m.viri, m.tipi, m.predpone, tip, it) }
+    }
+
     /** Dodatek nosi uporabnikov kljuc (debrid, racun v naslovu ...): v premoru ga ne sprasujemo, da racun ne bo zaklenjen. */
     fun sKljucem(naslov: String): Boolean = !SkrivnostiPravila.smeMedVseNaprave(naslov)
 
@@ -1801,8 +1812,7 @@ object Stremio {
         .filter { SkrivniDodatki.pozna(aplikacija, it) }
         // Dodatek, ki ga ne dosezemo (manifesta ni), bi vsebino morda imel: to je izpad, ne "ni na voljo".
         .mapNotNull { manifest(it) ?: run { zadnjiIzpad.set(System.currentTimeMillis()); brezOdgovora.set(true); null } }
-        .filter { m -> "stream" in m.viri && (m.tipi.isEmpty() || tip in m.tipi) &&
-            (m.predpone.isEmpty() || m.predpone.any { id.startsWith(it) }) }
+        .filter { m -> ZdravjeDodatkov.dajeTokove(m.viri, m.tipi, m.predpone, tip, id) }
         .flatMap { m ->
             vprasanih.incrementAndGet()
             val naslov = "${m.osnova}/stream/${enc(tip)}/${enc(id)}.json"

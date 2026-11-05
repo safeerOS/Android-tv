@@ -56,12 +56,21 @@ object ZdravjeDodatkov {
      * Kako vprasamo dodatek: [Nacin.CAKAJ] kot doslej, [Nacin.V_OZADJU] (javni dodatek v premoru: poizvedba gre, izbira ne
      * caka nanj - ista ena zahteva kot doslej) ali [Nacin.PRESKOCI] (dodatek z uporabnikovim kljucem v premoru: nobene
      * zahteve na uporabnikov racun, dokler premor traja - ponavljanje neuspesnih zahtev lahko racun zaklene).
-     * Ce so v premoru VSI dodatki, cakamo na vse kot doslej: brez tega uporabnik ne bi dobil nobenega toka.
+     * Ce so v premoru VSI dodatki, ki jih ta poizvedba res vprasa ([vprasan], [dajeTokove]), cakamo na vse kot doslej:
+     * brez tega uporabnik ne bi dobil nobenega toka. CodeRabbit 5. 11. 2026: prej je stelo cez vse dodatke - katalog brez
+     * tokov (npr. Cinemeta) ni bil v premoru, zato je bil edini dodatek s tokovi (s kljucem, v premoru) preskocen.
      */
     enum class Nacin { CAKAJ, V_OZADJU, PRESKOCI }
 
-    fun nacini(vPremoru: List<Boolean>, sKljucem: List<Boolean>): List<Nacin> {
-        if (vPremoru.all { it }) return vPremoru.map { Nacin.CAKAJ }
+    /**
+     * Ali dodatek da tokove za [tip] in [id] - isto pravilo kot poizvedba ([Stremio.tokoviDodatkov], [Stremio.tipToka]):
+     * vir `stream`, tip med `types` (prazno = vsi), id z eno od `idPrefixes` (prazno = vsi).
+     */
+    fun dajeTokove(viri: Collection<String>, tipi: Collection<String>, predpone: Collection<String>, tip: String, id: String): Boolean =
+        "stream" in viri && (tipi.isEmpty() || tip in tipi) && (predpone.isEmpty() || predpone.any { id.startsWith(it) })
+
+    fun nacini(vPremoru: List<Boolean>, sKljucem: List<Boolean>, vprasan: List<Boolean> = vPremoru.map { true }): List<Nacin> {
+        if (vPremoru.indices.filter { vprasan.getOrElse(it) { true } }.all { vPremoru[it] }) return vPremoru.map { Nacin.CAKAJ }
         return vPremoru.indices.map { i ->
             when { !vPremoru[i] -> Nacin.CAKAJ; sKljucem.getOrElse(i) { true } -> Nacin.PRESKOCI; else -> Nacin.V_OZADJU }
         }

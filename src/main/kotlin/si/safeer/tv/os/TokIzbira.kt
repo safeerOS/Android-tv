@@ -162,9 +162,10 @@ object TokIzbira {
 
     /**
      * Vecja ocena = boljsi tok za to napravo. [veljaS]: koliko sekund je povezava se veljavna ([veljaSe]); null = brez roka.
+     * [roj]: tok se zacne iz roja (torrent, Webtor) - sejalci stejejo; neposredna povezava (debrid, Usenet, http) ni roj.
      */
     fun ocena(besedilo: String, z: Zmoznosti, veljaS: Long? = null, zelenJezik: String = "", izvirni: String = "",
-              neoznacenJeSinhronizacija: Boolean = false): Int {
+              neoznacenJeSinhronizacija: Boolean = false, roj: Boolean = true): Int {
         val o = opisi(besedilo)
         val v = if (o.visina == 0) 700 else o.visina          // neznana locljivost: med 720p in 480p
         // Do locljivosti zaslona je vec boljse; nad njo le vecja datoteka brez koristi (se vedno predvajljivo).
@@ -189,7 +190,7 @@ object TokIzbira {
         // nekaj sekundah, slabo podprt po minuti ali nikoli). Kjer opis pove stevilo sejalcev, ima podprt torrent
         // prednost tudi pred eno stopnjo visjo locljivostjo. 0 in manj kot [MALO_SEJALCEV] uredi razred v [uredi]
         // ([razredSejalcev]) - tu ju ne stejemo se enkrat (5. 11. 2026: prej -2500, kar je jezik +800 lahko prehitel).
-        when (val s = sejalci(besedilo)) {
+        if (roj) when (val s = sejalci(besedilo)) {
             -1 -> { }
             in 0 until MALO_SEJALCEV -> { }
             in MALO_SEJALCEV..4 -> tocke -= 600
@@ -211,7 +212,7 @@ object TokIzbira {
      * nic sejalcev. Mrtvega torrenta ne skrijemo (ce ni drugega, se vedno poskusimo), a gre na konec: cakanje na vir, ki
      * potem ne predvaja, ni udobno. Neznano (-1) je nevtralno - dodatek stevila ne pove, tok je morda odlicen.
      */
-    fun razredSejalcev(besedilo: String): Int = when (val s = sejalci(besedilo)) { -1 -> 0; 0 -> 2; in 1 until MALO_SEJALCEV -> 1; else -> 0 }
+    fun razredSejalcev(besedilo: String, roj: Boolean = true): Int = if (!roj) 0 else when (val s = sejalci(besedilo)) { -1 -> 0; 0 -> 2; in 1 until MALO_SEJALCEV -> 1; else -> 0 }
 
     /**
      * Stabilno prerazvrsti ze urejen seznam po [razredSejalcev]: znotraj razreda ostane dosedanji vrstni red. Za ureditve,
@@ -222,14 +223,17 @@ object TokIzbira {
     /**
      * Tokovi od najboljsega do najslabsega za to napravo; pri enaki oceni ostane vrstni red dodatka. Z [naslov] se
      * uposteva tudi rok veljavnosti povezave ([veljaSe]) ob casu [zdajS] (sekunde od 1970). Najprej steje razred po
-     * sejalcih ([razredSejalcev]), nato ocena.
+     * sejalcih ([razredSejalcev]), nato ocena. [roj]: ali se tok zacne iz roja; za neposredno povezavo (debrid, Usenet,
+     * http) sejalci iz opisa izvirnega torrenta ne stejejo - pripravljen 2160p z »0 sejalci« bi sicer pristal za 480p
+     * (CodeRabbit 5. 11. 2026, kot Linux core/tok_izbira.sejalci_toka).
      */
     fun <T> uredi(tokovi: List<T>, besedilo: (T) -> String, z: Zmoznosti, naslov: ((T) -> String)? = null,
-                  zdajS: Long = System.currentTimeMillis() / 1000, zelenJezik: String = "", izvirni: String = ""): List<T> {
+                  zdajS: Long = System.currentTimeMillis() / 1000, zelenJezik: String = "", izvirni: String = "",
+                  roj: (T) -> Boolean = { true }): List<T> {
         val izvirnikOznacen = zelenJezik.isNotBlank() && tokovi.any { jezikZvoka(besedilo(it)) == "izvirnik" }
         return tokovi.mapIndexed { i, t -> Triple(t, ocena(besedilo(t), z, naslov?.let { veljaSe(it(t), zdajS) }, zelenJezik, izvirni,
-            izvirnikOznacen), i) }
-            .sortedWith(compareBy<Triple<T, Int, Int>> { razredSejalcev(besedilo(it.first)) }.thenByDescending { it.second }
+            izvirnikOznacen, roj(t)), i) }
+            .sortedWith(compareBy<Triple<T, Int, Int>> { razredSejalcev(besedilo(it.first), roj(it.first)) }.thenByDescending { it.second }
                 .thenBy { it.third }).map { it.first }
     }
 }

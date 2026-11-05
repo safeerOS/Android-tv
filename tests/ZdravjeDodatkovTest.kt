@@ -44,5 +44,17 @@ fun main() {
     check(ZdravjeDodatkov.nacini(listOf(false, true, true), listOf(false, false, true)) == listOf(Nacin.CAKAJ, Nacin.V_OZADJU, Nacin.PRESKOCI))
     check(ZdravjeDodatkov.nacini(listOf(true, true), listOf(true, false)) == listOf(Nacin.CAKAJ, Nacin.CAKAJ))
     check(ZdravjeDodatkov.nacini(emptyList(), emptyList()).isEmpty())
+    // CodeRabbit 5. 11. 2026: »vsi v premoru« samo med dodatki, ki jih poizvedba res vprasa. Katalog brez tokov (ni v
+    // premoru, ni vprasan) ne sme preprecit, da je edini dodatek s tokovi (s kljucem, v premoru) vendarle vprasan.
+    check(ZdravjeDodatkov.nacini(listOf(false, true), listOf(false, true), listOf(false, true)) == listOf(Nacin.CAKAJ, Nacin.CAKAJ))
+    // Ce je vprasan tudi zdrav dodatek, ostane preskok dodatka s kljucem v premoru.
+    check(ZdravjeDodatkov.nacini(listOf(false, true, false), listOf(false, true, false), listOf(false, true, true)) ==
+        listOf(Nacin.CAKAJ, Nacin.PRESKOCI, Nacin.CAKAJ))
+    // Pravilo poizvedbe (ista kot Stremio.tokoviDodatkov): vir stream, tip, predpona id-ja.
+    check(ZdravjeDodatkov.dajeTokove(setOf("stream"), emptySet(), emptyList(), "movie", "tt1"))
+    check(!ZdravjeDodatkov.dajeTokove(setOf("catalog", "meta"), emptySet(), emptyList(), "movie", "tt1")) { "brez vira stream" }
+    check(!ZdravjeDodatkov.dajeTokove(setOf("stream"), setOf("series"), emptyList(), "movie", "tt1")) { "tip" }
+    check(!ZdravjeDodatkov.dajeTokove(setOf("stream"), setOf("movie"), listOf("kitsu:"), "movie", "tt1")) { "predpona" }
+    check(ZdravjeDodatkov.dajeTokove(setOf("stream"), setOf("movie"), listOf("kitsu:", "tt"), "movie", "tt1"))
     println("ZdravjeDodatkovTest: OK")
 }

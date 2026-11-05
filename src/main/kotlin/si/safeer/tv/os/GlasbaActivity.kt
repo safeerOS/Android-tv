@@ -8284,7 +8284,11 @@ class GlasbaActivity : OsActivity() {
         // vprasan kot doslej, a nanj ne cakamo; dodatka s kljucem v premoru ne vprasamo (nobene odvec zahteve na racun).
         val naslovi = stremioNaslovi()
         val zdajZdravje = System.currentTimeMillis()
-        val nacini = ZdravjeDodatkov.nacini(naslovi.map { Stremio.vPremoruTokov(it, zdajZdravje) }, naslovi.map { Stremio.sKljucem(it) })
+        val vPremoru = naslovi.map { Stremio.vPremoruTokov(it, zdajZdravje) }
+        // »Vsi v premoru« samo med dodatki, ki jih ta poizvedba res vprasa (CodeRabbit 5. 11. 2026); manifeste beremo le,
+        // ce je kateri v premoru (sicer brez dodatnega dela).
+        val vprasan = if (vPremoru.any { it }) naslovi.map { Stremio.vprasanZaTokove(it, tip, idji) } else naslovi.map { true }
+        val nacini = ZdravjeDodatkov.nacini(vPremoru, naslovi.map { Stremio.sKljucem(it) }, vprasan)
         val preskocenih = nacini.count { it == ZdravjeDodatkov.Nacin.PRESKOCI }
         if (nacini.any { it != ZdravjeDodatkov.Nacin.CAKAJ }) android.util.Log.i("SafeerOsMedia", "tokovi: dodatkov v premoru " +
             "${nacini.count { it == ZdravjeDodatkov.Nacin.V_OZADJU }} v ozadju, $preskocenih s kljucem preskocenih")
@@ -8553,7 +8557,8 @@ class GlasbaActivity : OsActivity() {
         val zelen = if (sk.video) TokIzbira.zeleniJezik(sk.language) else ""
         val hitrost = HitrostPovezave.hitrost(this)
         val minut = KakovostPravila.minut(sk.season > 0 || sk.episode > 0)
-        val urejeni = TokIzbira.uredi(tokovi.filter { it.vrsta == UsenetPravila.VRSTA }, opis, zmoznostiNaprave, zelenJezik = zelen, izvirni = sk.language)
+        val urejeni = TokIzbira.uredi(tokovi.filter { it.vrsta == UsenetPravila.VRSTA }, opis, zmoznostiNaprave, zelenJezik = zelen, izvirni = sk.language,
+            roj = { false })
         val poHitrosti = KakovostPravila.urediZaHitrost(urejeni.map { TokIzbira.opisi(opis(it)).gb }, minut, hitrost).map { urejeni[it] }
         return UsenetPravila.zaSamodejno(poHitrosti.map { TokIzbira.opisi(opis(it)).gb }).map { poHitrosti[it] }
     }
@@ -8832,7 +8837,9 @@ class GlasbaActivity : OsActivity() {
                     val naprej = seznam.drop(k).take(40)
                     val niti = naprej.map { x -> iskanjeDelavec.submit<List<Stremio.Tok>> { tokoviZa(x) } }
                     val opis = { t: Stremio.Tok -> t.ime + " " + t.opis }
-                    fun najboljsi(t: List<Stremio.Tok>) = TokIzbira.uredi(t.filter { it.vrsta == "url" }, opis, zmoznostiNaprave, { it.url }).firstOrNull()
+                    // Neposredna povezava ni roj (sejalci ne stejejo); Webtor prenasa iz roja.
+                    fun najboljsi(t: List<Stremio.Tok>) = TokIzbira.uredi(t.filter { it.vrsta == "url" }, opis, zmoznostiNaprave, { it.url },
+                        roj = { it.vir == WebtorPravila.VIR }).firstOrNull()
                     val prvi = try { niti.first().get(15, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { emptyList() }
                     val prviTok = najboljsi(prvi)
                     if (prviTok != null) {
@@ -10096,10 +10103,12 @@ class GlasbaActivity : OsActivity() {
         val hitrost = HitrostPovezave.hitrost(this)
         val minut = KakovostPravila.minut(sk.season > 0 || sk.episode > 0)
         // Sejalci (5. 11. 2026): ureditev po hitrosti ne sme mrtvega torrenta (0 sejalcev) spet postaviti naprej.
-        fun zaHitrost(l: List<Stremio.Tok>) = TokIzbira.sejalciNaKonec(KakovostPravila.urediZaHitrost(l.map { TokIzbira.opisi(opis(it)).gb },
-            minut, hitrost).map { l[it] }, opis)
+        // Neposredna povezava (debrid, Usenet, http) ni roj: sejalci iz opisa ne stejejo (CodeRabbit 5. 11. 2026).
+        fun zaHitrost(l: List<Stremio.Tok>, roj: Boolean = true) = KakovostPravila.urediZaHitrost(l.map { TokIzbira.opisi(opis(it)).gb },
+            minut, hitrost).map { l[it] }.let { if (roj) TokIzbira.sejalciNaKonec(it, opis) else it }
         // Webtor rezerva: tok Webtor je tudi »url«, a ni neposredna povezava - ima svoje mesto v vrstnem redu (spodaj).
-        val neposredni = zaHitrost(TokIzbira.uredi(tokovi.filter { it.vrsta == "url" && it.vir != WebtorPravila.VIR }, opis, zmoznostiNaprave, { it.url }, zdajS, zelen, sk.language))
+        val neposredni = zaHitrost(TokIzbira.uredi(tokovi.filter { it.vrsta == "url" && it.vir != WebtorPravila.VIR }, opis, zmoznostiNaprave, { it.url }, zdajS, zelen, sk.language,
+            roj = { false }), roj = false)
         val torrentiPoKakovosti = zaHitrost(TokIzbira.uredi(tokovi.filter { it.vrsta == "torrent" && gre(it) }, opis, zmoznostiNaprave,
             zelenJezik = zelen, izvirni = sk.language))
         if (hitrost > 0) android.util.Log.i("SafeerOsMedia", "kakovost za povezavo ${hitrost / 1_000_000} Mb/s: " +
@@ -10110,7 +10119,7 @@ class GlasbaActivity : OsActivity() {
         fun pripravljen(t: Stremio.Tok) = t.vrsta == "torrent" && TorBoxPravila.hashIzMagneta(t.url)?.lowercase() in predpomnjeni
         // Naloga 141: Usenet (TorBox) po kakovosti.
         val usenet = zaHitrost(TokIzbira.uredi(tokovi.filter { it.vrsta == UsenetPravila.VRSTA }, opis, zmoznostiNaprave,
-            zelenJezik = zelen, izvirni = sk.language))
+            zelenJezik = zelen, izvirni = sk.language, roj = { false }), roj = false)
         // Webtor rezerva: tokovi Webtor po kakovosti, nato v vrstnem redu nasih torrentov ([WebtorPravila.vrstniRed]: ista
         // izdaja, kot bi jo izbrali sami, je prva).
         val webtorPoKakovosti = zaHitrost(TokIzbira.uredi(tokovi.filter { it.vir == WebtorPravila.VIR }, opis, zmoznostiNaprave,

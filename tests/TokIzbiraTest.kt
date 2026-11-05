@@ -42,6 +42,13 @@ fun main() {
     // Viri tokov (5. 11. 2026): mrtev torrent (0 sejalcev) je zadnji tudi, ce ga jezik zvoka dviga (prej -2500 proti +800).
     val mrtev = TokIzbira.uredi(listOf("G 2160p English \uD83D\uDC64 0 8 GB", "H 1080p Dublado \uD83D\uDC64 50 2 GB"), { it }, tv4k, zelenJezik = "en")
     check(mrtev.first().startsWith("H") && mrtev.size == 2) { mrtev }
+    // CodeRabbit 5. 11. 2026: neposredna povezava (debrid) z opisom izvirnega torrenta (0 sejalcev) ni roj - pripravljen
+    // 2160p ostane pred 480p; brez [roj] (torrent) gre mrtev na konec kot doslej.
+    val debrid = listOf("I 480p \uD83D\uDC64 50 1 GB", "J 2160p \uD83D\uDC64 0 8 GB")
+    check(TokIzbira.uredi(debrid, { it }, tv4k, roj = { false }).first().startsWith("J")) { "debrid ni roj" }
+    check(TokIzbira.uredi(debrid, { it }, tv4k).first().startsWith("I")) { "torrent: mrtev zadnji" }
+    check(TokIzbira.razredSejalcev("X \uD83D\uDC64 0", roj = false) == 0)
+    check(TokIzbira.ocena("K 1080p \uD83D\uDC64 3", tv4k, roj = false) == TokIzbira.ocena("K 1080p", tv4k)) { "brez kazni sejalcev" }
     // Znano malo sejalcev (< 3) gre za tok z vec sejalci, tudi ce je ta nizje locljivosti.
     check(TokIzbira.uredi(listOf("A 2160p \uD83D\uDC64 2 10 GB", "B 1080p \uD83D\uDC64 40 3 GB"), { it }, tv4k).first().startsWith("B"))
     // Neznano stevilo sejalcev je nevtralno (ni kazni).
