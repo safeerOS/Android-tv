@@ -143,5 +143,44 @@ function okvirZ(v, izvor, ponaredi) {
     preveri('4: stanje okvirja istega izvora kot vrhnja stran velja', [true, 12], st2 ? [st2.p, st2.t] : null);
 }
 
+// 5. Cetrti slepi pregled 5. 11. 2026 (N-E): spletni vir s predvajalnikom v okvirju drugega izvora (CDN, ni na seznamu) igra.
+// Prej (od N6) vrhnja stran ni dobila nicesar - po ROK_ZASTOJA_MS zastoj: skladba NI_TOKA in preskocena, ceprav je igrala.
+// Zdaj: samo znak »igra« (cas), ki ga Kotlin uporabi le za preklic zastoja; stanje (polozaj, konec) ostane nepreverjeno.
+const ms = KT.match(/private const val STANJE_JS = """([\s\S]*?)"""/);
+function stanjeVrha(v) {
+    vm.runInContext('if (!window.navigator) window.navigator = {}; window.__stanjeJs = ' + JSON.stringify(ms ? ms[1] : '0'), v);
+    return JSON.parse(JSON.stringify(vm.runInContext('eval(window.__stanjeJs)', v)));
+}
+{
+    const v = okno(null, 'https://glasba.primer.test');
+    v.document.querySelectorAll = () => [];                     // vrhnja stran nima medija (predvajalnik je v okvirju)
+    vm.runInContext(JS, v);
+    okvirZ(v, 'https://cdn.predvajalnik.test', false);           // CDN igra (t=12), polozaja vrhnja stran ne preveri
+    preveri('5 (N-E): CDN okvir: stanje ni preverjeno (ni polozaja, konca)', undefined, vm.runInContext('window.__safeerOkvir', v));
+    const st = stanjeVrha(v);
+    preveri('5 (N-E): STANJE_JS vrne samo znak u (Kotlin preklice zastoj, skladbe ne preskoci)', { u: 1 }, st);
+    preveri('5 (N-E): Kotlin znak uporabi SAMO za zastoj', true,
+        /if \(o\.optInt\("u"\) == 1\) nepreverjenoIgraOd = SystemClock\.uptimeMillis\(\)/.test(KT) &&
+        /YoutubeVrstaPravila\.zastoj\(zdaj - nalozenoOd, polozaj, pripravljeno, zelja, nepreverjeno\)/.test(KT) &&
+        (KT.match(/nepreverjenoIgraOd/g) || []).length === 4);
+    // CDN okvir, ki ne igra (pavza ali konec), znaka ne da - pravi zastoj ostane.
+    const v2 = okno(null, 'https://glasba.primer.test');
+    v2.document.querySelectorAll = () => [];
+    vm.runInContext(JS, v2);
+    const o2 = okno(v2, 'https://cdn.predvajalnik.test');
+    vm.runInContext(JS, o2);
+    o2.medij.paused = true; o2.medij.currentTime = 0;
+    vm.runInContext('window.top = { postMessage: function (d, o) { window.__vrh(d, o); } };', o2);
+    o2.__vrh = (d) => posljiOd(v2, o2, d);
+    o2.intervali.forEach((f) => f());
+    preveri('5 (N-E): CDN okvir, ki ne igra: brez znaka (pravi zastoj se preskoci)', {}, stanjeVrha(v2));
+    // Oglas brez kljuca znaka ne doseze.
+    const v3 = okno(null, 'https://glasba.primer.test');
+    v3.document.querySelectorAll = () => [];
+    vm.runInContext(JS, v3);
+    posljiOd(v3, okno(v3, 'https://oglas.test'), { safeer: 'stanje', p: true, t: 50 });
+    preveri('5 (N-E): okvir brez kljuca: brez znaka', {}, stanjeVrha(v3));
+}
+
 if (padle) { console.log('igralec_posrednik_test: PADLO ' + padle + ' (uspelo ' + stevilo + ')'); process.exit(1); }
 console.log('igralec_posrednik_test: OK (' + stevilo + ')');

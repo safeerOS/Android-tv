@@ -239,10 +239,14 @@ primer('8', () => {
     s.nalozi(VIR);
     const t = s.izvoz('_safeer_tipka');
     // Cetrti slepi pregled 5. 11. 2026: dokaz je niz HMAC (64 sestnajstiskih znakov) - stran ugiba v tej obliki.
-    for (let i = 0; i < 6; i++) t('0123456789abcdef0123456789abcdef', 1000 + i, '0'.repeat(63) + i);     // stran ugiba
+    const ugibi = [];
+    for (let i = 0; i < 6; i++) ugibi.push(t('0123456789abcdef0123456789abcdef', 1000 + i, '0'.repeat(63) + i));     // stran ugiba
+    preveri('8: lazni dokaz ne da tipke', [false, false, false, false, false, false], ugibi);
     s.izberi(g);
     s.ok('0123456789abcdef0123456789abcdef');
-    preveri('8: po vec napacnih dokazih ni vec pravega dotika v tem dokumentu', [], s.dotiki);
+    // Cetrti slepi pregled 5. 11. 2026 (N-D): s HMAC-256 je bila meja 5 napak samo-DoS strani - po laznih dokazih uporabnikov
+    // OK na oznako datoteke se vedno naredi pravi dotik (prej: nic).
+    preveri('8 (N-D): po 6 laznih dokazih strani pravi dotik se vedno dela', 1, s.dotiki.length);
     s.smer('DOWN');
     preveri('8: smer po ugibanju strani se dela (uporabnik ni ujet)', true, s.document.querySelectorAll('.safeer-active-card').length === 1);
     const f = new Function(blok('SAFEER_ZNAK_NAMESTITVE') + blok('SAFEER_DOKAZ') + '\nreturn { jeVeljavenIzziv };')();

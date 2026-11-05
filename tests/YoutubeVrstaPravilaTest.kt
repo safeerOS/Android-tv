@@ -24,6 +24,18 @@ fun main() {
     preveriEnako("zastoj, naslednja obstaja: naprej", true, P.naprejPoZastoju(0, imaNaslednjo = true))
     preveriEnako("zastoj, zadnja v vrsti: obstane z obvestilom", false, P.naprejPoZastoju(0, imaNaslednjo = false))
     preveriEnako("tretji zastoj zapored: obstane", false, P.naprejPoZastoju(3, imaNaslednjo = true))
+    // Cetrti slepi pregled 5. 11. 2026 (N-E): predvajalnik v okvirju drugega izvora (CDN) igra, a ne javi polozaja.
+    val zdaj = 1_000_000L
+    preveriEnako("N-E: okvir drugega izvora igra (pred 1 s): ni zastoja", false,
+        P.zastoj(60_000L, 0L, pripravljeno = false, zelja = true, nepreverjenoIgra = P.nepreverjenoIgra(zdaj - 1_000L, zdaj)))
+    preveriEnako("N-E: znak okvirja zastarel (3 s): pravi zastoj", true,
+        P.zastoj(60_000L, 0L, pripravljeno = false, zelja = true, nepreverjenoIgra = P.nepreverjenoIgra(zdaj - 3_000L, zdaj)))
+    preveriEnako("N-E: nic ne igra (znaka ni bilo): pravi zastoj", true,
+        P.zastoj(60_000L, 0L, pripravljeno = false, zelja = true, nepreverjenoIgra = P.nepreverjenoIgra(0L, zdaj)))
+    preveriEnako("N-E: znak iz prihodnosti (ura) ne velja", false, P.nepreverjenoIgra(zdaj + 10L, zdaj))
+    // Pravi zastoj se vedno preskoci z mejo (brez zanke): najvec NAJVEC_ZAPOREDNIH_ZASTOJEV zapored.
+    preveriEnako("N-E: pravi zastoji: naprej 3-krat, nato obstane", listOf(true, true, true, false),
+        (0..3).map { P.naprejPoZastoju(it, imaNaslednjo = true) })
     // Lastnik 27. 10.: posnetek YouTube s police/iskanja ne sme iti mimo vrste na spletno stran (Naprej, konec skladbe)
     preveriEnako("glasba YouTube s police: vrsta", true, P.kotVrsta(jeYoutube = true, video = false))
     preveriEnako("video YouTube: ostane na strani", false, P.kotVrsta(jeYoutube = true, video = true))
