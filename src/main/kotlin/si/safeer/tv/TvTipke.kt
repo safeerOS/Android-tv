@@ -55,6 +55,29 @@ object TvTipke {
 
     private val IZZIV = Regex("[0-9a-f]{16,64}")
 
+    /** Odgovor skripta je natanko [predpona] + ':' + odtis zetona strani in niza (konstanten cas); drugo ne velja. */
+    private fun odgovorVelja(odgovor: String?, zeton: String, izziv: String, predpona: String, niz: String): Boolean {
+        if (zeton.length < 32 || !IZZIV.matches(izziv)) return false
+        val o = (odgovor ?: "").trim().trim('"')
+        val pricakovan = predpona + ":" + odtisZetona(zeton, niz)
+        return java.security.MessageDigest.isEqual(o.toByteArray(Charsets.UTF_8), pricakovan.toByteArray(Charsets.UTF_8))
+    }
+
+    /**
+     * Tretji neodvisni pregled 5. 11. 2026 (N3): pravo dejanje (Enter na polju za datoteko ali dotik na oznako) aplikacija
+     * izvede sele, ko skript tik pred njim cilj preveri znova (tv_spatial.js SAFEER_PREVERBA_CILJA, [nacin] 'enter' ali
+     * 'dotik') in vrne 'cilj:' + odtis zetona strani in nakljucnega [izziv].
+     */
+    fun ciljVelja(odgovor: String?, zeton: String, izziv: String, nacin: String): Boolean =
+        (nacin == "enter" || nacin == "dotik") && odgovorVelja(odgovor, zeton, izziv, "cilj", "cilj|$nacin|$izziv")
+
+    /**
+     * Tretji neodvisni pregled 5. 11. 2026 (odlocitev vodje): OK v tuj okvir ne naredi pravega dotika; skript vrne
+     * 'kazalec:' + odtis zetona in izziva tega OK, aplikacija pokaze namig za kazalec (enkrat na stran).
+     */
+    fun namigKazalca(odgovor: String?, zeton: String, izziv: String): Boolean =
+        odgovorVelja(odgovor, zeton, izziv, "kazalec", "kazalec|$izziv")
+
     /** Nakljucen izziv za en OK (32 sestnajstiskih znakov). */
     fun novIzziv(): String {
         val b = ByteArray(16)

@@ -391,6 +391,9 @@ open class SpletniIgralec protected constructor(
          * poslal ukaz ali lazno stanje/napako, ki ju Kotlin uposteva (igra, konec, ponovno nalaganje). Zdaj: strogi nacin,
          * zastavica z nakljucnim imenom ([posrednikJs]), ukaz samo od tega okna (Kotlin) ali starsa (posrednik visje),
          * stanje in napaka samo s kljucem iz zaprtja posrednika.
+         * Tretji neodvisni pregled 5. 11. 2026 (N6): kljuc ima posrednik v VSAKEM okvirju (tudi oglasa) - stran v okvirju je
+         * prepisala getterje medija in nas posrednik je poslal lazno stanje ali napako (preskok skladbe). Vrhnja stran zato
+         * sprejme stanje in napako samo z izvora same sebe ali vgradnega predvajalnika ([IZVORI_PREDVAJALNIKA]).
          */
         internal const val POSREDNIK_JS = """(function(){'use strict';var Z='__safeerAgent_'+'__SAFEER_NONCE_AGENTA__',K='__SAFEER_KLJUC_AGENTA__';
           try{if(Object.getOwnPropertyDescriptor(window,Z))return;Object.defineProperty(window,Z,{__proto__:null,value:1,writable:false,configurable:false,enumerable:false});}catch(x){return;}
@@ -421,17 +424,33 @@ open class SpletniIgralec protected constructor(
             var er=document.querySelector('.ytp-error');if(er&&er.offsetWidth>0){try{window.top.postMessage({safeer:'napaka',k:K},'*');}catch(x){}}
             var m=glavni();if(m){try{window.top.postMessage({safeer:'stanje',k:K,
             p:!m.paused,t:m.currentTime||0,d:m.duration||0,r:m.readyState,e:!!m.ended},'*');}catch(x){}}},1000);}
-          else{window.addEventListener('message',function(e){var d=e.data;if(!d||e.source===window||d.k!==K)return;
+          else{var O={__proto__:null};try{var lo=location.origin;if(typeof lo==='string'&&lo!=='null')O[lo]=1;}catch(x){}__SAFEER_IZVORI_AGENTA__
+            window.addEventListener('message',function(e){var d=e.data;if(!d||e.source===window||d.k!==K)return;if(O[e.origin]!==1)return;
             if(d.safeer==='stanje'){window.__safeerOkvir={p:d.p,t:d.t,d:d.d,r:d.r,e:d.e};window.__safeerOkvirCas=Date.now();}
             if(d.safeer==='napaka'){window.__safeerNapaka=Date.now();}});
             setInterval(function(){var er=document.querySelector('.ytp-error,yt-playability-error-supported-renderers,ytm-player-error-message-renderer,.player-error-message-container');
               if(er&&er.offsetWidth>0){var t=(er.innerText||'').trim().slice(0,300);if(t){window.__safeerNapakaStrani=t;}}},1000);}
         })()"""
 
+        /**
+         * Izvori okvirjev, od katerih vrhnja stran sprejme stanje predvajanja (poleg svojega izvora): vgradni predvajalnik
+         * YouTube (vgradnaStran: www.youtube.com/embed, nocookie) in pogosti vgradni predvajalniki spletnih virov. Okvir
+         * drugega izvora (oglas) stanja ne doseze - Kotlin bere le stanje vrhnjega medija ([STANJE_JS]).
+         */
+        internal val IZVORI_PREDVAJALNIKA = listOf(
+            "https://www.youtube.com", "https://youtube.com", "https://m.youtube.com", "https://music.youtube.com",
+            "https://www.youtube-nocookie.com", "https://player.vimeo.com", "https://www.dailymotion.com",
+            "https://geo.dailymotion.com", "https://w.soundcloud.com", "https://bandcamp.com"
+        )
+        private val IZVOR = Regex("https://[a-z0-9.-]+(:[0-9]{1,5})?")
+
         /** POSREDNIK_JS z nakljucnim delom imena zastavice in kljucem stanja tega predvajalnika (samo sestnajstiski znaki). */
-        internal fun posrednikJs(nonce: String, kljuc: String): String {
+        internal fun posrednikJs(nonce: String, kljuc: String, izvori: List<String> = IZVORI_PREDVAJALNIKA): String {
             require(si.safeer.tv.SpletVarnostPravila.jeNonce(nonce) && Regex("[0-9a-f]{32,64}").matches(kljuc))
+            require(izvori.all { IZVOR.matches(it) })
+            val o = izvori.joinToString("") { "O['$it']=1;" }
             return POSREDNIK_JS.replace("__SAFEER_NONCE_AGENTA__", nonce).replace("__SAFEER_KLJUC_AGENTA__", kljuc)
+                .replace("__SAFEER_IZVORI_AGENTA__", o)
         }
 
         /** Stanje: medij vrhnje strani, sicer zadnje stanje okvirja z medijem; naslov iz MediaSession strani. */

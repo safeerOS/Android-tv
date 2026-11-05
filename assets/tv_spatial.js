@@ -5,7 +5,20 @@
             // Neodvisni pregled 5. 11. 2026 (najdba 1): v ohlapnem nacinu je stran prek f.caller.caller (ali
             // Error.prepareStackTrace + CallSite.getFunction) iz prepisane metode (npr. String.prototype.indexOf spodaj)
             // dobila to funkcijo in z izvirnim toString vir z zetonom. Strogi nacin skrije klicatelje in funkcije okvirjev.
-            if ((location.href || '').indexOf('youtube.com/tv') !== -1) return;
+            // Tretji neodvisni pregled 5. 11. 2026 (N7): String.prototype.indexOf lahko prepise stran in tako prepreci
+            // namestitev daljinca - iskanje po znakih (location.href je nespremenljiv, [LegacyUnforgeable]).
+            function vsebujeNiz(v, p) {
+                if (typeof v !== 'string') return false;
+                for (var i = 0; i + p.length <= v.length; i++) {
+                    var j = 0;
+                    while (j < p.length && v[i + j] === p[j]) j++;
+                    if (j === p.length) return true;
+                }
+                return false;
+            }
+            var naslovDokumenta = '';
+            try { naslovDokumenta = location.href; } catch (_) {}
+            if (vsebujeNiz(naslovDokumenta, 'youtube.com/tv')) return;
 
             /* SAFEER_ZETON_DOTIKA_ZACETEK */
             // Pregled Gemini 3. 11. 2026: SafeerBridge vidi vsak okvir strani; pravi dotik zato zahteva zeton, ki ga ima samo
@@ -13,7 +26,9 @@
             // Most vzamemo ob zagonu, da ga stran pozneje ne podtakne; ob zacetku dokumenta ga aplikacija zaklene
             // (ChromiumEngineView.ZAKLEP_MOSTU_JS). Pregled 3. 11. 2026: brez poznega ponovnega branja window.SafeerBridge.
             var ZETON_DOTIKA = '__SAFEER_ZETON_DOTIKA__';
-            var mostDotika = window.SafeerBridge || null;
+            // Tretji neodvisni pregled 5. 11. 2026 (N5): Object.freeze na mostu Java (ZAKLEP_MOSTU_JS) ni dokazan - prej smo
+            // triggerNativeTap prebrali ob vsakem klicu iz window.SafeerBridge in stran ga je lahko ovila (zeton v njen ovoj).
+            // Most in metodo ujame ChromiumEngineView.IZVIRNIKI_JS ob zacetku dokumenta (IZ.most, IZ.tap); klic z Reflect.apply.
             // Neodvisni pregled 5. 11. 2026 (najdba 8): dokaz tipke je 32-bitni odtis - stran bi ga lahko ugibala brez meje.
             // Po NAJVEC_NAPAK napacnih dokazih v tem dokumentu ni vec pravih dejanj (dotik, Enter); smer in OK ostaneta.
             var napakeDokaza = 0, NAJVEC_NAPAK = 5;
@@ -27,7 +42,8 @@
                     // Pregled Groka 5. 11. 2026: brez izvirnikov (IZ) tocke ne moremo preveriti; ce je stran zasedla nas izvoz, je
                     // sovrazna - pravega dotika ni. Po klicu (dotik tece asinhrono na niti UI) klicatelj ne klice vec kode strani.
                     if (!pravaDejanjaDovoljena()) return false;
-                    return !!(mostDotika && mostDotika.triggerNativeTap) && mostDotika.triggerNativeTap(x, y, ZETON_DOTIKA) === true;
+                    if (!IZ || typeof IZ.tap !== 'function' || !IZ.most) return false;
+                    return IZ.apply(IZ.tap, IZ.most, [x, y, ZETON_DOTIKA]) === true;
                 } catch (_) { return false; }
             }
             /* SAFEER_ZETON_DOTIKA_KONEC */
@@ -142,10 +158,28 @@
             var NONCE_IZVOZOV = '__SAFEER_NONCE__';
             function imeIzvoza(ime) { return ime + '_' + NONCE_IZVOZOV; }
             var IME_ZASTAVICE = imeIzvoza('_safeer_tv_remote_installed');
-            function jeNamescen(w) {
+            function jeNamescen(w, ime) {
                 var d = null;
-                try { d = opisLastnosti(w, IME_ZASTAVICE); } catch (_) {}
+                try { d = opisLastnosti(w, ime || IME_ZASTAVICE); } catch (_) {}
                 return !!d && d.value === true && d.configurable === false;
+            }
+            // Tretji neodvisni pregled 5. 11. 2026 (N8): onPageStarted brez novega dokumenta (prenos, odgovor 204) da nov nonce
+            // strani - prej se je v isti dokument namestila druga kopija skripta. Aplikacija vstavi nonce prejsnje strani
+            // (ChromiumEngineView.nonceIzvozovPrej); ce je v tem dokumentu ze nasa zastavica s tem imenom (izvirni
+            // getOwnPropertyDescriptor), skript ostane en, aplikacija pa se vrne na zeton in nonce zive kopije
+            // (UserScriptManager.injectOnPageFinished). Neveljaven ali nezamenjan nonce: preverbe ni.
+            var NONCE_PREJ = '__SAFEER_PREJ_NONCE__';
+            function jeNonceNiz(v) {
+                if (typeof v !== 'string' || v.length < 16 || v.length > 64) return false;
+                for (var i = 0; i < v.length; i++) {
+                    var c = KODE_ZNAKOV[v[i]];
+                    if (typeof c !== 'number' || !((c >= 48 && c <= 57) || (c >= 97 && c <= 102))) return false;
+                }
+                return true;
+            }
+            function zivaPrejsnjaKopija(w) {
+                if (!IZ || !jeNonceNiz(NONCE_PREJ) || NONCE_PREJ === NONCE_IZVOZOV) return false;
+                return jeNamescen(w, '_safeer_tv_remote_installed_' + NONCE_PREJ);
             }
             function oznaciNamescen(w) {
                 try {
@@ -184,6 +218,7 @@
             }
             /* SAFEER_DOKAZ_KONEC */
             if (jeNamescen(window)) return;
+            if (zivaPrejsnjaKopija(window)) return;
             // Ime zastavice pozna samo ta skript: ce ga izvirni defineProperty ne more zasesti, je skript ze namescen.
             if (!oznaciNamescen(window) && IZ) return;
 
@@ -236,9 +271,11 @@
             // dal tipko. Zdaj dokaz pokrije strogo narascajoc stevec aplikacije (ChromiumEngineView.naslednjaTipka).
             var tipkaNaVoljo = false, zadnjiStevecTipke = 0, vTipki = false, izbiraPotrjena = false;
             function jeStevecTipke(n) { return typeof n === 'number' && n > 0 && n <= 9007199254740991 && n % 1 === 0; }
+            // Tretji neodvisni pregled 5. 11. 2026 (N7): ime izvoza vidi stran (Object.getOwnPropertyNames) - 5 klicev brez
+            // argumentov je izklopilo prava dejanja. Napaka steje samo pri klicu z veljavnim izzivom, narascajocim stevcem in
+            // stevilom za dokaz (samo tak klic je ugibanje dokaza); drugi klici so zavrnjeni brez stetja.
             function sprejmiTipko(izziv, stevec, dokaz) {
                 if (!jeVeljavenIzziv(izziv) || !jeStevecTipke(stevec) || stevec <= zadnjiStevecTipke || typeof dokaz !== 'number') {
-                    napakeDokaza++;
                     return false;
                 }
                 // Stevilo v niz z operatorjem (notranji ToString), ne z Number.prototype.toString strani.
@@ -1420,7 +1457,12 @@
                 var pol = o.width / 2;
                 return { x: o.left + (22 < pol ? 22 : pol), y: o.top + o.height / 2 };
             }
-            function jeIzziv(el) { return !!el && izzivi.indexOf(el) !== -1; }
+            // Tretji neodvisni pregled 5. 11. 2026 (N2): brez Array.prototype.indexOf strani (prepis je vsak element naredil za izziv).
+            function jeIzziv(el) {
+                if (!el) return false;
+                for (var i = 0; i < izzivi.length; i++) { if (izzivi[i] === el) return true; }
+                return false;
+            }
             function okvirCilja(el) {
                 var r = el.getBoundingClientRect();
                 return jeIzziv(el) ? okvirIzziva(r) : r;
@@ -3117,6 +3159,14 @@
             // Najdba 3: elementFromPoint vrne gostitelja (zaprtega ali deklarativnega) shadow DOM, ne okvirja v njem. Shadow
             // DOM ima lahko samo element s spodnjega seznama ali element po meri (ime z '-', HTML standard attachShadow) -
             // zadetek na takem elementu ni dokaz, da pod tocko ni tujega okvirja.
+            // Tretji neodvisni pregled 5. 11. 2026 (N1-N4): preverba izvora iz glavnega sveta strani ni zanesljiva - atribut src
+            // ne pove dejanske vsebine okvirja (srcdoc z notranjim tujim okvirjem, otrok, ki ga stars navigira prek
+            // contentWindow.location), gostitelj shadow DOM lahko skriva katerikoli okvir, med preverbo in dotikom stran
+            // premakne tuj okvir pod tocko, prekrivalo okvirja preverimo le po velikosti. Odlocitev vodje: pravi dotik v TUJ
+            // okvir (GSI, reCAPTCHA, hCaptcha, Cloudflare) je izklopljen; OK tam pokaze namig za kazalec (rdeci gumb), kjer
+            // cilja uporabnik sam. Seznam ostane za ponovni vklop s potrditvijo na strani prejemnika (skript zacetka
+            // dokumenta v okvirju dovoljenega izvora, porocanje prek addWebMessageListener - SAFEER-ZNANJE.md).
+            var PRAVI_DOTIK_V_OKVIR = false;
             var OKVIRNE_OZNAKE = { __proto__: null, IFRAME: 1, FRAME: 1, OBJECT: 1, EMBED: 1 };
             var SENCNI_GOSTITELJI = { __proto__: null, ARTICLE: 1, ASIDE: 1, BLOCKQUOTE: 1, BODY: 1, DIV: 1, FOOTER: 1, H1: 1, H2: 1,
                 H3: 1, H4: 1, H5: 1, H6: 1, HEADER: 1, MAIN: 1, NAV: 1, P: 1, SECTION: 1, SPAN: 1 };
@@ -3162,6 +3212,7 @@
             }
             function smePraviDotik(o) {
                 if (!o || !o.izvirniki || !o.omrezni || !o.potrjena) return false;
+                if ((o.namen === 'google' || o.namen === 'izziv') && PRAVI_DOTIK_V_OKVIR !== true) return false;
                 if (o.namen === 'google') {
                     // Namen 'google': okvir prijave Google (GSI) ali potrditveno polje reCAPTCHA/hCaptcha; zadetek je tocno ta okvir.
                     return o.oznakaCilja === 'IFRAME' && o.zadetekJeCilj === true && jeOkvirPotrditve(o.virCilja);
@@ -3312,6 +3363,52 @@
             }
             /* SAFEER_OK_DATOTEKA_KONEC */
 
+            /* SAFEER_PREVERBA_CILJA_ZACETEK */
+            // Tretji neodvisni pregled 5. 11. 2026 (N3): med naso preverbo in pravim dejanjem (dotik ali Enter tece prek niti UI
+            // aplikacije) tece koda strani. Pravo dejanje caka v zaprtju (en cilj, najvec CILJ_ROK_MS po OK); aplikacija tik
+            // pred dotikom ali tipko poklice _safeer_preveri_cilj z dokazom tipke in nakljucnim izzivom, mi cilj preverimo
+            // znova z izvirniki in vrnemo 'cilj:' + odtis zetona (TvTipke.ciljVelja). En klic porabi cilj.
+            var cakajociCilj = null, CILJ_ROK_MS = 1500;
+            function pravDotikNamena(el, namen) {
+                var t = tockaNamena(el, namen);
+                if (!t) return false;
+                cakajociCilj = { __proto__: null, el: el, nacin: 'dotik', namen: namen, x: t.x, y: t.y, cas: casZdaj() };
+                if (pravDotik(t.x, t.y)) return true;
+                cakajociCilj = null;
+                return false;
+            }
+            function ciljSeVelja(c) {
+                if (!c || !pravaDejanjaDovoljena()) return false;
+                var od = casZdaj() - c.cas;
+                if (!(od >= 0 && od < CILJ_ROK_MS)) return false;
+                if (c.nacin === 'enter') {
+                    var v = c.el;
+                    if (aktivenIz() !== v || !jeVhodDatotekeIz(v)) return false;
+                    try { if (typeof IZ.dis === 'function' && IZ.apply(IZ.dis, v, []) === true) return false; } catch (_) { return false; }
+                    return true;
+                }
+                if (c.nacin === 'dotik') {
+                    var t = tockaNamena(c.el, c.namen);
+                    return !!t && t.x === c.x && t.y === c.y;
+                }
+                return false;
+            }
+            function preveriCilj(izziv) {
+                var c = cakajociCilj;
+                cakajociCilj = null;
+                if (!jeVeljavenIzziv(izziv) || !ciljSeVelja(c)) return '';
+                var o = odtisZetona(ZETON_DOTIKA, 'cilj|' + c.nacin + '|' + izziv);
+                return o ? 'cilj:' + o : '';
+            }
+            /* SAFEER_PREVERBA_CILJA_KONEC */
+            // Namig, da OK v tuj okvir ne seze: aplikacija pokaze kratko besedilo (enkrat na stran) samo z odtisom zetona
+            // (TvTipke.namigKazalca) - drug odgovor ne naredi nicesar.
+            function namigKazalca(izziv) {
+                if (!jeVeljavenIzziv(izziv)) return true;
+                var o = odtisZetona(ZETON_DOTIKA, 'kazalec|' + izziv);
+                return o ? 'kazalec:' + o : true;
+            }
+
             // Okvir, na katerega gre pravi dotik: izbral ga je daljinec (zaprtje) in je viden (pregled fokusa 5. 11. 2026).
             function jeVidenOkvir(el) {
                 if (!el || el !== izbrani() || !jeUporaben(el, true)) return false;
@@ -3362,8 +3459,9 @@
                         // tujim okvirjem v sebi. Dotik samo na potrjeni izbiri in ce je na tocki gostitelj (zaprt shadow DOM) ali
                         // okvir challenges.cloudflare.com v njem. Po pravDotik do konca OK ni kode strani (najdba 2).
                         if (!potrjena) return true;
-                        var tIz = tockaNamena(target, 'izziv');
-                        if (tIz) pravDotik(tIz.x, tIz.y);
+                        // Tretji neodvisni pregled 5. 11. 2026: pravi dotik v tuj okvir je izklopljen - namig za kazalec.
+                        if (PRAVI_DOTIK_V_OKVIR !== true) return namigKazalca(izziv);
+                        pravDotikNamena(target, 'izziv');
                         return true;
                     }
                     // Polje za datoteko: fokus nanj in Enter iz aplikacije (SAFEER_OK_DATOTEKA).
@@ -3377,10 +3475,16 @@
                         if (pravaDejanjaDovoljena() && jeVhodDatotekeIz(vhodD)) {
                             fokusIz(vhodD);
                             // 'datoteka:' + odtis: aplikacija preveri, da odgovor res da ta skript (SAFEER_DOKAZ, TvTipke.okNaDatoteki).
-                            if (okNaDatoteki(vhodD, aktivenIz()) === 'datoteka') return dokazDatoteke(ZETON_DOTIKA, izziv);
-                            // Skrito polje v oznaki (fokusa ne dobi): en pravi dotik na oznako.
-                            var tD = tockaNamena(target, 'datoteka');
-                            if (tD && pravDotik(tD.x, tD.y)) return true;
+                            // Tretji neodvisni pregled 5. 11. 2026 (N3): pred tipko Enter aplikacija se enkrat vprasa, ali ima
+                            // fokus se isto polje (_safeer_preveri_cilj, izvirni activeElement) - stran je vmes lahko dala fokus
+                            // tujemu okvirju.
+                            if (okNaDatoteki(vhodD, aktivenIz()) === 'datoteka') {
+                                cakajociCilj = { __proto__: null, el: vhodD, nacin: 'enter', cas: casZdaj() };
+                                return dokazDatoteke(ZETON_DOTIKA, izziv);
+                            }
+                            // Skrito polje v oznaki (fokusa ne dobi): en pravi dotik na oznako (aplikacija tocko pred dotikom
+                            // preveri se enkrat, ChromiumEngineView.triggerNativeTap).
+                            if (pravDotikNamena(target, 'datoteka')) return true;
                         }
                     }
                     // Tuj okvir: pravi dotik samo na gumb Google (GSI, SAFEER_OKVIR_GUMB) ali potrditveno polje reCAPTCHA/hCaptcha
@@ -3389,8 +3493,9 @@
                     if (target && (target.tagName || '').toUpperCase() === 'IFRAME') {
                         if (!jeVidenOkvir(target)) return false;
                         if (!potrjena) return true;
-                        var tG = tockaNamena(target, 'google');
-                        if (tG) pravDotik(tG.x, tG.y);
+                        // Tretji neodvisni pregled 5. 11. 2026: OK v noben tuj okvir ne seze - namig za kazalec (enkrat na stran).
+                        if (PRAVI_DOTIK_V_OKVIR !== true) return namigKazalca(izziv);
+                        pravDotikNamena(target, 'google');
                         return true;
                     }
                     if (target) {
@@ -3433,6 +3538,12 @@
                 if (!porabiTipko()) return false;
                 vTipki = true;
                 try { return klikIzbrane(izziv); } finally { vTipki = false; }
+            });
+            // Druga preverba cilja tik pred pravim dejanjem (SAFEER_PREVERBA_CILJA): samo z dokazom tipke, sicer stran klic
+            // porabi in nas vprasa za odtis.
+            izvoziZaAplikacijo('_safeer_preveri_cilj', function (izziv) {
+                if (!porabiTipko()) { cakajociCilj = null; return ''; }
+                return preveriCilj(izziv);
             });
 
             // 5. Samodejno dodajanje tabindex. Piskotkov ne sprejemamo in ne zavracamo namesto uporabnika

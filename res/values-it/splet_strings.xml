@@ -3,4 +3,5 @@
     <string name="splet_nov_zavihek">Nuova scheda</string><string name="splet_link_povezano">● Connesso</string><string name="splet_link_ni_povezano">○ Non connesso</string>
     <string name="splet_scit">Scudo</string><string name="splet_portal_naslov">Aggiungi scorciatoia</string><string name="splet_portal_ime">Nome</string>
     <string name="splet_portal_url">Indirizzo</string><string name="splet_portal_dodaj">Aggiungi</string><string name="splet_portal_neveljaven">Inserisci un indirizzo web http o https valido.</string><string name="splet_portal_dodan">Scorciatoia aggiunta.</string>
+    <string name="splet_namig_kazalec">OK non raggiunge un riquadro di un altro sito (ad es. accesso o verifica). Attiva il puntatore (tasto rosso o tieni premuto OK), spostalo sul pulsante e premi OK.</string>
 </resources>

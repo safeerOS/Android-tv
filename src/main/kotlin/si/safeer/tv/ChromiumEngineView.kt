@@ -63,8 +63,10 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
          * Neodvisni pregled 5. 11. 2026 (najdbi 5 in 7): tudi izvirna defineProperty, getOwnPropertyDescriptor, focus,
          * activeElement, control in type (izvozi, polje za datoteko); ime ima nakljucni del pogleda ([nonceIzvirnikov],
          * [izvirnikiJs]), opisnik je brez prototipa.
+         * Tretji neodvisni pregled 5. 11. 2026 (N5): tudi most SafeerBridge in njegova metoda triggerNativeTap (most, tap) -
+         * Object.freeze na mostu Java ni dokazan, tv_spatial.js zato window.SafeerBridge ne bere vec; disabled za polje datoteke.
          */
-        internal const val IZVIRNIKI_JS = """(function(){'use strict';try{if(window.top!==window)return;}catch(e){return;}var I=null;try{var R=Reflect.apply,gd=Object.getOwnPropertyDescriptor;var g=function(o,k){var d=gd(o,k);return d&&d.get;};var r=DOMRectReadOnly.prototype;I=Object.freeze({apply:R,gbcr:Element.prototype.getBoundingClientRect,efp:Document.prototype.elementFromPoint,contains:Node.prototype.contains,tag:g(Element.prototype,'tagName'),src:g(HTMLIFrameElement.prototype,'src'),rl:g(r,'left'),rt:g(r,'top'),rw:g(r,'width'),rh:g(r,'height'),now:Performance.prototype.now,perf:performance,dp:Object.defineProperty,gopd:gd,ctl:g(HTMLLabelElement.prototype,'control'),typ:g(HTMLInputElement.prototype,'type'),fokus:HTMLElement.prototype.focus,akt:g(Document.prototype,'activeElement')});}catch(e){I=null;}try{Object.defineProperty(window,'__safeer_izvirniki_'+'__SAFEER_NONCE_IZVIRNIKOV__',{__proto__:null,value:I,writable:false,configurable:false,enumerable:false});}catch(e){}})();"""
+        internal const val IZVIRNIKI_JS = """(function(){'use strict';try{if(window.top!==window)return;}catch(e){return;}var I=null,M=null,T=null;try{M=window.SafeerBridge||null;T=(M&&typeof M.triggerNativeTap==='function')?M.triggerNativeTap:null;if(!T)M=null;}catch(e){M=null;T=null;}try{var R=Reflect.apply,gd=Object.getOwnPropertyDescriptor;var g=function(o,k){var d=gd(o,k);return d&&d.get;};var r=DOMRectReadOnly.prototype;I=Object.freeze({apply:R,gbcr:Element.prototype.getBoundingClientRect,efp:Document.prototype.elementFromPoint,contains:Node.prototype.contains,tag:g(Element.prototype,'tagName'),src:g(HTMLIFrameElement.prototype,'src'),rl:g(r,'left'),rt:g(r,'top'),rw:g(r,'width'),rh:g(r,'height'),now:Performance.prototype.now,perf:performance,dp:Object.defineProperty,gopd:gd,ctl:g(HTMLLabelElement.prototype,'control'),typ:g(HTMLInputElement.prototype,'type'),fokus:HTMLElement.prototype.focus,akt:g(Document.prototype,'activeElement'),dis:g(HTMLInputElement.prototype,'disabled'),most:M,tap:T});}catch(e){I=null;}try{Object.defineProperty(window,'__safeer_izvirniki_'+'__SAFEER_NONCE_IZVIRNIKOV__',{__proto__:null,value:I,writable:false,configurable:false,enumerable:false});}catch(e){}})();"""
 
         /** IZVIRNIKI_JS z nakljucnim delom imena tega pogleda (isti niz dobi tv_spatial.js, SpletVarnostPravila.vstaviNonce). */
         internal fun izvirnikiJs(nonce: String): String = IZVIRNIKI_JS.replace(SpletVarnostPravila.NONCE_IZVIRNIKOV_MESTO, nonce)
@@ -285,6 +287,23 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
      */
     @Volatile internal var nonceIzvozov: String = SpletVarnostPravila.novNonce()
         private set
+    /**
+     * Tretji neodvisni pregled 5. 11. 2026 (N8): onPageStarted brez novega dokumenta (prenos, odgovor 204) zamenja zeton in
+     * nonce, v dokumentu pa tece se kopija skripta s prejsnjima. Prejsnji par hranimo; ce je v dokumentu ziva kopija s
+     * prejsnjim nonce, se tv_spatial.js ne namesti drugic, aplikacija pa se vrne na ta par ([vrniPrejsnjoStran]).
+     */
+    @Volatile internal var nonceIzvozovPrej: String = ""
+        private set
+    @Volatile private var zetonDotikaPrej: String = ""
+    /** Isti dokument ima zivo kopijo skripta s prejsnjim nonce (UserScriptManager.injectOnPageFinished): nazaj na njen par. */
+    internal fun vrniPrejsnjoStran(nonce: String): Boolean {
+        if (!SpletVarnostPravila.jeNonce(nonce) || nonce != nonceIzvozovPrej || zetonDotikaPrej.length < 32) return false
+        zetonDotika = zetonDotikaPrej
+        nonceIzvozov = nonceIzvozovPrej
+        return true
+    }
+    /** Pogled je ze pokazal namig za kazalec na tej strani (zeton strani) - namig najvec enkrat na stran. */
+    @Volatile internal var namigKazalcaZa: String = ""
     /** Strogo narascajoc stevec tipk daljinca za dokaz tipke (TvTipke.ukazTipke, najdba 5: starejsi par ne velja vec). */
     private val stevecTipk = java.util.concurrent.atomic.AtomicLong(0L)
     internal fun naslednjaTipka(): Long = stevecTipk.incrementAndGet()
@@ -842,19 +861,34 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
                         android.util.Log.w("SafeerBridge", "Zavrnjen pozen triggerNativeTap (" + odKlica + " ms ali nova stran).")
                         return@runOnUiThread
                     }
-                    // getScale je opuscen od API 17, a edini sinhroni vir povecave; dela na vseh razlicicah.
-                    @Suppress("DEPRECATION") val scale = webView.scale
-                    val vx = x * scale
-                    val vy = y * scale
-                    // Pregled Gemini 2. 11. 2026: dotik samo znotraj vidnega pogleda (tocka izven ni klik na element).
-                    if (!SpletVarnostPravila.dotikVPogledu(vx, vy, webView.width, webView.height)) return@runOnUiThread
-                    val downTime = SystemClock.uptimeMillis()
-                    val down = MotionEvent.obtain(downTime, downTime, MotionEvent.ACTION_DOWN, vx, vy, 0)
-                    val up = MotionEvent.obtain(downTime, SystemClock.uptimeMillis(), MotionEvent.ACTION_UP, vx, vy, 0)
-                    webView.dispatchTouchEvent(down)
-                    webView.dispatchTouchEvent(up)
-                    down.recycle()
-                    up.recycle()
+                    // Tretji neodvisni pregled 5. 11. 2026 (N3): med klicem in dotikom tece koda strani. Tik pred dotikom skript
+                    // cilj preveri znova z izvirniki (_safeer_preveri_cilj, dokaz tipke in nakljucen izziv); dotik samo z
+                    // odtisom zetona te strani (TvTipke.ciljVelja). Preostanek: stran lahko cilj premakne se med tem odgovorom
+                    // in dotikom (dve sporocili med nitjo UI in izrisovalnikom).
+                    val c = webView as? ChromiumEngineView ?: return@runOnUiThread
+                    val izziv = TvTipke.novIzziv()
+                    c.evaluateJavascript(TvTipke.ukazTipke(c.zetonDotika, c.nonceIzvozov, c.naslednjaTipka()) +
+                        TvTipke.izvoz(c.nonceIzvozov, "_safeer_preveri_cilj") + "('$izziv');") { o ->
+                        try {
+                            if (!TvTipke.ciljVelja(o, zetonKlica, izziv, "dotik") || c.zetonDotika != zetonKlica) {
+                                android.util.Log.w("SafeerBridge", "Zavrnjen triggerNativeTap: cilj se je spremenil pred dotikom.")
+                                return@evaluateJavascript
+                            }
+                            // getScale je opuscen od API 17, a edini sinhroni vir povecave; dela na vseh razlicicah.
+                            @Suppress("DEPRECATION") val scale = webView.scale
+                            val vx = x * scale
+                            val vy = y * scale
+                            // Pregled Gemini 2. 11. 2026: dotik samo znotraj vidnega pogleda (tocka izven ni klik na element).
+                            if (!SpletVarnostPravila.dotikVPogledu(vx, vy, webView.width, webView.height)) return@evaluateJavascript
+                            val downTime = SystemClock.uptimeMillis()
+                            val down = MotionEvent.obtain(downTime, downTime, MotionEvent.ACTION_DOWN, vx, vy, 0)
+                            val up = MotionEvent.obtain(downTime, SystemClock.uptimeMillis(), MotionEvent.ACTION_UP, vx, vy, 0)
+                            webView.dispatchTouchEvent(down)
+                            webView.dispatchTouchEvent(up)
+                            down.recycle()
+                            up.recycle()
+                        } catch (_: Exception) {}
+                    }
                 } catch (_: Exception) {}
             }
             return true
@@ -1427,6 +1461,8 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                 super.onPageStarted(view, url, favicon)
                 // Nov zeton dotika za vsako stran: ukraden zeton prejsnje strani ne velja vec (pregled 3. 11. 2026).
+                zetonDotikaPrej = zetonDotika
+                nonceIzvozovPrej = nonceIzvozov
                 zetonDotika = SpletVarnostPravila.novZeton()
                 nonceIzvozov = SpletVarnostPravila.novNonce()
                 if (!EmudhraRevocations.jeOpozorilnaStran(url)) emudhraZastavica.novaNavigacija()

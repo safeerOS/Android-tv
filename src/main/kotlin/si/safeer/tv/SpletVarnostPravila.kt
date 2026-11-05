@@ -457,6 +457,24 @@ object SpletVarnostPravila {
         return js.replace(NONCE_IZVIRNIKOV_MESTO, izvirniki).replace(NONCE_IZVOZOV_MESTO, izvozi)
     }
 
+    /**
+     * Tretji neodvisni pregled 5. 11. 2026 (N8): nonce prejsnje strani v tv_spatial.js (mesto ni predpona drugega mesta).
+     * Neveljaven nonce: prazno (skript preverbe ne naredi).
+     */
+    const val PREJ_NONCE_MESTO = "__SAFEER_PREJ_NONCE__"
+
+    fun vstaviPrejsnjiNonce(js: String, prej: String): String = js.replace(PREJ_NONCE_MESTO, if (jeNonce(prej)) prej else "")
+
+    /**
+     * Izraz JS: v dokumentu je nasa zastavica s prejsnjim nonce strani (nespremenljiva, vrednost true), prebrana z izvirnim
+     * getOwnPropertyDescriptor iz IZVIRNIKI_JS. Brez izvirnikov false. Oba nonca samo sestnajstiska (preverjeno).
+     */
+    fun zivaKopijaJs(nonceIzvirnikov: String, prej: String): String {
+        require(jeNonce(nonceIzvirnikov) && jeNonce(prej))
+        return "(function(){var I=window.__safeer_izvirniki_$nonceIzvirnikov;if(!I||typeof I.apply!=='function'||typeof I.gopd!=='function')return false;" +
+            "var d=I.apply(I.gopd,null,[window,'_safeer_tv_remote_installed_$prej']);return !!d&&d.value===true&&d.configurable===false;})()"
+    }
+
     /** Najdba 2: pravi dotik velja samo, ce ga nit UI izvede kmalu po klicu in na isti strani (isti zeton). */
     const val DOTIK_ROK_MS = 50L
 

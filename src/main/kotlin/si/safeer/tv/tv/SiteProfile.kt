@@ -493,7 +493,21 @@ object GenericWebSiteProfile : SiteProfile {
                 val izziv = si.safeer.tv.TvTipke.novIzziv()
                 val zeton = wv.zetonDotika
                 wv.evaluateJavascript(ukazTipke(wv) + izvoz(wv, "_safeer_click_focused_card") + "('$izziv');") { o ->
-                    if (si.safeer.tv.TvTipke.okNaDatoteki(o, zeton, izziv)) nativnaTipka(wv, event, KeyEvent.KEYCODE_ENTER)
+                    if (si.safeer.tv.TvTipke.okNaDatoteki(o, zeton, izziv)) {
+                        // Tretji neodvisni pregled 5. 11. 2026 (N3): stran je med odgovorom in tipko lahko dala fokus tujemu
+                        // okvirju (Enter bi sel vanj). Tik pred tipko skript znova preveri izvirni activeElement; Enter v istem
+                        // odzivu. Preostanek: premik fokusa med tem odgovorom in tipko (dve sporocili do izrisovalnika).
+                        val izziv2 = si.safeer.tv.TvTipke.novIzziv()
+                        wv.evaluateJavascript(ukazTipke(wv) + izvoz(wv, "_safeer_preveri_cilj") + "('$izziv2');") { o2 ->
+                            if (si.safeer.tv.TvTipke.ciljVelja(o2, zeton, izziv2, "enter") && wv.zetonDotika == zeton) {
+                                nativnaTipka(wv, event, KeyEvent.KEYCODE_ENTER)
+                            }
+                        }
+                    } else if (si.safeer.tv.TvTipke.namigKazalca(o, zeton, izziv) && wv.zetonDotika == zeton && wv.namigKazalcaZa != zeton) {
+                        // OK v tuj okvir ne seze (pravi dotik izklopljen): enkrat na stran namig za kazalec.
+                        wv.namigKazalcaZa = zeton
+                        android.widget.Toast.makeText(host, UiText.get(R.string.splet_namig_kazalec), android.widget.Toast.LENGTH_LONG).show()
+                    }
                 }
                 return true
             }
