@@ -114,5 +114,15 @@ primer('glava GOR', () => {
         [po1, (n.document.querySelector('.safeer-active-card') || {}).innerText]);
 });
 
+// Odlocitev vodje 5. 11. 2026: brez seznama nedelujocih tokov po naslovu (sprotna zaznava MrtviKanali 24 h ga pokrije).
+primer('brez seznama tokov', () => {
+    const viri = ['os/KanaliPravila.kt', 'os/MrtviKanali.kt', 'os/GlasbaActivity.kt', 'os/MedijskiViri.kt']
+        .map((f) => fs.readFileSync(path.join(KOREN, 'src/main/kotlin/si/safeer/tv', f), 'utf8'));
+    preveri('NEDELUJOCI_TOKOVI, znanNedelujocTok in skrijNedelujoc odstranjeni s klici', [false, false, false],
+        ['NEDELUJOCI_TOKOVI', 'znanNedelujocTok', 'skrijNedelujoc'].map((x) => viri.some((v) => v.indexOf(x) !== -1)));
+    preveri('skrivanje kanala je sprotna oznaka (mrtev 24 h ali rocno skrit)', true,
+        /fun skrij\(c: Context, s: Jamendo\.Skladba\): Boolean = jeMrtev\(c, s\.id\)/.test(viri[1]));
+});
+
 if (padle) { console.log('tv_peti_pregled_test: PADLO ' + padle + ' (uspelo ' + stevilo + ')'); process.exit(1); }
 console.log('tv_peti_pregled_test: OK (' + stevilo + ')');
