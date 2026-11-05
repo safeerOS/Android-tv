@@ -8276,13 +8276,33 @@ class GlasbaActivity : OsActivity() {
             val prvi = try { Stremio.tokoviZOdzivom(prviDodatki, tip, id).tokovi } catch (_: Exception) { emptyList() }
             if (prvi.any { Stremio.jePredvajljiv(it) }) {
                 android.util.Log.i("SafeerOsMedia", "tokovi: dodatek, ki je naslov nasel, je dal ${prvi.size} tokov - ostalih ne sprasujemo")
-                return prvi
+                return Stremio.zdruziDvojnike(prvi)
             }
         }
         val idji = listOfNotNull(id, dodatniId)
+        // Zdravje dodatkov (lastnik, 5. 11. 2026: viri tokov): dodatek po zaporednih neuspehih ne zadrzi izbire - javni je
+        // vprasan kot doslej, a nanj ne cakamo; dodatka s kljucem v premoru ne vprasamo (nobene odvec zahteve na racun).
+        val naslovi = stremioNaslovi()
+        val zdajZdravje = System.currentTimeMillis()
+        val nacini = ZdravjeDodatkov.nacini(naslovi.map { Stremio.vPremoruTokov(it, zdajZdravje) }, naslovi.map { Stremio.sKljucem(it) })
+        val preskocenih = nacini.count { it == ZdravjeDodatkov.Nacin.PRESKOCI }
+        if (nacini.any { it != ZdravjeDodatkov.Nacin.CAKAJ }) android.util.Log.i("SafeerOsMedia", "tokovi: dodatkov v premoru " +
+            "${nacini.count { it == ZdravjeDodatkov.Nacin.V_OZADJU }} v ozadju, $preskocenih s kljucem preskocenih")
+        val izidi = java.util.concurrent.ConcurrentHashMap<Int, ZdravjeDodatkov.Izid>()
         // Pregled B1: vsak dodatek svoja nit, placljivo pa se odloci enkrat po vseh (spodaj) - ne po zadnjem odgovoru.
-        val dodatki = stremioNaslovi().flatMap { n -> idji.map { i -> i to iskanjeDelavec.submit<Stremio.OdgovorTokov> {
-            try { Stremio.tokoviZOdzivom(listOf(n), tip, i) } catch (_: Exception) { Stremio.OdgovorTokov(emptyList(), 0, false) } } } }
+        val vprasani = naslovi.indices.filter { nacini[it] != ZdravjeDodatkov.Nacin.PRESKOCI }.flatMap { k -> idji.map { i -> Triple(i, k, 0) } }
+            .mapIndexed { j, (i, k, _) -> Triple(i, k, iskanjeDelavec.submit<Stremio.OdgovorTokov> {
+                val t0 = android.os.SystemClock.uptimeMillis()
+                val o = try { Stremio.tokoviZOdzivom(listOf(naslovi[k]), tip, i) } catch (_: Exception) { Stremio.OdgovorTokov(emptyList(), 0, false) }
+                // Prazen odgovor tu se ni neuspeh: primerjavo z drugimi dodatki naredimo po zbiranju (spodaj).
+                val izid = ZdravjeDodatkov.izid(o.vprasanih > 0, o.odgovorili, android.os.SystemClock.uptimeMillis() - t0, rokMs,
+                    o.tokovi.count { Stremio.jePredvajljiv(it) }, 0)
+                izidi[j] = izid
+                Stremio.zabeleziZdravje(naslovi[k], izid)
+                o
+            }) }
+        val dodatki = vprasani.map { it.first to it.third }
+        val cakamo = vprasani.filter { nacini[it.second] == ZdravjeDodatkov.Nacin.CAKAJ }.map { it.third }
         // Naloga 141: Usenet pri uporabnikovem indeksatorju (po IMDb), hkrati z dodatki; samo film in serija.
         val usenet = if (tip !in setOf("movie", "series") || !Usenet.jeNaVoljo(applicationContext)) null
             else idji.firstOrNull { UsenetPravila.iscemo(it) }?.let { i -> iskanjeDelavec.submit<List<Stremio.Tok>> { Usenet.isci(applicationContext, i) } }
@@ -8299,23 +8319,35 @@ class GlasbaActivity : OsActivity() {
         while (true) {
             val zdaj = android.os.SystemClock.uptimeMillis()
             val usenetKoncan = usenet == null || usenet.isDone
-            if ((usenetKoncan && dodatki.all { it.second.isDone }) || zdaj - zacetek > rok) break
+            if ((usenetKoncan && cakamo.all { it.isDone }) || zdaj - zacetek > rok) break
             if (prviTok == 0L && dodatki.any { (_, f) -> f.isDone && tokoviDodatka(f).any { DebridPravila.stejeKotPrvi(it.vrsta, zDebridom) } }) prviTok = zdaj
             if (prviTok != 0L && zdaj - prviTok > cakaj && usenetKoncan) break
             try { Thread.sleep(40) } catch (_: InterruptedException) { break }
         }
         val usenetTokovi = usenet?.takeIf { it.isDone }?.let { f -> try { f.get() } catch (_: Exception) { null } }.orEmpty()
-        val tokovi = (dodatki.filter { it.second.isDone }.flatMap { tokoviDodatka(it.second) } + usenetTokovi).distinctBy { it.url }
+        val zbrani = (dodatki.filter { it.second.isDone }.flatMap { tokoviDodatka(it.second) } + usenetTokovi).distinctBy { it.url }
+        val tokovi = Stremio.zdruziDvojnike(zbrani)
+        if (tokovi.size != zbrani.size) android.util.Log.i("SafeerOsMedia", "tokovi: ${zbrani.size} -> ${tokovi.size} (zdruzeni dvojniki istega torrenta)")
+        // Zdravje: prazen odgovor za vsebino, ki jo drugi dodatki imajo (isti id), je neuspeh dodatka.
+        vprasani.forEachIndexed { j, (i, k, f) ->
+            if (izidi[j] != ZdravjeDodatkov.Izid.NEVTRALNO || !f.isDone) return@forEachIndexed
+            val o = try { f.get() } catch (_: Exception) { return@forEachIndexed }
+            val drugi = vprasani.filterIndexed { x, v -> x != j && v.first == i && v.third.isDone }
+                .sumOf { v -> tokoviDodatka(v.third).count { Stremio.jePredvajljiv(it) } }
+            val izid = ZdravjeDodatkov.izid(o.vprasanih > 0, o.odgovorili, 0, rokMs, o.tokovi.count { Stremio.jePredvajljiv(it) }, drugi)
+            if (izid == ZdravjeDodatkov.Izid.NEUSPEH) Stremio.zabeleziZdravje(naslovi[k], izid)
+        }
         // Pregled B1: »placljivo« enkrat po vseh dodatkih; ce kateri ni odgovoril (v roku ali sploh), novega zapisa ni.
         val predvajljivih = tokovi.count { Stremio.jePredvajljiv(it) }
         for (i in idji) {
             val zaId = dodatki.filter { it.first == i }.map { it.second }
             val odgovori = zaId.filter { it.isDone }.mapNotNull { f -> try { f.get() } catch (_: Exception) { null } }
+            // Zdravje: preskocen dodatek s kljucem ni odgovoril - placljivo ostane, kot je.
             Stremio.zabeleziPlacljivoPoVseh(tip, i, odgovori.sumOf { it.placilnih }, predvajljivih,
-                odgovori.size == zaId.size && odgovori.all { it.odgovorili })
+                preskocenih == 0 && odgovori.size == zaId.size && odgovori.all { it.odgovorili })
         }
         // Dodatek, ki v roku ni odgovoril, bi tok morda imel: brez tokov je to izpad, ne "ni na voljo".
-        if (tokovi.isEmpty() && (dodatki.any { !it.second.isDone } || usenet?.isDone == false)) Stremio.zadnjiIzpad.set(System.currentTimeMillis())
+        if (tokovi.isEmpty() && (preskocenih > 0 || dodatki.any { !it.second.isDone } || usenet?.isDone == false)) Stremio.zadnjiIzpad.set(System.currentTimeMillis())
         return tokovi
     }
 
@@ -10063,7 +10095,9 @@ class GlasbaActivity : OsActivity() {
         // Naloga 133: kar presega izmerjeno hitrost povezave (70 %), gre za tokove, ki tecejo - brez meritve red ostane.
         val hitrost = HitrostPovezave.hitrost(this)
         val minut = KakovostPravila.minut(sk.season > 0 || sk.episode > 0)
-        fun zaHitrost(l: List<Stremio.Tok>) = KakovostPravila.urediZaHitrost(l.map { TokIzbira.opisi(opis(it)).gb }, minut, hitrost).map { l[it] }
+        // Sejalci (5. 11. 2026): ureditev po hitrosti ne sme mrtvega torrenta (0 sejalcev) spet postaviti naprej.
+        fun zaHitrost(l: List<Stremio.Tok>) = TokIzbira.sejalciNaKonec(KakovostPravila.urediZaHitrost(l.map { TokIzbira.opisi(opis(it)).gb },
+            minut, hitrost).map { l[it] }, opis)
         // Webtor rezerva: tok Webtor je tudi »url«, a ni neposredna povezava - ima svoje mesto v vrstnem redu (spodaj).
         val neposredni = zaHitrost(TokIzbira.uredi(tokovi.filter { it.vrsta == "url" && it.vir != WebtorPravila.VIR }, opis, zmoznostiNaprave, { it.url }, zdajS, zelen, sk.language))
         val torrentiPoKakovosti = zaHitrost(TokIzbira.uredi(tokovi.filter { it.vrsta == "torrent" && gre(it) }, opis, zmoznostiNaprave,

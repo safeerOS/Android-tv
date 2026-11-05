@@ -1,0 +1,69 @@
+package si.safeer.tv.os
+
+/**
+ * Zdravje dodatkov pri tokovih (lastnik, 5. 11. 2026: viri tokov). Dodatek, ki vec poizvedb zapored ne odgovori
+ * (cas iztek, napaka) ali vrne prazno za vsebino, ki jo drugi dodatki imajo, je zadrzal izbiro toka do roka
+ * (12 s) - uporabnik je cakal na vir, ki nic ne da. Po [PRAG] zaporednih neuspehih dodatek za [PRVI_PREMOR_MS]
+ * (nato vsakic dvakrat dlje, najvec [NAJDALJSI_PREMOR_MS]) ne zadrzi izbire. Uspeh stevec ponastavi.
+ * Stanje je samo v pomnilniku procesa. Cista pravila z vbrizgano uro (tests/ZdravjeDodatkovTest.kt).
+ */
+object ZdravjeDodatkov {
+    const val PRAG = 3
+    const val PRVI_PREMOR_MS = 10L * 60_000
+    const val NAJDALJSI_PREMOR_MS = 60L * 60_000
+
+    /** [zaporednih] neuspehov zapored; [doMs] konec premora (ura klicatelja); [premorMs] zadnji premor (za podaljsanje). */
+    data class Stanje(val zaporednih: Int = 0, val doMs: Long = 0L, val premorMs: Long = 0L)
+
+    enum class Izid { USPEH, NEUSPEH, NEVTRALNO }
+
+    /**
+     * Izid ene poizvedbe dodatka. [vprasan]: dodatek je bil za to vsebino res vprasan (tip in predpona id-ja ustrezata);
+     * [odgovoril]: dal je odgovor (tudi »tega nimam«); [trajanjeMs] do odgovora proti [rokMs]; [predvajljivih] tokov
+     * dodatka; [drugiPredvajljivih] tokov drugih dodatkov za isto vsebino. Prazno brez primerjave je nevtralno -
+     * dodatek vsebine morda res nima.
+     */
+    fun izid(vprasan: Boolean, odgovoril: Boolean, trajanjeMs: Long, rokMs: Long, predvajljivih: Int, drugiPredvajljivih: Int): Izid = when {
+        !vprasan -> Izid.NEVTRALNO
+        !odgovoril -> Izid.NEUSPEH
+        trajanjeMs > rokMs -> Izid.NEUSPEH
+        predvajljivih > 0 -> Izid.USPEH
+        drugiPredvajljivih > 0 -> Izid.NEUSPEH
+        else -> Izid.NEVTRALNO
+    }
+
+    fun po(s: Stanje, izid: Izid, zdajMs: Long): Stanje = when (izid) {
+        Izid.USPEH -> Stanje()
+        Izid.NEVTRALNO -> s
+        Izid.NEUSPEH -> {
+            val n = s.zaporednih + 1
+            when {
+                n < PRAG -> s.copy(zaporednih = n)
+                // Neuspeh med premorom (javni dodatek je vprasan v ozadju) premora ne podaljsa: en premor za en izpad.
+                zdajMs < s.doMs -> s.copy(zaporednih = n)
+                else -> {
+                    val premor = if (s.premorMs <= 0L) PRVI_PREMOR_MS else minOf(s.premorMs * 2, NAJDALJSI_PREMOR_MS)
+                    Stanje(n, zdajMs + premor, premor)
+                }
+            }
+        }
+    }
+
+    /** Dodatek ta cas ne zadrzi izbire toka (premor po zaporednih neuspehih). */
+    fun vPremoru(s: Stanje?, zdajMs: Long): Boolean = s != null && zdajMs < s.doMs
+
+    /**
+     * Kako vprasamo dodatek: [Nacin.CAKAJ] kot doslej, [Nacin.V_OZADJU] (javni dodatek v premoru: poizvedba gre, izbira ne
+     * caka nanj - ista ena zahteva kot doslej) ali [Nacin.PRESKOCI] (dodatek z uporabnikovim kljucem v premoru: nobene
+     * zahteve na uporabnikov racun, dokler premor traja - ponavljanje neuspesnih zahtev lahko racun zaklene).
+     * Ce so v premoru VSI dodatki, cakamo na vse kot doslej: brez tega uporabnik ne bi dobil nobenega toka.
+     */
+    enum class Nacin { CAKAJ, V_OZADJU, PRESKOCI }
+
+    fun nacini(vPremoru: List<Boolean>, sKljucem: List<Boolean>): List<Nacin> {
+        if (vPremoru.all { it }) return vPremoru.map { Nacin.CAKAJ }
+        return vPremoru.indices.map { i ->
+            when { !vPremoru[i] -> Nacin.CAKAJ; sKljucem.getOrElse(i) { true } -> Nacin.PRESKOCI; else -> Nacin.V_OZADJU }
+        }
+    }
+}

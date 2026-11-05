@@ -79,7 +79,9 @@ object Stremio {
                    /** Webtor rezerva: sledilniki toka (`sources` »tracker:...«) za magnet, ce torrent dodamo TorBoxu v ozadju. */
                    val sledilniki: List<String> = emptyList(),
                    /** `behaviorHints.filename` (torrent in Webtor): ali je datoteka [datoteka] video ([WebtorPravila.datoteka]). */
-                   val imeDatoteke: String = "")
+                   val imeDatoteke: String = "",
+                   /** Zdruzen dvojnik ([zdruziDvojnike]): imena vseh dodatkov, ki so dali ta tok; prazno = samo [dodatek]. */
+                   val izDodatkov: List<String> = emptyList())
 
     private val manifesti = ConcurrentHashMap<String, Manifest>()
 
@@ -1731,14 +1733,52 @@ object Stremio {
      * Pregled B1: tokovi in kaj so dodatki odgovorili - [placilnih] obvestil placilnega zidu, [odgovorili] = vsak dodatek je
      * dal odgovor (tudi »tega nimam«). Placljivo NE zapise: to odloci klicatelj enkrat po vseh dodatkih ([zabeleziPlacljivoPoVseh]).
      */
-    class OdgovorTokov(val tokovi: List<Tok>, val placilnih: Int, val odgovorili: Boolean)
+    class OdgovorTokov(val tokovi: List<Tok>, val placilnih: Int, val odgovorili: Boolean,
+                       /** Zdravje dodatkov (5. 11. 2026): koliko dodatkov je bilo za to vsebino res vprasanih (tip, predpona id-ja). */
+                       val vprasanih: Int = 0)
 
     fun tokoviZOdzivom(naslovi: List<String>, tip: String, id: String): OdgovorTokov {
         val placilnih = java.util.concurrent.atomic.AtomicInteger(0)
         val brezOdgovora = java.util.concurrent.atomic.AtomicBoolean(false)
-        val vsi = tokoviDodatkov(naslovi, tip, id, placilnih, brezOdgovora)
-        return OdgovorTokov(vsi, placilnih.get(), !brezOdgovora.get())
+        val vprasanih = java.util.concurrent.atomic.AtomicInteger(0)
+        val vsi = tokoviDodatkov(naslovi, tip, id, placilnih, brezOdgovora, vprasanih)
+        return OdgovorTokov(vsi, placilnih.get(), !brezOdgovora.get(), vprasanih.get())
     }
+
+    /**
+     * Zdravje dodatkov (lastnik, 5. 11. 2026: viri tokov) - samo v pomnilniku procesa, po osnovi dodatka
+     * ([ZdravjeDodatkov]). Po zaporednih neuspehih dodatek izbire toka ne zadrzi.
+     */
+    private val zdravje = ConcurrentHashMap<String, ZdravjeDodatkov.Stanje>()
+
+    /** Dodatek je ta cas v premoru po zaporednih neuspehih: izbira toka ga ne caka (javni) ali ga ne vprasa (s kljucem). */
+    fun vPremoruTokov(naslov: String, zdajMs: Long = System.currentTimeMillis()): Boolean = ZdravjeDodatkov.vPremoru(zdravje[osnova(naslov)], zdajMs)
+
+    /** Dodatek nosi uporabnikov kljuc (debrid, racun v naslovu ...): v premoru ga ne sprasujemo, da racun ne bo zaklenjen. */
+    fun sKljucem(naslov: String): Boolean = !SkrivnostiPravila.smeMedVseNaprave(naslov)
+
+    fun zabeleziZdravje(naslov: String, izid: ZdravjeDodatkov.Izid, zdajMs: Long = System.currentTimeMillis()) {
+        if (izid == ZdravjeDodatkov.Izid.NEVTRALNO) return
+        val o = osnova(naslov)
+        var prej: ZdravjeDodatkov.Stanje? = null
+        val novo = zdravje.compute(o) { _, s -> prej = s; ZdravjeDodatkov.po(s ?: ZdravjeDodatkov.Stanje(), izid, zdajMs).takeIf { it != ZdravjeDodatkov.Stanje() } }
+        if (novo != null && ZdravjeDodatkov.vPremoru(novo, zdajMs) && !ZdravjeDodatkov.vPremoru(prej, zdajMs)) try {
+            android.util.Log.i("SafeerStremio", "dodatek ${gostitelj(o)}: ${novo.zaporednih} neuspehov zapored - izbira toka ga " +
+                "${novo.premorMs / 60_000} min ${if (sKljucem(naslov)) "ne vprasa" else "ne caka"}")
+        } catch (_: Throwable) { }
+    }
+
+    /**
+     * Dvojniki (lastnik, 5. 11. 2026: viri tokov): isti torrent (infoHash in fileIdx) iz vec dodatkov je en vnos -
+     * najbolje oznacen tok ([TokiPravila.podatkov]), najvec sejalcev, sledilniki vseh (najvec [TokiPravila.NAJVEC_SLEDILNIKOV]).
+     * Http/debrid tokovi brez infoHash ostanejo, kot so ([TokiPravila.kljuc]).
+     */
+    fun zdruziDvojnike(tokovi: List<Tok>): List<Tok> =
+        TokiPravila.zdruziVnose(tokovi.map { TokiPravila.Vnos(it.vrsta, it.url, it.ime, it.opis, it.dodatek, it.datoteka, it.hash, it.vir,
+            it.sledilniki, it.izDodatkov) }).map { (i, v) ->
+            val t = tokovi[i]
+            if (v.izDodatkov.isEmpty()) t else t.copy(url = v.url, ime = v.ime, opis = v.opis, sledilniki = v.sledilniki, izDodatkov = v.izDodatkov)
+        }
 
     /**
      * Pregled B1: placljivo za vsebino enkrat, po odgovorih VSEH dodatkov ([OsPravila.placljivoPoVsehOdgovorih]) - prej je
@@ -1754,7 +1794,8 @@ object Stremio {
     }
 
     private fun tokoviDodatkov(naslovi: List<String>, tip: String, id: String, placilnih: java.util.concurrent.atomic.AtomicInteger,
-                               brezOdgovora: java.util.concurrent.atomic.AtomicBoolean): List<Tok> =
+                               brezOdgovora: java.util.concurrent.atomic.AtomicBoolean,
+                               vprasanih: java.util.concurrent.atomic.AtomicInteger): List<Tok> =
         naslovi.also { uporabnikOb = System.currentTimeMillis() }
         // Pregled S5: dodatek s poverilnico, ki ga ta naprava ne zna odkleniti, ni »izpad« - samo ga ne vprasamo.
         .filter { SkrivniDodatki.pozna(aplikacija, it) }
@@ -1763,6 +1804,7 @@ object Stremio {
         .filter { m -> "stream" in m.viri && (m.tipi.isEmpty() || tip in m.tipi) &&
             (m.predpone.isEmpty() || m.predpone.any { id.startsWith(it) }) }
         .flatMap { m ->
+            vprasanih.incrementAndGet()
             val naslov = "${m.osnova}/stream/${enc(tip)}/${enc(id)}.json"
             var d = json(naslov)
             if (d == null && !kodaPomeniNima(zadnjaKoda.get() ?: 0)) {

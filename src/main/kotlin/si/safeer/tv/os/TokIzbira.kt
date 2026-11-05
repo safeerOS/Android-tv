@@ -187,11 +187,12 @@ object TokIzbira {
         tocke -= (minOf(o.gb, 40.0) * 4).toInt()
         // Torrent: zacetek predvajanja doloca roj, ne naprava (izmerjeno 3. 10. 2026 - dobro podprt torrent stece v
         // nekaj sekundah, slabo podprt po minuti ali nikoli). Kjer opis pove stevilo sejalcev, ima podprt torrent
-        // prednost tudi pred eno stopnjo visjo locljivostjo; brez sejalcev je zadnji.
+        // prednost tudi pred eno stopnjo visjo locljivostjo. 0 in manj kot [MALO_SEJALCEV] uredi razred v [uredi]
+        // ([razredSejalcev]) - tu ju ne stejemo se enkrat (5. 11. 2026: prej -2500, kar je jezik +800 lahko prehitel).
         when (val s = sejalci(besedilo)) {
             -1 -> { }
-            0 -> tocke -= 2500
-            in 1..4 -> tocke -= 600
+            in 0 until MALO_SEJALCEV -> { }
+            in MALO_SEJALCEV..4 -> tocke -= 600
             in 5..19 -> tocke -= 150
             else -> tocke += minOf(60, s / 20)
         }
@@ -202,15 +203,33 @@ object TokIzbira {
         return tocke
     }
 
+    /** Manj sejalcev od tega je »malo«: tak torrent gre za tokove z vec sejalci (lastnik, 5. 11. 2026: viri tokov). */
+    const val MALO_SEJALCEV = 3
+
+    /**
+     * Razred po sejalcih (manjsi = prej): 0 = neznano ali dovolj sejalcev, 1 = znano malo ([MALO_SEJALCEV]), 2 = znano
+     * nic sejalcev. Mrtvega torrenta ne skrijemo (ce ni drugega, se vedno poskusimo), a gre na konec: cakanje na vir, ki
+     * potem ne predvaja, ni udobno. Neznano (-1) je nevtralno - dodatek stevila ne pove, tok je morda odlicen.
+     */
+    fun razredSejalcev(besedilo: String): Int = when (val s = sejalci(besedilo)) { -1 -> 0; 0 -> 2; in 1 until MALO_SEJALCEV -> 1; else -> 0 }
+
+    /**
+     * Stabilno prerazvrsti ze urejen seznam po [razredSejalcev]: znotraj razreda ostane dosedanji vrstni red. Za ureditve,
+     * ki pridejo po [uredi] (npr. po hitrosti povezave), da mrtev torrent ne pride spet naprej.
+     */
+    fun <T> sejalciNaKonec(tokovi: List<T>, besedilo: (T) -> String): List<T> = tokovi.sortedBy { razredSejalcev(besedilo(it)) }
+
     /**
      * Tokovi od najboljsega do najslabsega za to napravo; pri enaki oceni ostane vrstni red dodatka. Z [naslov] se
-     * uposteva tudi rok veljavnosti povezave ([veljaSe]) ob casu [zdajS] (sekunde od 1970).
+     * uposteva tudi rok veljavnosti povezave ([veljaSe]) ob casu [zdajS] (sekunde od 1970). Najprej steje razred po
+     * sejalcih ([razredSejalcev]), nato ocena.
      */
     fun <T> uredi(tokovi: List<T>, besedilo: (T) -> String, z: Zmoznosti, naslov: ((T) -> String)? = null,
                   zdajS: Long = System.currentTimeMillis() / 1000, zelenJezik: String = "", izvirni: String = ""): List<T> {
         val izvirnikOznacen = zelenJezik.isNotBlank() && tokovi.any { jezikZvoka(besedilo(it)) == "izvirnik" }
         return tokovi.mapIndexed { i, t -> Triple(t, ocena(besedilo(t), z, naslov?.let { veljaSe(it(t), zdajS) }, zelenJezik, izvirni,
             izvirnikOznacen), i) }
-            .sortedWith(compareByDescending<Triple<T, Int, Int>> { it.second }.thenBy { it.third }).map { it.first }
+            .sortedWith(compareBy<Triple<T, Int, Int>> { razredSejalcev(besedilo(it.first)) }.thenByDescending { it.second }
+                .thenBy { it.third }).map { it.first }
     }
 }

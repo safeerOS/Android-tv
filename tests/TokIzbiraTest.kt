@@ -39,6 +39,15 @@ fun main() {
     check(roj == listOf("D 1080p \uD83D\uDC64 80 3 GB", "B 720p \uD83D\uDC64 300 1 GB", "A 1080p \uD83D\uDC64 2 3 GB", "C 1080p \uD83D\uDC64 0 3 GB")) { roj }
     // Na televizorju 4K z nekaj sejalci 4K ostane pred 1080p z veliko sejalci.
     check(TokIzbira.uredi(listOf("E 1080p \uD83D\uDC64 500 2 GB", "F 2160p \uD83D\uDC64 15 12 GB"), { it }, tv4k).first().startsWith("F"))
+    // Viri tokov (5. 11. 2026): mrtev torrent (0 sejalcev) je zadnji tudi, ce ga jezik zvoka dviga (prej -2500 proti +800).
+    val mrtev = TokIzbira.uredi(listOf("G 2160p English \uD83D\uDC64 0 8 GB", "H 1080p Dublado \uD83D\uDC64 50 2 GB"), { it }, tv4k, zelenJezik = "en")
+    check(mrtev.first().startsWith("H") && mrtev.size == 2) { mrtev }
+    // Znano malo sejalcev (< 3) gre za tok z vec sejalci, tudi ce je ta nizje locljivosti.
+    check(TokIzbira.uredi(listOf("A 2160p \uD83D\uDC64 2 10 GB", "B 1080p \uD83D\uDC64 40 3 GB"), { it }, tv4k).first().startsWith("B"))
+    // Neznano stevilo sejalcev je nevtralno (ni kazni).
+    check(TokIzbira.uredi(listOf("D 1080p \uD83D\uDC64 40 3 GB", "C 2160p 10 GB"), { it }, tv4k).first().startsWith("C"))
+    // Ce ni drugega, mrtev torrent ostane (se vedno ga poskusimo).
+    check(TokIzbira.uredi(listOf("M 1080p \uD83D\uDC64 0 2 GB"), { it }, tv4k).size == 1)
     // ---- Rok veljavnosti povezave (podpisane, casovno omejene povezave do shrambe v oblaku) ----
     val zdaj = 1_791_054_000L                                  // 3. 10. 2026 19:00:00 UTC
     val podpisana = "https://racun.shramba.example/mapa/film.mkv?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=k%2F20261003%2Fauto%2Fs3%2Faws4_request" +

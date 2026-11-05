@@ -217,6 +217,10 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/LupaPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/ZaganjalnikBetaPravila.kt" \
     "$TEST_DIR/ZaganjalnikBetaPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/TokiPravila.kt" \
+    "$TEST_DIR/TokiPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/ZdravjeDodatkov.kt" \
+    "$TEST_DIR/ZdravjeDodatkovTest.kt" \
     -include-runtime -d "$OUT/os.jar"
 
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.OsPravilaTestKt
@@ -230,6 +234,8 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.JezikiVsebineTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZapiskiShrambaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.SpletMostPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.TokIzbiraTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.TokiPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZdravjeDodatkovTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ObvestilaTokovTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SeznamiPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZacasniPravilaTestKt
