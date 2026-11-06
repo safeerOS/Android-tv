@@ -53,15 +53,62 @@ object PredvajalnikTovarna {
     }
 
     /** Medpomnilnik po profilu; null = privzeti Media3 (filmi). */
-    fun nadzorNalaganja(profil: Profil): DefaultLoadControl? = when (profil) {
+    fun nadzorNalaganja(profil: Profil): androidx.media3.exoplayer.LoadControl? = when (profil) {
         Profil.TV_V_ZIVO -> DefaultLoadControl.Builder()
             .setBufferDurationsMs(1_500, 12_000, 800, 1_500)
             .setPrioritizeTimeOverSizeThresholds(true)
             .build()
-        Profil.GLASBA, Profil.FILM -> DefaultLoadControl.Builder()
-            .setBufferDurationsMs(20_000, 60_000, 2_000, 2_500)
-            .setPrioritizeTimeOverSizeThresholds(true)
-            .build()
+        Profil.GLASBA, Profil.FILM -> UsenetNadzorNalaganja(
+            DefaultLoadControl.Builder()
+                .setBufferDurationsMs(20_000, 60_000, 2_000, 2_500)
+                .setPrioritizeTimeOverSizeThresholds(true)
+                .build(),
+            DefaultLoadControl.Builder()
+                .setBufferDurationsMs(30_000, 90_000, 5_000, 10_000)
+                .setPrioritizeTimeOverSizeThresholds(true)
+                .build()
+        )
+    }
+
+    class UsenetNadzorNalaganja(private val obicajni: androidx.media3.exoplayer.LoadControl, private val usenet: androidx.media3.exoplayer.LoadControl) : androidx.media3.exoplayer.LoadControl {
+        private var jeUsenet = false
+
+        override fun onPrepared() {
+            jeUsenet = si.safeer.tv.os.UsenetLastni.trenutnaSeja()?.second != null
+            obicajni.onPrepared()
+            usenet.onPrepared()
+        }
+
+        override fun onTracksSelected(r: Array<androidx.media3.exoplayer.Renderer>, g: androidx.media3.exoplayer.source.TrackGroupArray, s: androidx.media3.exoplayer.trackselection.ExoTrackSelectionArray) {
+            obicajni.onTracksSelected(r, g, s)
+            usenet.onTracksSelected(r, g, s)
+        }
+
+        override fun onStopped() {
+            obicajni.onStopped()
+            usenet.onStopped()
+        }
+
+        override fun onReleased() {
+            obicajni.onReleased()
+            usenet.onReleased()
+        }
+
+        override fun getAllocator(): androidx.media3.exoplayer.upstream.Allocator = obicajni.allocator
+
+        override fun getBackBufferDurationUs(): Long = if (jeUsenet) usenet.backBufferDurationUs else obicajni.backBufferDurationUs
+
+        override fun retainBackBufferFromKeyframe(): Boolean = if (jeUsenet) usenet.retainBackBufferFromKeyframe() else obicajni.retainBackBufferFromKeyframe()
+
+        override fun shouldContinueLoading(playbackPositionUs: Long, bufferedDurationUs: Long, playbackSpeed: Float): Boolean {
+            jeUsenet = si.safeer.tv.os.UsenetLastni.trenutnaSeja()?.second != null
+            return if (jeUsenet) usenet.shouldContinueLoading(playbackPositionUs, bufferedDurationUs, playbackSpeed) else obicajni.shouldContinueLoading(playbackPositionUs, bufferedDurationUs, playbackSpeed)
+        }
+
+        override fun shouldStartPlayback(timeline: androidx.media3.common.Timeline, mediaPeriodId: androidx.media3.exoplayer.source.MediaSource.MediaPeriodId, bufferedDurationUs: Long, playbackSpeed: Float, rebuffering: Boolean, targetLiveOffsetUs: Long): Boolean {
+            jeUsenet = si.safeer.tv.os.UsenetLastni.trenutnaSeja()?.second != null
+            return if (jeUsenet) usenet.shouldStartPlayback(timeline, mediaPeriodId, bufferedDurationUs, playbackSpeed, rebuffering, targetLiveOffsetUs) else obicajni.shouldStartPlayback(timeline, mediaPeriodId, bufferedDurationUs, playbackSpeed, rebuffering, targetLiveOffsetUs)
+        }
     }
 
     @Volatile private var zmogljivostPredpomnjena: Zmogljivost? = null
