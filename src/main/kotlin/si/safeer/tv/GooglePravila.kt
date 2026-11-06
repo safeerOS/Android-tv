@@ -68,18 +68,62 @@ object GooglePravila {
         return false
     }
 
-    /** Gostitelji Googlove prijave (tudi YouTubova, ki je del iste prijave). */
+    /** google.com, google.si, google.co.uk ... (samo »google.« + Googlova pripona, brez poddomene). */
+    private fun jeGoogleKoren(h: String): Boolean =
+        h.startsWith("google.") && h.removePrefix("google.") in GOOGLE_PRIPONE
+
+    /** Gostitelji Googlove prijave (tudi YouTubova, ki je del iste prijave): accounts. ali myaccount. tik pred google.<pripona>. */
     private fun jePrijavniGostitelj(h: String): Boolean {
         if (h == "accounts.youtube.com") return true
         val prvi = h.substringBefore('.')
-        return (prvi == "accounts" || prvi == "myaccount") && h.indexOf('.') > 0 && jeGoogleGostitelj(h.substringAfter('.'))
+        return (prvi == "accounts" || prvi == "myaccount") && h.indexOf('.') > 0 && jeGoogleKoren(h.substringAfter('.'))
     }
 
     /**
-     * Googlova stran (iskanje, prijava, reCAPTCHA in njeni viri). YouTube, googlevideo in ytimg niso - tam velja
-     * filter oglasov - razen accounts.youtube.com (prijava).
+     * »Google nacin« (brez nasih skript in filtra oglasov, piskotki tretjih strani, vec oken, tipke strani - ChromiumEngineView
+     * applyUserAgentForUrl, UserScriptManager, SiteProfile): samo izrecni gostitelji iskanja in prijave.
+     * Zakaj nacin obstaja (git 9ecf0e41, 67347dd3, 0a760199; 1. in 2. 11. 2026): Googlova prijava in iskanje na TV z nasimi
+     * skriptami in filtrom nista delala (prijava zavrnjena, OK na zadetku ni odprl nicesar), OAuth potrebuje piskotke tretjih
+     * strani in pojavna okna.
+     * Cetrti slepi pregled 5. 11. 2026 (N-A): prej je veljal vsak *.googleapis.com (storage.googleapis.com - kdorkoli objavi
+     * svoj HTML z JS) in vsak *.google.<pripona> (sites.google.com, docs.google.com/forms - uporabniska vsebina). Taka stran je
+     * dobila nacin brez zascite in pravi dotik na koordinatah iz strani. Zdaj samo: google.<pripona>, www.google.<pripona>
+     * (iskanje, reCAPTCHA na www.google.com/recaptcha), accounts./myaccount.google.<pripona> in accounts.youtube.com (prijava).
+     * Gmail, Drive, Dokumenti, Sites ... so navadne strani z zascito (User-Agent ostane Googlov - [googleIdentiteta]).
      */
     fun jeGoogle(url: String?): Boolean {
+        val h = gostitelj(url)
+        if (h.isEmpty()) return false
+        if (jePrijavniGostitelj(h)) return true
+        return jeGoogleKoren(h) || (h.startsWith("www.") && jeGoogleKoren(h.removePrefix("www.")))
+    }
+
+    /**
+     * Googlovi viri brez uporabniske vsebine, ki jih prijava in reCAPTCHA nalozita (skripte, pisave, slike).
+     * Peti slepi pregled 5. 11. 2026 (N2): www.googleapis.com ni vec na seznamu - streze tudi Google Cloud Storage
+     * (/download/storage/v1/b/<vedro>/o/<objekt>?alt=media, /storage/, /upload/), tj. vsebino kogarkoli. Poti, ki bi jo
+     * prijava na www.googleapis.com res rabila, nismo mogli zanesljivo dolociti (prijava gre prek accounts.google.com,
+     * gstatic in apis.google.com), zato izjeme ni; filter oglasov tak vir le preveri, ne blokira ga sam po sebi.
+     */
+    private val GOOGLE_VIRI = setOf("apis.google.com", "fonts.googleapis.com")
+
+    /**
+     * Podzahteva, ki jo filter oglasov spusti (ChromiumEngineView.shouldInterceptRequest; Scit groženj velja vedno):
+     * [jeGoogle], gstatic.com (Googlova staticna vsebina), recaptcha.net in [GOOGLE_VIRI]. Ne: www.googleapis.com, storage.googleapis.com,
+     * firebasestorage.googleapis.com, *.googleusercontent.com, sites.google.com (uporabniska vsebina).
+     */
+    fun jeGoogleVir(url: String?): Boolean {
+        val h = gostitelj(url)
+        if (h.isEmpty()) return false
+        return jeGoogle(url) || jeVDomeni(h, "gstatic.com") || jeVDomeni(h, "recaptcha.net") || h in GOOGLE_VIRI
+    }
+
+    /**
+     * Samo User-Agent (Chrome na Androidu, [uaBrezWebView]) - brez izjem zascite: vse Googlove strani kot pred 5. 11. 2026,
+     * ker menjava identitete med navigacijo (workspace.google.com -> accounts.google.com, Gmail) sesuje WebView 153 (TV
+     * 1. 11. 2026). Identiteta ni varnostna izjema.
+     */
+    fun googleIdentiteta(url: String?): Boolean {
         val h = gostitelj(url)
         if (h.isEmpty()) return false
         if (jePrijavniGostitelj(h)) return true

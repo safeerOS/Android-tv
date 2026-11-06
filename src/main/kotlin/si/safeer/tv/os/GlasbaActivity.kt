@@ -4152,10 +4152,7 @@ class GlasbaActivity : OsActivity() {
 
     /** Priljubljeni kanali, ki jih mreza pokaze - isti filter kot [narisiKanale] (oznaceni kot nedelujoci izpadejo). */
     private fun vidniPriljubljeni(): List<Jamendo.Skladba> =
-        priljubljeniKanali().filter { !znanNedelujocKanal(it) && !MrtviKanali.jeMrtev(this, it.id) }
-
-    /** Naloga 90d: kanal seznama IPTV, katerega tok je znano samo obvestilo ([KanaliPravila.znanNedelujocTok]). */
-    private fun znanNedelujocKanal(sk: Jamendo.Skladba) = IptvSeznami.jeKanal(sk) && KanaliPravila.znanNedelujocTok(sk.zvok)
+        priljubljeniKanali().filter { !MrtviKanali.jeMrtev(this, it.id) }
 
     /**
      * Naloga 120: vsebina dodatka, ki je uporabnik nima odklenjene (samo placilni zid ali zaklenjen dodatek kanalov), se ne
@@ -4248,8 +4245,6 @@ class GlasbaActivity : OsActivity() {
             // Naloga 82: tudi po izteku sklepa brez zivega toka ([Stremio.zaklenjenKanalZaMrezo]).
             // Zunanji pregled 3. 11. 2026: tudi priljubljeni (razen z izbiro »Pokazi zaklenjene«, ki jo uposteva neodklenjena).
             if (Stremio.jeEnota(sk) && neodklenjena(sk)) { brezProstih++; continue }
-            // Naloga 90d: znan tok z obvestilom namesto programa - brez sporocila ni v mrezi; druga razlicica kartice ostane.
-            if (znanNedelujocKanal(sk)) continue
             if (!preverljiv) { if (!MrtviKanali.jeMrtev(this, sk.id)) vsi += sk; continue }
             // Dokazano mrtev (preverjanje, klik, napaka predvajanja) izgine; ziv in neznan ostaneta.
             if (MrtviKanali.stanje(this, sk.id) == false) continue
@@ -6119,7 +6114,7 @@ class GlasbaActivity : OsActivity() {
                     // Naloga 91a: ce dodatki ne dajo toka, igra prva ziva razlicica seznama IPTV (tiho).
                     Stremio.jeEnota(sk) && vse.size > 1 -> {
                         val rezerva = KanaliPravila.rezervaIptv(vse.map { it.naslov }, vse.map { MrtviKanali.stanje(this, it.id) },
-                            vse.map { IptvSeznami.jeKanal(it) }, vse.map { KanaliPravila.znanNedelujocTok(it.zvok) })?.let { vse[it] }
+                            vse.map { IptvSeznami.jeKanal(it) })?.let { vse[it] }
                         dnevnikKlikaKanala(sk, vse, "dodatek (glava)", rezerva)
                         razresiStremio(sk, razlicice = vse.drop(1), rezerva = rezerva)
                     }
@@ -6127,15 +6122,12 @@ class GlasbaActivity : OsActivity() {
                     // Naloga 93: ce je prva razlicica iz dodatka, jo razresi dodatek z rezervo iz seznama ([KanaliPravila.klikKanala]).
                     IptvSeznami.jeKanal(sk) && vse.size > 1 -> {
                         val k = KanaliPravila.klikKanala(vse.map { it.naslov }, vse.map { MrtviKanali.stanje(this, it.id) },
-                            vse.map { Stremio.jeEnota(it) }, vse.map { IptvSeznami.jeKanal(it) }, vse.map { KanaliPravila.znanNedelujocTok(it.zvok) })
+                            vse.map { Stremio.jeEnota(it) }, vse.map { IptvSeznami.jeKanal(it) })
                         val prva = k?.let { vse[it.prva] } ?: sk
                         val rezerva = k?.rezerva?.let { vse[it] }
                         if (k != null && k.dodatki.isNotEmpty()) {
                             dnevnikKlikaKanala(sk, vse, "dodatek (razlicica)", rezerva)
                             razresiStremio(prva, razlicice = k.dodatki.drop(1).map { vse[it] }, rezerva = rezerva)
-                        } else if (k == null && KanaliPravila.znanNedelujocTok(sk.zvok)) {
-                            // Naloga 100 (N6): ni zive razlicice, glava pa je znana prazna slika - ne predvajamo.
-                            dnevnikKlikaKanala(sk, vse, "ni zive, glava znano ne deluje", null)
                         } else {
                             dnevnikKlikaKanala(sk, vse, if (k == null) "seznam (ni zive, glava)" else "seznam", null)
                             predvajaj(listOf(prva), 0)

@@ -931,15 +931,19 @@ private fun popravki58() {
     enako("W6 cela", "ok", UsenetBralnik.preveriIzdajo(nzbIz(o6), o6::telo))
 
     // W2 / T7: poplava povezav brez zetona - najvec NAJVEC_POVEZAV, streznik se vseeno sam zapre
+    // Izmerjeno 5. 11. 2026 (testni PC, 4 jedra, 6 zank CPU, 15 ponovitev): vrsta posluha (50) se ob 56 hkratnih povezavah
+    // prelije, jedro zavrze SYN in odjemalec ga ponovi po ~1 s (najdaljsi connect 1008-1058 ms). Z nedejavnostMs = 500 se je
+    // streznik vmes pravilno sam zaprl (T7) in povezava 52-56 je dobila Connection refused (13/15 pod obremenitvijo, 2/10
+    // brez). Z nedejavnostjo 60 s 15/15 sprejetih. Rok preizkusa je zato daljsi od ponovitve SYN (3 s); v aplikaciji je 300 s.
     val o7 = Objava().apply { dodaj("Film.mkv", Leno(MIB, 1)) }
-    val s7 = UsenetStreznik(bralnik(o7), nedejavnostMs = 500)
+    val s7 = UsenetStreznik(bralnik(o7), nedejavnostMs = 3_000)
     val prazne = (1..UsenetStreznik.NAJVEC_POVEZAV + 40).map { Socket("127.0.0.1", s7.vrata) }
     try {
         Thread.sleep(300)
         preveri("W2 povezav najvec ${UsenetStreznik.NAJVEC_POVEZAV}", s7.povezav <= UsenetStreznik.NAJVEC_POVEZAV, "(${s7.povezav})")
         val niti = Thread.getAllStackTraces().keys.count { it.name == "safeer-usenet-http-zahteva" }
         preveri("W2 niti najvec ${UsenetStreznik.NAJVEC_POVEZAV}", niti <= UsenetStreznik.NAJVEC_POVEZAV, "($niti)")
-        val konec = System.nanoTime() + 5_000_000_000L
+        val konec = System.nanoTime() + 10_000_000_000L
         while (!s7.zaprt && System.nanoTime() < konec) Thread.sleep(50)
         preveri("T7 povezave brez zetona ne drzijo streznika zivega", s7.zaprt)
     } finally {

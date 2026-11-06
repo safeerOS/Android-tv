@@ -10,4 +10,5 @@
     <string name="splet_portal_dodaj">Dodaj</string>
     <string name="splet_portal_neveljaven">Vpiši veljaven spletni naslov http ali https.</string>
     <string name="splet_portal_dodan">Bližnjica je dodana.</string>
+    <string name="splet_namig_kazalec">OK ne seže v okvir druge strani (npr. prijava ali preverjanje). Vklopi kazalec (rdeči gumb ali drži OK), ga premakni na gumb in pritisni OK.</string>
 </resources>

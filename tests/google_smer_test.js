@@ -73,9 +73,28 @@ function stran() {
         return f(smer);
     }
     // OK na Googlu (KLIK_FOKUSA): skript se izvede takoj in vrne odlocitev za Kotlin (GoogleTipke.ok).
-    function ok() {
+    // Kot ChromiumEngineView.IZVIRNIKI_JS: izvirniki z zacetka dokumenta (stran jih ne prepise). Izvirnik bere notranje
+    // stanje elementa (r, tagName, parentElement), ne metod, ki jih ima stran na elementu. izvirniki=false: ni jih.
+    const NONCE_IZ = '8796a5b4c3d2e1f0';
+    function ok(izvirniki) {
         const k = vir.split('private const val KLIK_FOKUSA = """', 2)[1].split('"""', 1)[0];
-        return new Function('window', 'document', 'innerWidth', 'innerHeight', 'return ' + k)(okolje, doc, W, H);
+        assert.ok(k.indexOf('$') < 0, 'KLIK_FOKUSA je surovi niz Kotlina: brez znaka $');
+        const ime = '__safeer_izvirniki_' + NONCE_IZ;
+        delete okolje[ime];
+        if (izvirniki !== false) okolje[ime] = Object.freeze({
+            apply: Reflect.apply,
+            akt: function () { return doc.activeElement; },
+            tag: function () { return this.tagName; },
+            efp: function (x, y) { return doc.elementFromPoint(x, y); },
+            gbcr: function () { return this.r; },
+            contains: function (o) { for (let p = o; p; p = p.parentElement) if (p === this) return true; return false; },
+            rl: function () { return this.left; }, rt: function () { return this.top; },
+            rw: function () { return this.width; }, rh: function () { return this.height; },
+            ctl: function () { return this.control || null; },
+        });
+        // Kot GoogleTipke.zIzvirniki (Kotlin): ime izvirnikov tega pogleda.
+        const js = k.split('__SAFEER_NONCE_IZVIRNIKOV__').join(NONCE_IZ);
+        return new Function('window', 'document', 'innerWidth', 'innerHeight', 'return ' + js)(okolje, doc, W, H);
     }
     return { doc, el, pozeni, ok };
 }
@@ -226,7 +245,8 @@ function googlovaStran() {
     preveri('DOL v okvirju: tuje (Tab)', 'tuje', g.s.pozeni('DOWN'));
     preveri('LEVO v okvirju: tuje (Shift+Tab, ne stranska vrstica)', 'tuje', g.s.pozeni('LEFT'));
     preveri('UP v okvirju: tuje (ne naslovna vrstica)', 'tuje', g.s.pozeni('UP'));
-    preveri('OK s fokusom v okvirju: Enter (ne dotik na sredini plosce)', 'enter', g.s.ok());
+    // Cetrti slepi pregled 5. 11. 2026 (N-A): fokus v okvirju - ne pravi Enter v okvir, ampak namig za kazalec (odlocitev vodje).
+    preveri('OK s fokusom v okvirju: kazalec (ne pravi Enter v okvir, ne dotik na sredini plosce)', 'kazalec', g.s.ok());
     preveri('Nazaj: TUJE pove, da je okno odprto (Kotlin poslje Escape)', 'tuje', g.s.pozeni('TUJE'));
     okvir.r = ovoj.r = { left: 0, top: 0, width: 0, height: 0, right: 0, bottom: 0 };
     preveri('zaprta plosca: TUJE -> ne (Nazaj po zgodovini)', 'ne', g.s.pozeni('TUJE'));
@@ -273,6 +293,72 @@ function googlovaStran() {
     s.el('DIV', [], [700, 380, 24, 24], null, '');
     prikazi.focus();
     preveri('potrditveno polje pod drugim elementom: Presledek', 'space', s.ok());
+}
+
+// ---------------------------------------------------------------- cetrti slepi pregled 5. 11. 2026 (N-A)
+// Napadalec: stran v Google nacinu ima tuj okvir (npr. gumb »Nadaljuj« drugega izvora) in z daljincem dobi fokus element,
+// pod katerim je okvir. Prej: div s tabindex okoli okvirja -> 'dotik' v tuj okvir, fokus na okvirju -> pravi Enter v okvir.
+{
+    const s = stran();
+    const ovoj = s.el('DIV', ['[tabindex]:not([tabindex="-1"])'], [600, 300, 400, 120], null, '');
+    s.el('IFRAME', ['iframe'], [600, 300, 400, 120], ovoj, '');
+    ovoj.focus();
+    preveri('N-A: div s tabindex okoli tujega okvirja: kazalec (ne dotik v okvir)', 'kazalec', s.ok());
+    const okvir = s.el('IFRAME', ['iframe'], [100, 700, 300, 100], null, '');
+    okvir.focus();
+    preveri('N-A: fokus na okvirju: kazalec (ne pravi Enter v okvir)', 'kazalec', s.ok());
+    for (const t of ['FRAME', 'OBJECT', 'EMBED', 'FENCEDFRAME', 'PORTAL']) {
+        const o = s.el(t, [], [1200, 700, 300, 100], null, '', { tabIndex: 0 });
+        o.focus();
+        preveri('N-A: fokus na ' + t + ': kazalec', 'kazalec', s.ok());
+    }
+    // Gumb, pod katerim je (prekriva ga) tuj okvir: dotik bi sel v okvir.
+    const gumb = s.el('BUTTON', ['button'], [100, 100, 200, 50], null, 'Naprej');
+    s.el('IFRAME', ['iframe'], [100, 100, 200, 50], null, '');
+    gumb.focus();
+    preveri('N-A: okvir nad gumbom na tocki dotika: kazalec', 'kazalec', s.ok());
+}
+// Stran prepise activeElement in getBoundingClientRect v svojem svetu (kazalec na tuj okvir, koordinate okvirja):
+// z izvirniki odloca dejanski fokus in dejanski okvir.
+{
+    const s = stran();
+    const polje = s.el('INPUT', ['input'], [700, 300, 500, 56], null, '');
+    const tuj = s.el('IFRAME', ['iframe'], [100, 800, 300, 100], null, '');
+    polje.focus();
+    polje.getBoundingClientRect = () => tuj.r;      // lazne koordinate (tocka nad tujim okvirjem)
+    preveri('N-A: lazni getBoundingClientRect strani: dotik na dejanski sredini polja', 'dotik:950,328', s.ok());
+    preveri('N-A: brez izvirnikov ni pravega dotika (samo Enter)', 'enter', s.ok(false));
+}
+// Peti slepi pregled 5. 11. 2026 (N1): gostitelj ZAPRTE sence (shadowRoot null) s tujim okvirjem v senci ima fokus - prej
+// 'enter' (pravi Enter je sel v okvir v senci). Prazen fokus in izjema v skriptu: 'nic' (prej Enter v Kotlinu).
+{
+    const s = stran();
+    const gost = s.el('DIV', ['[tabindex]:not([tabindex="-1"])'], [400, 400, 300, 80], null, '', { shadowRoot: null });
+    gost.focus();
+    preveri('N1: gostitelj zaprte sence v fokusu: kazalec (ne pravi Enter)', 'kazalec', s.ok());
+    const sp = s.el('SPAN', [], [400, 600, 300, 80], null, '', { shadowRoot: null });
+    sp.focus();
+    preveri('N1: SPAN (gostitelj sence) v fokusu: kazalec', 'kazalec', s.ok());
+    s.doc.activeElement = s.doc.body;
+    preveri('N1: brez fokusa: nic (prej Enter)', 'nic', s.ok());
+    const polje = s.el('INPUT', ['input'], [700, 300, 500, 56], null, '');
+    polje.focus();
+    polje.matches = () => { throw new Error('stran'); };
+    preveri('N1: izjema v skriptu (stran prepise matches): nic, ne Enter', 'nic', s.ok());
+}
+// Gostitelj sence (DIV, SPAN, element po meri) na tocki: pravi dotik bi lahko sel v okvir v zaprti senci - samo Enter/Presledek.
+{
+    const s = stran();
+    const gumb = s.el('DIV', ['[role="button"]'], [300, 300, 200, 60], null, 'Gumb');
+    gumb.focus();
+    preveri('N-A/N1: fokus na DIV (lahko gostitelj sence): kazalec, ne Enter ne dotik', 'kazalec', s.ok());
+    const cb = s.el('DIV', ['[role="checkbox"]'], [300, 400, 30, 30], null, '');
+    cb.focus();
+    preveri('N-A/N1: potrditveno polje kot DIV: kazalec (Presledek bi sel v senco)', 'kazalec', s.ok());
+    const ovoj = s.el('DIV', ['[role="button"]'], [300, 500, 200, 60], null, '');
+    s.el('SAFEER-X', [], [300, 500, 200, 60], ovoj, '');
+    ovoj.focus();
+    preveri('N-A/N1: element po meri na tocki: kazalec, ne dotik', 'kazalec', s.ok());
 }
 
 // Kotlin mora 'tuje' predati strani in na 'okno' ne narediti nicesar (ne naslovne vrstice, ne stranske vrstice).

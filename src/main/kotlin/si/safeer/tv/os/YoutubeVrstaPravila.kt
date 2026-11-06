@@ -32,8 +32,66 @@ object YoutubeVrstaPravila {
      * Stran obvisi: od nalaganja je minil rok, predvajanje ni nikoli steklo (polozaj 0, medij ni pripravljen), uporabnik
      * pa zeli, da igra (pavza ni zastoj). Prej je tak posnetek ostal v BUFFERING za vedno, brez sporocila.
      */
-    fun zastoj(odNalaganjaMs: Long, polozajMs: Long, pripravljeno: Boolean, zelja: Boolean): Boolean =
-        zelja && !pripravljeno && polozajMs <= 0L && odNalaganjaMs >= ROK_ZASTOJA_MS
+    fun zastoj(odNalaganjaMs: Long, polozajMs: Long, pripravljeno: Boolean, zelja: Boolean, nepreverjenoIgra: Boolean = false,
+               nepreverjenoDolgo: Boolean = false): Boolean =
+        zelja && !pripravljeno && polozajMs <= 0L && odNalaganjaMs >= ROK_ZASTOJA_MS &&
+            !(nepreverjenoIgra && (nepreverjenoDolgo || odNalaganjaMs < ROK_ZASTOJA_MS + NEPREVERJENO_PODALJSEK_MS))
+
+    /** Odlocitev vodje 5. 11. 2026 (N4): oglasi so obicajno krajsi od 60 s; posnetek z vsaj tem trajanjem je verjetno skladba. */
+    const val NEPREVERJENO_DOLGO_S = 90.0
+    /** Toliko zaporednih novih porocil okvirja z enakomerno narascajocim casom (porocilo vsako sekundo). */
+    const val NEPREVERJENO_ENAKOMERNIH = 3
+
+    /**
+     * Sledenje nepreverjenemu znaku okvirja drugega izvora (SpletniIgralec): [igra] = znak v zadnjih [NEPREVERJENO_ROK_MS];
+     * [dolgIgra] = poleg tega trajanje (d) vsaj [NEPREVERJENO_DOLGO_S] in cas t v zadnjih [NEPREVERJENO_ENAKOMERNIH]
+     * porocilih narasca enakomerno (prirastek t med 0,5- in 1,5-kratnikom casa med porociloma po uri strani, [cas] = cas
+     * prejema v ms). Samo za odlog zastoja: dolgIgra ga odlozi brez meje (skladba, ki igra, se ne preskoci), igra najvec za
+     * [NEPREVERJENO_PODALJSEK_MS]. Stoji t (zamrznjen oglas, prazen predvajalnik) - stevec na 0, velja meja.
+     */
+    class NepreverjenoSledenje {
+        private var zadnjiZnak = 0L
+        private var prejT = -1.0
+        private var prejCas = -1.0
+        private var enakomernih = 0
+        private var trajanje = 0.0
+
+        fun znak(t: Double, d: Double, cas: Double, zdajMs: Long) {
+            zadnjiZnak = zdajMs
+            trajanje = if (d.isFinite() && d > 0.0) d else 0.0
+            if (!t.isFinite() || t <= 0.0 || !cas.isFinite() || cas < 0.0) { enakomernih = 0; prejT = -1.0; prejCas = -1.0; return }
+            if (cas == prejCas) return  // isto porocilo okvirja kot ob prejsnjem tiku
+            if (prejT >= 0.0 && cas > prejCas) {
+                val dt = t - prejT
+                val du = (cas - prejCas) / 1000.0
+                enakomernih = if (dt > 0.0 && dt >= du * 0.5 && dt <= du * 1.5) enakomernih + 1 else 0
+            } else enakomernih = 0
+            prejT = t
+            prejCas = cas
+        }
+
+        fun igra(zdajMs: Long): Boolean = nepreverjenoIgra(zadnjiZnak, zdajMs)
+
+        fun dolgIgra(zdajMs: Long): Boolean =
+            igra(zdajMs) && trajanje >= NEPREVERJENO_DOLGO_S && enakomernih >= NEPREVERJENO_ENAKOMERNIH
+    }
+
+    /**
+     * Peti slepi pregled 5. 11. 2026 (N4): okvir oglasa ima tudi nas posrednik s kljucem in vsako sekundo javi »igra« - zastoj
+     * je bil preklican brez meje. Nepreverjen znak rok zastoja podaljsa najvec za toliko (na nalaganje strani), potem velja
+     * pravi zastoj (preskok, NI_TOKA) - razen ce okvir javi dolg posnetek, ki enakomerno tece ([NepreverjenoSledenje.dolgIgra]).
+     */
+    const val NEPREVERJENO_PODALJSEK_MS = 30_000L
+
+    /** Rok svezine znaka »okvir drugega izvora igra« (POSREDNIK_JS posilja vsako sekundo; STANJE_JS ga vrne do 3 s). */
+    const val NEPREVERJENO_ROK_MS = 3_000L
+
+    /**
+     * Cetrti slepi pregled 5. 11. 2026 (N-E): okvir drugega izvora (predvajalnik na CDN, ni na IZVORI_PREDVAJALNIKA) je v
+     * zadnjih [NEPREVERJENO_ROK_MS] javil, da igra. Uporablja se SAMO za preklic zastoja (skladba, ki igra v okvirju, ni vec
+     * oznacena NI_TOKA in preskocena); nikoli za polozaj, konec ali preskok. [od] 0 = nikoli.
+     */
+    fun nepreverjenoIgra(od: Long, zdaj: Long): Boolean = od > 0L && zdaj >= od && zdaj - od < NEPREVERJENO_ROK_MS
 
     /** Po zastoju: naslednja skladba, ce obstaja in nismo ze [NAJVEC_ZAPOREDNIH_ZASTOJEV]-krat zapored obstali. */
     fun naprejPoZastoju(zaporedniZastoji: Int, imaNaslednjo: Boolean): Boolean =

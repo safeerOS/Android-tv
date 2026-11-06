@@ -183,9 +183,8 @@ object MrtviKanali {
         for (p in poslusalci) try { p(k) } catch (_: Throwable) { }
     }
 
-    /** Naloga 121: vsebine ne kazemo nikjer v Medijskem centru ([KanaliPravila.skrijNedelujoc]). */
-    fun skrij(c: Context, s: Jamendo.Skladba): Boolean = KanaliPravila.skrijNedelujoc(jeMrtev(c, s.id), IptvSeznami.jeKanal(s),
-        KanaliPravila.znanNedelujocTok(s.zvok) || KanaliPravila.znanNedelujocTok(s.povezava))
+    /** Naloga 121: vsebine ne kazemo nikjer v Medijskem centru - mrtva (sproti zaznana, 24 h) ali skrita ([jeMrtev]). */
+    fun skrij(c: Context, s: Jamendo.Skladba): Boolean = jeMrtev(c, s.id)
 
     /** Lastnik 4. 11. 2026: izbira »Pokazi skrite kanale« v TV v zivo - kanali, ki jih je skril uporabnik, so vidni. */
     @Volatile var pokaziSkrite = false

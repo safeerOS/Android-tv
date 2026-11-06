@@ -65,8 +65,17 @@ object SiteProfileResolver {
  * (»Ste pozabili geslo?«) pa je ujel obrazec. Kontrole, ki niso povezava (polje, gumb, potrditveno polje), zato dobijo
  * en pravi dotik na sredini, ce je tam res one ([GoogleTipke.ok]); polje z dotikom odpre tipkovnico. Ce dotik ne
  * doseze potrditvenega polja (skrit vhod pod narisanim okvirjem), ga preklopi Presledek.
+ * Cetrti slepi pregled 5. 11. 2026 (N-A): fokus na okvirju (IFRAME, FRAME, OBJECT, EMBED, FENCEDFRAME, PORTAL; tudi v odprti
+ * senci) ali okvir na tocki dotika (DIV s tabindex okoli tujega okvirja) - ne pravi Enter ne pravi dotik, ampak sinteticen
+ * klik in 'kazalec' (namig za kazalec, kot pri tujih okvirjih). Pravi dotik samo na element, ki ne more biti gostitelj
+ * shadow DOM (BREZ_SENCE; HTML attachShadow) - zaprte sence ne vidimo. Fokus, oznaka, okvir in zadetek z izvirniki
+ * ChromiumEngineView.IZVIRNIKI_JS (mesto imena zamenja [GoogleTipke.zIzvirniki]); brez izvirnikov ni pravega dotika.
+ * Peti slepi pregled 5. 11. 2026 (N1): gostitelj ZAPRTE sence (DIV, SPAN, element po meri; shadowRoot je null) je dobil pravi
+ * Enter, ki je sel v okvir v senci. Pravi Enter ali Presledek zdaj samo na element s seznama BREZ_SENCE (povezava A po
+ * fokusu preverjena z izvirnikom); drug fokusiran element dobi sinteticen klik in 'kazalec'. Brez fokusa, ob izjemi ali
+ * neznanem odgovoru 'nic' (Kotlin ne naredi nicesar) - nikoli Enter.
  */
-private const val KLIK_FOKUSA = """(function(){var e=document.activeElement,v=window.__gnavPolje;window.__gnavPolje=null;if((!e||e===document.body||e===document.documentElement)&&v&&v.isConnected)e=v;if(!e||e===document.body||e===document.documentElement||e.tagName==='IFRAME')return 'enter'; if(e.matches('input[type="file"]'))return 'enter'; var kontrola='input,textarea,select,button,[role="checkbox"],[role="switch"],[role="radio"],[role="button"],[contenteditable="true"]'; var a=e.matches('a[href]')?e:(e.matches(kontrola)?null:e.querySelector('a[href]')); if(a){try{a.focus({preventScroll:true});}catch(_){} return 'enter';} var pr=e.matches('input[type="checkbox"],input[type="radio"],[role="checkbox"],[role="switch"],[role="radio"]'); var r=e.getBoundingClientRect(); if(r.width>0&&r.height>0&&(r.top<0||r.bottom>innerHeight||r.left<0||r.right>innerWidth)){try{e.scrollIntoView({block:'center',inline:'nearest'});}catch(_){} r=e.getBoundingClientRect();} if(r.width<=0||r.height<=0)return pr?'space':'enter'; var x=r.left+r.width/2,y=r.top+r.height/2,p=document.elementFromPoint(x,y),lab=p&&p.closest?p.closest('label'):null; if(p&&(p===e||e.contains(p)||(lab&&lab.control===e)))return 'dotik:'+Math.round(x)+','+Math.round(y); return pr?'space':'enter';})()"""
+private const val KLIK_FOKUSA = """(function(){'use strict';function klik(){var I=null;try{var k=window['__safeer_izvirniki_'+'__SAFEER_NONCE_IZVIRNIKOV__'];if(k&&typeof k.apply==='function'&&typeof k.akt==='function'&&typeof k.tag==='function'&&typeof k.efp==='function'&&typeof k.gbcr==='function'&&typeof k.contains==='function'&&typeof k.rl==='function'&&typeof k.rt==='function'&&typeof k.rw==='function'&&typeof k.rh==='function')I=k;}catch(_){I=null;} function oz(x){try{var t=I?I.apply(I.tag,x,[]):x.tagName;return typeof t==='string'?t:'';}catch(_){return '';}} var OKVIR={__proto__:null,IFRAME:1,FRAME:1,OBJECT:1,EMBED:1,FENCEDFRAME:1,PORTAL:1}; var BREZ_SENCE={__proto__:null,INPUT:1,TEXTAREA:1,SELECT:1,BUTTON:1,LABEL:1,A:1,IMG:1,OPTION:1}; function okv(x){if(!I)return null;try{var r=I.apply(I.gbcr,x,[]);var l=I.apply(I.rl,r,[]),t=I.apply(I.rt,r,[]),w=I.apply(I.rw,r,[]),h=I.apply(I.rh,r,[]);if(typeof l!=='number'||typeof t!=='number'||typeof w!=='number'||typeof h!=='number')return null;return {l:l,t:t,w:w,h:h};}catch(_){return null;}} var e=null;try{e=I?I.apply(I.akt,document,[]):document.activeElement;}catch(_){e=null;} var v=window.__gnavPolje;window.__gnavPolje=null;if((!e||e===document.body||e===document.documentElement)&&v&&v.isConnected)e=v;if(!e||e===document.body||e===document.documentElement)return 'nic'; if(OKVIR[oz(e)]===1)return 'kazalec'; try{var sr=e.shadowRoot,g=0;while(sr&&g<32){var se=sr.activeElement;if(!se)break;if(OKVIR[oz(se)]===1)return 'kazalec';sr=se.shadowRoot;g++;}}catch(_){} if(e.matches('input[type="file"]'))return 'enter'; var kontrola='input,textarea,select,button,[role="checkbox"],[role="switch"],[role="radio"],[role="button"],[contenteditable="true"]'; var a=e.matches('a[href]')?e:(e.matches(kontrola)?null:e.querySelector('a[href]')); if(a){try{a.focus({preventScroll:true});}catch(_){} var po=null;try{po=I?I.apply(I.akt,document,[]):document.activeElement;}catch(_){po=null;} return (po===a&&oz(a)==='A')?'enter':'kazalec';} if(BREZ_SENCE[oz(e)]!==1){try{e.click();}catch(_){} return 'kazalec';} var pr=e.matches('input[type="checkbox"],input[type="radio"],[role="checkbox"],[role="switch"],[role="radio"]'); var r=okv(e); if(!r)return pr?'space':'enter'; if(r.w>0&&r.h>0&&(r.t<0||r.t+r.h>innerHeight||r.l<0||r.l+r.w>innerWidth)){try{e.scrollIntoView({block:'center',inline:'nearest'});}catch(_){} r=okv(e); if(!r)return pr?'space':'enter';} if(!(r.w>0&&r.h>0))return pr?'space':'enter'; var x=r.l+r.w/2,y=r.t+r.h/2,p=null;try{p=I.apply(I.efp,document,[x,y]);}catch(_){p=null;} if(!p)return pr?'space':'enter'; var tp=oz(p); if(OKVIR[tp]===1){try{e.click();}catch(_){} return 'kazalec';} if(BREZ_SENCE[tp]!==1)return pr?'space':'enter'; var zad=p===e;if(!zad){try{zad=I.apply(I.contains,e,[p])===true;}catch(_){zad=false;}} if(!zad&&tp==='LABEL'&&typeof I.ctl==='function'){try{zad=I.apply(I.ctl,p,[])===e;}catch(_){zad=false;}} if(!zad||x<0||y<0)return pr?'space':'enter'; return 'dotik:'+((x+0.5)|0)+','+((y+0.5)|0);} try{var r=klik();return typeof r==='string'?r:'nic';}catch(_){return 'nic';}})()"""
 
 /**
  * Smerne tipke na Googlovih zadetkih (22. 9. 2026, video lastnika): Tab je hodil po vsakem zavihku, meniju
@@ -477,11 +486,22 @@ object GenericWebSiteProfile : SiteProfile {
                 if (si.safeer.tv.UserScriptManager.isGoogleDomain(wv.url)) {
                     // Fokus je pogosto na ovoju zadetka (DIV): najprej na povezavo v njem, nato Enter strani;
                     // polje, gumb in potrditveno polje dobijo pravi dotik ([KLIK_FOKUSA], [GoogleTipke.ok]).
-                    wv.evaluateJavascript(KLIK_FOKUSA) { o ->
+                    val zetonG = wv.zetonDotika
+                    val nonceIz = if (wv.izvirnikiRegistrirani) wv.nonceIzvirnikov else null
+                    wv.evaluateJavascript(GoogleTipke.zIzvirniki(KLIK_FOKUSA, nonceIz)) { o ->
+                        // Peti slepi pregled (N1): vsa dejanja samo na isti strani (zeton) in se vedno na Googlu (stran je med
+                        // odgovorom lahko navigirala drugam).
+                        if (!GoogleTipke.istaStran(zetonG, wv.zetonDotika, si.safeer.tv.UserScriptManager.isGoogleDomain(wv.url))) return@evaluateJavascript
                         when (val d = GoogleTipke.ok(o)) {
                             is GoogleTipke.Ok.Dotik -> dotakniSe(wv, d.x, d.y)
                             GoogleTipke.Ok.Presledek -> nativnaTipka(wv, event, KeyEvent.KEYCODE_SPACE)
                             GoogleTipke.Ok.Enter -> nativnaTipka(wv, event, KeyEvent.KEYCODE_ENTER)
+                            // Okvir (N-A): nic pravega v okvir, enkrat na stran namig za kazalec.
+                            GoogleTipke.Ok.Nic -> {}
+                            GoogleTipke.Ok.Kazalec -> if (wv.namigKazalcaZa != zetonG) {
+                                wv.namigKazalcaZa = zetonG
+                                android.widget.Toast.makeText(host, UiText.get(R.string.splet_namig_kazalec), android.widget.Toast.LENGTH_LONG).show()
+                            }
                         }
                     }
                     return true
@@ -493,7 +513,21 @@ object GenericWebSiteProfile : SiteProfile {
                 val izziv = si.safeer.tv.TvTipke.novIzziv()
                 val zeton = wv.zetonDotika
                 wv.evaluateJavascript(ukazTipke(wv) + izvoz(wv, "_safeer_click_focused_card") + "('$izziv');") { o ->
-                    if (si.safeer.tv.TvTipke.okNaDatoteki(o, zeton, izziv)) nativnaTipka(wv, event, KeyEvent.KEYCODE_ENTER)
+                    if (si.safeer.tv.TvTipke.okNaDatoteki(o, zeton, izziv)) {
+                        // Tretji neodvisni pregled 5. 11. 2026 (N3): stran je med odgovorom in tipko lahko dala fokus tujemu
+                        // okvirju (Enter bi sel vanj). Tik pred tipko skript znova preveri izvirni activeElement; Enter v istem
+                        // odzivu. Preostanek: premik fokusa med tem odgovorom in tipko (dve sporocili do izrisovalnika).
+                        val izziv2 = si.safeer.tv.TvTipke.novIzziv()
+                        wv.evaluateJavascript(ukazTipke(wv) + izvoz(wv, "_safeer_preveri_cilj") + "('$izziv2');") { o2 ->
+                            if (si.safeer.tv.TvTipke.ciljVelja(o2, zeton, izziv2, "enter") && wv.zetonDotika == zeton) {
+                                nativnaTipka(wv, event, KeyEvent.KEYCODE_ENTER)
+                            }
+                        }
+                    } else if (si.safeer.tv.TvTipke.namigKazalca(o, zeton, izziv) && wv.zetonDotika == zeton && wv.namigKazalcaZa != zeton) {
+                        // OK v tuj okvir ne seze (pravi dotik izklopljen): enkrat na stran namig za kazalec.
+                        wv.namigKazalcaZa = zeton
+                        android.widget.Toast.makeText(host, UiText.get(R.string.splet_namig_kazalec), android.widget.Toast.LENGTH_LONG).show()
+                    }
                 }
                 return true
             }

@@ -34,9 +34,13 @@ function primer(ime, fn) {
         if (!VSE) process.exit(1);
     }
 }
-function blok(ime) {
-    const i = VIR.indexOf('/* ' + ime + '_ZACETEK'), j = VIR.indexOf('/* ' + ime + '_KONEC */');
-    return i >= 0 && j > i ? VIR.slice(i, j) : '';
+// Tretji neodvisni pregled 5. 11. 2026: pravi dotik v tuj okvir je izklopljen (PRAVI_DOTIK_V_OKVIR). Preverbe tocke in
+// izvora za GSI in Cloudflare ostanejo za ponovni vklop - tecejo z vklopljeno zastavico (VIR_OKVIR).
+const VIR_OKVIR = VIR.split('var PRAVI_DOTIK_V_OKVIR = false;').join('var PRAVI_DOTIK_V_OKVIR = true;');
+function blok(ime, vir) {
+    vir = vir || VIR;
+    const i = vir.indexOf('/* ' + ime + '_ZACETEK'), j = vir.indexOf('/* ' + ime + '_KONEC */');
+    return i >= 0 && j > i ? vir.slice(i, j) : '';
 }
 const gumb = (s, t, o, ex) => s.el('button', Object.assign({ okvir: o, besedilo: t }, ex || {}));
 const izbrani = (s) => s.document.querySelectorAll('.safeer-active-card').map((e) => e.innerText.trim() || e.tagName);
@@ -49,7 +53,7 @@ primer('1', () => {
     const a = s.el('iframe', { attrs: { src: 'https://accounts.google.com/gsi/button' }, okvir: [100, 100, 300, 60] });
     const tuj = s.el('iframe', { attrs: { src: 'https://tuj.test/dovoli' }, okvir: [1000, 600, 200, 100] });
     s.body.dodaj(a, tuj);
-    s.nalozi(VIR);
+    s.nalozi(VIR_OKVIR);
     s.izberi(a);
     // Stran po nalaganju: lazni okvir gumba nad tujim okvirjem, elementFromPoint vedno vrne gumb.
     a.getBoundingClientRect = () => ({ left: 1000, top: 600, width: 200, height: 100, right: 1200, bottom: 700 });
@@ -137,11 +141,21 @@ primer('4', () => {
     const pravi = s2.el('div', { razred: 'cf-turnstile', okvir: [100, 100, 300, 65] });
     pravi.dodaj(s2.el('iframe', { attrs: { src: 'https://challenges.cloudflare.com/cdn-cgi/challenge-platform/x' }, okvir: [100, 100, 300, 65] }));
     s2.body.dodaj(z2, pravi);
-    s2.nalozi(VIR);
+    s2.nalozi(VIR_OKVIR);
     s2.izberi(z2);
     s2.smer('DOWN');
     s2.ok();
-    preveri('4: okvir challenges.cloudflare.com v izzivu: en dotik na potrditveno polje', [[122, 132.5]], s2.dotiki);
+    preveri('4: okvir challenges.cloudflare.com v izzivu (vklopljena zastavica): en dotik na potrditveno polje', [[122, 132.5]], s2.dotiki);
+    const s3 = ustvari({ zeton: ZETON });
+    const z3 = gumb(s3, 'Zgoraj', [100, 20, 300, 50]);
+    const p3 = s3.el('div', { razred: 'cf-turnstile', okvir: [100, 100, 300, 65] });
+    p3.dodaj(s3.el('iframe', { attrs: { src: 'https://challenges.cloudflare.com/cdn-cgi/challenge-platform/x' }, okvir: [100, 100, 300, 65] }));
+    s3.body.dodaj(z3, p3);
+    s3.nalozi(VIR);
+    s3.izberi(z3);
+    s3.smer('DOWN');
+    s3.ok();
+    preveri('4: proizvodnja: okvir challenges.cloudflare.com: ni pravega dotika', [], s3.dotiki);
 });
 
 // 5. SREDNJA: stran zaklene zastavico 'safeer-x' -> daljinec mrtev.
@@ -218,7 +232,8 @@ primer('10', () => {
 
 // 11. NIZKA: GOR skoci na »Glej zdaj« / meni na vsaki strani.
 primer('11', () => {
-    for (const [host, pric] of [['novice.test', 'Vmes'], ['www.xploretv.si', 'Glej zdaj']]) {
+    // Peti slepi pregled 5. 11. 2026 (odlocitev vodje): brez izjeme za gostitelje - GOR povsod na naslednjo vrstico.
+    for (const [host, pric] of [['novice.test', 'Vmes'], ['tv-v-zivo.test', 'Vmes']]) {
         const s = ustvari({ zeton: ZETON });
         s.window.location.hostname = host;
         const glej = gumb(s, 'Glej zdaj', [100, 100, 300, 60]);
@@ -246,8 +261,8 @@ primer('12', () => {
 
 // Ciste odlocitve.
 primer('ciste', () => {
-    const f = new Function(blok('SAFEER_PRAVI_DOTIK') + blok('SAFEER_PREPIR_FOKUSA') + blok('SAFEER_TV_PONUDNIK') +
-        '\nreturn { smePraviDotik, smemVrnitiFokus, jeGostiteljTvPonudnika };')();
+    const f = new Function(blok('SAFEER_PRAVI_DOTIK', VIR_OKVIR) + blok('SAFEER_PREPIR_FOKUSA') +
+        '\nreturn { smePraviDotik, smemVrnitiFokus };')();
     const g = { izvirniki: true, omrezni: true, potrjena: true, namen: 'google', oznakaCilja: 'IFRAME',
         virCilja: 'https://accounts.google.com/gsi/button', zadetekJeCilj: true, zadetekVCilju: true, oznakaZadetka: 'IFRAME' };
     const z = (o, d) => f.smePraviDotik(Object.assign({}, o, d));
@@ -272,17 +287,17 @@ primer('ciste', () => {
     const st = { zac: 0, n: 0 };
     preveri('cisto: vrnitev fokusa 1, 2 da, 3 ne, po 1 s spet da', [true, true, false, true],
         [f.smemVrnitiFokus(st, 100), f.smemVrnitiFokus(st, 200), f.smemVrnitiFokus(st, 300), f.smemVrnitiFokus(st, 1500)]);
-    preveri('cisto: gostitelji TV ponudnikov', [true, true, true, false, false],
-        ['www.xploretv.si', 'xploretv.si', '365.rtvslo.si', 'lazniexploretv.si', 'rtvslo.si.tuj.test'].map(f.jeGostiteljTvPonudnika));
-    // Isti odtis kot Kotlin (TvTipkeTest: odtisStevilo, znakNamestitve) in neodvisna izvedba v tv_lazni_dom.js.
-    const d = new Function(blok('SAFEER_ZNAK_NAMESTITVE') + blok('SAFEER_DOKAZ') + '\nreturn { odtisStevilo, dokazDatoteke };')();
+    // Peti slepi pregled 5. 11. 2026 (odlocitev vodje): brez seznama gostiteljev - splosno pravilo (tests/tv_peti_pregled_test.js).
+    preveri('cisto: brez seznama gostiteljev TV ponudnikov', [-1, -1], [VIR.indexOf('jeGostiteljTvPonudnika'), VIR.indexOf('naTvPonudniku')]);
+    // Isti odtis kot Kotlin (TvTipkeTest: odtisHex, HMAC-SHA256 od cetrtega slepega pregleda) in node:crypto v tv_lazni_dom.js.
+    const d = new Function(blok('SAFEER_ZNAK_NAMESTITVE') + blok('SAFEER_DOKAZ') + '\nreturn { odtisHex, dokazDatoteke };')();
     const IZ = '0123456789abcdef0123456789abcdef';
     const s = ustvari();
-    preveri('cisto: odtis tipke kot neodvisna izvedba', s.odtisStevilo('z'.repeat(48), 'tipka|' + IZ), d.odtisStevilo('z'.repeat(48), 'tipka|' + IZ));
-    preveri('cisto: odtis tipke kot Kotlin (TvTipkeTest)', 2855865788, d.odtisStevilo('z'.repeat(48), 'tipka|' + IZ));
+    preveri('cisto: odtis tipke kot neodvisna izvedba (node:crypto)', require('crypto').createHmac('sha256', 'z'.repeat(48)).update('tipka|' + IZ).digest('hex'), d.odtisHex('z'.repeat(48), 'tipka|' + IZ));
+    preveri('cisto: odtis tipke kot Kotlin (TvTipkeTest)', '710f676402b818003612cb7ba435ae24f42c858306bc301f7b81594fd4d38d68', d.odtisHex('z'.repeat(48), 'tipka|' + IZ));
     // Neodvisni pregled 5. 11. 2026 (najdba 5): dokaz tipke pokrije stevec (TvTipkeTest: isti primer).
-    preveri('cisto: odtis tipke s stevcem kot neodvisna izvedba', s.odtisStevilo('z'.repeat(48), 'tipka|7|' + IZ), d.odtisStevilo('z'.repeat(48), 'tipka|7|' + IZ));
-    preveri('cisto: dokaz datoteke kot Kotlin (TvTipkeTest)', 'datoteka:safeer-cg41mu', d.dokazDatoteke('z'.repeat(48), IZ));
+    preveri('cisto: odtis tipke s stevcem kot neodvisna izvedba', require('crypto').createHmac('sha256', 'z'.repeat(48)).update('tipka|7|' + IZ).digest('hex'), d.odtisHex('z'.repeat(48), 'tipka|7|' + IZ));
+    preveri('cisto: dokaz datoteke kot Kotlin (TvTipkeTest)', 'datoteka:safeer-e47329582e82b715def9698cf9bf11cdaac8957ca113435c6f5a6aa2e4a53c99', d.dokazDatoteke('z'.repeat(48), IZ));
 });
 
 // 13. NIZKA: klicatelj prviFokusMenija ob -1 da fokus »Preklici« (Kotlin, PokrajinaActivity.pokaziMeni).
@@ -297,7 +312,8 @@ primer('aplikacija', () => {
     const vm = require('vm');
     const beri = (f) => fs.readFileSync(path.join(KOREN, f), 'utf8');
     const cev = beri('src/main/kotlin/si/safeer/tv/ChromiumEngineView.kt');
-    const iIzv = cev.indexOf('addDocumentStartJavaScript(this, izvirnikiJs(nonceIzvirnikov), setOf("*"))'), iGpc = cev.indexOf('UserScriptManager.GPC_AND_DNT_JS,');
+    // Peti slepi pregled (N5): prva registracija izvirnikov (registrirajIzvirnike) je pred drugimi skripti zacetka dokumenta.
+    const iIzv = cev.indexOf('if (registrirajIzvirnike()) {'), iGpc = cev.indexOf('UserScriptManager.GPC_AND_DNT_JS,');
     preveri('aplikacija: IZVIRNIKI_JS registriran pred drugimi skripti zacetka dokumenta', true, iIzv > 0 && iIzv < iGpc);
     const m = cev.match(/IZVIRNIKI_JS = """([\s\S]*?)"""/);
     preveri('aplikacija: IZVIRNIKI_JS obstaja', true, !!m);

@@ -178,7 +178,16 @@ function modalno(s) {
     okvir.setAttribute('src', 'https://accounts.google.com/gsi/button?x=1');
     s.izberi(okvir);
     s.ok();
-    preveri('6: viden okvir GSI, ki ga je izbral daljinec: en dotik na sredini', [[850, 440]], s.dotiki);
+    // Tretji neodvisni pregled 5. 11. 2026: pravi dotik v tuj okvir je izklopljen (tudi GSI); preverba vidnosti ostane za
+    // ponovni vklop (spodaj z vklopljeno zastavico).
+    preveri('6: viden okvir GSI, ki ga je izbral daljinec: proizvodnja brez pravega dotika', [], s.dotiki);
+    const s2 = ustvari();
+    const o2 = s2.el('iframe', { attrs: { src: 'https://accounts.google.com/gsi/button?x=1' }, okvir: [700, 400, 300, 80] });
+    s2.body.dodaj(gumb(s2, 'A', [100, 100, 300, 60]), o2);
+    s2.nalozi(VIR.split('var PRAVI_DOTIK_V_OKVIR = false;').join('var PRAVI_DOTIK_V_OKVIR = true;'));
+    s2.izberi(o2);
+    s2.ok();
+    preveri('6: viden okvir GSI (vklopljena zastavica): en dotik na sredini', [[850, 440]], s2.dotiki);
 }
 
 // 7. Zastavica namestitve: stran je ne more vnaprej nastaviti ne prepisati; ping aplikacije ostane resnicen.
@@ -324,7 +333,7 @@ function modalno(s) {
     const { dokazDatoteke } = new Function(VIR.slice(od, doK) + VIR.slice(od2, doK2) + '\nreturn { dokazDatoteke };')();
     const IZZIV = '0123456789abcdef0123456789abcdef';
     // Isti primer kot tests/TvTipkeTest.kt (TvTipke.odtisZetona v Kotlinu).
-    preveri('12c: odtis kot v Kotlinu (TvTipkeTest)', 'datoteka:safeer-cg41mu', dokazDatoteke('z'.repeat(48), IZZIV));
+    preveri('12c: odtis kot v Kotlinu (TvTipkeTest)', 'datoteka:safeer-e47329582e82b715def9698cf9bf11cdaac8957ca113435c6f5a6aa2e4a53c99', dokazDatoteke('z'.repeat(48), IZZIV));
     preveri('12c: brez veljavnega izziva ni dokaza', ['', ''], [dokazDatoteke('z'.repeat(48), undefined), dokazDatoteke('z'.repeat(48), 'x')]);
     // Stran je _safeer_click_focused_card zasedla pred nami.
     const s = ustvari();

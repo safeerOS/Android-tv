@@ -164,22 +164,17 @@ object KanaliPravila {
     fun razlicicaZaPreverjanje(imena: List<String>, stanja: List<Boolean?>): Int? =
         urediRazlicice(imena, stanja).firstOrNull()?.takeIf { stanja.getOrNull(it) == null }
 
-    /**
-     * Naloga 90d: tok, ki streznik odgovori pravilno (HTTP 200), a predvaja samo sliko »broadcast is temporarily unavailable«
-     * (izmerjeno 23. 10. 2026: TV SLO 1/2 iz iptv-org si.m3u; Arena Sport 1 Premium iz si.m3u, telekomsrbije.com/play - vsakih 5 s
-     * slika »Domaci TV - Zabranjen vam je pristup«). Sonda toka ga steje za zivega, zato ga poznamo po naslovu.
-     */
-    private val NEDELUJOCI_TOKOVI = Regex("^https?://(?:[^/@]*@)?(?:dash2\\.antik\\.sk(?::\\d+)?/live/test_|streamer03\\.xploretv\\.si(?::\\d+)?(?:/|$)|telekomsrbije\\.com(?::\\d+)?/play/)")
-
-    fun znanNedelujocTok(url: String): Boolean = NEDELUJOCI_TOKOVI.containsMatchIn(url.trim().lowercase(java.util.Locale.ROOT))
+    // Naloga 90d (seznam znanih nedelujocih tokov po naslovu) odstranjen v petem slepem pregledu 5. 11. 2026 (odlocitev vodje,
+    // javni paket brez prilagoditev za dolocene strani): tok, ki odpove, si TV sproti zapomni kot nedelujoc za MRTEV_KANAL_MS
+    // (24 h; GlasbaStoritev in PregledKanalov -> MrtviKanali.zapomni), tok, ki igra samo sliko obvestila, uporabnik skrije z
+    // »Kanal ne deluje - skrij« (MrtviKanali.skriti, trajno). Oboje pride v [rezervaIptv] in [klikKanala] kot stanje false.
 
     /**
      * Naloga 91a: kartica ima razlicice iz dodatkov in iz seznamov IPTV; ce dodatki ne dajo predvajljivega toka, se predvaja
-     * prva ziva razlicica seznama ([urediRazlicice]). Razlicice, ki niso iz seznama ([izIptv]) ali imajo znan nedelujoc tok
-     * ([nedelujoc]), ne pridejo v postev. Vrne indeks v [imena]; null = take razlicice ni.
+     * prva ziva razlicica seznama ([urediRazlicice]). Razlicice, ki niso iz seznama ([izIptv]), ne pridejo v postev. Vrne indeks v [imena]; null = take razlicice ni.
      */
-    fun rezervaIptv(imena: List<String>, stanja: List<Boolean?>, izIptv: List<Boolean>, nedelujoc: List<Boolean>): Int? =
-        urediRazlicice(imena, imena.indices.map { if (izIptv.getOrNull(it) != true || nedelujoc.getOrNull(it) == true) false else stanja.getOrNull(it) }).firstOrNull()
+    fun rezervaIptv(imena: List<String>, stanja: List<Boolean?>, izIptv: List<Boolean>): Int? =
+        urediRazlicice(imena, imena.indices.map { if (izIptv.getOrNull(it) != true) false else stanja.getOrNull(it) }).firstOrNull()
 
     /**
      * Naloga 96: kratko ime seznama IPTV za oznako vira (»Live TV · si.m3u«): zadnji del poti naslova brez poizvedbe, ce je
@@ -220,13 +215,13 @@ object KanaliPravila {
      * z ostalimi razlicicami dodatkov, rezerva je ziva razlicica seznama ([rezervaIptv]) - prej je tak klik sel k dodatku brez
      * rezerve in ob izpadu dodatka tiho odpovedal. null = ni zive razlicice.
      */
-    fun klikKanala(imena: List<String>, stanja: List<Boolean?>, izDodatka: List<Boolean>, izIptv: List<Boolean>, nedelujoc: List<Boolean>): KlikKanala? {
-        // Naloga 100 (pregled 231, N6): razlicica z znanim nedelujocim tokom ni prva (tudi glava ne), kot pri rezervi.
-        val st = imena.indices.map { if (nedelujoc.getOrNull(it) == true) false else stanja.getOrNull(it) }
+    fun klikKanala(imena: List<String>, stanja: List<Boolean?>, izDodatka: List<Boolean>, izIptv: List<Boolean>): KlikKanala? {
+        // Naloga 100 (pregled 231, N6): nedelujoca razlicica (stanje false) ni prva (tudi glava ne), kot pri rezervi.
+        val st = imena.indices.map { stanja.getOrNull(it) }
         val prva = urediRazlicice(imena, st).firstOrNull() ?: return null
         if (izDodatka.getOrNull(prva) != true) return KlikKanala(prva, emptyList(), null)
         val dodatki = listOf(prva) + imena.indices.filter { it != prva && izDodatka.getOrNull(it) == true }
-        return KlikKanala(prva, dodatki, rezervaIptv(imena, st, izIptv, nedelujoc))
+        return KlikKanala(prva, dodatki, rezervaIptv(imena, st, izIptv))
     }
 
     /**
@@ -245,14 +240,7 @@ object KanaliPravila {
         (dodatkov?.takeIf { it.isNotEmpty() } ?: shranjeni).plus(ostali).filter { it.isNotBlank() }.distinct()
 
     /**
-     * Naloga 121 (lastnik: nedelujocih kanalov uporabniku ne kazemo nikjer v Medijskem centru): vnos se ne pokaze, ce je
-     * oznacen kot mrtev ali skrit ([mrtev] - MrtviKanali, velja za kanal in postajo) ali je kanal seznama IPTV z znano
-     * nedelujocim tokom ([nedelujocTok], npr. slika »kanal ni na voljo«). Neznano stanje se kaze (nic ne izgine brez dokaza).
-     */
-    fun skrijNedelujoc(mrtev: Boolean, jeKanalSeznama: Boolean, nedelujocTok: Boolean): Boolean = mrtev || (jeKanalSeznama && nedelujocTok)
-
-    /**
-     * Naloga 91c: nedavni vnosi (Recent) brez tistih, ki ne delujejo ([nedeluje]: skrit, mrtev, znan nedelujoc tok). Kanal je
+     * Naloga 91c: nedavni vnosi (Recent) brez tistih, ki ne delujejo ([nedeluje]: skrit ali mrtev). Kanal je
      * ena kartica z vec razlicicami, zato tak kanal skrije tudi ostale nedavne kanale z istim imenom ([kljucImena]).
      */
     fun <T> brezNedelujocihKanalov(vnosi: List<T>, jeKanal: (T) -> Boolean, ime: (T) -> String, nedeluje: (T) -> Boolean): List<T> {

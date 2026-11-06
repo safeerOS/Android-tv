@@ -24,6 +24,48 @@ fun main() {
     preveriEnako("zastoj, naslednja obstaja: naprej", true, P.naprejPoZastoju(0, imaNaslednjo = true))
     preveriEnako("zastoj, zadnja v vrsti: obstane z obvestilom", false, P.naprejPoZastoju(0, imaNaslednjo = false))
     preveriEnako("tretji zastoj zapored: obstane", false, P.naprejPoZastoju(3, imaNaslednjo = true))
+    // Cetrti slepi pregled 5. 11. 2026 (N-E): predvajalnik v okvirju drugega izvora (CDN) igra, a ne javi polozaja.
+    val zdaj = 1_000_000L
+    preveriEnako("N-E: okvir drugega izvora igra (pred 1 s): ni zastoja", false,
+        P.zastoj(40_000L, 0L, pripravljeno = false, zelja = true, nepreverjenoIgra = P.nepreverjenoIgra(zdaj - 1_000L, zdaj)))
+    preveriEnako("N-E: znak okvirja zastarel (3 s): pravi zastoj", true,
+        P.zastoj(60_000L, 0L, pripravljeno = false, zelja = true, nepreverjenoIgra = P.nepreverjenoIgra(zdaj - 3_000L, zdaj)))
+    preveriEnako("N-E: nic ne igra (znaka ni bilo): pravi zastoj", true,
+        P.zastoj(60_000L, 0L, pripravljeno = false, zelja = true, nepreverjenoIgra = P.nepreverjenoIgra(0L, zdaj)))
+    preveriEnako("N-E: znak iz prihodnosti (ura) ne velja", false, P.nepreverjenoIgra(zdaj + 10L, zdaj))
+    // Peti slepi pregled 5. 11. 2026 (N4): oglas v okvirju igra 2 min (znak vsako sekundo), skladba ne zacne - po meji zastoj.
+    val prviZastoj = (0L..120_000L step 1_000L).firstOrNull {
+        P.zastoj(it, 0L, pripravljeno = false, zelja = true, nepreverjenoIgra = P.nepreverjenoIgra(zdaj - 500L, zdaj))
+    }
+    preveriEnako("N4: oglas igra 2 min: zastoj ob ROK_ZASTOJA_MS + NEPREVERJENO_PODALJSEK_MS (45 s), ne nikoli",
+        YoutubeVrstaPravila.ROK_ZASTOJA_MS + YoutubeVrstaPravila.NEPREVERJENO_PODALJSEK_MS, prviZastoj)
+    preveriEnako("N4: znak pred mejo (30 s) se preklice zastoj", false,
+        P.zastoj(30_000L, 0L, pripravljeno = false, zelja = true, nepreverjenoIgra = true))
+    // Odlocitev vodje 5. 11. 2026 (N4): skladbe, ki igra, ne preskocimo. Simulacija tika vsako sekundo (porocilo okvirja vsako s).
+    fun prviZastojOb(sekund: Int, d: Double, tTece: Boolean): Long? {
+        val sl = YoutubeVrstaPravila.NepreverjenoSledenje()
+        for (s in 0..sekund) {
+            val ms = s * 1_000L
+            sl.znak(if (tTece) 1.0 + s else 7.0, d, 1_000_000.0 + ms, 5_000_000L + ms)
+            if (P.zastoj(ms, 0L, pripravljeno = false, zelja = true, nepreverjenoIgra = sl.igra(5_000_000L + ms),
+                    nepreverjenoDolgo = sl.dolgIgra(5_000_000L + ms))) return ms
+        }
+        return null
+    }
+    preveriEnako("N4: CDN skladba d=200 s igra 3 min: ni preskoka", null, prviZastojOb(180, 200.0, tTece = true))
+    preveriEnako("N4: oglas d=30 s igra 2 min: zastoj pri 45 s", 45_000L, prviZastojOb(120, 30.0, tTece = true))
+    preveriEnako("N4: d=200 s, t stoji: zastoj pri 45 s", 45_000L, prviZastojOb(120, 200.0, tTece = false))
+    preveriEnako("N4: brez trajanja (d=0): zastoj pri 45 s", 45_000L, prviZastojOb(120, 0.0, tTece = true))
+    // Isto porocilo dvakrat (tik pred novim porocilom) ne podre stetja; skok t (preskok v posnetku) ga podre.
+    val sl = YoutubeVrstaPravila.NepreverjenoSledenje()
+    for (s in 0..3) { sl.znak(1.0 + s, 200.0, 1_000.0 + s * 1_000, 10_000L + s * 1_000); sl.znak(1.0 + s, 200.0, 1_000.0 + s * 1_000, 10_500L + s * 1_000) }
+    preveriEnako("N4: podvojeno porocilo: se vedno dolg posnetek", true, sl.dolgIgra(14_000L))
+    sl.znak(150.0, 200.0, 5_000.0, 14_200L)
+    preveriEnako("N4: skok t za 146 s v 1 s: ni enakomerno", false, sl.dolgIgra(14_300L))
+    preveriEnako("N4: znak zastarel (3 s): ne igra", false, sl.igra(17_300L))
+    // Pravi zastoj se vedno preskoci z mejo (brez zanke): najvec NAJVEC_ZAPOREDNIH_ZASTOJEV zapored.
+    preveriEnako("N-E: pravi zastoji: naprej 3-krat, nato obstane", listOf(true, true, true, false),
+        (0..3).map { P.naprejPoZastoju(it, imaNaslednjo = true) })
     // Lastnik 27. 10.: posnetek YouTube s police/iskanja ne sme iti mimo vrste na spletno stran (Naprej, konec skladbe)
     preveriEnako("glasba YouTube s police: vrsta", true, P.kotVrsta(jeYoutube = true, video = false))
     preveriEnako("video YouTube: ostane na strani", false, P.kotVrsta(jeYoutube = true, video = true))

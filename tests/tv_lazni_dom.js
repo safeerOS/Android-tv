@@ -187,6 +187,7 @@ function ustvari(nastavitve) {
     // Kot ChromiumEngineView.IZVIRNIKI_JS: izvirniki metod, shranjeni pred skriptami strani (nespremenljiva lastnost).
     // Izvirniki so iz zunanjega sveta preizkusa: stran (koda v vm) jih ne more prepisati, kot v brskalniku.
     const fokusIzvirnik = El.prototype.focus;
+    const mostZacetka = win.SafeerBridge;
     if (n.izvirniki !== false) {
         const imena = ['__safeer_izvirniki_' + nonceIzvirnikov, '__safeer_izvirniki'];
         for (const ime of imena) Object.defineProperty(win, ime, { writable: false, configurable: false, enumerable: false, value: Object.freeze({
@@ -200,15 +201,22 @@ function ustvari(nastavitve) {
             ctl: function () { if (this.tagName !== 'LABEL') throw new TypeError('ni oznaka'); return this.control || null; },
             typ: function () { if (this.tagName !== 'INPUT') throw new TypeError('ni polje'); return (El.prototype.getAttribute.call(this, 'type') || 'text').toLowerCase(); },
             fokus: function (o) { return fokusIzvirnik.call(this, o); },
-            akt: function () { return doc.activeElement; } }) });
+            akt: function () { return doc.activeElement; },
+            dis: function () { if (this.tagName !== 'INPUT') throw new TypeError('ni polje'); return this.disabled === true; },
+            // Kot IZVIRNIKI_JS (tretji neodvisni pregled 5. 11. 2026, N5): most in metoda ob zacetku dokumenta.
+            most: mostZacetka, tap: mostZacetka ? mostZacetka.triggerNativeTap : null }) });
     }
-    // Kot TvTipke.odtisStevilo (FNV-1a, 32 bitov) - neodvisna izvedba za preizkus (charCodeAt, Math.imul).
+    // Stari dokaz (FNV-1a, 32 bitov) - samo za preizkus starega skripta brez popravka (SAFEER_VSE_NAPAKE=1).
     function odtisStevilo(z, niz) {
         let h = 2166136261;
         const v = z + '|' + niz + '|' + z;
         for (let i = 0; i < v.length; i++) { h = (h ^ v.charCodeAt(i)) >>> 0; h = Math.imul(h, 16777619) >>> 0; }
         return h;
     }
+    // Cetrti slepi pregled 5. 11. 2026: dokaz je HMAC-SHA256 (TvTipke.odtisHex) - neodvisna izvedba node:crypto, ne koda skripta.
+    let hmacSkript = false;
+    const hmacHex = (z, niz) => require('crypto').createHmac('sha256', z).update(niz).digest('hex');
+    const odtisTipke = (z, niz) => (hmacSkript ? hmacHex(z, niz) : odtisStevilo(z, niz));
     let stIzziva = 0;
     // Ime z nakljucnim delom; brez njega staro ime (preizkus starega skripta brez popravka, SAFEER_VSE_NAPAKE=1).
     const izvoz = (ime) => (typeof win[ime + '_' + nonce] === 'function' ? win[ime + '_' + nonce] : win[ime]);
@@ -216,7 +224,7 @@ function ustvari(nastavitve) {
     // Argumenti klica _safeer_tipka za stevec st (kot TvTipke.ukazTipke); stari skript: (izziv, dokaz).
     function dokazTipke(st) {
         const iz = st.toString(16).padStart(32, '0');
-        return noviDokaz() ? [iz, st, odtisStevilo(zeton, 'tipka|' + st + '|' + iz)] : [iz, odtisStevilo(zeton, 'tipka|' + iz)];
+        return noviDokaz() ? [iz, st, odtisTipke(zeton, 'tipka|' + st + '|' + iz)] : [iz, odtisTipke(zeton, 'tipka|' + iz)];
     }
     // Kot TvTipke.ukazTipke: aplikacija pred klicem ob tipki daljinca poslje izziv, strogo narascajoc stevec in dokaz.
     function tipka() {
@@ -234,6 +242,8 @@ function ustvari(nastavitve) {
             const blok = (ime) => { const i = vir.indexOf('/* ' + ime + '_ZACETEK'), j = vir.indexOf('/* ' + ime + '_KONEC */'); return i >= 0 && j > i ? vir.slice(i, j) : ''; };
             const b = blok('SAFEER_ZNAK_NAMESTITVE') + blok('SAFEER_DOKAZ');
             if (b.indexOf('function odtisZetona') !== -1) odtis = new Function(b + '\nreturn odtisZetona;')();
+            hmacSkript = b.indexOf('SAFEER_HMAC_ZACETEK') !== -1;
+            if (hmacSkript) odtis = (z, niz) => 'safeer-' + hmacHex(z, niz);
             const izv = n.izvirniki === false ? 'ne' : 'da';
             // Samo preizkus: kljuka v zaprtju skripta (izbira kot iz smeri daljinca, samodejni vstop v okno). V aplikaciji je ni;
             // stran teh funkcij ne doseze (neodvisni pregled 5. 11. 2026: _safeer_highlight in _safeer_vstopi_v_plast nista vec izvoza).
@@ -247,14 +257,29 @@ function ustvari(nastavitve) {
             const konec = vir.lastIndexOf('})();');
             const s2 = konec > 0 && vir.indexOf('function highlightElement') !== -1 ? vir.slice(0, konec) + kljuka + vir.slice(konec) : vir;
             vm.runInContext(s2.split('__SAFEER_ZETON_DOTIKA__').join(zeton).split('__SAFEER_IZVIRNIKI__').join(izv)
-                .split('__SAFEER_NONCE_IZVIRNIKOV__').join(nonceIzvirnikov).split('__SAFEER_NONCE__').join(nonce), ctx);
+                .split('__SAFEER_NONCE_IZVIRNIKOV__').join(nonceIzvirnikov).split('__SAFEER_NONCE__').join(nonce)
+                .split('__SAFEER_PREJ_NONCE__').join(n.prejNonce || ''), ctx);
         },
-        ura, tipka, odtisStevilo, dokazTipke, stevecTipk: () => stIzziva,
+        ura, tipka, odtisStevilo: (z, niz) => odtisTipke(z, niz), dokazTipke, stevecTipk: () => stIzziva,
         // Koda strani v istem svetu (npr. prepis vgrajenih metod pred nasim skriptom).
         izvedi(koda) { return vm.runInContext(koda, ctx); },
         // Klici aplikacije ob tipki daljinca (SiteProfile): dokaz tipke, nato smer ali OK.
         smer(...a) { tipka(); return izvoz('_safeer_navigate_spatial')(...a); },
         ok(...a) { tipka(); return izvoz('_safeer_click_focused_card')(...a); },
+        // Kot aplikacija tik pred pravim dejanjem (SiteProfile Enter, ChromiumEngineView.triggerNativeTap): dokaz tipke, nato
+        // druga preverba cilja z izzivom; vrne odgovor skripta.
+        preveriCilj(izziv) { tipka(); const f = izvoz('_safeer_preveri_cilj'); return typeof f === 'function' ? f(izziv) : undefined; },
+        odtisZetona: (niz) => (odtis ? odtis(zeton, niz) : ''),
+        // Novo nalaganje istega skripta v isti dokument (onPageStarted brez novega dokumenta): nov nonce, nov zeton.
+        // Peti slepi pregled (N5): novIz = ime izvirnikov, ki ga aplikacija zdaj pricakuje (novo ob vsaki strani), izPrej = ime
+        // prejsnjega dokumenta (ziva kopija v istem dokumentu).
+        naloziZNonce(vir, novNonce, novZeton, prejNonce, novIz, izPrej) {
+            hmacSkript = vir.indexOf('SAFEER_HMAC_ZACETEK') !== -1;
+            vm.runInContext(vir.split('__SAFEER_ZETON_DOTIKA__').join(novZeton).split('__SAFEER_IZVIRNIKI__').join(n.izvirniki === false ? 'ne' : 'da')
+                .split('__SAFEER_NONCE_IZ_PREJ__').join(izPrej || '')
+                .split('__SAFEER_NONCE_IZVIRNIKOV__').join(novIz || nonceIzvirnikov).split('__SAFEER_NONCE__').join(novNonce)
+                .split('__SAFEER_PREJ_NONCE__').join(prejNonce || ''), ctx);
+        },
         vstopi() { return win.__preizkus.vstopi ? win.__preizkus.vstopi() : win._safeer_vstopi_v_plast(); },
         pocisti() { return win.__preizkus.pocisti(); },
         potrjena() { return win.__preizkus.potrjena(); },

@@ -451,6 +451,8 @@ node "$TEST_DIR/tv_pregled_groka_test.js"
 node "$TEST_DIR/tv_neodvisni_pregled_test.js"
 # Nisem robot (reCAPTCHA, hCaptcha): pravi dotik samo na okvir s potrditvenim poljem pravega izvora (lastnik 5. 11. 2026)
 node "$TEST_DIR/tv_nisem_robot_test.js"
+# Tretji neodvisni slepi pregled 5. 11. 2026: brez pravega dotika v tuj okvir, druga preverba cilja, izvirni most, N7, N8
+node "$TEST_DIR/tv_tretji_pregled_test.js"
 # Posrednik predvajalnika v okvirjih (SpletniIgralec.POSREDNIK_JS): zastavica, posiljatelj ukaza, kljuc stanja
 node "$TEST_DIR/igralec_posrednik_test.js"
 # En fokus na kartici clanka (lastnik 5. 11. 2026 17:49, rtvslo.si: rubrika in naslov)
