@@ -23,8 +23,8 @@ preveri("priljubljene v Glasbi po zaGlasbo", "skladbe(p.filter { OsPravila.zaGla
 s = re.search(r"private fun sorodnePolice\(.*?\n    \}\n", g, re.S)
 s = s.group(0) if s else ""
 preveri("prazna Glasba: brez radijskih postaj", "os_media_sorodno_postaje" not in s)
-preveri("prazna Glasba: TV kanali samo v Radiu", "if (radio && zaTv.isNotEmpty())" in s)
-preveri("prazna Glasba: nedavne skladbe in seznami", "R.string.os_media_nedavno" in s and "seznamiZaGlasbo()" in s)
+preveri("prazna Glasba: TV kanali samo v Radiu", "MeniVsebinePravila.policePrazne(radio, videospoti, 0, zaGlasbo.isNotEmpty(), zaTv.isNotEmpty())" in s)
+preveri("prazna Glasba: nedavne skladbe in seznami", "R.string.os_media_nedavno" in s and "MeniVsebinePravila.Polica.SEZNAMI" in s)
 preveri("Najnovejse: Jamendo po redJamenda", "order=${OsPravila.redJamenda(najnovejse)}" in (OS / "Jamendo.kt").read_text(encoding="utf-8"))
 preveri("Najnovejse: sprememba nalozi vir znova", "!= (nacini[i].first == RAZVRSTI_NAJNOVEJSE)) odpriMrezo(GLASBA)" in g)
 preveri("Na tej napravi: skupina tudi na TV", "(if (vlc || glasbaNaNapravi) listOf(SKUPINA_NAPRAVA to true)" in g and "OsPravila.glasbaNaTejNapravi(" in g)
