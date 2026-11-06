@@ -655,6 +655,9 @@ object OsPravila {
         video && !zaslonOdprt && napakaDekodiranja
 
     /** Ponudba »Nadaljuj od … / Od zacetka« velja, ce je mesto vsaj 10 s in ne v zadnjih 5 % (sicer je film koncan). */
+    /** Shranjeno mesto za nadaljevanje: najprej po skladbi toka, sicer po izvirniku, ki ga je uporabnik izbral (TV 6. 11. 2026). */
+    fun mestoNadaljevanja(poToku: Long, poIzvirniku: Long): Long = if (poToku > 0) poToku else maxOf(0L, poIzvirniku)
+
     fun ponudiNadaljevanje(mestoMs: Long, trajanjeMs: Long): Boolean =
         mestoMs >= 10_000 && (trajanjeMs <= 0 || mestoMs < trajanjeMs * 95 / 100)
 

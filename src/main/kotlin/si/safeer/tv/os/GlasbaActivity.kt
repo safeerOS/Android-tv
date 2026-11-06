@@ -8234,10 +8234,15 @@ class GlasbaActivity : OsActivity() {
         }
     }
 
-    private fun nadaljujKoPripravljen(sk: Jamendo.Skladba) {
+    private fun nadaljujKoPripravljen(sk: Jamendo.Skladba, izvirnik: Jamendo.Skladba? = null) {
         val predano = predajaPolozaj?.takeIf { it.first == sk.id }?.second?.also { predajaPolozaj = null }
-        val od = predano ?: MediaNapredek.polozaj(this, sk)
-        if (od <= 0) return
+        // TV 6. 11. 2026 16:00: »Nadaljuj z ogledom« (The Prestige, Usenet) je zacel od zacetka - zapis napredka se ni ujemal
+        // s skladbo toka (skladbaToka), le z izvirnikom, ki ga je uporabnik izbral. Zato poskusimo se izvirnik.
+        val od = predano ?: OsPravila.mestoNadaljevanja(MediaNapredek.polozaj(this, sk), izvirnik?.let { MediaNapredek.polozaj(this, it) } ?: 0L)
+        if (od <= 0) {
+            android.util.Log.d("SafeerOsMediji", "nadaljuj: ni shranjenega mesta (tok=${sk.id.take(40)}, izvirnik=${izvirnik?.id?.take(40)}, imdb=${sk.imdbId}/${izvirnik?.imdbId})")
+            return
+        }
         // Lastnik 28. 10. 2026: uporabnik izbere, ali nadaljuje ali zacne od zacetka (zaslon predvajanja vprasa). Predvajanje
         // do izbire miruje. Predaja z druge naprave (»Nadaljuj tukaj«) in sprotni tok pomocnika ostaneta samodejna.
         if (predano == null && SprotnaPomoc.tokZa(sk) == null && OsPravila.ponudiNadaljevanje(od, 0)) {
@@ -10902,7 +10907,7 @@ class GlasbaActivity : OsActivity() {
                     SpletniVir.zapomniGlaveToka(t.url, t.glave)
                     val r = skladbaToka(t)
                     GlasbaStoritev.predvajajZRezervami(this, r, rezerve.map { skladbaToka(it) to it.glave })
-                    if (r.video) { nadaljujKoPripravljen(r); startActivity(Intent(this, PredvajanjeActivity::class.java)) }
+                    if (r.video) { nadaljujKoPripravljen(r, sk); startActivity(Intent(this, PredvajanjeActivity::class.java)) }
                 }
                 "torrent" -> {
                     // Grok 9, Z2 (lastnik 23. 10.: brez debrida opozorilo, PREDEN se naprava poveze z rojem): tudi torrent iz

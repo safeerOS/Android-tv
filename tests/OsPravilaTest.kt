@@ -297,6 +297,10 @@ private fun pasMedVideom() {
     preveri("daljinec: brez vrste se pas skrije", OsPravila.pasSeSkrije(dotik = false, vrstaOdprta = false, tece = true))
     preveri("daljinec: brez vrste se pas skrije tudi med pavzo", OsPravila.pasSeSkrije(dotik = false, vrstaOdprta = false, tece = false))
     preveri("daljinec: odprta vrsta pas drzi", !OsPravila.pasSeSkrije(dotik = false, vrstaOdprta = true, tece = true))
+    // TV 6. 11. 2026 16:00: Nadaljuj z ogledom - mesto po izvirniku, ce ga tok nima.
+    preveri("nadaljuj: mesto po izvirniku", OsPravila.mestoNadaljevanja(0L, 301_000L) == 301_000L)
+    preveri("nadaljuj: mesto po toku ima prednost", OsPravila.mestoNadaljevanja(120_000L, 301_000L) == 120_000L)
+    preveri("nadaljuj: brez mesta 0", OsPravila.mestoNadaljevanja(0L, 0L) == 0L)
     // Lastnik 6. 11. 2026 14:34: po koncu nalaganja se pas skrije sam (prej je ostal ves film).
     preveri("konec nalaganja skrije pas", OsPravila.skrijPoNalaganju(prej = true, zdaj = false))
     preveri("med nalaganjem ne", !OsPravila.skrijPoNalaganju(prej = true, zdaj = true))
