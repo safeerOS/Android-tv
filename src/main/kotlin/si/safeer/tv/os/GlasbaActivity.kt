@@ -3373,7 +3373,10 @@ class GlasbaActivity : OsActivity() {
                         val kartice = predajaVrsta().flatMap { it.kartice } + nedavniVidei.map { sk ->
                             val n = napredki.firstOrNull { it.skladba.id == sk.id || (it.skladba.naslov.isNotBlank() && it.skladba.naslov == sk.naslov) }
                             val napredekOdstotek = if (n != null && n.trajanje > 0) (n.polozaj * 100 / n.trajanje).toInt().coerceIn(0, 100) else null
-                            Kartica(sk.naslov, sk.izvajalec, sk.slika, { predvajaj(listOf(sk), 0, izNedavnih = true) }, { meniNedavno(sk) },
+                            val klikSk = n?.skladba ?: sk
+                            Kartica(sk.naslov, sk.izvajalec, sk.slika, {
+                                if (SpletniVir.jeEnota(klikSk)) razresiSplet(klikSk) else predvajaj(listOf(klikSk), 0, izNedavnih = true)
+                            }, { meniNedavno(sk) },
                                 ikona = R.drawable.os_ikona_video, id = sk.id, napredek = napredekOdstotek)
                         }
                         if (kartice.isEmpty()) emptyList() else listOf(Vrsta(getString(R.string.os_nadaljuj_z_ogledom), kartice, video = true, nadaljuj = true))
