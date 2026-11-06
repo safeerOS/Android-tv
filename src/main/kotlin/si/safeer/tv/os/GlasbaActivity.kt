@@ -174,7 +174,7 @@ class GlasbaActivity : OsActivity() {
     /** Po izbiri kartice razdelka gre fokus na prvo kartico vsebine, ko se narise. */
     private var fokusVVsebino = false
     private var videnPrej = false
-    private val poslusalec: () -> Unit = { glavna.post { osveziZdaj(); narociVrnitevVidea() } }
+    private val poslusalec: () -> Unit = { glavna.post { osveziZdaj(); osveziMcKartico(); osveziZnak(); narociVrnitevVidea() } }
 
     /**
      * Video brez slike nima smisla (lastnik, 11. 10. 2026: »zvok se predvaja, ne pa video«): ko tok sredi filma odpove
@@ -2205,6 +2205,9 @@ class GlasbaActivity : OsActivity() {
             VIRI -> R.string.os_mediji_viri; ISKANJE -> R.string.os_glasba_iskanje; else -> R.string.os_media_naslov
         })
         geslo.visibility = if (i == DOMOV && !ozekZaslon()) View.VISIBLE else View.GONE
+        // Pregled MC-11: desna plosca Doma (kartica »zdaj igra«, TV v zivo, prenosi) se ni nikoli pokazala - osveziPloscoDomov ni
+        // klical nihce. Zdaj ob vsakem razdelku (drugod jo skrije), znak v glavi prav tako.
+        osveziPloscoDomov(); osveziZnak()
         iskalnik = if (i == ISKANJE) novIskalnik() else null
         // Velika plosca »zdaj se predvaja« je samo se v Predvajalniku na telefonu (vlc); drugod mala vrstica spodaj, tudi na Domu.
         vrstica.visibility = if (!vlc || i == DOMOV || GlasbaStoritev.trenutna() == null) View.GONE else View.VISIBLE
@@ -12654,10 +12657,8 @@ class GlasbaActivity : OsActivity() {
     private val mcKarticaHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private val mcKarticaCasovnik = object : Runnable {
         override fun run() {
-            if (mcKarticaKoren?.isShown == true && GlasbaStoritev.igra()) {
-                osveziMcKartico()
-                mcKarticaHandler.postDelayed(this, 1000)
-            }
+            // Pregled MC-11: osveziMcKartico sama narocí naslednjo sekundo (samo vidna kartica, ki igra).
+            osveziMcKartico()
         }
     }
 
@@ -12735,6 +12736,10 @@ class GlasbaActivity : OsActivity() {
                 layoutParams = FrameLayout.LayoutParams(-2, -2, Gravity.CENTER)
             })
             contentDescription = getString(opis)
+            // Pregled MC-11: gumbi dosegljivi z daljincem (prej samo kartica - prejsnja/naslednja nedosegljiva).
+            isFocusable = true; isClickable = true
+            setOnFocusChangeListener { v, f -> v.animate().scaleX(if (f) 1.1f else 1f).scaleY(if (f) 1.1f else 1f).setDuration(if (android.provider.Settings.Global.getFloat(contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f) 120L else 0L).start()
+                (v.background as android.graphics.drawable.GradientDrawable).setStroke(if (f) dp(2) else 0, osBarva(R.color.os_besedilo)) }
         }
         
         mcKarticaPrejsnja = btn(R.drawable.os_ikona_prejsnja, R.string.os_mediji_prejsnja, 44)
@@ -12805,12 +12810,14 @@ class GlasbaActivity : OsActivity() {
         val p = GlasbaStoritev.predvajalnik
         
         val prikazMc = MiniPredvajalnikPravila.prikazMc(razdelek == DOMOV, sk != null, podstrani.odprta)
-        if (prikazMc != MiniPredvajalnikPravila.KARTICA) {
+        val viden = prikazMc == MiniPredvajalnikPravila.KARTICA
+        if (!viden) {
             koren.visibility = View.GONE
+            mcKarticaHandler.removeCallbacks(mcKarticaCasovnik)
+            android.util.Log.d("SafeerOsMediji", "plosca: ni predvajanja ali ni Dom ($prikazMc)")
             return
-        } else {
-            koren.visibility = View.VISIBLE
         }
+        koren.visibility = View.VISIBLE
         
         if (sk == null) return
         
@@ -12826,6 +12833,7 @@ class GlasbaActivity : OsActivity() {
                 slika.setPadding(pad, pad, pad, pad)
                 slika.setBackgroundColor(osBarva(R.color.os_kartica))
                 slika.setImageResource(if (sk.video) R.drawable.os_ikona_video else R.drawable.os_ikona_glasba)
+                slika.tag = null
                 okvir.width = -1
                 okvir.gravity = Gravity.CENTER
             } else {
@@ -12839,7 +12847,8 @@ class GlasbaActivity : OsActivity() {
                     okvir.width = -1
                     okvir.gravity = Gravity.CENTER
                 }
-                slikaKartice(sk.slika, slika)
+                // Pregled MC-11: osvezitev vsako sekundo - slika samo ob novi skladbi (sicer uskladiSlike vsako sekundo).
+                if (slika.tag != sk.slika) { slika.tag = sk.slika; slikaKartice(sk.slika, slika) }
             }
         }
         
@@ -12863,6 +12872,17 @@ class GlasbaActivity : OsActivity() {
             mcKarticaCrta?.layoutParams = FrameLayout.LayoutParams(napredek, -1)
             mcKarticaCas?.text = MiniPredvajalnikPravila.casNapredka(polozaj.toLong(), trajanje.toLong())
         }
+        mcKarticaHandler.removeCallbacks(mcKarticaCasovnik)
+        if (igra && !r && viden && koren.isShown) mcKarticaHandler.postDelayed(mcKarticaCasovnik, 1000)
+    }
+
+    /** Pregled MC-11: znak »zdaj igra« v glavi - na drugih zavihkih in podstraneh, ko je kaj nalozeno (prej nikoli prikazan). */
+    private fun osveziZnak() {
+        val z = mcZnak ?: return
+        val sk = GlasbaStoritev.trenutna()
+        val v = MiniPredvajalnikPravila.prikazMc(razdelek == DOMOV, sk != null, podstrani.odprta) == MiniPredvajalnikPravila.ZNAK
+        z.visibility = if (v) View.VISIBLE else View.GONE
+        ((z as? android.view.ViewGroup)?.getChildAt(0) as? ImageView)?.setImageResource(if (sk?.video == true) R.drawable.os_ikona_video else R.drawable.os_ikona_glasba)
     }
 
     companion object {
