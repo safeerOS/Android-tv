@@ -119,20 +119,29 @@ object UsenetFilter {
                     val racun = if (Usenet.jeNaVoljo(app)) F.Izid.NA_VOLJO else F.Izid.NE_VEMO
                     val iden = try { id() } catch (_: Exception) { null }
                     var izdaje: List<F.Izdaja>? = null
-                    val poslji = F.poslji(racun, iden, iden != null && UsenetPravila.iscemo(iden))
+                    val iscemo = iden != null && UsenetPravila.iscemo(iden)
+                    val poslji = F.poslji(racun, iden, iscemo)
+                    // V dnevnik samo id IMDb (tt…, tt…:S:E); id dodatka (lahko daljsi niz dodatka) ne.
+                    val idDnevnik = if (iscemo) iden else "-"
                     // Kvoto je med cakanjem v vrsti porabil kdo drug: brez zahteve in brez zapisa (naslov se preveri pozneje).
-                    if (poslji && !omejevalnik.smem(zdaj())) return@execute
+                    if (poslji && !omejevalnik.smem(zdaj())) { Log.i(TAG, "preverba: id=$idDnevnik, odlozeno (kvota)"); return@execute }
+                    var odgovor: String? = null
+                    val t0 = android.os.SystemClock.uptimeMillis()
                     if (poslji && iden != null) {
                         porabljeno.incrementAndGet()
                         val r = Usenet.iskanje(app, iden, F.ROK_MS)
                         if (r.meja) omejevalnik.meja(zdaj())
                         izdaje = r.izdaje?.map { F.Izdaja(it.naslov, it.velikost / 1_073_741_824.0, it.geslo) }
+                        odgovor = r.razlog.ifBlank { null }
                     }
                     // Lastnik 5. 11. 2026 (zakon solidarnosti): zapis pove tudi, ali izdajo predvaja pomocnik v Linku -
                     // prisotnost pomocnika se presodi ob prikazu, ne tu (ne zapisemo »NI za 6 h« zaradi trenutka brez njega).
                     val pv = F.preverba(F.Izidi(racun, F.Odgovor(izdaje)), pogoji(), z)
                     shrani(app, k, F.zapisi(zapisi[k], pv.izid, pv.oznaka, zdaj(), pv.pomoc))
-                    Log.i(TAG, "preverba: izdaj=${izdaje?.size ?: -1}, izid=${pv.izid}, pomoc=${pv.pomoc}, zahtev od zagona=${porabljeno.get()}")
+                    // Tocka d (lastnik 6. 11. 2026): id naslova (IMDb, pri seriji S:E - brez imena) in razlog »ne vemo«; kljuca nikoli.
+                    val razlog = if (pv.izid == F.Izid.NE_VEMO) F.razlogNeVemo(racun, iden, iscemo, poslji, odgovor) ?: "?" else "-"
+                    Log.i(TAG, "preverba: id=$idDnevnik, izdaj=${izdaje?.size ?: -1}, izid=${pv.izid}, razlog=$razlog, pomoc=${pv.pomoc}, " +
+                        "ms=${android.os.SystemClock.uptimeMillis() - t0}, zahtev od zagona=${porabljeno.get()}")
                 } finally {
                     vTeku.remove(k)
                     obKoncu()

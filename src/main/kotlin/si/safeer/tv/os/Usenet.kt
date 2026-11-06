@@ -347,46 +347,45 @@ object Usenet {
     fun isci(c: Context, id: String, rokMs: Int = UsenetPravila.ISKANJE_ROK_MS): List<Stremio.Tok> {
         val ix = zaUporabo(c) ?: return emptyList()
         val odtisIskanja = odtis(ix.osnova, ix.kljuc)
-        val naslov = UsenetPravila.naslovIskanja(ix.osnova, ix.kljuc, id) ?: return emptyList()
-        return try {
-            val (koda, telo) = beri(naslov, rokMs, 4 * 1024 * 1024)
-                ?: run { Log.i(TAG, "iskanje: odgovor prevelik"); return emptyList() }
-            // Lastnik 25. 10. 2026: stanje kljuca sledi uporabi (zavrnjen -> »ne velja«, odgovor RSS -> velja).
-            try { obOdgovoru(c, ix, UsenetPravila.preverbaIndeksatorja(koda, telo)) } catch (_: Exception) { }
-            if (koda !in 200..299) { Log.i(TAG, "iskanje: HTTP $koda"); return emptyList() }
-            UsenetPravila.napaka(telo)?.let { Log.i(TAG, "iskanje: napaka indeksatorja ($it)"); return emptyList() }
-            val zadetki = UsenetPravila.zadetki(telo, ix.osnova)
-            Log.i(TAG, "iskanje: ${zadetki.size} zadetkov")
-            zadetki.map { z ->
-                val idToka = UsenetPravila.idToka(z.povezava)
-                povezave.dodaj(idToka, z.povezava, odtisIskanja)
-                z.guid?.let { g -> synchronized(izdaje) { izdaje[idToka] = g to z.naslov } }
-                Stremio.Tok(UsenetPravila.VRSTA, idToka, "", UsenetPravila.opis(z), UsenetPravila.VRSTA)
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "iskanje: ${e.javaClass.simpleName}"); emptyList()
+        // Lastnik 6. 11. 2026 (Abbott Elementary): predvajanje in filter vprasata indeksator z ISTO funkcijo ([iskanjeZ]) -
+        // isti naslov poizvedbe (t=movie ali t=tvsearch&season&ep, imdbid), isti kljuc, rok in branje odgovora.
+        val r = iskanjeZ(c, ix, id, rokMs)
+        val zadetki = r.izdaje ?: run { Log.i(TAG, "iskanje: ni odgovora (${r.razlog})"); return emptyList() }
+        Log.i(TAG, "iskanje: ${zadetki.size} zadetkov")
+        return zadetki.map { z ->
+            val idToka = UsenetPravila.idToka(z.povezava)
+            povezave.dodaj(idToka, z.povezava, odtisIskanja)
+            z.guid?.let { g -> synchronized(izdaje) { izdaje[idToka] = g to z.naslov } }
+            Stremio.Tok(UsenetPravila.VRSTA, idToka, "", UsenetPravila.opis(z), UsenetPravila.VRSTA)
         }
     }
 
     /**
      * Filter vira (lastnik 5. 11. 2026): izid iskanja za preverbo v ozadju. [izdaje] == null = indeksator ni odgovoril
      * (napaka, rok, HTTP, ni indeksatorja) - to ni »ni izdaj«; [meja] = indeksator omejuje (429, Newznab 500/501).
+     * [razlog] (samo pri null): kratek niz za dnevnik brez kljuca in naslova (ni_indeksatorja, http_NNN, meja, napaka_N, ...).
      */
-    class IzidIskanja(val izdaje: List<UsenetPravila.Zadetek>?, val meja: Boolean)
+    class IzidIskanja(val izdaje: List<UsenetPravila.Zadetek>?, val meja: Boolean, val razlog: String = "")
 
     /** Kot [isci], a loci »0 izdaj« od »ni odgovora«; povezav NZB ne hrani (preverba ne predvaja). Delovna nit. */
     fun iskanje(c: Context, id: String, rokMs: Int): IzidIskanja {
-        val ix = zaUporabo(c) ?: return IzidIskanja(null, false)
-        val naslov = UsenetPravila.naslovIskanja(ix.osnova, ix.kljuc, id) ?: return IzidIskanja(null, false)
+        val ix = zaUporabo(c) ?: return IzidIskanja(null, false, "ni_indeksatorja")
+        return iskanjeZ(c, ix, id, rokMs)
+    }
+
+    private fun iskanjeZ(c: Context, ix: Indeksator, id: String, rokMs: Int): IzidIskanja {
+        val naslov = UsenetPravila.naslovIskanja(ix.osnova, ix.kljuc, id) ?: return IzidIskanja(null, false, "ni_imdb")
         return try {
-            val (koda, telo) = beri(naslov, rokMs, 4 * 1024 * 1024) ?: return IzidIskanja(null, false)
+            val (koda, telo) = beri(naslov, rokMs, 4 * 1024 * 1024) ?: return IzidIskanja(null, false, "prevelik")
+            // Lastnik 25. 10. 2026: stanje kljuca sledi uporabi (zavrnjen -> »ne velja«, odgovor RSS -> velja).
             try { obOdgovoru(c, ix, UsenetPravila.preverbaIndeksatorja(koda, telo)) } catch (_: Exception) { }
-            if (koda == 429) return IzidIskanja(null, true)
-            if (koda !in 200..299) return IzidIskanja(null, false)
-            UsenetPravila.napaka(telo)?.let { return IzidIskanja(null, it == TorBoxPravila.NAPAKA_MEJA) }
+            if (koda == 429) return IzidIskanja(null, true, "meja")
+            if (koda !in 200..299) return IzidIskanja(null, false, "http_$koda")
+            UsenetPravila.napaka(telo)?.let { return IzidIskanja(null, it == TorBoxPravila.NAPAKA_MEJA, if (it == TorBoxPravila.NAPAKA_MEJA) "meja" else "napaka_indeksatorja") }
             IzidIskanja(UsenetPravila.zadetki(telo, ix.osnova), false)
         } catch (e: Exception) {
-            Log.w(TAG, "filter: ${e.javaClass.simpleName}"); IzidIskanja(null, false)
+            Log.w(TAG, "iskanje: ${e.javaClass.simpleName}")
+            IzidIskanja(null, false, if (e is java.net.SocketTimeoutException) "rok" else "omrezje_" + e.javaClass.simpleName)
         }
     }
 

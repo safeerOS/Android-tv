@@ -147,6 +147,73 @@ object FilterViraPravila {
      */
     fun epizodaZaPreverbo(naslednja: String?, prva: String?): String? = naslednja?.takeIf { it.isNotBlank() } ?: prva?.takeIf { it.isNotBlank() }
 
+    /**
+     * Zadnji ogled serije na tej napravi (Nazadnje predvajano, Nadaljuj): epizoda in ali je odgledana (>= 95 %, MediaNapredek).
+     * Lastnik 6. 11. 2026 04:19 (Abbott Elementary): filter je vedno preveril S1E1, predvajanje pa epizodo po napredku.
+     */
+    data class Ogled(val sezona: Int, val epizoda: Int, val odgledano: Boolean)
+
+    /** Epizoda serije za seznam epizod (id dodatka, sezona, epizoda). */
+    data class Epizoda(val id: String, val sezona: Int, val epizoda: Int)
+
+    /**
+     * Epizoda, ki jo bo uporabnik zares predvajal - po istem pravilu kot »Nadaljuj« (GlasbaActivity.nadaljujEpizodo):
+     * neodgledana zadnja epizoda ostane, odgledana -> naslednja (OsPravila.naslednjaEpizoda); brez ogleda ali po zadnji
+     * epizodi serije prva (S1E1, kartica odpre seznam sezon od zacetka). null = seznam epizod je prazen.
+     */
+    fun epizodaZaOgled(epizode: List<Epizoda>, ogled: Ogled?): Epizoda? {
+        val prva = epizode.firstOrNull { it.sezona >= 1 } ?: epizode.firstOrNull()
+        if (ogled == null) return prva
+        val zadnja = epizode.firstOrNull { it.sezona == ogled.sezona && it.epizoda == ogled.epizoda }
+        if (!ogled.odgledano) return zadnja ?: prva
+        val n = OsPravila.naslednjaEpizoda(epizode.map { it.sezona to it.epizoda }, ogled.sezona, ogled.epizoda) ?: return prva
+        return epizode.firstOrNull { it.sezona == n.first && it.epizoda == n.second } ?: prva
+    }
+
+    /**
+     * Kljuc zapisa filtra za serijo vkljucuje zadnji ogled: ko uporabnik gleda naprej, star izid (za drugo epizodo) ne velja
+     * vec in naslov se preveri za epizodo, ki se bo predvajala. Film in serija brez ogleda: kljuc kot doslej.
+     */
+    fun kljucOgleda(kljuc: String, ogled: Ogled?): String =
+        if (ogled == null) kljuc else kljuc + "|S" + ogled.sezona + "E" + ogled.epizoda + (if (ogled.odgledano) "+" else "")
+
+    /**
+     * Id iskanja Usenet - ENA funkcija za filter in predvajanje (GlasbaActivity.tokoviVzporedno): prvi id, ki ga indeksator
+     * zna iskati (`tt…` ali `tt…:S:E`, UsenetPravila.iscemo). Predvajanje vprasa [idDodatka] in id po IMDb; filter je prej
+     * vprasal samo id dodatka (npr. `tmdb:…`) - brez zahteve in »ne vemo«, predvajanje pa je iskalo po IMDb.
+     */
+    fun idIskanja(idji: List<String?>): String? = idji.firstOrNull { it != null && UsenetPravila.iscemo(it) }
+
+    /** Id iskanja za epizodo: id dodatka, nato `imdb:S:E` (SerijePravila.idEpizodePoImdb) - kot pri predvajanju epizode. */
+    fun idIskanjaEpizode(e: Epizoda, imdbSerije: String?): String? =
+        idIskanja(listOf(e.id, SerijePravila.idEpizodePoImdb(imdbSerije, e.id, e.sezona, e.epizoda)))
+
+    /**
+     * Razlog izida NE_VEMO za dnevnik (tocka d, lastnik 6. 11. 2026): kratek niz brez kljuca in naslova. null = izid ni
+     * NE_VEMO zaradi poizvedbe (indeksator je odgovoril). [odgovor] = razlog iz Usenet.iskanje (http_NNN, meja, rok, ...).
+     */
+    fun razlogNeVemo(racun: Izid, iden: String?, iscemo: Boolean, poslano: Boolean, odgovor: String?): String? = when {
+        racun != Izid.NA_VOLJO -> "ni_racuna"
+        iden == null -> "ni_iden"
+        !iscemo -> "ni_imdb"
+        !poslano -> "kvota"
+        else -> odgovor
+    }
+
+    /**
+     * Proracun preverb mreze filtra (lastnik 6. 11. 2026 04:22: »Nalozi vec« s filtrom ni sprozil nobene preverbe). Prej se
+     * je proracun obnovil samo, ce je zraslo okno mreze (o.zelja) - nestroga mreza (strogaMreza = false) okna ob »Nalozi
+     * vec« ne poveca (o.vec(0)), zato je po prvem krogu ostal 0. Zdaj: vsaka zahteva uporabnika ([zahteva], stevec
+     * OdprtKatalog.vec) da nov [PRORACUN_MREZE]; ko ga porabi, enkrat se [VNAPREJ_MREZE] za naslednjo stran v ozadju.
+     */
+    data class Proracun(val zahteva: Int, val ostalo: Int, val vnaprej: Boolean = false)
+
+    fun proracun(prej: Proracun?, istaMreza: Boolean, zahteva: Int): Proracun = when {
+        prej == null || !istaMreza || zahteva != prej.zahteva -> Proracun(zahteva, PRORACUN_MREZE)
+        prej.ostalo <= 0 && !prej.vnaprej -> prej.copy(ostalo = VNAPREJ_MREZE, vnaprej = true)
+        else -> prej
+    }
+
     // ------------------------------------------------------------------ predpomnilnik (kljuc: vir + racun + naslov)
 
     private const val MINUTA = 60_000L
@@ -260,13 +327,20 @@ object FilterViraPravila {
      */
     fun poslji(racun: Izid, iden: String?, iscemo: Boolean): Boolean = racun == Izid.NA_VOLJO && iden != null && iscemo
 
-    /** Zahtev na minuto in hkratnih preverb (NZBFinder: dnevna kvota racuna; vidni plakati najprej). */
-    const val NA_MINUTO = 20
-    const val HKRATI = 2
-    /** Najvec novih naslovov, ki jih ena odprta mreza vprasa, dokler uporabnik ne naredi nicesar (Nalozi vec, drsenje). */
+    /**
+     * Zahtev na minuto in hkratnih preverb (lastnik 6. 11. 2026 04:26: indeksator dovoli 20 000 na dan, porabimo ~40). Ena
+     * preverba na TV traja 0,25-0,3 s (izmerjeno 6. 11. 04:16): 6 hkrati in meja 100 na minuto dovolita takojsen sunek
+     * cele mreze in naslednje strani. Ob 429 / Newznab 500/501 ostane premor 15 min ([Omejevalnik.meja]) - drugi uporabniki
+     * imajo lahko manjso kvoto.
+     */
+    const val NA_MINUTO = 100
+    const val HKRATI = 6
+    /** Novih naslovov na zahtevo uporabnika (odprtje mreze, Nalozi vec): zaslon in naslednja stran. */
     const val PRORACUN_MREZE = 40
-    /** Rok enega iskanja (enak kot ob predvajanju, UsenetPravila.ISKANJE_ROK_MS). */
-    const val ROK_MS = 8_000
+    /** Prednalaganje: ko je [PRORACUN_MREZE] porabljen, se toliko naslovov naprej v ozadju (enkrat na zahtevo). */
+    const val VNAPREJ_MREZE = 20
+    /** Rok enega iskanja - isti kot ob predvajanju. */
+    const val ROK_MS = UsenetPravila.ISKANJE_ROK_MS
 
     /** Napis prazne mreze filtra: se iscemo / indeksator zdaj ne odgovarja / za ta filter ni naslovov. */
     enum class Prazno { ISCEM, NE_ODGOVARJA, NI_NASLOVOV }

@@ -176,6 +176,59 @@ fun main() {
     preveriEnako("prazno: ne odgovarja", FilterViraPravila.Prazno.NE_ODGOVARJA, FilterViraPravila.prazno(false, true))
     preveriEnako("prazno: ni naslovov", FilterViraPravila.Prazno.NI_NASLOVOV, FilterViraPravila.prazno(false, false))
 
+    // Lastnik 6. 11. 2026 04:19 (Abbott Elementary znova v filtru): filter preveri epizodo, ki se bo predvajala.
+    val E = FilterViraPravila::Epizoda
+    val ep = listOf(E("tt9:1:1", 1, 1), E("tt9:1:2", 1, 2), E("tt9:1:3", 1, 3), E("tt9:2:1", 2, 1))
+    preveriEnako("ogled: brez ogleda S1E1", "tt9:1:1", FilterViraPravila.epizodaZaOgled(ep, null)?.id)
+    preveriEnako("ogled: gleda S1E3 (ni odgledana) -> S1E3, ne S1E1", "tt9:1:3",
+        FilterViraPravila.epizodaZaOgled(ep, FilterViraPravila.Ogled(1, 3, false))?.id)
+    preveriEnako("ogled: S1E3 odgledana -> S2E1", "tt9:2:1", FilterViraPravila.epizodaZaOgled(ep, FilterViraPravila.Ogled(1, 3, true))?.id)
+    preveriEnako("ogled: zadnja epizoda serije odgledana -> S1E1", "tt9:1:1",
+        FilterViraPravila.epizodaZaOgled(ep, FilterViraPravila.Ogled(2, 1, true))?.id)
+    preveriEnako("ogled: prazen seznam epizod", null, FilterViraPravila.epizodaZaOgled(emptyList(), FilterViraPravila.Ogled(1, 3, false)))
+    val kb = FilterViraPravila.kljuc(FilterViraPravila.VIR_USENET, "odtis", "series|tt9")
+    preveriEnako("kljuc: brez ogleda kot prej", kb, FilterViraPravila.kljucOgleda(kb, null))
+    preveriEnako("kljuc: ogled S1E3 je drug zapis kot S1E1", true,
+        FilterViraPravila.kljucOgleda(kb, FilterViraPravila.Ogled(1, 3, false)) != FilterViraPravila.kljucOgleda(kb, FilterViraPravila.Ogled(1, 1, false)))
+    preveriEnako("kljuc: odgledana ni ista kot zaceta", true,
+        FilterViraPravila.kljucOgleda(kb, FilterViraPravila.Ogled(1, 3, true)) != FilterViraPravila.kljucOgleda(kb, FilterViraPravila.Ogled(1, 3, false)))
+
+    // Ista poizvedba kot predvajanje: id dodatka, nato IMDb:S:E.
+    preveriEnako("id: epizoda dodatka brez IMDb -> po IMDb (kot predvajanje)", "tt123:1:3",
+        FilterViraPravila.idIskanjaEpizode(E("tmdb:55:1:3", 1, 3), "tt123"))
+    preveriEnako("id: epizoda z IMDb ostane", "tt123:1:3", FilterViraPravila.idIskanjaEpizode(E("tt123:1:3", 1, 3), "tt123"))
+    preveriEnako("id: brez IMDb ni iskanja", null, FilterViraPravila.idIskanjaEpizode(E("kitsu:7:3", 1, 3), null))
+    preveriEnako("id: prvi iskalni", "tt1:1:2", FilterViraPravila.idIskanja(listOf("kitsu:1", "tt1:1:2", "tt2")))
+    preveriEnako("rok: isti kot predvajanje", UsenetPravila.ISKANJE_ROK_MS, FilterViraPravila.ROK_MS)
+
+    // Tocka d: razlog »ne vemo« v dnevniku.
+    preveriEnako("razlog: brez racuna", "ni_racuna", FilterViraPravila.razlogNeVemo(Izid.NE_VEMO, "tt1", true, false, null))
+    preveriEnako("razlog: brez id", "ni_iden", FilterViraPravila.razlogNeVemo(racun, null, false, false, null))
+    preveriEnako("razlog: id ni IMDb", "ni_imdb", FilterViraPravila.razlogNeVemo(racun, "kitsu:1", false, false, null))
+    preveriEnako("razlog: HTTP", "http_503", FilterViraPravila.razlogNeVemo(racun, "tt1", true, true, "http_503"))
+
+    // Lastnik 6. 11. 2026 04:22: Nalozi vec s filtrom Usenet ni sprozil nobene preverbe (proracun je ostal 0).
+    val zacetni = FilterViraPravila.proracun(null, true, 0)
+    preveriEnako("proracun: odprtje mreze", FilterViraPravila.PRORACUN_MREZE, zacetni.ostalo)
+    val vnaprej = FilterViraPravila.proracun(zacetni.copy(ostalo = 0), true, 0)
+    preveriEnako("proracun: porabljen -> prednalaganje naslednje strani", FilterViraPravila.VNAPREJ_MREZE to true, vnaprej.ostalo to vnaprej.vnaprej)
+    preveriEnako("proracun: prednalaganje enkrat na zahtevo", 0, FilterViraPravila.proracun(vnaprej.copy(ostalo = 0), true, 0).ostalo)
+    preveriEnako("proracun: Nalozi vec (zahteva 1) da nov proracun", FilterViraPravila.PRORACUN_MREZE,
+        FilterViraPravila.proracun(vnaprej.copy(ostalo = 0), true, 1).ostalo)
+    preveriEnako("proracun: nova mreza da nov proracun", FilterViraPravila.PRORACUN_MREZE,
+        FilterViraPravila.proracun(vnaprej.copy(ostalo = 0), false, 0).ostalo)
+    preveriEnako("proracun: med krogom ostane", 7, FilterViraPravila.proracun(zacetni.copy(ostalo = 7), true, 0).ostalo)
+
+    // Lastnik 6. 11. 2026 04:26 in vodja: 6 hkrati, meja 100 na minuto (takojsen sunek 40), ob 429 premor 15 min.
+    preveriEnako("meja: 100 na minuto", 100, FilterViraPravila.NA_MINUTO)
+    preveriEnako("meja: 6 hkrati", 6, FilterViraPravila.HKRATI)
+    val om4 = FilterViraPravila.Omejevalnik(FilterViraPravila.NA_MINUTO)
+    preveriEnako("sunek: 40 zahtev v isti ms", true, (0 until 40).all { om4.smem(t0) })
+    preveriEnako("sunek: do 100 v minuti", true, (40 until 100).all { om4.smem(t0 + 1) })
+    preveriEnako("sunek: 101. v isti minuti ne", false, om4.smem(t0 + 2))
+    om4.meja(t0 + min)
+    preveriEnako("429: premor 15 min", false to true, om4.smem(t0 + 15 * min) to om4.smem(t0 + 16 * min + 1))
+
     if (napak > 0) { println("NAPAK: $napak"); kotlin.system.exitProcess(1) }
     println("Vse v redu.")
 }

@@ -2560,6 +2560,12 @@ class GlasbaActivity : OsActivity() {
         var drzim = false
         /** Uporabnik hoce vec: okno se podaljsa za [korak] kartic, proracun poizvedb je nov. */
         fun vec(korak: Int) { zelja += korak; proracun = PRORACUN_PREVERJANJ; preverjenih.set(0); zadetkov.set(0); samodejno = 0 }
+        /**
+         * Lastnik 6. 11. 2026 04:22: zahteve uporabnika za vec (Nalozi vec, drsenje do konca) - filter Usenet ob vsaki dobi nov
+         * proracun preverb (FilterViraPravila.proracun). [zahtevaOb] (uptime) za dnevnik: cas od OK do prvega novega naslova.
+         */
+        var zahtevVec = 0
+        var zahtevaOb = 0L
     }
 
     /** Stanje okna stroge mreze: v oknu je se kaj nepreverjenega; nekaj naslovov caka, ker dodatek omejuje poizvedbe; za oknom so se kandidati. */
@@ -8320,7 +8326,7 @@ class GlasbaActivity : OsActivity() {
         val cakamo = vprasani.filter { nacini[it.second] == ZdravjeDodatkov.Nacin.CAKAJ }.map { it.third }
         // Naloga 141: Usenet pri uporabnikovem indeksatorju (po IMDb), hkrati z dodatki; samo film in serija.
         val usenet = if (tip !in setOf("movie", "series") || !Usenet.jeNaVoljo(applicationContext)) null
-            else idji.firstOrNull { UsenetPravila.iscemo(it) }?.let { i -> iskanjeDelavec.submit<List<Stremio.Tok>> { Usenet.isci(applicationContext, i) } }
+            else FilterViraPravila.idIskanja(idji)?.let { i -> iskanjeDelavec.submit<List<Stremio.Tok>> { Usenet.isci(applicationContext, i) } }
         fun tokoviDodatka(f: java.util.concurrent.Future<Stremio.OdgovorTokov>): List<Stremio.Tok> = try { f.get().tokovi } catch (_: Exception) { emptyList() }
         val zacetek = android.os.SystemClock.uptimeMillis()
         var prviTok = 0L
@@ -9178,16 +9184,66 @@ class GlasbaActivity : OsActivity() {
         return f
     }
 
+    /**
+     * Kljuc zapisa filtra: vir + racun + naslov, pri seriji se zadnji ogled ([ogledSerije]) - izid velja za epizodo, ki se bo
+     * predvajala (lastnik 6. 11. 2026 04:19: filter je preveril S1E1, predvajanje pa nadaljevalo pri drugi epizodi).
+     */
     private fun kljucUsenet(sk: Jamendo.Skladba, odtis: String): String? =
-        kljucRazpolozljivosti(sk)?.let { FilterViraPravila.kljuc(FilterViraPravila.VIR_USENET, odtis, it) }
+        kljucRazpolozljivosti(sk)?.let { FilterViraPravila.kljucOgleda(FilterViraPravila.kljuc(FilterViraPravila.VIR_USENET, odtis, it), ogledSerije(sk)) }
+
+    /** Zadnji ogledi serij (Nazadnje predvajano, nato zacete epizode); velja 2 s - izris ga klice za vsak naslov. */
+    private var oglediPrej: Pair<Long, Map<String, FilterViraPravila.Ogled>>? = null
+
+    private fun oglediSerij(): Map<String, FilterViraPravila.Ogled> {
+        val zdaj = android.os.SystemClock.uptimeMillis()
+        oglediPrej?.let { (t, m) -> if (zdaj - t in 0 until 2_000L) return m }
+        val m = HashMap<String, FilterViraPravila.Ogled>()
+        val vnosi = (try { MedijskiViri.nedavno(this) } catch (_: Exception) { emptyList() }) +
+            (try { MediaNapredek.seznam(this).map { it.skladba } } catch (_: Exception) { emptyList() })
+        for (s in vnosi) {
+            if (!Stremio.jeEnota(s)) continue
+            val r = Stremio.razstavi(s) ?: continue
+            // Isto pravilo kot kartica Nazadnje predvajano -> Nadaljuj (SerijePravila.epizodaZaNadaljevanje).
+            val (se, ep) = SerijePravila.epizodaZaNadaljevanje(r.second, s.season, s.episode, s.naslov) ?: continue
+            val o = FilterViraPravila.Ogled(se, ep, MediaNapredek.odgledano(this, s.copy(season = se, episode = ep)))
+            m.putIfAbsent("id:" + r.third, o)
+            s.imdbId.takeIf { it.startsWith("tt") }?.let { m.putIfAbsent("imdb:$it", o) }
+        }
+        oglediPrej = zdaj to m
+        return m
+    }
+
+    private fun ogledSerije(sk: Jamendo.Skladba): FilterViraPravila.Ogled? {
+        val r = Stremio.razstavi(sk) ?: return null
+        if (r.second != "series") return null
+        val m = oglediSerij()
+        if (m.isEmpty()) return null
+        return m["id:" + r.third] ?: (sk.imdbId.takeIf { it.startsWith("tt") } ?: Stremio.imdbZa(sk))?.let { m["imdb:$it"] }
+    }
+
+    /**
+     * Epizoda, ki jo filter vprasa (delovna nit): po zadnjem ogledu, kot jo odpre Nadaljuj, in id iskanja z ISTO funkcijo kot
+     * predvajanje (FilterViraPravila.idIskanjaEpizode - id dodatka, nato IMDb:S:E).
+     */
+    private fun idUsenetSerije(sk: Jamendo.Skladba, ogled: FilterViraPravila.Ogled?): String? {
+        val vse = (try { Stremio.epizode(sk) } catch (_: Exception) { emptyList() }).map { FilterViraPravila.Epizoda(it.id, it.sezona, it.epizoda) }
+        val e = FilterViraPravila.epizodaZaOgled(vse, ogled) ?: return null
+        // Brez id-ja po IMDb vrne id dodatka: preverba ne poslje zahteve, dnevnik pove razlog »ni_imdb« (ne »ni_iden«).
+        return FilterViraPravila.idIskanjaEpizode(e, Stremio.imdbZa(sk)) ?: e.id
+    }
 
     private var usenetKandidati: List<Jamendo.Skladba> = emptyList()
     /** Odtis filtra, s katerim so bile zgrajene zapomnjene kartice (null = brez filtra). */
     private var odtisKartic: String? = null
     private var usenetMreza: OdprtKatalog? = null
-    private var usenetProracun = 0
-    private var usenetZelja = 0
+    private var usenetProracun: FilterViraPravila.Proracun? = null
     private var usenetNarocen = false
+    /** Dnevnik (vodja 6. 11. 2026): cas od odprtja mreze ali Nalozi vec do prvega in zadnjega novega vidnega naslova. */
+    private var usenetKrogOb = 0L
+    private var usenetKrogVidnih = -1
+    private var usenetKrogPrvi = false
+    private var usenetKrogZadnjiMs = 0L
+    private var usenetKrogNovih = 0
 
     /**
      * Preverbe filtra Usenet v ozadju: kandidati v vrstnem redu mreze (vidni plakati najprej), najvec
@@ -9196,25 +9252,64 @@ class GlasbaActivity : OsActivity() {
     private fun preveriUsenet(o: OdprtKatalog) {
         val vir = filterUsenet() ?: return
         if (!vOspredju || isFinishing || odprtKatalog !== o) return
-        if (usenetMreza !== o || o.zelja > usenetZelja) { usenetMreza = o; usenetZelja = o.zelja; usenetProracun = FilterViraPravila.PRORACUN_MREZE }
+        val ista = usenetMreza === o
+        val prej = usenetProracun
+        usenetProracun = FilterViraPravila.proracun(if (ista) prej else null, ista, o.zahtevVec)
+        if (!ista || usenetProracun?.zahteva != prej?.zahteva) {
+            usenetMreza = o; usenetKrogOb = if (o.zahtevaOb > 0L && ista) o.zahtevaOb else android.os.SystemClock.uptimeMillis()
+            usenetKrogVidnih = -1; usenetKrogPrvi = false; usenetKrogZadnjiMs = 0L; usenetKrogNovih = 0
+        }
+        if (prej?.vnaprej == false && usenetProracun?.vnaprej == true) android.util.Log.i("SafeerUsenetFilter", "krog ${o.zahtevVec}: prednalaganje naslednje strani")
         if (!vir.racun) return
         val z = zmoznostiNaprave
         val seVelja = { odprtKatalog === o && !isFinishing && vOspredju }
         var pozneje = false
+        var zacetih = 0
+        // Vrstni red mreze: najprej naslovi na zaslonu in tik za njim, nato naslednja stran (prednalaganje).
         for (sk in usenetKandidati) {
-            if (usenetProracun <= 0 || UsenetFilter.vTeku() >= FilterViraPravila.HKRATI) break
+            val p = usenetProracun ?: break
+            if (p.ostalo <= 0 || UsenetFilter.vTeku() >= FilterViraPravila.HKRATI) break
             val k = kljucUsenet(sk, vir.odtis) ?: continue
             if (!UsenetFilter.vprasati(this, k)) { if (UsenetFilter.seIscemo(this, k)) pozneje = true; continue }
             val r = Stremio.razstavi(sk) ?: continue
-            val epizoda = { if (r.second == "series") FilterViraPravila.epizodaZaPreverbo(null, prvaEpizoda(sk)) else r.third }
-            if (UsenetFilter.preveri(this, k, epizoda, z, seVelja) { glavna.post { poUsenetu(o) } }) usenetProracun--
+            val ogled = ogledSerije(sk)
+            val epizoda = { if (r.second == "series") idUsenetSerije(sk, ogled) else r.third }
+            if (UsenetFilter.preveri(this, k, epizoda, z, seVelja) { glavna.post { poUsenetu(o) } }) { usenetProracun = p.copy(ostalo = p.ostalo - 1); zacetih++ }
             else { pozneje = true; break }
         }
+        // Proracun te zahteve porabljen: enkrat se prednalaganje naslednje strani (FilterViraPravila.proracun).
+        val prednalozi = usenetProracun?.ostalo == 0 && usenetProracun?.vnaprej == false
+        if (prednalozi && UsenetFilter.vTeku() < FilterViraPravila.HKRATI) glavna.post { if (odprtKatalog === o && !isFinishing) preveriUsenet(o) }
+        if (zacetih == 0 && !pozneje && !prednalozi && UsenetFilter.vTeku() == 0) koncajKrogUsenet(o)
         // Kvota ali zamik po »ne vemo«: en sam ponoven poskus cez 30 s (stevilo poskusov omeji FilterViraPravila.vprasati).
-        if (pozneje && !usenetNarocen && usenetProracun > 0) {
+        if (pozneje && !usenetNarocen && (usenetProracun?.ostalo ?: 0) > 0) {
             usenetNarocen = true
             glavna.postDelayed({ usenetNarocen = false; poUsenetu(o) }, 30_000L)
         }
+    }
+
+    /**
+     * Dnevnik (vodja 6. 11. 2026, meritev na TV): ms od odprtja mreze ali OK na Nalozi vec do prvega novega vidnega naslova
+     * in do zadnjega (ko v tem krogu nic vec ne tece). Brez imen naslovov.
+     */
+    private fun zabeleziCasUsenet(o: OdprtKatalog, vidnih: Int) {
+        if (usenetKrogOb == 0L) return
+        val ms = android.os.SystemClock.uptimeMillis() - usenetKrogOb
+        if (usenetKrogVidnih < 0) { usenetKrogVidnih = vidnih; return }
+        if (vidnih > usenetKrogVidnih + usenetKrogNovih) {
+            if (!usenetKrogPrvi) { usenetKrogPrvi = true; android.util.Log.i("SafeerUsenetFilter", "krog ${o.zahtevVec}: prvi nov naslov po $ms ms (vidnih=$vidnih)") }
+            usenetKrogNovih = vidnih - usenetKrogVidnih
+            usenetKrogZadnjiMs = ms
+        }
+    }
+
+    /** Konec kroga (nic ne tece in nic vec ne vprasamo): en zapis s casom zadnjega novega naslova. */
+    private fun koncajKrogUsenet(o: OdprtKatalog) {
+        if (usenetKrogOb == 0L) return
+        val ms = android.os.SystemClock.uptimeMillis() - usenetKrogOb
+        android.util.Log.i("SafeerUsenetFilter", "krog ${o.zahtevVec}: konec po $ms ms, novih=$usenetKrogNovih, zadnji nov naslov po " +
+            (if (usenetKrogPrvi) "$usenetKrogZadnjiMs ms" else "-") + ", proracun=${usenetProracun?.ostalo}")
+        usenetKrogOb = 0L
     }
 
     /** Izid preverbe: nadaljuj in osvezi mrezo; prazna se narise znova, da napis (Iscem / ni naslovov) ne obstane. */
@@ -9227,7 +9322,7 @@ class GlasbaActivity : OsActivity() {
     private fun praznoUsenet(o: OdprtKatalog, vir: FilterUsenet): String {
         val ustavljeno = !vir.racun || UsenetFilter.vPremoru()
         val iscemo = UsenetFilter.vTeku() > 0 || usenetMreza !== o ||
-            (usenetProracun > 0 && usenetKandidati.any { sk -> kljucUsenet(sk, vir.odtis)?.let { UsenetFilter.seIscemo(this, it) } == true })
+            ((usenetProracun?.ostalo ?: 0) > 0 && usenetKandidati.any { sk -> kljucUsenet(sk, vir.odtis)?.let { UsenetFilter.seIscemo(this, it) } == true })
         // Po zadnji ponovitvi »ne vemo« (napaka, rok) ne trdimo, da naslovov ni: indeksator ni odgovoril.
         val neOdgovarja = ustavljeno || usenetKandidati.any { sk ->
             kljucUsenet(sk, vir.odtis)?.let { UsenetFilter.zapis(this, it)?.izid == FilterViraPravila.Izid.NE_VEMO } == true }
@@ -9726,6 +9821,7 @@ class GlasbaActivity : OsActivity() {
         // Zakon solidarnosti: izdaja, katere kodeka TV ne zna, sodi v filter, dokler je v Linku pomocnik za Usenet.
         val pomocnik = vir != null && UsenetPomocniki.zdaj(this)
         val vidniVira = if (vir == null) vidni else vidni.filter { sk -> kljucUsenet(sk, vir.odtis)?.let { UsenetFilter.pokazi(this, it, pomocnik) } == true }
+        if (vir != null && usenetMreza === o) zabeleziCasUsenet(o, vidniVira.size)
         return kandidati to obdrziIzbrano(o, vidniVira)
     }
 
@@ -9907,7 +10003,21 @@ class GlasbaActivity : OsActivity() {
         }
         // Nestroga mreza: uporabnik gre naprej - preverjanje v ozadju dobi nov proracun za naslove, ki prihajajo.
         if (!strogaMreza(o)) o.vec(0)
+        if (!strogaMreza(o)) zahtevaUsenet(o, izDrsenja)
         if (o.seKaj) naloziVecKataloga(o.naslov)
+    }
+
+    /**
+     * Filter Usenet (lastnik 6. 11. 2026 04:22): Nalozi vec ali drsenje do konca da nov proracun preverb - prej se je obnovil
+     * samo z vecjim oknom, ki ga o.vec(0) nestroge mreze ne poveca. Drsenje steje najvec vsakih 1,5 s.
+     */
+    private fun zahtevaUsenet(o: OdprtKatalog, izDrsenja: Boolean) {
+        val zdaj = android.os.SystemClock.uptimeMillis()
+        if (izDrsenja && zdaj - o.zahtevaOb <= 1_500L) return
+        o.zahtevVec++; o.zahtevaOb = zdaj
+        if (filterUsenet() == null) return
+        android.util.Log.i("SafeerUsenetFilter", "krog ${o.zahtevVec}: ${if (izDrsenja) "drsenje" else "Nalozi vec"}")
+        preveriUsenet(o)
     }
 
     /**
