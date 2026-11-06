@@ -316,26 +316,34 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
     /**
      * Nova registracija IZVIRNIKI_JS z novim imenom (peti slepi pregled, N5): odstrani vse skripte zacetka dokumenta,
      * registrira izvirnike in nato ostale v prejsnjem vrstnem redu. Dokumenti, ki ze tecejo, obdrzijo svoje.
+     *
+     * CodeRabbit 6. 11. 2026: ce je dodajanje izvirnikov vrglo izjemo, se ostali skripti (zaklep mostu, GPC, protiadblock,
+     * youtube_zacetek) niso registrirali vec do konca pogleda - naslednji klic jih je spet samo odstranil. Zdaj se ostali
+     * registrirajo vedno; ime naslednjega dokumenta je novo tudi ob napaki, zato ga nima noben dokument in tv_spatial.js
+     * izvirnikov ne najde (prava dejanja zavrne - varna napaka, kot doslej).
      */
     private fun registrirajIzvirnike(): Boolean {
         val n = SpletVarnostPravila.novNonce()
-        return try {
-            // Brez DOCUMENT_START_SCRIPT ni izvirnikov (prej je preverbo naredil samo klicatelj; lint RequiresFeature).
-            if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT)) {
-                try { izvirnikiRocaj?.remove() } catch (_: Exception) {}
-                for (sk in skriptiZacetka) { try { sk.rocaj?.remove() } catch (_: Exception) {}; sk.rocaj = null }
+        // Brez DOCUMENT_START_SCRIPT ni izvirnikov (prej je preverbo naredil samo klicatelj; lint RequiresFeature).
+        if (!androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT)) return false
+        try { izvirnikiRocaj?.remove() } catch (_: Exception) {}
+        izvirnikiRocaj = null
+        for (sk in skriptiZacetka) { try { sk.rocaj?.remove() } catch (_: Exception) {}; sk.rocaj = null }
+        nonceIzvirnikovNaslednji = n
+        val izvirniki = try {
+            if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT))
                 izvirnikiRocaj = androidx.webkit.WebViewCompat.addDocumentStartJavaScript(this, izvirnikiJs(n), setOf("*"))
-                nonceIzvirnikovNaslednji = n
-                for (sk in skriptiZacetka) {
-                    try { sk.rocaj = androidx.webkit.WebViewCompat.addDocumentStartJavaScript(this, sk.js, sk.izvori) }
-                    catch (e: Exception) { android.util.Log.w("SafeerSplet", "skript zacetka: ponovna registracija ni uspela (${e.javaClass.simpleName})") }
-                }
-                true
-            } else false
+            izvirnikiRocaj != null
         } catch (e: Exception) {
             android.util.Log.w("SafeerSplet", "izvirniki: registracija ni uspela (${e.javaClass.simpleName})")
             false
         }
+        // Ostali vedno, tudi ce izvirnikov ni (dodajSkriptZacetka in ta zanka imata vsak svojo preverbo za lint).
+        if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT)) for (sk in skriptiZacetka) {
+            try { sk.rocaj = androidx.webkit.WebViewCompat.addDocumentStartJavaScript(this, sk.js, sk.izvori) }
+            catch (e: Exception) { android.util.Log.w("SafeerSplet", "skript zacetka: ponovna registracija ni uspela (${e.javaClass.simpleName})") }
+        }
+        return izvirniki
     }
     /**
      * Nakljucni del imen izvozov tv_spatial.js za trenutno stran (nov ob vsaki strani, kot [zetonDotika]): stran imen pred
