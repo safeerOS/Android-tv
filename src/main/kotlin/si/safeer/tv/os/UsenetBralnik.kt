@@ -46,7 +46,9 @@ object UsenetBralnik {
         // Lastnik 6. 11. 2026 14:21: 20 hkratnih povezav na TV (Eweka dovoli 50; pri 4 je The Prestige 14:09 stal 5,4 s,
         // tok ~3,3 Mbit/s < 4,4 Mbit/s filma). Okno 12 MiB, da 20 branj (~0,7 MiB segment) res tece hkrati; LRU ostane 32 MiB
         // (lruMeja = 2*okno+8 MiB = 32 MiB) - heap TV 192 MB, ze zdaj 120-150 MB zaseden.
-        "tv" to Profil(12 * MIB, 1 * MIB, 32 * MIB, 20),
+        // Izmerjeno 6. 11. 15:03-15:04 (20 branj, prek streznika HTTP): 13 s cakanja ob nadaljevanju in napaka 2002
+        // (CONNECTION_TIMEOUT 8 s) - »tok ni dosegljiv«. Grok: na tem TV zacni pri 8. Zato 8, do meritve z neposredno potjo.
+        "tv" to Profil(12 * MIB, 1 * MIB, 32 * MIB, 8),
         "telefon" to Profil(8 * MIB, 1 * MIB, 48 * MIB, 6),
         "namizje" to Profil(16 * MIB, 1 * MIB, 96 * MIB, 8),
     )
