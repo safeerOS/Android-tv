@@ -29,8 +29,10 @@ class PripetiVir(private val odjemalec: OkHttpClient, private val zeton: String,
 
     /** [naprava] (id v Linku) omogoci tok prek Global Linka, kadar naprava ni v istem omrezju. */
     class Tovarna(streznikOdtis: String, private val zeton: String,
-                  context: android.content.Context? = null, private val naprava: String = "") : DataSource.Factory {
-        private val odjemalec = odjemalecZaStreznik(streznikOdtis)
+                  context: android.content.Context? = null, private val naprava: String = "",
+                  /** Pretok (pregled 6. 11. 2026, P3): povezava samo na preverjene naslove, brez razresevanja mimo preverbe. */
+                  dns: okhttp3.Dns? = null) : DataSource.Factory {
+        private val odjemalec = odjemalecZaStreznik(streznikOdtis, dns)
         private val app = context?.applicationContext
         override fun createDataSource(): DataSource = PripetiVir(odjemalec, zeton, app, naprava)
     }
@@ -109,9 +111,10 @@ class PripetiVir(private val odjemalec: OkHttpClient, private val zeton: String,
          * preusmeritvam (pregled 5. 11. 2026): zahteve nosijo X-Safeer-Token, OkHttp pa bi ga ob preusmeritvi poslal
          * tudi drugemu cilju (AGENTS.md: zahteve s kljucem ne sledijo preusmeritvam). Pot zdoma gre prek poPoti.
          */
-        fun odjemalecZaStreznik(odtis: String): OkHttpClient {
+        fun odjemalecZaStreznik(odtis: String, dns: okhttp3.Dns? = null): OkHttpClient {
             val (tovarna, zaupnik) = Pin.tovarna(odtis)
             return OkHttpClient.Builder()
+                .apply { if (dns != null) dns(dns) }
                 .sslSocketFactory(tovarna, zaupnik)
                 .hostnameVerifier(Pin.brezImena)
                 .followRedirects(false)

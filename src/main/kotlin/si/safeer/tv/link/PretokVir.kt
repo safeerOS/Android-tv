@@ -25,6 +25,8 @@ class PretokVir(private val klient: PretokHttp.Klient, private val vir: PretokHt
         private val klient = PretokHttp.klient()
         private val vir = PretokHttp.Vir(prvi, glave)
         override fun createDataSource(): DataSource = PretokVir(klient, vir)
+        /** Pregled 6. 11. 2026 (P5): ob koncu, napaki ali ustavitvi toka - sicer bazen povezav in niti ostanejo do konca procesa. */
+        fun zapri() = klient.zapri()
     }
 
     private var odgovor: okhttp3.Response? = null

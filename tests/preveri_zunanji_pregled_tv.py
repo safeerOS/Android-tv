@@ -102,6 +102,32 @@ preveri("Splet TV: po zaprtju predvajalnika izbira iz zaprtja, ne rocni razred n
         "window._safeer_izberi_zadnjo_ploscico()" in _pz[:1200] and "window._safeer_highlight(lastT)" not in _sa
         and "lastT.classList.add('safeer-active-card')" not in _sa)
 
+# ---- Neodvisni pregled in CodeRabbit 6. 11. 2026 (tv-izdaja): najdbe v kodi, ki tece samo na napravi.
+def telo(besedilo, zacetek, konec):
+    i = besedilo.find(zacetek)
+    j = besedilo.find(konec, i + len(zacetek)) if i >= 0 else -1
+    return besedilo[i:j] if i >= 0 and j > i else ""
+
+pt = beri("src/main/kotlin/si/safeer/tv/link/Pretok.kt")
+_pv = telo(pt, "private fun pretvarjaj(", "/** `/live/<id>`")
+preveri("Pretok P1: ustavljen tok med pripravo ne zazene Transformerja", _pv.find("if (opuscen(t))") >= 0
+        and _pv.find("if (opuscen(t))") < _pv.find("Transformer.Builder(ctx)") and "fun opuscen(t: Tok): Boolean = t.koncano || tokovi[t.id] !== t" in pt)
+_po = _pv[_pv.find("transformer.start(element"):]
+preveri("Pretok P1: ustavitev med zagonom preklice Transformer", "transformer.start(element" in _pv
+        and "if (opuscen(t)) {" in _po[:200] and "transformer.cancel()" in _po[:400])
+_zc = telo(pt, "fun zacni(context: Context", "fun ustaviUkaz(")
+preveri("Pretok P2: izrinjenje po nastanku (PretokPravila.izrini), ne nakljucni kljuc", "tokovi.keys.firstOrNull()" not in pt and "PretokPravila.izrini(" in _zc)
+preveri("Pretok P3: z odtisom samo https, pripeti vir s preverjenim DNS", "PretokPravila.zahtevaVeljavna(url, odtis)" in _zc
+        and "PripetiVir.Tovarna(odtis, zeton, ctx, dns = preverjenDns())" in _pv and "odjemalecZaStreznik(odtis, preverjenDns())" in pt
+        and "PretokHttp.PreverjenDns(PretokHttp.Nastavitve(), true)" in pt)
+_us = telo(pt, "private fun ustavi(t: Tok)", "private fun zapriVir(")
+preveri("Pretok P5: odjemalec vira zaprt ob koncu, napaki in ustavitvi", "zapriVir(t)" in _us
+        and _pv.count("zapriVir(t)") >= 4 and "t.zapriVir = { tv.zapri() }" in _pv)
+preveri("Pretok CR: gostitelj vira z OkHttp, ne java.net.URI", "java.net.URI(url)" not in _zc and "PretokHttp.gostiteljVira(url)" in _zc)
+_pred = _zc[:_zc.find("Thread({")]
+preveri("Pretok U3: mapa, ciscenje in prostor niso na glavni niti", all(x not in _pred for x in ("listFiles", "usableSpace", "mkdirs", "Pretvorba.rezerva()"))
+        and "mapa.listFiles()" in _zc[_zc.find("Thread({"):])
+
 if napake:
     print("NAPAKA zunanji pregled TV:", len(napake)); sys.exit(1)
 print("zunanji pregled TV OK")

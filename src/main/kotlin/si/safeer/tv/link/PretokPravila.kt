@@ -7,7 +7,8 @@ package si.safeer.tv.link
  * core/link_sprotno.vrsta_naslova ga zavrne (`nedovoljen_cilj`). Brez tega bi naprava v Linku prek pomocnika brala
  * storitve, ki poslusajo samo na tej napravi (krajevni streznik Useneta, torrent motor, ADB), in metapodatke oblaka
  * (169.254.169.254). Isto pravilo kot Linux: zanka, povezavno-lokalni, vecvrstni, nedoloceni in rezervirani naslovi
- * so prepovedani - tudi zaviti v IPv6 (::ffff:127.0.0.1, ::127.0.0.1, 6to4 2002::/16, NAT64 64:ff9b::/96).
+ * so prepovedani - tudi zaviti v IPv6 (::ffff:127.0.0.1, ::127.0.0.1, 6to4 2002::/16, NAT64 64:ff9b::/96 in lokalna
+ * predpona NAT64 64:ff9b:1::/48, RFC 8215 - kot SondaVeriga.zasebenCilj; pregled 6. 11. 2026, P4).
  */
 object PretokPravila {
     private val IPV4 = Regex("\\d{1,3}(\\.\\d{1,3}){3}")
@@ -36,6 +37,8 @@ object PretokPravila {
         if ((0 until 10).all { u[it] == 0 } && u[10] == 0xFF && u[11] == 0xFF) return b.copyOfRange(12, 16)   // ::ffff:a.b.c.d
         if (u[0] == 0x20 && u[1] == 0x02) return b.copyOfRange(2, 6)                                         // 6to4
         if (u[0] == 0 && u[1] == 0x64 && u[2] == 0xFF && u[3] == 0x9B && (4 until 12).all { u[it] == 0 }) return b.copyOfRange(12, 16) // NAT64
+        // Lokalna predpona NAT64 (64:ff9b:1::/48): prevajalnik v omrezju jo lahko preslika na 127.0.0.1 ali 169.254.169.254.
+        if (u[0] == 0 && u[1] == 0x64 && u[2] == 0xFF && u[3] == 0x9B && u[4] == 0 && u[5] == 1) return b.copyOfRange(12, 16)
         if ((0 until 12).all { u[it] == 0 }) return b.copyOfRange(12, 16)                                      // ::a.b.c.d, :: in ::1
         return null
     }
@@ -60,4 +63,36 @@ object PretokPravila {
 
     /** Vsi razreseni naslovi imena morajo biti dovoljeni (kot Linux dovoljeni_naslovi: ce ni eden, ni nobeden). */
     fun razreseniDovoljeni(naslovi: List<ByteArray>): Boolean = naslovi.isNotEmpty() && naslovi.none { prepovedan(it) }
+
+    /**
+     * Zapis zahteve video.stream: http(s), odtis 64 znakov. Pregled 6. 11. 2026 (P3): z odtisom (vir na pripeti napravi,
+     * zahteva nosi zeton X-Safeer-Token) samo https - po http bi zeton videl vsak v omrezju in pripetega potrdila ni.
+     */
+    fun zahtevaVeljavna(url: String, odtis: String): Boolean {
+        if (!url.startsWith("https://") && !url.startsWith("http://")) return false
+        if (odtis.isNotBlank() && (odtis.length != 64 || !url.startsWith("https://"))) return false
+        return true
+    }
+
+    /**
+     * Premalo prostora za tok: [prostor] (usableSpace mape, -1 = ni meritve) manj kot ocena toka + rezerva naprave.
+     * Brez meritve (prvi tok po zagonu) odloci nit ozadja (U3, pregled 6. 11. 2026).
+     */
+    fun premaloProstora(prostor: Long, ocena: Long, rezerva: Long): Boolean = prostor >= 0 && rezerva >= 0 && prostor < ocena + rezerva
+
+    /** Tok za izrinjenje: [nastal] = zaporedna stevilka nastanka (vecja = novejsi). */
+    class Opis(val id: String, val nastal: Long, val koncano: Boolean, val bralcev: Int, val zadnjiBralecMs: Long)
+
+    /**
+     * Pregled 6. 11. 2026 (P2): prej `tokovi.keys.firstOrNull()` na ConcurrentHashMap - nakljucen vrstni red, lahko je vzel
+     * pravkar dodani tok. Zdaj: koncani tokovi brez bralca vsaj [brezBralcaMs] gredo ven, nato najstarejsi po nastanku,
+     * dokler jih ni najvec [najvec]. Novi tok [novi] nikoli.
+     */
+    fun izrini(tokovi: List<Opis>, novi: String, najvec: Int, zdajMs: Long, brezBralcaMs: Long): List<String> {
+        val koncani = tokovi.filter { it.id != novi && it.koncano && it.bralcev <= 0 && zdajMs - it.zadnjiBralecMs >= brezBralcaMs }
+            .map { it.id }.toSet()
+        val ostali = tokovi.filter { it.id !in koncani }
+        val prevec = (ostali.size - najvec).coerceAtLeast(0)
+        return koncani.toList() + ostali.filter { it.id != novi }.sortedBy { it.nastal }.take(prevec).map { it.id }
+    }
 }

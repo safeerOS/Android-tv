@@ -69,6 +69,14 @@ private fun odpri(url: String, glave: Map<String, String> = emptyMap()) = odpri(
  * Dopolnitev: domace omrezje samo z varnimi glavami (v_domace_omrezje), tuj seznam HLS odvzame zaupanje (_Vir.izpeljan).
  */
 fun main() {
+    // CodeRabbit 6. 11. 2026: gostitelj vira z razclenjevalnikom OkHttp (java.net.URI je zavrnil veljaven vir).
+    preveriEnako("gostitelj: presledek in [ ] v poti", "cdn.example", PretokHttp.gostiteljVira("http://cdn.example/My Film [1080p].mkv"))
+    preveriEnako("gostitelj: | v poti", "cdn.example", PretokHttp.gostiteljVira("https://cdn.example/a|b.mkv"))
+    preveriEnako("gostitelj: podcrtaj v imenu", "moj_streznik.example", PretokHttp.gostiteljVira("https://moj_streznik.example/f.mkv"))
+    preveriEnako("gostitelj: IPv6 brez oklepajev", "::1", PretokHttp.gostiteljVira("http://[::1]:8080/f"))
+    preveriEnako("gostitelj: brez gostitelja", "", PretokHttp.gostiteljVira("http://"))
+    preveriEnako("gostitelj: presledek v imenu gostitelja", "", PretokHttp.gostiteljVira("https://a b.example/f"))
+    preveriEnako("gostitelj: ni http", "", PretokHttp.gostiteljVira("file:///etc/passwd"))
     println("Preizkus skokov preusmeritve sprotne pretvorbe")
     val prvi = "http://cdn.example/film.mkv"
     fun skok(trenutni: String, lok: String?, st: Int = 0, zaupan: Boolean = true) = PretokHttp.naslednjiSkok(trenutni, lok, st, zaupan, prvi)
