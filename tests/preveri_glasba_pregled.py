@@ -71,5 +71,7 @@ preveri("P1 velikost toka: zeton samo pripeti napravi, brez preusmeritev", "HubP
 # CodeRabbit 5. 11. 2026 (cr-tvseja-0511): neuspel krog Webtorja v diagnostiki zapise vsakega kandidata, ne samo prvega.
 preveri("diagnostika Webtor: vsak kandidat kroga", "DiagnostikaPredvajanja.poskusiKroga(this@GlasbaActivity, \"webtor\", kandidati.map { it.url }" in g
         and "kandidati.first().url" not in g)
+# Pregled na TV 6. 11. 2026 12:03: meni ⋮ je samo v Predvajalniku - Nastavitve MC morajo imeti zobnik v glavi povsod.
+preveri("Nastavitve MC: zobnik v glavi tudi brez Predvajalnika", 'glava.addView(gumb(R.drawable.os_ikona_nastavitve, 48, "k:nastavitve") { nastavitveMedijskegaCentra() }' in g)
 print("VSE OK" if napak == 0 else f"NAPAK: {napak}")
 sys.exit(1 if napak else 0)

@@ -860,6 +860,10 @@ class GlasbaActivity : OsActivity() {
         glava.addView(geslo)
         iskanjeGumb = gumb(R.drawable.os_ikona_isci, 48, "k:iskanje") { odpriIskanje("") }
         glava.addView(iskanjeGumb)
+        // Pregled na TV 6. 11. 2026 12:03: meni ⋮ je samo v Predvajalniku (vlc), zato v Medijskem centru Safeer OS do
+        // Nastavitev Medijskega centra ni bilo poti. Zobnik v glavi je na vseh napravah; v Predvajalniku ostane tudi ⋮.
+        glava.addView(gumb(R.drawable.os_ikona_nastavitve, 48, "k:nastavitve") { nastavitveMedijskegaCentra() }.apply {
+            contentDescription = getString(R.string.os_nastavitve_mc) })
         if (vlc) glava.addView(gumb(R.drawable.os_ikona_vec, 48, "k:vec") { pokaziVec() }.apply {
             contentDescription = getString(R.string.os_vec_moznosti) })
         desno.addView(glava)
@@ -9729,7 +9733,7 @@ class GlasbaActivity : OsActivity() {
         fun vklop(da: Boolean) = getString(if (da) R.string.os_vklopljeno else R.string.os_izklopljeno)
         val pravila = MedijskiCenterNastavitvePravila.vidneSkupine(packageName)
         
-        // Remove SPLOSNE group logic which removes and appends - now exactly one Splosne group will be at the end.
+        // Skupina Splosne je natanko enkrat, na koncu okna.
         
         val a = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(R.string.os_nastavitve_mc)
         val vsebina = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(16), dp(16), dp(16)) }
