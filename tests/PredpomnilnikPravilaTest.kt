@@ -36,10 +36,10 @@ fun main() {
         preveriEnako("mesto tja in nazaj: $m", m, PredpomnilnikPravila.mestoIzNiza(PredpomnilnikPravila.mestoVNiz(m)))
 
     println("\n== meje ==")
-    preveriEnako("privzeto 2 GB", 2 * GB, PredpomnilnikPravila.meja(PredpomnilnikPravila.PRIVZETA_GB, usb))
+    preveriEnako("privzeto 8 GB (lastnik 6. 11.)", 8, PredpomnilnikPravila.PRIVZETA_GB)
     preveriEnako("8 GB na USB s 5 GB: prostor - rezerva", 5 * GB - 256 * MB, PredpomnilnikPravila.meja(8, usb))
     preveriEnako("nase datoteke stejejo v prostor", 4 * GB, PredpomnilnikPravila.meja(4, usb.copy(prostih = GB, nasih = 4 * GB)))
-    preveriEnako("neznana velikost -> privzeta", 2, PredpomnilnikPravila.velikostGb(3))
+    preveriEnako("neznana velikost -> privzeta", 8, PredpomnilnikPravila.velikostGb(3))
     preveriEnako("ponujena velikost ostane", 8, PredpomnilnikPravila.velikostGb(8))
     preveriEnako("nikoli negativna", 0L, PredpomnilnikPravila.meja(2, usb.copy(prostih = 10 * MB)))
 

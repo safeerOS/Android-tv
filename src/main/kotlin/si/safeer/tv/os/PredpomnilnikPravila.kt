@@ -17,7 +17,8 @@ object PredpomnilnikPravila {
     const val REZERVA = 256 * MB
     /** Velikosti, ki jih uporabnik lahko izbere (GB), in privzeta. */
     val VELIKOSTI_GB = listOf(2, 4, 8)
-    const val PRIVZETA_GB = 2
+    // Lastnik 6. 11. 2026 16:18: privzeto 8 GB (Usenet: branje vnaprej na USB, vec filma ostane) - meja() ga se vedno omeji s prostim prostorom.
+    const val PRIVZETA_GB = 8
 
     /**
      * Naloga 87 (+ 57b, lastnik: »uporabnik sam izbere, kje so metapodatki«): SAMODEJNO = USB, ce je priklopljen (sicer ta TV);
