@@ -1861,7 +1861,7 @@ class PredvajanjeActivity : OsActivity() {
         // Najden podnapis caka na premor: med predvajanjem nova priprava vira za hip prekine sliko in zvok (MediaTek).
         podnapisObPremoru?.let { (k, prvi) ->
             if (k != kljuc) podnapisObPremoru = null
-            else if (OsPravila.podnapisZdajAliObPremoru(p0.isPlaying)) { podnapisObPremoru = null; dodajSamodejno(prvi) }
+            else if (OsPravila.podnapisZdajAliObPremoru(p0.playWhenReady)) { podnapisObPremoru = null; dodajSamodejno(prvi) }  // TV 6. 11. 16:09: med zatikom isPlaying=false - ni premor (39 s)
         }
         val jezik = Podnapisi.jezikZaSamodejno(this) ?: return
         if (kljuc == podnapisiDodatkaZa) return
@@ -1899,7 +1899,7 @@ class PredvajanjeActivity : OsActivity() {
                 if (isFinishing || GlasbaStoritev.trenutna()?.id != kljuc) return@runOnUiThread
                 if (prvi.osnova.isNotEmpty()) prefs.edit().putString(K_ZADNJI_PODNAPISI, SkrivnostiPravila.odtis(prvi.osnova)).apply()
                 val p = GlasbaStoritev.predvajalnik ?: return@runOnUiThread
-                if (OsPravila.podnapisZdajAliObPremoru(p.isPlaying)) dodajSamodejno(prvi)
+                if (OsPravila.podnapisZdajAliObPremoru(p.playWhenReady)) dodajSamodejno(prvi)
                 else {
                     podnapisObPremoru = kljuc to prvi
                 }

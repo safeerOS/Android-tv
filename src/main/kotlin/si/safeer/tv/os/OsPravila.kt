@@ -1875,6 +1875,10 @@ object OsPravila {
      * Podnapis dodamo k toku z novim virom (Media3: SubtitleConfiguration velja samo ob pripravi) - na MediaTeku to za hip
      * prekine sliko in zvok, zato samodejno samo med premorom; med predvajanjem pocaka na naslednji premor.
      */
+    /**
+     * [igra] = uporabnik zeli predvajanje (playWhenReady), NE isPlaying: med zatikom je isPlaying false, dodan podnapis pa
+     * znova pripravi predvajalnik - TV 6. 11. 2026 16:09 je film zaradi tega stal 39 s.
+     */
     fun podnapisZdajAliObPremoru(igra: Boolean): Boolean = !igra
 
     /** Dodatki, ki jih vprasamo, ce prvi krog ([dodatkiZaPodnapise]) ni nasel podnapisov v jeziku: vsi ostali. */
