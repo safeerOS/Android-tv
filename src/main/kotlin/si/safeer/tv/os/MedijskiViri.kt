@@ -469,7 +469,8 @@ object MedijskiViri {
             .put("zvok", it.zvok).put("povezava", it.povezava).put("radio", it.radio).put("video", it.video).put("mime", it.mime)
             .put("streznik", it.streznik).put("kanal", it.kanal).put("year", it.year).put("language", it.language)
             // Naloga 140: epizoda serije - »Nadaljuj« jo nadaljuje (prej je odprl seznam sezon).
-            .put("season", it.season).put("episode", it.episode).put("imdbId", it.imdbId)) }
+            .put("season", it.season).put("episode", it.episode).put("imdbId", it.imdbId).put("mediaType", it.mediaType)
+            .put("imeDatoteke", it.imeDatoteke)) }
         return a.toString()
     }
 
@@ -478,8 +479,8 @@ object MedijskiViri {
         return (0 until a.length()).map { a.getJSONObject(it) }.map {
             Jamendo.Skladba(it.optString("id"), it.optString("naslov"), it.optString("izvajalec"), it.optString("slika"), it.optString("zvok"),
                 it.optString("povezava"), it.optBoolean("radio"), it.optBoolean("video"), it.optString("mime"), it.optString("streznik"),
-                it.optString("kanal"), year = it.optInt("year"), language = it.optString("language"),
-                season = it.optInt("season"), episode = it.optInt("episode"), imdbId = it.optString("imdbId"))
+                it.optString("kanal"), mediaType = it.optString("mediaType"), year = it.optInt("year"), language = it.optString("language"),
+                season = it.optInt("season"), episode = it.optInt("episode"), imdbId = it.optString("imdbId"), imeDatoteke = it.optString("imeDatoteke"))
         }.filter { it.id.isNotBlank() && PeerTube.jeDovoljen(it) }
     }
 
