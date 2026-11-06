@@ -107,6 +107,26 @@ object PredpomnilnikPravila {
     /** Datoteka na USB za ciscenje: [vrsta] = podmapa, [spremenjena] = zadnja uporaba (zapis ali branje). */
     data class Datoteka(val pot: String, val vrsta: String, val bajtov: Long, val spremenjena: Long)
 
+    data class Izdaja(val odtis: String, val spremenjena: Long, val bajtov: Long)
+
+    fun kajIzbrisati(
+        izdaje: List<Izdaja>,
+        trenutna: String,
+        potrebno: Long,
+        prosto: Long
+    ): List<String> {
+        if (prosto >= potrebno) return emptyList()
+        val zaBrisanje = mutableListOf<String>()
+        var manjka = potrebno - prosto
+        val kandidati = izdaje.filter { it.odtis != trenutna }.sortedBy { it.spremenjena }
+        for (k in kandidati) {
+            if (manjka <= 0L) break
+            zaBrisanje.add(k.odtis)
+            manjka -= k.bajtov
+        }
+        return zaBrisanje
+    }
+
     /** Zacasna datoteka (prekinjen zapis, odklop med pisanjem) je smet po toliko casa. */
     const val ZACASNA_SMET_MS = URA
 

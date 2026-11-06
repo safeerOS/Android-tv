@@ -172,5 +172,17 @@ fun main() {
     preveriEnako("ni vec meje (USB ni v uporabi) - ne", false, PredpomnilnikPravila.obdrziPredpomnilnikZvoka(true, gb1, 0, predvaja = true))
     preveriEnako("prej ni bilo meje - ne", false, PredpomnilnikPravila.obdrziPredpomnilnikZvoka(true, 0, gb1, predvaja = false))
 
+    println("\n== prostor na USB za nov film ==")
+    val izdaje = listOf(
+        PredpomnilnikPravila.Izdaja("a", 100, 1000), // stara, 1000 bajtov
+        PredpomnilnikPravila.Izdaja("b", 300, 500),  // najnovejša, 500 bajtov
+        PredpomnilnikPravila.Izdaja("c", 200, 2000)  // srednja, 2000 bajtov
+    )
+    preveriEnako("dovolj prostora -> nic", emptyList<String>(), PredpomnilnikPravila.kajIzbrisati(izdaje, "x", 1000, 1000))
+    preveriEnako("manjka 1000 -> najstarejsa", listOf("a"), PredpomnilnikPravila.kajIzbrisati(izdaje, "x", 2000, 1000))
+    preveriEnako("manjka 2000 -> najstarejsi dve", listOf("a", "c"), PredpomnilnikPravila.kajIzbrisati(izdaje, "x", 3000, 1000))
+    preveriEnako("trenutna nikoli", listOf("c"), PredpomnilnikPravila.kajIzbrisati(izdaje, "a", 2000, 1000))
+    preveriEnako("manjka vse -> vse (razen trenutne)", listOf("a", "c", "b"), PredpomnilnikPravila.kajIzbrisati(izdaje, "x", 10000, 1000))
+
     if (napak == 0) println("PredpomnilnikPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

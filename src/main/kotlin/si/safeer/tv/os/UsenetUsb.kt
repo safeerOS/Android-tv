@@ -21,6 +21,34 @@ object UsenetUsb {
     private val zavrzenaPisanja = AtomicLong()
     private val dnevnikOb = AtomicLong()
 
+    fun prostoraZaNovFilm(c: Context, trenutna: String, potrebno: Long, mejaUsenet: Long) {
+        val m = UsbPredpomnilnik.mapa(c, PredpomnilnikPravila.USENET) ?: return
+        val izdaje = mutableListOf<PredpomnilnikPravila.Izdaja>()
+        var zasedeno = 0L
+        m.listFiles()?.filter { it.isDirectory }?.forEach { mapaIzdaje ->
+            val odtis = mapaIzdaje.name
+            var bajtov = 0L
+            var zadnja = 0L
+            mapaIzdaje.walkTopDown().filter { it.isFile }.forEach {
+                bajtov += it.length()
+                zadnja = maxOf(zadnja, it.lastModified())
+            }
+            if (bajtov > 0L) {
+                izdaje.add(PredpomnilnikPravila.Izdaja(odtis, zadnja, bajtov))
+                zasedeno += bajtov
+            }
+        }
+        val prosto = maxOf(0L, mejaUsenet - zasedeno)
+        val zaBrisanje = PredpomnilnikPravila.kajIzbrisati(izdaje, trenutna, potrebno, prosto)
+        var izbrisanoBajtov = 0L
+        for (odtis in zaBrisanje) {
+            val d = File(m, odtis)
+            val vel = izdaje.firstOrNull { it.odtis == odtis }?.bajtov ?: 0L
+            if (d.deleteRecursively()) izbrisanoBajtov += vel
+        }
+        Log.d(TAG, "prostor za nov film: potrebno=${potrebno / (1024 * 1024)} MiB, prosto=${prosto / (1024 * 1024)} MiB, izbrisano izdaj=${zaBrisanje.size} MiB=${izbrisanoBajtov / (1024 * 1024)}")
+    }
+
     /**
      * Omejena vrsta za zapis na USB v ozadju: ce je USB kljuc pocasen ali obremenjen,
      * se zapis zavrze (DiscardPolicy) in ne ustavlja omreznega prenosa ali predvajanja.
@@ -33,13 +61,13 @@ object UsenetUsb {
         java.util.concurrent.ThreadPoolExecutor.DiscardPolicy()
     )
 
-    fun ovij(c: Context, telo: (String, Long) -> ByteArray): (String, Long) -> ByteArray {
+    fun ovij(c: Context, odtisIzdaje: String, telo: (String, Long) -> ByteArray): (String, Long) -> ByteArray {
         val app = c.applicationContext
         return { id, bajtov ->
             val datoteka = try {
                 UsbPredpomnilnik.mapa(app, PredpomnilnikPravila.USENET)?.let { m ->
                     val ime = PredpomnilnikPravila.imeSegmenta(id)
-                    File(File(m, ime.take(2)), ime)
+                    File(File(m, odtisIzdaje), ime)
                 }
             } catch (_: Throwable) { null }
             beri(datoteka)?.also { UsenetBralnik.zadnjiVir.set("usb") } ?: telo(id, bajtov).also { bajti ->

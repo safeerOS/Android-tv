@@ -79,9 +79,9 @@ object PredvajalnikTovarna {
             usenet.onPrepared()
         }
 
-        override fun onTracksSelected(r: Array<androidx.media3.exoplayer.Renderer>, g: androidx.media3.exoplayer.source.TrackGroupArray, s: androidx.media3.exoplayer.trackselection.ExoTrackSelectionArray) {
-            obicajni.onTracksSelected(r, g, s)
-            usenet.onTracksSelected(r, g, s)
+        override fun onTracksSelected(p0: androidx.media3.common.Timeline, p1: androidx.media3.exoplayer.source.MediaSource.MediaPeriodId, r: Array<androidx.media3.exoplayer.Renderer>, g: androidx.media3.exoplayer.source.TrackGroupArray, s: Array<androidx.media3.exoplayer.trackselection.ExoTrackSelection>) {
+            obicajni.onTracksSelected(p0, p1, r, g, s)
+            usenet.onTracksSelected(p0, p1, r, g, s)
         }
 
         override fun onStopped() {
@@ -94,7 +94,8 @@ object PredvajalnikTovarna {
             usenet.onReleased()
         }
 
-        override fun getAllocator(): androidx.media3.exoplayer.upstream.Allocator = obicajni.allocator
+        override fun getAllocator(p0: androidx.media3.exoplayer.analytics.PlayerId): androidx.media3.exoplayer.upstream.Allocator = obicajni.getAllocator(p0)
+
 
         override fun getBackBufferDurationUs(): Long = if (jeUsenet) usenet.backBufferDurationUs else obicajni.backBufferDurationUs
 

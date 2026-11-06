@@ -89,13 +89,19 @@ object UsenetLastni {
             val nntp = UsenetNntp(UsenetNntp.Nastavitve(p.gostitelj, p.uporabnik, geslo.vrednost(), p.vrata, p.najvecPovezav))
             nova = Seja(p, nntp, meje)
             val razclenjen = UsenetNzb.razcleni(nzb)
+            val odtisIzdaje = java.security.MessageDigest.getInstance("SHA-256").digest(nzb).joinToString("") { "%02x".format(it) }.take(16)
             // Lastnik 28. 10. 2026: clanki prek predpomnilnika na USB (ce je v uporabi).
-            val telo = UsenetUsb.ovij(c, nntp::body)
+            val telo = UsenetUsb.ovij(c, odtisIzdaje, nntp::body)
             val (vir, _) = UsenetBralnik.pripravi(razclenjen, telo)
             val naUsb = UsbPredpomnilnik.mapa(c, PredpomnilnikPravila.USENET) != null
             val rt = Runtime.getRuntime()
             val prostiHeap = rt.maxMemory() - rt.totalMemory() + rt.freeMemory()
             val profil = UsenetBralnik.profilVidea(UsenetBralnik.PROFILI.getValue(if (Naprava.jeTelevizor(c)) "tv" else "telefon"), naUsb, vir.velikost, null, prostiHeap)
+            if (naUsb) {
+                val mejaUsenet = PredpomnilnikPravila.delitevUsb(UsbPredpomnilnik.mejaUsb()).usenet
+                val potrebno = minOf(vir.velikost, profil.okno + 512L * 1024 * 1024)
+                UsenetUsb.prostoraZaNovFilm(c, odtisIzdaje, potrebno, mejaUsenet)
+            }
             val s = nova
             val b = UsenetBralnik.Bralnik(telo, vir, profil, naUsb)
             val streznik = UsenetStreznik(b, obKoncu = { koncaj(s) })
@@ -162,9 +168,10 @@ object UsenetLastni {
                 rar.map { (ime, vir) -> ime to { vir } }
             }
             val profil = UsenetBralnik.profilAlbuma(UsenetBralnik.PROFILI.getValue(if (Naprava.jeTelevizor(c)) "tv" else "telefon"))
+            val odtisIzdaje = java.security.MessageDigest.getInstance("SHA-256").digest(nzb).joinToString("") { "%02x".format(it) }.take(16)
             // En streznik za cel album (lastnik 27. 10. 2026): v pomnilniku najvec AlbumIzvor.NAJVEC_ODPRTIH skladb; skladba,
             // ki se ni na vrsti, ne potece (rok nedejavnosti za album, prej 5 min - album je obstal po 4 skladbah).
-            val izvor = AlbumIzvor(viri, UsenetUsb.ovij(c, nntp::body), profil)
+            val izvor = AlbumIzvor(viri, UsenetUsb.ovij(c, odtisIzdaje, nntp::body), profil)
             val st = UsenetStreznik(izvor, nedejavnostMs = UsenetLastniPravila.NEDEJAVNOST_ALBUMA_MS)
             izvor.pripraviVnaprej(0)    // povezava NNTP in prva skladba med pripravo predvajalnika
             s.strezniki = listOf(st)
