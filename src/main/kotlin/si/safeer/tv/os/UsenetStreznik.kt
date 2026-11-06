@@ -118,6 +118,12 @@ class UsenetStreznik(
     /** Zahteve z veljavnim zetonom v teku (nedejavnost); povezave so v [vticnice]. */
     private val odprtih = AtomicInteger()
     @Volatile private var zadnja = System.nanoTime()
+
+    /**
+     * TV 6. 11. 2026 15:25: predvajalnik bere neposredno ([UsenetMedia3Vir], brez zahtev na ta streznik) - po 5 min je varuh
+     * nedejavnosti zaprl streznik, z njim sejo in bralnik, in film se je ustavil (napaka 2001). Neposredno branje steje kot dejavnost.
+     */
+    fun dejavnost() { zadnja = System.nanoTime() }
     @Volatile var zaprt = false; private set
     private val vticnice = java.util.Collections.synchronizedSet(HashSet<Socket>())
 

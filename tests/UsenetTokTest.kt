@@ -639,6 +639,14 @@ private fun streznik() {
     preveri("close zapre bralnik", b.zaprt)
     val konec = java.util.concurrent.CountDownLatch(1)
     val b2 = bralnik(o)
+    // TV 6. 11. 2026 15:25: neposredno branje (UsenetMedia3Vir) klice dejavnost() - streznik se ne sme zapreti sredi filma.
+    run {
+        val b3 = bralnik(o)
+        UsenetStreznik(b3, nedejavnostMs = 300).use { s ->
+            repeat(8) { Thread.sleep(100); s.dejavnost() }
+            preveri("neposredno branje: streznik po 800 ms dejavnosti ni zaprt", !s.zaprt && !b3.zaprt)
+        }
+    }
     UsenetStreznik(b2, nedejavnostMs = 300, obKoncu = { konec.countDown() }).use { s ->
         preveri("samodejno zapiranje ob nedejavnosti", konec.await(5, java.util.concurrent.TimeUnit.SECONDS) && s.zaprt && b2.zaprt)
     }

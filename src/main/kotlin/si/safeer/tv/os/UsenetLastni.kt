@@ -97,7 +97,7 @@ object UsenetLastni {
             val b = UsenetBralnik.Bralnik(telo, vir, profil)
             val streznik = UsenetStreznik(b, obKoncu = { koncaj(s) })
             s.streznik = streznik
-            s.tovarnaMedia3 = UsenetMedia3Vir.Tovarna(b)
+            s.tovarnaMedia3 = UsenetMedia3Vir.Tovarna(b) { streznik.dejavnost() }
             synchronized(zaklep) { seja = s }
             Log.i(TAG, "lasten pogon: pripravljen (${vir.velikost / (1024 * 1024)} MiB)")   // brez imena, poti in zetona
             TorBox.Izid(url = streznik.url, ponudnik = UsenetLastniPravila.PONUDNIK)

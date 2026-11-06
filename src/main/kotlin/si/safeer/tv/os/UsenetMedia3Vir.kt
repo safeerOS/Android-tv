@@ -19,7 +19,7 @@ import androidx.media3.datasource.DataSpec
  * nima ne zetona ne imena - bralnik je ze odprt in ga poda klicatelj. ExoPlayer bere na svoji niti (nalagalnik), ne na
  * glavni.
  */
-class UsenetMedia3Vir(private val bralnik: UsenetBralnik.Bralnik) : BaseDataSource(true) {
+class UsenetMedia3Vir(private val bralnik: UsenetBralnik.Bralnik, private val obDejavnosti: () -> Unit = {}) : BaseDataSource(true) {
     companion object {
         const val SHEMA = "safeer-usenet"
         val NASLOV: Uri = Uri.parse("$SHEMA:film")
@@ -32,8 +32,8 @@ class UsenetMedia3Vir(private val bralnik: UsenetBralnik.Bralnik) : BaseDataSour
      * Preklic nalaganja: ExoPlayer prekine nit nalagalnika; bralnik cakanje prekine z java.io.InterruptedIOException
      * (Media3 jo razume kot preklic, ne kot napako vira), branje vnaprej pa se ob skoku zavrze.
      */
-    class Tovarna(private val bralnik: UsenetBralnik.Bralnik) : DataSource.Factory, java.io.Closeable {
-        override fun createDataSource(): DataSource = UsenetMedia3Vir(bralnik)
+    class Tovarna(private val bralnik: UsenetBralnik.Bralnik, private val obDejavnosti: () -> Unit = {}) : DataSource.Factory, java.io.Closeable {
+        override fun createDataSource(): DataSource = UsenetMedia3Vir(bralnik, obDejavnosti)
         override fun close() = bralnik.close()
     }
 
@@ -45,6 +45,7 @@ class UsenetMedia3Vir(private val bralnik: UsenetBralnik.Bralnik) : BaseDataSour
         uri = dataSpec.uri
         transferInitializing(dataSpec)
         val dolzina = if (dataSpec.length == C.LENGTH_UNSET.toLong()) -1L else dataSpec.length
+        obDejavnosti()
         val n = branje.open(dataSpec.position, dolzina)
         odprto = true
         transferStarted(dataSpec)
@@ -55,6 +56,7 @@ class UsenetMedia3Vir(private val bralnik: UsenetBralnik.Bralnik) : BaseDataSour
         if (length == 0) return 0
         val n = branje.read(buffer, offset, length)
         if (n < 0) return C.RESULT_END_OF_INPUT
+        obDejavnosti()
         bytesTransferred(n)
         return n
     }
