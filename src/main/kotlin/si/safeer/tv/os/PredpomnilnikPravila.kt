@@ -99,7 +99,8 @@ object PredpomnilnikPravila {
         IPTV -> 7 * DAN
         KANALI -> DAN
         BESEDILA -> 30 * DAN
-        USENET -> 14 * DAN
+        // Lastnik 6. 11. 2026 16:19: deli filmov z Useneta po 3 dneh neuporabe (prej 14 dni).
+        USENET -> 3 * DAN
         else -> 7 * DAN
     }
 

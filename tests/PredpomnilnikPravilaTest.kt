@@ -122,7 +122,7 @@ fun main() {
     preveriEnako("ime segmenta: stalno", ime, PredpomnilnikPravila.imeSegmenta("<part1of40.abc@news.example>"))
     preveriEnako("ime segmenta: drug id, drugo ime", false, ime == PredpomnilnikPravila.imeSegmenta("<part2of40.abc@news.example>"))
     preveriEnako("ime segmenta: brez id-ja", false, "abc" in ime || "news" in ime)
-    preveriEnako("segmenti Useneta veljajo 14 dni", 14 * 24 * 3_600_000L, PredpomnilnikPravila.ttl(PredpomnilnikPravila.USENET))
+    preveriEnako("segmenti Useneta veljajo 3 dni (lastnik 6. 11.)", 3 * 24 * 3_600_000L, PredpomnilnikPravila.ttl(PredpomnilnikPravila.USENET))
     preveriEnako("delitev: negativna meja je 0", PredpomnilnikPravila.Delitev(0, 0, 0, 0), PredpomnilnikPravila.delitevUsb(-5))
     preveriEnako("skladba sme", true, PredpomnilnikPravila.smeVPredpomnilnikZvoka(zvok = true, vZivo = false, http = true, enodelni = true, zasebno = false))
     preveriEnako("video ne", false, PredpomnilnikPravila.smeVPredpomnilnikZvoka(zvok = false, vZivo = false, http = true, enodelni = true, zasebno = false))
