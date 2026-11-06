@@ -39,6 +39,8 @@ fun main() {
         "www.googleapis.com" to malware, "accounts.youtube.com" to malware, "oauth2.googleapis.com" to malware,
         // google.co.zz ni Googlova domena (ni na seznamu supported_domains): lahko jo registrira kdorkoli, zato ni koren.
         "google.co.zz" to phishing,
+        // Pregled 6. 11. 2026 (S1): stran soglasja v EU (nanjo google.com preusmeri nov brskalnik).
+        "consent.google.com" to malware,
     )
     val projekti = hashMapOf("lazna-banka.web.app" to phishing, "zlo-vedro.storage.googleapis.com" to malware)
 
@@ -82,6 +84,8 @@ fun main() {
         "https://drugo-vedro.storage.googleapis.com/x.html",
         "https://lh3.googleusercontent.com/a/slika",
         "https://fonts.gstatic.com/s/roboto.woff2",
+        "https://consent.google.com/ml?continue=https://www.google.com/&gl=SI&hl=sl",
+        "https://consent.google.si/",
     )
     for (u in varni) check(!ThreatBlockEngine.isThreat(u)) { "blokirano, cesar ne smemo: $u" }
     // Ponarejen »Google« z neobstojeco pripono ni koren in ga vir sme blokirati.
@@ -114,4 +118,16 @@ fun main() {
     ThreatBlockEngine.allowForSession("https://storage.googleapis.com/zlo-vedro/prijava.html")
     check(ThreatBlockEngine.isThreat("https://storage.googleapis.com/zlo-vedro/prijava.html"))
     println("PASS: sejna izjema samo za ta naslov, kriticna pot brez obvoza")
+
+    // 5. Pregled 6. 11. 2026 (S2): prenos z Drive/Docs (/uc?id=X) - ena raven poti s poizvedbo; pravilo je tocno, zato
+    // vstopna stran /uc in drugi id ostaneta odprta.
+    val prenosi = listOf("https://drive.google.com/uc?export=download&id=1ZloAbCdEf", "https://docs.google.com/uc?id=1ZloAbCdEf")
+    namesti(ThreatIndex(HashMap(), HashMap(), HashMap(prenosi.associateWith { malware }), vir))
+    for (u in prenosi) check(ThreatBlockEngine.isThreat(u)) { "prenos z Drive/Docs ni blokiran: $u" }
+    for (u in listOf("https://drive.google.com/uc", "https://drive.google.com/uc?export=download&id=1DrugiId",
+            "https://docs.google.com/uc?id=1DrugiId", "https://drive.google.com/?usp=x", "https://drive.google.com/drive"))
+        check(!ThreatBlockEngine.isThreat(u)) { "vstopna stran ali drug id blokiran: $u" }
+    check(!ScitGostitelji.smePot("https://drive.google.com/uc?", "drive.google.com")) { "prazna poizvedba ni naslov" }
+    check(!ScitGostitelji.smePot("https://drive.google.com/uc#?id=1", "drive.google.com")) { "poizvedba za sidrom ne steje" }
+    println("PASS: prenos /uc?id=X blokiran po tocnem naslovu, vstopna stran /uc in drug id ne")
 }

@@ -8,7 +8,7 @@
   "izjema_dni": 30,
   "seznami": {
     "oglasi": ["ads.example", "Track.Example.", "xn--bcher-kva.example", "printer.lan", "localhost", "github.com", "cloudflare.com", "safeer.si", "cosmic-crab.buzz", "webtor.io", "afs.googleusercontent.com", "googleusercontent.com"],
-    "groznje": ["zlo.example", "api.webtor.io", "nas.local", "objects.githubusercontent.com", "zlo.safeer.si", "google.com", "sites.google.com", "web.app", "zlo.web.app", "google.co.zz"]
+    "groznje": ["zlo.example", "api.webtor.io", "nas.local", "objects.githubusercontent.com", "zlo.safeer.si", "google.com", "sites.google.com", "web.app", "zlo.web.app", "google.co.zz", "consent.google.com"]
   },
   "ustavljeno": [
     {"opis": "tocno ime s seznama oglasov", "ime": "ads.example", "izid": "ustavljeno"},
@@ -50,7 +50,8 @@
     {"opis": "Google: izrecen oglasni gostitelj pod skupno infrastrukturo ostane ustavljen", "ime": "afs.googleusercontent.com", "izid": "ustavljeno"},
     {"opis": "Google: vnos celotne domene googleusercontent.com (oglasi) ne velja za skupne gostitelje", "ime": "lh3.googleusercontent.com", "izid": "spuscen"},
     {"opis": "Google: google.co.zz ni Googlova domena (ni na supported_domains) in se ustavi", "ime": "google.co.zz", "izid": "ustavljeno"},
-    {"opis": "Google: www.google.co.zz ni Googlov koren in se ustavi", "ime": "www.google.co.zz", "izid": "ustavljeno"}
+    {"opis": "Google: www.google.co.zz ni Googlov koren in se ustavi", "ime": "www.google.co.zz", "izid": "ustavljeno"},
+    {"opis": "Google: stran soglasja consent.google.com (nanjo google.com v EU preusmeri nov brskalnik) je koren in se ne ustavi, ceprav je na seznamu GROZENJ", "ime": "consent.google.com", "izid": "spuscen"}
   ],
   "izjeme": [
     {"opis": "uporabnik spusti ime s seznama oglasov", "izjema": "ads.example", "poizvedba": "ads.example", "dan": 1, "sprejeta": true, "izid": "spuscen"},
