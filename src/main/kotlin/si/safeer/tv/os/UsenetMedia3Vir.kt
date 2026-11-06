@@ -40,9 +40,11 @@ class UsenetMedia3Vir(private val bralnik: UsenetBralnik.Bralnik, private val ob
     private val branje = UsenetBralnik.Branje(bralnik)
     private var uri: Uri? = null
     private var odprto = false
+    private var pozicija = 0L
 
     override fun open(dataSpec: DataSpec): Long {
         uri = dataSpec.uri
+        pozicija = dataSpec.position
         transferInitializing(dataSpec)
         val dolzina = if (dataSpec.length == C.LENGTH_UNSET.toLong()) -1L else dataSpec.length
         obDejavnosti()
@@ -54,7 +56,13 @@ class UsenetMedia3Vir(private val bralnik: UsenetBralnik.Bralnik, private val ob
 
     override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
         if (length == 0) return 0
+        val zacetek = android.os.SystemClock.elapsedRealtime()
         val n = branje.read(buffer, offset, length)
+        val cas = android.os.SystemClock.elapsedRealtime() - zacetek
+        if (cas > 500) {
+            android.util.Log.d("SafeerUsenetBralnik", "Media3Vir read cakal $cas ms na odmiku $pozicija")
+        }
+        if (n > 0) pozicija += n
         if (n < 0) return C.RESULT_END_OF_INPUT
         obDejavnosti()
         bytesTransferred(n)

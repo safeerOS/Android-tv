@@ -107,7 +107,7 @@ object UsenetBralnik {
 
     private data class Kljuc(val datoteka: Int, val stevilka: Int)
 
-    private class Naloga(val prednost: Int, val zap: Long, val kljuc: Kljuc)
+    private class Naloga(val prednost: Int, val zap: Long, val kljuc: Kljuc, val nastanek: Long = android.os.SystemClock.elapsedRealtime())
 
     /** Branje filma z omejenim oknom vnaprej. Varno za vec niti. [telo] = [UsenetNntp.body]. */
     class Bralnik(private val telo: (String, Long) -> ByteArray, val vir: Vir, val profil: Profil = PROFILI.getValue("namizje")) : Closeable {
@@ -150,6 +150,8 @@ object UsenetBralnik {
             while (true) {
                 var kljuc: Kljuc? = null
                 var f: CompletableFuture<ByteArray>? = null
+                var vnaprej = false
+                var cakalMs = 0L
                 zaklep.withLock {
                     while (vrsta.isEmpty() && !zaprt) pogoj.await()
                     if (zaprt) return
@@ -157,10 +159,12 @@ object UsenetBralnik {
                     val n = vrsta.poll() ?: return@withLock
                     kljuc = n.kljuc
                     f = cakajo.remove(n.kljuc)
+                    vnaprej = n.prednost > 0
+                    cakalMs = android.os.SystemClock.elapsedRealtime() - n.nastanek
                 }
                 val k = kljuc ?: continue
                 val ff = f ?: continue  // zavrzeno ob skoku
-                val podatki = try { prenesi(k) } catch (e: Throwable) {
+                val podatki = try { prenesi(k, vnaprej, cakalMs) } catch (e: Throwable) {
                     zaklep.withLock {
                         vTeku.remove(k)
                         zapomni(k, e)
@@ -186,13 +190,18 @@ object UsenetBralnik {
             if (n >= NAJVEC_POSKUSOV) napake[k] = e
         }
 
-        private fun prenesi(k: Kljuc): ByteArray {
+        private fun prenesi(k: Kljuc, vnaprej: Boolean, cakalMs: Long): ByteArray {
             val p = vir.preslikave[k.datoteka]
             val seg = p.segment(k.stevilka)
+            val zacetekPrenosa = android.os.SystemClock.elapsedRealtime()
+            UsenetUsb.zadnjiVir.set("omrezje")
             val surovo = try { telo(seg.id, seg.bajtov) } catch (e: UsenetNntp.NapakaNntp) {
                 if (e.vrsta == UsenetNntp.Vrsta.NI_CLANKA) throw UsenetTok.NapakaToka(UsenetTok.Izid.LUKNJA)
                 throw e
             }
+            val prenosMs = android.os.SystemClock.elapsedRealtime() - zacetekPrenosa
+            val virPrenosa = UsenetUsb.zadnjiVir.get() ?: "omrezje"
+            android.util.Log.d("SafeerUsenetBralnik", "clanek seg=${k.stevilka} bajtov=${surovo.size} cakal_ms=$cakalMs prenos_ms=$prenosMs vnaprej=${if (vnaprej) "da" else "ne"} vir=$virPrenosa")
             zOmrezja.addAndGet(surovo.size.toLong())
             segmentov.incrementAndGet()
             val d = try { UsenetYenc.dekodiraj(surovo) } catch (_: UsenetYenc.NapakaYenc) {
@@ -303,14 +312,17 @@ object UsenetBralnik {
             check(Looper.myLooper() != Looper.getMainLooper()) { "Usenet ne sme teci na glavni niti" }
             if (odmik >= vir.velikost || n <= 0) return ByteArray(0)
             if (odmik < 0) throw UsenetTok.NapakaToka(UsenetTok.Izid.IZVEN)
+            var skok = false
             zaklep.withLock {
                 if (zaprt) throw UsenetTok.NapakaToka(UsenetTok.Izid.ZAPRTO)
                 if (Math.abs(odmik - konecZadnjega) <= profil.zacetno) {
                     zaporedno += maxOf(0L, odmik + n - maxOf(odmik, konecZadnjega))
                 } else {
                     zaporedno = 0  // skok
+                    skok = true
                 }
             }
+            if (skok) beleziSkok(odmik)
             val (d, o, doKonca) = vir.kje(odmik)
             val podatki = beriDatoteko(d, o, minOf(n.toLong(), doKonca))
             val konec = odmik + podatki.size
@@ -318,6 +330,20 @@ object UsenetBralnik {
             postrezeno.addAndGet(podatki.size.toLong())
             vnaprej(konec)
             return podatki
+        }
+
+        fun beleziSkok(od: Long) {
+            val okno = oknoVnaprej(0, profil.zacetno, profil.okno)
+            val kljuci = ArrayList<Kljuc>()
+            for ((d, o, n) in vir.razponi(od, okno)) for (st in vir.preslikave[d].segmentiOkna(o, n)) kljuci += Kljuc(d, st)
+            var pripravljenih = 0
+            var zavrzenih = 0
+            zaklep.withLock {
+                for (k in kljuci) if (lru.containsKey(k) || vTeku.containsKey(k)) pripravljenih++
+                val zelja = kljuci.toHashSet()
+                zavrzenih = cakajo.keys.count { it !in zelja && (zahtevani[it] ?: 0) == 0 }
+            }
+            android.util.Log.d("SafeerUsenetBralnik", "open/skok: okna pripravljenih=$pripravljenih zavrzenih=$zavrzenih")
         }
 
         /**
@@ -351,6 +377,7 @@ object UsenetBralnik {
             if (pozicija < 0 || pozicija > bralnik.vir.velikost) throw UsenetTok.NapakaToka(UsenetTok.Izid.IZVEN)
             polozaj = pozicija
             preostane = if (dolzina < 0) bralnik.vir.velikost - pozicija else minOf(dolzina, bralnik.vir.velikost - pozicija)
+            bralnik.beleziSkok(pozicija)
             return preostane
         }
 
