@@ -1902,7 +1902,6 @@ class PredvajanjeActivity : OsActivity() {
                 if (OsPravila.podnapisZdajAliObPremoru(p.isPlaying)) dodajSamodejno(prvi)
                 else {
                     podnapisObPremoru = kljuc to prvi
-                    android.widget.Toast.makeText(this, R.string.podnapisi_ob_premoru, android.widget.Toast.LENGTH_SHORT).show()
                 }
             }
         }

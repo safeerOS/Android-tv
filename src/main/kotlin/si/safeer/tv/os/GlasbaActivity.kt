@@ -8551,7 +8551,7 @@ class GlasbaActivity : OsActivity() {
         else getString(R.string.os_debrid_predvaja_prek, DebridPravila.ime(ponudnik.orEmpty()))
 
     /** Kaj je takoj predvajljivo za izbiro toka: ⚡ torrenti pri debridu in (samodejno) Usenet, ki ga ima TorBox pripravljenega. */
-    class Pripravljeno(val predpomnjeni: Set<String> = emptySet(), val usenet: Triple<Stremio.Tok, String, String>? = null)
+    class Pripravljeno(val predpomnjeni: Set<String> = emptySet(), val usenet: Triple<Stremio.Tok, String, String>? = null, val podnapisiIskani: Boolean = false)
 
     /** Lastne niti za vzporedno preverbo »Usenet pripravljen« (blokirajoci klici indeksatorja in TorBoxa). */
     private val usenetDelavec = Executors.newCachedThreadPool { r -> Thread(r, "safeer-usenet").apply { isDaemon = true } }
@@ -8662,7 +8662,8 @@ class GlasbaActivity : OsActivity() {
     class NaslednjaPripravljena(val epizoda: Stremio.Epizoda, val serija: Jamendo.Skladba, val naslov: String,
                                 val tokovi: List<Stremio.Tok>, val pripravljeno: Pripravljeno,
                                 /** Lasten pogon Usenet: tok je potrjen po pogojih filtra, sejo odpre zagon ([predvajajNaslednjoEpizodo]). */
-                                val usenetObZagonu: Boolean = false)
+                                val usenetObZagonu: Boolean = false,
+                                var podnapisi: List<Podnapisi.Podnapis>? = null)
 
     /**
      * Lastnik 5. 11. 2026 in vodja 6. 11. 2026 (pokazemo samo, kar si uporabnik res lahko ogleda): minuto pred koncem epizode
@@ -8716,8 +8717,26 @@ class GlasbaActivity : OsActivity() {
                         val vRoku = NaslednjaEpizodaPravila.vRoku(zacetek, android.os.SystemClock.elapsedRealtime())
                         android.util.Log.i("SafeerOsMedia", "naslednja epizoda: S${e.sezona}E${e.epizoda} tokov=${t.size} usenet=${pp.usenet != null} lastnih=$lastnihUstreznih " +
                             "torrentov=$torrentov neposrednih=$neposrednih samoUsenet=$samoUsenet potrjen=$potrjen vRoku=$vRoku")
-                        if (potrjen && vRoku) izid = NaslednjaPripravljena(e, serija, NaslednjaEpizodaPravila.naslovEpizode(sk.naslov, e.sezona, e.epizoda, e.ime), t, pp,
-                            usenetObZagonu = !odpreUsenet)
+                        if (potrjen && vRoku) {
+                            val np = NaslednjaPripravljena(e, serija, NaslednjaEpizodaPravila.naslovEpizode(sk.naslov, e.sezona, e.epizoda, e.ime), t, pp, usenetObZagonu = !odpreUsenet)
+                            val jezikPodnapisov = Podnapisi.jezikDodatka(this@GlasbaActivity)
+                            if (jezikPodnapisov.isNotEmpty()) {
+                                val idPodnapisov = Stremio.imdbZa(serija)?.let { OsPravila.idPodnapisov(it, e.sezona, e.epizoda) }
+                                if (idPodnapisov != null) {
+                                    val prvi = pp.usenet?.first ?: t.firstOrNull { it.vrsta == "torrent" && TorBoxPravila.hashIzMagneta(it.url)?.lowercase() in pp.predpomnjeni } ?: t.firstOrNull { it.vrsta == "url" } ?: t.firstOrNull()
+                                    val vsi = MedijskiViri.vsi(this@GlasbaActivity).filter { it.jeStremio }.map { it.naslov }
+                                    val prefs = getSharedPreferences("safeer_mediji", MODE_PRIVATE)
+                                    val naslovi = OsPravila.dodatkiZaPodnapise(vsi, prefs.getString("zadnji_podnapisi", "").orEmpty()) { SkrivnostiPravila.odtis(Stremio.osnova(it)) }
+                                    fun isci(d: List<String>) = (try { Stremio.podnapisi(d, idPodnapisov.first, idPodnapisov.second, null, null, prvi?.imeDatoteke) } catch (_: Exception) { emptyList() }).firstOrNull { it.jezik == jezikPodnapisov }
+                                    val najden = isci(naslovi) ?: OsPravila.ostaliZaPodnapise(vsi, naslovi).takeIf { it.isNotEmpty() }?.let { isci(it) }
+                                    if (najden != null) {
+                                        np.podnapisi = listOf(Podnapisi.izDodatka(this@GlasbaActivity, najden))
+                                        if (najden.osnova.isNotEmpty()) prefs.edit().putString("zadnji_podnapisi", SkrivnostiPravila.odtis(najden.osnova)).apply()
+                                    }
+                                }
+                            }
+                            izid = np
+                        }
                     }
                 } catch (e: Exception) {
                     android.util.Log.w("SafeerOsMedia", "naslednja epizoda: predpriprava ${e.javaClass.simpleName}")
@@ -8735,14 +8754,15 @@ class GlasbaActivity : OsActivity() {
     fun predvajajNaslednjoEpizodo(n: NaslednjaPripravljena) {
         val konec = { PredvajanjeActivity.instanca?.get()?.koncajCakanjeNaslednje(); Unit }
         if (isFinishing || isDestroyed) { konec(); return }
-        val sk = n.serija.copy(season = n.epizoda.sezona, episode = n.epizoda.epizoda)
+        val sk = n.serija.copy(season = n.epizoda.sezona, episode = n.epizoda.epizoda, podnapisi = (n.serija.podnapisi + (n.podnapisi ?: emptyList())).distinctBy { it.url })
         val priprava = zacniPripravo(sk.copy(naslov = n.naslov)) ?: run { konec(); return }
         if (n.usenetObZagonu) {
             // Lasten pogon: sejo (127.0.0.1, bazen NNTP) odpre sele zagon, ko se prejsnja epizoda ne igra vec - kot »Nadaljuj«.
             naDelavcu(priprava, sk) {
                 // Pregled 6. 11. 2026 (U2): izdaje lastnega pogona vprasajo indeksator - steje v isto omejitev kot filter.
                 UsenetFilter.zabeleziZagon()
-                val pp = predpomnjeniZa(n.tokovi, sk, false)
+                val p0 = predpomnjeniZa(n.tokovi, sk, false)
+                val pp = Pripravljeno(p0.predpomnjeni, p0.usenet, true)
                 glavna.post {
                     if (!koncajPripravo(priprava)) return@post
                     if (isFinishing || isDestroyed) { konec(); return@post }
@@ -8753,7 +8773,8 @@ class GlasbaActivity : OsActivity() {
         }
         if (!koncajPripravo(priprava)) { konec(); return }
         // izberiTok ob neuspehu sam pove, da vsebina ni na voljo, in zapre zaslon priprave.
-        izberiTok(sk, n.naslov, n.tokovi, false, n.pripravljeno) { konec() }
+        val pp = Pripravljeno(n.pripravljeno.predpomnjeni, n.pripravljeno.usenet, true)
+        izberiTok(sk, n.naslov, n.tokovi, false, pp) { konec() }
     }
 
     /**
@@ -10453,14 +10474,70 @@ class GlasbaActivity : OsActivity() {
                 neStejeKotPoskus = { webtorPoskusov-- })
             return true
         }
+        val zacetekPriprave = android.os.SystemClock.uptimeMillis()
+        var podnapisIskanjeVTeKu = false
+        var najdenPodnapis: Stremio.PodnapisDodatka? = null
+        var podnapisIskanjeKonec = false
+        
+        fun poisciPodnapise(t: Stremio.Tok) {
+            val id = OsPravila.idPodnapisov(sk.imdbId, sk.season, sk.episode) ?: return
+            val jezik = Podnapisi.jezikDodatka(this@GlasbaActivity)
+            if (jezik.isEmpty()) { podnapisIskanjeKonec = true; return }
+            val vsi = MedijskiViri.vsi(this@GlasbaActivity).filter { it.jeStremio }.map { it.naslov }
+            podnapisIskanjeVTeKu = true
+            delavec.execute {
+                val odtis = if (t.vrsta == "url" && t.url.isNotEmpty()) Podnapisi.odtisToka(t.url, t.glave) else null
+                val prefs = getSharedPreferences("safeer_mediji", MODE_PRIVATE)
+                val naslovi = OsPravila.dodatkiZaPodnapise(vsi, prefs.getString("zadnji_podnapisi", "").orEmpty()) { SkrivnostiPravila.odtis(Stremio.osnova(it)) }
+                
+                fun isci(d: List<String>) = (try { Stremio.podnapisi(d, id.first, id.second, odtis?.first, odtis?.second, t.imeDatoteke) } catch (_: Exception) { emptyList() }).firstOrNull { it.jezik == jezik }
+                
+                najdenPodnapis = isci(naslovi) ?: OsPravila.ostaliZaPodnapise(vsi, naslovi).takeIf { it.isNotEmpty() }?.let { isci(it) }
+                
+                podnapisIskanjeKonec = true
+                if (najdenPodnapis == null) android.util.Log.d("SafeerPodnapisi", "podnapisov ob zacetku ni: niso najdeni ($jezik)")
+            }
+        }
+
         fun odpri(t: Stremio.Tok, rezerve: List<Stremio.Tok> = emptyList()) {
+            if (!podnapisIskanjeVTeKu && sk.video) poisciPodnapise(t)
             when (t.vrsta) {
                 "url" -> {
                     // Glave, ki jih tok zahteva (proxyHeaders), veljajo za gostitelja toka, dokler ne pride drug tok z istega.
                     SpletniVir.zapomniGlaveToka(t.url, t.glave)
-                    val r = skladbaToka(t)
-                    GlasbaStoritev.predvajajZRezervami(this, r, rezerve.map { skladbaToka(it) to it.glave })
-                    if (r.video) { nadaljujKoPripravljen(r); startActivity(Intent(this, PredvajanjeActivity::class.java)) }
+                    
+                    fun pozeni() {
+                        val najden = najdenPodnapis
+                        val p = if (najden != null) listOf(Podnapisi.izDodatka(this@GlasbaActivity, najden)) else emptyList()
+                        if (najden != null) {
+                            val prefs = getSharedPreferences("safeer_mediji", MODE_PRIVATE)
+                            if (najden.osnova.isNotEmpty()) prefs.edit().putString("zadnji_podnapisi", SkrivnostiPravila.odtis(najden.osnova)).apply()
+                        }
+                        val r = skladbaToka(t).let {
+                            if (p.isNotEmpty()) it.copy(podnapisi = (it.podnapisi + p).distinctBy { x -> x.url }) else it
+                        }
+                        GlasbaStoritev.predvajajZRezervami(this@GlasbaActivity, r, rezerve.map { skladbaToka(it) to it.glave })
+                        if (r.video) { nadaljujKoPripravljen(r); startActivity(Intent(this@GlasbaActivity, PredvajanjeActivity::class.java)) }
+                    }
+
+                    if (!podnapisIskanjeVTeKu || podnapisIskanjeKonec) pozeni()
+                    else {
+                        if (!OsPravila.cakajPodnapiseZacetek(zacetekPriprave, android.os.SystemClock.uptimeMillis())) {
+                            android.util.Log.d("SafeerPodnapisi", "podnapisov ob zacetku ni: rok potekel")
+                            pozeni()
+                        } else {
+                            val r = object : Runnable {
+                                override fun run() {
+                                    if (podnapisIskanjeKonec) pozeni()
+                                    else if (!OsPravila.cakajPodnapiseZacetek(zacetekPriprave, android.os.SystemClock.uptimeMillis())) {
+                                        android.util.Log.d("SafeerPodnapisi", "podnapisov ob zacetku ni: rok potekel v cakanju")
+                                        pozeni()
+                                    } else glavna.postDelayed(this, 50)
+                                }
+                            }
+                            glavna.post(r)
+                        }
+                    }
                 }
                 "torrent" -> {
                     // Grok 9, Z2 (lastnik 23. 10.: brez debrida opozorilo, PREDEN se naprava poveze z rojem): tudi torrent iz

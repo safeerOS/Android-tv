@@ -1678,6 +1678,13 @@ object OsPravila {
 
     // ------------------------------------------------------------------ podnapisi iz dodatkov Stremio (naloga 72)
 
+    /** Rok za iskanje podnapisov pred prvo pripravo posnetka (naloga PN-2). */
+    const val ROK_ZACETEK_PODNAPISOV_MS = 3000L
+
+    /** Naloga PN-2: preveri, ali se se sme cakati na podnapise na zacetku filma. */
+    fun cakajPodnapiseZacetek(zacetekPriprave: Long, zdaj: Long): Boolean =
+        zdaj - zacetekPriprave < ROK_ZACETEK_PODNAPISOV_MS
+
     /**
      * (tip, id) za /subtitles/{tip}/{id}.json po protokolu Stremio: film »movie« / tt..., epizoda »series« / tt...:S:E.
      * null = naslov brez IMDb (dodatki za podnapise, npr. OpenSubtitles v3, iscejo po IMDb).
