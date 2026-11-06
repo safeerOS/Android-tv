@@ -58,16 +58,25 @@ object PredvajalnikTovarna {
             .setBufferDurationsMs(1_500, 12_000, 800, 1_500)
             .setPrioritizeTimeOverSizeThresholds(true)
             .build()
-        Profil.GLASBA, Profil.FILM -> UsenetNadzorNalaganja(
-            DefaultLoadControl.Builder()
-                .setBufferDurationsMs(20_000, 60_000, 2_000, 2_500)
-                .setPrioritizeTimeOverSizeThresholds(true)
-                .build(),
-            DefaultLoadControl.Builder()
-                .setBufferDurationsMs(30_000, 90_000, 5_000, 10_000)
-                .setPrioritizeTimeOverSizeThresholds(true)
-                .build()
-        )
+        Profil.GLASBA, Profil.FILM -> {
+            // Pregled Claude 6. 11. 2026: oba nadzora MORATA imeti isti alokator - getAllocator vrne obicajnega, nadzor Useneta
+            // bi sicer stel bajte na svojem (vedno 0) in meja velikosti ne bi nikoli veljala (4K 90 s = stotine MB, heap 192 MB).
+            val skupni = androidx.media3.exoplayer.upstream.DefaultAllocator(true, androidx.media3.common.C.DEFAULT_BUFFER_SEGMENT_SIZE)
+            UsenetNadzorNalaganja(
+                DefaultLoadControl.Builder()
+                    .setAllocator(skupni)
+                    .setBufferDurationsMs(20_000, 60_000, 2_000, 2_500)
+                    .setPrioritizeTimeOverSizeThresholds(true)
+                    .build(),
+                // Usenet: zacetek po 5 s, po zatiku 10 s (Grok, lastnik 16:14); najvec 48 MiB v RAM ne glede na cas (heap TV).
+                DefaultLoadControl.Builder()
+                    .setAllocator(skupni)
+                    .setBufferDurationsMs(30_000, 90_000, 5_000, 10_000)
+                    .setTargetBufferBytes(48 * 1024 * 1024)
+                    .setPrioritizeTimeOverSizeThresholds(false)
+                    .build()
+            )
+        }
     }
 
     class UsenetNadzorNalaganja(private val obicajni: androidx.media3.exoplayer.LoadControl, private val usenet: androidx.media3.exoplayer.LoadControl) : androidx.media3.exoplayer.LoadControl {
