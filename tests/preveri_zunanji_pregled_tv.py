@@ -164,6 +164,13 @@ preveri("Glasba CR: predpomnilnik filtra Usenet vezan na katalog in pociscen ob 
 dg = beri("src/main/kotlin/si/safeer/tv/os/DiagnostikaPredvajanja.kt")
 preveri("Diagnostika U4: neuspeh pise pod zaklepom", "synchronized(zaklepDnevnika) { neuspehPodZaklepom(" in dg)
 
+ce = beri("src/main/kotlin/si/safeer/tv/ChromiumEngineView.kt")
+_ri = telo(ce, "private fun registrirajIzvirnike(): Boolean {", "\n    }\n")
+_try = _ri.find("val izvirniki = try {")
+preveri("Splet CR: ostali skripti zacetka se registrirajo tudi, ce izvirniki odpovejo",
+        0 < _try < _ri.find("catch (e: Exception)", _try) < _ri.find("for (sk in skriptiZacetka) {\n", _try)
+        and _ri.find("nonceIzvirnikovNaslednji = n") < _try)
+
 if napake:
     print("NAPAKA zunanji pregled TV:", len(napake)); sys.exit(1)
 print("zunanji pregled TV OK")

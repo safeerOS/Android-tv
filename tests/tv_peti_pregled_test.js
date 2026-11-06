@@ -29,7 +29,8 @@ primer('N5 aplikacija', () => {
     preveri('N5: onPageStarted: dokument dobi ime zadnje registracije, za naslednjega nova registracija', true,
         /nonceIzvirnikovPrej = nonceIzvirnikov\s*nonceIzvirnikov = nonceIzvirnikovNaslednji\s*post \{ if \(!uniceno\) registrirajIzvirnike\(\) \}/.test(zac));
     const i = KT_POGLED.indexOf('private fun registrirajIzvirnike(');
-    const reg = i < 0 ? '' : KT_POGLED.slice(i, i + 700);
+    // Telo funkcije do konca (CodeRabbit 6. 11. 2026: daljse telo - ostali skripti tudi ob napaki izvirnikov).
+    const reg = i < 0 ? '' : KT_POGLED.slice(i, KT_POGLED.indexOf('\n    }\n', i));
     preveri('N5: registracija z novim imenom odstrani staro (stara imena ne veljajo vec)', true,
         /SpletVarnostPravila\.novNonce\(\)/.test(reg) && /izvirnikiRocaj\?\.remove\(\)/.test(reg) && /izvirnikiJs\(n\)/.test(reg));
     preveri('N5: ziva kopija se preveri z izvirniki prejsnjega dokumenta', true,
@@ -68,7 +69,7 @@ primer('N5 vrstni red', () => {
     const pab = fs.readFileSync(path.join(KOREN, 'assets/protiadblock.js'), 'utf8');
     preveri('N5: protiadblock.js ovija getBoundingClientRect (zato vrstni red steje)', true, /EP\.getBoundingClientRect = function/.test(pab));
     const i = KT_POGLED.indexOf('private fun registrirajIzvirnike(');
-    const reg = i < 0 ? '' : KT_POGLED.slice(i, i + 1400);
+    const reg = i < 0 ? '' : KT_POGLED.slice(i, KT_POGLED.indexOf('\n    }\n', i));
     const iIz = reg.indexOf('izvirnikiJs(n)'), iOst = reg.indexOf('for (sk in skriptiZacetka) {\n');
     preveri('N5: ob menjavi najprej izvirniki, nato ostali skripti v prejsnjem vrstnem redu', true,
         /sk\.rocaj\?\.remove\(\)/.test(reg) && iIz > 0 && iOst > iIz && /addDocumentStartJavaScript\(this, sk\.js, sk\.izvori\)/.test(reg));
