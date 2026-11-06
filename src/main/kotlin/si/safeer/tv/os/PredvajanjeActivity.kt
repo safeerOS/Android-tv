@@ -2059,7 +2059,15 @@ class PredvajanjeActivity : OsActivity() {
         val da = seNalaga()
         nalaganje.visibility = if (da) View.VISIBLE else View.GONE
         if (da) { prekritje.animate().cancel(); prekritje.alpha = 1f }
+        // Lastnik 6. 11. 2026 14:34 (Usenet, The Prestige): pas je ostal ves film - nalaganje ga je pokazalo, po koncu
+        // nalaganja pa ga nihce vec ni skril (skrij se je zagnal samo ob tipki). Po koncu nalaganja: skrij cez PAS_SKRIJ_MS.
+        if (OsPravila.skrijPoNalaganju(nalagaloPrej, da)) {
+            android.util.Log.d("SafeerOsPredvajanje", "nalaganje koncano: pas se skrije cez ${OsPravila.PAS_SKRIJ_MS} ms")
+            glavna.removeCallbacks(skrij); glavna.postDelayed(skrij, OsPravila.PAS_SKRIJ_MS)
+        }
+        nalagaloPrej = da
     }
+    private var nalagaloPrej = false
 
     // ------------------------------------------------------------------ ime posnetka in naslednja epizoda (lastnik 5. 11. 2026)
 

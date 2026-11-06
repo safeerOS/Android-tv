@@ -297,6 +297,10 @@ private fun pasMedVideom() {
     preveri("daljinec: brez vrste se pas skrije", OsPravila.pasSeSkrije(dotik = false, vrstaOdprta = false, tece = true))
     preveri("daljinec: brez vrste se pas skrije tudi med pavzo", OsPravila.pasSeSkrije(dotik = false, vrstaOdprta = false, tece = false))
     preveri("daljinec: odprta vrsta pas drzi", !OsPravila.pasSeSkrije(dotik = false, vrstaOdprta = true, tece = true))
+    // Lastnik 6. 11. 2026 14:34: po koncu nalaganja se pas skrije sam (prej je ostal ves film).
+    preveri("konec nalaganja skrije pas", OsPravila.skrijPoNalaganju(prej = true, zdaj = false))
+    preveri("med nalaganjem ne", !OsPravila.skrijPoNalaganju(prej = true, zdaj = true))
+    preveri("brez nalaganja ne (ne ponavljaj vsako sekundo)", !OsPravila.skrijPoNalaganju(prej = false, zdaj = false))
     // Dotik: ko video tece, se pas skrije tudi z odprto vrsto kartic; med pavzo ostane.
     preveri("dotik: video tece, vrsta odprta - pas se skrije", OsPravila.pasSeSkrije(dotik = true, vrstaOdprta = true, tece = true))
     preveri("dotik: video tece, vrsta zaprta - pas se skrije", OsPravila.pasSeSkrije(dotik = true, vrstaOdprta = false, tece = true))

@@ -50,6 +50,9 @@ object OsPravila {
     /** Po koliko ms brez dotika ali tipke se pas skrije. */
     const val PAS_SKRIJ_MS = 3_000L
 
+    /** Konec nalaganja (pas je pokazalo nalaganje): pas se mora znova skriti sam (lastnik 6. 11. 2026 14:34). */
+    fun skrijPoNalaganju(prej: Boolean, zdaj: Boolean): Boolean = prej && !zdaj
+
     /** Po nadaljevanju iz pavze se skrije prej: uporabnik hoce gledati, ne gumbov. */
     const val PAS_SKRIJ_PO_PAVZI_MS = 1_500L
 
