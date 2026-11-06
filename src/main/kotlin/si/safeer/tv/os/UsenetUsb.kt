@@ -61,27 +61,17 @@ object UsenetUsb {
         java.util.concurrent.ThreadPoolExecutor.DiscardPolicy()
     )
 
-    private val pisalecVnaprej = java.util.concurrent.ThreadPoolExecutor(
-        1, 1,
-        0L, java.util.concurrent.TimeUnit.MILLISECONDS,
-        java.util.concurrent.ArrayBlockingQueue(160), // okno ~96-120 MiB = ~130-160 segmentov
-        { r -> Thread({ android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND); r.run() }, "safeer-usb-zapis-v").apply { isDaemon = true } },
-        { r, executor ->
-            if (!executor.isShutdown) {
-                try {
-                    executor.queue.put(r)
-                } catch (e: InterruptedException) {
-                    Thread.currentThread().interrupt()
-                }
-            } else {
-                zavrzenaPisanja.incrementAndGet()
-                Log.d(TAG, "zavrzen zapis vnaprejsnjega segmenta")
-            }
-        }
-    )
+    private val pisalecVnaprej = UsenetUsbPisalec.nov(tovarna = { r ->
+        Thread({ android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND); r.run() }, "safeer-usb-zapis-v").apply { isDaemon = true }
+    }, obZavrzenem = {
+        zavrzenaPisanja.incrementAndGet()
+        Log.d(TAG, "zavrzen zapis vnaprejsnjega segmenta (USB prepocasen, vrsta polna)")
+    })
 
     fun ovij(c: Context, odtisIzdaje: String, telo: (String, Long) -> ByteArray): (String, Long) -> ByteArray {
         val app = c.applicationContext
+        // Pregled US-4: branje vnaprej caka, ko vrsta zapisov na USB nima prostora (UsenetBralnik.vnaprejDovoljeno).
+        UsenetBralnik.vnaprejDovoljeno = { pisalecVnaprej.queue.remainingCapacity() > 0 }
         return { id, bajtov ->
             val datoteka = try {
                 UsbPredpomnilnik.mapa(app, PredpomnilnikPravila.USENET)?.let { m ->

@@ -28,6 +28,13 @@ object UsenetBralnik {
     val zadnjiVir = ThreadLocal<String>()
     val vnaprejPrenos = ThreadLocal<Boolean>()
 
+    /**
+     * Pregled US-4 (6. 11. 2026): na USB branje vnaprej prenese vec (okno ~96 MiB), kot ostane v RAM (LRU 32 MiB) - kar se ni
+     * zapisano na USB, je izgubljeno in predvajanje ga prenese znova. Ko je vrsta zapisov na USB polna, bralnik z branjem
+     * vnaprej pocaka (branje za predvajanje gre vedno naprej). UsenetUsb nastavi; privzeto brez omejitve (brez USB, preizkusi).
+     */
+    @Volatile var vnaprejDovoljeno: () -> Boolean = { true }
+
     /** [okno] najvecje okno vnaprej, [zacetno] po odprtju ali skoku, [lru] dekodirani segmenti v RAM, [vzporedno] branj. */
     data class Profil(val okno: Long, val zacetno: Long, val lru: Long, val vzporedno: Int)
 
@@ -173,8 +180,17 @@ object UsenetBralnik {
                 var vnaprej = false
                 var cakalMs = 0L
                 zaklep.withLock {
-                    while (vrsta.isEmpty() && !zaprt) pogoj.await()
-                    if (zaprt) return
+                    while (true) {
+                        while (vrsta.isEmpty() && !zaprt) pogoj.await()
+                        if (zaprt) return
+                        // Na vrhu je branje vnaprej, USB pa ne dohaja: pocakaj (nova zahteva predvajanja ali prost USB).
+                        val glava = vrsta.peek()
+                        if (naUsb && glava != null && glava.prednost > 0 && !vnaprejDovoljeno()) {
+                            pogoj.await(50, java.util.concurrent.TimeUnit.MILLISECONDS)
+                            continue
+                        }
+                        break
+                    }
                     // vrsta pod zaklepom ni prazna; poll() je za prevajalnik vseeno nullable
                     val n = vrsta.poll() ?: return@withLock
                     kljuc = n.kljuc

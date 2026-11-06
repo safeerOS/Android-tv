@@ -960,6 +960,24 @@ private fun popravki58() {
     }
 }
 
+/** Pregled US-4: pocasen USB ne sme zadrzati vec kot NAJVEC_CAKAJOCIH niti bralnika (ostale so za predvajanje). */
+private fun pisalecVnaprejMeje() {
+    println("pisalec vnaprej: meja cakajocih niti")
+    val zapora = java.util.concurrent.CountDownLatch(1)
+    val zavrzenih = java.util.concurrent.atomic.AtomicInteger()
+    val p = si.safeer.tv.os.UsenetUsbPisalec.nov(vrsta = 1, najvecCakajocih = 2, cakajMs = 400, obZavrzenem = { zavrzenih.incrementAndGet() },
+        tovarna = java.util.concurrent.ThreadFactory { r -> Thread(r, "usb-t").apply { isDaemon = true } })
+    p.execute { zapora.await() }      // izvajalec zaseden
+    p.execute { }                      // vrsta polna
+    val niti = (1..6).map { Thread { p.execute { } }.apply { start() } }
+    val t0 = System.currentTimeMillis()
+    niti.forEach { it.join(3_000) }
+    val trajalo = System.currentTimeMillis() - t0
+    zapora.countDown(); p.shutdown()
+    preveri("pisalec vnaprej: vse niti zavrzejo, ko USB stoji", zavrzenih.get() == 6, "(${zavrzenih.get()})")
+    preveri("pisalec vnaprej: nobena nit ne caka dlje od meje", trajalo < 1_500, "($trajalo ms)")
+}
+
 private fun meritevVnaprejUsb() {
     println("meritev vnaprej USB: JVM s ponarejenim USB (pocasen zapis)")
     val velikost = 120L * 550_000 // 120 s filma pri 4,4 Mbit/s (cca 66 MB)
@@ -974,20 +992,11 @@ private fun meritevVnaprejUsb() {
             o.telo(id, b)
         }
 
-        val pisalecVnaprej = java.util.concurrent.ThreadPoolExecutor(
-            1, 1, 0L, java.util.concurrent.TimeUnit.MILLISECONDS,
-            java.util.concurrent.ArrayBlockingQueue(16),
-            { r -> Thread({ r.run() }, "usb").apply { isDaemon = true } },
-            if (popravljen) {
-                java.util.concurrent.RejectedExecutionHandler { r, executor ->
-                    if (!executor.isShutdown) {
-                        try { executor.queue.put(r) } catch (e: InterruptedException) { Thread.currentThread().interrupt() }
-                    }
-                }
-            } else {
-                java.util.concurrent.ThreadPoolExecutor.DiscardPolicy()
-            }
-        )
+        // Pregled US-4: preizkus uporablja PRAVI izvajalec iz UsenetUsb (prej kopijo v preizkusu, ki brez popravka ni padla).
+        val tovarna = java.util.concurrent.ThreadFactory { r -> Thread(r, "usb").apply { isDaemon = true } }
+        val pisalecVnaprej = if (popravljen) si.safeer.tv.os.UsenetUsbPisalec.nov(tovarna = tovarna)
+            else java.util.concurrent.ThreadPoolExecutor(1, 1, 0L, java.util.concurrent.TimeUnit.MILLISECONDS,
+                java.util.concurrent.ArrayBlockingQueue(16), tovarna, java.util.concurrent.ThreadPoolExecutor.DiscardPolicy())
 
         val fakeUsb = java.util.concurrent.ConcurrentHashMap<String, ByteArray>()
         val teloBralnik: (String, Long) -> ByteArray = { id, b ->
@@ -1018,6 +1027,8 @@ private fun meritevVnaprejUsb() {
         // Profil okna: 120s okno = 66 MB
         val profil = si.safeer.tv.os.UsenetBralnik.profilVidea(si.safeer.tv.os.UsenetBralnik.PROFILI.getValue("tv"), true, velikost, null, 128 * 1024 * 1024)
         
+        // Popravek: bralnik pocaka z branjem vnaprej, ko vrsta zapisov nima prostora (kot UsenetUsb.ovij).
+        si.safeer.tv.os.UsenetBralnik.vnaprejDovoljeno = if (popravljen) ({ pisalecVnaprej.queue.remainingCapacity() > 0 }) else ({ true })
         val b = si.safeer.tv.os.UsenetBralnik.Bralnik(teloBralnik, vir, profil, true)
         val branje = si.safeer.tv.os.UsenetBralnik.Branje(b)
         branje.open(0, velikost)
@@ -1041,6 +1052,7 @@ private fun meritevVnaprejUsb() {
         branje.close()
         b.close()
         pisalecVnaprej.shutdownNow()
+        si.safeer.tv.os.UsenetBralnik.vnaprejDovoljeno = { true }
 
         val razmerje = zOmrezja.get().toDouble() / pogledanoBajtov
         println("  ${if (popravljen) "popravljeno (blokirna vrsta)" else "pred popravkom (DiscardPolicy)"}: preneseno ${zOmrezja.get() / 1024 / 1024} MB, pogledano ${pogledanoBajtov / 1024 / 1024} MB, razmerje ${"%.2f".format(razmerje)}")
@@ -1066,6 +1078,7 @@ fun main(args: Array<String>) {
         popravki58()
         val t = tls(mapa)
         konecDoKonca(mapa, t)
+        pisalecVnaprejMeje()
         if ("--meritev" in args) { meritevPrenosa(); meritev(t) }
         meritevVnaprejUsb()
     } finally {

@@ -148,6 +148,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/os/UsenetTok.kt" \
     "$SRC/si/safeer/tv/os/UsenetRar.kt" \
     "$SRC/si/safeer/tv/os/UsenetBralnik.kt" \
+    "$SRC/si/safeer/tv/os/UsenetUsbPisalec.kt" \
     "$SRC/si/safeer/tv/os/UsenetStreznik.kt" \
     "$TEST_DIR/UsenetTestnaPomoc.kt" \
     "$TEST_DIR/UsenetYencTest.kt" \
