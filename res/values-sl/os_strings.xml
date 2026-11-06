@@ -782,4 +782,5 @@
     <string name="os_adb_povezano">Urejeno - Safeer OS zdaj zapira aplikacije, ki jih ne uporabljaš več.</string>
     <string name="os_adb_ni_dosegljiv">Omrežno razhroščevanje je izklopljeno. Vklopi ga v Nastavitve &gt; Možnosti za razvijalce in poskusi znova.</string>
     <string name="os_adb_ni_potrjeno">Na televizorju ni bilo potrjeno. Poskusi znova in izberi »Vedno dovoli«.</string>
+    <string name="os_mediji_zdaj_igra">Zdaj igra - odpri na Domu</string>
 </resources>

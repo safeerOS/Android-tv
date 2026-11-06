@@ -394,9 +394,11 @@ def main() -> int:
     preveri("OOM: zanka pojavnih oken ne ustvarja pogledov (PojavnaOknaMeja)",
             ce.index("PojavnaOknaMeja.dovoli(pojavnaOknaCasi") < ce.index("return naPojavnoOkno?.invoke(resultMsg"))
     gl5 = (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8")
-    preveri("mini predvajalnik tudi v Medijskem centru (zivljenjski cikel in Nazaj)",
-            "dock = MiniPredvajalnik.naOknu(this)" in gl5 and "GlasbaStoritev.poslusalci.remove(dockPoslusalec)" in gl5
-            and "if (dock?.skrijCeOdprt() == true) return" in gl5)
+    # Lastnik 6. 11. 2026 17:21: v Medijskem centru mini predvajalnik samo na Domu (kartica), na drugih zavihkih znak v glavi -
+    # dock cez okno (27. 10.) je odstranjen, ker je z vrstico zakrival mrezo.
+    preveri("mini predvajalnik v Medijskem centru samo na Domu (kartica, znak, brez docka)",
+            "MiniPredvajalnik.naOknu(this)" not in gl5 and "fun osveziMcKartico()" in gl5 and "fun osveziZnak()" in gl5
+            and "osveziPloscoDomov(); osveziZnak()" in gl5)
     gl6 = (SRC / "os/GlasbaActivity.kt").read_text(encoding="utf-8")
     preveri("album z Useneta: lepi naslovi in izvajalec (UsenetGlasbaPravila.lepeSkladbe)",
             "UsenetGlasbaPravila.lepeSkladbe(album.skladbe.map { it.first }" in gl6)
