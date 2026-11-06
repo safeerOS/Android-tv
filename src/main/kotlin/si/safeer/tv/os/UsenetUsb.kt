@@ -61,6 +61,25 @@ object UsenetUsb {
         java.util.concurrent.ThreadPoolExecutor.DiscardPolicy()
     )
 
+    private val pisalecVnaprej = java.util.concurrent.ThreadPoolExecutor(
+        1, 1,
+        0L, java.util.concurrent.TimeUnit.MILLISECONDS,
+        java.util.concurrent.ArrayBlockingQueue(160), // okno ~96-120 MiB = ~130-160 segmentov
+        { r -> Thread({ android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND); r.run() }, "safeer-usb-zapis-v").apply { isDaemon = true } },
+        { r, executor ->
+            if (!executor.isShutdown) {
+                try {
+                    executor.queue.put(r)
+                } catch (e: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                }
+            } else {
+                zavrzenaPisanja.incrementAndGet()
+                Log.d(TAG, "zavrzen zapis vnaprejsnjega segmenta")
+            }
+        }
+    )
+
     fun ovij(c: Context, odtisIzdaje: String, telo: (String, Long) -> ByteArray): (String, Long) -> ByteArray {
         val app = c.applicationContext
         return { id, bajtov ->
@@ -74,7 +93,11 @@ object UsenetUsb {
                 UsenetBralnik.zadnjiVir.set("omrezje")
                 if (datoteka != null && bajti.isNotEmpty() && bajti.size <= PredpomnilnikPravila.NAJVEC_SEGMENT) {
                     try {
-                        pisalec.execute { zapisi(app, datoteka, bajti) }
+                        if (UsenetBralnik.vnaprejPrenos.get() == true) {
+                            pisalecVnaprej.execute { zapisi(app, datoteka, bajti) }
+                        } else {
+                            pisalec.execute { zapisi(app, datoteka, bajti) }
+                        }
                     } catch (_: Throwable) {
                         zavrzenaPisanja.incrementAndGet()
                     }

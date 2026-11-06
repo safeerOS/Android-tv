@@ -960,6 +960,99 @@ private fun popravki58() {
     }
 }
 
+private fun meritevVnaprejUsb() {
+    println("meritev vnaprej USB: JVM s ponarejenim USB (pocasen zapis)")
+    val velikost = 120L * 550_000 // 120 s filma pri 4,4 Mbit/s (cca 66 MB)
+    val film = Leno(velikost, 77)
+    val o = Objava(delBajtov = 768 * 1024).apply { dodaj("Film.mkv", film) }
+    val nzb = UsenetNzb.razcleni(o.nzb())
+
+    for (popravljen in listOf(false, true)) {
+        val zOmrezja = java.util.concurrent.atomic.AtomicLong()
+        val teloMreza: (String, Long) -> ByteArray = { id, b ->
+            zOmrezja.addAndGet(b)
+            o.telo(id, b)
+        }
+
+        val pisalecVnaprej = java.util.concurrent.ThreadPoolExecutor(
+            1, 1, 0L, java.util.concurrent.TimeUnit.MILLISECONDS,
+            java.util.concurrent.ArrayBlockingQueue(16),
+            { r -> Thread({ r.run() }, "usb").apply { isDaemon = true } },
+            if (popravljen) {
+                java.util.concurrent.RejectedExecutionHandler { r, executor ->
+                    if (!executor.isShutdown) {
+                        try { executor.queue.put(r) } catch (e: InterruptedException) { Thread.currentThread().interrupt() }
+                    }
+                }
+            } else {
+                java.util.concurrent.ThreadPoolExecutor.DiscardPolicy()
+            }
+        )
+
+        val fakeUsb = java.util.concurrent.ConcurrentHashMap<String, ByteArray>()
+        val teloBralnik: (String, Long) -> ByteArray = { id, b ->
+            val vUsb = fakeUsb[id]
+            if (vUsb != null) {
+                vUsb
+            } else {
+                val vnaprej = si.safeer.tv.os.UsenetBralnik.vnaprejPrenos.get() == true
+                val bData = teloMreza(id, b)
+                val task = Runnable {
+                    try {
+                        Thread.sleep(40) // pocasen USB (npr. 40ms na 768 KB = 19 MB/s)
+                    } catch (e: InterruptedException) {
+                        return@Runnable
+                    }
+                    fakeUsb[id] = bData
+                }
+                if (vnaprej) {
+                    pisalecVnaprej.execute(task)
+                } else {
+                    fakeUsb[id] = bData // takoj, ce ni vnaprej
+                }
+                bData
+            }
+        }
+
+        val vir = si.safeer.tv.os.UsenetBralnik.pripravi(nzb, teloBralnik).first
+        // Profil okna: 120s okno = 66 MB
+        val profil = si.safeer.tv.os.UsenetBralnik.profilVidea(si.safeer.tv.os.UsenetBralnik.PROFILI.getValue("tv"), true, velikost, null, 128 * 1024 * 1024)
+        
+        val b = si.safeer.tv.os.UsenetBralnik.Bralnik(teloBralnik, vir, profil, true)
+        val branje = si.safeer.tv.os.UsenetBralnik.Branje(b)
+        branje.open(0, velikost)
+
+        val pogledanoBajtov = velikost
+        var trenutno = 0L
+        val buf = ByteArray(1024 * 1024)
+
+        val zacetekTesta = System.currentTimeMillis()
+        while (trenutno < pogledanoBajtov) {
+            if (System.currentTimeMillis() - zacetekTesta > 15000) {
+                throw RuntimeException("TIMEOUT V TESTU trenutno=$trenutno / $pogledanoBajtov")
+            }
+            val r = branje.read(buf, 0, minOf(buf.size.toLong(), pogledanoBajtov - trenutno).toInt())
+            if (r < 0) break
+            trenutno += r
+            // Pospeseno 100x
+            Thread.sleep((r.toDouble() / 550_000.0 * 10).toLong())
+        }
+
+        branje.close()
+        b.close()
+        pisalecVnaprej.shutdownNow()
+
+        val razmerje = zOmrezja.get().toDouble() / pogledanoBajtov
+        println("  ${if (popravljen) "popravljeno (blokirna vrsta)" else "pred popravkom (DiscardPolicy)"}: preneseno ${zOmrezja.get() / 1024 / 1024} MB, pogledano ${pogledanoBajtov / 1024 / 1024} MB, razmerje ${"%.2f".format(razmerje)}")
+        
+        if (popravljen) {
+            preveri("Meritev vnaprej USB popravljeno razmerje <= 1.5", razmerje <= 1.5, "(${razmerje})")
+        } else {
+            preveri("Meritev vnaprej USB pred popravkom razmerje > 1.5", razmerje > 1.5, "(${razmerje})")
+        }
+    }
+}
+
 fun main(args: Array<String>) {
     println("Preizkus pogona Usenet, korak 2 (tok, RAR, bralnik, streznik)")
     val mapa = java.nio.file.Files.createTempDirectory("usenet-tok").toFile()
@@ -974,6 +1067,7 @@ fun main(args: Array<String>) {
         val t = tls(mapa)
         konecDoKonca(mapa, t)
         if ("--meritev" in args) { meritevPrenosa(); meritev(t) }
+        meritevVnaprejUsb()
     } finally {
         mapa.deleteRecursively()
     }

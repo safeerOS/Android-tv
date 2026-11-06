@@ -26,6 +26,7 @@ object UsenetBralnik {
     private const val MIB = 1024L * 1024
 
     val zadnjiVir = ThreadLocal<String>()
+    val vnaprejPrenos = ThreadLocal<Boolean>()
 
     /** [okno] najvecje okno vnaprej, [zacetno] po odprtju ali skoku, [lru] dekodirani segmenti v RAM, [vzporedno] branj. */
     data class Profil(val okno: Long, val zacetno: Long, val lru: Long, val vzporedno: Int)
@@ -214,6 +215,7 @@ object UsenetBralnik {
             val seg = p.segment(k.stevilka)
             val zacetekPrenosa = System.currentTimeMillis()
             zadnjiVir.set("omrezje")
+            vnaprejPrenos.set(vnaprej)
             val surovo = try { telo(seg.id, seg.bajtov) } catch (e: UsenetNntp.NapakaNntp) {
                 if (e.vrsta == UsenetNntp.Vrsta.NI_CLANKA) throw UsenetTok.NapakaToka(UsenetTok.Izid.LUKNJA)
                 throw e
