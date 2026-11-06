@@ -55,6 +55,8 @@ object Jamendo {
         val podnapisi: List<Podnapisi.Podnapis> = emptyList(),
         /** Cas zadnjega videvanja tega naslova v katalogu spletnega vira. */
         override val zadnjiVideni: Long = 0L,
+        /** Ime izdaje (Usenet: ime NZB/izdaje, debrid: filename iz behaviorHints). */
+        val imeDatoteke: String = "",
     ) : DomovVrsticePravila.Naslov, KatalogPravila.Naslov {
         override val zvrsti: List<String> get() = genres
         override fun sCasom(cas: Long): KatalogPravila.Naslov = copy(zadnjiVideni = cas)

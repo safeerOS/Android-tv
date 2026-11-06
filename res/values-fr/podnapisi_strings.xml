@@ -12,5 +12,4 @@
     <string name="podnapisi_ni_najdenih">Aucun sous-titre trouvé</string>
     <string name="podnapisi_videa">Sous-titres de la vidéo…</string>
     <string name="podnapisi_ne_gre">Impossible d’ajouter des sous-titres à ce flux</string>
-    <string name="podnapisi_ob_premoru">Les sous-titres seront ajoutés à la prochaine pause</string>
 </resources>
