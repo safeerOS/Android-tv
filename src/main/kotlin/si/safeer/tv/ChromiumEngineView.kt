@@ -306,8 +306,11 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
 
     /** Skript zacetka dokumenta za izvirniki (vrstni red ostane tudi ob menjavi imena izvirnikov). */
     private fun dodajSkriptZacetka(js: String, izvori: Set<String>) {
-        val h = androidx.webkit.WebViewCompat.addDocumentStartJavaScript(this, js, izvori)
-        skriptiZacetka += SkriptZacetka(js, izvori, h)
+        // Lint RequiresFeature (tv-izdaja 6. 11. 2026, 3 nova opozorila): klicatelji so ze za preverbo, ta velja tudi za nove.
+        if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT)) {
+            val h = androidx.webkit.WebViewCompat.addDocumentStartJavaScript(this, js, izvori)
+            skriptiZacetka += SkriptZacetka(js, izvori, h)
+        }
     }
 
     /**
@@ -317,15 +320,18 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
     private fun registrirajIzvirnike(): Boolean {
         val n = SpletVarnostPravila.novNonce()
         return try {
-            try { izvirnikiRocaj?.remove() } catch (_: Exception) {}
-            for (sk in skriptiZacetka) { try { sk.rocaj?.remove() } catch (_: Exception) {}; sk.rocaj = null }
-            izvirnikiRocaj = androidx.webkit.WebViewCompat.addDocumentStartJavaScript(this, izvirnikiJs(n), setOf("*"))
-            nonceIzvirnikovNaslednji = n
-            for (sk in skriptiZacetka) {
-                try { sk.rocaj = androidx.webkit.WebViewCompat.addDocumentStartJavaScript(this, sk.js, sk.izvori) }
-                catch (e: Exception) { android.util.Log.w("SafeerSplet", "skript zacetka: ponovna registracija ni uspela (${e.javaClass.simpleName})") }
-            }
-            true
+            // Brez DOCUMENT_START_SCRIPT ni izvirnikov (prej je preverbo naredil samo klicatelj; lint RequiresFeature).
+            if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT)) {
+                try { izvirnikiRocaj?.remove() } catch (_: Exception) {}
+                for (sk in skriptiZacetka) { try { sk.rocaj?.remove() } catch (_: Exception) {}; sk.rocaj = null }
+                izvirnikiRocaj = androidx.webkit.WebViewCompat.addDocumentStartJavaScript(this, izvirnikiJs(n), setOf("*"))
+                nonceIzvirnikovNaslednji = n
+                for (sk in skriptiZacetka) {
+                    try { sk.rocaj = androidx.webkit.WebViewCompat.addDocumentStartJavaScript(this, sk.js, sk.izvori) }
+                    catch (e: Exception) { android.util.Log.w("SafeerSplet", "skript zacetka: ponovna registracija ni uspela (${e.javaClass.simpleName})") }
+                }
+                true
+            } else false
         } catch (e: Exception) {
             android.util.Log.w("SafeerSplet", "izvirniki: registracija ni uspela (${e.javaClass.simpleName})")
             false
