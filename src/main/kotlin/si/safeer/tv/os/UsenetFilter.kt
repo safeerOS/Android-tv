@@ -143,15 +143,16 @@ object UsenetFilter {
                     val idDnevnik = if (iscemo) iden else "-"
                     // Kvoto je med cakanjem v vrsti porabil kdo drug: brez zahteve in brez zapisa (naslov se preveri pozneje).
                     // Lastnik 6. 11. 2026: razmik med zahtevami indeksatorju pod 1 s (delovna nit, najvec RAZMIK_MS).
-                    if (poslji) omejevalnik.razmik(zdaj()).takeIf { it > 0 }?.let { try { Thread.sleep(it) } catch (_: InterruptedException) { } }
-                    if (poslji && !omejevalnik.smem(zdaj())) { Log.i(TAG, "preverba: id=$idDnevnik, odlozeno (kvota)"); return@execute }
+                    val cakaj = if (poslji) omejevalnik.rezerviraj(zdaj()) else 0L
+                    if (poslji && cakaj != null && cakaj > 0) try { Thread.sleep(cakaj) } catch (_: InterruptedException) { }
+                    if (poslji && cakaj == null) { Log.i(TAG, "preverba: id=$idDnevnik, odlozeno (kvota)"); return@execute }
                     var odgovor: String? = null
                     val t0 = android.os.SystemClock.uptimeMillis()
                     if (poslji && iden != null) {
                         porabljeno.incrementAndGet()
                         val r = Usenet.iskanje(app, iden, F.ROK_MS)
                         if (r.meja) { omejevalnik.meja(zdaj()); Log.i(TAG, "indeksator omejuje hitrost: premor ${omejevalnik.premorSe(zdaj()) / 1000} s") }
-                        else if (r.izdaje != null) omejevalnik.uspeh()
+                        else if (r.izdaje != null) omejevalnik.uspeh(zdaj())
                         izdaje = r.izdaje?.map { F.Izdaja(it.naslov, it.velikost / 1_073_741_824.0, it.geslo) }
                         odgovor = r.razlog.ifBlank { null }
                     }

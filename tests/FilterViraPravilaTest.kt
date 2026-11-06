@@ -233,11 +233,20 @@ fun main() {
     preveriEnako("meja: prvi premor 5 s (ne 15 min)", false to true, om5.lahko(t0 + 4_999) to om5.lahko(t0 + 5_000))
     om5.meja(t0 + 5_000)
     preveriEnako("meja: drugi zaporedni 10 s", false to true, om5.lahko(t0 + 14_999) to om5.lahko(t0 + 15_000))
-    om5.uspeh(); om5.meja(t0 + 20_000)
+    om5.uspeh(t0 + 20_000); om5.meja(t0 + 20_000)
     preveriEnako("uspeh ponastavi premor na 5 s", true, om5.lahko(t0 + 25_000))
     val om6 = FilterViraPravila.Omejevalnik(FilterViraPravila.NA_MINUTO)
     repeat(30) { om6.meja(t0) }
     preveriEnako("premor najvec 15 min", 15 * min, om6.premorSe(t0))
+    // Pregled Gemini: dve niti hkrati ne gresta v sunku - druga dobi rezervacijo z razmikom.
+    val om7 = FilterViraPravila.Omejevalnik(FilterViraPravila.NA_MINUTO)
+    preveriEnako("rezervacija: prva takoj", 0L, om7.rezerviraj(t0))
+    preveriEnako("rezervacija: druga ob istem casu pocaka razmik", FilterViraPravila.RAZMIK_MS, om7.rezerviraj(t0))
+    preveriEnako("rezervacija: tretja dvojni razmik", 2 * FilterViraPravila.RAZMIK_MS, om7.rezerviraj(t0))
+    val om8 = FilterViraPravila.Omejevalnik(FilterViraPravila.NA_MINUTO)
+    om8.meja(t0); om8.uspeh(t0 + 1); om8.meja(t0 + 5_000)
+    preveriEnako("zapozneli uspeh med premorom ne ponastavi", false, om8.lahko(t0 + 14_999))
+    preveriEnako("rezervacija med premorom ne", null, om8.rezerviraj(t0 + 6_000))
 
     if (napak > 0) { println("NAPAK: $napak"); kotlin.system.exitProcess(1) }
     println("Vse v redu.")

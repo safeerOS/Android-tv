@@ -308,12 +308,26 @@ object FilterViraPravila {
         /** Koliko ms mora zahteva se pocakati, da je od prejsnje minil [razmikMs] (lastnik: razmik manj kot 1 s). */
         @Synchronized fun razmik(zdaj: Long): Long = casi.lastOrNull()?.let { (it + razmikMs - zdaj).coerceAtLeast(0L) } ?: 0L
 
+        /**
+         * Pregled Gemini 6. 11. 2026: razmik in poraba v ENEM koraku (prej sta dve niti hkrati videli razmik 0 in sli v sunku).
+         * Rezervira mesto [razmikMs] za prejsnjo zahtevo in vrne, koliko ms naj klicatelj pocaka; null = zdaj ne (premor, kvota).
+         */
+        @Synchronized fun rezerviraj(zdaj: Long): Long? {
+            if (zdaj < premorDo) return null
+            while (casi.isNotEmpty() && zdaj - casi.first() >= MINUTA) casi.removeFirst()
+            if (casi.size >= naMinuto) return null
+            val ob = casi.lastOrNull()?.let { maxOf(zdaj, it + razmikMs) } ?: zdaj
+            casi.addLast(ob)
+            return ob - zdaj
+        }
+
         @Synchronized fun meja(zdaj: Long) {
-            val korak = (prviPremorMs shl zaporednihMej.coerceAtMost(20)).coerceAtMost(najvecPremorMs)
-            zaporednihMej++
+            val korak = (prviPremorMs shl zaporednihMej.coerceIn(0, 20)).coerceAtMost(najvecPremorMs)
+            if (zaporednihMej < 20) zaporednihMej++
             premorDo = zdaj + korak
         }
-        @Synchronized fun uspeh() { zaporednihMej = 0 }
+        /** Uspesen odgovor ponastavi stopnjevanje - ne med premorom (zapozneli odgovor zahteve iz casa pred omejitvijo). */
+        @Synchronized fun uspeh(zdaj: Long) { if (zdaj >= premorDo) zaporednihMej = 0 }
         @Synchronized fun vPremoru(zdaj: Long): Boolean = zdaj < premorDo
         @Synchronized fun premorSe(zdaj: Long): Long = (premorDo - zdaj).coerceAtLeast(0L)
 
