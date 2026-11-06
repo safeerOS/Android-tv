@@ -71,4 +71,16 @@ object DomovVrsticePravila {
      * [jeDomov] = Medijski center ima Domov (samostojni Predvajalnik ga nima - tam kot doslej).
      */
     fun nazaj(naDomovu: Boolean, jeDomov: Boolean): Nazaj = if (jeDomov && !naDomovu) Nazaj.NA_DOMOV else Nazaj.ZAPRI
+
+    /** Vrstica se pokaze le, ce ima elemente (vrstice brez elementov skrijemo). */
+    fun prikaziVrstico(prazna: Boolean, steviloElementov: Int): Boolean = !prazna && steviloElementov > 0
+
+    /** Levi odmik vrstic na Domu je enak kot mreze v oddelkih Video/Glasba (kjer zacnejo pri 0). */
+    fun leviOdmik(): Int = 0
+
+    /** Naslovi vrstic na Domu so poravnani z levim robom kartic (ki so na 0). */
+    fun odmikNaslova(): Int = 0
+
+    /** Razmik med glavo (gumbi) in prvo vrstico na Domu mora biti enak kot v drugih oddelkih (ne tesno). */
+    fun razmikGlaveZgoraj(): Int = 14
 }

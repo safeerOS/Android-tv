@@ -1138,11 +1138,12 @@ class GlasbaActivity : OsActivity() {
             val dveVrstici = plakat || kanal || (velikostDp in 1..103 && !mala && !slicica)
             val izvajalecPod = if (!dveVrstici && '\n' in k.naslov) k.naslov.substringBefore('\n') else ""
             addView(besedilo(if (mala) 11f else if (kanal) 13f else 14f, osBarva(R.color.os_besedilo), true).apply {
-                text = if (izvajalecPod.isNotEmpty()) k.naslov.substringAfter('\n') else k.naslov; maxLines = if (plakat) 2 else 1; setPadding(dp(2), dp(if (mala) 2 else 8), 0, 0)
+                text = if (izvajalecPod.isNotEmpty()) k.naslov.substringAfter('\n') else k.naslov
+                maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.END
+                setPadding(dp(2), dp(if (mala) 2 else 8), 0, 0)
                 // Kanal: ime v dveh vrsticah (v eni je bilo odrezano), vedno dve - da so ploscice v vrsti enako visoke.
                 // Enako ozka kartica mreze (trije v vrsto na telefonu): v eni vrstici bi od naslova ostalo nekaj crk.
-                if (kanal || (velikostDp in 1..103 && !mala && !plakat && !slicica)) { setLines(2); ellipsize = android.text.TextUtils.TruncateAt.END }
-                if (slicica) ellipsize = android.text.TextUtils.TruncateAt.END
+                if (kanal || (velikostDp in 1..103 && !mala && !plakat && !slicica)) { setLines(2) }
             },
                 LinearLayout.LayoutParams(sirina, -2))
             if (!mala && !kanal) addView(besedilo(12f, osBarva(R.color.os_umirjeno)).apply {
@@ -1243,16 +1244,39 @@ class GlasbaActivity : OsActivity() {
         for (v0 in vrste) {
             if (v0.kartice.isEmpty() && v0.pogled == null) continue
             // Blok kartic (nekdanja polica) je mreza z najvec dvema vrsticama; polic, po katerih je treba v desno, ni vec.
-            val v = if (v0.mreza || v0.pogled != null) v0 else blokMreze(v0)
-            val tesno = v.mala || razdelek == DOMOV
+            val v = if (v0.mreza || v0.pogled != null || razdelek == DOMOV) v0 else blokMreze(v0)
+            val tesno = v.mala
             koraki.addLast {
-                if (v.naslov.isNotBlank())
+                if (v.naslov.isNotBlank()) {
+                    val zgOdmik = if (razdelek == DOMOV && v === vrste.firstOrNull { it.naslov.isNotBlank() }) DomovVrsticePravila.razmikGlaveZgoraj() else if (tesno) 5 else 14
+                    val leviOdmik = if (razdelek == DOMOV) DomovVrsticePravila.odmikNaslova() else 4
                     vsebina.addView(besedilo(if (tesno) 16f else 18f, osBarva(R.color.os_besedilo), true).apply {
                         text = v.naslov; tag = "polica:${v.naslov}"; contentDescription = NASLOV_VRSTE
-                        setPadding(dp(4), dp(if (tesno) 5 else 14), 0, dp(if (tesno) 3 else 8)) })
+                        setPadding(dp(leviOdmik), dp(zgOdmik), 0, dp(if (tesno) 3 else 8)) })
+                }
             }
             if (v.pogled != null) { koraki.addLast { vsebina.addView(v.pogled) }; continue }
             run {
+                if (razdelek == DOMOV && !v.mreza) {
+                    val (_, velikost) = mereMreze(v)
+                    koraki.addLast {
+                        val vrstica = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                        v.kartice.forEachIndexed { i, k -> 
+                            val p = karticaMreze(v, k, velikost)
+                            p.layoutParams = LinearLayout.LayoutParams(-2, LinearLayout.LayoutParams.MATCH_PARENT).apply { 
+                                marginEnd = dp(14)
+                            }
+                            vrstica.addView(p) 
+                        }
+                        vsebina.addView(HorizontalScrollView(this).apply {
+                            isHorizontalScrollBarEnabled = false
+                            clipToPadding = false
+                            setPadding(dp(DomovVrsticePravila.leviOdmik()), 0, 0, dp(14))
+                            addView(vrstica, android.view.ViewGroup.LayoutParams(-2, -1))
+                        }, LinearLayout.LayoutParams(-1, -2))
+                    }
+                    return@run
+                }
                 // Mreza (plakati, kartice, ploscice kanalov): toliko v vrsto, kolikor jih gre ([mereMreze]). Kadar jo je
                 // narocil pokaziMrezo, si zapomnimo vrstice in poglede, da jo naslednjic dopolnimo na mestu.
                 val (n, velikost) = mereMreze(v)
@@ -3242,7 +3266,7 @@ class GlasbaActivity : OsActivity() {
                 // »Nadaljuj z druge naprave« je prva kartica vrstice Nedavno (prej osamljena velika kartica na vrhu).
                 fun jeKanalP(sk: Jamendo.Skladba) = PriljubljeniKanaliPravila.jeKanal(sk.id, Stremio.jeVZivo(sk)) || IptvSeznami.jeKanal(sk)
                 val izbrane = DomovVrstice.izbrane(this)
-                val vrste = izbrane.associateWith { v -> when (v) {
+                val zbraniMap: Map<DomovVrsticePravila.Vrstica, List<Vrsta>> = izbrane.associateWith { v -> when (v) {
                     DomovVrsticePravila.Vrstica.NEDAVNO -> listOf(Vrsta(getString(R.string.os_media_nedavno),
                         predajaVrsta().flatMap { it.kartice } + razvrsti(i, filtrirajJezike(i, MedijskiViri.nedavno(this).filterNot { neodklenjena(it) }))
                     // Isti naslov iz dveh virov (dve razlicici) je med nedavnimi en sam - brez podvojenih prikazov.
@@ -3255,7 +3279,7 @@ class GlasbaActivity : OsActivity() {
                             tvId = if (tv && sk.slika.isBlank()) sk.id.removePrefix("tv:") else "", id = sk.id)
                     }
                     MeniVsebinePravila.karticeNedavno(kartice, karticaPocistiNedavno())
-                }, video = true, mala = true))
+                }))
                     DomovVrsticePravila.Vrstica.SEZNAMI -> seznamiBlok(seznami)
                     DomovVrsticePravila.Vrstica.PRILJ_GLASBA -> listOf(Vrsta(getString(R.string.os_domov_prilj_glasba),
                         skladbe(p.filter { DomovVrsticePravila.vPriljubljeniGlasbi(it.video, it.radio, jeKanalP(it)) }), skladbe = true))
@@ -3264,8 +3288,21 @@ class GlasbaActivity : OsActivity() {
                     DomovVrsticePravila.Vrstica.RADIO -> listOf(Vrsta(getString(R.string.os_domov_prilj_radio), skladbe(p.filter { it.radio && !jeKanalP(it) }), skladbe = true))
                     DomovVrsticePravila.Vrstica.TV -> listOf(Vrsta(getString(R.string.os_domov_prilj_tv), videi(p.filter { jeKanalP(it) }), video = true))
                     DomovVrsticePravila.Vrstica.VIRI -> listOf(Vrsta(getString(R.string.os_media_tvoji_viri), emptyList(), pogled = tvojiViri()))
-                }.filter { it.kartice.isNotEmpty() || it.pogled != null } }
-                DomovVrsticePravila.vrstice(izbrane, vrste.filterValues { it.isNotEmpty() }.keys).flatMap { vrste.getValue(it) }
+                } }
+                
+                val vrsteMap = zbraniMap.mapValues { k ->
+                    k.value.map { v ->
+                        v.copy(kartice = v.kartice.filter { kr -> 
+                            kr.slika.isNotBlank() || kr.naslov.isNotBlank() || kr.ikona != 0 
+                        })
+                    }.filter { v ->
+                        val prikazi = DomovVrsticePravila.prikaziVrstico(v.kartice.isEmpty(), v.kartice.size)
+                        if (!prikazi && v.pogled == null) android.util.Log.d("SafeerOsMediji", "Skrijem prazno vrstico na Domu: ${v.naslov}")
+                        prikazi || v.pogled != null
+                    }
+                }.filter { it.value.isNotEmpty() }
+                
+                DomovVrsticePravila.vrstice(izbrane, vrsteMap.keys).flatMap { vrsteMap.getValue(it) }
             }
             GLASBA -> listOf(Vrsta(getString(R.string.os_mediji_prilj_glasba), skladbe(p.filter { OsPravila.zaGlasbo(it.video, it.radio, YoutubeZvok.jeYoutube(it)) }), skladbe = true)) +
                 // Lastnik 27. 10. 2026: priljubljeni albumi z Useneta (samo z lastnim ponudnikom - sicer jih ni mogoce predvajati).
