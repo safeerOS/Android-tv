@@ -67,6 +67,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/link/OzjiKrogPravila.kt" \
     "$SRC/si/safeer/tv/os/PripravaPravila.kt" \
     "$TEST_DIR/PripravaPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/KatalogPravila.kt" \
+    "$TEST_DIR/KatalogPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/AdbLokalnoPravila.kt" \
     "$TEST_DIR/AdbLokalnoPravilaTest.kt" \
     "$TEST_DIR/OsPravilaTest.kt" \
@@ -246,6 +248,7 @@ trap 'rm -rf "$OUT"' EXIT
     -include-runtime -d "$OUT/os.jar"
 
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.OsPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.KatalogPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.GalerijaPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.AplikacijePravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" KompletPravilaTestKt
