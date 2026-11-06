@@ -181,16 +181,22 @@ object DomenskiNabor {
         }
 
         /** Domena ali katera od nadrejenih (razen same vrhnje domene) je v naboru. */
-        fun jeBlokirana(ime: String): Boolean {
+        fun jeBlokirana(ime: String): Boolean = najblizja(ime) != null
+
+        /**
+         * Najblizja domena imena (ime samo ali nadrejena, razen vrhnje) v naboru, za katero [sme] vrne true; null, ce je
+         * ni. [sme] izpusti vnose za koren Googla ali celotno platformo (ScitGostitelji, 5. 11. 2026).
+         */
+        fun najblizja(ime: String, sme: (String) -> Boolean = { true }): String? {
             val d = normaliziraj(ime)
-            if (d.isEmpty() || '.' !in d) return false
+            if (d.isEmpty() || '.' !in d) return null
             var zacetek = 0
             while (true) {
                 val del = if (zacetek == 0) d else d.substring(zacetek)
-                if ('.' !in del) return false  // vrhnja domena sama se ne preverja
-                if (vsebujeZgoscenko(zgoscenka(del))) return true
+                if ('.' !in del) return null  // vrhnja domena sama se ne preverja
+                if (sme(del) && vsebujeZgoscenko(zgoscenka(del))) return del
                 val naslednja = d.indexOf('.', zacetek)
-                if (naslednja < 0) return false
+                if (naslednja < 0) return null
                 zacetek = naslednja + 1
             }
         }

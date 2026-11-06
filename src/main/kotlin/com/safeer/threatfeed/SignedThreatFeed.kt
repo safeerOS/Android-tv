@@ -452,9 +452,15 @@ class ThreatIndex internal constructor(
     val mapped: Boolean get() = rules is TableRuleLookup
 
     /** Every rule that covers the host is considered; the most severe category wins. */
-    fun matchHost(rawHost: String?): FeedMatch? {
+    fun matchHost(rawHost: String?): FeedMatch? = matchHostWhere(rawHost) { true }
+
+    /**
+     * Kot [matchHost], a uposteva samo pravila za gostitelje/domene, za katere [sme] vrne true. Scit tako na
+     * zlo.web.app najde pravilo projekta, tudi ce vir navaja (resneje) celotno web.app, ki ga nikoli ne blokiramo.
+     */
+    fun matchHostWhere(rawHost: String?, sme: (String) -> Boolean): FeedMatch? {
         val host = normalizeHost(rawHost) ?: return null
-        var best: FeedMatch? = rules.host(host).takeIf { it >= 0 }?.let {
+        var best: FeedMatch? = rules.host(host).takeIf { it >= 0 && sme(host) }?.let {
             match(host, if (host.contains(':')) "ipv6" else if (isIpv4(host)) "ipv4" else "hostname", it)
         }
         if (rules.domainCount == 0) return best
@@ -462,7 +468,7 @@ class ThreatIndex internal constructor(
         while (index > 0) {
             val dot = host.lastIndexOf('.', index - 1)
             val candidate = host.substring(dot + 1)
-            rules.domain(candidate).takeIf { it >= 0 }?.let { best = moreSevere(best, match(candidate, "domain", it)) }
+            rules.domain(candidate).takeIf { it >= 0 && sme(candidate) }?.let { best = moreSevere(best, match(candidate, "domain", it)) }
             if (dot < 0) break
             index = dot
         }
@@ -477,6 +483,16 @@ class ThreatIndex internal constructor(
         if (rules.urlCount == 0) return hostMatch
         val key = parts.normalized() ?: return hostMatch
         return moreSevere(hostMatch, rules.url(key).takeIf { it >= 0 }?.let { match(key, "url", it) })
+    }
+
+    /**
+     * Samo pravilo za tocen naslov (vrsta "url"), brez pravil gostitelja: na gostiteljih z uporabnisko vsebino
+     * (sites.google.com ...) sme Scit blokirati stran, ne pa celotnega skupnega gostitelja.
+     */
+    fun matchUrlRule(url: String?): FeedMatch? {
+        if (url.isNullOrEmpty() || rules.urlCount == 0) return null
+        val key = UrlParts.parse(url)?.normalized() ?: return null
+        return rules.url(key).takeIf { it >= 0 }?.let { match(key, "url", it) }
     }
 
     private fun moreSevere(current: FeedMatch?, candidate: FeedMatch?): FeedMatch? = when {
@@ -1082,6 +1098,8 @@ class SignedFeedStore(
 
     fun matchUrl(url: String?): FeedMatch? = bundle?.index?.matchUrl(url)
     fun matchHost(host: String?): FeedMatch? = bundle?.index?.matchHost(host)
+    fun matchUrlRule(url: String?): FeedMatch? = bundle?.index?.matchUrlRule(url)
+    fun matchHostWhere(host: String?, sme: (String) -> Boolean): FeedMatch? = bundle?.index?.matchHostWhere(host, sme)
 }
 
 /**

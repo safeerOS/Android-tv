@@ -17,13 +17,14 @@ import java.io.InputStream
  * vsak skok preveri [PretokHttp.odpri], povezava gre na preverjene naslove, glave toka samo izvoru [prvi].
  * [getUri] vrne koncni naslov verige - relativni kosi seznama HLS se razresijo glede nanj, kot pri DefaultHttpDataSource.
  */
-class PretokVir(private val klient: okhttp3.OkHttpClient, private val prvi: String,
-                private val glave: Map<String, String>) : BaseDataSource(true) {
+class PretokVir(private val klient: PretokHttp.Klient, private val vir: PretokHttp.Vir) : BaseDataSource(true) {
 
-    class Tovarna(private val prvi: String, private val glave: Map<String, String>) : DataSource.Factory {
-        // En odjemalec na tok: povezave (ze preverjene) se ponovno uporabijo med zahtevami obsegov.
+    class Tovarna(prvi: String, glave: Map<String, String>) : DataSource.Factory {
+        // En odjemalec in eno stanje zaupanja na tok: povezave (ze preverjene) se ponovno uporabijo med zahtevami
+        // obsegov; tuj seznam, ki navede izvor prvega vira, odvzame zaupanje vsem kosom tega toka (PretokHttp.Vir).
         private val klient = PretokHttp.klient()
-        override fun createDataSource(): DataSource = PretokVir(klient, prvi, glave)
+        private val vir = PretokHttp.Vir(prvi, glave)
+        override fun createDataSource(): DataSource = PretokVir(klient, vir)
     }
 
     private var odgovor: okhttp3.Response? = null
@@ -38,13 +39,15 @@ class PretokVir(private val klient: okhttp3.OkHttpClient, private val prvi: Stri
         val doKonca = dataSpec.length == C.LENGTH_UNSET.toLong()
         val obseg = if (dataSpec.position == 0L && doKonca) null
             else "bytes=${dataSpec.position}-" + (if (doKonca) "" else (dataSpec.position + dataSpec.length - 1).toString())
-        val o = PretokHttp.odpri(klient, dataSpec.uri.toString(), prvi, glave, obseg)
+        val o = PretokHttp.odpri(klient, vir, dataSpec.uri.toString(), obseg)
         val r = o.odgovor
         if (r.code !in 200..299) { r.close(); throw IOException("Pretok: koda ${r.code}") }
         val telo = r.body ?: run { r.close(); throw IOException("Pretok: brez vsebine") }
         odgovor = r
         uri = Uri.parse(o.url)
-        val v = telo.byteStream()
+        // Seznam z drugega izvora je PretokHttp ze prebral (preverba navedb); beremo ga iz pomnilnika.
+        val prebrano = o.telo
+        val v = if (prebrano != null) java.io.ByteArrayInputStream(prebrano) else telo.byteStream()
         vhod = v
         // Streznik obsega ni upostevala (200): preskocimo do zeljenega mesta.
         var preskoci = if (r.code == 200 && dataSpec.position > 0) dataSpec.position else 0L
@@ -54,7 +57,7 @@ class PretokVir(private val klient: okhttp3.OkHttpClient, private val prvi: Stri
             if (n < 0) throw EOFException("Pretok: tok krajsi od zacetka")
             preskoci -= n
         }
-        val dolzina = telo.contentLength()
+        val dolzina = prebrano?.size?.toLong() ?: telo.contentLength()
         ostane = when {
             !doKonca -> dataSpec.length
             dolzina >= 0 -> if (r.code == 200) (dolzina - dataSpec.position).coerceAtLeast(0L) else dolzina

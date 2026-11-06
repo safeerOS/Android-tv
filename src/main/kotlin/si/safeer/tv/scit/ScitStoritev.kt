@@ -452,7 +452,7 @@ class ScitStoritev : VpnService() {
         val nab = nabor
         val g = grozne
         val zdaj = System.currentTimeMillis()
-        return ScitOdlocitev.odloci(ime, { nab?.jeBlokirana(it) == true }, g != null, { g?.jeBlokirana(it) == true },
+        return ScitOdlocitev.odloci(ime, { d, sme -> nab?.najblizja(d, sme) }, g != null, { d, sme -> g?.najblizja(d, sme) },
             { ScitIzjeme.dovoljena(it, izjeme, zdaj) || ScitPregled.uporabniskaVelja(it, uporabniske, zdaj) })
     }
 

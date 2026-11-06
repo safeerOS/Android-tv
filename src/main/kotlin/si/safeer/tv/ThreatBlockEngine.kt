@@ -54,7 +54,9 @@ object ThreatBlockEngine {
     fun kljucKazala(seznami: List<Pair<String, String>>, razlicica: String): ByteArray? {
         if (seznami.isEmpty() || seznami.any { it.second.isEmpty() }) return null
         val deli = ArrayList<String>()
-        deli.add("safeer-drevo-grozenj-1"); deli.add(razlicica)
+        // -2 (5. 11. 2026): drevo brez korena Googla in skupnih gostiteljev (ScitGostitelji); staro kazalo se zgradi znova,
+        // tudi ce se koda aplikacije ni spremenila (razvojna gradnja).
+        deli.add("safeer-drevo-grozenj-2"); deli.add(razlicica)
         for ((domene, kategorija, vir) in SEME) { deli.add(kategorija); deli.add(vir); deli.addAll(domene) }
         for ((id, sha) in seznami) { deli.add(id); deli.add(sha) }
         return com.safeer.threatfeed.SortedStringTable.keyOf(deli)
@@ -103,11 +105,42 @@ object ThreatBlockEngine {
         }
     }
 
-    /** Vgrajeni seznam in podpisani vir; kritična kategorija (C2/malware) ima vedno prednost. */
+    /** Samo pravila za tocen naslov podpisanega vira (pot), brez pravil gostitelja; nastavi SignedThreatIntel. */
+    @Volatile
+    var signedUrlMatcher: ((url: String) -> DomainSuffixTrie.MatchResult?)? = null
+
+    private fun signedUrlMatch(url: String): DomainSuffixTrie.MatchResult? {
+        val matcher = signedUrlMatcher ?: return null
+        return try {
+            matcher(url)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /** Pravila gostitelja podpisanega vira, omejena na gostitelje, za katere [sme] vrne true; nastavi SignedThreatIntel. */
+    @Volatile
+    var signedHostMatcher: ((host: String, sme: (String) -> Boolean) -> DomainSuffixTrie.MatchResult?)? = null
+
+    private fun signedHostMatch(host: String, sme: (String) -> Boolean): DomainSuffixTrie.MatchResult? {
+        val matcher = signedHostMatcher ?: return null
+        return try {
+            matcher(host, sme)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Vgrajeni seznam in podpisani vir; kritična kategorija (C2/malware) ima vedno prednost. Zadetek za koren Googla,
+     * skupnega gostitelja ali celotno platformo (google.com, web.app) se zavrze: tak vnos ne sme blokirati gostiteljev
+     * pod njim (mail.google.com, x.storage.googleapis.com). Pravilo za tocen naslov (vsebuje "://") ostane.
+     */
     private fun findThreat(url: String, host: String): DomainSuffixTrie.MatchResult? {
-        val local = lokalno(host)
+        val local = lokalno(host)?.takeIf { ScitGostitelji.smeGostitelj(it.matchedDomain) }
         if (local != null && isCriticalThreat(local.category)) return local
-        val signed = signedMatch(url, host) ?: return local
+        val signed = signedMatch(url, host)
+            ?.takeIf { it.matchedDomain.contains("://") || ScitGostitelji.smeGostitelj(it.matchedDomain) } ?: return local
         return if (local == null || isCriticalThreat(signed.category)) signed else local
     }
 
@@ -246,6 +279,7 @@ object ThreatBlockEngine {
             val pageHost = Uri.parse(pageUrl).host?.lowercase()?.trim()?.trimEnd('.') ?: return null
             val host = signals.host.lowercase().trim().trimEnd('.')
             if (host.isEmpty() || host != pageHost) return null // odgovor prejšnje strani
+            if (ScitGostitelji.vrsta(host) == ScitGostitelji.Vrsta.KOREN) return null // iskanje in prijava Googla nikoli
             if (sessionBypassedDomains.contains(host)) return null
             val verdict = BankGuard.pageVerdict(signals) ?: return null
             fakeBankMatch(host, verdict)
@@ -277,6 +311,9 @@ object ThreatBlockEngine {
             // Real bank domains are taken over only as confirmed C2/malware (a compromised server), never as phishing.
             val critical = isCriticalThreat(list.source.category)
             for (entry in list.entries) {
+                // Koren Googla, skupni gostitelj ali celotna platforma nikoli v drevo: na njih drevo ne odloca, drevo pa vrne
+                // najkrajso pripono, zato bi tak vnos zakril pravilo projekta (zlo.web.app) ali gostitelja pod njim.
+                if (!ScitGostitelji.smeGostitelj(entry)) continue
                 if (!critical && isRealBankHost(entry)) continue
                 newTrie.insert(entry, list.source.category, list.source.name)
                 added++
@@ -337,6 +374,7 @@ object ThreatBlockEngine {
     }
 
     fun addThreat(domain: String, category: String, sourceFeed: String) {
+        if (!ScitGostitelji.smeGostitelj(domain)) return // kot v rebuildFromLists
         threatTrie.insert(domain, category, sourceFeed)
     }
 
@@ -351,6 +389,14 @@ object ThreatBlockEngine {
             val uri = Uri.parse(url)
             val host = uri.host?.lowercase()?.trim() ?: return null
             if (host.isEmpty()) return null
+
+            // Koren Googla (iskanje, prijava) ni nikoli blokiran, tudi ne kot C2/malware: napacen ali podtaknjen vnos v viru
+            // ne sme vzeti iskanja in prijave vsem uporabnikom. Gostitelji z uporabnisko vsebino imajo svoje pravilo.
+            when (ScitGostitelji.vrsta(host)) {
+                ScitGostitelji.Vrsta.KOREN -> return null
+                ScitGostitelji.Vrsta.VSEBINA -> return preveriUporabniskoVsebino(url, host)
+                ScitGostitelji.Vrsta.NAVADEN -> Unit
+            }
 
             val match = findThreat(url, host)
             if (match == null) {
@@ -377,6 +423,29 @@ object ThreatBlockEngine {
     }
 
     /**
+     * Gostitelji z uporabnisko vsebino (sites.google.com, script.google.com, *.web.app ...): objavlja kdorkoli, zato so
+     * tam pogoste lazne prijavne strani. Blokiramo tocen naslov iz vira (vsaj dva dela poti) ali gostitelja enega projekta
+     * (zlo.web.app), nikoli celotnega skupnega gostitelja: vnos "sites.google.com" v viru bi sicer vzel vse strani Sites.
+     */
+    private fun preveriUporabniskoVsebino(url: String, host: String): DomainSuffixTrie.MatchResult? {
+        val zadetki = ArrayList<DomainSuffixTrie.MatchResult>(3)
+        if (ScitGostitelji.smePot(url, host)) signedUrlMatch(url)?.let { zadetki.add(it) }
+        lokalno(host)?.takeIf { ScitGostitelji.jeNajemnik(it.matchedDomain) }?.let { zadetki.add(it) }
+        signedHostMatch(host) { ScitGostitelji.jeNajemnik(it) }?.let { zadetki.add(it) }
+        val match = zadetki.firstOrNull { isCriticalThreat(it.category) } ?: zadetki.firstOrNull()
+        if (match == null) {
+            // BankGuard samo za gostitelja enega projekta (nlb-prijava.web.app); skupni gostitelj ne posnema banke.
+            if (!ScitGostitelji.jeNajemnik(host) || sessionBypassedDomains.contains(host)) return null
+            val verdict = fakeBankHost(host) ?: return null
+            return fakeBankMatch(host, verdict)
+        }
+        if (isCriticalThreat(match.category)) return match
+        // Sejna izjema velja samo za ta zadetek (naslov ali projekt), ne za ves skupni gostitelj.
+        if (sessionBypassedDomains.contains(match.matchedDomain.lowercase())) return null
+        return match
+    }
+
+    /**
      * Pomožna funkcija za hitro preverjanje, ali je URL grožnja.
      */
     fun isThreat(url: String): Boolean = checkThreat(url) != null
@@ -392,6 +461,17 @@ object ThreatBlockEngine {
             (try { Uri.parse(clean).host } catch (e: Exception) { null })?.lowercase() ?: return
         } else {
             clean
+        }
+        if (ScitGostitelji.vrsta(host) != ScitGostitelji.Vrsta.NAVADEN) {
+            // Googlovi gostitelji: obvoz zavrne samo kriticni zadetek, ki ga Scit tu res uporabi (checkThreat). Vnos
+            // "sites.google.com" kot malware, ki ga nikoli ne uporabimo, ne sme prepreciti obvoza ene lazne poti.
+            val m = checkThreat(if (isUrl) clean else "https://$clean/")
+            if (m != null && isCriticalThreat(m.category)) {
+                android.util.Log.w("SafeerSecurity", "Zero-Bypass: zavrnjen obvoz za kritično grožnjo '$clean'")
+                return
+            }
+            sessionBypassedDomains.add(clean)
+            return
         }
         val local = lokalno(host)
         val signed = signedMatch(if (isUrl) clean else "https://$clean/", host)

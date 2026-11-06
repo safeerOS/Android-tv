@@ -51,7 +51,11 @@ object SignedThreatIntel {
             koncaj(if (b == null) "ni shranjenega vira" else "${b.ruleCount} pravil, ${if (b.index.mapped) "kazalo mmap" else "v kopici"}")
         })
         store = feedStore
-        ThreatBlockEngine.signedFeedMatcher = { url, host -> toMatchResult(feedStore.matchUrl(url) ?: feedStore.matchHost(host)) }
+        // Pravila gostitelja samo za gostitelje, ki jih Scit sme blokirati (ScitGostitelji): resnejsi vnos za celotno
+        // google.com ali web.app sicer zakrije pravilo projekta ali gostitelja pod njim (5. 11. 2026).
+        ThreatBlockEngine.signedFeedMatcher = { url, host -> zadetekVira(url, host, feedStore::matchUrlRule, feedStore::matchHostWhere) }
+        ThreatBlockEngine.signedUrlMatcher = { url -> toMatchResult(feedStore.matchUrlRule(url)) }
+        ThreatBlockEngine.signedHostMatcher = { host, sme -> toMatchResult(feedStore.matchHostWhere(host, sme)) }
         // 4. 11. 2026: shranjeni vir iz kazala (mmap) SINHRONO, pred prvim zavihkom - prej preverba in gradnja HashMap v
         // ozadju (TV: zascita ob zagonu sele po 6,2 s). Podpis in SHA-256 se preverita znova v ozadju (SignedFeedStore.recheck).
         val t = System.nanoTime()
@@ -75,6 +79,14 @@ object SignedThreatIntel {
         if (!isEnabled) return UiText.get(R.string.ui_signed_intel_waiting)
         val bundle = store?.bundle ?: return UiText.get(R.string.ui_signed_intel_not_downloaded)
         return UiText.get(R.string.ui_signed_intel_rules, bundle.ruleCount, bundle.manifest.version)
+    }
+
+    /** Pravilo naslova in pravila gostitelja, ki jih Scit sme uporabiti; kriticna kategorija ima prednost (tests/ScitGoogleTest.kt). */
+    internal fun zadetekVira(url: String, host: String, poNaslovu: (String?) -> FeedMatch?,
+                             poGostitelju: (String?, (String) -> Boolean) -> FeedMatch?): DomainSuffixTrie.MatchResult? {
+        val naslov = toMatchResult(poNaslovu(url))
+        val gostitelj = toMatchResult(poGostitelju(host, ScitGostitelji::smeGostitelj))
+        return listOfNotNull(naslov, gostitelj).firstOrNull { ThreatBlockEngine.isCriticalThreat(it.category) } ?: naslov ?: gostitelj
     }
 
     internal fun toMatchResult(match: FeedMatch?): DomainSuffixTrie.MatchResult? {
