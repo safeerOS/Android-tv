@@ -220,14 +220,14 @@ fun main() {
     preveriEnako("proracun: med krogom ostane", 7, FilterViraPravila.proracun(zacetni.copy(ostalo = 7), true, 0).ostalo)
 
     // Lastnik 6. 11. 2026 06:29-06:35: indeksator najvec 2 hkrati, razmik pod 1 s, nizka stopnja; premor ob meji raste od 5 s.
-    preveriEnako("meja: 30 na minuto", 30, FilterViraPravila.NA_MINUTO)
+    preveriEnako("meja: 60 na minuto (lastnik 6. 11. 11:08)", 60, FilterViraPravila.NA_MINUTO)
     preveriEnako("meja: 2 hkrati", 2, FilterViraPravila.HKRATI)
     preveriEnako("razmik pod 1 s", true, FilterViraPravila.RAZMIK_MS in 1L..999L)
     val om4 = FilterViraPravila.Omejevalnik(FilterViraPravila.NA_MINUTO)
     preveriEnako("razmik: prva brez cakanja", 0L, om4.razmik(t0))
-    preveriEnako("sunek: 30 v minuti", true, (0 until 30).all { om4.smem(t0 + it) })
-    preveriEnako("sunek: 31. v isti minuti ne", false, om4.smem(t0 + 40))
-    preveriEnako("razmik: takoj po zahtevi pocakaj", true, om4.razmik(t0 + 29) in 1L..FilterViraPravila.RAZMIK_MS)
+    preveriEnako("sunek: 60 v minuti", true, (0 until 60).all { om4.smem(t0 + it) })
+    preveriEnako("sunek: 61. v isti minuti ne", false, om4.smem(t0 + 140))
+    preveriEnako("razmik: takoj po zahtevi pocakaj", true, om4.razmik(t0 + 99) in 1L..FilterViraPravila.RAZMIK_MS)
     val om5 = FilterViraPravila.Omejevalnik(FilterViraPravila.NA_MINUTO)
     om5.meja(t0)
     preveriEnako("meja: prvi premor 5 s (ne 15 min)", false to true, om5.lahko(t0 + 4_999) to om5.lahko(t0 + 5_000))
@@ -235,9 +235,19 @@ fun main() {
     preveriEnako("meja: drugi zaporedni 10 s", false to true, om5.lahko(t0 + 14_999) to om5.lahko(t0 + 15_000))
     om5.uspeh(t0 + 20_000); om5.meja(t0 + 20_000)
     preveriEnako("uspeh ponastavi premor na 5 s", true, om5.lahko(t0 + 25_000))
+    val om5b = FilterViraPravila.Omejevalnik(FilterViraPravila.NA_MINUTO)
+    om5b.meja(t0)
+    om5b.meja(t0 + 300)
+    preveriEnako("meja istega sunka ne podaljsa", true, om5b.lahko(t0 + 5_000))
+    om5b.meja(t0 + 5_000)
+    preveriEnako("naslednja meja po koncu premora da 10 s", false to true, om5b.lahko(t0 + 14_999) to om5b.lahko(t0 + 15_000))
     val om6 = FilterViraPravila.Omejevalnik(FilterViraPravila.NA_MINUTO)
-    repeat(30) { om6.meja(t0) }
-    preveriEnako("premor najvec 15 min", 15 * min, om6.premorSe(t0))
+    var casPremora = t0
+    repeat(30) {
+        om6.meja(casPremora)
+        casPremora += om6.premorSe(casPremora)
+    }
+    preveriEnako("premor najvec 15 min", 15 * min, om6.premorSe(casPremora - 15 * min))
     // Pregled Gemini: dve niti hkrati ne gresta v sunku - druga dobi rezervacijo z razmikom.
     val om7 = FilterViraPravila.Omejevalnik(FilterViraPravila.NA_MINUTO)
     preveriEnako("rezervacija: prva takoj", 0L, om7.rezerviraj(t0))
