@@ -23,6 +23,20 @@ fun main() {
         listOf(P.sme(true, true), P.sme(true, false), P.sme(false, false), P.sme(false, true)))
     preveriEnako("glave: ozji krog", mapOf("X-Api-Key" to "k"), P.glave(mapOf("X-Api-Key" to "k"), true))
     preveriEnako("glave: zunaj ozjega kroga nic", emptyMap<String, String>(), P.glave(mapOf("X-Api-Key" to "k"), false))
+
+    // Pregled 6. 11. 2026 (H1): vir na napravi v Linku - fp+token streznika datotek je nosilni zeton te naprave.
+    val naNapravi = "https://192.168.1.20:8443/d/abc"
+    preveriEnako("H1: streznik datotek je skrivnost", true, P.nosiSkrivnost(naNapravi, false, imaStreznik = true))
+    preveriEnako("H1: streznik -> pomocnik zunaj ozjega kroga ne", false, P.sme(P.nosiSkrivnost(naNapravi, false, imaStreznik = true), false))
+    preveriEnako("H1: streznik -> ozji krog da", true, P.sme(P.nosiSkrivnost(naNapravi, false, imaStreznik = true), true))
+    // H2: surov naslov z zetonom (brez nadomestka) - samo ozji krog, tudi ce ga kdo poda mimo izbire kandidatov.
+    for (surov in listOf("https://webtor.io/token/eyJhbGciOiJIUzI1NiJ9abcdefghij1234567890/stremio/manifest.json",
+            "https://torrentio.strem.fun/realdebrid=Q2xE9f8kLmN0pR5sT7uVwXyZ1234/stream/movie/tt1.json",
+            "https://cdn.example/f.mkv?token=Q2xE9f8kLmN0pR5sT7uVwXyZ1234")) {
+        preveriEnako("H2: surov skrivni naslov je skrivnost: $surov", true, P.nosiSkrivnost(surov, false))
+        preveriEnako("H2: surov skrivni naslov zunaj ozjega kroga nic", null, P.naslov(surov, false, dejanski))
+        preveriEnako("H2: surov skrivni naslov ozji krog dobi", surov, P.naslov(surov, true, dejanski))
+    }
     if (napak > 0) { println("NAPAK: $napak"); kotlin.system.exitProcess(1) }
     println("Vse v redu.")
 }
