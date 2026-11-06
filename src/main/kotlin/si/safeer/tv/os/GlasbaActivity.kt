@@ -158,6 +158,8 @@ class GlasbaActivity : OsActivity() {
     private var zdajGumb: FrameLayout? = null
     private var mcKarticaPredvajaj: View? = null
     private var mcZnak: View? = null
+    /** Pilula »Zdaj igra« v vrstici oddelkov (zadnja narisana vrstica). */
+    private var pilulaZdaj: LinearLayout? = null
     private var zdajPrejsnja: FrameLayout? = null
     private var zdajNaslednja: FrameLayout? = null
     private var razdelek = DOMOV
@@ -881,7 +883,8 @@ class GlasbaActivity : OsActivity() {
                 bg.setColor(if (fokus) osBarva(R.color.os_kartica_dvignjena) else osBarva(R.color.os_kartica))
             }
         }
-        glava.addView(mcZnak)
+        // Lastnik 6. 11. 2026 19:13-19:17: kot Apple TV (»Now Playing« v navigaciji) - namesto znaka v glavi pilula »Zdaj igra«
+        // v vrstici oddelkov (razdelkiVrstica); znak se ne doda.
         iskanjeGumb = gumb(R.drawable.os_ikona_isci, 48, "k:iskanje") { odpriIskanje("") }
         glava.addView(iskanjeGumb)
         // Pregled na TV 6. 11. 2026 12:03: meni ⋮ je samo v Predvajalniku (vlc), zato v Medijskem centru Safeer OS do
@@ -5376,6 +5379,22 @@ class GlasbaActivity : OsActivity() {
             DomovVrsticePravila.Oddelek.VIRI -> gumb(KLJUC_VIRI, VIRI, R.drawable.os_ikona_mapa, 0xFF7FB2FF.toInt(), R.string.os_mediji_viri) { odpri(VIRI) }
             DomovVrsticePravila.Oddelek.PREDVAJALNIK -> gumb(KLJUC_PREDVAJALNIK, null, R.drawable.os_ikona_predvajaj, 0xFF57D6AD.toInt(), R.string.os_mediji_predvajalnik) { odpriPredvajalnik() }
         }
+        // Lastnik 6. 11. 2026 19:17 (kot Apple TV): pilula »Zdaj igra« z mint piko, ko je kaj nalozeno; klik odpre predvajanje
+        // (video na istem mestu, glasba zaslon predvajanja). Vidnost osvezi osveziZnak (ZNAK: drug zavihek ali podstran).
+        gumb(KLJUC_ZDAJ_IGRA, null, if (GlasbaStoritev.trenutna()?.video == true) R.drawable.os_ikona_video else R.drawable.os_ikona_glasba,
+            osBarva(R.color.os_mint), R.string.os_mediji_zdaj_igra_kratko) {
+            val sk = GlasbaStoritev.trenutna()
+            if (sk == null) android.util.Log.d("SafeerOsMediji", "Zdaj igra: nic nalozeno")
+            else if (sk.video) MiniPredvajalnik.odpriCelZaslon(this)
+            else startActivity(Intent(this, PredvajanjeActivity::class.java))
+        }
+        pilulaZdaj = (vrsta.getChildAt(vrsta.childCount - 1) as? LinearLayout)?.apply {
+            contentDescription = getString(R.string.os_mediji_zdaj_igra_kratko)
+            addView(View(this@GlasbaActivity).apply {
+                background = android.graphics.drawable.GradientDrawable().apply { shape = android.graphics.drawable.GradientDrawable.OVAL; setColor(osBarva(R.color.os_mint)) }
+            }, LinearLayout.LayoutParams(dp(8), dp(8)).apply { marginStart = dp(8) })
+        }
+        osveziZnak()
         vrsta.getChildAt(0)?.nextFocusLeftId = meniMediji.id
         return android.widget.HorizontalScrollView(this).apply {
             isHorizontalScrollBarEnabled = false; overScrollMode = View.OVER_SCROLL_NEVER
@@ -6071,7 +6090,7 @@ class GlasbaActivity : OsActivity() {
             return true
         }
         if (dogodek.action == KeyEvent.ACTION_DOWN && dogodek.keyCode == KeyEvent.KEYCODE_DPAD_DOWN && dogodek.repeatCount >= 1) {
-            val p = if (vrstica.visibility == View.VISIBLE) zdajGumb ?: vrstica else mcKarticaPredvajaj?.takeIf { it.isShown } ?: mcZnak?.takeIf { it.isShown } ?: pPredvajaj
+            val p = if (vrstica.visibility == View.VISIBLE) zdajGumb ?: vrstica else mcKarticaPredvajaj?.takeIf { it.isShown } ?: pilulaZdaj?.takeIf { it.isShown } ?: pPredvajaj
             if (p != null && p.isShown) {
                 p.requestFocus()
                 pogoltniGor = KeyEvent.KEYCODE_DPAD_DOWN
@@ -12645,7 +12664,7 @@ class GlasbaActivity : OsActivity() {
             if (f != null && f.performLongClick()) return true
         }
         if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-            val p = if (vrstica.visibility == View.VISIBLE) zdajGumb ?: vrstica else mcKarticaPredvajaj?.takeIf { it.isShown } ?: mcZnak?.takeIf { it.isShown } ?: pPredvajaj
+            val p = if (vrstica.visibility == View.VISIBLE) zdajGumb ?: vrstica else mcKarticaPredvajaj?.takeIf { it.isShown } ?: pilulaZdaj?.takeIf { it.isShown } ?: pPredvajaj
             if (p != null && p.isShown) {
                 p.requestFocus()
                 return true
@@ -12887,6 +12906,11 @@ class GlasbaActivity : OsActivity() {
 
     /** Pregled MC-11: znak »zdaj igra« v glavi - na drugih zavihkih in podstraneh, ko je kaj nalozeno (prej nikoli prikazan). */
     private fun osveziZnak() {
+        pilulaZdaj?.let { pz ->
+            val sk = GlasbaStoritev.trenutna()
+            pz.visibility = if (MiniPredvajalnikPravila.prikazMc(razdelek == DOMOV, sk != null, podstrani.odprta) == MiniPredvajalnikPravila.ZNAK) View.VISIBLE else View.GONE
+            (pz.getChildAt(0) as? ImageView)?.setImageResource(if (sk?.video == true) R.drawable.os_ikona_video else R.drawable.os_ikona_glasba)
+        }
         val z = mcZnak ?: return
         val sk = GlasbaStoritev.trenutna()
         val v = MiniPredvajalnikPravila.prikazMc(razdelek == DOMOV, sk != null, podstrani.odprta) == MiniPredvajalnikPravila.ZNAK
@@ -12942,6 +12966,7 @@ class GlasbaActivity : OsActivity() {
 
         private const val PREDVAJALNIK_DATOTEKA = 7412
         private const val KLJUC_PREDVAJALNIK = "kat-predvajalnik"
+        private const val KLJUC_ZDAJ_IGRA = "kat-zdaj-igra"
         private const val KLJUC_DOM = "k:kat:dom"
         private const val DOMOV = 0; private const val GLASBA = 2; private const val RADIO = 3
         private const val PREDPONA_PC_PRENOSA = KnjiznicaKroga.PREDPONA_PRENOSA

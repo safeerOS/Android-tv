@@ -1008,7 +1008,9 @@ private fun meritevVnaprejUsb() {
                 val bData = teloMreza(id, b)
                 val task = Runnable {
                     try {
-                        Thread.sleep(40) // pocasen USB (npr. 40ms na 768 KB = 19 MB/s)
+                        // 6. 11. 19:10: pri 40 ms je med gradnjo (obremenjen prenosnik) nepopravljena razlicica zavrgla premalo (1,24x) -
+                        // preizkus brez popravka ni padel. 120 ms (6 MB/s, pocasen kljuc) zavrze zanesljivo.
+                        Thread.sleep(120)
                     } catch (e: InterruptedException) {
                         return@Runnable
                     }

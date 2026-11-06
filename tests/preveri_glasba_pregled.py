@@ -73,5 +73,12 @@ preveri("diagnostika Webtor: vsak kandidat kroga", "DiagnostikaPredvajanja.posku
         and "kandidati.first().url" not in g)
 # Pregled na TV 6. 11. 2026 12:03: meni ⋮ je samo v Predvajalniku - Nastavitve MC morajo imeti zobnik v glavi povsod.
 preveri("Nastavitve MC: zobnik v glavi tudi brez Predvajalnika", 'glava.addView(gumb(R.drawable.os_ikona_nastavitve, 48, "k:nastavitve") { nastavitveMedijskegaCentra() }' in g)
+# TV 6. 11. 2026 19:15: media3 1.11 klice samo razlicice s PlayerId/Parameters - ovoj, ki preglasi stare, se sesuje ob zagonu.
+pt = (OS.parent / "predvajalnik/PredvajalnikTovarna.kt").read_text(encoding="utf-8")
+ovoj = pt.split("class UsenetNadzorNalaganja(", 1)[1].split("\n    }\n", 1)[0]
+stare = re.findall(r"override fun (onPrepared|onStopped|onReleased|getBackBufferDurationUs|retainBackBufferFromKeyframe)\(\)", ovoj) + \
+    re.findall(r"override fun (shouldContinueLoading|shouldStartPlayback)\((?!parameters)", ovoj) + \
+    re.findall(r"override fun onTracksSelected\((?!parameters)", ovoj)
+preveri("Usenet LoadControl: samo nove razlicice media3 (brez starih brez PlayerId)", not stare and "getBackBufferDurationUs(playerId" in ovoj)
 print("VSE OK" if napak == 0 else f"NAPAK: {napak}")
 sys.exit(1 if napak else 0)

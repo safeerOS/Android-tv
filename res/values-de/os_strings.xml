@@ -780,4 +780,5 @@
     <string name="os_adb_ni_dosegljiv">Netzwerk-Debugging ist aus. Schalten Sie es unter Einstellungen &gt; Entwickleroptionen ein und versuchen Sie es erneut.</string>
     <string name="os_adb_ni_potrjeno">Am Fernseher nicht bestätigt. Versuchen Sie es erneut und wählen Sie »Immer zulassen«.</string>
     <string name="os_mediji_zdaj_igra">Wird abgespielt - auf Startseite öffnen</string>
+    <string name="os_mediji_zdaj_igra_kratko">Wird abgespielt</string>
 </resources>

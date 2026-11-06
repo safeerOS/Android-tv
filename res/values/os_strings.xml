@@ -784,4 +784,5 @@
     <string name="os_adb_ni_dosegljiv">Network debugging is off. Turn it on in Settings &gt; Developer options, then try again.</string>
     <string name="os_adb_ni_potrjeno">Not confirmed on the TV. Try again and choose »Always allow«.</string>
     <string name="os_mediji_zdaj_igra">Zdaj igra - odpri na Domu</string>
+    <string name="os_mediji_zdaj_igra_kratko">Zdaj igra</string>
 </resources>

@@ -780,4 +780,5 @@
     <string name="os_adb_ni_dosegljiv">La depuración por red está desactivada. Actívela en Ajustes &gt; Opciones de desarrollador e inténtelo de nuevo.</string>
     <string name="os_adb_ni_potrjeno">No se confirmó en el televisor. Inténtelo de nuevo y elija »Permitir siempre«.</string>
     <string name="os_mediji_zdaj_igra">Reproduciendo - abrir en Inicio</string>
+    <string name="os_mediji_zdaj_igra_kratko">Reproduciendo</string>
 </resources>

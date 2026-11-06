@@ -780,4 +780,5 @@
     <string name="os_adb_ni_dosegljiv">Le débogage réseau est désactivé. Activez-le dans Paramètres &gt; Options pour les développeurs, puis réessayez.</string>
     <string name="os_adb_ni_potrjeno">Non confirmé sur le téléviseur. Réessayez et choisissez »Toujours autoriser«.</string>
     <string name="os_mediji_zdaj_igra">En lecture - ouvrir sur l\'Accueil</string>
+    <string name="os_mediji_zdaj_igra_kratko">En lecture</string>
 </resources>

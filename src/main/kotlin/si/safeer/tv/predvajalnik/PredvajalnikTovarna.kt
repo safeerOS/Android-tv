@@ -79,46 +79,34 @@ object PredvajalnikTovarna {
         }
     }
 
+    /**
+     * Pregled 6. 11. 2026 19:15 (TV): media3 1.11 klice samo razlicice s PlayerId/Parameters; ovoj je prej preglasil stare
+     * (brez PlayerId) in jih podal DefaultLoadControl, ki jih ne izvaja - »getBackBufferDurationUs not implemented«, sesutje
+     * ob vsakem zagonu predvajanja. Zdaj ovoj preglasi in poda samo nove razlicice (preizkus: tests/preveri_glasba_pregled.py).
+     */
     class UsenetNadzorNalaganja(private val obicajni: androidx.media3.exoplayer.LoadControl, private val usenet: androidx.media3.exoplayer.LoadControl) : androidx.media3.exoplayer.LoadControl {
-        private var jeUsenet = false
-
-        override fun onPrepared() {
+        @Volatile private var jeUsenet = false
+        private fun izberi(): androidx.media3.exoplayer.LoadControl {
             jeUsenet = si.safeer.tv.os.UsenetLastni.trenutnaSeja()?.second != null
-            obicajni.onPrepared()
-            usenet.onPrepared()
+            return if (jeUsenet) usenet else obicajni
         }
+        private fun izbrani() = if (jeUsenet) usenet else obicajni
 
-        override fun onTracksSelected(p0: androidx.media3.common.Timeline, p1: androidx.media3.exoplayer.source.MediaSource.MediaPeriodId, r: Array<androidx.media3.exoplayer.Renderer>, g: androidx.media3.exoplayer.source.TrackGroupArray, s: Array<androidx.media3.exoplayer.trackselection.ExoTrackSelection>) {
-            obicajni.onTracksSelected(p0, p1, r, g, s)
-            usenet.onTracksSelected(p0, p1, r, g, s)
+        override fun onPrepared(playerId: androidx.media3.exoplayer.analytics.PlayerId) {
+            izberi(); obicajni.onPrepared(playerId); usenet.onPrepared(playerId)
         }
-
-        override fun onStopped() {
-            obicajni.onStopped()
-            usenet.onStopped()
+        override fun onTracksSelected(parameters: androidx.media3.exoplayer.LoadControl.Parameters, trackGroups: androidx.media3.exoplayer.source.TrackGroupArray, trackSelections: Array<androidx.media3.exoplayer.trackselection.ExoTrackSelection>) {
+            obicajni.onTracksSelected(parameters, trackGroups, trackSelections); usenet.onTracksSelected(parameters, trackGroups, trackSelections)
         }
-
-        override fun onReleased() {
-            obicajni.onReleased()
-            usenet.onReleased()
-        }
-
-        override fun getAllocator(p0: androidx.media3.exoplayer.analytics.PlayerId): androidx.media3.exoplayer.upstream.Allocator = obicajni.getAllocator(p0)
-
-
-        override fun getBackBufferDurationUs(): Long = if (jeUsenet) usenet.backBufferDurationUs else obicajni.backBufferDurationUs
-
-        override fun retainBackBufferFromKeyframe(): Boolean = if (jeUsenet) usenet.retainBackBufferFromKeyframe() else obicajni.retainBackBufferFromKeyframe()
-
-        override fun shouldContinueLoading(playbackPositionUs: Long, bufferedDurationUs: Long, playbackSpeed: Float): Boolean {
-            jeUsenet = si.safeer.tv.os.UsenetLastni.trenutnaSeja()?.second != null
-            return if (jeUsenet) usenet.shouldContinueLoading(playbackPositionUs, bufferedDurationUs, playbackSpeed) else obicajni.shouldContinueLoading(playbackPositionUs, bufferedDurationUs, playbackSpeed)
-        }
-
-        override fun shouldStartPlayback(timeline: androidx.media3.common.Timeline, mediaPeriodId: androidx.media3.exoplayer.source.MediaSource.MediaPeriodId, bufferedDurationUs: Long, playbackSpeed: Float, rebuffering: Boolean, targetLiveOffsetUs: Long): Boolean {
-            jeUsenet = si.safeer.tv.os.UsenetLastni.trenutnaSeja()?.second != null
-            return if (jeUsenet) usenet.shouldStartPlayback(timeline, mediaPeriodId, bufferedDurationUs, playbackSpeed, rebuffering, targetLiveOffsetUs) else obicajni.shouldStartPlayback(timeline, mediaPeriodId, bufferedDurationUs, playbackSpeed, rebuffering, targetLiveOffsetUs)
-        }
+        override fun onStopped(playerId: androidx.media3.exoplayer.analytics.PlayerId) { obicajni.onStopped(playerId); usenet.onStopped(playerId) }
+        override fun onReleased(playerId: androidx.media3.exoplayer.analytics.PlayerId) { obicajni.onReleased(playerId); usenet.onReleased(playerId) }
+        override fun getAllocator(playerId: androidx.media3.exoplayer.analytics.PlayerId): androidx.media3.exoplayer.upstream.Allocator = obicajni.getAllocator(playerId)
+        override fun getBackBufferDurationUs(playerId: androidx.media3.exoplayer.analytics.PlayerId): Long = izbrani().getBackBufferDurationUs(playerId)
+        override fun retainBackBufferFromKeyframe(playerId: androidx.media3.exoplayer.analytics.PlayerId): Boolean = izbrani().retainBackBufferFromKeyframe(playerId)
+        override fun shouldContinueLoading(parameters: androidx.media3.exoplayer.LoadControl.Parameters): Boolean = izberi().shouldContinueLoading(parameters)
+        override fun shouldStartPlayback(parameters: androidx.media3.exoplayer.LoadControl.Parameters): Boolean = izberi().shouldStartPlayback(parameters)
+        override fun shouldContinuePreloading(playerId: androidx.media3.exoplayer.analytics.PlayerId, timeline: androidx.media3.common.Timeline, mediaPeriodId: androidx.media3.exoplayer.source.MediaSource.MediaPeriodId, bufferedDurationUs: Long): Boolean =
+            izbrani().shouldContinuePreloading(playerId, timeline, mediaPeriodId, bufferedDurationUs)
     }
 
     @Volatile private var zmogljivostPredpomnjena: Zmogljivost? = null
