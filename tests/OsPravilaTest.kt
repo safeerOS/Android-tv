@@ -1712,4 +1712,14 @@ private fun preizkusZapriObMenjavi() {
     preveriEnako("uporabnik se je vrnil -> false", false, OsPravila.zapriObMenjavi("org.test", "org.test", 4000L, "moj", null, false, true, false))
     preveriEnako("3s minilo in ni ista -> kliče zapriObVrnitvi (true)", true, OsPravila.zapriObMenjavi("org.test", "org.novo", 4000L, "moj", null, false, true, false))
     preveriEnako("3s minilo, izklopljeno -> false", false, OsPravila.zapriObMenjavi("org.test", "org.novo", 4000L, "moj", null, false, false, false))
+
+    // Lastnik 6. 11. 2026: »Nazadnje predvajano« je kazalo S1E1, gledana pa je bila S1E3 (lasten pogon Usenet, 127.0.0.1).
+    println("\n== Nazadnje predvajano: tok enote dodatka ==")
+    preveriEnako("epizoda z lastnim pogonom Usenet (127.0.0.1) gre med nedavne", true,
+        OsPravila.shranljivTok(true, true, "http://127.0.0.1:41234/zeton/video.mkv", ""))
+    preveriEnako("epizoda prek pomocnika gre med nedavne", true, OsPravila.shranljivTok(true, true, "safeer-pomoc:abc", ""))
+    preveriEnako("https tok ostane shranljiv", true, OsPravila.shranljivTok(false, true, "https://cdn.example/v.mkv", ""))
+    preveriEnako("datoteka iz domacega omrezja brez enote ne", false, OsPravila.shranljivTok(false, true, "http://192.168.1.5/v.mkv", ""))
+    preveriEnako("zeton 127.0.0.1 se ne shrani", true, OsPravila.brezTokaVNedavnih(true, "http://127.0.0.1:41234/zeton/video.mkv"))
+    preveriEnako("https tok enote ostane", false, OsPravila.brezTokaVNedavnih(true, "https://cdn.example/v.mkv"))
 }

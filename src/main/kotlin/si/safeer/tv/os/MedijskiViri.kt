@@ -280,7 +280,7 @@ object MedijskiViri {
         val naprava = s.mime.isNotBlank() && s.mime != STRAN && s.streznik.isBlank()
         // Glasba s spletnega vira (stran posnetka) in uvozene skladbe: shranimo stran, tok poiscemo ob predvajanju.
         if (UvozSeznama.jeIskana(s) || (SpletniVir.jeEnota(s) && !s.video && s.povezava.startsWith("https://"))) return true
-        return !naprava && (s.zvok.startsWith("https://") || (s.video && s.streznik.isNotBlank()))
+        return !naprava && OsPravila.shranljivTok(Stremio.jeEnota(s), s.video, s.zvok, s.streznik)
     }
 
     /** V seznam predvajanja gre tudi video s spletnega vira (uvozen seznam posnetkov). */
@@ -294,6 +294,8 @@ object MedijskiViri {
             SkrivnostiPravila.odstraniTokObShranjevanju(o, s.zvok) || SkrivnostiPravila.odstraniTokObShranjevanju(o, s.povezava) } ->
             s.copy(zvok = "", mime = "",
                 povezava = if (SkrivnostiPravila.odstraniTokObShranjevanju(Stremio.razstavi(s)?.first.orEmpty(), s.povezava)) "" else s.povezava)
+        // Lastnik 6. 11. 2026: lasten pogon Usenet (127.0.0.1 z zetonom) ali pomocnik - tok velja samo to sejo; enota ostane.
+        Stremio.jeEnota(s) && OsPravila.brezTokaVNedavnih(true, s.zvok) -> s.copy(zvok = "", mime = "", povezava = "")
         // Naloga 96: kanal seznama IPTV ima v [Jamendo.Skladba.streznik] seznam (ne PeerTube) - tok ostane.
         s.video && s.streznik.isNotBlank() && !IptvSeznami.jeKanal(s) -> s.copy(zvok = "", mime = "")
         // Ujeti tok strani velja le kratek cas: shranimo stran, tok dobimo znova ob predvajanju.

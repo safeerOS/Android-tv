@@ -2238,6 +2238,18 @@ object OsPravila {
      * Pregled B-S1: epizoda, ki sledi [sezona]/[epizoda] med [epizode] (sezona, epizoda). Posebne (sezona 0) gredo samo med
      * sabo; po zadnji epizodi sezone pride prva naslednje. null = zadnja epizoda ali je seznam ne pozna.
      */
+    /**
+     * Ali tok sodi med »Nazadnje predvajano« (MedijskiViri.shranljiva). Lastnik 6. 11. 2026: kartica je kazala S1E1, gledal pa
+     * je S1E3 - epizoda z lastnim pogonom Usenet (http://127.0.0.1:…) ali prek pomocnika (safeer-pomoc:) ni sla v zgodovino,
+     * ker je veljal samo https. Enota dodatka (film, epizoda) se vedno razresi znova (Nadaljuj -> nadaljujEpizodo), zato
+     * sodi zraven ne glede na tok; tok, ki ni https, se ne shrani ([brezTokaVNedavnih]).
+     */
+    fun shranljivTok(enotaDodatka: Boolean, video: Boolean, zvok: String, streznik: String): Boolean =
+        zvok.startsWith("https://") || (video && streznik.isNotBlank()) || (enotaDodatka && video)
+
+    /** Enota dodatka z zacasnim tokom (127.0.0.1 z zetonom, pomocnik): med nedavne brez toka. */
+    fun brezTokaVNedavnih(enotaDodatka: Boolean, zvok: String): Boolean = enotaDodatka && zvok.isNotEmpty() && !zvok.startsWith("https://")
+
     fun naslednjaEpizoda(epizode: List<Pair<Int, Int>>, sezona: Int, epizoda: Int): Pair<Int, Int>? =
         epizode.filter { it.second >= 1 && (if (sezona == 0) it.first == 0 else it.first >= 1) }.distinct()
             .sortedWith(compareBy({ it.first }, { it.second }))
