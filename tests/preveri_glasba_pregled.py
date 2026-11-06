@@ -68,5 +68,8 @@ preveri("N12 tik ne nastavlja istega besedila (dogodek dostopnosti vsako sekundo
 pr = (OS.parent / "link/Pretok.kt").read_text(encoding="utf-8")
 preveri("P1 velikost toka: zeton samo pripeti napravi, brez preusmeritev", "HubPreusmeritve.zahtevaVelikosti(url, odtis, zeton, glave)" in pr
         and "HubPreusmeritve.brez(si.safeer.tv.os.PripetiVir.odjemalecZaStreznik(odtis).newBuilder())" in pr and "\"X-Safeer-Token\", zeton" not in pr)
+# CodeRabbit 5. 11. 2026 (cr-tvseja-0511): neuspel krog Webtorja v diagnostiki zapise vsakega kandidata, ne samo prvega.
+preveri("diagnostika Webtor: vsak kandidat kroga", "DiagnostikaPredvajanja.poskusiKroga(this@GlasbaActivity, \"webtor\", kandidati.map { it.url }" in g
+        and "kandidati.first().url" not in g)
 print("VSE OK" if napak == 0 else f"NAPAK: {napak}")
 sys.exit(1 if napak else 0)

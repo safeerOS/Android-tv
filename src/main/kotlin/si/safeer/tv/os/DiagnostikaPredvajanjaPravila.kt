@@ -64,12 +64,45 @@ object DiagnostikaPredvajanjaPravila {
     fun poskus(vir: String, naslovVira: String?, razlog: String): Poskus =
         Poskus(cisti(vir, 20).lowercase(java.util.Locale.ROOT), gostitelj(naslovVira), cisti(razlog, 80))
 
+    /** Poskusi enega kroga (npr. vsi kandidati Webtorja, ki se preizkusijo hkrati): vsak kandidat svoj poskus. */
+    fun poskusiKroga(vir: String, naslovi: List<String?>, razlog: String): List<Poskus> =
+        naslovi.mapIndexed { i, n -> poskus(vir, n, if (naslovi.size > 1) "$razlog, kandidat ${i + 1}/${naslovi.size}" else razlog) }
+
+    private fun opis(p: Poskus) =
+        p.vir + (if (p.gostitelj.isNotEmpty()) "@" + p.gostitelj else "") + (if (p.razlog.isNotEmpty()) " (" + p.razlog + ")" else "")
+
+    /**
+     * Viri v najvec [prostor] znakih: najnovejsi poskusi imajo prednost, starejse, ki ne gredo, povzame »+N starejsih«
+     * (CodeRabbit 5. 11. 2026: 8 poskusov z dolgimi razlogi je zapolnilo 300 znakov in izrinilo koncni razlog).
+     */
+    private fun viri(poskusi: List<Poskus>, prostor: Int): String {
+        if (poskusi.isEmpty()) return "-"
+        val opisi = poskusi.takeLast(8).map(::opis)
+        fun predpona(izpuscenih: Int) = if (izpuscenih > 0) "+$izpuscenih starejsih, " else ""
+        val izbrani = ArrayList<String>()
+        var dolzina = 0
+        for (i in opisi.indices.reversed()) {
+            val dodatno = opisi[i].length + (if (izbrani.isEmpty()) 0 else 2)
+            // Ce za tem ostanejo starejsi, mora iti zraven tudi povzetek zanje.
+            val izpuscenih = poskusi.size - izbrani.size - 1
+            if (dolzina + dodatno + predpona(izpuscenih).length > prostor) break
+            izbrani.add(0, opisi[i]); dolzina += dodatno
+        }
+        val izpuscenih = poskusi.size - izbrani.size
+        if (izbrani.isEmpty()) {
+            // Ze najnovejsi poskus ne gre cel: skrajsan, povzetek ostalih ostane.
+            val p = predpona(izpuscenih - 1)
+            return p + opisi.last().take(maxOf(0, prostor - p.length))
+        }
+        return predpona(izpuscenih) + izbrani.joinToString(", ")
+    }
+
     /** Vrstica dnevnika (ena vrstica, brez tabulatorjev in novih vrstic). [cas] = npr. "2026-11-05 19:25". */
     fun vrstica(cas: String, naslov: String?, vrsta: String?, poskusi: List<Poskus>, razlog: String): String {
-        val viri = poskusi.takeLast(8).joinToString(", ") { p ->
-            p.vir + (if (p.gostitelj.isNotEmpty()) "@" + p.gostitelj else "") + (if (p.razlog.isNotEmpty()) " (" + p.razlog + ")" else "")
-        }
-        return "${cisti(cas, 20)} | ${cisti(vrsta, 20).ifEmpty { "?" }} | ${cisti(naslov, 80).ifEmpty { "?" }} | viri: ${viri.ifEmpty { "-" }} | razlog: ${cisti(razlog, 80)}".take(NAJVEC_ZNAKOV)
+        val zacetek = "${cisti(cas, 20)} | ${cisti(vrsta, 20).ifEmpty { "?" }} | ${cisti(naslov, 80).ifEmpty { "?" }} | viri: "
+        val konec = " | razlog: ${cisti(razlog, 80)}"
+        // Prostor za koncni razlog je rezerviran: zacetek <= 134, konec <= 90 znakov, za vire ostane vsaj 76.
+        return (zacetek + viri(poskusi, NAJVEC_ZNAKOV - zacetek.length - konec.length) + konec).take(NAJVEC_ZNAKOV)
     }
 
     /** Doda vnos in obdrzi zadnjih [NAJVEC_VNOSOV]. */
