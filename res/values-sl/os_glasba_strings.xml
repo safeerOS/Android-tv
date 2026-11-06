@@ -468,4 +468,7 @@
     <string name="os_tv_pokazi_izbrane">Pokaži izbrane</string>
     <string name="os_tv_izbran">%1$s, izbran</string>
     <string name="os_tv_ni_izbran">%1$s, ni izbran</string>
+    <string name="os_nastavitve_mc">Nastavitve Medijskega centra</string>
+    <string name="os_nastavitve_vrstice">Vrstice domače strani</string>
+    <string name="os_debrid_in_usenet">Debrid in Usenet</string>
 </resources>

@@ -36,5 +36,18 @@ object R {
         const val ui_cat_phishing = 52
         const val ui_cat_adnet = 53
         const val ui_cat_fake_shop = 54
+        const val os_viri_naslov = 1000
+        const val os_mediji_dom = 1001
+        const val ui_playback = 1002
+        const val nast_shramba = 1003
+        const val nast_zasebnost = 1004
+        const val os_mediji_viri = 1005
+        const val os_debrid_in_usenet = 1006
+        const val os_nastavitve_vrstice = 1007
+        const val os_samodejno_naslednja = 1008
+        const val os_samodejno_album = 1009
+        const val os_predpomnilnik_naslov = 1010
+        const val os_media_pocisti_nedavno = 1011
+        const val os_meni_nastavitve = 1012
     }
 }

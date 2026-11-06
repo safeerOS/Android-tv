@@ -16,6 +16,7 @@ OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 
 "$KOTLINC" -J-Xmx1g -cp "$OKHTTP_LIBS" \
+    "$TEST_DIR/stubs/R.kt" \
     "$TEST_DIR/stubs/BitmapFactory.kt" \
     "$TEST_DIR/stubs/JSONObject.kt" \
     "$TEST_DIR/stubs/Sosed.kt" \
@@ -203,7 +204,9 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/os/PriljubljeniKanaliPravila.kt" \
     "$TEST_DIR/PriljubljeniKanaliPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/MeniVsebinePravila.kt" \
+    "$SRC/si/safeer/tv/os/MedijskiCenterNastavitvePravila.kt" \
     "$SRC/si/safeer/tv/os/DomovVrsticePravila.kt" \
+    "$TEST_DIR/MedijskiCenterNastavitvePravilaTest.kt" \
     "$TEST_DIR/MeniVsebinePravilaTest.kt" \
     "$SRC/si/safeer/tv/os/DovoljenjaPravila.kt" \
     "$TEST_DIR/DovoljenjaPravilaTest.kt" \
@@ -364,6 +367,7 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.IptvRacunTestKt
 # Pregled 105, S2 in S3 (26. 10. 2026): prejet vir z racunom pod nadomestkom, ena prijava na racun (ne na naslov).
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.IptvPrijavaRacunaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PriljubljeniKanaliPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.MedijskiCenterNastavitvePravilaTestKt
 # Meni vsebine, prazna Glasba, Nedavno in vrstice Dom (lastnik 6. 11. 2026 04:34-04:56).
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.MeniVsebinePravilaTestKt "$PROJECT_DIR"
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.DovoljenjaPravilaTestKt

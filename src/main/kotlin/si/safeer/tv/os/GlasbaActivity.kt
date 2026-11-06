@@ -397,15 +397,13 @@ class GlasbaActivity : OsActivity() {
         meni.menu.add(0, 3, 2, R.string.os_meni_naprave)
         meni.menu.add(0, 4, 3, R.string.os_meni_datoteke)
         meni.menu.add(0, 5, 4, R.string.os_meni_nastavitve)
-        meni.menu.add(0, 6, 5, R.string.os_predpomnilnik_naslov)
         meni.setOnMenuItemClickListener { m ->
             when (m.itemId) {
                 1 -> izberiRazvrstitevInVire(razdelek)
                 2 -> odpriPredvajalnik()
                 3 -> startActivity(Intent(this, NapraveActivity::class.java))
                 4 -> startActivity(Intent(this, DatotekeActivity::class.java))
-                5 -> startActivity(Intent(this, NastavitveActivity::class.java))
-                6 -> nastavitvePredpomnilnika()
+                5 -> nastavitveMedijskegaCentra()
             }
             true
         }
@@ -9571,6 +9569,42 @@ class GlasbaActivity : OsActivity() {
     }
 
     private fun imeNapraveLinka(id: String): String = link.naprave.firstOrNull { it.id == id }?.ime?.takeIf { it.isNotBlank() } ?: id
+
+    private fun nastavitveVrstic() {}
+
+    private fun nastavitveMedijskegaCentra() {
+        fun vklop(da: Boolean) = getString(if (da) R.string.os_vklopljeno else R.string.os_izklopljeno)
+        val pravila = MedijskiCenterNastavitvePravila.vidneSkupine(packageName)
+        val post = pravila.flatMap { s ->
+            val k = listOf(Pair<String, (() -> Unit)?>(getString(s.id.naslov), null))
+            if (s.id == MedijskiCenterNastavitvePravila.Skupina.SPLOSNE) emptyList() else k + s.postavke.map { p ->
+                val osnovaNaslova = getString(p.naslov)
+                val naslov = when (p) {
+                    MedijskiCenterNastavitvePravila.Postavka.SAMODEJNO_SKLADBA -> "  $osnovaNaslova: " + vklop(GlasbaStoritev.samodejnoNaslednja(this@GlasbaActivity))
+                    MedijskiCenterNastavitvePravila.Postavka.SAMODEJNO_ALBUM -> "  $osnovaNaslova: " + vklop(GlasbaStoritev.samodejnoAlbum(this@GlasbaActivity))
+                    MedijskiCenterNastavitvePravila.Postavka.SPLOSNE_NASTAVITVE -> osnovaNaslova
+                    else -> "  $osnovaNaslova"
+                }
+                Pair<String, (() -> Unit)?>(naslov) {
+                    when (p) {
+                        MedijskiCenterNastavitvePravila.Postavka.MOJI_VIRI -> { izberiNaMestu(VIRI) }
+                        MedijskiCenterNastavitvePravila.Postavka.DEBRID -> nastavitveDebrida()
+                        MedijskiCenterNastavitvePravila.Postavka.VRSTICE -> nastavitveVrstic()
+                        MedijskiCenterNastavitvePravila.Postavka.SAMODEJNO_SKLADBA -> { GlasbaStoritev.nastaviSamodejnoNaslednja(this@GlasbaActivity, !GlasbaStoritev.samodejnoNaslednja(this@GlasbaActivity)); nastavitveMedijskegaCentra() }
+                        MedijskiCenterNastavitvePravila.Postavka.SAMODEJNO_ALBUM -> { GlasbaStoritev.nastaviSamodejnoAlbum(this@GlasbaActivity, !GlasbaStoritev.samodejnoAlbum(this@GlasbaActivity)); nastavitveMedijskegaCentra() }
+                        MedijskiCenterNastavitvePravila.Postavka.PREDPOMNILNIK -> nastavitvePredpomnilnika()
+                        MedijskiCenterNastavitvePravila.Postavka.POCISTI_NEDAVNO -> potrdiPocistiNedavno()
+                        MedijskiCenterNastavitvePravila.Postavka.SPLOSNE_NASTAVITVE -> startActivity(Intent(this@GlasbaActivity, NastavitveActivity::class.java))
+                    }
+                }
+            }
+        } + listOf(Pair<String, (() -> Unit)?>(getString(MedijskiCenterNastavitvePravila.Postavka.SPLOSNE_NASTAVITVE.naslov)) { startActivity(Intent(this@GlasbaActivity, NastavitveActivity::class.java)) })
+        
+        val a = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(R.string.os_nastavitve_mc)
+        a.setItems(post.map { it.first }.toTypedArray()) { _, i -> post[i].second?.invoke() }
+        a.show()
+    }
+
 
     /** Mesto, velikost na USB in »Pocisti predpomnilnik« (Moji viri -> Predpomnilnik, pri Predvajalniku tudi ⋮). */
     private fun nastavitvePredpomnilnika() {

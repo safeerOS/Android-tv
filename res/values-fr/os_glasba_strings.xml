@@ -468,4 +468,7 @@
     <string name="os_tv_pokazi_izbrane">Afficher la sélection</string>
     <string name="os_tv_izbran">%1$s, sélectionnée</string>
     <string name="os_tv_ni_izbran">%1$s, non sélectionnée</string>
+    <string name="os_nastavitve_mc">Paramètres du Media Center</string>
+    <string name="os_nastavitve_vrstice">Lignes de la page d’accueil</string>
+    <string name="os_debrid_in_usenet">Debrid et Usenet</string>
 </resources>
