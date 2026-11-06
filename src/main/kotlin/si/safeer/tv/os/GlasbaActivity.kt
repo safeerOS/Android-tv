@@ -156,6 +156,8 @@ class GlasbaActivity : OsActivity() {
     private lateinit var zdajCas: TextView
     /** Gumbi v mali vrstici: prejsnja, pavza/predvajaj, naslednja (dostopni z dotikom ali D-padom). */
     private var zdajGumb: FrameLayout? = null
+    private var mcKarticaPredvajaj: View? = null
+    private var mcZnak: View? = null
     private var zdajPrejsnja: FrameLayout? = null
     private var zdajNaslednja: FrameLayout? = null
     private var razdelek = DOMOV
@@ -540,10 +542,6 @@ class GlasbaActivity : OsActivity() {
      */
     @Volatile private var vOspredju = false
 
-    /** Lastnik 27. 10. 2026: mini predvajalnik tudi v Medijskem centru (prej samo na domacem zaslonu). */
-    private var dock: MiniPredvajalnik? = null
-    private val dockPoslusalec: () -> Unit = { runOnUiThread { if (!isFinishing && !isDestroyed) dock?.osvezi() } }
-
     override fun onResume() {
         super.onResume()
         // Vrnitev na mrezo: preverjanje se nadaljuje.
@@ -568,14 +566,6 @@ class GlasbaActivity : OsActivity() {
         // Preverjanje odprte mreze, ustavljeno ob odhodu z zaslona, se nadaljuje.
         if (odprtKatalog != null) narociUmiri()
         GlasbaStoritev.poslusalci.add(poslusalec)
-        // Mini predvajalnik (skladba z Useneta, radio, seznam): upravljanje brez celozaslonskega predvajalnika. Naslov odpre
-        // predvajalnik; Safeer Player (samostojna aplikacija) ga ima prav tako.
-        if (dock == null) dock = MiniPredvajalnik.naOknu(this) {
-            try { startActivity(Intent(this, PredvajanjeActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)) } catch (_: Exception) { }
-        }
-        GlasbaStoritev.poslusalci.add(dockPoslusalec)
-        OddaljenoPredvajanje.poslusalci.add(dockPoslusalec)
-        dock?.osvezi()
         narociVrnitevVidea()
         // Naloga 124: kaj je novega v posodobljenem dodatku (enkrat).
         pokaziSpremembeDodatkov()
@@ -653,9 +643,6 @@ class GlasbaActivity : OsActivity() {
         if (android.os.SystemClock.uptimeMillis() - mestoKlikaOb > 10_000L) mestoKlika = null
         link.odstrani(linkPoslusalec)
         GlasbaStoritev.poslusalci.remove(poslusalec)
-        GlasbaStoritev.poslusalci.remove(dockPoslusalec)
-        OddaljenoPredvajanje.poslusalci.remove(dockPoslusalec)
-        dock?.ustavi()
         MrtviKanali.poslusalci.remove(obMrtvemKanalu)
         if (Razpolozljivost.obSpremembi === obRazpolozljivosti) Razpolozljivost.obSpremembi = null
         if (PregledKanalov.obSpremembi === obPregleduKanalov) PregledKanalov.obSpremembi = null
@@ -696,8 +683,6 @@ class GlasbaActivity : OsActivity() {
     override fun onBackPressed() {
         // Lastnik 4. 11. 2026: Nazaj zapusti nacin izbire kanalov brez spremembe.
         if (izbiraKanalov != null) { koncajIzbiroKanalov(); return }
-        // Odprt mini predvajalnik se najprej skrije (kot na domacem zaslonu).
-        if (dock?.skrijCeOdprt() == true) return
         // Podstran (»Pokazi vse« bloka, seznam predvajanja, epizode, izvajalec): nazaj na stran, s katere je bila odprta,
         // na isto mesto - tudi kadar je bila odprta z druge podstrani ali iz mreze.
         if (podstrani.odprta) { zapriPodstran(); return }
@@ -2188,7 +2173,7 @@ class GlasbaActivity : OsActivity() {
         geslo.visibility = if (i == DOMOV && !ozekZaslon()) View.VISIBLE else View.GONE
         iskalnik = if (i == ISKANJE) novIskalnik() else null
         // Velika plosca »zdaj se predvaja« je samo se v Predvajalniku na telefonu (vlc); drugod mala vrstica spodaj, tudi na Domu.
-        vrstica.visibility = if ((vlc && i == DOMOV) || GlasbaStoritev.trenutna() == null) View.GONE else View.VISIBLE
+        vrstica.visibility = if (!vlc || i == DOMOV || GlasbaStoritev.trenutna() == null) View.GONE else View.VISIBLE
         // Video se odpre naravnost v mrezo plakatov (Filmi ali Serije, zadnja izbira) - brez polic vmes (lastnik, 2. 10. 2026).
         if (i == VIDEO && i !in samoTaNaprava) videoNacin().takeIf { it.isNotEmpty() }?.let { ++nalaganje; odpriBrskanje(it, videoZvrst, videoJezik); return }
         // TV v zivo se odpre naravnost v mrezo kanalov z izbiro zvrsti in jezika (lastnik, 5. 10. 2026).
@@ -6045,7 +6030,7 @@ class GlasbaActivity : OsActivity() {
             return true
         }
         if (dogodek.action == KeyEvent.ACTION_DOWN && dogodek.keyCode == KeyEvent.KEYCODE_DPAD_DOWN && dogodek.repeatCount >= 1) {
-            val p = zdajGumb ?: if (vrstica.visibility == View.VISIBLE) vrstica else pPredvajaj
+            val p = if (vrstica.visibility == View.VISIBLE) zdajGumb ?: vrstica else mcKarticaPredvajaj?.takeIf { it.isShown } ?: mcZnak?.takeIf { it.isShown } ?: pPredvajaj
             if (p != null && p.isShown) {
                 p.requestFocus()
                 pogoltniGor = KeyEvent.KEYCODE_DPAD_DOWN
@@ -12566,7 +12551,7 @@ class GlasbaActivity : OsActivity() {
                 } else izberiPriKartici(DOMOV)
             } else osveziPlosco()
         }
-        vrstica.visibility = if (sk == null || p == null || naPlosci) View.GONE else View.VISIBLE
+        vrstica.visibility = if (!vlc || razdelek == DOMOV || sk == null || p == null || naPlosci) View.GONE else View.VISIBLE
         if (sk == null || p == null) return
         // Naloga 77: napredek videa najvec na 5 s (kot v PredvajanjeActivity), ne vsako sekundo: vsak zapis razclenil in znova
         // zapisal ves JSON v SharedPreferences.
@@ -12583,7 +12568,6 @@ class GlasbaActivity : OsActivity() {
         nastaviBesedilo(zdajIzvajalec, listOf(if (GlasbaStoritev.naZvocniku()) Zvocniki.napis(this).orEmpty() else "", if (SpletniVir.jeEnota(sk)) "" else sk.izvajalec)
             .filter { it.isNotBlank() }.joinToString(" · "))
         val igra = GlasbaStoritev.igra()
-        nastaviBesedilo(zdajCas, if (igra) "▶" else "❚❚")
         (zdajGumb?.getChildAt(0) as? ImageView)?.setImageResource(if (igra) R.drawable.os_ikona_pavza else R.drawable.os_ikona_predvajaj)
     }
 
@@ -12611,7 +12595,7 @@ class GlasbaActivity : OsActivity() {
             if (f != null && f.performLongClick()) return true
         }
         if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-            val p = zdajGumb ?: if (vrstica.visibility == View.VISIBLE) vrstica else pPredvajaj
+            val p = if (vrstica.visibility == View.VISIBLE) zdajGumb ?: vrstica else mcKarticaPredvajaj?.takeIf { it.isShown } ?: mcZnak?.takeIf { it.isShown } ?: pPredvajaj
             if (p != null && p.isShown) {
                 p.requestFocus()
                 return true
