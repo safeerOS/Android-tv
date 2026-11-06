@@ -998,6 +998,7 @@ private fun meritevVnaprejUsb() {
             else java.util.concurrent.ThreadPoolExecutor(1, 1, 0L, java.util.concurrent.TimeUnit.MILLISECONDS,
                 java.util.concurrent.ArrayBlockingQueue(16), tovarna, java.util.concurrent.ThreadPoolExecutor.DiscardPolicy())
 
+        val uSbZapora = java.util.concurrent.CountDownLatch(1)
         val fakeUsb = java.util.concurrent.ConcurrentHashMap<String, ByteArray>()
         val teloBralnik: (String, Long) -> ByteArray = { id, b ->
             val vUsb = fakeUsb[id]
@@ -1008,9 +1009,9 @@ private fun meritevVnaprejUsb() {
                 val bData = teloMreza(id, b)
                 val task = Runnable {
                     try {
-                        // 6. 11. 19:10: pri 40 ms je med gradnjo (obremenjen prenosnik) nepopravljena razlicica zavrgla premalo (1,24x) -
-                        // preizkus brez popravka ni padel. 120 ms (6 MB/s, pocasen kljuc) zavrze zanesljivo.
-                        Thread.sleep(120)
+                        // 6. 11. 19:35: casovni lazni USB (sleep) je dal razlicne rezultate glede na obremenitev prenosnika (pred
+                        // popravkom 2,4x / 1,2x / 1,0x). Dolocljivo: USB stoji, dokler predvajanje ne konca (zapora).
+                        uSbZapora.await()
                     } catch (e: InterruptedException) {
                         return@Runnable
                     }
@@ -1051,6 +1052,7 @@ private fun meritevVnaprejUsb() {
             Thread.sleep((r.toDouble() / 550_000.0 * 10).toLong())
         }
 
+        uSbZapora.countDown()
         branje.close()
         b.close()
         pisalecVnaprej.shutdownNow()
