@@ -64,6 +64,13 @@ object PretokHttp {
     /** [telo]: prebrani seznam z drugega izvora (odgovor je ze zaprt), sicer null in se bere iz [odgovor]. */
     class Odgovor(val odgovor: Response, val url: String, val zaupan: Boolean, val telo: ByteArray? = null)
 
+    /**
+     * Gostitelj naslova vira z istim razclenjevalnikom kot [odpri] (OkHttp). CodeRabbit 6. 11. 2026: java.net.URI je vrgel
+     * izjemo za presledek ali [ ] | v poti in vrnil null za podcrtaj v imenu - prazen gostitelj je zavrnil veljaven vir.
+     * "" = naslov ni veljaven (klicatelj ga zavrne).
+     */
+    fun gostiteljVira(url: String): String = url.toHttpUrlOrNull()?.host.orEmpty()
+
     /** Kot Linux v_domace_omrezje: vse glave toka so brez poverilnic. */
     fun vDomaceOmrezje(glave: Map<String, String>): Boolean = glave.keys.all { it.lowercase() in VARNE_GLAVE }
 

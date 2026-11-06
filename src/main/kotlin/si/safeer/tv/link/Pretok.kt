@@ -50,13 +50,21 @@ object Pretok {
     private const val BREZ_BRALCA_MS = 60_000L
 
     class Tok(val id: String, val ime: String, val datoteka: File) {
+        /** Vrstni red nastanka (za izrinjenje najstarejsega, PretokPravila.izrini). */
+        val nastal = zaporedje.incrementAndGet()
         @Volatile var transformer: Transformer? = null
+        /** Zapre odjemalca vira (PretokVir.Tovarna) - ob koncu, napaki ali ustavitvi (P5). */
+        @Volatile var zapriVir: (() -> Unit)? = null
         @Volatile var koncano = false
         @Volatile var napaka = ""
         @Volatile var zadnjiBralec = System.currentTimeMillis()
         @Volatile var bralcev = 0
     }
 
+    private val zaporedje = java.util.concurrent.atomic.AtomicLong()
+    /** Zadnja meritev prostora mape pretok in rezerve naprave (nit ozadja, U3); -1 = se ni meritve. */
+    @Volatile private var zadnjiProstor = -1L
+    @Volatile private var zadnjaRezerva = -1L
     private val tokovi = ConcurrentHashMap<String, Tok>()
     private val glavna = Handler(Looper.getMainLooper())
 
@@ -71,12 +79,13 @@ object Pretok {
         if (Build.VERSION.SDK_INT < 29) return Daljinec.Izid(false, "Sprotno pretvarjanje potrebuje Android 10 ali novejsi", koda = "ni_podprto")
         val url = p.optString("url"); val odtis = p.optString("fp"); val zeton = p.optString("token")
         val ime = p.optString("name").substringAfterLast('/').trim().take(120).ifBlank { "video" }
-        if (!url.startsWith("https://") && !url.startsWith("http://")) return Daljinec.Izid(false, "Nepopolna zahteva", koda = "napacna_zahteva")
-        if (odtis.isNotBlank() && odtis.length != 64) return Daljinec.Izid(false, "Nepopolna zahteva", koda = "napacna_zahteva")
+        // Pregled 6. 11. 2026 (P3): z odtisom samo https (zeton naprave ne gre po http).
+        if (!PretokPravila.zahtevaVeljavna(url, odtis)) return Daljinec.Izid(false, "Nepopolna zahteva", koda = "napacna_zahteva")
         // Vodja 5. 11. 2026 (kot Linux link_sprotno.dovoljeni_naslovi): vir na tej napravi (127.0.0.1, localhost) ali
         // povezavno-lokalen (169.254.169.254) ni dovoljen - prek pomocnika bi naprava v Linku brala storitve, ki poslusajo
         // samo tu. Zapis naslova preverimo takoj, razresena imena v ozadju pred pretvorbo (DNS ni za glavno nit).
-        val gostVira = try { java.net.URI(url).host.orEmpty() } catch (_: Exception) { "" }
+        // CodeRabbit 6. 11. 2026: isti razclenjevalnik kot PretokHttp.odpri (java.net.URI je zavrnil presledek, [ ] in podcrtaj).
+        val gostVira = PretokHttp.gostiteljVira(url)
         if (PretokPravila.gostiteljPrepovedan(gostVira)) return Daljinec.Izid(false, "Vir ni dovoljen", koda = "nedovoljen_cilj")
         val mime = p.optString("mime"); val w = p.optInt("width"); val h = p.optInt("height")
         val glave = glaveZahteve(p.optJSONObject("headers"))
@@ -92,22 +101,35 @@ object Pretok {
         if (tece != null && System.currentTimeMillis() - tece.zadnjiBralec < BREZ_BRALCA_MS)
             return Daljinec.Izid(false, "Naprava ze pretvarja drug video", koda = "preobremenjen")
         tece?.let { ustavi(it) }
-        val mapa = File(context.cacheDir, "pretok").apply { mkdirs() }
-        mapa.listFiles()?.forEach { f -> if (tokovi.values.none { it.datoteka == f }) f.delete() }
+        // Pregled 6. 11. 2026 (U3): mapa, ciscenje in prostor (StatFs) v ozadju - ukaz tece na glavni niti. Takoj odgovori
+        // zadnja meritev ozadja; nova meritev pred pretvorbo tok ustavi (ni_prostora), ce prostora ni.
+        val mapa = File(context.cacheDir, "pretok")
         // Pretvorjeni tok raste v predpomnilniku do konca filma: ocena velikosti (najvec 8 Mb/s) + rezerva naprave.
         val trajanjeMs = p.optLong("duration_ms", 0L); val velikost = p.optLong("size", 0L)
         val ocena = if (trajanjeMs > 0) 8_000_000L / 8L * trajanjeMs / 1000L * 12 / 10 else 0L
-        if (mapa.usableSpace in 0 until ocena + Pretvorba.rezerva())
+        if (PretokPravila.premaloProstora(zadnjiProstor, ocena, zadnjaRezerva))
             return Daljinec.Izid(false, "Premalo prostora", koda = "ni_prostora")
         val t = Tok(java.util.UUID.randomUUID().toString(), ime, File(mapa, java.util.UUID.randomUUID().toString() + ".mp4"))
         tokovi[t.id] = t
-        while (tokovi.size > 8) tokovi.keys.firstOrNull()?.let { k -> tokovi.remove(k)?.let { ustavi(it) } }
+        // Pregled 6. 11. 2026 (P2): najstarejsi po nastanku in koncani brez bralca, nikoli pravkar dodani.
+        val zdaj = System.currentTimeMillis()
+        PretokPravila.izrini(tokovi.values.map { PretokPravila.Opis(it.id, it.nastal, it.koncano, it.bralcev, it.zadnjiBralec) },
+            t.id, 8, zdaj, BREZ_BRALCA_MS).forEach { k -> tokovi.remove(k)?.let { ustavi(it) } }
         val streznik = DatotekeStreznik.streznikZa(context, posiljatelj)
             ?: run { tokovi.remove(t.id); return Daljinec.Izid(false, "Streznika ni mogoce zagnati", koda = "napaka") }
         val seek = p.optLong("seek_ms", 0L).coerceAtLeast(0L)
         val app = context.applicationContext
         // Velikost izvirnika (za bitno hitrost izhoda) poizvemo v ozadju, ce je odjemalec ne pozna; ukaz tece na glavni niti.
         Thread({
+            mapa.mkdirs()
+            mapa.listFiles()?.forEach { f -> if (tokovi.values.none { it.datoteka == f }) f.delete() }
+            val rezerva = Pretvorba.rezerva(); val prostor = mapa.usableSpace
+            zadnjaRezerva = rezerva; zadnjiProstor = prostor
+            if (PretokPravila.premaloProstora(prostor, ocena, rezerva)) {
+                Log.i(TAG, "Tok $ime: premalo prostora (ni_prostora)")
+                t.napaka = "ni_prostora"; t.koncano = true
+                return@Thread
+            }
             val razreseni = try { java.net.InetAddress.getAllByName(gostVira).map { it.address } } catch (_: Exception) { emptyList() }
             // Vodja 5. 11. 2026 (kot Linux v_domace_omrezje): zunanji vir s poverilnicami v glavah ne sme v domace omrezje.
             // Pripeti vir glav toka ne dobi (PripetiVir poslje samo zeton s pripetim odtisom), zanj velja samo prepoved.
@@ -153,7 +175,7 @@ object Pretok {
         // Preverba TV 5. 11. 2026 (P1): zeton samo napravi s pripetim odtisom, brez preusmeritev; zunanji vir brez zetona.
         // Vodja 5. 11. 2026: zunanji vir prek PretokHttp - navaden OkHttp je preusmeritvi sledil tudi na 127.0.0.1.
         val odziv = if (odtis.isNotBlank())
-                si.safeer.tv.cast.HubPreusmeritve.brez(si.safeer.tv.os.PripetiVir.odjemalecZaStreznik(odtis).newBuilder()).build()
+                si.safeer.tv.cast.HubPreusmeritve.brez(si.safeer.tv.os.PripetiVir.odjemalecZaStreznik(odtis, preverjenDns()).newBuilder()).build()
                     .newCall(si.safeer.tv.cast.HubPreusmeritve.zahtevaVelikosti(url, odtis, zeton, glave)).execute()
             else PretokHttp.klient(povezavaS = 4, branjeS = 4).let { k ->
                 try { PretokHttp.odpri(k, PretokHttp.Vir(url, glave), url, "bytes=0-0").odgovor } finally { k.zapri() }
@@ -168,20 +190,42 @@ object Pretok {
         MediaCodecList(MediaCodecList.REGULAR_CODECS).findDecoderForFormat(f) != null
     } catch (_: Throwable) { true }
 
+    /**
+     * Pregled 6. 11. 2026 (P3): pripeti vir se poveze samo na preverjene naslove (PretokHttp.PreverjenDns, domace omrezje
+     * dovoljeno - naprava v Linku je doma), brez lastnega razresevanja OkHttp mimo preverbe.
+     */
+    private fun preverjenDns(): okhttp3.Dns = PretokHttp.PreverjenDns(PretokHttp.Nastavitve(), true)
+
     private fun ustavi(t: Tok) {
         t.koncano = true
-        glavna.post { try { t.transformer?.cancel() } catch (_: Throwable) { } ; t.transformer = null }
+        glavna.post {
+            try { t.transformer?.cancel() } catch (_: Throwable) { }
+            t.transformer = null
+            zapriVir(t)
+        }
         if (t.bralcev == 0) t.datoteka.delete()
     }
+
+    private fun zapriVir(t: Tok) {
+        val z = t.zapriVir ?: return
+        t.zapriVir = null
+        try { z() } catch (_: Throwable) { }
+    }
+
+    /** Tok je bil med pripravo (DNS, velikost) ustavljen ali izrinjen: Transformerja ne zaganjamo (pregled 6. 11. 2026, P1). */
+    private fun opuscen(t: Tok): Boolean = t.koncano || tokovi[t.id] !== t
 
     /** Transformer tece na glavni niti; vir bere naravnost z racunalnika/televizorja (pripeto) ali s spleta. */
     private fun pretvarjaj(ctx: Context, t: Tok, url: String, odtis: String, zeton: String, glave: Map<String, String>,
                            seekMs: Long, bitna: Int, visinaVira: Int, jeziki: List<String> = emptyList()) {
+        // Pregled 6. 11. 2026 (P1): video.stream_stop ali izrinjenje med pripravo (nit DNS in velikosti, do ~8 s) - prej je
+        // Transformer vseeno zacel, tekel do konca filma in pisal v predpomnilnik mimo rezerve (straza ga ni videla).
+        if (opuscen(t)) { Log.i(TAG, "Tok ${t.ime}: ustavljen med pripravo, brez pretvorbe"); return }
         try {
             // Vodja 5. 11. 2026: DefaultHttpDataSource je preusmeritvam sledil sam (302 na 127.0.0.1 je obsel PretokPravila).
             // PretokVir vsak skok preveri, poveze se na preverjene naslove, glave toka samo izvoru naslova vira.
-            val vir: DataSource.Factory = if (odtis.isNotBlank()) si.safeer.tv.os.PripetiVir.Tovarna(odtis, zeton, ctx)
-                else PretokVir.Tovarna(url, glave)
+            val vir: DataSource.Factory = if (odtis.isNotBlank()) si.safeer.tv.os.PripetiVir.Tovarna(odtis, zeton, ctx, dns = preverjenDns())
+                else PretokVir.Tovarna(url, glave).also { tv -> t.zapriVir = { tv.zapri() } }
             // Izbira sledi kot privzeto v Transformerju (najvisja bitna hitrost), z zelenim jezikom zvoka - sicer bi
             // pretvorba vzela privzeto sled vira (npr. sinhronizacijo), cetudi je gledalec izbral izvirnik.
             val izbiraSledi = androidx.media3.exoplayer.trackselection.TrackSelector.Factory { c ->
@@ -212,14 +256,23 @@ object Pretok {
                 .addListener(object : Transformer.Listener {
                     override fun onCompleted(composition: Composition, exportResult: ExportResult) {
                         Log.i(TAG, "Tok ${t.ime} koncan (${t.datoteka.length()} B)"); t.koncano = true; t.transformer = null
+                        zapriVir(t)
                     }
                     override fun onError(composition: Composition, exportResult: ExportResult, exportException: ExportException) {
                         Log.w(TAG, "Tok ${t.ime}: ${exportException.errorCodeName}")
                         t.napaka = exportException.errorCodeName; t.koncano = true; t.transformer = null
+                        zapriVir(t)
                     }
                 }).build()
             t.transformer = transformer
             transformer.start(element, t.datoteka.path)
+            // ustavi() z druge niti med gradnjo zgoraj: njen cancel je morda ze tekel (transformer je bil se null).
+            if (opuscen(t)) {
+                try { transformer.cancel() } catch (_: Throwable) { }
+                t.transformer = null; zapriVir(t)
+                if (t.bralcev == 0) t.datoteka.delete()
+                return
+            }
             val straza = object : Runnable {
                 override fun run() {
                     if (t.koncano) return
@@ -236,6 +289,7 @@ object Pretok {
             glavna.postDelayed(straza, 5_000)
         } catch (e: Throwable) {
             t.napaka = e.message ?: e.javaClass.simpleName; t.koncano = true
+            zapriVir(t)
             Log.w(TAG, "Tok ${t.ime}: $e")
         }
     }
