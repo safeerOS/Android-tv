@@ -227,18 +227,9 @@ fun main() {
     preveriEnako("TV SLO: HD znano ziv - ni treba preverjati", null, KanaliPravila.razlicicaZaPreverjanje(sloImena, listOf(null, true)))
     preveriEnako("TV SLO: oba mrtva - ni kaj preverjati", null, KanaliPravila.razlicicaZaPreverjanje(sloImena, listOf(false, false)))
 
-    // Naloga 90d: znani nedelujoci tokovi (streznik odgovori, program je obvestilo).
-    preveri("90d: dash2.antik.sk test_slo1_tizen", KanaliPravila.znanNedelujocTok("https://dash2.antik.sk/live/test_slo1_tizen/playlist.m3u8"))
-    preveri("90d: dash2.antik.sk test_slo2_tizen", KanaliPravila.znanNedelujocTok("https://dash2.antik.sk/live/test_slo2_tizen/playlist.m3u8"))
-    preveri("90d: velike crke in http", KanaliPravila.znanNedelujocTok("HTTP://Dash2.Antik.SK/live/test_x/index.m3u8"))
-    preveri("Arena Sport si.m3u: telekomsrbije play", KanaliPravila.znanNedelujocTok("http://telekomsrbije.com:2095/play/abcDEF_123"))
-    preveri("telekomsrbije brez /play ni na seznamu", !KanaliPravila.znanNedelujocTok("https://telekomsrbije.com/"))
-    preveri("90d: streamer03.xploretv.si", KanaliPravila.znanNedelujocTok("https://streamer03.xploretv.si:8443/tvslo1/index.m3u8"))
-    preveri("90d: streamer03.xploretv.si brez poti", KanaliPravila.znanNedelujocTok("https://streamer03.xploretv.si"))
-    preveri("90d: dash2.antik.sk/live brez test_ je v redu", !KanaliPravila.znanNedelujocTok("https://dash2.antik.sk/live/slo1/playlist.m3u8"))
-    preveri("90d: drug streznik xploretv je v redu", !KanaliPravila.znanNedelujocTok("https://streamer03.xploretv.si.example.org/a.m3u8"))
-    preveri("90d: vzorec v poti drugega streznika je v redu", !KanaliPravila.znanNedelujocTok("https://example.org/dash2.antik.sk/live/test_a.m3u8"))
-    preveri("90d: prazen naslov", !KanaliPravila.znanNedelujocTok(""))
+    // Peti slepi pregled 5. 11. 2026 (odlocitev vodje): seznama znanih nedelujocih tokov po naslovu ni vec - nedelujoco
+    // razlicico (sproti zaznano 24 h ali rocno skrito) pravila dobijo kot stanje false.
+    preveri("sproten zaznavalnik: kanal z napako je mrtev 24 h", OsPravila.MRTEV_KANAL_MS == 24 * 3_600_000L)
     preveriEnako("90d: kljuci kartice z razlicicami", listOf("iptv:a", "iptv:b"), KanaliPravila.kljuciKartice("iptv:a", listOf("iptv:a", "iptv:b#2", "iptv:b")))
     preveriEnako("90d: kljuci kartice brez razlicic", listOf("iptv:a"), KanaliPravila.kljuciKartice("iptv:a", emptyList()))
 
@@ -246,34 +237,28 @@ fun main() {
     val arena = listOf("Arena Sport 1 Premium (Slovenia)", "Arena Sport 1 Premium", "Arena Sport 1 Premium HD", "Arena Sport 1 Premium HD")
     val izIptv = listOf(false, true, false, true)
     val brez = listOf(false, false, false, false)
-    preveriEnako("91a: nic ne vemo - prva razlicica seznama s HD", 3, KanaliPravila.rezervaIptv(arena, listOf(null, null, null, null), izIptv, brez))
-    preveriEnako("91a: znano ziva razlicica seznama gre prva", 1, KanaliPravila.rezervaIptv(arena, listOf(null, true, null, null), izIptv, brez))
-    preveriEnako("91a: mrtva razlicica seznama izpade", 1, KanaliPravila.rezervaIptv(arena, listOf(null, null, null, false), izIptv, brez))
-    preveriEnako("91a: znan nedelujoc tok izpade", 1, KanaliPravila.rezervaIptv(arena, listOf(null, null, null, null), izIptv, listOf(false, false, false, true)))
-    preveriEnako("91a: ziva razlicica dodatka ni rezerva", 1, KanaliPravila.rezervaIptv(arena, listOf(true, null, true, null), izIptv, listOf(false, false, false, true)))
-    preveriEnako("91a: vse razlicice seznama mrtve - ni rezerve", null, KanaliPravila.rezervaIptv(arena, listOf(null, false, null, false), izIptv, brez))
-    preveriEnako("91a: brez razlicic seznama - ni rezerve", null, KanaliPravila.rezervaIptv(arena, listOf(null, null, null, null), brez, brez))
+    preveriEnako("91a: nic ne vemo - prva razlicica seznama s HD", 3, KanaliPravila.rezervaIptv(arena, listOf(null, null, null, null), izIptv))
+    preveriEnako("91a: znano ziva razlicica seznama gre prva", 1, KanaliPravila.rezervaIptv(arena, listOf(null, true, null, null), izIptv))
+    preveriEnako("91a: mrtva razlicica seznama izpade", 1, KanaliPravila.rezervaIptv(arena, listOf(null, null, null, false), izIptv))
+    preveriEnako("91a: ziva razlicica dodatka ni rezerva", 1, KanaliPravila.rezervaIptv(arena, listOf(true, null, true, false), izIptv))
+    preveriEnako("91a: vse razlicice seznama mrtve - ni rezerve", null, KanaliPravila.rezervaIptv(arena, listOf(null, false, null, false), izIptv))
+    preveriEnako("91a: brez razlicic seznama - ni rezerve", null, KanaliPravila.rezervaIptv(arena, listOf(null, null, null, null), brez))
 
     // Naloga 93: kartica z glavo iz seznama IPTV (0) in razlicicama dodatka (1, 2) - meritev 23. 10. 13:15.
     val arenaS = listOf("Arena Sport 1 Premium (Slovenia)", "Arena Sport 1 Premium (Slovenia)", "Arena Sport 1 Premium (Slovenia)")
     val dod = listOf(false, true, true)
     val sez = listOf(true, false, false)
-    val nic = listOf(false, false, false)
     preveriEnako("93: nic ne vemo - glava iz seznama, brez dodatka", KanaliPravila.KlikKanala(0, emptyList(), null),
-        KanaliPravila.klikKanala(arenaS, listOf(null, null, null), dod, sez, nic))
+        KanaliPravila.klikKanala(arenaS, listOf(null, null, null), dod, sez))
     preveriEnako("93: znano ziv dodatek gre prvi, z rezervo iz seznama", KanaliPravila.KlikKanala(1, listOf(1, 2), 0),
-        KanaliPravila.klikKanala(arenaS, listOf(null, true, null), dod, sez, nic))
+        KanaliPravila.klikKanala(arenaS, listOf(null, true, null), dod, sez))
     preveriEnako("93: drugi dodatek znano ziv - prvi v poizvedbi je on", KanaliPravila.KlikKanala(2, listOf(2, 1), 0),
-        KanaliPravila.klikKanala(arenaS, listOf(null, null, true), dod, sez, nic))
+        KanaliPravila.klikKanala(arenaS, listOf(null, null, true), dod, sez))
     preveriEnako("93: razlicica seznama mrtva - dodatek brez rezerve", KanaliPravila.KlikKanala(1, listOf(1, 2), null),
-        KanaliPravila.klikKanala(arenaS, listOf(false, null, null), dod, sez, nic))
-    preveriEnako("93: vse mrtve - ni klika", null, KanaliPravila.klikKanala(arenaS, listOf(false, false, false), dod, sez, nic))
-    preveriEnako("93: znan nedelujoc tok seznama ni rezerva", KanaliPravila.KlikKanala(1, listOf(1, 2), null),
-        KanaliPravila.klikKanala(arenaS, listOf(null, true, null), dod, sez, listOf(true, false, false)))
-    preveriEnako("100: glava seznama z znanim nedelujocim tokom ni prva", KanaliPravila.KlikKanala(1, listOf(1, 2), null),
-        KanaliPravila.klikKanala(arenaS, listOf(null, null, null), dod, sez, listOf(true, false, false)))
-    preveriEnako("100: edina razlicica z znanim nedelujocim tokom - ni klika", null,
-        KanaliPravila.klikKanala(listOf("TV SLO 1"), listOf(null), listOf(false), listOf(true), listOf(true)))
+        KanaliPravila.klikKanala(arenaS, listOf(false, null, null), dod, sez))
+    preveriEnako("93: vse mrtve - ni klika", null, KanaliPravila.klikKanala(arenaS, listOf(false, false, false), dod, sez))
+    preveriEnako("93: nedelujoca razlicica seznama (sproti zaznana ali skrita) ni rezerva", KanaliPravila.KlikKanala(1, listOf(1, 2), null),
+        KanaliPravila.klikKanala(arenaS, listOf(false, true, null), dod, sez))
     val jeSeznam = { id: String -> id.startsWith("iptv:") }
     preveriEnako("93: izpad dodatka ne skrije razlicice seznama", listOf("stremio|tv|a|1", "stremio|tv|b|1"),
         KanaliPravila.mrtveObNeuspehuDodatka("stremio|tv|a|1", listOf("iptv:http://x.test/1", "stremio|tv|a|1", "stremio|tv|b|1"), jeSeznam))
@@ -310,11 +295,7 @@ fun main() {
     preveriEnako("91c: vse deluje - nic ne izpade", 5,
         KanaliPravila.brezNedelujocihKanalov(nedavni, { it.second }, { it.first }, { false }).size)
 
-    // Naloga 121: nedelujoc kanal se ne kaze nikjer
-    preveriEnako("121: mrtev kanal skrit", true, KanaliPravila.skrijNedelujoc(mrtev = true, jeKanalSeznama = false, nedelujocTok = false))
-    preveriEnako("121: kanal seznama z znano nedelujocim tokom skrit", true, KanaliPravila.skrijNedelujoc(mrtev = false, jeKanalSeznama = true, nedelujocTok = true))
-    preveriEnako("121: film z enakim naslovom toka ni kanal - ostane", false, KanaliPravila.skrijNedelujoc(mrtev = false, jeKanalSeznama = false, nedelujocTok = true))
-    preveriEnako("121: neznano stanje ostane", false, KanaliPravila.skrijNedelujoc(mrtev = false, jeKanalSeznama = true, nedelujocTok = false))
+    // Naloga 121: nedelujoc kanal se ne kaze nikjer - MrtviKanali.skrij je jeMrtev (sproti zaznan ali skrit).
 
     // Zunanji pregled 3. 11. 2026: placljivi kanali v mrezi TV v zivo.
     run {

@@ -55,6 +55,29 @@ object TvTipke {
 
     private val IZZIV = Regex("[0-9a-f]{16,64}")
 
+    /** Odgovor skripta je natanko [predpona] + ':' + odtis zetona strani in niza (konstanten cas); drugo ne velja. */
+    private fun odgovorVelja(odgovor: String?, zeton: String, izziv: String, predpona: String, niz: String): Boolean {
+        if (zeton.length < 32 || !IZZIV.matches(izziv)) return false
+        val o = (odgovor ?: "").trim().trim('"')
+        val pricakovan = predpona + ":" + odtisZetona(zeton, niz)
+        return java.security.MessageDigest.isEqual(o.toByteArray(Charsets.UTF_8), pricakovan.toByteArray(Charsets.UTF_8))
+    }
+
+    /**
+     * Tretji neodvisni pregled 5. 11. 2026 (N3): pravo dejanje (Enter na polju za datoteko ali dotik na oznako) aplikacija
+     * izvede sele, ko skript tik pred njim cilj preveri znova (tv_spatial.js SAFEER_PREVERBA_CILJA, [nacin] 'enter' ali
+     * 'dotik') in vrne 'cilj:' + odtis zetona strani in nakljucnega [izziv].
+     */
+    fun ciljVelja(odgovor: String?, zeton: String, izziv: String, nacin: String): Boolean =
+        (nacin == "enter" || nacin == "dotik") && odgovorVelja(odgovor, zeton, izziv, "cilj", "cilj|$nacin|$izziv")
+
+    /**
+     * Tretji neodvisni pregled 5. 11. 2026 (odlocitev vodje): OK v tuj okvir ne naredi pravega dotika; skript vrne
+     * 'kazalec:' + odtis zetona in izziva tega OK, aplikacija pokaze namig za kazalec (enkrat na stran).
+     */
+    fun namigKazalca(odgovor: String?, zeton: String, izziv: String): Boolean =
+        odgovorVelja(odgovor, zeton, izziv, "kazalec", "kazalec|$izziv")
+
     /** Nakljucen izziv za en OK (32 sestnajstiskih znakov). */
     fun novIzziv(): String {
         val b = ByteArray(16)
@@ -63,21 +86,30 @@ object TvTipke {
     }
 
     /**
-     * Isti odtis kot tv_spatial.js odtisZetona (FNV-1a, 32 bitov, po znakih UTF-16, base36): zeton na obeh koncih, da javni
-     * znak namestitve (odtis samega zetona) ni zacetno stanje za podaljsanje. Zeton ima 192 bitov, izziv je vsakic nov.
+     * Cetrti slepi pregled 5. 11. 2026 (N-B, N-D, odlocitev vodje 3): dokaze, ki jih stran lahko zbira, preverjamo s
+     * HMAC-SHA256 (kljuc = zeton strani, 192 bitov iz SpletVarnostPravila.novZeton; sporocilo = niz z izzivom). Prej FNV-1a
+     * 32 bitov z zetonom na obeh koncih: notranje stanje je le 32 bitov, zato odtis ni MAC - stran, ki je zbirala odtise
+     * (orakelj), bi lahko ugibala ali sestavila veljaven odgovor; dva FNV po 32 bitov bi bila se vedno linearna in
+     * kratka. tv_spatial.js racuna isti HMAC z lastno izvedbo SHA-256 (samo operatorji in lastne tabele, brez metod
+     * strani; SAFEER_HMAC). Skupni testni vektorji: tests/TvTipkeTest.kt in tests/tv_hmac_test.js.
+     * Rezultat: 64 sestnajstiskih znakov (256 bitov); "" za prazen zeton.
      */
-    fun odtisZetona(zeton: String, niz: String): String {
-        var h = -2128831035   // 2166136261 kot Int
-        for (c in "$zeton|$niz|$zeton") { h = h xor c.code; h *= 16777619 }
-        return "safeer-" + (h.toLong() and 0xffffffffL).toString(36)
+    fun odtisHex(zeton: String, niz: String): String {
+        if (zeton.isEmpty()) return ""
+        val mac = javax.crypto.Mac.getInstance("HmacSHA256")
+        mac.init(javax.crypto.spec.SecretKeySpec(zeton.toByteArray(Charsets.UTF_8), "HmacSHA256"))
+        return mac.doFinal(niz.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
     }
 
-    /** Odtis kot stevilo (0..2^32-1): tv_spatial.js dokaz tipke primerja kot stevilo, brez toString, ki ga prepise stran. */
-    fun odtisStevilo(zeton: String, niz: String): Long {
-        var h = -2128831035
-        for (c in "$zeton|$niz|$zeton") { h = h xor c.code; h *= 16777619 }
-        return h.toLong() and 0xffffffffL
-    }
+    /** Odgovor skripta za dokaz: "safeer-" + [odtisHex] (kot tv_spatial.js odtisZetona). */
+    fun odtisZetona(zeton: String, niz: String): String = "safeer-" + odtisHex(zeton, niz)
+
+    /**
+     * N-B (cetrti slepi pregled 5. 11. 2026): ziva kopija skripta s prejsnjim nonce velja samo, ce na nakljucni [izziv] odgovori
+     * 'ziv:' + odtis zetona PREJSNJE strani - zastavico z znanim imenom lahko postavi tudi nova stran, zetona pa ne pozna.
+     */
+    fun zivaKopijaVelja(odgovor: String?, zetonPrej: String, izziv: String): Boolean =
+        odgovorVelja(odgovor, zetonPrej, izziv, "ziv", "ziv|$izziv")
 
     /**
      * Pregled Groka 5. 11. 2026 (najdbe 3, 7, 10): _safeer_navigate_spatial, _safeer_click_focused_card in _safeer_highlight
@@ -90,7 +122,7 @@ object TvTipke {
         if (zeton == null || zeton.length < 32 || !jeNonce(nonce) || stevec <= 0L) return ""
         val izziv = novIzziv()
         val f = izvoz(nonce, "_safeer_tipka")
-        return "$f&&$f('$izziv',$stevec,${odtisStevilo(zeton, "tipka|$stevec|$izziv")});"
+        return "$f&&$f('$izziv',$stevec,'${odtisHex(zeton, "tipka|$stevec|$izziv")}');"
     }
 
     private val NONCE = Regex("[0-9a-f]{16,64}")

@@ -5,7 +5,20 @@
             // Neodvisni pregled 5. 11. 2026 (najdba 1): v ohlapnem nacinu je stran prek f.caller.caller (ali
             // Error.prepareStackTrace + CallSite.getFunction) iz prepisane metode (npr. String.prototype.indexOf spodaj)
             // dobila to funkcijo in z izvirnim toString vir z zetonom. Strogi nacin skrije klicatelje in funkcije okvirjev.
-            if ((location.href || '').indexOf('youtube.com/tv') !== -1) return;
+            // Tretji neodvisni pregled 5. 11. 2026 (N7): String.prototype.indexOf lahko prepise stran in tako prepreci
+            // namestitev daljinca - iskanje po znakih (location.href je nespremenljiv, [LegacyUnforgeable]).
+            function vsebujeNiz(v, p) {
+                if (typeof v !== 'string') return false;
+                for (var i = 0; i + p.length <= v.length; i++) {
+                    var j = 0;
+                    while (j < p.length && v[i + j] === p[j]) j++;
+                    if (j === p.length) return true;
+                }
+                return false;
+            }
+            var naslovDokumenta = '';
+            try { naslovDokumenta = location.href; } catch (_) {}
+            if (vsebujeNiz(naslovDokumenta, 'youtube.com/tv')) return;
 
             /* SAFEER_ZETON_DOTIKA_ZACETEK */
             // Pregled Gemini 3. 11. 2026: SafeerBridge vidi vsak okvir strani; pravi dotik zato zahteva zeton, ki ga ima samo
@@ -13,21 +26,24 @@
             // Most vzamemo ob zagonu, da ga stran pozneje ne podtakne; ob zacetku dokumenta ga aplikacija zaklene
             // (ChromiumEngineView.ZAKLEP_MOSTU_JS). Pregled 3. 11. 2026: brez poznega ponovnega branja window.SafeerBridge.
             var ZETON_DOTIKA = '__SAFEER_ZETON_DOTIKA__';
-            var mostDotika = window.SafeerBridge || null;
-            // Neodvisni pregled 5. 11. 2026 (najdba 8): dokaz tipke je 32-bitni odtis - stran bi ga lahko ugibala brez meje.
-            // Po NAJVEC_NAPAK napacnih dokazih v tem dokumentu ni vec pravih dejanj (dotik, Enter); smer in OK ostaneta.
-            var napakeDokaza = 0, NAJVEC_NAPAK = 5;
+            // Tretji neodvisni pregled 5. 11. 2026 (N5): Object.freeze na mostu Java (ZAKLEP_MOSTU_JS) ni dokazan - prej smo
+            // triggerNativeTap prebrali ob vsakem klicu iz window.SafeerBridge in stran ga je lahko ovila (zeton v njen ovoj).
+            // Most in metodo ujame ChromiumEngineView.IZVIRNIKI_JS ob zacetku dokumenta (IZ.most, IZ.tap); klic z Reflect.apply.
+            // Neodvisni pregled 5. 11. 2026 (najdba 8) je uvedel mejo 5 napacnih dokazov (32-bitni odtis bi stran ugibala).
+            // Cetrti slepi pregled 5. 11. 2026 (N-D, odlocitev vodje): dokaz je HMAC-SHA256 (256 bitov), ugibanje ni mogoce -
+            // meja je bila le se samo-DoS strani (5 laznih klicev je izklopilo prave dotike in Enter). Meja odstranjena.
             // Prava dejanja (zaupanja vreden dotik ali tipka Enter) samo z izvirniki z zacetka dokumenta, v dokumentu z omrezja
-            // in dokler stran ni zasedla nasega izvoza ali ugibala dokaza.
+            // in dokler stran ni zasedla nasega izvoza.
             function pravaDejanjaDovoljena() {
-                return !!IZ && omrezniDokument && !izvozZaseden && napakeDokaza < NAJVEC_NAPAK;
+                return !!IZ && omrezniDokument && !izvozZaseden;
             }
             function pravDotik(x, y) {
                 try {
                     // Pregled Groka 5. 11. 2026: brez izvirnikov (IZ) tocke ne moremo preveriti; ce je stran zasedla nas izvoz, je
                     // sovrazna - pravega dotika ni. Po klicu (dotik tece asinhrono na niti UI) klicatelj ne klice vec kode strani.
                     if (!pravaDejanjaDovoljena()) return false;
-                    return !!(mostDotika && mostDotika.triggerNativeTap) && mostDotika.triggerNativeTap(x, y, ZETON_DOTIKA) === true;
+                    if (!IZ || typeof IZ.tap !== 'function' || !IZ.most) return false;
+                    return IZ.apply(IZ.tap, IZ.most, [x, y, ZETON_DOTIKA]) === true;
                 } catch (_) { return false; }
             }
             /* SAFEER_ZETON_DOTIKA_KONEC */
@@ -116,25 +132,10 @@
             // Pregled fokusa 5. 11. 2026: zastavica namestitve je nespremenljiva lastnost z znakom, izpeljanim iz zetona strani
             // (zeton sam ne pride na window). Pregled Groka 5. 11. 2026 (najdba 2): znak je prej racunal z.charCodeAt(i) in
             // Math.imul na samem zetonu - prepis teh funkcij v strani je videl zeton. Zeton je sestnajstiski
-            // (SpletVarnostPravila.novZeton): znake beremo z indeksom niza in tabelo, mnozimo z operatorji (FNV-1a, 32 bitov,
-            // isti kot TvTipke.odtisZetona) - nobena funkcija, ki jo doseze stran, zetona ne vidi.
+            // (SpletVarnostPravila.novZeton): znake beremo z indeksom niza in tabelo, racunamo z operatorji (HMAC-SHA256
+            // v SAFEER_HMAC, isti kot TvTipke.odtisHex) - nobena funkcija, ki jo doseze stran, zetona ne vidi.
             // Neodvisni pregled 5. 11. 2026 (najdba 8): tabela brez prototipa - lastnost na Object.prototype ne doda znaka.
             var KODE_ZNAKOV = { __proto__: null, '0': 48, '1': 49, '2': 50, '3': 51, '4': 52, '5': 53, '6': 54, '7': 55, '8': 56, '9': 57, 'a': 97, 'b': 98, 'c': 99, 'd': 100, 'e': 101, 'f': 102, 'g': 103, 'h': 104, 'i': 105, 'j': 106, 'k': 107, 'l': 108, 'm': 109, 'n': 110, 'o': 111, 'p': 112, 'q': 113, 'r': 114, 's': 115, 't': 116, 'u': 117, 'v': 118, 'w': 119, 'x': 120, 'y': 121, 'z': 122, '|': 124 };
-            function fnvNiz(h, v) {
-                for (var i = 0; i < v.length; i++) {
-                    var c = KODE_ZNAKOV[v[i]];
-                    if (typeof c !== 'number') return -1;
-                    h = (h ^ c) >>> 0;
-                    h = ((h * 403) % 4294967296 + (h & 255) * 16777216) % 4294967296;
-                }
-                return h;
-            }
-            var BAZA36 = '0123456789abcdefghijklmnopqrstuvwxyz';
-            function vBazo36(h) {
-                var v = '';
-                do { var d = h % 36; v = BAZA36[d] + v; h = (h - d) / 36; } while (h > 0);
-                return v;
-            }
             // Neodvisni pregled 5. 11. 2026 (najdba 6): stran je vnaprej zasedla _safeer_tv_remote_installed in
             // _safeer_navigate_spatial - daljinec se ni namestil. Imena izvozov in zastavice imajo nakljucni del dokumenta
             // (ChromiumEngineView.nonceIzvozov, nov ob vsaki strani), ki ga stran pred nasim skriptom ne pozna. Zastavica ne
@@ -142,9 +143,41 @@
             var NONCE_IZVOZOV = '__SAFEER_NONCE__';
             function imeIzvoza(ime) { return ime + '_' + NONCE_IZVOZOV; }
             var IME_ZASTAVICE = imeIzvoza('_safeer_tv_remote_installed');
-            function jeNamescen(w) {
+            function jeNamescen(w, ime) {
                 var d = null;
-                try { d = opisLastnosti(w, IME_ZASTAVICE); } catch (_) {}
+                try { d = opisLastnosti(w, ime || IME_ZASTAVICE); } catch (_) {}
+                return !!d && d.value === true && d.configurable === false;
+            }
+            // Tretji neodvisni pregled 5. 11. 2026 (N8): onPageStarted brez novega dokumenta (prenos, odgovor 204) da nov nonce
+            // strani - prej se je v isti dokument namestila druga kopija skripta. Aplikacija vstavi nonce prejsnje strani
+            // (ChromiumEngineView.nonceIzvozovPrej); ce je v tem dokumentu ze nasa zastavica s tem imenom (izvirni
+            // getOwnPropertyDescriptor), skript ostane en, aplikacija pa se vrne na zeton in nonce zive kopije
+            // (UserScriptManager.injectOnPageFinished). Neveljaven ali nezamenjan nonce: preverbe ni.
+            var NONCE_PREJ = '__SAFEER_PREJ_NONCE__';
+            function jeNonceNiz(v) {
+                if (typeof v !== 'string' || v.length < 16 || v.length > 64) return false;
+                for (var i = 0; i < v.length; i++) {
+                    var c = KODE_ZNAKOV[v[i]];
+                    if (typeof c !== 'number' || !((c >= 48 && c <= 57) || (c >= 97 && c <= 102))) return false;
+                }
+                return true;
+            }
+            // Peti slepi pregled 5. 11. 2026 (N5): ime izvirnikov se menja ob vsaki strani - ziva kopija v ISTEM dokumentu (onPageStarted
+            // brez novega dokumenta) ima izvirnike pod imenom prejsnje strani. Samo za to preverbo; nikoli za prava dejanja.
+            // Lazna zastavica z laznimi izvirniki prejsnjega imena v novem dokumentu se namestitev le zadrzi, aplikacija pa kopijo
+            // preveri z izzivom (_safeer_ziv, HMAC) in skript namesti znova brez prejsnjega imena.
+            var NONCE_IZ_PREJ = '__SAFEER_NONCE_IZ_PREJ__';
+            var IZ_PREJ = null;
+            try {
+                var kIzP = jeNonceNiz(NONCE_IZ_PREJ) ? window['__safeer_izvirniki_' + NONCE_IZ_PREJ] : null;
+                if (kIzP && typeof kIzP.apply === 'function' && typeof kIzP.gopd === 'function') IZ_PREJ = kIzP;
+            } catch (_) {}
+            function zivaPrejsnjaKopija(w) {
+                if (!jeNonceNiz(NONCE_PREJ) || NONCE_PREJ === NONCE_IZVOZOV) return false;
+                var I2 = IZ_PREJ || IZ;
+                if (!I2) return false;
+                var d = null;
+                try { d = I2.apply(I2.gopd, null, [w, '_safeer_tv_remote_installed_' + NONCE_PREJ]); } catch (_) {}
                 return !!d && d.value === true && d.configurable === false;
             }
             function oznaciNamescen(w) {
@@ -165,17 +198,103 @@
                 }
                 return true;
             }
-            function odtisStevilo(zeton, niz) {
-                var h = fnvNiz(2166136261, zeton);
-                if (h >= 0) h = fnvNiz(h, '|');
-                if (h >= 0) h = fnvNiz(h, niz);
-                if (h >= 0) h = fnvNiz(h, '|');
-                if (h >= 0) h = fnvNiz(h, zeton);
-                return h;
+            /* SAFEER_HMAC_ZACETEK */
+            // Cetrti slepi pregled 5. 11. 2026 (N-B, N-D; odlocitev vodje 3): dokaz je HMAC-SHA256 z zetonom strani kot kljucem
+            // (TvTipke.odtisHex, javax.crypto) namesto 32-bitnega FNV-1a, ki ni MAC (stran je odtise zbirala kot orakelj).
+            // Lastna izvedba SHA-256 (FIPS 180-4) in HMAC (RFC 2104): samo operatorji, nizi z indeksom in tabele brez
+            // prototipa ali z vsemi indeksi ze ob nastanku - nobena metoda ali nastavljalec, ki ga lahko prepise stran
+            // (push, charCodeAt, Math.imul, toString, Array.prototype[i]). Znaki samo iz KODE_ZNAKOV (zeton, izziv, stevec in
+            // nasi nizi so iz 0-9, a-z, '|'); drug znak: ''. Vektorji: tests/tv_hmac_test.js in tests/TvTipkeTest.kt.
+            var K_SHA256 = [0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+                0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+                0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+                0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+                0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+                0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+                0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+                0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2];
+            var HEKS = '0123456789abcdef';
+            // SHA-256 bajtov B[0..n-1] (objekt brez prototipa); vrne 32 bajtov v objektu brez prototipa.
+            function sha256Bajti(B, n) {
+                'use strict';
+                var H = { __proto__: null, 0: 0x6a09e667, 1: 0xbb67ae85, 2: 0x3c6ef372, 3: 0xa54ff53a, 4: 0x510e527f, 5: 0x9b05688c, 6: 0x1f83d9ab, 7: 0x5be0cd19 };
+                var W = { __proto__: null };
+                var vse = n + 9, bloki = (vse + 63 - (vse + 63) % 64) / 64, skupaj = bloki * 64, bitov = n * 8;
+                for (var k = 0; k < bloki; k++) {
+                    for (var t = 0; t < 16; t++) {
+                        var w = 0;
+                        for (var j = 0; j < 4; j++) {
+                            var i = k * 64 + t * 4 + j, x = 0;
+                            if (i < n) x = B[i];
+                            else if (i === n) x = 0x80;
+                            else if (i >= skupaj - 4) x = (bitov >>> (8 * (skupaj - 1 - i))) & 255;
+                            w = ((w << 8) | x) | 0;
+                        }
+                        W[t] = w;
+                    }
+                    for (t = 16; t < 64; t++) {
+                        var p15 = W[t - 15], p2 = W[t - 2];
+                        var s0 = ((p15 >>> 7) | (p15 << 25)) ^ ((p15 >>> 18) | (p15 << 14)) ^ (p15 >>> 3);
+                        var s1 = ((p2 >>> 17) | (p2 << 15)) ^ ((p2 >>> 19) | (p2 << 13)) ^ (p2 >>> 10);
+                        W[t] = (W[t - 16] + s0 + W[t - 7] + s1) | 0;
+                    }
+                    var a = H[0], b = H[1], c = H[2], d = H[3], e = H[4], f = H[5], g = H[6], h = H[7];
+                    for (t = 0; t < 64; t++) {
+                        var S1 = ((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7));
+                        var ch = (e & f) ^ (~e & g);
+                        var t1 = (h + S1 + ch + K_SHA256[t] + W[t]) | 0;
+                        var S0 = ((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10));
+                        var mj = (a & b) ^ (a & c) ^ (b & c);
+                        var t2 = (S0 + mj) | 0;
+                        h = g; g = f; f = e; e = (d + t1) | 0; d = c; c = b; b = a; a = (t1 + t2) | 0;
+                    }
+                    H[0] = (H[0] + a) | 0; H[1] = (H[1] + b) | 0; H[2] = (H[2] + c) | 0; H[3] = (H[3] + d) | 0;
+                    H[4] = (H[4] + e) | 0; H[5] = (H[5] + f) | 0; H[6] = (H[6] + g) | 0; H[7] = (H[7] + h) | 0;
+                }
+                var D = { __proto__: null };
+                for (var q = 0; q < 8; q++) {
+                    D[q * 4] = (H[q] >>> 24) & 255; D[q * 4 + 1] = (H[q] >>> 16) & 255;
+                    D[q * 4 + 2] = (H[q] >>> 8) & 255; D[q * 4 + 3] = H[q] & 255;
+                }
+                return D;
             }
+            // HMAC-SHA256 (RFC 2104); kljuc najvec 64 bajtov (nas zeton jih ima 48), sicer null.
+            function hmacBajti(K, kn, M, mn) {
+                'use strict';
+                if (kn > 64) return null;
+                var N = { __proto__: null }, Z = { __proto__: null }, i;
+                for (i = 0; i < 64; i++) { var kb = i < kn ? K[i] : 0; N[i] = kb ^ 0x36; Z[i] = kb ^ 0x5c; }
+                for (i = 0; i < mn; i++) N[64 + i] = M[i];
+                var notr = sha256Bajti(N, 64 + mn);
+                for (i = 0; i < 32; i++) Z[64 + i] = notr[i];
+                return sha256Bajti(Z, 96);
+            }
+            function bajtiNiza(v, O) {
+                'use strict';
+                if (typeof v !== 'string') return -1;
+                for (var i = 0; i < v.length; i++) {
+                    var c = KODE_ZNAKOV[v[i]];
+                    if (typeof c !== 'number') return -1;
+                    O[i] = c;
+                }
+                return v.length;
+            }
+            // 64 sestnajstiskih znakov ali '' (kljuc krajsi od 32 znakov ali znak zunaj KODE_ZNAKOV).
+            function odtisHex(zeton, niz) {
+                'use strict';
+                var K = { __proto__: null }, M = { __proto__: null };
+                var kn = bajtiNiza(zeton, K), mn = bajtiNiza(niz, M);
+                if (kn < 32 || kn > 64 || mn < 0) return '';
+                var D = hmacBajti(K, kn, M, mn);
+                if (!D) return '';
+                var v = '';
+                for (var i = 0; i < 32; i++) v = v + HEKS[D[i] >>> 4] + HEKS[D[i] & 15];
+                return v;
+            }
+            /* SAFEER_HMAC_KONEC */
             function odtisZetona(zeton, niz) {
-                var h = odtisStevilo(zeton, niz);
-                return h < 0 ? '' : 'safeer-' + vBazo36(h);
+                var h = odtisHex(zeton, niz);
+                return h === '' ? '' : 'safeer-' + h;
             }
             function dokazDatoteke(zeton, izziv) {
                 if (!jeVeljavenIzziv(izziv)) return '';
@@ -184,6 +303,7 @@
             }
             /* SAFEER_DOKAZ_KONEC */
             if (jeNamescen(window)) return;
+            if (zivaPrejsnjaKopija(window)) return;
             // Ime zastavice pozna samo ta skript: ce ga izvirni defineProperty ne more zasesti, je skript ze namescen.
             if (!oznaciNamescen(window) && IZ) return;
 
@@ -236,14 +356,18 @@
             // dal tipko. Zdaj dokaz pokrije strogo narascajoc stevec aplikacije (ChromiumEngineView.naslednjaTipka).
             var tipkaNaVoljo = false, zadnjiStevecTipke = 0, vTipki = false, izbiraPotrjena = false;
             function jeStevecTipke(n) { return typeof n === 'number' && n > 0 && n <= 9007199254740991 && n % 1 === 0; }
+            // Tretji neodvisni pregled 5. 11. 2026 (N7): ime izvoza vidi stran (Object.getOwnPropertyNames) - 5 klicev brez
+            // argumentov je izklopilo prava dejanja. Napaka steje samo pri klicu z veljavnim izzivom, narascajocim stevcem in
+            // stevilom za dokaz (samo tak klic je ugibanje dokaza); drugi klici so zavrnjeni brez stetja.
+            // Cetrti slepi pregled 5. 11. 2026: dokaz je niz HMAC (64 znakov, TvTipke.odtisHex); primerjava nizov z operatorjem.
             function sprejmiTipko(izziv, stevec, dokaz) {
-                if (!jeVeljavenIzziv(izziv) || !jeStevecTipke(stevec) || stevec <= zadnjiStevecTipke || typeof dokaz !== 'number') {
-                    napakeDokaza++;
+                if (!jeVeljavenIzziv(izziv) || !jeStevecTipke(stevec) || stevec <= zadnjiStevecTipke || typeof dokaz !== 'string' ||
+                    dokaz.length !== 64) {
                     return false;
                 }
                 // Stevilo v niz z operatorjem (notranji ToString), ne z Number.prototype.toString strani.
-                var h = odtisStevilo(ZETON_DOTIKA, 'tipka|' + stevec + '|' + izziv);
-                if (h < 0 || dokaz !== h) { napakeDokaza++; return false; }
+                var h = odtisHex(ZETON_DOTIKA, 'tipka|' + stevec + '|' + izziv);
+                if (h === '' || dokaz !== h) return false;
                 zadnjiStevecTipke = stevec;
                 tipkaNaVoljo = true;
                 zadnjaTipkaMs = casZdaj();
@@ -258,6 +382,14 @@
             }
             /* SAFEER_TIPKA_KONEC */
             izvoziZaAplikacijo('_safeer_tipka', sprejmiTipko);
+            // Cetrti slepi pregled 5. 11. 2026 (N-B): aplikacija zivo kopijo s prejsnjim nonce sprejme samo, ce ta na nakljucen
+            // izziv vrne 'ziv:' + odtis SVOJEGA zetona (TvTipke.zivaKopijaVelja) - zastavico z znanim imenom lahko postavi nova
+            // stran, zetona prejsnje strani pa ne pozna. Odgovor je samo za ta niz ('ziv|' + izziv), ne za druge dokaze.
+            izvoziZaAplikacijo('_safeer_ziv', function (izziv) {
+                if (!jeVeljavenIzziv(izziv)) return '';
+                var o = odtisZetona(ZETON_DOTIKA, 'ziv|' + izziv);
+                return o ? 'ziv:' + o : '';
+            });
             // Pregled fokusa 5. 11. 2026: stran je razred safeer-active-card lahko dala svojemu (tudi nevidnemu) okvirju in OK je
             // nanj sprozil pravi dotik. Izbrani element je zdaj samo tisti, ki ga je izbral daljinec (zaprtje); razred je le slog.
             var izbraniEl = null;
@@ -1420,7 +1552,12 @@
                 var pol = o.width / 2;
                 return { x: o.left + (22 < pol ? 22 : pol), y: o.top + o.height / 2 };
             }
-            function jeIzziv(el) { return !!el && izzivi.indexOf(el) !== -1; }
+            // Tretji neodvisni pregled 5. 11. 2026 (N2): brez Array.prototype.indexOf strani (prepis je vsak element naredil za izziv).
+            function jeIzziv(el) {
+                if (!el) return false;
+                for (var i = 0; i < izzivi.length; i++) { if (izzivi[i] === el) return true; }
+                return false;
+            }
             function okvirCilja(el) {
                 var r = el.getBoundingClientRect();
                 return jeIzziv(el) ? okvirIzziva(r) : r;
@@ -2495,18 +2632,40 @@
                 return pick;
             }
 
-            /* SAFEER_TV_PONUDNIK_ZACETEK */
-            // Pregled Groka 5. 11. 2026 (najdba 11): skok GOR na »Glej zdaj« ali na meni glave je hevristika za Xplore TV in
-            // RTV 365; na drugih straneh (novice) je GOR preskocil vrstice vmes. Samo na teh gostiteljih.
-            function jeGostiteljTvPonudnika(host) {
-                host = (host || '').toLowerCase();
-                var gs = ['xploretv.si', 'rtvslo.si'];
-                for (var i = 0; i < gs.length; i++) {
-                    if (host === gs[i] || (host.length > gs[i].length && host.slice(-(gs[i].length + 1)) === '.' + gs[i])) return true;
+            /* SAFEER_GLAVA_GOR_ZACETEK */
+            // Peti slepi pregled 5. 11. 2026 (odlocitev vodje): prej je GOR z gumba predvajanja ali z zgornjih vrstic skocil na
+            // meni glave samo na dveh izbranih gostiteljih in po razredih ter besedilih teh strani (prilagoditev za doloceno
+            // stran; brez omejitve je na novicah preskakoval vrstice - pregled Groka, najdba 11). Zdaj splosno: na glavo strani
+            // (header, nav, role=banner/navigation) samo, ce prostorska navigacija GOR ne najde nobenega cilja IN je stran na
+            // vrhu - nad trenutnim elementom torej ni nobene vrstice, ki bi jo skok preskocil.
+            var GLAVA_IZBIRNIK = 'header a[href], header button, nav a[href], nav button, [role="banner"] a[href], [role="banner"] button, ' +
+                '[role="navigation"] a[href], [role="navigation"] button';
+            function ciljVGlavi(current) {
+                var cr = null;
+                try { cr = current ? current.getBoundingClientRect() : null; } catch (_) { cr = null; }
+                var vrhTrenutnega = cr ? cr.top : (window.innerHeight || 0);
+                var cx = cr ? cr.left + cr.width / 2 : 0;
+                var nodes = [];
+                try { nodes = document.querySelectorAll(GLAVA_IZBIRNIK); } catch (_) { nodes = []; }
+                var best = null, bestD = Infinity;
+                // CodeRabbit 5. 11. 2026: isto kot odstraniNedosegljive - odprto prekrivno okno (pasica, modalno okno) zapre
+                // vse zunaj njega, zato GOR ne skoci na meni pod oknom; prekrit element (jePrekrit) tudi ni cilj.
+                var okno = null;
+                try { okno = najdiPrekrivnoOkno(); } catch (_) { okno = null; }
+                for (var i = 0; i < nodes.length; i++) {
+                    var el = nodes[i];
+                    if (!el || el === current || (current && current.contains && current.contains(el))) continue;
+                    if (!isActionable(el) || !jeUporaben(el, true)) continue;
+                    if (jeSkritZaFokus(el) || jeIzvenDosega(el)) continue;
+                    if (okno ? !okno.contains(el) : jePrekrit(el)) continue;
+                    var r = el.getBoundingClientRect();
+                    if (!(r.width > 0 && r.height > 0) || r.top < 0 || r.bottom > vrhTrenutnega + 1) continue;
+                    var d = Math.abs(r.left + r.width / 2 - cx);
+                    if (d < bestD) { bestD = d; best = el; }
                 }
-                return false;
+                return best;
             }
-            /* SAFEER_TV_PONUDNIK_KONEC */
+            /* SAFEER_GLAVA_GOR_KONEC */
 
             function jeMenijskaOznaka(t) {
                 t = (t || '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -2798,51 +2957,6 @@
                         if (poMeniju) return 1;
                     }
 
-                    if (direction === 'UP') {
-                        var curTxt = ((current.innerText || current.textContent || '') + '').replace(/\s+/g, ' ').trim().toLowerCase();
-                        var curCls = ((current.className || '') + '').toLowerCase();
-                        var onPlayBtn = curCls.indexOf('promo-carousel__button') !== -1 || curCls.indexOf('action-list') !== -1 ||
-                            curTxt === 'glej zdaj' || curTxt.indexOf('glej zdaj') === 0 ||
-                            curTxt.indexOf('predvajaj v živo') !== -1 || curTxt.indexOf('predvajaj v zivo') !== -1;
-                        var naTvPonudniku = jeGostiteljTvPonudnika(location.hostname);
-                        if (onPlayBtn && naTvPonudniku) {
-                            var menuFromPlay = izberiMenijskoPovezavo(false, current);
-                            if (menuFromPlay) {
-                                highlightElement(menuFromPlay);
-                                // #region agent log
-                                try { window._safeerDbg('H40', 'tv_remote_nav.js:up', 'snap menu from play', { t: ((menuFromPlay.innerText || '') + '').replace(/\s+/g, ' ').trim().slice(0, 40) }); } catch (_) {}
-                                // #endregion
-                                return 1;
-                            }
-                        }
-                        if (current && jeMenijskaPovezava(current)) {
-                            /* stay in menu; spatial LEFT/RIGHT above */
-                        } else {
-                            var playHit = naTvPonudniku ? izberiGumbPredvajanja() : null;
-                            if (playHit && playHit !== current) {
-                                var playTop = playHit.getBoundingClientRect().top;
-                                if (playTop < cRect.top - 8) {
-                                    highlightElement(playHit);
-                                    // #region agent log
-                                    try { window._safeerDbg('H253', 'tv_remote_nav.js:up', 'snap play', { t: ((playHit.innerText || '') + '').replace(/\s+/g, ' ').trim().slice(0, 40) }); } catch (_) {}
-                                    // #endregion
-                                    return 1;
-                                }
-                            }
-                            var menuHit = naTvPonudniku ? izberiMenijskoPovezavo(!!jePotVZivo(), current) : null;
-                            if (menuHit && menuHit !== current) {
-                                var onTopRow = cRect.top < 320;
-                                if (onTopRow) {
-                                    highlightElement(menuHit);
-                                    // #region agent log
-                                    try { window._safeerDbg('H40', 'tv_remote_nav.js:up', 'snap menu', { t: ((menuHit.innerText || '') + '').replace(/\s+/g, ' ').trim().slice(0, 40), href: ((menuHit.getAttribute('href') || '') + '').slice(0, 40), n: poberiMenijskePovezave().length }); } catch (_) {}
-                                    // #endregion
-                                    return 1;
-                                }
-                            }
-                        }
-                    }
-
                     if (direction === 'DOWN' && current && jeMenijskaPovezava(current)) {
                         var mHref = ((current.getAttribute && current.getAttribute('href')) || '').toLowerCase();
                         var mTxt = ((current.innerText || current.textContent || '') + '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -3024,6 +3138,11 @@
                         }
                         else if (direction === 'UP') {
                             if (drsajNotranjiVsebnik(current, -1)) return 1;
+                            // Peti slepi pregled (odlocitev vodje): brez cilja GOR in stran na vrhu - glava strani, ce jo ima.
+                            if ((window.scrollY || 0) <= 20) {
+                                var vGlavo = ciljVGlavi(current);
+                                if (vGlavo && highlightElement(vGlavo)) return 1;
+                            }
                             // Drsenje, ki se ne premakne (SAFEER_IZZIV, 3. 11. 2026), ne sme ujeti: naslovna vrstica.
                             if (scrollY <= 20 || !podrsajOkno(0, -120)) {
                                 clearActive();
@@ -3115,22 +3234,34 @@
             // https://accounts.google.com/gsi/), izziv Cloudflare (challenges.cloudflare.com) in polje za datoteko, ki ne dobi
             // fokusa (skrito v oznaki). Vse drugo je sinteticni klik - z njim stran ne doseze tujega okvirja.
             // Najdba 3: elementFromPoint vrne gostitelja (zaprtega ali deklarativnega) shadow DOM, ne okvirja v njem. Shadow
-            // DOM ima lahko samo element s spodnjega seznama ali element po meri (ime z '-', HTML standard attachShadow) -
-            // zadetek na takem elementu ni dokaz, da pod tocko ni tujega okvirja.
-            var OKVIRNE_OZNAKE = { __proto__: null, IFRAME: 1, FRAME: 1, OBJECT: 1, EMBED: 1 };
-            var SENCNI_GOSTITELJI = { __proto__: null, ARTICLE: 1, ASIDE: 1, BLOCKQUOTE: 1, BODY: 1, DIV: 1, FOOTER: 1, H1: 1, H2: 1,
-                H3: 1, H4: 1, H5: 1, H6: 1, HEADER: 1, MAIN: 1, NAV: 1, P: 1, SECTION: 1, SPAN: 1 };
+            // DOM ima lahko samo element s seznama HTML attachShadow (DIV, SPAN, P, SECTION ...) ali element po meri (ime z '-') -
+            // zadetek na takem elementu ni dokaz, da pod tocko ni tujega okvirja (zato ZADETEK_BREZ_OKVIRJA spodaj).
+            // Tretji neodvisni pregled 5. 11. 2026 (N1-N4): preverba izvora iz glavnega sveta strani ni zanesljiva - atribut src
+            // ne pove dejanske vsebine okvirja (srcdoc z notranjim tujim okvirjem, otrok, ki ga stars navigira prek
+            // contentWindow.location), gostitelj shadow DOM lahko skriva katerikoli okvir, med preverbo in dotikom stran
+            // premakne tuj okvir pod tocko, prekrivalo okvirja preverimo le po velikosti. Odlocitev vodje: pravi dotik v TUJ
+            // okvir (GSI, reCAPTCHA, hCaptcha, Cloudflare) je izklopljen; OK tam pokaze namig za kazalec (rdeci gumb), kjer
+            // cilja uporabnik sam. Seznam ostane za ponovni vklop s potrditvijo na strani prejemnika (skript zacetka
+            // dokumenta v okvirju dovoljenega izvora, porocanje prek addWebMessageListener - SAFEER-ZNANJE.md).
+            var PRAVI_DOTIK_V_OKVIR = false;
+            // Cetrti slepi pregled 5. 11. 2026 (N-C): tudi FENCEDFRAME in PORTAL (vsebina drugega izvora).
+            var OKVIRNE_OZNAKE = { __proto__: null, IFRAME: 1, FRAME: 1, OBJECT: 1, EMBED: 1, FENCEDFRAME: 1, PORTAL: 1 };
             // Brez metod niza (indexOf, startsWith lahko prepise stran): primerjava po znakih.
             function zacneZ(v, p) {
                 if (typeof v !== 'string' || v.length < p.length) return false;
                 for (var i = 0; i < p.length; i++) { if (v[i] !== p[i]) return false; }
                 return true;
             }
+            // Cetrti slepi pregled 5. 11. 2026 (N-C, odlocitev vodje 4): prej seznam prepovedanih (vsaka nova vrsta okvirja, npr.
+            // FENCEDFRAME, je bila »varna«). Zdaj seznam dovoljenih oznak zadetka pri oznaki s skritim poljem za datoteko:
+            // besedilni elementi, ki ne morejo biti gostitelj shadow DOM (HTML attachShadow) in ne nosijo tuje vsebine.
+            // SPAN NI na seznamu: lahko je gostitelj (zaprte) sence s tujim okvirjem - zadetek na SPAN v oznaki ostane brez
+            // pravega dotika (sinteticni klik), razen ce je zadetek oznaka sama (zadetekJeCilj).
+            var ZADETEK_BREZ_OKVIRJA = { __proto__: null, LABEL: 1, B: 1, I: 1, EM: 1, STRONG: 1, SMALL: 1, U: 1, S: 1, MARK: 1,
+                ABBR: 1, CODE: 1, KBD: 1, SUB: 1, SUP: 1, BR: 1, IMG: 1, INPUT: 1 };
             function lahkoSkrivaOkvir(oz) {
                 if (typeof oz !== 'string' || oz === '') return true;
-                if (OKVIRNE_OZNAKE[oz] === 1 || SENCNI_GOSTITELJI[oz] === 1) return true;
-                for (var i = 0; i < oz.length; i++) { if (oz[i] === '-') return true; }
-                return false;
+                return ZADETEK_BREZ_OKVIRJA[oz] !== 1;
             }
             function koncaZ(v, k, p) {
                 if (typeof v !== 'string' || k < p.length || k > v.length) return false;
@@ -3162,6 +3293,7 @@
             }
             function smePraviDotik(o) {
                 if (!o || !o.izvirniki || !o.omrezni || !o.potrjena) return false;
+                if ((o.namen === 'google' || o.namen === 'izziv') && PRAVI_DOTIK_V_OKVIR !== true) return false;
                 if (o.namen === 'google') {
                     // Namen 'google': okvir prijave Google (GSI) ali potrditveno polje reCAPTCHA/hCaptcha; zadetek je tocno ta okvir.
                     return o.oznakaCilja === 'IFRAME' && o.zadetekJeCilj === true && jeOkvirPotrditve(o.virCilja);
@@ -3312,6 +3444,52 @@
             }
             /* SAFEER_OK_DATOTEKA_KONEC */
 
+            /* SAFEER_PREVERBA_CILJA_ZACETEK */
+            // Tretji neodvisni pregled 5. 11. 2026 (N3): med naso preverbo in pravim dejanjem (dotik ali Enter tece prek niti UI
+            // aplikacije) tece koda strani. Pravo dejanje caka v zaprtju (en cilj, najvec CILJ_ROK_MS po OK); aplikacija tik
+            // pred dotikom ali tipko poklice _safeer_preveri_cilj z dokazom tipke in nakljucnim izzivom, mi cilj preverimo
+            // znova z izvirniki in vrnemo 'cilj:' + odtis zetona (TvTipke.ciljVelja). En klic porabi cilj.
+            var cakajociCilj = null, CILJ_ROK_MS = 1500;
+            function pravDotikNamena(el, namen) {
+                var t = tockaNamena(el, namen);
+                if (!t) return false;
+                cakajociCilj = { __proto__: null, el: el, nacin: 'dotik', namen: namen, x: t.x, y: t.y, cas: casZdaj() };
+                if (pravDotik(t.x, t.y)) return true;
+                cakajociCilj = null;
+                return false;
+            }
+            function ciljSeVelja(c) {
+                if (!c || !pravaDejanjaDovoljena()) return false;
+                var od = casZdaj() - c.cas;
+                if (!(od >= 0 && od < CILJ_ROK_MS)) return false;
+                if (c.nacin === 'enter') {
+                    var v = c.el;
+                    if (aktivenIz() !== v || !jeVhodDatotekeIz(v)) return false;
+                    try { if (typeof IZ.dis === 'function' && IZ.apply(IZ.dis, v, []) === true) return false; } catch (_) { return false; }
+                    return true;
+                }
+                if (c.nacin === 'dotik') {
+                    var t = tockaNamena(c.el, c.namen);
+                    return !!t && t.x === c.x && t.y === c.y;
+                }
+                return false;
+            }
+            function preveriCilj(izziv) {
+                var c = cakajociCilj;
+                cakajociCilj = null;
+                if (!jeVeljavenIzziv(izziv) || !ciljSeVelja(c)) return '';
+                var o = odtisZetona(ZETON_DOTIKA, 'cilj|' + c.nacin + '|' + izziv);
+                return o ? 'cilj:' + o : '';
+            }
+            /* SAFEER_PREVERBA_CILJA_KONEC */
+            // Namig, da OK v tuj okvir ne seze: aplikacija pokaze kratko besedilo (enkrat na stran) samo z odtisom zetona
+            // (TvTipke.namigKazalca) - drug odgovor ne naredi nicesar.
+            function namigKazalca(izziv) {
+                if (!jeVeljavenIzziv(izziv)) return true;
+                var o = odtisZetona(ZETON_DOTIKA, 'kazalec|' + izziv);
+                return o ? 'kazalec:' + o : true;
+            }
+
             // Okvir, na katerega gre pravi dotik: izbral ga je daljinec (zaprtje) in je viden (pregled fokusa 5. 11. 2026).
             function jeVidenOkvir(el) {
                 if (!el || el !== izbrani() || !jeUporaben(el, true)) return false;
@@ -3362,8 +3540,9 @@
                         // tujim okvirjem v sebi. Dotik samo na potrjeni izbiri in ce je na tocki gostitelj (zaprt shadow DOM) ali
                         // okvir challenges.cloudflare.com v njem. Po pravDotik do konca OK ni kode strani (najdba 2).
                         if (!potrjena) return true;
-                        var tIz = tockaNamena(target, 'izziv');
-                        if (tIz) pravDotik(tIz.x, tIz.y);
+                        // Tretji neodvisni pregled 5. 11. 2026: pravi dotik v tuj okvir je izklopljen - namig za kazalec.
+                        if (PRAVI_DOTIK_V_OKVIR !== true) return namigKazalca(izziv);
+                        pravDotikNamena(target, 'izziv');
                         return true;
                     }
                     // Polje za datoteko: fokus nanj in Enter iz aplikacije (SAFEER_OK_DATOTEKA).
@@ -3377,10 +3556,16 @@
                         if (pravaDejanjaDovoljena() && jeVhodDatotekeIz(vhodD)) {
                             fokusIz(vhodD);
                             // 'datoteka:' + odtis: aplikacija preveri, da odgovor res da ta skript (SAFEER_DOKAZ, TvTipke.okNaDatoteki).
-                            if (okNaDatoteki(vhodD, aktivenIz()) === 'datoteka') return dokazDatoteke(ZETON_DOTIKA, izziv);
-                            // Skrito polje v oznaki (fokusa ne dobi): en pravi dotik na oznako.
-                            var tD = tockaNamena(target, 'datoteka');
-                            if (tD && pravDotik(tD.x, tD.y)) return true;
+                            // Tretji neodvisni pregled 5. 11. 2026 (N3): pred tipko Enter aplikacija se enkrat vprasa, ali ima
+                            // fokus se isto polje (_safeer_preveri_cilj, izvirni activeElement) - stran je vmes lahko dala fokus
+                            // tujemu okvirju.
+                            if (okNaDatoteki(vhodD, aktivenIz()) === 'datoteka') {
+                                cakajociCilj = { __proto__: null, el: vhodD, nacin: 'enter', cas: casZdaj() };
+                                return dokazDatoteke(ZETON_DOTIKA, izziv);
+                            }
+                            // Skrito polje v oznaki (fokusa ne dobi): en pravi dotik na oznako (aplikacija tocko pred dotikom
+                            // preveri se enkrat, ChromiumEngineView.triggerNativeTap).
+                            if (pravDotikNamena(target, 'datoteka')) return true;
                         }
                     }
                     // Tuj okvir: pravi dotik samo na gumb Google (GSI, SAFEER_OKVIR_GUMB) ali potrditveno polje reCAPTCHA/hCaptcha
@@ -3389,8 +3574,9 @@
                     if (target && (target.tagName || '').toUpperCase() === 'IFRAME') {
                         if (!jeVidenOkvir(target)) return false;
                         if (!potrjena) return true;
-                        var tG = tockaNamena(target, 'google');
-                        if (tG) pravDotik(tG.x, tG.y);
+                        // Tretji neodvisni pregled 5. 11. 2026: OK v noben tuj okvir ne seze - namig za kazalec (enkrat na stran).
+                        if (PRAVI_DOTIK_V_OKVIR !== true) return namigKazalca(izziv);
+                        pravDotikNamena(target, 'google');
                         return true;
                     }
                     if (target) {
@@ -3433,6 +3619,12 @@
                 if (!porabiTipko()) return false;
                 vTipki = true;
                 try { return klikIzbrane(izziv); } finally { vTipki = false; }
+            });
+            // Druga preverba cilja tik pred pravim dejanjem (SAFEER_PREVERBA_CILJA): samo z dokazom tipke, sicer stran klic
+            // porabi in nas vprasa za odtis.
+            izvoziZaAplikacijo('_safeer_preveri_cilj', function (izziv) {
+                if (!porabiTipko()) { cakajociCilj = null; return ''; }
+                return preveriCilj(izziv);
             });
 
             // 5. Samodejno dodajanje tabindex. Piskotkov ne sprejemamo in ne zavracamo namesto uporabnika

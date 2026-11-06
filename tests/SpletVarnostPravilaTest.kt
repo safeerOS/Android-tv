@@ -287,5 +287,17 @@ fun main() {
     check(!P.istiIzvor("http://192.168.1.20:443/", hub)) { "druga shema ne" }
     check(!P.istiIzvor("https://192.168.1.20/", "")) { "brez zaupanega naslova ne" }
     check(!P.istiIzvor("ni naslov", hub)) { "neveljaven naslov ne" }
+    // Tretji neodvisni pregled 5. 11. 2026 (N8): nonce prejsnje strani v tv_spatial.js in izraz zive kopije.
+    check(P.vstaviPrejsnjiNonce("'${P.PREJ_NONCE_MESTO}'", n1) == "'$n1'") { "vstavi prejsnji nonce" }
+    check(P.vstaviPrejsnjiNonce("'${P.PREJ_NONCE_MESTO}'", "') ; alert(1)//") == "''") { "neveljaven prejsnji nonce: prazno" }
+    check(P.vstaviPrejsnjiNonce("'${P.PREJ_NONCE_MESTO}'", "") == "''") { "brez prejsnje strani: prazno" }
+    check(!P.PREJ_NONCE_MESTO.contains(P.NONCE_IZVOZOV_MESTO) && !P.NONCE_IZVIRNIKOV_MESTO.contains(P.PREJ_NONCE_MESTO)) { "mesta se ne prekrivajo" }
+    val izraz = P.zivaKopijaJs(n1, n2)
+    check(izraz.contains("__safeer_izvirniki_$n1") && izraz.contains("_safeer_tv_remote_installed_$n2") && izraz.contains("I.apply(I.gopd")) { "ziva kopija z izvirniki" }
+    check(runCatching { P.zivaKopijaJs(n1, "x');alert(1);//") }.isFailure) { "neveljaven nonce ne gre v izraz" }
+    // Cetrti slepi pregled 5. 11. 2026 (N-B): odgovor pinga po natancni vrednosti - prej contains("ok") je sprejel 'prej:ok' strani.
+    check(P.odgovorPinga("\"ok\"") == "ok" && P.odgovorPinga(" \"need\" ") == "need")
+    check(P.odgovorPinga("\"prej:ok\"") != "ok" && P.odgovorPinga("\"look\"") != "ok")
+    check(P.odgovorPinga(null) == "" && P.odgovorPinga("\"") == "\"")
     println("SpletVarnostPravilaTest: OK")
 }

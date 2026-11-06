@@ -3,4 +3,5 @@
     <string name="splet_nov_zavihek">Neuer Tab</string><string name="splet_link_povezano">● Verbunden</string><string name="splet_link_ni_povezano">○ Nicht verbunden</string>
     <string name="splet_scit">Schild</string><string name="splet_portal_naslov">Verknüpfung hinzufügen</string><string name="splet_portal_ime">Name</string>
     <string name="splet_portal_url">Adresse</string><string name="splet_portal_dodaj">Hinzufügen</string><string name="splet_portal_neveljaven">Gib eine gültige Webadresse mit http oder https ein.</string><string name="splet_portal_dodan">Verknüpfung hinzugefügt.</string>
+    <string name="splet_namig_kazalec">OK erreicht kein Feld einer anderen Website (z. B. Anmeldung oder Prüfung). Schalte den Zeiger ein (rote Taste oder OK gedrückt halten), bewege ihn auf die Schaltfläche und drücke OK.</string>
 </resources>

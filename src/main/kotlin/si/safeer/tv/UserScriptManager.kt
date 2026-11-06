@@ -892,10 +892,11 @@ object UserScriptManager {
         // webView je tu ze ChromiumEngineView (pametna pretvorba po vrstici zgoraj).
         val izvirniki = webView.izvirnikiRegistrirani
         // Neodvisni pregled 5. 11. 2026: nakljucni del imen izvirnikov (pogled) in izvozov (stran).
-        return SpletVarnostPravila.vstaviNonce(
+        // Tretji neodvisni pregled 5. 11. 2026 (N8): nonce prejsnje strani - ziva kopija v istem dokumentu prepreci drugo.
+        return SpletVarnostPravila.vstaviPrejsnjiNonce(SpletVarnostPravila.vstaviNonce(
             SpletVarnostPravila.vstaviIzvirnike(SpletVarnostPravila.vstaviZeton(predloga, zeton), izvirniki),
             webView.nonceIzvirnikov, webView.nonceIzvozov
-        )
+        ), webView.nonceIzvozovPrej, webView.nonceIzvirnikovPrej.ifEmpty { webView.nonceIzvirnikov })
     }
 
     private const val YOUTUBE_TV_LEANBACK_JS = """
@@ -1326,8 +1327,21 @@ object UserScriptManager {
         if (isGoogleDomain(target)) return
         // Neodvisni pregled 5. 11. 2026 (najdba 6): zastavica ima nakljucni del imena te strani (nonceIzvozov) - stran je pred
         // nasim skriptom ne more zasesti. Brez nasega pogleda: staro ime (skript se v tak pogled ne vbrizga z zetonom).
-        val nonce = (webView as? ChromiumEngineView)?.nonceIzvozov
+        val cev = webView as? ChromiumEngineView
+        val nonce = cev?.nonceIzvozov
         val pogoj = if (nonce != null && SpletVarnostPravila.jeNonce(nonce)) "window._safeer_tv_remote_installed_$nonce === true" else "window._safeer_tv_remote_installed"
+        // Tretji neodvisni pregled 5. 11. 2026 (N8): onPageStarted brez novega dokumenta - v dokumentu tece kopija s prejsnjim
+        // nonce. Zastavico preverimo z izvirnim getOwnPropertyDescriptor (IZVIRNIKI_JS; stran ga ne prepise) in se vrnemo na
+        // par te kopije, namesto da bi vbrizgali drugo.
+        val prej = cev?.nonceIzvozovPrej.orEmpty()
+        // Peti slepi pregled (N5): ziva kopija v istem dokumentu ima izvirnike pod imenom prejsnje strani.
+        val izPrej = cev?.nonceIzvirnikovPrej.orEmpty().ifEmpty { cev?.nonceIzvirnikov.orEmpty() }
+        val prejPogoj = if (cev != null && SpletVarnostPravila.jeNonce(prej) && prej != nonce && SpletVarnostPravila.jeNonce(izPrej))
+            SpletVarnostPravila.zivaKopijaJs(izPrej, prej) else "false"
+        // Cetrti slepi pregled 5. 11. 2026 (N-B): zastavica s prejsnjim nonce ni dokaz - kopija odgovori na nakljucen izziv z
+        // odtisom svojega zetona (tv_spatial.js _safeer_ziv); preveri ga ChromiumEngineView.vrniPrejsnjoStran.
+        val izzivZiv = TvTipke.novIzziv()
+        val zivKlic = if (SpletVarnostPravila.jeNonce(prej)) "var f=window._safeer_ziv_$prej;return 'prej:'+(typeof f==='function'?f('$izzivZiv'):'');" else "return 'need';"
         val ping = """
             (function(){
                 try {
@@ -1335,12 +1349,24 @@ object UserScriptManager {
                         try { if (window._safeerSiteAgent) window._safeerSiteAgent.onPageReady(); } catch (e) {}
                         return 'ok';
                     }
+                    if ($prejPogoj) { $zivKlic }
                 } catch (e2) {}
                 return 'need';
             })();
         """.trimIndent()
         webView.evaluateJavascript(ping) { result ->
-            if (result != null && result.contains("ok")) {
+            // Natancna primerjava (prej: contains - odgovor strani 'prej:ok' je veljal za 'ok' in skripta ni bilo).
+            val odg = SpletVarnostPravila.odgovorPinga(result)
+            if (odg.startsWith("prej:") && cev != null) {
+                if (cev.vrniPrejsnjoStran(prej, odg.removePrefix("prej:"), izzivZiv)) {
+                    try { webView.evaluateJavascript("try{if(window._safeerSiteAgent)window._safeerSiteAgent.onPageReady()}catch(e){}", null) } catch (_: Exception) {}
+                    return@evaluateJavascript
+                }
+                android.util.Log.w("SafeerSplet", "lazna ziva kopija prejsnje strani: nov zeton in nov skript")
+                injectSiteScripts(webView, pageUrl, isDarkMode, finished = true)
+                return@evaluateJavascript
+            }
+            if (odg == "ok") {
                 webView.evaluateJavascript(MOBILE_MEDIA_AUDIO_JS, null)
                 if (!temniCss(webView, isDarkMode)) removeCss(webView, "safeer-dark-mode-style")
                 else webView.evaluateJavascript(SAM_TEMEN_JS, null)

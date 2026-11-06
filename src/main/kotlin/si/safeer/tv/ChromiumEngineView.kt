@@ -63,8 +63,10 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
          * Neodvisni pregled 5. 11. 2026 (najdbi 5 in 7): tudi izvirna defineProperty, getOwnPropertyDescriptor, focus,
          * activeElement, control in type (izvozi, polje za datoteko); ime ima nakljucni del pogleda ([nonceIzvirnikov],
          * [izvirnikiJs]), opisnik je brez prototipa.
+         * Tretji neodvisni pregled 5. 11. 2026 (N5): tudi most SafeerBridge in njegova metoda triggerNativeTap (most, tap) -
+         * Object.freeze na mostu Java ni dokazan, tv_spatial.js zato window.SafeerBridge ne bere vec; disabled za polje datoteke.
          */
-        internal const val IZVIRNIKI_JS = """(function(){'use strict';try{if(window.top!==window)return;}catch(e){return;}var I=null;try{var R=Reflect.apply,gd=Object.getOwnPropertyDescriptor;var g=function(o,k){var d=gd(o,k);return d&&d.get;};var r=DOMRectReadOnly.prototype;I=Object.freeze({apply:R,gbcr:Element.prototype.getBoundingClientRect,efp:Document.prototype.elementFromPoint,contains:Node.prototype.contains,tag:g(Element.prototype,'tagName'),src:g(HTMLIFrameElement.prototype,'src'),rl:g(r,'left'),rt:g(r,'top'),rw:g(r,'width'),rh:g(r,'height'),now:Performance.prototype.now,perf:performance,dp:Object.defineProperty,gopd:gd,ctl:g(HTMLLabelElement.prototype,'control'),typ:g(HTMLInputElement.prototype,'type'),fokus:HTMLElement.prototype.focus,akt:g(Document.prototype,'activeElement')});}catch(e){I=null;}try{Object.defineProperty(window,'__safeer_izvirniki_'+'__SAFEER_NONCE_IZVIRNIKOV__',{__proto__:null,value:I,writable:false,configurable:false,enumerable:false});}catch(e){}})();"""
+        internal const val IZVIRNIKI_JS = """(function(){'use strict';try{if(window.top!==window)return;}catch(e){return;}var I=null,M=null,T=null;try{M=window.SafeerBridge||null;T=(M&&typeof M.triggerNativeTap==='function')?M.triggerNativeTap:null;if(!T)M=null;}catch(e){M=null;T=null;}try{var R=Reflect.apply,gd=Object.getOwnPropertyDescriptor;var g=function(o,k){var d=gd(o,k);return d&&d.get;};var r=DOMRectReadOnly.prototype;I=Object.freeze({apply:R,gbcr:Element.prototype.getBoundingClientRect,efp:Document.prototype.elementFromPoint,contains:Node.prototype.contains,tag:g(Element.prototype,'tagName'),src:g(HTMLIFrameElement.prototype,'src'),rl:g(r,'left'),rt:g(r,'top'),rw:g(r,'width'),rh:g(r,'height'),now:Performance.prototype.now,perf:performance,dp:Object.defineProperty,gopd:gd,ctl:g(HTMLLabelElement.prototype,'control'),typ:g(HTMLInputElement.prototype,'type'),fokus:HTMLElement.prototype.focus,akt:g(Document.prototype,'activeElement'),dis:g(HTMLInputElement.prototype,'disabled'),most:M,tap:T});}catch(e){I=null;}try{Object.defineProperty(window,'__safeer_izvirniki_'+'__SAFEER_NONCE_IZVIRNIKOV__',{__proto__:null,value:I,writable:false,configurable:false,enumerable:false});}catch(e){}})();"""
 
         /** IZVIRNIKI_JS z nakljucnim delom imena tega pogleda (isti niz dobi tv_spatial.js, SpletVarnostPravila.vstaviNonce). */
         internal fun izvirnikiJs(nonce: String): String = IZVIRNIKI_JS.replace(SpletVarnostPravila.NONCE_IZVIRNIKOV_MESTO, nonce)
@@ -183,7 +185,7 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
             val js = namiznaJs(v)
             try {
                 if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT))
-                    androidx.webkit.WebViewCompat.addDocumentStartJavaScript(this, js, setOf("*"))
+                    dodajSkriptZacetka(js, setOf("*"))
             } catch (_: Exception) {}
         }
     private var namiznaSkripta = false
@@ -277,14 +279,96 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
     /** IZVIRNIKI_JS je registriran ob zacetku dokumenta: samo tedaj tv_spatial.js zaupa lastnosti __safeer_izvirniki_*. */
     @Volatile internal var izvirnikiRegistrirani = false
         private set
-    /** Nakljucni del imena izvirnikov (na pogled - skript zacetka dokumenta je registriran enkrat), neodvisni pregled 5. 11. 2026. */
-    internal val nonceIzvirnikov: String = SpletVarnostPravila.novNonce()
+    /**
+     * Nakljucni del imena izvirnikov (__safeer_izvirniki_<n>) TRENUTNEGA dokumenta glavnega okvirja.
+     * Peti slepi pregled 5. 11. 2026 (N5): prej enak za ves pogled - stran ga je prebrala (Object.getOwnPropertyNames) in ga
+     * poznala v vseh poznejsih dokumentih. Zdaj ga ob vsaki navigaciji glavnega okvirja zamenjamo (nova registracija
+     * skripta zacetka dokumenta, stara odstranjena - [registrirajIzvirnike]); aplikacija zaupa samo imenu dokumenta, ki je
+     * nastal po zadnji registraciji. Ce dokument kljub temu dobi drugo ime (navigacija se je zacela pred registracijo),
+     * izvirnikov ni in pravih dejanj ni (varna napaka).
+     */
+    @Volatile internal var nonceIzvirnikov: String = ""
+        private set
+    /** Ime izvirnikov prejsnjega dokumenta - samo za preverbo zive kopije v istem dokumentu (N8, [vrniPrejsnjoStran]). */
+    @Volatile internal var nonceIzvirnikovPrej: String = ""
+        private set
+    /** Ime, ki ga dobi naslednji dokument (zadnja registracija). */
+    private var nonceIzvirnikovNaslednji: String = ""
+    private var izvirnikiRocaj: androidx.webkit.ScriptHandler? = null
+    /**
+     * Drugi skripti zacetka dokumenta v vrstnem redu registracije (izvor, rocaj). Izvirniki morajo teci PRED njimi:
+     * protiadblock.js ovije Element.prototype.getBoundingClientRect (ovoj klice Function.prototype.apply, ki ga lahko prepise
+     * stran) - izvirniki, zajeti za njim, bi bili ponarejeni (peti slepi pregled, N5; preizkus tv_peti_pregled_test.js).
+     * Ob novi registraciji izvirnikov zato znova registriramo tudi te, v istem vrstnem redu.
+     */
+    private class SkriptZacetka(val js: String, val izvori: Set<String>, var rocaj: androidx.webkit.ScriptHandler?)
+    private val skriptiZacetka = ArrayList<SkriptZacetka>()
+
+    /** Skript zacetka dokumenta za izvirniki (vrstni red ostane tudi ob menjavi imena izvirnikov). */
+    private fun dodajSkriptZacetka(js: String, izvori: Set<String>) {
+        val h = androidx.webkit.WebViewCompat.addDocumentStartJavaScript(this, js, izvori)
+        skriptiZacetka += SkriptZacetka(js, izvori, h)
+    }
+
+    /**
+     * Nova registracija IZVIRNIKI_JS z novim imenom (peti slepi pregled, N5): odstrani vse skripte zacetka dokumenta,
+     * registrira izvirnike in nato ostale v prejsnjem vrstnem redu. Dokumenti, ki ze tecejo, obdrzijo svoje.
+     */
+    private fun registrirajIzvirnike(): Boolean {
+        val n = SpletVarnostPravila.novNonce()
+        return try {
+            try { izvirnikiRocaj?.remove() } catch (_: Exception) {}
+            for (sk in skriptiZacetka) { try { sk.rocaj?.remove() } catch (_: Exception) {}; sk.rocaj = null }
+            izvirnikiRocaj = androidx.webkit.WebViewCompat.addDocumentStartJavaScript(this, izvirnikiJs(n), setOf("*"))
+            nonceIzvirnikovNaslednji = n
+            for (sk in skriptiZacetka) {
+                try { sk.rocaj = androidx.webkit.WebViewCompat.addDocumentStartJavaScript(this, sk.js, sk.izvori) }
+                catch (e: Exception) { android.util.Log.w("SafeerSplet", "skript zacetka: ponovna registracija ni uspela (${e.javaClass.simpleName})") }
+            }
+            true
+        } catch (e: Exception) {
+            android.util.Log.w("SafeerSplet", "izvirniki: registracija ni uspela (${e.javaClass.simpleName})")
+            false
+        }
+    }
     /**
      * Nakljucni del imen izvozov tv_spatial.js za trenutno stran (nov ob vsaki strani, kot [zetonDotika]): stran imen pred
      * nasim skriptom ne pozna in jih ne more zasesti (neodvisni pregled 5. 11. 2026, najdba 6).
      */
     @Volatile internal var nonceIzvozov: String = SpletVarnostPravila.novNonce()
         private set
+    /**
+     * Tretji neodvisni pregled 5. 11. 2026 (N8): onPageStarted brez novega dokumenta (prenos, odgovor 204) zamenja zeton in
+     * nonce, v dokumentu pa tece se kopija skripta s prejsnjima. Prejsnji par hranimo; ce je v dokumentu ziva kopija s
+     * prejsnjim nonce, se tv_spatial.js ne namesti drugic, aplikacija pa se vrne na ta par ([vrniPrejsnjoStran]).
+     */
+    @Volatile internal var nonceIzvozovPrej: String = ""
+        private set
+    @Volatile private var zetonDotikaPrej: String = ""
+    /**
+     * Isti dokument ima zivo kopijo skripta s prejsnjim nonce (UserScriptManager.injectOnPageFinished): nazaj na njen par.
+     * Cetrti slepi pregled 5. 11. 2026 (N-B): nova stran je nonce prejsnje prebrala (Object.getOwnPropertyNames) in sama
+     * postavila zastavico s tem imenom - aplikacija ji je vrnila prejsnji zeton (orakelj) in daljinca ni namestila. Zdaj samo,
+     * ce kopija na nakljucen [izziv] vrne odtis PREJSNJEGA zetona ([odgovor], TvTipke.zivaKopijaVelja); sicer prejsnji par
+     * pozabimo (skript se namesti z novim parom, brez preverbe prejsnjega nonce).
+     */
+    internal fun vrniPrejsnjoStran(nonce: String, odgovor: String?, izziv: String): Boolean {
+        val velja = SpletVarnostPravila.jeNonce(nonce) && nonce == nonceIzvozovPrej && zetonDotikaPrej.length >= 32 &&
+            TvTipke.zivaKopijaVelja(odgovor, zetonDotikaPrej, izziv)
+        if (!velja) {
+            nonceIzvozovPrej = ""
+            zetonDotikaPrej = ""
+            nonceIzvirnikovPrej = ""
+            return false
+        }
+        zetonDotika = zetonDotikaPrej
+        nonceIzvozov = nonceIzvozovPrej
+        // Isti dokument: izvirniki so pod imenom prejsnje strani (N5).
+        if (SpletVarnostPravila.jeNonce(nonceIzvirnikovPrej)) nonceIzvirnikov = nonceIzvirnikovPrej
+        return true
+    }
+    /** Pogled je ze pokazal namig za kazalec na tej strani (zeton strani) - namig najvec enkrat na stran. */
+    @Volatile internal var namigKazalcaZa: String = ""
     /** Strogo narascajoc stevec tipk daljinca za dokaz tipke (TvTipke.ukazTipke, najdba 5: starejsi par ne velja vec). */
     private val stevecTipk = java.util.concurrent.atomic.AtomicLong(0L)
     internal fun naslednjaTipka(): Long = stevecTipk.incrementAndGet()
@@ -395,16 +479,15 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
         try {
             if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT)) {
                 // Izvirniki metod za tv_spatial.js pred vsemi drugimi skripti (IZVIRNIKI_JS, pregled Groka 5. 11. 2026).
-                androidx.webkit.WebViewCompat.addDocumentStartJavaScript(this, izvirnikiJs(nonceIzvirnikov), setOf("*"))
-                izvirnikiRegistrirani = true
-                androidx.webkit.WebViewCompat.addDocumentStartJavaScript(
-                    this,
-                    UserScriptManager.GPC_AND_DNT_JS,
+                // Peti slepi pregled (N5): ime izvirnikov se menja ob vsaki strani (registrirajIzvirnike v onPageStarted).
+                if (registrirajIzvirnike()) {
+                    nonceIzvirnikov = nonceIzvirnikovNaslednji
+                    izvirnikiRegistrirani = true
+                }
+                dodajSkriptZacetka(UserScriptManager.GPC_AND_DNT_JS,
                     setOf("*")
                 )
-                androidx.webkit.WebViewCompat.addDocumentStartJavaScript(
-                    this,
-                    UserScriptManager.FORCE_UNMUTE_JS,
+                dodajSkriptZacetka(UserScriptManager.FORCE_UNMUTE_JS,
                     setOf(
                         "https://*.youtube.com",
                         "https://youtube.com",
@@ -418,16 +501,14 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
                     }
                 }
                 // Most dotika zaklenjen pred skriptami strani (ZAKLEP_MOSTU_JS, pregled 3. 11. 2026).
-                androidx.webkit.WebViewCompat.addDocumentStartJavaScript(this, ZAKLEP_MOSTU_JS, setOf("*"))
+                dodajSkriptZacetka(ZAKLEP_MOSTU_JS, setOf("*"))
                 // Stran ne sme zaznati blokatorja oglasov: splosna skripta pred skriptami strani (assets/protiadblock.js).
                 UserScriptManager.protiAdblockJs(context).takeIf { it.isNotEmpty() }?.let { js ->
-                    androidx.webkit.WebViewCompat.addDocumentStartJavaScript(this, js, setOf("*"))
+                    dodajSkriptZacetka(js, setOf("*"))
                 }
                 // YouTube brez cakanja na oglas: mora teci pred skriptami strani (assets/youtube_zacetek.js).
                 UserScriptManager.youtubeZacetekJs(context).takeIf { it.isNotEmpty() }?.let { js ->
-                    androidx.webkit.WebViewCompat.addDocumentStartJavaScript(
-                        this,
-                        js,
+                    dodajSkriptZacetka(js,
                         setOf(
                             "https://*.youtube.com",
                             "https://youtube.com",
@@ -582,8 +663,10 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
      * menjava identitete med navigacijo (Gmail »Sign in«: workspace.google.com -> accounts.google.com) sesuje WebView 153.
      */
     private fun uaZaUrl(url: String): String {
-        val isGoogle = UserScriptManager.isGoogleDomain(url)
-        if (isGoogle) {
+        // Cetrti slepi pregled 5. 11. 2026 (N-A): identiteta po sirokem pravilu (GooglePravila.googleIdentiteta), Google nacin
+        // (brez zascite) samo za izrecne gostitelje (GooglePravila.jeGoogle) - obe pravili morata biti enaki tukaj in v
+        // applyUserAgentForUrl, sicer naloziZNovoIdentiteto nalaga v zanki.
+        if (GooglePravila.googleIdentiteta(url)) {
             // Ista identiteta za vse Googlove strani in prijavo (menjava med navigacijo sesuje WebView 153).
             return googleUa(context)
         }
@@ -655,6 +738,8 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
         // NEVER_ALLOW je na televizorju pobral sicer veljavne slike (npr. sličice na YouTube TV).
         settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
         settings.userAgentString = when {
+            // Googlova stran zunaj Google nacina (Gmail, Drive, storage.googleapis.com ...): ista identiteta kot prej, zascita ostane.
+            GooglePravila.googleIdentiteta(url) -> googleUa(context)
             // claude.ai, anthropic.com, Cloudflare preverjanje: kot Googlova prijava (GooglePravila.chromeAndroidStran),
             // brez setUserAgentMetadata (SIGTRAP na TV 1. 11. 2026). X-Requested-With je izklopljen za vse (brezGlaveRequestedWith).
             GooglePravila.chromeAndroidStran(url) -> googleUa(context)
@@ -842,19 +927,34 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
                         android.util.Log.w("SafeerBridge", "Zavrnjen pozen triggerNativeTap (" + odKlica + " ms ali nova stran).")
                         return@runOnUiThread
                     }
-                    // getScale je opuscen od API 17, a edini sinhroni vir povecave; dela na vseh razlicicah.
-                    @Suppress("DEPRECATION") val scale = webView.scale
-                    val vx = x * scale
-                    val vy = y * scale
-                    // Pregled Gemini 2. 11. 2026: dotik samo znotraj vidnega pogleda (tocka izven ni klik na element).
-                    if (!SpletVarnostPravila.dotikVPogledu(vx, vy, webView.width, webView.height)) return@runOnUiThread
-                    val downTime = SystemClock.uptimeMillis()
-                    val down = MotionEvent.obtain(downTime, downTime, MotionEvent.ACTION_DOWN, vx, vy, 0)
-                    val up = MotionEvent.obtain(downTime, SystemClock.uptimeMillis(), MotionEvent.ACTION_UP, vx, vy, 0)
-                    webView.dispatchTouchEvent(down)
-                    webView.dispatchTouchEvent(up)
-                    down.recycle()
-                    up.recycle()
+                    // Tretji neodvisni pregled 5. 11. 2026 (N3): med klicem in dotikom tece koda strani. Tik pred dotikom skript
+                    // cilj preveri znova z izvirniki (_safeer_preveri_cilj, dokaz tipke in nakljucen izziv); dotik samo z
+                    // odtisom zetona te strani (TvTipke.ciljVelja). Preostanek: stran lahko cilj premakne se med tem odgovorom
+                    // in dotikom (dve sporocili med nitjo UI in izrisovalnikom).
+                    val c = webView as? ChromiumEngineView ?: return@runOnUiThread
+                    val izziv = TvTipke.novIzziv()
+                    c.evaluateJavascript(TvTipke.ukazTipke(c.zetonDotika, c.nonceIzvozov, c.naslednjaTipka()) +
+                        TvTipke.izvoz(c.nonceIzvozov, "_safeer_preveri_cilj") + "('$izziv');") { o ->
+                        try {
+                            if (!TvTipke.ciljVelja(o, zetonKlica, izziv, "dotik") || c.zetonDotika != zetonKlica) {
+                                android.util.Log.w("SafeerBridge", "Zavrnjen triggerNativeTap: cilj se je spremenil pred dotikom.")
+                                return@evaluateJavascript
+                            }
+                            // getScale je opuscen od API 17, a edini sinhroni vir povecave; dela na vseh razlicicah.
+                            @Suppress("DEPRECATION") val scale = webView.scale
+                            val vx = x * scale
+                            val vy = y * scale
+                            // Pregled Gemini 2. 11. 2026: dotik samo znotraj vidnega pogleda (tocka izven ni klik na element).
+                            if (!SpletVarnostPravila.dotikVPogledu(vx, vy, webView.width, webView.height)) return@evaluateJavascript
+                            val downTime = SystemClock.uptimeMillis()
+                            val down = MotionEvent.obtain(downTime, downTime, MotionEvent.ACTION_DOWN, vx, vy, 0)
+                            val up = MotionEvent.obtain(downTime, SystemClock.uptimeMillis(), MotionEvent.ACTION_UP, vx, vy, 0)
+                            webView.dispatchTouchEvent(down)
+                            webView.dispatchTouchEvent(up)
+                            down.recycle()
+                            up.recycle()
+                        } catch (_: Exception) {}
+                    }
                 } catch (_: Exception) {}
             }
             return true
@@ -1375,7 +1475,8 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
                     return threatResponse
                 }
                 // Po gostitelju: niz »recaptcha« ali »gstatic.com« v poti ali poizvedbi ni vec izjema od filtra oglasov.
-                if (UserScriptManager.isGoogleDomain(url)) {
+                // Cetrti slepi pregled 5. 11. 2026 (N-A): brez *.googleapis.com z uporabnisko vsebino (GooglePravila.jeGoogleVir).
+                if (GooglePravila.jeGoogleVir(url)) {
                     return null
                 }
                 val method = request.method ?: "GET"
@@ -1427,8 +1528,17 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                 super.onPageStarted(view, url, favicon)
                 // Nov zeton dotika za vsako stran: ukraden zeton prejsnje strani ne velja vec (pregled 3. 11. 2026).
+                zetonDotikaPrej = zetonDotika
+                nonceIzvozovPrej = nonceIzvozov
                 zetonDotika = SpletVarnostPravila.novZeton()
                 nonceIzvozov = SpletVarnostPravila.novNonce()
+                // Peti slepi pregled (N5): ta dokument je nastal po zadnji registraciji izvirnikov - njegovo ime; za
+                // naslednji dokument novo ime (po tem klicu, da se nastavitve ne menjajo sredi povratnega klica).
+                if (izvirnikiRegistrirani) {
+                    nonceIzvirnikovPrej = nonceIzvirnikov
+                    nonceIzvirnikov = nonceIzvirnikovNaslednji
+                    post { if (!uniceno) registrirajIzvirnike() }
+                }
                 if (!EmudhraRevocations.jeOpozorilnaStran(url)) emudhraZastavica.novaNavigacija()
                 if (emudhraBlokirano(view, url)) return
                 url?.let { interceptPageUrl = it }
