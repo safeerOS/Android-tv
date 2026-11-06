@@ -848,6 +848,40 @@ class GlasbaActivity : OsActivity() {
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f); gravity = Gravity.END; setPadding(0, 0, dp(16), 0)
         }
         glava.addView(geslo)
+                mcZnak = FrameLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(48), dp(48)).apply { rightMargin = dp(4) }
+            background = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.OVAL
+                setColor(osBarva(R.color.os_kartica))
+            }
+            addView(ImageView(this@GlasbaActivity).apply {
+                layoutParams = FrameLayout.LayoutParams(-2, -2, Gravity.CENTER)
+                setImageResource(R.drawable.os_ikona_glasba)
+            })
+            addView(View(this@GlasbaActivity).apply {
+                layoutParams = FrameLayout.LayoutParams(dp(8), dp(8), Gravity.TOP or Gravity.END).apply {
+                    topMargin = dp(10); rightMargin = dp(10)
+                }
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    shape = android.graphics.drawable.GradientDrawable.OVAL
+                    setColor(osBarva(R.color.os_mint))
+                }
+            })
+            visibility = View.GONE
+            isFocusable = true
+            isClickable = true
+            contentDescription = getString(R.string.os_mediji_zdaj_igra)
+            setOnClickListener {
+                izberi(DOMOV)
+                glavna.post { mcKarticaPredvajaj?.requestFocus() }
+            }
+            setOnFocusChangeListener { v, fokus ->
+                v.animate().scaleX(if (fokus) 1.05f else 1f).scaleY(if (fokus) 1.05f else 1f).setDuration(120).start()
+                val bg = background as android.graphics.drawable.GradientDrawable
+                bg.setColor(if (fokus) osBarva(R.color.os_kartica_dvignjena) else osBarva(R.color.os_kartica))
+            }
+        }
+        glava.addView(mcZnak)
         iskanjeGumb = gumb(R.drawable.os_ikona_isci, 48, "k:iskanje") { odpriIskanje("") }
         glava.addView(iskanjeGumb)
         // Pregled na TV 6. 11. 2026 12:03: meni ⋮ je samo v Predvajalniku (vlc), zato v Medijskem centru Safeer OS do
