@@ -10532,7 +10532,8 @@ class GlasbaActivity : OsActivity() {
                     android.util.Log.i("SafeerOsMedia", "tokovi: Webtor${if (samoTakoj) " takoj" else ""} ${i + 1}/${kandidati.size}; izbran=${TokIzbira.opisi(opis(w))}, " +
                         "vrsta=${w.oznakaVira}, datoteka=${datotekaOd(w)}, h=${w.hash.take(10)}, idx=${w.datoteka}, sejalcev=${TokIzbira.sejalci(opis(w))}")
                 odpriWebtor(kandidati) {
-                    DiagnostikaPredvajanja.poskus(this@GlasbaActivity, "webtor", kandidati.first().url, "ni predvajal (${kandidati.size} kandidatov)")
+                    // CodeRabbit 5. 11. 2026: zapisan vsak kandidat kroga, ne samo prvi (diagnostika pove vse preizkusene gostitelje).
+                    DiagnostikaPredvajanja.poskusiKroga(this@GlasbaActivity, "webtor", kandidati.map { it.url }, "ni predvajal")
                     Toast.makeText(this, R.string.os_webtor_rezerva, Toast.LENGTH_SHORT).show()
                     poskusiWebtor(samoTakoj, potem)
                 }

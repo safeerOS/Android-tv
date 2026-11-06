@@ -54,6 +54,18 @@ object DiagnostikaPredvajanja {
         Log.i(P.OZNAKA, "poskus: ${p.vir}${if (p.gostitelj.isNotEmpty()) "@" + p.gostitelj else ""} (${p.razlog})")
     }
 
+    /** Neuspel krog vec hkratnih kandidatov enega vira (Webtor): vsak kandidat svoj poskus ([DiagnostikaPredvajanjaPravila.poskusiKroga]). */
+    fun poskusiKroga(c: Context, vir: String, naslovi: List<String?>, razlog: String) {
+        if (!vklopljena(c)) return
+        val novi = P.poskusiKroga(vir, naslovi, razlog)
+        synchronized(poskusi) {
+            val kdaj = android.os.SystemClock.elapsedRealtime()
+            novi.forEach { poskusi += Cakajoci(kdaj, it) }
+            while (poskusi.size > 20) poskusi.removeAt(0)
+        }
+        novi.forEach { p -> Log.i(P.OZNAKA, "poskus: ${p.vir}${if (p.gostitelj.isNotEmpty()) "@" + p.gostitelj else ""} (${p.razlog})") }
+    }
+
     /** Predvajanje [naslov] ni uspelo: vnos s poskusi zadnjih minut in razlogom. */
     fun neuspeh(c: Context, naslov: String?, vrsta: String, razlog: String) {
         try {
