@@ -9626,77 +9626,107 @@ class GlasbaActivity : OsActivity() {
         })
 
         var okno: AlertDialog? = null
+        var fokusKljuc: Pair<DomovVrsticePravila.Vrstica, DomovVrsticePravila.DelVrstice>? = null
+        
         fun osveziOkna() {
             vsebina.removeAllViews()
             val izbrane = DomovVrstice.izbrane(this)
             val vse = izbrane + (DomovVrsticePravila.Vrstica.values().toList() - izbrane)
+            val dotik = window.decorView.isInTouchMode
             
             for (v in vse) {
                 val vklopljena = v in izbrane
-                val izbranaPremik = v == vrsticePremik
+                val nacinPremika = v == vrsticePremik
                 
-                val cb = android.widget.CheckBox(this).apply {
-                    text = imeVrstice(v)
-                    isChecked = vklopljena
-                    setTextColor(osBarva(if (izbranaPremik) R.color.os_mint else R.color.os_besedilo))
-                    textSize = 16f
-                    setPadding(dp(8), dp(12), dp(8), dp(12))
+                val vrsticaPlosca = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
                 }
                 
-                val gumb = LinearLayout(this).apply {
+                val stikalo = android.widget.CheckBox(this).apply {
+                    text = imeVrstice(v)
+                    isChecked = vklopljena
+                    setTextColor(osBarva(if (nacinPremika) R.color.os_mint else R.color.os_besedilo))
+                    textSize = 16f
+                    setPadding(dp(8), dp(12), dp(8), dp(12))
+                    isClickable = false
+                    isFocusable = false
+                }
+                
+                fun ozadjePostavke() = android.graphics.drawable.StateListDrawable().apply {
+                    addState(intArrayOf(android.R.attr.state_focused), android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(8).toFloat(); setColor(getColor(R.color.os_kartica_steklo_fokus)); setStroke(dp(2), getColor(R.color.os_mint)) })
+                    addState(intArrayOf(), android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(8).toFloat(); setColor(0) })
+                }
+                
+                val stikaloGumb = LinearLayout(this).apply {
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER_VERTICAL
                     isFocusable = true
                     isClickable = true
-                    background = android.graphics.drawable.StateListDrawable().apply {
-                        addState(intArrayOf(android.R.attr.state_focused), 
-                            android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(8).toFloat(); setColor(osBarva(R.color.os_mint) and 0x33FFFFFF) })
-                        addState(intArrayOf(), 
-                            android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(8).toFloat(); setColor(if (izbranaPremik) osBarva(R.color.os_mint) and 0x55FFFFFF else 0) })
-                    }
-                    
-                    addView(cb, LinearLayout.LayoutParams(0, -2, 1f))
-                    
-                    if (ozekZaslon() || packageName.endsWith(".tablet")) {
-                        addView(besedilo(20f, osBarva(R.color.os_besedilo)).apply { text = "▲"; setPadding(dp(12), dp(12), dp(12), dp(12)); setOnClickListener { DomovVrstice.shrani(this@GlasbaActivity, DomovVrsticePravila.premakni(izbrane, v, -1)); osveziOkna() } })
-                        addView(besedilo(20f, osBarva(R.color.os_besedilo)).apply { text = "▼"; setPadding(dp(12), dp(12), dp(12), dp(12)); setOnClickListener { DomovVrstice.shrani(this@GlasbaActivity, DomovVrsticePravila.premakni(izbrane, v, 1)); osveziOkna() } })
-                    }
-                    
+                    background = ozadjePostavke()
+                    addView(stikalo, LinearLayout.LayoutParams(0, -2, 1f))
                     setOnClickListener {
-                        if (vrsticePremik == null) {
+                        if (!nacinPremika) {
+                            fokusKljuc = v to DomovVrsticePravila.DelVrstice.STIKALO
                             DomovVrstice.shrani(this@GlasbaActivity, DomovVrsticePravila.preklopi(izbrane, v))
-                            osveziOkna()
-                        } else {
-                            vrsticePremik = null
                             osveziOkna()
                         }
                     }
-                    setOnKeyListener { _, kc, e ->
-                        if (e.action == android.view.KeyEvent.ACTION_DOWN) {
-                            if (kc == android.view.KeyEvent.KEYCODE_DPAD_CENTER || kc == android.view.KeyEvent.KEYCODE_ENTER) {
-                                if (vrsticePremik == null) vrsticePremik = v else vrsticePremik = null
-                                osveziOkna()
-                                return@setOnKeyListener true
-                            }
-                            if (vrsticePremik == v) {
+                }
+                
+                vrsticaPlosca.addView(stikaloGumb, LinearLayout.LayoutParams(0, -2, 1f).apply { marginEnd = dp(8) })
+                
+                if (dotik) {
+                    vrsticaPlosca.addView(besedilo(20f, osBarva(R.color.os_besedilo)).apply { text = "▲"; setPadding(dp(12), dp(12), dp(12), dp(12)); setOnClickListener { DomovVrstice.shrani(this@GlasbaActivity, DomovVrsticePravila.premakni(izbrane, v, -1)); osveziOkna() } })
+                    vrsticaPlosca.addView(besedilo(20f, osBarva(R.color.os_besedilo)).apply { text = "▼"; setPadding(dp(12), dp(12), dp(12), dp(12)); setOnClickListener { DomovVrstice.shrani(this@GlasbaActivity, DomovVrsticePravila.premakni(izbrane, v, 1)); osveziOkna() } })
+                } else {
+                    val premakniGumb = besedilo(16f, osBarva(if (nacinPremika) R.color.os_mint else R.color.os_besedilo), true).apply {
+                        text = getString(R.string.os_premakni)
+                        setPadding(dp(12), dp(12), dp(12), dp(12))
+                        isFocusable = true
+                        isClickable = true
+                        background = ozadjePostavke()
+                        setOnClickListener {
+                            vrsticePremik = if (nacinPremika) null else v
+                            fokusKljuc = v to DomovVrsticePravila.fokusPoOsvezi(vrsticePremik != null)
+                            osveziOkna()
+                        }
+                        setOnKeyListener { _, kc, e ->
+                            if (e.action == android.view.KeyEvent.ACTION_DOWN && nacinPremika) {
                                 if (kc == android.view.KeyEvent.KEYCODE_DPAD_UP) {
+                                    fokusKljuc = v to DomovVrsticePravila.DelVrstice.PREMAKNI
                                     DomovVrstice.shrani(this@GlasbaActivity, DomovVrsticePravila.premakni(izbrane, v, -1))
                                     osveziOkna()
                                     return@setOnKeyListener true
                                 }
                                 if (kc == android.view.KeyEvent.KEYCODE_DPAD_DOWN) {
+                                    fokusKljuc = v to DomovVrsticePravila.DelVrstice.PREMAKNI
                                     DomovVrstice.shrani(this@GlasbaActivity, DomovVrsticePravila.premakni(izbrane, v, 1))
                                     osveziOkna()
                                     return@setOnKeyListener true
                                 }
+                                if (kc == android.view.KeyEvent.KEYCODE_BACK) {
+                                    vrsticePremik = null
+                                    fokusKljuc = v to DomovVrsticePravila.DelVrstice.PREMAKNI
+                                    osveziOkna()
+                                    return@setOnKeyListener true
+                                }
                             }
+                            false
                         }
-                        false
+                    }
+                    vrsticaPlosca.addView(premakniGumb)
+                    
+                    if (fokusKljuc?.first == v) {
+                        if (fokusKljuc?.second == DomovVrsticePravila.DelVrstice.STIKALO) {
+                            stikaloGumb.post { stikaloGumb.requestFocus() }
+                        } else if (fokusKljuc?.second == DomovVrsticePravila.DelVrstice.PREMAKNI) {
+                            premakniGumb.post { premakniGumb.requestFocus() }
+                        }
                     }
                 }
-                cb.isClickable = false
-                cb.isFocusable = false
-                vsebina.addView(gumb)
+                
+                vsebina.addView(vrsticaPlosca)
             }
             vsebina.addView(besedilo(16f, osBarva(R.color.os_besedilo)).apply { 
                 text = getString(R.string.os_dodatek_ponastavi)
@@ -9704,7 +9734,7 @@ class GlasbaActivity : OsActivity() {
                 isClickable = true
                 isFocusable = true
                 background = android.graphics.drawable.StateListDrawable().apply {
-                    addState(intArrayOf(android.R.attr.state_focused), android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(8).toFloat(); setColor(osBarva(R.color.os_mint) and 0x33FFFFFF) })
+                    addState(intArrayOf(android.R.attr.state_focused), android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(8).toFloat(); setColor(getColor(R.color.os_kartica_steklo_fokus)); setStroke(dp(2), getColor(R.color.os_mint)) })
                     addState(intArrayOf(), android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(8).toFloat(); setColor(0) })
                 }
                 setOnClickListener { DomovVrstice.ponastavi(this@GlasbaActivity); vrsticePremik = null; osveziOkna() }
@@ -9719,36 +9749,79 @@ class GlasbaActivity : OsActivity() {
     private fun nastavitveMedijskegaCentra() {
         fun vklop(da: Boolean) = getString(if (da) R.string.os_vklopljeno else R.string.os_izklopljeno)
         val pravila = MedijskiCenterNastavitvePravila.vidneSkupine(packageName)
-        val post = pravila.flatMap { s ->
-            val k = listOf(Pair<String, (() -> Unit)?>(getString(s.id.naslov), null))
-            if (s.id == MedijskiCenterNastavitvePravila.Skupina.SPLOSNE) emptyList() else k + s.postavke.map { p ->
-                val osnovaNaslova = getString(p.naslov)
-                val naslov = when (p) {
-                    MedijskiCenterNastavitvePravila.Postavka.SAMODEJNO_SKLADBA -> "  $osnovaNaslova: " + vklop(GlasbaStoritev.samodejnoNaslednja(this@GlasbaActivity))
-                    MedijskiCenterNastavitvePravila.Postavka.SAMODEJNO_ALBUM -> "  $osnovaNaslova: " + vklop(GlasbaStoritev.samodejnoAlbum(this@GlasbaActivity))
-                    MedijskiCenterNastavitvePravila.Postavka.SPLOSNE_NASTAVITVE -> osnovaNaslova
-                    else -> "  $osnovaNaslova"
+        
+        // Remove SPLOSNE group logic which removes and appends - now exactly one Splosne group will be at the end.
+        
+        val a = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(R.string.os_nastavitve_mc)
+        val vsebina = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(16), dp(16), dp(16)) }
+        val drsnik = ScrollView(this).apply { addView(vsebina) }
+        a.setView(drsnik)
+
+        var fokusKljuc: MedijskiCenterNastavitvePravila.Postavka? = null
+
+        fun ozadjePostavke() = android.graphics.drawable.StateListDrawable().apply {
+            addState(intArrayOf(android.R.attr.state_focused), android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(8).toFloat(); setColor(getColor(R.color.os_kartica_steklo_fokus)); setStroke(dp(2), getColor(R.color.os_mint)) })
+            addState(intArrayOf(), android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(8).toFloat(); setColor(0) })
+        }
+
+        fun osveziOkna() {
+            vsebina.removeAllViews()
+            var prvaPostavka: View? = null
+            
+            for (s in pravila) {
+                // Group title
+                if (s.id.naslov != 0) {
+                    vsebina.addView(besedilo(18f, osBarva(R.color.os_mint), true).apply {
+                        text = getString(s.id.naslov).uppercase()
+                        setPadding(dp(12), dp(16), dp(12), dp(8))
+                        isFocusable = false // naslov skupine ni fokusen
+                    })
                 }
-                Pair<String, (() -> Unit)?>(naslov) {
-                    when (p) {
-                        MedijskiCenterNastavitvePravila.Postavka.MOJI_VIRI -> { izberiNaMestu(VIRI) }
-                        MedijskiCenterNastavitvePravila.Postavka.DEBRID -> nastavitveDebrida()
-                        MedijskiCenterNastavitvePravila.Postavka.VRSTICE -> nastavitveVrstic()
-                        MedijskiCenterNastavitvePravila.Postavka.SAMODEJNO_SKLADBA -> { GlasbaStoritev.nastaviSamodejnoNaslednja(this@GlasbaActivity, !GlasbaStoritev.samodejnoNaslednja(this@GlasbaActivity)); nastavitveMedijskegaCentra() }
-                        MedijskiCenterNastavitvePravila.Postavka.SAMODEJNO_ALBUM -> { GlasbaStoritev.nastaviSamodejnoAlbum(this@GlasbaActivity, !GlasbaStoritev.samodejnoAlbum(this@GlasbaActivity)); nastavitveMedijskegaCentra() }
-                        MedijskiCenterNastavitvePravila.Postavka.PREDPOMNILNIK -> nastavitvePredpomnilnika()
-                        MedijskiCenterNastavitvePravila.Postavka.POCISTI_NEDAVNO -> potrdiPocistiNedavno()
-                        MedijskiCenterNastavitvePravila.Postavka.SPLOSNE_NASTAVITVE -> startActivity(Intent(this@GlasbaActivity, NastavitveActivity::class.java))
+                
+                for (p in s.postavke) {
+                    val osnovaNaslova = getString(p.naslov)
+                    val naslov = when (p) {
+                        MedijskiCenterNastavitvePravila.Postavka.SAMODEJNO_SKLADBA -> osnovaNaslova + ": " + vklop(GlasbaStoritev.samodejnoNaslednja(this@GlasbaActivity))
+                        MedijskiCenterNastavitvePravila.Postavka.SAMODEJNO_ALBUM -> osnovaNaslova + ": " + vklop(GlasbaStoritev.samodejnoAlbum(this@GlasbaActivity))
+                        else -> osnovaNaslova
+                    }
+                    
+                    val postavkaGumb = besedilo(16f, osBarva(R.color.os_besedilo)).apply {
+                        text = naslov
+                        setPadding(dp(16), dp(12), dp(16), dp(12))
+                        isFocusable = true
+                        isClickable = true
+                        background = ozadjePostavke()
+                        setOnClickListener {
+                            fokusKljuc = p
+                            when (p) {
+                                MedijskiCenterNastavitvePravila.Postavka.MOJI_VIRI -> { izberiNaMestu(VIRI) }
+                                MedijskiCenterNastavitvePravila.Postavka.DEBRID -> nastavitveDebrida()
+                                MedijskiCenterNastavitvePravila.Postavka.VRSTICE -> nastavitveVrstic()
+                                MedijskiCenterNastavitvePravila.Postavka.SAMODEJNO_SKLADBA -> { GlasbaStoritev.nastaviSamodejnoNaslednja(this@GlasbaActivity, !GlasbaStoritev.samodejnoNaslednja(this@GlasbaActivity)); osveziOkna() }
+                                MedijskiCenterNastavitvePravila.Postavka.SAMODEJNO_ALBUM -> { GlasbaStoritev.nastaviSamodejnoAlbum(this@GlasbaActivity, !GlasbaStoritev.samodejnoAlbum(this@GlasbaActivity)); osveziOkna() }
+                                MedijskiCenterNastavitvePravila.Postavka.PREDPOMNILNIK -> nastavitvePredpomnilnika()
+                                MedijskiCenterNastavitvePravila.Postavka.POCISTI_NEDAVNO -> potrdiPocistiNedavno()
+                                MedijskiCenterNastavitvePravila.Postavka.SPLOSNE_NASTAVITVE -> startActivity(Intent(this@GlasbaActivity, NastavitveActivity::class.java))
+                            }
+                        }
+                    }
+                    vsebina.addView(postavkaGumb)
+                    
+                    if (prvaPostavka == null) prvaPostavka = postavkaGumb
+                    if (fokusKljuc == p) {
+                        postavkaGumb.post { postavkaGumb.requestFocus() }
                     }
                 }
             }
-        } + listOf(Pair<String, (() -> Unit)?>(getString(MedijskiCenterNastavitvePravila.Postavka.SPLOSNE_NASTAVITVE.naslov)) { startActivity(Intent(this@GlasbaActivity, NastavitveActivity::class.java)) })
+            if (fokusKljuc == null) {
+                prvaPostavka?.post { prvaPostavka?.requestFocus() }
+            }
+        }
         
-        val a = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(R.string.os_nastavitve_mc)
-        a.setItems(post.map { it.first }.toTypedArray()) { _, i -> post[i].second?.invoke() }
+        osveziOkna()
         a.show()
     }
-
 
     /** Mesto, velikost na USB in »Pocisti predpomnilnik« (Moji viri -> Predpomnilnik, pri Predvajalniku tudi ⋮). */
     private fun nastavitvePredpomnilnika() {

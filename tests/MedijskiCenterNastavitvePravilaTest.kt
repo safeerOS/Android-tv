@@ -14,8 +14,8 @@ fun main(args: Array<String>) {
     preveriEnako("TV OS ima Domov", MedijskiCenterNastavitvePravila.Skupina.DOM, os[1].id)
     
     val vlc = p.vidneSkupine("si.safeer.player")
-    preveriEnako("Player ima 5 skupin", 5, vlc.size)
-    preveriEnako("Player nima Domov", false, vlc.any { it.id == MedijskiCenterNastavitvePravila.Skupina.DOM })
+    preveriEnako("Player ima 6 skupin", 6, vlc.size)
+    preveriEnako("Player ima Domov", true, vlc.any { it.id == MedijskiCenterNastavitvePravila.Skupina.DOM })
     
     if (napak > 0) { println("NAPAK: $napak"); kotlin.system.exitProcess(1) }
     println("vse ok")

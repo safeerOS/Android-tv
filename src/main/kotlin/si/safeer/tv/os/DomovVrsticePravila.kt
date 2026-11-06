@@ -83,4 +83,13 @@ object DomovVrsticePravila {
 
     /** Razmik med glavo (gumbi) in prvo vrstico na Domu mora biti enak kot v drugih oddelkih (ne tesno). */
     fun razmikGlaveZgoraj(): Int = 14
+
+    enum class DelVrstice { STIKALO, PREMAKNI }
+
+    /** 
+     * Fokus po osvezi (premik, preklop): ce je za to vrstico vklopljen nacin premika,
+     * obdrzi fokus gumb Premakni, sicer ostane na stikalu (ali skoci nanj ob izklopu).
+     */
+    fun fokusPoOsvezi(nacinPremika: Boolean): DelVrstice =
+        if (nacinPremika) DelVrstice.PREMAKNI else DelVrstice.STIKALO
 }

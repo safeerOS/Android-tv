@@ -20,4 +20,10 @@ class DomovVrsticePravilaTest {
         assertEquals(0, DomovVrsticePravila.odmikNaslova())
         assertEquals(14, DomovVrsticePravila.razmikGlaveZgoraj())
     }
+
+    @Test
+    fun `fokus po osvezi`() {
+        assertEquals(DomovVrsticePravila.DelVrstice.PREMAKNI, DomovVrsticePravila.fokusPoOsvezi(true))
+        assertEquals(DomovVrsticePravila.DelVrstice.STIKALO, DomovVrsticePravila.fokusPoOsvezi(false))
+    }
 }

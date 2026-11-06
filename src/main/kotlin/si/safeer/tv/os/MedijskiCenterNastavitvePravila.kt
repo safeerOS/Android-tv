@@ -30,9 +30,7 @@ object MedijskiCenterNastavitvePravila {
         val s = mutableListOf<ZapisSkupine>()
         
         s.add(ZapisSkupine(Skupina.VIRI, listOf(Postavka.MOJI_VIRI, Postavka.DEBRID)))
-        if (!predvajalnik) {
-            s.add(ZapisSkupine(Skupina.DOM, listOf(Postavka.VRSTICE)))
-        }
+        s.add(ZapisSkupine(Skupina.DOM, listOf(Postavka.VRSTICE)))
         s.add(ZapisSkupine(Skupina.PREDVAJANJE, listOf(Postavka.SAMODEJNO_SKLADBA, Postavka.SAMODEJNO_ALBUM)))
         s.add(ZapisSkupine(Skupina.SHRAMBA, listOf(Postavka.PREDPOMNILNIK)))
         s.add(ZapisSkupine(Skupina.ZASEBNOST, listOf(Postavka.POCISTI_NEDAVNO)))
