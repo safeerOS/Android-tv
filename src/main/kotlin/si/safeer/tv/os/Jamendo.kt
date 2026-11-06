@@ -53,8 +53,11 @@ object Jamendo {
         val language: String = "",
         /** Podnapisi ob videu (datoteke z naprave ali iz istega torrenta). */
         val podnapisi: List<Podnapisi.Podnapis> = emptyList(),
-    ) : DomovVrsticePravila.Naslov {
+        /** Cas zadnjega videvanja tega naslova v katalogu spletnega vira. */
+        override val zadnjiVideni: Long = 0L,
+    ) : DomovVrsticePravila.Naslov, KatalogPravila.Naslov {
         override val zvrsti: List<String> get() = genres
+        override fun sCasom(cas: Long): KatalogPravila.Naslov = copy(zadnjiVideni = cas)
     }
 
     data class Izvajalec(val id: String, val ime: String, val slika: String)

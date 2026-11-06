@@ -43,7 +43,7 @@ object MedijskiPredpomnilnik {
         .put("mime", s.mime).put("streznik", s.streznik).put("kanal", s.kanal).put("mediaType", s.mediaType)
         .put("genres", JSONArray(s.genres)).put("year", s.year).put("season", s.season).put("episode", s.episode)
         .put("imdbId", s.imdbId).put("tmdbId", s.tmdbId).put("quality", s.quality).put("rating", s.rating)
-        .put("language", s.language)
+        .put("language", s.language).put("zadnjiVideni", s.zadnjiVideni)
 
     fun skladbaIzJson(o: JSONObject): Jamendo.Skladba = Jamendo.Skladba(
         id = o.optString("id"), naslov = o.optString("naslov"), izvajalec = o.optString("izvajalec"),
@@ -54,10 +54,11 @@ object MedijskiPredpomnilnik {
         year = o.optInt("year"), season = o.optInt("season"), episode = o.optInt("episode"),
         imdbId = o.optString("imdbId"), tmdbId = o.optString("tmdbId"), quality = o.optInt("quality"),
         rating = o.optDouble("rating", 0.0), language = o.optString("language"),
+        zadnjiVideni = o.optLong("zadnjiVideni", 0L),
     )
 
     /** Shrani police razdelka: seznam (naslov police, video?, skladbe). */
-    fun shraniPolice(c: Context, kljuc: String, police: List<Triple<String, Boolean, List<Jamendo.Skladba>>>) {
+    fun shraniPolice(c: Context, kljuc: String, police: List<Triple<String, Boolean, List<Jamendo.Skladba>>>, svez: Long = 0L) {
         try {
             val a = JSONArray()
             police.forEach { (naslov, video, skladbe) ->
@@ -65,7 +66,7 @@ object MedijskiPredpomnilnik {
                     .put("skladbe", JSONArray().apply { skladbe.forEach { put(skladbaVJson(it)) } }))
             }
             val zdaj = System.currentTimeMillis()
-            val bajti = JSONObject().put("cas", zdaj).put("police", a).toString().toByteArray()
+            val bajti = JSONObject().put("cas", zdaj).put("svez", svez).put("police", a).toString().toByteArray()
             // 57b: polica z vsebino zasebnega dodatka ali zasebne kategorije nikoli na drugo napravo.
             val zasebno = police.any { p -> p.third.any { Stremio.jeZasebna(it) || ZasebniKanali.jeZaseben(it.id) } }
             if (!zasebno) zapomniJavneSlike(police.flatMap { p -> p.third.map { it.slika } })
@@ -74,11 +75,13 @@ object MedijskiPredpomnilnik {
         }
     }
 
+    data class ShranjenePolice(val cas: Long, val svez: Long, val police: List<Triple<String, Boolean, List<Jamendo.Skladba>>>)
+
     /** Zadnje shranjene police razdelka ali null. */
-    fun beriPolice(c: Context, kljuc: String): List<Triple<String, Boolean, List<Jamendo.Skladba>>>? = beriPoliceSCasom(c, kljuc)?.second
+    fun beriPolice(c: Context, kljuc: String): List<Triple<String, Boolean, List<Jamendo.Skladba>>>? = beriPoliceSCasom(c, kljuc)?.police
 
     /** Zadnje shranjene police razdelka s casom, ko so bile shranjene (System.currentTimeMillis; 0 = neznan), ali null. */
-    fun beriPoliceSCasom(c: Context, kljuc: String): Pair<Long, List<Triple<String, Boolean, List<Jamendo.Skladba>>>>? = try {
+    fun beriPoliceSCasom(c: Context, kljuc: String): ShranjenePolice? = try {
         val besedilo = beri(c, PredpomnilnikPravila.POLICE, odtis(kljuc))?.second?.let { String(it) }
             ?: File(mapaSeznamov(c), odtis(kljuc) + ".json").takeIf { it.isFile }?.readText()
         if (besedilo == null) null else {
@@ -88,7 +91,7 @@ object MedijskiPredpomnilnik {
                 val p = a.getJSONObject(i)
                 val s = p.optJSONArray("skladbe") ?: JSONArray()
                 Triple(p.optString("naslov"), p.optBoolean("video"), List(s.length()) { skladbaIzJson(s.getJSONObject(it)) })
-            }.takeIf { it.isNotEmpty() }?.let { o.optLong("cas") to it }
+            }.takeIf { it.isNotEmpty() }?.let { ShranjenePolice(o.optLong("cas"), o.optLong("svez"), it) }
         }
     } catch (_: Exception) { null }
 
