@@ -108,6 +108,18 @@ class IzbirniVir(private val app: Context, private val osnovni: DataSource, priv
     }
 
     override fun open(dataSpec: DataSpec): Long {
+        val u = dataSpec.uri.toString()
+        val seja = UsenetLastni.trenutnaSeja()
+        if (UsenetLastniPravila.neposredno(u, seja?.first) && seja?.second != null) {
+            android.util.Log.i("SafeerUsenetLastni", "neposredno: open pos=${dataSpec.position} ")
+            val d = seja.second!!.createDataSource()
+            for (l in poslusalci) d.addTransferListener(l)
+            zdaj = d
+            return d.open(dataSpec)
+        } else if (UsenetLastniPravila.neposredno(u, seja?.first)) {
+            android.util.Log.i("SafeerUsenetLastni", "neposredno: HTTP (ni tovarne)")
+        }
+
         val p = Webtor.Preklic()
         preklic = p
         val preverjen = Webtor.zaPredvajalnik(app, dataSpec.uri.toString(), p)

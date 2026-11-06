@@ -111,4 +111,14 @@ object UsenetLastniPravila {
         val meja = maxOf(najvecTelesa.toLong(), bajtov * 2 + 65536)
         return minOf(meja, 32L * 1024 * 1024).toInt()
     }
+
+    /**
+     * URL je neposreden tok Useneta, ce ima shemo safeer-usenet: ali pa je njegov zacetek (brez poti kosa) enak
+     * naslovu lokalnega streznika trenutne seje.
+     */
+    fun neposredno(url: String, urlSeje: String?): Boolean {
+        if (url.startsWith("safeer-usenet:")) return true
+        if (urlSeje.isNullOrBlank()) return false
+        return url == urlSeje || url.startsWith("$urlSeje/") || url.startsWith("$urlSeje?")
+    }
 }

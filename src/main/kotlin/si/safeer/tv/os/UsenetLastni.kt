@@ -21,6 +21,7 @@ object UsenetLastni {
 
     private class Seja(val ponudnik: UsenetPonudnikPravila.Ponudnik, val nntp: UsenetNntp, val meje: UsenetPonudnikPravila.MejeRacunov) {
         @Volatile var streznik: UsenetStreznik? = null
+        @Volatile var tovarnaMedia3: UsenetMedia3Vir.Tovarna? = null
         /** Glasba: streznik za vsako skladbo albuma (ena seja, en bazen racuna). */
         @Volatile var strezniki: List<UsenetStreznik> = emptyList()
         val zaprta = AtomicBoolean(false)
@@ -93,8 +94,10 @@ object UsenetLastni {
             val (vir, _) = UsenetBralnik.pripravi(razclenjen, telo)
             val profil = UsenetBralnik.profilVidea(UsenetBralnik.PROFILI.getValue(if (Naprava.jeTelevizor(c)) "tv" else "telefon"))
             val s = nova
-            val streznik = UsenetStreznik(UsenetBralnik.Bralnik(telo, vir, profil), obKoncu = { koncaj(s) })
+            val b = UsenetBralnik.Bralnik(telo, vir, profil)
+            val streznik = UsenetStreznik(b, obKoncu = { koncaj(s) })
             s.streznik = streznik
+            s.tovarnaMedia3 = UsenetMedia3Vir.Tovarna(b)
             synchronized(zaklep) { seja = s }
             Log.i(TAG, "lasten pogon: pripravljen (${vir.velikost / (1024 * 1024)} MiB)")   // brez imena, poti in zetona
             TorBox.Izid(url = streznik.url, ponudnik = UsenetLastniPravila.PONUDNIK)
@@ -192,6 +195,7 @@ object UsenetLastni {
         if (!s.zaprta.compareAndSet(false, true)) return
         synchronized(zaklep) { if (seja === s) seja = null }
         try { s.streznik?.close() } catch (_: Throwable) { }
+        try { s.tovarnaMedia3?.close() } catch (_: Throwable) { }
         s.strezniki.forEach { try { it.close() } catch (_: Throwable) { } }
         if (!s.lastnikBazena) return   // bazen je izposojen (album, ki igra) ali predan novemu albumu
         try { s.nntp.close() } catch (_: Throwable) { }
@@ -208,4 +212,11 @@ object UsenetLastni {
     }
 
     private fun napaka(opis: String) = TorBox.Izid(napaka = UsenetLastniPravila.NAPAKA, opis = opis, ponudnik = UsenetLastniPravila.PONUDNIK)
+
+    /** URL trenutnega streznika in tovarna Media3 za neposredno predvajanje (GEMINI-US-1). */
+    fun trenutnaSeja(): Pair<String?, UsenetMedia3Vir.Tovarna?>? {
+        val s = synchronized(zaklep) { seja } ?: return null
+        val url = s.streznik?.url ?: s.strezniki.firstOrNull()?.url
+        return url to s.tovarnaMedia3
+    }
 }

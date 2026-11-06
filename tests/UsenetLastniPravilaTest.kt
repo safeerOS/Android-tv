@@ -68,6 +68,13 @@ fun main() {
     preveriEnako("meja: majhen segment -> NAJVEC_TELESA", 4 * 1024 * 1024, L.mejaTelesa(1024L, 4 * 1024 * 1024))
     preveriEnako("meja: velik segment -> segment * 2 + 64 KiB", 14 * 1024 * 1024 + 65536, L.mejaTelesa(7L * 1024 * 1024, 4 * 1024 * 1024))
     preveriEnako("meja: ogromen segment omejen na 32 MiB", 32 * 1024 * 1024, L.mejaTelesa(20L * 1024 * 1024, 4 * 1024 * 1024))
+    // GEMINI-US-1: neposreden tok Useneta
+    preveriEnako("neposredno: shema safeer-usenet: je vedno", true, L.neposredno("safeer-usenet:film", null))
+    preveriEnako("neposredno: shema safeer-usenet: brez seje", true, L.neposredno("safeer-usenet:123", ""))
+    preveriEnako("neposredno: natancen naslov streznika", true, L.neposredno("http://127.0.0.1:1234/a/b.mp4", "http://127.0.0.1:1234/a/b.mp4"))
+    preveriEnako("neposredno: naslov streznika in query parametri", true, L.neposredno("http://127.0.0.1:1234/a/b.mp4?test=1", "http://127.0.0.1:1234/a/b.mp4"))
+    preveriEnako("neposredno: enak zacetek ni dovolj", false, L.neposredno("http://127.0.0.1:1234/a/b.mp45", "http://127.0.0.1:1234/a/b.mp4"))
+    preveriEnako("neposredno: prazen url seje ni neposredno", false, L.neposredno("http://127.0.0.1:1234/a/b.mp4", null))
     println(if (napak == 0) "UsenetLastniPravilaTest: OK" else "UsenetLastniPravilaTest: $napak napak")
     if (napak > 0) kotlin.system.exitProcess(1)
 }
