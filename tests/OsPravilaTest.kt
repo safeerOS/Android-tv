@@ -568,25 +568,43 @@ private fun preizkusPodnapisovDodatkov() {
     preveriEnako("epizoda: series / tt:S:E", "series" to "tt0944947:1:2", OsPravila.idPodnapisov("tt0944947", 1, 2))
     preveriEnako("brez IMDb ni podnapisov iz dodatka", null, OsPravila.idPodnapisov("", 0, 0))
     preveriEnako("id dodatka (ne IMDb) ni dovolj", null, OsPravila.idPodnapisov("kitsu:123", 0, 0))
+    preveriEnako("naslov brez extra", "http://x/subtitles/movie/tt123.json", OsPravila.naslovPodnapisov("http://x", "movie", "tt123", null, null, null))
+    preveriEnako("naslov s hashom in velikostjo", "http://x/subtitles/movie/tt123/videoHash=abc&videoSize=123.json", OsPravila.naslovPodnapisov("http://x", "movie", "tt123", "abc", 123L, null))
+    preveriEnako("naslov z vsemi extra", "http://x/subtitles/movie/tt123/videoHash=abc&videoSize=123&filename=a+b.mkv.json", OsPravila.naslovPodnapisov("http://x", "movie", "tt123", "abc", 123L, "a b.mkv"))
     preveriEnako("eng -> en", "en", OsPravila.jezikPodnapisa("eng"))
     preveriEnako("slv -> sl", "sl", OsPravila.jezikPodnapisa("slv"))
     preveriEnako("pob (brazilska) -> pt", "pt", OsPravila.jezikPodnapisa("pob"))
     preveriEnako("ger -> de", "de", OsPravila.jezikPodnapisa("ger"))
     val odgovor = OsPravila.podnapisiDodatka(listOf(
-        "https://subs5.strem.io/en/download/file/1" to "eng",
-        "https://subs5.strem.io/en/download/file/1" to "eng",          // isti naslov dvakrat
-        "https://subs5.strem.io/sl/download/file/2" to "slv",
-        "javascript:alert(1)" to "eng",                                // ni http(s)
-        "https://subs5.strem.io/x/3" to "",                            // brez jezika
-        "https://subs5.strem.io/x/4\n" to "eng"))                    // kontrolni znak
+        Triple("https://subs5.strem.io/en/download/file/1", "eng", false),
+        Triple("https://subs5.strem.io/en/download/file/1", "eng", false),          // isti naslov dvakrat
+        Triple("https://subs5.strem.io/sl/download/file/2", "slv", false),
+        Triple("javascript:alert(1)", "eng", false),                                // ni http(s)
+        Triple("https://subs5.strem.io/x/3", "", false),                            // brez jezika
+        Triple("https://subs5.strem.io/x/4\n", "eng", false)))                    // kontrolni znak
     preveriEnako("razclenitev: dva veljavna, brez ponovitev in neveljavnih",
         listOf(OsPravila.PodnapisDodatka("https://subs5.strem.io/en/download/file/1", "en"), OsPravila.PodnapisDodatka("https://subs5.strem.io/sl/download/file/2", "sl")),
         odgovor)
+    
+    val odgovor2 = OsPravila.podnapisiDodatka(listOf(
+        Triple("https://subs5.strem.io/en/download/file/1", "eng", false),
+        Triple("https://subs5.strem.io/sl/download/file/2", "slv", true)
+    ))
+    preveriEnako("razclenitev: razvrstitev po ujemanju",
+        listOf(OsPravila.PodnapisDodatka("https://subs5.strem.io/sl/download/file/2", "sl", true), OsPravila.PodnapisDodatka("https://subs5.strem.io/en/download/file/1", "en", false)),
+        odgovor2)
+    
     preveriEnako("prazen odgovor", emptyList<OsPravila.PodnapisDodatka>(), OsPravila.podnapisiDodatka(emptyList()))
     preveriEnako("jeziki: vmesnik, anglescina, ostali po abecedi", listOf("sl", "en", "de", "hr", "pt"),
         OsPravila.jezikiPodnapisov(listOf("pt", "en", "hr", "sl", "de", "en"), "sl"))
     preveriEnako("jeziki: vmesnik je anglescina", listOf("en", "de", "fr"), OsPravila.jezikiPodnapisov(listOf("fr", "de", "en"), "en"))
     preveriEnako("jeziki: jezika vmesnika ni", listOf("en", "fr"), OsPravila.jezikiPodnapisov(listOf("fr", "en"), "sl"))
+
+    val zacetek = ByteArray(65536)
+    zacetek[0] = 1
+    val konec = ByteArray(65536)
+    konec[65536 - 8] = 2
+    preveriEnako("odtis OpenSubtitles rocnih bajtov", "0000000000020003", Podnapisi.odtis(131072L, zacetek, konec))
 }
 
 private fun preizkusTipkMenija() {

@@ -178,8 +178,16 @@ object Podnapisi {
 
     // ------------------------------------------------------------------ podnapisi iz dodatkov (naloga 72)
 
-    /** Zadnji jezik podnapisov iz dodatka (ISO 639-1); "" = izklopljeno (privzeto): ob novem filmu jih ne iscemo sami. */
+    /** Zadnji jezik podnapisov iz dodatka (ISO 639-1); "" = ni se bil izbran. */
     fun jezikDodatka(ctx: Context): String = prefs(ctx).getString("dodatek_jezik", "") ?: ""
+
+    /** Jezik za samodejno iskanje (dodatek_jezik, ali jezik naprave, ce je prazno). Vrne null, ce so podnapisi izklopljeni. */
+    fun jezikZaSamodejno(ctx: Context): String? {
+        val n = prefs(ctx)
+        if (n.getBoolean("izklop", false)) return null
+        val d = n.getString("dodatek_jezik", "") ?: ""
+        return d.ifEmpty { jezikNaprave(ctx) }
+    }
 
     /** Podnapis iz dodatka za MediaItem: OpenSubtitles vraca SRT (naslov brez koncnice), .vtt je WebVTT. */
     fun izDodatka(ctx: Context, p: Stremio.PodnapisDodatka): Podnapis =
@@ -222,6 +230,108 @@ object Podnapisi {
     // ------------------------------------------------------------------ popravilo (kot VLC)
 
     private val CAS_SRT = Regex("(\\d{1,2}):(\\d{2}):(\\d{2})[,.](\\d{1,3})")
+
+    /**
+     * Odtis OpenSubtitles (moviehash): velikost + vsota 64-bitnih stevil (little-endian) prvih 64 KiB in zadnjih 64 KiB,
+     * mod 2^64, 16 hex malih crk.
+     */
+    fun odtis(velikost: Long, zacetek: ByteArray, konec: ByteArray): String {
+        var vsota: Long = velikost
+        for (i in 0 until 65536 step 8) {
+            if (i + 7 < zacetek.size) {
+                var v = 0L
+                for (j in 0..7) v = v or ((zacetek[i + j].toLong() and 0xFF) shl (j * 8))
+                vsota += v
+            }
+            if (i + 7 < konec.size) {
+                var v = 0L
+                for (j in 0..7) v = v or ((konec[i + j].toLong() and 0xFF) shl (j * 8))
+                vsota += v
+            }
+        }
+        return String.format(Locale.ROOT, "%016x", vsota)
+    }
+
+    private val odtisi = java.util.concurrent.ConcurrentHashMap<String, Triple<String, Long, String?>>()
+
+    /** Naloga PN-1: izracun odtisa iz toka HTTP/Usenet (64 KB na zacetku in na koncu). Rok 5 s, predpomnjeno v pomnilniku. */
+    fun odtisToka(url: String, glave: Map<String, String>): Triple<String, Long, String?>? {
+        if (!url.startsWith("http://") && !url.startsWith("https://")) return null
+        val u = url.trim()
+        odtisi[u]?.let { return it }
+
+        try {
+            val c1 = java.net.URL(u).openConnection() as java.net.HttpURLConnection
+            c1.connectTimeout = 5000
+            c1.readTimeout = 5000
+            c1.instanceFollowRedirects = false // Ne sledimo preusmeritvam slepo, predvajalnik uporablja ze razresen URL
+            glave.forEach { (k, v) -> c1.setRequestProperty(k, v) }
+            c1.setRequestProperty("Range", "bytes=0-65535")
+            
+            val koda = c1.responseCode
+            if (koda !in 200..299) {
+                android.util.Log.d("SafeerPodnapisi", "zacetek: HTTP $koda")
+                return null
+            }
+            
+            var velikost = 0L
+            val cr = c1.getHeaderField("Content-Range")
+            if (cr != null) velikost = cr.substringAfterLast('/').toLongOrNull() ?: 0L
+            if (velikost < 131072) {
+                android.util.Log.d("SafeerPodnapisi", "tok je krajsi od 128 KB")
+                return null
+            }
+
+            val zacetekBajti = ByteArray(65536)
+            var prebrano = 0
+            c1.inputStream.use { s ->
+                while (prebrano < 65536) {
+                    val n = s.read(zacetekBajti, prebrano, 65536 - prebrano)
+                    if (n < 0) break
+                    prebrano += n
+                }
+            }
+            if (prebrano < 65536) {
+                android.util.Log.d("SafeerPodnapisi", "zacetek: prebrano premalo bajtov ($prebrano)")
+                return null
+            }
+
+            val c2 = java.net.URL(u).openConnection() as java.net.HttpURLConnection
+            c2.connectTimeout = 5000
+            c2.readTimeout = 5000
+            c2.instanceFollowRedirects = false
+            glave.forEach { (k, v) -> c2.setRequestProperty(k, v) }
+            c2.setRequestProperty("Range", "bytes=${velikost - 65536}-${velikost - 1}")
+
+            val koda2 = c2.responseCode
+            if (koda2 !in 200..299) {
+                android.util.Log.d("SafeerPodnapisi", "konec: HTTP $koda2")
+                return null
+            }
+
+            val konecBajti = ByteArray(65536)
+            prebrano = 0
+            c2.inputStream.use { s ->
+                while (prebrano < 65536) {
+                    val n = s.read(konecBajti, prebrano, 65536 - prebrano)
+                    if (n < 0) break
+                    prebrano += n
+                }
+            }
+            if (prebrano < 65536) {
+                android.util.Log.d("SafeerPodnapisi", "konec: prebrano premalo bajtov ($prebrano)")
+                return null
+            }
+
+            val hash = odtis(velikost, zacetekBajti, konecBajti)
+            val r = Triple(hash, velikost, null as String?)
+            odtisi[u] = r
+            return r
+        } catch (e: Exception) {
+            android.util.Log.d("SafeerPodnapisi", "napaka branja toka: ${e.message}")
+            return null
+        }
+    }
 
     /** Besedilo podnapisa: UTF-8 (z BOM ali brez), UTF-16 z BOM, sicer Windows-1250 (stari slovenski podnapisi). */
     fun besedilo(podatki: ByteArray): String {

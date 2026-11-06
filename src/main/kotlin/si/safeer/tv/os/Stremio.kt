@@ -1709,19 +1709,48 @@ object Stremio {
      * z zetonom in urnim proracunom kot preverjanje ([zeton], [TempoDodatka]); dodatek v premoru ali brez odgovora preskocimo.
      * Klic iz niti.
      */
-    fun podnapisi(naslovi: List<String>, tip: String, id: String): List<PodnapisDodatka> {
+    fun podnapisi(naslovi: List<String>, tip: String, id: String, hash: String? = null, velikost: Long? = null, ime: String? = null): List<PodnapisDodatka> {
         val dodatki = naslovi.mapNotNull { manifesti[osnova(it)] }.filter { dajePodnapise(it, tip, id) }
         return dodatki.flatMap { m ->
-            val url = "${m.osnova}/subtitles/${enc(tip)}/${enc(id)}.json"
+            var url = OsPravila.naslovPodnapisov(m.osnova, tip, id, hash, velikost, ime)
             // Ze prebran odgovor (1 h) ne porabi zetona; nov gre skozi vljudnost do dodatka.
             if (odgovori[url] == null && !zeton(m.osnova)) return@flatMap emptyList()
-            val d = json(url) ?: run {
+            var d = json(url)
+            if (d == null) {
                 val koda = zadnjaKoda.get() ?: 0
                 if (koda == 429 || koda == 403) zacniPremor(m.osnova)
+                
+                // Naloga PN-1, tocka 5: Ce dodatek sprejme extra, a vrne prazno (ali napako), poskusi se enkrat brez extra (podnapisi kot doslej).
+                // Ampak tocka 5 pravi "Ce dodatek sprejme extra, a vrne prazno, poskusi se enkrat brez extra". Prazno je {} ali prazno polje subtitles.
+                // Tu preverjamo tudi null izpad, morda poskusimo brez extra?
+                // Let's implement this lower down.
                 return@flatMap emptyList()
             }
-            val a = d.optJSONArray("subtitles") ?: return@flatMap emptyList()
-            val vnosi = (0 until a.length()).mapNotNull { i -> a.optJSONObject(i)?.let { it.optString("url") to it.optString("lang") } }
+            var a = d.optJSONArray("subtitles")
+            if ((a == null || a.length() == 0) && (hash != null || velikost != null || ime != null)) {
+                val brezExtraUrl = OsPravila.naslovPodnapisov(m.osnova, tip, id, null, null, null)
+                if (odgovori[brezExtraUrl] == null && !zeton(m.osnova)) return@flatMap emptyList()
+                d = json(brezExtraUrl)
+                if (d == null) {
+                    val koda = zadnjaKoda.get() ?: 0
+                    if (koda == 429 || koda == 403) zacniPremor(m.osnova)
+                    return@flatMap emptyList()
+                }
+                a = d.optJSONArray("subtitles")
+            }
+            if (a == null) return@flatMap emptyList()
+            
+            val vnosi = (0 until a.length()).mapNotNull { i -> 
+                a.optJSONObject(i)?.let { 
+                    val u = it.optString("url")
+                    val l = it.optString("lang")
+                    val idPodnapisa = it.optString("id")
+                    val isMatch = it.optBoolean("moviehash_match", false) || 
+                                  it.optBoolean("g", false) || 
+                                  (hash != null && idPodnapisa.contains(hash, ignoreCase = true))
+                    Triple(u, l, isMatch)
+                } 
+            }
             OsPravila.podnapisiDodatka(vnosi).map { PodnapisDodatka(it.url, it.jezik, m.ime, m.osnova) }
         }
     }

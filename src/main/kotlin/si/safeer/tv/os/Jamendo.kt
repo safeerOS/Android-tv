@@ -53,6 +53,8 @@ object Jamendo {
         val language: String = "",
         /** Podnapisi ob videu (datoteke z naprave ali iz istega torrenta). */
         val podnapisi: List<Podnapisi.Podnapis> = emptyList(),
+        /** Ime izdaje (Usenet: ime NZB/izdaje, debrid: filename iz behaviorHints). */
+        val imeDatoteke: String = ""
     )
 
     data class Izvajalec(val id: String, val ime: String, val slika: String)

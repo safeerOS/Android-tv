@@ -1796,8 +1796,13 @@ class PredvajanjeActivity : OsActivity() {
         if (id == null || !imaDodatekPodnapisov()) { Podnapisi.izberi(this, p) { posodobiPodnapise() }; return }
         android.widget.Toast.makeText(this, R.string.podnapisi_iscem, android.widget.Toast.LENGTH_SHORT).show()
         val naslovi = dodatkiStremio()
+        val sk = GlasbaStoritev.trenutna()
+        val urlToka = sk?.zvok.orEmpty()
+        val glaveToka = SpletniVir.glaveToka(urlToka)
+        val imeDatoteke = sk?.imeDatoteke
         delavec.execute {
-            val najdeni = try { Stremio.podnapisi(naslovi, id.first, id.second) } catch (_: Exception) { emptyList() }
+            val odtis = if (urlToka.isNotEmpty()) Podnapisi.odtisToka(urlToka, glaveToka) else null
+            val najdeni = try { Stremio.podnapisi(naslovi, id.first, id.second, odtis?.first, odtis?.second, imeDatoteke) } catch (_: Exception) { emptyList() }
             android.util.Log.i("SafeerOsMedia", "podnapisi iz dodatkov: ${najdeni.size} v ${najdeni.map { it.jezik }.distinct().size} jezikih za ${id.first}/${id.second}")
             runOnUiThread { if (!isFinishing && idPodnapisov() == id) pokaziJezikePodnapisov(najdeni) }
         }
@@ -1858,7 +1863,7 @@ class PredvajanjeActivity : OsActivity() {
             if (k != kljuc) podnapisObPremoru = null
             else if (OsPravila.podnapisZdajAliObPremoru(p0.isPlaying)) { podnapisObPremoru = null; dodajSamodejno(prvi) }
         }
-        val jezik = Podnapisi.jezikDodatka(this).ifEmpty { return }
+        val jezik = Podnapisi.jezikZaSamodejno(this) ?: return
         if (kljuc == podnapisiDodatkaZa) return
         // Iscemo sele, ko slika tece (STATE_READY vsaj 1 s) - ne med zagonom slike.
         val zdaj = android.os.SystemClock.uptimeMillis()
@@ -1879,8 +1884,13 @@ class PredvajanjeActivity : OsActivity() {
         val prefs = getSharedPreferences("safeer_mediji", MODE_PRIVATE)
         val vsi = dodatkiStremio()
         val naslovi = OsPravila.dodatkiZaPodnapise(vsi, prefs.getString(K_ZADNJI_PODNAPISI, "").orEmpty()) { SkrivnostiPravila.odtis(Stremio.osnova(it)) }
+        val sk = GlasbaStoritev.trenutna()
+        val urlToka = sk?.zvok.orEmpty()
+        val glaveToka = SpletniVir.glaveToka(urlToka)
+        val imeDatoteke = sk?.imeDatoteke
         delavec.execute {
-            fun isci(d: List<String>) = (try { Stremio.podnapisi(d, id.first, id.second) } catch (_: Exception) { emptyList() }).firstOrNull { it.jezik == jezik }
+            val odtis = if (urlToka.isNotEmpty()) Podnapisi.odtisToka(urlToka, glaveToka) else null
+            fun isci(d: List<String>) = (try { Stremio.podnapisi(d, id.first, id.second, odtis?.first, odtis?.second, imeDatoteke) } catch (_: Exception) { emptyList() }).firstOrNull { it.jezik == jezik }
             // Neodvisni pregled 4. 11. 2026: zadnji dodatek, ki je zadel, podnapisov v tem jeziku nima - v istem opravilu
             // vprasamo se ostale (prej je podnapisiDodatkaZa ponovno iskanje za ta naslov zaprl).
             val prvi = isci(naslovi) ?: OsPravila.ostaliZaPodnapise(vsi, naslovi).takeIf { it.isNotEmpty() }?.let { isci(it) }

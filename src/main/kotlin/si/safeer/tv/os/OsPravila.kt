@@ -1688,6 +1688,19 @@ object OsPravila {
         return if (sezona > 0 && epizoda > 0) "series" to "$i:$sezona:$epizoda" else "movie" to i
     }
 
+    /**
+     * Naslov za podnapise dodatka po protokolu Stremio (odtis in ime izdaje).
+     */
+    fun naslovPodnapisov(osnova: String, tip: String, id: String, hash: String?, velikost: Long?, ime: String?): String {
+        val extra = mutableListOf<String>()
+        if (!hash.isNullOrBlank()) extra.add("videoHash=${java.net.URLEncoder.encode(hash.trim(), "UTF-8")}")
+        if (velikost != null && velikost > 0) extra.add("videoSize=$velikost")
+        if (!ime.isNullOrBlank()) extra.add("filename=${java.net.URLEncoder.encode(ime.trim(), "UTF-8")}")
+        
+        val url = "$osnova/subtitles/${java.net.URLEncoder.encode(tip, "UTF-8")}/${java.net.URLEncoder.encode(id, "UTF-8")}"
+        return if (extra.isNotEmpty()) "$url/${extra.joinToString("&")}.json" else "$url.json"
+    }
+
     /** Bibliografske in posebne kode ISO 639-2, ki jih dodatki dajejo, Java pa jih ne pozna (OpenSubtitles: pob, scc ...). */
     private val KODE_PODNAPISOV = mapOf("ger" to "de", "fre" to "fr", "dut" to "nl", "cze" to "cs", "slo" to "sk", "chi" to "zh",
         "zht" to "zh", "zhe" to "zh", "scc" to "sr", "scr" to "hr", "rum" to "ro", "gre" to "el", "per" to "fa", "alb" to "sq",
@@ -1699,18 +1712,18 @@ object OsPravila {
         return KODE_PODNAPISOV[k] ?: JezikiVsebine.oznaka(k)
     }
 
-    data class PodnapisDodatka(val url: String, val jezik: String)
+    data class PodnapisDodatka(val url: String, val jezik: String, val ujemanje: Boolean = false)
 
     /**
-     * Vnosi odgovora dodatka {subtitles: [{id, url, lang}]} kot (url, lang): samo naslovi http(s) brez kontrolnih znakov in z
-     * jezikom; jezik v ISO 639-1 ([jezikPodnapisa]); isti naslov enkrat. Vrstni red dodatka ostane (najboljsi prvi).
+     * Vnosi odgovora dodatka {subtitles: [{id, url, lang}]} kot (url, lang, ujemanje): samo naslovi http(s) brez kontrolnih znakov in z
+     * jezikom; jezik v ISO 639-1 ([jezikPodnapisa]); isti naslov enkrat. Vrstni red dodatka ostane (najboljsi prvi), s tem da imajo prednost vnosi z ujemanjem.
      */
-    fun podnapisiDodatka(vnosi: List<Pair<String, String>>): List<PodnapisDodatka> = vnosi.mapNotNull { (url, lang) ->
+    fun podnapisiDodatka(vnosi: List<Triple<String, String, Boolean>>): List<PodnapisDodatka> = vnosi.mapNotNull { (url, lang, ujemanje) ->
         val u = url.trim()
         val j = jezikPodnapisa(lang)
         if ((u.startsWith("https://") || u.startsWith("http://")) && u.length <= 2048 && url.none { it < ' ' } && j.isNotEmpty() && j.length <= 3)
-            PodnapisDodatka(u, j) else null
-    }.distinctBy { it.url }
+            PodnapisDodatka(u, j, ujemanje) else null
+    }.distinctBy { it.url }.sortedByDescending { it.ujemanje }
 
     /** Jeziki za izbiro: jezik vmesnika, nato anglescina, nato ostali po abecedi (kode); vsak enkrat. */
     fun jezikiPodnapisov(kode: List<String>, vmesnik: String): List<String> {

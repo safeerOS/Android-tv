@@ -10429,7 +10429,7 @@ class GlasbaActivity : OsActivity() {
         }
         oznaciNaVoljo(sk)
         // Glasba in radio iz dodatka ostaneta zvok (predvajalnik za zvok, v ozadju), vse ostalo je video.
-        fun skladbaToka(t: Stremio.Tok) = sk.copy(id = sk.id + "#" + t.url.hashCode(), naslov = naslov, zvok = t.url, povezava = t.url, video = sk.video)
+        fun skladbaToka(t: Stremio.Tok) = sk.copy(id = sk.id + "#" + t.url.hashCode(), naslov = naslov, zvok = t.url, povezava = t.url, video = sk.video, imeDatoteke = t.imeDatoteke)
         // Webtor rezerva: tok Webtor za isto izdajo kot torrent (dolocen spodaj, ko so tokovi urejeni) in ze poskuseni.
         var webtorZa: (Stremio.Tok) -> Stremio.Tok? = { null }
         // Datoteka toka Webtor (dolocena spodaj, z nasimi torrenti) - za dnevnik sonde.

@@ -356,7 +356,7 @@ object Usenet {
             val idToka = UsenetPravila.idToka(z.povezava)
             povezave.dodaj(idToka, z.povezava, odtisIskanja)
             z.guid?.let { g -> synchronized(izdaje) { izdaje[idToka] = g to z.naslov } }
-            Stremio.Tok(UsenetPravila.VRSTA, idToka, "", UsenetPravila.opis(z), UsenetPravila.VRSTA)
+            Stremio.Tok(UsenetPravila.VRSTA, idToka, "", UsenetPravila.opis(z), UsenetPravila.VRSTA, imeDatoteke = z.naslov)
         }
     }
 
