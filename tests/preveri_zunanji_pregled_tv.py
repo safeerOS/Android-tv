@@ -145,6 +145,25 @@ preveri("Epizoda E1: tipka in dotik podaljsata rok", telo(pa, "override fun disp
 preveri("Epizoda CR: odsteva samo kartica, odprta pred tem tikom", "val odprtaPrej = karticaOdprta()" in pa
         and "NaslednjaEpizodaPravila.odstejZdaj(odstej, odprtaPrej, karticaOdprta())" in pa and "if (odstej && karticaOdprta()) odstevaj(p)" not in pa)
 
+uf = beri("src/main/kotlin/si/safeer/tv/os/UsenetFilter.kt")
+_pf = telo(uf, "fun preveri(c: Context", "return true\n    }")
+preveri("Usenet U1: kvoto porabi samo poslana zahteva", "omejevalnik.smem(" not in _pf[:_pf.find("delavec.execute")]
+        and "omejevalnik.lahko(zdaj())" in _pf and _pf.find("F.poslji(") < _pf.find("omejevalnik.smem(zdaj())") < _pf.find("Usenet.iskanje("))
+preveri("Usenet U3: zapisi filtra se nalozijo v ozadju", "getSharedPreferences(DATOTEKA" in telo(uf, "Thread({", '"usenet-filter-nalaganje"')
+        and "synchronized(this) {\n            if (nalozeno) return\n            try {" not in uf)
+gl = beri("src/main/kotlin/si/safeer/tv/os/GlasbaActivity.kt")
+_nz = telo(gl, "fun predvajajNaslednjoEpizodo(", "izberiTok(sk, n.naslov, n.tokovi, false, n.pripravljeno)")
+preveri("Usenet U2: zagon naslednje epizode steje v omejitev", 0 <= _nz.find("UsenetFilter.zabeleziZagon()") < _nz.find("predpomnjeniZa(n.tokovi"))
+preveri("Glasba CR: onStop odstrani samo svoj povratni klic Useneta",
+        "if (UsenetPomocniki.obSpremembi === obPomocnikuUseneta) UsenetPomocniki.obSpremembi = null" in gl
+        and "UsenetPomocniki.obSpremembi = obPomocnikuUseneta" in gl and gl.count("UsenetPomocniki.obSpremembi = {") == 0)
+preveri("Glasba CR: predpomnilnik filtra Usenet vezan na katalog in pociscen ob menjavi vira",
+        "if (k === katalog && zdaj - cas in 0 until 3_000L) return f" in gl
+        and "filterUsenetPrej = null\n                odpriBrskanje(o.tip, o.zvrst, o.jezik)" in gl)
+
+dg = beri("src/main/kotlin/si/safeer/tv/os/DiagnostikaPredvajanja.kt")
+preveri("Diagnostika U4: neuspeh pise pod zaklepom", "synchronized(zaklepDnevnika) { neuspehPodZaklepom(" in dg)
+
 if napake:
     print("NAPAKA zunanji pregled TV:", len(napake)); sys.exit(1)
 print("zunanji pregled TV OK")

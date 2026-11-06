@@ -156,6 +156,22 @@ fun main() {
     preveriEnako("omejevalnik: meja (429) ustavi", false, om.smem(t0 + 2 * min))
     preveriEnako("omejevalnik: po premoru spet", true, om.smem(t0 + 12 * min))
 
+    // Pregled 6. 11. 2026 (U1): pogled ne porabi kvote; kvoto porabi samo poslana zahteva.
+    val om2 = FilterViraPravila.Omejevalnik(2)
+    preveriEnako("U1: lahko ne porabi", listOf(true, true, true), (0 until 3).map { om2.lahko(t0) })
+    preveriEnako("U1: po treh pogledih se 2 zahtevi", listOf(true, true, false), (0 until 3).map { om2.smem(t0) })
+    preveriEnako("U1: polna kvota - lahko ne", false, om2.lahko(t0 + 1))
+    preveriEnako("U1: brez racuna ne posljemo", false, FilterViraPravila.poslji(Izid.NE_VEMO, "tt1", true))
+    preveriEnako("U1: brez id ne posljemo", false, FilterViraPravila.poslji(Izid.NA_VOLJO, null, true))
+    preveriEnako("U1: naslova ne iscemo", false, FilterViraPravila.poslji(Izid.NA_VOLJO, "tt1", false))
+    preveriEnako("U1: racun, id, iscemo -> poslji", true, FilterViraPravila.poslji(Izid.NA_VOLJO, "tt1", true))
+    // U2: zagon naslednje epizode se steje (tudi ce je kvota polna), preverbe filtra v isti minuti pocakajo.
+    val om3 = FilterViraPravila.Omejevalnik(2)
+    om3.zabelezi(t0); om3.zabelezi(t0 + 1)
+    preveriEnako("U2: dva zagona zapolnita minuto", false, om3.smem(t0 + 2))
+    om3.zabelezi(t0 + 3)
+    preveriEnako("U2: po minuti od zadnjih spet", true, om3.smem(t0 + 3 + min))
+
     preveriEnako("prazno: iscemo", FilterViraPravila.Prazno.ISCEM, FilterViraPravila.prazno(true, true))
     preveriEnako("prazno: ne odgovarja", FilterViraPravila.Prazno.NE_ODGOVARJA, FilterViraPravila.prazno(false, true))
     preveriEnako("prazno: ni naslovov", FilterViraPravila.Prazno.NI_NASLOVOV, FilterViraPravila.prazno(false, false))

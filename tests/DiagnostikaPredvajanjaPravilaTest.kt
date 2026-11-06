@@ -17,6 +17,14 @@ fun main() {
     check(P.gostitelj("nntps://news.eweka.nl:563") == "news.eweka.nl") { "Usenet streznik" }
     check(P.gostitelj("http://127.0.0.1:41234/usenet/abc?k=1") == "ta-naprava" && P.gostitelj("http://localhost:8080/x") == "ta-naprava") { "lasten pomocnik" }
     check(P.gostitelj("magnet:?xt=urn:btih:abc") == "" && P.gostitelj(null) == "") { "brez gostitelja" }
+    // Pregled 6. 11. 2026 (U4): naslov IP kot gostitelj nikoli v dnevnik (javni, zavit v IPv6, CGNAT).
+    for ((n, v) in listOf("http://[::ffff:192.168.1.5]:8080/f" to "domace-omrezje", "http://[::ffff:127.0.0.1]/x" to "ta-naprava",
+            "http://[::ffff:8.8.8.8]/x" to "naslov-ip", "http://100.64.12.7:8443/f" to "domace-omrezje",
+            "http://100.127.255.1/f" to "domace-omrezje", "http://100.128.0.1/f" to "naslov-ip", "https://203.0.113.9/stremio/x" to "naslov-ip",
+            "https://[2a00:1450:4001::1]/x" to "naslov-ip", "http://[fd12::5]/x" to "domace-omrezje", "http://[fe80::1]/x" to "domace-omrezje",
+            "http://[::1]:9000/x" to "ta-naprava", "http://2130706433/x" to "naslov-ip", "http://10.0.0.2/x" to "domace-omrezje"))
+        check(P.gostitelj(n) == v) { "IP v dnevniku: $n -> ${P.gostitelj(n)}" }
+    check(!P.cisti("napaka https://203.0.113.9/token/x").contains("203.0.113")) { "javni IP v prostem besedilu" }
 
     // Podtaknjen URL s kljucem, zeton, e-naslov in par kljuc=vrednost: v vnosu ostane samo gostitelj.
     val kljuc = "sk_" + "live_9f8e7d6c5b4a39281706f5e4"
