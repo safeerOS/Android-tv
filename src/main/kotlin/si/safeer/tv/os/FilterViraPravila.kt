@@ -333,7 +333,6 @@ object FilterViraPravila {
             casi.addLast(zdaj)
         }
     }
-    }
 
     /**
      * Pregled 6. 11. 2026 (U1): preverba filtra poslje zahtevo indeksatorju samo z nastavljenim racunom, znanim id in
