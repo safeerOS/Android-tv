@@ -361,8 +361,10 @@ object FilterViraPravila {
      * imajo lahko manjso kvoto.
      */
     // Lastnik 6. 11. 2026 06:29-06:35: indeksator (NZBFinder) ni ponudnik NNTP - najvec 2 zahtevi hkrati, razmik pod 1 s,
-    // nizka stopnja (100/min in 6 hkrati je ob 06:14 sprozilo omejitev indeksatorja po 60 zahtevah).
-    const val NA_MINUTO = 30
+    // nizka stopnja (100/min in 6 hkrati je ob 06:14 sprozilo omejitev indeksatorja po 60 zahtevah - sunek brez razmika).
+    // Lastnik 6. 11. 2026 10:06: 100 na minuto. Z razmikom 0,5 s in 2 hkrati sunka ni vec (izmerjeno 07:16 pri 30/min:
+    // brez omejitve indeksatorja, ozko grlo je bila nasa meja); premor ob meji ostane od 5 s navzgor.
+    const val NA_MINUTO = 100
     const val HKRATI = 2
     const val RAZMIK_MS = 500L
     const val PRVI_PREMOR_MS = 5_000L
