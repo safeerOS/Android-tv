@@ -81,6 +81,7 @@ class GlasbaActivity : OsActivity() {
                              val kanali: Boolean = false,
                              /** Mreza videospotov: lezece slicice 16:9 (slika videa), naslov in izvajalec pod njo. */
                              val slicice: Boolean = false,
+                             val nadaljuj: Boolean = false,
                              /** Mreza skladb (Glasba): na televizorju manjse kartice - sedem v vrsto, dve celi vrsti na zaslonu. */
                              val skladbe: Boolean = false,
                              /** Blok na strani z vec bloki: kaj odpre kartica »Pokazi vse« (privzeto ta blok kot cela mreza, [odpriBlok]). */
@@ -99,6 +100,7 @@ class GlasbaActivity : OsActivity() {
                                val id: String = "",
                                /** Lastnik 4. 11. 2026: izbira vec kanalov - null = ni nacina izbire, true/false = izbran ali ne. */
                                val izbrana: Boolean? = null,
+                               val napredek: Int? = null,
                                /** Kartica dejanja na koncu bloka (»Pocisti«, »Pokazi vse«): ob krajsanju bloka ostane ([blokMreze]). */
                                val dejanje: Boolean = false,
                                /** Dejanje odpre vso vsebino bloka: blok ne dobi se ene kartice »Pokazi vse«. */
@@ -165,6 +167,8 @@ class GlasbaActivity : OsActivity() {
     /** Pregled Medijskega centra 5. 11. 2026 (7): zadnja izbrana epizoda serije v tem zagonu (id serije -> sezona, epizoda). */
     private val zadnjaEpizodaSerije = HashMap<String, Pair<Int, Int>>()
     private var iskalnik: EditText? = null
+    private lateinit var ploscaDomov: LinearLayout
+    private var miniPlosca: MiniPredvajalnik? = null
     /** Po izbiri kartice razdelka gre fokus na prvo kartico vsebine, ko se narise. */
     private var fokusVVsebino = false
     private var videnPrej = false
@@ -906,7 +910,22 @@ class GlasbaActivity : OsActivity() {
             if (mv != null && !mv.nalagam && mv.seKaj && vsebina.height - (y + drsnik.height) < dp(500) &&
                 android.os.SystemClock.uptimeMillis() - mv.zadnjicVec > 700) naloziVecMreze(mv)
         }
-        desno.addView(drsnik, LinearLayout.LayoutParams(-1, 0, 1f))
+        val vsebinaOvoj = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        vsebinaOvoj.addView(drsnik, LinearLayout.LayoutParams(0, -1, 1f))
+        
+        ploscaDomov = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            visibility = View.GONE
+            setPadding(dp(16), 0, 0, 0)
+        }
+        val okvirPredvajalnika = FrameLayout(this).apply { layoutParams = LinearLayout.LayoutParams(-1, dp(150)) }
+        ploscaDomov.addView(okvirPredvajalnika)
+        miniPlosca = MiniPredvajalnik(this, okvirPredvajalnika, getSharedPreferences("safeer_os", MODE_PRIVATE),
+            !window.decorView.isInTouchMode, { osBarva(it) }, { startActivity(Intent(this@GlasbaActivity, PredvajanjeActivity::class.java)) }, { osveziPloscoDomov() }, dovoliSeznam = false)
+            
+        vsebinaOvoj.addView(ploscaDomov, LinearLayout.LayoutParams(dp(260), -1))
+        
+        desno.addView(vsebinaOvoj, LinearLayout.LayoutParams(-1, 0, 1f))
 
         // Mala vrstica "zdaj se predvaja" v razdelkih (na plosci je velika)
         vrstica = LinearLayout(this).apply {
@@ -1138,7 +1157,15 @@ class GlasbaActivity : OsActivity() {
                     znacka(k.kakovost, barvaKakovosti(k.kakovost), if (k.oznaka.isBlank()) 9 else 42,
                         k.kakovostId.takeIf { it.isNotBlank() }?.let { OZNAKA_KAKOVOSTI + it })
                 }, LinearLayout.LayoutParams(sirina, visina))
-            } else addView(slika, LinearLayout.LayoutParams(sirina, visina))
+            } else if (k.napredek != null) {
+                addView(FrameLayout(this@GlasbaActivity).apply {
+                    addView(slika, FrameLayout.LayoutParams(-1, -1))
+                    addView(View(this@GlasbaActivity).apply { setBackgroundColor(0x33FFFFFF) }, FrameLayout.LayoutParams(-1, dp(4), Gravity.BOTTOM))
+                    addView(View(this@GlasbaActivity).apply { setBackgroundColor(osBarva(R.color.os_mint)) }, FrameLayout.LayoutParams((sirina * k.napredek / 100f).toInt(), dp(4), Gravity.BOTTOM))
+                }, LinearLayout.LayoutParams(sirina, visina))
+            } else {
+                addView(slika, LinearLayout.LayoutParams(sirina, visina))
+            }
             val dveVrstici = plakat || kanal || (velikostDp in 1..103 && !mala && !slicica)
             val izvajalecPod = if (!dveVrstici && '\n' in k.naslov) k.naslov.substringBefore('\n') else ""
             addView(besedilo(if (mala) 11f else if (kanal) 13f else 14f, osBarva(R.color.os_besedilo), true).apply {
@@ -1416,11 +1443,11 @@ class GlasbaActivity : OsActivity() {
         // ena kartica na vrsto je bil seznam z veliko praznega prostora (lastnik, Moji viri na telefonu pokonci).
         val sirinaVsebine = vsebina.width.takeIf { it > 0 } ?: (resources.displayMetrics.widthPixels * 3 / 4)
         // Kanali: lezece ploscice; na televizorju nekoliko manjse, da jih gre pet v vrsto in tri vrste na zaslon.
-        var velikost = if (v.kanali) (if (jeTv()) 132 else 150) else if (v.slicice) 150 else if (v.mala) 96 else if (v.video) 112 else if (v.skladbe && jeTv()) 84 else MREZA_DP
+        var velikost = if (v.nadaljuj) 220 else if (v.kanali) (if (jeTv()) 132 else 150) else if (v.slicice) 150 else if (v.mala) 96 else if (v.video) 112 else if (v.skladbe && jeTv()) 84 else MREZA_DP
         var n = (sirinaVsebine / dp(velikost + 12 + 14)).coerceAtLeast(1)
         // Plakati in male kartice (Nedavno): na telefonu pokonci trije v vrsto (kot uporabniki poznajo iz drugih
         // predvajalnikov), sicer vsaj dva.
-        val lezece = v.kanali || v.slicice
+        val lezece = v.kanali || v.slicice || v.nadaljuj
         val drobne = v.mala || (v.video && !lezece)
         // Skladbe in seznami z naslovnico: na telefonu trije v vrsto, kot plakati pri Videu (lastnik: »razpored kot pri video«).
         val naslovnice = v.skladbe && !lezece && !jeTv()
@@ -1448,7 +1475,7 @@ class GlasbaActivity : OsActivity() {
     }
 
     private fun karticaMreze(v: Vrsta, k: Kartica, velikost: Int): View =
-        if (v.cisto) cistPlakat(k, false, "") else kartica(k, v.video, false, "", mala = v.mala, velikostDp = velikost, kanal = v.kanali, slicica = v.slicice)
+        if (v.cisto) cistPlakat(k, false, "") else kartica(k, v.video, false, "", mala = v.mala, velikostDp = velikost, kanal = v.kanali, slicica = v.slicice || v.nadaljuj)
 
     /**
      * Blok kartic na strani z vec bloki (Domov, Moja glasba, Zate, zadetki iskanja, Brskaj): mreza z najvec
@@ -1641,6 +1668,44 @@ class GlasbaActivity : OsActivity() {
      */
     private var mestoKlika: Pair<Int, Mesto>? = null
     private var mestoKlikaOb = 0L
+
+    private fun osveziPloscoDomov() {
+        val pokaziPlosco = razdelek == DOMOV && DomovVrsticePravila.imaPlosco(jeTv(), resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE, ozekZaslon())
+        ploscaDomov.visibility = if (pokaziPlosco) View.VISIBLE else View.GONE
+        if (!pokaziPlosco) return
+
+        miniPlosca?.osvezi()
+        
+        // Odstrani vse razen prvega (predvajalnik)
+        while (ploscaDomov.childCount > 1) ploscaDomov.removeViewAt(1)
+        
+        // TV v zivo zdaj
+        val kanali = priljubljeniKanali()
+        if (kanali.isEmpty()) {
+            android.util.Log.d("SafeerOsMediji", "TV v zivo zdaj: ni priljubljenih kanalov")
+        } else {
+            val sk = kanali.first()
+            val v = Vrsta(getString(R.string.os_mediji_tv_v_zivo), listOf(Kartica(sk.naslov, sk.izvajalec, sk.slika, { predvajaj(listOf(sk), 0) }, { meniNedavno(sk) }, id = sk.id)), kanali = true)
+            ploscaDomov.addView(besedilo(16f, osBarva(R.color.os_besedilo), true).apply { text = getString(R.string.os_mediji_tv_v_zivo); setPadding(0, dp(16), 0, dp(8)) })
+            ploscaDomov.addView(karticaMreze(v, v.kartice.first(), 150))
+        }
+        
+        // Prenosi v teku
+        delavec.execute {
+            val prenosi = try { prenosiNaRacunalnikih(cakajS = 2) } catch (_: Exception) { emptyList() }
+            glavna.post {
+                if (isFinishing || razdelek != DOMOV) return@post
+                if (prenosi.isEmpty()) {
+                    android.util.Log.d("SafeerOsMediji", "Prenosi v teku: ni prenosov")
+                } else {
+                    val sk = prenosi.first()
+                    val v = Vrsta(getString(R.string.os_prenosi_v_teku), listOf(Kartica(sk.naslov, sk.izvajalec, sk.slika, { predvajaj(listOf(sk), 0) }, id = sk.id)), video = true)
+                    ploscaDomov.addView(besedilo(16f, osBarva(R.color.os_besedilo), true).apply { text = getString(R.string.os_prenosi_v_teku); setPadding(0, dp(16), 0, dp(8)) })
+                    ploscaDomov.addView(karticaMreze(v, v.kartice.first(), 150))
+                }
+            }
+        }
+    }
 
     private fun zapomniMestoKlika() {
         mestoKlika = if (window.decorView.isInTouchMode && !podstrani.odprta) razdelek to mestoZdaj() else null
@@ -3250,6 +3315,81 @@ class GlasbaActivity : OsActivity() {
                 fun jeKanalP(sk: Jamendo.Skladba) = PriljubljeniKanaliPravila.jeKanal(sk.id, Stremio.jeVZivo(sk)) || IptvSeznami.jeKanal(sk)
                 val izbrane = DomovVrstice.izbrane(this)
                 val zbraniMap: Map<DomovVrsticePravila.Vrstica, List<Vrsta>> = izbrane.associateWith { v -> when (v) {
+                    DomovVrsticePravila.Vrstica.NADALJUJ_Z_OGLEDOM -> {
+                        val napredki = MediaNapredek.seznam(this@GlasbaActivity)
+                        val nedavniVidei = razvrsti(i, filtrirajJezike(i, MedijskiViri.nedavno(this@GlasbaActivity).filterNot { neodklenjena(it) }))
+                            .filter { it.video && !it.radio && !jeKanalP(it) }
+                            .distinctBy { kljucNedavnega(it) }
+                        
+                        val kartice = predajaVrsta().flatMap { it.kartice } + nedavniVidei.map { sk ->
+                            val n = napredki.firstOrNull { it.skladba.id == sk.id || (it.skladba.naslov.isNotBlank() && it.skladba.naslov == sk.naslov) }
+                            val napredekOdstotek = if (n != null && n.trajanje > 0) (n.polozaj * 100 / n.trajanje).toInt().coerceIn(0, 100) else null
+                            Kartica(sk.naslov, sk.izvajalec, sk.slika, { predvajaj(listOf(sk), 0, izNedavnih = true) }, { meniNedavno(sk) },
+                                ikona = R.drawable.os_ikona_video, id = sk.id, napredek = napredekOdstotek)
+                        }
+                        if (kartice.isEmpty()) emptyList() else listOf(Vrsta(getString(R.string.os_nadaljuj_z_ogledom), kartice, video = true, nadaljuj = true))
+                    }
+                    DomovVrsticePravila.Vrstica.NADALJUJ_S_POSLUSANJEM -> {
+                        val nedavniZvok = razvrsti(i, filtrirajJezike(i, MedijskiViri.nedavno(this@GlasbaActivity).filterNot { neodklenjena(it) }))
+                            .filter { !it.video && !it.radio && !jeKanalP(it) }
+                            .distinctBy { kljucNedavnega(it) }
+                            .take(5)
+                        
+                        val kartice = nedavniZvok.map { sk ->
+                            Kartica(sk.naslov, sk.izvajalec, sk.slika, { predvajaj(listOf(sk), 0, izNedavnih = true) }, { meniNedavno(sk) },
+                                ikona = R.drawable.os_ikona_glasba, id = sk.id)
+                        }
+                        val vrste = seznamiBlok(seznami) + if (kartice.isEmpty()) emptyList() else listOf(Vrsta(getString(R.string.os_nadaljuj_s_poslusanjem), kartice, skladbe = true))
+                        // "Kartica odpre seznam in nadaljuje pri skladbi" - Seznami ze imajo to (odprejo mrezo, kjer se nadaljuje). Za skladbe iz nedavnega se predvaja kot obicajno.
+                        // Wait, seznamiBlok returns a List<Vrsta>. NADALJUJ_S_POSLUSANJEM needs to be a single Vrsta with both?
+                        // "Nadaljuj s poslusanjem... Kartica odpre seznam in nadaljuje pri skladbi... Vir: Nedavno (samo zvok) + seznamiBlok."
+                        // Let's combine them into one list of cards!
+                        val seznamiKartice = seznami.map { karticaSeznama(it) }
+                        val vseKartice = kartice + seznamiKartice
+                        if (vseKartice.isEmpty()) emptyList() else listOf(Vrsta(getString(R.string.os_nadaljuj_s_poslusanjem), vseKartice, skladbe = true))
+                    }
+                    DomovVrsticePravila.Vrstica.NEDAVNO_DODANO -> {
+                        val najnovejseVidei = iskanjeDelavec.submit<List<Jamendo.Skladba>> {
+                            val vsi = SEZNAMI[VIDEO]?.flatMap { it.skladbe } ?: VSE_VIDEO ?: try { podatkiRazdelka(VIDEO).flatMap { it.skladbe } } catch (_: Exception) { emptyList() }
+                            val collator = Collator.getInstance(resources.configuration.locales[0]).apply { strength = Collator.SECONDARY }
+                            val poImenu = Comparator<Jamendo.Skladba> { a, b -> collator.compare(a.naslov, b.naslov) }
+                            val primerjalnik = Comparator<Jamendo.Skladba> { a, b ->
+                                when {
+                                    a.year == 0 && b.year != 0 -> 1
+                                    a.year != 0 && b.year == 0 -> -1
+                                    a.year != b.year -> b.year.compareTo(a.year)
+                                    else -> poImenu.compare(a, b)
+                                }
+                            }
+                            vsi.sortedWith(primerjalnik).distinctBy { it.id }.take(30)
+                        }
+                        val izKatalogov = try { najnovejseVidei.get(3_000L, java.util.concurrent.TimeUnit.MILLISECONDS) } catch (_: Exception) { emptyList() }
+                        val vir = filterUsenet()
+                        val pomocnik = vir != null && UsenetPomocniki.zdaj(this@GlasbaActivity)
+                        val filtrirani = if (vir != null) izKatalogov.filter { sk -> kljucUsenet(sk, vir.odtis)?.let { UsenetFilter.pokazi(this@GlasbaActivity, it, pomocnik) } == true } else izKatalogov
+                        val kartice = filtrirani.map { sk ->
+                            Kartica(sk.naslov, sk.izvajalec, sk.slika, { predvajaj(listOf(sk), 0, izNedavnih = false) }, id = sk.id)
+                        }
+                        if (kartice.isEmpty()) emptyList() else listOf(Vrsta(getString(R.string.os_nedavno_dodano), kartice, video = true))
+                    }
+                    DomovVrsticePravila.Vrstica.PRIPOROCENO -> {
+                        val zgodovina = MedijskiViri.nedavno(this@GlasbaActivity)
+                        val priporocenoVidei = iskanjeDelavec.submit<List<Jamendo.Skladba>> {
+                            val katalogiVsi = SEZNAMI[VIDEO]?.flatMap { it.skladbe } ?: VSE_VIDEO ?: try { podatkiRazdelka(VIDEO).flatMap { it.skladbe } } catch (_: Exception) { emptyList() }
+                            DomovVrsticePravila.priporoceno(katalogiVsi, zgodovina).take(30)
+                        }
+                        val izKatalogov = try { priporocenoVidei.get(3_000L, java.util.concurrent.TimeUnit.MILLISECONDS) } catch (_: Exception) { emptyList() }
+                        val vir = filterUsenet()
+                        val pomocnik = vir != null && UsenetPomocniki.zdaj(this@GlasbaActivity)
+                        val filtrirani = if (vir != null) izKatalogov.filter { sk -> kljucUsenet(sk, vir.odtis)?.let { UsenetFilter.pokazi(this@GlasbaActivity, it, pomocnik) } == true } else izKatalogov
+                        val kartice = filtrirani.map { sk ->
+                            Kartica(sk.naslov, sk.izvajalec, sk.slika, { predvajaj(listOf(sk), 0, izNedavnih = false) }, id = sk.id)
+                        }
+                        if (kartice.isEmpty()) {
+                            android.util.Log.d("SafeerOsMedia", "Priporoceno prazno: ni dovolj podatkov ali vsi ze gledani/ni zadetkov")
+                            emptyList()
+                        } else listOf(Vrsta(getString(R.string.os_priporoceno), kartice, video = true))
+                    }
                     DomovVrsticePravila.Vrstica.NEDAVNO -> listOf(Vrsta(getString(R.string.os_media_nedavno),
                         predajaVrsta().flatMap { it.kartice } + razvrsti(i, filtrirajJezike(i, MedijskiViri.nedavno(this).filterNot { neodklenjena(it) }))
                     // Isti naslov iz dveh virov (dve razlicici) je med nedavnimi en sam - brez podvojenih prikazov.

@@ -21,9 +21,9 @@ object Jamendo {
 
     /** Ena enota za predvajanje: skladba, radijska postaja, video ali datoteka z naprave. */
     data class Skladba(
-        val id: String,
-        val naslov: String,
-        val izvajalec: String,
+        override val id: String,
+        override val naslov: String,
+        override val izvajalec: String,
         val slika: String,
         val zvok: String,
         val povezava: String,
@@ -53,7 +53,9 @@ object Jamendo {
         val language: String = "",
         /** Podnapisi ob videu (datoteke z naprave ali iz istega torrenta). */
         val podnapisi: List<Podnapisi.Podnapis> = emptyList(),
-    )
+    ) : DomovVrsticePravila.Naslov {
+        override val zvrsti: List<String> get() = genres
+    }
 
     data class Izvajalec(val id: String, val ime: String, val slika: String)
 

@@ -54,4 +54,9 @@
     <string name="os_media_pripravljam">Préparation de %1$s…</string>
     <string name="os_media_priprava_napaka">Impossible de préparer %1$s.</string>
     <string name="pk_odpiram">Ouverture…</string>
+    <string name="os_nadaljuj_z_ogledom">Continuer à regarder</string>
+    <string name="os_nadaljuj_s_poslusanjem">Continuer l'écoute</string>
+    <string name="os_nedavno_dodano">Ajouté récemment</string>
+    <string name="os_priporoceno">Recommandé</string>
+    <string name="os_prenosi_v_teku">Transferts en cours</string>
 </resources>

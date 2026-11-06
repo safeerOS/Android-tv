@@ -57,4 +57,15 @@ class DomovVrsticePravilaTest {
         assertTrue(rezultat.any { it.id == "3" })
         assertTrue(rezultat.any { it.id == "4" })
     }
+
+    @Test
+    fun `vidnost polj plosce in sirok zaslon`() {
+        assertTrue(DomovVrsticePravila.imaPlosco(jeTv = true, jeLezece = true, ozekZaslon = false))
+        assertTrue(DomovVrsticePravila.imaPlosco(jeTv = false, jeLezece = true, ozekZaslon = false))
+        assertFalse(DomovVrsticePravila.imaPlosco(jeTv = false, jeLezece = false, ozekZaslon = false))
+        assertFalse(DomovVrsticePravila.imaPlosco(jeTv = false, jeLezece = true, ozekZaslon = true))
+
+        assertTrue(DomovVrsticePravila.prikaziPoljePlosce(false))
+        assertFalse(DomovVrsticePravila.prikaziPoljePlosce(true))
+    }
 }

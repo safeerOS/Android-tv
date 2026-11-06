@@ -115,4 +115,11 @@ object DomovVrsticePravila {
              (k.izvajalec.isNotBlank() && k.izvajalec.lowercase().trim() in izvajalci))
         }.distinctBy { it.id }
     }
+
+    /** Samo na sirokem zaslonu (TV, tablica lezece). */
+    fun imaPlosco(jeTv: Boolean, jeLezece: Boolean, ozekZaslon: Boolean): Boolean =
+        if (jeTv) true else jeLezece && !ozekZaslon
+
+    /** Polje v plosci (TV v zivo, Prenosi) se pokaze le, ce ni prazno. */
+    fun prikaziPoljePlosce(prazno: Boolean): Boolean = !prazno
 }
