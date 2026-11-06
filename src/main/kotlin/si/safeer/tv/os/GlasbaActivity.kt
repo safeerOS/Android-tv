@@ -9570,7 +9570,114 @@ class GlasbaActivity : OsActivity() {
 
     private fun imeNapraveLinka(id: String): String = link.naprave.firstOrNull { it.id == id }?.ime?.takeIf { it.isNotBlank() } ?: id
 
-    private fun nastavitveVrstic() {}
+    private var vrsticePremik: DomovVrsticePravila.Vrstica? = null
+
+    private fun nastavitveVrstic() {
+        val a = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(R.string.os_nastavitve_vrstice)
+        val vsebina = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(16), dp(16), dp(16)) }
+        val drsnik = ScrollView(this).apply { addView(vsebina) }
+        a.setView(drsnik)
+        
+        fun imeVrstice(v: DomovVrsticePravila.Vrstica): String = getString(when (v) {
+            DomovVrsticePravila.Vrstica.NEDAVNO -> R.string.os_media_nedavno
+            DomovVrsticePravila.Vrstica.SEZNAMI -> R.string.os_seznami_predvajanja
+            DomovVrsticePravila.Vrstica.PRILJ_GLASBA -> R.string.os_domov_prilj_glasba
+            DomovVrsticePravila.Vrstica.PRILJ_VIDEO -> R.string.os_mediji_prilj_video
+            DomovVrsticePravila.Vrstica.RADIO -> R.string.os_domov_prilj_radio
+            DomovVrsticePravila.Vrstica.TV -> R.string.os_domov_prilj_tv
+            DomovVrsticePravila.Vrstica.VIRI -> R.string.os_media_tvoji_viri
+        })
+
+        var okno: AlertDialog? = null
+        fun osveziOkna() {
+            vsebina.removeAllViews()
+            val izbrane = DomovVrstice.izbrane(this)
+            val vse = izbrane + (DomovVrsticePravila.Vrstica.values().toList() - izbrane)
+            
+            for (v in vse) {
+                val vklopljena = v in izbrane
+                val izbranaPremik = v == vrsticePremik
+                
+                val cb = android.widget.CheckBox(this).apply {
+                    text = imeVrstice(v)
+                    isChecked = vklopljena
+                    setTextColor(osBarva(if (izbranaPremik) R.color.os_mint else R.color.os_besedilo))
+                    textSize = 16f
+                    setPadding(dp(8), dp(12), dp(8), dp(12))
+                }
+                
+                val gumb = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    isFocusable = true
+                    isClickable = true
+                    background = android.graphics.drawable.StateListDrawable().apply {
+                        addState(intArrayOf(android.R.attr.state_focused), 
+                            android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(8).toFloat(); setColor(osBarva(R.color.os_mint) and 0x33FFFFFF) })
+                        addState(intArrayOf(), 
+                            android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(8).toFloat(); setColor(if (izbranaPremik) osBarva(R.color.os_mint) and 0x55FFFFFF else 0) })
+                    }
+                    
+                    addView(cb, LinearLayout.LayoutParams(0, -2, 1f))
+                    
+                    if (ozekZaslon() || packageName.endsWith(".tablet")) {
+                        addView(besedilo(20f, osBarva(R.color.os_besedilo)).apply { text = "▲"; setPadding(dp(12), dp(12), dp(12), dp(12)); setOnClickListener { DomovVrstice.shrani(this@GlasbaActivity, DomovVrsticePravila.premakni(izbrane, v, -1)); osveziOkna() } })
+                        addView(besedilo(20f, osBarva(R.color.os_besedilo)).apply { text = "▼"; setPadding(dp(12), dp(12), dp(12), dp(12)); setOnClickListener { DomovVrstice.shrani(this@GlasbaActivity, DomovVrsticePravila.premakni(izbrane, v, 1)); osveziOkna() } })
+                    }
+                    
+                    setOnClickListener {
+                        if (vrsticePremik == null) {
+                            DomovVrstice.shrani(this@GlasbaActivity, DomovVrsticePravila.preklopi(izbrane, v))
+                            osveziOkna()
+                        } else {
+                            vrsticePremik = null
+                            osveziOkna()
+                        }
+                    }
+                    setOnKeyListener { _, kc, e ->
+                        if (e.action == android.view.KeyEvent.ACTION_DOWN) {
+                            if (kc == android.view.KeyEvent.KEYCODE_DPAD_CENTER || kc == android.view.KeyEvent.KEYCODE_ENTER) {
+                                if (vrsticePremik == null) vrsticePremik = v else vrsticePremik = null
+                                osveziOkna()
+                                return@setOnKeyListener true
+                            }
+                            if (vrsticePremik == v) {
+                                if (kc == android.view.KeyEvent.KEYCODE_DPAD_UP) {
+                                    DomovVrstice.shrani(this@GlasbaActivity, DomovVrsticePravila.premakni(izbrane, v, -1))
+                                    osveziOkna()
+                                    return@setOnKeyListener true
+                                }
+                                if (kc == android.view.KeyEvent.KEYCODE_DPAD_DOWN) {
+                                    DomovVrstice.shrani(this@GlasbaActivity, DomovVrsticePravila.premakni(izbrane, v, 1))
+                                    osveziOkna()
+                                    return@setOnKeyListener true
+                                }
+                            }
+                        }
+                        false
+                    }
+                }
+                cb.isClickable = false
+                cb.isFocusable = false
+                vsebina.addView(gumb)
+            }
+            vsebina.addView(besedilo(16f, osBarva(R.color.os_besedilo)).apply { 
+                text = getString(R.string.os_dodatek_ponastavi)
+                setPadding(dp(12), dp(16), dp(12), dp(16))
+                isClickable = true
+                isFocusable = true
+                background = android.graphics.drawable.StateListDrawable().apply {
+                    addState(intArrayOf(android.R.attr.state_focused), android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(8).toFloat(); setColor(osBarva(R.color.os_mint) and 0x33FFFFFF) })
+                    addState(intArrayOf(), android.graphics.drawable.GradientDrawable().apply { cornerRadius = dp(8).toFloat(); setColor(0) })
+                }
+                setOnClickListener { DomovVrstice.ponastavi(this@GlasbaActivity); vrsticePremik = null; osveziOkna() }
+            })
+        }
+        okno = a.create()
+        osveziOkna()
+        okno.setOnDismissListener { if (razdelek == DOMOV) { SEZNAMI.remove(DOMOV); osveziNaMestu() } }
+        okno.show()
+    }
 
     private fun nastavitveMedijskegaCentra() {
         fun vklop(da: Boolean) = getString(if (da) R.string.os_vklopljeno else R.string.os_izklopljeno)
