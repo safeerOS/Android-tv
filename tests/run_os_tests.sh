@@ -202,6 +202,9 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/IptvPrijavaRacunaTest.kt" \
     "$SRC/si/safeer/tv/os/PriljubljeniKanaliPravila.kt" \
     "$TEST_DIR/PriljubljeniKanaliPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/MeniVsebinePravila.kt" \
+    "$SRC/si/safeer/tv/os/DomovVrsticePravila.kt" \
+    "$TEST_DIR/MeniVsebinePravilaTest.kt" \
     "$SRC/si/safeer/tv/os/DovoljenjaPravila.kt" \
     "$TEST_DIR/DovoljenjaPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/NastavitvePravila.kt" \
@@ -361,6 +364,8 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.IptvRacunTestKt
 # Pregled 105, S2 in S3 (26. 10. 2026): prejet vir z racunom pod nadomestkom, ena prijava na racun (ne na naslov).
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.IptvPrijavaRacunaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PriljubljeniKanaliPravilaTestKt
+# Meni vsebine, prazna Glasba, Nedavno in vrstice Dom (lastnik 6. 11. 2026 04:34-04:56).
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.MeniVsebinePravilaTestKt "$PROJECT_DIR"
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.DovoljenjaPravilaTestKt
 # Pregled Nastavitev in Scita (5. 11. 2026): meje branja, skoki preusmeritev, fokus, diagnostika, Safeer Vnos.
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.NastavitvePravilaTestKt "$SRC"

@@ -13,7 +13,9 @@ import si.safeer.tv.R
  */
 object SeznamOkno {
     fun dodaj(a: Activity, sk: Jamendo.Skladba, poDodajanju: () -> Unit = {}) {
-        val seznami = MedijskiViri.seznami(a)
+        // Lastnik 6. 11. 2026 04:35: seznama, v katerem element ze je, ne ponudimo; ce drugega ni, samo nov seznam.
+        val vsi = MedijskiViri.seznami(a)
+        val seznami = MeniVsebinePravila.ponujeniSeznami(vsi.map { it.ime }, vsi.filter { sz -> sz.skladbe.any { it.id == sk.id } }.mapTo(HashSet()) { it.ime })
         fun shrani(ime: String) {
             val je = MedijskiViri.dodajNaSeznam(a, ime, sk)
             Toast.makeText(a, a.getString(if (je) R.string.os_seznam_dodano else R.string.os_seznam_ze, ime), Toast.LENGTH_SHORT).show()
@@ -29,8 +31,8 @@ object SeznamOkno {
         }
         if (seznami.isEmpty()) { nov(); return }
         AlertDialog.Builder(a).setTitle(R.string.os_seznam_dodaj)
-            .setItems((seznami.map { it.ime } + a.getString(R.string.os_seznam_nov)).toTypedArray()) { _, k ->
-                seznami.getOrNull(k)?.let { shrani(it.ime) } ?: nov()
+            .setItems((seznami + a.getString(R.string.os_seznam_nov)).toTypedArray()) { _, k ->
+                seznami.getOrNull(k)?.let { shrani(it) } ?: nov()
             }.setNegativeButton(android.R.string.cancel, null).show()
     }
 
