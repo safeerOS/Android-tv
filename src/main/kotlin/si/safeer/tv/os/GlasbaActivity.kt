@@ -2213,20 +2213,37 @@ class GlasbaActivity : OsActivity() {
             // Naloga 62: pogled z diska iz casa pred spremembo virov ni vec pravi (polica izbrisanega vira bi ostala do
             // naslednjega obiska) - kot da ga ni. Nalaganje, med katerim so se viri spremenili, ne zapise nicesar.
             val rodVirov = MedijskiViri.spremenjeni(this)
-            val sCasom = try { MedijskiPredpomnilnik.beriPoliceSCasom(this, kljucDiska)?.takeIf { it.first >= rodVirov } } catch (_: Exception) { null }
-            val zDiska = sCasom?.second?.map { (n, v, s) -> Podatki(n, s, v) }
+            val zdaj = System.currentTimeMillis()
+            val sCasom = try { MedijskiPredpomnilnik.beriPoliceSCasom(this, kljucDiska)?.takeIf { it.cas >= rodVirov } } catch (_: Exception) { null }
+            val zDiska = sCasom?.police?.map { (n, v, s) -> Podatki(n, s, v) }
             if (zDiska != null) glavna.post { if (moje == nalaganje && !isFinishing) prikazi(i, zDiska) }
-            val sveze = try {
-                podatkiRazdelka(i).map { it.copy(skladbe = razvrsti(i, it.skladbe)) }
+            
+            val zadnjiSvez = sCasom?.svez ?: 0L
+            val potrebenSvez = KatalogPravila.potrebenSvez(zadnjiSvez, zdaj)
+            
+            if (!potrebenSvez) {
+                val predH = (zdaj - zadnjiSvez) / 3600000L
+                android.util.Log.d("SafeerOsMediji", "svez pregled preskocen: zadnji pred $predH h")
+            }
+            
+            val sveze = if (!potrebenSvez) zDiska else try {
+                podatkiRazdelka(i).map { novaPolica ->
+                    val razvrscene = razvrsti(i, novaPolica.skladbe)
+                    val staraPolica = zDiska?.firstOrNull { it.naslov == novaPolica.naslov }
+                    val zdruzene = if (staraPolica != null) KatalogPravila.zdruzi(staraPolica.skladbe, razvrscene, zdaj)
+                                   else razvrscene.map { it.sCasom(zdaj) as Jamendo.Skladba }
+                    novaPolica.copy(skladbe = zdruzene as List<Jamendo.Skladba>)
+                }
             } catch (_: Exception) { null }
+            
             val polni = sveze != null && sveze.isNotEmpty() && sveze.all { it.skladbe.isNotEmpty() }
             // Vir, ki obcasno ne odgovori (izmerjeno 5. 10. 2026: lestvica glasbe), ne sme umakniti police, ki jo uporabnik
             // pozna, in je naslednjic vrniti: sveze police dopolnimo s tistimi z diska, ki jih tokrat ni - dokler je pogled
             // z diska mlajsi od enega dne. Na disk gre samo popoln svez pogled, zato se ta rok ne podaljsuje sam.
-            val diskVelja = sCasom != null && System.currentTimeMillis() - sCasom.first in 0 until OsPravila.POLICA_OSTANE_MS
-            val podatki = if (polni && zDiska != null && diskVelja) OsPravila.dopolniPolice(zDiska, sveze) { it.naslov } else sveze
+            val diskVelja = sCasom != null && zdaj - sCasom.cas in 0 until OsPravila.POLICA_OSTANE_MS
+            val podatki = if (potrebenSvez && polni && zDiska != null && diskVelja) OsPravila.dopolniPolice(zDiska, sveze) { it.naslov } else sveze
             val viriIsti = MedijskiViri.spremenjeni(this) == rodVirov
-            if (polni && podatki === sveze && viriIsti) MedijskiPredpomnilnik.shraniPolice(this, kljucDiska, sveze.map { Triple(it.naslov, it.video, it.skladbe) })
+            if (potrebenSvez && polni && podatki != null && viriIsti) MedijskiPredpomnilnik.shraniPolice(this, kljucDiska, podatki.map { Triple(it.naslov, it.video, it.skladbe) }, zdaj)
             glavna.post {
                 if (moje != nalaganje || isFinishing) return@post
                 if (podatki == null) {
@@ -2235,7 +2252,7 @@ class GlasbaActivity : OsActivity() {
                     return@post
                 }
                 // Prazen odgovor (Jamendo obcasno) ne ostane v predpomnilniku - ob naslednji izbiri poskusimo znova.
-                if (polni && viriIsti) SEZNAMI[i] = podatki
+                if ((!potrebenSvez || polni) && viriIsti) SEZNAMI[i] = podatki
                 // Pogled z diska je na zaslonu: znova ga narisemo samo, ce so police druge (nov vir, nova polica). Kadar se je
                 // vsebina istih polic le premesala (lestvica priljubljenih), sveze pocaka na naslednji obisk razdelka -
                 // uporabnik osvezevanja v ozadju ne sme cutiti (lastnik, 5. 10. 2026; izmerjeno: polno risanje 3 s po odprtju).
@@ -2960,7 +2977,7 @@ class GlasbaActivity : OsActivity() {
         val rodVirov = MedijskiViri.spremenjeni(this)
         delavec.execute {
             if (o.vsi.isEmpty()) {
-                val zDiska = try { MedijskiPredpomnilnik.beriPoliceSCasom(this, kljuc)?.takeIf { it.first >= rodVirov }?.second?.firstOrNull()?.third } catch (_: Exception) { null }
+                val zDiska = try { MedijskiPredpomnilnik.beriPoliceSCasom(this, kljuc)?.takeIf { it.cas >= rodVirov }?.police?.firstOrNull()?.third } catch (_: Exception) { null }
                 if (!zDiska.isNullOrEmpty()) glavna.post {
                     // Zunanji pregled Video 3. 11. 2026 (3,6 s na glavni niti v narisiKatalog): prvi izris z diska je en zaslon
                     // plakatov in vrsta rezerve; ostale kartice z diska pridejo v naslednjem koraku glavne niti (umiri).
@@ -3298,6 +3315,26 @@ class GlasbaActivity : OsActivity() {
         return vrsta + zgorajSplet(i)
     }
 
+    private fun naloziVseVideoZaDom() {
+        if (nalagamVseVideo || VSE_VIDEO != null || SEZNAMI[VIDEO] != null) return
+        nalagamVseVideo = true
+        delavec.execute {
+            try {
+                val disk = MedijskiPredpomnilnik.beriPoliceSCasom(this@GlasbaActivity, kljucPolic(VIDEO))?.police
+                if (disk != null) {
+                    val seznam = disk.flatMap { it.third }
+                    if (seznam.isNotEmpty()) {
+                        VSE_VIDEO = seznam
+                        glavna.post {
+                            if (razdelek == DOMOV && !podstrani.odprta && !isFinishing) osveziNaMestu()
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+            nalagamVseVideo = false
+        }
+    }
+
     private fun zgorajSplet(i: Int): List<Vrsta> {
         if (i in samoTaNaprava) return emptyList()
         val p = razvrsti(i, filtrirajJezike(i, MedijskiViri.priljubljene(this)))
@@ -3348,6 +3385,7 @@ class GlasbaActivity : OsActivity() {
                         val vsi = SEZNAMI[VIDEO]?.flatMap { it.skladbe } ?: VSE_VIDEO
                         if (vsi == null) {
                             android.util.Log.d("SafeerOsMediji", "Nedavno dodano prazno: ni katalogov v pomnilniku")
+                            naloziVseVideoZaDom()
                             return@associateWith emptyList()
                         }
                         val collator = Collator.getInstance(resources.configuration.locales[0]).apply { strength = Collator.SECONDARY }
@@ -3375,6 +3413,7 @@ class GlasbaActivity : OsActivity() {
                         val katalogiVsi = SEZNAMI[VIDEO]?.flatMap { it.skladbe } ?: VSE_VIDEO
                         if (katalogiVsi == null) {
                             android.util.Log.d("SafeerOsMediji", "Priporoceno prazno: ni katalogov v pomnilniku")
+                            naloziVseVideoZaDom()
                             return@associateWith emptyList()
                         }
                         val izKatalogov = DomovVrsticePravila.priporoceno(katalogiVsi, zgodovina).take(30)
@@ -3731,9 +3770,9 @@ class GlasbaActivity : OsActivity() {
         val seznami = seznamiTv().toSet()
         if (dodatki.isEmpty() && seznami.isEmpty()) return
         val shranjeno = try { MedijskiPredpomnilnik.beriPoliceSCasom(this, kljucSemenaKanalov(m)) } catch (_: Exception) { null } ?: return
-        if (System.currentTimeMillis() - shranjeno.first !in 0 until KANALI_SEME_MS) return
+        if (System.currentTimeMillis() - shranjeno.cas !in 0 until KANALI_SEME_MS) return
         // Naloga 82: kanalov zaklenjenega dodatka ne vracamo (bili bi skriti, mreza pa bi veljala za polno).
-        fun del(ime: String) = shranjeno.second.firstOrNull { it.first == ime }?.third.orEmpty()
+        fun del(ime: String) = shranjeno.police.firstOrNull { it.first == ime }?.third.orEmpty()
             .filter { !Stremio.brezDodatka(it, dodatki) && (!IptvSeznami.jeKanal(it) || it.streznik in seznami) && !neodklenjena(it) }
         val d = del("domaci")
         val k = del("kanali")
@@ -3760,8 +3799,8 @@ class GlasbaActivity : OsActivity() {
         val seznami = seznamiTv().toSet()
         val kljuc = "kanali||${resources.configuration.locales[0].language}"
         val shranjeno = try { MedijskiPredpomnilnik.beriPoliceSCasom(this, kljuc) } catch (_: Exception) { null } ?: return
-        if (System.currentTimeMillis() - shranjeno.first !in 0 until KANALI_SEME_MS) return
-        val n = shranjeno.second.flatMap { it.third }
+        if (System.currentTimeMillis() - shranjeno.cas !in 0 until KANALI_SEME_MS) return
+        val n = shranjeno.police.flatMap { it.third }
             .filter { !Stremio.brezDodatka(it, dodatki) && (!IptvSeznami.jeKanal(it) || it.streznik in seznami) && !ZasebniKanali.jeZaseben(it.id) }
             .distinctBy { it.id }.take(NADOMESTNI_KANALI)
         if (n.isEmpty()) return
@@ -4713,8 +4752,8 @@ class GlasbaActivity : OsActivity() {
         if (mrezaVsebine !== m) return
         val dodatki = stremioNaslovi()
         val shranjeno = try { MedijskiPredpomnilnik.beriPoliceSCasom(this, "mreza|" + m.kljuc) } catch (_: Exception) { null } ?: return
-        if (System.currentTimeMillis() - shranjeno.first !in 0 until KANALI_SEME_MS) return
-        val s = shranjeno.second.firstOrNull()?.third.orEmpty().filter { !Stremio.brezDodatka(it, dodatki) }
+        if (System.currentTimeMillis() - shranjeno.cas !in 0 until KANALI_SEME_MS) return
+        val s = shranjeno.police.firstOrNull()?.third.orEmpty().filter { !Stremio.brezDodatka(it, dodatki) }
         if (s.isEmpty()) return
         glavna.post {
             if (isFinishing || mrezaVsebine !== m || m.vsi.isNotEmpty()) return@post
@@ -5022,7 +5061,7 @@ class GlasbaActivity : OsActivity() {
         val dodatki = stremioNaslovi()
         try { delavec.execute {
             val disk = (try { MedijskiPredpomnilnik.beriPoliceSCasom(app, "mreza|" + m.kljuc) } catch (_: Exception) { null })
-                ?.second?.firstOrNull()?.third.orEmpty().filter { !Stremio.brezDodatka(it, dodatki) }
+                ?.police?.firstOrNull()?.third.orEmpty().filter { !Stremio.brezDodatka(it, dodatki) }
             val sorodne = if (disk.isNotEmpty()) emptyList() else try { sorodnePolice(radio, videospoti) } catch (_: Exception) { emptyList() }
             val izbira = OsPravila.nadomestnaVsebina(disk.size, sorodne.map { it.second.size }, filter, brezFiltra.size)
             val police = izbira.flatMap { n ->
@@ -12705,6 +12744,7 @@ class GlasbaActivity : OsActivity() {
         )
         /** Vse kartice razdelka Video iz zadnjega nalaganja (zdruzene cez vire, neomejene) - osnova mreze Filmi | Serije. */
         @Volatile private var VSE_VIDEO: List<Jamendo.Skladba>? = null
+        @Volatile private var nalagamVseVideo = false
         /** Nastavitve pogleda so zacasne: zivijo samo v pomnilniku procesa, nikoli v SharedPreferences. */
         private val razvrstitve = HashMap<Int, Int>()
         private val zacasnoSkritiViri = HashMap<Int, MutableSet<String>>()
