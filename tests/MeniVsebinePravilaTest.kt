@@ -78,23 +78,23 @@ fun main(args: Array<String>) {
     // --- Domov: katere vrstice (lastnik 04:48-04:56)
     val D = DomovVrsticePravila
     preveriEnako("privzeto Domov: brez vrstic, ki podvajajo oddelke (Radio, TV v zivo, Moji viri)",
-        listOf(DomovVrsticePravila.Vrstica.NEDAVNO, DomovVrsticePravila.Vrstica.SEZNAMI, DomovVrsticePravila.Vrstica.PRILJ_GLASBA, DomovVrsticePravila.Vrstica.PRILJ_VIDEO),
+        DomovVrsticePravila.PRIVZETO,
         D.izbrane(null))
-    preveriEnako("prazne izbrane vrstice ni", listOf(DomovVrsticePravila.Vrstica.NEDAVNO, DomovVrsticePravila.Vrstica.PRILJ_VIDEO),
-        D.vrstice(D.izbrane(null), setOf(DomovVrsticePravila.Vrstica.NEDAVNO, DomovVrsticePravila.Vrstica.PRILJ_VIDEO, DomovVrsticePravila.Vrstica.RADIO)))
-    preveriEnako("izbira uporabnika in njegov vrstni red", listOf(DomovVrsticePravila.Vrstica.RADIO, DomovVrsticePravila.Vrstica.NEDAVNO),
-        D.vrstice(D.izbrane("radio,nedavno"), DomovVrsticePravila.Vrstica.values().toSet()))
-    preveriEnako("zapis tja in nazaj", "tv,seznami,viri", D.vZapis(D.izbrane("tv,seznami,viri")))
+    preveriEnako("prazne izbrane vrstice ni", listOf(DomovVrsticePravila.Vrstica.NEDAVNO_DODANO),
+        D.vrstice(D.izbrane(null), setOf(DomovVrsticePravila.Vrstica.NEDAVNO_DODANO, DomovVrsticePravila.Vrstica.PRILJ_VIDEO, DomovVrsticePravila.Vrstica.NEDAVNO)))
+    preveriEnako("izbira uporabnika in njegov vrstni red", listOf(DomovVrsticePravila.Vrstica.NEDAVNO_DODANO, DomovVrsticePravila.Vrstica.NEDAVNO),
+        D.vrstice(D.izbrane("nedavno_dodano,nedavno"), DomovVrsticePravila.Vrstica.values().toSet()))
+    preveriEnako("zapis tja in nazaj", "prilj_video,seznami", D.vZapis(D.izbrane("prilj_video,seznami")))
     preveriEnako("neznan kljuc in dvojnik izpadeta", listOf(DomovVrsticePravila.Vrstica.SEZNAMI), D.izbrane("seznami,neznano,seznami"))
     preveriEnako("vse izklopljeno ostane izklopljeno (ne privzeto)", emptyList<DomovVrsticePravila.Vrstica>(), D.izbrane(""))
-    preveriEnako("premik gor", listOf(DomovVrsticePravila.Vrstica.SEZNAMI, DomovVrsticePravila.Vrstica.NEDAVNO),
-        D.premakni(listOf(DomovVrsticePravila.Vrstica.NEDAVNO, DomovVrsticePravila.Vrstica.SEZNAMI), DomovVrsticePravila.Vrstica.SEZNAMI, -1))
-    preveriEnako("premik prve gor: nic", listOf(DomovVrsticePravila.Vrstica.NEDAVNO, DomovVrsticePravila.Vrstica.SEZNAMI),
-        D.premakni(listOf(DomovVrsticePravila.Vrstica.NEDAVNO, DomovVrsticePravila.Vrstica.SEZNAMI), DomovVrsticePravila.Vrstica.NEDAVNO, -1))
-    preveriEnako("vklop dodane vrstice na konec", listOf(DomovVrsticePravila.Vrstica.NEDAVNO, DomovVrsticePravila.Vrstica.TV),
-        D.preklopi(listOf(DomovVrsticePravila.Vrstica.NEDAVNO), DomovVrsticePravila.Vrstica.TV))
+    preveriEnako("premik gor v oknu", listOf(DomovVrsticePravila.Vrstica.SEZNAMI, DomovVrsticePravila.Vrstica.NEDAVNO),
+        D.premakniVOkna(listOf(DomovVrsticePravila.Vrstica.NEDAVNO, DomovVrsticePravila.Vrstica.SEZNAMI), DomovVrsticePravila.Vrstica.SEZNAMI, -1))
+    preveriEnako("premik prve gor v oknu: nic", listOf(DomovVrsticePravila.Vrstica.NEDAVNO, DomovVrsticePravila.Vrstica.SEZNAMI),
+        D.premakniVOkna(listOf(DomovVrsticePravila.Vrstica.NEDAVNO, DomovVrsticePravila.Vrstica.SEZNAMI), DomovVrsticePravila.Vrstica.NEDAVNO, -1))
+    preveriEnako("vklop dodane vrstice na konec", listOf(DomovVrsticePravila.Vrstica.NEDAVNO, DomovVrsticePravila.Vrstica.PRILJ_VIDEO),
+        D.preklopiVOkna(listOf(DomovVrsticePravila.Vrstica.NEDAVNO), DomovVrsticePravila.Vrstica.PRILJ_VIDEO, listOf(DomovVrsticePravila.Vrstica.NEDAVNO, DomovVrsticePravila.Vrstica.PRILJ_VIDEO)))
     preveriEnako("izklop vrstice", listOf(DomovVrsticePravila.Vrstica.NEDAVNO),
-        D.preklopi(listOf(DomovVrsticePravila.Vrstica.NEDAVNO, DomovVrsticePravila.Vrstica.TV), DomovVrsticePravila.Vrstica.TV))
+        D.preklopiVOkna(listOf(DomovVrsticePravila.Vrstica.NEDAVNO, DomovVrsticePravila.Vrstica.PRILJ_VIDEO), DomovVrsticePravila.Vrstica.PRILJ_VIDEO, listOf(DomovVrsticePravila.Vrstica.NEDAVNO, DomovVrsticePravila.Vrstica.PRILJ_VIDEO)))
     preveriEnako("priljubljena glasba brez radia in kanalov", true,
         D.vPriljubljeniGlasbi(video = false, radio = false, kanal = false) && !D.vPriljubljeniGlasbi(video = false, radio = true, kanal = false) &&
             !D.vPriljubljeniGlasbi(video = false, radio = false, kanal = true))
@@ -107,7 +107,8 @@ fun main(args: Array<String>) {
     // --- vrstica oddelkov: ista na Domu in v oddelkih, Dom prvi (lastnik 05:11)
     preveriEnako("Dom je prvi gumb", DomovVrsticePravila.Oddelek.DOM, D.gumbiOddelkov().first())
     preveriEnako("vsi oddelki in Predvajalnik", listOf(DomovVrsticePravila.Oddelek.DOM, DomovVrsticePravila.Oddelek.GLASBA, DomovVrsticePravila.Oddelek.VIDEO,
-        DomovVrsticePravila.Oddelek.RADIO, DomovVrsticePravila.Oddelek.TV_V_ZIVO, DomovVrsticePravila.Oddelek.VIRI, DomovVrsticePravila.Oddelek.PREDVAJALNIK), D.gumbiOddelkov())
+        DomovVrsticePravila.Oddelek.RADIO, DomovVrsticePravila.Oddelek.TV_V_ZIVO, DomovVrsticePravila.Oddelek.PREDVAJALNIK), D.gumbiOddelkov())
+    preveriEnako("gumbiOddelkov nima VIRI", false, DomovVrsticePravila.Oddelek.VIRI in D.gumbiOddelkov())
     preveriEnako("glava Doma na TV: samo vrstica oddelkov (brez ploscic, Razvrsti, Nazadnje predvajano)",
         listOf(DomovVrsticePravila.Glava.ODDELKI), D.glavaDoma(vlc = false))
 

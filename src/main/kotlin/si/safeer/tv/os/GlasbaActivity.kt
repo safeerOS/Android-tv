@@ -3268,9 +3268,7 @@ class GlasbaActivity : OsActivity() {
                         skladbe(p.filter { DomovVrsticePravila.vPriljubljeniGlasbi(it.video, it.radio, jeKanalP(it)) }), skladbe = true))
                     DomovVrsticePravila.Vrstica.PRILJ_VIDEO -> listOf(Vrsta(getString(R.string.os_mediji_prilj_video),
                         videi(p.filter { DomovVrsticePravila.vPriljubljenihVideih(it.video, jeKanalP(it)) }), video = true))
-                    DomovVrsticePravila.Vrstica.RADIO -> listOf(Vrsta(getString(R.string.os_domov_prilj_radio), skladbe(p.filter { it.radio && !jeKanalP(it) }), skladbe = true))
-                    DomovVrsticePravila.Vrstica.TV -> listOf(Vrsta(getString(R.string.os_domov_prilj_tv), videi(p.filter { jeKanalP(it) }), video = true))
-                    DomovVrsticePravila.Vrstica.VIRI -> listOf(Vrsta(getString(R.string.os_media_tvoji_viri), emptyList(), pogled = tvojiViri()))
+                    else -> emptyList()
                 } }
                 
                 val vrsteMap = zbraniMap.mapValues { k ->
@@ -9603,21 +9601,23 @@ class GlasbaActivity : OsActivity() {
             DomovVrsticePravila.Vrstica.SEZNAMI -> R.string.os_seznami_predvajanja
             DomovVrsticePravila.Vrstica.PRILJ_GLASBA -> R.string.os_domov_prilj_glasba
             DomovVrsticePravila.Vrstica.PRILJ_VIDEO -> R.string.os_mediji_prilj_video
-            DomovVrsticePravila.Vrstica.RADIO -> R.string.os_domov_prilj_radio
-            DomovVrsticePravila.Vrstica.TV -> R.string.os_domov_prilj_tv
-            DomovVrsticePravila.Vrstica.VIRI -> R.string.os_media_tvoji_viri
+            else -> R.string.os_glasba_nalagam
         })
 
         var okno: AlertDialog? = null
         var fokusKljuc: Pair<DomovVrsticePravila.Vrstica, DomovVrsticePravila.DelVrstice>? = null
+        var vseVOkna: List<DomovVrsticePravila.Vrstica>? = null
         
         fun osveziOkna() {
             vsebina.removeAllViews()
             val izbrane = DomovVrstice.izbrane(this)
-            val vse = izbrane + (DomovVrsticePravila.Vrstica.values().toList() - izbrane)
+            vseVOkna = DomovVrsticePravila.vrstniRedVOkna(izbrane, vseVOkna)
+            val vse = vseVOkna!!
             val dotik = window.decorView.isInTouchMode
+            var prvoStikalo: View? = null
             
             for (v in vse) {
+                if (v.name == "NADALJUJ_Z_OGLEDOM" || v.name == "NADALJUJ_S_POSLUSANJEM" || v.name == "NEDAVNO_DODANO" || v.name == "PRIPOROCENO") continue
                 val vklopljena = v in izbrane
                 val nacinPremika = v == vrsticePremik
                 
@@ -9647,11 +9647,12 @@ class GlasbaActivity : OsActivity() {
                     isFocusable = true
                     isClickable = true
                     background = ozadjePostavke()
+                    if (prvoStikalo == null) prvoStikalo = this
                     addView(stikalo, LinearLayout.LayoutParams(0, -2, 1f))
                     setOnClickListener {
                         if (!nacinPremika) {
                             fokusKljuc = v to DomovVrsticePravila.DelVrstice.STIKALO
-                            DomovVrstice.shrani(this@GlasbaActivity, DomovVrsticePravila.preklopi(izbrane, v))
+                            DomovVrstice.shrani(this@GlasbaActivity, DomovVrsticePravila.preklopiVOkna(izbrane, v, vse))
                             osveziOkna()
                         }
                     }
@@ -9660,8 +9661,16 @@ class GlasbaActivity : OsActivity() {
                 vrsticaPlosca.addView(stikaloGumb, LinearLayout.LayoutParams(0, -2, 1f).apply { marginEnd = dp(8) })
                 
                 if (dotik) {
-                    vrsticaPlosca.addView(besedilo(20f, osBarva(R.color.os_besedilo)).apply { text = "▲"; setPadding(dp(12), dp(12), dp(12), dp(12)); setOnClickListener { DomovVrstice.shrani(this@GlasbaActivity, DomovVrsticePravila.premakni(izbrane, v, -1)); osveziOkna() } })
-                    vrsticaPlosca.addView(besedilo(20f, osBarva(R.color.os_besedilo)).apply { text = "▼"; setPadding(dp(12), dp(12), dp(12), dp(12)); setOnClickListener { DomovVrstice.shrani(this@GlasbaActivity, DomovVrsticePravila.premakni(izbrane, v, 1)); osveziOkna() } })
+                    vrsticaPlosca.addView(besedilo(20f, osBarva(R.color.os_besedilo)).apply { text = "▲"; setPadding(dp(12), dp(12), dp(12), dp(12)); setOnClickListener { 
+                        vseVOkna = DomovVrsticePravila.premakniVOkna(vse, v, -1)
+                        DomovVrstice.shrani(this@GlasbaActivity, vseVOkna!!.filter { it in izbrane })
+                        osveziOkna() 
+                    } })
+                    vrsticaPlosca.addView(besedilo(20f, osBarva(R.color.os_besedilo)).apply { text = "▼"; setPadding(dp(12), dp(12), dp(12), dp(12)); setOnClickListener { 
+                        vseVOkna = DomovVrsticePravila.premakniVOkna(vse, v, 1)
+                        DomovVrstice.shrani(this@GlasbaActivity, vseVOkna!!.filter { it in izbrane })
+                        osveziOkna() 
+                    } })
                 } else {
                     val premakniGumb = besedilo(16f, osBarva(if (nacinPremika) R.color.os_mint else R.color.os_besedilo), true).apply {
                         text = getString(R.string.os_premakni)
@@ -9671,20 +9680,22 @@ class GlasbaActivity : OsActivity() {
                         background = ozadjePostavke()
                         setOnClickListener {
                             vrsticePremik = if (nacinPremika) null else v
-                            fokusKljuc = v to DomovVrsticePravila.fokusPoOsvezi(vrsticePremik != null)
+                            fokusKljuc = v to DomovVrsticePravila.DelVrstice.PREMAKNI
                             osveziOkna()
                         }
                         setOnKeyListener { _, kc, e ->
                             if (e.action == android.view.KeyEvent.ACTION_DOWN && nacinPremika) {
                                 if (kc == android.view.KeyEvent.KEYCODE_DPAD_UP) {
                                     fokusKljuc = v to DomovVrsticePravila.DelVrstice.PREMAKNI
-                                    DomovVrstice.shrani(this@GlasbaActivity, DomovVrsticePravila.premakni(izbrane, v, -1))
+                                    vseVOkna = DomovVrsticePravila.premakniVOkna(vse, v, -1)
+                                    DomovVrstice.shrani(this@GlasbaActivity, vseVOkna!!.filter { it in izbrane })
                                     osveziOkna()
                                     return@setOnKeyListener true
                                 }
                                 if (kc == android.view.KeyEvent.KEYCODE_DPAD_DOWN) {
                                     fokusKljuc = v to DomovVrsticePravila.DelVrstice.PREMAKNI
-                                    DomovVrstice.shrani(this@GlasbaActivity, DomovVrsticePravila.premakni(izbrane, v, 1))
+                                    vseVOkna = DomovVrsticePravila.premakniVOkna(vse, v, 1)
+                                    DomovVrstice.shrani(this@GlasbaActivity, vseVOkna!!.filter { it in izbrane })
                                     osveziOkna()
                                     return@setOnKeyListener true
                                 }
@@ -9722,6 +9733,10 @@ class GlasbaActivity : OsActivity() {
                 }
                 setOnClickListener { DomovVrstice.ponastavi(this@GlasbaActivity); vrsticePremik = null; osveziOkna() }
             })
+            
+            if (fokusKljuc == null) {
+                prvoStikalo?.post { prvoStikalo?.requestFocus() }
+            }
         }
         okno = a.create()
         osveziOkna()

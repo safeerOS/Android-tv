@@ -9,17 +9,18 @@ package si.safeer.tv.os
 object DomovVrsticePravila {
     /** Vrstice na izbiro; [kljuc] je zapis v shrambi (ne spreminjaj - shranjene izbire). */
     enum class Vrstica(val kljuc: String) {
+        NADALJUJ_Z_OGLEDOM("nadaljuj_z_ogledom"),
+        NADALJUJ_S_POSLUSANJEM("nadaljuj_s_poslusanjem"),
+        NEDAVNO_DODANO("nedavno_dodano"),
+        PRIPOROCENO("priporoceno"),
         NEDAVNO("nedavno"),          // Nadaljuj z druge naprave in Nedavno
         SEZNAMI("seznami"),          // seznami predvajanja
         PRILJ_GLASBA("prilj_glasba"), // priljubljena glasba (brez radia in kanalov)
         PRILJ_VIDEO("prilj_video"),  // priljubljeni videi
-        RADIO("radio"),              // priljubljene postaje
-        TV("tv"),                    // priljubljeni kanali v zivo
-        VIRI("viri"),                // pripeti Moji viri
     }
 
     /** Privzeto: vrstice, ki jih oddelki nimajo; Radio, TV v zivo in Moji viri imajo svoj oddelek. */
-    val PRIVZETO = listOf(Vrstica.NEDAVNO, Vrstica.SEZNAMI, Vrstica.PRILJ_GLASBA, Vrstica.PRILJ_VIDEO)
+    val PRIVZETO = listOf(Vrstica.NADALJUJ_Z_OGLEDOM, Vrstica.NADALJUJ_S_POSLUSANJEM, Vrstica.NEDAVNO_DODANO, Vrstica.PRIPOROCENO)
 
     /** Izbira iz zapisa (kljuci, loceni z vejico); null = uporabnik se ni izbiral (privzeto), "" = vse izklopljeno. */
     fun izbrane(zapis: String?): List<Vrstica> {
@@ -33,15 +34,28 @@ object DomovVrsticePravila {
     /** Vrstice domace strani: izbrane v uporabnikovem redu, brez praznih ([neprazne] = vrstice, ki imajo kaj pokazati). */
     fun vrstice(izbrane: List<Vrstica>, neprazne: Set<Vrstica>): List<Vrstica> = izbrane.filter { it in neprazne }
 
-    /** Vklop (na konec) ali izklop vrstice - za zaslon urejanja v Nastavitvah. */
-    fun preklopi(izbrane: List<Vrstica>, v: Vrstica): List<Vrstica> = if (v in izbrane) izbrane - v else izbrane + v
+    /** 
+     * Vrstni red vseh vrstic v oknu urejanja.
+     * Ob odprtju okna ([prejsnje] = null) so najprej izbrane (vidne), nato ostale.
+     * Kasneje se vrstni red ohranja ob preklopih (skrita vrstica ostane na svojem mestu).
+     */
+    fun vrstniRedVOkna(izbrane: List<Vrstica>, prejsnje: List<Vrstica>?): List<Vrstica> {
+        if (prejsnje != null) return prejsnje
+        return izbrane + (Vrstica.values().toList() - izbrane)
+    }
 
-    /** Premik vrstice gor ([smer] -1) ali dol (+1); na robu ostane, kot je. */
-    fun premakni(izbrane: List<Vrstica>, v: Vrstica, smer: Int): List<Vrstica> {
-        val i = izbrane.indexOf(v)
+    /** Vklop ali izklop vrstice - za zaslon urejanja v Nastavitvah. Skrita vrstica ostane na mestu v oknu. */
+    fun preklopiVOkna(izbrane: List<Vrstica>, v: Vrstica, vseVOkna: List<Vrstica>): List<Vrstica> {
+        val novoStanje = if (v in izbrane) izbrane - v else izbrane + v
+        return vseVOkna.filter { it in novoStanje }
+    }
+
+    /** Premik vrstice gor ([smer] -1) ali dol (+1) v oknu urejanja. */
+    fun premakniVOkna(vseVOkna: List<Vrstica>, v: Vrstica, smer: Int): List<Vrstica> {
+        val i = vseVOkna.indexOf(v)
         val j = i + smer
-        if (i < 0 || j !in izbrane.indices) return izbrane
-        return izbrane.toMutableList().apply { this[i] = this[j]; this[j] = v }
+        if (i < 0 || j !in vseVOkna.indices) return vseVOkna
+        return vseVOkna.toMutableList().apply { this[i] = this[j]; this[j] = v }
     }
 
     /** Priljubljena glasba na Domov: brez radijskih postaj in kanalov v zivo (ti imajo svoje vrstice in oddelke). */
@@ -53,7 +67,7 @@ object DomovVrsticePravila {
     /** Gumbi vrstice oddelkov - isti seznam na Domu in v vseh oddelkih (lastnik 6. 11. 2026 04:54-05:11), Dom prvi. */
     enum class Oddelek { DOM, GLASBA, VIDEO, RADIO, TV_V_ZIVO, VIRI, PREDVAJALNIK }
 
-    fun gumbiOddelkov(): List<Oddelek> = Oddelek.values().toList()
+    fun gumbiOddelkov(): List<Oddelek> = Oddelek.values().toList() - Oddelek.VIRI
 
     /** Deli glave nad vrsticami Doma; [ODDELKI] = vrstica oddelkov, [PLOSCA] = velika plosca predvajanja (samo Predvajalnik). */
     enum class Glava { ODDELKI, PLOSCA }
@@ -77,10 +91,28 @@ object DomovVrsticePravila {
 
     enum class DelVrstice { STIKALO, PREMAKNI }
 
-    /** 
-     * Fokus po osvezi (premik, preklop): ce je za to vrstico vklopljen nacin premika,
-     * obdrzi fokus gumb Premakni, sicer ostane na stikalu (ali skoci nanj ob izklopu).
+    interface Naslov {
+        val id: String
+        val naslov: String
+        val izvajalec: String
+        val zvrsti: List<String>
+    }
+
+    /**
+     * Priporoceno: iz katalogov izbere naslove istih zvrsti ali ustvarjalcev (izvajalcev) kot v zgodovini,
+     * brez ze gledanih (po id ali naslovu).
      */
-    fun fokusPoOsvezi(nacinPremika: Boolean): DelVrstice =
-        if (nacinPremika) DelVrstice.PREMAKNI else DelVrstice.STIKALO
+    fun <T : Naslov> priporoceno(katalogi: List<T>, zgodovina: List<T>): List<T> {
+        if (zgodovina.isEmpty()) return emptyList()
+        val gledanoId = zgodovina.map { it.id }.toSet()
+        val gledanoNaslovi = zgodovina.map { it.naslov.lowercase().trim() }.toSet()
+        val zvrsti = zgodovina.flatMap { it.zvrsti }.map { it.lowercase().trim() }.filter { it.isNotBlank() }.toSet()
+        val izvajalci = zgodovina.map { it.izvajalec.lowercase().trim() }.filter { it.isNotBlank() }.toSet()
+        
+        return katalogi.filter { k ->
+            k.id !in gledanoId && k.naslov.lowercase().trim() !in gledanoNaslovi &&
+            (k.zvrsti.any { z -> z.lowercase().trim() in zvrsti } ||
+             (k.izvajalec.isNotBlank() && k.izvajalec.lowercase().trim() in izvajalci))
+        }.distinctBy { it.id }
+    }
 }
