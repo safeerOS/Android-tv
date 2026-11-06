@@ -1486,7 +1486,7 @@ class GlasbaStoritev : Service() {
          * Lastnik 28. 10. 2026: film z napredkom - uporabnik izbere »Nadaljuj od …« ali »Od zacetka« (zaslon predvajanja,
          * [PredvajanjeActivity]). (id predvajanega elementa, mesto ms); do izbire predvajanje miruje.
          */
-        @Volatile var ponudbaNadaljevanja: Pair<String, Long>? = null
+        @Volatile var ponudbaNadaljevanja: PonudbaNadaljevanja? = null
         /** Kdaj (uptimeMillis) je uporabnik izbral film iz torrenta; 0 = ne merimo. Dnevnik SafeerTorrentCas. */
         @Volatile var merimOd = 0L
         private var cakajociSplet: Pair<Jamendo.Skladba, Boolean>? = null
@@ -1929,3 +1929,6 @@ internal fun napakaZaUporabnika(koda: Int): Int = when (koda) {
     in 6000..6999 -> R.string.os_media_napaka_zascita      // ERROR_CODE_DRM_*
     else -> R.string.os_media_napaka_splosno
 }
+
+/** Za katero vsebino velja ponudba nadaljevanja (id toka ali kartice, IMDb, sezona, epizoda) in mesto v ms. */
+class PonudbaNadaljevanja(val id: String, val imdbId: String, val sezona: Int, val epizoda: Int, val od: Long)

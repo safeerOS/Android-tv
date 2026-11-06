@@ -113,7 +113,7 @@ class PredvajanjeActivity : OsActivity() {
     private var vlecenje = false
     private var pripet: Player? = null
     private var zadnjaSlika = ""
-    private val poslusalec: () -> Unit = { glavna.post { osvezi() } }
+    private val poslusalec: () -> Unit = { glavna.post { osvezi(); if (GlasbaStoritev.ponudbaNadaljevanja != null && !isFinishing) ponudiNadaljevanje() } }
 
     /**
      * Zaslon je med onStart in onStop. Osvezitev, ki jo poslusalec poslje v vrsto, se lahko izvede sele po onStop (pavza v
@@ -729,11 +729,21 @@ class PredvajanjeActivity : OsActivity() {
      * Lastnik 28. 10. 2026: »Nadaljuj od 10:35« ali »Od zacetka«. Prej je Safeer sam skocil na shranjeno mesto - pri viru,
      * ki skoka ne omogoca (MKV brez indeksa), je rekel »Nadaljujem od …« in zacel na zacetku.
      */
+    /** Ponudba, za katero je razlog cakanja ze zapisan (poslusalec klice pogosto - en zapis na ponudbo). */
+    private var cakajocaPonudba: Any? = null
+
     private fun ponudiNadaljevanje() {
         if (isFinishing || oknoNadaljevanja?.isShowing == true) return
-        val (id, od) = GlasbaStoritev.ponudbaNadaljevanja ?: return
+        val pn = GlasbaStoritev.ponudbaNadaljevanja ?: return
+        val od = pn.od
         val p = GlasbaStoritev.predvajalnik
-        if (p == null || GlasbaStoritev.trenutna()?.id != id) { GlasbaStoritev.ponudbaNadaljevanja = null; return }
+        val t = GlasbaStoritev.trenutna()
+        // Lastnik 6. 11. 2026 17:44: nalozen je se prejsnji film (tok izbranega se pripravlja) - ne sprasuj zanj; ponudba
+        // pocaka, da se izbrani nalozi (poslusalec spodaj), in velja samo zanj.
+        if (p == null || t == null || !OsPravila.istaVsebina(t.id, t.imdbId, t.season, t.episode, pn.id, pn.imdbId, pn.sezona, pn.epizoda)) {
+            if (cakajocaPonudba !== pn) { cakajocaPonudba = pn; android.util.Log.d("SafeerOsMediji", "nadaljuj: nalozena ${t?.naslov?.take(40)} ni izbrana vsebina - pocakam") }
+            return
+        }
         p.playWhenReady = false
         fun zacni(mesto: Long) {
             GlasbaStoritev.ponudbaNadaljevanja = null

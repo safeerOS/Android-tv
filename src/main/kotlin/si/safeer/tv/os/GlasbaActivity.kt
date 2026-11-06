@@ -8052,6 +8052,9 @@ class GlasbaActivity : OsActivity() {
     private fun zacniPripravo(sk: Jamendo.Skladba, rocno: Boolean = false, naslovPriprave: String = sk.naslov): String? {
         // Pregled Medijskega centra 5. 11. 2026 (2): kljuc s sezono in epizodo, vrnemo zeton te priprave (ne id vsebine).
         val zeton = pripraveVTeKu.zacni(PripravaPravila.kljucPriprave(sk.id, sk.povezava, sk.naslov, sk.season, sk.episode)) ?: return null
+        // Lastnik 6. 11. 2026 17:44: nova izbira - ponudba nadaljevanja prejsnjega filma ne velja vec.
+        if (GlasbaStoritev.ponudbaNadaljevanja != null) android.util.Log.d("SafeerOsMediji", "nadaljuj: nova izbira, stara ponudba preklicana")
+        GlasbaStoritev.ponudbaNadaljevanja = null
         prekiniDebrid()     // pregled A1: nova izbira - prejsnje cakanje na debrid ne odpre nicesar vec
         if (PripravaPravila.odpriTakoj(sk.video, rocno, PripravaPravila.serijaBrezEpizode(sk.mediaType, sk.episode))) {
             val i = Intent(this, PredvajanjeActivity::class.java)
@@ -8246,8 +8249,14 @@ class GlasbaActivity : OsActivity() {
         // Lastnik 28. 10. 2026: uporabnik izbere, ali nadaljuje ali zacne od zacetka (zaslon predvajanja vprasa). Predvajanje
         // do izbire miruje. Predaja z druge naprave (»Nadaljuj tukaj«) in sprotni tok pomocnika ostaneta samodejna.
         if (predano == null && SprotnaPomoc.tokZa(sk) == null && OsPravila.ponudiNadaljevanje(od, 0)) {
-            GlasbaStoritev.predvajalnik?.playWhenReady = false
-            GlasbaStoritev.ponudbaNadaljevanja = (GlasbaStoritev.trenutna()?.id ?: sk.id) to od
+            // Lastnik 6. 11. 2026 17:44: trenutna je lahko se prejsnji film (tok novega se pripravlja) - ponudba velja za
+            // izbrano vsebino, ne za tisto, ki je slucajno nalozena; tujega predvajanja ne ustavljamo.
+            val t = GlasbaStoritev.trenutna()
+            val imdb = sk.imdbId.ifBlank { izvirnik?.imdbId.orEmpty() }
+            val tiste = t != null && OsPravila.istaVsebina(t.id, t.imdbId, t.season, t.episode, sk.id, imdb, sk.season, sk.episode)
+            if (tiste) GlasbaStoritev.predvajalnik?.playWhenReady = false
+            GlasbaStoritev.ponudbaNadaljevanja = PonudbaNadaljevanja(if (tiste) t!!.id else sk.id, imdb, sk.season, sk.episode, od)
+            android.util.Log.d("SafeerOsMediji", "nadaljuj: ponudba za ${sk.naslov.take(40)} od ${od / 1000} s (nalozena ${if (tiste) "ista" else "druga: " + t?.naslov?.take(40)})")
             return
         }
         Toast.makeText(this, getString(R.string.os_nadaljujem_od, cas(od)), Toast.LENGTH_SHORT).show()

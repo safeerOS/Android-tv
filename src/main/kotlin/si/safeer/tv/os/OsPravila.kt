@@ -658,6 +658,14 @@ object OsPravila {
     /** Shranjeno mesto za nadaljevanje: najprej po skladbi toka, sicer po izvirniku, ki ga je uporabnik izbral (TV 6. 11. 2026). */
     fun mestoNadaljevanja(poToku: Long, poIzvirniku: Long): Long = if (poToku > 0) poToku else maxOf(0L, poIzvirniku)
 
+    /**
+     * Lastnik 6. 11. 2026 17:44: izbral je drug film, zaslon predvajanja pa je ponudil nadaljevanje PREJSNJEGA (ponudba je
+     * vzela id trenutne skladbe, ki je bila se stari film - nov tok se je sele pripravljal). Ponudba velja samo za vsebino,
+     * ki jo je uporabnik izbral: isti id ali isti IMDb z isto sezono in epizodo (tok ima drug id kot kartica kataloga).
+     */
+    fun istaVsebina(aId: String, aImdb: String, aSezona: Int, aEpizoda: Int, bId: String, bImdb: String, bSezona: Int, bEpizoda: Int): Boolean =
+        (aId.isNotEmpty() && aId == bId) || (aImdb.isNotBlank() && aImdb == bImdb && aSezona == bSezona && aEpizoda == bEpizoda)
+
     fun ponudiNadaljevanje(mestoMs: Long, trajanjeMs: Long): Boolean =
         mestoMs >= 10_000 && (trajanjeMs <= 0 || mestoMs < trajanjeMs * 95 / 100)
 

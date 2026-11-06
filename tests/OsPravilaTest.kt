@@ -301,6 +301,11 @@ private fun pasMedVideom() {
     preveri("nadaljuj: mesto po izvirniku", OsPravila.mestoNadaljevanja(0L, 301_000L) == 301_000L)
     preveri("nadaljuj: mesto po toku ima prednost", OsPravila.mestoNadaljevanja(120_000L, 301_000L) == 120_000L)
     preveri("nadaljuj: brez mesta 0", OsPravila.mestoNadaljevanja(0L, 0L) == 0L)
+    // Lastnik 6. 11. 2026 17:44: izbran drug film - ponudba ne sme veljati za prejsnjega, ki je se nalozen.
+    preveri("nadaljuj: drug film ni ista vsebina", !OsPravila.istaVsebina("tok-prestige", "tt0482571", 0, 0, "kartica-dune", "tt1160419", 0, 0))
+    preveri("nadaljuj: tok in kartica istega filma (IMDb)", OsPravila.istaVsebina("tok-x", "tt0482571", 0, 0, "kartica-y", "tt0482571", 0, 0))
+    preveri("nadaljuj: druga epizoda iste serije ni ista", !OsPravila.istaVsebina("a", "tt0903747", 1, 2, "b", "tt0903747", 1, 3))
+    preveri("nadaljuj: brez IMDb samo isti id", !OsPravila.istaVsebina("a", "", 0, 0, "b", "", 0, 0) && OsPravila.istaVsebina("a", "", 0, 0, "a", "", 0, 0))
     // Lastnik 6. 11. 2026 14:34: po koncu nalaganja se pas skrije sam (prej je ostal ves film).
     preveri("konec nalaganja skrije pas", OsPravila.skrijPoNalaganju(prej = true, zdaj = false))
     preveri("med nalaganjem ne", !OsPravila.skrijPoNalaganju(prej = true, zdaj = true))
