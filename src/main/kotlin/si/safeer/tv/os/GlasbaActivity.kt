@@ -3316,22 +3316,34 @@ class GlasbaActivity : OsActivity() {
     }
 
     private fun naloziVseVideoZaDom() {
-        if (nalagamVseVideo || VSE_VIDEO != null || SEZNAMI[VIDEO] != null) return
+        if (nalagamVseVideo || VSE_VIDEO != null || SEZNAMI[VIDEO] != null) {
+            android.util.Log.d("SafeerOsMediji", "Dom: police VIDEO z diska: ne nalagam (nalagamVseVideo=$nalagamVseVideo, VSE_VIDEO=${VSE_VIDEO?.size}, SEZNAMI=${SEZNAMI[VIDEO]?.size})")
+            return
+        }
         nalagamVseVideo = true
         delavec.execute {
             try {
+                android.util.Log.d("SafeerOsMediji", "Dom: police VIDEO z diska: zacetek branja z diska")
                 val disk = MedijskiPredpomnilnik.beriPoliceSCasom(this@GlasbaActivity, kljucPolic(VIDEO))?.police
                 if (disk != null) {
                     val seznam = disk.flatMap { it.third }
                     if (seznam.isNotEmpty()) {
                         VSE_VIDEO = seznam
+                        android.util.Log.d("SafeerOsMediji", "Dom: police VIDEO z diska: ${seznam.size} naslovov")
                         glavna.post {
                             if (razdelek == DOMOV && !podstrani.odprta && !isFinishing) osveziNaMestu()
                         }
+                    } else {
+                        android.util.Log.d("SafeerOsMediji", "Dom: police VIDEO z diska: seznam je prazen")
                     }
+                } else {
+                    android.util.Log.d("SafeerOsMediji", "Dom: police VIDEO z diska: na disku ni nicesar (disk == null)")
                 }
-            } catch (_: Exception) {}
-            nalagamVseVideo = false
+            } catch (e: Exception) {
+                android.util.Log.d("SafeerOsMediji", "Dom: police VIDEO z diska: napaka pri branju - ${e.message}")
+            } finally {
+                nalagamVseVideo = false
+            }
         }
     }
 
