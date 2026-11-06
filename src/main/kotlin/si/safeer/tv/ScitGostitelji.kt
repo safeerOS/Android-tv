@@ -16,7 +16,9 @@ internal object ScitGostitelji {
         "gstatic.com", "apis.google.com", "fonts.googleapis.com", "ajax.googleapis.com", "oauth2.googleapis.com",
         "accounts.youtube.com",
     )
-    private val PREDPONE_KORENA = listOf("", "www.", "accounts.", "myaccount.")
+    // Pregled 6. 11. 2026 (S1): consent.google.<pripona> je stran soglasja v EU - nanjo google.com preusmeri vsak nov brskalnik,
+    // zato bi en podtaknjen vnos ustavil iskanje in prijavo.
+    private val PREDPONE_KORENA = listOf("", "www.", "accounts.", "myaccount.", "consent.")
 
     // Skupni gostitelji, kjer objavlja kdorkoli: blokira se samo pot. www.googleapis.com streze tudi Google Cloud Storage
     // (/download/storage/v1/b/<vedro>/...), zato ni koren.
@@ -79,6 +81,8 @@ internal object ScitGostitelji {
     /**
      * Pravilo za naslov velja na skupnem gostitelju samo z vsaj dvema delama poti (/view/ime, /macros/s/ID/exec).
      * Ena raven (/forms, /view, /drive) ali koren je vstopna stran izdelka in z njo bi blokirali vse uporabnike.
+     * Pregled 6. 11. 2026 (S2): ena raven z neprazno poizvedbo tudi (drive.google.com/uc?export=download&id=X,
+     * docs.google.com/uc?id=X) - pravilo naslova se ujema tocno s poizvedbo, zato vstopne strani /uc ne ustavi.
      */
     fun smePot(url: String, host: String): Boolean {
         if (jeNajemnik(host)) return true
@@ -86,7 +90,9 @@ internal object ScitGostitelji {
         val ostanek = url.substring(zacetek + 3)
         val konecGostitelja = ostanek.indexOfFirst { it == '/' || it == '?' || it == '#' || it == '\\' }
         if (konecGostitelja < 0 || ostanek[konecGostitelja] != '/') return false
-        val pot = ostanek.substring(konecGostitelja).substringBefore('?').substringBefore('#')
-        return pot.split('/').count { it.isNotEmpty() } >= 2
+        val brezSidra = ostanek.substring(konecGostitelja).substringBefore('#')
+        val pot = brezSidra.substringBefore('?')
+        val delov = pot.split('/').count { it.isNotEmpty() }
+        return delov >= 2 || (delov == 1 && brezSidra.substringAfter('?', "").isNotEmpty())
     }
 }
