@@ -34,18 +34,42 @@ object DiagnostikaPredvajanjaPravila {
         val g = GOSTITELJ.find(naslov?.trim().orEmpty())?.groupValues?.get(1)?.lowercase(java.util.Locale.ROOT)?.trimEnd('.') ?: return ""
         // Lasten pomocnik na tej napravi (Usenet, torrent, sprotna pretvorba).
         if (g == "localhost" || g.startsWith("127.") || g == "[::1]") return "ta-naprava"
-        if (g.startsWith("[") || Regex("^[0-9.]+$").matches(g)) return if (domacNaslov(g)) "domace-omrezje" else g
+        // Pregled 6. 11. 2026 (U4): gostitelj kot naslov IP ne gre v dnevnik nikoli - tudi javni (streznik ali naprava
+        // uporabnika), [::ffff:a.b.c.d] in CGNAT 100.64/10 (Tailscale, mobilni operater).
+        if (g.startsWith("[") || Regex("^[0-9.]+$").matches(g)) return vrstaNaslova(g)
         val deli = g.split('.').map { if (jeZeton(it)) "*" else it }.toMutableList()
         val osebni = OSEBNI_GOSTITELJI.any { g.endsWith(".$it") }
         if (osebni && deli.size > 2) deli[0] = "*"
         return deli.joinToString(".").take(80)
     }
 
-    /** Naslov v domacem omrezju (naprava v Linku, NAS): naslov IP ne gre v dnevnik. */
-    private fun domacNaslov(g: String): Boolean {
-        val d = g.trim('[', ']')
-        return d.startsWith("10.") || d.startsWith("192.168.") || d.startsWith("127.") || d.startsWith("169.254.") ||
-            Regex("^172\\.(1[6-9]|2[0-9]|3[01])\\.").containsMatchIn(d) || d.startsWith("fe80") || d.startsWith("fd") || d == "::1"
+    /**
+     * Vrsta naslova IP brez naslova samega: »ta-naprava« (zanka), »domace-omrezje« (zasebni, povezavno-lokalni, CGNAT, ULA)
+     * ali »naslov-ip« (javni ali neberljiv zapis). IPv4 zavit v IPv6 (::ffff:a.b.c.d) po vsebovanem IPv4.
+     */
+    private fun vrstaNaslova(g: String): String {
+        val d = g.trim('[', ']').substringBefore('%')
+        val b = try {
+            if (':' in d && d.all { it.isLetterOrDigit() || it == ':' || it == '.' }) java.net.InetAddress.getByName(d).address
+            else if (Regex("^\\d{1,3}(\\.\\d{1,3}){3}$").matches(d) && d.split('.').all { it.toInt() <= 255 })
+                ByteArray(4) { d.split('.')[it].toInt().toByte() }
+            else null
+        } catch (_: Exception) { null } ?: return "naslov-ip"
+        val u = IntArray(b.size) { b[it].toInt() and 0xFF }
+        val v4 = when {
+            u.size == 4 -> u
+            (0 until 10).all { u[it] == 0 } && u[10] == 0xFF && u[11] == 0xFF -> u.copyOfRange(12, 16)
+            else -> null
+        }
+        if (v4 != null) return when {
+            v4[0] == 127 -> "ta-naprava"
+            v4[0] == 10 || (v4[0] == 192 && v4[1] == 168) || (v4[0] == 172 && v4[1] in 16..31) || (v4[0] == 169 && v4[1] == 254) ||
+                (v4[0] == 100 && v4[1] in 64..127) -> "domace-omrezje"
+            else -> "naslov-ip"
+        }
+        if ((0 until 15).all { u[it] == 0 } && u[15] == 1) return "ta-naprava"
+        if ((u[0] and 0xFE) == 0xFC || (u[0] == 0xFE && (u[1] and 0xC0) == 0x80)) return "domace-omrezje"
+        return "naslov-ip"
     }
 
     /** Prosto besedilo (naslov, razlog) brez URL-jev (ostane gostitelj), e-naslovov, parov kljuc=vrednost in zetonov. */

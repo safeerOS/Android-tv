@@ -236,7 +236,29 @@ object FilterViraPravila {
 
         @Synchronized fun meja(zdaj: Long) { premorDo = zdaj + premorMs }
         @Synchronized fun vPremoru(zdaj: Long): Boolean = zdaj < premorDo
+
+        /** Ali bi [smem] zdaj dovolil - brez porabe (pregled 6. 11. 2026, U1: kvoto porabi samo poslana zahteva). */
+        @Synchronized fun lahko(zdaj: Long): Boolean {
+            if (zdaj < premorDo) return false
+            while (casi.isNotEmpty() && zdaj - casi.first() >= MINUTA) casi.removeFirst()
+            return casi.size < naMinuto
+        }
+
+        /**
+         * Zahteva, ki gre indeksatorju ne glede na kvoto (zagon naslednje epizode - kot klik uporabnika), se steje: preverbe
+         * filtra v isti minuti pocakajo (pregled 6. 11. 2026, U2).
+         */
+        @Synchronized fun zabelezi(zdaj: Long) {
+            while (casi.isNotEmpty() && zdaj - casi.first() >= MINUTA) casi.removeFirst()
+            casi.addLast(zdaj)
+        }
     }
+
+    /**
+     * Pregled 6. 11. 2026 (U1): preverba filtra poslje zahtevo indeksatorju samo z nastavljenim racunom, znanim id in
+     * naslovom, ki ga iscemo - prej je kvoto porabila tudi takrat, ko zahteve sploh ni poslala.
+     */
+    fun poslji(racun: Izid, iden: String?, iscemo: Boolean): Boolean = racun == Izid.NA_VOLJO && iden != null && iscemo
 
     /** Zahtev na minuto in hkratnih preverb (NZBFinder: dnevna kvota racuna; vidni plakati najprej). */
     const val NA_MINUTO = 20

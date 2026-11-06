@@ -66,8 +66,18 @@ object DiagnostikaPredvajanja {
         novi.forEach { p -> Log.i(P.OZNAKA, "poskus: ${p.vir}${if (p.gostitelj.isNotEmpty()) "@" + p.gostitelj else ""} (${p.razlog})") }
     }
 
+    /**
+     * Pregled 6. 11. 2026 (U4): branje, dopolnitev in zapis dnevnika pod zaklepom - dva hkratna neuspeha (Webtor in Usenet
+     * vzporedno) sta prebrala isti dnevnik in drugi zapis je prepisal prvega.
+     */
+    private val zaklepDnevnika = Any()
+
     /** Predvajanje [naslov] ni uspelo: vnos s poskusi zadnjih minut in razlogom. */
     fun neuspeh(c: Context, naslov: String?, vrsta: String, razlog: String) {
+        synchronized(zaklepDnevnika) { neuspehPodZaklepom(c, naslov, vrsta, razlog) }
+    }
+
+    private fun neuspehPodZaklepom(c: Context, naslov: String?, vrsta: String, razlog: String) {
         try {
             val prefs = prefs(c)
             val dnevnik = prefs.getString(DNEVNIK, null)?.split('\n')?.filter { it.isNotBlank() }.orEmpty()

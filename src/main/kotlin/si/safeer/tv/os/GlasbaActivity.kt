@@ -559,7 +559,7 @@ class GlasbaActivity : OsActivity() {
         vOspredju = true
         // Lastnik 5. 11. 2026: pomocnik za Usenet pride ali odide - mreza filtra »⚡ Usenet« se osvezi (izdaje, ki jih zna
         // samo pomocnik, se pokazejo ali skrijejo brez nove zahteve indeksatorju).
-        UsenetPomocniki.obSpremembi = { odprtKatalog?.let { o -> if (!isFinishing && filterUsenet() != null) osveziMrezo(o) } }
+        UsenetPomocniki.obSpremembi = obPomocnikuUseneta
         nadaljujDebridObVrnitvi()     // pregled 2
         torrentSeJeSpremenil()
         Razpolozljivost.obSpremembi = obRazpolozljivosti
@@ -627,6 +627,9 @@ class GlasbaActivity : OsActivity() {
         videnPrej = true
     }
 
+    /** Povratni klic pomocnika Usenet te aktivnosti (en primerek - onStop odstrani samo svojega). */
+    private val obPomocnikuUseneta: () -> Unit = { odprtKatalog?.let { o -> if (!isFinishing && filterUsenet() != null) osveziMrezo(o) } }
+
     /** Pregled 2: uporabnik zares odhaja (tipka Domov, druga aplikacija) - cakanje na debrid/Usenet se prekine. */
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
@@ -635,7 +638,8 @@ class GlasbaActivity : OsActivity() {
 
     override fun onStop() {
         viden = false
-        UsenetPomocniki.obSpremembi = null
+        // CodeRabbit 6. 11. 2026: samo svoj klic - druga GlasbaActivity, ki je zacela pred tem onStop, obdrzi svojega.
+        if (UsenetPomocniki.obSpremembi === obPomocnikuUseneta) UsenetPomocniki.obSpremembi = null
         skrijPripravljam()      // predvajalnik je odprt ali uporabnik je odsel: pas ne ostane za vrnitev
         Debrid.poslusalciPrejetih.remove(obPrejetihKljucih)
         UskladitevKljucev.poslusalci.remove(obUskladitvi)
@@ -3171,6 +3175,8 @@ class GlasbaActivity : OsActivity() {
                     i == iBrez && sKljucem.isNotEmpty() -> { Debrid.nastaviAktivno(this, null); UsenetLastni.nastaviIzbran(this, false) }
                     else -> { nastavitveDebrida(); return@izbira }
                 }
+                // CodeRabbit 6. 11. 2026: nov vir - stari odgovor filtra (3 s) ne velja za nov katalog.
+                filterUsenetPrej = null
                 odpriBrskanje(o.tip, o.zvrst, o.jezik)
             }
         }
@@ -8693,6 +8699,8 @@ class GlasbaActivity : OsActivity() {
         if (n.usenetObZagonu) {
             // Lasten pogon: sejo (127.0.0.1, bazen NNTP) odpre sele zagon, ko se prejsnja epizoda ne igra vec - kot »Nadaljuj«.
             naDelavcu(priprava, sk) {
+                // Pregled 6. 11. 2026 (U2): izdaje lastnega pogona vprasajo indeksator - steje v isto omejitev kot filter.
+                UsenetFilter.zabeleziZagon()
                 val pp = predpomnjeniZa(n.tokovi, sk, false)
                 glavna.post {
                     if (!koncajPripravo(priprava)) return@post
@@ -9148,20 +9156,25 @@ class GlasbaActivity : OsActivity() {
 
     /** [odtis]: odtis indeksatorja za kljuc ("" brez njega); [racun]: indeksator in ponudnik sta nastavljena in ju smemo klicati. */
     private class FilterUsenet(val odtis: String, val racun: Boolean)
-    /** Branje skrivnosti (indeksator, ponudnik) je pocasno: odgovor velja 3 s (izris klice veckrat). */
-    private var filterUsenetPrej: Pair<Long, FilterUsenet?>? = null
+    /**
+     * Branje skrivnosti (indeksator, ponudnik) je pocasno: odgovor velja 3 s (izris klice veckrat) in samo za katalog, za
+     * katerega je bil izracunan (CodeRabbit 6. 11. 2026: po menjavi vira je nov katalog risal s filtrom prejsnjega).
+     */
+    private var filterUsenetPrej: Triple<Long, OdprtKatalog, FilterUsenet?>? = null
 
     /**
      * Mreza Filmi/Serije z izbiro samo »⚡ Usenet« (brez debrid storitve - enako kot pri predvajanju, OsPravila.samoUsenetIzbran)
      * je filter vira Usenet: v njej so samo naslovi, za katere je Usenet potrjeno na voljo. null = filtra ni.
      */
     private fun filterUsenet(): FilterUsenet? {
-        if (odprtKatalog == null) return null
+        val katalog = odprtKatalog ?: return null
         val zdaj = android.os.SystemClock.uptimeMillis()
-        filterUsenetPrej?.let { (cas, f) -> if (zdaj - cas in 0 until 3_000L) return f }
+        filterUsenetPrej?.let { (cas, k, f) -> if (k === katalog && zdaj - cas in 0 until 3_000L) return f }
         val f = if (!OsPravila.samoUsenetIzbran(UsenetLastni.naVoljo(this) && UsenetLastni.izbran(this), Debrid.aktivna(this) != null, false)) null
             else FilterUsenet(Usenet.odtisRacuna(this) ?: "", Usenet.jeNaVoljo(this))
-        filterUsenetPrej = zdaj to f
+        filterUsenetPrej = Triple(zdaj, katalog, f)
+        // U3 (pregled 6. 11. 2026): zapisi filtra se nalozijo v ozadju; ko so, se mreza izrise znova.
+        if (f != null) UsenetFilter.pripravi(this) { glavna.post { if (!isFinishing && odprtKatalog === katalog) osveziMrezo(katalog) } }
         return f
     }
 

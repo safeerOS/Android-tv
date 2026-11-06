@@ -22,6 +22,10 @@ object UsenetFilter {
 
     private val zapisi = ConcurrentHashMap<String, F.Zapis>()
     @Volatile private var nalozeno = false
+    @Volatile private var nalagam = false
+    /** Klici po koncu nalaganja (pripravi); kljuci, pozabljeni med nalaganjem. */
+    private val poNalaganju = ArrayList<() -> Unit>()
+    private val pozabljeni = ConcurrentHashMap.newKeySet<String>()
     private val omejevalnik = F.Omejevalnik(F.NA_MINUTO)
     private val vTeku = ConcurrentHashMap.newKeySet<String>()
     private val stevec = AtomicInteger()
@@ -36,43 +40,63 @@ object UsenetFilter {
 
     private fun zdaj() = System.currentTimeMillis()
 
-    private fun nalozi(c: Context) {
+    /**
+     * Pregled 6. 11. 2026 (U3): do 3000 zapisov iz SharedPreferences se je bralo na glavni niti (prvi izris mreze). Zdaj v
+     * ozadju; do konca nalaganja zapisa ni (naslov se ne pokaze, »se iscemo«) in indeksatorja ne vprasamo - sicer bi znova
+     * spraseval za naslove, ki imajo zapis na disku. [obKoncu] (nit ozadja) samo, ce se nalaganje sele zacne ali tece.
+     */
+    fun pripravi(c: Context, obKoncu: (() -> Unit)? = null) {
         if (nalozeno) return
         synchronized(this) {
             if (nalozeno) return
+            if (obKoncu != null && poNalaganju.size < 8) poNalaganju.add(obKoncu)
+            if (nalagam) return
+            nalagam = true
+        }
+        val app = c.applicationContext
+        Thread({
             try {
-                val p = c.getSharedPreferences(DATOTEKA, Context.MODE_PRIVATE)
-                for ((k, v) in p.all) F.izNiza(v as? String)?.let { zapisi[k] = it }
+                val p = app.getSharedPreferences(DATOTEKA, Context.MODE_PRIVATE)
+                for ((k, v) in p.all) F.izNiza(v as? String)?.let { zapisi.putIfAbsent(k, it) }
                 if (zapisi.size > NAJVEC_ZAPISOV) {
                     val stari = zapisi.entries.sortedBy { it.value.cas }.take(zapisi.size - NAJVEC_ZAPISOV).map { it.key }
                     val e = p.edit(); stari.forEach { zapisi.remove(it); e.remove(it) }; e.apply()
                 }
+                pozabljeni.forEach { zapisi.remove(it) }
             } catch (e: Exception) { Log.w(TAG, "nalaganje: ${e.javaClass.simpleName}") }
-            nalozeno = true
-        }
+            pozabljeni.clear()
+            // Pod zaklepom: klic, dodan med nalaganjem, gre v ta seznam ali pa ze vidi nalozeno (nobeden ne ostane viset).
+            val klici = synchronized(this) { nalozeno = true; poNalaganju.toList().also { poNalaganju.clear() } }
+            klici.forEach { try { it() } catch (_: Throwable) { } }
+        }, "usenet-filter-nalaganje").apply { isDaemon = true; start() }
     }
+
+    private fun nalozi(c: Context): Boolean { if (!nalozeno) pripravi(c); return nalozeno }
 
     private fun shrani(c: Context, k: String, z: F.Zapis) {
         zapisi[k] = z
         try { c.getSharedPreferences(DATOTEKA, Context.MODE_PRIVATE).edit().putString(k, F.vNiz(z)).apply() } catch (_: Exception) { }
     }
 
-    fun zapis(c: Context, k: String): F.Zapis? { nalozi(c); return zapisi[k] }
+    fun zapis(c: Context, k: String): F.Zapis? = if (nalozi(c)) zapisi[k] else null
     /** [pomocnik]: v Linku je zdaj pomocnik za Usenet (UsenetPomocniki.zdaj) - izdaje, ki jih zna samo on, se pokazejo. */
     fun pokazi(c: Context, k: String, pomocnik: Boolean = false): Boolean = F.pokazi(zapis(c, k), zdaj(), pomocnik)
     fun oznaka(c: Context, k: String, pomocnik: Boolean = false): KakovostPravila.Oznaka? =
         zapis(c, k)?.takeIf { F.pokazi(it, zdaj(), pomocnik) }?.oznaka
-    fun seIscemo(c: Context, k: String): Boolean = k in vTeku || F.seIscemo(zapis(c, k), zdaj())
-    fun vprasati(c: Context, k: String): Boolean = k !in vTeku && F.vprasati(zapis(c, k), zdaj())
+    fun seIscemo(c: Context, k: String): Boolean = !nalozi(c) || k in vTeku || F.seIscemo(zapis(c, k), zdaj())
+    fun vprasati(c: Context, k: String): Boolean = nalozi(c) && k !in vTeku && F.vprasati(zapis(c, k), zdaj())
     fun vTeku(): Int = vTeku.size
 
     /** Vodja 6. 11. 2026: predpriprava naslednje epizode vprasa indeksator - steje v isto kvoto kot preverba filtra. */
     fun smemPredpripravo(): Boolean = omejevalnik.smem(zdaj()).also { if (it) porabljeno.incrementAndGet() }
     fun vPremoru(): Boolean = omejevalnik.vPremoru(zdaj())
 
+    /** Pregled 6. 11. 2026 (U2): zagon naslednje epizode vprasa indeksator (izdaje lastnega pogona) - steje v isto omejitev. */
+    fun zabeleziZagon() { omejevalnik.zabelezi(zdaj()); porabljeno.incrementAndGet() }
+
     /** Predvajanje samo Usenet ni naslo izdaje: zapis pozabimo, naslov izgine in se preveri znova (NI ali NE_VEMO). */
     fun pozabi(c: Context, k: String) {
-        nalozi(c)
+        if (!nalozi(c)) pozabljeni.add(k)
         zapisi.remove(k)
         try { c.getSharedPreferences(DATOTEKA, Context.MODE_PRIVATE).edit().remove(k).apply() } catch (_: Exception) { }
     }
@@ -82,8 +106,10 @@ object UsenetFilter {
      * smemo (kvota, ze v teku, vrsta polna) - takrat ni zapisa in ni klica [obKoncu]. [obKoncu] tece na delovni niti.
      */
     fun preveri(c: Context, k: String, id: () -> String?, z: TokIzbira.Zmoznosti, seVelja: () -> Boolean, obKoncu: () -> Unit): Boolean {
+        if (!nalozi(c)) return false
         if (!vprasati(c, k) || vTeku.size >= F.HKRATI) return false
-        if (!omejevalnik.smem(zdaj())) return false
+        // U1: tu kvote ne porabimo (samo pogledamo) - porabi jo zahteva, ki gre res indeksatorju (spodaj).
+        if (!omejevalnik.lahko(zdaj())) return false
         if (!vTeku.add(k)) return false
         val app = c.applicationContext
         try {
@@ -93,7 +119,10 @@ object UsenetFilter {
                     val racun = if (Usenet.jeNaVoljo(app)) F.Izid.NA_VOLJO else F.Izid.NE_VEMO
                     val iden = try { id() } catch (_: Exception) { null }
                     var izdaje: List<F.Izdaja>? = null
-                    if (racun == F.Izid.NA_VOLJO && iden != null && UsenetPravila.iscemo(iden)) {
+                    val poslji = F.poslji(racun, iden, iden != null && UsenetPravila.iscemo(iden))
+                    // Kvoto je med cakanjem v vrsti porabil kdo drug: brez zahteve in brez zapisa (naslov se preveri pozneje).
+                    if (poslji && !omejevalnik.smem(zdaj())) return@execute
+                    if (poslji && iden != null) {
                         porabljeno.incrementAndGet()
                         val r = Usenet.iskanje(app, iden, F.ROK_MS)
                         if (r.meja) omejevalnik.meja(zdaj())
