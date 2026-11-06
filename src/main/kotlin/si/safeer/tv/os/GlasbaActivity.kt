@@ -10215,6 +10215,7 @@ class GlasbaActivity : OsActivity() {
             // Filter vira: zapis o naslovu ne velja vec - kartica izgine, preverba v ozadju pove NI (ure) ali NE_VEMO (ponovitev).
             if (izbranSamoUsenet) filterUsenet()?.let { v -> kljucUsenet(sk, v.odtis)?.let { k ->
                 UsenetFilter.pozabi(this, k); odprtKatalog?.let { o -> glavna.post { osveziMrezo(o) } } } }
+            DiagnostikaPredvajanja.neuspeh(this, naslov, DiagnostikaPredvajanja.vrsta(sk), "usenet: ni zadetka (indeksator ni dal izdaj)")
             // Pregled Grok 31, H2: viden konec diagnostike (prej samo dnevnik); klicatelj izve za neuspeh.
             Toast.makeText(this, if (diagnostikaUsenet) R.string.os_usenet_diagnostika_ni_izdaj else R.string.os_usenet_ni_izdaj,
                 Toast.LENGTH_LONG).show()
@@ -10231,6 +10232,9 @@ class GlasbaActivity : OsActivity() {
         val posnetek = if (sk.mediaType.equals("MusicVideo", ignoreCase = true) || Stremio.razredEnote(sk) !in setOf(Stremio.FILM, Stremio.SERIJA))
             tokovi.firstOrNull { it.vrsta == "napovednik" } else null
         if (posnetek == null && tokovi.none { Stremio.jePredvajljiv(it) && gre(it) }) {
+            // Diagnostika predvajanja (samo vklopljena): noben dodatek ni dal predvajljivega toka.
+            DiagnostikaPredvajanja.neuspeh(this, naslov, DiagnostikaPredvajanja.vrsta(sk),
+                "ni predvajljivega toka (tokov=${tokovi.size}, dodatek ni odgovoril=${Stremio.dodatekNiOdgovoril()})")
             // Naloga 90b (lastnik: sporocila za nedelujoce kanale ne rabimo): kanal v zivo, za katerega noben dodatek v roku ne
             // da toka, se tiho oznaci mrtev ([MrtviKanali], 24 h) in izgine iz mreze. Razlicice kartice so ze v isti poizvedbi
             // ([razresiStremio]), zato predvajanje naslednje razlicice pride samo; tu so mrtve vse razlicice dodatkov (93: seznama IPTV ne). Placljiv dostop (79) ima svoje sporocilo.
@@ -10492,7 +10496,11 @@ class GlasbaActivity : OsActivity() {
 
             fun naKonec() {
                 // Diagnostika samo Webtor (pregled 26, T3): brez TorBoxa s cakanjem in brez torrenta na napravi.
-                if (samoWebtor) { android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Webtor - Webtor ni predvajal"); return }
+                if (samoWebtor) {
+                    android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Webtor - Webtor ni predvajal")
+                    DiagnostikaPredvajanja.neuspeh(this@GlasbaActivity, naslov, DiagnostikaPredvajanja.vrsta(sk), "samo Webtor: ni predvajal")
+                    return
+                }
                 
                 preselNaDebrid = UsenetPravila.prehodNaDebrid(izbranSamoUsenet, true, DebridPravila.rezervaPoUsenetu(Debrid.zKljucem(this@GlasbaActivity)) != null)
                 
@@ -10502,6 +10510,8 @@ class GlasbaActivity : OsActivity() {
                     android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Usenet - Usenet ni predvajal (pripravljen pri TorBoxu: ne, " +
                         "s cakanjem poskusenih $usenetPoskusov od ${usenet.size}" +
                         (if (poskusi.isEmpty()) " - nobena izdaja do ${UsenetPravila.NAJVEC_GB_SAMODEJNO.toInt()} GB" else "") + ")")
+                    DiagnostikaPredvajanja.neuspeh(this@GlasbaActivity, naslov, DiagnostikaPredvajanja.vrsta(sk),
+                        "usenet ni predvajal (poskusenih $usenetPoskusov od ${usenet.size})")
                     Toast.makeText(this, R.string.os_usenet_diagnostika_konec, Toast.LENGTH_LONG).show()
                     obNeuspehu?.invoke()
                     return
@@ -10509,12 +10519,14 @@ class GlasbaActivity : OsActivity() {
                 if (preselNaDebrid) {
                     debridRezerva = DebridPravila.rezervaPoUsenetu(Debrid.zKljucem(this@GlasbaActivity))
                     android.util.Log.i("SafeerOsMedia", "tokovi: Usenet ni uspel - rezerva $debridRezerva")
+                    DiagnostikaPredvajanja.poskus(this@GlasbaActivity, "usenet", null, "ni uspel, naprej na debrid $debridRezerva")
                     Toast.makeText(this, R.string.os_usenet_prehod_debrid, Toast.LENGTH_SHORT).show()
                     izberiTok(sk, naslov, vsiTokovi, rocno, pripravljeno, brezOmejitveUseneta = true, obNeuspehu = obNeuspehu)
                     return
                 }
 
                 if (!samodejnoBrezUseneta()) {
+                    DiagnostikaPredvajanja.neuspeh(this@GlasbaActivity, naslov, DiagnostikaPredvajanja.vrsta(sk), "noben vir ni predvajal")
                     Toast.makeText(this, getString(R.string.os_media_ni_na_voljo, naslov), Toast.LENGTH_SHORT).show()
                     PredvajanjeActivity.zapriZNapako()
                 }
@@ -10528,6 +10540,7 @@ class GlasbaActivity : OsActivity() {
                     android.util.Log.i("SafeerOsMedia", "tokovi: Webtor${if (samoTakoj) " takoj" else ""} ${i + 1}/${kandidati.size}; izbran=${TokIzbira.opisi(opis(w))}, " +
                         "vrsta=${w.oznakaVira}, datoteka=${datotekaOd(w)}, h=${w.hash.take(10)}, idx=${w.datoteka}, sejalcev=${TokIzbira.sejalci(opis(w))}")
                 odpriWebtor(kandidati) {
+                    DiagnostikaPredvajanja.poskus(this@GlasbaActivity, "webtor", kandidati.first().url, "ni predvajal (${kandidati.size} kandidatov)")
                     Toast.makeText(this, R.string.os_webtor_rezerva, Toast.LENGTH_SHORT).show()
                     poskusiWebtor(samoTakoj, potem)
                 }
@@ -10551,7 +10564,10 @@ class GlasbaActivity : OsActivity() {
                 val t = poskusi[iNaslednji]
                 android.util.Log.i("SafeerOsMedia", "tokovi: Usenet s prenosom ${iNaslednji + 1}/${poskusi.size} od ${usenet.size}; izbran=${TokIzbira.opisi(opis(t))}")
                 prekDebrida(t.url, t.datoteka, { cdn -> odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap())) }, null,
-                    samoTakoj = false, usenetIme = t.opis.substringBefore('\n'), obNeuspehu = { napaka -> poskusiUsenetSCakanjem(iNaslednji + 1, napaka) })
+                    samoTakoj = false, usenetIme = t.opis.substringBefore('\n'), obNeuspehu = { napaka ->
+                        DiagnostikaPredvajanja.poskus(this@GlasbaActivity, "usenet", t.url, napaka.ifBlank { "ni uspel" })
+                        poskusiUsenetSCakanjem(iNaslednji + 1, napaka)
+                    })
             }
             if (takojBrezWebtorja()) return
             if (poskusi.isNotEmpty() || webtor.isNotEmpty()) {

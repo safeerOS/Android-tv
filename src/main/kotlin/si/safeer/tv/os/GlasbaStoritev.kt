@@ -346,6 +346,8 @@ class GlasbaStoritev : Service() {
                         val mesto = maxOf(p.currentPosition, zacetekPoskusa)
                         if (mesto > 5_000) zacetnoMesto = naslednji.first.id to mesto
                         Log.i("SafeerOsMedia", "tok odpovedal: koda=${error.errorCode}, po $trajalo ms, mesto=$mesto, rezerv=${ostale.size}")
+                        DiagnostikaPredvajanja.poskus(this@GlasbaStoritev, "tok", enota?.zvok,
+                            "${error.errorCodeName}${httpKoda(error).takeIf { it > 0 }?.let { ", HTTP $it" } ?: ""}, po $trajalo ms")
                         // Mrtva povezava odpove v trenutku ([hitraNapaka]): preklop je neopazen, zato brez obvestila. Povemo
                         // le, kadar je uporabnik ze cakal ali gledal (sicer bi ob vsakem filmu bral, da "vir ne dela").
                         if (trajalo > 2_500) obvesti(getString(R.string.os_media_drug_vir))
@@ -390,6 +392,10 @@ class GlasbaStoritev : Service() {
                     val oImeniku = if (kljucImenika.isEmpty()) "" else ", imenik: ime=${imenik?.obstaja}, kontrola=${imenik?.kontrola}, neodziven=$neodziven"
                     Log.i("SafeerOsMedia", "koncna napaka: koda=${error.errorCode}, http=$http, vZivo=$vZivo, zacelo=$zacelo, mrtev=$mrtev$oImeniku")
                     koncnaNapaka = KoncnaNapaka(enota?.id.orEmpty(), error.errorCode, http, besedilo)
+                    // Diagnostika predvajanja (samo vklopljena): zadnji tok in koncni razlog, brez naslova toka (samo gostitelj).
+                    DiagnostikaPredvajanja.poskus(this@GlasbaStoritev, "tok", enota?.zvok, "${error.errorCodeName}${if (http > 0) ", HTTP $http" else ""}")
+                    DiagnostikaPredvajanja.neuspeh(this@GlasbaStoritev, enota?.naslov, DiagnostikaPredvajanja.vrsta(enota),
+                        "koncna napaka predvajalnika${if (mrtev) ", kanal mrtev" else ""}, zacelo=$zacelo")
                     // Naloga 108: z razlogom in imenom (izbira »Ne delujejo« v Live TV).
                     if (mrtev) MrtviKanali.zapomni(this@GlasbaStoritev, enota.id, when {
                         brezStreznika -> NedelujocePravila.STREZNIK
@@ -1314,6 +1320,8 @@ class GlasbaStoritev : Service() {
 
     private fun zacniVOspredju() {
         val o = obvestilo()
+        // Obvestilo je zdaj to - naslednja sprememba v posljiSejo() ga mora objaviti znova.
+        poslanoObvestilo = null
         if (Build.VERSION.SDK_INT >= 29) startForeground(ID, o, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
         else startForeground(ID, o)
     }
@@ -1379,26 +1387,57 @@ class GlasbaStoritev : Service() {
         val s = trenutna()
         // Med nedavno predvajane gre skladba sele, ko res igra - tudi na zvocniku (preskocene ne).
         if (naZvocniku() && Zvocniki.stanje.let { it.igral && it.zeliIgrati }) zapomniNedavnoEnkrat()
-        // Stanje, cas in trajanje tistega, ki igra: te naprave ali zvocnika v omrezju.
-        seja?.setMetadata(MediaMetadata.Builder()
-            .putString(MediaMetadata.METADATA_KEY_TITLE, s?.naslov ?: "")
-            .putString(MediaMetadata.METADATA_KEY_ARTIST, s?.izvajalec ?: "")
-            .putLong(MediaMetadata.METADATA_KEY_DURATION, trajanjeMs().takeIf { it > 0 } ?: -1L)
-            .build())
-        seja?.setPlaybackState(PlaybackState.Builder()
-            .setActions(PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_PLAY_PAUSE or
-                PlaybackState.ACTION_SKIP_TO_NEXT or PlaybackState.ACTION_SKIP_TO_PREVIOUS or PlaybackState.ACTION_STOP or
-                PlaybackState.ACTION_SEEK_TO)
-            .addCustomAction(PlaybackState.CustomAction.Builder(AKCIJA_NA_NAPRAVI, getString(R.string.zvocnik_na_napravi),
-                R.drawable.os_ikona_predvajaj_na).build())
-            .setState(stanjeSeje(), polozajMs(), if (stanjeSeje() == PlaybackState.STATE_BUFFERING) 0f else hitrostZaSejo())
-            .build())
         uskladiGlasnostSeje()
         // Neaktivna seja tipk daljinca ne prejema - gredo aplikaciji v ospredju (lastnik 1. 11. 2026).
         val aktivna = OsPravila.sejaPrejemaTipke(s?.video == true, igraZadnje, PredvajanjeActivity.odprt)
         if (seja?.isActive != aktivna) seja?.isActive = aktivna
-        getSystemService(NotificationManager::class.java).notify(ID, obvestilo())
+        // TV 5. 11. 2026: en dogodek predvajalnika sprozi vec klicev osvezi() zapored (6 stanj seje v 54 ms). Seja in
+        // obvestilo gresta zato enkrat na zanko glavne niti, z zadnjim stanjem, in samo ob pravi spremembi.
+        if (!sejaNarocena) { sejaNarocena = true; glavnaNit.post { sejaNarocena = false; posljiSejo() } }
         poslusalci.toList().forEach { it() }
+    }
+
+    /** Zadnje poslano sistemu (seja, metapodatki, obvestilo) - za [SejaPredvajanjaPravila]. */
+    @Volatile private var sejaNarocena = false
+    private var poslanoStanje: SejaPredvajanjaPravila.Stanje? = null
+    private var poslaniOpis: List<Any?>? = null
+    private var poslanoObvestilo: List<Any?>? = null
+
+    /** Stanje, cas in trajanje tistega, ki igra (te naprave ali zvocnika v omrezju) - samo, ce se je bistveno spremenilo. */
+    private fun posljiSejo() {
+        val ss = seja ?: return
+        if (predvajalnik == null) return
+        val s = trenutna()
+        val opis = listOf(s?.naslov ?: "", s?.izvajalec ?: "", trajanjeMs().takeIf { it > 0 } ?: -1L)
+        if (opis != poslaniOpis) {
+            poslaniOpis = opis
+            ss.setMetadata(MediaMetadata.Builder()
+                .putString(MediaMetadata.METADATA_KEY_TITLE, opis[0] as String)
+                .putString(MediaMetadata.METADATA_KEY_ARTIST, opis[1] as String)
+                .putLong(MediaMetadata.METADATA_KEY_DURATION, opis[2] as Long)
+                .build())
+        }
+        val akcije = PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or PlaybackState.ACTION_PLAY_PAUSE or
+            PlaybackState.ACTION_SKIP_TO_NEXT or PlaybackState.ACTION_SKIP_TO_PREVIOUS or PlaybackState.ACTION_STOP or
+            PlaybackState.ACTION_SEEK_TO
+        val stanje = stanjeSeje()
+        val zdaj = SejaPredvajanjaPravila.Stanje(stanje, if (stanje == PlaybackState.STATE_BUFFERING) 0f else hitrostZaSejo(),
+            akcije, listOf(AKCIJA_NA_NAPRAVI), polozajMs(), android.os.SystemClock.elapsedRealtime())
+        if (SejaPredvajanjaPravila.bistvenoSpremenjeno(poslanoStanje, zdaj)) {
+            poslanoStanje = zdaj
+            ss.setPlaybackState(PlaybackState.Builder()
+                .setActions(akcije)
+                .addCustomAction(PlaybackState.CustomAction.Builder(AKCIJA_NA_NAPRAVI, getString(R.string.zvocnik_na_napravi),
+                    R.drawable.os_ikona_predvajaj_na).build())
+                .setState(zdaj.stanje, zdaj.polozajMs, zdaj.hitrost, zdaj.posodobljenoMs)
+                .build())
+        }
+        // Obvestilo kaze naslov, izvajalca, kje igra in gumbe (premor/predvajaj, naprej) - drugo ga ne spremeni.
+        val vObvestilu = listOf(s?.naslov, s?.izvajalec, Zvocniki.napis(this), igra(), imaNaprej(), s?.radio == true)
+        if (vObvestilu != poslanoObvestilo) {
+            poslanoObvestilo = vObvestilu
+            getSystemService(NotificationManager::class.java).notify(ID, obvestilo())
+        }
     }
 
     override fun onDestroy() {

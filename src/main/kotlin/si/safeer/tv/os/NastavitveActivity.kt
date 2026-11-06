@@ -598,6 +598,15 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             .setTitle(getString(R.string.os_pravno))
             .setMessage(getString(R.string.os_pravno_besedilo, razlicica, packageName))
             .setPositiveButton(getString(R.string.os_moc_zapri), null)
+        // Diagnostika predvajanja (lastnik 5. 11. 2026: dejavna samo, ko jo potrebujemo): vklop za 24 ur, nato se sama izklopi.
+        // Pri vklopljeni se ob odprtju tega okna ves dnevnik izpise znova v logcat (adb logcat -d -s SafeerDiag).
+        val diagnostika = DiagnostikaPredvajanja.vklopljena(this)
+        if (diagnostika) DiagnostikaPredvajanja.izpisi(this)
+        okno.setNeutralButton(getString(if (diagnostika) R.string.os_diag_predvajanja_izklopi else R.string.os_diag_predvajanja)) { _, _ ->
+            if (diagnostika) DiagnostikaPredvajanja.izklopi(this) else DiagnostikaPredvajanja.vklopi(this)
+            Toast.makeText(this, if (diagnostika) R.string.os_diag_predvajanja_izklopljena else R.string.os_diag_predvajanja_vklopljena,
+                Toast.LENGTH_LONG).show()
+        }
         Kontroler.pokazi(okno.show())
     }
 
