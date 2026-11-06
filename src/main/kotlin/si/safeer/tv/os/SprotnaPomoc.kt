@@ -229,7 +229,9 @@ object SprotnaPomoc {
         // Tudi racunalnik (Safeer Control s ffmpeg) je pomocnik: host.info pove gpu.kodirniki, sicer ocena 0.
         val ze = neuspesni[sk.id].orEmpty()
         // Vodja 5. 11. 2026: vir z zetonom (nadomestek SkrivniDodatki, glave toka) in Usenet (racun lastnika) samo ozjemu krogu.
-        val skrivnost = usenet != null || SprotnaPomocPravila.nosiSkrivnost(sk.zvok, SpletniVir.glaveToka(sk.zvok).isNotEmpty())
+        // Pregled 6. 11. 2026 (H1): tudi zeton streznika datotek (vir na napravi v Linku) je skrivnost.
+        val skrivnost = usenet != null || SprotnaPomocPravila.nosiSkrivnost(sk.zvok, SpletniVir.glaveToka(sk.zvok).isNotEmpty(),
+            imaStreznik = streznik != null)
         val kandidati = link.naprave.filter { n -> !link.jeTaNaprava(n) && "files" in n.zmoznosti && n.id !in ze &&
             SprotnaPomocPravila.sme(skrivnost, vOzjemKrogu(app, n.id)) }
         if (kandidati.isEmpty()) { Log.i(TAG, "Pomocnika ni: nobene naprave z datotekami (ze odpovedali: $ze)"); naKonec(false); return }
@@ -264,7 +266,10 @@ object SprotnaPomoc {
         // Vodja 5. 11. 2026: pravi naslov vira z zetonom (ne nadomestek SkrivniDodatki) samo napravi v ozjem krogu; naslov
         // ne gre v dnevnik. Usenet: brez naslova - pomocnik izdajo prenese sam (polje usenet).
         val naslov = if (usenet != null) null else SprotnaPomocPravila.naslov(sk.zvok, ozji) { SkrivniDodatki.dejanski(app, it) }
-        if (usenet == null && naslov == null) {
+        // Pregled 6. 11. 2026 (H1): fp+token streznika datotek (nosilni zeton te naprave) samo ozjemu krogu - tudi ob
+        // previjanju (previj prosi istega pomocnika, ne glede na to, ali je medtem izpadel iz ozjega kroga).
+        val zeton = streznik != null && usenet == null
+        if ((usenet == null && naslov == null) || !SprotnaPomocPravila.sme(zeton, ozji)) {
             Log.i(TAG, "${n.id}: vir z zetonom samo ozjemu krogu - naslednji")
             prosi(app, link, vrsta, k + 1, sk, streznik, oblika, pozicijaMs, trajanjeMs, naStanje, usenet, naKonec); return
         }

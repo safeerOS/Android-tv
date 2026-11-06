@@ -128,6 +128,11 @@ _pred = _zc[:_zc.find("Thread({")]
 preveri("Pretok U3: mapa, ciscenje in prostor niso na glavni niti", all(x not in _pred for x in ("listFiles", "usableSpace", "mkdirs", "Pretvorba.rezerva()"))
         and "mapa.listFiles()" in _zc[_zc.find("Thread({"):])
 
+sp = beri("src/main/kotlin/si/safeer/tv/os/SprotnaPomoc.kt")
+preveri("Pomoc H1: zeton streznika datotek steje kot skrivnost pri izbiri", "imaStreznik = streznik != null" in sp)
+_pr = telo(sp, "private fun prosi(", 'p.put("fp", streznik.odtis)')
+preveri("Pomoc H1: fp+token samo ozjemu krogu tudi pri previjanju", "!SprotnaPomocPravila.sme(zeton, ozji)" in _pr)
+
 if napake:
     print("NAPAKA zunanji pregled TV:", len(napake)); sys.exit(1)
 print("zunanji pregled TV OK")
