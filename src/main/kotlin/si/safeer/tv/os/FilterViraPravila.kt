@@ -289,9 +289,13 @@ object FilterViraPravila {
      * Najvec [naMinuto] zahtev v drsecem oknu ene minute (vse mreze skupaj). Ura je podana ([zdaj], ms), zato je
      * omejevalnik preizkusljiv. Meja ali napaka indeksatorja (429, Newznab 500/501) ustavi vse za [premorMs].
      */
-    class Omejevalnik(private val naMinuto: Int, private val premorMs: Long = 15 * MINUTA) {
+    class Omejevalnik(private val naMinuto: Int, private val prviPremorMs: Long = PRVI_PREMOR_MS,
+                      private val najvecPremorMs: Long = 15 * MINUTA, private val razmikMs: Long = RAZMIK_MS) {
         private val casi = ArrayDeque<Long>()
         private var premorDo = 0L
+        // Lastnik 6. 11. 2026: indeksator ob sunku omeji za nekaj sekund - premor raste (5 s, 10 s, 20 s ...) do 15 min,
+        // uspesen odgovor ga ponastavi (prej vedno 15 min brez obvestila: »Nalozi vec« ni naredil nic).
+        private var zaporednihMej = 0
 
         @Synchronized fun smem(zdaj: Long): Boolean {
             if (zdaj < premorDo) return false
@@ -301,8 +305,17 @@ object FilterViraPravila {
             return true
         }
 
-        @Synchronized fun meja(zdaj: Long) { premorDo = zdaj + premorMs }
+        /** Koliko ms mora zahteva se pocakati, da je od prejsnje minil [razmikMs] (lastnik: razmik manj kot 1 s). */
+        @Synchronized fun razmik(zdaj: Long): Long = casi.lastOrNull()?.let { (it + razmikMs - zdaj).coerceAtLeast(0L) } ?: 0L
+
+        @Synchronized fun meja(zdaj: Long) {
+            val korak = (prviPremorMs shl zaporednihMej.coerceAtMost(20)).coerceAtMost(najvecPremorMs)
+            zaporednihMej++
+            premorDo = zdaj + korak
+        }
+        @Synchronized fun uspeh() { zaporednihMej = 0 }
         @Synchronized fun vPremoru(zdaj: Long): Boolean = zdaj < premorDo
+        @Synchronized fun premorSe(zdaj: Long): Long = (premorDo - zdaj).coerceAtLeast(0L)
 
         /** Ali bi [smem] zdaj dovolil - brez porabe (pregled 6. 11. 2026, U1: kvoto porabi samo poslana zahteva). */
         @Synchronized fun lahko(zdaj: Long): Boolean {
@@ -320,6 +333,7 @@ object FilterViraPravila {
             casi.addLast(zdaj)
         }
     }
+    }
 
     /**
      * Pregled 6. 11. 2026 (U1): preverba filtra poslje zahtevo indeksatorju samo z nastavljenim racunom, znanim id in
@@ -333,8 +347,12 @@ object FilterViraPravila {
      * cele mreze in naslednje strani. Ob 429 / Newznab 500/501 ostane premor 15 min ([Omejevalnik.meja]) - drugi uporabniki
      * imajo lahko manjso kvoto.
      */
-    const val NA_MINUTO = 100
-    const val HKRATI = 6
+    // Lastnik 6. 11. 2026 06:29-06:35: indeksator (NZBFinder) ni ponudnik NNTP - najvec 2 zahtevi hkrati, razmik pod 1 s,
+    // nizka stopnja (100/min in 6 hkrati je ob 06:14 sprozilo omejitev indeksatorja po 60 zahtevah).
+    const val NA_MINUTO = 30
+    const val HKRATI = 2
+    const val RAZMIK_MS = 500L
+    const val PRVI_PREMOR_MS = 5_000L
     /** Novih naslovov na zahtevo uporabnika (odprtje mreze, Nalozi vec): zaslon in naslednja stran. */
     const val PRORACUN_MREZE = 40
     /** Prednalaganje: ko je [PRORACUN_MREZE] porabljen, se toliko naslovov naprej v ozadju (enkrat na zahtevo). */

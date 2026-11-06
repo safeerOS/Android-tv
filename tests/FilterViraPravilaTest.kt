@@ -149,7 +149,7 @@ fun main() {
     preveriEnako("POMOC: pomoc pri NA_VOLJO ni zapisana", false, FilterViraPravila.izNiza("NA_VOLJO;5;;0;1")?.pomoc)
 
     // Kvota indeksatorja.
-    val om = FilterViraPravila.Omejevalnik(3, premorMs = 10 * min)
+    val om = FilterViraPravila.Omejevalnik(3, prviPremorMs = 10 * min, najvecPremorMs = 10 * min)
     preveriEnako("omejevalnik: 3 na minuto", listOf(true, true, true, false), (0 until 4).map { om.smem(t0 + it) })
     preveriEnako("omejevalnik: po minuti spet", true, om.smem(t0 + min))
     om.meja(t0 + min)
@@ -219,15 +219,25 @@ fun main() {
         FilterViraPravila.proracun(vnaprej.copy(ostalo = 0), false, 0).ostalo)
     preveriEnako("proracun: med krogom ostane", 7, FilterViraPravila.proracun(zacetni.copy(ostalo = 7), true, 0).ostalo)
 
-    // Lastnik 6. 11. 2026 04:26 in vodja: 6 hkrati, meja 100 na minuto (takojsen sunek 40), ob 429 premor 15 min.
-    preveriEnako("meja: 100 na minuto", 100, FilterViraPravila.NA_MINUTO)
-    preveriEnako("meja: 6 hkrati", 6, FilterViraPravila.HKRATI)
+    // Lastnik 6. 11. 2026 06:29-06:35: indeksator najvec 2 hkrati, razmik pod 1 s, nizka stopnja; premor ob meji raste od 5 s.
+    preveriEnako("meja: 30 na minuto", 30, FilterViraPravila.NA_MINUTO)
+    preveriEnako("meja: 2 hkrati", 2, FilterViraPravila.HKRATI)
+    preveriEnako("razmik pod 1 s", true, FilterViraPravila.RAZMIK_MS in 1L..999L)
     val om4 = FilterViraPravila.Omejevalnik(FilterViraPravila.NA_MINUTO)
-    preveriEnako("sunek: 40 zahtev v isti ms", true, (0 until 40).all { om4.smem(t0) })
-    preveriEnako("sunek: do 100 v minuti", true, (40 until 100).all { om4.smem(t0 + 1) })
-    preveriEnako("sunek: 101. v isti minuti ne", false, om4.smem(t0 + 2))
-    om4.meja(t0 + min)
-    preveriEnako("429: premor 15 min", false to true, om4.smem(t0 + 15 * min) to om4.smem(t0 + 16 * min + 1))
+    preveriEnako("razmik: prva brez cakanja", 0L, om4.razmik(t0))
+    preveriEnako("sunek: 30 v minuti", true, (0 until 30).all { om4.smem(t0 + it) })
+    preveriEnako("sunek: 31. v isti minuti ne", false, om4.smem(t0 + 40))
+    preveriEnako("razmik: takoj po zahtevi pocakaj", true, om4.razmik(t0 + 29) in 1L..FilterViraPravila.RAZMIK_MS)
+    val om5 = FilterViraPravila.Omejevalnik(FilterViraPravila.NA_MINUTO)
+    om5.meja(t0)
+    preveriEnako("meja: prvi premor 5 s (ne 15 min)", false to true, om5.lahko(t0 + 4_999) to om5.lahko(t0 + 5_000))
+    om5.meja(t0 + 5_000)
+    preveriEnako("meja: drugi zaporedni 10 s", false to true, om5.lahko(t0 + 14_999) to om5.lahko(t0 + 15_000))
+    om5.uspeh(); om5.meja(t0 + 20_000)
+    preveriEnako("uspeh ponastavi premor na 5 s", true, om5.lahko(t0 + 25_000))
+    val om6 = FilterViraPravila.Omejevalnik(FilterViraPravila.NA_MINUTO)
+    repeat(30) { om6.meja(t0) }
+    preveriEnako("premor najvec 15 min", 15 * min, om6.premorSe(t0))
 
     if (napak > 0) { println("NAPAK: $napak"); kotlin.system.exitProcess(1) }
     println("Vse v redu.")
