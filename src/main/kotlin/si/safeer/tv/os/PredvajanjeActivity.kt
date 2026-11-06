@@ -692,6 +692,8 @@ class PredvajanjeActivity : OsActivity() {
         if (!LinkUpravitelj.pridobi(this).jeKrajevni()) LinkUpravitelj.pridobi(this).dodaj(linkPoslusalec)
         osvezi()
         glavna.post(tik)
+        // E2: ce zaslon po koncu epizode se caka na seznam epizod, rok cakanja (ustavljen v onStop) znova.
+        if (konecEpizode && naslednjaIscem) glavna.postDelayed(naslednjaRok, NaslednjaEpizodaPravila.CAKAJ_SEZNAM_MS)
         zbudi()
         if (dotik) glavna.post { if (!isFinishing && !predlogiOdprti()) odpriPredloge() }
         zatemniIzNamena()
@@ -915,6 +917,8 @@ class PredvajanjeActivity : OsActivity() {
         val potem = poZaprtju
         poZaprtju = null
         if (potem != null && ZasloniOsPravila.poZaprtjuNapake(zaprtoSamodejno)) android.os.Handler(android.os.Looper.getMainLooper()).post(potem)
+        // Pregled 6. 11. 2026 (E2): rok cakanja na seznam epizod ne sme klicati finish() na unicenem zaslonu.
+        glavna.removeCallbacks(naslednjaRok)
         odjaviPip(); delavec.shutdownNow(); super.onDestroy()
     }
 
@@ -936,6 +940,8 @@ class PredvajanjeActivity : OsActivity() {
         GlasbaStoritev.poslusalci.remove(poslusalec)
         LinkUpravitelj.pridobi(this).odstrani(linkPoslusalec)
         glavna.removeCallbacks(tik); glavna.removeCallbacks(skrij); glavna.removeCallbacks(zatemni); glavna.removeCallbacks(skrijIme)
+        // E2 (pregled 6. 11. 2026): rok cakanja na seznam epizod ustavljen; onStart ga po vrnitvi postavi znova.
+        glavna.removeCallbacks(naslednjaRok)
         // Sliko odpnemo, zvok igra naprej (predvajanje v ozadju).
         pripet?.let { it.clearVideoSurfaceView(povrsina); it.removeListener(velikost); it.removeListener(podnapisi) }
         (pripet as? SpletniIgralec)?.skrij()
@@ -2097,6 +2103,8 @@ class PredvajanjeActivity : OsActivity() {
     private var karticaPreklicana = false
     private var karticaVrsta = NaslednjaEpizodaPravila.NIC
     private var odstetoMs = 0L
+    /** Odprtje vprasanja »Se gledas?« ali zadnja tipka/dotik med njim (uptime; E1, pregled 6. 11. 2026). */
+    private var vprasanjeOdMs = 0L
     private var korenPogled: FrameLayout? = null
     private var kartica: LinearLayout? = null
     private var karticaNaslov: TextView? = null
@@ -2122,6 +2130,7 @@ class PredvajanjeActivity : OsActivity() {
     /** Vsako sekundo (tik) in ob koncu posnetka: poisci naslednjo epizodo, pokazi kartico, odstevaj. */
     private fun preveriNaslednjo(odstej: Boolean) {
         if (isFinishing || isDestroyed) return
+        val odprtaPrej = karticaOdprta()
         val p = GlasbaStoritev.predvajalnik
         val sk = GlasbaStoritev.trenutna()
         if (p != null && sk != null) {
@@ -2144,7 +2153,27 @@ class PredvajanjeActivity : OsActivity() {
             if (karticaOdprta() && !zdajPokazi) { kartica?.visibility = View.GONE; karticaVrsta = NaslednjaEpizodaPravila.NIC; odstetoMs = 0L }
             if (naslednjaEp != null && !karticaPreklicana && !karticaOdprta() && zdajPokazi) pokaziKartico()
         } else if (konecEpizode && naslednjaEp != null && !karticaPreklicana && !karticaOdprta()) pokaziKartico()
-        if (odstej && karticaOdprta()) odstevaj(p)
+        if (NaslednjaEpizodaPravila.odstejZdaj(odstej, odprtaPrej, karticaOdprta())) odstevaj(p)
+        if (odstej && karticaOdprta() && karticaVrsta == NaslednjaEpizodaPravila.VPRASAJ &&
+            NaslednjaEpizodaPravila.vprasanjeBrezOdziva(vprasanjeOdMs, android.os.SystemClock.uptimeMillis())) vprasanjeBrezOdziva()
+    }
+
+    /**
+     * Pregled 6. 11. 2026 (E1): »Se gledas?« brez odziva - zaslon se sme ugasniti (brez KEEP_SCREEN_ON), kartica gre stran,
+     * zaslon predvajanja se zapre kot ob koncu epizode (onStop ustavi video na mestu in zapise napredek).
+     */
+    private fun vprasanjeBrezOdziva() {
+        android.util.Log.i("SafeerOsMedia", "naslednja epizoda: brez odziva ${NaslednjaEpizodaPravila.VPRASANJE_ROK_MS / 1000} s - zapiram")
+        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        karticaPreklicana = true; karticaVrsta = NaslednjaEpizodaPravila.NIC
+        kartica?.visibility = View.GONE
+        glavna.removeCallbacks(naslednjaRok)
+        finish()
+    }
+
+    /** Tipka ali dotik med vprasanjem »Se gledas?«: rok brez odziva znova. */
+    private fun odzivNaVprasanje() {
+        if (karticaOdprta() && karticaVrsta == NaslednjaEpizodaPravila.VPRASAJ) vprasanjeOdMs = android.os.SystemClock.uptimeMillis()
     }
 
     private fun isciNaslednjo(sk: Jamendo.Skladba, sezona: Int, epizoda: Int, kljuc: String) {
@@ -2183,6 +2212,7 @@ class PredvajanjeActivity : OsActivity() {
         val k = kartica ?: ustvariKartico() ?: return
         karticaVrsta = vrsta
         odstetoMs = 0L
+        vprasanjeOdMs = android.os.SystemClock.uptimeMillis()
         k.visibility = View.VISIBLE
         osveziKartico()
         gumbZdaj?.requestFocus()
@@ -2505,6 +2535,7 @@ class PredvajanjeActivity : OsActivity() {
         if (dogodek.actionMasked == MotionEvent.ACTION_DOWN) {
             zaporednihSamodejno = 0
             imeOd = OsPravila.imeOdPoTipki(imeOd, android.os.SystemClock.uptimeMillis(), videoTece())
+            odzivNaVprasanje()
         }
         // Kartica naslednje epizode: dotik nanjo gre njenim gumbom.
         if (karticaOdprta()) {
@@ -2541,6 +2572,7 @@ class PredvajanjeActivity : OsActivity() {
         if (dogodek.action == KeyEvent.ACTION_DOWN) {
             zaporednihSamodejno = 0
             imeOd = OsPravila.imeOdPoTipki(imeOd, android.os.SystemClock.uptimeMillis(), videoTece())
+            odzivNaVprasanje()
         }
         // Glasba igra na zvocniku: tipki za glasnost nastavljata zvocnik (tudi med premorom, ko sistem tega ne naredi sam).
         if ((dogodek.keyCode == KeyEvent.KEYCODE_VOLUME_UP || dogodek.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) && GlasbaStoritev.naZvocniku()) {

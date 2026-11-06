@@ -81,6 +81,21 @@ object NaslednjaEpizodaPravila {
 
     fun zacniZdaj(odstetoMs: Long): Boolean = odstetoMs >= ODSTEVANJE_MS
 
+    /**
+     * CodeRabbit 6. 11. 2026: tik, ki je kartico sele odprl, je v istem klicu ze odstel sekundo - prvi napis je bil
+     * »cez 9 s« in epizoda se je zacela po 9 s. Odsteva samo kartica, ki je bila odprta ze PRED tem klicem.
+     */
+    fun odstejZdaj(odstej: Boolean, odprtaPrej: Boolean, odprtaZdaj: Boolean): Boolean = odstej && odprtaPrej && odprtaZdaj
+
+    /**
+     * Pregled 6. 11. 2026 (E1): kartica »Se gledas?« brez odziva je ostala vso noc z vklopljenim zaslonom (KEEP_SCREEN_ON).
+     * Po toliko casa brez tipke ali dotika zaslon predvajanja sprosti zaslon in se zapre kot ob koncu epizode.
+     */
+    const val VPRASANJE_ROK_MS = 60_000L
+
+    /** [odMs] = odprtje vprasanja ali zadnja tipka/dotik med njim (uptime). */
+    fun vprasanjeBrezOdziva(odMs: Long, zdajMs: Long): Boolean = zdajMs - odMs >= VPRASANJE_ROK_MS
+
     /** »S1E2 Ime« za kartico. */
     fun oznaka(sezona: Int, epizoda: Int, ime: String): String =
         "S${sezona}E$epizoda" + (if (ime.isNotBlank()) " " + ime.trim() else "")

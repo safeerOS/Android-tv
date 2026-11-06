@@ -133,6 +133,18 @@ preveri("Pomoc H1: zeton streznika datotek steje kot skrivnost pri izbiri", "ima
 _pr = telo(sp, "private fun prosi(", 'p.put("fp", streznik.odtis)')
 preveri("Pomoc H1: fp+token samo ozjemu krogu tudi pri previjanju", "!SprotnaPomocPravila.sme(zeton, ozji)" in _pr)
 
+pa = beri("src/main/kotlin/si/safeer/tv/os/PredvajanjeActivity.kt")
+preveri("Epizoda E2: rok seznama epizod odstranjen v onStop in onDestroy",
+        "glavna.removeCallbacks(naslednjaRok)" in telo(pa, "override fun onStop()", "super.onStop()")
+        and "glavna.removeCallbacks(naslednjaRok)" in telo(pa, "override fun onDestroy()", "super.onDestroy()"))
+_vb = telo(pa, "private fun vprasanjeBrezOdziva()", "/** Tipka ali dotik")
+preveri("Epizoda E1: brez odziva sprosti KEEP_SCREEN_ON in zapre zaslon", "clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)" in _vb and "finish()" in _vb
+        and "NaslednjaEpizodaPravila.vprasanjeBrezOdziva(vprasanjeOdMs" in pa)
+preveri("Epizoda E1: tipka in dotik podaljsata rok", telo(pa, "override fun dispatchKeyEvent(", "glasnostZvocnika").count("odzivNaVprasanje()") == 1
+        and "odzivNaVprasanje()" in telo(pa, "override fun dispatchTouchEvent(", "if (karticaOdprta())"))
+preveri("Epizoda CR: odsteva samo kartica, odprta pred tem tikom", "val odprtaPrej = karticaOdprta()" in pa
+        and "NaslednjaEpizodaPravila.odstejZdaj(odstej, odprtaPrej, karticaOdprta())" in pa and "if (odstej && karticaOdprta()) odstevaj(p)" not in pa)
+
 if napake:
     print("NAPAKA zunanji pregled TV:", len(napake)); sys.exit(1)
 print("zunanji pregled TV OK")

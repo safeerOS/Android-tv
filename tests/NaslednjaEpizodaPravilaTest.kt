@@ -68,6 +68,30 @@ fun main() {
     enako("pavza ustavi odstevanje", 2_000L, NaslednjaEpizodaPravila.odsteto(2_000, 1_000, pavza = true))
     enako("predvajanje odsteva", 3_000L, NaslednjaEpizodaPravila.odsteto(2_000, 1_000, pavza = false))
 
+    // CodeRabbit 6. 11. 2026: kartica, ki jo odpre tik, prvi napis »cez 10 s« in zacetek po polnih 10 s (prej 9).
+    run {
+        var odprta = false; var odsteto = 0L; var zacela = -1
+        val napisi = ArrayList<Int>()
+        for (sekunda in 1..12) {               // vsak tik (1 s) kot PredvajanjeActivity.preveriNaslednjo(odstej = true)
+            val prej = odprta
+            if (!odprta) { odprta = true; odsteto = 0L }      // pokaziKartico v tem tiku
+            if (NaslednjaEpizodaPravila.odstejZdaj(true, prej, odprta)) {
+                odsteto = NaslednjaEpizodaPravila.odsteto(odsteto, 1_000L, pavza = false)
+                if (NaslednjaEpizodaPravila.zacniZdaj(odsteto) && zacela < 0) zacela = sekunda
+            }
+            napisi += NaslednjaEpizodaPravila.preostaloSekund(odsteto)
+        }
+        enako("odstevanje: prvi napis cez 10 s", 10, napisi.first())
+        enako("odstevanje: zacetek 10 s po odprtju (tik 11, kartica v tiku 1)", 11, zacela)
+        enako("odstevanje: kartica ze odprta prej odsteva", true, NaslednjaEpizodaPravila.odstejZdaj(true, true, true))
+        enako("odstevanje: brez tika (izid iskanja) ne", false, NaslednjaEpizodaPravila.odstejZdaj(false, true, true))
+    }
+    // Pregled 6. 11. 2026 (E1): »Se gledas?« brez odziva 60 s -> zaslon se sprosti in zapre.
+    enako("vprasanje: rok 60 s", 60_000L, NaslednjaEpizodaPravila.VPRASANJE_ROK_MS)
+    enako("vprasanje: 59,9 s se caka", false, NaslednjaEpizodaPravila.vprasanjeBrezOdziva(1_000, 60_900))
+    enako("vprasanje: 60 s brez tipke", true, NaslednjaEpizodaPravila.vprasanjeBrezOdziva(1_000, 61_000))
+    enako("vprasanje: tipka pri 50 s rok znova", false, NaslednjaEpizodaPravila.vprasanjeBrezOdziva(51_000, 61_000))
+
     // Besedila.
     enako("oznaka z imenom", "S1E2 Pilot", NaslednjaEpizodaPravila.oznaka(1, 2, " Pilot "))
     enako("oznaka brez imena", "S1E2", NaslednjaEpizodaPravila.oznaka(1, 2, ""))
