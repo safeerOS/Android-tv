@@ -176,6 +176,31 @@ object MiniPredvajalnikPravila {
     /** Cas (ms) za korak drsnika - kamor uporabnik premakne. */
     fun casIzDrsnika(korak: Int, trajanjeMs: Long): Long =
         if (trajanjeMs <= 0) 0L else korak.coerceIn(0, DRSNIK_KORAKOV).toLong() * trajanjeMs / DRSNIK_KORAKOV
+
+    const val KARTICA = "kartica"
+    const val ZNAK = "znak"
+    const val MC_NIC = "nic"
+
+    fun prikazMc(naDomu: Boolean, imaSkladbo: Boolean, podstranOdprta: Boolean): String = when {
+        !imaSkladbo -> MC_NIC
+        naDomu && !podstranOdprta -> KARTICA
+        else -> ZNAK
+    }
+
+    fun casNapredka(polozajMs: Long, trajanjeMs: Long): String {
+        if (trajanjeMs <= 0) return ""
+        val uP = polozajMs / 3600000
+        val mP = (polozajMs % 3600000) / 60000
+        val sP = (polozajMs % 60000) / 1000
+        val uT = trajanjeMs / 3600000
+        val mT = (trajanjeMs % 3600000) / 60000
+        val sT = (trajanjeMs % 60000) / 1000
+        return if (uT > 0) String.format("%d:%02d:%02d / %d:%02d:%02d", uP, mP, sP, uT, mT, sT)
+        else String.format("%d:%02d / %d:%02d", mP, sP, mT, sT)
+    }
+
+    fun gumbiKartice(video: Boolean, radio: Boolean): List<String> =
+        if (video || radio) listOf("predvajaj") else listOf("prejsnja", "predvajaj", "naslednja")
 }
 
 /**

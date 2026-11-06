@@ -137,5 +137,21 @@ fun main() {
     check(!MiniPredvajalnikPravila.gumbZatemni(true, true, false)) { "video" }
     check(!MiniPredvajalnikPravila.gumbZatemni(true, false, true)) { "druga naprava" }
     check(!MiniPredvajalnikPravila.gumbZatemni(false, false, false)) { "nic ne igra" }
+
+    println("\n== Del A: sodobna kartica na Domu ==")
+    val P = MiniPredvajalnikPravila
+    preveriEnako("prikazMc: Dom, ni podstrani", P.KARTICA, P.prikazMc(naDomu = true, imaSkladbo = true, podstranOdprta = false))
+    preveriEnako("prikazMc: Dom, podstran", P.ZNAK, P.prikazMc(naDomu = true, imaSkladbo = true, podstranOdprta = true))
+    preveriEnako("prikazMc: drug zavihek", P.ZNAK, P.prikazMc(naDomu = false, imaSkladbo = true, podstranOdprta = false))
+    preveriEnako("prikazMc: nic nalozeno", P.MC_NIC, P.prikazMc(naDomu = true, imaSkladbo = false, podstranOdprta = false))
+
+    preveriEnako("casNapredka: z urami", "1:16:05 / 2:10:00", P.casNapredka(4565000L, 7800000L))
+    preveriEnako("casNapredka: brez ur", "3:05 / 4:12", P.casNapredka(185000L, 252000L))
+    preveriEnako("casNapredka: radio/tok v zivo", "", P.casNapredka(10000L, 0L))
+
+    preveriEnako("gumbiKartice: glasba", listOf("prejsnja", "predvajaj", "naslednja"), P.gumbiKartice(video = false, radio = false))
+    preveriEnako("gumbiKartice: video", listOf("predvajaj"), P.gumbiKartice(video = true, radio = false))
+    preveriEnako("gumbiKartice: radio", listOf("predvajaj"), P.gumbiKartice(video = false, radio = true))
+
     if (napak == 0) println("MiniPredvajalnikPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }
