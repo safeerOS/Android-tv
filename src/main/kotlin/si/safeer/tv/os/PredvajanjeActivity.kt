@@ -1865,16 +1865,37 @@ class PredvajanjeActivity : OsActivity() {
     /** Najdeni podnapis, ki caka na naslednji premor ([OsPravila.podnapisZdajAliObPremoru]). */
     private var podnapisObPremoru: Pair<String, Stremio.PodnapisDodatka>? = null
 
+    private var zadnjiRazlogPodnapisovZa = ""
+
+    private fun razlogPodnapisov(kljuc: String, razlog: String) {
+        if (zadnjiRazlogPodnapisovZa != kljuc) {
+            zadnjiRazlogPodnapisovZa = kljuc
+            android.util.Log.d("SafeerPodnapisi", razlog)
+        }
+    }
+
     private fun samodejniPodnapisi() {
-        val kljuc = GlasbaStoritev.trenutna()?.id ?: return
+        val skTrenutna = GlasbaStoritev.trenutna()
+        val kljuc = skTrenutna?.id
+        if (kljuc == null) {
+            razlogPodnapisov("null", "trenutna null")
+            return
+        }
         val p0 = GlasbaStoritev.predvajalnik ?: return
         // Najden podnapis caka na premor: med predvajanjem nova priprava vira za hip prekine sliko in zvok (MediaTek).
         podnapisObPremoru?.let { (k, prvi) ->
             if (k != kljuc) podnapisObPremoru = null
             else if (OsPravila.podnapisZdajAliObPremoru(p0.playWhenReady)) { podnapisObPremoru = null; dodajSamodejno(prvi) }  // TV 6. 11. 16:09: med zatikom isPlaying=false - ni premor (39 s)
         }
-        val jezik = Podnapisi.jezikZaSamodejno(this) ?: return
-        if (kljuc == podnapisiDodatkaZa) return
+        val jezik = Podnapisi.jezikZaSamodejno(this)
+        if (jezik == null) {
+            razlogPodnapisov(kljuc, "jezik prazen")
+            return
+        }
+        if (kljuc == podnapisiDodatkaZa) {
+            razlogPodnapisov(kljuc, "kljuc == podnapisiDodatkaZa")
+            return
+        }
         // Iscemo sele, ko slika tece (STATE_READY vsaj 1 s) - ne med zagonom slike.
         val zdaj = android.os.SystemClock.uptimeMillis()
         val pripravljen = p0.playbackState == androidx.media3.common.Player.STATE_READY
@@ -1886,15 +1907,26 @@ class PredvajanjeActivity : OsActivity() {
             if (pripravljen) glavna.postDelayed({ if (!isFinishing) samodejniPodnapisi() }, OsPravila.PODNAPISI_PO_READY_MS + 50)
             return
         }
-        val id = idPodnapisov() ?: return
-        if (!imaDodatekPodnapisov()) return
+        val id = idPodnapisov()
+        if (id == null) {
+            razlogPodnapisov(kljuc, "idPodnapisov null (id=${skTrenutna.id} imdbId=${skTrenutna.imdbId} video=${skTrenutna.video})")
+            return
+        }
+        if (!imaDodatekPodnapisov()) {
+            razlogPodnapisov(kljuc, "!imaDodatekPodnapisov")
+            return
+        }
         podnapisiDodatkaZa = kljuc
         // HLS podnapisov iz dodatka ne sprejme: dodatkov ne sprasujemo (gumb podnapisov to pove).
-        if (GlasbaStoritev.jeHls()) { android.util.Log.i("SafeerOsMedia", "podnapisi iz dodatkov: tok HLS, ne iscemo"); return }
+        if (GlasbaStoritev.jeHls()) { 
+            razlogPodnapisov(kljuc, "HLS")
+            android.util.Log.i("SafeerOsMedia", "podnapisi iz dodatkov: tok HLS, ne iscemo")
+            return 
+        }
         val prefs = getSharedPreferences("safeer_mediji", MODE_PRIVATE)
         val vsi = dodatkiStremio()
         val naslovi = OsPravila.dodatkiZaPodnapise(vsi, prefs.getString(K_ZADNJI_PODNAPISI, "").orEmpty()) { SkrivnostiPravila.odtis(Stremio.osnova(it)) }
-        val sk = GlasbaStoritev.trenutna()
+        val sk = skTrenutna
         val urlToka = sk?.zvok.orEmpty()
         val glaveToka = SpletniVir.glaveToka(urlToka)
         val imeDatoteke = sk?.imeDatoteke
