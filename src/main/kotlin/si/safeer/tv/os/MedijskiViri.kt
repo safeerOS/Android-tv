@@ -17,7 +17,7 @@ object MedijskiViri {
     private const val ISKANJA = "iskanja"
     private const val PRILJUBLJENE = "priljubljene"
     private const val SEZNAMI = "seznami"
-    private const val NEDAVNO = "nedavno"
+    private const val NEDAVNO = MeniVsebinePravila.KLJUC_NEDAVNO
     private const val MAX_NEDAVNO = 5
 
     data class Vir(val tip: String, val ime: String, val naslov: String) {
@@ -419,10 +419,14 @@ object MedijskiViri {
         return true
     }
 
-    /** Odstrani skladbo s seznama; prazen seznam izgine. */
-    fun odstraniSSeznama(ctx: Context, ime: String, s: Jamendo.Skladba) {
+    /**
+     * Odstrani skladbo s seznama: vnos na [mesto], na katerem je uporabnik ([MeniVsebinePravila.odstraniNaMestu]; -1 = prvi
+     * z istim id-jem); prazen seznam izgine. Nov cas seznama: uskladitev v ozjem krogu ([SeznamiSink]) prenese odstranitev
+     * enako kot dodajanje.
+     */
+    fun odstraniSSeznama(ctx: Context, ime: String, s: Jamendo.Skladba, mesto: Int = -1) {
         val zdaj = novCasSeznama(ctx, ime)
-        val vsi = seznami(ctx).map { if (it.ime == ime) it.copy(skladbe = it.skladbe.filterNot { x -> x.id == s.id }, cas = zdaj) else it }
+        val vsi = seznami(ctx).map { if (it.ime == ime) it.copy(skladbe = MeniVsebinePravila.odstraniNaMestu(it.skladbe, mesto, s.id) { x -> x.id }, cas = zdaj) else it }
         if (vsi.any { it.ime == ime && it.skladbe.isEmpty() }) odstraniSeznam(ctx, ime) else pisiSeznami(ctx, vsi)
     }
 
@@ -494,10 +498,12 @@ object MedijskiViri {
             .take(MAX_NEDAVNO))
     }
 
-    fun odstraniNedavno(ctx: Context, s: Jamendo.Skladba) =
-        pisi(ctx, NEDAVNO, pisiSkladbe(nedavno(ctx).filterNot { it.id == s.id }))
+    /** Odstrani iz nedavnega [s] in razlicice istega naslova ([kljuc]; privzeto samo isti id). Samo na tej napravi. */
+    fun odstraniNedavno(ctx: Context, s: Jamendo.Skladba, kljuc: (Jamendo.Skladba) -> String = { it.id }) =
+        pisi(ctx, NEDAVNO, pisiSkladbe(MeniVsebinePravila.odstraniNedavno(nedavno(ctx), s, { it.id }, kljuc)))
 
-    fun pocistiNedavno(ctx: Context) = pisi(ctx, NEDAVNO, "[]")
+    /** Pocisti samo nedavno ([MeniVsebinePravila.pocistiNedavno]): napredek Nadaljuj, priljubljene in seznami ostanejo. */
+    fun pocistiNedavno(ctx: Context) = MeniVsebinePravila.pocistiNedavno(emptyMap()).forEach { (k, v) -> pisi(ctx, k, v) }
 
     fun zapomniNedavno(ctx: Context, s: Jamendo.Skladba) {
         Stremio.pripravi(ctx)

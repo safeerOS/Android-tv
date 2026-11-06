@@ -151,8 +151,8 @@
     <string name="os_media_zvrst_hiphop">Hip-hop</string>
     <string name="os_media_pocisti_nedavno">Počisti nedavno</string>
     <string name="os_media_pocisti_nedavno_opis">Odstrani zgodovino predvajanja</string>
-    <string name="os_media_pocisti_nedavno_potrdi">Odstranim vse elemente iz Nedavno?</string>
-    <string name="os_media_odstrani_nedavno">Odstrani iz Nedavno</string>
+    <string name="os_media_pocisti_nedavno_potrdi">Počistim nedavno? Nadaljuj gledanje, priljubljene in seznami ostanejo.</string>
+    <string name="os_media_odstrani_nedavno">Odstrani iz nedavnega</string>
     <string name="os_media_gl_isci_opis">Priljubljena glasba po zvrsteh</string>
     <string name="os_media_isci_v_viru">Išči »%1$s« v tem viru</string>
     <string name="os_media_najboljsi">Najboljši zadetki</string>
@@ -299,7 +299,12 @@
     <string name="os_seznam_ime">Ime seznama</string>
     <string name="os_seznam_dodano">Dodano na seznam %1$s</string>
     <string name="os_seznam_ze">Že na seznamu %1$s</string>
-    <string name="os_seznam_odstrani_skladbo">Odstrani s seznama</string>
+    <string name="os_seznam_odstrani_skladbo">Odstrani s seznama predvajanja</string>
+    <string name="os_seznam_dodaj_drug">Dodaj na drug seznam</string>
+    <string name="os_mediji_dom">Dom</string>
+    <string name="os_domov_prilj_glasba">Priljubljena glasba</string>
+    <string name="os_domov_prilj_radio">Priljubljene postaje</string>
+    <string name="os_domov_prilj_tv">Priljubljeni kanali</string>
     <string name="os_seznam_vse">Prikaži vse (%1$d)</string>
     <string name="os_seznam_predvajaj_vse">Predvajaj vse</string>
     <string name="os_media_kanal_mrtev_http">»%1$s« ne dela – napaka vira %2$d. Do jutri skrito.</string>

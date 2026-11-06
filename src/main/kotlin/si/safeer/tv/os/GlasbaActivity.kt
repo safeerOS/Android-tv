@@ -224,7 +224,7 @@ class GlasbaActivity : OsActivity() {
         val t2 = android.os.SystemClock.uptimeMillis()
         android.util.Log.i("SafeerOsCas", "onCreate: zgradi=${t1 - t0} ms, izberi(DOMOV)=${t2 - t1} ms")
         drsnik.post { android.util.Log.i("SafeerOsCas", "prvi izris po onCreate: ${android.os.SystemClock.uptimeMillis() - t0} ms") }
-        drsnik.post { if (window.decorView.findFocus() == null || razdelek == DOMOV) vsebina.findViewWithTag<View>(KLJUC_GLASBA)?.requestFocus() }
+        drsnik.post { if (window.decorView.findFocus() == null || razdelek == DOMOV) (vsebina.findViewWithTag<View>("r:$KLJUC_DOM") ?: vsebina.findViewWithTag<View>(KLJUC_GLASBA))?.requestFocus() }
         iskanjeIzNamena()
         predvajajIzNamena()
         sprejmiIzNamena()
@@ -716,7 +716,8 @@ class GlasbaActivity : OsActivity() {
         // Mreza Filmi | Serije je domaci pogled razdelka Video: Nazaj iz nje gre na plosco, ne v isti razdelek.
         val domacaMreza = odprtKatalog?.tip?.isNotBlank() == true && videoNacin().isNotEmpty()
         if (odprtKatalog != null && !domacaMreza) { odprtKatalog = null; izberi(odprtKatalogIz); return }
-        if (razdelek != DOMOV) {
+        // Lastnik 6. 11. 2026 04:54: Nazaj iz oddelka gre na Dom Medijskega centra, z Doma ven ([DomovVrsticePravila.nazaj]).
+        if (DomovVrsticePravila.nazaj(naDomovu = razdelek == DOMOV, jeDomov = true) == DomovVrsticePravila.Nazaj.NA_DOMOV) {
             // Razdelek, odprt s »Pokazi vse« bloka na plosci: nazaj na ta blok, ne na vrh plosce.
             val izBloka = izBlokaDomov?.takeIf { it.first == razdelek }
             if (izBloka != null) {
@@ -726,7 +727,8 @@ class GlasbaActivity : OsActivity() {
             }
             val kljuc = when (razdelek) { GLASBA -> KLJUC_GLASBA; VIDEO -> KLJUC_VIDEO; RADIO -> KLJUC_RADIO; VIRI -> KLJUC_VIRI; TV_V_ZIVO -> KLJUC_TV; else -> KLJUC_GLASBA }
             izberi(DOMOV)
-            drsnik.post { vsebina.findViewWithTag<View>(kljuc)?.requestFocus() }
+            // Na Domu je vrstica oddelkov (gumb oddelka ima oznako »r:«); izbira gre na oddelek, iz katerega je uporabnik prisel.
+            drsnik.post { (vsebina.findViewWithTag<View>("r:$kljuc") ?: vsebina.findViewWithTag<View>(kljuc))?.requestFocus() }
             return
         }
         super.onBackPressed()
@@ -1661,6 +1663,10 @@ class GlasbaActivity : OsActivity() {
         }
     }
 
+    /** Kartica »Pocisti nedavno« na koncu vrstice Nedavno (Domov, prazna Glasba); dotik vprasa za potrditev. */
+    private fun karticaPocistiNedavno() = Kartica(getString(R.string.os_media_pocisti_nedavno), getString(R.string.os_media_pocisti_nedavno_opis), "",
+        { potrdiPocistiNedavno() }, ikona = R.drawable.os_ikona_zapri, dejanje = true)
+
     /** Kartica seznama predvajanja (Brskaj, Domov, Moja glasba, Zate): naslovnica, ime in stevilo posnetkov; dotik odpre seznam. */
     private fun karticaSeznama(sz: MedijskiViri.Seznam) =
         Kartica(sz.ime, resources.getQuantityString(R.plurals.os_stevilo_posnetkov, sz.skladbe.size, sz.skladbe.size), sz.skladbe.firstOrNull { it.slika.startsWith("http") }?.slika.orEmpty(),
@@ -2111,8 +2117,8 @@ class GlasbaActivity : OsActivity() {
         })
         geslo.visibility = if (i == DOMOV && !ozekZaslon()) View.VISIBLE else View.GONE
         iskalnik = if (i == ISKANJE) novIskalnik() else null
-        // Na plosci je velik "zdaj se predvaja"; mala vrstica spodaj je samo v razdelkih.
-        vrstica.visibility = if (i == DOMOV || GlasbaStoritev.trenutna() == null) View.GONE else View.VISIBLE
+        // Velika plosca »zdaj se predvaja« je samo se v Predvajalniku na telefonu (vlc); drugod mala vrstica spodaj, tudi na Domu.
+        vrstica.visibility = if ((vlc && i == DOMOV) || GlasbaStoritev.trenutna() == null) View.GONE else View.VISIBLE
         // Video se odpre naravnost v mrezo plakatov (Filmi ali Serije, zadnja izbira) - brez polic vmes (lastnik, 2. 10. 2026).
         if (i == VIDEO && i !in samoTaNaprava) videoNacin().takeIf { it.isNotEmpty() }?.let { ++nalaganje; odpriBrskanje(it, videoZvrst, videoJezik); return }
         // TV v zivo se odpre naravnost v mrezo kanalov z izbiro zvrsti in jezika (lastnik, 5. 10. 2026).
@@ -2268,7 +2274,8 @@ class GlasbaActivity : OsActivity() {
         // Odprta mreza (Filmi | Serije, Pokazi vse): sveze police si zapomnimo, mreze pa ne prerisemo cez.
         if ((odprtKatalog != null || podstrani.odprta) && i == razdelek) return
         val c0 = android.os.SystemClock.uptimeMillis()
-        val filtrirani = podatki.map { it.copy(skladbe = filtrirajJezike(i, it.skladbe)) }
+        // Domov: police s spleta (tudi stare z diska) niso vec del strani.
+        val filtrirani = (if (i == DOMOV) emptyList() else podatki).map { it.copy(skladbe = filtrirajJezike(i, it.skladbe)) }
             .filter { it.skladbe.isNotEmpty() }
         if (i == TV_V_ZIVO) tvIkone.clear()
         val c1 = android.os.SystemClock.uptimeMillis()
@@ -2284,7 +2291,7 @@ class GlasbaActivity : OsActivity() {
         val vr = vVrste(zaBloke).map { v -> if (splosniDomov) v.copy(vse = razdelekBloka(v.naslov)) else v }; val c3 = android.os.SystemClock.uptimeMillis()
         val gl = glavaRazdelka(i, podatki); val c4 = android.os.SystemClock.uptimeMillis()
         // Naloga 57: razdelek brez vsebine iz spletnih virov (koda nobenega ne doda sama) pod vsebino z naprav ponudi Dodaj vir.
-        val dodaj = if (vr.isEmpty() && i !in samoTaNaprava && i in setOf(DOMOV, GLASBA, VIDEO, RADIO)) listOf(Vrsta("", listOf(karticaDodajVir()))) else emptyList()
+        val dodaj = if (vr.isEmpty() && i !in samoTaNaprava && (i in setOf(GLASBA, VIDEO, RADIO) || (i == DOMOV && zg.isEmpty()))) listOf(Vrsta("", listOf(karticaDodajVir()))) else emptyList()
         val brezVirov = dodaj.isNotEmpty() && brezSpletnihVirov()
         if (i == GLASBA && glasbaJezik.isNotEmpty() && vr.isEmpty()) narisi(zg + vr + dodaj, opis(i), getString(R.string.os_jezik_ni_vsebine), gl)
         else narisi(zg + vr + dodaj, if (brezVirov) getString(R.string.os_media_brez_virov) else opis(i), glava = gl)
@@ -2319,16 +2326,9 @@ class GlasbaActivity : OsActivity() {
         // Diagnostika na zahtevo razvijalca (Stremio.dnevnik): katalogi dodatkov; brez vklopa ne naredi nicesar.
         if (Stremio.dnevnik()) try { Stremio.dnevnikKatalogov(stremioNaslovi()) } catch (_: Exception) { }
         return when (i) {
-        DOMOV -> {
-            val radio = if (jeVirViden(i, VIR_RADIO)) Radio.postajeLocene().let { it.first + it.second } else emptyList()
-            val peertube = if (jeVirViden(i, VIR_PEERTUBE)) MedijskiViri.vgrajeniPeerTube(this) else emptyList()
-            val peertubeVsebina = PeerTube.najboljGledani(peertube, 12).map { it.second }
-            listOfNotNull(
-                if (jeVirViden(i, VIR_JAMENDO)) Podatki(getString(R.string.os_mediji_vrsta_glasba), Jamendo.priljubljene(24)) else null,
-                radio.takeIf { it.isNotEmpty() }?.let { Podatki(getString(R.string.os_mediji_vrsta_radio), it.take(24)) },
-                Podatki(getString(R.string.os_mediji_vrsta_video), izmenicno(peertubeVsebina), video = true),
-            ).filter { it.skladbe.isNotEmpty() }
-        }
+        // Lastnik 6. 11. 2026 04:48: Domov nima vrstic katalogov (Jamendo je v Glasbi, Radio Browser v Radiu, PeerTube v
+        // Videu) - samo uporabnikove zbirke ([zgorajSplet]).
+        DOMOV -> emptyList()
         GLASBA -> {
             // Discovery namesto podvajanja ene same vrste "Most played": najprej en unikaten
             // popularen izbor, nato zvrsti. Posamezna skladba se med vrstami prikaze samo enkrat.
@@ -3238,8 +3238,15 @@ class GlasbaActivity : OsActivity() {
         fun seznamiBlok(l: List<MedijskiViri.Seznam>) = if (l.isEmpty()) emptyList()
             else listOf(Vrsta(getString(R.string.os_seznami_predvajanja), l.map { karticaSeznama(it) }, skladbe = true))
         return when (i) {
-            DOMOV -> predajaVrsta() + listOf(
-                Vrsta(getString(R.string.os_media_nedavno), razvrsti(i, filtrirajJezike(i, MedijskiViri.nedavno(this).filterNot { neodklenjena(it) }))
+            DOMOV -> {
+                // Lastnik 6. 11. 2026 04:48: na Domov ni vrstic, ki podvajajo oddelke (Radio, TV v zivo, Moji viri imajo svoj
+                // oddelek); vrstice in njihov red izbere uporabnik v Nastavitvah ([DomovVrstice]); prazne vrstice ni.
+                // »Nadaljuj z druge naprave« je prva kartica vrstice Nedavno (prej osamljena velika kartica na vrhu).
+                fun jeKanalP(sk: Jamendo.Skladba) = PriljubljeniKanaliPravila.jeKanal(sk.id, Stremio.jeVZivo(sk)) || IptvSeznami.jeKanal(sk)
+                val izbrane = DomovVrstice.izbrane(this)
+                val vrste = izbrane.associateWith { v -> when (v) {
+                    DomovVrsticePravila.Vrstica.NEDAVNO -> listOf(Vrsta(getString(R.string.os_media_nedavno),
+                        predajaVrsta().flatMap { it.kartice } + razvrsti(i, filtrirajJezike(i, MedijskiViri.nedavno(this).filterNot { neodklenjena(it) }))
                     // Isti naslov iz dveh virov (dve razlicici) je med nedavnimi en sam - brez podvojenih prikazov.
                     .distinctBy { kljucNedavnega(it) }.take(5).let { n ->
                     val kartice = n.map { sk ->
@@ -3249,12 +3256,19 @@ class GlasbaActivity : OsActivity() {
                             ikona = if (tv) R.drawable.os_ikona_tv else if (sk.video) R.drawable.os_ikona_video else if (sk.radio) R.drawable.os_ikona_radio else R.drawable.os_ikona_glasba,
                             tvId = if (tv && sk.slika.isBlank()) sk.id.removePrefix("tv:") else "", id = sk.id)
                     }
-                    if (n.isEmpty()) kartice else kartice + Kartica(getString(R.string.os_media_pocisti_nedavno), getString(R.string.os_media_pocisti_nedavno_opis), "", { potrdiPocistiNedavno() }, ikona = R.drawable.os_ikona_ustavi, dejanje = true)
-                }, video = true, mala = true),
-                Vrsta(getString(R.string.os_media_tvoji_viri), emptyList(), pogled = tvojiViri()),
-                Vrsta(getString(R.string.os_mediji_prilj_glasba), skladbe(p.filterNot { it.video }), skladbe = true),
-                Vrsta(getString(R.string.os_mediji_prilj_video), videi(p.filter { it.video }), video = true),
-            ) + seznamiBlok(seznami)
+                    MeniVsebinePravila.karticeNedavno(kartice, karticaPocistiNedavno())
+                }, video = true, mala = true))
+                    DomovVrsticePravila.Vrstica.SEZNAMI -> seznamiBlok(seznami)
+                    DomovVrsticePravila.Vrstica.PRILJ_GLASBA -> listOf(Vrsta(getString(R.string.os_domov_prilj_glasba),
+                        skladbe(p.filter { DomovVrsticePravila.vPriljubljeniGlasbi(it.video, it.radio, jeKanalP(it)) }), skladbe = true))
+                    DomovVrsticePravila.Vrstica.PRILJ_VIDEO -> listOf(Vrsta(getString(R.string.os_mediji_prilj_video),
+                        videi(p.filter { DomovVrsticePravila.vPriljubljenihVideih(it.video, jeKanalP(it)) }), video = true))
+                    DomovVrsticePravila.Vrstica.RADIO -> listOf(Vrsta(getString(R.string.os_domov_prilj_radio), skladbe(p.filter { it.radio && !jeKanalP(it) }), skladbe = true))
+                    DomovVrsticePravila.Vrstica.TV -> listOf(Vrsta(getString(R.string.os_domov_prilj_tv), videi(p.filter { jeKanalP(it) }), video = true))
+                    DomovVrsticePravila.Vrstica.VIRI -> listOf(Vrsta(getString(R.string.os_media_tvoji_viri), emptyList(), pogled = tvojiViri()))
+                }.filter { it.kartice.isNotEmpty() || it.pogled != null } }
+                DomovVrsticePravila.vrstice(izbrane, vrste.filterValues { it.isNotEmpty() }.keys).flatMap { vrste.getValue(it) }
+            }
             GLASBA -> listOf(Vrsta(getString(R.string.os_mediji_prilj_glasba), skladbe(p.filter { OsPravila.zaGlasbo(it.video, it.radio, YoutubeZvok.jeYoutube(it)) }), skladbe = true)) +
                 // Lastnik 27. 10. 2026: priljubljeni albumi z Useneta (samo z lastnim ponudnikom - sicer jih ni mogoce predvajati).
                 listOfNotNull(UsenetAlbumi.seznam(this).takeIf { it.isNotEmpty() && UsenetLastni.naVoljo(this) }?.let { albumi ->
@@ -4884,16 +4898,17 @@ class GlasbaActivity : OsActivity() {
             .filterNot { ZasebniKanali.jeZaseben(it.id) || MrtviKanali.skrij(this, it) || znanoNiNaVoljo(it) || neodklenjena(it) }
             .distinctBy { it.id }.take(30)
         val police = ArrayList<Pair<String, List<Jamendo.Skladba>>>()
-        if (!radio && !videospoti && zaGlasbo.isNotEmpty())
-            police += getString(R.string.os_media_sorodno_koncerti) to prveStrani(Stremio.katalogiRazreda(zaGlasbo, Stremio.GLASBA).filter { Stremio.jeVideoKatalog(it) })
-        // Zunanji pregled Glasbe 3. 11. 2026: prazna Glasba ne kaze radia in TV v zivo (ta ostaneta v svojih zavihkih) -
-        // nadomestek so zadnje predvajane skladbe in skladbe iz uporabnikovih seznamov. Radio kot doslej: glasbeni kanali.
-        if (radio && zaTv.isNotEmpty())
-            police += getString(R.string.os_media_sorodno_kanali) to prveStrani(Stremio.katalogiRazreda(zaTv, Stremio.TV).filter { OsPravila.glasbenoIme(it.ime) })
-        if (!radio) {
-            fun glasba(s: List<Jamendo.Skladba>) = s.filter { OsPravila.zaGlasbo(it.video, it.radio, YoutubeZvok.jeYoutube(it)) && !neodklenjena(it) }.distinctBy { it.id }.take(30)
-            police += getString(R.string.os_media_nedavno) to glasba(MedijskiViri.nedavno(this))
-            police += getString(R.string.os_seznami_predvajanja) to glasba(seznamiZaGlasbo().flatMap { it.skladbe })
+        // Zunanji pregled Glasbe 3. 11. 2026: prazna Glasba ne kaze radia in TV v zivo (ta ostaneta v svojih zavihkih).
+        // Lastnik 6. 11. 2026 04:37-04:39: »Seznami predvajanja« je ena vrstica s seznami (glava, [policaSeznamov]) - vrstice
+        // s posnetki iz seznamov z istim imenom ni vec; posnetki so vidni, ko seznam odpres. Red vrstic: [MeniVsebinePravila.policePrazne].
+        for (p in MeniVsebinePravila.policePrazne(radio, videospoti, 0, zaGlasbo.isNotEmpty(), zaTv.isNotEmpty())) when (p) {
+            MeniVsebinePravila.Polica.SEZNAMI -> Unit
+            MeniVsebinePravila.Polica.KONCERTI ->
+                police += getString(R.string.os_media_sorodno_koncerti) to prveStrani(Stremio.katalogiRazreda(zaGlasbo, Stremio.GLASBA).filter { Stremio.jeVideoKatalog(it) })
+            MeniVsebinePravila.Polica.KANALI ->
+                police += getString(R.string.os_media_sorodno_kanali) to prveStrani(Stremio.katalogiRazreda(zaTv, Stremio.TV).filter { OsPravila.glasbenoIme(it.ime) })
+            MeniVsebinePravila.Polica.NEDAVNO -> police += getString(R.string.os_media_nedavno) to MedijskiViri.nedavno(this)
+                .filter { OsPravila.zaGlasbo(it.video, it.radio, YoutubeZvok.jeYoutube(it)) && !neodklenjena(it) }.distinctBy { it.id }.take(30)
         }
         return police
     }
@@ -4975,7 +4990,11 @@ class GlasbaActivity : OsActivity() {
             }
         }
         val vrste = (if (dejanja.isEmpty()) emptyList() else listOf(Vrsta("", dejanja, mala = true))) +
-            police.filter { it.third.isNotEmpty() }.map { (_, naslov, s) -> Vrsta(naslov, if (s.any { it.video }) videi(s) else skladbe(s)) }
+            police.filter { it.third.isNotEmpty() }.map { (_, naslov, s) ->
+                val nedavno = naslov == getString(R.string.os_media_nedavno)
+                val kartice = if (s.any { it.video }) videi(s, nedavno = nedavno) else skladbe(s, nedavno = nedavno)
+                Vrsta(naslov, if (nedavno) MeniVsebinePravila.karticeNedavno(kartice, karticaPocistiNedavno()) else kartice)
+            }
         narisi(vrste, opis, glava = (if (vlc) emptyList() else listOf(razdelkiVrstica(m.razdelek))) + listOf(if (radio) radioIzbire() else glasbaIzbire()) +
             listOfNotNull(if (radio) null else policaSeznamov(seznamiZaGlasbo())))
     }
@@ -5060,7 +5079,13 @@ class GlasbaActivity : OsActivity() {
         RADIO, TV_V_ZIVO -> listOfNotNull(skokNaPolico(podatki.map { it.naslov }).takeIf { podatki.size > 1 })
         else -> emptyList()
     } else when (i) {
-        DOMOV -> listOfNotNull(kategorije(), razvrstiInFiltrirajGumb(i), zdajPlosca())
+        // Lastnik 6. 11. 2026 05:11: Dom ima samo vrstico oddelkov ([DomovVrsticePravila.glavaDoma]) - brez velikih ploscic,
+        // brez »Razvrsti in filtriraj« (velja za kataloge oddelkov) in brez velike plosce »Nazadnje predvajano« (zadnje
+        // predvajano je prva kartica vrstice Nedavno, predvajanje upravlja mala vrstica spodaj, kot v oddelkih).
+        DOMOV -> DomovVrsticePravila.glavaDoma(vlc = false).mapNotNull { g -> when (g) {
+            DomovVrsticePravila.Glava.ODDELKI -> razdelkiVrstica(i)
+            DomovVrsticePravila.Glava.PLOSCA -> zdajPlosca()
+        } }
         VIDEO -> {
             val razdelki = razdelkiVrstica(i); val izbire = videoIzbire(null); val razvrsti = razvrstiInFiltrirajGumb(i)
             poveziIzbiro(razdelki, izbire, razvrsti)
@@ -5105,12 +5130,17 @@ class GlasbaActivity : OsActivity() {
             }, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(8) })
         }
         fun odpri(i: Int) { fokusVVsebino = true; izberi(i) }
-        gumb(KLJUC_GLASBA, GLASBA, R.drawable.os_ikona_glasba, 0xFF8FA8FF.toInt(), R.string.os_mediji_glasba) { odpri(GLASBA) }
-        gumb(KLJUC_VIDEO, VIDEO, R.drawable.os_ikona_video, 0xFFFF9580.toInt(), R.string.os_glasba_video) { odpri(VIDEO) }
-        gumb(KLJUC_RADIO, RADIO, R.drawable.os_ikona_radio, osBarva(R.color.os_mint), R.string.os_glasba_radio) { odpri(RADIO) }
-        gumb(KLJUC_TV, TV_V_ZIVO, R.drawable.os_ikona_tv, 0xFFFFC46B.toInt(), R.string.os_mediji_tv_v_zivo) { odpri(TV_V_ZIVO) }
-        gumb(KLJUC_VIRI, VIRI, R.drawable.os_ikona_mapa, 0xFF7FB2FF.toInt(), R.string.os_mediji_viri) { odpri(VIRI) }
-        gumb(KLJUC_PREDVAJALNIK, null, R.drawable.os_ikona_predvajaj, 0xFF57D6AD.toInt(), R.string.os_mediji_predvajalnik) { odpriPredvajalnik() }
+        // Lastnik 6. 11. 2026 04:54-05:11: ista vrstica oddelkov na Domu in v oddelkih, »Dom« je prvi
+        // ([DomovVrsticePravila.gumbiOddelkov]) - iz vsakega oddelka nazaj na domaco stran Medijskega centra.
+        for (o in DomovVrsticePravila.gumbiOddelkov()) when (o) {
+            DomovVrsticePravila.Oddelek.DOM -> gumb(KLJUC_DOM, DOMOV, R.drawable.os_ikona_domov, osBarva(R.color.os_besedilo), R.string.os_mediji_dom) { odpri(DOMOV) }
+            DomovVrsticePravila.Oddelek.GLASBA -> gumb(KLJUC_GLASBA, GLASBA, R.drawable.os_ikona_glasba, 0xFF8FA8FF.toInt(), R.string.os_mediji_glasba) { odpri(GLASBA) }
+            DomovVrsticePravila.Oddelek.VIDEO -> gumb(KLJUC_VIDEO, VIDEO, R.drawable.os_ikona_video, 0xFFFF9580.toInt(), R.string.os_glasba_video) { odpri(VIDEO) }
+            DomovVrsticePravila.Oddelek.RADIO -> gumb(KLJUC_RADIO, RADIO, R.drawable.os_ikona_radio, osBarva(R.color.os_mint), R.string.os_glasba_radio) { odpri(RADIO) }
+            DomovVrsticePravila.Oddelek.TV_V_ZIVO -> gumb(KLJUC_TV, TV_V_ZIVO, R.drawable.os_ikona_tv, 0xFFFFC46B.toInt(), R.string.os_mediji_tv_v_zivo) { odpri(TV_V_ZIVO) }
+            DomovVrsticePravila.Oddelek.VIRI -> gumb(KLJUC_VIRI, VIRI, R.drawable.os_ikona_mapa, 0xFF7FB2FF.toInt(), R.string.os_mediji_viri) { odpri(VIRI) }
+            DomovVrsticePravila.Oddelek.PREDVAJALNIK -> gumb(KLJUC_PREDVAJALNIK, null, R.drawable.os_ikona_predvajaj, 0xFF57D6AD.toInt(), R.string.os_mediji_predvajalnik) { odpriPredvajalnik() }
+        }
         vrsta.getChildAt(0)?.nextFocusLeftId = meniMediji.id
         return android.widget.HorizontalScrollView(this).apply {
             isHorizontalScrollBarEnabled = false; overScrollMode = View.OVER_SCROLL_NEVER
@@ -5314,46 +5344,6 @@ class GlasbaActivity : OsActivity() {
         return ime.takeIf { it.isNotBlank() && !it.equals(koda, ignoreCase = true) }
             ?.replaceFirstChar { if (it.isLowerCase()) it.titlecase(slovensko) else it.toString() }
             ?: koda.uppercase(Locale.ROOT)
-    }
-
-    private fun kategorije(): View {
-        // Televizor (16:9) ima kategorije vedno v eni vrsti; na ozkem zaslonu (tablica pokonci) dve vrsti
-        // po dve kartici, na telefonu pokonci ena kartica v vrsti - da opisi niso odrezani.
-        val sirina = resources.configuration.screenWidthDp
-        val naVrsto = if (jeSirokTv()) 5 else if (sirina < 600) 1 else if (sirina < 900) 2 else 5
-        val okvir = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(6), 0, dp(2)) }
-        // Vrstice ustvarimo sproti: kartic je lahko vec kot stiri (npr. TV v zivo), zato ni fiksnega stevila.
-        val vrsti = mutableListOf<LinearLayout>()
-        var stevec = 0
-        fun kat(kljuc: String, res: Int, barva: Int, ime: Int, opis: Int, klik: () -> Unit) {
-            while (vrsti.size <= stevec / naVrsto) vrsti += LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }.also {
-                okvir.addView(it, LinearLayout.LayoutParams(-1, -2).apply { if (okvir.childCount > 0) topMargin = dp(10) }) }
-            val v = vrsti[stevec / naVrsto]
-            stevec++
-            v.addView(LinearLayout(this).apply {
-                tag = kljuc
-                orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-                isFocusable = true; isClickable = true
-                setBackgroundResource(R.drawable.os_kartica_steklo)
-                setPadding(dp(14), dp(if (jeSirokTv()) 8 else 6), dp(12), dp(if (jeSirokTv()) 8 else 6))
-                setOnClickListener { klik() }
-                if (v.childCount == 0) nextFocusLeftId = meniMediji.id
-                addView(ikona(res, 28, barva))
-                val t = LinearLayout(this@GlasbaActivity).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(10), 0, 0, 0) }
-                t.addView(besedilo(16f, osBarva(R.color.os_besedilo), true).apply { text = getString(ime) })
-                t.addView(besedilo(11f, osBarva(R.color.os_umirjeno)).apply { text = getString(opis) })
-                addView(t)
-            }, LinearLayout.LayoutParams(0, -2, 1f).apply { marginEnd = dp(12) })
-        }
-        fun odpri(i: Int) { fokusVVsebino = true; izberi(i) }
-        kat(KLJUC_GLASBA, R.drawable.os_ikona_glasba, 0xFF8FA8FF.toInt(), R.string.os_mediji_glasba, R.string.os_media_glasba_opis) { odpri(GLASBA) }
-        kat(KLJUC_VIDEO, R.drawable.os_ikona_video, 0xFFFF9580.toInt(), R.string.os_glasba_video, R.string.os_media_video_opis) { odpri(VIDEO) }
-        kat(KLJUC_RADIO, R.drawable.os_ikona_radio, osBarva(R.color.os_mint), R.string.os_glasba_radio, R.string.os_media_radio_opis) { odpri(RADIO) }
-        kat(KLJUC_TV, R.drawable.os_ikona_tv, 0xFFFFC46B.toInt(), R.string.os_mediji_tv_v_zivo, R.string.os_media_tv_opis) { odpri(TV_V_ZIVO) }
-        kat(KLJUC_VIRI, R.drawable.os_ikona_mapa, 0xFF7FB2FF.toInt(), R.string.os_mediji_viri, R.string.os_media_viri_opis) { odpri(VIRI) }
-        // Predvajalnik: datoteka s te naprave ali spletni naslov - isti zaslon predvajanja kot pri "Odpri z".
-        kat(KLJUC_PREDVAJALNIK, R.drawable.os_ikona_predvajaj, 0xFF57D6AD.toInt(), R.string.os_mediji_predvajalnik, R.string.os_media_predvajalnik_opis) { odpriPredvajalnik() }
-        return okvir
     }
 
     // Pogledi plosce "zdaj se predvaja", ki jih tik vsako sekundo osvezi (null, ko plosce ni).
@@ -5994,13 +5984,13 @@ class GlasbaActivity : OsActivity() {
     }
 
     private fun skladbe(s: List<Jamendo.Skladba>, vrsta: String = "", seznam: MedijskiViri.Seznam? = null,
-                        celota: List<Jamendo.Skladba> = s) = s.also { vzorciKnjiznice(it) }
+                        celota: List<Jamendo.Skladba> = s, nedavno: Boolean = false) = s.also { vzorciKnjiznice(it) }
         .filterNot { MrtviKanali.skrij(this, it) || znanoNiNaVoljo(it) || cakaNaKnjiznico(it) || neodklenjena(it) }.let { izbrane ->
         // Preverba TV 4. 11. 2026: priljubljena radijska postaja na kartici ni imela oznake - zdaj zvezdica pred imenom
         // (kot v Aplikacijah). Priljubljene preberemo enkrat za vso vrsto, ne za vsako kartico.
         val priljubljeni = if (izbrane.isEmpty()) emptySet() else MedijskiViri.priljubljene(this).mapTo(HashSet()) { it.id }
         izbrane.map { sk ->
-        if (sk.mime == MedijskiViri.STRAN) Kartica(sk.naslov, sk.izvajalec, "", { odpriStran(sk.zvok, sk.naslov) }, { meni(sk, s, vrsta, seznam) }, ikona = R.drawable.os_ikona_splet)
+        if (sk.mime == MedijskiViri.STRAN) Kartica(sk.naslov, sk.izvajalec, "", { odpriStran(sk.zvok, sk.naslov) }, { meni(sk, s, vrsta, seznam, nedavno) }, ikona = R.drawable.os_ikona_splet)
         else {
             val oznaka = if (sk.video || SpletniVir.vrstaVsebine(sk) == SpletniVir.VIDEOSPOT) getString(R.string.os_media_oznaka_video) else ""
             val ikona = when {
@@ -6018,7 +6008,7 @@ class GlasbaActivity : OsActivity() {
                 if (jeVrstaPosnetkov(sk, seznam) || YoutubeVrstaPravila.kotVrsta(YoutubeZvok.jeYoutube(sk), sk.video)) predvajajVrstoPosnetkov(celota, sk)
                 else if (SpletniVir.jeEnota(sk)) razresiSplet(sk)
                 else celota.filterNot { it.mime == MedijskiViri.STRAN }.let { p -> predvajaj(p, p.indexOf(sk)) }
-            }, { meni(sk, celota, vrsta, seznam) }, ikona = ikona, oznaka = oznaka, id = sk.id,
+            }, { meni(sk, celota, vrsta, seznam, nedavno) }, ikona = ikona, oznaka = oznaka, id = sk.id,
                 tvId = sk.id.removePrefix("tv:").takeIf { sk.id.startsWith("tv:") }.orEmpty())
         }
     } }
@@ -6039,7 +6029,7 @@ class GlasbaActivity : OsActivity() {
     private fun videi(v0: List<Jamendo.Skladba>, vrsta: String = "", seznam: MedijskiViri.Seznam? = null,
                       celota: List<Jamendo.Skladba> = v0,
                       razlicice: MutableMap<String, List<Jamendo.Skladba>>? = null,
-                      zapomnjene: ZapomnjeneKartice? = null): List<Kartica> {
+                      zapomnjene: ZapomnjeneKartice? = null, nedavno: Boolean = false): List<Kartica> {
         // Vsebine, za katero vemo, da je noben dodatek ne predvaja, ne kazemo nikjer (police, iskanje, mreza).
         // Enako kanal ali postaja, ki pri viru ta cas ne dela ([MrtviKanali]).
         val v = v0.filterNot { znanoNiNaVoljo(it) || cakaNaKnjiznico(it) || MrtviKanali.skrij(this, it) || neodklenjena(it) }
@@ -6150,7 +6140,7 @@ class GlasbaActivity : OsActivity() {
                         predvajaj(listOf(sk), 0)
                     }
                 }
-            }, { meni(sk, celotaZdaj(), vrsta, seznam) }, oznaka = tip, kakovost = kakovost,
+            }, { meni(sk, celotaZdaj(), vrsta, seznam, nedavno) }, oznaka = tip, kakovost = kakovost,
                 ocena = sk.rating.takeIf { it > 0.0 }?.let { String.format(Locale.ROOT, "%.1f", it) }.orEmpty(),
                 ikona = if (vZivo) R.drawable.os_ikona_tv else if (sk.radio) R.drawable.os_ikona_radio else R.drawable.os_ikona_video,
                 tvId = tvId, id = if (izbira != null) "${sk.id}|izbira:${sk.id in izbira}" else if (skritOznacen) "${sk.id}|skrit" else sk.id,
@@ -6193,26 +6183,64 @@ class GlasbaActivity : OsActivity() {
 
     private fun meniNedavno(sk: Jamendo.Skladba) {
         pokaziBrisanje(AlertDialog.Builder(this).setTitle(sk.naslov)
-            .setItems(arrayOf(getString(R.string.os_media_odstrani_nedavno))) { _, _ ->
-                // Vnos je lahko vec razlicic istega naslova (prikazana je ena): odstranimo vse, sicer se namesto odstranjene pokaze naslednja.
-                val k = kljucNedavnega(sk)
-                MedijskiViri.nedavno(this).filter { it.id != sk.id && kljucNedavnega(it) == k }.forEach { MedijskiViri.odstraniNedavno(this, it) }
-                MedijskiViri.odstraniNedavno(this, sk)
-                imaNedavno.pozabi()
-                SEZNAMI.remove(DOMOV)
-                osvezi(DOMOV)
-            }.setNegativeButton(android.R.string.cancel, null))
+            .setItems(arrayOf(getString(R.string.os_media_odstrani_nedavno))) { _, _ -> odstraniIzNedavnega(sk) }
+            .setNegativeButton(android.R.string.cancel, null))
     }
 
+    /**
+     * Odstrani element iz nedavnega - z vsemi razlicicami istega naslova (prikazana je ena), sicer se namesto odstranjene
+     * pokaze naslednja. Nedavno je samo na tej napravi (ne usklajuje se v ozjem krogu).
+     */
+    private fun odstraniIzNedavnega(sk: Jamendo.Skladba) {
+        val k = kljucNedavnega(sk)
+        MedijskiViri.odstraniNedavno(this, sk) { kljucNedavnega(it) }
+        poSpremembiNedavnega { s -> s.filterNot { it.id == sk.id || kljucNedavnega(it) == k } }
+    }
+
+    /** »Pocisti nedavno« po potrditvi (razveljaviti se ne da): samo nedavno - Nadaljuj, priljubljene in seznami ostanejo. */
     private fun potrdiPocistiNedavno() {
-        pokaziBrisanje(AlertDialog.Builder(this).setTitle(R.string.os_media_pocisti_nedavno)
+        pokaziBrisanje(AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(R.string.os_media_pocisti_nedavno)
             .setMessage(R.string.os_media_pocisti_nedavno_potrdi)
-            .setPositiveButton(android.R.string.ok) { _, _ ->
+            .setPositiveButton(R.string.os_media_pocisti_nedavno) { _, _ ->
                 MedijskiViri.pocistiNedavno(this)
-                imaNedavno.pozabi()
-                SEZNAMI.remove(DOMOV)
-                osvezi(DOMOV)
-            }.setNegativeButton(android.R.string.cancel, null))
+                poSpremembiNedavnega { emptyList() }
+            }.setNegativeButton(R.string.os_preklici, null))
+    }
+
+    /**
+     * Nedavno se je spremenilo: Domov narisemo znova; prazna Glasba ima vrstico »Nedavno« v nadomestku, ki je izracunan
+     * enkrat ([nadomestnaMreza]) - tam vrstico popravimo z [popravi] (prazna vrstica izgine). Prej je odstranitev vedno
+     * odprla Domov.
+     */
+    private fun poSpremembiNedavnega(popravi: (List<Jamendo.Skladba>) -> List<Jamendo.Skladba>) {
+        imaNedavno.pozabi()
+        SEZNAMI.remove(DOMOV)
+        val m = mrezaVsebine
+        val nedavno = getString(R.string.os_media_nedavno)
+        val nadomestne = m?.nadomestne
+        if (razdelek != DOMOV && m != null && nadomestne != null && nadomestne.any { it.second == nedavno }) {
+            m.nadomestne = nadomestne.map { if (it.second == nedavno) it.copy(third = popravi(it.third)) else it }
+            m.podpis = ""
+            narisiMrezo(m)
+        } else if (razdelek == DOMOV) osvezi(DOMOV)
+    }
+
+    /**
+     * Odstrani vnos s seznama predvajanja - mesto, na katerem je uporabnik ([vrsta] = seznam, kot je narisan). Seznam se
+     * takoj narise znova, izbira gre na sosednjo kartico (naslednjo, zadnja pa na prejsnjo), ne na zacetek. Obvestila z
+     * »Razveljavi« v aplikaciji ni (6. 11. 2026), zato ga tu ni.
+     */
+    private fun odstraniSSeznama(seznam: MedijskiViri.Seznam, sk: Jamendo.Skladba, vrsta: List<Jamendo.Skladba>, fokus: String?) {
+        val mesto = vrsta.indexOfFirst { it === sk }.takeIf { it >= 0 } ?: vrsta.indexOfFirst { it.id == sk.id }
+        val predpona = fokus?.takeIf { it.startsWith("k:") && '#' in it }?.substringBeforeLast('#')
+        val i = fokus?.substringAfterLast('#')?.toIntOrNull() ?: -1
+        val n = if (predpona == null) 0 else generateSequence(0) { it + 1 }.takeWhile { vsebina.findViewWithTag<View>("$predpona#$it") != null }.count()
+        val j = KanaliPravila.fokusPoSkritju(i, n)
+        if (predpona != null && j >= 0) { vrniKljuc = "$predpona#$j"; vrniKljucDo = android.os.SystemClock.uptimeMillis() + 3_000 }
+        MedijskiViri.odstraniSSeznama(this, seznam.ime, sk, mesto)
+        android.util.Log.i("SafeerOsMedia", "odstranjeno s seznama: mesto $mesto od ${vrsta.size}, izbira na ${if (j >= 0) j else "-"}")
+        SEZNAMI.remove(DOMOV); SEZNAMI.remove(GLASBA); SEZNAMI.remove(VIDEO)
+        osveziPriljubljene()
     }
 
     /** Meni kartice »Nadaljuj gledanje«: isti meni s ploscicami kot ostala vsebina (preverba TV 4. 11. 2026). */
@@ -6294,7 +6322,7 @@ class GlasbaActivity : OsActivity() {
         return izhod
     }
 
-    private fun meni(sk: Jamendo.Skladba, vrsta: List<Jamendo.Skladba>, ime: String, seznam: MedijskiViri.Seznam?) {
+    private fun meni(sk: Jamendo.Skladba, vrsta: List<Jamendo.Skladba>, ime: String, seznam: MedijskiViri.Seznam?, nedavno: Boolean = false) {
         val dejanja = mutableListOf<Pair<String, () -> Unit>>()
         // Lastnik 4. 11. 2026 05:15: kanal v zivo dobi meni s ploscicami (MeniKanala) - ikona po napisu dejanja.
         val kanal = PriljubljeniKanaliPravila.jeKanal(sk.id, Stremio.jeVZivo(sk)) || IptvSeznami.jeKanal(sk)
@@ -6310,50 +6338,54 @@ class GlasbaActivity : OsActivity() {
         }
         // Preverba TV 4. 11. 2026: serija iz dodatka (The Flash) je imela v meniju samo »Izberi vir« - kartica dodatka
         // nima shranljivega toka, a se shrani kot kartica (tok se razresi ob predvajanju).
-        if (PriljubljeniKanaliPravila.ponudiPriljubljene(kanal, MedijskiViri.shranljiva(sk), Stremio.jeEnota(sk))) {
-            val je = MedijskiViri.jePriljubljena(this, sk)
-            val napisPrilj = getString(if (je) R.string.os_mediji_odstrani_prilj else R.string.os_mediji_dodaj_prilj)
-            ikone[napisPrilj] = if (je) R.drawable.ic_m_star_filled else R.drawable.ic_m_star
-            if (je) poudarjena += napisPrilj
-            dejanja += napisPrilj to {
-                val zdaj = MedijskiViri.preklopiPriljubljeno(this, sk)
-                // Pregled N9: »Dodano« samo, ce je res shranjeno (meja priljubljenih).
-                Toast.makeText(this, when { zdaj -> R.string.os_mediji_dodano_prilj; je -> R.string.os_mediji_odstranjeno_prilj; else -> R.string.prilj_polno },
-                    Toast.LENGTH_SHORT).show()
-                // Zadnji priljubljeni kanal odstranjen: izbira »Priljubljeni« nima vec cesa pokazati.
-                if (!zdaj && tvSamoPriljubljeni && priljubljeniKanali().isEmpty()) tvSamoPriljubljeni = false
+        val ponudiPrilj = PriljubljeniKanaliPravila.ponudiPriljubljene(kanal, MedijskiViri.shranljiva(sk), Stremio.jeEnota(sk))
+        val je = ponudiPrilj && MedijskiViri.jePriljubljena(this, sk)
+        // Lastnik 6. 11. 2026 04:34-04:40: meni kaze samo gumbe, ki imajo v tem pogledu smisel - v seznamu predvajanja
+        // »Odstrani s seznama predvajanja« in »Dodaj na drug seznam«, brez »Shrani kot seznam predvajanja« in brez brisanja
+        // celega seznama (to je v meniju kartice seznama); v Nedavno »Odstrani iz nedavnega«.
+        // Kanal v zivo ni skladba za seznam predvajanja: zanj so priljubljene. Preverba TV 4. 11. 2026 06:27: tudi IPTV ne.
+        val gumbi = MeniVsebinePravila.gumbi(vSeznamu = seznam != null, nedavno = nedavno, ponudiPrilj = ponudiPrilj, jePrilj = je,
+            ponudiSeznam = SeznamOkno.mozno(sk) && PriljubljeniKanaliPravila.ponudiSeznamPredvajanja(kanal),
+            shranljivihVVrsti = vrsta.count { MedijskiViri.shranljiva(it) && !it.id.startsWith("tv:") })
+        // Kartica z izbiro (pred odprtjem menija): po odstranitvi gre izbira na sosednjo kartico.
+        val fokusKartice = kljucFokusa()
+        for (g in gumbi) when (g) {
+            MeniVsebinePravila.Gumb.ODSTRANI_S_SEZNAMA -> if (seznam != null)
+                dejanja += getString(R.string.os_seznam_odstrani_skladbo) to { odstraniSSeznama(seznam, sk, vrsta, fokusKartice) }
+            MeniVsebinePravila.Gumb.DODAJ_PRILJ, MeniVsebinePravila.Gumb.ODSTRANI_PRILJ -> {
+                val napisPrilj = getString(if (je) R.string.os_mediji_odstrani_prilj else R.string.os_mediji_dodaj_prilj)
+                ikone[napisPrilj] = if (je) R.drawable.ic_m_star_filled else R.drawable.ic_m_star
+                if (je) poudarjena += napisPrilj
+                dejanja += napisPrilj to {
+                    val zdaj = MedijskiViri.preklopiPriljubljeno(this, sk)
+                    // Pregled N9: »Dodano« samo, ce je res shranjeno (meja priljubljenih).
+                    Toast.makeText(this, when { zdaj -> R.string.os_mediji_dodano_prilj; je -> R.string.os_mediji_odstranjeno_prilj; else -> R.string.prilj_polno },
+                        Toast.LENGTH_SHORT).show()
+                    // Zadnji priljubljeni kanal odstranjen: izbira »Priljubljeni« nima vec cesa pokazati.
+                    if (!zdaj && tvSamoPriljubljeni && priljubljeniKanali().isEmpty()) tvSamoPriljubljeni = false
+                    osveziPriljubljene()
+                }
+                // 25. 10. 2026 (lastnik): priljubljeni kanal se z daljincem premakne levo, desno ali na zacetek mreze TV v zivo.
+                if (je) dejanja += moznostiPremikaKanala(sk)
+                ikone[getString(R.string.os_spletne_levo)] = R.drawable.ic_m_back
+                ikone[getString(R.string.os_spletne_desno)] = R.drawable.ic_m_forward
+                ikone[getString(R.string.os_premakni_na_zacetek)] = R.drawable.ic_m_na_zacetek
+            }
+            MeniVsebinePravila.Gumb.DODAJ_NA_SEZNAM -> dejanja += getString(R.string.os_seznam_dodaj) to { dodajNaSeznam(sk) }
+            MeniVsebinePravila.Gumb.DODAJ_NA_DRUG_SEZNAM -> dejanja += getString(R.string.os_seznam_dodaj_drug) to { dodajNaSeznam(sk) }
+            // Shrani CELO vrsto (vse kartice vrste ali mreze) kot nov seznam z imenom vrste - ne samo ta element.
+            MeniVsebinePravila.Gumb.SHRANI_VRSTO -> dejanja += getString(R.string.os_mediji_shrani_seznam) to {
+                val sz = MedijskiViri.shraniSeznam(this, ime.ifBlank { sk.izvajalec.ifBlank { getString(R.string.os_mediji_moja_vrsta) } }, vrsta)
+                if (sz != null) Toast.makeText(this, getString(R.string.os_mediji_seznam_shranjen, sz.ime), Toast.LENGTH_SHORT).show()
                 osveziPriljubljene()
             }
-            // 25. 10. 2026 (lastnik): priljubljeni kanal se z daljincem premakne levo, desno ali na zacetek mreze TV v zivo.
-            if (je) dejanja += moznostiPremikaKanala(sk)
-            ikone[getString(R.string.os_spletne_levo)] = R.drawable.ic_m_back
-            ikone[getString(R.string.os_spletne_desno)] = R.drawable.ic_m_forward
-            ikone[getString(R.string.os_premakni_na_zacetek)] = R.drawable.ic_m_na_zacetek
+            MeniVsebinePravila.Gumb.ODSTRANI_NEDAVNO -> dejanja += getString(R.string.os_media_odstrani_nedavno) to { odstraniIzNedavnega(sk) }
         }
-        // Svoj seznam predvajanja: skladbo dodas na obstojecega ali novega (ne samo "shrani vso vrsto").
-        // Kanal v zivo ni skladba za seznam predvajanja: zanj so priljubljeni (zgoraj).
-        // Preverba TV 4. 11. 2026 06:27: kanal IPTV (»iptv:«) je ponujal »Dodaj na seznam predvajanja« - za vse kanale ne.
-        if (SeznamOkno.mozno(sk) && PriljubljeniKanaliPravila.ponudiSeznamPredvajanja(kanal)) dejanja += getString(R.string.os_seznam_dodaj) to { dodajNaSeznam(sk) }
         // Naloga 109: skladba seznama, ki ne deluje - drug posnetek iste skladbe ali preverba znova.
         val razlogSkladbe = if (seznam != null) NedelujoceSkladbe.razlog(this, sk.id) else null
         if (seznam != null && razlogSkladbe != null) {
             if (NedelujocePravila.idYoutube(sk.povezava) != null) dejanja += getString(R.string.os_nedel_poisci_drug) to { poisciDrugPosnetek(sk) }
             dejanja += getString(R.string.os_nedel_preveri_znova) to { NedelujoceSkladbe.pozabi(this, sk.id); predvajaj(listOf(sk), 0) }
-        }
-        if (seznam != null) dejanja += getString(R.string.os_seznam_odstrani_skladbo) to {
-            MedijskiViri.odstraniSSeznama(this, seznam.ime, sk); SEZNAMI.remove(DOMOV); osveziPriljubljene()
-        }
-        if (seznam != null) dejanja += getString(R.string.os_mediji_odstrani_seznam) to {
-            // S potrditvijo: seznam izgine tudi na drugih napravah v Linku (SeznamiSink), zato en dotik ni dovolj.
-            pokaziBrisanje(AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(seznam.ime)
-                .setMessage(vprasanjeOdstraniSeznam())
-                .setPositiveButton(R.string.os_mediji_odstrani_seznam) { _, _ -> MedijskiViri.odstraniSeznam(this, seznam.ime); osveziPriljubljene() }
-                .setNegativeButton(android.R.string.cancel, null))
-        } else if (PriljubljeniKanaliPravila.ponudiSeznamPredvajanja(kanal) &&
-            vrsta.count { MedijskiViri.shranljiva(it) && !it.id.startsWith("tv:") } > 1) dejanja += getString(R.string.os_mediji_shrani_seznam) to {
-            val sz = MedijskiViri.shraniSeznam(this, ime.ifBlank { sk.izvajalec.ifBlank { getString(R.string.os_mediji_moja_vrsta) } }, vrsta)
-            if (sz != null) Toast.makeText(this, getString(R.string.os_mediji_seznam_shranjen, sz.ime), Toast.LENGTH_SHORT).show()
-            osveziPriljubljene()
         }
         // Naloga 90d, lastnik 4. 11. 2026: »Skrij kanal« - uporabnik skrije kanal sam, trajno, na tej napravi (vse razlicice
         // kartice po kljucu kanala). Z »Pokazi skrite kanale« je viden in ga »Pokazi kanal« vrne. Fokus gre na sosednjo kartico.
@@ -6390,6 +6422,8 @@ class GlasbaActivity : OsActivity() {
         ikone[getString(R.string.os_media_izberi_tok)] = R.drawable.ic_m_vir
         ikone[getString(R.string.os_media_odstrani_nadaljuj)] = R.drawable.ic_m_history
         ikone[getString(R.string.os_seznam_dodaj)] = R.drawable.ic_m_dodaj
+        ikone[getString(R.string.os_seznam_dodaj_drug)] = R.drawable.ic_m_dodaj
+        ikone[getString(R.string.os_media_odstrani_nedavno)] = R.drawable.ic_m_history
         ikone[getString(R.string.os_nedel_poisci_drug)] = R.drawable.ic_m_skip
         ikone[getString(R.string.os_nedel_preveri_znova)] = R.drawable.ic_m_reload
         ikone[getString(R.string.os_seznam_odstrani_skladbo)] = R.drawable.ic_m_odstrani
@@ -6401,7 +6435,8 @@ class GlasbaActivity : OsActivity() {
         // Prvo ploscico dobi fokus: odstranjevanje (tudi »Odstrani iz priljubljenih« in »Skrij kanal«) gre na konec, da OK
         // ob odprtju menija nicesar ne odstrani (preverba TV 4. 11. 2026, drugic).
         val odstranjevalna = setOf(getString(R.string.os_mediji_odstrani_prilj), getString(R.string.os_media_odstrani_nadaljuj),
-            getString(R.string.os_seznam_odstrani_skladbo), getString(R.string.os_mediji_odstrani_seznam), getString(R.string.os_tv_skrij_kanal))
+            getString(R.string.os_seznam_odstrani_skladbo), getString(R.string.os_mediji_odstrani_seznam), getString(R.string.os_tv_skrij_kanal),
+            getString(R.string.os_media_odstrani_nedavno))
         MeniKanala.pokazi(this, sk.naslov, opisVsebine(sk),
             PriljubljeniKanaliPravila.odstranjevanjeNaKonec(dejanja) { it.first in odstranjevalna }.map { (napis, izvedi) ->
                 MeniKanala.Dejanje(napis, ikone[napis] ?: R.drawable.ic_m_popup, napis in poudarjena) { izvedi() }
@@ -11986,7 +12021,7 @@ class GlasbaActivity : OsActivity() {
         val sk = GlasbaStoritev.trenutna()
         val p = GlasbaStoritev.predvajalnik
         // Na podstrani plosce (seznam predvajanja, »Pokazi vse«) velike plosce ni: ne risemo je cez podstran, pokazemo malo vrstico.
-        val naPlosci = razdelek == DOMOV && !podstrani.odprta
+        val naPlosci = vlc && razdelek == DOMOV && !podstrani.odprta
         if (naPlosci) {
             // Plosca se zamenja, ko se predvajanje zacne ali konca; sicer samo osvezimo njene podatke.
             if (sk != null && p != null) imaNedavno.pozabi()   // predvajanje doda med nedavno: po koncu naj se prebere znova
@@ -12106,6 +12141,7 @@ class GlasbaActivity : OsActivity() {
 
         private const val PREDVAJALNIK_DATOTEKA = 7412
         private const val KLJUC_PREDVAJALNIK = "kat-predvajalnik"
+        private const val KLJUC_DOM = "k:kat:dom"
         private const val DOMOV = 0; private const val GLASBA = 2; private const val RADIO = 3
         private const val PREDPONA_PC_PRENOSA = KnjiznicaKroga.PREDPONA_PRENOSA
         /** Naslov in plakat zasebnega prenosa: samo na napravi, ki ga je prosila, in samo za polico v zasebnem dodatku. */
