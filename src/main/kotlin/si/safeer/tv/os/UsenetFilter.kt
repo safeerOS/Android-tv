@@ -87,6 +87,24 @@ object UsenetFilter {
     fun vprasati(c: Context, k: String): Boolean = nalozi(c) && k !in vTeku && F.vprasati(zapis(c, k), zdaj())
     fun vTeku(): Int = vTeku.size
 
+    /** Dnevnik (vodja 6. 11. 2026): zakaj preverba ne steče - stevila po razlogu, brez kljucev in naslovov. */
+    fun zakajNe(c: Context, kljuci: List<String>): String {
+        if (!nalozeno) return "zapisi se nalagajo"
+        var brezZapisa = 0; var sveziZapis = 0; var cakaPonovitev = 0; var vTekuK = 0
+        for (k in kljuci) {
+            val z = zapisi[k]
+            when {
+                k in vTeku -> vTekuK++
+                z == null -> brezZapisa++
+                F.vprasati(z, zdaj()) -> brezZapisa++
+                z.izid == F.Izid.NE_VEMO -> cakaPonovitev++
+                else -> sveziZapis++
+            }
+        }
+        return "kljucev=${kljuci.size}, za vprasat=$brezZapisa, svezih=$sveziZapis, ne_vemo_caka=$cakaPonovitev, v_teku=$vTekuK, " +
+            "premor=${omejevalnik.vPremoru(zdaj())}, kvota=${omejevalnik.lahko(zdaj())}"
+    }
+
     /** Vodja 6. 11. 2026: predpriprava naslednje epizode vprasa indeksator - steje v isto kvoto kot preverba filtra. */
     fun smemPredpripravo(): Boolean = omejevalnik.smem(zdaj()).also { if (it) porabljeno.incrementAndGet() }
     fun vPremoru(): Boolean = omejevalnik.vPremoru(zdaj())

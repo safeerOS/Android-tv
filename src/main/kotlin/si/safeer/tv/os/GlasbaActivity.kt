@@ -9295,7 +9295,8 @@ class GlasbaActivity : OsActivity() {
             usenetKrogVidnih = -1; usenetKrogPrvi = false; usenetKrogZadnjiMs = 0L; usenetKrogNovih = 0
         }
         if (prej?.vnaprej == false && usenetProracun?.vnaprej == true) android.util.Log.i("SafeerUsenetFilter", "krog ${o.zahtevVec}: prednalaganje naslednje strani")
-        if (!vir.racun) return
+        // Vodja 6. 11. 2026 06:05: »Nalozi vec« s filtrom Usenet ni sprozil nobene preverbe in dnevnik ni povedal zakaj.
+        if (!vir.racun) { android.util.Log.i("SafeerUsenetFilter", "krog ${o.zahtevVec}: brez preverb - racun Usenet ni na voljo (Usenet.jeNaVoljo=false)"); return }
         val z = zmoznostiNaprave
         val seVelja = { odprtKatalog === o && !isFinishing && vOspredju }
         var pozneje = false
@@ -9312,6 +9313,8 @@ class GlasbaActivity : OsActivity() {
             if (UsenetFilter.preveri(this, k, epizoda, z, seVelja) { glavna.post { poUsenetu(o) } }) { usenetProracun = p.copy(ostalo = p.ostalo - 1); zacetih++ }
             else { pozneje = true; break }
         }
+        if (zacetih == 0) android.util.Log.i("SafeerUsenetFilter", "krog ${o.zahtevVec}: brez novih preverb - kandidatov=${usenetKandidati.size}, " +
+            "proracun=${usenetProracun?.ostalo}, vTeku=${UsenetFilter.vTeku()}, " + UsenetFilter.zakajNe(this, usenetKandidati.mapNotNull { kljucUsenet(it, vir.odtis) }))
         // Proracun te zahteve porabljen: enkrat se prednalaganje naslednje strani (FilterViraPravila.proracun).
         val prednalozi = usenetProracun?.ostalo == 0 && usenetProracun?.vnaprej == false
         if (prednalozi && UsenetFilter.vTeku() < FilterViraPravila.HKRATI) glavna.post { if (odprtKatalog === o && !isFinishing) preveriUsenet(o) }
