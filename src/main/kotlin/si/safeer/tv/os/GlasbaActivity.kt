@@ -184,7 +184,7 @@ class GlasbaActivity : OsActivity() {
         GlasbaStoritev.trenutna()?.video == true && GlasbaStoritev.tece()
     private val vrniVideo = Runnable {
         if (!videoBrezZaslona()) return@Runnable
-        android.util.Log.i("SafeerOsMedia", "video tece brez zaslona: odpiram zaslon predvajanja")
+        android.util.Log.i("SafeerOsMediji", "video tece brez zaslona: odpiram zaslon predvajanja")
         startActivity(Intent(this, PredvajanjeActivity::class.java))
     }
     private fun narociVrnitevVidea() {
@@ -477,7 +477,7 @@ class GlasbaActivity : OsActivity() {
             .filter { it.video && !it.radio && !Stremio.jeVZivo(it) && !znanoNiNaVoljo(it) && SpletniVir.cistNaslov(it.naslov) == kljuc }
             .firstOrNull() ?: return
         // Naloga 112: id kanala ali dodatka vsebuje naslov (lahko z zetonom) - v dnevnik samo ime.
-        android.util.Log.i("SafeerOsMedia", "prikazi na TV: odpiram ${sk.naslov.take(60)}")
+        android.util.Log.i("SafeerOsMediji", "prikazi na TV: odpiram ${sk.naslov.take(60)}")
         // Film iz dodatkov: pokazemo izbiro tokov (naslov na vrhu), ne predvajamo prvega sami - prvi tok dodatka je bil
         // pri preizkusu 11. 10. 2026 kopija z vgrajenim oglasom za stave. Uporabnik izbere z daljincem.
         if (Stremio.jeEnota(sk)) { glavna.postDelayed({ if (!isFinishing && !isDestroyed) razresiStremio(sk, rocno = true) }, 400); return }
@@ -498,11 +498,11 @@ class GlasbaActivity : OsActivity() {
         // aplikacija bi sicer tiho predvajala prek uporabnikovega Useneta/TorBoxa brez sledi v zgodovini. Velja samo enkratni
         // zeton, ki ga je v tem procesu izdala PreizkusActivity (zascitena z android.permission.DUMP).
         if (!vzemiZetonPreizkusa(zeton)) {
-            android.util.Log.w("SafeerOsMedia", "preizkus po gradnji brez veljavnega zetona - prezrt")
+            android.util.Log.w("SafeerOsMediji", "preizkus po gradnji brez veljavnega zetona - prezrt")
             return
         }
         val v = PreizkusPravila.vnos(imdb, naslov) ?: return
-        android.util.Log.i("SafeerOsMedia", "preizkus po gradnji: ${v.tip} ${v.imdb}" + (if (v.epizoda > 0) " S${v.sezona}E${v.epizoda}" else ""))
+        android.util.Log.i("SafeerOsMediji", "preizkus po gradnji: ${v.tip} ${v.imdb}" + (if (v.epizoda > 0) " S${v.sezona}E${v.epizoda}" else ""))
         val osnova = Stremio.vnosPoImdb(v.tip, v.imdb, v.naslov, 0)
         val sk = osnova.copy(id = osnova.id + PreizkusPravila.OZNAKA).let {
             if (v.epizoda > 0) it.copy(naslov = "${v.naslov} · S${v.sezona}E${v.epizoda}", season = v.sezona, episode = v.epizoda) else it
@@ -1160,7 +1160,7 @@ class GlasbaActivity : OsActivity() {
             } else if (k.napredek != null) {
                 addView(FrameLayout(this@GlasbaActivity).apply {
                     addView(slika, FrameLayout.LayoutParams(-1, -1))
-                    addView(View(this@GlasbaActivity).apply { setBackgroundColor(0x33FFFFFF) }, FrameLayout.LayoutParams(-1, dp(4), Gravity.BOTTOM))
+                    addView(View(this@GlasbaActivity).apply { setBackgroundColor(osBarva(R.color.os_crta)) }, FrameLayout.LayoutParams(-1, dp(4), Gravity.BOTTOM))
                     addView(View(this@GlasbaActivity).apply { setBackgroundColor(osBarva(R.color.os_mint)) }, FrameLayout.LayoutParams((sirina * k.napredek / 100f).toInt(), dp(4), Gravity.BOTTOM))
                 }, LinearLayout.LayoutParams(sirina, visina))
             } else {
@@ -1979,7 +1979,7 @@ class GlasbaActivity : OsActivity() {
             val vidno = nov.isShown && nov.getGlobalVisibleRect(r)
             if (vidno && OsPravila.fokusViden(r.width().toLong() * r.height(), nov.width.toLong() * nov.height)) return@post
             val vDrsniku = vrhSlikeVVsebini(nov) != null
-            android.util.Log.i("SafeerOsMedia", "fokus zunaj vidnega: ${nov.javaClass.simpleName} " +
+            android.util.Log.i("SafeerOsMediji", "fokus zunaj vidnega: ${nov.javaClass.simpleName} " +
                 "${nov.width}x${nov.height}, viden=$vidno, v drsniku=$vDrsniku, razdelek=$razdelek")
             if (vDrsniku && nov.isShown && nov.width > 0 && nov.height > 0) {
                 nov.requestRectangleOnScreen(android.graphics.Rect(0, 0, nov.width, nov.height), false)
@@ -2066,7 +2066,7 @@ class GlasbaActivity : OsActivity() {
                 // skocil na domaci zaslon. Naslovnica izpade, polovica predpomnilnika slik se sprosti, aplikacija tece naprej.
                 SLIKE.trimToSize(SLIKE.size() / 2)
                 glavna.post { izprazniVrstoSlik("OutOfMemoryError") }
-                android.util.Log.w("SafeerOsMedia", "naslovnica: zmanjkalo pomnilnika, predpomnilnik slik zmanjsan na ${SLIKE.size() / 1024 / 1024} MB")
+                android.util.Log.w("SafeerOsMediji", "naslovnica: zmanjkalo pomnilnika, predpomnilnik slik zmanjsan na ${SLIKE.size() / 1024 / 1024} MB")
             } finally {
                 slikeVTeKu.remove(naslov)
                 val pozni = cakajoceSlike.remove(naslov)?.let { synchronized(it) { it.toList() } }.orEmpty()
@@ -2097,7 +2097,7 @@ class GlasbaActivity : OsActivity() {
             else "naslovnice: z diska ${naslovniceStevci[0]} (povp. ${naslovniceStevci[1] / maxOf(1, naslovniceStevci[0])} ms), " +
                 "iz omrezja ${naslovniceStevci[2]} (povp. ${naslovniceStevci[3] / maxOf(1, naslovniceStevci[2])} ms), v pomnilniku ${SLIKE.size() / 1024 / 1024} MB"
         }
-        if (vrstica != null) android.util.Log.i("SafeerOsMedia", vrstica)
+        if (vrstica != null) android.util.Log.i("SafeerOsMediji", vrstica)
     }
 
     /** Slicica videa ali naslovnica albuma z naprave (MediaStore); brez nje ostane ikona. */
@@ -2437,8 +2437,8 @@ class GlasbaActivity : OsActivity() {
         RADIO -> {
             val radioViden = jeVirViden(i, VIR_RADIO)
             val tuneInViden = jeVirViden(i, VIR_TUNEIN)
-            // Naloga 69: preverba na TV (adb logcat -s SafeerOsMedia) - imenik postaj dela samo kot dodan vir.
-            android.util.Log.i("SafeerOsMedia", "radio: imenik Radio Browser=$radioViden, TuneIn=$tuneInViden")
+            // Naloga 69: preverba na TV (adb logcat -s SafeerOsMediji) - imenik postaj dela samo kot dodan vir.
+            android.util.Log.i("SafeerOsMediji", "radio: imenik Radio Browser=$radioViden, TuneIn=$tuneInViden")
             val vrste = mutableListOf<Podatki>()
             // Radijske postaje iz uporabnikovih dodatkov so pred vgrajenimi.
             vrste += policeDodatkov(i, Stremio.RADIO)
@@ -2463,7 +2463,7 @@ class GlasbaActivity : OsActivity() {
         VIDEO -> {
             val vsiViri = MedijskiViri.vsi(this)
             val medijskiViri = vsiViri.filter { jeVirViden(i, kljucVira(it)) }
-            android.util.Log.i("SafeerOsMedia", "viri=${medijskiViri.size}, spletni=${medijskiViri.count { it.jeSplet }}")
+            android.util.Log.i("SafeerOsMediji", "viri=${medijskiViri.size}, spletni=${medijskiViri.count { it.jeSplet }}")
             // Uporabnik doda vir in nanj pozabi (lastnik, 2. 10. 2026): police so po VSEBINI (Zate, Filmi, Serije, Video,
             // zvrsti), ne po virih. Vse vire vprasamo hkrati, vsebino zdruzimo in isti film iz vec virov je ena kartica.
             val stremio = vsiViri.filter { it.jeStremio && jeVirViden(i, kljucVira(it)) }.map { it.naslov }
@@ -2495,7 +2495,7 @@ class GlasbaActivity : OsActivity() {
             // Mreza Filmi | Serije dobi VSE kartice, ne le prvih nekaj s polic (police so omejene: filmi javne lasti so
             // za katalogi dodatkov izpadli iz mreze - na televizorju brez pomocnika je ostal en sam film).
             if (MedijskiViri.spremenjeni(this) == rodVirovRazdelka) VSE_VIDEO = vse
-            android.util.Log.i("SafeerOsMedia", "video: kandidati=${kandidati.size} (splet ${surovi.size}, dodatki ${izDodatkov.size}), kartice=${vse.size}")
+            android.util.Log.i("SafeerOsMediji", "video: kandidati=${kandidati.size} (splet ${surovi.size}, dodatki ${izDodatkov.size}), kartice=${vse.size}")
             val filmi = vse.filter { SpletniVir.vrstaVsebine(it) == SpletniVir.FILM }
             val serije = vse.filter { SpletniVir.vrstaVsebine(it) == SpletniVir.SERIJA }
             val ostali = vse.filter { SpletniVir.vrstaVsebine(it) == null }
@@ -2526,7 +2526,7 @@ class GlasbaActivity : OsActivity() {
             listOf("Komedija", "Grozljivke", "Drama", "Akcija", "Fantastika", "Kriminalke", "Dokumentarci", "Animacija", "Druzinski", "Romantika").forEach { z ->
                 vse.filter { SpletniVir.zvrstVsebine(it) == z }.takeIf { it.size >= MIN_KARTIC_KATEGORIJE }?.let { vrste += Podatki(z, it.take(POLICA_NAJVEC), video = true) }
             }
-            android.util.Log.i("SafeerOsMedia", "enote=${vse.size}, z_vrsto=${filmi.size + serije.size}, police=${vrste.size}, prag=$MIN_KARTIC_KATEGORIJE")
+            android.util.Log.i("SafeerOsMediji", "enote=${vse.size}, z_vrsto=${filmi.size + serije.size}, police=${vrste.size}, prag=$MIN_KARTIC_KATEGORIJE")
             vrste
         }
         else -> emptyList()
@@ -2805,7 +2805,7 @@ class GlasbaActivity : OsActivity() {
                 .map { f -> try { f.get(20, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { 0 to emptyList<Jamendo.Skladba>() } }
             // Jezik za vse kataloge skupaj (isti naslov je v vec katalogih): eno vprasanje namesto dvanajstih.
             val izKatalogov = vJeziku(prepleti(strani.map { it.second }), o.jezik, jezikiKatalogov(katalogi, strani, o.jezik))
-            android.util.Log.i("SafeerOsMedia", "brskanje vec: katalogov=${katalogi.size}, strani=${strani.map { it.first }}, po filtru=${izKatalogov.size}, " +
+            android.util.Log.i("SafeerOsMediji", "brskanje vec: katalogov=${katalogi.size}, strani=${strani.map { it.first }}, po filtru=${izKatalogov.size}, " +
                 "jezik=${o.jezik.isNotEmpty()}, zvrst=${o.zvrst.isNotEmpty()}")
             val izSeznama = try { seznamJezika?.get(30, java.util.concurrent.TimeUnit.SECONDS) } catch (_: Exception) { null }
             val nove = izSeznama?.first.orEmpty() + izKatalogov
@@ -3029,7 +3029,7 @@ class GlasbaActivity : OsActivity() {
             }
             val vsi = zdruzi(znane?.let { osnova(it, if (popolne) VSE_VIDEO else null) }.orEmpty())
             // Naloga 57c: kje se naslovi izgubijo (TV 22. 10.: katalogi 5310 kartic, mreza 102) - po korakih.
-            android.util.Log.i("SafeerOsMedia", "brskanje mreza: katalogov=${katalogi.size} (${katalogi.count { it.tip == tip }} tipa $tip), " +
+            android.util.Log.i("SafeerOsMediji", "brskanje mreza: katalogov=${katalogi.size} (${katalogi.count { it.tip == tip }} tipa $tip), " +
                 "strani=${strani.map { it.first }}, iz katalogov=${izKatalogov.size}, popolne=$popolne, skupaj=${vsi.size}, jezik=${jezik.isNotEmpty()}, zvrst=${zvrst != null}")
             if (popolne) shrani(vsi)
             glavna.post {
@@ -3339,31 +3339,29 @@ class GlasbaActivity : OsActivity() {
                             Kartica(sk.naslov, sk.izvajalec, sk.slika, { predvajaj(listOf(sk), 0, izNedavnih = true) }, { meniNedavno(sk) },
                                 ikona = R.drawable.os_ikona_glasba, id = sk.id)
                         }
-                        val vrste = seznamiBlok(seznami) + if (kartice.isEmpty()) emptyList() else listOf(Vrsta(getString(R.string.os_nadaljuj_s_poslusanjem), kartice, skladbe = true))
-                        // "Kartica odpre seznam in nadaljuje pri skladbi" - Seznami ze imajo to (odprejo mrezo, kjer se nadaljuje). Za skladbe iz nedavnega se predvaja kot obicajno.
-                        // Wait, seznamiBlok returns a List<Vrsta>. NADALJUJ_S_POSLUSANJEM needs to be a single Vrsta with both?
-                        // "Nadaljuj s poslusanjem... Kartica odpre seznam in nadaljuje pri skladbi... Vir: Nedavno (samo zvok) + seznamiBlok."
-                        // Let's combine them into one list of cards!
+                        // Združimo nedavne skladbe in sezname predvajanja v eno vrsto.
                         val seznamiKartice = seznami.map { karticaSeznama(it) }
                         val vseKartice = kartice + seznamiKartice
                         if (vseKartice.isEmpty()) emptyList() else listOf(Vrsta(getString(R.string.os_nadaljuj_s_poslusanjem), vseKartice, skladbe = true))
                     }
                     DomovVrsticePravila.Vrstica.NEDAVNO_DODANO -> {
-                        val najnovejseVidei = iskanjeDelavec.submit<List<Jamendo.Skladba>> {
-                            val vsi = SEZNAMI[VIDEO]?.flatMap { it.skladbe } ?: VSE_VIDEO ?: try { podatkiRazdelka(VIDEO).flatMap { it.skladbe } } catch (_: Exception) { emptyList() }
-                            val collator = Collator.getInstance(resources.configuration.locales[0]).apply { strength = Collator.SECONDARY }
-                            val poImenu = Comparator<Jamendo.Skladba> { a, b -> collator.compare(a.naslov, b.naslov) }
-                            val primerjalnik = Comparator<Jamendo.Skladba> { a, b ->
-                                when {
-                                    a.year == 0 && b.year != 0 -> 1
-                                    a.year != 0 && b.year == 0 -> -1
-                                    a.year != b.year -> b.year.compareTo(a.year)
-                                    else -> poImenu.compare(a, b)
-                                }
-                            }
-                            vsi.sortedWith(primerjalnik).distinctBy { it.id }.take(30)
+                        val vsi = SEZNAMI[VIDEO]?.flatMap { it.skladbe } ?: VSE_VIDEO
+                        if (vsi == null) {
+                            android.util.Log.d("SafeerOsMediji", "Nedavno dodano prazno: ni katalogov v pomnilniku")
+                            return@associateWith emptyList()
                         }
-                        val izKatalogov = try { najnovejseVidei.get(3_000L, java.util.concurrent.TimeUnit.MILLISECONDS) } catch (_: Exception) { emptyList() }
+                        val collator = Collator.getInstance(resources.configuration.locales[0]).apply { strength = Collator.SECONDARY }
+                        val poImenu = Comparator<Jamendo.Skladba> { a, b -> collator.compare(a.naslov, b.naslov) }
+                        val primerjalnik = Comparator<Jamendo.Skladba> { a, b ->
+                            when {
+                                a.year == 0 && b.year != 0 -> 1
+                                a.year != 0 && b.year == 0 -> -1
+                                a.year != b.year -> b.year.compareTo(a.year)
+                                else -> poImenu.compare(a, b)
+                            }
+                        }
+                        // Najnovejši naslovi v katalogih (katalogi ne povejo datuma dodajanja)
+                        val izKatalogov = vsi.sortedWith(primerjalnik).distinctBy { it.id }.take(30)
                         val vir = filterUsenet()
                         val pomocnik = vir != null && UsenetPomocniki.zdaj(this@GlasbaActivity)
                         val filtrirani = if (vir != null) izKatalogov.filter { sk -> kljucUsenet(sk, vir.odtis)?.let { UsenetFilter.pokazi(this@GlasbaActivity, it, pomocnik) } == true } else izKatalogov
@@ -3374,11 +3372,12 @@ class GlasbaActivity : OsActivity() {
                     }
                     DomovVrsticePravila.Vrstica.PRIPOROCENO -> {
                         val zgodovina = MedijskiViri.nedavno(this@GlasbaActivity)
-                        val priporocenoVidei = iskanjeDelavec.submit<List<Jamendo.Skladba>> {
-                            val katalogiVsi = SEZNAMI[VIDEO]?.flatMap { it.skladbe } ?: VSE_VIDEO ?: try { podatkiRazdelka(VIDEO).flatMap { it.skladbe } } catch (_: Exception) { emptyList() }
-                            DomovVrsticePravila.priporoceno(katalogiVsi, zgodovina).take(30)
+                        val katalogiVsi = SEZNAMI[VIDEO]?.flatMap { it.skladbe } ?: VSE_VIDEO
+                        if (katalogiVsi == null) {
+                            android.util.Log.d("SafeerOsMediji", "Priporoceno prazno: ni katalogov v pomnilniku")
+                            return@associateWith emptyList()
                         }
-                        val izKatalogov = try { priporocenoVidei.get(3_000L, java.util.concurrent.TimeUnit.MILLISECONDS) } catch (_: Exception) { emptyList() }
+                        val izKatalogov = DomovVrsticePravila.priporoceno(katalogiVsi, zgodovina).take(30)
                         val vir = filterUsenet()
                         val pomocnik = vir != null && UsenetPomocniki.zdaj(this@GlasbaActivity)
                         val filtrirani = if (vir != null) izKatalogov.filter { sk -> kljucUsenet(sk, vir.odtis)?.let { UsenetFilter.pokazi(this@GlasbaActivity, it, pomocnik) } == true } else izKatalogov
@@ -3386,7 +3385,7 @@ class GlasbaActivity : OsActivity() {
                             Kartica(sk.naslov, sk.izvajalec, sk.slika, { predvajaj(listOf(sk), 0, izNedavnih = false) }, id = sk.id)
                         }
                         if (kartice.isEmpty()) {
-                            android.util.Log.d("SafeerOsMedia", "Priporoceno prazno: ni dovolj podatkov ali vsi ze gledani/ni zadetkov")
+                            android.util.Log.d("SafeerOsMediji", "Priporoceno prazno: ni dovolj podatkov ali vsi ze gledani/ni zadetkov")
                             emptyList()
                         } else listOf(Vrsta(getString(R.string.os_priporoceno), kartice, video = true))
                     }
@@ -3694,7 +3693,7 @@ class GlasbaActivity : OsActivity() {
             var odklenjen = false
             for (n in naslovi) if (try { Stremio.poskusiOdklep(n) } catch (_: Exception) { false }) odklenjen = true
             if (odklenjen) {
-                android.util.Log.i("SafeerOsMedia", "dodatek je spet dal proste tokove: kanale pokazemo")
+                android.util.Log.i("SafeerOsMediji", "dodatek je spet dal proste tokove: kanale pokazemo")
                 if (m != null) glavna.post { if (mrezaKanalov === m && !isFinishing) odpriKanale(m.zvrst, m.jezik) }
             }
         } } catch (_: java.util.concurrent.RejectedExecutionException) { }
@@ -3900,7 +3899,7 @@ class GlasbaActivity : OsActivity() {
             val id = idji.remove(d).orEmpty()
             if (d in izpad) return
             ZasebniKanali.zapisi(app, d, za.getValue(d).first, id)
-            android.util.Log.i("SafeerOsMedia", "kanali: zasebne kategorije dodatka znane (${id.size} kanalov, katalogov ${za.getValue(d).second.size}) po ${android.os.SystemClock.uptimeMillis() - od} ms")
+            android.util.Log.i("SafeerOsMediji", "kanali: zasebne kategorije dodatka znane (${id.size} kanalov, katalogov ${za.getValue(d).second.size}) po ${android.os.SystemClock.uptimeMillis() - od} ms")
             p.koncan(d)
         }
         val prihodi = java.util.concurrent.ExecutorCompletionService<Pair<Pair<String, VirKanalov>, List<Jamendo.Skladba>>>(kanaliDelavec)
@@ -4009,7 +4008,7 @@ class GlasbaActivity : OsActivity() {
         // Brez izbire: katalogi kategorij (General, News ...) pred drzavnimi, nato ostali; ostali viri so rezerva za dopolnjevanje.
         val (vsiGlavni, izpusceni) = KanaliPravila.brezZaklenjenih(
             if (m.zvrst.isEmpty() && m.jezik.isEmpty()) KanaliPravila.razvrstiVire(izbrani.glavni, opisi) else izbrani.glavni, opisi, zaklenjen)
-        if (izpusceni.isNotEmpty()) android.util.Log.i("SafeerOsMedia", "kanali: izpusceni zaklenjeni viri ${izpusceni.map { katalogi[it.katalog].ime }}")
+        if (izpusceni.isNotEmpty()) android.util.Log.i("SafeerOsMediji", "kanali: izpusceni zaklenjeni viri ${izpusceni.map { katalogi[it.katalog].ime }}")
         val glavni = vsiGlavni.take(12).map { vir(it) }
         val rezerva = vsiGlavni.drop(12).take(48).map { vir(it) }
         val domaciStrani = domaciViri.map { v -> kanaliDelavec.submit<List<Jamendo.Skladba>> { if (m.preklicana) emptyList() else stranKanalov(v) }.also { m.naloge += it } }
@@ -4025,7 +4024,7 @@ class GlasbaActivity : OsActivity() {
         val stanjaZasebnih = zasebniPo.mapValues { (d, kv) -> ZasebniKanali.stanje(d, kv.first) }
         val pregled = zacniPregledZasebnih(zasebniPo.filterKeys { stanjaZasebnih[it] != KanaliPravila.ZasebniZapis.VELJA })
         val dovoljeni = if (presekViri.isEmpty()) null else kanaliDelavec.submit<Set<String>> { idKanalov(presekViri, 15, velja) }.also { m.naloge += it }
-        android.util.Log.i("SafeerOsMedia", "kanali: viri domaci=${domaciViri.map { it.katalog.ime }}, glavni=${glavni.map { it.katalog.ime }}, rezerva=${rezerva.size}, " +
+        android.util.Log.i("SafeerOsMediji", "kanali: viri domaci=${domaciViri.map { it.katalog.ime }}, glavni=${glavni.map { it.katalog.ime }}, rezerva=${rezerva.size}, " +
             "dodatkov s katalogi TV=${opisi.map { it.skupina }.distinct().size}, zasebnih katalogov=${filtri.zasebni.size}, " +
             "zasebni zapisi=${stanjaZasebnih.values.groupingBy { it }.eachCount()}")
         // Naloga 86 (M3): po kosih do 1 s - preklicana mreza ne caka do roka (prej do 90 s).
@@ -4049,7 +4048,7 @@ class GlasbaActivity : OsActivity() {
                     if (d.isNotEmpty()) {
                         // Vec dodatkov, koncanih skoraj hkrati, da eno novo nalaganje.
                         znova = true
-                        android.util.Log.i("SafeerOsMedia", "kanali: zasebne kategorije dodatka znane, mreza znova")
+                        android.util.Log.i("SafeerOsMediji", "kanali: zasebne kategorije dodatka znane, mreza znova")
                         glavna.postDelayed({ if (mrezaKanalov === m && !isFinishing) odpriKanale(m.zvrst, m.jezik) }, 300)
                     } else narisiKanale(m)
                 }
@@ -4099,7 +4098,7 @@ class GlasbaActivity : OsActivity() {
             // mreza imela nazadnje in sveza tega nima, ostane za svezimi (izmerjeno 6. 10. 2026: isti katalog enkrat odgovori
             // v sekundi, drugic v 15 s ne - mreza je imela zato enkrat 20 kartic, drugic 17). Kateri delajo, pove preverjanje.
             val izpad = zadnjic && (nedocakani || izpadDomacih || izpadPreseka || neznaniZasebni.isNotEmpty() || glavni.any { it.izpad })
-            android.util.Log.i("SafeerOsMedia", "kanali: zvrst=${m.zvrst.ifEmpty { "-" }}, jezik=${m.jezik.ifEmpty { "-" }}, katalogov=${katalogi.size}, virov=${glavni.size}, " +
+            android.util.Log.i("SafeerOsMediji", "kanali: zvrst=${m.zvrst.ifEmpty { "-" }}, jezik=${m.jezik.ifEmpty { "-" }}, katalogov=${katalogi.size}, virov=${glavni.size}, " +
                 "presek=${smejo?.size ?: -1}, zasebnih=${ZasebniKanali.velikost()}, domaci=${domaci.size}, stran=${stran.size}, prvic=$jePrvic, zadnjic=$zadnjic, " +
                 "izpad=$izpad, zasebni neznani=${neznaniZasebni.isNotEmpty()}, po ${android.os.SystemClock.uptimeMillis() - zacetek} ms")
             glavna.post {
@@ -4362,7 +4361,7 @@ class GlasbaActivity : OsActivity() {
             }
             return
         }
-        if (risemMrezo === m) { android.util.Log.w("SafeerOsMedia", "kanali: prvo risanje se ni koncalo, dopolnim brez cakanja"); risemMrezo = null }
+        if (risemMrezo === m) { android.util.Log.w("SafeerOsMediji", "kanali: prvo risanje se ni koncalo, dopolnim brez cakanja"); risemMrezo = null }
         m.cakaRisanjeOd = 0L
         val brezIzbire = m.zvrst.isEmpty() && m.jezik.isEmpty()
         val krajevno = resources.configuration.locales[0]
@@ -4451,10 +4450,10 @@ class GlasbaActivity : OsActivity() {
             tvSamoPriljubljeni).mapNotNull { poId[it] }
         m.naprej = naprej
         m.kandidati = kandidati
-        // Naloga 80 (53b): meritev - cas od odprtja mreze do prvega izrisa kanalov dodatkov ali seznamov (logcat SafeerOsMedia).
+        // Naloga 80 (53b): meritev - cas od odprtja mreze do prvega izrisa kanalov dodatkov ali seznamov (logcat SafeerOsMediji).
         if (!m.izmerjeno && prikaz.any { Stremio.jeEnota(it) || IptvSeznami.jeKanal(it) }) {
             m.izmerjeno = true
-            android.util.Log.i("SafeerOsMedia", "kanali: prvi izris ${prikaz.size} kanalov po ${android.os.SystemClock.uptimeMillis() - m.odprtOb} ms od odprtja (${m.izvor})")
+            android.util.Log.i("SafeerOsMediji", "kanali: prvi izris ${prikaz.size} kanalov po ${android.os.SystemClock.uptimeMillis() - m.odprtOb} ms od odprtja (${m.izvor})")
         }
         dnevnikMreze { "kanali: vseh=${urejeni.size}, v mrezi=${prikaz.size}, iz dodatkov=$izDodatkov, naprej=${m.naprej}, " +
             "v teku=${kanaliVPreverjanju.size}, brez odgovora=${m.neznani.size}, proracun=${m.proracun}, " +
@@ -4471,7 +4470,7 @@ class GlasbaActivity : OsActivity() {
             m.ponovitev = true
             val premor = (Stremio.premorKoncaOb(stremioNaslovi()) - System.currentTimeMillis()).coerceAtLeast(0L)
             val zamik = KanaliPravila.zamikPonovitve(premor, poskusiKanalov++)
-            android.util.Log.i("SafeerOsMedia", "kanali: noben vir ni odgovoril, znova cez ${zamik / 1000} s (poskus $poskusiKanalov)")
+            android.util.Log.i("SafeerOsMediji", "kanali: noben vir ni odgovoril, znova cez ${zamik / 1000} s (poskus $poskusiKanalov)")
             glavna.postDelayed({ if (mrezaKanalov === m && !isFinishing && vOspredju) odpriKanale(m.zvrst, m.jezik) }, zamik)
             m.cezMinut = ((zamik + 59_999) / 60_000).toInt()
         }
@@ -4721,7 +4720,7 @@ class GlasbaActivity : OsActivity() {
             if (isFinishing || mrezaVsebine !== m || m.vsi.isNotEmpty()) return@post
             for (x in s) if (m.videni.add(kljucVMrezi(x))) m.vsi += x
             m.izPredpomnilnika = true
-            android.util.Log.i("SafeerOsMedia", "mreza ${m.razdelek}: z diska ${m.vsi.size} kartic")
+            android.util.Log.i("SafeerOsMediji", "mreza ${m.razdelek}: z diska ${m.vsi.size} kartic")
             narisiMrezo(m)
         }
     }
@@ -4744,7 +4743,7 @@ class GlasbaActivity : OsActivity() {
         if (prva && nove.isEmpty() && m.vsi.isEmpty() && m.vTeku) glavna.post { if (mrezaVsebine === m && !isFinishing && m.vsi.isEmpty()) nadomestnaMreza(m) }
         else if (prva && nove.isEmpty() && m.vsi.isEmpty() && m.poskusov < 2 && mrezaVsebine === m && !isFinishing) {
             m.poskusov++
-            android.util.Log.i("SafeerOsMedia", "mreza ${m.razdelek}: prazna prva stran, poskus ${m.poskusov} od 2")
+            android.util.Log.i("SafeerOsMediji", "mreza ${m.razdelek}: prazna prva stran, poskus ${m.poskusov} od 2")
             // Naloga 83: nadomestek (zadnja znana, sorodne police) TAKOJ ob prvi prazni prvi strani, ne sele po vseh poskusih
             // (~45 s); sveza vsebina ga zamenja, ko pride.
             if (m.poskusov == 1) glavna.post { if (mrezaVsebine === m && !isFinishing && m.vsi.isEmpty()) nadomestnaMreza(m) }
@@ -4800,7 +4799,7 @@ class GlasbaActivity : OsActivity() {
                 if (isFinishing || mrezaVsebine !== m) return@post
                 var dodanih = 0
                 for (s in pozne) if (m.videni.add(kljucVMrezi(s))) { m.vsi += s; dodanih++ }
-                android.util.Log.i("SafeerOsMedia", "mreza ${m.razdelek}: pozni dodatki so dali $dodanih novih kartic")
+                android.util.Log.i("SafeerOsMediji", "mreza ${m.razdelek}: pozni dodatki so dali $dodanih novih kartic")
                 // Naloga 78: tudi pozni dodatki niso dali nicesar - nadomestna vsebina namesto prazne mreze.
                 if (dodanih == 0) { if (m.vsi.isEmpty() && !m.nalagam) nadomestnaMreza(m); return@post }
                 m.seKaj = m.seKaj || m.viri.any { !it.konec }
@@ -4831,7 +4830,7 @@ class GlasbaActivity : OsActivity() {
                 val odgovor = try { Stremio.katalogAliIzpad(v.katalog, skip = v.dal) } catch (_: Exception) { null }
                 // Naloga 88: prva stran kataloga dodatka v Glasbi in Radiu z izidom in razlogom (TV 08:50: Music Concerts
                 // ni dal kartic - ali je bil katalog prazen, napaka ali ni odgovoril?). Samo gostitelj in id kataloga.
-                if (prvaStran) android.util.Log.i("SafeerOsMedia", "mreza ${m.razdelek}: katalog ${android.net.Uri.parse(v.katalog.dodatek).host}/${v.katalog.tip}/${v.katalog.id} -> " +
+                if (prvaStran) android.util.Log.i("SafeerOsMediji", "mreza ${m.razdelek}: katalog ${android.net.Uri.parse(v.katalog.dodatek).host}/${v.katalog.tip}/${v.katalog.id} -> " +
                     OsPravila.izidKataloga(odgovor?.size, Stremio.zadnjaKodaNiti(), Stremio.neOdgovarja(v.katalog.dodatek)))
                 val stran = odgovor.orEmpty()
                 v.dal += stran.size
@@ -4976,7 +4975,7 @@ class GlasbaActivity : OsActivity() {
         // Naloga 88: kartice dodatkov, ki jih mreza skrije (in zakaj) - enkrat na spremembo, v dnevnik.
         val skrite = (priljubljene + m.vsi).filter { Stremio.jeEnota(it) }.let { e ->
             Triple(e.count { MrtviKanali.jeMrtev(this, it.id) }, e.count { znanoNiNaVoljo(it) }, e.count { cakaNaKnjiznico(it) }) }
-        if (skrite != Triple(0, 0, 0) && skrite != m.skrite) android.util.Log.i("SafeerOsMedia",
+        if (skrite != Triple(0, 0, 0) && skrite != m.skrite) android.util.Log.i("SafeerOsMediji",
             "mreza ${m.razdelek}: skritih kartic dodatkov mrtvih=${skrite.first}, ni na voljo=${skrite.second}, caka knjiznica=${skrite.third}")
         m.skrite = skrite
         // Naloga 78: prazna mreza z nadomestno vsebino (zadnja znana, sorodno, brez filtra).
@@ -5034,7 +5033,7 @@ class GlasbaActivity : OsActivity() {
                     else -> listOf(Triple(n, "", emptyList()))
                 }
             }
-            android.util.Log.i("SafeerOsMedia", "mreza ${m.razdelek}: prazna, nadomestek=${izbira}, police=${police.map { it.second to it.third.size }}")
+            android.util.Log.i("SafeerOsMediji", "mreza ${m.razdelek}: prazna, nadomestek=${izbira}, police=${police.map { it.second to it.third.size }}")
             glavna.post { if (mrezaVsebine === m && !isFinishing) { m.nadomestne = police; m.podpis = ""; narisiMrezo(m) } }
         } } catch (_: java.util.concurrent.RejectedExecutionException) { }
     }
@@ -6195,7 +6194,7 @@ class GlasbaActivity : OsActivity() {
         val skupine = SpletniVir.zdruziEnako(v, razlicice?.keys?.toHashSet().orEmpty())
         razlicice?.clear()
         val podvojene = skupine.count { it.size > 1 }
-        if (podvojene > 0) android.util.Log.i("SafeerOsMedia",
+        if (podvojene > 0) android.util.Log.i("SafeerOsMediji",
             "zdruzevanje: kandidati=${v.size}, kartice=${skupine.size}, podvojene_skupine=$podvojene, odstranjeni=${v.size - skupine.size}")
         // Naloga 61: odprta mreza si kartice zapomni - ob Nalozi vec in dopolnitvi se zgradijo samo nove (prej vseh 700-800,
         // 172-196 ms na televizorju). Kartica je odvisna samo od svoje skupine in [vrsta]; celoto (meni »Shrani kot seznam«)
@@ -6323,12 +6322,12 @@ class GlasbaActivity : OsActivity() {
     }
 
     /**
-     * Naloga 93: dnevnik klika kanala v zivo (SafeerOsMedia) - katera pot, koliko razlicic iz dodatkov in seznamov, stanja
+     * Naloga 93: dnevnik klika kanala v zivo (SafeerOsMediji) - katera pot, koliko razlicic iz dodatkov in seznamov, stanja
      * ([MrtviKanali.stanje]) in ali je rezerva. Brez naslovov tokov in id-jev (povezava IPTV ima lahko geslo).
      */
     private fun dnevnikKlikaKanala(sk: Jamendo.Skladba, vse: List<Jamendo.Skladba>, pot: String, rezerva: Jamendo.Skladba?) {
         fun vrsta(x: Jamendo.Skladba) = if (Stremio.jeEnota(x)) "dodatek" else if (IptvSeznami.jeKanal(x)) "seznam" else "drugo"
-        android.util.Log.i("SafeerOsMedia", "klik kanala \"${sk.naslov.take(40)}\": pot=$pot, glava=${vrsta(sk)}, razlicice=" +
+        android.util.Log.i("SafeerOsMediji", "klik kanala \"${sk.naslov.take(40)}\": pot=$pot, glava=${vrsta(sk)}, razlicice=" +
             vse.joinToString(",") { vrsta(it) + ":" + when (MrtviKanali.stanje(this, it.id)) { true -> "ziv"; false -> "mrtev"; null -> "?" } } +
             ", rezerva=${rezerva?.let { vrsta(it) } ?: "ni"}")
     }
@@ -6394,7 +6393,7 @@ class GlasbaActivity : OsActivity() {
         val j = KanaliPravila.fokusPoSkritju(i, n)
         if (predpona != null && j >= 0) { vrniKljuc = "$predpona#$j"; vrniKljucDo = android.os.SystemClock.uptimeMillis() + 3_000 }
         MedijskiViri.odstraniSSeznama(this, seznam.ime, sk, mesto)
-        android.util.Log.i("SafeerOsMedia", "odstranjeno s seznama: mesto $mesto od ${vrsta.size}, izbira na ${if (j >= 0) j else "-"}")
+        android.util.Log.i("SafeerOsMediji", "odstranjeno s seznama: mesto $mesto od ${vrsta.size}, izbira na ${if (j >= 0) j else "-"}")
         SEZNAMI.remove(DOMOV); SEZNAMI.remove(GLASBA); SEZNAMI.remove(VIDEO)
         osveziPriljubljene()
     }
@@ -6434,7 +6433,7 @@ class GlasbaActivity : OsActivity() {
         delavec.execute {
             val nov = try { UvozSeznama.najdi(UvozSeznama.iskana(sk.naslov, sk.izvajalec, 0, sk.slika), izloci) } catch (_: Exception) { null }
             if (nov != null && nov.id != sk.id) { MedijskiViri.zamenjaj(this, mapOf(sk.id to nov)); NedelujoceSkladbe.pozabi(this, sk.id) }
-            android.util.Log.i("SafeerOsMedia", "drug posnetek \"${sk.naslov.take(40)}\": ${if (nov != null && nov.id != sk.id) "najden" else "ni"}")
+            android.util.Log.i("SafeerOsMediji", "drug posnetek \"${sk.naslov.take(40)}\": ${if (nov != null && nov.id != sk.id) "najden" else "ni"}")
             glavna.post {
                 if (isFinishing || isDestroyed) return@post
                 val najden = nov != null && nov.id != sk.id
@@ -6462,7 +6461,7 @@ class GlasbaActivity : OsActivity() {
         fun premik(zamik: Int, zacetek: Boolean): () -> Unit = {
             val nov = PriljubljeniKanaliPravila.premakni(MedijskiViri.priljubljene(this).map { it.id }, jeK, sk.id, zamik, zacetek)
             if (nov != null && MedijskiViri.urediPriljubljene(this, nov)) {
-                android.util.Log.i("SafeerOsMedia", "priljubljeni kanal premaknjen: \"${sk.naslov.take(40)}\" ${if (zacetek) "na zacetek" else if (zamik < 0) "levo" else "desno"}")
+                android.util.Log.i("SafeerOsMediji", "priljubljeni kanal premaknjen: \"${sk.naslov.take(40)}\" ${if (zacetek) "na zacetek" else if (zamik < 0) "levo" else "desno"}")
                 // Izbira gre s premaknjenim kanalom (izmerjeno na TV: brez tega je ostala na starem mestu, na sosedu). Priljubljeni
                 // so v mrezi spredaj po svojem redu: novo mesto je mesto med priljubljenimi kanali, ki so v mrezi. Risanje vrne
                 // izbiro na kartico vrnitve ([mestoVrnitve]), tudi ce se mreza rise po korakih.
@@ -7772,7 +7771,7 @@ class GlasbaActivity : OsActivity() {
                         if (vir == null) {
                             // Diagnostika (TV 23. 10. 2026: tunein.com s tipkovnico ni bil prepoznan). Naloga 86 (M6): samo dolzina in
                             // razredi znakov, nikoli vsebina - povezava IPTV ima lahko uporabnisko ime in geslo.
-                            android.util.Log.i("SafeerOsMedia", "vir zavrnjen: " + OsPravila.opisZavrnjenegaVnosa(vnos))
+                            android.util.Log.i("SafeerOsMediji", "vir zavrnjen: " + OsPravila.opisZavrnjenegaVnosa(vnos))
                             // Vira, ki ga ne znamo predvajati, ne dodamo - in to uporabniku jasno povemo.
                             stanje.text = getString(R.string.os_mediji_ni_vira)
                             AlertDialog.Builder(this)
@@ -7918,7 +7917,7 @@ class GlasbaActivity : OsActivity() {
         Toast.makeText(this, R.string.os_mediji_preverjam, Toast.LENGTH_SHORT).show()
         delavec.execute {
             val koda = try { Stremio.preveriObVnosu(naslov) } catch (_: Exception) { 0 }
-            android.util.Log.i("SafeerOsMedia", "preveri dodatek ${android.net.Uri.parse(Stremio.osnova(naslov)).host}: koda=$koda")
+            android.util.Log.i("SafeerOsMediji", "preveri dodatek ${android.net.Uri.parse(Stremio.osnova(naslov)).host}: koda=$koda")
             glavna.post {
                 if (isFinishing || isDestroyed) return@post
                 Toast.makeText(this, when {
@@ -8087,7 +8086,7 @@ class GlasbaActivity : OsActivity() {
      */
     private fun naDelavcu(priprava: String, sk: Jamendo.Skladba, delo: () -> Unit) {
         val obNapaki = { e: Throwable ->
-            android.util.Log.w("SafeerOsMedia", "priprava: napaka ${e.javaClass.simpleName}")
+            android.util.Log.w("SafeerOsMediji", "priprava: napaka ${e.javaClass.simpleName}")
             glavna.post { if (!isFinishing && !isDestroyed) pripravaNiUspela(priprava, sk) else koncajPripravo(priprava) }
             Unit
         }
@@ -8288,7 +8287,7 @@ class GlasbaActivity : OsActivity() {
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 if (album.skladbe.isEmpty()) {
-                    android.util.Log.i("SafeerOsMedia", "glasba usenet: ni predvajal (${album.napaka}), poskus ${poskus + 1}")
+                    android.util.Log.i("SafeerOsMediji", "glasba usenet: ni predvajal (${album.napaka}), poskus ${poskus + 1}")
                     if (UsenetLastniPravila.poskusiDrugoIzdajo(album.napaka) && poskus < UsenetLastniPravila.NAJVEC_DRUGIH_IZDAJ) {
                         val naslovi = drugi.map { it.naslov }
                         val naslednja = UsenetGlasbaPravila.drugeIzdaje(naslovi, prvi, drugi.size) { j ->
@@ -8477,13 +8476,13 @@ class GlasbaActivity : OsActivity() {
                                 najprej: String? = null): List<Stremio.Tok> {
         // Naloga 77: vnos tipa »music« z id-jem IMDb (koncert) vprasamo kot »movie«, ce noben dodatek ne da tokov za »music«.
         val tip = Stremio.tipToka(stremioNaslovi(), tip0, id)
-        if (tip != tip0) android.util.Log.i("SafeerOsMedia", "tokovi: tip $tip0 -> $tip (noben dodatek ne da tokov za $tip0)")
+        if (tip != tip0) android.util.Log.i("SafeerOsMediji", "tokovi: tip $tip0 -> $tip (noben dodatek ne da tokov za $tip0)")
         val prviDodatki = najprej?.let { o -> stremioNaslovi().filter { Stremio.osnova(it) == o } }.orEmpty()
         if (dodatniId == null && OsPravila.najprejEnDodatek(prviDodatki.isNotEmpty(),
                 tip in setOf("movie", "series") && Usenet.jeNaVoljo(applicationContext), Debrid.aktivna(applicationContext) != null)) {
             val prvi = try { Stremio.tokoviZOdzivom(prviDodatki, tip, id).tokovi } catch (_: Exception) { emptyList() }
             if (prvi.any { Stremio.jePredvajljiv(it) }) {
-                android.util.Log.i("SafeerOsMedia", "tokovi: dodatek, ki je naslov nasel, je dal ${prvi.size} tokov - ostalih ne sprasujemo")
+                android.util.Log.i("SafeerOsMediji", "tokovi: dodatek, ki je naslov nasel, je dal ${prvi.size} tokov - ostalih ne sprasujemo")
                 return Stremio.zdruziDvojnike(prvi)
             }
         }
@@ -8498,7 +8497,7 @@ class GlasbaActivity : OsActivity() {
         val vprasan = if (vPremoru.any { it }) naslovi.map { Stremio.vprasanZaTokove(it, tip, idji) } else naslovi.map { true }
         val nacini = ZdravjeDodatkov.nacini(vPremoru, naslovi.map { Stremio.sKljucem(it) }, vprasan)
         val preskocenih = nacini.count { it == ZdravjeDodatkov.Nacin.PRESKOCI }
-        if (nacini.any { it != ZdravjeDodatkov.Nacin.CAKAJ }) android.util.Log.i("SafeerOsMedia", "tokovi: dodatkov v premoru " +
+        if (nacini.any { it != ZdravjeDodatkov.Nacin.CAKAJ }) android.util.Log.i("SafeerOsMediji", "tokovi: dodatkov v premoru " +
             "${nacini.count { it == ZdravjeDodatkov.Nacin.V_OZADJU }} v ozadju, $preskocenih s kljucem preskocenih")
         val izidi = java.util.concurrent.ConcurrentHashMap<Int, ZdravjeDodatkov.Izid>()
         // Pregled B1: vsak dodatek svoja nit, placljivo pa se odloci enkrat po vseh (spodaj) - ne po zadnjem odgovoru.
@@ -8539,7 +8538,7 @@ class GlasbaActivity : OsActivity() {
         val usenetTokovi = usenet?.takeIf { it.isDone }?.let { f -> try { f.get() } catch (_: Exception) { null } }.orEmpty()
         val zbrani = (dodatki.filter { it.second.isDone }.flatMap { tokoviDodatka(it.second) } + usenetTokovi).distinctBy { it.url }
         val tokovi = Stremio.zdruziDvojnike(zbrani)
-        if (tokovi.size != zbrani.size) android.util.Log.i("SafeerOsMedia", "tokovi: ${zbrani.size} -> ${tokovi.size} (zdruzeni dvojniki istega torrenta)")
+        if (tokovi.size != zbrani.size) android.util.Log.i("SafeerOsMediji", "tokovi: ${zbrani.size} -> ${tokovi.size} (zdruzeni dvojniki istega torrenta)")
         // Zdravje: prazen odgovor za vsebino, ki jo drugi dodatki imajo (isti id), je neuspeh dodatka.
         vprasani.forEachIndexed { j, (i, k, f) ->
             if (izidi[j] != ZdravjeDodatkov.Izid.NEVTRALNO || !f.isDone) return@forEachIndexed
@@ -8592,7 +8591,7 @@ class GlasbaActivity : OsActivity() {
                 .any { info -> info.getCapabilitiesForType("video/hevc").profileLevels
                     .any { it.profile == android.media.MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10 } }
         } catch (_: Exception) { true }
-        android.util.Log.i("SafeerOsMedia", "zmoznosti: HEVC Main10=$hevc10")
+        android.util.Log.i("SafeerOsMediji", "zmoznosti: HEVC Main10=$hevc10")
         // Televizor zvok Dolby odda sam ali ga preda zvocniku (HDMI); na telefonu odloca dekodirnik.
         val tv = jeTv()
         TokIzbira.Zmoznosti(hevc10 = hevc10,
@@ -8649,7 +8648,7 @@ class GlasbaActivity : OsActivity() {
             // Naloga 130: dodatek kartice epizod ni dal - poiscemo jih po id-ju IMDb pri drugih uporabnikovih dodatkih.
             val posnetki = if (tip != "series" || posnetkiDodatka.isNotEmpty()) posnetkiDodatka
                 else Stremio.imdbZa(sk)?.let { imdb -> try { Stremio.epizodePoImdb(stremioNaslovi(), imdb, Stremio.razstavi(sk)?.first.orEmpty()) } catch (_: Exception) { emptyList() } }
-                    .orEmpty().also { if (it.isNotEmpty()) android.util.Log.i("SafeerOsMedia", "serija: epizode iz drugega dodatka po IMDb (${it.size})") }
+                    .orEmpty().also { if (it.isNotEmpty()) android.util.Log.i("SafeerOsMediji", "serija: epizode iz drugega dodatka po IMDb (${it.size})") }
             if (tip == "series" || posnetki.size > 1) {
                 glavna.post {
                     if (!koncajPripravo(priprava) || isFinishing || isDestroyed) return@post
@@ -8672,10 +8671,10 @@ class GlasbaActivity : OsActivity() {
                         .flatMap { f -> try { f.get((konecT - android.os.SystemClock.uptimeMillis()).coerceAtLeast(1), java.util.concurrent.TimeUnit.MILLISECONDS) } catch (_: Exception) { emptyList() } }.distinctBy { it.url }
                 // Metapodatki so medtem navadno ze prisli: serija z epizodami se odpre kot serija (ne kot film).
                 if (!vZivo && odpriKotSerijo(if (t.isEmpty()) 5 else 2)) return@naDelavcu
-                if (vZivo) android.util.Log.i("SafeerOsMedia", "kanal dodatka: enot=${enote.size}, tokov=${t.size}, predvajljivih=${t.count { Stremio.jePredvajljiv(it) }}, " +
+                if (vZivo) android.util.Log.i("SafeerOsMediji", "kanal dodatka: enot=${enote.size}, tokov=${t.size}, predvajljivih=${t.count { Stremio.jePredvajljiv(it) }}, " +
                     "vrste=${t.map { it.vrsta }.distinct()}, dodatek ni odgovoril=${Stremio.dodatekNiOdgovoril()}, rezerva=${rezerva != null}, rocno=$rocno")
                 if (vZivo && !rocno && rezerva != null && t.none { Stremio.jePredvajljiv(it) }) {
-                    android.util.Log.i("SafeerOsMedia", "kanal dodatka: ni toka - predvajam rezervo iz seznama IPTV")
+                    android.util.Log.i("SafeerOsMediji", "kanal dodatka: ni toka - predvajam rezervo iz seznama IPTV")
                     glavna.post { if (!koncajPripravo(priprava)) return@post; if (!isFinishing && !isDestroyed) predvajaj(listOf(rezerva), 0) }
                     return@naDelavcu
                 }
@@ -8745,7 +8744,7 @@ class GlasbaActivity : OsActivity() {
                     // Vodja 27. 10. 2026: ponudnik gre zraven (prej samo tok in naslov - obvestilo je reklo TorBox).
                     izid?.url?.let { izbran = Triple(t, it, izid.ponudnik.ifBlank { UsenetLastniPravila.PONUDNIK }) }
                 }
-                android.util.Log.i("SafeerOsMedia", "tokovi: Usenet lasten pogon: ${if (izbran != null) "da" else "ne"}")
+                android.util.Log.i("SafeerOsMediji", "tokovi: Usenet lasten pogon: ${if (izbran != null) "da" else "ne"}")
                 izbran
             }
         }
@@ -8766,7 +8765,7 @@ class GlasbaActivity : OsActivity() {
                 try { Thread.sleep(100) } catch (_: InterruptedException) { Thread.currentThread().interrupt(); break }
             }
             niti.forEach { if (!it.isDone) it.cancel(true) }
-            android.util.Log.i("SafeerOsMedia", "tokovi: Usenet pripravljen (vzporedno ${prvi.size}, " +
+            android.util.Log.i("SafeerOsMediji", "tokovi: Usenet pripravljen (vzporedno ${prvi.size}, " +
                 "${android.os.SystemClock.elapsedRealtime() - zacetek} ms): ${if (izbran != null) "da" else "ne"}")
             izbran
         }
@@ -8782,7 +8781,7 @@ class GlasbaActivity : OsActivity() {
         val identiteta = Usenet.identiteta(this, t.url)
         if (identiteta == null) { naprejBrezPomocnika(sk, naslov, brezUseneta, rocno, pripravljeno, obNeuspehu); return }
         UsenetPomocniki.zapomniVir(izvirnik.zvok, identiteta)
-        android.util.Log.i("SafeerOsMedia", "tokovi: Usenet prek pomocnika v Linku; izbran=${TokIzbira.opisi(t.ime + " " + t.opis)}")
+        android.util.Log.i("SafeerOsMediji", "tokovi: Usenet prek pomocnika v Linku; izbran=${TokIzbira.opisi(t.ime + " " + t.opis)}")
         val od = MediaNapredek.polozaj(this, izvirnik).coerceAtLeast(0L)
         SprotnaPomoc.poskusi(this, izvirnik, null, org.json.JSONObject(), od, 0L,
             naStanje = { b -> runOnUiThread { if (!isFinishing && !isDestroyed) pokaziPripravljam(b) } },
@@ -8838,7 +8837,7 @@ class GlasbaActivity : OsActivity() {
             Usenet.samoUsenet(this)
         // Iskanje tokov vprasa tudi indeksator: steje v isto kvoto kot preverba filtra (FilterViraPravila.NA_MINUTO).
         if ((Usenet.jeNaVoljo(this) || UsenetLastni.naVoljo(this)) && !UsenetFilter.smemPredpripravo()) {
-            android.util.Log.i("SafeerOsMedia", "naslednja epizoda: kvota indeksatorja - brez predpriprave"); rezultat(null); return
+            android.util.Log.i("SafeerOsMediji", "naslednja epizoda: kvota indeksatorja - brez predpriprave"); rezultat(null); return
         }
         val zacetek = android.os.SystemClock.elapsedRealtime()
         val imaDebrid = aktivniDebrid() != null
@@ -8870,13 +8869,13 @@ class GlasbaActivity : OsActivity() {
                         val neposrednih = t.count { it.vrsta == "url" && it.vir != WebtorPravila.VIR && Stremio.jePredvajljiv(it) }
                         val potrjen = NaslednjaEpizodaPravila.tokPotrjen(pp.usenet != null || lastnihUstreznih > 0, samoUsenet, torrentov, neposrednih)
                         val vRoku = NaslednjaEpizodaPravila.vRoku(zacetek, android.os.SystemClock.elapsedRealtime())
-                        android.util.Log.i("SafeerOsMedia", "naslednja epizoda: S${e.sezona}E${e.epizoda} tokov=${t.size} usenet=${pp.usenet != null} lastnih=$lastnihUstreznih " +
+                        android.util.Log.i("SafeerOsMediji", "naslednja epizoda: S${e.sezona}E${e.epizoda} tokov=${t.size} usenet=${pp.usenet != null} lastnih=$lastnihUstreznih " +
                             "torrentov=$torrentov neposrednih=$neposrednih samoUsenet=$samoUsenet potrjen=$potrjen vRoku=$vRoku")
                         if (potrjen && vRoku) izid = NaslednjaPripravljena(e, serija, NaslednjaEpizodaPravila.naslovEpizode(sk.naslov, e.sezona, e.epizoda, e.ime), t, pp,
                             usenetObZagonu = !odpreUsenet)
                     }
                 } catch (e: Exception) {
-                    android.util.Log.w("SafeerOsMedia", "naslednja epizoda: predpriprava ${e.javaClass.simpleName}")
+                    android.util.Log.w("SafeerOsMediji", "naslednja epizoda: predpriprava ${e.javaClass.simpleName}")
                 }
                 val koncni = izid
                 glavna.post { rezultat(koncni) }
@@ -8940,7 +8939,7 @@ class GlasbaActivity : OsActivity() {
             }
             val naslovEp = if (!odgledana) sk.naslov else OsPravila.naslovBrezEpizode(sk.naslov) + " · S${e.sezona}E${e.epizoda}" +
                 (if (e.ime.isNotBlank()) " · " + e.ime else "")
-            if (odgledana) android.util.Log.i("SafeerOsMedia", "nadaljuj: S${sezona}E$epizoda odgledana - naslednja S${e.sezona}E${e.epizoda}")
+            if (odgledana) android.util.Log.i("SafeerOsMediji", "nadaljuj: S${sezona}E$epizoda odgledana - naslednja S${e.sezona}E${e.epizoda}")
             val dodatni = SerijePravila.idEpizodePoImdb(Stremio.imdbZa(serija), e.id, e.sezona, e.epizoda)
             val t = e.tokovi.ifEmpty { try { tokoviVzporedno(tip, e.id, dodatniId = dodatni) } catch (_: Exception) { emptyList() } }
             val pp = predpomnjeniZa(t, serija.copy(season = e.sezona, episode = e.epizoda), false)
@@ -9344,7 +9343,7 @@ class GlasbaActivity : OsActivity() {
         torrentPrej = zdaj
         Razpolozljivost.pripravi(this, dodatkiZaRazpolozljivost(), meja)
         if (prej == null || prej == zdaj) return
-        android.util.Log.i("SafeerOsMedia", "torrent steje: $prej -> $zdaj")
+        android.util.Log.i("SafeerOsMediji", "torrent steje: $prej -> $zdaj")
         SEZNAMI.remove(VIDEO); SEZNAMI.remove(DOMOV)
         odprtKatalog?.let { o -> o.neznani.clear(); o.vec(0); osveziMrezo(o) }
     }
@@ -9692,7 +9691,7 @@ class GlasbaActivity : OsActivity() {
             val stari = OsPravila.stariNasloviDodatka(nova, dodani[nova].orEmpty(), dodani)
             if (stari.isEmpty()) return@execute
             stari.forEach { Stremio.pozabiZaklep(it) }
-            android.util.Log.i("SafeerOsMedia", "dodatek dodan dvakrat (isti id manifesta): starih naslovov ${stari.size}")
+            android.util.Log.i("SafeerOsMediji", "dodatek dodan dvakrat (isti id manifesta): starih naslovov ${stari.size}")
             glavna.post {
                 if (isFinishing || isDestroyed) return@post
                 val star = MedijskiViri.vsi(this).firstOrNull { it.jeStremio && Stremio.osnova(it.naslov) in stari } ?: return@post
@@ -10068,7 +10067,7 @@ class GlasbaActivity : OsActivity() {
             if (j >= 0) { vrniKljuc = "k:#$j"; vrniKljucDo = android.os.SystemClock.uptimeMillis() + 3_000 }
             MrtviKanali.skrij(this, kljuci)
         } else MrtviKanali.pokazi(this, kljuci)
-        android.util.Log.i("SafeerOsMedia", "kanali: ${if (skrij) "skritih" else "pokazanih"} ${izbrani.size} izbranih")
+        android.util.Log.i("SafeerOsMediji", "kanali: ${if (skrij) "skritih" else "pokazanih"} ${izbrani.size} izbranih")
         koncajIzbiroKanalov()
     }
 
@@ -10108,7 +10107,7 @@ class GlasbaActivity : OsActivity() {
         // kartica je ostala prazna. Oznako cakajocim brez slike pobrisemo; znova jih zahteva uskladiSlike (onResume).
         cakajoceSlike.values.forEach { l -> synchronized(l) { l.forEach { r -> r.get()?.takeIf { it.drawable == null }?.tag = null } } }
         cakajoceSlike.clear()
-        if (n > 0) android.util.Log.i("SafeerOsMedia", "naslovnice: vrsta izpraznjena ($n, $razlog)")
+        if (n > 0) android.util.Log.i("SafeerOsMediji", "naslovnice: vrsta izpraznjena ($n, $razlog)")
     }
 
     override fun onTrimMemory(level: Int) {
@@ -10147,7 +10146,7 @@ class GlasbaActivity : OsActivity() {
             // Napis »Preverjam ...« na kartici Nalozi vec ne sme ostati, ko je preverjanje okna koncano.
             val risem = (drugace && OsPravila.risiMrezoZdaj(o.narisani, vidni, PRVI_ZASLON, o.caka.get() > 0, odRisanja, DOPOLNI_NAJVEC_MS)) ||
                 (o.prosiVec && o.caka.get() == 0)
-            if (drugace || o.caka.get() == 0) android.util.Log.i("SafeerOsMedia", "mreza: vidnih=${vidni.size}, narisanih=${o.narisani.size}, vseh=${o.vsi.size}, kandidatov=${izracun.first.size}, caka=${o.caka.get()}, ozadje=${o.ozadje.get()}, " +
+            if (drugace || o.caka.get() == 0) android.util.Log.i("SafeerOsMediji", "mreza: vidnih=${vidni.size}, narisanih=${o.narisani.size}, vseh=${o.vsi.size}, kandidatov=${izracun.first.size}, caka=${o.caka.get()}, ozadje=${o.ozadje.get()}, " +
                 "nalagam=${o.nalagam}, seKaj=${o.seKaj}, okno=${o.zelja}, proracun=${o.proracun}, preverjenih=${o.preverjenih.get()}, zadetkov=${o.zadetkov.get()}, " +
                 "samodejno=${o.samodejno}, strogo=${strogaMreza(o)}, torrent=${nacinTorrenta().ifEmpty { "vse" }}, risem=$risem")
             // Risanje samo nadaljuje preverjanje (narisiKatalog -> preveriMrezo); brez risanja ga nadaljujemo tu.
@@ -10677,7 +10676,7 @@ class GlasbaActivity : OsActivity() {
     private fun oznaciMrtveRazliciceDodatka(sk: Jamendo.Skladba) {
         val razlicice = zadnjeRazlicice.takeIf { sk.id in it }.orEmpty()
         val mrtve = KanaliPravila.mrtveObNeuspehuDodatka(sk.id, razlicice) { it.startsWith(IptvSeznami.PREDPONA) }
-        android.util.Log.i("SafeerOsMedia", "kanal dodatka ni dosegljiv: oznacenih mrtvih ${mrtve.size}, razlicic seznama ostane ${(razlicice + sk.id).distinct().size - mrtve.size}")
+        android.util.Log.i("SafeerOsMediji", "kanal dodatka ni dosegljiv: oznacenih mrtvih ${mrtve.size}, razlicic seznama ostane ${(razlicice + sk.id).distinct().size - mrtve.size}")
         mrtve.forEach { MrtviKanali.zapomni(this, it, NedelujocePravila.NI_TOKA, sk.naslov) }
     }
 
@@ -10714,7 +10713,7 @@ class GlasbaActivity : OsActivity() {
         // brez TorBoxa v ozadju in brez poti mimo Webtorja (ce Webtor ne predvaja, se izbira konca).
         val samoWebtor = Webtor.samoWebtor(this)
         if (samoWebtor) {
-            android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Webtor")
+            android.util.Log.i("SafeerOsMediji", "tokovi: diagnostika samo Webtor")
             // Pregled Grok 32, G5 velja tudi za diagnostiki Webtor in Usenet: Toast samo na glavni niti.
             runOnUiThread { Toast.makeText(this, R.string.os_webtor_diagnostika, Toast.LENGTH_LONG).show() }
         }
@@ -10727,9 +10726,9 @@ class GlasbaActivity : OsActivity() {
             Debrid.aktivna(this) != null, rocno) && !brezOmejitveUseneta
         val diagnostikaUsenet = !samoWebtor && !rocno && Usenet.samoUsenet(this)
         val samoUsenet = !samoWebtor && (diagnostikaUsenet || izbranSamoUsenet)
-        if (izbranSamoUsenet) android.util.Log.i("SafeerOsMedia", "tokovi: izbran samo Usenet")
+        if (izbranSamoUsenet) android.util.Log.i("SafeerOsMediji", "tokovi: izbran samo Usenet")
         if (diagnostikaUsenet) {
-            android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Usenet")
+            android.util.Log.i("SafeerOsMediji", "tokovi: diagnostika samo Usenet")
             runOnUiThread { Toast.makeText(this, R.string.os_usenet_diagnostika, Toast.LENGTH_LONG).show() }
         }
         // Diagnostika razvijalca ([Diagnostika.samoP2p], samo prek adb, z rokom; lastnik 25. 10. 2026: Z3 v zivo samo po
@@ -10739,7 +10738,7 @@ class GlasbaActivity : OsActivity() {
         // ali samo Usenet (sicer bi se filtri izkljucili ali pa bi se pot tiho prevesila v roj); getprop se tedaj ne klice.
         val samoP2p = !samoWebtor && !samoUsenet && !rocno && Diagnostika.samoP2p(this)
         if (samoP2p) {
-            android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo P2P")
+            android.util.Log.i("SafeerOsMediji", "tokovi: diagnostika samo P2P")
             // Pregled Grok 32, G5: Toast samo na glavni niti. izberiTok se klice prek glavna.post (preverjeno: vsi klicatelji),
             // runOnUiThread to zagotovi tudi za morebitnega klicatelja z delovne niti (Toast tam vrze izjemo).
             runOnUiThread { Toast.makeText(this, R.string.os_p2p_diagnostika, Toast.LENGTH_LONG).show() }
@@ -10753,7 +10752,7 @@ class GlasbaActivity : OsActivity() {
             .filter { !samoUsenet || it.vrsta == UsenetPravila.VRSTA }
         if (samoUsenet && tokovi.isEmpty()) {
             // Brez izdaj Usenet (indeksator jih nima) se diagnostika konca tu - vsebina ne izgine s seznama.
-            android.util.Log.i("SafeerOsMedia", "tokovi: samo Usenet - indeksator ni dal izdaj")
+            android.util.Log.i("SafeerOsMediji", "tokovi: samo Usenet - indeksator ni dal izdaj")
             // Filter vira: zapis o naslovu ne velja vec - kartica izgine, preverba v ozadju pove NI (ure) ali NE_VEMO (ponovitev).
             if (izbranSamoUsenet) filterUsenet()?.let { v -> kljucUsenet(sk, v.odtis)?.let { k ->
                 UsenetFilter.pozabi(this, k); odprtKatalog?.let { o -> glavna.post { osveziMrezo(o) } } } }
@@ -10781,7 +10780,7 @@ class GlasbaActivity : OsActivity() {
             // da toka, se tiho oznaci mrtev ([MrtviKanali], 24 h) in izgine iz mreze. Razlicice kartice so ze v isti poizvedbi
             // ([razresiStremio]), zato predvajanje naslednje razlicice pride samo; tu so mrtve vse razlicice dodatkov (93: seznama IPTV ne). Placljiv dostop (79) ima svoje sporocilo.
             if (obNeuspehu == null && Stremio.jeVZivo(sk) && !Stremio.samoObvestilaKanala(sk)) {
-                android.util.Log.i("SafeerOsMedia", "kanal ni dosegljiv: tokov=${tokovi.size}, dodatek ni odgovoril=${Stremio.dodatekNiOdgovoril()}")
+                android.util.Log.i("SafeerOsMediji", "kanal ni dosegljiv: tokov=${tokovi.size}, dodatek ni odgovoril=${Stremio.dodatekNiOdgovoril()}")
                 PredvajanjeActivity.zapriZNapako()
                 oznaciMrtveRazliciceDodatka(sk)
                 return
@@ -10900,7 +10899,7 @@ class GlasbaActivity : OsActivity() {
             roj = { false }), roj = false)
         val torrentiPoKakovosti = zaHitrost(TokIzbira.uredi(tokovi.filter { it.vrsta == "torrent" && gre(it) }, opis, zmoznostiNaprave,
             zelenJezik = zelen, izvirni = sk.language))
-        if (hitrost > 0) android.util.Log.i("SafeerOsMedia", "kakovost za povezavo ${hitrost / 1_000_000} Mb/s: " +
+        if (hitrost > 0) android.util.Log.i("SafeerOsMediji", "kakovost za povezavo ${hitrost / 1_000_000} Mb/s: " +
             "${torrentiPoKakovosti.count { KakovostPravila.ustreza(TokIzbira.opisi(opis(it)).gb, minut, hitrost) }} od ${torrentiPoKakovosti.size} torrentov ustreza")
         // Naloga 130: torrenti, ki jih ima debrid storitev pripravljene (⚡), so prvi - znotraj obeh skupin ostane red kakovosti.
         val hashiTorrentov = torrentiPoKakovosti.map { TorBoxPravila.hashIzMagneta(it.url) }
@@ -10932,7 +10931,7 @@ class GlasbaActivity : OsActivity() {
         val webtor = WebtorPravila.vrstniRed(torrentiPoKakovosti.map { kljucTorrenta(it) }, parWebtor, imamoTorBox, datoteke = datotekeWebtor)
             .map { webtorPoKakovosti[it] }
         webtorZa = { t -> WebtorPravila.zaIzdajo(kljucTorrenta(t), parWebtor, imamoTorBox, datotekeWebtor).takeIf { it >= 0 }?.let { webtorPoKakovosti[it] } }
-        if (webtorPoKakovosti.isNotEmpty()) android.util.Log.i("SafeerOsMedia", "tokovi: Webtor ${webtor.size} od ${webtorPoKakovosti.size}, ista izdaja kot nas torrent: " +
+        if (webtorPoKakovosti.isNotEmpty()) android.util.Log.i("SafeerOsMediji", "tokovi: Webtor ${webtor.size} od ${webtorPoKakovosti.size}, ista izdaja kot nas torrent: " +
             "${webtor.count { w -> kljucWebtor(w) != null && torrentiPoKakovosti.any { kljucTorrenta(it) == kljucWebtor(w) } }}, datoteke: " +
             WebtorPravila.Datoteka.values().joinToString(" ") { d -> "$d=${datotekeWebtor.count { it == d }}" })
         // [⚡WT] (Webtor ga ima pripravljenega) sodi med »takoj predvajljivo« (lastnik: najhitrejsi zacetek najprej).
@@ -10962,14 +10961,14 @@ class GlasbaActivity : OsActivity() {
             // Naloga 130: z aktivno debrid storitvijo gre najboljsi pripravljen torrent pred neposrednimi povezavami.
             val k = DebridPravila.samodejniTorrent(aktivniDebrid(), hashiTorrentov, predpomnjeni)
             if (k >= 0) {
-                android.util.Log.i("SafeerOsMedia", "tokovi: pripravljen pri debridu ${predpomnjeni.size} od ${torrentiPoKakovosti.size} torrentov; " +
+                android.util.Log.i("SafeerOsMediji", "tokovi: pripravljen pri debridu ${predpomnjeni.size} od ${torrentiPoKakovosti.size} torrentov; " +
                     "izbran=${TokIzbira.opisi(opis(torrentiPoKakovosti[k]))}")
                 odpri(torrentiPoKakovosti[k]); return true
             }
             // Povezave, ki je po lastnem zapisu ze potekla, sploh ne poskusamo (streznik bi odgovoril 403 in uporabnik
             // bi cakal na naslednjo) - razen ce so take vse: ura naprave je lahko napacna, zato jih takrat vseeno poskusimo.
             val zivi = neposredni.filter { !TokIzbira.potekla(it.url, zdajS) }.ifEmpty { neposredni }
-            android.util.Log.i("SafeerOsMedia", "tokovi: neposredni=${neposredni.size} (poteklih ${neposredni.size - zivi.size}), torrenti=${torrenti.size}, zunanji=${tokovi.size - neposredni.size - torrenti.size}; " +
+            android.util.Log.i("SafeerOsMediji", "tokovi: neposredni=${neposredni.size} (poteklih ${neposredni.size - zivi.size}), torrenti=${torrenti.size}, zunanji=${tokovi.size - neposredni.size - torrenti.size}; " +
                 "izbran=${(zivi.firstOrNull() ?: torrenti.firstOrNull())?.let { TokIzbira.opisi(opis(it)) }}, " +
                 "zvok=${(zivi.firstOrNull() ?: torrenti.firstOrNull())?.let { TokIzbira.jezikZvoka(opis(it)) }}/$zelen, rok=${zivi.firstOrNull()?.let { TokIzbira.veljaSe(it.url, zdajS) }}")
             if (zivi.isNotEmpty()) { odpri(zivi.first(), zivi.drop(1).take(REZERVNIH_TOKOV)); return true }
@@ -10980,14 +10979,14 @@ class GlasbaActivity : OsActivity() {
         if (samoP2p) {
             val t = torrentiPoKakovosti.firstOrNull()
             if (t == null) {
-                android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo P2P - ni torrenta, ki gre na to napravo")
+                android.util.Log.i("SafeerOsMediji", "tokovi: diagnostika samo P2P - ni torrenta, ki gre na to napravo")
                 // Pregled Grok 32, G2: prej tih konec (samo dnevnik) - viden razlog in klicatelj izve za neuspeh (epizoda: nazaj
                 // na seznam epizod). Druge poti ni (diagnostika), kartica pa ne izgine (oznaciNiNaVoljo se ne klice).
                 runOnUiThread { Toast.makeText(this, R.string.os_p2p_diagnostika_ni_torrenta, Toast.LENGTH_LONG).show() }
                 obNeuspehu?.invoke()
                 return
             }
-            android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo P2P; izbran=${TokIzbira.opisi(opis(t))}, sejalcev=${TokIzbira.sejalci(opis(t))}")
+            android.util.Log.i("SafeerOsMediji", "tokovi: diagnostika samo P2P; izbran=${TokIzbira.opisi(opis(t))}, sejalcev=${TokIzbira.sejalci(opis(t))}")
             opozoriPredRojem(t.url) { torrentBrezRacunalnika(sk, naslov, t.url, t.datoteka,
                 (TokIzbira.opisi(t.ime + " " + t.opis).gb * 1024.0 * 1024.0 * 1024.0).toLong(), "", samoNaprava = TA_NAPRAVA) }
             return
@@ -11005,7 +11004,7 @@ class GlasbaActivity : OsActivity() {
                 return
             }
             pripravljeno.usenet?.takeIf { !samoWebtor }?.let { (t, cdn, ponudnik) ->
-                android.util.Log.i("SafeerOsMedia", "tokovi: ${UsenetLastniPravila.dnevnikPripravljenega(ponudnik)}; izbran=${TokIzbira.opisi(opis(t))}")
+                android.util.Log.i("SafeerOsMediji", "tokovi: ${UsenetLastniPravila.dnevnikPripravljenega(ponudnik)}; izbran=${TokIzbira.opisi(opis(t))}")
                 Toast.makeText(this, napisPredvajaPrek(ponudnik), Toast.LENGTH_SHORT).show()
                 odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap()))
                 // Ce se Usenet ne zacne (TV 28. 10. 2026: izdaja, ki je predvajalnik ne prebere), gre izbira naprej brez Useneta.
@@ -11019,17 +11018,17 @@ class GlasbaActivity : OsActivity() {
                 val k = DebridPravila.samodejniTorrent(aktivniDebrid(), hashiTorrentov, predpomnjeni)
                 // Meritev 25. 10. 2026 (Webtor rezerva): v dnevniku mora biti, po kateri poti je slo takoj predvajanje.
                 if (k >= 0) {
-                    android.util.Log.i("SafeerOsMedia", "tokovi: takoj pripravljen pri debridu ${predpomnjeni.size} od ${torrentiPoKakovosti.size}; " +
+                    android.util.Log.i("SafeerOsMediji", "tokovi: takoj pripravljen pri debridu ${predpomnjeni.size} od ${torrentiPoKakovosti.size}; " +
                         "izbran=${TokIzbira.opisi(opis(torrentiPoKakovosti[k]))}")
                     odpri(torrentiPoKakovosti[k]); return true
                 }
                 val zivi = neposredni.filter { !TokIzbira.potekla(it.url, zdajS) }
                 if (zivi.isNotEmpty()) {
-                    android.util.Log.i("SafeerOsMedia", "tokovi: takoj neposredni ${zivi.size}, pripravljenih pri debridu 0 od ${torrentiPoKakovosti.size}; " +
+                    android.util.Log.i("SafeerOsMediji", "tokovi: takoj neposredni ${zivi.size}, pripravljenih pri debridu 0 od ${torrentiPoKakovosti.size}; " +
                         "izbran=${TokIzbira.opisi(opis(zivi.first()))}")
                     odpri(zivi.first(), zivi.drop(1).take(REZERVNIH_TOKOV)); return true
                 }
-                android.util.Log.i("SafeerOsMedia", "tokovi: takoj nic (pripravljenih pri debridu 0 od ${torrentiPoKakovosti.size}, neposrednih 0)")
+                android.util.Log.i("SafeerOsMediji", "tokovi: takoj nic (pripravljenih pri debridu 0 od ${torrentiPoKakovosti.size}, neposrednih 0)")
                 return false
             }
             var usenetZacetek: Long? = null
@@ -11039,7 +11038,7 @@ class GlasbaActivity : OsActivity() {
             fun naKonec() {
                 // Diagnostika samo Webtor (pregled 26, T3): brez TorBoxa s cakanjem in brez torrenta na napravi.
                 if (samoWebtor) {
-                    android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Webtor - Webtor ni predvajal")
+                    android.util.Log.i("SafeerOsMediji", "tokovi: diagnostika samo Webtor - Webtor ni predvajal")
                     DiagnostikaPredvajanja.neuspeh(this@GlasbaActivity, naslov, DiagnostikaPredvajanja.vrsta(sk), "samo Webtor: ni predvajal")
                     return
                 }
@@ -11049,7 +11048,7 @@ class GlasbaActivity : OsActivity() {
                 if (samoUsenet && !preselNaDebrid) {
                     // Pregled Grok 31, H2: viden konec (prej samo dnevnik) in v dnevniku, koliko izdaj je bilo poskusenih - meritev
                     // ne sme pokazati »Usenet ne dela«, ce izdaje do meje samodejne izbire sploh ni bilo.
-                    android.util.Log.i("SafeerOsMedia", "tokovi: diagnostika samo Usenet - Usenet ni predvajal (pripravljen pri TorBoxu: ne, " +
+                    android.util.Log.i("SafeerOsMediji", "tokovi: diagnostika samo Usenet - Usenet ni predvajal (pripravljen pri TorBoxu: ne, " +
                         "s cakanjem poskusenih $usenetPoskusov od ${usenet.size}" +
                         (if (poskusi.isEmpty()) " - nobena izdaja do ${UsenetPravila.NAJVEC_GB_SAMODEJNO.toInt()} GB" else "") + ")")
                     DiagnostikaPredvajanja.neuspeh(this@GlasbaActivity, naslov, DiagnostikaPredvajanja.vrsta(sk),
@@ -11060,7 +11059,7 @@ class GlasbaActivity : OsActivity() {
                 }
                 if (preselNaDebrid) {
                     debridRezerva = DebridPravila.rezervaPoUsenetu(Debrid.zKljucem(this@GlasbaActivity))
-                    android.util.Log.i("SafeerOsMedia", "tokovi: Usenet ni uspel - rezerva $debridRezerva")
+                    android.util.Log.i("SafeerOsMediji", "tokovi: Usenet ni uspel - rezerva $debridRezerva")
                     DiagnostikaPredvajanja.poskus(this@GlasbaActivity, "usenet", null, "ni uspel, naprej na debrid $debridRezerva")
                     Toast.makeText(this, R.string.os_usenet_prehod_debrid, Toast.LENGTH_SHORT).show()
                     izberiTok(sk, naslov, vsiTokovi, rocno, pripravljeno, brezOmejitveUseneta = true, obNeuspehu = obNeuspehu)
@@ -11079,7 +11078,7 @@ class GlasbaActivity : OsActivity() {
                 val kandidati = (if (samoTakoj) webtorTakoj else webtor).filter { it.url !in poskuseniWebtor }.take(WebtorPravila.VZPOREDNO)
                 if (kandidati.isEmpty() || webtorRok() <= 0L) { potem(); return }
                 for ((i, w) in kandidati.withIndex())
-                    android.util.Log.i("SafeerOsMedia", "tokovi: Webtor${if (samoTakoj) " takoj" else ""} ${i + 1}/${kandidati.size}; izbran=${TokIzbira.opisi(opis(w))}, " +
+                    android.util.Log.i("SafeerOsMediji", "tokovi: Webtor${if (samoTakoj) " takoj" else ""} ${i + 1}/${kandidati.size}; izbran=${TokIzbira.opisi(opis(w))}, " +
                         "vrsta=${w.oznakaVira}, datoteka=${datotekaOd(w)}, h=${w.hash.take(10)}, idx=${w.datoteka}, sejalcev=${TokIzbira.sejalci(opis(w))}")
                 odpriWebtor(kandidati) {
                     // CodeRabbit 5. 11. 2026: zapisan vsak kandidat kroga, ne samo prvi (diagnostika pove vse preizkusene gostitelje).
@@ -11105,7 +11104,7 @@ class GlasbaActivity : OsActivity() {
                 }
                 usenetPoskusov++
                 val t = poskusi[iNaslednji]
-                android.util.Log.i("SafeerOsMedia", "tokovi: Usenet s prenosom ${iNaslednji + 1}/${poskusi.size} od ${usenet.size}; izbran=${TokIzbira.opisi(opis(t))}")
+                android.util.Log.i("SafeerOsMediji", "tokovi: Usenet s prenosom ${iNaslednji + 1}/${poskusi.size} od ${usenet.size}; izbran=${TokIzbira.opisi(opis(t))}")
                 prekDebrida(t.url, t.datoteka, { cdn -> odpri(t.copy(vrsta = "url", url = cdn, glave = emptyMap())) }, null,
                     samoTakoj = false, usenetIme = t.opis.substringBefore('\n'), obNeuspehu = { napaka ->
                         DiagnostikaPredvajanja.poskus(this@GlasbaActivity, "usenet", t.url, napaka.ifBlank { "ni uspel" })
@@ -11186,11 +11185,11 @@ class GlasbaActivity : OsActivity() {
                 catch (e: Exception) { Webtor.Krog(-1, kandidati.map { null }, kandidati.map { null }, kandidati.map { null }) }
             val trajanjeKroga = android.os.SystemClock.elapsedRealtime() - zacetekKroga
             val steje = krog.izidi.any { it == null || WebtorPravila.stejeKotPoskus(it, trajanjeKroga) }
-            for (i in kandidati.indices) android.util.Log.i("SafeerOsMedia", "tokovi: Webtor sonda ${i + 1}/${kandidati.size} " +
+            for (i in kandidati.indices) android.util.Log.i("SafeerOsMediji", "tokovi: Webtor sonda ${i + 1}/${kandidati.size} " +
                 (krog.sonde[i]?.let { Webtor.opis(it, krog.pregledi[i]) } ?: "brez odgovora") + ", ${opisi.getOrElse(i) { "" }} -> ${krog.izidi[i] ?: "-"}")
             if (Thread.currentThread().isInterrupted || rodDebrida.get() != rod) return@Runnable
             val w = kandidati.getOrNull(krog.izbran)
-            android.util.Log.i("SafeerOsMedia", "tokovi: Webtor krog -> ${if (w != null) "PREDVAJAJ ${krog.izbran + 1}" else "naslednji vir"}")
+            android.util.Log.i("SafeerOsMediji", "tokovi: Webtor krog -> ${if (w != null) "PREDVAJAJ ${krog.izbran + 1}" else "naslednji vir"}")
             // Predvajalnik dobi koncni naslov, ki ga je ta sonda preverila ([Webtor.zaPredvajalnik], pregled U4).
             if (w != null) krog.sonde[krog.izbran]?.let { Webtor.zapomni(w.url, it) }
             runOnUiThread {
@@ -11203,7 +11202,7 @@ class GlasbaActivity : OsActivity() {
                         predvajaj(w)
                     } else {
                         if (!steje) {
-                            android.util.Log.i("SafeerOsMedia", "tokovi: Webtor krog hitro zavrnjen po vsebini ($trajanjeKroga ms) - ni poskus")
+                            android.util.Log.i("SafeerOsMediji", "tokovi: Webtor krog hitro zavrnjen po vsebini ($trajanjeKroga ms) - ni poskus")
                             neStejeKotPoskus()
                         }
                         naprej()
@@ -11275,7 +11274,7 @@ class GlasbaActivity : OsActivity() {
                 if (usenetIme != null) Usenet.tok(applicationContext, magnet, usenetIme, datoteka, samoTakoj ?: Debrid.samoTakoj(applicationContext), napredek)
                 else Debrid.tok(applicationContext, magnet, datoteka, samoTakoj, napredek) { p -> ime = DebridPravila.ime(p) }
             } catch (e: Exception) {
-                android.util.Log.w("SafeerOsMedia", "debrid: ${e.javaClass.simpleName}")
+                android.util.Log.w("SafeerOsMediji", "debrid: ${e.javaClass.simpleName}")
                 TorBox.Izid(napaka = TorBoxPravila.NAPAKA_STREZNIK)
             }
             // Preklicana ali zamenjana zahteva ne naredi nicesar vec (ne odpre filma cez tistega, ki ga uporabnik gleda).
@@ -11290,7 +11289,7 @@ class GlasbaActivity : OsActivity() {
                     naprej(url); return@obdelaj
                 }
                 if (obNeuspehu != null) {
-                    android.util.Log.i("SafeerOsMedia", "tokovi: ${if (usenetIme != null) "Usenet" else "debrid"} ni uspel (${izid.napaka}) - naprej samodejno")
+                    android.util.Log.i("SafeerOsMediji", "tokovi: ${if (usenetIme != null) "Usenet" else "debrid"} ni uspel (${izid.napaka}) - naprej samodejno")
                     obNeuspehu(izid.napaka); return@obdelaj
                 }
                 PredvajanjeActivity.zapriZNapako()
@@ -12092,7 +12091,7 @@ class GlasbaActivity : OsActivity() {
         val drugi = if (samoNaprava.isBlank() || samoNaprava == TA_NAPRAVA) napraveZaTorrent() else napraveZaTorrent().filter { it.id == samoNaprava }
         fun konec(koda: String) {
             if (isFinishing) return
-            android.util.Log.i("SafeerOsMedia", "torrent ni stekel: $koda")
+            android.util.Log.i("SafeerOsMediji", "torrent ni stekel: $koda")
             Toast.makeText(this, when (koda) {
                 "ni_prostora" -> getString(R.string.os_stremio_ni_prostora_nikjer)
                 "preobremenjen", "malo_pomnilnika", "baterija", "varcevanje", "pregreto", "predvaja", "sorodnik" -> getString(R.string.os_stremio_naprave_zasedene)
