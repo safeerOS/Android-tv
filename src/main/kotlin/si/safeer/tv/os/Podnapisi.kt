@@ -263,7 +263,7 @@ object Podnapisi {
         try {
             val c1 = java.net.URL(u).openConnection() as java.net.HttpURLConnection
             c1.connectTimeout = 5000
-            c1.readTimeout = 5000
+            c1.connectTimeout = 5000; c1.readTimeout = 5000
             c1.instanceFollowRedirects = false // Ne sledimo preusmeritvam slepo, predvajalnik uporablja ze razresen URL
             glave.forEach { (k, v) -> c1.setRequestProperty(k, v) }
             c1.setRequestProperty("Range", "bytes=0-65535")
@@ -298,7 +298,7 @@ object Podnapisi {
 
             val c2 = java.net.URL(u).openConnection() as java.net.HttpURLConnection
             c2.connectTimeout = 5000
-            c2.readTimeout = 5000
+            c2.connectTimeout = 5000; c2.readTimeout = 5000
             c2.instanceFollowRedirects = false
             glave.forEach { (k, v) -> c2.setRequestProperty(k, v) }
             c2.setRequestProperty("Range", "bytes=${velikost - 65536}-${velikost - 1}")
