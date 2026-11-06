@@ -20,6 +20,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/stubs/BitmapFactory.kt" \
     "$TEST_DIR/stubs/JSONObject.kt" \
     "$TEST_DIR/stubs/Sosed.kt" \
+    "$TEST_DIR/stubs/Log.kt" \
     "$SRC/si/safeer/tv/os/OsPravila.kt" \
     "$SRC/si/safeer/tv/os/GalerijaPravila.kt" \
     "$SRC/si/safeer/tv/os/AplikacijePravila.kt" \

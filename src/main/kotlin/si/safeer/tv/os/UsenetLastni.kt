@@ -92,9 +92,12 @@ object UsenetLastni {
             // Lastnik 28. 10. 2026: clanki prek predpomnilnika na USB (ce je v uporabi).
             val telo = UsenetUsb.ovij(c, nntp::body)
             val (vir, _) = UsenetBralnik.pripravi(razclenjen, telo)
-            val profil = UsenetBralnik.profilVidea(UsenetBralnik.PROFILI.getValue(if (Naprava.jeTelevizor(c)) "tv" else "telefon"))
+            val naUsb = UsbPredpomnilnik.mapa(c, PredpomnilnikPravila.USENET) != null
+            val rt = Runtime.getRuntime()
+            val prostiHeap = rt.maxMemory() - rt.totalMemory() + rt.freeMemory()
+            val profil = UsenetBralnik.profilVidea(UsenetBralnik.PROFILI.getValue(if (Naprava.jeTelevizor(c)) "tv" else "telefon"), naUsb, vir.velikost, null, prostiHeap)
             val s = nova
-            val b = UsenetBralnik.Bralnik(telo, vir, profil)
+            val b = UsenetBralnik.Bralnik(telo, vir, profil, naUsb)
             val streznik = UsenetStreznik(b, obKoncu = { koncaj(s) })
             s.streznik = streznik
             s.tovarnaMedia3 = UsenetMedia3Vir.Tovarna(b) { streznik.dejavnost() }

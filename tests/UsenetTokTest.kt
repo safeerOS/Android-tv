@@ -491,7 +491,7 @@ private fun albumOkno() {
 private fun bralnikPreizkusi() {
     println("bralnik")
     enako("okno po skoku", MIB, UsenetBralnik.oknoVnaprej(0, MIB, 16 * MIB))
-    enako("okno raste", 6 * MIB, UsenetBralnik.oknoVnaprej(3 * MIB, MIB, 16 * MIB))
+    enako("okno raste", 8 * MIB, UsenetBralnik.oknoVnaprej(3 * MIB, MIB, 16 * MIB))
     enako("okno meja", 16 * MIB, UsenetBralnik.oknoVnaprej(100 * MIB, MIB, 16 * MIB))
 
     val film = Leno(9 * MIB + 12345, 3)

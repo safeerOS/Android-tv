@@ -33,8 +33,6 @@ object UsenetUsb {
         java.util.concurrent.ThreadPoolExecutor.DiscardPolicy()
     )
 
-    val zadnjiVir = ThreadLocal<String>()
-
     fun ovij(c: Context, telo: (String, Long) -> ByteArray): (String, Long) -> ByteArray {
         val app = c.applicationContext
         return { id, bajtov ->
@@ -44,8 +42,8 @@ object UsenetUsb {
                     File(File(m, ime.take(2)), ime)
                 }
             } catch (_: Throwable) { null }
-            beri(datoteka)?.also { zadnjiVir.set("usb") } ?: telo(id, bajtov).also { bajti ->
-                zadnjiVir.set("omrezje")
+            beri(datoteka)?.also { UsenetBralnik.zadnjiVir.set("usb") } ?: telo(id, bajtov).also { bajti ->
+                UsenetBralnik.zadnjiVir.set("omrezje")
                 if (datoteka != null && bajti.isNotEmpty() && bajti.size <= PredpomnilnikPravila.NAJVEC_SEGMENT) {
                     try {
                         pisalec.execute { zapisi(app, datoteka, bajti) }

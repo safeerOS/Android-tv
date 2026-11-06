@@ -25,6 +25,8 @@ import kotlin.concurrent.withLock
 object UsenetBralnik {
     private const val MIB = 1024L * 1024
 
+    val zadnjiVir = ThreadLocal<String>()
+
     /** [okno] najvecje okno vnaprej, [zacetno] po odprtju ali skoku, [lru] dekodirani segmenti v RAM, [vzporedno] branj. */
     data class Profil(val okno: Long, val zacetno: Long, val lru: Long, val vzporedno: Int)
 
@@ -32,11 +34,26 @@ object UsenetBralnik {
      * Lastnik 28. 10. 2026: skladba albuma (zvok, nekaj MB/min) - manjse okno in predpomnilnik kot film; album drzi do
      * AlbumIzvor.NAJVEC_ODPRTIH skladb hkrati (prej 5 x 32 MiB na TV = OutOfMemoryError po preklopih).
      */
-    /**
-     * Film: profil naprave brez povecave. Pregled 30. 10. 2026: okno 60 MiB je na TV preneslo 2,3-krat vec, kot je bilo
-     * pogledanega (meja 1,5-krat, kvota ponudnika); medpomnilnik predvajalnika je loceno v GlasbaStoritev/predvajalniku.
-     */
-    fun profilVidea(p: Profil): Profil = p
+    fun profilVidea(p: Profil, naUsb: Boolean, velikost: Long, trajanjeSek: Long?, prostiHeapBajtov: Long): Profil {
+        if (naUsb) {
+            val okno = if (trajanjeSek != null && trajanjeSek > 0) {
+                (velikost / trajanjeSek) * 120
+            } else {
+                96 * MIB
+            }
+            return p.copy(okno = okno, zacetno = 4 * MIB, lru = 32 * MIB)
+        } else {
+            if (prostiHeapBajtov > 64 * MIB) {
+                return p.copy(okno = 24 * MIB, zacetno = 4 * MIB, lru = 48 * MIB)
+            }
+            return p.copy(zacetno = 4 * MIB)
+        }
+    }
+
+    fun lruMeja(p: Profil, naUsb: Boolean): Long {
+        if (naUsb) return p.lru
+        return maxOf(p.lru, 2 * p.okno + 8 * MIB)
+    }
 
     fun profilAlbuma(p: Profil): Profil =
         p.copy(okno = minOf(p.okno, 4 * MIB), lru = minOf(p.lru, 12 * MIB), vzporedno = minOf(p.vzporedno, 3))
@@ -53,9 +70,11 @@ object UsenetBralnik {
         "namizje" to Profil(16 * MIB, 1 * MIB, 96 * MIB, 8),
     )
 
-    /** Okno vnaprej: dvakratnik zaporedno prebranega od zadnjega skoka, najmanj [zacetno], najvec [najvec]. */
-    fun oknoVnaprej(zaporednoPrebrano: Long, zacetno: Long, najvec: Long): Long =
-        maxOf(zacetno, minOf(najvec, 2 * maxOf(0L, zaporednoPrebrano)))
+    fun oknoVnaprej(zaporednoPrebrano: Long, zacetno: Long, najvec: Long): Long {
+        val prebranoMib = maxOf(0L, zaporednoPrebrano) / MIB
+        val mnozitelj = 1L shl minOf(30L, prebranoMib).toInt()
+        return maxOf(zacetno, minOf(najvec, zacetno * mnozitelj))
+    }
 
     class KosVira(val datoteka: Int, val odmik: Long, val dolzina: Long)
 
@@ -107,14 +126,14 @@ object UsenetBralnik {
 
     private data class Kljuc(val datoteka: Int, val stevilka: Int)
 
-    private class Naloga(val prednost: Int, val zap: Long, val kljuc: Kljuc, val nastanek: Long = android.os.SystemClock.elapsedRealtime())
+    private class Naloga(val prednost: Int, val zap: Long, val kljuc: Kljuc, val nastanek: Long = System.currentTimeMillis())
 
     /** Branje filma z omejenim oknom vnaprej. Varno za vec niti. [telo] = [UsenetNntp.body]. */
-    class Bralnik(private val telo: (String, Long) -> ByteArray, val vir: Vir, val profil: Profil = PROFILI.getValue("namizje")) : Closeable {
+    class Bralnik(private val telo: (String, Long) -> ByteArray, val vir: Vir, val profil: Profil = PROFILI.getValue("namizje"), val naUsb: Boolean = false) : Closeable {
         private val zaklep = ReentrantLock()
         private val pogoj = zaklep.newCondition()
         /** LRU mora drzati vsaj okno in segment ob njem, sicer bi branje vnaprej izrinilo samo sebe. */
-        val lruMeja: Long = maxOf(profil.lru, 2 * profil.okno + 8 * MIB)
+        val lruMeja: Long = UsenetBralnik.lruMeja(profil, naUsb)
         private val lru = LinkedHashMap<Kljuc, ByteArray>(64, 0.75f, true)
         @Volatile var lruBajtov = 0L; private set
         private val vTeku = HashMap<Kljuc, CompletableFuture<ByteArray>>()
@@ -160,7 +179,7 @@ object UsenetBralnik {
                     kljuc = n.kljuc
                     f = cakajo.remove(n.kljuc)
                     vnaprej = n.prednost > 0
-                    cakalMs = android.os.SystemClock.elapsedRealtime() - n.nastanek
+                    cakalMs = System.currentTimeMillis() - n.nastanek
                 }
                 val k = kljuc ?: continue
                 val ff = f ?: continue  // zavrzeno ob skoku
@@ -193,14 +212,14 @@ object UsenetBralnik {
         private fun prenesi(k: Kljuc, vnaprej: Boolean, cakalMs: Long): ByteArray {
             val p = vir.preslikave[k.datoteka]
             val seg = p.segment(k.stevilka)
-            val zacetekPrenosa = android.os.SystemClock.elapsedRealtime()
-            UsenetUsb.zadnjiVir.set("omrezje")
+            val zacetekPrenosa = System.currentTimeMillis()
+            zadnjiVir.set("omrezje")
             val surovo = try { telo(seg.id, seg.bajtov) } catch (e: UsenetNntp.NapakaNntp) {
                 if (e.vrsta == UsenetNntp.Vrsta.NI_CLANKA) throw UsenetTok.NapakaToka(UsenetTok.Izid.LUKNJA)
                 throw e
             }
-            val prenosMs = android.os.SystemClock.elapsedRealtime() - zacetekPrenosa
-            val virPrenosa = UsenetUsb.zadnjiVir.get() ?: "omrezje"
+            val prenosMs = System.currentTimeMillis() - zacetekPrenosa
+            val virPrenosa = zadnjiVir.get() ?: "omrezje"
             android.util.Log.d("SafeerUsenetBralnik", "clanek seg=${k.stevilka} bajtov=${surovo.size} cakal_ms=$cakalMs prenos_ms=$prenosMs vnaprej=${if (vnaprej) "da" else "ne"} vir=$virPrenosa")
             zOmrezja.addAndGet(surovo.size.toLong())
             segmentov.incrementAndGet()

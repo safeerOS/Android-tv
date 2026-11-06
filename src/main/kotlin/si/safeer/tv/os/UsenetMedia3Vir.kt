@@ -56,9 +56,9 @@ class UsenetMedia3Vir(private val bralnik: UsenetBralnik.Bralnik, private val ob
 
     override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
         if (length == 0) return 0
-        val zacetek = android.os.SystemClock.elapsedRealtime()
+        val zacetek = System.currentTimeMillis()
         val n = branje.read(buffer, offset, length)
-        val cas = android.os.SystemClock.elapsedRealtime() - zacetek
+        val cas = System.currentTimeMillis() - zacetek
         if (cas > 500) {
             android.util.Log.d("SafeerUsenetBralnik", "Media3Vir read cakal $cas ms na odmiku $pozicija")
         }
