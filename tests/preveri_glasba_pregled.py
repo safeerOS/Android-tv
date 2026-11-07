@@ -101,5 +101,12 @@ preveri("IzbirniVir: zaprta seja brez poti na HTTP", "UsenetLastniPravila.sejaZa
 dm = (OS / "DomovActivity.kt").read_text(encoding="utf-8")
 preveri("Domov: DOL z dna vsebine na mini predvajalnik", "MiniPredvajalnikPravila.dolNaDock(imaNaslednjega, true, false)" in dm)
 preveri("Domov: GOR z mini predvajalnika nazaj na prejsnji pogled", "zadnjiFokusPredDockom?.takeIf" in dm)
+# Tocka 20/21/22 (7. 11. 2026): skrita kartica ni fokusabilna; DOL (drzanje) ne skoci na pilulo; besedilo »Zdaj predvaja«.
+g2 = (OS / "GlasbaActivity.kt").read_text(encoding="utf-8")
+preveri("skrita kartica: skrijKartico() odstrani fokusabilnost", "v.isFocusable = false" in g2.split("private fun skrijKartico(v: View) {", 1)[1].split("\n    }\n", 1)[0])
+preveri("skrite kartice: nobena ne ostane samo GONE (3 mesta uporabljajo skrijKartico)", g2.count("skrijKartico(") >= 4)
+preveri("drzanje DOL: brez pilule v verigi", "pilulaZdaj?.takeIf { it.isShown } ?: pPredvajaj" not in g2)
+sl = (pathlib.Path(__file__).resolve().parent.parent / "res/values-sl/os_strings.xml").read_text(encoding="utf-8")
+preveri("besedilo: Zdaj predvaja (sl)", ">Zdaj predvaja</string>" in sl and ">Zdaj igra<" not in sl)
 print("VSE OK" if napak == 0 else f"NAPAK: {napak}")
 sys.exit(1 if napak else 0)

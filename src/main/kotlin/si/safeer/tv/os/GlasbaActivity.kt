@@ -6000,7 +6000,7 @@ class GlasbaActivity : OsActivity() {
                 var skritih = 0
                 for (k in kartice.asReversed()) {
                     if (skupaj + w(vec) <= sirina) break
-                    skupaj -= w(k); k.visibility = View.GONE; skritih++
+                    skupaj -= w(k); skrijKartico(k); skritih++
                 }
                 (vec.getChildAt(1) as LinearLayout).getChildAt(1).let { (it as TextView).text = "+$skritih" }
             }
@@ -6090,7 +6090,7 @@ class GlasbaActivity : OsActivity() {
             return true
         }
         if (dogodek.action == KeyEvent.ACTION_DOWN && dogodek.keyCode == KeyEvent.KEYCODE_DPAD_DOWN && dogodek.repeatCount >= 1) {
-            val p = if (vrstica.visibility == View.VISIBLE) zdajGumb ?: vrstica else mcKarticaPredvajaj?.takeIf { it.isShown } ?: pilulaZdaj?.takeIf { it.isShown } ?: pPredvajaj
+            val p = if (vrstica.visibility == View.VISIBLE) zdajGumb ?: vrstica else mcKarticaPredvajaj?.takeIf { it.isShown } ?: pPredvajaj
             if (p != null && p.isShown) {
                 p.requestFocus()
                 pogoltniGor = KeyEvent.KEYCODE_DPAD_DOWN
@@ -9780,6 +9780,17 @@ class GlasbaActivity : OsActivity() {
         } catch (_: java.util.concurrent.RejectedExecutionException) { }
     }
 
+    /**
+     * Tocka 20 (TV 7. 11. 2026 12:43, 6x »fokus zunaj vidnega: 162x306, viden=false«): skrita kartica ohrani velikost in
+     * fokusabilnost, zato jo daljinec se lahko izbere. Skrita kartica ni fokusabilna (in izgubi fokus).
+     */
+    private fun skrijKartico(v: View) {
+        v.visibility = View.GONE
+        v.isFocusable = false
+        v.isFocusableInTouchMode = false
+        if (v.hasFocus()) v.clearFocus()
+    }
+
     /** Vsebine se ne da predvajati: kartico umaknemo z zaslona (mreza ostane, kjer je bila). */
     private fun oznaciNiNaVoljo(sk: Jamendo.Skladba) {
         val k = kljucRazpolozljivosti(sk) ?: return
@@ -9788,7 +9799,7 @@ class GlasbaActivity : OsActivity() {
         val o = odprtKatalog
         // Mreza se uredi sama; na policah in med zadetki iskanja izgine kartica, ki jo je uporabnik pravkar izbral.
         if (o != null) osveziMrezo(o) else zadnjaKartica?.get()?.let { v ->
-            if (v.isAttachedToWindow) { val naslednja = v.focusSearch(View.FOCUS_RIGHT); v.visibility = View.GONE; if (jeTv()) naslednja?.requestFocus() }
+            if (v.isAttachedToWindow) { val naslednja = v.focusSearch(View.FOCUS_RIGHT); skrijKartico(v); if (jeTv()) naslednja?.requestFocus() }
         }
     }
 
@@ -9812,7 +9823,7 @@ class GlasbaActivity : OsActivity() {
         val v = zadnjaKartica?.get() ?: return
         if (!v.isAttachedToWindow || v.visibility != View.VISIBLE) return
         val naslednja = v.focusSearch(View.FOCUS_RIGHT)?.takeIf { it !== v } ?: v.focusSearch(View.FOCUS_LEFT)?.takeIf { it !== v }
-        v.visibility = View.GONE
+        skrijKartico(v)
         if (jeTv()) naslednja?.requestFocus()
     }
     private val obMrtvemKanalu: (String) -> Unit = { glavna.post { if (!isFinishing) umakniMrtvega() } }
@@ -12699,7 +12710,7 @@ class GlasbaActivity : OsActivity() {
             if (f != null && f.performLongClick()) return true
         }
         if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-            val p = if (vrstica.visibility == View.VISIBLE) zdajGumb ?: vrstica else mcKarticaPredvajaj?.takeIf { it.isShown } ?: pilulaZdaj?.takeIf { it.isShown } ?: pPredvajaj
+            val p = if (vrstica.visibility == View.VISIBLE) zdajGumb ?: vrstica else mcKarticaPredvajaj?.takeIf { it.isShown } ?: pPredvajaj
             if (p != null && p.isShown) {
                 p.requestFocus()
                 return true
