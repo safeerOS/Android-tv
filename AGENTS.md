@@ -46,6 +46,11 @@ Vsako od spodnjih pravil izhaja iz napake, ki je ze bila narejena.
   ni »ni na voljo«.
 - Vdelani mehki podnapisi v jeziku uporabnika imajo prednost pred zunanjimi (OpenSubtitles).
 - Mreza, ne vodoravne police; skrita kartica ne sme biti izbirna z daljincem.
+- Iskanje (lastnik 7. 11. 2026): novo iskanje vedno zacne s praznim poljem in odprto tipkovnico (OK na polju z zadetki,
+  lupa, vrnitev v Iskanje); zadnje iskanje ostane kot predlog; OK isce samo spremenjeno besedilo; tipkovnica ne sme biti
+  odvisna od sistemske (lastna mreza crk s C S Z); iskanje brez razlike velikih crk in sumnikov.
+- Zgledi za Medijski center (samo zamisli, preverjeno v kodi, kaj ze imamo): basswaves/kinema (MIT, Dom, iskanje) in
+  lastnikov prvi prototip StreamNexus HD (sistemska vrsta Android TV, slovenski opisi) - vgradnih streznikov ne prevzemamo.
 
 ## Knjiznice (izmerjeno 6. 11. 2026)
 - Koda, ki jo knjiznica klice sele med izvajanjem (ExoPlayer LoadControl, Renderer, MediaSource), mora preglasiti podpise,
