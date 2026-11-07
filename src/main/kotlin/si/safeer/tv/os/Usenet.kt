@@ -347,6 +347,12 @@ object Usenet {
     fun isci(c: Context, id: String, rokMs: Int = UsenetPravila.ISKANJE_ROK_MS): List<Stremio.Tok> {
         val ix = zaUporabo(c) ?: return emptyList()
         val odtisIskanja = odtis(ix.osnova, ix.kljuc)
+        // Del A (lastnik 7. 11. 2026 03:51): klik ima prednost pred preverbami filtra v ozadju - te za minuto pocakajo,
+        // iskanje pa dobi rezervirano mesto v istem omejevalniku (prej 4x »ni odgovora (meja)«, ceprav film ima 40 izdaj).
+        UsenetFilter.prednostKlika()
+        // Rezervirano mesto: ce je indeksator ze v premoru, klik vseeno poskusi (uporabnik caka); razmik samo pocakamo.
+        val cakaj = UsenetFilter.rezervirajIskanje()
+        if (cakaj != null && cakaj > 0L) try { Thread.sleep(cakaj) } catch (_: InterruptedException) { Thread.currentThread().interrupt() }
         // Lastnik 6. 11. 2026 (Abbott Elementary): predvajanje in filter vprasata indeksator z ISTO funkcijo ([iskanjeZ]) -
         // isti naslov poizvedbe (t=movie ali t=tvsearch&season&ep, imdbid), isti kljuc, rok in branje odgovora.
         val r = iskanjeZ(c, ix, id, rokMs)

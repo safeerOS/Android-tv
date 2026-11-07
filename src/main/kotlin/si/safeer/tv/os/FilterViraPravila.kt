@@ -290,17 +290,24 @@ object FilterViraPravila {
      * omejevalnik preizkusljiv. Meja ali napaka indeksatorja (429, Newznab 500/501) ustavi vse za [premorMs].
      */
     class Omejevalnik(private val naMinuto: Int, private val prviPremorMs: Long = PRVI_PREMOR_MS,
-                      private val najvecPremorMs: Long = 15 * MINUTA, private val razmikMs: Long = RAZMIK_MS) {
+                      private val najvecPremorMs: Long = 15 * MINUTA, private val razmikMs: Long = RAZMIK_MS,
+                      /** Del A: mesta na minuto, ki jih preverbe filtra ne smejo porabiti (ostanejo za klik). */
+                      private val zadrzano: Int = 0) {
         private val casi = ArrayDeque<Long>()
         private var premorDo = 0L
+        /** Del A: do kdaj preverbe filtra ne vprasajo indeksatorja (iskanje ob kliku gre naprej). */
+        private var premorPreverbDo = 0L
+
+        /** Meja preverb: rezervirana mesta ostanejo za iskanje ob kliku uporabnika. */
+        private fun mejaPreverb(): Int = (naMinuto - zadrzano).coerceAtLeast(1)
         // Lastnik 6. 11. 2026: indeksator ob sunku omeji za nekaj sekund - premor raste (5 s, 10 s, 20 s ...) do 15 min,
         // uspesen odgovor ga ponastavi (prej vedno 15 min brez obvestila: »Nalozi vec« ni naredil nic).
         private var zaporednihMej = 0
 
         @Synchronized fun smem(zdaj: Long): Boolean {
-            if (zdaj < premorDo) return false
+            if (zdaj < premorDo || zdaj < premorPreverbDo) return false
             while (casi.isNotEmpty() && zdaj - casi.first() >= MINUTA) casi.removeFirst()
-            if (casi.size >= naMinuto) return false
+            if (casi.size >= mejaPreverb()) return false
             casi.addLast(zdaj)
             return true
         }
@@ -313,9 +320,9 @@ object FilterViraPravila {
          * Rezervira mesto [razmikMs] za prejsnjo zahtevo in vrne, koliko ms naj klicatelj pocaka; null = zdaj ne (premor, kvota).
          */
         @Synchronized fun rezerviraj(zdaj: Long): Long? {
-            if (zdaj < premorDo) return null
+            if (zdaj < premorDo || zdaj < premorPreverbDo) return null
             while (casi.isNotEmpty() && zdaj - casi.first() >= MINUTA) casi.removeFirst()
-            if (casi.size >= naMinuto) return null
+            if (casi.size >= mejaPreverb()) return null
             val ob = casi.lastOrNull()?.let { maxOf(zdaj, it + razmikMs) } ?: zdaj
             casi.addLast(ob)
             return ob - zdaj
@@ -334,10 +341,27 @@ object FilterViraPravila {
 
         /** Ali bi [smem] zdaj dovolil - brez porabe (pregled 6. 11. 2026, U1: kvoto porabi samo poslana zahteva). */
         @Synchronized fun lahko(zdaj: Long): Boolean {
-            if (zdaj < premorDo) return false
+            if (zdaj < premorDo || zdaj < premorPreverbDo) return false
             while (casi.isNotEmpty() && zdaj - casi.first() >= MINUTA) casi.removeFirst()
-            return casi.size < naMinuto
+            return casi.size < mejaPreverb()
         }
+
+        /**
+         * Del A (lastnik 7. 11. 2026 03:51): iskanje ob kliku uporabnika - mesto iz CELOTNE kvote (tudi iz rezerviranih),
+         * premor preverb ga ne ustavi. Premor indeksatorja ([meja]) velja tudi zanj. null = premor ali polna minuta.
+         */
+        @Synchronized fun rezervirajUporabniku(zdaj: Long): Long? {
+            if (zdaj < premorDo) return null
+            while (casi.isNotEmpty() && zdaj - casi.first() >= MINUTA) casi.removeFirst()
+            if (casi.size >= naMinuto) return null
+            val ob = casi.lastOrNull()?.let { maxOf(zdaj, it + razmikMs) } ?: zdaj
+            casi.addLast(ob)
+            return ob - zdaj
+        }
+
+        /** Del A: preverbe filtra za [ms] ne vprasajo indeksatorja - uporabnikov klik dobi vso kvoto in mirno omrezje. */
+        @Synchronized fun ustaviPreverbe(zdaj: Long, ms: Long) { premorPreverbDo = maxOf(premorPreverbDo, zdaj + ms) }
+        @Synchronized fun premorPreverbSe(zdaj: Long): Long = (premorPreverbDo - zdaj).coerceAtLeast(0L)
 
         /**
          * Zahteva, ki gre indeksatorju ne glede na kvoto (zagon naslednje epizode - kot klik uporabnika), se steje: preverbe
@@ -369,6 +393,13 @@ object FilterViraPravila {
     const val HKRATI = 2
     const val RAZMIK_MS = 500L
     const val PRVI_PREMOR_MS = 5_000L
+    /**
+     * Del A (lastnik 7. 11. 2026 03:51, Primetime): preverbe filtra v ozadju so porabile minuto kvote NZBFinder in klik na
+     * film je dobil 4x »ni odgovora (meja)«. Zadnjih [REZERVIRANO_UPORABNIKU] mest na minuto je zato rezerviranih za iskanje
+     * ob kliku, ob zacetku predvajanja pa preverbe pocakajo [PREMOR_PREVERB_MS].
+     */
+    const val REZERVIRANO_UPORABNIKU = 5
+    const val PREMOR_PREVERB_MS = 60_000L
     /** Novih naslovov na zahtevo uporabnika (odprtje mreze, Nalozi vec): zaslon in naslednja stran. */
     const val PRORACUN_MREZE = 40
     /** Prednalaganje: ko je [PRORACUN_MREZE] porabljen, se toliko naslovov naprej v ozadju (enkrat na zahtevo). */

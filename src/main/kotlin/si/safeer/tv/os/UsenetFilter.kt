@@ -26,7 +26,8 @@ object UsenetFilter {
     /** Klici po koncu nalaganja (pripravi); kljuci, pozabljeni med nalaganjem. */
     private val poNalaganju = ArrayList<() -> Unit>()
     private val pozabljeni = ConcurrentHashMap.newKeySet<String>()
-    private val omejevalnik = F.Omejevalnik(F.NA_MINUTO)
+    // Del A (7. 11. 2026): zadnja mesta na minuto ostanejo za iskanje ob kliku uporabnika (F.REZERVIRANO_UPORABNIKU).
+    private val omejevalnik = F.Omejevalnik(F.NA_MINUTO, zadrzano = F.REZERVIRANO_UPORABNIKU)
     private val vTeku = ConcurrentHashMap.newKeySet<String>()
     private val stevec = AtomicInteger()
     /** Zahtev indeksatorju od zagona (za oceno porabe v dnevniku). */
@@ -105,9 +106,24 @@ object UsenetFilter {
             "premor=${omejevalnik.vPremoru(zdaj())}, kvota=${omejevalnik.lahko(zdaj())}"
     }
 
+    /**
+     * Del A (lastnik 7. 11. 2026 03:51): klik uporabnika ima prednost pred preverbami filtra. Ob zacetku iskanja za
+     * predvajanje preverbe za [F.PREMOR_PREVERB_MS] ne vprasajo indeksatorja - prej so porabile minuto kvote NZBFinder in
+     * klik je dobil »ni odgovora (meja)«, ceprav je izdaje imel.
+     */
+    fun prednostKlika() {
+        omejevalnik.ustaviPreverbe(zdaj(), F.PREMOR_PREVERB_MS)
+        Log.i(TAG, "prednost klika: preverbe filtra pocakajo ${F.PREMOR_PREVERB_MS / 1000} s")
+    }
+
+    /** Del A: rezervirano mesto za iskanje ob kliku; ms cakanja (razmik) ali null = indeksator je v premoru. */
+    fun rezervirajIskanje(): Long? = omejevalnik.rezervirajUporabniku(zdaj())
+
     /** Vodja 6. 11. 2026: predpriprava naslednje epizode vprasa indeksator - steje v isto kvoto kot preverba filtra. */
     fun smemPredpripravo(): Boolean = omejevalnik.smem(zdaj()).also { if (it) porabljeno.incrementAndGet() }
     fun vPremoru(): Boolean = omejevalnik.vPremoru(zdaj())
+    /** Del A: preverbe filtra zdaj pocakajo (predvajanje se je zacelo); dnevnik in preizkusi. */
+    fun preverbePocivajo(): Boolean = omejevalnik.premorPreverbSe(zdaj()) > 0L
 
     /** Pregled 6. 11. 2026 (U2): zagon naslednje epizode vprasa indeksator (izdaje lastnega pogona) - steje v isto omejitev. */
     fun zabeleziZagon() { omejevalnik.zabelezi(zdaj()); porabljeno.incrementAndGet() }

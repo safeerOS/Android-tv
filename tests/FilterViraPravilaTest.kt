@@ -258,6 +258,25 @@ fun main() {
     preveriEnako("zapozneli uspeh med premorom ne ponastavi", false, om8.lahko(t0 + 14_999))
     preveriEnako("rezervacija med premorom ne", null, om8.rezerviraj(t0 + 6_000))
 
+    // Del A (lastnik 7. 11. 2026 03:51): klik uporabnika ima prednost pred preverbami filtra. Zadnjih 5 mest na minuto je
+    // rezerviranih za iskanje ob kliku - preverbe jih ne morejo porabiti; ob zacetku predvajanja preverbe pocakajo 60 s.
+    val om9 = FilterViraPravila.Omejevalnik(10, zadrzano = 5)
+    preveriEnako("prednost: preverbe porabijo le 5 od 10 mest", listOf(true, true, true, true, true, false),
+        (0 until 6).map { om9.smem(t0 + it) })
+    preveriEnako("prednost: rezervirano mesto za klik ostane", true, om9.rezervirajUporabniku(t0 + 10) != null)
+    val om10 = FilterViraPravila.Omejevalnik(10, zadrzano = 5)
+    repeat(5) { om10.smem(t0 + it) }
+    preveriEnako("prednost: klik dobi vseh 5 rezerviranih mest", 5,
+        (0 until 5).count { om10.rezervirajUporabniku(t0 + 20 + it) != null })
+    preveriEnako("prednost: nad rezervo tudi klik ne", null, om10.rezervirajUporabniku(t0 + 30))
+    val om11 = FilterViraPravila.Omejevalnik(FilterViraPravila.NA_MINUTO, zadrzano = FilterViraPravila.REZERVIRANO_UPORABNIKU)
+    om11.ustaviPreverbe(t0, FilterViraPravila.PREMOR_PREVERB_MS)
+    preveriEnako("prednost: med predvajanjem preverbe ne vprasajo", false to false,
+        om11.smem(t0 + 1_000) to om11.lahko(t0 + 1_000))
+    preveriEnako("prednost: klik med premorom preverb dobi mesto", true, om11.rezervirajUporabniku(t0 + 1_000) != null)
+    preveriEnako("prednost: po premoru preverbe spet", true,
+        om11.smem(t0 + FilterViraPravila.PREMOR_PREVERB_MS + 1))
+
     if (napak > 0) { println("NAPAK: $napak"); kotlin.system.exitProcess(1) }
     println("Vse v redu.")
 }
