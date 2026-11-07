@@ -110,6 +110,10 @@ class IzbirniVir(private val app: Context, private val osnovni: DataSource, priv
     override fun open(dataSpec: DataSpec): Long {
         val u = dataSpec.uri.toString()
         val seja = UsenetLastni.trenutnaSeja()
+        if (UsenetLastniPravila.sejaZaprta(u, seja != null, UsenetLastni.zadnjiUrl())) {
+            android.util.Log.i("SafeerUsenetLastni", "neposredno: seja zaprta, brez poti na HTTP 127.0.0.1")
+            throw java.io.IOException("seja Usenet je zaprta")
+        }
         if (UsenetLastniPravila.neposredno(u, seja?.first) && seja?.second != null) {
             android.util.Log.i("SafeerUsenetLastni", "neposredno: open pos=${dataSpec.position} ")
             val d = seja.second!!.createDataSource()

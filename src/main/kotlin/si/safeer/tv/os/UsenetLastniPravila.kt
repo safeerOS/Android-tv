@@ -113,6 +113,13 @@ object UsenetLastniPravila {
     }
 
     /**
+     * Tocka 16b (7. 11. 2026): predvajalnik zahteva tok Useneta, seje pa ni vec (zaprta). Takrat IzbirniVir NE sme na HTTP
+     * 127.0.0.1 (streznika ni, odgovor je »tok ni dosegljiv« brez razloga) - napaka z jasnim razlogom v dnevniku.
+     */
+    fun sejaZaprta(url: String, sejaObstaja: Boolean, zadnjiUrl: String?): Boolean =
+        !sejaObstaja && (url.startsWith("safeer-usenet:") || neposredno(url, zadnjiUrl))
+
+    /**
      * URL je neposreden tok Useneta, ce ima shemo safeer-usenet: ali pa je njegov zacetek (brez poti kosa) enak
      * naslovu lokalnega streznika trenutne seje.
      */

@@ -110,6 +110,8 @@ object UsenetLastni {
             val streznik = UsenetStreznik(b, obKoncu = { koncaj(s) })
             s.streznik = streznik
             s.tovarnaMedia3 = UsenetMedia3Vir.Tovarna(b) { streznik.dejavnost() }
+            zadnjiUrlFilma = streznik.url
+            streznik.drziPredvajalnik = true   // seja je last predvajanja: pavza je ne zapre (tocka 16)
             synchronized(zaklep) { seja = s }
             Log.i(TAG, "lasten pogon: pripravljen (${vir.velikost / (1024 * 1024)} MiB)")   // brez imena, poti in zetona
             TorBox.Izid(url = streznik.url, ponudnik = UsenetLastniPravila.PONUDNIK)
@@ -225,6 +227,10 @@ object UsenetLastni {
     }
 
     private fun napaka(opis: String) = TorBox.Izid(napaka = UsenetLastniPravila.NAPAKA, opis = opis, ponudnik = UsenetLastniPravila.PONUDNIK)
+
+    /** URL zadnje seje filma (tudi zaprte): IzbirniVir z njim loci »seja zaprta« od tujega naslova. */
+    @Volatile private var zadnjiUrlFilma: String? = null
+    fun zadnjiUrl(): String? = zadnjiUrlFilma
 
     /** URL trenutnega streznika in tovarna Media3 za neposredno predvajanje (GEMINI-US-1). */
     fun trenutnaSeja(): Pair<String?, UsenetMedia3Vir.Tovarna?>? {

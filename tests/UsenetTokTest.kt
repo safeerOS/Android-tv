@@ -663,6 +663,15 @@ private fun streznik() {
             preveri("neposredno branje: streznik po 800 ms dejavnosti ni zaprt", !s.zaprt && !b3.zaprt)
         }
     }
+    // Tocka 16 (7. 11. 2026): predvajalnik drzi sejo - pavza dalj kot nedejavnost je ne zapre.
+    run {
+        val b4 = bralnik(o)
+        UsenetStreznik(b4, nedejavnostMs = 300).use { s ->
+            s.drziPredvajalnik = true
+            Thread.sleep(1500)
+            preveri("pavza: streznik, ki ga drzi predvajalnik, po 1,5 s brez branja ni zaprt", !s.zaprt && !b4.zaprt)
+        }
+    }
     UsenetStreznik(b2, nedejavnostMs = 300, obKoncu = { konec.countDown() }).use { s ->
         preveri("samodejno zapiranje ob nedejavnosti", konec.await(5, java.util.concurrent.TimeUnit.SECONDS) && s.zaprt && b2.zaprt)
     }

@@ -124,6 +124,13 @@ class UsenetStreznik(
      * nedejavnosti zaprl streznik, z njim sejo in bralnik, in film se je ustavil (napaka 2001). Neposredno branje steje kot dejavnost.
      */
     fun dejavnost() { zadnja = System.nanoTime() }
+
+    /**
+     * TV 7. 11. 2026 (tocka 16): ko predvajalnik drzi sejo (neposredno branje prek Media3), varuh nedejavnosti ne sme zapreti
+     * streznika - pavza dalj kot [nedejavnostMs] je prej zaprla sejo in film se je po pavzi ustavil (»tok ni dosegljiv«).
+     * Sejo zapre konec predvajanja (UsenetLastni.ustavi), ne ura.
+     */
+    @Volatile var drziPredvajalnik = false
     @Volatile var zaprt = false; private set
     private val vticnice = java.util.Collections.synchronizedSet(HashSet<Socket>())
 
@@ -150,7 +157,7 @@ class UsenetStreznik(
     private fun pazi() {
         while (!zaprt) {
             try { Thread.sleep(maxOf(50L, minOf(1000L, nedejavnostMs / 4))) } catch (_: InterruptedException) { return }
-            if (odprtih.get() == 0 && (System.nanoTime() - zadnja) / 1_000_000 > nedejavnostMs) close()
+            if (!drziPredvajalnik && odprtih.get() == 0 && (System.nanoTime() - zadnja) / 1_000_000 > nedejavnostMs) close()
         }
     }
 

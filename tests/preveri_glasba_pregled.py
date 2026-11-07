@@ -90,5 +90,12 @@ preveri("prednost klika: naslednja epizoda brez prednosti", "tokoviVzporedno(tip
 preveri("prednost klika: tokoviVzporedno posreduje odUporabnika", "Usenet.isci(applicationContext, i, odUporabnika = odUporabnika)" in g)
 un = (OS / "Usenet.kt").read_text(encoding="utf-8")
 preveri("prednost klika: konec iskanja sprosti premor", "finally { if (odUporabnika) UsenetFilter.prednostKlikaKonec() }" in un)
+# Tocka 16/16b (7. 11. 2026): pavza dalj kot 5 min ne sme zapreti seje; IzbirniVir ne sme na HTTP 127.0.0.1, ko seje ni.
+us = (OS / "UsenetStreznik.kt").read_text(encoding="utf-8")
+ul = (OS / "UsenetLastni.kt").read_text(encoding="utf-8")
+wv = (OS / "WebtorVir.kt").read_text(encoding="utf-8")
+preveri("seja Usenet: varuh nedejavnosti ne zapre seje, ki jo drzi predvajalnik", "!drziPredvajalnik && odprtih.get() == 0" in us)
+preveri("seja Usenet: seja filma jo oznaci kot drzano", "streznik.drziPredvajalnik = true" in ul)
+preveri("IzbirniVir: zaprta seja brez poti na HTTP", "UsenetLastniPravila.sejaZaprta(u, seja != null, UsenetLastni.zadnjiUrl())" in wv)
 print("VSE OK" if napak == 0 else f"NAPAK: {napak}")
 sys.exit(1 if napak else 0)
