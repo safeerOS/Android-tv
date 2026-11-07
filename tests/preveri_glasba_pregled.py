@@ -95,7 +95,7 @@ us = (OS / "UsenetStreznik.kt").read_text(encoding="utf-8")
 ul = (OS / "UsenetLastni.kt").read_text(encoding="utf-8")
 wv = (OS / "WebtorVir.kt").read_text(encoding="utf-8")
 preveri("seja Usenet: varuh nedejavnosti ne zapre seje, ki jo drzi predvajalnik", "!drziPredvajalnik && odprtih.get() == 0" in us)
-preveri("seja Usenet: seja filma jo oznaci kot drzano", "streznik.drziPredvajalnik = true" in ul)
+preveri("seja Usenet: predvajalnik jo ob prvem neposrednem branju oznaci kot drzano (Cast je ne drzi)", "UsenetMedia3Vir.Tovarna(b) { streznik.dejavnost(); streznik.drziPredvajalnik = true }" in ul)
 preveri("IzbirniVir: zaprta seja brez poti na HTTP", "UsenetLastniPravila.sejaZaprta(u, seja != null, UsenetLastni.zadnjiUrl())" in wv)
 # Tocka 28 (7. 11. 2026): Domov ima pot s fokusom na mini predvajalnik (dol z dna) in nazaj (gor).
 dm = (OS / "DomovActivity.kt").read_text(encoding="utf-8")

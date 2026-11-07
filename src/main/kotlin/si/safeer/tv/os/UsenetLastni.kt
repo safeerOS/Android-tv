@@ -109,9 +109,10 @@ object UsenetLastni {
             val b = UsenetBralnik.Bralnik(telo, vir, profil, naUsb)
             val streznik = UsenetStreznik(b, obKoncu = { koncaj(s) })
             s.streznik = streznik
-            s.tovarnaMedia3 = UsenetMedia3Vir.Tovarna(b) { streznik.dejavnost() }
+            // Seja postane last predvajalnika, ko ta prvic odpre neposreden vir (Cast/druga naprava bere samo prek HTTP in je ne drzi:
+            // zanjo ostane varuh nedejavnosti). Pavza potem seje ne zapre (tocka 16); zapre jo konec predvajanja.
+            s.tovarnaMedia3 = UsenetMedia3Vir.Tovarna(b) { streznik.dejavnost(); streznik.drziPredvajalnik = true }
             zadnjiUrlFilma = streznik.url
-            streznik.drziPredvajalnik = true   // seja je last predvajanja: pavza je ne zapre (tocka 16)
             synchronized(zaklep) { seja = s }
             Log.i(TAG, "lasten pogon: pripravljen (${vir.velikost / (1024 * 1024)} MiB)")   // brez imena, poti in zetona
             TorBox.Izid(url = streznik.url, ponudnik = UsenetLastniPravila.PONUDNIK)

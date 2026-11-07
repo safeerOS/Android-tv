@@ -3346,6 +3346,13 @@ class GlasbaActivity : OsActivity() {
      * nalagal razdelek), jih zapisemo na disk (7 dni, KatalogPravila) in osvezimo Dom. Kliče se iz delovne niti.
      */
     private fun naloziVseVideoSSpleta() {
+        // Brez omrezja ali ob praznih virih bi vsak obisk Doma znova spraseval vse kataloge: najvec en poskus na 10 minut.
+        val zdajMs = System.currentTimeMillis()
+        if (zdajMs - zadnjiPoskusSpletaVideo in 0 until 10 * 60_000L) {
+            android.util.Log.d("SafeerOsMediji", "Dom: police VIDEO s spleta: poskus je bil pred manj kot 10 min, preskocim")
+            return
+        }
+        zadnjiPoskusSpletaVideo = zdajMs
         val rodVirov = MedijskiViri.spremenjeni(this)
         val police = try { podatkiRazdelka(VIDEO).filter { it.skladbe.isNotEmpty() } } catch (e: Exception) {
             android.util.Log.d("SafeerOsMediji", "Dom: police VIDEO s spleta: napaka - ${e.javaClass.simpleName}")
@@ -13211,6 +13218,7 @@ class GlasbaActivity : OsActivity() {
         /** Vse kartice razdelka Video iz zadnjega nalaganja (zdruzene cez vire, neomejene) - osnova mreze Filmi | Serije. */
         @Volatile private var VSE_VIDEO: List<Jamendo.Skladba>? = null
         @Volatile private var nalagamVseVideo = false
+        @Volatile private var zadnjiPoskusSpletaVideo = 0L
         /** Nastavitve pogleda so zacasne: zivijo samo v pomnilniku procesa, nikoli v SharedPreferences. */
         private val razvrstitve = HashMap<Int, Int>()
         private val zacasnoSkritiViri = HashMap<Int, MutableSet<String>>()
