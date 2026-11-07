@@ -83,5 +83,12 @@ preveri("Usenet LoadControl: samo nove razlicice media3 (brez starih brez Player
 # Pregled US-5: preverba Doma v ozadju ne sme ustaviti filtra in vzeti rezerve klika (prednost ima samo uporabnik).
 dp = (OS / "DomPreverjanje.kt").read_text(encoding="utf-8")
 preveri("Usenet: preverba Doma isce brez prednosti klika", "Usenet.isci(app, id, ROK_OKNA_MS.toInt(), odUporabnika = false)" in dp)
+# Tocka 1/1+ (7. 11. 2026): predpriprava ob fokusu in naslednja epizoda NE dasta prednosti klika (prej je fokus 12x ustavil
+# preverbe filtra in »Nalozi vec« ni dodal plakatov); konec iskanja klika sprosti premor preverb.
+preveri("prednost klika: predpriprava ob fokusu brez prednosti", "tokoviVzporedno(tip, id, odUporabnika = false)" in g)
+preveri("prednost klika: naslednja epizoda brez prednosti", "tokoviVzporedno(tip, e.id, dodatniId = dodatni, odUporabnika = false)" in g)
+preveri("prednost klika: tokoviVzporedno posreduje odUporabnika", "Usenet.isci(applicationContext, i, odUporabnika = odUporabnika)" in g)
+un = (OS / "Usenet.kt").read_text(encoding="utf-8")
+preveri("prednost klika: konec iskanja sprosti premor", "finally { if (odUporabnika) UsenetFilter.prednostKlikaKonec() }" in un)
 print("VSE OK" if napak == 0 else f"NAPAK: {napak}")
 sys.exit(1 if napak else 0)

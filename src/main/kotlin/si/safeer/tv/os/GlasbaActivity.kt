@@ -6402,7 +6402,7 @@ class GlasbaActivity : OsActivity() {
                 kakovostId = if (Stremio.jeEnota(sk) && !vZivo) Stremio.razstavi(sk)?.third.orEmpty() else "",
                 // Televizor: ko izbira obstane na filmu iz dodatkov, tokove poiscemo vnaprej (predpomnilnik) - OK ga zazene takoj.
                 priprava = if (jeTv() && Stremio.jeEnota(sk) && !Stremio.jeSerija(sk) && !vZivo)
-                    ({ Stremio.razstavi(sk)?.let { (_, tip, id) -> zabeleziKakovost(id, tokoviVzporedno(tip, id)) }}) else null)
+                    ({ Stremio.razstavi(sk)?.let { (_, tip, id) -> zabeleziKakovost(id, tokoviVzporedno(tip, id, odUporabnika = false)) }}) else null)
             if (stalna) { zdaj!![sk.id] = urejene to kartica; zap.novih++ }
             kartica
         }.also { if (zap != null) zap.kartice = zdaj!! }     // samo kartice tega izrisa: izpadli naslovi ne ostanejo v pomnilniku
@@ -8586,7 +8586,10 @@ class GlasbaActivity : OsActivity() {
                                 /** Naloga 130: se en id iste vsebine (epizoda po IMDb), vprasan hkrati pri vseh dodatkih. */
                                 dodatniId: String? = null,
                                 /** Zunanji pregled 3. 11. 2026: osnova dodatka, ki je naslov nasel - vprasan je najprej sam. */
-                                najprej: String? = null): List<Stremio.Tok> {
+                                najprej: String? = null,
+                                /** Lastnik 7. 11. 2026 (tocka 1/1+): prednost pred preverbami filtra ima SAMO pravi klik; predpriprava ob fokusu in
+                                 *  predpriprava naslednje epizode sta v ozadju (false) - prej je fokus 12x ustavil preverbe in »Nalozi vec« ni dodal plakatov. */
+                                odUporabnika: Boolean = true): List<Stremio.Tok> {
         // Naloga 77: vnos tipa »music« z id-jem IMDb (koncert) vprasamo kot »movie«, ce noben dodatek ne da tokov za »music«.
         val tip = Stremio.tipToka(stremioNaslovi(), tip0, id)
         if (tip != tip0) android.util.Log.i("SafeerOsMediji", "tokovi: tip $tip0 -> $tip (noben dodatek ne da tokov za $tip0)")
@@ -8631,7 +8634,7 @@ class GlasbaActivity : OsActivity() {
         val usenet = if (tip !in setOf("movie", "series") || !Usenet.jeNaVoljo(applicationContext)) null
             else FilterViraPravila.idIskanja(idji)?.let { i -> iskanjeDelavec.submit<Usenet.IskanjeTokov> {
                 // Del B: ob meji indeksatorja uporabnik vidi, da poskusamo znova, ne da vsebine ni (meja ni »ni izdaj«).
-                Usenet.isci(applicationContext, i) {
+                Usenet.isci(applicationContext, i, odUporabnika = odUporabnika) {
                     runOnUiThread { if (!isFinishing && !isDestroyed) Toast.makeText(this, R.string.os_usenet_meja_poskusam, Toast.LENGTH_SHORT).show() }
                 }
             } }
@@ -8978,7 +8981,7 @@ class GlasbaActivity : OsActivity() {
                         ?.let { (s, k) -> vse.firstOrNull { it.sezona == s && it.epizoda == k } }
                     if (e != null) {
                         val dodatni = SerijePravila.idEpizodePoImdb(Stremio.imdbZa(serija), e.id, e.sezona, e.epizoda)
-                        val t = e.tokovi.ifEmpty { try { tokoviVzporedno(tip, e.id, dodatniId = dodatni) } catch (_: Exception) { emptyList() } }
+                        val t = e.tokovi.ifEmpty { try { tokoviVzporedno(tip, e.id, dodatniId = dodatni, odUporabnika = false) } catch (_: Exception) { emptyList() } }
                         val skEp = serija.copy(season = e.sezona, episode = e.epizoda)
                         val pp = predpomnjeniZa(t, skEp, false, brezLastnega = !odpreUsenet)
                         // Lasten pogon: brez seje - izdaja je potrjena po istih pogojih kot filter »⚡ Usenet« (velikost, kodek na

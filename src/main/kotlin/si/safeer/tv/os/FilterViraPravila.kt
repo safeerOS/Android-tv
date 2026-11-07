@@ -362,6 +362,8 @@ object FilterViraPravila {
         /** Del A: preverbe filtra za [ms] ne vprasajo indeksatorja - uporabnikov klik dobi vso kvoto in mirno omrezje. */
         @Synchronized fun ustaviPreverbe(zdaj: Long, ms: Long) { premorPreverbDo = maxOf(premorPreverbDo, zdaj + ms) }
         @Synchronized fun premorPreverbSe(zdaj: Long): Long = (premorPreverbDo - zdaj).coerceAtLeast(0L)
+        /** Tocka 1+ (7. 11. 2026): iskanje ob kliku je koncano - preverbe filtra spet smejo (ne caka 60 s fiksno). */
+        @Synchronized fun sprostiPreverbe() { premorPreverbDo = 0L }
 
         /**
          * Zahteva, ki gre indeksatorju ne glede na kvoto (zagon naslednje epizode - kot klik uporabnika), se steje: preverbe

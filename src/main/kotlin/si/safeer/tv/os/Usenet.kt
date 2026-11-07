@@ -369,6 +369,11 @@ object Usenet {
      */
     fun isci(c: Context, id: String, rokMs: Int = UsenetPravila.ISKANJE_ROK_MS,
              odUporabnika: Boolean = true, obMeji: (() -> Unit)? = null): IskanjeTokov {
+        try { return isciNotranje(c, id, rokMs, odUporabnika, obMeji) }
+        finally { if (odUporabnika) UsenetFilter.prednostKlikaKonec() }
+    }
+
+    private fun isciNotranje(c: Context, id: String, rokMs: Int, odUporabnika: Boolean, obMeji: (() -> Unit)?): IskanjeTokov {
         val ix = zaUporabo(c) ?: return IskanjeTokov(emptyList(), UsenetIskanjePravila.Razlog.NI_INDEKSATORJA)
         val odtisIskanja = odtis(ix.osnova, ix.kljuc)
         // Del A (lastnik 7. 11. 2026 03:51): klik ima prednost pred preverbami filtra v ozadju - te za minuto pocakajo,

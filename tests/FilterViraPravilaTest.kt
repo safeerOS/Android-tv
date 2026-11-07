@@ -276,6 +276,12 @@ fun main() {
     preveriEnako("prednost: klik med premorom preverb dobi mesto", true, om11.rezervirajUporabniku(t0 + 1_000) != null)
     preveriEnako("prednost: po premoru preverbe spet", true,
         om11.smem(t0 + FilterViraPravila.PREMOR_PREVERB_MS + 1))
+    // Tocka 1+ (7. 11. 2026): premor se konca s koncem iskanja ob kliku, ne sele po 60 s.
+    val om12 = FilterViraPravila.Omejevalnik(FilterViraPravila.NA_MINUTO, zadrzano = FilterViraPravila.REZERVIRANO_UPORABNIKU)
+    om12.ustaviPreverbe(t0, FilterViraPravila.PREMOR_PREVERB_MS)
+    preveriEnako("prednost: med iskanjem klika preverbe stojijo", false, om12.smem(t0 + 1_000))
+    om12.sprostiPreverbe()
+    preveriEnako("prednost: po koncu iskanja klika preverbe takoj spet", true, om12.smem(t0 + 2_000))
 
     if (napak > 0) { println("NAPAK: $napak"); kotlin.system.exitProcess(1) }
     println("Vse v redu.")
