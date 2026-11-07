@@ -3340,6 +3340,26 @@ class GlasbaActivity : OsActivity() {
         return vrsta + zgorajSplet(i)
     }
 
+    /**
+     * Tocka 5 (TV 7. 11. 2026: »Nedavno dodano« in »Priporoceno« prazni): zavihek Video se odpre naravnost v mrezo, zato police
+     * VIDEO na disku nikoli ne nastanejo in Dom ostane prazen. Brez diska police nalozimo s spleta (na delovni niti, kot jih je
+     * nalagal razdelek), jih zapisemo na disk (7 dni, KatalogPravila) in osvezimo Dom. Kliče se iz delovne niti.
+     */
+    private fun naloziVseVideoSSpleta() {
+        val rodVirov = MedijskiViri.spremenjeni(this)
+        val police = try { podatkiRazdelka(VIDEO).filter { it.skladbe.isNotEmpty() } } catch (e: Exception) {
+            android.util.Log.d("SafeerOsMediji", "Dom: police VIDEO s spleta: napaka - ${e.javaClass.simpleName}")
+            return
+        }
+        if (police.isEmpty()) { android.util.Log.d("SafeerOsMediji", "Dom: police VIDEO s spleta: brez zadetkov"); return }
+        if (MedijskiViri.spremenjeni(this) != rodVirov) { android.util.Log.d("SafeerOsMediji", "Dom: police VIDEO s spleta: viri so se spremenili"); return }
+        val vsi = police.flatMap { it.skladbe }
+        VSE_VIDEO = vsi
+        try { MedijskiPredpomnilnik.shraniPolice(this, kljucPolic(VIDEO), police.map { Triple(it.naslov, it.video, it.skladbe) }, System.currentTimeMillis()) } catch (_: Exception) { }
+        android.util.Log.d("SafeerOsMediji", "Dom: police VIDEO s spleta: ${vsi.size} naslovov")
+        glavna.post { if (razdelek == DOMOV && !podstrani.odprta && !isFinishing) osveziNaMestu() }
+    }
+
     private fun naloziVseVideoZaDom() {
         if (nalagamVseVideo || VSE_VIDEO != null || SEZNAMI[VIDEO] != null) {
             android.util.Log.d("SafeerOsMediji", "Dom: police VIDEO z diska: ne nalagam (nalagamVseVideo=$nalagamVseVideo, VSE_VIDEO=${VSE_VIDEO?.size}, SEZNAMI=${SEZNAMI[VIDEO]?.size})")
@@ -3360,9 +3380,11 @@ class GlasbaActivity : OsActivity() {
                         }
                     } else {
                         android.util.Log.d("SafeerOsMediji", "Dom: police VIDEO z diska: seznam je prazen")
+                        naloziVseVideoSSpleta()
                     }
                 } else {
                     android.util.Log.d("SafeerOsMediji", "Dom: police VIDEO z diska: na disku ni nicesar (disk == null)")
+                    naloziVseVideoSSpleta()
                 }
             } catch (e: Exception) {
                 android.util.Log.d("SafeerOsMediji", "Dom: police VIDEO z diska: napaka pri branju - ${e.message}")

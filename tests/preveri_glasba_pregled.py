@@ -117,5 +117,7 @@ preveri("filter Usenet: NA_VOLJO brez casovnega izteka", "const val NA_VOLJO_VEL
 preveri("iskanje: OK na ze iskanem besedilu pocisti polje in odpre tipkovnico", 'TipkaIskanja.NOVO) { setText(""); prikaziTipkovnico(this) }' in g2)
 pk = (OS / "PokrajinaActivity.kt").read_text(encoding="utf-8")
 preveri("Pokrajina: GOR z doka na pilulo tudi, ko je zaprta", "if (mini != null) {   // tocka 28" in pk)
+g3 = (OS / "GlasbaActivity.kt").read_text(encoding="utf-8")
+preveri("Dom: brez polic na disku se nalozijo s spleta (Nedavno dodano, Priporoceno ne ostaneta prazni)", g3.count("naloziVseVideoSSpleta()") >= 3 and "podatkiRazdelka(VIDEO)" in g3.split("private fun naloziVseVideoSSpleta() {", 1)[1].split("\n    }\n", 1)[0])
 print("VSE OK" if napak == 0 else f"NAPAK: {napak}")
 sys.exit(1 if napak else 0)
