@@ -475,7 +475,17 @@ class GlasbaStoritev : Service() {
         predvajalnik?.stop()
         exo?.clearMediaItems()
         koncajSplet()
+        koncajSejoUsenet("stop")
         android.os.Handler(mainLooper).post { stopSelf() }
+    }
+
+    /**
+     * Tocka 16 (7. 11. 2026): seja Usenet pripada predvajanju (varuh nedejavnosti je ne zapre med pavzo), zato jo ob stopu in
+     * ob koncu storitve zapre predvajanje samo - sicer bi bralnik in povezave NNTP ostali odprti do naslednjega filma.
+     */
+    private fun koncajSejoUsenet(zakaj: String) {
+        try { UsenetLastni.ustavi() } catch (_: Throwable) { }
+        android.util.Log.i("SafeerUsenetLastni", "seja zaprta ob koncu predvajanja ($zakaj)")
     }
 
     /** Zaustavitev iz povratnega klica predvajalnika: storitev ustavimo sele po njem. */
@@ -1453,6 +1463,7 @@ class GlasbaStoritev : Service() {
         seja?.release(); seja = null
         koncajSplet()
         exo?.release(); exo = null; predvajalnik = null
+        koncajSejoUsenet("onDestroy")
         vrsta = emptyList()
         poslusalci.toList().forEach { it() }
         super.onDestroy()

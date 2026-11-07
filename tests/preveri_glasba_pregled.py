@@ -108,5 +108,7 @@ preveri("skrite kartice: nobena ne ostane samo GONE (3 mesta uporabljajo skrijKa
 preveri("drzanje DOL: brez pilule v verigi", "pilulaZdaj?.takeIf { it.isShown } ?: pPredvajaj" not in g2)
 sl = (pathlib.Path(__file__).resolve().parent.parent / "res/values-sl/os_strings.xml").read_text(encoding="utf-8")
 preveri("besedilo: Zdaj predvaja (sl)", ">Zdaj predvaja</string>" in sl and ">Zdaj igra<" not in sl)
+gs = (OS / "GlasbaStoritev.kt").read_text(encoding="utf-8")
+preveri("seja Usenet: stop in onDestroy zapreta sejo (varuh je ne zapre vec)", 'koncajSejoUsenet("stop")' in gs and 'koncajSejoUsenet("onDestroy")' in gs and "UsenetLastni.ustavi()" in gs)
 print("VSE OK" if napak == 0 else f"NAPAK: {napak}")
 sys.exit(1 if napak else 0)
