@@ -8629,7 +8629,12 @@ class GlasbaActivity : OsActivity() {
         val cakamo = vprasani.filter { nacini[it.second] == ZdravjeDodatkov.Nacin.CAKAJ }.map { it.third }
         // Naloga 141: Usenet pri uporabnikovem indeksatorju (po IMDb), hkrati z dodatki; samo film in serija.
         val usenet = if (tip !in setOf("movie", "series") || !Usenet.jeNaVoljo(applicationContext)) null
-            else FilterViraPravila.idIskanja(idji)?.let { i -> iskanjeDelavec.submit<List<Stremio.Tok>> { Usenet.isci(applicationContext, i) } }
+            else FilterViraPravila.idIskanja(idji)?.let { i -> iskanjeDelavec.submit<Usenet.IskanjeTokov> {
+                // Del B: ob meji indeksatorja uporabnik vidi, da poskusamo znova, ne da vsebine ni (meja ni »ni izdaj«).
+                Usenet.isci(applicationContext, i) {
+                    runOnUiThread { if (!isFinishing && !isDestroyed) Toast.makeText(this, R.string.os_usenet_meja_poskusam, Toast.LENGTH_SHORT).show() }
+                }
+            } }
         fun tokoviDodatka(f: java.util.concurrent.Future<Stremio.OdgovorTokov>): List<Stremio.Tok> = try { f.get().tokovi } catch (_: Exception) { emptyList() }
         val zacetek = android.os.SystemClock.uptimeMillis()
         var prviTok = 0L
@@ -8648,7 +8653,10 @@ class GlasbaActivity : OsActivity() {
             if (prviTok != 0L && zdaj - prviTok > cakaj && usenetKoncan) break
             try { Thread.sleep(40) } catch (_: InterruptedException) { break }
         }
-        val usenetTokovi = usenet?.takeIf { it.isDone }?.let { f -> try { f.get() } catch (_: Exception) { null } }.orEmpty()
+        // Del B (7. 11. 2026): izid nosi tudi razlog - iz njega odlocimo, ali kartica ostane in kaj pove sporocilo.
+        val usenetIzid = usenet?.takeIf { it.isDone }?.let { f -> try { f.get() } catch (_: Exception) { null } }
+        usenetRazlogIskanja = usenetIzid?.razlog ?: if (usenet != null) UsenetIskanjePravila.Razlog.NI_ODGOVORA else UsenetIskanjePravila.Razlog.OK
+        val usenetTokovi = usenetIzid?.tokovi.orEmpty()
         val zbrani = (dodatki.filter { it.second.isDone }.flatMap { tokoviDodatka(it.second) } + usenetTokovi).distinctBy { it.url }
         val tokovi = Stremio.zdruziDvojnike(zbrani)
         if (tokovi.size != zbrani.size) android.util.Log.i("SafeerOsMediji", "tokovi: ${zbrani.size} -> ${tokovi.size} (zdruzeni dvojniki istega torrenta)")
@@ -8671,7 +8679,9 @@ class GlasbaActivity : OsActivity() {
                 preskocenih == 0 && odgovori.size == zaId.size && odgovori.all { it.odgovorili })
         }
         // Dodatek, ki v roku ni odgovoril, bi tok morda imel: brez tokov je to izpad, ne "ni na voljo".
-        if (tokovi.isEmpty() && (preskocenih > 0 || dodatki.any { !it.second.isDone } || usenet?.isDone == false)) Stremio.zadnjiIzpad.set(System.currentTimeMillis())
+        // Del B: isto velja za indeksator, ki omejuje hitrost ali ne odgovarja.
+        val usenetNiOdgovoril = usenet?.isDone == false || UsenetIskanjePravila.neOdgovarja(usenetRazlogIskanja)
+        if (tokovi.isEmpty() && (preskocenih > 0 || dodatki.any { !it.second.isDone } || usenetNiOdgovoril)) Stremio.zadnjiIzpad.set(System.currentTimeMillis())
         return tokovi
     }
 
@@ -9517,6 +9527,12 @@ class GlasbaActivity : OsActivity() {
 
     /** Zadnji ogledi serij (Nazadnje predvajano, nato zacete epizode); velja 2 s - izris ga klice za vsak naslov. */
     private var oglediPrej: Pair<Long, Map<String, FilterViraPravila.Ogled>>? = null
+
+    /**
+     * Del B (7. 11. 2026 03:51): razlog zadnjega iskanja Usenet ob kliku - 0 izdaj ima svoje besedilo in pozabi zapis
+     * filtra, meja ali izpad pa ne (kartica ostane).
+     */
+    @Volatile private var usenetRazlogIskanja = UsenetIskanjePravila.Razlog.OK
 
     private fun oglediSerij(): Map<String, FilterViraPravila.Ogled> {
         val zdaj = android.os.SystemClock.uptimeMillis()
@@ -10885,15 +10901,29 @@ class GlasbaActivity : OsActivity() {
             .filter { !samoWebtor || it.vir == WebtorPravila.VIR || it.vrsta == "torrent" }
             .filter { !samoUsenet || it.vrsta == UsenetPravila.VRSTA }
         if (samoUsenet && tokovi.isEmpty()) {
-            // Brez izdaj Usenet (indeksator jih nima) se diagnostika konca tu - vsebina ne izgine s seznama.
-            android.util.Log.i("SafeerOsMediji", "tokovi: samo Usenet - indeksator ni dal izdaj")
-            // Filter vira: zapis o naslovu ne velja vec - kartica izgine, preverba v ozadju pove NI (ure) ali NE_VEMO (ponovitev).
-            if (izbranSamoUsenet) filterUsenet()?.let { v -> kljucUsenet(sk, v.odtis)?.let { k ->
-                UsenetFilter.pozabi(this, k); odprtKatalog?.let { o -> glavna.post { osveziMrezo(o) } } } }
-            DiagnostikaPredvajanja.neuspeh(this, naslov, DiagnostikaPredvajanja.vrsta(sk), "usenet: ni zadetka (indeksator ni dal izdaj)")
-            // Pregled Grok 31, H2: viden konec diagnostike (prej samo dnevnik); klicatelj izve za neuspeh.
-            Toast.makeText(this, if (diagnostikaUsenet) R.string.os_usenet_diagnostika_ni_izdaj else R.string.os_usenet_ni_izdaj,
-                Toast.LENGTH_LONG).show()
+            val razlog = usenetRazlogIskanja
+            // Del B (7. 11. 2026 03:51): vsak tihi izhod pove RAZLOG - meja indeksatorja ni »ni izdaj«.
+            android.util.Log.i("SafeerOsMediji", "tokovi: samo Usenet - " + when (razlog) {
+                UsenetIskanjePravila.Razlog.NI_IZDAJ -> "indeksator ni dal izdaj"
+                UsenetIskanjePravila.Razlog.MEJA -> "indeksator omejuje hitrost (meja)"
+                UsenetIskanjePravila.Razlog.NI_ODGOVORA -> "indeksator ni odgovoril"
+                UsenetIskanjePravila.Razlog.NI_INDEKSATORJA -> "ni indeksatorja"
+                UsenetIskanjePravila.Razlog.OK -> "ni predvajljivega toka"
+            })
+            if (UsenetIskanjePravila.pozabiZapis(razlog)) {
+                // Filter vira: res 0 izdaj - zapis o naslovu ne velja vec, kartica izgine, preverba pove NI (ure).
+                if (izbranSamoUsenet) filterUsenet()?.let { v -> kljucUsenet(sk, v.odtis)?.let { k ->
+                    UsenetFilter.pozabi(this, k); odprtKatalog?.let { o -> glavna.post { osveziMrezo(o) } } } }
+                DiagnostikaPredvajanja.neuspeh(this, naslov, DiagnostikaPredvajanja.vrsta(sk), "usenet: ni zadetka (indeksator ni dal izdaj)")
+                // Pregled Grok 31, H2: viden konec diagnostike (prej samo dnevnik); klicatelj izve za neuspeh.
+                Toast.makeText(this, if (diagnostikaUsenet) R.string.os_usenet_diagnostika_ni_izdaj else R.string.os_usenet_ni_izdaj,
+                    Toast.LENGTH_LONG).show()
+            } else {
+                // Meja ali izpad: zapisa filtra NE pozabimo (kartica ostane) in ne trdimo »ni na voljo«.
+                DiagnostikaPredvajanja.neuspeh(this, naslov, DiagnostikaPredvajanja.vrsta(sk),
+                    "usenet: " + razlog.name.lowercase(Locale.ROOT))
+                Toast.makeText(this, R.string.os_usenet_indeksator_ne_odgovarja, Toast.LENGTH_LONG).show()
+            }
             obNeuspehu?.invoke()
             return
         }

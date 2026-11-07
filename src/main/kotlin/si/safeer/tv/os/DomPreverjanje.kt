@@ -177,7 +177,7 @@ object DomPreverjanje {
         } else id0
         // Lastnik 28. 10. 2026: ob cakanju vzporedno se indeksator Usenet (ce je nastavljen) - film z izdajo na Usenetu ostane.
         val usenet = if (okno && tip in setOf("movie", "series") && UsenetPravila.iscemo(id) && Usenet.jeNaVoljo(app))
-            try { usenetDelavec.submit<Boolean> { Usenet.isci(app, id, ROK_OKNA_MS.toInt()).isNotEmpty() } }
+            try { usenetDelavec.submit<Boolean> { Usenet.isci(app, id, ROK_OKNA_MS.toInt()).tokovi.isNotEmpty() } }
             catch (_: java.util.concurrent.RejectedExecutionException) { null } else null
         val dodatki = try {
             if (okno) Stremio.razpolozljivo(naslovi, tip, id, v.meja, velja, rokMs = ROK_OKNA_MS, poRokuNima = true)

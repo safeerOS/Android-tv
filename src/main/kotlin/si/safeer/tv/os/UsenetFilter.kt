@@ -170,6 +170,12 @@ object UsenetFilter {
                         if (r.meja) { omejevalnik.meja(zdaj()); Log.i(TAG, "indeksator omejuje hitrost: premor ${omejevalnik.premorSe(zdaj()) / 1000} s") }
                         else if (r.izdaje != null) omejevalnik.uspeh(zdaj())
                         izdaje = r.izdaje?.map { F.Izdaja(it.naslov, it.velikost / 1_073_741_824.0, it.geslo) }
+                        // Del C (7. 11. 2026): iste izdaje ostanejo v pomnilniku za klik (30 min) - prej jih je preverba
+                        // zavrgla in je klik vprasal indeksator znova ter ob meji dobil »ni izdaj«. Povezave NZB nosijo
+                        // kljuc indeksatorja: shramba je samo v pomnilniku, nikoli na disk ali v dnevnik.
+                        val najdene = r.izdaje
+                        val idZaShrambo = iden
+                        if (najdene != null && idZaShrambo != null) Usenet.odtisIskanja(app)?.let { o -> Usenet.shraniIzdajeFiltra(idZaShrambo, najdene, o) }
                         odgovor = r.razlog.ifBlank { null }
                     }
                     // Lastnik 5. 11. 2026 (zakon solidarnosti): zapis pove tudi, ali izdajo predvaja pomocnik v Linku -

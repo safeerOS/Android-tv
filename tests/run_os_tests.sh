@@ -172,6 +172,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/KakovostPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/FilterViraPravila.kt" \
     "$TEST_DIR/FilterViraPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/UsenetIskanjePravila.kt" \
+    "$TEST_DIR/UsenetIskanjePravilaTest.kt" \
     "$SRC/si/safeer/tv/os/UsenetPomocPravila.kt" \
     "$TEST_DIR/UsenetPomocPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/SprotnaPomocPravila.kt" \
@@ -335,6 +337,8 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.NapredekKljucTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.KakovostPravilaTestKt
 # Filter vira Usenet (lastnik 5. 11. 2026): naslov v filtru samo, ce so izpolnjeni vsi pogoji za ogled
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.FilterViraPravilaTestKt
+# Lastnik 7. 11. 2026: iskanje ob kliku - meja indeksatorja ni »ni izdaj« (razlog, ponovitev, pozaba zapisa)
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.UsenetIskanjePravilaTestKt
 # Pomocnik za Usenet v Linku (lastnik 5. 11. 2026, zakon solidarnosti): isti indeksator, sme pomagati, meja osvezitev
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.UsenetPomocPravilaTestKt
 # Vodja 5. 11. 2026: pravi naslov in glave vira z zetonom samo pomocniku v ozjem krogu

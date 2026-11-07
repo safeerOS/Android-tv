@@ -42,6 +42,8 @@ object Usenet {
     /** Pregled Grok 41, Z1: z indeksatorjem gredo tudi povezave NZB (nosijo njegov kljuc) iz pomnilnika. */
     private fun brisi(c: Context) {
         SporocilaSkrivnosti.pozabi(c, SKRIVNOST); prefs(c).edit().remove(KLJUC_STANJE).apply(); povezave.obdrzi(null)
+        // Del C: tudi izdaje filtra v pomnilniku so vezane na kljuc indeksatorja.
+        predpomnilnikIzdaj.pocisti()
     }
 
     /**
@@ -339,30 +341,85 @@ object Usenet {
     /** Povezave NZB po id-ju toka, vezane na odtis kljuca iskanja (najvec [NAJVEC_POVEZAV], najstarejse odpadejo). */
     private const val NAJVEC_POVEZAV = 500
     private val povezave = UsenetPravila.Povezave(NAJVEC_POVEZAV)
+    /**
+     * Del C (lastnik 7. 11. 2026): izdaje, ki jih je filter v ozadju ze nasel - klik jih vzame brez nove zahteve (30 min).
+     * Samo v pomnilniku: povezave NZB nosijo kljuc indeksatorja, zato nikoli na disk, v nastavitve ali v dnevnik.
+     */
+    private val predpomnilnikIzdaj = UsenetIskanjePravila.PredpomnilnikIzdaj()
+
+    /** Odtis indeksatorja za predpomnilnik iskanja - isti, s katerim isce [isci]; null = indeksatorja ne smemo klicati. */
+    fun odtisIskanja(c: Context): String? = zaUporabo(c)?.let { odtis(it.osnova, it.kljuc) }
+
+    /** Del C: filter je izdaje ze nasel - zapomni jih za klik (brez povezav v dnevnik in na disk). */
+    fun shraniIzdajeFiltra(id: String, izdaje: List<UsenetPravila.Zadetek>, odtis: String) {
+        if (izdaje.isEmpty()) return
+        predpomnilnikIzdaj.shrani(id, odtis, izdaje, System.currentTimeMillis())
+    }
+
+    /**
+     * Izid iskanja ob kliku: [tokovi] in RAZLOG, ko jih ni. Meja indeksatorja ([UsenetIskanjePravila.Razlog.MEJA]) ni
+     * »ni izdaj« - klicatelj ne sme pozabiti zapisa filtra ne reci uporabniku, da vsebine ni (lastnik 7. 11. 2026 03:51).
+     */
+    class IskanjeTokov(val tokovi: List<Stremio.Tok>, val razlog: UsenetIskanjePravila.Razlog)
 
     /**
      * Tokovi Usenet za id Stremio (film `tt…` ali epizoda `tt…:S:E`); brez indeksatorja, za drug id ali ob napaki prazno.
-     * [rokMs] za odgovor indeksatorja.
+     * [rokMs] za odgovor indeksatorja. [obMeji] = kratek znak uporabniku pred vsakim ponovnim poskusom ob meji (klic na
+     * delovni niti, najvec [UsenetIskanjePravila.NAJVEC_POSKUSOV] - 1 krat).
      */
-    fun isci(c: Context, id: String, rokMs: Int = UsenetPravila.ISKANJE_ROK_MS): List<Stremio.Tok> {
-        val ix = zaUporabo(c) ?: return emptyList()
+    fun isci(c: Context, id: String, rokMs: Int = UsenetPravila.ISKANJE_ROK_MS,
+             obMeji: (() -> Unit)? = null): IskanjeTokov {
+        val ix = zaUporabo(c) ?: return IskanjeTokov(emptyList(), UsenetIskanjePravila.Razlog.NI_INDEKSATORJA)
         val odtisIskanja = odtis(ix.osnova, ix.kljuc)
         // Del A (lastnik 7. 11. 2026 03:51): klik ima prednost pred preverbami filtra v ozadju - te za minuto pocakajo,
         // iskanje pa dobi rezervirano mesto v istem omejevalniku (prej 4x »ni odgovora (meja)«, ceprav film ima 40 izdaj).
         UsenetFilter.prednostKlika()
-        // Rezervirano mesto: ce je indeksator ze v premoru, klik vseeno poskusi (uporabnik caka); razmik samo pocakamo.
-        val cakaj = UsenetFilter.rezervirajIskanje()
-        if (cakaj != null && cakaj > 0L) try { Thread.sleep(cakaj) } catch (_: InterruptedException) { Thread.currentThread().interrupt() }
-        // Lastnik 6. 11. 2026 (Abbott Elementary): predvajanje in filter vprasata indeksator z ISTO funkcijo ([iskanjeZ]) -
-        // isti naslov poizvedbe (t=movie ali t=tvsearch&season&ep, imdbid), isti kljuc, rok in branje odgovora.
-        val r = iskanjeZ(c, ix, id, rokMs)
-        val zadetki = r.izdaje ?: run { Log.i(TAG, "iskanje: ni odgovora (${r.razlog})"); return emptyList() }
-        Log.i(TAG, "iskanje: ${zadetki.size} zadetkov")
-        return zadetki.map { z ->
-            val idToka = UsenetPravila.idToka(z.povezava)
-            povezave.dodaj(idToka, z.povezava, odtisIskanja)
-            z.guid?.let { g -> synchronized(izdaje) { izdaje[idToka] = g to z.naslov } }
-            Stremio.Tok(UsenetPravila.VRSTA, idToka, "", UsenetPravila.opis(z), UsenetPravila.VRSTA, imeDatoteke = z.naslov)
+        var poskus = 0
+        while (true) {
+            // Del C (7. 11. 2026): filter je izdaje za ta naslov ze nasel z istim odtisom indeksatorja - klik jih vzame
+            // iz pomnilnika (30 min), brez zahteve in brez porabe kvote.
+            val shranjeno = predpomnilnikIzdaj.poisci(id, odtisIskanja, System.currentTimeMillis())
+            val r: IzidIskanja
+            if (shranjeno != null) {
+                Log.i(TAG, "iskanje: iz filtra ${shranjeno.size} izdaj, brez zahteve")
+                r = IzidIskanja(shranjeno, false)
+            } else {
+                // Rezervirano mesto za klik (tudi iz rezerviranih mest minute); razmik samo pocakamo.
+                val cakaj = UsenetFilter.rezervirajIskanje()
+                if (cakaj != null && cakaj > 0L) try { Thread.sleep(cakaj) } catch (_: InterruptedException) { Thread.currentThread().interrupt() }
+                // Lastnik 6. 11. 2026 (Abbott Elementary): predvajanje in filter vprasata indeksator z ISTO funkcijo ([iskanjeZ]) -
+                // isti naslov poizvedbe (t=movie ali t=tvsearch&season&ep, imdbid), isti kljuc, rok in branje odgovora.
+                val rr = iskanjeZ(c, ix, id, rokMs)
+                // Odgovor (tudi 0 izdaj) se zapomni; napake ne - naslednji klik mora indeksator vprasati znova.
+                rr.izdaje?.let { l -> predpomnilnikIzdaj.shrani(id, odtisIskanja, l, System.currentTimeMillis()) }
+                r = rr
+            }
+            poskus++
+            // Del B (7. 11. 2026): meja ni »ni izdaj« - pocakamo premor omejevalnika (5 s) in poskusimo znova, najvec
+            // trikrat; sele nato povemo, da indeksator ne odgovarja (prej je klik videl »ni na voljo« in izgubil kartico).
+            if (r.izdaje == null && r.meja && UsenetIskanjePravila.ponoviPoMeji(poskus)) {
+                Log.i(TAG, "iskanje: meja indeksatorja, poskus $poskus - ponovim cez ${UsenetIskanjePravila.PREMOR_MS / 1000} s")
+                try { obMeji?.invoke() } catch (_: Throwable) { }
+                try { Thread.sleep(UsenetIskanjePravila.PREMOR_MS) } catch (_: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    return IskanjeTokov(emptyList(), UsenetIskanjePravila.Razlog.MEJA)
+                }
+                continue
+            }
+            val razlog = UsenetIskanjePravila.razlog(r.izdaje?.size, r.meja)
+            val zadetki = r.izdaje ?: run {
+                // Vsak tihi izhod pove razlog - brez njega klik izgleda kot »ni izdaj« (meja, rok, HTTP).
+                Log.i(TAG, "iskanje: ni odgovora (${r.razlog}), razlog=$razlog")
+                return IskanjeTokov(emptyList(), razlog)
+            }
+            Log.i(TAG, "iskanje: ${zadetki.size} zadetkov")
+            val tokovi = zadetki.map { z ->
+                val idToka = UsenetPravila.idToka(z.povezava)
+                povezave.dodaj(idToka, z.povezava, odtisIskanja)
+                z.guid?.let { g -> synchronized(izdaje) { izdaje[idToka] = g to z.naslov } }
+                Stremio.Tok(UsenetPravila.VRSTA, idToka, "", UsenetPravila.opis(z), UsenetPravila.VRSTA, imeDatoteke = z.naslov)
+            }
+            return IskanjeTokov(tokovi, razlog)
         }
     }
 

@@ -189,6 +189,9 @@
     <string name="os_usenet_diagnostika_konec">Diagnostic Usenet uniquement : Usenet n’a pas pu lire – la raison est dans le journal (SafeerOsMedia).</string>
     <string name="os_usenet_diagnostika_ni_izdaj">Diagnostic Usenet uniquement : l’indexeur n’a renvoyé aucune version pour ce contenu.</string>
     <string name="os_usenet_ni_izdaj">Ce titre n\'est pas disponible sur Usenet. Pour d\'autres sources, choisissez ⚡ Toutes les sources.</string>
+    <!-- Del B (7. 11. 2026): meja indeksatorja ni »ni izdaj« - med ponovnim poskusom in po treh poskusih -->
+    <string name="os_usenet_meja_poskusam">L\'indexeur limite le débit, nouvelle tentative …</string>
+    <string name="os_usenet_indeksator_ne_odgovarja">L\'indexeur ne répond pas pour le moment, réessaie dans une minute.</string>
     <string name="os_debrid_izbira_vse">Toutes les sources</string>
     <string name="os_usenet_predvaja_lastni">Lecture via Usenet (votre fournisseur)</string>
     <string name="os_usenet_pripravljam">Préparation via Usenet…</string>

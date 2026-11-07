@@ -189,6 +189,9 @@
     <string name="os_usenet_diagnostika_konec">Diagnostica solo Usenet: Usenet non ha riprodotto, il motivo è nel registro (SafeerOsMedia).</string>
     <string name="os_usenet_diagnostika_ni_izdaj">Diagnostica solo Usenet: l’indicizzatore non ha restituito versioni per questo contenuto.</string>
     <string name="os_usenet_ni_izdaj">Questo titolo non è disponibile su Usenet. Per altre fonti scegli ⚡ Tutte le fonti.</string>
+    <!-- Del B (7. 11. 2026): meja indeksatorja ni »ni izdaj« - med ponovnim poskusom in po treh poskusih -->
+    <string name="os_usenet_meja_poskusam">L\'indicizzatore sta limitando le richieste, nuovo tentativo …</string>
+    <string name="os_usenet_indeksator_ne_odgovarja">L\'indicizzatore al momento non risponde, riprova tra un minuto.</string>
     <string name="os_debrid_izbira_vse">Tutte le fonti</string>
     <string name="os_usenet_predvaja_lastni">Riproduzione tramite Usenet (il tuo provider)</string>
     <string name="os_usenet_pripravljam">Preparazione tramite Usenet…</string>
