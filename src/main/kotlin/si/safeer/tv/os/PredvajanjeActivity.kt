@@ -1908,7 +1908,7 @@ class PredvajanjeActivity : OsActivity() {
             return
         }
         // Tocka 17: vdelana mehka sled v jeziku uporabnika ima prednost; zunanjih podnapisov ne dodajamo.
-        val vdelani = Podnapisi.posnetki(p0).map { (g, i) -> g.getTrackFormat(i).language.orEmpty() }
+        val vdelani = Podnapisi.posnetki(p0).filter { (g, i) -> g.getTrackFormat(i).selectionFlags and androidx.media3.common.C.SELECTION_FLAG_FORCED == 0 }.map { (g, i) -> g.getTrackFormat(i).language.orEmpty() }
         if (OsPravila.vdelanVJeziku(vdelani, jezik)) {
             podnapisiDodatkaZa = kljuc
             Podnapisi.vklopiJezik(this, p0, jezik)

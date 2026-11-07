@@ -9825,7 +9825,6 @@ class GlasbaActivity : OsActivity() {
         v.visibility = View.GONE
         v.isFocusable = false
         v.isFocusableInTouchMode = false
-        if (v.hasFocus()) v.clearFocus()
     }
 
     /** Vsebine se ne da predvajati: kartico umaknemo z zaslona (mreza ostane, kjer je bila). */

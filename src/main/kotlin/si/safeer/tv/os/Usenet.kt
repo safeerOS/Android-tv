@@ -392,6 +392,11 @@ object Usenet {
                 r = IzidIskanja(shranjeno, false)
             } else {
                 // Rezervirano mesto za klik (tudi iz rezerviranih mest minute); razmik samo pocakamo.
+                // Neodvisni pregled 8. 11.: predpriprava v ozadju (fokus, naslednja epizoda) ne sme mimo omejevalnika.
+                if (!odUporabnika && !UsenetFilter.smemPredpripravo()) {
+                    Log.i(TAG, "iskanje v ozadju: omejevalnik ne dovoli (premor ali kvota), preskocim")
+                    return IskanjeTokov(emptyList(), UsenetIskanjePravila.Razlog.MEJA)
+                }
                 val cakaj = if (odUporabnika) UsenetFilter.rezervirajIskanje() else null
                 if (cakaj != null && cakaj > 0L) try { Thread.sleep(cakaj) } catch (_: InterruptedException) { Thread.currentThread().interrupt() }
                 // Lastnik 6. 11. 2026 (Abbott Elementary): predvajanje in filter vprasata indeksator z ISTO funkcijo ([iskanjeZ]) -
