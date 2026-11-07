@@ -1,5 +1,8 @@
 package si.safeer.tv.os
 
+import si.safeer.tv.os.UsenetIskanjePravila as P
+import si.safeer.tv.os.UsenetIskanjePravila.Razlog as R
+
 private var napak = 0
 
 private fun preveriEnako(opis: String, pricakovano: Any?, dobljeno: Any?) =
@@ -11,8 +14,6 @@ private fun preveriEnako(opis: String, pricakovano: Any?, dobljeno: Any?) =
  */
 fun main() {
     println("Preizkus iskanja Usenet ob kliku (meja ni »ni izdaj«)")
-    val P = UsenetIskanjePravila
-    val R = UsenetIskanjePravila.Razlog
 
     // Meja (429 / Newznab 500/501): pocakamo in poskusimo znova, najvec trikrat.
     preveriEnako("meja po 1. poskusu: ponovi", true, P.ponoviPoMeji(1))
@@ -59,6 +60,8 @@ fun main() {
     preveriEnako("predpomnilnik: najvec 200 naslovov", P.PREDPOMNILNIK_NAJVEC, c2.velikost())
     preveriEnako("predpomnilnik: najstarejsi odpade (LRU)", null, c2.poisci("tt0", "odtis1", t0 + 1))
 
+    // Pregled US-5: klic caka na vse tri poskuse (3 x 12 s + 2 x 5 s), ne samo na prvega - sicer klik po prvi meji obupa.
+    preveriEnako("cakanje s ponovitvami: 3 iskanja in 2 premora", 3 * 12_000L + 2 * 5_000L, P.cakajSPonovitvami(12_000L))
     if (napak > 0) { println("NAPAK: $napak"); kotlin.system.exitProcess(1) }
     println("Vse v redu.")
 }

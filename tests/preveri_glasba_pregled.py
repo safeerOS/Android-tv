@@ -80,5 +80,8 @@ stare = re.findall(r"override fun (onPrepared|onStopped|onReleased|getBackBuffer
     re.findall(r"override fun (shouldContinueLoading|shouldStartPlayback)\((?!parameters)", ovoj) + \
     re.findall(r"override fun onTracksSelected\((?!parameters)", ovoj)
 preveri("Usenet LoadControl: samo nove razlicice media3 (brez starih brez PlayerId)", not stare and "getBackBufferDurationUs(playerId" in ovoj)
+# Pregled US-5: preverba Doma v ozadju ne sme ustaviti filtra in vzeti rezerve klika (prednost ima samo uporabnik).
+dp = (OS / "DomPreverjanje.kt").read_text(encoding="utf-8")
+preveri("Usenet: preverba Doma isce brez prednosti klika", "Usenet.isci(app, id, ROK_OKNA_MS.toInt(), odUporabnika = false)" in dp)
 print("VSE OK" if napak == 0 else f"NAPAK: {napak}")
 sys.exit(1 if napak else 0)

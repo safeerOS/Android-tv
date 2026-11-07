@@ -19,6 +19,9 @@ object UsenetIskanjePravila {
     /** Cakanje med poskusi ob meji - enako prvemu premoru [FilterViraPravila.PRVI_PREMOR_MS] (5 s). */
     const val PREMOR_MS = 5_000L
 
+    /** Pregled US-5: koliko klic caka na iskanje z vsemi ponovitvami ob meji ([NAJVEC_POSKUSOV] iskanj in premori vmes). */
+    fun cakajSPonovitvami(enoIskanjeMs: Long): Long = NAJVEC_POSKUSOV * enoIskanjeMs + (NAJVEC_POSKUSOV - 1) * PREMOR_MS
+
     /**
      * Ali po koncanem poskusu [poskus] (1 = prvi) ob meji se poskusimo znova. Po [NAJVEC_POSKUSOV] nehamo in uporabniku
      * povemo, da indeksator ne odgovarja - sele takrat, ne ze ob prvi meji.

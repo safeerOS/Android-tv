@@ -8644,7 +8644,9 @@ class GlasbaActivity : OsActivity() {
         val cakaj = DebridPravila.cakajPoPrvemMs(zDebridom)
         // Pregled A8: z Usenetom pocakamo na njegovo iskanje (do njegovega roka) - prej je konec 3 s po prvem toku Usenet
         // pogosto izpustil in »Usenet prvi« ni bil zanesljiv.
-        val rok = if (usenet != null) maxOf(rokMs, UsenetPravila.ISKANJE_CAKAJ_MS) else rokMs
+        // Pregled US-5: ob meji indeksatorja Usenet.isci poskusi do 3-krat (5 s premora) - cakamo do konca ponovitev
+        // (zanka konca takoj, ko je iskanje koncano), sicer bi klik po ~12 s pokazal »ne odgovarja«, ceprav drugi poskus uspe.
+        val rok = if (usenet != null) maxOf(rokMs, UsenetIskanjePravila.cakajSPonovitvami(UsenetPravila.ISKANJE_CAKAJ_MS)) else rokMs
         while (true) {
             val zdaj = android.os.SystemClock.uptimeMillis()
             val usenetKoncan = usenet == null || usenet.isDone

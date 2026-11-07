@@ -368,12 +368,13 @@ object Usenet {
      * delovni niti, najvec [UsenetIskanjePravila.NAJVEC_POSKUSOV] - 1 krat).
      */
     fun isci(c: Context, id: String, rokMs: Int = UsenetPravila.ISKANJE_ROK_MS,
-             obMeji: (() -> Unit)? = null): IskanjeTokov {
+             odUporabnika: Boolean = true, obMeji: (() -> Unit)? = null): IskanjeTokov {
         val ix = zaUporabo(c) ?: return IskanjeTokov(emptyList(), UsenetIskanjePravila.Razlog.NI_INDEKSATORJA)
         val odtisIskanja = odtis(ix.osnova, ix.kljuc)
         // Del A (lastnik 7. 11. 2026 03:51): klik ima prednost pred preverbami filtra v ozadju - te za minuto pocakajo,
         // iskanje pa dobi rezervirano mesto v istem omejevalniku (prej 4x »ni odgovora (meja)«, ceprav film ima 40 izdaj).
-        UsenetFilter.prednostKlika()
+        // Pregled US-5: samo klik uporabnika - preverba Doma (DomPreverjanje) v ozadju ne ustavi filtra in ne vzame rezerve.
+        if (odUporabnika) UsenetFilter.prednostKlika()
         var poskus = 0
         while (true) {
             // Del C (7. 11. 2026): filter je izdaje za ta naslov ze nasel z istim odtisom indeksatorja - klik jih vzame
@@ -385,7 +386,7 @@ object Usenet {
                 r = IzidIskanja(shranjeno, false)
             } else {
                 // Rezervirano mesto za klik (tudi iz rezerviranih mest minute); razmik samo pocakamo.
-                val cakaj = UsenetFilter.rezervirajIskanje()
+                val cakaj = if (odUporabnika) UsenetFilter.rezervirajIskanje() else null
                 if (cakaj != null && cakaj > 0L) try { Thread.sleep(cakaj) } catch (_: InterruptedException) { Thread.currentThread().interrupt() }
                 // Lastnik 6. 11. 2026 (Abbott Elementary): predvajanje in filter vprasata indeksator z ISTO funkcijo ([iskanjeZ]) -
                 // isti naslov poizvedbe (t=movie ali t=tvsearch&season&ep, imdbid), isti kljuc, rok in branje odgovora.
@@ -397,7 +398,7 @@ object Usenet {
             poskus++
             // Del B (7. 11. 2026): meja ni »ni izdaj« - pocakamo premor omejevalnika (5 s) in poskusimo znova, najvec
             // trikrat; sele nato povemo, da indeksator ne odgovarja (prej je klik videl »ni na voljo« in izgubil kartico).
-            if (r.izdaje == null && r.meja && UsenetIskanjePravila.ponoviPoMeji(poskus)) {
+            if (odUporabnika && r.izdaje == null && r.meja && UsenetIskanjePravila.ponoviPoMeji(poskus)) {
                 Log.i(TAG, "iskanje: meja indeksatorja, poskus $poskus - ponovim cez ${UsenetIskanjePravila.PREMOR_MS / 1000} s")
                 try { obMeji?.invoke() } catch (_: Throwable) { }
                 try { Thread.sleep(UsenetIskanjePravila.PREMOR_MS) } catch (_: InterruptedException) {
