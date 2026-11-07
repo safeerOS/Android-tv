@@ -34,3 +34,21 @@ Vsako od spodnjih pravil izhaja iz napake, ki je ze bila narejena.
 ## Zapisnik
 - Kar ni delovalo, vodi lastnik izven repozitorija (SAFEER-ZNANJE.md, razdelek ZAPISNIK). Preveri ga pred poskusom in
   dopisi novo napako.
+
+## Predvajanje in Medijski center (odlocitve lastnika 6.-7. 11. 2026)
+- Izdelek mora biti odlicen BREZ USB kljuca ali zunanjega diska (vecina uporabnikov ju nima); USB je samo dodatek.
+  Vsako meritev predvajanja najprej brez USB. Notranji predpomnilnik ne steje kot USB.
+- Usenet na TV vedno po neposredni poti (UsenetMedia3Vir); lokalni HTTP streznik samo za Cast/drugo napravo. Seja pripada
+  predvajanju in med pavzo ne potece.
+- Zapis filtra »na voljo« velja, dokler je vsebina pri viru (brez casovnega izteka); odstrani ga samo 0 izdaj ob kliku ali
+  naslov, ki ga ni vec v katalogu. Katalog 1x na dan: preveri samo nove naslove.
+- Klik uporabnika ima prednost pred preverbami v ozadju - samo pravi klik, ne fokus ali predpriprava. »Meja« indeksatorja
+  ni »ni na voljo«.
+- Vdelani mehki podnapisi v jeziku uporabnika imajo prednost pred zunanjimi (OpenSubtitles).
+- Mreza, ne vodoravne police; skrita kartica ne sme biti izbirna z daljincem.
+
+## Knjiznice (izmerjeno 6. 11. 2026)
+- Koda, ki jo knjiznica klice sele med izvajanjem (ExoPlayer LoadControl, Renderer, MediaSource), mora preglasiti podpise,
+  ki jih PRAVA razlicica res klice (javap na .aar v gradle cache) - prevod tega ne ujame (media3 1.11: sesutje ob zagonu).
+- Preizkus preverja pravi razred prek javne meje, ne kopije kode v preizkusu; casovni preizkusi morajo dati isti izid na
+  obremenjenem racunalniku.
