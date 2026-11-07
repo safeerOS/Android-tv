@@ -10,6 +10,13 @@ object MiniPredvajalnikPravila {
     /** Lastnik 28. 10. 2026: gumb »Zatemni zaslon« - kadar na tej napravi igra zvok (ne video, ne druga naprava). */
     fun gumbZatemni(imaPredvajanje: Boolean, video: Boolean, oddaljeno: Boolean): Boolean = imaPredvajanje && !video && !oddaljeno
 
+    /**
+     * Tocka 28 (lastnik 7. 11. 2026, TV Domov): s fokusom ni bilo mogoce na mini predvajalnik. DOL na dno vsebine (ni
+     * naslednjega cilja) gre na vidni dock, ki se ga da fokusirati; ce ima dock ze fokus ali ima vsebina se kaj spodaj, ne.
+     */
+    fun dolNaDock(vsebinaImaNaslednjega: Boolean, dockVidenInFokusiran: Boolean, dockImaFokus: Boolean): Boolean =
+        !vsebinaImaNaslednjega && dockVidenInFokusiran && !dockImaFokus
+
     const val ZGORAJ = "zgoraj"
     const val SPODAJ = "spodaj"
     const val LEVO = "levo"

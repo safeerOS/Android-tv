@@ -153,5 +153,11 @@ fun main() {
     preveriEnako("gumbiKartice: video", listOf("predvajaj"), P.gumbiKartice(video = true, radio = false))
     preveriEnako("gumbiKartice: radio", listOf("predvajaj"), P.gumbiKartice(video = false, radio = true))
 
+    // Tocka 28 (7. 11. 2026): DOL z dna vsebine na dock.
+    preveriEnako("dolNaDock: dno vsebine, dock viden", true, P.dolNaDock(false, true, false))
+    preveriEnako("dolNaDock: vsebina ima se spodaj", false, P.dolNaDock(true, true, false))
+    preveriEnako("dolNaDock: dock skrit ali nefokusabilen", false, P.dolNaDock(false, false, false))
+    preveriEnako("dolNaDock: dock ze ima fokus", false, P.dolNaDock(false, true, true))
+
     if (napak == 0) println("MiniPredvajalnikPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

@@ -562,6 +562,8 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     private var dock: MiniPredvajalnik? = null
+    /** Pogled, s katerega je fokus skocil na dock (tocka 28); GOR z docka se vrne nanj. */
+    private var zadnjiFokusPredDockom: View? = null
 
     /** Kartica Mediji kaze, kaj se predvaja (tudi ko predvajanje tece v ozadju); mini predvajalnik tudi. */
     private val medijiPoslusalec: () -> Unit = { runOnUiThread { GlasbaStoritev.osveziKartico(this); dock?.osvezi() } }
@@ -1641,6 +1643,23 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             return true
         }
         if (dogodek.action == KeyEvent.ACTION_UP && dogodek.keyCode == pogoltniGor) { pogoltniGor = -1; return true }
+        // Tocka 28 (7. 11. 2026): DOL z dna vsebine na mini predvajalnik, GOR z njega nazaj na prejsnji pogled.
+        if (dogodek.action == KeyEvent.ACTION_DOWN && dogodek.repeatCount == 0) {
+            val mini = dock?.aktivniPogledZaFokus?.takeIf { it.isShown && it.isFocusable }
+            val fokus = currentFocus
+            if (dogodek.keyCode == KeyEvent.KEYCODE_DPAD_DOWN && fokus != null && mini != null && dock?.imaFokus != true) {
+                val naslednji = fokus.focusSearch(View.FOCUS_DOWN)
+                val imaNaslednjega = naslednji != null && naslednji !== fokus && naslednji.isShown
+                if (MiniPredvajalnikPravila.dolNaDock(imaNaslednjega, true, false)) {
+                    zadnjiFokusPredDockom = fokus
+                    if (mini.requestFocus()) return true
+                    android.util.Log.i("SafeerDomov", "dock: requestFocus ni uspel")
+                }
+            } else if (dogodek.keyCode == KeyEvent.KEYCODE_DPAD_UP && dock?.imaFokus == true) {
+                val nazaj = zadnjiFokusPredDockom?.takeIf { it.isShown && it.isFocusable }
+                if (nazaj != null && nazaj.requestFocus()) return true
+            }
+        }
         // Natipkana crka (tipkovnica daljinca) zacne iskanje v lupi, kjerkoli je fokus.
         if (DomacaLupa.tipka(this, dogodek)) return true
         return super.dispatchKeyEvent(dogodek)
