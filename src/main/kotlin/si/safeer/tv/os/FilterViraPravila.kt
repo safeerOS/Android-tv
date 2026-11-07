@@ -291,6 +291,16 @@ object FilterViraPravila {
     // ------------------------------------------------------------------ kvota indeksatorja
 
     /**
+     * Pregled CodeRabbit 8. 11. 2026: prekrivajoca se iskanja klika - prvo, ki konca, ne sme sprostiti premora preverb, dokler
+     * tece drugo. [zacni] ob zacetku iskanja klika, [konec] ob koncu; true = to je bilo zadnje iskanje (premor se sprosti).
+     */
+    class StevecKlikov {
+        private var tece = 0
+        @Synchronized fun zacni() { tece++ }
+        @Synchronized fun konec(): Boolean { if (tece > 0) tece--; return tece == 0 }
+    }
+
+    /**
      * Najvec [naMinuto] zahtev v drsecem oknu ene minute (vse mreze skupaj). Ura je podana ([zdaj], ms), zato je
      * omejevalnik preizkusljiv. Meja ali napaka indeksatorja (429, Newznab 500/501) ustavi vse za [premorMs].
      */

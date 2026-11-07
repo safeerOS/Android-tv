@@ -369,6 +369,7 @@ object Usenet {
      */
     fun isci(c: Context, id: String, rokMs: Int = UsenetPravila.ISKANJE_ROK_MS,
              odUporabnika: Boolean = true, obMeji: (() -> Unit)? = null): IskanjeTokov {
+        if (odUporabnika) UsenetFilter.zacniKlik()
         try { return isciNotranje(c, id, rokMs, odUporabnika, obMeji) }
         finally { if (odUporabnika) UsenetFilter.prednostKlikaKonec() }
     }

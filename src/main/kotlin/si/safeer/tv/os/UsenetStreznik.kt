@@ -59,6 +59,12 @@ class UsenetStreznik(
     companion object {
         const val GOSTITELJ = "127.0.0.1"
         const val NEDEJAVNOST_MS = 300_000L
+        /** Najdalj drzanje seje brez branja (pavza): 12 h. Pregled CodeRabbit 8. 11.: opuscena seja (npr. neuspel film, nato drug vir) ne ostane odprta za vedno. */
+        const val NAJDLJE_DRZANJE_MS = 12 * 60 * 60 * 1000L
+
+        /** Ali varuh zapre streznik: ni zahtev, nedejavnost nad mejo in predvajalnik seje ne drzi (ali drzi predolgo). */
+        fun varuhZapre(drziPredvajalnik: Boolean, odprtih: Int, nedejavenMs: Long, nedejavnostMs: Long): Boolean =
+            odprtih == 0 && nedejavenMs > nedejavnostMs && (!drziPredvajalnik || nedejavenMs > NAJDLJE_DRZANJE_MS)
         const val KOS = 256 * 1024
         const val SNDBUF = 256 * 1024
         private const val NAJVEC_GLAVE = 8192
@@ -157,7 +163,7 @@ class UsenetStreznik(
     private fun pazi() {
         while (!zaprt) {
             try { Thread.sleep(maxOf(50L, minOf(1000L, nedejavnostMs / 4))) } catch (_: InterruptedException) { return }
-            if (!drziPredvajalnik && odprtih.get() == 0 && (System.nanoTime() - zadnja) / 1_000_000 > nedejavnostMs) close()
+            if (varuhZapre(drziPredvajalnik, odprtih.get(), (System.nanoTime() - zadnja) / 1_000_000, nedejavnostMs)) close()
         }
     }
 

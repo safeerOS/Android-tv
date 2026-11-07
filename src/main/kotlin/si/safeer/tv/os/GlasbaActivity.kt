@@ -3356,12 +3356,18 @@ class GlasbaActivity : OsActivity() {
         val rodVirov = MedijskiViri.spremenjeni(this)
         val police = try { podatkiRazdelka(VIDEO).filter { it.skladbe.isNotEmpty() } } catch (e: Exception) {
             android.util.Log.d("SafeerOsMediji", "Dom: police VIDEO s spleta: napaka - ${e.javaClass.simpleName}")
+            if (VSE_VIDEO?.isEmpty() == true) VSE_VIDEO = null
             return
         }
-        if (police.isEmpty()) { android.util.Log.d("SafeerOsMediji", "Dom: police VIDEO s spleta: brez zadetkov"); return }
+        if (police.isEmpty()) {
+            // podatkiRazdelka je VSE_VIDEO ze nastavil na prazen seznam: pocistimo ga, da naslednji obisk Doma poskusi znova.
+            if (VSE_VIDEO?.isEmpty() == true) VSE_VIDEO = null
+            android.util.Log.d("SafeerOsMediji", "Dom: police VIDEO s spleta: brez zadetkov")
+            return
+        }
         if (MedijskiViri.spremenjeni(this) != rodVirov) { android.util.Log.d("SafeerOsMediji", "Dom: police VIDEO s spleta: viri so se spremenili"); return }
-        val vsi = police.flatMap { it.skladbe }
-        VSE_VIDEO = vsi
+        // VSE_VIDEO je podatkiRazdelka ze nastavil s polnim seznamom kandidatov (police so po POLICA_NAJVEC okrnjene).
+        val vsi = VSE_VIDEO ?: police.flatMap { it.skladbe }
         try { MedijskiPredpomnilnik.shraniPolice(this, kljucPolic(VIDEO), police.map { Triple(it.naslov, it.video, it.skladbe) }, System.currentTimeMillis()) } catch (_: Exception) { }
         android.util.Log.d("SafeerOsMediji", "Dom: police VIDEO s spleta: ${vsi.size} naslovov")
         glavna.post { if (razdelek == DOMOV && !podstrani.odprta && !isFinishing) osveziNaMestu() }

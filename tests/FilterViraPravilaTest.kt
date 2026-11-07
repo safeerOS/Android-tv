@@ -108,6 +108,14 @@ fun main() {
     val je = FilterViraPravila.zapisi(null, Izid.NA_VOLJO, KakovostPravila.Oznaka.FULL_HD, t0)
     preveriEnako("NA_VOLJO: prikazan", true, FilterViraPravila.pokazi(je, t0 + min))
     preveriEnako("NE_VEMO ne povozi svezega NA_VOLJO", je, FilterViraPravila.zapisi(je, Izid.NE_VEMO, null, t0 + min))
+    // Pregled CodeRabbit 8. 11.: prekrivajoca se iskanja klika - premor se sprosti sele ob koncu zadnjega.
+    run {
+        val k = FilterViraPravila.StevecKlikov()
+        k.zacni(); k.zacni()
+        preveriEnako("klik: prvo koncano iskanje ne sprosti premora, ker tece drugo", false, k.konec())
+        preveriEnako("klik: zadnje koncano iskanje sprosti premor", true, k.konec())
+        preveriEnako("klik: odvecen konec ne pokvari stevca", true, k.konec())
+    }
     // Tocka 15 (7. 11. 2026): NA_VOLJO nima izteka - zapis star 7 h in 30 dni je se vedno viden (brez popravka je skrit po 6 h).
     preveriEnako("NA_VOLJO po 7 h: se vedno viden", true, FilterViraPravila.pokazi(je, t0 + 7 * 60 * min))
     preveriEnako("NA_VOLJO po 30 dneh: se vedno viden", true, FilterViraPravila.pokazi(je, t0 + 30L * 24 * 60 * min))

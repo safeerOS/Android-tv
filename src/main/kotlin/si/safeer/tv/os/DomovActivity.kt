@@ -564,6 +564,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private var dock: MiniPredvajalnik? = null
     /** Pogled, s katerega je fokus skocil na dock (tocka 28); GOR z docka se vrne nanj. */
     private var zadnjiFokusPredDockom: View? = null
+    private var zadnjaOznakaPredDockom: Any? = null
 
     /** Kartica Mediji kaze, kaj se predvaja (tudi ko predvajanje tece v ozadju); mini predvajalnik tudi. */
     private val medijiPoslusalec: () -> Unit = { runOnUiThread { GlasbaStoritev.osveziKartico(this); dock?.osvezi() } }
@@ -1652,11 +1653,14 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 val imaNaslednjega = naslednji != null && naslednji !== fokus && naslednji.isShown
                 if (MiniPredvajalnikPravila.dolNaDock(imaNaslednjega, true, false)) {
                     zadnjiFokusPredDockom = fokus
+                    zadnjaOznakaPredDockom = fokus.tag
                     if (mini.requestFocus()) return true
                     android.util.Log.i("SafeerDomov", "dock: requestFocus ni uspel")
                 }
             } else if (dogodek.keyCode == KeyEvent.KEYCODE_DPAD_UP && dock?.imaFokus == true) {
+                // Pregled CodeRabbit 8. 11.: osvezitev vrstice zamenja pogled - poiscemo trenutnega po oznaki.
                 val nazaj = zadnjiFokusPredDockom?.takeIf { it.isShown && it.isFocusable }
+                    ?: zadnjaOznakaPredDockom?.let { window.decorView.findViewWithTag<View>(it) }?.takeIf { it.isShown && it.isFocusable }
                 if (nazaj != null && nazaj.requestFocus()) return true
             }
         }

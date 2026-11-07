@@ -663,6 +663,11 @@ private fun streznik() {
             preveri("neposredno branje: streznik po 800 ms dejavnosti ni zaprt", !s.zaprt && !b3.zaprt)
         }
     }
+    // Pregled CodeRabbit 8. 11.: drzanje seje je omejeno (opuscena seja ne ostane za vedno).
+    preveri("varuh: seja, ki jo drzi predvajalnik, po 1 h pavze ostane", !UsenetStreznik.varuhZapre(true, 0, 3_600_000L, 300_000L))
+    preveri("varuh: seja, ki jo drzi predvajalnik, po 13 h se zapre", UsenetStreznik.varuhZapre(true, 0, 13L * 3_600_000L, 300_000L))
+    preveri("varuh: seja brez predvajalnika se zapre po nedejavnosti", UsenetStreznik.varuhZapre(false, 0, 301_000L, 300_000L))
+    preveri("varuh: odprta zahteva prepreci zaprtje", !UsenetStreznik.varuhZapre(false, 1, 999_999_999L, 300_000L))
     // Tocka 16 (7. 11. 2026): predvajalnik drzi sejo - pavza dalj kot nedejavnost je ne zapre.
     run {
         val b4 = bralnik(o)

@@ -118,9 +118,14 @@ object UsenetFilter {
 
     /** Tocka 1+: klik je dobil odgovor indeksatorja (ali neuspeh) - premor preverb filtra se konca takoj. */
     fun prednostKlikaKonec() {
+        if (!kliki.konec()) { Log.i(TAG, "prednost klika: koncano iskanje, a tece se drugo - premor ostane"); return }
         if (omejevalnik.premorPreverbSe(zdaj()) > 0L) Log.i(TAG, "prednost klika: iskanje koncano, preverbe filtra spet tecejo")
         omejevalnik.sprostiPreverbe()
     }
+
+    private val kliki = F.StevecKlikov()
+    /** Ob zacetku iskanja klika (pred prvim izhodom); vsak [zacniKlik] ima natanko en [prednostKlikaKonec]. */
+    fun zacniKlik() = kliki.zacni()
 
     /** Del A: rezervirano mesto za iskanje ob kliku; ms cakanja (razmik) ali null = indeksator je v premoru. */
     fun rezervirajIskanje(): Long? = omejevalnik.rezervirajUporabniku(zdaj())
