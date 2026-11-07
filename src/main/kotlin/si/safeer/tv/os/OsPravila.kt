@@ -1733,6 +1733,20 @@ object OsPravila {
         return KODE_PODNAPISOV[k] ?: JezikiVsebine.oznaka(k)
     }
 
+    /**
+     * Tocka 17 (TV 7. 11. 2026 11:40): datoteka je imela vdelane mehke podnapise (32 sledi, tudi sl), izbrana pa je bila
+     * zunanja (OpenSubtitles), ki ni ustrezala izdaji. Ce je vdelana sled v jeziku uporabnika, se izbere ona in zunanjih ne iscemo.
+     * [vdelani] so jezikovne kode vdelanih besedilnih sledi (ISO 639-1 ali 639-2, tudi »sl-SI«); »und« in prazno ne ujemata.
+     */
+    fun vdelanVJeziku(vdelani: List<String>, jezik: String): Boolean {
+        val cilj = jezikPodnapisa(jezik.substringBefore('-'))
+        if (cilj.isEmpty() || cilj == "und") return false
+        return vdelani.any { k ->
+            val j = k.trim().substringBefore('-')
+            j.isNotEmpty() && !j.equals("und", true) && jezikPodnapisa(j) == cilj
+        }
+    }
+
     data class PodnapisDodatka(val url: String, val jezik: String, val ujemanje: Boolean = false)
 
     /**

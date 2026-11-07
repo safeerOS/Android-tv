@@ -1907,6 +1907,14 @@ class PredvajanjeActivity : OsActivity() {
             if (pripravljen) glavna.postDelayed({ if (!isFinishing) samodejniPodnapisi() }, OsPravila.PODNAPISI_PO_READY_MS + 50)
             return
         }
+        // Tocka 17: vdelana mehka sled v jeziku uporabnika ima prednost; zunanjih podnapisov ne dodajamo.
+        val vdelani = Podnapisi.posnetki(p0).map { (g, i) -> g.getTrackFormat(i).language.orEmpty() }
+        if (OsPravila.vdelanVJeziku(vdelani, jezik)) {
+            podnapisiDodatkaZa = kljuc
+            Podnapisi.vklopiJezik(this, p0, jezik)
+            razlogPodnapisov(kljuc, "vdelana sled v jeziku $jezik (${vdelani.size} sledi), zunanjih ne iscemo")
+            return
+        }
         val id = idPodnapisov()
         if (id == null) {
             razlogPodnapisov(kljuc, "idPodnapisov null (id=${skTrenutna.id} imdbId=${skTrenutna.imdbId} video=${skTrenutna.video})")

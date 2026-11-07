@@ -584,6 +584,12 @@ private fun preizkusPodnapisovDodatkov() {
     preveriEnako("naslov brez extra", "http://x/subtitles/movie/tt123.json", OsPravila.naslovPodnapisov("http://x", "movie", "tt123", null, null, null))
     preveriEnako("naslov s hashom in velikostjo", "http://x/subtitles/movie/tt123/videoHash=abc&videoSize=123.json", OsPravila.naslovPodnapisov("http://x", "movie", "tt123", "abc", 123L, null))
     preveriEnako("naslov z vsemi extra", "http://x/subtitles/movie/tt123/videoHash=abc&videoSize=123&filename=a+b.mkv.json", OsPravila.naslovPodnapisov("http://x", "movie", "tt123", "abc", 123L, "a b.mkv"))
+    // Tocka 17 (7. 11. 2026): vdelana sled v jeziku uporabnika izkljuci zunanje podnapise.
+    preveriEnako("vdelan sl (639-2) ujema sl", true, OsPravila.vdelanVJeziku(listOf("eng", "slv", "deu"), "sl"))
+    preveriEnako("vdelan sl-SI ujema sl", true, OsPravila.vdelanVJeziku(listOf("sl-SI"), "sl"))
+    preveriEnako("brez vdelane v jeziku: iscemo zunanje", false, OsPravila.vdelanVJeziku(listOf("eng", "deu", "und"), "sl"))
+    preveriEnako("und ne ujema", false, OsPravila.vdelanVJeziku(listOf("und", ""), "und"))
+    preveriEnako("prazen seznam", false, OsPravila.vdelanVJeziku(emptyList(), "sl"))
     preveriEnako("eng -> en", "en", OsPravila.jezikPodnapisa("eng"))
     preveriEnako("slv -> sl", "sl", OsPravila.jezikPodnapisa("slv"))
     preveriEnako("pob (brazilska) -> pt", "pt", OsPravila.jezikPodnapisa("pob"))
