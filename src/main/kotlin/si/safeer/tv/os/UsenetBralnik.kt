@@ -35,6 +35,13 @@ object UsenetBralnik {
      */
     @Volatile var vnaprejDovoljeno: () -> Boolean = { true }
 
+    /**
+     * Del D (lastnik 7. 11. 2026 19:36): ali USB se sprejema zapise (UsenetUsb nastavi: koren na odstranljivem USB in
+     * manj kot petina zavrzenih pisanj v minuti). Ob prvem false bralnik preide na okno <= LRU; privzeto da (brez USB,
+     * preizkusi).
+     */
+    @Volatile var usbDeluje: () -> Boolean = { true }
+
     /** [okno] najvecje okno vnaprej, [zacetno] po odprtju ali skoku, [lru] dekodirani segmenti v RAM, [vzporedno] branj. */
     data class Profil(val okno: Long, val zacetno: Long, val lru: Long, val vzporedno: Int)
 
@@ -137,11 +144,14 @@ object UsenetBralnik {
     private class Naloga(val prednost: Int, val zap: Long, val kljuc: Kljuc, val nastanek: Long = System.currentTimeMillis())
 
     /** Branje filma z omejenim oknom vnaprej. Varno za vec niti. [telo] = [UsenetNntp.body]. */
-    class Bralnik(private val telo: (String, Long) -> ByteArray, val vir: Vir, val profil: Profil = PROFILI.getValue("namizje"), val naUsb: Boolean = false) : Closeable {
+    class Bralnik(private val telo: (String, Long) -> ByteArray, val vir: Vir, val profil: Profil = PROFILI.getValue("namizje"), naUsb: Boolean = false) : Closeable {
         private val zaklep = ReentrantLock()
         private val pogoj = zaklep.newCondition()
         /** LRU mora drzati vsaj okno in segment ob njem, sicer bi branje vnaprej izrinilo samo sebe. */
         val lruMeja: Long = UsenetBralnik.lruMeja(profil, naUsb)
+        /** Del D: veliko okno samo z delujocim USB; ko USB odpove, [preklopiNaNotranji] ga skrci na LRU. */
+        @Volatile var naUsb: Boolean = naUsb
+            private set
         private val lru = LinkedHashMap<Kljuc, ByteArray>(64, 0.75f, true)
         @Volatile var lruBajtov = 0L; private set
         private val vTeku = HashMap<Kljuc, CompletableFuture<ByteArray>>()
@@ -169,6 +179,19 @@ object UsenetBralnik {
         }
 
         override fun toString() = "Bralnik($vir, z omrezja ${zOmrezja.get()} B)"
+
+        /** Del D: veliko okno vnaprej samo z delujocim USB - brez njega segmenti ne smejo izpasti iz RAM (LRU). */
+        private fun najvecOkno(): Long = if (naUsb) profil.okno else minOf(profil.okno, lruMeja)
+
+        /**
+         * Del D (lastnik 7. 11. 2026 19:36-20:07): zapisi na USB so med predvajanjem odpadli (napaka ali vec kot petina
+         * zavrzenih pisanj v minuti). Okno vnaprej se skrci na najvec LRU, da se prebranega ne prenese znova.
+         */
+        fun preklopiNaNotranji(razlog: String) {
+            if (!naUsb) return
+            naUsb = false
+            android.util.Log.i("SafeerUsenetBralnik", "USB odpoveduje ($razlog) - okno vnaprej najvec LRU ${lruMeja / MIB} MiB")
+        }
 
         /** Ali kakega branja ni v teku (preizkusi, meritev). */
         fun miruje(): Boolean = zaklep.withLock { vTeku.isEmpty() && cakajo.isEmpty() }
@@ -329,7 +352,9 @@ object UsenetBralnik {
         }
 
         private fun vnaprej(od: Long) {
-            val okno = oknoVnaprej(zaporedno, profil.zacetno, profil.okno)
+            // Del D: USB, ki ne sprejema vec zapisov, ne upravicuje velikega okna (prej je branje vnaprej prehitelo RAM).
+            if (naUsb && !usbDeluje()) preklopiNaNotranji("zavrzena pisanja ali napaka")
+            val okno = oknoVnaprej(zaporedno, profil.zacetno, najvecOkno())
             val kljuci = ArrayList<Kljuc>()
             for ((d, o, n) in vir.razponi(od, okno)) for (st in vir.preslikave[d].segmentiOkna(o, n)) kljuci += Kljuc(d, st)
             zaklep.withLock {
@@ -370,7 +395,7 @@ object UsenetBralnik {
         }
 
         fun beleziSkok(od: Long) {
-            val okno = oknoVnaprej(0, profil.zacetno, profil.okno)
+            val okno = oknoVnaprej(0, profil.zacetno, najvecOkno())
             val kljuci = ArrayList<Kljuc>()
             for ((d, o, n) in vir.razponi(od, okno)) for (st in vir.preslikave[d].segmentiOkna(o, n)) kljuci += Kljuc(d, st)
             var pripravljenih = 0

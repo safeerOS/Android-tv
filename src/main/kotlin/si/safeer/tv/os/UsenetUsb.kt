@@ -20,6 +20,10 @@ object UsenetUsb {
     private val zapisanih = AtomicLong()
     private val zavrzenaPisanja = AtomicLong()
     private val dnevnikOb = AtomicLong()
+    /** Del D (7. 11. 2026): poskusi in zavrzena pisanja v tekoci minuti - ocena, ali USB dohaja. */
+    private val poskusovMinuto = AtomicLong()
+    private val zavrzenihMinuto = AtomicLong()
+    private val minutaOd = AtomicLong(System.currentTimeMillis())
 
     fun prostoraZaNovFilm(c: Context, trenutna: String, potrebno: Long, mejaUsenet: Long) {
         val m = UsbPredpomnilnik.mapa(c, PredpomnilnikPravila.USENET) ?: return
@@ -65,13 +69,27 @@ object UsenetUsb {
         Thread({ android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND); r.run() }, "safeer-usb-zapis-v").apply { isDaemon = true }
     }, obZavrzenem = {
         zavrzenaPisanja.incrementAndGet()
+        zavrzenihMinuto.incrementAndGet()
         Log.d(TAG, "zavrzen zapis vnaprejsnjega segmenta (USB prepocasen, vrsta polna)")
     })
+
+    /**
+     * Del D (lastnik 7. 11. 2026 19:36): ali USB med predvajanjem odpoveduje - nic vec ni na USB (napaka, odklop) ali je
+     * v minuti zavrzenih vec kot petina zapisov. Bralnik takrat preide na okno <= LRU ([UsenetBralnik.preklopiNaNotranji]).
+     */
+    fun odpoveduje(): Boolean {
+        val zdaj = System.currentTimeMillis()
+        val od = minutaOd.get()
+        if (zdaj - od >= 60_000L && minutaOd.compareAndSet(od, zdaj)) { poskusovMinuto.set(0); zavrzenihMinuto.set(0) }
+        return !UsbPredpomnilnik.naUsb() || PredpomnilnikPravila.usbOdpoveduje(zavrzenihMinuto.get(), poskusovMinuto.get())
+    }
 
     fun ovij(c: Context, odtisIzdaje: String, telo: (String, Long) -> ByteArray): (String, Long) -> ByteArray {
         val app = c.applicationContext
         // Pregled US-4: branje vnaprej caka, ko vrsta zapisov na USB nima prostora (UsenetBralnik.vnaprejDovoljeno).
         UsenetBralnik.vnaprejDovoljeno = { pisalecVnaprej.queue.remainingCapacity() > 0 }
+        // Del D: bralnik ob odpovedi USB pisanja skrci okno vnaprej na LRU (prej so segmenti izpadli iz RAM).
+        UsenetBralnik.usbDeluje = { !odpoveduje() }
         return { id, bajtov ->
             val datoteka = try {
                 UsbPredpomnilnik.mapa(app, PredpomnilnikPravila.USENET)?.let { m ->
@@ -83,6 +101,7 @@ object UsenetUsb {
                 UsenetBralnik.zadnjiVir.set("omrezje")
                 if (datoteka != null && bajti.isNotEmpty() && bajti.size <= PredpomnilnikPravila.NAJVEC_SEGMENT) {
                     try {
+                        poskusovMinuto.incrementAndGet()
                         if (UsenetBralnik.vnaprejPrenos.get() == true) {
                             pisalecVnaprej.execute { zapisi(app, datoteka, bajti) }
                         } else {
@@ -90,6 +109,7 @@ object UsenetUsb {
                         }
                     } catch (_: Throwable) {
                         zavrzenaPisanja.incrementAndGet()
+                        zavrzenihMinuto.incrementAndGet()
                     }
                 }
             }

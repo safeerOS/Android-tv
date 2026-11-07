@@ -93,7 +93,10 @@ object UsenetLastni {
             // Lastnik 28. 10. 2026: clanki prek predpomnilnika na USB (ce je v uporabi).
             val telo = UsenetUsb.ovij(c, odtisIzdaje, nntp::body)
             val (vir, _) = UsenetBralnik.pripravi(razclenjen, telo)
-            val naUsb = UsbPredpomnilnik.mapa(c, PredpomnilnikPravila.USENET) != null
+            // Del D (7. 11. 2026 19:36): mapa() vzpostavi stanje (preveri USB), a veliko okno dovoli SAMO odstranljiv in
+            // priklopljen USB - prej je `mapa(...) != null` veljalo tudi za notranji predpomnilnik.
+            UsbPredpomnilnik.mapa(c, PredpomnilnikPravila.USENET)
+            val naUsb = UsbPredpomnilnik.naUsb()
             val rt = Runtime.getRuntime()
             val prostiHeap = rt.maxMemory() - rt.totalMemory() + rt.freeMemory()
             val profil = UsenetBralnik.profilVidea(UsenetBralnik.PROFILI.getValue(if (Naprava.jeTelevizor(c)) "tv" else "telefon"), naUsb, vir.velikost, null, prostiHeap)

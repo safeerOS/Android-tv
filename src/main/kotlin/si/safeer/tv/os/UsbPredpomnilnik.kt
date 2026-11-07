@@ -99,6 +99,17 @@ object UsbPredpomnilnik {
     /** Naloga 89: meja predpomnilnika na USB (bajti), 0 = USB ni v uporabi. */
     fun mejaUsb(): Long = if (koren != null) meja else 0L
 
+    /**
+     * Del D (lastnik 7. 11. 2026 19:36): ali predpomnilnik zdaj tece na ODSTRANLJIVEM in priklopljenem USB. Samo tak
+     * upravicuje veliko okno branja vnaprej Useneta; notranji pomnilnik ne (prej je `mapa(...) != null` vrnilo true tudi
+     * zanj, segmenti pa so izpadli iz RAM in se prenesli znova).
+     */
+    fun naUsb(): Boolean {
+        val k = koren ?: return false
+        val u = usbPriklopljen ?: return false
+        return PredpomnilnikPravila.naUsb(k.path == File(u.pot, MAPA).path, u.odstranljiv, u.priklopljen)
+    }
+
     /** Branje ali pisanje na USB ni uspelo (odklop, poln, napaka datotecnega sistema): do naslednje preverbe samo notranji. */
     fun napaka() {
         if (koren != null) {

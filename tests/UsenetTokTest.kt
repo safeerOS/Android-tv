@@ -494,6 +494,22 @@ private fun bralnikPreizkusi() {
     enako("okno raste", 8 * MIB, UsenetBralnik.oknoVnaprej(3 * MIB, MIB, 16 * MIB))
     enako("okno meja", 16 * MIB, UsenetBralnik.oknoVnaprej(100 * MIB, MIB, 16 * MIB))
 
+    // Del D (lastnik 7. 11. 2026 19:36-20:07, The Prestige): notranji pomnilnik ali okvarjen kljuc ne upravicuje velikega
+    // okna - tam segmenti izpadejo iz RAM (LRU) in se prenesejo znova. Veliko okno samo z delujocim odstranljivim USB.
+    val tvProfil = UsenetBralnik.PROFILI.getValue("tv")
+    val velik = 4L * 1024 * MIB
+    enako("naUsb: notranji pomnilnik ni USB", false, PredpomnilnikPravila.naUsb(true, false, false))
+    enako("naUsb: nepriklopljen USB ni USB", false, PredpomnilnikPravila.naUsb(true, true, false))
+    enako("naUsb: koren ni na kandidatu", false, PredpomnilnikPravila.naUsb(false, true, true))
+    enako("naUsb: priklopljen odstranljiv USB je", true, PredpomnilnikPravila.naUsb(true, true, true))
+    val notranji = UsenetBralnik.profilVidea(tvProfil, PredpomnilnikPravila.naUsb(false, false, false), velik, 7_200L, 100 * MIB)
+    enako("notranji pomnilnik: okno <= LRU", true, notranji.okno <= UsenetBralnik.lruMeja(notranji, false))
+    val zUsb = UsenetBralnik.profilVidea(tvProfil, true, velik, 7_200L, 100 * MIB)
+    enako("delujoc USB: okno je veliko (vec kot LRU)", true, zUsb.okno > UsenetBralnik.lruMeja(zUsb, true))
+    enako("USB odpoveduje pri petini zavrzenih pisanj", true, PredpomnilnikPravila.usbOdpoveduje(21, 100))
+    enako("USB ne odpoveduje pri malo zavrzenih", false, PredpomnilnikPravila.usbOdpoveduje(5, 100))
+    enako("USB: premalo poskusov ni sklep", false, PredpomnilnikPravila.usbOdpoveduje(2, 3))
+
     val film = Leno(9 * MIB + 12345, 3)
     val o = Objava().apply { dodaj("Film.2026.mkv", film); dodaj("Film.2026.nfo", Bajti("nfo".toByteArray())); dodaj("Film.2026.sample.mkv", Leno(MIB, 9)) }
     bralnik(o).use { b ->

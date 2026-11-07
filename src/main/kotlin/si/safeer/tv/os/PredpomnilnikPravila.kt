@@ -149,6 +149,23 @@ object PredpomnilnikPravila {
         return ven.toList()
     }
 
+    /**
+     * Del D (lastnik 7. 11. 2026 19:36-20:07, The Prestige): veliko okno branja vnaprej (96-120 MiB) upravicuje samo
+     * ODSTRANLJIV in priklopljen USB, na katerem je koren predpomnilnika. Notranji predpomnilnik ne steje - segmenti
+     * izpadejo iz RAM (LRU 32 MiB) in se prenesejo znova (5,2 GB z Useneta za ~1 GB ogleda, isti segment do 8x).
+     */
+    fun naUsb(korenNaKandidatu: Boolean, odstranljiv: Boolean, priklopljen: Boolean): Boolean =
+        korenNaKandidatu && odstranljiv && priklopljen
+
+    /** Vzorec za oceno odpovedi zapisov: manj poskusov v minuti ni dovolj za sklep. */
+    const val USB_VZOREC = 10
+
+    /**
+     * Del D: zapisi na USB odpovedujejo, ko je v minuti zavrzenih vec kot petina poskusov (polna vrsta, pocasen ali
+     * odklopljen kljuc) - bralnik takrat preide na okno <= LRU in ne pise vec vnaprej.
+     */
+    fun usbOdpoveduje(zavrzenih: Long, poskusov: Long): Boolean = poskusov >= USB_VZOREC && zavrzenih * 5 > poskusov
+
     /** Ciscenje po vsaki dvajsetini meje zapisanih bajtov ali najvec na 10 min (in ob prvem zapisu procesa). */
     fun jeCasZaCiscenje(zapisanihOdZadnjega: Long, zadnjeOb: Long, zdaj: Long, meja: Long): Boolean =
         zadnjeOb == 0L || zapisanihOdZadnjega > meja / 20 || zdaj - zadnjeOb !in 0 until 10 * 60_000L
