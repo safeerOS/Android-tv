@@ -88,10 +88,12 @@ object PokrajinaPravila {
     fun obnoviFokus(cakaVrnitev: Boolean, tipkaPoVrnitvi: Boolean): Boolean = cakaVrnitev && !tipkaPoVrnitvi
 
     /**
-     * DOL s ploscice na mini predvajalnik samo, ko je odprt (isto kot dispatchKeyEvent, pregled 3. 11. 2026); sicer na
-     * spodnjo vrstico pod isto X. Pregled lupe 5. 11. 2026 (10): prepis iskanja fokusa vrste se prej sploh ni izvedel.
+     * DOL s ploscice na mini predvajalnik, ko je viden in ga je mogoce fokusirati (odprt ali zaprta pilula); sicer na
+     * spodnjo vrstico pod isto X. Lastnik 7. 11. 2026 20:15 (tocka 28, video): z daljincem na pilulo nad dokom ni bilo
+     * mogoce; pregled 3. 11. je zaprto pilulo preskakoval. [miniOdprt] je ostal zaradi klicateljev, na odlocitev ne vpliva.
      */
-    fun dolNaMini(miniOdprt: Boolean, miniViden: Boolean): Boolean = miniOdprt && miniViden
+    @Suppress("UNUSED_PARAMETER")
+    fun dolNaMini(miniOdprt: Boolean, miniViden: Boolean): Boolean = miniViden
 
     fun dokVrstniRed(shranjeno: String?): List<String> {
         val s = shranjeno?.split(",")?.map { it.trim() }?.filter { it in DOK }.orEmpty()

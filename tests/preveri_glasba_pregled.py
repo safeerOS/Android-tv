@@ -115,5 +115,7 @@ preveri("podnapisi: vdelana sled v jeziku uporabnika pred zunanjimi", "OsPravila
 fv = (OS / "FilterViraPravila.kt").read_text(encoding="utf-8")
 preveri("filter Usenet: NA_VOLJO brez casovnega izteka", "const val NA_VOLJO_VELJA = Long.MAX_VALUE" in fv)
 preveri("iskanje: OK na ze iskanem besedilu pocisti polje in odpre tipkovnico", 'TipkaIskanja.NOVO) { setText(""); prikaziTipkovnico(this) }' in g2)
+pk = (OS / "PokrajinaActivity.kt").read_text(encoding="utf-8")
+preveri("Pokrajina: GOR z doka na pilulo tudi, ko je zaprta", "if (mini != null) {   // tocka 28" in pk)
 print("VSE OK" if napak == 0 else f"NAPAK: {napak}")
 sys.exit(1 if napak else 0)

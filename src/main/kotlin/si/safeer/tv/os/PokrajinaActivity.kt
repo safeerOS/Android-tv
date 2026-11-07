@@ -870,8 +870,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
             } else if (pretvorjen.keyCode == KeyEvent.KEYCODE_DPAD_UP) {
                 if (::dok.isInitialized && dok.hasFocus()) {
                     // Gor z doka na mini samo, ce je odprt; sicer naravnost na ploscico (pregled 3. 11. 2026).
-                    if (dock?.jeOdprt == true) {
-                        if (dock?.fokusiraj() == true || (mini != null && mini.requestFocus())) return true
+                    if (mini != null) {   // tocka 28: tudi zaprta pilula (prej samo odprt dock)
+                        if (dock?.fokusiraj() == true || mini.requestFocus()) return true
                     }
                     if (::vrstaAplikacij.isInitialized) {
                         val cilj = najblizjiPogledX(vrstaAplikacij, dok.findFocus())

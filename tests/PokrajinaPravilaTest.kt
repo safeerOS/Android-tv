@@ -234,7 +234,9 @@ fun main() {
     preveriEnako("(9) brez tipke se fokus obnovi", true, PokrajinaPravila.obnoviFokus(true, false))
     preveriEnako("(9) po tipki uporabnika se fokus ne premakne", false, PokrajinaPravila.obnoviFokus(true, true))
     preveriEnako("(9) obnova ze koncana", false, PokrajinaPravila.obnoviFokus(false, false))
-    preveriEnako("(10) DOL na mini samo, ko je odprt", false, PokrajinaPravila.dolNaMini(false, true))
+    // Tocka 28 (7. 11. 2026): tudi zaprta pilula je dosegljiva z daljincem (prej se je preskocila).
+    preveriEnako("(28) DOL na zaprto, vidno pilulo", true, PokrajinaPravila.dolNaMini(false, true))
+    preveriEnako("(28) skrit mini: DOL ne gre nanj", false, PokrajinaPravila.dolNaMini(false, false))
     preveriEnako("(10) odprt in viden mini", true, PokrajinaPravila.dolNaMini(true, true))
 
     // Pregled doma 5. 11. 2026.
