@@ -218,8 +218,13 @@ object FilterViraPravila {
 
     private const val MINUTA = 60_000L
     private const val URA = 60 * MINUTA
-    /** Rok potrjenega in negativnega izida (lastnik: npr. 6 h). */
-    const val NA_VOLJO_VELJA = 6 * URA
+    /**
+     * Tocka 15 (lastnik 7. 11. 2026 10:40, pod filtrom Usenet le 8-13 plakatov): NA_VOLJO NI casovnega izteka - zapis velja,
+     * dokler je vsebina pri viru. Odstrani ga klik z 0 izdajami (UsenetFilter.pozabi); izginulim naslovom v katalogu
+     * ob dnevni osvezitvi sledi locen korak. Rok ostane le za NI. (Prej 6 h: pozno zvecer je filter kazal malo plakatov.)
+     */
+    const val NA_VOLJO_VELJA = Long.MAX_VALUE
+    /** Rok negativnega izida (lastnik: npr. 6 h). */
     const val NI_VELJA = 6 * URA
     /** Ponovne preverbe po »ne vemo«: najvec [NAJVEC_PONOVITEV], zamik 2, 4, 8 min; nato sele po [NI_VELJA]. */
     const val NAJVEC_PONOVITEV = 3

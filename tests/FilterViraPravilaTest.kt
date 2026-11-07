@@ -108,7 +108,12 @@ fun main() {
     val je = FilterViraPravila.zapisi(null, Izid.NA_VOLJO, KakovostPravila.Oznaka.FULL_HD, t0)
     preveriEnako("NA_VOLJO: prikazan", true, FilterViraPravila.pokazi(je, t0 + min))
     preveriEnako("NE_VEMO ne povozi svezega NA_VOLJO", je, FilterViraPravila.zapisi(je, Izid.NE_VEMO, null, t0 + min))
-    preveriEnako("NA_VOLJO po 6 h: ne prikazemo, dokler ni znova potrjen", false, FilterViraPravila.pokazi(je, t0 + 6 * 60 * min + 1))
+    // Tocka 15 (7. 11. 2026): NA_VOLJO nima izteka - zapis star 7 h in 30 dni je se vedno viden (brez popravka je skrit po 6 h).
+    preveriEnako("NA_VOLJO po 7 h: se vedno viden", true, FilterViraPravila.pokazi(je, t0 + 7 * 60 * min))
+    preveriEnako("NA_VOLJO po 30 dneh: se vedno viden", true, FilterViraPravila.pokazi(je, t0 + 30L * 24 * 60 * min))
+    preveriEnako("NA_VOLJO iz prihodnosti (ura nazaj): ni svez", false, FilterViraPravila.pokazi(je, t0 - min))
+    preveriEnako("NA_VOLJO po 7 h: ne sprasujemo znova", false, FilterViraPravila.vprasati(je, t0 + 7 * 60 * min))
+    preveriEnako("NI po 6 h in 1 ms: sprasujemo znova", true, FilterViraPravila.vprasati(FilterViraPravila.Zapis(Izid.NI, t0), t0 + 6 * 60 * min + 1))
     preveriEnako("zapis iz prihodnosti ni svez", false, FilterViraPravila.pokazi(je, t0 - min))
     preveriEnako("zapis v niz in nazaj", je, FilterViraPravila.izNiza(FilterViraPravila.vNiz(je)))
     preveriEnako("pokvarjen niz", null, FilterViraPravila.izNiza("NA_VOLJO;x;;0"))
