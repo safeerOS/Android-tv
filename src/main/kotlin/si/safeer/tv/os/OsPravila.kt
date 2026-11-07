@@ -1908,13 +1908,19 @@ object OsPravila {
 
     // ------------------------------------------------------------------ zunanji pregled iskalne vrstice 3. 11. 2026
 
-    enum class TipkaIskanja { ISCI, TIPKOVNICA, FOKUS_ZADETKI, ZAPRI_TIPKOVNICO, ZAPUSTI, OSTANI }
+    enum class TipkaIskanja { ISCI, TIPKOVNICA, NOVO, FOKUS_ZADETKI, ZAPRI_TIPKOVNICO, ZAPUSTI, OSTANI }
 
     /**
      * OK ali Enter v iskalnem polju Medijskega centra: z vsaj dvema crkama isce (IME_ACTION_SEARCH na TV ne pride), sicer
      * odpre tipkovnico. Prej je OK vedno samo odprl tipkovnico.
      */
-    fun okIskanja(besedilo: String): TipkaIskanja = if (besedilo.trim().length >= 2) TipkaIskanja.ISCI else TipkaIskanja.TIPKOVNICA
+    fun okIskanja(besedilo: String, zadnjaBeseda: String = ""): TipkaIskanja = when {
+        // Tocka 23a/23b (TV 7. 11. 2026 15:16): polje ostane »gost story« z 21 zadetki, novega iskanja ni mogoce zaceti brez brisanja
+        // crke za crko. OK na besedilu, ki je ze iskano (zadetki so na zaslonu), pocisti polje in odpre tipkovnico.
+        zadnjaBeseda.isNotBlank() && besedilo.trim() == zadnjaBeseda.trim() -> TipkaIskanja.NOVO
+        besedilo.trim().length >= 2 -> TipkaIskanja.ISCI
+        else -> TipkaIskanja.TIPKOVNICA
+    }
 
     /** DOL: nova beseda najprej isce (fokus na prvi zadetek, ko pridejo zadetki te besede); ze najdena gre na zadetke. */
     // Neodvisni pregled 4. 11. 2026: DOL ne sprozi poizvedbe dodatkom (prej je vsak DOL z novo besedo vprasal vse vire).

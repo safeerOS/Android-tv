@@ -7056,7 +7056,9 @@ class GlasbaActivity : OsActivity() {
                 // OK na (skoraj) praznem polju. DOL najprej isce, fokus na prvi zadetek pride z zadetki te besede.
                 KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER -> {
                     val q = text.toString().trim()
-                    if (OsPravila.okIskanja(q) == OsPravila.TipkaIskanja.ISCI) { if (!prikaziNaDrugi(q)) isci(q); skrijTipkovnico(this) }
+                    val ok = OsPravila.okIskanja(q, if (zadetki != null) zadnjaBeseda else "")
+                    if (ok == OsPravila.TipkaIskanja.ISCI) { if (!prikaziNaDrugi(q)) isci(q); skrijTipkovnico(this) }
+                    else if (ok == OsPravila.TipkaIskanja.NOVO) { setText(""); prikaziTipkovnico(this) }   // tocka 23a/23b: novo iskanje, prazno polje
                     else prikaziTipkovnico(this)
                     true
                 }

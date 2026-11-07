@@ -1091,6 +1091,10 @@ private fun preizkusGlasbe83() {
     preveriEnako("podnapisi: rok zacetek potekel", false, OsPravila.cakajPodnapiseZacetek(1000L, 1000L + OsPravila.ROK_ZACETEK_PODNAPISOV_MS + 100))
     // Zunanji pregled iskalne vrstice 3. 11. 2026
     preveriEnako("iskanje: OK z dvema crkama isce", OsPravila.TipkaIskanja.ISCI, OsPravila.okIskanja("ab"))
+    // Tocka 23a/23b (7. 11. 2026): OK na ze iskanem besedilu = novo iskanje (prazno polje + tipkovnica), ne ponovno iskanje.
+    preveriEnako("iskanje: OK na ze iskanem besedilu zacne novo iskanje", OsPravila.TipkaIskanja.NOVO, OsPravila.okIskanja("gost story", "gost story"))
+    preveriEnako("iskanje: spremenjeno besedilo isce", OsPravila.TipkaIskanja.ISCI, OsPravila.okIskanja("gost story 2", "gost story"))
+    preveriEnako("iskanje: brez zadnjega iskanja isce kot prej", OsPravila.TipkaIskanja.ISCI, OsPravila.okIskanja("gost story", ""))
     preveriEnako("iskanje: OK na praznem polju odpre tipkovnico", OsPravila.TipkaIskanja.TIPKOVNICA, OsPravila.okIskanja(" "))
     preveriEnako("iskanje: DOL z novo besedo ne isce, ostane (pregled 4. 11.)", OsPravila.TipkaIskanja.OSTANI, OsPravila.dolIskanja("matrix", "mat"))
     preveriEnako("iskanje: DOL brez zadetkov ostane", OsPravila.TipkaIskanja.OSTANI, OsPravila.dolIskanja("matrix", null))
