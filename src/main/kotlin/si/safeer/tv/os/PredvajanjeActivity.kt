@@ -2281,7 +2281,8 @@ class PredvajanjeActivity : OsActivity() {
 
     private fun pokaziKartico() {
         if (naslednjaEp == null || zaklenjeno || isInPictureInPictureMode) return
-        val vrsta = NaslednjaEpizodaPravila.vrsta(zaporednihSamodejno, tokPotrjen = naslednjaPrip != null)
+        val vrsta = NaslednjaEpizodaPravila.vrsta(zaporednihSamodejno, tokPotrjen = naslednjaPrip != null,
+            samodejno = GlasbaStoritev.samodejnoEpizoda(this))
         if (vrsta == NaslednjaEpizodaPravila.NIC) return
         val k = kartica ?: ustvariKartico() ?: return
         karticaVrsta = vrsta
@@ -2344,7 +2345,10 @@ class PredvajanjeActivity : OsActivity() {
     private fun osveziKartico() {
         val e = naslednjaEp ?: return
         val ime = getString(R.string.os_naslednja_epizoda, NaslednjaEpizodaPravila.oznaka(e.sezona, e.epizoda, e.ime))
-        if (karticaVrsta == NaslednjaEpizodaPravila.VPRASAJ) {
+        if (karticaVrsta == NaslednjaEpizodaPravila.PONUDI) {
+            karticaNaslov?.text = ime   // brez odstevanja: zacne se samo z gumbom
+            karticaBesedilo?.visibility = View.GONE
+        } else if (karticaVrsta == NaslednjaEpizodaPravila.VPRASAJ) {
             karticaNaslov?.text = getString(R.string.os_naslednja_se_gledate)
             karticaBesedilo?.text = ime
             karticaBesedilo?.visibility = View.VISIBLE

@@ -196,6 +196,7 @@
     <string name="os_usenet_predvaja_lastni">Reproduciendo mediante Usenet (tu proveedor)</string>
     <string name="os_usenet_pripravljam">Preparando mediante Usenet…</string>
     <string name="os_samodejno_naslednja">Reproducir la siguiente pista automáticamente</string>
+    <string name="os_samodejno_epizoda">Reproducir el siguiente episodio automáticamente</string>
     <string name="os_samodejno_album">Continuar al terminar el álbum</string>
     <string name="os_usenet_prehod_debrid">Usenet falló - reproduciendo a través de TorBox</string>
     <!-- Filter vira Usenet (lastnik 5. 11. 2026): prazna mreza - iscemo, indeksator ne odgovarja, ni naslovov -->

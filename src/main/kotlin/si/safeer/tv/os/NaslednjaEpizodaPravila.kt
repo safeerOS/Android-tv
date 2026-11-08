@@ -29,6 +29,10 @@ object NaslednjaEpizodaPravila {
     const val NIC = 0
     const val ODSTEVAJ = 1
     const val VPRASAJ = 2
+    /** Lastnik 8. 11. 2026: samodejna naslednja epizoda izklopljena - kartica ponudi epizodo brez odstevanja. */
+    const val PONUDI = 3
+    /** Nastavitev Medijskega centra (privzeto vklopljeno, kot doslej). */
+    const val KLJUC_SAMODEJNO_EPIZODA = "samodejno_naslednja_epizoda"
 
     /** Posnetek je epizoda serije (video, ne v zivo, ima stevilko epizode). */
     fun jeEpizoda(video: Boolean, vZivo: Boolean, epizoda: Int): Boolean = video && !vZivo && epizoda >= 1
@@ -64,8 +68,9 @@ object NaslednjaEpizodaPravila {
         usenetPripravljen || (!samoUsenet && (torrentovPripravljenih > 0 || neposrednih > 0))
 
     /** Odstevanje ali vprasanje »Se gledas?« po [NAJVEC_ZAPOREDNIH] samodejnih epizodah; brez potrjenega toka kartice ni. */
-    fun vrsta(zaporednih: Int, tokPotrjen: Boolean): Int = when {
+    fun vrsta(zaporednih: Int, tokPotrjen: Boolean, samodejno: Boolean = true): Int = when {
         !tokPotrjen -> NIC
+        !samodejno -> PONUDI
         zaporednih >= NAJVEC_ZAPOREDNIH -> VPRASAJ
         else -> ODSTEVAJ
     }

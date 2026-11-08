@@ -196,6 +196,7 @@
     <string name="os_usenet_predvaja_lastni">Riproduzione tramite Usenet (il tuo provider)</string>
     <string name="os_usenet_pripravljam">Preparazione tramite Usenet…</string>
     <string name="os_samodejno_naslednja">Riproduci automaticamente la traccia successiva</string>
+    <string name="os_samodejno_epizoda">Riproduci automaticamente l’episodio successivo</string>
     <string name="os_samodejno_album">Continua al termine dell’album</string>
     <string name="os_usenet_prehod_debrid">Usenet non ha funzionato - riproduzione tramite TorBox</string>
     <!-- Filter vira Usenet (lastnik 5. 11. 2026): prazna mreza - iscemo, indeksator ne odgovarja, ni naslovov -->

@@ -64,6 +64,9 @@ class DomPas(context: Context) : FrameLayout(context) {
     /** Glavni gumb (Predvajaj / Premor / Nadaljuj). */
     var naPredvajaj: (() -> Unit)? = null
 
+    /** Meni vsebine v pasu (dolg OK, Meni): npr. »Odstrani iz Nadaljuj z ogledom«; null = dolg OK odpre Podrobnosti. */
+    var naMeni: (() -> Unit)? = null
+
     /** Drugi gumb (Podrobnosti / vsi nedokoncani); null = gumba ni. */
     var naPodrobnosti: (() -> Unit)? = null
         set(value) {
@@ -172,7 +175,7 @@ class DomPas(context: Context) : FrameLayout(context) {
         foreground = obrobaFokusa()
         setOnClickListener { naGlavni?.invoke() }
         // Slepi pregled: dolg OK in MENU (onKeyDown -> performLongClick) odpreta vse nedokoncane, kot na stari kartici.
-        setOnLongClickListener { val p = naPodrobnosti; p?.invoke(); p != null }
+        setOnLongClickListener { val p = naMeni ?: naPodrobnosti; p?.invoke(); p != null }
         // Daljinec: DESNO/DOL s pasa gre na gumba (sicer bi fokus sel mimo njiju).
         setOnKeyListener { _, kod, e ->
             if (e.action == KeyEvent.ACTION_DOWN && (kod == KeyEvent.KEYCODE_DPAD_RIGHT || kod == KeyEvent.KEYCODE_DPAD_DOWN)) {
@@ -660,12 +663,14 @@ class DomPas(context: Context) : FrameLayout(context) {
         napis.maxLines = 1
         kontejner.addView(napis, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         kontejner.setOnClickListener { if (glavni) naPredvajaj?.invoke() else naPodrobnosti?.invoke() }
+        if (glavni) kontejner.setOnLongClickListener { val m = naMeni; m?.invoke(); m != null }
         kontejner.setOnFocusChangeListener { _, ima -> poudari(kontejner, ima) }
         kontejner.setOnKeyListener { _, kod, e ->
             if (e.action != KeyEvent.ACTION_DOWN) {
                 false
             } else if (glavni) {
                 when (kod) {
+                    KeyEvent.KEYCODE_MENU -> naMeni?.let { it(); true } ?: false
                     KeyEvent.KEYCODE_DPAD_LEFT -> this@DomPas.requestFocus()
                     KeyEvent.KEYCODE_DPAD_RIGHT -> gumbPodrobnosti.visibility == View.VISIBLE && gumbPodrobnosti.requestFocus()
                     else -> false

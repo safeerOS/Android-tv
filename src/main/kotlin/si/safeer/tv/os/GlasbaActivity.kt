@@ -3614,10 +3614,12 @@ class GlasbaActivity : OsActivity() {
                 // ce je vrsta v nastavitvah izklopljena (prej je bil pas tedaj vedno prazen).
                 if (DomovVrsticePravila.Vrstica.NADALJUJ_Z_OGLEDOM !in izbrane) {
                     val napredki = MediaNapredek.seznam(this@GlasbaActivity)
+                    zadnjeNadaljevanjeNedavno = null
                     zadnjeNadaljevanje = razvrsti(i, filtrirajJezike(i, MedijskiViri.nedavno(this@GlasbaActivity).filterNot { neodklenjena(it) }))
                         .filter { it.video && !it.radio && !jeKanalP(it) }.distinctBy { kljucNedavnega(it) }
-                        .firstNotNullOfOrNull { sk -> napredki.firstOrNull { it.skladba.id == sk.id || (it.skladba.naslov.isNotBlank() && it.skladba.naslov == sk.naslov) }
-                            ?.takeIf { MiniPredvajalnikPravila.jeNedokoncano(sk.video, it.polozaj, it.trajanje) } }
+                        .firstNotNullOfOrNull { sk -> napredekZa(napredki, sk)
+                            ?.takeIf { MiniPredvajalnikPravila.jeNedokoncano(sk.video, it.polozaj, it.trajanje) }
+                            ?.also { zadnjeNadaljevanjeNedavno = sk } }
                     zadnjaVrstaNadaljuj = null
                 }
                 val zbraniMap: Map<DomovVrsticePravila.Vrstica, List<Vrsta>> = izbrane.associateWith { v -> when (v) {
@@ -3629,7 +3631,7 @@ class GlasbaActivity : OsActivity() {
                         
                         // Kritika 7: kartica »Poglej, kaj igra« (ikona povezave) ni film - gre na konec vrstice, ne na zacetek.
                         val kartice = nedavniVidei.map { sk ->
-                            val n = napredki.firstOrNull { it.skladba.id == sk.id || (it.skladba.naslov.isNotBlank() && it.skladba.naslov == sk.naslov) }
+                            val n = napredekZa(napredki, sk)
                             val napredekOdstotek = if (n != null && n.trajanje > 0) (n.polozaj * 100 / n.trajanje).toInt().coerceIn(0, 100) else null
                             val klikSk = n?.skladba ?: sk
                             Kartica(sk.naslov, sk.izvajalec, sk.slika, {
@@ -3641,9 +3643,11 @@ class GlasbaActivity : OsActivity() {
                         // plosca (TV, lezeca tablica), vrste ni vec - vse nedokoncane odpre dolg pritisk na kartici.
                         // Slepi pregled 8. 11. 2026 (7): isti nabor kot kartice vrste (nedavni videi po jeziku, brez odstranjenih
                         // iz Nedavnega) - prvi z napredkom 2-95 %. (10): kartica se osvezi po tej gradnji, ne pred njo.
+                        zadnjeNadaljevanjeNedavno = null
                         zadnjeNadaljevanje = nedavniVidei.firstNotNullOfOrNull { sk ->
-                            napredki.firstOrNull { it.skladba.id == sk.id || (it.skladba.naslov.isNotBlank() && it.skladba.naslov == sk.naslov) }
+                            napredekZa(napredki, sk)
                                 ?.takeIf { MiniPredvajalnikPravila.jeNedokoncano(sk.video, it.polozaj, it.trajanje) }
+                                ?.also { zadnjeNadaljevanjeNedavno = sk }
                         }
                         val vrstaNadaljuj = if (kartice.isEmpty()) null else Vrsta(getString(R.string.os_nadaljuj_z_ogledom), kartice, video = true, nadaljuj = true)
                         zadnjaVrstaNadaljuj = vrstaNadaljuj
@@ -10447,6 +10451,7 @@ class GlasbaActivity : OsActivity() {
                     val naslov = when (p) {
                         MedijskiCenterNastavitvePravila.Postavka.SAMODEJNO_SKLADBA -> osnovaNaslova + ": " + vklop(GlasbaStoritev.samodejnoNaslednja(this@GlasbaActivity))
                         MedijskiCenterNastavitvePravila.Postavka.SAMODEJNO_ALBUM -> osnovaNaslova + ": " + vklop(GlasbaStoritev.samodejnoAlbum(this@GlasbaActivity))
+                        MedijskiCenterNastavitvePravila.Postavka.SAMODEJNO_EPIZODA -> osnovaNaslova + ": " + vklop(GlasbaStoritev.samodejnoEpizoda(this@GlasbaActivity))
                         else -> osnovaNaslova
                     }
                     
@@ -10464,6 +10469,7 @@ class GlasbaActivity : OsActivity() {
                                 MedijskiCenterNastavitvePravila.Postavka.VRSTICE -> nastavitveVrstic()
                                 MedijskiCenterNastavitvePravila.Postavka.SAMODEJNO_SKLADBA -> { GlasbaStoritev.nastaviSamodejnoNaslednja(this@GlasbaActivity, !GlasbaStoritev.samodejnoNaslednja(this@GlasbaActivity)); osveziOkna() }
                                 MedijskiCenterNastavitvePravila.Postavka.SAMODEJNO_ALBUM -> { GlasbaStoritev.nastaviSamodejnoAlbum(this@GlasbaActivity, !GlasbaStoritev.samodejnoAlbum(this@GlasbaActivity)); osveziOkna() }
+                                MedijskiCenterNastavitvePravila.Postavka.SAMODEJNO_EPIZODA -> { GlasbaStoritev.nastaviSamodejnoEpizoda(this@GlasbaActivity, !GlasbaStoritev.samodejnoEpizoda(this@GlasbaActivity)); osveziOkna() }
                                 MedijskiCenterNastavitvePravila.Postavka.PREDPOMNILNIK -> nastavitvePredpomnilnika()
                                 MedijskiCenterNastavitvePravila.Postavka.POCISTI_NEDAVNO -> potrdiPocistiNedavno()
                                 MedijskiCenterNastavitvePravila.Postavka.SPLOSNE_NASTAVITVE -> startActivity(Intent(this@GlasbaActivity, NastavitveActivity::class.java))
@@ -13086,6 +13092,20 @@ class GlasbaActivity : OsActivity() {
     private var mcKarticaStanje: String = MiniPredvajalnikPravila.MC_NIC
     /** Zadnja nedokoncana vsebina (iz gradnje Doma, zgoraj(DOMOV) na glavni niti) in vrsta vseh nedokoncanih za dolg pritisk/MENU na kartici. */
     @Volatile private var zadnjeNadaljevanje: MediaNapredek.Vnos? = null
+    /** Vnos Nedavnega, ki mu pripada [zadnjeNadaljevanje] (za »Odstrani iz Nadaljuj z ogledom« na pasu). */
+    @Volatile private var zadnjeNadaljevanjeNedavno: Jamendo.Skladba? = null
+
+    /**
+     * Napredek za vnos Nedavnega: isti id, isti naslov ali - lastnik 8. 11. 2026 (School Spirits je bil zadnji, pas je
+     * ponudil drug film) - ista vsebina po IMDb, sezoni in epizodi: tok epizode ima drug id in naslov kot vnos v Nedavnem.
+     */
+    private fun napredekZa(napredki: List<MediaNapredek.Vnos>, sk: Jamendo.Skladba): MediaNapredek.Vnos? {
+        val b = vsebinaPasu(sk)
+        return napredki.firstOrNull { n ->
+            n.skladba.id == sk.id || (n.skladba.naslov.isNotBlank() && n.skladba.naslov == sk.naslov) ||
+                vsebinaPasu(n.skladba).let { a -> OsPravila.istaVsebina(a.id, a.imdb, a.sezona, a.epizoda, b.id, b.imdb, b.sezona, b.epizoda) }
+        }
+    }
     /** Vsebine, med katerimi krozi pas izbora (prva = izbor dneva). */
     @Volatile private var zadnjiIzborVec: List<Kartica> = emptyList()
     @Volatile private var zadnjaVrstaNadaljuj: Vrsta? = null
@@ -13424,6 +13444,9 @@ class GlasbaActivity : OsActivity() {
         // Podrobnosti = vse nedokoncane vsebine (prej dolg pritisk); gumba ni, ce jih ni.
         val vse = zadnjaVrstaNadaljuj
         pas.naPodrobnosti = if (vse != null && mcKarticaStanje != MiniPredvajalnikPravila.KARTICA) ({ odpriBlok(vse) }) else null
+        // Lastnik 8. 11. 2026: predlog v pasu (Nadaljuj) se da odstraniti - dolg OK ali Meni na pasu ali na gumbu Nadaljuj.
+        val zaMeni = if (mcKarticaStanje == MiniPredvajalnikPravila.NADALJUJ) (zadnjeNadaljevanjeNedavno ?: nad?.skladba) else null
+        pas.naMeni = zaMeni?.let { s -> { meniNedavno(s, R.string.os_media_odstrani_nadaljuj) } }
         if (mcKarticaStanje != MiniPredvajalnikPravila.IZBOR) pas.prikaziVec(emptyList())   // krozenje samo pri izboru
         val stanje = when {
             mcKarticaStanje == MiniPredvajalnikPravila.NADALJUJ && nad != null -> {

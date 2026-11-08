@@ -35,6 +35,8 @@ fun main() {
     enako("prva: odstevanje", NaslednjaEpizodaPravila.ODSTEVAJ, NaslednjaEpizodaPravila.vrsta(0, tokPotrjen = true))
     enako("po dveh samodejnih: odstevanje", NaslednjaEpizodaPravila.ODSTEVAJ, NaslednjaEpizodaPravila.vrsta(2, tokPotrjen = true))
     enako("po treh samodejnih: vprasaj", NaslednjaEpizodaPravila.VPRASAJ, NaslednjaEpizodaPravila.vrsta(3, tokPotrjen = true))
+    enako("samodejno izklopljeno: ponudi brez odstevanja", NaslednjaEpizodaPravila.PONUDI, NaslednjaEpizodaPravila.vrsta(0, tokPotrjen = true, samodejno = false))
+    enako("izklopljeno brez toka: nic", NaslednjaEpizodaPravila.NIC, NaslednjaEpizodaPravila.vrsta(0, tokPotrjen = false, samodejno = false))
     enako("brez potrjenega toka: kartice ni", NaslednjaEpizodaPravila.NIC, NaslednjaEpizodaPravila.vrsta(0, tokPotrjen = false))
     enako("brez potrjenega toka tudi po treh: kartice ni", NaslednjaEpizodaPravila.NIC, NaslednjaEpizodaPravila.vrsta(3, tokPotrjen = false))
     enako("s potrjenim tokom: kartica", NaslednjaEpizodaPravila.ODSTEVAJ, NaslednjaEpizodaPravila.vrsta(0, tokPotrjen = true))
