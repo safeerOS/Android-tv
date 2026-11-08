@@ -49,13 +49,17 @@ object TujePredvajanje {
             try {
                 val m = c.applicationContext.getSystemService(MediaSessionManager::class.java) ?: return@post
                 ustaviNaGlavni()
-                msm = m; komponenta = k; mojPaket = c.packageName; aplikacija = c.applicationContext
+                komponenta = k; mojPaket = c.packageName; aplikacija = c.applicationContext
                 m.addOnActiveSessionsChangedListener(sejeSpremenjene, k, glavna)
+                // CodeRabbit 8. 11.: aktivno (msm) sele po uspesni prijavi - sicer zagotovi() ne bi nikoli poskusil znova.
+                msm = m
                 izberi(m.getActiveSessions(k))
                 Log.i(TAG, "seje drugih aplikacij: spremljam")
             } catch (e: SecurityException) {
+                ustaviNaGlavni()
                 Log.w(TAG, "seje drugih aplikacij: ni dovoljenja (${e.message})")
             } catch (e: Throwable) {
+                ustaviNaGlavni()
                 Log.w(TAG, "seje drugih aplikacij: ${e.javaClass.simpleName}")
             }
         }
