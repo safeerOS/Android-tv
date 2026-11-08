@@ -98,6 +98,13 @@ class DomPas(context: Context) : FrameLayout(context) {
     private val gumbPodrobnosti = LinearLayout(context)
     private val napisPodrobnosti = TextView(context)
 
+    // Krozenje izbora (deklarirano pred init, ki pike doda v pas).
+    /** Vsebine, med katerimi pas krozi ([prikaziVec]); prazno = brez krozenja. */
+    private var krog: List<DomPasStanje> = emptyList()
+    private var krogIndeks = 0
+    private val pike = LinearLayout(context)
+    private val krozi = Runnable { naslednjiVKrogu() }
+
     /** Zadnja narocena slika: ob vsakem prikazu (napredek) je ne nalagamo znova. */
     private var zadnjaSlika = ""
     private var imamSliko = false
@@ -112,7 +119,8 @@ class DomPas(context: Context) : FrameLayout(context) {
         clipToPadding = false
         outlineProvider = object : ViewOutlineProvider() {
             override fun getOutline(view: View, outline: Outline) {
-                outline.setRoundRect(0, 0, view.width, view.height, dp(20).toFloat())
+                // Zgled KefinTweaks: na TV je pas cez vso sirino brez okvirja; na ozkem zaslonu ostane zaobljen.
+                outline.setRoundRect(0, 0, view.width, view.height, dp(if (siroko) 0 else 20).toFloat())
             }
         }
         // Obroba fokusa je foreground: vidi se tudi cez video povrsino in sliko.
@@ -147,11 +155,14 @@ class DomPas(context: Context) : FrameLayout(context) {
         addView(povrsinaVidea, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
 
         // Senca: prosojna crna je edina barva, ki ni iz os_colors.xml - natancno to dopusca naloga.
+        // Zgled KefinTweaks: slika se levo in spodaj prelije v ozadje strani (os_ozadje), ne v crno - pas se zlije z vrsticami.
+        val ozadje = barva(R.color.os_ozadje)
+        fun prosojno(a: Int) = Color.argb(a, Color.red(ozadje), Color.green(ozadje), Color.blue(ozadje))
         sencaSpodaj.background = GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP,
-            intArrayOf(Color.argb(242, 0, 0, 0), Color.argb(0, 0, 0, 0)))
+            intArrayOf(prosojno(255), prosojno(150), prosojno(0), prosojno(0)))
         addView(sencaSpodaj, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         sencaLevo.background = GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,
-            intArrayOf(Color.argb(200, 0, 0, 0), Color.argb(0, 0, 0, 0)))
+            intArrayOf(prosojno(235), prosojno(170), prosojno(0), prosojno(0)))
         addView(sencaLevo, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
 
         vsebina.orientation = LinearLayout.VERTICAL
@@ -160,7 +171,8 @@ class DomPas(context: Context) : FrameLayout(context) {
         vsebina.clipChildren = false
         vsebina.clipToPadding = false
         // Odmiki so tesneje na ozkem zaslonu: 170 dp mora drzati naslov, podnaslov, crto in gumba brez odrezanega vrha.
-        vsebina.setPadding(dp(24), dp(if (siroko) 10 else 6), dp(24), dp(if (siroko) 14 else 10))
+        // Na TV je vsebina pasu odmaknjena od roba kot v zgledu (48 dp levo, 32 dp spodaj).
+        vsebina.setPadding(dp(if (siroko) 48 else 24), dp(if (siroko) 10 else 6), dp(if (siroko) 48 else 24), dp(if (siroko) 32 else 10))
         addView(vsebina, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM))
 
         naslov.setTextSize(TypedValue.COMPLEX_UNIT_SP, DomPasPravila.velikostNaslovaSp(sirinaZaslonaDp))
@@ -186,7 +198,7 @@ class DomPas(context: Context) : FrameLayout(context) {
         vrsticaPodnaslova.addView(podnaslov, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         vsebina.addView(vrsticaPodnaslova, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(2) })
 
-        opis.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+        opis.setTextSize(TypedValue.COMPLEX_UNIT_SP, if (siroko) 16f else 14f)
         opis.setTextColor(barva(R.color.os_umirjeno))
         // Na 170 dp se poleg dveh vrstic naslova, crte in gumbov opis ne izide - tam ga ni (kot v ozkem uvodu
         // priznanih centrov); sicer najvec 2 vrstici, ker je uvod pas in ne stran.
@@ -222,7 +234,96 @@ class DomPas(context: Context) : FrameLayout(context) {
         napisPodrobnosti.setText(R.string.os_scit_podrobnosti)   // slepi pregled: brez tega je bil gumb prazen
         gumbPodrobnosti.visibility = if (naPodrobnosti != null) View.VISIBLE else View.GONE
         gumbi.addView(gumbPodrobnosti, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(10) })
-        vsebina.addView(gumbi, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10) })
+        vsebina.addView(gumbi, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(if (siroko) 16 else 10) })
+
+        // Pike krozenja (zgled: desno spodaj); niso fokusabilne in jih bralnik zaslona ne bere.
+        pike.orientation = LinearLayout.HORIZONTAL
+        pike.gravity = Gravity.CENTER_VERTICAL
+        pike.isFocusable = false
+        pike.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        pike.visibility = View.GONE
+        addView(pike, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(8), Gravity.BOTTOM or Gravity.END)
+            .apply { rightMargin = dp(if (siroko) 48 else 20); bottomMargin = dp(if (siroko) 40 else 16) })
+        // Fokus na pasu ali gumbu ustavi krozenje (klik mora odpreti vsebino, ki jo uporabnik vidi).
+        viewTreeObserver.addOnGlobalFocusChangeListener { _, _ -> narociKrozenje() }
+    }
+
+    // ------------------------------------------------------------------ krozenje izbora (zgled KefinTweaks / MediaBar)
+
+
+    /** Indeks trenutne vsebine krozenja (ob vsaki menjavi) - Dom po njem ve, kaj odpre klik. */
+    var naIzbranem: ((Int) -> Unit)? = null
+
+    /**
+     * Vec vsebin izbora: pas jih kaze po vrsti vsakih [DomPasPravila.SEKUND_KROZENJA] s s pikami. En element ali vrsta, ki ni
+     * izbor, je navaden [prikazi]. Isti seznam kot prej ne zacne znova (Dom pas osvezuje pogosto).
+     */
+    fun prikaziVec(seznam: List<DomPasStanje>) {
+        val s = seznam.take(DomPasPravila.NAJVEC_KROZENJA)
+        if (s.size < 2 || s.first().vrsta != DomPasPravila.IZBOR) {
+            krog = emptyList(); pike.visibility = View.GONE; removeCallbacks(krozi)
+            s.firstOrNull()?.let { prikazi(it) }
+            return
+        }
+        if (s != krog) {
+            krog = s
+            krogIndeks = 0
+            sestaviPike()
+            naIzbranem?.invoke(0)
+        }
+        prikazi(krog[krogIndeks.coerceIn(0, krog.size - 1)])
+        osveziPike()
+        narociKrozenje()
+    }
+
+    private fun sestaviPike() {
+        pike.removeAllViews()
+        krog.forEach { _ -> pike.addView(View(context), LinearLayout.LayoutParams(dp(6), dp(6)).apply { leftMargin = dp(6) }) }
+        pike.visibility = if (krog.size >= 2) View.VISIBLE else View.GONE
+    }
+
+    private fun osveziPike() {
+        for (i in 0 until pike.childCount) {
+            val p = pike.getChildAt(i)
+            val dejavna = i == krogIndeks
+            p.background = plosca(if (dejavna) R.color.os_besedilo else R.color.os_umirjeno, 0, 3)
+            p.alpha = if (dejavna) 1f else 0.6f
+            (p.layoutParams as LinearLayout.LayoutParams).width = dp(if (dejavna) 16 else 6)
+            p.requestLayout()
+        }
+    }
+
+    private fun narociKrozenje() {
+        removeCallbacks(krozi)
+        val vrsta = krog.firstOrNull()?.vrsta ?: return
+        if (isAttachedToWindow && DomPasPravila.smeKroziti(vrsta, hasFocus(), !animacijeSme(), krog.size))
+            postDelayed(krozi, DomPasPravila.SEKUND_KROZENJA * 1000L)
+    }
+
+    private fun naslednjiVKrogu() {
+        if (krog.size < 2 || hasFocus()) return
+        krogIndeks = DomPasPravila.naslednji(krogIndeks, krog.size)
+        naIzbranem?.invoke(krogIndeks)
+        val s = krog[krogIndeks]
+        if (animacijeSme()) {
+            vsebina.animate().cancel()
+            vsebina.alpha = 0f
+            prikazi(s)
+            vsebina.animate().alpha(1f).setDuration(300L).start()
+        } else prikazi(s)
+        osveziPike()
+        narociKrozenje()
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        narociKrozenje()
+    }
+
+    /** Pas zunaj okna ne krozi (brez puscanja postDelayed). */
+    override fun onDetachedFromWindow() {
+        removeCallbacks(krozi)
+        super.onDetachedFromWindow()
     }
 
     /**
@@ -232,7 +333,8 @@ class DomPas(context: Context) : FrameLayout(context) {
     override fun onMeasure(sirinaSpec: Int, visinaSpec: Int) {
         val sirina = MeasureSpec.getSize(sirinaSpec)
         val sirinaV = if (sirina > 0) (sirina / resources.displayMetrics.density).toInt() else sirinaZaslonaDp
-        super.onMeasure(sirinaSpec, MeasureSpec.makeMeasureSpec(dp(DomPasPravila.visinaDp(sirinaV)), MeasureSpec.EXACTLY))
+        val visinaZaslona = (resources.displayMetrics.heightPixels / resources.displayMetrics.density).toInt()
+        super.onMeasure(sirinaSpec, MeasureSpec.makeMeasureSpec(dp(DomPasPravila.visinaDp(sirinaV, visinaZaslona)), MeasureSpec.EXACTLY))
     }
 
     /**
@@ -342,17 +444,18 @@ class DomPas(context: Context) : FrameLayout(context) {
 
     private fun gumbPlosca(glavni: Boolean): StateListDrawable = StateListDrawable().apply {
         addState(intArrayOf(android.R.attr.state_focused),
-            if (glavni) plosca(R.color.os_mint, R.color.os_mint_temna, 14)
-            else plosca(R.color.os_kartica_steklo_fokus, R.color.os_mint, 14))
+            if (glavni) plosca(R.color.os_mint, R.color.os_mint_temna, 28)
+            else plosca(R.color.os_kartica_steklo_fokus, R.color.os_mint, 28))
+        // Zgled KefinTweaks: gumba sta »tabletki« (polmer = polovica visine 44-48 dp).
         addState(intArrayOf(),
-            if (glavni) plosca(R.color.os_mint, 0, 14)
-            else plosca(R.color.os_kartica_steklo, 0, 14))
+            if (glavni) plosca(R.color.os_mint, 0, 28)
+            else plosca(R.color.os_kartica_steklo, 0, 28))
     }
 
     private fun sestaviGumb(kontejner: LinearLayout, ikonaGumba: ImageView?, napis: TextView, glavni: Boolean) {
         kontejner.orientation = LinearLayout.HORIZONTAL
         kontejner.gravity = Gravity.CENTER_VERTICAL
-        kontejner.setPadding(dp(if (glavni) 18 else 16), dp(9), dp(if (glavni) 20 else 18), dp(9))
+        kontejner.setPadding(dp(if (glavni) 22 else 20), dp(9), dp(if (glavni) 26 else 22), dp(9))
         // Na telefonu je gumb cilj dotika (48 dp), na TV z daljincem zadosca 44 dp - v 170 dp se mora vse iziti.
         kontejner.minimumHeight = dp(if (siroko) 44 else 48)
         kontejner.minimumWidth = dp(if (glavni) 128 else 108)
@@ -367,7 +470,7 @@ class DomPas(context: Context) : FrameLayout(context) {
             kontejner.addView(ikonaGumba, LinearLayout.LayoutParams(dp(20), dp(20)).apply { rightMargin = dp(8) })
         }
         // Crna ikona na mintu: namesto trdo kodirane crne uporabimo os_ozadje (skoraj crna iz palete).
-        napis.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+        napis.setTextSize(TypedValue.COMPLEX_UNIT_SP, if (siroko) 18f else 16f)
         napis.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD))
         napis.setTextColor(barva(if (glavni) R.color.os_ozadje else R.color.os_besedilo))
         napis.maxLines = 1

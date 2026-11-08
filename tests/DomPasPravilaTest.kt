@@ -53,8 +53,25 @@ fun main() {
     preveriEnako("neznana sirina 0: ozek", 170, P.visinaDp(0))
     preveriEnako("naslov 320 dp: 20 sp", 20f, P.velikostNaslovaSp(320))
     preveriEnako("naslov 599 dp: 20 sp", 20f, P.velikostNaslovaSp(599))
-    preveriEnako("naslov 600 dp: 28 sp", 28f, P.velikostNaslovaSp(600))
-    preveriEnako("naslov 1920 dp: 28 sp", 28f, P.velikostNaslovaSp(1920))
+    preveriEnako("naslov 600 dp: 40 sp (zgled KefinTweaks)", 40f, P.velikostNaslovaSp(600))
+    preveriEnako("naslov 1920 dp: 40 sp", 40f, P.velikostNaslovaSp(1920))
+    // Zgled KefinTweaks: na TV je pas 42 % visine zaslona, najmanj 300 in najvec 460 dp; ozek ostane 170 dp.
+    preveriEnako("TV 960x540 dp: 300 (spodnja meja)", 300, P.visinaDp(960, 540))
+    preveriEnako("TV 1280x720 dp: 302", 302, P.visinaDp(1280, 720))
+    preveriEnako("TV 1920x1080 dp: 453", 453, P.visinaDp(1920, 1080))
+    preveriEnako("visok zaslon 1200 dp: 460 (zgornja meja)", 460, P.visinaDp(1600, 1200))
+    preveriEnako("ozek ostane 170 tudi z visino", 170, P.visinaDp(400, 900))
+    preveriEnako("brez visine: staro vedenje 230", 230, P.visinaDp(1920, 0))
+    // Krozenje izbora.
+    preveriEnako("naslednji 0 -> 1", 1, P.naslednji(0, 3))
+    preveriEnako("naslednji zadnji -> 0", 0, P.naslednji(2, 3))
+    preveriEnako("naslednji prazen -> 0", 0, P.naslednji(5, 0))
+    preveriEnako("krozi izbor brez fokusa", true, P.smeKroziti(P.IZBOR, imaFokus = false, zmanjsanoGibanje = false, n = 3))
+    preveriEnako("ne krozi s fokusom (klik ne sme odpreti druge vsebine)", false, P.smeKroziti(P.IZBOR, imaFokus = true, zmanjsanoGibanje = false, n = 3))
+    preveriEnako("ne krozi pri zmanjsanem gibanju", false, P.smeKroziti(P.IZBOR, imaFokus = false, zmanjsanoGibanje = true, n = 3))
+    preveriEnako("ne krozi z eno vsebino", false, P.smeKroziti(P.IZBOR, imaFokus = false, zmanjsanoGibanje = false, n = 1))
+    preveriEnako("ne krozi, ko igra", false, P.smeKroziti(P.IGRA, imaFokus = false, zmanjsanoGibanje = false, n = 3))
+    preveriEnako("ne krozi nedokoncane", false, P.smeKroziti(P.NADALJUJ, imaFokus = false, zmanjsanoGibanje = false, n = 3))
     preveriEnako("naslov 0 dp: 20 sp", 20f, P.velikostNaslovaSp(0))
 
     if (napak == 0) println("DomPasPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }

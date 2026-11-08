@@ -3610,8 +3610,12 @@ class GlasbaActivity : OsActivity() {
                     .ifEmpty { vrstice.flatMap { it.kartice }.filter { it.slika.isNotBlank() && !it.dejanje && it.tvId.isBlank() }.distinctBy { kljucIzbora(it) } }
                 val tz = java.util.TimeZone.getDefault()
                 val zdajMs = System.currentTimeMillis()
-                zadnjiIzbor = MiniPredvajalnikPravila.izborDneva(sSliko.map { kljucIzbora(it) },
-                    MiniPredvajalnikPravila.krajevniDan(zdajMs, tz.getOffset(zdajMs))).takeIf { it >= 0 }?.let { sSliko[it] }
+                val izbI = MiniPredvajalnikPravila.izborDneva(sSliko.map { kljucIzbora(it) },
+                    MiniPredvajalnikPravila.krajevniDan(zdajMs, tz.getOffset(zdajMs)))
+                zadnjiIzbor = izbI.takeIf { it >= 0 }?.let { sSliko[it] }
+                // Zgled KefinTweaks: pas krozi med izborom dneva in naslednjimi vsebinami s sliko (najvec 6).
+                zadnjiIzborVec = if (izbI < 0) emptyList()
+                    else (sSliko.drop(izbI) + sSliko.take(izbI)).take(DomPasPravila.NAJVEC_KROZENJA)
                 glavna.post { if (razdelek == DOMOV && !isFinishing) osveziMcKartico() }
                 val m = mcKarticaKoren ?: ustvariMcKartico(true)
                 listOf(Vrsta("", emptyList(), pogled = m)) + vrstice
@@ -12837,6 +12841,8 @@ class GlasbaActivity : OsActivity() {
     private var mcKarticaStanje: String = MiniPredvajalnikPravila.MC_NIC
     /** Zadnja nedokoncana vsebina (iz gradnje Doma, zgoraj(DOMOV) na glavni niti) in vrsta vseh nedokoncanih za dolg pritisk/MENU na kartici. */
     @Volatile private var zadnjeNadaljevanje: MediaNapredek.Vnos? = null
+    /** Vsebine, med katerimi krozi pas izbora (prva = izbor dneva). */
+    @Volatile private var zadnjiIzborVec: List<Kartica> = emptyList()
     @Volatile private var zadnjaVrstaNadaljuj: Vrsta? = null
     /** Stalen kljuc kartice za izbor dneva: id, seznami predvajanja ga nimajo - ime (CodeRabbit 8. 11. 2026). */
     private fun kljucIzbora(k: Kartica): String = k.id.ifBlank { "seznam:" + k.naslov }
@@ -12867,6 +12873,8 @@ class GlasbaActivity : OsActivity() {
     private fun ustvariPas(): View {
         val pas = DomPas(this)
         pas.layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(16); topMargin = dp(4) }
+        // Krozenje izbora: klik odpre vsebino, ki jo pas ta trenutek kaze (zgled KefinTweaks).
+        pas.naIzbranem = { i -> zadnjiIzborVec.getOrNull(i)?.let { zadnjiIzbor = it } }
         pas.naloziSliko = { url, iv -> slikaKartice(url, iv) }
         mcKarticaKoren = pas
         mcKarticaPovrsina = pas.povrsinaVidea
@@ -13076,6 +13084,7 @@ class GlasbaActivity : OsActivity() {
         // Podrobnosti = vse nedokoncane vsebine (prej dolg pritisk); gumba ni, ce jih ni.
         val vse = zadnjaVrstaNadaljuj
         pas.naPodrobnosti = if (vse != null && mcKarticaStanje != MiniPredvajalnikPravila.KARTICA) ({ odpriBlok(vse) }) else null
+        if (mcKarticaStanje != MiniPredvajalnikPravila.IZBOR) pas.prikaziVec(emptyList())   // krozenje samo pri izboru
         val stanje = when {
             mcKarticaStanje == MiniPredvajalnikPravila.NADALJUJ && nad != null -> {
                 okenceVidea(false)
@@ -13086,8 +13095,14 @@ class GlasbaActivity : OsActivity() {
             }
             mcKarticaStanje == MiniPredvajalnikPravila.IZBOR && izb != null -> {
                 okenceVidea(false)
-                DomPasStanje(DomPasPravila.IZBOR, izb.naslov, izb.podnaslov, "", izb.slika,
-                    izb.ikona == R.drawable.os_ikona_video, false, 0L, 0L)
+                val vec = zadnjiIzborVec.ifEmpty { listOf(izb) }.map { k ->
+                    DomPasStanje(DomPasPravila.IZBOR, k.naslov, k.podnaslov, "", k.slika, k.ikona == R.drawable.os_ikona_video, false, 0L, 0L) }
+                if (vec.size >= 2) {
+                    pas.prikaziVec(vec)
+                    pas.pokaziVideo(false)
+                    return
+                }
+                vec.first()
             }
             sk != null -> {
                 okenceVidea(sk.video && p != null)

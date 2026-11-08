@@ -52,9 +52,34 @@ object DomPasPravila {
         return (polozajMs * 100 / trajanjeMs).toInt()
     }
 
-    /** TV in tablica lezece 230 dp, ozek zaslon (telefon pokoncen) 170 dp - pas ne sme vzeti pol ekrana. */
-    fun visinaDp(sirinaDp: Int): Int = if (sirinaDp < 600) 170 else 230
+    /** Ozek zaslon (telefon pokoncen) 170 dp - pas ne sme vzeti pol ekrana. Brez visine zaslona: 230 dp (staro vedenje). */
+    fun visinaDp(sirinaDp: Int): Int = visinaDp(sirinaDp, 0)
 
-    /** Naslov na 50" TV mora biti berljiv s kavca (StreamNexus HD): 28 sp proti 20 sp na telefonu. */
-    fun velikostNaslovaSp(sirinaDp: Int): Float = if (sirinaDp < 600) 20f else 28f
+    /**
+     * Zgled Jellyfin + KefinTweaks (lastnik 8. 11. 2026): na TV in lezeci tablici je pas velik uvod strani - 42 % visine
+     * zaslona, najmanj 300 dp (vrstica pod njim se mora se videti na 720p) in najvec 460 dp. Ozek zaslon ostane 170 dp.
+     */
+    fun visinaDp(sirinaDp: Int, visinaZaslonaDp: Int): Int = when {
+        sirinaDp < 600 -> 170
+        visinaZaslonaDp <= 0 -> 230
+        else -> (visinaZaslonaDp * 42 / 100).coerceIn(300, 460)
+    }
+
+    /** Naslov uvoda po zgledu KefinTweaks: na TV 40 sp (berljiv s kavca, kot naslov v zgledu), na telefonu 20 sp. */
+    fun velikostNaslovaSp(sirinaDp: Int): Float = if (sirinaDp < 600) 20f else 40f
+
+    /** Izbor na pasu krozi vsakih [SEKUND_KROZENJA] s (zgled: pike desno spodaj). */
+    const val SEKUND_KROZENJA = 8
+    /** Najvec toliko vsebin krozi v pasu (in toliko pik) - vec bi bilo nepregledno. */
+    const val NAJVEC_KROZENJA = 6
+
+    /** Naslednji element krozenja; prazen seznam vrne 0. */
+    fun naslednji(indeks: Int, n: Int): Int = if (n <= 0) 0 else Math.floorMod(indeks + 1, n)
+
+    /**
+     * Krozi samo izbor: ne, ko igra ali je nedokoncana vsebina (ta ostane), ne, ko ima pas ali gumb fokus (uporabnik
+     * bere ali bo kliknil - klik ne sme odpreti druge vsebine), ne pri zmanjsanem gibanju in ne z manj kot dvema.
+     */
+    fun smeKroziti(vrsta: String, imaFokus: Boolean, zmanjsanoGibanje: Boolean, n: Int): Boolean =
+        vrsta == IZBOR && !imaFokus && !zmanjsanoGibanje && n >= 2
 }
