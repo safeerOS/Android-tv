@@ -324,6 +324,8 @@ class DomPas(context: Context) : FrameLayout(context) {
         val vrsta = krog.firstOrNull()?.vrsta
         val sme = vrsta != null && isAttachedToWindow && windowVisibility == View.VISIBLE && isShown &&
             !bralnikZaslona() && DomPasPravila.smeKroziti(vrsta, hasFocus(), !animacijeSme(), krog.size)
+        // Pike samo, ce krozenje sploh lahko tece (zmanjsano gibanje in bralnik zaslona se lahko spremenita med prikazom).
+        pike.visibility = if (krog.size >= 2 && animacijeSme() && !bralnikZaslona()) View.VISIBLE else View.GONE
         if (!sme) { removeCallbacks(krozi); krozenjeNaroceno = false; return }
         if (krozenjeNaroceno && !znova) return
         removeCallbacks(krozi)
@@ -342,7 +344,11 @@ class DomPas(context: Context) : FrameLayout(context) {
     }
 
     private fun naslednjiVKrogu() {
-        if (krog.size < 2 || hasFocus() || !isShown || windowVisibility != View.VISIBLE) return
+        // CodeRabbit 8. 11. (3. krog): nastavitve dostopnosti se lahko spremenijo med cakanjem - preveri jih znova.
+        if (krog.size < 2 || hasFocus() || !isShown || windowVisibility != View.VISIBLE || !animacijeSme() || bralnikZaslona()) {
+            pike.visibility = if (krog.size >= 2 && animacijeSme() && !bralnikZaslona()) View.VISIBLE else View.GONE
+            return
+        }
         krogIndeks = DomPasPravila.naslednji(krogIndeks, krog.size)
         naIzbranem?.invoke(krogIndeks)
         val s = krog[krogIndeks]
