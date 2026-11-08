@@ -50,7 +50,7 @@ private class ObvescenaSlika(context: Context, private val ob: (ObvescenaSlika) 
 /**
  * Pas cez celo sirino na vrhu Doma (po Kinemi `Hero`, MIT: slika cez ves pas, senca od spodaj in z leve, naslov,
  * podnaslov, opis, crta napredka in vrsti gumbov) - hkrati mali predvajalnik: kaze, kar igra (video v [povrsinaVidea]),
- * sicer zadnjo nedokoncano vsebino z gumbom Nadaljuj, sicer izbor dneva. Mere, fokus in napisi po StreamNexus HD
+ * sicer zadnjo nedokoncano vsebino z gumbom Nadaljuj, sicer izbor dneva. Mere, fokus in napisi po lastnikovem TV prototipu predvajalnika
  * (`TvVideoPlayer.kt`): velike pisave za 50" TV, fokus na glavnem gumbu, berljiv cas.
  *
  * [prikazi] samo posodobi besedila, ikone in crto - pogledov ne gradi znova, zato fokus daljinca med osvezitvami

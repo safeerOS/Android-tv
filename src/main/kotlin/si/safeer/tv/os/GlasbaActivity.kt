@@ -12936,7 +12936,7 @@ class GlasbaActivity : OsActivity() {
     }
 
     /**
-     * Pas na vrhu Doma (lastnik 8. 11. 2026, Kinema + StreamNexus HD): komponenta DomPas (Freebuff, pregledal Claude).
+     * Pas na vrhu Doma (lastnik 8. 11. 2026, Kinema + lastnikov TV prototip predvajalnika): komponenta DomPas (Freebuff, pregledal Claude).
      * Klik/OK = glavno dejanje (igra -> cel zaslon, Nadaljuj, izbor), gumb = Predvajaj/Premor/Nadaljuj,
      * Podrobnosti = vse nedokoncane (ce so).
      */
@@ -13079,7 +13079,7 @@ class GlasbaActivity : OsActivity() {
             orientation = LinearLayout.VERTICAL
             layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
         }
-        // StreamNexus HD (lastnikov prototip, TvVideoPlayer.kt): na 50" TV naslov 28 sp, cas 18 sp - berljivo s kavca.
+        // Lastnikov TV prototip predvajalnika (TvVideoPlayer.kt): na 50" TV naslov 28 sp, cas 18 sp - berljivo s kavca.
         val pas = polnaSirina && !ozekZaslon()
         mcKarticaNaslov = besedilo(if (pas) 28f else 16f, osBarva(R.color.os_besedilo), true).apply {
             maxLines = 2
