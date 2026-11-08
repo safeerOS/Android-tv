@@ -15,6 +15,9 @@ object MojSeznamPravila {
      */
     const val ODGLEDANO_ODSTOTKOV = 95
 
+    /** Kljuc vnosa: id, sezona in epizoda - serija (0/0) in njene epizode so razlicni vnosi. Prazen id ostane prazen. */
+    fun kljuc(id: String, sezona: Int, epizoda: Int): String = if (id.isEmpty()) "" else "$id|$sezona|$epizoda"
+
     /** Na seznam gre samo video (film, serija, epizoda), ne glasba, radio ali kanal v zivo. */
     fun ponudi(video: Boolean, radio: Boolean, kanal: Boolean): Boolean = video && !radio && !kanal
 

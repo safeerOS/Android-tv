@@ -57,7 +57,7 @@ object DomPasPravila {
 
     /**
      * Zgled Jellyfin + KefinTweaks (lastnik 8. 11. 2026): na TV in lezeci tablici je pas velik uvod strani - 42 % visine
-     * zaslona, najmanj 300 dp (vrstica pod njim se mora se videti na 720p) in najvec 460 dp. Ozek zaslon ostane 170 dp.
+     * zaslona v mejah 300-460 dp, a nikoli vec kot 55 % visine (nizek zaslon) in ne manj kot 170 dp. Ozek zaslon 170 dp.
      */
     fun visinaDp(sirinaDp: Int, visinaZaslonaDp: Int): Int = when {
         sirinaDp < 600 -> 170
@@ -68,12 +68,22 @@ object DomPasPravila {
     }
 
     /** Opis (2 vrstici) gre v pas sele od te visine - nizje bi z naslovom 40 sp in gumbi odrezal vrh naslova (pregled 7). */
-    const val OPIS_OD_DP = 340
+    const val OPIS_OD_DP = 290   // drugi pregled (2): TV 960x540 dp ima pas 297 dp - naslov, opis, crta in gumbi gredo (~286 dp)
 
     fun prikaziOpis(siroko: Boolean, visinaPasuDp: Int, imaOpis: Boolean): Boolean = imaOpis && siroko && visinaPasuDp >= OPIS_OD_DP
 
     /** Naslov uvoda po zgledu KefinTweaks: na TV 40 sp (berljiv s kavca, kot naslov v zgledu), na telefonu 20 sp. */
-    fun velikostNaslovaSp(sirinaDp: Int): Float = if (sirinaDp < 600) 20f else 40f
+    fun velikostNaslovaSp(sirinaDp: Int): Float = velikostNaslovaSp(sirinaDp, 0)
+
+    /**
+     * Drugi pregled (3): na nizkem sirokem pasu (telefon lezece, ~200 dp) dve vrstici po 40 sp z gumbi ne gresta -
+     * pod 260 dp je naslov 24 sp. [visinaPasuDp] 0 = neznana (velja sirina).
+     */
+    fun velikostNaslovaSp(sirinaDp: Int, visinaPasuDp: Int): Float = when {
+        sirinaDp < 600 -> 20f
+        visinaPasuDp in 1 until 260 -> 24f
+        else -> 40f
+    }
 
     /** Izbor na pasu krozi vsakih [SEKUND_KROZENJA] s (zgled: pike desno spodaj). */
     const val SEKUND_KROZENJA = 8

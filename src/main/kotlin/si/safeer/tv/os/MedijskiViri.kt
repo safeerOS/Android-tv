@@ -349,16 +349,20 @@ object MedijskiViri {
 
     fun mojSeznam(ctx: Context): List<Jamendo.Skladba> = beriSkladbe(beri(ctx, MOJ_SEZNAM))
 
-    fun jeVMojemSeznamu(ctx: Context, s: Jamendo.Skladba) = mojSeznam(ctx).any { it.id == s.id }
+    /** Drugi pregled (8): en kljuc za vse (id, sezona, epizoda) - epizode iste serije so locene, serija je svoja. */
+    private fun kljucMojega(s: Jamendo.Skladba) = MojSeznamPravila.kljuc(s.id, s.season, s.episode)
+
+    fun jeVMojemSeznamu(ctx: Context, s: Jamendo.Skladba) = mojSeznam(ctx).any { kljucMojega(it) == kljucMojega(s) }
 
     /** Doda ali odstrani ([MojSeznamPravila.preklopi]); vrne, ali je vsebina zdaj na seznamu. */
     @Synchronized
     fun preklopiMojSeznam(ctx: Context, s: Jamendo.Skladba): Boolean {
+        if (s.id.isBlank()) return false
         val zdaj = mojSeznam(ctx)
-        val poId = (zdaj + zaShranjevanje(s)).associateBy { it.id }
-        val nova = MojSeznamPravila.preklopi(zdaj.map { it.id }, s.id).mapNotNull { poId[it] }
+        val poKljucu = (zdaj + zaShranjevanje(s)).associateBy { kljucMojega(it) }
+        val nova = MojSeznamPravila.preklopi(zdaj.map { kljucMojega(it) }, kljucMojega(s)).mapNotNull { poKljucu[it] }
         pisi(ctx, MOJ_SEZNAM, pisiSkladbe(nova))
-        return nova.any { it.id == s.id }
+        return nova.any { kljucMojega(it) == kljucMojega(s) }
     }
 
     /**
@@ -368,7 +372,7 @@ object MedijskiViri {
     @Synchronized
     fun odstraniIzMojegaSeznama(ctx: Context, s: Jamendo.Skladba) {
         val zdaj = mojSeznam(ctx)
-        fun isti(m: Jamendo.Skladba) = m.id == s.id && m.season == s.season && m.episode == s.episode
+        fun isti(m: Jamendo.Skladba) = kljucMojega(m) == kljucMojega(s)
         if (zdaj.none { isti(it) }) return
         pisi(ctx, MOJ_SEZNAM, pisiSkladbe(zdaj.filterNot { isti(it) }))
     }

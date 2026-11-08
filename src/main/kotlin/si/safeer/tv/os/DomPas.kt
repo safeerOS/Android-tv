@@ -103,7 +103,16 @@ class DomPas(context: Context) : FrameLayout(context) {
         (resources.displayMetrics.heightPixels / resources.displayMetrics.density).toInt())
     /** Krozenje je narocene (pregled 4: ponovni prikaz ga ne odriva v neskoncnost). */
     private var krozenjeNaroceno = false
-    private val fokusPoslusalec = android.view.ViewTreeObserver.OnGlobalFocusChangeListener { _, _ -> narociKrozenje(znova = true) }
+    // Drugi pregled (7): krozenje odrine samo prehod fokusa v pas ali iz njega - ne vsak premik po vrsticah spodaj.
+    private val fokusPoslusalec = android.view.ViewTreeObserver.OnGlobalFocusChangeListener { star, nov ->
+        narociKrozenje(znova = jeVPasu(star) != jeVPasu(nov))
+    }
+
+    private fun jeVPasu(v: View?): Boolean {
+        var p: Any? = v
+        while (p is View) { if (p === this) return true; p = p.parent }
+        return false
+    }
 
     /** Vsebine, med katerimi pas krozi ([prikaziVec]); prazno = brez krozenja. */
     private var krog: List<DomPasStanje> = emptyList()
@@ -180,7 +189,7 @@ class DomPas(context: Context) : FrameLayout(context) {
         vsebina.setPadding(dp(if (siroko) 48 else 24), dp(if (siroko) 10 else 6), dp(if (siroko) 48 else 24), dp(if (siroko) 32 else 10))
         addView(vsebina, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM))
 
-        naslov.setTextSize(TypedValue.COMPLEX_UNIT_SP, DomPasPravila.velikostNaslovaSp(sirinaZaslonaDp))
+        naslov.setTextSize(TypedValue.COMPLEX_UNIT_SP, DomPasPravila.velikostNaslovaSp(sirinaZaslonaDp, visinaPasuDp))
         naslov.setTextColor(barva(R.color.os_besedilo))
         naslov.setTypeface(Typeface.create("sans-serif", Typeface.BOLD))
         naslov.maxLines = 2
@@ -291,7 +300,8 @@ class DomPas(context: Context) : FrameLayout(context) {
     private fun sestaviPike() {
         pike.removeAllViews()
         krog.forEach { _ -> pike.addView(View(context), LinearLayout.LayoutParams(dp(6), dp(6)).apply { leftMargin = dp(6) }) }
-        pike.visibility = if (krog.size >= 2) View.VISIBLE else View.GONE
+        // Drugi pregled (11): brez krozenja (zmanjsano gibanje, bralnik zaslona) pik ni - sicer obljubljajo menjavo, ki je ni.
+        pike.visibility = if (krog.size >= 2 && animacijeSme() && !bralnikZaslona()) View.VISIBLE else View.GONE
     }
 
     private fun osveziPike() {
@@ -336,12 +346,11 @@ class DomPas(context: Context) : FrameLayout(context) {
         krogIndeks = DomPasPravila.naslednji(krogIndeks, krog.size)
         naIzbranem?.invoke(krogIndeks)
         val s = krog[krogIndeks]
-        if (animacijeSme()) {
-            vsebina.animate().cancel()
-            vsebina.alpha = 0f
-            narisi(s)
-            vsebina.animate().alpha(1f).setDuration(300L).start()
-        } else narisi(s)
+        // Krozi samo, ce animacije smejo ([narociKrozenje]) - zato vedno s prehodom prosojnosti.
+        vsebina.animate().cancel()
+        vsebina.alpha = 0f
+        narisi(s)
+        vsebina.animate().alpha(1f).setDuration(300L).start()
         osveziPike()
         narociKrozenje()
     }
