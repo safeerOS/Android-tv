@@ -3590,7 +3590,8 @@ class GlasbaActivity : OsActivity() {
                 // Lastnik 8. 11. 2026 06:17 (Kinema Home.tsx): pas cez celo sirino na vrhu Doma na vseh zaslonih. Ko nic ne
                 // igra in ni nedokoncanega, kaze izbor dneva (hero.ts): naslov s sliko iz vrstic Doma, ves dan isti.
                 // CodeRabbit: kartice Nedavno dodano/Priporoceno imajo privzeto ikono - vir je video vrsta ali ikona videa.
-                val sSliko = vrstice.flatMap { v -> v.kartice.filter { v.video || it.ikona == R.drawable.os_ikona_video || it.kakovostId.isNotBlank() } }
+                val sSliko = vrstice.flatMap { v -> v.kartice.filter { it.ikona == R.drawable.os_ikona_video || it.kakovostId.isNotBlank() ||
+                    (v.video && it.ikona != R.drawable.os_ikona_glasba && it.ikona != R.drawable.os_ikona_radio) } }   // CodeRabbit: Nedavno ima tudi glasbo/radio
                     .filter { it.slika.isNotBlank() && it.id.isNotBlank() && !it.dejanje && it.tvId.isBlank() }.distinctBy { it.id }
                 val tz = java.util.TimeZone.getDefault()
                 val zdajMs = System.currentTimeMillis()
