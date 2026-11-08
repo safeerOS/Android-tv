@@ -924,7 +924,13 @@ class GlasbaActivity : OsActivity() {
                 val najvec = ((getChildAt(0)?.height ?: 0) - visina).coerceAtLeast(0)
                 return DrsenjePravila.poravnajNaVrsto(vrhoviVrst(), scrollY + delta, rect.top, rect.bottom, visina, najvec) - scrollY
             }
-        }.apply { addView(vsebina); isFillViewport = true; isVerticalScrollBarEnabled = false }
+            // Lastnik 8. 11. 2026 (Glasba, Videospoti): vrstica na spodnjem robu je bila ostro odrezana (»lomljenje«) -
+            // spodaj se izgubi v prelivu; zgoraj ne (glava strani in zavihki ostanejo ostri).
+            override fun getTopFadingEdgeStrength(): Float = 0f
+        }.apply {
+            addView(vsebina); isFillViewport = true; isVerticalScrollBarEnabled = false
+            isVerticalFadingEdgeEnabled = true; setFadingEdgeLength(dp(McVidezPravila.PRELIV_SPODAJ_DP))
+        }
         // Odprta mreza (Filmi | Serije, katalog): naslednja stran se nalozi sama, ko se uporabnik priblizuje koncu.
         // Kartice se premaknejo tudi brez drsenja (mreza se dopolni na mestu, kartica izgine): slike uskladimo po postavitvi.
         vsebina.viewTreeObserver.addOnGlobalLayoutListener { narociUskladiSlike() }

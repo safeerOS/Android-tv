@@ -43,6 +43,9 @@ object McVidezPravila {
     fun sirinaKartice(sirinaDp: Int, stolpcev: Int): Int =
         (sirinaDp / stolpcev.coerceAtLeast(1) - NOTRANJI_ROB_DP - RAZMIK_DOMA_DP).coerceAtLeast(1)
 
+    /** Preliv na spodnjem robu drsnika vsebine (dp): delno vidna vrstica ni ostro odrezana (lastnik 8. 11. 2026). */
+    const val PRELIV_SPODAJ_DP = 96
+
     /** Vsebina obreze otroke, razen ko so prikazane vrstice Doma (povecane kartice segajo cez rob). */
     fun obreziVsebino(domovVrste: List<Boolean>): Boolean = domovVrste.none { it }
 
