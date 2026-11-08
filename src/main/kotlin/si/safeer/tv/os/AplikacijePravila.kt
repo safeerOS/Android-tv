@@ -1,15 +1,19 @@
 package si.safeer.tv.os
 
 object AplikacijePravila {
-    enum class DejanjeOdstranitve { ODSTRANI, ONEMOGOCI }
+    enum class DejanjeOdstranitve { ODSTRANI, ONEMOGOCI, ODSTRANI_POSODOBITVE }
 
     /**
-     * Določi, katero dejanje ponuditi za paket:
-     * - ONEMOGOCI za sistemske aplikacije, ki niso bile posodobljene.
-     * - ODSTRANI za vse ostale (uporabniške ali posodobljene sistemske).
+     * Dejanja za paket v meniju dolgega pritiska (lastnik 8. 11. 2026, TV: Trgovina Play - posodobljena sistemska - je
+     * ponudila samo »Odstrani aplikacijo«, ki pri sistemski odstrani le posodobitve; onemogociti je ni bilo mogoce):
+     * - uporabniska: ODSTRANI;
+     * - sistemska brez posodobitev: ONEMOGOCI (sistemske nastavitve aplikacije, Android je ne odstrani);
+     * - posodobljena sistemska: ONEMOGOCI in ODSTRANI_POSODOBITVE (Android odstrani samo posodobitev, tovarniska ostane).
      */
-    fun dejanjeOdstranitve(jeSistemska: Boolean, jePosodobljenaSistemska: Boolean): DejanjeOdstranitve {
-        return if (jeSistemska && !jePosodobljenaSistemska) DejanjeOdstranitve.ONEMOGOCI else DejanjeOdstranitve.ODSTRANI
+    fun dejanjaPaketa(jeSistemska: Boolean, jePosodobljenaSistemska: Boolean): List<DejanjeOdstranitve> = when {
+        !jeSistemska -> listOf(DejanjeOdstranitve.ODSTRANI)
+        !jePosodobljenaSistemska -> listOf(DejanjeOdstranitve.ONEMOGOCI)
+        else -> listOf(DejanjeOdstranitve.ONEMOGOCI, DejanjeOdstranitve.ODSTRANI_POSODOBITVE)
     }
 
     /**

@@ -939,11 +939,11 @@ class AplikacijeHostaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             val jeSistemska = (info?.flags?.and(android.content.pm.ApplicationInfo.FLAG_SYSTEM) ?: 0) != 0
             val jePosodobljenaSistemska = (info?.flags?.and(android.content.pm.ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) ?: 0) != 0
 
-            if (AplikacijePravila.dejanjeOdstranitve(jeSistemska, jePosodobljenaSistemska) == AplikacijePravila.DejanjeOdstranitve.ONEMOGOCI) {
-                dejanja.add(getString(R.string.os_aplikacije_onemogoci_app) to { odpriNastavitveAplikacije(p.cilj) })
-            } else {
-                dejanja.add(getString(R.string.os_aplikacije_odstrani_app) to { odstraniAplikacijo(p.cilj) })
-            }
+            for (d in AplikacijePravila.dejanjaPaketa(jeSistemska, jePosodobljenaSistemska)) dejanja.add(when (d) {
+                AplikacijePravila.DejanjeOdstranitve.ONEMOGOCI -> getString(R.string.os_aplikacije_onemogoci_app) to { odpriNastavitveAplikacije(p.cilj) }
+                AplikacijePravila.DejanjeOdstranitve.ODSTRANI_POSODOBITVE -> getString(R.string.os_aplikacije_odstrani_posodobitve) to { odstraniAplikacijo(p.cilj) }
+                AplikacijePravila.DejanjeOdstranitve.ODSTRANI -> getString(R.string.os_aplikacije_odstrani_app) to { odstraniAplikacijo(p.cilj) }
+            })
         }
         if (p.vir == AppVir.RACUNALNIK && p.racunalnik !in androidNaprave) dejanja.add(getString(R.string.os_program_zapri) to { zapri(p) })
         // Lastnik 1. 11. 2026 (rtvslo): dolg pritisk na spletno aplikacijo v Aplikacijah ni ponudil nicesar - odstranitev

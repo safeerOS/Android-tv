@@ -1553,11 +1553,11 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 val jeSistemska = (info?.flags?.and(android.content.pm.ApplicationInfo.FLAG_SYSTEM) ?: 0) != 0
                 val jePosodobljenaSistemska = (info?.flags?.and(android.content.pm.ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) ?: 0) != 0
 
-                if (AplikacijePravila.dejanjeOdstranitve(jeSistemska, jePosodobljenaSistemska) == AplikacijePravila.DejanjeOdstranitve.ONEMOGOCI) {
-                    dejanja.add(getString(R.string.os_aplikacije_onemogoci_app) to { odpriNastavitveAplikacije(paket) })
-                } else {
-                    dejanja.add(getString(R.string.os_aplikacije_odstrani_app) to { odstraniAplikacijo(paket) })
-                }
+                for (d in AplikacijePravila.dejanjaPaketa(jeSistemska, jePosodobljenaSistemska)) dejanja.add(when (d) {
+                    AplikacijePravila.DejanjeOdstranitve.ONEMOGOCI -> getString(R.string.os_aplikacije_onemogoci_app) to { odpriNastavitveAplikacije(paket) }
+                    AplikacijePravila.DejanjeOdstranitve.ODSTRANI_POSODOBITVE -> getString(R.string.os_aplikacije_odstrani_posodobitve) to { odstraniAplikacijo(paket) }
+                    AplikacijePravila.DejanjeOdstranitve.ODSTRANI -> getString(R.string.os_aplikacije_odstrani_app) to { odstraniAplikacijo(paket) }
+                })
             }
         }
         android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)

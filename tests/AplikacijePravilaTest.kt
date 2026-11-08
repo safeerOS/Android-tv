@@ -8,9 +8,11 @@ private fun preveriAplikacije(opis: String, pogoj: Boolean) {
 
 fun main() {
     println("\nPreizkus pravil odstranitve aplikacij")
-    preveriAplikacije("uporabniska aplikacija se odstrani", AplikacijePravila.dejanjeOdstranitve(false, false) == AplikacijePravila.DejanjeOdstranitve.ODSTRANI)
-    preveriAplikacije("tovarniska sistemska se onemogoci", AplikacijePravila.dejanjeOdstranitve(true, false) == AplikacijePravila.DejanjeOdstranitve.ONEMOGOCI)
-    preveriAplikacije("posodobljena sistemska se odstrani (posodobitev)", AplikacijePravila.dejanjeOdstranitve(true, true) == AplikacijePravila.DejanjeOdstranitve.ODSTRANI)
+    preveriAplikacije("uporabniska aplikacija se odstrani", AplikacijePravila.dejanjaPaketa(false, false) == listOf(AplikacijePravila.DejanjeOdstranitve.ODSTRANI))
+    preveriAplikacije("tovarniska sistemska se onemogoci", AplikacijePravila.dejanjaPaketa(true, false) == listOf(AplikacijePravila.DejanjeOdstranitve.ONEMOGOCI))
+    // Lastnik 8. 11. 2026 (TV, Trgovina Play): posodobljena sistemska se da onemogociti IN odstraniti posodobitve; onemogoci je prvo.
+    preveriAplikacije("posodobljena sistemska: onemogoci in odstrani posodobitve", AplikacijePravila.dejanjaPaketa(true, true) ==
+        listOf(AplikacijePravila.DejanjeOdstranitve.ONEMOGOCI, AplikacijePravila.DejanjeOdstranitve.ODSTRANI_POSODOBITVE))
     // Preverba TV 4. 11. 2026: pasica F-Droid (640x360) se je obrezala, ker sta bili stranici omejeni vsaka zase.
     preveriAplikacije("pasica 640x360 sorazmerno na 512x288", AplikacijePravila.meraSlike(640, 360, 512) == (512 to 288))
     preveriAplikacije("pokoncna 300x900 na 171x512", AplikacijePravila.meraSlike(300, 900, 512) == (171 to 512))
