@@ -182,11 +182,18 @@ class SporocilaActivity : OsActivity() {
         if (::shramba.isInitialized) {
             val s = shramba
             Thread({
-                // CodeRabbit: ce opravilo po 5 s se tece, zbirke ne zapremo (sprosti jo GC) - zaprta zbirka pod opravilom bi izgubila sporocilo.
-                val koncano = try {
-                    delavec.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS) && bralec.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)
-                } catch (_: InterruptedException) { false }
-                if (koncano) { try { s.close() } catch (_: Throwable) { } } else android.util.Log.w("SafeerOsSporocila", "zbirka ostane odprta: opravilo v ozadju se tece")
+                // CodeRabbit: zaprta zbirka pod opravilom bi izgubila sporocilo - cakamo, dokler oba ne koncata (najvec 60 s);
+                // ce se tedaj kaj tece, zbirko sprosti GC.
+                var koncano = false
+                var krogov = 0
+                try {
+                    while (!koncano && krogov < 12) {
+                        koncano = delavec.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS) && bralec.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)
+                        if (!koncano && krogov == 0) android.util.Log.w("SafeerOsSporocila", "zbirka caka: opravilo v ozadju se tece")
+                        krogov++
+                    }
+                } catch (_: InterruptedException) { }
+                if (koncano) { try { s.close() } catch (_: Throwable) { } } else android.util.Log.w("SafeerOsSporocila", "zbirka ostane odprta: opravilo se po 60 s ni koncalo")
             }, "safeer-sporocila-zapri").apply { isDaemon = true }.start()
         }
         super.onDestroy()
