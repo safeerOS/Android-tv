@@ -155,7 +155,12 @@ object TujePredvajanje {
         val pi = try { kontroler?.sessionActivity } catch (_: Throwable) { null }
         if (pi != null) {
             try {
-                if (android.os.Build.VERSION.SDK_INT >= 34) {
+                // Klik v malem predvajalniku je na vidnem zaganjalniku: dovolj je ALLOW_IF_VISIBLE (API 36, skil Android oddaljeno).
+                if (android.os.Build.VERSION.SDK_INT >= 36) {
+                    pi.send(c, 0, null, null, null, null, android.app.ActivityOptions.makeBasic()
+                        .setPendingIntentBackgroundActivityStartMode(android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOW_IF_VISIBLE).toBundle())
+                } else if (android.os.Build.VERSION.SDK_INT >= 34) {
+                    @Suppress("DEPRECATION")
                     pi.send(c, 0, null, null, null, null, android.app.ActivityOptions.makeBasic()
                         .setPendingIntentBackgroundActivityStartMode(android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED).toBundle())
                 } else pi.send()
