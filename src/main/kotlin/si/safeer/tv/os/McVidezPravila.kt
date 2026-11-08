@@ -46,6 +46,13 @@ object McVidezPravila {
     /** Preliv na spodnjem robu drsnika vsebine (dp): delno vidna vrstica ni ostro odrezana (lastnik 8. 11. 2026). */
     const val PRELIV_SPODAJ_DP = 96
 
+    /**
+     * Ali je na spodnjem robu drsnika ([rob], v koordinatah vsebine) kaj delno vidnega: samo takrat preliv.
+     * CodeRabbit 9. 11. 2026: skrajsano vidno polje ([GlasbaActivity.brezOdrezanihVrst]) se konca s celo vrsto -
+     * preliv bi zabrisal njen spodnji del z naslovi. [meje] so (vrh, dno) vidnih otrok brez praznih odmikov.
+     */
+    fun prelivSpodaj(meje: List<Pair<Int, Int>>, rob: Int): Boolean = meje.any { (vrh, dno) -> vrh < rob && dno > rob }
+
     /** Vsebina obreze otroke, razen ko so prikazane vrstice Doma (povecane kartice segajo cez rob). */
     fun obreziVsebino(domovVrste: List<Boolean>): Boolean = domovVrste.none { it }
 

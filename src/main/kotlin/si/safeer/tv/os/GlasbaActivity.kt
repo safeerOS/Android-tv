@@ -927,6 +927,13 @@ class GlasbaActivity : OsActivity() {
             // Lastnik 8. 11. 2026 (Glasba, Videospoti): vrstica na spodnjem robu je bila ostro odrezana (»lomljenje«) -
             // spodaj se izgubi v prelivu; zgoraj ne (glava strani in zavihki ostanejo ostri).
             override fun getTopFadingEdgeStrength(): Float = 0f
+            override fun getBottomFadingEdgeStrength(): Float {
+                val rob = scrollY + height - paddingBottom
+                val meje = (0 until vsebina.childCount).map { vsebina.getChildAt(it) }
+                    .filter { it.visibility == View.VISIBLE && it.javaClass != View::class.java }
+                    .map { it.top to it.bottom }
+                return if (McVidezPravila.prelivSpodaj(meje, rob)) super.getBottomFadingEdgeStrength() else 0f
+            }
         }.apply {
             addView(vsebina); isFillViewport = true; isVerticalScrollBarEnabled = false
             isVerticalFadingEdgeEnabled = true; setFadingEdgeLength(dp(McVidezPravila.PRELIV_SPODAJ_DP))

@@ -10,6 +10,10 @@ fun main() {
     preveriEnako("vsebina obreze brez Doma", true, McVidezPravila.obreziVsebino(listOf(false, false)))
     preveriEnako("vrstice Doma: brez obrezovanja", false, McVidezPravila.obreziVsebino(listOf(false, true)))
     preveriEnako("prazno: obreze", true, McVidezPravila.obreziVsebino(emptyList()))
+    preveriEnako("delno vidna vrsta na robu: preliv", true, McVidezPravila.prelivSpodaj(listOf(0 to 300, 300 to 700), 500))
+    preveriEnako("rob na koncu cele vrste: brez preliva", false, McVidezPravila.prelivSpodaj(listOf(0 to 300, 300 to 700, 700 to 1100), 700))
+    preveriEnako("vse nad robom: brez preliva", false, McVidezPravila.prelivSpodaj(listOf(0 to 300), 900))
+    preveriEnako("prazno: brez preliva", false, McVidezPravila.prelivSpodaj(emptyList(), 900))
     println("Preizkus videza Doma MC (McVidezPravila)")
     val P = McVidezPravila
 
