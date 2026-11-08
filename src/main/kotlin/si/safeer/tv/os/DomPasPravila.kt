@@ -85,6 +85,40 @@ object DomPasPravila {
         else -> 40f
     }
 
+    /**
+     * Kritika 8. 11. 2026 (1, 3): ostra slika ozadja in logotip filma - Cinemeta/metahub (ze uporabljen za plakate v
+     * [Stremio]) ima po IMDb id ozadje 1920x1080 in logotip (izmerjeno 8. 11.: tt31193180 -> 200, 1920x1080 in 800x310).
+     * Id najdemo v polju imdbId ali v id-ju vsebine (»tt…«, tudi »tt…:1:2« za epizode); brez njega prazno.
+     */
+    fun imdbId(vararg nizi: String): String {
+        for (n in nizi) Regex("tt\\d{5,10}").find(n)?.let { return it.value }
+        return ""
+    }
+
+    fun ozadjeUrl(imdb: String): String = if (imdb.isEmpty()) "" else "https://images.metahub.space/background/medium/$imdb/img"
+
+    fun logoUrl(imdb: String): String = if (imdb.isEmpty()) "" else "https://images.metahub.space/logo/medium/$imdb/img"
+
+    /** Trajanje za podnaslov (kritika 9): »2 h 17 min«, »45 min«; brez trajanja prazno. */
+    fun trajanje(ms: Long): String {
+        if (ms < 60_000L) return ""
+        val min = ms / 60_000L
+        return if (min >= 60) "${min / 60} h ${min % 60} min" else "$min min"
+    }
+
+    /** Podnaslov iz delov (leto, trajanje, ...) - prazni izpadejo. */
+    fun podnaslov(vararg deli: String): String = deli.map { it.trim() }.filter { it.isNotEmpty() && it != "0" }.joinToString(" · ")
+
+    /**
+     * Ambientalna barva ozadja Doma (kritika 4): povprecna barva slike, zmesana s temnim ozadjem strani, da je besedilo
+     * vedno berljivo - delez slike najvec 35 %.
+     */
+    fun ambient(povprecje: Int, ozadje: Int): Int {
+        fun k(c: Int, s: Int) = ((c shr s) and 0xFF)
+        fun m(s: Int) = (k(povprecje, s) * 35 + k(ozadje, s) * 65) / 100
+        return (0xFF shl 24) or (m(16) shl 16) or (m(8) shl 8) or m(0)
+    }
+
     /** Izbor na pasu krozi vsakih [SEKUND_KROZENJA] s (zgled: pike desno spodaj). */
     const val SEKUND_KROZENJA = 8
     /** Najvec toliko vsebin krozi v pasu (in toliko pik) - vec bi bilo nepregledno. */

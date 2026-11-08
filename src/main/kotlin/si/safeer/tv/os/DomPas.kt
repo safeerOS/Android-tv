@@ -36,8 +36,16 @@ data class DomPasStanje(
     val slikaUrl: String,         // ozadje (backdrop) ali plakat; prazno = ikona
     val video: Boolean,           // vsebina je video
     val igra: Boolean,            // trenutno igra (gumb kaze premor)
-    val polozajMs: Long, val trajanjeMs: Long   // 0/0 = brez crte napredka
+    val polozajMs: Long, val trajanjeMs: Long,  // 0/0 = brez crte napredka
+    val ozadjeUrl: String = "",   // kritika 8. 11.: ostro ozadje (backdrop); prazno = plakat ob naslovu
+    val logoUrl: String = ""      // logotip filma namesto napisa (ce ga ni, ostane naslov)
 )
+
+/** Slika, ki pove, kdaj je dobila vsebino (logotip skrije naslov, ozadje da ambientalno barvo). */
+private class ObvescenaSlika(context: Context, private val ob: (ObvescenaSlika) -> Unit) : ImageView(context) {
+    override fun setImageDrawable(d: android.graphics.drawable.Drawable?) { super.setImageDrawable(d); ob(this) }
+    override fun setImageBitmap(b: android.graphics.Bitmap?) { super.setImageBitmap(b); ob(this) }
+}
 
 /**
  * Pas cez celo sirino na vrhu Doma (po Kinemi `Hero`, MIT: slika cez ves pas, senca od spodaj in z leve, naslov,
@@ -68,6 +76,9 @@ class DomPas(context: Context) : FrameLayout(context) {
     /** Glavni gumb (Dom nanj skoci z drzanim DOL - kot na stari kartici). */
     val glavniGumb: View get() = gumbGlavni
 
+    /** Ambientalna barva (povprecje slike ozadja), ko ozadje pride - Dom z njo obarva ozadje strani (kritika 4). */
+    var naAmbient: ((Int) -> Unit)? = null
+
     /** Nalagalnik slik, ki ga poda Dom (obstojeci predpomnilnik slik); brez njega se pokaze ikona. */
     var naloziSliko: ((String, ImageView) -> Unit)? = null
 
@@ -79,7 +90,13 @@ class DomPas(context: Context) : FrameLayout(context) {
 
     private val podlaga = View(context)
     private val ikona = ImageView(context)
-    private val slika = ImageView(context)
+    private val slika: ImageView = ObvescenaSlika(context) { iv -> obAmbientu(iv) }
+    /** Kritika 1: brez ozadja filma pokonci plakat ob strani (ostro), ne raztegnjen cez ves pas. */
+    private val plakat = ImageView(context)
+    /** Kritika 3: logotip filma namesto napisa - napis ostane, dokler logotip ne pride (in ce ga ni). */
+    private val logo: ImageView = ObvescenaSlika(context) { iv -> obLogotipu(iv) }
+    private var zadnjiLogo = ""
+    private var zadnjiPlakat = 
     private val sencaSpodaj = View(context)
     private val sencaLevo = View(context)
     private val vsebina = LinearLayout(context)
@@ -166,6 +183,17 @@ class DomPas(context: Context) : FrameLayout(context) {
         slika.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         addView(slika, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
 
+        // Plakat (brez ozadja filma): desno, 2:3, zaobljen, ostro dekodiran (kritika 1).
+        plakat.scaleType = ImageView.ScaleType.CENTER_CROP
+        plakat.visibility = View.GONE
+        plakat.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        plakat.clipToOutline = true
+        plakat.outlineProvider = object : ViewOutlineProvider() {
+            override fun getOutline(view: View, outline: Outline) { outline.setRoundRect(0, 0, view.width, view.height, dp(14).toFloat()) }
+        }
+        addView(plakat, FrameLayout.LayoutParams(dp(visinaPasuDp * 2 / 3 * 2 / 3), dp(visinaPasuDp * 2 / 3), Gravity.END or Gravity.CENTER_VERTICAL)
+            .apply { rightMargin = dp(if (siroko) 64 else 16) })
+
         povrsinaVidea.visibility = View.GONE
         addView(povrsinaVidea, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
 
@@ -188,6 +216,12 @@ class DomPas(context: Context) : FrameLayout(context) {
         // Na TV je vsebina pasu odmaknjena od roba kot v zgledu (48 dp levo, 32 dp spodaj).
         vsebina.setPadding(dp(if (siroko) 48 else 24), dp(if (siroko) 10 else 6), dp(if (siroko) 48 else 24), dp(if (siroko) 32 else 10))
         addView(vsebina, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM))
+
+        logo.scaleType = ImageView.ScaleType.FIT_START
+        logo.adjustViewBounds = true
+        logo.visibility = View.GONE
+        logo.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        vsebina.addView(logo, LinearLayout.LayoutParams(dp(if (siroko) 420 else 220), dp(if (siroko) 120 else 64)).apply { bottomMargin = dp(6) })
 
         naslov.setTextSize(TypedValue.COMPLEX_UNIT_SP, DomPasPravila.velikostNaslovaSp(sirinaZaslonaDp, visinaPasuDp))
         naslov.setTextColor(barva(R.color.os_besedilo))
@@ -354,9 +388,12 @@ class DomPas(context: Context) : FrameLayout(context) {
         val s = krog[krogIndeks]
         // Krozi samo, ce animacije smejo ([narociKrozenje]) - zato vedno s prehodom prosojnosti.
         vsebina.animate().cancel()
+        slika.animate().cancel()
         vsebina.alpha = 0f
+        slika.alpha = 0f   // kritika 10: prelije se tudi slika, ne samo besedilo
         narisi(s)
         vsebina.animate().alpha(1f).setDuration(300L).start()
+        slika.animate().alpha(1f).setDuration(400L).start()
         osveziPike()
         narociKrozenje()
     }
@@ -405,7 +442,7 @@ class DomPas(context: Context) : FrameLayout(context) {
 
         val naslovB = s.naslov.trim()
         if (naslov.text?.toString() != naslovB) naslov.text = naslovB
-        naslov.visibility = if (naslovB.isEmpty()) View.GONE else View.VISIBLE
+        naslov.visibility = if (naslovB.isEmpty() || logo.drawable != null) View.GONE else View.VISIBLE
 
         val podnaslovB = s.podnaslov.trim()
         if (podnaslov.text?.toString() != podnaslovB) podnaslov.text = podnaslovB
@@ -443,15 +480,32 @@ class DomPas(context: Context) : FrameLayout(context) {
 
         contentDescription = listOf(naslovB, podnaslovB).filter { it.isNotEmpty() }.joinToString(" · ")
 
-        val url = s.slikaUrl.trim()
+        // Kritika 1: ozadje filma (ostro, v sirini pasu) cez ves pas; brez njega plakat ob strani (ne raztegnjen).
+        val ozadjeB = s.ozadjeUrl.trim()
+        val plakatB = if (ozadjeB.isEmpty() && siroko) s.slikaUrl.trim() else ""
+        val url = if (ozadjeB.isNotEmpty()) ozadjeB else if (siroko) "" else s.slikaUrl.trim()
         if (url != zadnjaSlika) {
             zadnjaSlika = url
             slika.setImageDrawable(null)
             slika.tag = null   // slepi pregled: nalagalnik po oznaki ve, ali je prispela slika se prava
             if (url.isNotEmpty()) naloziSliko?.invoke(url, slika)
         }
+        if (plakatB != zadnjiPlakat) {
+            zadnjiPlakat = plakatB
+            plakat.setImageDrawable(null)
+            plakat.tag = null
+            if (plakatB.isNotEmpty()) naloziSliko?.invoke(plakatB, plakat)
+        }
+        val logoB = s.logoUrl.trim()
+        if (logoB != zadnjiLogo) {
+            zadnjiLogo = logoB
+            logo.setImageDrawable(null)   // naslov se vrne, dokler novi logotip ne pride
+            logo.tag = null
+            if (logoB.isNotEmpty()) naloziSliko?.invoke(logoB, logo)
+        }
         imamSliko = url.isNotEmpty() && naloziSliko != null
         val video = povrsinaVidea.visibility == View.VISIBLE
+        plakat.visibility = if (plakatB.isNotEmpty() && naloziSliko != null && !video) View.VISIBLE else View.GONE
         slika.visibility = if (imamSliko) View.VISIBLE else View.GONE
         ikona.visibility = if (video) View.GONE else View.VISIBLE
         ikona.setImageResource(if (s.video) R.drawable.os_ikona_video else R.drawable.os_ikona_glasba)
@@ -464,8 +518,29 @@ class DomPas(context: Context) : FrameLayout(context) {
      */
     fun pokaziVideo(da: Boolean) {
         povrsinaVidea.visibility = if (da) View.VISIBLE else View.GONE
+        if (da) plakat.visibility = View.GONE
         ikona.visibility = if (da) View.GONE else View.VISIBLE
         podlaga.visibility = if (da || imamSliko) View.GONE else View.VISIBLE
+    }
+
+    /** Logotip je prisel: napis skrijemo (en naslov, ne dva - kritika 3); brez logotipa napis ostane. */
+    private fun obLogotipu(iv: ImageView) {
+        val ima = iv.drawable != null
+        iv.visibility = if (ima) View.VISIBLE else View.GONE
+        naslov.visibility = if (ima || naslov.text.isNullOrEmpty()) View.GONE else View.VISIBLE
+        if (ima) contentDescription = contentDescription   // bralnik zaslona bere naslov iz contentDescription pasu
+    }
+
+    /** Povprecna barva ozadja (1x1 pomanjsava) za ambientalno ozadje strani (kritika 4). */
+    private fun obAmbientu(iv: ImageView) {
+        val b = (iv.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap ?: return
+        val k = naAmbient ?: return
+        try {
+            val en = android.graphics.Bitmap.createScaledBitmap(b, 1, 1, true)
+            val c = en.getPixel(0, 0)
+            if (en !== b) en.recycle()
+            k(c)
+        } catch (_: Throwable) { }
     }
 
     /** Na TV pas brez okvirja (zgled KefinTweaks), na ozkem zaslonu zaobljen. */
@@ -502,7 +577,8 @@ class DomPas(context: Context) : FrameLayout(context) {
 
     private fun gumbPlosca(glavni: Boolean): StateListDrawable = StateListDrawable().apply {
         addState(intArrayOf(android.R.attr.state_focused),
-            if (glavni) plosca(R.color.os_mint, R.color.os_mint_temna, 28)
+            // Kritika 8: fokus na mint gumbu je bil skoraj neviden (temnejsi mint rob) - bel obroc 3 dp.
+            if (glavni) plosca(R.color.os_mint, R.color.os_besedilo, 28).apply { setStroke(dp(3), barva(R.color.os_besedilo)) }
             else plosca(R.color.os_kartica_steklo_fokus, R.color.os_mint, 28))
         // Zgled KefinTweaks: gumba sta »tabletki« (polmer = polovica visine 44-48 dp).
         addState(intArrayOf(),

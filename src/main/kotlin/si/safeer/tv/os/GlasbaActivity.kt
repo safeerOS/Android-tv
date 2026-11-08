@@ -557,6 +557,10 @@ class GlasbaActivity : OsActivity() {
     override fun onStart() {
         super.onStart()
         viden = true
+        // Kritika 5: glava Doma je bila prikazana v prejsnji seji - od zdaj kompaktna.
+        if (glavaPrikazanaVSeji) try {
+            getSharedPreferences("safeer_mediji", MODE_PRIVATE).edit().putBoolean("dom_glava_videna", true).apply()
+        } catch (_: Exception) { }
         // Samostojni Predvajalnik: to je njegov domaci zaslon - nova razlicica s safeer.si se ponudi tu (tiha pasica).
         if (si.safeer.tv.BuildConfig.FLAVOR == "predvajalnik") Posodobitve.ponudiCeJeCas(this)
         Ozadje.uporabi(this, koren)
@@ -940,14 +944,14 @@ class GlasbaActivity : OsActivity() {
         val vsebinaOvoj = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         vsebinaOvoj.addView(drsnik, LinearLayout.LayoutParams(0, -1, 1f))
         
+        // Kritika 8. 11. 2026 (2, lastnik »naredi popravek«): pas je cez vso sirino - TV v zivo, Prenosi in Kaj igra so
+        // vodoravna vrstica pod pasom (prej stolpec 260 dp desno, ki je pas skrcil na 2/3 sirine).
         ploscaDomov = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
+            orientation = LinearLayout.HORIZONTAL
             visibility = View.GONE
-            setPadding(dp(16), 0, 0, 0)
+            setPadding(0, 0, 0, dp(8))
+            layoutParams = LinearLayout.LayoutParams(-1, -2)
         }
-        // Lastnik 8. 11. 2026 06:17 (Kinema): mali predvajalnik je pas cez celo sirino na vrhu Doma (prva vrstica), ne v plosci.
-            
-        vsebinaOvoj.addView(ploscaDomov, LinearLayout.LayoutParams(dp(260), -1))
         
         desno.addView(vsebinaOvoj, LinearLayout.LayoutParams(-1, 0, 1f))
 
@@ -1707,6 +1711,14 @@ class GlasbaActivity : OsActivity() {
     /** Rod plosce Doma: odgovor (prenosi, predaja) prejsnje gradnje plosce ne doda kartice se enkrat (slepi pregled 8. 11. 2026, 9). */
     private var rodPlosce = 0
 
+    /** Blok vrstice pod pasom: naslov nad kartico (kritika 2). */
+    private fun blokPlosce(naslov: String, kartica: View): View = LinearLayout(this).apply {
+        orientation = LinearLayout.VERTICAL
+        addView(besedilo(16f, osBarva(R.color.os_besedilo), true).apply { text = naslov; setPadding(0, dp(8), 0, dp(8)) })
+        addView(kartica)
+        layoutParams = LinearLayout.LayoutParams(dp(300), -2).apply { rightMargin = dp(16) }
+    }
+
     private fun osveziPloscoDomov() {
         val pokaziPlosco = razdelek == DOMOV && DomovVrsticePravila.imaPlosco(jeTv(), resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE, ozekZaslon())
         // Slepi pregled 8. 11. 2026: plosca je vidna sele, ko ima kartico - prazna 260 dp bi premaknila ze izmerjeno mrezo.
@@ -1726,8 +1738,7 @@ class GlasbaActivity : OsActivity() {
         } else {
             val sk = kanali.first()
             val v = Vrsta(getString(R.string.os_mediji_tv_v_zivo), listOf(Kartica(sk.naslov, sk.izvajalec, sk.slika, { predvajaj(listOf(sk), 0) }, { meniNedavno(sk) }, id = sk.id)), kanali = true)
-            ploscaDomov.addView(besedilo(16f, osBarva(R.color.os_besedilo), true).apply { text = getString(R.string.os_mediji_tv_v_zivo); setPadding(0, dp(16), 0, dp(8)) })
-            ploscaDomov.addView(karticaMreze(v, v.kartice.first(), 150))
+            ploscaDomov.addView(blokPlosce(getString(R.string.os_mediji_tv_v_zivo), karticaMreze(v, v.kartice.first(), 150)))
             ploscaDomov.visibility = View.VISIBLE
         }
         
@@ -1741,8 +1752,7 @@ class GlasbaActivity : OsActivity() {
                 } else {
                     val sk = prenosi.first()
                     val v = Vrsta(getString(R.string.os_prenosi_v_teku), listOf(Kartica(sk.naslov, sk.izvajalec, sk.slika, { predvajaj(listOf(sk), 0) }, id = sk.id)), video = true)
-                    ploscaDomov.addView(besedilo(16f, osBarva(R.color.os_besedilo), true).apply { text = getString(R.string.os_prenosi_v_teku); setPadding(0, dp(16), 0, dp(8)) })
-                    ploscaDomov.addView(karticaMreze(v, v.kartice.first(), 150))
+                    ploscaDomov.addView(blokPlosce(getString(R.string.os_prenosi_v_teku), karticaMreze(v, v.kartice.first(), 150)))
                 }
                 val prazno = ploscaDomov.childCount == 0
                 ploscaDomov.visibility = if (DomovVrsticePravila.prikaziPoljePlosce(prazno)) View.VISIBLE else View.GONE
@@ -1758,8 +1768,7 @@ class GlasbaActivity : OsActivity() {
                 val sk = pon.skladba
                 val v = Vrsta(getString(R.string.os_predaja_naslov), listOf(Kartica(sk.naslov, DatotekeActivity.lepoIme(pon.naprava.ime), sk.slika,
                     { izberiPrevzem(pon) }, ikona = R.drawable.os_ikona_link, id = "predaja:" + pon.naprava.id)), video = true)
-                ploscaDomov.addView(besedilo(16f, osBarva(R.color.os_besedilo), true).apply { text = getString(R.string.os_predaja_kartica); setPadding(0, dp(16), 0, dp(8)) })
-                ploscaDomov.addView(karticaMreze(v, v.kartice.first(), 150))
+                ploscaDomov.addView(blokPlosce(getString(R.string.os_predaja_kartica), karticaMreze(v, v.kartice.first(), 150)))
                 ploscaDomov.visibility = View.VISIBLE
             }
         }
@@ -2243,7 +2252,10 @@ class GlasbaActivity : OsActivity() {
             TV_V_ZIVO -> R.string.os_mediji_tv_v_zivo
             VIRI -> R.string.os_mediji_viri; ISKANJE -> R.string.os_glasba_iskanje; else -> R.string.os_media_naslov
         })
-        geslo.visibility = if (i == DOMOV && !ozekZaslon()) View.VISIBLE else View.GONE
+        // Kritika 5: kompaktna glava - geslo in podnaslov Doma samo v prvi seji (potem samo zavihki in iskanje).
+        geslo.visibility = if (i == DOMOV && !ozekZaslon() && !glavaDomaVidena()) View.VISIBLE else View.GONE
+        if (i == DOMOV) glavaPrikazanaVSeji = true
+        if (i != DOMOV) desnoOkvir.background = null   // kritika 4: ambient samo na Domu
         // Pregled MC-11: desna plosca Doma (kartica »zdaj igra«, TV v zivo, prenosi) se ni nikoli pokazala - osveziPloscoDomov ni
         // klical nihce. Zdaj ob vsakem razdelku (drugod jo skrije), znak v glavi prav tako.
         osveziPloscoDomov(); osveziZnak()
@@ -2463,8 +2475,13 @@ class GlasbaActivity : OsActivity() {
         TV_V_ZIVO -> getString(R.string.os_media_tv_opis)
         VIDEO -> getString(R.string.os_glasba_video_opis)
         VIRI -> getString(R.string.os_mediji_viri_opis)
-        else -> getString(R.string.os_media_podnaslov)
+        else -> if (glavaDomaVidena()) "" else getString(R.string.os_media_podnaslov)
     }
+
+    private var glavaPrikazanaVSeji = false
+    private fun glavaDomaVidena(): Boolean = try {
+        getSharedPreferences("safeer_mediji", MODE_PRIVATE).getBoolean("dom_glava_videna", false)
+    } catch (_: Exception) { false }
 
     /** Podatki razdelka s spleta (klic na delovni niti). */
     private fun podatkiRazdelka(i: Int): List<Podatki> {
@@ -3477,7 +3494,8 @@ class GlasbaActivity : OsActivity() {
                             .filter { it.video && !it.radio && !jeKanalP(it) }
                             .distinctBy { kljucNedavnega(it) }
                         
-                        val kartice = predajaVrsta().flatMap { it.kartice } + nedavniVidei.map { sk ->
+                        // Kritika 7: kartica »Poglej, kaj igra« (ikona povezave) ni film - gre na konec vrstice, ne na zacetek.
+                        val kartice = nedavniVidei.map { sk ->
                             val n = napredki.firstOrNull { it.skladba.id == sk.id || (it.skladba.naslov.isNotBlank() && it.skladba.naslov == sk.naslov) }
                             val napredekOdstotek = if (n != null && n.trajanje > 0) (n.polozaj * 100 / n.trajanje).toInt().coerceIn(0, 100) else null
                             val klikSk = n?.skladba ?: sk
@@ -3485,7 +3503,7 @@ class GlasbaActivity : OsActivity() {
                                 if (SpletniVir.jeEnota(klikSk)) razresiSplet(klikSk) else predvajaj(listOf(klikSk), 0, izNedavnih = true)
                             }, { meniNedavno(sk, R.string.os_media_odstrani_nadaljuj) },
                                 ikona = R.drawable.os_ikona_video, id = sk.id, napredek = napredekOdstotek)
-                        }
+                        } + predajaVrsta().flatMap { it.kartice }
                         // Naloga #38 (lastnik 8. 11. 2026): zadnja nedokoncana vsebina gre v mali predvajalnik na plosci Doma; kjer je
                         // plosca (TV, lezeca tablica), vrste ni vec - vse nedokoncane odpre dolg pritisk na kartici.
                         // Slepi pregled 8. 11. 2026 (7): isti nabor kot kartice vrste (nedavni videi po jeziku, brez odstranjenih
@@ -3623,7 +3641,8 @@ class GlasbaActivity : OsActivity() {
                     else (sSliko.drop(izbI) + sSliko.take(izbI)).take(DomPasPravila.NAJVEC_KROZENJA)
                 glavna.post { if (razdelek == DOMOV && !isFinishing) osveziMcKartico() }
                 val m = mcKarticaKoren ?: ustvariMcKartico(true)
-                listOf(Vrsta("", emptyList(), pogled = m)) + vrstice
+                // Kritika 2: TV v zivo, Prenosi in Kaj igra so vrstica takoj pod pasom (pas je cez vso sirino).
+                listOf(Vrsta("", emptyList(), pogled = m), Vrsta("", emptyList(), pogled = ploscaDomov)) + vrstice
             }
             GLASBA -> listOf(Vrsta(getString(R.string.os_mediji_prilj_glasba), skladbe(p.filter { OsPravila.zaGlasbo(it.video, it.radio, YoutubeZvok.jeYoutube(it)) }), skladbe = true)) +
                 // Lastnik 27. 10. 2026: priljubljeni albumi z Useneta (samo z lastnim ponudnikom - sicer jih ni mogoce predvajati).
@@ -6556,8 +6575,21 @@ class GlasbaActivity : OsActivity() {
     // [napis]: v vrstici Nadaljuj z ogledom »Odstrani iz Nadaljuj z ogledom« (lastnik 8. 11. 2026) - odstrani iz Nedavnega
     // (vrstica je sestavljena iz njega) in napredek ogleda.
     private fun meniNedavno(sk: Jamendo.Skladba, napis: Int = R.string.os_media_odstrani_nedavno) {
+        // TV 8. 11. 2026: v vrstici Nadaljuj z ogledom tudi Moj seznam (prej samo odstranitev).
+        val mojSeznam = napis == R.string.os_media_odstrani_nadaljuj && MojSeznamPravila.ponudi(sk.video, sk.radio, false) && MedijskiViri.shranljiva(sk)
+        val na = mojSeznam && MedijskiViri.jeVMojemSeznamu(this, sk)
+        val izbire = listOfNotNull(getString(napis),
+            if (mojSeznam) getString(if (na) R.string.os_moj_seznam_odstrani else R.string.os_moj_seznam_dodaj) else null)
         pokaziBrisanje(AlertDialog.Builder(this).setTitle(sk.naslov)
-            .setItems(arrayOf(getString(napis))) { _, _ ->
+            .setItems(izbire.toTypedArray()) { _, katera ->
+                if (katera == 1) {
+                    val zdaj = MedijskiViri.preklopiMojSeznam(this, sk)
+                    if (zdaj) Toast.makeText(this, R.string.os_moj_seznam_dodano, Toast.LENGTH_SHORT).show()
+                    else if (na) Toast.makeText(this, R.string.os_moj_seznam_odstranjeno, Toast.LENGTH_SHORT).show()
+                    SEZNAMI.remove(DOMOV)
+                    if (razdelek == DOMOV) osvezi(DOMOV)
+                    return@setItems
+                }
                 // Slepi pregled 8. 11. (9): iz Nadaljuj z ogledom odstranimo tudi napredek - sicer ostane v pasu kot Nadaljuj.
                 if (napis == R.string.os_media_odstrani_nadaljuj) { MediaNapredek.odstrani(this, sk); SEZNAMI.remove(VIDEO) }
                 odstraniIzNedavnega(sk)
@@ -6710,7 +6742,8 @@ class GlasbaActivity : OsActivity() {
         if (MojSeznamPravila.ponudi(sk.video, sk.radio, kanal) && MedijskiViri.shranljiva(sk)) {
             val na = MedijskiViri.jeVMojemSeznamu(this, sk)
             val napisMoj = getString(if (na) R.string.os_moj_seznam_odstrani else R.string.os_moj_seznam_dodaj)
-            ikone[napisMoj] = R.drawable.ic_m_bookmarks
+            // Kritika 11: ne ista ikona kot »Shrani kot seznam predvajanja« - plus za dodaj, odstrani za odstrani (kot napis).
+            ikone[napisMoj] = if (na) R.drawable.ic_m_odstrani else R.drawable.ic_m_dodaj
             dejanja += napisMoj to {
                 val zdaj = MedijskiViri.preklopiMojSeznam(this, sk)
                 // Slepi pregled 8. 11. (14): sporocilo po dejanskem stanju - »odstranjeno« samo, ce je bilo na seznamu.
@@ -12895,12 +12928,52 @@ class GlasbaActivity : OsActivity() {
      * Klik/OK = glavno dejanje (igra -> cel zaslon, Nadaljuj, izbor), gumb = Predvajaj/Premor/Nadaljuj,
      * Podrobnosti = vse nedokoncane (ce so).
      */
+    /** Zadnje slike pasu (ozadje, plakat, logotip): majhen predpomnilnik zunaj SLIKE (te so 280 px). */
+    private val slikePasu = object : android.util.LruCache<String, android.graphics.Bitmap>(12 * 1024 * 1024) {
+        override fun sizeOf(k: String, v: android.graphics.Bitmap) = v.byteCount
+    }
+
+    /**
+     * Slika pasu v sirini pasu (najvec 1280 px; ozadje 1920x1080 -> 1280x720 RGB_565 = 1,8 MB). Brez diska in brez
+     * SLIKE, da kartice ostanejo 280 px. Pogled dobi sliko samo, ce se vedno caka nanjo (tag).
+     */
+    private fun naloziSlikoPasu(url: String, v: ImageView) {
+        if (url.isBlank()) return
+        slikePasu.get(url)?.let { v.tag = url; v.setImageBitmap(it); return }
+        v.tag = url
+        slikeDelavec.execute {
+            try {
+                val surovi = SpletniVir.bajtiSlike(this, url) ?: Jamendo.bajti(url) ?: return@execute
+                val b = VarnaSlika.izBajtov(surovi, 1280) ?: return@execute
+                val m = if (url.contains("/logo/")) b else MedijskiPredpomnilnik.zaPomnilnik(b)   // logotip ohrani prosojnost
+                slikePasu.put(url, m)
+                glavna.post { if (!isFinishing && v.tag == url) v.setImageBitmap(m) }
+            } catch (e: OutOfMemoryError) {
+                slikePasu.evictAll()
+                android.util.Log.w("SafeerOsMediji", "slika pasu: zmanjkalo pomnilnika")
+            } catch (e: Exception) {
+                android.util.Log.d("SafeerOsMediji", "slika pasu: ${e.javaClass.simpleName}")
+            }
+        }
+    }
+
+    /** Ambientalno ozadje Doma (kritika 4): uporabnikovo ozadje ostane, Dom ga zatemni v barvi slike pasu. */
+    private fun obarvajDom(povprecje: Int) {
+        val oz = osBarva(R.color.os_ozadje)
+        val zgoraj = DomPasPravila.ambient(povprecje, oz)
+        desnoOkvir.background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+            intArrayOf((zgoraj and 0x00FFFFFF) or (0xE0 shl 24), (oz and 0x00FFFFFF) or (0xF2 shl 24)))
+    }
+
     private fun ustvariPas(): View {
         val pas = DomPas(this)
         pas.layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(16); topMargin = dp(4) }
         // Krozenje izbora: klik odpre vsebino, ki jo pas ta trenutek kaze (zgled KefinTweaks).
         pas.naIzbranem = { i -> zadnjiIzborVec.getOrNull(i)?.let { zadnjiIzbor = it } }
-        pas.naloziSliko = { url, iv -> slikaKartice(url, iv) }
+        // Kritika 1: slike pasu v sirini pasu (kartice so 280 px - raztegnjene cez 1280 px so bile zamegljene).
+        pas.naloziSliko = { url, iv -> naloziSlikoPasu(url, iv) }
+        // Kritika 4: ambientalno ozadje Doma iz barve slike pasu.
+        pas.naAmbient = { c -> if (razdelek == DOMOV && !isFinishing) obarvajDom(c) }
         mcKarticaKoren = pas
         mcKarticaPovrsina = pas.povrsinaVidea
         mcKarticaPredvajaj = pas.glavniGumb   // drzan DOL, dolg pritisk in znak MC skocijo na glavni gumb pasu
@@ -13115,13 +13188,17 @@ class GlasbaActivity : OsActivity() {
                 okenceVidea(false)
                 val n = nad.skladba
                 val se = if (n.season > 0 && n.episode > 0) "S%02dE%02d".format(java.util.Locale.ROOT, n.season, n.episode) else ""
-                DomPasStanje(DomPasPravila.NADALJUJ, n.naslov, listOf(se, if (n.year != 0) n.year.toString() else n.izvajalec).filter { it.isNotBlank() }.joinToString(" · "),
-                    "", n.slika, n.video, false, nad.polozaj, nad.trajanje)
+                val imdb = DomPasPravila.imdbId(n.imdbId, n.id)
+                DomPasStanje(DomPasPravila.NADALJUJ, n.naslov,
+                    DomPasPravila.podnaslov(se, if (n.year != 0) n.year.toString() else n.izvajalec, DomPasPravila.trajanje(nad.trajanje)),
+                    "", n.slika, n.video, false, nad.polozaj, nad.trajanje, DomPasPravila.ozadjeUrl(imdb), DomPasPravila.logoUrl(imdb))
             }
             mcKarticaStanje == MiniPredvajalnikPravila.IZBOR && izb != null -> {
                 okenceVidea(false)
                 val vec = zadnjiIzborVec.ifEmpty { listOf(izb) }.map { k ->
-                    DomPasStanje(DomPasPravila.IZBOR, k.naslov, k.podnaslov, "", k.slika, k.ikona == R.drawable.os_ikona_video, false, 0L, 0L) }
+                    val imdb = DomPasPravila.imdbId(k.kakovostId, k.id)
+                    DomPasStanje(DomPasPravila.IZBOR, k.naslov, k.podnaslov, "", k.slika, k.ikona == R.drawable.os_ikona_video, false, 0L, 0L,
+                        DomPasPravila.ozadjeUrl(imdb), DomPasPravila.logoUrl(imdb)) }
                 if (vec.size >= 2) {
                     pas.prikaziVec(vec)
                     pas.pokaziVideo(false)
@@ -13134,9 +13211,11 @@ class GlasbaActivity : OsActivity() {
                 val igra = GlasbaStoritev.igra()
                 val r = sk.radio || (p?.duration?.coerceAtLeast(0) ?: 0) <= 0
                 // Nalozena, a ustavljena vsebina: gumb Nadaljuj (ne Premor).
+                val imdb = if (sk.video) DomPasPravila.imdbId(sk.imdbId, sk.id) else ""
                 DomPasStanje(if (igra) DomPasPravila.IGRA else DomPasPravila.NADALJUJ, sk.naslov,
                     if (sk.year != 0) sk.year.toString() else sk.izvajalec, "", sk.slika, sk.video, igra,
-                    if (r || p == null) 0L else p.currentPosition.coerceAtLeast(0), if (r || p == null) 0L else p.duration.coerceAtLeast(0))
+                    if (r || p == null) 0L else p.currentPosition.coerceAtLeast(0), if (r || p == null) 0L else p.duration.coerceAtLeast(0),
+                    DomPasPravila.ozadjeUrl(imdb), DomPasPravila.logoUrl(imdb))
             }
             else -> DomPasStanje(DomPasPravila.MC_NIC, "", "", "", "", false, false, 0L, 0L)
         }

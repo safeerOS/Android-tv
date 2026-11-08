@@ -183,7 +183,7 @@
     <string name="os_media_razmerje_fill">Povečaj (Fill)</string>
     <string name="os_media_razmerje_stretch">Raztegni (16:9)</string>
     <string name="os_media_nadaljuj_gledanje">Nadaljuj gledanje</string>
-    <string name="os_media_odstrani_nadaljuj">Odstrani iz Nadaljuj gledanje</string>
+    <string name="os_media_odstrani_nadaljuj">Odstrani iz Nadaljuj z ogledom</string>
     <string name="os_media_odstranjeno_nadaljuj">Odstranjeno iz Nadaljuj gledanje</string>
     <string name="os_media_pocisti_nadaljuj">Počisti nadaljuj gledanje</string>
     <string name="os_media_pocisti_nadaljuj_opis">Odstrani vso zgodovino gledanja</string>
