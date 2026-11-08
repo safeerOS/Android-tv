@@ -206,7 +206,8 @@ object Pomnilnik {
             val zaZapreti = mutableListOf<String>()
             for (p in k) {
                 if (foregroundPackages.contains(p)) continue
-                val lastUsed = stats?.find { it.packageName == p }?.lastTimeUsed ?: 0L
+                // CodeRabbit 8. 11. 2026: queryUsageStats vrne lahko vec zapisov na paket (po dnevih) - vzemi zadnjo uporabo, ne prvega zadetka.
+                val lastUsed = stats?.filter { it.packageName == p }?.maxOfOrNull { it.lastTimeUsed } ?: 0L
                 val trajen = try { (pm.getApplicationInfo(p, 0).flags and ApplicationInfo.FLAG_PERSISTENT) != 0 } catch (_: Exception) { false }
                 if (OsPravila.zapriObVrnitvi(p, c.packageName, ime, trajen, vklopljeno, predvaja, lastUsed, zdaj, nedejavnost)) zaZapreti.add(p)
             }
