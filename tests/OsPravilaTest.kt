@@ -1787,6 +1787,32 @@ private fun preizkusZapriObMenjavi() {
     preveriEnako("zeton 127.0.0.1 se ne shrani", true, OsPravila.brezTokaVNedavnih(true, "http://127.0.0.1:41234/zeton/video.mkv"))
     preveriEnako("https tok enote ostane", false, OsPravila.brezTokaVNedavnih(true, "https://cdn.example/v.mkv"))
 
+    // TV 8. 11. 2026 06:13: brez statistike uporabe (GET_USAGE_STATS zavrnjen) seja ostane; lastni zapis ima prednost.
+    val zu = 10_000_000L
+    preveriEnako("zadnjaUporaba: brez statistike, brez zapisa, brez stiske -> zdaj (ostane)", zu, OsPravila.zadnjaUporaba(0L, 0L, false, false, zu))
+    preveriEnako("zadnjaUporaba: brez statistike v stiski -> 0 (zapre)", 0L, OsPravila.zadnjaUporaba(0L, 0L, false, true, zu))
+    preveriEnako("zadnjaUporaba: statistika je, paketa ni -> 0", 0L, OsPravila.zadnjaUporaba(0L, 0L, true, false, zu))
+    preveriEnako("zadnjaUporaba: lastni zapis brez statistike", zu - 60_000L, OsPravila.zadnjaUporaba(0L, zu - 60_000L, false, false, zu))
+    preveriEnako("zadnjaUporaba: novejsi od obeh", zu - 5_000L, OsPravila.zadnjaUporaba(zu - 5_000L, zu - 60_000L, true, false, zu))
+    // Scenarij s TV: SmartTube zapuscen pred 60 s, statistike ni, 810 MB prostega -> NE zapri.
+    val nedej = OsPravila.nedejavnostZapiranja(OsPravila.stiskaZaSeje(810, false))
+    preveriEnako("SmartTube 60 s po Domov brez statistike ostane", false, OsPravila.zapriObVrnitvi("org.smarttube.stable", "si.safeer.os", null, false, true, false,
+        OsPravila.zadnjaUporaba(0L, zu - 60_000L, false, false, zu), zu, nedej))
+    preveriEnako("brez vsakega podatka ostane", false, OsPravila.zapriObVrnitvi("org.smarttube.stable", "si.safeer.os", null, false, true, false,
+        OsPravila.zadnjaUporaba(0L, 0L, false, false, zu), zu, nedej))
+    preveriEnako("prej (zadnja uporaba 0) bi zaprlo", true, OsPravila.zapriObVrnitvi("org.smarttube.stable", "si.safeer.os", null, false, true, false, 0L, zu, nedej))
+
+    // Lastnik 8. 11. 2026 06:30: neigrajoca se zapre (3 s), igrajoca ostane; znan paket zvoka ne ustavi vsega.
+    preveriEnako("neigrajoca SmartTube 60 s po Domov se zapre", true, OsPravila.zapriObVrnitvi("org.smarttube.stable", "si.safeer.os", null, false, true, false,
+        zu - 60_000L, zu, OsPravila.nedejavnostNeigrajocih()))
+    preveriEnako("igrajoca (zvok) ostane", false, OsPravila.zapriObVrnitvi("org.smarttube.stable", "si.safeer.os", null, false, true, true,
+        zu - 60_000L, zu, OsPravila.nedejavnostNeigrajocih()))
+    preveriEnako("ravnokar zapuscena (1 s) ostane", false, OsPravila.zapriObVrnitvi("org.smarttube.stable", "si.safeer.os", null, false, true, false,
+        zu - 1_000L, zu, OsPravila.nedejavnostNeigrajocih()))
+    preveriEnako("zvok, paket neznan -> ustavi vse", true, OsPravila.zvokUstaviVse(true, false))
+    preveriEnako("zvok, paket znan -> samo ta ostane", false, OsPravila.zvokUstaviVse(true, true))
+    preveriEnako("brez zvoka nic ne ustavi", false, OsPravila.zvokUstaviVse(false, false))
+
     // Revizija RAM 8. 11. 2026 (#7): slicice galerije najvec 12 MiB tudi pri veliki kopici.
     preveriEnako("galerija: largeHeap 512 MiB -> 12 MiB", 12 * 1024, OsPravila.galerijaPredpomnilnikKb(512L * 1024 * 1024))
     preveriEnako("galerija: kopica 64 MiB -> 8 MiB", 8 * 1024, OsPravila.galerijaPredpomnilnikKb(64L * 1024 * 1024))

@@ -782,4 +782,6 @@
     <string name="os_adb_ni_potrjeno">No se confirmó en el televisor. Inténtelo de nuevo y elija »Permitir siempre«.</string>
     <string name="os_mediji_zdaj_igra">Reproduciendo - abrir en Inicio</string>
     <string name="os_mediji_zdaj_igra_kratko">Reproduciendo</string>
+    <string name="os_tuje_predvajanje">Música de otras apps en la pantalla de inicio</string>
+    <string name="os_tuje_predvajanje_opis">El minirreproductor muestra y controla la reproducción de otras apps (SmartTube, YouTube…). Necesita el permiso del sistema Acceso a notificaciones; esto abre esa página.</string>
 </resources>

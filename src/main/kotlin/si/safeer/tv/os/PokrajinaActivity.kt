@@ -524,6 +524,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         dok.post { robDocka() }
         GlasbaStoritev.poslusalci.add(medijiPoslusalec)
         OddaljenoPredvajanje.poslusalci.add(medijiPoslusalec)
+        TujePredvajanje.poslusalci.add(medijiPoslusalec)
         ZnackeObvestil.poslusalci.add(posodobiZnacke)
         Posodobitve.preveri(this) { _, _ -> if (!isFinishing) osveziDokZnacke() }
         dock?.osvezi()
@@ -560,6 +561,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         ustaviPreverboMirovanja()
         GlasbaStoritev.poslusalci.remove(medijiPoslusalec)
         OddaljenoPredvajanje.poslusalci.remove(medijiPoslusalec)
+        TujePredvajanje.poslusalci.remove(medijiPoslusalec)
         dock?.ustavi()
         glavna.removeCallbacks(tikUre)
         // Medijski center ali drug program iz lupe: ob vrnitvi domaci zaslon brez starega iskanja (vodja 27. 10. 2026).
@@ -2663,6 +2665,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     private fun odpri(namera: Intent, moznosti: Bundle? = null): Boolean {
         return try {
             Pomnilnik.vnos()   // zagon aplikacije ustavi ciscenje ozadja (tudi s kazalcem, brez tipke)
+            Pomnilnik.zagnano(namera)   // lastni zapis uporabe (statistika uporabe na TV ni dostopna)
             startActivity(namera, moznosti)
             true
         } catch (e: Throwable) {

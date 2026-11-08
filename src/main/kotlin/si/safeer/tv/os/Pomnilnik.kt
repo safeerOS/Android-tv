@@ -29,6 +29,27 @@ object Pomnilnik {
         private set
 
     fun vnos() { vnosi++ }
+
+    /** Lastni zapis zadnje uporabe paketov (TV 8. 11. 2026: statistika uporabe ni dostopna) - v pomnilniku procesa. */
+    private val uporaba = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    @Volatile private var zadnjiZagnan: String? = null
+
+    /** Uporabnik je paket uporabljal do zdaj (odhod iz njega v Safeer Vnosu). */
+    fun uporabljeno(paket: String?, casMs: Long = System.currentTimeMillis()) {
+        if (paket.isNullOrBlank()) return
+        if (uporaba.size > 200) uporaba.clear()
+        uporaba[paket] = casMs
+    }
+
+    /** Zagon iz doma: paket je v rabi od zdaj; ob vrnitvi domov ([vrnitevDomov]) do takrat. */
+    fun zagnano(namera: android.content.Intent?) {
+        val p = namera?.`package` ?: namera?.component?.packageName ?: return
+        zadnjiZagnan = p
+        uporabljeno(p)
+    }
+
+    /** Dom je spet na zaslonu: nazadnje zagnana aplikacija je bila v rabi do tega trenutka. */
+    fun vrnitevDomov() { zadnjiZagnan?.let { uporabljeno(it) } }
     @Volatile private var spremljam = false
 
     private fun spremljajOdhode(c: Context) {
@@ -152,9 +173,10 @@ object Pomnilnik {
         val pm = c.packageManager
         val trajen = try { (pm.getApplicationInfo(prejsnja, 0).flags and ApplicationInfo.FLAG_PERSISTENT) != 0 } catch (_: Exception) { false }
         
-        // Lastnik 8. 11. 2026: seja aplikacije, ki jo je uporabnik pravkar zapustil, ostane (30 min), razen ce je pomnilnika malo.
-        val nedejavnost = OsPravila.nedejavnostZapiranja(stanje(c).stiskaZaSeje)
-        if (OsPravila.zapriObMenjavi(prejsnja, nova, casMs, c.packageName, ime, trajen, vklopljeno, predvaja, nedejavnost) && !vrnilSe() &&
+        // Lastnik 8. 11. 2026 06:30: neigrajoca se zapre, igrajoca (znana seja predvajanja) ostane.
+        val nedejavnost = OsPravila.nedejavnostNeigrajocih()
+        val igra = predvaja || TujePredvajanje.igraPaket() == prejsnja
+        if (OsPravila.zapriObMenjavi(prejsnja, nova, casMs, c.packageName, ime, trajen, vklopljeno, igra, nedejavnost) && !vrnilSe() &&
             AdbLokalnoPravila.smemoNadaljevati(odhodiOd, odhodi)) {
             Thread {
                 val pred = stanje(c)
@@ -177,22 +199,22 @@ object Pomnilnik {
     @android.annotation.SuppressLint("MissingPermission")   // dovoljenje preveri smemo(); brskalnik ga nima
     fun pocistiOzadje(c: Context, nasePredvajanje: Boolean = false, cakajMs: Long = 3000L) {
         if (!smemo(c)) return
+        if (!nasePredvajanje) vrnitevDomov()
         spremljajOdhode(c)
         val odhodiObZacetku = odhodi
         val vnosiObZacetku = vnosi
         val nadaljuj = { AdbLokalnoPravila.smemoNadaljevati(odhodiObZacetku, odhodi, vnosiObZacetku, vnosi) }
-        val predvaja = !nasePredvajanje && try {
+        val igraTuja = TujePredvajanje.igraPaket()
+        val predvaja = !nasePredvajanje && OsPravila.zvokUstaviVse(try {
             (c.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager)?.isMusicActive == true
-        } catch (_: Exception) { false }
+        } catch (_: Exception) { false }, igraTuja != null)
         Thread {
             if (cakajMs > 0L) try { Thread.sleep(cakajMs) } catch (_: Exception) {}
             if (!nadaljuj()) { Log.i(TAG, "ciscenje ozadja preskoceno - uporabnik je odprl aplikacijo"); return@Thread }
             val amgr = c.getSystemService(ActivityManager::class.java)
             val pred = stanje(c)
-            // Lastnik 8. 11. 2026: aplikacije, uporabljene v zadnjih 30 min, ohranijo sejo (SmartTube, YouTube ...); ko je
-            // pomnilnika malo, se zaprejo kot doslej (3 s brez uporabe).
-            val nedejavnost = OsPravila.nedejavnostZapiranja(pred.stiskaZaSeje)
-            if (nedejavnost == OsPravila.NEDEJAVNOST_MALO_MS) Log.i(TAG, "ciscenje ozadja: stiska (prosto ${pred.prostoMb} MB) - seje se ne drzijo")
+            // Lastnik 8. 11. 2026 06:30: neigrajoce aplikacije se zaprejo (3 s), igrajoca ostane in jo upravlja mali predvajalnik.
+            val nedejavnost = OsPravila.nedejavnostNeigrajocih()
             val k = kandidati(c).toMutableList()
             // Lastnik 1. 11. 2026: tudi nase aplikacije (TV Browser, Play Store, Predvajalnik), ko jih ne uporabljamo vec.
             for (nas in listOf("si.safeer.tv", "si.safeer.trgovina", "si.safeer.player")) if (!k.contains(nas)) k.add(nas)
@@ -204,11 +226,15 @@ object Pomnilnik {
             val foregroundPackages = runningAppProcesses?.filter { it.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND }?.flatMap { it.pkgList.toList() } ?: emptyList()
             val usm = c.getSystemService(Context.USAGE_STATS_SERVICE) as? android.app.usage.UsageStatsManager
             val stats = usm?.queryUsageStats(android.app.usage.UsageStatsManager.INTERVAL_DAILY, zdaj - 1000 * 60 * 60 * 24, zdaj)
+            val statistikaNaVoljo = !stats.isNullOrEmpty()
+            if (!statistikaNaVoljo) Log.i(TAG, "ciscenje ozadja: statistika uporabe ni dostopna - velja lastni zapis (${uporaba.size} paketov)")
             val zaZapreti = mutableListOf<String>()
             for (p in k) {
                 if (foregroundPackages.contains(p)) continue
+                if (p == igraTuja) { Log.i(TAG, "ciscenje ozadja: $p igra - ostane"); continue }
                 // CodeRabbit 8. 11. 2026: queryUsageStats vrne lahko vec zapisov na paket (po dnevih) - vzemi zadnjo uporabo, ne prvega zadetka.
-                val lastUsed = stats?.filter { it.packageName == p }?.maxOfOrNull { it.lastTimeUsed } ?: 0L
+                val lastUsed = OsPravila.zadnjaUporaba(stats?.filter { it.packageName == p }?.maxOfOrNull { it.lastTimeUsed } ?: 0L,
+                    uporaba[p] ?: 0L, statistikaNaVoljo, true, zdaj)   // neznana uporaba = neuporabljena (lastnik 06:30)
                 val trajen = try { (pm.getApplicationInfo(p, 0).flags and ApplicationInfo.FLAG_PERSISTENT) != 0 } catch (_: Exception) { false }
                 if (OsPravila.zapriObVrnitvi(p, c.packageName, ime, trajen, vklopljeno, predvaja, lastUsed, zdaj, nedejavnost)) zaZapreti.add(p)
             }

@@ -42,6 +42,33 @@ object MiniPredvajalnikPravila {
      */
     fun viden(imaSkladbo: Boolean, oddaljenoKajIgra: Boolean): Boolean = imaSkladbo || oddaljenoKajIgra
 
+    /** Kaj kaze mali predvajalnik (lastnik 8. 11. 2026 06:30: tudi glasbo drugih aplikacij, npr. SmartTube). */
+    const val VIR_NIC = "nic"
+    const val VIR_NASE = "nase"
+    const val VIR_ODDALJENO = "oddaljeno"
+    const val VIR_TUJE = "tuje"
+
+    /** Druga aplikacija, ki IGRA, ima prednost pred nasim predvajanjem na premoru; sicer nase, druga naprava, tuje. */
+    fun virDocka(imaNase: Boolean, naseIgra: Boolean, oddaljenoKajIgra: Boolean, imaTuje: Boolean, tujeIgra: Boolean): String = when {
+        imaTuje && tujeIgra && !(imaNase && naseIgra) -> VIR_TUJE
+        imaNase -> VIR_NASE
+        oddaljenoKajIgra -> VIR_ODDALJENO
+        imaTuje -> VIR_TUJE
+        else -> VIR_NIC
+    }
+
+    /** Stanja PlaybackState (android.media.session): PAUSED 2, PLAYING 3, BUFFERING 6. */
+    fun tujaIgra(stanje: Int): Boolean = stanje == 3 || stanje == 6
+
+    /** Seja druge aplikacije je za prikaz, ce ima naslov in igra ali je na premoru (ustavljena/brez stanja ne). */
+    fun tujaZaPrikaz(naslov: String, stanje: Int): Boolean = naslov.isNotBlank() && (tujaIgra(stanje) || stanje == 2)
+
+    /** Katera seja drugih aplikacij: prva, ki igra, sicer prva na premoru; -1 = nobena. */
+    fun izberiTujo(stanja: List<Int>): Int {
+        val igra = stanja.indexOfFirst { tujaIgra(it) }
+        return if (igra >= 0) igra else stanja.indexOfFirst { it == 2 }
+    }
+
     const val NIC = 0
     const val ODPRI = 1
     const val ZAPRI = 2
@@ -196,18 +223,36 @@ object MiniPredvajalnikPravila {
 
     /** Kartica na Domu MC kaze zadnjo nedokoncano vsebino z gumbom Nadaljuj (nic ne igra). */
     const val NADALJUJ = "nadaljuj"
+    /** Nic ne igra in ni nedokoncanega: pas kaze izbor dneva (Kinema hero.ts) - Dom nikoli brez pasu. */
+    const val IZBOR = "izbor"
 
     /**
      * Stanje kartice na Domu Medijskega centra (lastnik 6. 11. 2026 04:25 in 8. 11. 2026 02:58): mali predvajalnik je na
      * Domu VES CAS - ko kaj igra, kaze to (KARTICA, video v okencu); ko nic ne igra, kaze zadnjo nedokoncano vsebino z
      * gumbom Nadaljuj (NADALJUJ); brez obojega je ni (MC_NIC). Zunaj Doma ali na podstrani je kartice ni (znak: [prikazMc]).
      */
-    fun stanjeKartice(naDomu: Boolean, podstranOdprta: Boolean, imaSkladbo: Boolean, imaNadaljevanje: Boolean): String = when {
+    fun stanjeKartice(naDomu: Boolean, podstranOdprta: Boolean, imaSkladbo: Boolean, imaNadaljevanje: Boolean,
+                      imaIzbor: Boolean = false): String = when {
         !naDomu || podstranOdprta -> MC_NIC
         imaSkladbo -> KARTICA
         imaNadaljevanje -> NADALJUJ
+        imaIzbor -> IZBOR
         else -> MC_NIC
     }
+
+    /**
+     * Izbor dneva za pas na vrhu Doma (po Kinemi, src/ui/hero.ts, MIT): med naslovi s sliko vsak koledarski dan drug,
+     * stabilen ves dan (ponovno odprtje ga ne premesa), razvrscen po id-ju, da vrstni red vrstic nanj ne vpliva.
+     * [kandidati] = id-ji; vrne indeks v [kandidati] ali -1. [dan] = dni od epohe v krajevnem casu.
+     */
+    fun izborDneva(kandidati: List<String>, dan: Long): Int {
+        if (kandidati.isEmpty()) return -1
+        val urejeni = kandidati.withIndex().sortedBy { it.value }
+        return urejeni[Math.floorMod(dan, urejeni.size.toLong()).toInt()].index
+    }
+
+    /** Dni od epohe v krajevnem casu (izbor se zamenja ob polnoci tu, ne po UTC). */
+    fun krajevniDan(zdajMs: Long, zamikMs: Int): Long = Math.floorDiv(zdajMs + zamikMs, 86_400_000L)
 
     /** Zadnja nedokoncana vsebina za Nadaljuj: video z napredkom med 2 % in 95 % (odgledan film ali komaj zacet ne steje). */
     fun jeNedokoncano(video: Boolean, polozajMs: Long, trajanjeMs: Long): Boolean =

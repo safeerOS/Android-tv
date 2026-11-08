@@ -945,7 +945,7 @@ class GlasbaActivity : OsActivity() {
             visibility = View.GONE
             setPadding(dp(16), 0, 0, 0)
         }
-        ploscaDomov.addView(ustvariMcKartico(false))
+        // Lastnik 8. 11. 2026 06:17 (Kinema): mali predvajalnik je pas cez celo sirino na vrhu Doma (prva vrstica), ne v plosci.
             
         vsebinaOvoj.addView(ploscaDomov, LinearLayout.LayoutParams(dp(260), -1))
         
@@ -1703,9 +1703,9 @@ class GlasbaActivity : OsActivity() {
         val rod = ++rodPlosce
 
         osveziMcKartico()
-        
-        // Odstrani vse razen prvega (predvajalnik)
-        while (ploscaDomov.childCount > 1) ploscaDomov.removeViewAt(1)
+
+        // Pas (mali predvajalnik) je na vrhu Doma - plosca ima samo svoje kartice.
+        ploscaDomov.removeAllViews()
         
         // TV v zivo zdaj
         val kanali = priljubljeniKanali()
@@ -1731,7 +1731,7 @@ class GlasbaActivity : OsActivity() {
                     ploscaDomov.addView(besedilo(16f, osBarva(R.color.os_besedilo), true).apply { text = getString(R.string.os_prenosi_v_teku); setPadding(0, dp(16), 0, dp(8)) })
                     ploscaDomov.addView(karticaMreze(v, v.kartice.first(), 150))
                 }
-                val prazno = mcKarticaKoren?.visibility != View.VISIBLE && ploscaDomov.childCount <= 1
+                val prazno = ploscaDomov.childCount == 0
                 ploscaDomov.visibility = if (DomovVrsticePravila.prikaziPoljePlosce(prazno)) View.VISIBLE else View.GONE
             }
         }
@@ -3574,10 +3574,17 @@ class GlasbaActivity : OsActivity() {
                 }.filter { it.value.isNotEmpty() }
                 
                 val vrstice = DomovVrsticePravila.vrstice(izbrane, vrsteMap.keys).flatMap { vrsteMap.getValue(it) }
-                if (ozekZaslon()) {
-                    val m = mcKarticaKoren ?: ustvariMcKartico(true)
-                    listOf(Vrsta("", emptyList(), pogled = m)) + vrstice
-                } else vrstice
+                // Lastnik 8. 11. 2026 06:17 (Kinema Home.tsx): pas cez celo sirino na vrhu Doma na vseh zaslonih. Ko nic ne
+                // igra in ni nedokoncanega, kaze izbor dneva (hero.ts): naslov s sliko iz vrstic Doma, ves dan isti.
+                val sSliko = vrstice.flatMap { it.kartice }.filter { it.slika.isNotBlank() && it.id.isNotBlank() }.distinctBy { it.id }
+                val tz = java.util.TimeZone.getDefault()
+                val zdajMs = System.currentTimeMillis()
+                zadnjiIzbor = MiniPredvajalnikPravila.izborDneva(sSliko.map { it.id },
+                    MiniPredvajalnikPravila.krajevniDan(zdajMs, tz.getOffset(zdajMs))).takeIf { it >= 0 }?.let { sSliko[it] }
+                glavna.post { if (razdelek == DOMOV && !isFinishing) osveziMcKartico() }
+                val m = mcKarticaKoren ?: ustvariMcKartico(true)
+                (m.parent as? android.view.ViewGroup)?.removeView(m)
+                listOf(Vrsta("", emptyList(), pogled = m)) + vrstice
             }
             GLASBA -> listOf(Vrsta(getString(R.string.os_mediji_prilj_glasba), skladbe(p.filter { OsPravila.zaGlasbo(it.video, it.radio, YoutubeZvok.jeYoutube(it)) }), skladbe = true)) +
                 // Lastnik 27. 10. 2026: priljubljeni albumi z Useneta (samo z lastnim ponudnikom - sicer jih ni mogoce predvajati).
@@ -12799,6 +12806,8 @@ class GlasbaActivity : OsActivity() {
     /** Zadnja nedokoncana vsebina (iz gradnje Doma, zgoraj(DOMOV) na glavni niti) in vrsta vseh nedokoncanih za dolg pritisk/MENU na kartici. */
     @Volatile private var zadnjeNadaljevanje: MediaNapredek.Vnos? = null
     @Volatile private var zadnjaVrstaNadaljuj: Vrsta? = null
+    /** Izbor dneva za pas (Kinema hero.ts), ko nic ne igra in ni nedokoncanega. */
+    @Volatile private var zadnjiIzbor: Kartica? = null
     private var mcKarticaSlika: ImageView? = null
     private var mcKarticaNaslov: TextView? = null
     private var mcKarticaPodnaslov: TextView? = null
@@ -12817,8 +12826,10 @@ class GlasbaActivity : OsActivity() {
 
     private fun ustvariMcKartico(polnaSirina: Boolean): View {
         val sirina = if (polnaSirina) -1 else dp(260)
+        // Kinema: pas na vrhu Doma je slika cez celo sirino; na TV in tablici visji, na telefonu kot doslej.
+        val visina = if (polnaSirina && !ozekZaslon()) dp(230) else dp(150)
         val koren = FrameLayout(this).apply {
-            layoutParams = LinearLayout.LayoutParams(sirina, dp(150)).apply { bottomMargin = dp(16) }
+            layoutParams = LinearLayout.LayoutParams(sirina, visina).apply { bottomMargin = dp(16); topMargin = dp(4) }
             background = android.graphics.drawable.GradientDrawable().apply {
                 cornerRadius = dp(20).toFloat()
                 setColor(osBarva(R.color.os_kartica_dvignjena))
@@ -12847,7 +12858,7 @@ class GlasbaActivity : OsActivity() {
 
         val senca = View(this).apply {
             background = android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.BOTTOM_TOP, intArrayOf(0xD9000000.toInt(), 0))
-            layoutParams = FrameLayout.LayoutParams(-1, dp(90), Gravity.BOTTOM)
+            layoutParams = FrameLayout.LayoutParams(-1, if (polnaSirina && !ozekZaslon()) dp(160) else dp(90), Gravity.BOTTOM)
         }
         koren.addView(senca)
 
@@ -12863,7 +12874,9 @@ class GlasbaActivity : OsActivity() {
             orientation = LinearLayout.VERTICAL
             layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
         }
-        mcKarticaNaslov = besedilo(16f, osBarva(R.color.os_besedilo), true).apply {
+        // StreamNexus HD (lastnikov prototip, TvVideoPlayer.kt): na 50" TV naslov 28 sp, cas 18 sp - berljivo s kavca.
+        val pas = polnaSirina && !ozekZaslon()
+        mcKarticaNaslov = besedilo(if (pas) 28f else 16f, osBarva(R.color.os_besedilo), true).apply {
             maxLines = 2
             ellipsize = android.text.TextUtils.TruncateAt.END
         }
@@ -12875,7 +12888,7 @@ class GlasbaActivity : OsActivity() {
         }
         besedila.addView(mcKarticaPodnaslov)
         
-        mcKarticaCas = besedilo(13f, osBarva(R.color.os_umirjeno)).apply {
+        mcKarticaCas = besedilo(if (pas) 18f else 13f, osBarva(R.color.os_umirjeno)).apply {
             setPadding(0, dp(8), 0, 0)
         }
         besedila.addView(mcKarticaCas)
@@ -12940,6 +12953,7 @@ class GlasbaActivity : OsActivity() {
         // z OK premor/naprej, na dotik zaslon predvajanja. MENU/X/Y kot pri drugih karticah: vse nedokoncane vsebine.
         koren.setOnClickListener {
             if (mcKarticaStanje == MiniPredvajalnikPravila.NADALJUJ) { nadaljujZadnje(); return@setOnClickListener }
+            if (mcKarticaStanje == MiniPredvajalnikPravila.IZBOR) { zadnjiIzbor?.klik?.invoke(it); return@setOnClickListener }
             val sk = GlasbaStoritev.trenutna() ?: return@setOnClickListener
             when {
                 sk.video -> MiniPredvajalnik.odpriCelZaslon(this@GlasbaActivity)
@@ -12956,6 +12970,7 @@ class GlasbaActivity : OsActivity() {
         }
         mcKarticaPredvajaj?.setOnClickListener {
             if (mcKarticaStanje == MiniPredvajalnikPravila.NADALJUJ) { nadaljujZadnje(); return@setOnClickListener }
+            if (mcKarticaStanje == MiniPredvajalnikPravila.IZBOR) { zadnjiIzbor?.klik?.invoke(it); return@setOnClickListener }
             val sk = GlasbaStoritev.trenutna() ?: return@setOnClickListener
             if (MiniPredvajalnikPravila.dejanjePredvajaj(sk.video, GlasbaStoritev.igra()) == MiniPredvajalnikPravila.ODPRI_PREDVAJALNIK) {
                 MiniPredvajalnik.odpriCelZaslon(this@GlasbaActivity)
@@ -13016,9 +13031,10 @@ class GlasbaActivity : OsActivity() {
         val sk = GlasbaStoritev.trenutna()
         val p = GlasbaStoritev.predvajalnik
         val nad = zadnjeNadaljevanje
-        
-        // Naloga #38: kartica je na Domu ves cas - igra, Nadaljuj (zadnja nedokoncana vsebina) ali nic.
-        mcKarticaStanje = MiniPredvajalnikPravila.stanjeKartice(razdelek == DOMOV, podstrani.odprta, sk != null, nad != null)
+        val izb = zadnjiIzbor
+
+        // Naloga #38 + Kinema (lastnik 8. 11. 2026 06:17): pas je na Domu ves cas - igra, Nadaljuj ali izbor dneva.
+        mcKarticaStanje = MiniPredvajalnikPravila.stanjeKartice(razdelek == DOMOV, podstrani.odprta, sk != null, nad != null, izb != null)
         val viden = mcKarticaStanje != MiniPredvajalnikPravila.MC_NIC
         if (!viden) {
             okenceVidea(false)
@@ -13053,6 +13069,24 @@ class GlasbaActivity : OsActivity() {
             return
         }
         
+        if (mcKarticaStanje == MiniPredvajalnikPravila.IZBOR && izb != null) {
+            okenceVidea(false)
+            mcKarticaHandler.removeCallbacks(mcKarticaCasovnik)
+            mcKarticaNaslov?.text = izb.naslov
+            mcKarticaPodnaslov?.text = izb.podnaslov
+            mcKarticaSlika?.let { slika ->
+                (slika.layoutParams as FrameLayout.LayoutParams).let { it.width = -1; it.gravity = Gravity.CENTER }
+                slika.setPadding(0, 0, 0, 0); slika.setBackgroundColor(0); slika.scaleType = ImageView.ScaleType.CENTER_CROP
+                if (slika.tag != izb.slika) { slika.tag = izb.slika; slikaKartice(izb.slika, slika) }
+            }
+            mcKarticaPrejsnja?.visibility = View.GONE
+            mcKarticaNaslednja?.visibility = View.GONE
+            ((mcKarticaPredvajaj as? android.widget.FrameLayout)?.getChildAt(0) as? ImageView)?.setImageResource(R.drawable.os_ikona_predvajaj)
+            mcKarticaCrta?.parent?.let { (it as View).visibility = View.GONE }
+            mcKarticaCas?.visibility = View.GONE
+            return
+        }
+
         if (sk == null) return
         okenceVidea(sk.video && p != null)
         

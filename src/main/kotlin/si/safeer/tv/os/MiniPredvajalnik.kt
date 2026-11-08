@@ -85,6 +85,8 @@ class MiniPredvajalnik(
     private var izvajalecPogled: TextView? = null
     private var gumbPredvajaj: ImageButton? = null
     private var radioIkona = false
+    /** Dock kaze predvajanje druge aplikacije (TujePredvajanje): gumbi upravljajo njo (lastnik 8. 11. 2026 06:30). */
+    private var prikazujeTuje = false
     // Lastnik 27. 10. 2026: drsnik casa in zvocnik v docku (kot v celozaslonskem predvajalniku).
     private var drsnik: SeekBar? = null
     private var gumbZvocnik: ImageButton? = null
@@ -144,15 +146,19 @@ class MiniPredvajalnik(
         val oddaljeno = try { GlasbaStoritev.naDrugiNapravi() } catch (_: Throwable) { false }
         val tu = try { GlasbaStoritev.trenutna() } catch (_: Throwable) { null }
         val daljinsko = OddaljenoPredvajanje.stanje
-        val viden = MiniPredvajalnikPravila.jeDock(m) &&
-            MiniPredvajalnikPravila.viden(tu != null, OddaljenoPredvajanje.cilj != null && daljinsko.kajIgra)
+        val tuje = TujePredvajanje.stanje
+        val naseIgra = tu != null && try { GlasbaStoritev.igra() } catch (_: Throwable) { false }
+        val vir = MiniPredvajalnikPravila.virDocka(tu != null && !oddaljeno, naseIgra, (OddaljenoPredvajanje.cilj != null && daljinsko.kajIgra) || (oddaljeno && tu != null),
+            tuje != null, tuje?.igra == true)
+        prikazujeTuje = vir == MiniPredvajalnikPravila.VIR_TUJE
+        val viden = MiniPredvajalnikPravila.jeDock(m) && vir != MiniPredvajalnikPravila.VIR_NIC
         if (!viden) { koren?.visibility = View.GONE; return }
-        val naslov = if (oddaljeno || tu == null) daljinsko.naslov else tu.naslov
-        val izvajalec = if (oddaljeno || tu == null) daljinsko.izvajalec else tu.izvajalec
-        val igra = if (oddaljeno || tu == null) daljinsko.igra else try { GlasbaStoritev.igra() } catch (_: Throwable) { false }
-        val radio = !oddaljeno && tu?.radio == true
+        val naslov = if (prikazujeTuje) tuje!!.naslov else if (oddaljeno || tu == null) daljinsko.naslov else tu.naslov
+        val izvajalec = if (prikazujeTuje) tuje!!.izvajalec else if (oddaljeno || tu == null) daljinsko.izvajalec else tu.izvajalec
+        val igra = if (prikazujeTuje) tuje!!.igra else if (oddaljeno || tu == null) daljinsko.igra else naseIgra
+        val radio = !prikazujeTuje && !oddaljeno && tu?.radio == true
         // Dock kaze drugo napravo: njeno stanje naj bo sveze (v ozadju se sicer ne sprasuje, pregled C2).
-        if (oddaljeno || tu == null) OddaljenoPredvajanje.prikazano()
+        if (!prikazujeTuje && (oddaljeno || tu == null)) OddaljenoPredvajanje.prikazano()
         val k = koren
         if (k == null || MiniPredvajalnikPravila.zgradiZnova(zgrajenoMesto, m, k.parent === okvir)) zgradi(m, naslov, izvajalec, igra, radio)
         else {
@@ -429,15 +435,16 @@ class MiniPredvajalnik(
             }
         }
         val gumbi = LinearLayout(a).apply { orientation = if (pokoncen) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-        gumbi.addView(gumb(R.drawable.os_ikona_prejsnja, a.getString(R.string.zg_prejsnja), "dock:prejsnja") { GlasbaStoritev.prejsnja() }, LinearLayout.LayoutParams(g, g))
+        gumbi.addView(gumb(R.drawable.os_ikona_prejsnja, a.getString(R.string.zg_prejsnja), "dock:prejsnja") { if (prikazujeTuje) TujePredvajanje.prejsnja() else GlasbaStoritev.prejsnja() }, LinearLayout.LayoutParams(g, g))
         val gPredvajaj = gumb(if (igra) R.drawable.os_ikona_pavza else R.drawable.os_ikona_predvajaj,
             a.getString(if (igra) R.string.zg_premor else R.string.zg_predvajaj), "dock:predvajaj") {
             val igraZdaj = try { GlasbaStoritev.igra() } catch (_: Throwable) { false }
-            if (MiniPredvajalnikPravila.dejanjePredvajaj(videoTu(), igraZdaj) == MiniPredvajalnikPravila.ODPRI_PREDVAJALNIK) odpriPredvajalnik()
+            if (prikazujeTuje) TujePredvajanje.preklopi()
+            else if (MiniPredvajalnikPravila.dejanjePredvajaj(videoTu(), igraZdaj) == MiniPredvajalnikPravila.ODPRI_PREDVAJALNIK) odpriPredvajalnik()
             else GlasbaStoritev.preklopi()
         }
         gumbi.addView(gPredvajaj, LinearLayout.LayoutParams(g, g))
-        gumbi.addView(gumb(R.drawable.os_ikona_naslednja, a.getString(R.string.zg_naslednja), "dock:naslednja") { GlasbaStoritev.naslednja() }, LinearLayout.LayoutParams(g, g))
+        gumbi.addView(gumb(R.drawable.os_ikona_naslednja, a.getString(R.string.zg_naslednja), "dock:naslednja") { if (prikazujeTuje) TujePredvajanje.naslednja() else GlasbaStoritev.naslednja() }, LinearLayout.LayoutParams(g, g))
         val gZvocnik = gumb(R.drawable.os_ikona_predvajaj_na, a.getString(R.string.zvocnik_na_napravi), "dock:zvocnik") { zvocnik() }
         gumbi.addView(gZvocnik, LinearLayout.LayoutParams(g, g))
         // Naloga 42 B: glasnost brez zapuscanja domacega zaslona (kot na racunalniku) - tiste naprave, ki igra.

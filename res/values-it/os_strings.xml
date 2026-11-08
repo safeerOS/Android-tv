@@ -782,4 +782,6 @@
     <string name="os_adb_ni_potrjeno">Non confermato sul televisore. Riprova e scegli »Consenti sempre«.</string>
     <string name="os_mediji_zdaj_igra">In riproduzione - apri in Home</string>
     <string name="os_mediji_zdaj_igra_kratko">In riproduzione</string>
+    <string name="os_tuje_predvajanje">Musica di altre app nella schermata Home</string>
+    <string name="os_tuje_predvajanje_opis">Il mini lettore mostra e controlla la riproduzione di altre app (SmartTube, YouTube…). Richiede il permesso di sistema Accesso alle notifiche: apre quella pagina.</string>
 </resources>

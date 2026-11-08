@@ -1369,6 +1369,31 @@ object OsPravila {
     fun nedejavnostZapiranja(maloPomnilnika: Boolean): Long = if (maloPomnilnika) NEDEJAVNOST_MALO_MS else NEDEJAVNOST_ZAPIRANJA_MS
 
     /**
+     * Lastnik 8. 11. 2026 06:30: »aplikacija, ce ne predvaja glasbe, se zapre; ce predvaja, jo upravljamo v mini
+     * predvajalniku«. Neigrajoce se zaprejo po [NEDEJAVNOST_MALO_MS] (pravilo 30 min umaknjeno); igrajoca ostane.
+     */
+    fun nedejavnostNeigrajocih(): Long = NEDEJAVNOST_MALO_MS
+
+    /**
+     * Zvok v ozadju ustavi VSE zapiranje samo, ce ne vemo, katera aplikacija igra; ko ga vemo (seja predvajanja,
+     * TujePredvajanje), ostane samo ta, druge neigrajoce se zaprejo.
+     */
+    fun zvokUstaviVse(zvokAktiven: Boolean, znanPaketZvoka: Boolean): Boolean = zvokAktiven && !znanPaketZvoka
+
+    /**
+     * Zadnja uporaba paketa za ciscenje ozadja. TV 8. 11. 2026 06:13: Safeer OS nima dostopa do statistike uporabe
+     * (GET_USAGE_STATS zavrnjen) - prazna statistika je dala 0 in vsaka aplikacija (SmartTube 60 s po Domov) je veljala
+     * za 30 min neuporabljeno. Zdaj velja novejsi od statistike in lastnega zapisa (zagon iz doma, vrnitev domov, odhod
+     * v Safeer Vnosu). Brez obeh: ce statistike ni in ni stiske, uporabe ne poznamo - seja ostane (vrne [zdajMs]);
+     * s statistiko (paket 24 h ni bil uporabljen) ali v stiski velja 0 (zapre se kot doslej).
+     */
+    fun zadnjaUporaba(izStatistike: Long, lastna: Long, statistikaNaVoljo: Boolean, stiska: Boolean, zdajMs: Long): Long {
+        val z = maxOf(izStatistike, lastna)
+        if (z > 0L) return z
+        return if (statistikaNaVoljo || stiska) 0L else zdajMs
+    }
+
+    /**
      * Stiska, pri kateri seje aplikacij ne drzimo vec (lastnik 8. 11. 2026 04:03: SmartTube po Domov se vedno ubit, ker je
      * maloPomnilnika na tem TV skoraj vedno res - »prosto« po ActivityManager je 500-1000 MB od 2730, petina pa 546 MB).
      * Za seje steje samo prava stiska: sistemska zastavica lowMemory (prag LMK) ali manj kot [STISKA_SEJ_MB] prostega.

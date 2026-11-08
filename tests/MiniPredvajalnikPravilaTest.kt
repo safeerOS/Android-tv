@@ -178,6 +178,19 @@ fun main() {
     preveriEnako("pokaziKajIgra: ena igra -> da", true, P.pokaziKajIgra(listOf(false, true)))
     preveriEnako("pokaziKajIgra: brez naprav -> ne", false, P.pokaziKajIgra(emptyList()))
 
+    // Lastnik 8. 11. 2026 06:17 (Kinema): pas na Domu nikoli prazen - nic ne igra in ni nedokoncanega -> izbor dneva.
+    preveriEnako("pas: nic, izbor -> IZBOR", MiniPredvajalnikPravila.IZBOR, MiniPredvajalnikPravila.stanjeKartice(true, false, false, false, imaIzbor = true))
+    preveriEnako("pas: nadaljevanje ima prednost pred izborom", MiniPredvajalnikPravila.NADALJUJ, MiniPredvajalnikPravila.stanjeKartice(true, false, false, true, imaIzbor = true))
+    preveriEnako("pas: igra ima prednost", MiniPredvajalnikPravila.KARTICA, MiniPredvajalnikPravila.stanjeKartice(true, false, true, true, imaIzbor = true))
+    preveriEnako("pas: zunaj Doma ga ni", MiniPredvajalnikPravila.MC_NIC, MiniPredvajalnikPravila.stanjeKartice(false, false, false, false, imaIzbor = true))
+    val ids = listOf("tt3", "tt1", "tt2")
+    preveriEnako("izbor dneva: dan 0 -> najmanjsi id", 1, MiniPredvajalnikPravila.izborDneva(ids, 0))
+    preveriEnako("izbor dneva: dan 1 -> naslednji", 2, MiniPredvajalnikPravila.izborDneva(ids, 1))
+    preveriEnako("izbor dneva: dan 3 -> spet prvi", 1, MiniPredvajalnikPravila.izborDneva(ids, 3))
+    preveriEnako("izbor dneva: vrstni red vrstic ne vpliva", "tt1", listOf("tt2", "tt1", "tt3").let { it[MiniPredvajalnikPravila.izborDneva(it, 0)] })
+    preveriEnako("izbor dneva: prazno -> -1", -1, MiniPredvajalnikPravila.izborDneva(emptyList(), 5))
+    preveriEnako("krajevni dan: 23:30 UTC v Ljubljani (+1 h) je ze naslednji dan", 1L, MiniPredvajalnikPravila.krajevniDan(86_400_000L - 1_800_000L, 3_600_000))
+
     // CodeRabbit 8. 11. 2026: okence Doma samo, ko je Dom MC zagnan (cilj vrnitve); z Datotekami vmes je ustavljen.
     preveriEnako("okenceNaDomu: Dom zagnan s kartico -> da", true, MiniPredvajalnikPravila.okenceNaDomu(true, false, true, false, true))
     preveriEnako("okenceNaDomu: Dom ustavljen (Datoteke vmes) -> ne", false, MiniPredvajalnikPravila.okenceNaDomu(false, false, true, false, true))
@@ -197,6 +210,21 @@ fun main() {
     preveriEnako("pavzaObSkritju: YouTube zvok -> ne", false, MiniPredvajalnikPravila.pavzaObSkritjuOkenca(true, true, false, false, true))
     preveriEnako("pavzaObSkritju: glasba -> ne", false, MiniPredvajalnikPravila.pavzaObSkritjuOkenca(false, true, false, false, false))
     preveriEnako("pavzaObSkritju: video ze na pavzi -> ne", false, MiniPredvajalnikPravila.pavzaObSkritjuOkenca(true, false, false, false, false))
+
+    // Lastnik 8. 11. 2026 06:30: mali predvajalnik kaze in upravlja tudi glasbo drugih aplikacij (SmartTube).
+    preveriEnako("dock: SmartTube igra, nase na premoru -> tuje", MiniPredvajalnikPravila.VIR_TUJE, MiniPredvajalnikPravila.virDocka(true, false, false, true, true))
+    preveriEnako("dock: nase igra -> nase", MiniPredvajalnikPravila.VIR_NASE, MiniPredvajalnikPravila.virDocka(true, true, false, true, true))
+    preveriEnako("dock: samo tuje na premoru -> tuje", MiniPredvajalnikPravila.VIR_TUJE, MiniPredvajalnikPravila.virDocka(false, false, false, true, false))
+    preveriEnako("dock: nase na premoru, tuje na premoru -> nase", MiniPredvajalnikPravila.VIR_NASE, MiniPredvajalnikPravila.virDocka(true, false, false, true, false))
+    preveriEnako("dock: druga naprava pred tujim premorom", MiniPredvajalnikPravila.VIR_ODDALJENO, MiniPredvajalnikPravila.virDocka(false, false, true, true, false))
+    preveriEnako("dock: nic -> nic", MiniPredvajalnikPravila.VIR_NIC, MiniPredvajalnikPravila.virDocka(false, false, false, false, false))
+    preveriEnako("tuja seja: prva, ki igra", 1, MiniPredvajalnikPravila.izberiTujo(listOf(2, 3, 2)))
+    preveriEnako("tuja seja: medpomnjenje steje kot igra", 0, MiniPredvajalnikPravila.izberiTujo(listOf(6, 2)))
+    preveriEnako("tuja seja: brez igre prva na premoru", 1, MiniPredvajalnikPravila.izberiTujo(listOf(1, 2)))
+    preveriEnako("tuja seja: ustavljene ne", -1, MiniPredvajalnikPravila.izberiTujo(listOf(0, 1)))
+    preveriEnako("tuja za prikaz: brez naslova ne", false, MiniPredvajalnikPravila.tujaZaPrikaz("", 3))
+    preveriEnako("tuja za prikaz: ustavljena ne", false, MiniPredvajalnikPravila.tujaZaPrikaz("Pesem", 1))
+    preveriEnako("tuja za prikaz: premor da", true, MiniPredvajalnikPravila.tujaZaPrikaz("Pesem", 2))
 
     if (napak == 0) println("MiniPredvajalnikPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

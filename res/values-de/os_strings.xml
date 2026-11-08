@@ -782,4 +782,6 @@
     <string name="os_adb_ni_potrjeno">Am Fernseher nicht bestätigt. Versuchen Sie es erneut und wählen Sie »Immer zulassen«.</string>
     <string name="os_mediji_zdaj_igra">Wird abgespielt - auf Startseite öffnen</string>
     <string name="os_mediji_zdaj_igra_kratko">Wird abgespielt</string>
+    <string name="os_tuje_predvajanje">Musik anderer Apps auf dem Startbildschirm</string>
+    <string name="os_tuje_predvajanje_opis">Der Mini-Player zeigt und steuert die Wiedergabe anderer Apps (SmartTube, YouTube …). Benötigt die Systemberechtigung Benachrichtigungszugriff – öffnet diese Seite.</string>
 </resources>

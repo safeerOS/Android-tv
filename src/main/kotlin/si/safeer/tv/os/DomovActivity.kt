@@ -1352,6 +1352,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private fun odpriVarno(namera: Intent, ime: String, moznosti: android.os.Bundle? = null) {
         try {
             Pomnilnik.vnos()   // zagon aplikacije ustavi ciscenje ozadja (tudi s kazalcem)
+            Pomnilnik.zagnano(namera)   // lastni zapis uporabe (statistika uporabe na TV ni dostopna)
             startActivity(namera, moznosti)
         } catch (e: Throwable) {
             Log.w(TAG, "Odpiranje ni uspelo ($ime): ${e.message}")

@@ -790,4 +790,6 @@
     <string name="os_adb_ni_potrjeno">Not confirmed on the TV. Try again and choose »Always allow«.</string>
     <string name="os_mediji_zdaj_igra">Now playing - open on Home</string>
     <string name="os_mediji_zdaj_igra_kratko">Now Playing</string>
+    <string name="os_tuje_predvajanje">Other apps\' music on the home screen</string>
+    <string name="os_tuje_predvajanje_opis">The mini player shows and controls playback from other apps (SmartTube, YouTube…). Needs the system permission Notification access – this opens that page.</string>
 </resources>

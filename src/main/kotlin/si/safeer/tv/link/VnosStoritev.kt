@@ -267,6 +267,7 @@ class VnosStoritev : AccessibilityService() {
         // Drugi poskus cez 15 s: 3 s po menjavi ima proces lahko se visjo prednost (ustavljanje dejavnosti, vezana
         // storitev) in ga killBackgroundProcesses ne zapre (si.safeer.tv je ob 09:47 ostal, am kill kasneje je delal).
         if (prejUporabniska != null && prejUporabniska != paket) {
+            si.safeer.tv.os.Pomnilnik.uporabljeno(prejUporabniska)   // uporabnik jo je uporabljal do te menjave
             if (paket == packageName) zadnjaUporabniska = null
             val ctx = applicationContext
             val zvokObMenjavi = si.safeer.tv.os.Pomnilnik.zvokAktiven(ctx)   // pred zamikom: po 3 s igra ze nova aplikacija

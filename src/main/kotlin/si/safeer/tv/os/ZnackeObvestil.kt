@@ -27,11 +27,14 @@ class ZnackeObvestil : NotificationListenerService() {
     override fun onListenerConnected() {
         povezan = true
         prestej()
+        // Lastnik 8. 11. 2026 06:30: isto dovoljenje da seje predvajanja drugih aplikacij (mali predvajalnik).
+        TujePredvajanje.zacni(this, ComponentName(this, ZnackeObvestil::class.java))
     }
 
     override fun onListenerDisconnected() {
         povezan = false
         objavi(emptyMap())
+        TujePredvajanje.ustavi()
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) = prestej()
