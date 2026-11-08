@@ -97,7 +97,8 @@ object TujePredvajanje {
             // TV 8. 11. 2026: SmartTube v seji ne objavi naslova (metadata description=null) - brez njega malega
             // predvajalnika ni bilo. Namesto naslova ime aplikacije.
             Stanje(it.packageName,
-                MiniPredvajalnikPravila.naslovTuje(md?.getString(MediaMetadata.METADATA_KEY_TITLE) ?: md?.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE).orEmpty(),
+                MiniPredvajalnikPravila.naslovTuje(md?.getString(MediaMetadata.METADATA_KEY_TITLE)?.takeIf { t -> t.isNotBlank() }
+                    ?: md?.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE).orEmpty(),
                     imeAplikacije(it.packageName)),
                 md?.getString(MediaMetadata.METADATA_KEY_ARTIST) ?: md?.getString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE).orEmpty(),
                 MiniPredvajalnikPravila.tujaIgra(st))

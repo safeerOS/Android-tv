@@ -2218,6 +2218,8 @@ class PredvajanjeActivity : OsActivity() {
             val koncano = p.playbackState == Player.STATE_ENDED
             if (koncano && !konecEpizode) {
                 konecEpizode = true
+                // CodeRabbit 8. 11.: rok ponujene epizode tece od konca epizode, ne od odprtja kartice med predvajanjem.
+                if (karticaOdprta() && karticaVrsta == NaslednjaEpizodaPravila.PONUDI) vprasanjeOdMs = android.os.SystemClock.uptimeMillis()
                 glavna.removeCallbacks(naslednjaRok); glavna.postDelayed(naslednjaRok, NaslednjaEpizodaPravila.CAKAJ_SEZNAM_MS)
             }
             if (!naslednjaIscem && naslednjaEp == null && !naslednjaNi && (koncano || NaslednjaEpizodaPravila.iskati(trajanje, polozaj)))

@@ -2538,6 +2538,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         }
     }
 
+    private var rodZnackeSporocil = 0
+
     private fun osveziDokZnacke() {
         val gumb = dok.findViewWithTag<View>("dok:" + PokrajinaPravila.SPOROCILA)
         if (gumb != null) {
@@ -2545,10 +2547,12 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
             if (znacka != null) {
                 // Lastnik 8. 11. 2026: znacka nad Sporocili steje SAMO neprebrana sporocila (prej vsa obvestila drugih
                 // aplikacij, ki cakajo na cloveka - po vklopu »Dostop do obvestil« je kazala 4 brez enega sporocila).
+                // CodeRabbit 8. 11.: vec zaporednih osvezitev - velja samo zadnja (rod), pocasnejsa nit ne prepise novejse.
+                val rod = ++rodZnackeSporocil
                 Thread({
                     val b = ZaganjalnikPravila.besediloZnacke(SporocilaZnak.steviloNeprebranih(this))
                     glavna.post {
-                        if (isFinishing || isDestroyed) return@post
+                        if (isFinishing || isDestroyed || rod != rodZnackeSporocil) return@post
                         znacka.text = b
                         znacka.visibility = if (b.isNotEmpty()) View.VISIBLE else View.GONE
                     }
