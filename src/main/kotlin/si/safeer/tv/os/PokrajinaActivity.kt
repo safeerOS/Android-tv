@@ -526,6 +526,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         GlasbaStoritev.poslusalci.add(medijiPoslusalec)
         OddaljenoPredvajanje.poslusalci.add(medijiPoslusalec)
         TujePredvajanje.poslusalci.add(medijiPoslusalec)
+        TujePredvajanje.zagotovi(this)
         ZnackeObvestil.poslusalci.add(posodobiZnacke)
         osveziDokZnacke()   // ob vrnitvi iz Sporocil (prebrano, izbrisano) takoj, ne sele ob naslednjem obvestilu
         Posodobitve.preveri(this) { _, _ -> if (!isFinishing) osveziDokZnacke() }

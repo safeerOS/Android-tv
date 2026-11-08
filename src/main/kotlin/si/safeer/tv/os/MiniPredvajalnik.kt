@@ -260,7 +260,7 @@ class MiniPredvajalnik(
             val nase = !prikazujeTuje && tu != null && !odd
             g.visibility = if (nase) View.VISIBLE else View.GONE
             if (nase) {
-                val vkl = try { if (tu?.video == true) GlasbaStoritev.samodejnoEpizoda(a) else GlasbaStoritev.samodejnoNaslednja(a) } catch (_: Throwable) { true }
+                val vkl = try { if (tu.video) GlasbaStoritev.samodejnoEpizoda(a) else GlasbaStoritev.samodejnoNaslednja(a) } catch (_: Throwable) { true }
                 g.imageTintList = ColorStateList.valueOf(barva(if (vkl) R.color.os_mint else R.color.os_besedilo))
                 g.alpha = if (vkl) 1f else 0.55f
                 g.contentDescription = a.getString(R.string.os_mini_samodejno) + ": " +

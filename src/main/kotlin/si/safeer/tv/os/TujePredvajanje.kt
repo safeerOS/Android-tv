@@ -61,6 +61,24 @@ object TujePredvajanje {
         }
     }
 
+    /** Ali seje ze spremljamo ([zacni] je uspel). */
+    fun aktivno(): Boolean = msm != null
+
+    /**
+     * Zaganjalnik ob vsakem prikazu: ce je »Dostop do obvestil« dan, seje spremljamo tudi, ce sistem poslusalca ob
+     * posodobitvi aplikacije ni (se) povezal - getActiveSessions potrebuje samo omogoceno komponento (TV 8. 11. 2026).
+     */
+    fun zagotovi(c: Context) {
+        if (aktivno()) return
+        val k = ComponentName(c, ZnackeObvestil::class.java)
+        val dovoljeno = try {
+            if (android.os.Build.VERSION.SDK_INT >= 27)
+                c.getSystemService(android.app.NotificationManager::class.java)?.isNotificationListenerAccessGranted(k) == true
+            else false
+        } catch (_: Throwable) { false }
+        if (dovoljeno) { Log.i(TAG, "seje drugih aplikacij: zacenjam iz zaganjalnika"); zacni(c, k) }
+    }
+
     /** Dovoljenje preklicano ali poslusalec odklopljen: nic vec ne spremljamo. */
     fun ustavi() { glavna.post { ustaviNaGlavni() } }
 
@@ -111,6 +129,8 @@ object TujePredvajanje {
     private fun objavi(s: Stanje?) {
         if (s == stanje) return
         stanje = s
+        // TV 8. 11. 2026: po namestitvi SmartTube ni bil v malem predvajalniku in ciscenje ga je zaprlo - brez sledi v dnevniku.
+        Log.i(TAG, "seja druge aplikacije: ${s?.paket ?: "nobena"} (igra=${s?.igra})")
         for (p in poslusalci) try { p() } catch (_: Throwable) { }
     }
 
