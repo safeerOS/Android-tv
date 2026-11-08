@@ -218,6 +218,14 @@ object MiniPredvajalnikPravila {
      * odpiramo sami ([GlasbaActivity.videoBrezZaslona] - pravilo lastnika 11. 10. 2026 »video brez slike nima smisla« velja
      * se naprej, kadar slike ni nikjer).
      */
+    /**
+     * Ali sme celozaslonski predvajalnik ob zapiranju pustiti video teci za okence Doma: Dom MC mora biti zagnan
+     * (onStart pred onStop zaslona predvajanja = cilj vrnitve), ne koncuje, na Domu, brez podstrani in s kartico.
+     * CodeRabbit 8. 11. 2026: z Datotekami vmes je Dom ustavljen - video bi tekel brez zaslona.
+     */
+    fun okenceNaDomu(zagnan: Boolean, koncuje: Boolean, naDomu: Boolean, podstranOdprta: Boolean, imaKartico: Boolean): Boolean =
+        zagnan && !koncuje && naDomu && !podstranOdprta && imaKartico
+
     fun videoVOkencu(naDomu: Boolean, podstranOdprta: Boolean, karticaVidna: Boolean, video: Boolean): Boolean =
         naDomu && !podstranOdprta && karticaVidna && video
 

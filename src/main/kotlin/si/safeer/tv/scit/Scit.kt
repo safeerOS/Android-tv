@@ -208,8 +208,9 @@ object Scit {
         )
     }
 
-    fun zapisiStatistiko(context: Context, s: Statistika) {
-        try {
+    /** Vrne true, ce je datoteka zapisana (CodeRabbit 8. 11. 2026: neuspesen zapis ne sme veljati za zapisanega). */
+    fun zapisiStatistiko(context: Context, s: Statistika): Boolean {
+        return try {
             val p = Properties()
             p.setProperty("blokiranih", s.blokiranih.toString()); p.setProperty("poizvedb", s.poizvedb.toString())
             p.setProperty("dan", s.dan); p.setProperty("stanje", s.stanje); p.setProperty("domen", s.domen.toString())
@@ -217,8 +218,8 @@ object Scit {
             val cilj = statistikaDatoteka(context)
             val zacasna = File(cilj.parentFile, cilj.name + ".tmp")
             zacasna.outputStream().use { p.store(it, null) }
-            if (!zacasna.renameTo(cilj)) { cilj.delete(); zacasna.renameTo(cilj) }
-        } catch (e: Throwable) { Log.w(TAG, "Statistike ni mogoce zapisati: ${e.message}") }
+            if (zacasna.renameTo(cilj)) true else { cilj.delete(); zacasna.renameTo(cilj) }
+        } catch (e: Throwable) { Log.w(TAG, "Statistike ni mogoce zapisati: ${e.message}"); false }
     }
 
     /** Namera za sistemsko okno z dovoljenjem (null = ze dano). */

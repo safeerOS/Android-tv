@@ -13142,7 +13142,9 @@ class GlasbaActivity : OsActivity() {
             private set
         val odprta: Boolean get() = odprtih > 0
         /** Naloga #38: Dom Medijskega centra s kartico je odprt pod zaslonom predvajanja - video ob Nazaj igra naprej v okencu. */
-        fun okenceNaDomu(): Boolean = instanca?.get()?.let { a -> !a.isFinishing && a.razdelek == DOMOV && !a.podstrani.odprta && a.mcKarticaKoren != null } == true
+        fun okenceNaDomu(): Boolean = instanca?.get()?.let { a ->
+            MiniPredvajalnikPravila.okenceNaDomu(a.viden, a.isFinishing, a.razdelek == DOMOV, a.podstrani.odprta, a.mcKarticaKoren != null)
+        } == true
 
         private const val PREDVAJALNIK_DATOTEKA = 7412
         private const val KLJUC_PREDVAJALNIK = "kat-predvajalnik"

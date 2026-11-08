@@ -177,8 +177,16 @@ class SporocilaActivity : OsActivity() {
         glavna.removeCallbacks(iskanjeZamik)
         delavec.shutdownNow()
         bralec.shutdownNow()
-        // Revizija RAM 8. 11. 2026 (#6): zbirka sporocil se zapre z zaslonom (SpletniKlepetActivity jo ze).
-        if (::shramba.isInitialized) shramba.close()
+        // Revizija RAM 8. 11. 2026 (#6): zbirka sporocil se zapre z zaslonom - a sele, ko opravila delavca in bralca
+        // koncajo (CodeRabbit: shutdownNow ne caka; zaprtje med opravilom bi izgubilo poslano sporocilo).
+        if (::shramba.isInitialized) {
+            val s = shramba
+            Thread({
+                try { delavec.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS); bralec.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS) }
+                catch (_: InterruptedException) { }
+                try { s.close() } catch (_: Throwable) { }
+            }, "safeer-sporocila-zapri").apply { isDaemon = true }.start()
+        }
         super.onDestroy()
     }
 

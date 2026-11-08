@@ -528,11 +528,12 @@ class ScitStoritev : VpnService() {
     }
 
     /** Revizija 8. 11. 2026 (#10): vzdrzevanje tece vsakih 30 s - datoteka se prepise samo, ko se statistika spremeni. */
+    @Synchronized
     private fun shraniStatistiko(stanje: String) {
         val s = Scit.Statistika(blokiranih.get(), poizvedb.get(), dan, stanje, nabor?.stevilo ?: 0, brezKrajevnega)
         if (s == zadnjaZapisana) return
-        zadnjaZapisana = s
-        Scit.zapisiStatistiko(this, s)
+        // CodeRabbit: klici z urnika, omrezne niti in glavne niti - sinhronizirano; neuspesen zapis se ponovi naslednjic.
+        if (Scit.zapisiStatistiko(this, s)) zadnjaZapisana = s
     }
 
     private fun danes(): String = SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(Date())

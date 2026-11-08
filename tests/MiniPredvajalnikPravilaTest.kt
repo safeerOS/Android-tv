@@ -178,5 +178,13 @@ fun main() {
     preveriEnako("pokaziKajIgra: ena igra -> da", true, P.pokaziKajIgra(listOf(false, true)))
     preveriEnako("pokaziKajIgra: brez naprav -> ne", false, P.pokaziKajIgra(emptyList()))
 
+    // CodeRabbit 8. 11. 2026: okence Doma samo, ko je Dom MC zagnan (cilj vrnitve); z Datotekami vmes je ustavljen.
+    preveriEnako("okenceNaDomu: Dom zagnan s kartico -> da", true, MiniPredvajalnikPravila.okenceNaDomu(true, false, true, false, true))
+    preveriEnako("okenceNaDomu: Dom ustavljen (Datoteke vmes) -> ne", false, MiniPredvajalnikPravila.okenceNaDomu(false, false, true, false, true))
+    preveriEnako("okenceNaDomu: Dom koncuje -> ne", false, MiniPredvajalnikPravila.okenceNaDomu(true, true, true, false, true))
+    preveriEnako("okenceNaDomu: drug razdelek -> ne", false, MiniPredvajalnikPravila.okenceNaDomu(true, false, false, false, true))
+    preveriEnako("okenceNaDomu: podstran odprta -> ne", false, MiniPredvajalnikPravila.okenceNaDomu(true, false, true, true, true))
+    preveriEnako("okenceNaDomu: brez kartice -> ne", false, MiniPredvajalnikPravila.okenceNaDomu(true, false, true, false, false))
+
     if (napak == 0) println("MiniPredvajalnikPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

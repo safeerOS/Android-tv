@@ -22,7 +22,10 @@ object GalerijaSlicice {
     private val neuspele = java.util.concurrent.ConcurrentHashMap<String, Long>()
     private const val PREMOR_NEUSPELE_MS = 60_000L
 
-    fun pocisti() { predpomnilnik.evictAll(); neuspele.clear() }
+    /** Rod predpomnilnika: slicica, ki se je zacela nalagati pred [pocisti], se po njem ne vstavi vec (CodeRabbit 8. 11. 2026). */
+    @Volatile private var rod = 0
+
+    fun pocisti() { rod++; predpomnilnik.evictAll(); neuspele.clear() }
 
     /** Nov zeton ali nova pot do naprave: slicice, ki prej niso uspele, poskusimo znova. */
     fun pozabiNeuspele() = neuspele.clear()
@@ -32,13 +35,14 @@ object GalerijaSlicice {
         val kljuc = "${v.id}|${v.spremenjeno}|$velikost"
         predpomnilnik.get(kljuc)?.let { naprej(kljuc, it); return kljuc }
         if ((neuspele[kljuc] ?: 0L) > android.os.SystemClock.elapsedRealtime()) { naprej(kljuc, null); return kljuc }
+        val r = rod
         izvajalec.execute {
             val b = try {
                 if (v.id.startsWith("content://")) lokalna(context, v, velikost)
                 else if (streznik != null) oddaljena(context.applicationContext, v, streznik, velikost)
                 else null
             } catch (_: Throwable) { null }
-            if (b != null) predpomnilnik.put(kljuc, b)
+            if (b != null) { if (r == rod) predpomnilnik.put(kljuc, b) }
             else {
                 if (neuspele.size > 500) neuspele.clear()
                 neuspele[kljuc] = android.os.SystemClock.elapsedRealtime() + PREMOR_NEUSPELE_MS
