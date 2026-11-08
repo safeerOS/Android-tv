@@ -46,6 +46,7 @@ object R {
         const val os_nastavitve_vrstice = 1007
         const val os_samodejno_naslednja = 1008
         const val os_samodejno_album = 1009
+        const val os_samodejno_epizoda = 1013   // 8. 11. 2026: samodejna naslednja epizoda (MedijskiCenterNastavitvePravila)
         const val os_predpomnilnik_naslov = 1010
         const val os_media_pocisti_nedavno = 1011
         const val os_meni_nastavitve = 1012
