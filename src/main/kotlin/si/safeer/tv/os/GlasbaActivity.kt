@@ -12864,6 +12864,7 @@ class GlasbaActivity : OsActivity() {
         pas.naloziSliko = { url, iv -> slikaKartice(url, iv) }
         mcKarticaKoren = pas
         mcKarticaPovrsina = pas.povrsinaVidea
+        mcKarticaPredvajaj = pas.glavniGumb   // drzan DOL, dolg pritisk in znak MC skocijo na glavni gumb pasu
         pas.naGlavni = {
             when (mcKarticaStanje) {
                 MiniPredvajalnikPravila.NADALJUJ -> nadaljujZadnje()
@@ -12881,7 +12882,13 @@ class GlasbaActivity : OsActivity() {
             when (mcKarticaStanje) {
                 MiniPredvajalnikPravila.NADALJUJ -> nadaljujZadnje()
                 MiniPredvajalnikPravila.IZBOR -> zadnjiIzbor?.klik?.invoke(pas)
-                else -> GlasbaStoritev.preklopi()   // premor/naprej; video ostane v pasu
+                else -> {
+                    val sk = GlasbaStoritev.trenutna()
+                    val vPasu = mcKarticaPovrsina?.visibility == View.VISIBLE
+                    // Slepi pregled: video na pavzi, ki ga pas ne kaze (npr. predvajalnik brez povrsine), se nadaljuje na celem zaslonu.
+                    if (sk?.video == true && !GlasbaStoritev.igra() && !vPasu) MiniPredvajalnik.odpriCelZaslon(this@GlasbaActivity)
+                    else GlasbaStoritev.preklopi()   // premor/naprej; video ostane v pasu
+                }
             }
         }
         return pas

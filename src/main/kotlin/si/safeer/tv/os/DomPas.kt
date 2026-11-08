@@ -60,8 +60,13 @@ class DomPas(context: Context) : FrameLayout(context) {
     var naPodrobnosti: (() -> Unit)? = null
         set(value) {
             field = value
+            // Slepi pregled: gumb s fokusom, ki izgine, fokus preda glavnemu (sicer bi ga sistem prestavil kamor koli).
+            if (value == null && gumbPodrobnosti.hasFocus()) gumbGlavni.requestFocus()
             gumbPodrobnosti.visibility = if (value != null) View.VISIBLE else View.GONE
         }
+
+    /** Glavni gumb (Dom nanj skoci z drzanim DOL - kot na stari kartici). */
+    val glavniGumb: View get() = gumbGlavni
 
     /** Nalagalnik slik, ki ga poda Dom (obstojeci predpomnilnik slik); brez njega se pokaze ikona. */
     var naloziSliko: ((String, ImageView) -> Unit)? = null
@@ -99,7 +104,7 @@ class DomPas(context: Context) : FrameLayout(context) {
 
     init {
         isFocusable = true
-        isFocusableInTouchMode = true
+        isFocusableInTouchMode = false   // CodeRabbit: na dotik prvi dotik klikne (ne samo fokusira)
         isClickable = true
         defaultFocusHighlightEnabled = false
         clipToOutline = true
@@ -113,6 +118,8 @@ class DomPas(context: Context) : FrameLayout(context) {
         // Obroba fokusa je foreground: vidi se tudi cez video povrsino in sliko.
         foreground = obrobaFokusa()
         setOnClickListener { naGlavni?.invoke() }
+        // Slepi pregled: dolg OK in MENU (onKeyDown -> performLongClick) odpreta vse nedokoncane, kot na stari kartici.
+        setOnLongClickListener { val p = naPodrobnosti; p?.invoke(); p != null }
         // Daljinec: DESNO/DOL s pasa gre na gumba (sicer bi fokus sel mimo njiju).
         setOnKeyListener { _, kod, e ->
             if (e.action == KeyEvent.ACTION_DOWN && (kod == KeyEvent.KEYCODE_DPAD_RIGHT || kod == KeyEvent.KEYCODE_DPAD_DOWN)) {
@@ -212,6 +219,7 @@ class DomPas(context: Context) : FrameLayout(context) {
         sestaviGumb(gumbGlavni, ikonaGlavnega, napisGlavnega, glavni = true)
         gumbi.addView(gumbGlavni, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         sestaviGumb(gumbPodrobnosti, null, napisPodrobnosti, glavni = false)
+        napisPodrobnosti.setText(R.string.os_scit_podrobnosti)   // slepi pregled: brez tega je bil gumb prazen
         gumbPodrobnosti.visibility = if (naPodrobnosti != null) View.VISIBLE else View.GONE
         gumbi.addView(gumbPodrobnosti, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { leftMargin = dp(10) })
         vsebina.addView(gumbi, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10) })
@@ -239,11 +247,11 @@ class DomPas(context: Context) : FrameLayout(context) {
         visibility = View.VISIBLE
 
         val naslovB = s.naslov.trim()
-        naslov.text = naslovB
+        if (naslov.text?.toString() != naslovB) naslov.text = naslovB
         naslov.visibility = if (naslovB.isEmpty()) View.GONE else View.VISIBLE
 
         val podnaslovB = s.podnaslov.trim()
-        podnaslov.text = podnaslovB
+        if (podnaslov.text?.toString() != podnaslovB) podnaslov.text = podnaslovB
         podnaslov.visibility = if (podnaslovB.isEmpty()) View.GONE else View.VISIBLE
         vrstaIkona.visibility = podnaslov.visibility
         vrstaIkona.setImageResource(if (s.video) R.drawable.os_ikona_video else R.drawable.os_ikona_glasba)
@@ -257,7 +265,7 @@ class DomPas(context: Context) : FrameLayout(context) {
         val casB = DomPasPravila.casNapredka(s.polozajMs, s.trajanjeMs)
         napredek.visibility = if (casB.isEmpty()) View.GONE else View.VISIBLE
         if (casB.isNotEmpty()) {
-            cas.text = casB
+            if (cas.text?.toString() != casB) cas.text = casB
             val odstotek = DomPasPravila.odstotek(s.polozajMs, s.trajanjeMs)
             (crtaNapolnjena.layoutParams as LinearLayout.LayoutParams).weight = odstotek.toFloat()
             (crtaPrazna.layoutParams as LinearLayout.LayoutParams).weight = (100 - odstotek).toFloat()
@@ -282,6 +290,7 @@ class DomPas(context: Context) : FrameLayout(context) {
         if (url != zadnjaSlika) {
             zadnjaSlika = url
             slika.setImageDrawable(null)
+            slika.tag = null   // slepi pregled: nalagalnik po oznaki ve, ali je prispela slika se prava
             if (url.isNotEmpty()) naloziSliko?.invoke(url, slika)
         }
         imamSliko = url.isNotEmpty() && naloziSliko != null
@@ -348,7 +357,7 @@ class DomPas(context: Context) : FrameLayout(context) {
         kontejner.minimumHeight = dp(if (siroko) 44 else 48)
         kontejner.minimumWidth = dp(if (glavni) 128 else 108)
         kontejner.isFocusable = true
-        kontejner.isFocusableInTouchMode = true
+        kontejner.isFocusableInTouchMode = false
         kontejner.isClickable = true
         kontejner.defaultFocusHighlightEnabled = false
         kontejner.background = gumbPlosca(glavni)
