@@ -75,12 +75,12 @@ object TujePredvajanje {
     fun zagotovi(c: Context) {
         if (aktivno()) return
         val k = ComponentName(c, ZnackeObvestil::class.java)
-        val dovoljeno = try {
-            if (android.os.Build.VERSION.SDK_INT >= 27)
-                c.getSystemService(android.app.NotificationManager::class.java)?.isNotificationListenerAccessGranted(k) == true
-            else false
-        } catch (_: Throwable) { false }
-        if (dovoljeno) { Log.i(TAG, "seje drugih aplikacij: zacenjam iz zaganjalnika"); zacni(c, k) }
+        // TV 8. 11. 2026 (apk-0711-12): po posodobitvi je sistem javil »already bound« in poslusalca v novem procesu ni
+        // nikoli povezal (onListenerConnected ni bil klican) - zaprosimo za ponovno vezavo in seje beremo kar tu:
+        // getActiveSessions s komponento uspe, ce je »Dostop do obvestil« dan, sicer SecurityException (ujeta v zacni).
+        if (!ZnackeObvestil.povezan) try { android.service.notification.NotificationListenerService.requestRebind(k) } catch (_: Throwable) { }
+        Log.i(TAG, "seje drugih aplikacij: zacenjam iz zaganjalnika (poslusalec povezan=${ZnackeObvestil.povezan})")
+        zacni(c, k)
     }
 
     /** Dovoljenje preklicano ali poslusalec odklopljen: nic vec ne spremljamo. */
