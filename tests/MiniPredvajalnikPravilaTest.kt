@@ -203,6 +203,11 @@ fun main() {
     preveriEnako("okenceSmePripeti: zaslon zaprt, povrsina mozna -> da", true, MiniPredvajalnikPravila.okenceSmePripeti(false, true))
     preveriEnako("okenceSmePripeti: zaslon odprt -> ne", false, MiniPredvajalnikPravila.okenceSmePripeti(true, true))
     preveriEnako("okenceSmePripeti: splet brez povrsine -> ne", false, MiniPredvajalnikPravila.okenceSmePripeti(false, false))
+    preveriEnako("pas: video v okencu -> ostane v pasu", false, MiniPredvajalnikPravila.predvajajNaCelZaslon(true, false, true, true))
+    preveriEnako("pas: okence brez povrsine -> cel zaslon", true, MiniPredvajalnikPravila.predvajajNaCelZaslon(true, false, true, false))
+    preveriEnako("pas: video ni v okencu -> cel zaslon", true, MiniPredvajalnikPravila.predvajajNaCelZaslon(true, false, false, true))
+    preveriEnako("pas: video igra -> premor v pasu", false, MiniPredvajalnikPravila.predvajajNaCelZaslon(true, true, false, false))
+    preveriEnako("pas: zvok -> v pasu", false, MiniPredvajalnikPravila.predvajajNaCelZaslon(false, false, false, false))
     // Slepi pregled (2): skrito okence z videom -> pavza, razen ce sliko prevzame zaslon, menjava konfiguracije ali YouTube zvok.
     preveriEnako("pavzaObSkritju: video tece, nic drugega -> pavza", true, MiniPredvajalnikPravila.pavzaObSkritjuOkenca(true, true, false, false, false))
     preveriEnako("pavzaObSkritju: zaslon predvajanja odprt -> ne", false, MiniPredvajalnikPravila.pavzaObSkritjuOkenca(true, true, true, false, false))

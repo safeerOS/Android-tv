@@ -1418,6 +1418,8 @@ class GlasbaActivity : OsActivity() {
             if (a != null && p0 != null && a.id != View.NO_ID && jePotomec(a, vsebina)) p0.gorNa(a.id)
         }
         val koraki = ArrayDeque<() -> Unit>()
+        // Slepi pregled 8. 11. 2026: clipChildren=false (povecava kartic Doma cez rob) se ni nikoli vrnil - velja samo za Dom.
+        vsebina.clipChildren = McVidezPravila.obreziVsebino(vrste.map { it.domov })
         for (v0 in vrste) {
             if (v0.kartice.isEmpty() && v0.pogled == null) continue
             // Blok kartic (nekdanja polica) je mreza z najvec dvema vrsticama; polic, po katerih je treba v desno, ni vec.
@@ -1450,7 +1452,6 @@ class GlasbaActivity : OsActivity() {
                     koraki.addLast {
                         val vrstica = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; tag = MREZA_VRSTA
                             if (v.domov) { clipChildren = false; clipToPadding = false } }
-                        if (v.domov) vsebina.clipChildren = false
                         del.forEachIndexed { i, k ->
                             val p = karticaMreze(v, k, velikost)
                             dodajVMrezo(v, vrstica, p, r * n + i, n)
@@ -1899,6 +1900,9 @@ class GlasbaActivity : OsActivity() {
     }
 
     private fun zapomniMestoKlika() {
+        // Slepi pregled 8. 11. 2026: klik na kartico (tudi vrstice Nadaljuj z ogledom) je nova izbira - enkratna oznaka
+        // »nadaljuj iz pasu« (nadaljujZadnje), ki je ostala po preklicani pripravi, ne sme preskociti vprasanja.
+        nadaljujIzPasu = null
         mestoKlika = if (window.decorView.isInTouchMode && !podstrani.odprta) razdelek to mestoZdaj() else null
         mestoKlikaOb = android.os.SystemClock.uptimeMillis()
     }
@@ -6391,7 +6395,7 @@ class GlasbaActivity : OsActivity() {
     }
 
     /** Zavihki razdelkov in izbire mreze niso kartice - tam velja sistemsko iskanje fokusa. */
-    private fun jeGlava(k: View): Boolean = (k.tag as? String)?.let { it.startsWith("r:") || it.startsWith("k:") } == true
+    private fun jeGlava(k: View): Boolean = DomovVrsticePravila.jeOznakaGlave(k.tag as? String)
 
     private fun ciljFokusa(k: View, smer: Int): View? =
         if (k.isFocusable && k.isShown) k else ArrayList<View>().also { k.addFocusables(it, smer) }.firstOrNull { it.isShown }
@@ -13133,6 +13137,7 @@ class GlasbaActivity : OsActivity() {
         v.tag = url
         val cakajo = mutableListOf(java.lang.ref.WeakReference(v))
         cakajociPas.putIfAbsent(url, cakajo)?.let { l -> synchronized(l) { l.add(java.lang.ref.WeakReference(v)) }; return }
+        val mere = v.layoutParams
         slikePasuDelavec.execute {
             var izid: android.graphics.Bitmap? = null
             try {
@@ -13141,14 +13146,21 @@ class GlasbaActivity : OsActivity() {
                 val izvor = DomPasPravila.brezOznake(url)
                 val logo = izvor.contains("/logo/")
                 val polni = if (logo) 600 else 1280
+                // Slepi pregled 8. 11. 2026: zamegljena slika drobno, ostra ob strani v meri pogleda (~274 px na TV), ozadje
+                // cez pas v polni - nobena se ne dekodira v polni meri po nepotrebnem.
+                val px = if (zamegli) DomPasPravila.ZAMEGLJENO_PX
+                    else DomPasPravila.pikslovSlike(mere?.width ?: -1, mere?.height ?: -1, polni)
                 // TV 8. 11. 2026: ozadja in logotipi so se prenasali ob vsakem zagonu - najprej disk, nato omrezje.
                 val zDiska = MedijskiPredpomnilnik.slikaPasu(this, izvor)
-                val surovi = zDiska ?: SpletniVir.bajtiSlike(this, izvor) ?: Jamendo.bajti(izvor) ?: return@execute
-                // Iz omrezja v polni meri (na disk gre izvirnik pasu, ne drobna zamegljena); z diska zamegljena takoj drobno.
-                val px = if (zamegli && zDiska != null) DomPasPravila.ZAMEGLJENO_PX else polni
-                var b = VarnaSlika.izBajtov(surovi, px)?.let { MedijskiPredpomnilnik.pomanjsaj(it, px) } ?: return@execute
-                if (zDiska == null) MedijskiPredpomnilnik.shraniSlikoPasu(this, izvor, b)
-                if (zamegli) b = MedijskiPredpomnilnik.pomanjsaj(b, DomPasPravila.ZAMEGLJENO_PX)
+                var b = zDiska?.let { VarnaSlika.izBajtov(it, px) }?.let { MedijskiPredpomnilnik.pomanjsaj(it, px) }
+                if (zDiska != null && b == null) MedijskiPredpomnilnik.pozabiSlikoPasu(this, izvor)   // pokvarjen zapis
+                if (b != null && !zamegli && DomPasPravila.premajhnaZDiska(maxOf(b.width, b.height), px)) b = null
+                if (b == null) {
+                    val surovi = SpletniVir.bajtiSlike(this, izvor) ?: Jamendo.bajti(izvor) ?: return@execute
+                    b = VarnaSlika.izBajtov(surovi, px)?.let { MedijskiPredpomnilnik.pomanjsaj(it, px) } ?: return@execute
+                    // Na disk ostra slika (ne drobna zamegljena), v meri, v kateri je bila dekodirana.
+                    if (!zamegli) MedijskiPredpomnilnik.shraniSlikoPasu(this, izvor, b)
+                }
                 val m = if (logo) b else MedijskiPredpomnilnik.zaPomnilnik(b)   // logotip ohrani prosojnost
                 slikePasu.put(url, m)
                 izid = m
@@ -13211,9 +13223,14 @@ class GlasbaActivity : OsActivity() {
                     val vPasu = mcKarticaPovrsina?.visibility == View.VISIBLE
                     // Slepi pregled: video na pavzi, ki ga pas ne kaze (npr. predvajalnik brez povrsine), se nadaljuje na celem zaslonu.
                     // Revizija RAM 8. 11.: po dolgi pavzi je predvajalnik ustavljen (IDLE) - pas kaze sliko, Predvajaj ga zbudi tu.
-                    val ustavljen = GlasbaStoritev.predvajalnik?.playbackState == Player.STATE_IDLE
-                    if (sk?.video == true && !GlasbaStoritev.igra() && !vPasu && !ustavljen) MiniPredvajalnik.odpriCelZaslon(this@GlasbaActivity)
-                    else GlasbaStoritev.preklopi()   // premor/naprej; video ostane v pasu
+                    // Slepi pregled 8. 11. 2026: ustavljen video, ki ga pas ne more pokazati (okence ne sme pripeti povrsine),
+                    // je prej zaigral samo z zvokom - zdaj gre na cel zaslon (tam Predvajaj predvajalnik pripravi znova).
+                    val p = GlasbaStoritev.predvajalnik
+                    val smePripeti = p != null &&
+                        MiniPredvajalnikPravila.okenceSmePripeti(PredvajanjeActivity.odprt, p.isCommandAvailable(Player.COMMAND_SET_VIDEO_SURFACE))
+                    if (MiniPredvajalnikPravila.predvajajNaCelZaslon(sk?.video == true, GlasbaStoritev.igra(), vPasu, smePripeti))
+                        MiniPredvajalnik.odpriCelZaslon(this@GlasbaActivity)
+                    else GlasbaStoritev.preklopi()   // premor/naprej; video ostane v pasu (ustavljen se pripravi znova)
                 }
             }
         }

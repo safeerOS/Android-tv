@@ -198,6 +198,12 @@ object MedijskiPredpomnilnik {
         }
     } catch (_: Exception) { null }
 
+    /** Shranjene slike pasu, ki je ni mogoce dekodirati (pokvarjen zapis), ne beremo vec - naslednjic gre na omrezje. */
+    fun pozabiSlikoPasu(c: Context, url: String) {
+        if (!jeSplet(url)) return
+        try { File(mapaPasu(c), odtis(url)).delete() } catch (_: Exception) { }
+    }
+
     /**
      * Shrani pomanjsano sliko pasu: JPEG (ozadje brez prosojnosti), PNG, ce ima prosojnost (logotip - JPEG bi jo zamenjal s
      * crnino). Zapis prek zacasne datoteke, nato zavrze najstarejse nad mejo. Klic iz ozadja.
@@ -212,10 +218,15 @@ object MedijskiPredpomnilnik {
             val bajti = izhod.toByteArray()
             if (bajti.isEmpty() || bajti.size > PAS_NAJVEC_DATOTEKA) return
             val mapa = mapaPasu(c)
-            val zacasna = File(mapa, odtis(url) + ".tmp")
+            // Slepi pregled 8. 11. 2026: dve niti z isto sliko sta pisali v isto ».tmp« - zdaj enoznacno ime v isti mapi.
+            val zacasna = File.createTempFile(odtis(url) + ".", ".tmp", mapa)
             zacasna.writeBytes(bajti)
             if (!zacasna.renameTo(File(mapa, odtis(url)))) { zacasna.delete(); return }
-            val datoteke = mapa.listFiles()?.filter { it.isFile && !it.name.endsWith(".tmp") } ?: return
+            val vse = mapa.listFiles() ?: return
+            val zdaj = System.currentTimeMillis()
+            // Ostanki prekinjenih zapisov (sesutje med pisanjem) - starejsi od ure ne pripadajo nobenemu zapisu vec.
+            vse.filter { it.isFile && DomPasPravila.jeStaraZacasna(it.name, zdaj - it.lastModified()) }.forEach { it.delete() }
+            val datoteke = vse.filter { it.isFile && !it.name.endsWith(".tmp") }
             DomPasPravila.zavrziZaMejo(datoteke.map { it.lastModified() to it.length() }, PAS_NAJVEC_BAJTOV).forEach { datoteke[it].delete() }
         } catch (_: Throwable) { }
     }

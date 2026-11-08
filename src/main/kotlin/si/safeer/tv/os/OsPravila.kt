@@ -673,8 +673,16 @@ object OsPravila {
      */
     const val SPROSTI_PO_PREMORU_MS = 60_000L
 
-    fun sprostiPoPremoru(video: Boolean, igra: Boolean, zaslonOdprt: Boolean, msOdPremora: Long): Boolean =
-        video && !igra && !zaslonOdprt && msOdPremora >= SPROSTI_PO_PREMORU_MS
+    fun sprostiPoPremoru(video: Boolean, igra: Boolean, zaslonOdprt: Boolean, msOdPremora: Long,
+                         /** Slepi pregled 8. 11. 2026: stop() je varen samo, ce se vsebina da znova pripraviti na istem mestu. */
+                         previjalno: Boolean = true, zivo: Boolean = false, pomocniTok: Boolean = false): Boolean =
+        video && !igra && !zaslonOdprt && msOdPremora >= SPROSTI_PO_PREMORU_MS && previjalno && !zivo && !pomocniTok
+
+    fun pripraviObPredvajaj(predvajaj: Boolean, idle: Boolean, stevilo: Int, napaka: Boolean): Boolean =
+        predvajaj && idle && stevilo > 0 && !napaka
+
+    /** Tok, ki ga drzi pomocnik ali krajevni pogon (torrent, Usenet, 127.0.0.1, safeer-pomoc:) - po stop() ga morda ni vec. */
+    fun pomocniTok(sprotni: Boolean, zvok: String): Boolean = sprotni || (zvok.isNotEmpty() && !zvok.startsWith("https://"))
 
     fun ponudiNadaljevanje(mestoMs: Long, trajanjeMs: Long): Boolean =
         mestoMs >= 10_000 && (trajanjeMs <= 0 || mestoMs < trajanjeMs * 95 / 100)

@@ -290,6 +290,10 @@ object MiniPredvajalnikPravila {
      */
     fun okenceSmePripeti(zaslonOdprt: Boolean, povrsinaMozna: Boolean): Boolean = !zaslonOdprt && povrsinaMozna
 
+    /** Predvajaj na pasu: video, ki ne igra in ga pas ne more pokazati (ni okenca ali povrsine), gre na cel zaslon. */
+    fun predvajajNaCelZaslon(video: Boolean, igra: Boolean, vPasu: Boolean, smePripeti: Boolean): Boolean =
+        video && !igra && !(vPasu && smePripeti)
+
     /**
      * Okence, ki je kazalo video, izgine (drug razdelek, podstran, onStop): video brez slike nima smisla (lastnik 11. 10.
      * 2026), zato pavza - razen ce sliko prevzema zaslon predvajanja, gre za menjavo konfiguracije ali YouTube zvok v ozadju.

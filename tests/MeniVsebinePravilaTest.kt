@@ -107,6 +107,12 @@ fun main(args: Array<String>) {
     preveriEnako("Dom: plosca nazadnje", listOf("pas", "a", "b", "plosca"), D.razporedDoma("pas", "plosca", listOf("a", "b")))
     // GOR/DOL ohrani stolpec: siroka kartica z levim robom 48 -> spodaj kartica z levim robom 48 (ne druga, blizje sredini).
     preveriEnako("stolpec po levem robu", 0, D.stolpecPoLevemRobu(48, listOf(48, 250, 452)))
+    preveriEnako("glava: zavihek r:", true, D.jeOznakaGlave("r:filmi"))
+    preveriEnako("glava: izbira k:jezik", true, D.jeOznakaGlave("k:jezik"))
+    preveriEnako("glava: k:nadaljuj", true, D.jeOznakaGlave("k:nadaljuj"))
+    preveriEnako("kartica mreze ni glava", false, D.jeOznakaGlave("k:Nedavno dodano#3"))
+    preveriEnako("kartica mreze z # v naslovu ni glava", false, D.jeOznakaGlave("k:Top #1 hits#12"))
+    preveriEnako("brez oznake ni glava", false, D.jeOznakaGlave(null))
     preveriEnako("stolpec: najblizji levi rob", 2, D.stolpecPoLevemRobu(460, listOf(48, 250, 452)))
     preveriEnako("stolpec: enako dalec -> bolj levo", 0, D.stolpecPoLevemRobu(100, listOf(50, 150)))
     preveriEnako("stolpec: enako dalec, levi je drugi", 1, D.stolpecPoLevemRobu(100, listOf(150, 50)))

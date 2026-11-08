@@ -99,6 +99,16 @@ object DomPasPravila {
     }
 
     /**
+     * Pri vecji pisavi (dostopnost) naslov, crta in gumbi zrastejo, pas pa ne - v nizkem pasu logotip zato manjsamo,
+     * da gumbi ne zdrsnejo v spodnji odmik (slepi pregled 8. 11. 2026). Najmanj 24 dp.
+     */
+    fun visinaLogotipaDp(sirinaDp: Int, visinaPasuDp: Int, meriloPisave: Float): Int {
+        val osnova = visinaLogotipaDp(sirinaDp, visinaPasuDp)
+        if (meriloPisave <= 1f || visinaPasuDp !in 1 until 260) return osnova
+        return (osnova / meriloPisave).toInt().coerceAtLeast(24)
+    }
+
+    /**
      * Kritika 8. 11. 2026 (1, 3): ostra slika ozadja in logotip filma - Cinemeta/metahub (ze uporabljen za plakate v
      * [Stremio]) ima po IMDb id ozadje 1920x1080 in logotip (izmerjeno 8. 11.: tt31193180 -> 200, 1920x1080 in 800x310).
      * Id najdemo v polju imdbId ali v id-ju vsebine (»tt…«, tudi »tt…:1:2« za epizode); brez njega prazno.
@@ -192,6 +202,19 @@ object DomPasPravila {
         if (!siroko || sl.isEmpty()) return sl to ""
         return if (video) "" to sl else zamegljeno(sl) to sl
     }
+
+    /** Zacasna datoteka zapisa slike pasu, starejsa od ure (ostanek prekinjenega zapisa). */
+    fun jeStaraZacasna(ime: String, starostMs: Long): Boolean = ime.endsWith(".tmp") && starostMs > 60L * 60 * 1000
+
+    /**
+     * Koliko pikslov dekodiramo za pogled z merami [sirinaPx] x [visinaPx] (layoutParams; <= 0 = MATCH_PARENT ali
+     * WRAP_CONTENT): slika ob strani (kvadrat zvoka ~274 px na TV) ne potrebuje 1280 px - slepi pregled 8. 11. 2026.
+     */
+    fun pikslovSlike(sirinaPx: Int, visinaPx: Int, polni: Int): Int =
+        if (sirinaPx <= 0 || visinaPx <= 0) polni else maxOf(sirinaPx, visinaPx).coerceIn(160, polni)
+
+    /** Slika z diska je premajhna za ta pogled (shranila jo je slika ob strani) - raje omrezje kot razmazana slika. */
+    fun premajhnaZDiska(najvecjaStranPx: Int, ciljPx: Int): Boolean = najvecjaStranPx < ciljPx * 3 / 4
 
     /** Mera slike ob strani (sirina, visina v dp): film 2:3, zvok (postaja, album) kvadrat 1:1. */
     fun meraPlakata(visinaPasuDp: Int, video: Boolean): Pair<Int, Int> =

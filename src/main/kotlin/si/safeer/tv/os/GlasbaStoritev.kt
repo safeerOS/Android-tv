@@ -247,7 +247,12 @@ class GlasbaStoritev : Service() {
                 osvezi()
             }
             // Pregled C1: igra() sledi playWhenReady - premor med nalaganjem mora osveziti gumb, obvestilo in sejo.
-            override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) { narociSprostitev(); osvezi() }
+            override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                // Slepi pregled 8. 11. 2026: po sprostitvi (stop) je predvajalnik IDLE - play() iz seje ali obvestila
+                // ga mora pripraviti znova na istem mestu, sicer gumb kaze predvajanje, slike in zvoka pa ni.
+                if (OsPravila.pripraviObPredvajaj(playWhenReady, p.playbackState == Player.STATE_IDLE, p.mediaItemCount, p.playerError != null)) p.prepare()
+                narociSprostitev(); osvezi()
+            }
             override fun onTracksChanged(tracks: androidx.media3.common.Tracks) = preveriDekoderje(p, tracks)
             override fun onMetadata(metadata: androidx.media3.common.Metadata) {
                 // Radio: naslov skladbe iz toka (ICY StreamTitle) kot "izvajalec" pod imenom postaje.
@@ -1462,9 +1467,13 @@ class GlasbaStoritev : Service() {
         override fun run() {
             val e = exo ?: return
             if (predvajalnik !== e || naZvocniku() || e.playbackState == Player.STATE_IDLE) return
-            val video = trenutna()?.video == true
+            val sk = trenutna()
+            val video = sk?.video == true
             val ms = android.os.SystemClock.uptimeMillis() - premorOd
-            if (OsPravila.sprostiPoPremoru(video, e.playWhenReady, PredvajanjeActivity.odprt, ms)) {
+            val pomocni = sk != null && OsPravila.pomocniTok(SprotnaPomoc.jeSprotniTok(sk), sk.zvok)
+            if (OsPravila.sprostiPoPremoru(video, e.playWhenReady, PredvajanjeActivity.odprt, ms,
+                    previjalno = e.isCurrentMediaItemSeekable, zivo = e.isCurrentMediaItemLive || e.isCurrentMediaItemDynamic,
+                    pomocniTok = pomocni)) {
                 Log.i("SafeerOsMedia", "video ${ms / 1000} s na pavzi brez zaslona predvajanja: predvajalnik ustavljen, mesto ostane")
                 e.stop()
             } else if (video && !e.playWhenReady) glavnaNit.postDelayed(this, 15_000L)   // zaslon je odprt: preverimo kasneje
@@ -1472,7 +1481,7 @@ class GlasbaStoritev : Service() {
     }
 
     /** Pavza videa zacne stetje; predvajanje, menjava vsebine in konec storitve ga ustavijo. */
-    private fun narociSprostitev() {
+    internal fun narociSprostitev() {
         glavnaNit.removeCallbacks(sprostiPoPremoru)
         val e = exo ?: return
         if (predvajalnik !== e || e.playWhenReady || trenutna()?.video != true) return
@@ -1880,6 +1889,9 @@ class GlasbaStoritev : Service() {
 
         /** Ves seznam, ki se predvaja (za "v vrsti" na zaslonu predvajanja). */
         fun vrsta(): List<Jamendo.Skladba> = if (predvajalnik == null) emptyList() else vrsta
+
+        /** Slepi pregled 8. 11. 2026: med odprtim zaslonom predvajanja se je stelo od prvotnega premora - po zaprtju od zacetka. */
+        fun poZaprtjuZaslonaPredvajanja() { primerek?.narociSprostitev() }
 
         fun trenutna(): Jamendo.Skladba? {
             val p = predvajalnik ?: return null

@@ -159,6 +159,15 @@ object DomovVrsticePravila {
      * Nadaljuj je pristal na drugi mali kartici. Izberemo kartico, katere levi rob je najblizje levemu robu [levo]
      * (enako -> bolj levo). Vrne kazalo v [kandidati] ali -1, ce jih ni.
      */
+    private val OZNAKA_KARTICE_MREZE = Regex("#\\d+$")
+
+    /**
+     * Zavihki razdelkov (r:) in izbire (k:jezik, k:nadaljuj ...) so glava; kartica mreze ima oznako »k:<naslov>#<i>«
+     * (oznaciVMrezi) in NI glava - slepi pregled 8. 11. 2026: prej je bila vsaka »k:« glava, zato DOL po stolpcu ni delal.
+     */
+    fun jeOznakaGlave(oznaka: String?): Boolean = oznaka != null &&
+        (oznaka.startsWith("r:") || (oznaka.startsWith("k:") && !OZNAKA_KARTICE_MREZE.containsMatchIn(oznaka)))
+
     fun stolpecPoLevemRobu(levo: Int, kandidati: List<Int>): Int {
         var naj = -1
         for (i in kandidati.indices) {

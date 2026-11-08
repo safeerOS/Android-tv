@@ -126,8 +126,10 @@ class DomPas(context: Context) : FrameLayout(context) {
     private val napisPodrobnosti = TextView(context)
 
     // Krozenje izbora (deklarirano pred init, ki pike doda v pas).
-    private val visinaPasuDp = DomPasPravila.visinaDp(sirinaZaslonaDp,
+    private var visinaPasuDp = DomPasPravila.visinaDp(sirinaZaslonaDp,
         (resources.displayMetrics.heightPixels / resources.displayMetrics.density).toInt())
+    private var zadnjaZameglitev: Boolean? = null
+    private var meraNaslova = -1 to -1
     /** Krozenje je narocene (pregled 4: ponovni prikaz ga ne odriva v neskoncnost). */
     private var krozenjeNaroceno = false
     // Drugi pregled (7): krozenje odrine samo prehod fokusa v pas ali iz njega - ne vsak premik po vrsticah spodaj.
@@ -231,7 +233,7 @@ class DomPas(context: Context) : FrameLayout(context) {
         logo.adjustViewBounds = true
         logo.visibility = View.GONE
         logo.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-        vsebina.addView(logo, LinearLayout.LayoutParams(dp(if (siroko) 420 else 220), dp(DomPasPravila.visinaLogotipaDp(sirinaZaslonaDp, visinaPasuDp)))
+        vsebina.addView(logo, LinearLayout.LayoutParams(dp(if (siroko) 420 else 220), dp(DomPasPravila.visinaLogotipaDp(sirinaZaslonaDp, visinaPasuDp, resources.configuration.fontScale)))
             .apply { bottomMargin = dp(6) })
 
         naslov.setTextSize(TypedValue.COMPLEX_UNIT_SP, DomPasPravila.velikostNaslovaSp(sirinaZaslonaDp, visinaPasuDp))
@@ -432,7 +434,19 @@ class DomPas(context: Context) : FrameLayout(context) {
         val sirina = MeasureSpec.getSize(sirinaSpec)
         val sirinaV = if (sirina > 0) (sirina / resources.displayMetrics.density).toInt() else sirinaZaslonaDp
         val visinaZaslona = (resources.displayMetrics.heightPixels / resources.displayMetrics.density).toInt()
-        super.onMeasure(sirinaSpec, MeasureSpec.makeMeasureSpec(dp(DomPasPravila.visinaDp(sirinaV, visinaZaslona)), MeasureSpec.EXACTLY))
+        val visina = DomPasPravila.visinaDp(sirinaV, visinaZaslona)
+        // Slepi pregled 8. 11. 2026: vrstice naslova, velikost in logotip so bili doloceni ob gradnji iz visine zaslona,
+        // pas pa se tu meri znova (razdeljen zaslon, ozje okno) - izpeljemo jih iz dejanske visine pasu.
+        if (meraNaslova != sirinaV to visina) {
+            meraNaslova = sirinaV to visina
+            visinaPasuDp = visina
+            naslov.setTextSize(TypedValue.COMPLEX_UNIT_SP, DomPasPravila.velikostNaslovaSp(sirinaV, visina))
+            naslov.maxLines = DomPasPravila.vrsticNaslova(sirinaV, visina)
+            (logo.layoutParams as? LinearLayout.LayoutParams)?.let { lp ->
+                lp.height = dp(DomPasPravila.visinaLogotipaDp(sirinaV, visina, resources.configuration.fontScale)); logo.layoutParams = lp
+            }
+        }
+        super.onMeasure(sirinaSpec, MeasureSpec.makeMeasureSpec(dp(visina), MeasureSpec.EXACTLY))
     }
 
     /**
@@ -500,8 +514,12 @@ class DomPas(context: Context) : FrameLayout(context) {
             if (lp.width != dp(plakatS) || lp.height != dp(plakatV)) { lp.width = dp(plakatS); lp.height = dp(plakatV); plakat.layoutParams = lp }
         }
         // Zamegljeno ozadje se zatemni z barvo ozadja strani (senci ostaneta cez), da besedilo in kvadrat izstopata.
-        if (DomPasPravila.jeZamegljeno(url)) slika.setColorFilter(prosojnoOzadje(150), android.graphics.PorterDuff.Mode.SRC_ATOP)
-        else slika.clearColorFilter()
+        // Slepi pregled 8. 11. 2026: narisi tece vsako sekundo - filter samo ob spremembi (sicer vsakic invalidate slike).
+        val zamegli = DomPasPravila.jeZamegljeno(url)
+        if (zamegli != zadnjaZameglitev) {
+            zadnjaZameglitev = zamegli
+            if (zamegli) slika.setColorFilter(prosojnoOzadje(150), android.graphics.PorterDuff.Mode.SRC_ATOP) else slika.clearColorFilter()
+        }
         if (url.isEmpty()) naAmbient?.invoke(null)
         if (url != zadnjaSlika) {
             zadnjaSlika = url

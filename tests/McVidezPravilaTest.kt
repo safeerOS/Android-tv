@@ -7,6 +7,9 @@ private fun preveriEnako(opis: String, pricakovano: Any?, dobljeno: Any?) =
 
 /** Videz Doma MC na TV ([McVidezPravila]): stolpci, fokus, naslovi seznamov, monogram postaje, ploscica dejanja, pomoc. */
 fun main() {
+    preveriEnako("vsebina obreze brez Doma", true, McVidezPravila.obreziVsebino(listOf(false, false)))
+    preveriEnako("vrstice Doma: brez obrezovanja", false, McVidezPravila.obreziVsebino(listOf(false, true)))
+    preveriEnako("prazno: obreze", true, McVidezPravila.obreziVsebino(emptyList()))
     println("Preizkus videza Doma MC (McVidezPravila)")
     val P = McVidezPravila
 

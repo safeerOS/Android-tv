@@ -934,6 +934,7 @@ class PredvajanjeActivity : OsActivity() {
 
     override fun onStop() {
         zagnan = false; zagnanih = (zagnanih - 1).coerceAtLeast(0)
+        if (zagnanih == 0) GlasbaStoritev.poZaprtjuZaslonaPredvajanja()
         if (zaklenjeno) zakleni(false)
         // Video brez slike nima smisla: ko uporabnik zapusti predvajalnik (Nazaj, Domov, druga aplikacija),
         // ga ustavimo na mestu - "Nadaljuj gledanje" ga pozneje nadaljuje. Glasba in radio igrata naprej.
