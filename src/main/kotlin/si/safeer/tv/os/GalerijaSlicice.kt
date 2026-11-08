@@ -11,10 +11,9 @@ import android.util.Size
 import okhttp3.Request
 import java.util.concurrent.ExecutorService
 
-/** Lahke galerijske slicice: dva delavca, platformni API in omejen LRU (1/8 Java kopice). */
+/** Lahke galerijske slicice: dva delavca, platformni API in omejen LRU (1/8 Java kopice, najvec 12 MiB - OsPravila). */
 object GalerijaSlicice {
-    private val predpomnilnik = object : LruCache<String, Bitmap>(
-        (Runtime.getRuntime().maxMemory() / 8L / 1024L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()) {
+    private val predpomnilnik = object : LruCache<String, Bitmap>(OsPravila.galerijaPredpomnilnikKb(Runtime.getRuntime().maxMemory())) {
         override fun sizeOf(key: String, value: Bitmap): Int =
             (value.allocationByteCount / 1024).coerceAtLeast(1)
     }

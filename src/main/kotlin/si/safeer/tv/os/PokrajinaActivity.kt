@@ -2726,6 +2726,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     }
 
     private var vremeNapaka = false
+    /** Revizija 8. 11. 2026 (#3): kdaj smo nazadnje sli po vreme (tudi neuspesno) - VremePravila.osvezi. */
+    private var vremePoskusMs = 0L
     /** Neuspeh zadnjega branja vremena je bil povezava (true) ali streznik vremena (false). */
     private var vremeBrezPovezave = true
 
@@ -2819,7 +2821,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
 
     private fun osveziVreme(prisilno: Boolean = false) {
         val k = kraj() ?: return
-        if (!prisilno && !VremePravila.osvezi(shramba().getLong(KLJUC_VREME_CAS, 0L), System.currentTimeMillis())) return
+        if (!prisilno && !VremePravila.osvezi(shramba().getLong(KLJUC_VREME_CAS, 0L), System.currentTimeMillis(), vremePoskusMs)) return
+        vremePoskusMs = System.currentTimeMillis()
         Thread({
             val json = beri(VremePravila.naslovNapovedi(k))
             val v = json?.let { VremePravila.razcleniVreme(it) }

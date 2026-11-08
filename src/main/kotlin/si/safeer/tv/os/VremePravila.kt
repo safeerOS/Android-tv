@@ -15,6 +15,8 @@ object VremePravila {
     const val NAPOVED = "https://api.open-meteo.com/v1/forecast"
     /** Vreme se osvezi najvec tako pogosto (Open-Meteo osvezuje trenutne podatke na 15 min). */
     const val OSVEZI_MS = 30L * 60 * 1000
+    /** Najmanjsi presledek med poskusi, ko vreme ne uspe (brez omrezja). */
+    const val PONOVNI_POSKUS_MS = 5L * 60 * 1000
     /** Starejse vreme se ne pokaze (raje nic kot vceraj). */
     const val ZASTARELO_MS = 3L * 60 * 60 * 1000
 
@@ -112,7 +114,13 @@ object VremePravila {
     /** Ali je zapis iz [casMs] se dovolj svez za prikaz. */
     fun svezo(casMs: Long, zdajMs: Long): Boolean = casMs > 0 && zdajMs - casMs in 0 until ZASTARELO_MS
 
-    fun osvezi(casMs: Long, zdajMs: Long): Boolean = casMs <= 0 || zdajMs - casMs !in 0 until OSVEZI_MS
+    /**
+     * Ali gremo po vreme na splet: zapis je starejsi od [OSVEZI_MS] (ali ga ni) IN od zadnjega poskusa je minilo vsaj
+     * [PONOVNI_POSKUS_MS]. Revizija 8. 11. 2026 (#3): ob neuspehu se cas zapisa ne premakne, zato je tik vsake minute
+     * brez omrezja odprl novo nit in povezavo - zdaj najvec vsakih 5 min.
+     */
+    fun osvezi(casMs: Long, zdajMs: Long, poskusMs: Long = 0L): Boolean =
+        (casMs <= 0 || zdajMs - casMs !in 0 until OSVEZI_MS) && (poskusMs <= 0 || zdajMs - poskusMs !in 0 until PONOVNI_POSKUS_MS)
 
     /** »20 °C« - brez decimalk; minus je pravi znak minus, da ga bralnik zaslona prebere. */
     fun napis(v: Vreme): String = (if (v.stopinj < 0) "−" + (-v.stopinj) else v.stopinj.toString()) + " °C"

@@ -284,5 +284,14 @@ fun main() {
     preveriEnako("meni odprt s svojim fokusom ni sirota", false, PokrajinaPravila.meniBrezFokusa(false, true))
     preveriEnako("brez menija ni sirote", false, PokrajinaPravila.meniBrezFokusa(true, false))
 
+    // Revizija RAM/CPU 8. 11. 2026 (#3): po neuspelem poskusu vremena najvec vsakih 5 min, ne vsako minuto.
+    val ura = 100L * 60 * 60 * 1000
+    preveriEnako("vreme: brez zapisa in brez poskusa gre", true, VremePravila.osvezi(0L, ura))
+    preveriEnako("vreme: neuspel poskus pred 1 min zadrzi", false, VremePravila.osvezi(0L, ura, ura - 60_000L))
+    preveriEnako("vreme: neuspel poskus pred 5 min spusti", true, VremePravila.osvezi(0L, ura, ura - VremePravila.PONOVNI_POSKUS_MS))
+    preveriEnako("vreme: svez zapis zadrzi ne glede na poskus", false, VremePravila.osvezi(ura - 60_000L, ura, 0L))
+    preveriEnako("vreme: star zapis in star poskus gre", true, VremePravila.osvezi(ura - VremePravila.OSVEZI_MS, ura, ura - VremePravila.OSVEZI_MS))
+    preveriEnako("vreme: ura nazaj (poskus v prihodnosti) ne zadrzi", true, VremePravila.osvezi(0L, ura, ura + 60_000L))
+
     if (napak == 0) println("PokrajinaPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

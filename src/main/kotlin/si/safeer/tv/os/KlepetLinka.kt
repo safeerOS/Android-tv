@@ -73,23 +73,25 @@ object KlepetLinka {
         // Ime, kot ga uporabnik vidi v seznamu naprav (vzdevek), sicer ime, ki ga je dal hub.
         val izSeznama = imeNaprave(naprave, od) ?: naprave.firstOrNull { it.id == posiljatelj }?.ime
         val cas = cas(telo.optString("created_at"))
-        val s = SporocilaShramba(c)
-        val znano = s.pogovori().firstOrNull { it.kanalId == KANAL && it.id == od }?.ime
-        // Hub pozna trenutno ime (tudi vzdevek); shranjeno ime je lahko zastarelo, zato pride sele za njim.
-        val odHuba = niz(json, "sender_name").takeIf { it.isNotBlank() && it != posiljatelj && it != od }
-        val ime = izSeznama?.takeIf { it.isNotBlank() } ?: odHuba ?: znano?.takeIf { it.isNotBlank() } ?: od
-        zagotoviKanal(s)
-        val id = "chat:" + json.optString("id").ifBlank { System.nanoTime().toString() }
-        // Pregled D4: posiljatelj ga je izbrisal, se preden je prislo - ne shranimo ga.
-        if (s.porabiIzbrisVnaprej(KANAL, id, od, System.currentTimeMillis())) return
-        val odprt = odprtPogovor == od
-        // Pregled D2: ponovna dostava (ze shranjeno) ali krajevno izbrisano - brez predogleda, neprebranega in obvestila.
-        if (!s.shraniSporocilo(KANAL, SporocilaShramba.Sporocilo(id, od, "noter", besedilo, cas), samoNovo = true)) return
-        s.posodobiPogovor(SporocilaShramba.Pogovor(od, KANAL, od, ime, "", besedilo.replace('\n', ' ').take(240),
-            if (odprt) 0 else 1, cas), pristej = true)
-        for (p in poslusalci) try { p() } catch (_: Throwable) { }
-        prikaz?.takeIf { SporocilaHitroPravila.opozorilo(vOspredju = true, odprtPogovor = odprt) }?.let { try { it(od, ime, besedilo) } catch (_: Throwable) { } }
-        if (!odprt && obvestilo) obvesti(c, od, ime, besedilo)
+        // Revizija RAM 8. 11. 2026 (#6): vsak prejem je odprl novo zbirko SQLite in je ni zaprl (nativna povezava ostane).
+        SporocilaShramba(c).use { s ->
+            val znano = s.pogovori().firstOrNull { it.kanalId == KANAL && it.id == od }?.ime
+            // Hub pozna trenutno ime (tudi vzdevek); shranjeno ime je lahko zastarelo, zato pride sele za njim.
+            val odHuba = niz(json, "sender_name").takeIf { it.isNotBlank() && it != posiljatelj && it != od }
+            val ime = izSeznama?.takeIf { it.isNotBlank() } ?: odHuba ?: znano?.takeIf { it.isNotBlank() } ?: od
+            zagotoviKanal(s)
+            val id = "chat:" + json.optString("id").ifBlank { System.nanoTime().toString() }
+            // Pregled D4: posiljatelj ga je izbrisal, se preden je prislo - ne shranimo ga.
+            if (s.porabiIzbrisVnaprej(KANAL, id, od, System.currentTimeMillis())) return
+            val odprt = odprtPogovor == od
+            // Pregled D2: ponovna dostava (ze shranjeno) ali krajevno izbrisano - brez predogleda, neprebranega in obvestila.
+            if (!s.shraniSporocilo(KANAL, SporocilaShramba.Sporocilo(id, od, "noter", besedilo, cas), samoNovo = true)) return
+            s.posodobiPogovor(SporocilaShramba.Pogovor(od, KANAL, od, ime, "", besedilo.replace('\n', ' ').take(240),
+                if (odprt) 0 else 1, cas), pristej = true)
+            for (p in poslusalci) try { p() } catch (_: Throwable) { }
+            prikaz?.takeIf { SporocilaHitroPravila.opozorilo(vOspredju = true, odprtPogovor = odprt) }?.let { try { it(od, ime, besedilo) } catch (_: Throwable) { } }
+            if (!odprt && obvestilo) obvesti(c, od, ime, besedilo)
+        }
     }
 
     /**
@@ -182,19 +184,19 @@ object KlepetLinka {
      */
     fun izbrisiNaVseh(c: Context, pogovorId: String, s: SporocilaShramba.Sporocilo): Boolean {
         val skupni = SporocilaPravila.skupniId(s.id, s.smer) ?: return false
-        val shramba = SporocilaShramba(c)
-        shramba.izbrisiSporocilo(KANAL, pogovorId, s.id)
-        val b = SporocilaShramba.CakajoceBrisanje(skupni, pogovorId, System.currentTimeMillis())
-        shramba.dodajCakajoceBrisanje(b.id, b.cilj, b.zapisano)
-        return posljiBrisanje(c, shramba, b)
+        return SporocilaShramba(c).use { shramba ->
+            shramba.izbrisiSporocilo(KANAL, pogovorId, s.id)
+            val b = SporocilaShramba.CakajoceBrisanje(skupni, pogovorId, System.currentTimeMillis())
+            shramba.dodajCakajoceBrisanje(b.id, b.cilj, b.zapisano)
+            posljiBrisanje(c, shramba, b)
+        }
     }
 
     /** Vse cakajoce izbrise poskusi poslati znova (LinkUpravitelj ob seznamu naprav). Ne klici na glavni niti. */
     fun posljiCakajocaBrisanja(c: Context) {
         if (!posiljaCakajoca.compareAndSet(false, true)) return
         try {
-            val shramba = SporocilaShramba(c)
-            for (b in shramba.cakajocaBrisanja()) posljiBrisanje(c, shramba, b)
+            SporocilaShramba(c).use { shramba -> for (b in shramba.cakajocaBrisanja()) posljiBrisanje(c, shramba, b) }
         } catch (_: Throwable) {
         } finally { posiljaCakajoca.set(false) }
     }
@@ -230,17 +232,19 @@ object KlepetLinka {
      */
     private fun izbrisiNaZahtevo(c: Context, od: String, skupni: String) {
         if (od.isBlank()) return
-        val s = SporocilaShramba(c)
         val id = SporocilaPravila.prejetiId(skupni)
-        val sp = s.sporocilo(KANAL, id)
-        if (sp == null) {
-            if (!s.izbrisano(KANAL, id) && SporocilaPravila.smeZapisatiVnaprej(od, skupni))
-                s.dodajIzbrisVnaprej(KANAL, id, od, System.currentTimeMillis())
-            return
+        val pogovorId = SporocilaShramba(c).use { s ->
+            val sp = s.sporocilo(KANAL, id)
+            if (sp == null) {
+                if (!s.izbrisano(KANAL, id) && SporocilaPravila.smeZapisatiVnaprej(od, skupni))
+                    s.dodajIzbrisVnaprej(KANAL, id, od, System.currentTimeMillis())
+                return
+            }
+            if (!SporocilaPravila.zahtevaZaIzbrisVelja(sp.smer, sp.pogovorId, od)) return
+            s.izbrisiSporocilo(KANAL, sp.pogovorId, id)
+            sp.pogovorId
         }
-        if (!SporocilaPravila.zahtevaZaIzbrisVelja(sp.smer, sp.pogovorId, od)) return
-        s.izbrisiSporocilo(KANAL, sp.pogovorId, id)
-        umakniObvestilo(c, sp.pogovorId)
+        umakniObvestilo(c, pogovorId)
         for (p in poslusalci) try { p() } catch (_: Throwable) { }
     }
 

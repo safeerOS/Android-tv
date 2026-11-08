@@ -190,7 +190,8 @@ object Scit {
         return if (n < 0) DomenskiNabor.steviloVGlavi(cilj) ?: 0 else n
     }
 
-    class Statistika(val blokiranih: Long, val poizvedb: Long, val dan: String, val stanje: String, val domen: Int,
+    /** data class: ScitStoritev zapise datoteko samo, ko se vsebina spremeni (revizija 8. 11. 2026, #10). */
+    data class Statistika(val blokiranih: Long, val poizvedb: Long, val dan: String, val stanje: String, val domen: Int,
                      /** Pregled Scita 4. 11. 2026: omrezje ne javi DNS (poizvedbe dobijo SERVFAIL, tujega ne izberemo). */
                      val brezKrajevnegaDns: Boolean = false)
 

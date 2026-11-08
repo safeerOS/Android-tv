@@ -2480,4 +2480,11 @@ object OsPravila {
      * (sprememba vsebine); tik Medijskega centra ga je posiljal vsako sekundo in zaslon za bralnik nikoli ni miroval.
      */
     fun drugoBesedilo(prikazano: CharSequence?, novo: CharSequence?): Boolean = prikazano?.toString().orEmpty() != novo?.toString().orEmpty()
+
+    /** Revizija RAM 8. 11. 2026 (#7): galerijske slicice najvec 12 MiB (prej 1/8 kopice = 64 MiB pri largeHeap). */
+    const val GALERIJA_NAJVEC_B = 12L * 1024 * 1024
+
+    /** Velikost LRU slicic v KiB: osmina kopice, a ne vec kot [GALERIJA_NAJVEC_B]; vsaj 1 MiB. */
+    fun galerijaPredpomnilnikKb(maxMemory: Long): Int =
+        (minOf(maxMemory / 8L, GALERIJA_NAJVEC_B).coerceAtLeast(1024L * 1024) / 1024L).toInt()
 }

@@ -177,6 +177,8 @@ class SporocilaActivity : OsActivity() {
         glavna.removeCallbacks(iskanjeZamik)
         delavec.shutdownNow()
         bralec.shutdownNow()
+        // Revizija RAM 8. 11. 2026 (#6): zbirka sporocil se zapre z zaslonom (SpletniKlepetActivity jo ze).
+        if (::shramba.isInitialized) shramba.close()
         super.onDestroy()
     }
 

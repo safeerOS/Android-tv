@@ -36,9 +36,9 @@ object DomPreverjanje {
     /** Lastnik 28. 10. 2026: v oknu dodatek, ki se v 3 s ne oglasi, steje kot »nima« - naslov se skrije. */
     private const val ROK_OKNA_MS = 3_000L
     /** Iskanje pri indeksatorju Usenet ob cakanju (vzporedno z dodatki); najvec toliko hkrati kot delavcev. */
-    private val usenetDelavec = java.util.concurrent.Executors.newFixedThreadPool(3) { r ->
+    private val usenetDelavec = Niti.sprostiMirujoce(java.util.concurrent.Executors.newFixedThreadPool(3) { r ->
         Thread(r, "safeer-dom-usenet").apply { isDaemon = true }
-    }
+    })
     /** Koliko naslovov je ostalo samo zaradi izdaje na Usenetu (za dnevnik). */
     private val usenetZadetkov = java.util.concurrent.atomic.AtomicLong()
     /** Koliko casa naprave, ki ni mogla biti preverjevalec, ne vprasamo znova. */

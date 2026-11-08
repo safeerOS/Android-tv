@@ -106,7 +106,8 @@ class GlasbaActivity : OsActivity() {
                                /** Dejanje odpre vso vsebino bloka: blok ne dobi se ene kartice »Pokazi vse«. */
                                val vse: Boolean = false)
 
-    private val delavec = Executors.newFixedThreadPool(4)
+    // Revizija RAM 8. 11. 2026 (#8): bazeni s stalnimi nitmi po 30 s brez dela sprostijo niti (Niti.sprostiMirujoce).
+    private val delavec = Niti.sprostiMirujoce(Executors.newFixedThreadPool(4))
     // Omrezno iskanje ima lasten omejen pool. Prejsnje iskanje preklicemo, da pocasni
     // strezniki ne zasedajo CPU/omrezja se dolgo po novem vnosu.
     // Brez zgornje meje: omrezna zahteva se ob preklicu ne ustavi takoj, novo iskanje pa ne sme cakati v vrsti.
@@ -129,8 +130,8 @@ class GlasbaActivity : OsActivity() {
     // Lastnik 29. 10. 2026 (03:38): plakati najboljsih zadetkov iskanja se niso naredili. Dnevnik: naslovnica z diska v
     // povprecju 1505 ms (prej 63 ms), z omrezja 5,4 s - vrsta FIFO je bila polna plakatov mreze (zdaj vsi naslovi takoj),
     // nove kartice so cakale za njimi. Zdaj zadnja zahteva pride prva (LIFO), zastarele pa se ne nalagajo ([zeliSliko]).
-    private val slikeDelavec = java.util.concurrent.ThreadPoolExecutor(6, 6, 0L, java.util.concurrent.TimeUnit.MILLISECONDS,
-        object : java.util.concurrent.LinkedBlockingDeque<Runnable>() { override fun offer(e: Runnable): Boolean = offerFirst(e) })
+    private val slikeDelavec = Niti.sprostiMirujoce(java.util.concurrent.ThreadPoolExecutor(6, 6, 0L, java.util.concurrent.TimeUnit.MILLISECONDS,
+        object : java.util.concurrent.LinkedBlockingDeque<Runnable>() { override fun offer(e: Runnable): Boolean = offerFirst(e) }))
     private val iskanjeNiti = mutableListOf<Future<*>>()
     private val slikeVTeKu = ConcurrentHashMap.newKeySet<String>()
     /** Pogledi, ki cakajo isto naslovnico; tako ob prihodu slike ne prehodimo celotnega zaslona. */
@@ -3846,7 +3847,7 @@ class GlasbaActivity : OsActivity() {
      * Naloga 86 (M3): nalaganje mreze kanalov ([naloziKanale]) - dve niti: nova izbira ne caka na prejsnjo, ki se po preklicu
      * konca v najvec sekundi ([OsPravila.cakajPoKoscih]).
      */
-    private val nalaganjeKanalov = Executors.newFixedThreadPool(2) { r -> Thread(r, "safeer-kanali-nal").apply { isDaemon = true } }
+    private val nalaganjeKanalov = Niti.sprostiMirujoce(Executors.newFixedThreadPool(2) { r -> Thread(r, "safeer-kanali-nal").apply { isDaemon = true } })
     /** Naloga 86 (M3): pregled zasebnih katalogov ([pregledZasebnih]) - dolg, zato na svoji niti. */
     private val pregledZasebnihNit = Executors.newSingleThreadExecutor { r -> Thread(r, "safeer-zasebni").apply { isDaemon = true } }
 
@@ -4357,9 +4358,9 @@ class GlasbaActivity : OsActivity() {
      * Preverjanje kanalov mreze v ozadju: samo pri dodatku, iz katerega je kanal. Naloga 74: nizka prednost (niti v
      * ozadju, [KANALI_PREVERJAM_HKRATI] hkrati); kanali so na zaslonu ze prej, preverjanje samo umakne dokazano mrtve.
      */
-    private val preverjanjeKanalov = Executors.newFixedThreadPool(KANALI_PREVERJAM_HKRATI) { r ->
+    private val preverjanjeKanalov = Niti.sprostiMirujoce(Executors.newFixedThreadPool(KANALI_PREVERJAM_HKRATI) { r ->
         Thread { android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND); r.run() }.apply { name = "safeer-kanali-prev"; isDaemon = true }
-    }
+    })
     private val kanaliVPreverjanju: MutableSet<String> = java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap<String, Boolean>())
     /** Naloga 74: do tega casa (uptime) ima uporabnikov klik na kanal prednost - preverjanje v ozadju pocaka. */
     @Volatile private var prednostKlikaDo = 0L
@@ -10266,9 +10267,9 @@ class GlasbaActivity : OsActivity() {
     }
 
     /** Naslovi okna cakajo na odgovor doma (DomPreverjanje) - niti vecinoma samo cakajo, zato jih je toliko kot okno sme hkrati. */
-    private val preverjanje = Executors.newFixedThreadPool(12)
+    private val preverjanje = Niti.sprostiMirujoce(Executors.newFixedThreadPool(12))
     /** Epizode odprtega seznama imajo svojo vrsto (uporabnik caka nanje), da jih preverjanje mreze ne zadrzuje. */
-    private val preverjanjeEpizod = Executors.newFixedThreadPool(4)
+    private val preverjanjeEpizod = Niti.sprostiMirujoce(Executors.newFixedThreadPool(4))
     private val vPreverjanju = java.util.Collections.newSetFromMap(java.util.concurrent.ConcurrentHashMap<String, Boolean>())
     @Volatile private var zadnjiDotik = 0L
 

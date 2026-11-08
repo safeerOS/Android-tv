@@ -1786,4 +1786,9 @@ private fun preizkusZapriObMenjavi() {
     preveriEnako("datoteka iz domacega omrezja brez enote ne", false, OsPravila.shranljivTok(false, true, "http://192.168.1.5/v.mkv", ""))
     preveriEnako("zeton 127.0.0.1 se ne shrani", true, OsPravila.brezTokaVNedavnih(true, "http://127.0.0.1:41234/zeton/video.mkv"))
     preveriEnako("https tok enote ostane", false, OsPravila.brezTokaVNedavnih(true, "https://cdn.example/v.mkv"))
+
+    // Revizija RAM 8. 11. 2026 (#7): slicice galerije najvec 12 MiB tudi pri veliki kopici.
+    preveriEnako("galerija: largeHeap 512 MiB -> 12 MiB", 12 * 1024, OsPravila.galerijaPredpomnilnikKb(512L * 1024 * 1024))
+    preveriEnako("galerija: kopica 64 MiB -> 8 MiB", 8 * 1024, OsPravila.galerijaPredpomnilnikKb(64L * 1024 * 1024))
+    preveriEnako("galerija: majhna kopica vsaj 1 MiB", 1024, OsPravila.galerijaPredpomnilnikKb(4L * 1024 * 1024))
 }

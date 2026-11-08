@@ -133,6 +133,10 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/OddaljenoPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/MiniPredvajalnikPravila.kt" \
     "$TEST_DIR/MiniPredvajalnikPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/Niti.kt" \
+    "$TEST_DIR/NitiTest.kt" \
+    "$SRC/si/safeer/tv/cast/MeshIskanjePravila.kt" \
+    "$TEST_DIR/MeshIskanjePravilaTest.kt" \
     "$SRC/si/safeer/tv/os/TorBoxPravila.kt" \
     "$TEST_DIR/TorBoxPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/DebridPravila.kt" \
@@ -315,6 +319,9 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.AplikacijePredpomnilnikTestK
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SporocilaPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.OddaljenoPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.MiniPredvajalnikPravilaTestKt
+# Revizija RAM/CPU 8. 11. 2026: bazeni niti sprostijo mirujoce niti (#8), iskanje sosedov mesh z umikom (#2).
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.NitiTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.cast.MeshIskanjePravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.TorBoxPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.DebridPravilaTestKt
 # Pregled 104, S1/S2 (26. 10. 2026): zavrnjen ali zaklenjen kljuc (prejem, ponoven vpis) dobi zaporo - brez novih klicev.

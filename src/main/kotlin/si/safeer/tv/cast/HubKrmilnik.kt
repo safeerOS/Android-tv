@@ -289,7 +289,7 @@ object HubKrmilnik {
             // Sosed je tu (nas je poklical ali smo ga mi): morebitni premor po neuspelih klicih zanj ne velja vec.
             HubMesh.sosedTu(id)
             if (naslov.isNotBlank()) HubMesh.zapomni(app, id, naslov)
-            else glavna.post { if (tece() && HubMesh.vklopljen(app)) nacrtujIzvolitev(app, 2_000L) }
+            else glavna.post { if (tece() && HubMesh.vklopljen(app)) { meshIskanjeMs = MeshIskanjePravila.ZACETNO_MS; nacrtujIzvolitev(app, 2_000L) } }
         }
         // »Pomagaj drugim napravam v Linku pri povezavi« (link/PomocLinka): privzeto da; izklop velja takoj.
         u.pomaga = { si.safeer.tv.link.PomocLinka.vklopljena(app) }
@@ -334,6 +334,8 @@ object HubKrmilnik {
         Log.i(TAG, "Safeer Hub tece na ${naslov()} (prioriteta ${prioriteta(app)})")
         // Izvolitev: ce v hisi ze gosti boljsi clan kroga, se mu umaknemo. Poteka v ozadju, hub
         // medtem tece - naprave, ki so pripete nanj, ob umiku najdejo izvoljenega prek mDNS.
+        meshIskanjeMs = MeshIskanjePravila.ZACETNO_MS
+        meshSosedjePrej = emptySet()
         nacrtujIzvolitev(app, PRVA_IZVOLITEV_MS)
         return true
     }
@@ -347,7 +349,9 @@ object HubKrmilnik {
     private const val PRVA_IZVOLITEV_MS = 1_500L
     private const val PONOVNA_IZVOLITEV_MS = 90_000L
     /** Link Mesh: kako pogosto iscemo nove sosede. */
-    private const val MESH_ISKANJE_MS = 15_000L
+    /** Revizija 8. 11. 2026 (#2): presledek iskanja sosedov mesh (MeshIskanjePravila); ob zagonu huba zacetni. */
+    private var meshIskanjeMs = MeshIskanjePravila.ZACETNO_MS
+    private var meshSosedjePrej: Set<String> = emptySet()
 
     private val glavna by lazy { android.os.Handler(android.os.Looper.getMainLooper()) }
     private var izvolitevNacrtovana: Runnable? = null
@@ -440,9 +444,12 @@ object HubKrmilnik {
                 // Link Mesh: nihce se ne umika - vsak Hub se poveze s sosedi (clani kroga z mesh1).
                 val kandidati = HubMesh.kandidati(app, u, HubMesh.zDopolnitvijo(app, hubi))
                 for (h in kandidati) HubMesh.poklici(app, u, h)
-                Log.i(TAG, "Mesh: sosedje ${u.sosedjeIdji()}, klicem ${kandidati.map { it.id }}")
+                val sosedje = u.sosedjeIdji().toSet()
+                meshIskanjeMs = MeshIskanjePravila.naslednje(meshIskanjeMs, MeshIskanjePravila.sprememba(meshSosedjePrej, sosedje, kandidati.size))
+                meshSosedjePrej = sosedje
+                Log.i(TAG, "Mesh: sosedje $sosedje, klicem ${kandidati.map { it.id }}, naslednje iskanje cez ${meshIskanjeMs / 1000} s")
                 pospraviKrogObCasu(app, u)
-                nacrtujIzvolitev(app, MESH_ISKANJE_MS)
+                nacrtujIzvolitev(app, meshIskanjeMs)
                 return@poisciVse
             }
             val krog = KrogNaprave.krog(app)

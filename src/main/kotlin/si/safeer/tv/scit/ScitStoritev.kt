@@ -77,6 +77,7 @@ class ScitStoritev : VpnService() {
     private var urnik: ScheduledExecutorService? = null
     private var zadnjeObvestilo = -1L
     private var zadnjiDnevnik = -1L
+    private var zadnjaZapisana: Scit.Statistika? = null
     private val izhodKljuc = Any()
     private var izhod: FileOutputStream? = null
 
@@ -526,8 +527,12 @@ class ScitStoritev : VpnService() {
         if (izbrani != upstream) { upstream = izbrani; Log.i(TAG, if (izbrani.isEmpty()) "DNS naprej: ni krajevnega" else "DNS naprej: ${izbrani.size} krajevnih") }
     }
 
+    /** Revizija 8. 11. 2026 (#10): vzdrzevanje tece vsakih 30 s - datoteka se prepise samo, ko se statistika spremeni. */
     private fun shraniStatistiko(stanje: String) {
-        Scit.zapisiStatistiko(this, Scit.Statistika(blokiranih.get(), poizvedb.get(), dan, stanje, nabor?.stevilo ?: 0, brezKrajevnega))
+        val s = Scit.Statistika(blokiranih.get(), poizvedb.get(), dan, stanje, nabor?.stevilo ?: 0, brezKrajevnega)
+        if (s == zadnjaZapisana) return
+        zadnjaZapisana = s
+        Scit.zapisiStatistiko(this, s)
     }
 
     private fun danes(): String = SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).format(Date())

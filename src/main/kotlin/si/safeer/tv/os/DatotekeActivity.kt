@@ -93,7 +93,7 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private val link by lazy { LinkUpravitelj.pridobi(this) }
     private val prilagojevalnik = Prilagojevalnik()
     private val galerija = GalerijaPrilagojevalnik()
-    private val nalagalnikSlicic = Executors.newFixedThreadPool(2)
+    private val nalagalnikSlicic = Niti.sprostiMirujoce(Executors.newFixedThreadPool(2))
     private var mrezaVklopljena = false
     private var stolpcev = 4
 
@@ -291,6 +291,8 @@ class DatotekeActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (dostop.caka) cakamOsvezitev = true
         dostop.ustavi()
         mapaDostopa = null
+        // Revizija RAM 8. 11. 2026 (#7): slicice ne ostanejo v procesu zaganjalnika, ko uporabnik zaslon Datoteke zapre.
+        if (isFinishing) GalerijaSlicice.pocisti()
         super.onStop()
     }
 

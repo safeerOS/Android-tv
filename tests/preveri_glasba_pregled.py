@@ -80,6 +80,8 @@ stare = re.findall(r"override fun (onPrepared|onStopped|onReleased|getBackBuffer
     re.findall(r"override fun (shouldContinueLoading|shouldStartPlayback)\((?!parameters)", ovoj) + \
     re.findall(r"override fun onTracksSelected\((?!parameters)", ovoj)
 preveri("Usenet LoadControl: samo nove razlicice media3 (brez starih brez PlayerId)", not stare and "getBackBufferDurationUs(playerId" in ovoj)
+# Revizija RAM 8. 11. 2026 (#1): oba nadzora nalaganja (navadni in Usenet) imata mejo bajtov medpomnilnika 48 MiB.
+preveri("LoadControl: oba nadzora z mejo 48 MiB", pt.count(".setTargetBufferBytes(48 * 1024 * 1024)") == 2)
 # Pregled US-5: preverba Doma v ozadju ne sme ustaviti filtra in vzeti rezerve klika (prednost ima samo uporabnik).
 dp = (OS / "DomPreverjanje.kt").read_text(encoding="utf-8")
 preveri("Usenet: preverba Doma isce brez prednosti klika", "Usenet.isci(app, id, ROK_OKNA_MS.toInt(), odUporabnika = false)" in dp)
