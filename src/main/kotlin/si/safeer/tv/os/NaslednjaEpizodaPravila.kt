@@ -75,6 +75,9 @@ object NaslednjaEpizodaPravila {
         else -> ODSTEVAJ
     }
 
+    /** Kartica, ki se brez odziva zapre (zaslon se sme ugasniti): vprasanje vedno, ponujena epizoda po koncu predvajanja. */
+    fun rokBrezOdziva(vrsta: Int, konec: Boolean): Boolean = vrsta == VPRASAJ || (vrsta == PONUDI && konec)
+
     /** Stevec samodejnih epizod: samodejna +1, izbira uporabnika (gumb, tipka) ga postavi na nic. */
     fun zaporednihPo(prej: Int, samodejno: Boolean): Int = if (samodejno) prej + 1 else 0
 

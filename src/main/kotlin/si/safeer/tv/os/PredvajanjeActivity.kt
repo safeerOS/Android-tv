@@ -2228,7 +2228,8 @@ class PredvajanjeActivity : OsActivity() {
             if (naslednjaEp != null && !karticaPreklicana && !karticaOdprta() && zdajPokazi) pokaziKartico()
         } else if (konecEpizode && naslednjaEp != null && !karticaPreklicana && !karticaOdprta()) pokaziKartico()
         if (NaslednjaEpizodaPravila.odstejZdaj(odstej, odprtaPrej, karticaOdprta())) odstevaj(p)
-        if (odstej && karticaOdprta() && karticaVrsta == NaslednjaEpizodaPravila.VPRASAJ &&
+        // CodeRabbit 8. 11.: tudi ponujena epizoda (samodejno izklopljeno) po koncu brez odziva ne drzi zaslona prizganega.
+        if (odstej && karticaOdprta() && NaslednjaEpizodaPravila.rokBrezOdziva(karticaVrsta, konecEpizode) &&
             NaslednjaEpizodaPravila.vprasanjeBrezOdziva(vprasanjeOdMs, android.os.SystemClock.uptimeMillis())) vprasanjeBrezOdziva()
     }
 
@@ -2247,7 +2248,8 @@ class PredvajanjeActivity : OsActivity() {
 
     /** Tipka ali dotik med vprasanjem »Se gledas?«: rok brez odziva znova. */
     private fun odzivNaVprasanje() {
-        if (karticaOdprta() && karticaVrsta == NaslednjaEpizodaPravila.VPRASAJ) vprasanjeOdMs = android.os.SystemClock.uptimeMillis()
+        if (karticaOdprta() && (karticaVrsta == NaslednjaEpizodaPravila.VPRASAJ || karticaVrsta == NaslednjaEpizodaPravila.PONUDI))
+            vprasanjeOdMs = android.os.SystemClock.uptimeMillis()
     }
 
     private fun isciNaslednjo(sk: Jamendo.Skladba, sezona: Int, epizoda: Int, kljuc: String) {
