@@ -85,6 +85,9 @@ fun main(args: Array<String>) {
     preveriEnako("izbira uporabnika in njegov vrstni red", listOf(DomovVrsticePravila.Vrstica.NEDAVNO_DODANO, DomovVrsticePravila.Vrstica.NEDAVNO),
         D.vrstice(D.izbrane("nedavno_dodano,nedavno"), DomovVrsticePravila.Vrstica.values().toSet()))
     preveriEnako("zapis tja in nazaj", "prilj_video,seznami", D.vZapis(D.izbrane("prilj_video,seznami")))
+    preveriEnako("vrstica Nadaljuj ob pasu: brez vsebine v pasu", listOf("b", "c"), D.brezVsebineVPasu(listOf("a", "b", "c"), { it }, "a"))
+    preveriEnako("vrstica Nadaljuj ob pasu: pas prazen -> vse", listOf("a", "b"), D.brezVsebineVPasu(listOf("a", "b"), { it }, null))
+    preveriEnako("vrstica Nadaljuj ob pasu: prazen id ne odstrani nicesar", listOf("", "b"), D.brezVsebineVPasu(listOf("", "b"), { it }, ""))
     preveriEnako("neznan kljuc in dvojnik izpadeta", listOf(DomovVrsticePravila.Vrstica.SEZNAMI), D.izbrane("seznami,neznano,seznami"))
     preveriEnako("vse izklopljeno ostane izklopljeno (ne privzeto)", emptyList<DomovVrsticePravila.Vrstica>(), D.izbrane(""))
     preveriEnako("premik gor v oknu", listOf(DomovVrsticePravila.Vrstica.SEZNAMI, DomovVrsticePravila.Vrstica.NEDAVNO),
@@ -120,6 +123,7 @@ fun main(args: Array<String>) {
         preveriEnako("besedila vrstic values$jezik obstajajo", false, imena.any { it == null })
         preveriEnako("besedila vrstic values$jezik brez dvojnikov", imena.size, imena.distinct().size)
         preveriEnako("besedilo »Dodaj na drug seznam« values$jezik", true, b["os_seznam_dodaj_drug"]?.isNotBlank() == true)
+        preveriEnako("besedilo »Odstrani iz Nadaljuj z ogledom« values$jezik", true, b["os_media_odstrani_nadaljuj"]?.isNotBlank() == true)
     }
 
     if (napak > 0) { println("NAPAK: $napak"); kotlin.system.exitProcess(1) }

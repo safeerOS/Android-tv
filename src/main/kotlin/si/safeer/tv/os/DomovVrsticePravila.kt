@@ -120,6 +120,13 @@ object DomovVrsticePravila {
     fun imaPlosco(jeTv: Boolean, jeLezece: Boolean, ozekZaslon: Boolean): Boolean =
         if (jeTv) true else jeLezece && !ozekZaslon
 
+    /**
+     * Vrstica Nadaljuj z ogledom ob pasu (lastnik 8. 11. 2026 10:20, zgled Jellyfin + KefinTweaks): pas kaze zadnjo
+     * nedokoncano vsebino, vrstica pod njim vse ostale - iste vsebine ne kazemo dvakrat. [vPasu] = id v pasu (null = nic).
+     */
+    fun <T> brezVsebineVPasu(kartice: List<T>, id: (T) -> String, vPasu: String?): List<T> =
+        if (vPasu.isNullOrEmpty()) kartice else kartice.filter { id(it) != vPasu }
+
     /** Polje v plosci (TV v zivo, Prenosi) se pokaze le, ce ni prazno. */
     fun prikaziPoljePlosce(prazno: Boolean): Boolean = !prazno
 }

@@ -3483,7 +3483,7 @@ class GlasbaActivity : OsActivity() {
                             val klikSk = n?.skladba ?: sk
                             Kartica(sk.naslov, sk.izvajalec, sk.slika, {
                                 if (SpletniVir.jeEnota(klikSk)) razresiSplet(klikSk) else predvajaj(listOf(klikSk), 0, izNedavnih = true)
-                            }, { meniNedavno(sk) },
+                            }, { meniNedavno(sk, R.string.os_media_odstrani_nadaljuj) },
                                 ikona = R.drawable.os_ikona_video, id = sk.id, napredek = napredekOdstotek)
                         }
                         // Naloga #38 (lastnik 8. 11. 2026): zadnja nedokoncana vsebina gre v mali predvajalnik na plosci Doma; kjer je
@@ -3498,7 +3498,11 @@ class GlasbaActivity : OsActivity() {
                         zadnjaVrstaNadaljuj = vrstaNadaljuj
                         glavna.post { if (razdelek == DOMOV && !isFinishing) osveziMcKartico() }
                         val plosca = DomovVrsticePravila.imaPlosco(jeTv(), resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE, ozekZaslon())
-                        if (vrstaNadaljuj == null || plosca) emptyList() else listOf(vrstaNadaljuj)
+                        // Lastnik 8. 11. 2026 10:20 (zgled KefinTweaks): pod pasom je vrstica z OSTALIMI nedokoncanimi -
+                        // vsebina v pasu ni se enkrat v vrstici (prej vrstice ob plosci sploh ni bilo).
+                        val ostale = if (plosca) DomovVrsticePravila.brezVsebineVPasu(kartice, { it.id }, zadnjeNadaljevanje?.skladba?.id) else kartice
+                        if (vrstaNadaljuj == null || ostale.isEmpty()) emptyList()
+                        else listOf(if (plosca) vrstaNadaljuj.copy(kartice = ostale) else vrstaNadaljuj)
                     }
                     DomovVrsticePravila.Vrstica.NADALJUJ_S_POSLUSANJEM -> {
                         val nedavniZvok = razvrsti(i, filtrirajJezike(i, MedijskiViri.nedavno(this@GlasbaActivity).filterNot { neodklenjena(it) }))
@@ -6540,9 +6544,11 @@ class GlasbaActivity : OsActivity() {
     private fun kljucNedavnega(sk: Jamendo.Skladba) = OsPravila.kljucNedavnega(sk.id, SpletniVir.cistNaslov(sk.izvajalec + " " + sk.naslov),
         sk.radio || sk.id.startsWith("tv:") || Stremio.jeVZivo(sk), sk.id.startsWith("krajevno:") || sk.id.startsWith("link:"))
 
-    private fun meniNedavno(sk: Jamendo.Skladba) {
+    // [napis]: v vrstici Nadaljuj z ogledom »Odstrani iz Nadaljuj z ogledom« (lastnik 8. 11. 2026) - odstranitev je ista
+    // (vrstica je sestavljena iz Nedavnega), uporabnik pa vidi, iz cesa jo odstrani.
+    private fun meniNedavno(sk: Jamendo.Skladba, napis: Int = R.string.os_media_odstrani_nedavno) {
         pokaziBrisanje(AlertDialog.Builder(this).setTitle(sk.naslov)
-            .setItems(arrayOf(getString(R.string.os_media_odstrani_nedavno))) { _, _ -> odstraniIzNedavnega(sk) }
+            .setItems(arrayOf(getString(napis))) { _, _ -> odstraniIzNedavnega(sk) }
             .setNegativeButton(android.R.string.cancel, null))
     }
 
