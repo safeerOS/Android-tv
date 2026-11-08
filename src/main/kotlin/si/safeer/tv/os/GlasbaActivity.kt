@@ -3500,7 +3500,9 @@ class GlasbaActivity : OsActivity() {
                         val plosca = DomovVrsticePravila.imaPlosco(jeTv(), resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE, ozekZaslon())
                         // Lastnik 8. 11. 2026 10:20 (zgled KefinTweaks): pod pasom je vrstica z OSTALIMI nedokoncanimi -
                         // vsebina v pasu ni se enkrat v vrstici (prej vrstice ob plosci sploh ni bilo).
-                        val ostale = if (plosca) DomovVrsticePravila.brezVsebineVPasu(kartice, { it.id }, zadnjeNadaljevanje?.skladba?.id) else kartice
+                        // Slepi pregled 8. 11. (10): samo, ce pas res kaze nadaljevanje (nic ne igra) - sicer bi vsebina izginila z Doma.
+                        val vPasu = if (GlasbaStoritev.trenutna() == null) zadnjeNadaljevanje?.skladba?.id else null
+                        val ostale = if (plosca) DomovVrsticePravila.brezVsebineVPasu(kartice, { it.id }, vPasu) else kartice
                         if (vrstaNadaljuj == null || ostale.isEmpty()) emptyList()
                         else listOf(if (plosca) vrstaNadaljuj.copy(kartice = ostale) else vrstaNadaljuj)
                     }
@@ -6551,11 +6553,15 @@ class GlasbaActivity : OsActivity() {
     private fun kljucNedavnega(sk: Jamendo.Skladba) = OsPravila.kljucNedavnega(sk.id, SpletniVir.cistNaslov(sk.izvajalec + " " + sk.naslov),
         sk.radio || sk.id.startsWith("tv:") || Stremio.jeVZivo(sk), sk.id.startsWith("krajevno:") || sk.id.startsWith("link:"))
 
-    // [napis]: v vrstici Nadaljuj z ogledom »Odstrani iz Nadaljuj z ogledom« (lastnik 8. 11. 2026) - odstranitev je ista
-    // (vrstica je sestavljena iz Nedavnega), uporabnik pa vidi, iz cesa jo odstrani.
+    // [napis]: v vrstici Nadaljuj z ogledom »Odstrani iz Nadaljuj z ogledom« (lastnik 8. 11. 2026) - odstrani iz Nedavnega
+    // (vrstica je sestavljena iz njega) in napredek ogleda.
     private fun meniNedavno(sk: Jamendo.Skladba, napis: Int = R.string.os_media_odstrani_nedavno) {
         pokaziBrisanje(AlertDialog.Builder(this).setTitle(sk.naslov)
-            .setItems(arrayOf(getString(napis))) { _, _ -> odstraniIzNedavnega(sk) }
+            .setItems(arrayOf(getString(napis))) { _, _ ->
+                // Slepi pregled 8. 11. (9): iz Nadaljuj z ogledom odstranimo tudi napredek - sicer ostane v pasu kot Nadaljuj.
+                if (napis == R.string.os_media_odstrani_nadaljuj) { MediaNapredek.odstrani(this, sk); SEZNAMI.remove(VIDEO) }
+                odstraniIzNedavnega(sk)
+            }
             .setNegativeButton(android.R.string.cancel, null))
     }
 
@@ -6707,7 +6713,11 @@ class GlasbaActivity : OsActivity() {
             ikone[napisMoj] = R.drawable.ic_m_bookmarks
             dejanja += napisMoj to {
                 val zdaj = MedijskiViri.preklopiMojSeznam(this, sk)
-                Toast.makeText(this, if (zdaj) R.string.os_moj_seznam_dodano else R.string.os_moj_seznam_odstranjeno, Toast.LENGTH_SHORT).show()
+                // Slepi pregled 8. 11. (14): sporocilo po dejanskem stanju - »odstranjeno« samo, ce je bilo na seznamu.
+                if (zdaj) Toast.makeText(this, R.string.os_moj_seznam_dodano, Toast.LENGTH_SHORT).show()
+                else if (na) Toast.makeText(this, R.string.os_moj_seznam_odstranjeno, Toast.LENGTH_SHORT).show()
+                // (12): Dom je v predpomnilniku - brez tega se vrstica Moj seznam ne osvezi.
+                SEZNAMI.remove(DOMOV)
                 if (razdelek == DOMOV) osvezi(DOMOV)
             }
         }

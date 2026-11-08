@@ -21,8 +21,10 @@ fun main() {
     preveriEnako("meja: dolzina ostane", P.NAJVEC, nov.size)
     preveriEnako("meja: odpade najstarejsi", false, "x${P.NAJVEC}" in nov)
     preveriEnako("meja: novi je prvi", "novi", nov.first())
-    preveriEnako("90 % je odgledano", true, P.odgledano(90_000L, 100_000L))
-    preveriEnako("89 % se ni", false, P.odgledano(89_000L, 100_000L))
+    preveriEnako("95 % je odgledano (kot Nadaljuj z ogledom)", true, P.odgledano(95_000L, 100_000L))
+    preveriEnako("94 % se ni - ostane tudi v Nadaljuj", false, P.odgledano(94_000L, 100_000L))
+    preveriEnako("enako kot OsPravila.odgledano pri 95 %", OsPravila.odgledano(95_000L, 100_000L), P.odgledano(95_000L, 100_000L))
+    preveriEnako("enako kot OsPravila.odgledano pri 94 %", OsPravila.odgledano(94_000L, 100_000L), P.odgledano(94_000L, 100_000L))
     preveriEnako("brez trajanja nikoli", false, P.odgledano(5_000L, 0L))
     if (napak > 0) { println("NAPAK: $napak"); kotlin.system.exitProcess(1) }
     println("MojSeznamPravilaTest: OK")

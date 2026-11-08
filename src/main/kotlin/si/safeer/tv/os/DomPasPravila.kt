@@ -62,8 +62,15 @@ object DomPasPravila {
     fun visinaDp(sirinaDp: Int, visinaZaslonaDp: Int): Int = when {
         sirinaDp < 600 -> 170
         visinaZaslonaDp <= 0 -> 230
-        else -> (visinaZaslonaDp * 42 / 100).coerceIn(300, 460)
+        // Slepi pregled 8. 11. (6): spodnja meja 300 dp je bila na nizkem zaslonu (telefon lezece 360 dp) 83 % zaslona -
+        // pas ne sme preseci 55 % visine; najmanj pa 170 dp kot na telefonu.
+        else -> (visinaZaslonaDp * 42 / 100).coerceIn(300, 460).coerceAtMost(visinaZaslonaDp * 55 / 100).coerceAtLeast(170)
     }
+
+    /** Opis (2 vrstici) gre v pas sele od te visine - nizje bi z naslovom 40 sp in gumbi odrezal vrh naslova (pregled 7). */
+    const val OPIS_OD_DP = 340
+
+    fun prikaziOpis(siroko: Boolean, visinaPasuDp: Int, imaOpis: Boolean): Boolean = imaOpis && siroko && visinaPasuDp >= OPIS_OD_DP
 
     /** Naslov uvoda po zgledu KefinTweaks: na TV 40 sp (berljiv s kavca, kot naslov v zgledu), na telefonu 20 sp. */
     fun velikostNaslovaSp(sirinaDp: Int): Float = if (sirinaDp < 600) 20f else 40f

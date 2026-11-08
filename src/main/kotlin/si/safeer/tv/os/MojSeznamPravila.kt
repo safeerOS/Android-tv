@@ -9,8 +9,11 @@ object MojSeznamPravila {
     /** Najvec vsebin na seznamu - starejse odpadejo (seznam za kasneje, ne arhiv). */
     const val NAJVEC = 200
 
-    /** Delez ogleda, ko je vsebina odgledana in gre s seznama sama (zgled: »remove after watched«). */
-    const val ODGLEDANO_ODSTOTKOV = 90
+    /**
+     * Delez ogleda, ko je vsebina odgledana in gre s seznama sama (zgled: »remove after watched«). Enako kot
+     * [OsPravila.odgledano] (95 %) - CodeRabbit 8. 11. 2026: pri 90 % je vsebina zapustila seznam, a ostala v Nadaljuj.
+     */
+    const val ODGLEDANO_ODSTOTKOV = 95
 
     /** Na seznam gre samo video (film, serija, epizoda), ne glasba, radio ali kanal v zivo. */
     fun ponudi(video: Boolean, radio: Boolean, kanal: Boolean): Boolean = video && !radio && !kanal

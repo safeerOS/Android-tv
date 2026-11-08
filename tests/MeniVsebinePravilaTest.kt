@@ -85,6 +85,12 @@ fun main(args: Array<String>) {
     preveriEnako("izbira uporabnika in njegov vrstni red", listOf(DomovVrsticePravila.Vrstica.NEDAVNO_DODANO, DomovVrsticePravila.Vrstica.NEDAVNO),
         D.vrstice(D.izbrane("nedavno_dodano,nedavno"), DomovVrsticePravila.Vrstica.values().toSet()))
     preveriEnako("zapis tja in nazaj", "prilj_video,seznami", D.vZapis(D.izbrane("prilj_video,seznami")))
+    preveriEnako("nova vrstica za Nadaljuj", listOf(DomovVrsticePravila.Vrstica.NADALJUJ_Z_OGLEDOM, DomovVrsticePravila.Vrstica.MOJ_SEZNAM, DomovVrsticePravila.Vrstica.SEZNAMI),
+        D.dodajNovo(listOf(DomovVrsticePravila.Vrstica.NADALJUJ_Z_OGLEDOM, DomovVrsticePravila.Vrstica.SEZNAMI), DomovVrsticePravila.Vrstica.MOJ_SEZNAM, DomovVrsticePravila.Vrstica.NADALJUJ_Z_OGLEDOM))
+    preveriEnako("nova vrstica brez Nadaljuj na zacetek", listOf(DomovVrsticePravila.Vrstica.MOJ_SEZNAM, DomovVrsticePravila.Vrstica.SEZNAMI),
+        D.dodajNovo(listOf(DomovVrsticePravila.Vrstica.SEZNAMI), DomovVrsticePravila.Vrstica.MOJ_SEZNAM, DomovVrsticePravila.Vrstica.NADALJUJ_Z_OGLEDOM))
+    preveriEnako("ze izbrana ostane", listOf(DomovVrsticePravila.Vrstica.MOJ_SEZNAM),
+        D.dodajNovo(listOf(DomovVrsticePravila.Vrstica.MOJ_SEZNAM), DomovVrsticePravila.Vrstica.MOJ_SEZNAM, null))
     preveriEnako("vrstica Nadaljuj ob pasu: brez vsebine v pasu", listOf("b", "c"), D.brezVsebineVPasu(listOf("a", "b", "c"), { it }, "a"))
     preveriEnako("vrstica Nadaljuj ob pasu: pas prazen -> vse", listOf("a", "b"), D.brezVsebineVPasu(listOf("a", "b"), { it }, null))
     preveriEnako("vrstica Nadaljuj ob pasu: prazen id ne odstrani nicesar", listOf("", "b"), D.brezVsebineVPasu(listOf("", "b"), { it }, ""))

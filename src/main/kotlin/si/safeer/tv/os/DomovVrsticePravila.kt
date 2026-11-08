@@ -32,6 +32,16 @@ object DomovVrsticePravila {
 
     fun vZapis(izbrane: List<Vrstica>): String = izbrane.distinct().joinToString(",") { it.kljuc }
 
+    /**
+     * Nova vrstica (Moj seznam, 8. 11. 2026) pri uporabniku, ki je vrstice ze uredil (slepi pregled 8): enkrat jo dodamo za
+     * [za] (ali na zacetek), sicer je ne bi videl nikoli; ce jo je ze imel, ostane, kot je.
+     */
+    fun dodajNovo(izbrane: List<Vrstica>, nova: Vrstica, za: Vrstica?): List<Vrstica> {
+        if (nova in izbrane) return izbrane
+        val i = if (za == null) -1 else izbrane.indexOf(za)
+        return izbrane.toMutableList().apply { add(i + 1, nova) }
+    }
+
     /** Vrstice domace strani: izbrane v uporabnikovem redu, brez praznih ([neprazne] = vrstice, ki imajo kaj pokazati). */
     fun vrstice(izbrane: List<Vrstica>, neprazne: Set<Vrstica>): List<Vrstica> = izbrane.filter { it in neprazne }
 

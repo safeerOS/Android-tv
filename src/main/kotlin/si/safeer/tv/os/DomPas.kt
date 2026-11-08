@@ -99,11 +99,17 @@ class DomPas(context: Context) : FrameLayout(context) {
     private val napisPodrobnosti = TextView(context)
 
     // Krozenje izbora (deklarirano pred init, ki pike doda v pas).
+    private val visinaPasuDp = DomPasPravila.visinaDp(sirinaZaslonaDp,
+        (resources.displayMetrics.heightPixels / resources.displayMetrics.density).toInt())
+    /** Krozenje je narocene (pregled 4: ponovni prikaz ga ne odriva v neskoncnost). */
+    private var krozenjeNaroceno = false
+    private val fokusPoslusalec = android.view.ViewTreeObserver.OnGlobalFocusChangeListener { _, _ -> narociKrozenje(znova = true) }
+
     /** Vsebine, med katerimi pas krozi ([prikaziVec]); prazno = brez krozenja. */
     private var krog: List<DomPasStanje> = emptyList()
     private var krogIndeks = 0
     private val pike = LinearLayout(context)
-    private val krozi = Runnable { naslednjiVKrogu() }
+    private val krozi = Runnable { krozenjeNaroceno = false; naslednjiVKrogu() }
 
     /** Zadnja narocena slika: ob vsakem prikazu (napredek) je ne nalagamo znova. */
     private var zadnjaSlika = ""
@@ -120,7 +126,7 @@ class DomPas(context: Context) : FrameLayout(context) {
         outlineProvider = object : ViewOutlineProvider() {
             override fun getOutline(view: View, outline: Outline) {
                 // Zgled KefinTweaks: na TV je pas cez vso sirino brez okvirja; na ozkem zaslonu ostane zaobljen.
-                outline.setRoundRect(0, 0, view.width, view.height, dp(if (siroko) 0 else 20).toFloat())
+                outline.setRoundRect(0, 0, view.width, view.height, dp(polmerDp()).toFloat())
             }
         }
         // Obroba fokusa je foreground: vidi se tudi cez video povrsino in sliko.
@@ -135,7 +141,7 @@ class DomPas(context: Context) : FrameLayout(context) {
             } else false
         }
 
-        podlaga.background = plosca(R.color.os_kartica_dvignjena, 0, 20)
+        podlaga.background = plosca(R.color.os_kartica_dvignjena, 0, polmerDp())
         addView(podlaga, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
 
         // Ikona je pod sliko: med nalaganjem slike (in brez nje) stoji namesto nje, slika jo prekrije sama.
@@ -154,7 +160,6 @@ class DomPas(context: Context) : FrameLayout(context) {
         povrsinaVidea.visibility = View.GONE
         addView(povrsinaVidea, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
 
-        // Senca: prosojna crna je edina barva, ki ni iz os_colors.xml - natancno to dopusca naloga.
         // Zgled KefinTweaks: slika se levo in spodaj prelije v ozadje strani (os_ozadje), ne v crno - pas se zlije z vrsticami.
         val ozadje = barva(R.color.os_ozadje)
         fun prosojno(a: Int) = Color.argb(a, Color.red(ozadje), Color.green(ozadje), Color.blue(ozadje))
@@ -244,8 +249,6 @@ class DomPas(context: Context) : FrameLayout(context) {
         pike.visibility = View.GONE
         addView(pike, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(8), Gravity.BOTTOM or Gravity.END)
             .apply { rightMargin = dp(if (siroko) 48 else 20); bottomMargin = dp(if (siroko) 40 else 16) })
-        // Fokus na pasu ali gumbu ustavi krozenje (klik mora odpreti vsebino, ki jo uporabnik vidi).
-        viewTreeObserver.addOnGlobalFocusChangeListener { _, _ -> narociKrozenje() }
     }
 
     // ------------------------------------------------------------------ krozenje izbora (zgled KefinTweaks / MediaBar)
@@ -261,19 +264,28 @@ class DomPas(context: Context) : FrameLayout(context) {
     fun prikaziVec(seznam: List<DomPasStanje>) {
         val s = seznam.take(DomPasPravila.NAJVEC_KROZENJA)
         if (s.size < 2 || s.first().vrsta != DomPasPravila.IZBOR) {
-            krog = emptyList(); pike.visibility = View.GONE; removeCallbacks(krozi)
-            s.firstOrNull()?.let { prikazi(it) }
+            s.firstOrNull()?.let { prikazi(it) } ?: ustaviKrog()
             return
         }
-        if (s != krog) {
+        val nov = s != krog
+        if (nov) {
             krog = s
             krogIndeks = 0
             sestaviPike()
-            naIzbranem?.invoke(0)
         }
-        prikazi(krog[krogIndeks.coerceIn(0, krog.size - 1)])
+        // Pregled 1: Dom po vsaki gradnji izbor postavi na prvi element - vedno mu povemo, kaj pas zares kaze.
+        naIzbranem?.invoke(krogIndeks.coerceIn(0, krog.size - 1))
+        narisi(krog[krogIndeks.coerceIn(0, krog.size - 1)])
         osveziPike()
-        narociKrozenje()
+        narociKrozenje(znova = nov)
+    }
+
+    /** Pas brez krozenja (en element, nadaljuj, igra): pike skrite, casovnik ustavljen (pregled 2). */
+    private fun ustaviKrog() {
+        krog = emptyList()
+        pike.visibility = View.GONE
+        removeCallbacks(krozi)
+        krozenjeNaroceno = false
     }
 
     private fun sestaviPike() {
@@ -293,36 +305,59 @@ class DomPas(context: Context) : FrameLayout(context) {
         }
     }
 
-    private fun narociKrozenje() {
+    /**
+     * Krozenje: samo vidno (pregled 3: zaslon v ozadju ne nalaga slik), brez fokusa daljinca in brez bralnika zaslona
+     * (pregled 5: TalkBack bere naslov, dvojni dotik mora odpreti prav tega). Ze narocenega ne odrivamo (pregled 4),
+     * razen [znova] (nov seznam ali premik fokusa).
+     */
+    private fun narociKrozenje(znova: Boolean = false) {
+        val vrsta = krog.firstOrNull()?.vrsta
+        val sme = vrsta != null && isAttachedToWindow && windowVisibility == View.VISIBLE && isShown &&
+            !bralnikZaslona() && DomPasPravila.smeKroziti(vrsta, hasFocus(), !animacijeSme(), krog.size)
+        if (!sme) { removeCallbacks(krozi); krozenjeNaroceno = false; return }
+        if (krozenjeNaroceno && !znova) return
         removeCallbacks(krozi)
-        val vrsta = krog.firstOrNull()?.vrsta ?: return
-        if (isAttachedToWindow && DomPasPravila.smeKroziti(vrsta, hasFocus(), !animacijeSme(), krog.size))
-            postDelayed(krozi, DomPasPravila.SEKUND_KROZENJA * 1000L)
+        postDelayed(krozi, DomPasPravila.SEKUND_KROZENJA * 1000L)
+        krozenjeNaroceno = true
+    }
+
+    private fun bralnikZaslona(): Boolean = try {
+        (context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? android.view.accessibility.AccessibilityManager)
+            ?.isTouchExplorationEnabled == true
+    } catch (_: Throwable) { false }
+
+    override fun onWindowVisibilityChanged(v: Int) {
+        super.onWindowVisibilityChanged(v)
+        narociKrozenje(znova = v == View.VISIBLE)
     }
 
     private fun naslednjiVKrogu() {
-        if (krog.size < 2 || hasFocus()) return
+        if (krog.size < 2 || hasFocus() || !isShown || windowVisibility != View.VISIBLE) return
         krogIndeks = DomPasPravila.naslednji(krogIndeks, krog.size)
         naIzbranem?.invoke(krogIndeks)
         val s = krog[krogIndeks]
         if (animacijeSme()) {
             vsebina.animate().cancel()
             vsebina.alpha = 0f
-            prikazi(s)
+            narisi(s)
             vsebina.animate().alpha(1f).setDuration(300L).start()
-        } else prikazi(s)
+        } else narisi(s)
         osveziPike()
         narociKrozenje()
     }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        narociKrozenje()
+        // Pregled 13: poslusalec fokusa samo, dokler je pas v oknu (sicer okno drzi stare pasove).
+        viewTreeObserver.addOnGlobalFocusChangeListener(fokusPoslusalec)
+        narociKrozenje(znova = true)
     }
 
     /** Pas zunaj okna ne krozi (brez puscanja postDelayed). */
     override fun onDetachedFromWindow() {
+        viewTreeObserver.removeOnGlobalFocusChangeListener(fokusPoslusalec)
         removeCallbacks(krozi)
+        krozenjeNaroceno = false
         super.onDetachedFromWindow()
     }
 
@@ -342,6 +377,11 @@ class DomPas(context: Context) : FrameLayout(context) {
      * [DomPasPravila.MC_NIC] pas skrije (zunaj Doma, na podstrani).
      */
     fun prikazi(s: DomPasStanje) {
+        ustaviKrog()
+        narisi(s)
+    }
+
+    private fun narisi(s: DomPasStanje) {
         if (s.vrsta == DomPasPravila.MC_NIC) {
             visibility = View.GONE
             return
@@ -361,7 +401,7 @@ class DomPas(context: Context) : FrameLayout(context) {
         val opisB = s.opis.trim()
         opis.text = opisB
         // Ozek pas (170 dp) opisa ne drzi poleg naslova, crte in gumbov - tam ga ni, da nic ni odrezano.
-        opis.visibility = if (opisB.isEmpty() || !siroko) View.GONE else View.VISIBLE
+        opis.visibility = if (DomPasPravila.prikaziOpis(siroko, visinaPasuDp, opisB.isNotEmpty())) View.VISIBLE else View.GONE
 
         // Crte in casa ni brez trajanja (tok v zivo, se nalaga) - prazen trak bi izgledal kot pokvarjen napredek.
         val casB = DomPasPravila.casNapredka(s.polozajMs, s.trajanjeMs)
@@ -413,6 +453,9 @@ class DomPas(context: Context) : FrameLayout(context) {
         podlaga.visibility = if (da || imamSliko) View.GONE else View.VISIBLE
     }
 
+    /** Na TV pas brez okvirja (zgled KefinTweaks), na ozkem zaslonu zaobljen. */
+    private fun polmerDp(): Int = if (siroko) 0 else 20
+
     private fun sirinaDp(): Int {
         val izKonfiguracije = resources.configuration.screenWidthDp
         if (izKonfiguracije > 0) return izKonfiguracije
@@ -436,7 +479,7 @@ class DomPas(context: Context) : FrameLayout(context) {
     private fun obrobaFokusa(): StateListDrawable = StateListDrawable().apply {
         addState(intArrayOf(android.R.attr.state_focused), GradientDrawable().apply {
             setColor(Color.TRANSPARENT)
-            cornerRadius = dp(20).toFloat()
+            cornerRadius = dp(polmerDp()).toFloat()   // pregled 15: obroba se ujema z robom pasu
             setStroke(dp(2), barva(R.color.os_mint))
         })
         addState(intArrayOf(), ColorDrawable(Color.TRANSPARENT))

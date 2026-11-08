@@ -361,12 +361,16 @@ object MedijskiViri {
         return nova.any { it.id == s.id }
     }
 
-    /** Odgledana vsebina gre s seznama sama ([MediaNapredek.zapisi]). */
+    /**
+     * Odgledana vsebina gre s seznama sama ([MediaNapredek.zapisi]). Slepi pregled 8. 11. (11): samo isti vnos (id, sezona,
+     * epizoda) - serija na seznamu ne izgine po ogledu prve epizode.
+     */
     @Synchronized
     fun odstraniIzMojegaSeznama(ctx: Context, s: Jamendo.Skladba) {
         val zdaj = mojSeznam(ctx)
-        if (zdaj.none { it.id == s.id }) return
-        pisi(ctx, MOJ_SEZNAM, pisiSkladbe(zdaj.filterNot { it.id == s.id }))
+        fun isti(m: Jamendo.Skladba) = m.id == s.id && m.season == s.season && m.episode == s.episode
+        if (zdaj.none { isti(it) }) return
+        pisi(ctx, MOJ_SEZNAM, pisiSkladbe(zdaj.filterNot { isti(it) }))
     }
 
     /**

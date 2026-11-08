@@ -13,8 +13,21 @@ object DomovVrstice {
     private const val KLJUC = "dom_vrstice"
 
     /** Izbrane vrstice v uporabnikovem redu; brez shranjene izbire privzete ([DomovVrsticePravila.PRIVZETO]). */
-    fun izbrane(ctx: Context): List<DomovVrsticePravila.Vrstica> = DomovVrsticePravila.izbrane(
-        try { ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getString(KLJUC, null) } catch (_: Exception) { null })
+    private const val MOJ_SEZNAM_PONUJEN = "dom_vrstice_moj_seznam"
+
+    fun izbrane(ctx: Context): List<DomovVrsticePravila.Vrstica> {
+        val n = try { ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE) } catch (_: Exception) { null }
+        val zapis = try { n?.getString(KLJUC, null) } catch (_: Exception) { null }
+        val izbrane = DomovVrsticePravila.izbrane(zapis)
+        // Slepi pregled 8. 11. (8): Moj seznam je nov - kdor je vrstice ze uredil, ga enkrat dobi za Nadaljuj z ogledom;
+        // ce ga potem skrije, ostane skrit (zastavica).
+        if (n != null && zapis != null && !n.getBoolean(MOJ_SEZNAM_PONUJEN, false)) {
+            val nove = DomovVrsticePravila.dodajNovo(izbrane, DomovVrsticePravila.Vrstica.MOJ_SEZNAM, DomovVrsticePravila.Vrstica.NADALJUJ_Z_OGLEDOM)
+            n.edit().putString(KLJUC, DomovVrsticePravila.vZapis(nove)).putBoolean(MOJ_SEZNAM_PONUJEN, true).apply()
+            return nove
+        }
+        return izbrane
+    }
 
     fun shrani(ctx: Context, izbrane: List<DomovVrsticePravila.Vrstica>) =
         ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).edit().putString(KLJUC, DomovVrsticePravila.vZapis(izbrane)).apply()
