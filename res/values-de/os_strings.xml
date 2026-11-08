@@ -618,6 +618,11 @@
     <string name="os_spor_izbrisi_pri_meni">Bei mir löschen</string>
     <string name="os_spor_izbrisi_sporocilo_vprasanje">Diese Nachricht auf diesem Gerät löschen? Die andere Seite behält sie.</string>
     <string name="os_spor_izbrisi_pogovor">Unterhaltung löschen</string>
+    <string name="os_spor_izbrisi_vse">Alle löschen</string>
+    <plurals name="os_spor_izbrisi_vse_vprasanje">
+        <item quantity="one">%d Unterhaltung auf diesem Gerät löschen? Die Gegenseite behält sie, Markierungen bleiben.</item>
+        <item quantity="other">Alle %d Unterhaltungen auf diesem Gerät löschen? Die Gegenseite behält sie, Markierungen bleiben.</item>
+    </plurals>
     <string name="os_spor_izbrisi_pogovor_vprasanje">Die Unterhaltung mit %1$s auf diesem Gerät löschen? Die andere Seite behält sie, Labels bleiben.</string>
     <string name="os_spor_izbrisi">Löschen</string>
     <string name="os_spor_izbrisano">Gelöscht</string>

@@ -527,6 +527,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         OddaljenoPredvajanje.poslusalci.add(medijiPoslusalec)
         TujePredvajanje.poslusalci.add(medijiPoslusalec)
         ZnackeObvestil.poslusalci.add(posodobiZnacke)
+        osveziDokZnacke()   // ob vrnitvi iz Sporocil (prebrano, izbrisano) takoj, ne sele ob naslednjem obvestilu
         Posodobitve.preveri(this) { _, _ -> if (!isFinishing) osveziDokZnacke() }
         dock?.osvezi()
     }
@@ -2542,11 +2543,16 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         if (gumb != null) {
             val znacka = gumb.findViewWithTag<TextView>("znacka_sporocila")
             if (znacka != null) {
-                // Naloga 49: samo obvestila, ki cakajo na cloveka
-                val koliko = ZnackeObvestil.stevci.values.sum()
-                val b = ZaganjalnikPravila.besediloZnacke(koliko)
-                znacka.text = b
-                znacka.visibility = if (b.isNotEmpty()) View.VISIBLE else View.GONE
+                // Lastnik 8. 11. 2026: znacka nad Sporocili steje SAMO neprebrana sporocila (prej vsa obvestila drugih
+                // aplikacij, ki cakajo na cloveka - po vklopu »Dostop do obvestil« je kazala 4 brez enega sporocila).
+                Thread({
+                    val b = ZaganjalnikPravila.besediloZnacke(SporocilaZnak.steviloNeprebranih(this))
+                    glavna.post {
+                        if (isFinishing || isDestroyed) return@post
+                        znacka.text = b
+                        znacka.visibility = if (b.isNotEmpty()) View.VISIBLE else View.GONE
+                    }
+                }, "SafeerZnackaSporocil").start()
             }
         }
         val nastavitve = dok.findViewWithTag<View>("dok:" + PokrajinaPravila.NASTAVITVE)

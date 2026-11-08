@@ -685,7 +685,7 @@ class StranskaVrstica private constructor(
         }
         postavka.addView(znacka, LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(17)))
         Thread({
-            val koliko = try { SporocilaShramba(dejavnost).use { s -> s.pogovori().sumOf { it.neprebrano } } } catch (_: Throwable) { 0 }
+            val koliko = SporocilaZnak.steviloNeprebranih(dejavnost)
             val b = ZaganjalnikPravila.besediloZnacke(koliko)
             dejavnost.runOnUiThread {
                 if (dejavnost.isFinishing) return@runOnUiThread

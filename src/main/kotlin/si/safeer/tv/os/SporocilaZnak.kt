@@ -61,13 +61,18 @@ object SporocilaZnak {
         return okvir
     }
 
+    /**
+     * Neprebrana sporocila (pogovori v Sporocilih in spletne storitve - WhatsApp, Telegram ... - po naslovu strani).
+     * Klic iz ozadja (baza). Lastnik 8. 11. 2026: znacka nad Sporocili steje SAMO neprebrana sporocila.
+     */
+    fun steviloNeprebranih(c: android.content.Context): Int = try { SporocilaShramba(c).use { s -> s.pogovori().sumOf { it.neprebrano.coerceAtLeast(0) } +
+        s.kanali().filter { it.vrsta == SpletniKlepetiPravila.VRSTA }.sumOf { s.stanjeKanala(it.id).optInt("neprebrano", 0).coerceAtLeast(0) } } } catch (_: Throwable) { 0 }
+
     /** Stevilo neprebranih prebere v ozadju (baza) in ga vpise v znacko gumba. */
     fun osvezi(a: Activity, gumb: View?) {
         gumb ?: return
         Thread({
-            // Spletne storitve (WhatsApp, Telegram ... v Sporocilih) stejejo neprebrana iz naslova strani (stanje kanala).
-            val koliko = try { SporocilaShramba(a).use { s -> s.pogovori().sumOf { it.neprebrano } +
-                s.kanali().filter { it.vrsta == SpletniKlepetiPravila.VRSTA }.sumOf { s.stanjeKanala(it.id).optInt("neprebrano", 0).coerceAtLeast(0) } } } catch (_: Throwable) { 0 }
+            val koliko = steviloNeprebranih(a)
             glavna.post {
                 if (a.isFinishing) return@post
                 val z = gumb.findViewWithTag<TextView>("znacka") ?: return@post

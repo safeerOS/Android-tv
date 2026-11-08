@@ -626,6 +626,13 @@
     <string name="os_spor_izbrisi_pri_meni">Izbriši pri meni</string>
     <string name="os_spor_izbrisi_sporocilo_vprasanje">Izbrišem to sporočilo na tej napravi? Druga stran ga obdrži.</string>
     <string name="os_spor_izbrisi_pogovor">Izbriši pogovor</string>
+    <string name="os_spor_izbrisi_vse">Izbriši vse</string>
+    <plurals name="os_spor_izbrisi_vse_vprasanje">
+        <item quantity="one">Izbrišem %d pogovor na tej napravi? Druga stran ga obdrži, oznake ostanejo.</item>
+        <item quantity="two">Izbrišem oba pogovora (%d) na tej napravi? Druga stran ju obdrži, oznake ostanejo.</item>
+        <item quantity="few">Izbrišem vse %d pogovore na tej napravi? Druga stran jih obdrži, oznake ostanejo.</item>
+        <item quantity="other">Izbrišem vseh %d pogovorov na tej napravi? Druga stran jih obdrži, oznake ostanejo.</item>
+    </plurals>
     <string name="os_spor_izbrisi_pogovor_vprasanje">Izbrišem pogovor z osebo %1$s na tej napravi? Druga stran ga obdrži, oznake ostanejo.</string>
     <string name="os_spor_izbrisi">Izbriši</string>
     <string name="os_spor_izbrisano">Izbrisano</string>

@@ -133,6 +133,9 @@ class SporocilaShramba(c: Context) : SQLiteOpenHelper(c.applicationContext, "spo
         } finally { db.endTransaction() }
     }
 
+    /** »Izbrisi vse« (lastnik 8. 11. 2026): vsak pogovor kot [izbrisiPogovor] - pogovor se vrne samo z novim sporocilom. */
+    fun izbrisiVsePogovore() { for (p in pogovori()) izbrisiPogovor(p.kanalId, p.id) }
+
     /**
      * »Izbrisi pogovor«: vsa sporocila pogovora in pogovor sam na tej napravi. Oznake ostanejo (v seznamu oznak, nepovezane);
      * pogovor se vrne samo z novim sporocilom ([SporocilaPravila.pogovorSeVrne]).

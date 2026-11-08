@@ -618,6 +618,11 @@
     <string name="os_spor_izbrisi_pri_meni">Elimina per me</string>
     <string name="os_spor_izbrisi_sporocilo_vprasanje">Eliminare questo messaggio su questo dispositivo? L’altra parte lo conserva.</string>
     <string name="os_spor_izbrisi_pogovor">Elimina conversazione</string>
+    <string name="os_spor_izbrisi_vse">Elimina tutto</string>
+    <plurals name="os_spor_izbrisi_vse_vprasanje">
+        <item quantity="one">Eliminare %d conversazione su questo dispositivo? L’altra parte la conserva, le etichette restano.</item>
+        <item quantity="other">Eliminare tutte le %d conversazioni su questo dispositivo? L’altra parte le conserva, le etichette restano.</item>
+    </plurals>
     <string name="os_spor_izbrisi_pogovor_vprasanje">Eliminare la conversazione con %1$s su questo dispositivo? L’altra parte la conserva; le etichette restano.</string>
     <string name="os_spor_izbrisi">Elimina</string>
     <string name="os_spor_izbrisano">Eliminato</string>

@@ -623,6 +623,11 @@
     <string name="os_spor_izbrisi_pri_meni">Delete for me</string>
     <string name="os_spor_izbrisi_sporocilo_vprasanje">Delete this message on this device? The other side keeps it.</string>
     <string name="os_spor_izbrisi_pogovor">Delete conversation</string>
+    <string name="os_spor_izbrisi_vse">Delete all</string>
+    <plurals name="os_spor_izbrisi_vse_vprasanje">
+        <item quantity="one">Delete %d conversation on this device? The other side keeps it, tags stay.</item>
+        <item quantity="other">Delete all %d conversations on this device? The other side keeps them, tags stay.</item>
+    </plurals>
     <string name="os_spor_izbrisi_pogovor_vprasanje">Delete the conversation with %1$s on this device? The other side keeps it; labels stay.</string>
     <string name="os_spor_izbrisi">Delete</string>
     <string name="os_spor_izbrisano">Deleted</string>

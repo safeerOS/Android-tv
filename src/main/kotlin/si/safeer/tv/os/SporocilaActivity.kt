@@ -38,6 +38,7 @@ class SporocilaActivity : OsActivity() {
     private lateinit var shramba: SporocilaShramba
     private lateinit var kanaliVrsta: LinearLayout
     private lateinit var dodajGumb: View
+    private lateinit var izbrisiVseGumb: View
     private lateinit var seznamPlosca: View
     private lateinit var seznam: LinearLayout
     private lateinit var prazno: TextView
@@ -235,6 +236,12 @@ class SporocilaActivity : OsActivity() {
             if (!siroko) { textSize = 13f; setPadding(dp(12), dp(9), dp(12), dp(9)) }
             id = View.generateViewId(); setOnClickListener { dodajKanal() }
         }
+        // Lastnik 8. 11. 2026: v Sporocilih manjka brisanje vseh sporocil - gumb je viden, ko so pogovori.
+        izbrisiVseGumb = gumb(getString(R.string.os_spor_izbrisi_vse)).apply {
+            if (!siroko) { textSize = 13f; setPadding(dp(12), dp(9), dp(12), dp(9)) }
+            id = View.generateViewId(); visibility = View.GONE; setOnClickListener { potrdiIzbrisVseh() }
+        }
+        glava.addView(izbrisiVseGumb, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginEnd = dp(10) })
         glava.addView(dodajGumb)
         root.addView(glava)
 
@@ -525,6 +532,7 @@ class SporocilaActivity : OsActivity() {
         val kanali = d.kanali
         val vrste = kanali.associate { it.id to it.vrsta }
         val pogovori = d.pogovori
+        izbrisiVseGumb.visibility = if (pogovori.isNotEmpty()) View.VISIBLE else View.GONE
         // Pregled zaslonov 5. 11. 2026: fokus v seznamu ostane na istem pogovoru (ali sosednjem, ce ga ni vec).
         val fokus = currentFocus
         val fokusOznaka = if (fokus != null && jePotomec(seznam, fokus)) fokus.tag as? String else null
@@ -1055,6 +1063,24 @@ class SporocilaActivity : OsActivity() {
             }
             .setNegativeButton(R.string.os_preklici, null).create()
         // Privzeti gumb je Preklici: zadrzan OK, ki je odprl meni, ne sme takoj izbrisati.
+        okno.setOnShowListener { okno.getButton(AlertDialog.BUTTON_NEGATIVE)?.requestFocus() }
+        Kontroler.pokazi(okno); okno.show()
+    }
+
+    /** »Izbrisi vse«: po potrditvi vsi pogovori na tej napravi (kot Izbrisi pogovor za vsakega); fokus na Preklici. */
+    private fun potrdiIzbrisVseh() {
+        val koliko = try { shramba.pogovori().size } catch (_: Throwable) { 0 }
+        if (koliko == 0) return
+        val okno = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
+            .setTitle(R.string.os_spor_izbrisi_vse)
+            .setMessage(resources.getQuantityString(R.plurals.os_spor_izbrisi_vse_vprasanje, koliko, koliko))
+            .setPositiveButton(R.string.os_spor_izbrisi) { _, _ ->
+                shramba.izbrisiVsePogovore()
+                Toast.makeText(this, R.string.os_spor_izbrisano, Toast.LENGTH_SHORT).show()
+                pokaziPogovor(null)
+                narisiSeznam()
+            }
+            .setNegativeButton(R.string.os_preklici, null).create()
         okno.setOnShowListener { okno.getButton(AlertDialog.BUTTON_NEGATIVE)?.requestFocus() }
         Kontroler.pokazi(okno); okno.show()
     }
