@@ -13137,7 +13137,9 @@ class GlasbaActivity : OsActivity() {
         v.tag = url
         val cakajo = mutableListOf(java.lang.ref.WeakReference(v))
         cakajociPas.putIfAbsent(url, cakajo)?.let { l -> synchronized(l) { l.add(java.lang.ref.WeakReference(v)) }; return }
-        val mere = v.layoutParams
+        // Mere preberemo tu (glavna nit): narisi spreminja isti layoutParams na mestu.
+        val sirinaPogleda = v.layoutParams?.width ?: -1
+        val visinaPogleda = v.layoutParams?.height ?: -1
         slikePasuDelavec.execute {
             var izid: android.graphics.Bitmap? = null
             try {
@@ -13149,15 +13151,18 @@ class GlasbaActivity : OsActivity() {
                 // Slepi pregled 8. 11. 2026: zamegljena slika drobno, ostra ob strani v meri pogleda (~274 px na TV), ozadje
                 // cez pas v polni - nobena se ne dekodira v polni meri po nepotrebnem.
                 val px = if (zamegli) DomPasPravila.ZAMEGLJENO_PX
-                    else DomPasPravila.pikslovSlike(mere?.width ?: -1, mere?.height ?: -1, polni)
+                    else DomPasPravila.pikslovSlike(sirinaPogleda, visinaPogleda, polni)
                 // TV 8. 11. 2026: ozadja in logotipi so se prenasali ob vsakem zagonu - najprej disk, nato omrezje.
                 val zDiska = MedijskiPredpomnilnik.slikaPasu(this, izvor)
                 var b = zDiska?.let { VarnaSlika.izBajtov(it, px) }?.let { MedijskiPredpomnilnik.pomanjsaj(it, px) }
                 if (zDiska != null && b == null) MedijskiPredpomnilnik.pozabiSlikoPasu(this, izvor)   // pokvarjen zapis
+                // Premajhna slika z diska ostane rezerva, ce omrezja ni (bolje manj ostra kot nobena).
+                val rezerva = b
                 if (b != null && !zamegli && DomPasPravila.premajhnaZDiska(maxOf(b.width, b.height), px)) b = null
                 if (b == null) {
-                    val surovi = SpletniVir.bajtiSlike(this, izvor) ?: Jamendo.bajti(izvor) ?: return@execute
-                    b = VarnaSlika.izBajtov(surovi, px)?.let { MedijskiPredpomnilnik.pomanjsaj(it, px) } ?: return@execute
+                    val surovi = SpletniVir.bajtiSlike(this, izvor) ?: Jamendo.bajti(izvor)
+                    b = surovi?.let { VarnaSlika.izBajtov(it, px) }?.let { MedijskiPredpomnilnik.pomanjsaj(it, px) }
+                    if (b == null) { b = rezerva ?: return@execute }
                     // Na disk ostra slika (ne drobna zamegljena), v meri, v kateri je bila dekodirana.
                     if (!zamegli) MedijskiPredpomnilnik.shraniSlikoPasu(this, izvor, b)
                 }

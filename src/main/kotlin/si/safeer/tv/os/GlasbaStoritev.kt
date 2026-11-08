@@ -250,7 +250,9 @@ class GlasbaStoritev : Service() {
             override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
                 // Slepi pregled 8. 11. 2026: po sprostitvi (stop) je predvajalnik IDLE - play() iz seje ali obvestila
                 // ga mora pripraviti znova na istem mestu, sicer gumb kaze predvajanje, slike in zvoka pa ni.
-                if (OsPravila.pripraviObPredvajaj(playWhenReady, p.playbackState == Player.STATE_IDLE, p.mediaItemCount, p.playerError != null)) p.prepare()
+                // Ne med sejo na zvocniku (posljiNaZvocnik ustavi lokalnega - play() ne sme zaigrati se tu).
+                if (predvajalnik === p && !naZvocniku() &&
+                    OsPravila.pripraviObPredvajaj(playWhenReady, p.playbackState == Player.STATE_IDLE, p.mediaItemCount, p.playerError != null)) p.prepare()
                 narociSprostitev(); osvezi()
             }
             override fun onTracksChanged(tracks: androidx.media3.common.Tracks) = preveriDekoderje(p, tracks)
@@ -1476,7 +1478,7 @@ class GlasbaStoritev : Service() {
                     pomocniTok = pomocni)) {
                 Log.i("SafeerOsMedia", "video ${ms / 1000} s na pavzi brez zaslona predvajanja: predvajalnik ustavljen, mesto ostane")
                 e.stop()
-            } else if (video && !e.playWhenReady) glavnaNit.postDelayed(this, 15_000L)   // zaslon je odprt: preverimo kasneje
+            } else if (video && !e.playWhenReady && PredvajanjeActivity.odprt) glavnaNit.postDelayed(this, 15_000L)   // zaslon je odprt: preverimo kasneje
         }
     }
 

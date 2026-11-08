@@ -129,6 +129,7 @@ class DomPas(context: Context) : FrameLayout(context) {
     private var visinaPasuDp = DomPasPravila.visinaDp(sirinaZaslonaDp,
         (resources.displayMetrics.heightPixels / resources.displayMetrics.density).toInt())
     private var zadnjaZameglitev: Boolean? = null
+    private var zadnjiVideo = true
     private var meraNaslova = -1 to -1
     /** Krozenje je narocene (pregled 4: ponovni prikaz ga ne odriva v neskoncnost). */
     private var krozenjeNaroceno = false
@@ -445,6 +446,8 @@ class DomPas(context: Context) : FrameLayout(context) {
             (logo.layoutParams as? LinearLayout.LayoutParams)?.let { lp ->
                 lp.height = dp(DomPasPravila.visinaLogotipaDp(sirinaV, visina, resources.configuration.fontScale)); logo.layoutParams = lp
             }
+            val (plakatS, plakatV) = DomPasPravila.meraPlakata(visina, zadnjiVideo)
+            (plakat.layoutParams as? FrameLayout.LayoutParams)?.let { lp -> lp.width = dp(plakatS); lp.height = dp(plakatV); plakat.layoutParams = lp }
         }
         super.onMeasure(sirinaSpec, MeasureSpec.makeMeasureSpec(dp(visina), MeasureSpec.EXACTLY))
     }
@@ -509,6 +512,7 @@ class DomPas(context: Context) : FrameLayout(context) {
         // TV 8. 11. 2026: zvok brez ozadja (logotip postaje) ni vec raztegnjen cez pas - oster kvadrat ob strani, ista slika
         // drobna (zamegljena) in zatemnjena cez pas ([DomPasPravila.slikePasu]); film ostane plakat 2:3.
         val (url, plakatB) = DomPasPravila.slikePasu(s.ozadjeUrl, s.slikaUrl, siroko, s.video)
+        zadnjiVideo = s.video
         val (plakatS, plakatV) = DomPasPravila.meraPlakata(visinaPasuDp, s.video)
         (plakat.layoutParams as? FrameLayout.LayoutParams)?.let { lp ->
             if (lp.width != dp(plakatS) || lp.height != dp(plakatV)) { lp.width = dp(plakatS); lp.height = dp(plakatV); plakat.layoutParams = lp }
@@ -521,17 +525,19 @@ class DomPas(context: Context) : FrameLayout(context) {
             if (zamegli) slika.setColorFilter(prosojnoOzadje(150), android.graphics.PorterDuff.Mode.SRC_ATOP) else slika.clearColorFilter()
         }
         if (url.isEmpty()) naAmbient?.invoke(null)
-        if (url != zadnjaSlika) {
-            zadnjaSlika = url
-            slika.setImageDrawable(null)
-            slika.tag = null   // slepi pregled: nalagalnik po oznaki ve, ali je prispela slika se prava
-            if (url.isNotEmpty()) naloziSliko?.invoke(url, slika)
-        }
+        // Slepi pregled 8. 11. 2026: oster kvadrat ob strani najprej (ena nit nalaganja) - zamegljena ista slika ga nato
+        // najde na disku in se ne prenese drugic.
         if (plakatB != zadnjiPlakat) {
             zadnjiPlakat = plakatB
             plakat.setImageDrawable(null)
             plakat.tag = null
             if (plakatB.isNotEmpty()) naloziSliko?.invoke(plakatB, plakat)
+        }
+        if (url != zadnjaSlika) {
+            zadnjaSlika = url
+            slika.setImageDrawable(null)
+            slika.tag = null   // slepi pregled: nalagalnik po oznaki ve, ali je prispela slika se prava
+            if (url.isNotEmpty()) naloziSliko?.invoke(url, slika)
         }
         val logoB = s.logoUrl.trim()
         if (logoB != zadnjiLogo) {

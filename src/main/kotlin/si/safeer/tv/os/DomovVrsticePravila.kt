@@ -154,11 +154,6 @@ object DomovVrsticePravila {
     /** Lastnik 8. 11. 2026: pas na vrhu, nato vrstice, plosca (TV v zivo, Prenosi, Kaj igra) »cisto nazadnje«. */
     fun <T> razporedDoma(pas: T, plosca: T, vrstice: List<T>): List<T> = listOf(pas) + vrstice + plosca
 
-    /**
-     * GOR/DOL med vrsticami Doma (TV 8. 11. 2026): sistem izbere kartico z najblizjo sredino - DOL s prve siroke kartice
-     * Nadaljuj je pristal na drugi mali kartici. Izberemo kartico, katere levi rob je najblizje levemu robu [levo]
-     * (enako -> bolj levo). Vrne kazalo v [kandidati] ali -1, ce jih ni.
-     */
     private val OZNAKA_KARTICE_MREZE = Regex("#\\d+$")
 
     /**
@@ -168,6 +163,11 @@ object DomovVrsticePravila {
     fun jeOznakaGlave(oznaka: String?): Boolean = oznaka != null &&
         (oznaka.startsWith("r:") || (oznaka.startsWith("k:") && !OZNAKA_KARTICE_MREZE.containsMatchIn(oznaka)))
 
+    /**
+     * GOR/DOL med vrsticami Doma (TV 8. 11. 2026): sistem izbere kartico z najblizjo sredino - DOL s prve siroke kartice
+     * Nadaljuj je pristal na drugi mali kartici. Izberemo kartico, katere levi rob je najblizje levemu robu [levo]
+     * (enako -> bolj levo). Vrne kazalo v [kandidati] ali -1, ce jih ni.
+     */
     fun stolpecPoLevemRobu(levo: Int, kandidati: List<Int>): Int {
         var naj = -1
         for (i in kandidati.indices) {

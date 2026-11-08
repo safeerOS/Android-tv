@@ -43,10 +43,10 @@ object McVidezPravila {
     fun sirinaKartice(sirinaDp: Int, stolpcev: Int): Int =
         (sirinaDp / stolpcev.coerceAtLeast(1) - NOTRANJI_ROB_DP - RAZMIK_DOMA_DP).coerceAtLeast(1)
 
-    /** Povecava kartice s fokusom; ob zmanjsanem gibanju je ni (ostane samo obroba). */
     /** Vsebina obreze otroke, razen ko so prikazane vrstice Doma (povecane kartice segajo cez rob). */
     fun obreziVsebino(domovVrste: List<Boolean>): Boolean = domovVrste.none { it }
 
+    /** Povecava kartice s fokusom; ob zmanjsanem gibanju je ni (ostane samo obroba). */
     fun povecavaFokusa(fokus: Boolean, zmanjsanoGibanje: Boolean): Float = if (fokus && !zmanjsanoGibanje) 1.04f else 1f
 
     /** Trajanje povecave fokusa (ms). */

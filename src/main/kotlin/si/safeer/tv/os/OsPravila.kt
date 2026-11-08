@@ -681,8 +681,13 @@ object OsPravila {
     fun pripraviObPredvajaj(predvajaj: Boolean, idle: Boolean, stevilo: Int, napaka: Boolean): Boolean =
         predvajaj && idle && stevilo > 0 && !napaka
 
-    /** Tok, ki ga drzi pomocnik ali krajevni pogon (torrent, Usenet, 127.0.0.1, safeer-pomoc:) - po stop() ga morda ni vec. */
-    fun pomocniTok(sprotni: Boolean, zvok: String): Boolean = sprotni || (zvok.isNotEmpty() && !zvok.startsWith("https://"))
+    /**
+     * Tok, ki ga drzi pomocnik ali krajevni pogon (torrent, Usenet na 127.0.0.1, safeer-pomoc:) - po stop() ga morda ni vec.
+     * Slepi pregled 8. 11. 2026: datoteke naprave (content://, file://) in streznik v domacem omrezju se pripravijo znova.
+     */
+    fun pomocniTok(sprotni: Boolean, zvok: String): Boolean = sprotni || zvok.startsWith("safeer-pomoc:") || KRAJEVNI_POGON.containsMatchIn(zvok)
+
+    private val KRAJEVNI_POGON = Regex("^https?://(127\\.0\\.0\\.1|localhost|\\[::1\\])(:|/|$)", RegexOption.IGNORE_CASE)
 
     fun ponudiNadaljevanje(mestoMs: Long, trajanjeMs: Long): Boolean =
         mestoMs >= 10_000 && (trajanjeMs <= 0 || mestoMs < trajanjeMs * 95 / 100)
