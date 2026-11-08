@@ -225,6 +225,15 @@ fun main() {
     preveriEnako("tuja za prikaz: brez naslova ne", false, MiniPredvajalnikPravila.tujaZaPrikaz("", 3))
     preveriEnako("tuja za prikaz: ustavljena ne", false, MiniPredvajalnikPravila.tujaZaPrikaz("Pesem", 1))
     preveriEnako("tuja za prikaz: premor da", true, MiniPredvajalnikPravila.tujaZaPrikaz("Pesem", 2))
+    // Slepi pregled 8. 11. 2026: preskok na naslednjo skladbo, povezovanje in previjanje so »igra«.
+    for (st in listOf(4, 5, 8, 9, 10, 11)) preveriEnako("tuja igra: stanje $st", true, MiniPredvajalnikPravila.tujaIgra(st))
+    preveriEnako("tuja igra: premor ne", false, MiniPredvajalnikPravila.tujaIgra(2))
+    preveriEnako("tuja seja: med skladbama (10) ima prednost pred premorom", 1, MiniPredvajalnikPravila.izberiTujo(listOf(2, 10)))
+    val zd = 100_000_000L
+    preveriEnako("zascitena: igra", true, MiniPredvajalnikPravila.tujaZascitena(true, 0L, zd))
+    preveriEnako("zascitena: premor iz docka pred 2 min", true, MiniPredvajalnikPravila.tujaZascitena(false, zd - 120_000L, zd))
+    preveriEnako("zascitena: premor iz docka pred 11 min ne", false, MiniPredvajalnikPravila.tujaZascitena(false, zd - 660_000L, zd))
+    preveriEnako("zascitena: premor ob Domov (ne iz docka) ne", false, MiniPredvajalnikPravila.tujaZascitena(false, 0L, zd))
 
     if (napak == 0) println("MiniPredvajalnikPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

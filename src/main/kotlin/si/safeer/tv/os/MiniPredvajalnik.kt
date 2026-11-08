@@ -238,8 +238,9 @@ class MiniPredvajalnik(
     /** Drsnik in gumb zvocnika po stanju predvajanja (skrita, kadar nimata smisla - radio, druga naprava). */
     private fun osveziCas(radio: Boolean) {
         val odd = oddaljeno()
-        val tu = try { GlasbaStoritev.trenutna() } catch (_: Throwable) { null }
-        val trajanje = if (odd) 0L else try { GlasbaStoritev.trajanjeMs() } catch (_: Throwable) { 0L }
+        // Slepi pregled: dock kaze drugo aplikacijo - drsnik, zvocnik in zatemnitev so samo za nase predvajanje.
+        val tu = if (prikazujeTuje) null else try { GlasbaStoritev.trenutna() } catch (_: Throwable) { null }
+        val trajanje = if (odd || prikazujeTuje) 0L else try { GlasbaStoritev.trajanjeMs() } catch (_: Throwable) { 0L }
         drsnik?.let { d ->
             val viden = MiniPredvajalnikPravila.drsnik(trajanje, radio, odd)
             d.visibility = if (viden) View.VISIBLE else View.GONE
@@ -383,7 +384,10 @@ class MiniPredvajalnik(
             tag = "dock:naslov"
             isFocusable = true
             setBackgroundResource(R.drawable.os_meni_postavka)
-            setOnClickListener { if (MiniPredvajalnikPravila.klikNaslova(videoTu()) == MiniPredvajalnikPravila.ODPRI_PREDVAJALNIK) odpriPredvajalnik() else odpriMedije() }
+            setOnClickListener {
+                if (prikazujeTuje) { if (!TujePredvajanje.odpri(a)) odpriMedije() }
+                else if (MiniPredvajalnikPravila.klikNaslova(videoTu()) == MiniPredvajalnikPravila.ODPRI_PREDVAJALNIK) odpriPredvajalnik() else odpriMedije()
+            }
         }
         besedila.addView(naslovni, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         val nPogled = TextView(a).apply {
@@ -455,7 +459,8 @@ class MiniPredvajalnik(
         // Lastnik 1. 11. 2026: ✕ je samo skril predvajalnik, film je igral naprej - uporabnik pricakuje konec predvajanja.
         // ✕ zato ustavi predvajanje in skrije dock; samo skrije ga tipka Nazaj (skrijCeOdprt).
         gumbi.addView(gumb(R.drawable.os_ikona_zapri, a.getString(R.string.os_media_ustavi), "dock:skrij") {
-            GlasbaStoritev.ustavi(a); nastaviOdprt(false, fokus = daljinec)
+            if (prikazujeTuje) TujePredvajanje.preklopi() else GlasbaStoritev.ustavi(a)   // tuje: premor (ne ustavimo tuje aplikacije)
+            nastaviOdprt(false, fokus = daljinec)
         }, LinearLayout.LayoutParams(g, g))
         c.addView(gumbi)
         val lp = if (pokoncen) FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, gravitacija(m))
@@ -488,8 +493,8 @@ class MiniPredvajalnik(
      * za glasnost na daljincu (sistem pokaze svoj drsnik); zvocnik in druga naprava: isti koraki kot v izbiri zvocnika.
      */
     private fun glasnost(smer: Int) {
-        val naDrugi = try { GlasbaStoritev.naDrugiNapravi() } catch (_: Throwable) { false }
-        val naZvocniku = try { GlasbaStoritev.naZvocniku() } catch (_: Throwable) { false }
+        val naDrugi = !prikazujeTuje && try { GlasbaStoritev.naDrugiNapravi() } catch (_: Throwable) { false }
+        val naZvocniku = !prikazujeTuje && try { GlasbaStoritev.naZvocniku() } catch (_: Throwable) { false }
         when (MiniPredvajalnikPravila.ciljGlasnosti(naDrugi, naZvocniku)) {
             MiniPredvajalnikPravila.GLASNOST_DRUGA -> OddaljenoPredvajanje.glasnostZa(smer * MiniPredvajalnikPravila.KORAK_DRUGA)
             MiniPredvajalnikPravila.GLASNOST_ZVOCNIK -> Zvocniki.glasnostZa(smer * ZvocnikPravila.korakGlasnosti(Zvocniki.najGlasnost, Zvocniki.lestvicaZnana))

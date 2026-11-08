@@ -57,8 +57,19 @@ object MiniPredvajalnikPravila {
         else -> VIR_NIC
     }
 
-    /** Stanja PlaybackState (android.media.session): PAUSED 2, PLAYING 3, BUFFERING 6. */
-    fun tujaIgra(stanje: Int): Boolean = stanje == 3 || stanje == 6
+    /**
+     * Stanja PlaybackState (android.media.session): PAUSED 2, PLAYING 3, FAST_FORWARDING 4, REWINDING 5, BUFFERING 6,
+     * CONNECTING 8, SKIPPING_TO_PREVIOUS 9, SKIPPING_TO_NEXT 10, SKIPPING_TO_QUEUE_ITEM 11 - vse razen premora in
+     * ustavitve je »igra« (slepi pregled: med skladbami bi se aplikacija sicer zaprla).
+     */
+    fun tujaIgra(stanje: Int): Boolean = stanje in setOf(3, 4, 5, 6, 8, 9, 10, 11)
+
+    /** Premor, ki ga je uporabnik dal v malem predvajalniku, zasciti aplikacijo toliko casa (nadaljuje z istim gumbom). */
+    const val PREMOR_IZ_DOCKA_MS = 10L * 60_000L
+
+    /** Aplikacija s sejo ostane: igra ali jo je uporabnik v malem predvajalniku dal na premor pred manj kot 10 min. */
+    fun tujaZascitena(igra: Boolean, premorIzDockaMs: Long, zdajMs: Long): Boolean =
+        igra || (premorIzDockaMs > 0L && zdajMs - premorIzDockaMs in 0 until PREMOR_IZ_DOCKA_MS)
 
     /** Seja druge aplikacije je za prikaz, ce ima naslov in igra ali je na premoru (ustavljena/brez stanja ne). */
     fun tujaZaPrikaz(naslov: String, stanje: Int): Boolean = naslov.isNotBlank() && (tujaIgra(stanje) || stanje == 2)

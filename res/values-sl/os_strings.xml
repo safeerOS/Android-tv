@@ -785,6 +785,6 @@
     <string name="os_adb_ni_potrjeno">Na televizorju ni bilo potrjeno. Poskusi znova in izberi »Vedno dovoli«.</string>
     <string name="os_mediji_zdaj_igra">Zdaj predvaja - odpri na Domu</string>
     <string name="os_mediji_zdaj_igra_kratko">Zdaj predvaja</string>
-    <string name="os_tuje_predvajanje">Glasba drugih aplikacij na domačem zaslonu</string>
-    <string name="os_tuje_predvajanje_opis">Mali predvajalnik pokaže in upravlja predvajanje drugih aplikacij (SmartTube, YouTube …). Potrebuje sistemsko dovoljenje Dostop do obvestil – izbira odpre to stran.</string>
+    <string name="os_tuje_predvajanje">Značke obvestil in glasba drugih aplikacij</string>
+    <string name="os_tuje_predvajanje_opis">Značke za obvestila, ki čakajo, in v malem predvajalniku predvajanje drugih aplikacij (SmartTube, YouTube …). Potrebuje sistemsko dovoljenje Dostop do obvestil – izbira odpre to stran.</string>
 </resources>

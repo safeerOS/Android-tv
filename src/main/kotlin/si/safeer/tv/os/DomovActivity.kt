@@ -558,6 +558,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         // Naloga 127 (popravek 118): mini predvajalnik je na pravem domacem zaslonu televizorja.
         if (dock == null) dock = MiniPredvajalnik.naOknu(this) { startActivity(GlasbaStoritev.namenKartice(this)) }
         OddaljenoPredvajanje.poslusalci.add(medijiPoslusalec)
+        TujePredvajanje.poslusalci.add(medijiPoslusalec)
         dock?.osvezi()
     }
 
@@ -572,6 +573,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     /** Kuverta Sporocil v glavi (znacka neprebranih). */
     override fun onResume() {
         super.onResume()
+        Pomnilnik.vrnitevDomov()   // nazadnje zagnana aplikacija je bila v rabi do zdaj (lastni zapis uporabe)
         Pomnilnik.pocistiOzadje(this)
         KompletNamestitev.ponudiPrvic(this)
     }
@@ -604,6 +606,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     override fun onStop() {
         GlasbaStoritev.poslusalci.remove(medijiPoslusalec)
         OddaljenoPredvajanje.poslusalci.remove(medijiPoslusalec)
+        TujePredvajanje.poslusalci.remove(medijiPoslusalec)
         dock?.ustavi()
         glavna.removeCallbacks(tikUre)
         link.odstrani(this)

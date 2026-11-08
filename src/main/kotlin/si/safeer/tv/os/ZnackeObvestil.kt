@@ -37,6 +37,11 @@ class ZnackeObvestil : NotificationListenerService() {
         TujePredvajanje.ustavi()
     }
 
+    override fun onDestroy() {
+        TujePredvajanje.ustavi()
+        super.onDestroy()
+    }
+
     override fun onNotificationPosted(sbn: StatusBarNotification?) = prestej()
     override fun onNotificationRemoved(sbn: StatusBarNotification?) = prestej()
     override fun onNotificationRankingUpdate(rankingMap: RankingMap?) = prestej()
@@ -89,6 +94,11 @@ class ZnackeObvestil : NotificationListenerService() {
         }
 
         fun koliko(paket: String): Int = stevci[paket] ?: 0
+
+        /** Ali je poslusalec prijavljen v manifestu tega okusa (os, tablica, telefon; predvajalnik in brskalnik ne). */
+        fun prijavljen(c: Context): Boolean = try {
+            c.packageManager.getServiceInfo(ComponentName(c, ZnackeObvestil::class.java), 0); true
+        } catch (_: Throwable) { false }
 
         /** Ali je uporabnik zaganjalniku dovolil dostop do obvestil. */
         fun dovoljeno(c: Context): Boolean = try {

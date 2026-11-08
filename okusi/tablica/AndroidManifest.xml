@@ -217,7 +217,7 @@
             </intent-filter>
         </activity-alias>
 
-            <!-- Lastnik 8. 11. 2026 06:30: glasba drugih aplikacij (SmartTube ...) v malem predvajalniku in znacke obvestil.
+        <!-- Lastnik 8. 11. 2026 06:30: glasba drugih aplikacij (SmartTube ...) v malem predvajalniku in znacke obvestil.
              Sistem ga poveze sele, ko uporabnik sam vklopi »Dostop do obvestil« (Nastavitve Safeer OS odprejo to stran);
              BIND_NOTIFICATION_LISTENER_SERVICE ima samo sistem. Do 8. 11. ZnackeObvestil ni bil prijavljen. -->
         <service

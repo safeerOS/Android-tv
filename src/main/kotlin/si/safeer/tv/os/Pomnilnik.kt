@@ -49,7 +49,7 @@ object Pomnilnik {
     }
 
     /** Dom je spet na zaslonu: nazadnje zagnana aplikacija je bila v rabi do tega trenutka. */
-    fun vrnitevDomov() { zadnjiZagnan?.let { uporabljeno(it) } }
+    fun vrnitevDomov() { zadnjiZagnan?.let { uporabljeno(it) }; zadnjiZagnan = null }   // samo iz onResume doma (slepi pregled)
     @Volatile private var spremljam = false
 
     private fun spremljajOdhode(c: Context) {
@@ -175,7 +175,9 @@ object Pomnilnik {
         
         // Lastnik 8. 11. 2026 06:30: neigrajoca se zapre, igrajoca (znana seja predvajanja) ostane.
         val nedejavnost = OsPravila.nedejavnostNeigrajocih()
-        val igra = predvaja || TujePredvajanje.igraPaket() == prejsnja
+        val igraTuja = TujePredvajanje.igraPaket()
+        // Slepi pregled: zvok druge (znane) aplikacije ne zadrzi zapiranja te, ki ne igra; neznan zvok ga (kot doslej).
+        val igra = igraTuja == prejsnja || (igraTuja == null && predvaja)
         if (OsPravila.zapriObMenjavi(prejsnja, nova, casMs, c.packageName, ime, trajen, vklopljeno, igra, nedejavnost) && !vrnilSe() &&
             AdbLokalnoPravila.smemoNadaljevati(odhodiOd, odhodi)) {
             Thread {
@@ -199,15 +201,17 @@ object Pomnilnik {
     @android.annotation.SuppressLint("MissingPermission")   // dovoljenje preveri smemo(); brskalnik ga nima
     fun pocistiOzadje(c: Context, nasePredvajanje: Boolean = false, cakajMs: Long = 3000L) {
         if (!smemo(c)) return
-        if (!nasePredvajanje) vrnitevDomov()
         spremljajOdhode(c)
         val odhodiObZacetku = odhodi
         val vnosiObZacetku = vnosi
         val nadaljuj = { AdbLokalnoPravila.smemoNadaljevati(odhodiObZacetku, odhodi, vnosiObZacetku, vnosi) }
         val igraTuja = TujePredvajanje.igraPaket()
-        val predvaja = !nasePredvajanje && OsPravila.zvokUstaviVse(try {
-            (c.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager)?.isMusicActive == true
-        } catch (_: Exception) { false }, igraTuja != null)
+        val am = c.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager
+        // Slepi pregled: zvok iz aplikacije BREZ seje predvajanja (radio, igra) ob hkratni znani seji - vec virov zvoka kot
+        // znanih sej -> kot doslej ustavi vse.
+        val virov = try { am?.activePlaybackConfigurations?.size ?: 0 } catch (_: Throwable) { 0 }
+        val predvaja = !nasePredvajanje && OsPravila.zvokUstaviVse(try { am?.isMusicActive == true } catch (_: Exception) { false },
+            igraTuja != null && virov <= 1)
         Thread {
             if (cakajMs > 0L) try { Thread.sleep(cakajMs) } catch (_: Exception) {}
             if (!nadaljuj()) { Log.i(TAG, "ciscenje ozadja preskoceno - uporabnik je odprl aplikacijo"); return@Thread }

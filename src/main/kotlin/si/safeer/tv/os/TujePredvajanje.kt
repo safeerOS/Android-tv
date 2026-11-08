@@ -34,7 +34,10 @@ object TujePredvajanje {
     private var kontroler: MediaController? = null
     private val sejeSpremenjene = MediaSessionManager.OnActiveSessionsChangedListener { izberi(it.orEmpty()) }
     private val povratni = object : MediaController.Callback() {
-        override fun onPlaybackStateChanged(state: PlaybackState?) { osvezi() }
+        // Slepi pregled: izbrana seja ne igra vec - morda igra druga (seznam sej se ob tem ne spremeni nujno).
+        override fun onPlaybackStateChanged(state: PlaybackState?) {
+            if (!MiniPredvajalnikPravila.tujaIgra(state?.state ?: PlaybackState.STATE_NONE)) izberiZnova() else osvezi()
+        }
         override fun onMetadataChanged(metadata: MediaMetadata?) { osvezi() }
         override fun onSessionDestroyed() { izberiZnova() }
     }
@@ -43,7 +46,7 @@ object TujePredvajanje {
     fun zacni(c: Context, k: ComponentName) {
         glavna.post {
             try {
-                val m = c.getSystemService(MediaSessionManager::class.java) ?: return@post
+                val m = c.applicationContext.getSystemService(MediaSessionManager::class.java) ?: return@post
                 ustaviNaGlavni()
                 msm = m; komponenta = k; mojPaket = c.packageName
                 m.addOnActiveSessionsChangedListener(sejeSpremenjene, k, glavna)
@@ -63,7 +66,7 @@ object TujePredvajanje {
     private fun ustaviNaGlavni() {
         try { msm?.removeOnActiveSessionsChangedListener(sejeSpremenjene) } catch (_: Throwable) { }
         try { kontroler?.unregisterCallback(povratni) } catch (_: Throwable) { }
-        msm = null; kontroler = null
+        msm = null; kontroler = null; igraBrezPrikaza = null
         objavi(null)
     }
 
@@ -95,6 +98,8 @@ object TujePredvajanje {
                 md?.getString(MediaMetadata.METADATA_KEY_ARTIST) ?: md?.getString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE).orEmpty(),
                 MiniPredvajalnikPravila.tujaIgra(st))
         }?.takeIf { MiniPredvajalnikPravila.tujaZaPrikaz(it.naslov, st) }
+        // CodeRabbit: paket, ki igra, se steje tudi brez naslova (seja brez metapodatkov) - ciscenje ga ne zapre.
+        igraBrezPrikaza = k?.packageName?.takeIf { MiniPredvajalnikPravila.tujaIgra(st) }
         objavi(s)
     }
 
@@ -104,12 +109,26 @@ object TujePredvajanje {
         for (p in poslusalci) try { p() } catch (_: Throwable) { }
     }
 
-    /** Paket, ki zdaj igra (za ciscenje ozadja), ali null. */
-    fun igraPaket(): String? = stanje?.takeIf { it.igra }?.paket
+    @Volatile private var igraBrezPrikaza: String? = null
+
+    /** Kdaj je uporabnik v malem predvajalniku dal premor (0 = ne). */
+    @Volatile private var premorIzDocka = 0L
+
+    /** Paket, ki zdaj igra ali ga je uporabnik v malem predvajalniku dal na premor (za ciscenje ozadja), ali null. */
+    fun igraPaket(): String? = stanje?.takeIf {
+        MiniPredvajalnikPravila.tujaZascitena(it.igra, premorIzDocka, System.currentTimeMillis())
+    }?.paket ?: igraBrezPrikaza
 
     fun preklopi() {
         val t = kontroler?.transportControls ?: return
-        if (stanje?.igra == true) t.pause() else t.play()
+        if (stanje?.igra == true) { premorIzDocka = System.currentTimeMillis(); t.pause() } else { premorIzDocka = 0L; t.play() }
+    }
+
+    /** Kliknjen naslov v malem predvajalniku: odpre aplikacijo, ki igra. */
+    fun odpri(c: Context): Boolean {
+        val p = stanje?.paket ?: return false
+        val i = c.packageManager.getLeanbackLaunchIntentForPackage(p) ?: c.packageManager.getLaunchIntentForPackage(p) ?: return false
+        return try { c.startActivity(i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)); true } catch (_: Throwable) { false }
     }
     fun naslednja() { kontroler?.transportControls?.skipToNext() }
     fun prejsnja() { kontroler?.transportControls?.skipToPrevious() }

@@ -1384,8 +1384,9 @@ object OsPravila {
      * Zadnja uporaba paketa za ciscenje ozadja. TV 8. 11. 2026 06:13: Safeer OS nima dostopa do statistike uporabe
      * (GET_USAGE_STATS zavrnjen) - prazna statistika je dala 0 in vsaka aplikacija (SmartTube 60 s po Domov) je veljala
      * za 30 min neuporabljeno. Zdaj velja novejsi od statistike in lastnega zapisa (zagon iz doma, vrnitev domov, odhod
-     * v Safeer Vnosu). Brez obeh: ce statistike ni in ni stiske, uporabe ne poznamo - seja ostane (vrne [zdajMs]);
-     * s statistiko (paket 24 h ni bil uporabljen) ali v stiski velja 0 (zapre se kot doslej).
+     * v Safeer Vnosu). Brez obeh: z [stiska] = true (ali s statistiko) velja 0 = neuporabljena; z [stiska] = false
+     * uporabe ne poznamo in seja ostane (vrne [zdajMs]). Ciscenje ozadja (Pomnilnik) od lastnikove odlocitve 8. 11. 2026
+     * 06:30 (»ce ne predvaja, se zapre«) vedno poda true; veja false ostane za morebitno nastavitev »ohrani seje«.
      */
     fun zadnjaUporaba(izStatistike: Long, lastna: Long, statistikaNaVoljo: Boolean, stiska: Boolean, zdajMs: Long): Long {
         val z = maxOf(izStatistike, lastna)

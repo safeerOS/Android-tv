@@ -1289,7 +1289,11 @@ class GlasbaActivity : OsActivity() {
         val ostaneY = if (naMestu && !odVrha) drsnik.scrollY else 0
         if (vsebina.hasFocus()) zasidrajIzbiro()
         vsebina.minimumHeight = OsPravila.visinaMedRisanjem(vsebina.height, ostaneY)
-        vsebina.removeAllViews()
+        // Pas Doma (prvi otrok, isti pogled tudi v novem risanju) ostane: brez odklopa povrsine videa in izgube fokusa.
+        val pas = mcKarticaKoren
+        if (pas != null && vrste.firstOrNull()?.pogled === pas && pas.parent === vsebina && vsebina.indexOfChild(pas) == 0) {
+            if (vsebina.childCount > 1) vsebina.removeViews(1, vsebina.childCount - 1)
+        } else vsebina.removeAllViews()
         stanje.text = if (glava.isEmpty() && vrste.all { it.kartice.isEmpty() && it.pogled == null }) prazno else opis
         iskalnik?.let { vsebina.addView(it, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) }) }
         if (iskalnik != null && zasebnoIskanje == null) vsebina.addView(izbiraObsegaIskanja(), LinearLayout.LayoutParams(-2, -2).apply { bottomMargin = dp(10) })
@@ -1309,7 +1313,9 @@ class GlasbaActivity : OsActivity() {
                         setPadding(dp(leviOdmik), dp(zgOdmik), 0, dp(if (tesno) 3 else 8)) })
                 }
             }
-            if (v.pogled != null) { koraki.addLast { vsebina.addView(v.pogled) }; continue }
+            // Slepi pregled 8. 11. 2026: pas Doma (mali predvajalnik) ob prerisu ostane na mestu - fokus daljinca in slika
+            // videa v pasu se ne izgubita; drug pogled se premakne iz starega starsa.
+            if (v.pogled != null) { koraki.addLast { if (v.pogled.parent !== vsebina) { (v.pogled.parent as? android.view.ViewGroup)?.removeView(v.pogled); vsebina.addView(v.pogled) } }; continue }
             run {
                 // Mreza (plakati, kartice, ploscice kanalov): toliko v vrsto, kolikor jih gre ([mereMreze]). Kadar jo je
                 // narocil pokaziMrezo, si zapomnimo vrstice in poglede, da jo naslednjic dopolnimo na mestu.
@@ -1698,7 +1704,8 @@ class GlasbaActivity : OsActivity() {
 
     private fun osveziPloscoDomov() {
         val pokaziPlosco = razdelek == DOMOV && DomovVrsticePravila.imaPlosco(jeTv(), resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE, ozekZaslon())
-        ploscaDomov.visibility = if (pokaziPlosco) View.VISIBLE else View.GONE
+        // Slepi pregled 8. 11. 2026: plosca je vidna sele, ko ima kartico - prazna 260 dp bi premaknila ze izmerjeno mrezo.
+        ploscaDomov.visibility = View.GONE
         if (!pokaziPlosco) return
         val rod = ++rodPlosce
 
@@ -1716,6 +1723,7 @@ class GlasbaActivity : OsActivity() {
             val v = Vrsta(getString(R.string.os_mediji_tv_v_zivo), listOf(Kartica(sk.naslov, sk.izvajalec, sk.slika, { predvajaj(listOf(sk), 0) }, { meniNedavno(sk) }, id = sk.id)), kanali = true)
             ploscaDomov.addView(besedilo(16f, osBarva(R.color.os_besedilo), true).apply { text = getString(R.string.os_mediji_tv_v_zivo); setPadding(0, dp(16), 0, dp(8)) })
             ploscaDomov.addView(karticaMreze(v, v.kartice.first(), 150))
+            ploscaDomov.visibility = View.VISIBLE
         }
         
         // Prenosi v teku
@@ -3576,14 +3584,14 @@ class GlasbaActivity : OsActivity() {
                 val vrstice = DomovVrsticePravila.vrstice(izbrane, vrsteMap.keys).flatMap { vrsteMap.getValue(it) }
                 // Lastnik 8. 11. 2026 06:17 (Kinema Home.tsx): pas cez celo sirino na vrhu Doma na vseh zaslonih. Ko nic ne
                 // igra in ni nedokoncanega, kaze izbor dneva (hero.ts): naslov s sliko iz vrstic Doma, ves dan isti.
-                val sSliko = vrstice.flatMap { it.kartice }.filter { it.slika.isNotBlank() && it.id.isNotBlank() }.distinctBy { it.id }
+                val sSliko = vrstice.flatMap { it.kartice }.filter { it.slika.isNotBlank() && it.id.isNotBlank() && !it.dejanje &&
+                    it.tvId.isBlank() && it.ikona == R.drawable.os_ikona_video }.distinctBy { it.id }
                 val tz = java.util.TimeZone.getDefault()
                 val zdajMs = System.currentTimeMillis()
                 zadnjiIzbor = MiniPredvajalnikPravila.izborDneva(sSliko.map { it.id },
                     MiniPredvajalnikPravila.krajevniDan(zdajMs, tz.getOffset(zdajMs))).takeIf { it >= 0 }?.let { sSliko[it] }
                 glavna.post { if (razdelek == DOMOV && !isFinishing) osveziMcKartico() }
                 val m = mcKarticaKoren ?: ustvariMcKartico(true)
-                (m.parent as? android.view.ViewGroup)?.removeView(m)
                 listOf(Vrsta("", emptyList(), pogled = m)) + vrstice
             }
             GLASBA -> listOf(Vrsta(getString(R.string.os_mediji_prilj_glasba), skladbe(p.filter { OsPravila.zaGlasbo(it.video, it.radio, YoutubeZvok.jeYoutube(it)) }), skladbe = true)) +

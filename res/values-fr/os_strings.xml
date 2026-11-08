@@ -782,6 +782,6 @@
     <string name="os_adb_ni_potrjeno">Non confirmé sur le téléviseur. Réessayez et choisissez »Toujours autoriser«.</string>
     <string name="os_mediji_zdaj_igra">En lecture - ouvrir sur l\'Accueil</string>
     <string name="os_mediji_zdaj_igra_kratko">En lecture</string>
-    <string name="os_tuje_predvajanje">Musique des autres applis sur l\'écran d\'accueil</string>
-    <string name="os_tuje_predvajanje_opis">Le mini-lecteur affiche et contrôle la lecture des autres applis (SmartTube, YouTube…). Nécessite l\'autorisation système Accès aux notifications – ouvre cette page.</string>
+    <string name="os_tuje_predvajanje">Pastilles de notification et musique des autres applis</string>
+    <string name="os_tuje_predvajanje_opis">Pastilles pour les notifications en attente et, dans le mini-lecteur, la lecture des autres applis (SmartTube, YouTube…). Nécessite l\'autorisation système Accès aux notifications – ouvre cette page.</string>
 </resources>

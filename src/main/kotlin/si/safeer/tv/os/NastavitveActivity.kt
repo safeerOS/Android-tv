@@ -351,10 +351,10 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 narisi()
             },
             // Lastnik 8. 11. 2026 06:30: glasba drugih aplikacij v malem predvajalniku - dovoljenje vklopi uporabnik sam.
-            safeer(R.drawable.os_ikona_glasba, R.string.os_tuje_predvajanje, R.string.os_tuje_predvajanje_opis,
+            if (ZnackeObvestil.prijavljen(this)) safeer(R.drawable.os_ikona_glasba, R.string.os_tuje_predvajanje, R.string.os_tuje_predvajanje_opis,
                 vklop(ZnackeObvestil.dovoljeno(this))) {
                 ZnackeObvestil.odpriNastavitve(this)
-            },
+            } else null,
             // Lastnik 1. 11. 2026: brez zapiranja tujih aplikacij ni izdaje - na TV (Android 11) samo prek lastnega adb.
             safeer(R.drawable.os_ikona_naprava, R.string.os_adb_zapiranje, R.string.os_adb_zapiranje_opis, vklop(AdbLokalno.soglasje(this))) {
                 if (AdbLokalno.soglasje(this)) { AdbLokalno.nastaviSoglasje(this, false); narisi() } else pogojiAdb()

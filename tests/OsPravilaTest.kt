@@ -1794,13 +1794,11 @@ private fun preizkusZapriObMenjavi() {
     preveriEnako("zadnjaUporaba: statistika je, paketa ni -> 0", 0L, OsPravila.zadnjaUporaba(0L, 0L, true, false, zu))
     preveriEnako("zadnjaUporaba: lastni zapis brez statistike", zu - 60_000L, OsPravila.zadnjaUporaba(0L, zu - 60_000L, false, false, zu))
     preveriEnako("zadnjaUporaba: novejsi od obeh", zu - 5_000L, OsPravila.zadnjaUporaba(zu - 5_000L, zu - 60_000L, true, false, zu))
-    // Scenarij s TV: SmartTube zapuscen pred 60 s, statistike ni, 810 MB prostega -> NE zapri.
-    val nedej = OsPravila.nedejavnostZapiranja(OsPravila.stiskaZaSeje(810, false))
-    preveriEnako("SmartTube 60 s po Domov brez statistike ostane", false, OsPravila.zapriObVrnitvi("org.smarttube.stable", "si.safeer.os", null, false, true, false,
-        OsPravila.zadnjaUporaba(0L, zu - 60_000L, false, false, zu), zu, nedej))
-    preveriEnako("brez vsakega podatka ostane", false, OsPravila.zapriObVrnitvi("org.smarttube.stable", "si.safeer.os", null, false, true, false,
-        OsPravila.zadnjaUporaba(0L, 0L, false, false, zu), zu, nedej))
-    preveriEnako("prej (zadnja uporaba 0) bi zaprlo", true, OsPravila.zapriObVrnitvi("org.smarttube.stable", "si.safeer.os", null, false, true, false, 0L, zu, nedej))
+    // Tako, kot klice Pomnilnik (lastnik 06:30): neznana uporaba = neuporabljena, ravnokar zapuscena ostane 3 s.
+    preveriEnako("Pomnilnik: neznana uporaba se zapre", true, OsPravila.zapriObVrnitvi("org.smarttube.stable", "si.safeer.os", null, false, true, false,
+        OsPravila.zadnjaUporaba(0L, 0L, false, true, zu), zu, OsPravila.nedejavnostNeigrajocih()))
+    preveriEnako("Pomnilnik: lastni zapis pred 1 s ostane", false, OsPravila.zapriObVrnitvi("org.smarttube.stable", "si.safeer.os", null, false, true, false,
+        OsPravila.zadnjaUporaba(0L, zu - 1_000L, false, true, zu), zu, OsPravila.nedejavnostNeigrajocih()))
 
     // Lastnik 8. 11. 2026 06:30: neigrajoca se zapre (3 s), igrajoca ostane; znan paket zvoka ne ustavi vsega.
     preveriEnako("neigrajoca SmartTube 60 s po Domov se zapre", true, OsPravila.zapriObVrnitvi("org.smarttube.stable", "si.safeer.os", null, false, true, false,

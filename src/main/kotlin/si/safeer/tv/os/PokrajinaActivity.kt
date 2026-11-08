@@ -444,6 +444,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         // Zunanji pregled 3. 11. 2026: komentar zgoraj je to obljubljal, klic pa je bil samo po minuti mirovanja in brez
         // nalozenega posnetka (po filmu v pavzi nikoli). Kot DomovActivity: ob vsaki vrnitvi domov, cez 3 s;
         // pocistiOzadje samo preveri, ali zvok res igra (pavza ni zvok v ozadju).
+        Pomnilnik.vrnitevDomov()   // nazadnje zagnana aplikacija je bila v rabi do zdaj (lastni zapis uporabe)
         Pomnilnik.pocistiOzadje(this)
         // Naloga 45 G: ponudba »Dodam na dom?« sele ob vrnitvi domov - zagon aplikacije ni nikoli cakal na okno.
         // Ponudba se ob prikazu pobrise, zato je najvec enkrat.
