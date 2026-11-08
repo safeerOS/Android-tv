@@ -182,9 +182,11 @@ class SporocilaActivity : OsActivity() {
         if (::shramba.isInitialized) {
             val s = shramba
             Thread({
-                try { delavec.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS); bralec.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS) }
-                catch (_: InterruptedException) { }
-                try { s.close() } catch (_: Throwable) { }
+                // CodeRabbit: ce opravilo po 5 s se tece, zbirke ne zapremo (sprosti jo GC) - zaprta zbirka pod opravilom bi izgubila sporocilo.
+                val koncano = try {
+                    delavec.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS) && bralec.awaitTermination(5, java.util.concurrent.TimeUnit.SECONDS)
+                } catch (_: InterruptedException) { false }
+                if (koncano) { try { s.close() } catch (_: Throwable) { } } else android.util.Log.w("SafeerOsSporocila", "zbirka ostane odprta: opravilo v ozadju se tece")
             }, "safeer-sporocila-zapri").apply { isDaemon = true }.start()
         }
         super.onDestroy()

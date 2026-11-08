@@ -223,8 +223,23 @@ object MiniPredvajalnikPravila {
      * (onStart pred onStop zaslona predvajanja = cilj vrnitve), ne koncuje, na Domu, brez podstrani in s kartico.
      * CodeRabbit 8. 11. 2026: z Datotekami vmes je Dom ustavljen - video bi tekel brez zaslona.
      */
-    fun okenceNaDomu(zagnan: Boolean, koncuje: Boolean, naDomu: Boolean, podstranOdprta: Boolean, imaKartico: Boolean): Boolean =
-        zagnan && !koncuje && naDomu && !podstranOdprta && imaKartico
+    fun okenceNaDomu(zagnan: Boolean, koncuje: Boolean, naDomu: Boolean, podstranOdprta: Boolean, imaKartico: Boolean,
+                     povrsinaMozna: Boolean = true): Boolean =
+        zagnan && !koncuje && naDomu && !podstranOdprta && imaKartico && povrsinaMozna
+
+    /**
+     * Okence sme pripeti sliko predvajalnika: zaslon predvajanja ni odprt (slepi pregled 8. 11. 2026, najdba 1: vsak
+     * setVideoSurfaceView vzame sliko trenutnemu lastniku - celozaslonski zaslon bi ostal crn) in predvajalnik zna
+     * povrsino (najdba 4: SpletniIgralec nima COMMAND_SET_VIDEO_SURFACE - okence bi bilo crna luknja).
+     */
+    fun okenceSmePripeti(zaslonOdprt: Boolean, povrsinaMozna: Boolean): Boolean = !zaslonOdprt && povrsinaMozna
+
+    /**
+     * Okence, ki je kazalo video, izgine (drug razdelek, podstran, onStop): video brez slike nima smisla (lastnik 11. 10.
+     * 2026), zato pavza - razen ce sliko prevzema zaslon predvajanja, gre za menjavo konfiguracije ali YouTube zvok v ozadju.
+     */
+    fun pavzaObSkritjuOkenca(video: Boolean, tece: Boolean, zaslonOdprt: Boolean, menjavaKonfig: Boolean, zvokVOzadju: Boolean): Boolean =
+        video && tece && !zaslonOdprt && !menjavaKonfig && !zvokVOzadju
 
     fun videoVOkencu(naDomu: Boolean, podstranOdprta: Boolean, karticaVidna: Boolean, video: Boolean): Boolean =
         naDomu && !podstranOdprta && karticaVidna && video

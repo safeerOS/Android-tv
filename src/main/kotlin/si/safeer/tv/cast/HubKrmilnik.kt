@@ -350,8 +350,8 @@ object HubKrmilnik {
     private const val PONOVNA_IZVOLITEV_MS = 90_000L
     /** Link Mesh: kako pogosto iscemo nove sosede. */
     /** Revizija 8. 11. 2026 (#2): presledek iskanja sosedov mesh (MeshIskanjePravila); ob zagonu huba zacetni. */
-    private var meshIskanjeMs = MeshIskanjePravila.ZACETNO_MS
-    private var meshSosedjePrej: Set<String> = emptySet()
+    @Volatile private var meshIskanjeMs = MeshIskanjePravila.ZACETNO_MS
+    @Volatile private var meshSosedjePrej: Set<String> = emptySet()
 
     private val glavna by lazy { android.os.Handler(android.os.Looper.getMainLooper()) }
     private var izvolitevNacrtovana: Runnable? = null

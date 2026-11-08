@@ -63,12 +63,13 @@ object PredvajalnikTovarna {
             // bi sicer stel bajte na svojem (vedno 0) in meja velikosti ne bi nikoli veljala (4K 90 s = stotine MB, heap 192 MB).
             val skupni = androidx.media3.exoplayer.upstream.DefaultAllocator(true, androidx.media3.common.C.DEFAULT_BUFFER_SEGMENT_SIZE)
             UsenetNadzorNalaganja(
-                // Revizija RAM 8. 11. 2026 (#1): brez meje bajtov media3 vzame privzeto ~141 MB (video 128 MB + zvok); 60 s
-                // toka 20 Mb/s je 150 MB. Med 20 in 60 s medpomnjenja se nalaganje ustavi pri 48 MiB; pod 20 s cas prevlada.
+                // Revizija RAM 8. 11. 2026 (#1) in slepi pregled (13): meja bajtov (48 MiB) bi med 20 in 60 s zaloge ustavila
+                // nalaganje - 4K tok 20 Mb/s bi nihal okoli 20 s zaloge namesto ~56 s in izpad omrezja > 20 s bi medpomnil
+                // znova. Brez meritve (stevilo ponovnih medpomnjenj pri 4K, izmenicno, 3 ponovitve) ostane privzeta meja
+                // media3 (~138 MiB, le med predvajanjem; alokator se ob koncu sprosti). Meritev je v nacrtu.
                 DefaultLoadControl.Builder()
                     .setAllocator(skupni)
                     .setBufferDurationsMs(20_000, 60_000, 2_000, 2_500)
-                    .setTargetBufferBytes(48 * 1024 * 1024)
                     .setPrioritizeTimeOverSizeThresholds(true)
                     .build(),
                 // Usenet: zacetek po 5 s, po zatiku 10 s (Grok, lastnik 16:14); najvec 48 MiB v RAM ne glede na cas (heap TV).

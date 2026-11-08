@@ -185,6 +185,18 @@ fun main() {
     preveriEnako("okenceNaDomu: drug razdelek -> ne", false, MiniPredvajalnikPravila.okenceNaDomu(true, false, false, false, true))
     preveriEnako("okenceNaDomu: podstran odprta -> ne", false, MiniPredvajalnikPravila.okenceNaDomu(true, false, true, true, true))
     preveriEnako("okenceNaDomu: brez kartice -> ne", false, MiniPredvajalnikPravila.okenceNaDomu(true, false, true, false, false))
+    preveriEnako("okenceNaDomu: predvajalnik brez povrsine (splet) -> ne", false, MiniPredvajalnikPravila.okenceNaDomu(true, false, true, false, true, povrsinaMozna = false))
+    // Slepi pregled 8. 11. 2026 (1, 4): okence ne pripne, ko je zaslon predvajanja odprt ali predvajalnik ne zna povrsine.
+    preveriEnako("okenceSmePripeti: zaslon zaprt, povrsina mozna -> da", true, MiniPredvajalnikPravila.okenceSmePripeti(false, true))
+    preveriEnako("okenceSmePripeti: zaslon odprt -> ne", false, MiniPredvajalnikPravila.okenceSmePripeti(true, true))
+    preveriEnako("okenceSmePripeti: splet brez povrsine -> ne", false, MiniPredvajalnikPravila.okenceSmePripeti(false, false))
+    // Slepi pregled (2): skrito okence z videom -> pavza, razen ce sliko prevzame zaslon, menjava konfiguracije ali YouTube zvok.
+    preveriEnako("pavzaObSkritju: video tece, nic drugega -> pavza", true, MiniPredvajalnikPravila.pavzaObSkritjuOkenca(true, true, false, false, false))
+    preveriEnako("pavzaObSkritju: zaslon predvajanja odprt -> ne", false, MiniPredvajalnikPravila.pavzaObSkritjuOkenca(true, true, true, false, false))
+    preveriEnako("pavzaObSkritju: menjava konfiguracije -> ne", false, MiniPredvajalnikPravila.pavzaObSkritjuOkenca(true, true, false, true, false))
+    preveriEnako("pavzaObSkritju: YouTube zvok -> ne", false, MiniPredvajalnikPravila.pavzaObSkritjuOkenca(true, true, false, false, true))
+    preveriEnako("pavzaObSkritju: glasba -> ne", false, MiniPredvajalnikPravila.pavzaObSkritjuOkenca(false, true, false, false, false))
+    preveriEnako("pavzaObSkritju: video ze na pavzi -> ne", false, MiniPredvajalnikPravila.pavzaObSkritjuOkenca(true, false, false, false, false))
 
     if (napak == 0) println("MiniPredvajalnikPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

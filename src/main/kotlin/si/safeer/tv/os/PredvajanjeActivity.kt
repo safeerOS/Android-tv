@@ -960,6 +960,8 @@ class PredvajanjeActivity : OsActivity() {
         pripet?.let { it.clearVideoSurfaceView(povrsina); it.removeListener(velikost); it.removeListener(podnapisi) }
         (pripet as? SpletniIgralec)?.skrij()
         pripet = null
+        // Naloga #38: okence na Domu sliko prevzame zdaj (ta zaslon ni vec odprt), ne sele ob naslednjem tiku kartice.
+        if (vOkence) GlasbaActivity.osveziOkenceNaDomu()
         super.onStop()
     }
 
