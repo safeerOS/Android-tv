@@ -1356,7 +1356,8 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
                 // 0.a Naloga 94: gumb "Install" na strani z dodatki Stremio (stremio://, spletni Stremio v novem oknu, .../manifest.json):
                 //     v Safeer OS in Predvajalniku ponudimo vir v Moje vire - brez tipkanja naslova z daljincem. Pred vratarjem
                 //     pojavnega okna: »Install (web)« odpre novo okno, ki ga je vratar prej tiho zaprl.
-                val dodatek = if (BuildConfig.FLAVOR != "brskalnik" && (request.isForMainFrame || urlStr.startsWith("stremio:", ignoreCase = true)))
+                val dodatek = if (BuildConfig.FLAVOR != "brskalnik" && SpletVarnostPravila.dodatekPoDejanju(
+                        request.isForMainFrame, urlStr.startsWith("stremio:", ignoreCase = true), request.hasGesture(), msOdVnosa()))
                     si.safeer.tv.os.OsPravila.naslovDodatka(urlStr) else null
                 if (dodatek != null) {
                     // Neposreden klik na .../manifest.json (ne stremio:// in ne spletni Stremio): naslov dodatka je naslov sam.

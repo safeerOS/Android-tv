@@ -81,6 +81,14 @@ object SpletVarnostPravila {
 
     fun prenosBrezPotrditve(msOdVnosa: Long): Boolean = msOdVnosa in 0..PRENOS_PO_DEJANJU_MS
 
+    /**
+     * Pregled WebView 9. 11. 2026 (N2): stremio:// iz skritega okvirja (oglas) je brez klika sprozil prenos manifesta z
+     * napadalcevega streznika (IP televizorja) in okno »Dodaj vir«. Dodatek ponudimo samo po uporabnikovem dejanju:
+     * kretnja navigacije ali tipka/dotik pred kratkim; okvir samo s shemo stremio:.
+     */
+    fun dodatekPoDejanju(glavniOkvir: Boolean, stremio: Boolean, kretnja: Boolean, msOdVnosa: Long): Boolean =
+        (glavniOkvir || stremio) && (kretnja || msOdVnosa in 0..PRENOS_PO_DEJANJU_MS)
+
     fun pojavnoOkno(
         kretnja: Boolean, naslov: String, izvor: String?, povezava: String?, nacinAplikacije: Boolean,
         preprecevanje: Boolean = true

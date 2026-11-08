@@ -27,6 +27,13 @@ fun main(args: Array<String>) {
     check(!P.prenosBrezPotrditve(Long.MAX_VALUE)) { "brez dejanja (skrit okvir ob nalaganju): potrditev" }
     check(!P.prenosBrezPotrditve(P.PRENOS_PO_DEJANJU_MS + 1)) { "staro dejanje: potrditev" }
 
+    // N2: dodatek Stremio samo po uporabnikovem dejanju; okvir samo s shemo stremio:.
+    check(P.dodatekPoDejanju(true, false, true, Long.MAX_VALUE)) { "klik na manifest v glavnem okvirju" }
+    check(P.dodatekPoDejanju(false, true, false, 800L)) { "stremio: v okvirju kmalu po OK" }
+    check(!P.dodatekPoDejanju(false, true, false, Long.MAX_VALUE)) { "stremio: iz skritega okvirja brez dejanja" }
+    check(!P.dodatekPoDejanju(true, true, false, Long.MAX_VALUE)) { "preusmeritev glavnega okvirja brez dejanja" }
+    check(!P.dodatekPoDejanju(false, false, true, 0L)) { "okvir brez sheme stremio: nikoli" }
+
     // Staticno (pregled WebView 9. 11. 2026, potrjeno na testnem telefonu): popravki ostanejo v kodi.
     args.getOrNull(0)?.let { koren ->
         val pogled = java.io.File(koren, "si/safeer/tv/ChromiumEngineView.kt").readText()
