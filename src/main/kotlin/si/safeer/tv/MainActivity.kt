@@ -1041,6 +1041,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         mainHandler.removeCallbacks(spanjeAktivnega)
         if (::tabManager.isInitialized) {
             try { tabManager.zbudiAktivnega() } catch (_: Exception) {}
+            try { tabManager.nastaviPrednosti(viden = true, stopnja = 0) } catch (_: Exception) {}
         }
         // Branje stanja Cast se v onStop ustavi; ob vrnitvi naprej, ce je predvajanje se tece.
         if (castState == "playing" || castState == "paused" || castState == "buffering") startCastStatusPolling()
@@ -1062,6 +1063,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             try {
                 tabManager.naVsiSpijo = { sprostiPoSpanju("vsi zavihki spijo") }
                 tabManager.uspavajVOzadju(tudiAktivni = false)
+                tabManager.nastaviPrednosti(viden = false, stopnja = 0)
                 mainHandler.removeCallbacks(spanjeAktivnega)
                 // TV 3. 11. 2026: po Domov je aktivni zavihek spal sele po 10 min (270 MB + 65 MB izrisovalnika);
                 // zdaj na TV po 30 s. Stran, ki igra v ozadju (vir iz Medijev), ne zaspi.
@@ -1084,6 +1086,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         try {
             if (level < TRIM_MEMORY_RUNNING_MODERATE) return
             if (::tabManager.isInitialized) tabManager.uspavajOzadje(true)
+            // Zavihki, ki so ostali budni (npr. predvajajo), naj ne drzijo pomembne prednosti izrisovalnika.
+            if (::tabManager.isInitialized) tabManager.nastaviPrednosti(naZaslonu, level)
             si.safeer.tv.os.LahkiWebViewPool.sprostiProstega()
             si.safeer.tv.os.GlasbaActivity.sprostiSlike()
             if (level >= TRIM_MEMORY_RUNNING_CRITICAL) {

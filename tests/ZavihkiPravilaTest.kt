@@ -100,5 +100,17 @@ fun main(args: Array<String>) {
     check(!p.stranskaVrstica(izOs = true, celZaslon = true, odpriLink = false))
     check(!p.stranskaVrstica(izOs = true, celZaslon = false, odpriLink = true))
     check(!p.stranskaVrstica(izOs = false, celZaslon = false, odpriLink = false))
+    // TV 8. 11. 2026: izrisovalnik zavihka v ozadju se odpove prednosti, ko brskalnik ni viden ali zmanjkuje pomnilnika.
+    val P = ZavihkiPravila.Prednost
+    check(p.prednostIzrisovalnika(aktiven = true, viden = true, stopnja = 0, predvaja = false) == P.POMEMBNA)
+    check(p.prednostIzrisovalnika(aktiven = true, viden = true, stopnja = p.TRIM_RUNNING_LOW, predvaja = false) == P.POMEMBNA)
+    check(p.prednostIzrisovalnika(aktiven = false, viden = false, stopnja = 0, predvaja = false) == P.ODPOVEDANA)
+    check(p.prednostIzrisovalnika(aktiven = false, viden = true, stopnja = p.TRIM_RUNNING_LOW, predvaja = false) == P.ODPOVEDANA)
+    check(p.prednostIzrisovalnika(aktiven = false, viden = true, stopnja = 15, predvaja = false) == P.ODPOVEDANA)
+    check(p.prednostIzrisovalnika(aktiven = false, viden = true, stopnja = 5, predvaja = false) == P.BREZ_SPREMEMBE)   // RUNNING_MODERATE
+    check(p.prednostIzrisovalnika(aktiven = false, viden = false, stopnja = 20, predvaja = true) == P.BREZ_SPREMEMBE)  // zvok v ozadju
+    // Aktivni na skritem zaslonu: sistem ga odpove sam (waivedWhenNotVisible = true v ChromiumEngineView).
+    check(p.prednostIzrisovalnika(aktiven = true, viden = false, stopnja = 20, predvaja = false) == P.BREZ_SPREMEMBE)
+    check(p.TRIM_RUNNING_LOW == 10)
     println("ZavihkiPravilaTest: OK")
 }

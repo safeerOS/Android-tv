@@ -138,4 +138,22 @@ object ZavihkiPravila {
         "playing" -> praznihZapored < 2
         else -> praznihZapored < 1
     }
+
+    /** Prednost izrisovalnika WebView (WebView.setRendererPriorityPolicy). */
+    enum class Prednost { POMEMBNA, ODPOVEDANA, BREZ_SPREMEMBE }
+
+    /** ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW (brez Androida v preizkusu). */
+    const val TRIM_RUNNING_LOW = 10
+
+    /**
+     * TV 8. 11. 2026 (2,8 GB, MemAvailable 640 MB: Splet 377 MB + izrisovalnik 222 MB ob radiu v Safeer OS): izrisovalnik
+     * zavihka v ozadju se odpove prednosti, ko brskalnik ni na zaslonu ali sistemu zmanjkuje pomnilnika - sistem ga
+     * lahko vzame, namesto da ubije aplikacijo. Aktivni na zaslonu je spet pomemben. Zavihek, ki predvaja, ostane, kot je.
+     */
+    fun prednostIzrisovalnika(aktiven: Boolean, viden: Boolean, stopnja: Int, predvaja: Boolean): Prednost = when {
+        aktiven && viden -> Prednost.POMEMBNA
+        predvaja || aktiven -> Prednost.BREZ_SPREMEMBE
+        !viden || stopnja >= TRIM_RUNNING_LOW -> Prednost.ODPOVEDANA
+        else -> Prednost.BREZ_SPREMEMBE
+    }
 }

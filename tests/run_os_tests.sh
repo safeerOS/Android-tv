@@ -136,6 +136,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/os/Niti.kt" \
     "$SRC/si/safeer/tv/os/DomPasPravila.kt" \
     "$TEST_DIR/DomPasPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/McVidezPravila.kt" \
+    "$TEST_DIR/McVidezPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/MojSeznamPravila.kt" \
     "$TEST_DIR/MojSeznamPravilaTest.kt" \
     "$TEST_DIR/NitiTest.kt" \
@@ -327,6 +329,8 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.MiniPredvajalnikPravilaTestK
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.NitiTestKt
 # Pas na vrhu Doma MC (DomPas, Freebuff 8. 11. 2026): napisi, cas, odstotek, mere.
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.DomPasPravilaTestKt
+# Videz Doma MC na TV (8. 11. 2026): stolpci, fokus, naslovi seznamov, monogram postaje, ploscica dejanja, pomoc.
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.McVidezPravilaTestKt
 # Moj seznam (lastnik 8. 11. 2026, zgled KefinTweaks): dodaj/odstrani, meja, odstranitev po ogledu.
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.MojSeznamPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.cast.MeshIskanjePravilaTestKt

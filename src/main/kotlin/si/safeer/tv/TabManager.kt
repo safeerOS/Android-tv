@@ -280,6 +280,24 @@ class TabManager(
     }
 
     /**
+     * Prednost izrisovalnikov po vidnosti brskalnika in stopnji onTrimMemory ([ZavihkiPravila.prednostIzrisovalnika]):
+     * zavihki v ozadju se odpovejo prednosti, aktivni na zaslonu je pomemben. minSdk 28, API 26 je zagotovljen.
+     */
+    fun nastaviPrednosti(viden: Boolean, stopnja: Int) {
+        for (tab in tabs) {
+            val w = tab.webView ?: continue
+            if (w.jeUniceno) continue
+            try {
+                when (ZavihkiPravila.prednostIzrisovalnika(tab.id == activeTabId, viden, stopnja, tab.predvaja)) {
+                    ZavihkiPravila.Prednost.POMEMBNA -> w.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true)
+                    ZavihkiPravila.Prednost.ODPOVEDANA -> w.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_WAIVED, true)
+                    ZavihkiPravila.Prednost.BREZ_SPREMEMBE -> { }
+                }
+            } catch (e: Exception) { Log.w(TAG, "prednost izrisovalnika: ${e.message}") }
+        }
+    }
+
+    /**
      * Brskalnik ni vec na zaslonu (uporabnik je sel v drugo aplikacijo ali na domaci zaslon):
      * zavihki v ozadju zaspijo takoj, aktivni pa sele, ko klicatelj tako odloci (`tudiAktivni`,
      * po daljsem casu v ozadju). Zavihek, ki predvaja, ostane buden.

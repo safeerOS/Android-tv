@@ -85,7 +85,9 @@ class GlasbaActivity : OsActivity() {
                              /** Mreza skladb (Glasba): na televizorju manjse kartice - sedem v vrsto, dve celi vrsti na zaslonu. */
                              val skladbe: Boolean = false,
                              /** Blok na strani z vec bloki: kaj odpre kartica »Pokazi vse« (privzeto ta blok kot cela mreza, [odpriBlok]). */
-                             val vse: (() -> Unit)? = null)
+                             val vse: (() -> Unit)? = null,
+                             /** Blok Doma na TV ([blokMreze]): stalni stolpci po vrsti, razmik 16 dp, povecava fokusa ([McVidezPravila]). */
+                             val domov: Boolean = false)
     /** Podatki vrste brez zaslona - samo to gre v predpomnilnik (kartice drzijo zaslon). */
     private data class Podatki(val naslov: String, val skladbe: List<Jamendo.Skladba>, val video: Boolean = false)
     private data class Kartica(val naslov: String, val podnaslov: String, val slika: String, val klik: (View) -> Unit,
@@ -558,6 +560,7 @@ class GlasbaActivity : OsActivity() {
     override fun onStart() {
         super.onStart()
         viden = true
+        pokaziPomoc()
         // Kritika 5: glava Doma je bila prikazana v prejsnji seji - od zdaj kompaktna.
         if (glavaPrikazanaVSeji) try {
             getSharedPreferences("safeer_mediji", MODE_PRIVATE).edit().putBoolean("dom_glava_videna", true).apply()
@@ -640,6 +643,7 @@ class GlasbaActivity : OsActivity() {
 
     override fun onStop() {
         viden = false
+        glavna.removeCallbacks(skrijPomoc); pomocCaka = false
         mcKarticaHandler.removeCallbacks(mcKarticaCasovnik)
         okenceVidea(false)     // naloga #38: slika predvajalnika ne ostane na skritem oknu
         // CodeRabbit 6. 11. 2026: samo svoj klic - druga GlasbaActivity, ki je zacela pred tem onStop, obdrzi svojega.
@@ -1026,7 +1030,93 @@ class GlasbaActivity : OsActivity() {
         tipka("↩", R.string.os_media_pomoc_nazaj)
         tipka("OK ●", R.string.os_media_pomoc_meni)
         tipka("🔍", R.string.os_media_pomoc_isci)
+        pomocVrstica = v
         return v
+    }
+
+    /** Zmanjsano gibanje: Android brez animacij ali izbira v Nastavitvah (isto pravilo kot [PokrajinaActivity]). */
+    private fun zmanjsanoGibanje(): Boolean = try {
+        getSharedPreferences("safeer_os", MODE_PRIVATE).getBoolean(PokrajinaActivity.KLJUC_ZMANJSANO, false) ||
+            android.provider.Settings.Global.getFloat(contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) <= 0f
+    } catch (_: Throwable) { false }
+
+    // TV 8. 11. 2026: vrstica pomoci je bila vedno vidna - po 10 s brez tipke zbledi, naslednja tipka jo vrne.
+    private var pomocVrstica: View? = null
+    private var zadnjaTipkaPomoci = 0L
+    /** Skrivanje je narocno (Handler.hasCallbacks je sele od API 29, minSdk je 28). */
+    private var pomocCaka = false
+    private val skrijPomoc = object : Runnable {
+        override fun run() {
+            pomocCaka = false
+            val p = pomocVrstica ?: return
+            val od = android.os.SystemClock.uptimeMillis() - zadnjaTipkaPomoci
+            if (McVidezPravila.pomocVidna(od)) { pomocCaka = true; glavna.postDelayed(this, (McVidezPravila.POMOC_SKRIJ_MS - od).coerceAtLeast(1L)); return }
+            p.animate().cancel()
+            if (zmanjsanoGibanje()) p.alpha = 0f else p.animate().alpha(0f).setDuration(McVidezPravila.POMOC_ZBLEDI_MS).start()
+        }
+    }
+
+    /** Pritisk tipke: vrstica pomoci se pokaze (ce je zbledela) in spet steje 10 s. */
+    private fun pokaziPomoc() {
+        zadnjaTipkaPomoci = android.os.SystemClock.uptimeMillis()
+        val p = pomocVrstica ?: return
+        // Vidna in skrivanje narocno: dovolj je nov cas tipke (skrivanje se samo odlozi).
+        if (p.alpha >= 1f && pomocCaka) return
+        p.animate().cancel()
+        if (zmanjsanoGibanje()) p.alpha = 1f else p.animate().alpha(1f).setDuration(McVidezPravila.POMOC_ZBLEDI_MS).start()
+        glavna.removeCallbacks(skrijPomoc)
+        glavna.postDelayed(skrijPomoc, McVidezPravila.POMOC_SKRIJ_MS)
+        pomocCaka = true
+    }
+
+    /** Kartica Doma s fokusom: obroba (ozadje) in rahla povecava; ob zmanjsanem gibanju samo obroba. */
+    private fun poudariFokus(p: View) {
+        val prej = p.onFocusChangeListener
+        p.setOnFocusChangeListener { v, fokus ->
+            prej?.onFocusChange(v, fokus)
+            val zmanjsano = zmanjsanoGibanje()
+            val cilj = McVidezPravila.povecavaFokusa(fokus, zmanjsano)
+            v.animate().cancel()
+            if (zmanjsano) { v.scaleX = cilj; v.scaleY = cilj }
+            else v.animate().scaleX(cilj).scaleY(cilj).setDuration(McVidezPravila.TRAJANJE_FOKUSA_MS).start()
+        }
+    }
+
+    /** Barve monograma (ozadje, crke) iz obstojecih barv os_*, z dovolj kontrasta. */
+    private val barveMonograma = listOf(
+        R.color.os_mint to R.color.os_ozadje,
+        R.color.os_opozorilo to R.color.os_ozadje,
+        R.color.os_siva_pika to R.color.os_besedilo,
+        R.color.os_mint_temna to R.color.os_mint,
+        R.color.os_meni_izbran_ozadje to R.color.os_besedilo)
+
+    /** Monogram postaje brez logotipa (TV 8. 11. 2026: 6 od 10 postaj je imelo isto ikono radia); null, ce ni zacetnic. */
+    private fun monogramPostaje(ime: String): android.graphics.drawable.Drawable? {
+        val crke = McVidezPravila.inicialkePostaje(ime).ifEmpty { return null }
+        val (ozadje, barvaCrk) = barveMonograma[McVidezPravila.indeksBarve(ime, barveMonograma.size)]
+        return Monogram(crke, osBarva(ozadje), osBarva(barvaCrk), dp(8).toFloat())
+    }
+
+    /** Ploscica z zacetnicami na barvni podlagi - rise se v velikosti pogleda, brez bitne slike v pomnilniku. */
+    private class Monogram(private val crke: String, ozadje: Int, barvaCrk: Int, private val polmer: Float) : android.graphics.drawable.Drawable() {
+        private val podlaga = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = ozadje }
+        private val pisava = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            color = barvaCrk; textAlign = android.graphics.Paint.Align.CENTER
+            typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+        }
+
+        override fun draw(c: android.graphics.Canvas) {
+            val b = bounds
+            if (b.isEmpty) return
+            c.drawRoundRect(b.left.toFloat(), b.top.toFloat(), b.right.toFloat(), b.bottom.toFloat(), polmer, polmer, podlaga)
+            pisava.textSize = minOf(b.width(), b.height()) * 0.42f
+            c.drawText(crke, b.exactCenterX(), b.exactCenterY() - (pisava.descent() + pisava.ascent()) / 2f, pisava)
+        }
+
+        override fun setAlpha(alpha: Int) { podlaga.alpha = alpha; pisava.alpha = alpha }
+        override fun setColorFilter(filter: android.graphics.ColorFilter?) { podlaga.colorFilter = filter; pisava.colorFilter = filter }
+        @Deprecated("Deprecated in Java")
+        override fun getOpacity(): Int = android.graphics.PixelFormat.TRANSLUCENT
     }
 
     /** Kartica; [mala] je za nedavno na plosci (manjsa, samo naslov), da vrsta ostane na zaslonu. */
@@ -1130,12 +1220,15 @@ class GlasbaActivity : OsActivity() {
                         /** Kanal v zivo: lezeca ploscica 16:9, logotip v celoti, ime v dveh vrsticah, brez znack ([Vrsta.kanali]). */
                         kanal: Boolean = false,
                         /** Videospot: lezeca slicica 16:9 namesto pokoncnega plakata ([Vrsta.slicice]). */
-                        slicica: Boolean = false): View {
+                        slicica: Boolean = false,
+                        /** Ploscica dejanja na Domu (»Pokazi vse«, »Poglej, kaj igra«): pol nizja slika z ikono ([McVidezPravila.kompaktnoDejanje]). */
+                        kompaktno: Boolean = false): View {
         // Video katalog na televizorju uporablja pokoncne plakate: vec naslovov je
         // hkrati vidnih, slika pa ni odrezana v sirok 16:9 trak. Majhne kartice "Nedavno" ostanejo 16:9.
         val plakat = video && !mala && !kanal && !slicica
         val sirina = dp(if (velikostDp > 0) velikostDp else if (mala) 96 else if (plakat) 112 else 150)
-        val visina = if (kanal || slicica || (mala && video)) sirina * 9 / 16 else if (plakat) sirina * 3 / 2 else sirina
+        val polnaVisina = if (kanal || slicica || (mala && video)) sirina * 9 / 16 else if (plakat) sirina * 3 / 2 else sirina
+        val visina = if (kompaktno) McVidezPravila.visinaDejanja(polnaVisina, dp(48)) else polnaVisina
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             tag = kljuc
@@ -1178,7 +1271,8 @@ class GlasbaActivity : OsActivity() {
                 // logotipa ni; logotip se nato pokaze cel ([LogoKanala]) - prej je bil odrezan v pokoncen plakat.
                 if (k.slika.isBlank() || kanal) { scaleType = ImageView.ScaleType.FIT_CENTER; val r = minOf(sirina, visina) / 4; setPadding(r, r, r, r) }
             }
-            if (k.tvId.isNotBlank()) naloziTvIkono(k.tvId, slika)
+            // TV 8. 11. 2026: postaja brez logotipa dobi monogram namesto splosne ikone; logotip, ko pride, ga zamenja (LogoKanala).
+            if (k.tvId.isNotBlank()) naloziTvIkono(k.tvId, slika) else if (kanal && k.ikona == R.drawable.os_ikona_radio) monogramPostaje(k.naslov)?.let { slika.setImageDrawable(it); slika.setPadding(0, 0, 0, 0) }
             if (plakat) {
                 addView(FrameLayout(this@GlasbaActivity).apply {
                     addView(slika, FrameLayout.LayoutParams(-1, -1))
@@ -1354,7 +1448,9 @@ class GlasbaActivity : OsActivity() {
                 val kljuci = kljuciKartic(v.kartice)
                 v.kartice.chunked(n).forEachIndexed { r, del ->
                     koraki.addLast {
-                        val vrstica = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; tag = MREZA_VRSTA }
+                        val vrstica = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; tag = MREZA_VRSTA
+                            if (v.domov) { clipChildren = false; clipToPadding = false } }
+                        if (v.domov) vsebina.clipChildren = false
                         del.forEachIndexed { i, k ->
                             val p = karticaMreze(v, k, velikost)
                             dodajVMrezo(v, vrstica, p, r * n + i, n)
@@ -1513,6 +1609,11 @@ class GlasbaActivity : OsActivity() {
         if (n < najmanj && sirinaVsebine / dp(najmanjDp + 12 + 14) >= najmanj) {
             n = najmanj; velikost = (sirinaVsebine / najmanj / resources.displayMetrics.density).toInt() - rob
         }
+        // TV 8. 11. 2026 (960x540 dp): vrste Doma so imele tri merila (3, 8 in 6 v vrsto) - zdaj stalni stolpci po vrsti.
+        if (v.domov) McVidezPravila.stolpciDoma(McVidezPravila.tipVrste(v.nadaljuj, v.skladbe, v.video, v.mala, v.kanali, v.slicice, v.cisto), n)?.let { s ->
+            val sirinaDp = ((sirinaVsebine - vsebina.paddingLeft - vsebina.paddingRight) / resources.displayMetrics.density).toInt()
+            return s to McVidezPravila.sirinaKartice(sirinaDp, s)
+        }
         // Kartice zapolnijo vrstico: prej je na telefonu na desni ostal prazen pas. Televizor ohrani svoje mere.
         if (!jeTv()) velikost = OsPravila.sirinaKarticeMreze((sirinaVsebine / resources.displayMetrics.density).toInt(), n, velikost, rob)
         return n to velikost
@@ -1530,7 +1631,8 @@ class GlasbaActivity : OsActivity() {
     }
 
     private fun karticaMreze(v: Vrsta, k: Kartica, velikost: Int): View =
-        if (v.cisto) cistPlakat(k, false, "") else kartica(k, v.video, false, "", mala = v.mala, velikostDp = velikost, kanal = v.kanali, slicica = v.slicice || v.nadaljuj)
+        (if (v.cisto) cistPlakat(k, false, "") else kartica(k, v.video, false, "", mala = v.mala, velikostDp = velikost, kanal = v.kanali, slicica = v.slicice || v.nadaljuj,
+            kompaktno = v.domov && McVidezPravila.kompaktnoDejanje(k.dejanje, k.slika.isNotBlank()))).also { if (v.domov) poudariFokus(it) }
 
     /**
      * Blok kartic na strani z vec bloki (Domov, Moja glasba, Zate, zadetki iskanja, Brskaj): mreza z najvec
@@ -1540,7 +1642,7 @@ class GlasbaActivity : OsActivity() {
      * (»Pocisti«) ostanejo na koncu.
      */
     private fun blokMreze(v: Vrsta): Vrsta {
-        val oblika = v.copy(mreza = true)
+        val oblika = v.copy(mreza = true, domov = jeTv() && razdelek == DOMOV && !podstrani.odprta)
         val kartice = v.kartice.filterNot { it.dejanje }
         val dejanja = v.kartice.filter { it.dejanje }
         val imaVse = dejanja.any { it.vse }
@@ -1827,10 +1929,12 @@ class GlasbaActivity : OsActivity() {
         { potrdiPocistiNedavno() }, ikona = R.drawable.os_ikona_zapri, dejanje = true)
 
     /** Kartica seznama predvajanja (Brskaj, Domov, Moja glasba, Zate): naslovnica, ime in stevilo posnetkov; dotik odpre seznam. */
-    private fun karticaSeznama(sz: MedijskiViri.Seznam) =
-        Kartica(sz.ime, resources.getQuantityString(R.plurals.os_stevilo_posnetkov, sz.skladbe.size, sz.skladbe.size), sz.skladbe.firstOrNull { it.slika.startsWith("http") }?.slika.orEmpty(),
+    // TV 8. 11. 2026: »Oglej si pozneje · Kanal A« in »... · Kanal B« sta bila videti enaka (racun odrezan) - racun gre v podnaslov.
+    private fun karticaSeznama(sz: MedijskiViri.Seznam) = McVidezPravila.razdeliNaslovSeznama(sz.ime).let { (naslov, racun) ->
+        Kartica(naslov, McVidezPravila.podnaslovSeznama(racun, resources.getQuantityString(R.plurals.os_stevilo_posnetkov, sz.skladbe.size, sz.skladbe.size)),
+            sz.skladbe.firstOrNull { it.slika.startsWith("http") }?.slika.orEmpty(),
             { odpriSeznam(sz.ime, "", sz) { sz.skladbe } }, { meniSeznama(sz) },
-            ikona = if (sz.skladbe.all { it.video }) R.drawable.os_ikona_video else R.drawable.os_ikona_glasba)
+            ikona = if (sz.skladbe.all { it.video }) R.drawable.os_ikona_video else R.drawable.os_ikona_glasba) }
 
     /** Oznaka polozaja (po njej risanje vrne izbiro) in pot iz prve kartice vrste levo v stranski meni. */
     private fun oznaciVMrezi(v: Vrsta, p: View, i: Int, n: Int) {
@@ -1842,7 +1946,7 @@ class GlasbaActivity : OsActivity() {
         oznaciVMrezi(v, p, i, n)
         // Plakati: enake utezi - zapolnijo vrstico in sledijo sirini vsebine. Kartice: svoja sirina.
         vrstica.addView(p, if (v.cisto) LinearLayout.LayoutParams(0, -2, 1f).apply { if (i % n < n - 1) marginEnd = dp(10); bottomMargin = dp(10) }
-            else LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(14); bottomMargin = dp(14) })
+            else LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(if (v.domov) McVidezPravila.RAZMIK_DOMA_DP else 14); bottomMargin = dp(14) })
     }
 
     /** Nepolna zadnja vrstica plakatov dobi prazna mesta, da plakati niso raztegnjeni. */
@@ -6245,7 +6349,7 @@ class GlasbaActivity : OsActivity() {
         kljucVRisanju = null
         vrniKljuc = null
         // Uporabnik izbira sam: cakajoca "izbira na prvo kartico" ne sme vec skociti (klik jo nastavi sele za tem).
-        if (dogodek.action == KeyEvent.ACTION_DOWN) fokusVVsebino = false
+        if (dogodek.action == KeyEvent.ACTION_DOWN) { fokusVVsebino = false; pokaziPomoc() }
         val k = premikam
         if (k != null) {
             if (dogodek.action == KeyEvent.ACTION_DOWN) when (dogodek.keyCode) {
