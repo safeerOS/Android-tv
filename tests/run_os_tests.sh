@@ -134,6 +134,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/os/MiniPredvajalnikPravila.kt" \
     "$TEST_DIR/MiniPredvajalnikPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/Niti.kt" \
+    "$SRC/si/safeer/tv/os/DomPasPravila.kt" \
+    "$TEST_DIR/DomPasPravilaTest.kt" \
     "$TEST_DIR/NitiTest.kt" \
     "$SRC/si/safeer/tv/cast/MeshIskanjePravila.kt" \
     "$TEST_DIR/MeshIskanjePravilaTest.kt" \
@@ -321,6 +323,8 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.OddaljenoPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.MiniPredvajalnikPravilaTestKt
 # Revizija RAM/CPU 8. 11. 2026: bazeni niti sprostijo mirujoce niti (#8), iskanje sosedov mesh z umikom (#2).
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.NitiTestKt
+# Pas na vrhu Doma MC (DomPas, Freebuff 8. 11. 2026): napisi, cas, odstotek, mere.
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.DomPasPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.cast.MeshIskanjePravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.TorBoxPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.DebridPravilaTestKt

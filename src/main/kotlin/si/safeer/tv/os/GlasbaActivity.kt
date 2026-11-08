@@ -3603,10 +3603,10 @@ class GlasbaActivity : OsActivity() {
                     (v.video && it.ikona != R.drawable.os_ikona_glasba && it.ikona != R.drawable.os_ikona_radio) } }   // CodeRabbit: Nedavno ima tudi glasbo/radio
                     .filter { it.slika.isNotBlank() && it.id.isNotBlank() && !it.dejanje && it.tvId.isBlank() }.distinctBy { it.id }
                     // TV 8. 11. 2026 07:47: Dom brez video vrstic (samo glasba, seznami) - pas vzame katero koli kartico s sliko, ni prazen.
-                    .ifEmpty { vrstice.flatMap { it.kartice }.filter { it.slika.isNotBlank() && it.id.isNotBlank() && !it.dejanje && it.tvId.isBlank() }.distinctBy { it.id } }
+                    .ifEmpty { vrstice.flatMap { it.kartice }.filter { it.slika.isNotBlank() && !it.dejanje && it.tvId.isBlank() }.distinctBy { kljucIzbora(it) } }
                 val tz = java.util.TimeZone.getDefault()
                 val zdajMs = System.currentTimeMillis()
-                zadnjiIzbor = MiniPredvajalnikPravila.izborDneva(sSliko.map { it.id },
+                zadnjiIzbor = MiniPredvajalnikPravila.izborDneva(sSliko.map { kljucIzbora(it) },
                     MiniPredvajalnikPravila.krajevniDan(zdajMs, tz.getOffset(zdajMs))).takeIf { it >= 0 }?.let { sSliko[it] }
                 glavna.post { if (razdelek == DOMOV && !isFinishing) osveziMcKartico() }
                 val m = mcKarticaKoren ?: ustvariMcKartico(true)
@@ -12832,6 +12832,9 @@ class GlasbaActivity : OsActivity() {
     /** Zadnja nedokoncana vsebina (iz gradnje Doma, zgoraj(DOMOV) na glavni niti) in vrsta vseh nedokoncanih za dolg pritisk/MENU na kartici. */
     @Volatile private var zadnjeNadaljevanje: MediaNapredek.Vnos? = null
     @Volatile private var zadnjaVrstaNadaljuj: Vrsta? = null
+    /** Stalen kljuc kartice za izbor dneva: id, seznami predvajanja ga nimajo - ime (CodeRabbit 8. 11. 2026). */
+    private fun kljucIzbora(k: Kartica): String = k.id.ifBlank { "seznam:" + k.naslov }
+
     /** Izbor dneva za pas (Kinema hero.ts), ko nic ne igra in ni nedokoncanega. */
     @Volatile private var zadnjiIzbor: Kartica? = null
     private var mcKarticaSlika: ImageView? = null
@@ -12850,7 +12853,42 @@ class GlasbaActivity : OsActivity() {
         }
     }
 
+    /**
+     * Pas na vrhu Doma (lastnik 8. 11. 2026, Kinema + StreamNexus HD): komponenta DomPas (Freebuff, pregledal Claude).
+     * Klik/OK = glavno dejanje (igra -> cel zaslon, Nadaljuj, izbor), gumb = Predvajaj/Premor/Nadaljuj,
+     * Podrobnosti = vse nedokoncane (ce so).
+     */
+    private fun ustvariPas(): View {
+        val pas = DomPas(this)
+        pas.layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(16); topMargin = dp(4) }
+        pas.naloziSliko = { url, iv -> slikaKartice(url, iv) }
+        mcKarticaKoren = pas
+        mcKarticaPovrsina = pas.povrsinaVidea
+        pas.naGlavni = {
+            when (mcKarticaStanje) {
+                MiniPredvajalnikPravila.NADALJUJ -> nadaljujZadnje()
+                MiniPredvajalnikPravila.IZBOR -> zadnjiIzbor?.klik?.invoke(pas)
+                else -> GlasbaStoritev.trenutna()?.let { sk ->
+                    when {
+                        sk.video -> MiniPredvajalnik.odpriCelZaslon(this@GlasbaActivity)
+                        jeTv() -> GlasbaStoritev.preklopi()
+                        else -> startActivity(Intent(this@GlasbaActivity, PredvajanjeActivity::class.java))
+                    }
+                }
+            }
+        }
+        pas.naPredvajaj = {
+            when (mcKarticaStanje) {
+                MiniPredvajalnikPravila.NADALJUJ -> nadaljujZadnje()
+                MiniPredvajalnikPravila.IZBOR -> zadnjiIzbor?.klik?.invoke(pas)
+                else -> GlasbaStoritev.preklopi()   // premor/naprej; video ostane v pasu
+            }
+        }
+        return pas
+    }
+
     private fun ustvariMcKartico(polnaSirina: Boolean): View {
+        if (polnaSirina) return ustvariPas()
         val sirina = if (polnaSirina) -1 else dp(260)
         // Kinema: pas na vrhu Doma je slika cez celo sirino; na TV in tablici visji, na telefonu kot doslej.
         val visina = if (polnaSirina && !ozekZaslon()) dp(230) else dp(150)
@@ -13019,6 +13057,41 @@ class GlasbaActivity : OsActivity() {
     /** Okence je lastnik slike predvajalnika (pripeto enkrat; slepi pregled 8. 11. 2026: vsak setVideoSurfaceView jo vzame zaslonu). */
     private var okencePripeto = false
 
+    /** Pas (DomPas) po stanju kartice: isti viri kot stara kartica, samo prikaz je nov. Osvezi se vsako sekundo, ko igra. */
+    private fun osveziPas(pas: DomPas, sk: Jamendo.Skladba?, p: androidx.media3.common.Player?, nad: MediaNapredek.Vnos?, izb: Kartica?) {
+        mcKarticaHandler.removeCallbacks(mcKarticaCasovnik)
+        // Podrobnosti = vse nedokoncane vsebine (prej dolg pritisk); gumba ni, ce jih ni.
+        val vse = zadnjaVrstaNadaljuj
+        pas.naPodrobnosti = if (vse != null && mcKarticaStanje != MiniPredvajalnikPravila.KARTICA) ({ odpriBlok(vse) }) else null
+        val stanje = when {
+            mcKarticaStanje == MiniPredvajalnikPravila.NADALJUJ && nad != null -> {
+                okenceVidea(false)
+                val n = nad.skladba
+                val se = if (n.season > 0 && n.episode > 0) "S%02dE%02d".format(java.util.Locale.ROOT, n.season, n.episode) else ""
+                DomPasStanje(DomPasPravila.NADALJUJ, n.naslov, listOf(se, if (n.year != 0) n.year.toString() else n.izvajalec).filter { it.isNotBlank() }.joinToString(" · "),
+                    "", n.slika, n.video, false, nad.polozaj, nad.trajanje)
+            }
+            mcKarticaStanje == MiniPredvajalnikPravila.IZBOR && izb != null -> {
+                okenceVidea(false)
+                DomPasStanje(DomPasPravila.IZBOR, izb.naslov, izb.podnaslov, "", izb.slika,
+                    izb.ikona == R.drawable.os_ikona_video, false, 0L, 0L)
+            }
+            sk != null -> {
+                okenceVidea(sk.video && p != null)
+                val igra = GlasbaStoritev.igra()
+                val r = sk.radio || (p?.duration?.coerceAtLeast(0) ?: 0) <= 0
+                // Nalozena, a ustavljena vsebina: gumb Nadaljuj (ne Premor).
+                DomPasStanje(if (igra) DomPasPravila.IGRA else DomPasPravila.NADALJUJ, sk.naslov,
+                    if (sk.year != 0) sk.year.toString() else sk.izvajalec, "", sk.slika, sk.video, igra,
+                    if (r || p == null) 0L else p.currentPosition.coerceAtLeast(0), if (r || p == null) 0L else p.duration.coerceAtLeast(0))
+            }
+            else -> DomPasStanje(DomPasPravila.MC_NIC, "", "", "", "", false, false, 0L, 0L)
+        }
+        pas.prikazi(stanje)
+        pas.pokaziVideo(mcKarticaPovrsina?.visibility == View.VISIBLE)
+        if (stanje.igra && stanje.trajanjeMs > 0 && pas.isShown) mcKarticaHandler.postDelayed(mcKarticaCasovnik, 1000)
+    }
+
     /**
      * Okence videa pripne ali odpne sliko predvajalnika storitve. Pripne samo enkrat in samo, ko zaslon predvajanja ni odprt
      * (sicer bi mu sliko vzelo - crn zaslon z zvokom) in predvajalnik zna povrsino (SpletniIgralec je ne). Ko okence z videom
@@ -13039,6 +13112,7 @@ class GlasbaActivity : OsActivity() {
             val kazaloVideo = okencePripeto && pov.visibility == View.VISIBLE
             if (okencePripeto) { try { p?.clearVideoSurfaceView(pov) } catch (_: Throwable) { }; okencePripeto = false }
             pov.visibility = View.GONE
+            (mcKarticaKoren as? DomPas)?.pokaziVideo(false)
             val sk = GlasbaStoritev.trenutna()
             if (kazaloVideo && p != null && MiniPredvajalnikPravila.pavzaObSkritjuOkenca(sk?.video == true, GlasbaStoritev.tece(),
                     PredvajanjeActivity.odprt, isChangingConfigurations, sk?.let { YoutubeZvok.jeYoutube(it) } == true)) {
@@ -13070,6 +13144,7 @@ class GlasbaActivity : OsActivity() {
             return
         }
         koren.visibility = View.VISIBLE
+        if (koren is DomPas) { osveziPas(koren, sk, p, nad, izb); return }
 
         if (mcKarticaStanje == MiniPredvajalnikPravila.NADALJUJ && nad != null) {
             okenceVidea(false)
