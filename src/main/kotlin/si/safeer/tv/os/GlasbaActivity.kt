@@ -671,6 +671,7 @@ class GlasbaActivity : OsActivity() {
         synchronized(iskanjeNiti) { iskanjeNiti.forEach { it.cancel(true) }; iskanjeNiti.clear() }
         iskanjeDelavec.shutdownNow()
         slikeDelavec.shutdownNow()
+        slikePasuDelavec.shutdownNow()
         delavec.shutdownNow()
         preverjanje.shutdownNow()
         preverjanjeEpizod.shutdownNow()
@@ -12942,7 +12943,12 @@ class GlasbaActivity : OsActivity() {
      */
     /** Zadnje slike pasu (ozadje, plakat, logotip): majhen predpomnilnik zunaj SLIKE (te so 280 px). */
     // 6 ozadij 1280x720 RGB_565 (1,8 MB) + 6 logotipov 600x232 ARGB (0,6 MB) = 14,4 MB -> krozenje brez ponovnih prenosov.
-    private val nalagamPas = java.util.Collections.synchronizedSet(HashSet<String>())
+    // CodeRabbit 8. 11. (2): slike pasu NE gredo v vrsto kartic - izprazniVrstoSlik bi zavrgla nalogo in URL bi ostal
+    // »v nalaganju«. Ena lastna nit (pas ima najvec 6 ozadij + 6 logotipov), ustavljena v onDestroy.
+    private val slikePasuDelavec = Niti.sprostiMirujoce(java.util.concurrent.ThreadPoolExecutor(1, 1, 0L,
+        java.util.concurrent.TimeUnit.MILLISECONDS, java.util.concurrent.LinkedBlockingQueue<Runnable>()))
+    /** CodeRabbit 8. 11. (1): vsi pogledi, ki cakajo na isti URL, dobijo sliko (prej samo prvi). */
+    private val cakajociPas = ConcurrentHashMap<String, MutableList<java.lang.ref.WeakReference<ImageView>>>()
     private val slikePasu = object : android.util.LruCache<String, android.graphics.Bitmap>(16 * 1024 * 1024) {
         override fun sizeOf(k: String, v: android.graphics.Bitmap) = v.byteCount
     }
@@ -12955,8 +12961,10 @@ class GlasbaActivity : OsActivity() {
         if (url.isBlank()) return
         slikePasu.get(url)?.let { v.tag = url; v.setImageBitmap(it); return }
         v.tag = url
-        if (!nalagamPas.add(url)) return   // ze se nalaga: pogled ima oznako, dobi sliko iz predpomnilnika ob prihodu
-        slikeDelavec.execute {
+        val cakajo = mutableListOf(java.lang.ref.WeakReference(v))
+        cakajociPas.putIfAbsent(url, cakajo)?.let { l -> synchronized(l) { l.add(java.lang.ref.WeakReference(v)) }; return }
+        slikePasuDelavec.execute {
+            var izid: android.graphics.Bitmap? = null
             try {
                 val logo = url.contains("/logo/")
                 val px = if (logo) 600 else 1280
@@ -12964,14 +12972,18 @@ class GlasbaActivity : OsActivity() {
                 val b = VarnaSlika.izBajtov(surovi, px)?.let { MedijskiPredpomnilnik.pomanjsaj(it, px) } ?: return@execute
                 val m = if (logo) b else MedijskiPredpomnilnik.zaPomnilnik(b)   // logotip ohrani prosojnost
                 slikePasu.put(url, m)
-                glavna.post { if (!isFinishing && v.tag == url) v.setImageBitmap(m) }
+                izid = m
             } catch (e: OutOfMemoryError) {
                 slikePasu.evictAll()
                 android.util.Log.w("SafeerOsMediji", "slika pasu: zmanjkalo pomnilnika")
             } catch (e: Exception) {
                 android.util.Log.d("SafeerOsMediji", "slika pasu: ${e.javaClass.simpleName}")
             } finally {
-                nalagamPas.remove(url)
+                cakajociPas.remove(url, cakajo)
+                val m = izid
+                if (m != null) glavna.post {
+                    if (!isFinishing) synchronized(cakajo) { cakajo.forEach { r -> r.get()?.takeIf { it.tag == url }?.setImageBitmap(m) } }
+                }
             }
         }
     }
