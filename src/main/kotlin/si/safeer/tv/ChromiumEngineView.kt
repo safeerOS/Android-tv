@@ -578,7 +578,8 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
      * nato [si.safeer.tv.os.MedijskiViri.dodajDodatek] in pregled kanalov v ozadju. Nikoli brez potrditve. [sicerNalozi]: neposreden
      * klik na .../manifest.json - ce to ni dodatek, se naslov nalozi kot doslej.
      */
-    private fun ponudiDodatek(view: WebView?, vnos: String, sicerNalozi: String?) {
+    /** [poKretnji]: navigacija je imela uporabnikovo kretnjo (klik na Install); sicer je privzeta izbira Preklici. */
+    private fun ponudiDodatek(view: WebView?, vnos: String, sicerNalozi: String?, poKretnji: Boolean = true) {
         val ctx = context
         val glavna = android.os.Handler(android.os.Looper.getMainLooper())
         val naslov = si.safeer.tv.os.MedijskiViri.preveriDodatek(si.safeer.tv.os.MedijskiViri.STREMIO, vnos).first ?: return
@@ -647,7 +648,11 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
                         .create().apply {
                             // Daljinec: fokus je na Dodaj; OK sprozi gumb, ki ima fokus (naloga 100: na Preklici preklice), Nazaj
                             // preklice. Tipk na ravni okna ne prestrezamo.
-                            setOnShowListener { getButton(android.app.AlertDialog.BUTTON_POSITIVE)?.requestFocus() }
+                            // CodeRabbit 9. 11. 2026: brez kretnje (preusmeritev v 5 s po nepovezani tipki) fokus na Preklici -
+                            // nehoten OK ne doda vira.
+                            setOnShowListener {
+                                getButton(if (poKretnji) android.app.AlertDialog.BUTTON_POSITIVE else android.app.AlertDialog.BUTTON_NEGATIVE)?.requestFocus()
+                            }
                             setOnDismissListener { sprostiDodatek() }
                             dodatekOkno = java.lang.ref.WeakReference(this)
                             show()
@@ -1364,7 +1369,7 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
                     val neposreden = dodatek == urlStr.substringBefore('#')
                     // Pojavno okno (spletni Stremio) se tiho zapre - vratar odloci kot doslej, naslov ostane v tem oknu.
                     vratarPojavnega?.let { v -> vratarPojavnega = null; if (v(urlStr)) return false }
-                    ponudiDodatek(view, dodatek, if (neposreden) urlStr else null)
+                    ponudiDodatek(view, dodatek, if (neposreden) urlStr else null, request.hasGesture())
                     return true
                 }
 
