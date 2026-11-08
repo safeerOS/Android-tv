@@ -220,8 +220,9 @@ object MedijskiPredpomnilnik {
             val mapa = mapaPasu(c)
             // Slepi pregled 8. 11. 2026: dve niti z isto sliko sta pisali v isto ».tmp« - zdaj enoznacno ime v isti mapi.
             val zacasna = File.createTempFile(odtis(url) + ".", ".tmp", mapa)
-            zacasna.writeBytes(bajti)
-            if (!zacasna.renameTo(File(mapa, odtis(url)))) { zacasna.delete(); return }
+            // CodeRabbit 8. 11.: ob napaki pisanja (poln disk) zacasna ne sme ostati.
+            val shranjeno = try { zacasna.writeBytes(bajti); zacasna.renameTo(File(mapa, odtis(url))) } catch (_: Exception) { false }
+            if (!shranjeno) { zacasna.delete(); return }
             val vse = mapa.listFiles() ?: return
             val zdaj = System.currentTimeMillis()
             // Ostanki prekinjenih zapisov (sesutje med pisanjem) - starejsi od ure ne pripadajo nobenemu zapisu vec.
