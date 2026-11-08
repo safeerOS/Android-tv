@@ -49,7 +49,7 @@ object Pomnilnik {
         }
     }
 
-    data class Stanje(val prostoMb: Int, val skupajMb: Int, val malo: Boolean)
+    data class Stanje(val prostoMb: Int, val skupajMb: Int, val malo: Boolean, val stiskaZaSeje: Boolean = false)
 
     fun stanje(c: Context): Stanje {
         val am = c.getSystemService(ActivityManager::class.java)
@@ -57,7 +57,7 @@ object Pomnilnik {
         try { am.getMemoryInfo(mi) } catch (_: Throwable) { }
         val prosto = (mi.availMem / 1_048_576).toInt()
         val skupaj = (mi.totalMem / 1_048_576).toInt()
-        return Stanje(prosto, skupaj, OsPravila.maloPomnilnika(prosto, skupaj) || mi.lowMemory)
+        return Stanje(prosto, skupaj, OsPravila.maloPomnilnika(prosto, skupaj) || mi.lowMemory, OsPravila.stiskaZaSeje(prosto, mi.lowMemory))
     }
 
     /** Aplikacije z zaganjalnikom, ki jih smemo zapreti (ce tecejo v ozadju). */
@@ -153,7 +153,7 @@ object Pomnilnik {
         val trajen = try { (pm.getApplicationInfo(prejsnja, 0).flags and ApplicationInfo.FLAG_PERSISTENT) != 0 } catch (_: Exception) { false }
         
         // Lastnik 8. 11. 2026: seja aplikacije, ki jo je uporabnik pravkar zapustil, ostane (30 min), razen ce je pomnilnika malo.
-        val nedejavnost = OsPravila.nedejavnostZapiranja(stanje(c).malo)
+        val nedejavnost = OsPravila.nedejavnostZapiranja(stanje(c).stiskaZaSeje)
         if (OsPravila.zapriObMenjavi(prejsnja, nova, casMs, c.packageName, ime, trajen, vklopljeno, predvaja, nedejavnost) && !vrnilSe() &&
             AdbLokalnoPravila.smemoNadaljevati(odhodiOd, odhodi)) {
             Thread {
@@ -191,7 +191,8 @@ object Pomnilnik {
             val pred = stanje(c)
             // Lastnik 8. 11. 2026: aplikacije, uporabljene v zadnjih 30 min, ohranijo sejo (SmartTube, YouTube ...); ko je
             // pomnilnika malo, se zaprejo kot doslej (3 s brez uporabe).
-            val nedejavnost = OsPravila.nedejavnostZapiranja(pred.malo)
+            val nedejavnost = OsPravila.nedejavnostZapiranja(pred.stiskaZaSeje)
+            if (nedejavnost == OsPravila.NEDEJAVNOST_MALO_MS) Log.i(TAG, "ciscenje ozadja: stiska (prosto ${pred.prostoMb} MB) - seje se ne drzijo")
             val k = kandidati(c).toMutableList()
             // Lastnik 1. 11. 2026: tudi nase aplikacije (TV Browser, Play Store, Predvajalnik), ko jih ne uporabljamo vec.
             for (nas in listOf("si.safeer.tv", "si.safeer.trgovina", "si.safeer.player")) if (!k.contains(nas)) k.add(nas)

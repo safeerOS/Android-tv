@@ -1368,6 +1368,14 @@ object OsPravila {
 
     fun nedejavnostZapiranja(maloPomnilnika: Boolean): Long = if (maloPomnilnika) NEDEJAVNOST_MALO_MS else NEDEJAVNOST_ZAPIRANJA_MS
 
+    /**
+     * Stiska, pri kateri seje aplikacij ne drzimo vec (lastnik 8. 11. 2026 04:03: SmartTube po Domov se vedno ubit, ker je
+     * maloPomnilnika na tem TV skoraj vedno res - »prosto« po ActivityManager je 500-1000 MB od 2730, petina pa 546 MB).
+     * Za seje steje samo prava stiska: sistemska zastavica lowMemory (prag LMK) ali manj kot [STISKA_SEJ_MB] prostega.
+     */
+    const val STISKA_SEJ_MB = 250
+    fun stiskaZaSeje(prostoMb: Int, lowMemory: Boolean): Boolean = lowMemory || (prostoMb in 0 until STISKA_SEJ_MB)
+
     fun zapriObVrnitvi(paket: String, mojPaket: String, tipkovnica: String?, trajen: Boolean,
                        vklopljeno: Boolean, predvaja: Boolean, zadnjaUporabaMs: Long, zdajMs: Long,
                        nedejavnostMs: Long = NEDEJAVNOST_MALO_MS): Boolean {

@@ -1746,6 +1746,13 @@ private fun preizkusZapriObVrnitvi() {
         OsPravila.zapriObVrnitvi("org.test", "moj", null, false, true, false, ura - 31 * 60_000L, ura, OsPravila.nedejavnostZapiranja(false)))
     preveriEnako("malo pomnilnika: 10 min brez uporabe -> zapre", true,
         OsPravila.zapriObVrnitvi("org.test", "moj", null, false, true, false, ura - 10 * 60_000L, ura, OsPravila.nedejavnostZapiranja(true)))
+    // Lastnik 8. 11. 2026 04:03: SmartTube se vedno ubit, ker je bilo »malo pomnilnika« (petina od 2730 MB) skoraj vedno res.
+    preveriEnako("TV 480 MB prostega brez lowMemory: NI stiska za seje", false, OsPravila.stiskaZaSeje(480, false))
+    preveriEnako("TV 606 MB prostega: NI stiska za seje", false, OsPravila.stiskaZaSeje(606, false))
+    preveriEnako("240 MB prostega: stiska za seje", true, OsPravila.stiskaZaSeje(240, false))
+    preveriEnako("sistem javi lowMemory: stiska za seje", true, OsPravila.stiskaZaSeje(900, true))
+    preveriEnako("stiska za seje -> 3 s, sicer 30 min", OsPravila.NEDEJAVNOST_MALO_MS to OsPravila.NEDEJAVNOST_ZAPIRANJA_MS,
+        OsPravila.nedejavnostZapiranja(OsPravila.stiskaZaSeje(240, false)) to OsPravila.nedejavnostZapiranja(OsPravila.stiskaZaSeje(480, false)))
     preveriEnako("predvaja zvok -> ostane tudi po 31 min", false,
         OsPravila.zapriObVrnitvi("org.test", "moj", null, false, true, true, ura - 31 * 60_000L, ura, OsPravila.nedejavnostZapiranja(false)))
     preveriEnako("menjava aplikacije po 15 s z dovolj pomnilnika -> prejsnja ostane", false,
