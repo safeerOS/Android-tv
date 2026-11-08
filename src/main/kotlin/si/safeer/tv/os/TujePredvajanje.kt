@@ -111,18 +111,25 @@ object TujePredvajanje {
 
     @Volatile private var igraBrezPrikaza: String? = null
 
-    /** Kdaj je uporabnik v malem predvajalniku dal premor (0 = ne). */
-    @Volatile private var premorIzDocka = 0L
+    /** Paket in cas premora, ki ga je uporabnik dal v malem predvajalniku (CodeRabbit: zascita velja samo za ta paket). */
+    @Volatile private var premorIzDocka: Pair<String, Long>? = null
 
     /** Paket, ki zdaj igra ali ga je uporabnik v malem predvajalniku dal na premor (za ciscenje ozadja), ali null. */
     fun igraPaket(): String? = stanje?.takeIf {
-        MiniPredvajalnikPravila.tujaZascitena(it.igra, premorIzDocka, System.currentTimeMillis())
+        MiniPredvajalnikPravila.tujaZascitena(it.igra, premorIzDocka?.takeIf { p -> p.first == it.paket }?.second ?: 0L, System.currentTimeMillis())
     }?.paket ?: igraBrezPrikaza
+
+    /** Paket, ki ZDAJ igra (ne zascita premora) - samo ta sme pojasniti zvok v ozadju. */
+    fun igraZdaj(): String? = stanje?.takeIf { it.igra }?.paket ?: igraBrezPrikaza
 
     fun preklopi() {
         val t = kontroler?.transportControls ?: return
-        if (stanje?.igra == true) { premorIzDocka = System.currentTimeMillis(); t.pause() } else { premorIzDocka = 0L; t.play() }
+        val s = stanje
+        if (s?.igra == true) { premorIzDocka = s.paket to System.currentTimeMillis(); t.pause() } else { premorIzDocka = null; t.play() }
     }
+
+    /** Samo premor (gumb X v malem predvajalniku): seje na premoru ne nadaljuje. */
+    fun premor() { if (stanje?.igra == true) preklopi() }
 
     /** Kliknjen naslov v malem predvajalniku: odpre aplikacijo, ki igra. */
     fun odpri(c: Context): Boolean {

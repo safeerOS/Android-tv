@@ -1291,13 +1291,18 @@ class GlasbaActivity : OsActivity() {
         vsebina.minimumHeight = OsPravila.visinaMedRisanjem(vsebina.height, ostaneY)
         // Pas Doma (prvi otrok, isti pogled tudi v novem risanju) ostane: brez odklopa povrsine videa in izgube fokusa.
         val pas = mcKarticaKoren
-        if (pas != null && vrste.firstOrNull()?.pogled === pas && pas.parent === vsebina && vsebina.indexOfChild(pas) == 0) {
-            if (vsebina.childCount > 1) vsebina.removeViews(1, vsebina.childCount - 1)
-        } else vsebina.removeAllViews()
+        // CodeRabbit: pas je lahko za glavo Doma (ne na mestu 0) - ohrani ga kjer koli, glava gre pred njega.
+        val ohraniPas = pas != null && vrste.firstOrNull { it.kartice.isNotEmpty() || it.pogled != null }?.pogled === pas && pas.parent === vsebina
+        if (ohraniPas) { for (i in vsebina.childCount - 1 downTo 0) if (vsebina.getChildAt(i) !== pas) vsebina.removeViewAt(i) }
+        else vsebina.removeAllViews()
+        fun predPasom(v: View, lp: android.view.ViewGroup.LayoutParams? = null) {
+            val i = if (ohraniPas) vsebina.indexOfChild(pas) else -1
+            if (lp != null) vsebina.addView(v, i, lp) else vsebina.addView(v, i)
+        }
         stanje.text = if (glava.isEmpty() && vrste.all { it.kartice.isEmpty() && it.pogled == null }) prazno else opis
-        iskalnik?.let { vsebina.addView(it, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) }) }
-        if (iskalnik != null && zasebnoIskanje == null) vsebina.addView(izbiraObsegaIskanja(), LinearLayout.LayoutParams(-2, -2).apply { bottomMargin = dp(10) })
-        glava.forEach { vsebina.addView(it) }
+        iskalnik?.let { predPasom(it, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) }) }
+        if (iskalnik != null && zasebnoIskanje == null) predPasom(izbiraObsegaIskanja(), LinearLayout.LayoutParams(-2, -2).apply { bottomMargin = dp(10) })
+        glava.forEach { predPasom(it) }
         val koraki = ArrayDeque<() -> Unit>()
         for (v0 in vrste) {
             if (v0.kartice.isEmpty() && v0.pogled == null) continue
@@ -3584,8 +3589,9 @@ class GlasbaActivity : OsActivity() {
                 val vrstice = DomovVrsticePravila.vrstice(izbrane, vrsteMap.keys).flatMap { vrsteMap.getValue(it) }
                 // Lastnik 8. 11. 2026 06:17 (Kinema Home.tsx): pas cez celo sirino na vrhu Doma na vseh zaslonih. Ko nic ne
                 // igra in ni nedokoncanega, kaze izbor dneva (hero.ts): naslov s sliko iz vrstic Doma, ves dan isti.
-                val sSliko = vrstice.flatMap { it.kartice }.filter { it.slika.isNotBlank() && it.id.isNotBlank() && !it.dejanje &&
-                    it.tvId.isBlank() && it.ikona == R.drawable.os_ikona_video }.distinctBy { it.id }
+                // CodeRabbit: kartice Nedavno dodano/Priporoceno imajo privzeto ikono - vir je video vrsta ali ikona videa.
+                val sSliko = vrstice.flatMap { v -> v.kartice.filter { v.video || it.ikona == R.drawable.os_ikona_video || it.kakovostId.isNotBlank() } }
+                    .filter { it.slika.isNotBlank() && it.id.isNotBlank() && !it.dejanje && it.tvId.isBlank() }.distinctBy { it.id }
                 val tz = java.util.TimeZone.getDefault()
                 val zdajMs = System.currentTimeMillis()
                 zadnjiIzbor = MiniPredvajalnikPravila.izborDneva(sSliko.map { it.id },

@@ -176,8 +176,11 @@ object Pomnilnik {
         // Lastnik 8. 11. 2026 06:30: neigrajoca se zapre, igrajoca (znana seja predvajanja) ostane.
         val nedejavnost = OsPravila.nedejavnostNeigrajocih()
         val igraTuja = TujePredvajanje.igraPaket()
-        // Slepi pregled: zvok druge (znane) aplikacije ne zadrzi zapiranja te, ki ne igra; neznan zvok ga (kot doslej).
-        val igra = igraTuja == prejsnja || (igraTuja == null && predvaja)
+        // Slepi pregled + CodeRabbit: zvok ob menjavi pripisemo znani seji samo, ce ta ZDAJ igra, ni prejsnja aplikacija
+        // in je en sam vir zvoka; sicer zvok (morda prejsnje aplikacije brez seje) zadrzi zapiranje kot doslej.
+        val virov = try { (c.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager)?.activePlaybackConfigurations?.size ?: 0 } catch (_: Throwable) { 0 }
+        val zdaj = TujePredvajanje.igraZdaj()
+        val igra = igraTuja == prejsnja || OsPravila.zvokUstaviVse(predvaja, zdaj != null && zdaj != prejsnja && virov <= 1)
         if (OsPravila.zapriObMenjavi(prejsnja, nova, casMs, c.packageName, ime, trajen, vklopljeno, igra, nedejavnost) && !vrnilSe() &&
             AdbLokalnoPravila.smemoNadaljevati(odhodiOd, odhodi)) {
             Thread {
@@ -210,8 +213,9 @@ object Pomnilnik {
         // Slepi pregled: zvok iz aplikacije BREZ seje predvajanja (radio, igra) ob hkratni znani seji - vec virov zvoka kot
         // znanih sej -> kot doslej ustavi vse.
         val virov = try { am?.activePlaybackConfigurations?.size ?: 0 } catch (_: Throwable) { 0 }
+        // CodeRabbit: zvok pojasni samo seja, ki ZDAJ igra (ne zascita premora), in samo, ce je en sam vir zvoka.
         val predvaja = !nasePredvajanje && OsPravila.zvokUstaviVse(try { am?.isMusicActive == true } catch (_: Exception) { false },
-            igraTuja != null && virov <= 1)
+            TujePredvajanje.igraZdaj() != null && virov <= 1)
         Thread {
             if (cakajMs > 0L) try { Thread.sleep(cakajMs) } catch (_: Exception) {}
             if (!nadaljuj()) { Log.i(TAG, "ciscenje ozadja preskoceno - uporabnik je odprl aplikacijo"); return@Thread }
