@@ -72,6 +72,9 @@ object MiniPredvajalnikPravila {
         igra || (premorIzDockaMs > 0L && zdajMs - premorIzDockaMs in 0 until PREMOR_IZ_DOCKA_MS)
 
     /** Seja druge aplikacije je za prikaz, ce ima naslov in igra ali je na premoru (ustavljena/brez stanja ne). */
+    /** Naslov tuje seje; brez njega (SmartTube) ime aplikacije, da mali predvajalnik vseeno pokaze, kaj igra. */
+    fun naslovTuje(naslov: String, imeAplikacije: String): String = naslov.ifBlank { imeAplikacije }
+
     fun tujaZaPrikaz(naslov: String, stanje: Int): Boolean = naslov.isNotBlank() && (tujaIgra(stanje) || stanje == 2)
 
     /** Katera seja drugih aplikacij: prva, ki igra, sicer prva na premoru; -1 = nobena. */

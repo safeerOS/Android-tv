@@ -228,6 +228,9 @@ fun main() {
     preveriEnako("tuja seja: brez igre prva na premoru", 1, MiniPredvajalnikPravila.izberiTujo(listOf(1, 2)))
     preveriEnako("tuja seja: ustavljene ne", -1, MiniPredvajalnikPravila.izberiTujo(listOf(0, 1)))
     preveriEnako("tuja za prikaz: brez naslova ne", false, MiniPredvajalnikPravila.tujaZaPrikaz("", 3))
+    preveriEnako("tuja brez naslova: ime aplikacije", "SmartTube", MiniPredvajalnikPravila.naslovTuje("", "SmartTube"))
+    preveriEnako("tuja z naslovom: naslov", "Pesem", MiniPredvajalnikPravila.naslovTuje("Pesem", "SmartTube"))
+    preveriEnako("brez naslova in imena: ni prikaza", false, MiniPredvajalnikPravila.tujaZaPrikaz(MiniPredvajalnikPravila.naslovTuje("", ""), 3))
     preveriEnako("tuja za prikaz: ustavljena ne", false, MiniPredvajalnikPravila.tujaZaPrikaz("Pesem", 1))
     preveriEnako("tuja za prikaz: premor da", true, MiniPredvajalnikPravila.tujaZaPrikaz("Pesem", 2))
     // Slepi pregled 8. 11. 2026: preskok na naslednjo skladbo, povezovanje in previjanje so »igra«.

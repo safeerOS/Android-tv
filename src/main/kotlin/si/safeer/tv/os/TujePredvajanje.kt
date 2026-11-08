@@ -31,6 +31,7 @@ object TujePredvajanje {
     private var msm: MediaSessionManager? = null
     private var komponenta: ComponentName? = null
     private var mojPaket = ""
+    private var aplikacija: Context? = null
     private var kontroler: MediaController? = null
     private val sejeSpremenjene = MediaSessionManager.OnActiveSessionsChangedListener { izberi(it.orEmpty()) }
     private val povratni = object : MediaController.Callback() {
@@ -48,7 +49,7 @@ object TujePredvajanje {
             try {
                 val m = c.applicationContext.getSystemService(MediaSessionManager::class.java) ?: return@post
                 ustaviNaGlavni()
-                msm = m; komponenta = k; mojPaket = c.packageName
+                msm = m; komponenta = k; mojPaket = c.packageName; aplikacija = c.applicationContext
                 m.addOnActiveSessionsChangedListener(sejeSpremenjene, k, glavna)
                 izberi(m.getActiveSessions(k))
                 Log.i(TAG, "seje drugih aplikacij: spremljam")
@@ -93,8 +94,11 @@ object TujePredvajanje {
         val md = try { k?.metadata } catch (_: Throwable) { null }
         val st = try { k?.playbackState?.state } catch (_: Throwable) { null } ?: PlaybackState.STATE_NONE
         val s = k?.let {
+            // TV 8. 11. 2026: SmartTube v seji ne objavi naslova (metadata description=null) - brez njega malega
+            // predvajalnika ni bilo. Namesto naslova ime aplikacije.
             Stanje(it.packageName,
-                md?.getString(MediaMetadata.METADATA_KEY_TITLE) ?: md?.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE).orEmpty(),
+                MiniPredvajalnikPravila.naslovTuje(md?.getString(MediaMetadata.METADATA_KEY_TITLE) ?: md?.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE).orEmpty(),
+                    imeAplikacije(it.packageName)),
                 md?.getString(MediaMetadata.METADATA_KEY_ARTIST) ?: md?.getString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE).orEmpty(),
                 MiniPredvajalnikPravila.tujaIgra(st))
         }?.takeIf { MiniPredvajalnikPravila.tujaZaPrikaz(it.naslov, st) }
@@ -121,6 +125,11 @@ object TujePredvajanje {
 
     /** Paket, ki ZDAJ igra (ne zascita premora) - samo ta sme pojasniti zvok v ozadju. */
     fun igraZdaj(): String? = stanje?.takeIf { it.igra }?.paket ?: igraBrezPrikaza
+
+    private fun imeAplikacije(paket: String): String = try {
+        val pm = aplikacija?.packageManager ?: return ""
+        pm.getApplicationLabel(pm.getApplicationInfo(paket, 0)).toString()
+    } catch (_: Throwable) { "" }
 
     fun preklopi() {
         val t = kontroler?.transportControls ?: return

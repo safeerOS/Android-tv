@@ -158,8 +158,10 @@ class DomPas(context: Context) : FrameLayout(context) {
     private var imamSliko = false
 
     init {
-        isFocusable = true
-        isFocusableInTouchMode = false   // CodeRabbit: na dotik prvi dotik klikne (ne samo fokusira)
+        // Lastnik 8. 11. 2026: en postanek fokusa - DOL z zavihka gre naravnost na gumb Nadaljuj/Predvajaj (prej najprej
+        // ves pas z obrobo, nato gumb). Pas ostane klikljiv za dotik; dolg OK in Meni ima glavni gumb (naMeni).
+        isFocusable = false
+        isFocusableInTouchMode = false
         isClickable = true
         defaultFocusHighlightEnabled = false
         clipToOutline = true
@@ -663,15 +665,16 @@ class DomPas(context: Context) : FrameLayout(context) {
         napis.maxLines = 1
         kontejner.addView(napis, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         kontejner.setOnClickListener { if (glavni) naPredvajaj?.invoke() else naPodrobnosti?.invoke() }
-        if (glavni) kontejner.setOnLongClickListener { val m = naMeni; m?.invoke(); m != null }
+        // Dolg OK na glavnem gumbu: meni vsebine, sicer (kot prej na pasu) vse nedokoncane.
+        if (glavni) kontejner.setOnLongClickListener { val m = naMeni ?: naPodrobnosti; m?.invoke(); m != null }
         kontejner.setOnFocusChangeListener { _, ima -> poudari(kontejner, ima) }
         kontejner.setOnKeyListener { _, kod, e ->
             if (e.action != KeyEvent.ACTION_DOWN) {
                 false
             } else if (glavni) {
                 when (kod) {
-                    KeyEvent.KEYCODE_MENU -> naMeni?.let { it(); true } ?: false
-                    KeyEvent.KEYCODE_DPAD_LEFT -> this@DomPas.requestFocus()
+                    KeyEvent.KEYCODE_MENU -> (naMeni ?: naPodrobnosti)?.let { it(); true } ?: false
+                    KeyEvent.KEYCODE_DPAD_LEFT -> true   // levo od glavnega gumba ni nicesar (pas ni vec postanek)
                     KeyEvent.KEYCODE_DPAD_RIGHT -> gumbPodrobnosti.visibility == View.VISIBLE && gumbPodrobnosti.requestFocus()
                     else -> false
                 }
