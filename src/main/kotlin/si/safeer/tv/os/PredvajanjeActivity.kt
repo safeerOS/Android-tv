@@ -946,7 +946,11 @@ class PredvajanjeActivity : OsActivity() {
             "konec=$isFinishing, tece=${GlasbaStoritev.tece()}")
         if (!novoPredvajanje) zapisiNapredek()
         // Lastnik 28. 10. 2026: YouTube (glasba) igra v ozadju do pavze ali stopa v mini predvajalniku.
-        if (jeVideo() && !igraVOzadju() && !isChangingConfigurations && !novoPredvajanje) GlasbaStoritev.predvajalnik?.pause()
+        // Naloga #38 (lastnik 8. 11. 2026): Nazaj na Dom Medijskega centra - video igra naprej v okencu kartice, ne pavza.
+        // Samo ob Nazaj (isFinishing); ob Domov (zaslon le ustavljen) video kot doslej na pavzo.
+        val vOkence = isFinishing && GlasbaActivity.okenceNaDomu()
+        if (jeVideo() && !igraVOzadju() && !isChangingConfigurations && !novoPredvajanje && !vOkence) GlasbaStoritev.predvajalnik?.pause()
+        else if (vOkence) android.util.Log.i("SafeerOsMedia", "zaslon predvajanja odhaja: video naprej v okencu Doma")
         GlasbaStoritev.poslusalci.remove(poslusalec)
         LinkUpravitelj.pridobi(this).odstrani(linkPoslusalec)
         glavna.removeCallbacks(tik); glavna.removeCallbacks(skrij); glavna.removeCallbacks(zatemni); glavna.removeCallbacks(skrijIme)

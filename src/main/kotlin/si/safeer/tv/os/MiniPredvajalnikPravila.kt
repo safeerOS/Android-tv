@@ -194,6 +194,36 @@ object MiniPredvajalnikPravila {
         else -> ZNAK
     }
 
+    /** Kartica na Domu MC kaze zadnjo nedokoncano vsebino z gumbom Nadaljuj (nic ne igra). */
+    const val NADALJUJ = "nadaljuj"
+
+    /**
+     * Stanje kartice na Domu Medijskega centra (lastnik 6. 11. 2026 04:25 in 8. 11. 2026 02:58): mali predvajalnik je na
+     * Domu VES CAS - ko kaj igra, kaze to (KARTICA, video v okencu); ko nic ne igra, kaze zadnjo nedokoncano vsebino z
+     * gumbom Nadaljuj (NADALJUJ); brez obojega je ni (MC_NIC). Zunaj Doma ali na podstrani je kartice ni (znak: [prikazMc]).
+     */
+    fun stanjeKartice(naDomu: Boolean, podstranOdprta: Boolean, imaSkladbo: Boolean, imaNadaljevanje: Boolean): String = when {
+        !naDomu || podstranOdprta -> MC_NIC
+        imaSkladbo -> KARTICA
+        imaNadaljevanje -> NADALJUJ
+        else -> MC_NIC
+    }
+
+    /** Zadnja nedokoncana vsebina za Nadaljuj: video z napredkom med 2 % in 95 % (odgledan film ali komaj zacet ne steje). */
+    fun jeNedokoncano(video: Boolean, polozajMs: Long, trajanjeMs: Long): Boolean =
+        video && trajanjeMs > 0 && polozajMs * 100 >= trajanjeMs * 2 && polozajMs * 100 <= trajanjeMs * 95
+
+    /**
+     * Video v okencu kartice je zaslon predvajanja: ko kartica z zivo sliko igra na Domu, celozaslonskega predvajalnika ne
+     * odpiramo sami ([GlasbaActivity.videoBrezZaslona] - pravilo lastnika 11. 10. 2026 »video brez slike nima smisla« velja
+     * se naprej, kadar slike ni nikjer).
+     */
+    fun videoVOkencu(naDomu: Boolean, podstranOdprta: Boolean, karticaVidna: Boolean, video: Boolean): Boolean =
+        naDomu && !podstranOdprta && karticaVidna && video
+
+    /** Kartica »Poglej, kaj igra« (tocka 8, lastnik 7. 11. 2026): samo, ce druga naprava res igra - ne za »nazadnje«. */
+    fun pokaziKajIgra(ponudbeIgrajo: List<Boolean>): Boolean = ponudbeIgrajo.any { it }
+
     fun casNapredka(polozajMs: Long, trajanjeMs: Long): String {
         if (trajanjeMs <= 0) return ""
         val uP = polozajMs / 3600000

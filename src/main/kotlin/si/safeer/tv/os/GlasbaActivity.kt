@@ -185,7 +185,7 @@ class GlasbaActivity : OsActivity() {
      * ga odpremo sami. Preverimo dvakrat v 1,5 s, da kratek preklop med zasloni ne odpre drugega.
      */
     private fun videoBrezZaslona(): Boolean = vOspredju && !isFinishing && !PredvajanjeActivity.odprt &&
-        GlasbaStoritev.trenutna()?.video == true && GlasbaStoritev.tece()
+        GlasbaStoritev.trenutna()?.video == true && GlasbaStoritev.tece() && !videoVOkencu()   // naloga #38: okence na Domu je zaslon
     private val vrniVideo = Runnable {
         if (!videoBrezZaslona()) return@Runnable
         android.util.Log.i("SafeerOsMediji", "video tece brez zaslona: odpiram zaslon predvajanja")
@@ -549,6 +549,8 @@ class GlasbaActivity : OsActivity() {
         // Vrnitev na mrezo: preverjanje se nadaljuje.
         if (klikNaFilm) { klikNaFilm = false; odprtKatalog?.let { if (!isFinishing) narociUmiri() } }
         narociUskladiSlike()
+        // Naloga #38: po vrnitvi s celozaslonskega predvajalnika si okence na Domu vzame sliko nazaj.
+        osveziMcKartico()
     }
 
     override fun onStart() {
@@ -633,6 +635,7 @@ class GlasbaActivity : OsActivity() {
     override fun onStop() {
         viden = false
         mcKarticaHandler.removeCallbacks(mcKarticaCasovnik)
+        okenceVidea(false)     // naloga #38: slika predvajalnika ne ostane na skritem oknu
         // CodeRabbit 6. 11. 2026: samo svoj klic - druga GlasbaActivity, ki je zacela pred tem onStop, obdrzi svojega.
         if (UsenetPomocniki.obSpremembi === obPomocnikuUseneta) UsenetPomocniki.obSpremembi = null
         skrijPripravljam()      // predvajalnik je odprt ali uporabnik je odsel: pas ne ostane za vrnitev
@@ -1725,6 +1728,21 @@ class GlasbaActivity : OsActivity() {
                 }
                 val prazno = mcKarticaKoren?.visibility != View.VISIBLE && ploscaDomov.childCount <= 1
                 ploscaDomov.visibility = if (DomovVrsticePravila.prikaziPoljePlosce(prazno)) View.VISIBLE else View.GONE
+            }
+        }
+        // Tocka 8 (lastnik 7. 11. 2026): »Poglej, kaj igra« samo, ce druga naprava res igra; en klik prevzame tisto vsebino.
+        val linkZaKajIgra = LinkUpravitelj.pridobi(this)
+        if (!linkZaKajIgra.jeKrajevni() && linkZaKajIgra.naprave.any { !linkZaKajIgra.jeTaNaprava(it) && "remote" in it.zmoznosti }) {
+            Predaja.poizvedi(this) { ponudbe ->
+                if (isFinishing || isDestroyed || razdelek != DOMOV) return@poizvedi
+                if (!MiniPredvajalnikPravila.pokaziKajIgra(ponudbe.map { it.igra })) return@poizvedi
+                val pon = ponudbe.first { it.igra }
+                val sk = pon.skladba
+                val v = Vrsta(getString(R.string.os_predaja_naslov), listOf(Kartica(sk.naslov, DatotekeActivity.lepoIme(pon.naprava.ime), sk.slika,
+                    { izberiPrevzem(pon) }, ikona = R.drawable.os_ikona_link, id = "predaja:" + pon.naprava.id)), video = true)
+                ploscaDomov.addView(besedilo(16f, osBarva(R.color.os_besedilo), true).apply { text = getString(R.string.os_predaja_kartica); setPadding(0, dp(16), 0, dp(8)) })
+                ploscaDomov.addView(karticaMreze(v, v.kartice.first(), 150))
+                ploscaDomov.visibility = View.VISIBLE
             }
         }
     }
@@ -3439,7 +3457,14 @@ class GlasbaActivity : OsActivity() {
                             }, { meniNedavno(sk) },
                                 ikona = R.drawable.os_ikona_video, id = sk.id, napredek = napredekOdstotek)
                         }
-                        if (kartice.isEmpty()) emptyList() else listOf(Vrsta(getString(R.string.os_nadaljuj_z_ogledom), kartice, video = true, nadaljuj = true))
+                        // Naloga #38 (lastnik 8. 11. 2026): zadnja nedokoncana vsebina gre v mali predvajalnik na plosci Doma; kjer je
+                        // plosca (TV, lezeca tablica), vrste ni vec - vse nedokoncane odpre dolg pritisk na kartici.
+                        zadnjeNadaljevanje = napredki.firstOrNull { MiniPredvajalnikPravila.jeNedokoncano(it.skladba.video, it.polozaj, it.trajanje) &&
+                            !jeKanalP(it.skladba) && !neodklenjena(it.skladba) }
+                        val vrstaNadaljuj = if (kartice.isEmpty()) null else Vrsta(getString(R.string.os_nadaljuj_z_ogledom), kartice, video = true, nadaljuj = true)
+                        zadnjaVrstaNadaljuj = vrstaNadaljuj
+                        val plosca = DomovVrsticePravila.imaPlosco(jeTv(), resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE, ozekZaslon())
+                        if (vrstaNadaljuj == null || plosca) emptyList() else listOf(vrstaNadaljuj)
                     }
                     DomovVrsticePravila.Vrstica.NADALJUJ_S_POSLUSANJEM -> {
                         val nedavniZvok = razvrsti(i, filtrirajJezike(i, MedijskiViri.nedavno(this@GlasbaActivity).filterNot { neodklenjena(it) }))
@@ -12756,6 +12781,12 @@ class GlasbaActivity : OsActivity() {
     }
 
     private var mcKarticaKoren: View? = null
+    /** Zivo okence videa v kartici (naloga #38): slika predvajalnika storitve, ko video igra na Domu; OK = cel zaslon. */
+    private var mcKarticaPovrsina: android.view.SurfaceView? = null
+    private var mcKarticaStanje: String = MiniPredvajalnikPravila.MC_NIC
+    /** Zadnja nedokoncana vsebina (iz gradnje Doma, delovna nit) in vrsta vseh nedokoncanih za dolg pritisk na kartici. */
+    @Volatile private var zadnjeNadaljevanje: MediaNapredek.Vnos? = null
+    @Volatile private var zadnjaVrstaNadaljuj: Vrsta? = null
     private var mcKarticaSlika: ImageView? = null
     private var mcKarticaNaslov: TextView? = null
     private var mcKarticaPodnaslov: TextView? = null
@@ -12793,6 +12824,14 @@ class GlasbaActivity : OsActivity() {
         }
         mcKarticaSlika = slika
         koren.addView(slika)
+
+        // Naloga #38: zivo okence videa - nad sliko, pod senco in besedili (SurfaceView kot medijska plast).
+        mcKarticaPovrsina = android.view.SurfaceView(this).apply {
+            setZOrderMediaOverlay(true)
+            layoutParams = FrameLayout.LayoutParams(-1, -1)
+            visibility = View.GONE
+        }
+        koren.addView(mcKarticaPovrsina)
 
         val senca = View(this).apply {
             background = android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.BOTTOM_TOP, intArrayOf(0xD9000000.toInt(), 0))
@@ -12885,12 +12924,16 @@ class GlasbaActivity : OsActivity() {
         }
         
         koren.setOnClickListener {
+            if (mcKarticaStanje == MiniPredvajalnikPravila.NADALJUJ) { nadaljujZadnje(); return@setOnClickListener }
             val sk = GlasbaStoritev.trenutna() ?: return@setOnClickListener
             if (sk.video) MiniPredvajalnik.odpriCelZaslon(this@GlasbaActivity)
             else startActivity(Intent(this@GlasbaActivity, PredvajanjeActivity::class.java))
         }
+        // Dolg pritisk: vse nedokoncane vsebine (prejsnja vrsta »Nadaljuj z ogledom«) kot mreza.
+        koren.setOnLongClickListener { zadnjaVrstaNadaljuj?.let { odpriBlok(it); true } ?: false }
         koren.setOnKeyListener { _, koda, dogodek ->
             if (dogodek.action == KeyEvent.ACTION_DOWN && (koda == KeyEvent.KEYCODE_DPAD_CENTER || koda == KeyEvent.KEYCODE_ENTER)) {
+                if (mcKarticaStanje == MiniPredvajalnikPravila.NADALJUJ) { if (dogodek.repeatCount == 0) nadaljujZadnje(); return@setOnKeyListener true }
                 val sk = GlasbaStoritev.trenutna() ?: return@setOnKeyListener false
                 if (MiniPredvajalnikPravila.dejanjePredvajaj(sk.video, GlasbaStoritev.igra()) == MiniPredvajalnikPravila.ODPRI_PREDVAJALNIK) {
                     MiniPredvajalnik.odpriCelZaslon(this@GlasbaActivity)
@@ -12901,6 +12944,7 @@ class GlasbaActivity : OsActivity() {
             } else false
         }
         mcKarticaPredvajaj?.setOnClickListener {
+            if (mcKarticaStanje == MiniPredvajalnikPravila.NADALJUJ) { nadaljujZadnje(); return@setOnClickListener }
             val sk = GlasbaStoritev.trenutna() ?: return@setOnClickListener
             if (MiniPredvajalnikPravila.dejanjePredvajaj(sk.video, GlasbaStoritev.igra()) == MiniPredvajalnikPravila.ODPRI_PREDVAJALNIK) {
                 MiniPredvajalnik.odpriCelZaslon(this@GlasbaActivity)
@@ -12914,22 +12958,73 @@ class GlasbaActivity : OsActivity() {
         return koren
     }
 
+    /** En klik na kartici Nadaljuj: zadnja nedokoncana vsebina se nadaljuje tam, kjer je uporabnik ostal (kot kartica Nedavno). */
+    private fun nadaljujZadnje() {
+        val n = zadnjeNadaljevanje ?: return
+        if (SpletniVir.jeEnota(n.skladba)) razresiSplet(n.skladba) else predvajaj(listOf(n.skladba), 0, izNedavnih = true)
+    }
+
+    /** Okence videa pripne ali odpne sliko predvajalnika storitve; celozaslonski zaslon si jo vzame sam, ko se odpre. */
+    private fun okenceVidea(prikazi: Boolean) {
+        val pov = mcKarticaPovrsina ?: return
+        val p = GlasbaStoritev.predvajalnik
+        if (prikazi && p != null) {
+            if (pov.visibility != View.VISIBLE) { pov.visibility = View.VISIBLE; android.util.Log.i("SafeerOsMediji", "kartica: video v okencu") }
+            try { p.setVideoSurfaceView(pov) } catch (e: Throwable) { android.util.Log.w("SafeerOsMediji", "okence videa: ${e.javaClass.simpleName}") }
+        } else if (pov.visibility != View.GONE) {
+            try { p?.clearVideoSurfaceView(pov) } catch (_: Throwable) { }
+            pov.visibility = View.GONE
+        }
+    }
+
+    /** Video igra v okencu kartice na Domu (tedaj celozaslonskega predvajalnika ne odpiramo sami). */
+    private fun videoVOkencu(): Boolean = MiniPredvajalnikPravila.videoVOkencu(razdelek == DOMOV, podstrani.odprta,
+        mcKarticaKoren?.isShown == true && mcKarticaPovrsina?.visibility == View.VISIBLE, GlasbaStoritev.trenutna()?.video == true)
+
     private fun osveziMcKartico() {
         val koren = mcKarticaKoren ?: return
         val sk = GlasbaStoritev.trenutna()
         val p = GlasbaStoritev.predvajalnik
+        val nad = zadnjeNadaljevanje
         
-        val prikazMc = MiniPredvajalnikPravila.prikazMc(razdelek == DOMOV, sk != null, podstrani.odprta)
-        val viden = prikazMc == MiniPredvajalnikPravila.KARTICA
+        // Naloga #38: kartica je na Domu ves cas - igra, Nadaljuj (zadnja nedokoncana vsebina) ali nic.
+        mcKarticaStanje = MiniPredvajalnikPravila.stanjeKartice(razdelek == DOMOV, podstrani.odprta, sk != null, nad != null)
+        val viden = mcKarticaStanje != MiniPredvajalnikPravila.MC_NIC
         if (!viden) {
+            okenceVidea(false)
             koren.visibility = View.GONE
             mcKarticaHandler.removeCallbacks(mcKarticaCasovnik)
-            android.util.Log.d("SafeerOsMediji", "plosca: ni predvajanja ali ni Dom ($prikazMc)")
+            android.util.Log.d("SafeerOsMediji", "plosca: ni predvajanja, ni nadaljevanja ali ni Dom")
             return
         }
         koren.visibility = View.VISIBLE
+
+        if (mcKarticaStanje == MiniPredvajalnikPravila.NADALJUJ && nad != null) {
+            okenceVidea(false)
+            mcKarticaHandler.removeCallbacks(mcKarticaCasovnik)
+            val n = nad.skladba
+            mcKarticaNaslov?.text = n.naslov
+            val se = if (n.season > 0 && n.episode > 0) "S%02dE%02d".format(n.season, n.episode) else ""
+            mcKarticaPodnaslov?.text = listOf(se, if (n.year != 0) n.year.toString() else n.izvajalec).filter { it.isNotBlank() }.joinToString(" · ")
+            mcKarticaSlika?.let { slika ->
+                (slika.layoutParams as FrameLayout.LayoutParams).let { it.width = -1; it.gravity = Gravity.CENTER }
+                slika.setPadding(0, 0, 0, 0); slika.setBackgroundColor(0); slika.scaleType = ImageView.ScaleType.CENTER_CROP
+                if (n.slika.isBlank()) { slika.setImageResource(R.drawable.os_ikona_video); slika.tag = null }
+                else if (slika.tag != n.slika) { slika.tag = n.slika; slikaKartice(n.slika, slika) }
+            }
+            mcKarticaPrejsnja?.visibility = View.GONE
+            mcKarticaNaslednja?.visibility = View.GONE
+            ((mcKarticaPredvajaj as? android.widget.FrameLayout)?.getChildAt(0) as? ImageView)?.setImageResource(R.drawable.os_ikona_predvajaj)
+            mcKarticaCrta?.parent?.let { (it as View).visibility = View.VISIBLE }
+            mcKarticaCas?.visibility = View.VISIBLE
+            val sirina = koren.width.takeIf { it > 0 } ?: (if (ozekZaslon()) resources.displayMetrics.widthPixels else dp(260))
+            mcKarticaCrta?.layoutParams = FrameLayout.LayoutParams((sirina * nad.polozaj / nad.trajanje).toInt(), -1)
+            mcKarticaCas?.text = MiniPredvajalnikPravila.casNapredka(nad.polozaj, nad.trajanje) + " · " + getString(R.string.os_media_nadaljuj)
+            return
+        }
         
         if (sk == null) return
+        okenceVidea(sk.video && p != null)
         
         mcKarticaNaslov?.text = sk.naslov
         mcKarticaPodnaslov?.text = if (sk.year != 0) sk.year.toString() else sk.izvajalec
@@ -13045,6 +13140,8 @@ class GlasbaActivity : OsActivity() {
         @Volatile var odprtih = 0
             private set
         val odprta: Boolean get() = odprtih > 0
+        /** Naloga #38: Dom Medijskega centra s kartico je odprt pod zaslonom predvajanja - video ob Nazaj igra naprej v okencu. */
+        fun okenceNaDomu(): Boolean = instanca?.get()?.let { a -> !a.isFinishing && a.razdelek == DOMOV && !a.podstrani.odprta && a.mcKarticaKoren != null } == true
 
         private const val PREDVAJALNIK_DATOTEKA = 7412
         private const val KLJUC_PREDVAJALNIK = "kat-predvajalnik"

@@ -159,5 +159,24 @@ fun main() {
     preveriEnako("dolNaDock: dock skrit ali nefokusabilen", false, P.dolNaDock(false, false, false))
     preveriEnako("dolNaDock: dock ze ima fokus", false, P.dolNaDock(false, true, true))
 
+    // Naloga #38 (lastnik 6. 11. 04:25, 8. 11. 02:58): kartica na Domu ves cas - igra, Nadaljuj ali nic.
+    preveriEnako("stanjeKartice: igra na Domu -> KARTICA", P.KARTICA, P.stanjeKartice(naDomu = true, podstranOdprta = false, imaSkladbo = true, imaNadaljevanje = true))
+    preveriEnako("stanjeKartice: nic ne igra, nedokoncano obstaja -> NADALJUJ", P.NADALJUJ, P.stanjeKartice(true, false, false, true))
+    preveriEnako("stanjeKartice: nic ne igra, nic nedokoncanega -> nic", P.MC_NIC, P.stanjeKartice(true, false, false, false))
+    preveriEnako("stanjeKartice: podstran odprta -> nic (znak)", P.MC_NIC, P.stanjeKartice(true, true, true, true))
+    preveriEnako("stanjeKartice: drug razdelek -> nic (znak)", P.MC_NIC, P.stanjeKartice(false, false, true, true))
+    preveriEnako("jeNedokoncano: 40 % filma", true, P.jeNedokoncano(true, 40_000L, 100_000L))
+    preveriEnako("jeNedokoncano: komaj zacet (1 %) ne", false, P.jeNedokoncano(true, 1_000L, 100_000L))
+    preveriEnako("jeNedokoncano: odgledan (96 %) ne", false, P.jeNedokoncano(true, 96_000L, 100_000L))
+    preveriEnako("jeNedokoncano: glasba ne", false, P.jeNedokoncano(false, 40_000L, 100_000L))
+    preveriEnako("jeNedokoncano: brez trajanja ne", false, P.jeNedokoncano(true, 40_000L, 0L))
+    preveriEnako("videoVOkencu: Dom, kartica vidna, video -> da", true, P.videoVOkencu(true, false, true, true))
+    preveriEnako("videoVOkencu: podstran -> ne", false, P.videoVOkencu(true, true, true, true))
+    preveriEnako("videoVOkencu: kartica skrita -> ne", false, P.videoVOkencu(true, false, false, true))
+    preveriEnako("videoVOkencu: glasba -> ne", false, P.videoVOkencu(true, false, true, false))
+    preveriEnako("pokaziKajIgra: samo nazadnje -> ne", false, P.pokaziKajIgra(listOf(false, false)))
+    preveriEnako("pokaziKajIgra: ena igra -> da", true, P.pokaziKajIgra(listOf(false, true)))
+    preveriEnako("pokaziKajIgra: brez naprav -> ne", false, P.pokaziKajIgra(emptyList()))
+
     if (napak == 0) println("MiniPredvajalnikPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }
