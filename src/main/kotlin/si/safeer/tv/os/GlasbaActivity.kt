@@ -3460,7 +3460,16 @@ class GlasbaActivity : OsActivity() {
                 fun jeKanalP(sk: Jamendo.Skladba) = PriljubljeniKanaliPravila.jeKanal(sk.id, Stremio.jeVZivo(sk)) || IptvSeznami.jeKanal(sk)
                 val izbrane = DomovVrstice.izbrane(this)
                 // Brez vrstice Nadaljuj z ogledom (uporabnik jo je izklopil) tudi kartica nima nadaljevanja (slepi pregled 8. 11. 2026, 7).
-                if (DomovVrsticePravila.Vrstica.NADALJUJ_Z_OGLEDOM !in izbrane) { zadnjeNadaljevanje = null; zadnjaVrstaNadaljuj = null }
+                // TV 8. 11. 2026 07:47: pas Doma nadomesca vrsto Nadaljuj z ogledom - zadnjo nedokoncano vsebino poisce tudi,
+                // ce je vrsta v nastavitvah izklopljena (prej je bil pas tedaj vedno prazen).
+                if (DomovVrsticePravila.Vrstica.NADALJUJ_Z_OGLEDOM !in izbrane) {
+                    val napredki = MediaNapredek.seznam(this@GlasbaActivity)
+                    zadnjeNadaljevanje = razvrsti(i, filtrirajJezike(i, MedijskiViri.nedavno(this@GlasbaActivity).filterNot { neodklenjena(it) }))
+                        .filter { it.video && !it.radio && !jeKanalP(it) }.distinctBy { kljucNedavnega(it) }
+                        .firstNotNullOfOrNull { sk -> napredki.firstOrNull { it.skladba.id == sk.id || (it.skladba.naslov.isNotBlank() && it.skladba.naslov == sk.naslov) }
+                            ?.takeIf { MiniPredvajalnikPravila.jeNedokoncano(sk.video, it.polozaj, it.trajanje) } }
+                    zadnjaVrstaNadaljuj = null
+                }
                 val zbraniMap: Map<DomovVrsticePravila.Vrstica, List<Vrsta>> = izbrane.associateWith { v -> when (v) {
                     DomovVrsticePravila.Vrstica.NADALJUJ_Z_OGLEDOM -> {
                         val napredki = MediaNapredek.seznam(this@GlasbaActivity)
@@ -3593,6 +3602,8 @@ class GlasbaActivity : OsActivity() {
                 val sSliko = vrstice.flatMap { v -> v.kartice.filter { it.ikona == R.drawable.os_ikona_video || it.kakovostId.isNotBlank() ||
                     (v.video && it.ikona != R.drawable.os_ikona_glasba && it.ikona != R.drawable.os_ikona_radio) } }   // CodeRabbit: Nedavno ima tudi glasbo/radio
                     .filter { it.slika.isNotBlank() && it.id.isNotBlank() && !it.dejanje && it.tvId.isBlank() }.distinctBy { it.id }
+                    // TV 8. 11. 2026 07:47: Dom brez video vrstic (samo glasba, seznami) - pas vzame katero koli kartico s sliko, ni prazen.
+                    .ifEmpty { vrstice.flatMap { it.kartice }.filter { it.slika.isNotBlank() && it.id.isNotBlank() && !it.dejanje && it.tvId.isBlank() }.distinctBy { it.id } }
                 val tz = java.util.TimeZone.getDefault()
                 val zdajMs = System.currentTimeMillis()
                 zadnjiIzbor = MiniPredvajalnikPravila.izborDneva(sSliko.map { it.id },
