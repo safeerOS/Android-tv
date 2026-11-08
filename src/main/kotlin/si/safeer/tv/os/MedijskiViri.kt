@@ -16,6 +16,7 @@ object MedijskiViri {
     private const val KLJUC = "viri"
     private const val ISKANJA = "iskanja"
     private const val PRILJUBLJENE = "priljubljene"
+    private const val MOJ_SEZNAM = "moj_seznam"
     private const val SEZNAMI = "seznami"
     private const val NEDAVNO = MeniVsebinePravila.KLJUC_NEDAVNO
     private const val MAX_NEDAVNO = 5
@@ -343,6 +344,30 @@ object MedijskiViri {
     }
 
     private const val NAJVEC_PRILJUBLJENIH = 300
+
+    // ------------------------------------------------------------------ Moj seznam (lastnik 8. 11. 2026)
+
+    fun mojSeznam(ctx: Context): List<Jamendo.Skladba> = beriSkladbe(beri(ctx, MOJ_SEZNAM))
+
+    fun jeVMojemSeznamu(ctx: Context, s: Jamendo.Skladba) = mojSeznam(ctx).any { it.id == s.id }
+
+    /** Doda ali odstrani ([MojSeznamPravila.preklopi]); vrne, ali je vsebina zdaj na seznamu. */
+    @Synchronized
+    fun preklopiMojSeznam(ctx: Context, s: Jamendo.Skladba): Boolean {
+        val zdaj = mojSeznam(ctx)
+        val poId = (zdaj + zaShranjevanje(s)).associateBy { it.id }
+        val nova = MojSeznamPravila.preklopi(zdaj.map { it.id }, s.id).mapNotNull { poId[it] }
+        pisi(ctx, MOJ_SEZNAM, pisiSkladbe(nova))
+        return nova.any { it.id == s.id }
+    }
+
+    /** Odgledana vsebina gre s seznama sama ([MediaNapredek.zapisi]). */
+    @Synchronized
+    fun odstraniIzMojegaSeznama(ctx: Context, s: Jamendo.Skladba) {
+        val zdaj = mojSeznam(ctx)
+        if (zdaj.none { it.id == s.id }) return
+        pisi(ctx, MOJ_SEZNAM, pisiSkladbe(zdaj.filterNot { it.id == s.id }))
+    }
 
     /**
      * Priljubljene v novem vrstnem redu [red] (isti id-ji, drugacen red - premik kanala, [PriljubljeniKanaliPravila.premakni]).

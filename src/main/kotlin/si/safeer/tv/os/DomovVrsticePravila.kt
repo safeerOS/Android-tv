@@ -17,10 +17,11 @@ object DomovVrsticePravila {
         SEZNAMI("seznami"),          // seznami predvajanja
         PRILJ_GLASBA("prilj_glasba"), // priljubljena glasba (brez radia in kanalov)
         PRILJ_VIDEO("prilj_video"),  // priljubljeni videi
+        MOJ_SEZNAM("moj_seznam"),    // Moj seznam - za kasneje (lastnik 8. 11. 2026, zgled KefinTweaks)
     }
 
     /** Privzeto: vrstice, ki jih oddelki nimajo; Radio, TV v zivo in Moji viri imajo svoj oddelek. */
-    val PRIVZETO = listOf(Vrstica.NADALJUJ_Z_OGLEDOM, Vrstica.NADALJUJ_S_POSLUSANJEM, Vrstica.NEDAVNO_DODANO, Vrstica.PRIPOROCENO)
+    val PRIVZETO = listOf(Vrstica.NADALJUJ_Z_OGLEDOM, Vrstica.MOJ_SEZNAM, Vrstica.NADALJUJ_S_POSLUSANJEM, Vrstica.NEDAVNO_DODANO, Vrstica.PRIPOROCENO)
 
     /** Izbira iz zapisa (kljuci, loceni z vejico); null = uporabnik se ni izbiral (privzeto), "" = vse izklopljeno. */
     fun izbrane(zapis: String?): List<Vrstica> {

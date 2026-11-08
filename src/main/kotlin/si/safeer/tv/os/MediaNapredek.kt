@@ -41,6 +41,8 @@ object MediaNapredek {
         // Pregled B-S1: izrecna oznaka »odgledano« (>= 95 %); ogled znova od zacetka jo pobrise. Samo po njej »Nadaljuj«
         // odpre naslednjo epizodo - manjkajoc zapis mesta (pod 15 s, zasebni dodatek, brez trajanja) ne pomeni »odgledano«.
         oznaciOdgledano(c, s, OsPravila.odgledano(polozaj, trajanje))
+        // Moj seznam (lastnik 8. 11. 2026, zgled KefinTweaks): odgledana vsebina gre s seznama sama.
+        if (MojSeznamPravila.odgledano(polozaj, trajanje)) MedijskiViri.odstraniIzMojegaSeznama(c, s)
         val vsi = preberiJson(c).filter { !ujema(it, s) }.toMutableList()
         // Zadnjih ~95 % ne ponujamo kot "Nadaljuj"; ogled je prakticno koncan.
         if (!OsPravila.odgledano(polozaj, trajanje)) vsi.add(0, json(s, polozaj, trajanje, naprava))

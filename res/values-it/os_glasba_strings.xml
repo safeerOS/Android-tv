@@ -471,4 +471,9 @@
     <string name="os_nastavitve_mc">Impostazioni Media Center</string>
     <string name="os_nastavitve_vrstice">Righe della pagina iniziale</string>
     <string name="os_debrid_in_usenet">Debrid e Usenet</string>
+    <string name="os_moj_seznam">La mia lista</string>
+    <string name="os_moj_seznam_dodaj">Aggiungi a La mia lista</string>
+    <string name="os_moj_seznam_odstrani">Rimuovi da La mia lista</string>
+    <string name="os_moj_seznam_dodano">Aggiunto a La mia lista</string>
+    <string name="os_moj_seznam_odstranjeno">Rimosso da La mia lista</string>
 </resources>

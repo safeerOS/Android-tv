@@ -3584,6 +3584,9 @@ class GlasbaActivity : OsActivity() {
                         skladbe(p.filter { DomovVrsticePravila.vPriljubljeniGlasbi(it.video, it.radio, jeKanalP(it)) }), skladbe = true))
                     DomovVrsticePravila.Vrstica.PRILJ_VIDEO -> listOf(Vrsta(getString(R.string.os_mediji_prilj_video),
                         videi(p.filter { DomovVrsticePravila.vPriljubljenihVideih(it.video, jeKanalP(it)) }), video = true))
+                    // Moj seznam (lastnik 8. 11. 2026): vsebine za kasneje; prazna vrstica izpade (vrsteMap filtrira prazne).
+                    DomovVrsticePravila.Vrstica.MOJ_SEZNAM -> MedijskiViri.mojSeznam(this@GlasbaActivity).let { m ->
+                        if (m.isEmpty()) emptyList() else listOf(Vrsta(getString(R.string.os_moj_seznam), videi(m), video = true)) }
                     else -> emptyList()
                 } }
                 
@@ -6697,6 +6700,17 @@ class GlasbaActivity : OsActivity() {
         val kanal = PriljubljeniKanaliPravila.jeKanal(sk.id, Stremio.jeVZivo(sk)) || IptvSeznami.jeKanal(sk)
         val ikone = HashMap<String, Int>()
         val poudarjena = HashSet<String>()
+        // Moj seznam (lastnik 8. 11. 2026, zgled KefinTweaks): film, serija ali epizoda za kasneje.
+        if (MojSeznamPravila.ponudi(sk.video, sk.radio, kanal) && MedijskiViri.shranljiva(sk)) {
+            val na = MedijskiViri.jeVMojemSeznamu(this, sk)
+            val napisMoj = getString(if (na) R.string.os_moj_seznam_odstrani else R.string.os_moj_seznam_dodaj)
+            ikone[napisMoj] = R.drawable.ic_m_bookmarks
+            dejanja += napisMoj to {
+                val zdaj = MedijskiViri.preklopiMojSeznam(this, sk)
+                Toast.makeText(this, if (zdaj) R.string.os_moj_seznam_dodano else R.string.os_moj_seznam_odstranjeno, Toast.LENGTH_SHORT).show()
+                if (razdelek == DOMOV) osvezi(DOMOV)
+            }
+        }
         if (MediaNapredek.polozaj(this, sk) > 0) {
             dejanja += getString(R.string.os_media_odstrani_nadaljuj) to {
                 MediaNapredek.odstrani(this, sk)
@@ -10022,6 +10036,7 @@ class GlasbaActivity : OsActivity() {
             DomovVrsticePravila.Vrstica.SEZNAMI -> R.string.os_seznami_predvajanja
             DomovVrsticePravila.Vrstica.PRILJ_GLASBA -> R.string.os_domov_prilj_glasba
             DomovVrsticePravila.Vrstica.PRILJ_VIDEO -> R.string.os_mediji_prilj_video
+            DomovVrsticePravila.Vrstica.MOJ_SEZNAM -> R.string.os_moj_seznam
             else -> R.string.os_glasba_nalagam
         })
 

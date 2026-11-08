@@ -466,4 +466,9 @@
     <string name="os_tv_pokazi_izbrane">Show selected</string>
     <string name="os_tv_izbran">%1$s, selected</string>
     <string name="os_tv_ni_izbran">%1$s, not selected</string>
+    <string name="os_moj_seznam">My list</string>
+    <string name="os_moj_seznam_dodaj">Add to My list</string>
+    <string name="os_moj_seznam_odstrani">Remove from My list</string>
+    <string name="os_moj_seznam_dodano">Added to My list</string>
+    <string name="os_moj_seznam_odstranjeno">Removed from My list</string>
 </resources>

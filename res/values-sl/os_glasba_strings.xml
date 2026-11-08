@@ -471,4 +471,9 @@
     <string name="os_nastavitve_mc">Nastavitve Medijskega centra</string>
     <string name="os_nastavitve_vrstice">Vrstice domače strani</string>
     <string name="os_debrid_in_usenet">Debrid in Usenet</string>
+    <string name="os_moj_seznam">Moj seznam</string>
+    <string name="os_moj_seznam_dodaj">Dodaj v Moj seznam</string>
+    <string name="os_moj_seznam_odstrani">Odstrani iz Mojega seznama</string>
+    <string name="os_moj_seznam_dodano">Dodano v Moj seznam</string>
+    <string name="os_moj_seznam_odstranjeno">Odstranjeno iz Mojega seznama</string>
 </resources>

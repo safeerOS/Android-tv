@@ -469,4 +469,9 @@
     <string name="os_nastavitve_mc">Media Center settings</string>
     <string name="os_nastavitve_vrstice">Home page rows</string>
     <string name="os_debrid_in_usenet">Debrid and Usenet</string>
+    <string name="os_moj_seznam">My list</string>
+    <string name="os_moj_seznam_dodaj">Add to My list</string>
+    <string name="os_moj_seznam_odstrani">Remove from My list</string>
+    <string name="os_moj_seznam_dodano">Added to My list</string>
+    <string name="os_moj_seznam_odstranjeno">Removed from My list</string>
 </resources>
