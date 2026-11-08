@@ -9,23 +9,22 @@ private fun preveriEnako(opis: String, pricakovano: Any?, dobljeno: Any?) =
 fun main() {
     println("Preizkus videza Doma MC (McVidezPravila)")
     val P = McVidezPravila
-    val T = McVidezPravila.Tip
 
     // Vrste Doma: Nadaljuj z ogledom (siroka), glasba in seznami (kvadrati), plakati; Nedavno (mala) in kanali ostanejo.
-    preveriEnako("nadaljuj -> NADALJUJ", T.NADALJUJ, P.tipVrste(nadaljuj = true, skladbe = false, video = true, mala = false, kanali = false, slicice = false, cisto = false))
-    preveriEnako("skladbe -> KVADRAT", T.KVADRAT, P.tipVrste(nadaljuj = false, skladbe = true, video = false, mala = false, kanali = false, slicice = false, cisto = false))
-    preveriEnako("video -> PLAKAT", T.PLAKAT, P.tipVrste(nadaljuj = false, skladbe = false, video = true, mala = false, kanali = false, slicice = false, cisto = false))
-    preveriEnako("mala (Nedavno) -> DRUGO", T.DRUGO, P.tipVrste(nadaljuj = false, skladbe = false, video = true, mala = true, kanali = false, slicice = false, cisto = false))
-    preveriEnako("kanali -> DRUGO", T.DRUGO, P.tipVrste(nadaljuj = false, skladbe = false, video = false, mala = false, kanali = true, slicice = false, cisto = false))
+    preveriEnako("nadaljuj -> NADALJUJ", McVidezPravila.Tip.NADALJUJ, P.tipVrste(nadaljuj = true, skladbe = false, video = true, mala = false, kanali = false, slicice = false, cisto = false))
+    preveriEnako("skladbe -> KVADRAT", McVidezPravila.Tip.KVADRAT, P.tipVrste(nadaljuj = false, skladbe = true, video = false, mala = false, kanali = false, slicice = false, cisto = false))
+    preveriEnako("video -> PLAKAT", McVidezPravila.Tip.PLAKAT, P.tipVrste(nadaljuj = false, skladbe = false, video = true, mala = false, kanali = false, slicice = false, cisto = false))
+    preveriEnako("mala (Nedavno) -> DRUGO", McVidezPravila.Tip.DRUGO, P.tipVrste(nadaljuj = false, skladbe = false, video = true, mala = true, kanali = false, slicice = false, cisto = false))
+    preveriEnako("kanali -> DRUGO", McVidezPravila.Tip.DRUGO, P.tipVrste(nadaljuj = false, skladbe = false, video = false, mala = false, kanali = true, slicice = false, cisto = false))
 
     // TV 8. 11. 2026: prej 3 / 8 / 6 v vrsto.
-    preveriEnako("nadaljuj 4 v vrsto (prej 3)", 4, P.stolpciDoma(T.NADALJUJ, 3))
-    preveriEnako("kvadrati 7 v vrsto (prej 8)", 7, P.stolpciDoma(T.KVADRAT, 8))
-    preveriEnako("plakati 6 ostane 6", 6, P.stolpciDoma(T.PLAKAT, 6))
-    preveriEnako("plakati 7 ostane 7", 7, P.stolpciDoma(T.PLAKAT, 7))
-    preveriEnako("plakati 9 -> 7", 7, P.stolpciDoma(T.PLAKAT, 9))
-    preveriEnako("plakati 4 -> 6", 6, P.stolpciDoma(T.PLAKAT, 4))
-    preveriEnako("drugo: mere ostanejo", null, P.stolpciDoma(T.DRUGO, 5))
+    preveriEnako("nadaljuj 4 v vrsto (prej 3)", 4, P.stolpciDoma(McVidezPravila.Tip.NADALJUJ, 3))
+    preveriEnako("kvadrati 7 v vrsto (prej 8)", 7, P.stolpciDoma(McVidezPravila.Tip.KVADRAT, 8))
+    preveriEnako("plakati 6 ostane 6", 6, P.stolpciDoma(McVidezPravila.Tip.PLAKAT, 6))
+    preveriEnako("plakati 7 ostane 7", 7, P.stolpciDoma(McVidezPravila.Tip.PLAKAT, 7))
+    preveriEnako("plakati 9 -> 7", 7, P.stolpciDoma(McVidezPravila.Tip.PLAKAT, 9))
+    preveriEnako("plakati 4 -> 6", 6, P.stolpciDoma(McVidezPravila.Tip.PLAKAT, 4))
+    preveriEnako("drugo: mere ostanejo", null, P.stolpciDoma(McVidezPravila.Tip.DRUGO, 5))
     preveriEnako("razmik 16 dp", 16, P.RAZMIK_DOMA_DP)
     // 880 dp vsebine: 4 kartice po 192 + 12 rob + 16 razmik = 880.
     preveriEnako("sirina kartice 880/4", 192, P.sirinaKartice(880, 4))
