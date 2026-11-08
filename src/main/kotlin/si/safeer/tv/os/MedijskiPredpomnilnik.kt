@@ -178,6 +178,48 @@ object MedijskiPredpomnilnik {
         vOzadju { shrani(c, PredpomnilnikPravila.NASLOVNICE, odtis(naslov), bajti, System.currentTimeMillis(), zasebno) }
     }
 
+    // ---------------------------------------------------------------- slike pasu Doma
+
+    /*
+     * TV 8. 11. 2026: ozadja in logotipi pasu (do 1280 px) so se prenasali ob vsakem zagonu. Lastna mapa po naslovu, najvec
+     * [PAS_NAJVEC_BAJTOV] (najstarejse ven, [DomPasPravila.zavrziZaMejo]); ne v bazo naslovnic - te so 280 px in gredo v Link.
+     */
+    private const val PAS_NAJVEC_BAJTOV = 24L * 1024 * 1024
+    private const val PAS_NAJVEC_DATOTEKA = 3L * 1024 * 1024
+    private const val PAS_VELJA_MS = 14L * 24 * 60 * 60 * 1000
+    private fun mapaPasu(c: Context) = File(c.cacheDir, "mediji-pas").apply { mkdirs() }
+    private fun jeSplet(url: String) = url.startsWith("https://") || url.startsWith("http://")
+
+    /** Shranjena slika pasu za [url] (samo http/https, mlajsa od 14 dni) ali null. Klic iz ozadja. */
+    fun slikaPasu(c: Context, url: String): ByteArray? = try {
+        if (!jeSplet(url)) null else {
+            val f = File(mapaPasu(c), odtis(url))
+            if (f.isFile && f.length() in 1..PAS_NAJVEC_DATOTEKA && System.currentTimeMillis() - f.lastModified() < PAS_VELJA_MS) f.readBytes() else null
+        }
+    } catch (_: Exception) { null }
+
+    /**
+     * Shrani pomanjsano sliko pasu: JPEG (ozadje brez prosojnosti), PNG, ce ima prosojnost (logotip - JPEG bi jo zamenjal s
+     * crnino). Zapis prek zacasne datoteke, nato zavrze najstarejse nad mejo. Klic iz ozadja.
+     */
+    fun shraniSlikoPasu(c: Context, url: String, b: android.graphics.Bitmap) {
+        if (!jeSplet(url)) return
+        try {
+            val png = b.hasAlpha()
+            val izhod = java.io.ByteArrayOutputStream(64 * 1024)
+            val oblika = if (png) android.graphics.Bitmap.CompressFormat.PNG else android.graphics.Bitmap.CompressFormat.JPEG
+            if (!b.compress(oblika, if (png) 100 else 85, izhod)) return
+            val bajti = izhod.toByteArray()
+            if (bajti.isEmpty() || bajti.size > PAS_NAJVEC_DATOTEKA) return
+            val mapa = mapaPasu(c)
+            val zacasna = File(mapa, odtis(url) + ".tmp")
+            zacasna.writeBytes(bajti)
+            if (!zacasna.renameTo(File(mapa, odtis(url)))) { zacasna.delete(); return }
+            val datoteke = mapa.listFiles()?.filter { it.isFile && !it.name.endsWith(".tmp") } ?: return
+            DomPasPravila.zavrziZaMejo(datoteke.map { it.lastModified() to it.length() }, PAS_NAJVEC_BAJTOV).forEach { datoteke[it].delete() }
+        } catch (_: Throwable) { }
+    }
+
     // ---------------------------------------------------------------- besedila pesmi (naloga 89)
 
     /** Zapis besedila ([Besedila]) s casom zapisa ali null; notranja baza, nato USB (ne naprava v Linku). Klic iz ozadja. */

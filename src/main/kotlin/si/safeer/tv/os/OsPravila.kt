@@ -666,6 +666,16 @@ object OsPravila {
     fun istaVsebina(aId: String, aImdb: String, aSezona: Int, aEpizoda: Int, bId: String, bImdb: String, bSezona: Int, bEpizoda: Int): Boolean =
         (aId.isNotEmpty() && aId == bId) || (aImdb.isNotBlank() && aImdb == bImdb && aSezona == bSezona && aEpizoda == bEpizoda)
 
+    /**
+     * Revizija RAM 8. 11. 2026: film na pavzi drzi dekoder in medpomnilnik (Safeer OS PSS 381 MB s filmom na pavzi in radiem,
+     * 133 MB v mirovanju). Video, ki je [SPROSTI_PO_PREMORU_MS] na pavzi brez odprtega zaslona predvajanja, gre v stop()
+     * (Media3 obdrzi mesto in vrsto; predvajaj ga pripravi znova).
+     */
+    const val SPROSTI_PO_PREMORU_MS = 60_000L
+
+    fun sprostiPoPremoru(video: Boolean, igra: Boolean, zaslonOdprt: Boolean, msOdPremora: Long): Boolean =
+        video && !igra && !zaslonOdprt && msOdPremora >= SPROSTI_PO_PREMORU_MS
+
     fun ponudiNadaljevanje(mestoMs: Long, trajanjeMs: Long): Boolean =
         mestoMs >= 10_000 && (trajanjeMs <= 0 || mestoMs < trajanjeMs * 95 / 100)
 

@@ -138,6 +138,38 @@ object DomovVrsticePravila {
     fun <T> brezVsebineVPasu(kartice: List<T>, id: (T) -> String, vPasu: String?): List<T> =
         if (vPasu.isNullOrEmpty()) kartice else kartice.filter { id(it) != vPasu }
 
+    /**
+     * TV 8. 11. 2026: film, ki igra v pasu, je bil tudi v vrstici Nadaljuj z ogledom. Igra video ([igra], [igraVideo]) ->
+     * brez kartic iste vsebine ([OsPravila.istaVsebina]: tok ima drug id, IMDb s sezono in epizodo je isti); nic ne igra ->
+     * brez zadnje nedokoncane ([nadaljevanjeId], kot doslej); igra glasba ali radio -> pas filma ne kaze, vrstica je cela.
+     */
+    fun <T> brezVsebineVPasu(kartice: List<T>, vsebina: (T) -> DomPasPravila.Vsebina, igra: DomPasPravila.Vsebina?,
+                             igraVideo: Boolean, nadaljevanjeId: String?): List<T> = when {
+        igra == null -> brezVsebineVPasu(kartice, { vsebina(it).id }, nadaljevanjeId)
+        !igraVideo -> kartice
+        else -> kartice.filterNot { k -> vsebina(k).let { v ->
+            OsPravila.istaVsebina(igra.id, igra.imdb, igra.sezona, igra.epizoda, v.id, v.imdb, v.sezona, v.epizoda) } }
+    }
+
+    /** Lastnik 8. 11. 2026: pas na vrhu, nato vrstice, plosca (TV v zivo, Prenosi, Kaj igra) »cisto nazadnje«. */
+    fun <T> razporedDoma(pas: T, plosca: T, vrstice: List<T>): List<T> = listOf(pas) + vrstice + plosca
+
+    /**
+     * GOR/DOL med vrsticami Doma (TV 8. 11. 2026): sistem izbere kartico z najblizjo sredino - DOL s prve siroke kartice
+     * Nadaljuj je pristal na drugi mali kartici. Izberemo kartico, katere levi rob je najblizje levemu robu [levo]
+     * (enako -> bolj levo). Vrne kazalo v [kandidati] ali -1, ce jih ni.
+     */
+    fun stolpecPoLevemRobu(levo: Int, kandidati: List<Int>): Int {
+        var naj = -1
+        for (i in kandidati.indices) {
+            val d = Math.abs(kandidati[i] - levo)
+            if (naj < 0) { naj = i; continue }
+            val dn = Math.abs(kandidati[naj] - levo)
+            if (d < dn || (d == dn && kandidati[i] < kandidati[naj])) naj = i
+        }
+        return naj
+    }
+
     /** Polje v plosci (TV v zivo, Prenosi) se pokaze le, ce ni prazno. */
     fun prikaziPoljePlosce(prazno: Boolean): Boolean = !prazno
 }

@@ -230,6 +230,7 @@ class GlasbaStoritev : Service() {
                 if (p.isPlaying) zapomniNedavnoEnkrat()
                 // Naloga 90a: zasedenost predpomnilnika zvoka ob vsaki skladbi (brez diska, kazalo je v pomnilniku).
                 if (PredpomnilnikZvoka.zdaj() != null) android.util.Log.i("SafeerOsGlasba", "predpomnjenje: velikost ${PredpomnilnikZvoka.velikost() / 1024} KB")
+                narociSprostitev()   // nova vsebina: stetje pavze od zacetka
                 osvezi()
             }
             override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -246,7 +247,7 @@ class GlasbaStoritev : Service() {
                 osvezi()
             }
             // Pregled C1: igra() sledi playWhenReady - premor med nalaganjem mora osveziti gumb, obvestilo in sejo.
-            override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) = osvezi()
+            override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) { narociSprostitev(); osvezi() }
             override fun onTracksChanged(tracks: androidx.media3.common.Tracks) = preveriDekoderje(p, tracks)
             override fun onMetadata(metadata: androidx.media3.common.Metadata) {
                 // Radio: naslov skladbe iz toka (ICY StreamTitle) kot "izvajalec" pod imenom postaje.
@@ -1450,7 +1451,37 @@ class GlasbaStoritev : Service() {
         }
     }
 
+    /** Cas zacetka pavze videa za [sprostiPoPremoru] (uptime). */
+    private var premorOd = 0L
+
+    /**
+     * Revizija RAM 8. 11. 2026 ([OsPravila.sprostiPoPremoru]): video na pavzi brez zaslona predvajanja po 60 s gre v stop() -
+     * dekoder in medpomnilnik se sprostita, mesto in vrsta ostaneta (zbudiPredvajalnik ga pred play() pripravi).
+     */
+    private val sprostiPoPremoru = object : Runnable {
+        override fun run() {
+            val e = exo ?: return
+            if (predvajalnik !== e || naZvocniku() || e.playbackState == Player.STATE_IDLE) return
+            val video = trenutna()?.video == true
+            val ms = android.os.SystemClock.uptimeMillis() - premorOd
+            if (OsPravila.sprostiPoPremoru(video, e.playWhenReady, PredvajanjeActivity.odprt, ms)) {
+                Log.i("SafeerOsMedia", "video ${ms / 1000} s na pavzi brez zaslona predvajanja: predvajalnik ustavljen, mesto ostane")
+                e.stop()
+            } else if (video && !e.playWhenReady) glavnaNit.postDelayed(this, 15_000L)   // zaslon je odprt: preverimo kasneje
+        }
+    }
+
+    /** Pavza videa zacne stetje; predvajanje, menjava vsebine in konec storitve ga ustavijo. */
+    private fun narociSprostitev() {
+        glavnaNit.removeCallbacks(sprostiPoPremoru)
+        val e = exo ?: return
+        if (predvajalnik !== e || e.playWhenReady || trenutna()?.video != true) return
+        premorOd = android.os.SystemClock.uptimeMillis()
+        glavnaNit.postDelayed(sprostiPoPremoru, OsPravila.SPROSTI_PO_PREMORU_MS)
+    }
+
     override fun onDestroy() {
+        glavnaNit.removeCallbacks(sprostiPoPremoru)
         preklicPonovitveVZivo()
         application.unregisterActivityLifecycleCallbacks(zasloni)
         // Konec predvajanja je tudi konec na zvocniku (brez te naprave bi igral naprej brez daljinca).

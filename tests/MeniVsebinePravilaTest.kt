@@ -94,6 +94,23 @@ fun main(args: Array<String>) {
     preveriEnako("vrstica Nadaljuj ob pasu: brez vsebine v pasu", listOf("b", "c"), D.brezVsebineVPasu(listOf("a", "b", "c"), { it }, "a"))
     preveriEnako("vrstica Nadaljuj ob pasu: pas prazen -> vse", listOf("a", "b"), D.brezVsebineVPasu(listOf("a", "b"), { it }, null))
     preveriEnako("vrstica Nadaljuj ob pasu: prazen id ne odstrani nicesar", listOf("", "b"), D.brezVsebineVPasu(listOf("", "b"), { it }, ""))
+    // TV 8. 11. 2026: film, ki igra v pasu, ni v vrstici Nadaljuj (tok z drugim id, isti IMDb); glasba -> vrstica cela.
+    val prestige = DomPasPravila.Vsebina("kartica-prestige", "tt0482571", 0, 0)
+    val dune = DomPasPravila.Vsebina("dune", "tt1160419", 0, 0)
+    val tokPrestige = DomPasPravila.Vsebina("tok-x", "tt0482571", 0, 0)
+    preveriEnako("igra film: kartica istega filma izpade", listOf(dune), D.brezVsebineVPasu(listOf(prestige, dune), { it }, tokPrestige, true, null))
+    preveriEnako("igra glasba: vrstica cela", listOf(prestige, dune),
+        D.brezVsebineVPasu(listOf(prestige, dune), { it }, DomPasPravila.Vsebina("pesem", "", 0, 0), false, "dune"))
+    preveriEnako("nic ne igra: brez zadnje nedokoncane", listOf(prestige), D.brezVsebineVPasu(listOf(prestige, dune), { it }, null, false, "dune"))
+    preveriEnako("igra epizoda: druga epizoda ostane", 1, D.brezVsebineVPasu(listOf(DomPasPravila.Vsebina("e1", "tt0903747", 1, 3)), { it },
+        DomPasPravila.Vsebina("t", "tt0903747", 1, 2), true, null).size)
+    preveriEnako("Dom: plosca nazadnje", listOf("pas", "a", "b", "plosca"), D.razporedDoma("pas", "plosca", listOf("a", "b")))
+    // GOR/DOL ohrani stolpec: siroka kartica z levim robom 48 -> spodaj kartica z levim robom 48 (ne druga, blizje sredini).
+    preveriEnako("stolpec po levem robu", 0, D.stolpecPoLevemRobu(48, listOf(48, 250, 452)))
+    preveriEnako("stolpec: najblizji levi rob", 2, D.stolpecPoLevemRobu(460, listOf(48, 250, 452)))
+    preveriEnako("stolpec: enako dalec -> bolj levo", 0, D.stolpecPoLevemRobu(100, listOf(50, 150)))
+    preveriEnako("stolpec: enako dalec, levi je drugi", 1, D.stolpecPoLevemRobu(100, listOf(150, 50)))
+    preveriEnako("stolpec: brez kandidatov -1", -1, D.stolpecPoLevemRobu(10, emptyList()))
     preveriEnako("neznan kljuc in dvojnik izpadeta", listOf(DomovVrsticePravila.Vrstica.SEZNAMI), D.izbrane("seznami,neznano,seznami"))
     preveriEnako("vse izklopljeno ostane izklopljeno (ne privzeto)", emptyList<DomovVrsticePravila.Vrstica>(), D.izbrane(""))
     preveriEnako("premik gor v oknu", listOf(DomovVrsticePravila.Vrstica.SEZNAMI, DomovVrsticePravila.Vrstica.NEDAVNO),

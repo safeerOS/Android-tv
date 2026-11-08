@@ -76,6 +76,16 @@ class DomPas(context: Context) : FrameLayout(context) {
     /** Glavni gumb (Dom nanj skoci z drzanim DOL - kot na stari kartici). */
     val glavniGumb: View get() = gumbGlavni
 
+    /**
+     * GOR s pasa in z njegovih gumbov pelje na [id] - zavihek razdelka, v katerem je uporabnik. TV 8. 11. 2026: sistem je
+     * izbral ikono iskanja desno zgoraj (blizje sredini gumba), ne zavihka Dom.
+     */
+    fun gorNa(id: Int) {
+        nextFocusUpId = id
+        gumbGlavni.nextFocusUpId = id
+        gumbPodrobnosti.nextFocusUpId = id
+    }
+
     /** Ambientalna barva (povprecje slike ozadja), ko ozadje pride - Dom z njo obarva ozadje strani (kritika 4). */
     var naAmbient: ((Int?) -> Unit)? = null
 
@@ -221,12 +231,13 @@ class DomPas(context: Context) : FrameLayout(context) {
         logo.adjustViewBounds = true
         logo.visibility = View.GONE
         logo.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-        vsebina.addView(logo, LinearLayout.LayoutParams(dp(if (siroko) 420 else 220), dp(if (siroko) 120 else 64)).apply { bottomMargin = dp(6) })
+        vsebina.addView(logo, LinearLayout.LayoutParams(dp(if (siroko) 420 else 220), dp(DomPasPravila.visinaLogotipaDp(sirinaZaslonaDp, visinaPasuDp)))
+            .apply { bottomMargin = dp(6) })
 
         naslov.setTextSize(TypedValue.COMPLEX_UNIT_SP, DomPasPravila.velikostNaslovaSp(sirinaZaslonaDp, visinaPasuDp))
         naslov.setTextColor(barva(R.color.os_besedilo))
         naslov.setTypeface(Typeface.create("sans-serif", Typeface.BOLD))
-        naslov.maxLines = 2
+        naslov.maxLines = DomPasPravila.vrsticNaslova(sirinaZaslonaDp, visinaPasuDp)   // nizek pas: ena vrstica (TV 8. 11.)
         naslov.ellipsize = TextUtils.TruncateAt.END
         if (siroko) naslov.maxWidth = dp(680)
         vsebina.addView(naslov, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
@@ -481,10 +492,16 @@ class DomPas(context: Context) : FrameLayout(context) {
         contentDescription = listOf(naslovB, podnaslovB).filter { it.isNotEmpty() }.joinToString(" · ")
 
         // Kritika 1: ozadje filma (ostro, v sirini pasu) cez ves pas; brez njega plakat ob strani (ne raztegnjen).
-        val ozadjeB = s.ozadjeUrl.trim()
-        // Slepi pregled: plakat 2:3 samo za film/serijo brez ozadja - glasba, YouTube, kanali ostanejo cez ves pas.
-        val plakatB = if (ozadjeB.isEmpty() && siroko && s.video) s.slikaUrl.trim() else ""
-        val url = if (ozadjeB.isNotEmpty()) ozadjeB else if (plakatB.isNotEmpty()) "" else s.slikaUrl.trim()
+        // TV 8. 11. 2026: zvok brez ozadja (logotip postaje) ni vec raztegnjen cez pas - oster kvadrat ob strani, ista slika
+        // drobna (zamegljena) in zatemnjena cez pas ([DomPasPravila.slikePasu]); film ostane plakat 2:3.
+        val (url, plakatB) = DomPasPravila.slikePasu(s.ozadjeUrl, s.slikaUrl, siroko, s.video)
+        val (plakatS, plakatV) = DomPasPravila.meraPlakata(visinaPasuDp, s.video)
+        (plakat.layoutParams as? FrameLayout.LayoutParams)?.let { lp ->
+            if (lp.width != dp(plakatS) || lp.height != dp(plakatV)) { lp.width = dp(plakatS); lp.height = dp(plakatV); plakat.layoutParams = lp }
+        }
+        // Zamegljeno ozadje se zatemni z barvo ozadja strani (senci ostaneta cez), da besedilo in kvadrat izstopata.
+        if (DomPasPravila.jeZamegljeno(url)) slika.setColorFilter(prosojnoOzadje(150), android.graphics.PorterDuff.Mode.SRC_ATOP)
+        else slika.clearColorFilter()
         if (url.isEmpty()) naAmbient?.invoke(null)
         if (url != zadnjaSlika) {
             zadnjaSlika = url
@@ -510,7 +527,7 @@ class DomPas(context: Context) : FrameLayout(context) {
         val zPlakatom = plakatB.isNotEmpty() && naloziSliko != null && !video
         plakat.visibility = if (zPlakatom) View.VISIBLE else View.GONE
         // Slepi pregled (10): naslov in gumbi ne gredo cez plakat.
-        val desno = if (zPlakatom) dp(visinaPasuDp * 4 / 9 + (if (siroko) 64 else 16) + 24) else dp(if (siroko) 48 else 24)
+        val desno = if (zPlakatom) dp(plakatS + (if (siroko) 64 else 16) + 24) else dp(if (siroko) 48 else 24)
         if (vsebina.paddingRight != desno) vsebina.setPadding(vsebina.paddingLeft, vsebina.paddingTop, desno, vsebina.paddingBottom)
         slika.visibility = if (imamSliko) View.VISIBLE else View.GONE
         ikona.visibility = if (video || zPlakatom) View.GONE else View.VISIBLE
@@ -561,6 +578,9 @@ class DomPas(context: Context) : FrameLayout(context) {
     private fun dp(v: Int): Int = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), resources.displayMetrics).toInt()
 
     private fun barva(id: Int): Int = context.getColor(id)
+
+    /** Barva ozadja strani (os_ozadje) s prosojnostjo [a] - za zatemnitev zamegljenega ozadja. */
+    private fun prosojnoOzadje(a: Int): Int { val o = barva(R.color.os_ozadje); return Color.argb(a, Color.red(o), Color.green(o), Color.blue(o)) }
 
     private fun plosca(polnilo: Int, obroba: Int, polmerDp: Int): GradientDrawable = GradientDrawable().apply {
         setColor(barva(polnilo))

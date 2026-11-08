@@ -56,19 +56,20 @@ object DomPasPravila {
     fun visinaDp(sirinaDp: Int): Int = visinaDp(sirinaDp, 0)
 
     /**
-     * Zgled Jellyfin + KefinTweaks (lastnik 8. 11. 2026): na TV in lezeci tablici je pas velik uvod strani - 42 % visine
-     * zaslona v mejah 300-460 dp, a nikoli vec kot 55 % visine (nizek zaslon) in ne manj kot 170 dp. Ozek zaslon 170 dp.
+     * Zgled Jellyfin + KefinTweaks (lastnik 8. 11. 2026): na TV in lezeci tablici je pas uvod strani - 38 % visine zaslona
+     * v mejah 200-400 dp, a nikoli vec kot 55 % visine (nizek zaslon) in ne manj kot 170 dp. Ozek zaslon 170 dp.
+     * TV 8. 11. 2026 (960x540 dp): pri 42 % (297 dp) je naslednja vrstica zacela na ~446 dp, kartice Nadaljuj z ogledom
+     * (~182 dp) niso bile na prvem zaslonu - zdaj 205 dp.
      */
     fun visinaDp(sirinaDp: Int, visinaZaslonaDp: Int): Int = when {
         sirinaDp < 600 -> 170
         visinaZaslonaDp <= 0 -> 230
-        // Slepi pregled 8. 11. (6): spodnja meja 300 dp je bila na nizkem zaslonu (telefon lezece 360 dp) 83 % zaslona -
-        // pas ne sme preseci 55 % visine; najmanj pa 170 dp kot na telefonu.
-        else -> (visinaZaslonaDp * 42 / 100).coerceIn(300, 460).coerceAtMost(visinaZaslonaDp * 55 / 100).coerceAtLeast(170)
+        // Slepi pregled 8. 11. (6): pas ne sme preseci 55 % visine (telefon lezece 360 dp); najmanj pa 170 dp kot na telefonu.
+        else -> (visinaZaslonaDp * 38 / 100).coerceIn(200, 400).coerceAtMost(visinaZaslonaDp * 55 / 100).coerceAtLeast(170)
     }
 
     /** Opis (2 vrstici) gre v pas sele od te visine - nizje bi z naslovom 40 sp in gumbi odrezal vrh naslova (pregled 7). */
-    const val OPIS_OD_DP = 290   // drugi pregled (2): TV 960x540 dp ima pas 297 dp - naslov, opis, crta in gumbi gredo (~286 dp)
+    const val OPIS_OD_DP = 290   // TV 960x540 dp ima od 8. 11. pas 205 dp - opisa ni (naslov, podnaslov, crta in gumbi)
 
     fun prikaziOpis(siroko: Boolean, visinaPasuDp: Int, imaOpis: Boolean): Boolean = imaOpis && siroko && visinaPasuDp >= OPIS_OD_DP
 
@@ -83,6 +84,18 @@ object DomPasPravila {
         sirinaDp < 600 -> 20f
         visinaPasuDp in 1 until 260 -> 24f
         else -> 40f
+    }
+
+    /**
+     * TV 8. 11. 2026: v 205 dp visokem pasu (960x540) gresta z gumbi in crto ena vrstica naslova 24 sp in logotip 44 dp -
+     * dve vrstici ali logotip 120 dp bi odrezala vrh. Nizki siroki pas (pod 260 dp) ima zato eno vrstico in nizji logotip.
+     */
+    fun vrsticNaslova(sirinaDp: Int, visinaPasuDp: Int): Int = if (sirinaDp >= 600 && visinaPasuDp in 1 until 260) 1 else 2
+
+    fun visinaLogotipaDp(sirinaDp: Int, visinaPasuDp: Int): Int = when {
+        sirinaDp < 600 -> 64
+        visinaPasuDp in 1 until 260 -> 44
+        else -> 120
     }
 
     /**
@@ -109,6 +122,12 @@ object DomPasPravila {
     /** Podnaslov iz delov (leto, trajanje, ...) - prazni izpadejo. */
     fun podnaslov(vararg deli: String): String = deli.map { it.trim() }.filter { it.isNotEmpty() && it != "0" }.joinToString(" · ")
 
+    /** Podnaslov, ko vsebina igra (TV 8. 11. 2026: pri filmu je bilo samo leto): video leto (ali izvajalec) in trajanje, zvok kot doslej. */
+    fun podnaslovIgra(video: Boolean, leto: Int, izvajalec: String, trajanjeMs: Long): String {
+        val prvi = if (leto != 0) leto.toString() else izvajalec
+        return if (video) podnaslov(prvi, trajanje(trajanjeMs)) else prvi
+    }
+
     /**
      * Ambientalna barva ozadja Doma (kritika 4): povprecna barva slike, zmesana s temnim ozadjem strani, da je besedilo
      * vedno berljivo - delez slike najvec 35 %.
@@ -118,6 +137,13 @@ object DomPasPravila {
         fun m(s: Int) = (k(povprecje, s) * 35 + k(ozadje, s) * 65) / 100
         return (0xFF shl 24) or (m(16) shl 16) or (m(8) shl 8) or m(0)
     }
+
+    /**
+     * Preliv ozadja Doma (zgoraj ambient, spodaj ozadje strani). TV 8. 11. 2026: pri 0xE0/0xF2 je uporabnikovo ozadje
+     * prosevalo za vrsticami nizje na strani - 0xF0/0xFA.
+     */
+    fun ambientPreliv(ambient: Int, ozadje: Int): IntArray =
+        intArrayOf((ambient and 0x00FFFFFF) or (0xF0 shl 24), (ozadje and 0x00FFFFFF) or (0xFA shl 24))
 
     /** Povprecna barva vzorcev (slepi pregled 8. 11.: pomanjsava na 1x1 vzame le sredino slike); prazno = crna. */
     fun povprecje(piksli: IntArray): Int {
@@ -142,4 +168,64 @@ object DomPasPravila {
      */
     fun smeKroziti(vrsta: String, imaFokus: Boolean, zmanjsanoGibanje: Boolean, n: Int): Boolean =
         vrsta == IZBOR && !imaFokus && !zmanjsanoGibanje && n >= 2
+
+    /** Oznaka na koncu naslova slike: nalagalnik pasu sliko dekodira drobno (mehko zamegljeno ozadje). */
+    const val ZAMEGLI = "#zamegli"
+    /** 48 px po daljsi stranici: CENTER_CROP drobno sliko raztegne cez pas v mehko zameglitev, brez lastnega filtra. */
+    const val ZAMEGLJENO_PX = 48
+
+    fun zamegljeno(url: String): String = if (url.isBlank() || jeZamegljeno(url)) url else url + ZAMEGLI
+
+    fun jeZamegljeno(url: String): Boolean = url.endsWith(ZAMEGLI)
+
+    fun brezOznake(url: String): String = url.removeSuffix(ZAMEGLI)
+
+    /**
+     * Slike pasu: (slika cez ves pas, ostra slika ob strani). Ozadje filma -> cez pas, brez plakata. Brez ozadja na sirokem
+     * zaslonu: film -> plakat 2:3 ob strani; zvok -> TV 8. 11. 2026: majhen logotip postaje je bil raztegnjen cez ves pas
+     * (zamegljen) - zdaj oster kvadrat ob strani in ista slika zamegljena cez pas. Ozek zaslon: slika cez pas kot doslej.
+     */
+    fun slikePasu(ozadjeUrl: String, slikaUrl: String, siroko: Boolean, video: Boolean): Pair<String, String> {
+        val oz = ozadjeUrl.trim()
+        val sl = slikaUrl.trim()
+        if (oz.isNotEmpty()) return oz to ""
+        if (!siroko || sl.isEmpty()) return sl to ""
+        return if (video) "" to sl else zamegljeno(sl) to sl
+    }
+
+    /** Mera slike ob strani (sirina, visina v dp): film 2:3, zvok (postaja, album) kvadrat 1:1. */
+    fun meraPlakata(visinaPasuDp: Int, video: Boolean): Pair<Int, Int> =
+        if (video) (visinaPasuDp * 4 / 9) to (visinaPasuDp * 2 / 3) else (visinaPasuDp * 2 / 3) to (visinaPasuDp * 2 / 3)
+
+    /** Vsebina za primerjavo ([OsPravila.istaVsebina]): tok ima pogosto drug id kot kartica, IMDb s sezono in epizodo pa isti. */
+    data class Vsebina(val id: String, val imdb: String, val sezona: Int, val epizoda: Int)
+
+    /** Nadaljuj s pasu velja za vsebino, ki se pripravi v tem casu (debrid/Usenet zna trajati) - nato pozabljeno. */
+    const val ROK_NADALJUJ_IZ_PASU_MS = 180_000L
+
+    /**
+     * TV 8. 11. 2026: »Nadaljuj« na pasu je ze izbira - predvajalnik ne vprasa znova »Nadaljuj od / Od zacetka«. Samo za
+     * isto vsebino (tok ali izvirnik), v [ROK_NADALJUJ_IZ_PASU_MS]; kartice vrstice Nadaljuj z ogledom vprasajo (28. 10.).
+     */
+    fun nadaljujBrezVprasanja(izPasu: Vsebina?, msOdKlika: Long, tok: Vsebina, izvirnik: Vsebina?): Boolean {
+        if (izPasu == null || msOdKlika !in 0..ROK_NADALJUJ_IZ_PASU_MS) return false
+        return listOfNotNull(tok, izvirnik).any {
+            OsPravila.istaVsebina(izPasu.id, izPasu.imdb, izPasu.sezona, izPasu.epizoda, it.id, it.imdb, it.sezona, it.epizoda)
+        }
+    }
+
+    /**
+     * Diskovni predpomnilnik slik pasu: kazala datotek, ki gredo ven (najstarejse najprej), da skupaj ne presezejo
+     * [mejaBajtov]. Vnos = (cas zapisa, velikost).
+     */
+    fun zavrziZaMejo(vnosi: List<Pair<Long, Long>>, mejaBajtov: Long): List<Int> {
+        var skupaj = vnosi.sumOf { it.second }
+        val ven = mutableListOf<Int>()
+        for (i in vnosi.indices.sortedBy { vnosi[it].first }) {
+            if (skupaj <= mejaBajtov) break
+            ven += i
+            skupaj -= vnosi[i].second
+        }
+        return ven
+    }
 }

@@ -306,6 +306,12 @@ private fun pasMedVideom() {
     preveri("nadaljuj: tok in kartica istega filma (IMDb)", OsPravila.istaVsebina("tok-x", "tt0482571", 0, 0, "kartica-y", "tt0482571", 0, 0))
     preveri("nadaljuj: druga epizoda iste serije ni ista", !OsPravila.istaVsebina("a", "tt0903747", 1, 2, "b", "tt0903747", 1, 3))
     preveri("nadaljuj: brez IMDb samo isti id", !OsPravila.istaVsebina("a", "", 0, 0, "b", "", 0, 0) && OsPravila.istaVsebina("a", "", 0, 0, "a", "", 0, 0))
+    // Revizija RAM 8. 11. 2026: video 60 s na pavzi brez zaslona predvajanja sprosti predvajalnik (stop, mesto ostane).
+    preveri("pavza: 60 s video brez zaslona -> sprosti", OsPravila.sprostiPoPremoru(true, false, false, 60_000L))
+    preveri("pavza: 59,999 s se ne", !OsPravila.sprostiPoPremoru(true, false, false, 59_999L))
+    preveri("pavza: zaslon predvajanja odprt -> ne", !OsPravila.sprostiPoPremoru(true, false, true, 600_000L))
+    preveri("pavza: igra -> ne", !OsPravila.sprostiPoPremoru(true, true, false, 600_000L))
+    preveri("pavza: glasba ali radio -> ne", !OsPravila.sprostiPoPremoru(false, false, false, 600_000L))
     // Lastnik 6. 11. 2026 14:34: po koncu nalaganja se pas skrije sam (prej je ostal ves film).
     preveri("konec nalaganja skrije pas", OsPravila.skrijPoNalaganju(prej = true, zdaj = false))
     preveri("med nalaganjem ne", !OsPravila.skrijPoNalaganju(prej = true, zdaj = true))

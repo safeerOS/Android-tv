@@ -1317,6 +1317,12 @@ class GlasbaActivity : OsActivity() {
         iskalnik?.let { predPasom(it, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) }) }
         if (iskalnik != null && zasebnoIskanje == null) predPasom(izbiraObsegaIskanja(), LinearLayout.LayoutParams(-2, -2).apply { bottomMargin = dp(10) })
         glava.forEach { predPasom(it) }
+        // TV 8. 11. 2026: GOR s pasa Doma je izbral iskanje desno zgoraj - pelje na zavihek razdelka iz glave tega risanja.
+        if (razdelek == DOMOV) {
+            val a = aktivniRazdelek
+            val p0 = mcKarticaKoren as? DomPas
+            if (a != null && p0 != null && a.id != View.NO_ID && jePotomec(a, vsebina)) p0.gorNa(a.id)
+        }
         val koraki = ArrayDeque<() -> Unit>()
         for (v0 in vrste) {
             if (v0.kartice.isEmpty() && v0.pogled == null) continue
@@ -1326,7 +1332,7 @@ class GlasbaActivity : OsActivity() {
             koraki.addLast {
                 if (v.naslov.isNotBlank()) {
                     val zgOdmik = if (tesno) 5 else 14
-                    val leviOdmik = 4
+                    val leviOdmik = LEVI_ODMIK_NASLOVA
                     vsebina.addView(besedilo(if (tesno) 16f else 18f, osBarva(R.color.os_besedilo), true).apply {
                         text = v.naslov; tag = "polica:${v.naslov}"; contentDescription = NASLOV_VRSTE
                         setPadding(dp(leviOdmik), dp(zgOdmik), 0, dp(if (tesno) 3 else 8)) })
@@ -1721,10 +1727,16 @@ class GlasbaActivity : OsActivity() {
     /** Rod plosce Doma: odgovor (prenosi, predaja) prejsnje gradnje plosce ne doda kartice se enkrat (slepi pregled 8. 11. 2026, 9). */
     private var rodPlosce = 0
 
+    private fun jePotomec(v: View, koren: View): Boolean {
+        var p: Any? = v
+        while (p is View) { if (p === koren) return true; p = p.parent }
+        return false
+    }
+
     /** Blok vrstice pod pasom: naslov nad kartico (kritika 2). */
     private fun blokPlosce(naslov: String, kartica: View): View = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        addView(besedilo(16f, osBarva(R.color.os_besedilo), true).apply { text = naslov; setPadding(0, dp(8), 0, dp(8)) })
+        addView(besedilo(16f, osBarva(R.color.os_besedilo), true).apply { text = naslov; setPadding(dp(LEVI_ODMIK_NASLOVA), dp(8), 0, dp(8)) })
         addView(kartica)
         layoutParams = LinearLayout.LayoutParams(dp(300), -2).apply { rightMargin = dp(16) }
     }
@@ -3532,8 +3544,13 @@ class GlasbaActivity : OsActivity() {
                         // Lastnik 8. 11. 2026 10:20 (zgled KefinTweaks): pod pasom je vrstica z OSTALIMI nedokoncanimi -
                         // vsebina v pasu ni se enkrat v vrstici (prej vrstice ob plosci sploh ni bilo).
                         // Slepi pregled 8. 11. (10): samo, ce pas res kaze nadaljevanje (nic ne igra) - sicer bi vsebina izginila z Doma.
-                        val vPasu = if (GlasbaStoritev.trenutna() == null) zadnjeNadaljevanje?.skladba?.id else null
-                        val ostale = if (plosca) DomovVrsticePravila.brezVsebineVPasu(kartice, { it.id }, vPasu) else kartice
+                        // TV 8. 11. 2026: igra video -> kartic iste vsebine ni (prej je bil film v pasu in v vrstici);
+                        // igra glasba ali radio -> vrstica cela ([DomovVrsticePravila.brezVsebineVPasu]).
+                        val igraZdaj = GlasbaStoritev.trenutna()
+                        val poId = nedavniVidei.associateBy { it.id }
+                        val ostale = if (plosca) DomovVrsticePravila.brezVsebineVPasu(kartice,
+                            { k -> poId[k.id]?.let { vsebinaPasu(it) } ?: DomPasPravila.Vsebina(k.id, "", 0, 0) },
+                            igraZdaj?.let { vsebinaPasu(it) }, igraZdaj?.video == true, zadnjeNadaljevanje?.skladba?.id) else kartice
                         if (vrstaNadaljuj == null || ostale.isEmpty()) emptyList()
                         else listOf(if (plosca) vrstaNadaljuj.copy(kartice = ostale) else vrstaNadaljuj)
                     }
@@ -3654,8 +3671,8 @@ class GlasbaActivity : OsActivity() {
                     else (sSliko.drop(izbI) + sSliko.take(izbI)).take(DomPasPravila.NAJVEC_KROZENJA)
                 glavna.post { if (razdelek == DOMOV && !isFinishing) osveziMcKartico() }
                 val m = mcKarticaKoren ?: ustvariMcKartico(true)
-                // Kritika 2: TV v zivo, Prenosi in Kaj igra so vrstica takoj pod pasom (pas je cez vso sirino).
-                listOf(Vrsta("", emptyList(), pogled = m), Vrsta("", emptyList(), pogled = ploscaDomovOvoj)) + vrstice
+                // Lastnik 8. 11. 2026: TV v zivo, Prenosi in Kaj igra »cisto nazadnje« - pod pasom so vsebine (Nadaljuj z ogledom).
+                DomovVrsticePravila.razporedDoma(Vrsta("", emptyList(), pogled = m), Vrsta("", emptyList(), pogled = ploscaDomovOvoj), vrstice)
             }
             GLASBA -> listOf(Vrsta(getString(R.string.os_mediji_prilj_glasba), skladbe(p.filter { OsPravila.zaGlasbo(it.video, it.radio, YoutubeZvok.jeYoutube(it)) }), skladbe = true)) +
                 // Lastnik 27. 10. 2026: priljubljeni albumi z Useneta (samo z lastnim ponudnikom - sicer jih ni mogoce predvajati).
@@ -6248,7 +6265,51 @@ class GlasbaActivity : OsActivity() {
             }
         }
         if (dogodek.action == KeyEvent.ACTION_UP && dogodek.keyCode == pogoltniGor) { pogoltniGor = -1; return true }
+        // TV 8. 11. 2026: DOL s prve siroke kartice Nadaljuj je sistem izbral drugo malo kartico spodaj (najblizja sredina) -
+        // na Domu gre GOR/DOL na kartico z najblizjim levim robom.
+        if (dogodek.action == KeyEvent.ACTION_DOWN && razdelek == DOMOV && !podstrani.odprta &&
+            (dogodek.keyCode == KeyEvent.KEYCODE_DPAD_DOWN || dogodek.keyCode == KeyEvent.KEYCODE_DPAD_UP) &&
+            premikPoStolpcu(if (dogodek.keyCode == KeyEvent.KEYCODE_DPAD_DOWN) View.FOCUS_DOWN else View.FOCUS_UP)) return true
         return super.dispatchKeyEvent(dogodek)
+    }
+
+    /** Vrstica kartic (mreza ali vodoravna vrstica plosce) in kartica v njej, ki vsebuje [v]; null = ni kartica vsebine. */
+    private fun vrstaKartice(v: View): Pair<android.view.ViewGroup, View>? {
+        var otrok: View = v
+        var p = v.parent
+        while (p is android.view.ViewGroup) {
+            if (p === vsebina) return null
+            if (p is LinearLayout && (p.tag == MREZA_VRSTA || p.parent is HorizontalScrollView) && jePotomec(p, vsebina)) return p to otrok
+            otrok = p
+            p = p.parent
+        }
+        return null
+    }
+
+    /** Zavihki razdelkov in izbire mreze niso kartice - tam velja sistemsko iskanje fokusa. */
+    private fun jeGlava(k: View): Boolean = (k.tag as? String)?.let { it.startsWith("r:") || it.startsWith("k:") } == true
+
+    private fun ciljFokusa(k: View, smer: Int): View? =
+        if (k.isFocusable && k.isShown) k else ArrayList<View>().also { k.addFocusables(it, smer) }.firstOrNull { it.isShown }
+
+    /** Sistem izbere naslednji pogled; ce je v drugi vrstici, gre fokus na kartico te vrstice z najblizjim levim robom. */
+    private fun premikPoStolpcu(smer: Int): Boolean {
+        val f = currentFocus ?: return false
+        val (vrsta, kartica) = vrstaKartice(f) ?: return false
+        if (jeGlava(kartica)) return false
+        val koren = window.decorView as? android.view.ViewGroup ?: return false
+        val nasl = android.view.FocusFinder.getInstance().findNextFocus(koren, f, smer) ?: return false
+        val (vrsta2, kartica2) = vrstaKartice(nasl) ?: return false
+        if (vrsta2 === vrsta || jeGlava(kartica2)) return false
+        fun xy(v: View) = IntArray(2).also { v.getLocationOnScreen(it) }
+        val vrh = xy(kartica2)[1]
+        val kandidati = (0 until vrsta2.childCount).map { vrsta2.getChildAt(it) }
+            .filter { it.visibility == View.VISIBLE && Math.abs(xy(it)[1] - vrh) <= dp(4) && ciljFokusa(it, smer) != null }
+        if (kandidati.size < 2) return false
+        val i = DomovVrsticePravila.stolpecPoLevemRobu(xy(kartica)[0], kandidati.map { xy(it)[0] })
+        val cilj = kandidati.getOrNull(i)?.let { ciljFokusa(it, smer) } ?: return false
+        if (cilj === nasl) return false
+        return cilj.requestFocus(smer)
     }
 
     /**
@@ -8471,6 +8532,11 @@ class GlasbaActivity : OsActivity() {
 
     private fun nadaljujKoPripravljen(sk: Jamendo.Skladba, izvirnik: Jamendo.Skladba? = null) {
         val predano = predajaPolozaj?.takeIf { it.first == sk.id }?.second?.also { predajaPolozaj = null }
+        // TV 8. 11. 2026: Nadaljuj s pasu je ze izbira - brez okna »Nadaljuj od / Od zacetka« (enkratno, samo ista vsebina);
+        // kartice vrstice Nadaljuj z ogledom vprasajo (lastnik 28. 10.).
+        val izPasu = nadaljujIzPasu.also { nadaljujIzPasu = null }
+        val brezVprasanja = DomPasPravila.nadaljujBrezVprasanja(izPasu?.first,
+            izPasu?.let { android.os.SystemClock.uptimeMillis() - it.second } ?: -1L, vsebinaPasu(sk), izvirnik?.let { vsebinaPasu(it) })
         // TV 6. 11. 2026 16:00: »Nadaljuj z ogledom« (The Prestige, Usenet) je zacel od zacetka - zapis napredka se ni ujemal
         // s skladbo toka (skladbaToka), le z izvirnikom, ki ga je uporabnik izbral. Zato poskusimo se izvirnik.
         val od = predano ?: OsPravila.mestoNadaljevanja(MediaNapredek.polozaj(this, sk), izvirnik?.let { MediaNapredek.polozaj(this, it) } ?: 0L)
@@ -8480,7 +8546,7 @@ class GlasbaActivity : OsActivity() {
         }
         // Lastnik 28. 10. 2026: uporabnik izbere, ali nadaljuje ali zacne od zacetka (zaslon predvajanja vprasa). Predvajanje
         // do izbire miruje. Predaja z druge naprave (»Nadaljuj tukaj«) in sprotni tok pomocnika ostaneta samodejna.
-        if (predano == null && SprotnaPomoc.tokZa(sk) == null && OsPravila.ponudiNadaljevanje(od, 0)) {
+        if (predano == null && !brezVprasanja && SprotnaPomoc.tokZa(sk) == null && OsPravila.ponudiNadaljevanje(od, 0)) {
             // Lastnik 6. 11. 2026 17:44: trenutna je lahko se prejsnji film (tok novega se pripravlja) - ponudba velja za
             // izbrano vsebino, ne za tisto, ki je slucajno nalozena; tujega predvajanja ne ustavljamo.
             val t = GlasbaStoritev.trenutna()
@@ -12966,10 +13032,19 @@ class GlasbaActivity : OsActivity() {
         slikePasuDelavec.execute {
             var izid: android.graphics.Bitmap? = null
             try {
-                val logo = url.contains("/logo/")
-                val px = if (logo) 600 else 1280
-                val surovi = SpletniVir.bajtiSlike(this, url) ?: Jamendo.bajti(url) ?: return@execute
-                val b = VarnaSlika.izBajtov(surovi, px)?.let { MedijskiPredpomnilnik.pomanjsaj(it, px) } ?: return@execute
+                // Zamegljeno ozadje (zvok brez ozadja filma, [DomPasPravila.ZAMEGLI]): isti izvirnik, dekodiran drobno.
+                val zamegli = DomPasPravila.jeZamegljeno(url)
+                val izvor = DomPasPravila.brezOznake(url)
+                val logo = izvor.contains("/logo/")
+                val polni = if (logo) 600 else 1280
+                // TV 8. 11. 2026: ozadja in logotipi so se prenasali ob vsakem zagonu - najprej disk, nato omrezje.
+                val zDiska = MedijskiPredpomnilnik.slikaPasu(this, izvor)
+                val surovi = zDiska ?: SpletniVir.bajtiSlike(this, izvor) ?: Jamendo.bajti(izvor) ?: return@execute
+                // Iz omrezja v polni meri (na disk gre izvirnik pasu, ne drobna zamegljena); z diska zamegljena takoj drobno.
+                val px = if (zamegli && zDiska != null) DomPasPravila.ZAMEGLJENO_PX else polni
+                var b = VarnaSlika.izBajtov(surovi, px)?.let { MedijskiPredpomnilnik.pomanjsaj(it, px) } ?: return@execute
+                if (zDiska == null) MedijskiPredpomnilnik.shraniSlikoPasu(this, izvor, b)
+                if (zamegli) b = MedijskiPredpomnilnik.pomanjsaj(b, DomPasPravila.ZAMEGLJENO_PX)
                 val m = if (logo) b else MedijskiPredpomnilnik.zaPomnilnik(b)   // logotip ohrani prosojnost
                 slikePasu.put(url, m)
                 izid = m
@@ -12995,8 +13070,7 @@ class GlasbaActivity : OsActivity() {
         if (povprecje == null) { desnoOkvir.background = null; return }
         val oz = osBarva(R.color.os_ozadje)
         val zgoraj = DomPasPravila.ambient(povprecje, oz)
-        desnoOkvir.background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-            intArrayOf((zgoraj and 0x00FFFFFF) or (0xE0 shl 24), (oz and 0x00FFFFFF) or (0xF2 shl 24)))
+        desnoOkvir.background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, DomPasPravila.ambientPreliv(zgoraj, oz))
     }
 
     private fun ustvariPas(): View {
@@ -13032,7 +13106,9 @@ class GlasbaActivity : OsActivity() {
                     val sk = GlasbaStoritev.trenutna()
                     val vPasu = mcKarticaPovrsina?.visibility == View.VISIBLE
                     // Slepi pregled: video na pavzi, ki ga pas ne kaze (npr. predvajalnik brez povrsine), se nadaljuje na celem zaslonu.
-                    if (sk?.video == true && !GlasbaStoritev.igra() && !vPasu) MiniPredvajalnik.odpriCelZaslon(this@GlasbaActivity)
+                    // Revizija RAM 8. 11.: po dolgi pavzi je predvajalnik ustavljen (IDLE) - pas kaze sliko, Predvajaj ga zbudi tu.
+                    val ustavljen = GlasbaStoritev.predvajalnik?.playbackState == Player.STATE_IDLE
+                    if (sk?.video == true && !GlasbaStoritev.igra() && !vPasu && !ustavljen) MiniPredvajalnik.odpriCelZaslon(this@GlasbaActivity)
                     else GlasbaStoritev.preklopi()   // premor/naprej; video ostane v pasu
                 }
             }
@@ -13202,8 +13278,14 @@ class GlasbaActivity : OsActivity() {
     }
 
     /** En klik na kartici Nadaljuj: zadnja nedokoncana vsebina se nadaljuje tam, kjer je uporabnik ostal (kot kartica Nedavno). */
+    /** Nadaljuj s pasu (vsebina, uptime klika): [nadaljujKoPripravljen] ga porabi enkrat. */
+    private var nadaljujIzPasu: Pair<DomPasPravila.Vsebina, Long>? = null
+
+    private fun vsebinaPasu(sk: Jamendo.Skladba) = DomPasPravila.Vsebina(sk.id, DomPasPravila.imdbId(sk.imdbId, sk.id), sk.season, sk.episode)
+
     private fun nadaljujZadnje() {
         val n = zadnjeNadaljevanje ?: return
+        nadaljujIzPasu = vsebinaPasu(n.skladba) to android.os.SystemClock.uptimeMillis()
         if (SpletniVir.jeEnota(n.skladba)) razresiSplet(n.skladba) else predvajaj(listOf(n.skladba), 0, izNedavnih = true)
     }
 
@@ -13241,13 +13323,15 @@ class GlasbaActivity : OsActivity() {
                 vec.first()
             }
             sk != null -> {
-                okenceVidea(sk.video && p != null)
+                // Revizija RAM 8. 11.: ustavljen predvajalnik (IDLE, po pavzi) nima slike - pas kaze sliko, ne crne povrsine.
+                okenceVidea(sk.video && p != null && p.playbackState != Player.STATE_IDLE)
                 val igra = GlasbaStoritev.igra()
                 val r = sk.radio || (p?.duration?.coerceAtLeast(0) ?: 0) <= 0
                 // Nalozena, a ustavljena vsebina: gumb Nadaljuj (ne Premor).
                 val imdb = if (sk.video) DomPasPravila.imdbId(sk.imdbId, sk.id) else ""
                 DomPasStanje(if (igra) DomPasPravila.IGRA else DomPasPravila.NADALJUJ, sk.naslov,
-                    if (sk.year != 0) sk.year.toString() else sk.izvajalec, "", sk.slika, sk.video, igra,
+                    DomPasPravila.podnaslovIgra(sk.video, sk.year, sk.izvajalec, if (r || p == null) 0L else p.duration.coerceAtLeast(0)),
+                    "", sk.slika, sk.video, igra,
                     if (r || p == null) 0L else p.currentPosition.coerceAtLeast(0), if (r || p == null) 0L else p.duration.coerceAtLeast(0),
                     DomPasPravila.ozadjeUrl(imdb), DomPasPravila.logoUrl(imdb))
             }
@@ -13514,6 +13598,8 @@ class GlasbaActivity : OsActivity() {
         private const val MREZA_VRSTA = "mreza-vrsta"
         private const val SIDRO_MREZE = "mreza-sidro"
         private const val POLNILO_MREZE = "mreza-polnilo"
+        /** Levi odmik naslova vrstice (dp): isti za vrstice in bloke plosce (TV 8. 11. 2026: blok je bil 4 dp bolj levo). */
+        private const val LEVI_ODMIK_NASLOVA = 4
         private const val POLICA_KARTIC = "polica-kartic"
         /** Kartica v mrezi Mojih virov: dve vrsti gresta na prvi zaslon televizorja. */
         private const val MREZA_DP = 116
