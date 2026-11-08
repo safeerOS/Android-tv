@@ -129,12 +129,95 @@ class HttpsListFetcher(
     }
 }
 
+/**
+ * Brez java.util.regex (8. 11. 2026, izmerjeno na TV): vsak Matcher je v ART nativni objekt ICU; pri 420.810 domenah
+ * (~4 ujemanja na vrstico) je gradnja nabora v procesu :scit sprozila 6 GC »NativeAlloc« (460k-1,18M objektov vsak) in
+ * nativno kopico napihnila z 1,7 MB na 112-141 MB, ki je ART storitvi v ospredju ne vrne (PSS Scita 15 -> 154-208 MB).
+ * Rocni preverjalniki so natanko enakovredni prejsnjim izrazom (tests/ThreatListAgentTest.kt, orakelj Regex v testu):
+ *  - oznaka gostitelja: `[a-z0-9_]([a-z0-9_-]{0,61}[a-z0-9_])?`
+ *  - IPv4: `(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\.(...)){3}`
+ *  - casovni zig CSV: `[0-9]{4}-[0-9]{2}-[0-9]{2}([T ][0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\.[0-9]+)?(Z|[+-][0-9]{2}:?[0-9]{2})?)?`
+ * Seznam se bere po vrsticah iz toka, ne iz enega niza (HaGeZi ~8 MB bajtov je bil se ~16 MB UTF-16 v kopici).
+ */
 object PlainListParser {
-    private val hostLabel = Regex("[a-z0-9_]([a-z0-9_-]{0,61}[a-z0-9_])?")
-    private val ipv4 = Regex("(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3}")
     private val sinkAddresses = setOf("0.0.0.0", "127.0.0.1", "::", "::1")
-    /** `2026-09-12T08:47:04+01:00`, `2026-09-12 08:47:04` or `2026-09-12` at the start of a CSV line. */
-    private val csvTimestamp = Regex("[0-9]{4}-[0-9]{2}-[0-9]{2}([T ][0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\.[0-9]+)?(Z|[+-][0-9]{2}:?[0-9]{2})?)?")
+
+    private fun digit(c: Char) = c in '0'..'9'
+    private fun labelEdge(c: Char) = c in 'a'..'z' || digit(c) || c == '_'
+    private fun labelInner(c: Char) = labelEdge(c) || c == '-'
+
+    /** `[a-z0-9_]([a-z0-9_-]{0,61}[a-z0-9_])?` over the whole string. */
+    fun isHostLabel(s: CharSequence): Boolean {
+        val n = s.length
+        if (n < 1 || n > 63 || !labelEdge(s[0])) return false
+        if (n == 1) return true
+        if (!labelEdge(s[n - 1])) return false
+        for (i in 1 until n - 1) if (!labelInner(s[i])) return false
+        return true
+    }
+
+    /** One octet `25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]`: 1-3 digits, no leading zero unless exactly "0", <= 255. */
+    private fun isOctet(s: CharSequence, from: Int, to: Int): Boolean {
+        val n = to - from
+        if (n < 1 || n > 3) return false
+        var v = 0
+        for (i in from until to) { val c = s[i]; if (!digit(c)) return false; v = v * 10 + (c - '0') }
+        if (n > 1 && s[from] == '0') return false
+        return v <= 255
+    }
+
+    /** Four octets separated by single dots, nothing else (the former `ipv4.matches`). */
+    fun isIpv4(s: CharSequence): Boolean {
+        var start = 0
+        var octets = 0
+        val n = s.length
+        for (i in 0..n) {
+            if (i == n || s[i] == '.') {
+                if (!isOctet(s, start, i)) return false
+                octets++
+                if (octets > 4) return false
+                start = i + 1
+            }
+        }
+        return octets == 4
+    }
+
+    private fun digits(s: CharSequence, at: Int, count: Int): Boolean {
+        if (at + count > s.length) return false
+        for (i in at until at + count) if (!digit(s[i])) return false
+        return true
+    }
+
+    /**
+     * `2026-09-12T08:47:04+01:00`, `2026-09-12 08:47:04.5Z` or `2026-09-12` (the former `csvTimestamp.matches`):
+     * date, then optionally `[T ]HH:MM`, `:SS`, `.fraction`, `Z` or `+HH:MM`/`+HHMM`.
+     */
+    fun isCsvTimestamp(s: CharSequence): Boolean {
+        val n = s.length
+        if (!digits(s, 0, 4) || n < 10 || s[4] != '-' || !digits(s, 5, 2) || s[7] != '-' || !digits(s, 8, 2)) return false
+        var i = 10
+        if (i == n) return true
+        if ((s[i] != 'T' && s[i] != ' ') || !digits(s, i + 1, 2) || i + 3 >= n || s[i + 3] != ':' || !digits(s, i + 4, 2)) return false
+        i += 6
+        if (i < n && s[i] == ':') { if (!digits(s, i + 1, 2)) return false; i += 3 }
+        if (i < n && s[i] == '.') {
+            var j = i + 1
+            while (j < n && digit(s[j])) j++
+            if (j == i + 1) return false
+            i = j
+        }
+        if (i == n) return true
+        if (s[i] == 'Z') return i + 1 == n
+        if (s[i] != '+' && s[i] != '-') return false
+        if (!digits(s, i + 1, 2)) return false
+        i += 3
+        if (i < n && s[i] == ':') i++
+        return digits(s, i, 2) && i + 2 == n
+    }
+
+    /** Lines of [bytes] as UTF-8, one at a time (no copy of the whole list as a String). */
+    private fun lines(bytes: ByteArray): Sequence<String> =
+        bytes.inputStream().reader(Charsets.UTF_8).buffered(64 * 1024).lineSequence()
 
     /** Normalized, de-duplicated entries; throws [ListRejectedException] for files that are not this list. */
     fun parse(bytes: ByteArray, source: PlainListSource): List<String> {
@@ -143,7 +226,7 @@ object PlainListParser {
         if (head.contains("<html") || head.contains("<!doctype")) throw ListRejectedException("HTML instead of a list")
         val seen = LinkedHashSet<String>()
         if (source.raw) {
-            String(bytes, Charsets.UTF_8).lineSequence().forEach { raw ->
+            lines(bytes).forEach { raw ->
                 val line = raw.trim()
                 if (line.isEmpty() || line.startsWith("!") || line.startsWith("[")) return@forEach
                 if (line.length <= 4096) seen.add(line)
@@ -153,17 +236,17 @@ object PlainListParser {
         }
         var dataLines = 0
         var validLines = 0
-        String(bytes, Charsets.UTF_8).lineSequence().forEach { raw ->
+        lines(bytes).forEach { raw ->
             val line = raw.substringBefore('#').trim()
             if (line.isEmpty() || line.startsWith(";") || line.startsWith("!")) return@forEach
             dataLines++
             val fields = if (source.headerless) line.split(',', ';').map { it.trim() } else emptyList()
-            val text = if (fields.size >= 2 && csvTimestamp.matches(fields[0])) fields[1] else line
+            val text = if (fields.size >= 2 && isCsvTimestamp(fields[0])) fields[1] else line
             val parts = text.split(' ', '\t').filter { it.isNotEmpty() }
             if (parts.isEmpty()) return@forEach
             val candidate = (if (parts.size >= 2 && parts[0] in sinkAddresses) parts[1] else parts[0])
                 .lowercase().trimEnd('.').removePrefix("||").removeSuffix("^").removePrefix("*.")
-            val entry = if (source.ipv4) candidate.takeIf { ipv4.matches(it) } else candidate.takeIf { isHostName(it) }
+            val entry = if (source.ipv4) candidate.takeIf { isIpv4(it) } else candidate.takeIf { isHostName(it) }
             if (entry != null) { validLines++; seen.add(entry) }
         }
         if (source.headerless && validLines * 10 < dataLines * 9) throw ListRejectedException("only $validLines of $dataLines lines are entries")
@@ -172,10 +255,31 @@ object PlainListParser {
     }
 
     fun isHostName(name: String): Boolean {
-        if (name.length !in 4..253 || !name.contains('.') || ipv4.matches(name)) return false
+        if (name.length !in 4..253 || !name.contains('.') || isIpv4(name)) return false
         if (name == "localhost" || name.endsWith(".localhost") || name.endsWith(".local")) return false
         val labels = name.split('.')
-        return labels.all { hostLabel.matches(it) } && labels.last().any { it.isLetter() }
+        return labels.all { isHostLabel(it) } && labels.last().any { it.isLetter() }
+    }
+
+    /** UTF-8 of the entries joined with '\n' (the saved list), written once - without the joined String in between. */
+    fun joinUtf8(entries: List<String>): ByteArray {
+        var size = 0
+        for (e in entries) size += e.length + 1
+        val out = java.io.ByteArrayOutputStream(size.coerceAtLeast(16))
+        val w = out.writer(Charsets.UTF_8)
+        for ((i, e) in entries.withIndex()) { if (i > 0) w.write("\n"); w.write(e) }
+        w.flush()
+        return out.toByteArray()
+    }
+
+    /** Entries of a saved list (joinUtf8 inverse): one line each, read from a stream, [count] expected. */
+    fun splitUtf8(bytes: ByteArray, count: Int): List<String> {
+        if (bytes.isEmpty()) return emptyList()
+        val out = ArrayList<String>(count.coerceIn(0, 1 shl 20))   // zgornja meja: pokvarjen meta.count ne rezervira GB
+        bytes.inputStream().reader(Charsets.UTF_8).buffered(64 * 1024).forEachLine { out.add(it) }
+        // A list whose last entry is empty keeps the trailing empty line (String.split did); readers drop it.
+        if (bytes[bytes.size - 1] == '\n'.code.toByte()) out.add("")
+        return out
     }
 }
 
@@ -334,7 +438,7 @@ class ThreatListAgent(
     private fun readSaved(source: PlainListSource, meta: Meta): PlainList? = try {
         val bytes = listFile(source.id).readBytes()
         if (sha256(bytes) != meta.sha256) throw IOException("checksum mismatch")
-        val entries = if (bytes.isEmpty()) emptyList() else String(bytes, Charsets.UTF_8).split('\n')
+        val entries = PlainListParser.splitUtf8(bytes, meta.count)
         if (entries.size != meta.count) throw IOException("entry count mismatch")
         PlainList(source, entries, meta.fetchedAt, meta.sha256)
     } catch (e: Exception) {
@@ -362,7 +466,7 @@ class ThreatListAgent(
                     continue
                 }
                 val entries = PlainListParser.parse(response.body ?: throw IOException("empty body"), source)
-                val bytes = entries.joinToString("\n").toByteArray(Charsets.UTF_8)
+                val bytes = PlainListParser.joinUtf8(entries)
                 val meta = Meta(sha256(bytes), entries.size, now, response.etag?.take(200), response.lastModified?.take(100))
                 if (known != null && known.sha256 == meta.sha256) {
                     writeMeta(source.id, meta) // same content, new validators

@@ -361,6 +361,63 @@ fun main() {
         } finally { mapa.deleteRecursively() }
     }
 
+    // 8. 11. 2026: Regex v ART = nativni Matcher ICU; pri 420k domenah je napihnil nativno kopico Scita na 112-141 MB.
+    // Rocni preverjalniki morajo biti natanko enakovredni prejsnjim izrazom - orakelj je regex samo tu, v testu.
+    test("host label, IPv4 and CSV timestamp without Regex match the former expressions exactly (8. 11. 2026)") {
+        val hostLabel = Regex("[a-z0-9_]([a-z0-9_-]{0,61}[a-z0-9_])?")
+        val ipv4 = Regex("(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])(\\.(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])){3}")
+        val csv = Regex("[0-9]{4}-[0-9]{2}-[0-9]{2}([T ][0-9]{2}:[0-9]{2}(:[0-9]{2})?(\\.[0-9]+)?(Z|[+-][0-9]{2}:?[0-9]{2})?)?")
+        val robni = listOf("", "a", "-", "_", "a-", "-a", "a-b", "a--b", "ab", "a_", "A", "aB", "a.b", "a b", "é", "x".repeat(63),
+            "x".repeat(64), "a" + "-".repeat(61) + "b", "a" + "-".repeat(62) + "b", "0", "00", "01", "1", "9", "10", "99", "100",
+            "199", "200", "249", "250", "255", "256", "300", "1.2.3.4", "01.2.3.4", "1.2.3.04", "1.2.3", "1.2.3.4.5", ".1.2.3.4",
+            "1.2.3.4.", "1..2.3.4", "255.255.255.255", "256.1.1.1", "1.2.3.4a", "a.2.3.4", "१.2.3.4", "2026-09-12",
+            "2026-09-12T08:47:04+01:00", "2026-09-12 08:47:04", "2026-09-12T08:47", "2026-09-12T08:47:04.5Z", "2026-09-12T08:47Z",
+            "2026-09-12T08:47:04+0100", "2026-09-12T08:47:04+01", "2026-09-12T08:47:04.", "2026-09-12T08", "2026-09-12T08:4",
+            "2026-09-12x", "2026-9-12", "2026-09-12T08:47:04Zx", "2026-09-12T08:47:04-01:00", "2026-09-12T08:47:04+1:00",
+            "2026-09-1208:47", "20260912", "2026-09-12T08:47:04.123456789+01:00")
+        for (p in robni) {
+            check(PlainListParser.isHostLabel(p) == hostLabel.matches(p)) { "oznaka '$p'" }
+            check(PlainListParser.isIpv4(p) == ipv4.matches(p)) { "ipv4 '$p'" }
+            check(PlainListParser.isCsvTimestamp(p) == csv.matches(p)) { "cas '$p'" }
+        }
+        val abeceda = "ab-_z09.:TZ+ x".toCharArray()
+        val rnd = java.util.Random(20261108)
+        repeat(20000) {
+            val n = rnd.nextInt(28)
+            val p = String(CharArray(n) { abeceda[rnd.nextInt(abeceda.size)] })
+            check(PlainListParser.isHostLabel(p) == hostLabel.matches(p)) { "oznaka '$p'" }
+            check(PlainListParser.isIpv4(p) == ipv4.matches(p)) { "ipv4 '$p'" }
+        }
+        val stevke = "0123456789".toCharArray()
+        repeat(5000) {
+            val ip = (0 until 4).joinToString(".") { String(CharArray(1 + rnd.nextInt(3)) { stevke[rnd.nextInt(10)] }) }
+            check(PlainListParser.isIpv4(ip) == ipv4.matches(ip)) { "ipv4 '$ip'" }
+            val deli = listOf("2026-09-12", "T", " ", "08:47", ":04", ".5", ".", "Z", "+01:00", "-0100", "+01", "x", ":")
+            val cas = (0 until 1 + rnd.nextInt(5)).joinToString("") { deli[rnd.nextInt(deli.size)] }
+            check(PlainListParser.isCsvTimestamp(cas) == csv.matches(cas)) { "cas '$cas'" }
+        }
+    }
+
+    test("joinUtf8/splitUtf8 equal joinToString/split, also with an empty last entry and non-ASCII (8. 11. 2026)") {
+        for (vnosi in listOf(emptyList(), listOf("a.example"), listOf("a.example", "b.example"), listOf("a.example", ""),
+            listOf("", "a"), listOf("a", "", "b"), listOf("xn--mnchen-3ya.example", "čšž.example"))) {
+            val bajti = PlainListParser.joinUtf8(vnosi)
+            check(bajti.contentEquals(vnosi.joinToString("\n").toByteArray(Charsets.UTF_8))) { "join $vnosi" }
+            val pricakovano = if (bajti.isEmpty()) emptyList() else String(bajti, Charsets.UTF_8).split('\n')
+            check(PlainListParser.splitUtf8(bajti, vnosi.size) == pricakovano) { "split $vnosi -> ${PlainListParser.splitUtf8(bajti, vnosi.size)}" }
+        }
+    }
+
+    test("parser of plain lists has no Regex or Pattern (native ICU matchers inflated the Scit process, 8. 11. 2026)") {
+        val vir = listOf(File("src/main/kotlin/com/safeer/threatfeed/ThreatListAgent.kt"),
+            File("../src/main/kotlin/com/safeer/threatfeed/ThreatListAgent.kt")).firstOrNull { it.isFile }
+            ?: throw AssertionError("ThreatListAgent.kt not found from ${File(".").absolutePath}")
+        val telo = vir.readText().substringAfter("object PlainListParser {").substringBefore("\nclass ThreatListAgent(")
+        val koda = telo.lines().filter { l -> val t = l.trim(); !t.startsWith("*") && !t.startsWith("/**") && !t.startsWith("//") }
+        val zadetki = koda.filter { it.contains("Regex(") || it.contains("Pattern.compile") || it.contains(".toRegex(") || it.contains(".matches(") }
+        check(zadetki.isEmpty()) { "Regex in PlainListParser: $zadetki" }
+    }
+
     dir.deleteRecursively()
     println("ThreatListAgent: $passed passed, $failed failed")
     exitProcess(if (failed == 0) 0 else 1)
