@@ -230,8 +230,11 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
      * Stran je zahtevala novo okno. MainActivity zanj pripravi skrit zavihek in vrne true,
      * kadar je okno prevzel. Naslova se ne poznamo - zato okno dobi vratarja spodaj.
      */
-    /** Novo okno strani: sporocilo, ali je bila uporabnikova kretnja, in href povezave pod fokusom/dotikom (ali null). */
-    var naPojavnoOkno: ((android.os.Message, Boolean, String?) -> Boolean)? = null
+    /**
+     * Novo okno strani: sporocilo, ali je bila uporabnikova kretnja, href povezave pod fokusom/dotikom (ali null),
+     * pogled, ki je okno odprl, in ali je preprecevanje pojavnih oken vklopljeno.
+     */
+    var naPojavnoOkno: ((android.os.Message, Boolean, String?, WebView, Boolean) -> Boolean)? = null
 
     /**
      * Stran je poklicala window.close(). Lastnik 30. 10. 2026: Googlova prijava (claude.ai) je obstala na
@@ -1072,19 +1075,16 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
                 // je bil klik, in tudi ne, na kateri strani smo - pomembno je edino, KAM okno
                 // pelje. Tega izvemo sele, ko okno dobi svoj pogled, zato ga preda naprej
                 // MainActivity, ki mu nastavi vratarja.
-                if (!PojavnaOknaNastavitve.jeVklopljeno(context)) {
-                    // Kdor preprecevanje v meniju izklopi, dobi obicajno vedenje brskalnika.
-                    val transport = resultMsg.obj as? WebView.WebViewTransport ?: return false
-                    transport.webView = this@ChromiumEngineView
-                    resultMsg.sendToTarget()
-                    return true
-                }
+                // Izklopljeno preprecevanje (meni) gre isto pot z obicajnim vedenjem brskalnika. Testni telefon 9. 11. 2026:
+                // okno v lastnem pogledu (transport.webView = this) je WebView zavrnil z IllegalArgumentException
+                // »Parent WebView cannot host its own popup window« - klik na target=_blank je sesul brskalnik.
+                val preprecevanje = PojavnaOknaNastavitve.jeVklopljeno(context)
                 // Lastnik 4. 11. 2026: povezava, ki jo je uporabnik kliknil (href pod fokusom ali dotikom), loci kliknjeno
                 // povezavo target=_blank od window.open oglasa ob kliku na predvajalnik (SpletVarnostPravila.pojavnoOkno).
                 val povezava = try {
                     view?.hitTestResult?.takeIf { it.type == WebView.HitTestResult.SRC_ANCHOR_TYPE }?.extra
                 } catch (_: Exception) { null }
-                return naPojavnoOkno?.invoke(resultMsg, isUserGesture, povezava) ?: false
+                return naPojavnoOkno?.invoke(resultMsg, isUserGesture, povezava, this@ChromiumEngineView, preprecevanje) ?: false
             }
 
             override fun onProgressChanged(view: WebView?, newProgress: Int) {

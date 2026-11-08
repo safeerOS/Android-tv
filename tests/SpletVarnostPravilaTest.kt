@@ -18,6 +18,10 @@ fun main() {
     check(P.pojavnoOkno(true, "https://oglas.example/x", rtv, "https://drugo.example/", false) == P.PojavnoOkno.ZAVRNI) { "povezava drugam" }
     check(P.pojavnoOkno(true, "https://www.youtube.com/watch?v=1", rtv, "  https://www.youtube.com/watch?v=1\n ", true) == P.PojavnoOkno.NOV_ZAVIHEK) { "kliknjena tuja povezava: nov zavihek" }
     check(P.pojavnoOkno(true, "javascript:alert(1)", rtv, "javascript:alert(1)", true) == P.PojavnoOkno.ZAVRNI) { "samo http(s)" }
+    // Testni telefon 9. 11. 2026: izklopljeno preprecevanje je okno odprlo v istem pogledu in WebView je sesul brskalnik.
+    check(P.pojavnoOkno(true, "https://oglas.example/x", rtv, null, false, preprecevanje = false) == P.PojavnoOkno.NOV_ZAVIHEK) { "izklopljeno: nov zavihek" }
+    check(P.pojavnoOkno(false, "https://oglas.example/x", rtv, null, false, preprecevanje = false) == P.PojavnoOkno.ZAVRNI) { "izklopljeno, brez kretnje: zavrni" }
+    check(P.pojavnoOkno(true, "file:///sdcard/x", rtv, null, false, preprecevanje = false) == P.PojavnoOkno.ZAVRNI) { "izklopljeno: samo http(s)" }
     check(P.pojavnoOkno(true, "file:///sdcard/a.html", "file:///sdcard/b.html", null, true) == P.PojavnoOkno.ZAVRNI) { "file ni dovoljen" }
     check(P.pojavnoOkno(true, "https://a.rtvslo.si.zlo.example/", rtv, null, true) == P.PojavnoOkno.ZAVRNI) { "podobna domena ni ista eTLD+1" }
     check(P.pojavnoOkno(true, "https://news.bbc.co.uk/x", "https://www.bbc.co.uk/", null, true) == P.PojavnoOkno.ISTI_ZAVIHEK) { "dvodelna pripona" }

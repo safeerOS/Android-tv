@@ -73,12 +73,17 @@ object SpletVarnostPravila {
      *    nov navaden zavihek. Strani s filmi ob kliku na predvajalnik odprejo oglas z window.open - ta ni povezava pod
      *    kliki in ostane zavrnjen, kot doslej.
      */
-    fun pojavnoOkno(kretnja: Boolean, naslov: String, izvor: String?, povezava: String?, nacinAplikacije: Boolean): PojavnoOkno {
+    fun pojavnoOkno(
+        kretnja: Boolean, naslov: String, izvor: String?, povezava: String?, nacinAplikacije: Boolean,
+        preprecevanje: Boolean = true
+    ): PojavnoOkno {
         if (!kretnja || !varenRezervniNaslov(naslov)) return PojavnoOkno.ZAVRNI
         val cilj = gostitelj(naslov) ?: return PojavnoOkno.ZAVRNI
         val od = izvor?.let { gostitelj(it) }
         if (od != null && com.safeer.threatfeed.FilterListEngine.registrable(cilj) == com.safeer.threatfeed.FilterListEngine.registrable(od))
             return if (nacinAplikacije) PojavnoOkno.ISTI_ZAVIHEK else PojavnoOkno.NOV_ZAVIHEK
+        // Preprecevanje izklopljeno (meni): obicajno vedenje brskalnika - okno po uporabnikovem dejanju odpre nov zavihek.
+        if (!preprecevanje) return PojavnoOkno.NOV_ZAVIHEK
         if (povezava != null && istiNaslov(povezava, naslov)) return PojavnoOkno.NOV_ZAVIHEK
         return PojavnoOkno.ZAVRNI
     }

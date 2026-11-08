@@ -2134,13 +2134,19 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
      * (window.opener) prijava z Google, Facebook ali X ne more vrniti odgovora in se konca
      * v praznem oknu.
      */
-    private fun odpriPojavnoOkno(resultMsg: android.os.Message, kretnja: Boolean, povezava: String?): Boolean {
+    private fun odpriPojavnoOkno(
+        resultMsg: android.os.Message, kretnja: Boolean, povezava: String?,
+        odprl: android.webkit.WebView, preprecevanje: Boolean
+    ): Boolean {
         val transport = resultMsg.obj as? android.webkit.WebView.WebViewTransport ?: return false
         // Pogled se ni zavihek: dokler ne vemo, kam okno pelje, se stevec zavihkov ne
         // premakne in noben uporabnikov zavihek se ne umakne, da bi naredil prostor.
         val pogled = try { tabManager.pripraviPojavni(this) } catch (_: Throwable) { return false }
-        val odpiralec = tabManager.getActiveTab()?.id
-        val starsevski = tabManager.getActiveTab()?.webView
+        // Pregled 9. 11. 2026 (N7): stars je zavihek, katerega pogled je okno odprl - ne aktivni zavihek (okno lahko
+        // odpre stran v ozadju); po njem se racunata pravilo iste domene in Nazaj.
+        val zavihekOdprl = tabManager.getAllTabs().firstOrNull { it.webView === odprl } ?: tabManager.getActiveTab()
+        val odpiralec = zavihekOdprl?.id
+        val starsevski = zavihekOdprl?.webView
         podedujIzvor(pogled, starsevski)
         var odloceno = false
 
@@ -2160,7 +2166,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             val podvojeno = naslov == zadnjePojavno.first && zdaj - zadnjePojavno.second < 2_000L
             // Lastnik 4. 11. 2026 (rtvslo.si -> 365.rtvslo.si): povezava, ki jo uporabnik klikne, se odpre; prijava ostane, kot je.
             val odlocitev = if (PrijavnaOkna.jePrijava(naslov)) null
-                else SpletVarnostPravila.pojavnoOkno(kretnja, naslov, izvorStrani, povezava, vAplikaciji)
+                else SpletVarnostPravila.pojavnoOkno(kretnja, naslov, izvorStrani, povezava, vAplikaciji, preprecevanje)
             when {
                 podvojeno -> {
                     zavrzi("Podvojeno okno zaprto", naslov)
@@ -2410,7 +2416,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         }
         // Pregledovalnik PDF: "prenesi izvirnik" gre kot navaden prenos, "gor" iz orodne vrstice v naslovno vrstico.
         wv.onPdfPrenos = { url, userAgent -> downloadHandler.startDownload(url, userAgent, null, "application/pdf") }
-        wv.naPojavnoOkno = { resultMsg, kretnja, povezava -> odpriPojavnoOkno(resultMsg, kretnja, povezava) }
+        wv.naPojavnoOkno = { resultMsg, kretnja, povezava, odprl, preprecevanje -> odpriPojavnoOkno(resultMsg, kretnja, povezava, odprl, preprecevanje) }
         // window.close(): pojavni zavihek (prijava) se zapre in vrne na stran, ki ga je odprla. Navaden
         // zavihek ostane - stran ne sme zapreti uporabnikovega zavihka.
         wv.naZapriOkno = { pogled -> pogled.post { tabManager.zapriPojavniPoPogledu(this, pogled) } }
