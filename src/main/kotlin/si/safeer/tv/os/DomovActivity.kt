@@ -1634,6 +1634,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     /** Med premikanjem gredo tipke samo premikanju: levo/desno premakne, vse ostalo konca. */
     override fun dispatchKeyEvent(dogodek: KeyEvent): Boolean {
+        if (dogodek.action == KeyEvent.ACTION_DOWN) Pomnilnik.vnos()   // tipka ustavi ciscenje ozadja (lastnik 8. 11. 2026)
         if (premikam != null) {
             if (dogodek.action == KeyEvent.ACTION_DOWN) when (dogodek.keyCode) {
                 KeyEvent.KEYCODE_DPAD_LEFT -> premakniPriljubljeno(-1)

@@ -532,6 +532,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
 
     override fun onPause() {
         Zaganjalnik.domNaZaslonu(this, false)
+        // Lastnik 8. 11. 2026: dolg OK, ki se je zacel pred odhodom (zagon aplikacije), je ob vrnitvi odprl meni ploscice.
+        if (::koren.isInitialized) koren.cancelPendingInputEvents()
         super.onPause()
     }
 
@@ -604,6 +606,12 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
      */
     override fun onWindowFocusChanged(imaFokus: Boolean) {
         super.onWindowFocusChanged(imaFokus)
+        // Lastnik 8. 11. 2026: meni ploscice, odprt med zagonom aplikacije, je po njenem padcu ostal na zaslonu brez fokusa
+        // (fokus je imelo glavno okno) - Nazaj in Domov nista delovala. Okno, ki je odprto, ko ima fokus glavno okno, zapremo.
+        if (imaFokus) glavna.postDelayed({
+            val m = odprtiMeni
+            if (m != null && PokrajinaPravila.meniBrezFokusa(hasWindowFocus(), m.isShowing)) { odprtiMeni = null; try { m.dismiss() } catch (_: Throwable) { } }
+        }, 800)   // pocasen prenos fokusa na okno menija (TV) ne sme zapreti pravkar odprtega menija
         if (imaFokus && vrniFokus) koren.post { postaviVrnjeniFokus(true) }
         // Pregled doma 5. 11. 2026 (4, 12): tipke v oknu (meni, potrditev) gredo oknu, ne dispatchKeyEvent - zadnjiVnos je
         // ostal star in zaslon je takoj po zaprtju okna zbledel (naslednja tipka pozrta). Vrnitev fokusa je vnos in znova
@@ -684,7 +692,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
 
     override fun dispatchKeyEvent(dogodek: KeyEvent): Boolean {
         val izvirnaKoda = dogodek.keyCode
-        if (dogodek.action == KeyEvent.ACTION_DOWN) tipkaPoVrnitvi = true
+        if (dogodek.action == KeyEvent.ACTION_DOWN) { tipkaPoVrnitvi = true; Pomnilnik.vnos() }   // ustavi ciscenje ozadja
         // Plosck A/B kot OK/Nazaj; ponovitev in cas ostaneta (dolg pritisk A odpre meni ploscice kot dolg OK).
         fun kot(koda: Int) = KeyEvent(dogodek.downTime, dogodek.eventTime, dogodek.action, koda, dogodek.repeatCount,
             dogodek.metaState, dogodek.deviceId, dogodek.scanCode, dogodek.flags, dogodek.source)
@@ -2308,6 +2316,9 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
      * okno odprl, se pozrejo (Kontroler.pokazi); prvi fokus na prvi neskodljivi postavki, nikoli na [nevarne] (Odstrani) -
      * ce so vse nevarne, na Preklici.
      */
+    /** Odprti meni ploscice ali gumba (za zaprtje, ce ostane brez fokusa - onWindowFocusChanged). */
+    private var odprtiMeni: android.app.AlertDialog? = null
+
     private fun pokaziMeni(ime: String, dejanja: List<Pair<String, () -> Unit>>, nevarne: Set<String> = emptySet()) {
         val okno = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(ime)
@@ -2315,6 +2326,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
             .setNegativeButton(getString(R.string.os_preklici), null)
             .create()
         Kontroler.pokazi(okno, pozriDolgiOk = true)
+        okno.setOnDismissListener { if (odprtiMeni === okno) odprtiMeni = null }
+        odprtiMeni = okno
         okno.show()
         val prvi = PokrajinaPravila.prviFokusMenija(dejanja.map { it.first in nevarne })
         val seznam = okno.listView
@@ -2649,6 +2662,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     /** Odpiranje, ki ne utihne: napaka se pokaze (kot na starem domacem zaslonu), ne izgine. */
     private fun odpri(namera: Intent, moznosti: Bundle? = null): Boolean {
         return try {
+            Pomnilnik.vnos()   // zagon aplikacije ustavi ciscenje ozadja (tudi s kazalcem, brez tipke)
             startActivity(namera, moznosti)
             true
         } catch (e: Throwable) {

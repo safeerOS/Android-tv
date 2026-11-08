@@ -20,6 +20,15 @@ object Pomnilnik {
      */
     @Volatile var odhodi: Long = 0L
         private set
+
+    /**
+     * Stevec tipk in zagonov iz zaganjalnika (lastnik 8. 11. 2026): zabelezi ga dispatchKeyEvent in vsak startActivity iz
+     * doma, takoj na glavni niti - ciscenje, ki tece, se ustavi pred naslednjim force-stop, ne sele ob onPause.
+     */
+    @Volatile var vnosi: Long = 0L
+        private set
+
+    fun vnos() { vnosi++ }
     @Volatile private var spremljam = false
 
     private fun spremljajOdhode(c: Context) {
@@ -164,7 +173,8 @@ object Pomnilnik {
         if (!smemo(c)) return
         spremljajOdhode(c)
         val odhodiObZacetku = odhodi
-        val nadaljuj = { AdbLokalnoPravila.smemoNadaljevati(odhodiObZacetku, odhodi) }
+        val vnosiObZacetku = vnosi
+        val nadaljuj = { AdbLokalnoPravila.smemoNadaljevati(odhodiObZacetku, odhodi, vnosiObZacetku, vnosi) }
         val predvaja = !nasePredvajanje && try {
             (c.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager)?.isMusicActive == true
         } catch (_: Exception) { false }

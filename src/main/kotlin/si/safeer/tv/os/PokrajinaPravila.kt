@@ -14,6 +14,12 @@ import java.util.TimeZone
  * vmesnik angleski, datum pa slovenski (Locale.getDefault() je jezik televizorja, ne izbira v Safeer OS).
  */
 object PokrajinaPravila {
+    /**
+     * Okno menija je sirota (lastnik 8. 11. 2026): odprto je, fokus pa ima glavno okno dejavnosti - tipke gredo glavnemu
+     * oknu, Nazaj okna ne zapre. Normalno ima fokus okno menija, dokler je odprto.
+     */
+    fun meniBrezFokusa(glavnoOknoImaFokus: Boolean, meniOdprt: Boolean): Boolean = glavnoOknoImaFokus && meniOdprt
+
     const val TEMA = "pokrajina"
     /** Tema, ki jo je imel kdor ni izbral nobene, pred novim zaganjalnikom (Tema.PRIVZETA). */
     const val TEMA_STARA = "namizje"

@@ -67,8 +67,14 @@ object AdbLokalnoPravila {
     fun cnxnVelja(prijavljen: Boolean): Boolean = prijavljen
 
     /** Edini ukaz, ki gre na adb: »am force-stop <paket>«. Brez veljavnega imena paketa ni ukaza (null). */
-    /** Zapiranje v ozadju sme nadaljevati samo, ce uporabnik od zacetka ni zapustil nase dejavnosti (stevec odhodov). */
-    fun smemoNadaljevati(odhodiObZacetku: Long, odhodiZdaj: Long): Boolean = odhodiZdaj == odhodiObZacetku
+    /**
+     * Zapiranje v ozadju sme nadaljevati samo, ce uporabnik od zacetka ni zapustil nase dejavnosti (stevec odhodov) in ni
+     * pritisnil nobene tipke ali zagnal aplikacije (stevec vnosov). Lastnik 8. 11. 2026: SmartTube je bil zaprt na silo v
+     * trenutku, ko ga je odprl - onPause zaganjalnika pride sele, ko se nova aplikacija ze zaganja, force-stop pa je bil
+     * takrat ze v teku; tipka in zagon se zabelezita takoj, na glavni niti.
+     */
+    fun smemoNadaljevati(odhodiObZacetku: Long, odhodiZdaj: Long, vnosiObZacetku: Long = 0L, vnosiZdaj: Long = 0L): Boolean =
+        odhodiZdaj == odhodiObZacetku && vnosiZdaj == vnosiObZacetku
 
     fun ukazZapri(paket: String): String? = if (IME_PAKETA.matches(paket) && paket.length <= 255) "shell:am force-stop $paket" else null
 

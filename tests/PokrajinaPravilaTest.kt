@@ -279,5 +279,10 @@ fun main() {
     preveriEnako("N4 izvorna ni vec vidna", null, PokrajinaPravila.dolIzLupe("com.netflix.ninja") { false })
     preveriEnako("N4 brez izvorne", null, PokrajinaPravila.dolIzLupe(null) { true })
 
+    // Lastnik 8. 11. 2026: meni ploscice je po padcu zagnane aplikacije ostal odprt brez fokusa (Nazaj ni deloval).
+    preveriEnako("meni odprt, fokus na glavnem oknu = sirota", true, PokrajinaPravila.meniBrezFokusa(true, true))
+    preveriEnako("meni odprt s svojim fokusom ni sirota", false, PokrajinaPravila.meniBrezFokusa(false, true))
+    preveriEnako("brez menija ni sirote", false, PokrajinaPravila.meniBrezFokusa(true, false))
+
     if (napak == 0) println("PokrajinaPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

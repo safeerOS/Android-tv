@@ -85,5 +85,8 @@ fun main() {
     // 2. 11. 2026: zapiranje se ustavi, ko uporabnik odpre aplikacijo (TV Browser zaprt 1,2 s po zagonu)
     preveri("brez odhoda zapiranje nadaljuje", P.smemoNadaljevati(4L, 4L))
     preveri("po odhodu iz nase dejavnosti se zapiranje ustavi", !P.smemoNadaljevati(4L, 5L))
+    // Lastnik 8. 11. 2026: SmartTube zaprt na silo ob zagonu - tipka ali zagon iz zaganjalnika ustavi zapiranje takoj.
+    preveri("tipka ali zagon med zapiranjem ga ustavi", !P.smemoNadaljevati(4L, 4L, 10L, 11L))
+    preveri("brez tipke in odhoda zapiranje nadaljuje", P.smemoNadaljevati(4L, 4L, 10L, 10L))
     if (napak == 0) println("AdbLokalnoPravilaTest: OK") else { println("Napak: $napak"); kotlin.system.exitProcess(1) }
 }
