@@ -2134,6 +2134,22 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
      * (window.opener) prijava z Google, Facebook ali X ne more vrniti odgovora in se konca
      * v praznem oknu.
      */
+    /** Prenos brez nedavnega uporabnikovega dejanja (skrit okvir, samodejna preusmeritev): uporabnik ga potrdi. */
+    private fun potrdiPrenos(url: String, userAgent: String?, contentDisposition: String?, mimeType: String?) {
+        if (isFinishing || isDestroyed) return
+        val ime = android.webkit.URLUtil.guessFileName(url, contentDisposition, mimeType)
+        val gostitelj = try { android.net.Uri.parse(url).host.orEmpty() } catch (_: Throwable) { "" }
+        val okno = AlertDialog.Builder(this)
+            .setTitle(R.string.splet_prenos_naslov)
+            .setMessage(getString(R.string.splet_prenos_vprasanje, gostitelj, ime))
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.splet_prenos_prenesi) { _, _ -> downloadHandler.startDownload(url, userAgent, contentDisposition, mimeType) }
+            .create()
+        // Privzeta izbira je Preklici: nehoten OK z daljincem ne prenese datoteke.
+        okno.setOnShowListener { okno.getButton(AlertDialog.BUTTON_NEGATIVE)?.requestFocus() }
+        okno.show()
+    }
+
     private fun odpriPojavnoOkno(
         resultMsg: android.os.Message, kretnja: Boolean, povezava: String?,
         odprl: android.webkit.WebView, preprecevanje: Boolean
@@ -2412,7 +2428,11 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             if (DashPrevzem.jeManifest(url)) {
                 return@setDownloadListener
             }
-            downloadHandler.startDownload(url, userAgent, contentDisposition, mimeType)
+            if (SpletVarnostPravila.prenosBrezPotrditve(ChromiumEngineView.msOdVnosa())) {
+                downloadHandler.startDownload(url, userAgent, contentDisposition, mimeType)
+            } else {
+                potrdiPrenos(url, userAgent, contentDisposition, mimeType)
+            }
         }
         // Pregledovalnik PDF: "prenesi izvirnik" gre kot navaden prenos, "gor" iz orodne vrstice v naslovno vrstico.
         wv.onPdfPrenos = { url, userAgent -> downloadHandler.startDownload(url, userAgent, null, "application/pdf") }

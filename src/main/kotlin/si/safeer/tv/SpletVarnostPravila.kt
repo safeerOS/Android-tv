@@ -73,6 +73,14 @@ object SpletVarnostPravila {
      *    nov navaden zavihek. Strani s filmi ob kliku na predvajalnik odprejo oglas z window.open - ta ni povezava pod
      *    kliki in ostane zavrnjen, kot doslej.
      */
+    /**
+     * Pregled WebView 9. 11. 2026 (testni telefon): skrit okvir tuje strani je brez uporabnikovega dejanja prenesel
+     * datoteko v Prenose. Prenos takoj samo kratko po tipki ali dotiku; sicer uporabnik potrdi.
+     */
+    const val PRENOS_PO_DEJANJU_MS = 5_000L
+
+    fun prenosBrezPotrditve(msOdVnosa: Long): Boolean = msOdVnosa in 0..PRENOS_PO_DEJANJU_MS
+
     fun pojavnoOkno(
         kretnja: Boolean, naslov: String, izvor: String?, povezava: String?, nacinAplikacije: Boolean,
         preprecevanje: Boolean = true

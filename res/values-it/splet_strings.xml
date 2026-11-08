@@ -4,4 +4,5 @@
     <string name="splet_scit">Scudo</string><string name="splet_portal_naslov">Aggiungi scorciatoia</string><string name="splet_portal_ime">Nome</string>
     <string name="splet_portal_url">Indirizzo</string><string name="splet_portal_dodaj">Aggiungi</string><string name="splet_portal_neveljaven">Inserisci un indirizzo web http o https valido.</string><string name="splet_portal_dodan">Scorciatoia aggiunta.</string>
     <string name="splet_namig_kazalec">OK non raggiunge un riquadro di un altro sito (ad es. accesso o verifica). Attiva il puntatore (tasto rosso o tieni premuto OK), spostalo sul pulsante e premi OK.</string>
+<string name="splet_prenos_naslov">Scaricare il file?</string><string name="splet_prenos_vprasanje">La pagina %1$s vuole scaricare il file %2$s.</string><string name="splet_prenos_prenesi">Scarica</string>
 </resources>

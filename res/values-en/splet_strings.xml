@@ -4,4 +4,5 @@
     <string name="splet_scit">Shield</string><string name="splet_portal_naslov">Add shortcut</string><string name="splet_portal_ime">Name</string>
     <string name="splet_portal_url">Address</string><string name="splet_portal_dodaj">Add</string><string name="splet_portal_neveljaven">Enter a valid http or https web address.</string><string name="splet_portal_dodan">Shortcut added.</string>
     <string name="splet_namig_kazalec">OK does not reach into a box from another site (e.g. sign-in or verification). Turn on the pointer (red button or hold OK), move it onto the button and press OK.</string>
+<string name="splet_prenos_naslov">Download file?</string><string name="splet_prenos_vprasanje">The page %1$s wants to download the file %2$s.</string><string name="splet_prenos_prenesi">Download</string>
 </resources>

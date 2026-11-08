@@ -4,4 +4,5 @@
     <string name="splet_scit">Schild</string><string name="splet_portal_naslov">Verknüpfung hinzufügen</string><string name="splet_portal_ime">Name</string>
     <string name="splet_portal_url">Adresse</string><string name="splet_portal_dodaj">Hinzufügen</string><string name="splet_portal_neveljaven">Gib eine gültige Webadresse mit http oder https ein.</string><string name="splet_portal_dodan">Verknüpfung hinzugefügt.</string>
     <string name="splet_namig_kazalec">OK erreicht kein Feld einer anderen Website (z. B. Anmeldung oder Prüfung). Schalte den Zeiger ein (rote Taste oder OK gedrückt halten), bewege ihn auf die Schaltfläche und drücke OK.</string>
+<string name="splet_prenos_naslov">Datei herunterladen?</string><string name="splet_prenos_vprasanje">Die Seite %1$s möchte die Datei %2$s herunterladen.</string><string name="splet_prenos_prenesi">Herunterladen</string>
 </resources>

@@ -6,7 +6,7 @@ import si.safeer.tv.SpletVarnostPravila as P
  * Varnost brskalnika (zunanji pregled kode 8. 10. 2026): namere iz strani, rezervni naslov, zagon zunanje aplikacije
  * brez uporabnika, domaca stran za most SafeerBridge, content:// iz strani, potrdila TLS.
  */
-fun main() {
+fun main(args: Array<String>) {
     val nas = "si.safeer.tv"
     // Lastnik 4. 11. 2026: kartica filma na rtvslo.si (target=_blank na 365.rtvslo.si) ni naredila nic.
     val rtv = "https://www.rtvslo.si/"
@@ -22,6 +22,24 @@ fun main() {
     check(P.pojavnoOkno(true, "https://oglas.example/x", rtv, null, false, preprecevanje = false) == P.PojavnoOkno.NOV_ZAVIHEK) { "izklopljeno: nov zavihek" }
     check(P.pojavnoOkno(false, "https://oglas.example/x", rtv, null, false, preprecevanje = false) == P.PojavnoOkno.ZAVRNI) { "izklopljeno, brez kretnje: zavrni" }
     check(P.pojavnoOkno(true, "file:///sdcard/x", rtv, null, false, preprecevanje = false) == P.PojavnoOkno.ZAVRNI) { "izklopljeno: samo http(s)" }
+    // Testni telefon 9. 11. 2026: skrit okvir je prenesel datoteko brez dejanja uporabnika.
+    check(P.prenosBrezPotrditve(1_200L)) { "prenos kmalu po kliku: brez vprasanja" }
+    check(!P.prenosBrezPotrditve(Long.MAX_VALUE)) { "brez dejanja (skrit okvir ob nalaganju): potrditev" }
+    check(!P.prenosBrezPotrditve(P.PRENOS_PO_DEJANJU_MS + 1)) { "staro dejanje: potrditev" }
+
+    // Staticno (pregled WebView 9. 11. 2026, potrjeno na testnem telefonu): popravki ostanejo v kodi.
+    args.getOrNull(0)?.let { koren ->
+        val pogled = java.io.File(koren, "si/safeer/tv/ChromiumEngineView.kt").readText()
+        val glavna = java.io.File(koren, "si/safeer/tv/MainActivity.kt").readText()
+        check(!pogled.contains("transport.webView = this@ChromiumEngineView")) { "pojavno okno nikoli v lastnem pogledu (sesutje)" }
+        val pdf = Regex("""addJavascriptInterface\(pdfMost, "SafeerPdf"\)""").findAll(pogled).toList()
+        check(pdf.size == 1 && pogled.contains("if (PdfPregledovalnik.jePregledovalnik(url)) addJavascriptInterface(pdfMost, \"SafeerPdf\")")) {
+            "SafeerPdf samo za pregledovalnik PDF (prej ga je videl vsak okvir)"
+        }
+        check(glavna.contains("SpletVarnostPravila.prenosBrezPotrditve(ChromiumEngineView.msOdVnosa())") && glavna.contains("potrdiPrenos(url, userAgent, contentDisposition, mimeType)")) {
+            "prenos brez dejanja gre skozi potrditev"
+        }
+    }
     check(P.pojavnoOkno(true, "file:///sdcard/a.html", "file:///sdcard/b.html", null, true) == P.PojavnoOkno.ZAVRNI) { "file ni dovoljen" }
     check(P.pojavnoOkno(true, "https://a.rtvslo.si.zlo.example/", rtv, null, true) == P.PojavnoOkno.ZAVRNI) { "podobna domena ni ista eTLD+1" }
     check(P.pojavnoOkno(true, "https://news.bbc.co.uk/x", "https://www.bbc.co.uk/", null, true) == P.PojavnoOkno.ISTI_ZAVIHEK) { "dvodelna pripona" }

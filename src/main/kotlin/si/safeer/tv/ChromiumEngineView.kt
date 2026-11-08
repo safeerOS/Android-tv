@@ -491,7 +491,7 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
         setInitialScale(100)
 
         addJavascriptInterface(jsBridge, "SafeerBridge")
-        addJavascriptInterface(pdfMost, "SafeerPdf")
+        // SafeerPdf samo za nas pregledovalnik PDF ([applyUserAgentForUrl]).
 
         try {
             if (androidx.webkit.WebViewFeature.isFeatureSupported(androidx.webkit.WebViewFeature.DOCUMENT_START_SCRIPT)) {
@@ -701,6 +701,12 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
             removeJavascriptInterface("SafeerAndroid")
             if (SpletMostPravila.jeDovoljenIzvor(url)) addJavascriptInterface(spletMost, "SafeerAndroid")
         } catch (_: Exception) {}
+        // Testni telefon 9. 11. 2026: window.SafeerPdf je videla vsaka stran in vsak okvir tujega izvora (prstni odtis
+        // uporabnikov Safeerja). Most dobi samo nas pregledovalnik PDF; klici so se vedno vezani na zeton.
+        try {
+            removeJavascriptInterface("SafeerPdf")
+            if (PdfPregledovalnik.jePregledovalnik(url)) addJavascriptInterface(pdfMost, "SafeerPdf")
+        } catch (_: Exception) {}
         // Most SafeerBridge domaco stran preveri sam, na glavni niti tik pred dejanjem (SafeerWebAppInterface.naDomaci):
         // zastavica, postavljena tu, je veljala tudi za stari dokument in za about:blank (zunanji pregled 8. 10. 2026).
         val host = try { Uri.parse(url).host?.lowercase() ?: "" } catch (_: Exception) { "" }
@@ -732,7 +738,6 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
         } else {
             try {
                 addJavascriptInterface(jsBridge, "SafeerBridge")
-        addJavascriptInterface(pdfMost, "SafeerPdf")
             } catch (_: Exception) {}
         }
 

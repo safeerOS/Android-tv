@@ -30,7 +30,7 @@ trap 'rm -rf "$OUT"' EXIT
   -include-runtime -d "$OUT/splet.jar"
 java -cp "$OUT/splet.jar" si.safeer.tv.SpletMostPravilaTestKt
 java -cp "$OUT/splet.jar" si.safeer.tv.ZavihkiPravilaTestKt "$PROJECT_DIR/src/main/kotlin"
-java -cp "$OUT/splet.jar" si.safeer.tv.SpletVarnostPravilaTestKt
+java -cp "$OUT/splet.jar" si.safeer.tv.SpletVarnostPravilaTestKt "$PROJECT_DIR/src/main/kotlin"
 java -cp "$OUT/splet.jar" si.safeer.tv.GooglePravilaTestKt
 java -cp "$OUT/splet.jar" si.safeer.tv.GoogleTipkeTestKt
 java -cp "$OUT/splet.jar" si.safeer.tv.DashPravilaTestKt

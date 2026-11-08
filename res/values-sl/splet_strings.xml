@@ -11,4 +11,5 @@
     <string name="splet_portal_neveljaven">Vpiši veljaven spletni naslov http ali https.</string>
     <string name="splet_portal_dodan">Bližnjica je dodana.</string>
     <string name="splet_namig_kazalec">OK ne seže v okvir druge strani (npr. prijava ali preverjanje). Vklopi kazalec (rdeči gumb ali drži OK), ga premakni na gumb in pritisni OK.</string>
+<string name="splet_prenos_naslov">Prenesem datoteko?</string><string name="splet_prenos_vprasanje">Stran %1$s želi prenesti datoteko %2$s.</string><string name="splet_prenos_prenesi">Prenesi</string>
 </resources>
