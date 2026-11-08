@@ -147,12 +147,14 @@ preveri("Epizoda CR: odsteva samo kartica, odprta pred tem tikom", "val odprtaPr
 
 uf = beri("src/main/kotlin/si/safeer/tv/os/UsenetFilter.kt")
 _pf = telo(uf, "fun preveri(c: Context", "return true\n    }")
-preveri("Usenet U1: kvoto porabi samo poslana zahteva", "omejevalnik.smem(" not in _pf[:_pf.find("delavec.execute")]
-        and "omejevalnik.lahko(zdaj())" in _pf and _pf.find("F.poslji(") < _pf.find("omejevalnik.smem(zdaj())") < _pf.find("Usenet.iskanje("))
+# 593e1b90 (pregled Gemini): smem -> rezerviraj (razmik in kvota v enem koraku); sidro posodobljeno 8. 11. 2026.
+preveri("Usenet U1: kvoto porabi samo poslana zahteva", "omejevalnik.rezerviraj(" not in _pf[:_pf.find("delavec.execute")]
+        and "omejevalnik.lahko(zdaj())" in _pf and "if (poslji) omejevalnik.rezerviraj(zdaj())" in _pf
+        and _pf.find("F.poslji(") < _pf.find("omejevalnik.rezerviraj(zdaj())") < _pf.find("Usenet.iskanje("))
 preveri("Usenet U3: zapisi filtra se nalozijo v ozadju", "getSharedPreferences(DATOTEKA" in telo(uf, "Thread({", '"usenet-filter-nalaganje"')
         and "synchronized(this) {\n            if (nalozeno) return\n            try {" not in uf)
 gl = beri("src/main/kotlin/si/safeer/tv/os/GlasbaActivity.kt")
-_nz = telo(gl, "fun predvajajNaslednjoEpizodo(", "izberiTok(sk, n.naslov, n.tokovi, false, n.pripravljeno)")
+_nz = telo(gl, "fun predvajajNaslednjoEpizodo(", "izberiTok(sk, n.naslov, n.tokovi, false, pp) { konec() }")   # sidro po 4edcafcb (pp), 8. 11. 2026
 preveri("Usenet U2: zagon naslednje epizode steje v omejitev", 0 <= _nz.find("UsenetFilter.zabeleziZagon()") < _nz.find("predpomnjeniZa(n.tokovi"))
 preveri("Glasba CR: onStop odstrani samo svoj povratni klic Useneta",
         "if (UsenetPomocniki.obSpremembi === obPomocnikuUseneta) UsenetPomocniki.obSpremembi = null" in gl
