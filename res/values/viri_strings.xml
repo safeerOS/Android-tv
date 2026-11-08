@@ -198,6 +198,8 @@
     <string name="os_usenet_pripravljam">Preparing via Usenet…</string>
     <string name="os_samodejno_naslednja">Play next track automatically</string>
     <string name="os_samodejno_epizoda">Play next episode automatically</string>
+    <string name="os_mini_cel_zaslon">Full screen</string>
+    <string name="os_mini_samodejno">Autoplay next</string>
     <string name="os_samodejno_album">Continue after the album ends</string>
     <string name="os_usenet_prehod_debrid">Usenet failed - playing via TorBox</string>
     <!-- Filter vira Usenet (lastnik 5. 11. 2026): prazna mreza - iscemo, indeksator ne odgovarja, ni naslovov -->

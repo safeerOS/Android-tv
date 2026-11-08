@@ -146,6 +146,24 @@ object TujePredvajanje {
         val i = c.packageManager.getLeanbackLaunchIntentForPackage(p) ?: c.packageManager.getLaunchIntentForPackage(p) ?: return false
         return try { c.startActivity(i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)); true } catch (_: Throwable) { false }
     }
+    /**
+     * Cel zaslon: najprej zaslon predvajanja, ki ga seja sama ponudi (sessionActivity), sicer aplikacija. TV 8. 11. 2026:
+     * SmartTube iz ozadja z zagonskim namenom odpre seznam posnetkov, ne predvajalnika.
+     */
+    fun odpriCelZaslon(c: Context): Boolean {
+        val pi = try { kontroler?.sessionActivity } catch (_: Throwable) { null }
+        if (pi != null) {
+            try {
+                if (android.os.Build.VERSION.SDK_INT >= 34) {
+                    pi.send(c, 0, null, null, null, null, android.app.ActivityOptions.makeBasic()
+                        .setPendingIntentBackgroundActivityStartMode(android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED).toBundle())
+                } else pi.send()
+                return true
+            } catch (_: Throwable) { }
+        }
+        return odpri(c)
+    }
+
     fun naslednja() { kontroler?.transportControls?.skipToNext() }
     fun prejsnja() { kontroler?.transportControls?.skipToPrevious() }
 }

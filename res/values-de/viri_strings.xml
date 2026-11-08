@@ -197,6 +197,8 @@
     <string name="os_usenet_pripravljam">Wird über Usenet vorbereitet …</string>
     <string name="os_samodejno_naslednja">Nächsten Titel automatisch abspielen</string>
     <string name="os_samodejno_epizoda">Nächste Folge automatisch abspielen</string>
+    <string name="os_mini_cel_zaslon">Vollbild</string>
+    <string name="os_mini_samodejno">Automatisch weiter</string>
     <string name="os_samodejno_album">Nach Albumende automatisch weiter</string>
     <string name="os_usenet_prehod_debrid">Usenet fehlgeschlagen - Wiedergabe über TorBox</string>
     <!-- Filter vira Usenet (lastnik 5. 11. 2026): prazna mreza - iscemo, indeksator ne odgovarja, ni naslovov -->

@@ -92,6 +92,7 @@ class MiniPredvajalnik(
     private var gumbZvocnik: ImageButton? = null
     /** Lastnik 28. 10. 2026: »Zatemni zaslon« - glasba igra naprej, katerakoli tipka daljinca zaslon zbudi. */
     private var gumbZatemni: ImageButton? = null
+    private var gumbSamodejno: ImageButton? = null
     private var vlece = false
     // Vodja 27. 10. 2026: zaslon z vrstico ob robu (Pokrajina) pove, koliko prostora mora dock pustiti (px).
     private var robSpodaj = 0
@@ -252,6 +253,19 @@ class MiniPredvajalnik(
             val na = try { GlasbaStoritev.naZvocniku() } catch (_: Throwable) { false }
             g.imageTintList = ColorStateList.valueOf(barva(if (na) R.color.os_mint else R.color.os_besedilo))
             g.contentDescription = if (na) a.getString(R.string.zvocnik_na, Zvocniki.aktivni?.ime.orEmpty()) else a.getString(R.string.zvocnik_na_napravi)
+        }
+        // Samodejno naprej velja za nase predvajanje na tej napravi (video: naslednja epizoda, zvok: naslednja skladba);
+        // druga aplikacija (SmartTube) ima svojo nastavitev, druga naprava svojo.
+        gumbSamodejno?.let { g ->
+            val nase = !prikazujeTuje && tu != null && !odd
+            g.visibility = if (nase) View.VISIBLE else View.GONE
+            if (nase) {
+                val vkl = try { if (tu?.video == true) GlasbaStoritev.samodejnoEpizoda(a) else GlasbaStoritev.samodejnoNaslednja(a) } catch (_: Throwable) { true }
+                g.imageTintList = ColorStateList.valueOf(barva(if (vkl) R.color.os_mint else R.color.os_besedilo))
+                g.alpha = if (vkl) 1f else 0.55f
+                g.contentDescription = a.getString(R.string.os_mini_samodejno) + ": " +
+                    a.getString(if (vkl) R.string.os_mediji_vklopljeno else R.string.os_mediji_izklopljeno)
+            }
         }
         // Zatemnitev ima smisel samo za zvok na tej napravi (video bi zakrila, druga naprava ima svoj zaslon).
         gumbZatemni?.visibility = if (MiniPredvajalnikPravila.gumbZatemni(tu != null, tu?.video == true, odd)) View.VISIBLE else View.GONE
@@ -449,6 +463,16 @@ class MiniPredvajalnik(
         }
         gumbi.addView(gPredvajaj, LinearLayout.LayoutParams(g, g))
         gumbi.addView(gumb(R.drawable.os_ikona_naslednja, a.getString(R.string.zg_naslednja), "dock:naslednja") { if (prikazujeTuje) TujePredvajanje.naslednja() else GlasbaStoritev.naslednja() }, LinearLayout.LayoutParams(g, g))
+        // Lastnik 8. 11. 2026: v malem predvajalniku ogled na celem zaslonu (tudi SmartTube) in samodejno naprej.
+        gumbi.addView(gumb(R.drawable.os_ikona_cel_zaslon, a.getString(R.string.os_mini_cel_zaslon), "dock:celzaslon") {
+            if (prikazujeTuje) { if (!TujePredvajanje.odpriCelZaslon(a)) odpriMedije() } else odpriPredvajalnik()
+        }, LinearLayout.LayoutParams(g, g))
+        val gSamodejno = gumb(R.drawable.os_ikona_samodejno, a.getString(R.string.os_mini_samodejno), "dock:samodejno") {
+            val video = try { GlasbaStoritev.trenutna()?.video == true } catch (_: Throwable) { false }
+            if (video) GlasbaStoritev.nastaviSamodejnoEpizoda(a, !GlasbaStoritev.samodejnoEpizoda(a))
+            else GlasbaStoritev.nastaviSamodejnoNaslednja(a, !GlasbaStoritev.samodejnoNaslednja(a))
+        }
+        gumbi.addView(gSamodejno, LinearLayout.LayoutParams(g, g))
         val gZvocnik = gumb(R.drawable.os_ikona_predvajaj_na, a.getString(R.string.zvocnik_na_napravi), "dock:zvocnik") { zvocnik() }
         gumbi.addView(gZvocnik, LinearLayout.LayoutParams(g, g))
         // Naloga 42 B: glasnost brez zapuscanja domacega zaslona (kot na racunalniku) - tiste naprave, ki igra.
@@ -477,7 +501,7 @@ class MiniPredvajalnik(
         koren = k; rocica = r; kartica = c
         k.alpha = prosojnost
         zgrajenoMesto = m; naslovPogled = nPogled; izvajalecPogled = iPogled; gumbPredvajaj = gPredvajaj; radioIkona = radio
-        drsnik = d; gumbZvocnik = gZvocnik; gumbZatemni = gZatemni
+        drsnik = d; gumbZvocnik = gZvocnik; gumbZatemni = gZatemni; gumbSamodejno = gSamodejno
         // Nov dock (prvic ali novo mesto): odprt dock dobi poln cas do samodejnega skrivanja, osvezitve pa ga ne podaljsajo.
         if (zadnjiDotik == 0L) zadnjiDotik = SystemClock.uptimeMillis()
         uveljaviOdprt(odprt, fokus = fokusVDocku)

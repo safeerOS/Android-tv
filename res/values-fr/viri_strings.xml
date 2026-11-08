@@ -197,6 +197,8 @@
     <string name="os_usenet_pripravljam">Préparation via Usenet…</string>
     <string name="os_samodejno_naslednja">Lire la piste suivante automatiquement</string>
     <string name="os_samodejno_epizoda">Lire l’épisode suivant automatiquement</string>
+    <string name="os_mini_cel_zaslon">Plein écran</string>
+    <string name="os_mini_samodejno">Lecture automatique</string>
     <string name="os_samodejno_album">Continuer après la fin de l’album</string>
     <string name="os_usenet_prehod_debrid">Usenet a échoué - lecture via TorBox</string>
     <!-- Filter vira Usenet (lastnik 5. 11. 2026): prazna mreza - iscemo, indeksator ne odgovarja, ni naslovov -->
