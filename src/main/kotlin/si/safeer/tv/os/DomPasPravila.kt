@@ -119,6 +119,15 @@ object DomPasPravila {
         return (0xFF shl 24) or (m(16) shl 16) or (m(8) shl 8) or m(0)
     }
 
+    /** Povprecna barva vzorcev (slepi pregled 8. 11.: pomanjsava na 1x1 vzame le sredino slike); prazno = crna. */
+    fun povprecje(piksli: IntArray): Int {
+        if (piksli.isEmpty()) return 0xFF000000.toInt()
+        var r = 0L; var g = 0L; var b = 0L
+        for (c in piksli) { r += (c shr 16) and 0xFF; g += (c shr 8) and 0xFF; b += c and 0xFF }
+        val n = piksli.size
+        return (0xFF shl 24) or ((r / n).toInt() shl 16) or ((g / n).toInt() shl 8) or (b / n).toInt()
+    }
+
     /** Izbor na pasu krozi vsakih [SEKUND_KROZENJA] s (zgled: pike desno spodaj). */
     const val SEKUND_KROZENJA = 8
     /** Najvec toliko vsebin krozi v pasu (in toliko pik) - vec bi bilo nepregledno. */

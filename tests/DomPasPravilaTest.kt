@@ -85,6 +85,9 @@ fun main() {
     preveriEnako("brez trajanja prazno", "", P.trajanje(0L))
     preveriEnako("podnaslov brez praznih in 0", "2025 · 2 h 17 min", P.podnaslov("2025", "", "2 h 17 min", "0"))
     preveriEnako("ambient: crno ozadje + bela slika -> 35 %", 0xFF595959.toInt(), P.ambient(0xFFFFFFFF.toInt(), 0xFF000000.toInt()))
+    preveriEnako("povprecje: pol belo pol crno -> 127", 0xFF7F7F7F.toInt(), P.povprecje(intArrayOf(0xFFFFFFFF.toInt(), 0xFF000000.toInt())))
+    preveriEnako("povprecje: ne sredina (rdec rob, crna sredina)", 0xFF550000.toInt(), P.povprecje(intArrayOf(0xFFFF0000.toInt(), 0xFF000000.toInt(), 0xFF000000.toInt())))
+    preveriEnako("povprecje prazno -> crna", 0xFF000000.toInt(), P.povprecje(IntArray(0)))
     // Krozenje izbora.
     preveriEnako("naslednji 0 -> 1", 1, P.naslednji(0, 3))
     preveriEnako("naslednji zadnji -> 0", 0, P.naslednji(2, 3))

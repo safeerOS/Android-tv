@@ -173,6 +173,7 @@ class GlasbaActivity : OsActivity() {
     private val zadnjaEpizodaSerije = HashMap<String, Pair<Int, Int>>()
     private var iskalnik: EditText? = null
     private lateinit var ploscaDomov: LinearLayout
+    private lateinit var ploscaDomovOvoj: HorizontalScrollView
     private var miniPlosca: MiniPredvajalnik? = null
     /** Po izbiri kartice razdelka gre fokus na prvo kartico vsebine, ko se narise. */
     private var fokusVVsebino = false
@@ -946,12 +947,20 @@ class GlasbaActivity : OsActivity() {
         
         // Kritika 8. 11. 2026 (2, lastnik »naredi popravek«): pas je cez vso sirino - TV v zivo, Prenosi in Kaj igra so
         // vodoravna vrstica pod pasom (prej stolpec 260 dp desno, ki je pas skrcil na 2/3 sirine).
-        ploscaDomov = LinearLayout(this).apply {
+        // Slepi pregled (8): v drsniku - tri kartice po 300 dp ne gredo na ozji zaslon; drsnik ima vidnost vrstice.
+        ploscaDomov = object : LinearLayout(this) {
+            override fun setVisibility(v: Int) { super.setVisibility(v); (parent as? View)?.visibility = v }
+        }.apply {
             orientation = LinearLayout.HORIZONTAL
-            visibility = View.GONE
             setPadding(0, 0, 0, dp(8))
+        }
+        ploscaDomovOvoj = HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            clipToPadding = false
+            addView(ploscaDomov, FrameLayout.LayoutParams(-2, -2))
             layoutParams = LinearLayout.LayoutParams(-1, -2)
         }
+        ploscaDomov.visibility = View.GONE
         
         desno.addView(vsebinaOvoj, LinearLayout.LayoutParams(-1, 0, 1f))
 
@@ -2253,9 +2262,9 @@ class GlasbaActivity : OsActivity() {
             VIRI -> R.string.os_mediji_viri; ISKANJE -> R.string.os_glasba_iskanje; else -> R.string.os_media_naslov
         })
         // Kritika 5: kompaktna glava - geslo in podnaslov Doma samo v prvi seji (potem samo zavihki in iskanje).
-        geslo.visibility = if (i == DOMOV && !ozekZaslon() && !glavaDomaVidena()) View.VISIBLE else View.GONE
+        geslo.visibility = if (i == DOMOV && !ozekZaslon() && !glavaVidenaObZagonu) View.VISIBLE else View.GONE
         if (i == DOMOV) glavaPrikazanaVSeji = true
-        if (i != DOMOV) desnoOkvir.background = null   // kritika 4: ambient samo na Domu
+        if (i != DOMOV) desnoOkvir.background = null else obarvajDom(zadnjiAmbient)   // kritika 4: ambient samo na Domu (slepi pregled 3: tudi ob vrnitvi)
         // Pregled MC-11: desna plosca Doma (kartica »zdaj igra«, TV v zivo, prenosi) se ni nikoli pokazala - osveziPloscoDomov ni
         // klical nihce. Zdaj ob vsakem razdelku (drugod jo skrije), znak v glavi prav tako.
         osveziPloscoDomov(); osveziZnak()
@@ -2475,10 +2484,13 @@ class GlasbaActivity : OsActivity() {
         TV_V_ZIVO -> getString(R.string.os_media_tv_opis)
         VIDEO -> getString(R.string.os_glasba_video_opis)
         VIRI -> getString(R.string.os_mediji_viri_opis)
-        else -> if (glavaDomaVidena()) "" else getString(R.string.os_media_podnaslov)
+        DOMOV -> if (glavaVidenaObZagonu) "" else getString(R.string.os_media_podnaslov)
+        else -> getString(R.string.os_media_podnaslov)
     }
 
     private var glavaPrikazanaVSeji = false
+    /** Slepi pregled 8. 11. (2): prebrano ob prvem izrisu - zapis v onStart iste seje glave ne skrije sredi seje. */
+    private val glavaVidenaObZagonu by lazy { glavaDomaVidena() }
     private fun glavaDomaVidena(): Boolean = try {
         getSharedPreferences("safeer_mediji", MODE_PRIVATE).getBoolean("dom_glava_videna", false)
     } catch (_: Exception) { false }
@@ -3503,7 +3515,7 @@ class GlasbaActivity : OsActivity() {
                                 if (SpletniVir.jeEnota(klikSk)) razresiSplet(klikSk) else predvajaj(listOf(klikSk), 0, izNedavnih = true)
                             }, { meniNedavno(sk, R.string.os_media_odstrani_nadaljuj) },
                                 ikona = R.drawable.os_ikona_video, id = sk.id, napredek = napredekOdstotek)
-                        } + predajaVrsta().flatMap { it.kartice }
+                        } + predajaVrsta().flatMap { it.kartice }.map { it.copy(dejanje = true) }   // slepi pregled (4): ostane ob skrajsanju
                         // Naloga #38 (lastnik 8. 11. 2026): zadnja nedokoncana vsebina gre v mali predvajalnik na plosci Doma; kjer je
                         // plosca (TV, lezeca tablica), vrste ni vec - vse nedokoncane odpre dolg pritisk na kartici.
                         // Slepi pregled 8. 11. 2026 (7): isti nabor kot kartice vrste (nedavni videi po jeziku, brez odstranjenih
@@ -3642,7 +3654,7 @@ class GlasbaActivity : OsActivity() {
                 glavna.post { if (razdelek == DOMOV && !isFinishing) osveziMcKartico() }
                 val m = mcKarticaKoren ?: ustvariMcKartico(true)
                 // Kritika 2: TV v zivo, Prenosi in Kaj igra so vrstica takoj pod pasom (pas je cez vso sirino).
-                listOf(Vrsta("", emptyList(), pogled = m), Vrsta("", emptyList(), pogled = ploscaDomov)) + vrstice
+                listOf(Vrsta("", emptyList(), pogled = m), Vrsta("", emptyList(), pogled = ploscaDomovOvoj)) + vrstice
             }
             GLASBA -> listOf(Vrsta(getString(R.string.os_mediji_prilj_glasba), skladbe(p.filter { OsPravila.zaGlasbo(it.video, it.radio, YoutubeZvok.jeYoutube(it)) }), skladbe = true)) +
                 // Lastnik 27. 10. 2026: priljubljeni albumi z Useneta (samo z lastnim ponudnikom - sicer jih ni mogoce predvajati).
@@ -12929,7 +12941,9 @@ class GlasbaActivity : OsActivity() {
      * Podrobnosti = vse nedokoncane (ce so).
      */
     /** Zadnje slike pasu (ozadje, plakat, logotip): majhen predpomnilnik zunaj SLIKE (te so 280 px). */
-    private val slikePasu = object : android.util.LruCache<String, android.graphics.Bitmap>(12 * 1024 * 1024) {
+    // 6 ozadij 1280x720 RGB_565 (1,8 MB) + 6 logotipov 600x232 ARGB (0,6 MB) = 14,4 MB -> krozenje brez ponovnih prenosov.
+    private val nalagamPas = java.util.Collections.synchronizedSet(HashSet<String>())
+    private val slikePasu = object : android.util.LruCache<String, android.graphics.Bitmap>(16 * 1024 * 1024) {
         override fun sizeOf(k: String, v: android.graphics.Bitmap) = v.byteCount
     }
 
@@ -12941,11 +12955,14 @@ class GlasbaActivity : OsActivity() {
         if (url.isBlank()) return
         slikePasu.get(url)?.let { v.tag = url; v.setImageBitmap(it); return }
         v.tag = url
+        if (!nalagamPas.add(url)) return   // ze se nalaga: pogled ima oznako, dobi sliko iz predpomnilnika ob prihodu
         slikeDelavec.execute {
             try {
+                val logo = url.contains("/logo/")
+                val px = if (logo) 600 else 1280
                 val surovi = SpletniVir.bajtiSlike(this, url) ?: Jamendo.bajti(url) ?: return@execute
-                val b = VarnaSlika.izBajtov(surovi, 1280) ?: return@execute
-                val m = if (url.contains("/logo/")) b else MedijskiPredpomnilnik.zaPomnilnik(b)   // logotip ohrani prosojnost
+                val b = VarnaSlika.izBajtov(surovi, px)?.let { MedijskiPredpomnilnik.pomanjsaj(it, px) } ?: return@execute
+                val m = if (logo) b else MedijskiPredpomnilnik.zaPomnilnik(b)   // logotip ohrani prosojnost
                 slikePasu.put(url, m)
                 glavna.post { if (!isFinishing && v.tag == url) v.setImageBitmap(m) }
             } catch (e: OutOfMemoryError) {
@@ -12953,12 +12970,17 @@ class GlasbaActivity : OsActivity() {
                 android.util.Log.w("SafeerOsMediji", "slika pasu: zmanjkalo pomnilnika")
             } catch (e: Exception) {
                 android.util.Log.d("SafeerOsMediji", "slika pasu: ${e.javaClass.simpleName}")
+            } finally {
+                nalagamPas.remove(url)
             }
         }
     }
 
     /** Ambientalno ozadje Doma (kritika 4): uporabnikovo ozadje ostane, Dom ga zatemni v barvi slike pasu. */
-    private fun obarvajDom(povprecje: Int) {
+    private var zadnjiAmbient: Int? = null
+
+    private fun obarvajDom(povprecje: Int?) {
+        if (povprecje == null) { desnoOkvir.background = null; return }
         val oz = osBarva(R.color.os_ozadje)
         val zgoraj = DomPasPravila.ambient(povprecje, oz)
         desnoOkvir.background = GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
@@ -12973,7 +12995,7 @@ class GlasbaActivity : OsActivity() {
         // Kritika 1: slike pasu v sirini pasu (kartice so 280 px - raztegnjene cez 1280 px so bile zamegljene).
         pas.naloziSliko = { url, iv -> naloziSlikoPasu(url, iv) }
         // Kritika 4: ambientalno ozadje Doma iz barve slike pasu.
-        pas.naAmbient = { c -> if (razdelek == DOMOV && !isFinishing) obarvajDom(c) }
+        pas.naAmbient = { c -> zadnjiAmbient = c; if (razdelek == DOMOV && !isFinishing) obarvajDom(c) }
         mcKarticaKoren = pas
         mcKarticaPovrsina = pas.povrsinaVidea
         mcKarticaPredvajaj = pas.glavniGumb   // drzan DOL, dolg pritisk in znak MC skocijo na glavni gumb pasu

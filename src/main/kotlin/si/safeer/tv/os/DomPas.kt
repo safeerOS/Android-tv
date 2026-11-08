@@ -77,7 +77,7 @@ class DomPas(context: Context) : FrameLayout(context) {
     val glavniGumb: View get() = gumbGlavni
 
     /** Ambientalna barva (povprecje slike ozadja), ko ozadje pride - Dom z njo obarva ozadje strani (kritika 4). */
-    var naAmbient: ((Int) -> Unit)? = null
+    var naAmbient: ((Int?) -> Unit)? = null
 
     /** Nalagalnik slik, ki ga poda Dom (obstojeci predpomnilnik slik); brez njega se pokaze ikona. */
     var naloziSliko: ((String, ImageView) -> Unit)? = null
@@ -96,7 +96,7 @@ class DomPas(context: Context) : FrameLayout(context) {
     /** Kritika 3: logotip filma namesto napisa - napis ostane, dokler logotip ne pride (in ce ga ni). */
     private val logo: ImageView = ObvescenaSlika(context) { iv -> obLogotipu(iv) }
     private var zadnjiLogo = ""
-    private var zadnjiPlakat = 
+    private var zadnjiPlakat = ""
     private val sencaSpodaj = View(context)
     private val sencaLevo = View(context)
     private val vsebina = LinearLayout(context)
@@ -191,7 +191,7 @@ class DomPas(context: Context) : FrameLayout(context) {
         plakat.outlineProvider = object : ViewOutlineProvider() {
             override fun getOutline(view: View, outline: Outline) { outline.setRoundRect(0, 0, view.width, view.height, dp(14).toFloat()) }
         }
-        addView(plakat, FrameLayout.LayoutParams(dp(visinaPasuDp * 2 / 3 * 2 / 3), dp(visinaPasuDp * 2 / 3), Gravity.END or Gravity.CENTER_VERTICAL)
+        addView(plakat, FrameLayout.LayoutParams(dp(visinaPasuDp * 4 / 9), dp(visinaPasuDp * 2 / 3), Gravity.END or Gravity.CENTER_VERTICAL)
             .apply { rightMargin = dp(if (siroko) 64 else 16) })
 
         povrsinaVidea.visibility = View.GONE
@@ -482,8 +482,10 @@ class DomPas(context: Context) : FrameLayout(context) {
 
         // Kritika 1: ozadje filma (ostro, v sirini pasu) cez ves pas; brez njega plakat ob strani (ne raztegnjen).
         val ozadjeB = s.ozadjeUrl.trim()
-        val plakatB = if (ozadjeB.isEmpty() && siroko) s.slikaUrl.trim() else ""
-        val url = if (ozadjeB.isNotEmpty()) ozadjeB else if (siroko) "" else s.slikaUrl.trim()
+        // Slepi pregled: plakat 2:3 samo za film/serijo brez ozadja - glasba, YouTube, kanali ostanejo cez ves pas.
+        val plakatB = if (ozadjeB.isEmpty() && siroko && s.video) s.slikaUrl.trim() else ""
+        val url = if (ozadjeB.isNotEmpty()) ozadjeB else if (plakatB.isNotEmpty()) "" else s.slikaUrl.trim()
+        if (url.isEmpty()) naAmbient?.invoke(null)
         if (url != zadnjaSlika) {
             zadnjaSlika = url
             slika.setImageDrawable(null)
@@ -505,9 +507,13 @@ class DomPas(context: Context) : FrameLayout(context) {
         }
         imamSliko = url.isNotEmpty() && naloziSliko != null
         val video = povrsinaVidea.visibility == View.VISIBLE
-        plakat.visibility = if (plakatB.isNotEmpty() && naloziSliko != null && !video) View.VISIBLE else View.GONE
+        val zPlakatom = plakatB.isNotEmpty() && naloziSliko != null && !video
+        plakat.visibility = if (zPlakatom) View.VISIBLE else View.GONE
+        // Slepi pregled (10): naslov in gumbi ne gredo cez plakat.
+        val desno = if (zPlakatom) dp(visinaPasuDp * 4 / 9 + (if (siroko) 64 else 16) + 24) else dp(if (siroko) 48 else 24)
+        if (vsebina.paddingRight != desno) vsebina.setPadding(vsebina.paddingLeft, vsebina.paddingTop, desno, vsebina.paddingBottom)
         slika.visibility = if (imamSliko) View.VISIBLE else View.GONE
-        ikona.visibility = if (video) View.GONE else View.VISIBLE
+        ikona.visibility = if (video || zPlakatom) View.GONE else View.VISIBLE
         ikona.setImageResource(if (s.video) R.drawable.os_ikona_video else R.drawable.os_ikona_glasba)
         podlaga.visibility = if (imamSliko || video) View.GONE else View.VISIBLE
     }
@@ -528,18 +534,18 @@ class DomPas(context: Context) : FrameLayout(context) {
         val ima = iv.drawable != null
         iv.visibility = if (ima) View.VISIBLE else View.GONE
         naslov.visibility = if (ima || naslov.text.isNullOrEmpty()) View.GONE else View.VISIBLE
-        if (ima) contentDescription = contentDescription   // bralnik zaslona bere naslov iz contentDescription pasu
     }
 
-    /** Povprecna barva ozadja (1x1 pomanjsava) za ambientalno ozadje strani (kritika 4). */
+    /** Povprecna barva ozadja za ambientalno ozadje strani (kritika 4). */
     private fun obAmbientu(iv: ImageView) {
         val b = (iv.drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap ?: return
         val k = naAmbient ?: return
         try {
-            val en = android.graphics.Bitmap.createScaledBitmap(b, 1, 1, true)
-            val c = en.getPixel(0, 0)
-            if (en !== b) en.recycle()
-            k(c)
+            // Mreza 16x9 vzorcev po vsej sliki (ne samo sredina).
+            val vz = IntArray(16 * 9)
+            for (y in 0 until 9) for (x in 0 until 16)
+                vz[y * 16 + x] = b.getPixel(((x * 2 + 1) * b.width / 32).coerceIn(0, b.width - 1), ((y * 2 + 1) * b.height / 18).coerceIn(0, b.height - 1))
+            k(DomPasPravila.povprecje(vz))
         } catch (_: Throwable) { }
     }
 
