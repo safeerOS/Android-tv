@@ -1358,9 +1358,20 @@ object OsPravila {
             paket !in setOf("com.google.android.gms", "com.google.android.gsf", "com.google.android.tvlauncher",
                 "com.google.android.inputmethod.latin", "com.google.android.leanbacklauncher")
 
+    /**
+     * Seja aplikacije ostane (lastnik 8. 11. 2026: SmartTube/YouTube po tipki Domov kot nas Medijski center): aplikacija v
+     * ozadju se zapre sele po [NEDEJAVNOST_ZAPIRANJA_MS] brez uporabe; ko je pomnilnika malo, po [NEDEJAVNOST_MALO_MS]
+     * (kot doslej). Aplikacija, ki predvaja zvok, se ne zapre nikoli (predvaja).
+     */
+    const val NEDEJAVNOST_ZAPIRANJA_MS = 30L * 60_000L
+    const val NEDEJAVNOST_MALO_MS = 3_000L
+
+    fun nedejavnostZapiranja(maloPomnilnika: Boolean): Long = if (maloPomnilnika) NEDEJAVNOST_MALO_MS else NEDEJAVNOST_ZAPIRANJA_MS
+
     fun zapriObVrnitvi(paket: String, mojPaket: String, tipkovnica: String?, trajen: Boolean,
-                       vklopljeno: Boolean, predvaja: Boolean, zadnjaUporabaMs: Long, zdajMs: Long): Boolean {
-        if (!vklopljeno || predvaja || zdajMs - zadnjaUporabaMs < 3000) return false
+                       vklopljeno: Boolean, predvaja: Boolean, zadnjaUporabaMs: Long, zdajMs: Long,
+                       nedejavnostMs: Long = NEDEJAVNOST_MALO_MS): Boolean {
+        if (!vklopljeno || predvaja || zdajMs - zadnjaUporabaMs < nedejavnostMs) return false
         // Lastnik 1. 11. 2026: nase aplikacije se zaprejo kot vse ostale, ko jih ne uporabljamo (iz TV Browserja v Play Store ->
         // TV Browser se zapre); zaganjalnik (mojPaket) nikoli.
         if (paket in setOf("si.safeer.tv", "si.safeer.trgovina", "si.safeer.player") && paket != mojPaket) return true
@@ -1380,9 +1391,9 @@ object OsPravila {
     }
 
     fun zapriObMenjavi(prejsnja: String, nova: String?, casMs: Long, mojPaket: String, tipkovnica: String?,
-                       trajen: Boolean, vklopljeno: Boolean, predvaja: Boolean): Boolean {
+                       trajen: Boolean, vklopljeno: Boolean, predvaja: Boolean, nedejavnostMs: Long = NEDEJAVNOST_MALO_MS): Boolean {
         if (prejsnja == nova || casMs < 3000) return false
-        return zapriObVrnitvi(prejsnja, mojPaket, tipkovnica, trajen, vklopljeno, predvaja, 0L, casMs)
+        return zapriObVrnitvi(prejsnja, mojPaket, tipkovnica, trajen, vklopljeno, predvaja, 0L, casMs, nedejavnostMs)
     }
 
     // Obseg iskanja v Medijskem centru (lastnik 30. 10. 2026: »uporabnik lahko izbere, po katerem viru isce«).

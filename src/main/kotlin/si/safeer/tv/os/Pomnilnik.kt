@@ -99,7 +99,11 @@ object Pomnilnik {
         }
         val am = c.getSystemService(ActivityManager::class.java)
         val zaprti = ArrayList<String>()
-        for (p in paketi) try { am.killBackgroundProcesses(p); zaprti.add(p) } catch (_: Throwable) { }
+        // CodeRabbit 8. 11. 2026: tudi rezervna pot se ustavi, ko uporabnik pritisne tipko ali odpre aplikacijo.
+        for (p in paketi) {
+            if (!nadaljuj()) break
+            try { am.killBackgroundProcesses(p); zaprti.add(p) } catch (_: Throwable) { }
+        }
         return zaprti
     }
 
@@ -148,7 +152,9 @@ object Pomnilnik {
         val pm = c.packageManager
         val trajen = try { (pm.getApplicationInfo(prejsnja, 0).flags and ApplicationInfo.FLAG_PERSISTENT) != 0 } catch (_: Exception) { false }
         
-        if (OsPravila.zapriObMenjavi(prejsnja, nova, casMs, c.packageName, ime, trajen, vklopljeno, predvaja) && !vrnilSe() &&
+        // Lastnik 8. 11. 2026: seja aplikacije, ki jo je uporabnik pravkar zapustil, ostane (30 min), razen ce je pomnilnika malo.
+        val nedejavnost = OsPravila.nedejavnostZapiranja(stanje(c).malo)
+        if (OsPravila.zapriObMenjavi(prejsnja, nova, casMs, c.packageName, ime, trajen, vklopljeno, predvaja, nedejavnost) && !vrnilSe() &&
             AdbLokalnoPravila.smemoNadaljevati(odhodiOd, odhodi)) {
             Thread {
                 val pred = stanje(c)
@@ -183,6 +189,9 @@ object Pomnilnik {
             if (!nadaljuj()) { Log.i(TAG, "ciscenje ozadja preskoceno - uporabnik je odprl aplikacijo"); return@Thread }
             val amgr = c.getSystemService(ActivityManager::class.java)
             val pred = stanje(c)
+            // Lastnik 8. 11. 2026: aplikacije, uporabljene v zadnjih 30 min, ohranijo sejo (SmartTube, YouTube ...); ko je
+            // pomnilnika malo, se zaprejo kot doslej (3 s brez uporabe).
+            val nedejavnost = OsPravila.nedejavnostZapiranja(pred.malo)
             val k = kandidati(c).toMutableList()
             // Lastnik 1. 11. 2026: tudi nase aplikacije (TV Browser, Play Store, Predvajalnik), ko jih ne uporabljamo vec.
             for (nas in listOf("si.safeer.tv", "si.safeer.trgovina", "si.safeer.player")) if (!k.contains(nas)) k.add(nas)
@@ -199,7 +208,7 @@ object Pomnilnik {
                 if (foregroundPackages.contains(p)) continue
                 val lastUsed = stats?.find { it.packageName == p }?.lastTimeUsed ?: 0L
                 val trajen = try { (pm.getApplicationInfo(p, 0).flags and ApplicationInfo.FLAG_PERSISTENT) != 0 } catch (_: Exception) { false }
-                if (OsPravila.zapriObVrnitvi(p, c.packageName, ime, trajen, vklopljeno, predvaja, lastUsed, zdaj)) zaZapreti.add(p)
+                if (OsPravila.zapriObVrnitvi(p, c.packageName, ime, trajen, vklopljeno, predvaja, lastUsed, zdaj, nedejavnost)) zaZapreti.add(p)
             }
             val pocisceno = zapriPakete(c, zaZapreti, foregroundPackages.toSet(), ime, nadaljuj)
             val po = stanje(c)

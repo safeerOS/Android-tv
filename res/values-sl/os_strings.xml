@@ -773,7 +773,7 @@
     <string name="os_splet_brskalnik_opis">Kateri brskalnik odprejo Splet in iskanja v spletu</string>
     <string name="os_splet_brskalnik_privzeto">Safeer TV Browser (privzeto)</string>
     <string name="os_splet_brskalnik_ni">Na napravi ni drugega brskalnika.</string>
-    <string name="os_zapri_neuporabljeno_opis">Ko aplikacije nekaj časa ne uporabljaš, se zapre, da sprosti pomnilnik. Aplikacije, ki predvajajo ali prenašajo, ostanejo.</string>
+    <string name="os_zapri_neuporabljeno_opis">Ko aplikacije 30 minut ne uporabljaš, se zapre, da sprosti pomnilnik (ob pomanjkanju pomnilnika prej). Aplikacije, ki predvajajo ali prenašajo, ostanejo.</string>
     <string name="os_adb_zapiranje">Zanesljivo zapiranje aplikacij (lastni ADB)</string>
     <string name="os_adb_zapiranje_opis">Na tem televizorju Android aplikacijam ne dovoli zapirati drugih aplikacij. S tvojim soglasjem se Safeer OS enkrat poveže na lasten vmesnik za razhroščevanje te naprave in zapira aplikacije, ki jih ne uporabljaš več.</string>
     <string name="os_adb_pogoji_naslov">Dovoliš Safeer OS zapirati aplikacije?</string>

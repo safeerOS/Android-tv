@@ -770,7 +770,7 @@
     <string name="os_splet_brskalnik_opis">Quel navigateur ouvrent Web et les recherches web</string>
     <string name="os_splet_brskalnik_privzeto">Safeer TV Browser (par défaut)</string>
     <string name="os_splet_brskalnik_ni">Aucun autre navigateur sur cet appareil.</string>
-    <string name="os_zapri_neuporabljeno_opis">Ko aplikacije nekaj časa ne uporabljate, se zapre, da sprosti pomnilnik. Aplikacije, ki predvajajo ali prenašajo, ostanejo.</string>
+    <string name="os_zapri_neuporabljeno_opis">Quand tu n\'utilises pas une application pendant 30 minutes, elle est fermée pour libérer de la mémoire (plus tôt si la mémoire manque). Les applications qui lisent ou téléchargent restent ouvertes.</string>
     <string name="os_adb_zapiranje">Fermer les apps de façon fiable (ADB local)</string>
     <string name="os_adb_zapiranje_opis">Sur ce téléviseur, Android ne permet pas à une app de fermer les autres. Avec votre accord, Safeer OS se connecte une fois à l\'interface de débogage propre à cet appareil et ferme les apps que vous n\'utilisez plus.</string>
     <string name="os_adb_pogoji_naslov">Autoriser Safeer OS à fermer des apps ?</string>

@@ -1738,6 +1738,20 @@ private fun preizkusZapriObVrnitvi() {
     preveriEnako("izklopljeno -> false", false, OsPravila.zapriObVrnitvi("org.test", "moj", null, false, false, false, 0L, zdaj))
     preveriEnako("predvaja -> false", false, OsPravila.zapriObVrnitvi("org.test", "moj", null, false, true, true, 0L, zdaj))
     preveriEnako("hitro preklapljanje (< 3s) -> false", false, OsPravila.zapriObVrnitvi("org.test", "moj", null, false, true, false, 8000L, zdaj))
+    // Lastnik 8. 11. 2026: seja aplikacije (SmartTube) po Domov ostane - zapiranje sele po 30 min brez uporabe, ob malo pomnilnika po 3 s.
+    val ura = 100L * 60_000L
+    preveriEnako("dovolj pomnilnika: 10 min brez uporabe -> ostane", false,
+        OsPravila.zapriObVrnitvi("org.test", "moj", null, false, true, false, ura - 10 * 60_000L, ura, OsPravila.nedejavnostZapiranja(false)))
+    preveriEnako("dovolj pomnilnika: 31 min brez uporabe -> zapre", true,
+        OsPravila.zapriObVrnitvi("org.test", "moj", null, false, true, false, ura - 31 * 60_000L, ura, OsPravila.nedejavnostZapiranja(false)))
+    preveriEnako("malo pomnilnika: 10 min brez uporabe -> zapre", true,
+        OsPravila.zapriObVrnitvi("org.test", "moj", null, false, true, false, ura - 10 * 60_000L, ura, OsPravila.nedejavnostZapiranja(true)))
+    preveriEnako("predvaja zvok -> ostane tudi po 31 min", false,
+        OsPravila.zapriObVrnitvi("org.test", "moj", null, false, true, true, ura - 31 * 60_000L, ura, OsPravila.nedejavnostZapiranja(false)))
+    preveriEnako("menjava aplikacije po 15 s z dovolj pomnilnika -> prejsnja ostane", false,
+        OsPravila.zapriObMenjavi("org.a", "org.b", 15_000L, "moj", null, false, true, false, OsPravila.nedejavnostZapiranja(false)))
+    preveriEnako("menjava aplikacije po 15 s z malo pomnilnika -> prejsnja se zapre", true,
+        OsPravila.zapriObMenjavi("org.a", "org.b", 15_000L, "moj", null, false, true, false, OsPravila.nedejavnostZapiranja(true)))
     preveriEnako("si.safeer.tv SME biti zaprt", true, OsPravila.zapriObVrnitvi("si.safeer.tv", "moj", null, false, true, false, 0L, zdaj))
     preveriEnako("si.safeer.os NE SME biti zaprt", false, OsPravila.zapriObVrnitvi("si.safeer.os", "moj", null, false, true, false, 0L, zdaj))
     preveriEnako("si.safeer.trgovina SME biti zaprt (lastnik 1. 11.)", true, OsPravila.zapriObVrnitvi("si.safeer.trgovina", "moj", null, false, true, false, 0L, zdaj))
