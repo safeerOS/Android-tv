@@ -131,14 +131,37 @@ class VirtualPointerView @JvmOverloads constructor(
             val topThreshold = 140f
             val bottomThreshold = height - 120f
 
+            // Lastnik 9. 11. 2026 (24ur.com: »tezave z brskanjem gor in dol«): prej scrollBy(120 px) celotnega pogleda - pocasi
+            // (120 px na pritisk) in brez ucinka na straneh, ki drsijo v notranjem elementu. Zdaj kolesce miske na mestu
+            // kazalca (stran drsi element pod kazalcem, kot z miško na racunalniku), [KazalecPravila.KORAK_KOLESCA] zarez.
             if (pointerY < topThreshold) {
-                targetWebView.scrollBy(0, -120)
+                kolesce(targetWebView, -1)
             } else if (pointerY > bottomThreshold) {
-                targetWebView.scrollBy(0, 120)
+                kolesce(targetWebView, 1)
             }
             if (trajen) posljiLebdenje(targetWebView)
         }
         return true
+    }
+
+    /** Kolesce miske na mestu kazalca; [smer] 1 = navzdol. Ce ga pogled ne sprejme, drsi pogled sam (kot prej). */
+    private fun kolesce(wv: WebView, smer: Int) {
+        val sprejeto = try {
+            val (x, y) = naPogledu(wv)
+            val cas = SystemClock.uptimeMillis()
+            val lastnosti = arrayOf(MotionEvent.PointerProperties().apply { id = 0; toolType = MotionEvent.TOOL_TYPE_MOUSE })
+            val koordinate = arrayOf(MotionEvent.PointerCoords().apply {
+                this.x = x; this.y = y
+                // Android: pozitivna os VSCROLL drsi navzgor (vsebina gre dol).
+                setAxisValue(MotionEvent.AXIS_VSCROLL, -smer * KazalecPravila.KORAK_KOLESCA)
+            })
+            val dogodek = MotionEvent.obtain(cas, cas, MotionEvent.ACTION_SCROLL, 1, lastnosti, koordinate,
+                0, 0, 1f, 1f, 0, 0, InputDevice.SOURCE_MOUSE, 0)
+            val ok = wv.dispatchGenericMotionEvent(dogodek)
+            dogodek.recycle()
+            ok
+        } catch (_: Throwable) { false }
+        if (!sprejeto) wv.scrollBy(0, smer * (wv.height / 4).coerceAtLeast(120))
     }
 
     /** Polozaj kazalca v koordinatah spletnega pogleda. */

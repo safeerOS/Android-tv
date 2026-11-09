@@ -47,4 +47,7 @@ object KazalecPravila {
     /** Strani s svojo postavitvijo za TV ali mobilno identiteto (YouTube za TV, Googlova prijava, PDF) ostanejo kot so. */
     fun brezSirine(dotik: Boolean, youtubeZaTv: Boolean, androidIdentiteta: Boolean, pregledovalnik: Boolean, http: Boolean): Boolean =
         dotik || youtubeZaTv || androidIdentiteta || pregledovalnik || !http
+
+    /** Zarez kolesca miske na pritisk ob robu (lastnik 9. 11. 2026, 24ur.com); izmeri na TV po gradnji. */
+    const val KORAK_KOLESCA = 3f
 }
