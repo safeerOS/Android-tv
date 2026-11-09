@@ -631,6 +631,30 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             .forEach { try { tabManager.closeTab(this, it) } catch (_: Throwable) { } }
     }
 
+    /** Gostitelj, za katerega je bil kazalec nazadnje nastavljen samodejno ([uporabiPrivzetiKazalec]). */
+    private var kazalecZaGostitelja: String? = null
+
+    /**
+     * Lastnik 9. 11. 2026: na strani, ki ni za TV (npr. 24ur.com), daljinec sam deluje kot kazalec; na nasih straneh, YouTubu za
+     * TV in v pregledovalniku PDF ostanejo puscice. Samo ob menjavi gostitelja (premik znotraj strani ne preklaplja), nikoli
+     * med vlecenjem in v nacinu spletne aplikacije (tam odloca [si.safeer.tv.os.OsPravila.miskaZaAplikacijo]).
+     */
+    internal fun uporabiPrivzetiKazalec(naslov: String) {
+        if (!::virtualPointerView.isInitialized || !si.safeer.tv.os.Naprava.jeTelevizor(this)) return
+        if (nacinAplikacije != null || virtualPointerView.vlecem) return
+        val g = KazalecPravila.gostitelj(naslov)
+        if (g == kazalecZaGostitelja) return
+        kazalecZaGostitelja = g
+        val zaTv = SpletMostPravila.jeDovoljenIzvor(naslov) || GooglePravila.youtubeZaTv(naslov) || PdfPregledovalnik.jePregledovalnik(naslov)
+        virtualPointerView.isPointerVisible = KazalecPravila.privzetoKazalec(
+            si.safeer.tv.os.Naprava.jeTelevizor(this), naslov, zaTv, KazalecNastavitve.zapomnjeno(this, g))
+    }
+
+    /** Rocni preklop kazalca: brskalnik si ga zapomni za gostitelja odprte strani. */
+    internal fun zapomniKazalec() {
+        KazalecNastavitve.zapomni(this, KazalecPravila.gostitelj(activeUrl()), virtualPointerView.isPointerVisible)
+    }
+
     internal fun izklopiNacinAplikacije() {
         val bila = nacinAplikacije ?: return
         zapomniMestoAplikacije(bila)
@@ -2112,6 +2136,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                     attachTabListeners(activeTab)
                     chrome.updateOmniboxDisplay(activeTab.url, wv.title)
                     updateBookmarkButton(activeTab.url)
+                    uporabiPrivzetiKazalec(activeTab.url)
                 }
             }
             if (SpletDomaca.jeSafeerOs(this)) {
@@ -2357,6 +2382,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             if (tabManager.getActiveTab()?.id == tab.id) {
                 chrome.updateOmniboxDisplay(newUrl, wv.title)
                 chrome.applyUrlChrome(newUrl)
+                uporabiPrivzetiKazalec(newUrl)
                 updateBookmarkButton(newUrl)
                 osveziGumbAplikacije(fokus = false)
             }
@@ -2813,6 +2839,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
         btnPointerToggle.setOnClickListener {
             virtualPointerView.isPointerVisible = !virtualPointerView.isPointerVisible
+            zapomniKazalec()
             Toast.makeText(
                 this,
                 if (virtualPointerView.isPointerVisible) UiText.get(R.string.ui_pointer_on) else UiText.get(R.string.ui_pointer_off),

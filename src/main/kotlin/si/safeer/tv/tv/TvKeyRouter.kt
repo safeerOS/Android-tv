@@ -110,6 +110,7 @@ class TvKeyRouter(private val host: MainActivity) {
 
         if (si.safeer.tv.TvTipke.dejanje(keyCode) == si.safeer.tv.TvTipke.Dejanje.KAZALEC) {
             host.virtualPointerView.isPointerVisible = !host.virtualPointerView.isPointerVisible
+            host.zapomniKazalec()
             Toast.makeText(
                 host,
                 if (host.virtualPointerView.isPointerVisible) UiText.get(R.string.ui_pointer_on) else UiText.get(R.string.ui_dpad_on),
@@ -198,7 +199,8 @@ class TvKeyRouter(private val host: MainActivity) {
         if (host.virtualPointerView.isPointerVisible && !isTopBarFocused) {
             val activeWv = host.activeWebView()
             // Nacin miske (spletne aplikacije, npr. Facebook): drzana tipka pospesi kazalec.
-            val korak = if (host.virtualPointerView.trajen) si.safeer.tv.os.OsPravila.korakKazalca(event.repeatCount) else 40f
+            // Lastnik 9. 11. 2026: kazalec je zdaj privzet na vseh straneh, ki niso za TV - drzana tipka pospesi povsod.
+            val korak = si.safeer.tv.os.OsPravila.korakKazalca(event.repeatCount)
             when (keyCode) {
                 KeyEvent.KEYCODE_DPAD_UP -> {
                     // V nacinu aplikacije vrstice z naslovom ni: fokus ne sme oditi v skrito polje.
@@ -285,6 +287,7 @@ class TvKeyRouter(private val host: MainActivity) {
             ) && event.action == KeyEvent.ACTION_DOWN
         ) {
             host.virtualPointerView.isPointerVisible = true
+            host.zapomniKazalec()
             host.virtualPointerView.okPorabljen = true
             Toast.makeText(host, UiText.get(R.string.ui_pointer_on), Toast.LENGTH_SHORT).show()
             return true
