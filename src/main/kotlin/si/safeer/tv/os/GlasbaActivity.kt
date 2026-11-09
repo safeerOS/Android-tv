@@ -2114,10 +2114,10 @@ class GlasbaActivity : OsActivity() {
                 var vidneVrsteMreze = 0
                 for (i in 0 until vsebina.childCount) {
                     val v = vsebina.getChildAt(i)
-                    val jeVrsta = v is HorizontalScrollView || v.tag == MREZA_VRSTA
+                    val jeVrsta = v is HorizontalScrollView || v.tag == MREZA_VRSTA || v.tag == POLICA_KARTIC
                     if (v.bottom <= vidno) {
-                        // TV 9. 11. 2026 (apk-16, Glasba): vrsta »Seznami predvajanja« je drsni trak (HorizontalScrollView), ne
-                        // POLICA_KARTIC (ta oznaka se nikjer ne nastavi) - vidnaVrsta je ostala false in Videospoti so ostali odrezani.
+                        // TV 9. 11. 2026 (apk-16/17, Glasba): »Seznami predvajanja« in »Videospoti« sta polici (navpicni LinearLayout
+                        // brez oznake) - prej ju ni stelo nic in Videospoti so ostali odrezani; zdaj imata oznako POLICA_KARTIC.
                         if (McVidezPravila.jeVidnaVrstaKartic(v is HorizontalScrollView,
                                 i > 0 && vsebina.getChildAt(i - 1).contentDescription == NASLOV_VRSTE,
                                 v.tag == POLICA_KARTIC, v.tag == MREZA_VRSTA)) vidnaVrsta = true
@@ -5485,6 +5485,8 @@ class GlasbaActivity : OsActivity() {
         val v = v0.copy(kartice = kartice)
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            // TV 9. 11. 2026: polica (naslov + kartice) je vrsta kartic za brezOdrezanihVrst in vrhoviVrst.
+            tag = POLICA_KARTIC
             addView(besedilo(18f, osBarva(R.color.os_besedilo), true).apply {
                 text = v.naslov; tag = "polica:${v.naslov}"; contentDescription = NASLOV_VRSTE
                 setPadding(dp(4), dp(14), 0, dp(8))
@@ -5502,6 +5504,8 @@ class GlasbaActivity : OsActivity() {
         val (_, velikost) = mereMreze(v)
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            // TV 9. 11. 2026: polica (naslov + kartice) je vrsta kartic za brezOdrezanihVrst in vrhoviVrst.
+            tag = POLICA_KARTIC
             addView(besedilo(18f, osBarva(R.color.os_besedilo), true).apply {
                 text = v.naslov; tag = "polica:${v.naslov}"; contentDescription = NASLOV_VRSTE
                 setPadding(dp(4), dp(14), 0, dp(8))
