@@ -197,7 +197,10 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
         return (sirinaDp * 100 / namiznaSirina).toInt().coerceIn(30, 100)
     }
 
-    private fun namiznaJs(w: Int) = """(function(){var c='width=$w';function s(){var m=document.querySelector('meta[name="viewport"]');
+    // Lastnik 9. 11. 2026: velja za vse strani na TV; strani z identiteto Android (Googlova prijava, mobilni pogled), YouTube
+    // za TV (SMART-TV) in nas pregledovalnik PDF ostanejo v svoji postavitvi - isto kot KazalecPravila.brezSirine.
+    private fun namiznaJs(w: Int) = """(function(){if(/Android|SMART-TV/.test(navigator.userAgent)||!/^https?:$/.test(location.protocol)||
+        location.hostname==='${PdfPregledovalnik.GOSTITELJ}')return;var c='width=$w';function s(){var m=document.querySelector('meta[name="viewport"]');
         if(!m){if(!document.head)return;m=document.createElement('meta');m.name='viewport';document.head.appendChild(m);}
         if(m.content!==c)m.content=c;}s();var o=new MutationObserver(s);o.observe(document.documentElement,{childList:true,subtree:true});
         document.addEventListener('DOMContentLoaded',function(){s();setTimeout(function(){o.disconnect();s();},3000);});})();"""
@@ -758,7 +761,10 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
         settings.textZoom = 100
         settings.useWideViewPort = true
         settings.loadWithOverviewMode = true
-        setInitialScale(if (namiznaSirina > 0) namiznaPovecava() else 100)
+        val brezSirine = KazalecPravila.brezSirine(dotik, isYoutubeTv,
+            GooglePravila.googleIdentiteta(url) || GooglePravila.chromeAndroidStran(url), PdfPregledovalnik.jePregledovalnik(url),
+            url.startsWith("http://") || url.startsWith("https://"))
+        setInitialScale(if (namiznaSirina > 0 && !brezSirine) namiznaPovecava() else 100)
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
         @Suppress("DEPRECATION") settings.setDatabaseEnabled(true)

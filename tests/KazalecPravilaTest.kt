@@ -20,5 +20,12 @@ fun main() {
     check(K.kljucStrani("www.24ur.com", false) == "www.24ur.com") { "kljuc: navadna stran" }
     check(K.kljucStrani("www.24ur.com", true) != K.kljucStrani("www.24ur.com", false)) { "kljuc: ogled istega gostitelja je druga stran" }
     check(K.kljucStrani(null, true) == null) { "kljuc: brez gostitelja" }
+    // Lastnik 9. 11. 2026: strani na TV v namizni sirini (24ur.com ni vec v postavitvi za tablico).
+    check(K.sirinaStrani(0, jeTelevizor = true) == 1280) { "TV: privzeta namizna sirina" }
+    check(K.sirinaStrani(0, jeTelevizor = false) == 0) { "telefon: brez" }
+    check(K.sirinaStrani(1600, jeTelevizor = true) == 1600) { "izrecna sirina (Medijski center) ostane" }
+    check(K.brezSirine(dotik = false, youtubeZaTv = true, androidIdentiteta = false, pregledovalnik = false, http = true)) { "YouTube za TV ostane" }
+    check(K.brezSirine(dotik = false, youtubeZaTv = false, androidIdentiteta = true, pregledovalnik = false, http = true)) { "Googlova prijava ostane" }
+    check(!K.brezSirine(dotik = false, youtubeZaTv = false, androidIdentiteta = false, pregledovalnik = false, http = true)) { "24ur: namizna sirina" }
     println("KazalecPravilaTest: OK")
 }

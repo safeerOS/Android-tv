@@ -136,6 +136,7 @@ class TabManager(
      */
     fun pripraviPojavni(context: Context): ChromiumEngineView {
         val pogled = ustvariPogled(context)
+        KazalecPravila.sirinaStrani(0, si.safeer.tv.os.Naprava.jeTelevizor(context)).takeIf { it > 0 }?.let { pogled.namiznaSirina = it }
         // Pogled, ki ni v oknu, ne izvede naslova, ki mu ga stran nastavi naknadno
         // (window.open('about:blank'), nato location = ...). Zato ga pritrdimo takoj -
         // a skritega in velikosti 1x1, da uporabnik o njem ne ve nicesar.
@@ -204,15 +205,17 @@ class TabManager(
     ): TabModel {
         sprostiProstor()
         val webView = ustvariPogled(context)
-        if (namiznaSirina > 0) {
-            webView.namiznaSirina = namiznaSirina
+        // Lastnik 9. 11. 2026: na TV vsaka stran v namizni sirini (KazalecPravila.sirinaStrani).
+        val sirina = KazalecPravila.sirinaStrani(namiznaSirina, si.safeer.tv.os.Naprava.jeTelevizor(context))
+        if (sirina > 0) {
+            webView.namiznaSirina = sirina
         }
 
         val tab = TabModel(
             webView = webView,
             title = "Nov zavihek",
             url = url,
-            namiznaSirina = namiznaSirina
+            namiznaSirina = sirina
         )
 
         tabs.add(tab)
@@ -440,8 +443,10 @@ class TabManager(
         tab.webView = w
         tab.pogledSvez = false
         try {
-            if (tab.namiznaSirina > 0) {
-                w.namiznaSirina = tab.namiznaSirina
+            // Lastnik 9. 11. 2026: tudi obnovljen ali uspavan zavihek (prej shranjen z 0) dobi namizno sirino na TV.
+            val sirina = KazalecPravila.sirinaStrani(tab.namiznaSirina, si.safeer.tv.os.Naprava.jeTelevizor(container.context))
+            if (sirina > 0) {
+                w.namiznaSirina = sirina
             }
             w.isDesktopMode = tab.isDesktop
             w.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, true)
@@ -535,6 +540,8 @@ class TabManager(
 
         if (bilAktiven) {
             val nov = ustvariPogled(container.context)
+            KazalecPravila.sirinaStrani(tab.namiznaSirina, si.safeer.tv.os.Naprava.jeTelevizor(container.context))
+                .takeIf { it > 0 }?.let { nov.namiznaSirina = it }
             tab.webView = nov
             container.removeAllViews()
             container.addView(nov)

@@ -29,4 +29,22 @@ object KazalecPravila {
 
     /** Kljuc, ob katerem se privzeti kazalec preracuna: gostitelj, stran za ogled istega gostitelja loceno. */
     fun kljucStrani(gostitelj: String?, ogled: Boolean): String? = gostitelj?.let { if (ogled) "$it#ogled" else it }
+
+    /**
+     * Lastnik 9. 11. 2026 (24ur.com na TV »prevelika, tezko se premikas gor in dol«): pri 960 dp televizorja je vecina strani
+     * v postavitvi za tablico (ogromne slike, glava in spodnja vrstica pokrijeta pol zaslona). Na TV dobi vsaka stran sirino
+     * [PRIVZETA_SIRINA] kot na racunalniku in se pomanjsa na zaslon; na napravi z dotikom ne. Izrecna sirina (vir Medijskega
+     * centra) ostane.
+     */
+    const val PRIVZETA_SIRINA = 1280
+
+    fun sirinaStrani(izrecna: Int, jeTelevizor: Boolean): Int = when {
+        izrecna > 0 -> izrecna
+        jeTelevizor -> PRIVZETA_SIRINA
+        else -> 0
+    }
+
+    /** Strani s svojo postavitvijo za TV ali mobilno identiteto (YouTube za TV, Googlova prijava, PDF) ostanejo kot so. */
+    fun brezSirine(dotik: Boolean, youtubeZaTv: Boolean, androidIdentiteta: Boolean, pregledovalnik: Boolean, http: Boolean): Boolean =
+        dotik || youtubeZaTv || androidIdentiteta || pregledovalnik || !http
 }
