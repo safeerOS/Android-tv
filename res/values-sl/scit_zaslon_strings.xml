@@ -55,4 +55,5 @@
     <string name="scit_z_po_meri_izklopi">Izklopi</string>
     <string name="scit_z_po_meri_vklopi">Vklopi</string>
     <string name="scit_z_po_meri_odstrani">Odstrani</string>
+    <string name="scit_z_kljuc_shranjen_izklopljen">Ključ je shranjen. Seznam se prenese, ko vklopite Safeer Ščit.</string>
 </resources>

@@ -55,4 +55,5 @@
     <string name="scit_z_po_meri_izklopi">Désactiver</string>
     <string name="scit_z_po_meri_vklopi">Activer</string>
     <string name="scit_z_po_meri_odstrani">Supprimer</string>
+    <string name="scit_z_kljuc_shranjen_izklopljen">Clé enregistrée. La liste sera téléchargée quand tu activeras Bouclier Safeer.</string>
 </resources>

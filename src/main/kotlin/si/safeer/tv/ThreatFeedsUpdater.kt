@@ -221,8 +221,9 @@ object ThreatFeedsUpdater {
      */
     @Synchronized
     fun osveziScitZdaj(context: Context): Boolean {
-        val star = agentScit ?: return agent?.requestUpdate() ?: false
-        star.stop()
+        // CodeRabbit 9. 11. 2026: agent Scita se ne tece - zazenemo ga (zahteva se ne izgubi); requestUpdate je prisilen.
+        if (agentScit == null && agent != null) return agent?.requestUpdate() ?: false
+        agentScit?.stop()
         agentScit = null
         startSamoScit(context)
         return agentScit?.requestUpdate() ?: false

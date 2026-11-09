@@ -43,7 +43,7 @@ fun main(args: Array<String>) {
     preveriVir(sbVnosi.toSet() == setOf("ads.example-oglas.com", "track.example-sled.net"), "StevenBlack: samo prave domene ($sbVnosi)")
     preveriVir(ScitViri.zaNabor(sb) && !ScitViri.zaGrozne(sb) && !ScitViri.zaBrskalnik(sb), "StevenBlack v domene.bin, ne grozne in ne brskalnik")
     // AdGuard DNS filter (lastnik 9. 11. 2026): ||ime^ je vnos, @@||ime^ izjema - izpusti ime in nadrejene iz ISTEGA seznama.
-    val ag = PlainListSource("adguard-dns", "AdGuard DNS filter", "", "", "adguard dns filter", minEntries = 2, dnsOnly = true)
+    val ag = PlainListSource("adguard-dns", "AdGuard DNS filter", "", "", "adguard dns filter", minEntries = 1, dnsOnly = true)
     val agVnosi = PlainListParser.parse(("! Title: AdGuard DNS filter\n||ads.example-oglas.com^\n||sled.net^\n||cdn.sled.net^\n" +
         "||ad-host-*.example.com^\n/^139\\.45/\n@@||ok.cdn.sled.net^\n||drugi.example^\$important\n").toByteArray(), ag)
     preveriVir(agVnosi.toSet() == setOf("ads.example-oglas.com"), "AdGuard: izjema izpusti nadrejene, vzorci in regex ne ($agVnosi)")

@@ -360,14 +360,17 @@ class ScitActivity : OsActivity() {
         val kljuc = AbuseChPravila.ocisti(vnos)
         val app = applicationContext
         Toast.makeText(this, R.string.scit_z_kljuc_preverjam, Toast.LENGTH_SHORT).show()
+        val g = AbuseChKljuc.generacija()
         Thread({
             val izid = try { AbuseChKljuc.preveri(kljuc) } catch (_: Throwable) { AbuseChPravila.Preverba.NI_ODGOVORA }
-            val shranjen = izid == AbuseChPravila.Preverba.VELJA && AbuseChKljuc.shrani(app, kljuc)
-            if (shranjen && Scit.jeVklopljen(app)) ScitStoritev.osveziSezname(app)
+            val shranjen = izid == AbuseChPravila.Preverba.VELJA && AbuseChKljuc.shraniZaGeneracijo(app, kljuc, g)
+            val vklopljen = Scit.jeVklopljen(app)
+            if (shranjen && vklopljen) ScitStoritev.osveziSezname(app)
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 Toast.makeText(this, when {
-                    shranjen -> R.string.scit_z_kljuc_shranjen
+                    shranjen && vklopljen -> R.string.scit_z_kljuc_shranjen
+                    shranjen -> R.string.scit_z_kljuc_shranjen_izklopljen
                     izid == AbuseChPravila.Preverba.NI_VELJAVEN || izid == AbuseChPravila.Preverba.OBLIKA -> R.string.scit_z_kljuc_neveljaven
                     else -> R.string.scit_z_kljuc_ni_odgovora
                 }, Toast.LENGTH_LONG).show()

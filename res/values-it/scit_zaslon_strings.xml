@@ -55,4 +55,5 @@
     <string name="scit_z_po_meri_izklopi">Disattiva</string>
     <string name="scit_z_po_meri_vklopi">Attiva</string>
     <string name="scit_z_po_meri_odstrani">Rimuovi</string>
+    <string name="scit_z_kljuc_shranjen_izklopljen">Chiave salvata. L\'elenco verrà scaricato quando attivi Scudo Safeer.</string>
 </resources>

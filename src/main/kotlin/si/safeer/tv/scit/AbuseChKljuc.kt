@@ -71,7 +71,23 @@ object AbuseChKljuc {
 
     fun ima(c: Context): Boolean = datoteka(c).isFile
 
-    fun pozabi(c: Context) { try { datoteka(c).delete() } catch (_: Throwable) { } }
+    /**
+     * CodeRabbit 9. 11. 2026: preverba traja (omrezje); ce uporabnik medtem kljuc odstrani, starejsa preverba kljuca ne sme
+     * obnoviti. [generacija] pred preverbo, [shraniZaGeneracijo] shrani samo, ce se ni nic spremenilo.
+     */
+    private val zaklep = Any()
+    @Volatile
+    private var gen = 0
+
+    fun generacija(): Int = gen
+
+    fun shraniZaGeneracijo(c: Context, kljuc: String, g: Int): Boolean = synchronized(zaklep) { g == gen && shrani(c, kljuc) }
+
+    fun pozabi(c: Context) = synchronized(zaklep) {
+        gen++
+        try { datoteka(c).delete() } catch (_: Throwable) { }
+        Unit
+    }
 
     /**
      * Preveri kljuc pri abuse.ch (prenos seznama s kljucem, HTTPS, brez preusmeritev). Vrne izid; kljuc ne gre v dnevnik.

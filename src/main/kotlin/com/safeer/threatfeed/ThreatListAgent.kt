@@ -476,7 +476,10 @@ class ThreatListAgent(
     /** Checks every list; returns how many changed. Skipped within the restart throttle unless forced. */
     fun refresh(force: Boolean = false): Int = synchronized(lock) {
         val now = clock()
-        if (!force && now - lastCheck() in 0 until minCheckIntervalSeconds && lists.size == sources.size) return 0
+        // CodeRabbit 9. 11. 2026: popolnost po oznakah; seznam s kljucem brez kljuca ne steje (sicer ob vsakem zagonu prenos).
+        val pricakovani = sources.filter { s -> s.kljuc == null || try { !s.kljuc.invoke().isNullOrEmpty() } catch (e: Exception) { false } }
+            .map { it.id }
+        if (!force && now - lastCheck() in 0 until minCheckIntervalSeconds && lists.map { it.source.id }.containsAll(pricakovani)) return 0
         val inUse = lists.associateBy { it.source.id }
         val fresh = HashMap<String, PlainList>()
         val errors = ArrayList<String>()
