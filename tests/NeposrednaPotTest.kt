@@ -106,8 +106,10 @@ private class LazniVhod(mapa: File, clani: List<Naprava>) {
             val nl = beri(t.inputStream, 2)
             val p2 = beri(t.inputStream, nl[1].toInt() and 0xff)
             if (!preveriPodpis(k, NeposrednaPot.podatkiIzziva(hubId, id, izziv, odtis, nl[0].toInt()), p2)) { t.close(); return }
+            // Testni PC 9. 11. 2026 (1 padec): odjemalec se vrne takoj po potrditvi (1), stevec pa se je povecal sele za
+            // njo - preizkus je prebral staro vrednost. Stevec zato pred potrditvijo.
+            if (nl[0].toInt() == NeposrednaPot.NAMEN_PREIZKUS) { preizkusov++; t.outputStream.apply { write(1); flush() }; t.close(); return }
             t.outputStream.apply { write(1); flush() }
-            if (nl[0].toInt() == NeposrednaPot.NAMEN_PREIZKUS) { preizkusov++; t.close(); return }
             sprejetih++
             t.soTimeout = 0
             val buf = ByteArray(65536)
