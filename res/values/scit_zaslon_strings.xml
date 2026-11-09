@@ -42,4 +42,17 @@
     <string name="scit_z_kljuc_shranjen">Key saved - Safeer Shield is downloading the list.</string>
     <string name="scit_z_kljuc_neveljaven">abuse.ch did not accept the key. Check it and enter it again.</string>
     <string name="scit_z_kljuc_ni_odgovora">abuse.ch did not answer. The key was not saved - try again later.</string>
+    <string name="scit_z_po_meri">Custom filters</string>
+    <string name="scit_z_po_meri_vklopljen">On</string>
+    <string name="scit_z_po_meri_izklopljen">Off</string>
+    <string name="scit_z_po_meri_dodaj">+ Add custom filter</string>
+    <string name="scit_z_po_meri_navodilo">Enter the address (https://) of a public list of domains (hosts, plain domains or AdGuard ||domain^). You can find more lists at filterlists.com. The list is checked before it is added.</string>
+    <string name="scit_z_po_meri_naprej">Next</string>
+    <string name="scit_z_po_meri_napacen">The address must start with https:// and contain a server name.</string>
+    <string name="scit_z_po_meri_preverjam">Downloading and checking the list…</string>
+    <string name="scit_z_po_meri_dodan">Filter added: %1$d domains.</string>
+    <string name="scit_z_po_meri_ni_seznam">No list of domains was found at this address, or it is already added.</string>
+    <string name="scit_z_po_meri_izklopi">Turn off</string>
+    <string name="scit_z_po_meri_vklopi">Turn on</string>
+    <string name="scit_z_po_meri_odstrani">Remove</string>
 </resources>

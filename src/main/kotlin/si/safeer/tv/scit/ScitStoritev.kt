@@ -105,7 +105,7 @@ class ScitStoritev : VpnService() {
             DEJANJE_USTAVI -> { ustaviVse("ustavljen"); stopSelf(); return START_NOT_STICKY }
             DEJANJE_OSVEZI -> { if (tunel == null) { stopSelf(); return START_NOT_STICKY }; naloziNabor(); return START_STICKY }
             // Lastnik 9. 11. 2026: nov kljuc abuse.ch - seznami takoj, ne sele ob naslednji preverbi (6 h).
-            DEJANJE_SEZNAMI -> { if (tunel == null) { stopSelf(); return START_NOT_STICKY }; si.safeer.tv.ThreatFeedsUpdater.osveziScitZdaj(); return START_STICKY }
+            DEJANJE_SEZNAMI -> { if (tunel == null) { stopSelf(); return START_NOT_STICKY }; si.safeer.tv.ThreatFeedsUpdater.osveziScitZdaj(this); return START_STICKY }
         }
         try { pripraviKanal(); startForeground(OBVESTILO, obvestilo()) } catch (e: Throwable) { Log.w(TAG, "Obvestilo: ${e.message}") }
         if (!Scit.jeVklopljen(this)) { ustaviVse("ustavljen"); stopSelf(); return START_NOT_STICKY }

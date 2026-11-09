@@ -74,6 +74,15 @@ fun main(args: Array<String>) {
                 "s kljucem: prenos z naslovom s kljucem ($naslovi)")
         } finally { mapaK.deleteRecursively() }
     }
+    // Filtri po meri (lastnik 9. 11. 2026): samo HTTPS z imenom streznika, brez uporabnika v naslovu; stalna oznaka.
+    preveriVir(ScitPoMeriPravila.napaka("https://raw.githubusercontent.com/x/y/hosts") == null, "po meri: veljaven naslov")
+    preveriVir(ScitPoMeriPravila.napaka("http://primer.si/hosts") == "https", "po meri: samo https")
+    preveriVir(ScitPoMeriPravila.napaka("https://uporabnik:geslo@primer.si/h") == "gostitelj", "po meri: brez uporabnika v naslovu")
+    preveriVir(ScitPoMeriPravila.napaka("https://primer.si/a b") == "znaki" && ScitPoMeriPravila.napaka("https://lokalno/x") == "gostitelj", "po meri: znaki, gostitelj")
+    val idPm = ScitPoMeriPravila.id("https://primer.si/hosts")
+    preveriVir(idPm.length == 15 && idPm.startsWith("pm-") && idPm == ScitPoMeriPravila.id(" https://primer.si/hosts "), "po meri: oznaka ($idPm)")
+    preveriVir(PlainListSource(idPm, "x", "https://primer.si/hosts", "", "").id == idPm, "po meri: oznaka je veljaven id vira")
+    preveriVir(ScitPoMeriPravila.ime("https://raw.githubusercontent.com/x/y/hosts?a=1") == "raw.githubusercontent.com … hosts", "po meri: ime")
     preveriVir(ScitViri.vgrajeniKljuc().second.isNotEmpty(), "vgrajeni seznam ima kljuc (nabor se zgradi znova ob spremembi)")
     val vgr = Files.createTempFile("scit-vgr", ".bin").toFile()
     try {

@@ -216,7 +216,8 @@ class ScitActivity : OsActivity() {
 
     private fun izrisi(p: Pogled, prisilno: Boolean, fokus: String?) {
         val imaKljuc = AbuseChKljuc.ima(this)
-        val odtis = p.odtis() + "|" + napaka + "|" + imaKljuc
+        val poMeri = ScitPoMeri.seznam(this)
+        val odtis = p.odtis() + "|" + napaka + "|" + imaKljuc + "|" + poMeri.joinToString { it.id + it.vklop }
         if (!prisilno && odtis == zadnjiOdtis) return
         zadnjiOdtis = odtis
         // Izbira (daljinec) ostane na isti vrstici tudi po osvezitvi.
@@ -285,6 +286,15 @@ class ScitActivity : OsActivity() {
         vsebina.addView(naslov(getString(R.string.scit_z_seznami)))
         vsebina.addView(vrstica(getString(R.string.scit_z_urlhaus), getString(if (imaKljuc) R.string.scit_z_kljuc_vpisan else R.string.scit_z_kljuc_ni),
             if (imaKljuc) R.attr.osMint else R.attr.osOpozorilo, OZNAKA_KLJUC) { kljucAbuseCh() })
+
+        // Lastnik 9. 11. 2026: filtri po meri (kot AdGuard »Dodaj filter po meri«) - samo za Scit (DNS).
+        vsebina.addView(naslov(getString(R.string.scit_z_po_meri)))
+        for (f in poMeri) {
+            vsebina.addView(vrstica(ScitPoMeriPravila.ime(f.url), getString(if (f.vklop) R.string.scit_z_po_meri_vklopljen else R.string.scit_z_po_meri_izklopljen),
+                if (f.vklop) R.attr.osMint else R.attr.osUmirjeno, OZNAKA_PO_MERI + f.id) { filterPoMeri(f) })
+        }
+        if (poMeri.size < ScitPoMeriPravila.NAJVEC)
+            vsebina.addView(vrstica(getString(R.string.scit_z_po_meri_dodaj), "", R.attr.osUmirjeno, OZNAKA_PO_MERI_DODAJ) { dodajFilter() })
 
         vsebina.addView(naslov(getString(R.string.scit_z_izjeme)))
         val datum = android.text.format.DateFormat.getMediumDateFormat(this)
@@ -365,6 +375,65 @@ class ScitActivity : OsActivity() {
                 narisi(true, fokus = OZNAKA_KLJUC)
             }
         }, "safeer-scit-kljuc").start()
+    }
+
+    private fun dodajFilter() {
+        val rob = dp(20)
+        val polje = android.widget.EditText(this).apply {
+            hint = "https://"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI
+            isSingleLine = true
+        }
+        val okvir = android.widget.FrameLayout(this).apply { setPadding(rob, rob / 2, rob, 0); addView(polje) }
+        val okno = android.app.AlertDialog.Builder(this, R.style.Os_Okno)
+            .setTitle(R.string.scit_z_po_meri_dodaj)
+            .setMessage(R.string.scit_z_po_meri_navodilo)
+            .setView(okvir)
+            .setPositiveButton(R.string.scit_z_po_meri_naprej) { _, _ -> preizkusiFilter(polje.text.toString().trim()) }
+            .setNegativeButton(R.string.scit_z_spusti_ne, null)
+            .create()
+        okno.show()
+        si.safeer.tv.os.Kontroler.pokazi(okno)
+    }
+
+    /** Seznam se pred dodajanjem prenese in preveri (HTTPS, ne HTML, imena domen); sele nato je dodan. */
+    private fun preizkusiFilter(url: String) {
+        if (ScitPoMeriPravila.napaka(url) != null) { Toast.makeText(this, R.string.scit_z_po_meri_napacen, Toast.LENGTH_LONG).show(); return }
+        val app = applicationContext
+        Toast.makeText(this, R.string.scit_z_po_meri_preverjam, Toast.LENGTH_SHORT).show()
+        Thread({
+            val n = ScitPoMeri.preizkusi(url)
+            val dodan = n > 0 && ScitPoMeri.dodaj(app, url)
+            if (dodan && Scit.jeVklopljen(app)) ScitStoritev.osveziSezname(app)
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                if (dodan) Toast.makeText(this, getString(R.string.scit_z_po_meri_dodan, n), Toast.LENGTH_LONG).show()
+                else Toast.makeText(this, R.string.scit_z_po_meri_ni_seznam, Toast.LENGTH_LONG).show()
+                zadnjiOdtis = ""
+                narisi(true, fokus = OZNAKA_PO_MERI + ScitPoMeriPravila.id(url))
+            }
+        }, "safeer-scit-po-meri").start()
+    }
+
+    private fun filterPoMeri(f: ScitPoMeri.Filter) {
+        val app = applicationContext
+        val okno = android.app.AlertDialog.Builder(this, R.style.Os_Okno)
+            .setTitle(ScitPoMeriPravila.ime(f.url))
+            .setMessage(f.url)
+            .setPositiveButton(if (f.vklop) R.string.scit_z_po_meri_izklopi else R.string.scit_z_po_meri_vklopi) { _, _ ->
+                ScitPoMeri.nastavi(app, f.id, !f.vklop)
+                if (Scit.jeVklopljen(app)) ScitStoritev.osveziSezname(app)
+                zadnjiOdtis = ""; narisi(true, fokus = OZNAKA_PO_MERI + f.id)
+            }
+            .setNeutralButton(R.string.scit_z_po_meri_odstrani) { _, _ ->
+                ScitPoMeri.odstrani(app, f.id)
+                if (Scit.jeVklopljen(app)) ScitStoritev.osveziSezname(app)
+                zadnjiOdtis = ""; narisi(true, fokus = OZNAKA_PO_MERI_DODAJ)
+            }
+            .setNegativeButton(R.string.scit_z_spusti_ne, null)
+            .create()
+        okno.show()
+        si.safeer.tv.os.Kontroler.pokazi(okno)
     }
 
     private fun spusti(ime: String) {
@@ -460,5 +529,7 @@ class ScitActivity : OsActivity() {
         private const val OZNAKA_IME = "scit:ime:"
         private const val OZNAKA_IZJEMA = "scit:izjema:"
         private const val OZNAKA_KLJUC = "scit:kljuc:abusech"
+        private const val OZNAKA_PO_MERI = "scit:po-meri:"
+        private const val OZNAKA_PO_MERI_DODAJ = "scit:po-meri:dodaj"
     }
 }

@@ -42,4 +42,17 @@
     <string name="scit_z_kljuc_shranjen">Schlüssel gespeichert – Safeer Schild lädt die Liste.</string>
     <string name="scit_z_kljuc_neveljaven">abuse.ch hat den Schlüssel nicht angenommen. Prüfe ihn und gib ihn erneut ein.</string>
     <string name="scit_z_kljuc_ni_odgovora">abuse.ch hat nicht geantwortet. Der Schlüssel wurde nicht gespeichert – versuche es später.</string>
+    <string name="scit_z_po_meri">Eigene Filter</string>
+    <string name="scit_z_po_meri_vklopljen">An</string>
+    <string name="scit_z_po_meri_izklopljen">Aus</string>
+    <string name="scit_z_po_meri_dodaj">+ Eigenen Filter hinzufügen</string>
+    <string name="scit_z_po_meri_navodilo">Gib die Adresse (https://) einer öffentlichen Domainliste ein (hosts, reine Domains oder AdGuard ||domain^). Weitere Listen findest du auf filterlists.com. Die Liste wird vor dem Hinzufügen geprüft.</string>
+    <string name="scit_z_po_meri_naprej">Weiter</string>
+    <string name="scit_z_po_meri_napacen">Die Adresse muss mit https:// beginnen und einen Servernamen enthalten.</string>
+    <string name="scit_z_po_meri_preverjam">Liste wird geladen und geprüft …</string>
+    <string name="scit_z_po_meri_dodan">Filter hinzugefügt: %1$d Domains.</string>
+    <string name="scit_z_po_meri_ni_seznam">Unter dieser Adresse gibt es keine Domainliste, oder sie ist schon hinzugefügt.</string>
+    <string name="scit_z_po_meri_izklopi">Ausschalten</string>
+    <string name="scit_z_po_meri_vklopi">Einschalten</string>
+    <string name="scit_z_po_meri_odstrani">Entfernen</string>
 </resources>

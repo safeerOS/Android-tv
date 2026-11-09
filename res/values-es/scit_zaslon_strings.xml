@@ -42,4 +42,17 @@
     <string name="scit_z_kljuc_shranjen">Clave guardada: Escudo Safeer está descargando la lista.</string>
     <string name="scit_z_kljuc_neveljaven">abuse.ch no aceptó la clave. Revísala e introdúcela de nuevo.</string>
     <string name="scit_z_kljuc_ni_odgovora">abuse.ch no respondió. La clave no se guardó; inténtalo más tarde.</string>
+    <string name="scit_z_po_meri">Filtros personalizados</string>
+    <string name="scit_z_po_meri_vklopljen">Activado</string>
+    <string name="scit_z_po_meri_izklopljen">Desactivado</string>
+    <string name="scit_z_po_meri_dodaj">+ Añadir filtro personalizado</string>
+    <string name="scit_z_po_meri_navodilo">Introduce la dirección (https://) de una lista pública de dominios (hosts, dominios simples o AdGuard ||dominio^). Encontrarás más listas en filterlists.com. La lista se comprueba antes de añadirla.</string>
+    <string name="scit_z_po_meri_naprej">Siguiente</string>
+    <string name="scit_z_po_meri_napacen">La dirección debe empezar por https:// y contener un nombre de servidor.</string>
+    <string name="scit_z_po_meri_preverjam">Descargando y comprobando la lista…</string>
+    <string name="scit_z_po_meri_dodan">Filtro añadido: %1$d dominios.</string>
+    <string name="scit_z_po_meri_ni_seznam">En esta dirección no hay una lista de dominios o ya está añadida.</string>
+    <string name="scit_z_po_meri_izklopi">Desactivar</string>
+    <string name="scit_z_po_meri_vklopi">Activar</string>
+    <string name="scit_z_po_meri_odstrani">Quitar</string>
 </resources>

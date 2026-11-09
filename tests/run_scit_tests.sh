@@ -27,6 +27,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/cast/JsonLahki.kt" \
     "$SRC/si/safeer/tv/scit/ScitViri.kt" \
     "$SRC/si/safeer/tv/scit/AbuseChPravila.kt" \
+    "$SRC/si/safeer/tv/scit/ScitPoMeriPravila.kt" \
     "$SRC/com/safeer/threatfeed/ThreatListAgent.kt" \
     "$TEST_DIR/ScitTest.kt" \
     "$TEST_DIR/ScitPregledTest.kt" \

@@ -42,4 +42,17 @@
     <string name="scit_z_kljuc_shranjen">Chiave salvata – Scudo Safeer sta scaricando l\'elenco.</string>
     <string name="scit_z_kljuc_neveljaven">abuse.ch non ha accettato la chiave. Controllala e inseriscila di nuovo.</string>
     <string name="scit_z_kljuc_ni_odgovora">abuse.ch non ha risposto. La chiave non è stata salvata: riprova più tardi.</string>
+    <string name="scit_z_po_meri">Filtri personalizzati</string>
+    <string name="scit_z_po_meri_vklopljen">Attivo</string>
+    <string name="scit_z_po_meri_izklopljen">Disattivo</string>
+    <string name="scit_z_po_meri_dodaj">+ Aggiungi filtro personalizzato</string>
+    <string name="scit_z_po_meri_navodilo">Inserisci l\'indirizzo (https://) di un elenco pubblico di domini (hosts, domini semplici o AdGuard ||dominio^). Trovi altri elenchi su filterlists.com. L\'elenco viene controllato prima di essere aggiunto.</string>
+    <string name="scit_z_po_meri_naprej">Avanti</string>
+    <string name="scit_z_po_meri_napacen">L\'indirizzo deve iniziare con https:// e contenere un nome di server.</string>
+    <string name="scit_z_po_meri_preverjam">Download e verifica dell\'elenco…</string>
+    <string name="scit_z_po_meri_dodan">Filtro aggiunto: %1$d domini.</string>
+    <string name="scit_z_po_meri_ni_seznam">A questo indirizzo non c\'è un elenco di domini, oppure è già stato aggiunto.</string>
+    <string name="scit_z_po_meri_izklopi">Disattiva</string>
+    <string name="scit_z_po_meri_vklopi">Attiva</string>
+    <string name="scit_z_po_meri_odstrani">Rimuovi</string>
 </resources>

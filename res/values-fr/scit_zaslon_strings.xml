@@ -42,4 +42,17 @@
     <string name="scit_z_kljuc_shranjen">Clé enregistrée – Bouclier Safeer télécharge la liste.</string>
     <string name="scit_z_kljuc_neveljaven">abuse.ch n\'a pas accepté la clé. Vérifie-la et saisis-la à nouveau.</string>
     <string name="scit_z_kljuc_ni_odgovora">abuse.ch n\'a pas répondu. La clé n\'est pas enregistrée – réessaie plus tard.</string>
+    <string name="scit_z_po_meri">Filtres personnalisés</string>
+    <string name="scit_z_po_meri_vklopljen">Activé</string>
+    <string name="scit_z_po_meri_izklopljen">Désactivé</string>
+    <string name="scit_z_po_meri_dodaj">+ Ajouter un filtre personnalisé</string>
+    <string name="scit_z_po_meri_navodilo">Saisis l\'adresse (https://) d\'une liste publique de domaines (hosts, domaines simples ou AdGuard ||domaine^). Tu trouveras d\'autres listes sur filterlists.com. La liste est vérifiée avant d\'être ajoutée.</string>
+    <string name="scit_z_po_meri_naprej">Suivant</string>
+    <string name="scit_z_po_meri_napacen">L\'adresse doit commencer par https:// et contenir un nom de serveur.</string>
+    <string name="scit_z_po_meri_preverjam">Téléchargement et vérification de la liste…</string>
+    <string name="scit_z_po_meri_dodan">Filtre ajouté : %1$d domaines.</string>
+    <string name="scit_z_po_meri_ni_seznam">Aucune liste de domaines à cette adresse, ou elle est déjà ajoutée.</string>
+    <string name="scit_z_po_meri_izklopi">Désactiver</string>
+    <string name="scit_z_po_meri_vklopi">Activer</string>
+    <string name="scit_z_po_meri_odstrani">Supprimer</string>
 </resources>

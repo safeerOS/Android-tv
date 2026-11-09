@@ -42,4 +42,17 @@
     <string name="scit_z_kljuc_shranjen">Ključ je shranjen – Safeer Ščit prenaša seznam.</string>
     <string name="scit_z_kljuc_neveljaven">abuse.ch ključa ni sprejel. Preverite ga in vpišite znova.</string>
     <string name="scit_z_kljuc_ni_odgovora">abuse.ch se ni odzval. Ključ ni shranjen – poskusite pozneje.</string>
+    <string name="scit_z_po_meri">Filtri po meri</string>
+    <string name="scit_z_po_meri_vklopljen">Vklopljen</string>
+    <string name="scit_z_po_meri_izklopljen">Izklopljen</string>
+    <string name="scit_z_po_meri_dodaj">+ Dodaj filter po meri</string>
+    <string name="scit_z_po_meri_navodilo">Vpišite naslov (https://) javnega seznama domen (hosts, gole domene ali AdGuard ||domena^). Več seznamov najdete na filterlists.com. Seznam se pred dodajanjem preveri.</string>
+    <string name="scit_z_po_meri_naprej">Naprej</string>
+    <string name="scit_z_po_meri_napacen">Naslov se mora začeti s https:// in imeti ime strežnika.</string>
+    <string name="scit_z_po_meri_preverjam">Prenašam in preverjam seznam …</string>
+    <string name="scit_z_po_meri_dodan">Filter dodan: %1$d domen.</string>
+    <string name="scit_z_po_meri_ni_seznam">Na tem naslovu ni seznama domen ali je že dodan.</string>
+    <string name="scit_z_po_meri_izklopi">Izklopi</string>
+    <string name="scit_z_po_meri_vklopi">Vklopi</string>
+    <string name="scit_z_po_meri_odstrani">Odstrani</string>
 </resources>
