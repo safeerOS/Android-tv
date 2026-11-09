@@ -750,6 +750,9 @@ class GlasbaActivity : OsActivity() {
     private fun besedilo(vel: Float, barva: Int, krepko: Boolean = false) = TextView(this).apply {
         setTextSize(TypedValue.COMPLEX_UNIT_SP, vel); setTextColor(barva); maxLines = 1
         ellipsize = TextUtils.TruncateAt.END
+        // TV 9. 11. 2026: naslov plakata v dveh vrsticah je dolgo besedo prelomil sredi besede brez vezaja
+        // (»Orchestr / ating«); z deljenjem besed dobi vezaj na pravem mestu. Enovrsticnih ne spremeni.
+        hyphenationFrequency = android.text.Layout.HYPHENATION_FREQUENCY_NORMAL
         if (krepko) typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
     }
 
