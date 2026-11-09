@@ -23,9 +23,9 @@ fun main(args: Array<String>) {
     val M = MeniVsebinePravila
 
     // --- TV 9. 11. 2026: skladbe ne izrinejo nedokoncanih filmov iz Nadaljuj z ogledom
-    val nedavno = listOf("s1", "s2", "s3", "f1", "s4", "s5", "s6", "f2", "f3")
+    val nedavnoPrimer = listOf("s1", "s2", "s3", "f1", "s4", "s5", "s6", "f2", "f3")
     preveriEnako("6 skladb in 3 filmi: ostanejo vsi filmi in 5 skladb",
-        listOf("s1", "s2", "s3", "f1", "s4", "s5", "f2", "f3"), M.obreziNedavno(nedavno) { it.startsWith("f") })
+        listOf("s1", "s2", "s3", "f1", "s4", "s5", "f2", "f3"), M.obreziNedavno(nedavnoPrimer) { it.startsWith("f") })
     preveriEnako("najvec 20 filmov", 20, M.obreziNedavno((1..30).map { "f$it" }) { it.startsWith("f") }.size)
 
     // --- gumbi menija glede na pogled
