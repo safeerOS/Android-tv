@@ -104,6 +104,8 @@ class ScitStoritev : VpnService() {
         when (intent?.action) {
             DEJANJE_USTAVI -> { ustaviVse("ustavljen"); stopSelf(); return START_NOT_STICKY }
             DEJANJE_OSVEZI -> { if (tunel == null) { stopSelf(); return START_NOT_STICKY }; naloziNabor(); return START_STICKY }
+            // Lastnik 9. 11. 2026: nov kljuc abuse.ch - seznami takoj, ne sele ob naslednji preverbi (6 h).
+            DEJANJE_SEZNAMI -> { if (tunel == null) { stopSelf(); return START_NOT_STICKY }; si.safeer.tv.ThreatFeedsUpdater.osveziScitZdaj(); return START_STICKY }
         }
         try { pripraviKanal(); startForeground(OBVESTILO, obvestilo()) } catch (e: Throwable) { Log.w(TAG, "Obvestilo: ${e.message}") }
         if (!Scit.jeVklopljen(this)) { ustaviVse("ustavljen"); stopSelf(); return START_NOT_STICKY }
@@ -602,6 +604,7 @@ class ScitStoritev : VpnService() {
         const val DEJANJE_ZAZENI = "si.safeer.tv.scit.ZAZENI"
         const val DEJANJE_USTAVI = "si.safeer.tv.scit.USTAVI"
         const val DEJANJE_OSVEZI = "si.safeer.tv.scit.OSVEZI"
+        const val DEJANJE_SEZNAMI = "si.safeer.tv.scit.SEZNAMI"
         /** Koliko cakamo na odgovor, preden vprasamo naslednji streznik, in kdaj odnehamo. */
         private const val PONOVITEV_MS = 1_200L
         private const val POTEK_MS = 8_000L
@@ -611,6 +614,7 @@ class ScitStoritev : VpnService() {
         fun zazeni(context: Context) = poslji(context, DEJANJE_ZAZENI)
         fun ustavi(context: Context) = poslji(context, DEJANJE_USTAVI)
         fun osvezi(context: Context) = poslji(context, DEJANJE_OSVEZI)
+        fun osveziSezname(context: Context) = poslji(context, DEJANJE_SEZNAMI)
 
         private fun poslji(context: Context, dejanje: String) {
             val app = context.applicationContext

@@ -30,4 +30,16 @@
     <string name="scit_z_spusti_vprasanje">Allow %1$s for 30 days? Ads and trackers from this name will no longer be stopped.</string>
     <string name="scit_z_spusti_da">Yes, allow</string>
     <string name="scit_z_spusti_ne">No</string>
+    <string name="scit_z_seznami">Lists with a key</string>
+    <string name="scit_z_urlhaus">abuse.ch URLhaus (malware sites)</string>
+    <string name="scit_z_kljuc_vpisan">Key entered</string>
+    <string name="scit_z_kljuc_ni">No key - select to enter</string>
+    <string name="scit_z_kljuc_navodilo">Since October 2026 abuse.ch only gives this list with your own free key (for personal, non-commercial use).\n\n1. On your phone or computer open auth.abuse.ch.\n2. Choose »Sign in with Google« (or X, LinkedIn, GitHub, or »Email me a sign-in link«).\n3. On your profile page create an Auth-Key and copy it here.\n\nThe key stays encrypted on this device only.</string>
+    <string name="scit_z_kljuc_namig">Auth-Key</string>
+    <string name="scit_z_kljuc_shrani">Save</string>
+    <string name="scit_z_kljuc_odstrani">Remove key</string>
+    <string name="scit_z_kljuc_preverjam">Checking the key with abuse.ch…</string>
+    <string name="scit_z_kljuc_shranjen">Key saved - Safeer Shield is downloading the list.</string>
+    <string name="scit_z_kljuc_neveljaven">abuse.ch did not accept the key. Check it and enter it again.</string>
+    <string name="scit_z_kljuc_ni_odgovora">abuse.ch did not answer. The key was not saved - try again later.</string>
 </resources>

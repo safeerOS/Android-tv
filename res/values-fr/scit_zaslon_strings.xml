@@ -30,4 +30,16 @@
     <string name="scit_z_spusti_vprasanje">Autoriser %1$s pendant 30 jours ? Les publicités et traqueurs de ce nom ne seront plus arrêtés.</string>
     <string name="scit_z_spusti_da">Oui, autoriser</string>
     <string name="scit_z_spusti_ne">Non</string>
+    <string name="scit_z_seznami">Listes avec clé</string>
+    <string name="scit_z_urlhaus">abuse.ch URLhaus (sites malveillants)</string>
+    <string name="scit_z_kljuc_vpisan">Clé saisie</string>
+    <string name="scit_z_kljuc_ni">Pas de clé – sélectionne pour la saisir</string>
+    <string name="scit_z_kljuc_navodilo">Depuis octobre 2026, abuse.ch ne donne cette liste qu\'avec ta propre clé gratuite (usage personnel, non commercial).\n\n1. Sur ton téléphone ou ordinateur, ouvre auth.abuse.ch.\n2. Choisis »Sign in with Google« (ou X, LinkedIn, GitHub, ou »Email me a sign-in link«).\n3. Sur ta page de profil, crée une Auth-Key et copie-la ici.\n\nLa clé reste chiffrée sur cet appareil uniquement.</string>
+    <string name="scit_z_kljuc_namig">Auth-Key</string>
+    <string name="scit_z_kljuc_shrani">Enregistrer</string>
+    <string name="scit_z_kljuc_odstrani">Supprimer la clé</string>
+    <string name="scit_z_kljuc_preverjam">Vérification de la clé auprès d\'abuse.ch…</string>
+    <string name="scit_z_kljuc_shranjen">Clé enregistrée – Bouclier Safeer télécharge la liste.</string>
+    <string name="scit_z_kljuc_neveljaven">abuse.ch n\'a pas accepté la clé. Vérifie-la et saisis-la à nouveau.</string>
+    <string name="scit_z_kljuc_ni_odgovora">abuse.ch n\'a pas répondu. La clé n\'est pas enregistrée – réessaie plus tard.</string>
 </resources>

@@ -30,4 +30,16 @@
     <string name="scit_z_spusti_vprasanje">Consentire %1$s per 30 giorni? Pubblicità e tracker da questo nome non verranno più fermati.</string>
     <string name="scit_z_spusti_da">Sì, consenti</string>
     <string name="scit_z_spusti_ne">No</string>
+    <string name="scit_z_seznami">Elenchi con chiave</string>
+    <string name="scit_z_urlhaus">abuse.ch URLhaus (siti con malware)</string>
+    <string name="scit_z_kljuc_vpisan">Chiave inserita</string>
+    <string name="scit_z_kljuc_ni">Nessuna chiave – seleziona per inserirla</string>
+    <string name="scit_z_kljuc_navodilo">Da ottobre 2026 abuse.ch fornisce questo elenco solo con la tua chiave gratuita (uso personale, non commerciale).\n\n1. Sul telefono o sul computer apri auth.abuse.ch.\n2. Scegli »Sign in with Google« (o X, LinkedIn, GitHub oppure »Email me a sign-in link«).\n3. Nella pagina del profilo crea una Auth-Key e copiala qui.\n\nLa chiave resta cifrata solo su questo dispositivo.</string>
+    <string name="scit_z_kljuc_namig">Auth-Key</string>
+    <string name="scit_z_kljuc_shrani">Salva</string>
+    <string name="scit_z_kljuc_odstrani">Rimuovi chiave</string>
+    <string name="scit_z_kljuc_preverjam">Verifica della chiave con abuse.ch…</string>
+    <string name="scit_z_kljuc_shranjen">Chiave salvata – Scudo Safeer sta scaricando l\'elenco.</string>
+    <string name="scit_z_kljuc_neveljaven">abuse.ch non ha accettato la chiave. Controllala e inseriscila di nuovo.</string>
+    <string name="scit_z_kljuc_ni_odgovora">abuse.ch non ha risposto. La chiave non è stata salvata: riprova più tardi.</string>
 </resources>

@@ -215,7 +215,8 @@ class ScitActivity : OsActivity() {
     }
 
     private fun izrisi(p: Pogled, prisilno: Boolean, fokus: String?) {
-        val odtis = p.odtis() + "|" + napaka
+        val imaKljuc = AbuseChKljuc.ima(this)
+        val odtis = p.odtis() + "|" + napaka + "|" + imaKljuc
         if (!prisilno && odtis == zadnjiOdtis) return
         zadnjiOdtis = odtis
         // Izbira (daljinec) ostane na isti vrstici tudi po osvezitvi.
@@ -280,6 +281,11 @@ class ScitActivity : OsActivity() {
             }
         }
 
+        // Lastnik 9. 11. 2026: seznami s kljucem uporabnika (abuse.ch URLhaus od 21. 10. 2026 samo s kljucem).
+        vsebina.addView(naslov(getString(R.string.scit_z_seznami)))
+        vsebina.addView(vrstica(getString(R.string.scit_z_urlhaus), getString(if (imaKljuc) R.string.scit_z_kljuc_vpisan else R.string.scit_z_kljuc_ni),
+            if (imaKljuc) R.attr.osMint else R.attr.osOpozorilo, OZNAKA_KLJUC) { kljucAbuseCh() })
+
         vsebina.addView(naslov(getString(R.string.scit_z_izjeme)))
         val datum = android.text.format.DateFormat.getMediumDateFormat(this)
         for ((ime, velja) in p.uporabniske) {
@@ -313,6 +319,52 @@ class ScitActivity : OsActivity() {
         }
         okno.show()
         si.safeer.tv.os.Kontroler.pokazi(okno)
+    }
+
+    /** Vpis kljuca abuse.ch: navodilo, kje ga dobi, polje; kljuc se pred shranjevanjem preveri pri abuse.ch. */
+    private fun kljucAbuseCh() {
+        val rob = dp(20)
+        val polje = android.widget.EditText(this).apply {
+            hint = getString(R.string.scit_z_kljuc_namig)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            isSingleLine = true
+        }
+        val okvir = android.widget.FrameLayout(this).apply { setPadding(rob, rob / 2, rob, 0); addView(polje) }
+        val g = android.app.AlertDialog.Builder(this, R.style.Os_Okno)
+            .setTitle(R.string.scit_z_urlhaus)
+            .setMessage(R.string.scit_z_kljuc_navodilo)
+            .setView(okvir)
+            .setPositiveButton(R.string.scit_z_kljuc_shrani) { _, _ -> shraniKljuc(polje.text.toString()) }
+            .setNegativeButton(R.string.scit_z_spusti_ne, null)
+        if (AbuseChKljuc.ima(this)) g.setNeutralButton(R.string.scit_z_kljuc_odstrani) { _, _ ->
+            AbuseChKljuc.pozabi(applicationContext)
+            zadnjiOdtis = ""
+            narisi(true, fokus = OZNAKA_KLJUC)
+        }
+        val okno = g.create()
+        okno.show()
+        si.safeer.tv.os.Kontroler.pokazi(okno)
+    }
+
+    private fun shraniKljuc(vnos: String) {
+        val kljuc = AbuseChPravila.ocisti(vnos)
+        val app = applicationContext
+        Toast.makeText(this, R.string.scit_z_kljuc_preverjam, Toast.LENGTH_SHORT).show()
+        Thread({
+            val izid = try { AbuseChKljuc.preveri(kljuc) } catch (_: Throwable) { AbuseChPravila.Preverba.NI_ODGOVORA }
+            val shranjen = izid == AbuseChPravila.Preverba.VELJA && AbuseChKljuc.shrani(app, kljuc)
+            if (shranjen && Scit.jeVklopljen(app)) ScitStoritev.osveziSezname(app)
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                Toast.makeText(this, when {
+                    shranjen -> R.string.scit_z_kljuc_shranjen
+                    izid == AbuseChPravila.Preverba.NI_VELJAVEN || izid == AbuseChPravila.Preverba.OBLIKA -> R.string.scit_z_kljuc_neveljaven
+                    else -> R.string.scit_z_kljuc_ni_odgovora
+                }, Toast.LENGTH_LONG).show()
+                zadnjiOdtis = ""
+                narisi(true, fokus = OZNAKA_KLJUC)
+            }
+        }, "safeer-scit-kljuc").start()
     }
 
     private fun spusti(ime: String) {
@@ -407,5 +459,6 @@ class ScitActivity : OsActivity() {
         private const val OZNAKA_NASTAVITVE = "scit:nastavitve"
         private const val OZNAKA_IME = "scit:ime:"
         private const val OZNAKA_IZJEMA = "scit:izjema:"
+        private const val OZNAKA_KLJUC = "scit:kljuc:abusech"
     }
 }

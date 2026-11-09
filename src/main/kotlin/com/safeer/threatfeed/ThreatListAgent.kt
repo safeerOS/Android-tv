@@ -59,6 +59,12 @@ data class PlainListSource(
      * threat engine must not treat as "dangerous" pages. The threat engine ignores these lists.
      */
     val dnsOnly: Boolean = false,
+    /**
+     * Uporabnikov kljuc za seznam, ki ga brez kljuca ni (abuse.ch URLhaus od 21. 10. 2026, lastnik 9. 11. 2026): [url]
+     * vsebuje »{KLJUC}«. Brez kljuca (null) se seznam ne prenasa in ostane zadnja shranjena kopija; to ni napaka.
+     * Kljuc sme imeti samo crke in stevke (gre v pot naslova) in se ne zapise v napake ali dnevnik.
+     */
+    val kljuc: (() -> String?)? = null,
 ) {
     init {
         require(id.length in 1..40 && id.all { it in 'a'..'z' || it in '0'..'9' || it == '-' }) { "invalid list id" }
@@ -236,9 +242,17 @@ object PlainListParser {
         }
         var dataLines = 0
         var validLines = 0
+        // Lastnik 9. 11. 2026 (AdGuard DNS filter): izjeme »@@||ime^« seznama. Vnos istega seznama, ki je ime izjeme ali
+        // njegova nadrejena domena, izpustimo (nabor je »wildcard« in izjeme ne zna); drugi seznami ostanejo nedotaknjeni.
+        val exceptions = HashSet<String>()
         lines(bytes).forEach { raw ->
             val line = raw.substringBefore('#').trim()
             if (line.isEmpty() || line.startsWith(";") || line.startsWith("!")) return@forEach
+            if (line.startsWith("@@||")) {
+                val e = line.removePrefix("@@||").substringBefore('^').substringBefore('$').lowercase().trimEnd('.')
+                if (isHostName(e)) exceptions.add(e)
+                return@forEach
+            }
             dataLines++
             val fields = if (source.headerless) line.split(',', ';').map { it.trim() } else emptyList()
             val text = if (fields.size >= 2 && isCsvTimestamp(fields[0])) fields[1] else line
@@ -250,6 +264,15 @@ object PlainListParser {
             if (entry != null) { validLines++; seen.add(entry) }
         }
         if (source.headerless && validLines * 10 < dataLines * 9) throw ListRejectedException("only $validLines of $dataLines lines are entries")
+        for (e in exceptions) {
+            var d = e
+            while (true) {
+                seen.remove(d)
+                val pika = d.indexOf('.')
+                if (pika < 0) break
+                d = d.substring(pika + 1)
+            }
+        }
         if (seen.size < source.minEntries) throw ListRejectedException("only ${seen.size} entries")
         return ArrayList(seen)
     }
@@ -461,7 +484,16 @@ class ThreatListAgent(
         for (source in sources) {
             val known = validators[source.id]?.takeIf { inUse.containsKey(source.id) }
             try {
-                val response = fetcher.fetch(source.url, source.maxBytes, known?.etag, known?.lastModified)
+                val url: String
+                val kljucVira = source.kljuc
+                if (kljucVira != null) {
+                    val k = try { kljucVira() } catch (e: Exception) { null }
+                    if (k.isNullOrEmpty() || !k.all { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' }) continue
+                    url = source.url.replace("{KLJUC}", k)
+                } else {
+                    url = source.url
+                }
+                val response = fetcher.fetch(url, source.maxBytes, known?.etag, known?.lastModified)
                 if (response.notModified) {
                     if (known == null) throw IOException("304 without a saved list")
                     continue

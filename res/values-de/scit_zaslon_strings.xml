@@ -30,4 +30,16 @@
     <string name="scit_z_spusti_vprasanje">%1$s für 30 Tage zulassen? Werbung und Tracker von diesem Namen werden nicht mehr gestoppt.</string>
     <string name="scit_z_spusti_da">Ja, zulassen</string>
     <string name="scit_z_spusti_ne">Nein</string>
+    <string name="scit_z_seznami">Listen mit Schlüssel</string>
+    <string name="scit_z_urlhaus">abuse.ch URLhaus (Seiten mit Schadsoftware)</string>
+    <string name="scit_z_kljuc_vpisan">Schlüssel eingegeben</string>
+    <string name="scit_z_kljuc_ni">Kein Schlüssel – zum Eingeben auswählen</string>
+    <string name="scit_z_kljuc_navodilo">Seit Oktober 2026 gibt abuse.ch diese Liste nur mit deinem eigenen kostenlosen Schlüssel (für private, nicht kommerzielle Nutzung).\n\n1. Öffne auf dem Handy oder Computer auth.abuse.ch.\n2. Wähle »Sign in with Google« (oder X, LinkedIn, GitHub bzw. »Email me a sign-in link«).\n3. Erstelle auf deiner Profilseite einen Auth-Key und gib ihn hier ein.\n\nDer Schlüssel bleibt verschlüsselt nur auf diesem Gerät.</string>
+    <string name="scit_z_kljuc_namig">Auth-Key</string>
+    <string name="scit_z_kljuc_shrani">Speichern</string>
+    <string name="scit_z_kljuc_odstrani">Schlüssel entfernen</string>
+    <string name="scit_z_kljuc_preverjam">Schlüssel wird bei abuse.ch geprüft …</string>
+    <string name="scit_z_kljuc_shranjen">Schlüssel gespeichert – Safeer Schild lädt die Liste.</string>
+    <string name="scit_z_kljuc_neveljaven">abuse.ch hat den Schlüssel nicht angenommen. Prüfe ihn und gib ihn erneut ein.</string>
+    <string name="scit_z_kljuc_ni_odgovora">abuse.ch hat nicht geantwortet. Der Schlüssel wurde nicht gespeichert – versuche es später.</string>
 </resources>

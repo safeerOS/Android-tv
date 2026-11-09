@@ -6,6 +6,7 @@ package si.safeer.tv.scit
 import com.safeer.threatfeed.PlainListSource
 import com.safeer.threatfeed.ThreatListAgent
 import com.safeer.threatfeed.PlainListParser
+import com.safeer.threatfeed.ConditionalResponse
 import java.io.File
 import java.nio.file.Files
 import kotlin.system.exitProcess
@@ -41,6 +42,38 @@ fun main(args: Array<String>) {
         "0.0.0.0 0.0.0.0\n0.0.0.0 ads.example-oglas.com\n0.0.0.0 track.example-sled.net # komentar\n").toByteArray(), sb)
     preveriVir(sbVnosi.toSet() == setOf("ads.example-oglas.com", "track.example-sled.net"), "StevenBlack: samo prave domene ($sbVnosi)")
     preveriVir(ScitViri.zaNabor(sb) && !ScitViri.zaGrozne(sb) && !ScitViri.zaBrskalnik(sb), "StevenBlack v domene.bin, ne grozne in ne brskalnik")
+    // AdGuard DNS filter (lastnik 9. 11. 2026): ||ime^ je vnos, @@||ime^ izjema - izpusti ime in nadrejene iz ISTEGA seznama.
+    val ag = PlainListSource("adguard-dns", "AdGuard DNS filter", "", "", "adguard dns filter", minEntries = 2, dnsOnly = true)
+    val agVnosi = PlainListParser.parse(("! Title: AdGuard DNS filter\n||ads.example-oglas.com^\n||sled.net^\n||cdn.sled.net^\n" +
+        "||ad-host-*.example.com^\n/^139\\.45/\n@@||ok.cdn.sled.net^\n||drugi.example^\$important\n").toByteArray(), ag)
+    preveriVir(agVnosi.toSet() == setOf("ads.example-oglas.com"), "AdGuard: izjema izpusti nadrejene, vzorci in regex ne ($agVnosi)")
+    preveriVir(ScitViri.zaNabor(ag) && !ScitViri.zaGrozne(ag) && !ScitViri.zaBrskalnik(ag), "AdGuard v domene.bin, ne grozne in ne brskalnik")
+    // Kljuc abuse.ch (lastnik 9. 11. 2026): samo crke in stevke (gre v pot naslova), vnos ociscen presledkov in narekovajev.
+    preveriVir(AbuseChPravila.veljavnaOblika("a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4"), "kljuc abuse.ch: oblika")
+    preveriVir(!AbuseChPravila.veljavnaOblika("abc/../x?y=1&z") && !AbuseChPravila.veljavnaOblika("kratek"), "kljuc: brez poti in poizvedbe")
+    preveriVir(AbuseChPravila.ocisti(" \"a1b2 c3d4\u200B\n\" ") == "a1b2c3d4", "kljuc: ciscenje vnosa")
+    preveriVir(AbuseChPravila.izKode(200) == AbuseChPravila.Preverba.VELJA && AbuseChPravila.izKode(401) == AbuseChPravila.Preverba.NI_VELJAVEN &&
+        AbuseChPravila.izKode(503) == AbuseChPravila.Preverba.NI_ODGOVORA, "kljuc: izid po kodi")
+    // Agent: seznam s kljucem brez kljuca ne prenasa (ni napaka), s kljucem prenese z naslovom, v katerem je kljuc.
+    run {
+        val mapaK = Files.createTempDirectory("scit-kljuc").toFile()
+        try {
+            var kljucZdaj: String? = null
+            val naslovi = ArrayList<String>()
+            val vir = PlainListSource("urlhaus", "URLhaus", "https://urlhaus-api.abuse.ch/v2/files/exports/{KLJUC}/hostfile.txt", "",
+                "", minEntries = 1, headerless = true, kljuc = { kljucZdaj })
+            val ag = ThreatListAgent(mapaK, listOf(vir), fetcher = { url, _, _, _ ->
+                naslovi += url
+                ConditionalResponse(false, "127.0.0.1 zlo.example\n".toByteArray(), null, null)
+            }) { }
+            preveriVir(ag.refresh(force = true) == 0 && naslovi.isEmpty() && ag.lastError.isEmpty(), "brez kljuca: ni prenosa, ni napake")
+            kljucZdaj = "abc/../evil"
+            preveriVir(ag.refresh(force = true) == 0 && naslovi.isEmpty(), "kljuc z drugimi znaki ne gre v naslov")
+            kljucZdaj = "a1b2c3d4e5f6a7b8c9d0"
+            preveriVir(ag.refresh(force = true) == 1 && naslovi == listOf("https://urlhaus-api.abuse.ch/v2/files/exports/a1b2c3d4e5f6a7b8c9d0/hostfile.txt"),
+                "s kljucem: prenos z naslovom s kljucem ($naslovi)")
+        } finally { mapaK.deleteRecursively() }
+    }
     preveriVir(ScitViri.vgrajeniKljuc().second.isNotEmpty(), "vgrajeni seznam ima kljuc (nabor se zgradi znova ob spremembi)")
     val vgr = Files.createTempFile("scit-vgr", ".bin").toFile()
     try {

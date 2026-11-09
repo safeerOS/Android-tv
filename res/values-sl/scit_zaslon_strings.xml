@@ -30,4 +30,16 @@
     <string name="scit_z_spusti_vprasanje">Spustim %1$s za 30 dni? Oglasi in sledilci s tega imena ne bodo več ustavljeni.</string>
     <string name="scit_z_spusti_da">Da, spusti</string>
     <string name="scit_z_spusti_ne">Ne</string>
+    <string name="scit_z_seznami">Seznami s ključem</string>
+    <string name="scit_z_urlhaus">abuse.ch URLhaus (strani z zlonamerno kodo)</string>
+    <string name="scit_z_kljuc_vpisan">Ključ vpisan</string>
+    <string name="scit_z_kljuc_ni">Ni ključa – izberi za vpis</string>
+    <string name="scit_z_kljuc_navodilo">abuse.ch od oktobra 2026 ta seznam da samo z vašim brezplačnim ključem (za osebno, nepridobitno rabo).\n\n1. Na telefonu ali računalniku odprite auth.abuse.ch.\n2. Izberite »Sign in with Google« (ali X, LinkedIn, GitHub oziroma »Email me a sign-in link«).\n3. Na strani profila ustvarite Auth-Key in ga prepišite sem.\n\nKljuč ostane šifriran samo na tej napravi.</string>
+    <string name="scit_z_kljuc_namig">Auth-Key</string>
+    <string name="scit_z_kljuc_shrani">Shrani</string>
+    <string name="scit_z_kljuc_odstrani">Odstrani ključ</string>
+    <string name="scit_z_kljuc_preverjam">Preverjam ključ pri abuse.ch …</string>
+    <string name="scit_z_kljuc_shranjen">Ključ je shranjen – Safeer Ščit prenaša seznam.</string>
+    <string name="scit_z_kljuc_neveljaven">abuse.ch ključa ni sprejel. Preverite ga in vpišite znova.</string>
+    <string name="scit_z_kljuc_ni_odgovora">abuse.ch se ni odzval. Ključ ni shranjen – poskusite pozneje.</string>
 </resources>
