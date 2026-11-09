@@ -40,7 +40,7 @@ fun main(args: Array<String>) {
         val glavna = java.io.File(koren, "si/safeer/tv/MainActivity.kt").readText()
         check(!pogled.contains("transport.webView = this@ChromiumEngineView")) { "pojavno okno nikoli v lastnem pogledu (sesutje)" }
         val pdf = Regex("""addJavascriptInterface\(pdfMost, "SafeerPdf"\)""").findAll(pogled).toList()
-        check(pdf.size == 1 && pogled.contains("if (PdfPregledovalnik.jePregledovalnik(url)) addJavascriptInterface(pdfMost, \"SafeerPdf\")")) {
+        check(pdf.size == 1 && pogled.contains("pdfMostDodan = PdfPregledovalnik.jePregledovalnik(url)") && pogled.contains("if (pdfMostDodan) addJavascriptInterface(pdfMost, \"SafeerPdf\")")) {
             "SafeerPdf samo za pregledovalnik PDF (prej ga je videl vsak okvir)"
         }
         check(glavna.contains("SpletVarnostPravila.prenosBrezPotrditve(ChromiumEngineView.msOdVnosa())") && glavna.contains("potrdiPrenos(url, userAgent, contentDisposition, mimeType)")) {
