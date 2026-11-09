@@ -157,6 +157,16 @@ primer('glava pri drsenju', () => {
     v.izberi(prvi);
     v.smer('UP');
     preveri('vrh strani: GOR gre v glavo', 'Meni', ((v.document.querySelector('.safeer-active-card') || {}).innerText || '').trim());
+    // CodeRabbit 9. 11. 2026: pritrjena pasica s piskotki na vrhu (ni glava) ostane cilj GOR tudi na podrsani strani.
+    const k = ustvari({ zeton: ZETON, scrollY: 1500, visinaStrani: 6000 });
+    const pasica = k.el('div', { okvir: [0, 0, 1920, 80], slog: { position: 'fixed' } });
+    pasica.dodaj(k.el('button', { okvir: [800, 20, 200, 40], besedilo: 'Nastavitve' }));
+    const tuK = k.el('a', { attrs: { href: '/b' }, okvir: [100, 300, 600, 60], besedilo: 'Novica v pogledu' });
+    k.body.dodaj(pasica, tuK);
+    k.nalozi(VIR);
+    k.izberi(tuK);
+    k.smer('UP');
+    preveri('pritrjena pasica brez menija ni glava: GOR jo doseze', 'Nastavitve', ((k.document.querySelector('.safeer-active-card') || {}).innerText || '').trim());
 });
 
 // Odlocitev vodje 5. 11. 2026: brez seznama nedelujocih tokov po naslovu (sprotna zaznava MrtviKanali 24 h ga pokrije).

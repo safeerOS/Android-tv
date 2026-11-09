@@ -3062,10 +3062,17 @@
                         // ker je bila glava blizje od vsebine nad pogledom - stran se ni vec premaknila navzgor. Dokler se stran lahko
                         // premakne navzgor, glava ni cilj GOR; vanjo gremo na vrhu strani (ciljVGlavi spodaj).
                         var brezGlave = direction === 'UP' && (window.scrollY || 0) > 20 && !plastIzbire(current, window.getComputedStyle);
+                        // CodeRabbit 9. 11. 2026: samo glava strani (header/nav ali vloga banner/navigation, ali plast z menijem),
+                        // ne pogovorno okno ali pasica s piskotki na vrhu - te ostanejo cilji.
                         var vPritrjeniGlavi = function (e) {
                             var pl = plastIzbire(e, window.getComputedStyle);
                             if (!pl) return false;
-                            try { return pl.getBoundingClientRect().top <= 4; } catch (_) { return false; }
+                            try {
+                                if (pl.matches && pl.matches(IZBIRNIK_OKNA)) return false;
+                                if (pl.getBoundingClientRect().top > 4) return false;
+                                if (pl.matches && pl.matches('header, nav, [role="banner"], [role="navigation"]')) return true;
+                                return !!(pl.querySelector && pl.querySelector('nav, [role="navigation"], [role="menubar"]'));
+                            } catch (_) { return false; }
                         };
                         /* SAFEER_GLAVA_PRI_DRSENJU_KONEC */
 
