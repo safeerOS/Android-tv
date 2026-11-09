@@ -33,7 +33,7 @@ fun main() {
     preveriEnako("kanali -> DRUGO", McVidezPravila.Tip.DRUGO, P.tipVrste(nadaljuj = false, skladbe = false, video = false, mala = false, kanali = true, slicice = false, cisto = false))
 
     // TV 8. 11. 2026: prej 3 / 8 / 6 v vrsto.
-    preveriEnako("nadaljuj 4 v vrsto (prej 3)", 4, P.stolpciDoma(McVidezPravila.Tip.NADALJUJ, 3))
+    preveriEnako("nadaljuj 5 v vrsto (lastnik 9. 11. 2026: manjse, da se vidi naslov)", 5, P.stolpciDoma(McVidezPravila.Tip.NADALJUJ, 3))
     preveriEnako("kvadrati 7 v vrsto (prej 8)", 7, P.stolpciDoma(McVidezPravila.Tip.KVADRAT, 8))
     preveriEnako("plakati 6 ostane 6", 6, P.stolpciDoma(McVidezPravila.Tip.PLAKAT, 6))
     preveriEnako("plakati 7 ostane 7", 7, P.stolpciDoma(McVidezPravila.Tip.PLAKAT, 7))

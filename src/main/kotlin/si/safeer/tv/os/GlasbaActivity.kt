@@ -1443,7 +1443,8 @@ class GlasbaActivity : OsActivity() {
             val tesno = v.mala
             koraki.addLast {
                 if (v.naslov.isNotBlank()) {
-                    val zgOdmik = if (tesno) 5 else 14
+                    // Lastnik 9. 11. 2026: vrsta Nadaljuj z ogledom malo vise (blizje plosci Doma).
+                    val zgOdmik = if (tesno) 5 else if (v.nadaljuj) 4 else 14
                     val leviOdmik = LEVI_ODMIK_NASLOVA
                     vsebina.addView(besedilo(if (tesno) 16f else 18f, osBarva(R.color.os_besedilo), true).apply {
                         text = v.naslov; tag = "polica:${v.naslov}"; contentDescription = NASLOV_VRSTE
@@ -5476,7 +5477,11 @@ class GlasbaActivity : OsActivity() {
     private fun policaSeznamov(seznami: List<MedijskiViri.Seznam>): View? {
         if (seznami.isEmpty()) return null
         val v0 = Vrsta(getString(R.string.os_seznami_predvajanja), emptyList(), mreza = true, skladbe = true)
-        val (n, velikost) = mereMreze(v0)
+        val (n0, velikost0) = mereMreze(v0)
+        // Lastnik 9. 11. 2026: na TV manjse, da sta Seznami in Videospoti oba na prvem zaslonu (vec kartic v vrsto).
+        val velikost = if (jeTv()) McVidezPravila.POLICA_SEZNAMOV_TV_DP else velikost0
+        val n = if (jeTv()) (((vsebina.width.takeIf { it > 0 } ?: (resources.displayMetrics.widthPixels * 3 / 4)) -
+            vsebina.paddingLeft - vsebina.paddingRight) / dp(velikost + 26)).coerceAtLeast(n0) else n0
         val red = OsPravila.seznamiNaVrhuGlasbe(seznami.map { it.vir to it.cas }, seznami.size)
         val vec = red.size > n
         val kartice = red.take(if (vec) (n - 1).coerceAtLeast(1) else n).map { karticaSeznama(seznami[it]) } +
@@ -5489,7 +5494,7 @@ class GlasbaActivity : OsActivity() {
             tag = POLICA_KARTIC
             addView(besedilo(18f, osBarva(R.color.os_besedilo), true).apply {
                 text = v.naslov; tag = "polica:${v.naslov}"; contentDescription = NASLOV_VRSTE
-                setPadding(dp(4), dp(14), 0, dp(8))
+                setPadding(dp(4), dp(if (jeTv()) McVidezPravila.ODMIK_NASLOVA_POLICE_TV_DP else 14), 0, dp(8))
             })
             val vrstica = LinearLayout(this@GlasbaActivity).apply { orientation = LinearLayout.HORIZONTAL }
             kartice.forEachIndexed { i, k -> val p = karticaMreze(v, k, velikost); oznaciVMrezi(v, p, i, n); vrstica.addView(p) }
@@ -5500,7 +5505,8 @@ class GlasbaActivity : OsActivity() {
     /** Zunanji pregled Glasbe 3. 11. 2026: video vrsta Glasbe (videospoti, koncerti) s sliko, vodoravno; null, ce je ni. */
     private fun policaVidea(v0: List<Jamendo.Skladba>): View? {
         if (v0.isEmpty()) return null
-        val v = Vrsta(getString(R.string.os_media_videospoti), videi(v0.take(30)), video = true)
+        // Lastnik 9. 11. 2026: videospoti kot lezece slicice 16:9 (kot drugje), ne pokoncni plakati - polica je pol nizja.
+        val v = Vrsta(getString(R.string.os_media_videospoti), videi(v0.take(30)), video = true, slicice = true)
         val (_, velikost) = mereMreze(v)
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -5508,7 +5514,7 @@ class GlasbaActivity : OsActivity() {
             tag = POLICA_KARTIC
             addView(besedilo(18f, osBarva(R.color.os_besedilo), true).apply {
                 text = v.naslov; tag = "polica:${v.naslov}"; contentDescription = NASLOV_VRSTE
-                setPadding(dp(4), dp(14), 0, dp(8))
+                setPadding(dp(4), dp(if (jeTv()) McVidezPravila.ODMIK_NASLOVA_POLICE_TV_DP else 14), 0, dp(8))
             })
             val vrstica = LinearLayout(this@GlasbaActivity).apply { orientation = LinearLayout.HORIZONTAL }
             v.kartice.forEachIndexed { i, k -> val p = karticaMreze(v, k, velikost); oznaciVMrezi(v, p, i, v.kartice.size); vrstica.addView(p) }

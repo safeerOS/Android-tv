@@ -32,8 +32,17 @@ object McVidezPravila {
      * Stolpci vrste na Domu (TV): Nadaljuj z ogledom 4 (prej 3 po ~230 dp), kvadrati glasbe in seznamov 7 (prej 8),
      * plakati ostanejo pri 6-7 (mreze Nedavno dodano in Priporoceno ostanejo mreze). null = mere ostanejo dosedanje.
      */
+    /**
+     * Lastnik 9. 11. 2026 (posnetek TV, Glasba): polici Seznami predvajanja in Videospoti naj bosta obe na prvem zaslonu.
+     * Seznami na TV 72 dp (prej 84), Videospoti lezece slicice 16:9 (prej pokoncni plakati 112x168 dp), naslov police
+     * z manjsim zgornjim odmikom.
+     */
+    const val POLICA_SEZNAMOV_TV_DP = 72
+    const val ODMIK_NASLOVA_POLICE_TV_DP = 6
+
     fun stolpciDoma(tip: Tip, dosedanji: Int): Int? = when (tip) {
-        Tip.NADALJUJ -> 4
+        // Lastnik 9. 11. 2026 (posnetek TV): ploscice Nadaljuj manjse, da se pod sliko vidi naslov filma.
+        Tip.NADALJUJ -> 5
         Tip.KVADRAT -> 7
         Tip.PLAKAT -> dosedanji.coerceIn(6, 7)
         Tip.DRUGO -> null
