@@ -210,7 +210,9 @@ object Zaganjalnik {
         domaciZaslon(a)?.takeIf { it != a.packageName && it != "android" }?.let { vrata(a).edit().putString(KLJUC_PREJSNJI, it).apply() }
         nastavi(a, true)
         val drzana = drziVlogo(a)
-        if (ZaganjalnikPravila.potDomov(android.os.Build.VERSION.SDK_INT, drzana != null, imaNastavitveDomov(a)) == ZaganjalnikPravila.PotDomov.VLOGA) try {
+        // Lint (NewApi) ne vidi, da potDomov VLOGA pomeni API >= 29 - preverba ostane tudi tu (testni PC 9. 11. 2026).
+        if (android.os.Build.VERSION.SDK_INT >= 29 &&
+            ZaganjalnikPravila.potDomov(android.os.Build.VERSION.SDK_INT, drzana != null, imaNastavitveDomov(a)) == ZaganjalnikPravila.PotDomov.VLOGA) try {
             if (drzana == true) return true
             val rm = a.getSystemService(android.app.role.RoleManager::class.java) ?: return odpriSistemskoIzbiro(a)
             @Suppress("DEPRECATION")
