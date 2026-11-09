@@ -251,8 +251,12 @@ object UskladitevKljucevPravila {
     /** Povabilo (pregled U3): imena kljucev brez vrednosti - vrednosti sele po potrditvi na drugi napravi. */
     fun zaPovabilo(zapisi: List<Zapis>): List<Zapis> = zapisi.map { it.copy(vrednost = "") }
 
-    /** Vrednosti gredo samo napravi, ki jo je uporabnik na tej napravi potrdil (pregled U3). */
-    fun vrednostiZa(stanje: Stanje?): Boolean = stanje == Stanje.POTRJENA
+    /**
+     * Lastnik 9. 11. 2026 (Usenet ponudnik ni prisel na telefon, TV je cakal »potrdi tukaj«; pravilo 27. 10. 2026: kar dovoli
+     * na eni svoji napravi, velja na vseh brez ponovne potrditve): naprava v ozjem krogu TE naprave je ze potrjena - dodal jo je
+     * uporabnik sam. Vrednosti gredo vsem v krogu razen zavrnjeni (pregled U3 je zahteval drugo potrditev).
+     */
+    fun vrednostiZa(stanje: Stanje?): Boolean = stanje != Stanje.ZAVRNJENA
 
     /** Pregled U1: izvor zapisa (fizicna naprava) je posiljatelj sam; prazno ni nikoli. */
     fun izvorPosiljatelja(izvorNaprava: String, odNaprava: String): Boolean = izvorNaprava.isNotBlank() && izvorNaprava == odNaprava
@@ -322,9 +326,9 @@ object UskladitevKljucevPravila {
      */
     fun sprejem(vklopljeno: Boolean, vKrogu: Boolean, stanje: Stanje?): Odziv = when {
         !vklopljeno || !vKrogu -> Odziv.ZAVRNI
-        stanje == Stanje.POTRJENA -> Odziv.SPREJMI
         stanje == Stanje.ZAVRNJENA -> Odziv.ZAVRNI
-        else -> Odziv.VPRASAJ
+        // Lastnik 9. 11. 2026: ozji krog je potrditev (glej vrednostiZa); prejsnji »potrdi tukaj« (CAKA) velja kot potrjen.
+        else -> Odziv.SPREJMI
     }
 
     /**
@@ -333,5 +337,5 @@ object UskladitevKljucevPravila {
      * zna dejanje, ni zavrnjena.
      */
     fun smePoslati(vklopljeno: Boolean, vKrogu: Boolean, zascita: Boolean, povezan: Boolean, zmoznost: Boolean, stanje: Stanje?): Boolean =
-        vklopljeno && vKrogu && zascita && povezan && zmoznost && stanje != Stanje.ZAVRNJENA && stanje != Stanje.CAKA
+        vklopljeno && vKrogu && zascita && povezan && zmoznost && stanje != Stanje.ZAVRNJENA
 }

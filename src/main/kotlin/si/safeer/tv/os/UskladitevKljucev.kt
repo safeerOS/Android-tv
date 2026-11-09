@@ -562,7 +562,8 @@ object UskladitevKljucev {
                     izid?.optBoolean("ok") == true && data?.optBoolean("accepted") == true -> {
                         val prejeti = izJson(data.optJSONArray("items"))
                         // U1: odgovor uporabimo sami samo od naprave, ki jo je uporabnik TU potrdil; sicer caka na potrditev.
-                        if (beriNaprave(c)[kljucNaprave(c, n.id)]?.stanje == UskladitevKljucevPravila.Stanje.POTRJENA) {
+                        // Lastnik 9. 11. 2026: naprava v ozjem krogu je potrjena (P.sprejem); samo zavrnjena ne.
+                        if (P.sprejem(true, true, beriNaprave(c)[kljucNaprave(c, n.id)]?.stanje) == UskladitevKljucevPravila.Odziv.SPREJMI) {
                             zapomni(c, n.id, n.ime, UskladitevKljucevPravila.Stanje.POTRJENA, true)
                             if (Debrid.prejmiStanja(c, data.optJSONArray("racuni")) > 0) obvestiZaslone()
                             prejmiZapise(c, n.id, n.ime, prejeti)

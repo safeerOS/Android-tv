@@ -98,7 +98,8 @@ fun main() {
     preveriEnako("povabilo: brez vrednosti", true, pov.all { it.vrednost.isEmpty() })
     preveriEnako("povabilo: gostitelj dodatka ostane", "webtor.io", pov[1].gostitelj)
     preveriEnako("povabilo ni za uporabo (brez vrednosti)", 0, P.zaUporabo(emptyMap(), pov, ura, PONUDNIKI, VSE, vsi).size)
-    preveriEnako("vrednosti samo potrjeni", true, P.vrednostiZa(Stanje.POTRJENA) && !P.vrednostiZa(null) && !P.vrednostiZa(Stanje.POVABLJENA) && !P.vrednostiZa(Stanje.CAKA))
+    // Lastnik 9. 11. 2026: ozji krog je potrditev - vrednosti vsem v krogu razen zavrnjeni.
+    preveriEnako("vrednosti vsem v ozjem krogu razen zavrnjeni", true, P.vrednostiZa(Stanje.POTRJENA) && P.vrednostiZa(null) && P.vrednostiZa(Stanje.POVABLJENA) && P.vrednostiZa(Stanje.CAKA) && !P.vrednostiZa(Stanje.ZAVRNJENA))
     preveriEnako("cakajoce velja 10 min", true, P.cakaVelja(0, P.CAKA_VELJA_MS - 1) && !P.cakaVelja(0, P.CAKA_VELJA_MS) && !P.cakaVelja(10, 5))
     // Pregled U1: zamenjava ali izbris obstojecega kljuca se pokaze; nov kljuc ni zamenjava.
     val obst = mapOf(tb to Meta(5, "tel", false, "h"), "usenet" to Meta(5, "tel", true, ""))
@@ -147,10 +148,11 @@ fun main() {
 
     // naprave in ozji krog
     preveriEnako("sprejem: potrjena", Odziv.SPREJMI, P.sprejem(true, true, Stanje.POTRJENA))
-    // Pregled U1: tudi pobudnik (POVABLJENA) zapise druge naprave enkrat potrdi - prej jih je uporabil tiho.
-    preveriEnako("sprejem: povabljena - vprasaj (pobudnik potrdi tudi sam)", Odziv.VPRASAJ, P.sprejem(true, true, Stanje.POVABLJENA))
-    preveriEnako("sprejem: nova naprava - vprasaj enkrat", Odziv.VPRASAJ, P.sprejem(true, true, null))
-    preveriEnako("sprejem: caka", Odziv.VPRASAJ, P.sprejem(true, true, Stanje.CAKA))
+    // Lastnik 9. 11. 2026 (TV je na telefonu cakal »potrdi tukaj«, Usenet ponudnik ni prisel): ozji krog je potrditev.
+    preveriEnako("sprejem: povabljena v ozjem krogu - sprejmi", Odziv.SPREJMI, P.sprejem(true, true, Stanje.POVABLJENA))
+    preveriEnako("sprejem: nova naprava v ozjem krogu - sprejmi brez vprasanja", Odziv.SPREJMI, P.sprejem(true, true, null))
+    preveriEnako("sprejem: prej cakajoca - sprejmi", Odziv.SPREJMI, P.sprejem(true, true, Stanje.CAKA))
+    preveriEnako("poslji: prej cakajoca v krogu", true, P.smePoslati(true, true, true, true, true, Stanje.CAKA))
     preveriEnako("sprejem: zavrnjena", Odziv.ZAVRNI, P.sprejem(true, true, Stanje.ZAVRNJENA))
     preveriEnako("sprejem: zunaj ozjega kroga nikoli", Odziv.ZAVRNI, P.sprejem(true, false, Stanje.POTRJENA))
     preveriEnako("sprejem: izklopljeno", Odziv.ZAVRNI, P.sprejem(false, true, Stanje.POTRJENA))
@@ -160,7 +162,6 @@ fun main() {
     preveriEnako("poslji: brez zascite od naprave do naprave", false, P.smePoslati(true, true, false, true, true, Stanje.POTRJENA))
     preveriEnako("poslji: stara razlicica", false, P.smePoslati(true, true, true, true, false, Stanje.POTRJENA))
     preveriEnako("poslji: zavrnjena", false, P.smePoslati(true, true, true, true, true, Stanje.ZAVRNJENA))
-    preveriEnako("poslji: caka na potrditev tu", false, P.smePoslati(true, true, true, true, true, Stanje.CAKA))
     preveriEnako("poslji: izklopljeno", false, P.smePoslati(false, true, true, true, true, Stanje.POTRJENA))
     preveriEnako("poslji: brez povezave", false, P.smePoslati(true, true, true, false, true, Stanje.POTRJENA))
     preveriEnako("za poslati: neberljiva vrednost izpade, grob ostane",
