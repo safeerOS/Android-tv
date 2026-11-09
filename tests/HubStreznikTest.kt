@@ -324,6 +324,10 @@ fun main() {
             odprte.add(o)
         }
         preveriEnako("40 hkratnih clanov je sprejetih (prej meja 16)", 40, sprejetih)
+        // Preverba as 9. 11. 2026 (39 od 40): streznik povezavo steje sele po poslanem 101 - zadnja se lahko vpise trenutek
+        // pozneje kot odjemalec prebere glave. Pocakamo do 2 s, ne merimo tekme niti.
+        val rokStetja = System.currentTimeMillis() + 2_000
+        while (streznik.steviloPovezav() < 40 && System.currentTimeMillis() < rokStetja) Thread.sleep(20)
         preveri("vse so odprte hkrati (${streznik.steviloPovezav()})", streznik.steviloPovezav() >= 40)
         for (o in odprte) o.zapri()
     }
