@@ -1087,7 +1087,8 @@ class PredvajanjeActivity : OsActivity() {
         // Naloga 104: radio in kanal v zivo - »V zivo« namesto drsnika in casa, brez -10/+10 s.
         val sk = GlasbaStoritev.trenutna()
         val vZivo = OsPravila.prikazVZivo(p.isCurrentMediaItemLive, p.isCurrentMediaItemDynamic,
-            sk != null && (sk.radio || sk.id.startsWith("tv:") || Stremio.jeVZivo(sk) || IptvSeznami.jeKanal(sk)))
+            sk != null && (sk.radio || sk.id.startsWith("tv:") || Stremio.jeVZivo(sk) || IptvSeznami.jeKanal(sk)),
+            GlasbaStoritev.nadomestnoOkno(p))
         val vidno = if (vZivo) View.GONE else View.VISIBLE
         if (potek.visibility != vidno) { potek.visibility = vidno; gumbNazaj10?.visibility = vidno; gumbNaprej10?.visibility = vidno }
         cas.text = (if (igra) "▶  " else "❚❚  ") + when {

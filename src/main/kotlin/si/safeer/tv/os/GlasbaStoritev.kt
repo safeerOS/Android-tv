@@ -1709,7 +1709,15 @@ class GlasbaStoritev : Service() {
             val p = predvajalnik ?: return false
             val sk = trenutna()
             return OsPravila.prikazVZivo(p.isCurrentMediaItemLive, p.isCurrentMediaItemDynamic,
-                sk != null && (sk.radio || sk.id.startsWith("tv:") || Stremio.jeVZivo(sk) || IptvSeznami.jeKanal(sk)))
+                sk != null && (sk.radio || sk.id.startsWith("tv:") || Stremio.jeVZivo(sk) || IptvSeznami.jeKanal(sk)),
+                nadomestnoOkno(p))
+        }
+
+        /** Ali je trenutno okno se nadomestno (Media3 ga pred pripravo vira oznaci kot dinamicno). Klic z glavne niti. */
+        fun nadomestnoOkno(p: Player): Boolean {
+            val t = p.currentTimeline
+            val i = p.currentMediaItemIndex
+            return t.isEmpty || i !in 0 until t.windowCount || t.getWindow(i, androidx.media3.common.Timeline.Window()).isPlaceholder
         }
 
         /** Skok (zaslon, seja sistema, ukaz daljinca): v zivo in pri neprevijalnem posnetku ga ni (pregled C5). */

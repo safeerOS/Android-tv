@@ -2309,8 +2309,11 @@ object OsPravila {
      * Naloga 104: zaslon predvajanja kaze »V zivo« namesto drsnika in casa (»0:10 / 0:59«) in skrije -10/+10 s, ce predvajalnik
      * pove, da je posnetek v zivo ([isLive]) ali ima dinamicno okno (HLS v zivo, [dinamicno]), ali je to radio ali kanal v zivo
      * ([radioAliKanal]: postaja, vgrajen kanal, kanal dodatka ali seznama IPTV).
+     * TV 9. 11. 2026 (Usenet film): ob zacetku je okno se nadomestno ([nadomestek], Media3 PlaceholderTimeline je
+     * vedno dinamicno), zato je film za trenutek kazal »V zivo«. Dinamicno okno steje samo, ko ni nadomestek.
      */
-    fun prikazVZivo(isLive: Boolean, dinamicno: Boolean, radioAliKanal: Boolean): Boolean = isLive || dinamicno || radioAliKanal
+    fun prikazVZivo(isLive: Boolean, dinamicno: Boolean, radioAliKanal: Boolean, nadomestek: Boolean = false): Boolean =
+        isLive || (dinamicno && !nadomestek) || radioAliKanal
 
     // ------------------------------------------------------------------ naloga 114: odlocitev kanala v zivo na enem mestu
 

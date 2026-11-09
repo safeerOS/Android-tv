@@ -1610,6 +1610,10 @@ private fun preizkusPrikazaVZivo104() {
     preveriEnako("dinamicno okno (HLS v zivo)", true, OsPravila.prikazVZivo(isLive = false, dinamicno = true, radioAliKanal = false))
     preveriEnako("radio ali kanal (surov TS prek http)", true, OsPravila.prikazVZivo(isLive = false, dinamicno = false, radioAliKanal = true))
     preveriEnako("film - drsnik in cas", false, OsPravila.prikazVZivo(isLive = false, dinamicno = false, radioAliKanal = false))
+    preveriEnako("film ob zacetku: nadomestno dinamicno okno ni v zivo", false,
+        OsPravila.prikazVZivo(isLive = false, dinamicno = true, radioAliKanal = false, nadomestek = true))
+    preveriEnako("kanal v zivo ostane v zivo tudi z nadomestnim oknom", true,
+        OsPravila.prikazVZivo(isLive = false, dinamicno = true, radioAliKanal = true, nadomestek = true))
 }
 
 private fun preizkusOdKdaj113() {
