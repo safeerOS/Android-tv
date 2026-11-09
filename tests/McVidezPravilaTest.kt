@@ -14,6 +14,10 @@ fun main() {
     preveriEnako("rob na koncu cele vrste: brez preliva", false, McVidezPravila.prelivSpodaj(listOf(0 to 300, 300 to 700, 700 to 1100), 700))
     preveriEnako("vse nad robom: brez preliva", false, McVidezPravila.prelivSpodaj(listOf(0 to 300), 900))
     preveriEnako("prazno: brez preliva", false, McVidezPravila.prelivSpodaj(emptyList(), 900))
+    // Lastnik 9. 11. 2026: Videospoti (nov blok z naslovom) odrezan na spodnjem robu - cel blok pod rob.
+    preveriEnako("nov blok pod vidno vrsto: odmakni", true, McVidezPravila.odmakniBlokMreze(true, true))
+    preveriEnako("vrstica iste mreze: ne odmikaj", false, McVidezPravila.odmakniBlokMreze(false, true))
+    preveriEnako("prvi blok strani: ne odmikaj", false, McVidezPravila.odmakniBlokMreze(true, false))
     println("Preizkus videza Doma MC (McVidezPravila)")
     val P = McVidezPravila
 

@@ -2118,6 +2118,16 @@ class GlasbaActivity : OsActivity() {
                         continue
                     }
                     if (v.tag == MREZA_VRSTA) {
+                        // Lastnik 9. 11. 2026 (Glasba, Videospoti - drugic): prva vrstica NOVEGA bloka (pred njo naslov) na spodnjem
+                        // robu je bila odrezana, preliv tega ni resil. Blok z naslovom gre cel pod rob (pokaze se ob drsenju).
+                        var p = i - 1
+                        while (p >= 0 && vsebina.getChildAt(p).tag == SIDRO_MREZE) p--
+                        val naslovBloka = p >= 0 && vsebina.getChildAt(p).contentDescription == NASLOV_VRSTE
+                        if (McVidezPravila.odmakniBlokMreze(naslovBloka, vidnaVrsta)) {
+                            val vrh = vsebina.getChildAt(p).top
+                            if (vrh < vidno) vsebina.addView(View(this@GlasbaActivity), p, LinearLayout.LayoutParams(-1, vidno - vrh))
+                            return
+                        }
                         // Mreza: vrstic ne razmikamo - praznina med vrsticama bi ostala tudi med drsenjem (izmerjeno na
                         // televizorju 5. 10. 2026 v mrezi kanalov). Kadar od zadnje cele vrstice do roba ostane manj kot pol
                         // vrstice, vidno polje skrajsamo do te vrstice: na zaslonu so vedno cele vrstice. Sicer naslednja

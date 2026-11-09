@@ -53,6 +53,12 @@ object McVidezPravila {
      */
     fun prelivSpodaj(meje: List<Pair<Int, Int>>, rob: Int): Boolean = meje.any { (vrh, dno) -> vrh < rob && dno > rob }
 
+    /**
+     * Lastnik 9. 11. 2026 (Glasba, Videospoti): delno vidna prva vrstica novega bloka (pred njo naslov) gre skupaj z naslovom
+     * pod spodnji rob - samo, ce je nad njo ze cela vidna vrsta (prve vrste strani ne odmaknemo). Vrstice ISTE mreze ne.
+     */
+    fun odmakniBlokMreze(predVrsticoNaslov: Boolean, vidnaVrstaNad: Boolean): Boolean = predVrsticoNaslov && vidnaVrstaNad
+
     /** Vsebina obreze otroke, razen ko so prikazane vrstice Doma (povecane kartice segajo cez rob). */
     fun obreziVsebino(domovVrste: List<Boolean>): Boolean = domovVrste.none { it }
 
