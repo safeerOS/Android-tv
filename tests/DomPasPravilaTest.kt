@@ -101,6 +101,8 @@ fun main() {
     preveriEnako("igra film brez trajanja: samo leto", "2006", P.podnaslovIgra(true, 2006, "", 0L))
     preveriEnako("igra glasba: izvajalec brez trajanja", "Avsenik", P.podnaslovIgra(false, 0, "Avsenik", 180_000L))
     // Ambient: mocnejsi preliv, uporabnikovo ozadje ne proseva za vrsticami.
+    // Lastnik 9. 11. 2026: Dom brez ambientalnega ozadja (uporabnikovo ozadje kot ostali zavihki).
+    preveriEnako("Dom brez ambienta", false, P.AMBIENT_NA_DOMU)
     val pr = P.ambientPreliv(0xFF112233.toInt(), 0xFF000000.toInt())
     preveriEnako("ambient zgoraj alfa F0", 0xF0, (pr[0] ushr 24) and 0xFF)
     preveriEnako("ambient spodaj alfa FA", 0xFA, (pr[1] ushr 24) and 0xFF)

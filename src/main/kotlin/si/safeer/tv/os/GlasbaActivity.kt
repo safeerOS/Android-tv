@@ -2408,7 +2408,7 @@ class GlasbaActivity : OsActivity() {
         // Kritika 5: kompaktna glava - geslo in podnaslov Doma samo v prvi seji (potem samo zavihki in iskanje).
         geslo.visibility = if (i == DOMOV && !ozekZaslon() && !glavaVidenaObZagonu) View.VISIBLE else View.GONE
         if (i == DOMOV) glavaPrikazanaVSeji = true
-        if (i != DOMOV) desnoOkvir.background = null else obarvajDom(zadnjiAmbient)   // kritika 4: ambient samo na Domu (slepi pregled 3: tudi ob vrnitvi)
+        if (i != DOMOV || !DomPasPravila.AMBIENT_NA_DOMU) desnoOkvir.background = null else obarvajDom(zadnjiAmbient)
         // Pregled MC-11: desna plosca Doma (kartica »zdaj igra«, TV v zivo, prenosi) se ni nikoli pokazala - osveziPloscoDomov ni
         // klical nihce. Zdaj ob vsakem razdelku (drugod jo skrije), znak v glavi prav tako.
         osveziPloscoDomov(); osveziZnak()
@@ -13245,7 +13245,8 @@ class GlasbaActivity : OsActivity() {
         // Kritika 1: slike pasu v sirini pasu (kartice so 280 px - raztegnjene cez 1280 px so bile zamegljene).
         pas.naloziSliko = { url, iv -> naloziSlikoPasu(url, iv) }
         // Kritika 4: ambientalno ozadje Doma iz barve slike pasu.
-        pas.naAmbient = { c -> zadnjiAmbient = c; if (razdelek == DOMOV && !isFinishing) obarvajDom(c) }
+        // Lastnik 9. 11. 2026 (svetla slika filma je Dom obarvala sivo): Dom ima uporabnikovo ozadje kot ostali zavihki.
+        if (DomPasPravila.AMBIENT_NA_DOMU) pas.naAmbient = { c -> zadnjiAmbient = c; if (razdelek == DOMOV && !isFinishing) obarvajDom(c) }
         mcKarticaKoren = pas
         mcKarticaPovrsina = pas.povrsinaVidea
         mcKarticaPredvajaj = pas.glavniGumb   // drzan DOL, dolg pritisk in znak MC skocijo na glavni gumb pasu

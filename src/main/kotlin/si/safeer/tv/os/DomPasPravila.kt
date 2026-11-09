@@ -142,6 +142,12 @@ object DomPasPravila {
      * Ambientalna barva ozadja Doma (kritika 4): povprecna barva slike, zmesana s temnim ozadjem strani, da je besedilo
      * vedno berljivo - delez slike najvec 35 %.
      */
+    /**
+     * Lastnik 9. 11. 2026: ambientalno ozadje Doma (barva slike pasu cez uporabnikovo ozadje) je pri svetlih slikah (sneg,
+     * nebo) dalo sivo stran in skrilo uporabnikovo ozadje - Dom ima ozadje kot ostali zavihki. Izracun ostane za morebitno izbiro.
+     */
+    val AMBIENT_NA_DOMU: Boolean = false
+
     fun ambient(povprecje: Int, ozadje: Int): Int {
         fun k(c: Int, s: Int) = ((c shr s) and 0xFF)
         fun m(s: Int) = (k(povprecje, s) * 35 + k(ozadje, s) * 65) / 100
