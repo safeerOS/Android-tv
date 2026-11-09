@@ -1951,7 +1951,9 @@
                             if ((pr0.width || pr0.height) && (pr0.bottom < -1.5 * pasH || pr0.top > 2.5 * pasH)) continue;
                         }
                         var zap = odl ? odl.get(el) : undefined, od;
-                        if (zap && (umazanoDrevo.size + umazanaVsebina.size === 0 || odlocitevVelja(el, zap.st))) od = zap.v;
+                        // CodeRabbit 9. 11. 2026: tudi kartica (zap.v) - nova povezava v kartici spremeni njeno odlocitev.
+                        if (zap && (umazanoDrevo.size + umazanaVsebina.size === 0 ||
+                            (odlocitevVelja(el, zap.st) && !(zap.v && zap.v !== el && (umazanaVsebina.get(zap.v) || 0) > zap.st)))) od = zap.v;
                         else {
                             preskociNogo = true;
                             try { od = isActionable(el) ? (findCardContainer(el) || el) : null; } finally { preskociNogo = false; }
@@ -3816,6 +3818,7 @@
             function makeElementsFocusable() {
                 try {
                     vstopiVNovoPlast();
+                    var napisanih = 0;
                     var focusables = document.querySelectorAll('a, button, input, select, textarea, [onclick], [role="button"], .card, .media-card, .item--event, .item.item--event, .tab, .seasonHeader, .video-play-button');
                     for (var i = 0; i < focusables.length; i++) {
                         var el = focusables[i];
@@ -3823,10 +3826,13 @@
                         if (jeSkritZaFokus(el)) continue;
                         if (!el.hasAttribute('tabindex')) {
                             el.setAttribute('tabindex', '0');
+                            napisanih++;
+                            oznaciSpremembo({ type: 'attributes', target: el });
                         }
                     }
-                    // Nasi tabindex niso sprememba strani (SAFEER_KANDIDATI_RAZLICICA); ostali zapisi stejejo.
-                    if (kandOpazovalec && zapisiStrani(kandOpazovalec.takeRecords(), true)) domRazlicica++;
+                    // Nasi tabindex spremenijo, kaj je cilj (CodeRabbit 9. 11. 2026: .tab, .seasonHeader so cilji sele z njim):
+                    // zbiranje se osvezi; ostali cakajoci zapisi stejejo kot sprememba strani.
+                    if (kandOpazovalec && (zapisiStrani(kandOpazovalec.takeRecords(), true) || napisanih > 0)) domRazlicica++;
                 } catch(_) {}
             }
 
