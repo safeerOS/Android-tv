@@ -50,4 +50,7 @@ object KazalecPravila {
 
     /** Zarez kolesca miske na pritisk ob robu (lastnik 9. 11. 2026, 24ur.com); izmeri na TV po gradnji. */
     const val KORAK_KOLESCA = 3f
+
+    /** Tipka gor gre v naslovno vrstico samo, ko je kazalec na samem vrhu (movePointer ga ustavi pri 10 px) in stran navzgor ne more. */
+    fun vNaslovnoVrstico(kazalecY: Float, stranLahkoGor: Boolean): Boolean = kazalecY <= 10.5f && !stranLahkoGor
 }

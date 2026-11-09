@@ -204,7 +204,10 @@ class TvKeyRouter(private val host: MainActivity) {
             when (keyCode) {
                 KeyEvent.KEYCODE_DPAD_UP -> {
                     // V nacinu aplikacije vrstice z naslovom ni: fokus ne sme oditi v skrito polje.
-                    if (host.virtualPointerView.pointerY < 120f && host.nacinAplikacije == null &&
+                    // Lastnik 9. 11. 2026 (video 24ur.com): prej je ze 120 px pod vrhom tipka gor skocila v naslovno vrstico -
+                    // stran se je navzgor premaknila najvec enkrat. Zdaj sele na samem vrhu in ko stran navzgor ne more vec.
+                    if (si.safeer.tv.KazalecPravila.vNaslovnoVrstico(host.virtualPointerView.pointerY, activeWv?.canScrollVertically(-1) == true) &&
+                        host.nacinAplikacije == null &&
                         host.mobileTopBar.visibility == View.VISIBLE && !host.virtualPointerView.vlecem) {
                         host.editUrl.requestFocus()
                     } else {
