@@ -196,6 +196,16 @@ fun cnameTest() {
     for (n in 0 until odg.size) DnsPaket.cnameCilji(odg, n)
     val lazno = odg.copyOf(); lazno[6] = 0xFF.toByte(); lazno[7] = 0xFF.toByte()
     preveri(DnsPaket.cnameCilji(lazno) == listOf("trk.sledilec.net"), "lazno stevilo odgovorov")
+    // Neodvisni pregled 9. 11. 2026: groznja ima prednost pred izjemo in zascito; oglas ne.
+    val groznja: (String) -> Boolean = { it.endsWith("zlo.example") }
+    val odl: (String) -> ScitOdlocitev.Izid = { if (it.endsWith("sledilec.net") || it.endsWith("zlo.example")) ScitOdlocitev.Izid.USTAVI else ScitOdlocitev.Izid.NAPREJ }
+    preveri(ScitOdlocitev.cnameUstavi("stat.stran.si", listOf("trk.sledilec.net"), groznja, false, odl) == "stat.stran.si", "oglasni cilj ustavi ime")
+    preveri(ScitOdlocitev.cnameUstavi("stat.stran.si", listOf("trk.sledilec.net"), groznja, true, odl) == null, "izjema na imenu spusti oglasni cilj")
+    preveri(ScitOdlocitev.cnameUstavi("stat.stran.si", listOf("x.zlo.example"), groznja, true, odl) == "x.zlo.example", "groznja ustavi kljub izjemi")
+    preveri(ScitOdlocitev.cnameUstavi("objects.github.com", listOf("trk.sledilec.net"), groznja, false, odl) == null, "zasciten gostitelj: oglasni cilj ne")
+    preveri(ScitOdlocitev.cnameUstavi("objects.github.com", listOf("x.zlo.example"), groznja, false, odl) == "x.zlo.example", "zasciten gostitelj: groznja da")
+    preveri(ScitOdlocitev.cnameUstavi("tiskalnik.local", listOf("trk.sledilec.net"), groznja, false, odl) == null, "krajevno ime")
+    preveri(ScitOdlocitev.cnameUstavi("stat.stran.si", emptyList(), groznja, false, odl) == null, "brez ciljev")
     println("cname: OK")
 }
 

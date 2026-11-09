@@ -63,4 +63,21 @@ object ScitOdlocitev {
         val dovoljena = grozneNalozene && (izjema(d) || jeZascitena(d))
         return if (ScitIzjeme.blokirana(true, grozneNalozene, groznja, dovoljena, ScitIzjeme.jeStalna(d))) Izid.USTAVI else Izid.NAPREJ
     }
+
+    /**
+     * Lastnik 9. 11. 2026 (Scit kot Pi-hole): odgovor za [ime] vsebuje cilje CNAME [cilji]. Vrne ime, ki ga zabelezimo med
+     * ustavljenimi, ali null (odgovor gre naprej). Neodvisni pregled 9. 11.: cilj na seznamu GROZENJ ustavi VEDNO, tudi ob
+     * izjemi ali zascitenem imenu (zabelezi se cilj - ta s seznama grozenj nima izjeme). Sicer izjema na imenu
+     * ([izjemaImena]: uporabnikova, Webtorjeva, stalna), krajevno ime, Googlov koren ali zasciten gostitelj -> naprej;
+     * oglasni cilj ustavi vprasano ime (zabelezi se ime, da ga uporabnik na zaslonu Scita lahko spusti).
+     */
+    fun cnameUstavi(ime: String, cilji: List<String>, naGroznihCilj: (String) -> Boolean, izjemaImena: Boolean,
+                    odloci: (String) -> Izid): String? {
+        if (cilji.isEmpty()) return null
+        cilji.firstOrNull { val c = DomenskiNabor.normaliziraj(it); c.isNotEmpty() && !jeKrajevno(c) && naGroznihCilj(c) }
+            ?.let { return DomenskiNabor.normaliziraj(it) }
+        val d = DomenskiNabor.normaliziraj(ime)
+        if (d.isEmpty() || izjemaImena || jeKrajevno(d) || jeZascitena(d) || ScitGostitelji.vrsta(d) == ScitGostitelji.Vrsta.KOREN) return null
+        return if (cilji.any { odloci(it) == Izid.USTAVI }) d else null
+    }
 }

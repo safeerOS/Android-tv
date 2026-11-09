@@ -467,16 +467,25 @@ class ScitStoritev : VpnService() {
      * Odgovor za [ime] vsebuje CNAME na ustavljeno domeno (prikrit sledilec). Izjema na vprasanem imenu (uporabnikova,
      * Webtorjeva) velja tudi za njegovo verigo - kot pri Pi-hole, kjer dovoljena domena ne gre v preverbo CNAME.
      */
-    private fun cnameUstavi(ime: String, odgovor: ByteArray): Boolean {
+    private fun cnameUstavi(ime: String, odgovor: ByteArray): Boolean = try {
         val cilji = DnsPaket.cnameCilji(odgovor)
-        if (cilji.isEmpty()) return false
-        val zdaj = System.currentTimeMillis()
-        if (ScitIzjeme.dovoljena(ime, izjeme, zdaj) || ScitPregled.uporabniskaVelja(ime, uporabniske, zdaj)) return false
-        if (cilji.none { odlocitev(it) == ScitOdlocitev.Izid.USTAVI }) return false
-        blokiranih.incrementAndGet()
-        // Med zadnjimi je vprasano ime: na zaslonu Scita ga uporabnik lahko spusti (cilj s seznama ne bi mogel).
-        zabeleziUstavljeno(ime)
-        return true
+        if (cilji.isEmpty()) false else {
+            val zdaj = System.currentTimeMillis()
+            val g = grozne
+            val izjema = ScitIzjeme.jeStalna(DomenskiNabor.normaliziraj(ime)) || ScitIzjeme.dovoljena(ime, izjeme, zdaj) ||
+                ScitPregled.uporabniskaVelja(ime, uporabniske, zdaj)
+            val zabelezi = ScitOdlocitev.cnameUstavi(ime, cilji,
+                { c -> g?.najblizja(c, si.safeer.tv.ScitGostitelji::smeGostitelj) != null }, izjema) { odlocitev(it) }
+            if (zabelezi == null) false else {
+                blokiranih.incrementAndGet()
+                zabeleziUstavljeno(zabelezi)
+                true
+            }
+        }
+    } catch (e: Throwable) {
+        // Neodvisni pregled 9. 11. 2026: nit odgovorov ne sme pasti (ves DNS bi obstal) - odgovor gre naprej kot doslej.
+        Log.w(TAG, "Preverba CNAME: ${e.javaClass.simpleName}")
+        false
     }
 
     /** Ustavljeno ime na vrh seznama zadnjih (zapis v datoteko najvec enkrat na sekundo, v urniku). Brez logcat. */
