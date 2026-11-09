@@ -27,6 +27,21 @@ fun main(args: Array<String>) {
     val vsi = listOf(feodo, urlhaus, pro, easylist, sicert)
 
     preveriVir(ScitViri.viri(vsi).map { it.id } == listOf("urlhaus", "hagezi-pro", "si-cert"), "viri Scita: brez EasyList in IPv4, vrstni red ostane")
+    // Lastnik 9. 11. 2026: te oglasne domene (in poddomene) mora Scit ustaviti, ceprav jih HaGeZi PRO nima.
+    for (d in listOf("doubleclick.net", "googleadservices.com", "amazon-adsystem.com"))
+        preveriVir(d in ScitViri.VGRAJENE, "vgrajeno: $d")
+    // En Scit za vse OS: seznam je enak »oglasni_strezniki« v Safeer-linux core/scit_pravila.py (38 vnosov, 5. 11. 2026).
+    preveriVir(ScitViri.VGRAJENE.size == 38 && ScitViri.VGRAJENE.toSet().size == 38, "vgrajeni seznam: 38 razlicnih vnosov kot na Linuxu")
+    preveriVir("connect.facebook.net" !in ScitViri.VGRAJENE && "graph.facebook.com" !in ScitViri.VGRAJENE, "prijava Facebook ostane")
+    preveriVir(ScitViri.vgrajeniKljuc().second.isNotEmpty(), "vgrajeni seznam ima kljuc (nabor se zgradi znova ob spremembi)")
+    val vgr = Files.createTempFile("scit-vgr", ".bin").toFile()
+    try {
+        DomenskiNabor.zapisi(vgr, sequenceOf(sequenceOf("example-oglas.test"), ScitViri.VGRAJENE.asSequence()), 8)
+        val nabor = DomenskiNabor.Poizvedba.odpri(vgr)
+        for (d in listOf("doubleclick.net", "ad.doubleclick.net", "www.googleadservices.com", "c.amazon-adsystem.com", "stats.g.doubleclick.net"))
+            preveriVir(nabor?.jeBlokirana(d) == true, "nabor ustavi $d")
+        preveriVir(nabor?.jeBlokirana("google.com") == false, "nabor ne ustavi google.com")
+    } finally { vgr.delete() }
     preveriVir(!ScitViri.zaNabor(easylist) && !ScitViri.zaNabor(feodo), "EasyList in Feodo nista v naboru")
     preveriVir(ScitViri.zaNabor(pro) && !ScitViri.zaGrozne(pro), "HaGeZi PRO v domene.bin, ne v grozne.bin")
     preveriVir(ScitViri.zaGrozne(urlhaus) && ScitViri.zaGrozne(sicert), "seznami grozenj v grozne.bin")

@@ -160,7 +160,7 @@ object Scit {
         val dns = seznami.filter { ScitViri.zaNabor(it.source) }
         if (dns.isEmpty()) return true
         val grozenj = dns.filter { ScitViri.zaGrozne(it.source) }
-        return DomenskiNabor.jeZgrajenIz(naborDatoteka(context), DomenskiNabor.kljucVira(dns.map { it.source.id to it.sha256 })) &&
+        return DomenskiNabor.jeZgrajenIz(naborDatoteka(context), DomenskiNabor.kljucVira(dns.map { it.source.id to it.sha256 } + ScitViri.vgrajeniKljuc())) &&
             DomenskiNabor.jeZgrajenIz(grozneDatoteka(context), DomenskiNabor.kljucVira(grozenj.map { it.source.id to it.sha256 }))
     }
 
@@ -170,8 +170,10 @@ object Scit {
         val grozenj = dns.filter { ScitViri.zaGrozne(it.source) }
         val cilj = naborDatoteka(context)
         val n = try {
-            DomenskiNabor.zapisiCeSpremenjeno(cilj, DomenskiNabor.kljucVira(dns.map { it.source.id to it.sha256 }),
-                dns.asSequence().map { it.entries.asSequence() }, dns.sumOf { it.entries.size })
+            // Lastnik 9. 11. 2026: vgrajene oglasne domene, ki jih seznami nimajo (ScitViri.VGRAJENE).
+            DomenskiNabor.zapisiCeSpremenjeno(cilj, DomenskiNabor.kljucVira(dns.map { it.source.id to it.sha256 } + ScitViri.vgrajeniKljuc()),
+                dns.asSequence().map { it.entries.asSequence() } + sequenceOf(ScitViri.VGRAJENE.asSequence()),
+                dns.sumOf { it.entries.size } + ScitViri.VGRAJENE.size)
         } catch (e: Throwable) {
             Log.w(TAG, "Nabora ni bilo mogoce zgraditi: ${e.message}"); return 0
         }
