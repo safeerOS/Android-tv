@@ -48,4 +48,27 @@ s.spremeni([{ type: 'childList', target: s.body, addedNodes: [a0], removedNodes:
 s.smer('DOWN');
 preveri('po spremembi strani je nova povezava cilj', 'Nova', izbran(s));
 preveri('sprememba strani osvezi zbiranje', true, pregledov > po1);
+
+// Razred ali slog prednika skrije povezavo: zapis spremembe na predniku razveljavi odlocitev za vse pod njim (ne le zanj).
+{
+    const t = ustvari({ zeton: ZETON, scrollY: 1500, visinaStrani: 9000 });
+    // Velika stran (vec kot 600 elementov): zbiranje uporablja odlocitve po elementih (SAFEER_KANDIDATI_RAZLICICA).
+    const polnilo = [];
+    for (let i = 0; i < 650; i++) polnilo.push(t.el('a', { attrs: { href: '/p' + i }, okvir: [2000, 5000 + i * 10, 10, 10], besedilo: 'p' }));
+    const ovoj = t.el('div', { okvir: [100, 450, 600, 100] });
+    const b1 = t.el('a', { attrs: { href: '/b1' }, okvir: [100, 300, 400, 60], besedilo: 'Zgoraj' });
+    const b2 = t.el('a', { attrs: { href: '/b2' }, okvir: [100, 460, 400, 60], besedilo: 'V ovoju' });
+    const b3 = t.el('a', { attrs: { href: '/b3' }, okvir: [100, 620, 400, 60], besedilo: 'Spodaj' });
+    ovoj.dodaj(b2);
+    t.body.dodaj(b1, ovoj, b3, ...polnilo);
+    t.nalozi(VIR);
+    t.izberi(b1);
+    t.smer('DOWN');
+    preveri('velika stran: DOL na povezavo v ovoju', 'V ovoju', izbran(t));
+    t.smer('UP');
+    ovoj.slog.display = 'none';
+    t.spremeni([{ type: 'attributes', attributeName: 'style', target: ovoj, oldValue: '' }]);
+    t.smer('DOWN');
+    preveri('skrit ovoj (sprememba prednika): DOL preskoci povezavo v njem', 'Spodaj', izbran(t));
+}
 console.log('tv_kandidati_predpomnilnik_test: OK (' + stevilo + ')');

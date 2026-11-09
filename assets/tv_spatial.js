@@ -1657,7 +1657,7 @@
                 }
                 
                 var cls = (el.className || '').toString().toLowerCase();
-                if (jeNogaAliPiskotki(el)) return false;
+                if (!preskociNogo && jeNogaAliPiskotki(el)) return false;
                 if (jePotVZivo() && cls.indexOf('channel-container') !== -1 && cls.indexOf('item--event') === -1) return false;
                 if (cls.indexOf('channellists') !== -1 || cls.indexOf('icon-p24_channellist') !== -1) return false;
                 // Casovne oznake, trajanje, znacke v karticah niso cilji - pravi gumbi, povezave in polja pa so vedno.
@@ -1755,29 +1755,35 @@
             function brezNasihOznak(v) {
                 return ((v || '') + '').split(/\s+/).filter(function (t) { return t && t.indexOf('safeer-') !== 0; }).sort().join(' ');
             }
-            function zapisiStrani(zapisi, brezTabindex) {
-                for (var i = 0; i < zapisi.length; i++) {
-                    var z = zapisi[i];
-                    if (z.type === 'attributes') {
-                        if (brezTabindex && z.attributeName === 'tabindex') continue;
-                        if (jeNasVozel(z.target)) continue;
-                        if (z.attributeName === 'class' && brezNasihOznak(z.oldValue) === brezNasihOznak(z.target.getAttribute('class'))) continue;
-                        return true;
-                    }
-                    if (z.type === 'childList') {
-                        var seznami = [z.addedNodes, z.removedNodes];
-                        for (var s2 = 0; s2 < 2; s2++) {
-                            for (var k = 0; k < seznami[s2].length; k++) {
-                                var n = seznami[s2][k];
-                                if (n.nodeType === 1 && !jeNasVozel(n)) return true;
-                                if (n.nodeType === 3 && !jeNasVozel(z.target)) return true;
-                            }
-                        }
-                        continue;
-                    }
+            function zapisStrani(z, brezTabindex) {
+                if (z.type === 'attributes') {
+                    if (brezTabindex && z.attributeName === 'tabindex') return false;
+                    if (jeNasVozel(z.target)) return false;
+                    if (z.attributeName === 'class' && brezNasihOznak(z.oldValue) === brezNasihOznak(z.target.getAttribute('class'))) return false;
                     return true;
                 }
-                return false;
+                if (z.type === 'childList') {
+                    var seznami = [z.addedNodes, z.removedNodes];
+                    for (var s2 = 0; s2 < 2; s2++) {
+                        for (var k = 0; k < seznami[s2].length; k++) {
+                            var n = seznami[s2][k];
+                            if (n.nodeType === 1 && !jeNasVozel(n)) return true;
+                            if (n.nodeType === 3 && !jeNasVozel(z.target)) return true;
+                        }
+                    }
+                    return false;
+                }
+                return true;
+            }
+            // Vsak zapis spremembe strani: razlicica gor in oznaka za odlocitve (oznaciSpremembo).
+            function zapisiStrani(zapisi, brezTabindex) {
+                var bilo = false;
+                for (var i = 0; i < zapisi.length; i++) {
+                    if (!zapisStrani(zapisi[i], brezTabindex)) continue;
+                    bilo = true;
+                    oznaciSpremembo(zapisi[i]);
+                }
+                return bilo;
             }
             try {
                 kandOpazovalec = new MutationObserver(function (zapisi) { if (zapisiStrani(zapisi, false)) domRazlicica++; });
@@ -1790,6 +1796,41 @@
                 if (!kandOpazovalec) return '';
                 return domRazlicica + ':' + drsenjeRazlicica + ':' + (window.innerWidth || 0) + 'x' + (window.innerHeight || 0) + ':' +
                     Math.round(window.scrollX || 0) + ',' + Math.round(window.scrollY || 0) + ':' + location.href;
+            }
+            // Odlocitve isActionable in kartica (findCardContainer) za element ne zavisijo od drsenja (velikost, slog, razredi) -
+            // razen spodnjega roba pogleda (jeNogaAliPiskotki), ki ga preverimo ob vsakem zbiranju posebej. Veljajo do
+            // spremembe strani, velikosti ali izbire v meniju; po drsenju se ocenijo samo novi elementi v pasu pogleda.
+            // Sprememba strani ne zavrze vseh odlocitev (24ur.com in rtvslo.si ob drsenju nalagata slike - 1-3 spremembe na
+            // 1,5 s, testni PC 9. 11. 2026): razred ali slog elementa X velja za X in vse pod njim (umazanoDrevo), sprememba
+            // otrok ali besedila samo za X in njegove prednike (umazanaVsebina - besedilo in povezave kartice).
+            var preskociNogo = false, izbiraRazlicica = 0, odlocitve = null, odlocitveKljuc = '', odlocitveCas = 0;
+            // Oznake so zaporedne stevilke: odlocitev velja, ce je mlajsa od zadnje spremembe elementa in njegovih prednikov.
+            var umazanoDrevo = new Map(), umazanaVsebina = new Map(), oznakaSt = 0, NAJVEC_UMAZANIH = 1500;
+            function oznaciSpremembo(z) {
+                if (!odlocitve) return;
+                var t = z.target && z.target.nodeType === 1 ? z.target : (z.target ? z.target.parentElement : null);
+                if (!t) return;
+                oznakaSt++;
+                if (z.type === 'attributes') umazanoDrevo.set(t, oznakaSt);
+                var e = t, g = 0;
+                while (e && e.nodeType === 1 && g++ < 8) { umazanaVsebina.set(e, oznakaSt); e = e.parentElement; }
+                if (umazanoDrevo.size + umazanaVsebina.size > NAJVEC_UMAZANIH) odlocitve = null;
+            }
+            function odlocitevVelja(el, st) {
+                if ((umazanaVsebina.get(el) || 0) > st) return false;
+                var e = el, g = 0;
+                while (e && e.nodeType === 1 && g++ < 9) { if ((umazanoDrevo.get(e) || 0) > st) return false; e = e.parentElement; }
+                return true;
+            }
+            function odlocitveZaZbiranje() {
+                if (!kandOpazovalec) return null;
+                var k = izbiraRazlicica + ':' + (window.innerWidth || 0) + 'x' + (window.innerHeight || 0) + ':' + location.href;
+                var zdaj = casZdaj();
+                if (!odlocitve || k !== odlocitveKljuc || zdaj - odlocitveCas < 0 || zdaj - odlocitveCas > 5000) {
+                    odlocitve = new Map(); odlocitveKljuc = k; odlocitveCas = zdaj;
+                    umazanoDrevo = new Map(); umazanaVsebina = new Map();
+                }
+                return odlocitve;
             }
             // Izbira lahko odpre meni le s CSS (:focus-within, brez spremembe DOM): ob izbiri v meniju ali glavi izid zavrzemo.
             function izbiraSpremeniStran(el) {
@@ -1901,6 +1942,7 @@
                 // SAFEER_HITRI_KANDIDATI: na veliki strani (24ur.com: ~3900 elementov) samo pas okoli pogleda - od 1,5 zaslona nad
                 // do 2,5 zaslona pod njim. Cilj dlje GOR/DOL ni nikoli najblizji; brez cilja v pasu stran podrsa (kot prej).
                 var pas = all.length > 600, pasH = window.innerHeight || 1080;
+                var odl = odlocitveZaZbiranje();
                 try {
                     for (var i = 0; i < all.length; i++) {
                         var el = all[i];
@@ -1908,9 +1950,16 @@
                             var pr0 = el.getBoundingClientRect();
                             if ((pr0.width || pr0.height) && (pr0.bottom < -1.5 * pasH || pr0.top > 2.5 * pasH)) continue;
                         }
-                        if (isActionable(el)) {
-                            var cardRoot = findCardContainer(el);
-                            var finalEl = cardRoot || el;
+                        var zap = odl ? odl.get(el) : undefined, od;
+                        if (zap && (umazanoDrevo.size + umazanaVsebina.size === 0 || odlocitevVelja(el, zap.st))) od = zap.v;
+                        else {
+                            preskociNogo = true;
+                            try { od = isActionable(el) ? (findCardContainer(el) || el) : null; } finally { preskociNogo = false; }
+                            if (odl) odl.set(el, { v: od, st: oznakaSt });
+                        }
+                        if (od && (el.tagName || '').toUpperCase() !== 'IFRAME' && jeNogaAliPiskotki(el)) od = null;
+                        if (od) {
+                            var finalEl = od;
                             if (!rawSet.has(finalEl)) {
                                 rawSet.add(finalEl);
                                 raw.push(finalEl);
@@ -2538,7 +2587,7 @@
             }
 
             function highlightElement(el) {
-                if (izbiraSpremeniStran(el)) kandPredpomnilnik = null;
+                if (izbiraSpremeniStran(el)) { kandPredpomnilnik = null; izbiraRazlicica++; }
                 if (el && jeZunajPogleda(el)) {
                     // Najprej ga poskusimo pridrsati v pogled; sele ce tudi potem ni viden,
                     // cilja ne sprejmemo. Merimo, ne ugibamo po zgradbi strani.
