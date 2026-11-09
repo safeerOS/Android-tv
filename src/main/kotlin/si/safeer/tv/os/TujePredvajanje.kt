@@ -115,6 +115,8 @@ object TujePredvajanje {
         val k = kontroler
         val md = try { k?.metadata } catch (_: Throwable) { null }
         val st = try { k?.playbackState?.state } catch (_: Throwable) { null } ?: PlaybackState.STATE_NONE
+        // Ustavljena z X se spet pokaze, ko zaigra (uporabnik jo je v aplikaciji znova zagnal).
+        if (k != null && MiniPredvajalnikPravila.tujaIgra(st) && k.packageName == ustavljenIzDocka) ustavljenIzDocka = null
         val s = k?.let {
             // TV 8. 11. 2026: SmartTube v seji ne objavi naslova (metadata description=null) - brez njega malega
             // predvajalnika ni bilo. Namesto naslova ime aplikacije.
@@ -125,6 +127,7 @@ object TujePredvajanje {
                 md?.getString(MediaMetadata.METADATA_KEY_ARTIST) ?: md?.getString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE).orEmpty(),
                 MiniPredvajalnikPravila.tujaIgra(st))
         }?.takeIf { MiniPredvajalnikPravila.tujaZaPrikaz(it.naslov, st) }
+            ?.takeIf { MiniPredvajalnikPravila.prikaziTujo(it.paket, it.igra, ustavljenIzDocka) }
         // CodeRabbit: paket, ki igra, se steje tudi brez naslova (seja brez metapodatkov) - ciscenje ga ne zapre.
         igraBrezPrikaza = k?.packageName?.takeIf { MiniPredvajalnikPravila.tujaIgra(st) }
         objavi(s)
@@ -162,8 +165,26 @@ object TujePredvajanje {
         if (s?.igra == true) { premorIzDocka = s.paket to System.currentTimeMillis(); t.pause() } else { premorIzDocka = null; t.play() }
     }
 
-    /** Samo premor (gumb X v malem predvajalniku): seje na premoru ne nadaljuje. */
+    /** Samo premor: seje na premoru ne nadaljuje. */
     fun premor() { if (stanje?.igra == true) preklopi() }
+
+    /** Paket, ki ga je uporabnik ustavil z X v malem predvajalniku - ne prikazemo ga, dokler spet ne igra. */
+    @Volatile private var ustavljenIzDocka: String? = null
+
+    /**
+     * Lastnik 9. 11. 2026 (posnetek TV: X na SmartTube ni zaprl predvajanja): X pomeni konec predvajanja. Seja dobi stop,
+     * izgine iz malega predvajalnika in aplikacija, ki ne predvaja, se zapre (kot ob Domov). Prej samo premor, ki je
+     * aplikacijo celo zascitil pred zapiranjem (premorIzDocka).
+     */
+    fun ustaviIzDocka(c: Context) {
+        val k = kontroler ?: return
+        premorIzDocka = null
+        ustavljenIzDocka = k.packageName
+        try { k.transportControls.stop() } catch (_: Throwable) { }
+        objavi(null)
+        Pomnilnik.pocistiOzadje(c.applicationContext, cakajMs = MiniPredvajalnikPravila.ZAPRI_PO_USTAVITVI_MS,
+            nedejavnostMs = OsPravila.VRNITEV_DOMOV_NEDEJAVNOST_MS)
+    }
 
     /** Kliknjen naslov v malem predvajalniku: odpre aplikacijo, ki igra. */
     fun odpri(c: Context): Boolean {

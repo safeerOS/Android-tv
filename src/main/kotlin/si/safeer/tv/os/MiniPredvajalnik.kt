@@ -483,7 +483,7 @@ class MiniPredvajalnik(
         // Lastnik 1. 11. 2026: ✕ je samo skril predvajalnik, film je igral naprej - uporabnik pricakuje konec predvajanja.
         // ✕ zato ustavi predvajanje in skrije dock; samo skrije ga tipka Nazaj (skrijCeOdprt).
         gumbi.addView(gumb(R.drawable.os_ikona_zapri, a.getString(R.string.os_media_ustavi), "dock:skrij") {
-            if (prikazujeTuje) TujePredvajanje.premor() else GlasbaStoritev.ustavi(a)   // tuje: samo premor (ne nadaljuje, ne ustavi aplikacije)
+            if (prikazujeTuje) TujePredvajanje.ustaviIzDocka(a) else GlasbaStoritev.ustavi(a)   // lastnik 9. 11.: tudi tuje ustavi in zapri
             nastaviOdprt(false, fokus = daljinec)
         }, LinearLayout.LayoutParams(g, g))
         c.addView(gumbi)

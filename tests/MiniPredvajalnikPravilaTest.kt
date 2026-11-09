@@ -7,6 +7,10 @@ private fun preveriEnako(opis: String, pricakovano: Any?, dobljeno: Any?) =
 
 /** Naloga 118: mini predvajalnik kot dock ob robu domacega zaslona ([MiniPredvajalnikPravila]). */
 fun main() {
+    // Lastnik 9. 11. 2026 (posnetek TV): X na SmartTube ni zaprl predvajanja - seja na premoru je ostala v malem predvajalniku.
+    check(!MiniPredvajalnikPravila.prikaziTujo("org.smarttube.stable", false, "org.smarttube.stable")) { "ustavljena z X: skrita" }
+    check(MiniPredvajalnikPravila.prikaziTujo("org.smarttube.stable", true, "org.smarttube.stable")) { "spet igra: prikazana" }
+    check(MiniPredvajalnikPravila.prikaziTujo("com.spotify.tv", false, "org.smarttube.stable")) { "druga aplikacija na premoru: prikazana" }
     // Lastnik 27. 10. 2026: stikali samodejnega nadaljevanja v predvajalniku.
     run {
         val P = MiniPredvajalnikPravila

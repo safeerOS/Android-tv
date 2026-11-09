@@ -75,6 +75,12 @@ object MiniPredvajalnikPravila {
     /** Naslov tuje seje; brez njega (SmartTube) ime aplikacije, da mali predvajalnik vseeno pokaze, kaj igra. */
     fun naslovTuje(naslov: String, imeAplikacije: String): String = naslov.ifBlank { imeAplikacije }
 
+    /** Lastnik 9. 11. 2026: X v malem predvajalniku ustavi tujo sejo; aplikacijo, ki ne predvaja vec, zapremo po tem casu. */
+    const val ZAPRI_PO_USTAVITVI_MS = 1_500L
+
+    /** Seje, ki jo je uporabnik ustavil z X, ne prikazujemo, dokler spet ne igra. */
+    fun prikaziTujo(paket: String, igra: Boolean, ustavljenIzDocka: String?): Boolean = igra || paket != ustavljenIzDocka
+
     fun tujaZaPrikaz(naslov: String, stanje: Int): Boolean = naslov.isNotBlank() && (tujaIgra(stanje) || stanje == 2)
 
     /** Katera seja drugih aplikacij: prva, ki igra, sicer prva na premoru; -1 = nobena. */
