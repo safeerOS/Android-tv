@@ -131,6 +131,34 @@ primer('glava pod oknom', () => {
         ((s.document.querySelector('.safeer-active-card') || {}).innerText || '').trim() === 'Meni');
 });
 
+// TV 9. 11. 2026 (apk-20, 24ur.com in rtvslo.si): GOR sredi podrsane strani je skocil v pritrjeno glavo (sticky meni), stran
+// se ni vec premaknila navzgor. Dokler stran lahko gre navzgor, glava ni cilj GOR (SAFEER_GLAVA_PRI_DRSENJU).
+primer('glava pri drsenju', () => {
+    const s = ustvari({ zeton: ZETON, scrollY: 1500, visinaStrani: 6000 });
+    const glava = s.el('nav', { okvir: [0, 0, 1920, 60], slog: { position: 'sticky' } });
+    glava.dodaj(s.el('a', { attrs: { href: '/meni' }, okvir: [600, 10, 120, 40], besedilo: 'Meni' }));
+    const zgoraj = s.el('a', { attrs: { href: '/a' }, okvir: [100, -400, 600, 60], besedilo: 'Novica nad pogledom' });
+    const tu = s.el('a', { attrs: { href: '/b' }, okvir: [100, 300, 600, 60], besedilo: 'Novica v pogledu' });
+    s.body.dodaj(glava, zgoraj, tu);
+    s.nalozi(VIR);
+    s.izberi(tu);
+    s.smer('UP');
+    const izbran = ((s.document.querySelector('.safeer-active-card') || {}).innerText || '').trim();
+    preveri('podrsana stran: GOR ne gre v pritrjeno glavo', false, izbran === 'Meni');
+    preveri('podrsana stran: GOR gre na vsebino nad pogledom ali stran podrsa navzgor', true,
+        izbran === 'Novica nad pogledom' || s.window.scrollY < 1500);
+    // Na vrhu strani je glava cilj kot prej (ciljVGlavi).
+    const v = ustvari({ zeton: ZETON });
+    const g2 = v.el('nav', { okvir: [0, 0, 1920, 60], slog: { position: 'sticky' } });
+    g2.dodaj(v.el('a', { attrs: { href: '/meni' }, okvir: [600, 10, 120, 40], besedilo: 'Meni' }));
+    const prvi = v.el('a', { attrs: { href: '/b' }, okvir: [100, 300, 600, 60], besedilo: 'Prva novica' });
+    v.body.dodaj(g2, prvi);
+    v.nalozi(VIR);
+    v.izberi(prvi);
+    v.smer('UP');
+    preveri('vrh strani: GOR gre v glavo', 'Meni', ((v.document.querySelector('.safeer-active-card') || {}).innerText || '').trim());
+});
+
 // Odlocitev vodje 5. 11. 2026: brez seznama nedelujocih tokov po naslovu (sprotna zaznava MrtviKanali 24 h ga pokrije).
 primer('brez seznama tokov', () => {
     const viri = ['os/KanaliPravila.kt', 'os/MrtviKanali.kt', 'os/GlasbaActivity.kt', 'os/MedijskiViri.kt']

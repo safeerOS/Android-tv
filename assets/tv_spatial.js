@@ -3015,6 +3015,17 @@
                         var vrsticaSp = najdiSpodnjoVrstico();
                         var vVrstici = !!(vrsticaSp && vrsticaSp.el.contains(current));
                         var bestVrstica = null, bestVrsticaScore = Infinity, podVrstico = null, podScore = Infinity;
+                        /* SAFEER_GLAVA_PRI_DRSENJU_ZACETEK */
+                        // TV 9. 11. 2026 (apk-20, 24ur.com in rtvslo.si): GOR sredi strani je skocil v pritrjeno glavo (sticky meni),
+                        // ker je bila glava blizje od vsebine nad pogledom - stran se ni vec premaknila navzgor. Dokler se stran lahko
+                        // premakne navzgor, glava ni cilj GOR; vanjo gremo na vrhu strani (ciljVGlavi spodaj).
+                        var brezGlave = direction === 'UP' && (window.scrollY || 0) > 20 && !plastIzbire(current, window.getComputedStyle);
+                        var vPritrjeniGlavi = function (e) {
+                            var pl = plastIzbire(e, window.getComputedStyle);
+                            if (!pl) return false;
+                            try { return pl.getBoundingClientRect().top <= 4; } catch (_) { return false; }
+                        };
+                        /* SAFEER_GLAVA_PRI_DRSENJU_KONEC */
 
                         for (var j = 0; j < candidates.length; j++) {
                             var el = candidates[j];
@@ -3025,6 +3036,7 @@
                             if (r.width < 12 || r.height < 12) continue;
                             var eCls = ((el.className || '') + '').toLowerCase();
                             if (jeNogaAliPiskotki(el)) continue;
+                            if (brezGlave && vPritrjeniGlavi(el)) continue;
                             if (jePotVZivo() && eCls.indexOf('channel-container') !== -1 && eCls.indexOf('item--event') === -1) continue;
 
                             var eCenterX = r.left + r.width / 2;
