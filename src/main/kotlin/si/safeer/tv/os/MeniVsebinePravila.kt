@@ -9,6 +9,19 @@ package si.safeer.tv.os
  * »Seznami predvajanja« (seznami in posamezni posnetki iz njih); vrstica »Nedavno« tam ni imela »Pocisti«.
  */
 object MeniVsebinePravila {
+    /**
+     * TV 9. 11. 2026 (Forrest Gump je izginil iz »Nadaljuj z ogledom«): nedavno je imelo skupaj najvec 5 vnosov za glasbo in
+     * video, zato je nekaj skladb ali novo predvajanje izrinilo nedokoncan film. Video in drugo imata zdaj vsak svojo mejo.
+     */
+    const val NEDAVNO_VIDEO = 20
+    const val NEDAVNO_DRUGO = 5
+
+    /** Obrezi nedavno (najnovejse prvo) na [NEDAVNO_VIDEO] videov in [NEDAVNO_DRUGO] drugih vnosov; vrstni red ostane. */
+    fun <T> obreziNedavno(seznam: List<T>, jeVideo: (T) -> Boolean): List<T> {
+        var videov = 0
+        var drugih = 0
+        return seznam.filter { if (jeVideo(it)) ++videov <= NEDAVNO_VIDEO else ++drugih <= NEDAVNO_DRUGO }
+    }
     /** Gumbi menija, o katerih odloca [gumbi] (ostala dejanja - vir, dodatek, kanal - doda meni sam). */
     enum class Gumb { ODSTRANI_S_SEZNAMA, DODAJ_PRILJ, ODSTRANI_PRILJ, DODAJ_NA_SEZNAM, DODAJ_NA_DRUG_SEZNAM, SHRANI_VRSTO, ODSTRANI_NEDAVNO }
 

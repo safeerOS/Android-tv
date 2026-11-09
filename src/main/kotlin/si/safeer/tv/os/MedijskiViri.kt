@@ -19,7 +19,6 @@ object MedijskiViri {
     private const val MOJ_SEZNAM = "moj_seznam"
     private const val SEZNAMI = "seznami"
     private const val NEDAVNO = MeniVsebinePravila.KLJUC_NEDAVNO
-    private const val MAX_NEDAVNO = 5
 
     data class Vir(val tip: String, val ime: String, val naslov: String) {
         val jePeerTube get() = tip == PEERTUBE
@@ -529,7 +528,7 @@ object MedijskiViri {
         return osveziVgrajene(KanaliPravila.brezNedelujocihKanalov(vnosi,
             { it.id.startsWith("tv:") || Stremio.jeVZivo(it) || IptvSeznami.jeKanal(it) }, { it.naslov },
             { MrtviKanali.skrij(ctx, it) })
-            .take(MAX_NEDAVNO))
+            .let { MeniVsebinePravila.obreziNedavno(it) { s -> s.video } })
     }
 
     /** Odstrani iz nedavnega [s] in razlicice istega naslova ([kljuc]; privzeto samo isti id). Samo na tej napravi. */
@@ -544,7 +543,7 @@ object MedijskiViri {
         // Naloga 135: samodejni preizkus po gradnji ne gre med nazadnje predvajano.
         if (!shranljiva(s) || Stremio.jeZasebna(s) || PreizkusPravila.jePreizkus(s.id)) return
         val z = zaShranjevanje(s)
-        pisi(ctx, NEDAVNO, pisiSkladbe((listOf(z) + nedavno(ctx).filterNot { it.id == z.id }).distinctBy { it.id }.take(MAX_NEDAVNO)))
+        pisi(ctx, NEDAVNO, pisiSkladbe((listOf(z) + nedavno(ctx).filterNot { it.id == z.id }).distinctBy { it.id }.let { l -> MeniVsebinePravila.obreziNedavno(l) { it.video } }))
     }
 
     /** Nedavna iskanja (najnovejse prvo), samo na tej napravi. */
