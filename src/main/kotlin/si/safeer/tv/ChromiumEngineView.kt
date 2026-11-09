@@ -230,6 +230,9 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
      * Stran je zahtevala novo okno. MainActivity zanj pripravi skrit zavihek in vrne true,
      * kadar je okno prevzel. Naslova se ne poznamo - zato okno dobi vratarja spodaj.
      */
+    /** Most SafeerPdf je dodan za naslednje nalaganje (samo nas pregledovalnik PDF). */
+    private var pdfMostDodan = false
+
     /**
      * Novo okno strani: sporocilo, ali je bila uporabnikova kretnja, href povezave pod fokusom/dotikom (ali null),
      * pogled, ki je okno odprl, in ali je preprecevanje pojavnih oken vklopljeno.
@@ -710,7 +713,8 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
         // uporabnikov Safeerja). Most dobi samo nas pregledovalnik PDF; klici so se vedno vezani na zeton.
         try {
             removeJavascriptInterface("SafeerPdf")
-            if (PdfPregledovalnik.jePregledovalnik(url)) addJavascriptInterface(pdfMost, "SafeerPdf")
+            pdfMostDodan = PdfPregledovalnik.jePregledovalnik(url)
+            if (pdfMostDodan) addJavascriptInterface(pdfMost, "SafeerPdf")
         } catch (_: Exception) {}
         // Most SafeerBridge domaco stran preveri sam, na glavni niti tik pred dejanjem (SafeerWebAppInterface.naDomaci):
         // zastavica, postavljena tu, je veljala tudi za stari dokument in za about:blank (zunanji pregled 8. 10. 2026).
@@ -1583,7 +1587,11 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
                 }
                 url?.let {
                     if (!UserScriptManager.isYouTubeUrl(it)) youtubeSamodejno = false
+                    val pdfMostPrej = pdfMostDodan
                     applyUserAgentForUrl(it)
+                    // Testni telefon 9. 11. 2026: Nazaj na pregledovalnik PDF (zgodovina, brez loadUrl) je stran nalozil brez
+                    // mostu SafeerPdf (most velja od naslednjega nalaganja) - Shrani je padel na blob: in 502. Enkrat znova nalozi.
+                    if (PdfPregledovalnikPravila.ponovnoZaMost(PdfPregledovalnik.jePregledovalnik(it), pdfMostPrej)) post { reload() }
                     onUrlChanged?.invoke(javniNaslov(it))
                     onSecurityChanged?.invoke(it.startsWith("https://", ignoreCase = true))
                 }

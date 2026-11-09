@@ -79,4 +79,10 @@ object PdfPregledovalnikPravila {
         }
         throw IllegalStateException("Nedosegljivo")
     }
+
+    /**
+     * Pregledovalnik PDF se je zacel nalagati brez mostu SafeerPdf (Nazaj/Naprej v zgodovini): enkrat znova nalozi,
+     * da Shrani dela. Ko je most ze bil dodan pred nalaganjem, ne (sicer zanka).
+     */
+    fun ponovnoZaMost(pregledovalnik: Boolean, mostZeDodan: Boolean): Boolean = pregledovalnik && !mostZeDodan
 }

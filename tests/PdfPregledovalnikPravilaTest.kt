@@ -13,6 +13,10 @@ private fun preveri(opis: String, pricakovano: Any?, dobljeno: Any?) =
     if (pricakovano == dobljeno) println("  ok  $opis") else { napak++; println("  NAPAKA  $opis: pricakovano $pricakovano, dobljeno $dobljeno") }
 
 fun main() {
+    // Testni telefon 9. 11. 2026: Nazaj na pregledovalnik brez mostu SafeerPdf -> Shrani ni delal; enkrat znova nalozi.
+    preveri("Nazaj na pregledovalnik brez mostu: znova nalozi", true, PdfPregledovalnikPravila.ponovnoZaMost(true, false))
+    preveri("most ze dodan (loadUrl ali po ponovnem nalaganju): brez zanke", false, PdfPregledovalnikPravila.ponovnoZaMost(true, true))
+    preveri("navadna stran: nikoli", false, PdfPregledovalnikPravila.ponovnoZaMost(false, false))
     println("Preizkus pravil preusmeritve za PDF")
     val streznik = HttpServer.create(InetSocketAddress(InetAddress.getByName("127.0.0.1"), 0), 0)
     
