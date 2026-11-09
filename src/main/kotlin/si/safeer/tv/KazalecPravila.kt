@@ -15,13 +15,17 @@ object KazalecPravila {
 
     /**
      * Ali naj bo kazalec ob odprtju [naslov] vklopljen. [zapomnjeno] = uporabnikova izbira za gostitelja (null = ni je).
-     * [zaTv] = stran je narejena za daljinec (nasa stran, YouTube za TV, pregledovalnik PDF).
+     * [zaTv] = stran je narejena za daljinec (nasa stran, YouTube za TV, pregledovalnik PDF). [miska] = stran brez daljinca
+     * ne gre (Facebook ..., [si.safeer.tv.os.OsPravila.miskaZaAplikacijo]).
+     * Lastnik 9. 11. 2026 15:xx: »RTV SLO se mnogo lepse premika, ko jo obravnavamo kot aplikacijo« - izbral puscice kot v
+     * aplikaciji (vsak pritisk premakne stran na naslednji clanek); kazalec je prej (4bd4d19) do roba rabil ~40 pritiskov.
+     * Kazalec ostane z gumbom miske in se zapomni za gostitelja.
      */
-    fun privzetoKazalec(jeTelevizor: Boolean, naslov: String, zaTv: Boolean, zapomnjeno: Boolean?): Boolean {
+    fun privzetoKazalec(jeTelevizor: Boolean, naslov: String, zaTv: Boolean, zapomnjeno: Boolean?, miska: Boolean = false): Boolean {
         if (!jeTelevizor) return false
         if (gostitelj(naslov) == null) return false   // nasa domaca stran (file://, about:), brez gostitelja
         zapomnjeno?.let { return it }
-        return !zaTv
+        return miska && !zaTv
     }
 
     /** Kazalec se sam skrije po 30 s samo, ce ni trajen (spletna aplikacija), ne vlece in ni privzet za stran, ki ni za TV. */

@@ -651,7 +651,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         kazalecZaGostitelja = kljuc
         val zaTv = ogled || SpletMostPravila.jeDovoljenIzvor(naslov) || GooglePravila.youtubeZaTv(naslov) || PdfPregledovalnik.jePregledovalnik(naslov)
         val kazalec = KazalecPravila.privzetoKazalec(
-            si.safeer.tv.os.Naprava.jeTelevizor(this), naslov, zaTv, KazalecNastavitve.zapomnjeno(this, kljuc))
+            si.safeer.tv.os.Naprava.jeTelevizor(this), naslov, zaTv, KazalecNastavitve.zapomnjeno(this, kljuc),
+            si.safeer.tv.os.OsPravila.miskaZaAplikacijo(true, naslov))
         virtualPointerView.privzet = kazalec
         virtualPointerView.isPointerVisible = kazalec
     }

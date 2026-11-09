@@ -4,7 +4,11 @@ import si.safeer.tv.KazalecPravila as K
 
 /** Lastnik 9. 11. 2026: na straneh, ki niso za TV (24ur.com), daljinec privzeto deluje kot kazalec. */
 fun main() {
-    check(K.privzetoKazalec(true, "https://www.24ur.com/", zaTv = false, zapomnjeno = null)) { "24ur.com na TV: kazalec" }
+    // Lastnik 9. 11. 2026 (RTV SLO kot aplikacija): privzeto puscice kot v aplikaciji, kazalec samo za strani brez daljinca.
+    check(!K.privzetoKazalec(true, "https://www.24ur.com/", zaTv = false, zapomnjeno = null)) { "24ur.com na TV: puscice" }
+    check(!K.privzetoKazalec(true, "https://www.rtvslo.si/", zaTv = false, zapomnjeno = null)) { "rtvslo.si na TV: puscice" }
+    check(K.privzetoKazalec(true, "https://www.facebook.com/", zaTv = false, zapomnjeno = null, miska = true)) { "Facebook: kazalec" }
+    check(K.privzetoKazalec(true, "https://www.24ur.com/", zaTv = false, zapomnjeno = true)) { "uporabnik je izbral kazalec" }
     check(!K.privzetoKazalec(true, "https://www.youtube.com/tv", zaTv = true, zapomnjeno = null)) { "YouTube za TV: puscice" }
     check(!K.privzetoKazalec(true, "file:///android_asset/home.html", zaTv = false, zapomnjeno = null)) { "nasa domaca stran: puscice" }
     check(!K.privzetoKazalec(false, "https://www.24ur.com/", zaTv = false, zapomnjeno = null)) { "telefon/tablica: brez kazalca" }
