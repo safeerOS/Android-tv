@@ -179,11 +179,14 @@ object TujePredvajanje {
     fun ustaviIzDocka(c: Context) {
         val k = kontroler ?: return
         premorIzDocka = null
-        ustavljenIzDocka = k.packageName
+        val paket = k.packageName
+        ustavljenIzDocka = paket
         try { k.transportControls.stop() } catch (_: Throwable) { }
         objavi(null)
+        // Slepi pregled 9. 11.: ustavljeni paket se ob kliku se steje kot igrajoc (igraBrezPrikaza, isMusicActive) in bi ostal
+        // odprt - pocistiOzadje ga izloci in zvok izmeri po zamiku. Ce po zamiku se igra (stop prezrt), ne zapre nicesar.
         Pomnilnik.pocistiOzadje(c.applicationContext, cakajMs = MiniPredvajalnikPravila.ZAPRI_PO_USTAVITVI_MS,
-            nedejavnostMs = OsPravila.VRNITEV_DOMOV_NEDEJAVNOST_MS)
+            nedejavnostMs = OsPravila.VRNITEV_DOMOV_NEDEJAVNOST_MS, ponavljaj = true, ustavljen = paket)
     }
 
     /** Kliknjen naslov v malem predvajalniku: odpre aplikacijo, ki igra. */

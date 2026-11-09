@@ -38,6 +38,16 @@ class VirtualPointerView @JvmOverloads constructor(
         }
 
     /**
+     * Kazalec je privzet za stran, ki ni za TV (lastnik 9. 11. 2026, 24ur.com). Slepi pregled 9. 11.: po 30 s se je skril in
+     * daljinec je ostal v nacinu puscic do menjave gostitelja - zato se na taki strani ne skrije sam.
+     */
+    var privzet: Boolean = false
+        set(value) {
+            field = value
+            removeCallbacks(hideRunnable)
+        }
+
+    /**
      * Vlecenje z daljincem (lastnik 30. 10. 2026: varnostne preverbe »povleci obliko«, drsniki).
      * Dolg pritisk OK zgrabi, puscice vlecejo, naslednji OK spusti. Kratek OK je klik ob spustu tipke.
      */
@@ -101,7 +111,7 @@ class VirtualPointerView @JvmOverloads constructor(
     fun movePointer(dx: Float, dy: Float, targetWebView: WebView?): Boolean {
         isPointerVisible = true
         removeCallbacks(hideRunnable)
-        if (!trajen && !vlecem) postDelayed(hideRunnable, 30000)
+        if (KazalecPravila.samSkrij(trajen, vlecem, privzet)) postDelayed(hideRunnable, 30000)
 
         val newX = max(10f, min(width - 10f, pointerX + dx))
         val newY = max(10f, min(height - 10f, pointerY + dy))
@@ -190,7 +200,7 @@ class VirtualPointerView @JvmOverloads constructor(
         try { cilj?.setOnLongClickListener(null) } catch (_: Throwable) { }
         vlecenjePogled = null
         vlecem = false
-        if (!trajen) postDelayed(hideRunnable, 30000)
+        if (KazalecPravila.samSkrij(trajen, false, privzet)) postDelayed(hideRunnable, 30000)
         invalidate()
     }
 

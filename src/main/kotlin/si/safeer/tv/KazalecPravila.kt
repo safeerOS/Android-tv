@@ -23,4 +23,7 @@ object KazalecPravila {
         zapomnjeno?.let { return it }
         return !zaTv
     }
+
+    /** Kazalec se sam skrije po 30 s samo, ce ni trajen (spletna aplikacija), ne vlece in ni privzet za stran, ki ni za TV. */
+    fun samSkrij(trajen: Boolean, vlecem: Boolean, privzet: Boolean): Boolean = !trajen && !vlecem && !privzet
 }

@@ -12,5 +12,10 @@ fun main() {
     check(K.privzetoKazalec(true, "https://safeer.si/", zaTv = true, zapomnjeno = true)) { "uporabnik je izbral kazalec tudi na strani za TV" }
     check(K.gostitelj("https://WWW.24ur.com./clanek") == "www.24ur.com") { "gostitelj: malo, brez pike" }
     check(K.gostitelj("javascript:alert(1)") == null) { "samo http(s)" }
+    // Slepi pregled 9. 11. 2026: privzeti kazalec na strani, ki ni za TV, se po 30 s ne skrije sam.
+    check(!K.samSkrij(trajen = false, vlecem = false, privzet = true)) { "privzet kazalec: brez samodejnega skrivanja" }
+    check(K.samSkrij(trajen = false, vlecem = false, privzet = false)) { "rocno vklopljen kazalec: skrije se po 30 s" }
+    check(!K.samSkrij(trajen = true, vlecem = false, privzet = false)) { "spletna aplikacija: trajen" }
+    check(!K.samSkrij(trajen = false, vlecem = true, privzet = false)) { "med vlecenjem ne" }
     println("KazalecPravilaTest: OK")
 }

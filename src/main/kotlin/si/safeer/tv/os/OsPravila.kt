@@ -2427,9 +2427,15 @@ object OsPravila {
     const val PONOVI_CISCENJE_MS = 7_000L
     const val NAJVEC_PONOVITEV_CISCENJA = 20
 
-    /** Ponovi samo, ce uporabnik doma ni odsel (stevec odhodov enak) - zagon aplikacije ali odhod ciscenje konca. */
-    fun ponoviCiscenje(odhodiObZacetku: Long, odhodiZdaj: Long, poskus: Int): Boolean =
-        odhodiZdaj == odhodiObZacetku && poskus < NAJVEC_PONOVITEV_CISCENJA
+    /**
+     * Ponovi samo klic z doma ([zDoma]; slepi pregled 9. 11.: ne nas predvajalnik ali glasba) in samo, ce uporabnik doma
+     * ni odsel (stevec odhodov enak) - zagon aplikacije ali odhod ciscenje konca.
+     */
+    fun ponoviCiscenje(zDoma: Boolean, odhodiObZacetku: Long, odhodiZdaj: Long, poskus: Int): Boolean =
+        zDoma && odhodiZdaj == odhodiObZacetku && poskus < NAJVEC_PONOVITEV_CISCENJA
+
+    /** Paket, ki igra, razen tistega, ki ga je uporabnik pravkar ustavil z X (ob kliku se vedno javi kot igrajoc). */
+    fun igrajocRazenUstavljenega(igra: String?, ustavljen: String?): String? = igra?.takeIf { it != ustavljen }
 
     fun miskaZaAplikacijo(jeTelevizor: Boolean, naslov: String): Boolean {
         if (!jeTelevizor) return false
