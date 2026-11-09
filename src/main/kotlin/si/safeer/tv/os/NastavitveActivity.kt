@@ -1003,11 +1003,16 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     }
 
     /** Povezava z oknom »Dovoli razhroscevanje« na TV: po soglasju in ko je TV kljuc preklical (lastnik 9. 11. 2026). */
+    /** Slepi pregled 9. 11.: hitri zaporedni kliki ne odprejo vec povezav in vec oken za potrditev. */
+    @Volatile private var povezujemAdb = false
+
     private fun poveziAdb() {
+        if (povezujemAdb) return
+        povezujemAdb = true
         android.widget.Toast.makeText(this, R.string.os_adb_potrdi_na_tv, android.widget.Toast.LENGTH_LONG).show()
         val app = applicationContext
         Thread {
-            val izid = AdbLokalno.povezi(app)
+            val izid = try { AdbLokalno.povezi(app) } finally { povezujemAdb = false }
             android.util.Log.i("SafeerAdbLokalno", "povezava s potrditvijo: $izid")
             runOnUiThread {
                 if (isFinishing || isDestroyed) return@runOnUiThread

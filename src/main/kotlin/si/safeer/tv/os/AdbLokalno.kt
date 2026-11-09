@@ -98,7 +98,8 @@ object AdbLokalno {
         // Ce razhroscevanje v sistemu ni vklopljeno, na vratih 5555 ni pravega adbd - lahko pa jih zaseda druga aplikacija,
         // ki bi dobila nas podpis. Takrat se sploh ne povezemo.
         val adbVklopljen = try { android.provider.Settings.Global.getInt(c.contentResolver, android.provider.Settings.Global.ADB_ENABLED, 0) == 1 } catch (_: Exception) { false }
-        if (!adbVklopljen) { zadnjiIzid = IZID_NI_DOSEGLJIV; return emptyList() }
+        // Slepi pregled 9. 11.: izklopljeno razhroscevanje ustavi zapiranje enako kot preklican kljuc - vrstica to pove.
+        if (!adbVklopljen) { zadnjiIzid = IZID_NI_DOSEGLJIV; if (!prvic) zapomniPotrditev(c, false); return emptyList() }
         val zaprti = ArrayList<String>()
         try {
             Socket().use { s ->
