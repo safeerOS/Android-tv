@@ -159,7 +159,48 @@ fun odgovoriTest() {
     println("odgovori: OK")
 }
 
+/** Lastnik 9. 11. 2026 (Scit kot Pi-hole): cilji CNAME v odgovoru, tudi s stiskanjem; pokvarjena sporocila ne podrejo. */
+fun cnameTest() {
+    fun ime(s: String): ByteArray {
+        val o = java.io.ByteArrayOutputStream()
+        for (l in s.split('.')) { o.write(l.length); o.write(l.toByteArray()) }
+        o.write(0); return o.toByteArray()
+    }
+    val o = java.io.ByteArrayOutputStream()
+    o.write(byteArrayOf(0x12, 0x34, 0x81.toByte(), 0x80.toByte(), 0, 1, 0, 2, 0, 0, 0, 0))
+    o.write(ime("stat.stran.si")); o.write(byteArrayOf(0, 1, 0, 1))
+    val cilj = ime("trk.sledilec.net")
+    // CNAME: ime je kazalec na vprasanje (0xC00C), cilj nestisnjen
+    o.write(byteArrayOf(0xC0.toByte(), 0x0C, 0, 5, 0, 1, 0, 0, 0, 60, 0, cilj.size.toByte()))
+    val zacetekCilja = o.size()
+    o.write(cilj)
+    // A za cilj: ime je kazalec na cilj
+    o.write(byteArrayOf(0xC0.toByte(), zacetekCilja.toByte(), 0, 1, 0, 1, 0, 0, 0, 60, 0, 4, 1, 2, 3, 4))
+    val odg = o.toByteArray()
+    preveri(DnsPaket.cnameCilji(odg) == listOf("trk.sledilec.net"), "cilj CNAME: ${DnsPaket.cnameCilji(odg)}")
+    // Stisnjen cilj (kazalec na del vprasanja): www CNAME stran.si
+    val o2 = java.io.ByteArrayOutputStream()
+    o2.write(byteArrayOf(0, 1, 0x81.toByte(), 0x80.toByte(), 0, 1, 0, 1, 0, 0, 0, 0))
+    o2.write(ime("www.stran.si")); o2.write(byteArrayOf(0, 1, 0, 1))
+    o2.write(byteArrayOf(0xC0.toByte(), 0x0C, 0, 5, 0, 1, 0, 0, 0, 60, 0, 2, 0xC0.toByte(), 16))
+    preveri(DnsPaket.cnameCilji(o2.toByteArray()) == listOf("stran.si"), "stisnjen cilj CNAME")
+    // Brez CNAME (samo A)
+    val samoA = odg.copyOf(); samoA[7] = 0
+    preveri(DnsPaket.cnameCilji(samoA).isEmpty(), "brez odgovorov ni ciljev")
+    // Zanka kazalcev (kazalec nase) in kazalec naprej: null, brez zanke
+    val zanka = byteArrayOf(0xC0.toByte(), 0x00)
+    preveri(DnsPaket.preberiImeOdgovora(zanka, 0) == null, "kazalec nase ni dovoljen")
+    val naprej = byteArrayOf(0xC0.toByte(), 0x05, 0, 0, 0, 0)
+    preveri(DnsPaket.preberiImeOdgovora(naprej, 0) == null, "kazalec naprej ni dovoljen")
+    // Odrezano sporocilo in lazno veliko stevilo odgovorov: ne vrze izjeme
+    for (n in 0 until odg.size) DnsPaket.cnameCilji(odg, n)
+    val lazno = odg.copyOf(); lazno[6] = 0xFF.toByte(); lazno[7] = 0xFF.toByte()
+    preveri(DnsPaket.cnameCilji(lazno) == listOf("trk.sledilec.net"), "lazno stevilo odgovorov")
+    println("cname: OK")
+}
+
 fun main() {
+    cnameTest()
     naborTest()
     paketiTest()
     odgovoriTest()

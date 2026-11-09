@@ -268,7 +268,8 @@ class ScitStoritev : VpnService() {
                 }
                 if (rezultat != null) break
             }
-            odgovor(rezultat)
+            val r = rezultat
+            odgovor(if (r != null && cnameUstavi(ime, r)) DnsPaket.odgovorBlokiranoZa(vprasanje) else r)
         }
     }
 
@@ -385,6 +386,11 @@ class ScitStoritev : VpnService() {
             val izvor = p.address?.address ?: continue
             if (c.vprasani.none { DnsPaket.ustrezaOdgovor(c.q, id, it.address, izvor, p.port, odgovor) }) continue
             if (!cakajoce.remove(id, c)) continue
+            // Lastnik 9. 11. 2026: sledilec, skrit za CNAME (kot Pi-hole), se ustavi, ce je cilj na seznamu.
+            if (cnameUstavi(c.q.ime, odgovor)) {
+                zapisi(DnsPaket.zavijOdgovor(c.q, DnsPaket.odgovorBlokirano(c.q)))
+                continue
+            }
             DnsPaket.put16(odgovor, 0, c.q.id)   // aplikaciji vrnemo njen ID
             zapisi(DnsPaket.zavijOdgovor(c.q, odgovor))
         }
@@ -455,6 +461,22 @@ class ScitStoritev : VpnService() {
         val zdaj = System.currentTimeMillis()
         return ScitOdlocitev.odloci(ime, { d, sme -> nab?.najblizja(d, sme) }, g != null, { d, sme -> g?.najblizja(d, sme) },
             { ScitIzjeme.dovoljena(it, izjeme, zdaj) || ScitPregled.uporabniskaVelja(it, uporabniske, zdaj) })
+    }
+
+    /**
+     * Odgovor za [ime] vsebuje CNAME na ustavljeno domeno (prikrit sledilec). Izjema na vprasanem imenu (uporabnikova,
+     * Webtorjeva) velja tudi za njegovo verigo - kot pri Pi-hole, kjer dovoljena domena ne gre v preverbo CNAME.
+     */
+    private fun cnameUstavi(ime: String, odgovor: ByteArray): Boolean {
+        val cilji = DnsPaket.cnameCilji(odgovor)
+        if (cilji.isEmpty()) return false
+        val zdaj = System.currentTimeMillis()
+        if (ScitIzjeme.dovoljena(ime, izjeme, zdaj) || ScitPregled.uporabniskaVelja(ime, uporabniske, zdaj)) return false
+        if (cilji.none { odlocitev(it) == ScitOdlocitev.Izid.USTAVI }) return false
+        blokiranih.incrementAndGet()
+        // Med zadnjimi je vprasano ime: na zaslonu Scita ga uporabnik lahko spusti (cilj s seznama ne bi mogel).
+        zabeleziUstavljeno(ime)
+        return true
     }
 
     /** Ustavljeno ime na vrh seznama zadnjih (zapis v datoteko najvec enkrat na sekundo, v urniku). Brez logcat. */

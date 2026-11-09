@@ -114,6 +114,62 @@ object DnsPaket {
         return sb.toString().lowercase() to i
     }
 
+    /**
+     * Ime v odsekih odgovorov, s stiskanjem (RFC 1035 4.1.4). Kazalec sme kazati samo NAZAJ (ni zank), najvec 16 skokov,
+     * ime najvec 255 znakov. Vrne (ime, odmik za imenom na mestu, kjer se zacne) ali null za pokvarjeno sporocilo.
+     */
+    fun preberiImeOdgovora(d: ByteArray, zacetek: Int, dolzina: Int = d.size): Pair<String, Int>? {
+        val sb = StringBuilder()
+        var i = zacetek
+        var konec = -1
+        var skokov = 0
+        while (true) {
+            if (i < 0 || i >= dolzina) return null
+            val len = d[i].toInt() and 0xFF
+            if (len == 0) { if (konec < 0) konec = i + 1; break }
+            if (len and 0xC0 == 0xC0) {
+                if (i + 1 >= dolzina) return null
+                val cilj = ((len and 0x3F) shl 8) or (d[i + 1].toInt() and 0xFF)
+                if (konec < 0) konec = i + 2
+                if (cilj >= i || ++skokov > 16) return null
+                i = cilj
+                continue
+            }
+            if (len and 0xC0 != 0) return null
+            if (i + 1 + len > dolzina || sb.length + len + 1 > 255) return null
+            if (sb.isNotEmpty()) sb.append('.')
+            for (k in 0 until len) sb.append((d[i + 1 + k].toInt() and 0xFF).toChar())
+            i += 1 + len
+        }
+        return sb.toString().lowercase() to konec
+    }
+
+    /**
+     * Cilji zapisov CNAME v odseku odgovorov. Lastnik 9. 11. 2026 (Scit enako dober kot Pi-hole): Pi-hole privzeto preveri
+     * verigo CNAME (»deep CNAME inspection«) - sledilec, skrit pod poddomeno strani (stat.stran.si CNAME sledilec.net), se
+     * ustavi, ce je cilj na seznamu. Najvec 64 zapisov; pri pokvarjenem sporocilu vrne, kar je prebralo do tam.
+     */
+    fun cnameCilji(d: ByteArray, dolzina: Int = d.size): List<String> {
+        if (dolzina < 12 || dolzina > d.size) return emptyList()
+        var i = 12
+        for (n in 0 until u16(d, 4)) {
+            val (_, k) = preberiImeOdgovora(d, i, dolzina) ?: return emptyList()
+            i = k + 4
+        }
+        val izhod = ArrayList<String>()
+        for (n in 0 until minOf(u16(d, 6), 64)) {
+            val (_, k) = preberiImeOdgovora(d, i, dolzina) ?: return izhod
+            if (k + 10 > dolzina) return izhod
+            val vrsta = u16(d, k)
+            val rd = k + 10
+            val rdl = u16(d, k + 8)
+            if (rd + rdl > dolzina) return izhod
+            if (vrsta == 5) preberiImeOdgovora(d, rd, dolzina)?.let { izhod += it.first }
+            i = rd + rdl
+        }
+        return izhod
+    }
+
     /** Odgovor NXDOMAIN na surovo sporocilo DNS (ista pot za UDP in TCP). */
     fun odgovorBlokiranoZa(dns: ByteArray): ByteArray = odgovorZ(dns, 3)
 
