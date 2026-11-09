@@ -65,6 +65,13 @@ object SmartOmnibox {
         return v.isNotEmpty() && v != "https://www.google.com" && v != "www.google.com" && v != naslovStrani.trim()
     }
 
+    /**
+     * Ob odpiranju tipkovnice v naslovni vrstici (OK z daljincem) polje izprazni, kadar je v njem samo naslov odprte
+     * strani - kot gumb za brisanje (lastnik 9. 11. 2026: »da sama zbrise naslov«). Izbira vsebine na TV ne zadosca:
+     * tipkovnica Gboard jo ob odprtju zamenja s kazalcem na koncu (posnetek TV 24ur.com). Vneseno besedilo ostane.
+     */
+    fun izprazniObTipkovnici(vnos: String, naslovStrani: String): Boolean = vnos.trim().isNotEmpty() && !okOdpre(vnos, naslovStrani)
+
     fun poizvedba(url: String): String? {
         for (i in Iskalnik.values()) {
             val osnova = i.iskanje.substringBefore('?')

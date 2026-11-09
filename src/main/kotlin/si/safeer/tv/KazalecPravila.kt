@@ -48,6 +48,10 @@ object KazalecPravila {
     fun brezSirine(dotik: Boolean, youtubeZaTv: Boolean, androidIdentiteta: Boolean, pregledovalnik: Boolean, http: Boolean): Boolean =
         dotik || youtubeZaTv || androidIdentiteta || pregledovalnik || !http
 
+    /** Zacetna povecava: namizna samo za navadne strani; Google (prijava) in izjeme 100, da ne ostane povecava prejsnje strani. */
+    fun zacetnaPovecava(namiznaSirina: Int, brezSirine: Boolean, google: Boolean, namizna: Int): Int =
+        if (namiznaSirina > 0 && !brezSirine && !google) namizna else 100
+
     /** Zarez kolesca miske na pritisk ob robu (lastnik 9. 11. 2026, 24ur.com); izmeri na TV po gradnji. */
     const val KORAK_KOLESCA = 3f
 

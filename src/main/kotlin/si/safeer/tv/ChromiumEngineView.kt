@@ -743,6 +743,8 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
             // morda ni varen«); uvoz YouTuba se na istem TV s Chrome na Androidu prijavi (lastnik 17:20: moznost b).
             // Zgodovina: Safari je 30. 10. deloval (claude.ai), namizni Chrome 1. 11. zavrnjen.
             settings.userAgentString = googleUa(context)
+            // CodeRabbit 9. 11. 2026: brez tega je Googlova stran obdrzala namizno povecavo prejsnje strani.
+            setInitialScale(KazalecPravila.zacetnaPovecava(namiznaSirina, false, true, 100))
             // Lastnik 1. 11. 2026 10:50: setUserAgentMetadata je na TV (Android 11, WebView) sesul TV Browser (SIGTRAP v
             // libwebviewchromium, AwSettings.setUserAgentMetadataFromMap) ob kliku »Prijava« na Gmailu. Client Hints zato
             // ne nastavljamo vec (funkcija odstranjena).
@@ -764,7 +766,7 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
         val brezSirine = KazalecPravila.brezSirine(dotik, isYoutubeTv,
             GooglePravila.googleIdentiteta(url) || GooglePravila.chromeAndroidStran(url), PdfPregledovalnik.jePregledovalnik(url),
             url.startsWith("http://") || url.startsWith("https://"))
-        setInitialScale(if (namiznaSirina > 0 && !brezSirine) namiznaPovecava() else 100)
+        setInitialScale(KazalecPravila.zacetnaPovecava(namiznaSirina, brezSirine, false, if (namiznaSirina > 0) namiznaPovecava() else 100))
         settings.javaScriptEnabled = true
         settings.domStorageEnabled = true
         @Suppress("DEPRECATION") settings.setDatabaseEnabled(true)

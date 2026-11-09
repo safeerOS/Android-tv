@@ -27,6 +27,9 @@ fun main() {
     check(K.brezSirine(dotik = false, youtubeZaTv = true, androidIdentiteta = false, pregledovalnik = false, http = true)) { "YouTube za TV ostane" }
     check(K.brezSirine(dotik = false, youtubeZaTv = false, androidIdentiteta = true, pregledovalnik = false, http = true)) { "Googlova prijava ostane" }
     check(!K.brezSirine(dotik = false, youtubeZaTv = false, androidIdentiteta = false, pregledovalnik = false, http = true)) { "24ur: namizna sirina" }
+    check(K.zacetnaPovecava(1280, brezSirine = false, google = true, namizna = 75) == 100) { "Google: 100, ne namizna" }
+    check(K.zacetnaPovecava(1280, brezSirine = false, google = false, namizna = 75) == 75) { "24ur: namizna" }
+    check(K.zacetnaPovecava(0, brezSirine = false, google = false, namizna = 75) == 100) { "brez sirine: 100" }
     // Video lastnika 9. 11. 2026: gor pri 100 px je skocil v naslovno vrstico, stran se ni premaknila.
     check(!K.vNaslovnoVrstico(100f, stranLahkoGor = true)) { "100 px pod vrhom: drsi, ne naslovna vrstica" }
     check(!K.vNaslovnoVrstico(10f, stranLahkoGor = true)) { "na vrhu, stran lahko gor: drsi" }

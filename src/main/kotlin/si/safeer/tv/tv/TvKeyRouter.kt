@@ -146,7 +146,8 @@ class TvKeyRouter(private val host: MainActivity) {
                         host.activeWebView()?.requestFocus()
                         return true
                     } else {
-                        host.editUrl.selectAll()
+                        if (si.safeer.tv.SmartOmnibox.izprazniObTipkovnici(q, host.activeUrl())) host.editUrl.setText("")
+                        else host.editUrl.selectAll()
                         host.showKeyboard()
                         return true
                     }

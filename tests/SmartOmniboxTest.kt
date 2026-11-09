@@ -72,6 +72,11 @@ fun main() {
     preveri("nespremenjen naslov odpre tipkovnico", !SmartOmnibox.okOdpre("https://claude.ai/new", "https://claude.ai/new"))
     preveri("prazno polje odpre tipkovnico", !SmartOmnibox.okOdpre("  ", "https://claude.ai/new"))
     preveri("nov naslov odpre stran", SmartOmnibox.okOdpre("rtvslo.si", "https://claude.ai/new"))
+    // Lastnik 9. 11. 2026 (posnetek 24ur.com): OK na naslovu odprte strani polje izprazni, vneseno besedilo ostane.
+    preveri("naslov strani se izprazni", SmartOmnibox.izprazniObTipkovnici("https://www.24ur.com/", "https://www.24ur.com/"))
+    preveri("google se izprazni", SmartOmnibox.izprazniObTipkovnici("https://www.google.com", "https://www.24ur.com/"))
+    preveri("prazno ostane prazno", !SmartOmnibox.izprazniObTipkovnici("  ", "https://www.24ur.com/"))
+    preveri("vneseno ostane", !SmartOmnibox.izprazniObTipkovnici("vreme", "https://www.24ur.com/"))
     preveri("iskani niz odpre iskanje", SmartOmnibox.okOdpre("vreme ljubljana", "https://www.google.com/"))
 
     println(if (napak == 0) "VSE OK" else "NAPAK: $napak")
