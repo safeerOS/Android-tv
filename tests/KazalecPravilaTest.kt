@@ -17,5 +17,8 @@ fun main() {
     check(K.samSkrij(trajen = false, vlecem = false, privzet = false)) { "rocno vklopljen kazalec: skrije se po 30 s" }
     check(!K.samSkrij(trajen = true, vlecem = false, privzet = false)) { "spletna aplikacija: trajen" }
     check(!K.samSkrij(trajen = false, vlecem = true, privzet = false)) { "med vlecenjem ne" }
+    check(K.kljucStrani("www.24ur.com", false) == "www.24ur.com") { "kljuc: navadna stran" }
+    check(K.kljucStrani("www.24ur.com", true) != K.kljucStrani("www.24ur.com", false)) { "kljuc: ogled istega gostitelja je druga stran" }
+    check(K.kljucStrani(null, true) == null) { "kljuc: brez gostitelja" }
     println("KazalecPravilaTest: OK")
 }

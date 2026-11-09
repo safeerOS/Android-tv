@@ -189,6 +189,12 @@ object TujePredvajanje {
             nedejavnostMs = OsPravila.VRNITEV_DOMOV_NEDEJAVNOST_MS, ponavljaj = true, ustavljen = paket)
     }
 
+    /**
+     * Slepi pregled 9. 11.: aplikacija je stop prezrla in igra naprej - mali predvajalnik je bil skrit (objavi(null)) in brez
+     * povratnega klica se ne bi vrnil. Ponovno branje seje ga pokaze (igra -> ustavljenIzDocka se pocisti).
+     */
+    fun osveziPoUstavitvi() { glavna.post { osvezi() } }
+
     /** Kliknjen naslov v malem predvajalniku: odpre aplikacijo, ki igra. */
     fun odpri(c: Context): Boolean {
         val p = stanje?.paket ?: return false

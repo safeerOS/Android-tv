@@ -643,9 +643,13 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         if (!::virtualPointerView.isInitialized || !si.safeer.tv.os.Naprava.jeTelevizor(this)) return
         if (nacinAplikacije != null || virtualPointerView.vlecem) return
         val g = KazalecPravila.gostitelj(naslov)
-        if (g == kazalecZaGostitelja) return
-        kazalecZaGostitelja = g
-        val zaTv = SpletMostPravila.jeDovoljenIzvor(naslov) || GooglePravila.youtubeZaTv(naslov) || PdfPregledovalnik.jePregledovalnik(naslov)
+        // Slepi pregled 9. 11.: stran za ogled (/watch, /shorts/) ima bliznjice OK = predvajaj/premor, dvakrat OK = cel zaslon
+        // (GenericWebSiteProfile, samo brez kazalca) - steje kot stran za TV; kljuc loci ogled od ostalih strani gostitelja.
+        val ogled = TvSite.isWatchPage(naslov)
+        val kljuc = KazalecPravila.kljucStrani(g, ogled)
+        if (kljuc == kazalecZaGostitelja) return
+        kazalecZaGostitelja = kljuc
+        val zaTv = ogled || SpletMostPravila.jeDovoljenIzvor(naslov) || GooglePravila.youtubeZaTv(naslov) || PdfPregledovalnik.jePregledovalnik(naslov)
         val kazalec = KazalecPravila.privzetoKazalec(
             si.safeer.tv.os.Naprava.jeTelevizor(this), naslov, zaTv, KazalecNastavitve.zapomnjeno(this, g))
         virtualPointerView.privzet = kazalec
@@ -667,8 +671,9 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             virtualPointerView.trajen = false
             virtualPointerView.isPointerVisible = false
         }
-        // Slepi pregled 9. 11.: naslednja stran istega gostitelja spet dobi privzeti kazalec.
+        // Slepi pregled 9. 11.: naslednja stran istega gostitelja spet dobi privzeti kazalec; star »privzet« ne ostane.
         kazalecZaGostitelja = null
+        virtualPointerView.privzet = false
         // Lastnik 29. 10. 2026: Zavihek spletne aplikacije ohranimo v predpomnilniku zavihkov
         // (tabManager), da se ob ponovnem vstopu v aplikacijo ne nalaga znova iz nicle.
         // Ce pomnilnik zahteva sprostitev, TabManager po casu ali ob pritisku RAM-a poskrbi za varno zamrznitev.

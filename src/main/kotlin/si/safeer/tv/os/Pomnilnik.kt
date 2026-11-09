@@ -243,7 +243,18 @@ object Pomnilnik {
                 } else Log.i(TAG, "ciscenje ozadja preskoceno - uporabnik je odprl aplikacijo")
                 return@Thread
             }
-            val (igraTuja, predvaja) = prej ?: meri()
+            var (igraTuja, predvaja) = prej ?: meri()
+            // Slepi pregled 9. 11.: X - aplikacija zvok sprosti pocasneje (izmeri se enkrat po zamiku) ali stop prezre (igra
+            // naprej: nic ne zapremo, mali predvajalnik se vrne).
+            if (OsPravila.ponovnoIzmeriPoUstavitvi(ustavljen, predvaja)) {
+                if (cakajMs > 0L) try { Thread.sleep(cakajMs) } catch (_: Exception) {}
+                val ponovno = meri(); igraTuja = ponovno.first; predvaja = ponovno.second
+                if (predvaja) {
+                    Log.i(TAG, "ciscenje po X: $ustavljen se igra - ne zapremo, mali predvajalnik spet pokazan")
+                    TujePredvajanje.osveziPoUstavitvi()
+                    return@Thread
+                }
+            }
             val amgr = c.getSystemService(ActivityManager::class.java)
             val pred = stanje(c)
             // Lastnik 8. 11. 2026 06:30: neigrajoce aplikacije se zaprejo (3 s), igrajoca ostane in jo upravlja mali predvajalnik.

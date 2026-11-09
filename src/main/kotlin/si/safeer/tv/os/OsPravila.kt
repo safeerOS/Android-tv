@@ -2434,6 +2434,9 @@ object OsPravila {
     fun ponoviCiscenje(zDoma: Boolean, odhodiObZacetku: Long, odhodiZdaj: Long, poskus: Int): Boolean =
         zDoma && odhodiZdaj == odhodiObZacetku && poskus < NAJVEC_PONOVITEV_CISCENJA
 
+    /** Po X: ce zvok po zamiku se tece, izmeri se enkrat (pocasno sproscanje zvoka); brez X ne. */
+    fun ponovnoIzmeriPoUstavitvi(ustavljen: String?, predvaja: Boolean): Boolean = ustavljen != null && predvaja
+
     /** Paket, ki igra, razen tistega, ki ga je uporabnik pravkar ustavil z X (ob kliku se vedno javi kot igrajoc). */
     fun igrajocRazenUstavljenega(igra: String?, ustavljen: String?): String? = igra?.takeIf { it != ustavljen }
 

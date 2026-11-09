@@ -26,4 +26,7 @@ object KazalecPravila {
 
     /** Kazalec se sam skrije po 30 s samo, ce ni trajen (spletna aplikacija), ne vlece in ni privzet za stran, ki ni za TV. */
     fun samSkrij(trajen: Boolean, vlecem: Boolean, privzet: Boolean): Boolean = !trajen && !vlecem && !privzet
+
+    /** Kljuc, ob katerem se privzeti kazalec preracuna: gostitelj, stran za ogled istega gostitelja loceno. */
+    fun kljucStrani(gostitelj: String?, ogled: Boolean): String? = gostitelj?.let { if (ogled) "$it#ogled" else it }
 }

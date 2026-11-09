@@ -1234,6 +1234,9 @@ fun main() {
     // Slepi pregled 9. 11. 2026: X v malem predvajalniku - ustavljeni SmartTube se ob kliku se javi kot igrajoc in ne sme ostati.
     preveriEnako("X: ustavljeni paket ne igra", null, OsPravila.igrajocRazenUstavljenega("org.smarttube.stable", "org.smarttube.stable"))
     preveriEnako("X: drug paket igra naprej", "com.spotify.tv.android", OsPravila.igrajocRazenUstavljenega("com.spotify.tv.android", "org.smarttube.stable"))
+    preveriEnako("X: zvok se tece - izmeri znova", true, OsPravila.ponovnoIzmeriPoUstavitvi("org.smarttube.stable", true))
+    preveriEnako("X: zvok ustavljen - zapri takoj", false, OsPravila.ponovnoIzmeriPoUstavitvi("org.smarttube.stable", false))
+    preveriEnako("Domov: brez X ni ponovne meritve", false, OsPravila.ponovnoIzmeriPoUstavitvi(null, true))
     preveriEnako("Domov: brez ustavljenega ostane igrajoci", "org.smarttube.stable", OsPravila.igrajocRazenUstavljenega("org.smarttube.stable", null))
     preveriEnako("miska: Facebook na TV", true, OsPravila.miskaZaAplikacijo(true, "https://www.facebook.com/"))
     preveriEnako("miska: m.facebook.com na TV", true, OsPravila.miskaZaAplikacijo(true, "https://m.facebook.com/home.php"))
