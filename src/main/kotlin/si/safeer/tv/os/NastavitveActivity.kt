@@ -356,8 +356,18 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 ZnackeObvestil.odpriNastavitve(this)
             } else null,
             // Lastnik 1. 11. 2026: brez zapiranja tujih aplikacij ni izdaje - na TV (Android 11) samo prek lastnega adb.
-            safeer(R.drawable.os_ikona_naprava, R.string.os_adb_zapiranje, R.string.os_adb_zapiranje_opis, vklop(AdbLokalno.soglasje(this))) {
-                if (AdbLokalno.soglasje(this)) { AdbLokalno.nastaviSoglasje(this, false); narisi() } else pogojiAdb()
+            run {
+                // Lastnik 9. 11. 2026: ce je TV kljuc preklical, vrstica to pove (prej »Vklopljeno«, zapiranje pa ni delalo).
+                val vrstica = AdbLokalnoPravila.stanjeVrstice(AdbLokalno.soglasje(this), AdbLokalno.niPotrjeno(this))
+                val napis = if (vrstica == AdbLokalnoPravila.VRSTICA_POTRDI) getString(R.string.os_adb_potrebna_potrditev)
+                    else vklop(vrstica == AdbLokalnoPravila.VRSTICA_VKLOP)
+                safeer(R.drawable.os_ikona_naprava, R.string.os_adb_zapiranje, R.string.os_adb_zapiranje_opis, napis) {
+                    when (vrstica) {
+                        AdbLokalnoPravila.VRSTICA_POTRDI -> poveziAdb()
+                        AdbLokalnoPravila.VRSTICA_VKLOP -> { AdbLokalno.nastaviSoglasje(this, false); narisi() }
+                        else -> pogojiAdb()
+                    }
+                }
             },
             safeer(R.drawable.os_ikona_naprava, R.string.os_plosek_preizkus, R.string.os_plosek_preizkus_opis, "") {
                 startActivity(android.content.Intent(this, PlosekActivity::class.java))
@@ -987,24 +997,31 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             .setPositiveButton(R.string.os_adb_sprejmem) { _, _ ->
                 AdbLokalno.nastaviSoglasje(this, true)
                 narisi()
-                android.widget.Toast.makeText(this, R.string.os_adb_potrdi_na_tv, android.widget.Toast.LENGTH_LONG).show()
-                val app = applicationContext
-                Thread {
-                    val izid = AdbLokalno.povezi(app)
-                    android.util.Log.i("SafeerAdbLokalno", "prva povezava: $izid")
-                    runOnUiThread {
-                        if (isFinishing || isDestroyed) return@runOnUiThread
-                        val sporocilo = when (izid) {
-                            AdbLokalno.IZID_POVEZANO -> R.string.os_adb_povezano
-                            AdbLokalno.IZID_NI_DOSEGLJIV -> R.string.os_adb_ni_dosegljiv
-                            else -> R.string.os_adb_ni_potrjeno
-                        }
-                        // Brez potrjene povezave soglasje ne ostane vklopljeno (uporabnik vidi pravo stanje).
-                        if (izid != AdbLokalno.IZID_POVEZANO) { AdbLokalno.nastaviSoglasje(app, false); narisi() }
-                        android.widget.Toast.makeText(this, sporocilo, android.widget.Toast.LENGTH_LONG).show()
-                    }
-                }.start()
+                poveziAdb()
             }
             .let { Kontroler.pokazi(it.show()) }
+    }
+
+    /** Povezava z oknom »Dovoli razhroscevanje« na TV: po soglasju in ko je TV kljuc preklical (lastnik 9. 11. 2026). */
+    private fun poveziAdb() {
+        android.widget.Toast.makeText(this, R.string.os_adb_potrdi_na_tv, android.widget.Toast.LENGTH_LONG).show()
+        val app = applicationContext
+        Thread {
+            val izid = AdbLokalno.povezi(app)
+            android.util.Log.i("SafeerAdbLokalno", "povezava s potrditvijo: $izid")
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                val sporocilo = when (izid) {
+                    AdbLokalno.IZID_POVEZANO -> R.string.os_adb_povezano
+                    AdbLokalno.IZID_NI_DOSEGLJIV -> R.string.os_adb_ni_dosegljiv
+                    else -> R.string.os_adb_ni_potrjeno
+                }
+                // Brez potrjene povezave soglasje ne ostane vklopljeno (uporabnik vidi pravo stanje); po potrditvi
+                // vrstica spet pokaze »Vklopljeno« (zapomniPotrditev v AdbLokalno).
+                if (izid != AdbLokalno.IZID_POVEZANO) AdbLokalno.nastaviSoglasje(app, false)
+                narisi()
+                android.widget.Toast.makeText(this, sporocilo, android.widget.Toast.LENGTH_LONG).show()
+            }
+        }.start()
     }
 }

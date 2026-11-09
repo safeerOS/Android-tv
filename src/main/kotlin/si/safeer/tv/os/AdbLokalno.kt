@@ -27,6 +27,8 @@ object AdbLokalno {
     private const val TAG = "SafeerAdbLokalno"
     private const val PREFS = "safeer_os"
     private const val KLJUC_SOGLASJA = "adb_soglasje"
+    /** Zadnja povezava ni bila potrjena (TV je kljuc preklical) - nastavitve pokazejo »Potrebna potrditev«. */
+    private const val KLJUC_NI_POTRJENO = "adb_ni_potrjeno"
     private const val VZDEVEK = "safeer_adb_lokalno"
     private const val ROK_POVEZAVE_MS = 2_000
     private const val ROK_BRANJA_MS = 5_000
@@ -34,6 +36,15 @@ object AdbLokalno {
     private const val ROK_POTRDITVE_MS = 60_000
 
     fun soglasje(c: Context): Boolean = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KLJUC_SOGLASJA, false)
+
+    /** Ali je TV preklical nas kljuc (zadnja povezava ni bila potrjena). */
+    fun niPotrjeno(c: Context): Boolean = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KLJUC_NI_POTRJENO, false)
+
+    private fun zapomniPotrditev(c: Context, potrjeno: Boolean) {
+        val p = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (p.getBoolean(KLJUC_NI_POTRJENO, false) == !potrjeno) return
+        p.edit().putBoolean(KLJUC_NI_POTRJENO, !potrjeno).apply()
+    }
 
     fun nastaviSoglasje(c: Context, da: Boolean) {
         c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(KLJUC_SOGLASJA, da).apply()
@@ -118,7 +129,7 @@ object AdbLokalno {
                                 podpisano = true
                             } else {
                                 // Kljuc se ni potrjen: Android pokaze okno »Dovoli razhroscevanje?« - uporabnik odloci.
-                                if (!prvic) { zadnjiIzid = IZID_NI_POTRJENO; Log.i(TAG, "adb: kljuc ni potrjen - potrebna je potrditev uporabnika"); return emptyList() }
+                                if (!prvic) { zadnjiIzid = IZID_NI_POTRJENO; zapomniPotrditev(c, false); Log.i(TAG, "adb: kljuc ni potrjen - potrebna je potrditev uporabnika"); return emptyList() }
                                 val jk = AdbLokalnoPravila.javniKljucAdb(javni.modulus, javni.publicExponent.toInt(), "safeer@tv") {
                                     Base64.encodeToString(it, Base64.NO_WRAP)
                                 }
@@ -129,8 +140,9 @@ object AdbLokalno {
                         else -> throw java.io.IOException("nepricakovan odgovor ADB")
                     }
                 }
-                if (!povezano) { zadnjiIzid = IZID_NI_POTRJENO; return emptyList() }
+                if (!povezano) { zadnjiIzid = IZID_NI_POTRJENO; zapomniPotrditev(c, false); return emptyList() }
                 zadnjiIzid = IZID_POVEZANO
+                zapomniPotrditev(c, true)
                 var lokalni = 0
                 for ((paket, ukaz) in ukazi) {
                     // Lastnik 2. 11. 2026: TV Browser se je ob zagonu sesul - zapiranje ob vrnitvi domov je teklo se,

@@ -784,6 +784,7 @@
     <string name="os_adb_potrdi_na_tv">Sur le téléviseur, choisissez »Toujours autoriser« et confirmez.</string>
     <string name="os_adb_povezano">C\'est fait - Safeer OS ferme maintenant les apps que vous n\'utilisez plus.</string>
     <string name="os_adb_ni_dosegljiv">Le débogage réseau est désactivé. Activez-le dans Paramètres &gt; Options pour les développeurs, puis réessayez.</string>
+    <string name="os_adb_potrebna_potrditev">Confirmation requise</string>
     <string name="os_adb_ni_potrjeno">Non confirmé sur le téléviseur. Réessayez et choisissez »Toujours autoriser«.</string>
     <string name="os_mediji_zdaj_igra">En lecture - ouvrir sur l\'Accueil</string>
     <string name="os_mediji_zdaj_igra_kratko">En lecture</string>

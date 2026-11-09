@@ -88,5 +88,9 @@ fun main() {
     // Lastnik 8. 11. 2026: SmartTube zaprt na silo ob zagonu - tipka ali zagon iz zaganjalnika ustavi zapiranje takoj.
     preveri("tipka ali zagon med zapiranjem ga ustavi", !P.smemoNadaljevati(4L, 4L, 10L, 11L))
     preveri("brez tipke in odhoda zapiranje nadaljuje", P.smemoNadaljevati(4L, 4L, 10L, 10L))
+    // Lastnik 9. 11. 2026: TV je preklical kljuc - vrstica ne sme kazati »Vklopljeno«.
+    preveri("brez soglasja izklopljeno", P.stanjeVrstice(false, true) == P.VRSTICA_IZKLOP)
+    preveri("soglasje in potrjen kljuc: vklopljeno", P.stanjeVrstice(true, false) == P.VRSTICA_VKLOP)
+    preveri("soglasje, kljuc preklican: potrebna potrditev", P.stanjeVrstice(true, true) == P.VRSTICA_POTRDI)
     if (napak == 0) println("AdbLokalnoPravilaTest: OK") else { println("Napak: $napak"); kotlin.system.exitProcess(1) }
 }

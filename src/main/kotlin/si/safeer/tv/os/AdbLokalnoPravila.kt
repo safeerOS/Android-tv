@@ -11,6 +11,21 @@ import java.nio.ByteOrder
  * tests/AdbLokalnoPravilaTest.kt): protokol ADB, oblika javnega kljuca in - najpomembnejse - kateri ukaz SME iti ven.
  */
 object AdbLokalnoPravila {
+    /** Vrstica »Zapiranje aplikacij« v nastavitvah: izklopljeno, vklopljeno ali vklopljeno, a kljuc TV ni vec potrjen. */
+    const val VRSTICA_IZKLOP = 0
+    const val VRSTICA_VKLOP = 1
+    const val VRSTICA_POTRDI = 2
+
+    /**
+     * Lastnik 9. 11. 2026 (TV je drugic »pozabil« nas kljuc ADB): nastavitev je kazala »Vklopljeno«, zapiranje pa ni delalo.
+     * Ce zadnja povezava ni bila potrjena, vrstica pove, da je potrebna potrditev, in klik jo sprozi.
+     */
+    fun stanjeVrstice(soglasje: Boolean, niPotrjeno: Boolean): Int = when {
+        !soglasje -> VRSTICA_IZKLOP
+        niPotrjeno -> VRSTICA_POTRDI
+        else -> VRSTICA_VKLOP
+    }
+
     const val GOSTITELJ = "127.0.0.1"
     const val VRATA = 5555
 

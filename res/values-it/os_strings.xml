@@ -784,6 +784,7 @@
     <string name="os_adb_potrdi_na_tv">Sul televisore scegli »Consenti sempre« e conferma.</string>
     <string name="os_adb_povezano">Fatto - Safeer OS ora chiude le app che non usi più.</string>
     <string name="os_adb_ni_dosegljiv">Il debug di rete è disattivato. Attivalo in Impostazioni &gt; Opzioni sviluppatore e riprova.</string>
+    <string name="os_adb_potrebna_potrditev">Conferma necessaria</string>
     <string name="os_adb_ni_potrjeno">Non confermato sul televisore. Riprova e scegli »Consenti sempre«.</string>
     <string name="os_mediji_zdaj_igra">In riproduzione - apri in Home</string>
     <string name="os_mediji_zdaj_igra_kratko">In riproduzione</string>
