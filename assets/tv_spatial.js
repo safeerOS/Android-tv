@@ -1737,11 +1737,82 @@
                 return false;
             }
 
+            /* SAFEER_KANDIDATI_RAZLICICA_ZACETEK */
+            // TV 9. 11. 2026 (apk-21): zbiranje ciljev ob vsaki tipki 150-250 ms (H54), na testnem PC (Chrome, CPU 6x) pregled
+            // 2700-3900 elementov za 47-107 ciljev. Med pritiski se stran navadno ne spremeni: izid zbiranja velja, dokler se ne
+            // spremeni DOM strani (ne nas obroc in oznake safeer-*), drsenje (okno ali vsebnik), velikost ali naslov strani.
+            // Najdlje KAND_NAJDLJE_MS (animacije CSS brez spremembe DOM).
+            var KAND_NAJDLJE_MS = 2000;
+            var domRazlicica = 0, drsenjeRazlicica = 0, kandOpazovalec = null;
+            function jeNasVozel(n) {
+                var e = n && n.nodeType === 1 ? n : (n ? n.parentElement : null), g = 0;
+                while (e && g++ < 4) {
+                    if (((e.id || '') + '').indexOf('safeer-') === 0 || jeNasObroc(e)) return true;
+                    e = e.parentElement;
+                }
+                return false;
+            }
+            function brezNasihOznak(v) {
+                return ((v || '') + '').split(/\s+/).filter(function (t) { return t && t.indexOf('safeer-') !== 0; }).sort().join(' ');
+            }
+            function zapisiStrani(zapisi, brezTabindex) {
+                for (var i = 0; i < zapisi.length; i++) {
+                    var z = zapisi[i];
+                    if (z.type === 'attributes') {
+                        if (brezTabindex && z.attributeName === 'tabindex') continue;
+                        if (jeNasVozel(z.target)) continue;
+                        if (z.attributeName === 'class' && brezNasihOznak(z.oldValue) === brezNasihOznak(z.target.getAttribute('class'))) continue;
+                        return true;
+                    }
+                    if (z.type === 'childList') {
+                        var seznami = [z.addedNodes, z.removedNodes];
+                        for (var s2 = 0; s2 < 2; s2++) {
+                            for (var k = 0; k < seznami[s2].length; k++) {
+                                var n = seznami[s2][k];
+                                if (n.nodeType === 1 && !jeNasVozel(n)) return true;
+                                if (n.nodeType === 3 && !jeNasVozel(z.target)) return true;
+                            }
+                        }
+                        continue;
+                    }
+                    return true;
+                }
+                return false;
+            }
+            try {
+                kandOpazovalec = new MutationObserver(function (zapisi) { if (zapisiStrani(zapisi, false)) domRazlicica++; });
+                kandOpazovalec.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeOldValue: true,
+                    attributeFilter: ['class', 'style', 'hidden', 'aria-hidden', 'aria-expanded', 'disabled', 'open', 'tabindex', 'href', 'role', 'inert'] });
+                window.addEventListener('scroll', function () { drsenjeRazlicica++; }, { capture: true, passive: true });
+                window.addEventListener('resize', function () { drsenjeRazlicica++; }, { passive: true });
+            } catch (_) { kandOpazovalec = null; }
+            function kljucKandidatov() {
+                if (!kandOpazovalec) return '';
+                return domRazlicica + ':' + drsenjeRazlicica + ':' + (window.innerWidth || 0) + 'x' + (window.innerHeight || 0) + ':' +
+                    Math.round(window.scrollX || 0) + ',' + Math.round(window.scrollY || 0) + ':' + location.href;
+            }
+            // Izbira lahko odpre meni le s CSS (:focus-within, brez spremembe DOM): ob izbiri v meniju ali glavi izid zavrzemo.
+            function izbiraSpremeniStran(el) {
+                if (!el) return true;
+                try {
+                    return !!el.closest('nav, header, menu, [role="menu"], [role="menubar"], [role="navigation"], [aria-haspopup], [aria-expanded]');
+                } catch (_) { return true; }
+            }
+            /* SAFEER_KANDIDATI_RAZLICICA_KONEC */
+
             // Pregled Groka 5. 11. 2026 (najdba 6): predpomnilnik je bil na window - stran je z njim dolocala cilje daljinca.
-            var kandPredpomnilnik = null, kandCas = 0;
+            var kandPredpomnilnik = null, kandCas = 0, kandKljuc = '';
             function getCandidates() {
                 var nowMs = casZdaj();
-                if (kandPredpomnilnik && nowMs - kandCas >= 0 && nowMs - kandCas < 80) {
+                var kljuc = kljucKandidatov();
+                var star = nowMs - kandCas;
+                if (kandPredpomnilnik && star >= 0 && (star < 80 || (kljuc && kljuc === kandKljuc && star < KAND_NAJDLJE_MS))) {
+                    try {
+                        window._safeerDbgKandN = (window._safeerDbgKandN || 0) + 1;
+                        if (window._safeerDbgKandN <= 20) {
+                            window._safeerDbg('H54', 'tv_spatial.js:kandidati', 'trajanje', { n: kandPredpomnilnik.length, ms: 0, predpomnilnik: 1 });
+                        }
+                    } catch (_) {}
                     return kandPredpomnilnik;
                 }
                 var t0 = 0;
@@ -1759,6 +1830,7 @@
                 // #endregion
                 kandPredpomnilnik = found;
                 kandCas = nowMs;
+                kandKljuc = kljuc;
                 return found;
             }
             /* SAFEER_STOLPEC_ZACETEK */
@@ -2466,7 +2538,7 @@
             }
 
             function highlightElement(el) {
-                kandPredpomnilnik = null;
+                if (izbiraSpremeniStran(el)) kandPredpomnilnik = null;
                 if (el && jeZunajPogleda(el)) {
                     // Najprej ga poskusimo pridrsati v pogled; sele ce tudi potem ni viden,
                     // cilja ne sprejmemo. Merimo, ne ugibamo po zgradbi strani.
@@ -3069,7 +3141,9 @@
                             if (!pl) return false;
                             try {
                                 if (pl.matches && pl.matches(IZBIRNIK_OKNA)) return false;
-                                if (pl.getBoundingClientRect().top > 4) return false;
+                                // TV 9. 11. 2026 (apk-21, rtvslo.si): druga pritrjena vrstica pod glavo (div role=navigation, sticky,
+                                // top 50 px) ni bila »na vrhu« - GOR je skocil vanjo. Glava je lahko sklad vrstic v zgornji petini.
+                                if (pl.getBoundingClientRect().top > Math.max(4, (window.innerHeight || 1080) * 0.2)) return false;
                                 if (pl.matches && pl.matches('header, nav, [role="banner"], [role="navigation"]')) return true;
                                 return !!(pl.querySelector && pl.querySelector('nav, [role="navigation"], [role="menubar"]'));
                             } catch (_) { return false; }
@@ -3702,6 +3776,8 @@
                             el.setAttribute('tabindex', '0');
                         }
                     }
+                    // Nasi tabindex niso sprememba strani (SAFEER_KANDIDATI_RAZLICICA); ostali zapisi stejejo.
+                    if (kandOpazovalec && zapisiStrani(kandOpazovalec.takeRecords(), true)) domRazlicica++;
                 } catch(_) {}
             }
 

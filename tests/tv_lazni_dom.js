@@ -153,6 +153,7 @@ function ustvari(nastavitve) {
         return Object.assign({ display: 'block', visibility: 'visible', opacity: '1', position: 'static', zIndex: 'auto',
             pointerEvents: 'auto', overflowX: 'visible', overflowY: 'visible', outlineStyle: 'none', outlineWidth: '0px' }, e.slog || {});
     }
+    const opazovalci = [];
     const win = {
         innerWidth: n.sirina, innerHeight: n.visina, scrollX: 0, scrollY: n.scrollY, devicePixelRatio: 1,
         location: { href: 'https://primer.test/', hostname: 'primer.test', pathname: '/', protocol: 'https:' },
@@ -168,7 +169,8 @@ function ustvari(nastavitve) {
         scrollTo() {}, addEventListener() {}, removeEventListener() {},
         setTimeout: () => 0, clearTimeout() {}, setInterval: () => 0, clearInterval() {},
         requestAnimationFrame: () => 0, cancelAnimationFrame() {},
-        MutationObserver: class { observe() {} disconnect() {} },
+        // Opazovalci se zapomnijo (SAFEER_KANDIDATI_RAZLICICA): preizkus jim sam poda zapise sprememb (n.spremeni).
+        MutationObserver: class { constructor(cb) { this.cb = cb; opazovalci.push(this); } observe() {} disconnect() {} takeRecords() { return []; } },
         PointerEvent: class { constructor(t) { this.type = t; } }, MouseEvent: class { constructor(t) { this.type = t; } },
         KeyboardEvent: class { constructor(t) { this.type = t; } }, Event: class { constructor(t) { this.type = t; } },
         sessionStorage: { getItem: () => null, setItem() {}, removeItem() {} },
@@ -233,6 +235,8 @@ function ustvari(nastavitve) {
         return izvoz('_safeer_tipka')(...dokazTipke(++stIzziva));
     }
     return {
+        // Zapisi sprememb strani za opazovalce (kot MutationObserver v brskalniku).
+        spremeni(zapisi) { for (const o of opazovalci) o.cb(zapisi); },
         window: win, document: doc, body, El, dotiki, kliki, drsenja,
         el: (tag, o) => new El(tag, o),
         zetoni, zeton, nonce, nonceIzvirnikov, izvoz,

@@ -167,6 +167,20 @@ primer('glava pri drsenju', () => {
     k.izberi(tuK);
     k.smer('UP');
     preveri('pritrjena pasica brez menija ni glava: GOR jo doseze', 'Nastavitve', ((k.document.querySelector('.safeer-active-card') || {}).innerText || '').trim());
+    // TV 9. 11. 2026 (apk-21, rtvslo.si): druga pritrjena vrstica pod glavo (role=navigation, sticky, top 50) - GOR ne gre vanjo.
+    const r = ustvari({ zeton: ZETON, scrollY: 1500, visinaStrani: 6000 });
+    const g3 = r.el('header', { okvir: [0, 0, 1920, 50], slog: { position: 'sticky' } });
+    g3.dodaj(r.el('a', { attrs: { href: '/meni' }, okvir: [600, 5, 120, 40], besedilo: 'Meni' }));
+    const pod = r.el('div', { attrs: { role: 'navigation' }, okvir: [0, 50, 1920, 40], slog: { position: 'sticky' } });
+    pod.dodaj(r.el('a', { attrs: { href: '/volitve' }, okvir: [40, 55, 160, 30], besedilo: 'Lokalne volitve' }));
+    const nadR = r.el('a', { attrs: { href: '/a' }, okvir: [100, -400, 600, 60], besedilo: 'Novica nad pogledom' });
+    const tuR = r.el('a', { attrs: { href: '/b' }, okvir: [100, 300, 600, 60], besedilo: 'Novica v pogledu' });
+    r.body.dodaj(g3, pod, nadR, tuR);
+    r.nalozi(VIR);
+    r.izberi(tuR);
+    r.smer('UP');
+    const izbranR = ((r.document.querySelector('.safeer-active-card') || {}).innerText || '').trim();
+    preveri('druga pritrjena vrstica pod glavo: GOR ne gre vanjo', false, izbranR === 'Lokalne volitve' || izbranR === 'Meni');
 });
 
 // Odlocitev vodje 5. 11. 2026: brez seznama nedelujocih tokov po naslovu (sprotna zaznava MrtviKanali 24 h ga pokrije).
