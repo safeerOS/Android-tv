@@ -1015,9 +1015,11 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         android.widget.Toast.makeText(this, R.string.os_adb_potrdi_na_tv, android.widget.Toast.LENGTH_LONG).show()
         val app = applicationContext
         Thread {
-            val izid = try { AdbLokalno.povezi(app) } finally { povezujemAdb = false }
+            val izid = try { AdbLokalno.povezi(app) } catch (e: Throwable) { povezujemAdb = false; throw e }
             android.util.Log.i("SafeerAdbLokalno", "povezava s potrditvijo: $izid")
             runOnUiThread {
+                // CodeRabbit 9. 11.: zapora velja, dokler izid ni prikazan (tudi ce dejavnost medtem konca).
+                povezujemAdb = false
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 val sporocilo = when (izid) {
                     AdbLokalno.IZID_POVEZANO -> R.string.os_adb_povezano
