@@ -2513,9 +2513,37 @@
             // Pritrjene vrstice strani (glava, spodnja vrstica z gumbi) pokrijejo del pogleda; scrollIntoView
             // zanje ne ve, zato bi izbrani element obstal pod njimi (npr. 24ur.com). Izmerimo, kaj pri vrhu
             // in dnu pogleda stoji pritrjeno, in element pomaknemo v prosti del med njima.
+            /* SAFEER_PRITRJENI_ROBOVI_ZACETEK */
+            // TV 9. 11. 2026 (apk-22, rtvslo.si): stran ima DVE pritrjeni vrstici, eno pod drugo (#main-bar 0-60 px in #sub-menu
+            // 50-90 px, izmerjeno v Chromu). Sonda samo pri y=2 je videla prvo, zato je izbrani naslov obstal pri 70 px - POD
+            // vrstico rubrik, obroc pa cez njo. Zdaj sondiramo naprej tik pod ze najdenim robom, dokler tam stoji se kaj
+            // pritrjenega (najvec 4 vrstice, skupaj najvec 35 % visine); enako od spodaj navzgor.
+            // sonda(y) -> seznam okvirjev {top, bottom, height} pritrjenih prednikov elementov na visini y.
+            function robPritrjenih(h, sonda) {
+                var zgoraj = 0, spodaj = h, meja = h * 0.35, k, o, r, nov;
+                for (k = 0; k < 4; k++) {
+                    o = sonda(zgoraj + 2) || []; nov = zgoraj;
+                    for (var a = 0; a < o.length; a++) {
+                        r = o[a];
+                        if (r.top <= zgoraj + 2 && r.height < meja && r.bottom <= meja && r.bottom > nov) nov = r.bottom;
+                    }
+                    if (nov <= zgoraj) break;
+                    zgoraj = nov;
+                }
+                for (k = 0; k < 4; k++) {
+                    o = sonda(spodaj - 3) || []; nov = spodaj;
+                    for (var b = 0; b < o.length; b++) {
+                        r = o[b];
+                        if (r.bottom >= spodaj - 3 && r.height < meja && r.top >= h - meja && r.top < nov) nov = r.top;
+                    }
+                    if (nov >= spodaj) break;
+                    spodaj = nov;
+                }
+                return { zgoraj: zgoraj, spodaj: spodaj };
+            }
+            /* SAFEER_PRITRJENI_ROBOVI_KONEC */
             function pritrjeniRobovi() {
                 var w = window.innerWidth || 1920, h = window.innerHeight || 1080;
-                var zgoraj = 0, spodaj = h;
                 function pritrjenPrednik(e) {
                     var g = 0;
                     while (e && e.nodeType === 1 && g < 25) {
@@ -2528,14 +2556,17 @@
                     return null;
                 }
                 var xs = [0.15, 0.5, 0.85];
-                for (var i = 0; i < xs.length; i++) {
-                    var x = Math.round(w * xs[i]);
-                    var pg = pritrjenPrednik(document.elementFromPoint(x, 2));
-                    var pd = pritrjenPrednik(document.elementFromPoint(x, h - 3));
-                    if (pg) { var r1 = pg.getBoundingClientRect(); if (r1.top <= 2 && r1.height < h * 0.35) zgoraj = Math.max(zgoraj, r1.bottom); }
-                    if (pd) { var r2 = pd.getBoundingClientRect(); if (r2.bottom >= h - 3 && r2.height < h * 0.35) spodaj = Math.min(spodaj, r2.top); }
-                }
-                return { zgoraj: zgoraj, spodaj: spodaj };
+                return robPritrjenih(h, function (y) {
+                    var okvirji = [];
+                    if (y < 0 || y >= h) return okvirji;
+                    for (var i = 0; i < xs.length; i++) {
+                        var e = null;
+                        try { e = pritrjenPrednik(document.elementFromPoint(Math.round(w * xs[i]), y)); } catch (_) {}
+                        // Nas obroc in znacka nista vrstica strani.
+                        if (e && e.id !== 'safeer-focus-target-ring') { try { okvirji.push(e.getBoundingClientRect()); } catch (_) {} }
+                    }
+                    return okvirji;
+                });
             }
 
             function odmakniOdPritrjenih(el) {
