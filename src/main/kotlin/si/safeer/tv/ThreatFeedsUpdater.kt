@@ -46,6 +46,13 @@ object ThreatFeedsUpdater {
             url = "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro-onlydomains.txt",
             category = "Oglasi in sledenje (DNS)", marker = "hagezi", minEntries = 10000, dnsOnly = true,
         ),
+        // Lastnik 9. 11. 2026: »Scit enako dober ali boljsi kot Pi-hole«. Privzeti seznam Pi-hole je StevenBlack Unified;
+        // meritev 9. 11.: Scit (PRO, TIF, Fake ...) jih je ustavil 79,4 %, ~8.500 zivih domen ne. Isti vir kot Safeer-linux.
+        PlainListSource(
+            id = "stevenblack", name = "StevenBlack Unified hosts (privzeti seznam Pi-hole)",
+            url = "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts",
+            category = "Oglasi in zlonamerne strani (DNS)", marker = "stevenblack", minEntries = 10000, dnsOnly = true,
+        ),
         PlainListSource(
             id = "easylist", name = "EasyList (pravila za oglase)", url = "https://easylist.to/easylist/easylist.txt",
             category = "Oglasi (EasyList)", marker = "easylist", minEntries = 1000, raw = true,

@@ -256,7 +256,8 @@ object PlainListParser {
 
     fun isHostName(name: String): Boolean {
         if (name.length !in 4..253 || !name.contains('.') || isIpv4(name)) return false
-        if (name == "localhost" || name.endsWith(".localhost") || name.endsWith(".local")) return false
+        // localhost.localdomain: glava hosts (StevenBlack, privzeti seznam Pi-hole) - kot Safeer-linux razcleni_seznam.
+        if (name == "localhost" || name == "localhost.localdomain" || name.endsWith(".localhost") || name.endsWith(".local")) return false
         val labels = name.split('.')
         return labels.all { isHostLabel(it) } && labels.last().any { it.isLetter() }
     }

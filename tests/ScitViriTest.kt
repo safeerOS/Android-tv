@@ -5,6 +5,7 @@ package si.safeer.tv.scit
 
 import com.safeer.threatfeed.PlainListSource
 import com.safeer.threatfeed.ThreatListAgent
+import com.safeer.threatfeed.PlainListParser
 import java.io.File
 import java.nio.file.Files
 import kotlin.system.exitProcess
@@ -33,6 +34,13 @@ fun main(args: Array<String>) {
     // En Scit za vse OS: seznam je enak »oglasni_strezniki« v Safeer-linux core/scit_pravila.py (38 vnosov, 5. 11. 2026).
     preveriVir(ScitViri.VGRAJENE.size == 38 && ScitViri.VGRAJENE.toSet().size == 38, "vgrajeni seznam: 38 razlicnih vnosov kot na Linuxu")
     preveriVir("connect.facebook.net" !in ScitViri.VGRAJENE && "graph.facebook.com" !in ScitViri.VGRAJENE, "prijava Facebook ostane")
+    // StevenBlack (privzeti seznam Pi-hole): glava hosts ne sme dati lokalnih imen ali naslovov v nabor.
+    val sb = PlainListSource("stevenblack", "StevenBlack", "", "", "stevenblack", minEntries = 2, dnsOnly = true)
+    val sbVnosi = PlainListParser.parse(("# Title: StevenBlack/hosts\n127.0.0.1 localhost\n127.0.0.1 localhost.localdomain\n" +
+        "127.0.0.1 local\n255.255.255.255 broadcasthost\n::1 localhost\n::1 ip6-localhost\nfe80::1%lo0 localhost\n" +
+        "0.0.0.0 0.0.0.0\n0.0.0.0 ads.example-oglas.com\n0.0.0.0 track.example-sled.net # komentar\n").toByteArray(), sb)
+    preveriVir(sbVnosi.toSet() == setOf("ads.example-oglas.com", "track.example-sled.net"), "StevenBlack: samo prave domene ($sbVnosi)")
+    preveriVir(ScitViri.zaNabor(sb) && !ScitViri.zaGrozne(sb) && !ScitViri.zaBrskalnik(sb), "StevenBlack v domene.bin, ne grozne in ne brskalnik")
     preveriVir(ScitViri.vgrajeniKljuc().second.isNotEmpty(), "vgrajeni seznam ima kljuc (nabor se zgradi znova ob spremembi)")
     val vgr = Files.createTempFile("scit-vgr", ".bin").toFile()
     try {
