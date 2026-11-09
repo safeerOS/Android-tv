@@ -59,6 +59,9 @@ object McVidezPravila {
      */
     fun odmakniBlokMreze(predVrsticoNaslov: Boolean, vidnaVrstaNad: Boolean): Boolean = predVrsticoNaslov && vidnaVrstaNad
 
+    /** Cela vidna vrsta kartic nad blokom: drsni trak, polica ali vrstica mreze (TV 9. 11. 2026: drsni trak je manjkal). */
+    fun jeVidnaVrstaKartic(drsniTrak: Boolean, polica: Boolean, vrsticaMreze: Boolean): Boolean = drsniTrak || polica || vrsticaMreze
+
     /** Vsebina obreze otroke, razen ko so prikazane vrstice Doma (povecane kartice segajo cez rob). */
     fun obreziVsebino(domovVrste: List<Boolean>): Boolean = domovVrste.none { it }
 

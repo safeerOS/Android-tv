@@ -18,6 +18,9 @@ fun main() {
     preveriEnako("nov blok pod vidno vrsto: odmakni", true, McVidezPravila.odmakniBlokMreze(true, true))
     preveriEnako("vrstica iste mreze: ne odmikaj", false, McVidezPravila.odmakniBlokMreze(false, true))
     preveriEnako("prvi blok strani: ne odmikaj", false, McVidezPravila.odmakniBlokMreze(true, false))
+    // TV 9. 11. 2026 (apk-16): »Seznami predvajanja« je drsni trak - nad Videospoti je cela vidna vrsta.
+    preveriEnako("drsni trak je vidna vrsta", true, McVidezPravila.jeVidnaVrstaKartic(true, false, false))
+    preveriEnako("naslov ali plosca ni vrsta kartic", false, McVidezPravila.jeVidnaVrstaKartic(false, false, false))
     println("Preizkus videza Doma MC (McVidezPravila)")
     val P = McVidezPravila
 
