@@ -214,6 +214,21 @@ fun main() {
     preveri("telefon: nas zagon brez drugega", ZaganjalnikPravila.izbranBrezVloge("android", "si.safeer.os", true, false) == Pair(true, false))
     preveri("neznano ni drug zaganjalnik", !ZaganjalnikPravila.drugZaganjalnikImaDomov(null, "si.safeer.os"))
     preveri("FallbackHome ni pravi zaganjalnik", !ZaganjalnikPravila.jePraviZaganjalnik("com.android.tv.settings", "com.android.tv.settings.system.FallbackHome", -1000, "si.safeer.os"))
+    // Pregled 9. 11. 2026 (TV izmerjeno: dumpsys role): en postopek za domaci zaslon na vseh napravah.
+    run {
+        enako("TV Android 11 z vlogo: okno vloge", ZaganjalnikPravila.PotDomov.VLOGA, ZaganjalnikPravila.potDomov(30, true, true))
+        enako("TV z vlogo, brez nastavitev domacega zaslona: okno vloge", ZaganjalnikPravila.PotDomov.VLOGA, ZaganjalnikPravila.potDomov(30, true, false))
+        enako("Android 9: nastavitve domacega zaslona", ZaganjalnikPravila.PotDomov.NASTAVITVE, ZaganjalnikPravila.potDomov(28, true, true))
+        enako("brez vloge in nastavitev: navodila (ne koren Nastavitev)", ZaganjalnikPravila.PotDomov.NAVODILA, ZaganjalnikPravila.potDomov(30, false, false))
+        enako("brez vloge, z nastavitvami: nastavitve", ZaganjalnikPravila.PotDomov.NASTAVITVE, ZaganjalnikPravila.potDomov(30, false, true))
+        // Izid okna: uspeh po izidu ali vlogi, nikoli po resolveActivity (prestreznik Philips takoj po podelitvi).
+        preveri("izid OK = podeljena, tudi ce vloge se ni mogoce prebrati", ZaganjalnikPravila.vlogaPodeljena(true, null))
+        preveri("vloga nasa = podeljena (izid preklican)", ZaganjalnikPravila.vlogaPodeljena(false, true))
+        preveri("zavrnjeno in vloga ni nasa = ni podeljena", !ZaganjalnikPravila.vlogaPodeljena(false, false))
+        preveri("podeljena vloga se ne opusti", !ZaganjalnikPravila.poZavrnitviOpusti(true, false))
+        preveri("zavrnjeno, Safeer ni dom: opusti", ZaganjalnikPravila.poZavrnitviOpusti(false, false))
+        preveri("zavrnjeno, Safeer je ze dom (dokaz iz prakse): ostane", !ZaganjalnikPravila.poZavrnitviOpusti(false, true))
+    }
     println(if (napak == 0) "\nVSE OK" else "\nNAPAK: $napak")
     if (napak > 0) kotlin.system.exitProcess(1)
 }

@@ -106,6 +106,10 @@
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />
         </intent>
+        <!-- Pregled 9. 11. 2026: ali naprava ima sistemsko nastavitev domacega zaslona (Zaganjalnik.imaNastavitveDomov). -->
+        <intent>
+            <action android:name="android.settings.HOME_SETTINGS" />
+        </intent>
         <!-- Posodobitve: sistemski namestitelj paketov najdemo izrecno, da uporabnik ne dobi izbirnika aplikacij. -->
         <intent>
             <action android:name="android.intent.action.VIEW" />

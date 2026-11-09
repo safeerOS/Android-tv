@@ -114,15 +114,6 @@ object Zaganjalnik {
     const val TELEVIZOR_OBDRZI = "televizor_obdrzi"
     const val IZBRAN = "izbran"
 
-    /**
-     * Ponudi Safeer OS kot domaci zaslon. Izbira ostane sistemska: mi samo omogocimo moznost,
-     * uporabnik pa jo potrdi v sistemskem oknu. Vrne true, ce je bilo okno odprto.
-     */
-    fun ponudi(context: Context): Boolean {
-        nastavi(context, true)
-        return odpriSistemskoIzbiro(context)
-    }
-
     /** Ali je izklop domacega zaslona varen: obstaja drug pravi zaganjalnik (sicer bi ostal crn FallbackHome). */
     fun smeOpustiti(context: Context): Boolean = ZaganjalnikPravila.smeOpustiti(drugiZaganjalniki(context).size)
 
@@ -183,7 +174,10 @@ object Zaganjalnik {
 
     // ------------------------------------------------------------------ tablica in telefon (Android 10+: vloga HOME)
 
-    /** Ali drzimo vlogo HOME; null, kadar sistem vloge nima (televizor, Android pod 10). */
+    /**
+     * Stanje za prikaz: na televizorju ostane dokaz iz prakse (vloga je lahko nasa, tipko Domov pa vzame prestreznik
+     * proizvajalca - TELEVIZOR_OBDRZI), zato tu TV vloge ne uposteva. Za pot in izid okna glej [drziVlogo].
+     */
     private fun vlogaNaVoljo(context: Context): Boolean? = try {
         if (android.os.Build.VERSION.SDK_INT < 29 || context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)) null else {
             val rm = context.getSystemService(android.app.role.RoleManager::class.java)
@@ -195,26 +189,49 @@ object Zaganjalnik {
     const val ZAHTEVA_VLOGE = 7411
 
     /**
+     * Ali drzimo vlogo HOME, na VSEH napravah (tudi TV - izmerjeno 9. 11. 2026: dumpsys role na Philips, Android 11);
+     * null, ce vloge ni (Android pod 10) ali je ni mogoce prebrati.
+     */
+    fun drziVlogo(context: Context): Boolean? = try {
+        if (android.os.Build.VERSION.SDK_INT < 29) null else {
+            val rm = context.getSystemService(android.app.role.RoleManager::class.java)
+            if (rm != null && rm.isRoleAvailable(android.app.role.RoleManager.ROLE_HOME)) rm.isRoleHeld(android.app.role.RoleManager.ROLE_HOME) else null
+        }
+    } catch (_: Throwable) { null }
+
+    /**
      * Uporabnik je izbral »Safeer OS kot domaci zaslon«: alias omogocimo in odpremo sistemsko vprasanje.
-     * Android 10+: okno vloge (en dotik »Nastavi kot privzeto«), sicer sistemske nastavitve domacega zaslona.
+     * En postopek za TV, telefon in tablico ([ZaganjalnikPravila.potDomov]): okno vloge, sicer sistemske nastavitve
+     * domacega zaslona. Vrne false, ce sistemskega okna ni - klicatelj pokaze navodila ([pokaziNavodila]).
      * Odlocitev je vedno uporabnikova in sistemska; nikoli je ne naredimo sami.
      */
     fun zahtevajVlogo(a: android.app.Activity): Boolean {
         // Varnostna vrata: zapomnimo si, kateri zaganjalnik je bil domaci zaslon pred nami - vanj se vrnemo z enim dotikom.
         domaciZaslon(a)?.takeIf { it != a.packageName && it != "android" }?.let { vrata(a).edit().putString(KLJUC_PREJSNJI, it).apply() }
         nastavi(a, true)
-        if (android.os.Build.VERSION.SDK_INT >= 29) try {
-            val rm = a.getSystemService(android.app.role.RoleManager::class.java)
-            if (rm != null && rm.isRoleAvailable(android.app.role.RoleManager.ROLE_HOME)) {
-                if (rm.isRoleHeld(android.app.role.RoleManager.ROLE_HOME)) return true
-                @Suppress("DEPRECATION")
-                a.startActivityForResult(rm.createRequestRoleIntent(android.app.role.RoleManager.ROLE_HOME), ZAHTEVA_VLOGE)
-                return true
-            }
+        val drzana = drziVlogo(a)
+        if (ZaganjalnikPravila.potDomov(android.os.Build.VERSION.SDK_INT, drzana != null, imaNastavitveDomov(a)) == ZaganjalnikPravila.PotDomov.VLOGA) try {
+            if (drzana == true) return true
+            val rm = a.getSystemService(android.app.role.RoleManager::class.java) ?: return odpriSistemskoIzbiro(a)
+            @Suppress("DEPRECATION")
+            a.startActivityForResult(rm.createRequestRoleIntent(android.app.role.RoleManager.ROLE_HOME), ZAHTEVA_VLOGE)
+            return true
         } catch (e: Throwable) {
             Log.w(TAG, "Okna vloge ni bilo mogoce odpreti: ${e.message}")
         }
         return odpriSistemskoIzbiro(a)
+    }
+
+    /**
+     * Izid okna vloge (vse dejavnosti, ki ga odprejo: Pokrajina, Nastavitve, Zaganjalnik, varnostna vrata). Uspeh je
+     * izid OK ali nasa vloga - ne resolveActivity, ki na TV s prestreznikom takoj po podelitvi vrne prestreznik
+     * (prej je zato opusti() podeljeno vlogo takoj preklical). Vrne true ob uspehu.
+     */
+    fun obIzidVloge(a: android.app.Activity, resultCode: Int): Boolean {
+        val podeljena = ZaganjalnikPravila.vlogaPodeljena(resultCode == android.app.Activity.RESULT_OK, drziVlogo(a))
+        if (podeljena) VarnostnaVrata.ponudiPloscico(a)
+        else if (ZaganjalnikPravila.poZavrnitviOpusti(podeljena, jeIzbran(a))) opusti(a)
+        return podeljena
     }
 
     /** Pravi zaganjalniki razen nas (brez sistemskega FallbackHome) - kam se lahko uporabnik vrne. */
@@ -381,15 +398,43 @@ object Zaganjalnik {
         return true
     }
 
-    /** Sistemsko okno za izbiro domacega zaslona; nekateri televizorji ga nimajo. */
+    /** Ali naprava ima sistemsko nastavitev domacega zaslona (vidnost: <queries> HOME_SETTINGS v manifestu). */
+    fun imaNastavitveDomov(context: Context): Boolean = try {
+        context.packageManager.resolveActivity(Intent(Settings.ACTION_HOME_SETTINGS), 0) != null
+    } catch (_: Throwable) { false }
+
+    /**
+     * Sistemsko okno za izbiro domacega zaslona; nekateri televizorji ga nimajo. Pregled TV smernic 9. 11. 2026: prej je
+     * ob manjkajocem oknu odprl koren Nastavitev in vrnil true - uporabnik ni vedel kam, sporocilo pa se ni pokazalo.
+     * Zdaj vrne false in klicatelj pokaze navodila ([pokaziNavodila]).
+     */
     fun odpriSistemskoIzbiro(context: Context): Boolean {
-        for (dejanje in listOf(Settings.ACTION_HOME_SETTINGS, Settings.ACTION_SETTINGS)) {
-            try {
-                context.startActivity(Intent(dejanje).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                return true
-            } catch (_: Throwable) { }
+        if (!imaNastavitveDomov(context)) {
+            Log.w(TAG, "Sistemske nastavitve domacega zaslona ni"); return false
         }
-        Log.w(TAG, "Sistemskih nastavitev za domaci zaslon ni mogoce odpreti")
-        return false
+        return try {
+            context.startActivity(Intent(Settings.ACTION_HOME_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); true
+        } catch (e: Throwable) {
+            Log.w(TAG, "Nastavitve domacega zaslona ni bilo mogoce odpreti: ${e.message}"); false
+        }
+    }
+
+    /**
+     * Ni okna vloge ne nastavitve domacega zaslona: kratka navodila (splosna - oznake menijev se med televizorji
+     * razlikujejo) in gumb v nastavitve televizorja, ki ga uporabnik izbere sam.
+     */
+    fun pokaziNavodila(a: android.app.Activity) {
+        if (a.isFinishing) return
+        try {
+            android.app.AlertDialog.Builder(a, si.safeer.tv.R.style.Os_Okno)
+                .setTitle(si.safeer.tv.R.string.os_zaganjalnik)
+                .setMessage(a.getString(si.safeer.tv.R.string.os_zaganjalnik_navodila, a.getString(si.safeer.tv.R.string.os_zagon)))
+                .setPositiveButton(si.safeer.tv.R.string.os_zaganjalnik_sistemske) { _, _ ->
+                    try { a.startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                    catch (e: Throwable) { Log.w(TAG, "Nastavitev ni bilo mogoce odpreti: ${e.message}") }
+                }
+                .setNegativeButton(android.R.string.ok, null)
+                .let { Kontroler.pokazi(it.show()) }
+        } catch (e: Throwable) { Log.w(TAG, "Navodil ni bilo mogoce pokazati: ${e.message}") }
     }
 }

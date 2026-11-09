@@ -98,6 +98,7 @@
     <string name="os_zaganjalnik_vklopi">Ofrecer como pantalla de inicio</string>
     <string name="os_zaganjalnik_izklopljen">Safeer OS ya no es la pantalla de inicio; el televisor ha recuperado la suya.</string>
     <string name="os_zaganjalnik_ni_nastavitev">Este televisor no ofrece un ajuste del sistema para la pantalla de inicio.</string>
+    <string name="os_zaganjalnik_navodila">Este televisor no tiene una ventana del sistema para elegir la pantalla de inicio. Safeer OS ya se ofrece como pantalla de inicio: pulsa el botón Inicio del mando. Si el televisor pregunta qué aplicación usar, elige Safeer OS. Si se abre la pantalla del televisor, busca en los ajustes del sistema del televisor la sección de aplicaciones o de pantalla de inicio (el nombre depende del fabricante). Otra opción: en los ajustes de Safeer OS, activa «%1$s».</string>
     <string name="os_nacin">Modo de funcionamiento</string>
     <string name="os_nacin_kratko">Safeer Link (tus dispositivos y los archivos del ordenador) o solo este televisor</string>
     <string name="os_stanje_nacin_link">Safeer Link</string>

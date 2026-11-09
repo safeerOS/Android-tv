@@ -77,9 +77,7 @@ class VarnostnaVrataActivity : Activity() {
 
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        if (requestCode == Zaganjalnik.ZAHTEVA_VLOGE) {
-            if (!Zaganjalnik.jeIzbran(this)) Zaganjalnik.opusti(this) else VarnostnaVrata.ponudiPloscico(this)
-        }
+        if (requestCode == Zaganjalnik.ZAHTEVA_VLOGE) Zaganjalnik.obIzidVloge(this, resultCode)
         finish()
     }
 }

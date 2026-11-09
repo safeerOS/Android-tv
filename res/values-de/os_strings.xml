@@ -98,6 +98,7 @@
     <string name="os_zaganjalnik_vklopi">Als Startbildschirm anbieten</string>
     <string name="os_zaganjalnik_izklopljen">Safeer OS ist nicht mehr der Startbildschirm; der Fernseher hat seinen eigenen zurück.</string>
     <string name="os_zaganjalnik_ni_nastavitev">Dieser Fernseher bietet keine Systemeinstellung für den Startbildschirm.</string>
+    <string name="os_zaganjalnik_navodila">Dieser Fernseher hat kein Systemfenster zur Auswahl des Startbildschirms. Safeer OS wird jetzt als Startbildschirm angeboten: Drücke die Home-Taste der Fernbedienung. Fragt der Fernseher, welche App verwendet werden soll, wähle Safeer OS. Öffnet sich stattdessen der Bildschirm des Fernsehers, suche in den Systemeinstellungen des Fernsehers den Bereich für Apps oder den Startbildschirm (der Name hängt vom Hersteller ab). Alternativ: Schalte in den Einstellungen von Safeer OS »%1$s« ein.</string>
     <string name="os_nacin">Betriebsart</string>
     <string name="os_nacin_kratko">Safeer Link (deine Geräte und Dateien vom Computer) oder nur dieser Fernseher</string>
     <string name="os_stanje_nacin_link">Safeer Link</string>

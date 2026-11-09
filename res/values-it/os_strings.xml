@@ -98,6 +98,7 @@
     <string name="os_zaganjalnik_vklopi">Proponi come schermata iniziale</string>
     <string name="os_zaganjalnik_izklopljen">Safeer OS non è più la schermata iniziale; il televisore ha ripreso la sua.</string>
     <string name="os_zaganjalnik_ni_nastavitev">Questo televisore non offre un\'impostazione di sistema per la schermata iniziale.</string>
+    <string name="os_zaganjalnik_navodila">Questo televisore non ha una finestra di sistema per scegliere la schermata iniziale. Safeer OS ora è proposto come schermata iniziale: premi il tasto Home del telecomando. Se il televisore chiede quale app usare, scegli Safeer OS. Se invece si apre la schermata del televisore, cerca nelle impostazioni di sistema del televisore la sezione delle app o della schermata iniziale (il nome dipende dal produttore). In alternativa: nelle impostazioni di Safeer OS attiva «%1$s».</string>
     <string name="os_nacin">Modo di funzionamento</string>
     <string name="os_nacin_kratko">Safeer Link (i tuoi dispositivi e i file dal computer) o solo questo televisore</string>
     <string name="os_stanje_nacin_link">Safeer Link</string>

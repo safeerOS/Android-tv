@@ -98,6 +98,7 @@
     <string name="os_zaganjalnik_vklopi">Proposer comme écran d\'accueil</string>
     <string name="os_zaganjalnik_izklopljen">Safeer OS n\'est plus l\'écran d\'accueil ; le téléviseur a repris le sien.</string>
     <string name="os_zaganjalnik_ni_nastavitev">Ce téléviseur ne propose pas de réglage système pour l\'écran d\'accueil.</string>
+    <string name="os_zaganjalnik_navodila">Ce téléviseur n\'a pas de fenêtre système pour choisir l\'écran d\'accueil. Safeer OS est maintenant proposé comme écran d\'accueil : appuie sur le bouton Accueil de la télécommande. Si le téléviseur demande quelle application utiliser, choisis Safeer OS. Si l\'écran du téléviseur s\'ouvre à la place, cherche dans les paramètres système du téléviseur la section des applications ou de l\'écran d\'accueil (le nom dépend du fabricant). Autre possibilité : dans les paramètres de Safeer OS, active « %1$s ».</string>
     <string name="os_nacin">Mode de fonctionnement</string>
     <string name="os_nacin_kratko">Safeer Link (tes appareils et les fichiers de l\'ordinateur) ou ce téléviseur seul</string>
     <string name="os_stanje_nacin_link">Safeer Link</string>

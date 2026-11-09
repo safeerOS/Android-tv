@@ -170,7 +170,7 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: android.content.Intent?) {
         if (requestCode == Zaganjalnik.ZAHTEVA_VLOGE) {
-            if (!Zaganjalnik.jeIzbran(this)) Zaganjalnik.opusti(this) else VarnostnaVrata.ponudiPloscico(this)
+            Zaganjalnik.obIzidVloge(this, resultCode)
             narisi()
             return
         }
@@ -700,7 +700,9 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                     narisi()
                 }
                 .setNeutralButton(getString(R.string.os_zaganjalnik_sistemske)) { _, _ ->
-                    sistemskoOkno { Zaganjalnik.odpriSistemskoIzbiro(this) }
+                    sistemskoOkno {
+                        if (!Zaganjalnik.odpriSistemskoIzbiro(this)) { koren.visibility = View.VISIBLE; Zaganjalnik.pokaziNavodila(this) }
+                    }
                 }
                 .setNegativeButton(getString(R.string.os_preklici), null)
                 .let { Kontroler.pokazi(it.show()) }
@@ -716,11 +718,12 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             .setTitle(getString(R.string.os_zaganjalnik))
             .setMessage(getString(R.string.os_zaganjalnik_vprasanje))
             .setPositiveButton(getString(R.string.os_zaganjalnik_vklopi)) { _, _ ->
+                // TV 9. 11. 2026 izmerjeno: dumpsys role - vloga HOME je tudi na televizorju; isti postopek kot telefon.
                 sistemskoOkno {
-                    if (!Zaganjalnik.ponudi(this)) {
+                    if (!Zaganjalnik.zahtevajVlogo(this)) {
                         koren.visibility = View.VISIBLE
-                        Toast.makeText(this, getString(R.string.os_zaganjalnik_ni_nastavitev), Toast.LENGTH_LONG).show()
-                    }
+                        Zaganjalnik.pokaziNavodila(this)
+                    } else if (Zaganjalnik.drziVlogo(this) == true) koren.visibility = View.VISIBLE   // okna ni bilo
                 }
                 narisi()
             }
@@ -735,7 +738,7 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             if (!Zaganjalnik.zahtevajVlogo(this)) {
                 koren.visibility = View.VISIBLE
                 Toast.makeText(this, getString(R.string.nz_ni_sistemske), Toast.LENGTH_LONG).show()
-            }
+            } else if (Zaganjalnik.drziVlogo(this) == true) koren.visibility = View.VISIBLE   // okna ni bilo
         }
     }
 

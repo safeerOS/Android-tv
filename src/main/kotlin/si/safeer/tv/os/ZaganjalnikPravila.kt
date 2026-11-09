@@ -148,6 +148,30 @@ object ZaganjalnikPravila {
         else -> Pair(nasZagon || (kdo != null && kdo == nas), false)
     }
 
+    /** Kako uporabniku ponudimo Safeer kot domaci zaslon. */
+    enum class PotDomov { VLOGA, NASTAVITVE, NAVODILA }
+
+    /**
+     * En postopek za televizor, telefon in tablico. TV 9. 11. 2026 izmerjeno: dumpsys role - vloga HOME obstaja tudi na
+     * televizorju (Philips, Android 11) in okno vloge dela; prej je televizor sel naravnost v Nastavitve. Sistemske
+     * nastavitve domacega zaslona samo, ce vloge ni; sicer navodila (ne koren Nastavitev brez besede, kam naprej).
+     */
+    fun potDomov(api: Int, vlogaNaVoljo: Boolean, nastavitveDomov: Boolean): PotDomov = when {
+        api >= 29 && vlogaNaVoljo -> PotDomov.VLOGA
+        nastavitveDomov -> PotDomov.NASTAVITVE
+        else -> PotDomov.NAVODILA
+    }
+
+    /**
+     * Ali je uporabnik v oknu vloge HOME rekel da: izid okna ali vloga sama ([drzana] null = vloge ni mogoce prebrati).
+     * Ne resolveActivity(HOME): na televizorju s prestreznikom (Philips homeintentresolver) takoj po podelitvi vrne
+     * prestreznik, zato smo podeljeno vlogo prej takoj preklicali (opusti) - pregled 9. 11. 2026.
+     */
+    fun vlogaPodeljena(izidOk: Boolean, drzana: Boolean?): Boolean = izidOk || drzana == true
+
+    /** Po zavrnitvi alias onemogocimo samo, ce Safeer ni ze dom po dokazu iz prakse (prej enako, ostane). */
+    fun poZavrnitviOpusti(podeljena: Boolean, zeIzbran: Boolean): Boolean = !podeljena && !zeIzbran
+
     fun jePraviZaganjalnik(paket: String, razred: String, prednost: Int, nas: String): Boolean =
         paket != nas && prednost >= 0 && !razred.endsWith("FallbackHome")
 

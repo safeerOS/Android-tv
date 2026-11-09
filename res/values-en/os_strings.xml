@@ -102,6 +102,7 @@
     <string name="os_zaganjalnik_vklopi">Offer as home screen</string>
     <string name="os_zaganjalnik_izklopljen">Safeer OS is no longer the home screen; the TV took its own back.</string>
     <string name="os_zaganjalnik_ni_nastavitev">This television does not offer a system setting for the home screen.</string>
+    <string name="os_zaganjalnik_navodila">This TV has no system window for choosing the home screen. Safeer OS is now offered as the home screen: press the Home button on the remote. If the TV asks which app to use, choose Safeer OS. If the TV\'s own screen opens instead, look in the TV\'s system settings for the apps or home screen section (the name depends on the manufacturer). Another option: in the Safeer OS settings, turn on \u201c%1$s\u201d.</string>
     <string name="os_nacin">Mode of operation</string>
     <string name="os_nacin_kratko">Safeer Link (your devices and files from the computer) or this television alone</string>
     <string name="os_stanje_nacin_link">Safeer Link</string>

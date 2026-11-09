@@ -98,6 +98,7 @@
     <string name="os_zaganjalnik_vklopi">Ponudi kot domači zaslon</string>
     <string name="os_zaganjalnik_izklopljen">Safeer OS ni več domači zaslon; televizor je vzel svojega nazaj.</string>
     <string name="os_zaganjalnik_ni_nastavitev">Ta televizor sistemske nastavitve za domači zaslon ne ponuja.</string>
+    <string name="os_zaganjalnik_navodila">Ta televizor nima sistemskega okna za izbiro domačega zaslona. Safeer OS je zdaj ponujen kot domači zaslon: pritisni tipko Domov na daljincu. Če televizor vpraša, katero aplikacijo naj uporabi, izberi Safeer OS. Če se odpre zaslon televizorja, v sistemskih nastavitvah televizorja poišči razdelek za aplikacije ali domači zaslon (ime je odvisno od proizvajalca). Druga možnost: v nastavitvah Safeer OS vklopi »%1$s«.</string>
     <string name="os_nacin">Način delovanja</string>
     <string name="os_nacin_kratko">Safeer Link (tvoje naprave in datoteke z računalnika) ali samo ta televizor</string>
     <string name="os_stanje_nacin_link">Safeer Link</string>

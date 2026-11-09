@@ -119,6 +119,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         if (DomacaLupa.naRezultat(this, requestCode, resultCode, data)) return
+        // Pregled 9. 11. 2026: »Nastavi znova« po padcih odpre okno vloge - prej izida tu ni obdelal nihce.
+        if (requestCode == Zaganjalnik.ZAHTEVA_VLOGE) { Zaganjalnik.obIzidVloge(this, resultCode); return }
         @Suppress("DEPRECATION") super.onActivityResult(requestCode, resultCode, data)
     }
 
@@ -428,7 +430,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(R.string.zg_padec_naslov)
             .setMessage(R.string.nz_padec_opis)
-            .setPositiveButton(R.string.zg_padec_znova) { _, _ -> Zaganjalnik.zahtevajVlogo(this) }
+            .setPositiveButton(R.string.zg_padec_znova) { _, _ -> if (!Zaganjalnik.zahtevajVlogo(this)) Zaganjalnik.pokaziNavodila(this) }
             .setNegativeButton(android.R.string.ok, null)
             .let { Kontroler.pokazi(it.show()) }
     }

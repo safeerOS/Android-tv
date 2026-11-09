@@ -99,7 +99,7 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         if (DomacaLupa.naRezultat(this, requestCode, resultCode, data)) return
         if (requestCode == Zaganjalnik.ZAHTEVA_VLOGE) {
             // Uporabnik je v sistemskem oknu rekel ne: alias spet onemogocimo, da Android Safeer OS ne ponuja sam.
-            if (!Zaganjalnik.jeIzbran(this)) Zaganjalnik.opusti(this) else VarnostnaVrata.ponudiPloscico(this)
+            Zaganjalnik.obIzidVloge(this, resultCode)
             prefs().edit().putBoolean(KLJUC_PONUJENO, true).apply()
             narisiPonudbo()
             return
