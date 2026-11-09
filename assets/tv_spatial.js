@@ -1570,6 +1570,8 @@
             // okvir istih prednikov, getCandidatesFresh je primerjal vsak par (contains, indexOf). Med enim zbiranjem je izid
             // prednika enak - zapomnimo ga (vidnostPrednikov), vgnezdenost pa iscemo po prednikih (Set), ne po parih.
             var vidnostPrednikov = null;
+            // SAFEER_KANDIDATI_RAZLICICA: med zbiranjem z odlocitvami po elementih se spodnji rob preveri posebej.
+            var preskociNogo = false;
             function skritPrednik(p) {
                 if (vidnostPrednikov && vidnostPrednikov.has(p)) return vidnostPrednikov.get(p);
                 var skrit = false;
@@ -1803,7 +1805,7 @@
             // Sprememba strani ne zavrze vseh odlocitev (24ur.com in rtvslo.si ob drsenju nalagata slike - 1-3 spremembe na
             // 1,5 s, testni PC 9. 11. 2026): razred ali slog elementa X velja za X in vse pod njim (umazanoDrevo), sprememba
             // otrok ali besedila samo za X in njegove prednike (umazanaVsebina - besedilo in povezave kartice).
-            var preskociNogo = false, izbiraRazlicica = 0, odlocitve = null, odlocitveKljuc = '', odlocitveCas = 0;
+            var izbiraRazlicica = 0, odlocitve = null, odlocitveKljuc = '', odlocitveCas = 0;
             // Oznake so zaporedne stevilke: odlocitev velja, ce je mlajsa od zadnje spremembe elementa in njegovih prednikov.
             var umazanoDrevo = new Map(), umazanaVsebina = new Map(), oznakaSt = 0, NAJVEC_UMAZANIH = 1500;
             function oznaciSpremembo(z) {
