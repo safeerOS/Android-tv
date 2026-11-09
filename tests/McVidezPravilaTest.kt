@@ -7,6 +7,11 @@ private fun preveriEnako(opis: String, pricakovano: Any?, dobljeno: Any?) =
 
 /** Videz Doma MC na TV ([McVidezPravila]): stolpci, fokus, naslovi seznamov, monogram postaje, ploscica dejanja, pomoc. */
 fun main() {
+    // TV 9. 11. 2026 (apk-20, uiautomator): drsnik 880 px, dno Seznamov 556 px, naslov police 77 px, besedilo kartice ~100 px.
+    preveriEnako("Videospoti pri dosedanjih 150 dp niso sli na prvi zaslon", false,
+        McVidezPravila.policaVideaNaZaslonu(880, 556, 77, 150, 100, 2f))
+    preveriEnako("Videospoti pri POLICA_VIDEA_TV_DP gredo pod Seznami na prvi zaslon", true,
+        McVidezPravila.policaVideaNaZaslonu(880, 556, 77, McVidezPravila.POLICA_VIDEA_TV_DP, 100, 2f))
     preveriEnako("vsebina obreze brez Doma", true, McVidezPravila.obreziVsebino(listOf(false, false)))
     preveriEnako("vrstice Doma: brez obrezovanja", false, McVidezPravila.obreziVsebino(listOf(false, true)))
     preveriEnako("prazno: obreze", true, McVidezPravila.obreziVsebino(emptyList()))

@@ -5507,7 +5507,9 @@ class GlasbaActivity : OsActivity() {
         if (v0.isEmpty()) return null
         // Lastnik 9. 11. 2026: videospoti kot lezece slicice 16:9 (kot drugje), ne pokoncni plakati - polica je pol nizja.
         val v = Vrsta(getString(R.string.os_media_videospoti), videi(v0.take(30)), video = true, slicice = true)
-        val (_, velikost) = mereMreze(v)
+        val (_, velikost0) = mereMreze(v)
+        // TV 9. 11. 2026 (apk-20): pri 150 dp polica ni sla pod Seznami na prvi zaslon (McVidezPravila.policaVideaNaZaslonu).
+        val velikost = if (jeTv()) McVidezPravila.POLICA_VIDEA_TV_DP else velikost0
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             // TV 9. 11. 2026: polica (naslov + kartice) je vrsta kartic za brezOdrezanihVrst in vrhoviVrst.
