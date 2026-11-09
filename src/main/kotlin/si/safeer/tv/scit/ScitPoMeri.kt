@@ -43,14 +43,18 @@ object ScitPoMeri {
         if (z.renameTo(d)) true else { z.delete(); false }
     } catch (_: Throwable) { false }
 
+    @Synchronized
+    // CodeRabbit 9. 11. 2026: branje in zapis skupaj pod istim zaklepom (sicer hkratna dodaja/preklop izgubi spremembo).
     fun dodaj(c: Context, url: String): Boolean {
         val zdaj = seznam(c)
         if (zdaj.size >= ScitPoMeriPravila.NAJVEC || zdaj.any { it.id == ScitPoMeriPravila.id(url) }) return false
         return zapisi(c, zdaj + Filter(url, true))
     }
 
+    @Synchronized
     fun nastavi(c: Context, id: String, vklop: Boolean): Boolean = zapisi(c, seznam(c).map { if (it.id == id) Filter(it.url, vklop) else it })
 
+    @Synchronized
     fun odstrani(c: Context, id: String): Boolean = zapisi(c, seznam(c).filter { it.id != id })
 
     /** Viri za agenta Scita: samo vklopljeni, samo DNS (ne brskalnik, ne groznje), brez glave (90 % vrstic so imena). */
