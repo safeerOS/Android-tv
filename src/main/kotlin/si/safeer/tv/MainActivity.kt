@@ -651,14 +651,17 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         kazalecZaGostitelja = kljuc
         val zaTv = ogled || SpletMostPravila.jeDovoljenIzvor(naslov) || GooglePravila.youtubeZaTv(naslov) || PdfPregledovalnik.jePregledovalnik(naslov)
         val kazalec = KazalecPravila.privzetoKazalec(
-            si.safeer.tv.os.Naprava.jeTelevizor(this), naslov, zaTv, KazalecNastavitve.zapomnjeno(this, g))
+            si.safeer.tv.os.Naprava.jeTelevizor(this), naslov, zaTv, KazalecNastavitve.zapomnjeno(this, kljuc))
         virtualPointerView.privzet = kazalec
         virtualPointerView.isPointerVisible = kazalec
     }
 
     /** Rocni preklop kazalca: brskalnik si ga zapomni za gostitelja odprte strani. */
     internal fun zapomniKazalec() {
-        KazalecNastavitve.zapomni(this, KazalecPravila.gostitelj(activeUrl()), virtualPointerView.isPointerVisible)
+        // Slepi pregled 9. 11.: izbira velja za kljuc strani (ogled loceno od clankov istega gostitelja).
+        val url = activeUrl()
+        KazalecNastavitve.zapomni(this, KazalecPravila.kljucStrani(KazalecPravila.gostitelj(url), TvSite.isWatchPage(url)),
+            virtualPointerView.isPointerVisible)
     }
 
     internal fun izklopiNacinAplikacije() {
