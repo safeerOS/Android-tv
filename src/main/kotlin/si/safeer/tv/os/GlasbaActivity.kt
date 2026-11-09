@@ -2118,7 +2118,9 @@ class GlasbaActivity : OsActivity() {
                     if (v.bottom <= vidno) {
                         // TV 9. 11. 2026 (apk-16, Glasba): vrsta »Seznami predvajanja« je drsni trak (HorizontalScrollView), ne
                         // POLICA_KARTIC (ta oznaka se nikjer ne nastavi) - vidnaVrsta je ostala false in Videospoti so ostali odrezani.
-                        if (McVidezPravila.jeVidnaVrstaKartic(v is HorizontalScrollView, v.tag == POLICA_KARTIC, v.tag == MREZA_VRSTA)) vidnaVrsta = true
+                        if (McVidezPravila.jeVidnaVrstaKartic(v is HorizontalScrollView,
+                                i > 0 && vsebina.getChildAt(i - 1).contentDescription == NASLOV_VRSTE,
+                                v.tag == POLICA_KARTIC, v.tag == MREZA_VRSTA)) vidnaVrsta = true
                         if (v.tag == MREZA_VRSTA) vidneVrsteMreze++
                         continue
                     }

@@ -59,8 +59,13 @@ object McVidezPravila {
      */
     fun odmakniBlokMreze(predVrsticoNaslov: Boolean, vidnaVrstaNad: Boolean): Boolean = predVrsticoNaslov && vidnaVrstaNad
 
-    /** Cela vidna vrsta kartic nad blokom: drsni trak, polica ali vrstica mreze (TV 9. 11. 2026: drsni trak je manjkal). */
-    fun jeVidnaVrstaKartic(drsniTrak: Boolean, polica: Boolean, vrsticaMreze: Boolean): Boolean = drsniTrak || polica || vrsticaMreze
+    /**
+     * Cela vidna vrsta kartic nad blokom: drsni trak pod naslovom vrste, polica ali vrstica mreze (TV 9. 11. 2026: drsni trak
+     * je manjkal). Drsni trak brez naslova (razdelki in izbire v glavi strani) ni vrsta kartic - CodeRabbit 9. 11. 2026: sicer
+     * bi se ze prva vrsta kartic odmaknila pod rob in zaslon bi ostal prazen.
+     */
+    fun jeVidnaVrstaKartic(drsniTrak: Boolean, podNaslovom: Boolean, polica: Boolean, vrsticaMreze: Boolean): Boolean =
+        (drsniTrak && podNaslovom) || polica || vrsticaMreze
 
     /** Vsebina obreze otroke, razen ko so prikazane vrstice Doma (povecane kartice segajo cez rob). */
     fun obreziVsebino(domovVrste: List<Boolean>): Boolean = domovVrste.none { it }
