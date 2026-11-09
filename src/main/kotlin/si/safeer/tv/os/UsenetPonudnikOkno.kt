@@ -29,7 +29,7 @@ object UsenetPonudnikOkno {
     fun vrstica(a: Activity): String {
         val j = jezik(a)
         val s = try { UsenetPonudnik.get(a).stanje() } catch (_: Throwable) { null }
-        if (s == null || !s.vpisan) return P.besedilo("NASLOV", j) + " · " + P.besedilo("NI_VPISAN", j)
+        if (s == null || !s.vpisan) return P.vrsticaNiVpisan(j)
         val ime = s.ime?.takeIf { it.isNotBlank() } ?: s.gostitelj.orEmpty()
         return P.besedilo("NASLOV", j) + " · " + ime + " · " + P.besedilo(s.besedilo, j)
     }

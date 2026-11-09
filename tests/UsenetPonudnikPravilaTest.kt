@@ -324,11 +324,13 @@ private fun besedila() {
     val kljuci = listOf("NI_VPISAN", P.NEPREVERJEN, P.NI_GESLA, P.VELJA, P.NE_VELJA, P.ZAKLENJEN, P.NI_ODGOVORA,
         P.PREVEC_POVEZAV, P.PREPOGOSTO, P.BREZ_TLS, P.N_GOSTITELJ, P.N_VRATA, P.N_UPORABNIK, P.N_GESLO, P.N_POVEZAV,
         P.N_IME, P.N_BREZ_TLS, P.N_BREZ_TLS_DOMA, "NASLOV", "POLJE_STREZNIK", "POLJE_VRATA", "POLJE_TLS",
-        "POLJE_UPORABNIK", "POLJE_GESLO", "POLJE_POVEZAV", "GUMB_SHRANI", "GUMB_PREVERI", "GUMB_POZABI", "GUMB_ZAPRI")
+        "POLJE_UPORABNIK", "POLJE_GESLO", "POLJE_POVEZAV", "GUMB_SHRANI", "GUMB_PREVERI", "GUMB_POZABI", "GUMB_ZAPRI", "VRSTICA_VPISI")
     for (k in kljuci) for (j in P.JEZIKI) {
         val b = P.BESEDILA[k]?.get(j)
         if (b.isNullOrBlank()) { napak++; println("NAPAKA besedilo manjka: $k/$j") }
     }
+    // Lastnik 9. 11. 2026: vrstica brez ponudnika pove, kaj narediti, ne »v nastavitvah« (uporabnik je ze tam).
+    preveriEnako("vrstica brez ponudnika", "Usenet ponudnik – vpiši podatke", P.vrsticaNiVpisan("sl"))
     preveriEnako("besedila za vse kljuce in 6 jezikov", true, kljuci.all { k -> P.JEZIKI.all { P.BESEDILA[k]?.get(it)?.isNotBlank() == true } })
 }
 

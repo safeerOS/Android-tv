@@ -1040,6 +1040,9 @@ object UsenetPonudnikPravila {
     val JEZIKI = listOf("sl", "en", "de", "es", "fr", "it")
 
     /** Besedilo v jeziku; neznan jezik -> en, manjkajoc kljuc -> kljuc (preizkus zahteva, da nobeden ne manjka). */
+    /** Vrstica v oknu »Debrid storitve«, ko ponudnik se ni vpisan (kot »Real-Debrid – vpiši ključ«). */
+    fun vrsticaNiVpisan(jezik: String): String = besedilo("NASLOV", jezik) + " – " + besedilo("VRSTICA_VPISI", jezik)
+
     fun besedilo(kljuc: String?, jezik: String): String {
         val k = kljuc ?: "NI_VPISAN"
         val b = BESEDILA[k] ?: return k
@@ -1087,6 +1090,11 @@ object UsenetPonudnikPravila {
             "es" to "Sin TLS la contraseña viaja sin cifrar. Solo se permite a una dirección IP de tu red doméstica.",
             "fr" to "Sans TLS, le mot de passe circule en clair. Autorisé uniquement vers une adresse IP de ton réseau local.",
             "it" to "Senza TLS la password viaggia in chiaro. Consentito solo verso un indirizzo IP della rete domestica."),
+        // Lastnik 9. 11. 2026 (telefon, okno »Debrid storitve«): vrstica brez ponudnika je govorila »vpiši v nastavitvah«,
+        // ceprav je uporabnik ze v nastavitvah. Kot vrstice kljucev nad njo (»Real-Debrid – vpiši ključ«).
+        "VRSTICA_VPISI" to mapOf(
+            "sl" to "vpiši podatke", "en" to "enter details", "de" to "Daten eintragen",
+            "es" to "introduce los datos", "fr" to "saisir les données", "it" to "inserisci i dati"),
         "NI_VPISAN" to mapOf(
             "sl" to "Usenet se pokaže, ko v nastavitvah vpišeš svojega ponudnika NNTP.",
             "en" to "Usenet appears once you enter your own NNTP provider in the settings.",
