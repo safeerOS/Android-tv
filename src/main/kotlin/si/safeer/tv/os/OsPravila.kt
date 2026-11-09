@@ -1389,6 +1389,13 @@ object OsPravila {
     const val NEDEJAVNOST_ZAPIRANJA_MS = 30L * 60_000L
     const val NEDEJAVNOST_MALO_MS = 3_000L
 
+    /**
+     * Lastnik 9. 11. 2026: »vsak program, ki ne predvaja, se zapre v trenutku, ko uporabnik klikne Domov«. Ob vrnitvi domov
+     * ciscenje stece po [VRNITEV_DOMOV_CAKAJ_MS] (dom je na zaslonu) brez casa nedejavnosti; tipka v tem casu ga le odlozi.
+     */
+    const val VRNITEV_DOMOV_CAKAJ_MS = 500L
+    const val VRNITEV_DOMOV_NEDEJAVNOST_MS = 0L
+
     fun nedejavnostZapiranja(maloPomnilnika: Boolean): Long = if (maloPomnilnika) NEDEJAVNOST_MALO_MS else NEDEJAVNOST_ZAPIRANJA_MS
 
     /**

@@ -1222,6 +1222,11 @@ fun main() {
     preveriEnako("aplikacija: neveljaven naslov", false, OsPravila.sirokaAplikacijaNaTv(true, "ni naslov"))
     // Lastnik 9. 11. 2026 (FilmBox je ostal odprt): tipka doma ciscenje odlozi, ne preklice; odhod ali zagon ga konca.
     preveriEnako("ciscenje: samo tipke doma - ponovi", true, OsPravila.ponoviCiscenje(5, 5, 0))
+    // Lastnik 9. 11. 2026: ob Domov se neigrajoca aplikacija zapre takoj (pravkar zapuscena: zadnja uporaba = zdaj).
+    preveriEnako("Domov: pravkar zapuscen FilmBox se zapre", true, OsPravila.zapriObVrnitvi("com.spiintl.tv.filmbox", "si.safeer.os", null, false,
+        true, false, 1_000_000L, 1_000_000L, OsPravila.VRNITEV_DOMOV_NEDEJAVNOST_MS))
+    preveriEnako("Domov: igrajoca ostane", false, OsPravila.zapriObVrnitvi("org.smarttube.stable", "si.safeer.os", null, false,
+        true, true, 1_000_000L, 1_000_000L, OsPravila.VRNITEV_DOMOV_NEDEJAVNOST_MS))
     preveriEnako("ciscenje: uporabnik je odsel - ne ponovi", false, OsPravila.ponoviCiscenje(5, 6, 0))
     preveriEnako("ciscenje: najvec ponovitev", false, OsPravila.ponoviCiscenje(5, 5, OsPravila.NAJVEC_PONOVITEV_CISCENJA))
     preveriEnako("miska: Facebook na TV", true, OsPravila.miskaZaAplikacijo(true, "https://www.facebook.com/"))

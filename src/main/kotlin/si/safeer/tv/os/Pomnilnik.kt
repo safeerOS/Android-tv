@@ -48,6 +48,10 @@ object Pomnilnik {
         uporabljeno(p)
     }
 
+    /** Ob vrnitvi domov: neigrajoce aplikacije se zaprejo takoj (lastnik 9. 11. 2026). */
+    fun pocistiObVrnitviDomov(c: Context) =
+        pocistiOzadje(c, cakajMs = OsPravila.VRNITEV_DOMOV_CAKAJ_MS, nedejavnostMs = OsPravila.VRNITEV_DOMOV_NEDEJAVNOST_MS)
+
     /** Dom je spet na zaslonu: nazadnje zagnana aplikacija je bila v rabi do tega trenutka. */
     fun vrnitevDomov() { zadnjiZagnan?.let { uporabljeno(it) }; zadnjiZagnan = null }   // samo iz onResume doma (slepi pregled)
     @Volatile private var spremljam = false
@@ -202,7 +206,8 @@ object Pomnilnik {
      * Zvok merimo PRED zamikom: ob vrnitvi domov pomeni, da igra ena od aplikacij v ozadju - takrat ne zapremo nicesar.
      */
     @android.annotation.SuppressLint("MissingPermission")   // dovoljenje preveri smemo(); brskalnik ga nima
-    fun pocistiOzadje(c: Context, nasePredvajanje: Boolean = false, cakajMs: Long = 3000L, poskus: Int = 0, odhodiOd: Long = -1L) {
+    fun pocistiOzadje(c: Context, nasePredvajanje: Boolean = false, cakajMs: Long = 3000L, poskus: Int = 0, odhodiOd: Long = -1L,
+                      nedejavnostMs: Long = OsPravila.nedejavnostNeigrajocih()) {
         if (!smemo(c)) return
         spremljajOdhode(c)
         // Ponovitev ([poskus] > 0) velja samo, dokler uporabnik od PRVEGA poskusa ni odsel z doma.
@@ -225,14 +230,14 @@ object Pomnilnik {
                 if (OsPravila.ponoviCiscenje(odhodiObZacetku, odhodi, poskus)) {
                     Log.i(TAG, "ciscenje ozadja odlozeno - uporabnik pritiska tipke (poskus ${poskus + 1})")
                     android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(
-                        { pocistiOzadje(c, nasePredvajanje, cakajMs, poskus + 1, odhodiObZacetku) }, OsPravila.PONOVI_CISCENJE_MS)
+                        { pocistiOzadje(c, nasePredvajanje, cakajMs, poskus + 1, odhodiObZacetku, nedejavnostMs) }, OsPravila.PONOVI_CISCENJE_MS)
                 } else Log.i(TAG, "ciscenje ozadja preskoceno - uporabnik je odprl aplikacijo")
                 return@Thread
             }
             val amgr = c.getSystemService(ActivityManager::class.java)
             val pred = stanje(c)
             // Lastnik 8. 11. 2026 06:30: neigrajoce aplikacije se zaprejo (3 s), igrajoca ostane in jo upravlja mali predvajalnik.
-            val nedejavnost = OsPravila.nedejavnostNeigrajocih()
+            val nedejavnost = nedejavnostMs
             val k = kandidati(c).toMutableList()
             // Lastnik 1. 11. 2026: tudi nase aplikacije (TV Browser, Play Store, Predvajalnik), ko jih ne uporabljamo vec.
             for (nas in listOf("si.safeer.tv", "si.safeer.trgovina", "si.safeer.player")) if (!k.contains(nas)) k.add(nas)

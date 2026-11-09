@@ -445,7 +445,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
         // nalozenega posnetka (po filmu v pavzi nikoli). Kot DomovActivity: ob vsaki vrnitvi domov, cez 3 s;
         // pocistiOzadje samo preveri, ali zvok res igra (pavza ni zvok v ozadju).
         Pomnilnik.vrnitevDomov()   // nazadnje zagnana aplikacija je bila v rabi do zdaj (lastni zapis uporabe)
-        Pomnilnik.pocistiOzadje(this)
+        Pomnilnik.pocistiObVrnitviDomov(this)
         // Naloga 45 G: ponudba »Dodam na dom?« sele ob vrnitvi domov - zagon aplikacije ni nikoli cakal na okno.
         // Ponudba se ob prikazu pobrise, zato je najvec enkrat.
         glavna.post { if (!isFinishing && !isDestroyed) Priljubljene.ponudiCakajoco(this) { narisiAplikacije() } }

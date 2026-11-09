@@ -574,7 +574,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     override fun onResume() {
         super.onResume()
         Pomnilnik.vrnitevDomov()   // nazadnje zagnana aplikacija je bila v rabi do zdaj (lastni zapis uporabe)
-        Pomnilnik.pocistiOzadje(this)
+        Pomnilnik.pocistiObVrnitviDomov(this)
         KompletNamestitev.ponudiPrvic(this)
     }
 
