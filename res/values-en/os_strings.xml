@@ -784,7 +784,7 @@
     <string name="os_splet_brskalnik_opis">Which browser Web and web searches open</string>
     <string name="os_splet_brskalnik_privzeto">Safeer TV Browser (default)</string>
     <string name="os_splet_brskalnik_ni">There is no other browser on this device.</string>
-    <string name="os_zapri_neuporabljeno_opis">When you press Home, apps you are not using are closed right away to free up memory. Apps that are playing media or downloading stay open.</string>
+    <string name="os_zapri_neuporabljeno_opis">Apps you are not using close as soon as you leave them, for example with Home, to free up memory. Apps that are playing media or downloading stay open.</string>
     <string name="os_adb_zapiranje">Close apps reliably (local ADB)</string>
     <string name="os_adb_zapiranje_opis">On this TV Android does not let apps close other apps. With your consent Safeer OS connects once to this device\'s own debugging interface and closes apps you no longer use.</string>
     <string name="os_adb_pogoji_naslov">Allow Safeer OS to close apps?</string>
