@@ -13,6 +13,9 @@ function extractFuncs() {
     code += 'function jeNogaAliPiskotki() { return false; }\n';
     code += 'function jePotVZivo() { return false; }\n';
     code += 'function jeSirokGumb() { return false; }\n';
+    // SAFEER_HITRI_KANDIDATI (9. 11. 2026): isActionable bere vidnost prednikov prek skritPrednik.
+    const hitri = VIR.slice(VIR.indexOf('/* SAFEER_HITRI_KANDIDATI_ZACETEK */'), VIR.indexOf('/* SAFEER_HITRI_KANDIDATI_KONEC */'));
+    code += hitri + '\n';
     let m = VIR.match(/function isActionable[\s\S]*?return false;\n            \}/);
     if (m) code += m[0];
     code += '\nreturn isActionable;';
