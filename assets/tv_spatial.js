@@ -1564,6 +1564,31 @@
             }
             /* SAFEER_IZZIV_KONEC */
 
+            /* SAFEER_HITRI_KANDIDATI_ZACETEK */
+            // TV 9. 11. 2026 (apk-20, 24ur.com v namizni sirini): zbiranje ciljev ob vsaki tipki 460-600 ms (dnevnik H54), fokus je
+            // zaostajal. Profil v Chromiumu s 6x upocasnjenim CPU: isActionable je za vsakega od ~1000 elementov znova bral slog in
+            // okvir istih prednikov, getCandidatesFresh je primerjal vsak par (contains, indexOf). Med enim zbiranjem je izid
+            // prednika enak - zapomnimo ga (vidnostPrednikov), vgnezdenost pa iscemo po prednikih (Set), ne po parih.
+            var vidnostPrednikov = null;
+            function skritPrednik(p) {
+                if (vidnostPrednikov && vidnostPrednikov.has(p)) return vidnostPrednikov.get(p);
+                var skrit = false;
+                var ps = window.getComputedStyle(p);
+                if (ps.display === 'none' || ps.visibility === 'hidden' || ps.opacity === '0') skrit = true;
+                else {
+                    var pTag = p.tagName.toLowerCase();
+                    var pCls = (p.className || '').toLowerCase();
+                    var isMenu = pTag === 'ul' || pTag === 'menu' || pTag === 'nav' || pCls.indexOf('menu') !== -1 || pCls.indexOf('subcategories') !== -1 || p.hasAttribute('aria-haspopup');
+                    if (isMenu) {
+                        // Samo velikost 0: seznam pod robom zaslona ali vrtiljak desno je dosegljiv s premikom (pregled 1. 11. 2026).
+                        var pr = p.getBoundingClientRect();
+                        if (pr.width === 0 || pr.height === 0) skrit = true;
+                    }
+                }
+                if (vidnostPrednikov) vidnostPrednikov.set(p, skrit);
+                return skrit;
+            }
+            /* SAFEER_HITRI_KANDIDATI_KONEC */
             function isActionable(el) {
                 if (!el || el.nodeType !== 1) return false;
                 var tag = el.tagName.toUpperCase();
@@ -1585,18 +1610,7 @@
                 var globina = 0;
                 // Najvec 8 prednikov: getComputedStyle za vsak kandidat do <body> je na TV (2 GB) predrago ob vsakem pritisku.
                 while (p && p.nodeType === 1 && p !== document.body && p !== document.documentElement && globina++ < 8) {
-                    var ps = window.getComputedStyle(p);
-                    if (ps.display === 'none' || ps.visibility === 'hidden' || ps.opacity === '0') {
-                        skritPodmeni = true; break;
-                    }
-                    var pr = p.getBoundingClientRect();
-                    var pTag = p.tagName.toLowerCase();
-                    var pCls = (p.className || '').toLowerCase();
-                    var isMenu = pTag === 'ul' || pTag === 'menu' || pTag === 'nav' || pCls.indexOf('menu') !== -1 || pCls.indexOf('subcategories') !== -1 || p.hasAttribute('aria-haspopup');
-                    if (isMenu) {
-                        // Samo velikost 0: seznam pod robom zaslona ali vrtiljak desno je dosegljiv s premikom (pregled 1. 11. 2026).
-                        if (pr.width === 0 || pr.height === 0) { skritPodmeni = true; break; }
-                    }
+                    if (skritPrednik(p)) { skritPodmeni = true; break; }
                     p = p.parentElement;
                 }
                 if (skritPodmeni) return false;
@@ -1810,14 +1824,40 @@
                     }
                 var all = document.querySelectorAll('a, button, input, textarea, select, [role="button"], [role="link"], [role="tab"], [tabindex], [data-ved], [onclick], .video-play-button, [class*="card"], [class*="tile"], [class*="item"], [class*="channel"], [class*="poster"], [class*="program"], [class*="epg"], [class*="movie"], [class*="media"], [class*="slick-slide"], article, li.search, .icon-p24_search, [class*="icon-p24_search"], iframe');
                 var raw = [];
-                for (var i = 0; i < all.length; i++) {
-                    var el = all[i];
-                    if (isActionable(el)) {
-                        var cardRoot = findCardContainer(el);
-                        var finalEl = cardRoot || el;
-                        if (raw.indexOf(finalEl) === -1) {
-                            raw.push(finalEl);
+                var rawSet = new Set();
+                vidnostPrednikov = new Map();
+                // SAFEER_HITRI_KANDIDATI: na veliki strani (24ur.com: ~3900 elementov) samo pas okoli pogleda - od 1,5 zaslona nad
+                // do 2,5 zaslona pod njim. Cilj dlje GOR/DOL ni nikoli najblizji; brez cilja v pasu stran podrsa (kot prej).
+                var pas = all.length > 600, pasH = window.innerHeight || 1080;
+                try {
+                    for (var i = 0; i < all.length; i++) {
+                        var el = all[i];
+                        if (pas) {
+                            var pr0 = el.getBoundingClientRect();
+                            if ((pr0.width || pr0.height) && (pr0.bottom < -1.5 * pasH || pr0.top > 2.5 * pasH)) continue;
                         }
+                        if (isActionable(el)) {
+                            var cardRoot = findCardContainer(el);
+                            var finalEl = cardRoot || el;
+                            if (!rawSet.has(finalEl)) {
+                                rawSet.add(finalEl);
+                                raw.push(finalEl);
+                            }
+                        }
+                    }
+                } finally { vidnostPrednikov = null; }
+                // Predniki in potomci v raw (SAFEER_HITRI_KANDIDATI): prej vsak par raw[j], raw[k] s contains.
+                var predniki = new Map(), potomci = new Map();
+                for (var ri = 0; ri < raw.length; ri++) {
+                    var pp = raw[ri].parentElement;
+                    while (pp) {
+                        if (rawSet.has(pp)) {
+                            if (!predniki.has(raw[ri])) predniki.set(raw[ri], []);
+                            predniki.get(raw[ri]).push(pp);
+                            if (!potomci.has(pp)) potomci.set(pp, []);
+                            potomci.get(pp).push(raw[ri]);
+                        }
+                        pp = pp.parentElement;
                     }
                 }
                 
@@ -1828,12 +1868,14 @@
                     var itemCls = ((item.className || '') + '').toLowerCase();
                     var isNested = false;
                     var dropWrapper = false;
-                    for (var k = 0; k < raw.length; k++) {
-                        if (j === k) continue;
-                        if (raw[k].contains(item)) {
+                    var zgoraj = predniki.get(item) || [], spodaj = potomci.get(item) || [];
+                    var sosedi = zgoraj.concat(spodaj);
+                    for (var k = 0; k < sosedi.length; k++) {
+                        var rk = sosedi[k];
+                        if (k < zgoraj.length) {
                             // Pravi cilj v ovitku po razredu ostane, odpade ovitek (SAFEER_PRAVI_CILJ).
-                            if (jePravCilj(item) && jeOvitekPoRazredu(raw[k])) continue;
-                            var pcls = ((raw[k].className || '') + '').toLowerCase();
+                            if (jePravCilj(item) && jeOvitekPoRazredu(rk)) continue;
+                            var pcls = ((rk.className || '') + '').toLowerCase();
                             if (itemCls.indexOf('item--event') !== -1 && pcls.indexOf('livetv-griditem') !== -1) {
                                 continue;
                             }
@@ -1843,9 +1885,9 @@
                             isNested = true;
                             break;
                         }
-                        if (item.contains(raw[k])) {
-                            if (jeOvitekPoRazredu(item) && jePravCilj(raw[k])) { dropWrapper = true; break; }
-                            var cclsK = ((raw[k].className || '') + '').toLowerCase();
+                        else {
+                            if (jeOvitekPoRazredu(item) && jePravCilj(rk)) { dropWrapper = true; break; }
+                            var cclsK = ((rk.className || '') + '').toLowerCase();
                             if (itemCls.indexOf('livetv-griditem') !== -1 && itemCls.indexOf('item--event') === -1 && cclsK.indexOf('item--event') !== -1) {
                                 dropWrapper = true;
                                 break;
