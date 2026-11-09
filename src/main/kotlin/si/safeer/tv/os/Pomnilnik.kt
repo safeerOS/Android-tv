@@ -202,10 +202,11 @@ object Pomnilnik {
      * Zvok merimo PRED zamikom: ob vrnitvi domov pomeni, da igra ena od aplikacij v ozadju - takrat ne zapremo nicesar.
      */
     @android.annotation.SuppressLint("MissingPermission")   // dovoljenje preveri smemo(); brskalnik ga nima
-    fun pocistiOzadje(c: Context, nasePredvajanje: Boolean = false, cakajMs: Long = 3000L) {
+    fun pocistiOzadje(c: Context, nasePredvajanje: Boolean = false, cakajMs: Long = 3000L, poskus: Int = 0, odhodiOd: Long = -1L) {
         if (!smemo(c)) return
         spremljajOdhode(c)
-        val odhodiObZacetku = odhodi
+        // Ponovitev ([poskus] > 0) velja samo, dokler uporabnik od PRVEGA poskusa ni odsel z doma.
+        val odhodiObZacetku = if (odhodiOd >= 0L) odhodiOd else odhodi
         val vnosiObZacetku = vnosi
         val nadaljuj = { AdbLokalnoPravila.smemoNadaljevati(odhodiObZacetku, odhodi, vnosiObZacetku, vnosi) }
         val igraTuja = TujePredvajanje.igraPaket()
@@ -218,7 +219,16 @@ object Pomnilnik {
             TujePredvajanje.igraZdaj() != null && virov <= 1)
         Thread {
             if (cakajMs > 0L) try { Thread.sleep(cakajMs) } catch (_: Exception) {}
-            if (!nadaljuj()) { Log.i(TAG, "ciscenje ozadja preskoceno - uporabnik je odprl aplikacijo"); return@Thread }
+            if (!nadaljuj()) {
+                // Lastnik 9. 11. 2026 (FilmBox je ostal odprt): vsaka tipka je ciscenje preklicala za vedno. Ce je uporabnik
+                // se doma (samo tipke, brez odhoda), poskusi znova po mirovanju; ob odhodu ali zagonu aplikacije ne.
+                if (OsPravila.ponoviCiscenje(odhodiObZacetku, odhodi, poskus)) {
+                    Log.i(TAG, "ciscenje ozadja odlozeno - uporabnik pritiska tipke (poskus ${poskus + 1})")
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(
+                        { pocistiOzadje(c, nasePredvajanje, cakajMs, poskus + 1, odhodiObZacetku) }, OsPravila.PONOVI_CISCENJE_MS)
+                } else Log.i(TAG, "ciscenje ozadja preskoceno - uporabnik je odprl aplikacijo")
+                return@Thread
+            }
             val amgr = c.getSystemService(ActivityManager::class.java)
             val pred = stanje(c)
             // Lastnik 8. 11. 2026 06:30: neigrajoce aplikacije se zaprejo (3 s), igrajoca ostane in jo upravlja mali predvajalnik.

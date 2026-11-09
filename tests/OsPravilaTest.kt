@@ -1220,6 +1220,10 @@ fun main() {
     preveriEnako("aplikacija na TV: YouTube ne", false, OsPravila.sirokaAplikacijaNaTv(true, "https://www.youtube.com/tv"))
     preveriEnako("aplikacija na telefonu: ne", false, OsPravila.sirokaAplikacijaNaTv(false, "https://www.facebook.com/"))
     preveriEnako("aplikacija: neveljaven naslov", false, OsPravila.sirokaAplikacijaNaTv(true, "ni naslov"))
+    // Lastnik 9. 11. 2026 (FilmBox je ostal odprt): tipka doma ciscenje odlozi, ne preklice; odhod ali zagon ga konca.
+    preveriEnako("ciscenje: samo tipke doma - ponovi", true, OsPravila.ponoviCiscenje(5, 5, 0))
+    preveriEnako("ciscenje: uporabnik je odsel - ne ponovi", false, OsPravila.ponoviCiscenje(5, 6, 0))
+    preveriEnako("ciscenje: najvec ponovitev", false, OsPravila.ponoviCiscenje(5, 5, OsPravila.NAJVEC_PONOVITEV_CISCENJA))
     preveriEnako("miska: Facebook na TV", true, OsPravila.miskaZaAplikacijo(true, "https://www.facebook.com/"))
     preveriEnako("miska: m.facebook.com na TV", true, OsPravila.miskaZaAplikacijo(true, "https://m.facebook.com/home.php"))
     preveriEnako("miska: Facebook na telefonu ne", false, OsPravila.miskaZaAplikacijo(false, "https://www.facebook.com/"))

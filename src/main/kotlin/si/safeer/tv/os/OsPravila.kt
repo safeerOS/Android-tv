@@ -2416,6 +2416,14 @@ object OsPravila {
      */
     private val MISKA_GOSTITELJI = listOf("facebook.com", "messenger.com", "instagram.com")
 
+    /** Lastnik 9. 11. 2026: ciscenje ozadja, ki ga je prekinila tipka (uporabnik je se doma), se ponovi po mirovanju. */
+    const val PONOVI_CISCENJE_MS = 7_000L
+    const val NAJVEC_PONOVITEV_CISCENJA = 20
+
+    /** Ponovi samo, ce uporabnik doma ni odsel (stevec odhodov enak) - zagon aplikacije ali odhod ciscenje konca. */
+    fun ponoviCiscenje(odhodiObZacetku: Long, odhodiZdaj: Long, poskus: Int): Boolean =
+        odhodiZdaj == odhodiObZacetku && poskus < NAJVEC_PONOVITEV_CISCENJA
+
     fun miskaZaAplikacijo(jeTelevizor: Boolean, naslov: String): Boolean {
         if (!jeTelevizor) return false
         val gostitelj = try { java.net.URI(naslov.trim()).host?.lowercase().orEmpty() } catch (_: Exception) { "" }
