@@ -5494,7 +5494,7 @@ class GlasbaActivity : OsActivity() {
             tag = POLICA_KARTIC
             addView(besedilo(18f, osBarva(R.color.os_besedilo), true).apply {
                 text = v.naslov; tag = "polica:${v.naslov}"; contentDescription = NASLOV_VRSTE
-                setPadding(dp(4), dp(if (jeTv()) McVidezPravila.ODMIK_NASLOVA_POLICE_TV_DP else 14), 0, dp(8))
+                setPadding(dp(4), dp(if (jeTv()) McVidezPravila.ODMIK_NASLOVA_POLICE_TV_DP else 14), 0, dp(if (jeTv()) McVidezPravila.ODMIK_POD_NASLOVOM_POLICE_TV_DP else 8))
             })
             val vrstica = LinearLayout(this@GlasbaActivity).apply { orientation = LinearLayout.HORIZONTAL }
             kartice.forEachIndexed { i, k -> val p = karticaMreze(v, k, velikost); oznaciVMrezi(v, p, i, n); vrstica.addView(p) }
@@ -5516,7 +5516,7 @@ class GlasbaActivity : OsActivity() {
             tag = POLICA_KARTIC
             addView(besedilo(18f, osBarva(R.color.os_besedilo), true).apply {
                 text = v.naslov; tag = "polica:${v.naslov}"; contentDescription = NASLOV_VRSTE
-                setPadding(dp(4), dp(if (jeTv()) McVidezPravila.ODMIK_NASLOVA_POLICE_TV_DP else 14), 0, dp(8))
+                setPadding(dp(4), dp(if (jeTv()) McVidezPravila.ODMIK_NASLOVA_POLICE_TV_DP else 14), 0, dp(if (jeTv()) McVidezPravila.ODMIK_POD_NASLOVOM_POLICE_TV_DP else 8))
             })
             val vrstica = LinearLayout(this@GlasbaActivity).apply { orientation = LinearLayout.HORIZONTAL }
             v.kartice.forEachIndexed { i, k -> val p = karticaMreze(v, k, velikost); oznaciVMrezi(v, p, i, v.kartice.size); vrstica.addView(p) }

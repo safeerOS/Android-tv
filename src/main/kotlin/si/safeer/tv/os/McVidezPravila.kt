@@ -38,13 +38,19 @@ object McVidezPravila {
      * z manjsim zgornjim odmikom.
      */
     const val POLICA_SEZNAMOV_TV_DP = 72
-    const val ODMIK_NASLOVA_POLICE_TV_DP = 6
+    const val ODMIK_NASLOVA_POLICE_TV_DP = 2
+    /** Odmik pod naslovom police na TV (dp); drugje 8. */
+    const val ODMIK_POD_NASLOVOM_POLICE_TV_DP = 4
 
     /**
      * TV 9. 11. 2026 (apk-20, uiautomator): drsnik 880 px, Seznami od 220 do 556 px, Videospoti pri 150 dp (slicica 84 dp)
      * niso sli na zaslon in so sli pod rob. Pri 112 dp (slicica 63 dp) gresta obe polici na prvi zaslon.
+     * TV 9. 11. 2026 zvecer (apk-22, dumpsys): to je drzalo samo, ko so imeli seznami naslov v eni vrstici (dno 556 px). Z naslovi
+     * v dveh vrsticah je dno Seznamov 593 px, polica Videospotov 322 px (naslov 77, slicica 126, besedilo z robovi 119) = 915 > 880,
+     * zato je sla pod rob in pol zaslona je ostalo praznega. Zdaj: odmik naslova 2 dp + 4 dp pod njim (obe polici, -32 px) in
+     * kartica 100 dp (slicica 112 px, -14 px) = 869 px tudi pri naslovih v dveh vrsticah.
      */
-    const val POLICA_VIDEA_TV_DP = 112
+    const val POLICA_VIDEA_TV_DP = 100
 
     /** Ali gre polica Videospotov (naslov + kartica s slicico 16:9 in besedilom) pod Seznami na prvi zaslon (vse v px). */
     fun policaVideaNaZaslonu(vidno: Int, dnoSeznamov: Int, naslov: Int, sirinaDp: Int, besedilo: Int, gostota: Float): Boolean =

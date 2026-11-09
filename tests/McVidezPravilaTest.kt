@@ -12,6 +12,13 @@ fun main() {
         McVidezPravila.policaVideaNaZaslonu(880, 556, 77, 150, 100, 2f))
     preveriEnako("Videospoti pri POLICA_VIDEA_TV_DP gredo pod Seznami na prvi zaslon", true,
         McVidezPravila.policaVideaNaZaslonu(880, 556, 77, McVidezPravila.POLICA_VIDEA_TV_DP, 100, 2f))
+    // TV 9. 11. 2026 zvecer (apk-22, dumpsys): seznami z naslovom v dveh vrsticah - dno Seznamov 593 px pri odmikih naslova 6+8 dp,
+    // besedilo naslova police 49 px, besedilo kartice Videospotov z robovi 119 px. Pri 112 dp in starih odmikih 915 px > 880.
+    val odmiki = (McVidezPravila.ODMIK_NASLOVA_POLICE_TV_DP + McVidezPravila.ODMIK_POD_NASLOVOM_POLICE_TV_DP) * 2
+    preveriEnako("stare mere (112 dp, odmiki 6+8 dp) z naslovi v dveh vrsticah niso sle na zaslon", false,
+        McVidezPravila.policaVideaNaZaslonu(880, 593, 77, 112, 119, 2f))
+    preveriEnako("Videospoti gredo pod Seznami tudi pri naslovih seznamov v dveh vrsticah", true,
+        McVidezPravila.policaVideaNaZaslonu(880, 593 - 28 + odmiki, 49 + odmiki, McVidezPravila.POLICA_VIDEA_TV_DP, 119, 2f))
     preveriEnako("vsebina obreze brez Doma", true, McVidezPravila.obreziVsebino(listOf(false, false)))
     preveriEnako("vrstice Doma: brez obrezovanja", false, McVidezPravila.obreziVsebino(listOf(false, true)))
     preveriEnako("prazno: obreze", true, McVidezPravila.obreziVsebino(emptyList()))
