@@ -75,3 +75,4 @@ Vsako od spodnjih pravil izhaja iz napake, ki je ze bila narejena.
   in Windows se obnasa ENAKO kot na TV - isti filtri mreze (izbira vira Usenet ali TorBox filtrira mrezo), isti vrstni red, iste
   oznake, isti potek do predvajanja. Razlika samo tam, kjer jo zahteva naprava (dotik, miska, tipkovnica, velikost zaslona).
   Vsaka sprememba Medijskega centra na TV ima v isti nalogi preverbo telefona, tablice in namizja; najdena razlika je napaka.
+- Strezniki in viri v Medijskem centru (lastnik, 10. 11. 2026): na TV, racunalniku, tablici in telefonu omogocimo samo tisto, kar se na tej napravi dejansko lahko uporabi (doda, poveze in predvaja - izmerjeno, ne predpostavljeno). Vrsta streznika, ki na napravi ne dela, se tam ne pokaze; ki dela, se pokaze na vseh napravah, kjer dela.
