@@ -2,7 +2,7 @@ package si.safeer.tv.link
 
 import si.safeer.tv.os.KnjiznicaKroga
 
-/** Manjse varnostne odlocitve Safeer Linka iz pregleda 10. 11. 2026 (2.2, 2.4, 4.1). */
+/** Manjse varnostne odlocitve Safeer Linka iz pregleda 10. 11. 2026 (2.1, 2.2, 2.4, 4.1). */
 private var preverb = 0
 
 private fun preveri(opis: String, pogoj: Boolean) {
@@ -80,10 +80,21 @@ private fun dnevnik(izvorna: String) {
     }
 }
 
+/** 2.1: files.search ima isto dvojno preverbo umika kot files.list. */
+private fun iskanje(izvorna: String) {
+    if (izvorna.isEmpty()) return
+    val isci = vir(izvorna, "si/safeer/tv/link/DatotekeStreznik.kt").substringAfter("fun isci(context: Context, poizvedba: String, idNaprave: String): JSONObject {")
+        .substringBefore("private fun imeZbirke")
+    preveri("isci zavrne umaknjeno napravo pred iskanjem",
+        isci.contains("if (idNaprave.isNotBlank() && umaknjena(context, idNaprave))") &&
+            isci.indexOf("umaknjena(context, idNaprave)") < isci.indexOf("KrajevneDatoteke.najdi"))
+}
+
 fun main(args: Array<String>) {
     val izvorna = args.firstOrNull().orEmpty()
     odstranitevPrenosa(izvorna)    // 2.2
     sprejemZvoka(izvorna)          // 2.4
     dnevnik(izvorna)               // 4.1
+    iskanje(izvorna)               // 2.1
     println("LinkVarnostPravilaTest: OK ($preverb preverb)")
 }

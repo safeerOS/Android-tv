@@ -577,6 +577,10 @@ object DatotekeStreznik {
         appContext = context.applicationContext
         val o = JSONObject()
         if (!vklopljeno(context) || !imamoDovoljenje(context)) return o.put("items", JSONArray()).put("shared", false)
+        // Pregled 10. 11. 2026 (2.1): dvojna preverba kot v [seznam] - umaknjena naprava ne dobi niti zadetkov
+        // (Dostop.smeDejanje jo ze zavrne; ta vrstica drzi, ce se klic kdaj znajde mimo tistih vrat).
+        if (idNaprave.isNotBlank() && umaknjena(context, idNaprave))
+            return o.put("items", JSONArray()).put("shared", false).put("reason", "revoked")
         val vnosi = JSONArray()
         for (n in si.safeer.tv.os.KrajevneDatoteke.najdi(context, poizvedba, 30)) {
             vnosi.put(JSONObject().put("id", "$PREDPONA${n.zbirka}:${n.vrstica}").put("name", n.ime).put("type", n.zbirka)
