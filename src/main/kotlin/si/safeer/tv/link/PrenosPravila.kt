@@ -69,6 +69,31 @@ object PrenosPravila {
         return opravila.filter { it.koncano }.sortedBy { it.nastal }.take(prevec).map { it.id }
     }
 
+    const val KODA_CILJ = "nedovoljen_cilj"
+    /** Prenos ni uspel - namenoma ENA koda za vse omrezne napake (glej [kodaNapake]). */
+    const val KODA_PRENOS = "prenos_ni_uspel"
+    /** Prenesena kopija se ne ujema z napovedano velikostjo ali SHA-256. */
+    const val KODA_UJEMANJE = "ne_ujema"
+    const val KODA_SHRANJEVANJE = "napaka_shranjevanja"
+
     /** Napaka prenosa s kodo, ki gre v stanje opravila (brez besedila izjeme). */
     class Napaka(val koda: String) : Exception(koda)
+
+    /**
+     * Koda napake za `storage.status` / `video.status`. Pregled 10. 11. 2026 (1.1): prej je slo v stanje besedilo izjeme
+     * (»Connection refused«, »timeout«, »racunalnik je vrnil 404« ...) - z njim je naprava, ki sme zaceti prenos, tipala,
+     * kateri naslovi in vrata v omrezju te naprave odgovarjajo. Zdaj: nasa koda ([Napaka]), [KODA_CILJ] za nedovoljen cilj
+     * ([nedovoljenCilj] prepozna izjemo preverjenega DNS), za vse ostalo ena sama [KODA_PRENOS].
+     */
+    fun kodaNapake(e: Throwable, nedovoljenCilj: (Throwable) -> Boolean): String {
+        var t: Throwable? = e
+        var globina = 0
+        while (t != null && globina < 8) {
+            if (t is Napaka) return t.koda
+            if (nedovoljenCilj(t)) return KODA_CILJ
+            t = t.cause
+            globina++
+        }
+        return KODA_PRENOS
+    }
 }

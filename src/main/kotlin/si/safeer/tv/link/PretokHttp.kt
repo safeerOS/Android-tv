@@ -71,6 +71,19 @@ object PretokHttp {
      */
     fun gostiteljVira(url: String): String = url.toHttpUrlOrNull()?.host.orEmpty()
 
+    /**
+     * Cilj prenosa s pripete naprave (Shramba `storage.put`, Pretvorba `video.transcode`) ni dovoljen ze po zapisu: ista
+     * preverba kot Pretok (pregled 10. 11. 2026, 1.1). Brez nje je naprava z odprtimi datotekami to napravo poslala na
+     * 127.0.0.1, localhost ali 169.254.x - na storitve, ki poslusajo samo tu. Neveljaven naslov (prazen gostitelj) = da.
+     */
+    fun ciljPrenosaNedovoljen(url: String): Boolean = PretokPravila.gostiteljPrepovedan(gostiteljVira(url))
+
+    /**
+     * DNS odjemalca za prenos s pripete naprave: povezava samo na naslove, ki smo jih preverili (brez DNS rebindinga);
+     * domace omrezje je dovoljeno - naprava v Linku je doma. Kot Pretok.preverjenDns.
+     */
+    fun dnsPripeteNaprave(n: Nastavitve = Nastavitve()): Dns = PreverjenDns(n, true)
+
     /** Kot Linux v_domace_omrezje: vse glave toka so brez poverilnic. */
     fun vDomaceOmrezje(glave: Map<String, String>): Boolean = glave.keys.all { it.lowercase() in VARNE_GLAVE }
 

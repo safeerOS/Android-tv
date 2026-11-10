@@ -66,6 +66,8 @@ object Shramba {
         val sha = p.optString("sha256").lowercase()
         if (!url.startsWith("https://") || odtis.length != 64 || zeton.isBlank() || ime.isBlank() || sha.length != 64)
             return Daljinec.Izid(false, "Nepopolna zahteva", koda = "napacna_zahteva")
+        // Pregled 10. 11. 2026 (1.1): cilj kot pri Pretoku - ta naprava sama in povezavno-lokalni naslovi niso vir.
+        if (PretokHttp.ciljPrenosaNedovoljen(url)) return Daljinec.Izid(false, "Vir ni dovoljen", koda = PrenosPravila.KODA_CILJ)
         val pomoc = Zmogljivost.porocilo(context).optJSONObject("pomoc")
         if (pomoc?.optBoolean("lahko", true) == false)
             return Daljinec.Izid(false, "Naprava ta trenutek ne more pomagati", koda = pomoc.optString("razlog"))
@@ -119,8 +121,9 @@ object Shramba {
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
             uri = cr.insert(MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY), vrednosti)
-                ?: throw IllegalStateException("mape ni mogoce ustvariti")
-            val odjemalec = si.safeer.tv.os.PripetiVir.odjemalecZaStreznik(odtis)
+                ?: throw PrenosPravila.Napaka(PrenosPravila.KODA_SHRANJEVANJE)
+            // Pregled 10. 11. 2026 (1.1): razresena imena preveri isti DNS kot pri Pretoku (brez DNS rebindinga).
+            val odjemalec = si.safeer.tv.os.PripetiVir.odjemalecZaStreznik(odtis, PretokHttp.dnsPripeteNaprave())
             val zahteva = Request.Builder().url(url).header("X-Safeer-Token", zeton).build()
             val md = MessageDigest.getInstance("SHA-256")
             odjemalec.newCall(zahteva).execute().use { r ->
@@ -144,14 +147,16 @@ object Shramba {
                 }
             }
             val dobljen = md.digest().joinToString("") { "%02x".format(it) }
-            if (o.preneseno != o.velikost || dobljen != sha) throw IllegalStateException("kopija se ne ujema z izvirnikom")
+            if (o.preneseno != o.velikost || dobljen != sha) throw PrenosPravila.Napaka(PrenosPravila.KODA_UJEMANJE)
             cr.update(uri, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
             o.oznaka = "media:shramba:" + android.content.ContentUris.parseId(uri)
             o.stanje = "koncano"
-            Log.i(TAG, "Shranjeno: ${o.ime} (${o.preneseno} B)")
+            Log.i(TAG, "Shranjeno (${o.preneseno} B)")
         } catch (e: Throwable) {
-            Log.w(TAG, "Shranjevanje ${o.ime} ni uspelo: ${e.message}")
-            o.napaka = e.message ?: e.javaClass.simpleName
+            // V stanje gre koda, ne besedilo izjeme (pregled 10. 11. 2026, 1.1); v dnevnik brez imena datoteke.
+            val koda = PrenosPravila.kodaNapake(e) { it is PretokHttp.NedovoljenCilj }
+            Log.w(TAG, "Shranjevanje ni uspelo: $koda (${e.javaClass.simpleName})")
+            o.napaka = koda
             o.stanje = "napaka"
             try { if (uri != null) cr.delete(uri, null, null) } catch (_: Throwable) { }
         }

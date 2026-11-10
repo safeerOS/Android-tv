@@ -85,6 +85,8 @@ object Pretvorba {
         val velikost = p.optLong("size", 0L)
         if (!url.startsWith("https://") || odtis.length != 64 || zeton.isBlank() || ime.isBlank())
             return Daljinec.Izid(false, "Nepopolna zahteva", koda = "napacna_zahteva")
+        // Pregled 10. 11. 2026 (1.1): cilj kot pri Pretoku - ta naprava sama in povezavno-lokalni naslovi niso vir.
+        if (PretokHttp.ciljPrenosaNedovoljen(url)) return Daljinec.Izid(false, "Vir ni dovoljen", koda = PrenosPravila.KODA_CILJ)
         // Racunalnik pove obliko izvirnika (ffprobe): ce je ta naprava ne zna prebrati, takoj recemo ne.
         val mime = p.optString("mime"); val w = p.optInt("width"); val h = p.optInt("height")
         if (mime.startsWith("video/") && w > 0 && h > 0 && !znaDekodirati(MediaFormat.createVideoFormat(mime, w, h)))
@@ -127,8 +129,9 @@ object Pretvorba {
 
     private fun mapa(ctx: Context) = File(ctx.cacheDir, "pretvorba").apply { mkdirs() }
 
+    /** [sporocilo] je koda napake (v stanje in v dnevnik gre brez imena datoteke in brez besedila izjeme). */
     private fun napaka(o: Opravilo, sporocilo: String, vararg zacasne: File) {
-        Log.w(TAG, "Pretvorba ${o.ime}: $sporocilo")
+        Log.w(TAG, "Pretvorba ni uspela: $sporocilo")
         o.napaka = sporocilo
         o.faza = "napaka"
         zacasne.forEach { it.delete() }
@@ -137,7 +140,8 @@ object Pretvorba {
     private fun prenesi(ctx: Context, o: Opravilo, url: String, odtis: String, zeton: String) {
         val vir = File(mapa(ctx), o.id + ".vir")
         try {
-            val odjemalec = si.safeer.tv.os.PripetiVir.odjemalecZaStreznik(odtis)
+            // Pregled 10. 11. 2026 (1.1): razresena imena preveri isti DNS kot pri Pretoku (brez DNS rebindinga).
+            val odjemalec = si.safeer.tv.os.PripetiVir.odjemalecZaStreznik(odtis, PretokHttp.dnsPripeteNaprave())
             odjemalec.newCall(Request.Builder().url(url).header("X-Safeer-Token", zeton).build()).execute().use { r ->
                 if (!r.isSuccessful) throw IllegalStateException("racunalnik je vrnil ${r.code}")
                 val telo = r.body ?: throw IllegalStateException("prazen odgovor")
@@ -161,7 +165,8 @@ object Pretvorba {
                 }
             }
         } catch (e: Throwable) {
-            napaka(o, e.message ?: e.javaClass.simpleName, vir)
+            // Koda, ne besedilo izjeme (pregled 10. 11. 2026, 1.1): z besedilom se je dalo tipati vrata v omrezju.
+            napaka(o, PrenosPravila.kodaNapake(e) { it is PretokHttp.NedovoljenCilj }, vir)
             return
         }
         // Ce racunalnik oblike ni poznal: preverimo jo zdaj, preden se lotimo pretvorbe.
@@ -254,7 +259,7 @@ object Pretvorba {
             }
             glavna.postDelayed(sledi, 1000)
         } catch (e: Throwable) {
-            napaka(o, e.message ?: e.javaClass.simpleName, vir, cilj)
+            napaka(o, "pretvorba ni uspela: " + e.javaClass.simpleName, vir, cilj)
         }
     }
 
@@ -269,7 +274,7 @@ object Pretvorba {
                 put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
                 put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/" + Shramba.MAPA)
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
-            }) ?: throw IllegalStateException("mape ni mogoce ustvariti")
+            }) ?: throw PrenosPravila.Napaka(PrenosPravila.KODA_SHRANJEVANJE)
             cr.openOutputStream(uri)!!.use { izhod -> cilj.inputStream().use { it.copyTo(izhod, 256 * 1024) } }
             cr.update(uri, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
             o.izhod = ime
@@ -277,10 +282,10 @@ object Pretvorba {
             o.oznaka = "media:shramba:" + android.content.ContentUris.parseId(uri)
             o.odstotek = 100
             o.faza = "koncano"
-            Log.i(TAG, "Pretvorjeno: ${o.ime} -> $ime (${o.velikost} B)")
+            Log.i(TAG, "Pretvorjeno (${o.velikost} B)")
         } catch (e: Throwable) {
             try { if (uri != null) cr.delete(uri, null, null) } catch (_: Throwable) { }
-            napaka(o, e.message ?: e.javaClass.simpleName)
+            napaka(o, PrenosPravila.KODA_SHRANJEVANJE)
         } finally {
             vir.delete(); cilj.delete()
         }
