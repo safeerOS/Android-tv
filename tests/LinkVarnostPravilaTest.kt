@@ -2,7 +2,7 @@ package si.safeer.tv.link
 
 import si.safeer.tv.os.KnjiznicaKroga
 
-/** Manjse varnostne odlocitve Safeer Linka iz pregleda 10. 11. 2026 (2.1, 2.2, 2.4, 4.1). */
+/** Manjse varnostne odlocitve Safeer Linka iz pregleda 10. 11. 2026 (2.1, 2.2, 2.4, 3.1, 4.1). */
 private var preverb = 0
 
 private fun preveri(opis: String, pogoj: Boolean) {
@@ -90,11 +90,28 @@ private fun iskanje(izvorna: String) {
             isci.indexOf("umaknjena(context, idNaprave)") < isci.indexOf("KrajevneDatoteke.najdi"))
 }
 
+/** 3.1: cas sporocila klepeta je najvec zdaj. */
+private fun casKlepeta(izvorna: String) {
+    val P = LinkVarnostPravila
+    val zdaj = "2026-11-10T18:00:00+00:00"
+    preveri("pretekli cas posiljatelja ostane", P.casSporocila("2026-11-10T17:59:30Z", zdaj) == "2026-11-10T17:59:30+00:00")
+    preveri("cas z delci sekunde in +00:00", P.casSporocila("2026-11-10T17:00:00.123+00:00", zdaj) == "2026-11-10T17:00:00+00:00")
+    preveri("cas iz prihodnosti postane zdaj", P.casSporocila("2099-01-01T00:00:00Z", zdaj) == zdaj)
+    preveri("sekunda v prihodnosti postane zdaj", P.casSporocila("2026-11-10T18:00:01Z", zdaj) == zdaj)
+    preveri("tocno zdaj ostane", P.casSporocila("2026-11-10T18:00:00Z", zdaj) == zdaj)
+    preveri("nerazumljiv cas je cas prejema", P.casSporocila("jutri", zdaj) == zdaj && P.casSporocila("", zdaj) == zdaj)
+    preveri("cas brez UTC je cas prejema", P.casSporocila("2026-11-10T17:00:00+02:00", zdaj) == zdaj)
+    if (izvorna.isEmpty()) return
+    preveri("KlepetLinka cas omeji s pravilom", vir(izvorna, "si/safeer/tv/os/KlepetLinka.kt")
+        .contains("LinkVarnostPravila.casSporocila(iso, SporocilaKanali.cas(null))"))
+}
+
 fun main(args: Array<String>) {
     val izvorna = args.firstOrNull().orEmpty()
     odstranitevPrenosa(izvorna)    // 2.2
     sprejemZvoka(izvorna)          // 2.4
     dnevnik(izvorna)               // 4.1
     iskanje(izvorna)               // 2.1
+    casKlepeta(izvorna)            // 3.1
     println("LinkVarnostPravilaTest: OK ($preverb preverb)")
 }

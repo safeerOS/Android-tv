@@ -48,4 +48,20 @@ object LinkVarnostPravila {
 
     /** Ali je rok ([rokMs] od [zacetekMs]) mimo; ura nazaj steje kot mimo. */
     fun rokPotekel(zacetekMs: Long, zdajMs: Long, rokMs: Long): Boolean = zdajMs < zacetekMs || zdajMs - zacetekMs >= rokMs
+
+    // ------------------------------------------------------------------ klepet (3.1)
+
+    private val CAS_UTC = Regex("""\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d.*""")
+
+    /**
+     * Cas sporocila klepeta v nasi obliki (`llll-mm-ddTuu:mm:ss+00:00`, UTC): cas posiljatelja ([iso]), a NAJVEC [zdaj]
+     * (cas prejema v isti obliki). Prej je sporocilo s casom iz prihodnosti ostalo za vedno na vrhu pogovora in pred
+     * vsemi poznejsimi sporocili. Nerazumljiv cas = cas prejema.
+     */
+    fun casSporocila(iso: String, zdaj: String): String {
+        val t = iso.trim()
+        if (!CAS_UTC.matches(t) || !(t.endsWith("Z") || t.contains("+00:00"))) return zdaj
+        val cas = t.take(19) + "+00:00"
+        return if (cas > zdaj) zdaj else cas
+    }
 }
