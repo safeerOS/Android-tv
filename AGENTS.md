@@ -49,6 +49,8 @@ Vsako od spodnjih pravil izhaja iz napake, ki je ze bila narejena.
   samo svoj vir - brez trojnega preverjanja vseh virov za vsak naslov, ker to upocasni nalaganje. Vir, ki ni odgovoril, ni »nima«.
 - TorBox ima v mrezi Filmi/Serije svoj filter vira, enako kot Usenet (lastnik 10. 11. 2026): pri izbiri »TorBox« so v mrezi samo
   naslovi, ki jih ima TorBox pripravljene. Ista pravila (FilterViraPravila) in ista vrsta preverb - brez kopije UsenetFilter.
+- TorBox lahko pripravi tudi naslov, ki ga se nima (lastnik 10. 11. 2026): to uporabniku ponudimo, a mora PRED izbiro vedeti, da
+  priprava traja najdlje. Pripravljeni naslovi so prvi in brez oznake; nepripravljen ima jasno oznako in se nikoli ne zacne sam.
 - Vdelani mehki podnapisi v jeziku uporabnika imajo prednost pred zunanjimi (OpenSubtitles).
 - Mreza, ne vodoravne police; skrita kartica ne sme biti izbirna z daljincem.
 - Iskanje (lastnik 7. 11. 2026): novo iskanje vedno zacne s praznim poljem in odprto tipkovnico (OK na polju z zadetki,
