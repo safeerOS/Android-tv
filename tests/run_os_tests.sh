@@ -206,6 +206,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/PretokHttpTest.kt" \
     "$SRC/si/safeer/tv/link/PrenosPravila.kt" \
     "$TEST_DIR/PrenosCiljTest.kt" \
+    "$SRC/si/safeer/tv/link/StreznikMeja.kt" \
+    "$TEST_DIR/StreznikMejaTest.kt" \
     "$TEST_DIR/PrenosPravilaTest.kt" \
     "$TEST_DIR/SkupniPrimeriTest.kt" \
     "$SRC/si/safeer/tv/os/PreizkusPravila.kt" \
@@ -395,6 +397,8 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.PrenosPravilaTestKt "$SRC"
 # Pregled 10. 11. 2026 (1.1): cilj prenosa v Shrambi in Pretvorbi kot pri Pretoku (zanka, povezavno-lokalni, preslikani
 # IPv4 v IPv6 zavrnjeni; razresena imena prek preverjenega DNS) in koda napake namesto besedila izjeme.
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.PrenosCiljTestKt "$SRC"
+# Pregled 10. 11. 2026 (3.4): streznik datotek - meja socasnih povezav (skupaj in na naslov) in skupni rok branja zahteve.
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.StreznikMejaTestKt "$SRC"
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PreizkusPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/debrid-serije.json"
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/webtor-rezerva.json"
