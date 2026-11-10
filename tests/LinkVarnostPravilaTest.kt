@@ -2,7 +2,7 @@ package si.safeer.tv.link
 
 import si.safeer.tv.os.KnjiznicaKroga
 
-/** Manjse varnostne odlocitve Safeer Linka iz pregleda 10. 11. 2026 (2.2, 2.4). */
+/** Manjse varnostne odlocitve Safeer Linka iz pregleda 10. 11. 2026 (2.2, 2.4, 4.1). */
 private var preverb = 0
 
 private fun preveri(opis: String, pogoj: Boolean) {
@@ -53,9 +53,37 @@ private fun sprejemZvoka(izvorna: String) {
     preveri("ZvokSprejemnik glavo bere s skupnim rokom", zvok.contains("LinkVarnostPravila.rokPotekel(zacetek,") && zvok.contains("if (potekel()) throw java.net.SocketTimeoutException"))
 }
 
+/** 4.1: v dnevnik brez zetonov, polnih oznak naprav in imen datotek. */
+private fun dnevnik(izvorna: String) {
+    val P = LinkVarnostPravila
+    val polna = "n-0123456789abcdef-control"
+    val kratka = P.oznakaZaDnevnik(polna)
+    preveri("oznaka naprave brez sredine kljuca", kratka == "n-…cdef-control" && !kratka.contains("0123456789ab"))
+    preveri("jedro brez programa", P.oznakaZaDnevnik("n-0123456789abcdef") == "n-…cdef")
+    preveri("starejsa oznaka skrajsana", P.oznakaZaDnevnik("televizor-dnevna-soba") == "te…ba")
+    preveri("kratka oznaka ne gre cela", P.oznakaZaDnevnik("abc") == "ab…")
+    preveri("prazna oznaka", P.oznakaZaDnevnik("") == "(brez oznake)")
+    preveri("prelom vrstice ne pride v dnevnik", !P.oznakaZaDnevnik("n-0123456789abcdef-a\nLAZNA VRSTICA").contains('\n'))
+    preveri("dolga oznaka je omejena", P.oznakaZaDnevnik("n-0123456789abcdef-" + "x".repeat(500)).length <= 40)
+    if (izvorna.isEmpty()) return
+    val predaja = vir(izvorna, "si/safeer/tv/os/Predaja.kt")
+    preveri("Predaja v dnevnik ne pise surovega odgovora (zeton streznika)", !predaja.contains("izid?.toString()"))
+    preveri("Predaja v dnevnik ne pise polnih oznak, imen in naslovov naprav",
+        predaja.lines().filter { it.trimStart().startsWith("log(") }.none { v ->
+            listOf("\$posiljatelj", "\${cilj.id}", "\${n.id}", "\${it.id}", "\${it.ime}", "\${it.naslov}", ".naslov}").any { v.contains(it) } })
+    // Dnevnik v link/ (brez datotek, ki jih ureja druga naloga): brez imen datotek, polnih oznak in besedila zetonov.
+    val prepovedano = listOf("\$posiljatelj", "\${posiljatelj}", "\$ime", "\${t.ime}", "\${o.ime}", "\${t.datoteka.ime}", "\$zeton", "\${zeton}",
+        "naslovi.joinToString()", "\$n:\$vrata")
+    for (ime in listOf("MagnetPomoc.kt", "Pretok.kt", "Shramba.kt", "Pretvorba.kt", "ZvokSprejemnik.kt")) {
+        val slabe = vir(izvorna, "si/safeer/tv/link/$ime").lines().filter { it.contains("Log.") && prepovedano.any { p -> it.contains(p) } }
+        preveri("$ime: dnevnik brez imen datotek, polnih oznak in zetonov (${slabe.size})", slabe.isEmpty())
+    }
+}
+
 fun main(args: Array<String>) {
     val izvorna = args.firstOrNull().orEmpty()
     odstranitevPrenosa(izvorna)    // 2.2
     sprejemZvoka(izvorna)          // 2.4
+    dnevnik(izvorna)               // 4.1
     println("LinkVarnostPravilaTest: OK ($preverb preverb)")
 }

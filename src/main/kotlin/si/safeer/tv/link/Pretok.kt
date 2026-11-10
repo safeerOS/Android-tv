@@ -75,6 +75,7 @@ object Pretok {
             .filter { it.length in 2..3 && it.all { z -> z in 'a'..'z' } }.distinct()
     }
 
+    // Pregled 10. 11. 2026 (4.1): v dnevniku je tok oznacen z zadnjimi znaki svoje nakljucne oznake, ne z imenom datoteke.
     fun zacni(context: Context, p: JSONObject, posiljatelj: String): Daljinec.Izid {
         if (Build.VERSION.SDK_INT < 29) return Daljinec.Izid(false, "Sprotno pretvarjanje potrebuje Android 10 ali novejsi", koda = "ni_podprto")
         val url = p.optString("url"); val odtis = p.optString("fp"); val zeton = p.optString("token")
@@ -126,7 +127,7 @@ object Pretok {
             val rezerva = Pretvorba.rezerva(); val prostor = mapa.usableSpace
             zadnjaRezerva = rezerva; zadnjiProstor = prostor
             if (PretokPravila.premaloProstora(prostor, ocena, rezerva)) {
-                Log.i(TAG, "Tok $ime: premalo prostora (ni_prostora)")
+                Log.i(TAG, "Tok ${t.id.takeLast(6)}: premalo prostora (ni_prostora)")
                 t.napaka = "ni_prostora"; t.koncano = true
                 return@Thread
             }
@@ -136,13 +137,13 @@ object Pretok {
             val dovoljen = if (odtis.isNotBlank()) PretokPravila.razreseniDovoljeni(razreseni)
                 else PretokHttp.nasloviDovoljeni(razreseni, PretokHttp.vDomaceOmrezje(glave))
             if (!dovoljen) {
-                Log.i(TAG, "Tok $ime: vir ni dovoljen (nedovoljen_cilj)")
+                Log.i(TAG, "Tok ${t.id.takeLast(6)}: vir ni dovoljen (nedovoljen_cilj)")
                 t.napaka = "nedovoljen_cilj"; t.koncano = true
                 return@Thread
             }
             val vel = if (velikost > 0 || trajanjeMs <= 0) velikost else poizvediVelikost(url, odtis, zeton, glave)
             val bitna = Pretvorba.bitnaHitrost(vel, trajanjeMs, w, h)
-            Log.i(TAG, "Tok $ime: izvirnik $vel B, ${trajanjeMs} ms, ${w}x$h -> bitna hitrost $bitna b/s")
+            Log.i(TAG, "Tok ${t.id.takeLast(6)}: izvirnik $vel B, ${trajanjeMs} ms, ${w}x$h -> bitna hitrost $bitna b/s")
             glavna.post { pretvarjaj(app, t, url, odtis, zeton, glave, seek, bitna, h, jeziki) }
         }, "safeer-pretok").apply { isDaemon = true; start() }
         return Daljinec.Izid(true, "Pretvarjam sproti", JSONObject().put("id", t.id)
@@ -220,7 +221,7 @@ object Pretok {
                            seekMs: Long, bitna: Int, visinaVira: Int, jeziki: List<String> = emptyList()) {
         // Pregled 6. 11. 2026 (P1): video.stream_stop ali izrinjenje med pripravo (nit DNS in velikosti, do ~8 s) - prej je
         // Transformer vseeno zacel, tekel do konca filma in pisal v predpomnilnik mimo rezerve (straza ga ni videla).
-        if (opuscen(t)) { Log.i(TAG, "Tok ${t.ime}: ustavljen med pripravo, brez pretvorbe"); return }
+        if (opuscen(t)) { Log.i(TAG, "Tok ${t.id.takeLast(6)}: ustavljen med pripravo, brez pretvorbe"); return }
         try {
             // Vodja 5. 11. 2026: DefaultHttpDataSource je preusmeritvam sledil sam (302 na 127.0.0.1 je obsel PretokPravila).
             // PretokVir vsak skok preveri, poveze se na preverjene naslove, glave toka samo izvoru naslova vira.
@@ -255,11 +256,11 @@ object Pretok {
                 .setMuxerFactory(InAppFragmentedMp4Muxer.Factory(2_000L))
                 .addListener(object : Transformer.Listener {
                     override fun onCompleted(composition: Composition, exportResult: ExportResult) {
-                        Log.i(TAG, "Tok ${t.ime} koncan (${t.datoteka.length()} B)"); t.koncano = true; t.transformer = null
+                        Log.i(TAG, "Tok ${t.id.takeLast(6)} koncan (${t.datoteka.length()} B)"); t.koncano = true; t.transformer = null
                         zapriVir(t)
                     }
                     override fun onError(composition: Composition, exportResult: ExportResult, exportException: ExportException) {
-                        Log.w(TAG, "Tok ${t.ime}: ${exportException.errorCodeName}")
+                        Log.w(TAG, "Tok ${t.id.takeLast(6)}: ${exportException.errorCodeName}")
                         t.napaka = exportException.errorCodeName; t.koncano = true; t.transformer = null
                         zapriVir(t)
                     }
@@ -277,11 +278,11 @@ object Pretok {
                 override fun run() {
                     if (t.koncano) return
                     if (t.bralcev == 0 && System.currentTimeMillis() - t.zadnjiBralec > BREZ_BRALCA_MS) {
-                        Log.i(TAG, "Tok ${t.ime}: nihce ga ne bere, ustavljam"); ustavi(t); return
+                        Log.i(TAG, "Tok ${t.id.takeLast(6)}: nihce ga ne bere, ustavljam"); ustavi(t); return
                     }
                     // Naprava obdrzi svojo rezervo: ce prostora zmanjka, tok ustavimo (gledalec dobi napako, ne naprava).
                     if (t.datoteka.parentFile?.let { it.usableSpace in 0 until Pretvorba.rezerva() } == true) {
-                        Log.w(TAG, "Tok ${t.ime}: zmanjkalo prostora, ustavljam"); t.napaka = "ni_prostora"; ustavi(t); return
+                        Log.w(TAG, "Tok ${t.id.takeLast(6)}: zmanjkalo prostora, ustavljam"); t.napaka = "ni_prostora"; ustavi(t); return
                     }
                     glavna.postDelayed(this, 5_000)
                 }
@@ -290,7 +291,7 @@ object Pretok {
         } catch (e: Throwable) {
             t.napaka = e.message ?: e.javaClass.simpleName; t.koncano = true
             zapriVir(t)
-            Log.w(TAG, "Tok ${t.ime}: $e")
+            Log.w(TAG, "Tok ${t.id.takeLast(6)}: ${e.javaClass.simpleName}")
         }
     }
 

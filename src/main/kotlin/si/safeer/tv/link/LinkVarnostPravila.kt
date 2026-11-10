@@ -5,6 +5,21 @@ package si.safeer.tv.link
  * (tests/LinkVarnostPravilaTest.kt).
  */
 object LinkVarnostPravila {
+    // ------------------------------------------------------------------ dnevnik (4.1)
+
+    /**
+     * Oznaka naprave za dnevnik: zacetek in zadnji 4 znaki jedra, brez sredine (dnevniki se kopirajo v porocila). Polna
+     * oznaka je `n-<16 znakov kljuca>-<program>`; iz nje ostane `n-…cdef-control`. Samo vidni ASCII, omejena dolzina -
+     * oznako pise sredisce.
+     */
+    fun oznakaZaDnevnik(id: String): String {
+        val cisto = buildString { for (c in id.take(128)) if (c in '!'..'~') append(c) else append('?') }
+        if (cisto.isEmpty()) return "(brez oznake)"
+        if (cisto.length <= 6) return cisto.take(2) + "…"
+        if (cisto.startsWith("n-") && cisto.length >= 18) return "n-…" + cisto.substring(14, 18) + cisto.substring(18).take(16)
+        return cisto.take(2) + "…" + cisto.takeLast(2)
+    }
+
     // ------------------------------------------------------------------ sprejem zvoka (2.4)
 
     /** Racunalnik poslje svoje naslove v domacem omrezju; vec kot toliko jih ne poskusamo (vsak poskus caka do 4 s). */

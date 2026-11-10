@@ -72,7 +72,8 @@ object MagnetPomoc {
                 // Knjiznica kroga: naslov in plakat, ki ju pove naprava (ali da je naslov zaseben), za polico na vseh napravah.
                 MagnetMotor.zabeleziOpis(app, t.hash, opisIz(p), posiljatelj)
                 val streznik = DatotekeStreznik.streznikZa(app, posiljatelj) ?: throw IllegalStateException("napaka")
-                Log.i(TAG, "Pretakam ${t.datoteka.ime} za $posiljatelj")
+                // Pregled 10. 11. 2026 (4.1): brez imena datoteke in polne oznake naprave.
+                Log.i(TAG, "Pretakam (${t.datoteka.velikost} B) za ${LinkVarnostPravila.oznakaZaDnevnik(posiljatelj)}")
                 Daljinec.Izid(true, "Naprava pretaka: " + t.datoteka.ime.substringAfterLast('/'), JSONObject()
                     .put("server", streznik).put("path", "/magnet/" + t.skrivnost)
                     .put("name", t.datoteka.ime.substringAfterLast('/')).put("file", t.datoteka.i).put("size", t.datoteka.velikost)
@@ -83,8 +84,8 @@ object MagnetPomoc {
                         }
                     }))
             } catch (e: Throwable) {
-                Log.i(TAG, "magnet.stream za $posiljatelj: ${e.javaClass.simpleName} ${e.message.orEmpty()}")
                 val koda = e.message?.takeIf { it in setOf("ni_magnet", "ni_metapodatkov", "ni_predvajljivo", "ni_prostora", "ni_podprto") } ?: "napaka"
+                Log.i(TAG, "magnet.stream za ${LinkVarnostPravila.oznakaZaDnevnik(posiljatelj)}: ${e.javaClass.simpleName} $koda")
                 Daljinec.Izid(false, "Torrenta ni mogoce pretakati", koda = koda)
             }
             delo.koncano = android.os.SystemClock.elapsedRealtime()
