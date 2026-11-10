@@ -37,6 +37,8 @@ class AndroidApplicationGateway(
     private val poti: AndroidInternetPoti,
     /** Ze sestavljeno sporocilo (JSON z `id`) v Link; za kose tokov, kjer je sestavljanje z org.json predrago. */
     private val posljiBesedilo: ((String) -> Boolean)? = null,
+    /** Ali je razreseni naslov javni internet; zamenja ga samo preizkus (streznik na zanki), produkcija nikoli. */
+    private val varenNaslov: (InetAddress) -> Boolean = { varenInternetniNaslov(it) },
     private val poslji: (JSONObject) -> Boolean
 ) : Closeable {
     data class Stanje(val dovoljeno: Boolean, val mobilniBajti: Long, val aktivniTokovi: Int)
@@ -63,6 +65,13 @@ class AndroidApplicationGateway(
 
     @Volatile var politika = preberiPolitiko(); private set
     @Volatile var dovoljeno: Boolean = prefs.getBoolean("gateway_enabled", false); private set
+
+    init {
+        tekoci = this
+        si.safeer.tv.cast.KrogNaprave.obSpremembiKroga("internet") { c -> poSpremembiKroga(c) }
+        // Umik, ki se je zgodil, ko prehod ni tekel (ali pred to razlicico): dovoljenje umaknjene naprave ne ostane.
+        try { pocistiDovoljenja(dovoljenja, si.safeer.tv.cast.KrogNaprave.krog(ctx)) } catch (_: Throwable) { }
+    }
 
     private class Tok(val id: String, val peer: String, val socket: Socket, val pot: InternetPot, val doba: Long) {
         val okno = OknoPosiljanja()
@@ -107,6 +116,28 @@ class AndroidApplicationGateway(
     }
 
     fun stanje() = Stanje(dovoljeno, poraba.mesecno(danes()), tokovi.size)
+
+    /**
+     * Krog zaupanja se je spremenil (KrogNaprave.obSpremembi). Pregled 10. 11. 2026 (2.5): umik naprave je zavrnil samo
+     * NOVE tokove, ze odprti so tekli naprej do nedejavnosti (AGENTS.md: umik takoj preklice seje). Zdaj tok naprave, ki
+     * ni vec veljaven clan, zapremo takoj in umaknjeni napravi zbrisemo dovoljenje interneta - ce se vrne, vprasamo znova.
+     * Kroga ni mogoce prebrati = naprava ni clan (»ne vem« ni »da«); dovoljenj takrat ne brisemo.
+     */
+    fun poSpremembiKroga() {
+        val krog = try { si.safeer.tv.cast.KrogNaprave.krog(ctx) } catch (_: Throwable) { null }
+        val clan: (String) -> Boolean = { peer -> try { krog != null && krog.clanZaId(peer) != null } catch (_: Throwable) { false } }
+        val zaZaprtje = InternetUmik.zaZaprtje(tokovi.values.map { it.id to it.peer }, clan).toSet()
+        for (tok in tokovi.values.filter { it.id in zaZaprtje }) {
+            zapri(tok, "not_trusted")
+            // Obvestilo o koncu do umaknjene naprave morda ne pride: njen naslednji kos tega toka dobi se »gone«.
+            synchronized(nedavni) { nedavni.remove(tok.id) }
+        }
+        if (krog != null) pocistiDovoljenja(dovoljenja, krog)
+        for (peer in odjemalci.keys.filter { !clan(it) }) {
+            odjemalci.remove(peer)
+            posljiStanje(peer, "not_trusted")
+        }
+    }
 
     /** Vrne true, ce je bilo sporocilo gateway protokola in je obdelano. */
     fun obdelaj(sporocilo: JSONObject): Boolean {
@@ -284,7 +315,7 @@ class AndroidApplicationGateway(
 
     private fun razresiCilj(network: Network, host: String): InetAddress {
         val vsi = network.getAllByName(host)
-        return vsi.firstOrNull { varenInternetniNaslov(it) } ?: throw SecurityException("private_destination")
+        return vsi.firstOrNull { varenNaslov(it) } ?: throw SecurityException("private_destination")
     }
 
     // ------------------------------------------------------------------ prenos
@@ -473,6 +504,7 @@ class AndroidApplicationGateway(
     fun povezavaIzgubljena() = tokovi.values.toList().forEach { zapri(it, "link", obvesti = false) }
 
     override fun close() {
+        if (tekoci === this) tekoci = null
         zapriVse("shutdown")
         poraba.shrani()
         pool.shutdownNow()
@@ -497,6 +529,26 @@ class AndroidApplicationGateway(
         const val ROK_MOBILNE_MS = 8_000L
         const val BUDILKA_MS = 15_000
         const val NEDAVNIH_TOKOV = 256
+
+        /** Prehod, ki trenutno tece v tem procesu (najvec eden, cast/CastReceiverService). */
+        @Volatile private var tekoci: AndroidApplicationGateway? = null
+
+        private fun pocistiDovoljenja(d: InternetDovoljenja, krog: si.safeer.tv.cast.KrogZaupanja) {
+            val pozabljene = InternetUmik.pocistiDovoljenja(d) { naprava -> try { krog.jeUmaknjen(naprava) } catch (_: Throwable) { false } }
+            if (pozabljene.isNotEmpty()) Log.i(TAG, "umik iz kroga: dovoljenje interneta zbrisano ${pozabljene.size} napravam")
+        }
+
+        /**
+         * Odziv na spremembo kroga (KrogNaprave.obSpremembiKroga, prijavi ga prvi prehod). Tekoci prehod zapre tokove
+         * umaknjenih naprav; dovoljenje interneta umaknjene naprave zbrisemo tudi, kadar prehod ne tece vec (pregled
+         * 10. 11. 2026, 2.5).
+         */
+        fun poSpremembiKroga(context: Context) {
+            val t = tekoci
+            if (t != null) { t.poSpremembiKroga(); return }
+            val krog = try { si.safeer.tv.cast.KrogNaprave.krog(context) } catch (_: Throwable) { return }
+            pocistiDovoljenja(dovoljenja(context), krog)
+        }
 
         fun vrstaPoti(v: VrstaInternetPoti): String = when (v) {
             VrstaInternetPoti.WIFI -> "wifi"

@@ -254,6 +254,26 @@ class InternetDovoljenja(private val shramba: ShrambaVrednosti, private val ura:
 }
 
 /**
+ * Umik naprave iz kroga zaupanja in prehod interneta - cista odlocitev (tests/InternetPretokTest.kt). Pregled
+ * 10. 11. 2026 (2.5): umik je zavrnil samo nova odpiranja; odprti tokovi in dovoljenje interneta so ostali.
+ */
+object InternetUmik {
+    /** Id-ji tokov ([tokovi]: id toka -> naprava), katerih naprava ni vec veljaven clan kroga ([clan]). */
+    fun zaZaprtje(tokovi: Collection<Pair<String, String>>, clan: (String) -> Boolean): List<String> =
+        tokovi.filter { !clan(it.second) }.map { it.first }
+
+    /**
+     * Zbrise dovoljenje interneta napravam, ki so iz kroga umaknjene ([umaknjena]); vrne jih. Naprava, ki se v krog
+     * vrne, tako zacne brez dovoljenja (uporabnik odloci znova), ne z odlocitvijo izpred umika.
+     */
+    fun pocistiDovoljenja(d: InternetDovoljenja, umaknjena: (String) -> Boolean): List<String> {
+        val pozabljene = d.vsi().map { it.naprava }.filter { umaknjena(it) }
+        for (n in pozabljene) d.pozabi(n)
+        return pozabljene
+    }
+}
+
+/**
  * Poraba mobilnih podatkov skozi prehod: danes in ta mesec. Steje v pomnilniku, na disk zapise
  * najvec enkrat na [SHRANI_NA_MS] (prej: zapis ob vsakem kosu, do tisockrat na sekundo).
  * Kljuca `cellular_month` / `cellular_bytes` sta ista kot v protokolu 1, da stevec ob nadgradnji ostane.
