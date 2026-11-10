@@ -336,7 +336,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
      * nas lastni drugi klic ravnokar zaprl ("Connection refused").
      */
     private fun zahtevajSejo() {
-        if (prosim) return
+        if (prosim || koncujem) return
         // Ozji krog zaupanja (lastnik, 17. 10. 2026): zaslona naprave zunaj kroga te naprave ne odpremo (ni_ozji_krog);
         // tista naprava ne dobi nobenega ukaza.
         val izbrana = intent.getStringExtra(DatotekeActivity.EXTRA_RACUNALNIK)
@@ -414,6 +414,12 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                 if (izid == null) { pokazi(getString(R.string.os_zaslon_napaka, napaka)); return@Odgovor }
                 if (!izid.optBoolean("ok")) {
                     val koda = izid.optString("code")
+                    val odp = izid.optJSONObject("data")
+                    if (ZaslonKonecPravila.odlocitev(koda, odp?.optString("konec"), odp?.optString("razlog")) ==
+                        ZaslonKonecPravila.Odlocitev.KONCAJ_ZAJEM_PADA) {
+                        koncajZajemPada(odp?.optString("razlog"))
+                        return@Odgovor
+                    }
                     if (koda == "ni_programa") {
                         // Program na racunalniku ni vec odprt: namesto napake pospravimo in gremo domov.
                         Toast.makeText(this, getString(R.string.os_zaslon_program_zaprt), Toast.LENGTH_LONG).show()
@@ -664,6 +670,11 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                         // Na locenem zaslonu ni vec programa (igra se je zaprla ob Esc ...): temen
                         // prazen zaslon je slepa ulica, zato gremo takoj nazaj v Safeer OS.
                         ZaslonOdjemalec.Stanje.PRAZNO -> {
+                            if (ZaslonKonecPravila.odlocitev(null, besedilo) ==
+                                ZaslonKonecPravila.Odlocitev.KONCAJ_ZAJEM_PADA) {
+                                koncajZajemPada(ZaslonKonecPravila.razlogIzStanja(besedilo))
+                                return@runOnUiThread
+                            }
                             // Program je odprt na namizju racunalnika (sme teci samo enkrat): pokazemo ga tam.
                             if (besedilo == "na_namizju" && !predano) { preklopiNaNamizje(); return@runOnUiThread }
                             // Zaslon racunalnika je odprla druga naprava: povemo katera in se NE povezemo znova (sicer
@@ -777,6 +788,17 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         pokazi(getString(R.string.os_zaslon_ponovno))
         glavna.postDelayed({ if (!isFinishing && !koncujem && seja == null && !prosim) zahtevajSejo() },
             (1000L * poskusov).coerceAtMost(5000L))
+    }
+
+    /** Zajem na racunalniku zaporedoma odpoveduje: ustavimo ponavljanje in pokazemo razlog. */
+    private fun koncajZajemPada(razlog: String?) {
+        dostop.ustavi()
+        ponovnoOd = 0L
+        poskusov = 0
+        seja = null
+        rodSeje++
+        koncaj(ustaviNaRacunalniku = false)
+        pokazi(ZaslonKonecPravila.sporocilo(getString(R.string.os_zaslon_zajem_pada), razlog))
     }
 
     /** Okno z drugimi zasloni smo ze pokazali (enkrat na izbiro). */

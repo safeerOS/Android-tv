@@ -6,4 +6,5 @@
     <string name="os_zapiski_zavrzi">Annulla modifiche</string>
     <string name="os_zapiski_nadaljuj_urejanje">Continua a modificare</string>
     <string name="os_krajevno_prikazanih">File: visualizzati %1$d di %2$d (i più recenti)</string>
+    <string name="os_zaslon_zajem_pada">Il computer non riesce a catturare lo schermo. Controlla il computer e riprova.</string>
 </resources>

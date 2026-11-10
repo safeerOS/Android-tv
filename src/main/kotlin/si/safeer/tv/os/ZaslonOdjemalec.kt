@@ -329,7 +329,11 @@ class ZaslonOdjemalec(
                 val konec = obvestilo?.optString("konec").orEmpty()
                 if (konec.isNotEmpty()) {
                     // »prevzeto«: zaslon je odprla druga naprava (Safeer za Windows od 1.0.49) - kateri, povemo naprej.
-                    val zakaj = if (konec == "prevzeto") "prevzeto:" + obvestilo?.optString("naprava").orEmpty() else konec
+                    val zakaj = when (konec) {
+                        "prevzeto" -> "prevzeto:" + obvestilo?.optString("naprava").orEmpty()
+                        "zajem" -> "zajem:" + obvestilo?.optString("razlog").orEmpty()
+                        else -> konec
+                    }
                     naStanje(Stanje.PRAZNO, zakaj); tece = false; break
                 }
                 if (obvestilo != null) try { naObvestilo(obvestilo) } catch (_: Throwable) { }

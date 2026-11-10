@@ -6,4 +6,5 @@
     <string name="os_zapiski_zavrzi">Verwerfen</string>
     <string name="os_zapiski_nadaljuj_urejanje">Weiter bearbeiten</string>
     <string name="os_krajevno_prikazanih">Dateien: %1$d von %2$d angezeigt (neueste)</string>
+    <string name="os_zaslon_zajem_pada">Der Computer kann den Bildschirm nicht erfassen. Prüfe den Computer und versuche es erneut.</string>
 </resources>

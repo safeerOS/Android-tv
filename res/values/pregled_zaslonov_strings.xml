@@ -6,4 +6,5 @@
     <string name="os_zapiski_zavrzi">Discard</string>
     <string name="os_zapiski_nadaljuj_urejanje">Keep editing</string>
     <string name="os_krajevno_prikazanih">Files: showing %1$d of %2$d (newest)</string>
+    <string name="os_zaslon_zajem_pada">The computer cannot capture the screen. Check the computer and try again.</string>
 </resources>

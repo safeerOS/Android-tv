@@ -6,4 +6,5 @@
     <string name="os_zapiski_zavrzi">Descartar</string>
     <string name="os_zapiski_nadaljuj_urejanje">Seguir editando</string>
     <string name="os_krajevno_prikazanih">Archivos: se muestran %1$d de %2$d (los más recientes)</string>
+    <string name="os_zaslon_zajem_pada">El ordenador no puede capturar la pantalla. Comprueba el ordenador e inténtalo de nuevo.</string>
 </resources>
