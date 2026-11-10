@@ -69,3 +69,9 @@ Vsako od spodnjih pravil izhaja iz napake, ki je ze bila narejena.
 
 ## Upravljanje naprav - tipkovnica
 - Navidezna tipkovnica pri upravljanju druge naprave (lastnik, 10. 11. 2026): kadar upravljas s TABLICE ali TELEFONA (dotik) racunalnik ali TV in je za vnos potrebna tipkovnica (polje za besedilo dobi fokus ali ga tapnes), se tipkovnica na tablici/telefonu pokaze SAMA - pri deljenju namizja in pri locenem zaslonu. Kadar upravljas z RACUNALNIKA (racunalnik, TV, tablico ali telefon), se navidezna tipkovnica NE pokaze - racunalnik ima svojo. Odloca vrsta naprave, ki upravlja, ne naprave, ki jo upravljamo.
+
+## Medijski center - enako na vseh napravah
+- TV je vzorec, ki ga je uporabnik navajen (lastnik, 10. 11. 2026): Medijski center na Android telefonu in tablici ter na Linuxu
+  in Windows se obnasa ENAKO kot na TV - isti filtri mreze (izbira vira Usenet ali TorBox filtrira mrezo), isti vrstni red, iste
+  oznake, isti potek do predvajanja. Razlika samo tam, kjer jo zahteva naprava (dotik, miska, tipkovnica, velikost zaslona).
+  Vsaka sprememba Medijskega centra na TV ima v isti nalogi preverbo telefona, tablice in namizja; najdena razlika je napaka.
