@@ -899,6 +899,11 @@ class CastReceiverService : Service() {
             if (type == "trust.update") {
                 // Krog zaupanja s sredisca: hranimo ga sami (kot Safeer OS v os/LinkOdjemalec), da ta program kljuce
                 // naprav pozna tudi, kadar tece sam. Brez kljuca naprave v krogu z njo ni zascite od naprave do naprave.
+                // Pregled 10. 11. 2026 (A): samo od sredisca (brez posiljatelja), ne po mesh.route od sosednjega.
+                if (!KrogZaupanja.krogOdSredisca(if (json.isNull("sender")) null else json.optString("sender"))) {
+                    Log.i(TAG, "Zavrnjeno: trust.update s posiljateljem ni od sredisca.")
+                    return
+                }
                 json.optJSONObject("payload")?.let { KrogNaprave.sprejmi(this, it.toString()) }
                 return
             }

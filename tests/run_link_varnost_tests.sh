@@ -31,3 +31,14 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/PrehodInternetaTest.kt" \
     -include-runtime -d "$OUT/prehod.jar"
 java -cp "$OUT/prehod.jar:$JSON_JAR" si.safeer.tv.link.PrehodInternetaTestKt "$SRC"
+
+# Krog s sredisca (najdba A): nepodpisan novejsi vnos ne izbrise umika; vrnjena naprava zacne brez dovoljenj.
+"$KOTLINC" -J-Xmx1g -cp "$JSON_JAR" \
+    "$TEST_DIR/stubs/prehod/Cast.kt" \
+    "$TEST_DIR/stubs/prehod/Context.kt" \
+    "$SRC/si/safeer/tv/cast/JsonLahki.kt" \
+    "$SRC/si/safeer/tv/cast/KrogZaupanja.kt" \
+    "$SRC/si/safeer/tv/cast/DostopPravila.kt" \
+    "$TEST_DIR/KrogUmikTest.kt" \
+    -include-runtime -d "$OUT/krog-umik.jar"
+java -cp "$OUT/krog-umik.jar:$JSON_JAR" si.safeer.tv.cast.KrogUmikTestKt "$SRC"

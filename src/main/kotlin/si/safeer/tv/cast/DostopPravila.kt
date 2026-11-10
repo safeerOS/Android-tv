@@ -94,6 +94,13 @@ object DostopPravila {
     fun veljavne(dano: Set<Zmoznost>, umaknjena: Boolean): Set<Zmoznost> = if (umaknjena) emptySet() else dano
 
     /**
+     * Jedra naprav iz [jedra], ki so umaknjene iz kroga: njihov zapis dovoljenj in privolitve se ob umiku ZBRISEJO
+     * (pregled 10. 11. 2026, najdba A). Prej je zapis ostal in ga je naprava ob vrnitvi v krog dobila nazaj - tudi, ce
+     * jo je vrnil kdo drug kot uporabnik te naprave. Zdaj naprava po vrnitvi zacne brez dostopa; odpre ji ga uporabnik.
+     */
+    fun umaknjenaJedra(jedra: Collection<String>, umaknjena: (String) -> Boolean): Set<String> = jedra.filter { umaknjena(it) }.toSet()
+
+    /**
      * Pregled veje tv-vnos (25. 10. 2026, tocka 1): vnos z miske in tipkovnice (input.*, gamepad.*) - tudi vklop Safeer
      * Vnosa (input.enable) - sme samo naprava, ki je CLAN kroga zaupanja te naprave (ne umaknjena) in ji je odprt zaslon.
      * Zapis dovoljenj sam ni dovolj: naprava, ki je krog ne pozna, ni umaknjena, a tudi ni clan.

@@ -105,10 +105,13 @@ object KrogNaprave {
         return krog(context).clani().firstOrNull { it.kljuc == kljuc && it.id != razen }?.id
     }
 
-    /** Zdruzi krog, ki ga je poslal hub (trust.update ali odgovor na prijavo). */
+    /**
+     * Zdruzi krog, ki ga je poslal hub (trust.update ali odgovor na prijavo). Pregled 10. 11. 2026 (A): umaknjene
+     * naprave ne vrne vnos brez podpisa veljavnega clana (KrogZaupanja.zdruzi, varujUmike).
+     */
     fun sprejmi(context: Context, json: String?): Boolean {
         if (json.isNullOrBlank()) return false
-        return krog(context).zdruzi(json)
+        return krog(context).zdruzi(json, varujUmike = true)
     }
 
     /** Kaj naprava podpise ob prijavi na hub z odtisom [odtisHuba] - isto kot HubUsmerjevalnik.podatkiZaPodpis. */

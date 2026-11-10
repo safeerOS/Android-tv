@@ -629,6 +629,11 @@ class LinkOdjemalec(private val context: Context) {
             }
             "trust.update" -> {
                 // Krog zaupanja s sredisca: hranimo ga sami, da prezivimo menjavo sredisca.
+                // Pregled 10. 11. 2026 (A): samo od sredisca (brez posiljatelja), ne po mesh.route od sosednjega.
+                if (!si.safeer.tv.cast.KrogZaupanja.krogOdSredisca(if (json.isNull("sender")) null else json.optString("sender"))) {
+                    Log.i(TAG, "Zavrnjeno: trust.update s posiljateljem ni od sredisca.")
+                    return
+                }
                 json.optJSONObject("payload")?.let { KrogNaprave.sprejmi(context, it.toString()) }
             }
         }
