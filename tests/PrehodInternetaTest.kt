@@ -212,7 +212,28 @@ private fun zascitenoOdpiranje(izvorna: String) {
     }
 }
 
+/** 3.5: dobo (in z njo zaprtje tokov prejsnje dobe) zamenja samo naprava, ki internet sme uporabljati. */
+private fun dobaSamoOdPreverjenega() {
+    val o = Oder()
+    try {
+        o.odpri("tok-doba-0001")
+        pocakaj("tok se odpre") { o.zadnje("internet.opened", "tok-doba-0001") != null }
+        // Dovoljenje je vmes odvzeto (zapis v shrambi), prehod se osvezi sele za tem: sporocilo z drugo dobo ne zapira.
+        AndroidApplicationGateway.dovoljenja(o.ctx).odloci(o.jedro, false)
+        o.prehod.obdelaj(JSONObject().put("type", "internet.query").put("sender", o.naprava).put("v", 2).put("epoch", 3L))
+        o.prehod.obdelaj(JSONObject().put("type", "internet.open").put("sender", o.naprava).put("v", 2).put("epoch", 3L)
+            .put("stream_id", "tok-doba-0002").put("host", "127.0.0.1").put("port", o.streznik.localPort))
+        preveri("zavrnjeno odpiranje z drugo dobo ne zapre tokov", o.prehod.stanje().aktivniTokovi == 1 &&
+            o.zadnje("internet.error", "tok-doba-0002")?.optString("reason") == "denied")
+        // Naprava z dovoljenjem: nova doba (tudi nizja - racunalnik jo ob zagonu izbere nakljucno) zapre stare tokove.
+        AndroidApplicationGateway.dovoljenja(o.ctx).odloci(o.jedro, true)
+        o.prehod.obdelaj(JSONObject().put("type", "internet.query").put("sender", o.naprava).put("v", 2).put("epoch", 3L))
+        preveri("nova doba preverjene naprave zapre tokove prejsnje dobe", o.prehod.stanje().aktivniTokovi == 0)
+    } finally { o.konec() }
+}
+
 fun main(args: Array<String>) {
+    dobaSamoOdPreverjenega()
     umikZapreTokove(args.firstOrNull().orEmpty())
     zascitenoOdpiranje(args.firstOrNull().orEmpty())
     println("PrehodInternetaTest: OK ($preverb preverb)")

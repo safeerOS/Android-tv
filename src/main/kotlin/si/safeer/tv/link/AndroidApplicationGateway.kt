@@ -164,15 +164,13 @@ class AndroidApplicationGateway(
         when (tip) {
             "internet.query" -> {
                 if (peer.isNotBlank()) {
-                    novaDoba(peer, sporocilo.optLong("epoch", 0L))
                     val razlog = preveriOdjemalca(peer, sporocilo.optString("sender_name", ""))
+                    // Pregled 10. 11. 2026 (3.5): dobo zamenja samo naprava, ki internet sme uporabljati.
+                    if (razlog == null) novaDoba(peer, sporocilo.optLong("epoch", 0L))
                     posljiStanje(peer, razlog)
                 }
             }
-            "internet.open" -> {
-                novaDoba(peer, sporocilo.optLong("epoch", 0L))
-                odpri(sporocilo, peer)
-            }
+            "internet.open" -> odpri(sporocilo, peer)
             "internet.data" -> podatki(sporocilo, peer)
             "internet.window" -> {
                 val tok = tokOd(sporocilo, peer)
@@ -196,6 +194,11 @@ class AndroidApplicationGateway(
     /**
      * Odjemalec se je vrnil z drugo dobo: znova se je zagnal ali je izgubil Link. Njegovi prejsnji tokovi
      * nimajo vec lastnika; do izteka nedejavnosti bi drzali proracun naprave in novi tokovi ne bi mogli posiljati.
+     *
+     * Pregled 10. 11. 2026 (3.5): klice se sele, ko je posiljatelj preverjen (clan kroga z dovoljenjem, pri napravi z
+     * zascito iz preverjene seje) - prej je tokove zaprlo vsako sporocilo z drugo dobo, se pred preverbo. »Nizje« dobe
+     * ni mogoce zavrniti: racunalnik ob zagonu izbere NAKLJUCNO zacetno dobo (core/link_internet.py), zato je po
+     * njegovem ponovnem zagonu nova doba pogosto manjsa od prejsnje.
      */
     private fun novaDoba(peer: String, doba: Long) {
         if (peer.isBlank() || doba == 0L) return
@@ -287,6 +290,7 @@ class AndroidApplicationGateway(
         if (peer.isBlank() || id.length !in 8..96) return
         if (msg.optInt("v", 1) < InternetProtokol.RAZLICICA) { napaka(peer, id, "old_requester"); return }
         preveriOdjemalca(peer, msg.optString("sender_name", ""))?.let { napaka(peer, id, it); return }
+        novaDoba(peer, doba)
         if (host.length !in 1..253) { napaka(peer, id, "dns_failed"); return }
         if (!dovoljenaVrata(port)) { napaka(peer, id, "port_blocked"); return }
         if (tokovi.size >= InternetProtokol.NAJVEC_TOKOV || tokovi.containsKey(id)
