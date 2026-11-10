@@ -44,6 +44,9 @@ Vsako od spodnjih pravil izhaja iz napake, ki je ze bila narejena.
   naslov, ki ga ni vec v katalogu. Katalog 1x na dan: preveri samo nove naslove.
 - Klik uporabnika ima prednost pred preverbami v ozadju - samo pravi klik, ne fokus ali predpriprava. »Meja« indeksatorja
   ni »ni na voljo«.
+- Naslov, ki ga uporabnik ne more predvajati, se NE prikaze (lastnik 10. 11. 2026: kdor veckrat na teden naleti na »ni na voljo«,
+  postane slabe volje). Skrijemo ga sele, ko ga nima NOBENA vrsta uporabnikovih virov: Usenet, dodatki Stremio in debrid (TorBox)
+  se preverijo vsak zase - »ni pri Usenetu« ne pomeni »ni pri dodatkih ali TorBoxu«. Vir, ki ni odgovoril, ni »nima«.
 - Vdelani mehki podnapisi v jeziku uporabnika imajo prednost pred zunanjimi (OpenSubtitles).
 - Mreza, ne vodoravne police; skrita kartica ne sme biti izbirna z daljincem.
 - Iskanje (lastnik 7. 11. 2026): novo iskanje vedno zacne s praznim poljem in odprto tipkovnico (OK na polju z zadetki,
