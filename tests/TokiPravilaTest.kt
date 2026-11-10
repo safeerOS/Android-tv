@@ -91,5 +91,20 @@ fun main() {
     check(TokIzbira.sejalciNaKonec(poHitrosti) { it } == listOf("C 2 GB", "D $o 50 3 GB", "B $o 2 1 GB", "A $o 0 1 GB"))
     check(TokIzbira.razredSejalcev("X $o 0") == 2 && TokIzbira.razredSejalcev("X $o 2") == 1 && TokIzbira.razredSejalcev("X $o 3") == 0 &&
         TokIzbira.razredSejalcev("X") == 0)
+    // 3D (lastnik, 10. 11. 2026): 3D izdaje na TV ni - ne v seznamu ne pri samodejni izbiri.
+    for (b in listOf("Film.1998.1080p.3D.HSBS.BluRay.x264", "Film 1998 3D 1080p", "Film.1998.Half-SBS.1080p", "Film (1998) [3D] [H-SBS]",
+        "Film.1998.1080p.BluRay.SBS.x264", "Film.1998.3D.Half-OU.1080p", "RD+ 1080p\nFilm.1998.3D.mkv", "Film 3D"))
+        check(TokiPravila.je3d(b)) { b }
+    // »3D« pred letnico je del naslova; besede, ki oznako le vsebujejo, niso 3D.
+    for (b in listOf("Film.1998.1080p.BluRay.x264", "Jackass.3D.2010.1080p.BluRay", "Step Up 3D (2010) 720p", "Film.1998.WEB-DL.DDP5.1.H.264",
+        "Film.1998.1080p.x264-SBSGROUP", "R3D.2011.1080p", "Film.1998.1080p 3 dni", "Thou.Shalt.Not.1998.720p", ""))
+        check(!TokiPravila.je3d(b)) { b }
+    check(TokiPravila.je3d("Jackass.3D.2010.1080p.3D.HSBS"))
+    check(TokiPravila.brez3d(listOf("A 1080p", "B 3D 1080p", "C HSBS", "D 720p")) { it } == listOf("A 1080p", "D 720p"))
+    val s3d = TokiPravila.zdruziVnose(listOf(
+        TokiPravila.Vnos("torrent", magnet(h1, "Film.1998.3D.HSBS.mkv"), "Torrentio\n1080p", "Film.1998.1080p.3D.HSBS\n$o 900 💾 9 GB", "Torrentio", 0),
+        TokiPravila.Vnos("url", "https://debrid.example/d/3/Film.mkv", "RD+ 1080p 3D", "Film.1998.Half-SBS", "Torrentio RD"),
+        TokiPravila.Vnos("torrent", magnet(h2, "Film.1998.720p.mkv"), "Torrentio\n720p", "Film.1998.720p\n$o 5 💾 1 GB", "Torrentio", 0)))
+    check(s3d.map { it.first } == listOf(2)) { s3d.toString() }
     println("TokiPravilaTest: OK")
 }

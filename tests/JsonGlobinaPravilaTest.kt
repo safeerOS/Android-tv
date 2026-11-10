@@ -2,7 +2,7 @@ package si.safeer.tv.os
 
 var stPreverb = 0
 
-fun preveri(pogoj: Boolean, sporocilo: String) {
+private fun preveri(pogoj: Boolean, sporocilo: String) {
     check(pogoj) { sporocilo }
     stPreverb++
 }

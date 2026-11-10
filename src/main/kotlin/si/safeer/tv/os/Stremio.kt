@@ -1324,7 +1324,10 @@ object Stremio {
 
     /** Tok, ki ga ta naprava lahko predvaja kot vsebino (ne napovednik). */
     /** Naloga 141: tudi Usenet (prek TorBoxa) - take tokove da samo iskanje pri indeksatorju (Usenet.isci). */
-    fun jePredvajljiv(t: Tok) = t.vrsta == "url" || t.vrsta == "torrent" || t.vrsta == UsenetPravila.VRSTA
+    /** 3D izdaja ni predvajljiva (lastnik, 10. 11. 2026): naslov, ki ima samo 3D, ne sme veljati za »na voljo«. */
+    fun jePredvajljiv(t: Tok) = (t.vrsta == "url" || t.vrsta == "torrent" || t.vrsta == UsenetPravila.VRSTA) && !je3d(t)
+
+    fun je3d(t: Tok) = TokiPravila.je3d(t.ime + " " + t.opis + " " + t.imeDatoteke)
 
     // ------------------------------------------------------------------ vljudnost do dodatkov (preverjanje v ozadju)
 
@@ -1828,7 +1831,9 @@ object Stremio {
      * najbolje oznacen tok ([TokiPravila.podatkov]), najvec sejalcev, sledilniki vseh (najvec [TokiPravila.NAJVEC_SLEDILNIKOV]).
      * Http/debrid tokovi brez infoHash ostanejo, kot so ([TokiPravila.kljuc]).
      */
-    fun zdruziDvojnike(tokovi: List<Tok>): List<Tok> =
+    fun zdruziDvojnike(vsi: List<Tok>): List<Tok> = zdruziBrez3d(vsi.filter { !je3d(it) })
+
+    private fun zdruziBrez3d(tokovi: List<Tok>): List<Tok> =
         TokiPravila.zdruziVnose(tokovi.map { TokiPravila.Vnos(it.vrsta, it.url, it.ime, it.opis, it.dodatek, it.datoteka, it.hash, it.vir,
             it.sledilniki, it.izDodatkov) }).map { (i, v) ->
             val t = tokovi[i]

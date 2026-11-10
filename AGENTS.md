@@ -44,6 +44,8 @@ Vsako od spodnjih pravil izhaja iz napake, ki je ze bila narejena.
   naslov, ki ga ni vec v katalogu. Katalog 1x na dan: preveri samo nove naslove.
 - Klik uporabnika ima prednost pred preverbami v ozadju - samo pravi klik, ne fokus ali predpriprava. »Meja« indeksatorja
   ni »ni na voljo«.
+- 3D izdaj (3D, SBS, HSBS, Half-OU ...) na TV NI (lastnik 10. 11. 2026: »3D ne sme prikazovati na TV« - film je bil v dveh polovicah
+  slike): ne v seznamu virov, ne pri samodejni izbiri, in naslov, ki ima samo 3D, ne velja za »na voljo« (TokiPravila.je3d).
 - Naslov, ki ga uporabnik ne more predvajati, se NE prikaze (lastnik 10. 11. 2026: kdor veckrat na teden naleti na »ni na voljo«,
   postane slabe volje). Vsak vir ima SVOJ filter: Usenet kaze, kar je pri Usenetu, TorBox svoje, ostali viri svoje. Filter preveri
   samo svoj vir - brez trojnega preverjanja vseh virov za vsak naslov, ker to upocasni nalaganje. Vir, ki ni odgovoril, ni »nima«.

@@ -11,6 +11,17 @@ object TokiPravila {
     const val NAJVEC_SLEDILNIKOV = 30
 
     private val SLEDILNIK = Regex("[?&]tr=([^&]*)")
+    // 3D (lastnik, 10. 11. 2026: »3D ne sme prikazovati na TV« - na TV je bil film v dveh polovicah slike, SBS). »3d« steje kot
+    // oznaka izdaje, razen ko mu sledi letnica: takrat je del naslova (»Film.3D.2010.1080p« je navadna izdaja filma »Film 3D«).
+    private val OZNAKA_3D = Regex("(?<![a-z0-9])3d(?![a-z0-9])(?![\\s._-]*\\(?(?:19|20)\\d\\d)")
+    private val OZNAKA_SBS = Regex("(?<![a-z0-9])(?:h-?sbs|half[\\s._-]?sbs|sbs|h-ou|half[\\s._-]?ou|h-tab|half[\\s._-]?tab)(?![a-z0-9])")
+
+    /** Izdaja je 3D (dve sliki v eni slicici): na TV je ne ponudimo in ne predvajamo. */
+    fun je3d(besedilo: String): Boolean = besedilo.lowercase().let { OZNAKA_3D.containsMatchIn(it) || OZNAKA_SBS.containsMatchIn(it) }
+
+    /** Tokovi brez 3D izdaj; vrstni red ostane. */
+    fun <T> brez3d(tokovi: List<T>, besedilo: (T) -> String): List<T> = tokovi.filter { !je3d(besedilo(it)) }
+
     private val SEJALCI_V_OPISU = Regex("(👤\\s*)(\\d{1,6})|((?i:seed(?:er)?s?)\\s*[:=]?\\s*)(\\d{1,6})")
 
     /**
@@ -87,11 +98,13 @@ object TokiPravila {
      * Dvojniki ([kljuc]) postanejo en vnos: predstavnik ([zdruziDvojnike]) z najvecjim stevilom sejalcev skupine (popravljena
      * prva navedba v »ime opis«, kot jo bere [TokIzbira.sejalci]), sledilniki vseh (magnet in Webtor `sources`, brez
      * dvojnikov, najvec [NAJVEC_SLEDILNIKOV]) in imeni vseh dodatkov. Vrne indeks predstavnika v [vnosi] in zdruzen vnos.
+     * 3D izdaj ([je3d]) ne vrne.
      */
     fun zdruziVnose(vnosi: List<Vnos>): List<Pair<Int, Vnos>> {
         fun besedilo(v: Vnos) = v.ime + " " + v.opis
         val zdruzeni = HashMap<Int, Vnos>()
-        val izbrani = zdruziDvojnike(vnosi.indices.toList(), { kljuc(vnosi[it].vrsta, vnosi[it].url, vnosi[it].hash, vnosi[it].vir, vnosi[it].datoteka) },
+        // 3D izdaje izpadejo ze tu, da jih ne vidi ne seznam virov ne samodejna izbira.
+        val izbrani = zdruziDvojnike(vnosi.indices.filter { !je3d(besedilo(vnosi[it])) }, { kljuc(vnosi[it].vrsta, vnosi[it].url, vnosi[it].hash, vnosi[it].vir, vnosi[it].datoteka) },
             { besedilo(vnosi[it]) }) { p, skupinaI ->
             val skupina = skupinaI.map { vnosi[it] }
             val izbran = vnosi[p]
