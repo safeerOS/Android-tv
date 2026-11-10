@@ -47,6 +47,8 @@ Vsako od spodnjih pravil izhaja iz napake, ki je ze bila narejena.
 - Naslov, ki ga uporabnik ne more predvajati, se NE prikaze (lastnik 10. 11. 2026: kdor veckrat na teden naleti na »ni na voljo«,
   postane slabe volje). Vsak vir ima SVOJ filter: Usenet kaze, kar je pri Usenetu, TorBox svoje, ostali viri svoje. Filter preveri
   samo svoj vir - brez trojnega preverjanja vseh virov za vsak naslov, ker to upocasni nalaganje. Vir, ki ni odgovoril, ni »nima«.
+- TorBox ima v mrezi Filmi/Serije svoj filter vira, enako kot Usenet (lastnik 10. 11. 2026): pri izbiri »TorBox« so v mrezi samo
+  naslovi, ki jih ima TorBox pripravljene. Ista pravila (FilterViraPravila) in ista vrsta preverb - brez kopije UsenetFilter.
 - Vdelani mehki podnapisi v jeziku uporabnika imajo prednost pred zunanjimi (OpenSubtitles).
 - Mreza, ne vodoravne police; skrita kartica ne sme biti izbirna z daljincem.
 - Iskanje (lastnik 7. 11. 2026): novo iskanje vedno zacne s praznim poljem in odprto tipkovnico (OK na polju z zadetki,
