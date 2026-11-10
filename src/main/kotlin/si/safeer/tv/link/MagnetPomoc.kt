@@ -109,13 +109,18 @@ object MagnetPomoc {
             else Daljinec.Izid(false, "Tega prenosa ni mogoce obdrzati", koda = "ni_prenosa")
     }
 
-    fun odstrani(context: Context, p: JSONObject): Daljinec.Izid {
+    /**
+     * `magnet.remove {id}`. Pregled 10. 11. 2026 (2.2): zasebni prenos odstrani samo naprava, ki ga je narocila
+     * ([posiljatelj] je med narocniki); drugim odgovorimo enako kot za prenos, ki ga ni.
+     */
+    fun odstrani(context: Context, p: JSONObject, posiljatelj: String): Daljinec.Izid {
         if (!p.has("id")) return Daljinec.Izid(false, "Manjka prenos", koda = "ni_prenosa")
         val id = p.optInt("id", -1)
         val app = context.applicationContext
         // Odstranitev dela z diskom: ne na glavni niti. Odgovor je takojsen - naprava seznam prebere znova.
-        if (MagnetMotor.seznamZacasnihIdji(app).none { it == id }) return Daljinec.Izid(false, "Tega prenosa ni mogoce odstraniti", koda = "ni_prenosa")
-        Thread({ try { MagnetMotor.odstraniZacasnega(app, id) } catch (e: Throwable) { Log.i(TAG, "magnet.remove: ${e.message}") } }, "safeer-magnet-odstrani")
+        val sme = try { MagnetMotor.smeOdstranitiZacasnega(app, id, posiljatelj) } catch (_: Throwable) { false }
+        if (!sme) return Daljinec.Izid(false, "Tega prenosa ni mogoce odstraniti", koda = "ni_prenosa")
+        Thread({ try { MagnetMotor.odstraniZacasnega(app, id, posiljatelj) } catch (e: Throwable) { Log.i(TAG, "magnet.remove: ${e.javaClass.simpleName}") } }, "safeer-magnet-odstrani")
             .apply { isDaemon = true; start() }
         return Daljinec.Izid(true, "Odstranjeno z naprave")
     }

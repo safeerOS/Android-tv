@@ -1,6 +1,8 @@
 package si.safeer.tv.link
 
-/** Manjse varnostne odlocitve Safeer Linka iz pregleda 10. 11. 2026 (2.4). */
+import si.safeer.tv.os.KnjiznicaKroga
+
+/** Manjse varnostne odlocitve Safeer Linka iz pregleda 10. 11. 2026 (2.2, 2.4). */
 private var preverb = 0
 
 private fun preveri(opis: String, pogoj: Boolean) {
@@ -9,6 +11,27 @@ private fun preveri(opis: String, pogoj: Boolean) {
 }
 
 private fun vir(izvorna: String, pot: String): String = java.io.File(izvorna, pot).readText()
+
+/** 2.2: zasebni prenos odstrani samo naprava, ki ga je narocila. */
+private fun odstranitevPrenosa(izvorna: String) {
+    val zaseben = KnjiznicaKroga.Opis("", "", "", "", true)
+    val javen = KnjiznicaKroga.Opis("Sintel", "", "movie", "", false)
+    preveri("zasebnega odstrani narocnik", KnjiznicaKroga.smeOdstraniti(zaseben, listOf("tablica"), "tablica"))
+    preveri("zasebnega ne odstrani druga naprava", !KnjiznicaKroga.smeOdstraniti(zaseben, listOf("tablica"), "tv"))
+    preveri("zasebnega ne odstrani naprava brez oznake", !KnjiznicaKroga.smeOdstraniti(zaseben, listOf("tablica"), ""))
+    preveri("zasebnega brez narocnikov ne odstrani nobena druga naprava", !KnjiznicaKroga.smeOdstraniti(zaseben, emptyList(), "tv"))
+    preveri("uporabnik te naprave odstrani tudi zasebnega", KnjiznicaKroga.smeOdstraniti(zaseben, listOf("tablica"), null))
+    preveri("javnega odstrani vsaka naprava s predvajalnikom (kot prej)", KnjiznicaKroga.smeOdstraniti(javen, listOf("tablica"), "tv"))
+    preveri("prenos brez opisa kot prej", KnjiznicaKroga.smeOdstraniti(null, emptyList(), "tv"))
+    if (izvorna.isEmpty()) return
+    val motor = vir(izvorna, "si/safeer/tv/os/MagnetMotor.kt")
+    preveri("MagnetMotor pred odstranitvijo preveri narocnika",
+        motor.substringAfter("fun odstraniZacasnega(c: Context, id: Int, vprasa: String? = null): Boolean {").trimStart()
+            .startsWith("if (!smeOdstranitiZacasnega(c, id, vprasa)) return false"))
+    preveri("magnet.remove poda posiljatelja", vir(izvorna, "si/safeer/tv/link/Daljinec.kt")
+        .contains("MagnetPomoc.odstrani(context, parametri, parametri.optString(PARAM_POSILJATELJ, \"\"))"))
+    preveri("MagnetPomoc odstrani v imenu posiljatelja", vir(izvorna, "si/safeer/tv/link/MagnetPomoc.kt").contains("MagnetMotor.odstraniZacasnega(app, id, posiljatelj)"))
+}
 
 /** 2.4: naslovi za sprejem zvoka so omejeni, brez te naprave same; glava ima skupen rok. */
 private fun sprejemZvoka(izvorna: String) {
@@ -32,6 +55,7 @@ private fun sprejemZvoka(izvorna: String) {
 
 fun main(args: Array<String>) {
     val izvorna = args.firstOrNull().orEmpty()
+    odstranitevPrenosa(izvorna)    // 2.2
     sprejemZvoka(izvorna)          // 2.4
     println("LinkVarnostPravilaTest: OK ($preverb preverb)")
 }
