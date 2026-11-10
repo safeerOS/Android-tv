@@ -284,6 +284,8 @@ object GlobalLink {
             var cakaj = 5_000L
             while (true) {
                 if (!(vklopljen(c) && HubKrmilnik.tece() && HubKrmilnik.vrata() > 0)) { Thread.sleep(15_000); continue }
+                val zacetek = System.currentTimeMillis()
+                var sporocilo = "konec"
                 try {
                     if (!objavi(c)) throw IllegalStateException("prisotnost zavrnjena")
                     val konec = java.util.concurrent.CountDownLatch(1)
@@ -301,7 +303,6 @@ object GlobalLink {
                             Log.i(TAG, "Poslusanje prekinjeno (${response?.code ?: t.message})"); konec.countDown()
                         }
                     })
-                    cakaj = 5_000L
                     // Vsakih 10 s preverimo, ali hub se tece (sicer takoj nehamo sprejemati kanale);
                     // prisotnost obnovimo vsako minuto.
                     var krog = 0
@@ -310,10 +311,14 @@ object GlobalLink {
                         if (++krog % 6 == 0) try { objavi(c) } catch (_: Throwable) { }
                     }
                 } catch (e: Throwable) {
-                    Log.i(TAG, "Global Link huba: ${e.message}; znova cez ${cakaj / 1000} s")
-                    Thread.sleep(cakaj)
-                    cakaj = (cakaj * 2).coerceAtMost(300_000L)
+                    sporocilo = e.message ?: "napaka"
                 }
+                val trajanje = System.currentTimeMillis() - zacetek
+                // Prvi ponovni poskus po 5 s, nato 10, 20 ... do 5 min; po povezavi, ki je zdrzala minuto, spet 5 s.
+                val zdaj = GlobalLinkPravila.zamikZdaj(cakaj, trajanje)
+                Log.i(TAG, "Global Link huba: $sporocilo; znova cez ${zdaj / 1000} s")
+                Thread.sleep(zdaj)
+                cakaj = GlobalLinkPravila.naslednjiZamik(zdaj)
             }
         }
 
@@ -344,7 +349,16 @@ object GlobalLink {
                     while (true) {
                         val n = vhod.read(buf)
                         if (n < 0) break
-                        while (webSocket.queueSize() > 1_000_000) Thread.sleep(10)
+                        // Polna vrsta: cakamo najvec 10 s (prej brez meje - nit in vticnica sta ostali za vedno).
+                        val zacetekVrste = System.currentTimeMillis()
+                        var prekinitev = false
+                        while (true) {
+                            val akcija = GlobalLinkPravila.odlocitevVrste(webSocket.queueSize(), System.currentTimeMillis() - zacetekVrste, tcp.isClosed)
+                            if (akcija == GlobalLinkPravila.Akcija.PREKINI) { prekinitev = true; break }
+                            if (akcija == GlobalLinkPravila.Akcija.NADALJUJ) break
+                            Thread.sleep(10)
+                        }
+                        if (prekinitev) break
                         if (!webSocket.send(buf.toByteString(0, n))) break
                     }
                 } catch (_: Throwable) { }

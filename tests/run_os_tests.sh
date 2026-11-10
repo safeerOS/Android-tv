@@ -186,6 +186,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/FilterTorBoxPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/PregledNovostiPravila.kt" \
     "$TEST_DIR/PregledNovostiPravilaTest.kt" \
+    "$SRC/si/safeer/tv/link/GlobalLinkPravila.kt" \
+    "$TEST_DIR/GlobalLinkPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/UsenetIskanjePravila.kt" \
     "$TEST_DIR/UsenetIskanjePravilaTest.kt" \
     "$SRC/si/safeer/tv/os/UsenetPomocPravila.kt" \
@@ -362,6 +364,8 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.KakovostPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.FilterViraPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.FilterTorBoxPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PregledNovostiPravilaTestKt
+# Pregled 9. 11. 2026: zanki Global Linka brez meje (polna vrsta posiljanja, ponovni poskusi) - meje v cistih pravilih
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.GlobalLinkPravilaTestKt
 # Lastnik 7. 11. 2026: iskanje ob kliku - meja indeksatorja ni »ni izdaj« (razlog, ponovitev, pozaba zapisa)
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.UsenetIskanjePravilaTestKt
 # Pomocnik za Usenet v Linku (lastnik 5. 11. 2026, zakon solidarnosti): isti indeksator, sme pomagati, meja osvezitev
