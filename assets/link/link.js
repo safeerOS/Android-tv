@@ -1286,8 +1286,14 @@
     if (!naprava) return t("zaslon");
     if (naprava.id && vzdevki[naprava.id]) return vzdevki[naprava.id];
     var ime = (naprava.ime || "").trim();
-    if (ime && !/^[a-z0-9]+-[a-z0-9-]{4,}$/i.test(ime)) return ime;
+    if (ime && !jeTehnicniId(ime)) return ime;
     return naprava.vloga === "receiver" ? t("televizor") : t("zaslon");
+  }
+
+  /** Nas tehnicni ID (n-96bf...-control), ne ime racunalnika. Lastnik 10. 11. 2026: prenosnik z imenom gostitelja
+   *  z vezaji je bil v seznamu skrit pod »Zaslon« - prejsnji vzorec je ujel vsako ime z vezajem (enako kot Linux 6bed8ef). */
+  function jeTehnicniId(ime) {
+    return /^[a-z]{1,3}-[0-9a-f]{8,}(-[a-z0-9]+)*$/i.test(String(ime || ""));
   }
 
   // Crtne ikone (iste kot na safeer.si) namesto emojijev: na vsaki napravi so videti enako.
