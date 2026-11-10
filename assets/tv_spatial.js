@@ -1709,6 +1709,7 @@
                 
                 var style = window.getComputedStyle(el);
                 if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
+                if (jeOdrezanSlog(style.position, style.clip, style.clipPath)) return false;
 
                 var playTxt = ((el.innerText || el.textContent || '') + '').replace(/\s+/g, ' ').trim().toLowerCase();
                 var isPlayAct = clsCheck.indexOf('action-list') !== -1 ||
@@ -2055,6 +2056,33 @@
                 return candidates;
             }
 
+            // Okvir obroca za dnevnik H50 (css px): [levo, zgoraj, sirina, visina] ali null, ce obroca ni. Beremo CILJNE
+            // vrednosti iz sloga: obroc ima prehod 0,1 s, getBoundingClientRect bi ob zapisu vrnil se stari okvir.
+            function okvirObrocaZaDnevnik() {
+                try {
+                    var o = document.getElementById('safeer-focus-target-ring');
+                    if (!o || o.style.display === 'none') return null;
+                    return [Math.round(parseFloat(o.style.left)), Math.round(parseFloat(o.style.top)),
+                        Math.round(parseFloat(o.style.width)), Math.round(parseFloat(o.style.height))];
+                } catch (_) { return null; }
+            }
+
+            /* SAFEER_ODREZAN_ZACETEK */
+            // TV 10. 11. 2026 (apk-22, rtvslo.si): po GOR do vrha je bil izbran A 1220x22 cez celo modro glavo. To je povezava
+            // »Pojdite na meni« za bralnike zaslona (.initial-tab-selectors a:not(:focus): position absolute + clip rect(1px,1px,
+            // 1px,1px)): okvir ima, na zaslonu pa je ni. Odrezan element (clip brez povrsine ali clip-path inset >= 50 %) ni cilj.
+            // clip velja samo za absolutno/pritrjeno postavljene elemente, zato ga pri drugih ne upostevamo.
+            function jeOdrezanSlog(position, clip, clipPath) {
+                if (position === 'absolute' || position === 'fixed') {
+                    var m = /rect\(\s*(-?[\d.]+)(?:px)?[ ,]+(-?[\d.]+)(?:px)?[ ,]+(-?[\d.]+)(?:px)?[ ,]+(-?[\d.]+)(?:px)?\s*\)/.exec(clip || '');
+                    // rect(zgoraj, desno, spodaj, levo)
+                    if (m && (parseFloat(m[2]) - parseFloat(m[4]) <= 1 || parseFloat(m[3]) - parseFloat(m[1]) <= 1)) return true;
+                }
+                var c = /inset\(\s*([\d.]+)%/.exec(clipPath || '');
+                return !!(c && parseFloat(c[1]) >= 50);
+            }
+            /* SAFEER_ODREZAN_KONEC */
+
             /* SAFEER_UPORABEN_CILJ_ZACETEK */
             // Pregled fokusa 5. 11. 2026: izbira ali fokus strani na elementu z opacity 0, aria-hidden, inert, zunaj pogleda
             // ali za modalnim oknom je bila izhodisce puscic in cilj OK (neviden element). Tak element ni izhodisce: zacnemo z
@@ -2067,6 +2095,7 @@
                     var o = parseFloat(st.opacity);
                     if (!isNaN(o) && o <= 0.01) return true;
                     if (st.display === 'none' || (p === el && st.visibility === 'hidden')) return true;
+                    if (p === el && jeOdrezanSlog(st.position, st.clip, st.clipPath)) return true;
                     p = p.parentElement;
                 }
                 return false;
@@ -2709,7 +2738,11 @@
                             w: Math.round(hr.width),
                             h: Math.round(hr.height),
                             t: Math.round(hr.top),
-                            l: Math.round(hr.left)
+                            l: Math.round(hr.left),
+                            // apk-23: presirok obroc (rtvslo.si »Lokalne volitve«) se ni dal izmeriti - WebView nima devtools.
+                            ob: okvirObrocaZaDnevnik(),
+                            m: (window.visualViewport && Math.round(window.visualViewport.scale * 100) / 100) || 1,
+                            iw: window.innerWidth
                         });
                     }
                 } catch (_) {}

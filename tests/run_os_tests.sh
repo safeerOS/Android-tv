@@ -479,6 +479,7 @@ node "$TEST_DIR/tv_en_klik_test.js"
 # Cloudflare preverjanje (zaprt shadow DOM) in GOR, ki ne ostane ujet v drsenju (3. 11. 2026)
 node "$TEST_DIR/tv_izziv_test.js"
 node "$TEST_DIR/tv_pritrjeni_robovi_test.js"
+node "$TEST_DIR/tv_odrezan_cilj_test.js"
 # Okno s piskotki ob strani (claude.ai/login, 3. 11. 2026): vsi gumbi dosegljivi, nic samodejno
 node "$TEST_DIR/tv_plast_izbire_test.js"
 # Pravi dotik samo z zetonom glavnega okvirja (pregled Gemini 3. 11. 2026)

@@ -16,6 +16,8 @@ function extractFuncs() {
     // SAFEER_HITRI_KANDIDATI (9. 11. 2026): isActionable bere vidnost prednikov prek skritPrednik.
     const hitri = VIR.slice(VIR.indexOf('/* SAFEER_HITRI_KANDIDATI_ZACETEK */'), VIR.indexOf('/* SAFEER_HITRI_KANDIDATI_KONEC */'));
     code += hitri + '\n';
+    // SAFEER_ODREZAN (10. 11. 2026): isActionable izloci odrezane elemente (prava koda, ne nadomestek).
+    code += VIR.slice(VIR.indexOf('/* SAFEER_ODREZAN_ZACETEK */'), VIR.indexOf('/* SAFEER_ODREZAN_KONEC */')) + '\n';
     let m = VIR.match(/function isActionable[\s\S]*?return false;\n            \}/);
     if (m) code += m[0];
     code += '\nreturn isActionable;';
