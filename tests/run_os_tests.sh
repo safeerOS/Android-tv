@@ -474,6 +474,14 @@ java -cp "$OUT/linkdatoteke.jar" si.safeer.tv.link.LinkDatotekePravilaTestKt
     -include-runtime -d "$OUT/linklokacija.jar"
 java -cp "$OUT/linklokacija.jar" si.safeer.tv.link.LinkDatotekeLokacijaTestKt
 
+# Pregled 10. 11. 2026 (1.2, 3.3): meje prenosov druge naprave (Shramba, Pretvorba) - napovedana velikost, prekinitev
+# predolgega toka, najvec dva prenosa in ena pretvorba, izrinjanje samo koncanih opravil.
+"$KOTLINC" -J-Xmx1g \
+    "$SRC/si/safeer/tv/link/PrenosPravila.kt" \
+    "$TEST_DIR/PrenosPravilaTest.kt" \
+    -include-runtime -d "$OUT/prenos.jar"
+java -cp "$OUT/prenos.jar" si.safeer.tv.link.PrenosPravilaTestKt "$SRC"
+
 # Pregled 26 (T1): zahteve toka Webtor prek OkHttp - brez preusmeritev, samo preverjeni javni naslovi IP (brez DNS
 # rebindinga), pripet DNS za predvajalnik; lokalni streznik HTTP iz JDK.
 WEBTOR_LIBS="$PROJECT_DIR/libs/okhttp-4.12.0.jar:$PROJECT_DIR/libs/okio-jvm-3.6.0.jar"

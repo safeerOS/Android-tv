@@ -30,6 +30,9 @@ object Shramba {
     private const val REZERVA = 2L * 1024 * 1024 * 1024
 
     class Opravilo(val id: String, val ime: String, val velikost: Long) {
+        /** Zaporedna stevilka nastanka: iz seznama gre najprej najstarejse KONCANO opravilo (PrenosPravila.izrini). */
+        val nastal = stevec.incrementAndGet()
+        val koncano get() = stanje != "prenasam"
         @Volatile var stanje = "prenasam"     // prenasam | koncano | napaka
         @Volatile var preneseno = 0L
         @Volatile var napaka = ""
@@ -40,6 +43,14 @@ object Shramba {
     }
 
     private val opravila = ConcurrentHashMap<String, Opravilo>()
+    private val stevec = java.util.concurrent.atomic.AtomicLong(0)
+
+    /**
+     * Pregled 10. 11. 2026 (3.3): prej nova nit za vsak `storage.put`. Najvec [PrenosPravila.NAJVEC_PRENOSOV] niti, brez
+     * cakalne vrste (presezek zavrne [sprejmi] s kodo »preobremenjen«); mirujoce niti se po 30 s koncajo.
+     */
+    private val izvajalec = java.util.concurrent.ThreadPoolExecutor(0, PrenosPravila.NAJVEC_PRENOSOV, 30L,
+        java.util.concurrent.TimeUnit.SECONDS, java.util.concurrent.SynchronousQueue()) { r -> Thread(r, "safeer-shramba").apply { isDaemon = true } }
 
     fun prostor(): Long = try {
         val s = StatFs(Environment.getExternalStorageDirectory().path)
@@ -53,18 +64,39 @@ object Shramba {
         val ime = varnoIme(p.optString("name"))
         val velikost = p.optLong("size", -1L)
         val sha = p.optString("sha256").lowercase()
-        if (!url.startsWith("https://") || odtis.length != 64 || zeton.isBlank() || ime.isBlank() || velikost < 0 || sha.length != 64)
+        if (!url.startsWith("https://") || odtis.length != 64 || zeton.isBlank() || ime.isBlank() || sha.length != 64)
             return Daljinec.Izid(false, "Nepopolna zahteva", koda = "napacna_zahteva")
         val pomoc = Zmogljivost.porocilo(context).optJSONObject("pomoc")
         if (pomoc?.optBoolean("lahko", true) == false)
             return Daljinec.Izid(false, "Naprava ta trenutek ne more pomagati", koda = pomoc.optString("razlog"))
-        val prosto = prostor()
-        if (prosto in 0 until velikost + REZERVA) return Daljinec.Izid(false, "Premalo prostora", koda = "ni_prostora")
-        val o = Opravilo(java.util.UUID.randomUUID().toString(), ime, velikost)
-        opravila[o.id] = o
-        while (opravila.size > 32) opravila.keys.firstOrNull()?.let { opravila.remove(it) }
-        Thread({ prenesi(context.applicationContext, o, url, odtis, zeton, sha) }, "safeer-shramba").apply { isDaemon = true; start() }
-        return Daljinec.Izid(true, "Prenasam", o.json())
+        val app = context.applicationContext
+        // Pregled 10. 11. 2026 (1.2, 3.3): napovedana velikost je obvezna in omejena, prostor steje tudi tekoce prenose,
+        // hkrati najvec dva prenosa. Preverba in vpis skupaj, da dva socasna ukaza ne gresta oba mimo meje.
+        synchronized(this) {
+            val tekoca = opravila.values.filter { !it.koncano }
+            val obljubljeno = tekoca.sumOf { (it.velikost - it.preneseno).coerceAtLeast(0L) }
+            PrenosPravila.preveriVelikost(velikost, PrenosPravila.NAJVEC_SHRAMBA_B, prostor(), REZERVA, obljubljeno)?.let { koda ->
+                return Daljinec.Izid(false, besediloZavrnitve(koda), koda = koda)
+            }
+            if (PrenosPravila.preobremenjen(tekoca.size, PrenosPravila.NAJVEC_PRENOSOV))
+                return Daljinec.Izid(false, "Naprava ze prenasa dve datoteki", koda = PrenosPravila.KODA_PREOBREMENJEN)
+            val o = Opravilo(java.util.UUID.randomUUID().toString(), ime, velikost)
+            opravila[o.id] = o
+            try { izvajalec.execute { prenesi(app, o, url, odtis, zeton, sha) } }
+            catch (_: java.util.concurrent.RejectedExecutionException) {
+                opravila.remove(o.id)
+                return Daljinec.Izid(false, "Naprava ze prenasa dve datoteki", koda = PrenosPravila.KODA_PREOBREMENJEN)
+            }
+            PrenosPravila.izrini(opravila.values.map { PrenosPravila.Opis(it.id, it.nastal, it.koncano) }, PrenosPravila.HRANI_PRENOSOV)
+                .forEach { opravila.remove(it) }
+            return Daljinec.Izid(true, "Prenasam", o.json())
+        }
+    }
+
+    internal fun besediloZavrnitve(koda: String): String = when (koda) {
+        PrenosPravila.KODA_PROSTOR -> "Premalo prostora"
+        PrenosPravila.KODA_PREVELIKA -> "Datoteka je prevelika"
+        else -> "Nepopolna zahteva"
     }
 
     fun stanje(id: String): Daljinec.Izid {
@@ -94,12 +126,16 @@ object Shramba {
             odjemalec.newCall(zahteva).execute().use { r ->
                 if (!r.isSuccessful) throw IllegalStateException("racunalnik je vrnil ${r.code}")
                 val telo = r.body ?: throw IllegalStateException("prazen odgovor")
+                // Pregled 10. 11. 2026 (1.2): vir ne sme poslati vec, kot je napovedal - sicer napolni disk. Delno
+                // datoteko pobrise veja napake spodaj.
+                if (PrenosPravila.glavaPresega(telo.contentLength(), o.velikost)) throw PrenosPravila.Napaka(PrenosPravila.KODA_PRESEGA)
                 cr.openOutputStream(uri)!!.use { izhod ->
                     telo.byteStream().use { vhod ->
                         val b = ByteArray(256 * 1024)
                         while (true) {
                             val n = vhod.read(b)
                             if (n < 0) break
+                            if (PrenosPravila.presega(o.preneseno, n, o.velikost)) throw PrenosPravila.Napaka(PrenosPravila.KODA_PRESEGA)
                             izhod.write(b, 0, n)
                             md.update(b, 0, n)
                             o.preneseno += n
