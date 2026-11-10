@@ -66,3 +66,6 @@ Vsako od spodnjih pravil izhaja iz napake, ki je ze bila narejena.
   ki jih PRAVA razlicica res klice (javap na .aar v gradle cache) - prevod tega ne ujame (media3 1.11: sesutje ob zagonu).
 - Preizkus preverja pravi razred prek javne meje, ne kopije kode v preizkusu; casovni preizkusi morajo dati isti izid na
   obremenjenem racunalniku.
+
+## Upravljanje naprav - tipkovnica
+- Navidezna tipkovnica pri upravljanju druge naprave (lastnik, 10. 11. 2026): kadar upravljas s TABLICE ali TELEFONA (dotik) racunalnik ali TV in je za vnos potrebna tipkovnica (polje za besedilo dobi fokus ali ga tapnes), se tipkovnica na tablici/telefonu pokaze SAMA - pri deljenju namizja in pri locenem zaslonu. Kadar upravljas z RACUNALNIKA (racunalnik, TV, tablico ali telefon), se navidezna tipkovnica NE pokaze - racunalnik ima svojo. Odloca vrsta naprave, ki upravlja, ne naprave, ki jo upravljamo.
