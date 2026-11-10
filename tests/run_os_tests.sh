@@ -208,6 +208,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/PrenosCiljTest.kt" \
     "$SRC/si/safeer/tv/link/StreznikMeja.kt" \
     "$TEST_DIR/StreznikMejaTest.kt" \
+    "$SRC/si/safeer/tv/link/LinkVarnostPravila.kt" \
+    "$TEST_DIR/LinkVarnostPravilaTest.kt" \
     "$TEST_DIR/PrenosPravilaTest.kt" \
     "$TEST_DIR/SkupniPrimeriTest.kt" \
     "$SRC/si/safeer/tv/os/PreizkusPravila.kt" \
@@ -399,6 +401,9 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.PrenosPravilaTestKt "$SRC"
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.PrenosCiljTestKt "$SRC"
 # Pregled 10. 11. 2026 (3.4): streznik datotek - meja socasnih povezav (skupaj in na naslov) in skupni rok branja zahteve.
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.StreznikMejaTestKt "$SRC"
+# Pregled 10. 11. 2026: manjse odlocitve Linka - naslovi in rok sprejema zvoka, odstranitev zasebnega prenosa, dnevnik
+# brez zetonov in polnih oznak, dvojna preverba iskanja, cas sporocila klepeta.
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.LinkVarnostPravilaTestKt "$SRC"
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PreizkusPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/debrid-serije.json"
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/webtor-rezerva.json"
