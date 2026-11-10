@@ -974,6 +974,12 @@ class E2e(
          * ne obdela noben sprejemnik (sredisca ga se usmerjajo); je v naboru, da bo zasciten, ce ga kdaj kdo bo.
          */
         val ZASCITENI_TIPI = setOf("control.command", "control.result", "cast.url", "cast.media", "cast.control", "handoff.request")
+        /**
+         * Odpiranje toka in poizvedba prehoda interneta: po zasciteni poti ju SPREJMEMO (pregled 10. 11. 2026, najdba B),
+         * a nista v [ZASCITENI_TIPI] - starejse naprave ju posiljajo nezasciteno. Kdaj nezasciteno zavrnemo, odloca
+         * prehod (link/InternetZascita).
+         */
+        val TIPI_INTERNETA = setOf("internet.open", "internet.query")
         val TIPI_PRENOSA = setOf("data.offer", "data.answer", "data.chunk", "data.error")
         const val PREDPONA_OZNAK = "e2e-"
 

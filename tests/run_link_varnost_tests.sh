@@ -15,7 +15,8 @@ JSON_JAR="${JSON_JAR:-$(for f in "$HOME"/.gradle/caches/modules-2/files-2.1/org.
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 
-# Prehod interneta (2.5): umik naprave iz kroga zapre njene odprte tokove in zbrise dovoljenje interneta.
+# Prehod interneta: umik naprave iz kroga zapre njene odprte tokove in zbrise dovoljenje interneta (2.5); odpiranje in
+# poizvedba iz preverjene seje, nezasciteno v imenu naprave, ki zascito zna, zavrnjeno (B).
 "$KOTLINC" -J-Xmx1g -cp "$JSON_JAR" \
     "$TEST_DIR/stubs/Log.kt" \
     "$TEST_DIR/stubs/prehod/Context.kt" \

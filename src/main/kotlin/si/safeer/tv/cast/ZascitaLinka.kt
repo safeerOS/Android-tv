@@ -229,7 +229,9 @@ class ZascitaLinka(
     /** Notranje sporocilo iz preverjene seje: posiljatelj je naprava, ki je dokazala kljuc z jedrom [jedro]. */
     private fun prejeto(notranjeJson: String, od: String, jedro: String) {
         val json = try { JSONObject(notranjeJson) } catch (_: Throwable) { return }
-        if (json.optString("type", "") !in E2e.ZASCITENI_TIPI) {
+        val tip = json.optString("type", "")
+        // internet.open/query: prehod interneta ju sprejme iz preverjene seje (pregled 10. 11. 2026, najdba B).
+        if (tip !in E2e.ZASCITENI_TIPI && tip !in E2e.TIPI_INTERNETA) {
             // Zasciteno gre samo to, kar je dogovorjeno; prenosa (data.*) ali cesa neznanega v ovojnici ne sprejmemo.
             Log.i(TAG, "Zasciteno sporocilo nedogovorjenega tipa zavrzeno.")
             return

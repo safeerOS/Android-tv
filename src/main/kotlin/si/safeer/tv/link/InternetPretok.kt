@@ -254,6 +254,65 @@ class InternetDovoljenja(private val shramba: ShrambaVrednosti, private val ura:
 }
 
 /**
+ * Odpiranje toka in poizvedba prehoda (`internet.open`, `internet.query`) po zasciteni poti od naprave do naprave -
+ * cista odlocitev (tests/InternetPretokTest.kt, tests/PrehodInternetaTest.kt).
+ *
+ * Pregled 10. 11. 2026 (najdba B): internet.* ni bil med zascitenimi tipi, prehod je o dovoljenju odlocal po polju
+ * `sender`, ki ga vpise sredisce. Gostitelj sredisca je tako v imenu naprave z dovoljenjem odpiral povezave skozi ta
+ * telefon. Zdaj prehod sprejme oba tipa tudi iz preverjene seje (polje [POLJE], jedro iz preverjenega kljuca) in to
+ * oglasi z zmoznostjo [ZMOZNOST]. Naprava, ki je internet KDAJ zahtevala zasciteno, ga odslej sme samo zasciteno
+ * ([InternetZasciteneNaprave], zapis se samo dopolnjuje) - nezasciteno sporocilo v njenem imenu ni od nje.
+ *
+ * Zdruzljivost: starejsi racunalnik (ki obeh tipov se ne poslje zasciteno) dela kot prej - zanj najdba B ostane, dokler
+ * se ne posodobi. Strozje (zavrniti vsako napravo, ki zascito ukazov zna) bi danes odrezalo vse obstojece racunalnike.
+ * Kosi toka (`internet.data`, `.window`, `.eof`, `.close`) ostanejo nezasciteni (hitrost); vezani so na ze odprt tok.
+ */
+object InternetZascita {
+    /** Zmoznost v prijavi naprave (`cast.register`): prehod sprejme internet.open/query iz preverjene seje. */
+    const val ZMOZNOST = "internet.e2e1"
+    /** Polje, v katerem ZascitaLinka poda jedro iz preverjenega kljuca (isto kot cast/ZascitaLinka.POLJE). */
+    const val POLJE = "_zascita"
+    val TIPI = setOf("internet.open", "internet.query")
+
+    enum class Izid { SPREJMI, SPREJMI_ZASCITENO, ZAVRNI }
+
+    /**
+     * [zascitaJedro]: jedro iz preverjenega kljuca ali prazno (sporocilo je prislo nezasciteno, posiljatelja je vpisalo
+     * sredisce); [naprava]: fizicna naprava posiljatelja ([fizicnaNapravaInterneta]); [znaZascito]: ali je ta naprava
+     * internet ze kdaj zahtevala zasciteno.
+     */
+    fun odloci(tip: String, zascitaJedro: String, naprava: String, znaZascito: (String) -> Boolean): Izid {
+        if (tip !in TIPI) return Izid.SPREJMI
+        if (zascitaJedro.isNotEmpty()) {
+            // Oznaka iz kljuca mora biti oznaka preverjenega kljuca; starejsa oznaka (ne iz kljuca) jedra ne izkazuje.
+            if (naprava.startsWith("n-") && naprava != zascitaJedro) return Izid.ZAVRNI
+            return Izid.SPREJMI_ZASCITENO
+        }
+        return if (znaZascito(naprava)) Izid.ZAVRNI else Izid.SPREJMI
+    }
+}
+
+/** Naprave, ki so internet ze zahtevale po zasciteni poti (glej [InternetZascita]); zapis se samo dopolnjuje. */
+class InternetZasciteneNaprave(private val shramba: ShrambaVrednosti) {
+    fun zna(naprava: String): Boolean = naprava.isNotBlank() && shramba.niz(PREDPONA + naprava) != null
+
+    @Synchronized
+    fun zabelezi(naprava: String): Boolean {
+        if (naprava.isBlank() || naprava.length > NAJVEC_OZNAKA || zna(naprava)) return false
+        // Zapis ne raste brez meje: do tu pride samo naprava iz kroga s preverjenim kljucem.
+        if (shramba.kljuci(PREDPONA).size >= NAJVEC_NAPRAV) return false
+        shramba.nastavi(PREDPONA + naprava, "1")
+        return true
+    }
+
+    companion object {
+        const val PREDPONA = "e2e."
+        const val NAJVEC_NAPRAV = 256
+        const val NAJVEC_OZNAKA = 128
+    }
+}
+
+/**
  * Umik naprave iz kroga zaupanja in prehod interneta - cista odlocitev (tests/InternetPretokTest.kt). Pregled
  * 10. 11. 2026 (2.5): umik je zavrnil samo nova odpiranja; odprti tokovi in dovoljenje interneta so ostali.
  */

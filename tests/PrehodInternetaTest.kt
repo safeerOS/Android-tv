@@ -136,7 +136,84 @@ private fun umikZapreTokove(izvorna: String) {
     }
 }
 
+/** Najdba B: internet.open/query iz preverjene seje; naprava, ki to zna, nezascitenega ne sme vec. */
+private fun zascitenoOdpiranje(izvorna: String) {
+    // Cista odlocitev.
+    val nikoli: (String) -> Boolean = { false }
+    val vedno: (String) -> Boolean = { true }
+    val j = "n-0123456789abcdef"
+    preveri("kos toka ni stvar zascite odpiranja", InternetZascita.odloci("internet.data", "", j, vedno) == InternetZascita.Izid.SPREJMI)
+    preveri("starejsa naprava nezasciteno: kot prej", InternetZascita.odloci("internet.open", "", j, nikoli) == InternetZascita.Izid.SPREJMI)
+    preveri("zasciteno odpiranje se sprejme", InternetZascita.odloci("internet.open", j, j, nikoli) == InternetZascita.Izid.SPREJMI_ZASCITENO)
+    preveri("naprava, ki zascito zna: nezasciteno odpiranje ne", InternetZascita.odloci("internet.open", "", j, vedno) == InternetZascita.Izid.ZAVRNI)
+    preveri("naprava, ki zascito zna: nezascitena poizvedba ne", InternetZascita.odloci("internet.query", "", j, vedno) == InternetZascita.Izid.ZAVRNI)
+    preveri("preverjen kljuc druge naprave ne velja za to oznako", InternetZascita.odloci("internet.open", "n-ffffffffffffffff", j, nikoli) == InternetZascita.Izid.ZAVRNI)
+    preveri("starejsa oznaka (ne iz kljuca) z zascito se sprejme", InternetZascita.odloci("internet.open", j, "tv-dnevna", nikoli) == InternetZascita.Izid.SPREJMI_ZASCITENO)
+
+    val o = Oder()
+    try {
+        // Starejsi racunalnik (zascite interneta se ne zna): dela kot prej.
+        o.odpri("tok-star-0001")
+        pocakaj("starejsa naprava odpre tok nezasciteno") { o.zadnje("internet.opened", "tok-star-0001") != null }
+        preveri("zmoznost prehoda v stanju", InternetZascita.ZMOZNOST == "internet.e2e1")
+
+        // Ista naprava po posodobitvi: odpiranje iz preverjene seje (ZascitaLinka doda polje z jedrom kljuca).
+        o.prehod.obdelaj(o.sporocilo("internet.open", "tok-zasc-0001").put("host", "127.0.0.1").put("port", o.streznik.localPort)
+            .put(InternetZascita.POLJE, o.jedro))
+        pocakaj("zasciteno odpiranje uspe") { o.zadnje("internet.opened", "tok-zasc-0001") != null }
+        pocakaj("streznik ima dve povezavi") { o.sprejete.size == 2 }
+
+        // Sredisce v imenu iste naprave poslje nezasciteno odpiranje: zavrnjeno, brez povezave.
+        o.poslano.clear()
+        o.odpri("tok-ponaredek-1")
+        preveri("nezasciteno odpiranje v imenu naprave, ki zascito zna: not_trusted",
+            o.zadnje("internet.error", "tok-ponaredek-1")?.optString("reason") == "not_trusted")
+        // ... tudi pod oznako drugega programa iste naprave (isti kljuc).
+        o.prehod.obdelaj(JSONObject().put("type", "internet.open").put("sender", "${o.jedro}-os").put("v", 2).put("epoch", 7L)
+            .put("stream_id", "tok-ponaredek-2").put("host", "127.0.0.1").put("port", o.streznik.localPort))
+        preveri("nezasciteno odpiranje pod oznako drugega programa iste naprave: not_trusted",
+            o.zadnje("internet.error", "tok-ponaredek-2")?.optString("reason") == "not_trusted")
+        // Nezascitena poizvedba s tujo dobo ne zapre tokov prave naprave in ne izda omrezij telefona.
+        o.poslano.clear()
+        o.prehod.obdelaj(JSONObject().put("type", "internet.query").put("sender", o.naprava).put("v", 2).put("epoch", 99L))
+        val stanje = o.poslano.lastOrNull { it.optString("type") == "internet.status" }?.optJSONObject("payload")
+        preveri("nezascitena poizvedba: not_trusted brez seznama poti",
+            stanje?.optString("permission") == "not_trusted" && stanje.has("paths") == false)
+        // Zasciteno s kljucem druge naprave pod to oznako: zavrnjeno.
+        o.prehod.obdelaj(o.sporocilo("internet.open", "tok-ponaredek-3").put("host", "127.0.0.1").put("port", o.streznik.localPort)
+            .put(InternetZascita.POLJE, "n-ffffffffffffffff"))
+        preveri("preverjen kljuc druge naprave: not_trusted", o.zadnje("internet.error", "tok-ponaredek-3")?.optString("reason") == "not_trusted")
+        Thread.sleep(300)
+        preveri("ponaredki niso odprli povezave", o.sprejete.size == 2)
+        preveri("tokova prave naprave teceta naprej (tuja doba ju ni zaprla)", o.prehod.stanje().aktivniTokovi == 2)
+
+        // Zapis prezivi ponovni zagon prehoda (nastavitve aplikacije).
+        o.prehod.close()
+        val drugi = AndroidApplicationGateway(o.ctx, AndroidInternetPoti(o.ctx), varenNaslov = { true }) { s -> o.poslano.add(JSONObject(s.toString())); true }
+        try {
+            o.poslano.clear()
+            drugi.obdelaj(o.sporocilo("internet.open", "tok-ponaredek-4").put("host", "127.0.0.1").put("port", o.streznik.localPort))
+            preveri("po ponovnem zagonu nezasciteno se vedno zavrnjeno", o.zadnje("internet.error", "tok-ponaredek-4")?.optString("reason") == "not_trusted")
+            drugi.obdelaj(o.sporocilo("internet.open", "tok-zasc-0002").put("host", "127.0.0.1").put("port", o.streznik.localPort)
+                .put(InternetZascita.POLJE, o.jedro))
+            pocakaj("po ponovnem zagonu zasciteno odpiranje uspe") { o.zadnje("internet.opened", "tok-zasc-0002") != null }
+        } finally { drugi.close() }
+    } finally { o.konec() }
+
+    if (izvorna.isNotEmpty()) {
+        fun vir(pot: String) = java.io.File(izvorna, pot).readText()
+        preveri("polje zascite je isto kot v ZascitaLinka", vir("si/safeer/tv/cast/ZascitaLinka.kt").contains("const val POLJE = \"${InternetZascita.POLJE}\""))
+        preveri("ZascitaLinka sprejme internet.open/query iz preverjene seje",
+            vir("si/safeer/tv/cast/ZascitaLinka.kt").contains("tip !in E2e.ZASCITENI_TIPI && tip !in E2e.TIPI_INTERNETA"))
+        val e2e = vir("si/safeer/tv/cast/E2e.kt")
+        preveri("E2e pozna tipa interneta", InternetZascita.TIPI.all { e2e.substringAfter("val TIPI_INTERNETA = setOf(").substringBefore(")").contains("\"$it\"") })
+        preveri("internet ni med obveznimi zascitenimi tipi (starejse naprave)", !e2e.substringAfter("val ZASCITENI_TIPI = setOf(").substringBefore(")").contains("internet."))
+        preveri("telefon zmoznost oglasi", vir("si/safeer/tv/cast/CastReceiverService.kt").contains("zmoznosti.add(si.safeer.tv.link.InternetZascita.ZMOZNOST)"))
+    }
+}
+
 fun main(args: Array<String>) {
     umikZapreTokove(args.firstOrNull().orEmpty())
+    zascitenoOdpiranje(args.firstOrNull().orEmpty())
     println("PrehodInternetaTest: OK ($preverb preverb)")
 }

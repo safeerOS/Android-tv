@@ -480,7 +480,11 @@ class CastReceiverService : Service() {
                         if (si.safeer.tv.link.DatotekeStreznik.vklopljeno(this@CastReceiverService)) {
                             zmoznosti.add(si.safeer.tv.link.DatotekeStreznik.ZMOZNOST)
                         }
-                        if (BuildConfig.FLAVOR == "telefon" && internetGateway?.dovoljeno == true) zmoznosti.add("internet.gateway")
+                        if (BuildConfig.FLAVOR == "telefon" && internetGateway?.dovoljeno == true) {
+                            zmoznosti.add("internet.gateway")
+                            // Pregled 10. 11. 2026 (B): prehod sprejme internet.open/query iz preverjene seje.
+                            zmoznosti.add(si.safeer.tv.link.InternetZascita.ZMOZNOST)
+                        }
                         // Safeer Chat: sprejemnik tece stalno, zato sporocila pridejo tudi, ko Safeer OS ni odprt.
                         if (BuildConfig.FLAVOR != "brskalnik") zmoznosti.add(si.safeer.tv.os.KlepetLinka.ZMOZNOST)
                         if (BuildConfig.FLAVOR != "brskalnik") zmoznosti.add("magnet")

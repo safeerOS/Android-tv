@@ -48,6 +48,8 @@ class AndroidApplicationGateway(
     private val shramba = PrefsShramba(prefs)
     val dovoljenja = InternetDovoljenja(shramba) { System.currentTimeMillis() }
     private val poraba = InternetPoraba(shramba) { System.currentTimeMillis() }
+    /** Naprave, ki so internet ze zahtevale po zasciteni poti: nezasciteno v njihovem imenu zavrnemo (najdba B). */
+    private val zasciteneNaprave = InternetZasciteneNaprave(shramba)
     private val tokovi = ConcurrentHashMap<String, Tok>()
     private val proracuni = ConcurrentHashMap<String, InternetProracun>()
     /** Naprave, ki so v tem zagonu vprasale ali odprle tok: njim sporocimo spremembo nastavitev in dovoljenja. */
@@ -142,7 +144,24 @@ class AndroidApplicationGateway(
     /** Vrne true, ce je bilo sporocilo gateway protokola in je obdelano. */
     fun obdelaj(sporocilo: JSONObject): Boolean {
         val peer = sporocilo.optString("sender", "")
-        when (sporocilo.optString("type")) {
+        val tip = sporocilo.optString("type")
+        // Pregled 10. 11. 2026 (B): odpiranje in poizvedba iz preverjene seje, kadar naprava to zna (InternetZascita).
+        // Pred dobo in dovoljenjem: zavrnjeno sporocilo ne sme zapreti tokov prave naprave ne sproziti vprasanja.
+        if (tip in InternetZascita.TIPI && peer.isNotBlank()) {
+            val naprava = fizicnaNapravaInterneta(peer)
+            when (InternetZascita.odloci(tip, sporocilo.optString(InternetZascita.POLJE, ""), naprava) { zasciteneNaprave.zna(it) }) {
+                InternetZascita.Izid.ZAVRNI -> {
+                    Log.i(TAG, "zavrnjeno: $tip brez zascite v imenu naprave, ki internet zahteva zasciteno")
+                    if (tip == "internet.open") napaka(peer, sporocilo.optString("stream_id", "").take(96), "not_trusted")
+                    else posljiStanje(peer, "not_trusted")
+                    return true
+                }
+                InternetZascita.Izid.SPREJMI_ZASCITENO ->
+                    if (zasciteneNaprave.zabelezi(naprava)) Log.i(TAG, "naprava internet zahteva zasciteno: odslej samo tako")
+                InternetZascita.Izid.SPREJMI -> { }
+            }
+        }
+        when (tip) {
             "internet.query" -> {
                 if (peer.isNotBlank()) {
                     novaDoba(peer, sporocilo.optLong("epoch", 0L))
@@ -223,7 +242,7 @@ class AndroidApplicationGateway(
     }
 
     private fun opisStanja(razlog: String?): JSONObject {
-        val o = JSONObject().put("protocol", InternetProtokol.RAZLICICA).put("enabled", dovoljeno)
+        val o = JSONObject().put("protocol", InternetProtokol.RAZLICICA).put("enabled", dovoljeno).put("e2e", 1)
             .put("permission", when (razlog) {
                 null -> "allowed"; "permission_required" -> "pending"; "denied" -> "denied"; "not_trusted" -> "not_trusted"; else -> "unknown"
             })
