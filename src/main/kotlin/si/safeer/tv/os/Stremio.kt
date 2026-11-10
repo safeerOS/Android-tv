@@ -426,6 +426,8 @@ object Stremio {
                 val bajti = c.inputStream.use { beriOmejeno(it, OsPravila.NAJVEC_ODGOVORA_DODATKA) } ?: run { prevelik(url); return null }
                 val besedilo = String(bajti, Charsets.UTF_8)
                 DodatkiRazvoj.zapisi(url, koda, besedilo.length, android.os.SystemClock.elapsedRealtime() - zacetek)
+                // Pregloboko gnezden odgovor zavrnemo PRED razclenjevanjem: StackOverflowError ni Exception in bi sesul aplikacijo.
+                if (JsonGlobinaPravila.pregloboko(besedilo)) { prevelik(url); return null }
                 JSONObject(besedilo)
             } finally { c.disconnect() }
         } catch (_: Exception) { if ((zadnjaKoda.get() ?: 0) == 0) zabeleziOdziv(url, 0); null }
