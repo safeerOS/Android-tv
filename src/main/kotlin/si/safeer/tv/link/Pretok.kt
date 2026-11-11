@@ -289,7 +289,7 @@ object Pretok {
             }
             glavna.postDelayed(straza, 5_000)
         } catch (e: Throwable) {
-            t.napaka = e.message ?: e.javaClass.simpleName; t.koncano = true
+            t.napaka = LinkVarnostPravila.napakaToka(e); t.koncano = true
             zapriVir(t)
             Log.w(TAG, "Tok ${t.id.takeLast(6)}: ${e.javaClass.simpleName}")
         }

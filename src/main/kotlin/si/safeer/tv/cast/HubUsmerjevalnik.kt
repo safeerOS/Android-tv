@@ -1357,7 +1357,7 @@ class HubUsmerjevalnik(
             val posiljatelj = idPovezave(od) ?: ""
             val (prejemnik, zmoznosti) = register.najdi(cilj).let { Pair(it?.povezava, it?.zmoznosti ?: emptyList()) }
             if (prejemnik == null) {
-                android.util.Log.i("SafeerHubUsmerjevalnik", "$tip za $cilj (od $posiljatelj): cilj ni povezan - znane naprave: ${register.vse().joinToString { it.id + (if (it.povezava == null) "(brez)" else "") }}")
+                android.util.Log.i("SafeerHubUsmerjevalnik", "$tip za ${OznakaDnevnik.oznaka(cilj)} (od ${OznakaDnevnik.oznaka(posiljatelj)}): cilj ni povezan - znanih naprav: ${register.vse().count()}")
                 return potrditev(id, "rejected", "Ciljna naprava '$cilj' ni povezana ali ne obstaja.", "control", "naprava_ni_povezana")
             }
             if (prejemnik === od) return potrditev(id, "rejected", "Naprava ne more upravljati sama sebe.", "control", "isti_naprava")

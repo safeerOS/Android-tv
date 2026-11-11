@@ -208,6 +208,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/PrenosCiljTest.kt" \
     "$SRC/si/safeer/tv/link/StreznikMeja.kt" \
     "$TEST_DIR/StreznikMejaTest.kt" \
+    "$SRC/si/safeer/tv/cast/OznakaDnevnik.kt" \
     "$SRC/si/safeer/tv/link/LinkVarnostPravila.kt" \
     "$TEST_DIR/LinkVarnostPravilaTest.kt" \
     "$TEST_DIR/PrenosPravilaTest.kt" \

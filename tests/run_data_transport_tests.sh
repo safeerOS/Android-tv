@@ -32,6 +32,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/cast/SafeerLog.kt" \
     "$SRC/si/safeer/tv/cast/Spake2.kt" \
     "$SRC/si/safeer/tv/cast/HubUsmerjevalnik.kt" \
+    "$SRC/si/safeer/tv/cast/OznakaDnevnik.kt" \
     "$SRC/si/safeer/tv/cast/SeznamSprememb.kt" \
     "$SRC/si/safeer/tv/cast/DostopPravila.kt" \
     "$SRC/si/safeer/tv/cast/HubHttp.kt" \

@@ -10,15 +10,18 @@ object LinkVarnostPravila {
     /**
      * Oznaka naprave za dnevnik: zacetek in zadnji 4 znaki jedra, brez sredine (dnevniki se kopirajo v porocila). Polna
      * oznaka je `n-<16 znakov kljuca>-<program>`; iz nje ostane `n-…cdef-control`. Samo vidni ASCII, omejena dolzina -
-     * oznako pise sredisce.
+     * oznako pise sredisce. Telo je v cast/OznakaDnevnik.kt (skupno z Link Core, ki ne sme poznati link/).
      */
-    fun oznakaZaDnevnik(id: String): String {
-        val cisto = buildString { for (c in id.take(128)) if (c in '!'..'~') append(c) else append('?') }
-        if (cisto.isEmpty()) return "(brez oznake)"
-        if (cisto.length <= 6) return cisto.take(2) + "…"
-        if (cisto.startsWith("n-") && cisto.length >= 18) return "n-…" + cisto.substring(14, 18) + cisto.substring(18).take(16)
-        return cisto.take(2) + "…" + cisto.takeLast(2)
-    }
+    fun oznakaZaDnevnik(id: String): String = si.safeer.tv.cast.OznakaDnevnik.oznaka(id)
+
+    // ------------------------------------------------------------------ napaka toka (pregled apk-24, S3)
+
+    /**
+     * Napaka toka `video.stream` kot koda, ne besedilo izjeme (kot Shramba in Pretvorba, [PrenosPravila.kodaNapake]):
+     * »Connection refused« / »timeout« razkrivata, kateri naslovi in vrata domacega omrezja odgovarjajo. Vedno
+     * neprazna (prazno polje `napaka` pomeni, da tok se tece).
+     */
+    fun napakaToka(e: Throwable): String = PrenosPravila.kodaNapake(e) { it is PretokHttp.NedovoljenCilj }
 
     // ------------------------------------------------------------------ sprejem zvoka (2.4)
 
@@ -31,9 +34,11 @@ object LinkVarnostPravila {
      * Naslovi iz ukaza `audio.play` (`host` najprej, nato `hosts`), na katere se sprejemnik res poveze. Prej je bil
      * seznam brez meje (vsak naslov 4 s cakanja, nit v ozadju) in je sprejel tudi to napravo samo. Zdaj: brez
      * ponovitev, samo veljavna imena in naslovi, brez zanke in povezavno-lokalnih ([PretokPravila.gostiteljPrepovedan]),
-     * najvec [NAJVEC_NASLOVOV_ZVOKA].
+     * najvec [NAJVEC_NASLOVOV_ZVOKA]. Pregled apk-24 (N6): [lastni] so naslovi IP te naprave (iz njenih omreznih
+     * vmesnikov, kot bajti); zapis, ki je eden izmed njih (tudi kot preslikani IPv4 v IPv6), odpade - commit 2d7bea54 je
+     * to trdil, koda pa je izlocila samo zanko in povezavno-lokalne.
      */
-    fun nasloviZvoka(host: String, hosts: List<String>): List<String> {
+    fun nasloviZvoka(host: String, hosts: List<String>, lastni: List<ByteArray> = emptyList()): List<String> {
         val izid = ArrayList<String>()
         for (surov in listOf(host) + hosts) {
             if (izid.size >= NAJVEC_NASLOVOV_ZVOKA) break
@@ -41,6 +46,8 @@ object LinkVarnostPravila {
             if (n.isEmpty() || n.length > 253 || n in izid) continue
             if (!n.all { it.isLetterOrDigit() && it.code < 128 || it == '.' || it == '-' || it == ':' || it == '_' }) continue
             if (PretokPravila.gostiteljPrepovedan(n)) continue
+            val b = PretokPravila.bajti(n)
+            if (b != null && lastni.any { PretokPravila.enakNaslov(b, it) }) continue
             izid.add(n)
         }
         return izid

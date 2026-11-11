@@ -1074,7 +1074,7 @@ class CastReceiverService : Service() {
                         }
                         if (vOzadju) return
                     }
-                    Log.i(TAG, "Prejet control.command od $posiljatelj: $dejanje")
+                    Log.i(TAG, "Prejet control.command od ${si.safeer.tv.link.LinkVarnostPravila.oznakaZaDnevnik(posiljatelj)}: $dejanje")
                     mainHandler.post {
                         val krmilnik = mediaController
                         val ospredje = if (krmilnik != null && krmilnikVOspredju) krmilnik as? si.safeer.tv.link.Daljinec.VOspredju else null
@@ -1110,7 +1110,7 @@ class CastReceiverService : Service() {
                     val payload = json.optJSONObject("payload") ?: JSONObject()
                     val besedilo = payload.optString("text", "")
                     val od = imePosiljatelja(json)
-                    Log.i(TAG, "Prejeto besedilo od $od (${besedilo.length} znakov)")
+                    Log.i(TAG, "Prejeto besedilo od ${si.safeer.tv.link.LinkVarnostPravila.oznakaZaDnevnik(json.optString("sender", ""))} (${besedilo.length} znakov)")
                     // Okno v brskalniku se po pol minute zapre samo, napis na zaslonu po nekaj sekundah. Besedilo zato
                     // shranimo v Sporocila (pogovor s to napravo), kjer ga uporabnik najde in kopira tudi pozneje;
                     // obvestilo dobi, kadar okna ni. Safeer Browser TV Sporocil nima.
@@ -1141,7 +1141,7 @@ class CastReceiverService : Service() {
                         val pot = payload.optString("path", "")
                         val url = if (pot.startsWith("/")) hubHttpOsnova() + pot else payload.optString("url", "")
                         if (si.safeer.tv.SpletVarnostPravila.vhodniNaslov(url, si.safeer.tv.SpletVarnostPravila.Vhod.LINK)) {
-                            Log.i(TAG, "Deljenje zaslona od $od: ${si.safeer.tv.os.Zasebno.zaDnevnik(url)}")
+                            Log.i(TAG, "Deljenje zaslona od ${si.safeer.tv.link.LinkVarnostPravila.oznakaZaDnevnik(json.optString("sender", ""))}: ${si.safeer.tv.os.Zasebno.zaDnevnik(url)}")
                             mainHandler.post {
                                 val krmilnik = mediaController
                                 if (krmilnik != null && krmilnikVOspredju) krmilnik.onShareScreenStarted(url, od)
@@ -1251,10 +1251,10 @@ class CastReceiverService : Service() {
                 }
                 if (!cela) throw java.io.IOException(razlog)
                 val cilj = HubTokovi.vKoncnoIme(delno, mapa, varno)
-                Log.i(TAG, "Datoteka $ime je prenesena v ${cilj.parent}")
+                Log.i(TAG, "Datoteka je prenesena")
                 mainHandler.post { javiDatoteko(cilj.name, cilj, od) }
             } catch (e: Exception) {
-                Log.w(TAG, "Datoteke $ime ni bilo mogoce prevzeti: ${e.message}")
+                Log.w(TAG, "Datoteke ni bilo mogoce prevzeti: ${e.javaClass.simpleName}")
                 try { delno?.delete() } catch (_: Exception) { }
                 mainHandler.post { pokaziSporocilo("📁 $od", "Datoteke $ime ni bilo mogoče prevzeti.") }
             }

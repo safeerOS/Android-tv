@@ -44,12 +44,20 @@ private fun sprejemZvoka(izvorna: String) {
     preveri("neveljavni zapisi odpadejo", P.nasloviZvoka("a b", listOf("x/y", "ime@gost", "", "  ", "a".repeat(300))).isEmpty())
     preveri("ime in IPv6 v domacem omrezju ostaneta", P.nasloviZvoka("racunalnik.lan", listOf("fd00::5")) == listOf("racunalnik.lan", "fd00::5"))
     preveri("prepovedani ne zasedejo mest veljavnim", P.nasloviZvoka("127.0.0.1", listOf("localhost", "192.168.1.9")) == listOf("192.168.1.9"))
+    // Pregled apk-24 (N6): lastni naslov te naprave odpade (commit 2d7bea54 je to trdil, koda ne).
+    val moj = listOf(byteArrayOf(192.toByte(), 168.toByte(), 1, 77), java.net.InetAddress.getByName("fd00::77").address)
+    preveri("lastni naslov IPv4 odpade, drugi ostane", P.nasloviZvoka("192.168.1.77", listOf("192.168.1.5"), moj) == listOf("192.168.1.5"))
+    preveri("lastni naslov kot preslikani IPv4 v IPv6 odpade", P.nasloviZvoka("::ffff:192.168.1.77", listOf("192.168.1.5"), moj) == listOf("192.168.1.5"))
+    preveri("lastni naslov IPv6 (drug zapis) odpade", P.nasloviZvoka("[fd00:0:0:0:0:0:0:77]", listOf("fd00::5"), moj) == listOf("fd00::5"))
+    preveri("lastni naslov ne zaseda mesta", P.nasloviZvoka("192.168.1.77", (1..10).map { "10.0.0.$it" }, moj).size == P.NAJVEC_NASLOVOV_ZVOKA)
+    preveri("brez lastnih naslovov deluje kot prej", P.nasloviZvoka("192.168.1.77", emptyList()) == listOf("192.168.1.77"))
+    preveri("ime se ne izloci (brez DNS)", P.nasloviZvoka("racunalnik.lan", emptyList(), moj) == listOf("racunalnik.lan"))
     preveri("rok se ni mimo", !P.rokPotekel(1000L, 1000L + P.ROK_GLAVE_ZVOKA_MS - 1, P.ROK_GLAVE_ZVOKA_MS))
     preveri("rok je mimo", P.rokPotekel(1000L, 1000L + P.ROK_GLAVE_ZVOKA_MS, P.ROK_GLAVE_ZVOKA_MS))
     preveri("ura nazaj steje kot mimo", P.rokPotekel(1000L, 999L, P.ROK_GLAVE_ZVOKA_MS))
     if (izvorna.isEmpty()) return
     val zvok = vir(izvorna, "si/safeer/tv/link/ZvokSprejemnik.kt")
-    preveri("ZvokSprejemnik naslove omeji s pravilom", zvok.contains("val naslovi = LinkVarnostPravila.nasloviZvoka(p.optString(\"host\", \"\"), surovi)"))
+    preveri("ZvokSprejemnik naslove omeji s pravilom", zvok.contains("val naslovi = LinkVarnostPravila.nasloviZvoka(p.optString(\"host\", \"\"), surovi, lastniNaslovi())"))
     preveri("ZvokSprejemnik glavo bere s skupnim rokom", zvok.contains("LinkVarnostPravila.rokPotekel(zacetek,") && zvok.contains("if (potekel()) throw java.net.SocketTimeoutException"))
 }
 
@@ -78,6 +86,39 @@ private fun dnevnik(izvorna: String) {
         val slabe = vir(izvorna, "si/safeer/tv/link/$ime").lines().filter { it.contains("Log.") && prepovedano.any { p -> it.contains(p) } }
         preveri("$ime: dnevnik brez imen datotek, polnih oznak in zetonov (${slabe.size})", slabe.isEmpty())
     }
+}
+
+/**
+ * Pregled apk-24, S1: tudi v cast/ (Dostop, CastReceiverService, HubKrmilnik, HubUsmerjevalnik) dnevnik brez polnih oznak
+ * naprav, imen datotek in map; oznaka samo prek [LinkVarnostPravila.oznakaZaDnevnik]. Vrstice z dnevnikom, iz katerih
+ * odstranimo klice oznakaZaDnevnik(...), ne smejo vec vsebovati teh spremenljivk.
+ */
+private fun dnevnikCast(izvorna: String) {
+    if (izvorna.isEmpty()) return
+    val slab = Regex("""\$\{?(posiljatelj|od|ime|pot|cilj|sender)\b|\.parent\b|\bit\.id\b""")
+    val klic = Regex("""(oznakaZaDnevnik|OznakaDnevnik\.oznaka)\([^)]*\)""")
+    for (ime in listOf("Dostop.kt", "CastReceiverService.kt", "HubKrmilnik.kt", "HubUsmerjevalnik.kt")) {
+        val slabe = vir(izvorna, "si/safeer/tv/cast/$ime").lines()
+            .filter { Regex("""\bLog\.[a-z]\(""").containsMatchIn(it) && slab.containsMatchIn(klic.replace(it, "X")) }
+        preveri("$ime: dnevnik brez polnih oznak, imen datotek in map (${slabe.size}: ${slabe.map { it.trim().take(60) }})", slabe.isEmpty())
+    }
+    preveri("HubUsmerjevalnik (Link Core za telefon) ne pozna link/", !vir(izvorna, "si/safeer/tv/cast/HubUsmerjevalnik.kt").contains("si.safeer.tv.link"))
+    val prevzem = vir(izvorna, "si/safeer/tv/cast/CastReceiverService.kt")
+    preveri("prevzem datoteke v dnevniku brez besedila izjeme", !prevzem.contains("ni bilo mogoce prevzeti: \${e.message}"))
+}
+
+/** Pregled apk-24, S3: napaka toka video.stream je koda, ne besedilo izjeme. */
+private fun napakaToka(izvorna: String) {
+    val P = LinkVarnostPravila
+    val k1 = P.napakaToka(java.io.IOException("Connection refused: /192.168.1.5:22"))
+    preveri("povezava zavrnjena: koda, ne besedilo", k1 == PrenosPravila.KODA_PRENOS && !k1.contains("192.168") && !k1.contains("refused"))
+    preveri("timeout: koda, ne besedilo", P.napakaToka(java.net.SocketTimeoutException("connect timed out")) == PrenosPravila.KODA_PRENOS)
+    preveri("izjema s praznim sporocilom je neprazna koda (prazno = tok se tece)", P.napakaToka(RuntimeException("")).isNotBlank() && P.napakaToka(RuntimeException()).isNotBlank())
+    preveri("nedovoljen cilj ostane svoja koda", P.napakaToka(RuntimeException("x", PretokHttp.NedovoljenCilj("nedovoljen_cilj"))) == PrenosPravila.KODA_CILJ)
+    preveri("nasa napaka ohrani kodo", P.napakaToka(PrenosPravila.Napaka(PrenosPravila.KODA_UJEMANJE)) == PrenosPravila.KODA_UJEMANJE)
+    if (izvorna.isEmpty()) return
+    val pretok = vir(izvorna, "si/safeer/tv/link/Pretok.kt")
+    preveri("Pretok v polje napaka ne pise besedila izjeme", !pretok.contains("t.napaka = e.message") && pretok.contains("t.napaka = LinkVarnostPravila.napakaToka(e)"))
 }
 
 /** 2.1: files.search ima isto dvojno preverbo umika kot files.list. */
@@ -111,6 +152,8 @@ fun main(args: Array<String>) {
     odstranitevPrenosa(izvorna)    // 2.2
     sprejemZvoka(izvorna)          // 2.4
     dnevnik(izvorna)               // 4.1
+    dnevnikCast(izvorna)           // apk-24 S1
+    napakaToka(izvorna)            // apk-24 S3
     iskanje(izvorna)               // 2.1
     casKlepeta(izvorna)            // 3.1
     println("LinkVarnostPravilaTest: OK ($preverb preverb)")

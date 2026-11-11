@@ -43,6 +43,10 @@ object PretokPravila {
         return null
     }
 
+    /** Isti naslov IP; preslikani IPv4 v IPv6 (::ffff:a.b.c.d) je enak svojemu IPv4. */
+    fun enakNaslov(a: ByteArray, b: ByteArray): Boolean =
+        (v4IzV6(a) ?: a).contentEquals(v4IzV6(b) ?: b)
+
     /** Prepovedan naslov IP (bajti): zanka, povezavno-lokalni, vecvrstni, nedoloceni, rezervirani. */
     fun prepovedan(b: ByteArray): Boolean {
         val v4 = if (b.size == 4) b else v4IzV6(b)
