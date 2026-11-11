@@ -421,6 +421,17 @@
     <string name="os_predpomnilnik_pocisti_vprasanje">Gespeicherte Poster, Kataloge und Listen auf diesem Fernseher und USB löschen? Sie werden erneut aus dem Internet geladen.</string>
     <string name="os_predpomnilnik_pociscen">Zwischenspeicher geleert.</string>
     <string name="os_predpomnilnik_preverjam">Geräte werden geprüft …</string>
+    <string name="os_disk_uporablja">Laufwerk in Benutzung · Schreiben %1$.0f MB/s</string>
+    <string name="os_disk_merim">Laufwerksgeschwindigkeit wird getestet …</string>
+    <string name="os_disk_postavka_nepodprt">Laufwerk nicht unterstützt · für Hilfe drücken</string>
+    <string name="os_disk_nepodprt">„%1$s“ nutzt ein Dateisystem, das dieser Fernseher nicht lesen kann (z. B. exFAT). Formatieren Sie es in den Speichereinstellungen des Fernsehers als FAT32 oder ext4. ACHTUNG: Beim Formatieren wird ALLES auf dem Laufwerk gelöscht. Ohne Laufwerk funktioniert alles wie bisher.</string>
+    <string name="os_disk_odpri_nastavitve">Speichereinstellungen öffnen</string>
+    <string name="os_disk_postavka_prepocasen">Laufwerk zu langsam · für Details drücken</string>
+    <string name="os_disk_prepocasen">Das Laufwerk schreibt mit %1$.0f MB/s; für eine Beschleunigung sind mindestens %2$.0f MB/s nötig. Der Fernseher nutzt weiter seinen eigenen Speicher, nichts geht verloren.</string>
+    <string name="os_disk_postavka_ni_pisljiv">Laufwerk ist schreibgeschützt · für Details drücken</string>
+    <string name="os_disk_ni_pisljiv">Der Fernseher kann nicht auf das Laufwerk schreiben (schreibgeschützt oder gesperrt). Der Cache bleibt auf dem Fernseher.</string>
+    <string name="os_disk_postavka_premalo_prostora">Laufwerk fast voll · für Details drücken</string>
+    <string name="os_disk_premalo_prostora">Auf dem Laufwerk sind weniger als 1 GB frei. Der Cache bleibt auf dem Fernseher.</string>
     <!-- Naloga 88 -->
     <string name="os_media_kanal_ni_dosegljiv">%1$s ist derzeit nicht erreichbar.</string>
     <string name="os_media_glasba_samo_seznami">Deine Wiedergabelisten sind oben. Füge eine Quelle für mehr Musik hinzu.</string>

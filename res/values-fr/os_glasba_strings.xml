@@ -422,6 +422,17 @@
     <string name="os_predpomnilnik_pocisti_vprasanje">Supprimer les affiches, catalogues et listes enregistrés sur ce téléviseur et la clé USB ? Ils seront rechargés depuis Internet.</string>
     <string name="os_predpomnilnik_pociscen">Cache vidé.</string>
     <string name="os_predpomnilnik_preverjam">Vérification des appareils…</string>
+    <string name="os_disk_uporablja">Disque utilisé · écriture %1$.0f Mo/s</string>
+    <string name="os_disk_merim">Test de la vitesse du disque…</string>
+    <string name="os_disk_postavka_nepodprt">Disque non pris en charge · appuyez pour l’aide</string>
+    <string name="os_disk_nepodprt">« %1$s » utilise un système de fichiers que ce téléviseur ne sait pas lire (par exemple exFAT). Formatez-le en FAT32 ou ext4 dans les paramètres de stockage du téléviseur. ATTENTION : le formatage efface TOUT le contenu du disque. Sans le disque, tout fonctionne comme avant.</string>
+    <string name="os_disk_odpri_nastavitve">Ouvrir les paramètres de stockage</string>
+    <string name="os_disk_postavka_prepocasen">Disque trop lent · appuyez pour les détails</string>
+    <string name="os_disk_prepocasen">Le disque écrit à %1$.0f Mo/s ; au moins %2$.0f Mo/s sont nécessaires pour accélérer. Le téléviseur continue d’utiliser sa propre mémoire, rien n’est perdu.</string>
+    <string name="os_disk_postavka_ni_pisljiv">Disque en lecture seule · appuyez pour les détails</string>
+    <string name="os_disk_ni_pisljiv">Le téléviseur ne peut pas écrire sur le disque (lecture seule ou protégé). Le cache reste sur le téléviseur.</string>
+    <string name="os_disk_postavka_premalo_prostora">Disque presque plein · appuyez pour les détails</string>
+    <string name="os_disk_premalo_prostora">Il reste moins de 1 Go sur le disque. Le cache reste sur le téléviseur.</string>
     <!-- Naloga 88 -->
     <string name="os_media_kanal_ni_dosegljiv">%1$s n’est pas disponible pour le moment.</string>
     <string name="os_media_glasba_samo_seznami">Tes playlists sont au-dessus. Ajoute une source pour plus de musique.</string>

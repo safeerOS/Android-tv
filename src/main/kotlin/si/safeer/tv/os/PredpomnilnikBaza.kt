@@ -43,6 +43,8 @@ class PredpomnilnikBaza(private val datoteka: File, private val obNapaki: () -> 
                     b.execSQL("PRAGMA synchronous=NORMAL")
                     b.execSQL("CREATE TABLE IF NOT EXISTS vnosi(kljuc TEXT PRIMARY KEY, vrsta TEXT NOT NULL, bajti BLOB, datoteka TEXT, " +
                         "velikost INTEGER NOT NULL, ustvarjeno INTEGER NOT NULL, zadnja_uporaba INTEGER NOT NULL, poteka INTEGER NOT NULL)")
+                    // Odtis vsebine (SHA-256): isti odtis se ne zapise znova. Stara baza stolpca nima - dodamo ga (napaka = ze obstaja).
+                    try { b.execSQL("ALTER TABLE vnosi ADD COLUMN odtis TEXT") } catch (_: Throwable) { }
                     b.execSQL("CREATE INDEX IF NOT EXISTS vnosi_uporaba ON vnosi(zadnja_uporaba)")
                     b.execSQL("CREATE INDEX IF NOT EXISTS vnosi_poteka ON vnosi(poteka)")
                     baza = b
@@ -97,9 +99,27 @@ class PredpomnilnikBaza(private val datoteka: File, private val obNapaki: () -> 
     /** Shrani v ozadju (ena nit za pisanje); [ustvarjeno] = cas vsebine (za veljavnost pri branju). */
     fun shrani(kljuc: String, vrsta: String, bajti: ByteArray, ustvarjeno: Long = System.currentTimeMillis(), poZapisu: (Long) -> Unit = {}) {
         if (bajti.isEmpty()) return
+        val odtis = PredpomnilnikPravila.odtisVsebine(bajti)
         pisi { b ->
             val zdaj = System.currentTimeMillis()
+            var starOdtis: String? = null; var staroUst = 0L; var vsebinaOk = false
+            b.rawQuery("SELECT odtis, ustvarjeno, bajti IS NOT NULL, datoteka FROM vnosi WHERE kljuc = ?", arrayOf(kljuc)).use { c ->
+                if (c.moveToFirst()) {
+                    starOdtis = c.getString(0); staroUst = c.getLong(1)
+                    vsebinaOk = c.getInt(2) == 1 || (!c.isNull(3) && File(mapaVelikih, c.getString(3)).isFile)
+                }
+            }
+            when (PredpomnilnikPravila.kajZapisati(starOdtis, vsebinaOk, odtis, staroUst, ustvarjeno)) {
+                PredpomnilnikPravila.Zapis.NIC -> return@pisi
+                PredpomnilnikPravila.Zapis.SAMO_OSVEZI -> {
+                    b.execSQL("UPDATE vnosi SET ustvarjeno = ?, poteka = ?, zadnja_uporaba = ? WHERE kljuc = ?",
+                        arrayOf<Any>(ustvarjeno, PredpomnilnikPravila.poteka(vrsta, ustvarjeno), zdaj, kljuc))
+                    return@pisi
+                }
+                PredpomnilnikPravila.Zapis.NOV -> Unit
+            }
             val v = ContentValues().apply {
+                put("odtis", odtis)
                 put("kljuc", kljuc); put("vrsta", vrsta); put("velikost", bajti.size.toLong())
                 put("ustvarjeno", ustvarjeno); put("zadnja_uporaba", zdaj); put("poteka", PredpomnilnikPravila.poteka(vrsta, ustvarjeno))
             }

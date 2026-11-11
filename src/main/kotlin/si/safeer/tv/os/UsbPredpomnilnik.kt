@@ -208,8 +208,20 @@ object UsbPredpomnilnik {
                     if (priklopljen && odstranljiv && prej?.path == nas.path) stanje.zasedenoUsb else 0L)
             }
         } catch (_: Throwable) { emptyList() }
-        val izbran = PredpomnilnikPravila.izberi(mesto(app).nacin, kandidati)
-        usbPriklopljen = kandidati.firstOrNull { it.odstranljiv && it.priklopljen }
+        // Lastnik 11. 11. 2026: disk uporabimo samo, ce je pisljiv in dovolj hiter (preizkus zapisa 32 MiB, [DiskPravila]).
+        val hitrosti = kandidati.associate { it.pot to hitrostZapisa(app, it.pot) }
+        val nosilci = kandidati.filter { it.odstranljiv }.map { k ->
+            val m = hitrosti[k.pot]
+            DiskPravila.Nosilec(true, if (k.priklopljen) "mounted" else "unmounted", m?.first ?: (k.priklopljen && try { File(k.pot).canWrite() } catch (_: Throwable) { false }),
+                k.prostih, k.nasih, m?.second)
+        } + nepodprtiNosilci(app)
+        val ocena = DiskPravila.oceni(mesto(app).nacin != PredpomnilnikPravila.Nacin.SAMODEJNO, nosilci)
+        razlog = ocena
+        val izmerjeni = hitrosti.values.mapNotNull { it?.second }
+        hitrostMbs = izmerjeni.maxOrNull()
+        if (ocena == DiskPravila.Razlog.MERIM) kandidati.firstOrNull { it.odstranljiv && it.priklopljen && hitrosti[it.pot] == null }?.let { zacniMeritev(app, it.pot) }
+        val primerni = kandidati.filter { !it.odstranljiv || hitrosti[it.pot]?.let { m -> m.first && DiskPravila.dovoljHiter(m.second) } == true }
+        val izbran = PredpomnilnikPravila.izberi(mesto(app).nacin, primerni)
         val nov = izbran?.let { File(it.pot, MAPA) }?.takeIf { try { it.mkdirs() || it.isDirectory } catch (_: Throwable) { false } }
         meja = izbran?.let { PredpomnilnikPravila.meja(velikostGb(app), it) } ?: 0L
         koren = nov
@@ -226,6 +238,50 @@ object UsbPredpomnilnik {
     private fun prilagodiPomnilnik(usb: Boolean) {
         try { GlasbaActivity.prilagodiPomnilnik(usb); Stremio.prilagodiPomnilnik(usb) } catch (_: Throwable) { }
         android.util.Log.i("SafeerOsMedia", "predpomnilnik: meje v pomnilniku " + if (usb) "za USB" else "kot brez USB")
+    }
+
+    /** Zakaj disk je ali ni v uporabi (za sporocilo v nastavitvah); posodobi [preveri]. */
+    @Volatile var razlog: DiskPravila.Razlog = DiskPravila.Razlog.NI_DISKA
+        private set
+    /** Najboljsa izmerjena hitrost zapisa priklopljenega diska (MB/s) ali null. */
+    @Volatile var hitrostMbs: Double? = null
+        private set
+    /** Natancen napis nosilca, ki ga TV ne more priklopiti (npr. exFAT), sicer null. */
+    @Volatile var nepodprtOpis: String? = null
+        private set
+    @Volatile private var merim = false
+
+    /** (pisljiv, MB/s) iz zadnje veljavne meritve za [pot] ali null (se ni merjeno ali zastarelo). */
+    private fun hitrostZapisa(app: Context, pot: String): Pair<Boolean, Double>? {
+        val p = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (!DiskPravila.meritevVelja(p.getLong("mbs_ob:$pot", 0L), System.currentTimeMillis())) return null
+        return p.getBoolean("pis:$pot", false) to p.getFloat("mbs:$pot", 0f).toDouble()
+    }
+
+    /** Preizkus hitrosti v ozadju (na niti [delo]); po koncu preverba znova. Dokler tece, disk ni v uporabi. */
+    private fun zacniMeritev(app: Context, pot: String) {
+        if (merim) return
+        merim = true
+        try { delo.execute {
+            try {
+                val r = DiskPreizkus.izmeri(File(pot, MAPA))
+                app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                    .putLong("mbs_ob:$pot", System.currentTimeMillis()).putBoolean("pis:$pot", r.pisljiv).putFloat("mbs:$pot", r.mbs.toFloat()).apply()
+                android.util.Log.i("SafeerOsMedia", "disk: preizkus zapisa pisljiv=${r.pisljiv}, ${"%.1f".format(r.mbs)} MB/s (prag ${DiskPravila.PRAG_ZAPISA_MBS})")
+            } catch (_: Throwable) { } finally { merim = false }
+            preverjenOb = 0L
+            osveziStanje(app)
+        } } catch (_: java.util.concurrent.RejectedExecutionException) { merim = false }
+    }
+
+    /** Odstranljivi nosilci, ki jih sistem pozna, a ne more priklopiti (exFAT na tem TV); opis = natancen napis naprave. */
+    private fun nepodprtiNosilci(app: Context): List<DiskPravila.Nosilec> {
+        val vol = try {
+            app.getSystemService(android.os.storage.StorageManager::class.java)?.storageVolumes.orEmpty()
+                .filter { it.isRemovable && DiskPravila.stanjeNepodprt(it.state) }
+        } catch (_: Throwable) { emptyList() }
+        nepodprtOpis = vol.firstOrNull()?.let { try { it.getDescription(app) } catch (_: Throwable) { null } }
+        return vol.map { DiskPravila.Nosilec(true, "unmountable", false, 0L, 0L, null) }
     }
 
     /** Sistemska obvestila o priklopu in odklopu: naslednja [mapa] preveri takoj. */

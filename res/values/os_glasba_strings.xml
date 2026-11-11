@@ -420,6 +420,17 @@
     <string name="os_predpomnilnik_pocisti_vprasanje">Delete saved posters, catalogues and lists on this TV and USB? They will load again from the internet.</string>
     <string name="os_predpomnilnik_pociscen">Cache cleared.</string>
     <string name="os_predpomnilnik_preverjam">Checking devices…</string>
+    <string name="os_disk_uporablja">Disk in use · writes %1$.0f MB/s</string>
+    <string name="os_disk_merim">Testing the disk speed…</string>
+    <string name="os_disk_postavka_nepodprt">Disk not supported · tap for help</string>
+    <string name="os_disk_nepodprt">“%1$s” uses a file system this TV cannot read (for example exFAT). Format it as FAT32 or ext4 in the TV storage settings. WARNING: formatting erases EVERYTHING on the disk. Without the disk everything works as before.</string>
+    <string name="os_disk_odpri_nastavitve">Open storage settings</string>
+    <string name="os_disk_postavka_prepocasen">Disk too slow · tap for details</string>
+    <string name="os_disk_prepocasen">The disk writes at %1$.0f MB/s; at least %2$.0f MB/s is needed to speed things up. The TV keeps using its own memory, nothing is lost.</string>
+    <string name="os_disk_postavka_ni_pisljiv">Disk is read-only · tap for details</string>
+    <string name="os_disk_ni_pisljiv">The TV cannot write to the disk (it is read-only or protected). The cache stays on the TV.</string>
+    <string name="os_disk_postavka_premalo_prostora">Disk is almost full · tap for details</string>
+    <string name="os_disk_premalo_prostora">The disk has less than 1 GB free. The cache stays on the TV.</string>
     <!-- Naloga 88 -->
     <string name="os_media_kanal_ni_dosegljiv">%1$s is not available right now.</string>
     <string name="os_media_glasba_samo_seznami">Your playlists are above. Add a source for more music.</string>

@@ -422,6 +422,17 @@
     <string name="os_predpomnilnik_pocisti_vprasanje">Eliminare locandine, cataloghi ed elenchi salvati su questo televisore e sulla USB? Verranno ricaricati da Internet.</string>
     <string name="os_predpomnilnik_pociscen">Cache svuotata.</string>
     <string name="os_predpomnilnik_preverjam">Verifica dei dispositivi…</string>
+    <string name="os_disk_uporablja">Disco in uso · scrittura %1$.0f MB/s</string>
+    <string name="os_disk_merim">Test della velocità del disco…</string>
+    <string name="os_disk_postavka_nepodprt">Disco non supportato · premi per aiuto</string>
+    <string name="os_disk_nepodprt">«%1$s» usa un file system che questo televisore non riesce a leggere (ad esempio exFAT). Formattalo come FAT32 o ext4 nelle impostazioni di archiviazione del televisore. ATTENZIONE: la formattazione cancella TUTTO sul disco. Senza il disco tutto funziona come prima.</string>
+    <string name="os_disk_odpri_nastavitve">Apri impostazioni di archiviazione</string>
+    <string name="os_disk_postavka_prepocasen">Disco troppo lento · premi per i dettagli</string>
+    <string name="os_disk_prepocasen">Il disco scrive a %1$.0f MB/s; per velocizzare servono almeno %2$.0f MB/s. Il televisore continua a usare la propria memoria, nulla va perso.</string>
+    <string name="os_disk_postavka_ni_pisljiv">Disco di sola lettura · premi per i dettagli</string>
+    <string name="os_disk_ni_pisljiv">Il televisore non può scrivere sul disco (sola lettura o protetto). La cache resta sul televisore.</string>
+    <string name="os_disk_postavka_premalo_prostora">Disco quasi pieno · premi per i dettagli</string>
+    <string name="os_disk_premalo_prostora">Sul disco restano meno di 1 GB. La cache resta sul televisore.</string>
     <!-- Naloga 88 -->
     <string name="os_media_kanal_ni_dosegljiv">%1$s non è disponibile al momento.</string>
     <string name="os_media_glasba_samo_seznami">Le tue playlist sono qui sopra. Aggiungi una fonte per altra musica.</string>
