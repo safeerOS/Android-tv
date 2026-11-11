@@ -8842,7 +8842,7 @@ class GlasbaActivity : OsActivity() {
         if (sk !== sk0) { predvajaj(seznam.mapIndexed { j, x -> if (j == i) sk else x }, i, izNedavnih); return }
         if (TvVZivo.jeStran(sk)) {
             // Izdajatelj prenos ponuja samo na svoji strani (RTV SLO): odpremo jo v brskalniku.
-            try { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(sk.povezava))) } catch (_: Exception) { }
+            try { startActivity(Brskalnik.iskanje(this, sk.povezava)) } catch (_: Exception) { }
             return
         }
         // Oddaja podkasta in dodani seznam se odpreta kot seznam; enoto Archive.org razresimo v datoteke.
