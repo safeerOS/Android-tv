@@ -1788,8 +1788,16 @@
                 }
                 return bilo;
             }
+            // Meritev lastne cene (11. 11. 2026, 24ur.com na TV: renderer 73-90 % jedra, v TV Bro 41-45 %): koliko casa glavne niti
+            // porabijo nasi opazovalci in casovniki. Samo stevci, izpis enkrat po 8 s in 20 s (porociPerf, H55); brez vpliva na vedenje.
+            var merCas = function () { try { return performance.now(); } catch (_) { return Date.now(); } };
+            var merStat = { moMs: 0, moZapisov: 0, moKlicev: 0, mkfMs: 0, mkfKlicev: 0, spcMs: 0, spcKlicev: 0 };
             try {
-                kandOpazovalec = new MutationObserver(function (zapisi) { if (zapisiStrani(zapisi, false)) domRazlicica++; });
+                kandOpazovalec = new MutationObserver(function (zapisi) {
+                    var t0 = merCas();
+                    try { if (zapisiStrani(zapisi, false)) domRazlicica++; }
+                    finally { merStat.moMs += merCas() - t0; merStat.moZapisov += zapisi.length; merStat.moKlicev++; }
+                });
                 kandOpazovalec.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeOldValue: true,
                     attributeFilter: ['class', 'style', 'hidden', 'aria-hidden', 'aria-expanded', 'disabled', 'open', 'tabindex', 'href', 'role', 'inert'] });
                 window.addEventListener('scroll', function () { drsenjeRazlicica++; }, { capture: true, passive: true });
@@ -2345,6 +2353,10 @@
             var zadnjiOkvirObroca = null;
 
             function spremljajCiljObroca() {
+                var t0 = merCas();
+                try { spremljajCiljObrocaJedro(); } finally { merStat.spcMs += merCas() - t0; merStat.spcKlicev++; }
+            }
+            function spremljajCiljObrocaJedro() {
                 try {
                     var el = izbrani();
                     if (!el) {
@@ -3882,6 +3894,10 @@
             // 5. Samodejno dodajanje tabindex. Piskotkov ne sprejemamo in ne zavracamo namesto uporabnika
             // (lastnik, 3. 11. 2026): izbira je vedno njegova, daljinec mora le doseci gumbe okna.
             function makeElementsFocusable() {
+                var t0 = merCas();
+                try { makeElementsFocusableJedro(); } finally { merStat.mkfMs += merCas() - t0; merStat.mkfKlicev++; }
+            }
+            function makeElementsFocusableJedro() {
                 try {
                     vstopiVNovoPlast();
                     var napisanih = 0;
@@ -3943,4 +3959,29 @@
                     }
                 }, 80);
             } catch(_) {}
+
+            // H55: cas nalaganja in cena nasih skript, da se pocasna stran izmeri na napravi brez DevTools (en izpis po 8 s, drugi po 20 s).
+            var perfLCP = 0, perfDolgih = 0, perfDolgihMs = 0, perfN = 0;
+            try {
+                new PerformanceObserver(function (l) { var e = l.getEntries(); if (e.length) perfLCP = e[e.length - 1].startTime; }).observe({ type: 'largest-contentful-paint', buffered: true });
+                new PerformanceObserver(function (l) { l.getEntries().forEach(function (e) { perfDolgih++; perfDolgihMs += e.duration; }); }).observe({ type: 'longtask', buffered: true });
+            } catch (_) {}
+            function porociPerf(oznaka) {
+                try {
+                    if (perfN++ >= 2 || !window._safeerDbg) return;
+                    var nav = (performance.getEntriesByType('navigation') || [])[0] || {};
+                    var fcp = 0;
+                    (performance.getEntriesByType('paint') || []).forEach(function (p) { if (p.name === 'first-contentful-paint') fcp = p.startTime; });
+                    var r = function (x) { return Math.round(x); };
+                    window._safeerDbg('H55', 'tv_spatial.js:perf', oznaka, {
+                        ttfb: r(nav.responseStart || 0), dcl: r(nav.domContentLoadedEventEnd || 0), load: r(nav.loadEventEnd || 0),
+                        fcp: r(fcp), lcp: r(perfLCP), dolgih: perfDolgih, dolgihMs: r(perfDolgihMs),
+                        moMs: r(merStat.moMs), moZapisov: merStat.moZapisov, moKlicev: merStat.moKlicev,
+                        mkfMs: r(merStat.mkfMs), mkfKlicev: merStat.mkfKlicev, spcMs: r(merStat.spcMs), spcKlicev: merStat.spcKlicev,
+                        elementov: document.getElementsByTagName('*').length
+                    });
+                } catch (_) {}
+            }
+            setTimeout(function () { porociPerf('8s'); }, 8000);
+            setTimeout(function () { porociPerf('20s'); }, 20000);
         })();
