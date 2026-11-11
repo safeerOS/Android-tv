@@ -81,7 +81,7 @@ object CosmeticFilterEngine {
      * Zgradi strnjen CSS niz za injiciranje v spletno stran.
      */
     fun buildCosmeticCss(pageUrl: String? = null): String {
-        if (!isEnabled) return ""
+        if (!isEnabled || AbStikala.stikala.cssIzklop) return ""
         // Pravila iz seznamov (EasyList in drugi), vezana na to domeno. Doslej smo jih
         // prenesli in zavrgli; zaradi njih so na tujih straneh ostajale prazne luknje.
         val listRules = try {

@@ -1264,6 +1264,8 @@ object UserScriptManager {
                 webView.evaluateJavascript("try{if(window.__safeerMedijObserver){window.__safeerMedijObserver.disconnect();window.__safeerMedijObserver=null;}}catch(e){}", null)
             }
         }
+        // A/B stikalo anim=off (samo meritev, adb setprop): brez animacij in prehodov na strani.
+        if (AbStikala.stikala.animIzklop) injectCss(webView, "*, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }", "safeer-ab-anim")
         webView.evaluateJavascript(GPC_AND_DNT_JS, null)
         // Scit postavimo le, kadar je preprecevanje pojavnih oken vklopljeno; kdor ga v meniju
         // izklopi, mora dobiti brskalnik, ki se vede povsem obicajno.
@@ -1291,7 +1293,7 @@ object UserScriptManager {
         }
         webView.evaluateJavascript(siteAgentJs(webView), null)
         // Navigacija z daljincem samo na televizorju; na dotik bi fokus samo motil.
-        if (!((webView as? ChromiumEngineView)?.dotik ?: ChromiumEngineView.naDotik(webView.context))) webView.evaluateJavascript(tvSpatialJs(webView), null)
+        if (!AbStikala.stikala.spatialIzklop && !((webView as? ChromiumEngineView)?.dotik ?: ChromiumEngineView.naDotik(webView.context))) webView.evaluateJavascript(tvSpatialJs(webView), null)
         // Facebook na televizorju: brez stalnih namigov in brez sponzoriranih objav (lastnik 29. 10. 2026).
         if (!home && !bank && isFacebookUrl(target) &&
             !((webView as? ChromiumEngineView)?.dotik ?: ChromiumEngineView.naDotik(webView.context))) {
