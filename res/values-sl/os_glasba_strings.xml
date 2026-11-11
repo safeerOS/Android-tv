@@ -422,6 +422,17 @@
     <string name="os_predpomnilnik_pocisti_vprasanje">Izbrišem shranjene plakate, kataloge in sezname na tem TV in USB? Znova se bodo naložili z interneta.</string>
     <string name="os_predpomnilnik_pociscen">Predpomnilnik je počiščen.</string>
     <string name="os_predpomnilnik_preverjam">Preverjam naprave …</string>
+    <string name="os_disk_uporablja">Disk v uporabi · zapis %1$.0f MB/s</string>
+    <string name="os_disk_merim">Preizkušam hitrost diska …</string>
+    <string name="os_disk_postavka_nepodprt">Disk ni podprt · pritisnite za pomoč</string>
+    <string name="os_disk_nepodprt">»%1$s« uporablja datotečni sistem, ki ga ta TV ne zna brati (na primer exFAT). Formatirajte ga v FAT32 ali ext4 v nastavitvah shrambe televizorja. OPOZORILO: formatiranje izbriše VSE na disku. Brez diska vse deluje kot doslej.</string>
+    <string name="os_disk_odpri_nastavitve">Odpri nastavitve shrambe</string>
+    <string name="os_disk_postavka_prepocasen">Disk je prepočasen · pritisnite za podrobnosti</string>
+    <string name="os_disk_prepocasen">Disk piše s hitrostjo %1$.0f MB/s; za pohitritev je potrebnih vsaj %2$.0f MB/s. TV še naprej uporablja svoj pomnilnik, nič se ne izgubi.</string>
+    <string name="os_disk_postavka_ni_pisljiv">Disk je samo za branje · pritisnite za podrobnosti</string>
+    <string name="os_disk_ni_pisljiv">TV ne more pisati na disk (samo za branje ali zaščiten). Predpomnilnik ostane na TV.</string>
+    <string name="os_disk_postavka_premalo_prostora">Disk je skoraj poln · pritisnite za podrobnosti</string>
+    <string name="os_disk_premalo_prostora">Na disku je manj kot 1 GB prostega. Predpomnilnik ostane na TV.</string>
     <!-- Naloga 88 -->
     <string name="os_media_kanal_ni_dosegljiv">%1$s ta čas ni dosegljiv.</string>
     <string name="os_media_glasba_samo_seznami">Tvoji seznami predvajanja so zgoraj. Za več glasbe dodaj vir.</string>

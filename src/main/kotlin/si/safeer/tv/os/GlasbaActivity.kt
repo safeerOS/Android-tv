@@ -10544,7 +10544,7 @@ class GlasbaActivity : OsActivity() {
             PredpomnilnikPravila.Nacin.LINK -> imeNapraveLinka(mesto.naprava)
             PredpomnilnikPravila.Nacin.SAMODEJNO -> getString(R.string.os_predpomnilnik_samodejno)
         }
-        val dejanja = listOf<Pair<String, () -> Unit>>(
+        val dejanja = diskPostavke() + listOf<Pair<String, () -> Unit>>(
             getString(R.string.os_predpomnilnik_mesto, imeMesta) to { izberiMestoPredpomnilnika() },
             getString(R.string.os_predpomnilnik_velikost, UsbPredpomnilnik.velikostGb(this)) to {
                 val v = PredpomnilnikPravila.VELIKOSTI_GB
@@ -10564,6 +10564,37 @@ class GlasbaActivity : OsActivity() {
         AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(getString(R.string.os_predpomnilnik_naslov) + " · " + opisPredpomnilnika())
             .setItems(dejanja.map { it.first }.toTypedArray()) { _, i -> dejanja[i].second() }.show()
         UsbPredpomnilnik.osveziStanje(this)
+    }
+
+    /**
+     * Lastnik 11. 11. 2026: stanje diska v nastavitvah predpomnilnika ([DiskPravila]). Postavka se pokaze SAMO, ko je kaj za
+     * povedati (disk v uporabi, merjenje, nepodprt, prepocasen, ni pisljiv, poln) - brez diska je vmesnik kot doslej.
+     * Formatiranja aplikacija ne izvede sama: za nepodprt nosilec po izrecni potrditvi odpre sistemske nastavitve shrambe.
+     */
+    private fun diskPostavke(): List<Pair<String, () -> Unit>> {
+        val r = UsbPredpomnilnik.razlog
+        val mbs = UsbPredpomnilnik.hitrostMbs ?: 0.0
+        fun podrobnosti(naslov: Int, sporocilo: String, nastavitve: Boolean) {
+            val b = AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(naslov).setMessage(sporocilo)
+                .setNegativeButton(android.R.string.cancel, null)
+            if (nastavitve) b.setPositiveButton(R.string.os_disk_odpri_nastavitve) { _, _ ->
+                if (DiskPravila.smemOdpretiFormatiranje(r, izrecnaPotrditev = true)) try { startActivity(android.content.Intent("android.settings.INTERNAL_STORAGE_SETTINGS").addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) } catch (_: Throwable) { }
+            } else b.setPositiveButton(android.R.string.ok, null)
+            b.show()
+        }
+        return when (r) {
+            DiskPravila.Razlog.UPORABI -> listOf(getString(R.string.os_disk_uporablja, mbs) to { podrobnosti(R.string.os_predpomnilnik_naslov, getString(R.string.os_disk_uporablja, mbs), false) })
+            DiskPravila.Razlog.MERIM -> listOf(getString(R.string.os_disk_merim) to { podrobnosti(R.string.os_predpomnilnik_naslov, getString(R.string.os_disk_merim), false) })
+            DiskPravila.Razlog.NEPODPRT -> listOf(getString(R.string.os_disk_postavka_nepodprt) to {
+                podrobnosti(R.string.os_predpomnilnik_naslov, getString(R.string.os_disk_nepodprt, UsbPredpomnilnik.nepodprtOpis ?: "USB"), true) })
+            DiskPravila.Razlog.PREPOCASEN -> listOf(getString(R.string.os_disk_postavka_prepocasen) to {
+                podrobnosti(R.string.os_predpomnilnik_naslov, getString(R.string.os_disk_prepocasen, mbs, DiskPravila.PRAG_ZAPISA_MBS), false) })
+            DiskPravila.Razlog.NI_PISLJIV -> listOf(getString(R.string.os_disk_postavka_ni_pisljiv) to {
+                podrobnosti(R.string.os_predpomnilnik_naslov, getString(R.string.os_disk_ni_pisljiv), false) })
+            DiskPravila.Razlog.PREMALO_PROSTORA -> listOf(getString(R.string.os_disk_postavka_premalo_prostora) to {
+                podrobnosti(R.string.os_predpomnilnik_naslov, getString(R.string.os_disk_premalo_prostora), false) })
+            else -> emptyList()
+        }
     }
 
     /**

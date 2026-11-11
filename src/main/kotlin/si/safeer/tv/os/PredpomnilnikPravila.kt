@@ -249,6 +249,24 @@ object PredpomnilnikPravila {
     /** Branje zapise cas uporabe (pisanje!) najvec enkrat na uro na vnos - LRU je dovolj natancen, disk pa miruje. */
     fun osveziUporabo(zadnjaUporaba: Long, zdaj: Long): Boolean = zdaj - zadnjaUporaba !in 0 until URA
 
+    /** Kaj ob shranjevanju vnosa, ki ga baza ze ima (lastnik: »isti odtis se ne zapise znova« - disk in USB brez nepotrebnega pisanja). */
+    enum class Zapis { NOV, SAMO_OSVEZI, NIC }
+
+    /** SHA-256 vsebine (sestnajstisko): isti bajti, isti odtis. */
+    fun odtisVsebine(bajti: ByteArray): String =
+        java.security.MessageDigest.getInstance("SHA-256").digest(bajti).joinToString("") { "%02x".format(it) }
+
+    /**
+     * Vnos brez zapisa ([staraVsebinaOk]=false: manjka, ali manjka datoteka velike vrednosti) ali z drugim odtisom: NOV (cel zapis).
+     * Isti odtis in isti cas vsebine: NIC. Isti odtis, novejsa vsebina (znova prenesena): SAMO_OSVEZI (cas veljavnosti, brez
+     * ponovnega pisanja vsebine - pri vecji vrednosti prihrani zapis datoteke).
+     */
+    fun kajZapisati(starOdtis: String?, staraVsebinaOk: Boolean, novOdtis: String, staroUstvarjeno: Long, novoUstvarjeno: Long): Zapis = when {
+        starOdtis == null || !staraVsebinaOk || starOdtis != novOdtis -> Zapis.NOV
+        staroUstvarjeno == novoUstvarjeno -> Zapis.NIC
+        else -> Zapis.SAMO_OSVEZI
+    }
+
     /** Kljuc vnosa: »vrsta/odtis« (odtis SHA-1 naslova ali kljuca police - nikoli naslov sam). */
     fun kljucBaze(vrsta: String, odtis: String): String = "$vrsta/$odtis"
 
