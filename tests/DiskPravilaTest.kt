@@ -45,6 +45,26 @@ fun main() {
     preveriEnako("meritev nikoli ne velja", false, DiskPravila.meritevVelja(0, zdaj))
     preveriEnako("meritev stara 8 dni ne velja", false, DiskPravila.meritevVelja(zdaj - 8L * 24 * 3_600_000, zdaj))
     preveriEnako("meritev iz prihodnosti ne velja", false, DiskPravila.meritevVelja(zdaj + 3 * 24 * 3_600_000L, zdaj))
+    // N2: neuspela ali prekinjena meritev velja kratko, uspela (tudi prepocasen disk) 7 dni.
+    preveriEnako("N2: neuspela meritev od pred 1 minuto velja", true, DiskPravila.meritevVelja(zdaj - 60_000, zdaj, false))
+    preveriEnako("N2: neuspela meritev stara 11 minut ne velja", false, DiskPravila.meritevVelja(zdaj - 11 * 60_000L, zdaj, false))
+    preveriEnako("N2: neuspela meritev stara 1 dan ne velja", false, DiskPravila.meritevVelja(zdaj - 24L * 3_600_000, zdaj, false))
+    preveriEnako("N2: uspela meritev stara 1 dan velja", true, DiskPravila.meritevVelja(zdaj - 24L * 3_600_000, zdaj, true))
+    preveriEnako("N2: uspela meritev stara 6 dni velja", true, DiskPravila.meritevVelja(zdaj - 6L * 24 * 3_600_000, zdaj, true))
+    preveriEnako("N2: neuspela meritev iz prihodnosti ne velja", false, DiskPravila.meritevVelja(zdaj + 3 * 24 * 3_600_000L, zdaj, false))
+    preveriEnako("N2: neuspela meritev nikoli ne velja", false, DiskPravila.meritevVelja(0, zdaj, false))
+
+    println("\n== casovna omejitev meritve (N3) ==")
+    val mapa = java.io.File(System.getProperty("java.io.tmpdir"))
+    val hiter = DiskPreizkus.izmeriZOmejitvijo(mapa, 5_000) { DiskPreizkus.Rezultat(true, 42.0) }
+    preveriEnako("N3: hitra meritev vrne izid", true to 42.0, hiter.pisljiv to hiter.mbs)
+    val t0 = System.nanoTime()
+    val zatik = DiskPreizkus.izmeriZOmejitvijo(mapa, 300) { Thread.sleep(8_000); DiskPreizkus.Rezultat(true, 99.0) }
+    val trajalo = (System.nanoTime() - t0) / 1_000_000
+    preveriEnako("N3: zatik vrne neuspelo", false to 0.0, zatik.pisljiv to zatik.mbs)
+    preveriEnako("N3: klicatelj ni zadrzan dlje od omejitve (< 3 s, trajalo $trajalo ms)", true, trajalo < 3_000)
+    val izjema = DiskPreizkus.izmeriZOmejitvijo(mapa, 5_000) { throw IllegalStateException("odklop") }
+    preveriEnako("N3: izjema meritve vrne neuspelo", false, izjema.pisljiv)
 
     println("\n== formatiranje samo ob izrecni potrditvi ==")
     preveriEnako("nepodprt + potrditev", true, DiskPravila.smemOdpretiFormatiranje(Razlog.NEPODPRT, true))

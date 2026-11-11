@@ -55,6 +55,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/os/IptvPravila.kt" \
     "$SRC/si/safeer/tv/os/PredpomnilnikPravila.kt" \
     "$SRC/si/safeer/tv/os/DiskPravila.kt" \
+    "$SRC/si/safeer/tv/os/DiskPreizkus.kt" \
     "$SRC/si/safeer/tv/os/BesedilaPravila.kt" \
     "$SRC/si/safeer/tv/os/ZaslonPovecava.kt" \
     "$SRC/si/safeer/tv/os/ZaslonPogled.kt" \

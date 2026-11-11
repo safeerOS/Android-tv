@@ -24,6 +24,13 @@ object DiskPravila {
     const val MERITEV_VELJA_MS = 7L * 24 * 3_600_000
 
     /**
+     * Neuspela ali prekinjena meritev (izvlecen disk med zapisom, zatik fsync, ENOSPC) velja samo kratko: izid ne pove nic o
+     * disku, zato ga ne smemo 7 dni imeti za »samo za branje« (neodvisni pregled apk-24, N2). Kratek rok obenem prepreci,
+     * da bi se 32 MiB pisalo ob vsaki preverbi.
+     */
+    const val MERITEV_NEUSPEH_VELJA_MS = 10L * 60_000
+
+    /**
      * Datotecni sistemi, ki jih jedro TV prepozna (izmerjeno 11. 11. 2026: vold »unsupported filesystem exfat«; ext2/3/4,
      * vfat in ntfs/fuseblk so podprti). exFAT TUKAJ NI - na TV se nosilec sploh ne priklopi. [fsInfo] je samo informativen:
      * aplikacija datotecnega sistema priklopljenega nosilca ne vidi (fuse), vidi samo stanje nosilca ([stanjeNepodprt]).
@@ -45,9 +52,12 @@ object DiskPravila {
 
     fun dovoljHiter(mbs: Double): Boolean = mbs >= PRAG_ZAPISA_MBS
 
-    /** Meritev [izmerjenoOb] (0 = nikoli) se velja ob [zdaj]; ura iz prihodnosti (> 1 dan) ne velja. */
-    fun meritevVelja(izmerjenoOb: Long, zdaj: Long): Boolean =
-        izmerjenoOb > 0L && zdaj - izmerjenoOb in -86_400_000L..MERITEV_VELJA_MS
+    /**
+     * Meritev [izmerjenoOb] (0 = nikoli) se velja ob [zdaj]; ura iz prihodnosti (> 1 dan) ne velja. Uspela meritev (tudi
+     * prepocasen disk) velja 7 dni, neuspela ([uspela] = false) samo [MERITEV_NEUSPEH_VELJA_MS].
+     */
+    fun meritevVelja(izmerjenoOb: Long, zdaj: Long, uspela: Boolean = true): Boolean =
+        izmerjenoOb > 0L && zdaj - izmerjenoOb in -86_400_000L..(if (uspela) MERITEV_VELJA_MS else MERITEV_NEUSPEH_VELJA_MS)
 
     /** Zakaj disk je ali ni v uporabi. [UPORABI] edini pomeni »da«. */
     enum class Razlog { UPORABI, IZKLOPLJEN, NI_DISKA, NEPODPRT, NI_PISLJIV, PREMALO_PROSTORA, MERIM, PREPOCASEN }
