@@ -2526,6 +2526,19 @@ object OsPravila {
     }
 
     /**
+     * Paket tujega brskalnika, v katerem se odpre naslov (spletna aplikacija, medijska stran, iskanje), ali null = Safeer
+     * TV Browser kot doslej. Lastnik 11. 11. 2026: Safeer TV Browser bo morda samo beta, zato ves splet lupine dela s
+     * prevzetim brskalnikom. Samo http(s); ce tuj brskalnik naslova ne sprejme ([sprejme] = resolveActivity), gre v Safeer.
+     * Paket Safeer ni nikoli tuj: namera za tuj paket ne nosi dodatkov ne komponente VARNI_VHOD (dovoljenje LINK ni za tujce).
+     */
+    fun spletTujZaNaslov(tuj: String?, shema: String?, sprejme: Boolean): String? {
+        val p = tuj?.trim().orEmpty()
+        val s = shema?.lowercase()
+        if (p.isEmpty() || p in SAFEER_BRSKALNIKI || !sprejme) return null
+        return if (s == "https" || s == "http") p else null
+    }
+
+    /**
      * Seznam tujih brskalnikov za izbiro (paket -> ime): brez paketov Safeer in brez podvojitev (isti paket ima lahko
      * vec aktivnosti za https), urejen po imenu, da je vrstni red na vsakem zagonu enak.
      */

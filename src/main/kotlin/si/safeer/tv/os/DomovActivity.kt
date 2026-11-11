@@ -1340,7 +1340,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     private fun zazeniSpletno(a: SpletneAplikacije.Aplikacija) {
         Nadaljuj.zapisi(this, Nadaljuj.Vnos(vrsta = Nadaljuj.SPLETNA,
             ime = a.ime.ifBlank { SpletneAplikacije.gostitelj(a.url) }, url = a.url))
-        val namera = brskalnikNamera()
+        val namera = Brskalnik.tuja(this, a.url) ?: brskalnikNamera()
             .putExtra("spletna_aplikacija", a.url)
             .putExtra("aplikacija_ime", a.ime.ifBlank { SpletneAplikacije.gostitelj(a.url) })
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -1755,8 +1755,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
     /** Odpre splet (brskalnik sosede ali vgrajenega), po zelji z naslovom. */
     private fun odpriVBrskalniku(url: String?) {
         // Brez naslova je to razdelek Splet: domaca stran izbranega brskalnika (lastnik 4. 11. 2026).
-        val namera = if (url == null) Brskalnik.splet(this) else brskalnikNamera()
-        if (url != null) { namera.action = Intent.ACTION_VIEW; namera.data = Uri.parse(url) }
+        val namera = if (url == null) Brskalnik.splet(this) else Brskalnik.iskanje(this, url)
         odpriVarno(namera, getString(R.string.os_splet))
     }
 

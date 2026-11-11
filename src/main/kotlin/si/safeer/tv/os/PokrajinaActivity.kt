@@ -1593,7 +1593,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
             } else if (s != null) {
                 // Isto kot plosca spletne aplikacije na domacem zaslonu.
                 Nadaljuj.zapisi(this, Nadaljuj.Vnos(vrsta = Nadaljuj.SPLETNA, ime = z.ime, url = s.url))
-                odpri(Brskalnik.namera(this).putExtra("spletna_aplikacija", s.url).putExtra("aplikacija_ime", z.ime)
+                odpri(Brskalnik.tuja(this, s.url) ?: Brskalnik.namera(this).putExtra("spletna_aplikacija", s.url).putExtra("aplikacija_ime", z.ime)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             }
         }.apply { tag = if (s != null) "splet:" + s.url else z.ime }
@@ -2047,7 +2047,7 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                 if (premikam != null) { koncajPremikanje(); return@kartica }
                 zadnjaPloscica = id
                 Nadaljuj.zapisi(this, Nadaljuj.Vnos(vrsta = Nadaljuj.SPLETNA, ime = ime, url = s.url))
-                preveriInOdpri(id, Brskalnik.namera(this).putExtra("spletna_aplikacija", s.url).putExtra("aplikacija_ime", ime)
+                preveriInOdpri(id, Brskalnik.tuja(this, s.url) ?: Brskalnik.namera(this).putExtra("spletna_aplikacija", s.url).putExtra("aplikacija_ime", ime)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             }
             if (s.zadnjaNapaka) {

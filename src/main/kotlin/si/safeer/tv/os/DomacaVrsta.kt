@@ -164,7 +164,9 @@ object DomacaVrsta {
 
     /** Odpre spletno aplikacijo cez ves zaslon, naravnost z domacega zaslona televizorja. */
     private fun nameraAplikacije(c: Context, url: String, ime: String): String =
-        // Safeer OS: splet gre v TV Browser (ali sporocilo o namestitvi), ne v lasten WebView.
+        // Izbran tuj brskalnik (lastnik 11. 11. 2026): navaden VIEW brez dodatkov Safeer.
+        (if (Sosed.smoOs(c)) Brskalnik.tuja(c, url) else null)?.toUri(Intent.URI_INTENT_SCHEME)
+        ?: // Safeer OS: splet gre v TV Browser (ali sporocilo o namestitvi), ne v lasten WebView.
         (if (Sosed.smoOs(c)) Brskalnik.namera(c)
             else Sosed.brskalnik(c)?.let { Intent().setComponent(android.content.ComponentName(it, "si.safeer.tv.MainActivity")) }
                 ?: Intent(c, si.safeer.tv.MainActivity::class.java))

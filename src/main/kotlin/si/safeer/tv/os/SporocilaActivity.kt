@@ -1012,8 +1012,7 @@ class SporocilaActivity : OsActivity() {
                 when (dejanja[i]) {
                     SporocilaPravila.KOPIRAJ -> Odlozisce.kopiraj(this, besedilo)
                     SporocilaPravila.ODPRI -> try {
-                        startActivity(Brskalnik.namera(this).setAction(android.content.Intent.ACTION_VIEW)
-                            .setData(android.net.Uri.parse(besedilo)))
+                        startActivity(Brskalnik.iskanje(this, besedilo))
                     } catch (_: Exception) { Toast.makeText(this, R.string.os_odpri_ni_aplikacije, Toast.LENGTH_SHORT).show() }
                     SporocilaPravila.IZBRISI_VSE -> potrdiIzbrisNaVseh(p, s)
                     SporocilaPravila.IZBRISI_VSE_NI ->
