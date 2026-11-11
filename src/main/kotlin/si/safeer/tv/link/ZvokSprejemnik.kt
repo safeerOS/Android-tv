@@ -45,6 +45,11 @@ object ZvokSprejemnik {
 
     fun tece(): Boolean = vticnica != null
 
+    /** Naslovi IP te naprave (vsi omrezni vmesniki), za izlocitev iz seznama racunalnikovih naslovov (pregled apk-24, N6). */
+    private fun lastniNaslovi(): List<ByteArray> = try {
+        java.net.NetworkInterface.getNetworkInterfaces()?.toList().orEmpty().flatMap { it.inetAddresses.toList() }.map { it.address }
+    } catch (_: Throwable) { emptyList() }
+
     /** Ukaz `audio.play`: poveze se na racunalnik in predvaja. Takoj vrne izid; zvok tece v ozadju. */
     fun zacni(context: Context, p: JSONObject): Daljinec.Izid {
         val vrata = p.optInt("port", 0)
@@ -54,7 +59,7 @@ object ZvokSprejemnik {
         // samo. Beremo najvec nekaj vnosov seznama; kateri veljajo, odloci LinkVarnostPravila.nasloviZvoka.
         val surovi = ArrayList<String>()
         p.optJSONArray("hosts")?.let { for (i in 0 until minOf(it.length(), 4 * LinkVarnostPravila.NAJVEC_NASLOVOV_ZVOKA)) surovi.add(it.optString(i, "")) }
-        val naslovi = LinkVarnostPravila.nasloviZvoka(p.optString("host", ""), surovi)
+        val naslovi = LinkVarnostPravila.nasloviZvoka(p.optString("host", ""), surovi, lastniNaslovi())
         if (vrata !in 1..65535 || odtis.length < 32 || zeton.length < 16 || naslovi.isEmpty()) {
             return Daljinec.Izid(false, "Nepopoln ukaz za zvok", koda = "neveljavno")
         }

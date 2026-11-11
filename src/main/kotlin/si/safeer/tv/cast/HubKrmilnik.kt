@@ -257,7 +257,7 @@ object HubKrmilnik {
             mapaZacasna = { File(app.cacheDir, "safeer-link").apply { mkdirs() } },
             jeVeljavenZeton = { zeton -> u.jeVeljavenZeton(zeton) },
             lastniId = { lastniId() },
-            naPrejetoDatoteko = { ime, pot -> Log.i(TAG, "Prejeta datoteka $ime -> ${pot.parent}") }
+            naPrejetoDatoteko = { _, _ -> Log.i(TAG, "Prejeta datoteka") }
         )
         u.tokovi = t
         t.teloBrezVirov = { u.odgovorBrezVirov() }
@@ -433,7 +433,7 @@ object HubKrmilnik {
                 if (poZagonu.isNotEmpty()) {
                     val znani = HubMesh.kandidati(app, u, HubMesh.zDopolnitvijo(app, emptyList()), poZagonu = poZagonu)
                     for (h in znani) HubMesh.poklici(app, u, h)
-                    Log.i(TAG, "Mesh po zagonu: klicem znane ${znani.map { it.id }}")
+                    Log.i(TAG, "Mesh po zagonu: klicem znanih ${znani.size}")
                 }
             }
         }
@@ -447,7 +447,7 @@ object HubKrmilnik {
                 val sosedje = u.sosedjeIdji().toSet()
                 meshIskanjeMs = MeshIskanjePravila.naslednje(meshIskanjeMs, MeshIskanjePravila.sprememba(meshSosedjePrej, sosedje, kandidati.size))
                 meshSosedjePrej = sosedje
-                Log.i(TAG, "Mesh: sosedje $sosedje, klicem ${kandidati.map { it.id }}, naslednje iskanje cez ${meshIskanjeMs / 1000} s")
+                Log.i(TAG, "Mesh: sosedov ${sosedje.size}, klicem ${kandidati.size}, naslednje iskanje cez ${meshIskanjeMs / 1000} s")
                 pospraviKrogObCasu(app, u)
                 nacrtujIzvolitev(app, meshIskanjeMs)
                 return@poisciVse

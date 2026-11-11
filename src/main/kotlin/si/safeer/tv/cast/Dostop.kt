@@ -190,7 +190,7 @@ object Dostop {
         val sme = DostopPravila.smeUkaz(dejanje, smePosiljatelj(ctx, posiljatelj, zahteva, zascita, true)) {
             clanKroga(ctx, if (zascita.isNotEmpty()) zascita else jedro(ctx, posiljatelj))
         }
-        if (!sme) Log.i(TAG, "Zavrnjeno: ${posiljatelj.ifBlank { "(neznan posiljatelj)" }} nima dostopa za $dejanje ($zahteva)")
+        if (!sme) Log.i(TAG, "Zavrnjeno: ${si.safeer.tv.link.LinkVarnostPravila.oznakaZaDnevnik(posiljatelj)} nima dostopa za $dejanje ($zahteva)")
         return sme
     }
 
@@ -231,7 +231,7 @@ object Dostop {
     fun smeSporocilo(ctx: Context, posiljatelj: String, tip: String, dejanje: String = "", zascita: String = ""): Boolean {
         val zahteva = DostopPravila.zahtevaSporocila(tip, dejanje)
         val sme = smePosiljatelj(ctx, posiljatelj, zahteva, zascita, tip in E2e.ZASCITENI_TIPI)
-        if (!sme) Log.i(TAG, "Zavrnjeno: ${posiljatelj.ifBlank { "(neznan posiljatelj)" }} nima dostopa za $tip ($zahteva)")
+        if (!sme) Log.i(TAG, "Zavrnjeno: ${si.safeer.tv.link.LinkVarnostPravila.oznakaZaDnevnik(posiljatelj)} nima dostopa za $tip ($zahteva)")
         return sme
     }
 
