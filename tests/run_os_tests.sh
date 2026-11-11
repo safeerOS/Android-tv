@@ -204,6 +204,13 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/PretokPravilaTest.kt" \
     "$SRC/si/safeer/tv/link/PretokHttp.kt" \
     "$TEST_DIR/PretokHttpTest.kt" \
+    "$SRC/si/safeer/tv/link/PrenosPravila.kt" \
+    "$TEST_DIR/PrenosCiljTest.kt" \
+    "$SRC/si/safeer/tv/link/StreznikMeja.kt" \
+    "$TEST_DIR/StreznikMejaTest.kt" \
+    "$SRC/si/safeer/tv/link/LinkVarnostPravila.kt" \
+    "$TEST_DIR/LinkVarnostPravilaTest.kt" \
+    "$TEST_DIR/PrenosPravilaTest.kt" \
     "$TEST_DIR/SkupniPrimeriTest.kt" \
     "$SRC/si/safeer/tv/os/PreizkusPravila.kt" \
     "$TEST_DIR/PreizkusPravilaTest.kt" \
@@ -386,6 +393,17 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SprotnaPomocPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.PretokPravilaTestKt
 # Vodja 5. 11. 2026: vsak skok preusmeritve vira Pretok preverjen (302 na 127.0.0.1, DNS rebinding, glave samo izvoru)
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.PretokHttpTestKt
+# Pregled 10. 11. 2026 (1.2, 3.3): meje prenosov druge naprave (Shramba, Pretvorba) - napovedana velikost, prekinitev
+# predolgega toka, najvec dva prenosa in ena pretvorba, izrinjanje samo koncanih opravil.
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.PrenosPravilaTestKt "$SRC"
+# Pregled 10. 11. 2026 (1.1): cilj prenosa v Shrambi in Pretvorbi kot pri Pretoku (zanka, povezavno-lokalni, preslikani
+# IPv4 v IPv6 zavrnjeni; razresena imena prek preverjenega DNS) in koda napake namesto besedila izjeme.
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.PrenosCiljTestKt "$SRC"
+# Pregled 10. 11. 2026 (3.4): streznik datotek - meja socasnih povezav (skupaj in na naslov) in skupni rok branja zahteve.
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.StreznikMejaTestKt "$SRC"
+# Pregled 10. 11. 2026: manjse odlocitve Linka - naslovi in rok sprejema zvoka, odstranitev zasebnega prenosa, dnevnik
+# brez zetonov in polnih oznak, dvojna preverba iskanja, cas sporocila klepeta.
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.LinkVarnostPravilaTestKt "$SRC"
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PreizkusPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/debrid-serije.json"
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/webtor-rezerva.json"

@@ -480,7 +480,11 @@ class CastReceiverService : Service() {
                         if (si.safeer.tv.link.DatotekeStreznik.vklopljeno(this@CastReceiverService)) {
                             zmoznosti.add(si.safeer.tv.link.DatotekeStreznik.ZMOZNOST)
                         }
-                        if (BuildConfig.FLAVOR == "telefon" && internetGateway?.dovoljeno == true) zmoznosti.add("internet.gateway")
+                        if (BuildConfig.FLAVOR == "telefon" && internetGateway?.dovoljeno == true) {
+                            zmoznosti.add("internet.gateway")
+                            // Pregled 10. 11. 2026 (B): prehod sprejme internet.open/query iz preverjene seje.
+                            zmoznosti.add(si.safeer.tv.link.InternetZascita.ZMOZNOST)
+                        }
                         // Safeer Chat: sprejemnik tece stalno, zato sporocila pridejo tudi, ko Safeer OS ni odprt.
                         if (BuildConfig.FLAVOR != "brskalnik") zmoznosti.add(si.safeer.tv.os.KlepetLinka.ZMOZNOST)
                         if (BuildConfig.FLAVOR != "brskalnik") zmoznosti.add("magnet")
@@ -899,6 +903,11 @@ class CastReceiverService : Service() {
             if (type == "trust.update") {
                 // Krog zaupanja s sredisca: hranimo ga sami (kot Safeer OS v os/LinkOdjemalec), da ta program kljuce
                 // naprav pozna tudi, kadar tece sam. Brez kljuca naprave v krogu z njo ni zascite od naprave do naprave.
+                // Pregled 10. 11. 2026 (A): samo od sredisca (brez posiljatelja), ne po mesh.route od sosednjega.
+                if (!KrogZaupanja.krogOdSredisca(if (json.isNull("sender")) null else json.optString("sender"))) {
+                    Log.i(TAG, "Zavrnjeno: trust.update s posiljateljem ni od sredisca.")
+                    return
+                }
                 json.optJSONObject("payload")?.let { KrogNaprave.sprejmi(this, it.toString()) }
                 return
             }

@@ -52,7 +52,10 @@ object Pretvorba {
     } catch (_: Throwable) { 2048 * MB }
     private const val VISINA = 1080
 
-    class Opravilo(val id: String, val ime: String) {
+    class Opravilo(val id: String, val ime: String, val napovedano: Long) {
+        /** Zaporedna stevilka nastanka: iz seznama gre najprej najstarejse KONCANO opravilo (PrenosPravila.izrini). */
+        val nastal = stevec.incrementAndGet()
+        val koncano get() = faza == "koncano" || faza == "napaka"
         @Volatile var faza = "prenasam"
         @Volatile var odstotek = 0
         @Volatile var napaka = ""
@@ -65,7 +68,15 @@ object Pretvorba {
     }
 
     private val opravila = ConcurrentHashMap<String, Opravilo>()
+    private val stevec = java.util.concurrent.atomic.AtomicLong(0)
     private val glavna = Handler(Looper.getMainLooper())
+
+    /**
+     * Pregled 10. 11. 2026 (3.3): prej nova nit za vsak `video.transcode`. Dve niti (prenos izvirnika in shranjevanje
+     * izida), brez cakalne vrste; hkrati tece ena pretvorba ([zacni] presezek zavrne s kodo »preobremenjen«).
+     */
+    private val izvajalec = java.util.concurrent.ThreadPoolExecutor(0, 2, 30L, java.util.concurrent.TimeUnit.SECONDS,
+        java.util.concurrent.SynchronousQueue()) { r -> Thread(r, "safeer-pretvorba").apply { isDaemon = true } }
 
     fun zacni(context: Context, p: JSONObject): Daljinec.Izid {
         if (Build.VERSION.SDK_INT < 29) return Daljinec.Izid(false, "Pretvarjanje potrebuje Android 10 ali novejsi", koda = "ni_podprto")
@@ -74,6 +85,8 @@ object Pretvorba {
         val velikost = p.optLong("size", 0L)
         if (!url.startsWith("https://") || odtis.length != 64 || zeton.isBlank() || ime.isBlank())
             return Daljinec.Izid(false, "Nepopolna zahteva", koda = "napacna_zahteva")
+        // Pregled 10. 11. 2026 (1.1): cilj kot pri Pretoku - ta naprava sama in povezavno-lokalni naslovi niso vir.
+        if (PretokHttp.ciljPrenosaNedovoljen(url)) return Daljinec.Izid(false, "Vir ni dovoljen", koda = PrenosPravila.KODA_CILJ)
         // Racunalnik pove obliko izvirnika (ffprobe): ce je ta naprava ne zna prebrati, takoj recemo ne.
         val mime = p.optString("mime"); val w = p.optInt("width"); val h = p.optInt("height")
         if (mime.startsWith("video/") && w > 0 && h > 0 && !znaDekodirati(MediaFormat.createVideoFormat(mime, w, h)))
@@ -82,13 +95,26 @@ object Pretvorba {
         if (pomoc?.optBoolean("lahko", true) == false)
             return Daljinec.Izid(false, "Naprava ta trenutek ne more pomagati", koda = pomoc.optString("razlog"))
         // Izvirnik + pretvorjeni video hkrati v predpomnilniku in rezerva za napravo.
-        val prosto = Shramba.prostor()
-        if (prosto in 0 until 2 * velikost + rezerva()) return Daljinec.Izid(false, "Premalo prostora", koda = "ni_prostora")
-        val o = Opravilo(java.util.UUID.randomUUID().toString(), ime)
-        opravila[o.id] = o
-        while (opravila.size > 16) opravila.keys.firstOrNull()?.let { opravila.remove(it) }
-        Thread({ prenesi(context.applicationContext, o, url, odtis, zeton) }, "safeer-pretvorba").apply { isDaemon = true; start() }
-        return Daljinec.Izid(true, "Pretvarjam", o.json())
+        val app = context.applicationContext
+        // Pregled 10. 11. 2026 (1.2, 3.3): velikost izvirnika je obvezna (racunalnik jo vedno poslje) in omejena; ena
+        // pretvorba naenkrat. Preverba in vpis skupaj, da dva socasna ukaza ne gresta oba mimo meje.
+        synchronized(this) {
+            PrenosPravila.preveriVelikost(velikost, PrenosPravila.NAJVEC_PRETVORBA_B, Shramba.prostor(), rezerva(), mnozitelj = 2)?.let { koda ->
+                return Daljinec.Izid(false, Shramba.besediloZavrnitve(koda), koda = koda)
+            }
+            if (PrenosPravila.preobremenjen(opravila.values.count { !it.koncano }, PrenosPravila.NAJVEC_PRETVORB))
+                return Daljinec.Izid(false, "Naprava ze pretvarja drug video", koda = PrenosPravila.KODA_PREOBREMENJEN)
+            val o = Opravilo(java.util.UUID.randomUUID().toString(), ime, velikost)
+            opravila[o.id] = o
+            try { izvajalec.execute { prenesi(app, o, url, odtis, zeton) } }
+            catch (_: java.util.concurrent.RejectedExecutionException) {
+                opravila.remove(o.id)
+                return Daljinec.Izid(false, "Naprava ze pretvarja drug video", koda = PrenosPravila.KODA_PREOBREMENJEN)
+            }
+            PrenosPravila.izrini(opravila.values.map { PrenosPravila.Opis(it.id, it.nastal, it.koncano) }, PrenosPravila.HRANI_PRETVORB)
+                .forEach { opravila.remove(it) }
+            return Daljinec.Izid(true, "Pretvarjam", o.json())
+        }
     }
 
     fun stanje(id: String): Daljinec.Izid {
@@ -103,8 +129,9 @@ object Pretvorba {
 
     private fun mapa(ctx: Context) = File(ctx.cacheDir, "pretvorba").apply { mkdirs() }
 
+    /** [sporocilo] je koda napake (v stanje in v dnevnik gre brez imena datoteke in brez besedila izjeme). */
     private fun napaka(o: Opravilo, sporocilo: String, vararg zacasne: File) {
-        Log.w(TAG, "Pretvorba ${o.ime}: $sporocilo")
+        Log.w(TAG, "Pretvorba ni uspela: $sporocilo")
         o.napaka = sporocilo
         o.faza = "napaka"
         zacasne.forEach { it.delete() }
@@ -113,11 +140,15 @@ object Pretvorba {
     private fun prenesi(ctx: Context, o: Opravilo, url: String, odtis: String, zeton: String) {
         val vir = File(mapa(ctx), o.id + ".vir")
         try {
-            val odjemalec = si.safeer.tv.os.PripetiVir.odjemalecZaStreznik(odtis)
+            // Pregled 10. 11. 2026 (1.1): razresena imena preveri isti DNS kot pri Pretoku (brez DNS rebindinga).
+            val odjemalec = si.safeer.tv.os.PripetiVir.odjemalecZaStreznik(odtis, PretokHttp.dnsPripeteNaprave())
             odjemalec.newCall(Request.Builder().url(url).header("X-Safeer-Token", zeton).build()).execute().use { r ->
                 if (!r.isSuccessful) throw IllegalStateException("racunalnik je vrnil ${r.code}")
                 val telo = r.body ?: throw IllegalStateException("prazen odgovor")
                 val skupaj = telo.contentLength()
+                // Pregled 10. 11. 2026 (1.2): izvirnik ne sme biti daljsi od napovedi - sicer napolni predpomnilnik.
+                // Delno datoteko pobrise veja napake spodaj.
+                if (PrenosPravila.glavaPresega(skupaj, o.napovedano)) throw PrenosPravila.Napaka(PrenosPravila.KODA_PRESEGA)
                 var dobljeno = 0L
                 vir.outputStream().use { izhod ->
                     telo.byteStream().use { vhod ->
@@ -125,6 +156,7 @@ object Pretvorba {
                         while (true) {
                             val n = vhod.read(b)
                             if (n < 0) break
+                            if (PrenosPravila.presega(dobljeno, n, o.napovedano)) throw PrenosPravila.Napaka(PrenosPravila.KODA_PRESEGA)
                             izhod.write(b, 0, n)
                             dobljeno += n
                             if (skupaj > 0) o.odstotek = (dobljeno * 100 / skupaj).toInt()
@@ -133,7 +165,8 @@ object Pretvorba {
                 }
             }
         } catch (e: Throwable) {
-            napaka(o, e.message ?: e.javaClass.simpleName, vir)
+            // Koda, ne besedilo izjeme (pregled 10. 11. 2026, 1.1): z besedilom se je dalo tipati vrata v omrezju.
+            napaka(o, PrenosPravila.kodaNapake(e) { it is PretokHttp.NedovoljenCilj }, vir)
             return
         }
         // Ce racunalnik oblike ni poznal: preverimo jo zdaj, preden se lotimo pretvorbe.
@@ -199,8 +232,10 @@ object Pretvorba {
                 .setAudioMimeType(MimeTypes.AUDIO_AAC)
                 .addListener(object : Transformer.Listener {
                     override fun onCompleted(composition: Composition, exportResult: ExportResult) {
+                        if (o.faza != "pretvarjam") return      // ustavljeno zaradi prostora: izid je ze pobrisan
                         o.faza = "shranjujem"
-                        Thread({ shrani(ctx, o, vir, cilj) }, "safeer-pretvorba-shrani").apply { isDaemon = true; start() }
+                        try { izvajalec.execute { shrani(ctx, o, vir, cilj) } }
+                        catch (_: java.util.concurrent.RejectedExecutionException) { napaka(o, PrenosPravila.KODA_PREOBREMENJEN, vir, cilj) }
                     }
                     override fun onError(composition: Composition, exportResult: ExportResult, exportException: ExportException) {
                         napaka(o, "pretvorba ni uspela: " + exportException.errorCodeName, vir, cilj)
@@ -211,13 +246,20 @@ object Pretvorba {
             val sledi = object : Runnable {
                 override fun run() {
                     if (o.faza != "pretvarjam") return
+                    // Pregled 10. 11. 2026 (1.2): pretvorjeni video raste v predpomnilniku; ko prostega ostane manj od
+                    // rezerve naprave, pretvorbo ustavimo in obe datoteki pobrisemo.
+                    if (PrenosPravila.zmanjkujeProstora(cilj.parentFile?.usableSpace ?: -1L, rezerva())) {
+                        try { transformer.cancel() } catch (_: Throwable) { }
+                        napaka(o, PrenosPravila.KODA_PROSTOR, vir, cilj)
+                        return
+                    }
                     if (transformer.getProgress(nosilec) == Transformer.PROGRESS_STATE_AVAILABLE) o.odstotek = nosilec.progress
                     glavna.postDelayed(this, 1000)
                 }
             }
             glavna.postDelayed(sledi, 1000)
         } catch (e: Throwable) {
-            napaka(o, e.message ?: e.javaClass.simpleName, vir, cilj)
+            napaka(o, "pretvorba ni uspela: " + e.javaClass.simpleName, vir, cilj)
         }
     }
 
@@ -232,7 +274,7 @@ object Pretvorba {
                 put(MediaStore.MediaColumns.MIME_TYPE, "video/mp4")
                 put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/" + Shramba.MAPA)
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
-            }) ?: throw IllegalStateException("mape ni mogoce ustvariti")
+            }) ?: throw PrenosPravila.Napaka(PrenosPravila.KODA_SHRANJEVANJE)
             cr.openOutputStream(uri)!!.use { izhod -> cilj.inputStream().use { it.copyTo(izhod, 256 * 1024) } }
             cr.update(uri, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
             o.izhod = ime
@@ -240,10 +282,10 @@ object Pretvorba {
             o.oznaka = "media:shramba:" + android.content.ContentUris.parseId(uri)
             o.odstotek = 100
             o.faza = "koncano"
-            Log.i(TAG, "Pretvorjeno: ${o.ime} -> $ime (${o.velikost} B)")
+            Log.i(TAG, "Pretvorjeno (${o.velikost} B)")
         } catch (e: Throwable) {
             try { if (uri != null) cr.delete(uri, null, null) } catch (_: Throwable) { }
-            napaka(o, e.message ?: e.javaClass.simpleName)
+            napaka(o, PrenosPravila.KODA_SHRANJEVANJE)
         } finally {
             vir.delete(); cilj.delete()
         }

@@ -577,6 +577,10 @@ object DatotekeStreznik {
         appContext = context.applicationContext
         val o = JSONObject()
         if (!vklopljeno(context) || !imamoDovoljenje(context)) return o.put("items", JSONArray()).put("shared", false)
+        // Pregled 10. 11. 2026 (2.1): dvojna preverba kot v [seznam] - umaknjena naprava ne dobi niti zadetkov
+        // (Dostop.smeDejanje jo ze zavrne; ta vrstica drzi, ce se klic kdaj znajde mimo tistih vrat).
+        if (idNaprave.isNotBlank() && umaknjena(context, idNaprave))
+            return o.put("items", JSONArray()).put("shared", false).put("reason", "revoked")
         val vnosi = JSONArray()
         for (n in si.safeer.tv.os.KrajevneDatoteke.najdi(context, poizvedba, 30)) {
             vnosi.put(JSONObject().put("id", "$PREDPONA${n.zbirka}:${n.vrstica}").put("name", n.ime).put("type", n.zbirka)
@@ -772,26 +776,50 @@ object DatotekeStreznik {
         vticnica = null
     }
 
+    /** Pregled 10. 11. 2026 (3.4): meja socasnih povezav in niti zanje (prej nit na vsako sprejeto povezavo). */
+    private val meja = StreznikMeja()
+    private val delavciZahtev = java.util.concurrent.ThreadPoolExecutor(0, StreznikMeja.NAJVEC_POVEZAV, 30L, java.util.concurrent.TimeUnit.SECONDS,
+        java.util.concurrent.SynchronousQueue()) { r -> Thread(r, "safeer-datoteke-zahteva").apply { isDaemon = true } }
+
     private fun zanka(v: ServerSocket) {
         while (tece.get() && !v.isClosed) {
             val s = try { v.accept() } catch (_: Throwable) { break }
-            Thread({ postrezi(s) }, "safeer-datoteke-zahteva").apply { isDaemon = true; start() }
+            val naslov = try { s.inetAddress?.hostAddress.orEmpty() } catch (_: Throwable) { "" }
+            // Presezek zapremo takoj, brez niti in brez rokovanja TLS: povezave brez zetona ne smejo porabiti virov.
+            if (!meja.sprejmi(naslov)) { try { s.close() } catch (_: Throwable) { }; continue }
+            try { delavciZahtev.execute { try { postrezi(s) } finally { meja.sprosti(naslov) } } }
+            catch (_: java.util.concurrent.RejectedExecutionException) {
+                meja.sprosti(naslov)
+                try { s.close() } catch (_: Throwable) { }
+            }
         }
     }
 
     private fun postrezi(s: Socket) {
         try {
-            s.soTimeout = 15_000
+            // Pregled 10. 11. 2026 (3.4): rokovanje TLS, vrstica zahteve in glave imajo skupen rok - prej 15 s na VSAKO
+            // vrstico, brez konca. Po glavah velja spet rok enega branja (telo urejanja, pocasen predvajalnik).
+            val zacetek = zdaj()
+            fun ostane(): Int = StreznikMeja.preostanek(zacetek, zdaj())
             val vhod = s.getInputStream()
             val izhod = s.getOutputStream()
-            val prva = preberiVrstico(vhod) ?: return
+            fun vrstica(): String? {
+                val rok = ostane()
+                if (rok <= 0) return null
+                s.soTimeout = rok
+                return preberiVrstico(vhod) { ostane() <= 0 }
+            }
+            val prva = vrstica() ?: return
             val glave = HashMap<String, String>()
             while (true) {
-                val v = preberiVrstico(vhod) ?: break
+                val v = vrstica() ?: break
                 if (v.isEmpty()) break
+                if (glave.size >= StreznikMeja.NAJVEC_GLAV) return
                 val i = v.indexOf(':')
                 if (i > 0) glave[v.substring(0, i).trim().lowercase()] = v.substring(i + 1).trim()
             }
+            if (ostane() <= 0) return
+            s.soTimeout = StreznikMeja.ROK_BRANJA_MS
             val deli = prva.split(" ")
             if (deli.size < 2) { napaka(izhod, 405, "samo GET ali POST"); return }
             val cilj = deli[1]
@@ -1136,9 +1164,11 @@ object DatotekeStreznik {
         izhod.flush()
     }
 
-    private fun preberiVrstico(vhod: InputStream): String? {
+    /** [potekel]: skupni rok zahteve je mimo (preveri se pred vsakim branjem) - vrstice ni. */
+    private fun preberiVrstico(vhod: InputStream, potekel: () -> Boolean = { false }): String? {
         val sb = StringBuilder()
         while (true) {
+            if (potekel()) return null
             val z = vhod.read()
             if (z < 0) return if (sb.isEmpty()) null else sb.toString()
             if (z == '\n'.code) break

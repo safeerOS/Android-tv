@@ -72,7 +72,8 @@ object MagnetPomoc {
                 // Knjiznica kroga: naslov in plakat, ki ju pove naprava (ali da je naslov zaseben), za polico na vseh napravah.
                 MagnetMotor.zabeleziOpis(app, t.hash, opisIz(p), posiljatelj)
                 val streznik = DatotekeStreznik.streznikZa(app, posiljatelj) ?: throw IllegalStateException("napaka")
-                Log.i(TAG, "Pretakam ${t.datoteka.ime} za $posiljatelj")
+                // Pregled 10. 11. 2026 (4.1): brez imena datoteke in polne oznake naprave.
+                Log.i(TAG, "Pretakam (${t.datoteka.velikost} B) za ${LinkVarnostPravila.oznakaZaDnevnik(posiljatelj)}")
                 Daljinec.Izid(true, "Naprava pretaka: " + t.datoteka.ime.substringAfterLast('/'), JSONObject()
                     .put("server", streznik).put("path", "/magnet/" + t.skrivnost)
                     .put("name", t.datoteka.ime.substringAfterLast('/')).put("file", t.datoteka.i).put("size", t.datoteka.velikost)
@@ -83,8 +84,8 @@ object MagnetPomoc {
                         }
                     }))
             } catch (e: Throwable) {
-                Log.i(TAG, "magnet.stream za $posiljatelj: ${e.javaClass.simpleName} ${e.message.orEmpty()}")
                 val koda = e.message?.takeIf { it in setOf("ni_magnet", "ni_metapodatkov", "ni_predvajljivo", "ni_prostora", "ni_podprto") } ?: "napaka"
+                Log.i(TAG, "magnet.stream za ${LinkVarnostPravila.oznakaZaDnevnik(posiljatelj)}: ${e.javaClass.simpleName} $koda")
                 Daljinec.Izid(false, "Torrenta ni mogoce pretakati", koda = koda)
             }
             delo.koncano = android.os.SystemClock.elapsedRealtime()
@@ -109,13 +110,18 @@ object MagnetPomoc {
             else Daljinec.Izid(false, "Tega prenosa ni mogoce obdrzati", koda = "ni_prenosa")
     }
 
-    fun odstrani(context: Context, p: JSONObject): Daljinec.Izid {
+    /**
+     * `magnet.remove {id}`. Pregled 10. 11. 2026 (2.2): zasebni prenos odstrani samo naprava, ki ga je narocila
+     * ([posiljatelj] je med narocniki); drugim odgovorimo enako kot za prenos, ki ga ni.
+     */
+    fun odstrani(context: Context, p: JSONObject, posiljatelj: String): Daljinec.Izid {
         if (!p.has("id")) return Daljinec.Izid(false, "Manjka prenos", koda = "ni_prenosa")
         val id = p.optInt("id", -1)
         val app = context.applicationContext
         // Odstranitev dela z diskom: ne na glavni niti. Odgovor je takojsen - naprava seznam prebere znova.
-        if (MagnetMotor.seznamZacasnihIdji(app).none { it == id }) return Daljinec.Izid(false, "Tega prenosa ni mogoce odstraniti", koda = "ni_prenosa")
-        Thread({ try { MagnetMotor.odstraniZacasnega(app, id) } catch (e: Throwable) { Log.i(TAG, "magnet.remove: ${e.message}") } }, "safeer-magnet-odstrani")
+        val sme = try { MagnetMotor.smeOdstranitiZacasnega(app, id, posiljatelj) } catch (_: Throwable) { false }
+        if (!sme) return Daljinec.Izid(false, "Tega prenosa ni mogoce odstraniti", koda = "ni_prenosa")
+        Thread({ try { MagnetMotor.odstraniZacasnega(app, id, posiljatelj) } catch (e: Throwable) { Log.i(TAG, "magnet.remove: ${e.javaClass.simpleName}") } }, "safeer-magnet-odstrani")
             .apply { isDaemon = true; start() }
         return Daljinec.Izid(true, "Odstranjeno z naprave")
     }

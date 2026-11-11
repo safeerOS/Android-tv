@@ -41,12 +41,11 @@ object KlepetLinka {
         if (s.kanali().none { it.id == KANAL }) s.dodajKanal(SporocilaShramba.Kanal(KANAL, VRSTA, "Safeer Link", "povezan", JSONObject()))
     }
 
-    /** Cas posiljatelja v nasi obliki (UTC, do sekunde); ob nerazumljivem casu cas prejema. */
-    fun cas(iso: String): String {
-        val t = iso.trim()
-        return if (Regex("""\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d.*""").matches(t) && (t.endsWith("Z") || t.contains("+00:00")))
-            t.take(19) + "+00:00" else SporocilaKanali.cas(null)
-    }
+    /**
+     * Cas posiljatelja v nasi obliki (UTC, do sekunde); ob nerazumljivem casu cas prejema. Pregled 10. 11. 2026 (3.1):
+     * najvec zdaj - sporocilo s casom iz prihodnosti je ostalo na vrhu pogovora (LinkVarnostPravila.casSporocila).
+     */
+    fun cas(iso: String): String = si.safeer.tv.link.LinkVarnostPravila.casSporocila(iso, SporocilaKanali.cas(null))
 
     /** optString vrne "null" za JSON null; tega ne smemo vzeti za naslov naprave. */
     private fun niz(o: JSONObject, kljuc: String): String = if (o.isNull(kljuc)) "" else o.optString(kljuc).trim()

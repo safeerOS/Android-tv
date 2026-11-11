@@ -985,8 +985,23 @@ object MagnetMotor {
         return true
     }
 
-    /** `magnet.remove`: samo zacasni torrenti (kar je uporabnik te naprave prenesel sam, druga naprava ne more odstraniti). */
-    fun odstraniZacasnega(c: Context, id: Int): Boolean {
+    /**
+     * Ali sme naprava [vprasa] zacasni prenos [id] odstraniti: prenos obstaja in ni zaseben prenos druge naprave
+     * ([KnjiznicaKroga.smeOdstraniti], pregled 10. 11. 2026, 2.2).
+     */
+    fun smeOdstranitiZacasnega(c: Context, id: Int, vprasa: String?): Boolean {
+        val z = zacasni(c)
+        val hash = z.keys().asSequence().firstOrNull { idZacasnega(it) == id } ?: return false
+        val vnos = z.optJSONObject(hash) ?: return true      // star zapis brez opisa: zasebnosti ne pozna, kot prej
+        return KnjiznicaKroga.smeOdstraniti(opisIz(vnos), narocniki(vnos), vprasa)
+    }
+
+    /**
+     * `magnet.remove`: samo zacasni torrenti (kar je uporabnik te naprave prenesel sam, druga naprava ne more odstraniti).
+     * [vprasa] = naprava, ki to zeli (null = ta naprava sama); zasebnega sme odstraniti le narocnik.
+     */
+    fun odstraniZacasnega(c: Context, id: Int, vprasa: String? = null): Boolean {
+        if (!smeOdstranitiZacasnega(c, id, vprasa)) return false
         val z = zacasni(c)
         val hash = z.keys().asSequence().firstOrNull { idZacasnega(it) == id } ?: return false
         odstrani(c, hash, true)

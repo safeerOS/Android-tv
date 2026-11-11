@@ -1,5 +1,6 @@
 package si.safeer.tv.os
 
+import si.safeer.tv.link.LinkVarnostPravila as D
 import android.content.Context
 import android.util.Log
 import org.json.JSONArray
@@ -147,7 +148,8 @@ object Predaja {
             PredajaObvestilo.obvesti(app, po) -> "notification"
             else -> "later"
         }
-        log("play.offer od $posiljatelj: ${po.skladba.naslov} @ ${po.polozajMs} ($kako)")
+        // Pregled 10. 11. 2026 (4.1): v dnevnik brez naslova skladbe in brez polne oznake naprave.
+        log("play.offer od ${D.oznakaZaDnevnik(posiljatelj)} @ ${po.polozajMs} ($kako)")
         return JSONObject().put("queued", true).put("shown", kako)
     }
 
@@ -179,7 +181,8 @@ object Predaja {
         if (link.jeKrajevni() || !link.povezan) return emptyList()
         val vse = link.naprave
         val cilji = vse.filter { !link.jeTaNaprava(it) && "remote" in it.zmoznosti }
-        log("cilji: " + vse.joinToString(" | ") { "${it.id} ${it.ime} ip=${it.naslov} pl=${it.platforma} ta=${link.jeTaNaprava(it)} remote=${"remote" in it.zmoznosti}" })
+        // Pregled 10. 11. 2026 (4.1): brez polnih oznak, imen in naslovov IP naprav.
+        log("cilji: " + vse.joinToString(" | ") { "${D.oznakaZaDnevnik(it.id)} pl=${it.platforma} ta=${link.jeTaNaprava(it)} remote=${"remote" in it.zmoznosti}" })
         return cilji
     }
 
@@ -191,7 +194,8 @@ object Predaja {
     fun poslji(ctx: Context, cilj: LinkOdjemalec.Naprava, nato: (String) -> Unit) {
         val o = ponudbaZa(ctx, cilj.id) ?: run { nato("ni_deljeno"); return }
         LinkUpravitelj.pridobi(ctx.applicationContext).ukaz(cilj.id, "play.offer", o, 8_000, LinkOdjemalec.Odgovor { izid, napaka ->
-            log("play.offer -> ${cilj.id}: ${izid?.toString()?.take(300)} napaka=$napaka")
+            // Pregled 10. 11. 2026 (4.1): surov odgovor je sel v dnevnik (opis streznika nosi zeton); zdaj samo izid.
+            log("play.offer -> ${D.oznakaZaDnevnik(cilj.id)}: ok=${izid?.optBoolean("ok")} koda=${izid?.optString("code").orEmpty().take(32)} napaka=${napaka.take(40)}")
             val d = izid?.optJSONObject("data")
             nato(when {
                 izid?.optBoolean("ok") == true && d?.optBoolean("queued") == true ->
@@ -223,7 +227,8 @@ object Predaja {
             link.ukaz(n.id, "play.state", JSONObject(), 2_500, LinkOdjemalec.Odgovor { izid, _ ->
                 val d = izid?.takeIf { it.optBoolean("ok") }?.optJSONObject("data")
                 val item = d?.optJSONObject("item")
-                log("play.state ${n.id}: ${izid?.toString()?.take(400)}")
+                // Pregled 10. 11. 2026 (4.1): surov odgovor play.state nosi zeton streznika datotek - v dnevnik samo izid.
+                log("play.state ${D.oznakaZaDnevnik(n.id)}: ok=${izid?.optBoolean("ok")} igra=${d?.optBoolean("playing")} zadnje=${d?.optBoolean("last")}")
                 if (d != null && item != null && (d.optBoolean("playing") || d.optBoolean("last"))) {
                     val s = d.optJSONObject("server")?.let { DatotekeActivity.Streznik(it.optString("base_url").trimEnd('/'), it.optString("fp"), it.optString("token"), n.id) }
                     ponudbe[n.id] = Ponudba(n, izJson(item), d.optLong("position_ms", 0L), d.optLong("duration_ms", 0L),

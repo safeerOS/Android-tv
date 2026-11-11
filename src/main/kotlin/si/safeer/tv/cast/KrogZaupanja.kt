@@ -239,7 +239,39 @@ class KrogZaupanja(private val shramba: HubUsmerjevalnik.Shramba? = null) {
     /** Javni kljuc clana (tudi prek id-ja iz kljuca) za preverjanje podpisa vnosa; prazno, ce ga ne poznamo. */
     private fun kljucClana(id: String): String = clanZaId(id)?.kljuc.orEmpty()
 
-    fun zdruzi(json: String, obvesti: Boolean = true, preveriPodpise: Boolean = false): Boolean {
+    /**
+     * Ali bi vnos [nov] vrnil napravo, ki je pri nas umaknjena: isti id z nadgrobnikom, starejsim od vnosa, ali kljuc
+     * umaknjenega clana pod drugim id-jem (sorodnik `n-…-os`, ki nadgrobnika nima in bi jedru vrnil veljavnost). Drugo
+     * ni vezano na cas: cas nepodpisanega vnosa izbere tisti, ki ga poslje.
+     */
+    private fun biObudil(nov: Clan): Boolean {
+        val u = umiki[nov.id]
+        val c = clani[nov.id]
+        if (u != null && (c == null || u.umaknjeno > c.dodano)) return nov.dodano > u.umaknjeno
+        // Kljuc ima se veljavnega clana (umaknjen je le en od njegovih id-jev): nov sorodnik nicesar ne vrne.
+        val istiKljuc = clani.values.filter { it.kljuc == nov.kljuc }
+        return istiKljuc.isNotEmpty() && istiKljuc.none { jeVeljaven(it) }
+    }
+
+    /**
+     * Vrnitev umaknjene naprave velja samo s podpisom VELJAVNEGA clana z drugim kljucem (sredisce, ki jo je znova
+     * seznanilo): naprava se ne vrne sama in ne z vnosom brez podpisa.
+     */
+    private fun podpisVrnitve(nov: Clan): Boolean {
+        val podpisnik = clanZaId(nov.dodal) ?: return false
+        if (podpisnik.kljuc == nov.kljuc) return false
+        return preveriPodpisSKljucem(podpisnik.kljuc, podatkiClana(nov.id, nov.kljuc, nov.platforma, nov.dodano, nov.dodal), nov.podpis)
+    }
+
+    /**
+     * [varujUmike] (krog s sredisca: trust.update, odgovor na prijavo; pregled 10. 11. 2026, najdba A): vnos, ki bi
+     * vrnil pri nas umaknjeno napravo, sprejmemo samo podpisan ([podpisVrnitve]). Prej je sredisce (ali sosednje
+     * sredisce po mesh.route) z NEPODPISANIM novejsim vnosom izbrisalo umik in naprava je dobila nazaj prej odprte
+     * zmoznosti. Vseh podpisov tu ne preverjamo: nova naprava dobi ob prvi prijavi cel krog od sredisca in kljucev
+     * podpisnikov se ne pozna, starejsa sredisca vnosov niso podpisovala, umik pa podpise samo naprava, ki umika sama.
+     * Isto varovalo velja pri [preveriPodpise] (sosedje): tam vnos z ISTIM kljucem podpisa prej ni potreboval.
+     */
+    fun zdruzi(json: String, obvesti: Boolean = true, preveriPodpise: Boolean = false, varujUmike: Boolean = false): Boolean {
         val pogled = JsonLahki.objekt(json) ?: return false
         var spremenjeno = false
         synchronized(kljucnica) {
@@ -257,6 +289,24 @@ class KrogZaupanja(private val shramba: HubUsmerjevalnik.Shramba? = null) {
                     }
                 }
             }
+            fun vpisi(nov: Clan) {
+                val id = nov.id
+                val obstojeci = clani[id]
+                if (preveriPodpise && (obstojeci == null || obstojeci.kljuc != nov.kljuc) &&
+                    !preveriPodpisSKljucem(kljucClana(nov.dodal), podatkiClana(nov.id, nov.kljuc, nov.platforma, nov.dodano, nov.dodal), nov.podpis)) return
+                if (obstojeci == null || obstojeci.dodano < nov.dodano
+                    || (obstojeci.dodano == nov.dodano && obstojeci.kljuc != nov.kljuc && obstojeci.kljuc < nov.kljuc)) {
+                    // Novejsi vnos iste naprave ne izgubi imena, ki ga je dal uporabnik.
+                    clani[id] = if (obstojeci != null && obstojeci.kljuc == nov.kljuc && obstojeci.imenovano > nov.imenovano)
+                        nov.copy(ime = obstojeci.ime, imenovano = obstojeci.imenovano) else nov
+                    spremenjeno = true
+                } else if (obstojeci.kljuc == nov.kljuc && nov.imenovano > obstojeci.imenovano && nov.ime.isNotBlank()) {
+                    clani[id] = obstojeci.copy(ime = nov.ime, imenovano = nov.imenovano)
+                    spremenjeno = true
+                }
+            }
+            // Vnosi, ki bi vrnili umaknjeno napravo, pridejo na vrsto zadnji: podpisnik (sredisce) je lahko v istem krogu.
+            val vrnitve = ArrayList<Clan>()
             pogled.objekt("clani")?.let { c ->
                 for (id in c.kljuci()) {
                     val z = c.objekt(id) ?: continue
@@ -264,21 +314,11 @@ class KrogZaupanja(private val shramba: HubUsmerjevalnik.Shramba? = null) {
                     if (dekodirajKljuc(kljuc) == null) continue
                     val nov = Clan(id, kljuc, z.nizAli("ime", id), z.nizAli("platforma"), z.stevilo("dodano") ?: 0.0, z.nizAli("dodal"),
                         z.stevilo("imenovano") ?: 0.0, z.nizAli("podpis"))
-                    val obstojeci = clani[id]
-                    if (preveriPodpise && (obstojeci == null || obstojeci.kljuc != nov.kljuc) &&
-                        !preveriPodpisSKljucem(kljucClana(nov.dodal), podatkiClana(nov.id, nov.kljuc, nov.platforma, nov.dodano, nov.dodal), nov.podpis)) continue
-                    if (obstojeci == null || obstojeci.dodano < nov.dodano
-                        || (obstojeci.dodano == nov.dodano && obstojeci.kljuc != nov.kljuc && obstojeci.kljuc < nov.kljuc)) {
-                        // Novejsi vnos iste naprave ne izgubi imena, ki ga je dal uporabnik.
-                        clani[id] = if (obstojeci != null && obstojeci.kljuc == nov.kljuc && obstojeci.imenovano > nov.imenovano)
-                            nov.copy(ime = obstojeci.ime, imenovano = obstojeci.imenovano) else nov
-                        spremenjeno = true
-                    } else if (obstojeci.kljuc == nov.kljuc && nov.imenovano > obstojeci.imenovano && nov.ime.isNotBlank()) {
-                        clani[id] = obstojeci.copy(ime = nov.ime, imenovano = nov.imenovano)
-                        spremenjeno = true
-                    }
+                    if ((varujUmike || preveriPodpise) && biObudil(nov)) { vrnitve.add(nov); continue }
+                    vpisi(nov)
                 }
             }
+            for (nov in vrnitve) if (podpisVrnitve(nov)) vpisi(nov)
             // Vnos, novejsi od umika, napravo vrne; umik brez clana ostane kot spomin.
             for ((id, u) in umiki.toMap()) {
                 val c = clani[id] ?: continue
@@ -409,6 +449,13 @@ class KrogZaupanja(private val shramba: HubUsmerjevalnik.Shramba? = null) {
             val izvlecek = java.security.MessageDigest.getInstance("SHA-256").digest(Base64.getDecoder().decode(kljucB64))
             return "n-" + izvlecek.joinToString("") { "%02x".format(it) }.take(16)
         }
+
+        /**
+         * Krog (trust.update) velja samo od sredisca, na katero smo povezani: to posiljatelja ne vpise. Sporocilo s
+         * posiljateljem je po mesh.route poslalo sosednje sredisce v imenu svoje naprave - mimo preverbe podpisov, ki
+         * za sosede velja pri mesh.trust (pregled 10. 11. 2026, najdba A). [posiljatelj]: null, ce polja ni ali je null.
+         */
+        fun krogOdSredisca(posiljatelj: String?): Boolean = posiljatelj.isNullOrEmpty()
 
         /** Dolzina id-ja iz kljuca brez pripone sorodnika: "n-" + 16 znakov. */
         const val DOLZINA_ID_IZ_KLJUCA = 18

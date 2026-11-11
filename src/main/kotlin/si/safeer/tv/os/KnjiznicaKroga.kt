@@ -45,6 +45,14 @@ object KnjiznicaKroga {
         opis?.zaseben != true || (vprasa.isNotBlank() && vprasa in narocniki)
 
     /**
+     * Ali sme naprava [vprasa] prenos odstraniti z `magnet.remove` (null = uporabnik te naprave sam): zasebnega samo
+     * tista, ki ga je narocila. Pregled 10. 11. 2026 (2.2): seznam in »Obdrži« sta zasebni prenos ze skrila drugim,
+     * odstranil pa ga je lahko vsak s predvajalnikom, ki je uganil kratko stevilko prenosa.
+     */
+    fun smeOdstraniti(opis: Opis?, narocniki: Collection<String>, vprasa: String?): Boolean =
+        vprasa == null || pove(opis, narocniki, vprasa)
+
+    /**
      * Naslov in plakat za polico ali null, ce vnosa ne pokazemo: zasebnega nikoli; brez naslova (starejsi pomocnik ali
      * starejsa naprava, ki opisa ni poslala) samo, ce si je ta naprava naslov zapomnila sama.
      */

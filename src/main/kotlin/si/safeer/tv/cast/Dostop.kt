@@ -36,6 +36,40 @@ object Dostop {
     /** Klice se ob vsaki spremembi dovoljenj (zaslon naprav, objava stanja). */
     @Volatile var naSpremembo: (() -> Unit)? = null
 
+    init {
+        // Umik naprave iz kroga takoj zbrise njen zapis dovoljenj (pregled 10. 11. 2026, A).
+        KrogNaprave.obSpremembiKroga("dostop") { c -> pocistiUmaknjene(c) }
+    }
+
+    /**
+     * Zbrise zapis dovoljenj in privolitve naprav, ki so umaknjene iz kroga ([DostopPravila.umaknjenaJedra]): naprava,
+     * ki se v krog vrne, zacne s praznim zapisom. Napaka pri branju kroga = nic ne brisemo (dostop umaknjene naprave
+     * ze prej ne velja, glej [umaknjena]); zapis »zascita« ostane, ker samo omejuje.
+     */
+    fun pocistiUmaknjene(ctx: Context) {
+        val stevilo = synchronized(this) {
+            val m = nalozen(ctx)
+            odstraniUmaknjene(ctx, m, ctx.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE))
+        }
+        if (stevilo == 0) return
+        Log.i(TAG, "Umik iz kroga: zapis dovoljenj zbrisan $stevilo napravam.")
+        try { naSpremembo?.invoke() } catch (_: Throwable) { }
+    }
+
+    /** Iz [m] in iz privolitev odstrani umaknjene naprave in zapise shrani; vrne stevilo. Klicatelj drzi kljucavnico. */
+    private fun odstraniUmaknjene(ctx: Context, m: HashMap<String, Set<Zmoznost>>, prefs: android.content.SharedPreferences): Int {
+        val krog = try { KrogNaprave.krog(ctx) } catch (_: Throwable) { return 0 }
+        val zaslon = privolitve(prefs)
+        val datoteke = privolitve(prefs, KLJUC_PRIVOLITEV_DATOTEK)
+        val ven = DostopPravila.umaknjenaJedra(m.keys + zaslon + datoteke) { j -> try { krog.jeUmaknjen(j) } catch (_: Throwable) { false } }
+        if (ven.isEmpty()) return 0
+        for (j in ven) m.remove(j)
+        prefs.edit().putString(KLJUC_NAPRAVE, vJson(m))
+            .putString(KLJUC_PRIVOLITEV_ZASLONA, JSONArray((zaslon - ven).sorted()).toString())
+            .putString(KLJUC_PRIVOLITEV_DATOTEK, JSONArray((datoteke - ven).sorted()).toString()).apply()
+        return ven.size
+    }
+
     @Synchronized
     private fun nalozen(ctx: Context): HashMap<String, Set<Zmoznost>> {
         zapis?.let { return it }
@@ -62,6 +96,8 @@ object Dostop {
             prefs.edit().putString(KLJUC_NAPRAVE, vJson(m)).putLong(KLJUC_PODEDOVANO, System.currentTimeMillis()).apply()
             Log.i(TAG, "Dovoljenja uvedena: dostop obdrzi ${podedovani.size} dosedanjih naprav; nove zacnejo brez dostopa.")
         }
+        // Naprava, umaknjena, ko ta program ni tekel (ali pred to razlicico): zapis ne caka na njeno vrnitev.
+        odstraniUmaknjene(ctx, m, prefs)
         zapis = m
         return m
     }
@@ -268,8 +304,8 @@ object Dostop {
 
     /**
      * Umik iz kroga takoj preklice dostop (lastnik 25. 10. 2026; pravilo AGENTS.md »umik naprave iz kroga takoj
-     * preklice njene zetone in seje«): zapis dovoljenj ostane (ponovno dodana naprava ga dobi nazaj), a ne velja.
-     * Napaka pri branju kroga = umaknjena (»ne vem« ni »da«).
+     * preklice njene zetone in seje«): zapis dovoljenj ne velja in se zbrise ([pocistiUmaknjene], pregled 10. 11. 2026) -
+     * ponovno dodana naprava zacne brez dostopa. Napaka pri branju kroga = umaknjena (»ne vem« ni »da«).
      */
     private fun umaknjena(ctx: Context, jedro: String): Boolean =
         try { KrogNaprave.krog(ctx).jeUmaknjen(jedro) } catch (_: Throwable) { true }

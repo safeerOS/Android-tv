@@ -23,6 +23,15 @@ object KrogNaprave {
 
     @Volatile private var krog: KrogZaupanja? = null
 
+    /**
+     * Odzivi na spremembo kroga po imenu dela aplikacije (pregled 10. 11. 2026). Prijavijo se sami: ta datoteka je
+     * Link Core (kopija na telefonu, tools/link-core-sync.sh) in razredov posamezne aplikacije ne sme poznati po imenu.
+     */
+    private val poslusalci = java.util.concurrent.ConcurrentHashMap<String, (Context) -> Unit>()
+
+    /** [odziv] se poklice ob vsaki spremembi kroga (umik, nova naprava); isto [ime] zamenja prejsnji odziv. */
+    fun obSpremembiKroga(ime: String, odziv: (Context) -> Unit) { poslusalci[ime] = odziv }
+
     @Synchronized
     fun krog(context: Context): KrogZaupanja =
         krog ?: KrogZaupanja(Shramba(context.applicationContext)).also { k ->
@@ -39,6 +48,9 @@ object KrogNaprave {
                 try { si.safeer.tv.link.DeljenjeZaslonaStoritev.ustaviBrezDostopa(app) } catch (_: Throwable) { }
                 // Pregled dex-a U7: umik iz kroga izbrise »Vedno dovoli« za deljenje zaslona.
                 try { si.safeer.tv.link.ZaupanjeZaslona.pocisti(app) } catch (_: Throwable) { }
+                // Pregled 10. 11. 2026 (2.5, A): deli aplikacije, ki hranijo seje ali dovoljenja naprav (prehod interneta,
+                // Dostop), umaknjeni napravi takoj zaprejo tokove in zbrisejo zapis - vsak zase, napaka enega ne ustavi drugih.
+                for (odziv in poslusalci.values) try { odziv(app) } catch (_: Throwable) { }
                 try { si.safeer.tv.link.VnosVklop.uskladi(app, "krog") } catch (_: Throwable) { }
             }
             krog = k
@@ -93,10 +105,13 @@ object KrogNaprave {
         return krog(context).clani().firstOrNull { it.kljuc == kljuc && it.id != razen }?.id
     }
 
-    /** Zdruzi krog, ki ga je poslal hub (trust.update ali odgovor na prijavo). */
+    /**
+     * Zdruzi krog, ki ga je poslal hub (trust.update ali odgovor na prijavo). Pregled 10. 11. 2026 (A): umaknjene
+     * naprave ne vrne vnos brez podpisa veljavnega clana (KrogZaupanja.zdruzi, varujUmike).
+     */
     fun sprejmi(context: Context, json: String?): Boolean {
         if (json.isNullOrBlank()) return false
-        return krog(context).zdruzi(json)
+        return krog(context).zdruzi(json, varujUmike = true)
     }
 
     /** Kaj naprava podpise ob prijavi na hub z odtisom [odtisHuba] - isto kot HubUsmerjevalnik.podatkiZaPodpis. */
