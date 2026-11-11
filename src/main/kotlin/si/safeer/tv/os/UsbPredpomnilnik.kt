@@ -254,24 +254,30 @@ object UsbPredpomnilnik {
     /** (pisljiv, MB/s) iz zadnje veljavne meritve za [pot] ali null (se ni merjeno ali zastarelo). */
     private fun hitrostZapisa(app: Context, pot: String): Pair<Boolean, Double>? {
         val p = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        if (!DiskPravila.meritevVelja(p.getLong("mbs_ob:$pot", 0L), System.currentTimeMillis())) return null
-        return p.getBoolean("pis:$pot", false) to p.getFloat("mbs:$pot", 0f).toDouble()
+        val pis = p.getBoolean("pis:$pot", false)
+        // Neuspela meritev velja kratko (N2): disk se ne sme 7 dni zavracati zaradi izvlecene vtikalnice ali zatika.
+        if (!DiskPravila.meritevVelja(p.getLong("mbs_ob:$pot", 0L), System.currentTimeMillis(), pis)) return null
+        return pis to p.getFloat("mbs:$pot", 0f).toDouble()
     }
 
-    /** Preizkus hitrosti v ozadju (na niti [delo]); po koncu preverba znova. Dokler tece, disk ni v uporabi. */
+    /**
+     * Preizkus hitrosti v ozadju na LOCENI niti z omejitvijo [DiskPreizkus.OMEJITEV_MS] (N3): zatik fsync na odklopljenem
+     * disku ne ustavi niti [delo]. Po koncu preverba znova (na [delo]). Dokler tece, disk ni v uporabi.
+     */
     private fun zacniMeritev(app: Context, pot: String) {
         if (merim) return
         merim = true
-        try { delo.execute {
-            try {
-                val r = DiskPreizkus.izmeri(File(pot, MAPA))
-                app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-                    .putLong("mbs_ob:$pot", System.currentTimeMillis()).putBoolean("pis:$pot", r.pisljiv).putFloat("mbs:$pot", r.mbs.toFloat()).apply()
-                android.util.Log.i("SafeerOsMedia", "disk: preizkus zapisa pisljiv=${r.pisljiv}, ${"%.1f".format(r.mbs)} MB/s (prag ${DiskPravila.PRAG_ZAPISA_MBS})")
-            } catch (_: Throwable) { } finally { merim = false }
-            preverjenOb = 0L
-            osveziStanje(app)
-        } } catch (_: java.util.concurrent.RejectedExecutionException) { merim = false }
+        try {
+            Thread({
+                try {
+                    val r = DiskPreizkus.izmeriZOmejitvijo(File(pot, MAPA))
+                    app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                        .putLong("mbs_ob:$pot", System.currentTimeMillis()).putBoolean("pis:$pot", r.pisljiv).putFloat("mbs:$pot", r.mbs.toFloat()).apply()
+                    android.util.Log.i("SafeerOsMedia", "disk: preizkus zapisa pisljiv=${r.pisljiv}, ${"%.1f".format(r.mbs)} MB/s (prag ${DiskPravila.PRAG_ZAPISA_MBS})")
+                } catch (_: Throwable) { } finally { merim = false }
+                try { delo.execute { preverjenOb = 0L; osveziStanje(app) } } catch (_: java.util.concurrent.RejectedExecutionException) { }
+            }, "safeer-usb-meritev-vodja").apply { isDaemon = true; priority = Thread.MIN_PRIORITY }.start()
+        } catch (_: Throwable) { merim = false }
     }
 
     /** Odstranljivi nosilci, ki jih sistem pozna, a ne more priklopiti (exFAT na tem TV); opis = natancen napis naprave. */

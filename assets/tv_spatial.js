@@ -1898,6 +1898,8 @@
 
             // Pregled Groka 5. 11. 2026 (najdba 6): predpomnilnik je bil na window - stran je z njim dolocala cilje daljinca.
             var kandPredpomnilnik = null, kandCas = 0, kandKljuc = '';
+            // Izid zbiranja je nastal v predgrevanju (obroca ni pocistilo): prvi zadetek predpomnilnika ga pocisti, kot bi ga tipka.
+            var kandPredgret = false;
             function getCandidates() {
                 var nowMs = casZdaj();
                 var kljuc = kljucKandidatov();
@@ -1909,6 +1911,8 @@
                             window._safeerDbg('H54', 'tv_spatial.js:kandidati', 'trajanje', { n: kandPredpomnilnik.length, ms: 0, predpomnilnik: 1 });
                         }
                     } catch (_) {}
+                    // Predgrevanje obroca ne cisti; ce izbrani element ni vec v seznamu ciljev, ga pocisti tipka (isto kot brez predgrevanja).
+                    if (kandPredgret && !predgrevanje) { kandPredgret = false; pocistiObroc(kandPredpomnilnik); }
                     return kandPredpomnilnik;
                 }
                 var t0 = 0;
@@ -1927,6 +1931,7 @@
                 } catch (_) {}
                 // #endregion
                 kandPredpomnilnik = found;
+                kandPredgret = !!predgrevanje;
                 kandCas = nowMs;
                 kandKljuc = kljuc;
                 return found;
