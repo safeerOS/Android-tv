@@ -483,12 +483,12 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
             setSupportZoom(false)
             builtInZoomControls = false
             displayZoomControls = false
-            useWideViewPort = true
-            loadWithOverviewMode = true
+            useWideViewPort = !AbStikala.stikala.wideIzklop
+            loadWithOverviewMode = !AbStikala.stikala.wideIzklop
             textZoom = 100
             // Po blokadi gostitelja eMudhra do ponovnega zagona brez predpomnilnika
             cacheMode = if (EmudhraRevocations.imaBlokiraneGostitelje()) WebSettings.LOAD_NO_CACHE else WebSettings.LOAD_DEFAULT
-            userAgentString = DESKTOP_USER_AGENT
+            userAgentString = abNamiznaUa()
             // Televizor (2 GB): brez pripravljanja vsebine izven vidnega obmocja.
             offscreenPreRaster = BrowserMemoryPolicy.za(context).predRaster
             safeBrowsingEnabled = true
@@ -702,8 +702,15 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
             GooglePravila.chromeAndroidStran(url) -> googleUa(context)
             dotik -> CHROME_ANDROID_USER_AGENT
             GooglePravila.youtubeZaTv(url) -> SMART_TV_USER_AGENT
-            else -> DESKTOP_USER_AGENT
+            else -> abNamiznaUa()
         }
+    }
+
+    /** Namizni UA; A/B stikalo ua= (AbStikala, samo adb setprop) ga za meritev zamenja. */
+    private fun abNamiznaUa(): String = when (AbStikala.stikala.ua) {
+        "android" -> CHROME_ANDROID_USER_AGENT
+        "tv" -> SMART_TV_USER_AGENT
+        else -> DESKTOP_USER_AGENT
     }
 
     private fun applyUserAgentForUrl(url: String) {
@@ -761,8 +768,8 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
         // povsod. Prej so te nastavitve dobile samo nastete strani, kar je pomenilo, da je
         // brskalnik delal dobro tam, kjer smo stran poznali - zdaj jih dobi vsaka.
         settings.textZoom = 100
-        settings.useWideViewPort = true
-        settings.loadWithOverviewMode = true
+        settings.useWideViewPort = !AbStikala.stikala.wideIzklop
+        settings.loadWithOverviewMode = !AbStikala.stikala.wideIzklop
         val brezSirine = KazalecPravila.brezSirine(dotik, isYoutubeTv,
             GooglePravila.googleIdentiteta(url) || GooglePravila.chromeAndroidStran(url), PdfPregledovalnik.jePregledovalnik(url),
             url.startsWith("http://") || url.startsWith("https://"))
@@ -784,7 +791,7 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
             GooglePravila.chromeAndroidStran(url) -> googleUa(context)
             dotik -> CHROME_ANDROID_USER_AGENT
             isYoutubeTv -> SMART_TV_USER_AGENT
-            else -> DESKTOP_USER_AGENT
+            else -> abNamiznaUa()
         }
         if (dotik && namiznaSirina <= 0) setInitialScale(0)
     }
@@ -1507,6 +1514,8 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
                 // Za onReceivedSslError: napaka glavnega dokumenta dobi stran napake, napaka slike ali skripte ne.
                 if (isMainFrame) glavnaZahteva = url
                 // Threat Shield pred vsemi izjemami: besedilo v URL-ju (npr. ".mpd", "recaptcha") ne sme obiti preverjanja.
+                // A/B stikalo scit=off (samo meritev, adb setprop): brskalnik zahtevkov ne filtrira.
+                if (AbStikala.stikala.scitIzklop) return null
                 val threatResponse = ThreatBlockEngine.handleThreatIntercept(url, isMainFrame)
                 if (threatResponse != null) {
                     return threatResponse

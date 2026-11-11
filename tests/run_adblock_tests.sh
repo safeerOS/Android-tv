@@ -19,6 +19,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/ZascitaZagona.kt" \
     "$SRC/si/safeer/tv/AdBlockEngine.kt" \
     "$SRC/si/safeer/tv/CosmeticFilterEngine.kt" \
+    "$SRC/si/safeer/tv/AbStikala.kt" \
     "$SRC/si/safeer/tv/SignedThreatIntel.kt" \
     "$SRC/com/safeer/threatfeed/FilterListEngine.kt" \
     "$SRC/com/safeer/threatfeed/SignedThreatFeed.kt" \
