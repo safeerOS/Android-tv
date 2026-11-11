@@ -466,9 +466,11 @@ object GenericWebSiteProfile : SiteProfile {
                     }
                     return true
                 }
+                val smemVVrstico = si.safeer.tv.TvTipke.gorPritisk(event.repeatCount, android.os.SystemClock.uptimeMillis())
                 wv.evaluateJavascript(ukazTipke(wv) + izvoz(wv, "_safeer_navigate_spatial") + "('UP');") { result ->
                     // Nacin aplikacije: prvi GOR v se praznem dokumentu ne zapusti aplikacije (TvTipke.gorVNaslovnoVrstico).
-                    if (si.safeer.tv.TvTipke.gorVNaslovnoVrstico(result, host.nacinAplikacije != null, wv.progress)) vNaslovnoVrstico(host)
+                    // Lastnik 11. 11. 2026: v vrstico samo namerna tipka (ne drzana, ne takoj po drsenju gor).
+                    if (smemVVrstico && si.safeer.tv.TvTipke.gorVNaslovnoVrstico(result, host.nacinAplikacije != null, wv.progress)) vNaslovnoVrstico(host)
                 }
                 return true
             }

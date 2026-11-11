@@ -207,7 +207,9 @@ class TvKeyRouter(private val host: MainActivity) {
                     // V nacinu aplikacije vrstice z naslovom ni: fokus ne sme oditi v skrito polje.
                     // Lastnik 9. 11. 2026 (video 24ur.com): prej je ze 120 px pod vrhom tipka gor skocila v naslovno vrstico -
                     // stran se je navzgor premaknila najvec enkrat. Zdaj sele na samem vrhu in ko stran navzgor ne more vec.
-                    if (si.safeer.tv.KazalecPravila.vNaslovnoVrstico(host.virtualPointerView.pointerY, activeWv?.canScrollVertically(-1) == true) &&
+                    // Lastnik 11. 11. 2026: z dna strani navzgor se kazalec ne zaleti v vrstico - samo namerna tipka na vrhu.
+                    val smemVVrstico = si.safeer.tv.TvTipke.gorPritisk(event.repeatCount, android.os.SystemClock.uptimeMillis())
+                    if (smemVVrstico && si.safeer.tv.KazalecPravila.vNaslovnoVrstico(host.virtualPointerView.pointerY, activeWv?.canScrollVertically(-1) == true) &&
                         host.nacinAplikacije == null &&
                         host.mobileTopBar.visibility == View.VISIBLE && !host.virtualPointerView.vlecem) {
                         host.editUrl.requestFocus()

@@ -28,26 +28,6 @@ class VirtualPointerView @JvmOverloads constructor(
         }
 
     /**
-     * Nacin miske za spletne aplikacije, ki niso narejene za daljinec: kazalec se ne skrije sam
-     * in strani sporoca premike kot prava miska (lebdenje), da se meniji in namigi vedejo kot na racunalniku.
-     */
-    var trajen: Boolean = false
-        set(value) {
-            field = value
-            removeCallbacks(hideRunnable)
-        }
-
-    /**
-     * Kazalec je privzet za stran, ki ni za TV (lastnik 9. 11. 2026, 24ur.com). Slepi pregled 9. 11.: po 30 s se je skril in
-     * daljinec je ostal v nacinu puscic do menjave gostitelja - zato se na taki strani ne skrije sam.
-     */
-    var privzet: Boolean = false
-        set(value) {
-            field = value
-            removeCallbacks(hideRunnable)
-        }
-
-    /**
      * Vlecenje z daljincem (lastnik 30. 10. 2026: varnostne preverbe »povleci obliko«, drsniki).
      * Dolg pritisk OK zgrabi, puscice vlecejo, naslednji OK spusti. Kratek OK je klik ob spustu tipke.
      */
@@ -75,10 +55,6 @@ class VirtualPointerView @JvmOverloads constructor(
         color = Color.parseColor("#00E5FF")
         style = Paint.Style.STROKE
         strokeWidth = 3f
-    }
-
-    private val hideRunnable = Runnable {
-        isPointerVisible = false
     }
 
     init {
@@ -110,8 +86,6 @@ class VirtualPointerView @JvmOverloads constructor(
 
     fun movePointer(dx: Float, dy: Float, targetWebView: WebView?): Boolean {
         isPointerVisible = true
-        removeCallbacks(hideRunnable)
-        if (KazalecPravila.samSkrij(trajen, vlecem, privzet)) postDelayed(hideRunnable, 30000)
 
         val newX = max(10f, min(width - 10f, pointerX + dx))
         val newY = max(10f, min(height - 10f, pointerY + dy))
@@ -139,7 +113,8 @@ class VirtualPointerView @JvmOverloads constructor(
             } else if (pointerY > bottomThreshold) {
                 kolesce(targetWebView, 1)
             }
-            if (trajen) posljiLebdenje(targetWebView)
+            // Lastnik 11. 11. 2026: lebdenje v brskalniku enako kot v spletni aplikaciji (meniji, namigi kot na racunalniku).
+            if (KazalecPravila.lebdenje()) posljiLebdenje(targetWebView)
         }
         return true
     }
@@ -202,7 +177,6 @@ class VirtualPointerView @JvmOverloads constructor(
     fun zacniVlecenje(wv: WebView) {
         if (vlecem) return
         isPointerVisible = true
-        removeCallbacks(hideRunnable)
         vlecem = true
         cakaKlik = false
         okPorabljen = true
@@ -223,7 +197,6 @@ class VirtualPointerView @JvmOverloads constructor(
         try { cilj?.setOnLongClickListener(null) } catch (_: Throwable) { }
         vlecenjePogled = null
         vlecem = false
-        if (KazalecPravila.samSkrij(trajen, false, privzet)) postDelayed(hideRunnable, 30000)
         invalidate()
     }
 

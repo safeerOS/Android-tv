@@ -3,7 +3,7 @@ package si.safeer.tv
 /**
  * Lastnik 9. 11. 2026 (24ur.com): stran, ki ni narejena za TV, naj daljinec sam preklopi v kazalec (miska). Izbira lastnika:
  * privzeto kazalec, izjeme so strani za TV (nase strani, YouTube za TV, pregledovalnik PDF). Rocni preklop (rdeca/INFO,
- * gumb kazalca, drzan OK) si brskalnik zapomni za gostitelja - naslednjic stran odpre tako, kot jo je uporabnik zelel.
+ * gumb kazalca, drzan OK) si zapomni brskalnik in spletna aplikacija za gostitelja (en vir) - naslednjic stran odpre tako, kot jo je uporabnik zelel.
  */
 object KazalecPravila {
     /** Gostitelj http(s) naslova (malo, brez pike na koncu) ali null. */
@@ -28,8 +28,15 @@ object KazalecPravila {
         return miska && !zaTv
     }
 
-    /** Kazalec se sam skrije po 30 s samo, ce ni trajen (spletna aplikacija), ne vlece in ni privzet za stran, ki ni za TV. */
-    fun samSkrij(trajen: Boolean, vlecem: Boolean, privzet: Boolean): Boolean = !trajen && !vlecem && !privzet
+    /**
+     * Lastnik 11. 11. 2026: brskalnik se pri kazalcu vede kot spletna aplikacija - kazalec se NIKOLI ne skrije sam (prej je
+     * rocno vklopljen kazalec v brskalniku po 30 s izginil, ceprav si ga je brskalnik zapomnil kot vklopljenega).
+     * Skriva ga samo uporabnik (rdeci gumb, INFO, gumb kazalca).
+     */
+    fun samSkrij(): Boolean = false
+
+    /** Premiki kazalca sporocajo strani lebdenje (mouseover/mousemove) v brskalniku in v spletni aplikaciji enako. */
+    fun lebdenje(): Boolean = true
 
     /** Kljuc, ob katerem se privzeti kazalec preracuna: gostitelj, stran za ogled istega gostitelja loceno. */
     fun kljucStrani(gostitelj: String?, ogled: Boolean): String? = gostitelj?.let { if (ogled) "$it#ogled" else it }

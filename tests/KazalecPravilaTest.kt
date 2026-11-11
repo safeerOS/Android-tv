@@ -16,11 +16,13 @@ fun main() {
     check(K.privzetoKazalec(true, "https://safeer.si/", zaTv = true, zapomnjeno = true)) { "uporabnik je izbral kazalec tudi na strani za TV" }
     check(K.gostitelj("https://WWW.24ur.com./clanek") == "www.24ur.com") { "gostitelj: malo, brez pike" }
     check(K.gostitelj("javascript:alert(1)") == null) { "samo http(s)" }
-    // Slepi pregled 9. 11. 2026: privzeti kazalec na strani, ki ni za TV, se po 30 s ne skrije sam.
-    check(!K.samSkrij(trajen = false, vlecem = false, privzet = true)) { "privzet kazalec: brez samodejnega skrivanja" }
-    check(K.samSkrij(trajen = false, vlecem = false, privzet = false)) { "rocno vklopljen kazalec: skrije se po 30 s" }
-    check(!K.samSkrij(trajen = true, vlecem = false, privzet = false)) { "spletna aplikacija: trajen" }
-    check(!K.samSkrij(trajen = false, vlecem = true, privzet = false)) { "med vlecenjem ne" }
+    // Lastnik 11. 11. 2026: brskalnik kot spletna aplikacija - kazalec se nikoli ne skrije sam, premiki sporocajo lebdenje.
+    check(!K.samSkrij()) { "kazalec se ne skrije sam (rocno vklopljen v brskalniku tudi ne)" }
+    check(K.lebdenje()) { "premiki kazalca sporocajo lebdenje v brskalniku in aplikaciji" }
+    // Spletna aplikacija uporablja isto pravilo (zaTv = false): zapomnjena izbira je nad privzetim v obe smeri.
+    check(!K.privzetoKazalec(true, "https://www.facebook.com/", zaTv = false, zapomnjeno = false, miska = true)) { "aplikacija: izbrane puscice veljajo" }
+    check(K.privzetoKazalec(true, "https://example.org/", zaTv = false, zapomnjeno = true, miska = false)) { "aplikacija: izbran kazalec velja" }
+    check(K.privzetoKazalec(true, "https://www.instagram.com/", zaTv = false, zapomnjeno = null, miska = true)) { "aplikacija: Instagram privzeto kazalec" }
     check(K.kljucStrani("www.24ur.com", false) == "www.24ur.com") { "kljuc: navadna stran" }
     check(K.kljucStrani("www.24ur.com", true) != K.kljucStrani("www.24ur.com", false)) { "kljuc: ogled istega gostitelja je druga stran" }
     check(K.kljucStrani(null, true) == null) { "kljuc: brez gostitelja" }

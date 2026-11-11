@@ -524,10 +524,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             } catch (_: Throwable) { null }
 
             if (zavihekAplikacije == null) odpriVZavihku(zacetni)
-            if (si.safeer.tv.os.OsPravila.miskaZaAplikacijo(si.safeer.tv.os.Naprava.jeTelevizor(this), zacetni)) {
-                virtualPointerView.trajen = true
-                virtualPointerView.isPointerVisible = true
-            }
+            // Lastnik 11. 11. 2026: isto pravilo kot v brskalniku (en vir): zapomnjena izbira gostitelja, sicer privzeto.
+            virtualPointerView.isPointerVisible = kazalecZaStran(zacetni, false)
             activeWebView()?.requestFocus()
         }, 350)
         if (ime.isNotBlank()) Toast.makeText(this, UiText.get(R.string.ui_web_app_odprta, ime), Toast.LENGTH_LONG).show()
@@ -650,11 +648,15 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         if (kljuc == kazalecZaGostitelja) return
         kazalecZaGostitelja = kljuc
         val zaTv = ogled || SpletMostPravila.jeDovoljenIzvor(naslov) || GooglePravila.youtubeZaTv(naslov) || PdfPregledovalnik.jePregledovalnik(naslov)
-        val kazalec = KazalecPravila.privzetoKazalec(
+        virtualPointerView.isPointerVisible = kazalecZaStran(naslov, zaTv)
+    }
+
+    /** Ali je kazalec za [naslov] vklopljen: isto pravilo za brskalnik in spletno aplikacijo (lastnik 11. 11. 2026). */
+    private fun kazalecZaStran(naslov: String, zaTv: Boolean): Boolean {
+        val kljuc = KazalecPravila.kljucStrani(KazalecPravila.gostitelj(naslov), TvSite.isWatchPage(naslov))
+        return KazalecPravila.privzetoKazalec(
             si.safeer.tv.os.Naprava.jeTelevizor(this), naslov, zaTv, KazalecNastavitve.zapomnjeno(this, kljuc),
             si.safeer.tv.os.OsPravila.miskaZaAplikacijo(true, naslov))
-        virtualPointerView.privzet = kazalec
-        virtualPointerView.isPointerVisible = kazalec
     }
 
     /** Rocni preklop kazalca: brskalnik si ga zapomni za gostitelja odprte strani. */
@@ -671,13 +673,10 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         nacinAplikacije = null
         val bilZvokVOzadju = zvokVOzadju
         zvokVOzadju = false
-        if (virtualPointerView.trajen) {
-            virtualPointerView.trajen = false
-            virtualPointerView.isPointerVisible = false
-        }
-        // Slepi pregled 9. 11.: naslednja stran istega gostitelja spet dobi privzeti kazalec; star »privzet« ne ostane.
+        // Slepi pregled 9. 11.: naslednja stran istega gostitelja spet dobi privzeti kazalec. Kazalec aplikacije ne ostane v
+        // brskalniku: izklop, nato pravilo za stran, ki je zdaj odprta (lastnik 11. 11. 2026: en vir za oba nacina).
         kazalecZaGostitelja = null
-        virtualPointerView.privzet = false
+        virtualPointerView.isPointerVisible = false
         // Lastnik 29. 10. 2026: Zavihek spletne aplikacije ohranimo v predpomnilniku zavihkov
         // (tabManager), da se ob ponovnem vstopu v aplikacijo ne nalaga znova iz nicle.
         // Ce pomnilnik zahteva sprostitev, TabManager po casu ali ob pritisku RAM-a poskrbi za varno zamrznitev.
@@ -695,6 +694,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         zavihekAplikacije = null
         nastaviVidnostChrome(View.VISIBLE)
         mobileTopBar.translationY = 0f
+        // Zavihek, na katerega smo se vrnili, dobi kazalec po pravilu brskalnika (nacinAplikacije je ze null).
+        try { uporabiPrivzetiKazalec(activeUrl()) } catch (_: Throwable) { }
     }
 
     private var wakeLock: android.os.PowerManager.WakeLock? = null
