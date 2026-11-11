@@ -247,5 +247,20 @@ fun main() {
     preveriEnako("zascitena: premor iz docka pred 11 min ne", false, MiniPredvajalnikPravila.tujaZascitena(false, zd - 660_000L, zd))
     preveriEnako("zascitena: premor ob Domov (ne iz docka) ne", false, MiniPredvajalnikPravila.tujaZascitena(false, 0L, zd))
 
+    // Lastnik 11. 11. 2026: Luna v malem predvajalniku je vrnila v Medijski center. Vzrok (izmerjeno na TV): Predvajanje brez taskAffinity
+    // + NEW_TASK -> sistem je prinesel v ospredje staro nalogo Glasbe (affinity si.safeer.os) in zaslona ni zagnal.
+    run {
+        val koren = listOf(".", "..").map { java.io.File(it) }.firstOrNull { java.io.File(it, "AndroidManifest.xml").exists() }
+        if (koren == null) { napak++; println("  NAPAKA  manifest ni najden (zazeni iz korena projekta)") } else {
+            val manifest = java.io.File(koren, "AndroidManifest.xml").readText()
+            val oznaka = { ime: String -> Regex("<activity android:name=\"si\\.safeer\\.tv\\.os\\.$ime\"[^>]*>").find(manifest)?.value ?: "" }
+            val afiniteta = { ime: String -> Regex("android:taskAffinity=\"([^\"]*)\"").find(oznaka(ime))?.groupValues?.get(1) }
+            preveriEnako("Predvajanje ima isto nalogo kot Glasba", afiniteta("GlasbaActivity"), afiniteta("PredvajanjeActivity"))
+            val vir = java.io.File(koren, "src/main/kotlin/si/safeer/tv/os/MiniPredvajalnik.kt").readText()
+            val zatemni = vir.substringAfter("private fun zatemni()").substringBefore("\n    }\n")
+            preveriEnako("zatemni() ne uporablja NEW_TASK", false, zatemni.contains("FLAG_ACTIVITY_NEW_TASK"))
+        }
+    }
+
     if (napak == 0) println("MiniPredvajalnikPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

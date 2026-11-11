@@ -129,7 +129,7 @@ class MiniPredvajalnik(
     private fun zatemni() {
         try {
             a.startActivity(android.content.Intent(a, PredvajanjeActivity::class.java).putExtra(PredvajanjeActivity.ZATEMNI, true)
-                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP))
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP))  // brez NEW_TASK: 11. 11. 2026 je z njim sistem le prinesel v ospredje staro nalogo Glasbe, Predvajanje se ni zagnalo
         } catch (_: Throwable) { }
     }
 
