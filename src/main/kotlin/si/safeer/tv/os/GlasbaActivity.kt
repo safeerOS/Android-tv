@@ -7996,8 +7996,9 @@ class GlasbaActivity : OsActivity() {
     private fun odpriSplet(beseda: String) {
         GlasbaStoritev.premor()
         try {
-            startActivity(Brskalnik.izMedijev(Brskalnik.namera(this)).setAction(Intent.ACTION_VIEW)
-                .setData(android.net.Uri.parse(spletnoIskanje(beseda))))
+            val naslov = spletnoIskanje(beseda)
+            startActivity(Brskalnik.tuja(this, naslov) ?: Brskalnik.izMedijev(Brskalnik.namera(this)).setAction(Intent.ACTION_VIEW)
+                .setData(android.net.Uri.parse(naslov)))
         } catch (_: Exception) { Toast.makeText(this, R.string.os_odpri_ni_aplikacije, Toast.LENGTH_SHORT).show() }
     }
 

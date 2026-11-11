@@ -118,17 +118,21 @@ object Brskalnik {
      * Iskanje v spletu ali predlog iz Lupe: naslov v izbranem brskalniku (ACTION_VIEW s paketom), sicer v Safeerju
      * kot doslej. Odpre samo http(s); ce tuj brskalnik naslova ne sprejme, gre v Safeer.
      */
-    fun iskanje(c: Context, url: String): Intent {
+    fun iskanje(c: Context, url: String): Intent =
+        tuja(c, url) ?: namera(c).setAction(Intent.ACTION_VIEW).setData(Uri.parse(url))
+
+    /**
+     * Naslov v izbranem TUJEM brskalniku (ACTION_VIEW s paketom, BROWSABLE) ali null = Safeer ([OsPravila.spletTujZaNaslov]).
+     * Namera nima dodatkov Safeer (iz_safeer_os, spletna_aplikacija ...) in ne komponente VARNI_VHOD: tujemu paketu
+     * ne dajemo ne dovoljenja LINK ne notranjih podatkov. Izguba: brez zivljenjskega cikla v lupini in zvoka v ozadju.
+     */
+    fun tuja(c: Context, url: String): Intent? {
+        val tuj = izbrani(c) ?: return null
         val uri = Uri.parse(url)
-        val shema = uri.scheme?.lowercase()
-        val tuj = izbrani(c)
-        if (tuj != null && (shema == "https" || shema == "http")) {
-            val i = Intent(Intent.ACTION_VIEW, uri).setPackage(tuj).addCategory(Intent.CATEGORY_BROWSABLE)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            val sprejme = try { c.packageManager.resolveActivity(i, 0) != null } catch (_: Throwable) { false }
-            if (sprejme) return i
-        }
-        return namera(c).setAction(Intent.ACTION_VIEW).setData(uri)
+        val i = Intent(Intent.ACTION_VIEW, uri).setPackage(tuj).addCategory(Intent.CATEGORY_BROWSABLE)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val sprejme = try { c.packageManager.resolveActivity(i, 0) != null } catch (_: Throwable) { false }
+        return if (OsPravila.spletTujZaNaslov(tuj, uri.scheme, sprejme) != null) i else null
     }
 
     /**
@@ -136,7 +140,7 @@ object Brskalnik {
      * cikel aplikacije (svoj zavihek, unicen ob izhodu) da dodatek aplikacija_v_lupini - ZavihkiPravila.spletnaAplikacijaIzOs.
      */
     fun spletnaAplikacija(c: Context, url: String, ime: String): Intent =
-        mobilniNaslov(c, url) ?: namera(c).apply {
+        tuja(c, url) ?: mobilniNaslov(c, url) ?: namera(c).apply {
             val n = si.safeer.tv.ZavihkiPravila.spletnaAplikacijaIzOs(url, ime)
             if (n.pogled) { action = Intent.ACTION_VIEW; data = Uri.parse(n.naslov) }
             n.dodatki.forEach { (k, v) -> if (v is Boolean) putExtra(k, v) else putExtra(k, v.toString()) }
@@ -144,7 +148,7 @@ object Brskalnik {
 
     /** Uporabnikov vir glasbe ali videa: kot spletna aplikacija, zvok pa ob tipki Domov igra naprej. */
     fun medijskaStran(c: Context, url: String, ime: String): Intent =
-        izMedijev(mobilniNaslov(c, url) ?: namera(c)
+        tuja(c, url) ?: izMedijev(mobilniNaslov(c, url) ?: namera(c)
             .putExtra("spletna_aplikacija", url)
             .putExtra("aplikacija_ime", ime)
             .putExtra("zvok_v_ozadju", true))

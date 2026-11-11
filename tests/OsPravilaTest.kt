@@ -1754,6 +1754,18 @@ private fun preizkusPlacljivega120() {
     preveriEnako("brskalnik: izbran Safeer TV Browser", null, OsPravila.spletBrskalnik("si.safeer.tv", true, true))
     preveriEnako("brskalnik: Safeer OS sam ni tuj brskalnik", null, OsPravila.spletBrskalnik("si.safeer.os", true, true))
     preveriEnako("brskalnik: izbira velja samo v Safeer OS", null, OsPravila.spletBrskalnik("org.mozilla.firefox", false, true))
+
+    // Lastnik 11. 11. 2026: spletne aplikacije in medijske strani gredo v izbrani tuj brskalnik (samo http/https)
+    preveriEnako("tuj naslov: https v izbranem", "org.mozilla.firefox", OsPravila.spletTujZaNaslov("org.mozilla.firefox", "https", true))
+    preveriEnako("tuj naslov: http v izbranem", "org.mozilla.firefox", OsPravila.spletTujZaNaslov("org.mozilla.firefox", "HTTP", true))
+    preveriEnako("tuj naslov: brez izbire Safeer", null, OsPravila.spletTujZaNaslov(null, "https", true))
+    preveriEnako("tuj naslov: prazna izbira Safeer", null, OsPravila.spletTujZaNaslov(" ", "https", true))
+    preveriEnako("tuj naslov: brskalnik naslova ne sprejme - Safeer", null, OsPravila.spletTujZaNaslov("org.mozilla.firefox", "https", false))
+    preveriEnako("tuj naslov: shema file ne gre tujcu", null, OsPravila.spletTujZaNaslov("org.mozilla.firefox", "file", true))
+    preveriEnako("tuj naslov: shema intent ne gre tujcu", null, OsPravila.spletTujZaNaslov("org.mozilla.firefox", "intent", true))
+    preveriEnako("tuj naslov: brez sheme", null, OsPravila.spletTujZaNaslov("org.mozilla.firefox", null, true))
+    preveriEnako("tuj naslov: Safeer TV Browser ni tujec", null, OsPravila.spletTujZaNaslov("si.safeer.tv", "https", true))
+    preveriEnako("tuj naslov: Safeer OS ni tujec", null, OsPravila.spletTujZaNaslov("si.safeer.os", "https", true))
     preveriEnako("brskalniki: brez Safeer, brez podvojitev, po imenu",
         listOf("org.mozilla.firefox" to "Firefox", "com.opera.browser" to "opera"),
         OsPravila.brskalnikiZaIzbiro(listOf("si.safeer.tv" to "Safeer TV Browser", "com.opera.browser" to "opera",
