@@ -997,6 +997,17 @@
                 return false;
             }
 
+            // Znotraj enega zbiranja ciljev (getCandidatesFresh) se stran ne spremeni: izid za isti element velja (zbiranje ga je
+            // klicalo dvakrat - za element in za njegovo kartico; 11. 11. 2026 profil 24ur.com: jeNogaAliPiskotki 18 % zbiranja).
+            var nogaIzid = null;
+            function jeNogaVZbiranju(el) {
+                if (!nogaIzid || !el) return jeNogaAliPiskotki(el);
+                if (nogaIzid.has(el)) return nogaIzid.get(el);
+                var r = jeNogaAliPiskotki(el);
+                nogaIzid.set(el, r);
+                return r;
+            }
+
             // Pritrjena spodnja vrstica za navigacijo, ki je trenutno na zaslonu (ali null).
             function najdiSpodnjoVrstico() {
                 try {
@@ -1471,7 +1482,7 @@
                     // Ce v oknu ni nobenega cilja, raje pustimo prvotni seznam, kot da bi
                     // daljinec ostal brez cilja.
                     if (!vOknu.length) return seznam;
-                    pocistiObroc(vOknu);
+                    if (!predgrevanje) pocistiObroc(vOknu);   // predgrevanje samo zbere cilje; obroc pocisti tipka
                     return vOknu;
                 }
                 var ostane = [];
@@ -1480,10 +1491,10 @@
                 }
                 if (!ostane.length) {
                     // Vse prekriva plast s tujim okvirjem (uganka, preverjanje): za njo ni cilja (SAFEER_ZAPRTA_STRAN).
-                    if (najdiZaprtoPlast()) { stranZaprta = true; pocistiObroc([]); return []; }
+                    if (najdiZaprtoPlast()) { stranZaprta = true; if (!predgrevanje) pocistiObroc([]); return []; }
                     return vOknu.length ? vOknu : seznam;
                 }
-                pocistiObroc(ostane);
+                if (!predgrevanje) pocistiObroc(ostane);
                 return ostane;
             }
 
@@ -1746,6 +1757,39 @@
             // spremeni DOM strani (ne nas obroc in oznake safeer-*), drsenje (okno ali vsebnik), velikost ali naslov strani.
             // Najdlje KAND_NAJDLJE_MS (animacije CSS brez spremembe DOM).
             var KAND_NAJDLJE_MS = 2000;
+            /* SAFEER_PREDGREVANJE_ZACETEK */
+            // TV 11. 11. 2026 (24ur.com, A/B meritev): drsenje z daljincem 43 % zatikajocih slicic, brez tega skripta 1,7 %.
+            // Vzrok: vsaka tipka DOL/GOR drsa stran, drsenje spremeni kljuc predpomnilnika (drsenjeRazlicica), zato je naslednji
+            // pritisk vedno ponovno zbiranje ciljev (H54: 100-230 ms na TV, 1 zadetek predpomnilnika od 20) - in to tece v istem
+            // okvirju kot zacetek drsenja. Zdaj zbiranje tece po koncu drsenja (nobene animacije), ko uporabnik gleda stran;
+            // naslednja tipka zadene predpomnilnik. Izid je isti (isti kljuc, isti izracun); ne pocisti obroca (to dela samo tipka).
+            // Stran po drsenju se spremeni (24ur.com: lenobne slike, nasi tabindex 480 ms po spremembi DOM) in ta sprememba zavrze
+            // izid: zato najvec PREDGREVANJE_NAJVEC zbiranj na tipko, vsako po zamiku po zadnji spremembi.
+            var PREDGREVANJE_ZAMIK_MS = 140, PREDGREVANJE_PO_TIPKI_MS = 6000, PREDGREVANJE_NAJVEC = 3;
+            var zadnjaTipkaCas = 0, predgrevanjeCasovnik = 0, predgrevanje = false, predgrevanjeSt = 0;
+            function nacrtujPredgrevanje() {
+                // Samo kratek cas po tipki daljinca (stran, ki jo uporabnik drsa s prstom ali kazalcem, ne dobi nobenega dela).
+                if (!zadnjaTipkaCas || predgrevanjeSt >= PREDGREVANJE_NAJVEC) return;
+                try {
+                    if (predgrevanjeCasovnik) clearTimeout(predgrevanjeCasovnik);
+                    predgrevanjeCasovnik = setTimeout(izvediPredgrevanje, PREDGREVANJE_ZAMIK_MS);
+                } catch (_) { predgrevanjeCasovnik = 0; }
+            }
+            function izvediPredgrevanje() {
+                predgrevanjeCasovnik = 0;
+                try {
+                    var zdaj = casZdaj();
+                    if (!zadnjaTipkaCas || zdaj < zadnjaTipkaCas || zdaj - zadnjaTipkaCas > PREDGREVANJE_PO_TIPKI_MS) return;
+                    if (document.hidden || !kandOpazovalec) return;
+                    var k = kljucKandidatov();
+                    if (kandPredpomnilnik && k && k === kandKljuc && zdaj - kandCas >= 0 && zdaj - kandCas < KAND_NAJDLJE_MS / 2) return;
+                    if (predgrevanjeSt++ >= PREDGREVANJE_NAJVEC) return;
+                    predgrevanje = true;
+                    getCandidates();
+                } catch (_) {
+                } finally { predgrevanje = false; }
+            }
+            /* SAFEER_PREDGREVANJE_KONEC */
             var domRazlicica = 0, drsenjeRazlicica = 0, kandOpazovalec = null;
             function jeNasVozel(n) {
                 var e = n && n.nodeType === 1 ? n : (n ? n.parentElement : null), g = 0;
@@ -1795,12 +1839,12 @@
             try {
                 kandOpazovalec = new MutationObserver(function (zapisi) {
                     var t0 = merCas();
-                    try { if (zapisiStrani(zapisi, false)) domRazlicica++; }
+                    try { if (zapisiStrani(zapisi, false)) { domRazlicica++; nacrtujPredgrevanje(); } }
                     finally { merStat.moMs += merCas() - t0; merStat.moZapisov += zapisi.length; merStat.moKlicev++; }
                 });
                 kandOpazovalec.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeOldValue: true,
                     attributeFilter: ['class', 'style', 'hidden', 'aria-hidden', 'aria-expanded', 'disabled', 'open', 'tabindex', 'href', 'role', 'inert'] });
-                window.addEventListener('scroll', function () { drsenjeRazlicica++; }, { capture: true, passive: true });
+                window.addEventListener('scroll', function () { drsenjeRazlicica++; nacrtujPredgrevanje(); }, { capture: true, passive: true });
                 window.addEventListener('resize', function () { drsenjeRazlicica++; }, { passive: true });
             } catch (_) { kandOpazovalec = null; }
             function kljucKandidatov() {
@@ -1869,14 +1913,16 @@
                 }
                 var t0 = 0;
                 try { t0 = performance.now(); } catch (_) {}
-                var found = odstraniNedosegljive(getCandidatesFresh());
+                var found;
+                nogaIzid = new Map();
+                try { found = odstraniNedosegljive(getCandidatesFresh()); } finally { nogaIzid = null; }
                 // #region agent log
                 // Pregled fokusa 5. 11. 2026: zbiranje ob vsaki tipki je mozno ozko grlo - najprej merimo (brez spremembe vedenja).
                 try {
                     window._safeerDbgKandN = (window._safeerDbgKandN || 0) + 1;
                     if (window._safeerDbgKandN <= 20) {
                         window._safeerDbg('H54', 'tv_spatial.js:kandidati', 'trajanje', {
-                            n: found.length, ms: Math.round((performance.now() - t0) * 10) / 10 });
+                            n: found.length, ms: Math.round((performance.now() - t0) * 10) / 10, pg: predgrevanje ? 1 : 0 });
                     }
                 } catch (_) {}
                 // #endregion
@@ -1970,7 +2016,7 @@
                             try { od = isActionable(el) ? (findCardContainer(el) || el) : null; } finally { preskociNogo = false; }
                             if (odl) odl.set(el, { v: od, st: oznakaSt });
                         }
-                        if (od && (el.tagName || '').toUpperCase() !== 'IFRAME' && jeNogaAliPiskotki(el)) od = null;
+                        if (od && (el.tagName || '').toUpperCase() !== 'IFRAME' && jeNogaVZbiranju(el)) od = null;
                         if (od) {
                             var finalEl = od;
                             if (!rawSet.has(finalEl)) {
@@ -2033,7 +2079,7 @@
                         }
                     }
                     if (!isNested && !dropWrapper) {
-                        if (jeNogaAliPiskotki(item)) {
+                        if (jeNogaVZbiranju(item)) {
                             continue;
                         }
                         if (itemCls.indexOf('slick-slide') !== -1 && itemCls.indexOf('item--event') === -1 &&
@@ -3082,6 +3128,7 @@
             /* SAFEER_LEVI_ROB_KONEC */
 
             var navigirajProstorsko = function(direction, robVrstice) {
+                zadnjaTipkaCas = casZdaj(); predgrevanjeSt = 0;
                 try {
                     var scrollY = window.scrollY || document.documentElement.scrollTop || 0;
                     var winH = window.innerHeight || 1080;
@@ -3914,7 +3961,7 @@
                     }
                     // Nasi tabindex spremenijo, kaj je cilj (CodeRabbit 9. 11. 2026: .tab, .seasonHeader so cilji sele z njim):
                     // zbiranje se osvezi; ostali cakajoci zapisi stejejo kot sprememba strani.
-                    if (kandOpazovalec && (zapisiStrani(kandOpazovalec.takeRecords(), true) || napisanih > 0)) domRazlicica++;
+                    if (kandOpazovalec && (zapisiStrani(kandOpazovalec.takeRecords(), true) || napisanih > 0)) { domRazlicica++; nacrtujPredgrevanje(); }
                 } catch(_) {}
             }
 
