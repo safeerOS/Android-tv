@@ -17,6 +17,15 @@ fun main() {
     check(!TvTipke.drzanOkVkljuciKazalec(23, TvTipke.PONOVITEV_ZA_KAZALEC, kazalecViden = true, vVrstici = false))
     check(!TvTipke.drzanOkVkljuciKazalec(23, TvTipke.PONOVITEV_ZA_KAZALEC, kazalecViden = false, vVrstici = true))
     check(!TvTipke.drzanOkVkljuciKazalec(19, TvTipke.PONOVITEV_ZA_KAZALEC, kazalecViden = false, vVrstici = false))
+    // Lastnik 11. 11. 2026: z dna strani navzgor ne v naslovno vrstico - samo svez pritisk po premoru.
+    check(!TvTipke.smeVNaslovnoVrstico(5, 10_000L)) { "drzana tipka GOR ne vstopi v vrstico" }
+    check(!TvTipke.smeVNaslovnoVrstico(0, 100L)) { "hitro tipkanje GOR: stran je pravkar drsela" }
+    check(TvTipke.smeVNaslovnoVrstico(0, TvTipke.PREMOR_NASLOVNA_MS)) { "namerna tipka po premoru: vrstica" }
+    var t = 1_000_000L
+    check(TvTipke.gorPritisk(0, t)) { "prvi pritisk na vrhu: vrstica" }
+    check(!TvTipke.gorPritisk(1, t + 50)) { "ponovitev drzane tipke: ne" }
+    check(!TvTipke.gorPritisk(0, t + 150)) { "takoj naslednji pritisk: ne" }
+    check(TvTipke.gorPritisk(0, t + 150 + TvTipke.PREMOR_NASLOVNA_MS)) { "po premoru: da" }
     // GOR v naslovno vrstico (zunanji pregled fokusa 3. 11. 2026): v nacinu aplikacije med nalaganjem ne.
     check(TvTipke.gorVNaslovnoVrstico("-1", nacinAplikacije = true, napredek = 100))
     check(!TvTipke.gorVNaslovnoVrstico("1", nacinAplikacije = true, napredek = 100))

@@ -131,6 +131,24 @@ object TvTipke {
     /** Ime izvoza tv_spatial.js na window z nakljucnim delom strani; brez veljavnega dela staro ime (ga ni - klic ne naredi nic). */
     fun izvoz(nonce: String?, ime: String): String = if (jeNonce(nonce)) "window.${ime}_$nonce" else "window.$ime"
 
+    /** Premor po zadnji tipki GOR, v katerem nova tipka ne sme v naslovno vrstico (stran se je pravkar premikala navzgor). */
+    const val PREMOR_NASLOVNA_MS = 400L
+    private var zadnjiGorMs = Long.MIN_VALUE / 2
+
+    /**
+     * Lastnik 11. 11. 2026 (brskalnik za zgled): na poti z dna strani navzgor ne smeta kazalec ne fokus sama skociti v naslovno
+     * vrstico. V vrstico sme samo NAMERNA tipka GOR: svez pritisk (ne ponovitev drzane tipke) in ne prej kot [PREMOR_NASLOVNA_MS]
+     * po prejsnji tipki GOR (sicer hitro tipkanje/drzanje na vrhu stran prehiti in skoci v vrstico). Klici belezijo cas.
+     */
+    @Synchronized fun gorPritisk(ponovitev: Int, zdajMs: Long): Boolean {
+        val smem = smeVNaslovnoVrstico(ponovitev, zdajMs - zadnjiGorMs)
+        zadnjiGorMs = zdajMs
+        return smem
+    }
+
+    fun smeVNaslovnoVrstico(ponovitev: Int, msOdPrejsnjegaGor: Long): Boolean =
+        ponovitev == 0 && msOdPrejsnjegaGor >= PREMOR_NASLOVNA_MS
+
     fun gorVNaslovnoVrstico(odgovor: String?, nacinAplikacije: Boolean, napredek: Int): Boolean {
         val o = (odgovor ?: "").trim().trim('"')
         if (o == "-1") return true
