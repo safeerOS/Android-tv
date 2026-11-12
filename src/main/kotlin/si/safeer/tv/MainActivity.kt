@@ -3710,7 +3710,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         try {
             android.webkit.ServiceWorkerController.getInstance().setServiceWorkerClient(object : android.webkit.ServiceWorkerClient() {
                 override fun shouldInterceptRequest(request: android.webkit.WebResourceRequest): android.webkit.WebResourceResponse? =
-                    ThreatBlockEngine.handleThreatIntercept(request.url.toString(), false)
+                    PresuMerilnik.izmeri(PresuMerilnik.Kat.SW) { ThreatBlockEngine.handleThreatIntercept(request.url.toString(), false) }
             })
         } catch (e: Exception) {
             android.util.Log.w("SafeerSecurity", "Service worker Threat Shield ni na voljo: ${e.message}")

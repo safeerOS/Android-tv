@@ -680,7 +680,7 @@ object ThreatBlockEngine {
      */
     private fun pocakajNaZascito(isMainFrame: Boolean) {
         val glavna = android.os.Looper.myLooper() == android.os.Looper.getMainLooper()
-        val izid = ZascitaZagona.pocakaj(glavna, isMainFrame) ?: return
+        val izid = PresuMerilnik.izmeri(PresuMerilnik.Kat.CAKANJE) { ZascitaZagona.pocakaj(glavna, isMainFrame) } ?: return
         if (izid.prva) {
             android.util.Log.i("SafeerSecurity", "Zascita ob zagonu: prva zahteva cakala ${izid.cakalaMs} ms, pripravljeno=${izid.pripravljeno}" +
                 ", ${izid.odZacetkaMs} ms od zacetka, glavni okvir=$isMainFrame, glavna nit=$glavna (${ZascitaZagona.porocilo()})")
@@ -693,7 +693,10 @@ object ThreatBlockEngine {
     /**
      * Vrne WebResourceResponse z varnostnim opozorilom za glavno okno ali prazen odgovor za podvire.
      */
-    fun handleThreatIntercept(url: String, isMainFrame: Boolean): WebResourceResponse? {
+    fun handleThreatIntercept(url: String, isMainFrame: Boolean): WebResourceResponse? =
+        PresuMerilnik.izmeri(PresuMerilnik.Kat.SCIT) { handleThreatInterceptJedro(url, isMainFrame) }
+
+    private fun handleThreatInterceptJedro(url: String, isMainFrame: Boolean): WebResourceResponse? {
         // Hladni zagon (raziskava 4. 11. 2026): prve zahteve so sle mimo seznamov, ker so se ti nalagali v ozadju. Ta klic
         // tece v nitnem bazenu WebView (shouldInterceptRequest) in tu omejeno pocaka na prvo nalaganje; glavna nit nikoli.
         // Podvir caka tudi na EasyList (AdBlockEngine.filterListBlocks za njim), glavni okvir ne.

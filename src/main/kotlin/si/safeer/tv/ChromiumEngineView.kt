@@ -416,6 +416,8 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
     private var finishedScriptNavGen = -1
 
     init {
+        // H56: izpis merilnika shouldInterceptRequest v logcat (oznaka SafeerPerf); brez naslovov.
+        PresuMerilnik.izpis = { android.util.Log.i("SafeerPerf", it) }
         nastaviNativnoTemno(isDarkMode)  // privzeta vrednost ne gre skozi setter
         setupSettings()
         setupClients()
@@ -1499,7 +1501,11 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
                 return false
             }
 
-            override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? {
+            // H56 (12. 11. 2026): cas klica merimo za vsak zahtevek (stevilo, skupaj, najvec, po nitih); vedenje je nespremenjeno.
+            override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse? =
+                PresuMerilnik.izmeri(PresuMerilnik.Kat.VSE) { presezi(request) }
+
+            private fun presezi(request: WebResourceRequest?): WebResourceResponse? {
                 val url = request?.url?.toString() ?: return null
                 // content:// (krajevne datoteke in mediji) samo kot glavni dokument, ki ga odpre uporabnik; stran ga ne sme
                 // vstaviti kot sliko, skripto ali okvir (zunanji pregled kode 8. 10. 2026).
@@ -1568,11 +1574,14 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
                     return null
                 }
 
-                return AdBlockEngine.handleIntercept(url, interceptPageUrl, request.requestHeaders?.get("Accept"), isMainFrame)
+                return PresuMerilnik.izmeri(PresuMerilnik.Kat.ADBLOCK) {
+                    AdBlockEngine.handleIntercept(url, interceptPageUrl, request.requestHeaders?.get("Accept"), isMainFrame)
+                }
             }
 
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                 super.onPageStarted(view, url, favicon)
+                PresuMerilnik.novaStran()
                 // Nov zeton dotika za vsako stran: ukraden zeton prejsnje strani ne velja vec (pregled 3. 11. 2026).
                 zetonDotikaPrej = zetonDotika
                 nonceIzvozovPrej = nonceIzvozov
