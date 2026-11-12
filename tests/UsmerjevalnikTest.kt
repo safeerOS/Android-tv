@@ -938,6 +938,10 @@ private fun preizkusKroga() {
     u.obdelaj(pravi2, registracija("tel-1", "sender"))
     preveriEnako("prijava pod svojim id uspe", "accepted", polje(pravi2.zadnje(), "status"))
     preveriEnako("po prijavi vezava odpade", null, u.napravaVstopnice(vstopnica))
+    // Pregled 13. 11. 2026 (A): ista povezava se ne more znova prijaviti pod id druge naprave.
+    u.obdelaj(pravi2, registracija("tuja-naprava", "sender"))
+    preveri("druga prijava na isti povezavi pod tujim id je zavrnjena", polje(pravi2.zadnje(), "error_code") == "napacen_device_id")
+    preveri("tuja naprava ni izrinjena ali prevzeta", u.register.najdi("tuja-naprava") == null)
     // Vstopnica z zetonom je vezana na lastnika zetona.
     val zZetonom = u.odgovori(zahteva("POST", "/cast/ticket", "", glave = mapOf("x-safeer-token" to zeton)))
     val vstopnicaZ = polje(zZetonom?.telo.orEmpty(), "ticket")

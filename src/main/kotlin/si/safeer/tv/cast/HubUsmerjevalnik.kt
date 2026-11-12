@@ -1508,6 +1508,12 @@ class HubUsmerjevalnik(
         if (vezana != null && vezana != deviceId && !istiKljuc(vezana, deviceId)) {
             return potrditev(id, "rejected", "device_id se ne ujema z napravo, ki ji je bila izdana vstopnica.", koda = "napacen_device_id")
         }
+        // Pregled 13. 11. 2026 (A): povezava, ki je ze prijavljena pod nekim id, se ne more znova prijaviti pod id druge naprave
+        // (sicer bi izrinila njeno pravo povezavo, prevzela njen promet in cakajoce klepete). Isti kljuc je ista naprava.
+        val ze = register.idPovezave(od)
+        if (ze != null && ze != deviceId && !istiKljuc(ze, deviceId)) {
+            return potrditev(id, "rejected", "Povezava je ze prijavljena pod drugim device_id.", koda = "napacen_device_id")
+        }
         od.vstopnica?.let { v -> synchronized(kljucnica) { vezaneVstopnice.keys.firstOrNull { enaka(it, v) }?.let { vezaneVstopnice.remove(it) } } }
 
         val vloga = tovor.niz("role") ?: "receiver"
