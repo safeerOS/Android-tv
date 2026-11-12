@@ -3956,13 +3956,15 @@
                     var focusables = document.querySelectorAll('a, button, input, select, textarea, [onclick], [role="button"], .card, .media-card, .item--event, .item.item--event, .tab, .seasonHeader, .video-play-button');
                     for (var i = 0; i < focusables.length; i++) {
                         var el = focusables[i];
+                        // Ze ima tabindex (nas iz prejsnjega kroga ali stran): nasa preverbi spodaj (closest) sta tu brez ucinka, zato
+                        // jih preskocimo (H54/H55, 24ur.com na TV: ~38 ms na klic pri 3855 elementih; krog tece vsakih 4,5 s in po
+                        // spremembah DOM). Izid je isti: element z tabindexom se nikoli ne spremeni.
+                        if (el.hasAttribute('tabindex')) continue;
                         if (isCarouselArrow(el)) continue;
                         if (jeSkritZaFokus(el)) continue;
-                        if (!el.hasAttribute('tabindex')) {
-                            el.setAttribute('tabindex', '0');
-                            napisanih++;
-                            oznaciSpremembo({ type: 'attributes', target: el });
-                        }
+                        el.setAttribute('tabindex', '0');
+                        napisanih++;
+                        oznaciSpremembo({ type: 'attributes', target: el });
                     }
                     // Nasi tabindex spremenijo, kaj je cilj (CodeRabbit 9. 11. 2026: .tab, .seasonHeader so cilji sele z njim):
                     // zbiranje se osvezi; ostali cakajoci zapisi stejejo kot sprememba strani.
