@@ -43,3 +43,14 @@ java -cp "$OUT/prehod.jar:$JSON_JAR" si.safeer.tv.link.PrehodInternetaTestKt "$S
     "$TEST_DIR/KrogUmikTest.kt" \
     -include-runtime -d "$OUT/krog-umik.jar"
 java -cp "$OUT/krog-umik.jar:$JSON_JAR" si.safeer.tv.cast.KrogUmikTestKt "$SRC"
+
+# Pregled 12. 11. 2026 (S1): vnos z "dodano" v prihodnosti se zavrne, umik uspe.
+"$KOTLINC" -J-Xmx1g -cp "$JSON_JAR" \
+    "$TEST_DIR/stubs/prehod/Cast.kt" \
+    "$TEST_DIR/stubs/prehod/Context.kt" \
+    "$SRC/si/safeer/tv/cast/JsonLahki.kt" \
+    "$SRC/si/safeer/tv/cast/KrogZaupanja.kt" \
+    "$SRC/si/safeer/tv/cast/DostopPravila.kt" \
+    "$TEST_DIR/KrogPrihodnjeDodanoTest.kt" \
+    -include-runtime -d "$OUT/krog-prihodnje.jar"
+java -cp "$OUT/krog-prihodnje.jar:$JSON_JAR" si.safeer.tv.cast.KrogPrihodnjeDodanoTestKt

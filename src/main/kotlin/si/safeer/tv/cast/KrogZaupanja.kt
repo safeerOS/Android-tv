@@ -312,7 +312,11 @@ class KrogZaupanja(private val shramba: HubUsmerjevalnik.Shramba? = null) {
                     val z = c.objekt(id) ?: continue
                     val kljuc = z.niz("kljuc") ?: continue
                     if (dekodirajKljuc(kljuc) == null) continue
-                    val nov = Clan(id, kljuc, z.nizAli("ime", id), z.nizAli("platforma"), z.stevilo("dodano") ?: 0.0, z.nizAli("dodal"),
+                    // Pregled 12. 11. 2026 (S1): prihodnji "dodano" bi vnos naredil novejsi od vsakega poznejsega umika
+                    // (clan s predpripravljenim casom bi preprecil svoj umik); cas naprave se ne razlikuje za vec kot 5 min.
+                    val dodanoVnosa = z.stevilo("dodano") ?: 0.0
+                    if (dodanoVnosa > zdaj() + NAJVEC_PRIHODNJE_S) continue
+                    val nov = Clan(id, kljuc, z.nizAli("ime", id), z.nizAli("platforma"), dodanoVnosa, z.nizAli("dodal"),
                         z.stevilo("imenovano") ?: 0.0, z.nizAli("podpis"))
                     if ((varujUmike || preveriPodpise) && biObudil(nov)) { vrnitve.add(nov); continue }
                     vpisi(nov)
@@ -414,6 +418,9 @@ class KrogZaupanja(private val shramba: HubUsmerjevalnik.Shramba? = null) {
         /** Clan brez stika toliko dni gre iz kroga (pospravi); stiki v shrambo najvec vsakih 10 min. */
         const val DNI_BREZ_STIKA = 90
         const val STIKI_ZAPIS_S = 600.0
+
+        /** Najvec, koliko v prihodnosti sme biti cas vnosa v krogu (razlika ur med napravami). */
+        const val NAJVEC_PRIHODNJE_S = 300.0
 
         fun zdaj(): Double = System.currentTimeMillis() / 1000.0
 
