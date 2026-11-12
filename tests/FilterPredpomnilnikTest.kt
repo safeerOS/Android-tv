@@ -79,12 +79,48 @@ private fun primerjaj(ime: String, lines: List<String>, sonde: List<String>, gos
     preveri("$ime: prekratka datoteka -> null", FilterSetPredpomnilnik.preberi(fk, kljuc) == null)
     preveri("$ime: napacen kljuc -> null", FilterSetPredpomnilnik.preberi(d, kljuc + "x") == null)
     preveri("$ime: ni datoteke -> null", FilterSetPredpomnilnik.preberi(File(mapa, "ni-je.bin"), kljuc) == null && !FilterSetPredpomnilnik.glavaVelja(File(mapa, "ni-je.bin"), kljuc))
+    // N1: okrnjena datoteka z VELJAVNO glavo (konec odrezan, glava cela) ne velja in se z osvezi() popravi.
+    fk.writeBytes(bajti.copyOf(bajti.size - 7))
+    preveri("$ime: okrnjena datoteka z veljavno glavo -> glavaVelja false (N1)", !FilterSetPredpomnilnik.glavaVelja(fk, kljuc))
+    // Pokvarjeno telo z veljavno glavo in dolzino: glava velja, branje ne; osvezi(branjeNeuspelo=true) jo zamenja z veljavno.
+    val k2 = bajti.copyOf(); k2[k2.size - 9] = (k2[k2.size - 9].toInt() xor 0x33).toByte(); fk.writeBytes(k2)
+    preveri("$ime: pokvarjeno telo: glava velja, branje null", FilterSetPredpomnilnik.glavaVelja(fk, kljuc) && FilterSetPredpomnilnik.preberi(fk, kljuc) == null)
+    preveri("$ime: osvezi po neuspelem branju popravi datoteko (N1)",
+        FilterSetPredpomnilnik.osvezi(a, kljuc, fk, true) && FilterSetPredpomnilnik.preberi(fk, kljuc)?.size == a.size)
+    preveri("$ime: osvezi ne prepise ze veljavne datoteke",
+        fk.lastModified().let { m -> FilterSetPredpomnilnik.osvezi(a, kljuc, fk, false) && fk.lastModified() == m })
+    preveri("$ime: po zapisu ni zacasne datoteke", !File(mapa, "kvar1.bin.tmp").exists())
+    // N5: odtis razclenjevalnika je v kljucu; drug odtis -> drug kljuc, stara datoteka ne velja.
+    FilterSetPredpomnilnik.odtisPrepis = "drug-razclenjevalnik"
+    val kNov = FilterSetPredpomnilnik.kljuc(listOf("v1", ime))
+    FilterSetPredpomnilnik.odtisPrepis = null
+    preveri("$ime: spremenjen odtis razclenjevalnika -> drug kljuc in stara datoteka ne velja (N5)", kNov != kljuc && !FilterSetPredpomnilnik.glavaVelja(d, kNov) && FilterSetPredpomnilnik.preberi(d, kNov) == null)
     fk.delete()
+}
+
+private fun prazen() {
+    val mapa = java.nio.file.Files.createTempDirectory("filter-prazen").toFile()
+    try {
+        val d = File(mapa, "prazen.bin")
+        // N2: prazen nabor se nikoli ne zapise (sicer bi poskodovan seznam z veljavnim kljucem izklopil EasyList).
+        preveri("zapisi(FilterSet.EMPTY) vrne false in ne ustvari datoteke (N2)", !FilterSetPredpomnilnik.zapisi(FilterSet.EMPTY, "k", d) && !d.exists() && !File(mapa, "prazen.bin.tmp").exists())
+        preveri("osvezi(FilterSet.EMPTY) ne ustvari datoteke (N2)", !FilterSetPredpomnilnik.osvezi(FilterSet.EMPTY, "k", d, false) && !d.exists())
+        val src = PlainListSource("easylist", "EasyList", "https://x.example/e.txt", "ads", "[Adblock", raw = true)
+        val src2 = PlainListSource("drug", "Drug", "https://x.example/d.txt", "ads", "[Adblock", raw = true)
+        val ok = PlainList(src, listOf("||a.example^"), 1L, "aaa")
+        val info = PlainListInfo(src, 1, "aaa", 1L)
+        preveri("kljucZaZapis iz prevedenih seznamov v skladu z .meta (N2)", FilterSetPredpomnilnik.kljucZaZapis("1.0", listOf(ok), listOf(info)) != null)
+        preveri("kljucZaZapis: prazen vnos -> null (N2)", FilterSetPredpomnilnik.kljucZaZapis("1.0", emptyList(), listOf(info)) == null)
+        preveri("kljucZaZapis: drug SHA prevedenega seznama kot v .meta -> null (N2)", FilterSetPredpomnilnik.kljucZaZapis("1.0", listOf(PlainList(src, listOf("||a.example^"), 1L, "bbb")), listOf(info)) == null)
+        preveri("kljucZaZapis: manjkajoc SHA -> null (N2)", FilterSetPredpomnilnik.kljucZaZapis("1.0", listOf(PlainList(src, listOf("x"), 1L, "")), listOf(info)) == null)
+        preveri("kljucZaZapis: seznam v .meta, ki ni bil preveden -> null (N2)", FilterSetPredpomnilnik.kljucZaZapis("1.0", listOf(ok), listOf(info, PlainListInfo(src2, 1, "ccc", 1L))) == null)
+    } finally { mapa.deleteRecursively() }
 }
 
 fun main(args: Array<String>) {
     val mapa = java.nio.file.Files.createTempDirectory("filter-predp").toFile()
     try {
+        prazen()
         val (lines, sonde) = sinteticni()
         primerjaj("sinteticni", lines, sonde, (0 until 3000).flatMap { listOf("dom$it.si", "drugi$it.si", "a.dom$it.si") }, mapa)
         val pot = args.firstOrNull()
@@ -110,7 +146,11 @@ fun main(args: Array<String>) {
         preveri("ThreatFeedsUpdater bere predpomnilnik ob zagonu in ne bere seznama", tfu.contains("FilterSetPredpomnilnik.preberi(") &&
             tfu.contains("emptySet()") && tfu.contains("FilterSetPredpomnilnik.glavaVelja("))
         preveri("ThreatFeedsUpdater ob neveljavnem predpomnilniku prebere sezname kot prej", tfu.contains("agent?.loadSaved("))
-        preveri("ThreatFeedsUpdater zapise predpomnilnik po prevodu", tfu.contains("zapisiPredpomnilnik(app)") && tfu.contains("FilterSetPredpomnilnik.zapisi("))
+        preveri("ThreatFeedsUpdater zapise predpomnilnik po prevodu", tfu.contains("zapisiPredpomnilnik(app, vsebina, branjeNeuspelo)") && tfu.contains("FilterSetPredpomnilnik.osvezi(") &&
+            tfu.contains("FilterSetPredpomnilnik.kljucZaZapis("))
+        // Zapis po preverbi kazala (N3) in kljuc ne iz .meta (N2).
+        preveri("zapis predpomnilnika je po preveriKazalo (N3)", tfu.indexOf("ThreatBlockEngine.preveriKazalo()") in 0 until tfu.indexOf("zapisiPredpomnilnik(app, vsebina, branjeNeuspelo)"))
+        preveri("zapis ne jemlje kljuca iz .meta (N2)", !tfu.contains("kljucPredpomnilnika("))
         preveri("AdBlockEngine namesti predprevedeni nabor", abe.contains("fun installPrecompiled(") && abe.contains("fun trenutniNabor("))
     } finally { mapa.deleteRecursively() }
     if (napak > 0) { println("FilterPredpomnilnikTest: $napak napak"); exitProcess(1) }
