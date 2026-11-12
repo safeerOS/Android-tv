@@ -121,8 +121,8 @@ class FilterDecision(val block: Boolean, val filter: NetworkFilter?)
  * guessed: a WebView cannot apply them as CSS.
  */
 class CosmeticSet internal constructor(
-    private val byDomain: Map<String, List<String>>,
-    private val exceptionsByDomain: Map<String, List<String>>,
+    internal val byDomain: Map<String, List<String>>,
+    internal val exceptionsByDomain: Map<String, List<String>>,
     val size: Int,
 ) {
     companion object {
@@ -160,12 +160,12 @@ class CosmeticSet internal constructor(
 
 /** An immutable, indexed set of network rules. */
 class FilterSet internal constructor(
-    private val hostBlocks: Map<String, List<NetworkFilter>>,
-    private val hostExceptions: Map<String, List<NetworkFilter>>,
-    private val tokenBlocks: Map<String, List<NetworkFilter>>,
-    private val tokenExceptions: Map<String, List<NetworkFilter>>,
-    private val untokenizedBlocks: List<NetworkFilter>,
-    private val untokenizedExceptions: List<NetworkFilter>,
+    internal val hostBlocks: Map<String, List<NetworkFilter>>,
+    internal val hostExceptions: Map<String, List<NetworkFilter>>,
+    internal val tokenBlocks: Map<String, List<NetworkFilter>>,
+    internal val tokenExceptions: Map<String, List<NetworkFilter>>,
+    internal val untokenizedBlocks: List<NetworkFilter>,
+    internal val untokenizedExceptions: List<NetworkFilter>,
     val size: Int,
     val skipped: Int,
     /** Element-hiding rules from the same lists (see CosmeticSet). */
@@ -401,30 +401,6 @@ object FilterListEngine {
 
     /** [legacyRegex] = vsi vzorci kot Pattern (stari ujemalnik), samo za preizkus enakosti v tests/AbpVzorecTest.kt. */
     internal fun compile(lines: Iterable<String>, legacyRegex: Boolean): FilterSet {
-        // 12. 11. 2026: velik seznam (EasyList ~77 000 vrstic) LAHKO prevedeta dve niti: omrezna pravila in kozmeticna pravila
-        // sta neodvisna (vsak svoj zbirnik), izid je isti kot pri enonitnem prevodu (preizkus FilterPrevodTest). PRIVZETO ENONITNO:
-        // prednost dvonitnega ni izmerjena na TV (JVM: v sumu), na 2 GB TV pa pomeni vec dela in smeti (pregled 12. 11. 2026).
-        // Vklop: [dovoljenDvonitni] (aplikacija ga nastavi iz stikala prevod=dvonitni). Stari ujemalnik in kratki seznami: enonitno.
-        zadnjiPrevodNiti = 1
-        if (!legacyRegex && dovoljenDvonitni) {
-            val seznam = lines as? List<String> ?: lines.toList()
-            if (seznam.size >= PARALELNO_OD) return compileDvaNiti(seznam)
-            return compileEnonitno(seznam, false)
-        }
-        return compileEnonitno(lines, legacyRegex)
-    }
-
-    /** Od koliko vrstic naprej prevajata dve niti (pod tem je zagon druge niti drazji od prihranka). */
-    internal const val PARALELNO_OD = 5_000
-
-    /** Dvonitni prevod dovoljen (privzeto NE; aplikacija: stikalo prevod=dvonitni). */
-    @Volatile internal var dovoljenDvonitni = false
-
-    /** Zadnji prevod: koliko niti je delalo (preizkus; 1 = enonitni). */
-    @Volatile internal var zadnjiPrevodNiti = 1
-
-    /** Enonitni prevod: referenca za izid; tu se je do 12. 11. 2026 prevajalo vse. */
-    internal fun compileEnonitno(lines: Iterable<String>, legacyRegex: Boolean): FilterSet {
         val hostBlocks = HashMap<String, MutableList<NetworkFilter>>()
         val hostExceptions = HashMap<String, MutableList<NetworkFilter>>()
         val tokenBlocks = HashMap<String, MutableList<NetworkFilter>>()
@@ -470,83 +446,6 @@ object FilterListEngine {
                        else CosmeticSet(cosmeticByDomain, cosmeticExceptions, cosmeticSize)
         return FilterSet(hostBlocks, hostExceptions, tokenBlocks, tokenExceptions, restBlocks, restExceptions,
                          size, skipped, cosmetic)
-    }
-
-    /**
-     * Dvonitni prevod: ta nit gradi omrezna pravila, druga kozmeticna. Vsaka vrstica gre v natanko eno: kozmeticna je tista, ki jo
-     * [parseCosmetic] sprejme (kot v enonitnem prevodu), ostale gredo v [parse]. Vrstni red pravil v vsakem predalu je isti kot
-     * pri enonitnem prevodu (vsaka nit bere seznam od zacetka); skupna sta samo seznam (samo branje) in nic spremenljivega.
-     * Skupni bazen selektorjev je razdeljen na dva (podvojen niz med omreznimi in kozmeticnimi pravili je redek).
-     */
-    private fun compileDvaNiti(lines: List<String>): FilterSet {
-        val kozm = KozmeticniZbirnik()
-        var napaka: Throwable? = null
-        val druga = Thread({
-            try { kozm.zberi(lines) } catch (t: Throwable) { napaka = t }
-        }, "safeer-prevod-kozmeticna")
-        druga.isDaemon = true
-        druga.start()
-        zadnjiPrevodNiti = 2
-        val hostBlocks = HashMap<String, MutableList<NetworkFilter>>()
-        val hostExceptions = HashMap<String, MutableList<NetworkFilter>>()
-        val tokenBlocks = HashMap<String, MutableList<NetworkFilter>>()
-        val tokenExceptions = HashMap<String, MutableList<NetworkFilter>>()
-        val restBlocks = ArrayList<NetworkFilter>()
-        val restExceptions = ArrayList<NetworkFilter>()
-        var size = 0
-        var skipped = 0
-        val budget = intArrayOf(MAX_REGEX_RULES)
-        val selectorPool = HashMap<String, String>()
-        var tvegala: Throwable? = null
-        try {
-            for (line in lines) {
-                val trimmed = line.trim()
-                if (trimmed.isEmpty() || trimmed.startsWith("!") || trimmed.startsWith("[")) continue
-                // Brez znaka # vrstica ne more biti kozmeticna (parseCosmetic bi vrnil null): dragi klic samo za ostale.
-                if (trimmed.indexOf('#') >= 0 && parseCosmetic(trimmed) != null) continue
-                val filter = parse(trimmed, budget, selectorPool, false)
-                if (filter == null) { skipped++; continue }
-                size++
-                when {
-                    filter.hostAnchor != null -> (if (filter.exception) hostExceptions else hostBlocks).getOrPut(filter.hostAnchor) { ArrayList(1) }.add(filter)
-                    filter.token != null -> (if (filter.exception) tokenExceptions else tokenBlocks).getOrPut(filter.token) { ArrayList(1) }.add(filter)
-                    else -> (if (filter.exception) restExceptions else restBlocks).add(filter)
-                }
-            }
-        } catch (t: Throwable) { tvegala = t }
-        try { druga.join() } catch (e: InterruptedException) { Thread.currentThread().interrupt(); throw e }
-        // Napaka katere koli niti ne sme dati pol prevedenega nabora: izjema gre klicatelju, kot pri enonitnem prevodu.
-        tvegala?.let { throw it }
-        napaka?.let { throw it }
-        return FilterSet(hostBlocks, hostExceptions, tokenBlocks, tokenExceptions, restBlocks, restExceptions,
-                         size, skipped, kozm.sestavi())
-    }
-
-    /** Kozmeticna pravila ene niti (glej [compileDvaNiti]); isti vrstni red in pravila kot v enonitnem prevodu. */
-    private class KozmeticniZbirnik {
-        private val byDomain = HashMap<String, MutableList<String>>()
-        private val exceptions = HashMap<String, MutableList<String>>()
-        private val pool = HashMap<String, String>()
-        private var size = 0
-        fun zberi(lines: List<String>) {
-            for (line in lines) {
-                val trimmed = line.trim()
-                if (trimmed.isEmpty() || trimmed.startsWith("!") || trimmed.startsWith("[")) continue
-                if (trimmed.indexOf('#') < 0) continue
-                val cosmetic = parseCosmetic(trimmed) ?: continue
-                val (domains, rawSelector, isException) = cosmetic
-                val selector = pool.getOrPut(rawSelector) { rawSelector }
-                for (domain in domains) {
-                    val negated = domain.startsWith("~")
-                    val clean = domain.removePrefix("~")
-                    if (clean.isEmpty()) continue
-                    val target = if (isException || negated) exceptions else byDomain
-                    target.getOrPut(clean) { ArrayList(1) }.add(selector)
-                }
-                size++
-            }
-        }
-        fun sestavi(): CosmeticSet = if (size == 0) CosmeticSet.EMPTY else CosmeticSet(byDomain, exceptions, size)
     }
 }
 

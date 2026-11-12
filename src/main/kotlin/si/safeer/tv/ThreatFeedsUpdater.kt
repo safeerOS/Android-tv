@@ -1,6 +1,8 @@
 package si.safeer.tv
 
 import android.content.Context
+import com.safeer.threatfeed.FilterSetPredpomnilnik
+import com.safeer.threatfeed.PlainListInfo
 import com.safeer.threatfeed.PlainListSource
 import com.safeer.threatfeed.ThreatListAgent
 import java.io.File
@@ -99,6 +101,33 @@ object ThreatFeedsUpdater {
 
     private fun jeGrozenj(s: PlainListSource) = !s.raw && !s.dnsOnly
 
+    /** Predprevedeni nabor EasyList (12. 11. 2026), zraven kazala grozenj. */
+    private fun predpomnilnikDatoteka(app: Context) = File(File(app.filesDir, "threat-index"), "easylist-predprevedeno.bin")
+
+    /** Kljuc predpomnilnika iz metapodatkov seznamov (id + SHA-256 surovih seznamov) in razlicice aplikacije; null, ce kljuca ni. */
+    private fun kljucPredpomnilnika(info: List<PlainListInfo>): String? {
+        val raw = info.filter { it.source.raw }
+        if (raw.isEmpty() || raw.any { it.sha256.isEmpty() }) return null
+        return FilterSetPredpomnilnik.kljuc(listOf(razlicica) + raw.flatMap { listOf(it.source.id, it.sha256) })
+    }
+
+    /** Kljuc veljavnega predpomnilnika za ta zagon (null = predpomnilnika ni ali ne velja). */
+    @Volatile private var predpomnilnikKljuc: String? = null
+
+    /** Zapise prevedeni nabor (v ozadju, po tem ko je zascita ze pripravljena); ne piše, ce ze velja. */
+    private fun zapisiPredpomnilnik(app: Context) {
+        try {
+            val kl = kljucPredpomnilnika(agent?.savedInfo() ?: return) ?: return
+            val d = predpomnilnikDatoteka(app)
+            if (FilterSetPredpomnilnik.glavaVelja(d, kl)) return
+            val t = System.nanoTime()
+            val ok = FilterSetPredpomnilnik.zapisi(AdBlockEngine.trenutniNabor(), kl, d)
+            android.util.Log.i("SafeerSecurity", "Predpomnilnik EasyList zapisan=$ok, ${(System.nanoTime() - t) / 1_000_000} ms")
+        } catch (e: Throwable) {
+            android.util.Log.w("SafeerSecurity", "Predpomnilnika EasyList ni bilo mogoce zapisati: ${e.message}")
+        }
+    }
+
     /**
      * Viri agenta brskalnika: brez seznamov samo za Scit (dnsOnly, HaGeZi PRO 247 757 domen). TV 4. 11. 2026: ob osvezitvi
      * je glavni proces bral tudi PRO (logcat »Seznami v uporabi: ... HaGeZi Multi PRO«, GC 98/122 MB), ceprav ga brskalnik
@@ -123,9 +152,6 @@ object ThreatFeedsUpdater {
         agentScit = null
         // Od tu zahteve v shouldInterceptRequest omejeno pocakajo na prvo nalaganje (ZascitaZagona, 4. 11. 2026).
         ZascitaZagona.zacni()
-        // Dvonitni prevod EasyList je privzeto IZKLOPLJEN (pregled 12. 11. 2026: ni izmerjen na TV); vklop samo z A/B stikalom
-        // prevod=dvonitni, da isti APK primerja oba nacina.
-        com.safeer.threatfeed.FilterListEngine.dovoljenDvonitni = AbStikala.stikala.prevodDvonitni
         val app = context.applicationContext
         val kazalo = kazaloDatoteka(app)
         val listAgent = ThreatListAgent(File(app.filesDir, "threat-lists"), BRSKALNIK_VIRI,
@@ -137,8 +163,27 @@ object ThreatFeedsUpdater {
             },
             onPartialLists = { lists ->
                 val t = System.nanoTime()
-                filterRuleCount = AdBlockEngine.installFilterLists(lists.filter { it.source.raw })
-                koncaj(ZascitaZagona.Del.EASYLIST, "$filterRuleCount pravil, prevod ${(System.nanoTime() - t) / 1_000_000} ms")
+                // 12. 11. 2026: ob zagonu iz predprevedenega nabora (seznam se ni bral): zahteve podvirov so na prevod EasyList (1,7 s na
+                // TV) cakale do 0,8 s na klic. Neveljaven ali pokvarjen predpomnilnik: seznam se prebere in prevede kot prej.
+                var izPredpomnilnika = false
+                var vsebina = lists
+                val kl = predpomnilnikKljuc
+                if (kl != null) {
+                    val nabor = FilterSetPredpomnilnik.preberi(predpomnilnikDatoteka(app), kl)
+                    if (nabor != null) {
+                        filterRuleCount = AdBlockEngine.installPrecompiled(nabor)
+                        koncaj(ZascitaZagona.Del.EASYLIST, "$filterRuleCount pravil iz predpomnilnika, nalaganje ${(System.nanoTime() - t) / 1_000_000} ms")
+                        izPredpomnilnika = true
+                    } else {
+                        android.util.Log.w("SafeerSecurity", "Predpomnilnik EasyList neveljaven: seznam se prevede")
+                        vsebina = agent?.loadSaved(BRSKALNIK_VIRI.filter { it.raw }.map { it.id }.toSet()) ?: lists
+                    }
+                }
+                if (!izPredpomnilnika) {
+                    filterRuleCount = AdBlockEngine.installFilterLists(vsebina.filter { it.source.raw })
+                    koncaj(ZascitaZagona.Del.EASYLIST, "$filterRuleCount pravil, prevod ${(System.nanoTime() - t) / 1_000_000} ms")
+                    zapisiPredpomnilnik(app)
+                }
                 // Kazalo je bilo odprto brez branja vsebine; tu (v ozadju) se preverimo CRC celotne datoteke.
                 if (!ThreatBlockEngine.preveriKazalo()) {
                     android.util.Log.w("SafeerSecurity", "Kazalo grozenj poskodovano: gradim znova iz seznamov")
@@ -155,6 +200,7 @@ object ThreatFeedsUpdater {
             val te = System.nanoTime()
             filterRuleCount = AdBlockEngine.installFilterLists(lists.filter { it.source.raw })
             koncaj(ZascitaZagona.Del.EASYLIST, "$filterRuleCount pravil, prevod ${(System.nanoTime() - te) / 1_000_000} ms")
+            zapisiPredpomnilnik(app)
             // Nabora Scita brskalnik ne gradi vec (4. 11. 2026): to dela proces :scit (startSamoScit), ki ima tudi HaGeZi PRO.
             android.util.Log.i("SafeerSecurity", "Seznami v uporabi: ${lists.joinToString { "${it.source.name} (${it.entries.size})" }}" +
                 "; pravila EasyList: $filterRuleCount; pravila za skrivanje: ${AdBlockEngine.cosmeticRuleCount}")
@@ -175,8 +221,10 @@ object ThreatFeedsUpdater {
             android.util.Log.i("SafeerSecurity", "Kazalo grozenj ni v uporabi (${if (kljuc == null) "ni shranjenih seznamov" else "zgrajeno iz drugih seznamov ali ga ni"}): " +
                 "drevo se gradi v ozadju (preverba $ms ms)")
         }
-        // Ce je kazalo zgrajeno iz istih seznamov, ob zagonu beremo samo EasyList (raw).
-        listAgent.start(if (odprto) BRSKALNIK_VIRI.filter { it.raw }.map { it.id }.toSet() else null)
+        // Ce je kazalo zgrajeno iz istih seznamov, ob zagonu beremo samo EasyList (raw); ce je veljaven se predprevedeni nabor
+        // EasyList (kljuc = SHA-256 seznamov iz metapodatkov + razlicica aplikacije), ne beremo nicesar (glej onPartialLists).
+        predpomnilnikKljuc = if (odprto) kljucPredpomnilnika(shranjeni)?.takeIf { FilterSetPredpomnilnik.glavaVelja(predpomnilnikDatoteka(app), it) } else null
+        listAgent.start(if (!odprto) null else if (predpomnilnikKljuc != null) emptySet() else BRSKALNIK_VIRI.filter { it.raw }.map { it.id }.toSet())
     }
 
     /**

@@ -76,6 +76,16 @@ object AdBlockEngine {
         return compiled.size
     }
 
+    /** Namesti ze prevedeni nabor (predpomnilnik na disku, FilterSetPredpomnilnik); isti ucinek kot installFilterLists. */
+    fun installPrecompiled(compiled: FilterSet): Int {
+        filterSet = compiled
+        synchronized(pageAllowances) { pageAllowances.clear() }
+        return compiled.size
+    }
+
+    /** Trenutni nabor (za zapis v predpomnilnik). */
+    internal fun trenutniNabor(): FilterSet = filterSet
+
     private fun isPageAllowed(pageUrl: String): Boolean {
         val set = filterSet
         if (set.size == 0) return false

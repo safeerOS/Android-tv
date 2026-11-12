@@ -89,8 +89,7 @@ object CosmeticFilterEngine {
         } catch (_: Exception) {
             emptyList()
         }
-        // A/B stikali cssseznam=off in cssyt=off (samo meritev, 12. 11. 2026); brez njiju isti izbor kot prej.
-        val selectors = AbStikala.izberiSelektorje(splosnaPravila(AdBlockEngine.isEnabled), listRules, AbStikala.stikala).joinToString(", ")
+        val selectors = (splosnaPravila(AdBlockEngine.isEnabled) + listRules).distinct().joinToString(", ")
         return """
             $selectors {
                 display: none !important;
