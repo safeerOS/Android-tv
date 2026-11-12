@@ -7,12 +7,17 @@ import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.Socket
+import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+
+/** Pregled 12. 11. 2026 (N2): zeton toka se primerja v konstantnem casu (brez casovnega stranskega kanala na LAN). */
+internal fun enakKljuc(a: String?, b: String?): Boolean =
+    a != null && b != null && MessageDigest.isEqual(a.toByteArray(Charsets.UTF_8), b.toByteArray(Charsets.UTF_8))
 
 /**
  * Tokovi Safeer Huba: deljenje zaslona in prenos datotek.
@@ -204,7 +209,7 @@ class HubTokovi(
     private fun sprejmiZaslon(zahteva: HubStreznik.Zahteva, vhod: InputStream, izhod: OutputStream, vticnica: Socket) {
         val id = zahteva.pot.removePrefix("/cast/screen/").substringBefore('/')
         val z = zasloni[id]
-        if (z == null || z.kljuc != zahteva.poizvedba["k"]) {
+        if (z == null || !enakKljuc(z.kljuc, zahteva.poizvedba["k"])) {
             odgovori(izhod, 404, "{\"napaka\":\"tega deljenja ni\"}")
             return
         }
@@ -245,7 +250,7 @@ class HubTokovi(
     private fun gledajZaslon(zahteva: HubStreznik.Zahteva, izhod: OutputStream, vticnica: Socket) {
         val id = zahteva.pot.removePrefix("/cast/screen/").substringBefore('/')
         val z = zasloni[id]
-        if (z == null || z.kljuc != zahteva.poizvedba["k"] || !z.tece) {
+        if (z == null || !enakKljuc(z.kljuc, zahteva.poizvedba["k"]) || !z.tece) {
             odgovori(izhod, 404, "{\"napaka\":\"tega deljenja ni\"}")
             return
         }
@@ -284,7 +289,7 @@ class HubTokovi(
         val id = zahteva.pot.removePrefix("/cast/screen/").substringBefore('/')
         val z = zasloni[id]
         val kljuc = zahteva.poizvedba["k"] ?: ""
-        if (z == null || z.kljuc != kljuc) {
+        if (z == null || !enakKljuc(z.kljuc, kljuc)) {
             odgovori(izhod, 404, STRAN_KONEC, "text/html; charset=utf-8")
             return
         }
@@ -303,7 +308,7 @@ class HubTokovi(
     private fun vnosVZaslon(zahteva: HubStreznik.Zahteva, vhod: InputStream, izhod: OutputStream) {
         val id = zahteva.pot.removePrefix("/cast/screen/").substringBefore('/')
         val z = zasloni[id]
-        if (z == null || z.kljuc != zahteva.poizvedba["k"] || !z.tece) {
+        if (z == null || !enakKljuc(z.kljuc, zahteva.poizvedba["k"]) || !z.tece) {
             odgovori(izhod, 404, "{\"napaka\":\"tega deljenja ni\"}")
             return
         }
@@ -520,7 +525,7 @@ class HubTokovi(
     private fun posljiDatoteko(zahteva: HubStreznik.Zahteva, izhod: OutputStream) {
         val id = zahteva.pot.removePrefix("/cast/file/").substringBefore('/')
         val d = datoteke[id]
-        if (d == null || d.kljuc != zahteva.poizvedba["k"] || !d.pot.isFile) {
+        if (d == null || !enakKljuc(d.kljuc, zahteva.poizvedba["k"]) || !d.pot.isFile) {
             odgovori(izhod, 404, "{\"napaka\":\"te datoteke ni\"}")
             return
         }

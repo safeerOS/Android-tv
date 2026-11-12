@@ -13,6 +13,9 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
 
+/** Pregled 12. 11. 2026 (N1): v dnevnik samo prva dva segmenta poti (/cast/magnet/<skrivnost>, /cast/d/fs:<pot>). */
+internal fun predponaPoti(pot: String): String = pot.split('/').take(3).joinToString("/")
+
 /**
  * Streznik Safeer Huba v brskalniku: majhen HTTP streznik z nadgradnjo na WebSocket.
  *
@@ -364,7 +367,7 @@ class HubStreznik(
             val prevzeto = try {
                 naTok?.invoke(zahteva, vhod, izhod, vticnica) ?: false
             } catch (e: Exception) {
-                Log.w(OZNAKA, "Tok ${zahteva.pot} se je koncal z napako: ${e.message}")
+                Log.w(OZNAKA, "Tok ${predponaPoti(zahteva.pot)} se je koncal z napako: ${e.message}")
                 true
             }
             if (prevzeto) return
@@ -376,7 +379,7 @@ class HubStreznik(
         val odgovor = try {
             naZahtevo(zahteva) ?: Odgovor(404, "{\"napaka\":\"ni te poti\"}")
         } catch (e: Exception) {
-            Log.w(OZNAKA, "Napaka pri obdelavi ${zahteva.pot}: ${e.message}")
+            Log.w(OZNAKA, "Napaka pri obdelavi ${predponaPoti(zahteva.pot)}: ${e.message}")
             Odgovor(500, "{\"napaka\":\"notranja napaka\"}")
         }
         obramba?.let { oceni(it, vir, zahteva, odgovor) }
