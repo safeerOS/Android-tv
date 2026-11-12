@@ -36,7 +36,6 @@ import java.io.RandomAccessFile
 import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
-import java.net.URLDecoder
 import java.security.SecureRandom
 import java.util.concurrent.ConcurrentHashMap
 
@@ -86,66 +85,13 @@ object MagnetMotor {
 
     // ------------------------------------------------------------------ magnet
 
-    private val BTIH = Regex("urn:btih:([0-9a-fA-F]{40}|[A-Za-z2-7]{32})$")
+    /** Hash (40 hex) iz veljavne magnet povezave ali null (cista pravila: [MagnetPravila]). */
+    fun hash(uri: String): String? = MagnetPravila.hash(uri)
 
-    /** Hash (40 hex) iz veljavne magnet povezave ali null. */
-    fun hash(uri: String): String? {
-        val u = uri.trim()
-        if (!u.startsWith("magnet:?", ignoreCase = true) || u.length > 8192 || u.any { it == '\n' || it == '\r' || it == ' ' || it == '\t' }) return null
-        for (del in u.substring(8).split('&')) {
-            val (k, v) = del.split('=', limit = 2).let { it[0] to it.getOrElse(1) { "" } }
-            if (k != "xt") continue
-            val m = BTIH.find(URLDecoder.decode(v, "UTF-8")) ?: continue
-            val h = m.groupValues[1]
-            return if (h.length == 40) h.lowercase() else base32vHex(h)
-        }
-        return null
-    }
+    /** Ocisceno povezava za libtorrent; brez sledilnikov dodamo znane ([MagnetPravila.zSledilniki]). */
+    fun zSledilniki(uri: String): String = MagnetPravila.zSledilniki(uri, SLEDILNIKI)
 
-    private fun base32vHex(b32: String): String {
-        val abeceda = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
-        var biti = 0; var vrednost = 0
-        val izhod = StringBuilder()
-        for (c in b32.uppercase()) {
-            vrednost = (vrednost shl 5) or abeceda.indexOf(c)
-            biti += 5
-            if (biti >= 8) { biti -= 8; izhod.append("%02x".format((vrednost shr biti) and 0xff)) }
-        }
-        return izhod.toString()
-    }
-
-    /** Magnet brez sledilnikov dobi nekaj zanesljivih (hitrejše iskanje); ostalih ne spreminjamo. */
-    /**
-     * Očiščena povezava za libtorrent: xt, dn in samo javni sledilniki (brez x.pe/ws in brez naslovov v
-     * domačem omrežju - tuja povezava ne sme usmerjati zahtev na usmerjevalnik). Brez sledilnikov dodamo znane.
-     */
-    fun zSledilniki(uri: String): String {
-        val h = hash(uri) ?: return uri
-        val deli = uri.substringAfter('?', "").split('&').mapNotNull {
-            val k = it.substringBefore('=', ""); if (k.isEmpty()) null else k to java.net.URLDecoder.decode(it.substringAfter('='), "UTF-8")
-        }
-        val ime = deli.firstOrNull { it.first == "dn" }?.second.orEmpty().take(200)
-        val sledilniki = deli.filter { it.first == "tr" && javenSledilnik(it.second) }.map { it.second }.take(20)
-            .ifEmpty { SLEDILNIKI }
-        fun kod(x: String) = java.net.URLEncoder.encode(x, "UTF-8")
-        return "magnet:?xt=urn:btih:$h" + (if (ime.isNotEmpty()) "&dn=" + kod(ime) else "") +
-            sledilniki.joinToString("") { "&tr=" + kod(it) }
-    }
-
-    fun javenSledilnik(t: String): Boolean {
-        if (!(t.startsWith("udp://") || t.startsWith("http://") || t.startsWith("https://"))) return false
-        val gostitelj = try { android.net.Uri.parse(t).host?.lowercase()?.trimEnd('.') } catch (_: Throwable) { null } ?: return false
-        if (gostitelj.isEmpty() || gostitelj == "localhost" || '.' !in gostitelj && ':' !in gostitelj) return false
-        if (listOf(".localhost", ".local", ".lan", ".home", ".internal", ".home.arpa").any { gostitelj.endsWith(it) }) return false
-        val literal = Regex("^\\d{1,3}(\\.\\d{1,3}){3}$").matches(gostitelj) || ':' in gostitelj
-        if (!literal) return true
-        return try {
-            val a = java.net.InetAddress.getByName(gostitelj.trim('[', ']'))
-            val ula = a is java.net.Inet6Address && (a.address[0].toInt() and 0xFE) == 0xFC
-            !(a.isLoopbackAddress || a.isSiteLocalAddress || a.isLinkLocalAddress || a.isAnyLocalAddress || a.isMulticastAddress || ula ||
-                (a.address.size == 4 && (a.address[0].toInt() and 0xFF) == 100 && (a.address[1].toInt() and 0xC0) == 64))
-        } catch (_: Throwable) { false }
-    }
+    fun javenSledilnik(t: String): Boolean = MagnetPravila.javenSledilnik(t)
 
     fun vrsta(ime: String, izvrsljiva: Boolean = false): String {
         if (izvrsljiva) return "nevarno"
