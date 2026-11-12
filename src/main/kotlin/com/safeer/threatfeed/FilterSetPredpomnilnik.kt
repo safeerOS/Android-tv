@@ -35,8 +35,8 @@ object FilterSetPredpomnilnik {
     private const val RAZLICICA_ZAPISA = 2
     /** Najvec zapisanih nizov na datoteko (varovalka pred pokvarjeno datoteko). */
     private const val NAJVEC_NIZOV = 4_000_000
-    /** Najvecja datoteka, ki jo beremo (EasyList ~4,4 MiB). */
-    private const val NAJVEC_BAJTOV = 64L * 1024 * 1024
+    /** Najvecja datoteka (zapis in branje); EasyList ~4,7 MiB, TV ima 2 GB RAM (pregled 3, 12. 11. 2026: 16 MiB namesto 64). */
+    internal const val NAJVEC_BAJTOV = 16L * 1024 * 1024
 
     /** Vzorcna pravila za odtis razclenjevalnika: pokrivajo sidra, moznosti, domene, regex, kozmetiko, izjeme. */
     private val VZORCNA_PRAVILA = listOf(
@@ -82,6 +82,13 @@ object FilterSetPredpomnilnik {
         if (a != b) return null
         return kljuc(listOf(razlicica) + raw.flatMap { listOf(it.source.id, it.sha256) })
     }
+
+    /**
+     * Ali prevedeni seznami vsebujejo vsaj en neprazen surov seznam. Ce ne (npr. easylist.list neberljiv ob veljavnem .meta in
+     * predpomnilniku), se obstojeci nabor EasyList NE zamenja s praznim: pregled 3, S2 (12. 11. 2026): sicer bi sprememba drugega
+     * seznama izklopila EasyList do naslednjega zagona.
+     */
+    fun imaSuroveSezname(prevedeni: List<PlainList>): Boolean = prevedeni.any { it.source.raw && it.entries.isNotEmpty() }
 
     private class Pisalnik {
         val tabela = LinkedHashMap<String, Int>()
@@ -150,6 +157,7 @@ object FilterSetPredpomnilnik {
             }
             val telo = w.telo.toByteArray()
             val skupaj = 4L + 4 + 4 + kb.size + 8 + 4 + vsotaNizov + telo.size + 4
+            if (skupaj > NAJVEC_BAJTOV) return false      // ne zapisemo datoteke, ki je ne bi smeli prebrati
             datoteka.parentFile?.mkdirs()
             FileOutputStream(tmp).use { fos ->
                 val crc = CRC32()
@@ -233,7 +241,7 @@ object FilterSetPredpomnilnik {
         if (str() != kljuc) return null
         if (b.getLong() != dolzinaDatoteke) return null
         val nNizov = b.getInt()
-        if (nNizov < 0 || nNizov > NAJVEC_NIZOV) return null
+        if (nNizov < 0 || nNizov > NAJVEC_NIZOV || nNizov > b.remaining() / 4) return null      // vsak niz ima vsaj 4 bajte dolzine
         val t = arrayOfNulls<String>(nNizov)
         for (k in 0 until nNizov) t[k] = str()
         fun niz(): String = t[b.getInt()]!!

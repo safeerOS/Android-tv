@@ -195,7 +195,11 @@ object ThreatFeedsUpdater {
                     }
                 }
                 if (!izPredpomnilnika) {
-                    filterRuleCount = AdBlockEngine.installFilterLists(vsebina.filter { it.source.raw })
+                    if (FilterSetPredpomnilnik.imaSuroveSezname(vsebina)) {
+                        filterRuleCount = AdBlockEngine.installFilterLists(vsebina.filter { it.source.raw })
+                    } else {
+                        android.util.Log.w("SafeerSecurity", "EasyList neberljiv: obstojeci nabor ostane (ne prazen)")
+                    }
                     koncaj(ZascitaZagona.Del.EASYLIST, "$filterRuleCount pravil, prevod ${(System.nanoTime() - t) / 1_000_000} ms")
                 }
                 // Kazalo je bilo odprto brez branja vsebine; tu (v ozadju) se preverimo CRC celotne datoteke.
@@ -219,9 +223,15 @@ object ThreatFeedsUpdater {
             koncaj(ZascitaZagona.Del.DREVO, "zgrajeno iz ${grozenj.size} seznamov, ${ThreatBlockEngine.steviloDomen} domen, " +
                 "${(System.nanoTime() - t) / 1_000_000} ms")
             val te = System.nanoTime()
-            filterRuleCount = AdBlockEngine.installFilterLists(lists.filter { it.source.raw })
-            koncaj(ZascitaZagona.Del.EASYLIST, "$filterRuleCount pravil, prevod ${(System.nanoTime() - te) / 1_000_000} ms")
-            zapisiPredpomnilnik(app, lists, false)
+            if (FilterSetPredpomnilnik.imaSuroveSezname(lists)) {
+                filterRuleCount = AdBlockEngine.installFilterLists(lists.filter { it.source.raw })
+                koncaj(ZascitaZagona.Del.EASYLIST, "$filterRuleCount pravil, prevod ${(System.nanoTime() - te) / 1_000_000} ms")
+                zapisiPredpomnilnik(app, lists, false)
+            } else {
+                // S2: neberljiv surov seznam ne sme zamenjati veljavnega nabora s praznim.
+                android.util.Log.w("SafeerSecurity", "EasyList neberljiv ob osvezitvi: obstojeci nabor ostane")
+                koncaj(ZascitaZagona.Del.EASYLIST, "obstojeci nabor ostane")
+            }
             // Nabora Scita brskalnik ne gradi vec (4. 11. 2026): to dela proces :scit (startSamoScit), ki ima tudi HaGeZi PRO.
             android.util.Log.i("SafeerSecurity", "Seznami v uporabi: ${lists.joinToString { "${it.source.name} (${it.entries.size})" }}" +
                 "; pravila EasyList: $filterRuleCount; pravila za skrivanje: ${AdBlockEngine.cosmeticRuleCount}")
@@ -244,7 +254,16 @@ object ThreatFeedsUpdater {
         }
         // Ce je kazalo zgrajeno iz istih seznamov, ob zagonu beremo samo EasyList (raw); ce je veljaven se predprevedeni nabor
         // EasyList (kljuc = SHA-256 seznamov iz metapodatkov + razlicica aplikacije), ne beremo nicesar (glej onPartialLists).
-        predpomnilnikKljuc = if (odprto) kljucZaBranje(shranjeni)?.takeIf { FilterSetPredpomnilnik.glavaVelja(predpomnilnikDatoteka(app), it) } else null
+        // S1 (pregled 3): odtis razclenjevalnika se prvic izracuna tu, na klicatelju (glavna nit); izjema ne sme prekiniti start()
+        // pred listAgent.start(): null = predpomnilnik ne velja, seznam se prevede kot prej.
+        val tOdtis = System.nanoTime()
+        predpomnilnikKljuc = if (odprto) try {
+            kljucZaBranje(shranjeni)?.takeIf { FilterSetPredpomnilnik.glavaVelja(predpomnilnikDatoteka(app), it) }
+        } catch (e: Throwable) {
+            android.util.Log.w("SafeerSecurity", "Kljuc predpomnilnika EasyList ni izracunan: ${e.message}")
+            null
+        } else null
+        android.util.Log.i("SafeerSecurity", "Kljuc predpomnilnika EasyList: ${(System.nanoTime() - tOdtis) / 1000 / 1000.0} ms, ${if (predpomnilnikKljuc != null) "velja" else "ne velja"}")
         listAgent.start(if (!odprto) null else if (predpomnilnikKljuc != null) emptySet() else BRSKALNIK_VIRI.filter { it.raw }.map { it.id }.toSet())
     }
 

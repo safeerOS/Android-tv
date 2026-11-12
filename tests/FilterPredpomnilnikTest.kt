@@ -113,6 +113,16 @@ private fun prazen() {
         preveri("kljucZaZapis: prazen vnos -> null (N2)", FilterSetPredpomnilnik.kljucZaZapis("1.0", emptyList(), listOf(info)) == null)
         preveri("kljucZaZapis: drug SHA prevedenega seznama kot v .meta -> null (N2)", FilterSetPredpomnilnik.kljucZaZapis("1.0", listOf(PlainList(src, listOf("||a.example^"), 1L, "bbb")), listOf(info)) == null)
         preveri("kljucZaZapis: manjkajoc SHA -> null (N2)", FilterSetPredpomnilnik.kljucZaZapis("1.0", listOf(PlainList(src, listOf("x"), 1L, "")), listOf(info)) == null)
+        // S2: neberljiv surov seznam ne sme zamenjati veljavnega nabora.
+        preveri("imaSuroveSezname: brez surovih seznamov -> false (S2)", !FilterSetPredpomnilnik.imaSuroveSezname(emptyList()) &&
+            !FilterSetPredpomnilnik.imaSuroveSezname(listOf(PlainList(src, emptyList(), 1L, "aaa"))))
+        preveri("imaSuroveSezname: nesurov seznam ne steje (S2)", !FilterSetPredpomnilnik.imaSuroveSezname(listOf(PlainList(PlainListSource("hagezi", "H", "https://x.example/h.txt", "dns", "#"), listOf("a.example"), 1L, "z"))))
+        preveri("imaSuroveSezname: surov neprazen seznam -> true (S2)", FilterSetPredpomnilnik.imaSuroveSezname(listOf(ok)))
+        // Meja velikosti: nabor, ki bi dal datoteko > 16 MiB, se ne zapise (ne bi ga smeli prebrati).
+        val velik = ArrayList<String>(); val rep = "a".repeat(1500)
+        for (i in 0 until 12000) velik.add("||velik$i.example/$rep^")
+        val naborVelik = FilterListEngine.compile(velik)
+        preveri("zapisi: nabor > 16 MiB se ne zapise, brez datoteke (meja)", naborVelik.size > 0 && !FilterSetPredpomnilnik.zapisi(naborVelik, "k", File(mapa, "velik.bin")) && !File(mapa, "velik.bin").exists() && !File(mapa, "velik.bin.tmp").exists())
         preveri("kljucZaZapis: seznam v .meta, ki ni bil preveden -> null (N2)", FilterSetPredpomnilnik.kljucZaZapis("1.0", listOf(ok), listOf(info, PlainListInfo(src2, 1, "ccc", 1L))) == null)
     } finally { mapa.deleteRecursively() }
 }
@@ -150,6 +160,12 @@ fun main(args: Array<String>) {
             tfu.contains("FilterSetPredpomnilnik.kljucZaZapis("))
         // Zapis po preverbi kazala (N3) in kljuc ne iz .meta (N2).
         preveri("zapis predpomnilnika je po preveriKazalo (N3)", tfu.indexOf("ThreatBlockEngine.preveriKazalo()") in 0 until tfu.indexOf("zapisiPredpomnilnik(app, vsebina, branjeNeuspelo)"))
+        // S1: izracun kljuca za branje v start() je v try/catch (izjema ne prekine start() pred listAgent.start()).
+        val iTry = tfu.indexOf("predpomnilnikKljuc = if (odprto) try {")
+        preveri("start(): kljuc za branje v try/catch pred listAgent.start (S1)", iTry >= 0 && tfu.indexOf("kljucZaBranje(shranjeni)", iTry) in iTry..iTry + 200 &&
+            tfu.indexOf("catch (e: Throwable)", iTry) in iTry..iTry + 600 && tfu.indexOf("catch (e: Throwable)", iTry) < tfu.indexOf("listAgent.start(if (!odprto)"))
+        // S2: obe poti namestitve EasyList pazita na prazen nabor.
+        preveri("obe poti namestitve EasyList preverita imaSuroveSezname (S2)", Regex("imaSuroveSezname\\(").findAll(tfu).count() == 2)
         preveri("zapis ne jemlje kljuca iz .meta (N2)", !tfu.contains("kljucPredpomnilnika("))
         preveri("AdBlockEngine namesti predprevedeni nabor", abe.contains("fun installPrecompiled(") && abe.contains("fun trenutniNabor("))
     } finally { mapa.deleteRecursively() }
