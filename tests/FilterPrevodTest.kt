@@ -37,12 +37,12 @@ private fun sinteticni(): Pair<List<String>, List<String>> {
 }
 
 private fun primerjaj(ime: String, lines: List<String>, sonde: List<String>, gostitelji: List<String>) {
-    FilterListEngine.vsiljenoEnonitno = true
+    FilterListEngine.dovoljenDvonitni = false
     val t0 = System.nanoTime()
     val a = FilterListEngine.compile(lines)
     val msA = (System.nanoTime() - t0) / 1_000_000
     val nitiA = FilterListEngine.zadnjiPrevodNiti
-    FilterListEngine.vsiljenoEnonitno = false
+    FilterListEngine.dovoljenDvonitni = true
     val t1 = System.nanoTime()
     val b = FilterListEngine.compile(lines)
     val msB = (System.nanoTime() - t1) / 1_000_000
@@ -70,9 +70,13 @@ private fun primerjaj(ime: String, lines: List<String>, sonde: List<String>, gos
 
 fun main(args: Array<String>) {
     val (lines, sonde) = sinteticni()
+    // PRIVZETO ENONITNO (pregled 12. 11. 2026): brez stikala velik seznam ostane v eni niti.
+    preveri("privzeto: dovoljenDvonitni je izklopljen", !FilterListEngine.dovoljenDvonitni)
+    FilterListEngine.compile(lines)
+    preveri("privzeto: seznam >= ${FilterListEngine.PARALELNO_OD} vrstic (${lines.size}) prevede 1 nit", FilterListEngine.zadnjiPrevodNiti == 1)
     primerjaj("sinteticni", lines, sonde, (0 until 3000).flatMap { listOf("dom$it.si", "drugi$it.si", "a.dom$it.si") })
     // Majhen seznam ostane enonitni.
-    FilterListEngine.vsiljenoEnonitno = false
+    FilterListEngine.dovoljenDvonitni = true
     FilterListEngine.compile(lines.take(100))
     preveri("kratek seznam ostane enonitni", FilterListEngine.zadnjiPrevodNiti == 1)
     // Napaka v prevodu ne ostane tiha (izjema gre klicatelju): prazen seznam je veljaven.
@@ -89,8 +93,8 @@ fun main(args: Array<String>) {
         // Ogrejti JIT in izmenicno 5x (isti proces; vsaj priblizno primerljivo).
         val a = ArrayList<Long>(); val b = ArrayList<Long>()
         for (i in 0 until 5) {
-            FilterListEngine.vsiljenoEnonitno = true; var t = System.nanoTime(); FilterListEngine.compile(vse); a.add((System.nanoTime() - t) / 1_000_000)
-            FilterListEngine.vsiljenoEnonitno = false; t = System.nanoTime(); FilterListEngine.compile(vse); b.add((System.nanoTime() - t) / 1_000_000)
+            FilterListEngine.dovoljenDvonitni = false; var t = System.nanoTime(); FilterListEngine.compile(vse); a.add((System.nanoTime() - t) / 1_000_000)
+            FilterListEngine.dovoljenDvonitni = true; t = System.nanoTime(); FilterListEngine.compile(vse); b.add((System.nanoTime() - t) / 1_000_000)
         }
         println("  IZMENICNO EasyList ${vse.size} vrstic: enonitni ms=$a dvonitni ms=$b")
     }

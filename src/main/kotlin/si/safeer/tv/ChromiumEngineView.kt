@@ -418,6 +418,7 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
     init {
         // H56: izpis merilnika shouldInterceptRequest v logcat (oznaka SafeerPerf); brez naslovov.
         PresuMerilnik.izpis = { android.util.Log.i("SafeerPerf", it) }
+        PresuMerilnik.vklopljen = AbStikala.stikala.presuVklop   // privzeto izklopljen (stikalo presu=on)
         nastaviNativnoTemno(isDarkMode)  // privzeta vrednost ne gre skozi setter
         setupSettings()
         setupClients()

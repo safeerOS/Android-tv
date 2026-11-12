@@ -15,6 +15,30 @@ fun main() {
     PresuMerilnik.uraMs = { ms }
     PresuMerilnik.izpis = { izpisi.add(it) }
 
+    // Privzeto IZKLOPLJEN (pregled 12. 11. 2026, A): vroca pot je ena preverba, nobene ure in zapisa; izid klica nespremenjen.
+    preveri("privzeto izklopljen", !PresuMerilnik.vklopljen)
+    var uraKlicev = 0
+    PresuMerilnik.uraNs = { uraKlicev++; ns }
+    val izklopIzid = PresuMerilnik.izmeri(PresuMerilnik.Kat.VSE) { "y" }
+    preveri("izklopljen: izid nespremenjen, ura se ne bere", izklopIzid == "y" && uraKlicev == 0)
+    ms += PresuMerilnik.OBDOBJE_MS * 2
+    PresuMerilnik.izmeri(PresuMerilnik.Kat.VSE) { }
+    preveri("izklopljen: ni izpisa", izpisi.isEmpty())
+    PresuMerilnik.novaStran()
+    preveri("izklopljen: nova stran ne izpise", izpisi.isEmpty())
+    PresuMerilnik.uraNs = { ns }
+    PresuMerilnik.vklopljen = true
+    ms = 1_000L
+
+    // B: promet servisnega delavca ne zacne ure strani in ne sprozi izpisa.
+    PresuMerilnik.izmeri(PresuMerilnik.Kat.SW) { ns += 1_000_000 }
+    ms += PresuMerilnik.OBDOBJE_MS * 2
+    PresuMerilnik.izmeri(PresuMerilnik.Kat.SW) { ns += 1_000_000 }
+    preveri("SW ne sprozi izpisa in ne zacne ure", izpisi.isEmpty())
+    PresuMerilnik.novaStran()
+    preveri("SW sam ne sproci izpisa ob novi strani", izpisi.isEmpty())
+    ms = 1_000L
+
     // Izid klica je nespremenjen, cas se zapise; izjema gre naprej, cas se zapise vseeno.
     val izid = PresuMerilnik.izmeri(PresuMerilnik.Kat.VSE) { ns += 2_000_000; "x" }
     preveri("izid klica nespremenjen", izid == "x")
@@ -42,6 +66,15 @@ fun main() {
     PresuMerilnik.novaStran()
     preveri("kratka stran se izpise ob novi strani", izpisi.size == 2 && izpisi[1].contains("vse n=1 skupaj=4.0ms"))
     preveri("izpis nima naslova (samo stevila in imena niti)", izpisi.none { it.contains("http") || it.contains("://") })
+
+    // Vec niti: vsota klicev natancna (brez izgubljenih zapisov), nic ne vrze.
+    PresuMerilnik.novaStran(); izpisi.clear()
+    PresuMerilnik.uraNs = { System.nanoTime() }
+    val nit = (1..8).map { Thread { repeat(20_000) { PresuMerilnik.izmeri(PresuMerilnik.Kat.VSE) { } } } }
+    nit.forEach { it.start() }; nit.forEach { it.join() }
+    PresuMerilnik.novaStran()
+    preveri("8 niti x 20000 klicev: vsota n natancna", izpisi.any { it.contains("vse n=160000 ") })
+    PresuMerilnik.vklopljen = false
 
     // Povezano v klice (brez tega merilnika ni): sirom src ali -Dpresu.src.
     val src = File(System.getProperty("presu.src") ?: "src/main/kotlin/si/safeer/tv")

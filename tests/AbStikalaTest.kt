@@ -29,10 +29,14 @@ fun main() {
     val sz = listOf("div.na-24ur", ".ad-slot", "#oglas24")
     preveri("cssseznam in cssyt razclenjena", AbStikala.razclenji("cssseznam=off,cssyt=off") == brez.copy(cssSeznamIzklop = true, cssYtIzklop = true) &&
         AbStikala.razclenji("cssseznam=off").karkoli && AbStikala.razclenji("cssyt=off").karkoli)
-    preveri("prevod=enonitni razclenjen, drugo se prezre", AbStikala.razclenji("prevod=enonitni") == brez.copy(prevodEnonitni = true) &&
-        AbStikala.razclenji("prevod=dvonitni,prevod=1") == brez && !brez.prevodEnonitni)
+    preveri("prevod=dvonitni razclenjen, drugo se prezre", AbStikala.razclenji("prevod=dvonitni") == brez.copy(prevodDvonitni = true) &&
+        AbStikala.razclenji("prevod=enonitni,prevod=1") == brez && !brez.prevodDvonitni)
+    preveri("presu=on razclenjen, drugo se prezre", AbStikala.razclenji("presu=on") == brez.copy(presuVklop = true) &&
+        AbStikala.razclenji("presu=off,presu=1") == brez && !brez.presuVklop)
     preveri("ThreatFeedsUpdater nastavi nacin prevoda iz stikala", File((System.getProperty("ab.vir") ?: "src/main/kotlin/si/safeer/tv/AbStikala.kt")
-        .replace("AbStikala.kt", "ThreatFeedsUpdater.kt")).readText().contains("FilterListEngine.vsiljenoEnonitno = AbStikala.stikala.prevodEnonitni"))
+        .replace("AbStikala.kt", "ThreatFeedsUpdater.kt")).readText().contains("FilterListEngine.dovoljenDvonitni = AbStikala.stikala.prevodDvonitni"))
+    preveri("ChromiumEngineView vklopi merilnik iz stikala", File((System.getProperty("ab.vir") ?: "src/main/kotlin/si/safeer/tv/AbStikala.kt")
+        .replace("AbStikala.kt", "ChromiumEngineView.kt")).readText().contains("PresuMerilnik.vklopljen = AbStikala.stikala.presuVklop"))
     preveri("cssseznam=on se prezre", AbStikala.razclenji("cssseznam=on,cssyt=1") == brez)
     preveri("brez stikal: splosna + seznam, brez podvojenih, isti vrstni red",
         AbStikala.izberiSelektorje(sp, sz, brez) == listOf(".ad-slot", ".ytp-ad-text", "ytm-open-app-button", "[class*='google-ad']", "div.na-24ur", "#oglas24"))

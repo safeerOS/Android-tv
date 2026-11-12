@@ -401,11 +401,12 @@ object FilterListEngine {
 
     /** [legacyRegex] = vsi vzorci kot Pattern (stari ujemalnik), samo za preizkus enakosti v tests/AbpVzorecTest.kt. */
     internal fun compile(lines: Iterable<String>, legacyRegex: Boolean): FilterSet {
-        // 12. 11. 2026: velik seznam (EasyList ~77 000 vrstic) prevedeta dve niti: omrezna pravila in kozmeticna pravila
-        // sta neodvisna (vsak svoj zbirnik), izid je isti kot pri enonitnem prevodu (preizkus FilterPrevodTest).
-        // Stari ujemalnik (legacyRegex) in kratki seznami ostanejo enonitni.
+        // 12. 11. 2026: velik seznam (EasyList ~77 000 vrstic) LAHKO prevedeta dve niti: omrezna pravila in kozmeticna pravila
+        // sta neodvisna (vsak svoj zbirnik), izid je isti kot pri enonitnem prevodu (preizkus FilterPrevodTest). PRIVZETO ENONITNO:
+        // prednost dvonitnega ni izmerjena na TV (JVM: v sumu), na 2 GB TV pa pomeni vec dela in smeti (pregled 12. 11. 2026).
+        // Vklop: [dovoljenDvonitni] (aplikacija ga nastavi iz stikala prevod=dvonitni). Stari ujemalnik in kratki seznami: enonitno.
         zadnjiPrevodNiti = 1
-        if (!legacyRegex && !vsiljenoEnonitno) {
+        if (!legacyRegex && dovoljenDvonitni) {
             val seznam = lines as? List<String> ?: lines.toList()
             if (seznam.size >= PARALELNO_OD) return compileDvaNiti(seznam)
             return compileEnonitno(seznam, false)
@@ -416,10 +417,10 @@ object FilterListEngine {
     /** Od koliko vrstic naprej prevajata dve niti (pod tem je zagon druge niti drazji od prihranka). */
     internal const val PARALELNO_OD = 5_000
 
-    /** Samo za preizkus: izklopi dvonitni prevod (primerjava z enonitnim izidom). */
-    @Volatile internal var vsiljenoEnonitno = false
+    /** Dvonitni prevod dovoljen (privzeto NE; aplikacija: stikalo prevod=dvonitni). */
+    @Volatile internal var dovoljenDvonitni = false
 
-    /** Zadnji dvonitni prevod: koliko niti je delalo (preizkus; 1 = enonitni). */
+    /** Zadnji prevod: koliko niti je delalo (preizkus; 1 = enonitni). */
     @Volatile internal var zadnjiPrevodNiti = 1
 
     /** Enonitni prevod: referenca za izid; tu se je do 12. 11. 2026 prevajalo vse. */
