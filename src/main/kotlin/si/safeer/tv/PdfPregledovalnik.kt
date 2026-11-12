@@ -74,7 +74,7 @@ object PdfPregledovalnik {
 
     /**
      * Odpre PDF z naprave (namera VIEW z application/pdf). Vsebino beremo prek ContentResolverja
-     * z dovoljenjem, ki ga je dala namera; WebView sam do content:// ne sme (allowContentAccess=false).
+     * z dovoljenjem, ki ga je dala namera; vsebino beremo sami. Opomba: glavni WebView ima allowContentAccess=true (ChromiumEngineView), tu ga ne zaklepamo (pregled apk-24, N4).
      */
     fun odpriLokalno(context: Context, webView: WebView, uri: Uri, mimeType: String?) {
         var ime = ""

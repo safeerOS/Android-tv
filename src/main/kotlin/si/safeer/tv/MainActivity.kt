@@ -409,9 +409,13 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
      */
     private fun zapomniIzvor(namera: Intent?) {
         val paket = namera?.getStringExtra(EXTRA_IZ_SAFEER_OS)
-        if (!paket.isNullOrBlank()) {
+        // MainActivity je izvozena: paket iz namere sprejmemo samo, ce je Safeer z enakim podpisom (pregled apk-24, S1).
+        val podpisUjema = !paket.isNullOrBlank() && try {
+            packageManager.checkSignatures(packageName, paket) == android.content.pm.PackageManager.SIGNATURE_MATCH
+        } catch (e: Throwable) { false }
+        if (SafeerIzvor.jeZaupan(paket, packageName, podpisUjema)) {
             izSafeerOs = paket
-            ohraniMestoVOs = namera.getBooleanExtra(EXTRA_OS_OHRANI_MESTO, false) == true
+            ohraniMestoVOs = namera?.getBooleanExtra(EXTRA_OS_OHRANI_MESTO, false) == true
         }
     }
 
