@@ -10,6 +10,8 @@ package si.safeer.tv
  *   ua=android|tv   uporabniski agent Chrome Android oz. pametne TV namesto namiznega (privzeto namizni)
  *   wide=off        brez useWideViewPort/loadWithOverviewMode (viewport TV namesto 1280 px)
  *   css=off         brez kozmeticnega CSS (skrivanje oglasnih elementov)
+ *   cssseznam=off   kozmeticni CSS samo s splosnimi pravili: brez pravil s seznamov (EasyList), vezanih na domeno strani (24ur.com)
+ *   cssyt=off       kozmeticni CSS brez YouTube selektorjev (ytp-, ytm-, ytd-): 63 namesto 114 pravil (11. 11. 2026, namizje)
  *   spatial=off     brez tv_spatial.js (daljinec) - samo za meritev
  *   scit=off        brskalnik ne filtrira zahtevkov (AdBlockEngine, ThreatBlockEngine) - samo za meritev; DNS Scit je loceno
  *   anim=off        CSS: animation/transition none na vsaki strani
@@ -21,6 +23,8 @@ object AbStikala {
         val ua: String = "",
         val wideIzklop: Boolean = false,
         val cssIzklop: Boolean = false,
+        val cssSeznamIzklop: Boolean = false,
+        val cssYtIzklop: Boolean = false,
         val spatialIzklop: Boolean = false,
         val scitIzklop: Boolean = false,
         val animIzklop: Boolean = false,
@@ -42,6 +46,8 @@ object AbStikala {
                 k == "ua" && (v == "android" || v == "tv") -> s.copy(ua = v)
                 k == "wide" && v == "off" -> s.copy(wideIzklop = true)
                 k == "css" && v == "off" -> s.copy(cssIzklop = true)
+                k == "cssseznam" && v == "off" -> s.copy(cssSeznamIzklop = true)
+                k == "cssyt" && v == "off" -> s.copy(cssYtIzklop = true)
                 k == "spatial" && v == "off" -> s.copy(spatialIzklop = true)
                 k == "scit" && v == "off" -> s.copy(scitIzklop = true)
                 k == "anim" && v == "off" -> s.copy(animIzklop = true)
@@ -49,6 +55,19 @@ object AbStikala {
             }
         }
         return s
+    }
+
+    /** Selektor YouTube (ytp-, ytm-, ytd-): za stikalo cssyt=off. */
+    internal fun jeYouTubeSelektor(sel: String): Boolean = sel.contains("ytp-") || sel.contains("ytm-") || sel.contains("ytd-")
+
+    /**
+     * Izbor kozmeticnih selektorjev po stikalih (cista funkcija). Brez stikal: splosna + seznamska pravila, brez podvojenih,
+     * v istem vrstnem redu kot doslej (vedenje NESPREMENJENO).
+     */
+    fun izberiSelektorje(splosna: List<String>, seznam: List<String>, s: Stikala): List<String> {
+        val sp = if (s.cssYtIzklop) splosna.filterNot(::jeYouTubeSelektor) else splosna
+        val sz = if (s.cssSeznamIzklop) emptyList() else seznam
+        return (sp + sz).distinct()
     }
 
     private fun preberiLastnost(): String? = try {
