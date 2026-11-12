@@ -29,6 +29,10 @@ fun main() {
     val sz = listOf("div.na-24ur", ".ad-slot", "#oglas24")
     preveri("cssseznam in cssyt razclenjena", AbStikala.razclenji("cssseznam=off,cssyt=off") == brez.copy(cssSeznamIzklop = true, cssYtIzklop = true) &&
         AbStikala.razclenji("cssseznam=off").karkoli && AbStikala.razclenji("cssyt=off").karkoli)
+    preveri("prevod=enonitni razclenjen, drugo se prezre", AbStikala.razclenji("prevod=enonitni") == brez.copy(prevodEnonitni = true) &&
+        AbStikala.razclenji("prevod=dvonitni,prevod=1") == brez && !brez.prevodEnonitni)
+    preveri("ThreatFeedsUpdater nastavi nacin prevoda iz stikala", File((System.getProperty("ab.vir") ?: "src/main/kotlin/si/safeer/tv/AbStikala.kt")
+        .replace("AbStikala.kt", "ThreatFeedsUpdater.kt")).readText().contains("FilterListEngine.vsiljenoEnonitno = AbStikala.stikala.prevodEnonitni"))
     preveri("cssseznam=on se prezre", AbStikala.razclenji("cssseznam=on,cssyt=1") == brez)
     preveri("brez stikal: splosna + seznam, brez podvojenih, isti vrstni red",
         AbStikala.izberiSelektorje(sp, sz, brez) == listOf(".ad-slot", ".ytp-ad-text", "ytm-open-app-button", "[class*='google-ad']", "div.na-24ur", "#oglas24"))

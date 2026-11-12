@@ -123,6 +123,8 @@ object ThreatFeedsUpdater {
         agentScit = null
         // Od tu zahteve v shouldInterceptRequest omejeno pocakajo na prvo nalaganje (ZascitaZagona, 4. 11. 2026).
         ZascitaZagona.zacni()
+        // A/B stikalo prevod=enonitni (samo meritev): isti APK primerja dvonitni in enonitni prevod EasyList.
+        com.safeer.threatfeed.FilterListEngine.vsiljenoEnonitno = AbStikala.stikala.prevodEnonitni
         val app = context.applicationContext
         val kazalo = kazaloDatoteka(app)
         val listAgent = ThreatListAgent(File(app.filesDir, "threat-lists"), BRSKALNIK_VIRI,

@@ -10,6 +10,7 @@ package si.safeer.tv
  *   ua=android|tv   uporabniski agent Chrome Android oz. pametne TV namesto namiznega (privzeto namizni)
  *   wide=off        brez useWideViewPort/loadWithOverviewMode (viewport TV namesto 1280 px)
  *   css=off         brez kozmeticnega CSS (skrivanje oglasnih elementov)
+ *   prevod=enonitni prevod seznamov pravil (EasyList) v eni niti namesto dveh - primerjava casa prevoda (logcat »prevod N ms«)
  *   cssseznam=off   kozmeticni CSS samo s splosnimi pravili: brez pravil s seznamov (EasyList), vezanih na domeno strani (24ur.com)
  *   cssyt=off       kozmeticni CSS brez YouTube selektorjev (ytp-, ytm-, ytd-): 63 namesto 114 pravil (11. 11. 2026, namizje)
  *   spatial=off     brez tv_spatial.js (daljinec) - samo za meritev
@@ -24,6 +25,7 @@ object AbStikala {
         val wideIzklop: Boolean = false,
         val cssIzklop: Boolean = false,
         val cssSeznamIzklop: Boolean = false,
+        val prevodEnonitni: Boolean = false,
         val cssYtIzklop: Boolean = false,
         val spatialIzklop: Boolean = false,
         val scitIzklop: Boolean = false,
@@ -47,6 +49,7 @@ object AbStikala {
                 k == "wide" && v == "off" -> s.copy(wideIzklop = true)
                 k == "css" && v == "off" -> s.copy(cssIzklop = true)
                 k == "cssseznam" && v == "off" -> s.copy(cssSeznamIzklop = true)
+                k == "prevod" && v == "enonitni" -> s.copy(prevodEnonitni = true)
                 k == "cssyt" && v == "off" -> s.copy(cssYtIzklop = true)
                 k == "spatial" && v == "off" -> s.copy(spatialIzklop = true)
                 k == "scit" && v == "off" -> s.copy(scitIzklop = true)
