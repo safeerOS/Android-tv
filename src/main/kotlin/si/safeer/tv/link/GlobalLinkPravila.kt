@@ -6,6 +6,16 @@ package si.safeer.tv.link
  * zanka poslusanja pa je zamik ponastavila ze ob vzpostavitvi, zato je ob takojsnjih prekinitvah poskusala na 5 s.
  */
 object GlobalLinkPravila {
+    /** Neodvisni pregled 12. 11. 2026 (S3): najvec toliko hkrati odprtih kanalov releja; vsak ima nit, vticnico in WebSocket (TV 2 GB). */
+    const val NAJVEC_KANALOV = 32
+
+    fun smeSprejeti(odprtih: Int, najvec: Int = NAJVEC_KANALOV): Boolean = odprtih < najvec
+
+    private val KANAL = Regex("[0-9a-f]{32}")
+
+    /** Ime kanala iz releja gre v URL (/v1/accept?kanal=...): samo 32 malih heks znakov (pregled N1, brez &, # in presledkov). */
+    fun veljavenKanal(kanal: String): Boolean = KANAL.matches(kanal)
+
     enum class Akcija { CAKAJ, NADALJUJ, PREKINI }
 
     /** Vrsta posiljanja nad to mejo: pocakamo, da se sprazni (pocasna povezava), namesto da kopicimo v pomnilnik TV. */

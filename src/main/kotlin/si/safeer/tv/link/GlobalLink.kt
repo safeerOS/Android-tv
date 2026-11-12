@@ -210,6 +210,7 @@ object GlobalLink {
         @Volatile var tece = true; private set
         private val http = OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(0, TimeUnit.MILLISECONDS).pingInterval(25, TimeUnit.SECONDS).build()
+        private val odprtih = java.util.concurrent.atomic.AtomicInteger(0)
 
         init {
             Thread({
@@ -217,7 +218,10 @@ object GlobalLink {
                     val s = try { streznik.accept() } catch (_: Throwable) { break }
                     // Vsaka povezava v svoji niti: neposredni poskus traja do ROK_POVEZAVE_MS (+ rokovanje), naslednja
                     // povezava nanj ne sme cakati.
-                    Thread({ kanal(s) }, "safeer-global-link-kanal").apply { isDaemon = true }.start()
+                    // Pregled 12. 11. 2026 (S3): katerakoli aplikacija na TV se lahko poveze na ta vrata - brez meje bi zagnala tisoce niti.
+                    if (!GlobalLinkPravila.smeSprejeti(odprtih.get())) { try { s.close() } catch (_: Throwable) {}; continue }
+                    odprtih.incrementAndGet()
+                    Thread({ try { kanal(s) } finally { odprtih.decrementAndGet() } }, "safeer-global-link-kanal").apply { isDaemon = true }.start()
                 }
             }, "safeer-global-link").apply { isDaemon = true }.start()
             Log.i(TAG, "Rele do $cilj na 127.0.0.1:$vrata")
@@ -261,6 +265,7 @@ object GlobalLink {
         @Volatile private var nit: Thread? = null
         private val http = OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(0, TimeUnit.MILLISECONDS).pingInterval(30, TimeUnit.SECONDS).build()
+        private val odprtihKanalov = java.util.concurrent.atomic.AtomicInteger(0)
 
         fun zazeni(c: Context) {
             if (nit != null) return
@@ -296,7 +301,10 @@ object GlobalLink {
                         override fun onMessage(webSocket: WebSocket, text: String) {
                             val j = try { JSONObject(text) } catch (_: Throwable) { return }
                             val kanal = j.optString("kanal")
-                            if (j.optString("type") == "incoming" && kanal.length == 32) Thread({ sprejmi(kanal) }, "safeer-global-link-kanal").apply { isDaemon = true }.start()
+                            if (j.optString("type") == "incoming" && GlobalLinkPravila.veljavenKanal(kanal) && GlobalLinkPravila.smeSprejeti(odprtihKanalov.get())) {
+                                odprtihKanalov.incrementAndGet()
+                                Thread({ try { sprejmi(kanal) } finally { odprtihKanalov.decrementAndGet() } }, "safeer-global-link-kanal").apply { isDaemon = true }.start()
+                            }
                         }
                         override fun onClosed(webSocket: WebSocket, code: Int, reason: String) = konec.countDown()
                         override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
