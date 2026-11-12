@@ -80,3 +80,5 @@ Vsako od spodnjih pravil izhaja iz napake, ki je ze bila narejena.
   oznake, isti potek do predvajanja. Razlika samo tam, kjer jo zahteva naprava (dotik, miska, tipkovnica, velikost zaslona).
   Vsaka sprememba Medijskega centra na TV ima v isti nalogi preverbo telefona, tablice in namizja; najdena razlika je napaka.
 - Strezniki in viri v Medijskem centru (lastnik, 10. 11. 2026): na TV, racunalniku, tablici in telefonu omogocimo samo tisto, kar se na tej napravi dejansko lahko uporabi (doda, poveze in predvaja - izmerjeno, ne predpostavljeno). Vrsta streznika, ki na napravi ne dela, se tam ne pokaze; ki dela, se pokaze na vseh napravah, kjer dela.
+
+- Ko je lastnik v službi, spi ali je odsoten, delaš naprej vse, kar zmoreš brez njega (lastnik 12. 11. 2026): dolge preizkuse zaženi v ozadju z dnevnikom in jih preveri v ločenem klicu; poročilo vsebuje, kaj je narejeno (z dokazom, polne poti) in kaj čaka na njegov »da« (objava, potisk, žetoni, prijave z njegovimi podatki).
