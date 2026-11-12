@@ -397,6 +397,30 @@ object Stremio {
         return sPrednostjo(politika.prednost) { prenesiJsonZdaj(url, cas) }
     }
 
+    /**
+     * Povezava na dodatek z rocnim sledenjem preusmeritvam ([PreusmeritevPravila]); glava X-Safeer-Config samo prvotnemu
+     * gostitelju. Odgovor je ze prebran (responseCode je nato iz predpomnilnika); ob izjemi se povezava zapre.
+     */
+    private fun odpriDodatek(prvotni: String, cas: Int, config: String?): HttpURLConnection {
+        var naslov = prvotni
+        var skok = 0
+        while (true) {
+            val c = URL(naslov).openConnection() as HttpURLConnection
+            c.instanceFollowRedirects = false
+            c.connectTimeout = cas; c.readTimeout = cas
+            c.setRequestProperty("User-Agent", "Safeer-Predvajalnik/1.0 (+https://safeer.si)")
+            c.setRequestProperty("Accept", "application/json")
+            c.setRequestProperty("Accept-Language", java.util.Locale.getDefault().toLanguageTag())
+            if (config != null && PreusmeritevPravila.glavaSmeNaprej(prvotni, naslov)) c.setRequestProperty("X-Safeer-Config", config)
+            val koda = try { c.responseCode } catch (e: Exception) { c.disconnect(); throw e }
+            if (!PreusmeritevPravila.jePreusmeritev(koda) || skok >= PreusmeritevPravila.NAJVEC_SKOKOV) return c
+            val naprej = PreusmeritevPravila.naslednji(naslov, c.getHeaderField("Location")) ?: return c
+            c.disconnect()
+            naslov = naprej
+            skok++
+        }
+    }
+
     private fun prenesiJsonZdaj(url: String, cas: Int): JSONObject? {
         // Vsaka poizvedba po tokovih steje v urni proracun dodatka - tudi tista za predvajanje ([TempoDodatka]).
         if ("/stream/" in url) stej(url.substringBefore("/stream/"))
@@ -405,13 +429,9 @@ object Stremio {
         val zacetek = android.os.SystemClock.elapsedRealtime()
         return try {
             // Webtor rezerva: nadomestek dodatka s poverilnico -> pravi naslov samo za ta klic (nikoli v dnevnik).
-            val c = URL(SkrivniDodatki.dejanski(aplikacija, url)).openConnection() as HttpURLConnection
-            c.connectTimeout = cas; c.readTimeout = cas
-            c.setRequestProperty("User-Agent", "Safeer-Predvajalnik/1.0 (+https://safeer.si)")
-            c.setRequestProperty("Accept", "application/json")
-            // Naloga 124: jezik uporabnika in nastavitve dodatka (glava, nikoli v naslovu - docs/DODATKI-PROTOKOL.md 4).
-            c.setRequestProperty("Accept-Language", java.util.Locale.getDefault().toLanguageTag())
-            glavaNastavitev(url)?.let { c.setRequestProperty("X-Safeer-Config", it) }
+            // Naloga 124 + pregled 12. 11. 2026 (S1): jezik in nastavitve dodatka; preusmeritvam sledimo rocno, glava z nastavitvami
+            // (lahko skrivnosti) ne gre tujemu gostitelju.
+            val c = odpriDodatek(SkrivniDodatki.dejanski(aplikacija, url), cas, glavaNastavitev(url))
             try {
                 val koda = c.responseCode
                 zadnjaKoda.set(koda)
@@ -973,13 +993,9 @@ object Stremio {
         val cas = politika.rokMs
         return sPrednostjo(politika.prednost) { try {
             // Webtor rezerva: nadomestek dodatka s poverilnico -> pravi naslov samo za ta klic (nikoli v dnevnik).
-            val c = URL(SkrivniDodatki.dejanski(aplikacija, url)).openConnection() as HttpURLConnection
-            c.connectTimeout = cas; c.readTimeout = cas
-            c.setRequestProperty("User-Agent", "Safeer-Predvajalnik/1.0 (+https://safeer.si)")
-            c.setRequestProperty("Accept", "application/json")
-            // Naloga 124: jezik uporabnika in nastavitve dodatka (glava, nikoli v naslovu - docs/DODATKI-PROTOKOL.md 4).
-            c.setRequestProperty("Accept-Language", java.util.Locale.getDefault().toLanguageTag())
-            glavaNastavitev(url)?.let { c.setRequestProperty("X-Safeer-Config", it) }
+            // Naloga 124 + pregled 12. 11. 2026 (S1): jezik in nastavitve dodatka; preusmeritvam sledimo rocno, glava z nastavitvami
+            // (lahko skrivnosti) ne gre tujemu gostitelju.
+            val c = odpriDodatek(SkrivniDodatki.dejanski(aplikacija, url), cas, glavaNastavitev(url))
             try {
                 val koda = c.responseCode
                 zadnjaKoda.set(koda)
