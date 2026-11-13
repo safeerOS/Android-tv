@@ -13,7 +13,8 @@ fun main(args: Array<String>) {
     preveri(G.globina(globoko) == 100_000, "100000 gnezdenj se prestejejo v enem prehodu")
     preveri(G.globina(globoko) > G.NAJVEC_GLOBINA, "globoko je nad mejo")
     // Povezava: UsenetPravila.zadetki zavrne globoko gnezdenje (brez StackOverflowError), navaden RSS deluje
-    val rssGloboko = "<rss><channel>" + "<a>".repeat(200_000) + "<item><title>T</title><enclosure url=\"https://x.example/a\"/></item></channel></rss>"
+    // veljaven XML (zaprta gnezdenja), da bi ga brez omejitve DOM res zgradil
+    val rssGloboko = "<rss><channel>" + "<a>".repeat(200_000) + "<item><title>T</title><enclosure url=\"https://x.example/a\"/></item>" + "</a>".repeat(200_000) + "</channel></rss>"
     preveri(UsenetPravila.zadetki(rssGloboko, "https://x.example").isEmpty(), "globok RSS: prazen izid, brez izjeme")
     val rssNavaden = "<rss><channel><item><title>T</title><enclosure url=\"https://x.example/a\"/></item></channel></rss>"
     preveri(UsenetPravila.zadetki(rssNavaden, "https://x.example").map { it.naslov } == listOf("T"), "navaden RSS ostane")
