@@ -472,7 +472,7 @@ class LinkOdjemalec(private val context: Context) {
 
     private fun ponovno() {
         if (!tece) return
-        val zamik = minOf(30_000L, 2_000L * (1 shl minOf(poskusov, 4)))
+        val zamik = si.safeer.tv.link.GlobalLinkPravila.razprsen(minOf(30_000L, 2_000L * (1 shl minOf(poskusov, 4))))
         poskusov++
         // Izgubo sredisca javimo enkrat na povezavo (po treh neuspehih); upravitelj takrat vzame
         // poverilnice znova - ce vodijo k istemu srediscu, tu mirno poskusamo naprej.

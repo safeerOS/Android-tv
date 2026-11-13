@@ -333,8 +333,9 @@ object GlobalLink {
                 val trajanje = System.currentTimeMillis() - zacetek
                 // Prvi ponovni poskus po 5 s, nato 10, 20 ... do 5 min; po povezavi, ki je zdrzala minuto, spet 5 s.
                 val zdaj = GlobalLinkPravila.zamikZdaj(cakaj, trajanje)
-                Log.i(TAG, "Global Link huba: $sporocilo; znova cez ${zdaj / 1000} s")
-                Thread.sleep(zdaj)
+                val spanje = GlobalLinkPravila.razprsen(zdaj)
+                Log.i(TAG, "Global Link huba: $sporocilo; znova cez ${spanje / 1000} s")
+                Thread.sleep(spanje)
                 cakaj = GlobalLinkPravila.naslednjiZamik(zdaj)
             }
         }

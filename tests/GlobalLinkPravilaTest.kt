@@ -70,5 +70,19 @@ fun main(args: Array<String>) {
     preveri(Regex("""OkHttpClient\.Builder\(\)""").findAll(vir).count() == Regex("""GlobalLinkPravila\.odjemalec\(OkHttpClient\.Builder\(\)""").findAll(vir).count(),
         "vsak OkHttpClient.Builder v GlobalLink.kt gre skozi GlobalLinkPravila.odjemalec")
     preveri("obSpremembiKroga(\"global-link-hub\")" in vir && "GlobalLinkPravila.dovoljeniIdji(" in vir, "umik kroga sproži objavo, seznam iz pravil")
+    // Nakljucni zamik (izpad Microsoft 365, 13. 11. 2026): meje in vse tri zanke ponovnih povezav ga uporabljajo
+    preveri(P.razprsen(10_000L, 0.0) == 5_000L, "spodnja meja je polovica")
+    preveri(P.razprsen(10_000L, 1.0) == 10_000L, "zgornja meja je cel zamik")
+    preveri(P.razprsen(10_000L, 7.0) == 10_000L && P.razprsen(10_000L, -1.0) == 5_000L, "vir zunaj [0, 1] omejen")
+    preveri(P.razprsen(-5L, 0.5) == 0L, "negativen zamik -> 0")
+    val razlicni = (1..50).map { P.razprsen(300_000L) }.toSet()
+    preveri(razlicni.size > 40 && razlicni.all { it in 150_000L..300_000L }, "privzeti vir razprsi v mejah")
+    val koren = java.io.File(args.firstOrNull() ?: ".")
+    for ((dat, vzorec) in listOf(
+        "si/safeer/tv/link/GlobalLink.kt" to "GlobalLinkPravila.razprsen(zdaj)",
+        "si/safeer/tv/os/LinkOdjemalec.kt" to "GlobalLinkPravila.razprsen(minOf(30_000L",
+        "si/safeer/tv/os/LinkUpravitelj.kt" to "GlobalLinkPravila.razprsen(minOf(60_000L")) {
+        preveri(vzorec in java.io.File(koren, dat).readText(), "$dat: ponovna povezava z nakljucnim zamikom")
+    }
     println("GlobalLinkPravilaTest: OK ($stevilo preverb)")
 }

@@ -58,4 +58,16 @@ object GlobalLinkPravila {
 
     /** Zamik za poskus po tem: dvakrat daljsi, najvec 5 min (streznika ob izpadu ne zasipamo). */
     fun naslednjiZamik(pravkarCakali: Long): Long = (pravkarCakali * 2L).coerceAtMost(ZAMIK_NAJVEC_MS)
+
+    /**
+     * Zamik, nakljucno v zgornji polovici: [zamikMs/2, zamikMs]. Izpad Microsoft 365 (13. 11. 2026): po ponovnem
+     * zagonu sredisca ali releja so se vse naprave z enakimi fiksnimi zamiki vracale v isti sekundi in obnovljeni
+     * streznik spet zasule. Velja za vse ponovne povezave Linka (Global Link, LinkOdjemalec, LinkUpravitelj).
+     */
+    fun razprsen(zamikMs: Long, nakljucno: Double): Long {
+        val pol = zamikMs.coerceAtLeast(0L) / 2L
+        return pol + (nakljucno.coerceIn(0.0, 1.0) * pol).toLong()
+    }
+
+    fun razprsen(zamikMs: Long): Long = razprsen(zamikMs, java.util.concurrent.ThreadLocalRandom.current().nextDouble())
 }

@@ -229,7 +229,7 @@ class LinkUpravitelj private constructor(private val app: Application) : LinkOdj
      */
     private fun znovaPoPremoru() {
         zavrnitev++
-        val zamik = minOf(60_000L, 2_000L * (1L shl minOf(zavrnitev, 5)))
+        val zamik = si.safeer.tv.link.GlobalLinkPravila.razprsen(minOf(60_000L, 2_000L * (1L shl minOf(zavrnitev, 5))))
         javi(false, "povezujem")
         glavna.postDelayed({ if (tece) zahtevajPoverilnice() }, zamik)
     }
