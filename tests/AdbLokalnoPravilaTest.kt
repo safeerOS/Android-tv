@@ -19,6 +19,9 @@ fun main() {
     preveri("aplikacija v ospredju nikoli", !P.smemoZapreti("com.anthropic.claude", "si.safeer.os", setOf("com.anthropic.claude"), null))
     preveri("tipkovnica nikoli", !P.smemoZapreti("com.google.android.inputmethod.latin", "si.safeer.os", emptySet(), "com.google.android.inputmethod.latin"))
     preveri("sistem nikoli", !P.smemoZapreti("com.android.systemui", "si.safeer.os", emptySet(), null))
+    // Tablica 13. 11. 2026: ciscenje ozadja je zapiralo aplikacije VPN (NordVPN, AdGuard) - zasciteni paketi nikoli.
+    preveri("VPN aplikacija nikoli", !P.smemoZapreti("com.nordvpn.android", "si.safeer.os", emptySet(), null, setOf("com.nordvpn.android")))
+    preveri("zasciteni seznam ne vpliva na druge", P.smemoZapreti("org.smarttube.stable", "si.safeer.os", emptySet(), null, setOf("com.nordvpn.android")))
     preveri("android nikoli", !P.smemoZapreti("android", "si.safeer.os", emptySet(), null))
     preveri("Philips sistem nikoli", !P.smemoZapreti("org.droidtv.playtv", "si.safeer.os", emptySet(), null))
     preveri("Philips viri nikoli", !P.smemoZapreti("com.philips.sourceenabler", "si.safeer.os", emptySet(), null))

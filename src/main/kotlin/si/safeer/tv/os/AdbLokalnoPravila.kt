@@ -59,9 +59,10 @@ object AdbLokalnoPravila {
      * Ali smemo zapreti [paket]. Lastnik 1. 11. 2026: tudi nase aplikacije (TV Browser, Play Store, Predvajalnik), ko jih
      * uporabnik ne uporablja vec - nikoli pa zaganjalnika ([zaganjalnik]), aplikacije v ospredju ([vOspredju]) in tipkovnice.
      */
-    fun smemoZapreti(paket: String, zaganjalnik: String, vOspredju: Set<String>, tipkovnica: String?): Boolean =
+    fun smemoZapreti(paket: String, zaganjalnik: String, vOspredju: Set<String>, tipkovnica: String?,
+                     zasciteni: Set<String> = emptySet()): Boolean =
         IME_PAKETA.matches(paket) && paket.length <= 255 && paket != zaganjalnik && paket !in vOspredju &&
-            paket != tipkovnica && paket !in NIKOLI && NIKOLI_PREDPONE.none { paket.startsWith(it) }
+            paket != tipkovnica && paket !in zasciteni && paket !in NIKOLI && NIKOLI_PREDPONE.none { paket.startsWith(it) }
 
     /**
      * Sistem televizorja (Android, Philips TP Vision, MediaTek, Vewd/HbbTV): nikoli. Preizkus na TV 1. 11. 2026 je zaprl

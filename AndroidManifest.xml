@@ -87,6 +87,10 @@
          in aplikacije, ki znajo odpreti spletno povezavo (npr. YouTube).
          Brez tega Android 11+ seznam skrije in daljinec bi videl le sistemske aplikacije. -->
     <queries>
+        <!-- Pomnilnik: aplikacij VPN ciscenje ozadja nikoli ne zapre (13. 11. 2026). -->
+        <intent>
+            <action android:name="android.net.VpnService" />
+        </intent>
         <package android:name="com.google.android.tvlauncher" />
         <intent>
             <action android:name="android.intent.action.MAIN" />

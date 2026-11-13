@@ -115,22 +115,33 @@ object Pomnilnik {
             // Aplikacije z vklopljeno storitvijo (dostopnost, obvestila): force-stop bi jim storitev izklopil.
             val sStoritvijo = listOf("enabled_accessibility_services", "enabled_notification_listeners").flatMap { k ->
                 AdbLokalnoPravila.paketiStoritev(try { android.provider.Settings.Secure.getString(c.contentResolver, k) } catch (_: Throwable) { null })
-            }.toSet()
+            }.toSet() + vpnPaketi(c)
             val dovoljeni = paketi.filter { p ->
-                p !in sStoritvijo && AdbLokalnoPravila.smemoZapreti(p, c.packageName, vOspredju, ime) &&
+                AdbLokalnoPravila.smemoZapreti(p, c.packageName, vOspredju, ime, sStoritvijo) &&
                     (try { (pm.getApplicationInfo(p, 0).flags and ApplicationInfo.FLAG_SYSTEM) == 0 } catch (_: Throwable) { false })
             }
             return AdbLokalno.zapri(c, dovoljeni, nadaljuj = nadaljuj)
         }
         val am = c.getSystemService(ActivityManager::class.java)
         val zaprti = ArrayList<String>()
+        val vpn = vpnPaketi(c)
         // CodeRabbit 8. 11. 2026: tudi rezervna pot se ustavi, ko uporabnik pritisne tipko ali odpre aplikacijo.
         for (p in paketi) {
             if (!nadaljuj()) break
+            if (p in vpn) continue
             try { am.killBackgroundProcesses(p); zaprti.add(p) } catch (_: Throwable) { }
         }
         return zaprti
     }
+
+    /**
+     * Aplikacije VPN (storitev android.net.VpnService): zaprtje bi uporabniku prekinilo zasciteno povezavo (preizkus na
+     * tablici 13. 11. 2026: ciscenje ozadja je na seznam za zapiranje dalo NordVPN in AdGuard). Nikoli jih ne zapremo.
+     */
+    private fun vpnPaketi(c: Context): Set<String> = try {
+        c.packageManager.queryIntentServices(Intent(android.net.VpnService.SERVICE_INTERFACE), 0)
+            .mapNotNull { it.serviceInfo?.packageName }.toSet()
+    } catch (_: Throwable) { emptySet() }
 
     private fun tipkovnica(c: Context): String? = try {
         android.provider.Settings.Secure.getString(c.contentResolver, "default_input_method")?.substringBefore('/')
