@@ -20,12 +20,23 @@ object Scit {
     private const val TAG = "SafeerOsScit"
 
     class Stanje(val naVoljo: Boolean, val vklopljen: Boolean, val pripravljen: Boolean, val tece: Boolean,
-                 val blokiranih: Long, val domen: Int, val potrebujeOkno: Boolean)
+                 val blokiranih: Long, val domen: Int, val potrebujeOkno: Boolean, val vodi: String? = null)
+
+    /** Ime aplikacije, ki vodi Link in Scit te naprave, kadar to nismo mi in ni soseda; sicer null. */
+    private fun tujiLastnik(context: Context): String? {
+        if (Sosed.vodimLink(context) || sosed(context) != null) return null
+        val paket = Sosed.lastnikLinka(context) ?: return null
+        return try { context.packageManager.getApplicationLabel(context.packageManager.getApplicationInfo(paket, 0)).toString() }
+            catch (_: Throwable) { paket }
+    }
+
+    private fun stanjeTujega(ime: String) = Stanje(false, false, false, false, 0L, 0, false, ime)
 
     /** Brskalnik, ki vodi Scit - samo, kadar Safeer Linka (in s tem Scita) ne vodimo mi. */
     private fun sosed(context: Context): String? = if (Sosed.vodimLink(context)) null else Sosed.brskalnik(context)
 
     fun stanje(context: Context, naprej: (Stanje) -> Unit) {
+        tujiLastnik(context)?.let { naprej(stanjeTujega(it)); return }
         val brskalnik = sosed(context)
         if (brskalnik != null) prekBrskalnika(context, brskalnik, ScitSorodnikStoritev.STANJE, naprej)
         else naprej(preberi(context, false))
@@ -34,8 +45,8 @@ object Scit {
     fun vklopi(context: Context, naprej: (Stanje) -> Unit) {
         val brskalnik = sosed(context)
         if (brskalnik != null) { prekBrskalnika(context, brskalnik, ScitSorodnikStoritev.VKLOPI, naprej); return }
-        // Link (in Scit) te naprave vodi druga Safeer aplikacija: njenega VPN ne prevzamemo.
-        if (!si.safeer.tv.scit.ScitPregled.smemoVklopitiSami(Sosed.vodimLink(context), null)) { naprej(preberi(context, false)); return }
+        // Link (in Scit) te naprave vodi druga Safeer aplikacija: njenega VPN ne prevzamemo, uporabnik izve, kdo ga vodi.
+        tujiLastnik(context)?.let { naprej(stanjeTujega(it)); return }
         // Scit vodimo mi: ce tece v sosedi (stara postavitev), ga tam najprej ugasnemo - en tunel naenkrat.
         Sosed.brskalnik(context)?.let { paket ->
             Sosed.poslji(context, paket, ScitSorodnikStoritev.DEJANJE, ScitSorodnikStoritev.IZKLOPI,
@@ -54,6 +65,7 @@ object Scit {
 
     /** Sistemsko okno z dovoljenjem za VPN (prvic); po vrnitvi klicatelj znova prebere stanje. */
     fun odpriVklop(context: Context) {
+        if (tujiLastnik(context) != null) return
         val brskalnik = sosed(context)
         val namera = if (brskalnik != null)
             Intent().setComponent(ComponentName(brskalnik, "si.safeer.tv.scit.ScitActivity"))
@@ -64,7 +76,7 @@ object Scit {
 
     /** Zaslon Scita (zadnja imena, izjeme) - samo, kadar Scit vodimo mi; sicer false (klicatelj pokaze kratko razlago). */
     fun odpriZaslon(context: Context): Boolean {
-        if (sosed(context) != null) return false
+        if (sosed(context) != null || tujiLastnik(context) != null) return false
         return try {
             context.startActivity(Intent(context, ScitActivity::class.java).putExtra(ScitActivity.EXTRA_POKAZI, true)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); true

@@ -876,7 +876,7 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val s = scitStanje
         val besedilo = when {
             s == null -> getString(R.string.os_scit_preverjam)
-            !s.naVoljo -> getString(R.string.os_scit_ni_brskalnika)
+            !s.naVoljo -> s.vodi?.let { getString(R.string.os_scit_vodi, it) } ?: getString(R.string.os_scit_ni_brskalnika)
             s.vklopljen && s.tece -> getString(R.string.os_scit_vklopljen_opis, s.blokiranih)
             s.vklopljen -> getString(R.string.os_scit_prekinjen)
             else -> getString(R.string.os_scit_izklopljen_opis)
@@ -917,7 +917,9 @@ class DomovActivity : OsActivity(), LinkOdjemalec.Poslusalec {
 
     private fun preklopiScit() {
         val s = scitStanje
-        if (s == null || !s.naVoljo) { Toast.makeText(this, getString(R.string.os_scit_ni_brskalnika), Toast.LENGTH_LONG).show(); return }
+        if (s == null || !s.naVoljo) {
+            Toast.makeText(this, s?.vodi?.let { getString(R.string.os_scit_vodi, it) } ?: getString(R.string.os_scit_ni_brskalnika), Toast.LENGTH_LONG).show(); return
+        }
         if (s.vklopljen) {
             Scit.izklopi(this) { pokaziScit(it); Toast.makeText(this, getString(R.string.os_scit_izklopljen_kratko), Toast.LENGTH_SHORT).show() }
         } else {

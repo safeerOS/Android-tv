@@ -44,6 +44,7 @@
     <string name="os_scit">Ščit</string>
     <string name="os_scit_preverjam">Preverjam …</string>
     <string name="os_scit_ni_brskalnika">Potrebuje Safeer 2.1.100 ali novejši</string>
+    <string name="os_scit_vodi">Ščit na tej napravi vodi %1$s.</string>
     <string name="os_scit_vklopljen_opis">Zaščita je vključena\nDanes blokirano (oglasi, sledilci, nevarne domene): %1$d</string>
     <string name="os_scit_prekinjen">Vklopljen, a prekinjen (drug VPN?) – odpri za ponovni vklop</string>
     <string name="os_scit_izklopljen_opis">Zaščita je izklopljena\nVklopi jo za vse aplikacije na tej napravi</string>

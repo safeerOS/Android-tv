@@ -44,6 +44,7 @@
     <string name="os_scit">Bouclier</string>
     <string name="os_scit_preverjam">Vérification…</string>
     <string name="os_scit_ni_brskalnika">Nécessite Safeer 2.1.100 ou plus récent</string>
+    <string name="os_scit_vodi">Sur cet appareil, Safeer Bouclier est géré par %1$s.</string>
     <string name="os_scit_vklopljen_opis">La protection est activée\nBloqués aujourd’hui (publicités, traqueurs, domaines dangereux) : %1$d</string>
     <string name="os_scit_prekinjen">Activé mais interrompu (un autre VPN ?) : ouvrez pour le réactiver</string>
     <string name="os_scit_izklopljen_opis">La protection est désactivée\nActive-la pour toutes les applis de cet appareil</string>

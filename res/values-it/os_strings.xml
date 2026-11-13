@@ -44,6 +44,7 @@
     <string name="os_scit">Scudo</string>
     <string name="os_scit_preverjam">Controllo…</string>
     <string name="os_scit_ni_brskalnika">Richiede Safeer 2.1.100 o successivo</string>
+    <string name="os_scit_vodi">Su questo dispositivo Safeer Scudo è gestito da %1$s.</string>
     <string name="os_scit_vklopljen_opis">La protezione è attiva\nBloccati oggi (pubblicità, tracker, domini pericolosi): %1$d</string>
     <string name="os_scit_prekinjen">Attivo ma interrotto (un\'altra VPN?): apri per riattivarlo</string>
     <string name="os_scit_izklopljen_opis">La protezione è disattivata\nAttivala per tutte le app di questo dispositivo</string>

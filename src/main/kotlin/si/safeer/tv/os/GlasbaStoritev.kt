@@ -289,7 +289,7 @@ class GlasbaStoritev : Service() {
                 if (error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
                     // Prenos v zivo po pavzi ali zastoju: predvajalnik je zaostal za oknom prenosa. To ni napaka kanala -
                     // nazaj na zivo. (Prej: »Predvajanje se je ustavilo zaradi napake« in crn zaslon.)
-                    val id = trenutna()?.id.orEmpty()
+                    val id = trenutna()?.let { it.id.ifEmpty { it.zvok } }.orEmpty()
                     val casi = ZaOknomPravila.dovoli(zaOknom.first, zaOknom.second, id, android.os.SystemClock.elapsedRealtime())
                     if (casi != null) {
                         zaOknom = id to casi

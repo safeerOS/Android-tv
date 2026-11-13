@@ -138,10 +138,15 @@ object Pomnilnik {
      * Aplikacije VPN (storitev android.net.VpnService): zaprtje bi uporabniku prekinilo zasciteno povezavo (preizkus na
      * tablici 13. 11. 2026: ciscenje ozadja je na seznam za zapiranje dalo NordVPN in AdGuard). Nikoli jih ne zapremo.
      */
-    private fun vpnPaketi(c: Context): Set<String> = try {
-        c.packageManager.queryIntentServices(Intent(android.net.VpnService.SERVICE_INTERFACE), 0)
-            .mapNotNull { it.serviceInfo?.packageName }.toSet()
-    } catch (_: Throwable) { emptySet() }
+    private fun vpnPaketi(c: Context): Set<String> {
+        val vpn = try {
+            c.packageManager.queryIntentServices(Intent(android.net.VpnService.SERVICE_INTERFACE), 0)
+                .mapNotNull { it.serviceInfo?.packageName }.toSet()
+        } catch (_: Throwable) { emptySet() }
+        if (vpn.isEmpty()) Log.i(TAG, "ciscenje ozadja: ni najdenih aplikacij VPN (seznam zascitenih je prazen)")
+        // Aplikacija, ki vodi Link in Scit te naprave, je vedno zascitena (njen VPN morda nima filtra namere).
+        return vpn + listOfNotNull(Sosed.lastnikLinka(c))
+    }
 
     private fun tipkovnica(c: Context): String? = try {
         android.provider.Settings.Secure.getString(c.contentResolver, "default_input_method")?.substringBefore('/')

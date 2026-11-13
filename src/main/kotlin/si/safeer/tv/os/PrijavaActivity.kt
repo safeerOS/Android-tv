@@ -316,7 +316,10 @@ class PrijavaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                     val ime = try { packageManager.getApplicationLabel(packageManager.getApplicationInfo(lastnik, 0)).toString() }
                         catch (_: Throwable) { lastnik }
                     slikaQr.visibility = View.GONE
+                    besediloQr.visibility = View.GONE
                     stanjeQr.text = getString(R.string.os_prijava_drug_lastnik, ime)
+                    // Ce lastnika odstranijo med odprtim zaslonom: pocasi preverimo znova.
+                    glavna.postDelayed({ if (!konec) novaKoda() }, 30_000)
                     return@nova
                 }
                 stanjeQr.text = getString(R.string.os_prijava_qr_napaka)
@@ -324,6 +327,8 @@ class PrijavaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 return@nova
             }
             qrId = b.getString("qr_id").orEmpty()
+            slikaQr.visibility = View.VISIBLE
+            besediloQr.visibility = View.VISIBLE
             slikaQr.setImageBitmap(narisiQr(povezava, dp(178f)))
             val ostane = potrdiloDo - System.currentTimeMillis()
             if (ostane <= 0) stanjeQr.text = ""

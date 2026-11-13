@@ -7,7 +7,7 @@
     <string name="os_prijava_qr_opis">Dirige l\'appareil photo de l\'autre appareil vers le code. Avec Safeer, il s\'ouvre dans l\'application ; sinon dans le navigateur – rien à installer.</string>
     <string name="os_prijava_qr_pripravljam">Préparation du code …</string>
     <string name="os_prijava_qr_napaka">Le code n\'est pas encore prêt. Nouvel essai …</string>
-    <string name="os_prijava_drug_lastnik">Sur cet appareil, les appareils connectés sont gérés par %1$s. Associez vos appareils là-bas.</string>
+    <string name="os_prijava_drug_lastnik">Sur cet appareil, les appareils connectés sont gérés par %1$s. Associe tes appareils là-bas.</string>
     <string name="os_prijava_ali">ou</string>
     <string name="os_prijava_koda_naslov">Code à 6 chiffres</string>
     <string name="os_prijava_koda_opis">Sur l\'appareil qui rejoint, ouvre Safeer → Appareils connectés → Rejoindre. Le code apparaît ici – saisis-le là-bas.</string>

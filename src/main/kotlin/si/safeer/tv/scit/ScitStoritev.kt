@@ -618,6 +618,13 @@ class ScitStoritev : VpnService() {
 
         private fun poslji(context: Context, dejanje: String) {
             val app = context.applicationContext
+            // Ena tocka za vse zagone (tudi ob vklopu naprave): kadar Link (in Scit) te naprave vodi druga Safeer
+            // aplikacija, svojega tunela ne zazenemo - in ce tece (stara namestitev), ga ustavimo (tablica 13. 11. 2026).
+            if (dejanje != DEJANJE_USTAVI && !si.safeer.tv.os.Sosed.vodimLink(app)) {
+                Log.i(TAG, "Scita ne zaganjam: Link te naprave vodi ${si.safeer.tv.os.Sosed.lastnikLinka(app)}")
+                try { app.stopService(Intent(app, ScitStoritev::class.java)) } catch (_: Throwable) { }
+                return
+            }
             val namera = Intent(app, ScitStoritev::class.java).setAction(dejanje)
             try {
                 if (dejanje == DEJANJE_ZAZENI) app.startForegroundService(namera)

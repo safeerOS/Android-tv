@@ -44,6 +44,7 @@
     <string name="os_scit">Schild</string>
     <string name="os_scit_preverjam">Prüfe …</string>
     <string name="os_scit_ni_brskalnika">Benötigt Safeer 2.1.100 oder neuer</string>
+    <string name="os_scit_vodi">Safeer Schild wird auf diesem Gerät von %1$s verwaltet.</string>
     <string name="os_scit_vklopljen_opis">Schutz ist an\nHeute blockiert (Werbung, Tracker, gefährliche Domains): %1$d</string>
     <string name="os_scit_prekinjen">An, aber unterbrochen (anderes VPN?) – öffnen zum erneuten Einschalten</string>
     <string name="os_scit_izklopljen_opis">Der Schutz ist aus\nSchalte ihn für alle Apps auf diesem Gerät ein</string>

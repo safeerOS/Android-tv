@@ -63,7 +63,8 @@ object Sosed {
     fun linkBrskalnik(context: Context): String? = if (vodimLink(context)) null else brskalnik(context)
 
     fun namescen(context: Context, paket: String): Boolean = try {
-        context.packageManager.getPackageInfo(paket, 0); true
+        // Onemogocena aplikacija (pregled 13. 11.) ne vodi Linka in Scita - sicer jih ne bi vodil nihce.
+        context.packageManager.getApplicationInfo(paket, 0).enabled
     } catch (_: PackageManager.NameNotFoundException) { false
     } catch (e: Throwable) { Log.w(TAG, "Paketa $paket ni bilo mogoce preveriti: ${e.message}"); false }
 
