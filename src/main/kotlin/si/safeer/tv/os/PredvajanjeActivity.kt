@@ -182,9 +182,13 @@ class PredvajanjeActivity : OsActivity() {
 
     /** Ciljni polozaj previjanja v sprotnem toku, dokler pomocnik ne poslje novega toka (-1 = ni previjanja). */
     private var ciljSprotnega = -1L
+    /** Zaporedna stevilka previjanja v sprotnem toku: izid starejsega previjanja ne spremeni stanja novejsega
+     *  (CodeRabbit 13. 11. 2026: koncan preskok brez previjanja, izgubljen novejsi skok). */
+    private var previjSt = 0
     private val previjZdaj = Runnable {
         val cilj = ciljSprotnega
         if (cilj < 0) { preskokCaka = null; return@Runnable }
+        val st = previjSt
         // Medtem se predvaja kaj drugega: previjanje ne velja vec.
         if (GlasbaStoritev.trenutna()?.let { SprotnaPomoc.tokZa(it) } == null) {
             android.util.Log.i("SafeerSprotnaPomoc", "Previjanje preklicano: trenutna skladba ni vec sprotni tok (${GlasbaStoritev.trenutna()?.id})")
@@ -196,6 +200,7 @@ class PredvajanjeActivity : OsActivity() {
             naStanje = { b -> runOnUiThread { if (!isFinishing) izvajalec.text = b } },
             naKonec = { uspeh -> runOnUiThread {
                 if (isFinishing) return@runOnUiThread
+                if (st != previjSt) return@runOnUiThread       // izid starejsega previjanja: novejse ze tece
                 ciljSprotnega = -1L
                 preskokCaka?.let { if (uspeh) preskokKoncani += it }
                 preskokCaka = null
@@ -218,6 +223,9 @@ class PredvajanjeActivity : OsActivity() {
             p.seekTo(if (p.duration > 0) minOf(ciljMs, p.duration - 500).coerceAtLeast(0) else ciljMs.coerceAtLeast(0))
             osveziCas(); return true
         }
+        // Nov skok (tudi rocno previjanje) razveljavi cakajoci preskok; preskoci ga po tem klicu nastavi znova.
+        previjSt++
+        preskokCaka = null
         ciljSprotnega = ciljMs.coerceAtLeast(0).let { if (t.trajanjeMs > 0) minOf(it, (t.trajanjeMs - 2_000).coerceAtLeast(0)) else it }
         osveziCas()
         glavna.removeCallbacks(previjZdaj); glavna.postDelayed(previjZdaj, 700)
