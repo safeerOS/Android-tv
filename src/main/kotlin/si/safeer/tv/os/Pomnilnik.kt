@@ -109,9 +109,6 @@ object Pomnilnik {
     @android.annotation.SuppressLint("MissingPermission")
     private fun zapriPakete(c: Context, paketi: List<String>, vOspredju: Set<String>, ime: String?, nadaljuj: () -> Boolean = { true }): List<String> {
         if (paketi.isEmpty()) return emptyList()
-        // Zapiranje tujih aplikacij je samo za televizor (2 GB RAM). Na tablici in telefonu je uporabnikovo (preizkus na
-        // tablici 13. 11. 2026: vsako minuto zaprtih ~50 aplikacij - Zemljevidi, Gmail, Sporocila ...).
-        if (!Sosed.jeTelevizor(c)) return emptyList()
         if (AdbLokalno.soglasje(c)) {
             // Sistemskih aplikacij televizorja ne zapiramo na silo (killBackgroundProcesses jih prej tudi ni).
             val pm = c.packageManager
