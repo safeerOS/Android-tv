@@ -187,6 +187,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/NaslednjaEpizodaPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/PreskokPravila.kt" \
     "$TEST_DIR/PreskokPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/ZaOknomPravila.kt" \
+    "$TEST_DIR/ZaOknomPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/OsvezevanjePravila.kt" \
     "$TEST_DIR/OsvezevanjePravilaTest.kt" \
     "$SRC/si/safeer/tv/os/NapredekKljuc.kt" \
@@ -396,6 +398,8 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SerijePravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.NaslednjaEpizodaPravilaTestKt
 # Lastnik 13. 11. 2026: gumb za preskok uvoda, povzetka in odjavne (TheIntroDB, ideja IPVIO Stream).
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PreskokPravilaTestKt
+# Pregled 5. 11. 2026: vrnitev na zivo ob BEHIND_LIVE_WINDOW z mejo (3 v 60 s).
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZaOknomPravilaTestKt
 # Lastnik 13. 11. 2026: ujemanje osvezevanja zaslona s filmom (24p brez trzanja).
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.OsvezevanjePravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.NapredekKljucTestKt

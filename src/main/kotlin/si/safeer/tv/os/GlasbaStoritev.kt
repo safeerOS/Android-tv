@@ -84,6 +84,8 @@ class GlasbaStoritev : Service() {
 
     /** Posnetek (id) in stevilo pokvarjenih zvocnih okvirjev v njem (lastnik 28. 10. 2026). */
     private var napakeOkvirja: Pair<String, Int> = "" to 0
+    // Vrnitve na zivo ob BEHIND_LIVE_WINDOW za trenutni posnetek ([ZaOknomPravila], meja 3 v 60 s).
+    private var zaOknom: Pair<String, List<Long>> = "" to emptyList()
     private val NAJVEC_NAPAK_OKVIRJA = 3
 
     /** Pokvarjen ali okrnjen okvir AC3/E-AC3/DTS/AC4 pri predaji zvocniku (razclenjevalnik glave okvirja v Media3). */
@@ -287,9 +289,16 @@ class GlasbaStoritev : Service() {
                 if (error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW) {
                     // Prenos v zivo po pavzi ali zastoju: predvajalnik je zaostal za oknom prenosa. To ni napaka kanala -
                     // nazaj na zivo. (Prej: »Predvajanje se je ustavilo zaradi napake« in crn zaslon.)
-                    Log.i("SafeerOsMedia", "za oknom prenosa v zivo: nazaj na zivo")
-                    p.seekToDefaultPosition(); p.prepare()
-                    return
+                    val id = trenutna()?.id.orEmpty()
+                    val casi = ZaOknomPravila.dovoli(zaOknom.first, zaOknom.second, id, android.os.SystemClock.elapsedRealtime())
+                    if (casi != null) {
+                        zaOknom = id to casi
+                        Log.i("SafeerOsMedia", "za oknom prenosa v zivo: nazaj na zivo (${casi.size}/${ZaOknomPravila.MEJA})")
+                        p.seekToDefaultPosition(); p.prepare()
+                        return
+                    }
+                    // Meja: vir ne dohaja zive tocke - obicajna pot napake (rezerva ali sporocilo), ne neskoncna zanka.
+                    Log.i("SafeerOsMedia", "za oknom prenosa v zivo: meja ${ZaOknomPravila.MEJA} v 60 s, obicajna pot napake")
                 }
                 // Lastnik 28. 10. 2026: video z racunalnika se je ustavil - pokvarjen okvir AC3 pri predaji zvocniku
                 // (Ac3Util, IndexOutOfBounds). Nadaljuj 1 s naprej (cez pokvarjen okvir), najvec NAJVEC_NAPAK_OKVIRJA na posnetek.
