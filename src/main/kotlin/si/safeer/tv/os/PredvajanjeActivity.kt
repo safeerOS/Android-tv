@@ -1842,10 +1842,12 @@ class PredvajanjeActivity : OsActivity() {
             !Podnapisi.vklopljeni(p) -> 0
             else -> jeziki.indexOf(Podnapisi.jezikDodatka(this)).let { if (it >= 0) it + zamik else -1 }
         }
+        val vrsticaZamika = getString(R.string.podnapisi_zamik, ZamikPodnapisovPravila.oblika(Podnapisi.zamikMs(this)))
         android.app.AlertDialog.Builder(this).setTitle(R.string.podnapisi_naslov)
-            .setSingleChoiceItems(imena.toTypedArray(), trenutni) { d, k ->
+            .setSingleChoiceItems((imena + vrsticaZamika).toTypedArray(), trenutni) { d, k ->
                 d.dismiss()
                 when {
+                    k == imena.size -> Podnapisi.pokaziZamik(this)
                     k == 0 -> { Podnapisi.izklopiDodatek(this, p); posodobiPodnapise() }
                     videa && k == 1 -> Podnapisi.izberi(this, p) { posodobiPodnapise() }
                     else -> naloziPodnapis(najdeni, jeziki[k - zamik])

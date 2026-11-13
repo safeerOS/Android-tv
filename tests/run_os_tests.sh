@@ -121,6 +121,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/OmrezjePravilaTest.kt" \
     "$TEST_DIR/PotDoNapraveTest.kt" \
     "$TEST_DIR/ZvokPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/ZamikPodnapisovPravila.kt" \
+    "$TEST_DIR/ZamikPodnapisovPravilaTest.kt" \
     "$TEST_DIR/ProsnjaDostopaTest.kt" \
     "$TEST_DIR/ZaganjalnikPravilaTest.kt" \
     "$TEST_DIR/VrsticaPravilaTest.kt" \
@@ -346,6 +348,7 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZaslonKodekTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.OmrezjePravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PotDoNapraveTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZvokPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZamikPodnapisovPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ProsnjaDostopaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZaganjalnikPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.VrsticaPravilaTestKt

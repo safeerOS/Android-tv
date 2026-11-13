@@ -124,9 +124,44 @@ object Podnapisi {
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)
 
+    /** Zamik podnapisov v mikrosekundah (+ = pozneje); bere ga razčlenjevalnik na niti nalaganja. */
+    @Volatile private var zamikUs: Long = 0L
+
+    /** Zamik podnapisov v ms; nastavi ga uporabnik, velja za vse videe (glej [ZamikPodnapisovPravila]). */
+    fun zamikMs(ctx: Context): Long = ZamikPodnapisovPravila.omeji(prefs(ctx).getLong("zamik_ms", 0L))
+
+    fun nastaviZamikMs(ctx: Context, ms: Long) {
+        val v = ZamikPodnapisovPravila.omeji(ms)
+        prefs(ctx).edit().putLong("zamik_ms", v).apply()
+        zamikUs = v * 1000L
+    }
+
+    /** Menu zamika: +/- 0,1 / 0,5 / 2 s in ponastavitev; po spremembi se podnapisi ponovno preberejo z novim zamikom. */
+    fun pokaziZamik(a: Activity) {
+        val koraki = listOf(100L, 500L, 2000L)
+        val imena = mutableListOf<String>()
+        val premiki = mutableListOf<Long?>()
+        for (k in koraki) { imena += a.getString(R.string.podnapisi_kasneje, ZamikPodnapisovPravila.trajanje(k)); premiki += k }
+        for (k in koraki) { imena += a.getString(R.string.podnapisi_prej, ZamikPodnapisovPravila.trajanje(k)); premiki += -k }
+        imena += a.getString(R.string.podnapisi_zamik_ponastavi); premiki += null
+        AlertDialog.Builder(a).setTitle(a.getString(R.string.podnapisi_zamik, ZamikPodnapisovPravila.oblika(zamikMs(a))))
+            .setItems(imena.toTypedArray()) { d, k ->
+                val korak = premiki[k]
+                val nov = if (korak == null) 0L else ZamikPodnapisovPravila.spremeni(zamikMs(a), korak)
+                nastaviZamikMs(a, nov)
+                d.dismiss()
+                if (GlasbaStoritev.ponovnoNaloziPodnapise()) {
+                    android.widget.Toast.makeText(a, a.getString(R.string.podnapisi_zamik, ZamikPodnapisovPravila.oblika(nov)), android.widget.Toast.LENGTH_SHORT).show()
+                } else {
+                    android.widget.Toast.makeText(a, R.string.podnapisi_zamik_ne, android.widget.Toast.LENGTH_LONG).show()
+                }
+            }.show()
+    }
+
     /** Shranjena izbira (izklopljeno / zadnji izbrani jezik) za predvajalnik. Kliči ob ustvarjanju predvajalnika. */
     fun uveljavi(ctx: Context, p: Player) {
         val n = prefs(ctx)
+        zamikUs = zamikMs(ctx) * 1000L
         val jeziki = listOfNotNull(n.getString("jezik", null)?.ifBlank { null }, jezikNaprave(ctx)).distinct()
         p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
             .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, n.getBoolean("izklop", false))
@@ -156,8 +191,10 @@ object Podnapisi {
                 .joinToString(" · ").ifBlank { a.getString(R.string.podnapisi_st, k + 1) }
         }
         val trenutni = posnetki.indexOfFirst { (g, i) -> g.isTrackSelected(i) } + 1
+        val vrsticaZamika = a.getString(R.string.podnapisi_zamik, ZamikPodnapisovPravila.oblika(zamikMs(a)))
         AlertDialog.Builder(a).setTitle(R.string.podnapisi_naslov)
-            .setSingleChoiceItems(imena.toTypedArray(), trenutni) { d, k ->
+            .setSingleChoiceItems((imena + vrsticaZamika).toTypedArray(), trenutni) { d, k ->
+                if (k == imena.size) { d.dismiss(); pokaziZamik(a); return@setSingleChoiceItems }
                 val gradnik = p.trackSelectionParameters.buildUpon().clearOverridesOfType(C.TRACK_TYPE_TEXT)
                 if (k == 0) {
                     gradnik.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
@@ -389,7 +426,13 @@ object Podnapisi {
                         (if (mime == MimeTypes.APPLICATION_SUBRIP) srtPocisti(izvirnik) else besedilo(izvirnik)).toByteArray(Charsets.UTF_8)
                     } catch (_: Throwable) { ByteArray(0) }
                     val podatki = if (popravljeno.isEmpty()) izvirnik else popravljeno
-                    bralnik.parse(podatki, 0, podatki.size, outputOptions, output)
+                    val z = zamikUs
+                    val izhod = if (z == 0L) output else androidx.media3.common.util.Consumer<androidx.media3.extractor.text.CuesWithTiming> { c ->
+                        ZamikPodnapisovPravila.zamakni(c.startTimeUs, c.durationUs, z)?.let { (s, d) ->
+                            output.accept(androidx.media3.extractor.text.CuesWithTiming(c.cues, s, d))
+                        }
+                    }
+                    bralnik.parse(podatki, 0, podatki.size, outputOptions, izhod)
                 }
                 override fun getCueReplacementBehavior(): Int = bralnik.cueReplacementBehavior
                 override fun reset() = bralnik.reset()

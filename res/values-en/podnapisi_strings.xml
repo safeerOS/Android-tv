@@ -3,6 +3,11 @@
 <resources>
     <string name="podnapisi_naslov">Subtitles</string>
     <string name="podnapisi_izklop">Off</string>
+    <string name="podnapisi_kasneje">Subtitles later by %1$s</string>
+    <string name="podnapisi_prej">Subtitles earlier by %1$s</string>
+    <string name="podnapisi_zamik_ponastavi">Reset delay</string>
+    <string name="podnapisi_zamik">Subtitle delay: %1$s</string>
+    <string name="podnapisi_zamik_ne">These subtitles cannot be shifted (only subtitles from files and add-ons).</string>
     <string name="podnapisi_namig">up: subtitles</string>
     <string name="podnapisi_st">Subtitles %d</string>
     <string name="podnapisi_prisilni">forced</string>

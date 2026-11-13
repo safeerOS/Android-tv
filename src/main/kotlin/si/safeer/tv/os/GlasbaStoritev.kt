@@ -1303,15 +1303,17 @@ class GlasbaStoritev : Service() {
      * mestu, brez ponovnega iskanja toka in brez ustavitve. Tok HLS podnapisov ob strani ne sprejme (HlsMediaSource) in
      * tok z racunalnika gre skozi pripeti vir: takrat false.
      */
-    private fun dodajPodnapiseVTok(novi: List<Podnapisi.Podnapis>): Boolean {
+    private fun dodajPodnapiseVTok(novi: List<Podnapisi.Podnapis>, ponovno: Boolean = false): Boolean {
         val p = exo ?: return false
-        if (predvajalnik !== p || streznikTrenutni != null || novi.isEmpty()) return false
+        if (predvajalnik !== p || streznikTrenutni != null || (novi.isEmpty() && !ponovno)) return false
         val i = p.currentMediaItemIndex
         val sk = vrsta.getOrNull(i) ?: return false
         val vrstaToka = androidx.media3.common.util.Util.inferContentTypeForUriAndMimeType(android.net.Uri.parse(sk.zvok), sk.mime.ifBlank { null })
         if (vrstaToka == C.CONTENT_TYPE_HLS) return false
-        val nov = sk.copy(podnapisi = (sk.podnapisi + novi).distinctBy { it.url })
-        if (nov.podnapisi.size == sk.podnapisi.size) return true
+        // ponovno: isti podnapisi se preberejo znova (zamik podnapisov, ExoPlayer ga nima); brez zunanjih podnapisov ni kaj zamakniti.
+        if (ponovno && sk.podnapisi.isEmpty()) return false
+        val nov = if (ponovno) sk else sk.copy(podnapisi = (sk.podnapisi + novi).distinctBy { it.url })
+        if (!ponovno && nov.podnapisi.size == sk.podnapisi.size) return true
         val tovarna = androidx.media3.exoplayer.source.DefaultMediaSourceFactory(DvdVir.Tovarna(SpletniVir.virPodatkov(this, SpletniVir.glaveToka(sk.zvok))))
             .setLoadErrorHandlingPolicy(hitraNapaka).setSubtitleParserFactory(Podnapisi.Popravljalnik())
         val vir = tovarna.createMediaSource(MediaItem.Builder().setMediaId(nov.id).setUri(nov.zvok)
@@ -1893,6 +1895,9 @@ class GlasbaStoritev : Service() {
 
         /** Naloga 72: podnapisi iz dodatka k posnetku, ki igra (glej [dodajPodnapiseVTok]). Klic z glavne niti. */
         fun dodajPodnapise(novi: List<Podnapisi.Podnapis>): Boolean = primerek?.dodajPodnapiseVTok(novi) ?: false
+
+        /** Zamik podnapisov se spremeni: zunanji podnapisi trenutnega posnetka se preberejo znova (false = ni kaj zamakniti). */
+        fun ponovnoNaloziPodnapise(): Boolean = primerek?.dodajPodnapiseVTok(emptyList(), true) ?: false
 
         /** Zunanji pregled 3. 11. 2026: trenutni tok je HLS - podnapisov iz dodatka mu ne moremo dodati (HlsMediaSource). */
         fun jeHls(): Boolean = primerek?.let { st ->

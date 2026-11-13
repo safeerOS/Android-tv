@@ -3,6 +3,11 @@
 <resources>
     <string name="podnapisi_naslov">Podnapisi</string>
     <string name="podnapisi_izklop">Izklopljeno</string>
+    <string name="podnapisi_kasneje">Podnapisi kasneje za %1$s</string>
+    <string name="podnapisi_prej">Podnapisi prej za %1$s</string>
+    <string name="podnapisi_zamik_ponastavi">Ponastavi zamik</string>
+    <string name="podnapisi_zamik">Zamik podnapisov: %1$s</string>
+    <string name="podnapisi_zamik_ne">Podnapisov te vsebine ni mogoče zamakniti (samo podnapisi iz datotek in dodatkov).</string>
     <string name="podnapisi_namig">gor: podnapisi</string>
     <string name="podnapisi_st">Podnapisi %d</string>
     <string name="podnapisi_prisilni">samo tuji govor</string>
