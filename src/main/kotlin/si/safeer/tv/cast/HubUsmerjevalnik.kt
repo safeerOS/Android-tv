@@ -1885,8 +1885,11 @@ class HubUsmerjevalnik(
             }
             sosedNaprave[sosedId] = obdrzani
             if (relay != null) {
+                // Pregled 13. 11. 2026 (B): sosed ne sme prek relay seznama govoriti v imenu naprave, ki je pri nas
+                // lokalno povezana (ali nas samih): lokalna prijava ima prednost tudi tu.
                 zadnjiRelay[sosedId] = relay.kljuci()
-                    .filter { it.isNotBlank() && it.length <= NAJVEC_IMENA && jeClan(it) }
+                    .filter { it.isNotBlank() && it.length <= NAJVEC_IMENA && it != lastniId && jeClan(it) &&
+                        register.najdi(it)?.povezava.let { p -> p == null || p is Namestnik } }
                     .mapNotNull { k -> relay.objekt(k)?.let { k to it } }.toMap()
             }
         }

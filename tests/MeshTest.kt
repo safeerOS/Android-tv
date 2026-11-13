@@ -253,6 +253,14 @@ fun main() {
         a.obdelaj(tv, """{"id":"e","type":"share.text","target":"tel","payload":{"text":"y"}}""")
         preveriM("po izpadu prek b", tel.vrste("share.text").size == 2 && prekB() == pred + 1)
     }
+    primer("sosed prek relay ne more govoriti v imenu lokalne naprave") {
+        val a = hub("hub-a"); val b = hub("hub-b")
+        val tv = prijava(a, "tv"); prijava(a, "tel")
+        val (ab, _) = povezi(a, b)
+        a.obdelaj(ab, """{"id":"m","type":"mesh.devices","payload":{"hub":"hub-b","devices":{},"relay":{"tel":{"name":"X","role":"receiver","capabilities":[],"ip":"127.0.0.1","hub":"hub-c"}}}}""")
+        a.obdelaj(ab, """{"type":"mesh.route","payload":{"to":"tv","msg":"{\"type\":\"control.command\",\"sender\":\"tel\"}"}}""")
+        preveriM("relay seznam ne podeli imena lokalne naprave", tv.zadnje("control.command") == null)
+    }
     primer("relay: najvec en skok in brez ponarejanja") {
         val a = hub("hub-a"); val b = hub("hub-b"); val c = hub("hub-c"); val d = hub("hub-d")
         prijava(a, "tv"); prijava(b, "pc"); val tel = prijava(c, "tel"); val tab = prijava(d, "tablica")
