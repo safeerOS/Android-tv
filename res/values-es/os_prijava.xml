@@ -7,6 +7,7 @@
     <string name="os_prijava_qr_opis">Apunta la cámara del otro dispositivo al código. Con Safeer se abre en la app; sin él, en el navegador: no hay que instalar nada.</string>
     <string name="os_prijava_qr_pripravljam">Preparando el código …</string>
     <string name="os_prijava_qr_napaka">El código aún no está listo. Reintentando …</string>
+    <string name="os_prijava_drug_lastnik">En este dispositivo, los dispositivos conectados los gestiona %1$s. Vincula tus dispositivos allí.</string>
     <string name="os_prijava_ali">o</string>
     <string name="os_prijava_koda_naslov">Código de 6 cifras</string>
     <string name="os_prijava_koda_opis">En el dispositivo que se une abre Safeer → Dispositivos conectados → Unirse. El código aparece aquí: escríbelo allí.</string>

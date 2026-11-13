@@ -68,6 +68,10 @@ fun main() {
     preveri(ScitIzjeme.blokirana(true, true, true, true), "izjema ne spusti grozenj")
 
     // Dodatek C: privzeto vklopljen - ponudba enkrat, ne cez uporabnikovo izbiro.
+    // Tablica 13. 11. 2026: Link vodi druga Safeer aplikacija - svojega VPN ne vklopimo (ne prevzamemo njenega).
+    preveri(P.smemoVklopitiSami(vodimLink = true, sosed = null), "Link vodimo mi, brez sosede: smemo")
+    preveri(!P.smemoVklopitiSami(vodimLink = false, sosed = null), "Link vodi Safeer OS Tablet: ne prevzamemo VPN")
+    preveri(!P.smemoVklopitiSami(vodimLink = true, sosed = "si.safeer.tv"), "Scit vodi soseda: ne")
     preveri(P.ponudiObZagonu(vodimo = true, ponujeno = false, vklopljen = false, prejUporabljen = false), "prvi zagon: ponudi")
     preveri(!P.ponudiObZagonu(true, true, false, false), "ze ponujeno: ne sprasuj vsakic")
     preveri(!P.ponudiObZagonu(true, false, false, true), "uporabnik ga je ze imel in izklopil: ostane izklopljen")

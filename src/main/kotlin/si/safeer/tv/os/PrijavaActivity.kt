@@ -309,6 +309,16 @@ class PrijavaActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             }
             if (povezava.isBlank()) {
                 slikaQr.setImageDrawable(null)
+                // Tablica 13. 11. 2026: Link na tej napravi vodi druga Safeer aplikacija - koda tu nikoli ne nastane.
+                // Namesto neskoncnega »Poskusam znova« in bele ploscice povemo, kje se naprave povezejo.
+                val lastnik = Sosed.lastnikLinka(this)
+                if (lastnik != null && lastnik != packageName) {
+                    val ime = try { packageManager.getApplicationLabel(packageManager.getApplicationInfo(lastnik, 0)).toString() }
+                        catch (_: Throwable) { lastnik }
+                    slikaQr.visibility = View.GONE
+                    stanjeQr.text = getString(R.string.os_prijava_drug_lastnik, ime)
+                    return@nova
+                }
                 stanjeQr.text = getString(R.string.os_prijava_qr_napaka)
                 glavna.postDelayed({ if (!konec) novaKoda() }, 5_000)
                 return@nova

@@ -140,6 +140,13 @@ object ScitPregled {
      * obidemo: ob prvem zagonu jo PONUDIMO enkrat. Ne, ce: Scita ne vodi ta aplikacija, je ze bil ponujen, je vklopljen
      * ali je bil ze kdaj v rabi (statistika obstaja - uporabnik ga je sam izklopil; njegove izbire ne povozimo).
      */
+    /**
+     * Tablica 13. 11. 2026: Safeer OS za TV na tablici, kjer Link (in Scit) vodi Safeer OS Tablet, je ponudil in vklopil
+     * svoj Scit in s tem prevzel VPN tablice (Android dovoli en VPN). Svoj tunel vklopimo samo, ce Link te naprave vodimo
+     * mi in Scita ne vodi sosednja aplikacija.
+     */
+    fun smemoVklopitiSami(vodimLink: Boolean, sosed: String?): Boolean = vodimLink && sosed == null
+
     fun ponudiObZagonu(vodimo: Boolean, ponujeno: Boolean, vklopljen: Boolean, prejUporabljen: Boolean): Boolean =
         vodimo && !ponujeno && !vklopljen && !prejUporabljen
 

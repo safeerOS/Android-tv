@@ -7,6 +7,7 @@
     <string name="os_prijava_qr_opis">Richte die Kamera des anderen Geräts auf den Code. Mit Safeer öffnet er sich in der App, sonst im Browser – nichts zu installieren.</string>
     <string name="os_prijava_qr_pripravljam">Code wird vorbereitet …</string>
     <string name="os_prijava_qr_napaka">Der Code ist noch nicht bereit. Neuer Versuch …</string>
+    <string name="os_prijava_drug_lastnik">Verbundene Geräte auf diesem Gerät verwaltet %1$s. Verbinde deine Geräte dort.</string>
     <string name="os_prijava_ali">oder</string>
     <string name="os_prijava_koda_naslov">6-stelliger Code</string>
     <string name="os_prijava_koda_opis">Öffne auf dem beitretenden Gerät Safeer → Verbundene Geräte → Beitreten. Der Code erscheint hier – gib ihn dort ein.</string>

@@ -34,6 +34,8 @@ object Scit {
     fun vklopi(context: Context, naprej: (Stanje) -> Unit) {
         val brskalnik = sosed(context)
         if (brskalnik != null) { prekBrskalnika(context, brskalnik, ScitSorodnikStoritev.VKLOPI, naprej); return }
+        // Link (in Scit) te naprave vodi druga Safeer aplikacija: njenega VPN ne prevzamemo.
+        if (!si.safeer.tv.scit.ScitPregled.smemoVklopitiSami(Sosed.vodimLink(context), null)) { naprej(preberi(context, false)); return }
         // Scit vodimo mi: ce tece v sosedi (stara postavitev), ga tam najprej ugasnemo - en tunel naenkrat.
         Sosed.brskalnik(context)?.let { paket ->
             Sosed.poslji(context, paket, ScitSorodnikStoritev.DEJANJE, ScitSorodnikStoritev.IZKLOPI,
@@ -70,7 +72,8 @@ object Scit {
     }
 
     /** Scit vodimo mi (ne soseda) - za ponudbo ob prvem zagonu. */
-    fun vodimo(context: Context): Boolean = sosed(context) == null
+    fun vodimo(context: Context): Boolean =
+        si.safeer.tv.scit.ScitPregled.smemoVklopitiSami(Sosed.vodimLink(context), sosed(context))
 
     /** Ali Scit tece v sosednji aplikaciji (takrat ga ne kaze vklapljati se pri nas). */
     fun jeVklopljen(context: Context): Boolean =
