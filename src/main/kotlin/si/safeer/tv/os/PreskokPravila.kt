@@ -62,9 +62,7 @@ object PreskokPravila {
         val izid = mutableListOf<Odsek>()
         for (vrsta in Vrsta.values()) {
             val polje = Regex("\"${vrsta.kljucApi}\"\\s*:\\s*\\[([^\\]]*)\\]").find(json)?.groupValues?.get(1) ?: continue
-            var veljavnih = 0
             for (obj in Regex("\\{([^{}]*)\\}").findAll(polje).take(NAJVEC_PREGLEDANIH)) {
-                if (veljavnih >= NAJVEC_ODSEKOV) break
                 val t = obj.groupValues[1]
                 val od = stevilo(Regex("\"start_ms\"\\s*:\\s*(null|-?\\d+)").find(t)?.groupValues?.get(1) ?: "null")
                 val dO = stevilo(Regex("\"end_ms\"\\s*:\\s*(null|-?\\d+)").find(t)?.groupValues?.get(1) ?: "null")
@@ -73,8 +71,10 @@ object PreskokPravila {
                 val zacetek = od ?: if (vrsta == Vrsta.UVOD || vrsta == Vrsta.POVZETEK) 0L else continue
                 if ((vrsta == Vrsta.UVOD || vrsta == Vrsta.POVZETEK) && dO == null) continue
                 if (dO != null && dO <= zacetek) continue
+                // Preverbe brez trajanja posnetka ze tu (CodeRabbit 13. 11.: neuporaben vnos ne sme zasesti mesta).
+                if (dO != null && dO - zacetek < NAJKRAJSI_MS) continue
+                if ((vrsta == Vrsta.UVOD || vrsta == Vrsta.POVZETEK) && dO != null && dO - zacetek > NAJDALJSI_UVOD_MS) continue
                 izid += Odsek(vrsta, zacetek, dO)
-                veljavnih++
             }
         }
         return izid.sortedBy { it.odMs }
@@ -95,9 +95,16 @@ object PreskokPravila {
         }
     }
 
-    /** Odsek, v katerem je predvajanje, ali null. Brez trajanja odsek »do konca« ne velja. */
-    fun aktiven(odseki: List<Odsek>, polozajMs: Long, trajanjeMs: Long): Odsek? = odseki.firstOrNull { o ->
-        if (!smiseln(o, trajanjeMs)) return@firstOrNull false
+    /** Uporabni odseki za ta posnetek: smiselni, najvec [NAJVEC_ODSEKOV] na vrsto (meja po preverbi trajanja - CodeRabbit
+     *  13. 11.: dva neuporabna vnosa na zacetku ne smeta skriti tretjega, veljavnega). */
+    fun uporabni(odseki: List<Odsek>, trajanjeMs: Long): List<Odsek> =
+        odseki.filter { smiseln(it, trajanjeMs) }.groupBy { it.vrsta }.values.flatMap { it.take(NAJVEC_ODSEKOV) }.sortedBy { it.odMs }
+
+    /** Odsek, v katerem je predvajanje, ali null. Brez trajanja odsek »do konca« ne velja. [izkljuceni] (ze preskoceni ali
+     *  z iztecenim gumbom) ne zakrijejo drugega odseka na istem mestu (CodeRabbit 13. 11.: povzetek 0-90 s in uvod 60-80 s). */
+    fun aktiven(odseki: List<Odsek>, polozajMs: Long, trajanjeMs: Long, izkljuceni: Set<Odsek> = emptySet()): Odsek? =
+        uporabni(odseki, trajanjeMs).firstOrNull { o ->
+        if (o in izkljuceni) return@firstOrNull false
         val k = konec(o, trajanjeMs) ?: return@firstOrNull false
         val kOmejen = if (trajanjeMs > 0) minOf(k, trajanjeMs) else k
         polozajMs >= o.odMs && polozajMs < kOmejen - PRED_KONCEM_MS

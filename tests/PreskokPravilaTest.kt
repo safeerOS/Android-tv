@@ -70,7 +70,14 @@ fun main() {
     enako("odjavna od 80 % do konca velja", true, P.smiseln(PreskokPravila.Odsek(O, 4_800_000, null), T))
     enako("napoved 95 % do konca velja", true, P.smiseln(PreskokPravila.Odsek(PreskokPravila.Vrsta.NAPOVED, 5_700_000, T), T))
     val petUvodov = (0 until 5).joinToString(",") { "{\"start_ms\":${it * 100_000},\"end_ms\":${it * 100_000 + 30_000}}" }
-    enako("najvec dva odseka iste vrste", 2, P.razcleni("{\"intro\":[$petUvodov]}").size)
+    enako("najvec dva uporabna odseka iste vrste", 2, P.uporabni(P.razcleni("{\"intro\":[$petUvodov]}"), T).size)
+    // CodeRabbit 13. 11. (drugi krog): dva predolga uvoda na zacetku ne smeta porabiti meje in skriti veljavnega.
+    val dolgaUvoda = "{\"intro\":[{\"start_ms\":0,\"end_ms\":360000},{\"start_ms\":1000,\"end_ms\":361000},{\"start_ms\":60000,\"end_ms\":90000}]}"
+    enako("veljaven tretji uvod za dvema predolgima", 60_000L, P.aktiven(P.razcleni(dolgaUvoda), 70_000, T)?.odMs)
+    // CodeRabbit 13. 11.: koncan (ali iztecen) povzetek 0-90 s ne zakrije uvoda 60-80 s.
+    val povzetekInUvod = listOf(PreskokPravila.Odsek(PreskokPravila.Vrsta.POVZETEK, 0, 90_000), PreskokPravila.Odsek(PreskokPravila.Vrsta.UVOD, 60_000, 80_000))
+    enako("brez izkljucenih povzetek", PreskokPravila.Vrsta.POVZETEK, P.aktiven(povzetekInUvod, 65_000, T)?.vrsta)
+    enako("koncan povzetek ne zakrije uvoda", PreskokPravila.Vrsta.UVOD, P.aktiven(povzetekInUvod, 65_000, T, setOf(povzetekInUvod[0]))?.vrsta)
     val smetiNaZacetku = "{\"intro\":[{\"start_ms\":-5},{\"start_ms\":\"x\"},{\"start_ms\":1000,\"end_ms\":61000}]}"
     enako("neveljavni vnosi na zacetku ne skrijejo veljavnega", 1, P.razcleni(smetiNaZacetku).size)
 

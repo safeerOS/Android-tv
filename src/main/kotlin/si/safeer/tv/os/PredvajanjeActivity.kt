@@ -184,11 +184,11 @@ class PredvajanjeActivity : OsActivity() {
     private var ciljSprotnega = -1L
     private val previjZdaj = Runnable {
         val cilj = ciljSprotnega
-        if (cilj < 0) return@Runnable
+        if (cilj < 0) { preskokCaka = null; return@Runnable }
         // Medtem se predvaja kaj drugega: previjanje ne velja vec.
         if (GlasbaStoritev.trenutna()?.let { SprotnaPomoc.tokZa(it) } == null) {
             android.util.Log.i("SafeerSprotnaPomoc", "Previjanje preklicano: trenutna skladba ni vec sprotni tok (${GlasbaStoritev.trenutna()?.id})")
-            ciljSprotnega = -1L; return@Runnable
+            ciljSprotnega = -1L; preskokCaka = null; return@Runnable
         }
         nalaganje.visibility = View.VISIBLE
         zbudi()
@@ -197,6 +197,8 @@ class PredvajanjeActivity : OsActivity() {
             naKonec = { uspeh -> runOnUiThread {
                 if (isFinishing) return@runOnUiThread
                 ciljSprotnega = -1L
+                preskokCaka?.let { if (uspeh) preskokKoncani += it }
+                preskokCaka = null
                 if (!uspeh) { izvajalec.text = GlasbaStoritev.trenutna()?.izvajalec.orEmpty(); nalaganje.visibility = View.GONE }
                 osveziCas()
             } })
@@ -2153,6 +2155,8 @@ class PredvajanjeActivity : OsActivity() {
     /** Odseki tega posnetka, ki jih ne ponudimo vec (pretekel cas gumba ali ze preskoceni): odprto okno ali premor
      *  jih ne obudi znova (slepi pregled 13. 11. C7). */
     private val preskokKoncani = mutableSetOf<PreskokPravila.Odsek>()
+    /** Preskok v sprotnem toku pomocnika caka na uspeh previjanja (CodeRabbit 13. 11.): koncan je sele po uspehu. */
+    private var preskokCaka: PreskokPravila.Odsek? = null
     /** Odsek in posnetek ob spustu OK: odloca spust, ne stanje gumba ob dvigu (C6). */
     private var preskokPritiskOdsek: PreskokPravila.Odsek? = null
     private var preskokPritiskZa: String? = null
@@ -2177,7 +2181,7 @@ class PredvajanjeActivity : OsActivity() {
         val vklop = GlasbaStoritev.preskokOdsekov(this)
         val kljuc = kljucPosnetka(sk) + "|" + vklop
         if (kljuc != preskokZa) {
-            preskokZa = kljuc; preskokOdseki = emptyList(); preskokKoncani.clear(); preskokPrikazano.clear(); skrijPreskok()
+            preskokZa = kljuc; preskokOdseki = emptyList(); preskokKoncani.clear(); preskokPrikazano.clear(); preskokCaka = null; skrijPreskok()
             val vZivo = OsPravila.prikazVZivo(p.isCurrentMediaItemLive, p.isCurrentMediaItemDynamic,
                 sk.radio || sk.id.startsWith("tv:") || Stremio.jeVZivo(sk) || IptvSeznami.jeKanal(sk), GlasbaStoritev.nadomestnoOkno(p))
             val naslov = PreskokPravila.poizvedba(vklop, sk.video, vZivo, sk.imdbId, sk.season, sk.episode)
@@ -2198,7 +2202,7 @@ class PredvajanjeActivity : OsActivity() {
         // Posnetek, ki ga ni mogoce previjati (razen sprotnega toka in zvocnika), gumba ne dobi (N7).
         val previjljiv = p.isCurrentMediaItemSeekable || SprotnaPomoc.tokZa(sk) != null || GlasbaStoritev.naZvocniku()
         val (polozaj, trajanje) = polozajInTrajanje(p)
-        val o = if (drugoOdprto || !previjljiv || preskokOdseki.isEmpty()) null else PreskokPravila.aktiven(preskokOdseki, polozaj, trajanje)
+        val o = if (drugoOdprto || !previjljiv || preskokOdseki.isEmpty()) null else PreskokPravila.aktiven(preskokOdseki, polozaj, trajanje, preskokKoncani)
         val zdaj = android.os.SystemClock.uptimeMillis()
         val pretekel = if (preskokZadnjiTik == 0L) 0L else (zdaj - preskokZadnjiTik).coerceIn(0L, 1_500L)
         preskokZadnjiTik = zdaj
@@ -2252,9 +2256,11 @@ class PredvajanjeActivity : OsActivity() {
         if (za == null || za != preskokZa || !za.startsWith(kljucPosnetka(sk) + "|")) { skrijPreskok(); return }
         val (_, trajanje) = polozajInTrajanje(p)
         val cilj = PreskokPravila.cilj(o, trajanje) ?: return
+        val sprotno = !GlasbaStoritev.naZvocniku() && SprotnaPomoc.tokZa(sk) != null
         if (skociNa(cilj)) {
-            android.util.Log.i("SafeerOsMedia", "preskok: ${o.vrsta.name} -> $cilj ms")
-            preskokKoncani += o
+            android.util.Log.i("SafeerOsMedia", "preskok: ${o.vrsta.name} -> $cilj ms${if (sprotno) " (caka pomocnika)" else ""}")
+            // Sprotni tok: previjanje pomocnika se lahko ne posreci - odsek je koncan sele ob uspehu (previjZdaj).
+            if (sprotno) preskokCaka = o else preskokKoncani += o
             skrijPreskok()
         }
     }
