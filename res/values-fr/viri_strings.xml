@@ -197,6 +197,12 @@
     <string name="os_usenet_pripravljam">Préparation via Usenet…</string>
     <string name="os_samodejno_naslednja">Lire la piste suivante automatiquement</string>
     <string name="os_samodejno_epizoda">Lire l’épisode suivant automatiquement</string>
+    <string name="os_preskok_odsekov">Bouton pour passer l’intro (horaires : TheIntroDB)</string>
+    <string name="os_ujemanje_osvezevanja">Adapter la fréquence de l’écran à la vidéo</string>
+    <string name="os_preskoci_uvod">Passer l’intro</string>
+    <string name="os_preskoci_povzetek">Passer le résumé</string>
+    <string name="os_preskoci_odjavno">Passer le générique</string>
+    <string name="os_preskoci_napoved">Passer l’aperçu</string>
     <string name="os_mini_cel_zaslon">Plein écran</string>
     <string name="os_mini_samodejno">Lecture automatique</string>
     <string name="os_samodejno_album">Continuer après la fin de l’album</string>

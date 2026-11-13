@@ -47,6 +47,8 @@ object R {
         const val os_samodejno_naslednja = 1008
         const val os_samodejno_album = 1009
         const val os_samodejno_epizoda = 1013   // 8. 11. 2026: samodejna naslednja epizoda (MedijskiCenterNastavitvePravila)
+        const val os_preskok_odsekov = 1014   // 13. 11. 2026: gumb za preskok uvoda (MedijskiCenterNastavitvePravila)
+        const val os_ujemanje_osvezevanja = 1015   // 13. 11. 2026: ujemanje osvezevanja zaslona (MedijskiCenterNastavitvePravila)
         const val os_predpomnilnik_naslov = 1010
         const val os_media_pocisti_nedavno = 1011
         const val os_meni_nastavitve = 1012

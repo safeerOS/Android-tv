@@ -185,6 +185,10 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/SerijePravilaTest.kt" \
     "$SRC/si/safeer/tv/os/NaslednjaEpizodaPravila.kt" \
     "$TEST_DIR/NaslednjaEpizodaPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/PreskokPravila.kt" \
+    "$TEST_DIR/PreskokPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/OsvezevanjePravila.kt" \
+    "$TEST_DIR/OsvezevanjePravilaTest.kt" \
     "$SRC/si/safeer/tv/os/NapredekKljuc.kt" \
     "$TEST_DIR/NapredekKljucTest.kt" \
     "$SRC/si/safeer/tv/os/KakovostPravila.kt" \
@@ -390,6 +394,10 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.UsenetGlasbaPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SerijePravilaTestKt
 # Lastnik 5. 11. 2026: ime posnetka izgine po 3 s (pavza -> play brez imena), samodejna naslednja epizoda z mejo 3
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.NaslednjaEpizodaPravilaTestKt
+# Lastnik 13. 11. 2026: gumb za preskok uvoda, povzetka in odjavne (TheIntroDB, ideja IPVIO Stream).
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PreskokPravilaTestKt
+# Lastnik 13. 11. 2026: ujemanje osvezevanja zaslona s filmom (24p brez trzanja).
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.OsvezevanjePravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.NapredekKljucTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.KakovostPravilaTestKt
 # Filter vira Usenet (lastnik 5. 11. 2026): naslov v filtru samo, ce so izpolnjeni vsi pogoji za ogled

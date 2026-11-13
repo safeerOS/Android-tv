@@ -1582,6 +1582,17 @@ class GlasbaStoritev : Service() {
             // pauseAtEndOfMediaItems ima samo ExoPlayer (predvajalnik je lahko tudi spletni igralec).
             (predvajalnik as? androidx.media3.exoplayer.ExoPlayer)?.pauseAtEndOfMediaItems = !da
         }
+        /** Ujemanje osvezevanja zaslona s filmom (samo TV); privzeto vklopljeno. */
+        fun ujemanjeOsvezevanja(c: Context): Boolean = nastavitveSamodejno(c).getBoolean(OsvezevanjePravila.KLJUC_OSVEZEVANJE, true)
+        fun nastaviUjemanjeOsvezevanja(c: Context, da: Boolean) {
+            nastavitveSamodejno(c).edit().putBoolean(OsvezevanjePravila.KLJUC_OSVEZEVANJE, da).apply()
+        }
+        /** Gumb za preskok uvoda in odjavne (TheIntroDB). Privzeto IZKLOPLJEN: poizvedba pove tretji osebi, kaj gledas
+         *  (IMDb id, sezona, epizoda; naslov IP) - uporabnik jo vklopi sam (zasebnost pred udobjem, neodvisni pregled N4). */
+        fun preskokOdsekov(c: Context): Boolean = nastavitveSamodejno(c).getBoolean(PreskokPravila.KLJUC_PRESKOK, false)
+        fun nastaviPreskokOdsekov(c: Context, da: Boolean) {
+            nastavitveSamodejno(c).edit().putBoolean(PreskokPravila.KLJUC_PRESKOK, da).apply()
+        }
         fun samodejnoEpizoda(c: Context): Boolean = nastavitveSamodejno(c).getBoolean(NaslednjaEpizodaPravila.KLJUC_SAMODEJNO_EPIZODA, true)
         fun nastaviSamodejnoEpizoda(c: Context, da: Boolean) {
             nastavitveSamodejno(c).edit().putBoolean(NaslednjaEpizodaPravila.KLJUC_SAMODEJNO_EPIZODA, da).apply()

@@ -10490,11 +10490,15 @@ class GlasbaActivity : OsActivity() {
                 }
                 
                 for (p in s.postavke) {
+                    // Nacinov zaslona na telefonu in tablici ne menjamo: stikala tam ni (kar ne dela, se ne pokaze).
+                    if (p == MedijskiCenterNastavitvePravila.Postavka.UJEMANJE_OSVEZEVANJA && si.safeer.tv.ChromiumEngineView.naDotik(this@GlasbaActivity)) continue
                     val osnovaNaslova = getString(p.naslov)
                     val naslov = when (p) {
                         MedijskiCenterNastavitvePravila.Postavka.SAMODEJNO_SKLADBA -> osnovaNaslova + ": " + vklop(GlasbaStoritev.samodejnoNaslednja(this@GlasbaActivity))
                         MedijskiCenterNastavitvePravila.Postavka.SAMODEJNO_ALBUM -> osnovaNaslova + ": " + vklop(GlasbaStoritev.samodejnoAlbum(this@GlasbaActivity))
                         MedijskiCenterNastavitvePravila.Postavka.SAMODEJNO_EPIZODA -> osnovaNaslova + ": " + vklop(GlasbaStoritev.samodejnoEpizoda(this@GlasbaActivity))
+                        MedijskiCenterNastavitvePravila.Postavka.PRESKOK_ODSEKOV -> osnovaNaslova + ": " + vklop(GlasbaStoritev.preskokOdsekov(this@GlasbaActivity))
+                        MedijskiCenterNastavitvePravila.Postavka.UJEMANJE_OSVEZEVANJA -> osnovaNaslova + ": " + vklop(GlasbaStoritev.ujemanjeOsvezevanja(this@GlasbaActivity))
                         else -> osnovaNaslova
                     }
                     
@@ -10513,6 +10517,8 @@ class GlasbaActivity : OsActivity() {
                                 MedijskiCenterNastavitvePravila.Postavka.SAMODEJNO_SKLADBA -> { GlasbaStoritev.nastaviSamodejnoNaslednja(this@GlasbaActivity, !GlasbaStoritev.samodejnoNaslednja(this@GlasbaActivity)); osveziOkna() }
                                 MedijskiCenterNastavitvePravila.Postavka.SAMODEJNO_ALBUM -> { GlasbaStoritev.nastaviSamodejnoAlbum(this@GlasbaActivity, !GlasbaStoritev.samodejnoAlbum(this@GlasbaActivity)); osveziOkna() }
                                 MedijskiCenterNastavitvePravila.Postavka.SAMODEJNO_EPIZODA -> { GlasbaStoritev.nastaviSamodejnoEpizoda(this@GlasbaActivity, !GlasbaStoritev.samodejnoEpizoda(this@GlasbaActivity)); osveziOkna() }
+                                MedijskiCenterNastavitvePravila.Postavka.PRESKOK_ODSEKOV -> { GlasbaStoritev.nastaviPreskokOdsekov(this@GlasbaActivity, !GlasbaStoritev.preskokOdsekov(this@GlasbaActivity)); osveziOkna() }
+                                MedijskiCenterNastavitvePravila.Postavka.UJEMANJE_OSVEZEVANJA -> { GlasbaStoritev.nastaviUjemanjeOsvezevanja(this@GlasbaActivity, !GlasbaStoritev.ujemanjeOsvezevanja(this@GlasbaActivity)); osveziOkna() }
                                 MedijskiCenterNastavitvePravila.Postavka.PREDPOMNILNIK -> nastavitvePredpomnilnika()
                                 MedijskiCenterNastavitvePravila.Postavka.POCISTI_NEDAVNO -> potrdiPocistiNedavno()
                                 MedijskiCenterNastavitvePravila.Postavka.SPLOSNE_NASTAVITVE -> startActivity(Intent(this@GlasbaActivity, NastavitveActivity::class.java))

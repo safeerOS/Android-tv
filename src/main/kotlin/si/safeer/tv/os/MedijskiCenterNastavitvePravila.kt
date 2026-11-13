@@ -19,6 +19,8 @@ object MedijskiCenterNastavitvePravila {
         SAMODEJNO_SKLADBA(R.string.os_samodejno_naslednja),
         SAMODEJNO_ALBUM(R.string.os_samodejno_album),
         SAMODEJNO_EPIZODA(R.string.os_samodejno_epizoda),
+        PRESKOK_ODSEKOV(R.string.os_preskok_odsekov),
+        UJEMANJE_OSVEZEVANJA(R.string.os_ujemanje_osvezevanja),
         PREDPOMNILNIK(R.string.os_predpomnilnik_naslov),
         POCISTI_NEDAVNO(R.string.os_media_pocisti_nedavno),
         SPLOSNE_NASTAVITVE(R.string.os_meni_nastavitve)
@@ -32,7 +34,7 @@ object MedijskiCenterNastavitvePravila {
         
         s.add(ZapisSkupine(Skupina.VIRI, listOf(Postavka.MOJI_VIRI, Postavka.DEBRID)))
         s.add(ZapisSkupine(Skupina.DOM, listOf(Postavka.VRSTICE)))
-        s.add(ZapisSkupine(Skupina.PREDVAJANJE, listOf(Postavka.SAMODEJNO_EPIZODA, Postavka.SAMODEJNO_SKLADBA, Postavka.SAMODEJNO_ALBUM)))
+        s.add(ZapisSkupine(Skupina.PREDVAJANJE, listOf(Postavka.SAMODEJNO_EPIZODA, Postavka.PRESKOK_ODSEKOV, Postavka.UJEMANJE_OSVEZEVANJA, Postavka.SAMODEJNO_SKLADBA, Postavka.SAMODEJNO_ALBUM)))
         s.add(ZapisSkupine(Skupina.SHRAMBA, listOf(Postavka.PREDPOMNILNIK)))
         s.add(ZapisSkupine(Skupina.ZASEBNOST, listOf(Postavka.POCISTI_NEDAVNO)))
         s.add(ZapisSkupine(Skupina.SPLOSNE, listOf(Postavka.SPLOSNE_NASTAVITVE)))

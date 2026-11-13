@@ -197,6 +197,12 @@
     <string name="os_usenet_pripravljam">Preparing via Usenet…</string>
     <string name="os_samodejno_naslednja">Play next track automatically</string>
     <string name="os_samodejno_epizoda">Play next episode automatically</string>
+    <string name="os_preskok_odsekov">Skip intro button (times: TheIntroDB)</string>
+    <string name="os_ujemanje_osvezevanja">Match display refresh rate to the video</string>
+    <string name="os_preskoci_uvod">Skip intro</string>
+    <string name="os_preskoci_povzetek">Skip recap</string>
+    <string name="os_preskoci_odjavno">Skip credits</string>
+    <string name="os_preskoci_napoved">Skip preview</string>
     <string name="os_mini_cel_zaslon">Full screen</string>
     <string name="os_mini_samodejno">Autoplay next</string>
     <string name="os_samodejno_album">Continue after the album ends</string>

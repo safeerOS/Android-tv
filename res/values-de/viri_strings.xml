@@ -197,6 +197,12 @@
     <string name="os_usenet_pripravljam">Wird über Usenet vorbereitet …</string>
     <string name="os_samodejno_naslednja">Nächsten Titel automatisch abspielen</string>
     <string name="os_samodejno_epizoda">Nächste Folge automatisch abspielen</string>
+    <string name="os_preskok_odsekov">Intro-Überspringen-Taste (Zeiten: TheIntroDB)</string>
+    <string name="os_ujemanje_osvezevanja">Bildwiederholrate an das Video anpassen</string>
+    <string name="os_preskoci_uvod">Intro überspringen</string>
+    <string name="os_preskoci_povzetek">Rückblick überspringen</string>
+    <string name="os_preskoci_odjavno">Abspann überspringen</string>
+    <string name="os_preskoci_napoved">Vorschau überspringen</string>
     <string name="os_mini_cel_zaslon">Vollbild</string>
     <string name="os_mini_samodejno">Automatisch weiter</string>
     <string name="os_samodejno_album">Nach Albumende automatisch weiter</string>

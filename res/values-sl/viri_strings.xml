@@ -197,6 +197,12 @@
     <string name="os_usenet_pripravljam">Pripravljam prek Useneta …</string>
     <string name="os_samodejno_naslednja">Samodejno naslednja skladba</string>
     <string name="os_samodejno_epizoda">Samodejno naslednja epizoda</string>
+    <string name="os_preskok_odsekov">Gumb za preskok uvoda (časi: TheIntroDB)</string>
+    <string name="os_ujemanje_osvezevanja">Prilagodi osveževanje zaslona filmu</string>
+    <string name="os_preskoci_uvod">Preskoči uvod</string>
+    <string name="os_preskoci_povzetek">Preskoči povzetek</string>
+    <string name="os_preskoci_odjavno">Preskoči odjavno špico</string>
+    <string name="os_preskoci_napoved">Preskoči napoved</string>
     <string name="os_mini_cel_zaslon">Na celem zaslonu</string>
     <string name="os_mini_samodejno">Samodejno naprej</string>
     <string name="os_samodejno_album">Samodejno naprej po koncu albuma</string>

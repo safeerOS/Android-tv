@@ -197,6 +197,12 @@
     <string name="os_usenet_pripravljam">Preparazione tramite Usenet…</string>
     <string name="os_samodejno_naslednja">Riproduci automaticamente la traccia successiva</string>
     <string name="os_samodejno_epizoda">Riproduci automaticamente l’episodio successivo</string>
+    <string name="os_preskok_odsekov">Pulsante per saltare l’intro (tempi: TheIntroDB)</string>
+    <string name="os_ujemanje_osvezevanja">Adatta la frequenza dello schermo al video</string>
+    <string name="os_preskoci_uvod">Salta intro</string>
+    <string name="os_preskoci_povzetek">Salta riassunto</string>
+    <string name="os_preskoci_odjavno">Salta titoli di coda</string>
+    <string name="os_preskoci_napoved">Salta anteprima</string>
     <string name="os_mini_cel_zaslon">Schermo intero</string>
     <string name="os_mini_samodejno">Riproduzione automatica</string>
     <string name="os_samodejno_album">Continua al termine dell’album</string>

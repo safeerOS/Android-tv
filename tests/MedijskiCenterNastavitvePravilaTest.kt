@@ -4,6 +4,8 @@ private var napak = 0
 private fun preveriEnako(opis: String, pricakovano: Any?, dobljeno: Any?) =
     if (pricakovano == dobljeno) println("  ok  $opis") else { napak++; println("  NAPAKA  $opis: pricakovano $pricakovano, dobljeno $dobljeno") }
 
+private fun vlc0() = MedijskiCenterNastavitvePravila.vidneSkupine("si.safeer.player")
+
 fun main(args: Array<String>) {
     println("Preizkus MedijskiCenterNastavitvePravila")
     
@@ -12,6 +14,10 @@ fun main(args: Array<String>) {
     val os = p.vidneSkupine("si.safeer.tv")
     preveriEnako("TV OS ima 6 skupin", 6, os.size)
     preveriEnako("TV OS ima Domov", MedijskiCenterNastavitvePravila.Skupina.DOM, os[1].id)
+    // Lastnik 13. 11. 2026: preskok uvoda je stikalo v Predvajanju, takoj za samodejno naslednjo epizodo.
+    val predv = os.first { it.id == MedijskiCenterNastavitvePravila.Skupina.PREDVAJANJE }.postavke
+    preveriEnako("preskok za samodejno epizodo", 1, predv.indexOf(MedijskiCenterNastavitvePravila.Postavka.PRESKOK_ODSEKOV))
+    preveriEnako("preskok tudi v predvajalniku", true, vlc0().first { it.id == MedijskiCenterNastavitvePravila.Skupina.PREDVAJANJE }.postavke.contains(MedijskiCenterNastavitvePravila.Postavka.PRESKOK_ODSEKOV))
     
     val vlc = p.vidneSkupine("si.safeer.player")
     preveriEnako("Player ima 6 skupin", 6, vlc.size)
