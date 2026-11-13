@@ -355,6 +355,11 @@ class HubStreznik(
                 naPovezavo(povezava)
                 povezava.zankaBranja()
             } finally {
+                // Izjema iz naPovezavo/zankaBranja ne sme pustiti vticnice in pisalne niti odprtih (zapri je idempotentna).
+                try {
+                    povezava.zapri(1011, "napaka na povezavi")
+                } catch (_: Exception) {
+                }
                 povezave.remove(povezava)
             }
             return

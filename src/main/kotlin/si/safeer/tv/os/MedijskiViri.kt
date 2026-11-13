@@ -988,7 +988,7 @@ object MedijskiViri {
             val seznam = vrsta.contains("mpegurl") || vrsta.contains("scpls") || pot.endsWith(".m3u") || pot.endsWith(".m3u8") || pot.endsWith(".pls")
             when {
                 seznam -> {
-                    val telo = p.inputStream.bufferedReader().use { it.readText().take(2_000_000) }
+                    val telo = p.inputStream.bufferedReader().use { IptvPravila.omejenoBesedilo(it, 2_000_000, 15_000L) }   // rok: pocasen vir ne zadrzi niti za vedno
                     if (telo.contains("#EXT-X-")) return Vir(if (telo.contains("RESOLUTION=")) "$TOK-hls-video" else "$TOK-hls", gostitelj, naslov)
                     val zImeni = vnosiSeznama(telo, naslov)
                     val vnosi = zImeni.map { it.second }
