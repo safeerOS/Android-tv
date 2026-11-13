@@ -457,6 +457,21 @@ fun main() {
             pr.sprosti(true)
             preveriEnako("proracun: sproscen", 0L, pr.zasedeno)
 
+            // Pregled 12. 11. 2026 (N4): telo nad 4 MiB (napoved NZB) porabi pravi pomnilnik - proracun ga steje in zavrne, kar ga presega.
+            run {
+                val m = 1024 * 1024
+                val p = UsenetNntp.Proracun(24L * m)
+                preveriEnako("proracun: osnova", true, p.zasezi(System.nanoTime() + 100_000_000L))
+                val d1 = p.razsiri(0, 4 * m, 8 * m)
+                preveriEnako("proracun: razsiritev na 8 MiB steje 4 MiB nad mejo", 4 * m, d1)
+                preveriEnako("proracun: razsiritev je v zasedenem", UsenetNntp.OSNOVA_TELESA.toLong() + d1, p.zasedeno)
+                // druga razsiritev, ki je v proracunu ni (24 - 1,5 - 4 = ~18 MiB prosto): 20 MiB ne gre, 8 MiB gre
+                preveriEnako("proracun: preveliko telo zavrnjeno", -1, p.razsiri(0, 4 * m, 20 * m))
+                preveriEnako("proracun: telo v proracunu uspe", 4 * m, p.razsiri(0, 4 * m, 8 * m))
+                p.sprosti(false, 8 * m)   // eno telo, dve razsiritvi (dodatno je skupna vsota): vse sproscen
+                preveriEnako("proracun: po sprostitvi spet prazen", 0L, p.zasedeno)
+            }
+
             println("odgovor za drug clanek, ostanek (Grok 35 Y7)")
             s.drugId = true
             UsenetNntp(nastavitve(s.vrata), prava.zaupaj).use { k ->

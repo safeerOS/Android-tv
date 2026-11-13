@@ -12981,8 +12981,8 @@ class GlasbaActivity : OsActivity() {
         return prostaJedra + (ram?.optLong("prosto", 0L) ?: 0L) / 1e9
     }
 
-    private fun btih(magnet: String): String? =
-        Regex("btih:([0-9a-zA-Z]{32,40})").find(magnet)?.groupValues?.get(1)?.lowercase(Locale.ROOT)
+    /** Pregled 12. 11. 2026 (N3): isti razclenjevalnik kot TorBox in libtorrent (prej tretji, ohlapnejsi: 32-40 znakov, base32 ostal base32). */
+    private fun btih(magnet: String): String? = MagnetPravila.hash(magnet)
 
     /** Prenos s police »Preneseno«: predvajaj od naprave, ki ga hrani, ali ga tam odstrani, ko ga ne rabis vec. */
     private fun meniPrenosa(sk: Jamendo.Skladba) {

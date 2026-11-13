@@ -109,8 +109,15 @@ object UsenetLastniPravila {
     fun mejaTelesa(bajtov: Long, najvecTelesa: Int): Int {
         if (bajtov <= 0) return najvecTelesa
         val meja = maxOf(najvecTelesa.toLong(), bajtov * 2 + 65536)
-        return minOf(meja, 32L * 1024 * 1024).toInt()
+        return minOf(meja, NAJVEC_MEJA_TELESA.toLong()).toInt()
     }
+
+    /**
+     * Neodvisni pregled 12. 11. 2026 (N4): velikost segmenta pove indekser v NZB (nezaupan), meja pa je bila do 32 MiB
+     * na telo, proracun pomnilnika pa je stel samo 4 MiB - nekaj hkratnih BODY bi na TV (heap ~192 MB) sesulo proces.
+     * Pravi clanek ima ~0,4-0,7 MiB (izmerjeno 25. 10. 2026); 8 MiB je se vedno >10x toliko.
+     */
+    const val NAJVEC_MEJA_TELESA = 8 * 1024 * 1024
 
     /**
      * Tocka 16b (7. 11. 2026): predvajalnik zahteva tok Useneta, seje pa ni vec (zaprta). Takrat IzbirniVir NE sme na HTTP

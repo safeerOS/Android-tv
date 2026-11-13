@@ -3,7 +3,7 @@ package si.safeer.tv.link
 private var stevilo = 0
 private fun preveri(pogoj: Boolean, sporocilo: String) { check(pogoj) { sporocilo }; stevilo++ }
 
-fun main() {
+fun main(args: Array<String>) {
     val P = GlobalLinkPravila
     // Vrsta posiljanja
     preveri(P.odlocitevVrste(1_000_001L, 11_000L, false) == GlobalLinkPravila.Akcija.PREKINI, "vrsta polna 11 s -> prekini")
@@ -32,5 +32,43 @@ fun main() {
     preveri(P.smeSprejeti(0) && P.smeSprejeti(GlobalLinkPravila.NAJVEC_KANALOV - 1), "pod mejo se sprejme")
     preveri(!P.smeSprejeti(GlobalLinkPravila.NAJVEC_KANALOV), "na meji se zavrne")
     preveri((1..1000).count { P.smeSprejeti(it) } == GlobalLinkPravila.NAJVEC_KANALOV - 1, "1000 hkrati: nad mejo se zavrne")
+    // N2: umaknjena naprava ni v seznamu dovoljenih (seznam se gradi iz TRENUTNEGA kroga)
+    val krog = listOf("n-aaaa", "n-bbbb", null, "n-cccc", "n-bbbb", "n-nas")
+    preveri(P.dovoljeniIdji(krog, "n-nas") == listOf("n-aaaa", "n-bbbb", "n-cccc"), "dovoljeni: brez nas, brez null, brez podvojenih")
+    preveri(P.dovoljeniIdji(krog.filter { it != "n-bbbb" }, "n-nas") == listOf("n-aaaa", "n-cccc"), "umaknjena naprava izgine iz seznama")
+    preveri(P.dovoljeniIdji((1..1000).map { "n-%04d".format(it) }, "n-nas").size == P.NAJVEC_DOVOLJENIH, "najvec 256 dovoljenih")
+    // N3: odjemalec releja ne sledi preusmeritvi - podpisane glave ne pridejo na drug naslov (krajevna streznika)
+    run {
+        val b = java.net.ServerSocket(0)
+        val prejelB = java.util.concurrent.atomic.AtomicReference<String?>(null)
+        val nitB = kotlin.concurrent.thread(isDaemon = true) {
+            try { b.accept().use { sk ->
+                val r = sk.getInputStream().bufferedReader()
+                prejelB.set(generateSequence { r.readLine() }.takeWhile { it.isNotEmpty() }.joinToString("\n"))
+                sk.getOutputStream().write("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok".toByteArray())
+            } } catch (_: Exception) { }
+        }
+        val a = java.net.ServerSocket(0)
+        kotlin.concurrent.thread(isDaemon = true) {
+            try { a.accept().use { sk ->
+                val r = sk.getInputStream().bufferedReader()
+                generateSequence { r.readLine() }.takeWhile { it.isNotEmpty() }.count()
+                sk.getOutputStream().write(("HTTP/1.1 302 Found\r\nLocation: http://127.0.0.1:${b.localPort}/kradem\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").toByteArray())
+            } } catch (_: Exception) { }
+        }
+        val odj = P.odjemalec(okhttp3.OkHttpClient.Builder().connectTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(3, java.util.concurrent.TimeUnit.SECONDS)).build()
+        val zahteva = okhttp3.Request.Builder().url("http://127.0.0.1:${a.localPort}/v1/presence").header("X-Safeer-Signature", "podpis-skrivnost").build()
+        val koda = odj.newCall(zahteva).execute().use { it.code }
+        nitB.join(500)
+        preveri(koda == 302, "preusmeritev ni sledena (koda $koda)")
+        preveri(prejelB.get() == null, "drug naslov ni prejel podpisanih glav")
+        a.close(); b.close()
+    }
+    // Povezava v kodi: vsi odjemalci Global Linka gredo skozi odjemalec(), umik kroga sproži objavo (vir kot besedilo)
+    val vir = java.io.File(args.firstOrNull() ?: ".", "si/safeer/tv/link/GlobalLink.kt").readText()
+    preveri(Regex("""OkHttpClient\.Builder\(\)""").findAll(vir).count() == Regex("""GlobalLinkPravila\.odjemalec\(OkHttpClient\.Builder\(\)""").findAll(vir).count(),
+        "vsak OkHttpClient.Builder v GlobalLink.kt gre skozi GlobalLinkPravila.odjemalec")
+    preveri("obSpremembiKroga(\"global-link-hub\")" in vir && "GlobalLinkPravila.dovoljeniIdji(" in vir, "umik kroga sproži objavo, seznam iz pravil")
     println("GlobalLinkPravilaTest: OK ($stevilo preverb)")
 }

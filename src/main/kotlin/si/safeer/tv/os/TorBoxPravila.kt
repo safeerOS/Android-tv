@@ -30,36 +30,8 @@ object TorBoxPravila {
 
     fun glavaAvtorizacije(kljuc: String): String = "Bearer $kljuc"
 
-    private val HEKS = Regex("^[0-9a-fA-F]{40}$")
-    private val BASE32 = Regex("^[A-Za-z2-7]{32}$")
-
     /** Hash (btih) iz magnetne povezave kot 40 malih heksadecimalnih znakov; base32 (32 znakov) se pretvori. Sicer null. */
-    fun hashIzMagneta(magnet: String): String? {
-        if (!magnet.trim().startsWith("magnet:?", ignoreCase = true)) return null
-        val m = Regex("(?i)[?&]xt=urn:btih:([^&]+)").find(magnet) ?: return null
-        val v = m.groupValues[1].trim()
-        return when {
-            HEKS.matches(v) -> v.lowercase()
-            BASE32.matches(v) -> base32VHeks(v.uppercase())
-            else -> null
-        }
-    }
-
-    private fun base32VHeks(s: String): String {
-        val abeceda = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
-        val sb = StringBuilder()
-        var zbirka = 0L
-        var bitov = 0
-        for (c in s) {
-            zbirka = (zbirka shl 5) or abeceda.indexOf(c).toLong()
-            bitov += 5
-            while (bitov >= 8) {
-                bitov -= 8
-                sb.append("%02x".format(((zbirka shr bitov) and 0xFF).toInt()))
-            }
-        }
-        return sb.toString()
-    }
+    fun hashIzMagneta(magnet: String): String? = MagnetPravila.hash(magnet)   // en razclenjevalnik (pregled 12. 11. 2026, N3)
 
     fun naslovPredpomnjeno(hash: String): String = "$OSNOVA/checkcached?hash=$hash&format=object&list_files=true"
     /** Naloga 130: vec hashev naenkrat (vejica, najvec 100), brez seznama datotek - samo kateri so predpomnjeni. */

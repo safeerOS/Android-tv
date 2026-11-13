@@ -727,7 +727,9 @@ object SpletniVir {
         if (glave.isEmpty()) glaveToka.remove(tok) else glaveToka[tok] = glave
         val g = gostitelj(tok)
         if (g.isBlank()) return
-        if (glave.isEmpty()) glaveGostitelja.remove(g) else glaveGostitelja[g] = glave
+        // Pregled 12. 11. 2026 (N5): glave drugega dodatka na istem gostitelju ne prepisejo in ne dedujejo se (GlaveTokaPravila).
+        val zdruzene = GlaveTokaPravila.zdruzi(glaveGostitelja[g], glave)
+        if (zdruzene == null) glaveGostitelja.remove(g) else glaveGostitelja[g] = zdruzene
     }
 
     /** Glave, ki spremljajo tok z natancno tem naslovom (prazno, ce jih nima). */
@@ -790,7 +792,7 @@ object SpletniVir {
         glaveDomene[domena(url)]?.let { glave.putAll(it) }
         if (piskotki) try { CookieManager.getInstance().getCookie(url) } catch (_: Throwable) { null }?.let { glave["Cookie"] = it }
         // Glave toka (proxyHeaders) imajo zadnjo besedo - tudi nad UA brskalnika in piskotki.
-        glaveGostitelja[gostitelj(url)]?.let { glave.putAll(it) }
+        if (GlaveTokaPravila.gostiteljSme(glaveToka.containsKey(url))) glaveGostitelja[gostitelj(url)]?.let { glave.putAll(it) }
         // Glave, ki spremljajo ta tok, gredo na vsak njegov del - tudi na segmente HLS/DASH na drugem gostitelju.
         if (glaveVsem.isNotEmpty()) glave.putAll(glaveVsem)
         return glave
@@ -826,12 +828,24 @@ object SpletniVir {
 
     /** Slika spletnega vira z enakim kontekstom kot stran (Referer, piskotki, brskalniski UA). */
     fun bajtiSlike(c: Context, naslov: String): ByteArray? = try {
-        val p = URL(naslov).openConnection() as HttpURLConnection
-        p.connectTimeout = 8_000; p.readTimeout = 10_000
         if (ua.isBlank()) ua = try { WebSettings.getDefaultUserAgent(c) } catch (_: Exception) { "SafeerOS" }
-        p.setRequestProperty("User-Agent", ua)
-        straniSlik[naslov]?.let { p.setRequestProperty("Referer", it) }
-        try { CookieManager.getInstance().getCookie(naslov) } catch (_: Exception) { null }?.let { p.setRequestProperty("Cookie", it) }
+        // Pregled 12. 11. 2026 (S2): preusmeritvam sledimo rocno; piskotek WebView in Referer samo prvemu skoku (naslov plakata
+        // iz dodatka ni zaupanja vreden, preusmeritev ju ne sme odnesti tujemu gostitelju). Zasebni naslovi niso blokirani (lokalni dodatki).
+        val p = PreusmeritevPravila.sledi(naslov,
+            odpri = { n, _, prvi ->
+                val k = URL(n).openConnection() as HttpURLConnection
+                k.instanceFollowRedirects = false
+                k.connectTimeout = 8_000; k.readTimeout = 10_000
+                k.setRequestProperty("User-Agent", ua)
+                if (prvi) {
+                    straniSlik[naslov]?.let { k.setRequestProperty("Referer", it) }
+                    try { CookieManager.getInstance().getCookie(n) } catch (_: Exception) { null }?.let { k.setRequestProperty("Cookie", it) }
+                }
+                k
+            },
+            koda = { k -> try { k.responseCode } catch (e: Exception) { k.disconnect(); throw e } },
+            location = { k -> k.getHeaderField("Location") },
+            zapri = { k -> k.disconnect() })
         // Grok 10, M6: najvec NAJVEC_SLIKA bajtov - slika s tuje strani ne sme napolniti pomnilnika.
         try {
             if (p.responseCode !in 200..299 || OsPravila.prevelikaNapoved(p.contentLengthLong)) null

@@ -133,7 +133,7 @@ object GlobalLink {
     }
 
     private val iskanje: OkHttpClient by lazy {
-        OkHttpClient.Builder().connectTimeout(5, TimeUnit.SECONDS).readTimeout(5, TimeUnit.SECONDS).build()
+        GlobalLinkPravila.odjemalec(OkHttpClient.Builder().connectTimeout(5, TimeUnit.SECONDS).readTimeout(5, TimeUnit.SECONDS)).build()
     }
 
     /** Nas naslov na poti do [ip] (brez prometa): sprememba pomeni drugo omrezje (premor po neuspehu se izbrise). */
@@ -208,8 +208,8 @@ object GlobalLink {
         private val streznik = ServerSocket(0, 16, InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1)))
         val vrata: Int = streznik.localPort
         @Volatile var tece = true; private set
-        private val http = OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(0, TimeUnit.MILLISECONDS).pingInterval(25, TimeUnit.SECONDS).build()
+        private val http = GlobalLinkPravila.odjemalec(OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(0, TimeUnit.MILLISECONDS).pingInterval(25, TimeUnit.SECONDS)).build()
         private val odprtih = java.util.concurrent.atomic.AtomicInteger(0)
 
         init {
@@ -263,21 +263,30 @@ object GlobalLink {
      */
     object AgentHuba {
         @Volatile private var nit: Thread? = null
-        private val http = OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(0, TimeUnit.MILLISECONDS).pingInterval(30, TimeUnit.SECONDS).build()
+        private val http = GlobalLinkPravila.odjemalec(OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(0, TimeUnit.MILLISECONDS).pingInterval(30, TimeUnit.SECONDS)).build()
         private val odprtihKanalov = java.util.concurrent.atomic.AtomicInteger(0)
 
         fun zazeni(c: Context) {
             if (nit != null) return
             val app = c.applicationContext
+            // Pregled 12. 11. 2026 (N2): umik (ali nova naprava) v krogu takoj posodobi seznam dovoljenih na releju.
+            KrogNaprave.obSpremembiKroga("global-link-hub") { ctx -> objaviTakoj(ctx) }
             nit = Thread({ zanka(app) }, "safeer-global-link-hub").apply { isDaemon = true; start() }
+        }
+
+        /** Objava v svoji niti (odziv kroga ne sme na omrezje); hub, ki ne tece ali je Global Link izklopljen, ne objavlja. */
+        private fun objaviTakoj(c: Context) {
+            val app = c.applicationContext
+            if (!(vklopljen(app) && HubKrmilnik.tece())) return
+            Thread({ try { objavi(app) } catch (_: Throwable) { } }, "safeer-global-link-objava").apply { isDaemon = true }.start()
         }
 
         private fun objavi(c: Context): Boolean {
             val nas = KrogZaupanja.idIzKljuca(HubTls.javniKljucB64())
             val dovoljeni = JSONArray()
-            KrogNaprave.krog(c).clani().mapNotNull { runCatching { KrogZaupanja.idIzKljuca(it.kljuc) }.getOrNull() }
-                .filter { it != nas }.distinct().take(256).forEach { dovoljeni.put(it) }
+            GlobalLinkPravila.dovoljeniIdji(KrogNaprave.krog(c).clani().map { runCatching { KrogZaupanja.idIzKljuca(it.kljuc) }.getOrNull() }, nas)
+                .forEach { dovoljeni.put(it) }
             val telo = JSONObject().put("allow", dovoljeni).put("ttl", 120).toString().toByteArray()
             val z = Request.Builder().url("https://$GOSTITELJ/v1/presence").header("User-Agent", "SafeerLink/1.0")
                 .post(telo.toRequestBody("application/json".toMediaType()))

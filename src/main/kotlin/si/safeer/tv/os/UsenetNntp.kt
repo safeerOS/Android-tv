@@ -807,6 +807,7 @@ class UsenetNntp(
             val meja = UsenetLastniPravila.mejaTelesa(bajtov, NAJVEC_TELESA)
             if (!proracun.zasezi(rokDo)) throw NapakaNntp(Vrsta.ROK)
             var rast = false
+            var dodatno = 0   // bajti telesa nad NAJVEC_TELESA, ki jih steje proracun (pregled 12. 11. 2026, N4)
             try {
                 var izid = ByteArray(minOf(maxOf(ZACETNI_BLOK, dolz - poz), meja))
                 var n = dolz - poz
@@ -834,12 +835,18 @@ class UsenetNntp(
                             if (!proracun.rasti(rokDo)) throw NapakaNntp(Vrsta.ROK)
                             rast = true
                         }
+                        // Nad 4 MiB (le ce NZB napove vecji segment): pomnilnik se res porabi, zato ga proracun steje; ce ga ni, napaka.
+                        if (nova > NAJVEC_TELESA) {
+                            val novoDodatno = proracun.razsiri(dodatno, izid.size, nova)
+                            if (novoDodatno < 0) throw NapakaNntp(Vrsta.NAPAKA_PROTOKOLA, DIAG_TELO, info = "proracun velikost=${izid.size} nzb_bajtov=$bajtov")
+                            dodatno = novoDodatno
+                        }
                         izid = izid.copyOf(nova)
                     }
                     n += beri(izid, n, izid.size - n)
                 }
             } finally {
-                proracun.sprosti(rast)
+                proracun.sprosti(rast, dodatno)
             }
         }
 
@@ -875,7 +882,7 @@ class UsenetNntp(
         private var rastZasedena = false
         @Volatile var najvecZasedeno = 0L
 
-        val zasedeno: Long get() = osnov.toLong() * osnova + if (rastZasedena) rast else 0
+        val zasedeno: Long get() = osnov.toLong() * osnova + (if (rastZasedena) rast else 0) + dodatno
 
         private fun cakaj(rokDo: Long, lahko: () -> Boolean): Boolean {
             while (!lahko()) {
@@ -889,7 +896,7 @@ class UsenetNntp(
         fun zasezi(rokDo: Long): Boolean {
             z.lock()
             try {
-                if (!cakaj(rokDo) { (osnov + 1).toLong() * osnova + rast <= bajtov }) return false
+                if (!cakaj(rokDo) { (osnov + 1).toLong() * osnova + rast + dodatno <= bajtov }) return false
                 osnov++
                 najvecZasedeno = maxOf(najvecZasedeno, zasedeno)
                 return true
@@ -906,11 +913,31 @@ class UsenetNntp(
             } finally { z.unlock() }
         }
 
-        fun sprosti(rast: Boolean) {
+        /** Bajti nad [NAJVEC_TELESA], ki so res porabljeni (telesa, ki jih je napovedal NZB); steje se v [zasedeno]. */
+        private var dodatno = 0L
+
+        /**
+         * Telo raste z [staro] na [nova] (> [NAJVEC_TELESA]), [stoDodatnoZdaj] je ze steti del nad mejo. Med kopiranjem sta v
+         * pomnilniku stara in nova tabela, zato mora biti prostega vsaj [nova] bajtov. Ne caka (kdor drzi del, ne sme cakati
+         * na drugega): vrne novo stevilo stetih bajtov nad mejo ali -1, ce proracuna ni.
+         */
+        fun razsiri(stoDodatnoZdaj: Int, staro: Int, nova: Int): Int {
+            z.lock()
+            try {
+                if (bajtov - zasedeno < nova.toLong()) return -1
+                val novo = maxOf(0, nova - NAJVEC_TELESA)
+                dodatno += novo - stoDodatnoZdaj
+                najvecZasedeno = maxOf(najvecZasedeno, zasedeno)
+                return novo
+            } finally { z.unlock() }
+        }
+
+        fun sprosti(rast: Boolean, stoDodatno: Int = 0) {
             z.lock()
             try {
                 osnov--
                 if (rast) rastZasedena = false
+                dodatno -= stoDodatno
                 c.signalAll()
             } finally { z.unlock() }
         }

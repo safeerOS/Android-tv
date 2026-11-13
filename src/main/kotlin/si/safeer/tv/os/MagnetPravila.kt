@@ -10,6 +10,39 @@ import java.net.URLDecoder
 object MagnetPravila {
     private val BTIH = Regex("urn:btih:([0-9a-fA-F]{40}|[A-Za-z2-7]{32})$")
 
+    /** Najvec sledilnikov v povezavi (S3: dodatek je lahko navedel poljubno stevilo; dolg magnet hash() zavrne nad 8192 znakov). */
+    const val NAJVEC_SLEDILNIKOV = 20
+    const val NAJVEC_IMENA = 200
+
+    /**
+     * Ime iz dn= ali filename: brez kontrolnih znakov (Cc) in znakov oblike (Cf, npr. U+202E obrne smer besedila in lahko
+     * skrije koncnico - neodvisni pregled 12. 11. 2026, N2), presledki strnjeni, najvec [NAJVEC_IMENA] znakov.
+     */
+    fun ocistiIme(ime: String): String {
+        val sb = StringBuilder()
+        for (z in ime) {
+            val t = Character.getType(z)
+            if (t == Character.CONTROL.toInt() || t == Character.FORMAT.toInt()) sb.append(' ') else sb.append(z)
+        }
+        return sb.toString().replace(Regex("\\s+"), " ").trim().take(NAJVEC_IMENA)
+    }
+
+    /**
+     * Magnet iz toka dodatka (Stremio `infoHash`, `filename`, `sources`): hash mora biti 40 heks ali 32 base32 znakov (prej se je
+     * vstavil kar koli, tudi »&tr=...«), ime ociscen, sledilnikov najvec [NAJVEC_SLEDILNIKOV] (samo z oznako »tracker:« in brez
+     * kontrolnih znakov); null, ce hash ni veljaven.
+     */
+    fun izDodatka(infoHash: String, ime: String, viri: List<String>): String? {
+        val h = infoHash.trim()
+        if (!(Regex("[0-9a-fA-F]{40}").matches(h) || Regex("[A-Za-z2-7]{32}").matches(h))) return null
+        fun kod(x: String) = java.net.URLEncoder.encode(x, "UTF-8").replace("+", "%20")
+        val dn = ocistiIme(ime)
+        val tr = viri.asSequence().filter { it.startsWith("tracker:") }.map { it.removePrefix("tracker:").trim() }
+            .filter { it.isNotEmpty() && it.length <= 512 && it.none { z -> Character.isISOControl(z) || z == ' ' } }
+            .distinct().take(NAJVEC_SLEDILNIKOV).toList()
+        return "magnet:?xt=urn:btih:$h" + (if (dn.isNotEmpty()) "&dn=" + kod(dn) else "") + tr.joinToString("") { "&tr=" + kod(it) }
+    }
+
     /** Dekodiranje, ki ob neveljavnem % zaporedju vrne null namesto izjeme. */
     private fun dekodiraj(v: String): String? = try { URLDecoder.decode(v, "UTF-8") } catch (_: IllegalArgumentException) { null }
 
@@ -48,8 +81,8 @@ object MagnetPravila {
         val deli = uri.substringAfter('?', "").split('&').mapNotNull {
             val k = it.substringBefore('=', ""); if (k.isEmpty()) null else dekodiraj(it.substringAfter('='))?.let { v -> k to v }
         }
-        val ime = deli.firstOrNull { it.first == "dn" }?.second.orEmpty().take(200)
-        val sledilniki = deli.filter { it.first == "tr" && javenSledilnik(it.second) }.map { it.second }.take(20)
+        val ime = deli.firstOrNull { it.first == "dn" }?.second.orEmpty().let { ocistiIme(it) }
+        val sledilniki = deli.filter { it.first == "tr" && javenSledilnik(it.second) }.map { it.second }.take(NAJVEC_SLEDILNIKOV)
             .ifEmpty { privzeti }
         fun kod(x: String) = java.net.URLEncoder.encode(x, "UTF-8")
         return "magnet:?xt=urn:btih:$h" + (if (ime.isNotEmpty()) "&dn=" + kod(ime) else "") +

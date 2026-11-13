@@ -164,6 +164,9 @@ class CastReceiverService : Service() {
         fun onShareFileReceived(ime: String, pot: java.io.File, od: String) {}
     }
 
+    /** Zaupnik odjemalca [client]: odtis potrdila, ki ga je hub res predstavil (podpis prijave veze izziv nanj - OdtisPrijave). */
+    @Volatile private var zaupnikHuba: HubTls.Zaupnik? = null
+
     /**
      * Odjemalec za Hub: TLS z odtisom potrdila, ki si ga je naprava zapomnila ob seznanitvi.
      * Zgradi se ob vsaki povezavi, da po (ponovni) seznanitvi vzame nov odtis.
@@ -178,7 +181,9 @@ class CastReceiverService : Service() {
         val odtis = try { HubTls.pripetiOdtis(this) } catch (_: Throwable) { null }
         // Izvoljeni hub (drug clan kroga): poleg odtisa iz oglasa mora potrdilo nositi njegov kljuc iz kroga.
         val kljuc = try { HubKrmilnik.izvoljeniHub(this)?.let { KrogNaprave.kljucHuba(this, it.id) } } catch (_: Throwable) { null }
-        return HubTls.okhttp(g, odtis, kljuc).first.build()
+        val (graditelj, zaupnik) = HubTls.okhttp(g, odtis, kljuc)
+        zaupnikHuba = zaupnik
+        return graditelj.build()
     }
 
     private var webSocket: WebSocket? = null
@@ -324,7 +329,8 @@ class CastReceiverService : Service() {
             val j = try { JSONObject(telo) } catch (_: Throwable) { JSONObject() }
             val nonce = j.optString("nonce")
             if (koda != 200 || nonce.isBlank()) { naprej(false); return@klic }
-            val odtisHuba = j.optString("fp").ifBlank { HubTls.pripetiOdtis(this).orEmpty() }
+            // Pregled 12. 11. 2026 (S2): odtis iz rokovanja TLS, ne iz polja fp (OdtisPrijave)
+            val odtisHuba = OdtisPrijave.zaPodpis(zaupnikHuba?.videni, j.optString("fp")) ?: run { naprej(false); return@klic }
             val podpis = try { KrogNaprave.podpisPrijave(znani, odtisHuba, nonce) } catch (_: Throwable) { naprej(false); return@klic }
             val telo2 = JSONObject().put("device_id", znani).put("nonce", nonce).put("signature", podpis)
                 .put("alias", deviceId).put("name", deviceName).put("platform", HubKrmilnik.platforma(this))
@@ -393,7 +399,9 @@ class CastReceiverService : Service() {
                 Log.i(TAG, "Prijava s podpisom ni mogoca ($koda); z zetonom.")
                 zVstopnico(wsUrl, controlToken(), naprej); return@klic
             }
-            val odtisHuba = j.optString("fp").ifBlank { HubTls.pripetiOdtis(this).orEmpty() }
+            val odtisHuba = OdtisPrijave.zaPodpis(zaupnikHuba?.videni, j.optString("fp")) ?: run {
+                Log.w(TAG, "Odtisa potrdila ni (rokovanje TLS); z zetonom."); zVstopnico(wsUrl, controlToken(), naprej); return@klic
+            }
             val podpis = try { KrogNaprave.podpisPrijave(deviceId, odtisHuba, nonce) } catch (e: Throwable) {
                 Log.w(TAG, "Podpisa ni bilo mogoce narediti: ${e.message}"); zVstopnico(wsUrl, controlToken(), naprej); return@klic
             }

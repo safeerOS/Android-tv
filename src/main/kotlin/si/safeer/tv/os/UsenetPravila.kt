@@ -310,6 +310,8 @@ object UsenetPravila {
      */
     fun zadetki(xml: String, osnova: String): List<Zadetek> {
         if (xml.contains("<!DOCTYPE", ignoreCase = true) || xml.contains("<!ENTITY", ignoreCase = true)) return emptyList()
+        // Pregled 12. 11. 2026 (N1): globoko gnezden XML bi DOM/getElementsByTagName sesul s StackOverflowError (ni Exception).
+        if (XmlGlobinaPravila.globina(xml) > XmlGlobinaPravila.NAJVEC_GLOBINA) return emptyList()
         val dok = try {
             val f = javax.xml.parsers.DocumentBuilderFactory.newInstance()
             try { f.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true) } catch (_: Exception) { }

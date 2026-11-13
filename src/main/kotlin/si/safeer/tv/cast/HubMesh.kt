@@ -217,7 +217,8 @@ object HubMesh {
         klic("/cast/auth/challenge", JSONObject().put("device_id", jaz)) { koda, telo ->
             val j = try { JSONObject(telo) } catch (_: Throwable) { JSONObject() }
             val nonce = j.optString("nonce")
-            val odtis = j.optString("fp").ifBlank { zaupnik.videni.orEmpty() }
+            // Pregled 12. 11. 2026 (S2): odtis za podpis je tisti iz rokovanja TLS, ne polje fp, ki ga poslje sosed (OdtisPrijave).
+            val odtis = OdtisPrijave.zaPodpis(zaupnik.videni, j.optString("fp")).orEmpty()
             if (koda == 0) { Log.i(TAG, "${h.id}: ni dosegljiv${if (prekReleja) " prek releja" else ""}"); nedosegljiv(zaupnik.videniKljuc); return@klic }
             if (koda == 503) sosedBrezVirov(app, h, telo)
             if (koda != 200 || nonce.isBlank() || odtis.isBlank()) {

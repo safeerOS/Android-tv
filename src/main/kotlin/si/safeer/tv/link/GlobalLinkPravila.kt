@@ -16,6 +16,24 @@ object GlobalLinkPravila {
     /** Ime kanala iz releja gre v URL (/v1/accept?kanal=...): samo 32 malih heks znakov (pregled N1, brez &, # in presledkov). */
     fun veljavenKanal(kanal: String): Boolean = KANAL.matches(kanal)
 
+    /**
+     * Pregled 12. 11. 2026 (N3): zahteve releja nosijo podpisane glave (X-Safeer-Key/Signature); OkHttp privzeto sledi
+     * preusmeritvam in jih poslje na kateri koli naslov. Rele ne preusmerja, zato 3xx pomeni napako, ne skok.
+     */
+    fun odjemalec(graditelj: okhttp3.OkHttpClient.Builder): okhttp3.OkHttpClient.Builder =
+        graditelj.followRedirects(false).followSslRedirects(false)
+
+    /** Najvec toliko naprav hub objavi kot dovoljene na releju. */
+    const val NAJVEC_DOVOLJENIH = 256
+
+    /**
+     * Pregled 12. 11. 2026 (N2): seznam naprav, ki smejo prek releja do tega huba, iz TRENUTNEGA kroga (id-ji clanov; brez
+     * nas, brez podvojenih). Umaknjena naprava ni vec v krogu, zato je tudi ni v seznamu - ob vsaki spremembi kroga
+     * se seznam takoj objavi, ne sele ob obnovitvi (do 1-3 min, ko bi umaknjena naprava se klicala hub).
+     */
+    fun dovoljeniIdji(clani: List<String?>, nas: String): List<String> =
+        clani.filterNotNull().filter { it != nas }.distinct().take(NAJVEC_DOVOLJENIH)
+
     enum class Akcija { CAKAJ, NADALJUJ, PREKINI }
 
     /** Vrsta posiljanja nad to mejo: pocakamo, da se sprazni (pocasna povezava), namesto da kopicimo v pomnilnik TV. */

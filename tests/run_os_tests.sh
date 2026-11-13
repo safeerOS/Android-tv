@@ -195,6 +195,11 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/PregledNovostiPravilaTest.kt" \
     "$SRC/si/safeer/tv/link/GlobalLinkPravila.kt" \
     "$TEST_DIR/GlobalLinkPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/XmlGlobinaPravila.kt" \
+    "$TEST_DIR/XmlGlobinaPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/GlaveTokaPravila.kt" \
+    "$TEST_DIR/GlaveTokaPravilaTest.kt" \
+    "$TEST_DIR/PreusmeritevSledenjeTest.kt" \
     "$SRC/si/safeer/tv/os/JsonGlobinaPravila.kt" \
     "$TEST_DIR/JsonGlobinaPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/PredvajajNaTvPravila.kt" \
@@ -364,7 +369,7 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.MojSeznamPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.cast.MeshIskanjePravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.TorBoxPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.DebridPravilaTestKt
-java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.MagnetPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.MagnetPravilaTestKt "$SRC"
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PreusmeritevPravilaTestKt
 # Pregled 104, S1/S2 (26. 10. 2026): zavrnjen ali zaklenjen kljuc (prejem, ponoven vpis) dobi zaporo - brez novih klicev.
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.DebridZaporaTestKt
@@ -389,7 +394,10 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.FilterViraPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.FilterTorBoxPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PregledNovostiPravilaTestKt
 # Pregled 9. 11. 2026: zanki Global Linka brez meje (polna vrsta posiljanja, ponovni poskusi) - meje v cistih pravilih
-java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.GlobalLinkPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.GlobalLinkPravilaTestKt "$SRC"
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.XmlGlobinaPravilaTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.GlaveTokaPravilaTestKt "$SRC"
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PreusmeritevSledenjeTestKt "$SRC"
 # Pregled 5. 11. 2026: odgovor dodatka z globokim gnezdenjem ne sme do JSONObject (StackOverflowError sesuje aplikacijo)
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.JsonGlobinaPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PredvajajNaTvPravilaTestKt

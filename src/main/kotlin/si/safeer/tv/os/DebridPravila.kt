@@ -53,7 +53,7 @@ object DebridPravila {
     fun imeMagneta(magnet: String): String = magnet.substringAfter('?', "").split('&')
         .firstOrNull { it.startsWith("dn=", ignoreCase = true) }
         ?.let { runCatching { java.net.URLDecoder.decode(it.substring(3), "UTF-8") }.getOrNull() }
-        ?.trim().orEmpty().take(200)
+        ?.let { MagnetPravila.ocistiIme(it) }.orEmpty()
 
     fun ime(ponudnik: String): String = when (ponudnik) {
         TORBOX -> "TorBox"

@@ -401,25 +401,21 @@ object Stremio {
      * Povezava na dodatek z rocnim sledenjem preusmeritvam ([PreusmeritevPravila]); glava X-Safeer-Config samo prvotnemu
      * gostitelju. Odgovor je ze prebran (responseCode je nato iz predpomnilnika); ob izjemi se povezava zapre.
      */
-    private fun odpriDodatek(prvotni: String, cas: Int, config: String?): HttpURLConnection {
-        var naslov = prvotni
-        var skok = 0
-        while (true) {
-            val c = URL(naslov).openConnection() as HttpURLConnection
-            c.instanceFollowRedirects = false
-            c.connectTimeout = cas; c.readTimeout = cas
-            c.setRequestProperty("User-Agent", "Safeer-Predvajalnik/1.0 (+https://safeer.si)")
-            c.setRequestProperty("Accept", "application/json")
-            c.setRequestProperty("Accept-Language", java.util.Locale.getDefault().toLanguageTag())
-            if (config != null && PreusmeritevPravila.glavaSmeNaprej(prvotni, naslov)) c.setRequestProperty("X-Safeer-Config", config)
-            val koda = try { c.responseCode } catch (e: Exception) { c.disconnect(); throw e }
-            if (!PreusmeritevPravila.jePreusmeritev(koda) || skok >= PreusmeritevPravila.NAJVEC_SKOKOV) return c
-            val naprej = PreusmeritevPravila.naslednji(naslov, c.getHeaderField("Location")) ?: return c
-            c.disconnect()
-            naslov = naprej
-            skok++
-        }
-    }
+    private fun odpriDodatek(prvotni: String, cas: Int, config: String?): HttpURLConnection =
+        PreusmeritevPravila.sledi(prvotni,
+            odpri = { naslov, skrivne, _ ->
+                val c = URL(naslov).openConnection() as HttpURLConnection
+                c.instanceFollowRedirects = false
+                c.connectTimeout = cas; c.readTimeout = cas
+                c.setRequestProperty("User-Agent", "Safeer-Predvajalnik/1.0 (+https://safeer.si)")
+                c.setRequestProperty("Accept", "application/json")
+                c.setRequestProperty("Accept-Language", java.util.Locale.getDefault().toLanguageTag())
+                if (config != null && skrivne) c.setRequestProperty("X-Safeer-Config", config)
+                c
+            },
+            koda = { c -> try { c.responseCode } catch (e: Exception) { c.disconnect(); throw e } },
+            location = { c -> c.getHeaderField("Location") },
+            zapri = { c -> c.disconnect() })
 
     private fun prenesiJsonZdaj(url: String, cas: Int): JSONObject? {
         // Vsaka poizvedba po tokovih steje v urni proracun dodatka - tudi tista za predvajanje ([TempoDodatka]).
@@ -1269,13 +1265,14 @@ object Stremio {
             // Napovednik (YouTube) ni vsebina sama: ne steje kot predvajanje, ponudimo ga le pri rocni izbiri vira.
             s.optString("ytId").isNotBlank() -> Tok("napovednik", "https://www.youtube.com/watch?v=" + s.optString("ytId"), ime, opis, imeDodatka)
             s.optString("infoHash").isNotBlank() -> {
-                // Sledilniki iz `sources` ("tracker:udp://..."), da racunalnik hitreje najde vire.
+                // Sledilniki iz `sources` ("tracker:udp://..."), da racunalnik hitreje najde vire. Pregled 12. 11. 2026: hash, ime in
+                // stevilo sledilnikov preveri/omeji MagnetPravila.izDodatka (neveljaven hash ni tok).
                 val viri = s.optJSONArray("sources")
-                val tr = (0 until (viri?.length() ?: 0)).mapNotNull { viri?.optString(it) }
-                    .filter { it.startsWith("tracker:") }.joinToString("") { "&tr=" + enc(it.removePrefix("tracker:")) }
                 val ime2 = s.optJSONObject("behaviorHints")?.optString("filename").orEmpty()
-                Tok("torrent", "magnet:?xt=urn:btih:" + s.optString("infoHash") + (if (ime2.isNotBlank()) "&dn=" + enc(ime2) else "") + tr,
-                    ime, opis, imeDodatka, s.optInt("fileIdx", -1), imeDatoteke = SerijePravila.niz(ime2))
+                val magnet = MagnetPravila.izDodatka(s.optString("infoHash"), ime2,
+                    (0 until (viri?.length() ?: 0)).mapNotNull { viri?.optString(it) })
+                if (magnet == null) null
+                else Tok("torrent", magnet, ime, opis, imeDodatka, s.optInt("fileIdx", -1), imeDatoteke = SerijePravila.niz(MagnetPravila.ocistiIme(ime2)))
             }
             else -> null
         }

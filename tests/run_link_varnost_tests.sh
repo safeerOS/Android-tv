@@ -54,3 +54,10 @@ java -cp "$OUT/krog-umik.jar:$JSON_JAR" si.safeer.tv.cast.KrogUmikTestKt "$SRC"
     "$TEST_DIR/KrogPrihodnjeDodanoTest.kt" \
     -include-runtime -d "$OUT/krog-prihodnje.jar"
 java -cp "$OUT/krog-prihodnje.jar:$JSON_JAR" si.safeer.tv.cast.KrogPrihodnjeDodanoTestKt
+
+# Pregled 12. 11. 2026 (S2): odtis za podpis prijave je tisti iz rokovanja TLS, ne polje fp, ki ga poslje druga stran.
+"$KOTLINC" -J-Xmx1g \
+    "$SRC/si/safeer/tv/cast/OdtisPrijave.kt" \
+    "$TEST_DIR/OdtisPrijaveTest.kt" \
+    -include-runtime -d "$OUT/odtis-prijave.jar"
+java -cp "$OUT/odtis-prijave.jar" si.safeer.tv.cast.OdtisPrijaveTestKt "$SRC"
