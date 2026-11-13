@@ -63,6 +63,17 @@ fun main() {
     enako("gumb viden po 14 s", true, P.gumbViden(1_000, 15_000))
     enako("gumb skrit po 15 s", false, P.gumbViden(1_000, 16_000))
 
+    // Slepi pregled 13. 11. 2026 (C4): odjavna sredi filma bi prevzela OK - zacne v zadnji cetrtini in sega do konca.
+    val T = 6_000_000L
+    enako("odjavna sredi filma (55-60 %) zavrzena", false, P.smiseln(PreskokPravila.Odsek(O, 3_300_000, 3_600_000), T))
+    enako("odjavna 80-85 % (ne sega do konca) zavrzena", false, P.smiseln(PreskokPravila.Odsek(O, 4_800_000, 5_100_000), T))
+    enako("odjavna od 80 % do konca velja", true, P.smiseln(PreskokPravila.Odsek(O, 4_800_000, null), T))
+    enako("napoved 95 % do konca velja", true, P.smiseln(PreskokPravila.Odsek(PreskokPravila.Vrsta.NAPOVED, 5_700_000, T), T))
+    val petUvodov = (0 until 5).joinToString(",") { "{\"start_ms\":${it * 100_000},\"end_ms\":${it * 100_000 + 30_000}}" }
+    enako("najvec dva odseka iste vrste", 2, P.razcleni("{\"intro\":[$petUvodov]}").size)
+    val smetiNaZacetku = "{\"intro\":[{\"start_ms\":-5},{\"start_ms\":\"x\"},{\"start_ms\":1000,\"end_ms\":61000}]}"
+    enako("neveljavni vnosi na zacetku ne skrijejo veljavnega", 1, P.razcleni(smetiNaZacetku).size)
+
     if (napak > 0) { println("PreskokPravila: $napak napak"); kotlin.system.exitProcess(1) }
     println("PreskokPravila: vse ok")
 }

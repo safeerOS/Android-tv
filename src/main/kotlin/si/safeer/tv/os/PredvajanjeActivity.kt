@@ -141,6 +141,7 @@ class PredvajanjeActivity : OsActivity() {
     override fun onWindowFocusChanged(imaFokus: Boolean) {
         super.onWindowFocusChanged(imaFokus)
         if (!imaFokus) {
+            preskokPritisk = false          // dvig OK pride v drugo okno: naslednji OK ne sme biti pogoltnjen (C6)
             if (zagnan && tema.visibility != View.VISIBLE) { zatemnitevCaka = true; glavna.removeCallbacks(zatemni) }
         } else if (zatemnitevCaka) {
             zatemnitevCaka = false
@@ -937,6 +938,7 @@ class PredvajanjeActivity : OsActivity() {
 
     override fun onStop() {
         povrniOsvezevanje()
+        preskokPritisk = false
         zagnan = false; zagnanih = (zagnanih - 1).coerceAtLeast(0)
         if (zagnanih == 0) GlasbaStoritev.poZaprtjuZaslonaPredvajanja()
         if (zaklenjeno) zakleni(false)
@@ -2148,12 +2150,18 @@ class PredvajanjeActivity : OsActivity() {
     private var preskokZa: String? = null
     private var preskokOdseki: List<PreskokPravila.Odsek> = emptyList()
     private var preskokTrenutni: PreskokPravila.Odsek? = null
+    /** Odseki tega posnetka, ki jih ne ponudimo vec (pretekel cas gumba ali ze preskoceni): odprto okno ali premor
+     *  jih ne obudi znova (slepi pregled 13. 11. C7). */
+    private val preskokKoncani = mutableSetOf<PreskokPravila.Odsek>()
+    /** Odsek in posnetek ob spustu OK: odloca spust, ne stanje gumba ob dvigu (C6). */
+    private var preskokPritiskOdsek: PreskokPravila.Odsek? = null
+    private var preskokPritiskZa: String? = null
     private var gumbPreskoka: TextView? = null
     /** Spust OK je bil, ko je bil gumb viden (zadrzan OK = ustavi, kratek = preskok). */
     private var preskokPritisk = false
-    /** Odsek in cas vstopa vanj (uptime): gumb je viden najvec [PreskokPravila.GUMB_VIDEN_MS]. */
-    private var preskokVstopZa: PreskokPravila.Odsek? = null
-    private var preskokVstopMs = 0L
+    /** Koliko je bil gumb za odsek ze prikazan (ms) in cas zadnjega tika: viden najvec [PreskokPravila.GUMB_VIDEN_MS]. */
+    private val preskokPrikazano = mutableMapOf<PreskokPravila.Odsek, Long>()
+    private var preskokZadnjiTik = 0L
 
     private fun skrijPreskok() {
         preskokTrenutni = null
@@ -2166,12 +2174,13 @@ class PredvajanjeActivity : OsActivity() {
         val p = GlasbaStoritev.predvajalnik
         val sk = GlasbaStoritev.trenutna()
         if (p == null || sk == null) { skrijPreskok(); return }
-        val kljuc = kljucPosnetka(sk)
+        val vklop = GlasbaStoritev.preskokOdsekov(this)
+        val kljuc = kljucPosnetka(sk) + "|" + vklop
         if (kljuc != preskokZa) {
-            preskokZa = kljuc; preskokOdseki = emptyList(); skrijPreskok()
+            preskokZa = kljuc; preskokOdseki = emptyList(); preskokKoncani.clear(); preskokPrikazano.clear(); skrijPreskok()
             val vZivo = OsPravila.prikazVZivo(p.isCurrentMediaItemLive, p.isCurrentMediaItemDynamic,
                 sk.radio || sk.id.startsWith("tv:") || Stremio.jeVZivo(sk) || IptvSeznami.jeKanal(sk), GlasbaStoritev.nadomestnoOkno(p))
-            val naslov = PreskokPravila.poizvedba(GlasbaStoritev.preskokOdsekov(this), sk.video, vZivo, sk.imdbId, sk.season, sk.episode)
+            val naslov = PreskokPravila.poizvedba(vklop, sk.video, vZivo, sk.imdbId, sk.season, sk.episode)
             val ref = java.lang.ref.WeakReference(this)
             if (naslov != null) TheIntroDb.pridobi(naslov) { odseki ->
                 val a = ref.get() ?: return@pridobi
@@ -2183,15 +2192,22 @@ class PredvajanjeActivity : OsActivity() {
                 }
             }
         }
-        val drugoOdprto = zaklenjeno || isInPictureInPictureMode || karticaOdprta() || mrezaOdprta() || predlogiOdprti()
+        val drugoOdprto = zaklenjeno || isInPictureInPictureMode || karticaOdprta() || mrezaOdprta() ||
+            (!dotik && predlogiOdprti()) || pripravljamNaslov != null || p.playerError != null || !GlasbaStoritev.igra() ||
+            (!GlasbaStoritev.naZvocniku() && p.playbackState == androidx.media3.common.Player.STATE_BUFFERING)
         // Posnetek, ki ga ni mogoce previjati (razen sprotnega toka in zvocnika), gumba ne dobi (N7).
         val previjljiv = p.isCurrentMediaItemSeekable || SprotnaPomoc.tokZa(sk) != null || GlasbaStoritev.naZvocniku()
         val (polozaj, trajanje) = polozajInTrajanje(p)
         val o = if (drugoOdprto || !previjljiv || preskokOdseki.isEmpty()) null else PreskokPravila.aktiven(preskokOdseki, polozaj, trajanje)
-        if (o == null) { preskokVstopZa = null; skrijPreskok(); return }
         val zdaj = android.os.SystemClock.uptimeMillis()
-        if (o != preskokVstopZa) { preskokVstopZa = o; preskokVstopMs = zdaj }
-        if (!PreskokPravila.gumbViden(preskokVstopMs, zdaj)) { skrijPreskok(); return }
+        val pretekel = if (preskokZadnjiTik == 0L) 0L else (zdaj - preskokZadnjiTik).coerceIn(0L, 1_500L)
+        preskokZadnjiTik = zdaj
+        if (o == null || o in preskokKoncani) { skrijPreskok(); return }
+        // Gumb je viden skupaj najvec GUMB_VIDEN_MS na odsek: steje samo cas, ko je bil res prikazan (premor, okno ali
+        // medpomnjenje ga ne podaljsajo do neskoncnosti in ga ne obnovijo - drugi slepi pregled 13. 11.).
+        val prikazano = (preskokPrikazano[o] ?: 0L) + (if (preskokTrenutni == o) pretekel else 0L)
+        preskokPrikazano[o] = prikazano
+        if (!PreskokPravila.gumbViden(0L, prikazano)) { preskokKoncani += o; skrijPreskok(); return }
         val g = gumbPreskoka ?: ustvariGumbPreskoka() ?: return
         preskokTrenutni = o
         g.text = getString(when (o.vrsta) {
@@ -2206,6 +2222,17 @@ class PredvajanjeActivity : OsActivity() {
         }
     }
 
+    /** Fokus je na kontroli v vidnem pasu (podnapisi, zaklep ...): OK je njen, ne preskok (drugi slepi pregled 13. 11.). */
+    private fun fokusVPasu(): Boolean {
+        if (prekritje.visibility != View.VISIBLE || prekritje.alpha < 0.05f) return false
+        var v: View? = currentFocus
+        while (v != null) {
+            if (v === prekritje) return true
+            v = v.parent as? View
+        }
+        return false
+    }
+
     private fun ustvariGumbPreskoka(): TextView? {
         val koren = korenPogled ?: return null
         val g = gumbKartice(R.string.os_preskoci_uvod) { preskoci() }.apply { visibility = View.GONE }
@@ -2217,13 +2244,17 @@ class PredvajanjeActivity : OsActivity() {
         return g
     }
 
-    private fun preskoci() {
-        val o = preskokTrenutni ?: return
+    private fun preskoci(odsek: PreskokPravila.Odsek? = preskokTrenutni, za: String? = preskokZa) {
+        val o = odsek ?: return
         val p = GlasbaStoritev.predvajalnik ?: return
+        val sk = GlasbaStoritev.trenutna() ?: return
+        // Posnetek se je zamenjal med tikoma ali med spustom in dvigom OK: odsek starega posnetka ne velja (CodeRabbit).
+        if (za == null || za != preskokZa || !za.startsWith(kljucPosnetka(sk) + "|")) { skrijPreskok(); return }
         val (_, trajanje) = polozajInTrajanje(p)
         val cilj = PreskokPravila.cilj(o, trajanje) ?: return
         if (skociNa(cilj)) {
             android.util.Log.i("SafeerOsMedia", "preskok: ${o.vrsta.name} -> $cilj ms")
+            preskokKoncani += o
             skrijPreskok()
         }
     }
@@ -2232,52 +2263,67 @@ class PredvajanjeActivity : OsActivity() {
 
     /** Posnetek in hitrost slik, za katero je nacin ze izbran (da preklopa ne ponavljamo vsako sekundo). */
     private var osvezevanjeZa: String? = null
-    /** Nacin zaslona pred nasim prvim preklopom (null = nismo preklopili). */
-    private var izvirniNacin: OsvezevanjePravila.Nacin? = null
 
     /** Samo TV (na dotik nacinov zaslona ne menjamo): nacin zaslona z isto locljivostjo in frekvenco, ki ustreza filmu. */
     // videoFormat.frameRate je v Media3 @UnstableApi; samo branje frekvence filma.
     @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
     private fun prilagodiOsvezevanje() {
-        if (dotik || isFinishing || isDestroyed) return
+        if (dotik || isFinishing || isDestroyed || isInPictureInPictureMode) return
         val p = GlasbaStoritev.predvajalnik ?: return
         val sk = GlasbaStoritev.trenutna() ?: return
-        val fps = (p as? androidx.media3.exoplayer.ExoPlayer)?.videoFormat?.frameRate
-        // Ni videa, drug predvajalnik ali neznana hitrost: zaslon nazaj na svoj nacin (neodvisni pregled N3).
-        if (!sk.video || !GlasbaStoritev.ujemanjeOsvezevanja(this) || fps == null || !OsvezevanjePravila.veljavnaHitrost(fps)) {
-            povrniOsvezevanje(); return
-        }
-        val kljuc = kljucPosnetka(sk) + "|" + Math.round(fps * 100)
+        // Zvok ali stikalo izklopljeno: zaslon nazaj na svoj nacin (neodvisni pregled N3).
+        if (!sk.video || !GlasbaStoritev.ujemanjeOsvezevanja(this)) { povrniOsvezevanje(); return }
+        // Odlocitev enkrat na posnetek (slepi pregled 13. 11. C1, C2): menjava kakovosti (ABR) ali trenutno neznana hitrost
+        // (nov vir, previjanje sprotnega toka) ne preklaplja zaslona sem in tja - vsak preklop je crn zaslon.
+        val kljuc = kljucPosnetka(sk)
         if (kljuc == osvezevanjeZa) return
+        // Hitrost iz izbranih sledi TRENUTNEGA posnetka: Tracks se ob menjavi posnetka izpraznijo, videoFormat pa lahko se
+        // nosi prejsnji posnetek (drugi slepi pregled 13. 11.). Neznana hitrost: zaslon nazaj na svoj nacin (prejsnji film
+        // ne sme ostati v 24 Hz), odlocitev za ta posnetek pocaka na znano hitrost.
+        val fps = hitrostIzSledi(p)
+        if (fps == null) { povrniNacinZaslona(); return }
         osvezevanjeZa = kljuc
         @Suppress("DEPRECATION")
         val zaslon = (if (android.os.Build.VERSION.SDK_INT >= 30) display else windowManager.defaultDisplay) ?: return
         val t = zaslon.mode
         val zdaj = OsvezevanjePravila.Nacin(t.modeId, t.physicalWidth, t.physicalHeight, t.refreshRate)
-        // Izbira glede na izvirni nacin zaslona (pred nasim preklopom), ne glede na prejsnji film.
-        val izvirni = izvirniNacin ?: zdaj
         val nacini = zaslon.supportedModes.map { OsvezevanjePravila.Nacin(it.modeId, it.physicalWidth, it.physicalHeight, it.refreshRate) }
+        // Izvirni nacin za proces: ob hitri vrnitvi zaslon se tece v nasem 24 Hz (to ni izvirni nacin, C3). Osvezimo ga,
+        // kadar zaslon ni v nacinu, ki smo ga izbrali mi (sprememba v nastavitvah, drug TV), in zavrzemo, ce ga ni vec.
+        if (window.attributes.preferredDisplayModeId == 0 && zdaj.id != IzvirniZaslon.nasIzbran) IzvirniZaslon.nacin = zdaj
+        if (IzvirniZaslon.nacin?.let { i -> nacini.none { it.id == i.id } } == true) IzvirniZaslon.nacin = zdaj
+        val izvirni = IzvirniZaslon.nacin ?: zdaj
         val izbran = OsvezevanjePravila.izberi(nacini, izvirni, fps)
         android.util.Log.i("SafeerOsMedia", "osvezevanje: film $fps fps, izvirni ${izvirni.hz} Hz, zdaj ${zdaj.hz} Hz -> ${izbran?.hz ?: "izvirni"}")
         val lp = window.attributes
         val zelen = izbran?.id ?: 0
         if (lp.preferredDisplayModeId != zelen) {
-            if (izbran != null && izvirniNacin == null) izvirniNacin = zdaj
             lp.preferredDisplayModeId = zelen
             window.attributes = lp
-            if (zelen == 0) izvirniNacin = null
+            if (izbran != null) IzvirniZaslon.nasIzbran = izbran.id
+        }
+    }
+
+    /** Najvisja veljavna hitrost izbranih video sledi trenutnega posnetka (ABR: vse stopnice so izbrane) ali null. */
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+    private fun hitrostIzSledi(p: androidx.media3.common.Player): Float? =
+        p.currentTracks.groups.filter { it.type == androidx.media3.common.C.TRACK_TYPE_VIDEO && it.isSelected }
+            .flatMap { g -> (0 until g.length).filter { g.isTrackSelected(it) }.map { g.getTrackFormat(it).frameRate } }
+            .filter { OsvezevanjePravila.veljavnaHitrost(it) }
+            .maxOrNull()
+
+    private fun povrniNacinZaslona() {
+        if (window.attributes.preferredDisplayModeId != 0) {
+            val lp = window.attributes
+            lp.preferredDisplayModeId = 0
+            window.attributes = lp
         }
     }
 
     /** Ob odhodu iz predvajalnika (in ko stikalo ni vklopljeno) zaslon dobi nazaj svoj nacin. */
     private fun povrniOsvezevanje() {
         osvezevanjeZa = null
-        izvirniNacin = null
-        if (window.attributes.preferredDisplayModeId != 0) {
-            val lp = window.attributes
-            lp.preferredDisplayModeId = 0
-            window.attributes = lp
-        }
+        povrniNacinZaslona()
     }
 
     // ------------------------------------------------------------------ ime posnetka in naslednja epizoda (lastnik 5. 11. 2026)
@@ -2621,6 +2667,7 @@ class PredvajanjeActivity : OsActivity() {
 
     override fun onPictureInPictureModeChanged(vPip: Boolean, novaKonfiguracija: android.content.res.Configuration) {
         super.onPictureInPictureModeChanged(vPip, novaKonfiguracija)
+        if (vPip) povrniOsvezevanje() else osvezevanjeZa = null   // po vrnitvi odlocimo znova
         // V majhnem oknu le slika (in podnapisi); pas z naslovom in kartice se skrijejo.
         prekritje.visibility = if (vPip) View.GONE else View.VISIBLE
         if (vPip) zapriMrezoVrste()
@@ -2836,16 +2883,22 @@ class PredvajanjeActivity : OsActivity() {
         // zadrzan OK ustavi predvajanje kot prej (onKeyLongPress tu ne pride, ker spust porabimo).
         if (!dotik && (dogodek.keyCode == KeyEvent.KEYCODE_DPAD_CENTER || dogodek.keyCode == KeyEvent.KEYCODE_ENTER)) {
             val gumbTu = gumbPreskoka?.visibility == View.VISIBLE && !karticaOdprta() && !mrezaOdprta() && !predlogiOdprti() &&
-                !isInPictureInPictureMode
+                !isInPictureInPictureMode && GlasbaStoritev.igra() && pripravljamNaslov == null &&
+                GlasbaStoritev.predvajalnik?.playerError == null && !fokusVPasu()
             when {
-                dogodek.action == KeyEvent.ACTION_DOWN && dogodek.repeatCount == 0 && gumbTu -> { preskokPritisk = true; return true }
-                dogodek.action == KeyEvent.ACTION_DOWN && preskokPritisk -> {
+                dogodek.action == KeyEvent.ACTION_DOWN && dogodek.repeatCount == 0 && gumbTu -> {
+                    preskokPritisk = true; preskokPritiskOdsek = preskokTrenutni; preskokPritiskZa = preskokZa
+                    return true
+                }
+                dogodek.action == KeyEvent.ACTION_DOWN && preskokPritisk && dogodek.repeatCount > 0 -> {
                     if (dogodek.isLongPress || dogodek.repeatCount > 0) { preskokPritisk = false; GlasbaStoritev.ustavi(this); finish() }
                     return true
                 }
                 dogodek.action == KeyEvent.ACTION_UP && preskokPritisk -> {
                     preskokPritisk = false
-                    if (gumbTu && !dogodek.isCanceled) preskoci()
+                    // Odloca spust: gumb je lahko izginil med spustom in dvigom (15 s), pritisk se ne izgubi (C6).
+                    if (!dogodek.isCanceled) preskoci(preskokPritiskOdsek, preskokPritiskZa)
+                    preskokPritiskOdsek = null; preskokPritiskZa = null
                     return true
                 }
             }
@@ -2946,4 +2999,12 @@ private class SlikaKartice(c: android.content.Context) : ImageView(c) {
         val s = MeasureSpec.getSize(sirinaSpec)
         super.onMeasure(MeasureSpec.makeMeasureSpec(s, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(if (video) s * 9 / 16 else s, MeasureSpec.EXACTLY))
     }
+}
+
+/** Nacin zaslona pred prvim preklopom osvezevanja v tem procesu (TV). Okno ob hitri vrnitvi se vidi nacin prejsnjega
+ *  filma, zato izvirnega ne beremo vsakic znova (slepi pregled 13. 11. 2026, C3). */
+private object IzvirniZaslon {
+    var nacin: OsvezevanjePravila.Nacin? = null
+    /** Zadnji nacin, ki smo ga izbrali mi: zaslon v tem nacinu ni izvirni. */
+    var nasIzbran: Int = -1
 }

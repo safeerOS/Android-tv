@@ -19,13 +19,17 @@ object PreskokPravila {
      *  pokvarjen vnos (»uvod 0 do 24 h«) bi sicer gumb drzal ves film (neodvisni pregled 13. 11. 2026, N1). */
     const val NAJDALJSI_UVOD_MS = 5L * 60_000L
     const val UVOD_NAJPOZNEJE_MS = 20L * 60_000L
-    /** Odjavna in napoved se zacneta v drugi polovici posnetka (brez trajanja jih ne ponudimo). */
-    const val ODJAVNA_OD_DELEZA = 0.5
+    /** Odjavna in napoved se zacneta v zadnji cetrtini in segata do konca (brez trajanja jih ne ponudimo): skupnostni
+     *  odsek sredi filma bi prevzel OK (slepi pregled 13. 11. 2026). */
+    const val ODJAVNA_OD_DELEZA = 0.75
+    const val ODJAVNA_DO_DELEZA = 0.9
     /** Gumb je viden najvec toliko od vstopa v odsek: potem OK spet dela pavzo (dolga odjavna, N2). */
     const val GUMB_VIDEN_MS = 15_000L
     /** Gumb izgine malo pred koncem odseka, da ne skoci za nekaj sekund. */
     const val PRED_KONCEM_MS = 1_500L
-    private const val NAJVEC_ODSEKOV = 8
+    private const val NAJVEC_ODSEKOV = 2
+    /** Pregledamo najvec toliko vnosov vrste: neveljavni na zacetku ne skrijejo veljavnega (drugi slepi pregled). */
+    private const val NAJVEC_PREGLEDANIH = 16
     private const val NAJVEC_CAS_MS = 24L * 3600_000L
 
     enum class Vrsta(val kljucApi: String) { POVZETEK("recap"), UVOD("intro"), ODJAVNA("credits"), NAPOVED("preview") }
@@ -58,7 +62,9 @@ object PreskokPravila {
         val izid = mutableListOf<Odsek>()
         for (vrsta in Vrsta.values()) {
             val polje = Regex("\"${vrsta.kljucApi}\"\\s*:\\s*\\[([^\\]]*)\\]").find(json)?.groupValues?.get(1) ?: continue
-            for (obj in Regex("\\{([^{}]*)\\}").findAll(polje).take(NAJVEC_ODSEKOV)) {
+            var veljavnih = 0
+            for (obj in Regex("\\{([^{}]*)\\}").findAll(polje).take(NAJVEC_PREGLEDANIH)) {
+                if (veljavnih >= NAJVEC_ODSEKOV) break
                 val t = obj.groupValues[1]
                 val od = stevilo(Regex("\"start_ms\"\\s*:\\s*(null|-?\\d+)").find(t)?.groupValues?.get(1) ?: "null")
                 val dO = stevilo(Regex("\"end_ms\"\\s*:\\s*(null|-?\\d+)").find(t)?.groupValues?.get(1) ?: "null")
@@ -68,6 +74,7 @@ object PreskokPravila {
                 if ((vrsta == Vrsta.UVOD || vrsta == Vrsta.POVZETEK) && dO == null) continue
                 if (dO != null && dO <= zacetek) continue
                 izid += Odsek(vrsta, zacetek, dO)
+                veljavnih++
             }
         }
         return izid.sortedBy { it.odMs }
@@ -83,7 +90,8 @@ object PreskokPravila {
         return when (o.vrsta) {
             Vrsta.UVOD, Vrsta.POVZETEK -> kOmejen - o.odMs <= NAJDALJSI_UVOD_MS &&
                 o.odMs <= maxOf(UVOD_NAJPOZNEJE_MS, if (trajanjeMs > 0) trajanjeMs / 3 else 0L)
-            Vrsta.ODJAVNA, Vrsta.NAPOVED -> trajanjeMs > 0 && o.odMs >= (trajanjeMs * ODJAVNA_OD_DELEZA).toLong()
+            Vrsta.ODJAVNA, Vrsta.NAPOVED -> trajanjeMs > 0 && o.odMs >= (trajanjeMs * ODJAVNA_OD_DELEZA).toLong() &&
+                kOmejen >= (trajanjeMs * ODJAVNA_DO_DELEZA).toLong()
         }
     }
 
