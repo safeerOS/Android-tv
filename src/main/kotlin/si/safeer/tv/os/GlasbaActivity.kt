@@ -9357,36 +9357,44 @@ class GlasbaActivity : OsActivity() {
                                 var podnapisi: List<Podnapisi.Podnapis>? = null)
 
     /**
-     * Lastnik 5. 11. 2026 in vodja 6. 11. 2026 (pokazemo samo, kar si uporabnik res lahko ogleda): minuto pred koncem epizode
-     * poiscemo naslednjo epizodo, njene tokove in izberemo ter preverimo tok po ISTIH pravilih kot samodejna izbira
+     * Lastnik 5. 11. 2026 in vodja 6. 11. 2026 (pokazemo samo, kar si uporabnik res lahko ogleda): pred koncem epizode (od
+     * 14. 11. 2026 5 min pred koncem ali pri 90 %, [NaslednjaEpizodaPravila.iskati]) poiscemo naslednjo epizodo, njene tokove in izberemo ter preverimo tok po ISTIH pravilih kot samodejna izbira
      * ([predpomnjeniZa]: ⚡ pri debridu, pripravljen Usenet po filtru, kakovosti, jeziku in pomocniku kroga) - brez predvajanja.
-     * Rezultat (glavna nit) je null, ce epizode ali potrjenega toka ni ali je priprava presegla rok: kartice takrat ni.
-     * Ena predpriprava na epizodo (klicatelj), Usenet steje v kvoto indeksatorja kot preverba filtra.
+     * Rezultat (glavna nit) je null z razlogom, ce epizode ali potrjenega toka ni ali je priprava presegla rok: kartice takrat
+     * ni, klicatelj pa po razlogu poskusi se enkrat ([NaslednjaEpizodaPravila.ponoviti]). Usenet steje v kvoto indeksatorja
+     * kot preverba filtra; drugi poskus vzame izdaje iz predpomnilnika iskanja (30 min).
      */
-    fun pripraviNaslednjoEpizodo(sk: Jamendo.Skladba, sezona: Int, epizoda: Int, rezultat: (NaslednjaPripravljena?) -> Unit) {
+    fun pripraviNaslednjoEpizodo(sk: Jamendo.Skladba, sezona: Int, epizoda: Int,
+                                 rezultat: (NaslednjaPripravljena?, NaslednjaEpizodaPravila.Razlog) -> Unit) {
         val serija = sk.copy(id = sk.id.substringBefore('#') + (if (PreizkusPravila.jePreizkus(sk.id)) PreizkusPravila.OZNAKA else ""),
             season = 0, episode = 0)
-        val tip = Stremio.razstavi(serija)?.second ?: run { rezultat(null); return }
+        val tip = Stremio.razstavi(serija)?.second ?: run { rezultat(null, NaslednjaEpizodaPravila.Razlog.NI_SERIJE); return }
         // Diagnostiki razvijalca (samo Webtor, samo P2P) imata svojo pot brez potrditve vnaprej: kartice ni.
-        if (tip != "series" || Webtor.samoWebtor(this) || Diagnostika.samoP2p(this)) { rezultat(null); return }
+        if (tip != "series" || Webtor.samoWebtor(this) || Diagnostika.samoP2p(this)) { rezultat(null, NaslednjaEpizodaPravila.Razlog.NI_SERIJE); return }
         // Isti pogoj kot izberiTok (samodejno): izbran samo Usenet ali diagnostika samo Usenet.
         val samoUsenet = OsPravila.samoUsenetIzbran(UsenetLastni.naVoljo(this) && UsenetLastni.izbran(this), Debrid.aktivna(this) != null, false) ||
             Usenet.samoUsenet(this)
         // Iskanje tokov vprasa tudi indeksator: steje v isto kvoto kot preverba filtra (FilterViraPravila.NA_MINUTO).
         if ((Usenet.jeNaVoljo(this) || UsenetLastni.naVoljo(this)) && !UsenetFilter.smemPredpripravo()) {
-            android.util.Log.i("SafeerOsMediji", "naslednja epizoda: kvota indeksatorja - brez predpriprave"); rezultat(null); return
+            android.util.Log.i("SafeerOsMediji", "naslednja epizoda: kvota indeksatorja - brez predpriprave")
+            rezultat(null, NaslednjaEpizodaPravila.Razlog.KVOTA); return
         }
         val zacetek = android.os.SystemClock.elapsedRealtime()
+        // Visina videa za izbiro izdaje podnapisov (14. 11. 2026) - predvajalnik beremo samo na glavni niti.
+        val visinaVidea = GlasbaStoritev.predvajalnik?.videoSize?.height ?: 0
         val imaDebrid = aktivniDebrid() != null
         val lastni = UsenetLastni.vUporabi(this)
         val odpreUsenet = NaslednjaEpizodaPravila.usenetOdpriVPredpripravi(lastni)
         try {
             delavec.execute {
                 var izid: NaslednjaPripravljena? = null
+                var razlog = NaslednjaEpizodaPravila.Razlog.NI_EPIZODE
                 try {
                     val vse = try { Stremio.epizode(serija) } catch (_: Exception) { emptyList() }
                     val e = OsPravila.naslednjaEpizoda(vse.map { it.sezona to it.epizoda }, sezona, epizoda)
                         ?.let { (s, k) -> vse.firstOrNull { it.sezona == s && it.epizoda == k } }
+                    // Prazen seznam epizod je izpad dodatka (meta), ne konec serije: ponovimo.
+                    if (e == null && vse.isEmpty()) razlog = NaslednjaEpizodaPravila.Razlog.NAPAKA
                     if (e != null) {
                         val dodatni = SerijePravila.idEpizodePoImdb(Stremio.imdbZa(serija), e.id, e.sezona, e.epizoda)
                         val t = e.tokovi.ifEmpty { try { tokoviVzporedno(tip, e.id, dodatniId = dodatni, odUporabnika = false) } catch (_: Exception) { emptyList() } }
@@ -9408,6 +9416,8 @@ class GlasbaActivity : OsActivity() {
                         val vRoku = NaslednjaEpizodaPravila.vRoku(zacetek, android.os.SystemClock.elapsedRealtime())
                         android.util.Log.i("SafeerOsMediji", "naslednja epizoda: S${e.sezona}E${e.epizoda} tokov=${t.size} usenet=${pp.usenet != null} lastnih=$lastnihUstreznih " +
                             "torrentov=$torrentov neposrednih=$neposrednih samoUsenet=$samoUsenet potrjen=$potrjen vRoku=$vRoku")
+                        razlog = when { !potrjen -> NaslednjaEpizodaPravila.Razlog.NI_TOKA; !vRoku -> NaslednjaEpizodaPravila.Razlog.ROK
+                            else -> NaslednjaEpizodaPravila.Razlog.OK }
                         if (potrjen && vRoku) {
                             val np = NaslednjaPripravljena(e, serija, NaslednjaEpizodaPravila.naslovEpizode(sk.naslov, e.sezona, e.epizoda, e.ime), t, pp, usenetObZagonu = !odpreUsenet)
                             val jezikPodnapisov = Podnapisi.jezikDodatka(this@GlasbaActivity)
@@ -9418,7 +9428,13 @@ class GlasbaActivity : OsActivity() {
                                     val vsi = MedijskiViri.vsi(this@GlasbaActivity).filter { it.jeStremio }.map { it.naslov }
                                     val prefs = getSharedPreferences("safeer_mediji", MODE_PRIVATE)
                                     val naslovi = OsPravila.dodatkiZaPodnapise(vsi, prefs.getString("zadnji_podnapisi", "").orEmpty()) { SkrivnostiPravila.odtis(Stremio.osnova(it)) }
-                                    fun isci(d: List<String>) = (try { Stremio.podnapisi(d, idPodnapisov.first, idPodnapisov.second, null, null, prvi?.imeDatoteke) } catch (_: Exception) { emptyList() }).firstOrNull { it.jezik == jezikPodnapisov }
+                                    // 14. 11. 2026: podnapis izdaje, ki se z videom ujema najbolje; iz druge izdaje ga predvajalnik poravna.
+                                    fun isci(d: List<String>): Stremio.PodnapisDodatka? {
+                                        val najdeni = try { Stremio.podnapisi(d, idPodnapisov.first, idPodnapisov.second, null, null, prvi?.imeDatoteke) } catch (_: Exception) { emptyList() }
+                                        val izbran = Podnapisi.najboljsi(najdeni, jezikPodnapisov, prvi?.imeDatoteke, visinaVidea) ?: return null
+                                        Podnapisi.pripraviUskladitev(izbran, najdeni, prvi?.imeDatoteke, visinaVidea)
+                                        return izbran
+                                    }
                                     val najden = isci(naslovi) ?: OsPravila.ostaliZaPodnapise(vsi, naslovi).takeIf { it.isNotEmpty() }?.let { isci(it) }
                                     if (najden != null) {
                                         np.podnapisi = listOf(Podnapisi.izDodatka(this@GlasbaActivity, najden))
@@ -9431,11 +9447,15 @@ class GlasbaActivity : OsActivity() {
                     }
                 } catch (e: Exception) {
                     android.util.Log.w("SafeerOsMediji", "naslednja epizoda: predpriprava ${e.javaClass.simpleName}")
+                    razlog = NaslednjaEpizodaPravila.Razlog.NAPAKA
                 }
                 val koncni = izid
-                glavna.post { rezultat(koncni) }
+                val koncniRazlog = if (koncni != null) NaslednjaEpizodaPravila.Razlog.OK else razlog
+                // Meritev roka poskusa (p95 za PRIPRAVA_ROK_MS): trajanje in razlog vsakega poskusa.
+                android.util.Log.i("SafeerOsMediji", "naslednja epizoda: poskus ${koncniRazlog.name} v ${android.os.SystemClock.elapsedRealtime() - zacetek} ms")
+                glavna.post { rezultat(koncni, koncniRazlog) }
             }
-        } catch (_: java.util.concurrent.RejectedExecutionException) { rezultat(null) }
+        } catch (_: java.util.concurrent.RejectedExecutionException) { rezultat(null, NaslednjaEpizodaPravila.Razlog.NAPAKA) }
     }
 
     /**

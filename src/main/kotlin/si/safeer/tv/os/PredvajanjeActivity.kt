@@ -2399,7 +2399,14 @@ class PredvajanjeActivity : OsActivity() {
     /** Naslednja epizoda s potrjenim tokom (GlasbaActivity.pripraviNaslednjoEpizodo); brez nje kartice ni. */
     private var naslednjaPrip: GlasbaActivity.NaslednjaPripravljena? = null
     private var naslednjaIscem = false
+    /** Priprave za to epizodo ne bo vec (izid brez ponovitve ali ni Medijskega centra). */
     private var naslednjaNi = false
+    /** Lastnik 14. 11. 2026: poskusi priprave za to epizodo (najvec [NaslednjaEpizodaPravila.NAJVEC_POSKUSOV]), cas zadnjega
+     *  neuspeha (uptime) in zeton poskusa - izid poskusa, ki je presegel rok, ne velja vec. */
+    private var naslednjaPoskusov = 0
+    private var naslednjaNeuspehMs = 0L
+    private var naslednjaZeton = 0
+    private var rokPoskusa: Runnable? = null
     private var konecEpizode = false
     private var karticaPreklicana = false
     private var karticaVrsta = NaslednjaEpizodaPravila.NIC
@@ -2423,6 +2430,8 @@ class PredvajanjeActivity : OsActivity() {
 
     private fun ponastaviNaslednjo(kljuc: String) {
         naslednjaZa = kljuc; naslednjaEp = null; naslednjaPrip = null; naslednjaIscem = false; naslednjaNi = false
+        naslednjaPoskusov = 0; naslednjaNeuspehMs = 0L; naslednjaZeton++
+        rokPoskusa?.let { glavna.removeCallbacks(it) }; rokPoskusa = null
         konecEpizode = false; karticaPreklicana = false; karticaVrsta = NaslednjaEpizodaPravila.NIC; odstetoMs = 0L
         glavna.removeCallbacks(naslednjaRok)
         kartica?.visibility = View.GONE
@@ -2449,9 +2458,13 @@ class PredvajanjeActivity : OsActivity() {
                 if (karticaOdprta() && karticaVrsta == NaslednjaEpizodaPravila.PONUDI) vprasanjeOdMs = android.os.SystemClock.uptimeMillis()
                 glavna.removeCallbacks(naslednjaRok); glavna.postDelayed(naslednjaRok, NaslednjaEpizodaPravila.CAKAJ_SEZNAM_MS)
             }
-            if (!naslednjaIscem && naslednjaEp == null && !naslednjaNi && (koncano || NaslednjaEpizodaPravila.iskati(trajanje, polozaj)))
-                isciNaslednjo(sk, ep.first, ep.second, kljuc)
-            val zdajPokazi = NaslednjaEpizodaPravila.pokazi(trajanje, polozaj, koncano)
+            // Lastnik 14. 11. 2026: priprava 5 min pred koncem ali pri 90 %; po neuspehu en ponovni poskus cez minuto (ali ob koncu).
+            val zacni = if (naslednjaPoskusov == 0) koncano || NaslednjaEpizodaPravila.iskati(trajanje, polozaj)
+                else NaslednjaEpizodaPravila.zdajPonoviti(naslednjaNeuspehMs, android.os.SystemClock.uptimeMillis(), koncano)
+            if (!naslednjaIscem && naslednjaEp == null && !naslednjaNi && zacni) isciNaslednjo(sk, ep.first, ep.second, kljuc)
+            // Kartica ob zacetku odjavne spice, ce ga TheIntroDB pozna za ta posnetek (odseki so samo v pomnilniku).
+            val odjavna = if (preskokZa?.startsWith("$kljuc|") == true) NaslednjaEpizodaPravila.odjavnaOd(preskokOdseki, trajanje) else null
+            val zdajPokazi = NaslednjaEpizodaPravila.pokazi(trajanje, polozaj, koncano, odjavna)
             // Uporabnik je previl nazaj (dotik, drsnik): kartica gre stran, odstevanje znova, ko pride spet do konca.
             if (karticaOdprta() && !zdajPokazi) { kartica?.visibility = View.GONE; karticaVrsta = NaslednjaEpizodaPravila.NIC; odstetoMs = 0L }
             if (naslednjaEp != null && !karticaPreklicana && !karticaOdprta() && zdajPokazi) pokaziKartico()
@@ -2483,22 +2496,55 @@ class PredvajanjeActivity : OsActivity() {
 
     private fun isciNaslednjo(sk: Jamendo.Skladba, sezona: Int, epizoda: Int, kljuc: String) {
         val g = GlasbaActivity.instanca?.get()
-        if (g == null || g.isFinishing || g.isDestroyed) { naslednjaNi = true; return }
+        if (g == null || g.isFinishing || g.isDestroyed) {
+            // Prej tiho (brez zapisa): ce Medijskega centra ni, priprava ne more teci - zdaj je razlog v dnevniku.
+            neuspehNaslednje(sk, sezona, epizoda, kljuc, NaslednjaEpizodaPravila.Razlog.NI_MEDIJSKEGA_CENTRA)
+            return
+        }
         naslednjaIscem = true
-        g.pripraviNaslednjoEpizodo(sk, sezona, epizoda) { n ->
-            if (isFinishing || isDestroyed || naslednjaZa != kljuc) return@pripraviNaslednjoEpizodo
+        naslednjaPoskusov++
+        val zeton = ++naslednjaZeton
+        android.util.Log.i("SafeerOsMedia", "naslednja epizoda: poskus $naslednjaPoskusov za S${sezona}E$epizoda")
+        // Rok poskusa tudi na tej strani: poskus, ki caka v vrsti Medijskega centra ali obvisi, ne zapre ponovitve.
+        rokPoskusa?.let { glavna.removeCallbacks(it) }
+        val rok = Runnable {
+            if (!isFinishing && !isDestroyed && naslednjaZa == kljuc && naslednjaZeton == zeton && naslednjaIscem)
+                neuspehNaslednje(sk, sezona, epizoda, kljuc, NaslednjaEpizodaPravila.Razlog.ROK)
+        }
+        rokPoskusa = rok
+        glavna.postDelayed(rok, NaslednjaEpizodaPravila.PRIPRAVA_ROK_MS + 5_000L)
+        g.pripraviNaslednjoEpizodo(sk, sezona, epizoda) { n, razlog ->
+            if (isFinishing || isDestroyed || naslednjaZa != kljuc || naslednjaZeton != zeton) return@pripraviNaslednjoEpizodo
+            glavna.removeCallbacks(rok)
             naslednjaIscem = false
             glavna.removeCallbacks(naslednjaRok)
-            // Brez naslednje epizode ali brez potrjenega toka: kartice ni, epizoda se konca kot prej (brez »ni na voljo«).
-            if (n == null) {
-                naslednjaNi = true
-                android.util.Log.i("SafeerOsMedia", "naslednja epizoda: za S${sezona}E$epizoda ni potrjenega toka - brez kartice")
-                if (konecEpizode && GlasbaStoritev.predvajalnik == null) finish()
-                return@pripraviNaslednjoEpizodo
-            }
+            // Brez naslednje epizode ali brez potrjenega toka: en ponovni poskus, nato kartice ni (brez »ni na voljo«).
+            if (n == null) { neuspehNaslednje(sk, sezona, epizoda, kljuc, razlog); return@pripraviNaslednjoEpizodo }
             naslednjaPrip = n
             naslednjaEp = n.epizoda
             preveriNaslednjo(odstej = false)
+        }
+    }
+
+    /**
+     * Poskus priprave brez izida: po [NaslednjaEpizodaPravila.ponoviti] se en poskus cez minuto (tik v [preveriNaslednjo])
+     * ali takoj, ce je epizoda ze koncana (storitev je ustavljena, tika s predvajalnikom ni); sicer kartice ni.
+     */
+    private fun neuspehNaslednje(sk: Jamendo.Skladba, sezona: Int, epizoda: Int, kljuc: String, razlog: NaslednjaEpizodaPravila.Razlog) {
+        naslednjaIscem = false
+        naslednjaZeton++                       // pozen izid tega poskusa ne velja
+        rokPoskusa?.let { glavna.removeCallbacks(it) }; rokPoskusa = null
+        naslednjaNeuspehMs = android.os.SystemClock.uptimeMillis()
+        val znova = NaslednjaEpizodaPravila.ponoviti(razlog, naslednjaPoskusov)
+        android.util.Log.i("SafeerOsMedia", "naslednja epizoda: za S${sezona}E$epizoda ni potrjenega toka ($razlog, poskus $naslednjaPoskusov) - " +
+            if (znova) "ponovim" else "brez kartice")
+        if (!znova) {
+            naslednjaNi = true
+            if (konecEpizode && GlasbaStoritev.predvajalnik == null) finish()
+        } else if (konecEpizode && GlasbaStoritev.predvajalnik == null) {
+            isciNaslednjo(sk, sezona, epizoda, kljuc)
+            if (naslednjaIscem) { glavna.removeCallbacks(naslednjaRok); glavna.postDelayed(naslednjaRok, NaslednjaEpizodaPravila.CAKAJ_SEZNAM_MS) }
+            else if (GlasbaStoritev.predvajalnik == null) finish()
         }
     }
 

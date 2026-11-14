@@ -4,14 +4,24 @@ package si.safeer.tv.os
  * Lastnik 5. 11. 2026: »naslednja epizoda iste serije naj se zacne sama, ko je konec epizode«. Ciste funkcije (preizkus
  * tests/NaslednjaEpizodaPravilaTest.kt). Kartica je v PredvajanjeActivity, izbira toka v GlasbaActivity po isti poti kot
  * »Nadaljuj« (ista pravila in filter, ki jih je izbral uporabnik). Dodatki Stremio ne povedo, kdaj se zacne odjavna
- * spica, zato se kartica pokaze v zadnjih [ODSTEVANJE_MS] posnetka oziroma ob koncu.
+ * spica: kartica se pokaze ob zacetku odjavne, ce ga pozna TheIntroDB ([PreskokPravila]), sicer v zadnjih [ODSTEVANJE_MS].
+ *
+ * Lastnik 14. 11. 2026 (Breaking Bad S01E02, Usenet): naslednja epizoda se ni zacela. Dogodki TV: konec epizode 17:01:14,
+ * storitev se je ustavila in zaslon predvajanja se je zaprl 90 ms za tem - priprava torej ni vec tekla in kartice ni bilo:
+ * edini poskus (60 s pred koncem, rok 20 s, brez ponovitve) ni dal izida (razlog ni bil zapisan). Zato: priprava 5 min pred koncem ali
+ * pri 90 % ([iskati]), rok poskusa po zgornji meji notranjih rokov ([PRIPRAVA_ROK_MS]), ob neuspehu en ponovni poskus
+ * ([ponoviti]), izid velja do konca epizode.
  */
 object NaslednjaEpizodaPravila {
     /** Kartica odsteva toliko, preden se naslednja epizoda zacne sama. */
     const val ODSTEVANJE_MS = 10_000L
 
-    /** Seznam epizod vprasamo dodatek minuto pred koncem: ob koncu je kartica takoj pripravljena. */
-    const val ISCI_PRED_KONCEM_MS = 60_000L
+    /**
+     * Lastnik 14. 11. 2026: priprava naslednje epizode se zacne dovolj zgodaj, da uporabnik ne caka - 5 min pred koncem ali
+     * pri 90 % posnetka, kar je prej (prej 60 s pred koncem: en sam poskus z rokom 20 s ni dal izida in kartice ni bilo).
+     */
+    const val PRIPRAVA_PRED_KONCEM_MS = 5 * 60_000L
+    const val PRIPRAVA_DELEZ = 0.90
 
     /** Krajsi posnetek (napovednik, povzetek) kartice pred koncem nima - samo ob koncu. */
     const val NAJMANJ_TRAJANJA_MS = 5 * 60_000L
@@ -37,18 +47,60 @@ object NaslednjaEpizodaPravila {
     /** Posnetek je epizoda serije (video, ne v zivo, ima stevilko epizode). */
     fun jeEpizoda(video: Boolean, vZivo: Boolean, epizoda: Int): Boolean = video && !vZivo && epizoda >= 1
 
-    /** Cas, da dodatek vprasamo za seznam epizod (zadnja minuta dovolj dolgega posnetka). */
+    /** Preostanek posnetka, od katerega naprej pripravljamo: vecje od [PRIPRAVA_PRED_KONCEM_MS] in 10 % trajanja. */
+    fun pragPriprave(trajanjeMs: Long): Long =
+        maxOf(PRIPRAVA_PRED_KONCEM_MS, trajanjeMs - (trajanjeMs * PRIPRAVA_DELEZ).toLong())
+
+    /** Cas za pripravo naslednje epizode (dovolj dolg posnetek, preostanek najvec [pragPriprave]). */
     fun iskati(trajanjeMs: Long, polozajMs: Long): Boolean =
-        trajanjeMs >= NAJMANJ_TRAJANJA_MS && trajanjeMs - polozajMs in 0..ISCI_PRED_KONCEM_MS
+        trajanjeMs >= NAJMANJ_TRAJANJA_MS && trajanjeMs - polozajMs in 0..pragPriprave(trajanjeMs)
 
-    /** Kartica: ob koncu posnetka ali v njegovih zadnjih [ODSTEVANJE_MS]. */
-    fun pokazi(trajanjeMs: Long, polozajMs: Long, koncano: Boolean): Boolean =
-        koncano || (trajanjeMs >= NAJMANJ_TRAJANJA_MS && trajanjeMs - polozajMs <= ODSTEVANJE_MS)
+    /**
+     * Polozaj, od katerega je kartica vidna: zacetek odjavne spice [odjavnaOdMs] (TheIntroDB, ze preverjen s
+     * [PreskokPravila.uporabni]), ce je pred zadnjimi [ODSTEVANJE_MS], sicer zadnjih [ODSTEVANJE_MS] posnetka.
+     */
+    fun zacetekKartice(trajanjeMs: Long, odjavnaOdMs: Long? = null): Long {
+        val zadnjih = trajanjeMs - ODSTEVANJE_MS
+        return if (odjavnaOdMs != null && odjavnaOdMs in 0 until zadnjih) odjavnaOdMs else zadnjih
+    }
 
-    /** Predpriprava naslednje epizode (seznam, tokovi, izbira in preverba toka) ima toliko casa; pozen izid ne velja. */
-    const val PRIPRAVA_ROK_MS = 20_000L
+    /** Kartica: ob koncu posnetka, od zacetka odjavne spice ali v zadnjih [ODSTEVANJE_MS]. */
+    fun pokazi(trajanjeMs: Long, polozajMs: Long, koncano: Boolean, odjavnaOdMs: Long? = null): Boolean =
+        koncano || (trajanjeMs >= NAJMANJ_TRAJANJA_MS && polozajMs >= zacetekKartice(trajanjeMs, odjavnaOdMs))
+
+    /** Zacetek odjavne spice iz odsekov TheIntroDB (samo smiselni odseki, [PreskokPravila.uporabni]); null = ne vemo. */
+    fun odjavnaOd(odseki: List<PreskokPravila.Odsek>, trajanjeMs: Long): Long? =
+        PreskokPravila.uporabni(odseki, trajanjeMs).firstOrNull { it.vrsta == PreskokPravila.Vrsta.ODJAVNA }?.odMs
+
+    /**
+     * Rok enega poskusa priprave = zgornja meja notranjih rokov poti (14. 11. 2026, iz kode): seznam epizod (meta) 12 s,
+     * tokovi z Usenetom do 50,5 s (3 iskanja po 13,5 s ob meji indeksatorja in 2 premora po 5 s, UsenetIskanjePravila),
+     * preverba TorBox do 10 s = 72,5 s. Prej 20 s: ze eno pocasno iskanje Useneta in seznam epizod sta ga presegla, izid
+     * je bil zavrzen in ponovitve ni bilo. Izmerjeni p95 na TV se dopise, ko bo izmerjen (dnevnik »naslednja epizoda: poskus«).
+     */
+    const val PRIPRAVA_ROK_MS = 75_000L
 
     fun vRoku(zacetekMs: Long, zdajMs: Long): Boolean = zdajMs - zacetekMs in 0..PRIPRAVA_ROK_MS
+
+    /** Zakaj priprava ni dala epizode s potrjenim tokom; od tega je odvisen ponovni poskus ([ponoviti]). */
+    enum class Razlog { OK, NI_SERIJE, NI_EPIZODE, KVOTA, NI_TOKA, ROK, NAPAKA, NI_MEDIJSKEGA_CENTRA }
+
+    /** Ob neuspehu en ponovni poskus (lastnik 14. 11. 2026); skupaj najvec toliko poskusov na epizodo. */
+    const val NAJVEC_POSKUSOV = 2
+
+    /** Ponovni poskus po tolikem premoru (omejevalnik indeksatorja steje na minuto) ali takoj ob koncu epizode. */
+    const val PONOVI_PO_MS = 60_000L
+
+    /**
+     * Ponovimo samo, kar se lahko spremeni: kvota indeksatorja (omejevalnik na minuto), rok, napaka omrezja in »ni
+     * potrjenega toka« (dodatek ali TorBox ni odgovoril). Ni naslednje epizode, ni serija ali ni Medijskega centra - ne.
+     * Iskanje Useneta drugic ne porabi kvote: izdaje so 30 min v predpomnilniku ([Usenet.isci]).
+     */
+    fun ponoviti(razlog: Razlog, poskusov: Int): Boolean =
+        poskusov < NAJVEC_POSKUSOV && (razlog == Razlog.KVOTA || razlog == Razlog.ROK || razlog == Razlog.NAPAKA || razlog == Razlog.NI_TOKA)
+
+    /** Zacni ponovni poskus: [PONOVI_PO_MS] po neuspehu ali ob koncu epizode, ce je prej. */
+    fun zdajPonoviti(neuspehMs: Long, zdajMs: Long, koncano: Boolean): Boolean = koncano || zdajMs - neuspehMs >= PONOVI_PO_MS
 
     /**
      * Vodja 6. 11. 2026 (brez odprtih virov): sme predpriprava Usenet tudi odpreti? TorBox (pripravljeno pri TorBoxu, CDN) in

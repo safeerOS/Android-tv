@@ -1,5 +1,7 @@
 package si.safeer.tv.os
 
+import si.safeer.tv.os.NaslednjaEpizodaPravila.Razlog
+
 private var napak = 0
 
 private fun enako(opis: String, pricakovano: Any?, dobljeno: Any?) {
@@ -23,13 +25,36 @@ fun main() {
     enako("film (epizoda 0) ne", false, NaslednjaEpizodaPravila.jeEpizoda(video = true, vZivo = false, epizoda = 0))
     enako("v zivo ne", false, NaslednjaEpizodaPravila.jeEpizoda(video = true, vZivo = true, epizoda = 2))
     enako("zvok ne", false, NaslednjaEpizodaPravila.jeEpizoda(video = false, vZivo = false, epizoda = 2))
-    enako("iskanje: 61 s pred koncem se ne", false, NaslednjaEpizodaPravila.iskati(min40, min40 - 61_000))
-    enako("iskanje: 60 s pred koncem", true, NaslednjaEpizodaPravila.iskati(min40, min40 - 60_000))
+    // Lastnik 14. 11. 2026: priprava 5 min pred koncem ali pri 90 %, kar je prej (prej 60 s pred koncem).
+    val min48 = 48 * 60_000L
+    val min60 = 60 * 60_000L
+    enako("priprava: 40 min, 5:01 pred koncem se ne", false, NaslednjaEpizodaPravila.iskati(min40, min40 - 301_000))
+    enako("priprava: 40 min, 5:00 pred koncem", true, NaslednjaEpizodaPravila.iskati(min40, min40 - 300_000))
+    enako("priprava: 48 min (Breaking Bad), 4:30 pred koncem (prej sele 60 s)", true, NaslednjaEpizodaPravila.iskati(min48, min48 - 270_000))
+    enako("priprava: 60 min, 90 % je prej kot 5 min (6:00)", true, NaslednjaEpizodaPravila.iskati(min60, min60 - 360_000))
+    enako("priprava: 60 min, 6:01 pred koncem se ne", false, NaslednjaEpizodaPravila.iskati(min60, min60 - 361_000))
+    enako("prag: 22 min -> 5 min", 300_000L, NaslednjaEpizodaPravila.pragPriprave(22 * 60_000L))
+    enako("prag: 90 min -> 9 min", 540_000L, NaslednjaEpizodaPravila.pragPriprave(90 * 60_000L))
+    enako("priprava: 60 s pred koncem se vedno", true, NaslednjaEpizodaPravila.iskati(min40, min40 - 60_000))
+    enako("priprava: po koncu (polozaj za trajanjem) ne", false, NaslednjaEpizodaPravila.iskati(min40, min40 + 1_000))
+    enako("priprava: kratek posnetek (4 min) ne", false, NaslednjaEpizodaPravila.iskati(4 * 60_000L, 3 * 60_000L))
     enako("iskanje: brez trajanja ne", false, NaslednjaEpizodaPravila.iskati(0, 0))
     enako("kartica: 11 s pred koncem se ne", false, NaslednjaEpizodaPravila.pokazi(min40, min40 - 11_000, koncano = false))
     enako("kartica: 10 s pred koncem", true, NaslednjaEpizodaPravila.pokazi(min40, min40 - 10_000, koncano = false))
     enako("kartica: ob koncu vedno", true, NaslednjaEpizodaPravila.pokazi(0, 0, koncano = true))
     enako("kartica: kratek posnetek pred koncem ne", false, NaslednjaEpizodaPravila.pokazi(120_000, 115_000, koncano = false))
+    // Lastnik 14. 11. 2026: kartica ob zacetku odjavne spice, ce ga TheIntroDB pozna; sicer zadnjih 10 s.
+    val odjavna = min40 - 75_000
+    enako("kartica: ob zacetku odjavne", true, NaslednjaEpizodaPravila.pokazi(min40, odjavna, koncano = false, odjavnaOdMs = odjavna))
+    enako("kartica: tik pred odjavno ne", false, NaslednjaEpizodaPravila.pokazi(min40, odjavna - 1, koncano = false, odjavnaOdMs = odjavna))
+    enako("kartica: brez odjavne zadnjih 10 s", min40 - 10_000, NaslednjaEpizodaPravila.zacetekKartice(min40, null))
+    enako("kartica: odjavna v zadnjih 10 s ne skrajsa odstevanja", min40 - 10_000, NaslednjaEpizodaPravila.zacetekKartice(min40, min40 - 5_000))
+    enako("kartica: neveljaven zacetek odjavne ne velja", min40 - 10_000, NaslednjaEpizodaPravila.zacetekKartice(min40, -1))
+    // Odjavna iz odsekov TheIntroDB: samo smiseln odsek ODJAVNA (zadnja cetrtina, sega do konca).
+    val odsekOdjavna = PreskokPravila.Odsek(PreskokPravila.Vrsta.ODJAVNA, odjavna, null)
+    enako("odjavna iz odsekov", odjavna, NaslednjaEpizodaPravila.odjavnaOd(listOf(PreskokPravila.Odsek(PreskokPravila.Vrsta.UVOD, 60_000, 120_000), odsekOdjavna), min40))
+    enako("odjavna sredi epizode ni smiselna", null, NaslednjaEpizodaPravila.odjavnaOd(listOf(PreskokPravila.Odsek(PreskokPravila.Vrsta.ODJAVNA, min40 / 2, null)), min40))
+    enako("brez odjavne v odsekih", null, NaslednjaEpizodaPravila.odjavnaOd(listOf(PreskokPravila.Odsek(PreskokPravila.Vrsta.UVOD, 60_000, 120_000)), min40))
 
     // Meja: 3 samodejne zapored, nato »Se gledas?«.
     enako("prva: odstevanje", NaslednjaEpizodaPravila.ODSTEVAJ, NaslednjaEpizodaPravila.vrsta(0, tokPotrjen = true))
@@ -52,8 +77,46 @@ fun main() {
         NaslednjaEpizodaPravila.tokPotrjen(false, samoUsenet = true, torrentovPripravljenih = 2, neposrednih = 1))
     enako("⚡ torrent pri debridu: potrjen", true, NaslednjaEpizodaPravila.tokPotrjen(false, samoUsenet = false, torrentovPripravljenih = 1, neposrednih = 0))
     enako("neposredna povezava: potrjen", true, NaslednjaEpizodaPravila.tokPotrjen(false, samoUsenet = false, torrentovPripravljenih = 0, neposrednih = 1))
-    enako("predpriprava v roku 20 s", true, NaslednjaEpizodaPravila.vRoku(1_000, 21_000))
-    enako("predpriprava po roku ne velja", false, NaslednjaEpizodaPravila.vRoku(1_000, 21_001))
+    // Rok poskusa = zgornja meja notranjih rokov poti (meta 12 s + tokovi z Usenetom 50,5 s + TorBox 10 s); prej 20 s.
+    enako("predpriprava: 30 s je v roku (prej po roku)", true, NaslednjaEpizodaPravila.vRoku(1_000, 31_000))
+    enako("predpriprava v roku 75 s", true, NaslednjaEpizodaPravila.vRoku(1_000, 76_000))
+    enako("predpriprava po roku ne velja", false, NaslednjaEpizodaPravila.vRoku(1_000, 76_001))
+    enako("rok pokrije notranje roke poti", true, NaslednjaEpizodaPravila.PRIPRAVA_ROK_MS >= 12_000L +
+        UsenetIskanjePravila.cakajSPonovitvami(UsenetPravila.ISKANJE_CAKAJ_MS) + 10_000L)
+    // Ponovni poskus: en, samo za razloge, ki se lahko spremenijo.
+    for (r in listOf(Razlog.KVOTA, Razlog.ROK, Razlog.NAPAKA, Razlog.NI_TOKA)) {
+        enako("ponovi po prvem neuspehu: $r", true, NaslednjaEpizodaPravila.ponoviti(r, 1))
+        enako("po drugem neuspehu ne vec: $r", false, NaslednjaEpizodaPravila.ponoviti(r, 2))
+    }
+    for (r in listOf(Razlog.OK, Razlog.NI_EPIZODE, Razlog.NI_SERIJE, Razlog.NI_MEDIJSKEGA_CENTRA))
+        enako("brez ponovitve: $r", false, NaslednjaEpizodaPravila.ponoviti(r, 1))
+    enako("ponovitev: 59,9 s po neuspehu se ne", false, NaslednjaEpizodaPravila.zdajPonoviti(10_000, 69_900, koncano = false))
+    enako("ponovitev: 60 s po neuspehu", true, NaslednjaEpizodaPravila.zdajPonoviti(10_000, 70_000, koncano = false))
+    enako("ponovitev: ob koncu epizode takoj", true, NaslednjaEpizodaPravila.zdajPonoviti(10_000, 10_500, koncano = true))
+    // Potek Breaking Bad S01E02 (48 min): prvi poskus 5 min pred koncem preseze rok, drugi uspe - kartica je pripravljena
+    // pred zadnjimi 10 s (prej: en poskus 60 s pred koncem, rok 20 s, brez ponovitve -> kartice ni bilo).
+    run {
+        var poskusov = 0; var neuspeh = 0L; var iscem = false; var zacetekPoskusa = 0L; var pripravljena = -1L; var prviPoskus = -1L
+        val trajanja = listOf(80_000L, 30_000L)      // prvi poskus 80 s (cez rok), drugi 30 s
+        var polozaj = 0L
+        while (polozaj <= min48) {
+            val zdaj = polozaj
+            if (iscem && zdaj - zacetekPoskusa >= trajanja[poskusov - 1]) {
+                iscem = false
+                if (NaslednjaEpizodaPravila.vRoku(zacetekPoskusa, zdaj)) pripravljena = zdaj
+                else if (NaslednjaEpizodaPravila.ponoviti(Razlog.ROK, poskusov)) neuspeh = zdaj
+            }
+            val zacni = if (poskusov == 0) NaslednjaEpizodaPravila.iskati(min48, polozaj)
+                else NaslednjaEpizodaPravila.zdajPonoviti(neuspeh, zdaj, polozaj >= min48)
+            if (!iscem && pripravljena < 0 && poskusov < NaslednjaEpizodaPravila.NAJVEC_POSKUSOV && zacni) {
+                poskusov++; iscem = true; zacetekPoskusa = zdaj; if (prviPoskus < 0) prviPoskus = zdaj
+            }
+            polozaj += 1_000L
+        }
+        enako("potek: prvi poskus 5 min pred koncem", min48 - 300_000, prviPoskus)
+        enako("potek: dva poskusa", 2, poskusov)
+        enako("potek: naslednja pripravljena pred kartico (zadnjih 10 s)", true, pripravljena in 0 until NaslednjaEpizodaPravila.zacetekKartice(min48))
+    }
     // Brez odprtih virov (vodja 6. 11. 2026): lasten pogon se v predpripravi ne odpre - nic za zapreti.
     enako("lasten pogon: predpriprava ne odpre seje", false, NaslednjaEpizodaPravila.usenetOdpriVPredpripravi(lastniPogon = true))
     enako("TorBox in pomocnik: predpriprava sme preveriti (brez virov na napravi)", true, NaslednjaEpizodaPravila.usenetOdpriVPredpripravi(lastniPogon = false))
