@@ -46,6 +46,12 @@ fun main() {
         }
     }
 
+    // Gumb nad vidnimi podnapisi (14. 11. 2026): privzeto 132 dp, podnapis visje -> gumb nad njim z razmikom.
+    enako("brez podnapisov: osnovni odmik", 264, P.odmikGumba(264, null, 24))
+    enako("nizek podnapis (pod gumbom): osnovni odmik", 264, P.odmikGumba(264, 200, 24))
+    enako("visok podnapis (2 vrstici, pasovi): nad njim", 394, P.odmikGumba(264, 370, 24))
+    enako("neveljaven vrh: osnovni odmik", 264, P.odmikGumba(264, 0, 24))
+
     // Razclenitev: pravi odgovor (13. 11. 2026, Breaking Bad 1x2).
     val bb = """{"tvdb_id":81189,"type":"tv","season":1,"episode":2,"intro":[{"start_ms":314551,"end_ms":331127}],"credits":[{"start_ms":2848149,"end_ms":null}]}"""
     val o = P.razcleni(bb)

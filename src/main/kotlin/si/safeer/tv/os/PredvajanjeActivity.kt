@@ -2263,6 +2263,7 @@ class PredvajanjeActivity : OsActivity() {
         // Na TV napis pove tipko (»OK: Preskoci uvod«); na dotik je navaden gumb.
         g.text = if (dotik) napis else getString(R.string.os_preskok_tipka_ok, napis)
         if (g.visibility != View.VISIBLE) {
+            postaviGumbPreskoka()
             g.visibility = View.VISIBLE
             android.util.Log.i("SafeerOsMedia", "preskok: gumb ${o.vrsta.name} ($polozaj ms)")
         }
@@ -2292,10 +2293,21 @@ class PredvajanjeActivity : OsActivity() {
             g.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
             g.setOnFocusChangeListener(null)
         }
-        // Desno spodaj nad pasom z imenom in casom.
+        // Desno spodaj nad pasom z imenom in casom - in nad podnapisi, ce so vidni (PreskokPravila.odmikGumba).
         koren.addView(g, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.END).apply { bottomMargin = dp(132); rightMargin = dp(48) })
         gumbPreskoka = g
+        podnapisi.pogled.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> postaviGumbPreskoka() }
         return g
+    }
+
+    /** Gumb za preskok nad vidnimi podnapisi (nov napis spremeni velikost pogleda podnapisov). */
+    private fun postaviGumbPreskoka() {
+        val g = gumbPreskoka ?: return
+        val koren = korenPogled ?: return
+        val p = podnapisi.pogled
+        val vrh = if (p.visibility == View.VISIBLE && p.height > 0 && koren.height > 0 && p.parent === koren) koren.height - p.top else null
+        val odmik = PreskokPravila.odmikGumba(dp(132), vrh, dp(12))
+        (g.layoutParams as? FrameLayout.LayoutParams)?.let { lp -> if (lp.bottomMargin != odmik) { lp.bottomMargin = odmik; g.layoutParams = lp } }
     }
 
     /** Uptime preskoka (za meritev casa do prve slike na novem mestu); 0 = ni preskoka v teku. */

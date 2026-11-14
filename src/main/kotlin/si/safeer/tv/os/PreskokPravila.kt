@@ -46,6 +46,14 @@ object PreskokPravila {
     private const val NAJVEC_PREGLEDANIH = 16
     private const val NAJVEC_CAS_MS = 24L * 3600_000L
 
+    /**
+     * Odmik gumba od spodnjega roba (px): privzeto [osnovniPx] (nad pasom z imenom), a vedno nad vidnimi podnapisi
+     * ([vrhPodnapisovPx] = razdalja vrha podnapisov od spodnjega roba, null = ni podnapisov) z razmikom [razmikPx]. 14. 11. 2026:
+     * dolg podnapis v dveh vrsticah na sliki s pasovi (povzetek ima govor) je segal pod gumb desno spodaj.
+     */
+    fun odmikGumba(osnovniPx: Int, vrhPodnapisovPx: Int?, razmikPx: Int): Int =
+        if (vrhPodnapisovPx == null || vrhPodnapisovPx <= 0) osnovniPx else maxOf(osnovniPx, vrhPodnapisovPx + razmikPx)
+
     enum class Vrsta(val kljucApi: String) { POVZETEK("recap"), UVOD("intro"), ODJAVNA("credits"), NAPOVED("preview") }
 
     /** [doMs] null = do konca posnetka. */
