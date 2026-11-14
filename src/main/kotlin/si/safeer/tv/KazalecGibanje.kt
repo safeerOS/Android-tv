@@ -14,7 +14,7 @@ object KazalecGibanje {
         val korak: Float = 24f,
         val zamikDrzanjaMs: Long = 160,
         val zacetnaHitrost: Float = 240f,
-        val najvecjaHitrost: Float = 1600f,
+        val najvecjaHitrost: Float = 3300f, // Hi Browser 5.5 na TV ~3300 px/s pri 1920 (meritev 14. 11. 2026, ogled/hi-kazalec-1411)
         val pospesevanjeMs: Long = 600,
         val korakDrsenja: Float = 120f,
         val zacetnoDrsenje: Float = 600f,
@@ -26,8 +26,8 @@ object KazalecGibanje {
 
     fun hitrost(stopnja: Int): Nastavitve {
         return when (stopnja) {
-            0 -> Nastavitve(zacetnaHitrost = 180f, najvecjaHitrost = 1000f, pospesevanjeMs = 800)
-            2 -> Nastavitve(zacetnaHitrost = 320f, najvecjaHitrost = 2200f, pospesevanjeMs = 500)
+            0 -> Nastavitve(zacetnaHitrost = 180f, najvecjaHitrost = 2200f, pospesevanjeMs = 800)
+            2 -> Nastavitve(zacetnaHitrost = 320f, najvecjaHitrost = 4400f, pospesevanjeMs = 500)
             else -> Nastavitve()
         }
     }

@@ -41,7 +41,7 @@ fun main() {
         trenutniCas += 16L
         if (trenutniCas > 1000L) trenutniCas = 1000L
     }
-    check(kotlin.math.abs(iz.stanje.x - 960f) <= 1.5f, "T2: ${iz.stanje.x}"); preverbe++
+    check(kotlin.math.abs(iz.stanje.x - (N.korak + potInt(1000L - N.zamikDrzanjaMs, N.zacetnaHitrost, N.najvecjaHitrost, N.pospesevanjeMs.toLong()))) <= 1.5f, "T2: ${iz.stanje.x}"); preverbe++
     
     // 3. Enako s tiki na 33ms
     s = KazalecGibanje.Stanje(0f, 0f)
@@ -205,6 +205,8 @@ fun main() {
     val h7 = KazalecGibanje.hitrost(7)
     val hm1 = KazalecGibanje.hitrost(-1)
     check(h0.najvecjaHitrost < h1.najvecjaHitrost && h1.najvecjaHitrost < h2.najvecjaHitrost, "T15.1"); preverbe++
+    // Hi Browser 5.5 na TV: najvecja hitrost ~3300 px/s pri 1920, kratek pritisk ~22 px (ogled/hi-kazalec-1411/MERITEV.md)
+    check(N.najvecjaHitrost in 3000f..3600f && N.korak in 18f..30f, "T15.4 privzeto kot izmerjeni Hi Browser"); preverbe++
     check(h7 == h1, "T15.2"); preverbe++
     check(hm1 == h1, "T15.3"); preverbe++
     
@@ -286,7 +288,11 @@ fun main() {
         if (cas21 > 1000L) cas21 = 1000L
     }
     check(prvi21 > 0f && prvi21 < 15f, "T21.1 prvi tik drsenja po prihodu je majhen: $prvi21"); preverbe++
-    check(kotlin.math.abs(vsota21 - 650f) <= 14f, "T21.2 vsota drsenja od prihoda do 1 s: $vsota21"); preverbe++
+    // pricakovano iz modela (prej trdo 650 pri 1600 px/s): prihod na spodnji rob (1079) iz 880, nato drsenje do 1000 ms
+    var prihod21 = 0L
+    while (N.korak + potInt(prihod21, N.zacetnaHitrost, N.najvecjaHitrost, N.pospesevanjeMs.toLong()) < 1079f - 880f) prihod21++
+    val pricakovano21 = potInt(1000L - N.zamikDrzanjaMs - prihod21, N.zacetnoDrsenje, N.najvecjeDrsenje, N.pospesevanjeDrsenjaMs.toLong())
+    check(kotlin.math.abs(vsota21 - pricakovano21) <= 14f, "T21.2 vsota drsenja od prihoda do 1 s: $vsota21 (pricakovano $pricakovano21)"); preverbe++
 
     println("KazalecGibanjeTest: OK ($preverbe preverb)")
 }
