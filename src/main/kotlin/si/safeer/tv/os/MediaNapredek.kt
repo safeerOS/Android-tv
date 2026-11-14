@@ -27,12 +27,28 @@ object MediaNapredek {
     /** Videi s te naprave (kot VLC): zapomnimo si mesto ze od 1 min dolzine naprej. */
     private fun najkrajse(s: Jamendo.Skladba) = if (s.id.startsWith("krajevno:")) 60_000L else 600_000L
 
-    fun zapisi(c: Context, s: Jamendo.Skladba, polozaj: Long, trajanje: Long, naprava: String = "") {
+    /**
+     * Lastnik 14. 11. 2026: epizoda, ki jo je uporabnik koncal (naslednja s kartice, Nazaj pri koncu), steje kot odgledana
+     * od tega mesta naprej - (kljuc posnetka, polozaj v ms). Samo v pomnilniku, en posnetek; previjanje pred to mesto ali
+     * ogled znova oznako razveljavi ([NaslednjaEpizodaPravila.polozajZaNapredek]).
+     */
+    @Volatile private var odgledanoOd: Pair<String, Long>? = null
+
+    private fun kljucOznake(s: Jamendo.Skladba) = s.id + "|" + s.season + "|" + s.episode
+
+    fun oznaciOdgledanoOd(s: Jamendo.Skladba, polozajMs: Long) { odgledanoOd = kljucOznake(s) to polozajMs }
+
+    fun zapisi(c: Context, s: Jamendo.Skladba, polozajZdaj: Long, trajanje: Long, naprava: String = "") {
         // Ogled vsebine zasebnega dodatka se ne zapise (ZasebniDodatki): ni v Nadaljuj, Zate in ne gre drugi napravi.
         Stremio.pripravi(c)
         if (Stremio.jeZasebna(s)) return
         // Naloga 135: samodejni preizkus po gradnji ne zapise mesta ogleda.
         if (PreizkusPravila.jePreizkus(s.id)) return
+        // Lastnik 14. 11. 2026: epizoda, ki jo je uporabnik koncal, se zapise do konca, dokler predvajanje ni pred oznako
+        // (zapisujeta zaslon predvajanja in Medijski center, vsak na 5 s - brez tega bi jo zapis pri 92 % vrnil v Nadaljuj).
+        val oznaka = odgledanoOd?.takeIf { it.first == kljucOznake(s) }?.second
+        if (oznaka != null && !NaslednjaEpizodaPravila.oznakaOdgledanoVelja(polozajZdaj, oznaka)) odgledanoOd = null
+        val polozaj = NaslednjaEpizodaPravila.polozajZaNapredek(polozajZdaj, trajanje, oznaka)
         // Moj seznam (lastnik 8. 11. 2026, zgled KefinTweaks): odgledana vsebina gre s seznama sama - tudi kratek video, ki
         // ga Nadaljuj z ogledom ne zapise (slepi pregled 11).
         if (s.video && MojSeznamPravila.odgledano(polozaj, trajanje)) MedijskiViri.odstraniIzMojegaSeznama(c, s)

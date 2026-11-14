@@ -630,6 +630,11 @@ class GlasbaActivity : OsActivity() {
             if ((razdelek == VIDEO || razdelek == GLASBA) && odprtKatalog == null) izberi(razdelek)
         }
         videnPrej = true
+        // Lastnik 14. 11. 2026: Nazaj pri koncu epizode - okno serije s fokusom na naslednji epizodi (zahteva velja nekaj sekund).
+        poNazaj?.let { z ->
+            poNazaj = null
+            if (NaslednjaEpizodaPravila.zahtevaNazajVelja(z.casMs, android.os.SystemClock.uptimeMillis())) pokaziNaslednjoPoNazaj(z)
+        }
     }
 
     /** Povratni klic pomocnika Usenet te aktivnosti (en primerek - onStop odstrani samo svojega). */
@@ -9354,7 +9359,61 @@ class GlasbaActivity : OsActivity() {
                                 val tokovi: List<Stremio.Tok>, val pripravljeno: Pripravljeno,
                                 /** Lasten pogon Usenet: tok je potrjen po pogojih filtra, sejo odpre zagon ([predvajajNaslednjoEpizodo]). */
                                 val usenetObZagonu: Boolean = false,
-                                var podnapisi: List<Podnapisi.Podnapis>? = null)
+                                var podnapisi: List<Podnapisi.Podnapis>? = null,
+                                /** Kdaj je bil izid pripravljen (elapsedRealtime) - koliko casa velja: [NaslednjaEpizodaPravila.pripravljenVelja]. */
+                                val pripravljenoMs: Long = android.os.SystemClock.elapsedRealtime())
+
+    /**
+     * Lastnik 14. 11. 2026: zaslon predvajanja ob Nazaj pri koncu epizode ([NaslednjaEpizodaPravila.odgledanaObNazaj]) pusti
+     * zahtevo ([poNazaj]); Medijski center ob vrnitvi odpre okno serije s fokusom na naslednji epizodi. [sk] = epizoda, ki je
+     * igrala, [casMs] = uptimeMillis ob Nazaj ([NaslednjaEpizodaPravila.zahtevaNazajVelja]).
+     */
+    class PoNazaj(val sk: Jamendo.Skladba, val sezona: Int, val epizoda: Int, val polozajMs: Long, val trajanjeMs: Long, val casMs: Long)
+
+    /**
+     * Zadnji pripravljeni izid naslednje epizode. Uporabi ga kartica na zaslonu predvajanja ali - lastnik 14. 11. 2026 - klik
+     * na isto epizodo v oknu serije (po Nazaj pri koncu epizode): predvajanje brez novega iskanja, dokler izid velja.
+     */
+    private var pripravljenaNaslednja: NaslednjaPripravljena? = null
+
+    private fun pripravljenaVelja(idSerije: String, sezona: Int, epizoda: Int): Boolean {
+        val p = pripravljenaNaslednja ?: return false
+        return NaslednjaEpizodaPravila.pripravljenVelja(NaslednjaEpizodaPravila.kljucEpizode(p.serija.id, p.epizoda.sezona, p.epizoda.epizoda),
+            NaslednjaEpizodaPravila.kljucEpizode(idSerije, sezona, epizoda), p.pripravljenoMs, android.os.SystemClock.elapsedRealtime())
+    }
+
+    /**
+     * Lastnik 14. 11. 2026: uporabnik je pri koncu epizode pritisnil Nazaj (zahteva zaslona predvajanja, [PoNazaj]) - okno
+     * serije se odpre s fokusom na naslednji prikazani epizodi; OK nanjo vzame ze pripravljen izid. Samodejnega zagona ni.
+     * Brez naslednje epizode, s poznim seznamom epizod ali med drugo pripravo se ne zgodi nic novega.
+     */
+    private fun pokaziNaslednjoPoNazaj(z: PoNazaj) {
+        val serija = z.sk.copy(id = z.sk.id.substringBefore('#'), naslov = OsPravila.naslovBrezEpizode(z.sk.naslov), season = 0, episode = 0,
+            podnapisi = emptyList())
+        if (Stremio.razstavi(serija)?.second != "series") return
+        try {
+            delavec.execute {
+                // Seznam epizod je navadno v predpomnilniku (priprava naslednje epizode ga je vprasala pred nekaj minutami).
+                val vse = try { Stremio.epizode(serija) } catch (_: Exception) { emptyList() }
+                glavna.post {
+                    if (isFinishing || isDestroyed || !viden) return@post
+                    // Pocasen seznam epizod ali nova izbira uporabnika medtem: okna ne odpremo vec (uporabnik je ze drugje).
+                    if (!NaslednjaEpizodaPravila.zahtevaNazajVelja(z.casMs, android.os.SystemClock.uptimeMillis()) || !pripraveVTeKu.isEmpty()) {
+                        android.util.Log.i("SafeerOsMediji", "naslednja epizoda: Nazaj - seznam epizod po ${android.os.SystemClock.uptimeMillis() - z.casMs} ms ali nova izbira, okna serije ne odprem")
+                        return@post
+                    }
+                    // Prazen seznam je izpad dodatka (meta), ne konec serije: okna ne odpremo, v dnevniku pa ni »ni naslednje«.
+                    if (vse.isEmpty()) { android.util.Log.i("SafeerOsMediji", "naslednja epizoda: Nazaj - seznama epizod ni, okna serije ne odprem"); return@post }
+                    val fokus = NaslednjaEpizodaPravila.fokusPoNazaj(prikazaneEpizode(serija, vse).map { it.sezona to it.epizoda }, z.sezona, z.epizoda)
+                    val pripravljen = fokus != null && pripravljenaVelja(serija.id, fokus.first, fokus.second)
+                    android.util.Log.i("SafeerOsMediji", NaslednjaEpizodaPravila.dnevnikNazaj(z.polozajMs, z.trajanjeMs, fokus, pripravljen))
+                    if (fokus == null) return@post
+                    zadnjaEpizodaSerije[serija.id] = fokus
+                    izberiSezono(serija, vse)
+                }
+            }
+        } catch (_: java.util.concurrent.RejectedExecutionException) { }
+    }
 
     /**
      * Lastnik 5. 11. 2026 in vodja 6. 11. 2026 (pokazemo samo, kar si uporabnik res lahko ogleda): pred koncem epizode (od
@@ -9453,7 +9512,10 @@ class GlasbaActivity : OsActivity() {
                 val koncniRazlog = if (koncni != null) NaslednjaEpizodaPravila.Razlog.OK else razlog
                 // Meritev roka poskusa (p95 za PRIPRAVA_ROK_MS): trajanje in razlog vsakega poskusa.
                 android.util.Log.i("SafeerOsMediji", "naslednja epizoda: poskus ${koncniRazlog.name} v ${android.os.SystemClock.elapsedRealtime() - zacetek} ms")
-                glavna.post { rezultat(koncni, koncniRazlog) }
+                glavna.post {
+                    if (koncni != null) pripravljenaNaslednja = koncni
+                    rezultat(koncni, koncniRazlog)
+                }
             }
         } catch (_: java.util.concurrent.RejectedExecutionException) { rezultat(null, NaslednjaEpizodaPravila.Razlog.NAPAKA) }
     }
@@ -9462,11 +9524,20 @@ class GlasbaActivity : OsActivity() {
      * Zagon pripravljene naslednje epizode: ze izbrani tokovi in priprava ([NaslednjaPripravljena]) gredo v [izberiTok] brez
      * nove poizvedbe; ce izbrani tok medtem odpove, velja obstojeca rezerva (naslednji tok) v izberiTok.
      */
-    fun predvajajNaslednjoEpizodo(n: NaslednjaPripravljena) {
-        val konec = { PredvajanjeActivity.instanca?.get()?.koncajCakanjeNaslednje(); Unit }
+    fun predvajajNaslednjoEpizodo(n: NaslednjaPripravljena,
+                                  /** Klik v oknu serije (po Nazaj pri koncu epizode): kaj storiti, ce se epizode ne da predvajati; null = kartica. */
+                                  obNeuspehu: (() -> Unit)? = null) {
+        // Kartica: zaslon predvajanja caka na novo epizodo - ob prekinitvi ga zapremo. Klik v oknu serije nima cakajocega zaslona.
+        val konec = { if (obNeuspehu == null) PredvajanjeActivity.instanca?.get()?.koncajCakanjeNaslednje(); Unit }
+        val neuspeh = obNeuspehu ?: konec
+        if (pripravljenaNaslednja === n) pripravljenaNaslednja = null      // izid je porabljen
         if (isFinishing || isDestroyed) { konec(); return }
-        val sk = n.serija.copy(season = n.epizoda.sezona, episode = n.epizoda.epizoda, podnapisi = (n.serija.podnapisi + (n.podnapisi ?: emptyList())).distinctBy { it.url })
+        // 14. 11. 2026: samo podnapisi, ki jih je priprava nasla za TO epizodo. Prej so sli zraven se podnapisi epizode, ki se
+        // konca (n.serija je posnetek, ki igra, z njegovimi podnapisi iz dodatka) in so bili v naslednji epizodi prvi.
+        val sk = n.serija.copy(season = n.epizoda.sezona, episode = n.epizoda.epizoda, podnapisi = n.podnapisi.orEmpty())
         val priprava = zacniPripravo(sk.copy(naslov = n.naslov)) ?: run { konec(); return }
+        // Okno serije se naslednjic odpre pri epizodi, ki se predvaja.
+        zadnjaEpizodaSerije[n.serija.id.substringBefore('#')] = n.epizoda.sezona to n.epizoda.epizoda
         if (n.usenetObZagonu) {
             // Lasten pogon: sejo (127.0.0.1, bazen NNTP) odpre sele zagon, ko se prejsnja epizoda ne igra vec - kot »Nadaljuj«.
             naDelavcu(priprava, sk) {
@@ -9477,7 +9548,7 @@ class GlasbaActivity : OsActivity() {
                 glavna.post {
                     if (!koncajPripravo(priprava)) return@post
                     if (isFinishing || isDestroyed) { konec(); return@post }
-                    izberiTok(sk, n.naslov, n.tokovi, false, pp) { konec() }
+                    izberiTok(sk, n.naslov, n.tokovi, false, pp) { neuspeh() }
                 }
             }
             return
@@ -9485,7 +9556,7 @@ class GlasbaActivity : OsActivity() {
         if (!koncajPripravo(priprava)) { konec(); return }
         // izberiTok ob neuspehu sam pove, da vsebina ni na voljo, in zapre zaslon priprave.
         val pp = Pripravljeno(n.pripravljeno.predpomnjeni, n.pripravljeno.usenet, true)
-        izberiTok(sk, n.naslov, n.tokovi, false, pp) { konec() }
+        izberiTok(sk, n.naslov, n.tokovi, false, pp) { neuspeh() }
     }
 
     /**
@@ -9540,16 +9611,23 @@ class GlasbaActivity : OsActivity() {
             setLayerWidth(0, (4 * resources.displayMetrics.density).toInt())
         }
 
+    /** Epizode, ki jih okno serije pokaze: brez znano nerazpolozljivih ([SerijePravila.skrijEpizodo]). */
+    private fun prikazaneEpizode(sk: Jamendo.Skladba, epIzvorni: List<Stremio.Epizoda>): List<Stremio.Epizoda> {
+        val tip = Stremio.razstavi(sk)?.second ?: "series"
+        val imdbSerije = Stremio.imdbZa(sk)
+        return epIzvorni.filter {
+            val alt = SerijePravila.idEpizodePoImdb(imdbSerije, it.id, it.sezona, it.epizoda)
+            it.tokovi.isNotEmpty() || !SerijePravila.skrijEpizodo(Razpolozljivost.stanje(this, Razpolozljivost.kljuc(tip, it.id)),
+                alt?.let { a -> Razpolozljivost.stanje(this, Razpolozljivost.kljuc(tip, a)) }, alt != null)
+        }
+    }
+
     private fun izberiSezono(sk: Jamendo.Skladba, epIzvorni: List<Stremio.Epizoda>, rocno: Boolean = false) {
         val tip = Stremio.razstavi(sk)?.second ?: "series"
         val imdbSerije = Stremio.imdbZa(sk)
         fun imdbEpizode(e: Stremio.Epizoda) = SerijePravila.idEpizodePoImdb(imdbSerije, e.id, e.sezona, e.epizoda)
         
-        val ep = epIzvorni.filter {
-            val alt = imdbEpizode(it)
-            it.tokovi.isNotEmpty() || !SerijePravila.skrijEpizodo(Razpolozljivost.stanje(this, Razpolozljivost.kljuc(tip, it.id)),
-                alt?.let { a -> Razpolozljivost.stanje(this, Razpolozljivost.kljuc(tip, a)) }, alt != null)
-        }.toMutableList()
+        val ep = prikazaneEpizode(sk, epIzvorni).toMutableList()
         
         val sezone = ep.map { it.sezona }.distinct().toMutableList()
         val edinaSezona = sezone.size <= 1
@@ -9748,6 +9826,14 @@ class GlasbaActivity : OsActivity() {
             // Kot prej AlertDialog: izbira zapre pogled (epizodeNi ga odpre znova - sicer dva pogleda drug nad drugim).
             zadnjaEpizodaSerije[sk.id.substringBefore('#')] = e.sezona to e.epizoda
             dialog.dismiss()
+            // Lastnik 14. 11. 2026: epizoda, ki jo je priprava naslednje epizode ze potrdila (uporabnik je pri koncu prejsnje
+            // pritisnil Nazaj), se predvaja iz pripravljenega izida - brez novega iskanja, dokler izid velja.
+            val pripravljena = pripravljenaNaslednja?.takeIf { !rocno && pripravljenaVelja(sk.id, e.sezona, e.epizoda) }
+            if (pripravljena != null) {
+                android.util.Log.i("SafeerOsMediji", "naslednja epizoda: S${e.sezona}E${e.epizoda} iz pripravljenega izida (tokov ne iscem znova)")
+                predvajajNaslednjoEpizodo(pripravljena) { epizodeNi(sk, tip, e, epIzvorni, rocno, edinaSezona) }
+                return@setOnItemClickListener
+            }
             val naslovEp = "${sk.naslov} · ${ime(e)}"
             val pripravaKljuc = zacniPripravo(sk.copy(season = e.sezona, episode = e.epizoda), rocno, naslovEp) ?: return@setOnItemClickListener
             // Lastnik 4. 11. 2026 23:35 (TV): po predvajanju epizode OK na drugi epizodi (ali seriji) ni odprl nicesar. Ta pot
@@ -13762,6 +13848,9 @@ class GlasbaActivity : OsActivity() {
 
     companion object {
         var instanca: java.lang.ref.WeakReference<GlasbaActivity>? = null
+
+        /** Zahteva zaslona predvajanja ob Nazaj pri koncu epizode ([PoNazaj]); Medijski center jo porabi ob vrnitvi (onStart). */
+        @Volatile var poNazaj: PoNazaj? = null
         private const val NAMEN_OBDELAN = "safeer.namen.obdelan"
         /** Risanje po korakih: casovni proracun enega kosa na glavni niti. */
         private const val PRORACUN_MS = 8L

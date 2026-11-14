@@ -159,16 +159,27 @@ class PredvajanjeActivity : OsActivity() {
         glavna.postDelayed(this, 1_000)
     } }
 
-    /** [naslednjaZacela]: naslednja epizoda se zacenja s kartice - ta je odgledana ([NaslednjaEpizodaPravila.polozajZaNapredek]). */
-    private fun zapisiNapredek(naslednjaZacela: Boolean = false) {
-        if (!NaslednjaEpizodaPravila.zapisiNapredekZdaj(pripravljamNaslov != null, naslednjaZacela)) return
+    private fun zapisiNapredek() {
         val p = GlasbaStoritev.predvajalnik ?: return
         val sk = GlasbaStoritev.trenutna() ?: return
         // Sprotni tok pomocnika: napredek velja za izvirnik (nadaljevanje ga znova odpre in po potrebi spet prosi pomocnika).
         val t = SprotnaPomoc.tokZa(sk)
-        if (t != null) { if (t.izvirnik.video) MediaNapredek.zapisi(this, t.izvirnik, NaslednjaEpizodaPravila.polozajZaNapredek(t.zamikMs + p.currentPosition.coerceAtLeast(0), t.trajanjeMs, naslednjaZacela), t.trajanjeMs, t.streznikIzvirnika?.naprava.orEmpty()) }
-        else if (sk.video) MediaNapredek.zapisi(this, sk, NaslednjaEpizodaPravila.polozajZaNapredek(p.currentPosition.coerceAtLeast(0), p.duration.coerceAtLeast(0), naslednjaZacela),
-            p.duration.coerceAtLeast(0), GlasbaStoritev.streznikTrenutni?.naprava.orEmpty())
+        if (t != null) { if (t.izvirnik.video) MediaNapredek.zapisi(this, t.izvirnik, t.zamikMs + p.currentPosition.coerceAtLeast(0), t.trajanjeMs, t.streznikIzvirnika?.naprava.orEmpty()) }
+        else if (sk.video) MediaNapredek.zapisi(this, sk, p.currentPosition.coerceAtLeast(0), p.duration.coerceAtLeast(0), GlasbaStoritev.streznikTrenutni?.naprava.orEmpty())
+    }
+
+    /**
+     * Lastnik 14. 11. 2026: uporabnik je epizodo koncal (naslednja s kartice ali Nazaj pri koncu) - od tega mesta naprej
+     * steje kot odgledana ([MediaNapredek.oznaciOdgledanoOd]): tudi zapisi, ki sledijo, dokler predvajalnik stoji na tem
+     * mestu (ta zaslon vsakih 5 s, Medijski center vsakih 5 s), je ne vrnejo v »Nadaljuj«.
+     */
+    private fun oznaciOdgledano() {
+        val p = GlasbaStoritev.predvajalnik ?: return
+        val sk = GlasbaStoritev.trenutna() ?: return
+        val t = SprotnaPomoc.tokZa(sk)
+        if (t != null) MediaNapredek.oznaciOdgledanoOd(t.izvirnik, t.zamikMs + p.currentPosition.coerceAtLeast(0))
+        else MediaNapredek.oznaciOdgledanoOd(sk, p.currentPosition.coerceAtLeast(0))
+        zapisiNapredek()
     }
 
     /**
@@ -812,6 +823,7 @@ class PredvajanjeActivity : OsActivity() {
         if (besediloOdprto()) { skrijBesedilo(); return }
         if (mrezaOdprta()) { zapriMrezoVrste(); return }
         val vMapo = intent.getBooleanExtra(IZ_DATOTEK, false) && DatotekeActivity.odprta
+        nazajPriKoncuEpizode(vMedijskiCenter = !vMapo)
         if (!vMapo && !GlasbaActivity.odprta) startActivity(android.content.Intent(this, GlasbaActivity::class.java)
             .addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP))
         super.onBackPressed()
@@ -2444,6 +2456,9 @@ class PredvajanjeActivity : OsActivity() {
     private var naslednjaZeton = 0
     private var rokPoskusa: Runnable? = null
     private var konecEpizode = false
+    /** Epizoda, ki se predvaja (posnetek, sezona, epizoda), in njeno trajanje: za Nazaj po koncu, ko je storitev ze ustavljena. */
+    private var epizodaTu: Triple<Jamendo.Skladba, Int, Int>? = null
+    private var trajanjeTu = 0L
     private var karticaPreklicana = false
     private var karticaVrsta = NaslednjaEpizodaPravila.NIC
     private var odstetoMs = 0L
@@ -2467,6 +2482,7 @@ class PredvajanjeActivity : OsActivity() {
     private fun ponastaviNaslednjo(kljuc: String) {
         naslednjaZa = kljuc; naslednjaEp = null; naslednjaPrip = null; naslednjaIscem = false; naslednjaNi = false
         naslednjaPoskusov = 0; naslednjaNeuspehMs = 0L; naslednjaZeton++
+        epizodaTu = null; trajanjeTu = 0L
         rokPoskusa?.let { glavna.removeCallbacks(it) }; rokPoskusa = null
         konecEpizode = false; karticaPreklicana = false; karticaVrsta = NaslednjaEpizodaPravila.NIC; odstetoMs = 0L
         glavna.removeCallbacks(naslednjaRok)
@@ -2487,11 +2503,14 @@ class PredvajanjeActivity : OsActivity() {
             val vZivo = p.isCurrentMediaItemLive || Stremio.jeVZivo(sk)
             if (ep == null || !NaslednjaEpizodaPravila.jeEpizoda(sk.video, vZivo, ep.second) || PreizkusPravila.jePreizkus(sk.id)) return
             val (polozaj, trajanje) = polozajInTrajanje(p)
+            if (epizodaTu?.first !== sk) epizodaTu = Triple(sk, ep.first, ep.second)
+            if (trajanje > 0) trajanjeTu = trajanje
             val koncano = p.playbackState == Player.STATE_ENDED
             if (koncano && !konecEpizode) {
                 konecEpizode = true
                 // CodeRabbit 8. 11.: rok ponujene epizode tece od konca epizode, ne od odprtja kartice med predvajanjem.
-                if (karticaOdprta() && karticaVrsta == NaslednjaEpizodaPravila.PONUDI) vprasanjeOdMs = android.os.SystemClock.uptimeMillis()
+                // 14. 11. 2026: enako vprasanje »Se gledas?« - kartica je zdaj vidna ze zadnjih 60 s ali od zacetka odjavne.
+                if (karticaOdprta() && NaslednjaEpizodaPravila.rokBrezOdziva(karticaVrsta, true)) vprasanjeOdMs = android.os.SystemClock.uptimeMillis()
                 glavna.removeCallbacks(naslednjaRok); glavna.postDelayed(naslednjaRok, NaslednjaEpizodaPravila.CAKAJ_SEZNAM_MS)
             }
             // Lastnik 14. 11. 2026: priprava 5 min pred koncem ali pri 90 %; po neuspehu en ponovni poskus cez minuto (ali ob koncu).
@@ -2528,6 +2547,28 @@ class PredvajanjeActivity : OsActivity() {
     private fun odzivNaVprasanje() {
         if (karticaOdprta() && (karticaVrsta == NaslednjaEpizodaPravila.VPRASAJ || karticaVrsta == NaslednjaEpizodaPravila.PONUDI))
             vprasanjeOdMs = android.os.SystemClock.uptimeMillis()
+    }
+
+    /**
+     * Lastnik 14. 11. 2026: Nazaj pri koncu epizode (>= 90 % ali po zacetku znane odjavne spice,
+     * [NaslednjaEpizodaPravila.odgledanaObNazaj]) pomeni, da jo je uporabnik koncal: steje kot odgledana, Medijski center pa ob
+     * vrnitvi odpre okno serije s fokusom na naslednji epizodi ([GlasbaActivity.poNazaj]). Samodejnega zagona ni (Nazaj
+     * pomeni »ven«); odprta kartica naslednje epizode ima svoj Nazaj (preklic kartice). Vrnitev v mapo Datotek
+     * ([vMedijskiCenter] = false) epizodo samo oznaci.
+     */
+    private fun nazajPriKoncuEpizode(vMedijskiCenter: Boolean) {
+        if (pripravljamNaslov != null) return
+        val p = GlasbaStoritev.predvajalnik ?: return
+        val sk = GlasbaStoritev.trenutna() ?: return
+        val ep = SerijePravila.epizodaZaNadaljevanje(Stremio.razstavi(sk)?.second, sk.season, sk.episode, sk.naslov) ?: return
+        val vZivo = p.isCurrentMediaItemLive || Stremio.jeVZivo(sk)
+        if (!NaslednjaEpizodaPravila.jeEpizoda(sk.video, vZivo, ep.second) || PreizkusPravila.jePreizkus(sk.id)) return
+        val (polozaj, trajanje) = polozajInTrajanje(p)
+        val kljuc = kljucPosnetka(sk)
+        val odjavna = if (preskokZa?.startsWith("$kljuc|") == true) NaslednjaEpizodaPravila.odjavnaOd(preskokOdseki, trajanje) else null
+        if (!NaslednjaEpizodaPravila.odgledanaObNazaj(trajanje, polozaj, odjavna)) return
+        oznaciOdgledano()
+        if (vMedijskiCenter) GlasbaActivity.poNazaj = GlasbaActivity.PoNazaj(sk, ep.first, ep.second, polozaj, trajanje, android.os.SystemClock.uptimeMillis())
     }
 
     private fun isciNaslednjo(sk: Jamendo.Skladba, sezona: Int, epizoda: Int, kljuc: String) {
@@ -2589,7 +2630,15 @@ class PredvajanjeActivity : OsActivity() {
         // Pavza med odstevanjem ga ustavi: uporabnik bere ali je odsel po pijaco.
         val pavza = p != null && !p.playWhenReady && p.playbackState != Player.STATE_ENDED
         odstetoMs = NaslednjaEpizodaPravila.odsteto(odstetoMs, 1_000L, pavza)
-        if (NaslednjaEpizodaPravila.zacniZdaj(odstetoMs)) zacniNaslednjo(samodejno = true) else osveziKartico()
+        // Lastnik 14. 11. 2026: samodejni zacetek sele ob naravnem koncu epizode (kartica je vidna ze prej).
+        if (NaslednjaEpizodaPravila.zacniZdaj(odstetoMs, preostaloPredvajanja(p), konecEpizode, pavza)) zacniNaslednjo(samodejno = true) else osveziKartico()
+    }
+
+    /** Preostanek predvajanja za kartico (0 = konec); brez znanega trajanja toliko, da se sama ne zacne pred koncem. */
+    private fun preostaloPredvajanja(p: Player?): Long {
+        if (p == null || konecEpizode) return 0L
+        val (polozaj, trajanje) = polozajInTrajanje(p)
+        return if (trajanje > 0) (trajanje - polozaj).coerceAtLeast(0L) else NaslednjaEpizodaPravila.ODSTEVANJE_MS
     }
 
     private fun pokaziKartico() {
@@ -2666,15 +2715,26 @@ class PredvajanjeActivity : OsActivity() {
             karticaBesedilo?.text = ime
             karticaBesedilo?.visibility = View.VISIBLE
         } else {
-            karticaNaslov?.text = getString(R.string.os_naslednja_cez, ime, NaslednjaEpizodaPravila.preostaloSekund(odstetoMs))
+            karticaNaslov?.text = getString(R.string.os_naslednja_cez, ime,
+                NaslednjaEpizodaPravila.preostaloSekund(odstetoMs, preostaloPredvajanja(GlasbaStoritev.predvajalnik)))
             karticaBesedilo?.visibility = View.GONE
         }
     }
 
-    private fun preklicKartice() {
+    /** [nazaj]: tipka Nazaj (ne gumb »Preklici«). */
+    private fun preklicKartice(nazaj: Boolean = false) {
         karticaPreklicana = true; karticaVrsta = NaslednjaEpizodaPravila.NIC
         kartica?.visibility = View.GONE
-        if (konecEpizode && GlasbaStoritev.predvajalnik == null) finish()
+        if (konecEpizode && GlasbaStoritev.predvajalnik == null) {
+            // Lastnik 14. 11. 2026: Nazaj po koncu epizode zapre kartico in zaslon (storitev je ze ustavljena) - Medijski
+            // center pokaze okno serije s fokusom na naslednji epizodi, kot ob Nazaj med odjavno spico. Brez zagona.
+            val tu = epizodaTu
+            if (nazaj && tu != null) {
+                val t = trajanjeTu.coerceAtLeast(1L)
+                GlasbaActivity.poNazaj = GlasbaActivity.PoNazaj(tu.first, tu.second, tu.third, t, t, android.os.SystemClock.uptimeMillis())
+            }
+            finish()
+        }
     }
 
     /**
@@ -2697,7 +2757,7 @@ class PredvajanjeActivity : OsActivity() {
         val naslovNovi = n.naslov
         android.util.Log.i("SafeerOsMedia", "naslednja epizoda: S${e.sezona}E${e.epizoda} (${if (samodejno) "samodejno" else "rocno"}, zapored $zaporednihSamodejno)")
         // Mesto te epizode se zapise kot odgledano (kartica je lahko ze ob zacetku odjavne), predvajanje pred koncem se ustavi.
-        zapisiNapredek(naslednjaZacela = true)
+        oznaciOdgledano()
         GlasbaStoritev.predvajalnik?.let { if (it.playbackState != Player.STATE_ENDED) GlasbaStoritev.premorTu() }
         pripravljamNaslov = naslovNovi
         zagonovObOdprtju = GlasbaStoritev.zagonov
@@ -3023,7 +3083,7 @@ class PredvajanjeActivity : OsActivity() {
         }
         if (karticaOdprta()) when (dogodek.keyCode) {
             // Kartica naslednje epizode: Nazaj jo preklice; levo, desno in OK so za njena gumba (ne previjanje in pavza pod njo).
-            KeyEvent.KEYCODE_BACK -> { if (dogodek.action == KeyEvent.ACTION_UP) preklicKartice(); return true }
+            KeyEvent.KEYCODE_BACK -> { if (dogodek.action == KeyEvent.ACTION_UP) preklicKartice(nazaj = true); return true }
             KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> return true
             KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
                 if (kartica?.findFocus() == null) gumbZdaj?.requestFocus()

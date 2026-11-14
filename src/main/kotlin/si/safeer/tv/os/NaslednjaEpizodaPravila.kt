@@ -4,17 +4,29 @@ package si.safeer.tv.os
  * Lastnik 5. 11. 2026: »naslednja epizoda iste serije naj se zacne sama, ko je konec epizode«. Ciste funkcije (preizkus
  * tests/NaslednjaEpizodaPravilaTest.kt). Kartica je v PredvajanjeActivity, izbira toka v GlasbaActivity po isti poti kot
  * »Nadaljuj« (ista pravila in filter, ki jih je izbral uporabnik). Dodatki Stremio ne povedo, kdaj se zacne odjavna
- * spica: kartica se pokaze ob zacetku odjavne, ce ga pozna TheIntroDB ([PreskokPravila]), sicer v zadnjih [ODSTEVANJE_MS].
+ * spica: kartica se pokaze ob zacetku odjavne, ce ga pozna TheIntroDB ([PreskokPravila]), sicer v zadnjih
+ * [KARTICA_PRED_KONCEM_MS]; samodejni zacetek je sele ob naravnem koncu epizode ([zacniZdaj]).
  *
  * Lastnik 14. 11. 2026 (epizoda serije, Usenet): naslednja epizoda se ni zacela. Dogodki TV: ob koncu epizode se je
  * storitev ustavila in zaslon predvajanja se je zaprl 90 ms za tem - priprava torej ni vec tekla in kartice ni bilo:
  * edini poskus (60 s pred koncem, rok 20 s, brez ponovitve) ni dal izida (razlog ni bil zapisan). Zato: priprava 5 min pred koncem ali
  * pri 90 % ([iskati]), rok poskusa po zgornji meji notranjih rokov ([PRIPRAVA_ROK_MS]), ob neuspehu en ponovni poskus
  * ([ponoviti]), izid velja do konca epizode.
+ *
+ * Lastnik 14. 11. 2026 (drugi primer): uporabnik je med odjavno spico pritisnil Nazaj in naslednjo epizodo zagnal rocno.
+ * Zato: Nazaj pri koncu epizode ([odgledanaObNazaj]) jo steje kot odgledano, Medijski center odpre okno serije s fokusom na
+ * naslednji epizodi ([fokusPoNazaj]) in OK nanjo predvaja iz ze pripravljenega izida ([pripravljenVelja]). Samodejnega zagona
+ * ob Nazaj ni (Nazaj pomeni »ven«).
  */
 object NaslednjaEpizodaPravila {
-    /** Kartica odsteva toliko, preden se naslednja epizoda zacne sama. */
+    /** Kartica je vidna vsaj toliko, preden se naslednja epizoda zacne sama (odstevanje kartice, ki se pokaze sele ob koncu). */
     const val ODSTEVANJE_MS = 10_000L
+
+    /**
+     * Lastnik 14. 11. 2026: kartica brez znanega zacetka odjavne spice je vidna zadnjih toliko (prej zadnjih 10 s - uporabnik
+     * je med odjavno spico odsel z Nazaj, preden se je pokazala).
+     */
+    const val KARTICA_PRED_KONCEM_MS = 60_000L
 
     /**
      * Lastnik 14. 11. 2026: priprava naslednje epizode se zacne dovolj zgodaj, da uporabnik ne caka - 5 min pred koncem ali
@@ -57,30 +69,74 @@ object NaslednjaEpizodaPravila {
 
     /**
      * Polozaj, od katerega je kartica vidna: zacetek odjavne spice [odjavnaOdMs] (TheIntroDB, ze preverjen s
-     * [PreskokPravila.uporabni]), ce je pred zadnjimi [ODSTEVANJE_MS], sicer zadnjih [ODSTEVANJE_MS] posnetka.
+     * [PreskokPravila.uporabni]), a najpozneje [ODSTEVANJE_MS] pred koncem; brez znane odjavne zadnjih [KARTICA_PRED_KONCEM_MS].
      */
-    fun zacetekKartice(trajanjeMs: Long, odjavnaOdMs: Long? = null): Long {
-        val zadnjih = trajanjeMs - ODSTEVANJE_MS
-        return if (odjavnaOdMs != null && odjavnaOdMs in 0 until zadnjih) odjavnaOdMs else zadnjih
-    }
+    fun zacetekKartice(trajanjeMs: Long, odjavnaOdMs: Long? = null): Long =
+        if (odjavnaOdMs != null && odjavnaOdMs >= 0) minOf(odjavnaOdMs, trajanjeMs - ODSTEVANJE_MS) else trajanjeMs - KARTICA_PRED_KONCEM_MS
 
-    /** Kartica: ob koncu posnetka, od zacetka odjavne spice ali v zadnjih [ODSTEVANJE_MS]. */
+    /** Kartica: ob koncu posnetka, od zacetka odjavne spice ali v zadnjih [KARTICA_PRED_KONCEM_MS]. */
     fun pokazi(trajanjeMs: Long, polozajMs: Long, koncano: Boolean, odjavnaOdMs: Long? = null): Boolean =
         koncano || (trajanjeMs >= NAJMANJ_TRAJANJA_MS && polozajMs >= zacetekKartice(trajanjeMs, odjavnaOdMs))
 
     /**
-     * Mesto, ki ga zapisemo za Nadaljuj, ko se naslednja epizoda zacne s kartice: kartica je lahko ze ob zacetku odjavne
-     * (TheIntroDB dovoli od 75 % naprej), zato epizodo zapisemo kot odgledano (do konca), sicer bi ostala v »Nadaljuj«
-     * pri npr. 80 %. Brez znanega trajanja ostane trenutno mesto.
+     * Mesto za zapis napredka (Nadaljuj). Epizoda, ki jo je uporabnik koncal - naslednja se je zacela s kartice ali je pri
+     * koncu pritisnil Nazaj ([odgledanaObNazaj]) - steje kot odgledana od [odgledanoOdMs] naprej: zapise se do konca, tudi ce
+     * predvajalnik se stoji na tem mestu ali predvaja naprej (zapis vsakih 5 s bi jo sicer vrnil v »Nadaljuj« pri npr. 92 %).
+     * Previjanje pred to mesto ali ogled znova oznako razveljavi ([oznakaOdgledanoVelja]). null = ni oznake; brez znanega
+     * trajanja ostane trenutno mesto.
      */
-    fun polozajZaNapredek(polozajMs: Long, trajanjeMs: Long, naslednjaZacela: Boolean): Long =
-        if (naslednjaZacela && trajanjeMs > 0) trajanjeMs else polozajMs
+    fun polozajZaNapredek(polozajMs: Long, trajanjeMs: Long, odgledanoOdMs: Long?): Long =
+        if (odgledanoOdMs != null && trajanjeMs > 0 && oznakaOdgledanoVelja(polozajMs, odgledanoOdMs)) trajanjeMs else polozajMs
+
+    /** Oznaka »odgledano od« velja, dokler predvajanje ni pred tem mestom. */
+    fun oznakaOdgledanoVelja(polozajMs: Long, odgledanoOdMs: Long): Boolean = polozajMs >= odgledanoOdMs
+
+    /** Nazaj od tolikega dela epizode naprej (ali po zacetku znane odjavne spice) pomeni, da je uporabnik epizodo koncal. */
+    const val ODGLEDANO_OB_NAZAJ_DELEZ = 0.90
 
     /**
-     * Napredek sproti (tik, onStop): med pripravo novega posnetka je trenutna se stara epizoda (ustavljena pri npr. 80 %) -
-     * njen zapis bi pobrisal oznako »odgledano« iz [polozajZaNapredek] in jo vrnil v Nadaljuj. Takrat ne zapisujemo.
+     * Lastnik 14. 11. 2026: Nazaj pri koncu epizode - epizoda steje kot odgledana (prej sele pri 95 %, [OsPravila.odgledano]:
+     * Nazaj med odjavno spico pri 90-95 % jo je pustil v »Nadaljuj«). [odjavnaOdMs] = zacetek odjavne iz TheIntroDB ali null.
      */
-    fun zapisiNapredekZdaj(pripravljamNovega: Boolean, naslednjaZacela: Boolean): Boolean = naslednjaZacela || !pripravljamNovega
+    fun odgledanaObNazaj(trajanjeMs: Long, polozajMs: Long, odjavnaOdMs: Long? = null): Boolean =
+        trajanjeMs >= NAJMANJ_TRAJANJA_MS && (polozajMs >= (trajanjeMs * ODGLEDANO_OB_NAZAJ_DELEZ).toLong() ||
+            (odjavnaOdMs != null && odjavnaOdMs >= 0 && polozajMs >= odjavnaOdMs))
+
+    /**
+     * Epizoda, na katero gre fokus v oknu serije po Nazaj pri koncu epizode ([sezona], [epizoda]): naslednja med PRIKAZANIMI
+     * ([prikazane] = sezona to epizoda; skrite niso na voljo). null = naslednje ni - ne zgodi se nic novega.
+     */
+    fun fokusPoNazaj(prikazane: List<Pair<Int, Int>>, sezona: Int, epizoda: Int): Pair<Int, Int>? =
+        OsPravila.naslednjaEpizoda(prikazane, sezona, epizoda)
+
+    /**
+     * Zahteva zaslona predvajanja »Nazaj pri koncu epizode« velja toliko: Medijski center jo porabi ob vrnitvi; seznam epizod,
+     * ki pride pozneje (pocasen dodatek), okna ne odpre vec - uporabnik je medtem ze drugje.
+     */
+    const val NAZAJ_ZAHTEVA_VELJA_MS = 5_000L
+
+    fun zahtevaNazajVelja(zahtevaMs: Long, zdajMs: Long): Boolean = zdajMs - zahtevaMs in 0..NAZAJ_ZAHTEVA_VELJA_MS
+
+    /**
+     * Pripravljen izid naslednje epizode (izbrani in preverjeni tokovi) velja za ISTO epizodo najvec toliko od priprave:
+     * priprava je do ~10 min pred koncem epizode in kartica ga uporabi ob koncu; po Nazaj se uporabnik odloci v nekaj minutah.
+     * Starejsi izid se zavrze in klik isce znova (povezave debrida in dodatkov zastarajo; iskanje Useneta je 30 min v
+     * predpomnilniku, zato novo iskanje ne porabi kvote indeksatorja).
+     */
+    const val PRIPRAVLJEN_VELJA_MS = 15 * 60_000L
+
+    /** Kljuc epizode serije za primerjavo pripravljenega izida z izbrano epizodo (id serije brez oznake toka za »#«). */
+    fun kljucEpizode(idSerije: String, sezona: Int, epizoda: Int): String = idSerije.substringBefore('#') + "|S" + sezona + "E" + epizoda
+
+    fun pripravljenVelja(kljucPripravljene: String?, kljucIzbrane: String, pripravljenoMs: Long, zdajMs: Long): Boolean =
+        kljucPripravljene != null && kljucPripravljene == kljucIzbrane && zdajMs - pripravljenoMs in 0..PRIPRAVLJEN_VELJA_MS
+
+    /** Vrstica dnevnika ob Nazaj pri koncu epizode: »naslednja epizoda: Nazaj pri 93 % -> fokus S1E2, pripravljen=da«. */
+    fun dnevnikNazaj(polozajMs: Long, trajanjeMs: Long, fokus: Pair<Int, Int>?, pripravljen: Boolean): String {
+        val odstotek = if (trajanjeMs > 0) (polozajMs * 100 / trajanjeMs).coerceIn(0L, 100L) else 0L
+        return "naslednja epizoda: Nazaj pri $odstotek % -> " + (if (fokus == null) "ni naslednje epizode"
+            else "fokus S${fokus.first}E${fokus.second}, pripravljen=${if (pripravljen) "da" else "ne"}")
+    }
 
     /** Zacetek odjavne spice iz odsekov TheIntroDB (samo smiselni odseki, [PreskokPravila.uporabni]); null = ne vemo. */
     fun odjavnaOd(odseki: List<PreskokPravila.Odsek>, trajanjeMs: Long): Long? =
@@ -141,8 +197,12 @@ object NaslednjaEpizodaPravila {
         else -> ODSTEVAJ
     }
 
-    /** Kartica, ki se brez odziva zapre (zaslon se sme ugasniti): vprasanje vedno, ponujena epizoda po koncu predvajanja. */
-    fun rokBrezOdziva(vrsta: Int, konec: Boolean): Boolean = vrsta == VPRASAJ || (vrsta == PONUDI && konec)
+    /**
+     * Kartica, ki se brez odziva zapre (zaslon se sme ugasniti): vprasanje in ponujena epizoda, obe sele PO KONCU predvajanja.
+     * 14. 11. 2026: kartica je vidna ze zadnjih 60 s ali od zacetka odjavne - rok vprasanja od odprtja kartice bi zaslon
+     * predvajanja zaprl pred koncem epizode (prej se je vprasanje pokazalo 10 s pred koncem).
+     */
+    fun rokBrezOdziva(vrsta: Int, konec: Boolean): Boolean = konec && (vrsta == VPRASAJ || vrsta == PONUDI)
 
     /** Stevec samodejnih epizod: samodejna +1, izbira uporabnika (gumb, tipka) ga postavi na nic. */
     fun zaporednihPo(prej: Int, samodejno: Boolean): Int = if (samodejno) prej + 1 else 0
@@ -150,10 +210,24 @@ object NaslednjaEpizodaPravila {
     /** Odsteto po enem koraku; med pavzo odstevanje stoji. */
     fun odsteto(prejMs: Long, korakMs: Long, pavza: Boolean): Long = if (pavza) prejMs else prejMs + korakMs
 
-    /** Sekund do samodejnega zacetka (zaokrozeno navzgor, za napis »cez 10 s«). */
-    fun preostaloSekund(odstetoMs: Long): Int = (((ODSTEVANJE_MS - odstetoMs).coerceIn(0L, ODSTEVANJE_MS) + 999L) / 1000L).toInt()
+    /** Znotraj tolikega preostanka velja epizoda za koncano (en tik): predvajalnik pride do konca pred naslednjim tikom. */
+    const val KONEC_BLIZU_MS = 1_000L
 
-    fun zacniZdaj(odstetoMs: Long): Boolean = odstetoMs >= ODSTEVANJE_MS
+    /**
+     * Sekund do samodejnega zacetka (zaokrozeno navzgor, za napis »cez N s«): vecje od preostanka predvajanja
+     * [preostaloPredvajanjaMs] (0 = konec) in preostanka odstevanja kartice.
+     */
+    fun preostaloSekund(odstetoMs: Long, preostaloPredvajanjaMs: Long): Int =
+        ((maxOf((ODSTEVANJE_MS - odstetoMs).coerceIn(0L, ODSTEVANJE_MS), preostaloPredvajanjaMs.coerceAtLeast(0L)) + 999L) / 1000L).toInt()
+
+    /**
+     * Lastnik 14. 11. 2026: kartica je vidna prej (zadnjih 60 s ali od zacetka odjavne), samodejni zacetek pa ostane sele ob
+     * NARAVNEM KONCU epizode: kartica je bila vidna vsaj [ODSTEVANJE_MS] (pavza ne steje) IN epizoda je koncana ([konec])
+     * ali do konca manjka najvec [KONEC_BLIZU_MS]. Zastoj pred koncem zato ne preskoci preostanka (prej je odstevanje teklo
+     * tudi med zastojem). Med pavzo ([pavza]) se ne zacne nikoli - tudi ne v zadnji sekundi (uporabnik bere ali je odsel).
+     */
+    fun zacniZdaj(odstetoMs: Long, preostaloPredvajanjaMs: Long, konec: Boolean, pavza: Boolean = false): Boolean =
+        !pavza && odstetoMs >= ODSTEVANJE_MS && (konec || preostaloPredvajanjaMs <= KONEC_BLIZU_MS)
 
     /**
      * CodeRabbit 6. 11. 2026: tik, ki je kartico sele odprl, je v istem klicu ze odstel sekundo - prvi napis je bil
