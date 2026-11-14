@@ -155,6 +155,8 @@ class PredvajanjeActivity : OsActivity() {
         if (++tikov % 5 == 0) zapisiNapredek()
         preveriNaslednjo(odstej = true)
         preveriPreskok()
+        // Slepi pregled 14. 11. 2026 (S5): referenca za uskladitev je prisla, ko je bil podnapis ze prebran - ob premoru znova.
+        GlasbaStoritev.predvajalnik?.let { p -> if (Podnapisi.ponovnoPrebratiZdaj(p)) GlasbaStoritev.ponovnoNaloziPodnapise() }
         prilagodiOsvezevanje()
         glavna.postDelayed(this, 1_000)
     } }
@@ -728,7 +730,7 @@ class PredvajanjeActivity : OsActivity() {
         osvezi()
         glavna.post(tik)
         // E2: ce zaslon po koncu epizode se caka na seznam epizod, rok cakanja (ustavljen v onStop) znova.
-        if (konecEpizode && naslednjaIscem) glavna.postDelayed(naslednjaRok, NaslednjaEpizodaPravila.CAKAJ_SEZNAM_MS)
+        if (konecEpizode && naslednjaIscem) cakajPoKoncu()
         zbudi()
         if (dotik) glavna.post { if (!isFinishing && !predlogiOdprti()) odpriPredloge() }
         zatemniIzNamena()
@@ -1887,8 +1889,9 @@ class PredvajanjeActivity : OsActivity() {
                 val k = izbira - 1
                 when {
                     izbira == 0 -> Podnapisi.pokaziZamik(this)
-                    k == 0 -> { Podnapisi.izklopiDodatek(this, p); posodobiPodnapise() }
-                    videa && k == 1 -> Podnapisi.izberi(this, p) { posodobiPodnapise() }
+                    // CodeRabbit 14. 11. 2026: izklop ali podnapisi videa razveljavita izbiro jezika, ki se caka na referenco.
+                    k == 0 -> { izbiraPodnapisa++; Podnapisi.izklopiDodatek(this, p); posodobiPodnapise() }
+                    videa && k == 1 -> { izbiraPodnapisa++; Podnapisi.izberi(this, p) { posodobiPodnapise() } }
                     else -> naloziPodnapis(najdeni, jeziki[k - zamik])
                 }
             }.show()
@@ -1898,17 +1901,22 @@ class PredvajanjeActivity : OsActivity() {
      * Podnapis v [jezik] z izdajo, ki se z videom ujema najbolje, gre v tok na istem mestu; jezik si zapomnimo. Ce je iz druge
      * izdaje, se pred tem v ozadju pripravi samodejna uskladitev ([Podnapisi.pripraviUskladitev], 14. 11. 2026).
      */
+    /** Zeton zadnje izbire podnapisa v meniju ([naloziPodnapis]). */
+    private var izbiraPodnapisa = 0
+
     private fun naloziPodnapis(najdeni: List<Stremio.PodnapisDodatka>, jezik: String) {
         val p0 = GlasbaStoritev.predvajalnik ?: return
         val sk = GlasbaStoritev.trenutna()
         val imeDatoteke = sk?.imeDatoteke
-        val visina = p0.videoSize.height
+        val visina = Podnapisi.visinaVidea(p0)
         val prvi = Podnapisi.najboljsi(najdeni, jezik, imeDatoteke, visina) ?: return
         val kljuc = sk?.id
+        // Slepi pregled 14. 11. 2026 (S5): uporabnik izbere znova, preden se prenese referenca - velja zadnja izbira.
+        val zeton = ++izbiraPodnapisa
         delavec.execute {
             Podnapisi.pripraviUskladitev(prvi, najdeni, imeDatoteke, visina)
             runOnUiThread {
-                if (isFinishing || GlasbaStoritev.trenutna()?.id != kljuc) return@runOnUiThread
+                if (isFinishing || GlasbaStoritev.trenutna()?.id != kljuc || zeton != izbiraPodnapisa) return@runOnUiThread
                 val p = GlasbaStoritev.predvajalnik ?: return@runOnUiThread
                 if (!GlasbaStoritev.dodajPodnapise(listOf(Podnapisi.izDodatka(this, prvi)))) {
                     android.widget.Toast.makeText(this, R.string.podnapisi_ne_gre, android.widget.Toast.LENGTH_LONG).show()
@@ -2001,7 +2009,7 @@ class PredvajanjeActivity : OsActivity() {
         val urlToka = sk.zvok
         val glaveToka = SpletniVir.glaveToka(urlToka)
         val imeDatoteke = sk.imeDatoteke
-        val visina = p0.videoSize.height
+        val visina = Podnapisi.visinaVidea(p0)
         delavec.execute {
             val odtis = if (urlToka.isNotEmpty()) Podnapisi.odtisToka(urlToka, glaveToka) else null
             // 14. 11. 2026: podnapis izdaje, ki se z videom ujema najbolje (ne prvi po dodatku); iz druge izdaje ga poravnamo.
@@ -2274,8 +2282,8 @@ class PredvajanjeActivity : OsActivity() {
         })
         // Na TV napis pove tipko (»OK: Preskoci uvod«); na dotik je navaden gumb.
         g.text = if (dotik) napis else getString(R.string.os_preskok_tipka_ok, napis)
+        postaviGumbPreskoka()
         if (g.visibility != View.VISIBLE) {
-            postaviGumbPreskoka()
             g.visibility = View.VISIBLE
             android.util.Log.i("SafeerOsMedia", "preskok: gumb ${o.vrsta.name} ($polozaj ms)")
         }
@@ -2308,7 +2316,9 @@ class PredvajanjeActivity : OsActivity() {
         // Desno spodaj nad pasom z imenom in casom - in nad podnapisi, ce so vidni (PreskokPravila.odmikGumba).
         koren.addView(g, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.END).apply { bottomMargin = dp(132); rightMargin = dp(48) })
         gumbPreskoka = g
-        podnapisi.pogled.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> postaviGumbPreskoka() }
+        // Slepi pregled 14. 11. 2026 (N5): ne med postavitvijo (requestLayout v onLayoutChange) - po njej; skrite podnapise
+        // (GONE, listener se ne sprozi) ujame tik preskoka ([postaviGumbPreskoka] ob vsakem tiku z vidnim gumbom).
+        podnapisi.pogled.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> glavna.post { postaviGumbPreskoka() } }
         return g
     }
 
@@ -2453,6 +2463,9 @@ class PredvajanjeActivity : OsActivity() {
      *  neuspeha (uptime) in zeton poskusa - izid poskusa, ki je presegel rok, ne velja vec. */
     private var naslednjaPoskusov = 0
     private var naslednjaNeuspehMs = 0L
+    /** Uptime zacetka poskusa, ki tece (rok cakanja po koncu, [NaslednjaEpizodaPravila.cakajPoKoncuMs]), in razlog zadnjega neuspeha. */
+    private var naslednjaPoskusOdMs = 0L
+    private var naslednjaRazlog = NaslednjaEpizodaPravila.Razlog.NAPAKA
     private var naslednjaZeton = 0
     private var rokPoskusa: Runnable? = null
     private var konecEpizode = false
@@ -2475,6 +2488,13 @@ class PredvajanjeActivity : OsActivity() {
     }
 
     private fun karticaOdprta() = kartica?.visibility == View.VISIBLE
+
+    /** Rok cakanja po koncu epizode znova: dokler poskus, ki tece, ne doseze roka (slepi pregled 14. 11. 2026, V1). */
+    private fun cakajPoKoncu() {
+        glavna.removeCallbacks(naslednjaRok)
+        glavna.postDelayed(naslednjaRok, NaslednjaEpizodaPravila.cakajPoKoncuMs(android.os.SystemClock.uptimeMillis(),
+            if (naslednjaIscem) naslednjaPoskusOdMs else null))
+    }
 
     /** Storitev je po koncu epizode ustavljena, zaslon pa caka na seznam epizod ali na izbiro na kartici. */
     private fun naslednjaDrzi(): Boolean = konecEpizode && !karticaPreklicana && (naslednjaIscem || karticaOdprta())
@@ -2511,11 +2531,19 @@ class PredvajanjeActivity : OsActivity() {
                 // CodeRabbit 8. 11.: rok ponujene epizode tece od konca epizode, ne od odprtja kartice med predvajanjem.
                 // 14. 11. 2026: enako vprasanje »Se gledas?« - kartica je zdaj vidna ze zadnjih 60 s ali od zacetka odjavne.
                 if (karticaOdprta() && NaslednjaEpizodaPravila.rokBrezOdziva(karticaVrsta, true)) vprasanjeOdMs = android.os.SystemClock.uptimeMillis()
-                glavna.removeCallbacks(naslednjaRok); glavna.postDelayed(naslednjaRok, NaslednjaEpizodaPravila.CAKAJ_SEZNAM_MS)
+                cakajPoKoncu()
             }
             // Lastnik 14. 11. 2026: priprava 5 min pred koncem ali pri 90 %; po neuspehu en ponovni poskus cez minuto (ali ob koncu).
-            val zacni = if (naslednjaPoskusov == 0) koncano || NaslednjaEpizodaPravila.iskati(trajanje, polozaj)
-                else NaslednjaEpizodaPravila.zdajPonoviti(naslednjaNeuspehMs, android.os.SystemClock.uptimeMillis(), koncano)
+            // Slepi pregled 14. 11. 2026 (N2): izid, starejsi od 15 min (dolga pavza pred koncem), se poisce znova.
+            naslednjaPrip?.let { n ->
+                if (!karticaOdprta() && !NaslednjaEpizodaPravila.izidSvez(n.pripravljenoMs, android.os.SystemClock.elapsedRealtime())) {
+                    android.util.Log.i("SafeerOsMedia", "naslednja epizoda: pripravljen izid je zastarel - iscem znova")
+                    naslednjaPrip = null; naslednjaEp = null; naslednjaPoskusov = 0; naslednjaNi = false
+                }
+            }
+            val vOknu = NaslednjaEpizodaPravila.iskati(trajanje, polozaj)
+            val zacni = if (naslednjaPoskusov == 0) koncano || vOknu
+                else NaslednjaEpizodaPravila.zdajPonoviti(naslednjaNeuspehMs, android.os.SystemClock.uptimeMillis(), koncano, vOknu, naslednjaRazlog)
             if (!naslednjaIscem && naslednjaEp == null && !naslednjaNi && zacni) isciNaslednjo(sk, ep.first, ep.second, kljuc)
             // Kartica ob zacetku odjavne spice, ce ga TheIntroDB pozna za ta posnetek (odseki so samo v pomnilniku).
             val odjavna = if (preskokZa?.startsWith("$kljuc|") == true) NaslednjaEpizodaPravila.odjavnaOd(preskokOdseki, trajanje) else null
@@ -2558,7 +2586,17 @@ class PredvajanjeActivity : OsActivity() {
      */
     private fun nazajPriKoncuEpizode(vMedijskiCenter: Boolean) {
         if (pripravljamNaslov != null) return
-        val p = GlasbaStoritev.predvajalnik ?: return
+        val p = GlasbaStoritev.predvajalnik
+        if (p == null) {
+            // Slepi pregled 14. 11. 2026 (N1): po koncu epizode je storitev ustavljena (napredek je ze zapisan do konca) -
+            // okno serije s fokusom na naslednji tudi, ce kartice ni (priprava se tece ali je bila preklicana z gumbom).
+            val tu = epizodaTu
+            if (konecEpizode && vMedijskiCenter && tu != null) {
+                val t = trajanjeTu.coerceAtLeast(1L)
+                GlasbaActivity.poNazaj = GlasbaActivity.PoNazaj(tu.first, tu.second, tu.third, t, t, android.os.SystemClock.uptimeMillis())
+            }
+            return
+        }
         val sk = GlasbaStoritev.trenutna() ?: return
         val ep = SerijePravila.epizodaZaNadaljevanje(Stremio.razstavi(sk)?.second, sk.season, sk.episode, sk.naslov) ?: return
         val vZivo = p.isCurrentMediaItemLive || Stremio.jeVZivo(sk)
@@ -2580,6 +2618,7 @@ class PredvajanjeActivity : OsActivity() {
         }
         naslednjaIscem = true
         naslednjaPoskusov++
+        naslednjaPoskusOdMs = android.os.SystemClock.uptimeMillis()
         val zeton = ++naslednjaZeton
         android.util.Log.i("SafeerOsMedia", "naslednja epizoda: poskus $naslednjaPoskusov za S${sezona}E$epizoda")
         // Rok poskusa tudi na tej strani: poskus, ki caka v vrsti Medijskega centra ali obvisi, ne zapre ponovitve.
@@ -2589,7 +2628,7 @@ class PredvajanjeActivity : OsActivity() {
                 neuspehNaslednje(sk, sezona, epizoda, kljuc, NaslednjaEpizodaPravila.Razlog.ROK)
         }
         rokPoskusa = rok
-        glavna.postDelayed(rok, NaslednjaEpizodaPravila.PRIPRAVA_ROK_MS + 5_000L)
+        glavna.postDelayed(rok, NaslednjaEpizodaPravila.ROK_POSKUSA_MS)
         g.pripraviNaslednjoEpizodo(sk, sezona, epizoda) { n, razlog ->
             if (isFinishing || isDestroyed || naslednjaZa != kljuc || naslednjaZeton != zeton) return@pripraviNaslednjoEpizodo
             glavna.removeCallbacks(rok)
@@ -2612,7 +2651,10 @@ class PredvajanjeActivity : OsActivity() {
         naslednjaZeton++                       // pozen izid tega poskusa ne velja
         rokPoskusa?.let { glavna.removeCallbacks(it) }; rokPoskusa = null
         naslednjaNeuspehMs = android.os.SystemClock.uptimeMillis()
-        val znova = NaslednjaEpizodaPravila.ponoviti(razlog, naslednjaPoskusov)
+        naslednjaRazlog = razlog
+        // Po koncu epizode (storitev ustavljena) kvote indeksatorja ne ponavljamo takoj (N4): zaslon bi cakal na nov neuspeh.
+        val obKoncu = konecEpizode && GlasbaStoritev.predvajalnik == null
+        val znova = NaslednjaEpizodaPravila.ponoviti(razlog, naslednjaPoskusov) && (!obKoncu || NaslednjaEpizodaPravila.ponovitiObKoncu(razlog))
         android.util.Log.i("SafeerOsMedia", "naslednja epizoda: za S${sezona}E$epizoda ni potrjenega toka ($razlog, poskus $naslednjaPoskusov) - " +
             if (znova) "ponovim" else "brez kartice")
         if (!znova) {
@@ -2620,7 +2662,7 @@ class PredvajanjeActivity : OsActivity() {
             if (konecEpizode && GlasbaStoritev.predvajalnik == null) finish()
         } else if (konecEpizode && GlasbaStoritev.predvajalnik == null) {
             isciNaslednjo(sk, sezona, epizoda, kljuc)
-            if (naslednjaIscem) { glavna.removeCallbacks(naslednjaRok); glavna.postDelayed(naslednjaRok, NaslednjaEpizodaPravila.CAKAJ_SEZNAM_MS) }
+            if (naslednjaIscem) cakajPoKoncu()
             else if (GlasbaStoritev.predvajalnik == null) finish()
         }
     }
@@ -2721,20 +2763,21 @@ class PredvajanjeActivity : OsActivity() {
         }
     }
 
-    /** [nazaj]: tipka Nazaj (ne gumb »Preklici«). */
-    private fun preklicKartice(nazaj: Boolean = false) {
+    private fun preklicKartice() {
         karticaPreklicana = true; karticaVrsta = NaslednjaEpizodaPravila.NIC
         kartica?.visibility = View.GONE
-        if (konecEpizode && GlasbaStoritev.predvajalnik == null) {
-            // Lastnik 14. 11. 2026: Nazaj po koncu epizode zapre kartico in zaslon (storitev je ze ustavljena) - Medijski
-            // center pokaze okno serije s fokusom na naslednji epizodi, kot ob Nazaj med odjavno spico. Brez zagona.
-            val tu = epizodaTu
-            if (nazaj && tu != null) {
-                val t = trajanjeTu.coerceAtLeast(1L)
-                GlasbaActivity.poNazaj = GlasbaActivity.PoNazaj(tu.first, tu.second, tu.third, t, t, android.os.SystemClock.uptimeMillis())
-            }
-            finish()
-        }
+        if (konecEpizode && GlasbaStoritev.predvajalnik == null) finish()
+    }
+
+    /**
+     * Slepi pregled 14. 11. 2026 (S2): Nazaj pri odprti kartici je en pritisk - kartica gre stran (brez zagona) in zaslon
+     * naredi, kar naredi Nazaj ([onBackPressed]: oznaka odgledano in okno serije s fokusom na naslednji epizodi, Medijski
+     * center se odpre, ce ni odprt). Prej je pred koncem le skril kartico, po koncu pa Medijskega centra ni odprl.
+     */
+    private fun nazajSKartice() {
+        karticaPreklicana = true; karticaVrsta = NaslednjaEpizodaPravila.NIC
+        kartica?.visibility = View.GONE
+        @Suppress("DEPRECATION") onBackPressed()
     }
 
     /**
@@ -3081,13 +3124,28 @@ class PredvajanjeActivity : OsActivity() {
                 }
             }
         }
-        if (karticaOdprta()) when (dogodek.keyCode) {
-            // Kartica naslednje epizode: Nazaj jo preklice; levo, desno in OK so za njena gumba (ne previjanje in pavza pod njo).
-            KeyEvent.KEYCODE_BACK -> { if (dogodek.action == KeyEvent.ACTION_UP) preklicKartice(nazaj = true); return true }
-            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> return true
-            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
-                if (kartica?.findFocus() == null) gumbZdaj?.requestFocus()
-                return window.superDispatchKeyEvent(dogodek)
+        if (karticaOdprta()) {
+            // Kartica naslednje epizode ([NaslednjaEpizodaPravila.odzivKartice]): pred koncem previjanje dela, OK zacne naslednjo,
+            // Nazaj je en pritisk »ven«; po koncu gresta smerni tipki in OK gumboma.
+            val tipka = when (dogodek.keyCode) {
+                KeyEvent.KEYCODE_BACK -> NaslednjaEpizodaPravila.TipkaKartice.NAZAJ
+                KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN -> NaslednjaEpizodaPravila.TipkaKartice.GOR_DOL
+                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> NaslednjaEpizodaPravila.TipkaKartice.LEVO_DESNO
+                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> NaslednjaEpizodaPravila.TipkaKartice.OK
+                else -> null
+            }
+            if (tipka != null) when (NaslednjaEpizodaPravila.odzivKartice(tipka, konecEpizode)) {
+                NaslednjaEpizodaPravila.OdzivKartice.NAZAJ_VEN -> { if (dogodek.action == KeyEvent.ACTION_UP) nazajSKartice(); return true }
+                NaslednjaEpizodaPravila.OdzivKartice.POGOLTNI -> return true
+                NaslednjaEpizodaPravila.OdzivKartice.ZACNI -> {
+                    if (dogodek.action == KeyEvent.ACTION_UP && !dogodek.isCanceled) zacniNaslednjo(samodejno = false)
+                    return true
+                }
+                NaslednjaEpizodaPravila.OdzivKartice.GUMBOM -> {
+                    if (kartica?.findFocus() == null) gumbZdaj?.requestFocus()
+                    return window.superDispatchKeyEvent(dogodek)
+                }
+                NaslednjaEpizodaPravila.OdzivKartice.PREDVAJALNIKU -> Unit   // naprej: previjanje kot brez kartice
             }
         }
         if (mrezaOdprta()) when (dogodek.keyCode) {

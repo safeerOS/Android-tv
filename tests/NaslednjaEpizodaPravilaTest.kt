@@ -1,6 +1,8 @@
 package si.safeer.tv.os
 
 import si.safeer.tv.os.NaslednjaEpizodaPravila.Razlog
+import si.safeer.tv.os.NaslednjaEpizodaPravila.TipkaKartice
+import si.safeer.tv.os.NaslednjaEpizodaPravila.OdzivKartice
 
 private var napak = 0
 
@@ -86,6 +88,9 @@ fun main() {
     enako("zahteva Nazaj: po 5 s se velja", true, NaslednjaEpizodaPravila.zahtevaNazajVelja(100_000, 105_000))
     enako("zahteva Nazaj: po 5 s ne vec (pozen seznam epizod)", false, NaslednjaEpizodaPravila.zahtevaNazajVelja(100_000, 105_001))
     enako("zahteva Nazaj: ura nazaj ne velja", false, NaslednjaEpizodaPravila.zahtevaNazajVelja(100_000, 99_000))
+    enako("okno po Nazaj: brez tipke od zahteve", true, NaslednjaEpizodaPravila.oknoPoNazajVelja(100_000, 102_000, 90_000))
+    enako("okno po Nazaj: tipka po zahtevi (drug razdelek) ne", false, NaslednjaEpizodaPravila.oknoPoNazajVelja(100_000, 102_000, 101_000))
+    enako("okno po Nazaj: po 5 s ne", false, NaslednjaEpizodaPravila.oknoPoNazajVelja(100_000, 105_001, 90_000))
     // Pripravljen izid: ista epizoda iste serije, najvec 15 min od priprave; sicer novo iskanje.
     val kS1E2 = NaslednjaEpizodaPravila.kljucEpizode("stremio|series|tt0000001|dodatek#123", 1, 2)
     enako("kljuc epizode brez oznake toka", "stremio|series|tt0000001|dodatek|S1E2", kS1E2)
@@ -104,6 +109,45 @@ fun main() {
         NaslednjaEpizodaPravila.dnevnikNazaj(min40 * 9 / 10, min40, 2 to 1, false))
     enako("dnevnik Nazaj brez naslednje", "naslednja epizoda: Nazaj pri 95 % -> ni naslednje epizode",
         NaslednjaEpizodaPravila.dnevnikNazaj(min40 * 95 / 100, min40, null, false))
+    // Slepi pregled 14. 11. 2026 (V1): po koncu epizode zaslon caka, dokler poskus, ki tece, ne doseze roka.
+    enako("po koncu brez poskusa: 20 s", NaslednjaEpizodaPravila.CAKAJ_SEZNAM_MS, NaslednjaEpizodaPravila.cakajPoKoncuMs(500_000, null))
+    run {
+        // Poskus se zacne ob koncu (prvi je padel tik pred koncem ali uporabnik nadaljuje pri 97 %), Usenet traja 40 s.
+        val konec = 1_000_000L
+        val zaprtje = konec + NaslednjaEpizodaPravila.cakajPoKoncuMs(konec, konec)
+        enako("poskus ob koncu, izid po 40 s: zaslon se caka (prej zaprt po 20 s)", true, konec + 40_000 < zaprtje)
+        enako("poskus ob koncu, izid ob roku poskusa: zaslon se caka", true, konec + NaslednjaEpizodaPravila.PRIPRAVA_ROK_MS < zaprtje)
+        enako("stranski rok poskusa pride pred zaprtjem (neuspeh zapre zaslon sam)", true, konec + NaslednjaEpizodaPravila.ROK_POSKUSA_MS < zaprtje)
+        enako("poskus 70 s pred koncem: se vsaj 20 s", NaslednjaEpizodaPravila.CAKAJ_SEZNAM_MS, NaslednjaEpizodaPravila.cakajPoKoncuMs(konec, konec - 70_000))
+        enako("poskus 30 s pred koncem: do roka poskusa", 51_000L, NaslednjaEpizodaPravila.cakajPoKoncuMs(konec, konec - 30_000))
+    }
+    enako("rok poskusa = rok priprave + 5 s", NaslednjaEpizodaPravila.PRIPRAVA_ROK_MS + 5_000L, NaslednjaEpizodaPravila.ROK_POSKUSA_MS)
+    // N3: podnapisi v pripravi samo v preostanku roka; izid nikoli cez rok priprave.
+    enako("podnapisi: zgodaj najvec 15 s", 15_000L, NaslednjaEpizodaPravila.rokPodnapisovVPripravi(0, 10_000))
+    enako("podnapisi: pri 62 s se 13 s", 13_000L, NaslednjaEpizodaPravila.rokPodnapisovVPripravi(0, 62_000))
+    enako("podnapisi: pri 74 s ne (manj kot 2 s)", 0L, NaslednjaEpizodaPravila.rokPodnapisovVPripravi(0, 74_000))
+    enako("podnapisi: po roku ne", 0L, NaslednjaEpizodaPravila.rokPodnapisovVPripravi(0, 90_000))
+    enako("podnapisi: nikoli cez rok priprave", true, (0..75L).all { s -> s * 1000 + NaslednjaEpizodaPravila.rokPodnapisovVPripravi(0, s * 1000) <= NaslednjaEpizodaPravila.PRIPRAVA_ROK_MS })
+    // N2, N4: ponovitev samo v oknu priprave; kvota ob koncu ne takoj.
+    enako("ponovitev: previto na sredino (izven okna) po 61 s ne", false, NaslednjaEpizodaPravila.zdajPonoviti(0, 61_000, koncano = false, vOknu = false))
+    enako("ponovitev: v oknu po 61 s", true, NaslednjaEpizodaPravila.zdajPonoviti(0, 61_000, koncano = false, vOknu = true))
+    enako("ponovitev: konec, kvota takoj ne", false, NaslednjaEpizodaPravila.zdajPonoviti(0, 1_000, koncano = true, vOknu = false, razlog = Razlog.KVOTA))
+    enako("ponovitev: konec, kvota po minuti", true, NaslednjaEpizodaPravila.zdajPonoviti(0, 60_000, koncano = true, vOknu = false, razlog = Razlog.KVOTA))
+    enako("ponovitev: konec, ni toka takoj", true, NaslednjaEpizodaPravila.zdajPonoviti(0, 1_000, koncano = true, vOknu = false, razlog = Razlog.NI_TOKA))
+    enako("ob koncu: kvota ne", false, NaslednjaEpizodaPravila.ponovitiObKoncu(Razlog.KVOTA))
+    enako("ob koncu: rok da", true, NaslednjaEpizodaPravila.ponovitiObKoncu(Razlog.ROK))
+    enako("izid sveze 15 min", true, NaslednjaEpizodaPravila.izidSvez(0, 900_000))
+    enako("izid po 15 min zastarel", false, NaslednjaEpizodaPravila.izidSvez(0, 900_001))
+    // S1, S2: tipke pri odprti kartici.
+    run {
+        enako("kartica pred koncem: levo/desno previja", OdzivKartice.PREDVAJALNIKU, NaslednjaEpizodaPravila.odzivKartice(TipkaKartice.LEVO_DESNO, false))
+        enako("kartica pred koncem: OK zacne naslednjo", OdzivKartice.ZACNI, NaslednjaEpizodaPravila.odzivKartice(TipkaKartice.OK, false))
+        enako("kartica pred koncem: Nazaj en pritisk ven", OdzivKartice.NAZAJ_VEN, NaslednjaEpizodaPravila.odzivKartice(TipkaKartice.NAZAJ, false))
+        enako("kartica po koncu: Nazaj ven", OdzivKartice.NAZAJ_VEN, NaslednjaEpizodaPravila.odzivKartice(TipkaKartice.NAZAJ, true))
+        enako("kartica po koncu: levo/desno gumboma", OdzivKartice.GUMBOM, NaslednjaEpizodaPravila.odzivKartice(TipkaKartice.LEVO_DESNO, true))
+        enako("kartica po koncu: OK gumbu", OdzivKartice.GUMBOM, NaslednjaEpizodaPravila.odzivKartice(TipkaKartice.OK, true))
+        enako("kartica: gor/dol ne odpre vrste pod njo", OdzivKartice.POGOLTNI, NaslednjaEpizodaPravila.odzivKartice(TipkaKartice.GOR_DOL, false))
+    }
     // Podnapisi epizode, ki se konca, ne gredo v naslednjo (prej n.serija.podnapisi + pripravljeni): preverba v izvoru.
     run {
         val izvor = System.getProperty("izvor.os")
@@ -128,13 +172,26 @@ fun main() {
             enako("napis kartice: preostanek predvajanja gre v pravilo", true, p.contains("NaslednjaEpizodaPravila.preostaloSekund(odstetoMs, preostaloPredvajanja("))
             val okno = telo(g, "private fun pokaziNaslednjoPoNazaj(")
             enako("okno serije po Nazaj: fokus po pravilu", true, okno.contains("NaslednjaEpizodaPravila.fokusPoNazaj("))
-            enako("okno serije po Nazaj: zahteva se velja", true, okno.contains("NaslednjaEpizodaPravila.zahtevaNazajVelja("))
+            enako("okno serije po Nazaj: zahteva se velja in uporabnik ni drugje", true, okno.contains("NaslednjaEpizodaPravila.oknoPoNazajVelja(z.casMs, android.os.SystemClock.uptimeMillis(), zadnjiDotik)"))
             enako("okno serije po Nazaj: vrstica dnevnika", true, okno.contains("NaslednjaEpizodaPravila.dnevnikNazaj("))
             enako("okno serije po Nazaj: brez samodejnega zagona", false,
                 okno.contains("predvajajNaslednjoEpizodo(") || okno.contains("izberiTok(") || okno.contains("performItemClick"))
             enako("klik na epizodo: pripravljen izid po pravilu", true,
                 g.contains("pripravljenaNaslednja?.takeIf { !rocno && pripravljenaVelja(sk.id, e.sezona, e.epizoda) }") &&
                     g.contains("NaslednjaEpizodaPravila.pripravljenVelja("))
+            enako("V1: zaslon po koncu caka po pravilu roka", true, p.contains("NaslednjaEpizodaPravila.cakajPoKoncuMs(") &&
+                !p.contains("postDelayed(naslednjaRok, NaslednjaEpizodaPravila.CAKAJ_SEZNAM_MS)"))
+            enako("V1: stranski rok poskusa iz pravila", true, p.contains("glavna.postDelayed(rok, NaslednjaEpizodaPravila.ROK_POSKUSA_MS)"))
+            enako("V1: zacetek poskusa se zapomni", true, telo(p, "private fun isciNaslednjo(").contains("naslednjaPoskusOdMs = "))
+            enako("S1: tipke kartice po pravilu", true, p.contains("NaslednjaEpizodaPravila.odzivKartice(tipka, konecEpizode)"))
+            val sKartice = telo(p, "private fun nazajSKartice(")
+            enako("S2: Nazaj s kartice naredi Nazaj zaslona", true, sKartice.contains("onBackPressed()") && !sKartice.contains("zacniNaslednjo("))
+            enako("N1: Nazaj po koncu brez kartice odpre okno serije", true, nazaj.contains("konecEpizode && vMedijskiCenter"))
+            enako("N2: ponovitev v oknu in po razlogu", true, p.contains("zdajPonoviti(naslednjaNeuspehMs, android.os.SystemClock.uptimeMillis(), koncano, vOknu, naslednjaRazlog)"))
+            enako("N2: zastarel izid se poisce znova", true, p.contains("NaslednjaEpizodaPravila.izidSvez(n.pripravljenoMs"))
+            enako("N4: kvota ob koncu ne takoj", true, p.contains("NaslednjaEpizodaPravila.ponovitiObKoncu(razlog)"))
+            enako("N3: podnapisi v pripravi v roku", true, g.contains("NaslednjaEpizodaPravila.rokPodnapisovVPripravi(zacetek") &&
+                g.contains("iskanje.get(rokPodnapisov"))
             enako("napredek: oznaka odgledano gre skozi pravilo", true,
                 m.contains("NaslednjaEpizodaPravila.polozajZaNapredek(polozajZdaj, trajanje, oznaka)"))
         }

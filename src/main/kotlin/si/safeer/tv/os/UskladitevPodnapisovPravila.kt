@@ -175,6 +175,8 @@ object UskladitevPodnapisovPravila {
                     if (abs(d) >= stZamikov) continue
                     val pen = kazen(a, b)
                     for (j in 0 until stZamikov) {
+                        // Kot prehod naprej ([naprej]): predhodnik j z zamikom j + d zunaj mreze ni dosegljiv (slepi pregled N6).
+                        if (j + d !in 0 until stZamikov) continue
                         val w = p[a * stZamikov + j] - pen - LAM_MS_NA_KORAK * abs(k - (j + d))
                         if (w > naj) { naj = w; nb = a; nk = j }
                     }
@@ -293,4 +295,7 @@ object UskladitevPodnapisovPravila {
         }
         return naj
     }
+
+    /** Podnapis, ki mu je referenca prisla po branju, preberemo znova samo ob premoru (ne med predvajanjem). */
+    fun ponovnoPrebrati(cakaReferenca: Boolean, igra: Boolean): Boolean = cakaReferenca && !igra
 }

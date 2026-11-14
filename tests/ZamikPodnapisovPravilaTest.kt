@@ -23,5 +23,12 @@ fun main() {
     // Oblika besedila.
     check(z.oblika(0) == "0 s" && z.oblika(300) == "+0,3 s" && z.oblika(-1500) == "−1,5 s" && z.oblika(12_000) == "+12,0 s")
     check(z.trajanje(100) == "0,1 s" && z.trajanje(-500) == "0,5 s" && z.trajanje(2000) == "2,0 s")
+    // Naslov za zamik iz Format.id (slepi pregled 14. 11. 2026, S3): dodatek, datoteka (SAF, file), predpona zdruzenega vira.
+    check(z.naslovIzId("0:https://a/b.srt") == "https://a/b.srt")
+    check(z.naslovIzId("1:0:http://a/b.srt") == "http://a/b.srt")
+    check(z.naslovIzId("0:content://com.android.externalstorage.documents/document/primary%3AFilm.srt") ==
+        "content://com.android.externalstorage.documents/document/primary%3AFilm.srt")
+    check(z.naslovIzId("file:///storage/emulated/0/Film.srt") == "file:///storage/emulated/0/Film.srt")
+    check(z.naslovIzId("2") == null && z.naslovIzId(null) == null && z.naslovIzId("sl:vgrajen") == null)
     println("ZamikPodnapisovPravilaTest OK")
 }

@@ -9398,8 +9398,8 @@ class GlasbaActivity : OsActivity() {
                 glavna.post {
                     if (isFinishing || isDestroyed || !viden) return@post
                     // Pocasen seznam epizod ali nova izbira uporabnika medtem: okna ne odpremo vec (uporabnik je ze drugje).
-                    if (!NaslednjaEpizodaPravila.zahtevaNazajVelja(z.casMs, android.os.SystemClock.uptimeMillis()) || !pripraveVTeKu.isEmpty()) {
-                        android.util.Log.i("SafeerOsMediji", "naslednja epizoda: Nazaj - seznam epizod po ${android.os.SystemClock.uptimeMillis() - z.casMs} ms ali nova izbira, okna serije ne odprem")
+                    if (!NaslednjaEpizodaPravila.oknoPoNazajVelja(z.casMs, android.os.SystemClock.uptimeMillis(), zadnjiDotik) || !pripraveVTeKu.isEmpty()) {
+                        android.util.Log.i("SafeerOsMediji", "naslednja epizoda: Nazaj - seznam epizod po ${android.os.SystemClock.uptimeMillis() - z.casMs} ms ali uporabnik je ze drugje, okna serije ne odprem")
                         return@post
                     }
                     // Prazen seznam je izpad dodatka (meta), ne konec serije: okna ne odpremo, v dnevniku pa ni »ni naslednje«.
@@ -9440,7 +9440,7 @@ class GlasbaActivity : OsActivity() {
         }
         val zacetek = android.os.SystemClock.elapsedRealtime()
         // Visina videa za izbiro izdaje podnapisov (14. 11. 2026) - predvajalnik beremo samo na glavni niti.
-        val visinaVidea = GlasbaStoritev.predvajalnik?.videoSize?.height ?: 0
+        val visinaVidea = GlasbaStoritev.predvajalnik?.let { Podnapisi.visinaVidea(it) } ?: 0
         val imaDebrid = aktivniDebrid() != null
         val lastni = UsenetLastni.vUporabi(this)
         val odpreUsenet = NaslednjaEpizodaPravila.usenetOdpriVPredpripravi(lastni)
@@ -9480,7 +9480,9 @@ class GlasbaActivity : OsActivity() {
                         if (potrjen && vRoku) {
                             val np = NaslednjaPripravljena(e, serija, NaslednjaEpizodaPravila.naslovEpizode(sk.naslov, e.sezona, e.epizoda, e.ime), t, pp, usenetObZagonu = !odpreUsenet)
                             val jezikPodnapisov = Podnapisi.jezikDodatka(this@GlasbaActivity)
-                            if (jezikPodnapisov.isNotEmpty()) {
+                            // Slepi pregled 14. 11. 2026 (N3): podnapisi samo v preostanku roka - izid ne sme cez rok zaslona.
+                            val rokPodnapisov = NaslednjaEpizodaPravila.rokPodnapisovVPripravi(zacetek, android.os.SystemClock.elapsedRealtime())
+                            if (jezikPodnapisov.isNotEmpty() && rokPodnapisov > 0) {
                                 val idPodnapisov = Stremio.imdbZa(serija)?.let { OsPravila.idPodnapisov(it, e.sezona, e.epizoda) }
                                 if (idPodnapisov != null) {
                                     val prvi = pp.usenet?.first ?: t.firstOrNull { it.vrsta == "torrent" && TorBoxPravila.hashIzMagneta(it.url)?.lowercase() in pp.predpomnjeni } ?: t.firstOrNull { it.vrsta == "url" } ?: t.firstOrNull()
@@ -9494,7 +9496,14 @@ class GlasbaActivity : OsActivity() {
                                         Podnapisi.pripraviUskladitev(izbran, najdeni, prvi?.imeDatoteke, visinaVidea)
                                         return izbran
                                     }
-                                    val najden = isci(naslovi) ?: OsPravila.ostaliZaPodnapise(vsi, naslovi).takeIf { it.isNotEmpty() }?.let { isci(it) }
+                                    val iskanje = try { iskanjeDelavec.submit<Stremio.PodnapisDodatka?> {
+                                        isci(naslovi) ?: OsPravila.ostaliZaPodnapise(vsi, naslovi).takeIf { it.isNotEmpty() }?.let { isci(it) }
+                                    } } catch (_: java.util.concurrent.RejectedExecutionException) { null }
+                                    val najden = if (iskanje == null) null else try { iskanje.get(rokPodnapisov, java.util.concurrent.TimeUnit.MILLISECONDS) } catch (_: Exception) {
+                                        iskanje.cancel(true)
+                                        android.util.Log.i("SafeerOsMediji", "naslednja epizoda: podnapisi niso prisli v $rokPodnapisov ms - brez njih (poisce jih predvajalnik)")
+                                        null
+                                    }
                                     if (najden != null) {
                                         np.podnapisi = listOf(Podnapisi.izDodatka(this@GlasbaActivity, najden))
                                         if (najden.osnova.isNotEmpty()) prefs.edit().putString("zadnji_podnapisi", SkrivnostiPravila.odtis(najden.osnova)).apply()

@@ -118,6 +118,13 @@ object NaslednjaEpizodaPravila {
     fun zahtevaNazajVelja(zahtevaMs: Long, zdajMs: Long): Boolean = zdajMs - zahtevaMs in 0..NAZAJ_ZAHTEVA_VELJA_MS
 
     /**
+     * CodeRabbit in slepi pregled 14. 11. 2026 (N9): okno serije po Nazaj se odpre samo, ce uporabnik v Medijskem centru od
+     * zahteve ni pritisnil tipke ali se dotaknil zaslona ([zadnjaTipkaMs], uptime) - sicer je ze drugje (drug razdelek).
+     */
+    fun oknoPoNazajVelja(zahtevaMs: Long, zdajMs: Long, zadnjaTipkaMs: Long): Boolean =
+        zahtevaNazajVelja(zahtevaMs, zdajMs) && zadnjaTipkaMs <= zahtevaMs
+
+    /**
      * Pripravljen izid naslednje epizode (izbrani in preverjeni tokovi) velja za ISTO epizodo najvec toliko od priprave:
      * priprava je do ~10 min pred koncem epizode in kartica ga uporabi ob koncu; po Nazaj se uporabnik odloci v nekaj minutah.
      * Starejsi izid se zavrze in klik isce znova (povezave debrida in dodatkov zastarajo; iskanje Useneta je 30 min v
@@ -129,7 +136,31 @@ object NaslednjaEpizodaPravila {
     fun kljucEpizode(idSerije: String, sezona: Int, epizoda: Int): String = idSerije.substringBefore('#') + "|S" + sezona + "E" + epizoda
 
     fun pripravljenVelja(kljucPripravljene: String?, kljucIzbrane: String, pripravljenoMs: Long, zdajMs: Long): Boolean =
-        kljucPripravljene != null && kljucPripravljene == kljucIzbrane && zdajMs - pripravljenoMs in 0..PRIPRAVLJEN_VELJA_MS
+        kljucPripravljene != null && kljucPripravljene == kljucIzbrane && izidSvez(pripravljenoMs, zdajMs)
+
+    /** Slepi pregled 14. 11. 2026 (N2): izid za kartico velja enako dolgo kot v oknu serije; starejsi se poisce znova. */
+    fun izidSvez(pripravljenoMs: Long, zdajMs: Long): Boolean = zdajMs - pripravljenoMs in 0..PRIPRAVLJEN_VELJA_MS
+
+    /** Tipke daljinca, ko je kartica naslednje epizode odprta. */
+    enum class TipkaKartice { OK, LEVO_DESNO, GOR_DOL, NAZAJ }
+
+    /** Kaj naredi tipka pri odprti kartici. */
+    enum class OdzivKartice { GUMBOM, ZACNI, PREDVAJALNIKU, POGOLTNI, NAZAJ_VEN }
+
+    /**
+     * Slepi pregled 14. 11. 2026 (S1, S2) in lastnikovi pravili (»OK na kartici zacne takoj, Nazaj zapre kartico brez
+     * zagona«; »Nazaj pri >= 90 % = odgledano + okno serije«). Kartica je zdaj vidna ze minuto ali vso odjavno spico, zato
+     * pred koncem ([konec] = false) ne sme vzeti daljinca: levo/desno previjata (prizor po odjavni, vrnitev), pavza je na
+     * tipki predvajaj/pavza, OK zacne naslednjo epizodo (lastnikovo pravilo). Nazaj je vedno en pritisk »ven«: zapre
+     * kartico IN naredi, kar Nazaj naredi na zaslonu predvajanja (oznaka odgledano, okno serije s fokusom) - prej je pred
+     * koncem le skril kartico in je bil potreben drugi Nazaj. Po koncu (slike ni vec) gresta levo/desno in OK gumboma.
+     */
+    fun odzivKartice(t: TipkaKartice, konec: Boolean): OdzivKartice = when (t) {
+        TipkaKartice.NAZAJ -> OdzivKartice.NAZAJ_VEN
+        TipkaKartice.OK -> if (konec) OdzivKartice.GUMBOM else OdzivKartice.ZACNI
+        TipkaKartice.LEVO_DESNO -> if (konec) OdzivKartice.GUMBOM else OdzivKartice.PREDVAJALNIKU
+        TipkaKartice.GOR_DOL -> OdzivKartice.POGOLTNI
+    }
 
     /** Vrstica dnevnika ob Nazaj pri koncu epizode: »naslednja epizoda: Nazaj pri 93 % -> fokus S1E2, pripravljen=da«. */
     fun dnevnikNazaj(polozajMs: Long, trajanjeMs: Long, fokus: Pair<Int, Int>?, pripravljen: Boolean): String {
@@ -150,6 +181,32 @@ object NaslednjaEpizodaPravila {
      */
     const val PRIPRAVA_ROK_MS = 75_000L
 
+    /** Rok poskusa na zaslonu predvajanja: [PRIPRAVA_ROK_MS] in rezerva za vrsto delavca Medijskega centra. */
+    const val ROK_POSKUSA_MS = PRIPRAVA_ROK_MS + 5_000L
+
+    /**
+     * Slepi pregled 14. 11. 2026 (V1): po koncu epizode je zaslon na izid cakal le [CAKAJ_SEZNAM_MS] (20 s), poskus pa
+     * traja do [ROK_POSKUSA_MS] - izid drugega poskusa (ali prvega, zacetega tik pred koncem) je prisel na zaprt zaslon in
+     * kartice ni bilo. Zdaj zaslon caka, dokler poskus, ki tece ([poskusOdMs], uptime zacetka; null = ne tece), ne doseze
+     * roka, in vsaj [CAKAJ_SEZNAM_MS].
+     */
+    fun cakajPoKoncuMs(zdajMs: Long, poskusOdMs: Long?): Long =
+        if (poskusOdMs == null) CAKAJ_SEZNAM_MS else maxOf(CAKAJ_SEZNAM_MS, poskusOdMs + ROK_POSKUSA_MS + 1_000L - zdajMs)
+
+    /** Iskanje podnapisov v pripravi naslednje epizode najvec toliko (podnapise najde se predvajalnik sam, ko slika tece). */
+    const val PODNAPISI_V_PRIPRAVI_MS = 15_000L
+    const val PODNAPISI_V_PRIPRAVI_NAJMANJ_MS = 2_000L
+
+    /**
+     * Slepi pregled 14. 11. 2026 (N3): podnapisi so se iskali PO preverbi roka in brez meje - uspesna priprava je lahko
+     * presegla rok zaslona predvajanja in bila zavrzena kot ROK. Cas za podnapise je preostanek [PRIPRAVA_ROK_MS] (najvec
+     * [PODNAPISI_V_PRIPRAVI_MS]); manj kot [PODNAPISI_V_PRIPRAVI_NAJMANJ_MS] = ne iscemo (0).
+     */
+    fun rokPodnapisovVPripravi(zacetekMs: Long, zdajMs: Long): Long {
+        val ostane = (zacetekMs + PRIPRAVA_ROK_MS - zdajMs).coerceIn(0L, PODNAPISI_V_PRIPRAVI_MS)
+        return if (ostane < PODNAPISI_V_PRIPRAVI_NAJMANJ_MS) 0L else ostane
+    }
+
     fun vRoku(zacetekMs: Long, zdajMs: Long): Boolean = zdajMs - zacetekMs in 0..PRIPRAVA_ROK_MS
 
     /** Zakaj priprava ni dala epizode s potrjenim tokom; od tega je odvisen ponovni poskus ([ponoviti]). */
@@ -169,8 +226,16 @@ object NaslednjaEpizodaPravila {
     fun ponoviti(razlog: Razlog, poskusov: Int): Boolean =
         poskusov < NAJVEC_POSKUSOV && (razlog == Razlog.KVOTA || razlog == Razlog.ROK || razlog == Razlog.NAPAKA || razlog == Razlog.NI_TOKA)
 
-    /** Zacni ponovni poskus: [PONOVI_PO_MS] po neuspehu ali ob koncu epizode, ce je prej. */
-    fun zdajPonoviti(neuspehMs: Long, zdajMs: Long, koncano: Boolean): Boolean = koncano || zdajMs - neuspehMs >= PONOVI_PO_MS
+    /**
+     * Zacni ponovni poskus: [PONOVI_PO_MS] po neuspehu ali ob koncu epizode, ce je prej. Slepi pregled 14. 11. 2026 (N2, N4):
+     * samo v oknu priprave ([vOknu], [iskati]) - po previjanju na sredino ne; ob koncu takoj samo, ce razlog ni kvota
+     * indeksatorja ([ponovitiObKoncu]: omejevalnik steje na minuto, takojsen poskus bi jo spet zadel).
+     */
+    fun zdajPonoviti(neuspehMs: Long, zdajMs: Long, koncano: Boolean, vOknu: Boolean = true, razlog: Razlog = Razlog.NAPAKA): Boolean =
+        (koncano && ponovitiObKoncu(razlog)) || ((koncano || vOknu) && zdajMs - neuspehMs >= PONOVI_PO_MS)
+
+    /** Po koncu epizode (storitev ustavljena, zaslon caka) takoj ponovimo samo, ce razlog ni kvota indeksatorja. */
+    fun ponovitiObKoncu(razlog: Razlog): Boolean = razlog != Razlog.KVOTA
 
     /**
      * Vodja 6. 11. 2026 (brez odprtih virov): sme predpriprava Usenet tudi odpreti? TorBox (pripravljeno pri TorBoxu, CDN) in

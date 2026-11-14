@@ -154,7 +154,7 @@ preveri("Usenet U1: kvoto porabi samo poslana zahteva", "omejevalnik.rezerviraj(
 preveri("Usenet U3: zapisi filtra se nalozijo v ozadju", "getSharedPreferences(DATOTEKA" in telo(uf, "Thread({", '"usenet-filter-nalaganje"')
         and "synchronized(this) {\n            if (nalozeno) return\n            try {" not in uf)
 gl = beri("src/main/kotlin/si/safeer/tv/os/GlasbaActivity.kt")
-_nz = telo(gl, "fun predvajajNaslednjoEpizodo(", "izberiTok(sk, n.naslov, n.tokovi, false, pp) { konec() }")   # sidro po 4edcafcb (pp), 8. 11. 2026
+_nz = telo(gl, "fun predvajajNaslednjoEpizodo(", "izberiTok(sk, n.naslov, n.tokovi, false, pp) { neuspeh() }")   # sidro po 4edcafcb (pp), 8. 11. 2026; 14. 11. 2026 neuspeh() (klik v oknu serije)
 preveri("Usenet U2: zagon naslednje epizode steje v omejitev", 0 <= _nz.find("UsenetFilter.zabeleziZagon()") < _nz.find("predpomnjeniZa(n.tokovi"))
 preveri("Glasba CR: onStop odstrani samo svoj povratni klic Useneta",
         "if (UsenetPomocniki.obSpremembi === obPomocnikuUseneta) UsenetPomocniki.obSpremembi = null" in gl

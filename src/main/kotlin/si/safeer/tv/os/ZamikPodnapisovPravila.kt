@@ -43,4 +43,18 @@ object ZamikPodnapisovPravila {
 
     /** Brez predznaka (za besedilo gumba »kasneje za …«). */
     fun trajanje(ms: Long): String = oblika(abs(ms)).removePrefix("+")
+
+    /**
+     * Naslov podnapisa iz Format.id (Media3 v zdruzenem viru doda predpono »0:«); null = vgrajen podnapis. Slepi pregled
+     * 14. 11. 2026 (S3): tudi podnapis iz datoteke (SAF content://, file://) - prej samo http(s), rocni zamik zanj ni delal.
+     */
+    fun naslovIzId(id: String?): String? {
+        var t = id?.trim() ?: return null
+        while (true) {
+            if (t.startsWith("https://") || t.startsWith("http://") || t.startsWith("content://") || t.startsWith("file://")) return t
+            val i = t.indexOf(':')
+            if (i <= 0 || !t.substring(0, i).all { it.isDigit() }) return null
+            t = t.substring(i + 1)
+        }
+    }
 }

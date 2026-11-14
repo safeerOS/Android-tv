@@ -137,15 +137,7 @@ object Podnapisi {
     private const val NAJVEC_ZAMIKOV = 300
 
     /** Naslov podnapisa iz Format.id (Media3 v zdruzenem viru doda predpono »0:«); null = vgrajen podnapis. */
-    internal fun naslovIzId(id: String?): String? {
-        var t = id?.trim() ?: return null
-        while (true) {
-            if (t.startsWith("https://") || t.startsWith("http://")) return t
-            val i = t.indexOf(':')
-            if (i <= 0 || !t.substring(0, i).all { it.isDigit() }) return null
-            t = t.substring(i + 1)
-        }
-    }
+    internal fun naslovIzId(id: String?): String? = ZamikPodnapisovPravila.naslovIzId(id)
 
     private fun kljucZamika(naslov: String) = PREDPONA_ZAMIKA + SkrivnostiPravila.odtis(naslov).take(24)
 
@@ -218,6 +210,26 @@ object Podnapisi {
     /** Sprejeta poravnava po naslovu (ponovno branje istih podnapisov je ne racuna znova); zavrnjena se ne ponavlja. */
     private val usklajeni = java.util.concurrent.ConcurrentHashMap<String, UskladitevPodnapisovPravila.Izid>()
     private val zavrnjeni = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    /** Naslovi, ki jih je razclenjevalnik ze prebral, in tisti med njimi, ki jim je referenca prisla pozneje (S5). */
+    private val prebrani = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    private val ponovnoBrati = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    /** Visina videa; pred prvo sliko (videoSize 0) iz formata izbrane sledi (slepi pregled 14. 11. 2026, N7). */
+    fun visinaVidea(p: Player): Int = p.videoSize.height.takeIf { it > 0 } ?: ((p as? androidx.media3.exoplayer.ExoPlayer)?.videoFormat?.height ?: 0).coerceAtLeast(0)
+
+    /**
+     * Slepi pregled 14. 11. 2026 (S5): referenca je prisla, ko je bil izbrani podnapis ze prebran (rok zacetka je potekel)
+     * - podnapis se prebere znova, a samo ob premoru ([UskladitevPodnapisovPravila.ponovnoPrebrati]; nova priprava vira med
+     * predvajanjem za hip ustavi sliko). true = klicatelj naj podnapise prebere znova.
+     */
+    fun ponovnoPrebratiZdaj(p: Player): Boolean {
+        if (ponovnoBrati.isEmpty()) return false
+        val naslov = izbranNaslov(p) ?: return false
+        if (!UskladitevPodnapisovPravila.ponovnoPrebrati(naslov in ponovnoBrati, p.playWhenReady)) return false
+        ponovnoBrati.remove(naslov)
+        android.util.Log.i("SafeerPodnapisi", "uskladitev: referenca je prisla po branju - podnapis berem znova (premor)")
+        return true
+    }
 
     private fun kandidat(p: Stremio.PodnapisDodatka) = UskladitevPodnapisovPravila.Kandidat(p.url, p.jezik, p.izdaja, p.ujemanje)
 
@@ -241,6 +253,7 @@ object Podnapisi {
         if (reference.size >= 8) reference.clear()
         zavrnjeni.remove(izbran.url)
         reference[izbran.url] = casi
+        if (izbran.url in prebrani) ponovnoBrati.add(izbran.url)
         android.util.Log.i("SafeerPodnapisi", "uskladitev: referenca ${ref.jezik} »${ref.izdaja.take(80)}« (${casi.size} napisov) za »${izbran.izdaja.take(80)}«")
     }
 
@@ -251,7 +264,7 @@ object Podnapisi {
         val vhod = (if (mime == MimeTypes.APPLICATION_SUBRIP) srtPocisti(podatki) else besedilo(podatki)).toByteArray(Charsets.UTF_8)
         val out = ArrayList<UskladitevPodnapisovPravila.Napis>()
         bralnik.parse(vhod, 0, vhod.size, androidx.media3.extractor.text.SubtitleParser.OutputOptions.allCues()) { c ->
-            if (out.size <= UskladitevPodnapisovPravila.NAJVEC_NAPISOV) out.add(napis(c))
+            if (out.size < UskladitevPodnapisovPravila.NAJVEC_NAPISOV) out.add(napis(c))
         }
         return out
     }
@@ -273,7 +286,7 @@ object Podnapisi {
         val ok = UskladitevPodnapisovPravila.sprejmi(iz, vir.size)
         android.util.Log.i("SafeerPodnapisi", "uskladitev: napisov ${vir.size}, referenca ${ref.size}, pokritost " +
             "${iz?.let { "%.2f -> %.2f".format(Locale.ROOT, it.pokritostPrej, it.pokritostPo) } ?: "-"}, odsekov ${iz?.odsekov ?: 0}, " +
-            "${android.os.SystemClock.elapsedRealtime() - t0} ms, ${if (ok) "uporabljena" else "zavrnjena"}")
+            "${android.os.SystemClock.elapsedRealtime() - t0} ms (nit ${Thread.currentThread().name}), ${if (ok) "uporabljena" else "zavrnjena"}")
         if (ok && iz != null) {
             if (usklajeni.size >= 8) usklajeni.clear()
             usklajeni[naslov] = iz
@@ -554,6 +567,7 @@ object Podnapisi {
                     val podatki = if (popravljeno.isEmpty()) izvirnik else popravljeno
                     // Podnapis iz datoteke ali dodatka: samodejna uskladitev z ujemajoco izdajo, nato rocni zamik te datoteke.
                     val naslov = naslovIzId(format.id)
+                    if (naslov != null) { if (prebrani.size >= 64) prebrani.clear(); prebrani.add(naslov) }
                     val z = zamikMs(naslov) * 1000L
                     if (naslov == null || (z == 0L && reference[naslov] == null && usklajeni[naslov] == null)) {
                         bralnik.parse(podatki, 0, podatki.size, outputOptions, output)

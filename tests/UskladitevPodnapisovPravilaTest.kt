@@ -101,6 +101,10 @@ fun main() {
     check(U.najboljsi(listOf(slDsr, slBr), "sl", null, 1080)?.url == "https://a/sl-br")
     check(U.najboljsi(listOf(slDsr, Kandidat("https://a/sl-x", "sl", "")), "sl", null, 576)?.url == "https://a/sl")
     check(U.najboljsi(kand, "de", null, 1080) == null)
+    // Referenca po branju (slepi pregled 14. 11. 2026, S5): znova preberemo samo ob premoru.
+    check(U.ponovnoPrebrati(cakaReferenca = true, igra = false))
+    check(!U.ponovnoPrebrati(cakaReferenca = true, igra = true))
+    check(!U.ponovnoPrebrati(cakaReferenca = false, igra = false))
     // Vezava (Android razredov preizkus JVM ne more pognati). 14. 11. 2026: iskanje podnapisov ob ZACETKU predvajanja je
     // jemalo prvega v jeziku po dodatku in reference ni pripravilo - podnapis iz druge izdaje je sel v tok neusklajen, pot
     // samodejnih podnapisov pa ga nato ni vec zamenjala (sled v jeziku ze obstaja).
@@ -121,5 +125,13 @@ fun main() {
         check("Stremio.podnapisi(" in v) { dat }
         check(".firstOrNull { it.jezik == jezik }" !in v) { "$dat: prvi v jeziku po dodatku" }
     }
+    val pod = java.io.File(izvor, "Podnapisi.kt").readText()
+    val pr = java.io.File(izvor, "PredvajanjeActivity.kt").readText()
+    check("if (izbran.url in prebrani) ponovnoBrati.add(izbran.url)" in pod) { "S5: pozna referenca oznaci podnapis za ponovno branje" }
+    check("Podnapisi.ponovnoPrebratiZdaj(p)) GlasbaStoritev.ponovnoNaloziPodnapise()" in pr) { "S5: tik zaslona predvajanja prebere znova" }
+    check("zeton != izbiraPodnapisa" in pr) { "S5: velja zadnja izbira podnapisa v meniju" }
+    check("k == 0 -> { izbiraPodnapisa++;" in pr && "videa && k == 1 -> { izbiraPodnapisa++;" in pr) { "CodeRabbit: izklop razveljavi cakajoco izbiro" }
+    check("out.size < UskladitevPodnapisovPravila.NAJVEC_NAPISOV" in pod) { "N6: najvec NAJVEC_NAPISOV napisov reference" }
+    check("ZamikPodnapisovPravila.naslovIzId(id)" in pod) { "S3: naslov za zamik iz pravila" }
     println("UskladitevPodnapisovPravilaTest OK")
 }
