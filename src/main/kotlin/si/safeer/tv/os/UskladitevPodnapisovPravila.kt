@@ -7,7 +7,7 @@ import kotlin.math.roundToLong
 /**
  * Samodejna uskladitev podnapisov s sliko (lastnik 13. 11. 2026: »prehitevajo«, 14. 11.: »so tokrat zelo za sliko«).
  *
- * IZMERJENO 14. 11. 2026 (Breaking Bad S01E02, Usenet, TV): nas prikaz je tocen (napis na zaslonu ima v datoteki cas, ki je
+ * IZMERJENO 14. 11. 2026 (epizoda serije, Usenet, TV): nas prikaz je tocen (napis na zaslonu ima v datoteki cas, ki je
  * enak polozaju predvajalnika), edini slovenski podnapis pri OpenSubtitles pa je za televizijsko izdajo DSR (pospesena na 25 fps,
  * drugi rezi). Proti izdaji BluRay je odmik po odsekih od +30 s do -16 s - zato se zdi enkrat »prehitevajo«, drugic
  * »zaostajajo«, stalen rocni zamik pa tega ne popravi.

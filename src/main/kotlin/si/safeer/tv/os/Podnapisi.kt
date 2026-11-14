@@ -127,8 +127,8 @@ object Podnapisi {
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)
 
     /**
-     * Rocni zamik po DATOTEKI podnapisov (14. 11. 2026, Breaking Bad: odmik je pri vsaki izdaji drug - ta zaostaja, film
-     * 13. 11. je prehiteval; en zamik za vse filme bi pokvaril usklajene). Kljuc je odtis naslova podnapisa (Format.id iz
+     * Rocni zamik po DATOTEKI podnapisov (14. 11. 2026: odmik je pri vsaki izdaji drug - ena zaostaja, druga prehiteva;
+     * en zamik za vse filme bi pokvaril usklajene). Kljuc je odtis naslova podnapisa (Format.id iz
      * [konfiguracije]); vgrajeni podnapisi so del videa. Bere ga razclenjevalnik na niti nalaganja.
      */
     private val zamiki = java.util.concurrent.ConcurrentHashMap<String, Long>()

@@ -6,8 +6,8 @@ package si.safeer.tv.os
  * »Nadaljuj« (ista pravila in filter, ki jih je izbral uporabnik). Dodatki Stremio ne povedo, kdaj se zacne odjavna
  * spica: kartica se pokaze ob zacetku odjavne, ce ga pozna TheIntroDB ([PreskokPravila]), sicer v zadnjih [ODSTEVANJE_MS].
  *
- * Lastnik 14. 11. 2026 (Breaking Bad S01E02, Usenet): naslednja epizoda se ni zacela. Dogodki TV: konec epizode 17:01:14,
- * storitev se je ustavila in zaslon predvajanja se je zaprl 90 ms za tem - priprava torej ni vec tekla in kartice ni bilo:
+ * Lastnik 14. 11. 2026 (epizoda serije, Usenet): naslednja epizoda se ni zacela. Dogodki TV: ob koncu epizode se je
+ * storitev ustavila in zaslon predvajanja se je zaprl 90 ms za tem - priprava torej ni vec tekla in kartice ni bilo:
  * edini poskus (60 s pred koncem, rok 20 s, brez ponovitve) ni dal izida (razlog ni bil zapisan). Zato: priprava 5 min pred koncem ali
  * pri 90 % ([iskati]), rok poskusa po zgornji meji notranjih rokov ([PRIPRAVA_ROK_MS]), ob neuspehu en ponovni poskus
  * ([ponoviti]), izid velja do konca epizode.

@@ -80,24 +80,24 @@ fun main() {
     check(U.poravnaj(sl.take(5), ref) == null && !U.sprejmi(null, 5))
 
     // 6) Izbira izdaje: video HD, slovenski podnapis le DSR -> referenca je angleski BluRay (ne DVDRip, ne DSR).
-    val slDsr = Kandidat("https://a/sl", "sl", "breaking.bad.s01e02.dsr.xvid-0tv")
+    val slDsr = Kandidat("https://a/sl", "sl", "primer.serija.s01e02.dsr.xvid-alfa")
     val kand = listOf(
-        Kandidat("https://a/en-dvd", "en", "Breaking.Bad.S01.dvdrip.xvid-ORPHEUS"),
-        Kandidat("https://a/en-dsr", "en", "Breaking.Bad.S01E02.DSR.XviD-0TV"),
+        Kandidat("https://a/en-dvd", "en", "Primer.Serija.S01.dvdrip.xvid-BETA"),
+        Kandidat("https://a/en-dsr", "en", "Primer.Serija.S01E02.DSR.XviD-ALFA"),
         slDsr,
-        Kandidat("https://a/en-br", "en", "Breaking.Bad.S01.720p.BluRay.X264-REWARD"),
+        Kandidat("https://a/en-br", "en", "Primer.Serija.S01.720p.BluRay.X264-GAMA"),
     )
     check(U.referenca(kand, slDsr, null, 1080)?.url == "https://a/en-br")
     // Video SD (576 vrstic): nic ni bistveno boljse - brez poravnave.
     check(U.referenca(kand, slDsr, null, 576) == null)
     // Odtis (ujemanje) ali enako ime datoteke: poravnava ni potrebna.
     check(U.referenca(kand, Kandidat("https://a/sl2", "sl", "", ujemanje = true), null, 1080) == null)
-    check(U.tocke(slDsr, "Breaking.Bad.S01E02.DSR.XviD-0TV.avi", 1080) == 90)
-    // Ime datoteke iz iste skupine in vira: BluRay REWARD dobi vec kot WEB druge skupine.
-    val ime = "Breaking.Bad.S01E02.720p.BluRay.x264-REWARD.mkv"
-    check(U.tocke(kand[3], ime, 720) > U.tocke(Kandidat("u", "en", "Breaking.Bad.S01E02.1080p.WEB-DL-NTb"), ime, 720))
+    check(U.tocke(slDsr, "Primer.Serija.S01E02.DSR.XviD-ALFA.avi", 1080) == 90)
+    // Ime datoteke iz iste skupine in vira: BluRay iste skupine dobi vec kot WEB druge skupine.
+    val ime = "Primer.Serija.S01E02.720p.BluRay.x264-GAMA.mkv"
+    check(U.tocke(kand[3], ime, 720) > U.tocke(Kandidat("u", "en", "Primer.Serija.S01E02.1080p.WEB-DL-DELTA"), ime, 720))
     // Izbira v jeziku: boljsa izdaja ima prednost, ob enakih tockah prva po dodatku.
-    val slBr = Kandidat("https://a/sl-br", "sl", "Breaking.Bad.S01E02.1080p.BluRay")
+    val slBr = Kandidat("https://a/sl-br", "sl", "Primer.Serija.S01E02.1080p.BluRay")
     check(U.najboljsi(listOf(slDsr, slBr), "sl", null, 1080)?.url == "https://a/sl-br")
     check(U.najboljsi(listOf(slDsr, Kandidat("https://a/sl-x", "sl", "")), "sl", null, 576)?.url == "https://a/sl")
     check(U.najboljsi(kand, "de", null, 1080) == null)

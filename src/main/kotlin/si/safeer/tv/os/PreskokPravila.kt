@@ -20,7 +20,7 @@ object PreskokPravila {
 
     /**
      * Kljuc nastavitve. Nov 14. 11. 2026 (prej »preskok_odsekov«): edino zapisano vrednost starega kljuca (izklopljeno) je na
-     * TV lastnika pustil preizkus 14. 11. ob 00:13-00:23 (vklop in izklop v nastavitvah), ne lastnik - z novo privzeto
+     * napravi lastnika pustil preizkus 14. 11. 2026 (vklop in izklop v nastavitvah), ne lastnik - z novo privzeto
      * vrednostjo zato velja nov kljuc. Zapise ga samo rocni preklop v nastavitvah.
      */
     const val KLJUC_PRESKOK = "preskok_odsekov_2"

@@ -30,7 +30,7 @@ fun main() {
     val min60 = 60 * 60_000L
     enako("priprava: 40 min, 5:01 pred koncem se ne", false, NaslednjaEpizodaPravila.iskati(min40, min40 - 301_000))
     enako("priprava: 40 min, 5:00 pred koncem", true, NaslednjaEpizodaPravila.iskati(min40, min40 - 300_000))
-    enako("priprava: 48 min (Breaking Bad), 4:30 pred koncem (prej sele 60 s)", true, NaslednjaEpizodaPravila.iskati(min48, min48 - 270_000))
+    enako("priprava: 48 min, 4:30 pred koncem (prej sele 60 s)", true, NaslednjaEpizodaPravila.iskati(min48, min48 - 270_000))
     enako("priprava: 60 min, 90 % je prej kot 5 min (6:00)", true, NaslednjaEpizodaPravila.iskati(min60, min60 - 360_000))
     enako("priprava: 60 min, 6:01 pred koncem se ne", false, NaslednjaEpizodaPravila.iskati(min60, min60 - 361_000))
     enako("prag: 22 min -> 5 min", 300_000L, NaslednjaEpizodaPravila.pragPriprave(22 * 60_000L))
@@ -100,7 +100,7 @@ fun main() {
     enako("ponovitev: 59,9 s po neuspehu se ne", false, NaslednjaEpizodaPravila.zdajPonoviti(10_000, 69_900, koncano = false))
     enako("ponovitev: 60 s po neuspehu", true, NaslednjaEpizodaPravila.zdajPonoviti(10_000, 70_000, koncano = false))
     enako("ponovitev: ob koncu epizode takoj", true, NaslednjaEpizodaPravila.zdajPonoviti(10_000, 10_500, koncano = true))
-    // Potek Breaking Bad S01E02 (48 min): prvi poskus 5 min pred koncem preseze rok, drugi uspe - kartica je pripravljena
+    // Potek epizode (48 min): prvi poskus 5 min pred koncem preseze rok, drugi uspe - kartica je pripravljena
     // pred zadnjimi 10 s (prej: en poskus 60 s pred koncem, rok 20 s, brez ponovitve -> kartice ni bilo).
     run {
         var poskusov = 0; var neuspeh = 0L; var iscem = false; var zacetekPoskusa = 0L; var pripravljena = -1L; var prviPoskus = -1L
