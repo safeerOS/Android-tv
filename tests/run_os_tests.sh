@@ -358,7 +358,7 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.OmrezjePravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PotDoNapraveTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZvokPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZamikPodnapisovPravilaTestKt
-java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.UskladitevPodnapisovPravilaTestKt
+java -Dizvor.os="$SRC/si/safeer/tv/os" -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.UskladitevPodnapisovPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ProsnjaDostopaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZaganjalnikPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.VrsticaPravilaTestKt

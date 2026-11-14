@@ -101,5 +101,25 @@ fun main() {
     check(U.najboljsi(listOf(slDsr, slBr), "sl", null, 1080)?.url == "https://a/sl-br")
     check(U.najboljsi(listOf(slDsr, Kandidat("https://a/sl-x", "sl", "")), "sl", null, 576)?.url == "https://a/sl")
     check(U.najboljsi(kand, "de", null, 1080) == null)
+    // Vezava (Android razredov preizkus JVM ne more pognati). 14. 11. 2026: iskanje podnapisov ob ZACETKU predvajanja je
+    // jemalo prvega v jeziku po dodatku in reference ni pripravilo - podnapis iz druge izdaje je sel v tok neusklajen, pot
+    // samodejnih podnapisov pa ga nato ni vec zamenjala (sled v jeziku ze obstaja).
+    val izvor = System.getProperty("izvor.os") ?: error("manjka -Dizvor.os (mapa src/main/kotlin/si/safeer/tv/os)")
+    val g = java.io.File(izvor, "GlasbaActivity.kt").readText()
+    val zacetek = g.substringAfter("fun poisciPodnapise(t: Stremio.Tok) {", "").substringBefore("fun odpri(t: Stremio.Tok")
+    check(zacetek.isNotEmpty()) { "iskanje podnapisov ob zacetku ni najdeno v GlasbaActivity.kt" }
+    check("Podnapisi.najboljsi(najdeni, jezik, t.imeDatoteke, visina)" in zacetek) { "ob zacetku: izbira izdaje po pravilu" }
+    check("Podnapisi.pripraviUskladitev(izbran, odgovor, t.imeDatoteke, visina)" in zacetek) { "ob zacetku: referenca za uskladitev" }
+    // Izbira je objavljena pred pripravo reference (zagon po roku jo vzame), konec iskanja sele za njo.
+    val objava = zacetek.indexOf("najdenPodnapis = izbran")
+    val referenca = zacetek.indexOf("Podnapisi.pripraviUskladitev(")
+    check(objava in 0 until referenca) { "ob zacetku: izbira objavljena pred referenco" }
+    check(referenca < zacetek.indexOf("podnapisIskanjeKonec = true", objava)) { "ob zacetku: konec iskanja sele po referenci" }
+    // »Prvi v jeziku po dodatku« ni vec izbira nikjer, kjer podnapise iscemo pri dodatkih.
+    for (dat in listOf("GlasbaActivity.kt", "PredvajanjeActivity.kt")) {
+        val v = java.io.File(izvor, dat).readText()
+        check("Stremio.podnapisi(" in v) { dat }
+        check(".firstOrNull { it.jezik == jezik }" !in v) { "$dat: prvi v jeziku po dodatku" }
+    }
     println("UskladitevPodnapisovPravilaTest OK")
 }

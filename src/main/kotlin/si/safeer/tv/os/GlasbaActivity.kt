@@ -11589,14 +11589,30 @@ class GlasbaActivity : OsActivity() {
                 val odtis = if (t.vrsta == "url" && t.url.isNotEmpty()) Podnapisi.odtisToka(t.url, t.glave) else null
                 val prefs = getSharedPreferences("safeer_mediji", MODE_PRIVATE)
                 val naslovi = OsPravila.dodatkiZaPodnapise(vsi, prefs.getString("zadnji_podnapisi", "").orEmpty()) { SkrivnostiPravila.odtis(Stremio.osnova(it)) }
-                
-                fun isci(d: List<String>) = (try { Stremio.podnapisi(d, id.first, id.second, odtis?.first, odtis?.second, t.imeDatoteke) } catch (_: Exception) { emptyList() }).firstOrNull { it.jezik == jezik }
-                
-                najdenPodnapis = isci(naslovi) ?: OsPravila.ostaliZaPodnapise(vsi, naslovi).takeIf { it.isNotEmpty() }?.let { isci(it) }
-                
+                // 14. 11. 2026: podnapis izdaje, ki se z videom ujema najbolje (prej prvi po dodatku - tudi iz druge izdaje, ki za
+                // sliko zaostaja). Visina videa iz opisa toka: ta tok se se ne igra.
+                val visina = TokIzbira.opisi(t.ime + " " + t.opis).visina
+                var odgovor: List<Stremio.PodnapisDodatka> = emptyList()
+                fun isci(d: List<String>): Stremio.PodnapisDodatka? {
+                    val najdeni = try { Stremio.podnapisi(d, id.first, id.second, odtis?.first, odtis?.second, t.imeDatoteke) } catch (_: Exception) { emptyList() }
+                    return Podnapisi.najboljsi(najdeni, jezik, t.imeDatoteke, visina)?.also { odgovor = najdeni }
+                }
+                val izbran = isci(naslovi) ?: OsPravila.ostaliZaPodnapise(vsi, naslovi).takeIf { it.isNotEmpty() }?.let { isci(it) }
+                // Izbira je objavljena takoj: zagon, ki mu rok zacetka potece, jo vzame tudi brez reference (kot prej).
+                najdenPodnapis = izbran
+                // Podnapis iz druge izdaje: casi ujemajoce se izdaje za samodejno uskladitev morajo biti pripravljeni, PREDEN gre
+                // podnapis v tok (predvajalnik ga prebere enkrat, ob pripravi) - zagon caka nanje najvec do roka zacetka.
+                // Napaka pri referenci zagona ne sme zadrzati: konec iskanja se objavi v vsakem primeru.
+                if (izbran != null) try { Podnapisi.pripraviUskladitev(izbran, odgovor, t.imeDatoteke, visina) } catch (_: Exception) { }
                 podnapisIskanjeKonec = true
-                if (najdenPodnapis == null) android.util.Log.d("SafeerPodnapisi", "podnapisov ob zacetku ni: niso najdeni ($jezik)")
+                if (izbran == null) android.util.Log.d("SafeerPodnapisi", "podnapisov ob zacetku ni: niso najdeni ($jezik)")
             }
+        }
+
+        /** Rok zacetka je potekel: podnapisa se ni ali pa je izbran, referenca za uskladitev pa se ni prisla. */
+        fun dnevnikRokaPodnapisov(kje: String) {
+            android.util.Log.d("SafeerPodnapisi", if (najdenPodnapis == null) "podnapisov ob zacetku ni: rok potekel$kje"
+                else "podnapis ob zacetku brez reference za uskladitev: rok potekel$kje")
         }
 
         fun odpri(t: Stremio.Tok, rezerve: List<Stremio.Tok> = emptyList()) {
@@ -11623,14 +11639,14 @@ class GlasbaActivity : OsActivity() {
                     if (!podnapisIskanjeVTeKu || podnapisIskanjeKonec) pozeni()
                     else {
                         if (!OsPravila.cakajPodnapiseZacetek(zacetekPriprave, android.os.SystemClock.uptimeMillis())) {
-                            android.util.Log.d("SafeerPodnapisi", "podnapisov ob zacetku ni: rok potekel")
+                            dnevnikRokaPodnapisov("")
                             pozeni()
                         } else {
                             val r = object : Runnable {
                                 override fun run() {
                                     if (podnapisIskanjeKonec) pozeni()
                                     else if (!OsPravila.cakajPodnapiseZacetek(zacetekPriprave, android.os.SystemClock.uptimeMillis())) {
-                                        android.util.Log.d("SafeerPodnapisi", "podnapisov ob zacetku ni: rok potekel v cakanju")
+                                        dnevnikRokaPodnapisov(" v cakanju")
                                         pozeni()
                                     } else glavna.postDelayed(this, 50)
                                 }
