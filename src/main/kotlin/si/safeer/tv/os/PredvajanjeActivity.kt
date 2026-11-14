@@ -1986,9 +1986,9 @@ class PredvajanjeActivity : OsActivity() {
         val vsi = dodatkiStremio()
         val naslovi = OsPravila.dodatkiZaPodnapise(vsi, prefs.getString(K_ZADNJI_PODNAPISI, "").orEmpty()) { SkrivnostiPravila.odtis(Stremio.osnova(it)) }
         val sk = skTrenutna
-        val urlToka = sk?.zvok.orEmpty()
+        val urlToka = sk.zvok
         val glaveToka = SpletniVir.glaveToka(urlToka)
-        val imeDatoteke = sk?.imeDatoteke
+        val imeDatoteke = sk.imeDatoteke
         val visina = p0.videoSize.height
         delavec.execute {
             val odtis = if (urlToka.isNotEmpty()) Podnapisi.odtisToka(urlToka, glaveToka) else null
