@@ -159,13 +159,16 @@ class PredvajanjeActivity : OsActivity() {
         glavna.postDelayed(this, 1_000)
     } }
 
-    private fun zapisiNapredek() {
+    /** [naslednjaZacela]: naslednja epizoda se zacenja s kartice - ta je odgledana ([NaslednjaEpizodaPravila.polozajZaNapredek]). */
+    private fun zapisiNapredek(naslednjaZacela: Boolean = false) {
+        if (!NaslednjaEpizodaPravila.zapisiNapredekZdaj(pripravljamNaslov != null, naslednjaZacela)) return
         val p = GlasbaStoritev.predvajalnik ?: return
         val sk = GlasbaStoritev.trenutna() ?: return
         // Sprotni tok pomocnika: napredek velja za izvirnik (nadaljevanje ga znova odpre in po potrebi spet prosi pomocnika).
         val t = SprotnaPomoc.tokZa(sk)
-        if (t != null) { if (t.izvirnik.video) MediaNapredek.zapisi(this, t.izvirnik, t.zamikMs + p.currentPosition.coerceAtLeast(0), t.trajanjeMs, t.streznikIzvirnika?.naprava.orEmpty()) }
-        else if (sk.video) MediaNapredek.zapisi(this, sk, p.currentPosition.coerceAtLeast(0), p.duration.coerceAtLeast(0), GlasbaStoritev.streznikTrenutni?.naprava.orEmpty())
+        if (t != null) { if (t.izvirnik.video) MediaNapredek.zapisi(this, t.izvirnik, NaslednjaEpizodaPravila.polozajZaNapredek(t.zamikMs + p.currentPosition.coerceAtLeast(0), t.trajanjeMs, naslednjaZacela), t.trajanjeMs, t.streznikIzvirnika?.naprava.orEmpty()) }
+        else if (sk.video) MediaNapredek.zapisi(this, sk, NaslednjaEpizodaPravila.polozajZaNapredek(p.currentPosition.coerceAtLeast(0), p.duration.coerceAtLeast(0), naslednjaZacela),
+            p.duration.coerceAtLeast(0), GlasbaStoritev.streznikTrenutni?.naprava.orEmpty())
     }
 
     /**
@@ -2660,8 +2663,8 @@ class PredvajanjeActivity : OsActivity() {
         }
         val naslovNovi = n.naslov
         android.util.Log.i("SafeerOsMedia", "naslednja epizoda: S${e.sezona}E${e.epizoda} (${if (samodejno) "samodejno" else "rocno"}, zapored $zaporednihSamodejno)")
-        // Mesto te epizode se zapise (odgledano za Nadaljuj), predvajanje pred koncem se ustavi.
-        zapisiNapredek()
+        // Mesto te epizode se zapise kot odgledano (kartica je lahko ze ob zacetku odjavne), predvajanje pred koncem se ustavi.
+        zapisiNapredek(naslednjaZacela = true)
         GlasbaStoritev.predvajalnik?.let { if (it.playbackState != Player.STATE_ENDED) GlasbaStoritev.premorTu() }
         pripravljamNaslov = naslovNovi
         zagonovObOdprtju = GlasbaStoritev.zagonov

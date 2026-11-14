@@ -68,6 +68,20 @@ object NaslednjaEpizodaPravila {
     fun pokazi(trajanjeMs: Long, polozajMs: Long, koncano: Boolean, odjavnaOdMs: Long? = null): Boolean =
         koncano || (trajanjeMs >= NAJMANJ_TRAJANJA_MS && polozajMs >= zacetekKartice(trajanjeMs, odjavnaOdMs))
 
+    /**
+     * Mesto, ki ga zapisemo za Nadaljuj, ko se naslednja epizoda zacne s kartice: kartica je lahko ze ob zacetku odjavne
+     * (TheIntroDB dovoli od 75 % naprej), zato epizodo zapisemo kot odgledano (do konca), sicer bi ostala v »Nadaljuj«
+     * pri npr. 80 %. Brez znanega trajanja ostane trenutno mesto.
+     */
+    fun polozajZaNapredek(polozajMs: Long, trajanjeMs: Long, naslednjaZacela: Boolean): Long =
+        if (naslednjaZacela && trajanjeMs > 0) trajanjeMs else polozajMs
+
+    /**
+     * Napredek sproti (tik, onStop): med pripravo novega posnetka je trenutna se stara epizoda (ustavljena pri npr. 80 %) -
+     * njen zapis bi pobrisal oznako »odgledano« iz [polozajZaNapredek] in jo vrnil v Nadaljuj. Takrat ne zapisujemo.
+     */
+    fun zapisiNapredekZdaj(pripravljamNovega: Boolean, naslednjaZacela: Boolean): Boolean = naslednjaZacela || !pripravljamNovega
+
     /** Zacetek odjavne spice iz odsekov TheIntroDB (samo smiselni odseki, [PreskokPravila.uporabni]); null = ne vemo. */
     fun odjavnaOd(odseki: List<PreskokPravila.Odsek>, trajanjeMs: Long): Long? =
         PreskokPravila.uporabni(odseki, trajanjeMs).firstOrNull { it.vrsta == PreskokPravila.Vrsta.ODJAVNA }?.odMs

@@ -50,6 +50,13 @@ fun main() {
     enako("kartica: brez odjavne zadnjih 10 s", min40 - 10_000, NaslednjaEpizodaPravila.zacetekKartice(min40, null))
     enako("kartica: odjavna v zadnjih 10 s ne skrajsa odstevanja", min40 - 10_000, NaslednjaEpizodaPravila.zacetekKartice(min40, min40 - 5_000))
     enako("kartica: neveljaven zacetek odjavne ne velja", min40 - 10_000, NaslednjaEpizodaPravila.zacetekKartice(min40, -1))
+    // Zacetek naslednje s kartice ob zacetku odjavne (lahko ze pri 80 %): epizoda se zapise kot odgledana.
+    enako("napredek: naslednja zacela -> do konca", min40, NaslednjaEpizodaPravila.polozajZaNapredek(min40 * 8 / 10, min40, naslednjaZacela = true))
+    enako("napredek: brez naslednje ostane mesto", min40 * 8 / 10, NaslednjaEpizodaPravila.polozajZaNapredek(min40 * 8 / 10, min40, naslednjaZacela = false))
+    enako("napredek: brez trajanja ostane mesto", 5_000L, NaslednjaEpizodaPravila.polozajZaNapredek(5_000, 0, naslednjaZacela = true))
+    enako("napredek med pripravo nove epizode se ne zapise (ne pobrise »odgledano«)", false, NaslednjaEpizodaPravila.zapisiNapredekZdaj(pripravljamNovega = true, naslednjaZacela = false))
+    enako("napredek ob zacetku naslednje se zapise", true, NaslednjaEpizodaPravila.zapisiNapredekZdaj(pripravljamNovega = true, naslednjaZacela = true))
+    enako("napredek med predvajanjem se zapise", true, NaslednjaEpizodaPravila.zapisiNapredekZdaj(pripravljamNovega = false, naslednjaZacela = false))
     // Odjavna iz odsekov TheIntroDB: samo smiseln odsek ODJAVNA (zadnja cetrtina, sega do konca).
     val odsekOdjavna = PreskokPravila.Odsek(PreskokPravila.Vrsta.ODJAVNA, odjavna, null)
     enako("odjavna iz odsekov", odjavna, NaslednjaEpizodaPravila.odjavnaOd(listOf(PreskokPravila.Odsek(PreskokPravila.Vrsta.UVOD, 60_000, 120_000), odsekOdjavna), min40))
