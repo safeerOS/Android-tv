@@ -165,7 +165,7 @@ object Podnapisi {
         // Skupni zamik iz 13. 11. 2026 (»zamik_ms«, za vse filme) ne velja vec.
         val ured = prefs(ctx).edit().remove("zamik_ms")
         if (v == 0L) { zamiki.remove(k); ured.remove(k) } else {
-            if (zamiki.size >= NAJVEC_ZAMIKOV && k !in zamiki) zamiki.keys.take(zamiki.size - NAJVEC_ZAMIKOV + 1).forEach { zamiki.remove(it); ured.remove(it) }
+            if (zamiki.size >= NAJVEC_ZAMIKOV && !zamiki.containsKey(k)) zamiki.keys.take(zamiki.size - NAJVEC_ZAMIKOV + 1).forEach { zamiki.remove(it); ured.remove(it) }
             zamiki[k] = v; ured.putLong(k, v)
         }
         ured.apply()
