@@ -203,6 +203,7 @@
     <string name="os_preskoci_povzetek">Passer le résumé</string>
     <string name="os_preskoci_odjavno">Passer le générique</string>
     <string name="os_preskoci_napoved">Passer l’aperçu</string>
+    <string name="os_preskok_tipka_ok">OK : %1$s</string>
     <string name="os_mini_cel_zaslon">Plein écran</string>
     <string name="os_mini_samodejno">Lecture automatique</string>
     <string name="os_samodejno_album">Continuer après la fin de l’album</string>

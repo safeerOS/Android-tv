@@ -9,7 +9,21 @@ package si.safeer.tv.os
  */
 object PreskokPravila {
     const val GOSTITELJ = "api.theintrodb.org"
-    const val KLJUC_PRESKOK = "preskok_odsekov"
+
+    /**
+     * Lastnik 14. 11. 2026 (nadomesti neodvisni pregled N4): gumb za preskok je PRIVZETO VKLOPLJEN. Poizvedba pove TheIntroDB
+     * oznako IMDb, sezono, epizodo in naslov IP; uporabnik jo izklopi v Medijski center > zobnik > Predvajanje. Edini vir
+     * privzete vrednosti (GlasbaStoritev.preskokOdsekov). Ostala varovala ostanejo: brez IMDb ni klica, [ROK_MS],
+     * [NAJVEC_BAJTOV], en klic na posnetek v seji.
+     */
+    const val PRIVZETO_VKLOPLJEN = true
+
+    /**
+     * Kljuc nastavitve. Nov 14. 11. 2026 (prej »preskok_odsekov«): edino zapisano vrednost starega kljuca (izklopljeno) je na
+     * TV lastnika pustil preizkus 14. 11. ob 00:13-00:23 (vklop in izklop v nastavitvah), ne lastnik - z novo privzeto
+     * vrednostjo zato velja nov kljuc. Zapise ga samo rocni preklop v nastavitvah.
+     */
+    const val KLJUC_PRESKOK = "preskok_odsekov_2"
     /** Odgovor je majhen (nekaj odsekov); vse vec je napaka ali zloraba. */
     const val NAJVEC_BAJTOV = 16 * 1024
     const val ROK_MS = 4_000

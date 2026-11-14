@@ -276,7 +276,14 @@ class PredvajanjeActivity : OsActivity() {
     private var zadnjaVelikost: VideoSize? = null
     private val velikost = object : Player.Listener {
         override fun onVideoSizeChanged(videoSize: VideoSize) = prilagodi(videoSize)
-        override fun onRenderedFirstFrame() { prvaSlika = true; zacetekImena(); posodobiNalaganje() }
+        override fun onRenderedFirstFrame() {
+            prvaSlika = true; zacetekImena(); posodobiNalaganje()
+            // Meritev »zatika« po preskoku (14. 11. 2026, ni bilo izmerjeno): cas od preskoka do prve slike na novem mestu.
+            if (preskokOdMs > 0L) {
+                android.util.Log.i("SafeerOsMedia", "preskok: prva slika po ${android.os.SystemClock.uptimeMillis() - preskokOdMs} ms")
+                preskokOdMs = 0L
+            }
+        }
         override fun onPlaybackStateChanged(playbackState: Int) {
             posodobiNalaganje()
             // Lastnik 5. 11. 2026: konec epizode - kartica naslednje epizode (zaslon ostane, ceprav se storitev ustavi).
@@ -2247,12 +2254,14 @@ class PredvajanjeActivity : OsActivity() {
         if (!PreskokPravila.gumbViden(0L, prikazano)) { preskokKoncani += o; skrijPreskok(); return }
         val g = gumbPreskoka ?: ustvariGumbPreskoka() ?: return
         preskokTrenutni = o
-        g.text = getString(when (o.vrsta) {
+        val napis = getString(when (o.vrsta) {
             PreskokPravila.Vrsta.UVOD -> R.string.os_preskoci_uvod
             PreskokPravila.Vrsta.POVZETEK -> R.string.os_preskoci_povzetek
             PreskokPravila.Vrsta.ODJAVNA -> R.string.os_preskoci_odjavno
             PreskokPravila.Vrsta.NAPOVED -> R.string.os_preskoci_napoved
         })
+        // Na TV napis pove tipko (»OK: Preskoci uvod«); na dotik je navaden gumb.
+        g.text = if (dotik) napis else getString(R.string.os_preskok_tipka_ok, napis)
         if (g.visibility != View.VISIBLE) {
             g.visibility = View.VISIBLE
             android.util.Log.i("SafeerOsMedia", "preskok: gumb ${o.vrsta.name} ($polozaj ms)")
@@ -2274,12 +2283,23 @@ class PredvajanjeActivity : OsActivity() {
         val koren = korenPogled ?: return null
         val g = gumbKartice(R.string.os_preskoci_uvod) { preskoci() }.apply { visibility = View.GONE }
         // Na TV se gumb ne fokusira (OK ga pritisne prek dispatchKeyEvent): fokus ostane, kjer je bil, previjanje dela naprej.
-        if (!dotik) g.isFocusable = false
+        if (!dotik) {
+            g.isFocusable = false
+            // Lastnik 14. 11. 2026 (gumba ni nasel): na TV je bil v barvah nefokusiranega gumba (temen na temni sliki, 16 sp).
+            // Zdaj v barvah poudarka kot fokusiran gumb (kontrast iz os_colors / tokens) in vecji; napis pove tipko (OK).
+            (g.background as? GradientDrawable)?.let { it.setColor(osBarva(R.color.os_mint)); it.setStroke(dp(1), osBarva(R.color.os_mint)) }
+            g.setTextColor(osBarva(R.color.os_ozadje))
+            g.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
+            g.setOnFocusChangeListener(null)
+        }
         // Desno spodaj nad pasom z imenom in casom.
         koren.addView(g, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.END).apply { bottomMargin = dp(132); rightMargin = dp(48) })
         gumbPreskoka = g
         return g
     }
+
+    /** Uptime preskoka (za meritev casa do prve slike na novem mestu); 0 = ni preskoka v teku. */
+    private var preskokOdMs = 0L
 
     private fun preskoci(odsek: PreskokPravila.Odsek? = preskokTrenutni, za: String? = preskokZa) {
         val o = odsek ?: return
@@ -2291,6 +2311,7 @@ class PredvajanjeActivity : OsActivity() {
         val cilj = PreskokPravila.cilj(o, trajanje) ?: return
         val sprotno = !GlasbaStoritev.naZvocniku() && SprotnaPomoc.tokZa(sk) != null
         if (skociNa(cilj)) {
+            preskokOdMs = android.os.SystemClock.uptimeMillis()
             android.util.Log.i("SafeerOsMedia", "preskok: ${o.vrsta.name} -> $cilj ms${if (sprotno) " (caka pomocnika)" else ""}")
             // Sprotni tok: previjanje pomocnika se lahko ne posreci - odsek je koncan sele ob uspehu (previjZdaj).
             if (sprotno) preskokCaka = o else preskokKoncani += o

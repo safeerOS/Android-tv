@@ -203,6 +203,7 @@
     <string name="os_preskoci_povzetek">Rückblick überspringen</string>
     <string name="os_preskoci_odjavno">Abspann überspringen</string>
     <string name="os_preskoci_napoved">Vorschau überspringen</string>
+    <string name="os_preskok_tipka_ok">OK: %1$s</string>
     <string name="os_mini_cel_zaslon">Vollbild</string>
     <string name="os_mini_samodejno">Automatisch weiter</string>
     <string name="os_samodejno_album">Nach Albumende automatisch weiter</string>

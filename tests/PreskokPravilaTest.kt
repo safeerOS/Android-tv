@@ -23,6 +23,29 @@ fun main() {
     enako("izklopljeno: brez poizvedbe", null, P.poizvedba(false, true, false, "tt0903747", 1, 2))
     enako("zvok: brez poizvedbe", null, P.poizvedba(true, false, false, "tt0903747", 1, 2))
 
+    // Lastnik 14. 11. 2026: gumb za preskok je privzeto VKLOPLJEN (nadomesti N4), privzeta vrednost iz enega mesta.
+    enako("privzeto vklopljen", true, PreskokPravila.PRIVZETO_VKLOPLJEN)
+    enako("nov kljuc nastavitve (stari je zapisal preizkus 14. 11.)", "preskok_odsekov_2", PreskokPravila.KLJUC_PRESKOK)
+    run {
+        // Vsa branja nastavitve v kodi: privzeta vrednost samo iz PRIVZETO_VKLOPLJEN, kljuc samo iz KLJUC_PRESKOK.
+        val izvor = System.getProperty("preskok.izvor")
+        if (izvor == null) { napak++; println("  NAPAKA  manjka -Dpreskok.izvor (mapa src/main/kotlin/si/safeer/tv/os)") }
+        else {
+            val datoteke = java.io.File(izvor).listFiles { f -> f.name.endsWith(".kt") }.orEmpty()
+            enako("izvor najden", true, datoteke.size > 50)
+            val naRoke = ArrayList<String>()
+            val privzete = ArrayList<String>()
+            for (f in datoteke) {
+                val t = f.readText()
+                if (f.name != "PreskokPravila.kt" && t.contains("\"preskok_odsekov")) naRoke += f.name
+                Regex("getBoolean\\(PreskokPravila\\.KLJUC_PRESKOK,\\s*([^)]+)\\)").findAll(t).forEach { m -> privzete += f.name + ": " + m.groupValues[1].trim() }
+            }
+            enako("kljuc ni nikjer zapisan na roke", emptyList<String>(), naRoke)
+            enako("nastavitev bere eno mesto s privzeto vrednostjo iz PRIVZETO_VKLOPLJEN",
+                listOf("GlasbaStoritev.kt: PreskokPravila.PRIVZETO_VKLOPLJEN"), privzete)
+        }
+    }
+
     // Razclenitev: pravi odgovor (13. 11. 2026, Breaking Bad 1x2).
     val bb = """{"tvdb_id":81189,"type":"tv","season":1,"episode":2,"intro":[{"start_ms":314551,"end_ms":331127}],"credits":[{"start_ms":2848149,"end_ms":null}]}"""
     val o = P.razcleni(bb)

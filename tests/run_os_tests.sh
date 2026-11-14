@@ -401,7 +401,7 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SerijePravilaTestKt
 # Lastnik 5. 11. 2026: ime posnetka izgine po 3 s (pavza -> play brez imena), samodejna naslednja epizoda z mejo 3
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.NaslednjaEpizodaPravilaTestKt
 # Lastnik 13. 11. 2026: gumb za preskok uvoda, povzetka in odjavne (TheIntroDB, ideja IPVIO Stream).
-java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PreskokPravilaTestKt
+java -Dpreskok.izvor="$SRC/si/safeer/tv/os" -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PreskokPravilaTestKt
 # Pregled 5. 11. 2026: vrnitev na zivo ob BEHIND_LIVE_WINDOW z mejo (3 v 60 s).
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZaOknomPravilaTestKt
 # Lastnik 13. 11. 2026: ujemanje osvezevanja zaslona s filmom (24p brez trzanja).

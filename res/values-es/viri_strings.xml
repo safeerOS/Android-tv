@@ -203,6 +203,7 @@
     <string name="os_preskoci_povzetek">Saltar resumen</string>
     <string name="os_preskoci_odjavno">Saltar créditos</string>
     <string name="os_preskoci_napoved">Saltar avance</string>
+    <string name="os_preskok_tipka_ok">OK: %1$s</string>
     <string name="os_mini_cel_zaslon">Pantalla completa</string>
     <string name="os_mini_samodejno">Reproducción automática</string>
     <string name="os_samodejno_album">Continuar al terminar el álbum</string>

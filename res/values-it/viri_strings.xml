@@ -203,6 +203,7 @@
     <string name="os_preskoci_povzetek">Salta riassunto</string>
     <string name="os_preskoci_odjavno">Salta titoli di coda</string>
     <string name="os_preskoci_napoved">Salta anteprima</string>
+    <string name="os_preskok_tipka_ok">OK: %1$s</string>
     <string name="os_mini_cel_zaslon">Schermo intero</string>
     <string name="os_mini_samodejno">Riproduzione automatica</string>
     <string name="os_samodejno_album">Continua al termine dell’album</string>

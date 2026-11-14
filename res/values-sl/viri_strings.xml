@@ -203,6 +203,7 @@
     <string name="os_preskoci_povzetek">Preskoči povzetek</string>
     <string name="os_preskoci_odjavno">Preskoči odjavno špico</string>
     <string name="os_preskoci_napoved">Preskoči napoved</string>
+    <string name="os_preskok_tipka_ok">OK: %1$s</string>
     <string name="os_mini_cel_zaslon">Na celem zaslonu</string>
     <string name="os_mini_samodejno">Samodejno naprej</string>
     <string name="os_samodejno_album">Samodejno naprej po koncu albuma</string>

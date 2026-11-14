@@ -1596,9 +1596,10 @@ class GlasbaStoritev : Service() {
         fun nastaviUjemanjeOsvezevanja(c: Context, da: Boolean) {
             nastavitveSamodejno(c).edit().putBoolean(OsvezevanjePravila.KLJUC_OSVEZEVANJE, da).apply()
         }
-        /** Gumb za preskok uvoda in odjavne (TheIntroDB). Privzeto IZKLOPLJEN: poizvedba pove tretji osebi, kaj gledas
-         *  (IMDb id, sezona, epizoda; naslov IP) - uporabnik jo vklopi sam (zasebnost pred udobjem, neodvisni pregled N4). */
-        fun preskokOdsekov(c: Context): Boolean = nastavitveSamodejno(c).getBoolean(PreskokPravila.KLJUC_PRESKOK, false)
+        /** Gumb za preskok uvoda in odjavne (TheIntroDB). Lastnik 14. 11. 2026: privzeto VKLOPLJEN ([PreskokPravila.PRIVZETO_VKLOPLJEN],
+         *  nadomesti N4); poizvedba pove TheIntroDB, kaj gledas (IMDb id, sezona, epizoda; naslov IP) - uporabnik jo izklopi v
+         *  Medijski center > zobnik > Predvajanje. */
+        fun preskokOdsekov(c: Context): Boolean = nastavitveSamodejno(c).getBoolean(PreskokPravila.KLJUC_PRESKOK, PreskokPravila.PRIVZETO_VKLOPLJEN)
         fun nastaviPreskokOdsekov(c: Context, da: Boolean) {
             nastavitveSamodejno(c).edit().putBoolean(PreskokPravila.KLJUC_PRESKOK, da).apply()
         }
