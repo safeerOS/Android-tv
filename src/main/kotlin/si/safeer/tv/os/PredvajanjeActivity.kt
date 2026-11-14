@@ -1854,16 +1854,17 @@ class PredvajanjeActivity : OsActivity() {
         val zamik = if (videa) 2 else 1
         val imena = listOf(getString(R.string.podnapisi_izklop)) + (if (videa) listOf(getString(R.string.podnapisi_videa)) else emptyList()) +
             jeziki.map { Podnapisi.imeJezika(this, it).ifBlank { it } }
+        // Zamik je PRVA vrstica (lastnik 14. 11. 2026: gumba ni nasel - bil je zadnji, pod 23 jeziki), zato se vse vrstice premaknejo za 1.
         val trenutni = when {
-            !Podnapisi.vklopljeni(p) -> 0
-            else -> jeziki.indexOf(Podnapisi.jezikDodatka(this)).let { if (it >= 0) it + zamik else -1 }
+            !Podnapisi.vklopljeni(p) -> 1
+            else -> jeziki.indexOf(Podnapisi.jezikDodatka(this)).let { if (it >= 0) it + zamik + 1 else -1 }
         }
-        val vrsticaZamika = getString(R.string.podnapisi_zamik, ZamikPodnapisovPravila.oblika(Podnapisi.zamikMs(this)))
         android.app.AlertDialog.Builder(this).setTitle(R.string.podnapisi_naslov)
-            .setSingleChoiceItems((imena + vrsticaZamika).toTypedArray(), trenutni) { d, k ->
+            .setSingleChoiceItems((listOf(Podnapisi.vrsticaZamika(this, p)) + imena).toTypedArray(), trenutni) { d, izbira ->
                 d.dismiss()
+                val k = izbira - 1
                 when {
-                    k == imena.size -> Podnapisi.pokaziZamik(this)
+                    izbira == 0 -> Podnapisi.pokaziZamik(this)
                     k == 0 -> { Podnapisi.izklopiDodatek(this, p); posodobiPodnapise() }
                     videa && k == 1 -> Podnapisi.izberi(this, p) { posodobiPodnapise() }
                     else -> naloziPodnapis(najdeni, jeziki[k - zamik])
@@ -1871,17 +1872,31 @@ class PredvajanjeActivity : OsActivity() {
             }.show()
     }
 
-    /** Prvi (najboljsi po dodatku) podnapis v [jezik] gre v tok na istem mestu; jezik si zapomnimo. */
+    /**
+     * Podnapis v [jezik] z izdajo, ki se z videom ujema najbolje, gre v tok na istem mestu; jezik si zapomnimo. Ce je iz druge
+     * izdaje, se pred tem v ozadju pripravi samodejna uskladitev ([Podnapisi.pripraviUskladitev], 14. 11. 2026).
+     */
     private fun naloziPodnapis(najdeni: List<Stremio.PodnapisDodatka>, jezik: String) {
-        val p = GlasbaStoritev.predvajalnik ?: return
-        val prvi = najdeni.firstOrNull { it.jezik == jezik } ?: return
-        if (!GlasbaStoritev.dodajPodnapise(listOf(Podnapisi.izDodatka(this, prvi)))) {
-            android.widget.Toast.makeText(this, R.string.podnapisi_ne_gre, android.widget.Toast.LENGTH_LONG).show()
-            return
+        val p0 = GlasbaStoritev.predvajalnik ?: return
+        val sk = GlasbaStoritev.trenutna()
+        val imeDatoteke = sk?.imeDatoteke
+        val visina = p0.videoSize.height
+        val prvi = Podnapisi.najboljsi(najdeni, jezik, imeDatoteke, visina) ?: return
+        val kljuc = sk?.id
+        delavec.execute {
+            Podnapisi.pripraviUskladitev(prvi, najdeni, imeDatoteke, visina)
+            runOnUiThread {
+                if (isFinishing || GlasbaStoritev.trenutna()?.id != kljuc) return@runOnUiThread
+                val p = GlasbaStoritev.predvajalnik ?: return@runOnUiThread
+                if (!GlasbaStoritev.dodajPodnapise(listOf(Podnapisi.izDodatka(this, prvi)))) {
+                    android.widget.Toast.makeText(this, R.string.podnapisi_ne_gre, android.widget.Toast.LENGTH_LONG).show()
+                    return@runOnUiThread
+                }
+                podnapisiDodatkaZa = GlasbaStoritev.trenutna()?.id.orEmpty()
+                Podnapisi.vklopiJezik(this, p, jezik)
+                posodobiPodnapise()
+            }
         }
-        podnapisiDodatkaZa = GlasbaStoritev.trenutna()?.id.orEmpty()
-        Podnapisi.vklopiJezik(this, p, jezik)
-        posodobiPodnapise()
     }
 
     /** Zapomnjen jezik (uporabnik ga je enkrat izbral): ob novem filmu z dodatkom podnapise poiscemo in vklopimo sami. */
@@ -1964,9 +1979,16 @@ class PredvajanjeActivity : OsActivity() {
         val urlToka = sk?.zvok.orEmpty()
         val glaveToka = SpletniVir.glaveToka(urlToka)
         val imeDatoteke = sk?.imeDatoteke
+        val visina = p0.videoSize.height
         delavec.execute {
             val odtis = if (urlToka.isNotEmpty()) Podnapisi.odtisToka(urlToka, glaveToka) else null
-            fun isci(d: List<String>) = (try { Stremio.podnapisi(d, id.first, id.second, odtis?.first, odtis?.second, imeDatoteke) } catch (_: Exception) { emptyList() }).firstOrNull { it.jezik == jezik }
+            // 14. 11. 2026: podnapis izdaje, ki se z videom ujema najbolje (ne prvi po dodatku); iz druge izdaje ga poravnamo.
+            fun isci(d: List<String>): Stremio.PodnapisDodatka? {
+                val najdeni = try { Stremio.podnapisi(d, id.first, id.second, odtis?.first, odtis?.second, imeDatoteke) } catch (_: Exception) { emptyList() }
+                val izbran = Podnapisi.najboljsi(najdeni, jezik, imeDatoteke, visina) ?: return null
+                Podnapisi.pripraviUskladitev(izbran, najdeni, imeDatoteke, visina)
+                return izbran
+            }
             // Neodvisni pregled 4. 11. 2026: zadnji dodatek, ki je zadel, podnapisov v tem jeziku nima - v istem opravilu
             // vprasamo se ostale (prej je podnapisiDodatkaZa ponovno iskanje za ta naslov zaprl).
             val prvi = isci(naslovi) ?: OsPravila.ostaliZaPodnapise(vsi, naslovi).takeIf { it.isNotEmpty() }?.let { isci(it) }

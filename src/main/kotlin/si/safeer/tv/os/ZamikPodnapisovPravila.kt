@@ -5,7 +5,9 @@ import kotlin.math.abs
 /**
  * Zamik podnapisov (lastnik 13. 11. 2026: »podnapisi v Medijskem centru prehitevajo sliko«).
  * Podnapis iz dodatka je narejen za drugo izdajo videa, zato se pokaze prej ali pozneje kot govor; ExoPlayer
- * zamika nima, zato ga uporabnik nastavi v meniju podnapisov in ga uporabimo pri branju podnapisov.
+ * zamika nima, zato ga uporabnik nastavi v meniju podnapisov in ga uporabimo pri branju podnapisov. Od 14. 11. 2026 velja
+ * zamik za vsako datoteko podnapisov posebej (Podnapisi.nastaviZamikMs) in je rezerva za samodejno uskladitev
+ * ([UskladitevPodnapisovPravila]).
  * Pozitiven zamik = podnapis se pokaze POZNEJE (popravek za »prehitevajo«). Čisto pravilo brez Androida.
  */
 object ZamikPodnapisovPravila {

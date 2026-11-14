@@ -7,6 +7,7 @@
     <string name="podnapisi_prej">Sottotitoli prima di %1$s</string>
     <string name="podnapisi_zamik_ponastavi">Reimposta ritardo</string>
     <string name="podnapisi_zamik">Ritardo sottotitoli: %1$s</string>
+    <string name="podnapisi_zamik_samodejno">Ritardo sottotitoli: sincronizzati automaticamente con l\'immagine</string>
     <string name="podnapisi_zamik_ne">Questi sottotitoli non possono essere spostati (solo quelli da file e componenti aggiuntivi).</string>
     <string name="podnapisi_namig">su: sottotitoli</string>
     <string name="podnapisi_st">Sottotitoli %d</string>

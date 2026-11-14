@@ -7,6 +7,7 @@
     <string name="podnapisi_prej">Sous-titres plus tôt de %1$s</string>
     <string name="podnapisi_zamik_ponastavi">Réinitialiser le décalage</string>
     <string name="podnapisi_zamik">Décalage des sous-titres : %1$s</string>
+    <string name="podnapisi_zamik_samodejno">Décalage des sous-titres : synchronisés automatiquement avec l\'image</string>
     <string name="podnapisi_zamik_ne">Ces sous-titres ne peuvent pas être décalés (seulement ceux des fichiers et des modules).</string>
     <string name="podnapisi_namig">haut : sous-titres</string>
     <string name="podnapisi_st">Sous-titres %d</string>

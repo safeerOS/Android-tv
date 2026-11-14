@@ -449,6 +449,24 @@ object Stremio {
         } catch (_: Exception) { if ((zadnjaKoda.get() ?: 0) == 0) zabeleziOdziv(url, 0); null }
     }
 
+    /**
+     * Datoteka podnapisov iz dodatka (referenca za samodejno uskladitev, 14. 11. 2026): najvec [NAJVEC_PODNAPISA] bajtov,
+     * preusmeritve rocno ([PreusmeritevPravila]), brez glave z nastavitvami dodatka. null = ni prenosa. Klic iz niti.
+     */
+    fun prenesiPodnapis(url: String): ByteArray? {
+        if (!url.startsWith("https://") && !url.startsWith("http://")) return null
+        return try {
+            val c = odpriDodatek(url, 5000, null)
+            try {
+                if (c.responseCode !in 200..299 || c.contentLengthLong > NAJVEC_PODNAPISA) null
+                else c.inputStream.use { beriOmejeno(it, NAJVEC_PODNAPISA) }
+            } finally { c.disconnect() }
+        } catch (_: Exception) { null }
+    }
+
+    /** Datoteka podnapisov celovecernega filma ima 50-150 kB; 2 MB je dovolj z rezervo. */
+    private const val NAJVEC_PODNAPISA = 2 * 1024 * 1024
+
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8").replace("+", "%20")
 
     /** Pregled D7: najvec [meja] bajtov; null, ce jih je vec (beremo najvec meja + 1, da to vemo). */
@@ -1719,7 +1737,9 @@ object Stremio {
     fun imaPodnapise(naslovi: List<String>, tip: String, id: String): Boolean =
         naslovi.mapNotNull { manifesti[osnova(it)] }.any { dajePodnapise(it, tip, id) }
 
-    data class PodnapisDodatka(val url: String, val jezik: String, val dodatek: String, val osnova: String = "")
+    /** [izdaja] = ime izdaje, za katero je podnapis narejen (OpenSubtitles movieReleaseName); [ujemanje] = odtis videa se ujema. */
+    data class PodnapisDodatka(val url: String, val jezik: String, val dodatek: String, val osnova: String = "",
+                               val izdaja: String = "", val ujemanje: Boolean = false)
 
     /**
      * Naloga 72: podnapisi naslova iz uporabnikovih dodatkov (OpenSubtitles v3 ...): GET {osnova}/subtitles/{tip}/{id}.json,
@@ -1758,6 +1778,9 @@ object Stremio {
             }
             if (a == null) return@flatMap emptyList()
             
+            // Ime izdaje (14. 11. 2026): podnapis druge izdaje je po odsekih zamaknjen - z njim izberemo ujemajoco izdajo in
+            // referenco za samodejno uskladitev ([UskladitevPodnapisovPravila]). Ime je samo besedilo (najvec 200 znakov).
+            val izdaje = HashMap<String, String>()
             val vnosi = (0 until a.length()).mapNotNull { i -> 
                 a.optJSONObject(i)?.let { 
                     val u = it.optString("url")
@@ -1765,11 +1788,14 @@ object Stremio {
                     val idPodnapisa = it.optString("id")
                     val isMatch = it.optBoolean("moviehash_match", false) || 
                                   it.optBoolean("g", false) || 
+                                  (hash != null && it.optString("m") == "h") ||
                                   (hash != null && idPodnapisa.contains(hash, ignoreCase = true))
+                    val izdaja = it.optString("movieReleaseName").ifBlank { it.optString("subtitleFileName") }
+                    if (izdaja.isNotBlank()) izdaje[u.trim()] = izdaja.filter { c -> c >= ' ' }.take(200)
                     Triple(u, l, isMatch)
                 } 
             }
-            OsPravila.podnapisiDodatka(vnosi).map { PodnapisDodatka(it.url, it.jezik, m.ime, m.osnova) }
+            OsPravila.podnapisiDodatka(vnosi).map { PodnapisDodatka(it.url, it.jezik, m.ime, m.osnova, izdaje[it.url].orEmpty(), it.ujemanje) }
         }
     }
 

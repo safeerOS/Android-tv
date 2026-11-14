@@ -108,6 +108,8 @@ object Podnapisi {
         return seznam.map { p ->
             val privzet = seznam.size == 1 || (p.jezik.isNotBlank() && p.jezik == mojJezik)
             MediaItem.SubtitleConfiguration.Builder(android.net.Uri.parse(p.url))
+                // Naslov kot id: razclenjevalnik ([Popravljalnik]) po njem najde zamik in uskladitev tega podnapisa.
+                .setId(p.url)
                 .setMimeType(p.mime.ifBlank { mime(p.ime) })
                 .setLanguage(p.jezik.ifBlank { null })
                 .setLabel(listOf(imeJezika(ctx, p.jezik), p.oznaka).filter { it.isNotBlank() }.joinToString(" · ").ifBlank { p.ime })
@@ -124,31 +126,82 @@ object Podnapisi {
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)
 
-    /** Zamik podnapisov v mikrosekundah (+ = pozneje); bere ga razčlenjevalnik na niti nalaganja. */
-    @Volatile private var zamikUs: Long = 0L
+    /**
+     * Rocni zamik po DATOTEKI podnapisov (14. 11. 2026, Breaking Bad: odmik je pri vsaki izdaji drug - ta zaostaja, film
+     * 13. 11. je prehiteval; en zamik za vse filme bi pokvaril usklajene). Kljuc je odtis naslova podnapisa (Format.id iz
+     * [konfiguracije]); vgrajeni podnapisi so del videa. Bere ga razclenjevalnik na niti nalaganja.
+     */
+    private val zamiki = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    @Volatile private var zamikiNalozeni = false
+    private const val PREDPONA_ZAMIKA = "zamik:"
+    private const val NAJVEC_ZAMIKOV = 300
 
-    /** Zamik podnapisov v ms; nastavi ga uporabnik, velja za vse videe (glej [ZamikPodnapisovPravila]). */
-    fun zamikMs(ctx: Context): Long = ZamikPodnapisovPravila.omeji(prefs(ctx).getLong("zamik_ms", 0L))
-
-    fun nastaviZamikMs(ctx: Context, ms: Long) {
-        val v = ZamikPodnapisovPravila.omeji(ms)
-        prefs(ctx).edit().putLong("zamik_ms", v).apply()
-        zamikUs = v * 1000L
+    /** Naslov podnapisa iz Format.id (Media3 v zdruzenem viru doda predpono »0:«); null = vgrajen podnapis. */
+    internal fun naslovIzId(id: String?): String? {
+        var t = id?.trim() ?: return null
+        while (true) {
+            if (t.startsWith("https://") || t.startsWith("http://")) return t
+            val i = t.indexOf(':')
+            if (i <= 0 || !t.substring(0, i).all { it.isDigit() }) return null
+            t = t.substring(i + 1)
+        }
     }
 
-    /** Menu zamika: +/- 0,1 / 0,5 / 2 s in ponastavitev; po spremembi se podnapisi ponovno preberejo z novim zamikom. */
+    private fun kljucZamika(naslov: String) = PREDPONA_ZAMIKA + SkrivnostiPravila.odtis(naslov).take(24)
+
+    private fun naloziZamike(ctx: Context) {
+        if (zamikiNalozeni) return
+        for ((k, v) in prefs(ctx).all) if (k.startsWith(PREDPONA_ZAMIKA) && v is Long) zamiki[k] = ZamikPodnapisovPravila.omeji(v)
+        zamikiNalozeni = true
+    }
+
+    /** Rocni zamik podnapisa z naslovom [naslov] v ms (0 = ni nastavljen ali vgrajen podnapis). */
+    fun zamikMs(naslov: String?): Long = naslov?.let { zamiki[kljucZamika(it)] } ?: 0L
+
+    fun nastaviZamikMs(ctx: Context, naslov: String, ms: Long) {
+        naloziZamike(ctx)
+        val v = ZamikPodnapisovPravila.omeji(ms)
+        val k = kljucZamika(naslov)
+        // Skupni zamik iz 13. 11. 2026 (»zamik_ms«, za vse filme) ne velja vec.
+        val ured = prefs(ctx).edit().remove("zamik_ms")
+        if (v == 0L) { zamiki.remove(k); ured.remove(k) } else {
+            if (zamiki.size >= NAJVEC_ZAMIKOV && k !in zamiki) zamiki.keys.take(zamiki.size - NAJVEC_ZAMIKOV + 1).forEach { zamiki.remove(it); ured.remove(it) }
+            zamiki[k] = v; ured.putLong(k, v)
+        }
+        ured.apply()
+    }
+
+    /** Naslov izbranega podnapisa, ce je iz datoteke ali dodatka; null = vgrajen ali izklopljen. */
+    fun izbranNaslov(p: Player): String? =
+        posnetki(p).firstOrNull { (g, i) -> g.isTrackSelected(i) }?.let { (g, i) -> naslovIzId(g.getTrackFormat(i).id) }
+
+    /** Vrstica zamika v meniju podnapisov (prva vrstica, da je z daljincem takoj dosegljiva): samodejno ali rocni zamik. */
+    fun vrsticaZamika(a: Activity, p: Player?): String {
+        val naslov = p?.let { izbranNaslov(it) }
+        val z = zamikMs(naslov)
+        return if (naslov != null && z == 0L && usklajeni[naslov] != null) a.getString(R.string.podnapisi_zamik_samodejno)
+        else a.getString(R.string.podnapisi_zamik, ZamikPodnapisovPravila.oblika(z))
+    }
+
+    /** Menu zamika izbranega podnapisa: +/- 0,1 / 0,5 / 2 s in ponastavitev; podnapisi se ponovno preberejo z novim zamikom. */
     fun pokaziZamik(a: Activity) {
+        val naslov = GlasbaStoritev.predvajalnik?.let { izbranNaslov(it) }
+        if (naslov == null) {
+            android.widget.Toast.makeText(a, R.string.podnapisi_zamik_ne, android.widget.Toast.LENGTH_LONG).show()
+            return
+        }
+        naloziZamike(a)
         val koraki = listOf(100L, 500L, 2000L)
         val imena = mutableListOf<String>()
         val premiki = mutableListOf<Long?>()
         for (k in koraki) { imena += a.getString(R.string.podnapisi_kasneje, ZamikPodnapisovPravila.trajanje(k)); premiki += k }
         for (k in koraki) { imena += a.getString(R.string.podnapisi_prej, ZamikPodnapisovPravila.trajanje(k)); premiki += -k }
         imena += a.getString(R.string.podnapisi_zamik_ponastavi); premiki += null
-        AlertDialog.Builder(a).setTitle(a.getString(R.string.podnapisi_zamik, ZamikPodnapisovPravila.oblika(zamikMs(a))))
+        AlertDialog.Builder(a).setTitle(a.getString(R.string.podnapisi_zamik, ZamikPodnapisovPravila.oblika(zamikMs(naslov))))
             .setItems(imena.toTypedArray()) { d, k ->
                 val korak = premiki[k]
-                val nov = if (korak == null) 0L else ZamikPodnapisovPravila.spremeni(zamikMs(a), korak)
-                nastaviZamikMs(a, nov)
+                val nov = if (korak == null) 0L else ZamikPodnapisovPravila.spremeni(zamikMs(naslov), korak)
+                nastaviZamikMs(a, naslov, nov)
                 d.dismiss()
                 if (GlasbaStoritev.ponovnoNaloziPodnapise()) {
                     android.widget.Toast.makeText(a, a.getString(R.string.podnapisi_zamik, ZamikPodnapisovPravila.oblika(nov)), android.widget.Toast.LENGTH_SHORT).show()
@@ -158,10 +211,82 @@ object Podnapisi {
             }.show()
     }
 
+    // ------------------------------------------------------------------ samodejna uskladitev (14. 11. 2026)
+
+    /** Casi napisov reference po naslovu izbranega podnapisa (pripravljeno pred dodajanjem v tok); najvec 8. */
+    private val reference = java.util.concurrent.ConcurrentHashMap<String, List<UskladitevPodnapisovPravila.Napis>>()
+    /** Sprejeta poravnava po naslovu (ponovno branje istih podnapisov je ne racuna znova); zavrnjena se ne ponavlja. */
+    private val usklajeni = java.util.concurrent.ConcurrentHashMap<String, UskladitevPodnapisovPravila.Izid>()
+    private val zavrnjeni = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    private fun kandidat(p: Stremio.PodnapisDodatka) = UskladitevPodnapisovPravila.Kandidat(p.url, p.jezik, p.izdaja, p.ujemanje)
+
+    /** Podnapis v [jezik], katerega izdaja se z videom ujema najbolje (ob enakem ujemanju prvi po dodatku). */
+    fun najboljsi(najdeni: List<Stremio.PodnapisDodatka>, jezik: String, imeDatoteke: String?, visinaVidea: Int): Stremio.PodnapisDodatka? {
+        val k = UskladitevPodnapisovPravila.najboljsi(najdeni.map { kandidat(it) }, jezik, imeDatoteke, visinaVidea) ?: return null
+        return najdeni.firstOrNull { it.url == k.url }
+    }
+
+    /**
+     * Pred dodajanjem [izbran] v tok: ce je iz druge izdaje, kot jo ima video, prenese podnapis ujemajoce se izdaje (kateri
+     * koli jezik) iz istega odgovora dodatkov in shrani njegove case - po njih [Popravljalnik] podnapis poravna. Klic iz niti.
+     */
+    fun pripraviUskladitev(izbran: Stremio.PodnapisDodatka, najdeni: List<Stremio.PodnapisDodatka>, imeDatoteke: String?, visinaVidea: Int) {
+        if (reference.containsKey(izbran.url) || usklajeni.containsKey(izbran.url)) return
+        val ref = UskladitevPodnapisovPravila.referenca(najdeni.map { kandidat(it) }, kandidat(izbran), imeDatoteke, visinaVidea) ?: return
+        val bajti = Stremio.prenesiPodnapis(ref.url) ?: return
+        val casi = try { casiNapisov(bajti, if (ref.url.substringBefore('?').lowercase().endsWith(".vtt")) MimeTypes.TEXT_VTT else MimeTypes.APPLICATION_SUBRIP) }
+            catch (_: Exception) { emptyList() }
+        if (casi.size < UskladitevPodnapisovPravila.NAJMANJ_NAPISOV) return
+        if (reference.size >= 8) reference.clear()
+        zavrnjeni.remove(izbran.url)
+        reference[izbran.url] = casi
+        android.util.Log.i("SafeerPodnapisi", "uskladitev: referenca ${ref.jezik} »${ref.izdaja.take(80)}« (${casi.size} napisov) za »${izbran.izdaja.take(80)}«")
+    }
+
+    /** Casi napisov iz datoteke (isti bralniki kot predvajalnik, SRT najprej pociscen). */
+    private fun casiNapisov(podatki: ByteArray, mime: String): List<UskladitevPodnapisovPravila.Napis> {
+        val format = androidx.media3.common.Format.Builder().setSampleMimeType(mime).build()
+        val bralnik = androidx.media3.extractor.text.DefaultSubtitleParserFactory().create(format)
+        val vhod = (if (mime == MimeTypes.APPLICATION_SUBRIP) srtPocisti(podatki) else besedilo(podatki)).toByteArray(Charsets.UTF_8)
+        val out = ArrayList<UskladitevPodnapisovPravila.Napis>()
+        bralnik.parse(vhod, 0, vhod.size, androidx.media3.extractor.text.SubtitleParser.OutputOptions.allCues()) { c ->
+            if (out.size <= UskladitevPodnapisovPravila.NAJVEC_NAPISOV) out.add(napis(c))
+        }
+        return out
+    }
+
+    private fun napis(c: androidx.media3.extractor.text.CuesWithTiming): UskladitevPodnapisovPravila.Napis {
+        val s = c.startTimeUs / 1000
+        val d = if (c.durationUs == C.TIME_UNSET || c.durationUs <= 0) UskladitevPodnapisovPravila.PRIVZETO_TRAJANJE_MS else c.durationUs / 1000
+        return UskladitevPodnapisovPravila.Napis(s, s + d)
+    }
+
+    /** Poravnava napisov [zbrani] podnapisa [naslov] na referenco; null = ni reference ali ni sprejeta. */
+    private fun uskladi(naslov: String, zbrani: List<androidx.media3.extractor.text.CuesWithTiming>): UskladitevPodnapisovPravila.Izid? {
+        usklajeni[naslov]?.let { if (it.razmerje.size == zbrani.size) return it }
+        if (naslov in zavrnjeni) return null
+        val ref = reference[naslov] ?: return null
+        val vir = zbrani.map { napis(it) }
+        val t0 = android.os.SystemClock.elapsedRealtime()
+        val iz = try { UskladitevPodnapisovPravila.poravnaj(vir, ref) } catch (_: OutOfMemoryError) { null } catch (_: RuntimeException) { null }
+        val ok = UskladitevPodnapisovPravila.sprejmi(iz, vir.size)
+        android.util.Log.i("SafeerPodnapisi", "uskladitev: napisov ${vir.size}, referenca ${ref.size}, pokritost " +
+            "${iz?.let { "%.2f -> %.2f".format(Locale.ROOT, it.pokritostPrej, it.pokritostPo) } ?: "-"}, odsekov ${iz?.odsekov ?: 0}, " +
+            "${android.os.SystemClock.elapsedRealtime() - t0} ms, ${if (ok) "uporabljena" else "zavrnjena"}")
+        if (ok && iz != null) {
+            if (usklajeni.size >= 8) usklajeni.clear()
+            usklajeni[naslov] = iz
+            return iz
+        }
+        zavrnjeni.add(naslov)
+        return null
+    }
+
     /** Shranjena izbira (izklopljeno / zadnji izbrani jezik) za predvajalnik. Kliči ob ustvarjanju predvajalnika. */
     fun uveljavi(ctx: Context, p: Player) {
         val n = prefs(ctx)
-        zamikUs = zamikMs(ctx) * 1000L
+        naloziZamike(ctx)
         val jeziki = listOfNotNull(n.getString("jezik", null)?.ifBlank { null }, jezikNaprave(ctx)).distinct()
         p.trackSelectionParameters = p.trackSelectionParameters.buildUpon()
             .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, n.getBoolean("izklop", false))
@@ -190,11 +315,12 @@ object Podnapisi {
                 if (f.selectionFlags and C.SELECTION_FLAG_FORCED != 0) a.getString(R.string.podnapisi_prisilni) else null)
                 .joinToString(" · ").ifBlank { a.getString(R.string.podnapisi_st, k + 1) }
         }
-        val trenutni = posnetki.indexOfFirst { (g, i) -> g.isTrackSelected(i) } + 1
-        val vrsticaZamika = a.getString(R.string.podnapisi_zamik, ZamikPodnapisovPravila.oblika(zamikMs(a)))
+        // Zamik je PRVA vrstica (lastnik 14. 11. 2026: gumba ni nasel - bil je zadnji, pod vsemi jeziki).
+        val trenutni = posnetki.indexOfFirst { (g, i) -> g.isTrackSelected(i) } + 2
         AlertDialog.Builder(a).setTitle(R.string.podnapisi_naslov)
-            .setSingleChoiceItems((imena + vrsticaZamika).toTypedArray(), trenutni) { d, k ->
-                if (k == imena.size) { d.dismiss(); pokaziZamik(a); return@setSingleChoiceItems }
+            .setSingleChoiceItems((listOf(vrsticaZamika(a, p)) + imena).toTypedArray(), trenutni) { d, izbira ->
+                if (izbira == 0) { d.dismiss(); pokaziZamik(a); return@setSingleChoiceItems }
+                val k = izbira - 1
                 val gradnik = p.trackSelectionParameters.buildUpon().clearOverridesOfType(C.TRACK_TYPE_TEXT)
                 if (k == 0) {
                     gradnik.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
@@ -426,13 +552,25 @@ object Podnapisi {
                         (if (mime == MimeTypes.APPLICATION_SUBRIP) srtPocisti(izvirnik) else besedilo(izvirnik)).toByteArray(Charsets.UTF_8)
                     } catch (_: Throwable) { ByteArray(0) }
                     val podatki = if (popravljeno.isEmpty()) izvirnik else popravljeno
-                    val z = zamikUs
-                    val izhod = if (z == 0L) output else androidx.media3.common.util.Consumer<androidx.media3.extractor.text.CuesWithTiming> { c ->
-                        ZamikPodnapisovPravila.zamakni(c.startTimeUs, c.durationUs, z)?.let { (s, d) ->
-                            output.accept(androidx.media3.extractor.text.CuesWithTiming(c.cues, s, d))
+                    // Podnapis iz datoteke ali dodatka: samodejna uskladitev z ujemajoco izdajo, nato rocni zamik te datoteke.
+                    val naslov = naslovIzId(format.id)
+                    val z = zamikMs(naslov) * 1000L
+                    if (naslov == null || (z == 0L && reference[naslov] == null && usklajeni[naslov] == null)) {
+                        bralnik.parse(podatki, 0, podatki.size, outputOptions, output)
+                        return
+                    }
+                    val zbrani = ArrayList<androidx.media3.extractor.text.CuesWithTiming>()
+                    bralnik.parse(podatki, 0, podatki.size, outputOptions) { zbrani.add(it) }
+                    val iz = uskladi(naslov, zbrani)
+                    for ((i, c) in zbrani.withIndex()) {
+                        val r = iz?.razmerje?.get(i) ?: 1.0
+                        val s = if (r == 1.0) c.startTimeUs else Math.round(r * c.startTimeUs)
+                        val d = if (r == 1.0 || c.durationUs == C.TIME_UNSET) c.durationUs else Math.round(r * c.durationUs)
+                        val premik = (iz?.zamikMs?.get(i) ?: 0L) * 1000L + z
+                        ZamikPodnapisovPravila.zamakni(s, d, premik)?.let { (s2, d2) ->
+                            output.accept(androidx.media3.extractor.text.CuesWithTiming(c.cues, s2, d2))
                         }
                     }
-                    bralnik.parse(podatki, 0, podatki.size, outputOptions, izhod)
                 }
                 override fun getCueReplacementBehavior(): Int = bralnik.cueReplacementBehavior
                 override fun reset() = bralnik.reset()

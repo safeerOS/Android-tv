@@ -7,6 +7,7 @@
     <string name="podnapisi_prej">Subtítulos antes %1$s</string>
     <string name="podnapisi_zamik_ponastavi">Restablecer retraso</string>
     <string name="podnapisi_zamik">Retraso de subtítulos: %1$s</string>
+    <string name="podnapisi_zamik_samodejno">Retraso de subtítulos: sincronizados automáticamente con la imagen</string>
     <string name="podnapisi_zamik_ne">Estos subtítulos no se pueden desplazar (solo los de archivos y complementos).</string>
     <string name="podnapisi_namig">arriba: subtítulos</string>
     <string name="podnapisi_st">Subtítulos %d</string>

@@ -7,6 +7,7 @@
     <string name="podnapisi_prej">Podnapisi prej za %1$s</string>
     <string name="podnapisi_zamik_ponastavi">Ponastavi zamik</string>
     <string name="podnapisi_zamik">Zamik podnapisov: %1$s</string>
+    <string name="podnapisi_zamik_samodejno">Zamik podnapisov: samodejno usklajeni s sliko</string>
     <string name="podnapisi_zamik_ne">Podnapisov te vsebine ni mogoče zamakniti (samo podnapisi iz datotek in dodatkov).</string>
     <string name="podnapisi_namig">up: subtitles</string>
     <string name="podnapisi_st">Subtitles %d</string>
