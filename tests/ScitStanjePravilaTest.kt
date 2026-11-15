@@ -127,6 +127,10 @@ fun main(args: Array<String>) {
     preveriStanje(nastavitve.contains("private fun osveziScit()") && nastavitve.substringAfter("override fun onResume()").substringBefore("override fun ").contains("osveziScit()"),
         "Nastavitve.onResume: stanje Scita prek osveziScit")
 
+    // XX2: YouTube oglasi so na istem gostitelju kot vsebina: DNS jih ne pokrije, brskalnik filtrira sam.
+    preveriStanje(P.dnsNePokrije("https://rr1---sn-abc.googlevideo.com/videoplayback?oad=1"), "googlevideo: DNS ne pokrije")
+    preveriStanje(P.dnsNePokrije("https://www.YouTube.com/youtubei/v1/player"), "youtube.com: DNS ne pokrije")
+    preveriStanje(!P.dnsNePokrije("https://www.24ur.com/static/x.js"), "navaden gostitelj: DNS pokrije")
     // ZZ1/ZZ2: utrip samo, ce tece storitev IN obe zanki; sicer ne (zombi: urnik zivi, zanka mrtva).
     preveriStanje(P.utripSmeZapisati(tece = true, zankaPaketovZiva = true, zankaOdgovorovZiva = true), "utrip: vse tece")
     preveriStanje(!P.utripSmeZapisati(tece = true, zankaPaketovZiva = false, zankaOdgovorovZiva = true), "utrip: zanka paketov mrtva = brez utripa")

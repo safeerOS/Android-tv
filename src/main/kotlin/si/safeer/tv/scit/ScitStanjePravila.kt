@@ -26,6 +26,15 @@ object ScitStanjePravila {
     fun brskalnikFiltriraOglase(blokiranjeVklopljeno: Boolean, dnsFiltrira: Boolean): Boolean = blokiranjeVklopljeno && !dnsFiltrira
 
     /**
+     * Zahteve, ki jih DNS ne more pokriti (pregled XX2, 15. 11. 2026): oglasi YouTube so na istem gostitelju kot vsebina (googlevideo.com z
+     * oznako oglasa, youtube.com), zato jih Scit na ravni imen ne loci. Za te zahteve brskalnik filtrira sam, tudi ce DNS Scit dela.
+     */
+    fun dnsNePokrije(url: String): Boolean {
+        val u = url.lowercase()
+        return u.contains("googlevideo.com") || u.contains("youtube.com") || u.contains("youtubei.googleapis.com")
+    }
+
+    /**
      * Ali DNS Scit dokazano filtrira: storitev (proces :scit) je zapisala stanje »tece« in nalozen nabor (domen > 0), uporabnik ga
      * ni izklopil, IN na napravi dejansko obstaja VPN omrezje (zapis »tece« lahko preziveti ubit proces, tunel pa ne).
      * Brez katerega koli od teh brskalnik filtrira sam.
