@@ -127,6 +127,27 @@ object KazalecPravila {
     }
 
     /**
+     * Slepi pregled TV4 (TV4-2): stanje OK med pritiskom in spustom. Zastavici sta ZASTARELI, ce spust OK ni prisel do obdelave
+     * (zaslon ugasnjen, nativno predvajanje, prekrivni sloj, profil YouTube TV): zastarel [cakaKlik] + kazalec, ki ga je skrila ura
+     * mirovanja, = prvi OK ob skritem kazalcu bi KLIKNIL na mestu, ki ga uporabnik ne vidi (K7/K8/N5 to prepovedujejo). Zato:
+     *  - vsak NOV pritisk OK (repeatCount 0) zastavici ponastavi ([okNovPritisk]) PREDEN karkoli drugega odloca;
+     *  - veja »samo pokazi« postavi samo [pogoltniSpust], nikoli [cakaKlik] ([okSamoPokazi]).
+     */
+    data class OkStanje(val cakaKlik: Boolean = false, val pogoltniSpust: Boolean = false)
+
+    /** Nov pritisk OK (repeatCount 0): nobenega ostanka prejsnjega pritiska ([prej] se zavrze). */
+    @Suppress("UNUSED_PARAMETER")
+    fun okNovPritisk(prej: OkStanje): OkStanje = OkStanje(cakaKlik = false, pogoltniSpust = false)
+
+    /** Prvi OK je skritega kazalca samo pokazal ([tipkaSamoPokaze]): spust se pogoltne, klik ne caka (ne glede na [prej]). */
+    @Suppress("UNUSED_PARAMETER")
+    fun okSamoPokazi(prej: OkStanje): OkStanje = OkStanje(cakaKlik = false, pogoltniSpust = true)
+
+    /** Navaden kratek OK ob vidnem kazalcu: klik ob spustu, ce je do takrat se kratek. */
+    @Suppress("UNUSED_PARAMETER")
+    fun okCakaKlik(prej: OkStanje): OkStanje = OkStanje(cakaKlik = true, pogoltniSpust = false)
+
+    /**
      * Slepi pregled TV3 (N6): prava miska skrije navidezni kazalec, razen ko je kazalec ze skrit, ne vidno vklopljen, med
      * vlecenjem in med pritiskom OK, ki caka na klik ([cakaKlik]) - sicer bi spust OK kliknil na legi, ki je uporabnik ne vidi
      * (ravno to, kar K7/K8 prepoveduje). Skrije se ob naslednjem dogodku miske po spustu (lebdenje ~60 na sekundo).
@@ -188,6 +209,23 @@ object KazalecPravila {
         val pot = pot(naslov) ?: return false
         if ("%2e" in pot || "%2f" in pot || pot.split('/').any { it == ".." || it == "." }) return false
         return pravila.poti.any { p -> if (p.endsWith("/")) pot.startsWith(p) else pot == p || pot.startsWith("$p/") }
+    }
+
+    /**
+     * Slepi pregled TV4 (TV4-3): stran je YouTube za TV (usmerjevalnik tipk gre v stran, kazalec ostane na puscicah) samo, ce je shema
+     * https, gostitelj tocno youtube.com ali www.youtube.com in POT se zacne z /tv (/tv, /tv/...; /tvx ne). Prej iskanje podniza
+     * "youtube.com/tv" kjerkoli v naslovu: stran je z history.replaceState(null, '', '/youtube.com/tv') brez tipke preklopila usmerjevalnik
+     * tipk nase strani na profil YouTube TV. Poizvedba in sidro ne stejeta (youtube.com/tv#/watch je se vedno /tv); pot s segmentom . ali
+     * .. ali kodiranim %2e/%2f ni YouTube za TV (fail-safe, kot [jeStranOgleda]).
+     */
+    fun jeYoutubeZaTv(naslov: String?): Boolean {
+        val n = (naslov ?: "").trim()
+        if (!n.startsWith("https://", ignoreCase = true)) return false
+        val g = gostitelj(n) ?: return false
+        if (g != "youtube.com" && g != "www.youtube.com") return false
+        val pot = pot(n) ?: return false
+        if ("%2e" in pot || "%2f" in pot || pot.split('/').any { it == ".." || it == "." }) return false
+        return pot == "/tv" || pot.startsWith("/tv/")
     }
 
     /**

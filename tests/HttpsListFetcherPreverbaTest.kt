@@ -113,6 +113,39 @@ fun main() {
             p(blokiran { HttpsListFetcher(totalTimeoutMs = 30_000, clientHook = hook).fetch(u, 1000, null, null) }, "zasebni IP-literal zavrnjen pred povezavo: ${u.take(40)}")
         p(b.zadetkov.get() == 0, "zasebni IP-literal: 0 zadetkov na ciljnem strezniku")
 
+        // 1b) Slepi pregled TV4 (TV4-1): OkHttp za gostitelja iz samih stevk in pik NE vprasa Dns, ampak ga sam razresi (InetAddress.getByName),
+        // zato so 127.1, 127.0.1, 2130706433, 0, 0x7f.1 in desetiski zapis LAN naslova obsli preverbo besedila. Preverba je zdaj tudi NA POVEZAVI.
+        // Brez popravka vsi spodnji zapisi na 127.0.0.1 pridejo do streznika (zadetkov 1; izpis: ogled/tv-popravki3-1511/izpisi/tv4/).
+        val lan = (192L shl 24) or (168L shl 16) or (1L shl 8) or 1L   // 192.168.1.1 kot celo stevilo
+        b.zadetkov.set(0)
+        for (g in listOf("127.1", "127.0.1", "2130706433", "0", "0x7f.1", "0x7f000001", "017700000001", "127.0.0.01", "127.0.0.1.", lan.toString(), "192.168.257", "10.1", "0.0.0.0", "1.2.3.4.5", "999.1.1.1"))
+            p(blokiran { HttpsListFetcher(totalTimeoutMs = 30_000, clientHook = hook).fetch("https://$g:${b.vrata}/x", 1000, null, null) }, "TV4-1: zapis gostitelja zavrnjen: $g")
+        p(b.zadetkov.get() == 0, "TV4-1: nobeden od zapisov ni prisel do streznika (zadetkov ${b.zadetkov.get()})")
+        // preusmeritev javnega streznika na take zapise: zavrnjena, ciljni streznik ne dobi zahteve
+        for (g in listOf("127.1", "2130706433", "0x7f.1", "127.0.1")) {
+            a.preusmeri = "https://$g:${b.vrata}/skrivnost"; a.zadetkov.set(0); b.zadetkov.set(0)
+            p(blokiran { fetcher().fetch("$A/pojdi", 1000, null, null) } && b.zadetkov.get() == 0, "TV4-1: preusmeritev na $g zavrnjena, zasebni cilj 0 zadetkov (je ${b.zadetkov.get()})")
+        }
+        // povezava sama: brez preverbe besedila gostitelja se vtic na povezavi ustavi PRED prvim paketom (surov strezniski vticnik steje sprejete povezave)
+        java.net.ServerSocket(0, 5, InetAddress.getByName("127.0.0.1")).use { surov ->
+            val sprejeto = AtomicInteger()
+            val nit = Thread { try { while (true) { surov.accept().close(); sprejeto.incrementAndGet() } } catch (_: Exception) {} }.also { it.isDaemon = true; it.start() }
+            val vtic = JavnaPovezava(ThreatListNetwork::isNonPublicAddress).createSocket()
+            p(blokiran { vtic.connect(InetSocketAddress("127.0.0.1", surov.localPort), 2000) }, "TV4-1: vtic zavrne connect() na 127.0.0.1")
+            p(blokiran { JavnaPovezava(ThreatListNetwork::isNonPublicAddress).createSocket().connect(InetSocketAddress(InetAddress.getByName("2130706433"), surov.localPort), 2000) }, "TV4-1: vtic zavrne tudi naslov, razresen iz 2130706433")
+            p(blokiran { JavnaPovezava(ThreatListNetwork::isNonPublicAddress).createSocket().connect(InetSocketAddress.createUnresolved("javni.example", 443), 2000) }, "TV4-1: vtic zavrne nerazresen naslov (fail-closed)")
+            Thread.sleep(200)
+            p(sprejeto.get() == 0, "TV4-1: surov strezniski vticnik ni sprejel nobene povezave (sprejeto ${sprejeto.get()})")
+            JavnaPovezava { false }.createSocket().use { s -> s.connect(InetSocketAddress("127.0.0.1", surov.localPort), 2000) }
+            Thread.sleep(200)
+            p(sprejeto.get() == 1, "TV4-1: nasprotni preizkus: ko preverba naslov dovoli, se vtic poveze (sprejeto ${sprejeto.get()})")
+            surov.close(); nit.join(1000)
+        }
+        // preverba zapisa gostitelja: samo strogi d.d.d.d ali ime; kratki, celi, osmiski, sestnajstiski zapisi ne
+        fun ok(g: String) = ThreatListNetwork.gostiteljJeDovoljenZapis(g)
+        p(ok("8.8.8.8") && ok("example.com") && ok("sub.example.co.uk") && ok("example.com.") && ok("[2606:4700:4700::1111]") && ok("a1.example") && ok("xn--bcher-kva.example"), "TV4-1: imena, strogi d.d.d.d in IPv6 dovoljeni")
+        p(!ok("127.1") && !ok("127.0.1") && !ok("2130706433") && !ok("0") && !ok("0x7f.1") && !ok("0x7f000001") && !ok("08.8.8.8") && !ok("010.1.1.1") && !ok("1.2.3.256") && !ok("1.2.3.4.5") && !ok("1.2.3") && !ok("1.2.3.4.") && !ok("example.0x7f") && !ok("example.123") && !ok(""), "TV4-1: kratki, celi, osmiski, sestnajstiski in neveljavni zapisi zavrnjeni")
+
         // 2) preusmeritev javnega streznika na zasebni IP-literal: skok se zavrne, ciljni streznik ne dobi zahteve
         a.preusmeri = "$B/skrivnost"; a.zadetkov.set(0); b.zadetkov.set(0)
         p(blokiran { fetcher().fetch("$A/pojdi", 1000, null, null) }, "preusmeritev na zasebni IP-literal zavrnjena")

@@ -36,10 +36,12 @@ agent = beri(SRC / "com/safeer/threatfeed/ThreatListAgent.kt")
 preveri("N5: spust OK prek KazalecPravila.okSpust (klik, pogoltni, prepusti)",
         "KazalecPravila.okSpust(host.virtualPointerView.cakaKlik, host.virtualPointerView.okSpustPogoltni)" in router
         and "si.safeer.tv.KazalecPravila.OkSpust.POGOLTNI) return true" in router)
-preveri("N5: zastavico okSpustPogoltni postavi samo veja »samo pokazi« (tipkaSamoPokaze), klik jo ponastavi",
-        len(re.findall(r"okSpustPogoltni = true", router)) == 1
-        and re.search(r"tipkaSamoPokaze\([^\n]*\{\n\s*host\.virtualPointerView\.okPorabljen = true\n\s*host\.virtualPointerView\.okSpustPogoltni = true", router) is not None
-        and "miska.cakaKlik = true; miska.okSpustPogoltni = false" in router)
+preveri("N5/TV4-2: zastavico pogoltnjenega spusta postavlja samo veja »samo pokazi« (okSamoPokazi), ki cakaKlik pocisti; nov OK jo ponastavi",
+        len(re.findall(r"okSpustPogoltni = samoPokazi\.pogoltniSpust", router)) == 1
+        and re.search(r"tipkaSamoPokaze\([^\n]*\{\n[^\n]*\n\s*val samoPokazi = si\.safeer\.tv\.KazalecPravila\.okSamoPokazi\([^\n]*\n\s*host\.virtualPointerView\.okPorabljen = true\n\s*host\.virtualPointerView\.cakaKlik = samoPokazi\.cakaKlik\n\s*host\.virtualPointerView\.okSpustPogoltni = samoPokazi\.pogoltniSpust", router) is not None
+        and "KazalecPravila.okCakaKlik(" in router
+        and re.search(r"ACTION_DOWN && event\.repeatCount == 0 && \(keyCode == KeyEvent\.KEYCODE_DPAD_CENTER[^\n]*\{\n\s*val ok = si\.safeer\.tv\.KazalecPravila\.okNovPritisk\(", router) is not None
+        and router.index("okNovPritisk(") < router.index("host.playback.isNativeActive()"))
 preveri("N6: skrijZaMisko odloca KazalecPravila.smeSkritiZaMisko(..., cakaKlik, ...)",
         "KazalecPravila.smeSkritiZaMisko(isPointerVisible, vlecem, cakaKlik, skrivanje.skrit)" in pogled)
 preveri("I4: onSizeChanged odloca KazalecPravila.zacetnaLega in si zapomni prvo postavitev",
@@ -55,4 +57,12 @@ preveri("N3: razresitev imena je pripeta (Dns), vsi naslovi prek isNonPublic, IP
         ".dns(PinnedDns())" in telo and "all.any { isNonPublic(it.address) }" in telo and "ThreatListNetwork.literalAddress(target.host)" in telo)
 preveri("N3: produkcijska koda ne nastavi allowPlainHttpForTests ne clientHook",
         not any("allowPlainHttpForTests" in beri(p) or "clientHook" in beri(p) for p in (SRC / "si").rglob("*.kt")))
+
+# Slepi pregled TV4 (15. 11. 2026): TV4-1 preverba na povezavi + zapis gostitelja, TV4-3 YouTube za TV brez podniza.
+preveri("TV4-1: HttpsListFetcher nastavi vtic JavnaPovezava (preverba naslova na connect) in zavrne nestrog zapis gostitelja",
+        "socketFactory(JavnaPovezava(isNonPublic))" in telo and "ThreatListNetwork.gostiteljJeDovoljenZapis(target.host)" in telo
+        and "super.connect(endpoint, timeout)" in agent and agent.index("isNonPublic(naslov.address)) throw PrivateTargetException()") < agent.index("super.connect(endpoint, timeout)"))
+sprofil = beri(SRC / "si/safeer/tv/tv/SiteProfile.kt")
+preveri("TV4-3: TvSite.isYoutubeTv uporablja KazalecPravila.jeYoutubeZaTv in nima podniza youtube.com/tv",
+        "KazalecPravila.jeYoutubeZaTv(url)" in sprofil and 'contains("youtube.com/tv"' not in sprofil)
 sys.exit(1 if napak else 0)

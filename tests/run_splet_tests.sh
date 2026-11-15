@@ -23,7 +23,7 @@ trap 'rm -rf "$OUT"' EXIT
   "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/os/ZvocnikPravila.kt" \
   "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/PdfPregledovalnikPravila.kt" \
   "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/KazalecPravila.kt" "$TEST_DIR/KazalecPravilaTest.kt" \
-  "$TEST_DIR/KazalecPopravki3Test.kt" "$TEST_DIR/KazalecPopravki3NacinTest.kt" \
+  "$TEST_DIR/KazalecPopravki3Test.kt" "$TEST_DIR/KazalecPopravki3NacinTest.kt" "$TEST_DIR/KazalecPopravki4Test.kt" \
   "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/KazalecGibanje.kt" "$TEST_DIR/KazalecGibanjeTest.kt" \
   "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/KazalecOblika.kt" "$TEST_DIR/KazalecOblikaTest.kt" \
   "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/AplikacijaPovezave.kt" \
@@ -48,6 +48,8 @@ java -cp "$OUT/splet.jar" si.safeer.tv.KazalecPravilaTestKt
 # Popravki slepega pregleda TV3 (15. 11. 2026): N1 gostitelj brez java.net.URI, N2 bliznjice ogleda, N5/N6/I4 pravila kazalca.
 java -cp "$OUT/splet.jar" si.safeer.tv.KazalecPopravki3TestKt
 java -cp "$OUT/splet.jar" si.safeer.tv.KazalecPopravki3NacinTestKt
+# Popravki slepega pregleda TV4 (15. 11. 2026): TV4-2 zastarela zastavica OK, TV4-3 YouTube za TV po shemi, gostitelju in poti.
+java -cp "$OUT/splet.jar" si.safeer.tv.KazalecPopravki4TestKt
 # Gibanje kazalca kot cista funkcija casa (Ai Lina tv browser, 14. 11. 2026): korak, pospesek, potisk ob rob, varovalo.
 java -cp "$OUT/splet.jar" si.safeer.tv.KazalecGibanjeTestKt
 # Oblika kazalca: puscica s tocko klika v konici, berljivost, stanja, rob okna (lastnik 15. 11. 2026).

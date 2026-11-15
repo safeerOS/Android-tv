@@ -11,7 +11,8 @@ enum class PlaybackMode {
 
 object TvSite {
     fun isYoutubeTv(url: String): Boolean {
-        return url.contains("youtube.com/tv", ignoreCase = true)
+        // Slepi pregled TV4 (TV4-3): shema, gostitelj in pot, ne podniz kjerkoli v naslovu (KazalecPravila.jeYoutubeZaTv).
+        return si.safeer.tv.KazalecPravila.jeYoutubeZaTv(url)
     }
 
     fun isWatchPage(url: String): Boolean {

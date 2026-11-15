@@ -19,6 +19,13 @@ class TvKeyRouter(private val host: MainActivity) {
         }
 
         val keyCode = event.keyCode
+        // Slepi pregled TV4 (TV4-2): nov pritisk OK zacne cisto - zastavici prejsnjega pritiska, katerega spust ni prisel do obdelave
+        // (zaslon ugasnjen, predvajanje, prekrivni sloj), ne smeta klikniti na skritem kazalcu. Pred vsemi zgodnjimi vrnitvami.
+        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0 && (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER)) {
+            val ok = si.safeer.tv.KazalecPravila.okNovPritisk(si.safeer.tv.KazalecPravila.OkStanje(host.virtualPointerView.cakaKlik, host.virtualPointerView.okSpustPogoltni))
+            host.virtualPointerView.cakaKlik = ok.cakaKlik
+            host.virtualPointerView.okSpustPogoltni = ok.pogoltniSpust
+        }
         val profile = SiteProfileResolver.fromUrl(host.activeUrl())
         val chromeFocused = host.isChromeFocused()
 
@@ -219,8 +226,11 @@ class TvKeyRouter(private val host: MainActivity) {
                 keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
                 val bilSkrit = host.virtualPointerView.tipka(event.eventTime)
                 if (si.safeer.tv.KazalecPravila.tipkaSamoPokaze(bilSkrit, keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER)) {
+                    // TV4-2: samo pogoltni spust; klik ne caka (zastarel cakaKlik bi ob spustu kliknil na skritem mestu).
+                    val samoPokazi = si.safeer.tv.KazalecPravila.okSamoPokazi(si.safeer.tv.KazalecPravila.OkStanje(host.virtualPointerView.cakaKlik, host.virtualPointerView.okSpustPogoltni))
                     host.virtualPointerView.okPorabljen = true
-                    host.virtualPointerView.okSpustPogoltni = true
+                    host.virtualPointerView.cakaKlik = samoPokazi.cakaKlik
+                    host.virtualPointerView.okSpustPogoltni = samoPokazi.pogoltniSpust
                     return true
                 }
             }
@@ -267,7 +277,10 @@ class TvKeyRouter(private val host: MainActivity) {
                             miska.zacniVlecenje(activeWv)
                             Toast.makeText(host, UiText.get(R.string.ui_pointer_drag), Toast.LENGTH_SHORT).show()
                         }
-                        event.repeatCount == 0 -> { miska.cakaKlik = true; miska.okSpustPogoltni = false }
+                        event.repeatCount == 0 -> {
+                            val caka = si.safeer.tv.KazalecPravila.okCakaKlik(si.safeer.tv.KazalecPravila.OkStanje(miska.cakaKlik, miska.okSpustPogoltni))
+                            miska.cakaKlik = caka.cakaKlik; miska.okSpustPogoltni = caka.pogoltniSpust
+                        }
                     }
                     return true
                 }

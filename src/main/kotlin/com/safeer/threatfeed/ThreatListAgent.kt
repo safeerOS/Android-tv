@@ -23,7 +23,11 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.net.Socket
+import java.net.SocketAddress
 import java.net.UnknownHostException
+import javax.net.SocketFactory
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
@@ -142,6 +146,25 @@ object ThreatListNetwork {
     }
 
     private val IPV4_LITERAL = Regex("^\\d{1,3}(\\.\\d{1,3}){3}$")
+    /** Strogi zapis IPv4: stiri desetiski deli 0-255 brez vodilnih nicel (»010« je pri inet_aton osmisko). */
+    private val IPV4_STROGO = Regex("^(0|[1-9]\\d{0,2})(\\.(0|[1-9]\\d{0,2})){3}$")
+
+    /**
+     * Slepi pregled TV4 (TV4-1): OkHttp za gostitelja iz samih stevk in pik (127.1, 2130706433, 0) NE vprasa Dns, ampak ga sam razresi z
+     * InetAddress.getByName, [literalAddress] pa pozna samo d.d.d.d. Gostitelj, katerega zadnja oznaka je stevilka ali 0x..., je zato
+     * dovoljen samo kot STROGI zapis d.d.d.d (brez vodilnih nicel, deli do 255); vse drugo (kratki, celi, osmiski, sestnajstiski
+     * zapisi) je zavrnjeno, ker jih getaddrinfo na Androidu razume po inet_aton. IPv6 (z ':') in imena prepusti naprej: ime preveri
+     * Dns, vse skupaj pa se preveri se na povezavi ([JavnaPovezava]).
+     */
+    fun gostiteljJeDovoljenZapis(host: String): Boolean {
+        val h = host.trim('[', ']').lowercase(java.util.Locale.ROOT)
+        if (h.isEmpty()) return false
+        if (':' in h) return true
+        val zadnja = h.trimEnd('.').substringAfterLast('.')
+        val kotStevilka = zadnja.isNotEmpty() && (zadnja.all { it in '0'..'9' } || zadnja.startsWith("0x"))
+        if (!kotStevilka) return true
+        return IPV4_STROGO.matches(h) && h.split('.').all { it.toInt() <= 255 }
+    }
 
     /** Gostitelj, ki je naslov IP v obliki besedila (OkHttp zanj ne vprasa Dns): naslov ali null = ime. Brez poizvedbe DNS. */
     fun literalAddress(host: String): InetAddress? {
@@ -149,6 +172,28 @@ object ThreatListNetwork {
         if (':' !in h && !IPV4_LITERAL.matches(h)) return null
         return try { InetAddress.getByName(h) } catch (_: Exception) { null }
     }
+}
+
+/**
+ * Slepi pregled TV4 (TV4-1): preverba NA POVEZAVI. Vtic zavrne connect() na naslov, ki ni javni, ze PRED prvim paketom (pri
+ * addNetworkInterceptor je do takrat TCP in TLS ClientHello ze odsel). Ne glede na to, kako je bil gostitelj zapisan (127.1,
+ * 2130706433, 0x7f.1, ime z rebindingom), preveri, kam se OkHttp res povezuje. Nerazresen naslov je zavrnjen (fail-closed).
+ * OkHttp uporablja samo createSocket() brez argumentov; druge razlicice zavrnemo.
+ */
+class JavnaPovezava(private val isNonPublic: (ByteArray) -> Boolean) : SocketFactory() {
+    private class PreverjenSocket(private val isNonPublic: (ByteArray) -> Boolean) : Socket() {
+        override fun connect(endpoint: SocketAddress, timeout: Int) {
+            val naslov = (endpoint as? InetSocketAddress)?.address
+            if (naslov == null || isNonPublic(naslov.address)) throw PrivateTargetException()
+            super.connect(endpoint, timeout)
+        }
+    }
+
+    override fun createSocket(): Socket = PreverjenSocket(isNonPublic)
+    override fun createSocket(host: String?, port: Int): Socket = throw UnsupportedOperationException("only createSocket()")
+    override fun createSocket(host: String?, port: Int, localHost: InetAddress?, localPort: Int): Socket = throw UnsupportedOperationException("only createSocket()")
+    override fun createSocket(host: InetAddress?, port: Int): Socket = throw UnsupportedOperationException("only createSocket()")
+    override fun createSocket(address: InetAddress?, port: Int, localAddress: InetAddress?, localPort: Int): Socket = throw UnsupportedOperationException("only createSocket()")
 }
 
 /**
@@ -189,13 +234,15 @@ class HttpsListFetcher(
         val deadline = System.currentTimeMillis() + totalTimeoutMs
         val base = OkHttpClient.Builder().followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false)
             .connectionPool(ConnectionPool(0, 1, TimeUnit.SECONDS)).connectTimeout(connectTimeoutMs.toLong(), TimeUnit.MILLISECONDS)
-            .readTimeout(readTimeoutMs.toLong(), TimeUnit.MILLISECONDS).also(clientHook).build()
+            .readTimeout(readTimeoutMs.toLong(), TimeUnit.MILLISECONDS)
+            .also { if (!allowPlainHttpForTests) it.socketFactory(JavnaPovezava(isNonPublic)) }.also(clientHook).build()
         try {
             var current = url
             for (hop in 0..MAX_REDIRECTS) {
                 val target = current.toHttpUrlOrNull() ?: throw IOException("invalid URL")
                 if (target.scheme != "https" && !allowPlainHttpForTests) throw IOException("redirected away from HTTPS")
                 if (!allowPlainHttpForTests) {
+                    if (!ThreatListNetwork.gostiteljJeDovoljenZapis(target.host)) throw PrivateTargetException()
                     val literal = ThreatListNetwork.literalAddress(target.host)
                     if (literal != null && isNonPublic(literal.address)) throw PrivateTargetException()
                 }
