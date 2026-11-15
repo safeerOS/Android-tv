@@ -211,6 +211,20 @@ fun main() {
     p(D.zdruziPiskotke("a=1; b=2", "a=3; c=4") == "a=3; b=2; c=4" && D.zdruziPiskotke("", "x=1") == "x=1" && D.zdruziPiskotke("a=1", "a=1") == "a=1", "P11: piskotki po imenu, zadnja vrednost zmaga")
     p(D.jsonGlavDovoljen("{\"a\":\"b\"}") && !D.jsonGlavDovoljen("{\"a\":\"" + "x".repeat(D.MAKS_JSON_GLAV) + "\"}") && !D.jsonGlavDovoljen(" "), "P11: JSON glav z mostu omejen na 16 KiB")
 
+    // --- DDD1/DDD2 (slepi pregled DDD, 15. 11. 2026) --------------------------------------------------------------------------
+    p(!D.licencneGlaveSmejo("https://license.a.test/lic", "https://zlobnez.test/widevine/license", "https://a.test") &&
+        D.licencneGlaveSmejo("https://license.a.test/lic", "https://license.a.test/other", "https://a.test"),
+        "DDD1: glave strani samo na gostitelja licence, ki jo je stran napovedala")
+    p(!D.licencneGlaveSmejo("", "https://zlobnez.test/license", "https://a.test") && D.licencneGlaveSmejo("", "https://a.test/license", "https://a.test"),
+        "DDD1: brez napovedi samo na gostitelja izvora strani")
+    val obcutljive = mapOf("Authorization" to "Bearer t", "x-dt-auth-token" to "t", "dt-custom-data" to "d", "X-Api-Key" to "k", "Accept" to "*/*", "User-Agent" to "ua")
+    val navzkrizno = D.glaveZaSkok(obcutljive, "https://cdn.a.test/x.mpd", "https://tretji.test/y.mpd")
+    p(navzkrizno.keys.toSet() == setOf("Accept", "User-Agent"), "DDD2: navzkrizna preusmeritev brez Authorization, zetonov in DT glav (${navzkrizno.keys})")
+    p(D.glaveZaSkok(obcutljive, "https://cdn.a.test/x.mpd", "https://cdn.a.test/z.mpd") == obcutljive, "DDD2: isti gostitelj obdrzi vse glave")
+    val dp = java.io.File("src/main/kotlin/si/safeer/tv/tv/DashPrevzem.kt").readText()
+    p(dp.contains("pageLicHeaders = emptyMap()") && dp.substringAfter("fun naStrani(").substringBefore("fun izvorStrani").contains("pageLicUrl = \"\""),
+        "DDD1: naStrani ob novem izvoru pocisti licenco in glave strani")
+
     println("PopravkiTv2Test: $preverb preverb, $padlo padlo")
     if (padlo > 0) exitProcess(1)
 }

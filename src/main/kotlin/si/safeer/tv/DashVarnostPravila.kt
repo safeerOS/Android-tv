@@ -81,6 +81,24 @@ object DashVarnostPravila {
 
     fun jeHttps(url: String?): Boolean = razcleni(url)?.shema == "https"
 
+    /** Glava s poverilnico (DDD2): brskalniki jih ob navzkrizni preusmeritvi odstranijo, mi tudi. */
+    fun jeObcutljivaGlava(ime: String): Boolean {
+        val n = ime.trim().lowercase(Locale.ROOT)
+        return n == "authorization" || n == "proxy-authorization" || n == "x-api-key" ||
+            n.contains("token") || n.contains("auth") || n.contains("dt-") || n.contains("custom-data")
+    }
+
+    /** DDD2: glave za skok preusmeritve; na drugem gostitelju od prvega brez glav s poverilnicami (Authorization, zetoni, DT). */
+    fun glaveZaSkok(glave: Map<String, String>, prviCilj: String, cilj: String): Map<String, String> =
+        if (istiGostitelj(prviCilj, cilj)) glave else glave.filterKeys { !jeObcutljivaGlava(it) }
+
+    /**
+     * DDD1: glave strani (Authorization, DT) smejo na licencni naslov samo, ce je ta na gostitelju, ki ga je stran sama napovedala
+     * ([pageLicUrl]), ali - brez napovedi - na gostitelju izvora strani. Nikoli na tuj licencni naslov druge strani.
+     */
+    fun licencneGlaveSmejo(pageLicUrl: String, licUrl: String, izvorStrani: String): Boolean =
+        if (pageLicUrl.isNotEmpty()) istiGostitelj(pageLicUrl, licUrl) else istiGostitelj(izvorStrani, licUrl)
+
     /**
      * Ali smemo cilj sami prenesti ali ga predati predvajalniku z glavami: https vedno; http samo na strani http istega
      * gostitelja (tam ni TLS, ki bi ga izdali). Prej tudi http s strani https - piskotki in licenca v odprtem besedilu.

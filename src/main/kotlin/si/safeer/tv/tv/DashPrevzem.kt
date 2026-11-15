@@ -50,8 +50,15 @@ object DashPrevzem {
     fun naStrani(url: String) {
         val nov = izvorOf(url)
         // P5.1: razclenitev, ki je se v teku za prejsnjo stran, po odhodu ne sme vec nastaviti licence.
-        if (nov != izvor) synchronized(lock) { generacija++ }
-        izvor = nov
+        synchronized(lock) {
+            if (nov != izvor) {
+                izvor = nov
+                generacija++
+                // DDD1: glave in licenca, ki jih je javila prejsnja stran, ne smejo na licencni naslov nove strani.
+                pageLicUrl = ""
+                pageLicHeaders = emptyMap()
+            }
+        }
     }
 
     fun izvorStrani(): String = izvor
@@ -307,7 +314,7 @@ object DashPrevzem {
 
     private fun resolvedLicenseHeaders(licUrl: String): Map<String, String> {
         var h: Map<String, String> = emptyMap()
-        h = mergeHeaders(h, pageLicHeaders)
+        if (DashVarnostPravila.licencneGlaveSmejo(pageLicUrl, licUrl, izvor)) h = mergeHeaders(h, pageLicHeaders)   // DDD1
         if (DashVarnostPravila.istiGostitelj(hintLicUrl, licUrl)) h = mergeHeaders(h, hintLicHeaders)
         // Nova najdba 1: licencni naslov dobi samo SVOJE piskotke (prej tudi piskotke izvora strani, ki ga je podala);
         // brez naslova licence ni piskotkov (prej piskotki izvora).
@@ -454,7 +461,7 @@ object DashPrevzem {
                     c.connectTimeout = 8000
                     c.readTimeout = 8000
                     c.requestMethod = "GET"
-                    withCookies(cilj, glave, izvorZahteve).forEach { (k, v) ->
+                    withCookies(cilj, DashVarnostPravila.glaveZaSkok(glave, mpd, cilj), izvorZahteve).forEach { (k, v) ->
                         if (!k.equals("Content-Type", true)) c.setRequestProperty(k, v)
                     }
                     val koda = c.responseCode
