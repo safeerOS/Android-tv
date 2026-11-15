@@ -114,7 +114,7 @@ class ScitStoritev : VpnService() {
         }
         try { pripraviKanal(); startForeground(OBVESTILO, obvestilo()) } catch (e: Throwable) { Log.w(TAG, "Obvestilo: ${e.message}") }
         if (!Scit.jeVklopljen(this)) { ustaviVse("ustavljen"); stopSelf(); return START_NOT_STICKY }
-        if (tunel == null && !vzpostavi()) { ustaviVse("napaka"); stopSelf(); return START_NOT_STICKY }
+        if (tunel == null && !synchronized(kljucStanja) { slabiTeki = 0; vzpostavi() }) { ustaviVse("napaka"); stopSelf(); return START_NOT_STICKY }
         return START_STICKY
     }
 
@@ -205,6 +205,7 @@ class ScitStoritev : VpnService() {
         // (drug VPN, sistem) ostanejo, ker Scit ni bil izklopljen.
         if (stanje == "ustavljen") { synchronized(zadnjeKljuc) { zadnje = emptyList(); zadnjeSpremenjena = false }; Scit.pocistiZadnja(this) }
         else shraniZadnje()
+        Scit.pocistiUtrip(this)
         shraniStatistiko(stanje)
         try {
             stopForeground(STOP_FOREGROUND_REMOVE)
@@ -431,7 +432,9 @@ class ScitStoritev : VpnService() {
                 if (!ScitStanjePravila.utripSmeZapisati(tece, nit?.isAlive == true, nitOdgovorov?.isAlive == true)) {
                     // CCC1: brez utripa brskalnik ze filtrira sam; ustavitev sele po vec zaporednih neuspehih.
                     slabiTeki++
-                    if (ScitStanjePravila.ustaviZaradiZank(slabiTeki)) {
+                    // FFF1: zanka, ki je ze izstopila (nit obstaja, a ne zivi), se ne obnovi: DNS naprave bi bil mrtev, zato takoj.
+                    val mrtva = (nit != null && nit?.isAlive != true) || (nitOdgovorov != null && nitOdgovorov?.isAlive != true)
+                    if (mrtva || ScitStanjePravila.ustaviZaradiZank(slabiTeki)) {
                         Log.w(TAG, "Zanka tunela ne tece: storitev se ustavi"); ustaviVse("napaka"); stopSelf()
                     }
                     return

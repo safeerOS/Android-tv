@@ -131,6 +131,10 @@ fun main(args: Array<String>) {
     preveriStanje(P.dnsNePokrije("https://rr1---sn-abc.googlevideo.com/videoplayback?oad=1"), "googlevideo: DNS ne pokrije")
     preveriStanje(P.dnsNePokrije("https://www.YouTube.com/youtubei/v1/player"), "youtube.com: DNS ne pokrije")
     preveriStanje(!P.dnsNePokrije("https://www.24ur.com/static/x.js"), "navaden gostitelj: DNS pokrije")
+    preveriStanje(P.dnsNePokrije("https://www.youtube-nocookie.com/embed/x"), "FFF6: youtube-nocookie ni pokrit z DNS")
+    preveriStanje(P.dnsNePokrije("https://i.ytimg.com/vi/x/a.jpg") && P.dnsNePokrije("https://youtu.be/x"), "FFF6: ytimg in youtu.be")
+    preveriStanje(!P.dnsNePokrije("https://tuja.si/a?r=youtube.com"), "FFF6: podniz v poizvedbi ni gostitelj")
+    preveriStanje(P.dnsNePokrije("https://api.tuja.si/youtubei/v1/player"), "FFF6: pot /youtubei/")
     // ZZ1/ZZ2: utrip samo, ce tece storitev IN obe zanki; sicer ne (zombi: urnik zivi, zanka mrtva).
     preveriStanje(P.utripSmeZapisati(tece = true, zankaPaketovZiva = true, zankaOdgovorovZiva = true), "utrip: vse tece")
     preveriStanje(!P.utripSmeZapisati(tece = true, zankaPaketovZiva = false, zankaOdgovorovZiva = true), "utrip: zanka paketov mrtva = brez utripa")

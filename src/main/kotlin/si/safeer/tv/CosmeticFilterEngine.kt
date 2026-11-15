@@ -122,9 +122,28 @@ object CosmeticFilterEngine {
     /** Najvec izbirnikov v enem pravilu CSS: en neveljaven izbirnik razveljavi najvec to skupino, ne vseh skritij strani. */
     internal const val SKUPINA_IZBIRNIKOV = 20
 
-    /** Izbirnik iz seznama brez znakov, ki bi zaprli pravilo ali dodali novo (} { ; @ \\ < > novi vrstici), nepraznih in najvec 300 znakov. */
+    /**
+     * Izbirnik iz seznama brez znakov, ki bi zaprli pravilo ali dodali novo (} { ; @ \\ < novi vrstici), nepraznih, najvec 300 znakov,
+     * brez komentarjev CSS in z uravnotezenimi oklepaji in narekovaji (FFF4: neuravnotezen ( [ ' " bi uniel vsa naslednja pravila).
+     * Znak > (otroski kombinator) je dovoljen (FFF5): v CSS ne zapusti pravila, nevaren je samo < (zapiranje oznake).
+     */
     internal fun varniIzbirniki(izbirniki: List<String>): List<String> = izbirniki.filter { s ->
-        s.isNotBlank() && s.length <= 300 && s.none { it in "{};@\\<>\n\r" }
+        s.isNotBlank() && s.length <= 300 && s.none { it in "{};@\\<\n\r" } && !s.contains("/*") && !s.contains("*/") && uravnotezen(s)
+    }
+
+    internal fun uravnotezen(s: String): Boolean {
+        val sklad = ArrayDeque<Char>()
+        var narekovaj: Char? = null
+        for (c in s) {
+            if (narekovaj != null) { if (c == narekovaj) narekovaj = null; continue }
+            when (c) {
+                '\'', '"' -> narekovaj = c
+                '(' -> sklad.addLast(')')
+                '[' -> sklad.addLast(']')
+                ')', ']' -> if (sklad.isEmpty() || sklad.removeLast() != c) return false
+            }
+        }
+        return narekovaj == null && sklad.isEmpty()
     }
 
     private fun pravilo(izbirniki: String): String = """

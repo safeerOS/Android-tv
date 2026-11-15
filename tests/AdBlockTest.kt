@@ -171,6 +171,9 @@ fun main() {
     // XX11: izbirniki iz seznamov: zlonamerni/neveljavni znaki ven, pravila po skupinah
     val varni = CosmeticFilterEngine.varniIzbirniki(listOf(".oglas", "} body{display:none}", "a[href*='x']", "x;y", "@import", "", "  ", "a\\b", "<b>", "ok\nzlo", "d".repeat(301)))
     preveri("XX11: varni izbirniki ostanejo, zlonamerni izpadejo (${varni})", varni == listOf(".oglas", "a[href*='x']"))
+    // FFF4/FFF5: neuravnotezeni ločniki in komentarji ven, otroski kombinator ostane
+    val f45 = CosmeticFilterEngine.varniIzbirniki(listOf(":not(", "[a='x", "a/*b", "a*/b", "#s > div.w", "a[href*=')']", "p:not(.x)", "a)", "b]"))
+    preveri("FFF4/5: uravnotezeni ostanejo, > dovoljen (${f45})", f45 == listOf("#s > div.w", "a[href*=')']", "p:not(.x)"))
     preveri("XX11: pravila po skupinah (skupina ${CosmeticFilterEngine.SKUPINA_IZBIRNIKOV})", slogZ.split("{\n").size - 1 >= 2 && slogZ.count { it == '}' } >= 2)
     preveri("slog strani sledi stikalu blokiranja", !slogBrez.contains("adsbytrafficjunky") && slogZ.contains("ins.adsbytrafficjunky"))
 

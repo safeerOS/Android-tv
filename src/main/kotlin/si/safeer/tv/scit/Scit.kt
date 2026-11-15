@@ -50,12 +50,19 @@ object Scit {
     /** Kliče storitev (:scit) vsakih 10 s in ob zagonu; neuspeh ni usoden (brskalnik potem sam filtrira), a se zapise v dnevnik (najvec 1/min). */
     fun utrip(context: Context) {
         try {
-            utripDatoteka(context).writeText("${android.os.SystemClock.elapsedRealtime()}|${stevecZagonov(context)}")
+            // FFF7: atomarno (zacasna datoteka + preimenovanje), da brskalnik nikoli ne prebere okrnjenega zapisa.
+            val cilj = utripDatoteka(context)
+            val zac = File(cilj.parentFile, "utrip.tmp")
+            zac.writeText("${android.os.SystemClock.elapsedRealtime()}|${stevecZagonov(context)}")
+            if (!zac.renameTo(cilj)) { cilj.delete(); zac.renameTo(cilj) }
         } catch (e: Exception) {
             val zdaj = android.os.SystemClock.elapsedRealtime()
             if (zdaj - zadnjaNapakaUtripa > 60_000L) { zadnjaNapakaUtripa = zdaj; Log.w(TAG, "utrip: ${e.javaClass.simpleName}") }
         }
     }
+
+    /** FFF7: po ustavitvi storitve utrip takoj pobrisemo, da brskalnik ne verjame preteklemu zapisu se do 40 s. */
+    fun pocistiUtrip(context: Context) { try { utripDatoteka(context).delete() } catch (_: Throwable) { } }
 
     /** Starost utripa v ms; manjkajoc ali tuj utrip = Long.MAX_VALUE (ne filtrira). Cas od zagona, ne stenska ura. */
     fun starostUtripaMs(context: Context): Long {
@@ -263,7 +270,12 @@ object Scit {
         dnsFiltriraZadnje = try {
             val s = statistika(context)
             val cm = context.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
-            val vpn = cm.allNetworks.any { cm.getNetworkCapabilities(it)?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN) == true }
+            // FFF2: strogi Private DNS (DoT z imenom gostitelja) mimo tunela - Scit imen ne vidi, zato ne filtrira.
+            val vpn = cm.allNetworks.any { n ->
+                cm.getNetworkCapabilities(n)?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN) == true &&
+                    !(android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P &&
+                        cm.getLinkProperties(n)?.let { it.isPrivateDnsActive && !it.privateDnsServerName.isNullOrEmpty() } == true)
+            }
             ScitStanjePravila.dnsFiltrira(jeVklopljen(context), s.stanje, s.domen, vpn, starostUtripaMs(context))
         } catch (_: Throwable) { false }
         return dnsFiltriraZadnje

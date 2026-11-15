@@ -30,9 +30,17 @@ object ScitStanjePravila {
      * oznako oglasa, youtube.com), zato jih Scit na ravni imen ne loci. Za te zahteve brskalnik filtrira sam, tudi ce DNS Scit dela.
      */
     fun dnsNePokrije(url: String): Boolean {
-        val u = url.lowercase()
-        return u.contains("googlevideo.com") || u.contains("youtube.com") || u.contains("youtubei.googleapis.com")
+        // FFF6: gostitelj (ne podniz celotnega naslova) in pot /youtubei/; vdelani predvajalniki in slike YouTube.
+        val u = url.trim()
+        val z = u.indexOf("://")
+        if (z < 0) return false
+        val konec = u.indexOf('/', z + 3).let { if (it < 0) u.length else it }
+        val host = u.substring(z + 3, konec).substringAfterLast('@').substringBefore(':').lowercase()
+        if (SKUPNE_YT.any { host == it || host.endsWith(".$it") }) return true
+        return konec < u.length && u.regionMatches(konec, "/youtubei/", 0, 10, ignoreCase = true)
     }
+
+    private val SKUPNE_YT = listOf("googlevideo.com", "youtube.com", "youtube-nocookie.com", "youtu.be", "ytimg.com", "youtubei.googleapis.com")
 
     /**
      * Ali DNS Scit dokazano filtrira: storitev (proces :scit) je zapisala stanje »tece« in nalozen nabor (domen > 0), uporabnik ga
