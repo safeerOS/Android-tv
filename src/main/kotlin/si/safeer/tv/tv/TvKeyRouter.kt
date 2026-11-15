@@ -66,12 +66,16 @@ class TvKeyRouter(private val host: MainActivity) {
 
         // Nacin miske: kratek OK klikne ob spustu tipke (dolg pritisk zgrabi za vlecenje).
         if (event.action == KeyEvent.ACTION_UP && (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER)) {
+            val spust = si.safeer.tv.KazalecPravila.okSpust(host.virtualPointerView.cakaKlik, host.virtualPointerView.okSpustPogoltni)
             host.virtualPointerView.okPorabljen = false
-            if (host.virtualPointerView.cakaKlik) {
+            host.virtualPointerView.okSpustPogoltni = false
+            if (spust == si.safeer.tv.KazalecPravila.OkSpust.KLIK) {
                 host.virtualPointerView.cakaKlik = false
                 host.activeWebView()?.let { host.virtualPointerView.performClickOnWebView(it) }
                 return true
             }
+            // N5: prvi OK je kazalec samo pokazal (keydown ni sel v stran) - tudi spust ne sme priti do strani kot sam keyup.
+            if (spust == si.safeer.tv.KazalecPravila.OkSpust.POGOLTNI) return true
         }
         // Ai Lina tv browser (lastnik 15. 11. 2026): spust smerne tipke ustavi gibanje kazalca v eni slicici (KazalecGibanje);
         // ostala obdelava spusta ostane kot prej.
@@ -216,6 +220,7 @@ class TvKeyRouter(private val host: MainActivity) {
                 val bilSkrit = host.virtualPointerView.tipka(event.eventTime)
                 if (si.safeer.tv.KazalecPravila.tipkaSamoPokaze(bilSkrit, keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER)) {
                     host.virtualPointerView.okPorabljen = true
+                    host.virtualPointerView.okSpustPogoltni = true
                     return true
                 }
             }
@@ -262,7 +267,7 @@ class TvKeyRouter(private val host: MainActivity) {
                             miska.zacniVlecenje(activeWv)
                             Toast.makeText(host, UiText.get(R.string.ui_pointer_drag), Toast.LENGTH_SHORT).show()
                         }
-                        event.repeatCount == 0 -> miska.cakaKlik = true
+                        event.repeatCount == 0 -> { miska.cakaKlik = true; miska.okSpustPogoltni = false }
                     }
                     return true
                 }

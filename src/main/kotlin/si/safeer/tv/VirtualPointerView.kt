@@ -42,6 +42,10 @@ class VirtualPointerView @JvmOverloads constructor(
     var vlecem: Boolean = false
         private set
     var cakaKlik: Boolean = false
+    /** Prvi OK je skritega kazalca samo pokazal (keydown ni sel v stran): ob spustu OK ga pogoltnemo ([KazalecPravila.okSpust]). */
+    var okSpustPogoltni: Boolean = false
+    /** Lega kazalca je bila ze postavljena (prva postavitev pogleda ali gibanje): onSizeChanged je ne prestavlja vec ([KazalecPravila.zacetnaLega]). */
+    private var legaPostavljena: Boolean = false
     /** OK je ze naredil svoje (zgrabil ali spustil): ponovitve drzane tipke do spusta nic ne naredijo. */
     var okPorabljen: Boolean = false
     private var vlecenjeOd: Long = 0L
@@ -110,7 +114,7 @@ class VirtualPointerView @JvmOverloads constructor(
 
     /** Prava miska (zracna, USB) se je oglasila: navidezni kazalec se skrije (ne med vlecenjem), tipka daljinca ga spet pokaze. */
     fun skrijZaMisko() {
-        if (!isPointerVisible || vlecem || skrivanje.skrit) return
+        if (!KazalecPravila.smeSkritiZaMisko(isPointerVisible, vlecem, cakaKlik, skrivanje.skrit)) return
         skrivanje = KazalecPravila.skrivanjeMiska(skrivanje)
         visibility = INVISIBLE
         invalidate()
@@ -141,10 +145,9 @@ class VirtualPointerView @JvmOverloads constructor(
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
-        if (pointerX == 0f && pointerY == 0f) {
-            pointerX = w / 2f
-            pointerY = h / 2f
-        }
+        // I4: sredina samo ob prvi postavitvi; kazalec, ki ga je uporabnik pripeljal v kot (0, 0), ob spremembi velikosti ne skoci.
+        KazalecPravila.zacetnaLega(legaPostavljena, pointerX, pointerY, w, h)?.let { (x, y) -> pointerX = x; pointerY = y }
+        if (w > 0 && h > 0) legaPostavljena = true
     }
 
     override fun onDraw(canvas: Canvas) {

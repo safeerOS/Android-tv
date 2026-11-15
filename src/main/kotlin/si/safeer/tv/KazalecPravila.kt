@@ -6,12 +6,51 @@ package si.safeer.tv
  * gumb kazalca, drzan OK) si zapomni brskalnik in spletna aplikacija za gostitelja (en vir) - naslednjic stran odpre tako, kot jo je uporabnik zelel.
  */
 object KazalecPravila {
-    /** Gostitelj http(s) naslova (malo, brez pike na koncu) ali null. */
-    fun gostitelj(naslov: String?): String? = try {
-        val u = java.net.URI((naslov ?: "").trim())
-        if (!u.scheme.equals("https", true) && !u.scheme.equals("http", true)) null
-        else u.host?.lowercase()?.trimEnd('.')?.takeIf { it.isNotEmpty() }
-    } catch (_: Exception) { null }
+    /** Konec oblasti naslova: prvi od teh znakov (Chromium bere »\« kot »/«). */
+    private val MEJA_OBLASTI = charArrayOf('/', '?', '#', '\\')
+
+    /**
+     * Gostitelj http(s) naslova (malo, brez pike na koncu, IPv6 v oglatih oklepajih) ali null.
+     * Slepi pregled TV3 (N1): prej java.net.URI, ki pri { | ^ \ ali presledku v poizvedbi ali sidru vrne null; stran je
+     * lahko z location.replace('/?a={') prisilila puscice (privzetoKazalec ob null gostitelju vrne false PRED zapomnjeno izbiro).
+     * Zdaj gostitelja razberemo samo iz OBLASTI (do prvega / ? # \), kot [GooglePravila.gostitelj] in Linux napaka_naslova:
+     * poizvedba, sidro in pot nanj ne vplivajo. Neveljavni znaki v SAMEM gostitelju (presledek, nadzorni znaki, { } | ^ < > " `)
+     * dajo null: neznan gostitelj je po zasnovi fail-safe (puscice, zapomnjene izbire ni kam vezati).
+     */
+    fun gostitelj(naslov: String?): String? {
+        val n = (naslov ?: "").trim()
+        val i = n.indexOf("://")
+        if (i <= 0) return null
+        val shema = n.substring(0, i)
+        if (!shema.equals("https", true) && !shema.equals("http", true)) return null
+        val konec = n.indexOfAny(MEJA_OBLASTI, i + 3).let { if (it < 0) n.length else it }
+        var h = n.substring(i + 3, konec).substringAfterLast('@').lowercase()
+        val vrata: String
+        if (h.startsWith("[")) {
+            val k = h.indexOf(']')
+            if (k < 0) return null
+            vrata = h.substring(k + 1).removePrefix(":").takeIf { h.length == k + 1 || h[k + 1] == ':' } ?: return null
+            h = h.substring(0, k + 1)
+        } else {
+            vrata = h.substringAfter(':', "")
+            h = h.substringBefore(':')
+        }
+        // Neveljavna vrata (www.youtube.com:evil): Chromium naslova ne odpre; neznan gostitelj, fail-safe.
+        if (vrata.isNotEmpty() && (vrata.length > 5 || !vrata.all { it in '0'..'9' } || vrata.toInt() > 65535)) return null
+        h = h.trimEnd('.')
+        if (h.isEmpty() || h.any { it.isWhitespace() || it.code < 0x21 || it.code == 0x7F || it in "{}|^<>\"`" }) return null
+        return h
+    }
+
+    /** Pot http(s) naslova (male crke, brez poizvedbe in sidra; »\« je »/«); "" = brez poti; null = ni spletni naslov. */
+    private fun pot(naslov: String?): String? {
+        val n = (naslov ?: "").trim()
+        val i = n.indexOf("://")
+        if (i <= 0) return null
+        val z = n.indexOfAny(MEJA_OBLASTI, i + 3)
+        if (z < 0) return ""
+        return n.substring(z).replace('\\', '/').substringBefore('?').substringBefore('#').lowercase()
+    }
 
     /**
      * Ali naj bo kazalec ob odprtju [naslov] vklopljen. [zapomnjeno] = uporabnikova izbira za gostitelja (null = ni je).
@@ -73,6 +112,36 @@ object KazalecPravila {
     /** Prvi OK ob skritem kazalcu ga samo pokaze (brez klika in brez vlecenja); smerna tipka ga pokaze in takoj premakne. */
     fun tipkaSamoPokaze(bilSkrit: Boolean, jeOk: Boolean): Boolean = bilSkrit && jeOk
 
+    /**
+     * Slepi pregled TV3 (N5): prvi OK, ki skritega kazalca samo pokaze ([tipkaSamoPokaze]), je pogoltnjen ob SPUSTU tipke
+     * (keydown ni sel v stran) - stran ne sme dobiti samega keyup Enter (oddaja iskanja ob onkeyup bi ukrepala ob dejanju,
+     * ki je uporabniku pomenilo samo »pokazi kazalec«). Klik ob spustu ima prednost pred pogoltnjenim spustom.
+     * [pogoltniSpust] postavi samo veja »samo pokaze«; spust OK po drugih poteh (drzanje, vlecenje) ostane kot je bil.
+     */
+    enum class OkSpust { KLIK, POGOLTNI, PREPUSTI }
+
+    fun okSpust(cakaKlik: Boolean, pogoltniSpust: Boolean): OkSpust = when {
+        cakaKlik -> OkSpust.KLIK
+        pogoltniSpust -> OkSpust.POGOLTNI
+        else -> OkSpust.PREPUSTI
+    }
+
+    /**
+     * Slepi pregled TV3 (N6): prava miska skrije navidezni kazalec, razen ko je kazalec ze skrit, ne vidno vklopljen, med
+     * vlecenjem in med pritiskom OK, ki caka na klik ([cakaKlik]) - sicer bi spust OK kliknil na legi, ki je uporabnik ne vidi
+     * (ravno to, kar K7/K8 prepoveduje). Skrije se ob naslednjem dogodku miske po spustu (lebdenje ~60 na sekundo).
+     */
+    fun smeSkritiZaMisko(vidno: Boolean, vlecem: Boolean, cakaKlik: Boolean, skrit: Boolean): Boolean =
+        vidno && !vlecem && !cakaKlik && !skrit
+
+    /**
+     * Slepi pregled TV3 (I4): kam postaviti kazalec ob prvi postavitvi pogleda. Samo PRVIC (ko legi se nikoli nismo postavili) in samo,
+     * ce je lega se (0, 0): v sredino. Prej se je kazalec, ki ga je uporabnik pripeljal tocno v kot (0, 0), ob vsaki spremembi
+     * velikosti pogleda (vrtenje, vrstica) prestavil v sredino. Vrne null = lege ne spreminjaj.
+     */
+    fun zacetnaLega(zePostavljena: Boolean, x: Float, y: Float, sirina: Int, visina: Int): Pair<Float, Float>? =
+        if (!zePostavljena && sirina > 0 && visina > 0 && x == 0f && y == 0f) Pair(sirina / 2f, visina / 2f) else null
+
     /** InputDevice.SOURCE_MOUSE (SOURCE_CLASS_POINTER | 0x2000); dotik na zaslonu (0x1002) nima teh bitov. */
     const val IZVOR_MISKA = 0x2002
 
@@ -93,20 +162,32 @@ object KazalecPravila {
     /** Nadomestni faktor drsenja (tock na zarezo kolesca), ce ga sistem ne pove (ViewConfiguration.scaledVerticalScrollFactor). */
     const val PX_NA_ZAREZO = 64f
 
-    /** Gostitelji, na katerih pot /watch, /shorts/ in /embed/ pomeni stran za ogled videa (ne poljubna stran s tako potjo). */
-    private val OGLED_GOSTITELJI = listOf("youtube.com", "youtube-nocookie.com")
+    /**
+     * Strani za ogled videa po gostitelju: pot, ki pomeni predvajalnik (ne poljubna stran s tako potjo). Pot z koncnim »/« velja kot
+     * predpona, sicer je to pot sama ali njene podpoti (/watch, /watch/...; /watchlist NE). Slepi pregled TV3 (N2): po F1 je bil
+     * samo YouTube, zato so Netflix, Facebook Watch, Twitch in Dailymotion /watch izgubili bliznjice OK/levo/desno/nazaj.
+     * To je bila presoja popravka F1, ne lastnikova odlocitev (STANJE-ZDAJ, zapisnik: nikjer ni zapisano »samo YouTube«), zato se
+     * bliznjice obnovijo - z ISTO preverbo gostitelja kot za YouTube (stran na tujem gostitelju jih ne more sprozit).
+     * Seznam je razsirljiv po gostitelju; NEPREVERJENO na napravi, ali Netflix v WebView sploh deluje.
+     */
+    private class OgledGostitelji(val domene: List<String>, val poti: List<String>)
+    private val OGLED = listOf(
+        OgledGostitelji(listOf("youtube.com", "youtube-nocookie.com"), listOf("/watch", "/shorts/", "/embed/")),
+        OgledGostitelji(listOf("netflix.com", "facebook.com", "twitch.tv", "dailymotion.com"), listOf("/watch")),
+    )
 
     /**
      * Slepi pregled TV2 (F1, srednja): stran je lahko BREZ tipke preklopila nacin kazalec/puscice z history.replaceState('#/watch'),
      * ker je prejsnje pravilo iskalo "/watch" v CELEM naslovu (tudi v poizvedbi, sidru in poti tujega gostitelja). Zdaj: znan
-     * gostitelj (youtube.com, youtube-nocookie.com in poddomene) in POT /watch, /shorts/..., /embed/...; poizvedba in sidro ne
-     * stejeta (YouTube za TV, youtube.com/tv#/watch, ima pot /tv in ni stran za ogled).
+     * gostitelj ([OGLED]) in POT; poizvedba in sidro ne stejeta (YouTube za TV, youtube.com/tv#/watch, ima pot /tv in ni stran
+     * za ogled). Pot s segmentom . ali .. ali s kodiranim %2e/%2f ni stran za ogled (fail-safe; Chromium jo ze normalizira).
      */
     fun jeStranOgleda(naslov: String?): Boolean {
         val g = gostitelj(naslov) ?: return false
-        if (OGLED_GOSTITELJI.none { g == it || g.endsWith(".$it") }) return false
-        val pot = try { java.net.URI((naslov ?: "").trim()).path?.lowercase() } catch (_: Exception) { null } ?: return false
-        return pot == "/watch" || pot.startsWith("/watch/") || pot.startsWith("/shorts/") || pot.startsWith("/embed/")
+        val pravila = OGLED.firstOrNull { r -> r.domene.any { g == it || g.endsWith(".$it") } } ?: return false
+        val pot = pot(naslov) ?: return false
+        if ("%2e" in pot || "%2f" in pot || pot.split('/').any { it == ".." || it == "." }) return false
+        return pravila.poti.any { p -> if (p.endsWith("/")) pot.startsWith(p) else pot == p || pot.startsWith("$p/") }
     }
 
     /**
