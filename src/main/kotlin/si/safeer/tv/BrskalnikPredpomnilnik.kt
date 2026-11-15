@@ -120,13 +120,19 @@ object BrskalnikPredpomnilnik {
                     // Uspeh velja od zacetka te seje z diskom: sesutje seje BREZ diska ga ne unici.
                     val poskusZapis = if (nov?.pot != usbPot || nov.izid != B.Izid.USPEL) B.Zapis(usbPot, B.Izid.POSKUS, zdaj) else nov.copy(cas = zdaj)
                     val poskusZapisan = e.putString(STANJE, B.zapisi(poskusZapis)).commit()
-                    namescen = poskusZapisan && priprava.namesti {
+                    namescen = poskusZapisan && try {
+                        priprava.namesti {
                         povezava.parentFile?.mkdirs()
                         // Notranji HTTP predpomnilnik (prava mapa) se umakne z enim preimenovanjem; zbrise se spodaj, v ozadju.
                         if (Files.exists(povezava.toPath(), LinkOption.NOFOLLOW_LINKS)) {
                             Files.move(povezava.toPath(), povezava.toPath().resolveSibling("HTTP Cache.staro-$zdaj"))
                         }
                         Os.symlink(cilj, povezava.path)
+                    }
+                    } catch (t: Throwable) {
+                        // III7: napaka pri namestitvi (npr. polna naprava) = seja brez diska; poskus se povrne spodaj.
+                        android.util.Log.w("SafeerBrskalnikCache", "namestitev povezave ni uspela: " + t.javaClass.simpleName)
+                        false
                     }
                     if (namescen) {
                         ciljSeje = cilj
@@ -138,11 +144,14 @@ object BrskalnikPredpomnilnik {
             if (!namescen) {
                 // Seja brez diska: zadrzan uspeh se ob morebitnem sesutju te seje ne unici (cas v prihodnosti).
                 if (nov != null && nov.izid == B.Izid.USPEL) nov = nov.copy(cas = 100_000_000_000_000_000L)
+            }
+            if (nov != null) e.putString(STANJE, B.zapisi(nov)) else e.remove(STANJE)
+            if (!e.commit()) android.util.Log.w("SafeerBrskalnikCache", "stanja predpomnilnika ni bilo mogoce zapisati")
+            // Klicatelj se sprosti SELE po zapisu stanja: sesutje takoj po sprostitvi ne zapusti starega uspeha (CodeRabbit).
+            if (!namescen) {
                 priprava.koncajBrez()
                 android.util.Log.i("SafeerBrskalnikCache", "predpomnilnik brskalnika: notranji")
             }
-            if (nov != null) e.putString(STANJE, B.zapisi(nov)) else e.remove(STANJE)
-            e.commit()
             // Umaknjen notranji predpomnilnik (prava mapa, brez sledenja povezavam).
             File(app.cacheDir, B.HTTP_PODMAPA).parentFile?.listFiles()?.filter { it.name.startsWith("HTTP Cache.staro-") }?.forEach {
                 if (B.pocistiVsebino(it.toPath())) Files.deleteIfExists(it.toPath())
