@@ -135,6 +135,7 @@ fun main(args: Array<String>) {
     preveriStanje(P.dnsNePokrije("https://i.ytimg.com/vi/x/a.jpg") && P.dnsNePokrije("https://youtu.be/x"), "FFF6: ytimg in youtu.be")
     preveriStanje(!P.dnsNePokrije("https://tuja.si/a?r=youtube.com"), "FFF6: podniz v poizvedbi ni gostitelj")
     preveriStanje(P.dnsNePokrije("https://api.tuja.si/youtubei/v1/player"), "FFF6: pot /youtubei/")
+    preveriStanje(!P.dnsNePokrije("https://tuja.si?x=@youtube.com/p") && P.dnsNePokrije("https://www.youtube.com./x"), "GGG7: konec avtoritete ? in koncna pika")
     // ZZ1/ZZ2: utrip samo, ce tece storitev IN obe zanki; sicer ne (zombi: urnik zivi, zanka mrtva).
     preveriStanje(P.utripSmeZapisati(tece = true, zankaPaketovZiva = true, zankaOdgovorovZiva = true), "utrip: vse tece")
     preveriStanje(!P.utripSmeZapisati(tece = true, zankaPaketovZiva = false, zankaOdgovorovZiva = true), "utrip: zanka paketov mrtva = brez utripa")

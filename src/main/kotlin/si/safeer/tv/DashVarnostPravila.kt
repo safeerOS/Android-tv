@@ -84,8 +84,9 @@ object DashVarnostPravila {
     /** Glava s poverilnico (DDD2): brskalniki jih ob navzkrizni preusmeritvi odstranijo, mi tudi. */
     fun jeObcutljivaGlava(ime: String): Boolean {
         val n = ime.trim().lowercase(Locale.ROOT)
-        return n == "authorization" || n == "proxy-authorization" || n == "x-api-key" ||
-            n.contains("token") || n.contains("auth") || n.contains("dt-") || n.contains("custom-data")
+        return n == "authorization" || n == "proxy-authorization" || n == "x-api-key" || n == "api-key" || n == "apikey" ||
+            n == "x-apikey" || n.contains("token") || n.contains("auth") || n.contains("dt-") || n.contains("custom-data") ||
+            n.contains("axdrm") || n.contains("subscription-key") || n.startsWith("x-session") || n.startsWith("x-csrf")
     }
 
     /** DDD2: glave za skok preusmeritve; na drugem gostitelju od prvega brez glav s poverilnicami (Authorization, zetoni, DT). */
@@ -97,7 +98,18 @@ object DashVarnostPravila {
      * ([pageLicUrl]), ali - brez napovedi - na gostitelju izvora strani. Nikoli na tuj licencni naslov druge strani.
      */
     fun licencneGlaveSmejo(pageLicUrl: String, licUrl: String, izvorStrani: String): Boolean =
-        if (pageLicUrl.isNotEmpty()) istiGostitelj(pageLicUrl, licUrl) else istiGostitelj(izvorStrani, licUrl)
+        (if (pageLicUrl.isNotEmpty()) istiGostitelj(pageLicUrl, licUrl) else istiGostitelj(izvorStrani, licUrl)) ||
+            jeZnanDrmPonudnik(licUrl)
+
+    /** GGG1: licencni strezniki DRM ponudnikov, ki jih stran navaja v MPD (laurl): zeton strani sme tja, ne pa na poljubnega gostitelja. */
+    private val ZNANI_DRM = listOf("drmtoday.com", "expressplay.com", "axprod.net", "ezdrm.com", "buydrm.com", "keyos.com", "irdeto.com")
+
+    fun jeZnanDrmPonudnik(licUrl: String): Boolean {
+        val n = razcleni(licUrl) ?: return false
+        if (n.shema != "https") return false
+        val g = n.gostitelj.lowercase(Locale.ROOT).trimEnd('.')
+        return ZNANI_DRM.any { g == it || g.endsWith(".$it") }
+    }
 
     /**
      * Ali smemo cilj sami prenesti ali ga predati predvajalniku z glavami: https vedno; http samo na strani http istega

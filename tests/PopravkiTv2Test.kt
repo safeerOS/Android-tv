@@ -217,6 +217,11 @@ fun main() {
         "DDD1: glave strani samo na gostitelja licence, ki jo je stran napovedala")
     p(!D.licencneGlaveSmejo("", "https://zlobnez.test/license", "https://a.test") && D.licencneGlaveSmejo("", "https://a.test/license", "https://a.test"),
         "DDD1: brez napovedi samo na gostitelja izvora strani")
+    p(D.licencneGlaveSmejo("", "https://lic.drmtoday.com/license-proxy-widevine/cenc/", "https://a.test") &&
+        !D.licencneGlaveSmejo("", "http://lic.drmtoday.com/x", "https://a.test") && !D.licencneGlaveSmejo("", "https://drmtoday.com.evil.test/x", "https://a.test"),
+        "GGG1: znan DRM ponudnik dobi zeton strani (samo https, tocna pripona)")
+    p(D.jeObcutljivaGlava("X-AxDRM-Message") && D.jeObcutljivaGlava("Ocp-Apim-Subscription-Key") && D.jeObcutljivaGlava("apikey") && !D.jeObcutljivaGlava("Accept-Language"),
+        "GGG2: dodatne glave s poverilnicami")
     val obcutljive = mapOf("Authorization" to "Bearer t", "x-dt-auth-token" to "t", "dt-custom-data" to "d", "X-Api-Key" to "k", "Accept" to "*/*", "User-Agent" to "ua")
     val navzkrizno = D.glaveZaSkok(obcutljive, "https://cdn.a.test/x.mpd", "https://tretji.test/y.mpd")
     p(navzkrizno.keys.toSet() == setOf("Accept", "User-Agent"), "DDD2: navzkrizna preusmeritev brez Authorization, zetonov in DT glav (${navzkrizno.keys})")

@@ -196,6 +196,7 @@ class ScitStoritev : VpnService() {
         urnik = null
         try { tunel?.close() } catch (_: Throwable) { }
         tunel = null
+        nit = null; nitOdgovorov = null   // GGG5: po ustavitvi ne kazeta vec na mrtvi niti
         try { vticnica4?.close() } catch (_: Throwable) { }
         try { vticnica6?.close() } catch (_: Throwable) { }
         vticnica4 = null; vticnica6 = null

@@ -34,8 +34,8 @@ object ScitStanjePravila {
         val u = url.trim()
         val z = u.indexOf("://")
         if (z < 0) return false
-        val konec = u.indexOf('/', z + 3).let { if (it < 0) u.length else it }
-        val host = u.substring(z + 3, konec).substringAfterLast('@').substringBefore(':').lowercase()
+        val konec = u.indexOfAny(charArrayOf('/', '?', '#'), z + 3).let { if (it < 0) u.length else it }
+        val host = u.substring(z + 3, konec).substringAfterLast('@').substringBefore(':').lowercase().trimEnd('.')
         if (SKUPNE_YT.any { host == it || host.endsWith(".$it") }) return true
         return konec < u.length && u.regionMatches(konec, "/youtubei/", 0, 10, ignoreCase = true)
     }

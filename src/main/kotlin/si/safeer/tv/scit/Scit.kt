@@ -271,11 +271,12 @@ object Scit {
             val s = statistika(context)
             val cm = context.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
             // FFF2: strogi Private DNS (DoT z imenom gostitelja) mimo tunela - Scit imen ne vidi, zato ne filtrira.
-            val vpn = cm.allNetworks.any { n ->
-                cm.getNetworkCapabilities(n)?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN) == true &&
-                    !(android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P &&
-                        cm.getLinkProperties(n)?.let { it.isPrivateDnsActive && !it.privateDnsServerName.isNullOrEmpty() } == true)
+            // GGG3: konzervativno - ce je KATERO KOLI VPN omrezje v strogem nacinu Private DNS, ne zaupamo, da Scit vidi poizvedbe.
+            val vpnOmrezja = cm.allNetworks.filter { cm.getNetworkCapabilities(it)?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN) == true }
+            val strogi = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P && vpnOmrezja.any { n ->
+                cm.getLinkProperties(n)?.let { it.isPrivateDnsActive && !it.privateDnsServerName.isNullOrEmpty() } == true
             }
+            val vpn = vpnOmrezja.isNotEmpty() && !strogi
             ScitStanjePravila.dnsFiltrira(jeVklopljen(context), s.stanje, s.domen, vpn, starostUtripaMs(context))
         } catch (_: Throwable) { false }
         return dnsFiltriraZadnje
