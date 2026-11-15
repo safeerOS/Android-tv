@@ -40,6 +40,14 @@ object ScitStanjePravila {
      */
     const val UTRIP_NAJVEC_MS = 90_000L
 
+    /**
+     * Utrip sme pisati samo storitev, ki res dela (slepi pregled ZZ1, 15. 11. 2026): urnik je loceno nit, zato je utripal tudi, ko je zanka
+     * paketov ali zanka odgovorov ze izstopila (napaka branja tunela) ali je storitev ze ustavljena; brskalnik takrat ne bi filtriral,
+     * DNS Scit pa tudi ne. Brez utripa brskalnik filtrira sam (rezerva).
+     */
+    fun utripSmeZapisati(tece: Boolean, zankaPaketovZiva: Boolean, zankaOdgovorovZiva: Boolean): Boolean =
+        tece && zankaPaketovZiva && zankaOdgovorovZiva
+
     /** Najdlje tako dolgo (ms) velja prebrano stanje v procesu brskalnika: zahteve so stotine na sekundo, branje datoteke ni zastonj. */
     const val ROK_STANJA_MS = 5_000L
 

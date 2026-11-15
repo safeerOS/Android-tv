@@ -116,6 +116,15 @@ fun main(args: Array<String>) {
     preveriStanje(nastavitve.contains("private fun osveziScit()") && nastavitve.substringAfter("override fun onResume()").substringBefore("override fun ").contains("osveziScit()"),
         "Nastavitve.onResume: stanje Scita prek osveziScit")
 
+    // ZZ1/ZZ2: utrip samo, ce tece storitev IN obe zanki; sicer ne (zombi: urnik zivi, zanka mrtva).
+    preveriStanje(P.utripSmeZapisati(tece = true, zankaPaketovZiva = true, zankaOdgovorovZiva = true), "utrip: vse tece")
+    preveriStanje(!P.utripSmeZapisati(tece = true, zankaPaketovZiva = false, zankaOdgovorovZiva = true), "utrip: zanka paketov mrtva = brez utripa")
+    preveriStanje(!P.utripSmeZapisati(tece = true, zankaPaketovZiva = true, zankaOdgovorovZiva = false), "utrip: zanka odgovorov mrtva = brez utripa")
+    preveriStanje(!P.utripSmeZapisati(tece = false, zankaPaketovZiva = true, zankaOdgovorovZiva = true), "utrip: storitev ustavljena = brez utripa")
+    val vzdrzuj = storitev.substringAfter("private fun vzdrzuj()").substringBefore("private fun ")
+    preveriStanje(vzdrzuj.indexOf("utripSmeZapisati(tece, nit?.isAlive == true, nitOdgovorov?.isAlive == true)") in 0 until vzdrzuj.indexOf("Scit.utrip(this)"),
+        "vzdrzuj: preverba zanke PRED Scit.utrip")
+
     if (padloStanje > 0) { println("ScitStanjePravila: $padloStanje padlo"); exitProcess(1) }
     println("ScitStanjePravila: vse v redu")
 }

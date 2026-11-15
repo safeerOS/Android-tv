@@ -429,6 +429,11 @@ class ScitStoritev : VpnService() {
                 try { si.safeer.tv.ThreatFeedsUpdater.startSamoScit(applicationContext) } catch (e: Throwable) { Log.w(TAG, "Seznami: ${e.javaClass.simpleName}") }
             }
             osveziUpstream()
+            // ZZ1/ZZ2 (slepi pregled 15. 11. 2026): utrip samo, ce storitev res dela; zanka, ki je izstopila ob napaki, = ustavi in javi napako.
+            if (!ScitStanjePravila.utripSmeZapisati(tece, nit?.isAlive == true, nitOdgovorov?.isAlive == true)) {
+                if (tece) { Log.w(TAG, "Zanka tunela ne tece: storitev se ustavi"); ustaviVse("napaka"); stopSelf() }
+                return
+            }
             Scit.utrip(this)
             shraniStatistiko("tece")
             val b = blokiranih.get()
