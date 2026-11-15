@@ -2532,7 +2532,8 @@ class GlasbaActivity : OsActivity() {
     /** Razvrscanje je enako za vse razdelke in vedno velja samo znotraj posamezne police. */
     private fun razvrsti(i: Int, skladbe: List<Jamendo.Skladba>): List<Jamendo.Skladba> {
         val nacin = razvrstitev(i)
-        if (nacin == RAZVRSTI_PRIPOROCENO) return skladbe
+        // Priljubljene so izbira mreze Filmi | Serije ([urediMrezo]); police (Zate) ostanejo v vrstnem redu priporocil.
+        if (nacin == RAZVRSTI_PRIPOROCENO || nacin == RAZVRSTI_PRILJUBLJENE) return skladbe
         val collator = Collator.getInstance(resources.configuration.locales[0]).apply {
             strength = Collator.SECONDARY
         }
@@ -2561,6 +2562,18 @@ class GlasbaActivity : OsActivity() {
     }
 
     private fun razvrstitev(i: Int) = razvrstitve[i] ?: RAZVRSTI_PRIPOROCENO
+
+    /** Priljubljeni filmi ali serije ([tip] »movie« / »series«): cele vsebine, najnovejse oznacene prve. */
+    private fun priljubljeneMreze(tip: String): List<Jamendo.Skladba> {
+        val vrsta = if (tip == "movie") SpletniVir.FILM else SpletniVir.SERIJA
+        return MedijskiViri.priljubljene(this).filter {
+            it.video && PriljubljeneMrezaPravila.jeCelaVsebina(it.season, it.episode) && SpletniVir.vrstaVsebine(it) == vrsta
+        }
+    }
+
+    /** Razvrstitev mreze Filmi | Serije: izbrane Priljubljene brez priljubljenih (zadnja odstranjena) so spet Priporoceno. */
+    private fun razvrstitevMreze(tip: String): Int =
+        PriljubljeneMrezaPravila.veljavna(razvrstitev(VIDEO), RAZVRSTI_PRILJUBLJENE, priljubljeneMreze(tip).size, RAZVRSTI_PRIPOROCENO)
     /** Vgrajeni viri (»vgrajen:...«) se ne uporabljajo vec (naloga 57, [MedijskiViri.VGRAJENI_SPLETNI_VIRI]). */
     private fun jeVirViden(i: Int, kljuc: String) = kljuc !in zacasnoSkritiViri[i].orEmpty() &&
         (MedijskiViri.VGRAJENI_SPLETNI_VIRI || !kljuc.startsWith(PREDPONA_VGRAJENEGA) || imenikDodan(kljuc))
@@ -3021,7 +3034,7 @@ class GlasbaActivity : OsActivity() {
         // Ob spremembi (preverjanje v ozadju, naslednja stran) se mreza dopolni na mestu - brez utripa in skoka.
         val t4 = android.os.SystemClock.uptimeMillis()
         pokaziMrezo(o, Vrsta("", kartice, video = true, mreza = true, cisto = true), opis,
-            "${o.tip}|${o.zvrst}|${o.jezik}|${razvrstitev(VIDEO)}|${ozekZaslon()}|$vlc") { glavaBrskanja(o) }
+            "${o.tip}|${o.zvrst}|${o.jezik}|${razvrstitevMreze(o.tip)}|${priljubljeneMreze(o.tip).size > 0}|${ozekZaslon()}|$vlc") { glavaBrskanja(o) }
         val t5 = android.os.SystemClock.uptimeMillis()
         // Meritev glavne niti (22. 10. 2026, zastoj ~3,6 s ob prvem izrisu): zapis samo, ce je izris pocasen.
         if (t5 - t0 >= 40) android.util.Log.i("SafeerPerf", "narisiKatalog ${vsi.size} kartic (novih ${o.zapomnjene.novih}, ponovljenih ${o.zapomnjene.ponovljenih}): " +
@@ -3463,9 +3476,15 @@ class GlasbaActivity : OsActivity() {
         }
         if (o != null) {
             // 2) Razvrstitev.
-            val razvrstitveMreze = listOf(RAZVRSTI_PRIPOROCENO to R.string.os_media_razvrsti_priporoceno,
-                RAZVRSTI_NAJNOVEJSE to R.string.os_media_razvrsti_najnovejse, RAZVRSTI_IME_AZ to R.string.os_media_razvrsti_ime)
-            izbira("razvrsti", razvrstitveMreze.map { getString(it.second) }, razvrstitveMreze.indexOfFirst { it.first == razvrstitev(VIDEO) }.coerceAtLeast(0),
+            // Lastnik 15. 11. 2026: Priljubljene so PRVA izbira v istem filtru kot Priporoceno (vidne takoj ob odprtju, s stevilom);
+            // ponujene samo, ce je kaj priljubljenega.
+            val stPriljubljenih = priljubljeneMreze(o.tip).size
+            val razvrstitveMreze = PriljubljeneMrezaPravila.vrstniRed(
+                listOf(RAZVRSTI_PRIPOROCENO to R.string.os_media_razvrsti_priporoceno,
+                    RAZVRSTI_NAJNOVEJSE to R.string.os_media_razvrsti_najnovejse, RAZVRSTI_IME_AZ to R.string.os_media_razvrsti_ime),
+                RAZVRSTI_PRILJUBLJENE to R.string.os_media_razvrsti_priljubljene, stPriljubljenih)
+            izbira("razvrsti", razvrstitveMreze.map { if (it.first == RAZVRSTI_PRILJUBLJENE) getString(it.second, stPriljubljenih) else getString(it.second) },
+                razvrstitveMreze.indexOfFirst { it.first == razvrstitevMreze(o.tip) }.coerceAtLeast(0),
                 getString(R.string.os_media_razvrsti)) { i ->
                 razvrstitve[VIDEO] = razvrstitveMreze[i].first
                 SEZNAMI.remove(VIDEO)   // police (Zate) se uredijo enako
@@ -11018,11 +11037,21 @@ class GlasbaActivity : OsActivity() {
      */
     private fun urediMrezo(o: OdprtKatalog): List<Jamendo.Skladba> {
         val brskanje = o.tip.isNotBlank()
-        val nacin = if (brskanje) razvrstitev(VIDEO) else RAZVRSTI_PRIPOROCENO
+        val nacin = if (brskanje) razvrstitevMreze(o.tip) else RAZVRSTI_PRIPOROCENO
         val jeziki = if (brskanje) izklopljeniJeziki(VIDEO) else emptySet()
-        val vhod = listOf<Any>(OsPravila.odtis(o.vsi) { it.id }, nacin, jeziki, o.narisani)
+        // Priljubljene: v vhodu je tudi njihov seznam, da srce, dodano ali odstranjeno med ogledom, spremeni mrezo.
+        val priljubljene = if (brskanje && nacin == RAZVRSTI_PRILJUBLJENE) priljubljeneMreze(o.tip) else emptyList()
+        val vhod = listOf<Any>(OsPravila.odtis(o.vsi) { it.id }, nacin, jeziki, o.narisani, priljubljene.map { it.id })
         o.ureditev?.let { (prej, urejeni) -> if (prej == vhod) return urejeni }
-        val poVrsti = meri("razvrsti") { if (brskanje) razvrsti(VIDEO, JezikiVsebine.filtriraj(o.vsi, jeziki) { it.language }) else o.vsi }
+        val poVrsti = meri("razvrsti") {
+            when {
+                brskanje && nacin == RAZVRSTI_PRILJUBLJENE ->
+                    PriljubljeneMrezaPravila.uredi(JezikiVsebine.filtriraj(o.vsi, jeziki) { it.language },
+                        JezikiVsebine.filtriraj(priljubljene, jeziki) { it.language }, { it.id }, { true })
+                brskanje -> razvrsti(VIDEO, JezikiVsebine.filtriraj(o.vsi, jeziki) { it.language })
+                else -> o.vsi
+            }
+        }
         // Kar uporabnik ze vidi, ostane na svojem mestu: sveze strani in odgovori preverjanja kartice dodajajo za zadnjo, ne
         // vrivajo jih vmes in ne premescajo (izmerjeno na televizorju 5. 10. 2026: ob prihodu svezih katalogov je mreza sedem
         // kartic umaknila in dve vrinila). Izrecna razvrstitev (po imenu, najnovejse) ostane razvrstitev.
@@ -13950,6 +13979,8 @@ class GlasbaActivity : OsActivity() {
         private const val RAZVRSTI_NAJSTAREJSE = 2
         private const val RAZVRSTI_IME_AZ = 3
         private const val RAZVRSTI_IME_ZA = 4
+        /** Samo mreza Filmi | Serije: filmi/serije, ki jih je uporabnik oznacil s srcem ([PriljubljeneMrezaPravila]). */
+        private const val RAZVRSTI_PRILJUBLJENE = 5
         private const val PREDPONA_VGRAJENEGA = "vgrajen:"
         private const val VIR_JAMENDO = "vgrajen:jamendo"
         private const val VIR_RADIO = "vgrajen:radio"

@@ -170,6 +170,7 @@
     <string name="os_media_razvrsti">Sort results</string>
     <string name="os_media_razvrsti_filtriraj">Sort and filter</string>
     <string name="os_media_razvrsti_priporoceno">Recommended</string>
+    <string name="os_media_razvrsti_priljubljene">Favorites (%1$d)</string>
     <string name="os_media_razvrsti_najnovejse">Release year: newest</string>
     <string name="os_media_razvrsti_najstarejse">Release year: oldest</string>
     <string name="os_media_razvrsti_ime">Name A–Z</string>

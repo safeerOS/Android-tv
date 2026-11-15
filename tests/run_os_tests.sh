@@ -148,6 +148,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/McVidezPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/MojSeznamPravila.kt" \
     "$TEST_DIR/MojSeznamPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/PriljubljeneMrezaPravila.kt" \
+    "$TEST_DIR/PriljubljeneMrezaPravilaTest.kt" \
     "$TEST_DIR/NitiTest.kt" \
     "$SRC/si/safeer/tv/cast/MeshIskanjePravila.kt" \
     "$TEST_DIR/MeshIskanjePravilaTest.kt" \
@@ -379,6 +381,8 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.DomPasPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.McVidezPravilaTestKt
 # Moj seznam (lastnik 8. 11. 2026, zgled KefinTweaks): dodaj/odstrani, meja, odstranitev po ogledu.
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.MojSeznamPravilaTestKt
+# Priljubljene v mrezi Filmi | Serije (lastnik 15. 11. 2026): izbira ob Priporoceno, brez lazne prazne izbire.
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PriljubljeneMrezaPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.cast.MeshIskanjePravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.TorBoxPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.DebridPravilaTestKt

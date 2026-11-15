@@ -170,6 +170,7 @@
     <string name="os_media_razvrsti">Razvrsti rezultate</string>
     <string name="os_media_razvrsti_filtriraj">Razvrsti in filtriraj</string>
     <string name="os_media_razvrsti_priporoceno">Priporočeno</string>
+    <string name="os_media_razvrsti_priljubljene">Priljubljene (%1$d)</string>
     <string name="os_media_razvrsti_najnovejse">Leto izida: najnovejše</string>
     <string name="os_media_razvrsti_najstarejse">Leto izida: najstarejše</string>
     <string name="os_media_razvrsti_ime">Ime A–Ž</string>
