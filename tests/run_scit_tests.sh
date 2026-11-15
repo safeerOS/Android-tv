@@ -35,6 +35,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/ScitSkupniPrimeriTest.kt" \
     "$TEST_DIR/DomenskiNaborVirTest.kt" \
     "$TEST_DIR/ScitViriTest.kt" \
+    "$TEST_DIR/ScitPoMeriNaslovTest.kt" \
     -include-runtime -d "$OUT/scit.jar"
 
 java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.ScitTestKt
@@ -48,3 +49,5 @@ java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.DomenskiNaborVirTestKt
 java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.ScitViriTestKt "$SRC"
 # Pregled Nastavitev in Scita (5. 11. 2026): prekinjen ni »Vklopljeno«, ponovni vklop, SERVFAIL brez odgovora, nabor enkrat.
 java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.ScitStanjePravilaTestKt "$SRC"
+# Naslov filtra po meri (15. 11. 2026, N-SCIT): isti nabor pravil kot Linux (krajevna imena, IP-literali, { }, oznake, vrata).
+java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.ScitPoMeriNaslovTestKt
