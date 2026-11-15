@@ -883,6 +883,20 @@ object UserScriptManager {
         return assetJs(webView, "site_agent.js", { cachedSiteAgentJs }, { cachedSiteAgentJs = it })
     }
 
+    /**
+     * Odlocitev, ali na naslovu tece skript za fokus; nastavi lupina brskalnika (pozna nacin kazalca in zapomnjene izbire).
+     * null = ni odlocitve (staro vedenje: skript povsod). Lupina jo ob uniceni dejavnosti vrne na null.
+     */
+    @Volatile var skriptZaFokus: ((String) -> Boolean)? = null
+
+    /** Vbrizg skripta za fokus v ze nalozeno stran (uporabnik je na strani s kazalcem preklopil na puscice). */
+    fun vbrizgajFokusZdaj(webView: WebView) {
+        val naslov = webView.url ?: return
+        if (isGoogleDomain(naslov) || AbStikala.stikala.spatialIzklop) return
+        if ((webView as? ChromiumEngineView)?.dotik ?: ChromiumEngineView.naDotik(webView.context)) return
+        webView.evaluateJavascript(tvSpatialJs(webView), null)
+    }
+
     private fun tvSpatialJs(webView: WebView): String {
         // Zeton dotika (SpletVarnostPravila.zetonVelja) gre samo v besedilo skripta glavnega okvirja. V predpomnilniku je
         // predloga BREZ zetona; zeton pogleda za trenutno stran se vstavi ob vsakem vbrizgu (pregled 3. 11. 2026).
@@ -1293,7 +1307,10 @@ object UserScriptManager {
         }
         webView.evaluateJavascript(siteAgentJs(webView), null)
         // Navigacija z daljincem samo na televizorju; na dotik bi fokus samo motil.
-        if (!AbStikala.stikala.spatialIzklop && !((webView as? ChromiumEngineView)?.dotik ?: ChromiumEngineView.naDotik(webView.context))) webView.evaluateJavascript(tvSpatialJs(webView), null)
+        // Lastnik 15. 11. 2026: skript za fokus samo tam, kjer daljinec vodijo puscice (KazalecPravila.skriptZaFokus); brez odlocitve
+        // (null, npr. pred zagonom lupine) velja staro vedenje.
+        if (!AbStikala.stikala.spatialIzklop && !((webView as? ChromiumEngineView)?.dotik ?: ChromiumEngineView.naDotik(webView.context)) &&
+            (skriptZaFokus?.invoke(target) ?: true)) webView.evaluateJavascript(tvSpatialJs(webView), null)
         // Facebook na televizorju: brez stalnih namigov in brez sponzoriranih objav (lastnik 29. 10. 2026).
         if (!home && !bank && isFacebookUrl(target) &&
             !((webView as? ChromiumEngineView)?.dotik ?: ChromiumEngineView.naDotik(webView.context))) {

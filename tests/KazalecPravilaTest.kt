@@ -16,6 +16,15 @@ fun main() {
     check(!K.privzetoKazalec(false, "https://www.24ur.com/", zaTv = false, zapomnjeno = null)) { "telefon/tablica: brez kazalca" }
     check(!K.privzetoKazalec(true, "https://www.24ur.com/", zaTv = false, zapomnjeno = false)) { "uporabnik je za gostitelja izbral puscice" }
     check(K.privzetoKazalec(true, "https://safeer.si/", zaTv = true, zapomnjeno = true)) { "uporabnik je izbral kazalec tudi na strani za TV" }
+    // Lastnik 15. 11. 2026: »cela stran ni vec skripta, ker nas to samo upocasni« - skript za fokus samo tam, kjer vodijo puscice.
+    check(!K.skriptZaFokus(true, "https://www.24ur.com/", zaTv = false, zapomnjeno = null)) { "24ur.com: kazalec, brez skripta za fokus" }
+    check(!K.skriptZaFokus(true, "https://www.rtvslo.si/", zaTv = false, zapomnjeno = null)) { "rtvslo.si: brez skripta za fokus" }
+    check(!K.skriptZaFokus(true, "https://www.facebook.com/", zaTv = false, zapomnjeno = null, miska = true)) { "Facebook: brez skripta za fokus" }
+    check(K.skriptZaFokus(true, "https://www.youtube.com/tv", zaTv = true, zapomnjeno = null)) { "YouTube za TV: puscice, skript tece" }
+    check(K.skriptZaFokus(true, "file:///android_asset/home.html", zaTv = false, zapomnjeno = null)) { "nasa domaca stran: skript tece" }
+    check(K.skriptZaFokus(true, "https://www.24ur.com/", zaTv = false, zapomnjeno = false)) { "uporabnik je izbral puscice: skript tece" }
+    check(!K.skriptZaFokus(true, "https://safeer.si/", zaTv = true, zapomnjeno = true)) { "uporabnik je izbral kazalec: brez skripta" }
+    check(K.skriptZaFokus(false, "https://www.24ur.com/", zaTv = false, zapomnjeno = null)) { "naprava brez TV: staro vedenje (odloca dotik v UserScriptManager)" }
     check(K.gostitelj("https://WWW.24ur.com./clanek") == "www.24ur.com") { "gostitelj: malo, brez pike" }
     check(K.gostitelj("javascript:alert(1)") == null) { "samo http(s)" }
     // Lastnik 11. 11. 2026: brskalnik kot spletna aplikacija - premiki sporocajo lebdenje. (Pravilo »kazalec se nikoli ne skrije sam«

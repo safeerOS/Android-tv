@@ -20,6 +20,9 @@ class VirtualPointerView @JvmOverloads constructor(
 
     var pointerX: Float = 0f
     var pointerY: Float = 0f
+    /** Obvestilo o menjavi nacina kazalca (lupina vbrizga skript za fokus, ko uporabnik preklopi na puscice). */
+    var naSpremembo: ((Boolean) -> Unit)? = null
+
     var isPointerVisible: Boolean = false
         set(value) {
             field = value
@@ -33,6 +36,7 @@ class VirtualPointerView @JvmOverloads constructor(
                 skrijNacrtovan = false
             } else nacrtujSkrivanje()
             invalidate()
+            naSpremembo?.invoke(value)
         }
 
     /**

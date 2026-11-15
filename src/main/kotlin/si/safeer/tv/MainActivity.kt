@@ -652,23 +652,39 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         if (kljuc == kazalecZaGostitelja) return
         kazalecZaGostitelja = kljuc
         // F5: Googlove strani imajo lastne tipke (prijava, iskanje) za puscice; kazalec jih obide - puscice so privzete, izbira uporabnika velja.
-        val zaTv = KazalecPravila.stranZaTv(ogled, SpletMostPravila.jeDovoljenIzvor(naslov), GooglePravila.youtubeZaTv(naslov),
-            PdfPregledovalnik.jePregledovalnik(naslov), GooglePravila.jeGoogle(naslov))
-        virtualPointerView.isPointerVisible = kazalecZaStran(naslov, zaTv)
+        virtualPointerView.isPointerVisible = kazalecZaStran(naslov, stranZaTvNaslov(naslov))
     }
 
     /** Ali je kazalec za [naslov] vklopljen: isto pravilo za brskalnik in spletno aplikacijo (lastnik 11. 11. 2026). */
-    private fun kazalecZaStran(naslov: String, zaTv: Boolean): Boolean {
+    private fun kazalecZaStran(naslov: String, zaTv: Boolean): Boolean =
+        KazalecPravila.privzetoKazalec(
+            si.safeer.tv.os.Naprava.jeTelevizor(this), naslov, zaTv, zapomnjenaIzbiraKazalca(naslov),
+            si.safeer.tv.os.OsPravila.miskaZaAplikacijo(true, naslov))
+
+    /** Uporabnikova zapomnjena izbira kazalec/puscice za [naslov] (null = ni je). */
+    private fun zapomnjenaIzbiraKazalca(naslov: String): Boolean? {
         val g = KazalecPravila.gostitelj(naslov)
         val ogled = TvSite.isWatchPage(naslov)
         // F1: izbira za gostitelja velja vedno; izbira, narejena na strani za ogled, samo tam (KazalecPravila.zapomnjenaZaStran).
-        val zapomnjeno = KazalecPravila.zapomnjenaZaStran(
+        return KazalecPravila.zapomnjenaZaStran(
             KazalecNastavitve.zapomnjeno(this, KazalecPravila.kljucStrani(g, true)),
             KazalecNastavitve.zapomnjeno(this, KazalecPravila.kljucStrani(g, false)), ogled)
-        return KazalecPravila.privzetoKazalec(
-            si.safeer.tv.os.Naprava.jeTelevizor(this), naslov, zaTv, zapomnjeno,
-            si.safeer.tv.os.OsPravila.miskaZaAplikacijo(true, naslov))
     }
+
+    /** Stran je narejena za daljinec (nasa stran, YouTube za TV, pregledovalnik PDF, ogled) - kazalec je tam izjema. */
+    private fun stranZaTvNaslov(naslov: String): Boolean = KazalecPravila.stranZaTv(
+        TvSite.isWatchPage(naslov), SpletMostPravila.jeDovoljenIzvor(naslov), GooglePravila.youtubeZaTv(naslov),
+        PdfPregledovalnik.jePregledovalnik(naslov), GooglePravila.jeGoogle(naslov))
+
+    /**
+     * Ali na [naslov] tece skript za fokus (lastnik 15. 11. 2026: cela stran ni vec skripta; KazalecPravila.skriptZaFokus).
+     * Klice ga UserScriptManager ob vsakem vbrizgu; odlocitev izhaja iz naslova in zapomnjene izbire, ne iz stanja pogleda,
+     * zato ni odvisna od vrstnega reda dogodkov ob navigaciji.
+     */
+    internal fun skriptZaFokusZa(naslov: String): Boolean =
+        KazalecPravila.skriptZaFokus(
+            si.safeer.tv.os.Naprava.jeTelevizor(this), naslov, stranZaTvNaslov(naslov), zapomnjenaIzbiraKazalca(naslov),
+            si.safeer.tv.os.OsPravila.miskaZaAplikacijo(true, naslov))
 
     /** Rocni preklop kazalca: brskalnik si ga zapomni za gostitelja odprte strani. */
     internal fun zapomniKazalec() {
@@ -1161,6 +1177,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
     override fun onDestroy() {
         koncajIzbiroDatotek(null)
+        UserScriptManager.skriptZaFokus = null   // objekt ne sme drzati dejavnosti
         silenceBackgroundMedia("onDestroy")
         // Huba tu NE ustavljamo: od 2.1.89 zivi v HubStoritev, da je televizor dosegljiv
         // tudi, ko brskalnik ni odprt. Ugasne ga uporabnik v Safeer Linku.
@@ -1859,6 +1876,14 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         virtualPointerView = findViewById(R.id.virtualPointerView)
         // K12 (lastnik 15. 11. 2026): hitrost kazalca iz nastavitev (3 stopnje; privzeta srednja = izmerjeni Hi Browser).
         virtualPointerView.gibNastavitve = KazalecGibanje.hitrost(KazalecNastavitve.hitrostStopnja(this))
+        // Lastnik 15. 11. 2026: skript za fokus samo tam, kjer daljinec vodijo puscice. Odlocitev za vbrizg ob nalaganju daje
+        // skriptZaFokusZa; ce uporabnik na strani s kazalcem preklopi na puscice, se skript vbrizga v ze nalozeno stran.
+        UserScriptManager.skriptZaFokus = { naslov -> skriptZaFokusZa(naslov) }
+        virtualPointerView.naSpremembo = { kazalec ->
+            if (!kazalec && si.safeer.tv.os.Naprava.jeTelevizor(this)) {
+                activeWebView()?.takeIf { it.progress >= 100 }?.let { UserScriptManager.vbrizgajFokusZdaj(it) }
+            }
+        }
 
         searchSuggestionsOverlay = findViewById(R.id.searchSuggestionsOverlay)
         portalChipsContainer = findViewById(R.id.portalChipsContainer)

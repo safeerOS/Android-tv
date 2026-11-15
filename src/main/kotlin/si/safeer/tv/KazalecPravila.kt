@@ -72,6 +72,16 @@ object KazalecPravila {
     }
 
     /**
+     * Ali se na [naslov] vbrizga skript za prostorski fokus (tv_spatial.js). Lastnik 15. 11. 2026: »cela stran ni vec skripta,
+     * ker nas to samo upocasni«; izmerjeno 14. 11. 2026 (A/B na TV): skript za fokus je vzrok zatikanja, 48 % -> 2 % slabih
+     * slicic brez njega. Skript zato tece samo tam, kjer daljinec vodijo puscice: nase strani (brez gostitelja), YouTube za TV,
+     * pregledovalnik PDF, stran za ogled ali stran, za katero je uporabnik sam izbral puscice. Na vsaki drugi strani vodi
+     * daljinec kazalec ([privzetoKazalec]) in v stran ne vstopa noben nas skript za fokus.
+     */
+    fun skriptZaFokus(jeTelevizor: Boolean, naslov: String, zaTv: Boolean, zapomnjeno: Boolean?, miska: Boolean = false): Boolean =
+        !privzetoKazalec(jeTelevizor, naslov, zaTv, zapomnjeno, miska)
+
+    /**
      * Skrivanje navideznega kazalca (Ai Lina tv browser, lastnik 15. 11. 2026, tocki K7 in K8). Prej (11. 11. 2026) se kazalec
      * ni skrival nikoli, ker je rocno vklopljen kazalec po 30 s izginil, brskalnik pa si ga je zapomnil kot vklopljenega. Zdaj se
      * skrije samo NA ZASLONU, nacin kazalca pa ostane (zapomnjena izbira, smerne tipke ga se vedno vodijo):
