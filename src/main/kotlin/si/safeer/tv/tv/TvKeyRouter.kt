@@ -12,6 +12,8 @@ class TvKeyRouter(private val host: MainActivity) {
 
     fun dispatch(event: KeyEvent): Boolean {
         if (host.isScreenOffActive()) {
+            // P8: spust Nazaj, ki ga pogoltne ugasnjen zaslon, ne sme pustiti zastavice prekrivnega sloja.
+            overlayBackDown = false
             if (event.action == KeyEvent.ACTION_DOWN) {
                 host.toggleScreenOffAudio(false)
             }
@@ -52,8 +54,10 @@ class TvKeyRouter(private val host: MainActivity) {
         // Native overlays own both halves of D-pad/OK events. Page profiles must
         // not consume ACTION_UP, otherwise focused Android buttons never click.
         if (keyCode == KeyEvent.KEYCODE_BACK && overlayBackDown) {
-            if (event.action == KeyEvent.ACTION_UP) overlayBackDown = false
-            return true
+            // P8: nov pritisk Nazaj pomeni, da se je spust prejsnjega izgubil - tipka gre naprej, ni pogoltnjena.
+            val nazaj = si.safeer.tv.UsmerjevalnikTipkPravila.nazajPoSloju(overlayBackDown, event.action == KeyEvent.ACTION_DOWN, event.repeatCount)
+            overlayBackDown = nazaj.zastavica
+            if (nazaj.pogoltni) return true
         }
         if (host.tabSwitcherOverlay.visibility == View.VISIBLE || host.findInPageBar.visibility == View.VISIBLE) {
             if (keyCode == KeyEvent.KEYCODE_BACK) {

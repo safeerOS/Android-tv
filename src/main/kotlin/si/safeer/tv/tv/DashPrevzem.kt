@@ -9,7 +9,9 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Locale
-import java.util.concurrent.Executors
+import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
 
 data class DashSeja(
     val mpdUrl: String,
@@ -34,6 +36,9 @@ data class DashSeja(
  * sejo naprej.
  */
 object DashPrevzem {
+    /** P4: skupni rok prenosa manifesta (vsi skoki in branje). */
+    private const val ROK_PRENOSA_NS = 20_000_000_000L
+
     var listener: ((DashSeja) -> Unit)? = null
     var onNeedPageLicense: (() -> Unit)? = null
 
@@ -43,13 +48,19 @@ object DashPrevzem {
 
     /** Brskalnik javi vsako novo stran; od tod vemo, cigava seja je v igri. */
     fun naStrani(url: String) {
-        izvor = izvorOf(url)
+        val nov = izvorOf(url)
+        // P5.1: razclenitev, ki je se v teku za prejsnjo stran, po odhodu ne sme vec nastaviti licence.
+        if (nov != izvor) synchronized(lock) { generacija++ }
+        izvor = nov
     }
 
     fun izvorStrani(): String = izvor
 
     /** Ali smo na tej strani ze ujeli pretok DASH? Po tem se odloci nacin predvajanja. */
-    fun imaSejo(): Boolean = synchronized(lock) { mpdUrl.isNotEmpty() && !prepuscenBrezZaklepa(mpdUrl) }
+    fun imaSejo(): Boolean = synchronized(lock) {
+        // P3: sele potrjen MPD; prej ze vsak zahtevek z ".mpd" (tudi slika strani) skril vrstico do reset().
+        DashVarnostPravila.imaSejo(mpdUrl, mpdPotrjen, mpdUrl.isNotEmpty() && prepuscenBrezZaklepa(mpdUrl))
+    }
 
     /** Tokovi, ki jih predvaja stran sama (glej [PredajaStrani]); velja do odhoda na drug izvor. */
     private val samoStran = PredajaStrani { a, b -> sameDashStream(a, b) }
@@ -70,19 +81,18 @@ object DashPrevzem {
         return isDashManifest(url.lowercase(Locale.US))
     }
 
-    private fun izvorOf(url: String): String = try {
-        val u = Uri.parse(url)
-        val shema = u.scheme.orEmpty().lowercase(Locale.US)
-        val gostitelj = u.host.orEmpty()
-        if (shema.startsWith("http") && gostitelj.isNotEmpty()) "$shema://$gostitelj" else ""
-    } catch (_: Exception) {
-        ""
-    }
+    // Isti razclenjevalnik kot pravila za piskotke, da se izvor in cilj primerjata enako.
+    private fun izvorOf(url: String): String = DashVarnostPravila.izvor(url)
 
     private val main = Handler(Looper.getMainLooper())
-    private val io = Executors.newSingleThreadExecutor()
+    // P4: ena nit kot prej, a omejena vrsta - stari zahtevki (stara stran) odpadejo, namesto da cakajo v nedogled.
+    private val io = ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, ArrayBlockingQueue(4), ThreadPoolExecutor.DiscardOldestPolicy())
     private val lock = Any()
     private var mpdUrl: String = ""
+    /** P3: razclenitev je potrdila, da je [mpdUrl] res manifest MPD. */
+    private var mpdPotrjen: Boolean = false
+    /** P5.1: poveca se ob novem toku, reset() in novi strani; rezultat razclenitve druge generacije se zavrze. */
+    private var generacija: Long = 0L
     /** Gostitelj manifesta, ki ga je WebView zahteval po omrezju; "" = noben. */
     private var omrezniGostitelj: String = ""
     private var mpdHeaders: Map<String, String> = emptyMap()
@@ -100,7 +110,10 @@ object DashPrevzem {
     private var allowClear: Boolean = false
     private var needsDrm: Boolean = false
     private var hasPssh: Boolean = false
+    // P11: pise glavna nit, bere tudi nit WebViewa (isStaleChannelMpd).
+    @Volatile
     private var okElapsed: Long = 0L
+    @Volatile
     private var parsedElapsed: Long = 0L
 
     fun markOk() {
@@ -109,7 +122,9 @@ object DashPrevzem {
 
     fun reset() {
         synchronized(lock) {
+            generacija++
             mpdUrl = ""
+            mpdPotrjen = false
             omrezniGostitelj = ""
             mpdHeaders = emptyMap()
             mpdLaurl = ""
@@ -154,7 +169,8 @@ object DashPrevzem {
     fun observe(url: String, method: String, headers: Map<String, String>) {
         if (url.isEmpty()) return
         val lower = url.lowercase(Locale.US)
-        val merged = withCookies(url, headers)
+        // P1, nova najdba 1: piskotkov tu ne dodajamo vec - vsak cilj jih dobi sele ob uporabi in samo svoje.
+        val merged = DashVarnostPravila.brezPiskotkov(headers)
         when {
             isDashManifest(lower) -> onMpd(url, merged, izOmrezja = true)
             isLicenseUrl(lower, method) -> onLicenseHint(url, merged, null)
@@ -171,7 +187,7 @@ object DashPrevzem {
         }
         val wrap = jsonWrapKeyFromKind(kind)
         val lower = url.lowercase(Locale.US)
-        val merged = withCookies(url, parsed)
+        val merged = DashVarnostPravila.brezPiskotkov(parsed)
         when {
             isDashManifest(lower) -> onMpd(url, merged)
             isLicenseUrl(lower, method) -> onLicenseHint(url, merged, wrap)
@@ -192,13 +208,16 @@ object DashPrevzem {
         }
         val parsed: Boolean
         var newStream = false
+        val gen: Long
         synchronized(lock) {
             val same = mpdUrl.isNotEmpty() && sameDashStream(mpdUrl, url)
             // Gostitelj manifesta gre mimo filtra samo, ce je manifest prisel z njega po omrezju (DashPravila.prepusti).
             if (izOmrezja) omrezniGostitelj = DashPravila.gostitelj(url)
             else if (!same) omrezniGostitelj = ""
             if (!same) {
+                generacija++
                 mpdUrl = url
+                mpdPotrjen = false
                 mpdHeaders = headers
                 mpdLaurl = ""
                 lastFiredKey = ""
@@ -213,6 +232,7 @@ object DashPrevzem {
                 mpdHeaders = mergeHeaders(mpdHeaders, headers)
                 parsed = mpdParseTries < 2
             }
+            gen = generacija
         }
         if (parsed) {
             SafeerDbg.log(
@@ -223,7 +243,7 @@ object DashPrevzem {
                     .put("ch", dashChannelOf(url))
                     .put("host", hostOf(url))
             )
-            parseMpdForLicense(url, headers)
+            parseMpdForLicense(url, headers, gen)
             synchronized(lock) { mpdParseTries++ }
         }
         if (newStream) maybeFire()
@@ -250,8 +270,9 @@ object DashPrevzem {
 
     private fun onLicenseHint(url: String, headers: Map<String, String>, wrap: String?) {
         synchronized(lock) {
+            // Glave namiga drugega gostitelja ne mesamo (bile so namenjene njemu).
+            hintLicHeaders = if (DashVarnostPravila.istiGostitelj(hintLicUrl, url)) mergeHeaders(hintLicHeaders, headers) else headers
             hintLicUrl = url
-            hintLicHeaders = mergeHeaders(hintLicHeaders, headers)
             if (!wrap.isNullOrEmpty()) jsonWrapKey = wrap
         }
         SafeerDbg.log(
@@ -276,18 +297,21 @@ object DashPrevzem {
     }
 
     private fun resolvedLicenseUrl(): String {
-        if (mpdLaurl.isNotEmpty()) return mpdLaurl
-        if (pageLicUrl.isNotEmpty()) return pageLicUrl
-        if (hintLicUrl.isNotEmpty()) return hintLicUrl
+        // Licenco s piskotki samo prek https (ali http na strani http istega gostitelja).
+        val iz = izvor
+        if (mpdLaurl.isNotEmpty() && DashVarnostPravila.smeOmrezje(mpdLaurl, iz)) return mpdLaurl
+        if (pageLicUrl.isNotEmpty() && DashVarnostPravila.smeOmrezje(pageLicUrl, iz)) return pageLicUrl
+        if (hintLicUrl.isNotEmpty() && DashVarnostPravila.smeOmrezje(hintLicUrl, iz)) return hintLicUrl
         return ""
     }
 
     private fun resolvedLicenseHeaders(licUrl: String): Map<String, String> {
         var h: Map<String, String> = emptyMap()
         h = mergeHeaders(h, pageLicHeaders)
-        h = mergeHeaders(h, hintLicHeaders)
-        h = withCookies(if (licUrl.isNotEmpty()) licUrl else izvor, h)
-        return h
+        if (DashVarnostPravila.istiGostitelj(hintLicUrl, licUrl)) h = mergeHeaders(h, hintLicHeaders)
+        // Nova najdba 1: licencni naslov dobi samo SVOJE piskotke (prej tudi piskotke izvora strani, ki ga je podala);
+        // brez naslova licence ni piskotkov (prej piskotki izvora).
+        return if (licUrl.isNotEmpty()) withCookies(licUrl, h) else DashVarnostPravila.brezPiskotkov(h)
     }
 
     private fun fireNow() {
@@ -328,16 +352,15 @@ object DashPrevzem {
                 .put("enc", session.encrypted)
                 .put("pssh", session.hasPssh)
                 .put("hdrN", session.licenseHeaders.size)
-                .put("hdrNames", session.licenseHeaders.keys.joinToString(",").take(160))
                 .put("licHost", hostOf(session.licenseUrl))
-                .put("licPath", pathOf(session.licenseUrl))
                 .put("okMs", okMs)
                 .put("parseMs", parseMs)
                 .put("wrap", session.jsonWrapKey ?: "")
         )
         android.util.Log.i(
             "SafeerExo",
-            "start exo ch=${session.dashChannel} enc=${session.encrypted} hasPssh=${session.hasPssh} licHost=${hostOf(session.licenseUrl)} licPath=${pathOf(session.licenseUrl)} hdrNames=${session.licenseHeaders.keys.joinToString(",")} okMs=$okMs parseMs=$parseMs"
+            // P11: pot licence (lahko nosi zeton) in imena glav ne sodijo v sistemski dnevnik; dovolj sta gostitelj in stevilo.
+            "start exo ch=${session.dashChannel} enc=${session.encrypted} hasPssh=${session.hasPssh} licHost=${hostOf(session.licenseUrl)} hdrN=${session.licenseHeaders.size} okMs=$okMs parseMs=$parseMs"
         )
         listener?.invoke(session)
     }
@@ -411,72 +434,100 @@ object DashPrevzem {
         }
     }
 
-    private fun parseMpdForLicense(mpd: String, headers: Map<String, String>) {
-        val snapshot = withCookies(mpd, headers)
+    private fun parseMpdForLicense(mpd: String, headers: Map<String, String>, gen: Long) {
+        // Izvor in glave zajamemo zdaj: ko zahtevek pride na vrsto, je stran lahko ze druga.
+        val izvorZahteve = izvor
+        val glave = DashVarnostPravila.brezPiskotkov(headers)
         io.execute {
+            var conn: HttpURLConnection? = null
             try {
-                val conn = URL(mpd.replace(":443/", "/")).openConnection() as HttpURLConnection
-                conn.instanceFollowRedirects = true
-                conn.connectTimeout = 8000
-                conn.readTimeout = 8000
-                conn.requestMethod = "GET"
-                snapshot.forEach { (k, v) ->
-                    if (!k.equals("Content-Type", true)) conn.setRequestProperty(k, v)
+                // P4: en skupni rok za vse skoke in branje (prej samo rok posameznega branja).
+                val konecNs = System.nanoTime() + ROK_PRENOSA_NS
+                var cilj = DashVarnostPravila.brezPrivzetihVrat(mpd)
+                var telo: ByteArray? = null
+                for (skok in 0..DashVarnostPravila.MAKS_PREUSMERITEV) {
+                    // P1/P2: sami prenasamo samo https; piskotki samo za ta skok (rocno nastavljen Cookie ne sme slediti preusmeritvi na tuj gostitelj).
+                    if (!DashVarnostPravila.smeOmrezje(cilj, izvorZahteve)) return@execute
+                    val c = URL(cilj).openConnection() as HttpURLConnection
+                    conn = c
+                    c.instanceFollowRedirects = false
+                    c.connectTimeout = 8000
+                    c.readTimeout = 8000
+                    c.requestMethod = "GET"
+                    withCookies(cilj, glave, izvorZahteve).forEach { (k, v) ->
+                        if (!k.equals("Content-Type", true)) c.setRequestProperty(k, v)
+                    }
+                    val koda = c.responseCode
+                    if (koda in 300..399) {
+                        cilj = DashVarnostPravila.preusmeritev(cilj, c.getHeaderField("Location")) ?: return@execute
+                        c.disconnect()
+                        conn = null
+                        continue
+                    }
+                    telo = c.inputStream.use { DashVarnostPravila.beriZRokom(it, 256 * 1024, konecNs) }
+                    break
                 }
-                conn.inputStream.use { input ->
-                    val baos = java.io.ByteArrayOutputStream()
-                    val tmp = ByteArray(16 * 1024)
-                    while (baos.size() < 256 * 1024) {
-                        val n = input.read(tmp)
-                        if (n < 0) break
-                        baos.write(tmp, 0, n)
-                    }
-                    val body = baos.toString("UTF-8")
-                    val isMpd = body.contains("<MPD", ignoreCase = true)
-                    val pssh = body.contains("pssh", ignoreCase = true)
-                    val prot = body.contains("ContentProtection", ignoreCase = true)
-                    val encrypted = isMpd && mpdLooksEncrypted(body)
-                    val laurl = extractLaurl(body)
-                    SafeerDbg.log(
-                        "H338",
-                        "DashPrevzem.kt:mpdxml",
-                        "mpd parsed",
-                        JSONObject()
-                            .put("hasLa", !laurl.isNullOrEmpty())
-                            .put("licHost", if (laurl.isNullOrEmpty()) "" else hostOf(laurl))
-                            .put("n", body.length)
-                            .put("mpd", isMpd)
-                            .put("pssh", pssh)
-                            .put("prot", prot)
-                            .put("enc", encrypted)
-                    )
-                    main.post {
-                        parsedElapsed = SystemClock.elapsedRealtime()
-                        if (!isMpd) return@post
-                        if (!encrypted) {
-                            synchronized(lock) {
-                                allowClear = true
-                                needsDrm = false
-                                hasPssh = false
-                                mpdLaurl = ""
+                val body = String(telo ?: return@execute, Charsets.UTF_8)
+                val isMpd = body.contains("<MPD", ignoreCase = true)
+                val pssh = body.contains("pssh", ignoreCase = true)
+                val prot = body.contains("ContentProtection", ignoreCase = true)
+                val encrypted = isMpd && mpdLooksEncrypted(body)
+                val laurl = extractLaurl(body)
+                SafeerDbg.log(
+                    "H338",
+                    "DashPrevzem.kt:mpdxml",
+                    "mpd parsed",
+                    JSONObject()
+                        .put("hasLa", !laurl.isNullOrEmpty())
+                        .put("licHost", if (laurl.isNullOrEmpty()) "" else hostOf(laurl))
+                        .put("n", body.length)
+                        .put("mpd", isMpd)
+                        .put("pssh", pssh)
+                        .put("prot", prot)
+                        .put("enc", encrypted)
+                )
+                main.post {
+                    parsedElapsed = SystemClock.elapsedRealtime()
+                    val naprej = synchronized(lock) {
+                        // P5.1: rezultat za prejsnji tok ali stran (pocasen napadalcev streznik) ne sme nastaviti licence.
+                        if (!DashVarnostPravila.rezultatVelja(gen, generacija)) {
+                            false
+                        } else if (!isMpd) {
+                            // P3: ni manifest - ne drzi seje (skrite vrstice, ExoPlayer) do naslednjega reset().
+                            if (!mpdPotrjen) {
+                                mpdUrl = ""
+                                omrezniGostitelj = ""
                             }
-                            SafeerDbg.log(
-                                "H338",
-                                "DashPrevzem.kt:mpdxml",
-                                "clear dash",
-                                JSONObject().put("ch", dashChannelOf(mpd))
-                            )
-                            maybeFire()
-                            return@post
+                            false
+                        } else {
+                            mpdPotrjen = true
+                            true
                         }
-                        synchronized(lock) {
-                            allowClear = false
-                            needsDrm = true
-                            hasPssh = pssh || prot
-                            if (!laurl.isNullOrEmpty()) mpdLaurl = laurl
-                        }
-                        maybeFire()
                     }
+                    if (!naprej) return@post
+                    if (!encrypted) {
+                        synchronized(lock) {
+                            allowClear = true
+                            needsDrm = false
+                            hasPssh = false
+                            mpdLaurl = ""
+                        }
+                        SafeerDbg.log(
+                            "H338",
+                            "DashPrevzem.kt:mpdxml",
+                            "clear dash",
+                            JSONObject().put("ch", dashChannelOf(mpd))
+                        )
+                        maybeFire()
+                        return@post
+                    }
+                    synchronized(lock) {
+                        allowClear = false
+                        needsDrm = true
+                        hasPssh = pssh || prot
+                        if (!laurl.isNullOrEmpty()) mpdLaurl = laurl
+                    }
+                    maybeFire()
                 }
             } catch (t: Throwable) {
                 SafeerDbg.log(
@@ -485,6 +536,9 @@ object DashPrevzem {
                     "mpd fetch fail",
                     JSONObject().put("err", t.javaClass.simpleName)
                 )
+            } finally {
+                // P4: povezava se zapre tudi ob napaki (4xx, rok, izjema pri branju).
+                conn?.disconnect()
             }
         }
     }
@@ -522,37 +576,8 @@ object DashPrevzem {
         }
     }
 
-    private fun pathOf(url: String): String {
-        if (url.isEmpty()) return ""
-        return try {
-            (Uri.parse(url).path ?: "").take(120)
-        } catch (_: Exception) {
-            ""
-        }
-    }
-
-    private fun extractLaurl(mpdXml: String): String? {
-        if (mpdXml.isEmpty()) return null
-        val found = LinkedHashSet<String>()
-        listOf(
-            Regex("""(?is)<[\w.-]*:?laurl[^>]*>([^<]+)</"""),
-            Regex("""(?i)(?:laurl|licenseUrl|license_url)\s*[="'>\s]+(https?://[^"'<\s]+)"""),
-            Regex("""(?i)https?://[^\s"'<>]+(?:drmtoday|license-proxy-widevine|/widevine|/license)[^\s"'<>]*"""),
-            Regex("""https?://[^\s"'<>]*(?:/lic[./]|lic\.)[^\s"'<>]*""")
-        ).forEach { re ->
-            re.findAll(mpdXml).forEach { m ->
-                val raw = (m.groups.lastOrNull { it != null && it.value.startsWith("http", true) }?.value
-                    ?: m.groupValues.getOrNull(1)
-                    ?: "").trim()
-                if (raw.startsWith("http", ignoreCase = true)) {
-                    found.add(raw.trimEnd('"', '\'', '<', '>', ' '))
-                }
-            }
-        }
-        return found.firstOrNull { it.contains("drmtoday", true) }
-            ?: found.firstOrNull { it.contains("widevine", true) }
-            ?: found.firstOrNull()
-    }
+    // P4: linearno iskanje namesto stirih regexov s prekrivanjem; licenca s piskotki samo prek https.
+    private fun extractLaurl(mpdXml: String): String? = DashVarnostPravila.najdiLaurl(mpdXml, samoHttps = true)
 
     private fun isLicenseUrl(lower: String, method: String): Boolean {
         if (isDashManifest(lower) || lower.contains(".m4s") || lower.contains(".mp4") ||
@@ -600,12 +625,7 @@ object DashPrevzem {
         return out
     }
 
-    private fun mergeCookie(a: String, b: String): String {
-        val parts = LinkedHashSet<String>()
-        a.split(';').map { it.trim() }.filter { it.isNotEmpty() }.forEach { parts.add(it) }
-        b.split(';').map { it.trim() }.filter { it.isNotEmpty() }.forEach { parts.add(it) }
-        return parts.joinToString("; ")
-    }
+    private fun mergeCookie(a: String, b: String): String = DashVarnostPravila.zdruziPiskotke(a, b)
 
     private fun jsonWrapKeyFromKind(kind: String): String? {
         if (!kind.startsWith("json:")) return null
@@ -617,12 +637,13 @@ object DashPrevzem {
     }
 
     private fun parseHeaderJson(raw: String): Map<String, String> {
-        if (raw.isBlank()) return emptyMap()
+        // P11: stran po mostu ne more poslati poljubno velikega JSON ali poljubno mnogo glav.
+        if (!DashVarnostPravila.jsonGlavDovoljen(raw)) return emptyMap()
         return try {
             val obj = JSONObject(raw)
             val out = LinkedHashMap<String, String>()
             val keys = obj.keys()
-            while (keys.hasNext()) {
+            while (keys.hasNext() && out.size < DashVarnostPravila.MAKS_GLAV) {
                 val k = keys.next()
                 out[k] = obj.optString(k, "")
             }
@@ -632,35 +653,16 @@ object DashPrevzem {
         }
     }
 
-    fun withCookies(url: String, headers: Map<String, String>): Map<String, String> {
-        val out = LinkedHashMap<String, String>()
-        headers.forEach { (k, v) -> if (k.isNotBlank() && !skipHeader(k)) out[k] = v }
-        val cm = CookieManager.getInstance()
-        val cookieParts = LinkedHashSet<String>()
-        listOf(url, if (izvor.isEmpty()) "" else "$izvor/")
-            .filter { it.isNotEmpty() }
-            .forEach { u ->
-            try {
-                val c = cm.getCookie(u)
-                if (!c.isNullOrBlank()) cookieParts.add(c)
-            } catch (_: Exception) {}
-        }
-        if (cookieParts.isNotEmpty() && out.keys.none { it.equals("Cookie", true) }) {
-            out["Cookie"] = cookieParts.joinToString("; ")
-        }
-        if (out.keys.none { it.equals("User-Agent", true) }) {
-            out["User-Agent"] = ChromiumEngineView.DESKTOP_USER_AGENT
-        }
-        if (izvor.isNotEmpty()) {
-            if (out.keys.none { it.equals("Referer", true) }) out["Referer"] = "$izvor/"
-            if (out.keys.none { it.equals("Origin", true) }) out["Origin"] = izvor
-        }
-        return out
-    }
+    fun withCookies(url: String, headers: Map<String, String>): Map<String, String> = withCookies(url, headers, izvor)
 
-    private fun skipHeader(name: String): Boolean {
-        val n = name.lowercase(Locale.US)
-        return n == "content-length" || n == "host" || n == "connection" ||
-            n == "accept-encoding" || n == "transfer-encoding"
+    /**
+     * P1/SL-S2: piskotki samo za [url] sam (CookieManager.getCookie(url), kot bi jih poslal brskalnik), nikoli piskotki
+     * izvora strani na tuj naslov. [izvorStrani] se prebere enkrat (P11), Referer/Origin nosita samo izvor.
+     */
+    private fun withCookies(url: String, headers: Map<String, String>, izvorStrani: String): Map<String, String> {
+        val cm = try { CookieManager.getInstance() } catch (_: Exception) { null }
+        return DashVarnostPravila.sestaviGlave(url, headers, izvorStrani, ChromiumEngineView.DESKTOP_USER_AGENT) { u ->
+            try { cm?.getCookie(u) } catch (_: Exception) { null }
+        }
     }
 }

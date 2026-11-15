@@ -28,8 +28,8 @@ object TvSite {
 
     /** Stran gledalca deljenega zaslona (Safeer Link): tuj zaslon gledamo cez cel televizor. */
     fun isSharedScreen(url: String): Boolean {
-        val u = url.lowercase()
-        return u.contains("/cast/screen/") && u.contains("/view")
+        // P3/SL-S1: gostitelj v lokalnem omrezju in tocna pot, ne podniz (replaceState tuje strani je skril vrstico).
+        return si.safeer.tv.ProfilStraniPravila.deljenZaslon(url)
     }
 
     fun hideChrome(url: String): Boolean {
@@ -214,10 +214,14 @@ private fun dotakniSe(wv: android.webkit.WebView, x: Float, y: Float) {
         val zdaj = android.os.SystemClock.uptimeMillis()
         val dol = android.view.MotionEvent.obtain(zdaj, zdaj, android.view.MotionEvent.ACTION_DOWN, vx, vy, 0)
         val gor = android.view.MotionEvent.obtain(zdaj, android.os.SystemClock.uptimeMillis(), android.view.MotionEvent.ACTION_UP, vx, vy, 0)
-        wv.dispatchTouchEvent(dol)
-        wv.dispatchTouchEvent(gor)
-        dol.recycle()
-        gor.recycle()
+        try {
+            wv.dispatchTouchEvent(dol)
+            wv.dispatchTouchEvent(gor)
+        } finally {
+            // P10: dogodka se vrneta v bazen tudi, ce pogled ob dotiku vrze izjemo.
+            dol.recycle()
+            gor.recycle()
+        }
     } catch (_: Exception) {}
 }
 
@@ -249,7 +253,8 @@ object YoutubeTvSiteProfile : SiteProfile {
 
     override fun handleSearch(query: String, host: MainActivity): Boolean {
         val wv = host.activeWebView() ?: return false
-        val escaped = query.replace("\\", "\\\\").replace("'", "\\'")
+        // P10: prej samo \ in ' - nova vrstica v iskanju je dala neveljaven JS, ki se je tiho izgubil.
+        val escaped = si.safeer.tv.ProfilStraniPravila.jsNiz(query)
         host.hideKeyboard()
         host.editUrl.clearFocus()
         wv.requestFocus()
@@ -385,13 +390,16 @@ object GenericWebSiteProfile : SiteProfile {
         if (watch && !host.isTopBarFocused() && !host.virtualPointerView.isPointerVisible) {
             when (keyCode) {
                 KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
-                    val now = System.currentTimeMillis()
-                    if (now - host.lastCenterClickTime < 380) {
-                        wv?.evaluateJavascript("window._safeer_toggle_fullscreen();", null)
-                    } else {
-                        wv?.evaluateJavascript("window._safeer_toggle_play_pause();", null)
+                    // P10: ukrepa samo nov pritisk; ponovitve drzanega OK so prej izmenicno preklapljale celozaslonski nacin.
+                    val ok = si.safeer.tv.ProfilStraniPravila.okNaOgledu(
+                        event.action == KeyEvent.ACTION_DOWN, event.repeatCount, System.currentTimeMillis(), host.lastCenterClickTime
+                    )
+                    when (ok.dejanje) {
+                        si.safeer.tv.ProfilStraniPravila.OgledOk.CELOZASLONSKO -> wv?.evaluateJavascript("window._safeer_toggle_fullscreen();", null)
+                        si.safeer.tv.ProfilStraniPravila.OgledOk.PREDVAJAJ -> wv?.evaluateJavascript("window._safeer_toggle_play_pause();", null)
+                        si.safeer.tv.ProfilStraniPravila.OgledOk.NIC -> {}
                     }
-                    host.lastCenterClickTime = now
+                    host.lastCenterClickTime = ok.zadnjiKlik
                     return true
                 }
                 KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_MEDIA_REWIND -> {
