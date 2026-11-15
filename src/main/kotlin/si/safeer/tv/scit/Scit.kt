@@ -39,6 +39,19 @@ object Scit {
 
     fun jeVklopljen(context: Context): Boolean = zastavica(context).exists()
 
+    private fun utripDatoteka(context: Context): File = File(mapa(context), "utrip")
+
+    /** Kliče storitev (:scit) ob zagonu in vsakih 30 s; neuspeh ni usoden (brskalnik potem sam filtrira). */
+    fun utrip(context: Context) {
+        try { utripDatoteka(context).writeText(System.currentTimeMillis().toString()) } catch (_: Throwable) { }
+    }
+
+    /** Starost utripa v ms; manjkajoc utrip = Long.MAX_VALUE (ne filtrira). */
+    fun starostUtripaMs(context: Context): Long {
+        val m = try { utripDatoteka(context).lastModified() } catch (_: Throwable) { 0L }
+        return if (m <= 0L) Long.MAX_VALUE else System.currentTimeMillis() - m
+    }
+
     fun izjemeDatoteka(context: Context): File = File(mapa(context), "izjeme.txt")
     fun grozneDatoteka(context: Context): File = File(mapa(context), "grozne.bin")
 
@@ -239,7 +252,7 @@ object Scit {
             val s = statistika(context)
             val cm = context.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
             val vpn = cm.allNetworks.any { cm.getNetworkCapabilities(it)?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN) == true }
-            ScitStanjePravila.dnsFiltrira(jeVklopljen(context), s.stanje, s.domen, vpn)
+            ScitStanjePravila.dnsFiltrira(jeVklopljen(context), s.stanje, s.domen, vpn, starostUtripaMs(context))
         } catch (_: Throwable) { false }
         return dnsFiltriraZadnje
     }

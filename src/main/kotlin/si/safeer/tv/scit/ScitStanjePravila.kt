@@ -30,8 +30,15 @@ object ScitStanjePravila {
      * ni izklopil, IN na napravi dejansko obstaja VPN omrezje (zapis »tece« lahko preziveti ubit proces, tunel pa ne).
      * Brez katerega koli od teh brskalnik filtrira sam.
      */
-    fun dnsFiltrira(vklopljen: Boolean, stanje: String, domen: Int, vpnOmrezje: Boolean): Boolean =
-        vklopljen && stanje == "tece" && domen > 0 && vpnOmrezje
+    fun dnsFiltrira(vklopljen: Boolean, stanje: String, domen: Int, vpnOmrezje: Boolean, starostUtripaMs: Long): Boolean =
+        vklopljen && stanje == "tece" && domen > 0 && vpnOmrezje && starostUtripaMs in 0..UTRIP_NAJVEC_MS
+
+    /**
+     * Utrip storitve (datoteka, ki jo :scit osvezi vsakih 30 s): brez utripa je zapis »tece« lahko ostanek ubitega procesa, tudi ce
+     * kateri drug VPN drzi tunel (slepi pregled XX1, 15. 11. 2026). Dve zamudi urnika sta se dopustni; starejsi ali prihodnji utrip
+     * (ura nazaj) = ne filtrira, brskalnik filtrira sam.
+     */
+    const val UTRIP_NAJVEC_MS = 90_000L
 
     /** Najdlje tako dolgo (ms) velja prebrano stanje v procesu brskalnika: zahteve so stotine na sekundo, branje datoteke ni zastonj. */
     const val ROK_STANJA_MS = 5_000L

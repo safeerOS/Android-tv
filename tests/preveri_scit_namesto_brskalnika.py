@@ -19,5 +19,10 @@ if "pravilaZaGostitelja(pageUrl, AdBlockEngine.isEnabled)" not in c:
 s = (k / "scit/Scit.kt").read_text(encoding="utf-8")
 if not re.search(r"TRANSPORT_VPN", s):
     napake.append("Scit.dnsFiltrira ne preveri VPN omrezja")
+if "starostUtripaMs(context)" not in s:
+    napake.append("Scit.dnsFiltrira ne preveri utripa storitve (XX1: ubit proces + tuj VPN)")
+sv = (k / "scit/ScitStoritev.kt").read_text(encoding="utf-8")
+if sv.count("Scit.utrip(this)") < 2:
+    napake.append("ScitStoritev: utrip mora biti ob zagonu IN v vzdrzuj() (vsakih 30 s)")
 print("\n".join(napake) or "OK preveri_scit_namesto_brskalnika")
 sys.exit(1 if napake else 0)

@@ -166,6 +166,7 @@ class ScitStoritev : VpnService() {
         }, 1, 1, TimeUnit.SECONDS)
         urnik = u
         spremljajOmrezje()
+        Scit.utrip(this)
         shraniStatistiko("tece")
         Log.i(TAG, "Safeer Scit tece; krajevnih DNS: ${upstream.size}; domen: ${nabor?.stevilo ?: 0}")
         return true
@@ -428,6 +429,7 @@ class ScitStoritev : VpnService() {
                 try { si.safeer.tv.ThreatFeedsUpdater.startSamoScit(applicationContext) } catch (e: Throwable) { Log.w(TAG, "Seznami: ${e.javaClass.simpleName}") }
             }
             osveziUpstream()
+            Scit.utrip(this)
             shraniStatistiko("tece")
             val b = blokiranih.get()
             val pz = poizvedb.get()
