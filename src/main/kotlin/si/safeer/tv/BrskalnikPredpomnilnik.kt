@@ -117,9 +117,10 @@ object BrskalnikPredpomnilnik {
                 if (varna) {
                     val povezava = File(app.cacheDir, B.HTTP_PODMAPA)
                     // HHH4: POSKUS pred namestitvijo, da sesutje takoj po njej ni zgresen.
-                    val poskusZapis = if (nov?.pot != usbPot || nov.izid != B.Izid.USPEL) B.Zapis(usbPot, B.Izid.POSKUS, zdaj) else nov ?: B.Zapis(usbPot, B.Izid.POSKUS, zdaj)
-                    e.putString(STANJE, B.zapisi(poskusZapis)).commit()
-                    namescen = priprava.namesti {
+                    // Uspeh velja od zacetka te seje z diskom: sesutje seje BREZ diska ga ne unici.
+                    val poskusZapis = if (nov?.pot != usbPot || nov.izid != B.Izid.USPEL) B.Zapis(usbPot, B.Izid.POSKUS, zdaj) else nov.copy(cas = zdaj)
+                    val poskusZapisan = e.putString(STANJE, B.zapisi(poskusZapis)).commit()
+                    namescen = poskusZapisan && priprava.namesti {
                         povezava.parentFile?.mkdirs()
                         // Notranji HTTP predpomnilnik (prava mapa) se umakne z enim preimenovanjem; zbrise se spodaj, v ozadju.
                         if (Files.exists(povezava.toPath(), LinkOption.NOFOLLOW_LINKS)) {
@@ -135,6 +136,8 @@ object BrskalnikPredpomnilnik {
                 }
             }
             if (!namescen) {
+                // Seja brez diska: zadrzan uspeh se ob morebitnem sesutju te seje ne unici (cas v prihodnosti).
+                if (nov != null && nov.izid == B.Izid.USPEL) nov = nov.copy(cas = 100_000_000_000_000_000L)
                 priprava.koncajBrez()
                 android.util.Log.i("SafeerBrskalnikCache", "predpomnilnik brskalnika: notranji")
             }
