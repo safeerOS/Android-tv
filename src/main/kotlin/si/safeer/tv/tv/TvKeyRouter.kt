@@ -73,6 +73,12 @@ class TvKeyRouter(private val host: MainActivity) {
                 return true
             }
         }
+        // Ai Lina tv browser (lastnik 15. 11. 2026): spust smerne tipke ustavi gibanje kazalca v eni slicici (KazalecGibanje);
+        // ostala obdelava spusta ostane kot prej.
+        if (event.action == KeyEvent.ACTION_UP && host.virtualPointerView.isPointerVisible) {
+            val smerGor = si.safeer.tv.KazalecGibanje.smerIzTipke(keyCode)
+            if (smerGor != 0) host.virtualPointerView.smerGor(smerGor, event.eventTime, host.activeWebView())
+        }
         // Nazaj med vlecenjem: vlecenje se preklice (dotik ne obvisi v strani), Nazaj ne gre naprej.
         if (keyCode == KeyEvent.KEYCODE_BACK && host.virtualPointerView.vlecem) {
             if (event.action == KeyEvent.ACTION_DOWN) host.virtualPointerView.koncajVlecenje(host.activeWebView(), preklic = true)
@@ -200,8 +206,9 @@ class TvKeyRouter(private val host: MainActivity) {
         if (host.virtualPointerView.isPointerVisible && !isTopBarFocused) {
             val activeWv = host.activeWebView()
             // Nacin miske (spletne aplikacije, npr. Facebook): drzana tipka pospesi kazalec.
-            // Lastnik 9. 11. 2026: kazalec je zdaj privzet na vseh straneh, ki niso za TV - drzana tipka pospesi povsod.
-            val korak = si.safeer.tv.os.OsPravila.korakKazalca(event.repeatCount)
+            // Lastnik 15. 11. 2026: gibanje po slicicah (KazalecGibanje): prvi pritisk = natancen korak 24 px, drzanje = pospesek
+            // (neodvisen od ritma ponavljanja tipke), drsenje strani samo s potiskom ob rob; spust ustavi (zgoraj).
+            val ponovitev = event.repeatCount > 0
             when (keyCode) {
                 KeyEvent.KEYCODE_DPAD_UP -> {
                     // V nacinu aplikacije vrstice z naslovom ni: fokus ne sme oditi v skrito polje.
@@ -214,22 +221,23 @@ class TvKeyRouter(private val host: MainActivity) {
                         host.mobileTopBar.visibility == View.VISIBLE && !host.virtualPointerView.vlecem) {
                         host.editUrl.requestFocus()
                     } else {
-                        host.virtualPointerView.movePointer(0f, -korak, activeWv)
+                        host.virtualPointerView.smerDol(si.safeer.tv.KazalecGibanje.GOR, ponovitev, event.eventTime, activeWv)
                     }
                     return true
                 }
                 KeyEvent.KEYCODE_DPAD_DOWN -> {
-                    host.virtualPointerView.movePointer(0f, korak, activeWv)
+                    host.virtualPointerView.smerDol(si.safeer.tv.KazalecGibanje.DOL, ponovitev, event.eventTime, activeWv)
                     return true
                 }
                 KeyEvent.KEYCODE_DPAD_LEFT -> {
-                    // Kazalec na levem robu zaslona: levo od strani je stranska vrstica Safeer OS.
-                    if (host.virtualPointerView.pointerX <= 10.5f && host.imaOsVrstico()) host.vOsVrstico()
-                    else host.virtualPointerView.movePointer(-korak, 0f, activeWv)
+                    // Kazalec na levem robu zaslona: levo od strani je stranska vrstica Safeer OS. Samo NOV pritisk (kot GOR na vrhu):
+                    // pospesena drzana tipka bi kazalec pripeljala do roba in takoj odprla vrstico.
+                    if (host.virtualPointerView.pointerX <= 10.5f && !ponovitev && host.imaOsVrstico()) host.vOsVrstico()
+                    else host.virtualPointerView.smerDol(si.safeer.tv.KazalecGibanje.LEVO, ponovitev, event.eventTime, activeWv)
                     return true
                 }
                 KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                    host.virtualPointerView.movePointer(korak, 0f, activeWv)
+                    host.virtualPointerView.smerDol(si.safeer.tv.KazalecGibanje.DESNO, ponovitev, event.eventTime, activeWv)
                     return true
                 }
                 KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {

@@ -18,6 +18,9 @@ private fun potInt(t_ms: Long, v0: Float, vMax: Float, T_ms: Long): Float {
 }
 
 fun main() {
+    check(KazalecGibanje.smerIzTipke(19) == KazalecGibanje.GOR && KazalecGibanje.smerIzTipke(20) == KazalecGibanje.DOL &&
+        KazalecGibanje.smerIzTipke(21) == KazalecGibanje.LEVO && KazalecGibanje.smerIzTipke(22) == KazalecGibanje.DESNO) { "smerIzTipke: dpad" }
+    check(KazalecGibanje.smerIzTipke(23) == 0 && KazalecGibanje.smerIzTipke(66) == 0) { "smerIzTipke: OK in Enter nista smer" }
     var preverbe = 0
     val N = KazalecGibanje.Nastavitve()
     
@@ -41,7 +44,7 @@ fun main() {
         trenutniCas += 16L
         if (trenutniCas > 1000L) trenutniCas = 1000L
     }
-    check(kotlin.math.abs(iz.stanje.x - (N.korak + potInt(1000L - N.zamikDrzanjaMs, N.zacetnaHitrost, N.najvecjaHitrost, N.pospesevanjeMs.toLong()))) <= 1.5f, "T2: ${iz.stanje.x}"); preverbe++
+    check(kotlin.math.abs(iz.stanje.x - (N.korak + potInt(1000L - N.zamikDrzanjaMs, N.zacetnaHitrost, N.najvecjaHitrost, N.pospesevanjeMs))) <= 1.5f, "T2: ${iz.stanje.x}"); preverbe++
     
     // 3. Enako s tiki na 33ms
     s = KazalecGibanje.Stanje(0f, 0f)
@@ -290,9 +293,31 @@ fun main() {
     check(prvi21 > 0f && prvi21 < 15f, "T21.1 prvi tik drsenja po prihodu je majhen: $prvi21"); preverbe++
     // pricakovano iz modela (prej trdo 650 pri 1600 px/s): prihod na spodnji rob (1079) iz 880, nato drsenje do 1000 ms
     var prihod21 = 0L
-    while (N.korak + potInt(prihod21, N.zacetnaHitrost, N.najvecjaHitrost, N.pospesevanjeMs.toLong()) < 1079f - 880f) prihod21++
-    val pricakovano21 = potInt(1000L - N.zamikDrzanjaMs - prihod21, N.zacetnoDrsenje, N.najvecjeDrsenje, N.pospesevanjeDrsenjaMs.toLong())
+    while (N.korak + potInt(prihod21, N.zacetnaHitrost, N.najvecjaHitrost, N.pospesevanjeMs) < 1079f - 880f) prihod21++
+    val pricakovano21 = potInt(1000L - N.zamikDrzanjaMs - prihod21, N.zacetnoDrsenje, N.najvecjeDrsenje, N.pospesevanjeDrsenjaMs)
     check(kotlin.math.abs(vsota21 - pricakovano21) <= 14f, "T21.2 vsota drsenja od prihoda do 1 s: $vsota21 (pricakovano $pricakovano21)"); preverbe++
+
+    // Lastnik 15. 11. 2026 (24ur.com z dna: ~40 pritiskov do roba): od sredine zaslona do roba najvec ~1,5 s drzanja; en pritisk +
+    // ponovitve tipke na 50 ms (sistemski ritem), slicice po 16 ms - kot VirtualPointerView.tikSlicice. Izmerjen cas v ms.
+    for (smer in intArrayOf(KazalecGibanje.DOL, KazalecGibanje.GOR)) {
+        val zacetekY = 540f
+        var izS = KazalecGibanje.pritisk(KazalecGibanje.Stanje(960f, zacetekY), smer, false, 0L, 1920, 1080)
+        var t = 0L
+        var doRoba = -1L
+        while (t < 3000L && doRoba < 0L) {
+            t += 16L
+            if (t % 48L < 16L) izS = KazalecGibanje.pritisk(izS.stanje, smer, true, t, 1920, 1080)
+            izS = KazalecGibanje.tik(izS.stanje, t, 1920, 1080)
+            val y = izS.stanje.y
+            if ((smer == KazalecGibanje.DOL && y >= 1079f) || (smer == KazalecGibanje.GOR && y <= 0f)) doRoba = t
+        }
+        check(doRoba in 1L..1500L, "T30 od sredine do roba (smer $smer) v najvec 1,5 s: $doRoba ms"); preverbe++
+    }
+    // Rob zaslona: konica lahko natancno na robu (brez odmika 10 px).
+    run {
+        val iz31 = KazalecGibanje.pritisk(KazalecGibanje.Stanje(5f, 500f), KazalecGibanje.LEVO, false, 0L, 1920, 1080)
+        check(iz31.stanje.x == 0f, "T31 konica doseze levi rob (0): ${iz31.stanje.x}"); preverbe++
+    }
 
     println("KazalecGibanjeTest: OK ($preverbe preverb)")
 }

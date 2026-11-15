@@ -4,12 +4,14 @@ import si.safeer.tv.KazalecPravila as K
 
 /** Lastnik 9. 11. 2026: na straneh, ki niso za TV (24ur.com), daljinec privzeto deluje kot kazalec. */
 fun main() {
-    // Lastnik 9. 11. 2026 (RTV SLO kot aplikacija): privzeto puscice kot v aplikaciji, kazalec samo za strani brez daljinca.
-    check(!K.privzetoKazalec(true, "https://www.24ur.com/", zaTv = false, zapomnjeno = null)) { "24ur.com na TV: puscice" }
-    check(!K.privzetoKazalec(true, "https://www.rtvslo.si/", zaTv = false, zapomnjeno = null)) { "rtvslo.si na TV: puscice" }
+    // Lastnik 15. 11. 2026 (Ai Lina tv browser): kazalec je privzet na vsaki strani, ki ni narejena za TV (prej 9. 11.: puscice).
+    check(K.privzetoKazalec(true, "https://www.24ur.com/", zaTv = false, zapomnjeno = null)) { "24ur.com na TV: kazalec" }
+    check(K.privzetoKazalec(true, "https://www.rtvslo.si/", zaTv = false, zapomnjeno = null)) { "rtvslo.si na TV: kazalec" }
+    check(K.privzetoKazalec(true, "https://example.org/", zaTv = false, zapomnjeno = null)) { "navadna stran brez posebnega pravila: kazalec" }
     check(K.privzetoKazalec(true, "https://www.facebook.com/", zaTv = false, zapomnjeno = null, miska = true)) { "Facebook: kazalec" }
     check(K.privzetoKazalec(true, "https://www.24ur.com/", zaTv = false, zapomnjeno = true)) { "uporabnik je izbral kazalec" }
     check(!K.privzetoKazalec(true, "https://www.youtube.com/tv", zaTv = true, zapomnjeno = null)) { "YouTube za TV: puscice" }
+    check(!K.privzetoKazalec(true, "https://safeer.si/", zaTv = true, zapomnjeno = null, miska = true)) { "nasa stran za TV: puscice tudi z miska" }
     check(!K.privzetoKazalec(true, "file:///android_asset/home.html", zaTv = false, zapomnjeno = null)) { "nasa domaca stran: puscice" }
     check(!K.privzetoKazalec(false, "https://www.24ur.com/", zaTv = false, zapomnjeno = null)) { "telefon/tablica: brez kazalca" }
     check(!K.privzetoKazalec(true, "https://www.24ur.com/", zaTv = false, zapomnjeno = false)) { "uporabnik je za gostitelja izbral puscice" }
@@ -40,5 +42,7 @@ fun main() {
     check(!K.vNaslovnoVrstico(100f, stranLahkoGor = true)) { "100 px pod vrhom: drsi, ne naslovna vrstica" }
     check(!K.vNaslovnoVrstico(10f, stranLahkoGor = true)) { "na vrhu, stran lahko gor: drsi" }
     check(K.vNaslovnoVrstico(10f, stranLahkoGor = false)) { "na vrhu, stran na zacetku: naslovna vrstica" }
+    check(K.LEBDENJE_MS in 50L..200L) { "lebdenje najvec vsakih ~100 ms" }
+    check(K.PX_NA_ZAREZO > 0f) { "nadomestni faktor drsenja" }
     println("KazalecPravilaTest: OK")
 }

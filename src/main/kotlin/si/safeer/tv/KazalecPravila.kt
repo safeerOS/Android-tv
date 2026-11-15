@@ -17,15 +17,19 @@ object KazalecPravila {
      * Ali naj bo kazalec ob odprtju [naslov] vklopljen. [zapomnjeno] = uporabnikova izbira za gostitelja (null = ni je).
      * [zaTv] = stran je narejena za daljinec (nasa stran, YouTube za TV, pregledovalnik PDF). [miska] = stran brez daljinca
      * ne gre (Facebook ..., [si.safeer.tv.os.OsPravila.miskaZaAplikacijo]).
-     * Lastnik 9. 11. 2026 15:xx: »RTV SLO se mnogo lepse premika, ko jo obravnavamo kot aplikacijo« - izbral puscice kot v
-     * aplikaciji (vsak pritisk premakne stran na naslednji clanek); kazalec je prej (4bd4d19) do roba rabil ~40 pritiskov.
-     * Kazalec ostane z gumbom miske in se zapomni za gostitelja.
+     * Lastnik 15. 11. 2026 (Ai Lina tv browser): »kazalec je ze zasnovan v tem brskalniku, samo izboljsati ga je treba; naj se
+     * uporabi na strani, ki ni prilagojena za TV«. Privzeto je zato kazalec povsod, kjer stran NI narejena za TV; nase strani,
+     * YouTube za TV in pregledovalnik PDF ostanejo na puscicah. Uporabnikova zapomnjena izbira za gostitelja ima se vedno
+     * prednost (v obe smeri). Prej (9. 11. 2026 15:xx, RTV SLO »kot aplikacija«) so bile puscice privzete, ker je kazalec
+     * do roba rabil ~40 pritiskov; to odpravi gibanje po slicicah s pospeskom in drsenjem ob robu ([KazalecGibanje]).
+     * [miska] je ohranjen zaradi klicev: stran, ki jo je izbrala miska (Facebook ...), ni za TV, zato je ze zajeta.
      */
+    @Suppress("UNUSED_PARAMETER")
     fun privzetoKazalec(jeTelevizor: Boolean, naslov: String, zaTv: Boolean, zapomnjeno: Boolean?, miska: Boolean = false): Boolean {
         if (!jeTelevizor) return false
         if (gostitelj(naslov) == null) return false   // nasa domaca stran (file://, about:), brez gostitelja
         zapomnjeno?.let { return it }
-        return miska && !zaTv
+        return !zaTv
     }
 
     /**
@@ -37,6 +41,12 @@ object KazalecPravila {
 
     /** Premiki kazalca sporocajo strani lebdenje (mouseover/mousemove) v brskalniku in v spletni aplikaciji enako. */
     fun lebdenje(): Boolean = true
+
+    /** Lebdenje najvec vsakih toliko ms med gibanjem in enkrat ob ustavitvi (Ai Lina nacrt B8, 2 GB TV). */
+    const val LEBDENJE_MS = 100L
+
+    /** Nadomestni faktor drsenja (tock na zarezo kolesca), ce ga sistem ne pove (ViewConfiguration.scaledVerticalScrollFactor). */
+    const val PX_NA_ZAREZO = 64f
 
     /** Kljuc, ob katerem se privzeti kazalec preracuna: gostitelj, stran za ogled istega gostitelja loceno. */
     fun kljucStrani(gostitelj: String?, ogled: Boolean): String? = gostitelj?.let { if (ogled) "$it#ogled" else it }
@@ -66,6 +76,6 @@ object KazalecPravila {
     /** Zarez kolesca miske na pritisk ob robu (lastnik 9. 11. 2026, 24ur.com); izmeri na TV po gradnji. */
     const val KORAK_KOLESCA = 3f
 
-    /** Tipka gor gre v naslovno vrstico samo, ko je kazalec na samem vrhu (movePointer ga ustavi pri 10 px) in stran navzgor ne more. */
+    /** Tipka gor gre v naslovno vrstico samo, ko je kazalec na samem vrhu (konica je lahko na robu 0, KazalecOblika.omejiKonico) in stran navzgor ne more. */
     fun vNaslovnoVrstico(kazalecY: Float, stranLahkoGor: Boolean): Boolean = kazalecY <= 10.5f && !stranLahkoGor
 }

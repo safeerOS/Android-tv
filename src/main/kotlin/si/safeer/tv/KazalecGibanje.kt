@@ -10,6 +10,15 @@ package si.safeer.tv
 object KazalecGibanje {
     const val LEVO = 1; const val DESNO = 2; const val GOR = 4; const val DOL = 8
 
+    /** Smerni bit iz kode tipke (KeyEvent.KEYCODE_DPAD_UP/DOWN/LEFT/RIGHT = 19/20/21/22), 0 = ni smerna tipka. */
+    fun smerIzTipke(kodaTipke: Int): Int = when (kodaTipke) {
+        19 -> GOR
+        20 -> DOL
+        21 -> LEVO
+        22 -> DESNO
+        else -> 0
+    }
+
     data class Nastavitve(
         val korak: Float = 24f,
         val zamikDrzanjaMs: Long = 160,

@@ -24,6 +24,7 @@ trap 'rm -rf "$OUT"' EXIT
   "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/PdfPregledovalnikPravila.kt" \
   "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/KazalecPravila.kt" "$TEST_DIR/KazalecPravilaTest.kt" \
   "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/KazalecGibanje.kt" "$TEST_DIR/KazalecGibanjeTest.kt" \
+  "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/KazalecOblika.kt" "$TEST_DIR/KazalecOblikaTest.kt" \
   "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/AplikacijaPovezave.kt" \
   "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/OmniboxTipke.kt" \
   "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/TvTipke.kt" \
@@ -45,6 +46,8 @@ java -cp "$OUT/splet.jar" si.safeer.tv.PdfPregledovalnikPravilaTestKt
 java -cp "$OUT/splet.jar" si.safeer.tv.KazalecPravilaTestKt
 # Gibanje kazalca kot cista funkcija casa (Ai Lina tv browser, 14. 11. 2026): korak, pospesek, potisk ob rob, varovalo.
 java -cp "$OUT/splet.jar" si.safeer.tv.KazalecGibanjeTestKt
+# Oblika kazalca: puscica s tocko klika v konici, berljivost, stanja, rob okna (lastnik 15. 11. 2026).
+java -cp "$OUT/splet.jar" si.safeer.tv.KazalecOblikaTestKt
 java -cp "$OUT/splet.jar" si.safeer.tv.AplikacijaPovezaveTestKt
 # Daljinec v plosci predlogov (TV 3. 11. 2026: predloga ni bilo mogoce izbrati).
 java -cp "$OUT/splet.jar" si.safeer.tv.OmniboxTipkeTestKt
