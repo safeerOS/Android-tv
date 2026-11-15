@@ -34,11 +34,11 @@ object ScitStanjePravila {
         vklopljen && stanje == "tece" && domen > 0 && vpnOmrezje && starostUtripaMs in 0..UTRIP_NAJVEC_MS
 
     /**
-     * Utrip storitve (datoteka, ki jo :scit osvezi vsakih 30 s): brez utripa je zapis »tece« lahko ostanek ubitega procesa, tudi ce
-     * kateri drug VPN drzi tunel (slepi pregled XX1, 15. 11. 2026). Dve zamudi urnika sta se dopustni; starejsi ali prihodnji utrip
+     * Utrip storitve (datoteka, ki jo :scit osvezi vsakih 10 s): brez utripa je zapis »tece« lahko ostanek ubitega procesa, tudi ce
+     * kateri drug VPN drzi tunel (slepi pregled XX1, 15. 11. 2026). Tri zamude urnika so dopustne (40 s); starejsi ali prihodnji utrip
      * (ura nazaj) = ne filtrira, brskalnik filtrira sam.
      */
-    const val UTRIP_NAJVEC_MS = 90_000L
+    const val UTRIP_NAJVEC_MS = 40_000L
 
     /**
      * Utrip sme pisati samo storitev, ki res dela (slepi pregled ZZ1, 15. 11. 2026): urnik je loceno nit, zato je utripal tudi, ko je zanka
@@ -47,6 +47,18 @@ object ScitStanjePravila {
      */
     fun utripSmeZapisati(tece: Boolean, zankaPaketovZiva: Boolean, zankaOdgovorovZiva: Boolean): Boolean =
         tece && zankaPaketovZiva && zankaOdgovorovZiva
+
+    /**
+     * Starost utripa iz zapisa »elapsedRealtime|stevecZagonov« (ZZ4, slepi pregled 15. 11. 2026): cas od zagona naprave je neodvisen od
+     * stenske ure (NTP, skok ure), stevec zagonov loci utrip pred ponovnim zagonom. Manjkajoc, pokvarjen ali tuj zapis = Long.MAX_VALUE
+     * (ne filtrira). Negativna starost (zapis iz prihodnosti) se vrne kot je; [dnsFiltrira] jo zavrne.
+     */
+    fun starostUtripaMs(zapis: String?, stevecZagonov: String, elapsedZdaj: Long): Long {
+        val deli = zapis?.trim()?.split('|') ?: return Long.MAX_VALUE
+        if (deli.size != 2 || deli[1] != stevecZagonov) return Long.MAX_VALUE
+        val t = deli[0].toLongOrNull() ?: return Long.MAX_VALUE
+        return if (t <= 0L) Long.MAX_VALUE else elapsedZdaj - t
+    }
 
     /** Najdlje tako dolgo (ms) velja prebrano stanje v procesu brskalnika: zahteve so stotine na sekundo, branje datoteke ni zastonj. */
     const val ROK_STANJA_MS = 5_000L

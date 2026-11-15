@@ -41,15 +41,26 @@ object Scit {
 
     private fun utripDatoteka(context: Context): File = File(mapa(context), "utrip")
 
-    /** Kliče storitev (:scit) ob zagonu in vsakih 30 s; neuspeh ni usoden (brskalnik potem sam filtrira). */
+    /** Stevec zagonov naprave (isti v obeh procesih); -1, ce ga sistem ne da. */
+    private fun stevecZagonov(context: Context): String =
+        try { android.provider.Settings.Global.getInt(context.applicationContext.contentResolver, android.provider.Settings.Global.BOOT_COUNT, -1).toString() } catch (_: Throwable) { "-1" }
+
+    @Volatile private var zadnjaNapakaUtripa = 0L
+
+    /** Kliče storitev (:scit) vsakih 10 s in ob zagonu; neuspeh ni usoden (brskalnik potem sam filtrira), a se zapise v dnevnik (najvec 1/min). */
     fun utrip(context: Context) {
-        try { utripDatoteka(context).writeText(System.currentTimeMillis().toString()) } catch (_: Throwable) { }
+        try {
+            utripDatoteka(context).writeText("${android.os.SystemClock.elapsedRealtime()}|${stevecZagonov(context)}")
+        } catch (e: Exception) {
+            val zdaj = android.os.SystemClock.elapsedRealtime()
+            if (zdaj - zadnjaNapakaUtripa > 60_000L) { zadnjaNapakaUtripa = zdaj; Log.w(TAG, "utrip: ${e.javaClass.simpleName}") }
+        }
     }
 
-    /** Starost utripa v ms; manjkajoc utrip = Long.MAX_VALUE (ne filtrira). */
+    /** Starost utripa v ms; manjkajoc ali tuj utrip = Long.MAX_VALUE (ne filtrira). Cas od zagona, ne stenska ura. */
     fun starostUtripaMs(context: Context): Long {
-        val m = try { utripDatoteka(context).lastModified() } catch (_: Throwable) { 0L }
-        return if (m <= 0L) Long.MAX_VALUE else System.currentTimeMillis() - m
+        val zapis = try { utripDatoteka(context).takeIf { it.isFile }?.readText() } catch (_: Throwable) { null }
+        return ScitStanjePravila.starostUtripaMs(zapis, stevecZagonov(context), android.os.SystemClock.elapsedRealtime())
     }
 
     fun izjemeDatoteka(context: Context): File = File(mapa(context), "izjeme.txt")
@@ -237,7 +248,7 @@ object Scit {
         } catch (e: Throwable) { Log.w(TAG, "Statistike ni mogoce zapisati: ${e.message}"); false }
     }
 
-    @Volatile private var dnsPrebrano = 0L
+    private val dnsPrebrano = java.util.concurrent.atomic.AtomicLong(0L)
     @Volatile private var dnsFiltriraZadnje = false
 
     /**
@@ -246,8 +257,9 @@ object Scit {
      */
     fun dnsFiltrira(context: Context): Boolean {
         val zdaj = android.os.SystemClock.elapsedRealtime()
-        if (zdaj - dnsPrebrano < ScitStanjePravila.ROK_STANJA_MS) return dnsFiltriraZadnje
-        dnsPrebrano = zdaj
+        val prej = dnsPrebrano.get()
+        if (zdaj - prej < ScitStanjePravila.ROK_STANJA_MS) return dnsFiltriraZadnje
+        if (!dnsPrebrano.compareAndSet(prej, zdaj)) return dnsFiltriraZadnje   // ZZ6: bere samo ena nit
         dnsFiltriraZadnje = try {
             val s = statistika(context)
             val cm = context.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager

@@ -32,6 +32,17 @@ fun main(args: Array<String>) {
     preveriStanje(!P.dnsFiltrira(true, "tece", 12000, true, Long.MAX_VALUE), "utripa ni: ne filtrira")
     preveriStanje(!P.dnsFiltrira(true, "tece", 12000, true, -5_000L), "utrip iz prihodnosti (ura nazaj): ne filtrira")
     preveriStanje(P.dnsFiltrira(true, "tece", 12000, true, P.UTRIP_NAJVEC_MS), "utrip tocno na meji: se filtrira")
+    preveriStanje(!P.dnsFiltrira(true, "tece", 12000, true, P.UTRIP_NAJVEC_MS + 1), "utrip za 1 ms prek meje: ne filtrira (ZZ7)")
+    preveriStanje(P.dnsFiltrira(true, "tece", 12000, true, 0L), "utrip tocno zdaj (starost 0): filtrira (ZZ7)")
+    preveriStanje(!P.dnsFiltrira(true, "tece", 12000, true, -1L), "starost -1: ne filtrira (ZZ7)")
+    // ZZ4: starost iz casa od zagona + stevec zagonov
+    preveriStanje(P.starostUtripaMs("1000|7", "7", 4000L) == 3000L, "starost: isti zagon = razlika")
+    preveriStanje(P.starostUtripaMs("1000|7", "8", 4000L) == Long.MAX_VALUE, "starost: drug zagon = ne filtrira")
+    preveriStanje(P.starostUtripaMs(null, "7", 4000L) == Long.MAX_VALUE, "starost: manjkajoc zapis")
+    preveriStanje(P.starostUtripaMs("abc|7", "7", 4000L) == Long.MAX_VALUE, "starost: pokvarjen cas")
+    preveriStanje(P.starostUtripaMs("0|7", "7", 4000L) == Long.MAX_VALUE, "starost: cas 0")
+    preveriStanje(P.starostUtripaMs("1000", "7", 4000L) == Long.MAX_VALUE, "starost: brez stevca zagonov")
+    preveriStanje(P.starostUtripaMs("9000|7", "7", 4000L) == -5000L && !P.dnsFiltrira(true, "tece", 1, true, -5000L), "starost: iz prihodnosti = ne filtrira")
     // 1: drug VPN prevzame tunel (onRevoke) - zastavica ostane, storitev ne tece.
     preveriStanje(P.stanje(vklopljen = true, tece = false) == Stanje.PREKINJEN, "vklopljen, a ne tece = prekinjen (ne Vklopljeno)")
     preveriStanje(P.stanje(true, true) == Stanje.TECE, "vklopljen in tece")
@@ -121,9 +132,14 @@ fun main(args: Array<String>) {
     preveriStanje(!P.utripSmeZapisati(tece = true, zankaPaketovZiva = false, zankaOdgovorovZiva = true), "utrip: zanka paketov mrtva = brez utripa")
     preveriStanje(!P.utripSmeZapisati(tece = true, zankaPaketovZiva = true, zankaOdgovorovZiva = false), "utrip: zanka odgovorov mrtva = brez utripa")
     preveriStanje(!P.utripSmeZapisati(tece = false, zankaPaketovZiva = true, zankaOdgovorovZiva = true), "utrip: storitev ustavljena = brez utripa")
+    // ZZ3: utrip v loceni nalogi (utripNaloga), preverba zanke PRED Scit.utrip, vzdrzuj utripa ne pise.
+    val utripNaloga = storitev.substringAfter("private fun utripNaloga()").substringBefore("private fun ")
+    preveriStanje(utripNaloga.indexOf("utripSmeZapisati(tece, nit?.isAlive == true, nitOdgovorov?.isAlive == true)") in 0 until utripNaloga.indexOf("Scit.utrip(this)"),
+        "utripNaloga: preverba zanke PRED Scit.utrip")
     val vzdrzuj = storitev.substringAfter("private fun vzdrzuj()").substringBefore("private fun ")
-    preveriStanje(vzdrzuj.indexOf("utripSmeZapisati(tece, nit?.isAlive == true, nitOdgovorov?.isAlive == true)") in 0 until vzdrzuj.indexOf("Scit.utrip(this)"),
-        "vzdrzuj: preverba zanke PRED Scit.utrip")
+    preveriStanje(!vzdrzuj.contains("Scit.utrip(this)"), "vzdrzuj ne pise utripa (ZZ3: loceno od pocasnega dela)")
+    preveriStanje(vzdrzuj.contains("if (!tece) return"), "vzdrzuj: po zaustavitvi ne zapise statistike (ZZ2)")
+    preveriStanje(storitev.contains("scheduleWithFixedDelay({ utripNaloga() }, 10, 10, TimeUnit.SECONDS)"), "utripNaloga se razporedi vsakih 10 s")
 
     if (padloStanje > 0) { println("ScitStanjePravila: $padloStanje padlo"); exitProcess(1) }
     println("ScitStanjePravila: vse v redu")

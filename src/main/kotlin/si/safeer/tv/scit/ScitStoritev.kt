@@ -75,6 +75,7 @@ class ScitStoritev : VpnService() {
     private val blokiranih = AtomicLong(); private val poizvedb = AtomicLong()
     @Volatile private var dan = danes()
     private var urnik: ScheduledExecutorService? = null
+    private var urnikUtripa: ScheduledExecutorService? = null   // ZZ3: utrip loceno od pocasnega vzdrzevanja
     private var zadnjeObvestilo = -1L
     private var zadnjiDnevnik = -1L
     private var zadnjaZapisana: Scit.Statistika? = null
@@ -165,6 +166,9 @@ class ScitStoritev : VpnService() {
             try { ponoviNeodgovorjene(); tcp.pocisti(); shraniZadnje() } catch (e: Throwable) { Log.w(TAG, "Ponovitev: ${e.message}") }
         }, 1, 1, TimeUnit.SECONDS)
         urnik = u
+        val uu = Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "safeer-scit-utrip").also { it.isDaemon = true } }
+        uu.scheduleWithFixedDelay({ utripNaloga() }, 10, 10, TimeUnit.SECONDS)
+        urnikUtripa = uu
         spremljajOmrezje()
         Scit.utrip(this)
         shraniStatistiko("tece")
@@ -179,6 +183,8 @@ class ScitStoritev : VpnService() {
         }
         povratekOmrezja = null
         try { urnik?.shutdownNow() } catch (_: Throwable) { }
+        try { urnikUtripa?.shutdownNow() } catch (_: Throwable) { }
+        urnikUtripa = null
         try { tcpIzvajalec?.shutdownNow() } catch (_: Throwable) { }
         tcpIzvajalec = null
         urnik = null
@@ -408,6 +414,20 @@ class ScitStoritev : VpnService() {
 
     // ------------------------------------------------------------------ vzdrzevanje
 
+    /**
+     * Utrip (ZZ1-ZZ3, slepi pregled 15. 11. 2026): loceno od [vzdrzuj], da pocasen nabor/upstream ne izbrise utripa, ceprav tunel dela.
+     * Piše samo, ce storitev res dela (obe zanki zivi); zanka, ki je izstopila ob napaki, = ustavi in javi napako.
+     */
+    private fun utripNaloga() {
+        try {
+            if (!tece) return
+            if (!ScitStanjePravila.utripSmeZapisati(tece, nit?.isAlive == true, nitOdgovorov?.isAlive == true)) {
+                Log.w(TAG, "Zanka tunela ne tece: storitev se ustavi"); ustaviVse("napaka"); stopSelf(); return
+            }
+            Scit.utrip(this)
+        } catch (e: Throwable) { Log.w(TAG, "Utrip: ${e.javaClass.simpleName}") }
+    }
+
     private fun vzdrzuj() {
         try {
             val zdaj = System.currentTimeMillis()
@@ -429,12 +449,8 @@ class ScitStoritev : VpnService() {
                 try { si.safeer.tv.ThreatFeedsUpdater.startSamoScit(applicationContext) } catch (e: Throwable) { Log.w(TAG, "Seznami: ${e.javaClass.simpleName}") }
             }
             osveziUpstream()
-            // ZZ1/ZZ2 (slepi pregled 15. 11. 2026): utrip samo, ce storitev res dela; zanka, ki je izstopila ob napaki, = ustavi in javi napako.
-            if (!ScitStanjePravila.utripSmeZapisati(tece, nit?.isAlive == true, nitOdgovorov?.isAlive == true)) {
-                if (tece) { Log.w(TAG, "Zanka tunela ne tece: storitev se ustavi"); ustaviVse("napaka"); stopSelf() }
-                return
-            }
-            Scit.utrip(this)
+            // ZZ1-ZZ3: utrip pise samo utripNaloga() (vsakih 10 s, neodvisno od pocasnega dela zgoraj); tu le statistika, ce storitev se tece.
+            if (!tece) return
             shraniStatistiko("tece")
             val b = blokiranih.get()
             val pz = poizvedb.get()

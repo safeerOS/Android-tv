@@ -23,6 +23,8 @@ if "starostUtripaMs(context)" not in s:
     napake.append("Scit.dnsFiltrira ne preveri utripa storitve (XX1: ubit proces + tuj VPN)")
 sv = (k / "scit/ScitStoritev.kt").read_text(encoding="utf-8")
 if sv.count("Scit.utrip(this)") < 2:
-    napake.append("ScitStoritev: utrip mora biti ob zagonu IN v vzdrzuj() (vsakih 30 s)")
+    napake.append("ScitStoritev: utrip mora biti ob zagonu IN v utripNaloga() (vsakih 10 s)")
+if "elapsedRealtime" not in s or "ScitStanjePravila.starostUtripaMs(zapis" not in s:
+    napake.append("Scit: utrip mora uporabljati cas od zagona (ZZ4), ne stenske ure")
 print("\n".join(napake) or "OK preveri_scit_namesto_brskalnika")
 sys.exit(1 if napake else 0)
