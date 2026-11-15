@@ -73,7 +73,10 @@ preveri("pogled: en odlozen preizkus do izteka mirovanja (brez zanke na kratek r
         len(re.findall(r"postDelayed\(skrijTeka", poglej)) == 1)
 preveri("pogled: skrit kazalec ni narisan, a nacin kazalca ostane (visibility INVISIBLE, ne isPointerVisible = false)",
         "visibility = INVISIBLE" in poglej and "if (!isPointerVisible || skrivanje.skrit) return" in poglej)
-preveri("pogled: skrijZaMisko ne skrije med vlecenjem", "if (!isPointerVisible || vlecem || skrivanje.skrit) return" in poglej)
+# Slepi pregled TV3, N6: pogoj je v KazalecPravila.smeSkritiZaMisko (vlecem, cakaKlik, skrit; preizkus KazalecPopravki3NacinTest),
+# pogled ga samo klice: brez klica bi miska skrila kazalec med vlecenjem ali med cakanjem klika.
+preveri("pogled: skrijZaMisko ne skrije med vlecenjem in cakanjem klika (KazalecPravila.smeSkritiZaMisko)",
+        "if (!KazalecPravila.smeSkritiZaMisko(isPointerVisible, vlecem, cakaKlik, skrivanje.skrit)) return" in poglej)
 preveri("pogled: odlozen preizkus se ob odklopu odstrani", "removeCallbacks(skrijTeka)" in poglej and "override fun onDetachedFromWindow()" in poglej)
 
 usmerjevalnik = beri(SRC / "tv/TvKeyRouter.kt")
