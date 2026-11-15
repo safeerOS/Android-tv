@@ -102,7 +102,7 @@ object DashVarnostPravila {
             jeZnanDrmPonudnik(licUrl)
 
     /** GGG1: licencni strezniki DRM ponudnikov, ki jih stran navaja v MPD (laurl): zeton strani sme tja, ne pa na poljubnega gostitelja. */
-    private val ZNANI_DRM = listOf("drmtoday.com", "expressplay.com", "axprod.net", "ezdrm.com", "buydrm.com", "keyos.com", "irdeto.com")
+    private val ZNANI_DRM = listOf("drmtoday.com", "expressplay.com", "axprod.net", "ezdrm.com", "buydrm.com", "keyos.com", "irdeto.com", "licensekeyserver.com", "vualto.com", "verimatrix.com", "castlabs.com", "nagra.com")
 
     fun jeZnanDrmPonudnik(licUrl: String): Boolean {
         val n = razcleni(licUrl) ?: return false

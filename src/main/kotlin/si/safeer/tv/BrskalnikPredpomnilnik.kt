@@ -109,13 +109,16 @@ object BrskalnikPredpomnilnik {
             if (zapomnjene.isNotEmpty()) e.putString(ZA_PRAZNJENJE, zapomnjene.joinToString("\n")) else e.remove(ZA_PRAZNJENJE)
             var nov = zapis
             var namescen = false
-            if (cilj != null && usbPot != null) {
+            if (cilj != null && usbPot != null && cilj !in zapomnjene) {
                 val mapa = File(cilj)
                 // XX3: nobena sestavina od mape aplikacije na disku do cilja ni povezava (mkdirs bi ji sledil).
                 val varna = B.brezPovezav(Paths.get(usbPot), mapa.toPath()) && (mapa.isDirectory || mapa.mkdirs()) &&
                     B.brezPovezav(Paths.get(usbPot), mapa.toPath()) && mapa.canWrite() && B.nastaviZapornice(mapa.toPath())
                 if (varna) {
                     val povezava = File(app.cacheDir, B.HTTP_PODMAPA)
+                    // HHH4: POSKUS pred namestitvijo, da sesutje takoj po njej ni zgresen.
+                    val poskusZapis = if (nov?.pot != usbPot || nov.izid != B.Izid.USPEL) B.Zapis(usbPot, B.Izid.POSKUS, zdaj) else nov ?: B.Zapis(usbPot, B.Izid.POSKUS, zdaj)
+                    e.putString(STANJE, B.zapisi(poskusZapis)).commit()
                     namescen = priprava.namesti {
                         povezava.parentFile?.mkdirs()
                         // Notranji HTTP predpomnilnik (prava mapa) se umakne z enim preimenovanjem; zbrise se spodaj, v ozadju.
@@ -126,7 +129,7 @@ object BrskalnikPredpomnilnik {
                     }
                     if (namescen) {
                         ciljSeje = cilj
-                        if (nov?.pot != usbPot || nov.izid != B.Izid.USPEL) nov = B.Zapis(usbPot, B.Izid.POSKUS, zdaj)
+                        nov = poskusZapis
                         android.util.Log.i("SafeerBrskalnikCache", "predpomnilnik brskalnika: USB ($cilj), samo HTTP, izpraznjen")
                     }
                 }
@@ -135,7 +138,7 @@ object BrskalnikPredpomnilnik {
                 priprava.koncajBrez()
                 android.util.Log.i("SafeerBrskalnikCache", "predpomnilnik brskalnika: notranji")
             }
-            if (nov != null) e.putString(STANJE, B.zapisi(nov))
+            if (nov != null) e.putString(STANJE, B.zapisi(nov)) else e.remove(STANJE)
             e.commit()
             // Umaknjen notranji predpomnilnik (prava mapa, brez sledenja povezavam).
             File(app.cacheDir, B.HTTP_PODMAPA).parentFile?.listFiles()?.filter { it.name.startsWith("HTTP Cache.staro-") }?.forEach {
@@ -158,8 +161,8 @@ object BrskalnikPredpomnilnik {
         for ((kljuc, mapa) in listOf("notranji" to app.cacheDir, usbPot to File(usbPot))) {
             if (meritev(p, kljuc, zdaj) != null) continue
             val ns = B.meriNakljucno(mapa)
-            // Neuspela meritev (rok, napaka) se zapise kot zelo pocasna: disk ne gre v uporabo do naslednje meritve.
-            e.putLong("nakl:$kljuc", ns ?: Long.MAX_VALUE / 4).putLong("nakl_ob:$kljuc", zdaj)
+            // HHH7: neuspela meritev (rok, napaka) ni meritev: disk ne gre v uporabo, meritev se ponovi ob naslednjem zagonu.
+            if (ns != null) e.putLong("nakl:$kljuc", ns).putLong("nakl_ob:$kljuc", zdaj)
             android.util.Log.i("SafeerBrskalnikCache", "nakljucni dostop $kljuc: " + (ns?.let { "${it / 1000} us" } ?: "ni uspel"))
         }
         e.commit()
@@ -169,10 +172,9 @@ object BrskalnikPredpomnilnik {
     private fun sesutjeOb(app: Context): Long? = try {
         if (android.os.Build.VERSION.SDK_INT < 30) null
         else app.getSystemService(android.app.ActivityManager::class.java)
-            ?.getHistoricalProcessExitReasons(app.packageName, 0, 1)?.firstOrNull()
-            ?.takeIf {
-                it.reason == android.app.ApplicationExitInfo.REASON_CRASH || it.reason == android.app.ApplicationExitInfo.REASON_CRASH_NATIVE ||
-                    it.reason == android.app.ApplicationExitInfo.REASON_ANR
+            ?.getHistoricalProcessExitReasons(app.packageName, 0, 5)?.firstOrNull {
+                it.processName == app.packageName && (it.reason == android.app.ApplicationExitInfo.REASON_CRASH || it.reason == android.app.ApplicationExitInfo.REASON_CRASH_NATIVE ||
+                    it.reason == android.app.ApplicationExitInfo.REASON_ANR)
             }?.timestamp
     } catch (_: Throwable) {
         null
@@ -186,9 +188,10 @@ object BrskalnikPredpomnilnik {
         if (potrjeno) return
         val cilj = ciljSeje ?: return
         val app = c.applicationContext
+        if (!potrdiCaka.compareAndSet(false, true)) return
         try {
             ozadje.execute {
-                if (potrjeno) return@execute
+                if (potrjeno) { potrdiCaka.set(false); return@execute }
                 try {
                     val p = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                     val z = B.preberi(p.getString(STANJE, null))
@@ -197,8 +200,10 @@ object BrskalnikPredpomnilnik {
                         B.smemPotrditi(z, cilj, B.imaVsebino(Paths.get(cilj))) ->
                             if (p.edit().putString(STANJE, B.zapisi(z!!.copy(izid = B.Izid.USPEL, cas = System.currentTimeMillis()))).commit()) potrjeno = true
                     }
-                } catch (_: Throwable) { }
+                } catch (_: Throwable) { } finally { potrdiCaka.set(false) }
             }
-        } catch (_: Throwable) { }
+        } catch (_: Throwable) { potrdiCaka.set(false) }
     }
+
+    private val potrdiCaka = java.util.concurrent.atomic.AtomicBoolean(false)
 }

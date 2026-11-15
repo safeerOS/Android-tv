@@ -216,6 +216,8 @@ class ScitStoritev : VpnService() {
     private fun zanka(fd: ParcelFileDescriptor) {
         val vhod = FileInputStream(fd.fileDescriptor)
         val buf = ByteArray(32 * 1024)
+        var oknoZac = 0L
+        var napakVOknu = 0
         while (tece) {
             val n = try { vhod.read(buf) } catch (e: Throwable) { if (tece) Log.w(TAG, "Branje tunela: ${e.message}"); break }
             // GGG4: napaka pri enem paketu (napacen odgovor, izjema v pravilih) ne sme ustaviti Scita za vso napravo.
@@ -236,7 +238,15 @@ class ScitStoritev : VpnService() {
                     ScitOdlocitev.Izid.NAPREJ -> Unit
                 }
                 posreduj(q)
-            } catch (e: Throwable) { Log.w(TAG, "Paket DNS zavrzen: ${e.javaClass.simpleName}") }
+            } catch (e: Throwable) {
+                // HHH5: posamezna napaka paketa ne ustavi Scita, stalna (100 v 60 s) pa ustavi zanko: nit umre, utrip to zazna in
+                // brskalnik prevzame filtriranje (sicer bi DNS naprave molcal ob zivih nitih). Dnevnik: najvec 3 zapisi na okno.
+                val zdajMs = android.os.SystemClock.elapsedRealtime()
+                if (zdajMs - oknoZac > 60_000L) { oknoZac = zdajMs; napakVOknu = 0 }
+                napakVOknu++
+                if (napakVOknu <= 3) Log.w(TAG, "Paket DNS zavrzen: ${e.javaClass.simpleName}")
+                if (napakVOknu >= 100) { Log.e(TAG, "Prevec napak pri obdelavi paketov: zanka se ustavi"); break }
+            }
         }
     }
 

@@ -77,7 +77,7 @@ object BrskalnikDiskPravila {
 
     /** Ob zagonu: poskus postane neuspel samo, ce se je proces po zacetku poskusa res sesul ([sesutjeOb] = cas sesutja ali null). */
     fun obZagonu(z: Zapis?, usbPot: String?, sesutjeOb: Long?, zdaj: Long): Zapis? {
-        if (z == null || z.izid != Izid.POSKUS || usbPot == null || z.pot != usbPot) return z
+        if (z == null || (z.izid != Izid.POSKUS && z.izid != Izid.USPEL) || usbPot == null || z.pot != usbPot) return z
         return if (sesutjeOb != null && sesutjeOb >= z.cas) Zapis(z.pot, Izid.NEUSPEL, zdaj) else z
     }
 

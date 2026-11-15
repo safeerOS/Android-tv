@@ -129,7 +129,7 @@ object CosmeticFilterEngine {
      */
     internal fun varniIzbirniki(izbirniki: List<String>): List<String> = izbirniki.filter { s ->
         s.isNotBlank() && s.length <= 300 && s.none { it in "{};@\\<\n\r\u000c" } && !s.contains("/*") && !s.contains("*/") && uravnotezen(s) &&
-            delaIzbirnika(s).let { deli -> deli.isNotEmpty() && deli.all { it.isNotEmpty() && it !in SIROKI && uravnotezen(it) } }
+            delaIzbirnika(s).let { deli -> deli.isNotEmpty() && deli.all { it.isNotEmpty() && it.lowercase() !in SIROKI && uravnotezen(it) } }
     }
 
     /** Deli vejicnega seznama na zgornji ravni (vejice v oklepajih, oglatih oklepajih in narekovajih ne locijo); deli so obrezani. */
