@@ -1131,7 +1131,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             // Zavihki, ki so ostali budni (npr. predvajajo), naj ne drzijo pomembne prednosti izrisovalnika.
             if (::tabManager.isInitialized) tabManager.nastaviPrednosti(naZaslonu, level)
             si.safeer.tv.os.LahkiWebViewPool.sprostiProstega()
-            si.safeer.tv.os.GlasbaActivity.sprostiSlike()
+            si.safeer.tv.os.GlasbaActivity.sprostiSlike(level)
             if (level >= TRIM_MEMORY_RUNNING_CRITICAL) {
                 if (::tabManager.isInitialized) tabManager.sprostiPredpomnilnike()
                 UserScriptManager.sprostiPredpomnilnik()

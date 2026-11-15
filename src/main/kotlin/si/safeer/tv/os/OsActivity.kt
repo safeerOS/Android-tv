@@ -32,7 +32,7 @@ open class OsActivity : Activity() {
         super.onTrimMemory(level)
         if (level >= TRIM_MEMORY_RUNNING_MODERATE) {
             LahkiWebViewPool.sprostiProstega()
-            GlasbaActivity.sprostiSlike()
+            GlasbaActivity.sprostiSlike(level)
         }
         // Vmesnik skrit (UI_HIDDEN in vec) ali malo pomnilnika (RUNNING_LOW/CRITICAL): se seznami Medijev (naloga 54).
         // Naloga 92: s predpomnilnikom na USB ze od RUNNING_MODERATE, tudi strani katalogov kanalov (kopija je na USB).

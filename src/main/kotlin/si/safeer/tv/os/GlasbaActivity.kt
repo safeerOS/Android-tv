@@ -14137,6 +14137,12 @@ class GlasbaActivity : OsActivity() {
             SLIKE.evictAll()
         }
 
+        /** onTrimMemory ([PredpomnilnikPravila.slikeOstanejoOdstotkov]): blaga stopnja odnese le najdlje neuporabljeno polovico. */
+        fun sprostiSlike(raven: Int) {
+            val ostane = PredpomnilnikPravila.slikeOstanejoOdstotkov(raven)
+            if (ostane <= 0) SLIKE.evictAll() else if (ostane < 100) SLIKE.trimToSize((SLIKE.size().toLong() * ostane / 100).toInt())
+        }
+
         /** Naloga 92: predpomnilnik na USB v uporabi - manj naslovnic v pomnilniku ([PredpomnilnikPravila.mejaSlik]); ostale iz baze. */
         fun prilagodiPomnilnik(usb: Boolean) = SLIKE.resize(PredpomnilnikPravila.mejaSlik(usb, SLIKE_BAJTOV))
 

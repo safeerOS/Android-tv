@@ -46,7 +46,7 @@ fun main() {
     println("\n== TTL in LRU ==")
     val dan = 24 * 3_600_000L
     val zdaj = 100 * dan
-    preveriEnako("TTL naslovnice 14 dni", 14 * dan, PredpomnilnikPravila.ttl(PredpomnilnikPravila.NASLOVNICE))
+    preveriEnako("naslovnice: meja NEUPORABE 90 dni (ne 14 dni od prenosa)", 90 * dan, PredpomnilnikPravila.ttl(PredpomnilnikPravila.NASLOVNICE))
     preveriEnako("TTL katalogi 24 h", dan, PredpomnilnikPravila.ttl(PredpomnilnikPravila.KATALOGI))
     val d = listOf(
         Datoteka("a", PredpomnilnikPravila.KATALOGI, 10, zdaj - 2 * dan),        // zastarel katalog
@@ -142,6 +142,34 @@ fun main() {
     preveriEnako("razlog: zaseben", "zasebni dodatek", PredpomnilnikPravila.razlogBrezPredpomnjenja(zvok = true, vZivo = false, http = true, enodelni = true, zasebno = true))
     preveriEnako("TTL besedil 30 dni", 30 * dan, PredpomnilnikPravila.ttl(PredpomnilnikPravila.BESEDILA))
     preveriEnako("besedila ne gredo na napravo v Linku", false, PredpomnilnikPravila.smeNaLink(PredpomnilnikPravila.BESEDILA, 100, zasebno = false))
+
+    println("\n== plakat velja, dokler je film na voljo (lastnik 15. 11. 2026) ==")
+    val N = PredpomnilnikPravila.NASLOVNICE
+    // Vnos, ustvarjen pred 20 dnevi (poteka po starem = ustvarjeno + 14 dni je ze mimo), a prikazan vceraj: film je se na voljo.
+    preveriEnako("naslovnica prenesena pred 20 dnevi, uporabljena vceraj: velja", true, P.veljaVnos(N, zdaj - 6 * dan, zdaj - dan, zdaj))
+    preveriEnako("naslovnica ni bila prikazana 91 dni: film ni vec na voljo", false, P.veljaVnos(N, Long.MAX_VALUE, zdaj - 91 * dan, zdaj))
+    preveriEnako("katalog po poteku ne velja (ostalo kot prej)", false, P.veljaVnos(P.KATALOGI, zdaj - 1, zdaj, zdaj))
+    preveriEnako("poteka: naslovnica brez poteka po casu", Long.MAX_VALUE, P.poteka(N, zdaj))
+    val plakati = listOf(
+        PredpomnilnikPravila.Vnos("n/stara-a-uporabljena", 100, zdaj - dan, zdaj - 6 * dan, N),       // star zapis (poteka 14 dni po prenosu je mimo)
+        PredpomnilnikPravila.Vnos("n/neuporabljena", 100, zdaj - 120 * dan, Long.MAX_VALUE, N),     // film izginil
+        PredpomnilnikPravila.Vnos("k/potekel", 100, zdaj - dan, zdaj - 1, P.KATALOGI),
+    )
+    preveriEnako("baza: uporabljen plakat ostane, neuporabljen in potekel katalog gresta", listOf("n/neuporabljena", "k/potekel"), P.zaBrisanjeVnosov(plakati, 10_000, zdaj))
+    preveriEnako("baza: ob polnem disku najprej najdlje neuporabljen plakat", listOf("n/neuporabljena", "k/potekel", "n/stara-a-uporabljena"), P.zaBrisanjeVnosov(plakati, 0, zdaj))
+    preveriEnako("datoteka na USB: plakat uporabljen pred 60 dnevi ostane", emptyList<String>(),
+        P.zaBrisanje(listOf(Datoteka("p", N, 10, zdaj - 60 * dan)), 1000, zdaj))
+    preveriEnako("datoteka na USB: plakat neuporabljen 100 dni gre", listOf("p"), P.zaBrisanje(listOf(Datoteka("p", N, 10, zdaj - 100 * dan)), 1000, zdaj))
+    preveriEnako("Link: plakat star 40 dni velja", true, P.veljavenOdgovor(N, zdaj - 40 * dan, zdaj))
+    preveriEnako("Link: plakat iz prihodnosti ne velja", false, P.veljavenOdgovor(N, zdaj + 2 * dan, zdaj))
+    println("\n== onTrimMemory: kolikšen del plakatov v pomnilniku ostane ==")
+    preveriEnako("stopnja 0: vse ostane", 100, P.slikeOstanejoOdstotkov(0))
+    preveriEnako("RUNNING_MODERATE (5): polovica", 50, P.slikeOstanejoOdstotkov(5))
+    preveriEnako("RUNNING_LOW (10): polovica", 50, P.slikeOstanejoOdstotkov(10))
+    preveriEnako("RUNNING_CRITICAL (15): vse gre", 0, P.slikeOstanejoOdstotkov(15))
+    preveriEnako("UI_HIDDEN (20): polovica", 50, P.slikeOstanejoOdstotkov(20))
+    preveriEnako("BACKGROUND (40): polovica", 50, P.slikeOstanejoOdstotkov(40))
+    preveriEnako("MODERATE (60) in COMPLETE (80): vse gre", listOf(0, 0), listOf(P.slikeOstanejoOdstotkov(60), P.slikeOstanejoOdstotkov(80)))
 
     println("\n== meje v pomnilniku z USB (naloga 92) ==")
     val slike18 = 18 * 1024 * 1024

@@ -88,12 +88,26 @@ object PredpomnilnikPravila {
     private const val DAN = 24 * URA
 
     /**
+     * Plakat gre iz predpomnilnika sele, ko ga 90 dni nihce ni prikazal (lastnik 15. 11. 2026: »film in plakat sta na voljo,
+     * dokler je film na voljo«). Film, ki je se na voljo, pride v police in mreze, vsak prikaz osvezi zadnjo uporabo
+     * ([osveziUporabo]); film, ki ga ni vec, se ne prikazuje in plakat po tem casu izgine. Dolgo pred tem ga LRU ob polnem
+     * disku odnese samo, ce je med najmanj uporabljenimi - prostor na USB je velik, zato meja ni tesna.
+     */
+    const val NASLOVNICA_NEUPORABA = 90 * DAN
+
+    /** Ali je vnos (vrsta, [poteka], [zadnjaUporaba]) ob [zdaj] se veljaven: naslovnice po neuporabi, ostalo po poteku. */
+    fun veljaVnos(vrsta: String, poteka: Long, zadnjaUporaba: Long, zdaj: Long): Boolean =
+        if (vrsta == NASLOVNICE) zdaj - zadnjaUporaba <= NASLOVNICA_NEUPORABA else poteka > zdaj
+
+    /**
      * Kako dolgo datoteka vrste [vrsta] na USB velja (potem jo ciscenje izbrise): naslovnice 14 dni in katalogi 24 h kot
      * notranji; police (zadnja znana mreza) 7 dni kot seme; seznami IPTV 7 dni (osvezijo se po 24 h, stari velja do takrat);
      * strani kanalov 24 h (beremo jih samo, dokler veljajo za katalog).
      */
     fun ttl(vrsta: String): Long = when (vrsta) {
-        NASLOVNICE -> 14 * DAN
+        // Lastnik 15. 11. 2026: plakat velja, dokler je film na voljo - ne 14 dni od prenosa. Za naslovnice je to meja
+        // NEUPORABE ([NASLOVNICA_NEUPORABA]), ne starost zapisa ([zastaral], [poteka]).
+        NASLOVNICE -> NASLOVNICA_NEUPORABA
         KATALOGI -> DAN
         POLICE -> 7 * DAN
         IPTV -> 7 * DAN
@@ -197,7 +211,8 @@ object PredpomnilnikPravila {
     fun kljucLink(vrsta: String, odtis: String): String? = if (vrsta in LINK_VRSTE && RX_ODTIS.matches(odtis)) "$vrsta/$odtis" else null
 
     /** Odgovor naprave na cache.get velja: cas zapisa ni iz prihodnosti (> 1 dan) in ni starejsi od [ttl] vrste. */
-    fun veljavenOdgovor(vrsta: String, cas: Long, zdaj: Long): Boolean = cas > 0 && zdaj - cas in -DAN..ttl(vrsta)
+    fun veljavenOdgovor(vrsta: String, cas: Long, zdaj: Long): Boolean =
+        cas > 0 && zdaj - cas in -DAN..(if (vrsta == NASLOVNICE) Long.MAX_VALUE else ttl(vrsta))
 
     /**
      * »Varovalka«: po 3 zaporednih neodgovorih (potek [LINK_ROK_MS], napaka) napravo 60 s ne sprasujemo - vsako branje bi
@@ -225,10 +240,10 @@ object PredpomnilnikPravila {
     const val NOTRANJA_MEJA = 128 * MB
 
     /** Vnos v bazi za ciscenje: [poteka] = ustvarjeno + [ttl] vrste, [zadnjaUporaba] za LRU. */
-    data class Vnos(val kljuc: String, val velikost: Long, val zadnjaUporaba: Long, val poteka: Long)
+    data class Vnos(val kljuc: String, val velikost: Long, val zadnjaUporaba: Long, val poteka: Long, val vrsta: String = "")
 
     /** Kdaj vnos vrste [vrsta], ustvarjen ob [ustvarjeno], zastara. */
-    fun poteka(vrsta: String, ustvarjeno: Long): Long = ustvarjeno + ttl(vrsta)
+    fun poteka(vrsta: String, ustvarjeno: Long): Long = if (vrsta == NASLOVNICE) Long.MAX_VALUE else ustvarjeno + ttl(vrsta)
 
     /**
      * Kateri vnosi gredo iz baze: zastareli ([Vnos.poteka] <= zdaj) in z uro iz prihodnosti (> 1 dan), nato najdlje
@@ -236,7 +251,7 @@ object PredpomnilnikPravila {
      */
     fun zaBrisanjeVnosov(vnosi: List<Vnos>, meja: Long, zdaj: Long): List<String> {
         val ven = LinkedHashSet<String>()
-        for (v in vnosi) if (v.poteka <= zdaj || v.zadnjaUporaba - zdaj > DAN) ven += v.kljuc
+        for (v in vnosi) if (!veljaVnos(v.vrsta, v.poteka, v.zadnjaUporaba, zdaj) || v.zadnjaUporaba - zdaj > DAN) ven += v.kljuc
         var skupaj = vnosi.filter { it.kljuc !in ven }.sumOf { it.velikost }
         if (skupaj > meja) for (v in vnosi.filter { it.kljuc !in ven }.sortedBy { it.zadnjaUporaba }) {
             if (skupaj <= meja) break
@@ -337,6 +352,20 @@ object PredpomnilnikPravila {
 
     /** Meja naslovnic v pomnilniku (bajti): brez USB [brezUsb] (kot doslej), z USB najvec [SLIKE_Z_USB]. */
     fun mejaSlik(usb: Boolean, brezUsb: Int): Int = if (usb) minOf(brezUsb, SLIKE_Z_USB) else brezUsb
+
+    /**
+     * onTrimMemory: kolikšen delez naslovnic v pomnilniku OSTANE (v odstotkih). Lastnik 15. 11. 2026: plakati se vedno znova
+     * nalagajo - prej je vsaka stopnja od RUNNING_MODERATE (5) izpraznila vse (evictAll). Zdaj blage stopnje (RUNNING_MODERATE,
+     * RUNNING_LOW, UI_HIDDEN, BACKGROUND) odnesejo samo najdlje neuporabljeno polovico; vse gre sele pri RUNNING_CRITICAL (15)
+     * in od MODERATE (60) navzgor (proces je kandidat za ubijanje). onLowMemory ostane polno praznjenje.
+     */
+    fun slikeOstanejoOdstotkov(raven: Int): Int = when {
+        raven < 5 -> 100
+        raven < 15 -> 50
+        raven < 20 -> 0
+        raven < 60 -> 50
+        else -> 0
+    }
 
     /** Meja kartic strani katalogov kanalov v pomnilniku: brez USB [brezUsb] (kot doslej), z USB najvec [KARTIC_STRANI_Z_USB]. */
     fun mejaStraniKanalov(usb: Boolean, brezUsb: Int): Int = if (usb) minOf(brezUsb, KARTIC_STRANI_Z_USB) else brezUsb

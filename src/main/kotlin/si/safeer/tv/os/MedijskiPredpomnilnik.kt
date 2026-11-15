@@ -16,7 +16,6 @@ import java.security.MessageDigest
  * in izbrano mesto ([UsbPredpomnilnik], [LinkPredpomnilnik]). Vsebina zasebnih dodatkov in kategorij nikoli na drugo napravo.
  */
 object MedijskiPredpomnilnik {
-    private const val NASLOVNICA_VELJA_MS = 14L * 24 * 60 * 60 * 1000
     /** Naslovnica v mrezi: najvec toliko pik po daljsi stranici (kot dekodiranje v GlasbaActivity.naloziSliko). */
     const val NASLOVNICA_PX = 280
     private const val NASLOVNICA_KAKOVOST = 80
@@ -127,7 +126,9 @@ object MedijskiPredpomnilnik {
     fun naslovnica(c: Context, naslov: String): ByteArray? = try {
         beri(c, PredpomnilnikPravila.NASLOVNICE, odtis(naslov))?.second ?: run {
             val f = File(mapaNaslovnic(c), odtis(naslov))
-            if (f.isFile && System.currentTimeMillis() - f.lastModified() < NASLOVNICA_VELJA_MS) f.readBytes() else null
+            if (f.isFile && System.currentTimeMillis() - f.lastModified() <= PredpomnilnikPravila.NASLOVNICA_NEUPORABA) {
+                f.readBytes().also { if (PredpomnilnikPravila.osveziUporabo(f.lastModified(), System.currentTimeMillis())) f.setLastModified(System.currentTimeMillis()) }
+            } else null
         }
     } catch (_: Exception) { null }
 
@@ -186,7 +187,8 @@ object MedijskiPredpomnilnik {
      */
     private const val PAS_NAJVEC_BAJTOV = 24L * 1024 * 1024
     private const val PAS_NAJVEC_DATOTEKA = 3L * 1024 * 1024
-    private const val PAS_VELJA_MS = 14L * 24 * 60 * 60 * 1000
+    /** Kot plakati: velja, dokler se prikazuje ([PredpomnilnikPravila.NASLOVNICA_NEUPORABA]); branje osvezi lastModified (LRU pri meji). */
+    private const val PAS_VELJA_MS = PredpomnilnikPravila.NASLOVNICA_NEUPORABA
     private fun mapaPasu(c: Context) = File(c.cacheDir, "mediji-pas").apply { mkdirs() }
     private fun jeSplet(url: String) = url.startsWith("https://") || url.startsWith("http://")
 
@@ -194,7 +196,9 @@ object MedijskiPredpomnilnik {
     fun slikaPasu(c: Context, url: String): ByteArray? = try {
         if (!jeSplet(url)) null else {
             val f = File(mapaPasu(c), odtis(url))
-            if (f.isFile && f.length() in 1..PAS_NAJVEC_DATOTEKA && System.currentTimeMillis() - f.lastModified() < PAS_VELJA_MS) f.readBytes() else null
+            if (f.isFile && f.length() in 1..PAS_NAJVEC_DATOTEKA && System.currentTimeMillis() - f.lastModified() < PAS_VELJA_MS) {
+                f.readBytes().also { if (PredpomnilnikPravila.osveziUporabo(f.lastModified(), System.currentTimeMillis())) f.setLastModified(System.currentTimeMillis()) }
+            } else null
         }
     } catch (_: Exception) { null }
 

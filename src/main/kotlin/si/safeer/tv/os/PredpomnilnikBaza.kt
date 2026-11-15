@@ -83,8 +83,8 @@ class PredpomnilnikBaza(private val datoteka: File, private val obNapaki: () -> 
         val b = odpri() ?: return null
         val zdaj = System.currentTimeMillis()
         return try {
-            b.rawQuery("SELECT bajti, datoteka, ustvarjeno, zadnja_uporaba, poteka FROM vnosi WHERE kljuc = ?", arrayOf(kljuc)).use { c ->
-                if (!c.moveToFirst() || c.getLong(4) <= zdaj) return null
+            b.rawQuery("SELECT bajti, datoteka, ustvarjeno, zadnja_uporaba, poteka, vrsta FROM vnosi WHERE kljuc = ?", arrayOf(kljuc)).use { c ->
+                if (!c.moveToFirst() || !PredpomnilnikPravila.veljaVnos(c.getString(5) ?: "", c.getLong(4), c.getLong(3), zdaj)) return null
                 val bajti = if (!c.isNull(0)) c.getBlob(0) else {
                     val f = File(mapaVelikih, c.getString(1) ?: return null)
                     if (!f.isFile) return null
@@ -158,9 +158,9 @@ class PredpomnilnikBaza(private val datoteka: File, private val obNapaki: () -> 
         val zdaj = System.currentTimeMillis()
         val vnosi = ArrayList<PredpomnilnikPravila.Vnos>()
         val datoteke = HashMap<String, String>()
-        b.rawQuery("SELECT kljuc, velikost, zadnja_uporaba, poteka, datoteka FROM vnosi", null).use { c ->
+        b.rawQuery("SELECT kljuc, velikost, zadnja_uporaba, poteka, datoteka, vrsta FROM vnosi", null).use { c ->
             while (c.moveToNext()) {
-                vnosi += PredpomnilnikPravila.Vnos(c.getString(0), c.getLong(1), c.getLong(2), c.getLong(3))
+                vnosi += PredpomnilnikPravila.Vnos(c.getString(0), c.getLong(1), c.getLong(2), c.getLong(3), c.getString(5) ?: "")
                 if (!c.isNull(4)) datoteke[c.getString(0)] = c.getString(4)
             }
         }
