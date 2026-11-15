@@ -28,8 +28,10 @@ preveri('null', false, jeVModalnemOknu(null));
 preveri('closest vrze izjemo', false, jeVModalnemOknu({ closest: () => { throw new Error('x'); } }));
 
 // Izlocitev piskotkov mora najprej vprasati po modalnem oknu.
-const f = VIR.indexOf('function jeNogaAliPiskotki(el) {');
-assert.ok(f > doKonca, 'jeNogaAliPiskotki manjka');
-assert.ok(/function jeNogaAliPiskotki\(el\) \{\s*if \(!el\) return false;\s*if \(jeVModalnemOknu\(el\)\) return false;/.test(VIR.slice(f, f + 200)),
+// Od 15. 11. 2026 (SAFEER_NOGA_STATICNO) je staticni del v nogaKlasifikacija (0 = modalno okno, ni noga); jeNogaAliPiskotki jo samo uporabi.
+const f = VIR.indexOf('function nogaKlasifikacija(el) {');
+assert.ok(f > doKonca, 'nogaKlasifikacija manjka');
+assert.ok(/function jeNogaAliPiskotki\(el\) \{\s*if \(!el\) return false;\s*return nogaOdlocitev\(el, nogaKlasifikacija\(el\)\);/.test(VIR), 'jeNogaAliPiskotki ne uporablja klasifikacije');
+assert.ok(/function nogaKlasifikacija\(el\) \{\s*if \(!el\) return 0;\s*if \(jeVModalnemOknu\(el\)\) return 0;/.test(VIR.slice(f, f + 200)),
     'jeNogaAliPiskotki ne izpusti elementov v modalnem oknu');
 console.log('tv_modalno_okno_test: OK (' + n + ')');

@@ -971,11 +971,15 @@
             }
             /* SAFEER_PLAST_IZBIRE_KONEC */
 
-            function jeNogaAliPiskotki(el) {
-                if (!el) return false;
-                if (jeVModalnemOknu(el)) return false;
+            /* SAFEER_NOGA_STATICNO_ZACETEK */
+            // SAFEER_SPATIAL_HITROST (15. 11. 2026): jeNogaAliPiskotki ima dva dela. Staticni del (modalno okno, noga, piskotek po
+            // razredu prednika, besedilu ali href) zavisi samo od elementa in njegovih prednikov: nogaKlasifikacija vrne 0 = modalno
+            // okno (ni noga), 1 = noga, 2 = piskotek, 3 = navadno. Del z lego (spodnjih 70 px pogleda) se racuna ob vsaki tipki.
+            function nogaKlasifikacija(el) {
+                if (!el) return 0;
+                if (jeVModalnemOknu(el)) return 0;
                 try {
-                    if (el.closest && el.closest('footer, .footer')) return true;
+                    if (el.closest && el.closest('footer, .footer')) return 1;
                 } catch (_) {}
                 var piskotek = false;
                 try {
@@ -985,8 +989,13 @@
                 if (t.indexOf('piškot') !== -1 || t.indexOf('piskot') !== -1 || t.indexOf('cookie') !== -1) piskotek = true;
                 var href = ((el.getAttribute && el.getAttribute('href')) || '').toLowerCase();
                 if (href.indexOf('cookie') !== -1) piskotek = true;
+                return piskotek ? 2 : 3;
+            }
+            function nogaOdlocitev(el, k) {
+                if (k === 0) return false;
+                if (k === 1) return true;
                 // Izbira o piskotkih v pritrjeni plasti ali oknu je uporabnikova (SAFEER_PLAST_IZBIRE, 3. 11. 2026).
-                if (piskotek) return !plastIzbire(el, window.getComputedStyle);
+                if (k === 2) return !plastIzbire(el, window.getComputedStyle);
                 var r;
                 try { r = el.getBoundingClientRect(); } catch (_) { r = null; }
                 // Nizek element cisto spodaj je skoraj vedno pasica s piskotki - razen v pritrjeni spodnji vrstici
@@ -996,6 +1005,25 @@
                     !plastIzbire(el, window.getComputedStyle)) return true;
                 return false;
             }
+            function jeNogaAliPiskotki(el) {
+                if (!el) return false;
+                return nogaOdlocitev(el, nogaKlasifikacija(el));
+            }
+            // Znotraj zbiranja ciljev: klasifikacija velja, dokler se element ali njegovi predniki ne spremenijo (isti mehanizem kot
+            // odlocitve isActionable: umazanoDrevo, umazanaVsebina); predpomnilnik zivi z odlocitvami (odlocitve).
+            var nogaStat = null, nogaStatZa = null;
+            function jeNogaPredpomnjeno(el) {
+                var odl = odlocitve;
+                if (!el || !odl) return jeNogaAliPiskotki(el);
+                if (nogaStatZa !== odl || !nogaStat) { nogaStat = new Map(); nogaStatZa = odl; }
+                var z = nogaStat.get(el);
+                if (!(z && (umazanoDrevo.size + umazanaVsebina.size === 0 || odlocitevVelja(el, z.st)))) {
+                    z = { k: nogaKlasifikacija(el), st: oznakaSt };
+                    nogaStat.set(el, z);
+                }
+                return nogaOdlocitev(el, z.k);
+            }
+            /* SAFEER_NOGA_STATICNO_KONEC */
 
             // Znotraj enega zbiranja ciljev (getCandidatesFresh) se stran ne spremeni: izid za isti element velja (zbiranje ga je
             // klicalo dvakrat - za element in za njegovo kartico; 11. 11. 2026 profil 24ur.com: jeNogaAliPiskotki 18 % zbiranja).
@@ -1010,7 +1038,7 @@
             function jeNogaVZbiranju(el) {
                 if (!nogaIzid || !el) return jeNogaAliPiskotki(el);
                 if (nogaIzid.has(el)) return nogaIzid.get(el);
-                var r = jeNogaAliPiskotki(el);
+                var r = jeNogaPredpomnjeno(el);
                 nogaIzid.set(el, r);
                 return r;
             }
@@ -1944,6 +1972,18 @@
 
             // Pregled Groka 5. 11. 2026 (najdba 6): predpomnilnik je bil na window - stran je z njim dolocala cilje daljinca.
             var kandPredpomnilnik = null, kandCas = 0, kandKljuc = '';
+            /* SAFEER_RECT_PAS_ZACETEK */
+            // SAFEER_SPATIAL_HITROST (15. 11. 2026): zanka pasu je brala okvir VSAKEGA elementa strani ob vsaki tipki (~1250 klicev
+            // getBoundingClientRect in toliko DOMRect na pritisk). Okvir v koordinatah strani (top + scrollY) velja, dokler se ne
+            // spremeni DOM, velikost okna, naslov ali drsenje VSEBNIKA (rectRazlicica) - drsenje okna ga ne spremeni - in najvec
+            // RECT_NAJDLJE_MS. Preskocimo samo elemente, ki so tudi po zapisani legi vsaj RECT_REZERVA zaslonov izven pasu: razporeditev
+            // lahko ob lenih slikah ali pisavah zdrsne brez spremembe DOM, a ne za cel zaslon; blizu pasu se okvir bere znova.
+            var RECT_NAJDLJE_MS = 3000, RECT_REZERVA = 0.5, rectRazlicica = 0;
+            var rectPas = null, rectKljuc = '', rectCas = 0;
+            try {
+                window.addEventListener('scroll', function (ev) { if (ev && ev.target && ev.target !== document) rectRazlicica++; }, { capture: true, passive: true });
+            } catch (_) {}
+            /* SAFEER_RECT_PAS_KONEC */
             // Izid zbiranja je nastal v predgrevanju (obroca ni pocistilo): prvi zadetek predpomnilnika ga pocisti, kot bi ga tipka.
             var kandPredgret = false;
             function getCandidates() {
@@ -2052,6 +2092,13 @@
                 // SAFEER_HITRI_KANDIDATI: na veliki strani (24ur.com: ~3900 elementov) samo pas okoli pogleda - od 1,5 zaslona nad
                 // do 2,5 zaslona pod njim. Cilj dlje GOR/DOL ni nikoli najblizji; brez cilja v pasu stran podrsa (kot prej).
                 var pas = all.length > 600, pasH = window.innerHeight || 1080;
+                var pasSy = window.scrollY || 0, pasKljuc = '', pasZdaj = casZdaj();
+                if (pas) {
+                    pasKljuc = domRazlicica + ':' + rectRazlicica + ':' + (window.innerWidth || 0) + 'x' + pasH + ':' + location.href;
+                    if (!rectPas || rectKljuc !== pasKljuc || pasZdaj - rectCas < 0 || pasZdaj - rectCas > RECT_NAJDLJE_MS) {
+                        rectPas = new Map(); rectKljuc = pasKljuc; rectCas = pasZdaj;
+                    }
+                }
                 var odl = odlocitveZaZbiranje();
                 try {
                     for (var i = 0; i < all.length; i++) {
@@ -2063,7 +2110,10 @@
                         // SAFEER_SPATIAL_HITROST: veljavna odlocitev »ni cilj« velja ne glede na lego - okvirja ni treba brati.
                         if (zapVelja && !od) continue;
                         if (pas) {
+                            var rec = rectPas.get(el);
+                            if (rec && (rec[1] - pasSy < -1.5 * pasH - RECT_REZERVA * pasH || rec[0] - pasSy > 2.5 * pasH + RECT_REZERVA * pasH)) continue;
                             var pr0 = el.getBoundingClientRect();
+                            if (pr0.width || pr0.height) rectPas.set(el, [pr0.top + pasSy, pr0.bottom + pasSy]);
                             if ((pr0.width || pr0.height) && (pr0.bottom < -1.5 * pasH || pr0.top > 2.5 * pasH)) continue;
                         }
                         if (zapVelja) { /* odlocitev iz predpomnilnika */ }

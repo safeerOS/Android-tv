@@ -53,7 +53,7 @@ preveri('stran ima vsaj 1800 elementov', r.elementov >= 1800, r.elementov);
 preveri('daljinec se je res premikal (vsaj 10 razlicnih ciljev)', new Set(r.zaporedje).size >= 10, new Set(r.zaporedje).size);
 preveri('zaporedje izbranih ciljev je enako osnovi', r.zaporedje.join('|') === REFERENCA, r.zaporedje.join('|'));
 // Pragovi (povprecje na pritisk, izmerjeno 15. 11. 2026): osnova 403 gcs / 301 besedilo / 708 closest / 1608 gbcr / 1,8 prekrivno okno;
-// po popravku 273 / 244 / 551 / 1140 / 0,8. Prag je med obema, osnova pade.
-const PRAGOVI = { gcs: 330, besedilo: 270, closest: 620, gbcr: 1350, prekrivnoOkno: 1.2 };
+// po popravku 273 / 100 / 206 / 528 / 0,8. gbcr <= 800 je najvec polovica osnove. Osnova pade.
+const PRAGOVI = { gcs: 330, besedilo: 150, closest: 300, gbcr: 800, prekrivnoOkno: 1.2 };
 for (const k in PRAGOVI) preveri('povprecno ' + k + ' na pritisk <= ' + PRAGOVI[k], r.povp[k] <= PRAGOVI[k], r.povp[k]);
 console.log('tv_kandidati_hitrost_test: OK (' + stevilo + ')');
