@@ -54,8 +54,11 @@ function ujema(el, izbirnik) {
 }
 
 function ustvari(nastavitve) {
-    const n = Object.assign({ sirina: 1920, visina: 1080, scrollY: 0, drsenjeZaklenjeno: false, visinaStrani: 1080 }, nastavitve || {});
+    // odstejDrsenje: okvir je v koordinatah strani, getBoundingClientRect odsteje drsenje okna kot brskalnik (fixed element se ne
+    // premakne, sticky ostane pri vrhu, dokler ga drzi stars - okvir starsa). naOkvir(el): kljuka za stetje klicev (tudi prek izvirnika).
+    const n = Object.assign({ sirina: 1920, visina: 1080, scrollY: 0, drsenjeZaklenjeno: false, visinaStrani: 1080, odstejDrsenje: false, naOkvir: null }, nastavitve || {});
     const poslusalci = {};
+    const oknoPoslusalci = {};
     const dotiki = [], kliki = [], drsenja = [], zetoni = [];
     const zeton = n.zeton || 'z'.repeat(48);
     // Kot ChromiumEngineView: nakljucni del imen izvozov (nov ob vsaki strani) in imena izvirnikov (na pogled).
@@ -97,9 +100,34 @@ function ustvari(nastavitve) {
         matches(s) { return ujema(this, s); }
         closest(s) { let p = this; while (p && p.nodeType === 1) { if (ujema(p, s)) return p; p = p.parentElement; } return null; }
         contains(o) { while (o) { if (o === this) return true; o = o.parentElement; } return false; }
-        getBoundingClientRect() {
+        // Surov okvir (koordinate strani, brez drsenja): elementFromPoint ga bere brez stetja in brez odstevanja.
+        surovOkvir() {
             const r = this.okvir || [0, 0, 0, 0];
             return { left: r[0], top: r[1], width: r[2], height: r[3], right: r[0] + r[2], bottom: r[1] + r[3], x: r[0], y: r[1] };
+        }
+        getBoundingClientRect() {
+            if (n.naOkvir) n.naOkvir(this);
+            return this.okvirPogleda();
+        }
+        // Okvir v koordinatah pogleda brez stetja klicev (elementFromPoint ga bere kot brskalnik, ne kot klic strani).
+        okvirPogleda() {
+            const r = this.surovOkvir();
+            if (!n.odstejDrsenje) return r;
+            const sy = win.scrollY || 0;
+            let premik = -sy;
+            for (let p = this; p && p.nodeType === 1; p = p.parentElement) {
+                const pos = (p.slog || {}).position;
+                if (pos === 'fixed') { premik = 0; break; }
+                if (pos === 'sticky' && p.okvir) {
+                    // Kot brskalnik: prilepljen pri vrhu (top 0), dokler ga drzi okvir starsa (konec starsa ga potisne gor).
+                    const st = p.parentElement && p.parentElement.okvir ? p.parentElement.okvir : null;
+                    const naravno = p.okvir[1] - sy;
+                    let f = Math.max(naravno, 0);
+                    if (st) f = Math.min(f, st[1] + st[3] - sy - p.okvir[3]);
+                    premik = f - p.okvir[1]; break;
+                }
+            }
+            return { left: r.left, top: r.top + premik, width: r.width, height: r.height, right: r.right, bottom: r.bottom + premik, x: r.x, y: r.y + premik };
         }
         fokusljiv() {
             if (this.attrs.tabindex !== undefined) return true;
@@ -116,7 +144,8 @@ function ustvari(nastavitve) {
         click() { kliki.push(this); }
         dispatchEvent(e) { if (e && e.type === 'click') kliki.push(this); return true; }
         scrollIntoView() {}
-        addEventListener() {} removeEventListener() {}
+        addEventListener(t, f) { (this._posl = this._posl || {}, this._posl[t] = this._posl[t] || []).push(f); }
+        removeEventListener(t, f) { if (this._posl && this._posl[t]) this._posl[t] = this._posl[t].filter((x) => x !== f); }
     }
     const html = new El('html', { okvir: [0, 0, n.sirina, n.visina] });
     const body = new El('body', { okvir: [0, 0, n.sirina, n.visina] });
@@ -139,10 +168,10 @@ function ustvari(nastavitve) {
                 const s = slog(e);
                 if (s.display === 'none' || s.visibility === 'hidden' || s.pointerEvents === 'none') return;
                 // Brskalnik zadetka ne racuna z metodami strani: izvirni okvir (stran lahko prepise getBoundingClientRect).
-                const r = El.prototype.getBoundingClientRect.call(e);
+                const r = e.okvirPogleda();
                 if (x < r.left || x >= r.right || y < r.top || y >= r.bottom) return;
                 let z = 0, p = e;
-                while (p && p.nodeType === 1) { const sp = slog(p); if (sp.position === 'fixed' || sp.position === 'absolute') { const zz = parseInt(sp.zIndex, 10); if (zz > z) z = zz; } p = p.parentElement; }
+                while (p && p.nodeType === 1) { const sp = slog(p); if (sp.position === 'fixed' || sp.position === 'absolute' || sp.position === 'sticky') { const zz = parseInt(sp.zIndex, 10); if (zz > z) z = zz; } p = p.parentElement; }
                 if (z > najZ || (z === najZ && e._st > najSt)) { naj = e; najZ = z; najSt = e._st; }
             });
             return naj || body;
@@ -166,11 +195,14 @@ function ustvari(nastavitve) {
             win.scrollY = Math.max(0, Math.min(html.scrollHeight - html.clientHeight, win.scrollY + dy));
             html.scrollTop = win.scrollY;
         },
-        scrollTo() {}, addEventListener() {}, removeEventListener() {},
+        scrollTo() {},
+        // Poslusalci okna se resnicno shranijo (scroll, resize ...): preizkus jih sprozi s s.sprozi / s.drsi.
+        addEventListener(t, f, o) { (oknoPoslusalci[t] = oknoPoslusalci[t] || []).push(f); },
+        removeEventListener(t, f) { if (oknoPoslusalci[t]) oknoPoslusalci[t] = oknoPoslusalci[t].filter((x) => x !== f); },
         setTimeout: () => 0, clearTimeout() {}, setInterval: () => 0, clearInterval() {},
         requestAnimationFrame: () => 0, cancelAnimationFrame() {},
         // Opazovalci se zapomnijo (SAFEER_KANDIDATI_RAZLICICA): preizkus jim sam poda zapise sprememb (n.spremeni).
-        MutationObserver: class { constructor(cb) { this.cb = cb; opazovalci.push(this); } observe() {} disconnect() {} takeRecords() { return []; } },
+        MutationObserver: class { constructor(cb) { this.cb = cb; opazovalci.push(this); this.opcije = null; } observe(_, o) { this.opcije = o || null; } disconnect() {} takeRecords() { return []; } },
         PointerEvent: class { constructor(t) { this.type = t; } }, MouseEvent: class { constructor(t) { this.type = t; } },
         KeyboardEvent: class { constructor(t) { this.type = t; } }, Event: class { constructor(t) { this.type = t; } },
         sessionStorage: { getItem: () => null, setItem() {}, removeItem() {} },
@@ -236,7 +268,23 @@ function ustvari(nastavitve) {
     }
     return {
         // Zapisi sprememb strani za opazovalce (kot MutationObserver v brskalniku).
-        spremeni(zapisi) { for (const o of opazovalci) o.cb(zapisi); },
+        // Kot brskalnik: zapis, ki ga opcije observe() ne zajamejo (attributeFilter, characterData, attributes), opazovalec ne dobi.
+        spremeni(zapisi) {
+            for (const o of opazovalci) {
+                const op = o.opcije;
+                const z = !op ? zapisi : zapisi.filter((x) => {
+                    if (x.type === 'attributes') return op.attributes !== false && (!op.attributeFilter || op.attributeFilter.indexOf(x.attributeName) !== -1);
+                    if (x.type === 'characterData') return op.characterData === true;
+                    return true;
+                });
+                if (z.length) o.cb(z);
+            }
+        },
+        // Sprozi poslusalce okna (kot brskalnik pri zajemu: dogodek z elementa pride do okna); vrne stevilo poklicanih.
+        sprozi(tip, ev) { const l = (oknoPoslusalci[tip] || []).slice(); l.forEach((f) => { try { f(Object.assign({ type: tip, target: doc }, ev || {})); } catch (_) {} }); return l.length; },
+        // Drsenje okna na y (programsko ali uporabnik) in dogodek scroll na dokumentu; el = drsenje vsebnika (dogodek z elementa).
+        drsi(y, el) { if (el) { el.scrollTop = y; return this.sprozi('scroll', { target: el }); } win.scrollY = y; html.scrollTop = y; return this.sprozi('scroll', { target: doc }); },
+        stPoslusalcev: (tip) => (oknoPoslusalci[tip] || []).length,
         window: win, document: doc, body, El, dotiki, kliki, drsenja,
         el: (tag, o) => new El(tag, o),
         zetoni, zeton, nonce, nonceIzvirnikov, izvoz,

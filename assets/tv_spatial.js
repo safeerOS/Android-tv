@@ -1313,7 +1313,10 @@
             // bilo na pritisk klicano 2-3x (getActiveElement/jeUporaben, odstraniNedosegljive, drsajNotranjiVsebnik). Izid velja
             // za isti kljuc strani kot zbiranje ciljev (DOM, drsenje, velikost, naslov, izbira v meniju) in najvec OKNO_NAJDLJE_MS:
             // okno, ki se prikaze s prehodom CSS brez spremembe DOM, tako ostane skrito kratek cas, ne 2 s kot cilji.
-            var OKNO_NAJDLJE_MS = 400;
+            // Slepi pregled 15. 11. 2026 (N4): okno, ki se pokaze ali skrije samo s CSS (:target, :checked, :focus-within, nova pravila),
+            // opazovalec ne vidi. Zato kratka doba: vec klicev ene tipke (getActiveElement, odstraniNedosegljive, drsajNotranjiVsebnik)
+            // pride v nekaj ms, naslednja tipka (daljinec, razmik >= 150 ms) pa isce znova. Izmerjeno: tests/tv_okno_predpomnilnik_test.js.
+            var OKNO_NAJDLJE_MS = 150;
             var oknoIzid = null, oknoKljuc = '', oknoCas = 0, oknoVeljavno = false;
             function najdiPrekrivnoOkno() {
                 var kljuc = kljucKandidatov();
@@ -1897,9 +1900,22 @@
                 return true;
             }
             // Vsak zapis spremembe strani: razlicica gor in oznaka za odlocitve (oznaciSpremembo).
+            // N3: spremeni besedilo vozlisca omenja piskotke (staro ali novo besedilo)? Samo to besedilo bere nogaKlasifikacija; ura ali
+            // zivi rezultat na strani zato ne zavrze odlocitev ne predpomnilnika ciljev.
+            function besediloOmenjaPiskotke(z) {
+                try {
+                    var t = (((z.target && z.target.data) || '') + ' ' + (z.oldValue || '')).toLowerCase();
+                    return t.indexOf('piškot') !== -1 || t.indexOf('piskot') !== -1 || t.indexOf('cookie') !== -1;
+                } catch (_) { return false; }
+            }
             function zapisiStrani(zapisi, brezTabindex) {
                 var bilo = false;
                 for (var i = 0; i < zapisi.length; i++) {
+                    if (zapisi[i].type === 'characterData') {
+                        // Tudi seznam ciljev (kandPredpomnilnik) velja za staro besedilo: razlicica gor.
+                        if (!jeNasVozel(zapisi[i].target) && besediloOmenjaPiskotke(zapisi[i])) { oznaciSpremembo(zapisi[i]); bilo = true; }
+                        continue;
+                    }
                     if (!zapisStrani(zapisi[i], brezTabindex)) continue;
                     bilo = true;
                     oznaciSpremembo(zapisi[i]);
@@ -1916,8 +1932,11 @@
                     try { if (zapisiStrani(zapisi, false)) { domRazlicica++; nacrtujPredgrevanje(); } }
                     finally { merStat.moMs += merCas() - t0; merStat.moZapisov += zapisi.length; merStat.moKlicev++; }
                 });
+                // N3 (slepi pregled 15. 11. 2026): staticni del noge/piskotkov (nogaKlasifikacija) bere aria-modal in besedilo elementa;
+                // tudi njuna sprememba zavrze zapis (aria-modal: atribut; besedilo: characterData, glej oznaciBesedilo).
                 kandOpazovalec.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeOldValue: true,
-                    attributeFilter: ['class', 'style', 'hidden', 'aria-hidden', 'aria-expanded', 'disabled', 'open', 'tabindex', 'href', 'role', 'inert'] });
+                    characterData: true, characterDataOldValue: true,
+                    attributeFilter: ['class', 'style', 'hidden', 'aria-hidden', 'aria-expanded', 'disabled', 'open', 'tabindex', 'href', 'role', 'inert', 'aria-modal'] });
                 window.addEventListener('scroll', function () { drsenjeRazlicica++; nacrtujPredgrevanje(); }, { capture: true, passive: true });
                 window.addEventListener('resize', function () { drsenjeRazlicica++; }, { passive: true });
             } catch (_) { kandOpazovalec = null; }
@@ -1941,14 +1960,24 @@
                 if (!t) return;
                 oznakaSt++;
                 if (z.type === 'attributes') umazanoDrevo.set(t, oznakaSt);
+                // N3: premaknjen element (ze ima odlocitev ali klasifikacijo noge) je dobil nove prednike: velja kot spremenjeno drevo.
+                if (z.type === 'childList' && z.addedNodes && odlocitve) {
+                    for (var an = 0; an < z.addedNodes.length && an < 50; an++) {
+                        var dn = z.addedNodes[an];
+                        if (dn && dn.nodeType === 1 && odlocitve.has(dn)) umazanoDrevo.set(dn, oznakaSt);
+                    }
+                }
                 var e = t, g = 0;
                 while (e && e.nodeType === 1 && g++ < 8) { umazanaVsebina.set(e, oznakaSt); e = e.parentElement; }
                 if (umazanoDrevo.size + umazanaVsebina.size > NAJVEC_UMAZANIH) odlocitve = null;
             }
             function odlocitevVelja(el, st) {
                 if ((umazanaVsebina.get(el) || 0) > st) return false;
+                // N3: vsi predniki do korena (prej samo 9: sprememba razreda ali aria-modal globlje v drevesu je ostala neopazna);
+                // brez spremenjenih atributov drevesa ni kaj iskati.
+                if (umazanoDrevo.size === 0) return true;
                 var e = el, g = 0;
-                while (e && e.nodeType === 1 && g++ < 9) { if ((umazanoDrevo.get(e) || 0) > st) return false; e = e.parentElement; }
+                while (e && e.nodeType === 1 && g++ < 200) { if ((umazanoDrevo.get(e) || 0) > st) return false; e = e.parentElement; }
                 return true;
             }
             function odlocitveZaZbiranje() {
@@ -1978,6 +2007,15 @@
             // spremeni DOM, velikost okna, naslov ali drsenje VSEBNIKA (rectRazlicica) - drsenje okna ga ne spremeni - in najvec
             // RECT_NAJDLJE_MS. Preskocimo samo elemente, ki so tudi po zapisani legi vsaj RECT_REZERVA zaslonov izven pasu: razporeditev
             // lahko ob lenih slikah ali pisavah zdrsne brez spremembe DOM, a ne za cel zaslon; blizu pasu se okvir bere znova.
+            // Slepi pregled 15. 11. 2026 (N1, potrjeno): fiksni (fixed) in prilepljeni (sticky) elementi se z oknom ne premaknejo, zato
+            // koordinata strani po drsenju lazi (piskotkarsko okno 500-660 px je po drsenju na 8000 px izpadlo iz ciljev, izbira je
+            // ušla ZA modalno okno). Zapis ima ob koordinatah strani tudi lego v pogledu ob branju in se uporabi SAMO, ce sta zapisana
+            // in izpeljana lega izven pasu na ISTI strani: lega fiksnega elementa je stalna (izven pasu ostane izven), lega
+            // prilepljenega je zvezna v drsenju in se razlikuje od izpeljane samo tam, kjer bi prisel v pas (tam sta strani razlicni).
+            // Element, ki je ob branju v pasu, se sploh ne zapise (fiksno okno, glava, spodnja vrstica se berejo vedno). Brez
+            // getComputedStyle in brez poslusalca drsenja okna: pridobitev (manj branj okvirja) ostane. Zapis se bere samo prek
+            // izvirnika okvirja z zacetka dokumenta (N2: stran z zacasno prepisano getBoundingClientRect ne zastrupi predpomnilnika);
+            // brez izvirnika ali pri neskoncnem stevilu se nic ne zapise.
             var RECT_NAJDLJE_MS = 3000, RECT_REZERVA = 0.5, rectRazlicica = 0;
             var rectPas = null, rectKljuc = '', rectCas = 0;
             try {
@@ -2093,6 +2131,7 @@
                 // do 2,5 zaslona pod njim. Cilj dlje GOR/DOL ni nikoli najblizji; brez cilja v pasu stran podrsa (kot prej).
                 var pas = all.length > 600, pasH = window.innerHeight || 1080;
                 var pasSy = window.scrollY || 0, pasKljuc = '', pasZdaj = casZdaj();
+                var rGor = -(1.5 + RECT_REZERVA) * pasH, rDol = (2.5 + RECT_REZERVA) * pasH;
                 if (pas) {
                     pasKljuc = domRazlicica + ':' + rectRazlicica + ':' + (window.innerWidth || 0) + 'x' + pasH + ':' + location.href;
                     if (!rectPas || rectKljuc !== pasKljuc || pasZdaj - rectCas < 0 || pasZdaj - rectCas > RECT_NAJDLJE_MS) {
@@ -2111,9 +2150,15 @@
                         if (zapVelja && !od) continue;
                         if (pas) {
                             var rec = rectPas.get(el);
-                            if (rec && (rec[1] - pasSy < -1.5 * pasH - RECT_REZERVA * pasH || rec[0] - pasSy > 2.5 * pasH + RECT_REZERVA * pasH)) continue;
-                            var pr0 = el.getBoundingClientRect();
-                            if (pr0.width || pr0.height) rectPas.set(el, [pr0.top + pasSy, pr0.bottom + pasSy]);
+                            if (rec && ((rec[1] - pasSy < rGor && rec[3] < rGor) || (rec[0] - pasSy > rDol && rec[2] > rDol))) continue;
+                            // N2: okvir iz izvirnika (stran ga ob tipki ne more prepisati); brez izvirnika samo za odlocitev te tipke.
+                            var pr0 = okvirIz(el), koncen = !!pr0 && pr0.top - pr0.top === 0 && pr0.bottom - pr0.bottom === 0 &&
+                                pr0.width - pr0.width === 0 && pr0.height - pr0.height === 0;
+                            if (!pr0) pr0 = el.getBoundingClientRect();
+                            if (pr0.width || pr0.height) {
+                                if (koncen && (pr0.bottom < rGor || pr0.top > rDol)) rectPas.set(el, [pr0.top + pasSy, pr0.bottom + pasSy, pr0.top, pr0.bottom]);
+                                else if (rec) rectPas.delete(el);
+                            }
                             if ((pr0.width || pr0.height) && (pr0.bottom < -1.5 * pasH || pr0.top > 2.5 * pasH)) continue;
                         }
                         if (zapVelja) { /* odlocitev iz predpomnilnika */ }

@@ -9,8 +9,10 @@ const STOLPCI = 3, VISINA_KARTICE = 320;
 
 function zgradi(vir, o) {
     o = Object.assign({ vrste: 40, zeton: 'd'.repeat(48), spani: 10 }, o || {});
-    const s = ustvari({ zeton: o.zeton, visinaStrani: o.vrste * VISINA_KARTICE + 400 });
-    const orig = s.El.prototype.getBoundingClientRect;
+    // Okvirji so v koordinatah strani, lazni DOM odsteje drsenje (tudi za izvirnik okvirja, ki ga skript ob zacetku dokumenta shrani:
+    // kljuka naOkvir steje klice strani IN izvirnika, sicer bi branje prek izvirnika ostalo nezaznano).
+    const s = ustvari({ zeton: o.zeton, visinaStrani: o.vrste * VISINA_KARTICE + 400, odstejDrsenje: true, izvirniki: o.izvirniki,
+        naOkvir: () => { stevci.gbcr++; kdo('gbcr'); } });
     const stevci = { efp: 0, gcs: 0, besedilo: 0, closest: 0, qsa: 0, gbcr: 0, prekrivnoOkno: 0 };
     let vEfp = 0;
     const klicatelji = {};
@@ -19,12 +21,6 @@ function zgradi(vir, o) {
         const okvirji = (new Error().stack || '').split('\n').slice(3, 7).map((l) => (/at (?:\S+\.)?(\w+) /.exec(l) || [])[1] || '?');
         const k = op + ' <- ' + okvirji.join(' < ');
         klicatelji[k] = (klicatelji[k] || 0) + 1;
-    };
-    s.El.prototype.getBoundingClientRect = function () {
-        const r = orig.call(this);
-        if (!vEfp) { stevci.gbcr++; kdo('gbcr'); }
-        const y = s.window.scrollY || 0;
-        return { left: r.left, top: r.top - y, width: r.width, height: r.height, right: r.right, bottom: r.bottom - y, x: r.x, y: r.y - y };
     };
     // Kot brskalnik (block: 'nearest'): scrollIntoView podrsa stran, da je element viden (lazna vrsta ga sicer ne dela nic).
     s.El.prototype.scrollIntoView = function () {
