@@ -218,22 +218,25 @@ class ScitStoritev : VpnService() {
         val buf = ByteArray(32 * 1024)
         while (tece) {
             val n = try { vhod.read(buf) } catch (e: Throwable) { if (tece) Log.w(TAG, "Branje tunela: ${e.message}"); break }
-            if (n <= 0) continue
-            val q = DnsPaket.razcleni(buf, n)
-            if (q == null) { tcp.naPaket(buf, n); continue }   // ni UDP: morda DNS prek TCP
-            poizvedb.incrementAndGet()
-            when (odlocitev(q.ime)) {
-                ScitOdlocitev.Izid.USTAVI -> {
-                    blokiranih.incrementAndGet()
-                    zabeleziUstavljeno(q.ime)
-                    zapisi(DnsPaket.zavijOdgovor(q, DnsPaket.odgovorBlokirano(q)))
-                    continue
+            // GGG4: napaka pri enem paketu (napacen odgovor, izjema v pravilih) ne sme ustaviti Scita za vso napravo.
+            try {
+                if (n <= 0) continue
+                val q = DnsPaket.razcleni(buf, n)
+                if (q == null) { tcp.naPaket(buf, n); continue }   // ni UDP: morda DNS prek TCP
+                poizvedb.incrementAndGet()
+                when (odlocitev(q.ime)) {
+                    ScitOdlocitev.Izid.USTAVI -> {
+                        blokiranih.incrementAndGet()
+                        zabeleziUstavljeno(q.ime)
+                        zapisi(DnsPaket.zavijOdgovor(q, DnsPaket.odgovorBlokirano(q)))
+                        continue
+                    }
+                    // Kanarcek DoH: NXDOMAIN, a ne steje kot ustavljeno (ni oglas) in ne gre med zadnja imena.
+                    ScitOdlocitev.Izid.KANAREK -> { zapisi(DnsPaket.zavijOdgovor(q, DnsPaket.odgovorBlokirano(q))); continue }
+                    ScitOdlocitev.Izid.NAPREJ -> Unit
                 }
-                // Kanarcek DoH: NXDOMAIN, a ne steje kot ustavljeno (ni oglas) in ne gre med zadnja imena.
-                ScitOdlocitev.Izid.KANAREK -> { zapisi(DnsPaket.zavijOdgovor(q, DnsPaket.odgovorBlokirano(q))); continue }
-                ScitOdlocitev.Izid.NAPREJ -> Unit
-            }
-            posreduj(q)
+                posreduj(q)
+            } catch (e: Throwable) { Log.w(TAG, "Paket DNS zavrzen: ${e.javaClass.simpleName}") }
         }
     }
 
@@ -394,22 +397,24 @@ class ScitStoritev : VpnService() {
             // Brez tega bi vsak naslednji odgovor odrezali na dolzino prejsnjega.
             p.length = velikost
             try { v.receive(p) } catch (e: Throwable) { if (tece) Log.w(TAG, "Odgovor DNS: ${e.message}"); break }
-            if (p.length < 12) continue
-            val id = DnsPaket.u16(p.data, p.offset)
-            val c = cakajoce[id] ?: continue
-            val odgovor = p.data.copyOfRange(p.offset, p.offset + p.length)
-            // Celotno preverjanje je v DnsPaket.ustrezaOdgovor (cista funkcija, pokrita s testi):
-            // pravi streznik, vrata 53, nas ID, zastavica QR in isto vprasanje (ime, vrsta, razred).
-            val izvor = p.address?.address ?: continue
-            if (c.vprasani.none { DnsPaket.ustrezaOdgovor(c.q, id, it.address, izvor, p.port, odgovor) }) continue
-            if (!cakajoce.remove(id, c)) continue
-            // Lastnik 9. 11. 2026: sledilec, skrit za CNAME (kot Pi-hole), se ustavi, ce je cilj na seznamu.
-            if (cnameUstavi(c.q.ime, odgovor)) {
-                zapisi(DnsPaket.zavijOdgovor(c.q, DnsPaket.odgovorBlokirano(c.q)))
-                continue
-            }
-            DnsPaket.put16(odgovor, 0, c.q.id)   // aplikaciji vrnemo njen ID
-            zapisi(DnsPaket.zavijOdgovor(c.q, odgovor))
+            try {
+                if (p.length < 12) continue
+                val id = DnsPaket.u16(p.data, p.offset)
+                val c = cakajoce[id] ?: continue
+                val odgovor = p.data.copyOfRange(p.offset, p.offset + p.length)
+                // Celotno preverjanje je v DnsPaket.ustrezaOdgovor (cista funkcija, pokrita s testi):
+                // pravi streznik, vrata 53, nas ID, zastavica QR in isto vprasanje (ime, vrsta, razred).
+                val izvor = p.address?.address ?: continue
+                if (c.vprasani.none { DnsPaket.ustrezaOdgovor(c.q, id, it.address, izvor, p.port, odgovor) }) continue
+                if (!cakajoce.remove(id, c)) continue
+                // Lastnik 9. 11. 2026: sledilec, skrit za CNAME (kot Pi-hole), se ustavi, ce je cilj na seznamu.
+                if (cnameUstavi(c.q.ime, odgovor)) {
+                    zapisi(DnsPaket.zavijOdgovor(c.q, DnsPaket.odgovorBlokirano(c.q)))
+                    continue
+                }
+                DnsPaket.put16(odgovor, 0, c.q.id)   // aplikaciji vrnemo njen ID
+                zapisi(DnsPaket.zavijOdgovor(c.q, odgovor))
+            } catch (e: Throwable) { Log.w(TAG, "Odgovor DNS zavrzen: ${e.javaClass.simpleName}") }
         }
     }
 
