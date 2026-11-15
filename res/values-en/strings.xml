@@ -39,6 +39,10 @@
     <string name="hub_obvestilo_naslov">Safeer Link</string>
     <string name="hub_obvestilo_besedilo">Your devices can send pages, videos and music to this TV.</string>
     <string name="menu_popup_block">Block pop-up windows</string>
+    <string name="menu_kazalec_hitrost">Pointer speed</string>
+    <string name="kazalec_hitrost_pocasi">Slow</string>
+    <string name="kazalec_hitrost_srednje">Medium</string>
+    <string name="kazalec_hitrost_hitro">Fast</string>
     <string name="menu_download_dir">Downloads folder</string>
     <string name="menu_scit">Safeer Shield: every app</string>
     <string name="menu_dodaj_aplikacijo">Add to Safeer OS apps</string>

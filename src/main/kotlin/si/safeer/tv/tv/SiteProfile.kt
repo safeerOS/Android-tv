@@ -15,9 +15,9 @@ object TvSite {
     }
 
     fun isWatchPage(url: String): Boolean {
-        val u = url.lowercase()
-        if (isYoutubeTv(u)) return false
-        return u.contains("/watch") || u.contains("/shorts/") || u.contains("youtube.com/embed")
+        // Slepi pregled TV2 (F1): pot na znanem gostitelju, ne besedilo kjerkoli v naslovu (KazalecPravila.jeStranOgleda).
+        if (isYoutubeTv(url)) return false
+        return si.safeer.tv.KazalecPravila.jeStranOgleda(url)
     }
 
     fun isBrowserHome(url: String): Boolean {

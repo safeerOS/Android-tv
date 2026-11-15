@@ -651,15 +651,22 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         val kljuc = KazalecPravila.kljucStrani(g, ogled)
         if (kljuc == kazalecZaGostitelja) return
         kazalecZaGostitelja = kljuc
-        val zaTv = ogled || SpletMostPravila.jeDovoljenIzvor(naslov) || GooglePravila.youtubeZaTv(naslov) || PdfPregledovalnik.jePregledovalnik(naslov)
+        // F5: Googlove strani imajo lastne tipke (prijava, iskanje) za puscice; kazalec jih obide - puscice so privzete, izbira uporabnika velja.
+        val zaTv = KazalecPravila.stranZaTv(ogled, SpletMostPravila.jeDovoljenIzvor(naslov), GooglePravila.youtubeZaTv(naslov),
+            PdfPregledovalnik.jePregledovalnik(naslov), GooglePravila.jeGoogle(naslov))
         virtualPointerView.isPointerVisible = kazalecZaStran(naslov, zaTv)
     }
 
     /** Ali je kazalec za [naslov] vklopljen: isto pravilo za brskalnik in spletno aplikacijo (lastnik 11. 11. 2026). */
     private fun kazalecZaStran(naslov: String, zaTv: Boolean): Boolean {
-        val kljuc = KazalecPravila.kljucStrani(KazalecPravila.gostitelj(naslov), TvSite.isWatchPage(naslov))
+        val g = KazalecPravila.gostitelj(naslov)
+        val ogled = TvSite.isWatchPage(naslov)
+        // F1: izbira za gostitelja velja vedno; izbira, narejena na strani za ogled, samo tam (KazalecPravila.zapomnjenaZaStran).
+        val zapomnjeno = KazalecPravila.zapomnjenaZaStran(
+            KazalecNastavitve.zapomnjeno(this, KazalecPravila.kljucStrani(g, true)),
+            KazalecNastavitve.zapomnjeno(this, KazalecPravila.kljucStrani(g, false)), ogled)
         return KazalecPravila.privzetoKazalec(
-            si.safeer.tv.os.Naprava.jeTelevizor(this), naslov, zaTv, KazalecNastavitve.zapomnjeno(this, kljuc),
+            si.safeer.tv.os.Naprava.jeTelevizor(this), naslov, zaTv, zapomnjeno,
             si.safeer.tv.os.OsPravila.miskaZaAplikacijo(true, naslov))
     }
 
@@ -1850,6 +1857,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         webViewContainer = findViewById(R.id.webViewContainer)
         btnAplikacija = findViewById(R.id.btnNadaljujVAplikaciji)
         virtualPointerView = findViewById(R.id.virtualPointerView)
+        // K12 (lastnik 15. 11. 2026): hitrost kazalca iz nastavitev (3 stopnje; privzeta srednja = izmerjeni Hi Browser).
+        virtualPointerView.gibNastavitve = KazalecGibanje.hitrost(KazalecNastavitve.hitrostStopnja(this))
 
         searchSuggestionsOverlay = findViewById(R.id.searchSuggestionsOverlay)
         portalChipsContainer = findViewById(R.id.portalChipsContainer)
@@ -2400,10 +2409,14 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             if (tabManager.getActiveTab()?.id == tab.id) {
                 chrome.updateOmniboxDisplay(newUrl, wv.title)
                 chrome.applyUrlChrome(newUrl)
-                uporabiPrivzetiKazalec(newUrl)
                 updateBookmarkButton(newUrl)
                 osveziGumbAplikacije(fokus = false)
             }
+        }
+
+        // Slepi pregled TV2 (F1): nacin kazalec/puscice se odloca samo ob novem dokumentu, ne ob history.replaceState ali #sidru.
+        wv.onNovDokument = { novUrl ->
+            if (tabManager.getActiveTab()?.id == tab.id) uporabiPrivzetiKazalec(novUrl)
         }
 
         wv.onPageLoaded = { finalUrl, pageTitle ->
@@ -3557,6 +3570,24 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
             dialog.dismiss()
         }
 
+        // Hitrost kazalca (K12, lastnik 15. 11. 2026): tri stopnje 2200 / 3300 / 4400 px/s, klik jih zakroži; izbira se zapomni in velja takoj.
+        // Vrstica je samo na televizorju - drugje navideznega kazalca ni (brez gumba, ki nic ne naredi).
+        val rowKazalecHitrost = dialog.findViewById<LinearLayout>(R.id.rowMenuKazalecHitrost)
+        val txtKazalecHitrost = dialog.findViewById<android.widget.TextView>(R.id.txtKazalecHitrost)
+        rowKazalecHitrost.visibility = if (si.safeer.tv.os.Naprava.jeTelevizor(this)) View.VISIBLE else View.GONE
+        fun imeHitrosti(stopnja: Int) = getString(when (stopnja) {
+            0 -> R.string.kazalec_hitrost_pocasi
+            2 -> R.string.kazalec_hitrost_hitro
+            else -> R.string.kazalec_hitrost_srednje
+        })
+        txtKazalecHitrost.text = imeHitrosti(KazalecNastavitve.hitrostStopnja(this))
+        rowKazalecHitrost.setOnClickListener {
+            val naslednja = KazalecGibanje.naslednjaStopnja(KazalecNastavitve.hitrostStopnja(this))
+            KazalecNastavitve.nastaviHitrost(this, naslednja)
+            virtualPointerView.gibNastavitve = KazalecGibanje.hitrost(naslednja)
+            txtKazalecHitrost.text = imeHitrosti(naslednja)
+        }
+
         // 🛡 Safeer Scit: filter DNS za ves televizor (vse aplikacije). Vklop odpre sistemsko okno z dovoljenjem (prvic).
         // Lastnik 4. 11. 2026: Scit je na napravi en sam. Kadar ga vodi Safeer OS (TV z namescenim Safeer OS), kljukica
         // kaze NJEGOVO stanje (ScitSorodnikStoritev, dovoljenje LINK istega podpisa) in klik ga krmili tam - brez
@@ -3980,6 +4011,16 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
     private val TIPKE_POTRDI = setOf(KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER,
         KeyEvent.KEYCODE_NUMPAD_ENTER, KeyEvent.KEYCODE_BUTTON_A)
+
+    /**
+     * K8 (lastnik 15. 11. 2026): prava miska (zracna ali USB) skrije navidezni kazalec; tipka daljinca ga spet pokaze (TvKeyRouter).
+     * Nasi sinteticni dogodki gredo neposredno v WebView, ne skozi dejavnost, zato kazalec ne skrije samega sebe. Vsak dogodek stane
+     * en klic pravila; ko je kazalec ze skrit, takoj vrne (lebdenje miske ~60 dogodkov na sekundo).
+     */
+    override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean {
+        if (::virtualPointerView.isInitialized && KazalecPravila.jeDogodekMiske(ev.source, ev.actionMasked)) virtualPointerView.skrijZaMisko()
+        return super.dispatchGenericMotionEvent(ev)
+    }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         // Samo tipka OK sme dovoliti en sinteticni dotik (triggerNativeTap); puscice ne.

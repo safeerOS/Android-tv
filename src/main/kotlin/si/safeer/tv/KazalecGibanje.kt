@@ -33,6 +33,16 @@ object KazalecGibanje {
         val rokPonovitveMs: Long = 200,
     )
 
+    /** Stopnje hitrosti kazalca v nastavitvah (lastnik 15. 11. 2026, K12): 0 = 2200, 1 = 3300 (izmerjeni Hi Browser), 2 = 4400 px/s. */
+    const val STOPENJ = 3
+    const val PRIVZETA_STOPNJA = 1
+
+    /** Shranjena vrednost izven 0..2 (pokvarjena nastavitev) je privzeta stopnja. */
+    fun veljavnaStopnja(stopnja: Int): Int = if (stopnja in 0 until STOPENJ) stopnja else PRIVZETA_STOPNJA
+
+    /** Naslednja stopnja ob izbiri v meniju: pocasi -> srednje -> hitro -> pocasi. */
+    fun naslednjaStopnja(stopnja: Int): Int = (veljavnaStopnja(stopnja) + 1) % STOPENJ
+
     fun hitrost(stopnja: Int): Nastavitve {
         return when (stopnja) {
             0 -> Nastavitve(zacetnaHitrost = 180f, najvecjaHitrost = 2200f, pospesevanjeMs = 800)

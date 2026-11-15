@@ -208,6 +208,14 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
     var onProgressUpdate: ((Int) -> Unit)? = null
     var onUrlChanged: ((String) -> Unit)? = null
 
+    /**
+     * Slepi pregled TV2 (F1): nov DOKUMENT glavnega okvirja (onPageStarted, po preusmeritvah onPageFinished), NE
+     * history.pushState/replaceState in #sidro (doUpdateVisitedHistory). Samo na tem brskalnik samodejno izbere nacin
+     * kazalec/puscice; stran ga brez tipke daljinca ne more preklopiti.
+     */
+    var onNovDokument: ((String) -> Unit)? = null
+    private var novDokumentCaka = false
+
     /** PDF pregledovalnik prosi za prenos izvirnika (url, userAgent). */
     var onPdfPrenos: ((String, String?) -> Unit)? = null
     /** Pregledovalnik PDF preda fokus brskalniku ("gor" = naslovna vrstica). */
@@ -1620,6 +1628,8 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
                     // mostu SafeerPdf (most velja od naslednjega nalaganja) - Shrani je padel na blob: in 502. Enkrat znova nalozi.
                     if (PdfPregledovalnikPravila.ponovnoZaMost(PdfPregledovalnik.jePregledovalnik(it), pdfMostPrej)) post { reload() }
                     onUrlChanged?.invoke(javniNaslov(it))
+                    novDokumentCaka = true
+                    onNovDokument?.invoke(javniNaslov(it))
                     onSecurityChanged?.invoke(it.startsWith("https://", ignoreCase = true))
                 }
             }
@@ -1649,6 +1659,11 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
                 url?.let {
                     view?.let { wv -> scheduleFakeBankCheck(wv, it) }
                     onUrlChanged?.invoke(javniNaslov(it))
+                    // Naslov po preusmeritvah (youtu.be -> youtube.com/watch); samo za dokument, ki se je zacel v onPageStarted.
+                    if (novDokumentCaka) {
+                        novDokumentCaka = false
+                        onNovDokument?.invoke(javniNaslov(it))
+                    }
                     onSecurityChanged?.invoke(it.startsWith("https://", ignoreCase = true))
                     val pageTitle = title ?: ""
                     // Stran napake potrdila ne gre v zgodovino in med obiskane kot blokirana stran.

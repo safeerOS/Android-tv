@@ -23,9 +23,15 @@ class VirtualPointerView @JvmOverloads constructor(
     var isPointerVisible: Boolean = false
         set(value) {
             field = value
+            // Skrivanje (K7/K8): ob vklopu je kazalec viden in mirovanje se steje znova; ob izklopu ni odlozenega preizkusa.
+            skrivanje = KazalecPravila.Skrivanje(skrit = false, zadnjaAktivnostMs = SystemClock.uptimeMillis())
             visibility = if (value) VISIBLE else GONE
             // Skrit kazalec se ne giblje naprej (ob preklopu na puscice ali menjavi strani med drzanjem tipke).
-            if (!value) gibanje = KazalecGibanje.ustavi(gibanje)
+            if (!value) {
+                gibanje = KazalecGibanje.ustavi(gibanje)
+                removeCallbacks(skrijTeka)
+                skrijNacrtovan = false
+            } else nacrtujSkrivanje()
             invalidate()
         }
 
@@ -72,9 +78,65 @@ class VirtualPointerView @JvmOverloads constructor(
     private var drsenjeOstankiX = 0f
     private var drsenjeOstankiY = 0f
 
+    // Skrivanje navideznega kazalca (K7/K8, lastnik 15. 11. 2026): pravila so v [KazalecPravila]; tu je samo en odlozen preizkus
+    // (v mirovanju ni ne zanke ne casovnika) in vidnost pogleda. Nacin kazalca ostane (isPointerVisible), skrit je samo izris.
+    private var skrivanje = KazalecPravila.Skrivanje()
+    private var skrijNacrtovan = false
+    private val skrijTeka = Runnable { skrijNacrtovan = false; preveriSkrivanje() }
+
+    // Meritvena stikala (debug.safeer.ab, samo adb setprop; privzeto izklopljena, v izdaji brez ucinka): stari krog s sencenjem in
+    // drsenje ob robu s potegom prsta namesto kolesca miske.
+    private val staraOblika = AbStikala.stikala.kazalecStar
+    private val drsenjePoteg = AbStikala.stikala.drsenjePoteg
+
     init {
-        // Brez programskega sloja (prej LAYER_TYPE_SOFTWARE zaradi sence): navaden strojni izris ene poti.
+        // Brez programskega sloja (prej LAYER_TYPE_SOFTWARE zaradi sence): navaden strojni izris ene poti; stari krog (meritev) ga rabi.
+        if (staraOblika) setLayerType(LAYER_TYPE_SOFTWARE, null)
         visibility = GONE
+    }
+
+    /**
+     * Tipka kazalca (smer, OK; [casMs] = event.eventTime): kazalec je spet viden in mirovanje se zacne znova. Vrne true, ce je bil
+     * skrit (prvi OK ga samo pokaze, glej [KazalecPravila.tipkaSamoPokaze]).
+     */
+    fun tipka(casMs: Long): Boolean {
+        if (!isPointerVisible) return false
+        val bil = skrivanje.skrit
+        skrivanje = KazalecPravila.skrivanjeTipka(skrivanje, casMs)
+        if (bil) { visibility = VISIBLE; invalidate() }
+        nacrtujSkrivanje()
+        return bil
+    }
+
+    /** Prava miska (zracna, USB) se je oglasila: navidezni kazalec se skrije (ne med vlecenjem), tipka daljinca ga spet pokaze. */
+    fun skrijZaMisko() {
+        if (!isPointerVisible || vlecem || skrivanje.skrit) return
+        skrivanje = KazalecPravila.skrivanjeMiska(skrivanje)
+        visibility = INVISIBLE
+        invalidate()
+    }
+
+    private fun nacrtujSkrivanje() {
+        if (skrijNacrtovan || !isPointerVisible || skrivanje.skrit) return
+        skrijNacrtovan = true
+        postDelayed(skrijTeka, KazalecPravila.doSkritjaMs(skrivanje, SystemClock.uptimeMillis()))
+    }
+
+    private fun preveriSkrivanje() {
+        if (!isPointerVisible || skrivanje.skrit) return
+        val nov = KazalecPravila.skrivanjeCas(skrivanje, SystemClock.uptimeMillis(), gibanje.smeri != 0, vlecem)
+        if (nov.skrit) {
+            skrivanje = nov
+            visibility = INVISIBLE
+            invalidate()
+        } else nacrtujSkrivanje()
+    }
+
+    override fun onDetachedFromWindow() {
+        removeCallbacks(skrijTeka)
+        skrijNacrtovan = false
+        removeCallbacks(potegKonec)
+        super.onDetachedFromWindow()
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -87,7 +149,8 @@ class VirtualPointerView @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        if (!isPointerVisible) return
+        if (!isPointerVisible || skrivanje.skrit) return
+        if (staraOblika) { narisiStaroOblika(canvas); return }
         val stanje = KazalecOblika.stanje(vlecem, klikDoMs, SystemClock.uptimeMillis())
         val izgled = KazalecOblika.izgled(stanje)
         val obrat = KazalecOblika.obrat(pointerX, pointerY, width, height, izgled.merilo)
@@ -101,6 +164,24 @@ class VirtualPointerView @JvmOverloads constructor(
         canvas.drawPath(puscicaPot, polnitevPaint)
         canvas.drawPath(puscicaPot, obrisPaint)
         canvas.restore()
+    }
+
+    // Stari krog z zarecim obrocem in sencenjem (do 15. 11. 2026), samo za meritev stroska risanja (AbStikala kazalec=star).
+    private val staroTelo by lazy {
+        Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.parseColor("#00E5FF"); style = Paint.Style.FILL
+            setShadowLayer(12f, 0f, 0f, Color.parseColor("#8000E5FF"))
+        }
+    }
+    private val staroSredina by lazy { Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE; style = Paint.Style.FILL } }
+    private val staroObroc by lazy {
+        Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.parseColor("#00E5FF"); style = Paint.Style.STROKE; strokeWidth = 3f }
+    }
+
+    private fun narisiStaroOblika(canvas: Canvas) {
+        canvas.drawCircle(pointerX, pointerY, if (vlecem) 28f else 18f, staroObroc)
+        canvas.drawCircle(pointerX, pointerY, 12f, staroTelo)
+        canvas.drawCircle(pointerX, pointerY, 4f, staroSredina)
     }
 
     /**
@@ -123,6 +204,8 @@ class VirtualPointerView @JvmOverloads constructor(
     }
 
     private fun uporabiIzid(izid: KazalecGibanje.Izid, wv: WebView?) {
+        // Gibanje, ki ga vodi tipka, podaljsa mirovanje (brez tega bi se kazalec skril sredi dolgega pospesenega potiskov).
+        skrivanje = KazalecPravila.skrivanjeAktivnost(skrivanje, SystemClock.uptimeMillis())
         gibanje = izid.stanje
         pointerX = gibanje.x
         pointerY = gibanje.y
@@ -158,6 +241,7 @@ class VirtualPointerView @JvmOverloads constructor(
      */
     private fun drsi(wv: WebView, dx: Float, dy: Float) {
         if (dx == 0f && dy == 0f) return
+        if (drsenjePoteg && drsiPoteg(wv, dx, dy)) return
         drsenjeOstankiX += dx
         drsenjeOstankiY += dy
         val vk = android.view.ViewConfiguration.get(context)
@@ -186,6 +270,52 @@ class VirtualPointerView @JvmOverloads constructor(
         } catch (_: Throwable) { false }
         if (!sprejeto) wv.scrollBy((zarezX * fx).toInt(), (zarezY * fy).toInt())
     }
+
+    // --- Meritvena varianta drsenja ob robu (AbStikala drsenje=poteg): poteg prsta (dotik) namesto kolesca miske ---
+    private var potegOdprt = false
+    private var potegX = 0f
+    private var potegY = 0f
+    private var potegDownMs = 0L
+    private var potegPogled: java.lang.ref.WeakReference<WebView>? = null
+    private val potegKonec = Runnable { potegSprosti() }
+
+    private fun potegDogodek(wv: WebView, dejanje: Int, cas: Long) {
+        val dogodek = MotionEvent.obtain(potegDownMs, cas, dejanje, potegX, potegY, 0)
+        dogodek.source = InputDevice.SOURCE_TOUCHSCREEN
+        wv.dispatchTouchEvent(dogodek)
+        dogodek.recycle()
+    }
+
+    /** Prst se je ustavil: potegu sledi spust (brez nadaljnjih premikov v 120 ms). */
+    private fun potegSprosti() {
+        removeCallbacks(potegKonec)
+        if (!potegOdprt) return
+        potegOdprt = false
+        val wv = potegPogled?.get() ?: return
+        try { potegDogodek(wv, MotionEvent.ACTION_UP, SystemClock.uptimeMillis()) } catch (_: Throwable) { }
+    }
+
+    /**
+     * Vsebina sledi prstu: drsenje navzdol ([dy] > 0) = prst gre navzgor. Prst ostane v pogledu; ob robu ga spustimo in naslednji
+     * poteg se zacne na legi kazalca. Vrne false, ce poteg ni uspel (potem drsi kolesce kot prej).
+     */
+    private fun drsiPoteg(wv: WebView, dx: Float, dy: Float): Boolean = try {
+        if (potegOdprt && potegPogled?.get() !== wv) potegSprosti()
+        if (!potegOdprt) {
+            val (x, y) = naPogledu(wv)
+            potegX = x; potegY = y
+            potegDownMs = SystemClock.uptimeMillis()
+            potegPogled = java.lang.ref.WeakReference(wv)
+            potegOdprt = true
+            potegDogodek(wv, MotionEvent.ACTION_DOWN, potegDownMs)
+        }
+        potegX = (potegX - dx).coerceIn(1f, (wv.width - 1).toFloat())
+        potegY = (potegY - dy).coerceIn(1f, (wv.height - 1).toFloat())
+        potegDogodek(wv, MotionEvent.ACTION_MOVE, SystemClock.uptimeMillis())
+        if (potegX <= 1f || potegY <= 1f || potegX >= wv.width - 1f || potegY >= wv.height - 1f) potegSprosti()
+        else { removeCallbacks(potegKonec); postDelayed(potegKonec, 120L) }
+        true
+    } catch (_: Throwable) { false }
 
     /** Polozaj kazalca v koordinatah spletnega pogleda. */
     private fun naPogledu(wv: WebView): Pair<Float, Float> {
@@ -281,6 +411,7 @@ class VirtualPointerView @JvmOverloads constructor(
 
         // Kratek povratni signal klika: puscica je ~140 ms manjsa in rumena ([KazalecOblika.KLIK_MS]).
         klikDoMs = SystemClock.uptimeMillis() + KazalecOblika.KLIK_MS
+        skrivanje = KazalecPravila.skrivanjeAktivnost(skrivanje, SystemClock.uptimeMillis())
         invalidate()
         postInvalidateDelayed(KazalecOblika.KLIK_MS + 20)
     }

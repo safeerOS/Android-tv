@@ -39,6 +39,10 @@
     <string name="hub_obvestilo_naslov">Safeer Link</string>
     <string name="hub_obvestilo_besedilo">Tus dispositivos pueden enviar páginas, vídeos y música a este televisor.</string>
     <string name="menu_popup_block">Bloquear ventanas emergentes</string>
+    <string name="menu_kazalec_hitrost">Velocidad del puntero</string>
+    <string name="kazalec_hitrost_pocasi">Lenta</string>
+    <string name="kazalec_hitrost_srednje">Media</string>
+    <string name="kazalec_hitrost_hitro">Rápida</string>
     <string name="menu_download_dir">Carpeta de descargas</string>
     <string name="menu_scit">Escudo Safeer: todas las apps</string>
     <string name="menu_dodaj_aplikacijo">Añadir a las aplicaciones de Safeer OS</string>

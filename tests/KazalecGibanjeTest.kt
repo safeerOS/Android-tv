@@ -212,6 +212,29 @@ fun main() {
     check(N.najvecjaHitrost in 3000f..3600f && N.korak in 18f..30f, "T15.4 privzeto kot izmerjeni Hi Browser"); preverbe++
     check(h7 == h1, "T15.2"); preverbe++
     check(hm1 == h1, "T15.3"); preverbe++
+    // Lastnik 15. 11. 2026 (K12): tri stopnje v nastavitvah po sedanjem modelu 2200 / 3300 / 4400 px/s, izbira kroži, pokvarjena vrednost = privzeta.
+    check(h0.najvecjaHitrost == 2200f && h1.najvecjaHitrost == 3300f && h2.najvecjaHitrost == 4400f, "T15.5 stopnje 2200/3300/4400 px/s"); preverbe++
+    check(KazalecGibanje.STOPENJ == 3 && KazalecGibanje.PRIVZETA_STOPNJA == 1 && h1 == N, "T15.6 privzeta stopnja je srednja = izmerjeni Hi Browser"); preverbe++
+    check(KazalecGibanje.naslednjaStopnja(0) == 1 && KazalecGibanje.naslednjaStopnja(1) == 2 && KazalecGibanje.naslednjaStopnja(2) == 0, "T15.7 stopnje krozijo"); preverbe++
+    check(KazalecGibanje.veljavnaStopnja(-1) == 1 && KazalecGibanje.veljavnaStopnja(3) == 1 && KazalecGibanje.veljavnaStopnja(0) == 0 &&
+        KazalecGibanje.veljavnaStopnja(2) == 2 && KazalecGibanje.naslednjaStopnja(9) == 2, "T15.8 neveljavna shranjena stopnja = privzeta"); preverbe++
+    // Hitrejsa stopnja pride prej do roba (model, slicice 16 ms, drzana tipka z ritmom 48 ms): 576 ms pri srednji ni odvisno od ritma.
+    run {
+        fun doRoba(stopnja: Int): Long {
+            val n = KazalecGibanje.hitrost(stopnja)
+            var izS = KazalecGibanje.pritisk(KazalecGibanje.Stanje(960f, 540f), KazalecGibanje.DOL, false, 0L, 1920, 1080, n)
+            var t = 0L
+            while (t < 4000L) {
+                t += 16L
+                if (t % 48L < 16L) izS = KazalecGibanje.pritisk(izS.stanje, KazalecGibanje.DOL, true, t, 1920, 1080, n)
+                izS = KazalecGibanje.tik(izS.stanje, t, 1920, 1080, n)
+                if (izS.stanje.y >= 1079f) return t
+            }
+            return -1L
+        }
+        val t0 = doRoba(0); val t1 = doRoba(1); val t2 = doRoba(2)
+        check(t0 > t1 && t1 > t2 && t2 > 0L, "T15.9 hitrejsa stopnja pride prej do roba: $t0 > $t1 > $t2 ms"); preverbe++
+    }
     
     // 16. Cas nazaj in sirina = 0
     s = KazalecGibanje.Stanje(100f, 100f)

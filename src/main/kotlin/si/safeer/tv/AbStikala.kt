@@ -14,6 +14,8 @@ package si.safeer.tv
  *   spatial=off     brez tv_spatial.js (daljinec) - samo za meritev
  *   scit=off        brskalnik ne filtrira zahtevkov (AdBlockEngine, ThreatBlockEngine) - samo za meritev; DNS Scit je loceno
  *   anim=off        CSS: animation/transition none na vsaki strani
+ *   kazalec=star    stari krog z zarecim obrocem in sencenjem (programski sloj) namesto puscice - meritev stroska risanja kazalca
+ *   drsenje=poteg   drsenje ob robu s potegom prsta (dotik) namesto kolesca miske - meritvena varianta (VirtualPointerView)
  */
 object AbStikala {
     const val LASTNOST = "debug.safeer.ab"
@@ -26,6 +28,8 @@ object AbStikala {
         val spatialIzklop: Boolean = false,
         val scitIzklop: Boolean = false,
         val animIzklop: Boolean = false,
+        val kazalecStar: Boolean = false,
+        val drsenjePoteg: Boolean = false,
     ) {
         /** Ali je kaj spremenjeno proti privzetemu vedenju. */
         val karkoli: Boolean get() = this != Stikala()
@@ -48,6 +52,8 @@ object AbStikala {
                 k == "spatial" && v == "off" -> s.copy(spatialIzklop = true)
                 k == "scit" && v == "off" -> s.copy(scitIzklop = true)
                 k == "anim" && v == "off" -> s.copy(animIzklop = true)
+                k == "kazalec" && v == "star" -> s.copy(kazalecStar = true)
+                k == "drsenje" && v == "poteg" -> s.copy(drsenjePoteg = true)
                 else -> s
             }
         }

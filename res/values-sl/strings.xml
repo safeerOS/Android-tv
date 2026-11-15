@@ -39,6 +39,10 @@
     <string name="hub_obvestilo_naslov">Safeer Link</string>
     <string name="hub_obvestilo_besedilo">Naprave v tvojem omrežju lahko pošljejo strani, videe in glasbo na ta televizor.</string>
     <string name="menu_popup_block">Prepreči pojavna okna</string>
+    <string name="menu_kazalec_hitrost">Hitrost kazalca</string>
+    <string name="kazalec_hitrost_pocasi">Počasi</string>
+    <string name="kazalec_hitrost_srednje">Srednje</string>
+    <string name="kazalec_hitrost_hitro">Hitro</string>
     <string name="menu_download_dir">Mapa za prenose</string>
     <string name="menu_scit">Safeer Ščit: vse aplikacije</string>
     <string name="menu_dodaj_aplikacijo">Dodaj med aplikacije Safeer OS</string>

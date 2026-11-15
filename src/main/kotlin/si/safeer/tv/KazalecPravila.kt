@@ -33,11 +33,56 @@ object KazalecPravila {
     }
 
     /**
-     * Lastnik 11. 11. 2026: brskalnik se pri kazalcu vede kot spletna aplikacija - kazalec se NIKOLI ne skrije sam (prej je
-     * rocno vklopljen kazalec v brskalniku po 30 s izginil, ceprav si ga je brskalnik zapomnil kot vklopljenega).
-     * Skriva ga samo uporabnik (rdeci gumb, INFO, gumb kazalca).
+     * Skrivanje navideznega kazalca (Ai Lina tv browser, lastnik 15. 11. 2026, tocki K7 in K8). Prej (11. 11. 2026) se kazalec
+     * ni skrival nikoli, ker je rocno vklopljen kazalec po 30 s izginil, brskalnik pa si ga je zapomnil kot vklopljenega. Zdaj se
+     * skrije samo NA ZASLONU, nacin kazalca pa ostane (zapomnjena izbira, smerne tipke ga se vedno vodijo):
+     *  - po [MIROVANJE_SKRIJ_MS] brez tipke (pri drzani smerni tipki, vlecenju in gibanju se ne);
+     *  - takoj, ko se oglasi prava miska (zracna ali USB): dva kazalca hkrati sta zmeda.
+     * Smerna tipka ga spet pokaze na isti legi in ga takoj premakne; prvi OK ob skritem kazalcu ga samo pokaze
+     * ([tipkaSamoPokaze]): klik na mestu, ki ga uporabnik ne vidi, bi bil nepredviden.
+     * Mirovanje je izhodisce, ki ga je treba izmeriti na pravem TV (NEPREVERJENO); vsi casi so parametri.
      */
-    fun samSkrij(): Boolean = false
+    const val MIROVANJE_SKRIJ_MS = 5_000L
+
+    /** Stanje skrivanja: [skrit] = kazalec ni narisan; [zadnjaAktivnostMs] = uptime zadnje tipke, gibanja ali klika. */
+    data class Skrivanje(val skrit: Boolean = false, val zadnjaAktivnostMs: Long = 0L)
+
+    /** Tipka kazalca (smer, OK): kazalec je viden in mirovanje se zacne znova. */
+    @Suppress("UNUSED_PARAMETER")
+    fun skrivanjeTipka(s: Skrivanje, zdajMs: Long): Skrivanje = Skrivanje(skrit = false, zadnjaAktivnostMs = zdajMs)
+
+    /** Gibanje, klik ali vlecenje, ki ga vodi tipka: podaljsa mirovanje; skritega kazalca ne pokaze. */
+    fun skrivanjeAktivnost(s: Skrivanje, zdajMs: Long): Skrivanje = if (s.skrit) s else s.copy(zadnjaAktivnostMs = zdajMs)
+
+    /** Prava miska: navidezni kazalec se skrije (tipka daljinca ga spet pokaze). */
+    fun skrivanjeMiska(s: Skrivanje): Skrivanje = s.copy(skrit = true)
+
+    /** Casovni preizkus: skrije po mirovanju, razen med drzano smerno tipko in vlecenjem. */
+    fun skrivanjeCas(s: Skrivanje, zdajMs: Long, tipkaDrzana: Boolean, vlecem: Boolean): Skrivanje =
+        if (!s.skrit && !tipkaDrzana && !vlecem && zdajMs - s.zadnjaAktivnostMs >= MIROVANJE_SKRIJ_MS) s.copy(skrit = true) else s
+
+    /**
+     * Cez koliko ms naj tece naslednji casovni preizkus: do izteka mirovanja; ce je rok ze potekel (drzana tipka, vlecenje) ali se je
+     * ura vrnila, cel rok - brez zanke na 1 ms (2 GB TV: en sam odlozen preizkus, v mirovanju ni casovnika).
+     */
+    fun doSkritjaMs(s: Skrivanje, zdajMs: Long): Long {
+        val minilo = zdajMs - s.zadnjaAktivnostMs
+        return if (minilo in 0 until MIROVANJE_SKRIJ_MS) MIROVANJE_SKRIJ_MS - minilo else MIROVANJE_SKRIJ_MS
+    }
+
+    /** Prvi OK ob skritem kazalcu ga samo pokaze (brez klika in brez vlecenja); smerna tipka ga pokaze in takoj premakne. */
+    fun tipkaSamoPokaze(bilSkrit: Boolean, jeOk: Boolean): Boolean = bilSkrit && jeOk
+
+    /** InputDevice.SOURCE_MOUSE (SOURCE_CLASS_POINTER | 0x2000); dotik na zaslonu (0x1002) nima teh bitov. */
+    const val IZVOR_MISKA = 0x2002
+
+    /**
+     * Ali dogodek pripada pravi miski: izvor miska in dejanje premik/lebdenje/kolesce/pritisk (MotionEvent.ACTION_DOWN 0, MOVE 2,
+     * SCROLL 8, HOVER_MOVE 7, HOVER_ENTER 9, BUTTON_PRESS 11). Odhod miske (HOVER_EXIT) in spust ne skrijeta. Nasi sinteticni dogodki
+     * (VirtualPointerView) gredo neposredno v pogled, ne skozi dejavnost, zato kazalec ne skrije samega sebe.
+     */
+    fun jeDogodekMiske(izvor: Int, dejanje: Int): Boolean =
+        (izvor and IZVOR_MISKA) == IZVOR_MISKA && (dejanje == 7 || dejanje == 9 || dejanje == 8 || dejanje == 2 || dejanje == 0 || dejanje == 11)
 
     /** Premiki kazalca sporocajo strani lebdenje (mouseover/mousemove) v brskalniku in v spletni aplikaciji enako. */
     fun lebdenje(): Boolean = true
@@ -47,6 +92,38 @@ object KazalecPravila {
 
     /** Nadomestni faktor drsenja (tock na zarezo kolesca), ce ga sistem ne pove (ViewConfiguration.scaledVerticalScrollFactor). */
     const val PX_NA_ZAREZO = 64f
+
+    /** Gostitelji, na katerih pot /watch, /shorts/ in /embed/ pomeni stran za ogled videa (ne poljubna stran s tako potjo). */
+    private val OGLED_GOSTITELJI = listOf("youtube.com", "youtube-nocookie.com")
+
+    /**
+     * Slepi pregled TV2 (F1, srednja): stran je lahko BREZ tipke preklopila nacin kazalec/puscice z history.replaceState('#/watch'),
+     * ker je prejsnje pravilo iskalo "/watch" v CELEM naslovu (tudi v poizvedbi, sidru in poti tujega gostitelja). Zdaj: znan
+     * gostitelj (youtube.com, youtube-nocookie.com in poddomene) in POT /watch, /shorts/..., /embed/...; poizvedba in sidro ne
+     * stejeta (YouTube za TV, youtube.com/tv#/watch, ima pot /tv in ni stran za ogled).
+     */
+    fun jeStranOgleda(naslov: String?): Boolean {
+        val g = gostitelj(naslov) ?: return false
+        if (OGLED_GOSTITELJI.none { g == it || g.endsWith(".$it") }) return false
+        val pot = try { java.net.URI((naslov ?: "").trim()).path?.lowercase() } catch (_: Exception) { null } ?: return false
+        return pot == "/watch" || pot.startsWith("/watch/") || pot.startsWith("/shorts/") || pot.startsWith("/embed/")
+    }
+
+    /**
+     * Uporabnikova izbira za stran: izbira za gostitelja velja VEDNO (tudi na strani za ogled); izbira, narejena na strani za ogled
+     * ([zapisOgled]), velja samo tam in ima tam prednost pred izbiro za gostitelja. Prej je bil kljuc "gostitelj#ogled" loceno
+     * zapisan in izbira gostitelja na strani za ogled ni veljala (slepi pregled TV2, F1).
+     */
+    fun zapomnjenaZaStran(zapisOgled: Boolean?, zapisGostitelj: Boolean?, ogled: Boolean): Boolean? =
+        if (ogled) zapisOgled ?: zapisGostitelj else zapisGostitelj
+
+    /**
+     * Ali je stran narejena za daljinec (puscice): stran za ogled, nasa stran, YouTube za TV, pregledovalnik PDF in Googlove strani.
+     * Googlove strani imajo lastne tipke za prijavo in iskanje (puscice, GoogleTipke); kazalec jih obide (slepi pregled TV2, F5),
+     * zato so privzeto na puscicah; uporabnikova izbira ima se vedno prednost ([privzetoKazalec]).
+     */
+    fun stranZaTv(ogled: Boolean, nasaStran: Boolean, youtubeZaTv: Boolean, pdf: Boolean, google: Boolean): Boolean =
+        ogled || nasaStran || youtubeZaTv || pdf || google
 
     /** Kljuc, ob katerem se privzeti kazalec preracuna: gostitelj, stran za ogled istega gostitelja loceno. */
     fun kljucStrani(gostitelj: String?, ogled: Boolean): String? = gostitelj?.let { if (ogled) "$it#ogled" else it }

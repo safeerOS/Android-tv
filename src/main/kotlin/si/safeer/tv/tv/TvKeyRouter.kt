@@ -209,6 +209,16 @@ class TvKeyRouter(private val host: MainActivity) {
             // Lastnik 15. 11. 2026: gibanje po slicicah (KazalecGibanje): prvi pritisk = natancen korak 24 px, drzanje = pospesek
             // (neodvisen od ritma ponavljanja tipke), drsenje strani samo s potiskom ob rob; spust ustavi (zgoraj).
             val ponovitev = event.repeatCount > 0
+            // K7/K8 (lastnik 15. 11. 2026): tipka daljinca pokaze skritega navideznega kazalca (mirovanje ali prava miska); prvi OK ga
+            // samo pokaze - klika na mestu, ki ga uporabnik ne vidi, ni.
+            if (keyCode == KeyEvent.KEYCODE_DPAD_UP || keyCode == KeyEvent.KEYCODE_DPAD_DOWN || keyCode == KeyEvent.KEYCODE_DPAD_LEFT ||
+                keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER) {
+                val bilSkrit = host.virtualPointerView.tipka(event.eventTime)
+                if (si.safeer.tv.KazalecPravila.tipkaSamoPokaze(bilSkrit, keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER)) {
+                    host.virtualPointerView.okPorabljen = true
+                    return true
+                }
+            }
             when (keyCode) {
                 KeyEvent.KEYCODE_DPAD_UP -> {
                     // V nacinu aplikacije vrstice z naslovom ni: fokus ne sme oditi v skrito polje.

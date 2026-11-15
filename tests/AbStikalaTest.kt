@@ -32,6 +32,16 @@ fun main() {
     preveri("ChromiumEngineView vklopi merilnik iz stikala", File((System.getProperty("ab.vir") ?: "src/main/kotlin/si/safeer/tv/AbStikala.kt")
         .replace("AbStikala.kt", "ChromiumEngineView.kt")).readText().contains("PresuMerilnik.vklopljen = AbStikala.stikala.presuVklop"))
     preveri("odstranjena stikala (dvonitni prevod, cssseznam, cssyt) ne obstajajo", !razclenjenoKarkoli("prevod=dvonitni,cssseznam=off,cssyt=off"))
+    // 15. 11. 2026 (K13): stikali za meritev kazalca; privzeto izklopljeni, neznana vrednost se prezre, uporabi ju samo VirtualPointerView.
+    preveri("kazalec=star in drsenje=poteg razclenjena", AbStikala.razclenji("kazalec=star") == brez.copy(kazalecStar = true) &&
+        AbStikala.razclenji(" Drsenje=POTEG ") == brez.copy(drsenjePoteg = true) &&
+        AbStikala.razclenji("kazalec=star,drsenje=poteg") == brez.copy(kazalecStar = true, drsenjePoteg = true))
+    preveri("privzeto brez ucinka (izdaja): stari krog in poteg izklopljena", !brez.kazalecStar && !brez.drsenjePoteg &&
+        !AbStikala.razclenji(null).karkoli && AbStikala.razclenji("kazalec=star").karkoli && AbStikala.razclenji("drsenje=poteg").karkoli)
+    preveri("neznana vrednost kazalca in drsenja se prezre", AbStikala.razclenji("kazalec=nov,kazalec=puscica,kazalec=1,drsenje=kolesce,drsenje=off,drsenje=1") == brez)
+    val pogledVir = File((System.getProperty("ab.vir") ?: "src/main/kotlin/si/safeer/tv/AbStikala.kt").replace("AbStikala.kt", "VirtualPointerView.kt")).readText()
+    preveri("VirtualPointerView uporabi stikali kazalecStar in drsenjePoteg iz AbStikala", pogledVir.contains("AbStikala.stikala.kazalecStar") &&
+        pogledVir.contains("AbStikala.stikala.drsenjePoteg") && pogledVir.contains("if (staraOblika)") && pogledVir.contains("drsenjePoteg && drsiPoteg("))
     if (napak > 0) { println("AbStikalaTest: $napak napak"); System.exit(1) }
     println("AbStikalaTest: OK")
 }
