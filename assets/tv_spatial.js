@@ -1325,7 +1325,17 @@
                 if (kljuc && oknoVeljavno && kljuc === oknoKljuc && zdaj - oknoCas >= 0 && zdaj - oknoCas < OKNO_NAJDLJE_MS &&
                     (!oknoIzid || oknoIzid.isConnected !== false)) return oknoIzid;
                 var izid = najdiPrekrivnoOknoSveze();
-                oknoIzid = izid; oknoKljuc = kljuc; oknoCas = zdaj; oknoVeljavno = !!kljuc;
+                // Slepi pregled TV2 (F2): okno, ki se je pojavilo ali izginilo samo s CSS (brez zapisa opazovalca), unici zapisane okvirje
+                // (rectPas, do 3 s) in izid zbiranja: sicer bi izbira ostala ZA oknom, gumbi okna pa bi izpadli iz ciljev. Kljuc se
+                // preracuna, da naslednji klic ne isce se enkrat.
+                if (oknoVeljavno && izid !== oknoIzid) {
+                    domRazlicica++; rectKljuc = '';
+                    kljuc = kljucKandidatov();
+                    kljuc = kljuc ? kljuc + '#' + izbiraRazlicica : '';
+                }
+                // Slepi pregled TV2 (F4): rok se steje od KONCA iskanja; ce iskanje samo traja >= OKNO_NAJDLJE_MS (24ur.com na TV), je
+                // izid sicer ob shranjevanju ze potekel in vsak klic iz iste tipke isce znova.
+                oknoIzid = izid; oknoKljuc = kljuc; oknoCas = casZdaj(); oknoVeljavno = !!kljuc;
                 return izid;
             }
             /* SAFEER_OKNO_PREDPOMNILNIK_KONEC */
@@ -1953,7 +1963,7 @@
             // otrok ali besedila samo za X in njegove prednike (umazanaVsebina - besedilo in povezave kartice).
             var izbiraRazlicica = 0, odlocitve = null, odlocitveKljuc = '', odlocitveCas = 0;
             // Oznake so zaporedne stevilke: odlocitev velja, ce je mlajsa od zadnje spremembe elementa in njegovih prednikov.
-            var umazanoDrevo = new Map(), umazanaVsebina = new Map(), oznakaSt = 0, NAJVEC_UMAZANIH = 1500;
+            var umazanoDrevo = new Map(), umazanaVsebina = new Map(), oznakaSt = 0, NAJVEC_UMAZANIH = 1500, NAJVEC_PREMAKNJENIH = 5000;
             function oznaciSpremembo(z) {
                 if (!odlocitve) return;
                 var t = z.target && z.target.nodeType === 1 ? z.target : (z.target ? z.target.parentElement : null);
@@ -1961,12 +1971,16 @@
                 oznakaSt++;
                 if (z.type === 'attributes') umazanoDrevo.set(t, oznakaSt);
                 // N3: premaknjen element (ze ima odlocitev ali klasifikacijo noge) je dobil nove prednike: velja kot spremenjeno drevo.
+                // Slepi pregled TV2 (F3): VSA dodana vozlisca (prej samo prvih 50: stran je lahko naenkrat premaknila 51+ povezav v
+                // piskotke in njihove stare odlocitve »cilj« so ostale). Zelo velik zapis zavrze vse odlocitve - vedno pravilna meja.
                 if (z.type === 'childList' && z.addedNodes && odlocitve) {
-                    for (var an = 0; an < z.addedNodes.length && an < 50; an++) {
+                    if (z.addedNodes.length > NAJVEC_PREMAKNJENIH) odlocitve = null;
+                    else for (var an = 0; an < z.addedNodes.length; an++) {
                         var dn = z.addedNodes[an];
                         if (dn && dn.nodeType === 1 && odlocitve.has(dn)) umazanoDrevo.set(dn, oznakaSt);
                     }
                 }
+                if (!odlocitve) return;
                 var e = t, g = 0;
                 while (e && e.nodeType === 1 && g++ < 8) { umazanaVsebina.set(e, oznakaSt); e = e.parentElement; }
                 if (umazanoDrevo.size + umazanaVsebina.size > NAJVEC_UMAZANIH) odlocitve = null;

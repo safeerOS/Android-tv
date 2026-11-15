@@ -4,6 +4,9 @@
 // drsenju strani (kolesce pod kazalcem), spremembah strani in spremembi velikosti ne bere okvirjev (getBoundingClientRect) - ne
 // zbira ciljev, ne predgreva. Merjeno na umetni strani z ~1900 elementi (kljuka naOkvir steje klice strani IN izvirnika).
 // Preostanek v kazalcu (casovniki setInterval 250 ms in 4,5 s, opazovalci) lazni DOM ne izvaja: NEPREVERJENO, glej POROCILO.
+// VAROVALNI preizkus (slepi pregled TV2, 15. 11. 2026): uspe tudi na cbeb6908, tj. NE dokazuje, da je sprememba v kazalcu ucinkovita
+// (skript ob drsenju brez tipke tudi prej ni bral okvirjev) - samo varuje pred regresijo (nov casovnik ali poslusalec v skriptu, ki bi
+// brez tipke zbiral cilje). Dokaz za spremembe so tests/tv_dopolnitev_test.js, KazalecPravilaTest in preveri_kazalec_nastavitve.py.
 //   node tests/tv_kazalec_brez_klicev_test.js [pot do tv_spatial.js]
 'use strict';
 const fs = require('fs');
