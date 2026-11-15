@@ -24,11 +24,16 @@ object PriljubljeneMrezaPravila {
     }
 
     /**
-     * Razvrstitev, ki jo mreza res uporabi: izbrane »Priljubljene«, ko ni vec nobene (uporabnik je zadnjo odstranil), se
-     * vrnejo na [privzeta]; sicer ostane izbrana.
+     * Ali mreza res kaze samo Priljubljene: izbrane [vklop], ko ni vec nobene (uporabnik je zadnjo odstranil), ni vec
+     * izbire - in se ne vrne ob novem srcu (stanje se ponastavi, ne skrije).
      */
-    fun veljavna(izbrana: Int, priljubljena: Int, stevilo: Int, privzeta: Int): Int =
-        if (izbrana == priljubljena && !ponudi(stevilo)) privzeta else izbrana
+    fun samoPriljubljene(vklop: Boolean, stevilo: Int): Boolean = vklop && ponudi(stevilo)
+
+    /**
+     * Indeks v seznamu razvrstitev police/okna (Priporoceno ... Ime Z-A): vrednost zunaj seznama (npr. izbira mreze) ne sme
+     * priti do niza imen (IndexOutOfBounds), zato pade na prvo.
+     */
+    fun varnaRazvrstitev(vrednost: Int, stIzbir: Int): Int = if (vrednost in 0 until stIzbir) vrednost else 0
 
     /**
      * Cela vsebina (film ali serija, ne posamezna epizoda): epizoda iste serije bi v mrezi serij odprla epizodo namesto

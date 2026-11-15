@@ -45,7 +45,8 @@ fun main() {
 
     println("\n== TTL in LRU ==")
     val dan = 24 * 3_600_000L
-    val zdaj = 100 * dan
+    // Ura mora biti smiselna (po PredpomnilnikPravila.SMISELNA_URA_MS): TV z uro iz 1970 po casu ne brise nicesar.
+    val zdaj = PredpomnilnikPravila.SMISELNA_URA_MS + 1000 * dan
     preveriEnako("naslovnice: meja NEUPORABE 90 dni (ne 14 dni od prenosa)", 90 * dan, PredpomnilnikPravila.ttl(PredpomnilnikPravila.NASLOVNICE))
     preveriEnako("TTL katalogi 24 h", dan, PredpomnilnikPravila.ttl(PredpomnilnikPravila.KATALOGI))
     val d = listOf(
@@ -211,6 +212,24 @@ fun main() {
     preveriEnako("manjka 2000 -> najstarejsi dve", listOf("a", "c"), PredpomnilnikPravila.kajIzbrisati(izdaje, "x", 3000, 1000))
     preveriEnako("trenutna nikoli", listOf("c"), PredpomnilnikPravila.kajIzbrisati(izdaje, "a", 2000, 1000))
     preveriEnako("manjka vse -> vse (razen trenutne)", listOf("a", "c", "b"), PredpomnilnikPravila.kajIzbrisati(izdaje, "x", 10000, 1000))
+
+    // --- ura TV iz 1970 ne izbrise vseh plakatov; trim v obeh aktivnostih ne odnese polovice dvakrat
+    val N2 = P.NASLOVNICE
+    val ura1970 = 5 * dan
+    preveriEnako("ura 1970: naslovnica z zapisom iz 1970 velja (zdaj popravljena ura)", true, P.veljaVnos(N2, Long.MAX_VALUE, ura1970, zdaj))
+    preveriEnako("ura 1970 zdaj: naslovnica velja", true, P.veljaVnos(N2, Long.MAX_VALUE, zdaj - 200 * dan, ura1970))
+    preveriEnako("ura 1970: zaBrisanjeVnosov po casu nic", emptyList<String>(),
+        P.zaBrisanjeVnosov(listOf(PredpomnilnikPravila.Vnos("a", 10, zdaj - 200 * dan, Long.MAX_VALUE, N2)), 1000, ura1970))
+    preveriEnako("zaBrisanje datotek: zapis iz 1970 ne gre po casu", emptyList<String>(),
+        P.zaBrisanje(listOf(Datoteka("/a", N2, 10, ura1970)), 1000, zdaj))
+    preveriEnako("zaBrisanje datotek: ura 1970 zdaj nic", emptyList<String>(),
+        P.zaBrisanje(listOf(Datoteka("/a", N2, 10, zdaj)), 1000, ura1970))
+    preveriEnako("Link: odgovor iz 1970 za naslovnico velja", true, P.veljavenOdgovor(N2, ura1970, zdaj))
+    preveriEnako("Link: odgovor starejsi od 90 dni (prava ura) ne velja", false, P.veljavenOdgovor(N2, zdaj - 120 * dan, zdaj))
+    preveriEnako("trim: prvi blagi trim sme", true, P.smeTrimati(50, 0L, 10_000L))
+    preveriEnako("trim: drugi blagi trim cez 1 s ne sme (druga aktivnost)", false, P.smeTrimati(50, 10_000L, 11_000L))
+    preveriEnako("trim: blagi trim po 3 s spet sme", true, P.smeTrimati(50, 10_000L, 13_000L))
+    preveriEnako("trim: polno praznjenje vedno", true, P.smeTrimati(0, 10_000L, 10_100L))
 
     if (napak == 0) println("PredpomnilnikPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

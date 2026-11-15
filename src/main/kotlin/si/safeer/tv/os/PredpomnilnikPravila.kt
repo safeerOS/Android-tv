@@ -95,9 +95,19 @@ object PredpomnilnikPravila {
      */
     const val NASLOVNICA_NEUPORABA = 90 * DAN
 
+    /**
+     * Najzgodnejsa ura, ki jo se imamo za pravo (1. 1. 2025). TV brez omrezja ali z izpraznjeno baterijo ure lahko zacne pri
+     * 1970; zapis s tako uro in pozneje popravljena ura bi izgledala kot 55 let neuporabe in bi izbrisala VSE plakate
+     * naenkrat. Cas pod mejo je neznan: zapisa po casu ne brisemo ([uraSmiselna]).
+     */
+    const val SMISELNA_URA_MS = 1_735_689_600_000L
+
+    fun uraSmiselna(t: Long): Boolean = t >= SMISELNA_URA_MS
+
     /** Ali je vnos (vrsta, [poteka], [zadnjaUporaba]) ob [zdaj] se veljaven: naslovnice po neuporabi, ostalo po poteku. */
     fun veljaVnos(vrsta: String, poteka: Long, zadnjaUporaba: Long, zdaj: Long): Boolean =
-        if (vrsta == NASLOVNICE) zdaj - zadnjaUporaba <= NASLOVNICA_NEUPORABA else poteka > zdaj
+        if (vrsta == NASLOVNICE) !uraSmiselna(zdaj) || !uraSmiselna(zadnjaUporaba) || zdaj - zadnjaUporaba <= NASLOVNICA_NEUPORABA
+        else poteka > zdaj
 
     /**
      * Kako dolgo datoteka vrste [vrsta] na USB velja (potem jo ciscenje izbrise): naslovnice 14 dni in katalogi 24 h kot
@@ -151,6 +161,8 @@ object PredpomnilnikPravila {
     fun zaBrisanje(datoteke: List<Datoteka>, meja: Long, zdaj: Long): List<String> {
         val ven = LinkedHashSet<String>()
         for (d in datoteke) {
+            // Neznana ura (zdaj ali zapis pod [SMISELNA_URA_MS]): po casu ne brisemo, samo LRU ob polnem disku.
+            if (!uraSmiselna(zdaj) || !uraSmiselna(d.spremenjena)) continue
             val starost = zdaj - d.spremenjena
             if (starost > ttl(d.vrsta) || starost < -DAN || (d.pot.endsWith(".tmp") && starost > ZACASNA_SMET_MS)) ven += d.pot
         }
@@ -212,7 +224,7 @@ object PredpomnilnikPravila {
 
     /** Odgovor naprave na cache.get velja: cas zapisa ni iz prihodnosti (> 1 dan) in ni starejsi od [ttl] vrste. */
     fun veljavenOdgovor(vrsta: String, cas: Long, zdaj: Long): Boolean =
-        cas > 0 && zdaj - cas in -DAN..(if (vrsta == NASLOVNICE) Long.MAX_VALUE else ttl(vrsta))
+        cas > 0 && (vrsta == NASLOVNICE && (!uraSmiselna(zdaj) || !uraSmiselna(cas)) || zdaj - cas in -DAN..ttl(vrsta))
 
     /**
      * »Varovalka«: po 3 zaporednih neodgovorih (potek [LINK_ROK_MS], napaka) napravo 60 s ne sprasujemo - vsako branje bi
@@ -251,7 +263,8 @@ object PredpomnilnikPravila {
      */
     fun zaBrisanjeVnosov(vnosi: List<Vnos>, meja: Long, zdaj: Long): List<String> {
         val ven = LinkedHashSet<String>()
-        for (v in vnosi) if (!veljaVnos(v.vrsta, v.poteka, v.zadnjaUporaba, zdaj) || v.zadnjaUporaba - zdaj > DAN) ven += v.kljuc
+        // Neznana ura: po casu ne brisemo ([veljaVnos], [uraSmiselna]); samo LRU ob polnem disku.
+        if (uraSmiselna(zdaj)) for (v in vnosi) if (!veljaVnos(v.vrsta, v.poteka, v.zadnjaUporaba, zdaj) || v.zadnjaUporaba - zdaj > DAN) ven += v.kljuc
         var skupaj = vnosi.filter { it.kljuc !in ven }.sumOf { it.velikost }
         if (skupaj > meja) for (v in vnosi.filter { it.kljuc !in ven }.sortedBy { it.zadnjaUporaba }) {
             if (skupaj <= meja) break
@@ -366,6 +379,15 @@ object PredpomnilnikPravila {
         raven < 60 -> 50
         else -> 0
     }
+
+    /**
+     * onTrimMemory prihaja v OBE aktivnosti (MainActivity in OsActivity): blaga stopnja bi polovico odnesla dvakrat.
+     * Delno praznjenje najvec enkrat na [TRIM_PREMOR_MS]; polno ([slikeOstanejoOdstotkov] = 0) vedno.
+     */
+    const val TRIM_PREMOR_MS = 3_000L
+
+    fun smeTrimati(ostane: Int, zadnjiOb: Long, zdaj: Long): Boolean =
+        ostane <= 0 || zadnjiOb <= 0L || zdaj - zadnjiOb !in 0 until TRIM_PREMOR_MS
 
     /** Meja kartic strani katalogov kanalov v pomnilniku: brez USB [brezUsb] (kot doslej), z USB najvec [KARTIC_STRANI_Z_USB]. */
     fun mejaStraniKanalov(usb: Boolean, brezUsb: Int): Int = if (usb) minOf(brezUsb, KARTIC_STRANI_Z_USB) else brezUsb

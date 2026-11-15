@@ -313,6 +313,15 @@ object MedijskiViri {
         return s.map { if (it.id.startsWith("tv:")) vgrajeni[it.id] ?: it else it }
     }
 
+    /** Poveca se ob vsakem zapisu priljubljenih: zaslon predpomni izpeljane sezname (Filmi | Serije) po tej verziji. */
+    @Volatile var verzijaPriljubljenih = 0L
+        private set
+
+    private fun pisiPriljubljene(ctx: Context, vsebina: String) {
+        pisi(ctx, PRILJUBLJENE, vsebina)
+        verzijaPriljubljenih++
+    }
+
     fun priljubljene(ctx: Context): List<Jamendo.Skladba> = osveziVgrajene(beriSkladbe(beri(ctx, PRILJUBLJENE)))
 
     fun jePriljubljena(ctx: Context, s: Jamendo.Skladba) = priljubljene(ctx).any { it.id == s.id }
@@ -338,7 +347,7 @@ object MedijskiViri {
         val kanaliNovi = nova.filter { PriljubljeniKanaliPravila.jeKanal(it.id, Stremio.jeVZivo(it)) }.map { it.id }.toHashSet()
         val poIdNovi = nova.associateBy { it.id }
         val shrani = PriljubljeniKanaliPravila.omeji(nova.map { it.id }, { it in kanaliNovi }, NAJVEC_PRILJUBLJENIH).mapNotNull { poIdNovi[it] }
-        pisi(ctx, PRILJUBLJENE, pisiSkladbe(shrani))
+        pisiPriljubljene(ctx, pisiSkladbe(shrani))
         return shrani.any { it.id == s.id }
     }
 
@@ -385,7 +394,7 @@ object MedijskiViri {
         val zdaj = beriSkladbe(beri(ctx, PRILJUBLJENE))
         val poId = zdaj.associateBy { it.id }
         if (red.toSet() != poId.keys) return false
-        pisi(ctx, PRILJUBLJENE, pisiSkladbe(red.distinct().mapNotNull { poId[it] }))
+        pisiPriljubljene(ctx, pisiSkladbe(red.distinct().mapNotNull { poId[it] }))
         return true
     }
 
@@ -477,7 +486,7 @@ object MedijskiViri {
                 else l.copy(skladbe = l.skladbe.map { zamenjave[it.id] ?: it }.distinctBy { it.id }, cas = SeznamiPravila.novCas(zdaj, l.cas, 0L))
             })
         val p = priljubljene(ctx)
-        if (p.any { it.id in zamenjave }) pisi(ctx, PRILJUBLJENE, pisiSkladbe(p.map { zamenjave[it.id] ?: it }.distinctBy { it.id }))
+        if (p.any { it.id in zamenjave }) pisiPriljubljene(ctx, pisiSkladbe(p.map { zamenjave[it.id] ?: it }.distinctBy { it.id }))
     }
 
     /** Izbrise seznam in si izbris zapomni ([cas]; privzeto zdaj), da ga usklajevanje ne vrne z druge naprave. */
