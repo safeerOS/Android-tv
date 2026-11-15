@@ -176,6 +176,8 @@ fun main() {
     preveri("FFF4/5: uravnotezeni ostanejo, > dovoljen (${f45})", f45 == listOf("#s > div.w", "a[href*=')']", "p:not(.x)"))
     val f6 = CosmeticFilterEngine.varniIzbirniki(listOf("body", "*", "html", ":root", "a[x='y\u000cz']", ".oglas"))
     preveri("GGG6: siroki izbirniki in \\f ven (${f6})", f6 == listOf(".oglas"))
+    val f7 = CosmeticFilterEngine.varniIzbirniki(listOf("div, body", "a,", ".a, .b", "x:is(.a, .b)", ",x", ".oglas"))
+    preveri("CodeRabbit: vejicni seznam se preveri po delih (${f7})", f7 == listOf(".a, .b", "x:is(.a, .b)", ".oglas"))
     preveri("XX11: pravila po skupinah (skupina ${CosmeticFilterEngine.SKUPINA_IZBIRNIKOV})", slogZ.split("{\n").size - 1 >= 2 && slogZ.count { it == '}' } >= 2)
     preveri("slog strani sledi stikalu blokiranja", !slogBrez.contains("adsbytrafficjunky") && slogZ.contains("ins.adsbytrafficjunky"))
 

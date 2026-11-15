@@ -32,6 +32,7 @@
     <string name="toast_bookmark_removed">🗑️ Rimosso dai preferiti</string>
   <string name="btn_favorite">Preferiti</string>
   <string name="btn_reload">Ricarica</string>
+  <string name="btn_search">Cerca</string>
     <string name="menu_tv_wallpaper">Sfondo nero nella schermata iniziale della TV</string>
     <string name="menu_language">Lingua dell\'interfaccia</string>
     <string name="menu_safeer_link">Safeer Link</string>

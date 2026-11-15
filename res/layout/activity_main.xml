@@ -149,6 +149,7 @@
                 android:layout_marginStart="2dp"
                 android:gravity="center"
                 android:text="@string/sym_isci"
+                android:contentDescription="@string/btn_search"
                 android:textColor="?attr/osMint"
                 android:textSize="13sp"
                 android:focusable="true"

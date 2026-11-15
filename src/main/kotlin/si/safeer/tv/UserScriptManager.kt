@@ -893,6 +893,7 @@ object UserScriptManager {
     fun vbrizgajFokusZdaj(webView: WebView) {
         val naslov = webView.url ?: return
         if (isGoogleDomain(naslov) || AbStikala.stikala.spatialIzklop) return
+        if (PdfPregledovalnik.jePregledovalnik(naslov)) return   // pregledovalnik PDF ima lastne tipke (CodeRabbit)
         if ((webView as? ChromiumEngineView)?.dotik ?: ChromiumEngineView.naDotik(webView.context)) return
         webView.evaluateJavascript(tvSpatialJs(webView), null)
     }

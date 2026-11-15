@@ -4,13 +4,16 @@
 set -euo pipefail
 TEST_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$TEST_DIR/.." && pwd)"
+TOOLS_DIR="${SAFEER_TOOLS_DIR:-$PROJECT_DIR/.tools}"
+KOTLINC="${KOTLINC:-$TOOLS_DIR/kotlinc/bin/kotlinc}"
+command -v "$KOTLINC" >/dev/null 2>&1 || KOTLINC="kotlinc"
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 keytool -genkeypair -alias s -keyalg RSA -keysize 2048 -dname CN=bank.test -validity 2 -storetype PKCS12 \
   -keystore "$OUT/ks.p12" -storepass geslo1 -keypass geslo1 >/dev/null 2>&1
 # Imeni preizkusnih gostiteljev kazeta na lokalni streznik (brez DNS).
 printf '127.0.0.1 bank.test\n127.0.0.1 napadalec.test\n' > "$OUT/hosts"
-kotlinc "$TEST_DIR"/dash_jvm/stubs/*.kt \
+"$KOTLINC" "$TEST_DIR"/dash_jvm/stubs/*.kt \
   "$PROJECT_DIR/src/main/kotlin/si/safeer/tv/DashVarnostPravila.kt" \
   "${DASH_PREVZEM:-$PROJECT_DIR/src/main/kotlin/si/safeer/tv/tv/DashPrevzem.kt}" \
   "$TEST_DIR/dash_jvm/DashPrevzemJvmTest.kt" -include-runtime -d "$OUT/dash.jar" 2>&1 | grep -v '^warning' || true

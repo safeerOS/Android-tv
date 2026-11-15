@@ -282,7 +282,13 @@ object BrskalnikDiskPravila {
             for (i in 0 until n) {
                 if (ura() - zac > rokNs) return null
                 val t = ura()
-                FileOutputStream(datoteke[i]).use { it.write(blok); it.fd.sync() }
+                // CodeRabbit (CWE-61): obstojeci vnos (tudi povezava) najprej odstranimo kot vnos, nato CREATE_NEW ne sledi povezavam.
+                Files.deleteIfExists(datoteke[i].toPath())
+                java.nio.channels.FileChannel.open(
+                    datoteke[i].toPath(),
+                    java.nio.file.StandardOpenOption.CREATE_NEW,
+                    java.nio.file.StandardOpenOption.WRITE
+                ).use { it.write(java.nio.ByteBuffer.wrap(blok)); it.force(true) }
                 casi[i] = ura() - t
             }
             for (i in (0 until n).shuffled(java.util.Random(n.toLong()))) {

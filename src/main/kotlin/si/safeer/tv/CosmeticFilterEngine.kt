@@ -128,7 +128,27 @@ object CosmeticFilterEngine {
      * Znak > (otroski kombinator) je dovoljen (FFF5): v CSS ne zapusti pravila, nevaren je samo < (zapiranje oznake).
      */
     internal fun varniIzbirniki(izbirniki: List<String>): List<String> = izbirniki.filter { s ->
-        s.isNotBlank() && s.length <= 300 && s.none { it in "{};@\\<\n\r\u000c" } && s.trim() !in SIROKI && !s.contains("/*") && !s.contains("*/") && uravnotezen(s)
+        s.isNotBlank() && s.length <= 300 && s.none { it in "{};@\\<\n\r\u000c" } && !s.contains("/*") && !s.contains("*/") && uravnotezen(s) &&
+            delaIzbirnika(s).let { deli -> deli.isNotEmpty() && deli.all { it.isNotEmpty() && it !in SIROKI && uravnotezen(it) } }
+    }
+
+    /** Deli vejicnega seznama na zgornji ravni (vejice v oklepajih, oglatih oklepajih in narekovajih ne locijo); deli so obrezani. */
+    internal fun delaIzbirnika(s: String): List<String> {
+        val deli = ArrayList<String>()
+        var globina = 0
+        var narekovaj: Char? = null
+        var zac = 0
+        for ((i, c) in s.withIndex()) {
+            if (narekovaj != null) { if (c == narekovaj) narekovaj = null; continue }
+            when (c) {
+                '\'', '"' -> narekovaj = c
+                '(', '[' -> globina++
+                ')', ']' -> globina--
+                ',' -> if (globina == 0) { deli.add(s.substring(zac, i).trim()); zac = i + 1 }
+            }
+        }
+        deli.add(s.substring(zac).trim())
+        return deli
     }
 
     /** GGG6: izbirniki, ki bi skrili celo stran (seznam jih sme imeti, mi ne). */

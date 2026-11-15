@@ -32,6 +32,7 @@
     <string name="toast_bookmark_removed">🗑️ Removed from Bookmarks</string>
     <string name="btn_favorite">Favorites</string>
     <string name="btn_reload">Reload</string>
+    <string name="btn_search">Search</string>
     <string name="menu_tv_wallpaper">Black TV home screen</string>
     <string name="menu_language">Interface language</string>
     <string name="menu_safeer_link">Safeer Link</string>

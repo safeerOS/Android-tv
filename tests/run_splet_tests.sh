@@ -55,7 +55,7 @@ java -cp "$OUT/splet.jar" si.safeer.tv.KazalecPopravki4TestKt
 # Popravki TV-2 (15. 11. 2026): piskotki DASH samo za cilj, deljeni zaslon, laurl brez ReDoS, generacija, Nazaj po sloju, OK na ogledu.
 java -cp "$OUT/splet.jar" si.safeer.tv.PopravkiTv2TestKt
 # Isti popravki na pravem DashPrevzem.kt (nadomestki Androida, lokalni streznik HTTPS).
-bash "$TEST_DIR/run_dash_jvm_test.sh"
+KOTLINC="$KOTLINC" bash "$TEST_DIR/run_dash_jvm_test.sh"
 # Gibanje kazalca kot cista funkcija casa (Ai Lina tv browser, 14. 11. 2026): korak, pospesek, potisk ob rob, varovalo.
 java -cp "$OUT/splet.jar" si.safeer.tv.KazalecGibanjeTestKt
 # Oblika kazalca: puscica s tocko klika v konici, berljivost, stanja, rob okna (lastnik 15. 11. 2026).

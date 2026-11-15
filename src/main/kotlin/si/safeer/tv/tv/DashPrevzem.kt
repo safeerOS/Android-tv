@@ -455,6 +455,7 @@ object DashPrevzem {
                 for (skok in 0..DashVarnostPravila.MAKS_PREUSMERITEV) {
                     // P1/P2: sami prenasamo samo https; piskotki samo za ta skok (rocno nastavljen Cookie ne sme slediti preusmeritvi na tuj gostitelj).
                     if (!DashVarnostPravila.smeOmrezje(cilj, izvorZahteve)) return@execute
+                    if (System.nanoTime() > konecNs) return@execute   // skupni rok velja tudi pred vsakim skokom
                     val c = URL(cilj).openConnection() as HttpURLConnection
                     conn = c
                     c.instanceFollowRedirects = false
@@ -508,17 +509,23 @@ object DashPrevzem {
                             false
                         } else {
                             mpdPotrjen = true
+                            // Pregled CodeRabbit: rezultat se zapise v ISTEM zaklepu kot preverba generacije (nov tok ga ne more povoziti).
+                            if (!encrypted) {
+                                allowClear = true
+                                needsDrm = false
+                                hasPssh = false
+                                mpdLaurl = ""
+                            } else {
+                                allowClear = false
+                                needsDrm = true
+                                hasPssh = pssh || prot
+                                if (!laurl.isNullOrEmpty()) mpdLaurl = laurl
+                            }
                             true
                         }
                     }
                     if (!naprej) return@post
                     if (!encrypted) {
-                        synchronized(lock) {
-                            allowClear = true
-                            needsDrm = false
-                            hasPssh = false
-                            mpdLaurl = ""
-                        }
                         SafeerDbg.log(
                             "H338",
                             "DashPrevzem.kt:mpdxml",
@@ -527,12 +534,6 @@ object DashPrevzem {
                         )
                         maybeFire()
                         return@post
-                    }
-                    synchronized(lock) {
-                        allowClear = false
-                        needsDrm = true
-                        hasPssh = pssh || prot
-                        if (!laurl.isNullOrEmpty()) mpdLaurl = laurl
                     }
                     maybeFire()
                 }
