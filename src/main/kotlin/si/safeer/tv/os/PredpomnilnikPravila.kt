@@ -43,6 +43,22 @@ object PredpomnilnikPravila {
         Nacin.SAMODEJNO -> "samodejno"
     }
 
+    /** Podmapa USB, v katero gre predpomnilnik spletnih strani brskalnika (WebView). */
+    const val MAPA_BRSKALNIK = "brskalnik-http"
+
+    /**
+     * Predpomnilnik brskalnika na USB (lastnik 15. 11. 2026: »ce uporabnik kot jaz uporabi USB trdi disk«; brez diska ostane
+     * vse kot doslej). Disk mora biti ze izbran za predpomnilnik ([usbPot] iz [UsbPredpomnilnik], ki je disk izmeril: pisljiv in
+     * dovolj hiter), priklopljen, odstranljiv in dovolj prazen; uporabnikova izbira »ta TV« ([Nacin.NOTRANJI]) ali Link ga izklopi.
+     * [prejsnjiUspel]: false = prejsnji zagon z diskom se ni dokoncal (brskalnik ni nalozil strani) - disk se za brskalnik ne
+     * poskusi znova, null = se ni poskusa. Vrne polno pot mape na USB ali null (notranji predpomnilnik).
+     */
+    fun brskalnikCilj(nacin: Nacin, usbPot: String?, priklopljen: Boolean, odstranljiv: Boolean, prostih: Long, prejsnjiUspel: Boolean?): String? {
+        if (nacin != Nacin.SAMODEJNO || usbPot.isNullOrBlank() || !priklopljen || !odstranljiv) return null
+        if (prostih < PRAG_PROSTEGA || prejsnjiUspel == false) return null
+        return usbPot.trimEnd('/') + "/" + MAPA_BRSKALNIK
+    }
+
     /** Izbrana velikost: samo ponujene, sicer privzeta (pokvarjena ali stara nastavitev). */
     fun velikostGb(izbrana: Int): Int = if (izbrana in VELIKOSTI_GB) izbrana else PRIVZETA_GB
 

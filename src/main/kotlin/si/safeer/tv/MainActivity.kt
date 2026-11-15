@@ -207,6 +207,10 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Lastnik 15. 11. 2026: predpomnilnik spletnih strani na USB disku, ce ga uporabnik ima (pred prvim WebView); disk se
+        // izmeri v ozadju, odlocitev velja od naslednjega zagona.
+        BrskalnikPredpomnilnik.priklopi(this)
+        si.safeer.tv.os.UsbPredpomnilnik.osveziStanje(this)
         // Safeer OS: brskalnik ima isto temo kot domaci zaslon (lastnik, 11. 10. 2026: »zdaj je videti kot 2 razlicni
         // temi«). Barve brskalnika so atributi teme (?attr/osX); Safeer Browser ostane v svoji zeleni AppTheme.
         if (BuildConfig.FLAVOR in setOf("os", "tablica", "telefon")) si.safeer.tv.os.Tema.uporabi(this)
@@ -244,7 +248,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         isDarkModeActive = getSharedPreferences("safeer_ui_prefs", MODE_PRIVATE).getBoolean("dark_mode", true)
 
         initViews()
-        if (SpletDomaca.jeSafeerOs(this)) pripraviSafeerSpletChrome()
+        if (SpletDomaca.jeSafeerOs(this)) pripraviSafeerSpletChrome() else uporabiVektorskeIkoneTv()
         playback = HostPlayback(this)
         // Ujet pretok predamo domacemu predvajalniku, na katerikoli strani smo.
         DashPrevzem.listener = { session ->
@@ -1915,6 +1919,26 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     private var spletNaslovna: LinearLayout? = null
 
     /** Chrome razdelka Splet: namizni dve zgornji vrstici ali telefonski naslov zgoraj in navigacija spodaj. */
+    /**
+     * Samostojni brskalnik na TV: vektorske ikone namesto emoji znakov v orodni vrstici (pregled po skilu safeer-ui-brez-sluzi,
+     * lastnik 15. 11. 2026: emoji 🔄 🖱 🔍 ➕ ⭐ so barvni, odvisni od pisave naprave in odstopajo od crno-zelene podobe).
+     * Isti nacin kot Splet ([pripraviSafeerSpletChrome]): besedilo prazno, ikona kot leva risba, opis za bralnik zaslona ostane.
+     */
+    private fun uporabiVektorskeIkoneTv() {
+        fun ikona(g: TextView, ikona: Int) {
+            g.text = ""; g.gravity = Gravity.CENTER
+            g.setCompoundDrawablesRelativeWithIntrinsicBounds(ikona, 0, 0, 0)
+            g.setPadding(0, 0, 0, 0)
+        }
+        ikona(btnBack, R.drawable.ic_m_back)
+        ikona(btnReload, R.drawable.ic_m_reload)
+        ikona(btnSearchTrigger, R.drawable.ic_m_isci)
+        ikona(btnFavorite, R.drawable.ic_m_star)
+        ikona(btnPointerToggle, R.drawable.ic_m_kazalec)
+        ikona(btnAddTab, R.drawable.ic_splet_plus)
+        ikona(btnMenu, R.drawable.ic_splet_vec)
+    }
+
     private fun pripraviSafeerSpletChrome() {
         spletSirokiChrome = resources.configuration.orientation != Configuration.ORIENTATION_PORTRAIT ||
             resources.configuration.screenWidthDp >= 600
@@ -2490,10 +2514,11 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                     tvSecurityLock.text = "S"
                     tvSecurityLock.setTextColor(Color.parseColor("#10B981"))
                 } else {
-                    tvSecurityLock.text = if (isSecure) "🔒" else "⚠️"
-                    tvSecurityLock.setTextColor(
-                        if (isSecure) Color.parseColor("#10B981") else Color.parseColor("#F59E0B")
-                    )
+                    // Vektorska kljucavnica / opozorilo namesto emoji znakov (skil safeer-ui-brez-sluzi).
+                    tvSecurityLock.text = ""
+                    tvSecurityLock.setCompoundDrawablesRelativeWithIntrinsicBounds(if (isSecure) R.drawable.ic_splet_lock else R.drawable.ic_m_threat, 0, 0, 0)
+                    tvSecurityLock.compoundDrawableTintList = android.content.res.ColorStateList.valueOf(
+                        if (isSecure) Color.parseColor("#10B981") else Color.parseColor("#F59E0B"))
                 }
             }
         }
@@ -2981,20 +3006,13 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                 Color.parseColor(if (dodana) "#FBBF24" else "#DCE7E3"))
             return
         }
-        if (url.isEmpty() || url == "about:blank" || url.startsWith("file:///android_asset")) {
-            btnFavorite.text = "☆"
-            btnFavorite.setTextColor(getColor(R.color.text_primary))
-            return
-        }
-        val isBm = if (SpletDomaca.jeSafeerOs(this)) si.safeer.tv.os.SpletneAplikacije.jeDodana(this, url)
-            else repository.isBookmarked(url)
-        if (isBm) {
-            btnFavorite.text = "⭐"
-            btnFavorite.setTextColor(Color.parseColor("#FBBF24"))
-        } else {
-            btnFavorite.text = "☆"
-            btnFavorite.setTextColor(getColor(R.color.text_primary))
-        }
+        // TV: vektorska zvezdica (prazna / polna rumena), brez emoji znakov (skil safeer-ui-brez-sluzi).
+        val zaznamek = !(url.isEmpty() || url == "about:blank" || url.startsWith("file:///android_asset")) &&
+            (if (SpletDomaca.jeSafeerOs(this)) si.safeer.tv.os.SpletneAplikacije.jeDodana(this, url) else repository.isBookmarked(url))
+        btnFavorite.text = ""
+        btnFavorite.setCompoundDrawablesRelativeWithIntrinsicBounds(if (zaznamek) R.drawable.ic_m_star_filled else R.drawable.ic_m_star, 0, 0, 0)
+        btnFavorite.compoundDrawableTintList = android.content.res.ColorStateList.valueOf(
+            Color.parseColor(if (zaznamek) "#FBBF24" else "#DCE7E3"))
     }
 
     @SuppressLint("ClickableViewAccessibility")

@@ -13,6 +13,21 @@ private fun preveriEnako(opis: String, pricakovano: Any?, dobljeno: Any?) =
     if (pricakovano == dobljeno) println("  ok  $opis") else { napak++; println("  NAPAKA  $opis: pricakovano $pricakovano, dobljeno $dobljeno") }
 
 fun main() {
+    // Lastnik 15. 11. 2026: predpomnilnik brskalnika na USB samo ob izbranem, priklopljenem, odstranljivem in dovolj praznem disku.
+    run {
+        val usb = "/storage/252C-5018/Android/data/si.safeer.tv/cache"
+        val G = PredpomnilnikPravila.GB
+        val S = PredpomnilnikPravila.Nacin.SAMODEJNO
+        check(PredpomnilnikPravila.brskalnikCilj(S, usb, true, true, 100 * G, null) == "$usb/brskalnik-http") { "brskalnik: USB, ce je disk primeren" }
+        check(PredpomnilnikPravila.brskalnikCilj(S, usb, true, true, 100 * G, true) == "$usb/brskalnik-http") { "brskalnik: potrjen poskus ostane" }
+        check(PredpomnilnikPravila.brskalnikCilj(PredpomnilnikPravila.Nacin.NOTRANJI, usb, true, true, 100 * G, null) == null) { "brskalnik: uporabnik je izbral Ta TV" }
+        check(PredpomnilnikPravila.brskalnikCilj(PredpomnilnikPravila.Nacin.LINK, usb, true, true, 100 * G, null) == null) { "brskalnik: Link ni USB" }
+        check(PredpomnilnikPravila.brskalnikCilj(S, null, true, true, 100 * G, null) == null) { "brskalnik: brez diska notranji" }
+        check(PredpomnilnikPravila.brskalnikCilj(S, usb, false, true, 100 * G, null) == null) { "brskalnik: disk ni priklopljen" }
+        check(PredpomnilnikPravila.brskalnikCilj(S, usb, true, false, 100 * G, null) == null) { "brskalnik: vgrajena shramba ni USB" }
+        check(PredpomnilnikPravila.brskalnikCilj(S, usb, true, true, G / 2, null) == null) { "brskalnik: premalo prostora" }
+        check(PredpomnilnikPravila.brskalnikCilj(S, usb, true, true, 100 * G, false) == null) { "brskalnik: prejsnji zagon z diskom ni uspel" }
+    }
     println("Preizkus predpomnilnika na USB")
     val usb = Kandidat("/mnt/media_rw/usb", odstranljiv = true, priklopljen = true, prostih = 5 * GB, nasih = 0)
     val vgrajena = Kandidat("/storage/emulated/0", odstranljiv = false, priklopljen = true, prostih = 50 * GB, nasih = 0)

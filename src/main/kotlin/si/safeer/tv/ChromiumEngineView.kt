@@ -1653,6 +1653,7 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
 
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
+                if (url != null && (url.startsWith("https://") || url.startsWith("http://"))) BrskalnikPredpomnilnik.potrdi(context)
                 // Prva stran aplikacije je nalozena: odslej navigacijo na naslov aplikacije vrnemo njej.
                 if (izvornaAplikacija != null && AplikacijaPovezave.jeSplet(url)) izvorNalozenihStrani++
                 if (emudhraBlokirano(view, url)) return

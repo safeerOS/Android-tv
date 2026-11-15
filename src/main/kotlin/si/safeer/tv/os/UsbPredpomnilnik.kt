@@ -49,6 +49,10 @@ object UsbPredpomnilnik {
     fun mesto(c: Context): PredpomnilnikPravila.Mesto =
         PredpomnilnikPravila.mestoIzNiza(c.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("mesto", null))
 
+    /** Mapa aplikacije na USB, ki jo je izbral zadnji preizkus diska (null = notranji); brez branja diska. */
+    fun potZaBrskalnik(c: Context): String? =
+        c.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("brskalnik_usb", null)
+
     fun velikostGb(c: Context): Int =
         PredpomnilnikPravila.velikostGb(c.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("velikost_gb", PredpomnilnikPravila.PRIVZETA_GB))
 
@@ -225,6 +229,13 @@ object UsbPredpomnilnik {
         val nov = izbran?.let { File(it.pot, MAPA) }?.takeIf { try { it.mkdirs() || it.isDirectory } catch (_: Throwable) { false } }
         meja = izbran?.let { PredpomnilnikPravila.meja(velikostGb(app), it) } ?: 0L
         koren = nov
+        // Lastnik 15. 11. 2026: isti disk (ze izmerjen: pisljiv in dovolj hiter) uporabi ob naslednjem zagonu tudi brskalnik za
+        // predpomnilnik spletnih strani; odlocitev se shrani, da zagon brskalnika ne bere diska ([potZaBrskalnik]).
+        try {
+            app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().apply {
+                if (izbran != null && nov != null) putString("brskalnik_usb", izbran.pot) else remove("brskalnik_usb")
+            }.apply()
+        } catch (_: Throwable) { }
         // Naloga 89: USB priklopljen ali odklopljen - predpomnilnik zvoka sledi (na svoji niti).
         if (prej?.path != nov?.path) PredpomnilnikZvoka.uskladi(app)
         // Naloga 92: z USB manjse meje predpomnilnikov v pomnilniku; brez USB (odklop) spet kot doslej.
