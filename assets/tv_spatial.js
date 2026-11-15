@@ -1000,6 +1000,13 @@
             // Znotraj enega zbiranja ciljev (getCandidatesFresh) se stran ne spremeni: izid za isti element velja (zbiranje ga je
             // klicalo dvakrat - za element in za njegovo kartico; 11. 11. 2026 profil 24ur.com: jeNogaAliPiskotki 18 % zbiranja).
             var nogaIzid = null;
+            // SAFEER_SPATIAL_HITROST (15. 11. 2026): kandidati so ze presli jeNogaAliPiskotki v zbiranju; razvrscanje ob tipki ga je
+            // klicalo znova za vsak cilj (2x closest, besedilo, getBoundingClientRect). Izid zbiranja velja za isti kljuc strani.
+            var nogaPosl = null, nogaPoslKljuc = '';
+            function jeNogaPoKljucu(el) {
+                if (nogaPosl && nogaPoslKljuc && nogaPosl.has(el) && nogaPoslKljuc === kljucKandidatov()) return nogaPosl.get(el);
+                return jeNogaAliPiskotki(el);
+            }
             function jeNogaVZbiranju(el) {
                 if (!nogaIzid || !el) return jeNogaAliPiskotki(el);
                 if (nogaIzid.has(el)) return nogaIzid.get(el);
@@ -1273,7 +1280,25 @@
             // Ce taka plast obstaja, je vse zunaj nje za uporabnika nedosegljivo, cetudi je
             // po CSS se vedno vidno. Iscemo po obicajnih imenih, potem pa vsakega kandidata
             // se izmerimo - ime samo po sebi ni dokaz.
+            /* SAFEER_OKNO_PREDPOMNILNIK_ZACETEK */
+            // TV 15. 11. 2026 (24ur.com, H54 102-306 ms): iskanje prekrivnega okna pregleda ves DOM z ~20 izbirniki [class*=...] in je
+            // bilo na pritisk klicano 2-3x (getActiveElement/jeUporaben, odstraniNedosegljive, drsajNotranjiVsebnik). Izid velja
+            // za isti kljuc strani kot zbiranje ciljev (DOM, drsenje, velikost, naslov, izbira v meniju) in najvec OKNO_NAJDLJE_MS:
+            // okno, ki se prikaze s prehodom CSS brez spremembe DOM, tako ostane skrito kratek cas, ne 2 s kot cilji.
+            var OKNO_NAJDLJE_MS = 400;
+            var oknoIzid = null, oknoKljuc = '', oknoCas = 0, oknoVeljavno = false;
             function najdiPrekrivnoOkno() {
+                var kljuc = kljucKandidatov();
+                kljuc = kljuc ? kljuc + '#' + izbiraRazlicica : '';
+                var zdaj = casZdaj();
+                if (kljuc && oknoVeljavno && kljuc === oknoKljuc && zdaj - oknoCas >= 0 && zdaj - oknoCas < OKNO_NAJDLJE_MS &&
+                    (!oknoIzid || oknoIzid.isConnected !== false)) return oknoIzid;
+                var izid = najdiPrekrivnoOknoSveze();
+                oknoIzid = izid; oknoKljuc = kljuc; oknoCas = zdaj; oknoVeljavno = !!kljuc;
+                return izid;
+            }
+            /* SAFEER_OKNO_PREDPOMNILNIK_KONEC */
+            function najdiPrekrivnoOknoSveze() {
                 var imena = '[role="dialog"], [role="alertdialog"], dialog[open],' +
                     ' [class*="modal"], [class*="Modal"], [class*="overlay"], [class*="Overlay"],' +
                     ' [class*="backdrop"], [class*="popup"], [class*="Popup"], [class*="dialog"],' +
@@ -1346,10 +1371,30 @@
             // Ali se da v dani smeri se drsati? Ne sprasujemo, ali drsnik obstaja, ampak ali
             // ima se kam iti: element levo zunaj zaslona je dosegljiv samo, ce je kaj ze
             // odrsanega v desno. Sicer ga ni mogoce prikazati in ni cilj za daljinec.
+            /* SAFEER_SLOG_PREHODA_ZACETEK */
+            // Znotraj enega klica odstraniNedosegljive (sinhrono, brez spremembe strani) izid getComputedStyle za prednika velja:
+            // position in overflow beremo enkrat na element. Zunaj prehoda (pasPoz === null) ni predpomnjenja.
+            var pasPoz = null, pasPret = null;
+            function pozicijaEl(p) {
+                if (pasPoz) { var v = pasPoz.get(p); if (v !== undefined) return v; }
+                var r = '';
+                try { r = window.getComputedStyle(p).position; } catch (_) { r = ''; }
+                if (pasPoz) pasPoz.set(p, r);
+                return r;
+            }
+            function pretokEl(el, vodoravno) {
+                var o = pasPret ? pasPret.get(el) : undefined;
+                if (!o) {
+                    var st = window.getComputedStyle(el);
+                    o = { x: st.overflowX, y: st.overflowY };
+                    if (pasPret) pasPret.set(el, o);
+                }
+                return vodoravno ? o.x : o.y;
+            }
+            /* SAFEER_SLOG_PREHODA_KONEC */
             function lahkoDrsi(el, vodoravno, nazaj) {
                 try {
-                    var st = window.getComputedStyle(el);
-                    var pretok = vodoravno ? st.overflowX : st.overflowY;
+                    var pretok = pretokEl(el, vodoravno);
                     if (pretok !== 'auto' && pretok !== 'scroll') return false;
                     var polozaj = vodoravno ? el.scrollLeft : el.scrollTop;
                     if (nazaj) return polozaj > 4;
@@ -1389,10 +1434,7 @@
                 var p = el;
                 var globina = 0;
                 while (p && p.nodeType === 1 && globina < 30) {
-                    try {
-                        var st = window.getComputedStyle(p);
-                        if (st.position === 'fixed') return true;
-                    } catch (_) {}
+                    if (pozicijaEl(p) === 'fixed') return true;
                     p = p.parentElement;
                     globina++;
                 }
@@ -1463,6 +1505,10 @@
             /* SAFEER_ZAPRTA_STRAN_KONEC */
 
             function odstraniNedosegljive(seznam) {
+                pasPoz = new Map(); pasPret = new Map();
+                try { return odstraniNedosegljiveJedro(seznam); } finally { pasPoz = null; pasPret = null; }
+            }
+            function odstraniNedosegljiveJedro(seznam) {
                 stranZaprta = false;
                 if (!seznam || !seznam.length) {
                     if (najdiZaprtoPlast()) stranZaprta = true;
@@ -1918,8 +1964,10 @@
                 var t0 = 0;
                 try { t0 = performance.now(); } catch (_) {}
                 var found;
-                nogaIzid = new Map();
+                var nogaZbiranje = new Map();
+                nogaIzid = nogaZbiranje;
                 try { found = odstraniNedosegljive(getCandidatesFresh()); } finally { nogaIzid = null; }
+                nogaPosl = nogaZbiranje; nogaPoslKljuc = kljuc;
                 // #region agent log
                 // Pregled fokusa 5. 11. 2026: zbiranje ob vsaki tipki je mozno ozko grlo - najprej merimo (brez spremembe vedenja).
                 try {
@@ -2008,14 +2056,17 @@
                 try {
                     for (var i = 0; i < all.length; i++) {
                         var el = all[i];
+                        var zap = odl ? odl.get(el) : undefined, od, zapVelja = false;
+                        // CodeRabbit 9. 11. 2026: tudi kartica (zap.v) - nova povezava v kartici spremeni njeno odlocitev.
+                        if (zap && (umazanoDrevo.size + umazanaVsebina.size === 0 ||
+                            (odlocitevVelja(el, zap.st) && !(zap.v && zap.v !== el && (umazanaVsebina.get(zap.v) || 0) > zap.st)))) { od = zap.v; zapVelja = true; }
+                        // SAFEER_SPATIAL_HITROST: veljavna odlocitev »ni cilj« velja ne glede na lego - okvirja ni treba brati.
+                        if (zapVelja && !od) continue;
                         if (pas) {
                             var pr0 = el.getBoundingClientRect();
                             if ((pr0.width || pr0.height) && (pr0.bottom < -1.5 * pasH || pr0.top > 2.5 * pasH)) continue;
                         }
-                        var zap = odl ? odl.get(el) : undefined, od;
-                        // CodeRabbit 9. 11. 2026: tudi kartica (zap.v) - nova povezava v kartici spremeni njeno odlocitev.
-                        if (zap && (umazanoDrevo.size + umazanaVsebina.size === 0 ||
-                            (odlocitevVelja(el, zap.st) && !(zap.v && zap.v !== el && (umazanaVsebina.get(zap.v) || 0) > zap.st)))) od = zap.v;
+                        if (zapVelja) { /* odlocitev iz predpomnilnika */ }
                         else {
                             preskociNogo = true;
                             try { od = isActionable(el) ? (findCardContainer(el) || el) : null; } finally { preskociNogo = false; }
@@ -3132,7 +3183,7 @@
             }
             /* SAFEER_LEVI_ROB_KONEC */
 
-            var navigirajProstorsko = function(direction, robVrstice) {
+            var navigirajProstorsko = function(direction, robVrstice, smemVrstico) {
                 zadnjaTipkaCas = casZdaj(); predgrevanjeSt = 0;
                 try {
                     var scrollY = window.scrollY || document.documentElement.scrollTop || 0;
@@ -3331,6 +3382,7 @@
                         };
                         /* SAFEER_GLAVA_PRI_DRSENJU_KONEC */
 
+                        var curPloscica = null, curGumb = null;
                         for (var j = 0; j < candidates.length; j++) {
                             var el = candidates[j];
                             if (el === current || current.contains(el)) continue;
@@ -3339,7 +3391,7 @@
                             var r = okvirCilja(el);
                             if (r.width < 12 || r.height < 12) continue;
                             var eCls = ((el.className || '') + '').toLowerCase();
-                            if (jeNogaAliPiskotki(el)) continue;
+                            if (jeNogaPoKljucu(el)) continue;
                             if (brezGlave && vPritrjeniGlavi(el)) continue;
                             if (jePotVZivo() && eCls.indexOf('channel-container') !== -1 && eCls.indexOf('item--event') === -1) continue;
 
@@ -3408,8 +3460,8 @@
                                 // je preskocil na ozek gumb nizje. V stolpcu je tudi element, ki vodoravno pokrije vsaj pol ozjega (SAFEER_STOLPEC).
                                 var sameAxis = (direction === 'LEFT' || direction === 'RIGHT') ? (crossDist < rowTol) : (crossDist < colTol || prekrivaStolpec(cRect, r));
                                 var score = mainDist + crossDist * (sameAxis ? 0.12 : 1.45);
-                                if (jeVsebinskaPloscica(el) && jeVsebinskaPloscica(current) && sameAxis) score -= 80;
-                                if (jeGumbDejanja(el) && jeGumbDejanja(current) && sameAxis) score -= 60;
+                                if (sameAxis && jeVsebinskaPloscica(el) && (curPloscica === null ? (curPloscica = jeVsebinskaPloscica(current)) : curPloscica)) score -= 80;
+                                if (sameAxis && jeGumbDejanja(el) && (curGumb === null ? (curGumb = jeGumbDejanja(current)) : curGumb)) score -= 60;
                                 if (sameAxis && score < bestAxisScore) {
                                     bestAxisScore = score;
                                     bestAxis = el;
@@ -3461,6 +3513,10 @@
                             }
                             // Drsenje, ki se ne premakne (SAFEER_IZZIV, 3. 11. 2026), ne sme ujeti: naslovna vrstica.
                             if (scrollY <= 20 || !podrsajOkno(0, -120)) {
+                                // SAFEER_GOR_KAZALEC (15. 11. 2026): aplikacija v vrstico ne sme ob drzani tipki in takoj po drsenju gor
+                                // (TvTipke.gorPritisk) - izbire tedaj ne pocistimo, sicer ostane stran brez kazalca. Pocisti jo samo,
+                                // kadar tipka res odide v vrstico (smemVrstico !== false).
+                                if (smemVrstico === false) return 0;
                                 clearActive();
                                 return -1;
                             }
@@ -3474,10 +3530,10 @@
                 return -1;
             };
             // Samo s dokazom tipke (SAFEER_TIPKA); klic strani vrne null in ne premakne nicesar.
-            izvoziZaAplikacijo('_safeer_navigate_spatial', function (smer, robVrstice) {
+            izvoziZaAplikacijo('_safeer_navigate_spatial', function (smer, robVrstice, smemVrstico) {
                 if (!porabiTipko()) return null;
                 vTipki = true;
-                try { return navigirajProstorsko(smer, robVrstice); } finally { vTipki = false; }
+                try { return navigirajProstorsko(smer, robVrstice, smemVrstico === false ? false : true); } finally { vTipki = false; }
             });
 
             /**
