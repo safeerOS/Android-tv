@@ -48,8 +48,8 @@ import java.util.concurrent.atomic.AtomicLong
 class ScitStoritev : VpnService() {
 
     private var tunel: ParcelFileDescriptor? = null
-    private var nit: Thread? = null
-    private var nitOdgovorov: Thread? = null
+    @Volatile private var nit: Thread? = null
+    @Volatile private var nitOdgovorov: Thread? = null
     @Volatile private var tece = false
     @Volatile private var nabor: DomenskiNabor.Poizvedba? = null
     /** Webtor rezerva: naucene izjeme iz scit/izjeme.txt (domena -> velja do; [ScitIzjeme]); stalne so v kodi. */
@@ -74,8 +74,12 @@ class ScitStoritev : VpnService() {
     private val cakajoce = ConcurrentHashMap<Int, Cakajoca>()
     private val blokiranih = AtomicLong(); private val poizvedb = AtomicLong()
     @Volatile private var dan = danes()
-    private var urnik: ScheduledExecutorService? = null
-    private var urnikUtripa: ScheduledExecutorService? = null   // ZZ3: utrip loceno od pocasnega vzdrzevanja
+    @Volatile private var urnik: ScheduledExecutorService? = null
+    @Volatile private var urnikUtripa: ScheduledExecutorService? = null   // ZZ3: utrip loceno od pocasnega vzdrzevanja
+    /** CCC2: ustavitev, utrip in zapis stanja »tece« so izkljucujoci (ena kljucavnica); po ustavitvi nihce vec ne zapise »tece« ali svezega utripa. */
+    private val kljucStanja = Any()
+    /** CCC1: zaporedni neuspeli pregledi zanke; storitev se ustavi sele po [NAJVEC_SLABIH] (milost ob zagonu in prehodni napaki). */
+    private var slabiTeki = 0
     private var zadnjeObvestilo = -1L
     private var zadnjiDnevnik = -1L
     private var zadnjaZapisana: Scit.Statistika? = null
@@ -176,7 +180,9 @@ class ScitStoritev : VpnService() {
         return true
     }
 
-    private fun ustaviVse(stanje: String) {
+    private fun ustaviVse(stanje: String) = synchronized(kljucStanja) { ustaviVseZaklenjeno(stanje) }
+
+    private fun ustaviVseZaklenjeno(stanje: String) {
         tece = false
         povratekOmrezja?.let { cb ->
             try { (getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager)?.unregisterNetworkCallback(cb) } catch (_: Throwable) { }
@@ -420,11 +426,19 @@ class ScitStoritev : VpnService() {
      */
     private fun utripNaloga() {
         try {
-            if (!tece) return
-            if (!ScitStanjePravila.utripSmeZapisati(tece, nit?.isAlive == true, nitOdgovorov?.isAlive == true)) {
-                Log.w(TAG, "Zanka tunela ne tece: storitev se ustavi"); ustaviVse("napaka"); stopSelf(); return
+            synchronized(kljucStanja) {
+                if (!tece) return
+                if (!ScitStanjePravila.utripSmeZapisati(tece, nit?.isAlive == true, nitOdgovorov?.isAlive == true)) {
+                    // CCC1: brez utripa brskalnik ze filtrira sam; ustavitev sele po vec zaporednih neuspehih.
+                    slabiTeki++
+                    if (ScitStanjePravila.ustaviZaradiZank(slabiTeki)) {
+                        Log.w(TAG, "Zanka tunela ne tece: storitev se ustavi"); ustaviVse("napaka"); stopSelf()
+                    }
+                    return
+                }
+                slabiTeki = 0
+                Scit.utrip(this)
             }
-            Scit.utrip(this)
         } catch (e: Throwable) { Log.w(TAG, "Utrip: ${e.javaClass.simpleName}") }
     }
 
@@ -450,8 +464,7 @@ class ScitStoritev : VpnService() {
             }
             osveziUpstream()
             // ZZ1-ZZ3: utrip pise samo utripNaloga() (vsakih 10 s, neodvisno od pocasnega dela zgoraj); tu le statistika, ce storitev se tece.
-            if (!tece) return
-            shraniStatistiko("tece")
+            synchronized(kljucStanja) { if (!tece) return; shraniStatistiko("tece") }
             val b = blokiranih.get()
             val pz = poizvedb.get()
             if (pz != zadnjiDnevnik) {

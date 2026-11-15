@@ -69,6 +69,10 @@ object ScitStanjePravila {
         return if (t <= 0L) Long.MAX_VALUE else elapsedZdaj - t
     }
 
+    /** CCC1: zaporedni neuspeli pregledi zank (vsakih 10 s), po katerih se storitev ustavi (30 s milosti ob zagonu ali prehodni napaki). */
+    const val NAJVEC_SLABIH = 3
+    fun ustaviZaradiZank(slabiZapored: Int): Boolean = slabiZapored >= NAJVEC_SLABIH
+
     /** Najdlje tako dolgo (ms) velja prebrano stanje v procesu brskalnika: zahteve so stotine na sekundo, branje datoteke ni zastonj. */
     const val ROK_STANJA_MS = 5_000L
 

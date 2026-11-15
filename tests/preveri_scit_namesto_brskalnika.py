@@ -7,7 +7,7 @@ k = pathlib.Path(__file__).resolve().parent.parent / "src/main/kotlin/si/safeer/
 v = (k / "ChromiumEngineView.kt").read_text(encoding="utf-8")
 napake = []
 i = v.find("AdBlockEngine.handleIntercept(")
-vrata = "ScitStanjePravila.brskalnikFiltriraOglase(AdBlockEngine.isEnabled, si.safeer.tv.scit.Scit.dnsFiltrira(context))"
+vrata = "ScitStanjePravila.brskalnikFiltriraOglase(AdBlockEngine.isEnabled, !si.safeer.tv.scit.ScitStanjePravila.dnsNePokrije(url) && si.safeer.tv.scit.Scit.dnsFiltrira(context))"
 j = v.rfind(vrata, 0, i)
 if i < 0 or j < 0 or i - j > 400:
     napake.append("ChromiumEngineView: pred AdBlockEngine.handleIntercept ni vrat Scit.dnsFiltrira")

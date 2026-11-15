@@ -136,6 +136,13 @@ fun main(args: Array<String>) {
     preveriStanje(!P.utripSmeZapisati(tece = true, zankaPaketovZiva = false, zankaOdgovorovZiva = true), "utrip: zanka paketov mrtva = brez utripa")
     preveriStanje(!P.utripSmeZapisati(tece = true, zankaPaketovZiva = true, zankaOdgovorovZiva = false), "utrip: zanka odgovorov mrtva = brez utripa")
     preveriStanje(!P.utripSmeZapisati(tece = false, zankaPaketovZiva = true, zankaOdgovorovZiva = true), "utrip: storitev ustavljena = brez utripa")
+    // CCC1: milost - ustavitev sele po vec zaporednih neuspehih
+    preveriStanje(!P.ustaviZaradiZank(0) && !P.ustaviZaradiZank(1) && !P.ustaviZaradiZank(2), "zanke: 1-2 neuspeha = se ne ustavi (CCC1)")
+    preveriStanje(P.ustaviZaradiZank(P.NAJVEC_SLABIH) && P.ustaviZaradiZank(P.NAJVEC_SLABIH + 5), "zanke: po meji neuspehov se ustavi (CCC1)")
+    // CCC2/CCC6: kljucavnica stanja, ustaviVse izkljucujoc, polja nit/nitOdgovorov @Volatile
+    preveriStanje(storitev.contains("private fun ustaviVse(stanje: String) = synchronized(kljucStanja)"), "ustaviVse je izkljucujoc (CCC2)")
+    preveriStanje(storitev.contains("@Volatile private var nit: Thread?") && storitev.contains("@Volatile private var nitOdgovorov: Thread?"), "nit in nitOdgovorov @Volatile (CCC6)")
+    preveriStanje(storitev.substringAfter("private fun utripNaloga()").substringBefore("private fun ").contains("synchronized(kljucStanja)"), "utripNaloga pod kljucavnico stanja (CCC2)")
     // ZZ3: utrip v loceni nalogi (utripNaloga), preverba zanke PRED Scit.utrip, vzdrzuj utripa ne pise.
     val utripNaloga = storitev.substringAfter("private fun utripNaloga()").substringBefore("private fun ")
     preveriStanje(utripNaloga.indexOf("utripSmeZapisati(tece, nit?.isAlive == true, nitOdgovorov?.isAlive == true)") in 0 until utripNaloga.indexOf("Scit.utrip(this)"),
