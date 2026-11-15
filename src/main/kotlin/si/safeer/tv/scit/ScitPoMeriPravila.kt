@@ -10,11 +10,22 @@ object ScitPoMeriPravila {
      * .intranet, .private (omrezja podjetij in domov), .box (fritz.box), .test (RFC 6761) ter javna imena, ki jih DNS razresi na naslov,
      * vpisan v ime (nip.io, sslip.io, xip.io, traefik.me, localtest.me, lvh.me). Prenos iz Linuxa (core/os_scit.py IME_KRAJEVNO, veja
      * zdruzitev-kandidat-1411, 15. 11. 2026: »isto kot TV«). SEZNAM NI VARNOSTNA MEJA, samo hitra zavrnitev ob vpisu: nepopoln je po
-     * zasnovi (vsaka domena z A-zapisom na zasebni naslov ga obide). Na TV ob prenosu naslova ne preverimo (HttpURLConnection ga
-     * razresi sam), zato je to edina plast pred prenosom - glej [HttpsListFetcher] in porocilo.
+     * zasnovi (vsaka domena z A-zapisom na zasebni naslov ga obide). Pravo preverbo dela [com.safeer.threatfeed.HttpsListFetcher] ob
+     * prenosu (slepi pregled TV3, N3): vsak skok preusmeritve in razresitev imena, vsi naslovi javni, povezava na preverjeni naslov.
      */
     val IME_KRAJEVNO = listOf(".localhost", ".local", ".internal", ".localdomain", ".home.arpa", ".lan", ".corp", ".home", ".intranet", ".private",
-        ".box", ".test", ".nip.io", ".sslip.io", ".xip.io", ".traefik.me", ".localtest.me", ".lvh.me")
+        ".box", ".test", ".nip.io", ".sslip.io", ".xip.io", ".traefik.me", ".localtest.me", ".lvh.me", ".svc", ".mshome.net")
+
+    /**
+     * Gola imena brez poddomene (slepi pregled TV3, N4): vsaka pripona v [IME_KRAJEVNO] velja tudi za samo domeno (»localtest.me«,
+     * »lvh.me« razresita na 127.0.0.1 / ::1, a ju vodilna pika v seznamu ni zadela), poleg tega imena, ki sama nimajo pripone:
+     * Kubernetes (kubernetes.default.svc) in domaci usmerjevalnik (my.router). Linux IME_KRAJEVNO (core/os_scit.py) tega se nima:
+     * razlika je prijavljena v porocilu, kode Linuxa ne spreminjamo.
+     */
+    val IME_KRAJEVNO_GOLO = listOf("my.router", "kubernetes.default.svc")
+
+    internal fun jeKrajevnoIme(ime: String): Boolean =
+        ime == "localhost" || ime in IME_KRAJEVNO_GOLO || IME_KRAJEVNO.any { ime.endsWith(it) || ime == it.removePrefix(".") }
 
     /**
      * Razlog, zakaj naslov ni sprejemljiv, ali null. Samo HTTPS, brez uporabnika/gesla v naslovu, z imenom gostitelja. Isti nabor pravil kot
@@ -63,7 +74,7 @@ object ScitPoMeriPravila {
         if (!surovo.all { it in 'a'..'z' || it in '0'..'9' || it == '.' || it == '-' }) return false
         val ime = surovo.trimEnd('.')               // »10.0.0.1.« in »localhost.« razume tudi posrednik in getaddrinfo
         if (ime.isEmpty() || '.' !in ime || ime.length > 253) return false
-        if (ime == "localhost" || IME_KRAJEVNO.any { ime.endsWith(it) }) return false
+        if (jeKrajevnoIme(ime)) return false
         val oznake = ime.split('.')
         if (oznake.any { it.isEmpty() || it.length > 63 || it.startsWith('-') || it.endsWith('-') }) return false
         // Same stevilke ali sestnajstiski zapis: inet_aton ga razume kot IPv4 (127.1, 0x7f.1); osmiski zapis (0127.0.0.1) razlaga

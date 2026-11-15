@@ -9,10 +9,12 @@ TOOLS_DIR="${SAFEER_TOOLS_DIR:-$PROJECT_DIR/.tools}"
 KOTLINC="${KOTLINC:-$TOOLS_DIR/kotlinc/bin/kotlinc}"
 command -v "$KOTLINC" >/dev/null 2>&1 || KOTLINC="kotlinc"
 
+# ThreatListAgent (HttpsListFetcher) uporablja OkHttp: vsak skok preusmeritve in razresitev imena gresta skozi preverbo naslova (TV3 N3).
+OKHTTP="$PROJECT_DIR/libs/okhttp-4.12.0.jar:$PROJECT_DIR/libs/okio-jvm-3.6.0.jar"
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 
-"$KOTLINC" -J-Xmx2g \
+"$KOTLINC" -J-Xmx2g -cp "$OKHTTP" \
     "$SRC/si/safeer/tv/scit/DomenskiNabor.kt" \
     "$SRC/si/safeer/tv/scit/DnsPaket.kt" \
     "$SRC/si/safeer/tv/scit/TcpPaket.kt" \
@@ -36,18 +38,24 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/DomenskiNaborVirTest.kt" \
     "$TEST_DIR/ScitViriTest.kt" \
     "$TEST_DIR/ScitPoMeriNaslovTest.kt" \
+    "$TEST_DIR/ScitPoMeriGolaImenaTest.kt" \
+    "$TEST_DIR/ThreatListNetworkParitetaTest.kt" \
     -include-runtime -d "$OUT/scit.jar"
 
-java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.ScitTestKt
+java -Xmx512m -cp "$OUT/scit.jar:$OKHTTP" si.safeer.tv.scit.ScitTestKt
 # Lastnikov pregled Scita (3. in 4. 11. 2026): vrata 53, brez tuje rezerve, zasebni DNS, zadnja imena, izjeme, privzeti vklop, meni brskalnika.
-java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.ScitPregledTestKt
+java -Xmx512m -cp "$OUT/scit.jar:$OKHTTP" si.safeer.tv.scit.ScitPregledTestKt
 # Skupni primeri z Linuxom (4. 11. 2026, en Scit za vse OS): ista datoteka v Safeer-linux (tests/test_scit_skupni_primeri.py).
-java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.ScitSkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/scit-pravila.json"
+java -Xmx512m -cp "$OUT/scit.jar:$OKHTTP" si.safeer.tv.scit.ScitSkupniPrimeriTestKt "$TEST_DIR/skupni-primeri/scit-pravila.json"
 # Nabor se gradi samo ob spremembi seznamov (4. 11. 2026): kljuc vira, pretocni zapis, isti format.
-java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.DomenskiNaborVirTestKt
+java -Xmx512m -cp "$OUT/scit.jar:$OKHTTP" si.safeer.tv.scit.DomenskiNaborVirTestKt
 # Proces :scit gradi samo nabor Scita (4. 11. 2026): brez EasyList, drevesa grozenj in kazala brskalnika.
-java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.ScitViriTestKt "$SRC"
+java -Xmx512m -cp "$OUT/scit.jar:$OKHTTP" si.safeer.tv.scit.ScitViriTestKt "$SRC"
 # Pregled Nastavitev in Scita (5. 11. 2026): prekinjen ni »Vklopljeno«, ponovni vklop, SERVFAIL brez odgovora, nabor enkrat.
-java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.ScitStanjePravilaTestKt "$SRC"
+java -Xmx512m -cp "$OUT/scit.jar:$OKHTTP" si.safeer.tv.scit.ScitStanjePravilaTestKt "$SRC"
 # Naslov filtra po meri (15. 11. 2026, N-SCIT): isti nabor pravil kot Linux (krajevna imena, IP-literali, { }, oznake, vrata).
-java -Xmx512m -cp "$OUT/scit.jar" si.safeer.tv.scit.ScitPoMeriNaslovTestKt
+java -Xmx512m -cp "$OUT/scit.jar:$OKHTTP" si.safeer.tv.scit.ScitPoMeriNaslovTestKt
+# Gola imena (slepi pregled TV3, N4, 15. 11. 2026): localtest.me, lvh.me, my.router, kubernetes.default.svc.
+java -Xmx512m -cp "$OUT/scit.jar:$OKHTTP" si.safeer.tv.scit.ScitPoMeriGolaImenaTestKt
+# Preverba naslovov prenosa seznamov (TV3 N3) se ujema s Linux _naslov_je_javen (ScitPoMeriPravila.naslovJeJavenIp).
+java -Xmx512m -cp "$OUT/scit.jar:$OKHTTP" si.safeer.tv.scit.ThreatListNetworkParitetaTestKt

@@ -13,6 +13,8 @@
  *  - Every failure keeps the lists that are already in use. Requests are anonymous GETs of public files.
  *
  * The same file is used unchanged by Safeer Browser for Android and Android TV.
+ * 15. 11. 2026 (TV3, N3): HttpsListFetcher uporablja OkHttp (libs/okhttp-4.12.0.jar, okio) za pripeto razresitev naslova in rocne
+ * preusmeritve; vsaka gradnja ali preizkus, ki to datoteko prevede, mora imeti OkHttp na poti (glej tests/run_*_tests.sh).
  */
 package com.safeer.threatfeed
 
@@ -20,14 +22,19 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.URL
+import java.net.InetAddress
+import java.net.UnknownHostException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture
+import okhttp3.ConnectionPool
+import okhttp3.Dns
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import java.util.concurrent.TimeUnit
 
 /** One public blocklist: a hosts file or one domain per line. */
@@ -90,48 +97,151 @@ fun interface ConditionalFetcher {
     fun fetch(url: String, limit: Int, etag: String?, lastModified: String?): ConditionalResponse
 }
 
-/** Anonymous conditional GET: no cookies or caches, HTTPS only (also after redirects), hard limits. */
+/** Cilj je zaseben naslov, ta naprava ali domace omrezje: zavrnjeno PRED povezavo (slepi pregled TV3, N3). */
+class PrivateTargetException : UnknownHostException("private address")
+
+/**
+ * Javni naslovi interneta (Linux _naslov_je_javen, TV ScitPoMeriPravila.naslovJeJavenIp, SondaVeriga.zasebenCilj): vse, kar ni javni unicast.
+ * IPv4: 0/8, 10/8, 100.64/10, 127/8, 169.254/16, 172.16/12, 192.0.0/24, 192.0.2/24, 192.88.99/24, 192.168/16, 198.18/15,
+ * 198.51.100/24, 203.0.113/24, 224/4 in 240/4. IPv6: samo 2000::/3 brez 2001::/23, 2001:db8::/32 in 3fff::/20; ::ffff:0:0/96,
+ * NAT64 (64:ff9b::/96) in 6to4 (2002::/16) odlocajo z vgrajenim IPv4; vse drugo (::1, fe80::/10, fc00::/7, ff00::/8 ...) ni javno.
+ */
+object ThreatListNetwork {
+    private val V4 = listOf(
+        intArrayOf(0, 0, 0, 0, 8), intArrayOf(10, 0, 0, 0, 8), intArrayOf(100, 64, 0, 0, 10), intArrayOf(127, 0, 0, 0, 8),
+        intArrayOf(169, 254, 0, 0, 16), intArrayOf(172, 16, 0, 0, 12), intArrayOf(192, 0, 0, 0, 24), intArrayOf(192, 0, 2, 0, 24),
+        intArrayOf(192, 88, 99, 0, 24), intArrayOf(192, 168, 0, 0, 16), intArrayOf(198, 18, 0, 0, 15), intArrayOf(198, 51, 100, 0, 24),
+        intArrayOf(203, 0, 113, 0, 24), intArrayOf(224, 0, 0, 0, 4), intArrayOf(240, 0, 0, 0, 4),
+    )
+
+    private fun u(b: ByteArray, i: Int) = b[i].toInt() and 0xFF
+
+    private fun prefixV4(b: ByteArray, n: IntArray): Boolean {
+        var bits = n[4]
+        var i = 0
+        while (bits > 0) {
+            val mask = if (bits >= 8) 0xFF else (0xFF shl (8 - bits)) and 0xFF
+            if ((u(b, i) and mask) != (n[i] and mask)) return false
+            bits -= 8; i++
+        }
+        return true
+    }
+
+    /** true = naslov NI javni (ali neveljavne dolzine): povezava nanj je zavrnjena. */
+    fun isNonPublicAddress(b: ByteArray): Boolean {
+        if (b.size == 4) return V4.any { prefixV4(b, it) }
+        if (b.size != 16) return true
+        if ((0..9).all { u(b, it) == 0 } && u(b, 10) == 0xFF && u(b, 11) == 0xFF) return isNonPublicAddress(b.copyOfRange(12, 16))
+        if (u(b, 0) == 0 && u(b, 1) == 0x64 && u(b, 2) == 0xFF && u(b, 3) == 0x9B && (4..11).all { u(b, it) == 0 }) return isNonPublicAddress(b.copyOfRange(12, 16))
+        if (u(b, 0) == 0x20 && u(b, 1) == 0x02) return isNonPublicAddress(b.copyOfRange(2, 6))
+        if ((u(b, 0) and 0xE0) != 0x20) return true                                   // ni 2000::/3 (vkljucno 64:ff9b:1::/48)
+        if (u(b, 0) == 0x20 && (u(b, 1) == 0x01) && (u(b, 2) and 0xFE) == 0) return true        // 2001::/23
+        if (u(b, 0) == 0x20 && u(b, 1) == 0x01 && u(b, 2) == 0x0D && u(b, 3) == 0xB8) return true // 2001:db8::/32
+        if (u(b, 0) == 0x3F && u(b, 1) == 0xFF && (u(b, 2) and 0xF0) == 0) return true         // 3fff::/20
+        return false
+    }
+
+    private val IPV4_LITERAL = Regex("^\\d{1,3}(\\.\\d{1,3}){3}$")
+
+    /** Gostitelj, ki je naslov IP v obliki besedila (OkHttp zanj ne vprasa Dns): naslov ali null = ime. Brez poizvedbe DNS. */
+    fun literalAddress(host: String): InetAddress? {
+        val h = host.trim('[', ']')
+        if (':' !in h && !IPV4_LITERAL.matches(h)) return null
+        return try { InetAddress.getByName(h) } catch (_: Exception) { null }
+    }
+}
+
+/**
+ * Anonymous conditional GET: no cookies or caches, HTTPS only (every redirect hop), hard limits.
+ * Slepi pregled TV3 (N3, »Scit DNS pinning«): prej je HttpURLConnection sam sledil preusmeritvam in preveril samo koncni protokol -
+ * cilj preusmeritve in DNS (rebinding) nista sla skozi nobeno preverbo naslova. Zdaj (kot os/SondaVeriga): vsak skok preusmeritve se
+ * ZAHTEVA posebej (brez samodejnega sledenja), ime se razresi ENKRAT (OkHttp Dns), VSI naslovi morajo biti javni ([ThreatListNetwork]),
+ * povezava gre na prav te naslove (brez drugega razresevanja med preverbo in povezavo), IP-literal v naslovu se preveri posebej.
+ * [allowPlainHttpForTests] dovoli http in zasebne naslove (strezniki v preizkusih na 127.0.0.1); produkcija ga nikoli ne nastavi.
+ * Preverba ne velja za sistemski posrednik (HTTP proxy razresi cilj sam; na TV ga ni).
+ */
 class HttpsListFetcher(
     private val connectTimeoutMs: Int = 10_000,
     private val readTimeoutMs: Int = 20_000,
     private val totalTimeoutMs: Long = 120_000,
     private val allowPlainHttpForTests: Boolean = false,
+    private val resolver: (String) -> List<InetAddress> = { InetAddress.getAllByName(it).toList() },
+    private val isNonPublic: (ByteArray) -> Boolean = ThreatListNetwork::isNonPublicAddress,
+    /** SAMO za preizkus (zaupanje samopodpisanemu certifikatu lokalnega streznika); produkcija ga ne nastavi. */
+    private val clientHook: (OkHttpClient.Builder) -> Unit = {},
 ) : ConditionalFetcher {
+    /** Razresitev enega skoka: ime se razresi enkrat, vsi naslovi morajo biti javni; OkHttp se poveze na vrnjeni seznam. */
+    private inner class PinnedDns : Dns {
+        private val resolved = HashMap<String, List<InetAddress>>()
+        override fun lookup(hostname: String): List<InetAddress> {
+            val h = hostname.lowercase(java.util.Locale.ROOT).trimEnd('.')
+            resolved[h]?.let { return it }
+            val all = resolver(h)
+            if (all.isEmpty()) throw UnknownHostException(h)
+            if (!allowPlainHttpForTests && all.any { isNonPublic(it.address) }) throw PrivateTargetException()
+            resolved[h] = all
+            return all
+        }
+    }
+
     override fun fetch(url: String, limit: Int, etag: String?, lastModified: String?): ConditionalResponse {
         if (!url.startsWith("https://") && !allowPlainHttpForTests) throw IOException("only HTTPS is allowed")
-        val connection = URL(url).openConnection() as HttpURLConnection
+        val deadline = System.currentTimeMillis() + totalTimeoutMs
+        val base = OkHttpClient.Builder().followRedirects(false).followSslRedirects(false).retryOnConnectionFailure(false)
+            .connectionPool(ConnectionPool(0, 1, TimeUnit.SECONDS)).connectTimeout(connectTimeoutMs.toLong(), TimeUnit.MILLISECONDS)
+            .readTimeout(readTimeoutMs.toLong(), TimeUnit.MILLISECONDS).also(clientHook).build()
         try {
-            connection.instanceFollowRedirects = true // HttpURLConnection never follows HTTPS -> HTTP
-            connection.useCaches = false
-            connection.connectTimeout = connectTimeoutMs
-            connection.readTimeout = readTimeoutMs
-            connection.setRequestProperty("User-Agent", "Safeer")
-            connection.setRequestProperty("Accept", "text/plain")
-            if (!etag.isNullOrEmpty()) connection.setRequestProperty("If-None-Match", etag)
-            if (!lastModified.isNullOrEmpty()) connection.setRequestProperty("If-Modified-Since", lastModified)
-            val status = connection.responseCode
-            if (!allowPlainHttpForTests && connection.url.protocol != "https") throw IOException("redirected away from HTTPS")
-            if (status == 304) return ConditionalResponse(true, null, etag, lastModified)
-            if (status != 200) throw IOException("HTTP status $status")
-            val declared = connection.getHeaderField("Content-Length")?.toLongOrNull()
-            if (declared != null && declared > limit) throw IOException("response too large")
-            val deadline = System.currentTimeMillis() + totalTimeoutMs
-            val body = connection.inputStream.use { input ->
-                val out = ByteArrayOutputStream(64 * 1024)
-                val buffer = ByteArray(64 * 1024)
-                while (true) {
-                    val read = input.read(buffer)
-                    if (read < 0) break
-                    if (out.size() + read > limit) throw IOException("response too large")
-                    out.write(buffer, 0, read)
-                    if (System.currentTimeMillis() > deadline) throw IOException("download took too long")
+            var current = url
+            for (hop in 0..MAX_REDIRECTS) {
+                val target = current.toHttpUrlOrNull() ?: throw IOException("invalid URL")
+                if (target.scheme != "https" && !allowPlainHttpForTests) throw IOException("redirected away from HTTPS")
+                if (!allowPlainHttpForTests) {
+                    val literal = ThreatListNetwork.literalAddress(target.host)
+                    if (literal != null && isNonPublic(literal.address)) throw PrivateTargetException()
                 }
-                out.toByteArray()
+                val remaining = deadline - System.currentTimeMillis()
+                if (remaining <= 0) throw IOException("download took too long")
+                val request = Request.Builder().url(target).header("User-Agent", "Safeer").header("Accept", "text/plain")
+                if (!etag.isNullOrEmpty()) request.header("If-None-Match", etag)
+                if (!lastModified.isNullOrEmpty()) request.header("If-Modified-Since", lastModified)
+                val client = base.newBuilder().dns(PinnedDns()).callTimeout(remaining, TimeUnit.MILLISECONDS).build()
+                client.newCall(request.build()).execute().use { response ->
+                    val status = response.code
+                    if (status in REDIRECT_CODES) {
+                        val location = response.header("Location")
+                        if (location.isNullOrBlank()) throw IOException("redirect without target")
+                        current = (response.request.url.resolve(location) ?: throw IOException("invalid redirect target")).toString()
+                        return@use
+                    }
+                    if (status == 304) return ConditionalResponse(true, null, etag, lastModified)
+                    if (status != 200) throw IOException("HTTP status $status")
+                    val declared = response.header("Content-Length")?.toLongOrNull()
+                    if (declared != null && declared > limit) throw IOException("response too large")
+                    val body = (response.body ?: throw IOException("no response body")).byteStream().use { input ->
+                        val out = ByteArrayOutputStream(64 * 1024)
+                        val buffer = ByteArray(64 * 1024)
+                        while (true) {
+                            val read = input.read(buffer)
+                            if (read < 0) break
+                            if (out.size() + read > limit) throw IOException("response too large")
+                            out.write(buffer, 0, read)
+                            if (System.currentTimeMillis() > deadline) throw IOException("download took too long")
+                        }
+                        out.toByteArray()
+                    }
+                    return ConditionalResponse(false, body, response.header("ETag"), response.header("Last-Modified"))
+                }
             }
-            return ConditionalResponse(false, body, connection.getHeaderField("ETag"), connection.getHeaderField("Last-Modified"))
+            throw IOException("too many redirects")
         } finally {
-            connection.disconnect()
+            base.dispatcher.executorService.shutdown()
+            base.connectionPool.evictAll()
         }
+    }
+
+    private companion object {
+        const val MAX_REDIRECTS = 5
+        val REDIRECT_CODES = setOf(301, 302, 303, 307, 308)
     }
 }
 

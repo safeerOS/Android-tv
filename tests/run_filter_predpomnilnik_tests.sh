@@ -7,7 +7,9 @@ PROJECT_DIR="$(dirname "$TEST_DIR")"
 SRC="${SRC_DIR:-$PROJECT_DIR/src/main/kotlin}"
 KOTLINC="${KOTLINC:-${SAFEER_TOOLS_DIR:-$PROJECT_DIR/.tools}/kotlinc/bin/kotlinc}"
 command -v "$KOTLINC" >/dev/null 2>&1 || KOTLINC="kotlinc"
+# ThreatListAgent (HttpsListFetcher) uporablja OkHttp: vsak skok preusmeritve in razresitev imena gresta skozi preverbo naslova (TV3 N3).
+OKHTTP="$PROJECT_DIR/libs/okhttp-4.12.0.jar:$PROJECT_DIR/libs/okio-jvm-3.6.0.jar"
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
-"$KOTLINC" -J-Xmx1g "$SRC/com/safeer/threatfeed/FilterListEngine.kt" "$SRC/com/safeer/threatfeed/FilterSetPredpomnilnik.kt" "$SRC/com/safeer/threatfeed/ThreatListAgent.kt" "$TEST_DIR/FilterPredpomnilnikTest.kt" -include-runtime -d "$OUT/predp.jar"
-java -Xss8m -Dpredp.src="${PREDP_SRC:-$SRC/si/safeer/tv}" -cp "$OUT/predp.jar" com.safeer.threatfeed.FilterPredpomnilnikTestKt ${SAFEER_EASYLIST:+"$SAFEER_EASYLIST"}
+"$KOTLINC" -J-Xmx1g -cp "$OKHTTP" "$SRC/com/safeer/threatfeed/FilterListEngine.kt" "$SRC/com/safeer/threatfeed/FilterSetPredpomnilnik.kt" "$SRC/com/safeer/threatfeed/ThreatListAgent.kt" "$TEST_DIR/FilterPredpomnilnikTest.kt" -include-runtime -d "$OUT/predp.jar"
+java -Xss8m -Dpredp.src="${PREDP_SRC:-$SRC/si/safeer/tv}" -cp "$OUT/predp.jar:$OKHTTP" com.safeer.threatfeed.FilterPredpomnilnikTestKt ${SAFEER_EASYLIST:+"$SAFEER_EASYLIST"}
