@@ -18,6 +18,16 @@ private fun preveriStanje(pogoj: Boolean, opis: String) {
 
 fun main(args: Array<String>) {
     val P = ScitStanjePravila
+    // Lastnik 15. 11. 2026: brskalnik ne filtrira oglasnih zahtev, ko to dokazano dela Scit (DNS).
+    preveriStanje(!P.brskalnikFiltriraOglase(blokiranjeVklopljeno = true, dnsFiltrira = true), "Scit filtrira: brskalnik ne")
+    preveriStanje(P.brskalnikFiltriraOglase(blokiranjeVklopljeno = true, dnsFiltrira = false), "Scit ne tece: brskalnik filtrira (rezerva)")
+    preveriStanje(!P.brskalnikFiltriraOglase(blokiranjeVklopljeno = false, dnsFiltrira = false), "uporabnik je izklopil blokiranje: nihce v brskalniku")
+    preveriStanje(!P.brskalnikFiltriraOglase(blokiranjeVklopljeno = false, dnsFiltrira = true), "izklopljeno in Scit: brskalnik ne")
+    preveriStanje(P.dnsFiltrira(true, "tece", 12000, true), "DNS filtrira: tece, nabor, VPN")
+    preveriStanje(!P.dnsFiltrira(true, "tece", 12000, false), "zapis tece, a VPN omrezja ni (ubit proces): ne filtrira")
+    preveriStanje(!P.dnsFiltrira(true, "tece", 0, true), "nabor se ni nalozen: ne filtrira")
+    preveriStanje(!P.dnsFiltrira(true, "ustavljen", 12000, true), "ustavljen: ne filtrira")
+    preveriStanje(!P.dnsFiltrira(false, "tece", 12000, true), "uporabnik je izklopil Scit: ne filtrira")
     // 1: drug VPN prevzame tunel (onRevoke) - zastavica ostane, storitev ne tece.
     preveriStanje(P.stanje(vklopljen = true, tece = false) == Stanje.PREKINJEN, "vklopljen, a ne tece = prekinjen (ne Vklopljeno)")
     preveriStanje(P.stanje(true, true) == Stanje.TECE, "vklopljen in tece")

@@ -153,6 +153,17 @@ fun main() {
     preveri("brez blokiranja ostanejo vidna (v njih je oglas, ki ga je uporabnik dovolil)", brezBlokiranja.none { it in CosmeticFilterEngine.PRAZNA_OGLASNA_MESTA })
     val bilo = AdBlockEngine.isEnabled
     AdBlockEngine.isEnabled = false
+    // Lastnik 15. 11. 2026: lastna pravila za 24ur.com (sponzoriran drsnik, prazna mesta GPT) - samo za ta gostitelj in samo ob blokiranju.
+    preveri("24ur: pravila za domeno in poddomeno ob blokiranju",
+        CosmeticFilterEngine.pravilaZaGostitelja("https://www.24ur.com/novice", true).containsAll(listOf("section.shopping", ".banner-placeholder")) &&
+            CosmeticFilterEngine.pravilaZaGostitelja("https://24ur.com/", true).isNotEmpty())
+    preveri("24ur: brez blokiranja pravil ni", CosmeticFilterEngine.pravilaZaGostitelja("https://www.24ur.com/", false).isEmpty())
+    preveri("24ur: podniz gostitelja ni 24ur", CosmeticFilterEngine.pravilaZaGostitelja("https://ne24ur.com/", true).isEmpty() &&
+        CosmeticFilterEngine.pravilaZaGostitelja("https://24ur.com.zlo.si/", true).isEmpty())
+    preveri("rtvslo in zurnal24: pravila po gostitelju", CosmeticFilterEngine.pravilaZaGostitelja("https://365.rtvslo.si/", true).contains(".dynamic-advert") &&
+        CosmeticFilterEngine.pravilaZaGostitelja("https://www.zurnal24.si/", true).contains(".dfp_banner") &&
+        CosmeticFilterEngine.pravilaZaGostitelja("https://www.zurnal24.si/", false).isEmpty())
+    preveri("24ur: druga stran nima pravil", CosmeticFilterEngine.pravilaZaGostitelja("https://www.example.com/", true).isEmpty())
     val slogBrez = CosmeticFilterEngine.buildCosmeticCss("https://www.example.com/")
     AdBlockEngine.isEnabled = true
     val slogZ = CosmeticFilterEngine.buildCosmeticCss("https://www.example.com/")

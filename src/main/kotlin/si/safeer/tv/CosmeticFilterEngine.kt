@@ -73,6 +73,30 @@ object CosmeticFilterEngine {
      */
     internal val PRAZNA_OGLASNA_MESTA = listOf("ins.adsbytrafficjunky")
 
+    /**
+     * Lastnik 15. 11. 2026 (24ur.com: »Lidl kljub Ščitu«, prazna okna odstranjenih reklam): DNS Ščit ne more blokirati oglasa, ki je
+     * v HTML strani (sponzoriran trgovinski drsnik, slike z images.24ur.com, klik prek ad.doubleclick.net) in praznih mest GPT
+     * (div-gpt-ad v .banner-placeholder), ki po blokadi ostanejo kot luknje. Izbirniki so prebrani iz prave strani 15. 11. 2026
+     * (section.shopping > .shop-image + .shop-slider, .banner-placeholder, .sidebar__banner); NA TV JE TREBA PREVERITI s posnetkom pred/po.
+     * Veljajo samo za gostitelja (domena ali poddomena, nikoli podniz) in samo ob vklopljenem blokiranju, kot [PRAZNA_OGLASNA_MESTA].
+     */
+    internal val PRAVILA_PO_GOSTITELJU: Map<String, List<String>> = mapOf(
+        "24ur.com" to listOf(
+            "section.shopping", ".shop-image", ".shop-slider", ".banner-placeholder", ".sidebar__banner",
+            ".banner-sticky", "a[href*='ad.doubleclick.net']",
+        ),
+        // Izbirniki iz prave strani 15. 11. 2026 (HTML z naslovnice); na TV se NEPREVERJENO s posnetkom pred/po.
+        "rtvslo.si" to listOf("#block-oglas-sport", "#block-oglas-zabava", "#block-predstavitveni-oglas", ".dynamic-advert", ".iAdserver"),
+        "zurnal24.si" to listOf(".banner_placeholder", ".dfp_banner", ".fold_home_top--banner", ".fold_home_mid--banner"),
+    )
+
+    /** Pravila za gostitelja [pageUrl] (domena ali poddomena iz [PRAVILA_PO_GOSTITELJU]); prazno brez gostitelja ali ob izklopljenem blokiranju. */
+    internal fun pravilaZaGostitelja(pageUrl: String?, blokiranje: Boolean): List<String> {
+        if (!blokiranje) return emptyList()
+        val g = GooglePravila.gostitelj(pageUrl).ifEmpty { return emptyList() }
+        return PRAVILA_PO_GOSTITELJU.entries.firstOrNull { (d, _) -> g == d || g.endsWith(".$d") }?.value ?: emptyList()
+    }
+
     /** Splosna pravila brez pravil s seznamov - za preizkus. */
     internal fun splosnaPravila(blokiranje: Boolean): List<String> =
         if (blokiranje) GENERIC_ELEMENT_HIDING_RULES + PRAZNA_OGLASNA_MESTA else GENERIC_ELEMENT_HIDING_RULES
@@ -89,7 +113,7 @@ object CosmeticFilterEngine {
         } catch (_: Exception) {
             emptyList()
         }
-        val selectors = (splosnaPravila(AdBlockEngine.isEnabled) + listRules).distinct().joinToString(", ")
+        val selectors = (splosnaPravila(AdBlockEngine.isEnabled) + pravilaZaGostitelja(pageUrl, AdBlockEngine.isEnabled) + listRules).distinct().joinToString(", ")
         return """
             $selectors {
                 display: none !important;

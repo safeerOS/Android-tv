@@ -224,6 +224,26 @@ object Scit {
         } catch (e: Throwable) { Log.w(TAG, "Statistike ni mogoce zapisati: ${e.message}"); false }
     }
 
+    @Volatile private var dnsPrebrano = 0L
+    @Volatile private var dnsFiltriraZadnje = false
+
+    /**
+     * Ali DNS Scit zdaj dokazano filtrira (za brskalnik: ne filtrira oglasnih zahtev sam, lastnik 15. 11. 2026). Stanje se prebere
+     * iz datoteke storitve (drug proces) najvec vsakih [ScitStanjePravila.ROK_STANJA_MS]; napaka pri branju = ne filtrira (rezerva).
+     */
+    fun dnsFiltrira(context: Context): Boolean {
+        val zdaj = android.os.SystemClock.elapsedRealtime()
+        if (zdaj - dnsPrebrano < ScitStanjePravila.ROK_STANJA_MS) return dnsFiltriraZadnje
+        dnsPrebrano = zdaj
+        dnsFiltriraZadnje = try {
+            val s = statistika(context)
+            val cm = context.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+            val vpn = cm.allNetworks.any { cm.getNetworkCapabilities(it)?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN) == true }
+            ScitStanjePravila.dnsFiltrira(jeVklopljen(context), s.stanje, s.domen, vpn)
+        } catch (_: Throwable) { false }
+        return dnsFiltriraZadnje
+    }
+
     /** Namera za sistemsko okno z dovoljenjem (null = ze dano). */
     fun dovoljenjeNamera(context: Context): Intent? = try { VpnService.prepare(context) } catch (_: Throwable) { null }
 }

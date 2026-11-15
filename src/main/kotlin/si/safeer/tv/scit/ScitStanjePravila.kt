@@ -17,6 +17,25 @@ object ScitStanjePravila {
         else -> Stanje.PREKINJEN
     }
 
+    /**
+     * Ali brskalnik sam filtrira oglasne zahteve (shouldInterceptRequest). Lastnik 15. 11. 2026: Scit v ozadju nadomesti
+     * brskalnikovo blokiranje, brskalnik je hitrejsi (izmerjeno 11. 11. 2026: lastno filtriranje zahtev + kozmeticni CSS ~0,3 s na 24ur).
+     * Brskalnik filtrira samo, ce uporabnik blokiranje oglasov ni izklopil IN DNS Scit ne filtrira (rezerva: tunel ne tece,
+     * drug VPN ga je prevzel, nabor se se nalaga). Kozmeticna pravila ostanejo (DNS ne more skriti praznih okvirjev).
+     */
+    fun brskalnikFiltriraOglase(blokiranjeVklopljeno: Boolean, dnsFiltrira: Boolean): Boolean = blokiranjeVklopljeno && !dnsFiltrira
+
+    /**
+     * Ali DNS Scit dokazano filtrira: storitev (proces :scit) je zapisala stanje »tece« in nalozen nabor (domen > 0), uporabnik ga
+     * ni izklopil, IN na napravi dejansko obstaja VPN omrezje (zapis »tece« lahko preziveti ubit proces, tunel pa ne).
+     * Brez katerega koli od teh brskalnik filtrira sam.
+     */
+    fun dnsFiltrira(vklopljen: Boolean, stanje: String, domen: Int, vpnOmrezje: Boolean): Boolean =
+        vklopljen && stanje == "tece" && domen > 0 && vpnOmrezje
+
+    /** Najdlje tako dolgo (ms) velja prebrano stanje v procesu brskalnika: zahteve so stotine na sekundo, branje datoteke ni zastonj. */
+    const val ROK_STANJA_MS = 5_000L
+
     enum class Gumb { VKLOPI, VKLOPI_ZNOVA, IZKLOPI }
 
     /**

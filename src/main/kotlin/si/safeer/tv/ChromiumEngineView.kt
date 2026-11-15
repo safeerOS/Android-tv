@@ -1583,6 +1583,8 @@ try{Object.freeze(b);}catch(e){}Object.defineProperty(window,'SafeerBridge',{val
                     return null
                 }
 
+                // Lastnik 15. 11. 2026: ko Scit (DNS, v ozadju) dokazano filtrira, brskalnik oglasnih zahtev ne pregleduje (hitrost).
+                if (!si.safeer.tv.scit.ScitStanjePravila.brskalnikFiltriraOglase(AdBlockEngine.isEnabled, si.safeer.tv.scit.Scit.dnsFiltrira(context))) return null
                 return PresuMerilnik.izmeri(PresuMerilnik.Kat.ADBLOCK) {
                     AdBlockEngine.handleIntercept(url, interceptPageUrl, request.requestHeaders?.get("Accept"), isMainFrame)
                 }
