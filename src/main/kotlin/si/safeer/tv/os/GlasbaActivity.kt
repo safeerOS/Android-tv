@@ -10166,7 +10166,8 @@ class GlasbaActivity : OsActivity() {
         if (!vOspredju || isFinishing || odprtKatalog !== o) return
         val ista = usenetMreza === o
         val prej = usenetProracun
-        usenetProracun = FilterViraPravila.proracun(if (ista) prej else null, ista, o.zahtevVec)
+        usenetProracun = FilterViraPravila.proracun(if (ista) prej else null, ista,
+            PriljubljeneMrezaPravila.zahtevaFiltra(o.zahtevVec, razvrstitevMreze(o) == RAZVRSTI_PRILJUBLJENE))
         if (!ista || usenetProracun?.zahteva != prej?.zahteva) {
             usenetMreza = o; usenetKrogOb = if (o.zahtevaOb > 0L && ista) o.zahtevaOb else android.os.SystemClock.uptimeMillis()
             usenetKrogVidnih = -1; usenetKrogPrvi = false; usenetKrogZadnjiMs = 0L; usenetKrogNovih = 0

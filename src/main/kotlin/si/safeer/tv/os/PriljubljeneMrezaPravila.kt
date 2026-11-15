@@ -57,4 +57,13 @@ object PriljubljeneMrezaPravila {
         }
         return izhod
     }
+
+    /**
+     * Zahteva za proracun preverb filtra vira (FilterViraPravila.proracun). Lastnik 15. 11. 2026, preverba na TV: Serije +
+     * Usenet + »Priljubljene (1)« je bila prazna (vidnih=0, kandidatov=1, vseh=119): v Priporoceno sta se porabila proracun
+     * (40) in prednalaganje (40), izbira Priljubljene pa ni bila nova zahteva, zato priljubljen naslov nikoli ni dobil
+     * preverbe in ni bil viden. Izbira Priljubljene je zdaj ISTA zahteva kot nova zahteva uporabnika: svez proracun.
+     * Sodo = navadna mreza, liho = samo Priljubljene; naslednja zahteva uporabnika (zahtevVec + 1) se ne zaleti.
+     */
+    fun zahtevaFiltra(zahtevVec: Int, samoPriljubljene: Boolean): Int = zahtevVec * 2 + (if (samoPriljubljene) 1 else 0)
 }

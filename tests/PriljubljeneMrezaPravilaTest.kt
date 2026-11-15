@@ -34,6 +34,18 @@ fun main() {
     preveriEnako("samo ta vrsta", listOf("x|star"),
         P.uredi(katalog, prilj, { it.substringBefore('|') }, { it.startsWith("x") }))
     preveriEnako("nic priljubljenega -> prazno", emptyList<String>(), P.uredi(katalog, emptyList(), { it }, { true }))
+    // Scenarij s TV (15. 11. 2026): Serije + filter Usenet, mreza v Priporoceno porabi proracun preverb (40 + 40 vnaprej),
+    // uporabnik izbere Priljubljene - priljubljen naslov (prvi v novem vrstnem redu) MORA dobiti preverbo, sicer je mreza prazna.
+    val F = FilterViraPravila
+    var pr = F.proracun(null, false, 0)
+    pr = pr.copy(ostalo = 0)
+    pr = F.proracun(pr, true, 0)               // vnaprej
+    pr = pr.copy(ostalo = 0)
+    preveriEnako("pred izbiro Priljubljene je proracun porabljen", 0, F.proracun(pr, true, P.zahtevaFiltra(0, false)).ostalo)
+    val poIzbiri = F.proracun(pr, true, P.zahtevaFiltra(0, true))
+    preveriEnako("izbira Priljubljene da nov proracun: priljubljen kandidat je preverjen in viden", true, poIzbiri.ostalo > 0)
+    preveriEnako("zahteva za Priljubljene se razlikuje od navadne", true, P.zahtevaFiltra(3, true) != P.zahtevaFiltra(3, false))
+    preveriEnako("zahteva se ne zaleti z naslednjo zahtevo uporabnika", true, P.zahtevaFiltra(3, true) != P.zahtevaFiltra(4, false))
     if (napak > 0) { println("NAPAK: $napak"); kotlin.system.exitProcess(1) }
     println("PriljubljeneMrezaPravilaTest: OK")
 }
