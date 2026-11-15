@@ -113,9 +113,22 @@ object CosmeticFilterEngine {
         } catch (_: Exception) {
             emptyList()
         }
-        val selectors = (splosnaPravila(AdBlockEngine.isEnabled) + pravilaZaGostitelja(pageUrl, AdBlockEngine.isEnabled) + listRules).distinct().joinToString(", ")
-        return """
-            $selectors {
+        // XX11 (pregled 15. 11. 2026): izbirniki iz zunanjih seznamov so lahko neveljavni ali zlonamerni; en neveljaven izbirnik v vejicnem
+        // seznamu razveljavi celo pravilo, znak } ali ; pa bi zaprl pravilo. Zato strog filter znakov in pravila po skupinah.
+        val vsi = (splosnaPravila(AdBlockEngine.isEnabled) + pravilaZaGostitelja(pageUrl, AdBlockEngine.isEnabled) + varniIzbirniki(listRules)).distinct()
+        return vsi.chunked(SKUPINA_IZBIRNIKOV).joinToString("\n") { skupina -> pravilo(skupina.joinToString(", ")) }
+    }
+
+    /** Najvec izbirnikov v enem pravilu CSS: en neveljaven izbirnik razveljavi najvec to skupino, ne vseh skritij strani. */
+    internal const val SKUPINA_IZBIRNIKOV = 20
+
+    /** Izbirnik iz seznama brez znakov, ki bi zaprli pravilo ali dodali novo (} { ; @ \\ < > novi vrstici), nepraznih in najvec 300 znakov. */
+    internal fun varniIzbirniki(izbirniki: List<String>): List<String> = izbirniki.filter { s ->
+        s.isNotBlank() && s.length <= 300 && s.none { it in "{};@\\<>\n\r" }
+    }
+
+    private fun pravilo(izbirniki: String): String = """
+            $izbirniki {
                 display: none !important;
                 visibility: hidden !important;
                 height: 0 !important;
@@ -127,7 +140,6 @@ object CosmeticFilterEngine {
                 left: -9999px !important;
             }
         """.trimIndent()
-    }
 
     /**
      * Zgradi JavaScript ukaz za takojšnjo uveljavitev CSS pravil.

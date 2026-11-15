@@ -2512,6 +2512,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
                     nastaviSpletnoKljucavnico(url.startsWith("file://") || url.startsWith("about:") || url.isEmpty() || isSecure)
                 } else if (url.startsWith("file://") || url.startsWith("about:") || url.isEmpty()) {
                     tvSecurityLock.text = "S"
+                    tvSecurityLock.setCompoundDrawablesRelativeWithIntrinsicBounds(0, 0, 0, 0)   // XX9: stara ikona kljucavnice/opozorila ne sme ostati ob »S«
                     tvSecurityLock.setTextColor(Color.parseColor("#10B981"))
                 } else {
                     // Vektorska kljucavnica / opozorilo namesto emoji znakov (skil safeer-ui-brez-sluzi).

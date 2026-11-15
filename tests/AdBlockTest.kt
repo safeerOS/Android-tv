@@ -168,6 +168,10 @@ fun main() {
     AdBlockEngine.isEnabled = true
     val slogZ = CosmeticFilterEngine.buildCosmeticCss("https://www.example.com/")
     AdBlockEngine.isEnabled = bilo
+    // XX11: izbirniki iz seznamov: zlonamerni/neveljavni znaki ven, pravila po skupinah
+    val varni = CosmeticFilterEngine.varniIzbirniki(listOf(".oglas", "} body{display:none}", "a[href*='x']", "x;y", "@import", "", "  ", "a\\b", "<b>", "ok\nzlo", "d".repeat(301)))
+    preveri("XX11: varni izbirniki ostanejo, zlonamerni izpadejo (${varni})", varni == listOf(".oglas", "a[href*='x']"))
+    preveri("XX11: pravila po skupinah (skupina ${CosmeticFilterEngine.SKUPINA_IZBIRNIKOV})", slogZ.split("{\n").size - 1 >= 2 && slogZ.count { it == '}' } >= 2)
     preveri("slog strani sledi stikalu blokiranja", !slogBrez.contains("adsbytrafficjunky") && slogZ.contains("ins.adsbytrafficjunky"))
 
     // Seznami sami: noben vnos ne sme biti odvecen ali podvojen.
