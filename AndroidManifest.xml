@@ -192,6 +192,7 @@
 
     <!-- Oznaka, ikona in pasica so v okusih: vsaka aplikacija ima svoje ime in svojo ikono. -->
     <application
+        android:name="si.safeer.tv.SafeerAplikacija"
         android:theme="@style/AppTheme"
         android:hardwareAccelerated="true"
         android:largeHeap="true"

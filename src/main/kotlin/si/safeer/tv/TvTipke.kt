@@ -24,6 +24,27 @@ object TvTipke {
         else -> Dejanje.NIC
     }
 
+    private const val MEDIA_PLAY_PAUSE = 85
+    private const val MEDIA_PLAY = 126
+    private const val MEDIA_PAUSE = 127
+
+    /**
+     * Medijske tipke daljinca za video v strani (Google Android TV zahteve za kakovost, TV-PP). Izmerjeno 16. 11. 2026 na
+     * televizorju: KEYCODE_MEDIA_PLAY_PAUSE med videom v brskalniku ni naredila nic. Vrne skript za vrhnji dokument ali null, ce
+     * tipka ni medijska. Izbere predvajajoci video, sicer najvecjega z naloženimi podatki; brez videa ne stori nic.
+     */
+    fun jsMedijskaTipka(keyCode: Int): String? {
+        val dejanje = when (keyCode) {
+            MEDIA_PLAY_PAUSE -> "x.paused ? x.play() : x.pause()"
+            MEDIA_PLAY -> "x.play()"
+            MEDIA_PAUSE -> "x.pause()"
+            else -> return null
+        }
+        return "(function(){try{var v=Array.prototype.slice.call(document.querySelectorAll('video')).filter(function(e){return e.readyState>0;});" +
+            "if(!v.length)return 'ni';var x=v.filter(function(e){return !e.paused;})[0]||v.sort(function(a,b){return b.clientWidth*b.clientHeight-a.clientWidth*a.clientHeight;})[0];" +
+            "var r=$dejanje;if(r&&r.catch)r.catch(function(){});return 'ok';}catch(e){return 'napaka';}})()"
+    }
+
     /** Toliko ponovitev drzanega OK (~1 s) vklopi kazalec v nacinu D-pad. */
     const val PONOVITEV_ZA_KAZALEC = 12
 

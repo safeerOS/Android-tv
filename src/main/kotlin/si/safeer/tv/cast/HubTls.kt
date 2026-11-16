@@ -294,7 +294,7 @@ object HubTls {
     /** Naslov je na krajevnih vratih odprtega releja Global Link (127.0.0.1:vrata), ne katerih koli krajevnih vrat. */
     private fun jeReleHuba(url: String): Boolean = try {
         val u = java.net.URL(url)
-        u.protocol == "https" && si.safeer.tv.link.GlobalLink.jeRele(u.host, u.port)
+        u.protocol == "https" && LinkVticniki.jeRele(u.host, u.port)
     } catch (_: Exception) { false }
 
     /**

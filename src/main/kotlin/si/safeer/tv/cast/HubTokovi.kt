@@ -195,7 +195,7 @@ class HubTokovi(
             // urejanje (POST), sprotni tok in tok torrenta - z istim zetonom in istimi pravili kot doma.
             jePotStreznikaDatotek(pot) &&
                 (zahteva.metoda == "GET" || zahteva.metoda == "HEAD" || zahteva.metoda == "POST") ->
-                si.safeer.tv.link.DatotekeStreznik.prekHuba(zahteva.metoda, pot, zahteva.glave, vhod, izhod, zahteva.poizvedba)
+                LinkVticniki.prekHuba?.invoke(zahteva.metoda, pot, zahteva.glave, vhod, izhod, zahteva.poizvedba) ?: false
             pot.startsWith("/cast/screen/") && pot.endsWith("/stream") && zahteva.metoda == "GET" -> { gledajZaslon(zahteva, izhod, vticnica); true }
             pot.startsWith("/cast/screen/") && pot.endsWith("/view") && zahteva.metoda == "GET" -> { stranGledalca(zahteva, izhod); true }
             pot.startsWith("/cast/screen/") && pot.endsWith("/input") && zahteva.metoda == "POST" -> { vnosVZaslon(zahteva, vhod, izhod); true }

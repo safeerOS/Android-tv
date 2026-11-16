@@ -685,6 +685,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
      * Klice ga UserScriptManager ob vsakem vbrizgu; odlocitev izhaja iz naslova in zapomnjene izbire, ne iz stanja pogleda,
      * zato ni odvisna od vrstnega reda dogodkov ob navigaciji.
      */
+    private val mojSkriptZaFokus: (String) -> Boolean = { naslov -> skriptZaFokusZa(naslov) }
+
     internal fun skriptZaFokusZa(naslov: String): Boolean =
         KazalecPravila.skriptZaFokus(
             si.safeer.tv.os.Naprava.jeTelevizor(this), naslov, stranZaTvNaslov(naslov), zapomnjenaIzbiraKazalca(naslov),
@@ -1181,7 +1183,8 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
     override fun onDestroy() {
         koncajIzbiroDatotek(null)
-        UserScriptManager.skriptZaFokus = null   // objekt ne sme drzati dejavnosti
+        // Pregled III11: onDestroy stare dejavnosti sme pobrisati samo svojo odlocitev - nova dejavnost je lahko ze nastavila svojo.
+        if (UserScriptManager.skriptZaFokus === mojSkriptZaFokus) UserScriptManager.skriptZaFokus = null   // objekt ne sme drzati dejavnosti
         silenceBackgroundMedia("onDestroy")
         // Huba tu NE ustavljamo: od 2.1.89 zivi v HubStoritev, da je televizor dosegljiv
         // tudi, ko brskalnik ni odprt. Ugasne ga uporabnik v Safeer Linku.
@@ -1882,7 +1885,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         virtualPointerView.gibNastavitve = KazalecGibanje.hitrost(KazalecNastavitve.hitrostStopnja(this))
         // Lastnik 15. 11. 2026: skript za fokus samo tam, kjer daljinec vodijo puscice. Odlocitev za vbrizg ob nalaganju daje
         // skriptZaFokusZa; ce uporabnik na strani s kazalcem preklopi na puscice, se skript vbrizga v ze nalozeno stran.
-        UserScriptManager.skriptZaFokus = { naslov -> skriptZaFokusZa(naslov) }
+        UserScriptManager.skriptZaFokus = mojSkriptZaFokus
         virtualPointerView.naSpremembo = { kazalec ->
             if (!kazalec && si.safeer.tv.os.Naprava.jeTelevizor(this)) {
                 activeWebView()?.takeIf { it.progress >= 100 }?.let { UserScriptManager.vbrizgajFokusZdaj(it) }

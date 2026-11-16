@@ -45,13 +45,12 @@ object KrogNaprave {
                 // Grok 15, N17: najprej varnost (konec deljenja, zaupanje), nato Safeer Vnos - vsak korak posebej, napaka enega
                 // ne ustavi drugih.
                 // Umik iz kroga takoj konca deljenje zaslona umaknjeni napravi (kot na racunalniku).
-                try { si.safeer.tv.link.DeljenjeZaslonaStoritev.ustaviBrezDostopa(app) } catch (_: Throwable) { }
+                for (korak in LinkVticniki.obUmikuPred) try { korak(app) } catch (_: Throwable) { }
                 // Pregled dex-a U7: umik iz kroga izbrise »Vedno dovoli« za deljenje zaslona.
-                try { si.safeer.tv.link.ZaupanjeZaslona.pocisti(app) } catch (_: Throwable) { }
                 // Pregled 10. 11. 2026 (2.5, A): deli aplikacije, ki hranijo seje ali dovoljenja naprav (prehod interneta,
                 // Dostop), umaknjeni napravi takoj zaprejo tokove in zbrisejo zapis - vsak zase, napaka enega ne ustavi drugih.
                 for (odziv in poslusalci.values) try { odziv(app) } catch (_: Throwable) { }
-                try { si.safeer.tv.link.VnosVklop.uskladi(app, "krog") } catch (_: Throwable) { }
+                for (korak in LinkVticniki.obUmikuPo) try { korak(app) } catch (_: Throwable) { }
             }
             krog = k
         }

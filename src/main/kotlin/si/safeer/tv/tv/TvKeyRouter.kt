@@ -51,6 +51,13 @@ class TvKeyRouter(private val host: MainActivity) {
             if (host.playback.handleNativeKey(event)) return true
         }
 
+        // TV-PP (Google Android TV kakovost, izmerjeno 16. 11. 2026): predvajaj/pavza na daljincu naj upravlja video v strani.
+        val medijskiSkript = si.safeer.tv.TvTipke.jsMedijskaTipka(keyCode)
+        if (medijskiSkript != null) {
+            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) host.activeWebView()?.evaluateJavascript(medijskiSkript, null)
+            return true
+        }
+
         // Native overlays own both halves of D-pad/OK events. Page profiles must
         // not consume ACTION_UP, otherwise focused Android buttons never click.
         if (keyCode == KeyEvent.KEYCODE_BACK && overlayBackDown) {

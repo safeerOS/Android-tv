@@ -25,6 +25,7 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/cast/HubVarovalka.kt" \
     "$SRC/si/safeer/tv/cast/JsonLahki.kt" \
     "$SRC/si/safeer/tv/cast/HubTokovi.kt" \
+    "$SRC/si/safeer/tv/cast/LinkVticniki.kt" \
     "$SRC/si/safeer/tv/cast/SafeerLog.kt" \
     "$SRC/si/safeer/tv/cast/Spake2.kt" \
     "$SRC/si/safeer/tv/cast/HubUsmerjevalnik.kt" \
@@ -51,6 +52,7 @@ java -cp "$OUT/usmerjevalnik.jar${JSON_JAR:+:$JSON_JAR}" si.safeer.tv.cast.Usmer
     "$SRC/si/safeer/tv/cast/HubVarovalka.kt" \
     "$SRC/si/safeer/tv/cast/JsonLahki.kt" \
     "$SRC/si/safeer/tv/cast/HubTokovi.kt" \
+    "$SRC/si/safeer/tv/cast/LinkVticniki.kt" \
     "$SRC/si/safeer/tv/cast/SafeerLog.kt" \
     "$SRC/si/safeer/tv/cast/Spake2.kt" \
     "$SRC/si/safeer/tv/cast/HubUsmerjevalnik.kt" \
@@ -77,6 +79,7 @@ java -cp "$OUT/mesh.jar${JSON_JAR:+:$JSON_JAR}" si.safeer.tv.cast.MeshTestKt
     "$SRC/si/safeer/tv/cast/HubVarovalka.kt" \
     "$SRC/si/safeer/tv/cast/JsonLahki.kt" \
     "$SRC/si/safeer/tv/cast/HubTokovi.kt" \
+    "$SRC/si/safeer/tv/cast/LinkVticniki.kt" \
     "$SRC/si/safeer/tv/cast/SafeerLog.kt" \
     "$SRC/si/safeer/tv/cast/Spake2.kt" \
     "$SRC/si/safeer/tv/cast/HubUsmerjevalnik.kt" \
