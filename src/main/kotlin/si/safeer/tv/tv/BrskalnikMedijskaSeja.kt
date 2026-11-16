@@ -20,7 +20,11 @@ import si.safeer.tv.TvTipke
  * dobi tipke.
  */
 class BrskalnikMedijskaSeja(private val host: MainActivity) {
-    private companion object { const val TAG = "SafeerMedija" }
+    private companion object {
+        const val TAG = "SafeerMedija"
+        const val ZAMIK_TIPKE_MS = 250L
+        const val PONOVNI_VKLOP_MS = 900L
+    }
 
     private var seja: MediaSession? = null
 
@@ -40,7 +44,12 @@ class BrskalnikMedijskaSeja(private val host: MainActivity) {
     /** Skript za video v strani; odgovor (ok/ni/napaka) gre v dnevnik. Brez videa (ni) tipko dobi glasba v ozadju. */
     private fun zazeni(js: String, keyCode: Int) {
         val wv = host.activeWebView()
-        if (wv == null) { Log.w(TAG, "brez aktivne strani"); return }
+        if (wv == null) {
+            // Brez strani ni videa: tipko dobi glasba v ozadju.
+            Log.i(TAG, "brez aktivne strani: tipka gre glasbi")
+            posreduj(keyCode)
+            return
+        }
         wv.evaluateJavascript(js) { odgovor ->
             Log.i(TAG, "odgovor strani: $odgovor")
             if (TvTipke.medijskiOdgovorPosreduj(odgovor)) posreduj(keyCode)
@@ -54,9 +63,23 @@ class BrskalnikMedijskaSeja(private val host: MainActivity) {
     private fun posreduj(keyCode: Int) {
         // Odgovor strani lahko pride, ko brskalnik ze ni vec v ospredju: tipke tedaj ne posiljamo in seje ne vklapljamo.
         if (!ospredje) return
+        posredujem = true
+        // Sama deaktivacija ne zadostuje: sistem ostane pri seji brskalnika kot »media button session« in tipko vrne njej
+        // (izmerjeno na TV, dumpsys media_session). Seja se zato sprosti; tipka gre po kratkem zamiku, ko sistem izbere drugo sejo.
+        spustiSejo()
+        tipkaZaPosredovanje = keyCode
+        glavna.removeCallbacks(posljiTipko)
+        glavna.postDelayed(posljiTipko, ZAMIK_TIPKE_MS)
+        glavna.removeCallbacks(ponovniVklop)
+        glavna.postDelayed(ponovniVklop, PONOVNI_VKLOP_MS)
+    }
+
+    private var tipkaZaPosredovanje = 0
+
+    private val posljiTipko = Runnable {
+        if (!ospredje) return@Runnable
+        val keyCode = tipkaZaPosredovanje
         try {
-            posredujem = true
-            deaktiviraj()
             val am = host.getSystemService(Context.AUDIO_SERVICE) as AudioManager
             am.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
             am.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, keyCode))
@@ -64,8 +87,11 @@ class BrskalnikMedijskaSeja(private val host: MainActivity) {
         } catch (e: Throwable) {
             Log.w(TAG, "posredovanje ni uspelo: ${e.javaClass.simpleName}")
         }
-        glavna.removeCallbacks(ponovniVklop)
-        glavna.postDelayed(ponovniVklop, 600L)
+    }
+
+    private fun spustiSejo() {
+        try { seja?.release() } catch (_: Throwable) { }
+        seja = null
     }
 
     /** V onResume: brskalnik je v ospredju, seja postane medijska seja za tipke daljinca. */
@@ -109,6 +135,7 @@ class BrskalnikMedijskaSeja(private val host: MainActivity) {
         ospredje = false
         posredujem = false
         glavna.removeCallbacks(ponovniVklop)
+        glavna.removeCallbacks(posljiTipko)
         deaktiviraj()
     }
 
@@ -120,7 +147,7 @@ class BrskalnikMedijskaSeja(private val host: MainActivity) {
         ospredje = false
         posredujem = false
         glavna.removeCallbacks(ponovniVklop)
-        try { seja?.release() } catch (_: Throwable) { }
-        seja = null
+        glavna.removeCallbacks(posljiTipko)
+        spustiSejo()
     }
 }
