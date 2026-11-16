@@ -13,9 +13,12 @@ fun main() {
     // Medijske tipke (TV-PP): samo 85/126/127 dobijo skript, ostale ne.
     check(TvTipke.jsMedijskaTipka(19) == null)
     check(TvTipke.jsMedijskaTipka(23) == null)
-    check(TvTipke.jsMedijskaTipka(85)!!.contains("x.paused ? x.play() : x.pause()")) { "predvajaj/pavza preklaplja" }
+    check(TvTipke.jsMedijskaTipka(85)!!.contains("x.paused ? x.play() : ${TvTipke.PAVZA_JS}")) { "predvajaj/pavza preklaplja" }
     check(TvTipke.jsMedijskaTipka(126)!!.contains("x.play()") && !TvTipke.jsMedijskaTipka(126)!!.contains("x.pause()")) { "samo predvajaj" }
     check(TvTipke.jsMedijskaTipka(127)!!.contains("x.pause()") && !TvTipke.jsMedijskaTipka(127)!!.contains("x.play()")) { "samo pavza" }
+    // Pavza mora pred pause() sprozit uporabnikov dogodek (keydown), sicer jo skript predvajanja v ozadju zavrze ali razveljavi.
+    check(TvTipke.jsMedijskaTipka(127)!!.contains("dispatchEvent(new Event('keydown'))")) { "pavza sprozi keydown" }
+    check(!TvTipke.jsMedijskaTipka(126)!!.contains("keydown")) { "predvajaj ne sprozi keydown" }
     // Drzan OK vklopi kazalec samo enkrat (ob tocno doloceni ponovitvi), samo na strani in ko ga se ni.
     check(TvTipke.drzanOkVkljuciKazalec(23, TvTipke.PONOVITEV_ZA_KAZALEC, kazalecViden = false, vVrstici = false))
     check(!TvTipke.drzanOkVkljuciKazalec(23, 0, kazalecViden = false, vVrstici = false))

@@ -99,7 +99,10 @@ class HostPlayback(private val host: MainActivity) : PlaybackSession {
                 (function(){
                     var v = document.querySelector('video');
                     if (v) {
-                        if (v.paused) v.play(); else v.pause();
+                        if (v.paused) v.play(); else {
+                            // Skript predvajanja v ozadju steje pavzo le ob uporabnikovem dogodku (TvTipke.PAVZA_JS).
+                            window.dispatchEvent(new Event('keydown')); v.pause();
+                        }
                     }
                 })();
                 """.trimIndent(), null

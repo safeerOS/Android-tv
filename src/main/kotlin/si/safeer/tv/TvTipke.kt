@@ -29,15 +29,24 @@ object TvTipke {
     private const val MEDIA_PAUSE = 127
 
     /**
+     * Pavza s tipke daljinca. Skript predvajanja v ozadju (UserScriptManager.BACKGROUND_PLAYBACK_JS) ignorira vsak pause(),
+     * ki ni sledil uporabnikovemu dogodku v strani, nadzornik na 500 ms pa video, ki ga uporabnik ni pavziral, spet zazene.
+     * Tipka daljinca JE uporabnikovo dejanje, zato pred pause() sprozimo keydown v oknu (isti dogodek, ki ga skript steje kot
+     * uporabnika): pavza je potem trajna. Izmerjeno na TV 16. 11. 2026: brez tega pause() zavrzen; z zastavico _safeer_app_bg
+     * pavza uspe, a jo nadzornik v isti sekundi razveljavi; s keydown ostane video 6 s na pavzi.
+     */
+    const val PAVZA_JS = "(function(){window.dispatchEvent(new Event('keydown'));return x.pause();})()"
+
+    /**
      * Medijske tipke daljinca za video v strani (Google Android TV zahteve za kakovost, TV-PP). Izmerjeno 16. 11. 2026 na
      * televizorju: KEYCODE_MEDIA_PLAY_PAUSE med videom v brskalniku ni naredila nic. Vrne skript za vrhnji dokument ali null, ce
      * tipka ni medijska. Izbere predvajajoci video, sicer najvecjega z naloženimi podatki; brez videa ne stori nic.
      */
     fun jsMedijskaTipka(keyCode: Int): String? {
         val dejanje = when (keyCode) {
-            MEDIA_PLAY_PAUSE -> "x.paused ? x.play() : x.pause()"
+            MEDIA_PLAY_PAUSE -> "(x.paused ? x.play() : $PAVZA_JS)"
             MEDIA_PLAY -> "x.play()"
-            MEDIA_PAUSE -> "x.pause()"
+            MEDIA_PAUSE -> PAVZA_JS
             else -> return null
         }
         return "(function(){try{var v=Array.prototype.slice.call(document.querySelectorAll('video')).filter(function(e){return e.readyState>0;});" +
