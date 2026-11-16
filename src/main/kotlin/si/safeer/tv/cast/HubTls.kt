@@ -301,7 +301,19 @@ object HubTls {
      * Ali je naslov (https://gostitelj:vrata/...) naslov Huba, ki mu zaupamo. Neodvisni pregled 4. 11. 2026: privzeta vrata
      * (zapisana ali ne) in velike crke gostitelja ne smejo vplivati - pravilo in preizkus sta v SpletVarnostPravila.istiIzvor.
      */
-    fun jeNaslovHuba(url: String, hubHttp: String): Boolean = si.safeer.tv.SpletVarnostPravila.istiIzvor(url, hubHttp)
+    fun jeNaslovHuba(url: String, hubHttp: String): Boolean {
+        if (hubHttp.isBlank()) return false
+        return try {
+            val a = java.net.URL(url)
+            val b = java.net.URL(hubHttp)
+            fun vrata(u: java.net.URL) = if (u.port != -1) u.port else u.defaultPort
+            val va = vrata(a)
+            a.protocol.equals(b.protocol, ignoreCase = true) && a.host.isNotEmpty() &&
+                a.host.equals(b.host, ignoreCase = true) && va != -1 && va == vrata(b)
+        } catch (_: Exception) {
+            false
+        }
+    }
 
     fun sha256Hex(b: ByteArray): String =
         MessageDigest.getInstance("SHA-256").digest(b).joinToString("") { "%02x".format(it.toInt() and 0xff) }
