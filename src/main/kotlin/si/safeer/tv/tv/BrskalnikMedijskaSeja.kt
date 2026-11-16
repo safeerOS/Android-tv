@@ -3,6 +3,7 @@ package si.safeer.tv.tv
 import android.content.Intent
 import android.media.session.MediaSession
 import android.media.session.PlaybackState
+import android.util.Log
 import android.view.KeyEvent
 import si.safeer.tv.MainActivity
 import si.safeer.tv.TvTipke
@@ -15,7 +16,16 @@ import si.safeer.tv.TvTipke
  * dobi tipke.
  */
 class BrskalnikMedijskaSeja(private val host: MainActivity) {
+    private companion object { const val TAG = "SafeerMedija" }
+
     private var seja: MediaSession? = null
+
+    /** Skript za video v strani; odgovor (ok/ni/napaka) gre v dnevnik za meritve na napravi. */
+    private fun zazeni(js: String) {
+        val wv = host.activeWebView()
+        if (wv == null) { Log.w(TAG, "brez aktivne strani"); return }
+        wv.evaluateJavascript(js) { odgovor -> Log.i(TAG, "odgovor strani: $odgovor") }
+    }
 
     fun vklopi() {
         try {
@@ -23,12 +33,16 @@ class BrskalnikMedijskaSeja(private val host: MainActivity) {
                 nova.setCallback(object : MediaSession.Callback() {
                     @Suppress("DEPRECATION")
                     override fun onMediaButtonEvent(mediaButtonIntent: Intent): Boolean {
-                        val e = mediaButtonIntent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT) ?: return false
+                        val e = mediaButtonIntent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
+                        Log.i(TAG, "tipka=${e?.keyCode} akcija=${e?.action} native=${host.playback.isNativeActive()}")
+                        if (e == null) return false
                         if (host.playback.isNativeActive()) return host.playback.handleNativeKey(e)
                         val js = TvTipke.jsMedijskaTipka(e.keyCode) ?: return false
-                        if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0) host.activeWebView()?.evaluateJavascript(js, null)
+                        if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0) zazeni(js)
                         return true
                     }
+                    override fun onPlay() { Log.i(TAG, "onPlay"); TvTipke.jsMedijskaTipka(126)?.let { zazeni(it) } }
+                    override fun onPause() { Log.i(TAG, "onPause"); TvTipke.jsMedijskaTipka(127)?.let { zazeni(it) } }
                 })
                 seja = nova
             }
