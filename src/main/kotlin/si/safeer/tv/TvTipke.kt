@@ -54,6 +54,12 @@ object TvTipke {
             "var r=$dejanje;if(r&&r.catch)r.catch(function(){});return 'ok';}catch(e){return 'napaka';}})()"
     }
 
+    /**
+     * Odgovor skripta jsMedijskaTipka (evaluateJavascript vrne JSON, torej "ni" z narekovaji): »ni« = v strani ni videa, zato
+     * tipko dobi naslednja medijska seja (glasba v ozadju). »ok« in »napaka« ostaneta pri strani.
+     */
+    fun medijskiOdgovorPosreduj(odgovor: String?): Boolean = odgovor?.trim()?.trim('"') == "ni"
+
     /** Toliko ponovitev drzanega OK (~1 s) vklopi kazalec v nacinu D-pad. */
     const val PONOVITEV_ZA_KAZALEC = 12
 

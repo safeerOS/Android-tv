@@ -19,6 +19,14 @@ fun main() {
     // Pavza mora pred pause() sprozit uporabnikov dogodek (keydown), sicer jo skript predvajanja v ozadju zavrze ali razveljavi.
     check(TvTipke.jsMedijskaTipka(127)!!.contains("dispatchEvent(new Event('keydown'))")) { "pavza sprozi keydown" }
     check(!TvTipke.jsMedijskaTipka(126)!!.contains("keydown")) { "predvajaj ne sprozi keydown" }
+    // Brez videa v strani (odgovor "ni") se tipka posreduje glasbi; ok/napaka/null/prazno ne.
+    check(TvTipke.medijskiOdgovorPosreduj("\"ni\""))
+    check(TvTipke.medijskiOdgovorPosreduj(" \"ni\" "))
+    check(!TvTipke.medijskiOdgovorPosreduj("\"ok\""))
+    check(!TvTipke.medijskiOdgovorPosreduj("\"napaka\""))
+    check(!TvTipke.medijskiOdgovorPosreduj("null"))
+    check(!TvTipke.medijskiOdgovorPosreduj(null))
+    check(!TvTipke.medijskiOdgovorPosreduj(""))
     // Drzan OK vklopi kazalec samo enkrat (ob tocno doloceni ponovitvi), samo na strani in ko ga se ni.
     check(TvTipke.drzanOkVkljuciKazalec(23, TvTipke.PONOVITEV_ZA_KAZALEC, kazalecViden = false, vVrstici = false))
     check(!TvTipke.drzanOkVkljuciKazalec(23, 0, kazalecViden = false, vVrstici = false))
