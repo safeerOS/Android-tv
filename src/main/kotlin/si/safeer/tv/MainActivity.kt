@@ -1075,7 +1075,10 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
         } catch (_: Exception) {}
     }
 
+    private val medijskaSeja by lazy { si.safeer.tv.tv.BrskalnikMedijskaSeja(this) }
+
     override fun onPause() {
+        medijskaSeja.izklopi()
         mainHandler.removeCallbacks(spletStanje)
         // Vlecenje z daljincem ne sme obviseti v strani, ko aktivnost odide (pregled 30. 10. 2026).
         try { virtualPointerView.koncajVlecenje(activeWebView(), preklic = true) } catch (_: Throwable) { }
@@ -1088,6 +1091,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
 
     override fun onResume() {
         super.onResume()
+        medijskaSeja.vklopi()
         // onNewIntent pride pred onResume: do tu velja, da je bil brskalnik v ozadju (ZavihkiPravila.zapriOstale).
         mainHandler.post { bilVOzadju = false }
         si.safeer.tv.os.NamestiApk.nadaljujCeCaka(this)
@@ -1182,6 +1186,7 @@ class MainActivity : android.app.Activity(), si.safeer.tv.cast.CastReceiverServi
     }
 
     override fun onDestroy() {
+        medijskaSeja.sprosti()
         koncajIzbiroDatotek(null)
         // Pregled III11: onDestroy stare dejavnosti sme pobrisati samo svojo odlocitev - nova dejavnost je lahko ze nastavila svojo.
         if (UserScriptManager.skriptZaFokus === mojSkriptZaFokus) UserScriptManager.skriptZaFokus = null   // objekt ne sme drzati dejavnosti
