@@ -260,6 +260,43 @@ fun main() {
             preveri("po roku rokovanja, ne takoj in ne predolgo ($trajalo ms)", trajalo in 600..4000)
             s?.close(); nema.close(); prava.zapri()
         }
+        primer("rok naslova: nema prvi naslov (kabel) ne zadrzi Wi-Fi naslova, ceprav je splosni rok dolg") {
+            val prava = Naprava("127.0.0.1", mapa)
+            val nema = ServerSocket(prava.vrata, 8, InetAddress.getByName("127.0.0.2"))   // sprejme TCP, TLS ne odgovori
+            val zacetek = System.currentTimeMillis()
+            val s = NeposrednaPovezava.povezi(listOf("127.0.0.2", "127.0.0.1"), prava.vrata, prava.odtis, casMs = 6000,
+                rokNaslova = { n -> if (n == "127.0.0.2") 400 else null })
+            val trajalo = System.currentTimeMillis() - zacetek
+            preveri("povezano s pravo napravo", s?.inetAddress?.hostAddress == "127.0.0.1")
+            preveri("po kratkem roku kabla, ne po splosnem ($trajalo ms)", trajalo in 350..2500)
+            s?.close(); nema.close(); prava.zapri()
+        }
+        primer("brez roka naslova velja splosni rok (kot prej)") {
+            val prava = Naprava("127.0.0.1", mapa)
+            val nema = ServerSocket(prava.vrata, 8, InetAddress.getByName("127.0.0.2"))
+            val zacetek = System.currentTimeMillis()
+            val s = NeposrednaPovezava.povezi(listOf("127.0.0.2", "127.0.0.1"), prava.vrata, prava.odtis, casMs = 900)
+            val trajalo = System.currentTimeMillis() - zacetek
+            preveri("povezano s pravo napravo", s?.inetAddress?.hostAddress == "127.0.0.1")
+            preveri("splosni rok ($trajalo ms)", trajalo in 800..4000)
+            s?.close(); nema.close(); prava.zapri()
+        }
+        primer("tovarna vticnic: klic za vsak poskusen naslov; izjema (ni omrezja eth) naslov preskoci takoj") {
+            val prava = Naprava("127.0.0.1", mapa)
+            val klici = ArrayList<String>()
+            val zacetek = System.currentTimeMillis()
+            val s = NeposrednaPovezava.povezi(listOf("127.0.0.3", "127.0.0.1"), prava.vrata, prava.odtis, casMs = 5000,
+                vticnica = { n ->
+                    klici.add(n)
+                    if (n == "127.0.0.3") throw java.io.IOException("omrezja Ethernet ni")
+                    java.net.Socket()
+                })
+            val trajalo = System.currentTimeMillis() - zacetek
+            preveri("povezano s pravo napravo", s?.inetAddress?.hostAddress == "127.0.0.1")
+            preveri("tovarna je dobila oba naslova po vrsti: $klici", klici == listOf("127.0.0.3", "127.0.0.1"))
+            preveri("preskok takoj, brez cakanja roka ($trajalo ms)", trajalo < 2500)
+            s?.close(); prava.zapri()
+        }
         primer("naprave ni na nobenem naslovu") {
             val n = Naprava("127.0.0.1", mapa)
             val prosta = ServerSocket(0, 1, InetAddress.getByName("127.0.0.1")).use { it.localPort }

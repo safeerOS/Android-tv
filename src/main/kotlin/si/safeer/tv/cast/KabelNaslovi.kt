@@ -47,6 +47,13 @@ internal object KabelNaslovi {
         return if (prvi.isEmpty() || prvi in izid) izid else izid.take(najvec - 1) + prvi
     }
 
+    /** Rok za naslov na kablu: omrezje LAN odgovori v milisekundah (rokovanje TLS na TV nekaj 100 ms). */
+    const val ROK_KABLA_MS = 1_500
+
+    /** Rok za posamezen naslov: kratek za naslove na kablu, sicer null (privzeti rok seznama). */
+    fun rokNaslova(zicna: List<Podomrezje>): (String) -> Int? =
+        { n -> if (zicna.any { naPodomrezju(n, it) }) ROK_KABLA_MS else null }
+
     /**
      * Podomrezja IPv4 delujocih zicnih vmesnikov (eth*) te naprave; prazno brez kabla ali ob napaki. Samo branje
      * stanja vmesnikov, nobene nastavitve sistema.

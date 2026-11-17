@@ -63,22 +63,32 @@ object NeposrednaPovezava {
         casMs: Int = casZa(naslovi.size),
         oznaka: String = "SafeerPovezava",
         tece: () -> Boolean = { true },
+        /**
+         * Vticnica za naslov. Android: naslov na podomrezju Etherneta gre prek omrezja eth0 (Network.bindSocket), ker
+         * TV sicer vse vticnice usmeri v privzeto omrezje (Scit/Wi-Fi), ki podomrezja kabla ne pozna - povezava na
+         * kabel potem obvisi, med tem pa zmaga pot prek Huba (izmerjeno 17. 11. 2026: pot=global, zamik miske).
+         */
+        vticnica: (String) -> Socket = { Socket() },
+        /** Rok za posamezen naslov (null = [casMs]): naslov na kablu odgovori v milisekundah, ne v 4 s. */
+        rokNaslova: (String) -> Int? = { null },
     ): SSLSocket? {
         val (tovarna, _) = Pin.tovarna(odtis)
         for (n in naslovi) {
             if (!tece()) return null
-            val goli = Socket()
+            val rok = rokNaslova(n) ?: casMs
+            var goli: Socket? = null
             try {
-                goli.connect(InetSocketAddress(n, vrata), casMs)
+                goli = vticnica(n)
+                goli.connect(InetSocketAddress(n, vrata), rok)
                 goli.tcpNoDelay = true                     // brez Naglejevega zbiranja: vsak paket takoj
                 val s = tovarna.createSocket(goli, n, vrata, true) as SSLSocket
-                s.soTimeout = casMs                        // nema naprava ne sme zadrzati naslednjega naslova
+                s.soTimeout = rok                          // nema naprava ne sme zadrzati naslednjega naslova
                 s.startHandshake()
                 s.soTimeout = 0
                 return s
             } catch (e: Throwable) {
                 Log.i(oznaka, "$n:$vrata ni dosegljiv: ${e.message}")
-                try { goli.close() } catch (_: Throwable) { }
+                try { goli?.close() } catch (_: Throwable) { }
             }
         }
         return null

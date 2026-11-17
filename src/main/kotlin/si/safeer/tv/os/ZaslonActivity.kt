@@ -626,10 +626,14 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             else fun(): Int? = si.safeer.tv.link.GlobalLink.vrataReleja(aplikacija, idRacunalnika)
         odjemalec?.ustavi()
         val rod = ++rodSeje
+        val zicna = si.safeer.tv.cast.KabelNaslovi.zicnaPodomrezja()
         val o = ZaslonOdjemalec(
-            si.safeer.tv.cast.KabelNaslovi.kandidatiSKablom(naslov, nasteti, si.safeer.tv.cast.KabelNaslovi.zicnaPodomrezja()),
+            si.safeer.tv.cast.KabelNaslovi.kandidatiSKablom(naslov, nasteti, zicna),
             podatki.optInt("port"), podatki.optString("fp"), podatki.optString("token"),
             vrataHuba = dobiVrata,
+            vticnicaZa = si.safeer.tv.cast.KabelVticnica.za(
+                getSystemService(android.net.ConnectivityManager::class.java), zicna),
+            rokNaslova = si.safeer.tv.cast.KabelNaslovi.rokNaslova(zicna),
             // Preizkus »tudi doma prek interneta«: samo pot prek Huba, da se vidi, ali deluje.
             samoHub = prekHuba && si.safeer.tv.link.GlobalLink.samoRele(this),
             naStanje = { stanje, besedilo ->

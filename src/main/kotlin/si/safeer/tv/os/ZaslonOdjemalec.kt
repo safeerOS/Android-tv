@@ -49,6 +49,9 @@ class ZaslonOdjemalec(
     private val vrataHuba: (() -> Int?)? = null,
     /** Preizkus »tudi doma prek interneta«: samo pot prek Huba, da se vidi, ali deluje. */
     private val samoHub: Boolean = false,
+    /** Vticnica za naslov (Android: naslov na kablu prek omrezja eth0) in rok za naslov; glej [NeposrednaPovezava.povezi]. */
+    private val vticnicaZa: (String) -> java.net.Socket = { java.net.Socket() },
+    private val rokNaslova: (String) -> Int? = { null },
 ) {
     /**
      * PRAZNO: racunalnik javi, da na locenem zaslonu ni vec programa (besedilo = razlog).
@@ -140,7 +143,8 @@ class ZaslonOdjemalec(
             val neposredno: ((() -> Boolean) -> SSLSocket?)? =
                 if (naslovi.isEmpty() || (samoHub && dobiVrata != null)) null
                 else fun(t: () -> Boolean): SSLSocket? =
-                    NeposrednaPovezava.povezi(naslovi, vrata, odtis, oznaka = TAG, tece = t)
+                    NeposrednaPovezava.povezi(naslovi, vrata, odtis, oznaka = TAG, tece = t,
+                        vticnica = vticnicaZa, rokNaslova = rokNaslova)
             val poHubu: ((() -> Boolean) -> SSLSocket?)? =
                 if (dobiVrata == null) null
                 else fun(t: () -> Boolean): SSLSocket? {

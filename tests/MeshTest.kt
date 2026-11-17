@@ -409,6 +409,16 @@ fun main() {
         preveriM("predpona 31: dva naslova", KabelNaslovi.naPodomrezju("198.51.100.3", KabelNaslovi.Podomrezje("198.51.100.2", 31)) && !KabelNaslovi.naPodomrezju("198.51.100.4", KabelNaslovi.Podomrezje("198.51.100.2", 31)))
         preveriM("ime namesto IPv4 iz seznama naprav ostane med kandidati (kot prej)", k("racunalnik.local", listOf("198.51.100.1", wifi), kabel) == listOf("198.51.100.1", "racunalnik.local", wifi))
     }
+    primer("naslov: kratek rok samo za naslove na kablu") {
+        val kabel = listOf(KabelNaslovi.Podomrezje("198.51.100.2", 30))
+        val rok = KabelNaslovi.rokNaslova(kabel)
+        preveriM("naslov na kablu: ${KabelNaslovi.ROK_KABLA_MS} ms", rok("198.51.100.1") == KabelNaslovi.ROK_KABLA_MS)
+        preveriM("Wi-Fi naslov: brez posebnega roka", rok("192.0.2.10") == null)
+        preveriM("naslov zunaj /30 na istem obsegu: brez posebnega roka", rok("198.51.100.5") == null)
+        preveriM("brez kabla: nobenega posebnega roka", KabelNaslovi.rokNaslova(emptyList())("198.51.100.1") == null)
+        preveriM("neveljavno podomrezje (predpona 0): brez roka", KabelNaslovi.rokNaslova(listOf(KabelNaslovi.Podomrezje("198.51.100.2", 0)))("198.51.100.1") == null)
+        preveriM("rok kabla je kratek, a dovolj za rokovanje", KabelNaslovi.ROK_KABLA_MS in 1000..2500)
+    }
     // ---- »Pomagaj drugim napravam v Linku pri povezavi« (link/PomocLinka; isto kot tests/test_link_mesh.py na racunalniku)
     primer("pomoc: izklopljena na b - naprav drugih sosedov ne predstavi in posredovanja ne opravi") {
         val a = hub("hub-a"); val b = hub("hub-b"); val c = hub("hub-c")
