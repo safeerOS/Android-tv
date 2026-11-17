@@ -392,6 +392,14 @@ fun main() {
         preveriM("zanka in slabi naslovi se ne razvrscajo naprej", k(wifi, listOf("127.0.0.1", "224.0.0.1"), kabel) == listOf(wifi))
         preveriM("Ethernet na domacem LAN: vrstni red seznama ostane", k(wifi, listOf("192.0.2.30"), listOf(HubNaslovi.Podomrezje("192.0.2.77", 24))) == listOf(wifi, "192.0.2.30"))
         preveriM("podomrezje: znotraj in zunaj", HubNaslovi.naPodomrezju("198.51.100.1", kabel[0]) && !HubNaslovi.naPodomrezju("198.51.100.4", kabel[0]) && !HubNaslovi.naPodomrezju("ime.local", kabel[0]))
+        val napad = listOf("198.51.100.1", "198.51.100.3", "198.51.100.2", "198.51.100.0")
+        preveriM("zlonamerni hosts ne izrinejo naslova iz seznama naprav", k(wifi, napad, kabel) == listOf("198.51.100.1", "198.51.100.3", "198.51.100.2", wifi))
+        preveriM("naslov iz seznama na kablu ostane prvi in ni podvojen", k("198.51.100.1", listOf("198.51.100.1", wifi), kabel) == listOf("198.51.100.1", wifi))
+        preveriM("predpona 7 je neveljavna, 8 in 32 veljata", !HubNaslovi.naPodomrezju("10.1.2.3", HubNaslovi.Podomrezje("10.9.9.9", 7)) &&
+            HubNaslovi.naPodomrezju("10.1.2.3", HubNaslovi.Podomrezje("10.9.9.9", 8)) &&
+            HubNaslovi.naPodomrezju("198.51.100.2", HubNaslovi.Podomrezje("198.51.100.2", 32)) && !HubNaslovi.naPodomrezju("198.51.100.3", HubNaslovi.Podomrezje("198.51.100.2", 32)))
+        preveriM("predpona 31: dva naslova", HubNaslovi.naPodomrezju("198.51.100.3", HubNaslovi.Podomrezje("198.51.100.2", 31)) && !HubNaslovi.naPodomrezju("198.51.100.4", HubNaslovi.Podomrezje("198.51.100.2", 31)))
+        preveriM("ime namesto IPv4 iz seznama naprav ostane med kandidati (kot prej)", k("racunalnik.local", listOf("198.51.100.1", wifi), kabel) == listOf("198.51.100.1", "racunalnik.local", wifi))
     }
     // ---- »Pomagaj drugim napravam v Linku pri povezavi« (link/PomocLinka; isto kot tests/test_link_mesh.py na racunalniku)
     primer("pomoc: izklopljena na b - naprav drugih sosedov ne predstavi in posredovanja ne opravi") {

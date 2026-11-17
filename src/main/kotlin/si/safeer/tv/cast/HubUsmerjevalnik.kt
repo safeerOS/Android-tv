@@ -2770,7 +2770,11 @@ internal object HubNaslovi {
         val vsi = vsiKandidati(naslov, hosts)
         if (zicna.isEmpty()) return vsi.take(NAJVEC_KANDIDATOV)
         val (zicni, ostali) = vsi.partition { n -> zicna.any { naPodomrezju(n, it) } }
-        return (zicni + ostali).take(NAJVEC_KANDIDATOV)
+        val izid = (zicni + ostali).take(NAJVEC_KANDIDATOV)
+        // Naslov iz seznama naprav Linka ne sme odpasti: zlonamerna naprava bi z odgovorom (hosts) napolnila vsa mesta
+        // s kabelskimi naslovi in ga izrinila. Ce ga rez odnese, dobi zadnje mesto.
+        val prvi = naslov.trim()
+        return if (prvi.isEmpty() || prvi in izid) izid else izid.take(NAJVEC_KANDIDATOV - 1) + prvi
     }
 
     /**
