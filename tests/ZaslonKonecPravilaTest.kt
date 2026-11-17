@@ -50,6 +50,30 @@ fun main() {
         "koda napake ima prednost pred zaslon_spremenjen"
     )
 
+    // Robni primeri: presledki se odrezejo, druga pisava ali pripona ni zaslon_spremenjen, zajem/dostop imata prednost.
+    preveri(
+        ZaslonKonecPravila.odlocitev("", " zaslon_spremenjen\n", null) == ZaslonKonecPravila.Odlocitev.PONOVI,
+        "konec z presledki in prazna koda -> ponovi"
+    )
+    preveri(
+        ZaslonKonecPravila.odlocitev(null, "ZASLON_SPREMENJEN", null) == ZaslonKonecPravila.Odlocitev.KONCAJ_DRUGO,
+        "druga pisava ni zaslon_spremenjen"
+    )
+    preveri(
+        ZaslonKonecPravila.odlocitev(null, "zaslon_spremenjenX", null) == ZaslonKonecPravila.Odlocitev.KONCAJ_DRUGO,
+        "pripona ni zaslon_spremenjen"
+    )
+    preveri(
+        ZaslonKonecPravila.odlocitev("zajem_pada", "zaslon_spremenjen", null) == ZaslonKonecPravila.Odlocitev.KONCAJ_ZAJEM_PADA,
+        "zajem_pada ima prednost pred zaslon_spremenjen"
+    )
+
+    // Omejitev ponovitev ob spremembi zaslona: 3 v 60 s, nato konec; stari primeri izven okna ne stejejo.
+    preveri(ZaslonKonecPravila.smeZnovaZaradiZaslona(emptyList(), 1000L), "prva ponovitev dovoljena")
+    preveri(ZaslonKonecPravila.smeZnovaZaradiZaslona(listOf(1000L, 5000L), 9000L), "tretja ponovitev dovoljena")
+    preveri(!ZaslonKonecPravila.smeZnovaZaradiZaslona(listOf(1000L, 5000L, 9000L), 12000L), "cetrta v 60 s ni dovoljena")
+    preveri(ZaslonKonecPravila.smeZnovaZaradiZaslona(listOf(1000L, 5000L, 9000L), 62000L), "po koncu okna spet dovoljeno")
+
     // Druge koncne napake ali konci seje: KONCAJ_DRUGO.
     preveri(
         ZaslonKonecPravila.odlocitev("ni_programa", null, null) == ZaslonKonecPravila.Odlocitev.KONCAJ_DRUGO,

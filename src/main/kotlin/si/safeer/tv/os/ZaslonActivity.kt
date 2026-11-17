@@ -58,6 +58,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
     private lateinit var predvajalnikPas: ZaslonPredvajalnik
     /** Od kdaj se povezava vraca (0 = slika tece). Program na racunalniku medtem tece naprej. */
     private var ponovnoOd = 0L
+    private val zaslonSpremenjenCasi = ArrayList<Long>()   // samo glavna nit (runOnUiThread)
     /** Program, zaradi katerega smo tu (za zapomnjeni nacin tipk), in ali je igra. */
     private var program = ""
     private var igra = false
@@ -681,7 +682,14 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                             }
                             // Zaslon racunalnika se je spremenil (pokrov zaprt, monitor odklopljen): racunalnik je sejo koncal,
                             // ker bi sicer kazal napacen izrez. Sejo zahtevamo znova - dobi novo velikost zaslona.
-                            if (besedilo == ZaslonKonecPravila.ZASLON_SPREMENJEN) {
+                            if (besedilo.trim() == ZaslonKonecPravila.ZASLON_SPREMENJEN) {
+                                val zdajZ = android.os.SystemClock.uptimeMillis()
+                                if (!ZaslonKonecPravila.smeZnovaZaradiZaslona(zaslonSpremenjenCasi, zdajZ)) {
+                                    // Zaslon se spreminja v nedogled: ne vrtimo se, uporabnika vrnemo nazaj.
+                                    Toast.makeText(this, getString(R.string.os_zaslon_koncano), Toast.LENGTH_LONG).show()
+                                    koncaj(); finish(); return@runOnUiThread
+                                }
+                                zaslonSpremenjenCasi.add(zdajZ)
                                 ponoviAliKoncaj(getString(R.string.os_zaslon_koncano))
                                 return@runOnUiThread
                             }

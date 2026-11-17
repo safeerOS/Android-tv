@@ -16,6 +16,14 @@ object ZaslonKonecPravila {
 
     /** Racunalnik je sejo koncal, ker se je njegov zaslon spremenil (pokrov zaprt, monitor odklopljen). */
     const val ZASLON_SPREMENJEN = "zaslon_spremenjen"
+
+    /** Najvec tolikokrat v [ZASLON_SPREMENJEN_OKNO_MS] sejo zahtevamo znova zaradi spremembe zaslona; sicer zaslon, ki se spreminja
+     *  v nedogled (monitor utripa, zlonamerna naprava), TV vrti v zanki, ker se kazalec ponovitev ob vsaki uspesni seji ponastavi. */
+    const val ZASLON_SPREMENJEN_NAJVEC = 3
+    const val ZASLON_SPREMENJEN_OKNO_MS = 60_000L
+
+    fun smeZnovaZaradiZaslona(casiPrejsnjih: List<Long>, zdaj: Long): Boolean =
+        casiPrejsnjih.count { zdaj - it in 0 until ZASLON_SPREMENJEN_OKNO_MS } < ZASLON_SPREMENJEN_NAJVEC
     private const val PREDSTAVKA_IZHOD = "izhod_"
 
     /**
