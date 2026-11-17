@@ -13,6 +13,9 @@ object ZaslonKonecPravila {
     }
 
     private const val PREDSTAVKA_ZAJEM = "zajem:"
+
+    /** Racunalnik je sejo koncal, ker se je njegov zaslon spremenil (pokrov zaprt, monitor odklopljen). */
+    const val ZASLON_SPREMENJEN = "zaslon_spremenjen"
     private const val PREDSTAVKA_IZHOD = "izhod_"
 
     /**
@@ -27,6 +30,8 @@ object ZaslonKonecPravila {
         val k = konec?.trim().orEmpty()
         if (c == "zajem_pada" || k == "zajem" || k.startsWith(PREDSTAVKA_ZAJEM)) return Odlocitev.KONCAJ_ZAJEM_PADA
         if (c == "ni_dovoljeno" || k == "dostop") return Odlocitev.KONCAJ_DOSTOP
+        // Zaslon racunalnika se je spremenil: nova seja dobi novo velikost, zato jo zahtevamo znova (ne konec seje).
+        if (c.isEmpty() && k == ZASLON_SPREMENJEN) return Odlocitev.PONOVI
         if (c.isNotEmpty() || k.isNotEmpty()) return Odlocitev.KONCAJ_DRUGO
         return Odlocitev.PONOVI
     }

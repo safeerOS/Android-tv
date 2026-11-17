@@ -40,6 +40,16 @@ fun main() {
         "sporocilo seje konec=dostop"
     )
 
+    // Zaslon racunalnika se je spremenil (pokrov zaprt): sejo zahtevamo znova, ne koncamo.
+    preveri(
+        ZaslonKonecPravila.odlocitev(null, "zaslon_spremenjen", null) == ZaslonKonecPravila.Odlocitev.PONOVI,
+        "konec=zaslon_spremenjen -> ponovi"
+    )
+    preveri(
+        ZaslonKonecPravila.odlocitev("ni_programa", "zaslon_spremenjen", null) == ZaslonKonecPravila.Odlocitev.KONCAJ_DRUGO,
+        "koda napake ima prednost pred zaslon_spremenjen"
+    )
+
     // Druge koncne napake ali konci seje: KONCAJ_DRUGO.
     preveri(
         ZaslonKonecPravila.odlocitev("ni_programa", null, null) == ZaslonKonecPravila.Odlocitev.KONCAJ_DRUGO,

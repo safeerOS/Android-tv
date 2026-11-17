@@ -679,6 +679,12 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
                                 koncajZajemPada(ZaslonKonecPravila.razlogIzStanja(besedilo))
                                 return@runOnUiThread
                             }
+                            // Zaslon racunalnika se je spremenil (pokrov zaprt, monitor odklopljen): racunalnik je sejo koncal,
+                            // ker bi sicer kazal napacen izrez. Sejo zahtevamo znova - dobi novo velikost zaslona.
+                            if (besedilo == ZaslonKonecPravila.ZASLON_SPREMENJEN) {
+                                ponoviAliKoncaj(getString(R.string.os_zaslon_koncano))
+                                return@runOnUiThread
+                            }
                             // Program je odprt na namizju racunalnika (sme teci samo enkrat): pokazemo ga tam.
                             if (besedilo == "na_namizju" && !predano) { preklopiNaNamizje(); return@runOnUiThread }
                             // Zaslon racunalnika je odprla druga naprava: povemo katera in se NE povezemo znova (sicer
