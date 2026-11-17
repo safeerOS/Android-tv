@@ -384,6 +384,31 @@ fun main() {
         val veliko = (1..19).map { "10.0.0.$it" }
         preveriM("najvec stirje", k("192.168.50.120", veliko) == listOf("192.168.50.120", "10.0.0.1", "10.0.0.2", "10.0.0.3") && k("", veliko).size == HubNaslovi.NAJVEC_KANDIDATOV)
     }
+    primer("naslov: kabelski kandidati najprej, Wi-Fi je rezerva") {
+        // Naslovi iz dokumentacijskih obsegov (RFC 5737): 198.51.100.0/30 = kabel, 192.0.2.0/24 = Wi-Fi.
+        val kabel = listOf(KabelNaslovi.Podomrezje("198.51.100.2", 30))
+        val wifi = "192.0.2.10"
+        val k = { n: String, h: List<String>?, z: List<KabelNaslovi.Podomrezje> -> KabelNaslovi.kandidatiSKablom(n, h, z) }
+        preveriM("kabelski naslov pred Wi-Fi iz seznama naprav", k(wifi, listOf(wifi, "198.51.100.1"), kabel) == listOf("198.51.100.1", wifi))
+        preveriM("brez kabla enako kot kandidati", k(wifi, listOf(wifi, "198.51.100.1"), emptyList()) == HubNaslovi.kandidati(wifi, listOf(wifi, "198.51.100.1")))
+        preveriM("nobeden na kablu: vrstni red ostane", k(wifi, listOf("192.0.2.11", "203.0.113.5"), kabel) == listOf(wifi, "192.0.2.11", "203.0.113.5"))
+        preveriM("podomrezje /30: sosednji naslov zunaj odpade iz prednosti", k(wifi, listOf("198.51.100.5", "198.51.100.1"), kabel) == listOf("198.51.100.1", wifi, "198.51.100.5"))
+        val veliko = listOf("192.0.2.21", "192.0.2.22", "192.0.2.23", "198.51.100.1")
+        preveriM("rez na stiri je PO razvrstitvi: kabel ne odpade", k(wifi, veliko, kabel) == listOf("198.51.100.1", wifi, "192.0.2.21", "192.0.2.22"))
+        preveriM("brez naslova iz seznama naprav kabel vseeno prvi", k("", listOf(wifi, "198.51.100.1"), kabel) == listOf("198.51.100.1", wifi))
+        preveriM("neveljavna predpona ne ujame vsega", k(wifi, listOf("198.51.100.1"), listOf(KabelNaslovi.Podomrezje("198.51.100.2", 0))) == listOf(wifi, "198.51.100.1"))
+        preveriM("zanka in slabi naslovi se ne razvrscajo naprej", k(wifi, listOf("127.0.0.1", "224.0.0.1"), kabel) == listOf(wifi))
+        preveriM("Ethernet na domacem LAN: vrstni red seznama ostane", k(wifi, listOf("192.0.2.30"), listOf(KabelNaslovi.Podomrezje("192.0.2.77", 24))) == listOf(wifi, "192.0.2.30"))
+        preveriM("podomrezje: znotraj in zunaj", KabelNaslovi.naPodomrezju("198.51.100.1", kabel[0]) && !KabelNaslovi.naPodomrezju("198.51.100.4", kabel[0]) && !KabelNaslovi.naPodomrezju("ime.local", kabel[0]))
+        val napad = listOf("198.51.100.1", "198.51.100.3", "198.51.100.2", "198.51.100.0")
+        preveriM("zlonamerni hosts ne izrinejo naslova iz seznama naprav", k(wifi, napad, kabel) == listOf("198.51.100.1", "198.51.100.3", "198.51.100.2", wifi))
+        preveriM("naslov iz seznama na kablu ostane prvi in ni podvojen", k("198.51.100.1", listOf("198.51.100.1", wifi), kabel) == listOf("198.51.100.1", wifi))
+        preveriM("predpona 7 je neveljavna, 8 in 32 veljata", !KabelNaslovi.naPodomrezju("10.1.2.3", KabelNaslovi.Podomrezje("10.9.9.9", 7)) &&
+            KabelNaslovi.naPodomrezju("10.1.2.3", KabelNaslovi.Podomrezje("10.9.9.9", 8)) &&
+            KabelNaslovi.naPodomrezju("198.51.100.2", KabelNaslovi.Podomrezje("198.51.100.2", 32)) && !KabelNaslovi.naPodomrezju("198.51.100.3", KabelNaslovi.Podomrezje("198.51.100.2", 32)))
+        preveriM("predpona 31: dva naslova", KabelNaslovi.naPodomrezju("198.51.100.3", KabelNaslovi.Podomrezje("198.51.100.2", 31)) && !KabelNaslovi.naPodomrezju("198.51.100.4", KabelNaslovi.Podomrezje("198.51.100.2", 31)))
+        preveriM("ime namesto IPv4 iz seznama naprav ostane med kandidati (kot prej)", k("racunalnik.local", listOf("198.51.100.1", wifi), kabel) == listOf("198.51.100.1", "racunalnik.local", wifi))
+    }
     // ---- »Pomagaj drugim napravam v Linku pri povezavi« (link/PomocLinka; isto kot tests/test_link_mesh.py na racunalniku)
     primer("pomoc: izklopljena na b - naprav drugih sosedov ne predstavi in posredovanja ne opravi") {
         val a = hub("hub-a"); val b = hub("hub-b"); val c = hub("hub-c")
