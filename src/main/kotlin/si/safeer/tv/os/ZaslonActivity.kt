@@ -621,7 +621,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
         odjemalec?.ustavi()
         val rod = ++rodSeje
         val o = ZaslonOdjemalec(
-            si.safeer.tv.cast.HubNaslovi.kandidati(naslov, nasteti),
+            si.safeer.tv.cast.HubNaslovi.kandidatiSKablom(naslov, nasteti, si.safeer.tv.cast.HubNaslovi.zicnaPodomrezja()),
             podatki.optInt("port"), podatki.optString("fp"), podatki.optString("token"),
             vrataHuba = dobiVrata,
             // Preizkus »tudi doma prek interneta«: samo pot prek Huba, da se vidi, ali deluje.

@@ -2728,17 +2728,63 @@ internal object HubNaslovi {
      * Naslovi, na katerih gledalec isce napravo: najprej [naslov] iz seznama naprav Safeer Linka, nato tisti, ki jih je
      * naprava sama nastela v odgovoru na `screen.start` ([hosts]). Vsak samo enkrat, najvec [NAJVEC_KANDIDATOV].
      */
-    fun kandidati(naslov: String, hosts: List<String>?): List<String> {
+    fun kandidati(naslov: String, hosts: List<String>?): List<String> =
+        vsiKandidati(naslov, hosts).take(NAJVEC_KANDIDATOV)
+
+    /** Vsi kandidati brez omejitve stevila (rez na [NAJVEC_KANDIDATOV] sele po razvrstitvi). */
+    private fun vsiKandidati(naslov: String, hosts: List<String>?): List<String> {
         val izid = ArrayList<String>()
         val prvi = naslov.trim()
         if (prvi.isNotEmpty()) izid.add(prvi)
         for (h0 in hosts.orEmpty()) {
-            if (izid.size >= NAJVEC_KANDIDATOV) break
             val h = h0.trim()
             if (h.isNotEmpty() && h !in izid && naslovNaprave(h)) izid.add(h)
         }
-        return izid.take(NAJVEC_KANDIDATOV)
+        return izid
     }
+
+    /** Podomrezje IPv4 vmesnika te naprave: naslov in dolzina predpone (npr. 198.51.100.2 in 30). */
+    class Podomrezje(val naslov: String, val predpona: Int)
+
+    private fun stevilo(naslov: String): Long? {
+        if (!naslovNaprave(naslov)) return null
+        return naslov.split('.').fold(0L) { a, d -> (a shl 8) or d.toLong() }
+    }
+
+    /** Ali je [naslov] na istem podomrezju kot [p] (dosegljiv brez usmerjevalnika). Neveljavno podomrezje: ne. */
+    fun naPodomrezju(naslov: String, p: Podomrezje): Boolean {
+        if (p.predpona !in 8..32) return false
+        val a = stevilo(naslov) ?: return false
+        val b = stevilo(p.naslov) ?: return false
+        val maska = (0xFFFFFFFFL shl (32 - p.predpona)) and 0xFFFFFFFFL
+        return (a and maska) == (b and maska)
+    }
+
+    /**
+     * Kot [kandidati], vendar najprej tisti naslovi, ki so na podomrezju zicnega (Ethernet) vmesnika TV: neposredna
+     * kabelska povezava z racunalnikom (brez Wi-Fi, brez usmerjevalnika) ima manjsi in bolj stalen zamik. Vrstni red
+     * znotraj skupin ostane; ce kabla ni ([zicna] prazen) ali nobeden naslov ni na njem, je izid enak [kandidati]
+     * (Wi-Fi je rezerva). Rez na [NAJVEC_KANDIDATOV] je PO razvrstitvi, da kabelski naslov ne odpade.
+     */
+    fun kandidatiSKablom(naslov: String, hosts: List<String>?, zicna: List<Podomrezje>): List<String> {
+        val vsi = vsiKandidati(naslov, hosts)
+        if (zicna.isEmpty()) return vsi.take(NAJVEC_KANDIDATOV)
+        val (zicni, ostali) = vsi.partition { n -> zicna.any { naPodomrezju(n, it) } }
+        return (zicni + ostali).take(NAJVEC_KANDIDATOV)
+    }
+
+    /**
+     * Podomrezja IPv4 delujocih zicnih vmesnikov (eth*) te naprave; prazno brez kabla ali ob napaki. Samo branje
+     * stanja vmesnikov, nobene nastavitve sistema.
+     */
+    fun zicnaPodomrezja(): List<Podomrezje> = try {
+        java.net.NetworkInterface.getNetworkInterfaces().toList()
+            .filter { it.name.startsWith("eth") && it.isUp && !it.isLoopback }
+            .flatMap { v -> v.interfaceAddresses.mapNotNull { a ->
+                val ip = a.address as? java.net.Inet4Address ?: return@mapNotNull null
+                Podomrezje(ip.hostAddress.orEmpty(), a.networkPrefixLength.toInt())
+            } }
+    } catch (_: Throwable) { emptyList() }
 
     /**
      * Nas naslov na poti do [gostitelj]: vticnica UDP se samo »poveze« - sistem izbere pot in s tem nas naslov,
