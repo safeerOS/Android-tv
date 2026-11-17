@@ -32,7 +32,10 @@ pri_nalaganju = usm[max(0, vbrizgi[-1].start() - 500):vbrizgi[-1].end()] if vbri
 preveri("vbrizg ob nalaganju je pogojen s skriptZaFokus", "skriptZaFokus?.invoke(target)" in pri_nalaganju)
 preveri("brez odlocitve velja staro vedenje (?: true)", "skriptZaFokus?.invoke(target) ?: true" in usm)
 preveri("MainActivity odlocitev jemlje iz KazalecPravila.skriptZaFokus", "KazalecPravila.skriptZaFokus(" in ma)
-preveri("MainActivity nastavi UserScriptManager.skriptZaFokus", "UserScriptManager.skriptZaFokus = { naslov -> skriptZaFokusZa(naslov) }" in ma)
-preveri("ob onDestroy se odlocitev pocisti", "UserScriptManager.skriptZaFokus = null" in ma)
+preveri("MainActivity nastavi UserScriptManager.skriptZaFokus (odlocitev izhaja iz skriptZaFokusZa)",
+        "mojSkriptZaFokus: (String) -> Boolean = { naslov -> skriptZaFokusZa(naslov) }" in ma
+        and "UserScriptManager.skriptZaFokus = mojSkriptZaFokus" in ma)
+preveri("ob onDestroy se odlocitev pocisti, a samo svoja (nova dejavnost je lahko ze nastavila svojo)",
+        "if (UserScriptManager.skriptZaFokus === mojSkriptZaFokus) UserScriptManager.skriptZaFokus = null" in ma)
 preveri("preklop na puscice vbrizga skript v nalozeno stran", "UserScriptManager.vbrizgajFokusZdaj" in ma and "naSpremembo" in vp)
 sys.exit(1 if napak else 0)

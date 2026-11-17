@@ -706,11 +706,13 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             naStatistiko = { s ->
                 // Gledalcu stevilke o hitrosti prenosa nic ne povedo in mu le stojijo cez sliko;
                 // ostanejo v dnevniku, kjer jih potrebujemo, kadar iscemo vzrok tezave.
+                // »pot=« je dejanska pot toka; »privzeto_omrezje_androida« je samo privzeto omrezje sistema (pri kablu brez
+                // NAT-a na racunalniku ostane Wi-Fi) in NI pot - prej oznaceno »omrezje=wifi« je pri kablu zavajalo (17. 11. 2026).
                 android.util.Log.d("SafeerZaslon",
                     "${s.sirina}x${s.visina} ${s.naSekundo} sl/s ${s.megabitov} Mb/s " +
                     "dekoder ${s.dekoderMs} ms zvok=${s.zvok} zastojev=${s.zastojev} " +
                     "pot=${if (odjemalec?.prekHuba == true) "global" else "neposredno"} " +
-                    "omrezje=$omrezje tok=${odjemalec?.opisToka().orEmpty()}")
+                    "privzeto_omrezje_androida=$omrezje tok=${odjemalec?.opisToka().orEmpty()}")
                 // Kdor jih je v meniju seje vklopil, jih vidi (iskanje vzroka, kadar slika zdoma ne tece gladko).
                 if (podatkiVidni) runOnUiThread {
                     if (isFinishing || !podatkiVidni) return@runOnUiThread
