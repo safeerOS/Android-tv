@@ -771,6 +771,19 @@ class GlasbaActivity : OsActivity() {
         addState(intArrayOf(), GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(0) })
     }
 
+    /** Pasica "zdaj se predvaja" (velika na Domovu, mala v razdelkih): celozaslonski prikaz. Video nadaljuje (kot mini predvajalnik). */
+    private fun odpriCelZaslonZdaj() {
+        if (isFinishing || isDestroyed) return
+        val sk = GlasbaStoritev.trenutna()
+        if (sk == null) {   // plosca »nazadnje predvajano«: nic ne igra, celozaslonskega prikaza ni
+            MedijskiViri.nedavno(this).firstOrNull()?.let { predvajaj(listOf(it), 0) }
+            return
+        }
+        if (sk.video) MiniPredvajalnik.odpriCelZaslon(this)
+        else startActivity(Intent(this, PredvajanjeActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP))
+    }
+
     private fun gumb(res: Int, vel: Int, kljuc: String, klik: () -> Unit) = FrameLayout(this).apply {
         tag = kljuc
         isFocusable = true; isClickable = true
@@ -993,7 +1006,7 @@ class GlasbaActivity : OsActivity() {
             setPadding(dp(18), dp(8), dp(18), dp(8))
             background = GradientDrawable().apply { cornerRadius = dp(14).toFloat(); setColor(osBarva(R.color.os_kartica_dvignjena)); setStroke(dp(1), osBarva(R.color.os_crta)) }
             isFocusable = true; isClickable = true
-            setOnClickListener { startActivity(Intent(this@GlasbaActivity, PredvajanjeActivity::class.java)) }
+            setOnClickListener { odpriCelZaslonZdaj() }
             setOnFocusChangeListener { v, f -> (v.background as GradientDrawable).setStroke(dp(if (f) 2 else 1), osBarva(if (f) R.color.os_mint else R.color.os_crta)) }
             visibility = View.GONE
         }
@@ -6054,7 +6067,21 @@ class GlasbaActivity : OsActivity() {
         if (telefon) plosca.addView(oznakaPogled, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(6) })
         else desno.addView(oznakaPogled)
         pIzvajalec = besedilo(if (jeSirokTv()) 15f else 14f, osBarva(R.color.os_umirjeno)).also { desno.addView(it) }
-        pNaslov = besedilo(if (jeSirokTv()) 24f else if (telefon) 18f else 21f, beli, true).apply { if (telefon) maxLines = 2 }.also { desno.addView(it) }
+        pNaslov = besedilo(if (jeSirokTv()) 24f else if (telefon) 18f else 21f, beli, true).apply {
+            if (telefon) maxLines = 2
+            // Lastnik 17. 11. 2026: pasice "zdaj se predvaja" ni bilo mogoce razsiriti na velik zaslon (odprla ga je le majhna
+            // naslovnica). Naslov je zdaj drugi cilj fokusa in odpre isti celozaslonski prikaz (video: z nadaljevanjem).
+            tag = "k:naslov"
+            isFocusable = true; isClickable = true
+            // Zaobljen pravokotnik (ozadjeGumba() je krog in bi besedilo obdal z ovalom).
+            background = StateListDrawable().apply {
+                addState(intArrayOf(android.R.attr.state_focused), GradientDrawable().apply { cornerRadius = dp(8).toFloat(); setStroke(dp(2), osBarva(R.color.os_mint)) })
+                addState(intArrayOf(), GradientDrawable().apply { setColor(0) })
+            }
+            // Notranji odmik: 2 dp obroba ob fokusu ne sme rezati crk.
+            setPadding(dp(8), dp(4), dp(8), dp(4))
+            setOnClickListener { odpriCelZaslonZdaj() }
+        }.also { desno.addView(it) }
         pVir = besedilo(if (jeSirokTv()) 14f else 13f, osBarva(R.color.os_mint)).also { desno.addView(it) }
         if (pZaPredvajanje == true) {
             val potek = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, dp(6), 0, dp(4)) }
@@ -6170,6 +6197,7 @@ class GlasbaActivity : OsActivity() {
         // dostopnosti (TYPE_WINDOW_CONTENT_CHANGED), zato zaslon nikoli ni miroval (uiautomator: »could not get idle state«,
         // bralnik zaslona dobiva spremembe brez spremembe). Besedilo se nastavi samo, ce je drugacno (nastaviBesedilo).
         nastaviBesedilo(pNaslov, sk.naslov)
+        pNaslov?.isFocusable = sk.naslov.isNotBlank()   // prazen naslov ne sme ujeti fokusa
         nastaviBesedilo(pIzvajalec, if (SpletniVir.jeEnota(sk)) "" else sk.izvajalec)
         nastaviBesedilo(pVir, when {
             GlasbaStoritev.naZvocniku() -> Zvocniki.napis(this).orEmpty()
