@@ -797,10 +797,24 @@ class GlasbaActivity : OsActivity() {
     /** Telefon pokonci: prostor gre vsebini, meni ostane kot stolpec ikon (prej je vzel dve tretjini). */
     private fun ozekZaslon() = resources.configuration.screenWidthDp < 600
 
+    /**
+     * Lastnik 18. 11. 2026: pas Doma do roba zaslona. Drsnik ima bledenje spodnjega roba, ki risanje obreze na njegove meje
+     * (izmerjeno na TV: pas je bil siroh do roba, a obrezan 22 px od njega). Zato meje drsnika segajo v odmik okvirja
+     * (negativni rob), vsebina pa ostane na istem mestu (enak odmik kot notranji odmik drsnika - sirina vsebine se ne spremeni).
+     */
+    private fun uskladiRobDrsnika() {
+        val l = desnoOkvir.paddingLeft; val r = desnoOkvir.paddingRight
+        (drsnik.layoutParams as? LinearLayout.LayoutParams)?.let {
+            it.leftMargin = DomPasPravila.robPasu(l); it.rightMargin = DomPasPravila.robPasu(r); drsnik.layoutParams = it
+        }
+        drsnik.setPadding(l, drsnik.paddingTop, r, drsnik.paddingBottom)
+    }
+
     private fun prilagodiMeni() {
         val ozek = ozekZaslon()
         stranskaVrstica.prilagodiSirino()
         desnoOkvir.setPadding(dp(if (ozek) 14 else if (jeSirokTv()) 30 else 28), dp(10), dp(if (ozek) 14 else if (jeSirokTv()) 30 else 28), dp(8))
+        if (::drsnik.isInitialized) uskladiRobDrsnika()
         (mcKarticaKoren as? DomPas)?.let { p ->
             (p.layoutParams as? LinearLayout.LayoutParams)?.let { lp ->
                 lp.leftMargin = DomPasPravila.robPasu(desnoOkvir.paddingLeft); lp.rightMargin = DomPasPravila.robPasu(desnoOkvir.paddingRight)
@@ -988,6 +1002,7 @@ class GlasbaActivity : OsActivity() {
         val vsebinaOvoj = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         vsebinaOvoj.clipChildren = false; drsnik.clipChildren = false; drsnik.clipToPadding = false
         vsebinaOvoj.addView(drsnik, LinearLayout.LayoutParams(0, -1, 1f))
+        uskladiRobDrsnika()
         
         // Kritika 8. 11. 2026 (2, lastnik »naredi popravek«): pas je cez vso sirino - TV v zivo, Prenosi in Kaj igra so
         // vodoravna vrstica pod pasom (prej stolpec 260 dp desno, ki je pas skrcil na 2/3 sirine).
@@ -1462,6 +1477,7 @@ class GlasbaActivity : OsActivity() {
         val koraki = ArrayDeque<() -> Unit>()
         // Slepi pregled 8. 11. 2026: clipChildren=false (povecava kartic Doma cez rob) se ni nikoli vrnil - velja samo za Dom.
         vsebina.clipChildren = McVidezPravila.obreziVsebino(vrste.map { it.domov })
+        if (razdelek == DOMOV) vsebina.clipChildren = false   // pas Doma sega v odmik drsnika (robPasu)
         for (v0 in vrste) {
             if (v0.kartice.isEmpty() && v0.pogled == null) continue
             // Blok kartic (nekdanja polica) je mreza z najvec dvema vrsticama; polic, po katerih je treba v desno, ni vec.
