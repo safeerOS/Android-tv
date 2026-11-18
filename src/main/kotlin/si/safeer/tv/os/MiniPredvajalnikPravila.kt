@@ -315,6 +315,16 @@ object MiniPredvajalnikPravila {
      */
     fun okenceSmePripeti(zaslonOdprt: Boolean, povrsinaMozna: Boolean): Boolean = !zaslonOdprt && povrsinaMozna
 
+    /** Rok, v katerem »Nadaljuj« s pasu pocaka na zacetek predvajanja (razresitev toka traja); potem ne odpira vec nicesar. */
+    const val CELOZASLONSKO_ROK_MS = 25_000L
+
+    /**
+     * Lastnik 18. 11. 2026 (TV): »Nadaljuj« na pasu Doma je zacel video samo v pasu. Video, ki ga je uporabnik nadaljeval
+     * s pasu, ko zacne igrati, odpre cel zaslon - enkrat, v roku in samo, ce zaslon predvajanja ni ze odprt.
+     */
+    fun celZaslonPoNadaljuj(cakaOd: Long, zdaj: Long, video: Boolean, igra: Boolean, zaslonOdprt: Boolean): Boolean =
+        cakaOd > 0 && zdaj - cakaOd <= CELOZASLONSKO_ROK_MS && video && igra && !zaslonOdprt
+
     /** Predvajaj na pasu: video, ki ne igra in ga pas ne more pokazati (ni okenca ali povrsine), gre na cel zaslon. */
     fun predvajajNaCelZaslon(video: Boolean, igra: Boolean, vPasu: Boolean, smePripeti: Boolean): Boolean =
         video && !igra && !(vPasu && smePripeti)

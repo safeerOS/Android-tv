@@ -163,5 +163,9 @@ fun main() {
     preveriEnako("ne krozi nedokoncane", false, P.smeKroziti(P.NADALJUJ, imaFokus = false, zmanjsanoGibanje = false, n = 3))
     preveriEnako("naslov 0 dp: 20 sp", 20f, P.velikostNaslovaSp(0))
 
+    preveriEnako("rob pasu: odmik 60 px -> -60 (do roba zaslona)", -60, P.robPasu(60))
+    preveriEnako("rob pasu: brez odmika -> 0", 0, P.robPasu(0))
+    preveriEnako("rob pasu: negativen odmik se ne obrne", 0, P.robPasu(-5))
+
     if (napak == 0) println("DomPasPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

@@ -269,5 +269,16 @@ fun main() {
         }
     }
 
+    run {
+        val P = MiniPredvajalnikPravila
+        preveriEnako("nadaljuj s pasu: video igra -> cel zaslon", true, P.celZaslonPoNadaljuj(1000L, 5000L, true, true, false))
+        preveriEnako("nadaljuj s pasu: se ne igra -> pocakaj", false, P.celZaslonPoNadaljuj(1000L, 5000L, true, false, false))
+        preveriEnako("nadaljuj s pasu: ni video (glasba) -> ostane v pasu", false, P.celZaslonPoNadaljuj(1000L, 5000L, false, true, false))
+        preveriEnako("nadaljuj s pasu: zaslon ze odprt -> ne odpiraj znova", false, P.celZaslonPoNadaljuj(1000L, 5000L, true, true, true))
+        preveriEnako("nadaljuj s pasu: ni zahteve (0) -> ne", false, P.celZaslonPoNadaljuj(0L, 5000L, true, true, false))
+        preveriEnako("nadaljuj s pasu: po roku ne odpre", false, P.celZaslonPoNadaljuj(1000L, 1000L + P.CELOZASLONSKO_ROK_MS + 1, true, true, false))
+        preveriEnako("nadaljuj s pasu: tocno ob roku se odpre", true, P.celZaslonPoNadaljuj(1000L, 1000L + P.CELOZASLONSKO_ROK_MS, true, true, false))
+    }
+
     if (napak == 0) println("MiniPredvajalnikPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

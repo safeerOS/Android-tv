@@ -801,6 +801,12 @@ class GlasbaActivity : OsActivity() {
         val ozek = ozekZaslon()
         stranskaVrstica.prilagodiSirino()
         desnoOkvir.setPadding(dp(if (ozek) 14 else if (jeSirokTv()) 30 else 28), dp(10), dp(if (ozek) 14 else if (jeSirokTv()) 30 else 28), dp(8))
+        (mcKarticaKoren as? DomPas)?.let { p ->
+            (p.layoutParams as? LinearLayout.LayoutParams)?.let { lp ->
+                lp.leftMargin = DomPasPravila.robPasu(desnoOkvir.paddingLeft); lp.rightMargin = DomPasPravila.robPasu(desnoOkvir.paddingRight)
+                p.layoutParams = lp
+            }
+        }
     }
 
     private var znanaUsmeritev = 0
@@ -850,6 +856,7 @@ class GlasbaActivity : OsActivity() {
         val beli = osBarva(R.color.os_besedilo)
         val desno = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(if (jeSirokTv()) 30 else 28), dp(10), dp(if (jeSirokTv()) 30 else 28), dp(8)) }
         desnoOkvir = desno
+        desno.clipToPadding = false; desno.clipChildren = false   // pas Doma sega v odmik okvirja (DomPasPravila.robPasu)
 
         // Glava: naslov in opis razdelka, desno geslo in iskanje
         val glava = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
@@ -979,6 +986,7 @@ class GlasbaActivity : OsActivity() {
                 android.os.SystemClock.uptimeMillis() - mv.zadnjicVec > 700) naloziVecMreze(mv)
         }
         val vsebinaOvoj = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        vsebinaOvoj.clipChildren = false; drsnik.clipChildren = false; drsnik.clipToPadding = false
         vsebinaOvoj.addView(drsnik, LinearLayout.LayoutParams(0, -1, 1f))
         
         // Kritika 8. 11. 2026 (2, lastnik »naredi popravek«): pas je cez vso sirino - TV v zivo, Prenosi in Kaj igra so
@@ -13510,7 +13518,10 @@ class GlasbaActivity : OsActivity() {
 
     private fun ustvariPas(): View {
         val pas = DomPas(this)
-        pas.layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(16); topMargin = dp(4) }
+        pas.layoutParams = LinearLayout.LayoutParams(-1, -2).apply {
+            bottomMargin = dp(16); topMargin = dp(4)
+            leftMargin = DomPasPravila.robPasu(desnoOkvir.paddingLeft); rightMargin = DomPasPravila.robPasu(desnoOkvir.paddingRight)
+        }
         // Krozenje izbora: klik odpre vsebino, ki jo pas ta trenutek kaze (zgled KefinTweaks).
         pas.naIzbranem = { i -> zadnjiIzborVec.getOrNull(i)?.let { zadnjiIzbor = it } }
         // Kritika 1: slike pasu v sirini pasu (kartice so 280 px - raztegnjene cez 1280 px so bile zamegljene).
@@ -13721,12 +13732,15 @@ class GlasbaActivity : OsActivity() {
     /** En klik na kartici Nadaljuj: zadnja nedokoncana vsebina se nadaljuje tam, kjer je uporabnik ostal (kot kartica Nedavno). */
     /** Nadaljuj s pasu (vsebina, uptime klika): [nadaljujKoPripravljen] ga porabi enkrat. */
     private var nadaljujIzPasu: Pair<DomPasPravila.Vsebina, Long>? = null
+    /** Cas pritiska na »Nadaljuj« (video): ko zacne igrati, odpremo cel zaslon (MiniPredvajalnikPravila.celZaslonPoNadaljuj). */
+    private var celZaslonCakaOd = 0L
 
     private fun vsebinaPasu(sk: Jamendo.Skladba) = DomPasPravila.Vsebina(sk.id, DomPasPravila.imdbId(sk.imdbId, sk.id), sk.season, sk.episode)
 
     private fun nadaljujZadnje() {
         val n = zadnjeNadaljevanje ?: return
         nadaljujIzPasu = vsebinaPasu(n.skladba) to android.os.SystemClock.uptimeMillis()
+        celZaslonCakaOd = if (n.skladba.video) android.os.SystemClock.uptimeMillis() else 0L
         if (SpletniVir.jeEnota(n.skladba)) razresiSplet(n.skladba) else predvajaj(listOf(n.skladba), 0, izNedavnih = true)
     }
 
@@ -13735,6 +13749,13 @@ class GlasbaActivity : OsActivity() {
 
     /** Pas (DomPas) po stanju kartice: isti viri kot stara kartica, samo prikaz je nov. Osvezi se vsako sekundo, ko igra. */
     private fun osveziPas(pas: DomPas, sk: Jamendo.Skladba?, p: androidx.media3.common.Player?, nad: MediaNapredek.Vnos?, izb: Kartica?) {
+        if (celZaslonCakaOd > 0) {
+            val zdaj = android.os.SystemClock.uptimeMillis()
+            if (MiniPredvajalnikPravila.celZaslonPoNadaljuj(celZaslonCakaOd, zdaj, sk?.video == true, GlasbaStoritev.igra(), PredvajanjeActivity.odprt)) {
+                celZaslonCakaOd = 0L
+                MiniPredvajalnik.odpriCelZaslon(this)
+            } else if (PredvajanjeActivity.odprt || zdaj - celZaslonCakaOd > MiniPredvajalnikPravila.CELOZASLONSKO_ROK_MS) celZaslonCakaOd = 0L
+        }
         mcKarticaHandler.removeCallbacks(mcKarticaCasovnik)
         // Podrobnosti = vse nedokoncane vsebine (prej dolg pritisk); gumba ni, ce jih ni.
         val vse = zadnjaVrstaNadaljuj

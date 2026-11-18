@@ -6,6 +6,12 @@ package si.safeer.tv.os
  * napisi in mere preverijo brez naprave, kot pri [MiniPredvajalnikPravila].
  */
 object DomPasPravila {
+    /**
+     * Lastnik 18. 11. 2026 (posnetek TV): pas Doma se ne razteg ne do roba zaslona - desni okvir ima vodoravni odmik, pas
+     * pa je sirok samo toliko kot vsebina. Negativni rob ob obeh straneh (enak odmiku okvirja) ga potegne do roba.
+     */
+    fun robPasu(odmikOkviraPx: Int): Int = -odmikOkviraPx.coerceAtLeast(0)
+
     /** V pasu igra vsebina: gumb kaze Premor, klik odpre cel zaslon. */
     const val IGRA = "igra"
     /** Nic ne igra, a obstaja nedokoncana vsebina: gumb kaze Nadaljuj. */
