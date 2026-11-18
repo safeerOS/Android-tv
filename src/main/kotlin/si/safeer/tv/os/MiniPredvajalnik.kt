@@ -205,6 +205,15 @@ class MiniPredvajalnik(
 
     val rocicaPogled: View? get() = if (koren?.visibility == View.VISIBLE && rocica?.visibility == View.VISIBLE) rocica else null
     val imaFokus: Boolean get() = koren?.hasFocus() == true
+    /** Stanje docka za dnevnik (lastnik 18. 11. 2026: pilula nedosegljiva z daljincem; vzrok se ni dokazan). */
+    fun diagnostika(): String {
+        val r = rocica
+        val g = gumbPredvajaj
+        return "inst=${System.identityHashCode(this)} koren=${koren?.visibility} kparent=${koren?.parent?.javaClass?.simpleName} " +
+            "pril=${koren?.isAttachedToWindow} rocica=${if (r == null) "null" else "vis=${r.visibility} shown=${r.isShown} foc=${r.isFocusable} en=${r.isEnabled}"} " +
+            "kartica=${kartica?.visibility} gumb=${if (g == null) "null" else "shown=${g.isShown}"} odprt=$odprt okvirOtrok=${okvir.childCount}"
+    }
+
     val aktivniPogledZaFokus: View? get() {
         if (koren?.visibility != View.VISIBLE) return null
         val gumb = gumbPredvajaj ?: kartica?.findViewWithTag<View>("dock:predvajaj")
