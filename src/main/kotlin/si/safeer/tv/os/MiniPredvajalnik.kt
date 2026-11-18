@@ -205,9 +205,17 @@ class MiniPredvajalnik(
 
     val rocicaPogled: View? get() = if (koren?.visibility == View.VISIBLE && rocica?.visibility == View.VISIBLE) rocica else null
     val imaFokus: Boolean get() = koren?.hasFocus() == true
-    val aktivniPogledZaFokus: View? get() = if (koren?.visibility == View.VISIBLE) {
-        if (odprt) gumbPredvajaj ?: kartica?.findViewWithTag<View>("dock:predvajaj") ?: rocica else rocica
-    } else null
+    val aktivniPogledZaFokus: View? get() {
+        if (koren?.visibility != View.VISIBLE) return null
+        val gumb = gumbPredvajaj ?: kartica?.findViewWithTag<View>("dock:predvajaj")
+        val pilula = rocica
+        return when (MiniPredvajalnikPravila.izberiFokus(odprt,
+            gumb != null && gumb.isShown && gumb.isFocusable, pilula != null && pilula.isShown && pilula.isFocusable)) {
+            MiniPredvajalnikPravila.CiljFokusa.GUMB -> gumb
+            MiniPredvajalnikPravila.CiljFokusa.PILULA -> pilula
+            MiniPredvajalnikPravila.CiljFokusa.NIC -> null
+        }
+    }
 
     fun fokusiraj(): Boolean {
         if (koren?.visibility != View.VISIBLE) return false

@@ -873,6 +873,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                     if (mini != null && PokrajinaPravila.dolNaMini(dock?.jeOdprt == true, true) && mini.requestFocus()) {
                         return true
                     } else if (::dok.isInitialized) {
+                        // Lastnik 18. 11. 2026: pilula nedosegljiva - dnevnik razkrije, ali je pogleda ni ali requestFocus pade.
+                        android.util.Log.i("SafeerPokrajina", "DOL na mini: mini=${mini != null} odprt=${dock?.jeOdprt}")
                         val cilj = najblizjiPogledX(dok, vrstaAplikacij.findFocus())
                         if (cilj != null && cilj.requestFocus()) return true
                     }
@@ -887,7 +889,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                     // Gor z doka na mini samo, ce je odprt; sicer naravnost na ploscico (pregled 3. 11. 2026).
                     if (mini != null) {   // tocka 28: tudi zaprta pilula (prej samo odprt dock)
                         if (dock?.fokusiraj() == true || mini.requestFocus()) return true
-                    }
+                        android.util.Log.w("SafeerPokrajina", "GOR na mini: requestFocus ni uspel")
+                    } else android.util.Log.i("SafeerPokrajina", "GOR na mini: pogleda ni (odprt=${dock?.jeOdprt})")
                     if (::vrstaAplikacij.isInitialized) {
                         val cilj = najblizjiPogledX(vrstaAplikacij, dok.findFocus())
                             ?: (zadnjaPloscica?.let { vrstaAplikacij.findViewWithTag<View>(it) })

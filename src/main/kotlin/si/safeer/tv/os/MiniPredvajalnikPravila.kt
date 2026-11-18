@@ -17,6 +17,22 @@ object MiniPredvajalnikPravila {
     fun dolNaDock(vsebinaImaNaslednjega: Boolean, dockVidenInFokusiran: Boolean, dockImaFokus: Boolean): Boolean =
         !vsebinaImaNaslednjega && dockVidenInFokusiran && !dockImaFokus
 
+    /** Kateri pogled docka dobi fokus daljinca (izid [izberiFokus]). */
+    enum class CiljFokusa { NIC, GUMB, PILULA }
+
+    /**
+     * Fokus z daljincem na mini predvajalnik (lastnik 18. 11. 2026: na domacem zaslonu TV pilule ni mogoce doseci, izmerjeno
+     * z adb: GOR iz spodnje vrstice in DOL iz vrstice aplikacij preskocita pilulo). Ce je dock odprt, gre fokus na gumb
+     * Predvajaj; ce gumba ni na zaslonu (kartica skrita, a stanje [odprt] v spominu se vedno »odprto« - spremenljivka je
+     * skupna vsem docom v procesu), je rezerva vidna pilula. Prej je bil izid v tem primeru NIC in pilula nedosegljiva.
+     */
+    fun izberiFokus(odprt: Boolean, gumbVidenInFokusiran: Boolean, pilulaVidnaInFokusirana: Boolean): CiljFokusa = when {
+        odprt && gumbVidenInFokusiran -> CiljFokusa.GUMB
+        pilulaVidnaInFokusirana -> CiljFokusa.PILULA
+        gumbVidenInFokusiran -> CiljFokusa.GUMB
+        else -> CiljFokusa.NIC
+    }
+
     const val ZGORAJ = "zgoraj"
     const val SPODAJ = "spodaj"
     const val LEVO = "levo"

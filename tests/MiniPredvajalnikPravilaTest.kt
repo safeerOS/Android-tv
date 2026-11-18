@@ -7,6 +7,13 @@ private fun preveriEnako(opis: String, pricakovano: Any?, dobljeno: Any?) =
 
 /** Naloga 118: mini predvajalnik kot dock ob robu domacega zaslona ([MiniPredvajalnikPravila]). */
 fun main() {
+    // Lastnik 18. 11. 2026: pilule mini predvajalnika z daljincem ni mogoce doseci (izmerjeno na TV z adb).
+    val F = MiniPredvajalnikPravila.CiljFokusa.values().associateBy { it.name }
+    check(MiniPredvajalnikPravila.izberiFokus(odprt = false, gumbVidenInFokusiran = false, pilulaVidnaInFokusirana = true) == F["PILULA"]) { "zaprt dock: pilula" }
+    check(MiniPredvajalnikPravila.izberiFokus(odprt = true, gumbVidenInFokusiran = true, pilulaVidnaInFokusirana = false) == F["GUMB"]) { "odprt dock: gumb Predvajaj" }
+    check(MiniPredvajalnikPravila.izberiFokus(odprt = true, gumbVidenInFokusiran = false, pilulaVidnaInFokusirana = true) == F["PILULA"]) {
+        "stanje odprto, a kartica skrita: rezerva je vidna pilula (prej NIC in pilula nedosegljiva)" }
+    check(MiniPredvajalnikPravila.izberiFokus(odprt = false, gumbVidenInFokusiran = false, pilulaVidnaInFokusirana = false) == F["NIC"]) { "nic vidnega: nic" }
     // Lastnik 9. 11. 2026 (posnetek TV): X na SmartTube ni zaprl predvajanja - seja na premoru je ostala v malem predvajalniku.
     check(!MiniPredvajalnikPravila.prikaziTujo("org.smarttube.stable", false, "org.smarttube.stable")) { "ustavljena z X: skrita" }
     check(MiniPredvajalnikPravila.prikaziTujo("org.smarttube.stable", true, "org.smarttube.stable")) { "spet igra: prikazana" }
