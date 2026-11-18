@@ -62,9 +62,14 @@ object Sosed {
     /** Brskalnik, ki mu Safeer OS preda Safeer Link - samo, ce Link ne vodimo sami (starejsa postavitev). */
     fun linkBrskalnik(context: Context): String? = if (vodimLink(context)) null else brskalnik(context)
 
+    @Suppress("DEPRECATION")
     fun namescen(context: Context, paket: String): Boolean = try {
         // Onemogocena aplikacija (pregled 13. 11.) ne vodi Linka in Scita - sicer jih ne bi vodil nihce.
-        context.packageManager.getApplicationInfo(paket, 0).enabled
+        // Tuj paket z istim imenom (slepi pregled 18. 11., S1) ni sosed: zahtevamo enak podpis kot nasa aplikacija.
+        val pm = context.packageManager
+        val omogocen = pm.getApplicationInfo(paket, 0).enabled
+        SosedZaupanje.jeZaupan(paket, context.packageName, omogocen,
+            omogocen && pm.checkSignatures(context.packageName, paket) == PackageManager.SIGNATURE_MATCH)
     } catch (_: PackageManager.NameNotFoundException) { false
     } catch (e: Throwable) { Log.w(TAG, "Paketa $paket ni bilo mogoce preveriti: ${e.message}"); false }
 

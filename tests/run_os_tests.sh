@@ -219,6 +219,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/PredvajajNaTvPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/ZaslonKonecPravila.kt" \
     "$TEST_DIR/ZaslonKonecPravilaTest.kt" \
+    "$SRC/si/safeer/tv/os/SosedZaupanje.kt" \
+    "$TEST_DIR/SosedZaupanjeTest.kt" \
     "$SRC/si/safeer/tv/os/UsenetIskanjePravila.kt" \
     "$TEST_DIR/UsenetIskanjePravilaTest.kt" \
     "$SRC/si/safeer/tv/os/UsenetPomocPravila.kt" \
@@ -425,6 +427,8 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PreusmeritevSledenjeTestKt "
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.JsonGlobinaPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PredvajajNaTvPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.ZaslonKonecPravilaTestKt
+# Slepi pregled 18. 11. 2026, S1: sosed zaupan samo z enakim podpisom
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SosedZaupanjeTestKt
 # Lastnik 7. 11. 2026: iskanje ob kliku - meja indeksatorja ni »ni izdaj« (razlog, ponovitev, pozaba zapisa)
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.UsenetIskanjePravilaTestKt
 # Pomocnik za Usenet v Linku (lastnik 5. 11. 2026, zakon solidarnosti): isti indeksator, sme pomagati, meja osvezitev
