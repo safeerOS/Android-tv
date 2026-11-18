@@ -94,6 +94,17 @@ class BrskalnikMedijskaSeja(private val host: MainActivity) {
         seja = null
     }
 
+    /** onPlay/onPause (glasovni ukaz, sistemski prikaz): isti pravili kot za tipko; lastni predvajalnik ima prednost. */
+    private fun izZahteve(keyCode: Int) {
+        val odlocitev = TvTipke.medijskaOdlocitev(ospredje, host.playback.isNativeActive(), posredujem, true)
+        when (odlocitev) {
+            TvTipke.MedijskaOdlocitev.NATIVNO ->
+                try { host.playback.handleNativeKey(KeyEvent(KeyEvent.ACTION_DOWN, keyCode)) } catch (_: Throwable) { }
+            TvTipke.MedijskaOdlocitev.SKRIPT -> TvTipke.jsMedijskaTipka(keyCode)?.let { zazeni(it, keyCode) }
+            else -> Unit
+        }
+    }
+
     /** V onResume: brskalnik je v ospredju, seja postane medijska seja za tipke daljinca. */
     fun vklopi() {
         ospredje = true
@@ -109,14 +120,18 @@ class BrskalnikMedijskaSeja(private val host: MainActivity) {
                         val e = mediaButtonIntent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
                         Log.i(TAG, "tipka=${e?.keyCode} akcija=${e?.action} native=${host.playback.isNativeActive()}")
                         if (e == null) return false
-                        if (host.playback.isNativeActive()) return host.playback.handleNativeKey(e)
-                        if (posredujem) return true
-                        val js = TvTipke.jsMedijskaTipka(e.keyCode) ?: return false
-                        if (e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0) zazeni(js, e.keyCode)
-                        return true
+                        val js = TvTipke.jsMedijskaTipka(e.keyCode)
+                        val prvi = e.action == KeyEvent.ACTION_DOWN && e.repeatCount == 0
+                        return when (TvTipke.medijskaOdlocitev(ospredje, host.playback.isNativeActive(), posredujem, js != null)) {
+                            TvTipke.MedijskaOdlocitev.NE_PORABI -> false
+                            TvTipke.MedijskaOdlocitev.NATIVNO -> host.playback.handleNativeKey(e)
+                            TvTipke.MedijskaOdlocitev.PORABI -> true
+                            TvTipke.MedijskaOdlocitev.SKRIPT -> { if (prvi) zazeni(js!!, e.keyCode); true }
+                            TvTipke.MedijskaOdlocitev.POSREDUJ -> { if (prvi) posreduj(e.keyCode); true }
+                        }
                     }
-                    override fun onPlay() { Log.i(TAG, "onPlay"); TvTipke.jsMedijskaTipka(126)?.let { zazeni(it, 126) } }
-                    override fun onPause() { Log.i(TAG, "onPause"); TvTipke.jsMedijskaTipka(127)?.let { zazeni(it, 127) } }
+                    override fun onPlay() { Log.i(TAG, "onPlay"); izZahteve(126) }
+                    override fun onPause() { Log.i(TAG, "onPause"); izZahteve(127) }
                 })
                 seja = nova
             }
@@ -130,17 +145,17 @@ class BrskalnikMedijskaSeja(private val host: MainActivity) {
         } catch (_: Throwable) { }
     }
 
-    /** V onPause: seja se izklopi, glasba spet dobi tipke; čakajočega ponovnega vklopa ni več. */
+    /**
+     * V onPause: seja se SPROSTI (ne le deaktivira): izmerjeno 16. 11. 2026, da sama deaktivacija ne spremeni »media button
+     * session«, zato bi po obisku brskalnika tipka Predvajaj/Pavza se vedno sla mrtvi seji (slepi pregled 18. 11., N1 in
+     * CodeRabbit #4). aktiviraj() jo ob onResume ustvari znova. Cakajocega ponovnega vklopa ni vec.
+     */
     fun izklopi() {
         ospredje = false
         posredujem = false
         glavna.removeCallbacks(ponovniVklop)
         glavna.removeCallbacks(posljiTipko)
-        deaktiviraj()
-    }
-
-    private fun deaktiviraj() {
-        try { seja?.isActive = false } catch (_: Throwable) { }
+        spustiSejo()
     }
 
     fun sprosti() {

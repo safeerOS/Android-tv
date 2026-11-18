@@ -52,6 +52,7 @@ class ZaslonOdjemalec(
     /** Vticnica za naslov (Android: naslov na kablu prek omrezja eth0) in rok za naslov; glej [NeposrednaPovezava.povezi]. */
     private val vticnicaZa: (String) -> java.net.Socket = { java.net.Socket() },
     private val rokNaslova: (String) -> Int? = { null },
+    private val rezervaZa: (String) -> java.net.Socket? = { null },
 ) {
     /**
      * PRAZNO: racunalnik javi, da na locenem zaslonu ni vec programa (besedilo = razlog).
@@ -144,7 +145,7 @@ class ZaslonOdjemalec(
                 if (naslovi.isEmpty() || (samoHub && dobiVrata != null)) null
                 else fun(t: () -> Boolean): SSLSocket? =
                     NeposrednaPovezava.povezi(naslovi, vrata, odtis, oznaka = TAG, tece = t,
-                        vticnica = vticnicaZa, rokNaslova = rokNaslova)
+                        vticnica = vticnicaZa, rokNaslova = rokNaslova, rezerva = rezervaZa)
             val poHubu: ((() -> Boolean) -> SSLSocket?)? =
                 if (dobiVrata == null) null
                 else fun(t: () -> Boolean): SSLSocket? {
@@ -365,7 +366,7 @@ class ZaslonOdjemalec(
                 }
                 continue
             }
-            ostanek = ostanek + telo
+            ostanek = ZaslonOstanek.dodaj(ostanek, telo)
             var od = zacetekNal(ostanek, 0)
             if (od < 0) continue
             var naslednji = zacetekNal(ostanek, od + 3)

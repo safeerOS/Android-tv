@@ -17,13 +17,26 @@ import java.net.Socket
 internal object KabelVticnica {
     @Suppress("DEPRECATION")
     private fun zicnoOmrezje(cm: ConnectivityManager): Network? = try {
-        cm.allNetworks.firstOrNull { cm.getNetworkCapabilities(it)?.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) == true }
+        cm.allNetworks.firstOrNull { n ->
+            val c = cm.getNetworkCapabilities(n)
+            c != null && KabelNaslovi.jeZicnoOmrezje(
+                c.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET),
+                c.hasTransport(NetworkCapabilities.TRANSPORT_VPN),
+                c.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN))
+        }
     } catch (_: Throwable) { null }
 
     /**
      * Tovarna vticnic za [NeposrednaPovezava.povezi]. Naslov na kablu brez omrezja Ethernet ali z neuspelo vezavo da
      * izjemo, naslov preskocimo takoj (Wi-Fi je rezerva) in ne cakamo roka.
      */
+    /**
+     * Rezerva za [za] (CodeRabbit 18. 11. 2026, #1): kabelski naslov, ki ga vezava na Ethernet ne doseze, poskusi se
+     * z navadno vticnico (Wi-Fi/privzeto omrezje); naslovi zunaj kabla rezerve ne dobijo (ze so imeli navadno vticnico).
+     */
+    fun rezerva(zicna: List<KabelNaslovi.Podomrezje>): (String) -> Socket? =
+        { naslov -> if (zicna.any { KabelNaslovi.naPodomrezju(naslov, it) }) Socket() else null }
+
     fun za(cm: ConnectivityManager?, zicna: List<KabelNaslovi.Podomrezje>): (String) -> Socket = { naslov ->
         val s = Socket()
         if (zicna.any { KabelNaslovi.naPodomrezju(naslov, it) }) {

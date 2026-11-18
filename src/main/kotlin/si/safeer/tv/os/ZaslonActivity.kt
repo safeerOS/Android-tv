@@ -635,6 +635,7 @@ class ZaslonActivity : Activity(), LinkOdjemalec.Poslusalec {
             vticnicaZa = si.safeer.tv.cast.KabelVticnica.za(
                 getSystemService(android.net.ConnectivityManager::class.java), zicna),
             rokNaslova = si.safeer.tv.cast.KabelNaslovi.rokNaslova(zicna),
+            rezervaZa = si.safeer.tv.cast.KabelVticnica.rezerva(zicna),
             // Preizkus »tudi doma prek interneta«: samo pot prek Huba, da se vidi, ali deluje.
             samoHub = prekHuba && si.safeer.tv.link.GlobalLink.samoRele(this),
             naStanje = { stanje, besedilo ->

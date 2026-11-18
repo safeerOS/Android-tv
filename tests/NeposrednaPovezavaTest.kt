@@ -241,6 +241,21 @@ fun main() {
             preveri("tuja naprava pozdrava (zetona) ne dobi", tuja.pozdravi.isEmpty())
             s?.close(); prava.zapri(); tuja.zapri()
         }
+        primer("vticnica kabla odpove: rezerva (navadna vticnica) poveze isti naslov (CodeRabbit 18. 11., #1)") {
+            val n = Naprava("127.0.0.1", mapa)
+            var rezervaKlicana = 0
+            val s = NeposrednaPovezava.povezi(listOf("127.0.0.1"), n.vrata, n.odtis,
+                vticnica = { throw java.io.IOException("omrezja Ethernet ni") },
+                rezerva = { rezervaKlicana++; java.net.Socket() })
+            preveri("povezano prek rezerve", s?.inetAddress?.hostAddress == "127.0.0.1")
+            preveri("rezerva klicana enkrat", rezervaKlicana == 1)
+            pozdravi(s)
+            preveri("naprava dobi pozdrav", pocakaj { n.pozdravi.size == 1 })
+            s?.close(); n.zapri()
+            val brez = NeposrednaPovezava.povezi(listOf("127.0.0.1"), 1, n.odtis, casMs = 300,
+                vticnica = { throw java.io.IOException("omrezja Ethernet ni") })
+            preveri("brez rezerve vticnica, ki pade, ni povezave (kot prej)", brez == null)
+        }
         primer("samo druga naprava: povezave ni") {
             val prava = Naprava("127.0.0.1", mapa)
             val tuja = Naprava("127.0.0.2", mapa)

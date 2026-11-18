@@ -409,6 +409,24 @@ fun main() {
         preveriM("predpona 31: dva naslova", KabelNaslovi.naPodomrezju("198.51.100.3", KabelNaslovi.Podomrezje("198.51.100.2", 31)) && !KabelNaslovi.naPodomrezju("198.51.100.4", KabelNaslovi.Podomrezje("198.51.100.2", 31)))
         preveriM("ime namesto IPv4 iz seznama naprav ostane med kandidati (kot prej)", k("racunalnik.local", listOf("198.51.100.1", wifi), kabel) == listOf("198.51.100.1", "racunalnik.local", wifi))
     }
+    primer("naslov: zlonameren odgovor z desettisoci naslovi ne zamrzne glavne niti (slepi pregled 18. 11., N7)") {
+        val kabel = listOf(KabelNaslovi.Podomrezje("198.51.100.2", 30))
+        val poplava = (0 until 30_000).map { "10.${(it shr 8) and 255}.${it and 255}.${(it shr 16) + 1}" } + "198.51.100.1"
+        val t0 = System.nanoTime()
+        val izid = KabelNaslovi.kandidatiSKablom("192.0.2.10", poplava, kabel)
+        val ms = (System.nanoTime() - t0) / 1_000_000
+        preveriM("najvec stirje kandidati ob 30000 naslovih", izid.size <= HubNaslovi.NAJVEC_KANDIDATOV)
+        preveriM("obdelava hitra (je $ms ms, meja 500)", ms < 500)
+        preveriM("naslov iz seznama naprav ostane", "192.0.2.10" in izid)
+        val podvojeni = List(5000) { "198.51.100.1" } + "198.51.100.3"
+        preveriM("podvojitve odpadejo, vrstni red ostane", KabelNaslovi.kandidatiSKablom("", podvojeni, kabel) == listOf("198.51.100.1", "198.51.100.3"))
+    }
+    primer("naslov: omrezje VPN ni zicno omrezje (slepi pregled 18. 11., N6)") {
+        preveriM("Ethernet brez VPN je zicno", KabelNaslovi.jeZicnoOmrezje(imaEthernet = true, imaVpn = false, imaNotVpn = true))
+        preveriM("VPN, ki je prevzel prenos Etherneta, ni zicno", !KabelNaslovi.jeZicnoOmrezje(imaEthernet = true, imaVpn = true, imaNotVpn = false))
+        preveriM("brez NOT_VPN ni zicno", !KabelNaslovi.jeZicnoOmrezje(imaEthernet = true, imaVpn = false, imaNotVpn = false))
+        preveriM("Wi-Fi ni zicno", !KabelNaslovi.jeZicnoOmrezje(imaEthernet = false, imaVpn = false, imaNotVpn = true))
+    }
     primer("naslov: kratek rok samo za naslove na kablu") {
         val kabel = listOf(KabelNaslovi.Podomrezje("198.51.100.2", 30))
         val rok = KabelNaslovi.rokNaslova(kabel)

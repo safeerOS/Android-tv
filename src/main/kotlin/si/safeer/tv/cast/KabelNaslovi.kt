@@ -32,20 +32,33 @@ internal object KabelNaslovi {
      * Naslov iz seznama naprav Linka ne sme odpasti: zlonamerna naprava bi z odgovorom (hosts) napolnila vsa mesta s
      * kabelskimi naslovi in ga izrinila. Ce ga rez odnese, dobi zadnje mesto.
      */
+    /** Zgornja meja pregledanih naslovov iz seznama naprav (kabelski naslov mora ostati dosegljiv, a ne neomejeno). */
+    const val NAJVEC_PREGLEDANIH = 64
+
     fun kandidatiSKablom(naslov: String, hosts: List<String>?, zicna: List<Podomrezje>): List<String> {
         val najvec = HubNaslovi.NAJVEC_KANDIDATOV
-        val vsi = ArrayList<String>()
+        // Slepi pregled 18. 11. 2026, N7: odgovor racunalnika (hosts) ni omejen; prej O(n^2) na glavni niti (ANR).
+        // Podvojitve odpadejo prek mnozice (vrstni red ostane), pregled se ustavi pri NAJVEC_PREGLEDANIH razlicnih.
+        val vsi = LinkedHashSet<String>()
         val prvi = naslov.trim()
         if (prvi.isNotEmpty()) vsi.add(prvi)
         for (h0 in hosts.orEmpty()) {
+            if (vsi.size >= NAJVEC_PREGLEDANIH) break
             val h = h0.trim()
-            if (h.isNotEmpty() && h !in vsi && HubNaslovi.naslovNaprave(h)) vsi.add(h)
+            if (h.isNotEmpty() && HubNaslovi.naslovNaprave(h)) vsi.add(h)
         }
         if (zicna.isEmpty()) return vsi.take(najvec)
         val (zicni, ostali) = vsi.partition { n -> zicna.any { naPodomrezju(n, it) } }
         val izid = (zicni + ostali).take(najvec)
         return if (prvi.isEmpty() || prvi in izid) izid else izid.take(najvec - 1) + prvi
     }
+
+    /**
+     * Slepi pregled 18. 11. 2026, N6: omrezje VPN (Scit) lahko prevzame prenosni tip osnovnega omrezja, zato samo
+     * TRANSPORT_ETHERNET ne zadosca: vezava vticnice na VPN je tocno napaka, ki jo ta razred odpravlja. Zicno je samo
+     * omrezje, ki ni VPN (ni prenosa VPN in ima NET_CAPABILITY_NOT_VPN).
+     */
+    fun jeZicnoOmrezje(imaEthernet: Boolean, imaVpn: Boolean, imaNotVpn: Boolean): Boolean = imaEthernet && !imaVpn && imaNotVpn
 
     /** Rok za naslov na kablu: omrezje LAN odgovori v milisekundah (rokovanje TLS na TV nekaj 100 ms). */
     const val ROK_KABLA_MS = 1_500

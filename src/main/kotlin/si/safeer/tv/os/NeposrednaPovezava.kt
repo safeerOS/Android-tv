@@ -71,27 +71,41 @@ object NeposrednaPovezava {
         vticnica: (String) -> Socket = { Socket() },
         /** Rok za posamezen naslov (null = [casMs]): naslov na kablu odgovori v milisekundah, ne v 4 s. */
         rokNaslova: (String) -> Int? = { null },
+        /**
+         * Rezerva za naslov, katerega vticnica je padla (CodeRabbit 18. 11. 2026, #1): naslov, ki je na podomrezju
+         * kabla, a ga ni mogoce doseci prek omrezja Ethernet (kabel ima naslov istega obsega kot Wi-Fi, vezava ne uspe),
+         * poskusimo se enkrat z navadno vticnico. null = brez rezerve.
+         */
+        rezerva: (String) -> Socket? = { null },
     ): SSLSocket? {
         val (tovarna, _) = Pin.tovarna(odtis)
         for (n in naslovi) {
             if (!tece()) return null
             val rok = rokNaslova(n) ?: casMs
-            var goli: Socket? = null
-            try {
-                goli = vticnica(n)
-                goli.connect(InetSocketAddress(n, vrata), rok)
-                goli.tcpNoDelay = true                     // brez Naglejevega zbiranja: vsak paket takoj
-                val s = tovarna.createSocket(goli, n, vrata, true) as SSLSocket
-                s.soTimeout = rok                          // nema naprava ne sme zadrzati naslednjega naslova
-                s.startHandshake()
-                s.soTimeout = 0
-                return s
-            } catch (e: Throwable) {
-                Log.i(oznaka, "$n:$vrata ni dosegljiv: ${e.message}")
-                try { goli?.close() } catch (_: Throwable) { }
-            }
+            val s = poskusi(n, vrata, tovarna, rok, oznaka) { vticnica(n) }
+                ?: (if (tece()) rezerva(n)?.let { r -> poskusi(n, vrata, tovarna, rok, oznaka) { r } } else null)
+            if (s != null) return s
         }
         return null
+    }
+
+    private fun poskusi(n: String, vrata: Int, tovarna: javax.net.ssl.SSLSocketFactory, rok: Int, oznaka: String,
+                        nova: () -> Socket): SSLSocket? {
+        var goli: Socket? = null
+        try {
+            goli = nova()
+            goli.connect(InetSocketAddress(n, vrata), rok)
+            goli.tcpNoDelay = true                     // brez Naglejevega zbiranja: vsak paket takoj
+            val s = tovarna.createSocket(goli, n, vrata, true) as SSLSocket
+            s.soTimeout = rok                          // nema naprava ne sme zadrzati naslednjega naslova
+            s.startHandshake()
+            s.soTimeout = 0
+            return s
+        } catch (e: Throwable) {
+            Log.i(oznaka, "$n:$vrata ni dosegljiv: ${e.message}")
+            try { goli?.close() } catch (_: Throwable) { }
+            return null
+        }
     }
 
     /**

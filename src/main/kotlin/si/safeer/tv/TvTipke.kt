@@ -58,6 +58,23 @@ object TvTipke {
      * Odgovor skripta jsMedijskaTipka (evaluateJavascript vrne JSON, torej "ni" z narekovaji): »ni« = v strani ni videa, zato
      * tipko dobi naslednja medijska seja (glasba v ozadju). »ok« in »napaka« ostaneta pri strani.
      */
+    /** Kaj brskalnikova medijska seja stori s tipko (slepi pregled TV 18. 11. 2026, N1 in N5). */
+    enum class MedijskaOdlocitev { NE_PORABI, NATIVNO, PORABI, SKRIPT, POSREDUJ }
+
+    /**
+     * Odlocitev za tipko, ki jo dobi seja brskalnika: brskalnik ni v ospredju -> NE_PORABI (tipka ni nasa, sistem jo da
+     * naprej; prej je bila porabljena in izgubljena, glasba po obisku brskalnika ni slisala tipke); lastni predvajalnik
+     * ima tipko sam; tipko, ki smo jo ravnokar posredovali, ignoriramo (zanka); 85/126/127 gredo v stran; druge
+     * medijske tipke (naprej, nazaj, stop, previjanje) gredo naprej glasbi (prej: return false, tipka se je izgubila).
+     */
+    fun medijskaOdlocitev(ospredje: Boolean, nativno: Boolean, posredujem: Boolean, imaSkript: Boolean): MedijskaOdlocitev = when {
+        !ospredje -> MedijskaOdlocitev.NE_PORABI
+        nativno -> MedijskaOdlocitev.NATIVNO
+        posredujem -> MedijskaOdlocitev.PORABI
+        imaSkript -> MedijskaOdlocitev.SKRIPT
+        else -> MedijskaOdlocitev.POSREDUJ
+    }
+
     fun medijskiOdgovorPosreduj(odgovor: String?): Boolean = odgovor?.trim()?.trim('"') == "ni"
 
     /** Toliko ponovitev drzanega OK (~1 s) vklopi kazalec v nacinu D-pad. */

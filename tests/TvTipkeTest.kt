@@ -1,6 +1,7 @@
 package si.safeer.tv
 
 import si.safeer.tv.TvTipke.Dejanje
+import si.safeer.tv.TvTipke.MedijskaOdlocitev
 
 /** Barvni gumbi v brskalniku (TV 3. 11. 2026: zeleni gumb vzame sistem, kazalca ni bilo mogoce vklopiti). */
 fun main() {
@@ -27,6 +28,13 @@ fun main() {
     check(!TvTipke.medijskiOdgovorPosreduj("null"))
     check(!TvTipke.medijskiOdgovorPosreduj(null))
     check(!TvTipke.medijskiOdgovorPosreduj(""))
+    // Slepi pregled 18. 11. 2026, N1/N5: odlocitev seje brskalnika za medijsko tipko.
+    check(TvTipke.medijskaOdlocitev(false, false, false, true) == MedijskaOdlocitev.NE_PORABI) { "brskalnik v ozadju: tipka ni nasa (prej porabljena in izgubljena)" }
+    check(TvTipke.medijskaOdlocitev(false, true, false, true) == MedijskaOdlocitev.NE_PORABI) { "v ozadju tudi ob nativnem predvajalniku" }
+    check(TvTipke.medijskaOdlocitev(true, true, false, true) == MedijskaOdlocitev.NATIVNO) { "lastni predvajalnik ima prednost" }
+    check(TvTipke.medijskaOdlocitev(true, false, true, true) == MedijskaOdlocitev.PORABI) { "ravnokar posredovana tipka: zanka se ignorira" }
+    check(TvTipke.medijskaOdlocitev(true, false, false, true) == MedijskaOdlocitev.SKRIPT) { "85/126/127 gredo v stran" }
+    check(TvTipke.medijskaOdlocitev(true, false, false, false) == MedijskaOdlocitev.POSREDUJ) { "naprej/nazaj/stop gredo glasbi (prej izgubljene)" }
     // Drzan OK vklopi kazalec samo enkrat (ob tocno doloceni ponovitvi), samo na strani in ko ga se ni.
     check(TvTipke.drzanOkVkljuciKazalec(23, TvTipke.PONOVITEV_ZA_KAZALEC, kazalecViden = false, vVrstici = false))
     check(!TvTipke.drzanOkVkljuciKazalec(23, 0, kazalecViden = false, vVrstici = false))
