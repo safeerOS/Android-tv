@@ -1478,6 +1478,9 @@ class GlasbaActivity : OsActivity() {
         // Slepi pregled 8. 11. 2026: clipChildren=false (povecava kartic Doma cez rob) se ni nikoli vrnil - velja samo za Dom.
         vsebina.clipChildren = McVidezPravila.obreziVsebino(vrste.map { it.domov })
         if (razdelek == DOMOV) vsebina.clipChildren = false   // pas Doma sega v odmik drsnika (robPasu)
+        // Izmerjeno 18. 11. 2026 na TV: pas je bil se vedno obrezan na 60..1860 px, ker ViewGroup z odmikom (vsebina ima
+        // zgoraj/spodaj odmik) obreze otroke na polnilo ne glede na clipChildren; clipToPadding mora biti izklopljen.
+        vsebina.clipToPadding = razdelek != DOMOV
         for (v0 in vrste) {
             if (v0.kartice.isEmpty() && v0.pogled == null) continue
             // Blok kartic (nekdanja polica) je mreza z najvec dvema vrsticama; polic, po katerih je treba v desno, ni vec.
