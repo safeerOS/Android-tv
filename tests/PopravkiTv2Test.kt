@@ -79,7 +79,21 @@ fun main() {
     val izvor = "https://bank.test"
     val tuj = D.sestaviGlave("https://napadalec.test/a.mpd", mapOf("Accept" to "*/*", "Cookie" to "seja=TAJNO"), izvor, "UA", jar)
     p(tuj.values.none { "TAJNO" in it }, "P1: manifest na tujem gostitelju NE dobi piskotkov strani (je: ${tuj["Cookie"]})")
-    p(tuj["Cookie"] == "napad=1", "P1: tuj gostitelj dobi samo svoje piskotke")
+    p(tuj["Cookie"] == null, "Najdba A: tuje spletno mesto ne dobi NOBENIH piskotkov (je: ${tuj["Cookie"]})")
+    // Obratno: stran napadalca poda naslov banke - zahteva z banckinimi piskotki ne sme oditi.
+    val naBanko = D.sestaviGlave("https://bank.test/api/prenos?znesek=1", emptyMap(), "https://napadalec.test", "UA", jar)
+    p(naBanko["Cookie"] == null, "Najdba A: stran napadalca ne sprozi GET z banckinimi piskotki (je: ${naBanko["Cookie"]})")
+    p(D.piskotkiZa("https://bank.test/a", "https://napadalec.test") == null && D.piskotkiZa("https://bank.test/a", "https://bank.test") == "https://bank.test/a",
+        "Najdba A: piskotkiZa samo za isto mesto")
+    // Isto spletno mesto: poddomene (cdn.primer.si za stran www.primer.si) ohranijo piskotke, kot jih poslje brskalnik.
+    val jarSi: (String) -> String? = { u -> if (D.gostitelj(u)?.endsWith("primer.si") == true) "sid=1" else null }
+    p(D.sestaviGlave("https://cdn.primer.si/a.mpd", emptyMap(), "https://www.primer.si", "UA", jarSi)["Cookie"] == "sid=1",
+        "Najdba A: cdn.primer.si je isto spletno mesto kot www.primer.si")
+    p(D.istoSpletnoMesto("https://a.primer.si/x", "https://b.primer.si/y") && !D.istoSpletnoMesto("https://primer.si.zlo.example/x", "https://primer.si/y")
+        && !D.istoSpletnoMesto("https://zlo.co.uk/x", "https://banka.co.uk/y") && D.istoSpletnoMesto("https://a.banka.co.uk/x", "https://b.banka.co.uk/y")
+        && !D.istoSpletnoMesto("https://zlo.github.io/x", "https://dobri.github.io/y") && !D.istoSpletnoMesto("https://10.0.0.1/x", "https://10.0.0.2/y")
+        && D.istoSpletnoMesto("https://10.0.0.1/x", "https://10.0.0.1:8443/y") && !D.istoSpletnoMesto(null, "https://a.si") && !D.istoSpletnoMesto("https://a.si", ""),
+        "Najdba A: istoSpletnoMesto (poddomene, dvodelne pripone, gostiteljske storitve, IP, prazno)")
     p(tuj["Referer"] == "https://bank.test/" && tuj["Origin"] == "https://bank.test" && tuj["Accept"] == "*/*" && tuj["User-Agent"] == "UA", "P1: Referer/Origin samo izvor, druge glave ostanejo")
     val svoj = D.sestaviGlave("https://bank.test:443/v/a.mpd", emptyMap(), izvor, "UA", jar)
     p(svoj["Cookie"] == "seja=TAJNO; pref=1", "P1: manifest na gostitelju strani dobi njene piskotke (kot v brskalniku)")
@@ -99,7 +113,7 @@ fun main() {
     // --- nova najdba 1: namig licence (widevine+license v naslovu) ------------------------------------------------------
     val namig = D.brezPiskotkov(mapOf("Cookie" to "seja=TAJNO", "X-Dt-Custom-Data" to "abc"))
     val lic = D.sestaviGlave("https://napadalec.test/widevine/license", namig, izvor, "UA", jar)
-    p(lic.values.none { "TAJNO" in it } && lic["Cookie"] == "napad=1" && lic["X-Dt-Custom-Data"] == "abc", "Nova 1: licencni naslov dobi samo piskotke svojega izvora, ne strani, ki ga je podala")
+    p(lic.values.none { "TAJNO" in it } && lic["Cookie"] == null && lic["X-Dt-Custom-Data"] == "abc", "Nova 1 + najdba A: licencni naslov tujega mesta ne dobi piskotkov (ne strani, ne svojih)")
     p(D.brezPiskotkov(mapOf("cookie" to "x", "COOKIE2" to "y", "A" to "b")) == mapOf("A" to "b"), "Nova 1: shranjene glave brez piskotkov (ne glede na velike crke)")
 
     // --- P3/SL-S1 ------------------------------------------------------------------------------------------------------

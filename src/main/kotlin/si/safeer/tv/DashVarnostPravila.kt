@@ -122,9 +122,36 @@ object DashVarnostPravila {
         return s.shema == "http" && s.gostitelj == n.gostitelj
     }
 
-    /** Naslov, za katerega vprasamo CookieManager: samo cilj sam. null = brez piskotkov. */
+    /**
+     * Naslov, za katerega vprasamo CookieManager: samo cilj sam in samo ce je cilj isto spletno mesto kot stran.
+     * Najdba A (pregled 19. 11. 2026): stran sama poda naslov manifesta; z naslovom tujega mesta (npr. banke) bi aplikacija
+     * poslala GET s piskotki uporabnika za to mesto, ne da bi stran sploh smela poslati zahtevo. null = brez piskotkov.
+     */
     fun piskotkiZa(cilj: String?, izvorStrani: String): String? =
-        if (smeOmrezje(cilj, izvorStrani)) (cilj ?: "").trim() else null
+        if (smeOmrezje(cilj, izvorStrani) && istoSpletnoMesto(cilj, izvorStrani)) (cilj ?: "").trim() else null
+
+    // Priblizek javnega seznama pripon (brez seznama v APK): znane dvodelne pripone in storitve, kjer so poddomene tujih ljudi.
+    private val DVODELNE_PRIPONE = setOf(
+        "co.uk", "org.uk", "ac.uk", "gov.uk", "com.au", "net.au", "org.au", "co.nz", "co.jp", "co.kr", "com.br", "com.tr",
+        "co.za", "co.in", "com.mx", "com.ar", "com.cn", "com.hk", "com.sg", "com.tw", "com.ua", "com.pl", "co.il",
+        "github.io", "gitlab.io", "blogspot.com", "herokuapp.com", "vercel.app", "netlify.app", "pages.dev", "workers.dev",
+        "cloudfront.net", "azurewebsites.net", "appspot.com", "web.app", "firebaseapp.com", "fly.dev"
+    )
+
+    /** Registrirljiva domena gostitelja (eTLD+1 po priblizku); IP naslov in gostitelj brez pike ostaneta cel. */
+    fun registrirljivaDomena(gostitelj: String): String {
+        if (gostitelj.startsWith("[") || gostitelj.all { it.isDigit() || it == '.' } || !gostitelj.contains('.')) return gostitelj
+        val deli = gostitelj.split('.')
+        if (deli.size >= 3 && deli.takeLast(2).joinToString(".") in DVODELNE_PRIPONE) return deli.takeLast(3).joinToString(".")
+        return deli.takeLast(2).joinToString(".")
+    }
+
+    /** Isto spletno mesto (same-site): enaka registrirljiva domena; brskalnik ob tem pozna tudi shemo, tu je https/http ze preverjen. */
+    fun istoSpletnoMesto(a: String?, b: String?): Boolean {
+        val ga = gostitelj(a) ?: return false
+        val gb = gostitelj(b) ?: return false
+        return ga == gb || registrirljivaDomena(ga) == registrirljivaDomena(gb)
+    }
 
     fun preskociGlavo(ime: String): Boolean {
         val n = ime.trim().lowercase(Locale.ROOT)
