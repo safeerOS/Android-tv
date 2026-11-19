@@ -138,19 +138,27 @@ object DashVarnostPravila {
         "cloudfront.net", "azurewebsites.net", "appspot.com", "web.app", "firebaseapp.com", "fly.dev"
     )
 
+    // Druga stopnja pod dvomestno drzavno pripono (com.es, org.es, gob.es, ne.jp ...): tam je registrirljiva sele tretja.
+    private val SPLOSNA_DRUGA_STOPNJA = setOf("co", "com", "org", "net", "gov", "gob", "edu", "ac", "ne", "or", "go", "nom", "mil", "ltd", "plc", "sch", "info", "biz")
+
     /** Registrirljiva domena gostitelja (eTLD+1 po priblizku); IP naslov in gostitelj brez pike ostaneta cel. */
     fun registrirljivaDomena(gostitelj: String): String {
         if (gostitelj.startsWith("[") || gostitelj.all { it.isDigit() || it == '.' } || !gostitelj.contains('.')) return gostitelj
         val deli = gostitelj.split('.')
-        if (deli.size >= 3 && deli.takeLast(2).joinToString(".") in DVODELNE_PRIPONE) return deli.takeLast(3).joinToString(".")
+        // CodeRabbit 19. 11. 2026: tabela ni celoten seznam pripon; splosno pravilo za ccTLD (com.es, org.es, gob.es ...) dopolnjuje seznam.
+        val dvodelna = deli.takeLast(2).joinToString(".") in DVODELNE_PRIPONE ||
+            (deli.last().length == 2 && deli[deli.size - 2] in SPLOSNA_DRUGA_STOPNJA)
+        if (deli.size >= 3 && dvodelna) return deli.takeLast(3).joinToString(".")
         return deli.takeLast(2).joinToString(".")
     }
 
     /** Isto spletno mesto (same-site): enaka registrirljiva domena; brskalnik ob tem pozna tudi shemo, tu je https/http ze preverjen. */
     fun istoSpletnoMesto(a: String?, b: String?): Boolean {
-        val ga = gostitelj(a) ?: return false
-        val gb = gostitelj(b) ?: return false
-        return ga == gb || registrirljivaDomena(ga) == registrirljivaDomena(gb)
+        val na = razcleni(a) ?: return false
+        val nb = razcleni(b) ?: return false
+        // CodeRabbit 19. 11. 2026: http in https sta razlicni mesti (schemeful same-site); stran http ne sprozi zahteve s piskotki https.
+        if (na.shema != nb.shema) return false
+        return na.gostitelj == nb.gostitelj || registrirljivaDomena(na.gostitelj) == registrirljivaDomena(nb.gostitelj)
     }
 
     fun preskociGlavo(ime: String): Boolean {

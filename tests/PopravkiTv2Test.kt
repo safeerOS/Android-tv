@@ -94,6 +94,17 @@ fun main() {
         && !D.istoSpletnoMesto("https://zlo.github.io/x", "https://dobri.github.io/y") && !D.istoSpletnoMesto("https://10.0.0.1/x", "https://10.0.0.2/y")
         && D.istoSpletnoMesto("https://10.0.0.1/x", "https://10.0.0.1:8443/y") && !D.istoSpletnoMesto(null, "https://a.si") && !D.istoSpletnoMesto("https://a.si", ""),
         "Najdba A: istoSpletnoMesto (poddomene, dvodelne pripone, gostiteljske storitve, IP, prazno)")
+    // CodeRabbit 19. 11. 2026 (1): stran http ne sprozi zahteve s piskotki https istega gostitelja.
+    val naHttps = D.sestaviGlave("https://bank.test/api/prenos", emptyMap(), "http://bank.test", "UA", jar)
+    p(naHttps["Cookie"] == null && !D.istoSpletnoMesto("http://bank.test", "https://bank.test") && D.istoSpletnoMesto("https://bank.test", "https://bank.test:8443/x"),
+        "Najdba A/CR1: http stran ne dobi piskotkov https cilja; https z drugimi vrati je isto mesto (je: ${naHttps["Cookie"]})")
+    // CodeRabbit 19. 11. 2026 (2): druga stopnja pod drzavno pripono (com.es) ni registrirljiva domena.
+    val jarEs: (String) -> String? = { u -> if (D.gostitelj(u) == "banka.com.es") "seja=TAJNO" else null }
+    val naEs = D.sestaviGlave("https://banka.com.es/api/prenos", emptyMap(), "https://napadalec.com.es", "UA", jarEs)
+    p(naEs["Cookie"] == null && !D.istoSpletnoMesto("https://napadalec.com.es/x", "https://banka.com.es/y") && !D.istoSpletnoMesto("https://a.org.es", "https://b.org.es")
+        && !D.istoSpletnoMesto("https://a.ne.jp", "https://b.ne.jp") && D.istoSpletnoMesto("https://a.banka.com.es/x", "https://b.banka.com.es/y")
+        && D.sestaviGlave("https://cdn.banka.com.es/a.mpd", emptyMap(), "https://www.banka.com.es", "UA", { "sid=1" })["Cookie"] == "sid=1",
+        "Najdba A/CR2: com.es, org.es, ne.jp loceni mesti, poddomene iste banke ohranijo piskotke (je: ${naEs["Cookie"]})")
     p(tuj["Referer"] == "https://bank.test/" && tuj["Origin"] == "https://bank.test" && tuj["Accept"] == "*/*" && tuj["User-Agent"] == "UA", "P1: Referer/Origin samo izvor, druge glave ostanejo")
     val svoj = D.sestaviGlave("https://bank.test:443/v/a.mpd", emptyMap(), izvor, "UA", jar)
     p(svoj["Cookie"] == "seja=TAJNO; pref=1", "P1: manifest na gostitelju strani dobi njene piskotke (kot v brskalniku)")
