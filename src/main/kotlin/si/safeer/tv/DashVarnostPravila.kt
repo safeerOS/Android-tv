@@ -138,8 +138,12 @@ object DashVarnostPravila {
         "cloudfront.net", "azurewebsites.net", "appspot.com", "web.app", "firebaseapp.com", "fly.dev",
         // Neodvisni pregled 19. 11. 2026: gostiteljske storitve, kjer so poddomene tujih ljudi.
         "wordpress.com", "myshopify.com", "tumblr.com", "amazonaws.com", "azureedge.net", "r2.dev", "onrender.com", "ngrok.io",
-        "glitch.me", "duckdns.org", "hf.space", "run.app", "notion.site", "webflow.io", "windows.net"
+        "glitch.me", "duckdns.org", "hf.space", "notion.site", "webflow.io"
     )
+
+    // CodeRabbit 19. 11. 2026 (4. pregled): pri teh storitvah so najemniki na vec ravneh (a.run.app, s3.<regija>.amazonaws.com,
+    // blob.core.windows.net), meja najemnika ni znana: registrirljiva domena je cel gostitelj (piskotki samo za isti gostitelj).
+    private val STORITVE_Z_VGNEZDENIMI_NAJEMNIKI = setOf("run.app", "amazonaws.com", "windows.net")
 
     // Druga stopnja pod dvomestno drzavno pripono (com.es, org.es, gob.es, ne.jp ...): tam je registrirljiva sele tretja.
     private val SPLOSNA_DRUGA_STOPNJA = setOf("co", "com", "org", "net", "gov", "gob", "edu", "ac", "ne", "or", "go", "nom", "mil", "ltd", "plc", "sch", "info", "biz")
@@ -148,6 +152,7 @@ object DashVarnostPravila {
     fun registrirljivaDomena(gostitelj: String): String {
         if (gostitelj.startsWith("[") || gostitelj.all { it.isDigit() || it == '.' } || !gostitelj.contains('.')) return gostitelj
         val deli = gostitelj.split('.')
+        if (deli.takeLast(2).joinToString(".") in STORITVE_Z_VGNEZDENIMI_NAJEMNIKI) return gostitelj
         // Neodvisni pregled 19. 11. 2026: prazne oznake (evil..com) in zadnja oznaka kot stevilka ali 0x (0x7f.0.0.1) nista domena: cel gostitelj.
         if (deli.any { it.isEmpty() } || deli.last().let { z -> z.all { it.isDigit() } || z.startsWith("0x") }) return gostitelj
         // CodeRabbit 19. 11. 2026: tabela ni celoten seznam pripon; splosno pravilo za ccTLD (com.es, org.es, gob.es ...) dopolnjuje seznam.

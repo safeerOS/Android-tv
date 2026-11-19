@@ -123,6 +123,13 @@ fun main() {
         && !D.istoSpletnoMesto("https://a.run.app/x", "https://b.run.app/y") && !D.istoSpletnoMesto("https://a.onrender.com/x", "https://b.onrender.com/y")
         && !D.istoSpletnoMesto("https://a.myshopify.com/x", "https://b.myshopify.com/y") && !D.istoSpletnoMesto("https://a.duckdns.org/x", "https://b.duckdns.org/y"),
         "Najdba A/CR5: gostiteljske storitve (wordpress.com, r2.dev, run.app ...) so javne pripone")
+    // CodeRabbit 19. 11. 2026 (4. pregled): storitve z vgnezdenimi najemniki (evil.a.run.app, bucket.s3.eu-west-1.amazonaws.com,
+    // x.blob.core.windows.net): meja najemnika ni znana, zato samo isti gostitelj dobi piskotke.
+    p(!D.istoSpletnoMesto("https://evil.a.run.app/x", "https://victim.a.run.app/y") && !D.istoSpletnoMesto("https://a.s3.eu-west-1.amazonaws.com/x", "https://b.s3.eu-west-1.amazonaws.com/y")
+        && !D.istoSpletnoMesto("https://evil.blob.core.windows.net/x", "https://victim.blob.core.windows.net/y")
+        && D.istoSpletnoMesto("https://victim.a.run.app/x", "https://victim.a.run.app:8443/y")
+        && D.sestaviGlave("https://victim.a.run.app/a.mpd", emptyMap(), "https://evil.a.run.app", "UA", { "sid=1" })["Cookie"] == null,
+        "Najdba A/CR7: vgnezdeni najemniki (run.app, amazonaws.com, windows.net) - piskotki samo za isti gostitelj")
     p(!D.istoSpletnoMesto("https://0x7f.0.0.1/x", "https://0x7f.0.0.2/y") && !D.istoSpletnoMesto("https://evil..com/x", "https://bank..com/y")
         && !D.istoSpletnoMesto("https://a.0x1/x", "https://b.0x1/y"),
         "Najdba A/CR6: oblike IP z 0x in prazne oznake ne dajo istega mesta")
