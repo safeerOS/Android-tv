@@ -138,6 +138,30 @@ fun main(args: Array<String>) {
     preveriEnako("trajno: prevelika shramba ne spremeni stanja", null, trajni.sprejmi((0..P.NAJVEC_ZAPISKOV).map { P.Zapisek("i$it", "", 1, false) }))
     preveriEnako("trajno: stanje po zavrnjeni prevelikosti nespremenjeno", listOf(izbrisan), trajni.zapiski())
 
+    // Hitra razlicica ciscenja mora dati ISTI izid kot dobesedni prenos iz Line (en najstarejsi nagrobnik naenkrat).
+    fun referencno(seznam: List<P.Zapisek>, zdaj: Long, rok: Long, nz: Int, nzn: Int): P.IzidCiscenja {
+        val s = seznam.filterNot { it.izbrisan && it.cas < zdaj - rok }.toMutableList()
+        while (s.size > nz || P.znakov(s) > nzn) {
+            val n = s.filter { it.izbrisan }.minWithOrNull(compareBy<P.Zapisek>({ it.cas }, { it.id })) ?: break
+            s.remove(n)
+        }
+        return P.IzidCiscenja(s.sortedBy { it.id }, s.size <= nz && P.znakov(s) <= nzn)
+    }
+    val nakljucje = java.util.Random(1911)
+    var razlike = 0
+    repeat(400) {
+        val n = nakljucje.nextInt(60)
+        val sez = (0 until n).map { P.Zapisek("i%03d".format(it), "x".repeat(nakljucje.nextInt(6)) + (if (nakljucje.nextInt(5) == 0) "\uD83D\uDE00" else ""), nakljucje.nextInt(20).toLong(), nakljucje.nextInt(3) != 0) }
+        val nz = nakljucje.nextInt(40); val nzn = nakljucje.nextInt(120)
+        if (P.pocistiNagrobnike(sez, 20, 8, nz, nzn) != referencno(sez, 20, 8, nz, nzn)) razlike++
+    }
+    preveriEnako("ciscenje: hitra razlicica = dobesedni prenos (400 nakljucnih vhodov)", 0, razlike)
+    val veliko = (0 until 30000).map { P.Zapisek("v%05d".format(it), "a", it.toLong(), true) }
+    val t0 = System.nanoTime()
+    val velik = P.pocistiNagrobnike(veliko, 30000, 1_000_000, 10, P.NAJVEC_ZNAKOV)
+    preveriEnako("ciscenje: 30000 nagrobnikov, meja 10 -> ostane 10 najnovejsih", 10, velik.zapiski.size)
+    preveriEnako("ciscenje: hitro (pod 2 s)", true, (System.nanoTime() - t0) < 2_000_000_000L)
+
     // Ciscenje nagrobnikov v shrambi: rok 90 dni, mej se ne preseze z zivimi zapiski, zivi zapiski nikoli ne izginejo.
     val zdaj = 10L * P.ROK_NAGROBNIKA_MS
     val staraSh = LaznaShramba(null, uspeh = true)

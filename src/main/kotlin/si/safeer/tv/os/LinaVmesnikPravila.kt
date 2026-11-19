@@ -22,8 +22,8 @@ object LinaVmesnikPravila {
     const val PAKET_LINA = "si.safeer.lina"
     const val VERZIJA = 1
 
-    /** Meje (pomnilnik televizorja ni na pretek; vmesnik ne sme biti nacin za zapolnitev pomnilnika ali diska). */
-    /** Skupne meje shrambe zapiskov (skupni vektorji Line, razdelek ciscenje): zapiskov in KODNIH TOCK vseh besedil. */
+    /** Skupne meje shrambe zapiskov (skupni vektorji Line, razdelek ciscenje): zapiskov in KODNIH TOCK vseh besedil.
+     *  Pomnilnik televizorja ni na pretek; vmesnik ne sme biti nacin za zapolnitev pomnilnika ali diska. */
     const val NAJVEC_ZAPISKOV = 5000
     const val NAJVEC_ZNAKOV = 262_144
     /** Posamezen zapisek je omejen samo s skupno mejo (Lina ne pozna manjse meje; prej 20000 je zavracal veljavne zapiske). */
@@ -122,12 +122,21 @@ object LinaVmesnikPravila {
         seznam: List<Zapisek>, zdajMs: Long,
         rokMs: Long = ROK_NAGROBNIKA_MS, najvecZapiskov: Int = NAJVEC_ZAPISKOV, najvecZnakov: Int = NAJVEC_ZNAKOV,
     ): IzidCiscenja {
-        val s = seznam.filterNot { it.izbrisan && it.cas < zdajMs - rokMs }.toMutableList()
-        while (s.size > najvecZapiskov || znakov(s) > najvecZnakov) {
-            val najstarejsi = s.filter { it.izbrisan }.minWithOrNull(compareBy<Zapisek>({ it.cas }, { it.id })) ?: break
-            s.remove(najstarejsi)
+        val s = seznam.filterNot { it.izbrisan && it.cas < zdajMs - rokMs }
+        var stevilo = s.size
+        var kodnihTock = znakov(s)
+        var ostali = s
+        if (stevilo > najvecZapiskov || kodnihTock > najvecZnakov) {
+            // Isti izid kot odstranjevanje enega najstarejsega nagrobnika naenkrat, a v O(n log n): 5 ciklov po vhodu do 1 MiB
+            // (deset tisoc drobnih zapiskov) bi sicer na 32-bitnem TV zasedlo nit Binder.
+            val odstrani = HashSet<Int>()
+            for (i in s.indices.filter { s[it].izbrisan }.sortedWith(compareBy({ s[it].cas }, { s[it].id }))) {
+                if (stevilo <= najvecZapiskov && kodnihTock <= najvecZnakov) break
+                odstrani.add(i); stevilo--; kodnihTock -= s[i].besedilo.let { it.codePointCount(0, it.length) }
+            }
+            ostali = s.filterIndexed { i, _ -> i !in odstrani }
         }
-        return IzidCiscenja(s.sortedBy { it.id }, s.size <= najvecZapiskov && znakov(s) <= najvecZnakov)
+        return IzidCiscenja(ostali.sortedBy { it.id }, stevilo <= najvecZapiskov && kodnihTock <= najvecZnakov)
     }
 
     /** Stanje sme na disk le znotraj skupnih mej in znotraj enega Binder kosa; sicer sprejeto=false in shramba ostane nedotaknjena. */
