@@ -15,8 +15,7 @@ import java.util.UUID
  * Posiljanje in dovoljene prejemnike (ozji krog) doloci [CastReceiverService.posljiUsklajevanje]; sprejem gre skozi Dostop.
  */
 class LinaZapiskiSinh(private val context: Context, private val send: (JSONObject) -> Boolean) {
-    private fun linaJe(): Boolean = BuildConfig.FLAVOR in setOf("os", "tablica", "telefon") &&
-        try { UskladitevKljucev.podpisEnak(context, P.PAKET_LINA) } catch (_: Throwable) { false }
+    private fun linaJe(): Boolean = BuildConfig.FLAVOR in setOf("os", "tablica", "telefon") && UskladitevKljucev.linaNalozena(context)
 
     fun requestLatest(): Boolean = linaJe() && send(JSONObject().put("id", UUID.randomUUID().toString()).put("type", "sync.request")
         .put("payload", JSONObject().put("category", P.KATEGORIJA_ZAPISKI).put("since_version", 0)))

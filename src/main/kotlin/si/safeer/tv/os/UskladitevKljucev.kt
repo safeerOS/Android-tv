@@ -224,9 +224,12 @@ object UskladitevKljucev {
         // je neznan: brez groba, drugim napravam ne izbrise veljavnega.
         try {
             val lina = LinaVmesnikShramba.get(c)
+            // Brez Line (odstranjena ali drug podpis) kljuci ostanejo neznani: ne pridejo v krog in ne sprozijo groba
+            // (sicer bi odstranitev Line izbrisala kljuce na drugih napravah).
+            val naVoljo = linaNalozena(c)
             for (ime in lina.imenaKljucev()) {
                 val k = P.kljucAsistent(ime)
-                val vr = lina.beriKljuc(ime)
+                val vr = if (naVoljo) lina.beriKljuc(ime) else null
                 if (vr != null) v[k] = vr else neznani += k
             }
         } catch (_: Throwable) { }
@@ -367,7 +370,8 @@ object UskladitevKljucev {
                 if (z.izbrisan) null
                 else redDomovIzVrednosti(z.vrednost)?.let { red -> Pripravljen(z) { Priljubljene.shraniRedDomov(c, red); true } }
             // Stopnja 2: kljuc asistenta Line - shrani se v Keystore te naprave (ali izbrise); brez omrezja in brez preverbe pri ponudniku.
-            z.kljuc.startsWith(P.PREDPONA_ASISTENT) -> {
+            // Kljuc se sprejme samo, ce je Lina z istim podpisom na tej napravi (lastnik 19. 11. 2026: »ce je nalozena«).
+            z.kljuc.startsWith(P.PREDPONA_ASISTENT) -> if (!linaNalozena(c)) null else {
                 val ime = z.kljuc.removePrefix(P.PREDPONA_ASISTENT)
                 if (z.izbrisan) Pripravljen(z) { LinaVmesnikShramba.get(c).izbrisiKljuc(ime) }
                 else Pripravljen(z) { LinaVmesnikShramba.get(c).nastaviKljuc(ime, z.vrednost) }
@@ -411,7 +415,7 @@ object UskladitevKljucev {
             k == P.KLJUC_USENET_PONUDNIK ->
                 if (v == null) { UsenetPonudnik.get(c).pozabi(); true }
                 else ponudnikIzVrednosti(v)?.let { (pp, g) -> UsenetPonudnik.get(c).prejetoIzKroga(pp, g) } ?: false
-            k.startsWith(P.PREDPONA_ASISTENT) -> {
+            k.startsWith(P.PREDPONA_ASISTENT) -> if (!linaNalozena(c)) false else {
                 val ime = k.removePrefix(P.PREDPONA_ASISTENT)
                 if (v == null) LinaVmesnikShramba.get(c).izbrisiKljuc(ime) else LinaVmesnikShramba.get(c).nastaviKljuc(ime, v)
             }
@@ -658,6 +662,9 @@ object UskladitevKljucev {
     // ------------------------------------------------------------------ sorodna aplikacija na isti napravi (lastnik 4. 11. 2026)
 
     /** Paket ima isti podpis kot ta aplikacija (PackageManager.checkSignatures). */
+    /** Lina (si.safeer.lina) je na tej napravi in ima isti podpis kot ta aplikacija. */
+    internal fun linaNalozena(c: Context): Boolean = try { podpisEnak(c, LinaVmesnikPravila.PAKET_LINA) } catch (_: Throwable) { false }
+
     internal fun podpisEnak(c: Context, paket: String): Boolean = try {
         c.packageManager.checkSignatures(c.packageName, paket) == android.content.pm.PackageManager.SIGNATURE_MATCH
     } catch (_: Throwable) { false }
