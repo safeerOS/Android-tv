@@ -162,6 +162,40 @@ fun main(args: Array<String>) {
     preveriEnako("ciscenje: 30000 nagrobnikov, meja 10 -> ostane 10 najnovejsih", 10, velik.zapiski.size)
     preveriEnako("ciscenje: hitro (pod 2 s)", true, (System.nanoTime() - t0) < 2_000_000_000L)
 
+    // Meja shrambe je v BAJTIH UTF-8 (enaka meji v Hubu), ne v znakih: dvobajtni znaki imajo se prostor, emojiji ne.
+    preveriEnako("bajti: 262144 x c (2 B) sme", true, P.smeShraniti(listOf(P.Zapisek("a", "\u010D".repeat(P.NAJVEC_ZNAKOV), 1, false))))
+    preveriEnako("bajti: 262144 emojijev (4 B, >1 MiB) ne", false, P.smeShraniti(listOf(P.Zapisek("a", "\uD83D\uDE00".repeat(P.NAJVEC_ZNAKOV), 1, false))))
+    preveriEnako("bajti: 5000 zapiskov s 52 znaki sme (tipicno polno stanje)", true,
+        P.smeShraniti((0 until P.NAJVEC_ZAPISKOV).map { P.Zapisek("id-%05d-0123456789abcdef0123456789abcd".format(it), "x".repeat(52), 1, false) }))
+
+    // Binder: stran stanja (en odgovor ne sme preseci meje; strani skupaj dajo celo stanje).
+    val vseZ = (0 until 250).map { P.Zapisek("n%04d".format((it * 7) % 250), "b".repeat(40 + it), it.toLong(), it % 5 == 0) }
+    var od = 0
+    val zbrano = ArrayList<P.Zapisek>()
+    var strani = 0
+    var najvecjaStran = 0
+    while (od >= 0 && strani < 1000) {
+        val s = P.stran(vseZ, od, 5000)
+        najvecjaStran = maxOf(najvecjaStran, s.json.length)
+        zbrano.addAll(P.izJson(s.json) ?: error("stran ni veljaven JSON"))
+        strani++
+        if (s.naslednji != -1) check(s.naslednji > od) { "stran ne napreduje" }
+        od = s.naslednji
+    }
+    preveriEnako("strani: skupaj enako celemu stanju (urejeno po id)", vseZ.sortedBy { it.id }, zbrano)
+    preveriEnako("strani: vec strani, vsaka znotraj meje (+ovojnica)", true, strani > 3 && najvecjaStran <= 5000 + 100)
+    preveriEnako("strani: zunaj obsega je prazna in brez naslednje", P.Stran(P.vJson(emptyList()), -1), P.stran(vseZ, 250))
+    preveriEnako("strani: negativen indeks je prazen", -1, P.stran(vseZ, -1).naslednji)
+    val dolg = listOf(P.Zapisek("a", "x".repeat(9000), 1, false), P.Zapisek("b", "y", 1, false))
+    preveriEnako("strani: dolg zapisek je sam na strani in stran napreduje", 1, P.stran(dolg, 0, 5000).naslednji)
+    preveriEnako("strani: prazno stanje", P.Stran(P.vJson(emptyList()), -1), P.stran(emptyList(), 0))
+
+    // Meja besedila na zapisek v KODNIH TOCKAH (CodeRabbit st3): 131073 emojijev ima dolzino 262146 enot UTF-16, a le 131073 kodnih tock
+    val emojiZapisek = P.Zapisek("e", "\uD83D\uDE00".repeat(131_073), 1, false)
+    preveriEnako("izJson: 131073 emojijev (262146 enot UTF-16) je veljavno", 1, P.izJson(P.vJson(listOf(emojiZapisek)))?.size)
+    preveriEnako("izJson: natanko 262144 kodnih tock je veljavno", 1, P.izJson(P.vJson(listOf(P.Zapisek("e", "x".repeat(P.NAJVEC_ZNAKOV), 1, false))))?.size)
+    preveriEnako("izJson: 262145 kodnih tock je zavrnjeno", null, P.izJson(P.vJson(listOf(P.Zapisek("e", "x".repeat(P.NAJVEC_ZNAKOV + 1), 1, false)))))
+
     // Ciscenje nagrobnikov v shrambi: rok 90 dni, mej se ne preseze z zivimi zapiski, zivi zapiski nikoli ne izginejo.
     val zdaj = 10L * P.ROK_NAGROBNIKA_MS
     val staraSh = LaznaShramba(null, uspeh = true)
@@ -199,9 +233,9 @@ fun main(args: Array<String>) {
     // Simulacija dveh naprav: vsaka sprejme in po pravilu ponovno objavi; po koncnem stevilu korakov imata isto stanje in izmenjava
     // se ustavi (brez ping-ponga).
     // Clan se ne sme imenovati kot zunanja spremenljivka (trajni): v lokalnem razredu jo ta zasenci (ujeto 19. 11. 2026).
-    class Naprava(zacetno: List<P.Zapisek>) {
+    class Naprava(zacetno: List<P.Zapisek>, val urnik: Long = 1000L) {
         var vrednost: String? = P.vJson(zacetno)
-        val hramba = P.TrajniZapiski({ vrednost }, { vrednost = it; true }, { 1000L })
+        val hramba = P.TrajniZapiski({ vrednost }, { vrednost = it; true }, { urnik })
         /** Sprejem; vrne zapiski za ponovno objavo ali null. */
         fun sprejmi(vhod: List<P.Zapisek>): List<P.Zapisek>? {
             val z = this.hramba.sprejmi(vhod) ?: return null
@@ -222,6 +256,27 @@ fun main(args: Array<String>) {
     preveriEnako("simulacija: izmenjava se ustavi (najvec 3 sporocila)", true, sporocil <= 3)
     preveriEnako("simulacija: novejsi zapis zmaga, izbris ostane", listOf("a:n2:20", "b:samo n2:7", "c:samo n1:5"),
         n1.hramba.zapiski().map { "${it.id}:${it.besedilo}:${it.cas}" })
+
+    // Razlika ur (CodeRabbit st3): A je pred B, nagrobnik pri A ze potece, pri B se ne. Izmenjava se mora ustaviti, ne vrteti.
+    val tNagrobnik = P.Zapisek("t", "", 5, true)
+    val nB = Naprava(listOf(tNagrobnik), urnik = 5 + P.ROK_NAGROBNIKA_MS - 1000)   // 1 s pred potekom
+    val nA = Naprava(listOf(tNagrobnik), urnik = 5 + P.ROK_NAGROBNIKA_MS + 1000)   // 1 s po poteku
+    var cak2: Pair<Naprava, List<P.Zapisek>>? = nA to nB.hramba.zapiski()   // B objavi A
+    var spor2 = 0
+    while (cak2 != null && spor2 < 20) {
+        val (komu, kaj) = cak2
+        spor2++
+        val nazaj = komu.sprejmi(kaj)
+        cak2 = if (nazaj == null) null else (if (komu === nA) nB else nA) to nazaj
+    }
+    preveriEnako("ure: izmenjava se ustavi (najvec 2 sporocili)", true, spor2 <= 2)
+    preveriEnako("ure: A je nagrobnik odstranil", emptyList<P.Zapisek>(), nA.hramba.zapiski())
+    preveriEnako("ure: B ga obdrzi do svojega poteka", listOf(tNagrobnik), nB.hramba.zapiski())
+    preveriEnako("objava: manjse zdruzeno stanje ne sprozi objave", false, P.potrebnaObjava(listOf(tNagrobnik), emptyList()))
+    preveriEnako("objava: zdruzeno z vec zapiski sprozi objavo", true, P.potrebnaObjava(emptyList(), listOf(tNagrobnik)))
+    preveriEnako("objava: enako stanje ne sprozi objave", false, P.potrebnaObjava(listOf(tNagrobnik), listOf(tNagrobnik)))
+    preveriEnako("objava: novejsi zapis sprozi objavo", true, P.potrebnaObjava(listOf(P.Zapisek("a", "x", 1, false)), listOf(P.Zapisek("a", "y", 2, false))))
+
 
     if (napak == 0) println("LinaVmesnikPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

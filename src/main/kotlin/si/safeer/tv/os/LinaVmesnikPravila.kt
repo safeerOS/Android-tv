@@ -30,8 +30,21 @@ object LinaVmesnikPravila {
     const val NAJVEC_BESEDILO = NAJVEC_ZNAKOV
     /** Nagrobnik (izbrisan=true) se po tem roku odstrani (skupna pravila Line). Naprava, ki je dlje brez povezave, ga lahko spet oziv. */
     const val ROK_NAGROBNIKA_MS = 90L * 24 * 60 * 60 * 1000
-    /** Samo prenos: vhod in shramba kot JSON ne smeta preseci enega Binder kosa (~1 MB na proces); ni del skupnih pravil. */
-    const val NAJVEC_TOVOR = 1_048_576
+    /**
+     * Najvecja shramba kot JSON v BAJTIH UTF-8: enaka meja kot v Hubu (HubUsmerjevalnik.NAJVECJA_KATEGORIJA), da vsako stanje, ki ga
+     * naprava sprejme, lahko tudi sinhronizira. Ni del skupnih pravil Line: obicajno besedilo z mejama 5000 zapiskov in 262144 kodnih
+     * tock zasede ~0,85 MB; sele skoraj poln izbor emojijev ali krmilnih znakov bi ga presegel (takrat sprejeto=false).
+     */
+    const val NAJVEC_SINH_BAJTOV = 1_048_576
+    /** Najvecji vhod v znakih (prenos iz Huba in lokalni vmesnik); ni vec kot meja shrambe. */
+    const val NAJVEC_TOVOR = NAJVEC_SINH_BAJTOV
+    /**
+     * Binder: Bundle z nizom zasede 2 bajta na znak, vsi hkratni prenosi procesa pa skupaj le ~1 MB. Zato en odgovor ali vhod
+     * lokalnega vmesnika ni daljsi od [BINDER_NAJVEC_ZNAKOV]; vecje stanje se bere po straneh ([stran], ~[BINDER_STRAN_ZNAKOV] znakov)
+     * in pise v skupinah zapiskov (zdruzevanje je asociativno in komutativno, zato vrstni red skupin ni pomemben).
+     */
+    const val BINDER_NAJVEC_ZNAKOV = 300_000
+    const val BINDER_STRAN_ZNAKOV = 100_000
     const val NAJVEC_KLJUCEV = 64
     const val NAJVEC_KLJUC_DOLZINA = 4096
 
@@ -43,10 +56,15 @@ object LinaVmesnikPravila {
         if (kategorija != KATEGORIJA_ZAPISKI || podatki == null) null else izJson(podatki)
 
     /**
-     * Ponovna objava po sprejemu: samo ce je zdruzeno stanje drugacno od prejetega (prejemnik ima kaj, cesar posiljatelj
-     * nima). Ko je enako, se ustavi - dve napravi se ne posiljata v nedogled (obe imata po zdruzitvi isto stanje).
+     * Ponovna objava po sprejemu: samo ce zdruzeno stanje vsebuje kaj, cesar posiljatelj nima (ali ima drugacno/novejse).
+     * Ko je enako ali ko je zdruzeno stanje le MANJSE od prejetega (ciscenje nagrobnikov po uri te naprave, CodeRabbit st3),
+     * se ustavi: naprava, katere ura gre pred drugo, nagrobnik ze odstrani, druga ga se ima - z enakostjo bi si napravi
+     * v nedogled pošiljali [] in [nagrobnik]. Nagrobnik pri drugi napravi poteče po njeni uri.
      */
-    fun potrebnaObjava(prejeto: List<Zapisek>, zdruzeno: List<Zapisek>): Boolean = prejeto.sortedBy { it.id } != zdruzeno.sortedBy { it.id }
+    fun potrebnaObjava(prejeto: List<Zapisek>, zdruzeno: List<Zapisek>): Boolean {
+        val p = prejeto.toHashSet()
+        return zdruzeno.any { it !in p }
+    }
 
     /** Ime kljuca asistenta: samo imenski prostor `asistent.`, nikoli ime medijskega kljuca (Debrid, Usenet, IPTV ...). */
     private val IME_KLJUCA = Regex("^asistent\\.[a-z0-9_]{1,40}$")
@@ -100,7 +118,7 @@ object LinaVmesnikPravila {
             val besedilo = o.niz("besedilo") ?: return null
             val cas = o.stevilo("cas") ?: return null
             val izbrisan = o.logicno("izbrisan") ?: return null
-            if (id.isEmpty() || id.length > 128 || besedilo.length > NAJVEC_BESEDILO) return null
+            if (id.isEmpty() || id.length > 128 || besedilo.codePointCount(0, besedilo.length) > NAJVEC_BESEDILO) return null   // KODNE TOCKE, ne enote UTF-16 (CodeRabbit st3)
             if (cas < 0 || cas != Math.floor(cas) || cas > 9.0e15) return null
             if (!videni.add(id)) return null
             izid.add(Zapisek(id, besedilo, cas.toLong(), izbrisan))
@@ -141,13 +159,37 @@ object LinaVmesnikPravila {
 
     /** Stanje sme na disk le znotraj skupnih mej in znotraj enega Binder kosa; sicer sprejeto=false in shramba ostane nedotaknjena. */
     fun smeShraniti(zapiski: List<Zapisek>): Boolean =
-        zapiski.size <= NAJVEC_ZAPISKOV && znakov(zapiski) <= NAJVEC_ZNAKOV && vJson(zapiski).length <= NAJVEC_TOVOR
-
-    fun vJson(zapiski: List<Zapisek>): String {
-        val seznam = zapiski.joinToString(",", "[", "]") {
-            JsonLahki.Zapis().niz("id", it.id).niz("besedilo", it.besedilo).stevilo("cas", it.cas.toDouble()).logicno("izbrisan", it.izbrisan).toString()
+        zapiski.size <= NAJVEC_ZAPISKOV && znakov(zapiski) <= NAJVEC_ZNAKOV && vJson(zapiski).let {
+            it.length <= NAJVEC_SINH_BAJTOV && it.toByteArray(Charsets.UTF_8).size <= NAJVEC_SINH_BAJTOV
         }
-        return JsonLahki.Zapis().stevilo("verzija", VERZIJA.toDouble()).surovo("zapiski", seznam).surovo("opomniki", "[]").toString()
+
+    private fun zapisJson(z: Zapisek): String =
+        JsonLahki.Zapis().niz("id", z.id).niz("besedilo", z.besedilo).stevilo("cas", z.cas.toDouble()).logicno("izbrisan", z.izbrisan).toString()
+
+    private fun dokument(seznam: String): String =
+        JsonLahki.Zapis().stevilo("verzija", VERZIJA.toDouble()).surovo("zapiski", seznam).surovo("opomniki", "[]").toString()
+
+    fun vJson(zapiski: List<Zapisek>): String = dokument(zapiski.joinToString(",", "[", "]") { zapisJson(it) })
+
+    /** Ena stran stanja za lokalni vmesnik: zapiski od indeksa [od], [naslednji] = indeks za naslednjo stran ali -1 na koncu. */
+    data class Stran(val json: String, val naslednji: Int)
+
+    /**
+     * Zapiski (urejeni po id, kot jih vrne shramba) od [od] naprej, dokler stran ne preseze [najvecZnakov]; vedno vsaj eden,
+     * da stran napreduje tudi pri zapisku, daljsem od meje. Zunaj obsega vrne prazno stran brez naslednje.
+     */
+    fun stran(vsi: List<Zapisek>, od: Int, najvecZnakov: Int = BINDER_STRAN_ZNAKOV): Stran {
+        val zapiski = vsi.sortedBy { it.id }   // stabilen vrstni red med stranmi, ne glede na to, kako je shramba vrnila seznam
+        if (od < 0 || od >= zapiski.size) return Stran(vJson(emptyList()), -1)
+        val deli = ArrayList<String>()
+        var znakovSkupaj = 0
+        var i = od
+        while (i < zapiski.size) {
+            val j = zapisJson(zapiski[i])
+            if (deli.isNotEmpty() && znakovSkupaj + j.length + 1 > najvecZnakov) break
+            deli.add(j); znakovSkupaj += j.length + 1; i++
+        }
+        return Stran(dokument(deli.joinToString(",", "[", "]")), if (i < zapiski.size) i else -1)
     }
 
     /**

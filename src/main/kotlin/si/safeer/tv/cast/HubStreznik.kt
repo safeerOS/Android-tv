@@ -869,6 +869,15 @@ class HubStreznik(
                     zapri(1009, "sporočilo je preveliko")
                     break
                 }
+                if (dolzina > VELIK_OKVIR_B) {
+                    // Pomnilnik se preveri PRED rezervacijo polja: clan s 1 MiB okvirjem ne sme zrusiti naprave z malo pomnilnika.
+                    val razlog = ViriNaprave.preveri(0, dolzina)
+                    if (razlog.isNotEmpty()) {
+                        ViriNaprave.zabelezi(razlog, "sporocilo")
+                        zapri(1013, "naprava naj poskusi znova")
+                        break
+                    }
+                }
 
                 val maska = ByteArray(4)
                 if (!preberiTocno(maska)) break
@@ -989,7 +998,14 @@ class HubStreznik(
          * procesor dlje - 10 s je rezerva, da izrinjamo samo tihe, ne clanov v cakanju.
          */
         const val ROK_TIHE_MS = 10_000L
-        private const val NAJVECJE_SPOROCILO = 256L * 1024
+        /**
+         * Najvecje sporocilo clana (en okvir ali sestavljeno). Do 19. 11. 2026 256 KB: kategorija sinhronizacije (zapiski
+         * Line) do 1 MiB (HubUsmerjevalnik.NAJVECJA_KATEGORIJA) bi bila zavrnjena z 1009, ceprav jo je usmerjevalnik pripravljen
+         * hraniti. Rezerva 128 KB za ovojnico (id, tip, kategorija, cas). Preizkus HubUsmerjevalnik/UsmerjevalnikTest drzi meje skladne.
+         */
+        const val NAJVECJE_SPOROCILO = 1024L * 1024 + 128L * 1024
+        /** Okvir do te velikosti se bere kot prej; vecji se najprej preveri proti pomnilniku naprave (pred rezervacijo polja). */
+        private const val VELIK_OKVIR_B = 256L * 1024
         /** Do toliko skupaj zadrzanih bajtov (sestavljanje sporocil vseh povezav) brez meritve; nad tem odloca pomnilnik. */
         private const val SKUPNI_ZADRZEK_BREZ_MERITVE = 1L * 1024 * 1024
         /** Premor sprejemanja po napaki accept (npr. EMFILE), da zanka ne vrti procesorja. */
@@ -1017,7 +1033,12 @@ class HubStreznik(
          * lahko takoj vrne z novo. Datoteke in zaslon ne gredo skozi vrsto (svoje povezave).
          */
         private const val NAJVEC_V_VRSTI = 64
-        private const val NAJVEC_BAJTOV_V_VRSTI = 512L * 1024
+        /**
+         * Do 19. 11. 2026 512 KB: ena kategorija zapiskov (do ~1 MiB) bi zapolnila vrsto in povezavo prejemnika zaprla z
+         * 1011 »naprava ne bere«. Zdaj gre vanjo eno najvecje sporocilo in se 512 KB navadnih; stevilo sporocil (NAJVEC_V_VRSTI)
+         * in zapiranje pocasnih ostaneta.
+         */
+        const val NAJVEC_BAJTOV_V_VRSTI = NAJVECJE_SPOROCILO + 512L * 1024
         /** Koliko cakamo, da pisalna nit poslje zakljucni okvir, preden vticnico zapremo. */
         private const val ZAPIRALNI_ROK_MS = 300L
     }

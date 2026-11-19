@@ -2551,8 +2551,13 @@ class HubUsmerjevalnik(
         const val NAJVEC_MESH_SPOROCILO = 1024 * 1024
         const val NAJVEC_CAKAJOCIH = 8
         const val NAJVEC_KATEGORIJ = 8
-        const val NAJVECJA_KATEGORIJA = 192 * 1024
-        const val NAJVEC_SKUPAJ_SYNC = 512 * 1024
+        /**
+         * Do 19. 11. 2026 192 KB / 512 KB skupaj: zapiski Line (kategorija safeer.notes.v1, meje 5000 zapiskov in 262144 kodnih tock)
+         * so z navadnim besedilom ~0,85 MB; ob omejitvi 192 KB bi se sinhronizacija med napravami tiho ustavila. Lokalna meja shrambe
+         * (LinaVmesnikPravila.NAJVEC_SINH_BAJTOV) ne sme biti vecja od te; preizkus to drzi.
+         */
+        const val NAJVECJA_KATEGORIJA = 1024 * 1024
+        const val NAJVEC_SKUPAJ_SYNC = 2 * 1024 * 1024
         const val NAJVEC_IMENA = 64
         /** Protocol v1: katalog aplikacij ene naprave (vnosov in bajtov). */
         const val NAJVEC_APLIKACIJ = 200

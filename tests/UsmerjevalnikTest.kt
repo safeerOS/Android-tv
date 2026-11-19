@@ -327,6 +327,17 @@ private fun preizkusSinhronizacije() {
     u.odgovorNa(a, """{"id":"v1","type":"sync.data","payload":{"category":"history","version":1,"timestamp":200,"data":"$velika"}}""")
     preveri("prevelika kategorija se ne shrani", !u.kategorijeSinhronizacije().contains("history"))
 
+    // Meje morajo biti skladne (19. 11. 2026): stanje, ki ga naprava sprejme (zapiski Line do NAJVEC_SINH_BAJTOV), mora Hub tudi prenesti
+    preveri("meja shrambe zapiskov <= meja kategorije v Hubu", si.safeer.tv.os.LinaVmesnikPravila.NAJVEC_SINH_BAJTOV <= HubUsmerjevalnik.NAJVECJA_KATEGORIJA)
+    preveri("sporocilo clana sprejme najvecjo kategorijo z ovojnico",
+        HubStreznik.NAJVECJE_SPOROCILO >= HubUsmerjevalnik.NAJVECJA_KATEGORIJA + 64L * 1024)
+    preveri("izhodna vrsta sprejme najvecje sporocilo in se navadna", HubStreznik.NAJVEC_BAJTOV_V_VRSTI >= HubStreznik.NAJVECJE_SPOROCILO + 256L * 1024)
+    preveri("skupna meja sinhronizacije sprejme najvecjo kategorijo in se drugo", HubUsmerjevalnik.NAJVEC_SKUPAJ_SYNC >= HubUsmerjevalnik.NAJVECJA_KATEGORIJA + 512 * 1024)
+    // Kategorija, ki je prej (192 KB) ni bilo, se zdaj shrani in dobi jo tudi naprava, ki je bila ugasnjena
+    val vecjaKat = "x".repeat(900 * 1024)
+    u.odgovorNa(a, """{"id":"v2","type":"sync.data","payload":{"category":"notesvelika","version":1,"timestamp":210,"data":"$vecjaKat"}}""")
+    preveri("kategorija 900 KB se shrani", u.kategorijeSinhronizacije().contains("notesvelika"))
+
     // Starejsi zapis ne povozi novejsega
     u.odgovorNa(a, """{"id":"s1","type":"sync.data","payload":{"category":"bookmarks","version":1,"timestamp":50,"data":["staro"]}}""")
     val d = Lazni("192.168.0.34")

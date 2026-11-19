@@ -36,6 +36,10 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/cast/RegisterNaprav.kt" \
     "$SRC/si/safeer/tv/cast/KrogZaupanja.kt" \
     "$SRC/si/safeer/tv/link/KatalogAplikacij.kt" \
+    "$SRC/si/safeer/tv/os/LinaVmesnikPravila.kt" \
+    "$SRC/si/safeer/tv/os/UskladitevKljucevPravila.kt" \
+    "$SRC/si/safeer/tv/os/NapraveKrogaPravila.kt" \
+    "$SRC/si/safeer/tv/os/SkrivnostiPravila.kt" \
     "$TEST_DIR/UsmerjevalnikTest.kt" \
     ${JSON_JAR:+-cp "$JSON_JAR"} \
     -include-runtime -d "$OUT/usmerjevalnik.jar"

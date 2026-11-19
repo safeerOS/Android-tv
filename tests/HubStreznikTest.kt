@@ -249,6 +249,15 @@ fun main() {
             preveriEnako("okvir $dolzina znakov: opkoda", 1, op)
             preveri("okvir $dolzina znakov pride nespremenjen", odmev == "odmev:$vsebina")
         }
+        // Kategorija sinhronizacije (zapiski Line, 19. 11. 2026): sporocilo do ~1 MiB mora skozi (prej je meja 256 KB koncala povezavo z 1009)
+        // in v izhodni vrsti ne sme zapreti povezave »naprava ne bere«.
+        for (dolzina in listOf(300_000, 700_000, 1_000_000)) {
+            val velika = "a".repeat(dolzina)
+            o.posljiBesedilo(velika)
+            val (opV, odmevV) = o.preberiOkvir()
+            preveriEnako("veliko sporocilo $dolzina znakov: opkoda", 1, opV)
+            preveri("veliko sporocilo $dolzina znakov pride nespremenjeno", odmevV == "odmev:$velika")
+        }
         // Sporocilo v treh okvirjih (FIN sele na zadnjem), vmes ping: sestavi se v eno.
         val deli = listOf("prvi del, ", "drugi del s č, ", "tretji del").map { it.toByteArray(Charsets.UTF_8) }
         o.posljiDel(0x1, false, deli[0])
@@ -294,7 +303,7 @@ fun main() {
         // steče do konca - prav to je zaželeno, ker podatkov sploh ne vzame v pomnilnik.
         var zaprlJePriPisanju = false
         try {
-            o.posljiBesedilo("x".repeat(400 * 1024))
+            o.posljiBesedilo("x".repeat(HubStreznik.NAJVECJE_SPOROCILO.toInt() + 1024))
         } catch (e: Exception) {
             zaprlJePriPisanju = true
         }

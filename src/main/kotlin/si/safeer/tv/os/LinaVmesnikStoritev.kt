@@ -37,15 +37,21 @@ class LinaVmesnikStoritev : Service() {
     private fun obdelaj(op: Int, v: Bundle): Bundle? {
         val shramba = LinaVmesnikShramba.get(this)
         return when (op) {
-            ZAPISKI_PREBERI -> Bundle().apply { putString(ZAPISI, P.vJson(shramba.zapiski())) }
+            ZAPISKI_PREBERI -> Bundle().apply { stanje(this, shramba.zapiski()) }
+            ZAPISKI_STRAN -> Bundle().apply {
+                val s = P.stran(shramba.zapiski(), v.getInt(OD, 0))
+                putString(ZAPISI, s.json)
+                putInt(NASLEDNJI, s.naslednji)
+            }
             ZAPISKI_POSLJI -> {
-                val vhod = P.izJson(v.getString(ZAPISI) ?: "")
+                // Vhod je lahko skupina zapiskov (stran stanja): sprejmi() zdruzi z obstojecimi, zato vrstni red skupin ni pomemben.
+                val vhod = (v.getString(ZAPISI) ?: "").let { if (it.length > P.BINDER_NAJVEC_ZNAKOV) null else P.izJson(it) }
                 val prej = shramba.zapiski()
                 val zdruzeno = if (vhod == null) null else shramba.sprejmi(vhod)
                 if (zdruzeno != null && zdruzeno != prej) try { LinaVmesnikShramba.poSpremembi?.invoke() } catch (_: Throwable) { }
                 Bundle().apply {
                     putBoolean(SPREJETO, zdruzeno != null)
-                    putString(ZAPISI, P.vJson(zdruzeno ?: shramba.zapiski()))
+                    stanje(this, zdruzeno ?: shramba.zapiski())
                 }
             }
             KLJUC_NASTAVI -> Bundle().apply {
@@ -64,6 +70,12 @@ class LinaVmesnikStoritev : Service() {
         }
     }
 
+    /** Stanje v odgovor, ce gre v en Binder kos; sicer PREVELIKO=true in Lina bere po straneh (ZAPISKI_STRAN). */
+    private fun stanje(b: Bundle, zapiski: List<P.Zapisek>) {
+        val json = P.vJson(zapiski)
+        if (json.length <= P.BINDER_NAJVEC_ZNAKOV) b.putString(ZAPISI, json) else b.putBoolean(PREVELIKO, true)
+    }
+
     override fun onBind(intent: Intent?): IBinder? = if (intent?.action == DEJANJE) odzivnik.binder else null
 
     override fun onDestroy() { nit.quitSafely(); super.onDestroy() }
@@ -76,10 +88,15 @@ class LinaVmesnikStoritev : Service() {
         const val KLJUC_PREBERI = 4
         const val KLJUC_IZBRISI = 5
         const val KLJUC_SEZNAM = 6
+        /** Stran stanja po Binder meji: vhod OD (indeks, privzeto 0); odgovor ZAPISI + NASLEDNJI (-1 = konec). */
+        const val ZAPISKI_STRAN = 7
         const val ODGOVOR = 10
         const val OP = "op"
         const val ZAPISI = "zapisi"
         const val SPREJETO = "sprejeto"
+        const val OD = "od"
+        const val NASLEDNJI = "naslednji"
+        const val PREVELIKO = "preveliko"
         const val IME = "ime"
         const val VREDNOST = "vrednost"
         const val IMENA = "imena"
