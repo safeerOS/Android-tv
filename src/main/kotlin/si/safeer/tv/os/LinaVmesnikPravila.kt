@@ -169,7 +169,8 @@ object LinaVmesnikPravila {
 
     /** Meja okvira Huba (HubStreznik.NAJVECJE_SPOROCILO; preizkus drzi enakost) in rezerva za ovojnico sporocila sync.data in mesh.route. */
     const val NAJVEC_OKVIR_HUBA = 1024L * 1024 + 128L * 1024
-    const val OVOJNICA_B = 4_096L
+    /** Ovojnica sinhronizacije je spremenljiva (CastReceiverService.posljiUsklajevanje doda seznam "allow" dovoljenih naprav): 32 KiB pokrije ~200 id-jev po 64 znakov tudi v ovitem mesh.route (CodeRabbit st5). */
+    const val OVOJNICA_B = 32_768L
 
     /**
      * Velikost stanja v sporocilu mesh.route (CodeRabbit st4, 19. 11. 2026): Namestnik ovije celo sporocilo sync.data v niz "msg",

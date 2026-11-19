@@ -215,6 +215,8 @@ fun main(args: Array<String>) {
     preveriEnako("mesh: ocena je enaka dejanski velikosti ovitega sporocila (razen {\"msg\":\"\"})", true,
         (dejansko - P.meshVelikost(zapisMesh)) in 0L..16L)
     val narekovaji = (0 until P.NAJVEC_ZAPISKOV).map { P.Zapisek("\"".repeat(40) + "%04d".format(it), "x".repeat(52), 1, false) }
+    preveriEnako("mesh: ovojnica pokrije 200 dovoljenih id-jev po 64 znakov (v ovitem sporocilu 2 B na znak + narekovaji)", true,
+        P.OVOJNICA_B >= 200L * (64 * 2 + 6) + 2_048)
     preveriEnako("mesh: stanje je v mejah bajtov na zici", true, P.zicnaVelikost(P.vJson(narekovaji)) <= P.NAJVEC_SINH_BAJTOV)
     preveriEnako("mesh: a v obliki mesh.route preseze okvir Huba, zato ne sme v shrambo", false, P.smeShraniti(narekovaji))
     preveriEnako("mesh: tipicno polno stanje (id-ji UUID) gre", true,
