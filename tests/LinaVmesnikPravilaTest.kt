@@ -233,6 +233,48 @@ fun main(args: Array<String>) {
     val vrstice = P.Zapisek("n", "\n".repeat(P.NAJVEC_ZNAKOV), 1, false)
     preveriEnako("binder: zapisek z 262144 novimi vrsticami je izpuscen", 1, P.stran(listOf(vrstice), 0).izpuscenih)
 
+    // Zapisek, ki ne gre v en Binder kos (CodeRabbit st5): branje in pisanje po kosih; sestavljen zapisek je enak izvirniku.
+    fun prenesi(z: P.Zapisek, ura: () -> Long = { 0L }): Pair<List<P.SestavljalecDelov.Izid>, P.Zapisek?> {
+        val sest = P.SestavljalecDelov(ura)
+        val izidi = ArrayList<P.SestavljalecDelov.Izid>()
+        var od = 0
+        var koncan: P.Zapisek? = null
+        while (od >= 0) {
+            val d = P.delZapiska(listOf(z), z.id, od) ?: error("del ne obstaja")
+            val i = sest.dodaj(z.id, d.cas, d.izbrisan, od, d.skupaj, d.besedilo)
+            izidi.add(i)
+            if (i is P.SestavljalecDelov.Izid.Koncano) koncan = i.zapisek
+            od = d.naslednji
+        }
+        return izidi to koncan
+    }
+    val velikASCII = P.Zapisek("velik", "q".repeat(150_000), 7, false)
+    val (izidiA, sestavljenA) = prenesi(velikASCII)
+    preveriEnako("deli: 150000 znakov gre v 3 kosih in se sestavi nazaj enako", Pair(3, velikASCII), Pair(izidiA.size, sestavljenA))
+    val velikEmoji = P.Zapisek("emo", "😀č".repeat(131_072), 9, true)   // 262144 kodnih tock, mejo kosa prekriva nadomestni par
+    preveriEnako("deli: emojiji se ne prelomijo sredi para in se sestavijo nazaj enako", velikEmoji, prenesi(velikEmoji).second)
+    preveriEnako("deli: stran navede id izpuscenega zapiska", listOf("velik"), P.stran(listOf(P.Zapisek("a", "x", 1, false), velikASCII), 0).izpusceniId)
+    preveriEnako("deli: neznan zapisek", null, P.delZapiska(listOf(velikASCII), "ni", 0))
+    preveriEnako("deli: od zunaj besedila", null, P.delZapiska(listOf(velikASCII), "velik", 150_001))
+    val sNap = P.SestavljalecDelov { 0L }
+    sNap.dodaj("x", 1, false, 0, 100, "a".repeat(40))
+    preveriEnako("deli: kos mimo vrstnega reda je napaka", P.SestavljalecDelov.Izid.Napaka, sNap.dodaj("x", 1, false, 50, 100, "a".repeat(10)))
+    preveriEnako("deli: po napaki sestava znova zacne (kos z od>0 je napaka)", P.SestavljalecDelov.Izid.Napaka, sNap.dodaj("x", 1, false, 40, 100, "a".repeat(10)))
+    val sSp = P.SestavljalecDelov { 0L }
+    sSp.dodaj("x", 1, false, 0, 100, "a".repeat(40))
+    preveriEnako("deli: sprememba skupne dolzine med kosi je napaka", P.SestavljalecDelov.Izid.Napaka, sSp.dodaj("x", 1, false, 40, 101, "a".repeat(10)))
+    preveriEnako("deli: skupno vec kot meja zapiska je napaka", P.SestavljalecDelov.Izid.Napaka, P.SestavljalecDelov { 0L }.dodaj("x", 1, false, 0, P.NAJVEC_BESEDILO + 1, "a"))
+    preveriEnako("deli: kos nad mejo kosa je napaka", P.SestavljalecDelov.Izid.Napaka,
+        P.SestavljalecDelov { 0L }.dodaj("x", 1, false, 0, 100_000, "a".repeat(P.DEL_KODNIH_TOCK + 1)))
+    var cas = 0L
+    val sRok = P.SestavljalecDelov { cas }
+    sRok.dodaj("x", 1, false, 0, 100, "a".repeat(40))
+    cas = P.ROK_SESTAVE_MS + 1
+    preveriEnako("deli: po roku se sestava ponastavi", P.SestavljalecDelov.Izid.Napaka, sRok.dodaj("x", 1, false, 40, 100, "a".repeat(10)))
+    val zdr = P.SestavljalecDelov { 0L }
+    zdr.dodaj("a", 1, false, 0, 100, "a".repeat(50))
+    preveriEnako("deli: nova sestava z od=0 zamenja staro", P.SestavljalecDelov.Izid.Nadaljuj(50), zdr.dodaj("b", 2, false, 0, 100, "b".repeat(50)))
+
     // Meja besedila na zapisek v KODNIH TOCKAH (CodeRabbit st3): 131073 emojijev ima dolzino 262146 enot UTF-16, a le 131073 kodnih tock
     val emojiZapisek = P.Zapisek("e", "\uD83D\uDE00".repeat(131_073), 1, false)
     preveriEnako("izJson: 131073 emojijev (262146 enot UTF-16) je veljavno", 1, P.izJson(P.vJson(listOf(emojiZapisek)))?.size)

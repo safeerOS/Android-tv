@@ -20,6 +20,7 @@ import si.safeer.tv.os.LinaVmesnikPravila as P
  */
 class LinaVmesnikStoritev : Service() {
     private val nit = HandlerThread("safeer-lina-vmesnik").apply { start() }
+    private val sestava = P.SestavljalecDelov()   // obdelava je na eni niti, zato brez zaklepa
 
     private val odzivnik = Messenger(Handler(nit.looper) { m ->
         val paket = try { packageManager.getPackagesForUid(m.sendingUid)?.firstOrNull { it == P.PAKET_LINA } } catch (_: Throwable) { null }
@@ -52,6 +53,30 @@ class LinaVmesnikStoritev : Service() {
                     putString(ZAPISI, s.json)
                     putInt(NASLEDNJI, s.naslednji)
                     putInt(IZPUSCENIH, s.izpuscenih)
+                    if (s.izpusceniId.isNotEmpty()) putStringArray(IZPUSCENI_ID, s.izpusceniId.toTypedArray())
+                }
+            }
+            ZAPISKI_DEL -> Bundle().apply {
+                // Zapisek, ki ne gre v en Binder kos (IZPUSCENI_ID): besedilo po kosih od kodne tocke OD.
+                val d = P.delZapiska(shramba.zapiski(), v.getString(ID) ?: "", v.getInt(OD, 0))
+                if (d == null) putBoolean(SPREJETO, false) else {
+                    putString(DEL, d.besedilo); putInt(NASLEDNJI, d.naslednji); putInt(SKUPAJ, d.skupaj)
+                    putLong(CAS, d.cas); putBoolean(IZBRISAN, d.izbrisan); putBoolean(SPREJETO, true)
+                }
+            }
+            ZAPISKI_DEL_POSLJI -> Bundle().apply {
+                // Zapisek po kosih: zaporedni kosi z OD = ze prejeto; po zadnjem se zdruzi kot navaden vhod (meje shrambe veljajo).
+                val izid = sestava.dodaj(v.getString(ID) ?: "", v.getLong(CAS, -1L), v.getBoolean(IZBRISAN, false),
+                    v.getInt(OD, 0), v.getInt(SKUPAJ, -1), v.getString(DEL) ?: "")
+                when (izid) {
+                    is P.SestavljalecDelov.Izid.Napaka -> putBoolean(SPREJETO, false)
+                    is P.SestavljalecDelov.Izid.Nadaljuj -> { putBoolean(SPREJETO, true); putInt(PREJETO, izid.prejeto) }
+                    is P.SestavljalecDelov.Izid.Koncano -> {
+                        val prej = shramba.zapiski()
+                        val zdruzeno = shramba.sprejmi(listOf(izid.zapisek))
+                        if (zdruzeno != null && zdruzeno != prej) try { LinaVmesnikShramba.poSpremembi?.invoke() } catch (_: Throwable) { }
+                        putBoolean(SPREJETO, zdruzeno != null); putBoolean(KONCANO, true)
+                    }
                 }
             }
             ZAPISKI_POSLJI -> {
@@ -101,6 +126,9 @@ class LinaVmesnikStoritev : Service() {
         const val KLJUC_SEZNAM = 6
         /** Stran stanja po Binder meji: vhod OD (indeks, privzeto 0); odgovor ZAPISI + NASLEDNJI (-1 = konec) + IZPUSCENIH (zapiski, ki so za Binder preveliki; po krogu gredo normalno). */
         const val ZAPISKI_STRAN = 7
+        /** Zapisek, ki ne gre v en kos: branje ZAPISKI_DEL (ID, OD = kodna tocka) in pisanje ZAPISKI_DEL_POSLJI (ID, CAS, IZBRISAN, OD, SKUPAJ, DEL). */
+        const val ZAPISKI_DEL = 8
+        const val ZAPISKI_DEL_POSLJI = 9
         const val ODGOVOR = 10
         const val OP = "op"
         const val ZAPISI = "zapisi"
@@ -109,6 +137,14 @@ class LinaVmesnikStoritev : Service() {
         const val NASLEDNJI = "naslednji"
         const val PREVELIKO = "preveliko"
         const val IZPUSCENIH = "izpuscenih"
+        const val IZPUSCENI_ID = "izpusceni_id"
+        const val ID = "id"
+        const val DEL = "del"
+        const val SKUPAJ = "skupaj"
+        const val CAS = "cas"
+        const val IZBRISAN = "izbrisan"
+        const val PREJETO = "prejeto"
+        const val KONCANO = "koncano"
         /** Branje po straneh: odgovor nosi REVIZIJO stanja; Lina jo poslje z naslednjo stranjo, SPREMENJENO=true pomeni »zacni znova«. */
         const val REVIZIJA = "revizija"
         const val SPREMENJENO = "spremenjeno"

@@ -213,8 +213,68 @@ object LinaVmesnikPravila {
 
     fun vJson(zapiski: List<Zapisek>): String = dokument(zapiski.joinToString(",", "[", "]") { zapisJson(it) })
 
+    /** Najvec id-jev izpuscenih zapiskov v odgovoru strani (vsak do 128 znakov); Lina jih bere po kosih ([delZapiska]). */
+    const val NAJVEC_IZPUSCENIH_ID = 100
+    /** Kos besedila zapiska prek Bindra: kodnih tock (do 2 enoti UTF-16 na kodno tocko, torej < [BINDER_NAJVEC_ZNAKOV]). */
+    const val DEL_KODNIH_TOCK = 50_000
+    const val ROK_SESTAVE_MS = 60_000L
+
+    /** Kos besedila zapiska [id] od kodne tocke [od]; [naslednji] = -1 na koncu. Kosi se ne prelomijo sredi nadomestnega para. */
+    data class Del(val besedilo: String, val naslednji: Int, val skupaj: Int, val cas: Long, val izbrisan: Boolean)
+
+    fun delZapiska(vsi: List<Zapisek>, id: String, od: Int): Del? {
+        val z = vsi.firstOrNull { it.id == id } ?: return null
+        val skupaj = z.besedilo.codePointCount(0, z.besedilo.length)
+        if (od < 0 || od > skupaj) return null
+        val konec = minOf(skupaj, od + DEL_KODNIH_TOCK)
+        val iz = z.besedilo.offsetByCodePoints(0, od)
+        val do_ = z.besedilo.offsetByCodePoints(iz, konec - od)
+        return Del(z.besedilo.substring(iz, do_), if (konec >= skupaj) -1 else konec, skupaj, z.cas, z.izbrisan)
+    }
+
+    /**
+     * Sestavljanje zapiska, ki ne gre v en Binder kos: Lina poslje zaporedne kose ([DEL_KODNIH_TOCK]) istega zapiska (id, cas,
+     * izbrisan, skupaj se ne smejo spremeniti, kos mora nadaljevati tam, kjer se je prejsnji koncal). Zadnji kos vrne zapisek, ki ga
+     * storitev zdruzi kot navaden vhod. Naenkrat ena sestava (do [NAJVEC_ZNAKOV] kodnih tock v pomnilniku); neveljavno zaporedje
+     * ali rok ([ROK_SESTAVE_MS]) jo ponastavi, Lina zacne znova z od=0.
+     */
+    class SestavljalecDelov(private val ura: () -> Long = { System.currentTimeMillis() }) {
+        sealed class Izid {
+            object Napaka : Izid()
+            data class Nadaljuj(val prejeto: Int) : Izid()
+            data class Koncano(val zapisek: Zapisek) : Izid()
+        }
+        private var id: String? = null
+        private var cas = 0L
+        private var izbrisan = false
+        private var skupaj = 0
+        private var kodnih = 0
+        private var zacetek = 0L
+        private val zbrano = StringBuilder()
+
+        fun ponastavi() { id = null; zbrano.setLength(0); kodnih = 0; skupaj = 0 }
+
+        fun dodaj(id: String, cas: Long, izbrisan: Boolean, od: Int, skupaj: Int, del: String): Izid {
+            val zdaj = ura()
+            if (this.id != null && zdaj - zacetek > ROK_SESTAVE_MS) ponastavi()
+            if (id.isEmpty() || id.length > 128 || cas < 0 || skupaj < 0 || skupaj > NAJVEC_BESEDILO) { ponastavi(); return Izid.Napaka }
+            if (od == 0) {
+                ponastavi(); this.id = id; this.cas = cas; this.izbrisan = izbrisan; this.skupaj = skupaj; zacetek = zdaj
+            } else if (this.id != id || this.cas != cas || this.izbrisan != izbrisan || this.skupaj != skupaj || od != kodnih) {
+                ponastavi(); return Izid.Napaka
+            }
+            val n = del.codePointCount(0, del.length)
+            if (n > DEL_KODNIH_TOCK || kodnih + n > skupaj || (n == 0 && kodnih < skupaj)) { ponastavi(); return Izid.Napaka }
+            zbrano.append(del); kodnih += n
+            if (kodnih < skupaj) return Izid.Nadaljuj(kodnih)
+            val z = Zapisek(id, zbrano.toString(), cas, izbrisan)
+            ponastavi()
+            return Izid.Koncano(z)
+        }
+    }
+
     /** Ena stran stanja za lokalni vmesnik: zapiski od indeksa [od], [naslednji] = indeks za naslednjo stran ali -1 na koncu. */
-    data class Stran(val json: String, val naslednji: Int, val izpuscenih: Int = 0)
+    data class Stran(val json: String, val naslednji: Int, val izpuscenih: Int = 0, val izpusceniId: List<String> = emptyList())
 
     /**
      * Zapiski (urejeni po id, kot jih vrne shramba) od [od] naprej, dokler stran ne preseze [najvecZnakov]; vedno vsaj eden,
@@ -226,14 +286,15 @@ object LinaVmesnikPravila {
         val deli = ArrayList<String>()
         var znakovSkupaj = 0
         var izpuscenih = 0
+        val izpusceniId = ArrayList<String>()
         var i = od
         while (i < zapiski.size) {
             val j = zapisJson(zapiski[i])
-            if (j.length > BINDER_NAJVEC_ZAPISEK) { izpuscenih++; i++; continue }   // ne gre cez Binder: izpusti in javi, stran naj napreduje
+            if (j.length > BINDER_NAJVEC_ZAPISEK) { izpuscenih++; if (izpusceniId.size < NAJVEC_IZPUSCENIH_ID) izpusceniId.add(zapiski[i].id); i++; continue }   // ne gre cez Binder: izpusti in javi, stran naj napreduje
             if (deli.isNotEmpty() && znakovSkupaj + j.length + 1 > najvecZnakov) break
             deli.add(j); znakovSkupaj += j.length + 1; i++
         }
-        return Stran(dokument(deli.joinToString(",", "[", "]")), if (i < zapiski.size) i else -1, izpuscenih)
+        return Stran(dokument(deli.joinToString(",", "[", "]")), if (i < zapiski.size) i else -1, izpuscenih, izpusceniId)
     }
 
     /**
