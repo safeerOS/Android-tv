@@ -2,19 +2,442 @@
   "verzija": 1,
   "opis": "Pravila zdruzevanja zapiskov med telefonom in racunalnikom: po id; vecji cas zmaga; pri enakem casu zmaga izbris; pri enakem casu in izbrisu vecje besedilo (leksikografsko); izhod urejen po id.",
   "primeri": [
-    {"ime": "disjunktni", "a": [{"id":"b","besedilo":"B","cas":1,"izbrisan":false}], "b": [{"id":"a","besedilo":"A","cas":2,"izbrisan":false}],
-     "pricakovano": [{"id":"a","besedilo":"A","cas":2,"izbrisan":false},{"id":"b","besedilo":"B","cas":1,"izbrisan":false}]},
-    {"ime": "novejsi zmaga", "a": [{"id":"x","besedilo":"staro","cas":1,"izbrisan":false}], "b": [{"id":"x","besedilo":"novo","cas":5,"izbrisan":false}],
-     "pricakovano": [{"id":"x","besedilo":"novo","cas":5,"izbrisan":false}]},
-    {"ime": "izbris zmaga pri enakem casu", "a": [{"id":"x","besedilo":"t","cas":3,"izbrisan":false}], "b": [{"id":"x","besedilo":"t","cas":3,"izbrisan":true}],
-     "pricakovano": [{"id":"x","besedilo":"t","cas":3,"izbrisan":true}]},
-    {"ime": "starejsi izbris ne razveljavi novejsega", "a": [{"id":"x","besedilo":"t","cas":2,"izbrisan":true}], "b": [{"id":"x","besedilo":"t2","cas":9,"izbrisan":false}],
-     "pricakovano": [{"id":"x","besedilo":"t2","cas":9,"izbrisan":false}]},
-    {"ime": "enak cas in izbris: vecje besedilo", "a": [{"id":"x","besedilo":"abc","cas":4,"izbrisan":false}], "b": [{"id":"x","besedilo":"abd","cas":4,"izbrisan":false}],
-     "pricakovano": [{"id":"x","besedilo":"abd","cas":4,"izbrisan":false}]},
-    {"ime": "zamenjava a in b da isti izid", "a": [{"id":"x","besedilo":"abd","cas":4,"izbrisan":false}], "b": [{"id":"x","besedilo":"abc","cas":4,"izbrisan":false}],
-     "pricakovano": [{"id":"x","besedilo":"abd","cas":4,"izbrisan":false}]},
-    {"ime": "unicode", "a": [{"id":"u","besedilo":"čšž 😀","cas":1,"izbrisan":false}], "b": [],
-     "pricakovano": [{"id":"u","besedilo":"čšž 😀","cas":1,"izbrisan":false}]}
+    {
+      "ime": "disjunktni",
+      "a": [
+        {
+          "id": "b",
+          "besedilo": "B",
+          "cas": 1,
+          "izbrisan": false
+        }
+      ],
+      "b": [
+        {
+          "id": "a",
+          "besedilo": "A",
+          "cas": 2,
+          "izbrisan": false
+        }
+      ],
+      "pricakovano": [
+        {
+          "id": "a",
+          "besedilo": "A",
+          "cas": 2,
+          "izbrisan": false
+        },
+        {
+          "id": "b",
+          "besedilo": "B",
+          "cas": 1,
+          "izbrisan": false
+        }
+      ]
+    },
+    {
+      "ime": "novejsi zmaga",
+      "a": [
+        {
+          "id": "x",
+          "besedilo": "staro",
+          "cas": 1,
+          "izbrisan": false
+        }
+      ],
+      "b": [
+        {
+          "id": "x",
+          "besedilo": "novo",
+          "cas": 5,
+          "izbrisan": false
+        }
+      ],
+      "pricakovano": [
+        {
+          "id": "x",
+          "besedilo": "novo",
+          "cas": 5,
+          "izbrisan": false
+        }
+      ]
+    },
+    {
+      "ime": "izbris zmaga pri enakem casu",
+      "a": [
+        {
+          "id": "x",
+          "besedilo": "t",
+          "cas": 3,
+          "izbrisan": false
+        }
+      ],
+      "b": [
+        {
+          "id": "x",
+          "besedilo": "t",
+          "cas": 3,
+          "izbrisan": true
+        }
+      ],
+      "pricakovano": [
+        {
+          "id": "x",
+          "besedilo": "t",
+          "cas": 3,
+          "izbrisan": true
+        }
+      ]
+    },
+    {
+      "ime": "starejsi izbris ne razveljavi novejsega",
+      "a": [
+        {
+          "id": "x",
+          "besedilo": "t",
+          "cas": 2,
+          "izbrisan": true
+        }
+      ],
+      "b": [
+        {
+          "id": "x",
+          "besedilo": "t2",
+          "cas": 9,
+          "izbrisan": false
+        }
+      ],
+      "pricakovano": [
+        {
+          "id": "x",
+          "besedilo": "t2",
+          "cas": 9,
+          "izbrisan": false
+        }
+      ]
+    },
+    {
+      "ime": "enak cas in izbris: vecje besedilo",
+      "a": [
+        {
+          "id": "x",
+          "besedilo": "abc",
+          "cas": 4,
+          "izbrisan": false
+        }
+      ],
+      "b": [
+        {
+          "id": "x",
+          "besedilo": "abd",
+          "cas": 4,
+          "izbrisan": false
+        }
+      ],
+      "pricakovano": [
+        {
+          "id": "x",
+          "besedilo": "abd",
+          "cas": 4,
+          "izbrisan": false
+        }
+      ]
+    },
+    {
+      "ime": "zamenjava a in b da isti izid",
+      "a": [
+        {
+          "id": "x",
+          "besedilo": "abd",
+          "cas": 4,
+          "izbrisan": false
+        }
+      ],
+      "b": [
+        {
+          "id": "x",
+          "besedilo": "abc",
+          "cas": 4,
+          "izbrisan": false
+        }
+      ],
+      "pricakovano": [
+        {
+          "id": "x",
+          "besedilo": "abd",
+          "cas": 4,
+          "izbrisan": false
+        }
+      ]
+    },
+    {
+      "ime": "unicode",
+      "a": [
+        {
+          "id": "u",
+          "besedilo": "čšž 😀",
+          "cas": 1,
+          "izbrisan": false
+        }
+      ],
+      "b": [],
+      "pricakovano": [
+        {
+          "id": "u",
+          "besedilo": "čšž 😀",
+          "cas": 1,
+          "izbrisan": false
+        }
+      ]
+    }
+  ],
+  "ciscenje_pravila": "Ciscenje nagrobnikov (izbrisan=true), lokalno na vsaki napravi: 1) nagrobnik s cas < zdaj - rok se odstrani; 2) ce je se vec kot najvecZapiskov ali vec kot najvecZnakov (kodne tocke Unicode vseh besedil, tudi nagrobnikov), se odstranjuje nagrobnik z najmanjsim cas (pri enakem cas manjsi id), dokler meja ni dosezena ali nagrobnikov ni; 3) zivi zapiski se NIKOLI ne odstranijo; 4) sprejeto=false, ce meja se vedno ni dosezena. Privzeto: rok 90 dni, 5000 zapiskov, 262144 znakov. Tveganje: naprava, ki je dlje kot rok brez povezave, lahko oznacen zapisek spet ozivi; to je sprejeto.",
+  "ciscenje": [
+    {
+      "ime": "star nagrobnik odstranjen, nov ostane",
+      "zdaj": 1000,
+      "rok": 100,
+      "najvecZapiskov": 5000,
+      "najvecZnakov": 262144,
+      "vhod": [
+        {
+          "id": "a",
+          "besedilo": "zivo",
+          "cas": 1,
+          "izbrisan": false
+        },
+        {
+          "id": "t1",
+          "besedilo": "x",
+          "cas": 800,
+          "izbrisan": true
+        },
+        {
+          "id": "t2",
+          "besedilo": "y",
+          "cas": 950,
+          "izbrisan": true
+        }
+      ],
+      "pricakovano": [
+        {
+          "id": "a",
+          "besedilo": "zivo",
+          "cas": 1,
+          "izbrisan": false
+        },
+        {
+          "id": "t2",
+          "besedilo": "y",
+          "cas": 950,
+          "izbrisan": true
+        }
+      ],
+      "sprejeto": true
+    },
+    {
+      "ime": "zivi zapisek ni nikoli odstranjen",
+      "zdaj": 1000000000,
+      "rok": 100,
+      "najvecZapiskov": 5000,
+      "najvecZnakov": 262144,
+      "vhod": [
+        {
+          "id": "a",
+          "besedilo": "staro",
+          "cas": 1,
+          "izbrisan": false
+        },
+        {
+          "id": "b",
+          "besedilo": "novo",
+          "cas": 999,
+          "izbrisan": false
+        }
+      ],
+      "pricakovano": [
+        {
+          "id": "a",
+          "besedilo": "staro",
+          "cas": 1,
+          "izbrisan": false
+        },
+        {
+          "id": "b",
+          "besedilo": "novo",
+          "cas": 999,
+          "izbrisan": false
+        }
+      ],
+      "sprejeto": true
+    },
+    {
+      "ime": "preseg stevila: najstarejsi nagrobnik gre prvi",
+      "zdaj": 1000,
+      "rok": 100,
+      "najvecZapiskov": 2,
+      "najvecZnakov": 262144,
+      "vhod": [
+        {
+          "id": "a",
+          "besedilo": "zivo",
+          "cas": 1,
+          "izbrisan": false
+        },
+        {
+          "id": "t1",
+          "besedilo": "x",
+          "cas": 950,
+          "izbrisan": true
+        },
+        {
+          "id": "t2",
+          "besedilo": "y",
+          "cas": 960,
+          "izbrisan": true
+        }
+      ],
+      "pricakovano": [
+        {
+          "id": "a",
+          "besedilo": "zivo",
+          "cas": 1,
+          "izbrisan": false
+        },
+        {
+          "id": "t2",
+          "besedilo": "y",
+          "cas": 960,
+          "izbrisan": true
+        }
+      ],
+      "sprejeto": true
+    },
+    {
+      "ime": "preseg brez nagrobnikov: sprejeto=false",
+      "zdaj": 1000,
+      "rok": 100,
+      "najvecZapiskov": 1,
+      "najvecZnakov": 262144,
+      "vhod": [
+        {
+          "id": "a",
+          "besedilo": "1",
+          "cas": 1,
+          "izbrisan": false
+        },
+        {
+          "id": "b",
+          "besedilo": "2",
+          "cas": 2,
+          "izbrisan": false
+        }
+      ],
+      "pricakovano": [
+        {
+          "id": "a",
+          "besedilo": "1",
+          "cas": 1,
+          "izbrisan": false
+        },
+        {
+          "id": "b",
+          "besedilo": "2",
+          "cas": 2,
+          "izbrisan": false
+        }
+      ],
+      "sprejeto": false
+    },
+    {
+      "ime": "preseg znakov: nagrobnik odstranjen",
+      "zdaj": 1000,
+      "rok": 100,
+      "najvecZapiskov": 5000,
+      "najvecZnakov": 5,
+      "vhod": [
+        {
+          "id": "a",
+          "besedilo": "abc",
+          "cas": 1,
+          "izbrisan": false
+        },
+        {
+          "id": "t",
+          "besedilo": "xyz",
+          "cas": 990,
+          "izbrisan": true
+        }
+      ],
+      "pricakovano": [
+        {
+          "id": "a",
+          "besedilo": "abc",
+          "cas": 1,
+          "izbrisan": false
+        }
+      ],
+      "sprejeto": true
+    },
+    {
+      "ime": "enak cas: manjsi id gre prvi",
+      "zdaj": 1000,
+      "rok": 100,
+      "najvecZapiskov": 1,
+      "najvecZnakov": 262144,
+      "vhod": [
+        {
+          "id": "a",
+          "besedilo": "x",
+          "cas": 990,
+          "izbrisan": true
+        },
+        {
+          "id": "b",
+          "besedilo": "y",
+          "cas": 990,
+          "izbrisan": true
+        }
+      ],
+      "pricakovano": [
+        {
+          "id": "b",
+          "besedilo": "y",
+          "cas": 990,
+          "izbrisan": true
+        }
+      ],
+      "sprejeto": true
+    },
+    {
+      "ime": "kodne tocke: emoji steje kot 1 znak",
+      "zdaj": 1000,
+      "rok": 100,
+      "najvecZapiskov": 5000,
+      "najvecZnakov": 2,
+      "vhod": [
+        {
+          "id": "a",
+          "besedilo": "😀😀",
+          "cas": 1,
+          "izbrisan": false
+        },
+        {
+          "id": "t",
+          "besedilo": "😀",
+          "cas": 990,
+          "izbrisan": true
+        }
+      ],
+      "pricakovano": [
+        {
+          "id": "a",
+          "besedilo": "😀😀",
+          "cas": 1,
+          "izbrisan": false
+        }
+      ],
+      "sprejeto": true
+    }
   ]
 }

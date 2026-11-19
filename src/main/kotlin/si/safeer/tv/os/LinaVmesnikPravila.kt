@@ -23,11 +23,15 @@ object LinaVmesnikPravila {
     const val VERZIJA = 1
 
     /** Meje (pomnilnik televizorja ni na pretek; vmesnik ne sme biti nacin za zapolnitev pomnilnika ali diska). */
+    /** Skupne meje shrambe zapiskov (skupni vektorji Line, razdelek ciscenje): zapiskov in KODNIH TOCK vseh besedil. */
     const val NAJVEC_ZAPISKOV = 5000
-    const val NAJVEC_BESEDILO = 20_000
+    const val NAJVEC_ZNAKOV = 262_144
+    /** Posamezen zapisek je omejen samo s skupno mejo (Lina ne pozna manjse meje; prej 20000 je zavracal veljavne zapiske). */
+    const val NAJVEC_BESEDILO = NAJVEC_ZNAKOV
+    /** Nagrobnik (izbrisan=true) se po tem roku odstrani (skupna pravila Line). Naprava, ki je dlje brez povezave, ga lahko spet oziv. */
+    const val ROK_NAGROBNIKA_MS = 90L * 24 * 60 * 60 * 1000
+    /** Samo prenos: vhod in shramba kot JSON ne smeta preseci enega Binder kosa (~1 MB na proces); ni del skupnih pravil. */
     const val NAJVEC_TOVOR = 1_048_576
-    /** Najvec znakov JSON celotne shrambe zapiskov: odgovor je EN Binder kos (omejitev ~1 MB na proces, znak = 2 bajta). */
-    const val NAJVEC_SHRAMBA = 262_144
     const val NAJVEC_KLJUCEV = 64
     const val NAJVEC_KLJUC_DOLZINA = 4096
 
@@ -87,7 +91,7 @@ object LinaVmesnikPravila {
         if (koren.stevilo("verzija") != VERZIJA.toDouble()) return null
         val surovi = koren.surovo("zapiski") ?: return null
         val elementi = JsonLahki.elementi(surovi) ?: return null
-        if (elementi.size > NAJVEC_ZAPISKOV) return null
+        // Stevila zapiskov tu ne omejujemo: vhod nad mejo se najprej pociste (nagrobniki), sele nato velja meja (pocistiNagrobnike).
         val izid = ArrayList<Zapisek>(elementi.size)
         val videni = HashSet<String>()
         for (e in elementi) {
@@ -104,8 +108,31 @@ object LinaVmesnikPravila {
         return izid
     }
 
-    /** Zdruzena shramba sme na disk samo znotraj mej; sicer vmesnik sporoci neuspeh in shramba ostane nedotaknjena. */
-    fun smeShraniti(zapiski: List<Zapisek>): Boolean = zapiski.size <= NAJVEC_ZAPISKOV && vJson(zapiski).length <= NAJVEC_SHRAMBA
+    /** Kodne tocke Unicode vseh besedil (tudi nagrobnikov), kot v Lini (ZapiskiZapis.znakov). */
+    fun znakov(seznam: List<Zapisek>): Int = seznam.sumOf { it.besedilo.codePointCount(0, it.besedilo.length) }
+
+    data class IzidCiscenja(val zapiski: List<Zapisek>, val sprejeto: Boolean)
+
+    /**
+     * Ciscenje nagrobnikov STROGO po skupnih pravilih (vektorji, razdelek ciscenje; Lina ZapiskiZapis.pocistiNagrobnike):
+     * nagrobnik s cas < zdaj - rok gre; ob preseku mej gre najprej najstarejsi nagrobnik (pri enakem casu manjsi id);
+     * ZIVI ZAPISKI NIKOLI; sprejeto=false, ce meja ostane presezena.
+     */
+    fun pocistiNagrobnike(
+        seznam: List<Zapisek>, zdajMs: Long,
+        rokMs: Long = ROK_NAGROBNIKA_MS, najvecZapiskov: Int = NAJVEC_ZAPISKOV, najvecZnakov: Int = NAJVEC_ZNAKOV,
+    ): IzidCiscenja {
+        val s = seznam.filterNot { it.izbrisan && it.cas < zdajMs - rokMs }.toMutableList()
+        while (s.size > najvecZapiskov || znakov(s) > najvecZnakov) {
+            val najstarejsi = s.filter { it.izbrisan }.minWithOrNull(compareBy<Zapisek>({ it.cas }, { it.id })) ?: break
+            s.remove(najstarejsi)
+        }
+        return IzidCiscenja(s.sortedBy { it.id }, s.size <= najvecZapiskov && znakov(s) <= najvecZnakov)
+    }
+
+    /** Stanje sme na disk le znotraj skupnih mej in znotraj enega Binder kosa; sicer sprejeto=false in shramba ostane nedotaknjena. */
+    fun smeShraniti(zapiski: List<Zapisek>): Boolean =
+        zapiski.size <= NAJVEC_ZAPISKOV && znakov(zapiski) <= NAJVEC_ZNAKOV && vJson(zapiski).length <= NAJVEC_TOVOR
 
     fun vJson(zapiski: List<Zapisek>): String {
         val seznam = zapiski.joinToString(",", "[", "]") {
@@ -120,15 +147,19 @@ object LinaVmesnikPravila {
      * (npr. izbris) in jo kasnejsi uspesen commit drugega kljuca zapisal na disk. Zato zapiski() vrne izkljucno stanje,
      * ki je bilo uspesno zapisano; [pisi] pri neuspehu sam povrne staro vrednost v shrambi.
      */
-    class TrajniZapiski(private val beri: () -> String?, private val pisi: (String) -> Boolean) {
+    class TrajniZapiski(
+        private val beri: () -> String?, private val pisi: (String) -> Boolean,
+        private val ura: () -> Long = { System.currentTimeMillis() },
+    ) {
         private var trajno: List<Zapisek>? = null
 
         fun zapiski(): List<Zapisek> = trajno ?: (izJson(beri() ?: "") ?: emptyList()).also { trajno = it }
 
         /** Zdruzeno stanje ali null (prevelika shramba ali zapis ni uspel; vidno ostane prejsnje trajno stanje). */
         fun sprejmi(vhod: List<Zapisek>): List<Zapisek>? {
-            val zdruzeno = zdruzi(zapiski(), vhod)
-            if (!smeShraniti(zdruzeno)) return null
+            val izid = pocistiNagrobnike(zdruzi(zapiski(), vhod), ura())
+            if (!izid.sprejeto || !smeShraniti(izid.zapiski)) return null
+            val zdruzeno = izid.zapiski
             if (!pisi(vJson(zdruzeno))) return null
             trajno = zdruzeno
             return zdruzeno

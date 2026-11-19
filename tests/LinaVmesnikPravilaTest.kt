@@ -13,7 +13,7 @@ private fun preveriEnako(opis: String, pricakovano: Any?, dobljeno: Any?) =
 private fun sha256(b: ByteArray) = MessageDigest.getInstance("SHA-256").digest(b).joinToString("") { "%02x".format(it) }
 
 /** Vektorji so ISTA datoteka kot v Lina repozitoriju (openline/android/skupni-vektorji); odtis je pripet. */
-private const val ODTIS_VEKTORJEV = "01885cf95a16f67e08d0d0d3c385e53805d1dc1f89e2bcb875c355a6cdda091b"
+private const val ODTIS_VEKTORJEV = "ab39ba11abf787e1b3a15315eb637bc825341236d14243460e1469d0d4627461"
 
 private fun zapiski(surovo: String): List<P.Zapisek>? = P.izJson("{\"verzija\":1,\"zapiski\":$surovo,\"opomniki\":[]}")
 
@@ -44,6 +44,21 @@ fun main(args: Array<String>) {
         preveriEnako("a,b: $ime", pricakovano, P.zdruzi(a, b))
         preveriEnako("b,a: $ime", pricakovano, P.zdruzi(b, a))
         preveriEnako("izjson(vjson(x)) ohrani vse: $ime", pricakovano, P.izJson(P.vJson(pricakovano)))
+    }
+
+    // Ciscenje nagrobnikov: ISTI vektorji kot Lina (razdelek ciscenje).
+    val ciscenje = JsonLahki.elementi(koren.surovo("ciscenje")!!)!!
+    preveriEnako("vektorji ciscenja niso okrnjeni (najmanj 7 primerov)", true, ciscenje.size >= 7)
+    for (c in ciscenje) {
+        val o = JsonLahki.objekt(c)!!
+        val ime = o.niz("ime")!!
+        val vhod = zapiski(o.surovo("vhod")!!)
+        val pricakovano = zapiski(o.surovo("pricakovano")!!)
+        if (vhod == null || pricakovano == null) { preveriEnako("ciscenje se razbere: $ime", true, false); continue }
+        val izid = P.pocistiNagrobnike(vhod, o.stevilo("zdaj")!!.toLong(), o.stevilo("rok")!!.toLong(),
+            o.stevilo("najvecZapiskov")!!.toInt(), o.stevilo("najvecZnakov")!!.toInt())
+        preveriEnako("ciscenje, zapiski: $ime", pricakovano, izid.zapiski)
+        preveriEnako("ciscenje, sprejeto: $ime", o.logicno("sprejeto")!!, izid.sprejeto)
     }
 
     // Klicatelj: samo Lina z ISTIM podpisom (preizkus mora brez pravila pasti: drug podpis, drug paket, ne sam sebi).
@@ -94,13 +109,16 @@ fun main(args: Array<String>) {
     preveriEnako("nestrogi JSON zavrnjen", null, z("{verzija:1,zapiski:[]}"))
     preveriEnako("prazen seznam je veljaven", 0, z("{\"verzija\":1,\"zapiski\":[]}")?.size)
     val vecZapiskov = (0..P.NAJVEC_ZAPISKOV).joinToString(",", "[", "]") { "{\"id\":\"i$it\",\"besedilo\":\"\",\"cas\":1,\"izbrisan\":false}" }
-    preveriEnako("prevec zapiskov zavrnjeno", null, z("{\"verzija\":1,\"zapiski\":$vecZapiskov}"))
+    // Meja stevila se uporabi sele po ciscenju (vhod z nagrobniki nad mejo se mora dati pociscenega sprejeti).
+    val vecZ = z("{\"verzija\":1,\"zapiski\":$vecZapiskov}")
+    preveriEnako("prevec zivih zapiskov: vhod se razbere, a sprejeto=false", false, vecZ?.let { P.pocistiNagrobnike(it, 100).sprejeto })
 
     // Meje shrambe (en Binder kos): prevec zapiskov ali prevelika celotna shramba se ne shrani.
     preveriEnako("shramba: zmerna velikost sme", true, P.smeShraniti(listOf(P.Zapisek("a", "x", 1, false))))
     preveriEnako("shramba: prevec zapiskov ne", false, P.smeShraniti((0..P.NAJVEC_ZAPISKOV).map { P.Zapisek("i$it", "", 1, false) }))
     preveriEnako("shramba: prevelika vsebina ne", false, P.smeShraniti((0 until 20).map { P.Zapisek("i$it", "x".repeat(P.NAJVEC_BESEDILO), 1, false) }))
-    preveriEnako("shramba: komaj znotraj meje sme", true, P.smeShraniti((0 until 12).map { P.Zapisek("i$it", "x".repeat(P.NAJVEC_BESEDILO), 1, false) }))
+    preveriEnako("shramba: komaj znotraj meje sme", true, P.smeShraniti(listOf(P.Zapisek("i0", "x".repeat(P.NAJVEC_ZNAKOV), 1, false))))
+    preveriEnako("shramba: en znak cez skupno mejo ne", false, P.smeShraniti(listOf(P.Zapisek("i0", "x".repeat(P.NAJVEC_ZNAKOV), 1, false), P.Zapisek("i1", "y", 1, false))))
 
     // Neuspel zapis ne sme pokazati zavrnjene spremembe (SharedPreferences obdrzi novo vrednost v pomnilniku kot ta lazna shramba).
     class LaznaShramba(var vrednost: String?, var uspeh: Boolean) {
@@ -108,7 +126,7 @@ fun main(args: Array<String>) {
     }
     val a1 = P.Zapisek("a", "prvi", 10, false)
     val sh = LaznaShramba(P.vJson(listOf(a1)), uspeh = true)
-    val trajni = P.TrajniZapiski({ sh.vrednost }, sh::pisi)
+    val trajni = P.TrajniZapiski({ sh.vrednost }, sh::pisi, { 100L })
     preveriEnako("trajno: zacetno stanje", listOf(a1), trajni.zapiski())
     sh.uspeh = false
     preveriEnako("trajno: neuspel izbris vrne null", null, trajni.sprejmi(listOf(P.Zapisek("a", "prvi", 20, true))))
@@ -119,6 +137,28 @@ fun main(args: Array<String>) {
     preveriEnako("trajno: po uspehu je izbris viden", listOf(izbrisan), trajni.zapiski())
     preveriEnako("trajno: prevelika shramba ne spremeni stanja", null, trajni.sprejmi((0..P.NAJVEC_ZAPISKOV).map { P.Zapisek("i$it", "", 1, false) }))
     preveriEnako("trajno: stanje po zavrnjeni prevelikosti nespremenjeno", listOf(izbrisan), trajni.zapiski())
+
+    // Ciscenje nagrobnikov v shrambi: rok 90 dni, mej se ne preseze z zivimi zapiski, zivi zapiski nikoli ne izginejo.
+    val zdaj = 10L * P.ROK_NAGROBNIKA_MS
+    val staraSh = LaznaShramba(null, uspeh = true)
+    val ciscena = P.TrajniZapiski({ staraSh.vrednost }, staraSh::pisi, { zdaj })
+    val starNagrobnik = P.Zapisek("t1", "x", zdaj - P.ROK_NAGROBNIKA_MS - 1, true)
+    val novNagrobnik = P.Zapisek("t2", "y", zdaj - P.ROK_NAGROBNIKA_MS, true)   // tocno na roku: ostane (cas < zdaj - rok)
+    val zivi = P.Zapisek("a", "zivo", 1, false)
+    preveriEnako("shramba: star nagrobnik se odstrani, zivi in nov ostaneta", listOf(zivi, novNagrobnik),
+        ciscena.sprejmi(listOf(zivi, starNagrobnik, novNagrobnik)))
+    val polna = (0 until P.NAJVEC_ZAPISKOV).map { P.Zapisek("i%05d".format(it), "", 1, false) }
+    val polnaSh = LaznaShramba(null, uspeh = true)
+    val polnaTrajna = P.TrajniZapiski({ polnaSh.vrednost }, polnaSh::pisi, { zdaj })
+    preveriEnako("shramba: 5000 zivih sprejeto", P.NAJVEC_ZAPISKOV, polnaTrajna.sprejmi(polna)?.size)
+    preveriEnako("shramba: zivi zapisek nad mejo sprejeto=false (null)", null, polnaTrajna.sprejmi(listOf(P.Zapisek("z", "", 1, false))))
+    preveriEnako("shramba: nagrobnik nad mejo odstrani sam sebe (sprejeto)", P.NAJVEC_ZAPISKOV,
+        polnaTrajna.sprejmi(listOf(P.Zapisek("z", "", zdaj, true)))?.size)
+    // Znaki: kodne tocke Unicode (emoji = 1), skupna meja
+    val velika = P.Zapisek("v", "x".repeat(P.NAJVEC_ZNAKOV), 1, false)
+    preveriEnako("shramba: komaj na meji znakov sprejeto", 1, LaznaShramba(null, true).let { s -> P.TrajniZapiski({ s.vrednost }, s::pisi, { zdaj }).sprejmi(listOf(velika))?.size })
+    preveriEnako("shramba: en znak cez mejo zavrnjeno", null, LaznaShramba(null, true).let { s -> P.TrajniZapiski({ s.vrednost }, s::pisi, { zdaj }).sprejmi(listOf(velika, P.Zapisek("w", "y", 1, false)))?.size })
+    preveriEnako("znakov: emoji je 1 kodna tocka", 2, P.znakov(listOf(P.Zapisek("a", "\uD83D\uDE00\uD83D\uDE00", 1, false))))
 
     // Stopnja 2: kategorija zapiskov v krogu.
     val dobri = P.vJson(listOf(P.Zapisek("a", "x", 1, false)))
@@ -137,7 +177,7 @@ fun main(args: Array<String>) {
     // Clan se ne sme imenovati kot zunanja spremenljivka (trajni): v lokalnem razredu jo ta zasenci (ujeto 19. 11. 2026).
     class Naprava(zacetno: List<P.Zapisek>) {
         var vrednost: String? = P.vJson(zacetno)
-        val hramba = P.TrajniZapiski({ vrednost }, { vrednost = it; true })
+        val hramba = P.TrajniZapiski({ vrednost }, { vrednost = it; true }, { 1000L })
         /** Sprejem; vrne zapiski za ponovno objavo ali null. */
         fun sprejmi(vhod: List<P.Zapisek>): List<P.Zapisek>? {
             val z = this.hramba.sprejmi(vhod) ?: return null
