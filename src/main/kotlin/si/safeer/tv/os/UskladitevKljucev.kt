@@ -220,6 +220,16 @@ object UskladitevKljucev {
         } else {
             neznani += P.KLJUC_RED_DOMOV
         }
+        // Stopnja 2 (19. 11. 2026): kljuci asistenta aplikacije Lina (lokalni vmesnik). Neberljiv kljuc (Keystore razveljavljen)
+        // je neznan: brez groba, drugim napravam ne izbrise veljavnega.
+        try {
+            val lina = LinaVmesnikShramba.get(c)
+            for (ime in lina.imenaKljucev()) {
+                val k = P.kljucAsistent(ime)
+                val vr = lina.beriKljuc(ime)
+                if (vr != null) v[k] = vr else neznani += k
+            }
+        } catch (_: Throwable) { }
         return v to neznani
     }
 
@@ -256,6 +266,7 @@ object UskladitevKljucev {
         k.startsWith(P.PREDPONA_ZAUPANJA) -> v == "1" && NapraveKrogaPravila.veljavnoJedro(k.removePrefix(P.PREDPONA_ZAUPANJA))
         k == P.KLJUC_USENET_PONUDNIK -> ponudnikIzVrednosti(v) != null
         k == P.KLJUC_RED_DOMOV -> redDomovIzVrednosti(v) != null
+        k.startsWith(P.PREDPONA_ASISTENT) -> LinaVmesnikPravila.veljavnaVrednostKljuca(v)
         else -> false
     }
 
@@ -355,6 +366,12 @@ object UskladitevKljucev {
             z.kljuc == P.KLJUC_RED_DOMOV ->
                 if (z.izbrisan) null
                 else redDomovIzVrednosti(z.vrednost)?.let { red -> Pripravljen(z) { Priljubljene.shraniRedDomov(c, red); true } }
+            // Stopnja 2: kljuc asistenta Line - shrani se v Keystore te naprave (ali izbrise); brez omrezja in brez preverbe pri ponudniku.
+            z.kljuc.startsWith(P.PREDPONA_ASISTENT) -> {
+                val ime = z.kljuc.removePrefix(P.PREDPONA_ASISTENT)
+                if (z.izbrisan) Pripravljen(z) { LinaVmesnikShramba.get(c).izbrisiKljuc(ime) }
+                else Pripravljen(z) { LinaVmesnikShramba.get(c).nastaviKljuc(ime, z.vrednost) }
+            }
             else -> null
         }
     } catch (e: Exception) { Log.w(TAG, "pripravi: ${e.javaClass.simpleName}"); null }
@@ -394,6 +411,10 @@ object UskladitevKljucev {
             k == P.KLJUC_USENET_PONUDNIK ->
                 if (v == null) { UsenetPonudnik.get(c).pozabi(); true }
                 else ponudnikIzVrednosti(v)?.let { (pp, g) -> UsenetPonudnik.get(c).prejetoIzKroga(pp, g) } ?: false
+            k.startsWith(P.PREDPONA_ASISTENT) -> {
+                val ime = k.removePrefix(P.PREDPONA_ASISTENT)
+                if (v == null) LinaVmesnikShramba.get(c).izbrisiKljuc(ime) else LinaVmesnikShramba.get(c).nastaviKljuc(ime, v)
+            }
             else -> false
         }
     } catch (e: Exception) { Log.w(TAG, "obnovi: ${e.javaClass.simpleName}"); false }
@@ -737,6 +758,8 @@ object UskladitevKljucev {
         kljuc.startsWith(P.PREDPONA_ZAUPANJA) -> "Safeer Link · " + si.safeer.tv.cast.E2e.zakrij(kljuc.removePrefix(P.PREDPONA_ZAUPANJA))
         // Vrstni red ploscic domacega zaslona: ime izdelka (brez prevoda), brez vrednosti.
         kljuc == P.KLJUC_RED_DOMOV -> "Safeer OS"
+        // Stopnja 2: samo ime kljuca (npr. asistent.gemini), nikoli vrednost.
+        kljuc.startsWith(P.PREDPONA_ASISTENT) -> "Safeer Lina · " + kljuc.removePrefix(P.PREDPONA_ASISTENT)
         else -> Debrid.PREDPONA_DODATKA + P.prikazGostitelja(vrednost.orEmpty(), gostitelj, Zasebno.gostitelj(vrednost.orEmpty()))
     }
 

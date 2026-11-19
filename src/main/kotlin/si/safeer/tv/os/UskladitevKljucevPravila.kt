@@ -63,6 +63,13 @@ object UskladitevKljucevPravila {
      */
     const val KLJUC_USENET_PONUDNIK = "usenet_ponudnik"
     fun kljucZaupanja(jedro: String) = PREDPONA_ZAUPANJA + jedro
+    /**
+     * Kljuci asistenta aplikacije Lina (stopnja 2, 19. 11. 2026): `asistent:<ime>`, ime `asistent.<a-z0-9_>` kot v
+     * [LinaVmesnikPravila]. Lina ni v krogu: kljuc je vpisala lokalno prek [LinaVmesnikStoritev], v krog gre samo prek te
+     * poti (potrditev, Keystore, enaka pravila kot debrid). Vrednost ne gre v dnevnik ne v opis potrditve.
+     */
+    const val PREDPONA_ASISTENT = "asistent:"
+    fun kljucAsistent(ime: String) = PREDPONA_ASISTENT + ime
 
     private val RX_ODTIS = Regex("^[0-9a-f]{16}$")
 
@@ -74,6 +81,7 @@ object UskladitevKljucevPravila {
         k.startsWith(PREDPONA_IPTV) -> RX_ODTIS.matches(k.removePrefix(PREDPONA_IPTV))
         k.startsWith(PREDPONA_ZAUPANJA) -> NapraveKrogaPravila.veljavnoJedro(k.removePrefix(PREDPONA_ZAUPANJA))
         k == KLJUC_RED_DOMOV -> true
+        k.startsWith(PREDPONA_ASISTENT) -> LinaVmesnikPravila.veljavnoImeKljuca(k.removePrefix(PREDPONA_ASISTENT))
         else -> false
     }
 

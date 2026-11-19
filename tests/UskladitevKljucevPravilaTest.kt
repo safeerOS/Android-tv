@@ -55,6 +55,13 @@ fun main() {
     preveriEnako("kljuc dodatka brez odtisa", false, P.veljavenKljuc("dodatek:abc", PONUDNIKI))
     preveriEnako("usenet", true, P.veljavenKljuc(P.KLJUC_USENET, PONUDNIKI))
     preveriEnako("neznan kljuc", false, P.veljavenKljuc("geslo", PONUDNIKI))
+    // stopnja 2 (19. 11. 2026): kljuci asistenta aplikacije Lina
+    preveriEnako("asistent: veljavno ime", true, P.veljavenKljuc(P.kljucAsistent("asistent.gemini"), PONUDNIKI))
+    preveriEnako("asistent: ime brez predpone asistent.", false, P.veljavenKljuc(P.kljucAsistent("gemini"), PONUDNIKI))
+    preveriEnako("asistent: velike crke", false, P.veljavenKljuc(P.kljucAsistent("asistent.Gemini"), PONUDNIKI))
+    preveriEnako("asistent: pot ven", false, P.veljavenKljuc(P.kljucAsistent("asistent.../x"), PONUDNIKI))
+    preveriEnako("asistent: prazno ime", false, P.veljavenKljuc(P.PREDPONA_ASISTENT, PONUDNIKI))
+    preveriEnako("asistent: predolgo ime", false, P.veljavenKljuc(P.kljucAsistent("asistent." + "a".repeat(41)), PONUDNIKI))
 
     // novejsi: cas, nato izvor, nato grob
     preveriEnako("novejsi po casu", true, P.novejsi(5, "a", false, Meta(4, "z", false, "")))
