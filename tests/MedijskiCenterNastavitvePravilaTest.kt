@@ -1,5 +1,7 @@
 package si.safeer.tv.os
 
+import si.safeer.tv.os.MedijskiCenterNastavitvePravila.Postavka as Po
+
 private var napak = 0
 private fun preveriEnako(opis: String, pricakovano: Any?, dobljeno: Any?) =
     if (pricakovano == dobljeno) println("  ok  $opis") else { napak++; println("  NAPAKA  $opis: pricakovano $pricakovano, dobljeno $dobljeno") }
@@ -24,7 +26,6 @@ fun main(args: Array<String>) {
     preveriEnako("Player ima Domov", true, vlc.any { it.id == MedijskiCenterNastavitvePravila.Skupina.DOM })
     
     // Lastnik 19. 11. 2026: »Moji viri« je spremenil stran za oknom in se je zdelo, da se nic ne odzove.
-    val Po = MedijskiCenterNastavitvePravila.Postavka
     for (x in Po.values()) {
         val pricakovano = x == Po.MOJI_VIRI || x == Po.SPLOSNE_NASTAVITVE
         preveriEnako("zapre okno po kliku: $x", pricakovano, p.zapreOknoPoKliku(x))
