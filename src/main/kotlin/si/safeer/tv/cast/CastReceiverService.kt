@@ -1406,6 +1406,9 @@ class CastReceiverService : Service() {
         webSocket = null
         mainHandler.removeCallbacksAndMessages(null)
         if (instance === this) instance = null
+        // Staticni klic zapiskov Line ne sme obdrzati ugasnjene storitve (uhajanje); prepise ga naslednja povezava.
+        si.safeer.tv.os.LinaVmesnikShramba.poSpremembi = null
+        linaZapiski = null
         try { si.safeer.tv.link.ZvokSprejemnik.ustavi() } catch (_: Throwable) { }
         mediaController = null
     }
