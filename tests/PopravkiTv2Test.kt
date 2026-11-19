@@ -105,6 +105,11 @@ fun main() {
         && !D.istoSpletnoMesto("https://a.ne.jp", "https://b.ne.jp") && D.istoSpletnoMesto("https://a.banka.com.es/x", "https://b.banka.com.es/y")
         && D.sestaviGlave("https://cdn.banka.com.es/a.mpd", emptyMap(), "https://www.banka.com.es", "UA", { "sid=1" })["Cookie"] == "sid=1",
         "Najdba A/CR2: com.es, org.es, ne.jp loceni mesti, poddomene iste banke ohranijo piskotke (je: ${naEs["Cookie"]})")
+    // CodeRabbit 19. 11. 2026 (2. pregled): gov.si ni javna pripona - poddomene iste ustanove ohranijo piskotke.
+    p(D.istoSpletnoMesto("https://www.gov.si/a", "https://video.gov.si/b.mpd") && D.istoSpletnoMesto("https://www.org.si", "https://cdn.org.si")
+        && D.sestaviGlave("https://video.gov.si/a.mpd", emptyMap(), "https://www.gov.si", "UA", { "sid=1" })["Cookie"] == "sid=1"
+        && !D.istoSpletnoMesto("https://a.com.es", "https://b.com.es"),
+        "Najdba A/CR3: gov.si in org.si sta registrirljivi domeni (poddomene isto mesto), com.es ostane javna pripona")
     p(tuj["Referer"] == "https://bank.test/" && tuj["Origin"] == "https://bank.test" && tuj["Accept"] == "*/*" && tuj["User-Agent"] == "UA", "P1: Referer/Origin samo izvor, druge glave ostanejo")
     val svoj = D.sestaviGlave("https://bank.test:443/v/a.mpd", emptyMap(), izvor, "UA", jar)
     p(svoj["Cookie"] == "seja=TAJNO; pref=1", "P1: manifest na gostitelju strani dobi njene piskotke (kot v brskalniku)")

@@ -138,6 +138,13 @@ object DashVarnostPravila {
         "cloudfront.net", "azurewebsites.net", "appspot.com", "web.app", "firebaseapp.com", "fly.dev"
     )
 
+    // Drzavne pripone, ki imajo splosne druge stopnje (com.es, co.za ...). CodeRabbit 19. 11. 2026 (2): NE vsaka dvomestna - gov.si in
+    // podobne (si, de, fr ...) imajo registrirljivo ze drugo stopnjo, sicer bi poddomene iste ustanove izgubile piskotke.
+    private val DRZAVE_Z_DRUGO_STOPNJO = setOf(
+        "es", "uk", "au", "nz", "jp", "kr", "br", "tr", "za", "in", "mx", "ar", "cn", "hk", "sg", "tw", "ua", "pl", "il", "id",
+        "my", "ph", "th", "vn", "pk", "ng", "ke", "eg", "sa", "ae", "ru", "pe", "cl", "ve", "co", "ec", "bd", "lk", "gr", "pt"
+    )
+
     // Druga stopnja pod dvomestno drzavno pripono (com.es, org.es, gob.es, ne.jp ...): tam je registrirljiva sele tretja.
     private val SPLOSNA_DRUGA_STOPNJA = setOf("co", "com", "org", "net", "gov", "gob", "edu", "ac", "ne", "or", "go", "nom", "mil", "ltd", "plc", "sch", "info", "biz")
 
@@ -147,7 +154,7 @@ object DashVarnostPravila {
         val deli = gostitelj.split('.')
         // CodeRabbit 19. 11. 2026: tabela ni celoten seznam pripon; splosno pravilo za ccTLD (com.es, org.es, gob.es ...) dopolnjuje seznam.
         val dvodelna = deli.takeLast(2).joinToString(".") in DVODELNE_PRIPONE ||
-            (deli.last().length == 2 && deli[deli.size - 2] in SPLOSNA_DRUGA_STOPNJA)
+            (deli.last() in DRZAVE_Z_DRUGO_STOPNJO && deli[deli.size - 2] in SPLOSNA_DRUGA_STOPNJA)
         if (deli.size >= 3 && dvodelna) return deli.takeLast(3).joinToString(".")
         return deli.takeLast(2).joinToString(".")
     }
