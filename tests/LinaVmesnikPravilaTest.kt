@@ -96,5 +96,23 @@ fun main(args: Array<String>) {
     preveriEnako("shramba: prevelika vsebina ne", false, P.smeShraniti((0 until 20).map { P.Zapisek("i$it", "x".repeat(P.NAJVEC_BESEDILO), 1, false) }))
     preveriEnako("shramba: komaj znotraj meje sme", true, P.smeShraniti((0 until 12).map { P.Zapisek("i$it", "x".repeat(P.NAJVEC_BESEDILO), 1, false) }))
 
+    // Neuspel zapis ne sme pokazati zavrnjene spremembe (SharedPreferences obdrzi novo vrednost v pomnilniku kot ta lazna shramba).
+    class LaznaShramba(var vrednost: String?, var uspeh: Boolean) {
+        fun pisi(nov: String): Boolean { vrednost = nov; return uspeh }
+    }
+    val a1 = P.Zapisek("a", "prvi", 10, false)
+    val sh = LaznaShramba(P.vJson(listOf(a1)), uspeh = true)
+    val trajni = P.TrajniZapiski({ sh.vrednost }, sh::pisi)
+    preveriEnako("trajno: zacetno stanje", listOf(a1), trajni.zapiski())
+    sh.uspeh = false
+    preveriEnako("trajno: neuspel izbris vrne null", null, trajni.sprejmi(listOf(P.Zapisek("a", "prvi", 20, true))))
+    preveriEnako("trajno: po neuspelem izbrisu zapisek ostane viden", listOf(a1), trajni.zapiski())
+    sh.uspeh = true
+    val izbrisan = P.Zapisek("a", "prvi", 20, true)
+    preveriEnako("trajno: ponovitev uspe", listOf(izbrisan), trajni.sprejmi(listOf(izbrisan)))
+    preveriEnako("trajno: po uspehu je izbris viden", listOf(izbrisan), trajni.zapiski())
+    preveriEnako("trajno: prevelika shramba ne spremeni stanja", null, trajni.sprejmi((0..P.NAJVEC_ZAPISKOV).map { P.Zapisek("i$it", "", 1, false) }))
+    preveriEnako("trajno: stanje po zavrnjeni prevelikosti nespremenjeno", listOf(izbrisan), trajni.zapiski())
+
     if (napak == 0) println("LinaVmesnikPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

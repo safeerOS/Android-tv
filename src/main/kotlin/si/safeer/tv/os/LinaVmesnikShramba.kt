@@ -22,20 +22,23 @@ class LinaVmesnikShramba private constructor(context: Context) {
     private val prefs: SharedPreferences = context.applicationContext.getSharedPreferences(DATOTEKA, Context.MODE_PRIVATE)
     private val zaklep = Any()
 
-    fun zapiski(): List<P.Zapisek> = synchronized(zaklep) { preberiZapiske() }
+    private val trajni = P.TrajniZapiski(
+        beri = { prefs.getString(K_ZAPISKI, null) },
+        pisi = { nov ->
+            val staro = prefs.getString(K_ZAPISKI, null)
+            // commit, ne apply: izid »sprejeto« mora pomeniti, da je na disku.
+            val uspelo = prefs.edit().putString(K_ZAPISKI, nov).commit()
+            // Neuspeh: SharedPreferences obdrzi novo vrednost v pomnilniku - povrnemo staro, da je kasnejsi commit drugega
+            // kljuca ne zapise na disk.
+            if (!uspelo) prefs.edit().apply { if (staro == null) remove(K_ZAPISKI) else putString(K_ZAPISKI, staro) }.apply()
+            uspelo
+        }
+    )
 
-    /**
-     * Zdruzi vhod z obstojecimi (skupna pravila); vrne zdruzeno stanje ali null, ce bi shramba presegla meje (nedotaknjena).
-     * commit, ne apply: izid »sprejeto« mora pomeniti, da je na disku.
-     */
-    fun sprejmi(vhod: List<P.Zapisek>): List<P.Zapisek>? = synchronized(zaklep) {
-        val zdruzeno = P.zdruzi(preberiZapiske(), vhod)
-        if (!P.smeShraniti(zdruzeno)) return null
-        if (!prefs.edit().putString(K_ZAPISKI, P.vJson(zdruzeno)).commit()) return null
-        zdruzeno
-    }
+    fun zapiski(): List<P.Zapisek> = synchronized(zaklep) { trajni.zapiski() }
 
-    private fun preberiZapiske(): List<P.Zapisek> = P.izJson(prefs.getString(K_ZAPISKI, null) ?: "") ?: emptyList()
+    /** Zdruzi vhod z obstojecimi (skupna pravila); vrne zdruzeno stanje ali null, ce bi shramba presegla meje ali zapis ne uspe. */
+    fun sprejmi(vhod: List<P.Zapisek>): List<P.Zapisek>? = synchronized(zaklep) { trajni.sprejmi(vhod) }
 
     // ------------------------------------------------------------------ kljuci asistenta
 

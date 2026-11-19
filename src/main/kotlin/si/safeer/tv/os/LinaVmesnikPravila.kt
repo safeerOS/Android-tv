@@ -100,4 +100,25 @@ object LinaVmesnikPravila {
         }
         return JsonLahki.Zapis().stevilo("verzija", VERZIJA.toDouble()).surovo("zapiski", seznam).surovo("opomniki", "[]").toString()
     }
+
+    /**
+     * Zapiski z zadnjim TRAJNIM stanjem (pregled CodeRabbit 19. 11. 2026): ce zapis na disk ne uspe, SharedPreferences
+     * obdrzi novo vrednost v pomnilniku (commit() je ne povrne), zato bi naslednje branje pokazalo zavrnjeno spremembo
+     * (npr. izbris) in jo kasnejsi uspesen commit drugega kljuca zapisal na disk. Zato zapiski() vrne izkljucno stanje,
+     * ki je bilo uspesno zapisano; [pisi] pri neuspehu sam povrne staro vrednost v shrambi.
+     */
+    class TrajniZapiski(private val beri: () -> String?, private val pisi: (String) -> Boolean) {
+        private var trajno: List<Zapisek>? = null
+
+        fun zapiski(): List<Zapisek> = trajno ?: (izJson(beri() ?: "") ?: emptyList()).also { trajno = it }
+
+        /** Zdruzeno stanje ali null (prevelika shramba ali zapis ni uspel; vidno ostane prejsnje trajno stanje). */
+        fun sprejmi(vhod: List<Zapisek>): List<Zapisek>? {
+            val zdruzeno = zdruzi(zapiski(), vhod)
+            if (!smeShraniti(zdruzeno)) return null
+            if (!pisi(vJson(zdruzeno))) return null
+            trajno = zdruzeno
+            return zdruzeno
+        }
+    }
 }
