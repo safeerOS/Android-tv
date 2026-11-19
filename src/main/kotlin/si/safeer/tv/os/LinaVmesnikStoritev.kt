@@ -48,9 +48,17 @@ class LinaVmesnikStoritev : Service() {
                     putString(ZAPISI, P.vJson(zdruzeno ?: shramba.zapiski()))
                 }
             }
-            KLJUC_NASTAVI -> Bundle().apply { putBoolean(SPREJETO, shramba.nastaviKljuc(v.getString(IME) ?: "", v.getString(VREDNOST) ?: "")) }
+            KLJUC_NASTAVI -> Bundle().apply {
+                val ok = UskladitevKljucev.podZaklepom { shramba.nastaviKljuc(v.getString(IME) ?: "", v.getString(VREDNOST) ?: "") }
+                if (ok) UskladitevKljucev.sprozi(this@LinaVmesnikStoritev)   // brez tega bi sprememba cakala na nakljucno naslednjo uskladitev
+                putBoolean(SPREJETO, ok)
+            }
             KLJUC_PREBERI -> Bundle().apply { shramba.beriKljuc(v.getString(IME) ?: "")?.let { putString(VREDNOST, it) } }
-            KLJUC_IZBRISI -> Bundle().apply { putBoolean(SPREJETO, shramba.izbrisiKljuc(v.getString(IME) ?: "")) }
+            KLJUC_IZBRISI -> Bundle().apply {
+                val ok = UskladitevKljucev.podZaklepom { shramba.izbrisiKljuc(v.getString(IME) ?: "") }
+                if (ok) UskladitevKljucev.sprozi(this@LinaVmesnikStoritev)
+                putBoolean(SPREJETO, ok)
+            }
             KLJUC_SEZNAM -> Bundle().apply { putStringArray(IMENA, shramba.imenaKljucev().toTypedArray()) }
             else -> null
         }

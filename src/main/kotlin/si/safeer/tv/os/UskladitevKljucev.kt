@@ -527,6 +527,12 @@ object UskladitevKljucev {
     // ------------------------------------------------------------------ posiljanje
 
     /** Uskladitev z vsemi napravami v ozjem krogu (v ozadju; vec sprememb v [zamikMs] gre v eno). */
+    /**
+     * Lokalna sprememba kljuca iz druge poti (Lina prek vmesnika) in prejem iz kroga si delita ISTI zaklep: prejem ne more
+     * povoziti lastne spremembe, ki je nastala med preverbo in vpisom (CodeRabbit, 19. 11. 2026).
+     */
+    internal fun <T> podZaklepom(f: () -> T): T = synchronized(zaklep) { f() }
+
     fun sprozi(c: Context, zamikMs: Long = 3_000) {
         val a = c.applicationContext
         if (!vklopljeno(a)) return

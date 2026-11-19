@@ -57,7 +57,11 @@ class LinaVmesnikShramba private constructor(context: Context) {
             c.updateAAD(ime.toByteArray(Charsets.UTF_8))
             val s = c.doFinal(vrednost.toByteArray(Charsets.UTF_8))
             val v = Base64.encodeToString(c.iv, Base64.NO_WRAP) + ":" + Base64.encodeToString(s, Base64.NO_WRAP)
-            prefs.edit().putString(PREDPONA_KLJUCA + ime, v).commit()
+            val staro = prefs.getString(PREDPONA_KLJUCA + ime, null)
+            val ok = prefs.edit().putString(PREDPONA_KLJUCA + ime, v).commit()
+            // commit() = false: SharedPreferences obdrzi novo vrednost v pomnilniku, na disku je ni - vrnemo staro (CodeRabbit).
+            if (!ok) { val e = prefs.edit(); if (staro == null) e.remove(PREDPONA_KLJUCA + ime) else e.putString(PREDPONA_KLJUCA + ime, staro); e.apply() }
+            ok
         } catch (_: Exception) { false }
     }
 
@@ -76,7 +80,10 @@ class LinaVmesnikShramba private constructor(context: Context) {
 
     fun izbrisiKljuc(ime: String): Boolean = synchronized(zaklep) {
         if (!P.veljavnoImeKljuca(ime)) return false
-        prefs.edit().remove(PREDPONA_KLJUCA + ime).commit()
+        val staro = prefs.getString(PREDPONA_KLJUCA + ime, null)
+        val ok = prefs.edit().remove(PREDPONA_KLJUCA + ime).commit()
+        if (!ok && staro != null) prefs.edit().putString(PREDPONA_KLJUCA + ime, staro).apply()   // glej nastaviKljuc
+        ok
     }
 
     private fun kljuc(): SecretKey? = try {

@@ -521,8 +521,13 @@ class CastReceiverService : Service() {
                 mediaSync = SafeerMediaSync(this@CastReceiverService) { msg -> posljiUsklajevanje(webSocket, msg) }
                 mediaSync?.requestLatest()
                 // Zapiski Line po ozjem krogu (samo ce je na napravi Lina z istim podpisom; glej LinaZapiskiSinh).
-                linaZapiski = LinaZapiskiSinh(this@CastReceiverService) { msg -> posljiUsklajevanje(webSocket, msg) }
-                linaZapiski?.requestLatest()
+                val lz = LinaZapiskiSinh(this@CastReceiverService) { msg -> posljiUsklajevanje(webSocket, msg) }
+                linaZapiski = lz
+                lz.requestLatest()
+                // Hub brez shranjenega stanja ne odgovori: ce ima vsaka naprava zapiske, bi ostali neobjavljeni do naslednje
+                // spremembe. Enkratna objava ob povezavi, ko je seznam naprav ze prispel (CodeRabbit, 19. 11. 2026); prejemnik z
+                // enakim stanjem ne odgovori (potrebnaObjava), zato zanke ni.
+                mainHandler.postDelayed({ if (linaZapiski === lz) try { domDelavci.execute { try { lz.publish() } catch (_: Throwable) { } } } catch (_: Throwable) { } }, 6_000)
                 si.safeer.tv.os.LinaVmesnikShramba.poSpremembi = { linaZapiski?.publish() }
                 // Imena naprav iz nasega kroga (npr. dana na drugem hubu): hub vzame samo imena znanih clanov.
                 if (packageName == si.safeer.tv.os.Sosed.OS) try { KrogNaprave.prevzemiImeTelevizorja(this@CastReceiverService) } catch (_: Throwable) { }

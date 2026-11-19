@@ -54,7 +54,7 @@ object LinaVmesnikPravila {
     fun veljavnoImeKljuca(ime: String): Boolean = IME_KLJUCA.matches(ime)
 
     fun veljavnaVrednostKljuca(vrednost: String): Boolean =
-        vrednost.isNotEmpty() && vrednost.length <= NAJVEC_KLJUC_DOLZINA && vrednost.none { it == '\u0000' }
+        vrednost.isNotEmpty() && vrednost.length <= NAJVEC_KLJUC_DOLZINA && vrednost.none { it < ' ' || it == '\u007f' }
 
     data class Zapisek(val id: String, val besedilo: String, val cas: Long, val izbrisan: Boolean)
 

@@ -69,6 +69,12 @@ fun main(args: Array<String>) {
     preveriEnako("prazna vrednost zavrnjena", false, P.veljavnaVrednostKljuca(""))
     preveriEnako("ničelni znak zavrnjen", false, P.veljavnaVrednostKljuca("a\u0000b"))
     preveriEnako("predolga vrednost zavrnjena", false, P.veljavnaVrednostKljuca("x".repeat(P.NAJVEC_KLJUC_DOLZINA + 1)))
+    // Usklajevanje (UskladitevKljucevPravila.veljavenZapis) zavrne \r in druge kontrolne znake: lokalna pravila naj bodo enako stroga,
+    // sicer vmesnik kljuc sprejme, krog pa ga tiho zavrze (CodeRabbit, 19. 11. 2026).
+    preveriEnako("CRLF v vrednosti zavrnjen", false, P.veljavnaVrednostKljuca("sk-test\r\n"))
+    preveriEnako("nova vrstica v vrednosti zavrnjena", false, P.veljavnaVrednostKljuca("a\nb"))
+    preveriEnako("tabulator v vrednosti zavrnjen", false, P.veljavnaVrednostKljuca("a\tb"))
+    preveriEnako("DEL v vrednosti zavrnjen", false, P.veljavnaVrednostKljuca("a\u007fb"))
 
     // Stroga meja vnosa: napacen vnos ne sme tiho spremeniti shrambe (null).
     fun z(vsebina: String) = P.izJson(vsebina)
