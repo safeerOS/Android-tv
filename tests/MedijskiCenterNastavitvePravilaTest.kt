@@ -23,6 +23,13 @@ fun main(args: Array<String>) {
     preveriEnako("Player ima 6 skupin", 6, vlc.size)
     preveriEnako("Player ima Domov", true, vlc.any { it.id == MedijskiCenterNastavitvePravila.Skupina.DOM })
     
+    // Lastnik 19. 11. 2026: »Moji viri« je spremenil stran za oknom in se je zdelo, da se nic ne odzove.
+    val Po = MedijskiCenterNastavitvePravila.Postavka
+    for (x in Po.values()) {
+        val pricakovano = x == Po.MOJI_VIRI || x == Po.SPLOSNE_NASTAVITVE
+        preveriEnako("zapre okno po kliku: $x", pricakovano, p.zapreOknoPoKliku(x))
+    }
+
     if (napak > 0) { println("NAPAK: $napak"); kotlin.system.exitProcess(1) }
     println("vse ok")
 }

@@ -10682,6 +10682,7 @@ class GlasbaActivity : OsActivity() {
         val vsebina = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(16), dp(16), dp(16)) }
         val drsnik = ScrollView(this).apply { addView(vsebina) }
         a.setView(drsnik)
+        val okno = a.create()
 
         var fokusKljuc: MedijskiCenterNastavitvePravila.Postavka? = null
 
@@ -10719,12 +10720,15 @@ class GlasbaActivity : OsActivity() {
                     
                     val postavkaGumb = besedilo(16f, osBarva(R.color.os_besedilo)).apply {
                         text = naslov
+                        maxLines = 3 // stanje stikala (Vklopljeno/Izklopljeno) je na koncu besedila in ga enovrstica odrezala
                         setPadding(dp(16), dp(12), dp(16), dp(12))
                         isFocusable = true
                         isClickable = true
                         background = ozadjePostavke()
                         setOnClickListener {
                             fokusKljuc = p
+                            // Postavka, ki spremeni stran ali zaslon pod oknom, okno zapre (sicer se zdi, da se nic ne zgodi).
+                            if (MedijskiCenterNastavitvePravila.zapreOknoPoKliku(p)) okno.dismiss()
                             when (p) {
                                 MedijskiCenterNastavitvePravila.Postavka.MOJI_VIRI -> { izberiNaMestu(VIRI) }
                                 MedijskiCenterNastavitvePravila.Postavka.DEBRID -> nastavitveDebrida()
@@ -10754,7 +10758,7 @@ class GlasbaActivity : OsActivity() {
         }
         
         osveziOkna()
-        a.show()
+        okno.show()
     }
 
     /** Mesto, velikost na USB in »Pocisti predpomnilnik« (Moji viri -> Predpomnilnik, pri Predvajalniku tudi ⋮). */

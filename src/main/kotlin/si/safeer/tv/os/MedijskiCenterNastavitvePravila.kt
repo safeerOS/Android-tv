@@ -28,6 +28,16 @@ object MedijskiCenterNastavitvePravila {
 
     data class ZapisSkupine(val id: Skupina, val postavke: List<Postavka>)
 
+    /**
+     * Lastnik 19. 11. 2026 (telefon): ob kliku na »Moji viri« se je stran spremenila ZA oknom, okno je ostalo na vrhu in
+     * videz je bil, da se nic ne odzove. Postavka, ki spremeni stran ali odpre drug zaslon pod oknom, okno najprej zapre;
+     * ostale odprejo novo okno na vrhu ali prestavijo stikalo in osvezijo seznam (okno ostane).
+     */
+    fun zapreOknoPoKliku(p: Postavka): Boolean = when (p) {
+        Postavka.MOJI_VIRI, Postavka.SPLOSNE_NASTAVITVE -> true
+        else -> false
+    }
+
     fun vidneSkupine(paket: String): List<ZapisSkupine> {
         val predvajalnik = paket == "si.safeer.player"
         val s = mutableListOf<ZapisSkupine>()
