@@ -105,11 +105,27 @@ fun main() {
         && !D.istoSpletnoMesto("https://a.ne.jp", "https://b.ne.jp") && D.istoSpletnoMesto("https://a.banka.com.es/x", "https://b.banka.com.es/y")
         && D.sestaviGlave("https://cdn.banka.com.es/a.mpd", emptyMap(), "https://www.banka.com.es", "UA", { "sid=1" })["Cookie"] == "sid=1",
         "Najdba A/CR2: com.es, org.es, ne.jp loceni mesti, poddomene iste banke ohranijo piskotke (je: ${naEs["Cookie"]})")
-    // CodeRabbit 19. 11. 2026 (2. pregled): gov.si ni javna pripona - poddomene iste ustanove ohranijo piskotke.
-    p(D.istoSpletnoMesto("https://www.gov.si/a", "https://video.gov.si/b.mpd") && D.istoSpletnoMesto("https://www.org.si", "https://cdn.org.si")
-        && D.sestaviGlave("https://video.gov.si/a.mpd", emptyMap(), "https://www.gov.si", "UA", { "sid=1" })["Cookie"] == "sid=1"
+    // Neodvisni pregled 19. 11. 2026: seznam pripon je priblizek, zato v dvomu brez piskotkov (fail-safe). Dvomestna drzavna pripona
+    // s splosno drugo stopnjo (com.ro, co.at, com.hr ...) je javna pripona, tudi ce je seznam ne pozna; gov.si/org.si poddomene zato
+    // ne delijo piskotkov (varna smer), poddomene ene banke pod com.ro pa jih ohranijo.
+    p(!D.istoSpletnoMesto("https://www.gov.si/a", "https://video.gov.si/b.mpd") && !D.istoSpletnoMesto("https://a.org.si", "https://b.org.si")
+        && D.istoSpletnoMesto("https://a.banka.gov.si/x", "https://b.banka.gov.si/y")
         && !D.istoSpletnoMesto("https://a.com.es", "https://b.com.es"),
-        "Najdba A/CR3: gov.si in org.si sta registrirljivi domeni (poddomene isto mesto), com.es ostane javna pripona")
+        "Najdba A/CR3: gov.si/org.si poddomene ne delijo piskotkov (fail-safe), com.es ostane javna pripona")
+    val jarRo: (String) -> String? = { u -> if (D.gostitelj(u) == "bank.com.ro") "seja=TAJNO" else null }
+    p(D.sestaviGlave("https://bank.com.ro/api/prenos", emptyMap(), "https://evil.com.ro", "UA", jarRo)["Cookie"] == null
+        && !D.istoSpletnoMesto("https://evil.com.ro/x", "https://bank.com.ro/y") && !D.istoSpletnoMesto("https://evil.co.at/x", "https://bank.co.at/y")
+        && !D.istoSpletnoMesto("https://evil.com.hr/x", "https://bank.com.hr/y") && !D.istoSpletnoMesto("https://evil.or.at/x", "https://bank.or.at/y")
+        && D.istoSpletnoMesto("https://a.banka.com.ro/x", "https://b.banka.com.ro/y")
+        && D.sestaviGlave("https://cdn.banka.com.ro/a.mpd", emptyMap(), "https://www.banka.com.ro", "UA", { "sid=1" })["Cookie"] == "sid=1",
+        "Najdba A/CR4: com.ro, co.at, com.hr, or.at (pripone izven seznama) so javne pripone: napadalec ne dobi piskotkov banke")
+    p(!D.istoSpletnoMesto("https://evil.wordpress.com/x", "https://victim.wordpress.com/y") && !D.istoSpletnoMesto("https://a.r2.dev/x", "https://b.r2.dev/y")
+        && !D.istoSpletnoMesto("https://a.run.app/x", "https://b.run.app/y") && !D.istoSpletnoMesto("https://a.onrender.com/x", "https://b.onrender.com/y")
+        && !D.istoSpletnoMesto("https://a.myshopify.com/x", "https://b.myshopify.com/y") && !D.istoSpletnoMesto("https://a.duckdns.org/x", "https://b.duckdns.org/y"),
+        "Najdba A/CR5: gostiteljske storitve (wordpress.com, r2.dev, run.app ...) so javne pripone")
+    p(!D.istoSpletnoMesto("https://0x7f.0.0.1/x", "https://0x7f.0.0.2/y") && !D.istoSpletnoMesto("https://evil..com/x", "https://bank..com/y")
+        && !D.istoSpletnoMesto("https://a.0x1/x", "https://b.0x1/y"),
+        "Najdba A/CR6: oblike IP z 0x in prazne oznake ne dajo istega mesta")
     p(tuj["Referer"] == "https://bank.test/" && tuj["Origin"] == "https://bank.test" && tuj["Accept"] == "*/*" && tuj["User-Agent"] == "UA", "P1: Referer/Origin samo izvor, druge glave ostanejo")
     val svoj = D.sestaviGlave("https://bank.test:443/v/a.mpd", emptyMap(), izvor, "UA", jar)
     p(svoj["Cookie"] == "seja=TAJNO; pref=1", "P1: manifest na gostitelju strani dobi njene piskotke (kot v brskalniku)")

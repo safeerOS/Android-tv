@@ -135,14 +135,10 @@ object DashVarnostPravila {
         "co.uk", "org.uk", "ac.uk", "gov.uk", "com.au", "net.au", "org.au", "co.nz", "co.jp", "co.kr", "com.br", "com.tr",
         "co.za", "co.in", "com.mx", "com.ar", "com.cn", "com.hk", "com.sg", "com.tw", "com.ua", "com.pl", "co.il",
         "github.io", "gitlab.io", "blogspot.com", "herokuapp.com", "vercel.app", "netlify.app", "pages.dev", "workers.dev",
-        "cloudfront.net", "azurewebsites.net", "appspot.com", "web.app", "firebaseapp.com", "fly.dev"
-    )
-
-    // Drzavne pripone, ki imajo splosne druge stopnje (com.es, co.za ...). CodeRabbit 19. 11. 2026 (2): NE vsaka dvomestna - gov.si in
-    // podobne (si, de, fr ...) imajo registrirljivo ze drugo stopnjo, sicer bi poddomene iste ustanove izgubile piskotke.
-    private val DRZAVE_Z_DRUGO_STOPNJO = setOf(
-        "es", "uk", "au", "nz", "jp", "kr", "br", "tr", "za", "in", "mx", "ar", "cn", "hk", "sg", "tw", "ua", "pl", "il", "id",
-        "my", "ph", "th", "vn", "pk", "ng", "ke", "eg", "sa", "ae", "ru", "pe", "cl", "ve", "co", "ec", "bd", "lk", "gr", "pt"
+        "cloudfront.net", "azurewebsites.net", "appspot.com", "web.app", "firebaseapp.com", "fly.dev",
+        // Neodvisni pregled 19. 11. 2026: gostiteljske storitve, kjer so poddomene tujih ljudi.
+        "wordpress.com", "myshopify.com", "tumblr.com", "amazonaws.com", "azureedge.net", "r2.dev", "onrender.com", "ngrok.io",
+        "glitch.me", "duckdns.org", "hf.space", "run.app", "notion.site", "webflow.io", "windows.net"
     )
 
     // Druga stopnja pod dvomestno drzavno pripono (com.es, org.es, gob.es, ne.jp ...): tam je registrirljiva sele tretja.
@@ -152,9 +148,13 @@ object DashVarnostPravila {
     fun registrirljivaDomena(gostitelj: String): String {
         if (gostitelj.startsWith("[") || gostitelj.all { it.isDigit() || it == '.' } || !gostitelj.contains('.')) return gostitelj
         val deli = gostitelj.split('.')
+        // Neodvisni pregled 19. 11. 2026: prazne oznake (evil..com) in zadnja oznaka kot stevilka ali 0x (0x7f.0.0.1) nista domena: cel gostitelj.
+        if (deli.any { it.isEmpty() } || deli.last().let { z -> z.all { it.isDigit() } || z.startsWith("0x") }) return gostitelj
         // CodeRabbit 19. 11. 2026: tabela ni celoten seznam pripon; splosno pravilo za ccTLD (com.es, org.es, gob.es ...) dopolnjuje seznam.
         val dvodelna = deli.takeLast(2).joinToString(".") in DVODELNE_PRIPONE ||
-            (deli.last() in DRZAVE_Z_DRUGO_STOPNJO && deli[deli.size - 2] in SPLOSNA_DRUGA_STOPNJA)
+            // Fail-safe (neodvisni pregled 19. 11. 2026): seznam drzav je priblizek (com.ro, co.at, com.hr ... manjkajo), zato velja splosno
+            // pravilo za vsako dvomestno pripono; cena: poddomene gov.si med seboj ne delijo piskotkov (varna smer).
+            (deli.last().length == 2 && deli[deli.size - 2] in SPLOSNA_DRUGA_STOPNJA)
         if (deli.size >= 3 && dvodelna) return deli.takeLast(3).joinToString(".")
         return deli.takeLast(2).joinToString(".")
     }
