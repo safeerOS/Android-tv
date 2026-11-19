@@ -40,7 +40,9 @@ class LinaVmesnikStoritev : Service() {
             ZAPISKI_PREBERI -> Bundle().apply { putString(ZAPISI, P.vJson(shramba.zapiski())) }
             ZAPISKI_POSLJI -> {
                 val vhod = P.izJson(v.getString(ZAPISI) ?: "")
+                val prej = shramba.zapiski()
                 val zdruzeno = if (vhod == null) null else shramba.sprejmi(vhod)
+                if (zdruzeno != null && zdruzeno != prej) try { LinaVmesnikShramba.poSpremembi?.invoke() } catch (_: Throwable) { }
                 Bundle().apply {
                     putBoolean(SPREJETO, zdruzeno != null)
                     putString(ZAPISI, P.vJson(zdruzeno ?: shramba.zapiski()))

@@ -114,5 +114,44 @@ fun main(args: Array<String>) {
     preveriEnako("trajno: prevelika shramba ne spremeni stanja", null, trajni.sprejmi((0..P.NAJVEC_ZAPISKOV).map { P.Zapisek("i$it", "", 1, false) }))
     preveriEnako("trajno: stanje po zavrnjeni prevelikosti nespremenjeno", listOf(izbrisan), trajni.zapiski())
 
+    // Stopnja 2: kategorija zapiskov v krogu.
+    val dobri = P.vJson(listOf(P.Zapisek("a", "x", 1, false)))
+    preveriEnako("tovor: prava kategorija", 1, P.izTovora(P.KATEGORIJA_ZAPISKI, dobri)?.size)
+    preveriEnako("tovor: tuja kategorija se ne sprejme", null, P.izTovora("safeer.media.v1", dobri))
+    preveriEnako("tovor: brez kategorije", null, P.izTovora(null, dobri))
+    preveriEnako("tovor: brez podatkov", null, P.izTovora(P.KATEGORIJA_ZAPISKI, null))
+    preveriEnako("tovor: pokvarjen JSON", null, P.izTovora(P.KATEGORIJA_ZAPISKI, "{\"verzija\":2,\"zapiski\":[]}"))
+    val za = P.Zapisek("a", "x", 1, false)
+    val zb = P.Zapisek("b", "y", 1, false)
+    preveriEnako("objava: enako stanje ne ponovi", false, P.potrebnaObjava(listOf(za, zb), listOf(zb, za)))
+    preveriEnako("objava: prejemnik ima vec", true, P.potrebnaObjava(listOf(za), listOf(za, zb)))
+
+    // Simulacija dveh naprav: vsaka sprejme in po pravilu ponovno objavi; po koncnem stevilu korakov imata isto stanje in izmenjava
+    // se ustavi (brez ping-ponga).
+    // Clan se ne sme imenovati kot zunanja spremenljivka (trajni): v lokalnem razredu jo ta zasenci (ujeto 19. 11. 2026).
+    class Naprava(zacetno: List<P.Zapisek>) {
+        var vrednost: String? = P.vJson(zacetno)
+        val hramba = P.TrajniZapiski({ vrednost }, { vrednost = it; true })
+        /** Sprejem; vrne zapiski za ponovno objavo ali null. */
+        fun sprejmi(vhod: List<P.Zapisek>): List<P.Zapisek>? {
+            val z = this.hramba.sprejmi(vhod) ?: return null
+            return if (P.potrebnaObjava(vhod, z)) z else null
+        }
+    }
+    val n1 = Naprava(listOf(P.Zapisek("a", "n1", 10, false), P.Zapisek("c", "samo n1", 5, false)))
+    val n2 = Naprava(listOf(P.Zapisek("a", "n2", 20, false), P.Zapisek("b", "samo n2", 7, true)))
+    var cakajoce: Pair<Naprava, List<P.Zapisek>>? = n2 to n1.hramba.zapiski() // n1 objavi n2
+    var sporocil = 0
+    while (cakajoce != null && sporocil < 10) {
+        val (komu, kaj) = cakajoce
+        sporocil++
+        val nazaj = komu.sprejmi(kaj)
+        cakajoce = if (nazaj == null) null else (if (komu === n1) n2 else n1) to nazaj
+    }
+    preveriEnako("simulacija: napravi imata isto stanje", n1.hramba.zapiski(), n2.hramba.zapiski())
+    preveriEnako("simulacija: izmenjava se ustavi (najvec 3 sporocila)", true, sporocil <= 3)
+    preveriEnako("simulacija: novejsi zapis zmaga, izbris ostane", listOf("a:n2:20", "b:samo n2:7", "c:samo n1:5"),
+        n1.hramba.zapiski().map { "${it.id}:${it.besedilo}:${it.cas}" })
+
     if (napak == 0) println("LinaVmesnikPravilaTest: OK") else { println("Napak: $napak"); System.exit(1) }
 }

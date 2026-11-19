@@ -31,6 +31,19 @@ object LinaVmesnikPravila {
     const val NAJVEC_KLJUCEV = 64
     const val NAJVEC_KLJUC_DOLZINA = 4096
 
+    /** Kategorija usklajevanja zapiskov v krogu (HubUsmerjevalnik sync.data/sync.request, kot safeer.media.v1). */
+    const val KATEGORIJA_ZAPISKI = "safeer.notes.v1"
+
+    /** Zapiski iz tovora sync.data: samo prava kategorija in strogo veljaven Zapisi v1; sicer null (ne sprejmemo nicesar). */
+    fun izTovora(kategorija: String?, podatki: String?): List<Zapisek>? =
+        if (kategorija != KATEGORIJA_ZAPISKI || podatki == null) null else izJson(podatki)
+
+    /**
+     * Ponovna objava po sprejemu: samo ce je zdruzeno stanje drugacno od prejetega (prejemnik ima kaj, cesar posiljatelj
+     * nima). Ko je enako, se ustavi - dve napravi se ne posiljata v nedogled (obe imata po zdruzitvi isto stanje).
+     */
+    fun potrebnaObjava(prejeto: List<Zapisek>, zdruzeno: List<Zapisek>): Boolean = prejeto.sortedBy { it.id } != zdruzeno.sortedBy { it.id }
+
     /** Ime kljuca asistenta: samo imenski prostor `asistent.`, nikoli ime medijskega kljuca (Debrid, Usenet, IPTV ...). */
     private val IME_KLJUCA = Regex("^asistent\\.[a-z0-9_]{1,40}$")
 

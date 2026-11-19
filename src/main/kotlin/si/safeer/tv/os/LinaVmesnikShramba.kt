@@ -101,6 +101,9 @@ class LinaVmesnikShramba private constructor(context: Context) {
 
         @Volatile private var primerek: LinaVmesnikShramba? = null
 
+        /** Klic po spremembi zapiskov prek vmesnika (CastReceiverService jih tako objavi krogu); samo zapiski, nikoli kljuci. */
+        @Volatile var poSpremembi: (() -> Unit)? = null
+
         fun get(context: Context): LinaVmesnikShramba =
             primerek ?: synchronized(this) { primerek ?: LinaVmesnikShramba(context).also { primerek = it } }
     }

@@ -192,6 +192,7 @@ class CastReceiverService : Service() {
     private var continuity: SafeerContinuity? = null
     private var workspace: SafeerWorkspace? = null
     private var mediaSync: SafeerMediaSync? = null
+    private var linaZapiski: LinaZapiskiSinh? = null
     private val mainHandler = Handler(Looper.getMainLooper())
     /** Odgovori preverjevalca doma (`avail.get`) cakajo na dodatke: svoje niti, omejeno stevilo (naprav v domu je malo). */
     private val domDelavci = java.util.concurrent.ThreadPoolExecutor(8, 8, 30L, java.util.concurrent.TimeUnit.SECONDS,
@@ -519,6 +520,10 @@ class CastReceiverService : Service() {
                 workspace = SafeerWorkspace(this@CastReceiverService) { msg -> posljiUsklajevanje(webSocket, msg) }
                 mediaSync = SafeerMediaSync(this@CastReceiverService) { msg -> posljiUsklajevanje(webSocket, msg) }
                 mediaSync?.requestLatest()
+                // Zapiski Line po ozjem krogu (samo ce je na napravi Lina z istim podpisom; glej LinaZapiskiSinh).
+                linaZapiski = LinaZapiskiSinh(this@CastReceiverService) { msg -> posljiUsklajevanje(webSocket, msg) }
+                linaZapiski?.requestLatest()
+                si.safeer.tv.os.LinaVmesnikShramba.poSpremembi = { linaZapiski?.publish() }
                 // Imena naprav iz nasega kroga (npr. dana na drugem hubu): hub vzame samo imena znanih clanov.
                 if (packageName == si.safeer.tv.os.Sosed.OS) try { KrogNaprave.prevzemiImeTelevizorja(this@CastReceiverService) } catch (_: Throwable) { }
                 try {
@@ -932,6 +937,7 @@ class CastReceiverService : Service() {
                 if (state != null && !state.optBoolean("passive", false)) mainHandler.post { mediaController?.onContinuityState(state) }
                 val mediaState = mediaSync?.accept(payload)
                 if (mediaState != null) mainHandler.post { mediaController?.onMediaSyncState(mediaState) }
+                try { linaZapiski?.accept(payload) } catch (_: Throwable) { }
             }
 
             if (type == SafeerHandoff.TYPE) {
