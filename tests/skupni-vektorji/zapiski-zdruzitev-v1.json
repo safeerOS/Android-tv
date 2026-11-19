@@ -1,0 +1,20 @@
+{
+  "verzija": 1,
+  "opis": "Pravila zdruzevanja zapiskov med telefonom in racunalnikom: po id; vecji cas zmaga; pri enakem casu zmaga izbris; pri enakem casu in izbrisu vecje besedilo (leksikografsko); izhod urejen po id.",
+  "primeri": [
+    {"ime": "disjunktni", "a": [{"id":"b","besedilo":"B","cas":1,"izbrisan":false}], "b": [{"id":"a","besedilo":"A","cas":2,"izbrisan":false}],
+     "pricakovano": [{"id":"a","besedilo":"A","cas":2,"izbrisan":false},{"id":"b","besedilo":"B","cas":1,"izbrisan":false}]},
+    {"ime": "novejsi zmaga", "a": [{"id":"x","besedilo":"staro","cas":1,"izbrisan":false}], "b": [{"id":"x","besedilo":"novo","cas":5,"izbrisan":false}],
+     "pricakovano": [{"id":"x","besedilo":"novo","cas":5,"izbrisan":false}]},
+    {"ime": "izbris zmaga pri enakem casu", "a": [{"id":"x","besedilo":"t","cas":3,"izbrisan":false}], "b": [{"id":"x","besedilo":"t","cas":3,"izbrisan":true}],
+     "pricakovano": [{"id":"x","besedilo":"t","cas":3,"izbrisan":true}]},
+    {"ime": "starejsi izbris ne razveljavi novejsega", "a": [{"id":"x","besedilo":"t","cas":2,"izbrisan":true}], "b": [{"id":"x","besedilo":"t2","cas":9,"izbrisan":false}],
+     "pricakovano": [{"id":"x","besedilo":"t2","cas":9,"izbrisan":false}]},
+    {"ime": "enak cas in izbris: vecje besedilo", "a": [{"id":"x","besedilo":"abc","cas":4,"izbrisan":false}], "b": [{"id":"x","besedilo":"abd","cas":4,"izbrisan":false}],
+     "pricakovano": [{"id":"x","besedilo":"abd","cas":4,"izbrisan":false}]},
+    {"ime": "zamenjava a in b da isti izid", "a": [{"id":"x","besedilo":"abd","cas":4,"izbrisan":false}], "b": [{"id":"x","besedilo":"abc","cas":4,"izbrisan":false}],
+     "pricakovano": [{"id":"x","besedilo":"abd","cas":4,"izbrisan":false}]},
+    {"ime": "unicode", "a": [{"id":"u","besedilo":"čšž 😀","cas":1,"izbrisan":false}], "b": [],
+     "pricakovano": [{"id":"u","besedilo":"čšž 😀","cas":1,"izbrisan":false}]}
+  ]
+}

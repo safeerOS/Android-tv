@@ -29,6 +29,7 @@
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" tools:ignore="ScopedStorage" />
 
     <queries>
+        <package android:name="si.safeer.lina" />
         <package android:name="si.safeer.tv" />
         <package android:name="com.safeer.mobile.browser" />
     </queries>
@@ -227,6 +228,16 @@
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <!-- Lokalni vmesnik za Lino (19. 11. 2026): zapiski in kljuci asistenta; samo isti podpis (LinaVmesnikStoritev). -->
+        <service
+            android:name="si.safeer.tv.os.LinaVmesnikStoritev"
+            android:exported="true"
+            android:permission="si.safeer.tv.permission.LINK">
+            <intent-filter>
+                <action android:name="si.safeer.tv.LINA_VMESNIK" />
             </intent-filter>
         </service>
     </application>

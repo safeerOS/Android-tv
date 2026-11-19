@@ -30,6 +30,7 @@
 
     <!-- Safeer OS mora videti brskalnik: od njega dobi vstop v Safeer Link, Scit in odpiranje spleta. -->
     <queries>
+        <package android:name="si.safeer.lina" />
         <package android:name="si.safeer.tv" />
         <package android:name="com.aurora.store" />
         <package android:name="si.safeer.trgovina" />
@@ -148,5 +149,15 @@
             </intent-filter>
         </service>
 
+
+        <!-- Lokalni vmesnik za Lino (19. 11. 2026): zapiski in kljuci asistenta; samo isti podpis (LinaVmesnikStoritev). -->
+        <service
+            android:name="si.safeer.tv.os.LinaVmesnikStoritev"
+            android:exported="true"
+            android:permission="si.safeer.tv.permission.LINK">
+            <intent-filter>
+                <action android:name="si.safeer.tv.LINA_VMESNIK" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>

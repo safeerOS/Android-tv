@@ -288,8 +288,10 @@ trap 'rm -rf "$OUT"' EXIT
     "$SRC/si/safeer/tv/scit/ScitIzjeme.kt" \
     "$TEST_DIR/ScitIzjemeTest.kt" \
     "$SRC/si/safeer/tv/os/UskladitevKljucevPravila.kt" \
+    "$SRC/si/safeer/tv/os/LinaVmesnikPravila.kt" \
     "$SRC/si/safeer/tv/os/NapraveKrogaPravila.kt" \
     "$TEST_DIR/UskladitevKljucevPravilaTest.kt" \
+    "$TEST_DIR/LinaVmesnikPravilaTest.kt" \
     "$TEST_DIR/NapraveKrogaPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/NamestitevPravila.kt" \
     "$TEST_DIR/NamestitevPravilaTest.kt" \
@@ -495,6 +497,8 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SkrivnostiPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.WebtorPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.scit.ScitIzjemeTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.UskladitevKljucevPravilaTestKt
+# Lokalni vmesnik za Lino (19. 11. 2026): isti skupni vektorji kot Lina (odtis pripet); LINA_VEKTORJI = izvirnik v Lina repozitoriju (neobvezno).
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.LinaVmesnikPravilaTestKt "$TEST_DIR/skupni-vektorji/zapiski-zdruzitev-v1.json" ${LINA_VEKTORJI:-}
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.NamestitevPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.cast.SafeerLogTestKt
 # Naloga 42 A (27. 10. 2026): nov TV zaganjalnik (beta) - tema Pokrajina, ura in datum v jeziku vmesnika, vreme.
