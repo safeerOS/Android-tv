@@ -218,18 +218,26 @@ object LinaVmesnikPravila {
     /** Kos besedila zapiska prek Bindra: kodnih tock (do 2 enoti UTF-16 na kodno tocko, torej < [BINDER_NAJVEC_ZNAKOV]). */
     const val DEL_KODNIH_TOCK = 50_000
     const val ROK_SESTAVE_MS = 60_000L
+    /** Najvecji cas zapiska, ki ga izJson se sprejme (9,0e15); vecjega shramba ne bi mogla ponovno prebrati in bi stanje postalo prazno (CodeRabbit st6). */
+    const val NAJVEC_CAS = 9_000_000_000_000_000L
 
     /** Kos besedila zapiska [id] od kodne tocke [od]; [naslednji] = -1 na koncu. Kosi se ne prelomijo sredi nadomestnega para. */
-    data class Del(val besedilo: String, val naslednji: Int, val skupaj: Int, val cas: Long, val izbrisan: Boolean)
+    data class Del(
+        val besedilo: String, val naslednji: Int, val skupaj: Int, val cas: Long, val izbrisan: Boolean,
+        val revizija: String = "", val spremenjeno: Boolean = false,
+    )
 
-    fun delZapiska(vsi: List<Zapisek>, id: String, od: Int): Del? {
+    fun delZapiska(vsi: List<Zapisek>, id: String, od: Int, zahtevana: String? = null): Del? {
         val z = vsi.firstOrNull { it.id == id } ?: return null
         val skupaj = z.besedilo.codePointCount(0, z.besedilo.length)
         if (od < 0 || od > skupaj) return null
+        // Revizija zapiska (CodeRabbit st6): kosi vseh branj morajo biti iz iste razlicice; nadaljevanje (od > 0) brez nje ali z drugo = spremenjeno.
+        val rev = revizija(listOf(z))
+        if (od > 0 && zahtevana != rev) return Del("", -1, skupaj, z.cas, z.izbrisan, rev, true)
         val konec = minOf(skupaj, od + DEL_KODNIH_TOCK)
         val iz = z.besedilo.offsetByCodePoints(0, od)
         val do_ = z.besedilo.offsetByCodePoints(iz, konec - od)
-        return Del(z.besedilo.substring(iz, do_), if (konec >= skupaj) -1 else konec, skupaj, z.cas, z.izbrisan)
+        return Del(z.besedilo.substring(iz, do_), if (konec >= skupaj) -1 else konec, skupaj, z.cas, z.izbrisan, rev)
     }
 
     /**
@@ -257,7 +265,7 @@ object LinaVmesnikPravila {
         fun dodaj(id: String, cas: Long, izbrisan: Boolean, od: Int, skupaj: Int, del: String): Izid {
             val zdaj = ura()
             if (this.id != null && zdaj - zacetek > ROK_SESTAVE_MS) ponastavi()
-            if (id.isEmpty() || id.length > 128 || cas < 0 || skupaj < 0 || skupaj > NAJVEC_BESEDILO) { ponastavi(); return Izid.Napaka }
+            if (id.isEmpty() || id.length > 128 || cas < 0 || cas > NAJVEC_CAS || skupaj < 0 || skupaj > NAJVEC_BESEDILO) { ponastavi(); return Izid.Napaka }
             if (od == 0) {
                 ponastavi(); this.id = id; this.cas = cas; this.izbrisan = izbrisan; this.skupaj = skupaj; zacetek = zdaj
             } else if (this.id != id || this.cas != cas || this.izbrisan != izbrisan || this.skupaj != skupaj || od != kodnih) {

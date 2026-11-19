@@ -58,9 +58,13 @@ class LinaVmesnikStoritev : Service() {
             }
             ZAPISKI_DEL -> Bundle().apply {
                 // Zapisek, ki ne gre v en Binder kos (IZPUSCENI_ID): besedilo po kosih od kodne tocke OD.
-                val d = P.delZapiska(shramba.zapiski(), v.getString(ID) ?: "", v.getInt(OD, 0))
-                if (d == null) putBoolean(SPREJETO, false) else {
-                    putString(DEL, d.besedilo); putInt(NASLEDNJI, d.naslednji); putInt(SKUPAJ, d.skupaj)
+                val d = P.delZapiska(shramba.zapiski(), v.getString(ID) ?: "", v.getInt(OD, 0), v.getString(REVIZIJA))
+                if (d == null) putBoolean(SPREJETO, false)
+                else if (d.spremenjeno) {
+                    // Zapisek se je med kosi spremenil: Lina bere znova od od=0 (kosi iz dveh razlicic se ne smejo sestaviti).
+                    putBoolean(SPREJETO, false); putBoolean(SPREMENJENO, true); putString(REVIZIJA, d.revizija)
+                } else {
+                    putString(REVIZIJA, d.revizija); putString(DEL, d.besedilo); putInt(NASLEDNJI, d.naslednji); putInt(SKUPAJ, d.skupaj)
                     putLong(CAS, d.cas); putBoolean(IZBRISAN, d.izbrisan); putBoolean(SPREJETO, true)
                 }
             }

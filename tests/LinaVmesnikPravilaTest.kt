@@ -239,8 +239,11 @@ fun main(args: Array<String>) {
         val izidi = ArrayList<P.SestavljalecDelov.Izid>()
         var od = 0
         var koncan: P.Zapisek? = null
+        var rev: String? = null
         while (od >= 0) {
-            val d = P.delZapiska(listOf(z), z.id, od) ?: error("del ne obstaja")
+            val d = P.delZapiska(listOf(z), z.id, od, rev) ?: error("del ne obstaja")
+            if (d.spremenjeno) error("revizija se je spremenila")
+            rev = d.revizija
             val i = sest.dodaj(z.id, d.cas, d.izbrisan, od, d.skupaj, d.besedilo)
             izidi.add(i)
             if (i is P.SestavljalecDelov.Izid.Koncano) koncan = i.zapisek
@@ -256,6 +259,24 @@ fun main(args: Array<String>) {
     preveriEnako("deli: stran navede id izpuscenega zapiska", listOf("velik"), P.stran(listOf(P.Zapisek("a", "x", 1, false), velikASCII), 0).izpusceniId)
     preveriEnako("deli: neznan zapisek", null, P.delZapiska(listOf(velikASCII), "ni", 0))
     preveriEnako("deli: od zunaj besedila", null, P.delZapiska(listOf(velikASCII), "velik", 150_001))
+    // Revizija zapiska med kosi (CodeRabbit st6): sprememba med branji, enak id/cas/dolzina, se mora zaznati.
+    val staro = P.Zapisek("rev", "a".repeat(150_000), 7, false)
+    val novo = P.Zapisek("rev", "z".repeat(150_000), 7, false)
+    val prvi = P.delZapiska(listOf(staro), "rev", 0)!!
+    preveriEnako("revizija kosa: prvi kos nosi neprazno revizijo", true, prvi.revizija.isNotEmpty() && !prvi.spremenjeno)
+    preveriEnako("revizija kosa: nespremenjen zapisek nadaljuje normalno", Pair(false, P.DEL_KODNIH_TOCK),
+        P.delZapiska(listOf(staro), "rev", P.DEL_KODNIH_TOCK, prvi.revizija)!!.let { Pair(it.spremenjeno, it.besedilo.length) })
+    preveriEnako("revizija kosa: zamenjano besedilo (isti id, cas, dolzina) javi spremenjeno", true,
+        P.delZapiska(listOf(novo), "rev", P.DEL_KODNIH_TOCK, prvi.revizija)!!.spremenjeno)
+    preveriEnako("revizija kosa: nadaljevanje brez revizije javi spremenjeno", true,
+        P.delZapiska(listOf(staro), "rev", P.DEL_KODNIH_TOCK, null)!!.spremenjeno)
+    preveriEnako("revizija kosa: spremenjeno ne vrne besedila", "", P.delZapiska(listOf(novo), "rev", P.DEL_KODNIH_TOCK, prvi.revizija)!!.besedilo)
+    // Cas nad mejo izJson (9,0e15) ne sme v shrambo prek kosov (CodeRabbit st6): izJson bi ga zavrnil in stanje postalo prazno.
+    preveriEnako("cas kosa: Long.MAX_VALUE je napaka", P.SestavljalecDelov.Izid.Napaka, P.SestavljalecDelov { 0L }.dodaj("c", Long.MAX_VALUE, false, 0, 10, "a".repeat(10)))
+    preveriEnako("cas kosa: NAJVEC_CAS + 1 je napaka", P.SestavljalecDelov.Izid.Napaka, P.SestavljalecDelov { 0L }.dodaj("c", P.NAJVEC_CAS + 1, false, 0, 10, "a".repeat(10)))
+    val naMeji = P.SestavljalecDelov { 0L }.dodaj("c", P.NAJVEC_CAS, false, 0, 10, "a".repeat(10))
+    preveriEnako("cas kosa: NAJVEC_CAS se sestavi in ga izJson prebere nazaj", 1,
+        (naMeji as? P.SestavljalecDelov.Izid.Koncano)?.let { P.izJson(P.vJson(listOf(it.zapisek)))?.size })
     val sNap = P.SestavljalecDelov { 0L }
     sNap.dodaj("x", 1, false, 0, 100, "a".repeat(40))
     preveriEnako("deli: kos mimo vrstnega reda je napaka", P.SestavljalecDelov.Izid.Napaka, sNap.dodaj("x", 1, false, 50, 100, "a".repeat(10)))
