@@ -850,7 +850,7 @@ class CastReceiverService : Service() {
             obdelajSporocilo(ws, json)
         } catch (e: Throwable) {
             // Tudi Error (npr. StackOverflowError pri razclenjevanju): eno sporocilo ne sme podreti bralne niti.
-            Log.e(TAG, "Napaka pri obdelavi vhodnega sporočila: ${e.javaClass.simpleName}: ${e.message}")
+            Log.e(TAG, "Napaka pri obdelavi vhodnega sporočila: ${e.javaClass.simpleName}")   // brez e.message (vsebina vhoda)
         }
     }
 
@@ -1198,7 +1198,7 @@ class CastReceiverService : Service() {
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Napaka pri obdelavi vhodnega sporočila: ${e.message}", e)
+            Log.e(TAG, "Napaka pri obdelavi vhodnega sporočila: ${e.javaClass.simpleName}")   // brez e.message in sledi sklada (vsebina vhoda)
         }
     }
 

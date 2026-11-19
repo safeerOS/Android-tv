@@ -918,7 +918,7 @@ class HubStreznik(
                                 try {
                                     naSporocilo?.invoke(besedilo)
                                 } catch (e: Exception) {
-                                    Log.w(OZNAKA, "Obdelava sporočila ni uspela: ${e.message}")
+                                    Log.w(OZNAKA, "Obdelava sporočila ni uspela: ${e.javaClass.simpleName}")   // brez e.message: JSONException nosi del vhoda (zapiski, kljuci)
                                 }
                             }
                             if (zbrano.size() > 0) zbrano = ByteArrayOutputStream()

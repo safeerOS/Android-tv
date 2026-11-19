@@ -190,6 +190,47 @@ fun main(args: Array<String>) {
     preveriEnako("strani: dolg zapisek je sam na strani in stran napreduje", 1, P.stran(dolg, 0, 5000).naslednji)
     preveriEnako("strani: prazno stanje", P.Stran(P.vJson(emptyList()), -1), P.stran(emptyList(), 0))
 
+    // Binder je oneway (Messenger.send): najvec polovica ~1 MB medpomnilnika, Bundle pa 2 B/znak (neodvisni pregled 19. 11. 2026).
+    preveriEnako("binder: najvec znakov v enem sporocilu gre v 256 KB (2 B/znak)", true, P.BINDER_NAJVEC_ZNAKOV * 2 <= 256 * 1024)
+    preveriEnako("binder: stran je manjsa od meje sporocila", true, P.BINDER_STRAN_ZNAKOV < P.BINDER_NAJVEC_ZNAKOV)
+    val predolg = P.Zapisek("b", "z".repeat(P.BINDER_NAJVEC_ZNAKOV), 1, false)   // zapisek, ki nikoli ne gre cez Binder
+    val sPredolg = P.stran(listOf(P.Zapisek("a", "x", 1, false), predolg, P.Zapisek("c", "y", 1, false)), 0)
+    preveriEnako("binder: predolg zapisek se izpusti in javi", 1, sPredolg.izpuscenih)
+    preveriEnako("binder: ostala zapiska sta na strani", listOf("a", "c"), P.izJson(sPredolg.json)?.map { it.id })
+    preveriEnako("binder: stran se konca (izpuscen zapisek ne ustavi napredka)", -1, sPredolg.naslednji)
+    preveriEnako("binder: stran samo s predolgim zapiskom je prazna in napreduje", Triple(0, -1, 1),
+        P.stran(listOf(predolg), 0).let { Triple(P.izJson(it.json)?.size, it.naslednji, it.izpuscenih) })
+
+    // Velikost na zici: org.json na Androidu zapise '/' kot \/ (2 B), zato mora meja shrambe steti tudi te bajte.
+    preveriEnako("zica: a/b/ = 4 B + 2 posevnici", 6L, P.zicnaVelikost("a/b/"))
+    val posevnice = (0 until P.NAJVEC_ZAPISKOV).map { P.Zapisek("/".repeat(100) + "%04d".format(it), "", 1, false) }   // ~0,8 MB UTF-8, ~1,3 MB na zici
+    preveriEnako("zica: stanje je pod mejo v bajtih UTF-8", true, P.vJson(posevnice).toByteArray(Charsets.UTF_8).size <= P.NAJVEC_SINH_BAJTOV)
+    preveriEnako("zica: a nad mejo na zici (posevnice) ne sme v shrambo", false, P.smeShraniti(posevnice))
+
+    // Meja v obliki mesh.route (CodeRabbit st4): narekovaji in poslano crte se v ovitem sporocilu podvojijo.
+    val besediloMesh = "a\"b\\c/d\u2028e\u00e8\uD83D\uDE00"
+    val zapisMesh = P.vJson(listOf(P.Zapisek("id/\"1", besediloMesh, 1, false)))
+    val org = zapisMesh.replace("/", "\\/").replace("\u2028", "\\u2028").replace("\u2029", "\\u2029")   // kar naredi org.json na Androidu
+    val dejansko = si.safeer.tv.cast.JsonLahki.Zapis().niz("msg", org).toString().toByteArray(Charsets.UTF_8).size.toLong()
+    preveriEnako("mesh: ocena je enaka dejanski velikosti ovitega sporocila (razen {\"msg\":\"\"})", true,
+        (dejansko - P.meshVelikost(zapisMesh)) in 0L..16L)
+    val narekovaji = (0 until P.NAJVEC_ZAPISKOV).map { P.Zapisek("\"".repeat(40) + "%04d".format(it), "x".repeat(52), 1, false) }
+    preveriEnako("mesh: stanje je v mejah bajtov na zici", true, P.zicnaVelikost(P.vJson(narekovaji)) <= P.NAJVEC_SINH_BAJTOV)
+    preveriEnako("mesh: a v obliki mesh.route preseze okvir Huba, zato ne sme v shrambo", false, P.smeShraniti(narekovaji))
+    preveriEnako("mesh: tipicno polno stanje (id-ji UUID) gre", true,
+        P.smeShraniti((0 until P.NAJVEC_ZAPISKOV).map { P.Zapisek("%08x-1234-5678-9abc-def012345678".format(it), "x".repeat(52), 1, false) }))
+
+    // Revizija za branje po straneh: stalna, neodvisna od vrstnega reda, spremeni se ob vsaki spremembi stanja.
+    val r1 = P.revizija(listOf(P.Zapisek("a", "x", 1, false), P.Zapisek("b", "y", 2, false)))
+    preveriEnako("revizija: neodvisna od vrstnega reda", r1, P.revizija(listOf(P.Zapisek("b", "y", 2, false), P.Zapisek("a", "x", 1, false))))
+    preveriEnako("revizija: izbris zapiska jo spremeni", false, r1 == P.revizija(listOf(P.Zapisek("a", "x", 1, false))))
+    preveriEnako("revizija: sprememba besedila jo spremeni", false, r1 == P.revizija(listOf(P.Zapisek("a", "x", 1, false), P.Zapisek("b", "z", 2, false))))
+    preveriEnako("revizija: 16 sestnajstiskih znakov", true, Regex("^[0-9a-f]{16}$").matches(r1))
+
+    // Najdaljse besedilo, ki ga shramba se sprejme (262144 novih vrstic = 524288 znakov JSON), ne gre cez Binder: izpusti se in javi.
+    val vrstice = P.Zapisek("n", "\n".repeat(P.NAJVEC_ZNAKOV), 1, false)
+    preveriEnako("binder: zapisek z 262144 novimi vrsticami je izpuscen", 1, P.stran(listOf(vrstice), 0).izpuscenih)
+
     // Meja besedila na zapisek v KODNIH TOCKAH (CodeRabbit st3): 131073 emojijev ima dolzino 262146 enot UTF-16, a le 131073 kodnih tock
     val emojiZapisek = P.Zapisek("e", "\uD83D\uDE00".repeat(131_073), 1, false)
     preveriEnako("izJson: 131073 emojijev (262146 enot UTF-16) je veljavno", 1, P.izJson(P.vJson(listOf(emojiZapisek)))?.size)

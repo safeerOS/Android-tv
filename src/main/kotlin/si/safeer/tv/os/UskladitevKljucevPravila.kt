@@ -229,9 +229,15 @@ object UskladitevKljucevPravila {
      * isti uporabnik; naprej v Link jih sorodnik ne poslje (njegov [zaPoslati] vzame samo lastne).
      */
     fun zaSorodnika(meta: Map<String, Meta>, vrednosti: Map<String, String>): List<Zapis> = meta.mapNotNull { (k, m) ->
-        if (m.izbrisan) Zapis(k, m.cas, m.izvor, true, "")
+        // Najmanjsa pravica (neodvisni pregled 19. 11. 2026): kljuce asistenta potrebuje samo Lina prek lokalnega vmesnika te
+        // aplikacije; sorodnik (npr. Safeer Predvajalnik) jih ne potrebuje in jih ne dobi.
+        if (k.startsWith(PREDPONA_ASISTENT)) null
+        else if (m.izbrisan) Zapis(k, m.cas, m.izvor, true, "")
         else vrednosti[k]?.let { Zapis(k, m.cas, m.izvor, false, it) }
     }.take(NAJVEC_ZAPISOV)
+
+    /** Zapisi, prejeti od sorodnika: kljuci asistenta se ne sprejmejo (sorodnik jih ne sme poslati; pot je samo prek kroga). */
+    fun brezAsistenta(zapisi: List<Zapis>): List<Zapis> = zapisi.filterNot { it.kljuc.startsWith(PREDPONA_ASISTENT) }
 
     /** Sorodne aplikacije Safeer, ki si delijo kljuce na isti napravi (isti podpis se preveri posebej). */
     val SORODNIKI = listOf("si.safeer.os", "si.safeer.phone", "si.safeer.tablet", "si.safeer.player")

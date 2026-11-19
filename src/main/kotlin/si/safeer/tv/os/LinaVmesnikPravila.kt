@@ -31,20 +31,23 @@ object LinaVmesnikPravila {
     /** Nagrobnik (izbrisan=true) se po tem roku odstrani (skupna pravila Line). Naprava, ki je dlje brez povezave, ga lahko spet oziv. */
     const val ROK_NAGROBNIKA_MS = 90L * 24 * 60 * 60 * 1000
     /**
-     * Najvecja shramba kot JSON v BAJTIH UTF-8: enaka meja kot v Hubu (HubUsmerjevalnik.NAJVECJA_KATEGORIJA), da vsako stanje, ki ga
-     * naprava sprejme, lahko tudi sinhronizira. Ni del skupnih pravil Line: obicajno besedilo z mejama 5000 zapiskov in 262144 kodnih
-     * tock zasede ~0,85 MB; sele skoraj poln izbor emojijev ali krmilnih znakov bi ga presegel (takrat sprejeto=false).
+     * Najvecja shramba kot JSON NA ZICI (glej [zicnaVelikost]): enaka meja kot v Hubu (HubUsmerjevalnik.NAJVECJA_KATEGORIJA), da vsako
+     * stanje, ki ga naprava sprejme, lahko tudi sinhronizira. Ni del skupnih pravil Line: obicajno besedilo z mejama 5000 zapiskov in
+     * 262144 kodnih tock zasede ~0,85 MB; sele skoraj poln izbor emojijev ali krmilnih znakov bi ga presegel (takrat sprejeto=false).
      */
     const val NAJVEC_SINH_BAJTOV = 1_048_576
     /** Najvecji vhod v znakih (prenos iz Huba in lokalni vmesnik); ni vec kot meja shrambe. */
     const val NAJVEC_TOVOR = NAJVEC_SINH_BAJTOV
     /**
-     * Binder: Bundle z nizom zasede 2 bajta na znak, vsi hkratni prenosi procesa pa skupaj le ~1 MB. Zato en odgovor ali vhod
-     * lokalnega vmesnika ni daljsi od [BINDER_NAJVEC_ZNAKOV]; vecje stanje se bere po straneh ([stran], ~[BINDER_STRAN_ZNAKOV] znakov)
-     * in pise v skupinah zapiskov (zdruzevanje je asociativno in komutativno, zato vrstni red skupin ni pomemben).
+     * Binder: Bundle z nizom zasede 2 bajta na znak, vsi hkratni prenosi procesa pa skupaj le ~1 MB, ENOSMERNI prenosi (Messenger.send
+     * je oneway) pa najvec polovico tega (~508 KB; neodvisni pregled 19. 11. 2026, na napravi se NI izmerjeno). Zato en odgovor ali vhod
+     * lokalnega vmesnika ni daljsi od [BINDER_NAJVEC_ZNAKOV] (240 KB); vecje stanje se bere po straneh ([stran], ~[BINDER_STRAN_ZNAKOV]
+     * znakov) in pise v skupinah zapiskov (zdruzevanje je asociativno in komutativno, zato vrstni red skupin ni pomemben).
+     * Zapisek, daljsi od [BINDER_NAJVEC_ZAPISEK] znakov JSON, preko Bindra ne gre; [stran] ga izpusti in to javi (Hub ga sinhronizira).
      */
-    const val BINDER_NAJVEC_ZNAKOV = 300_000
-    const val BINDER_STRAN_ZNAKOV = 100_000
+    const val BINDER_NAJVEC_ZNAKOV = 120_000
+    const val BINDER_STRAN_ZNAKOV = 50_000
+    const val BINDER_NAJVEC_ZAPISEK = BINDER_NAJVEC_ZNAKOV - 2_000
     const val NAJVEC_KLJUCEV = 64
     const val NAJVEC_KLJUC_DOLZINA = 4096
 
@@ -157,11 +160,49 @@ object LinaVmesnikPravila {
         return IzidCiscenja(ostali.sortedBy { it.id }, stevilo <= najvecZapiskov && kodnihTock <= najvecZnakov)
     }
 
-    /** Stanje sme na disk le znotraj skupnih mej in znotraj enega Binder kosa; sicer sprejeto=false in shramba ostane nedotaknjena. */
+    /**
+     * Velikost JSON na zici v bajtih: UTF-8 plus en bajt za vsak '/', ker ga org.json na Androidu (JSONObject.toString, uporabljen pri
+     * objavi in sprejemu v LinaZapiskiSinh) zapise kot "\\/" (neodvisni pregled 19. 11. 2026). Brez tega bi stanje z zelo veliko '/'
+     * (npr. 5000 id-jev po 128 znakov) preseglo mejo Huba, sinhronizacija pa bi tiho obstala.
+     */
+    fun zicnaVelikost(json: String): Long = json.toByteArray(Charsets.UTF_8).size.toLong() + json.count { it == '/' }
+
+    /** Meja okvira Huba (HubStreznik.NAJVECJE_SPOROCILO; preizkus drzi enakost) in rezerva za ovojnico sporocila sync.data in mesh.route. */
+    const val NAJVEC_OKVIR_HUBA = 1024L * 1024 + 128L * 1024
+    const val OVOJNICA_B = 4_096L
+
+    /**
+     * Velikost stanja v sporocilu mesh.route (CodeRabbit st4, 19. 11. 2026): Namestnik ovije celo sporocilo sync.data v niz "msg",
+     * zato se vsak narekovaj in poslano crta podvojita: narekovaj +1, vzvratna poslano crta +1, navadna poslano crta +2 (org.json
+     * jo zapise z vzvratno, ta pa se ubezi se enkrat), U+2028 in U+2029 +4 (org.json ju zapise kot  ). Stanje, ki bi v taki
+     * obliki preseglo okvir Huba, bi sosed zaprl z 1009.
+     */
+    fun meshVelikost(json: String): Long {
+        var dodatek = 0L
+        for (c in json) when (c) {
+            '"', '\\' -> dodatek += 1
+            '/' -> dodatek += 2
+            ' ', ' ' -> dodatek += 4
+        }
+        return json.toByteArray(Charsets.UTF_8).size.toLong() + dodatek
+    }
+
+    /**
+     * Stanje sme na disk le znotraj skupnih mej, meje na zici ([zicnaVelikost]) in meje okvira Huba tudi v obliki mesh.route
+     * ([meshVelikost]) - tako je vsako sprejeto stanje mogoce sinhronizirati; sicer sprejeto=false in shramba ostane nedotaknjena.
+     */
     fun smeShraniti(zapiski: List<Zapisek>): Boolean =
         zapiski.size <= NAJVEC_ZAPISKOV && znakov(zapiski) <= NAJVEC_ZNAKOV && vJson(zapiski).let {
-            it.length <= NAJVEC_SINH_BAJTOV && it.toByteArray(Charsets.UTF_8).size <= NAJVEC_SINH_BAJTOV
+            zicnaVelikost(it) <= NAJVEC_SINH_BAJTOV && meshVelikost(it) + OVOJNICA_B <= NAJVEC_OKVIR_HUBA
         }
+
+    /**
+     * Revizija stanja za branje po straneh: Lina jo dobi s stranjo in jo poslje z naslednjo; ce se stanje vmes spremeni, Safeer javi
+     * SPREMENJENO in Lina bere od zacetka (stran je po indeksu, zato bi sicer izpustila zapisek; neodvisni pregled in CodeRabbit st4).
+     */
+    fun revizija(zapiski: List<Zapisek>): String =
+        java.security.MessageDigest.getInstance("SHA-256").digest(vJson(zapiski.sortedBy { it.id }).toByteArray(Charsets.UTF_8))
+            .take(8).joinToString("") { "%02x".format(it) }
 
     private fun zapisJson(z: Zapisek): String =
         JsonLahki.Zapis().niz("id", z.id).niz("besedilo", z.besedilo).stevilo("cas", z.cas.toDouble()).logicno("izbrisan", z.izbrisan).toString()
@@ -172,24 +213,26 @@ object LinaVmesnikPravila {
     fun vJson(zapiski: List<Zapisek>): String = dokument(zapiski.joinToString(",", "[", "]") { zapisJson(it) })
 
     /** Ena stran stanja za lokalni vmesnik: zapiski od indeksa [od], [naslednji] = indeks za naslednjo stran ali -1 na koncu. */
-    data class Stran(val json: String, val naslednji: Int)
+    data class Stran(val json: String, val naslednji: Int, val izpuscenih: Int = 0)
 
     /**
      * Zapiski (urejeni po id, kot jih vrne shramba) od [od] naprej, dokler stran ne preseze [najvecZnakov]; vedno vsaj eden,
-     * da stran napreduje tudi pri zapisku, daljsem od meje. Zunaj obsega vrne prazno stran brez naslednje.
+     * da stran napreduje tudi pri zapisku, daljsem od strani; zapisek, ki ne gre cez Binder, se izpusti ([Stran.izpuscenih]). Zunaj obsega vrne prazno stran brez naslednje.
      */
     fun stran(vsi: List<Zapisek>, od: Int, najvecZnakov: Int = BINDER_STRAN_ZNAKOV): Stran {
         val zapiski = vsi.sortedBy { it.id }   // stabilen vrstni red med stranmi, ne glede na to, kako je shramba vrnila seznam
         if (od < 0 || od >= zapiski.size) return Stran(vJson(emptyList()), -1)
         val deli = ArrayList<String>()
         var znakovSkupaj = 0
+        var izpuscenih = 0
         var i = od
         while (i < zapiski.size) {
             val j = zapisJson(zapiski[i])
+            if (j.length > BINDER_NAJVEC_ZAPISEK) { izpuscenih++; i++; continue }   // ne gre cez Binder: izpusti in javi, stran naj napreduje
             if (deli.isNotEmpty() && znakovSkupaj + j.length + 1 > najvecZnakov) break
             deli.add(j); znakovSkupaj += j.length + 1; i++
         }
-        return Stran(dokument(deli.joinToString(",", "[", "]")), if (i < zapiski.size) i else -1)
+        return Stran(dokument(deli.joinToString(",", "[", "]")), if (i < zapiski.size) i else -1, izpuscenih)
     }
 
     /**

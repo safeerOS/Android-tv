@@ -2548,7 +2548,8 @@ class HubUsmerjevalnik(
         const val MESH = "mesh1"
         /** Lastnost oglasa mDNS, s katero Hub pove, da zna sosednje povezave. */
         const val TXT_MESH = "mesh"
-        const val NAJVEC_MESH_SPOROCILO = 1024 * 1024
+        /** Sporocilo, ovito v mesh.route, ne sme presegati okvira Huba (sicer ga sosed zavrne): enaka meja kot HubStreznik. */
+        const val NAJVEC_MESH_SPOROCILO = HubStreznik.NAJVECJE_SPOROCILO.toInt()
         const val NAJVEC_CAKAJOCIH = 8
         const val NAJVEC_KATEGORIJ = 8
         /**
@@ -2658,8 +2659,14 @@ class Namestnik(
     override fun poslji(besedilo: String) {
         val tovor = JsonLahki.Zapis().niz("to", cilj).niz("msg", besedilo)
         if (posredno) tovor.logicno("relay", true)
-        povezava.poslji(JsonLahki.Zapis().niz("id", UUID.randomUUID().toString()).niz("type", "mesh.route")
-            .surovo("payload", tovor.toString()).toString())
+        val izpis = JsonLahki.Zapis().niz("id", UUID.randomUUID().toString()).niz("type", "mesh.route")
+            .surovo("payload", tovor.toString()).toString()
+        // Prevelik okvir bi sosed zaprl z 1009 in s tem tudi drugi promet; raje se tako sporocilo ne poslje (CodeRabbit st4).
+        if (izpis.length > 262_144 && izpis.toByteArray(Charsets.UTF_8).size > HubStreznik.NAJVECJE_SPOROCILO) {
+            android.util.Log.w("SafeerHubMesh", "mesh.route: sporocilo presega okvir Huba, ni poslano")
+            return
+        }
+        povezava.poslji(izpis)
     }
 
     /** Zapreti se da samo sosednjo povezavo, ne posamezne oddaljene naprave. */

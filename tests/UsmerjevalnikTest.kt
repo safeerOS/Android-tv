@@ -331,6 +331,8 @@ private fun preizkusSinhronizacije() {
     preveri("meja shrambe zapiskov <= meja kategorije v Hubu", si.safeer.tv.os.LinaVmesnikPravila.NAJVEC_SINH_BAJTOV <= HubUsmerjevalnik.NAJVECJA_KATEGORIJA)
     preveri("sporocilo clana sprejme najvecjo kategorijo z ovojnico",
         HubStreznik.NAJVECJE_SPOROCILO >= HubUsmerjevalnik.NAJVECJA_KATEGORIJA + 64L * 1024)
+    preveri("meja okvira v pravilih Line je enaka meji okvira Huba", si.safeer.tv.os.LinaVmesnikPravila.NAJVEC_OKVIR_HUBA == HubStreznik.NAJVECJE_SPOROCILO)
+    preveri("meja sporocila v mesh.route je enaka meji okvira Huba", HubUsmerjevalnik.NAJVEC_MESH_SPOROCILO.toLong() == HubStreznik.NAJVECJE_SPOROCILO)
     preveri("izhodna vrsta sprejme najvecje sporocilo in se navadna", HubStreznik.NAJVEC_BAJTOV_V_VRSTI >= HubStreznik.NAJVECJE_SPOROCILO + 256L * 1024)
     preveri("skupna meja sinhronizacije sprejme najvecjo kategorijo in se drugo", HubUsmerjevalnik.NAJVEC_SKUPAJ_SYNC >= HubUsmerjevalnik.NAJVECJA_KATEGORIJA + 512 * 1024)
     // Kategorija, ki je prej (192 KB) ni bilo, se zdaj shrani in dobi jo tudi naprava, ki je bila ugasnjena

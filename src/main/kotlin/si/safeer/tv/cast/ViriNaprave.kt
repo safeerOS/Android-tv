@@ -44,8 +44,11 @@ object ViriNaprave {
     /** Kopica Jave, ki ostane procesu (Safeer OS, predvajalnik): osmina meje kopice, najmanj 32 MiB. */
     const val DELEZ_KOPICE = 8
     const val REZERVA_KOPICE_B = 32L * 1024 * 1024
-    /** Za eno povezavo clana: deskriptor in izhodna vrsta (do 512 KiB) z medpomnilniki - 1 MiB, kot na racunalniku. */
-    const val POMNILNIK_POVEZAVE = 1024L * 1024
+    /**
+     * Za eno povezavo clana: deskriptor in izhodna vrsta (do 1,625 MiB, HubStreznik.NAJVEC_BAJTOV_V_VRSTI) z medpomnilniki - 2,5 MiB
+     * (prej 1 MiB ob vrsti do 512 KiB; neodvisni pregled 19. 11. 2026: komentar in vrednost sta zastarela po dvigu mej Huba).
+     */
+    const val POMNILNIK_POVEZAVE = 5L * 512 * 1024
     /** Pomanjkanje se v stanju in obvestilu kaze toliko casa po zadnji zavrnitvi; obvestilo najvec tako pogosto. */
     const val VELJA_MS = 600_000L
     const val OBVESTILO_VSAKIH_MS = 600_000L

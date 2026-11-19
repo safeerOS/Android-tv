@@ -693,7 +693,7 @@ object UskladitevKljucev {
         val jaz = jaz(c)
         val kandidati = synchronized(zaklep) {
             posodobi(c)
-            P.zaUporabo(beriMeta(c), zapisi, System.currentTimeMillis(), DebridPravila.VSI.toSet(), ::veljavnaVrednost) { izvor -> izvor != jaz }
+            P.zaUporabo(beriMeta(c), P.brezAsistenta(zapisi), System.currentTimeMillis(), DebridPravila.VSI.toSet(), ::veljavnaVrednost) { izvor -> izvor != jaz }
         }
         if (kandidati.isEmpty()) return 0
         val pripravljeni = kandidati.mapNotNull { pripravi(c, it) }.associateBy { it.z }

@@ -63,6 +63,17 @@ fun main() {
     preveriEnako("asistent: prazno ime", false, P.veljavenKljuc(P.PREDPONA_ASISTENT, PONUDNIKI))
     preveriEnako("asistent: predolgo ime", false, P.veljavenKljuc(P.kljucAsistent("asistent." + "a".repeat(41)), PONUDNIKI))
 
+    // Najmanjsa pravica (neodvisni pregled 19. 11. 2026): kljuci asistenta ne gredo sorodnim aplikacijam in jih od njih ne sprejmemo.
+    val kA = P.kljucAsistent("asistent.gemini")
+    val metaS = mapOf(kA to Meta(5, "x", false, "o1"), tb to Meta(5, "x", false, "o2"), P.kljucAsistent("asistent.stari") to Meta(6, "x", true, ""))
+    val vrS = mapOf(kA to "SKRIVNOST-ASISTENTA", tb to "vrednost-tb")
+    val zS = P.zaSorodnika(metaS, vrS)
+    preveriEnako("sorodnik: dobi samo kljuce, ki niso kljuci asistenta", listOf(tb), zS.map { it.kljuc })
+    preveriEnako("sorodnik: vrednost kljuca asistenta ne uide", false, zS.any { it.vrednost.contains("SKRIVNOST") })
+    preveriEnako("sorodnik: tudi grob kljuca asistenta ne gre", false, zS.any { it.kljuc == P.kljucAsistent("asistent.stari") })
+    preveriEnako("sorodnik: prejeti kljuc asistenta se zavrne, drugi ostanejo", listOf(tb),
+        P.brezAsistenta(listOf(Zapis(kA, 9, "y", false, "x"), Zapis(tb, 9, "y", false, "v"))).map { it.kljuc })
+
     // novejsi: cas, nato izvor, nato grob
     preveriEnako("novejsi po casu", true, P.novejsi(5, "a", false, Meta(4, "z", false, "")))
     preveriEnako("starejsi po casu", false, P.novejsi(3, "z", false, Meta(4, "a", false, "")))

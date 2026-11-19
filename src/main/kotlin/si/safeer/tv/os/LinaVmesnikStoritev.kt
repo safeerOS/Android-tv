@@ -39,9 +39,20 @@ class LinaVmesnikStoritev : Service() {
         return when (op) {
             ZAPISKI_PREBERI -> Bundle().apply { stanje(this, shramba.zapiski()) }
             ZAPISKI_STRAN -> Bundle().apply {
-                val s = P.stran(shramba.zapiski(), v.getInt(OD, 0))
-                putString(ZAPISI, s.json)
-                putInt(NASLEDNJI, s.naslednji)
+                val vsi = shramba.zapiski()
+                val revizija = P.revizija(vsi)
+                putString(REVIZIJA, revizija)
+                val zahtevana = v.getString(REVIZIJA)
+                if (zahtevana != null && zahtevana != revizija) {
+                    // Stanje se je spremenilo med branjem strani: indeksi ne veljajo vec, Lina bere od zacetka (brez REVIZIJE).
+                    putBoolean(SPREMENJENO, true)
+                    putInt(NASLEDNJI, -1)
+                } else {
+                    val s = P.stran(vsi, v.getInt(OD, 0))
+                    putString(ZAPISI, s.json)
+                    putInt(NASLEDNJI, s.naslednji)
+                    putInt(IZPUSCENIH, s.izpuscenih)
+                }
             }
             ZAPISKI_POSLJI -> {
                 // Vhod je lahko skupina zapiskov (stran stanja): sprejmi() zdruzi z obstojecimi, zato vrstni red skupin ni pomemben.
@@ -88,7 +99,7 @@ class LinaVmesnikStoritev : Service() {
         const val KLJUC_PREBERI = 4
         const val KLJUC_IZBRISI = 5
         const val KLJUC_SEZNAM = 6
-        /** Stran stanja po Binder meji: vhod OD (indeks, privzeto 0); odgovor ZAPISI + NASLEDNJI (-1 = konec). */
+        /** Stran stanja po Binder meji: vhod OD (indeks, privzeto 0); odgovor ZAPISI + NASLEDNJI (-1 = konec) + IZPUSCENIH (zapiski, ki so za Binder preveliki; po krogu gredo normalno). */
         const val ZAPISKI_STRAN = 7
         const val ODGOVOR = 10
         const val OP = "op"
@@ -97,6 +108,10 @@ class LinaVmesnikStoritev : Service() {
         const val OD = "od"
         const val NASLEDNJI = "naslednji"
         const val PREVELIKO = "preveliko"
+        const val IZPUSCENIH = "izpuscenih"
+        /** Branje po straneh: odgovor nosi REVIZIJO stanja; Lina jo poslje z naslednjo stranjo, SPREMENJENO=true pomeni »zacni znova«. */
+        const val REVIZIJA = "revizija"
+        const val SPREMENJENO = "spremenjeno"
         const val IME = "ime"
         const val VREDNOST = "vrednost"
         const val IMENA = "imena"
