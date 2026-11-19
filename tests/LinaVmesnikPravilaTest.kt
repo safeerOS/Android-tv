@@ -258,7 +258,7 @@ fun main(args: Array<String>) {
     preveriEnako("deli: emojiji se ne prelomijo sredi para in se sestavijo nazaj enako", velikEmoji, prenesi(velikEmoji).second)
     preveriEnako("deli: stran navede id izpuscenega zapiska", listOf("velik"), P.stran(listOf(P.Zapisek("a", "x", 1, false), velikASCII), 0).izpusceniId)
     preveriEnako("deli: neznan zapisek", null, P.delZapiska(listOf(velikASCII), "ni", 0))
-    preveriEnako("deli: od zunaj besedila", null, P.delZapiska(listOf(velikASCII), "velik", 150_001))
+    preveriEnako("deli: od zunaj besedila (z ujemajoco revizijo)", null, P.delZapiska(listOf(velikASCII), "velik", 150_001, P.delZapiska(listOf(velikASCII), "velik", 0)!!.revizija))
     // Revizija zapiska med kosi (CodeRabbit st6): sprememba med branji, enak id/cas/dolzina, se mora zaznati.
     val staro = P.Zapisek("rev", "a".repeat(150_000), 7, false)
     val novo = P.Zapisek("rev", "z".repeat(150_000), 7, false)
@@ -270,6 +270,11 @@ fun main(args: Array<String>) {
         P.delZapiska(listOf(novo), "rev", P.DEL_KODNIH_TOCK, prvi.revizija)!!.spremenjeno)
     preveriEnako("revizija kosa: nadaljevanje brez revizije javi spremenjeno", true,
         P.delZapiska(listOf(staro), "rev", P.DEL_KODNIH_TOCK, null)!!.spremenjeno)
+    val skrcen = P.Zapisek("rev", "a".repeat(10_000), 7, false)
+    preveriEnako("revizija kosa: zapisek se je skrcil pod odmik nadaljevanja, javi spremenjeno (ne napake)", true,
+        P.delZapiska(listOf(skrcen), "rev", P.DEL_KODNIH_TOCK, prvi.revizija)?.spremenjeno)
+    preveriEnako("revizija kosa: odmik zunaj besedila pri ujemajoci reviziji je se napaka", null,
+        P.delZapiska(listOf(staro), "rev", 150_001, P.delZapiska(listOf(staro), "rev", 0)!!.revizija))
     preveriEnako("revizija kosa: spremenjeno ne vrne besedila", "", P.delZapiska(listOf(novo), "rev", P.DEL_KODNIH_TOCK, prvi.revizija)!!.besedilo)
     // Cas nad mejo izJson (9,0e15) ne sme v shrambo prek kosov (CodeRabbit st6): izJson bi ga zavrnil in stanje postalo prazno.
     preveriEnako("cas kosa: Long.MAX_VALUE je napaka", P.SestavljalecDelov.Izid.Napaka, P.SestavljalecDelov { 0L }.dodaj("c", Long.MAX_VALUE, false, 0, 10, "a".repeat(10)))

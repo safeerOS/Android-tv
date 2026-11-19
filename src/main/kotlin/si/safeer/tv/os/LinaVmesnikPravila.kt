@@ -230,10 +230,11 @@ object LinaVmesnikPravila {
     fun delZapiska(vsi: List<Zapisek>, id: String, od: Int, zahtevana: String? = null): Del? {
         val z = vsi.firstOrNull { it.id == id } ?: return null
         val skupaj = z.besedilo.codePointCount(0, z.besedilo.length)
-        if (od < 0 || od > skupaj) return null
+        if (od < 0) return null
         // Revizija zapiska (CodeRabbit st6): kosi vseh branj morajo biti iz iste razlicice; nadaljevanje (od > 0) brez nje ali z drugo = spremenjeno.
         val rev = revizija(listOf(z))
         if (od > 0 && zahtevana != rev) return Del("", -1, skupaj, z.cas, z.izbrisan, rev, true)
+        if (od > skupaj) return null   // revizija se ujema, pa je odmik zunaj besedila: napaka klica (CodeRabbit st7: najprej revizija, da skrcen zapisek javi spremenjeno)
         val konec = minOf(skupaj, od + DEL_KODNIH_TOCK)
         val iz = z.besedilo.offsetByCodePoints(0, od)
         val do_ = z.besedilo.offsetByCodePoints(iz, konec - od)
