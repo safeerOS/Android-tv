@@ -696,7 +696,7 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         val gradnik = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(getString(R.string.os_skrite_naslov))
         if (skrite.isEmpty()) gradnik.setMessage(getString(R.string.os_skrite_prazno))
         else gradnik.setItems(imena.toTypedArray()) { _, i ->
-            SkriteAplikacije.pokazi(this, skrite[i])
+            Aplikacije.pokazi(this, skrite[i])
             Aplikacije.osveziVOzadju(this, null, brezIkon = true) { svez ->
                 if (isFinishing || isDestroyed) return@osveziVOzadju
                 vseAplikacije = svez

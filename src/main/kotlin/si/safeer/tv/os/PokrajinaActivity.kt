@@ -407,7 +407,8 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
     /** Naloga 49 I: dolg pritisk na ozadje (miska ali dotik) - Videz in, ce sme, vrnitev prejsnjega zaganjalnika. */
     private fun menijOzadja() {
         val dejanja = mutableListOf(
-            getString(R.string.os_videz) to { odpri(Intent(this, VidezActivity::class.java)) }
+            getString(R.string.os_videz) to { odpri(Intent(this, VidezActivity::class.java)) },
+            getString(R.string.os_skrite_naslov) to { SkriteAplikacijeMeni.pokazi(this) { narisiAplikacije() } }
         )
         if (Zaganjalnik.smeOpustiti(this)) {
             dejanja.add(getString(R.string.pk_zaganjalnik_opusti) to { Zaganjalnik.vrniTovarniskega(this) })
@@ -2316,6 +2317,16 @@ class PokrajinaActivity : OsActivity(), DomacaLupa.IzbiraLupe {
                 }
             }
         }
+        // Lastnik 20. 11. 2026: vsako aplikacijo je mogoce odstraniti z domacega zaslona (tudi v privzeti vrsti).
+        // Aplikacija ostane namescena; vrnitev: dolg pritisk na ozadje, »Skrite aplikacije«.
+        if (!splet && id != packageName) dejanja.add(getString(R.string.os_skrij_z_domacega) to {
+            Aplikacije.skrij(this, id)
+            Priljubljene.odstrani(this, id)
+            Priljubljene.shraniRedDomov(this, vrstaDomov.filterNot { it == id })
+            narisiAplikacije()
+            prvaZaFokus()?.requestFocus()
+            Toast.makeText(this, getString(R.string.os_skrito_sporocilo, ime), Toast.LENGTH_SHORT).show()
+        })
         dejanja.add(getString(R.string.os_meni_nastavitve) to { odpri(Intent(this, NastavitveActivity::class.java)) })
         dejanja.add(getString(R.string.nast_sk_tv) to { odpriNastavitveTv() })
         pokaziMeni(ime, dejanja, nevarne = setOf(getString(R.string.os_priljubljen_odstrani), getString(R.string.pk_odstrani_z_naprave)))

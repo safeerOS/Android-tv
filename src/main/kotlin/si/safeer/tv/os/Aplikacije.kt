@@ -225,6 +225,12 @@ object Aplikacije {
         odstraniIzShranjenega(context, paket)
     }
 
+    /** Vrni skrito aplikacijo; takoj dovoli novo branje seznama (sicer ga 2-sekundna zadrzava lahko preskoci). */
+    fun pokazi(context: Context, paket: String) {
+        SkriteAplikacije.pokazi(context, paket)
+        zadnjeOsvezevanje = 0L
+    }
+
     private fun zaganjalnikovSeznam(context: Context, brezIkon: Boolean = false): List<Vnos>? = try {
         val la = context.getSystemService(android.content.pm.LauncherApps::class.java)
         val videni = HashSet<String>()
