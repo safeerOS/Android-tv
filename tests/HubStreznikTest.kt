@@ -348,6 +348,51 @@ fun main() {
         preveri("rezervacija se ob zaprtju povezave sprosti (prej=$prej, potem=$potem)", potem <= prej)
     }
 
+    // 6c) velik okvir se ob pomanjkanju pomnilnika zavrne tudi pod skupnim pragom, skupna zaveza pa steje (CodeRabbit st9)
+    run {
+        fun odpri(): TestniOdjemalec {
+            val o = TestniOdjemalec(vrata)
+            o.posljiSurovo(
+                "GET /cast/ws?ticket=prava HTTP/1.1\r\nHost: test\r\n" +
+                    "Upgrade: websocket\r\nConnection: Upgrade\r\n" +
+                    "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n"
+            )
+            o.preberiGlave()
+            return o
+        }
+        Thread.sleep(300)
+        val prej = streznik.zadrzanoSkupaj()
+        try {
+            ViriNaprave.preizkus = { deskr, _ -> if (deskr == 0) "pomnilnik" else "" }
+            val a = odpri()
+            a.posljiGlavoOkvirja(700L * 1024)
+            Thread.sleep(300)
+            // takoj po glavi (pred morebitnim zapiranjem zaradi mirovanja): zavrnjen okvir ne sme ostati v zadrzku
+            val zadrzanoA = streznik.zadrzanoSkupaj() - prej
+            preveri("700 KiB okvir ob pomanjkanju pomnilnika ni rezerviran (zadrzano=$zadrzanoA)", zadrzanoA == 0L)
+            val opkodaA = a.preberiOkvir().first
+            preveri("700 KiB okvir ob pomanjkanju pomnilnika konča povezavo (opkoda=$opkodaA)", opkodaA == 0x8 || opkodaA == -1)
+            a.zapri()
+
+            // dostopnega je 1,5 MiB: prvi 900 KiB okvir gre, drugi bi skupaj presegel (1,8 MiB)
+            ViriNaprave.preizkus = { deskr, bajtov -> if (deskr == 0 && bajtov > 1536L * 1024) "pomnilnik" else "" }
+            val b1 = odpri()
+            b1.posljiGlavoOkvirja(900L * 1024)
+            Thread.sleep(300)
+            val b2 = odpri()
+            b2.posljiGlavoOkvirja(900L * 1024)
+            val opkodaB = b2.preberiOkvir().first
+            preveri("drugi 900 KiB okvir presega skupno zavezo in konča povezavo (opkoda=$opkodaB)", opkodaB == 0x8 || opkodaB == -1)
+            Thread.sleep(300)
+            val zadrzano = streznik.zadrzanoSkupaj() - prej
+            preveri("v zadrzku je samo prvi okvir (zadrzano=$zadrzano)", zadrzano == 900L * 1024)
+            b1.zapri()
+            b2.zapri()
+        } finally {
+            ViriNaprave.preizkus = null
+        }
+    }
+
     Thread.sleep(400)
 
     // 7) clanov (veljavna vstopnica) ne omejuje stevilka: prej 16 povezav in 24 vticnic, zdaj odlocajo viri naprave

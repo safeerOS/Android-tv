@@ -628,6 +628,23 @@ class HubStreznik(
             return true
         }
 
+        /**
+         * Rezervacija okvirja nad [VELIK_OKVIR_B]: vedno tudi meritev pomnilnika (kot prej, ne glede na skupni prag) in to za SKUPNO
+         * zavezo, vkljucno z ze rezerviranimi, a se neprebranimi okvirji drugih povezav (CodeRabbit st9): sicer bi dve povezavi z
+         * 900 KiB vsaka vsaka posebej presli preverbo, skupaj pa presegli pomnilnik.
+         */
+        private fun rezervirajVelikOkvir(n: Int): Boolean {
+            val skupaj = skupajZadrzano.addAndGet(n.toLong())
+            val razlog = ViriNaprave.preveri(0, skupaj)
+            if (razlog.isNotEmpty()) {
+                skupajZadrzano.addAndGet(-n.toLong())
+                ViriNaprave.zabelezi(razlog, "sporocilo")
+                return false
+            }
+            zadrzano += n
+            return true
+        }
+
         private fun sprostiZadrzek() {
             if (zadrzano > 0) {
                 skupajZadrzano.addAndGet(-zadrzano)
@@ -881,7 +898,7 @@ class HubStreznik(
                         zapri(1002, "nadzorni okvir je predolg")
                         break
                     }
-                    if (!zadrziBajte(dolzina.toInt())) {
+                    if (!rezervirajVelikOkvir(dolzina.toInt())) {
                         zapri(1013, "naprava naj poskusi znova")
                         break
                     }
