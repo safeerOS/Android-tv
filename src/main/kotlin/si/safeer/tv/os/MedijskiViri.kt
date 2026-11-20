@@ -83,6 +83,22 @@ object MedijskiViri {
         return v
     }
 
+    private const val KLJUC_PRIVZETI_DODATKI = "privzeti_dodatki_v1"
+
+    /**
+     * Privzeti dodatek (lastnik 20. 11. 2026): katalog Cinemeta je ze med dodatki, da uporabnik ne isce - doda samo svoj
+     * indeksator in svojega ponudnika Usenet. Enkrat na napravi: kar uporabnik potem izbrise, ostane izbrisano.
+     * Vrne true, ce je bil dodatek dodan.
+     */
+    fun privzetiDodatki(ctx: Context): Boolean {
+        val p = ctx.applicationContext.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)
+        if (p.getBoolean(KLJUC_PRIVZETI_DODATKI, false)) return false
+        val v = try { dodajDodatek(ctx.applicationContext, STREMIO, Stremio.CINEMETA, "Cinemeta", prejeto = true) } catch (_: Throwable) { null }
+        // Zastavica samo ob uspehu: neuspel zapis se poskusi ob naslednjem odprtju.
+        if (v != null) p.edit().putBoolean(KLJUC_PRIVZETI_DODATKI, true).apply()
+        return v != null
+    }
+
     const val PEERTUBE = "peertube"
     const val TOK = "tok"
     /** Spletna stran z glasbo ali videom: odpre jo brskalnik Safeer (jedro Safeer OS), ki predvaja vse. */

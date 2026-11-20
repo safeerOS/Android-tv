@@ -213,6 +213,8 @@ class GlasbaActivity : OsActivity() {
         // Zunanji pregled Video 3. 11. 2026: na TV 2 niti za plakate (prej 6).
         OsPravila.nitiSlik(Naprava.jeTelevizor(this)).let { n -> slikeDelavec.corePoolSize = n; slikeDelavec.maximumPoolSize = n }
         super.onCreate(savedInstanceState)
+        // Cinemeta je privzeto med dodatki (enkrat); uporabnik doda samo svoj indeksator in ponudnika Usenet.
+        try { MedijskiViri.privzetiDodatki(this) } catch (_: Throwable) { }
         instanca = java.lang.ref.WeakReference(this)
         odprtih++
         VrsteNaslovov.pripravi(this)     // naloga 63: znane serije med filmi (v ozadju z diska)
@@ -555,6 +557,8 @@ class GlasbaActivity : OsActivity() {
         narociUskladiSlike()
         // Naloga #38: po vrnitvi s celozaslonskega predvajalnika si okence na Domu vzame sliko nazaj.
         osveziMcKartico()
+        // YouTube racun: seznami in narocnine se uvozijo sami (prej samo po rocnem pritisku na kartico v Mojih virih).
+        YouTubeUvoz.samodejno(this) { if (!isFinishing && !isDestroyed) osveziNaMestu() }
     }
 
     override fun onStart() {
