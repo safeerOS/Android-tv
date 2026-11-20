@@ -118,7 +118,7 @@
     <string name="os_debrid_izbira_dodaj">Debrid: vpiši ključ</string>
     <!-- Naloga 141: Usenet prek TorBoxa (indeksator Newznab) -->
     <string name="os_usenet_vrstica_vpisan">Usenet indeksator – %1$s ✓</string>
-    <string name="os_usenet_vrstica_brez">Usenet indeksator – dodaj (TorBox Pro)</string>
+    <string name="os_usenet_vrstica_brez">Usenet indeksator – dodaj (Newznab)</string>
     <string name="os_usenet_naslov">Usenet indeksator (Newznab)</string>
     <string name="os_usenet_pojasnilo">Vpiši naslov in ključ API svojega indeksatorja. Safeer v njem išče vire Usenet in jih predvaja prek TorBoxa (paket Pro). Ključ indeksatorja ostane na tej napravi: Safeer datoteko NZB prenese sam in TorBoxu pošlje samo datoteko.</string>
     <string name="os_usenet_naslov_namig">Naslov, npr. https://api.indeksator.example</string>

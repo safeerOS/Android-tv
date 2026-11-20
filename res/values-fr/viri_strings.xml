@@ -118,7 +118,7 @@
     <string name="os_debrid_izbira_dodaj">Debrid : ajouter une clé</string>
     <!-- Naloga 141: Usenet prek TorBoxa (indeksator Newznab) -->
     <string name="os_usenet_vrstica_vpisan">Indexeur Usenet – %1$s ✓</string>
-    <string name="os_usenet_vrstica_brez">Indexeur Usenet – ajouter (TorBox Pro)</string>
+    <string name="os_usenet_vrstica_brez">Indexeur Usenet – ajouter (Newznab)</string>
     <string name="os_usenet_naslov">Indexeur Usenet (Newznab)</string>
     <string name="os_usenet_pojasnilo">Saisis l’adresse et la clé API de ton indexeur. Safeer y cherche des sources Usenet et les lit via TorBox (offre Pro). La clé de l’indexeur reste sur cet appareil : Safeer télécharge lui-même le fichier NZB et n’envoie que le fichier à TorBox.</string>
     <string name="os_usenet_naslov_namig">Adresse, p. ex. https://api.indexer.example</string>

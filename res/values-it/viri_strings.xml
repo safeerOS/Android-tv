@@ -118,7 +118,7 @@
     <string name="os_debrid_izbira_dodaj">Debrid: aggiungi chiave</string>
     <!-- Naloga 141: Usenet prek TorBoxa (indeksator Newznab) -->
     <string name="os_usenet_vrstica_vpisan">Indicizzatore Usenet – %1$s ✓</string>
-    <string name="os_usenet_vrstica_brez">Indicizzatore Usenet – aggiungi (TorBox Pro)</string>
+    <string name="os_usenet_vrstica_brez">Indicizzatore Usenet – aggiungi (Newznab)</string>
     <string name="os_usenet_naslov">Indicizzatore Usenet (Newznab)</string>
     <string name="os_usenet_pojasnilo">Inserisci l’indirizzo e la chiave API del tuo indicizzatore. Safeer vi cerca fonti Usenet e le riproduce tramite TorBox (piano Pro). La chiave dell’indicizzatore resta su questo dispositivo: Safeer scarica da sé il file NZB e invia a TorBox solo il file.</string>
     <string name="os_usenet_naslov_namig">Indirizzo, ad es. https://api.indexer.example</string>

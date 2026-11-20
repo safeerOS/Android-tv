@@ -118,7 +118,7 @@
     <string name="os_debrid_izbira_dodaj">Debrid: add key</string>
     <!-- Naloga 141: Usenet prek TorBoxa (indeksator Newznab) -->
     <string name="os_usenet_vrstica_vpisan">Usenet indexer – %1$s ✓</string>
-    <string name="os_usenet_vrstica_brez">Usenet indexer – add (TorBox Pro)</string>
+    <string name="os_usenet_vrstica_brez">Usenet indexer – add (Newznab)</string>
     <string name="os_usenet_naslov">Usenet indexer (Newznab)</string>
     <string name="os_usenet_pojasnilo">Enter your indexer’s address and API key. Safeer searches it for Usenet sources and plays them through TorBox (Pro plan). Your indexer key stays on this device: Safeer downloads the NZB file itself and sends only the file to TorBox.</string>
     <string name="os_usenet_naslov_namig">Address, e.g. https://api.indexer.example</string>
