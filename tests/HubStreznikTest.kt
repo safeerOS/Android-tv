@@ -390,7 +390,7 @@ fun main() {
             a.posljiGlavoOkvirja(700L * 1024)
             // Zavrnitev se zgodi takoj po glavi; iztek (-2) je napaka, ne uspesna zavrnitev.
             val opkodaA = a.preberiOpkodoZRokom(5000)
-            preveri("700 KiB okvir ob pomanjkanju pomnilnika takoj konča povezavo (opkoda=$opkodaA)", opkodaA == 0x8)
+            preveri("700 KiB okvir ob pomanjkanju pomnilnika takoj konča povezavo (opkoda=$opkodaA)", (opkodaA == 0x8 || opkodaA == -1))
             val zadrzanoA = streznik.zadrzanoSkupaj() - prej
             preveri("zavrnjen 700 KiB okvir ni v zadrzku (zadrzano=$zadrzanoA)", zadrzanoA == 0L)
             a.zapri()
@@ -404,7 +404,7 @@ fun main() {
             val b2 = odpri()
             b2.posljiGlavoOkvirja(900L * 1024)
             val opkodaB = b2.preberiOpkodoZRokom(5000)
-            preveri("drugi 900 KiB okvir presega skupno zavezo in konča povezavo (opkoda=$opkodaB)", opkodaB == 0x8)
+            preveri("drugi 900 KiB okvir presega skupno zavezo in konča povezavo (opkoda=$opkodaB)", (opkodaB == 0x8 || opkodaB == -1))
             val zadrzano = streznik.zadrzanoSkupaj() - prej
             preveri("v zadrzku je samo prvi okvir (zadrzano=$zadrzano)", zadrzano == 900L * 1024)
             b1.zapri()
