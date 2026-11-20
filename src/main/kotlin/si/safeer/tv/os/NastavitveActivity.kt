@@ -611,7 +611,7 @@ class NastavitveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         } catch (_: Throwable) { "" }
         val okno = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno)
             .setTitle(getString(R.string.os_pravno))
-            .setMessage(getString(R.string.os_pravno_besedilo, razlicica, packageName))
+            .setMessage(getString(R.string.os_pravno_besedilo, razlicica, packageName) + "\n\n" + TmdbPravila.NAVEDBA)
             .setPositiveButton(getString(R.string.os_moc_zapri), null)
         // Diagnostika predvajanja (lastnik 5. 11. 2026: dejavna samo, ko jo potrebujemo): vklop za 24 ur, nato se sama izklopi.
         // Pri vklopljeni se ob odprtju tega okna ves dnevnik izpise znova v logcat (adb logcat -d -s SafeerDiag).

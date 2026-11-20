@@ -125,6 +125,7 @@ jobs:
       - name: Nepodpisan APK (brez kljuca)
         env:
           SAFEER_BETA: ${{ github.event.inputs.beta }}
+          TMDB_KLJUC: ${{ secrets.TMDB_KLJUC }}
         run: |
           if [ -n "$SAFEER_BETA" ]; then
             ./gradlew --no-daemon assembleRelease "-PsafeerBeta=$SAFEER_BETA"

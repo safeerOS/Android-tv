@@ -93,6 +93,8 @@ object MedijskiViri {
     fun privzetiDodatki(ctx: Context): Boolean {
         val p = ctx.applicationContext.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE)
         if (p.getBoolean(KLJUC_PRIVZETI_DODATKI, false)) return false
+        // Safeer katalog (TMDB) pred Cinemeto: boljsi plakati in slovenski naslovi; brez kljuca ga ni.
+        if (TmdbDodatek.naVoljo) try { dodajDodatek(ctx.applicationContext, STREMIO, TmdbPravila.BASE + "/manifest.json", "Safeer katalog (TMDB)", prejeto = true) } catch (_: Throwable) { }
         val v = try { dodajDodatek(ctx.applicationContext, STREMIO, Stremio.CINEMETA, "Cinemeta", prejeto = true) } catch (_: Throwable) { null }
         // Zastavica samo ob uspehu: neuspel zapis se poskusi ob naslednjem odprtju.
         if (v != null) p.edit().putBoolean(KLJUC_PRIVZETI_DODATKI, true).apply()

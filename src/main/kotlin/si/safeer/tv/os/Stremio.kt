@@ -418,6 +418,8 @@ object Stremio {
             zapri = { c -> c.disconnect() })
 
     private fun prenesiJsonZdaj(url: String, cas: Int): JSONObject? {
+        // Safeer katalog (TMDB): vgrajen dodatek brez strezniku - zahteve obdela aplikacija sama ([TmdbDodatek]).
+        if (TmdbPravila.jeNas(url)) return TmdbDodatek.odgovori(url)
         // Vsaka poizvedba po tokovih steje v urni proracun dodatka - tudi tista za predvajanje ([TempoDodatka]).
         if ("/stream/" in url) stej(url.substringBefore("/stream/"))
         // Naloga 72: tudi poizvedbe po podnapisih stejejo v urni proracun dodatka (TempoDodatka).
@@ -1000,6 +1002,11 @@ object Stremio {
     private fun <T> prenesiTokovno(url: String, beri: (android.util.JsonReader) -> T): T? {
         zadnjaKoda.set(0)
         zadnjeGlave.set(emptyMap())
+        if (TmdbPravila.jeNas(url)) {
+            val o = TmdbDodatek.odgovori(url) ?: return null
+            zadnjaKoda.set(200)
+            return try { android.util.JsonReader(java.io.StringReader(o.toString())).use { beri(it) } } catch (_: Exception) { null }
+        }
         if (!url.startsWith("http://") && !url.startsWith("https://")) return null
         // Pregled S5: nadomestek, katerega skrivnosti ta naprava ne pozna (Keystore) - nobene zahteve na nadomestni naslov.
         if (!SkrivniDodatki.pozna(aplikacija, url)) return null

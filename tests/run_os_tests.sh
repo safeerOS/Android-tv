@@ -141,6 +141,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/KrogProsnjaPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/YouTubeNarocnine.kt" \
     "$TEST_DIR/YouTubeNarocnineTest.kt" \
+    "$SRC/si/safeer/tv/os/TmdbPravila.kt" \
+    "$TEST_DIR/TmdbPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/SporocilaPravila.kt" \
     "$TEST_DIR/SporocilaPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/OddaljenoPravila.kt" \
@@ -385,6 +387,7 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.AplikacijePredpomnilnikTestK
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SkriteAplikacijePravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.link.KrogProsnjaPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" YouTubeNarocnineTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" TmdbPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SporocilaPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.OddaljenoPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.MiniPredvajalnikPravilaTestKt

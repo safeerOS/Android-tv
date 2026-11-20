@@ -37,6 +37,11 @@ android {
         def beta = (project.findProperty('safeerBeta') ?: '').toString().trim()
         if (beta && !(beta ==~ /[1-9][0-9]{0,3}/)) throw new GradleException("safeerBeta mora biti stevilka 1-9999, je '$beta'")
         buildConfigField 'boolean', 'BETA', (beta ? 'true' : 'false')
+        // Kljuc TMDB za vgrajeni katalog (os/TmdbDodatek.kt): iz okolja TMDB_KLJUC (CI skrivnost) ali -PtmdbKljuc; brez kljuca
+        // katalog TMDB ni na voljo (aplikacija ostane delujoca s Cinemeto). Kljuca ni v repozitoriju.
+        def tmdb = (System.getenv('TMDB_KLJUC') ?: project.findProperty('tmdbKljuc') ?: '').toString().trim()
+        if (tmdb && !(tmdb ==~ /[0-9a-f]{32}/)) throw new GradleException('TMDB_KLJUC ni v pricakovani obliki')
+        buildConfigField 'String', 'TMDB_KLJUC', "\"${tmdb}\""
         def pripona = (tvNacin ? '-tvnacin' : '') + (beta ? "-beta.$beta" : '')
         if (pripona) versionNameSuffix = pripona
     }
