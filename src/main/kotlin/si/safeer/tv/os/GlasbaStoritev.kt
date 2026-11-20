@@ -372,6 +372,18 @@ class GlasbaStoritev : Service() {
                         rezerve = ostale
                         return
                     }
+                    // Lastnik 20. 11. 2026 (Druga mamica, Usenet): tok je odpovedal SREDI filma (del datoteke ni na voljo), rezerv ni bilo -
+                    // koncna napaka. Zdaj izbira gre samodejno na naslednji vir in nadaljuje na istem mestu.
+                    val sredi = obOdpovediSredi
+                    val mestoSredi = maxOf(p.currentPosition, zacetekPoskusa)
+                    if (sredi != null && zacelo && mestoSredi > 5_000) {
+                        obOdpovediSredi = null
+                        obOdpovedi = null
+                        Log.i("SafeerOsMedia", "tok odpovedal sredi filma (koda=${error.errorCode}): naslednji vir od $mestoSredi ms")
+                        obvesti(getString(R.string.os_media_drug_vir))
+                        sredi(mestoSredi)
+                        return
+                    }
                     val druga = obOdpovedi
                     if (druga != null && !zacelo) {
                         obOdpovedi = null
@@ -1955,6 +1967,9 @@ class GlasbaStoritev : Service() {
          */
         @Volatile var obOdpovedi: (() -> Unit)? = null
 
+        /** Kot [obOdpovedi], a ko je tok odpovedal po zacetku (sredi filma): izbira poskusi drug vir od podanega mesta (ms). */
+        @Volatile var obOdpovediSredi: ((Long) -> Unit)? = null
+
         fun predvajaj(ctx: Context, seznam: List<Jamendo.Skladba>, od: Int, streznik: DatotekeActivity.Streznik? = null) {
         Pomnilnik.pocistiOzadje(ctx, nasePredvajanje = true)
             if (seznam.isEmpty()) return
@@ -1963,6 +1978,7 @@ class GlasbaStoritev : Service() {
             cakajocaVrsta = null
             rezerve = emptyList()
             obOdpovedi = null
+            obOdpovediSredi = null
             cakajoci = Triple(seznam, od, streznik)
             stevecZagonov.incrementAndGet()
             val namen = Intent(ctx, GlasbaStoritev::class.java)

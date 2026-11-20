@@ -8719,6 +8719,8 @@ class GlasbaActivity : OsActivity() {
 
     /** Mesto, ki ga je dala druga naprava (predaja): velja za eno skladbo, enkrat. */
     private var predajaPolozaj: Pair<String, Long>? = null
+    /** Mesto (ms), na katerem je prejsnji vir odpovedal sredi filma: naslednji vir ga samodejno nadaljuje (brez ponudbe). */
+    private var preklopMesto: Long = -1L
 
     /** Vrsta s kartico "Nadaljuj z druge naprave" - samo, kadar so v Linku se druge naprave (nic samodejnega: klik vprasa). */
     private fun predajaVrsta(): List<Vrsta> {
@@ -8802,6 +8804,7 @@ class GlasbaActivity : OsActivity() {
 
     private fun nadaljujKoPripravljen(sk: Jamendo.Skladba, izvirnik: Jamendo.Skladba? = null) {
         val predano = predajaPolozaj?.takeIf { it.first == sk.id }?.second?.also { predajaPolozaj = null }
+            ?: preklopMesto.takeIf { it > 0 }?.also { preklopMesto = -1L }
         // TV 8. 11. 2026: Nadaljuj s pasu je ze izbira - brez okna »Nadaljuj od / Od zacetka« (enkratno, samo ista vsebina);
         // kartice vrstice Nadaljuj z ogledom vprasajo (lastnik 28. 10.).
         val izPasu = nadaljujIzPasu.also { nadaljujIzPasu = null }
@@ -11950,6 +11953,14 @@ class GlasbaActivity : OsActivity() {
                 val brezUseneta = vsiTokovi.filter { it.vrsta != UsenetPravila.VRSTA }
                 if (brezUseneta.isNotEmpty()) GlasbaStoritev.obOdpovedi = {
                     if (!isFinishing && !isDestroyed) izberiTok(sk, naslov, brezUseneta, rocno, Pripravljeno(pripravljeno.predpomnjeni), obNeuspehu = obNeuspehu)
+                }
+                // Lastnik 20. 11. 2026: ce Usenet odpove sredi filma, gre izbira na drug vir in nadaljuje na istem mestu.
+                if (brezUseneta.isNotEmpty()) GlasbaStoritev.obOdpovediSredi = { mesto ->
+                    if (!isFinishing && !isDestroyed) {
+                        preklopMesto = mesto
+                        glavna.postDelayed({ preklopMesto = -1L }, 60_000)
+                        izberiTok(sk, naslov, brezUseneta, rocno, Pripravljeno(pripravljeno.predpomnjeni), obNeuspehu = obNeuspehu)
+                    }
                 }
                 return
             }
