@@ -80,6 +80,9 @@ class HubStreznik(
     /** Koliko bajtov trenutno zadrzujejo vse povezave skupaj (sestavljanje sporocil). */
     private val skupajZadrzano = java.util.concurrent.atomic.AtomicLong(0)
 
+    /** Za preizkuse: koliko bajtov zdaj zadrzujejo vse povezave (vkljucno z rezerviranimi, se neprebranimi okvirji). */
+    internal fun zadrzanoSkupaj(): Long = skupajZadrzano.get()
+
     /**
      * Nepreverjene vticnice: od sprejema do prebrane zahteve (pri WebSocket do veljavne vstopnice, pri toku do predaje
      * HubTokovi, ki preveri svoj kljuc), v vrstnem redu sprejema. Samo zanje veljata fiksni meji
@@ -869,14 +872,20 @@ class HubStreznik(
                     zapri(1009, "sporočilo je preveliko")
                     break
                 }
+                // Veliki okvir se REZERVIRA (ne le preveri) takoj po glavi, PRED branjem maske in polja: sicer bi vec povezav
+                // hkrati z napovedanimi velikimi okvirji slo mimo preverbe, polja pa bi se alocirala sele pozneje
+                // (CodeRabbit Mobile st1). Rezervacijo sprosti konec sporocila ali zapri().
+                var rezervirano = false
                 if (dolzina > VELIK_OKVIR_B) {
-                    // Pomnilnik se preveri PRED rezervacijo polja: clan s 1 MiB okvirjem ne sme zrusiti naprave z malo pomnilnika.
-                    val razlog = ViriNaprave.preveri(0, dolzina)
-                    if (razlog.isNotEmpty()) {
-                        ViriNaprave.zabelezi(razlog, "sporocilo")
+                    if (opkoda != OPKODA_BESEDILO && opkoda != OPKODA_DVOJISKO && opkoda != OPKODA_NADALJEVANJE) {
+                        zapri(1002, "nadzorni okvir je predolg")
+                        break
+                    }
+                    if (!zadrziBajte(dolzina.toInt())) {
                         zapri(1013, "naprava naj poskusi znova")
                         break
                     }
+                    rezervirano = true
                 }
 
                 val maska = ByteArray(4)
@@ -903,7 +912,7 @@ class HubStreznik(
                             zapri(1009, "sporočilo je preveliko")
                             return
                         }
-                        if (!zadrziBajte(podatki.size)) {
+                        if (!rezervirano && !zadrziBajte(podatki.size)) {
                             zapri(1013, "naprava naj poskusi znova")
                             return
                         }

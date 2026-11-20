@@ -84,6 +84,17 @@ private class TestniOdjemalec(vrata: Int) {
     }
 
     /** Okvir odjemalca mora biti maskiran - tako kot ga poslje pravi brskalnik. */
+    /** Samo glava masknega besedilnega okvirja z napovedano dolzino in maska; polja NE posle (rezervacija pomnilnika). */
+    fun posljiGlavoOkvirja(dolzina: Long) {
+        val g = ArrayList<Byte>()
+        g.add((0x80 or 0x1).toByte())
+        g.add((0x80 or 127).toByte())
+        for (i in 7 downTo 0) g.add(((dolzina shr (8 * i)) and 0xFF).toByte())
+        for (i in 0 until 4) g.add(i.toByte())
+        izhod.write(g.toByteArray())
+        izhod.flush()
+    }
+
     fun posljiBesedilo(besedilo: String, maskiraj: Boolean = true) {
         val podatki = besedilo.toByteArray(Charsets.UTF_8)
         val glava = ArrayList<Byte>()
@@ -313,6 +324,28 @@ fun main() {
             opkoda == 0x8 || opkoda == -1
         )
         o.zapri()
+    }
+
+    // 6b) napovedan velik okvir se rezervira ze po glavi, ne sele ko prispe polje (CodeRabbit Mobile st1)
+    run {
+        Thread.sleep(300)
+        val prej = streznik.zadrzanoSkupaj()
+        val o = TestniOdjemalec(vrata)
+        o.posljiSurovo(
+            "GET /cast/ws?ticket=prava HTTP/1.1\r\nHost: test\r\n" +
+                "Upgrade: websocket\r\nConnection: Upgrade\r\n" +
+                "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n"
+        )
+        o.preberiGlave()
+        val napovedan = 1024L * 1024
+        o.posljiGlavoOkvirja(napovedan)
+        Thread.sleep(400)
+        val med = streznik.zadrzanoSkupaj()
+        preveri("napovedan 1 MiB okvir je rezerviran ze pred poljem (prej=$prej, med=$med)", med - prej >= napovedan)
+        o.zapri()
+        Thread.sleep(400)
+        val potem = streznik.zadrzanoSkupaj()
+        preveri("rezervacija se ob zaprtju povezave sprosti (prej=$prej, potem=$potem)", potem <= prej)
     }
 
     Thread.sleep(400)

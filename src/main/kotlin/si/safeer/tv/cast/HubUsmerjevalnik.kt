@@ -2558,7 +2558,12 @@ class HubUsmerjevalnik(
          * (LinaVmesnikPravila.NAJVEC_SINH_BAJTOV) ne sme biti vecja od te; preizkus to drzi.
          */
         const val NAJVECJA_KATEGORIJA = 1024 * 1024
-        const val NAJVEC_SKUPAJ_SYNC = 2 * 1024 * 1024
+        /**
+         * Skupaj shranjeno: ena najvecja kategorija in se 512 KiB drugega. Vse shranjeno gre ob dohitevanju (sync.request, po eno
+         * kategorijo na zahtevo) v izhodno vrsto povezave; vsota mora ostati pod HubStreznik.NAJVEC_BAJTOV_V_VRSTI, sicer dve
+         * zaporedni zahtevi zapreta povezavo z 1011 (CodeRabbit Mobile st1; do 19. 11. 2026 2 MiB). Preizkus UsmerjevalnikTest drzi mejo.
+         */
+        const val NAJVEC_SKUPAJ_SYNC = NAJVECJA_KATEGORIJA + 512 * 1024
         const val NAJVEC_IMENA = 64
         /** Protocol v1: katalog aplikacij ene naprave (vnosov in bajtov). */
         const val NAJVEC_APLIKACIJ = 200

@@ -334,6 +334,8 @@ private fun preizkusSinhronizacije() {
     preveri("meja okvira v pravilih Line je enaka meji okvira Huba", si.safeer.tv.os.LinaVmesnikPravila.NAJVEC_OKVIR_HUBA == HubStreznik.NAJVECJE_SPOROCILO)
     preveri("meja sporocila v mesh.route je enaka meji okvira Huba", HubUsmerjevalnik.NAJVEC_MESH_SPOROCILO.toLong() == HubStreznik.NAJVECJE_SPOROCILO)
     preveri("izhodna vrsta sprejme najvecje sporocilo in se navadna", HubStreznik.NAJVEC_BAJTOV_V_VRSTI >= HubStreznik.NAJVECJE_SPOROCILO + 256L * 1024)
+    preveri("skupna meja sinhronizacije + ovojnice ne presezejo izhodne vrste (dohitevanje ne zapre povezave z 1011)",
+        HubUsmerjevalnik.NAJVEC_SKUPAJ_SYNC + 64L * 1024 <= HubStreznik.NAJVEC_BAJTOV_V_VRSTI)
     preveri("skupna meja sinhronizacije sprejme najvecjo kategorijo in se drugo", HubUsmerjevalnik.NAJVEC_SKUPAJ_SYNC >= HubUsmerjevalnik.NAJVECJA_KATEGORIJA + 512 * 1024)
     // Kategorija, ki je prej (192 KB) ni bilo, se zdaj shrani in dobi jo tudi naprava, ki je bila ugasnjena
     val vecjaKat = "x".repeat(900 * 1024)
