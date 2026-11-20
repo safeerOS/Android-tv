@@ -612,7 +612,7 @@ class HubStreznik(
          * pomnilnik nad rezervo (ViriNaprave) - prej je bila to meja 1 MiB za vse clane skupaj
          * (pet clanov z velikim sporocilom hkrati in sesti je dobil 1013).
          */
-        private var zadrzano = 0L
+        private val zadrzano = java.util.concurrent.atomic.AtomicLong(0)
 
         private fun zadrziBajte(n: Int): Boolean {
             val skupaj = skupajZadrzano.addAndGet(n.toLong())
@@ -624,8 +624,7 @@ class HubStreznik(
                     return false
                 }
             }
-            zadrzano += n
-            return true
+            return potrdiZadrzek(n)
         }
 
         /**
@@ -641,15 +640,28 @@ class HubStreznik(
                 ViriNaprave.zabelezi(razlog, "sporocilo")
                 return false
             }
-            zadrzano += n
+            return potrdiZadrzek(n)
+        }
+
+        /**
+         * Zavezo vpise povezavi; ce je zapiranje tekmovalo in je povezava ze zaprta, jo takoj sprosti (CodeRabbit Mobile st2):
+         * getAndSet v [sprostiZadrzek] jamci, da zavezo sprosti natanko ena stran (zapri ali ta klic), tudi ob istocasnosti.
+         */
+        private fun potrdiZadrzek(n: Int): Boolean {
+            zadrzano.addAndGet(n.toLong())
+            if (!odprta.get()) {
+                sprostiZadrzek()
+                return false
+            }
             return true
         }
 
+        /** Za preizkuse: rezervacija velikega okvirja (kot v zanki branja). */
+        internal fun rezervirajZaPreizkus(n: Int): Boolean = rezervirajVelikOkvir(n)
+
         private fun sprostiZadrzek() {
-            if (zadrzano > 0) {
-                skupajZadrzano.addAndGet(-zadrzano)
-                zadrzano = 0
-            }
+            val n = zadrzano.getAndSet(0)
+            if (n > 0) skupajZadrzano.addAndGet(-n)
         }
 
         /** Kaj narediti s prejetim sporocilom; nastavi usmerjevalnik. */

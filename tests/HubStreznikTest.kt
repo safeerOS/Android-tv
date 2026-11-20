@@ -192,6 +192,7 @@ fun main() {
 
     val prispela = CountDownLatch(1)
     var zadnjeSporocilo = ""
+    val zadnjaPovezava = java.util.concurrent.atomic.AtomicReference<HubStreznik.Povezava?>(null)
 
     val streznik = HubStreznik(
         zeljenaVrata = 0,
@@ -205,6 +206,7 @@ fun main() {
             if (z.poizvedba["ticket"] == "prava") null else "neveljavna vstopnica"
         },
         naPovezavo = { p ->
+            zadnjaPovezava.set(p)
             p.naSporocilo = { sporocilo ->
                 zadnjeSporocilo = sporocilo
                 p.poslji("odmev:$sporocilo")
@@ -411,6 +413,30 @@ fun main() {
         } finally {
             ViriNaprave.preizkus = null
         }
+    }
+
+    // 6d) zavezo, vpisano po zaprtju povezave (tekmovanje zapri/rezervacija), je treba takoj sprostiti (CodeRabbit Mobile st2)
+    run {
+        pocakaj(3000) { streznik.zadrzanoSkupaj() == 0L }
+        val prej = streznik.zadrzanoSkupaj()
+        zadnjaPovezava.set(null)
+        val o = TestniOdjemalec(vrata)
+        o.posljiSurovo(
+            "GET /cast/ws?ticket=prava HTTP/1.1\r\nHost: test\r\n" +
+                "Upgrade: websocket\r\nConnection: Upgrade\r\n" +
+                "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n"
+        )
+        o.preberiGlave()
+        val p = if (pocakaj { zadnjaPovezava.get() != null }) zadnjaPovezava.get() else null
+        preveri("povezava je prijavljena za preizkus tekmovanja", p != null)
+        if (p != null) {
+            p.zapri(1000, "preizkus")
+            val sprejeto = p.rezervirajZaPreizkus(500 * 1024)
+            preveri("rezervacija po zaprtju je zavrnjena", !sprejeto)
+            preveri("rezervacija po zaprtju ne ostane v zadrzku (zadrzano=${streznik.zadrzanoSkupaj() - prej})",
+                pocakaj { streznik.zadrzanoSkupaj() <= prej })
+        }
+        o.zapri()
     }
 
     Thread.sleep(400)

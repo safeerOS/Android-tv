@@ -2667,6 +2667,9 @@ class Namestnik(
         val izpis = JsonLahki.Zapis().niz("id", UUID.randomUUID().toString()).niz("type", "mesh.route")
             .surovo("payload", tovor.toString()).toString()
         // Prevelik okvir bi sosed zaprl z 1009 in s tem tudi drugi promet; raje se tako sporocilo ne poslje (CodeRabbit st4).
+        // ODLOCITEV (CodeRabbit Mobile st2, 20. 11. 2026): kategorija z izjemno veliko JSON ubeganja (preko ~0,5 MB narekovajev) se
+        // sosedu NE posreduje, lokalna naprava pa jo dobi in jo Hub hrani; zavrnitev ze ob sprejemu bi pokvarila sinhronizacijo
+        // uporabnikom z enim Hubom (vecina), posredovanje med Hubi pa se po naravi ponovi ob naslednji spremembi.
         if (izpis.length > 262_144 && izpis.toByteArray(Charsets.UTF_8).size > HubStreznik.NAJVECJE_SPOROCILO) {
             android.util.Log.w("SafeerHubMesh", "mesh.route: sporocilo presega okvir Huba, ni poslano")
             return
