@@ -792,4 +792,9 @@
     <string name="os_mediji_zdaj_igra_kratko">In riproduzione</string>
     <string name="os_tuje_predvajanje">Badge delle notifiche e musica di altre app</string>
     <string name="os_tuje_predvajanje_opis">Badge per le notifiche in attesa e, nel mini lettore, la riproduzione di altre app (SmartTube, YouTube…). Richiede il permesso di sistema Accesso alle notifiche: apre quella pagina.</string>
+    <string name="os_skrij_z_domacega">Nascondi dalla schermata Home</string>
+    <string name="os_skrite_naslov">App nascoste</string>
+    <string name="os_skrite_prazno">Nessuna app nascosta.</string>
+    <string name="os_skrito_sporocilo">%1$s nascosta dalla schermata Home</string>
+    <string name="os_pokazano_sporocilo">%1$s è di nuovo nella schermata Home</string>
 </resources>

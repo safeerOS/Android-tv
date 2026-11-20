@@ -174,7 +174,7 @@ object Aplikacije {
         val pm = context.packageManager
         // Telefon in tablica: seznam, kot ga vidi zaganjalnik (LauncherApps) - isti vir kot sistemski zaganjalnik,
         // tudi za aplikacije, ki jih paketni upravitelj z nevidnostjo paketov (Android 11+) ne bi pokazal.
-        if (!pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK)) zaganjalnikovSeznam(context, brezIkon)?.let { return it }
+        if (!pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK)) zaganjalnikovSeznam(context, brezIkon)?.let { return odstraniSkrite(context, it) }
         val poizvedba = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
         val zadetki = ArrayList(try { pm.queryIntentActivities(poizvedba, 0) } catch (_: Throwable) { emptyList() })
         // Tablica (naprava brez leanbacka): aplikacije za televizor ima le redka - Safeer OS Tablet je
@@ -212,7 +212,17 @@ object Aplikacije {
             vnosi.add(Vnos(info.packageName, z.loadLabel(pm).toString().ifBlank { info.packageName }, ikona, namera, info))
         }
         // Safeer Browser je ista aplikacija kot Safeer OS in ima svojo kartico Splet, zato ga ni.
-        return vnosi
+        return odstraniSkrite(context, vnosi)
+    }
+
+    /** Aplikacije, ki jih je lastnik skril z domacega zaslona, ne pridejo v noben seznam zaganjalnika (ostanejo namescene). */
+    private fun odstraniSkrite(context: Context, vnosi: List<Vnos>): List<Vnos> =
+        SkriteAplikacijePravila.filtriraj(vnosi, { it.paket }, SkriteAplikacije.seznam(context))
+
+    /** Skrij z domacega zaslona: shrani izbiro in takoj odstrani iz shranjenega seznama (brez cakanja na osvezitev). */
+    fun skrij(context: Context, paket: String) {
+        SkriteAplikacije.skrij(context, paket)
+        odstraniIzShranjenega(context, paket)
     }
 
     private fun zaganjalnikovSeznam(context: Context, brezIkon: Boolean = false): List<Vnos>? = try {

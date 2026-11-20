@@ -135,6 +135,8 @@ trap 'rm -rf "$OUT"' EXIT
     "$TEST_DIR/EpizodePravilaTest.kt" \
     "$SRC/si/safeer/tv/os/AplikacijePredpomnilnik.kt" \
     "$TEST_DIR/AplikacijePredpomnilnikTest.kt" \
+    "$SRC/si/safeer/tv/os/SkriteAplikacijePravila.kt" \
+    "$TEST_DIR/SkriteAplikacijePravilaTest.kt" \
     "$SRC/si/safeer/tv/os/SporocilaPravila.kt" \
     "$TEST_DIR/SporocilaPravilaTest.kt" \
     "$SRC/si/safeer/tv/os/OddaljenoPravila.kt" \
@@ -376,6 +378,7 @@ java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.PripravaPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.AdbLokalnoPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.EpizodePravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.AplikacijePredpomnilnikTestKt
+java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SkriteAplikacijePravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.SporocilaPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.OddaljenoPravilaTestKt
 java -cp "$OUT/os.jar:$OKHTTP_LIBS" si.safeer.tv.os.MiniPredvajalnikPravilaTestKt

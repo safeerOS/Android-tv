@@ -675,7 +675,39 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         super.onDestroy()
     }
 
-    /** Desni klik ali dolg pritisk na aplikaciji v mrezi: Odpri, Pripni / Odpni, Informacije o aplikaciji. */
+    /**
+     * Lastnik 20. 11. 2026: vsaka aplikacija se da odstraniti z domacega zaslona. Aplikacija ostane namescena
+     * (Safeer je ne brise in ne onemogoca); vrnemo jo v meniju namizja »Skrite aplikacije«.
+     */
+    private fun skrijAplikacijo(a: Aplikacije.Vnos) {
+        Aplikacije.skrij(this, a.paket)
+        Priljubljene.odstrani(this, a.paket)
+        vseAplikacije = vseAplikacije.filter { it.paket != a.paket }
+        narisiVse()
+        naloziPriljubljene()
+        Toast.makeText(this, getString(R.string.os_skrito_sporocilo, a.ime), Toast.LENGTH_SHORT).show()
+    }
+
+    /** Seznam skritih aplikacij; dotik jo vrne na domaci zaslon. */
+    private fun skriteAplikacije() {
+        val skrite = SkriteAplikacije.seznam(this).toList()
+        val pm = packageManager
+        val imena = skrite.map { p -> try { pm.getApplicationLabel(pm.getApplicationInfo(p, 0)).toString() } catch (_: Throwable) { p } }
+        val gradnik = android.app.AlertDialog.Builder(this, si.safeer.tv.R.style.Os_Okno).setTitle(getString(R.string.os_skrite_naslov))
+        if (skrite.isEmpty()) gradnik.setMessage(getString(R.string.os_skrite_prazno))
+        else gradnik.setItems(imena.toTypedArray()) { _, i ->
+            SkriteAplikacije.pokazi(this, skrite[i])
+            Aplikacije.osveziVOzadju(this, null, brezIkon = true) { svez ->
+                if (isFinishing || isDestroyed) return@osveziVOzadju
+                vseAplikacije = svez
+                narisiVse()
+            }
+            Toast.makeText(this, getString(R.string.os_pokazano_sporocilo, imena[i]), Toast.LENGTH_SHORT).show()
+        }
+        gradnik.setNegativeButton(getString(R.string.os_preklici), null).let { Kontroler.pokazi(it.show()) }
+    }
+
+    /** Desni klik ali dolg pritisk na aplikaciji v mrezi: Odpri, Pripni / Odpni, Skrij, Informacije o aplikaciji. */
     private fun moznostiAplikacije(a: Aplikacije.Vnos) {
         val pripeta = Priljubljene.je(this, a.paket)
         val dejanja = listOf(
@@ -684,6 +716,7 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 if (pripeta) Priljubljene.odstrani(this, a.paket) else Priljubljene.dodaj(this, a.paket)
                 naloziPriljubljene()
             },
+            getString(R.string.os_skrij_z_domacega) to { skrijAplikacijo(a) },
             getString(R.string.zg_podatki_aplikacije) to {
                 odpri(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + a.paket)), a.ime, null)
             },
@@ -719,6 +752,7 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         dejanja.add(getString(R.string.os_videz) to { odpri(Intent(this, VidezActivity::class.java), getString(R.string.os_videz), null) })
         dejanja.add(getString(R.string.os_meni_nastavitve) to {
             odpri(Intent(this, NastavitveActivity::class.java), getString(R.string.os_meni_nastavitve), null) })
+        dejanja.add(getString(R.string.os_skrite_naslov) to { skriteAplikacije() })
         if (!Naprava.jeTelevizor(this)) dejanja.add(getString(R.string.nz_nacin) to { NamizniNacin.pokazi(this) { } })
         if (Zaganjalnik.jePonujen(this) || Zaganjalnik.jeIzbran(this)) dejanja.add(getString(R.string.nz_vrata_vrni) to {
             VarnostnaVrata.vrni(this) })
@@ -935,6 +969,7 @@ open class ZaganjalnikActivity : OsActivity(), LinkOdjemalec.Poslusalec {
             getString(R.string.os_spletne_levo) to { if (Priljubljene.premakni(this, a.paket, -1)) naloziPriljubljene() },
             getString(R.string.os_spletne_desno) to { if (Priljubljene.premakni(this, a.paket, 1)) naloziPriljubljene() },
             getString(R.string.os_priljubljen_odstrani) to { Priljubljene.odstrani(this, a.paket); naloziPriljubljene() },
+            getString(R.string.os_skrij_z_domacega) to { skrijAplikacijo(a) },
             getString(R.string.zg_podatki_aplikacije) to {
                 odpri(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + a.paket)), a.ime, null)
             },

@@ -800,4 +800,9 @@
     <string name="os_mediji_zdaj_igra_kratko">Now Playing</string>
     <string name="os_tuje_predvajanje">Notification badges and other apps\' music</string>
     <string name="os_tuje_predvajanje_opis">Badges for waiting notifications and, in the mini player, playback from other apps (SmartTube, YouTube…). Needs the system permission Notification access – this opens that page.</string>
+    <string name="os_skrij_z_domacega">Hide from the home screen</string>
+    <string name="os_skrite_naslov">Hidden apps</string>
+    <string name="os_skrite_prazno">No hidden apps.</string>
+    <string name="os_skrito_sporocilo">%1$s hidden from the home screen</string>
+    <string name="os_pokazano_sporocilo">%1$s is back on the home screen</string>
 </resources>

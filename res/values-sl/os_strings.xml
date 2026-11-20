@@ -797,4 +797,9 @@
     <string name="os_mediji_zdaj_igra_kratko">Zdaj predvaja</string>
     <string name="os_tuje_predvajanje">Značke obvestil in glasba drugih aplikacij</string>
     <string name="os_tuje_predvajanje_opis">Značke za obvestila, ki čakajo, in v malem predvajalniku predvajanje drugih aplikacij (SmartTube, YouTube …). Potrebuje sistemsko dovoljenje Dostop do obvestil – izbira odpre to stran.</string>
+    <string name="os_skrij_z_domacega">Skrij z domačega zaslona</string>
+    <string name="os_skrite_naslov">Skrite aplikacije</string>
+    <string name="os_skrite_prazno">Ni skritih aplikacij.</string>
+    <string name="os_skrito_sporocilo">%1$s skrita z domačega zaslona</string>
+    <string name="os_pokazano_sporocilo">%1$s je spet na domačem zaslonu</string>
 </resources>
