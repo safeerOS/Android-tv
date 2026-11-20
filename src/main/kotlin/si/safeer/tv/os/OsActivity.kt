@@ -7,6 +7,7 @@ import android.os.SystemClock
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import si.safeer.tv.R
 
 /**
  * Skupna osnova zaslonov Safeer OS: poskrbi, da igralni plosek dela povsod enako (glej
