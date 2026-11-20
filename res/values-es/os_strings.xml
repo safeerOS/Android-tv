@@ -797,4 +797,19 @@
     <string name="os_skrite_prazno">No hay aplicaciones ocultas.</string>
     <string name="os_skrito_sporocilo">%1$s oculta de la pantalla de inicio</string>
     <string name="os_pokazano_sporocilo">%1$s vuelve a la pantalla de inicio</string>
+    <string name="os_krog_prosnja">%1$s solicita acceso completo a este dispositivo (archivos, apps, pantalla, claves).</string>
+    <string name="os_krog_dovoli">Permitir</string>
+    <string name="os_krog_zavrni">Rechazar</string>
+    <string name="os_krog_zahtevaj">Solicitar acceso completo</string>
+    <string name="os_krog_poslano">Solicitud enviada a %1$s. Confirma en ese dispositivo.</string>
+    <string name="os_krog_ze">%1$s ya tiene acceso completo.</string>
+    <string name="os_krog_ni_krog">%1$s aún no está en tu círculo de confianza. Añádelo primero en Safeer Link.</string>
+    <string name="os_krog_prehitro">Espera un momento antes de volver a pedir a %1$s.</string>
+    <string name="os_krog_stara">La solicitud caducó o ya no es válida.</string>
+    <string name="os_krog_stara_naprava">%1$s tiene una versión antigua sin esta opción.</string>
+    <string name="os_krog_ni_povezave">No se puede contactar con %1$s.</string>
+    <string name="os_krog_napaka">La solicitud a %1$s falló.</string>
+    <string name="os_krog_odobreno">%1$s te ha concedido acceso completo.</string>
+    <string name="os_krog_dovoljeno">Acceso completo permitido para %1$s.</string>
+    <string name="os_krog_odgovor_ni">No se pudo avisar a %1$s; vuelve a pedirlo desde allí.</string>
 </resources>

@@ -797,4 +797,19 @@
     <string name="os_skrite_prazno">Keine ausgeblendeten Apps.</string>
     <string name="os_skrito_sporocilo">%1$s vom Startbildschirm ausgeblendet</string>
     <string name="os_pokazano_sporocilo">%1$s ist wieder auf dem Startbildschirm</string>
+    <string name="os_krog_prosnja">%1$s bittet um vollen Zugriff auf dieses Gerät (Dateien, Apps, Bildschirm, Schlüssel).</string>
+    <string name="os_krog_dovoli">Erlauben</string>
+    <string name="os_krog_zavrni">Ablehnen</string>
+    <string name="os_krog_zahtevaj">Vollen Zugriff anfordern</string>
+    <string name="os_krog_poslano">Anfrage an %1$s gesendet. Bestätige auf diesem Gerät.</string>
+    <string name="os_krog_ze">%1$s hat bereits vollen Zugriff.</string>
+    <string name="os_krog_ni_krog">%1$s ist noch nicht in deinem engeren Kreis. Füge es zuerst in Safeer Link hinzu.</string>
+    <string name="os_krog_prehitro">Warte einen Moment, bevor du %1$s erneut fragst.</string>
+    <string name="os_krog_stara">Die Anfrage ist abgelaufen oder nicht mehr gültig.</string>
+    <string name="os_krog_stara_naprava">%1$s hat eine ältere Version ohne diese Option.</string>
+    <string name="os_krog_ni_povezave">%1$s ist nicht erreichbar.</string>
+    <string name="os_krog_napaka">Anfrage an %1$s fehlgeschlagen.</string>
+    <string name="os_krog_odobreno">%1$s hat dir vollen Zugriff gewährt.</string>
+    <string name="os_krog_dovoljeno">Voller Zugriff für %1$s erlaubt.</string>
+    <string name="os_krog_odgovor_ni">%1$s konnte nicht benachrichtigt werden; frage dort erneut.</string>
 </resources>

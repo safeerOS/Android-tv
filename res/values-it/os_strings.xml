@@ -797,4 +797,19 @@
     <string name="os_skrite_prazno">Nessuna app nascosta.</string>
     <string name="os_skrito_sporocilo">%1$s nascosta dalla schermata Home</string>
     <string name="os_pokazano_sporocilo">%1$s è di nuovo nella schermata Home</string>
+    <string name="os_krog_prosnja">%1$s richiede l\'accesso completo a questo dispositivo (file, app, schermo, chiavi).</string>
+    <string name="os_krog_dovoli">Consenti</string>
+    <string name="os_krog_zavrni">Rifiuta</string>
+    <string name="os_krog_zahtevaj">Richiedi accesso completo</string>
+    <string name="os_krog_poslano">Richiesta inviata a %1$s. Conferma su quel dispositivo.</string>
+    <string name="os_krog_ze">%1$s ha già l\'accesso completo.</string>
+    <string name="os_krog_ni_krog">%1$s non è ancora nella tua cerchia di fiducia. Aggiungilo prima in Safeer Link.</string>
+    <string name="os_krog_prehitro">Attendi un momento prima di chiedere di nuovo a %1$s.</string>
+    <string name="os_krog_stara">La richiesta è scaduta o non è più valida.</string>
+    <string name="os_krog_stara_naprava">%1$s ha una versione precedente senza questa opzione.</string>
+    <string name="os_krog_ni_povezave">%1$s non è raggiungibile.</string>
+    <string name="os_krog_napaka">Richiesta a %1$s non riuscita.</string>
+    <string name="os_krog_odobreno">%1$s ti ha concesso l\'accesso completo.</string>
+    <string name="os_krog_dovoljeno">Accesso completo consentito per %1$s.</string>
+    <string name="os_krog_odgovor_ni">Impossibile avvisare %1$s; richiedi di nuovo da lì.</string>
 </resources>

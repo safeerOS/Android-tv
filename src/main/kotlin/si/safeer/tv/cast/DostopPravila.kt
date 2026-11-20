@@ -49,6 +49,9 @@ object DostopPravila {
     private val ZASLON = setOf("screen.start", "screen.stop", "screen.status", "key", "scroll", "screenshot",
         "volume", "restart", "clear_cache", "status")
 
+    /** »Zahtevaj poln dostop« (link/KrogProsnjaPravila.DEJANJE_*): prosnja in odgovor; enaka niza kot tam (preizkus). */
+    val KROG_DEJANJA = setOf("circle.request", "circle.grant")
+
     /**
      * Kaj zahteva ukaz `control.command`. Ponudba »Poslji na napravo« (`play.offer`) je prosta: nic se ne zacne,
      * dokler uporabnik na tej napravi ne sprejme. Neznano dejanje zahteva vse - novo dejanje ni odprto po pomoti.
@@ -57,6 +60,8 @@ object DostopPravila {
         val d = dejanje.trim().lowercase()
         return when {
             d == "play.offer" -> Zahteva.PROSTO
+            // Prosnja za poln dostop: prosta (odloca uporabnik na tej napravi); pravila v KrogProsnja.
+            d in KROG_DEJANJA -> Zahteva.PROSTO
             d in DATOTEKE -> Zahteva.DATOTEKE
             d in PROGRAMI -> Zahteva.PROGRAMI
             d in PREDVAJALNIK -> Zahteva.PREDVAJALNIK
@@ -119,7 +124,8 @@ object DostopPravila {
      * poti oznako posiljatelja vpise sredisce - to je lahko katerakoli naprava v Linku. Samodejno usklajevanje kljucev
      * (os/UskladitevKljucevPravila.DEJANJE) posilja samo naprava, ki zascito zna.
      */
-    fun samoZasciteno(dejanje: String): Boolean = dejanje.trim().lowercase() == "secrets.sync"
+    fun samoZasciteno(dejanje: String): Boolean =
+        dejanje.trim().lowercase().let { it == "secrets.sync" || it in KROG_DEJANJA }
 
     /** Ukaz [dejanje]: dostop po zmoznostih ([smeZmoznosti], [smePosiljatelj]), za vnos se clanstvo v krogu ([clanKroga]). */
     fun smeUkaz(dejanje: String, smeZmoznosti: Boolean, clanKroga: () -> Boolean): Boolean =

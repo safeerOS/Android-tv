@@ -149,6 +149,9 @@ open class OsActivity : Activity() {
         // "Poslji na napravo": ponudba druge naprave se pokaze kot tiha pasica na zaslonu v ospredju (ne kot okno).
         Predaja.prikaz = { po -> if (!isFinishing) PredajaObvestilo.pasica(this, po) }
         Predaja.cakajoca?.takeIf { it.velja() }?.let { PredajaObvestilo.umakni(this); PredajaObvestilo.pasica(this, it) }
+        // Prosnja za poln dostop (ozji krog): tiha pasica Dovoli / Zavrni; caka, dokler uporabnik ne odloci ali ne poteče.
+        KrogProsnja.prikaz = { c -> runOnUiThread { if (!isFinishing) pokaziKrogProsnjo(c) } }
+        KrogProsnja.cakajoca()?.let { pokaziKrogProsnjo(it) }
         // Naloga 42 C: novo sporocilo je tiho opozorilo cez ta zaslon (ne vzame fokusa, ne ustavi predvajanja). Del
         // novega zaganjalnika (beta): s starim ostane vse kot prej.
         KlepetLinka.prikaz = if (!ZaganjalnikBeta.vklopljen(this)) null
@@ -215,10 +218,16 @@ open class OsActivity : Activity() {
         LahkiWebViewPool.sprostiProstega()
     }
 
+    private fun pokaziKrogProsnjo(c: KrogProsnja.Cakajoca) {
+        PredajaObvestilo.pasicaSplosna(this, getString(R.string.os_krog_prosnja, c.ime), getString(R.string.os_krog_dovoli),
+            getString(R.string.os_krog_zavrni), { KrogProsnja.dovoli(this, c) }, { KrogProsnja.zavrni(c) })
+    }
+
     override fun onPause() {
         koda.ustavi()
         palica.ustavi()
         if (Predaja.prikaz != null) { Predaja.prikaz = null; PredajaObvestilo.umakniPasico() }
+        KrogProsnja.prikaz = null
         KlepetLinka.prikaz = null
         SporociloPasica.umakniZdaj()
         super.onPause()

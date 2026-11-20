@@ -186,6 +186,8 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
                 nove.add(Vrstica(R.drawable.os_ikona_zaslon, getString(R.string.pk_link_zaslon).replaceFirstChar { it.titlecase() },
                     lepo, if (vKrogu) "" else getString(R.string.pk_link_zaslon_najprej_dostop), n.id + "#zaslon") {
                     when {
+                        // Naprava zna prosnjo za poln dostop: en klik, potrditev na njej; sicer ta naprava odpre dostop sama.
+                        !vKrogu && n.zmoznosti.contains(si.safeer.tv.link.KrogProsnjaPravila.ZMOZNOST) -> zahtevajKrog(n)
                         !vKrogu -> dostopNaprave(n)
                         pot == NapraveKrogaPravila.POT_RACUNALNIK -> startActivity(Intent(this, ZaslonActivity::class.java)
                             .putExtra(DatotekeActivity.EXTRA_RACUNALNIK, n.id))
@@ -333,6 +335,24 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         })
     }
 
+    /** Prosnja za poln dostop do naprave [n]; odgovor kot sporocilo. */
+    private fun zahtevajKrog(n: LinkOdjemalec.Naprava) {
+        val ime = DatotekeActivity.lepoIme(n.ime).ifBlank { n.id }
+        KrogProsnja.poslji(this, n) { izid ->
+            if (isFinishing || isDestroyed) return@poslji
+            val s = when (izid) {
+                "ok" -> getString(R.string.os_krog_poslano, ime)
+                "ze" -> getString(R.string.os_krog_ze, ime)
+                "ni_krog" -> getString(R.string.os_krog_ni_krog, ime)
+                "prehitro", "prevec" -> getString(R.string.os_krog_prehitro, ime)
+                "stara" -> getString(R.string.os_krog_stara_naprava, ime)
+                "ni_povezave" -> getString(R.string.os_krog_ni_povezave, ime)
+                else -> getString(R.string.os_krog_napaka, ime)
+            }
+            Toast.makeText(this, s, Toast.LENGTH_LONG).show()
+        }
+    }
+
     /** Izbira za drugo napravo: njene datoteke (ce jih deli), kaj sme ona na tej napravi, novo ime. */
     private fun izbiraNaprave(n: LinkOdjemalec.Naprava) {
         val moznosti = ArrayList<Pair<String, () -> Unit>>()
@@ -348,6 +368,9 @@ class NapraveActivity : OsActivity(), LinkOdjemalec.Poslusalec {
         }
         if (n.zmoznosti.contains("files")) moznosti.add(getString(R.string.os_naprave_odpri_datoteke) to {
             startActivity(Intent(this, DatotekeActivity::class.java).putExtra(DatotekeActivity.EXTRA_RACUNALNIK, n.id)) })
+        // »Zahtevaj poln dostop«: en klik, potrditev na drugi napravi (os/KrogProsnja); samo za napravo, ki to zna.
+        if (si.safeer.tv.link.KrogProsnjaPravila.ponudi(n.zmoznosti.contains(si.safeer.tv.link.KrogProsnjaPravila.ZMOZNOST), link.jeTaNaprava(n)))
+            moznosti.add(getString(R.string.os_krog_zahtevaj) to { zahtevajKrog(n) })
         moznosti.add(getString(R.string.os_dostop_moznost) to { dostopNaprave(n) })
         // »Vedno dovoli« za deljenje zaslona (link/ZaupanjeZaslona, nacrt »dex-upravljanje« A3): preklic tudi brez deljenja.
         if (si.safeer.tv.link.ZaupanjeZaslona.vedno(this, n.id)) moznosti.add(getString(R.string.deljenje_preklici_zaupanje) to {

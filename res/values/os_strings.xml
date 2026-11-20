@@ -801,4 +801,19 @@
     <string name="os_skrite_prazno">No hidden apps.</string>
     <string name="os_skrito_sporocilo">%1$s hidden from the home screen</string>
     <string name="os_pokazano_sporocilo">%1$s is back on the home screen</string>
+    <string name="os_krog_prosnja">%1$s asks for full access to this device (files, apps, screen, keys).</string>
+    <string name="os_krog_dovoli">Allow</string>
+    <string name="os_krog_zavrni">Decline</string>
+    <string name="os_krog_zahtevaj">Request full access</string>
+    <string name="os_krog_poslano">Request sent to %1$s. Confirm on that device.</string>
+    <string name="os_krog_ze">%1$s already has full access.</string>
+    <string name="os_krog_ni_krog">%1$s is not in your trusted circle yet. Add it in Safeer Link first.</string>
+    <string name="os_krog_prehitro">Please wait a moment before asking %1$s again.</string>
+    <string name="os_krog_stara">This request expired or is no longer valid.</string>
+    <string name="os_krog_stara_naprava">%1$s runs an older version without this option.</string>
+    <string name="os_krog_ni_povezave">%1$s cannot be reached.</string>
+    <string name="os_krog_napaka">Request to %1$s failed.</string>
+    <string name="os_krog_odobreno">%1$s granted you full access.</string>
+    <string name="os_krog_dovoljeno">Full access allowed for %1$s.</string>
+    <string name="os_krog_odgovor_ni">%1$s could not be notified; ask again from there.</string>
 </resources>

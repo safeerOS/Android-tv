@@ -798,6 +798,20 @@ object UskladitevKljucev {
         } } catch (_: java.util.concurrent.RejectedExecutionException) { }
     }
 
+    /** Ali je naprava ze potrjena za sinhronizacijo kljucev. */
+    fun potrjena(c: Context, id: String): Boolean = synchronized(zaklep) {
+        beriNaprave(c.applicationContext)[kljucNaprave(c.applicationContext, id)]?.stanje == UskladitevKljucevPravila.Stanje.POTRJENA
+    }
+
+    /** Uporabnik je napravi odobril poln dostop (ozji krog): sinhronizacija kljucev je s tem potrjena, brez drugega vprasanja. */
+    fun potrdiNapravo(c: Context, id: String, ime: String) {
+        val a = c.applicationContext
+        if (!vklopljeno(a) || !OzjiKrog.vKrogu(a, id)) return
+        cakajoce.remove(kljucNaprave(a, id))
+        zapomni(a, id, ime, UskladitevKljucevPravila.Stanje.POTRJENA, false)
+        sprozi(a, 200)
+    }
+
     /** Zamenjava ali izbris z druge naprave, ki je uporabnik se ni videl (najstarejsa, se veljavna), ali null. */
     fun sprememba(): Sprememba? {
         val zdaj = System.currentTimeMillis()

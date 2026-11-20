@@ -503,6 +503,8 @@ class CastReceiverService : Service() {
                         if (BuildConfig.FLAVOR != "brskalnik") zmoznosti.add(si.safeer.tv.os.SeznamiSink.ZMOZNOST)
                         // Kljuci in dodatki se sami usklajujejo v ozjem krogu (UskladitevKljucev, dejanje secrets.sync).
                         if (BuildConfig.FLAVOR != "brskalnik") zmoznosti.add(si.safeer.tv.os.UskladitevKljucevPravila.ZMOZNOST)
+                        // »Zahtevaj poln dostop« v ozjem krogu: pasico Dovoli / Zavrni ima samo Safeer OS (KrogProsnja).
+                        if (BuildConfig.FLAVOR in setOf("os", "tablica", "telefon")) zmoznosti.add(si.safeer.tv.link.KrogProsnjaPravila.ZMOZNOST)
                         // Preverjevalec doma: Safeer OS (televizor, tablica, telefon) zna za dom vprasati dodatke (DomPreverjanje).
                         if (BuildConfig.FLAVOR in setOf("os", "tablica", "telefon")) zmoznosti.add(si.safeer.tv.os.DomPreverjanjePravila.ZMOZNOST)
                         // Povezani zasloni: telefon, tablica in televizor delijo cel zaslon drugi napravi (s potrditvijo na tej).

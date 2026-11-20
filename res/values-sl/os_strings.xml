@@ -802,4 +802,19 @@
     <string name="os_skrite_prazno">Ni skritih aplikacij.</string>
     <string name="os_skrito_sporocilo">%1$s skrita z domačega zaslona</string>
     <string name="os_pokazano_sporocilo">%1$s je spet na domačem zaslonu</string>
+    <string name="os_krog_prosnja">%1$s zahteva poln dostop do te naprave (datoteke, programi, zaslon, ključi).</string>
+    <string name="os_krog_dovoli">Dovoli</string>
+    <string name="os_krog_zavrni">Zavrni</string>
+    <string name="os_krog_zahtevaj">Zahtevaj poln dostop</string>
+    <string name="os_krog_poslano">Prošnja poslana napravi %1$s. Potrdi na tisti napravi.</string>
+    <string name="os_krog_ze">%1$s že ima poln dostop.</string>
+    <string name="os_krog_ni_krog">%1$s še ni v tvojem ožjem krogu. Najprej jo dodaj v Safeer Linku.</string>
+    <string name="os_krog_prehitro">Počakaj trenutek, preden znova prosiš %1$s.</string>
+    <string name="os_krog_stara">Prošnja je potekla ali ni več veljavna.</string>
+    <string name="os_krog_stara_naprava">%1$s ima starejšo različico brez te možnosti.</string>
+    <string name="os_krog_ni_povezave">Naprave %1$s ni mogoče doseči.</string>
+    <string name="os_krog_napaka">Prošnja napravi %1$s ni uspela.</string>
+    <string name="os_krog_odobreno">%1$s ti je odobrila poln dostop.</string>
+    <string name="os_krog_dovoljeno">Poln dostop za %1$s je dovoljen.</string>
+    <string name="os_krog_odgovor_ni">Naprave %1$s ni bilo mogoče obvestiti; prosi znova od tam.</string>
 </resources>

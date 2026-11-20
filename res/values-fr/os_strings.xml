@@ -797,4 +797,19 @@
     <string name="os_skrite_prazno">Aucune application masquée.</string>
     <string name="os_skrito_sporocilo">%1$s masquée de l\'écran d\'accueil</string>
     <string name="os_pokazano_sporocilo">%1$s est de nouveau sur l\'écran d\'accueil</string>
+    <string name="os_krog_prosnja">%1$s demande l\'accès complet à cet appareil (fichiers, applis, écran, clés).</string>
+    <string name="os_krog_dovoli">Autoriser</string>
+    <string name="os_krog_zavrni">Refuser</string>
+    <string name="os_krog_zahtevaj">Demander l\'accès complet</string>
+    <string name="os_krog_poslano">Demande envoyée à %1$s. Confirmez sur cet appareil.</string>
+    <string name="os_krog_ze">%1$s a déjà l\'accès complet.</string>
+    <string name="os_krog_ni_krog">%1$s n\'est pas encore dans votre cercle de confiance. Ajoutez-le d\'abord dans Safeer Link.</string>
+    <string name="os_krog_prehitro">Patientez un instant avant de redemander à %1$s.</string>
+    <string name="os_krog_stara">La demande a expiré ou n\'est plus valide.</string>
+    <string name="os_krog_stara_naprava">%1$s a une version plus ancienne sans cette option.</string>
+    <string name="os_krog_ni_povezave">%1$s est injoignable.</string>
+    <string name="os_krog_napaka">La demande à %1$s a échoué.</string>
+    <string name="os_krog_odobreno">%1$s vous a accordé l\'accès complet.</string>
+    <string name="os_krog_dovoljeno">Accès complet autorisé pour %1$s.</string>
+    <string name="os_krog_odgovor_ni">Impossible de prévenir %1$s ; redemandez depuis là.</string>
 </resources>

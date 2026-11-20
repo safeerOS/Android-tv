@@ -70,6 +70,8 @@ object Daljinec {
         "video.stream", "video.stream_stop",
         // "Nadaljuj na drugi napravi": kaj ta naprava predvaja (ali je nazadnje gledala) in kje; pavza, ce cilj tako izbere (Predaja).
         "play.state", "play.stop", "play.offer",
+        // »Zahtevaj poln dostop«: prosnja in odgovor v ozjem krogu (os/KrogProsnja).
+        si.safeer.tv.link.KrogProsnjaPravila.DEJANJE_PROSNJA, si.safeer.tv.link.KrogProsnjaPravila.DEJANJE_ODGOVOR,
         // Naloga 129: kljuci debrid storitev s telefona (ozji krog, potrditev na tej napravi).
         si.safeer.tv.os.DebridPravila.DEJANJE_KLJUCI,
         // Samodejno usklajevanje kljucev in dodatkov v ozjem krogu (UskladitevKljucev; enkratna potrditev nove naprave).
@@ -233,6 +235,10 @@ object Daljinec {
             return if (podatki.has("error")) Izid(false, "Neznan ukaz predvajanja", koda = "neveljavno") else Izid(true, "Predvajanje", podatki)
         }
         // "Poslji na napravo": izvor ponudi, kar igra; tu le tiho obvestilo s Sprejmi/Zavrni (nic se ne zacne samo).
+        if (d == si.safeer.tv.link.KrogProsnjaPravila.DEJANJE_PROSNJA)
+            return Izid(true, "Prosnja", si.safeer.tv.os.KrogProsnja.prejmiProsnjo(context, parametri.optString(PARAM_POSILJATELJ, ""), parametri))
+        if (d == si.safeer.tv.link.KrogProsnjaPravila.DEJANJE_ODGOVOR)
+            return Izid(true, "Odgovor", si.safeer.tv.os.KrogProsnja.prejmiOdgovor(context, parametri.optString(PARAM_POSILJATELJ, "")))
         if (d == "play.offer") return Izid(true, "Ponudba", si.safeer.tv.os.Predaja.prejmiPonudbo(context, parametri.optString(PARAM_POSILJATELJ, ""), parametri))
         // Naloga 129: kljuci debrid storitev z druge naprave (ozji krog - dejanje ni v naborih DostopPravila); shranijo se
         // sele po potrditvi na tej napravi.
