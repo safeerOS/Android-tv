@@ -17,6 +17,7 @@
     <string name="yt_uvoz_ni_prijave">Keine gültige YouTube-Anmeldung</string>
     <string name="yt_uvoz_pridobivam">Playlists werden von Ihrem YouTube-Konto abgerufen …</string>
     <string name="yt_uvoz_vsecki">Mag ich (YouTube)</string>
+    <string name="yt_uvoz_narocnine">Abos (YouTube)</string>
     <string name="yt_uvoz_uvazam">Importiere: %1$s …</string>
     <string name="yt_uvoz_ni_seznamov">In Ihrem Konto wurden keine Playlists gefunden.</string>
     <string name="yt_uvoz_uspeh">Importierte YouTube-Playlists: %1$d (Titel: %2$d).</string>

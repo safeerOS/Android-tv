@@ -17,6 +17,7 @@
     <string name="yt_uvoz_ni_prijave">Aucune connexion YouTube valide</string>
     <string name="yt_uvoz_pridobivam">Récupération des playlists de votre compte YouTube …</string>
     <string name="yt_uvoz_vsecki">Vidéos J\'aime (YouTube)</string>
+    <string name="yt_uvoz_narocnine">Abonnements (YouTube)</string>
     <string name="yt_uvoz_uvazam">Importation : %1$s …</string>
     <string name="yt_uvoz_ni_seznamov">Aucune playlist trouvée sur votre compte.</string>
     <string name="yt_uvoz_uspeh">Playlists YouTube importées : %1$d (titres : %2$d).</string>

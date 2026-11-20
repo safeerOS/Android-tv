@@ -17,6 +17,7 @@
     <string name="yt_uvoz_ni_prijave">No hay una sesión válida de YouTube</string>
     <string name="yt_uvoz_pridobivam">Obteniendo las listas de tu cuenta de YouTube …</string>
     <string name="yt_uvoz_vsecki">Me gusta (YouTube)</string>
+    <string name="yt_uvoz_narocnine">Suscripciones (YouTube)</string>
     <string name="yt_uvoz_uvazam">Importando: %1$s …</string>
     <string name="yt_uvoz_ni_seznamov">No se encontraron listas en tu cuenta.</string>
     <string name="yt_uvoz_uspeh">Listas de YouTube importadas: %1$d (pistas: %2$d).</string>

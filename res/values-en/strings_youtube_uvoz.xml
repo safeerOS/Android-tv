@@ -17,6 +17,7 @@
     <string name="yt_uvoz_ni_prijave">No valid YouTube sign-in</string>
     <string name="yt_uvoz_pridobivam">Fetching playlists from your YouTube account …</string>
     <string name="yt_uvoz_vsecki">Liked videos (YouTube)</string>
+    <string name="yt_uvoz_narocnine">YouTube subscriptions</string>
     <string name="yt_uvoz_uvazam">Importing: %1$s …</string>
     <string name="yt_uvoz_ni_seznamov">No playlists were found on your account.</string>
     <string name="yt_uvoz_uspeh">Imported YouTube playlists: %1$d (tracks: %2$d).</string>

@@ -17,6 +17,7 @@
     <string name="yt_uvoz_ni_prijave">Ni veljavne prijave v YouTube</string>
     <string name="yt_uvoz_pridobivam">Pridobivam sezname predvajanja s tvojega YouTube računa …</string>
     <string name="yt_uvoz_vsecki">Všečki (YouTube)</string>
+    <string name="yt_uvoz_narocnine">Naročnine (YouTube)</string>
     <string name="yt_uvoz_uvazam">Uvažam: %1$s …</string>
     <string name="yt_uvoz_ni_seznamov">Na tvojem računu ni bilo najdenih seznamov.</string>
     <string name="yt_uvoz_uspeh">Uspešno uvoženih YouTube seznamov: %1$d (skladb: %2$d).</string>

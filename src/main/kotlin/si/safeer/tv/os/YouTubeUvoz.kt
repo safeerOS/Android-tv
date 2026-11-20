@@ -49,6 +49,27 @@ object YouTubeUvoz {
         return cookies?.contains("LOGIN_INFO") == true || cookies?.contains("SAPISID") == true || cookies?.contains("SSID") == true
     }
 
+    @Volatile private var tece = false
+    @Volatile private var zadnjiPoskus = 0L
+    private const val SAMODEJNO_MS = 12 * 3_600_000L
+
+    /**
+     * Prijavljen uporabnik (lastnik 20. 11. 2026): seznami in narocnine se uvozijo sami ob odprtju Glasbe, ce uvoza se ni bilo
+     * ali je starejsi od 12 ur - ne le po rocnem pritisku na kartico. [naKoncu] samo ob uspehu (osvezitev zaslona).
+     */
+    fun samodejno(ctx: Context, naKoncu: () -> Unit) {
+        val a = ctx.applicationContext
+        if (tece || !jePrijavljen(a)) return
+        val zadnji = a.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getLong(KLJUC_ZADNJI_UVOZ, 0L)
+        val zdaj = System.currentTimeMillis()
+        if (zadnji != 0L && zdaj - zadnji in 0 until SAMODEJNO_MS) return
+        // Neuspel uvoz se ne ponavlja ob vsakem odprtju Glasbe (omrezje, YouTube): najvec na pol ure.
+        if (zdaj - zadnjiPoskus in 0 until 30 * 60_000L) return
+        zadnjiPoskus = zdaj
+        tece = true
+        uvoziVseSezname(a, onKoncano = { uspeh, _ -> tece = false; if (uspeh) naKoncu() })
+    }
+
     fun racunIme(ctx: Context): String =
         ctx.getSharedPreferences(NASTAVITVE, Context.MODE_PRIVATE).getString(KLJUC_RACUN_IME, "").orEmpty()
 
@@ -104,6 +125,11 @@ object YouTubeUvoz {
 
                 var uvozenih = 0
                 var skupajSkladb = 0
+                // Lastnik 20. 11. 2026: tudi kanali, na katere je uporabnik narocen (najnovejsi videi kanalov).
+                val sNarocnine = ctx.getString(R.string.yt_uvoz_narocnine)
+                glavna.post { onNapredek(sNarocnine) }
+                val nar = try { uvoziNarocnine(ctx, sNarocnine, cookies) } catch (e: Throwable) { Log.w(TAG, "Narocnine: ${e.javaClass.simpleName}"); 0 }
+                if (nar > 0) { uvozenih++; skupajSkladb += nar }
                 for (s in seznami) {
                     val sUvazam = ctx.getString(R.string.yt_uvoz_uvazam, s.naslov)
                     glavna.post { onNapredek(sUvazam) }
@@ -134,6 +160,43 @@ object YouTubeUvoz {
                 glavna.post { onKoncano(false, s) }
             }
         }
+    }
+
+    /** Narocnine: kanale prebere s prijavo (FEchannels), videe vsakega iz javnega RSS; vrne stevilo videov v seznamu. */
+    private fun uvoziNarocnine(ctx: Context, naslov: String, cookies: String): Int {
+        val json = zahtevaInnerTube("FEchannels", cookies) ?: return 0
+        val kanali = LinkedHashSet<String>()
+        fun hodi(o: Any?, g: Int) {
+            if (g > 40 || o == null || kanali.size >= YouTubeNarocnine.NAJVEC_KANALOV) return
+            when (o) {
+                is JSONArray -> for (i in 0 until o.length()) hodi(o.opt(i), g + 1)
+                is JSONObject -> {
+                    val k = o.keys()
+                    while (k.hasNext()) {
+                        val kljuc = k.next()
+                        val v = o.opt(kljuc)
+                        if (v is String && (kljuc == "browseId" || kljuc == "channelId") && YouTubeNarocnine.jeIdKanala(v)) kanali.add(v)
+                        else hodi(v, g + 1)
+                    }
+                }
+            }
+        }
+        hodi(json, 0)
+        Log.i(TAG, "narocnine: kanalov ${kanali.size}")
+        val skladbe = ArrayList<Jamendo.Skladba>()
+        for (id in kanali) {
+            val url = YouTubeNarocnine.naslovFeeda(id) ?: continue
+            val xml = try {
+                val c = (URL(url).openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 6_000; readTimeout = 8_000; setRequestProperty("User-Agent", UA)
+                }
+                if (c.responseCode in 200..299) BufferedReader(InputStreamReader(c.inputStream, "UTF-8")).use { it.readText().take(400_000) } else ""
+            } catch (_: Throwable) { "" }
+            for (v in YouTubeNarocnine.videiIzFeeda(xml)) skladbe.add(UvozSeznama.youtubeSkladba(v.id, v.naslov, v.kanal, video = true))
+        }
+        if (skladbe.isEmpty()) return 0
+        MedijskiViri.shraniSeznam(ctx, naslov.take(60), skladbe, "YouTube")
+        return skladbe.size
     }
 
     private fun uvoziPosamezno(ctx: Context, playlistId: String, naslov: String, cookies: String): Int {
@@ -252,6 +315,14 @@ object YouTubeUvoz {
                         ?: titleObj?.optJSONArray("runs")?.optJSONObject(0)?.optString("text")
                         ?: "YouTube"
                     if (id.isNotBlank() && id != "LL") najdeni[id] = naslov
+                }
+                // Nov zapis (lockupViewModel): contentId = id seznama, naslov v lockupMetadataViewModel.
+                val lm = obj.optJSONObject("lockupViewModel")
+                if (lm != null && lm.optString("contentType").contains("PLAYLIST")) {
+                    val id = lm.optString("contentId")
+                    val nasl = lm.optJSONObject("metadata")?.optJSONObject("lockupMetadataViewModel")
+                        ?.optJSONObject("title")?.optString("content").orEmpty().ifBlank { "YouTube" }
+                    if (id.isNotBlank() && id != "LL") najdeni[id] = nasl
                 }
                 // Preišči ključe v globino
                 val it = obj.keys()
