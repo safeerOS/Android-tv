@@ -6579,6 +6579,8 @@ class GlasbaActivity : OsActivity() {
         // Lastnik 27. 10. 2026: seznami predvajanja spadajo h glasbi (tam imajo svojo vrsto) - v Mojih virih jih ni vec na vrhu.
         val usenetVpisan = try { UsenetPonudnik.get(this).stanje().vpisan } catch (_: Throwable) { false }
         val ytPrijavljen = YouTubeUvoz.jePrijavljen(this)
+        val gostIx = try { Usenet.gostitelj(this) } catch (_: Throwable) { null }
+        val stanjeIx = if (gostIx != null) try { Usenet.stanje(this) } catch (_: Throwable) { null } else null
         return listOf(Vrsta("", listOf(
             Kartica(getString(R.string.os_mediji_dodaj), getString(R.string.os_mediji_dodaj_opis), "", { dodajVir() }, ikona = R.drawable.os_ikona_plus),
             // Naloga 125: dolg pritisk vklopi ali izklopi razvojni nacin dodatkov.
@@ -6591,6 +6593,11 @@ class GlasbaActivity : OsActivity() {
             // Naloga 119: TorBox - zasebni in hitrejsi torrenti s kljucem uporabnika.
             // Naloga 128: TorBox, Real-Debrid in AllDebrid na enem mestu.
             Kartica(getString(R.string.os_debrid), opisDebrida(), "", { nastavitveDebrida() }, ikona = R.drawable.os_ikona_zaklep),
+            // Lastnik 20. 11. 2026: Usenet indeksator ima svoj prostor med viri (ne le v oknu Debrid storitve).
+            Kartica(getString(if (gostIx != null) R.string.os_usenet_ix_kartica else R.string.os_usenet_ix_kartica_dodaj),
+                if (gostIx != null) vrsticaUsenetIndeksatorja(gostIx, stanjeIx) else getString(R.string.os_usenet_ix_kartica_opis), "",
+                { usenetIzKartice = true; if (gostIx != null && !DebridPravila.smeKlicati(stanjeIx)) stanjeIndeksatorjaOkno(gostIx) else usenetIndeksator() },
+                ikona = if (gostIx != null) R.drawable.os_ikona_zaklep else R.drawable.os_ikona_plus),
             // Lastnik 27. 10. 2026: lasten ponudnik Usenet (filmi in serije neposredno, brez TorBoxa) - vidno v Mojih virih.
             Kartica(getString(if (usenetVpisan) R.string.os_usenet_ponudnik_naslov else R.string.os_usenet_dodaj_ponudnika),
                 UsenetPonudnikOkno.vrstica(this), "", { UsenetPonudnikOkno.pokazi(this) { osveziNaMestu() } },
@@ -12397,16 +12404,10 @@ class GlasbaActivity : OsActivity() {
         // Lastnik 25. 10. 2026: kot pri kljucih debrid vrstica pove, ali je kljuc indeksatorja potrjen.
         val gostIx = Usenet.gostitelj(this)
         val stanjeIx = if (gostIx != null) Usenet.stanje(this) else null
-        val vrsticaIx = when {
-            gostIx == null -> getString(R.string.os_usenet_vrstica_brez)
-            stanjeIx == DebridPravila.StanjeKljuca.VELJA -> getString(R.string.os_usenet_vrstica_vpisan, gostIx)
-            stanjeIx == DebridPravila.StanjeKljuca.NE_VELJA -> getString(R.string.os_debrid_vrstica_ne_velja, getString(R.string.os_usenet_ime_kratko, gostIx))
-            stanjeIx == DebridPravila.StanjeKljuca.ZAKLENJEN -> getString(R.string.os_debrid_vrstica_zaklenjen, getString(R.string.os_usenet_ime_kratko, gostIx))
-            else -> getString(R.string.os_debrid_vrstica_nepreverjen, getString(R.string.os_usenet_ime_kratko, gostIx))
-        }
+        val vrsticaIx = vrsticaUsenetIndeksatorja(gostIx, stanjeIx)
         // Pregled Grok 41, Z2: indeksator »ne velja« ali »zaklenjen« - okno z navodilom in »Preveri« (kot kljuc debrid).
         val ustavljenIx = gostIx != null && !DebridPravila.smeKlicati(stanjeIx)
-        vrstice += vrsticaIx to { if (ustavljenIx) stanjeIndeksatorjaOkno(gostIx) else usenetIndeksator() }
+        vrstice += vrsticaIx to { usenetIzKartice = false; if (ustavljenIx) stanjeIndeksatorjaOkno(gostIx) else usenetIndeksator() }
         // Naloga 42 G: lasten ponudnik Usenet (NNTP) - okno »Moji viri › Usenet ponudnik« (geslo v Keystore, Preveri na klik).
         vrstice += UsenetPonudnikOkno.vrstica(this) to { UsenetPonudnikOkno.pokazi(this) { osveziNaMestu() } }
         val takoj = Debrid.samoTakoj(this)
@@ -12670,6 +12671,25 @@ class GlasbaActivity : OsActivity() {
 
     /** Vnos ali odstranitev kljuca ene storitve (polje za geslo; kljuc se ne pokaze nazaj). */
     /** Naloga 141: vpis naslova in kljuca indeksatorja Usenet (Newznab); hrani se sifrirano na tej napravi. */
+    /**
+     * Lastnik 20. 11. 2026: Usenet indeksator ima svojo kartico v »Moji viri« (prej je bil skrit v oknu »Debrid storitve«).
+     * [usenetIzKartice]: po koncu okna se vrnemo v Moje vire, ne v okno Debrid storitve.
+     */
+    private var usenetIzKartice = false
+
+    private fun nazajIzIndeksatorja() {
+        if (usenetIzKartice) { usenetIzKartice = false; osveziNaMestu() } else nastavitveDebrida()
+    }
+
+    /** Vrstica o stanju indeksatorja (okno Debrid storitve in kartica v Mojih virih). */
+    private fun vrsticaUsenetIndeksatorja(gostIx: String?, stanjeIx: DebridPravila.StanjeKljuca?): String = when {
+        gostIx == null -> getString(R.string.os_usenet_vrstica_brez)
+        stanjeIx == DebridPravila.StanjeKljuca.VELJA -> getString(R.string.os_usenet_vrstica_vpisan, gostIx)
+        stanjeIx == DebridPravila.StanjeKljuca.NE_VELJA -> getString(R.string.os_debrid_vrstica_ne_velja, getString(R.string.os_usenet_ime_kratko, gostIx))
+        stanjeIx == DebridPravila.StanjeKljuca.ZAKLENJEN -> getString(R.string.os_debrid_vrstica_zaklenjen, getString(R.string.os_usenet_ime_kratko, gostIx))
+        else -> getString(R.string.os_debrid_vrstica_nepreverjen, getString(R.string.os_usenet_ime_kratko, gostIx))
+    }
+
     private fun usenetIndeksator() {
         val rob = (20 * resources.displayMetrics.density).toInt()
         val naslov = android.widget.EditText(this).apply {
@@ -12701,7 +12721,7 @@ class GlasbaActivity : OsActivity() {
                     glavna.post {
                         if (isFinishing || isDestroyed) return@post
                         // Pregled Grok 41, Z9: izjema ni »napaka shranjevanja«; neuspela shramba ni »neveljaven vnos«.
-                        if (iv == null) { Toast.makeText(this, getString(R.string.os_debrid_napaka_notranja, ime), Toast.LENGTH_LONG).show(); osveziNaMestu(); nastavitveDebrida(); return@post }
+                        if (iv == null) { Toast.makeText(this, getString(R.string.os_debrid_napaka_notranja, ime), Toast.LENGTH_LONG).show(); osveziNaMestu(); nazajIzIndeksatorja(); return@post }
                         val izid = iv.preverba
                         val sporocilo = if (iv.napakaShrambe) getString(R.string.os_debrid_napaka_shranjevanja)
                             else if (iv.pocakaj) getString(R.string.os_debrid_preveri_pocakaj)
@@ -12719,16 +12739,16 @@ class GlasbaActivity : OsActivity() {
                             else -> getString(R.string.os_debrid_kljuc_nepreverjen, ime)
                         }
                         Toast.makeText(this, sporocilo, Toast.LENGTH_LONG).show()
-                        osveziNaMestu(); nastavitveDebrida()
+                        osveziNaMestu(); nazajIzIndeksatorja()
                     }
                 }, "safeer-usenet-preverba").start()
             }
-            .setNegativeButton(R.string.os_preklici) { _, _ -> nastavitveDebrida() }
+            .setNegativeButton(R.string.os_preklici) { _, _ -> nazajIzIndeksatorja() }
         if (Usenet.imaIndeksator(this)) g.setNeutralButton(R.string.os_torbox_odstrani) { _, _ ->
             // Pregled Grok 33, F1: nepreverjen ali zavrnjen indeksator se odstrani samo tu.
             if (Usenet.odstrani(this)) Toast.makeText(this, R.string.os_usenet_odstranjeno, Toast.LENGTH_SHORT).show()
             else odstranjenoSporocilo("Usenet", false)
-            osveziNaMestu(); nastavitveDebrida()
+            osveziNaMestu(); nazajIzIndeksatorja()
         }
         val okno = g.create()
         Kontroler.pokazi(okno); okno.show()
@@ -12813,7 +12833,7 @@ class GlasbaActivity : OsActivity() {
             .setMessage(getString(if (zaklenjen) R.string.os_debrid_zaklenjen else R.string.os_debrid_ne_velja_navodilo, ime))
             .setPositiveButton(R.string.os_debrid_preveri) { _, _ -> preveriIndeksatorRocno(ime) }
             .setNeutralButton(R.string.os_debrid_vpisi_nov) { _, _ -> usenetIndeksator() }
-            .setNegativeButton(R.string.os_preklici) { _, _ -> nastavitveDebrida() }
+            .setNegativeButton(R.string.os_preklici) { _, _ -> nazajIzIndeksatorja() }
             .create()
         Kontroler.pokazi(okno); okno.show()
     }
@@ -12837,7 +12857,7 @@ class GlasbaActivity : OsActivity() {
                     DebridPravila.PoPreveri.NI_ODGOVORA -> getString(R.string.os_debrid_preveri_ni_povezave, ime)
                 }
                 Toast.makeText(this, sporocilo, Toast.LENGTH_LONG).show()
-                osveziNaMestu(); nastavitveDebrida()
+                osveziNaMestu(); nazajIzIndeksatorja()
             }
         }, "safeer-usenet-rocno").start()
     }

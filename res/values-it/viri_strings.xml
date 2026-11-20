@@ -212,4 +212,7 @@
     <string name="os_usenet_filter_iscem">Ricerca su Usenet …</string>
     <string name="os_usenet_filter_ne_odgovarja">L’indicizzatore Usenet non è configurato o non risponde al momento. Controllalo in Le mie fonti: Safeer riprova tra qualche minuto.</string>
     <string name="os_usenet_filter_prazno">Nessun titolo per questo filtro: Usenet non ha versioni riproducibili. Per altre fonti scegli ⚡ %1$s.</string>
+    <string name="os_usenet_ix_kartica_dodaj">Aggiungi un indicizzatore Usenet</string>
+    <string name="os_usenet_ix_kartica">Indicizzatore Usenet</string>
+    <string name="os_usenet_ix_kartica_opis">Indirizzo e chiave API (Newznab)</string>
 </resources>

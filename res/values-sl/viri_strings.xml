@@ -212,4 +212,7 @@
     <string name="os_usenet_filter_iscem">Iščem na Usenetu …</string>
     <string name="os_usenet_filter_ne_odgovarja">Indeksator Usenet ni nastavljen ali trenutno ne odgovarja. Preverite ga v »Moji viri« – Safeer čez nekaj minut poskusi znova.</string>
     <string name="os_usenet_filter_prazno">Za ta filter ni naslovov: Usenet zanje nima izdaje, ki bi jo lahko predvajali. Za druge vire izberite ⚡ %1$s.</string>
+    <string name="os_usenet_ix_kartica_dodaj">Dodaj Usenet indeksator</string>
+    <string name="os_usenet_ix_kartica">Usenet indeksator</string>
+    <string name="os_usenet_ix_kartica_opis">Naslov in ključ API (Newznab)</string>
 </resources>

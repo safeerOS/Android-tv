@@ -213,4 +213,7 @@
     <string name="os_usenet_filter_iscem">Searching Usenet …</string>
     <string name="os_usenet_filter_ne_odgovarja">The Usenet indexer is not set up or is not responding right now. Check it in My sources – Safeer tries again in a few minutes.</string>
     <string name="os_usenet_filter_prazno">No titles for this filter: Usenet has no playable release for them. For other sources choose ⚡ %1$s.</string>
+    <string name="os_usenet_ix_kartica_dodaj">Add a Usenet indexer</string>
+    <string name="os_usenet_ix_kartica">Usenet indexer</string>
+    <string name="os_usenet_ix_kartica_opis">Address and API key (Newznab)</string>
 </resources>
